@@ -1,0 +1,13 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Kronos Calendar Settings",
+  "enabled": 1,
+  "modified": "2025-10-16 20:25:50.485456",
+  "module": "Kronos",
+  "name": "test_configuration",
+  "script": "frappe.ui.form.on('Kronos Calendar Settings', {\n    test_verbindung: function(frm) {\n        frappe.call({\n            method: 'diakronos.kronos.caldav_client.test_konfiguration',\n            args: {\n                url: frm.doc.nextcloud_url,\n                username: frm.doc.username,\n                password: frm.doc.app_password\n            },\n            callback: function(r) {\n                if (r.message) {\n                    frappe.msgprint(r.message);\n                }\n            }\n        });\n    }\n});\n",
+  "view": "Form"
+ }
+]

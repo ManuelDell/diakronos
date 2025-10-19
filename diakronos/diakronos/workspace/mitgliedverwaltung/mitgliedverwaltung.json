@@ -1,0 +1,66 @@
+{
+ "app": "diakronos",
+ "charts": [],
+ "content": "[{\"id\":\"PUU9VWYcJ7\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Diakonos</span>\",\"col\":12}},{\"id\":\"AcutRZSW70\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Mitgliederanzahl\",\"col\":4}},{\"id\":\"LG3oQtTx-_\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Besucheranzahl\",\"col\":4}},{\"id\":\"0gsZWkj-b3\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Kinderanzahl\",\"col\":4}},{\"id\":\"ETrKvvf2Vu\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"davon auf Bemerkung\",\"col\":4}},{\"id\":\"-vlP6tXyt7\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"kVhksJihi9\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"nzF2VY71ZI\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"FrvGzGC94L\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"4gSyM6ZjEF\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"rW72xcbMBI\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Neues Mitglied erstellen\",\"col\":3}},{\"id\":\"ASQW3JA_aI\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Neuen Besucher aufnehmen\",\"col\":3}}]",
+ "creation": "2025-10-16 22:33:37.302153",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "share",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Mitgliedverwaltung",
+ "link_type": "DocType",
+ "links": [],
+ "modified": "2025-10-17 11:19:36.487478",
+ "modified_by": "Administrator",
+ "module": "Diakronos",
+ "name": "Mitgliedverwaltung",
+ "number_cards": [
+  {
+   "label": "davon auf Bemerkung",
+   "number_card_name": "Anzahl der Mitglieder auf Bemerkung"
+  },
+  {
+   "label": "Mitgliederanzahl",
+   "number_card_name": "Mitgliederanzahl"
+  },
+  {
+   "label": "Kinderanzahl",
+   "number_card_name": "Kinderanzahl"
+  },
+  {
+   "label": "Besucheranzahl",
+   "number_card_name": "Besucheranzahl"
+  }
+ ],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 32.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "New",
+   "label": "Neues Mitglied erstellen",
+   "link_to": "Mitglied",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "New",
+   "label": "Neuen Besucher aufnehmen",
+   "link_to": "Besucher",
+   "stats_filter": "[]",
+   "type": "DocType"
+  }
+ ],
+ "title": "Mitgliedverwaltung",
+ "type": "Workspace"
+}

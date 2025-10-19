@@ -4,6 +4,18 @@ app_publisher = "Dells Dienste"
 app_description = "Eine Gemeindeverwaltungsapp mit um Gemeindemitgliedern im Dienst unter die Arme zu greifen."
 app_email = "info@diedells.de"
 app_license = "mit"
+app_logo_url = "/assets/diakronos/images/diakronos-logo.svg"
+
+
+fixtures = [
+    "Workspace",
+    "Module Def",
+    "Role",
+    "Custom Field",
+    "Client Script",
+    "Dashboard",
+    # ggf. weitere wichtige Typen!
+]
 
 # Apps
 # ------------------

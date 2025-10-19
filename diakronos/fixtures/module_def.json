@@ -1,0 +1,200 @@
+[
+ {
+  "app_name": "diakronos",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-16 19:42:25.863436",
+  "module_name": "Kronos",
+  "name": "Kronos",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "diakronos",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-16 19:44:50.905412",
+  "module_name": "Diakonos",
+  "name": "Diakonos",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "diakronos",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 16:22:30.637193",
+  "module_name": "Mitgliederverwaltung",
+  "name": "Mitgliederverwaltung",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "diakronos",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 18:25:39.939690",
+  "module_name": "Seelsorge",
+  "name": "Seelsorge",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "frappe",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 19:42:44.820174",
+  "module_name": "Core",
+  "name": "Core",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "frappe",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 19:42:46.819594",
+  "module_name": "Website",
+  "name": "Website",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "frappe",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 19:42:48.002555",
+  "module_name": "Workflow",
+  "name": "Workflow",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "frappe",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 19:42:48.390878",
+  "module_name": "Email",
+  "name": "Email",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "frappe",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 19:42:49.084041",
+  "module_name": "Custom",
+  "name": "Custom",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "frappe",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 19:42:49.281433",
+  "module_name": "Geo",
+  "name": "Geo",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "frappe",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 19:42:49.389337",
+  "module_name": "Desk",
+  "name": "Desk",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "frappe",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 19:42:50.484179",
+  "module_name": "Integrations",
+  "name": "Integrations",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "frappe",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 19:42:51.381967",
+  "module_name": "Printing",
+  "name": "Printing",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "frappe",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 19:42:51.603777",
+  "module_name": "Contacts",
+  "name": "Contacts",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "frappe",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 19:42:51.932311",
+  "module_name": "Automation",
+  "name": "Automation",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "diakronos",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 19:43:21.202768",
+  "module_name": "Diakronos",
+  "name": "Diakronos",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "builder",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 19:43:32.219119",
+  "module_name": "Builder",
+  "name": "Builder",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "print_designer",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
+  "modified": "2025-10-15 19:43:44.330024",
+  "module_name": "Print Designer",
+  "name": "Print Designer",
+  "package": null,
+  "restrict_to_domain": null
+ }
+]

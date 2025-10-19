@@ -1,0 +1,62 @@
+{
+ "app": "diakronos",
+ "charts": [],
+ "content": "[{\"id\":\"fgaialuIRY\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Kronos</span>\",\"col\":12}},{\"id\":\"P-JaEHlZFn\",\"type\":\"card\",\"data\":{\"card_name\":\"Kalenderbearbeitung\",\"col\":4}}]",
+ "creation": "2025-10-17 11:25:57.167651",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "calendar",
+ "idx": 0,
+ "indicator_color": "orange",
+ "is_hidden": 0,
+ "label": "Kronos",
+ "link_type": "DocType",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Kalenderbearbeitung",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Liste der Kalender",
+   "link_count": 0,
+   "link_to": "Kronos Calendar",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Liste aller Ereignisse",
+   "link_count": 0,
+   "link_to": "Calendar Event",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2025-10-17 11:28:52.124437",
+ "modified_by": "Administrator",
+ "module": "Diakronos",
+ "name": "Kronos",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 2.0,
+ "shortcuts": [],
+ "title": "Kronos",
+ "type": "Workspace"
+}
