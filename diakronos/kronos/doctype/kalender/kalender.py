@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class CalendarEvent(Document):
+class Kalender(Document):
 	pass

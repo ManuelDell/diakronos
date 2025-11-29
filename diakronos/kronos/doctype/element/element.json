@@ -1,0 +1,319 @@
+{
+ "actions": [],
+ "allow_auto_repeat": 1,
+ "allow_import": 1,
+ "autoname": "EL.######",
+ "creation": "2025-11-13 18:13:57.941241",
+ "default_view": "List",
+ "doctype": "DocType",
+ "document_type": "Document",
+ "engine": "InnoDB",
+ "field_order": [
+  "details",
+  "element_name",
+  "element_category",
+  "element_calendar",
+  "status",
+  "column_break_4",
+  "element_start",
+  "element_end",
+  "repeat_this_event",
+  "all_day",
+  "cb_00",
+  "series_id",
+  "element_color",
+  "section_break_13",
+  "repeat_on",
+  "repeat_till",
+  "series_master",
+  "column_break_16",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+  "section_break_8",
+  "description",
+  "participants",
+  "event_participants",
+  "section_break_jlqd",
+  "reference_doctype",
+  "column_break_pjkw",
+  "reference_docname",
+  "section_break_qemp",
+  "links"
+ ],
+ "fields": [
+  {
+   "fieldname": "details",
+   "fieldtype": "Section Break",
+   "label": "Details",
+   "oldfieldtype": "Section Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "repeat_this_event",
+   "fieldtype": "Check",
+   "label": "Repeat this Event"
+  },
+  {
+   "fieldname": "column_break_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Festgelegt",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Vorschlag\nFestgelegt\nKonflikt"
+  },
+  {
+   "default": "0",
+   "fieldname": "all_day",
+   "fieldtype": "Check",
+   "label": "All Day"
+  },
+  {
+   "fieldname": "cb_00",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "repeat_this_event",
+   "fieldname": "section_break_13",
+   "fieldtype": "Section Break"
+  },
+  {
+   "depends_on": "repeat_this_event",
+   "description": "Leave blank to repeat always",
+   "fieldname": "repeat_till",
+   "fieldtype": "Date",
+   "label": "Repeat Till"
+  },
+  {
+   "fieldname": "column_break_16",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.repeat_this_event && doc.repeat_on===\"Weekly\"",
+   "fieldname": "monday",
+   "fieldtype": "Check",
+   "label": "Monday"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.repeat_this_event && doc.repeat_on===\"Weekly\"",
+   "fieldname": "tuesday",
+   "fieldtype": "Check",
+   "label": "Tuesday"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.repeat_this_event && doc.repeat_on===\"Weekly\"",
+   "fieldname": "wednesday",
+   "fieldtype": "Check",
+   "label": "Wednesday"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.repeat_this_event && doc.repeat_on===\"Weekly\"",
+   "fieldname": "thursday",
+   "fieldtype": "Check",
+   "label": "Thursday"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.repeat_this_event && doc.repeat_on===\"Weekly\"",
+   "fieldname": "friday",
+   "fieldtype": "Check",
+   "label": "Friday"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.repeat_this_event && doc.repeat_on===\"Weekly\"",
+   "fieldname": "saturday",
+   "fieldtype": "Check",
+   "label": "Saturday"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.repeat_this_event && doc.repeat_on===\"Weekly\"",
+   "fieldname": "sunday",
+   "fieldtype": "Check",
+   "label": "Sunday"
+  },
+  {
+   "fieldname": "section_break_8",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "in_global_search": 1,
+   "label": "Description",
+   "oldfieldname": "description",
+   "oldfieldtype": "Text",
+   "print_width": "300px",
+   "width": "300px"
+  },
+  {
+   "fieldname": "participants",
+   "fieldtype": "Section Break",
+   "label": "Participants",
+   "oldfieldtype": "Section Break"
+  },
+  {
+   "fieldname": "event_participants",
+   "fieldtype": "Table",
+   "label": "Event Participants",
+   "options": "Event Participants"
+  },
+  {
+   "fieldname": "section_break_jlqd",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference Document Type",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "column_break_pjkw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reference_docname",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference Doc",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "section_break_qemp",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "links",
+   "fieldtype": "Table",
+   "label": "Links",
+   "options": "Dynamic Link"
+  },
+  {
+   "fieldname": "series_id",
+   "fieldtype": "Data",
+   "label": "series_id",
+   "read_only": 1
+  },
+  {
+   "fieldname": "element_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Elementname",
+   "reqd": 1
+  },
+  {
+   "fieldname": "element_category",
+   "fieldtype": "Link",
+   "label": "Eventkategorie",
+   "options": "Eventkategorie"
+  },
+  {
+   "fetch_from": "element_calendar.calendar_color",
+   "fetch_if_empty": 1,
+   "fieldname": "element_color",
+   "fieldtype": "Data",
+   "label": "Kalenderfarbe",
+   "read_only": 1
+  },
+  {
+   "fieldname": "element_start",
+   "fieldtype": "Datetime",
+   "label": "Starts on",
+   "reqd": 1
+  },
+  {
+   "fieldname": "element_end",
+   "fieldtype": "Datetime",
+   "label": "Ends on",
+   "reqd": 1
+  },
+  {
+   "depends_on": "repeat_this_event",
+   "fieldname": "repeat_on",
+   "fieldtype": "Select",
+   "in_global_search": 1,
+   "label": "Repeat On",
+   "options": "\nDaily\nWeekly\nMonthly\nQuarterly\nHalf Yearly\nYearly"
+  },
+  {
+   "fieldname": "element_calendar",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Kalender",
+   "oldfieldname": "event_type",
+   "oldfieldtype": "Select",
+   "options": "Kalender",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "series_master",
+   "fieldtype": "Check",
+   "label": "series_master"
+  }
+ ],
+ "grid_page_length": 50,
+ "icon": "fa fa-calendar",
+ "links": [],
+ "modified": "2025-11-29 10:27:00.772590",
+ "modified_by": "Administrator",
+ "module": "Kronos",
+ "name": "Element",
+ "naming_rule": "Expression",
+ "nsm_parent_field": "event_category",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sender_field": "sender",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [
+  {
+   "color": "Green",
+   "title": "Festgelegt"
+  },
+  {
+   "color": "Orange",
+   "title": "Vorschlag"
+  },
+  {
+   "color": "Red",
+   "title": "Konflikt"
+  }
+ ],
+ "subject_field": "subject",
+ "title_field": "element_name",
+ "track_changes": 1,
+ "track_seen": 1,
+ "track_views": 1
+}

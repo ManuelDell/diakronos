@@ -13,9 +13,9 @@ IGNORE_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
 
 
 
-class IntegrationTestCalendarEvent(IntegrationTestCase):
+class IntegrationTestEventkategorie(IntegrationTestCase):
 	"""
-	Integration tests for CalendarEvent.
+	Integration tests for Eventkategorie.
 	Use this class for testing interactions between multiple components.
 	"""
 
