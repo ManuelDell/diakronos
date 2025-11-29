@@ -17,8 +17,29 @@ fixtures = [
     # ggf. weitere wichtige Typen!
 ]
 
+calendar_js = {
+    "Kalender": "kronos/doctype/kalender/kalender_calendar.js"
+}
+standard_pages = [
+    "kronos/page/calendar_overview.html"
+]
+doc_events = {
+    "*": {
+        "Element": {
+            "before_insert": "diakronos.events.element.before_insert",
+        }
+    }
+}
+# ... dein bestehender Code ...
+
+app_include_js = [
+    "public/js/kalender_calendar.js"  # für Client Script (Schritt 2)
+]
+
+# Für API-Methoden
+# Die Methoden sind automatisch whitelisted durch @frappe.whitelist()
 # Apps
-# ------------------
+
 
 # required_apps = []
 

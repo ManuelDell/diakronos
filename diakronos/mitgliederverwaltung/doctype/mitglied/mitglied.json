@@ -6,6 +6,7 @@
    "label": "Benutzer erstellen"
   }
  ],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "format:{vorname} {nachname}",
  "creation": "2025-10-15 16:22:47.469345",
@@ -188,7 +189,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-10-15 18:00:08.204329",
+ "modified": "2025-11-02 19:13:29.688397",
  "modified_by": "Administrator",
  "module": "Mitgliederverwaltung",
  "name": "Mitglied",

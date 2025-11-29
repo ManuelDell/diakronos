@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class KronosCalendarSettings(Document):
+class Eventkategorie(Document):
 	pass

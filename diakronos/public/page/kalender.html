@@ -1,0 +1,27 @@
+<div id="kalender-wrapper" style="padding:20px;">
+    <h2>Kalender</h2>
+    <div id="diakronos-calendar"></div>
+</div>
+
+<script>
+    frappe.ready(() => {
+        setTimeout(() => {
+            new frappe.views.Calendar({
+                doctype: "Kalender",
+                wrapper: $("#diakronos-calendar"),
+                get_events: function (start, end, mode, callback) {
+                    frappe.call({
+                        method: "diakronos.api.get_kalender_events",
+                        args: {
+                            start: start.format("YYYY-MM-DD"),
+                            end: end.format("YYYY-MM-DD")
+                        },
+                        callback: function (r) {
+                            callback(r.message || []);
+                        }
+                    });
+                }
+            });
+        }, 500);
+    });
+</script>

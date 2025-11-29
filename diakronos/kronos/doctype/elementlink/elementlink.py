@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class KronosCalendar(Document):
+class Elementlink(Document):
 	pass
