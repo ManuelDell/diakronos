@@ -6,6 +6,14 @@ app_email = "info@diedells.de"
 app_license = "mit"
 app_logo_url = "/assets/diakronos/images/diakronos-logo.svg"
 
+modules = [
+    {
+        "module_name": "Kronos",
+        "color": "#667eea",
+        "icon": "fa fa-calendar-check-o",
+        "type": "module"
+    }
+]
 
 fixtures = [
     "Workspace",
@@ -17,24 +25,21 @@ fixtures = [
     # ggf. weitere wichtige Typen!
 ]
 
-calendar_js = {
-    "Kalender": "kronos/doctype/kalender/kalender_calendar.js"
-}
 standard_pages = [
     "kronos/page/calendar_overview.html"
 ]
 doc_events = {
-    "*": {
-        "Element": {
-            "before_insert": "diakronos.events.element.before_insert",
-        }
+    "Element": {
+        "before_insert": "diakronos.kronos.doctype.element.element.before_insert",
+        "after_save": "diakronos.kronos.doctype.element.element.after_save"
     }
 }
+api_methods = [
+    "diakronos.kronos.series_handler.update_series_batch_fast",
+    "diakronos.kronos.series_handler.delete_series_batch"
+]
 # ... dein bestehender Code ...
 
-app_include_js = [
-    "public/js/kalender_calendar.js"  # für Client Script (Schritt 2)
-]
 
 # Für API-Methoden
 # Die Methoden sind automatisch whitelisted durch @frappe.whitelist()

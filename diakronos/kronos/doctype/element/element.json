@@ -25,7 +25,6 @@
   "section_break_13",
   "repeat_on",
   "repeat_till",
-  "series_master",
   "column_break_16",
   "monday",
   "tuesday",
@@ -261,18 +260,12 @@
    "options": "Kalender",
    "reqd": 1,
    "search_index": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "series_master",
-   "fieldtype": "Check",
-   "label": "series_master"
   }
  ],
  "grid_page_length": 50,
  "icon": "fa fa-calendar",
  "links": [],
- "modified": "2025-11-29 10:27:00.772590",
+ "modified": "2025-12-08 15:39:58.731571",
  "modified_by": "Administrator",
  "module": "Kronos",
  "name": "Element",

@@ -1,8 +1,8 @@
 {
  "app": "diakronos",
  "charts": [],
- "content": "[{\"id\":\"fgaialuIRY\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Kronos</span>\",\"col\":12}},{\"id\":\"xoLjD_zGR_\",\"type\":\"card\",\"data\":{\"card_name\":\"Kalender und Termine\",\"col\":4}}]",
- "creation": "2025-11-17 21:22:36.890939",
+ "content": "[{\"id\":\"fgaialuIRY\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Kronos</span>\",\"col\":12}},{\"id\":\"1dkem_DkxX\",\"type\":\"card\",\"data\":{\"card_name\":\"Generelles\",\"col\":4}}]",
+ "creation": "2025-12-08 15:41:42.050891",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -18,8 +18,8 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Kalender und Termine",
-   "link_count": 2,
+   "label": "Generelles",
+   "link_count": 3,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -43,9 +43,19 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Eventkategorie",
+   "link_count": 0,
+   "link_to": "Eventkategorie",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2025-11-17 22:06:53.485379",
+ "modified": "2025-12-08 15:43:04.137773",
  "modified_by": "Administrator",
  "module": "Diakronos",
  "name": "Kronos",
