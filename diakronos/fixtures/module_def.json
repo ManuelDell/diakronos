@@ -4,6 +4,17 @@
   "custom": 0,
   "docstatus": 0,
   "doctype": "Module Def",
+  "modified": "2025-11-23 23:45:33.709803",
+  "module_name": "Psalmos",
+  "name": "Psalmos",
+  "package": null,
+  "restrict_to_domain": null
+ },
+ {
+  "app_name": "diakronos",
+  "custom": 0,
+  "docstatus": 0,
+  "doctype": "Module Def",
   "modified": "2025-10-16 19:42:25.863436",
   "module_name": "Kronos",
   "name": "Kronos",

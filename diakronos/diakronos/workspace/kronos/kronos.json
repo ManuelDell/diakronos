@@ -1,8 +1,8 @@
 {
  "app": "diakronos",
  "charts": [],
- "content": "[{\"id\":\"fgaialuIRY\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Kronos</span>\",\"col\":12}},{\"id\":\"1dkem_DkxX\",\"type\":\"card\",\"data\":{\"card_name\":\"Generelles\",\"col\":4}}]",
- "creation": "2025-12-08 15:41:42.050891",
+ "content": "[{\"id\":\"fgaialuIRY\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Kronos</span>\",\"col\":12}},{\"id\":\"y5k7ObR1Lj\",\"type\":\"card\",\"data\":{\"card_name\":\"Kalenderelemente\",\"col\":4}},{\"id\":\"4Q8duGypMp\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Kalenderansicht\",\"col\":3}}]",
+ "creation": "2025-12-14 15:46:44.401592",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -18,7 +18,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Generelles",
+   "label": "Kalenderelemente",
    "link_count": 3,
    "link_type": "DocType",
    "onboard": 0,
@@ -27,9 +27,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Kalender",
+   "label": "Element",
    "link_count": 0,
-   "link_to": "Kalender",
+   "link_to": "Element",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -37,9 +37,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Element",
+   "label": "Kalender",
    "link_count": 0,
-   "link_to": "Element",
+   "link_to": "Kalender",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -55,7 +55,7 @@
    "type": "Link"
   }
  ],
- "modified": "2025-12-08 15:43:04.137773",
+ "modified": "2025-12-14 15:47:44.069780",
  "modified_by": "Administrator",
  "module": "Diakronos",
  "name": "Kronos",
@@ -65,8 +65,16 @@
  "public": 1,
  "quick_lists": [],
  "roles": [],
- "sequence_id": 35.0,
- "shortcuts": [],
+ "sequence_id": 1.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Kalenderansicht",
+   "type": "URL",
+   "url": "https://kico.ecg-hn.de/kronos-web"
+  }
+ ],
  "title": "Kronos",
  "type": "Workspace"
 }
