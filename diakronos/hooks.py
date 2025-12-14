@@ -6,6 +6,19 @@ app_email = "info@diedells.de"
 app_license = "mit"
 app_logo_url = "/assets/diakronos/images/diakronos-logo.svg"
 
+add_to_apps_screen = [{
+    "name": "Diakronos",
+    "logo": "/assets/diakronos/images/diakronos-logo.svg",
+    "title": "Diakronos",
+    "route": "/app/kronos",
+},
+{
+    "name": "Kronos",
+    "logo": "/assets/diakronos/images/kronos-logo.svg",
+    "title": "Kalender",
+    "route": "/kronos-web",
+}]
+
 modules = [
     {
         "module_name": "Kronos",
@@ -34,10 +47,19 @@ doc_events = {
         "after_save": "diakronos.kronos.doctype.element.element.after_save"
     }
 }
-api_methods = [
-    "diakronos.kronos.series_handler.update_series_batch_fast",
-    "diakronos.kronos.series_handler.delete_series_batch"
-]
+# In diakronos/hooks.py
+
+# Whitelisted Methods - aus kronos_core importiert
+whitelisted_methods = {
+    'diakronos.kronos.kronos_core.get_accessible_calendars',
+    'diakronos.kronos.kronos_core.get_calendar_details',
+    'diakronos.kronos.kronos_core.get_calendar_events',
+    'diakronos.kronos.kronos_core.get_event_details',
+    'diakronos.kronos.kronos_core.check_user_permission',
+    'diakronos.kronos.kronos_core.sync_nextcloud_events',
+    'diakronos.kronos.kronos_core.sync_all_calendars'
+}
+
 # ... dein bestehender Code ...
 
 

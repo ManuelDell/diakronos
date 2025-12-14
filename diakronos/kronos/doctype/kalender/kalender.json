@@ -11,6 +11,9 @@
   "calendar_name",
   "calendar_color",
   "calender_details",
+  "section_break_obuf",
+  "leserechte",
+  "schreibrechte",
   "calender_elementlist",
   "calendar_table"
  ],
@@ -52,6 +55,23 @@
    "label": "Name",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "fieldname": "section_break_obuf",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "leserechte",
+   "fieldtype": "Table",
+   "label": "Leserechte",
+   "options": "User Role",
+   "reqd": 1
+  },
+  {
+   "fieldname": "schreibrechte",
+   "fieldtype": "Table",
+   "label": "Schreibrechte",
+   "options": "User Role"
   }
  ],
  "grid_page_length": 50,
@@ -59,14 +79,11 @@
  "links": [
   {
    "link_doctype": "Element",
-   "link_fieldname": "element_name"
-  },
-  {
-   "link_doctype": "Elementlink",
-   "link_fieldname": "elementlink_title"
+   "link_fieldname": "element_name",
+   "table_fieldname": "element_name"
   }
  ],
- "modified": "2025-11-21 14:39:02.285092",
+ "modified": "2025-12-08 16:24:46.420302",
  "modified_by": "Administrator",
  "module": "Kronos",
  "name": "Kalender",
