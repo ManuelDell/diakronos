@@ -9,7 +9,7 @@ class Element(Document):
     """
     Element DocType für Termine/Events.
     """
-    
+
     def before_insert(self):
         """Vor dem Erstellen – Serien generieren wenn aktiviert."""
         if self.repeat_this_event and not self.series_id:
@@ -25,7 +25,7 @@ class Element(Document):
 
     def create_series(self):
         """Erstelle eine Serie von Elementen basierend auf Wiederholungsmuster."""
-        
+
         self.series_id = f"SER-{frappe.generate_hash('', 8).upper()}"
         self.repeat_this_event = 0
 
@@ -71,29 +71,29 @@ class Element(Document):
     def get_next_occurrence(self, current):
         """Berechne das nächste Wiederholungsdatum."""
         days_map = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-        
+
         if self.repeat_on == "Daily":
             return add_days(current, 1)
-        
+
         if self.repeat_on == "Weekly":
             wd = current.weekday()
             for i in range(1, 8):
                 if self.get(days_map[(wd + i) % 7]):
                     return add_days(current, i)
             return add_days(current, 7)
-        
+
         if self.repeat_on == "Monthly":
             return add_months(current, 1)
-        
+
         if self.repeat_on == "Quarterly":
             return add_months(current, 3)
-        
+
         if self.repeat_on == "Half Yearly":
             return add_months(current, 6)
-        
+
         if self.repeat_on == "Yearly":
             return add_months(current, 12)
-        
+
         return None
 
     # ════════════════════════════════════════════════════════════════
@@ -102,16 +102,16 @@ class Element(Document):
 
     def _sync_to_calendar(self):
         """Nach dem Speichern: Synchronisiere Element mit Kalender-Einträgen."""
-        
+
         if frappe.flags.get("element_to_calendar_sync"):
             return
-        
+
         frappe.flags.element_to_calendar_sync = True
 
         try:
             new_cal = self.element_calendar
             old_cal = None
-            
+
             previous = self.get_doc_before_save()
             if previous:
                 old_cal = previous.element_calendar
@@ -119,21 +119,21 @@ class Element(Document):
             # ===== 1. Alten Kalender bereinigen =====
             if old_cal and old_cal != new_cal and frappe.db.exists("Kalender", old_cal):
                 cal = frappe.get_doc("Kalender", old_cal)
-                
+
                 link_field = "element"
                 for f in frappe.get_meta("Elementlink").fields:
                     if f.fieldtype == "Link" and f.options == "Element":
                         link_field = f.fieldname
                         break
-                
+
                 rows_to_remove = []
                 for r in cal.calendar_table:
                     if r.get(link_field) == self.name:
                         rows_to_remove.append(r)
-                
+
                 for r in rows_to_remove:
                     cal.calendar_table.remove(r)
-                
+
                 if rows_to_remove:
                     cal.save(ignore_permissions=True, ignore_version=True)
 
@@ -142,7 +142,7 @@ class Element(Document):
                 return
 
             cal = frappe.get_doc("Kalender", new_cal)
-            
+
             link_field = "element"
             for f in frappe.get_meta("Elementlink").fields:
                 if f.fieldtype == "Link" and f.options == "Element":
@@ -182,6 +182,23 @@ class Element(Document):
 
 
 # ════════════════════════════════════════════════════════════════
+# BERECHTIGUNGEN – HILFSFUNKTION
+# ════════════════════════════════════════════════════════════════
+
+def can_edit_series_instance(doc: "Element") -> bool:
+    """Steuert, ob ein Serienelement im Form-UI editierbar ist.
+
+    - Normale Elemente: immer True
+    - Serienelement (series_id gesetzt): nur, wenn ein spezielles Flag gesetzt ist.
+    """
+    # Kein Serienelement → immer editierbar
+    if not getattr(doc, "series_id", None):
+        return True
+
+    # Serienelement: nur erlauben, wenn Flag gesetzt wurde
+    return bool(frappe.flags.get("allow_series_edit"))
+
+# ════════════════════════════════════════════════════════════════
 # FRAPPE HOOKS (freie Funktionen für hooks.py)
 # ════════════════════════════════════════════════════════════════
 
@@ -193,3 +210,6 @@ def before_insert(doc, method=None):
 def after_save(doc, method=None):
     """Frappe Hook: Wird aufgerufen NACHDEM Element gespeichert wurde."""
     doc.after_save()
+
+
+
