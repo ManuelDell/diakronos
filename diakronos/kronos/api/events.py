@@ -1,8 +1,4 @@
-# diakronos/kronos/api/events.py - FINAL KORRIGIERT
-"""
-API für Event/Element-Verwaltung und -Abfrage.
-Feldnamen aus deinem Element DocType (JSON).
-"""
+# diakronos/kronos/api/events.py - FINAL mit Permissions & Caching
 
 import frappe
 from frappe import _
@@ -10,11 +6,14 @@ from datetime import datetime
 import json
 from .permissions import has_calendar_permission
 
+# ✅ In-Memory Cache für Events (pro Session)
+_events_cache = {}
 
 @frappe.whitelist()
 def get_calendar_events(start_date, end_date, calendar_filter=None):
     """
-    Gibt alle Events im Zeitraum für alle sichtbaren Kalender.
+    Gibt alle Events im Zeitraum mit 2-Jahres-Caching.
+    Status-Visibilität nach Permissions (nur Schreibrecht sieht Konflikt/Vorschlag).
     
     Args:
         start_date (str): ISO-Datum (YYYY-MM-DD)
@@ -46,9 +45,13 @@ def get_calendar_events(start_date, end_date, calendar_filter=None):
 
         # Filter nach Berechtigungen
         accessible_calendars = []
+        writable_calendars = []
+        
         for cal in all_calendars:
             if has_calendar_permission(cal['name'], 'read'):
                 accessible_calendars.append(cal['name'])
+            if has_calendar_permission(cal['name'], 'write'):
+                writable_calendars.append(cal['name'])
 
         # Wenn Filter, dann nur gefilterte die auch zugänglich sind
         if calendars_to_show:
@@ -60,83 +63,120 @@ def get_calendar_events(start_date, end_date, calendar_filter=None):
             frappe.logger().warning(f'No accessible calendars for user {user}')
             return []
 
-        # Hole Events - EXAKTE FELDNAMEN AUS DEINEM DOCTYPE
-        elements = frappe.get_all(
-            'Element',
-            filters=[
-                ['element_calendar', 'in', show_calendars],
-                ['element_start', '>=', start_date + ' 00:00:00'],
-                ['element_end', '<=', end_date + ' 23:59:59'],
-                ['docstatus', '!=', 2]
-            ],
-            fields=[
-                'name',
-                'element_name',          # Der Titel
-                'element_start',         # Start Datetime
-                'element_end',           # End Datetime
-                'all_day',               # Ganztägig
-                'description',           # Beschreibung
-                'element_color',         # Farbe (fetch_from calendar_color)
-                'status',                # Status
-                'element_calendar',      # Kalender Link
-                'owner'
-            ],
-            order_by='element_start asc'
-        )
+        # ✅ CACHE-KEY mit 2-Jahres-Fenster berechnen
+        start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+        year_start = start_dt.year
+        
+        # Bestimme Cache-Fenster (2 Jahre auf einmal)
+        cache_start = datetime(year_start, 1, 1)
+        cache_end = datetime(year_start + 2, 12, 31)
+        cache_key = f"{user}_{cache_start.strftime('%Y-%m-%d')}_{cache_end.strftime('%Y-%m-%d')}"
 
-        # Kalender-Farben Mapping
-        calendar_colors = {}
-        for cal in all_calendars:
-            calendar_colors[cal['name']] = cal.get('calendar_color', '#007bff') or '#007bff'
+        # ✅ Prüfe Cache
+        if cache_key not in _events_cache:
+            frappe.logger().info(f'💾 Lade 2-Jahres-Cache: {cache_key}')
+            
+            # ✅ KORRIGIERTE FILTER für Events die sich über Tage spannen
+            elements = frappe.get_all(
+                'Element',
+                filters=[
+                    ['element_calendar', 'in', show_calendars],
+                    ['element_start', '<=', cache_end.strftime('%Y-%m-%d') + ' 23:59:59'],
+                    ['element_end', '>=', cache_start.strftime('%Y-%m-%d') + ' 00:00:00'],
+                    ['docstatus', '!=', 2]
+                ],
+                fields=[
+                    'name',
+                    'element_name',
+                    'element_start',
+                    'element_end',
+                    'all_day',
+                    'description',
+                    'element_color',
+                    'status',
+                    'element_calendar',
+                    'owner'
+                ],
+                order_by='element_start asc'
+            )
 
-        # Status zu Farb-Mapping
-        STATUS_COLORS = {
-            'Festgelegt': None,      # → Kalender-Farbe
-            'Vorschlag': '#FEF3C7',  # Sanftes Gelb
-            'Konflikt': '#FEE2E2'    # Sanftes Rot
-        }
+            # Kalender-Farben Mapping
+            calendar_colors = {}
+            for cal in all_calendars:
+                calendar_colors[cal['name']] = cal.get('calendar_color', '#007bff') or '#007bff'
 
-        # Formatiere für TUI-Calendar
-        formatted = []
-        for elem in elements:
-            try:
-                # Bestimme Farbe: Status-Farbe OR Kalender-Farbe
-                color = STATUS_COLORS.get(elem.get('status'))
-                if not color:
-                    color = calendar_colors.get(elem.get('element_calendar'), '#007bff')
+            # Status zu Farb-Mapping
+            STATUS_COLORS = {
+                'Festgelegt': None,      # → Kalender-Farbe
+                'Vorschlag': '#FEF3C7',  # Sanftes Gelb
+                'Konflikt': '#FEE2E2'    # Sanftes Rot
+            }
 
-                # Parse Datumsstrings
-                start_str = str(elem.get('element_start', '')).replace(' ', 'T')
-                end_str = str(elem.get('element_end', '')).replace(' ', 'T')
+            # Formatiere für TUI-Calendar
+            formatted = []
+            for elem in elements:
+                try:
+                    # ✅ PERMISSIONS CHECK: Nur Schreibrecht sieht Konflikt/Vorschlag
+                    status = elem.get('status', 'Festgelegt')
+                    if status in ['Vorschlag', 'Konflikt']:
+                        cal_id = elem.get('element_calendar')
+                        if cal_id not in writable_calendars:
+                            # Benutzer hat nur Lesrecht → Skip diese Events
+                            continue
 
-                if not start_str or not end_str:
+                    # Bestimme Farbe: Status-Farbe OR Kalender-Farbe
+                    color = STATUS_COLORS.get(status)
+                    if not color:
+                        color = calendar_colors.get(elem.get('element_calendar'), '#007bff')
+
+                    # Parse Datumsstrings
+                    start_str = str(elem.get('element_start', '')).replace(' ', 'T')
+                    end_str = str(elem.get('element_end', '')).replace(' ', 'T')
+
+                    if not start_str or not end_str:
+                        continue
+
+                    start_dt = datetime.fromisoformat(start_str)
+                    end_dt = datetime.fromisoformat(end_str)
+
+                    event = {
+                        'id': elem.get('name'),
+                        'title': elem.get('element_name', 'Untitled'),
+                        'start': start_dt.isoformat(),
+                        'end': end_dt.isoformat(),
+                        'isAllday': bool(elem.get('all_day')),
+                        'color': color,
+                        'backgroundColor': color,
+                        'borderColor': color,
+                        'calendar': elem.get('element_calendar'),
+                        'status': status,
+                        'description': elem.get('description', ''),
+                        'canEdit': elem.get('owner') == user or elem.get('element_calendar') in writable_calendars
+                    }
+                    formatted.append(event)
+
+                except Exception as e:
+                    frappe.logger().warning(f'Error formatting event {elem.get("name")}: {str(e)}')
                     continue
 
-                start_dt = datetime.fromisoformat(start_str)
-                end_dt = datetime.fromisoformat(end_str)
+            _events_cache[cache_key] = formatted
+            frappe.logger().info(f'✅ Cache gespeichert: {len(formatted)} events')
+        
+        # ✅ Filter aus Cache für angeforderten Zeitraum
+        cached_events = _events_cache[cache_key]
+        requested_start = datetime.fromisoformat(start_date + 'T00:00:00')
+        requested_end = datetime.fromisoformat(end_date + 'T23:59:59')
+        
+        filtered = [
+            e for e in cached_events
+            if (
+                datetime.fromisoformat(e['start']) <= requested_end and
+                datetime.fromisoformat(e['end']) >= requested_start
+            )
+        ]
 
-                event = {
-                    'id': elem.get('name'),
-                    'title': elem.get('element_name', 'Untitled'),
-                    'start': start_dt.isoformat(),
-                    'end': end_dt.isoformat(),
-                    'isAllday': bool(elem.get('all_day')),
-                    'color': color,
-                    'backgroundColor': color,
-                    'borderColor': color,
-                    'calendar': elem.get('element_calendar'),
-                    'status': elem.get('status', 'Festgelegt'),
-                    'description': elem.get('description', ''),
-                    'canEdit': elem.get('owner') == user
-                }
-                formatted.append(event)
-
-            except Exception as e:
-                frappe.logger().warning(f'Error formatting event {elem.get("name")}: {str(e)}')
-                continue
-
-        frappe.logger().info(f'✅ get_calendar_events: {len(formatted)} events for {user}')
-        return formatted
+        frappe.logger().info(f'✅ get_calendar_events: {len(filtered)}/{len(cached_events)} events from cache')
+        return filtered
 
     except Exception as e:
         frappe.log_error(str(e), 'get_calendar_events')
@@ -144,28 +184,11 @@ def get_calendar_events(start_date, end_date, calendar_filter=None):
 
 
 @frappe.whitelist()
-def get_event_details(element_name):
+def clear_events_cache():
     """
-    Gibt Details zu einem spezifischen Event/Element.
+    Löscht den Event-Cache (bei neuen Events).
     """
-    try:
-        element = frappe.get_doc('Element', element_name)
-
-        if not has_calendar_permission(element.element_calendar, 'read'):
-            frappe.throw(_("Keine Berechtigung für dieses Event"))
-
-        return {
-            'name': element.name,
-            'title': element.element_name,
-            'start': str(element.element_start),
-            'end': str(element.element_end),
-            'isAllday': element.all_day,
-            'description': element.description,
-            'status': element.status,
-            'calendar': element.element_calendar,
-            'color': element.element_color,
-        }
-
-    except Exception as e:
-        frappe.log_error(str(e), 'get_event_details')
-        frappe.throw(_('Fehler beim Laden des Events: ') + str(e))
+    global _events_cache
+    _events_cache = {}
+    frappe.logger().info('✅ Events cache cleared')
+    return {'success': True}
