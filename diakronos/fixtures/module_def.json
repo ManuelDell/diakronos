@@ -37,17 +37,6 @@
   "custom": 0,
   "docstatus": 0,
   "doctype": "Module Def",
-  "modified": "2025-10-15 16:22:30.637193",
-  "module_name": "Mitgliederverwaltung",
-  "name": "Mitgliederverwaltung",
-  "package": null,
-  "restrict_to_domain": null
- },
- {
-  "app_name": "diakronos",
-  "custom": 0,
-  "docstatus": 0,
-  "doctype": "Module Def",
   "modified": "2025-10-15 18:25:39.939690",
   "module_name": "Seelsorge",
   "name": "Seelsorge",

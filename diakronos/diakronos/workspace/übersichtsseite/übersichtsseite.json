@@ -1,0 +1,40 @@
+{
+ "app": "diakronos",
+ "charts": [],
+ "content": "[{\"id\":\"ddVqOj3Zw5\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">\u00dcbersichtsseite</span>\",\"col\":12}},{\"id\":\"_kneC9zHL2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Kalender\u00fcbersicht\",\"col\":3}}]",
+ "creation": "2026-01-02 16:32:52.717292",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "setting-gear",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "\u00dcbersichtsseite",
+ "link_type": "DocType",
+ "links": [],
+ "modified": "2026-01-14 13:01:57.632847",
+ "modified_by": "Administrator",
+ "module": "Diakronos",
+ "name": "\u00dcbersichtsseite",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 32.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Kalender\u00fcbersicht",
+   "type": "URL",
+   "url": "https://kico.ecg-hn.de/kronos-web"
+  }
+ ],
+ "title": "\u00dcbersichtsseite",
+ "type": "Workspace"
+}

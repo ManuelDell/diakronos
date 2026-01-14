@@ -2,75 +2,38 @@
 
 {% block title %}Kronos Kalender{% endblock %}
 
-{% block page_content %}
-<!-- ✅ NOTHING HERE - TUI wird komplett selbst gerendert -->
-{% endblock %}
-
 {% block style %}
-<style>
-    /* ✅ Verstecke ALLE Frappe-UI Elemente */
-    .frappe-control,
-    .form-column,
-    .page-head,
-    .page-title,
-    .navbar,
-    .sidebar-menu,
-    footer,
-    .website-footer {
-        display: none !important;
-    }
-
-    html,
-    body,
-    #page-kronos-web {
-        width: 100% !important;
-        height: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: hidden !important;
-    }
-
-    .page-container {
-        max-width: none !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-</style>
+<link rel="stylesheet" href="/assets/diakronos/css/kronos_web.css?v=1.0.06">
 {% endblock %}
 
-{% block script %}
-<!-- ✅ ORIGINAL FUNKTIONIEREND - mit UNPKG CDN (hat vorher geklappt!) -->
-<link rel="stylesheet" href="https://unpkg.com/@toast-ui/calendar@2.1.3/dist/toastui-calendar.min.css">
-<script src="https://unpkg.com/@toast-ui/calendar@2.1.3/dist/toastui-calendar.min.js"></script>
-
-<!-- ✅ TUI Calendar HTML mit Header INLINE -->
-<div id="kronos-app" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999;">
+{% block page_content %}
+<div id="kronos-app">
     <header class="app-header">
         <div class="header-left">
-            <button id="back-button" class="back-btn">
-                &lt;
-            </button>
+            <button id="back-button" class="back-btn" title="Zurück">←</button>
             <h1 id="greeting-title">📅 Kronos</h1>
         </div>
-
+        
         <div class="month-nav-header">
-            <button id="prev-month" class="nav-btn-header">&lt;</button>
-            <div id="current-month-header" class="current-month-header">Dezember 2025</div>
-            <button id="next-month" class="nav-btn-header">&gt;</button>
+            <button id="prev-month" class="nav-btn-header" title="Vorheriger Monat">◀</button>
+            <div id="current-month-header" class="current-month-header">Januar 2026</div>
+            <button id="next-month" class="nav-btn-header" title="Nächster Monat">▶</button>
             <button id="today-button" class="today-btn">Heute</button>
         </div>
-
+        
         <nav class="view-switcher">
             <button id="month-view" class="btn active">Monat</button>
             <button id="week-view" class="btn">Woche</button>
         </nav>
     </header>
-
+    
     <div class="calendar-wrapper">
         <div id="calendar"></div>
     </div>
 </div>
+{% endblock %}
 
-<link rel="stylesheet" href="/assets/diakronos/css/kronos_web.css?v=1.016">
-<script src="/assets/diakronos/js/kronos_web.js?v=1.031"></script>
+{% block script %}
+<script src="/assets/diakronos/js/fullcalendar.min.js?v=6.1.16"></script>
+<script src="/assets/diakronos/js/kronos_web.js?v=1.0.04"></script>
 {% endblock %}
