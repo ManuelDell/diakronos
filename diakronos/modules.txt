@@ -2,5 +2,4 @@ Diakronos
 Kronos
 Diakonos
 Psalmos
-Mitgliederverwaltung
 Seelsorge

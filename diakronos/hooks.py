@@ -6,17 +6,17 @@ app_email = "info@diedells.de"
 app_license = "mit"
 app_logo_url = "/assets/diakronos/images/diakronos-logo.svg"
 
-add_to_apps_screen = [{
-    "name": "Diakronos",
-    "logo": "/assets/diakronos/images/diakronos-logo.svg",
-    "title": "Diakronos",
-    "route": "/app/kronos",
-}, {
-    "name": "Kronos",
-    "logo": "/assets/diakronos/images/kronos-logo.svg",
-    "title": "Kalender",
-    "route": "/kronos-web",
-}]
+# hooks.py - einfach halten
+add_to_apps_screen = [
+    {
+        "name": "diakronos",  # ← lowercase, wie app_name
+        "logo": "/assets/diakronos/images/diakronos-logo.svg",
+        "title": "Diakronos",  # ← title kann capitalized sein
+        "route": "/app/kronos",
+    }
+]
+
+
 
 modules = [
     {
@@ -36,10 +36,6 @@ fixtures = [
     "Dashboard",
 ]
 
-standard_pages = [
-    "kronos/page/calendar_overview.html"
-]
-
 doc_events = {
     "Element": {
         "before_insert": "diakronos.kronos.doctype.element.element.before_insert",
@@ -54,10 +50,4 @@ whitelisted_methods = {
     'diakronos.kronos.kronos_core.get_calendar_events',
     'diakronos.kronos.kronos_core.get_event_details',
     'diakronos.kronos.kronos_core.check_user_permission',
-    'diakronos.kronos.kronos_core.sync_nextcloud_events',
-    'diakronos.kronos.kronos_core.sync_all_calendars',
-    # TUI-Management
-    'diakronos.kronos.api.tui_management.event_create_from_tui',
-    'diakronos.kronos.api.tui_management.event_update_from_tui',
-    'diakronos.kronos.api.tui_management.event_delete_from_tui',
 }
