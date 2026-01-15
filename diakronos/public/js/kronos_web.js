@@ -9,11 +9,13 @@
  * Requires:
  * - FullCalendar 6.1.x
  * - /assets/diakronos/js/modules/element_extract_id.js
- * - /assets/diakronos/js/modules/kronos_modal.js          ← 🆕 HINZUGEFÜGT
  * - /assets/diakronos/js/modules/kronos_calendar.js
+ * 
+ * ⚠️ WICHTIG: kronos_modal.js wird vom Template geladen, NICHT hier!
  * 
  * Naming: calendar_init_diakronos
  */
+
 
 
 class KronosApp {
@@ -21,11 +23,12 @@ class KronosApp {
     constructor() {
         this.modules = {};
         this.ready = false;
-        this.version = '1.0.23';  // ← BUMP: 1.0.23 (Modal hinzugefügt)
+        this.version = '1.0.25';  // ← BUMP: 1.0.25 (Modal Timing-Fix)
         
         console.log(`🚀 KronosApp v${this.version} - Initialisiere...`);
         this.init();
     }
+
 
 
     /**
@@ -41,6 +44,7 @@ class KronosApp {
             this._showError('Fehler beim Initialisieren der App');
         }
     }
+
 
 
     /**
@@ -80,6 +84,7 @@ class KronosApp {
     }
 
 
+
     /**
      * ✅ FIX 2: Warte bis FullCalendar vollständig geladen ist
      */
@@ -95,21 +100,23 @@ class KronosApp {
     }
 
 
+
     /**
      * ✅ FIX 3: Lade alle abhängigen Module in korrekter Reihenfolge
      * ✅ FIX 7: Prüfe ob Module existieren vor Nutzung
      * 
-     * 🆕 ÄNDERUNG: Lade Module in DIESER REIHENFOLGE:
+     * 🔧 GEFIXT: Lade Module in DIESER REIHENFOLGE:
      * 1. element_extract_id.js    (Dependency für andere)
-     * 2. kronos_modal.js          (🆕 MUSS vor kronos_calendar kommen!)
-     * 3. kronos_calendar.js       (Nutzt KronosModal)
+     * 2. kronos_calendar.js       (Nutzt KronosModal vom Template)
+     * 
+     * ⚠️ kronos_modal.js wird vom Template geladen, NICHT hier!
      */
     loadModules() {
         console.log('📦 Lade Module in korrekter Reihenfolge...');
         
         const baseUrl = '/assets/diakronos/js/modules/';
         
-        // 🆕 SCHRITT 1: Lade ElementExtractId
+        // SCHRITT 1: Lade ElementExtractId
         this.loadScript(baseUrl + 'element_extract_id.js', () => {
             if (typeof ElementExtractId === 'undefined') {
                 console.error('❌ ElementExtractId nicht geladen!');
@@ -118,30 +125,39 @@ class KronosApp {
             }
             console.log('✅ ElementExtractId Modul geladen');
             
-            // 🆕 SCHRITT 2: Lade KronosModal BEVOR wir KronosCalendar laden
-            this.loadScript(baseUrl + 'kronos_modal.js', () => {
-                if (typeof window.KronosModal === 'undefined') {
-                    console.error('❌ KronosModal nicht geladen!');
-                    this._showError('Fehler beim Laden des Modal-Systems');
+            // SCHRITT 2: Lade KronosCalendar
+            // KronosModal wird vom Template geladen (asynchron)
+            this.loadScript(baseUrl + 'kronos_calendar.js', () => {
+                if (typeof window.kronosCalendar === 'undefined') {
+                    console.error('❌ KronosCalendar nicht geladen!');
+                    this._showError('Fehler beim Laden des Kalenders');
                     return;
                 }
-                console.log('✅ KronosModal Modul geladen');
+                console.log('✅ KronosCalendar Modul geladen');
                 
-                // 🆕 SCHRITT 3: Lade KronosCalendar (jetzt kann es KronosModal nutzen!)
-                this.loadScript(baseUrl + 'kronos_calendar.js', () => {
-                    if (typeof window.kronosCalendar === 'undefined') {
-                        console.error('❌ KronosCalendar nicht geladen!');
-                        this._showError('Fehler beim Laden des Kalenders');
-                        return;
-                    }
-                    console.log('✅ KronosCalendar Modul geladen');
-                    
-                    // ✅ Alle Module sind jetzt geladen und verfügbar!
-                    this.start();
-                });
+                // Warte bis KronosModal verfügbar ist (vom Template)
+                this.waitForKronosModal();
             });
         });
     }
+
+
+
+    /**
+     * 🆕 WAIT FOR KRONOS MODAL
+     * Warte bis das Modal-Modul vom Template geladen wurde
+     */
+    waitForKronosModal() {
+        if (typeof window.KronosModal === 'undefined') {
+            console.log('⏳ Warte auf KronosModal vom Template...');
+            setTimeout(() => this.waitForKronosModal(), 100);
+            return;
+        }
+        
+        console.log('✅ KronosModal Modul vom Template geladen');
+        this.start();
+    }
+
 
 
     /**
@@ -171,6 +187,7 @@ class KronosApp {
     }
 
 
+
     /**
      * ✅ FIX 5: Starte App wenn alle Module bereit sind
      */
@@ -183,9 +200,10 @@ class KronosApp {
                 throw new Error('KronosCalendar nicht initialisierbar');
             }
             
-            // 🆕 Validiere dass Modal existiert
+            // ✅ Validiere dass Modal existiert
             if (typeof window.KronosModal === 'undefined') {
-                throw new Error('KronosModal nicht verfügbar');
+                console.warn('⚠️ KronosModal immer noch nicht verfügbar!');
+                console.warn('⚠️ Modal-Funktionen könnten fehlschlagen');
             }
             
             window.kronosCalendar.init();
@@ -194,12 +212,13 @@ class KronosApp {
             this.updateMonth();
             
             this.ready = true;
-            console.log('✨ KronosApp bereit! (mit Modal-System)');
+            console.log('✨ KronosApp bereit!');
         } catch (e) {
             console.error('❌ Fehler beim Starten der App:', e);
             this._showError('Fehler beim Starten der App');
         }
     }
+
 
 
     /**
@@ -261,16 +280,18 @@ class KronosApp {
                 }
             });
             
-            // Back Button - ✅ Nutze Frappe Router statt hardcoded URL
+            // Back Button - Navigiere zur Übersichtsseite
             setupButton('back-button', () => {
-                frappe.set_route('home');
+                window.location.href = '/app/übersichtsseite';
             });
+
             
             console.log('✅ Controls setup fertig');
         } catch (e) {
             console.error('❌ Setup Controls Error:', e);
         }
     }
+
 
 
     /**
@@ -291,6 +312,7 @@ class KronosApp {
             console.error('❌ Update View Buttons Error:', e);
         }
     }
+
 
 
     /**
@@ -321,6 +343,7 @@ class KronosApp {
     }
 
 
+
     /**
      * ✅ FIX 2: Setze Begrüßung mit korrekten Frappe Properties
      */
@@ -348,6 +371,7 @@ class KronosApp {
     }
 
 
+
     /**
      * ✅ FIX 2: Zeige Fehler mit frappe.show_alert() statt alert()
      */
@@ -363,6 +387,7 @@ class KronosApp {
             console.error('ERROR:', message);
         }
     }
+
 
 
     /**
@@ -381,6 +406,7 @@ class KronosApp {
         }
     }
 }
+
 
 
 /**

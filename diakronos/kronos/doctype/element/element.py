@@ -25,7 +25,6 @@ class Element(Document):
 
     def create_series(self):
         """Erstelle eine Serie von Elementen basierend auf Wiederholungsmuster."""
-
         self.series_id = f"SER-{frappe.generate_hash('', 8).upper()}"
         self.repeat_this_event = 0
 
@@ -96,13 +95,8 @@ class Element(Document):
 
         return None
 
-    # ════════════════════════════════════════════════════════════════
-    # KALENDER-SYNC
-    # ════════════════════════════════════════════════════════════════
-
     def _sync_to_calendar(self):
         """Nach dem Speichern: Synchronisiere Element mit Kalender-Einträgen."""
-
         if frappe.flags.get("element_to_calendar_sync"):
             return
 
@@ -119,7 +113,6 @@ class Element(Document):
             # ===== 1. Alten Kalender bereinigen =====
             if old_cal and old_cal != new_cal and frappe.db.exists("Kalender", old_cal):
                 cal = frappe.get_doc("Kalender", old_cal)
-
                 link_field = "element"
                 for f in frappe.get_meta("Elementlink").fields:
                     if f.fieldtype == "Link" and f.options == "Element":
@@ -142,7 +135,6 @@ class Element(Document):
                 return
 
             cal = frappe.get_doc("Kalender", new_cal)
-
             link_field = "element"
             for f in frappe.get_meta("Elementlink").fields:
                 if f.fieldtype == "Link" and f.options == "Element":
@@ -187,16 +179,13 @@ class Element(Document):
 
 def can_edit_series_instance(doc: "Element") -> bool:
     """Steuert, ob ein Serienelement im Form-UI editierbar ist.
-
     - Normale Elemente: immer True
     - Serienelement (series_id gesetzt): nur, wenn ein spezielles Flag gesetzt ist.
     """
-    # Kein Serienelement → immer editierbar
     if not getattr(doc, "series_id", None):
         return True
-
-    # Serienelement: nur erlauben, wenn Flag gesetzt wurde
     return bool(frappe.flags.get("allow_series_edit"))
+
 
 # ════════════════════════════════════════════════════════════════
 # FRAPPE HOOKS (freie Funktionen für hooks.py)
@@ -212,4 +201,41 @@ def after_save(doc, method=None):
     doc.after_save()
 
 
+# ════════════════════════════════════════════════════════════════
+# API - DROPDOWN OPTIONS FÜR FRONTEND
+# ════════════════════════════════════════════════════════════════
 
+@frappe.whitelist(allow_guest=False)
+def get_calendar_and_category_options():
+    """
+    Liefert Kalender- und Kategorielisten für Frontend Dropdowns.
+    Nur autorisierte Nutzer.
+    
+    Returns:
+        dict: {
+            "calendars": [{"name": "...", "calendar_name": "..."}, ...],
+            "categories": [{"name": "..."}, ...]
+        }
+    """
+    try:
+        # Kalender abrufen
+        calendars = frappe.get_list(
+            "Kalender",
+            fields=["name", "calendar_name"],
+            limit_page_length=999
+        )
+        
+        # Kategorien abrufen
+        categories = frappe.get_list(
+            "Eventkategorie",
+            fields=["name"],
+            limit_page_length=999
+        )
+        
+        return {
+            "calendars": calendars,
+            "categories": categories
+        }
+    except Exception as e:
+        frappe.log_error(str(e), "get_calendar_and_category_options")
+        return {"calendars": [], "categories": []}
