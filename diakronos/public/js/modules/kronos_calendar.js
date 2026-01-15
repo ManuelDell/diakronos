@@ -174,10 +174,19 @@ class KronosCalendar {
 
             eventClick: (info) => {
                 const elementId = ElementExtractId.fromEvent(info.event);
+                
                 if (ElementExtractId.isValid(elementId)) {
-                    window.location.href = `/app/element/${elementId}`;
+                    console.log('🖱️ Event geklickt:', elementId);
+                    // ✅ RICHTIG: Rufe KronosModal auf statt zu navigieren
+                    KronosModal.showEventClickDialog({
+                        id: elementId,
+                        title: info.event.title,
+                        start: info.event.start,
+                        end: info.event.end
+                    });
                 }
             },
+
             
             dateClick: (info) => {
                 console.log('📅 dateClick triggered:', info.dateStr);

@@ -56,39 +56,60 @@ def update_series_batch_fast(series_id, updates):
         "updated_count": count
     }
 
-
 @frappe.whitelist()
 def delete_series_batch(series_id):
     """Löscht alle Elemente einer Serie."""
     if not series_id:
         frappe.throw(_("Series ID erforderlich"))
-
+    
+    print(f"🗑️ DELETE SERIES: {series_id}")
+    
+    # 🔍 FIND ALL ELEMENTS
     elements = frappe.get_all(
         "Element",
         filters={"series_id": series_id},
         fields=["name", "element_calendar"]
     )
-
+    
+    print(f"🔍 Gefundene Elemente: {len(elements)}")
+    for e in elements:
+        print(f"   - {e.name} (Kalender: {e.element_calendar})")
+    
+    # ✅ WENN NICHTS GEFUNDEN: Trotzdem erfolgreich zurück (keine Serie vorhanden)
     if not elements:
-        frappe.throw(_("Keine Elemente für Serie {0} gefunden").format(series_id))
-
+        print("⚠️ Keine Elemente gefunden für Serie")
+        return {
+            "success": True,
+            "deleted_count": 0,
+            "message": _("Keine Termine in dieser Serie gefunden")
+        }
+    
     deleted_count = 0
+    
     for elem in elements:
         try:
+            print(f"🗑️ Lösche Element: {elem.name}")
+            
+            # Entferne aus Kalender
             if elem.element_calendar:
-                cal_doc = frappe.get_doc("Kalender", elem.element_calendar)
-
-                rows_to_remove = [
-                    row for row in cal_doc.calendar_table
-                    if row.element == elem.name
-                ]
-
-                for row in rows_to_remove:
-                    cal_doc.calendar_table.remove(row)
-
-                if rows_to_remove:
-                    cal_doc.save(ignore_permissions=True, ignore_version=True)
-
+                try:
+                    cal_doc = frappe.get_doc("Kalender", elem.element_calendar)
+                    
+                    rows_to_remove = [
+                        row for row in cal_doc.calendar_table
+                        if row.element == elem.name
+                    ]
+                    
+                    for row in rows_to_remove:
+                        cal_doc.calendar_table.remove(row)
+                    
+                    if rows_to_remove:
+                        cal_doc.save(ignore_permissions=True, ignore_version=True)
+                        print(f"   ✅ Aus Kalender entfernt")
+                except Exception as cal_error:
+                    print(f"   ⚠️ Kalender-Fehler: {cal_error}")
+            
+            # Lösche Element
             frappe.delete_doc(
                 "Element",
                 elem.name,
@@ -98,14 +119,19 @@ def delete_series_batch(series_id):
                 force=True
             )
             deleted_count += 1
-
+            print(f"   ✅ Element gelöscht")
+        
         except Exception as e:
+            print(f"❌ Fehler beim Löschen von {elem.name}: {str(e)}")
             frappe.log_error(
                 f"Fehler beim Löschen von {elem.name}: {str(e)}",
                 "Series Delete Error"
             )
-
+    
     frappe.db.commit()
+    
+    print(f"✅ FERTIG: {deleted_count} Termine gelöscht")
+    
     return {
         "success": True,
         "deleted_count": deleted_count,
