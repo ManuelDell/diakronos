@@ -9,21 +9,24 @@
  * Requires:
  * - FullCalendar 6.1.x
  * - /assets/diakronos/js/modules/element_extract_id.js
+ * - /assets/diakronos/js/modules/kronos_modal.js          ← 🆕 HINZUGEFÜGT
  * - /assets/diakronos/js/modules/kronos_calendar.js
  * 
  * Naming: calendar_init_diakronos
  */
+
 
 class KronosApp {
     
     constructor() {
         this.modules = {};
         this.ready = false;
-        this.version = '1.0.22';
+        this.version = '1.0.23';  // ← BUMP: 1.0.23 (Modal hinzugefügt)
         
         console.log(`🚀 KronosApp v${this.version} - Initialisiere...`);
         this.init();
     }
+
 
     /**
      * Hauptinitialisierung
@@ -38,6 +41,7 @@ class KronosApp {
             this._showError('Fehler beim Initialisieren der App');
         }
     }
+
 
     /**
      * ✅ FIX 1: Registriere deutsche Lokalisierung für FullCalendar
@@ -75,6 +79,7 @@ class KronosApp {
         }
     }
 
+
     /**
      * ✅ FIX 2: Warte bis FullCalendar vollständig geladen ist
      */
@@ -89,17 +94,23 @@ class KronosApp {
         this.loadModules();
     }
 
+
     /**
      * ✅ FIX 3: Lade alle abhängigen Module in korrekter Reihenfolge
      * ✅ FIX 7: Prüfe ob Module existieren vor Nutzung
+     * 
+     * 🆕 ÄNDERUNG: Lade Module in DIESER REIHENFOLGE:
+     * 1. element_extract_id.js    (Dependency für andere)
+     * 2. kronos_modal.js          (🆕 MUSS vor kronos_calendar kommen!)
+     * 3. kronos_calendar.js       (Nutzt KronosModal)
      */
     loadModules() {
-        console.log('📦 Lade Module...');
+        console.log('📦 Lade Module in korrekter Reihenfolge...');
         
         const baseUrl = '/assets/diakronos/js/modules/';
         
+        // 🆕 SCHRITT 1: Lade ElementExtractId
         this.loadScript(baseUrl + 'element_extract_id.js', () => {
-            // ✅ FIX 7: Validiere Modul-Existenz
             if (typeof ElementExtractId === 'undefined') {
                 console.error('❌ ElementExtractId nicht geladen!');
                 this._showError('Fehler beim Laden der erforderlichen Module');
@@ -107,18 +118,31 @@ class KronosApp {
             }
             console.log('✅ ElementExtractId Modul geladen');
             
-            this.loadScript(baseUrl + 'kronos_calendar.js', () => {
-                // ✅ FIX 7: Validiere Modul-Existenz
-                if (typeof window.kronosCalendar === 'undefined') {
-                    console.error('❌ KronosCalendar nicht geladen!');
-                    this._showError('Fehler beim Laden des Kalenders');
+            // 🆕 SCHRITT 2: Lade KronosModal BEVOR wir KronosCalendar laden
+            this.loadScript(baseUrl + 'kronos_modal.js', () => {
+                if (typeof window.KronosModal === 'undefined') {
+                    console.error('❌ KronosModal nicht geladen!');
+                    this._showError('Fehler beim Laden des Modal-Systems');
                     return;
                 }
-                console.log('✅ KronosCalendar Modul geladen');
-                this.start();
+                console.log('✅ KronosModal Modul geladen');
+                
+                // 🆕 SCHRITT 3: Lade KronosCalendar (jetzt kann es KronosModal nutzen!)
+                this.loadScript(baseUrl + 'kronos_calendar.js', () => {
+                    if (typeof window.kronosCalendar === 'undefined') {
+                        console.error('❌ KronosCalendar nicht geladen!');
+                        this._showError('Fehler beim Laden des Kalenders');
+                        return;
+                    }
+                    console.log('✅ KronosCalendar Modul geladen');
+                    
+                    // ✅ Alle Module sind jetzt geladen und verfügbar!
+                    this.start();
+                });
             });
         });
     }
+
 
     /**
      * ✅ FIX 4: Script-Loading mit Error-Handling
@@ -146,6 +170,7 @@ class KronosApp {
         }
     }
 
+
     /**
      * ✅ FIX 5: Starte App wenn alle Module bereit sind
      */
@@ -158,18 +183,24 @@ class KronosApp {
                 throw new Error('KronosCalendar nicht initialisierbar');
             }
             
+            // 🆕 Validiere dass Modal existiert
+            if (typeof window.KronosModal === 'undefined') {
+                throw new Error('KronosModal nicht verfügbar');
+            }
+            
             window.kronosCalendar.init();
             this.setupControls();
             this.setGreeting();
             this.updateMonth();
             
             this.ready = true;
-            console.log('✨ KronosApp bereit!');
+            console.log('✨ KronosApp bereit! (mit Modal-System)');
         } catch (e) {
             console.error('❌ Fehler beim Starten der App:', e);
             this._showError('Fehler beim Starten der App');
         }
     }
+
 
     /**
      * ✅ FIX 5: Setup mit delegierten Event Listenern
@@ -241,6 +272,7 @@ class KronosApp {
         }
     }
 
+
     /**
      * ✅ FIX 6: Aktualisiere View-Buttons mit korrekter Logik
      */
@@ -259,6 +291,7 @@ class KronosApp {
             console.error('❌ Update View Buttons Error:', e);
         }
     }
+
 
     /**
      * ✅ FIX 2: Aktualisiere Monatszahl sicher
@@ -287,6 +320,7 @@ class KronosApp {
         }
     }
 
+
     /**
      * ✅ FIX 2: Setze Begrüßung mit korrekten Frappe Properties
      */
@@ -313,6 +347,7 @@ class KronosApp {
         }
     }
 
+
     /**
      * ✅ FIX 2: Zeige Fehler mit frappe.show_alert() statt alert()
      */
@@ -328,6 +363,7 @@ class KronosApp {
             console.error('ERROR:', message);
         }
     }
+
 
     /**
      * ✅ FIX 5: Cleanup-Methode zum Entfernen von Event Listenern
@@ -345,6 +381,7 @@ class KronosApp {
         }
     }
 }
+
 
 /**
  * ✅ Initialisiere App wenn DOM bereit ist
