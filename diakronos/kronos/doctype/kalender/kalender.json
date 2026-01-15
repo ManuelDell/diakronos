@@ -14,8 +14,7 @@
   "section_break_obuf",
   "leserechte",
   "schreibrechte",
-  "calender_elementlist",
-  "calendar_table"
+  "calender_elementlist"
  ],
  "fields": [
   {
@@ -35,13 +34,6 @@
    "in_list_view": 1,
    "label": "Details",
    "reqd": 1
-  },
-  {
-   "columns": 4,
-   "fieldname": "calendar_table",
-   "fieldtype": "Table",
-   "label": "Elementverkn\u00fcpfung",
-   "options": "Elementlink"
   },
   {
    "fieldname": "calender_elementlist",
@@ -83,7 +75,7 @@
    "table_fieldname": "element_name"
   }
  ],
- "modified": "2025-12-08 16:24:46.420302",
+ "modified": "2026-01-14 20:54:43.616233",
  "modified_by": "Administrator",
  "module": "Kronos",
  "name": "Kalender",
