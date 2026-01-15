@@ -1,11 +1,21 @@
 # diakronos/kronos/api/permissions.py
+"""
+PERMISSIONS - Berechtigungsverwaltung für Kalender
+Role-basiertes System mit leserechte & schreibrechte Tables
+"""
+
 import frappe
+from frappe import _
 from datetime import datetime
 
 
-def has_calendar_permission(calendar_name, permission_type="read"):
+def has_calendar_permission(calendar_name, permission_type='read'):
     """
-    Prüft, ob aktueller User Berechtigung für einen Kalender hat.
+    Prüfe ob aktueller Benutzer Berechtigung für einen Kalender hat
+    
+    Schema: Kalender hat:
+    - leserechte (Table mit Roles)
+    - schreibrechte (Table mit Roles)
     
     Args:
         calendar_name (str): Name des Kalenders
@@ -14,127 +24,115 @@ def has_calendar_permission(calendar_name, permission_type="read"):
     Returns:
         bool: True wenn Berechtigung vorhanden
     """
+    user = frappe.session.user
+    user_roles = set(frappe.get_roles(user))
+    
+    # Admins haben immer alle Rechte
+    if "Administrator" in user_roles or "System Manager" in user_roles:
+        return True
+    
     try:
-        user = frappe.session.user
-        
-        if user == "Guest":
-            return False
-        
-        user_roles = frappe.get_roles()
-        
-        # Administrator hat ALLES
-        if "Administrator" in user_roles:
-            return True
-        
-        # Hole Kalender-Doc
-        try:
-            calendar = frappe.get_doc('Kalender', calendar_name)
-        except frappe.DoesNotExistError:
-            frappe.log_error(f'Kalender nicht gefunden: {calendar_name}', 'has_calendar_permission')
-            return False
-        
-        # Hole Rollen aus den Tabellen
-        write_roles = [row.role for row in (calendar.schreibrechte or [])]
-        read_roles = [row.role for row in (calendar.leserechte or [])]
-        
-        # SCHREIBZUGRIFF: Nur wenn in schreibrechte eingetragen
-        if permission_type == "write":
-            if any(role in user_roles for role in write_roles):
-                return True
-            return False
-        
-        # LESEZUGRIFF: Wenn in schreibrechte ODER leserechte eingetragen
-        if permission_type == "read":
-            all_allowed_roles = write_roles + read_roles
-            if any(role in user_roles for role in all_allowed_roles):
-                return True
-            return False
-        
+        calendar = frappe.get_doc('Kalender', calendar_name)
+    except frappe.DoesNotExistError:
+        frappe.logger().warning(f'Kalender {calendar_name} nicht gefunden')
         return False
-        
-    except Exception as e:
-        frappe.log_error(str(e), 'has_calendar_permission')
-        return False
+    
+    if permission_type == 'read':
+        # Prüfe leserechte Table
+        read_roles = calendar.get('leserechte', []) or []
+        for entry in read_roles:
+            role = entry.get('role') or entry.get('user_role')
+            if role and role in user_roles:
+                return True
+    
+    elif permission_type == 'write':
+        # Prüfe schreibrechte Table
+        write_roles = calendar.get('schreibrechte', []) or []
+        for entry in write_roles:
+            role = entry.get('role') or entry.get('user_role')
+            if role and role in user_roles:
+                return True
+    
+    return False
 
 
 @frappe.whitelist()
 def can_create_event():
     """
-    Wird aufgerufen wenn User auf Tag im Kalender klickt.
+    Prüfe ob aktueller Nutzer Events erstellen darf
+    Wird aufgerufen wenn User auf Tag im Kalender klickt
+    
+    Returns:
+        Dict mit can_create Flag und verfügbaren Kalendern
     """
-    try:
-        user = frappe.session.user
-        
-        if user == "Guest":
-            return {
-                'can_create': False,
-                'default_calendar': None,
-                'writable_calendars': []
-            }
-        
-        user_roles = frappe.get_roles()
-        
-        # Administrator hat ALLES
-        if "Administrator" in user_roles:
-            all_calendars = frappe.db.get_list(
-                'Kalender',
-                fields=['name', 'calendar_name']
-            )
-            writable_calendars = [
-                {'label': cal['calendar_name'], 'value': cal['name']}
-                for cal in all_calendars
-            ]
-            default_calendar = writable_calendars[0]['value'] if writable_calendars else None
-            
-            return {
-                'can_create': len(writable_calendars) > 0,
-                'default_calendar': default_calendar,
-                'writable_calendars': writable_calendars
-            }
-        
-        # Für normale User: Hole alle Kalender und prüfe Berechtigungen
-        all_calendars = frappe.db.get_list(
+    user = frappe.session.user
+    
+    if user == "Guest":
+        return {
+            'can_create': False,
+            'default_calendar': None,
+            'writable_calendars': []
+        }
+    
+    user_roles = frappe.get_roles()
+    
+    # Admins können überall erstellen
+    if "Administrator" in user_roles or "System Manager" in user_roles:
+        all_calendars = frappe.get_all(
             'Kalender',
             fields=['name', 'calendar_name']
         )
-        
-        writable_calendars = []
-        default_calendar = None
-        
-        for cal in all_calendars:
-            cal_doc = frappe.get_doc('Kalender', cal['name'])
-            write_roles = [row.role for row in (cal_doc.schreibrechte or [])]
-            
-            if any(role in user_roles for role in write_roles):
-                writable_calendars.append({
-                    'label': cal['calendar_name'],
-                    'value': cal['name']
-                })
-                
-                if default_calendar is None:
-                    default_calendar = cal['name']
+        writable_calendars = [
+            {'label': cal['calendar_name'], 'value': cal['name']}
+            for cal in all_calendars
+        ]
+        default_calendar = writable_calendars[0]['value'] if writable_calendars else None
         
         return {
             'can_create': len(writable_calendars) > 0,
             'default_calendar': default_calendar,
             'writable_calendars': writable_calendars
         }
-        
-    except Exception as e:
-        frappe.log_error(str(e), 'can_create_event')
-        return {
-            'can_create': False,
-            'default_calendar': None,
-            'writable_calendars': [],
-            'error': str(e)
-        }
+    
+    # Normale Benutzer: Prüfe Kalender-Berechtigungen
+    all_calendars = frappe.get_all(
+        'Kalender',
+        fields=['name', 'calendar_name']
+    )
+    
+    writable_calendars = []
+    default_calendar = None
+    
+    for cal in all_calendars:
+        if has_calendar_permission(cal['name'], 'write'):
+            writable_calendars.append({
+                'label': cal['calendar_name'],
+                'value': cal['name']
+            })
+            
+            if default_calendar is None:
+                default_calendar = cal['name']
+    
+    return {
+        'can_create': len(writable_calendars) > 0,
+        'default_calendar': default_calendar,
+        'writable_calendars': writable_calendars
+    }
 
 
 @frappe.whitelist()
 def get_element_creation_dialog_defaults(date_str=None, calendar_name=None):
     """
-    Hole vorausgefüllte Werte für Quick Entry Dialog.
+    Hole Default-Werte für Element-Erstellungs-Dialog
+    
+    Args:
+        date_str: Datum als String "2026-01-05"
+        calendar_name: Standard-Kalender
+    
+    Returns:
+        Dict mit defaults und can_create Flag
     """
+    
     try:
         can_create_response = can_create_event()
         
@@ -142,7 +140,8 @@ def get_element_creation_dialog_defaults(date_str=None, calendar_name=None):
             return {
                 'can_create': False,
                 'defaults': {},
-                'error': 'Keine Berechtigung zum Erstellen'
+                'writable_calendars': [],
+                'error': _('Keine Berechtigung zum Erstellen')
             }
         
         selected_calendar = calendar_name or can_create_response['default_calendar']
@@ -165,7 +164,10 @@ def get_element_creation_dialog_defaults(date_str=None, calendar_name=None):
                 defaults['element_end'] = end_time.strftime('%Y-%m-%d %H:%M:%S')
                 
             except Exception as e:
-                frappe.log_error(f'Fehler beim Datums-Parsing: {str(e)}', 'get_element_creation_dialog_defaults')
+                frappe.log_error(
+                    f'Fehler beim Datums-Parsing: {str(e)}',
+                    'get_element_creation_dialog_defaults'
+                )
         
         return {
             'can_create': True,
@@ -177,6 +179,7 @@ def get_element_creation_dialog_defaults(date_str=None, calendar_name=None):
         return {
             'can_create': False,
             'defaults': {},
+            'writable_calendars': [],
             'error': str(ve)
         }
     except Exception as e:
@@ -184,5 +187,6 @@ def get_element_creation_dialog_defaults(date_str=None, calendar_name=None):
         return {
             'can_create': False,
             'defaults': {},
+            'writable_calendars': [],
             'error': str(e)
         }

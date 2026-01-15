@@ -4,14 +4,21 @@
  * ═══════════════════════════════════════════════════════════════
  * Verwaltet die FullCalendar Integration und Event-Handling
  * MIT: Modal-Dialog für Element-Erstellung mit Serientermin-Feldern
+ * 
+ * ⚠️ KRITISCH: Alle DateTime-Handling MUSS UTC sein!
+ * 🔧 TIMEZONE-FIX: Korrekte UTC↔LOCAL Konvertierung implementiert
+ * 🧹 CACHE-FIX: cache: false + refetchEvents() (moderne Frappe)
  */
+
 
 class KronosCalendar {
     constructor() {
         this.calendar = null;
         this.currentFormData = null;
+        this.calendarColors = {};
         console.log('📅 KronosCalendar Module geladen');
     }
+
 
     init() {
         const calendarEl = document.getElementById('calendar');
@@ -40,10 +47,136 @@ class KronosCalendar {
             },
 
             editable: true,
-            eventDrop: (info) => window.kronosEvents.updateEvent(info.event),
-            eventResize: (info) => window.kronosEvents.updateEvent(info.event),
+            
+            eventDrop: (info) => {
+                const elementId = ElementExtractId.fromEvent(info.event);
+                
+                console.group('📍 EVENT DROP');
+                console.log('Extracted ID:', elementId);
+                console.log('Neue Zeit:', info.event.start);
+                
+                if (!ElementExtractId.isValid(elementId)) {
+                    console.error('❌ Ungültige Event-ID!');
+                    console.groupEnd();
+                    frappe.show_alert({
+                        message: '❌ Fehler: Event-ID konnte nicht ermittelt werden',
+                        indicator: 'red'
+                    });
+                    info.revert();  // ← KRITISCH: Event zurückspringen wenn ungültig
+                    return;
+                }
+                
+                // ✅ SIMPEL: Nimm die Zeit direkt, konvertiere zu String
+                const startStr = this.formatDateForBackend(info.event.start);
+                const endStr = this.formatDateForBackend(info.event.end || info.event.start);
+                
+                console.log('Start → Backend:', startStr);
+                console.log('End → Backend:', endStr);
+                console.log('✅ Sende Update...');
+                console.groupEnd();
+                
+                frappe.call({
+                    method: 'diakronos.kronos.api.event_crud.update_event',
+                    args: {
+                        'name': elementId,
+                        'element_start': startStr,
+                        'element_end': endStr
+                    },
+                    cache: false,  // ← KRITISCH: Nicht cachen!
+                    callback: (r) => {
+                        if (r.exc) {
+                            console.error('❌ Update fehlgeschlagen:', r.exc);
+                            frappe.show_alert({
+                                message: '❌ Fehler beim Verschieben',
+                                indicator: 'red'
+                            });
+                            info.revert();  // ← KRITISCH: info.revert() bei Fehler!
+                        } else {
+                            console.log('✅ Event erfolgreich verschoben');
+                            frappe.show_alert({
+                                message: '✅ Termin aktualisiert',
+                                indicator: 'green'
+                            });
+                            this.refetchEvents();  // ← Events neuladen!
+                        }
+                    },
+                    error: (err) => {
+                        console.error('❌ Frappe Call Fehler:', err);
+                        frappe.show_alert({
+                            message: '❌ Fehler beim Verschieben',
+                            indicator: 'red'
+                        });
+                        info.revert();  // ← KRITISCH: info.revert() im error-handler!
+                    }
+                });
+            },
+
+            eventResize: (info) => {
+                const elementId = ElementExtractId.fromEvent(info.event);
+                
+                console.group('📏 EVENT RESIZE');
+                console.log('Extracted ID:', elementId);
+                
+                if (!ElementExtractId.isValid(elementId)) {
+                    console.error('❌ Ungültige Event-ID!');
+                    console.groupEnd();
+                    frappe.show_alert({
+                        message: '❌ Fehler: Event-ID konnte nicht ermittelt werden',
+                        indicator: 'red'
+                    });
+                    info.revert();  // ← KRITISCH: Event zurückspringen wenn ungültig
+                    return;
+                }
+                
+                // ✅ SIMPEL: Direkt formatieren
+                const startStr = this.formatDateForBackend(info.event.start);
+                const endStr = this.formatDateForBackend(info.event.end || info.event.start);
+                
+                console.log('Start → Backend:', startStr);
+                console.log('✅ Sende Update...');
+                console.groupEnd();
+                
+                frappe.call({
+                    method: 'diakronos.kronos.api.event_crud.update_event',
+                    args: {
+                        'name': elementId,
+                        'element_start': startStr,
+                        'element_end': endStr
+                    },
+                    cache: false,  // ← KRITISCH: Nicht cachen!
+                    callback: (r) => {
+                        if (r.exc) {
+                            console.error('❌ Update fehlgeschlagen:', r.exc);
+                            frappe.show_alert({
+                                message: '❌ Fehler beim Vergrößern',
+                                indicator: 'red'
+                            });
+                            info.revert();  // ← KRITISCH: info.revert() bei Fehler!
+                        } else {
+                            console.log('✅ Event erfolgreich vergrößert');
+                            frappe.show_alert({
+                                message: '✅ Termin vergrößert',
+                                indicator: 'green'
+                            });
+                            this.refetchEvents();  // ← Events neuladen!
+                        }
+                    },
+                    error: (err) => {
+                        console.error('❌ Frappe Call Fehler:', err);
+                        frappe.show_alert({
+                            message: '❌ Fehler beim Vergrößern',
+                            indicator: 'red'
+                        });
+                        info.revert();  // ← KRITISCH: info.revert() im error-handler!
+                    }
+                });
+            },
+
             eventClick: (info) => {
-                window.location.href = `/app/element/${info.event.id}`;
+                const elementId = ElementExtractId.fromEvent(info.event);
+                if (ElementExtractId.isValid(elementId)) {
+                    window.location.href = `/app/element/${elementId}`;
+                }
             },
             
             dateClick: (info) => {
@@ -66,11 +199,13 @@ class KronosCalendar {
         }
     }
 
+
     handleDateClick(info) {
         console.log('🔐 Prüfe Schreibrechte...');
         
         frappe.call({
             method: 'diakronos.kronos.api.permissions.can_create_event',
+            cache: false,  // ← WICHTIG: Nicht cachen!
             callback: (r) => {
                 console.log('📋 Berechtigung-Response:', r.message);
                 
@@ -95,6 +230,7 @@ class KronosCalendar {
         });
     }
 
+
     openQuickEntry(dateStr, permissionData) {
         console.log('📝 Öffne Element-Form Modal für:', dateStr);
         
@@ -104,6 +240,7 @@ class KronosCalendar {
                 date_str: dateStr,
                 calendar_name: permissionData.default_calendar
             },
+            cache: false,  // ← WICHTIG: Nicht cachen!
             callback: (r) => {
                 console.log('📋 Dialog Defaults:', r.message);
                 
@@ -301,17 +438,54 @@ class KronosCalendar {
 
 
     formatDatetimeLocal(datetimeStr) {
+        // INPUT: "2026-01-16 08:00:00" (vom Backend, UTC)
+        // OUTPUT: "2026-01-16T08:00" (für datetime-local Input, LOKALE Zeit)
         if (!datetimeStr) return '';
-        return datetimeStr.replace(' ', 'T').slice(0, 16);
+        
+        // Parse als UTC (Backend gibt immer UTC)
+        const date = new Date(datetimeStr + 'Z'); // ← 'Z' sagt "UTC"
+        
+        // Berechne LOCAL time für Anzeige (= was der User sieht)
+        const offset = date.getTimezoneOffset() * 60000; // Offset in ms
+        const localDate = new Date(date.getTime() - offset);
+        
+        // Format: "2026-01-16T08:00"
+        const year = localDate.getUTCFullYear();
+        const month = String(localDate.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(localDate.getUTCDate()).padStart(2, '0');
+        const hours = String(localDate.getUTCHours()).padStart(2, '0');
+        const minutes = String(localDate.getUTCMinutes()).padStart(2, '0');
+        
+        console.log(`📤 formatDatetimeLocal UTC→LOCAL: ${datetimeStr} (UTC) → ${year}-${month}-${day}T${hours}:${minutes} (LOCAL)`);
+        
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
     }
+
+
+    formatDateForBackend(dateObj) {
+        // ✅ Einfach: JavaScript Date → "YYYY-MM-DD HH:MM:SS" Format
+        if (!dateObj) return null;
+        
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const hours = String(dateObj.getHours()).padStart(2, '0');
+        const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+        const seconds = String(dateObj.getSeconds()).padStart(2, '0');
+        
+        const formatted = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        console.log(`📤 formatDateForBackend: ${dateObj} → ${formatted}`);
+        return formatted;
+    }
+
 
     saveElement() {
         console.log('💾 Speichere Element mit Serie...');
         
         const element_name = document.getElementById('modal_element_name')?.value;
         const element_calendar = document.getElementById('modal_element_calendar')?.value;
-        const element_start = document.getElementById('modal_element_start')?.value;
-        const element_end = document.getElementById('modal_element_end')?.value;
+        const element_start_input = document.getElementById('modal_element_start')?.value; // "2026-01-16T08:00" (LOCAL)
+        const element_end_input = document.getElementById('modal_element_end')?.value;     // "2026-01-16T09:00" (LOCAL)
         
         // Serie-Felder
         const repeatthisevent = document.getElementById('modal_repeatthisevent')?.checked ? 1 : 0;
@@ -327,7 +501,7 @@ class KronosCalendar {
         const saturday = document.getElementById('modal_saturday')?.checked ? 1 : 0;
         const sunday = document.getElementById('modal_sunday')?.checked ? 1 : 0;
         
-        console.log('🔍 Form Values:', { element_name, element_calendar, element_start, element_end, repeatthisevent, repeaton });
+        console.log('🔍 Form Values:', { element_name, element_calendar, element_start_input, element_end_input });
         
         if (!element_name || element_name.trim() === '') {
             frappe.show_alert({ 
@@ -337,7 +511,7 @@ class KronosCalendar {
             return;
         }
         
-        if (!element_start || !element_end) {
+        if (!element_start_input || !element_end_input) {
             frappe.show_alert({ 
                 message: '❌ Start- und Endzeit erforderlich', 
                 indicator: 'red' 
@@ -345,18 +519,33 @@ class KronosCalendar {
             return;
         }
         
-        const startDateTime = element_start.replace('T', ' ') + ':00';
-        const endDateTime = element_end.replace('T', ' ') + ':00';
+        // 🔧 RICHTIG: datetime-local (LOCAL) → UTC für Backend
+        // datetime-local gibt "2026-01-16T08:00" - Browser nimmt das als LOKALE Zeit
+        // Wir müssen das zu UTC für das Backend konvertieren
+        const startDate = new Date(element_start_input);   // Browser: "2026-01-16T08:00" (LOCAL)
+        const endDate = new Date(element_end_input);       // Browser: "2026-01-16T09:00" (LOCAL)
         
-        console.log('📤 Sende Daten zum Backend:', { element_name, element_calendar, startDateTime, endDateTime, repeatthisevent });
+        // Zu ISO UTC konvertieren
+        const startUTC = startDate.toISOString();          // "2026-01-16T07:00:00.000Z" (wenn UTC+1)
+        const endUTC = endDate.toISOString();              // "2026-01-16T08:00:00.000Z"
         
-        // Baue Element-Objekt - EXAKT wie in der Element-DocType Definition
+        // Format für Backend: "2026-01-16 07:00:00" (UTC ohne Z und Millisekunden)
+        const element_start = startUTC.slice(0, 19).replace('T', ' ');
+        const element_end = endUTC.slice(0, 19).replace('T', ' ');
+        
+        console.group('🔄 Timezone Conversion');
+        console.log('  Input (LOCAL):', { element_start_input, element_end_input });
+        console.log('  ISO UTC:', { startUTC, endUTC });
+        console.log('  Output (Backend):', { element_start, element_end });
+        console.groupEnd();
+        
+        // Baue Element-Objekt
         const docData = {
             doctype: 'Element',
             element_name: element_name,
             element_calendar: element_calendar,
-            element_start: startDateTime,
-            element_end: endDateTime,
+            element_start: element_start,      // ✅ "2026-01-16 07:00:00" (UTC, korrekt!)
+            element_end: element_end,          // ✅ "2026-01-16 08:00:00" (UTC, korrekt!)
             repeatthisevent: repeatthisevent,
             repeaton: repeaton,
             repeattill: repeattill,
@@ -369,13 +558,15 @@ class KronosCalendar {
             sunday: sunday
         };
         
+        console.log('📤 Sende Daten (UTC):', docData);
+        
         frappe.call({
             method: 'frappe.client.insert',
             args: {
                 doc: docData
             },
+            cache: false,  // ← KRITISCH: Nicht cachen!
             callback: (r) => {
-                console.log('✅ Response:', r);
                 if (r.message) {
                     console.log('✅ Element erstellt:', r.message.name);
                     frappe.show_alert({
@@ -383,15 +574,13 @@ class KronosCalendar {
                         indicator: 'green'
                     });
                     
-                    // Cache leeren damit neue Events geladen werden
-                    frappe.call({
-                        method: 'diakronos.kronos.api.events.clear_events_cache',
-                        callback: () => {
-                            console.log('🔄 Cache geleert, lade Events neu...');
-                            setTimeout(() => {
-                                this.refetchEvents();
-                            }, 300);
-                        }
+                    // ✅ RICHTIG: Sofort neuladen, NICHT mit setTimeout!
+                    this.refetchEvents();
+                } else if (r.exc) {
+                    console.error('❌ Fehler beim Speichern:', r.exc);
+                    frappe.show_alert({
+                        message: '❌ Fehler beim Speichern des Termins',
+                        indicator: 'red'
                     });
                 }
             },
@@ -407,18 +596,30 @@ class KronosCalendar {
 
 
     loadEvents(info, successCallback, failureCallback) {
+        console.group('🔍 CACHE DEBUG');
+        console.log('Start:', info.startStr);
+        console.log('End:', info.endStr);
+        
+        // Prüf ob localStorage gecacht hat
+        const storedEvents = localStorage.getItem('kronos_cached_events');
+        if (storedEvents) {
+            console.warn('⚠️ localStorage hat gecachte Events:', storedEvents.substring(0, 100));
+        }
+        console.groupEnd();
+        
         const startDate = info.startStr.split('T')[0];
         const endDate = info.endStr.split('T')[0];
         
         console.log(`📅 Loading events: ${startDate} → ${endDate}`);
         
         frappe.call({
-            method: 'diakronos.kronos.api.events.get_calendar_events',
+            method: 'diakronos.kronos.api.calendar_get.get_calendar_events',
             args: {
                 start_date: startDate,
                 end_date: endDate,
                 calendar_filter: '[]'
             },
+            cache: false,  // ← KRITISCH: Nie cachen!
             callback: (r) => {
                 const events = (r.message || []).map(e => this.mapEvent(e));
                 console.log(`✅ ${events.length} Events geladen`);
@@ -431,36 +632,25 @@ class KronosCalendar {
         });
     }
 
+
     mapEvent(e) {
-        const colorMap = {
-            'Gottesdienst': '#c41e3a',
-            'Bibelstunde': '#4285f4',
-            'Gebetskreis': '#34a853',
-            'Musikprobe': '#fbbc04',
-            'Jugend': '#ea4335',
-            'Kinder': '#9c27b0',
-            'Seelsorge': '#00bcd4'
-        };
-        
-        let bgColor = '#1f73e6';
-        for (const [key, color] of Object.entries(colorMap)) {
-            if (e.title && e.title.includes(key)) {
-                bgColor = color;
-                break;
-            }
-        }
-        
         return {
-            id: e.name,
+            id: e.id,
             title: e.title,
             start: e.start,
             end: e.end || e.start,
-            backgroundColor: bgColor,
+            backgroundColor: e.backgroundColor || e.color || '#1f73e6',
             borderColor: 'transparent',
             textColor: '#fff',
-            allDay: e.isAllday || false
+            allDay: e.isAllday || false,
+            extendedProps: {
+                name: e.id,
+                calendar: e.calendar,
+                calendarColor: e.color
+            }
         };
     }
+
 
     styleEvent(info) {
         if (info.event.backgroundColor) {
@@ -470,31 +660,38 @@ class KronosCalendar {
         }
     }
 
+
     changeView(view) {
         this.calendar?.changeView(view);
     }
+
 
     prev() {
         this.calendar?.prev();
     }
 
+
     next() {
         this.calendar?.next();
     }
+
 
     today() {
         this.calendar?.today();
     }
 
+
     getDate() {
         return this.calendar?.getDate() || new Date();
     }
+
 
     refetchEvents() {
         console.log('🔄 Lade Events neu...');
         this.calendar?.refetchEvents();
     }
 }
+
 
 window.kronosCalendar = new KronosCalendar();
 console.log('✅ Calendar Modul initialisiert');

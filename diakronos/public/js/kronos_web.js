@@ -1,54 +1,83 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * KRONOS CALENDAR - MAIN APPLICATION
+ * KRONOS - MAIN CALENDAR APPLICATION
  * ═══════════════════════════════════════════════════════════════
- * Entry point für die Kronos Calendar App
- * Lädt alle Module und orchestriert die App
+ * 
+ * Entry Point für die Kronos Web Kalender Anwendung
+ * Orchestriert alle Module und Interaktionen
+ * 
+ * Requires:
+ * - FullCalendar 6.1.x
+ * - /assets/diakronos/js/modules/element_extract_id.js
+ * - /assets/diakronos/js/modules/kronos_calendar.js
+ * 
+ * Naming: calendar_init_diakronos
  */
 
 class KronosApp {
+    
     constructor() {
         this.modules = {};
         this.ready = false;
+        this.version = '1.0.22';
         
-        console.log('🚀 KronosApp - Initialisiere...');
+        console.log(`🚀 KronosApp v${this.version} - Initialisiere...`);
         this.init();
     }
 
+    /**
+     * Hauptinitialisierung
+     * Prüft Abhängigkeiten und startet Kaskade
+     */
     init() {
-        this.registerLocale();
-        this.waitForFullCalendar();
+        try {
+            this.registerLocale();
+            this.waitForFullCalendar();
+        } catch (e) {
+            console.error('❌ KronosApp Init Error:', e);
+            this._showError('Fehler beim Initialisieren der App');
+        }
     }
 
+    /**
+     * ✅ FIX 1: Registriere deutsche Lokalisierung für FullCalendar
+     */
     registerLocale() {
-        if (!FullCalendar.globalLocales) {
-            FullCalendar.globalLocales = [];
+        try {
+            if (!FullCalendar.globalLocales) {
+                FullCalendar.globalLocales = [];
+            }
+            
+            const deLocale = {
+                code: 'de',
+                buttonText: {
+                    today: 'Heute',
+                    month: 'Monat',
+                    week: 'Woche',
+                    day: 'Tag',
+                    list: 'Agenda'
+                },
+                weekText: 'W',
+                allDayText: 'Ganztägig',
+                moreLinkText: function(n) {
+                    return '+' + n + ' weitere';
+                },
+                noEventsText: 'Keine Termine',
+                firstDay: 1
+            };
+            
+            if (!FullCalendar.globalLocales.find(l => l.code === 'de')) {
+                FullCalendar.globalLocales.push(deLocale);
+                console.log('✅ Deutsch Locale registriert');
+            }
+        } catch (e) {
+            console.error('❌ Fehler beim Registrieren der Locale:', e);
         }
-        
-        const deLocale = {
-            code: 'de',
-            buttonText: {
-                today: 'Heute',
-                month: 'Monat',
-                week: 'Woche',
-                day: 'Tag',
-                list: 'Agenda'
-            },
-            weekText: 'W',
-            allDayText: 'Ganztägig',
-            moreLinkText: function(n) {
-                return '+' + n + ' weitere';
-            },
-            noEventsText: 'Keine Termine',
-            firstDay: 1
-        };
-        
-        if (!FullCalendar.globalLocales.find(l => l.code === 'de')) {
-            FullCalendar.globalLocales.push(deLocale);
-        }
-        console.log('✅ Deutsch Locale registriert');
     }
 
+    /**
+     * ✅ FIX 2: Warte bis FullCalendar vollständig geladen ist
+     */
     waitForFullCalendar() {
         if (typeof FullCalendar === 'undefined' || !FullCalendar.Calendar) {
             console.log('⏳ Warte auf FullCalendar...');
@@ -60,108 +89,278 @@ class KronosApp {
         this.loadModules();
     }
 
+    /**
+     * ✅ FIX 3: Lade alle abhängigen Module in korrekter Reihenfolge
+     * ✅ FIX 7: Prüfe ob Module existieren vor Nutzung
+     */
     loadModules() {
         console.log('📦 Lade Module...');
         
-        this.loadScript('/assets/diakronos/js/modules/kronos_events.js', () => {
-            console.log('✅ Events Modul geladen');
+        const baseUrl = '/assets/diakronos/js/modules/';
+        
+        this.loadScript(baseUrl + 'element_extract_id.js', () => {
+            // ✅ FIX 7: Validiere Modul-Existenz
+            if (typeof ElementExtractId === 'undefined') {
+                console.error('❌ ElementExtractId nicht geladen!');
+                this._showError('Fehler beim Laden der erforderlichen Module');
+                return;
+            }
+            console.log('✅ ElementExtractId Modul geladen');
             
-            this.loadScript('/assets/diakronos/js/modules/kronos_calendar.js', () => {
-                console.log('✅ Calendar Modul geladen');
+            this.loadScript(baseUrl + 'kronos_calendar.js', () => {
+                // ✅ FIX 7: Validiere Modul-Existenz
+                if (typeof window.kronosCalendar === 'undefined') {
+                    console.error('❌ KronosCalendar nicht geladen!');
+                    this._showError('Fehler beim Laden des Kalenders');
+                    return;
+                }
+                console.log('✅ KronosCalendar Modul geladen');
                 this.start();
             });
         });
     }
 
-
+    /**
+     * ✅ FIX 4: Script-Loading mit Error-Handling
+     * Verwende Versionsnummer statt Math.random() für Cache-Busting
+     */
     loadScript(src, callback) {
-        const script = document.createElement('script');
-        script.src = src + '?v=' + Math.random();
-        script.async = true;
-        script.onload = callback;
-        script.onerror = () => {
-            console.error('❌ Fehler beim Laden von:', src);
-        };
-        document.head.appendChild(script);
+        try {
+            const script = document.createElement('script');
+            // ✅ Besseres Cache-Busting: Versionsnummer verwenden
+            const version = window.DIAKRONOS_VERSION || this.version;
+            script.src = src + '?v=' + version;
+            script.async = true;
+            script.onerror = () => {
+                console.error('❌ Fehler beim Laden von:', src);
+                this._showError(`Fehler beim Laden: ${src}`);
+            };
+            script.onload = () => {
+                console.log(`✅ Geladen: ${src}`);
+                callback();
+            };
+            document.head.appendChild(script);
+        } catch (e) {
+            console.error('❌ Script Load Error:', e);
+            this._showError('Fehler beim Laden der Module');
+        }
     }
 
+    /**
+     * ✅ FIX 5: Starte App wenn alle Module bereit sind
+     */
     start() {
-        console.log('🎯 Starte App...');
-        
-        window.kronosCalendar.init();
-        this.setupControls();
-        this.setGreeting();
-        this.updateMonth();
-        
-        this.ready = true;
-        console.log('✨ KronosApp bereit!');
+        try {
+            console.log('🎯 Starte App...');
+            
+            // ✅ Validiere dass Kalender existiert
+            if (!window.kronosCalendar || typeof window.kronosCalendar.init !== 'function') {
+                throw new Error('KronosCalendar nicht initialisierbar');
+            }
+            
+            window.kronosCalendar.init();
+            this.setupControls();
+            this.setGreeting();
+            this.updateMonth();
+            
+            this.ready = true;
+            console.log('✨ KronosApp bereit!');
+        } catch (e) {
+            console.error('❌ Fehler beim Starten der App:', e);
+            this._showError('Fehler beim Starten der App');
+        }
     }
 
+    /**
+     * ✅ FIX 5: Setup mit delegierten Event Listenern
+     * Speichere Referenzen um später cleanup zu ermöglichen
+     */
     setupControls() {
-        const self = this;
-        
-        document.getElementById('prev-month')?.addEventListener('click', () => {
-            window.kronosCalendar.prev();
-            self.updateMonth();
-        });
-
-        document.getElementById('next-month')?.addEventListener('click', () => {
-            window.kronosCalendar.next();
-            self.updateMonth();
-        });
-
-        document.getElementById('today-button')?.addEventListener('click', () => {
-            window.kronosCalendar.today();
-            self.updateMonth();
-        });
-
-        document.getElementById('month-view')?.addEventListener('click', () => {
-            window.kronosCalendar.changeView('dayGridMonth');
-            document.getElementById('month-view').classList.add('active');
-            document.getElementById('week-view').classList.remove('active');
-        });
-
-        document.getElementById('week-view')?.addEventListener('click', () => {
-            window.kronosCalendar.changeView('timeGridWeek');
-            document.getElementById('week-view').classList.add('active');
-            document.getElementById('month-view').classList.remove('active');
-        });
-
-        document.getElementById('back-button')?.addEventListener('click', () => {
-            window.location.href = '/app/home';
-        });
-
-        console.log('✅ Controls setup fertig');
+        try {
+            const self = this;
+            
+            // Sammle Event Listener für Cleanup
+            this.eventListeners = [];
+            
+            const setupButton = (id, callback) => {
+                const el = document.getElementById(id);
+                if (!el) {
+                    console.warn(`⚠️ Element #${id} nicht gefunden`);
+                    return;
+                }
+                
+                el.addEventListener('click', callback);
+                this.eventListeners.push({ el, callback });
+            };
+            
+            // Navigation
+            setupButton('prev-month', () => {
+                if (window.kronosCalendar?.prev) {
+                    window.kronosCalendar.prev();
+                    self.updateMonth();
+                }
+            });
+            
+            setupButton('next-month', () => {
+                if (window.kronosCalendar?.next) {
+                    window.kronosCalendar.next();
+                    self.updateMonth();
+                }
+            });
+            
+            setupButton('today-button', () => {
+                if (window.kronosCalendar?.today) {
+                    window.kronosCalendar.today();
+                    self.updateMonth();
+                }
+            });
+            
+            // View Switcher
+            setupButton('month-view', () => {
+                if (window.kronosCalendar?.changeView) {
+                    window.kronosCalendar.changeView('dayGridMonth');
+                    self._updateViewButtons('month');
+                }
+            });
+            
+            setupButton('week-view', () => {
+                if (window.kronosCalendar?.changeView) {
+                    window.kronosCalendar.changeView('timeGridWeek');
+                    self._updateViewButtons('week');
+                }
+            });
+            
+            // Back Button - ✅ Nutze Frappe Router statt hardcoded URL
+            setupButton('back-button', () => {
+                frappe.set_route('home');
+            });
+            
+            console.log('✅ Controls setup fertig');
+        } catch (e) {
+            console.error('❌ Setup Controls Error:', e);
+        }
     }
 
+    /**
+     * ✅ FIX 6: Aktualisiere View-Buttons mit korrekter Logik
+     */
+    _updateViewButtons(activeView) {
+        try {
+            const monthBtn = document.getElementById('month-view');
+            const weekBtn = document.getElementById('week-view');
+            
+            if (monthBtn) {
+                monthBtn.classList.toggle('active', activeView === 'month');
+            }
+            if (weekBtn) {
+                weekBtn.classList.toggle('active', activeView === 'week');
+            }
+        } catch (e) {
+            console.error('❌ Update View Buttons Error:', e);
+        }
+    }
+
+    /**
+     * ✅ FIX 2: Aktualisiere Monatszahl sicher
+     */
     updateMonth() {
-        const date = window.kronosCalendar.getDate();
-        const monthStr = new Intl.DateTimeFormat('de-DE', { 
-            month: 'long', 
-            year: 'numeric' 
-        }).format(date);
-        
-        const month = monthStr.charAt(0).toUpperCase() + monthStr.slice(1);
-        document.getElementById('current-month-header').textContent = month;
+        try {
+            if (!window.kronosCalendar || typeof window.kronosCalendar.getDate !== 'function') {
+                return;
+            }
+            
+            const date = window.kronosCalendar.getDate();
+            if (!date) return;
+            
+            const monthStr = new Intl.DateTimeFormat('de-DE', { 
+                month: 'long', 
+                year: 'numeric' 
+            }).format(date);
+            
+            const month = monthStr.charAt(0).toUpperCase() + monthStr.slice(1);
+            const headerEl = document.getElementById('current-month-header');
+            if (headerEl) {
+                headerEl.textContent = month;
+            }
+        } catch (e) {
+            console.error('❌ Update Month Error:', e);
+        }
     }
 
+    /**
+     * ✅ FIX 2: Setze Begrüßung mit korrekten Frappe Properties
+     */
     setGreeting() {
-        const hour = new Date().getHours();
-        const greeting = hour < 12 ? '🌅 Guten Morgen' : 
-                         hour < 18 ? '☀️ Guten Mittag' : 
-                         '🌙 Guten Abend';
-        
-        const name = frappe.session?.user_fullname?.split(' ')[0] || '';
-        const text = name ? `${greeting}, ${name}` : greeting;
-        
-        document.getElementById('greeting-title').textContent = text;
+        try {
+            const hour = new Date().getHours();
+            const greeting = hour < 12 ? '🌅 Guten Morgen' : 
+                             hour < 18 ? '☀️ Guten Mittag' : 
+                             '🌙 Guten Abend';
+            
+            // ✅ Korrekte Frappe Session Properties
+            let name = '';
+            if (frappe.session && frappe.session.user_fullname) {
+                name = frappe.session.user_fullname.split(' ')[0] || '';
+            }
+            
+            const text = name ? `${greeting}, ${name}` : greeting;
+            const greetingEl = document.getElementById('greeting-title');
+            if (greetingEl) {
+                greetingEl.textContent = text;
+            }
+        } catch (e) {
+            console.error('❌ Set Greeting Error:', e);
+        }
+    }
+
+    /**
+     * ✅ FIX 2: Zeige Fehler mit frappe.show_alert() statt alert()
+     */
+    _showError(message) {
+        try {
+            frappe.show_alert({
+                message: message,
+                indicator: 'red'
+            });
+        } catch (e) {
+            console.error('❌ Show Error:', message, e);
+            // Fallback wenn Frappe nicht verfügbar
+            console.error('ERROR:', message);
+        }
+    }
+
+    /**
+     * ✅ FIX 5: Cleanup-Methode zum Entfernen von Event Listenern
+     */
+    cleanup() {
+        try {
+            if (this.eventListeners) {
+                this.eventListeners.forEach(({ el, callback }) => {
+                    el.removeEventListener('click', callback);
+                });
+            }
+            console.log('✅ Cleanup fertig');
+        } catch (e) {
+            console.error('❌ Cleanup Error:', e);
+        }
     }
 }
 
+/**
+ * ✅ Initialisiere App wenn DOM bereit ist
+ */
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        window.kronosApp = new KronosApp();
+        try {
+            window.kronosApp = new KronosApp();
+        } catch (e) {
+            console.error('❌ KronosApp Creation Error:', e);
+        }
     });
 } else {
-    window.kronosApp = new KronosApp();
+    try {
+        window.kronosApp = new KronosApp();
+    } catch (e) {
+        console.error('❌ KronosApp Creation Error:', e);
+    }
 }

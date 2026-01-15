@@ -1,15 +1,19 @@
-# apps/diakronos/diakronos/kronos/series_handler.py
+# diakronos/kronos/api/series_update.py
+"""
+UPDATE Wiederkehrende Events (Serien)
+Batch-Updates für alle Elemente einer Serie
+"""
+
 import frappe
 from frappe import _
+import json
 
 
 @frappe.whitelist()
 def update_series_batch_fast(series_id, updates):
     """Schneller Update aller Elemente einer Serie via SQL."""
     
-    # Wenn updates ein String ist (JSON), parse ihn
     if isinstance(updates, str):
-        import json
         updates = json.loads(updates)
     
     if not series_id:
