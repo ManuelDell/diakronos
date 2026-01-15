@@ -35,5 +35,16 @@
 
 {% block script %}
 <script src="/assets/diakronos/js/fullcalendar.min.js?v=6.1.16"></script>
-<script src="/assets/diakronos/js/kronos_web.js?v=1.0.51"></script>
+
+<!-- 🔧 KRONOS MODAL MODULES (in dieser Reihenfolge laden!) -->
+<script src="/assets/diakronos/js/modules/modal_helpers.js?v=1.0.1"></script>
+<script src="/assets/diakronos/js/modules/modal_base.js?v=1.0.1"></script>
+<script src="/assets/diakronos/js/modules/modal_event_click.js?v=1.0.1"></script>
+<script src="/assets/diakronos/js/modules/modal_smart_edit.js?v=1.0.1"></script>
+<script src="/assets/diakronos/js/modules/modal_series_handler.js?v=1.0.1"></script>
+<script src="/assets/diakronos/js/modules/modal_create_dialog.js?v=1.0.1"></script>
+<script src="/assets/diakronos/js/modules/kronos_modal.js?v=1.0.1"></script>
+
+<!-- Hauptapplication -->
+<script src="/assets/diakronos/js/kronos_web.js?v=1.0.64"></script>
 {% endblock %}

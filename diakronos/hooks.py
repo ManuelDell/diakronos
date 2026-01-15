@@ -62,4 +62,5 @@ whitelisted_methods = {
     # ✅ NEUE: Cache-Management Whitelisting
     'diakronos.kronos.api.cache_invalidator.invalidate_events_cache',
     'diakronos.kronos.api.calendar_get.clear_events_cache_endpoint',
+    'diakronos.kronos.doctype.element.element.get_calendar_and_category_options',
 }
