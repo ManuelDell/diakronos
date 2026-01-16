@@ -10,17 +10,56 @@
  * - FullCalendar 6.1.x
  * - /assets/diakronos/js/modules/element_extract_id.js
  * - /assets/diakronos/js/modules/kronos_calendar.js
+ * - /assets/diakronos/js/modules/kronos_web_sidebar.js
  * 
  * ⚠️ WICHTIG: kronos_modal.js wird vom Template geladen, NICHT hier!
  * 
  * Naming: calendar_init_diakronos
  * 
- * 🆕 FIX: Sidebar Toggle + FullCalendar updateSize()
- * 🆕 SMOOTH RESIZE: Integrierte Transition für Calendar
- * 🆕 WEEK NUMBERS: Wochennummern aktiviert + custom styling
+ * 🆕 FIX 1.0.69: Check ob Module bereits statisch geladen sind
+ * 🆕 FIX: Verhindere doppeltes Laden von kronos_web_sidebar.js
  */
+// ═════════════════════════════════════════════════════════════
+// FRAPPE IM HINTERGRUND HALTEN - VOR ALLEM ANDEREN!
+// ═════════════════════════════════════════════════════════════
 
-
+(function() {
+  'use strict';
+  
+  // Verstecke Frappe UI komplett
+  setTimeout(() => {
+    const frappeUI = document.querySelector('.frappe-control');
+    const sidebar = document.querySelector('.sidebar-menu');
+    const navbar = document.querySelector('.navbar');
+    
+    if (frappeUI) {
+      frappeUI.style.display = 'none';
+      frappeUI.style.visibility = 'hidden';
+      frappeUI.style.pointerEvents = 'none';
+    }
+    if (sidebar) {
+      sidebar.style.display = 'none';
+      sidebar.style.visibility = 'hidden';
+    }
+    if (navbar) {
+      navbar.style.display = 'none';
+      navbar.style.visibility = 'hidden';
+    }
+    
+    // Stelle sicher dass wrapper ALLES überlagert
+    const wrapper = document.getElementById('wrapper');
+    if (wrapper) {
+      wrapper.style.position = 'fixed';
+      wrapper.style.top = '0';
+      wrapper.style.left = '0';
+      wrapper.style.zIndex = '99999';
+      wrapper.style.width = '100vw';
+      wrapper.style.height = '100vh';
+    }
+    
+    console.log('✅ Frappe UI versteckt, Kronos Vollbildmodus aktiv');
+  }, 100);
+})();
 
 
 class KronosApp {
@@ -28,13 +67,11 @@ class KronosApp {
     constructor() {
         this.modules = {};
         this.ready = false;
-        this.version = '1.0.28';  // ← BUMP: 1.0.28 (Week Numbers Integration)
+        this.version = '1.0.69';  // ← BUMP: 1.0.69 (Static Module Check)
         
         console.log(`🚀 KronosApp v${this.version} - Initialisiere...`);
         this.init();
     }
-
-
 
 
     /**
@@ -50,8 +87,6 @@ class KronosApp {
             this._showError('Fehler beim Initialisieren der App');
         }
     }
-
-
 
 
     /**
@@ -91,8 +126,6 @@ class KronosApp {
     }
 
 
-
-
     /**
      * ✅ FIX 2: Warte bis FullCalendar vollständig geladen ist
      */
@@ -108,20 +141,38 @@ class KronosApp {
     }
 
 
-
-
     /**
-     * ✅ FIX 3: Lade alle abhängigen Module in korrekter Reihenfolge
-     * ✅ FIX 7: Prüfe ob Module existieren vor Nutzung
+     * 🆕 FIX 1.0.69: Prüfe ob Module bereits statisch geladen sind
+     * ═════════════════════════════════════════════════════════════
      * 
-     * 🔧 GEFIXT: Lade Module in DIESER REIHENFOLGE:
-     * 1. element_extract_id.js    (Dependency für andere)
-     * 2. kronos_calendar.js       (Nutzt KronosModal vom Template)
+     * Problem: Wenn Module sowohl statisch im Template UND dynamisch 
+     * via loadScript() geladen werden → redeclaration error
      * 
-     * ⚠️ kronos_modal.js wird vom Template geladen, NICHT hier!
+     * Lösung: Check ob Module bereits da sind, skip dynamisches Laden
      */
     loadModules() {
-        console.log('📦 Lade Module in korrekter Reihenfolge...');
+        console.log('📦 Prüfe ob Module bereits geladen sind...');
+        
+        // ✅ Check 1: Sind die kritischen Module bereits da?
+        const staticModulesReady = (
+            typeof ElementExtractId !== 'undefined' &&
+            typeof window.KronosSidebar !== 'undefined' &&
+            typeof window.kronosCalendar !== 'undefined'
+        );
+        
+        if (staticModulesReady) {
+            console.log('✅ Alle Module bereits statisch vom Template geladen!');
+            console.log('✅ ElementExtractId:', typeof ElementExtractId);
+            console.log('✅ KronosSidebar:', typeof window.KronosSidebar);
+            console.log('✅ kronosCalendar:', window.kronosCalendar?.constructor?.name);
+            
+            // Warte direkt auf KronosModal (wird auch statisch vom Template geladen)
+            this.waitForKronosModal();
+            return;
+        }
+        
+        // Falls nicht alle Modules vorhanden sind: Lade dynamisch (Fallback)
+        console.log('📦 Einige Module fehlen, lade dynamisch als Fallback...');
         
         const baseUrl = '/assets/diakronos/js/modules/';
         
@@ -134,23 +185,30 @@ class KronosApp {
             }
             console.log('✅ ElementExtractId Modul geladen');
             
-            // SCHRITT 2: Lade KronosCalendar
-            // KronosModal wird vom Template geladen (asynchron)
-            this.loadScript(baseUrl + 'kronos_calendar.js', () => {
-                if (typeof window.kronosCalendar === 'undefined') {
-                    console.error('❌ KronosCalendar nicht geladen!');
-                    this._showError('Fehler beim Laden des Kalenders');
+            // SCHRITT 2: Lade Sidebar Module
+            this.loadScript(baseUrl + 'kronos_web_sidebar.js', () => {
+                if (typeof window.KronosSidebar === 'undefined') {
+                    console.error('❌ KronosSidebar nicht geladen!');
+                    this._showError('Fehler beim Laden der Sidebar');
                     return;
                 }
-                console.log('✅ KronosCalendar Modul geladen');
+                console.log('✅ KronosSidebar Modul geladen');
                 
-                // Warte bis KronosModal verfügbar ist (vom Template)
-                this.waitForKronosModal();
+                // SCHRITT 3: Lade KronosCalendar
+                this.loadScript(baseUrl + 'kronos_calendar.js', () => {
+                    if (typeof window.kronosCalendar === 'undefined') {
+                        console.error('❌ KronosCalendar nicht geladen!');
+                        this._showError('Fehler beim Laden des Kalenders');
+                        return;
+                    }
+                    console.log('✅ KronosCalendar Modul geladen');
+                    
+                    // Warte bis KronosModal verfügbar ist
+                    this.waitForKronosModal();
+                });
             });
         });
     }
-
-
 
 
     /**
@@ -167,8 +225,6 @@ class KronosApp {
         console.log('✅ KronosModal Modul vom Template geladen');
         this.start();
     }
-
-
 
 
     /**
@@ -198,8 +254,6 @@ class KronosApp {
     }
 
 
-
-
     /**
      * ✅ FIX 5: Starte App wenn alle Module bereit sind
      */
@@ -218,11 +272,23 @@ class KronosApp {
                 console.warn('⚠️ Modal-Funktionen könnten fehlschlagen');
             }
             
+            // 🆕 Initialisiere Sidebar Module (wenn nicht bereits gemacht)
+            if (typeof window.KronosSidebar !== 'undefined' && !window.kronosSidebar) {
+                try {
+                    window.kronosSidebar = new window.KronosSidebar();
+                    window.kronosSidebar.init();
+                    console.log('✅ KronosSidebar initialisiert');
+                } catch (e) {
+                    console.warn('⚠️ Fehler beim Initialisieren von KronosSidebar:', e);
+                }
+            }
+            
             window.kronosCalendar.init();
             this.setupWeekNumbers();
+            this.setupDarkModeToggle(); 
             this.setupSmoothResize();
             this.setupControls();
-            this.setupSidebarToggle();
+            // ❌ NICHT: this.setupSidebarToggle();
             this.setupWindowResize();
             this.setGreeting();
             this.updateMonth();
@@ -234,7 +300,6 @@ class KronosApp {
             this._showError('Fehler beim Starten der App');
         }
     }
-
 
 
 
@@ -275,6 +340,55 @@ class KronosApp {
     }
 
 
+    setupDarkModeToggle() {
+        try {
+            const checkbox = document.getElementById('darkmode-checkbox');
+            if (!checkbox) {
+                console.warn('⚠️ #darkmode-checkbox nicht gefunden');
+                return;
+            }
+
+            // ✅ Lade gespeicherte Preference
+            const saved = localStorage.getItem('kronos-darkmode');
+            const prefersLight = !window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const isDark = saved ? saved === 'true' : !prefersLight;
+            
+            if (isDark) {
+                checkbox.checked = true;
+                this._enableDarkMode();
+            } else {
+                checkbox.checked = false;
+                this._disableDarkMode();
+            }
+
+            // ✅ Change Handler
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this._enableDarkMode();
+                } else {
+                    this._disableDarkMode();
+                }
+            });
+
+            console.log('✅ Dark Mode Toggle setup fertig');
+        } catch (e) {
+            console.error('❌ setupDarkModeToggle Error:', e);
+        }
+    }
+
+
+    _enableDarkMode() {
+        document.documentElement.setAttribute('data-color-scheme', 'dark');
+        localStorage.setItem('kronos-darkmode', 'true');
+        console.log('🌙 Dark Mode aktiviert');
+    }
+
+
+    _disableDarkMode() {
+        document.documentElement.setAttribute('data-color-scheme', 'light');
+        localStorage.setItem('kronos-darkmode', 'false');
+        console.log('☀️ Light Mode aktiviert');
+    }
 
 
     /**
@@ -338,8 +452,6 @@ class KronosApp {
             console.error('❌ setupSmoothResize Error:', e);
         }
     }
-
-
 
 
     /**
@@ -406,7 +518,6 @@ class KronosApp {
                 window.location.href = '/app/übersichtsseite';
             });
 
-
             console.log('✅ Controls setup fertig');
         } catch (e) {
             console.error('❌ Setup Controls Error:', e);
@@ -414,11 +525,9 @@ class KronosApp {
     }
 
 
-
-
     /**
      * 🆕 SIDEBAR TOGGLE MIT FULLCALENDAR RESIZE
-     * ═════════════════════════════════════════════
+     * ═════════════════════════════════════════
      * 
      * Das ist die KRITISCHE FUNKTION für die Sidebar!
      * 
@@ -429,47 +538,6 @@ class KronosApp {
      * 
      * Transition dauert 0.4s → wir warten 420ms und rufen updateSize() auf
      */
-    setupSidebarToggle() {
-        try {
-            const self = this;
-            const wrapper = document.getElementById('wrapper');
-            const menuToggle = document.getElementById('menu-toggle');
-
-
-            if (!wrapper || !menuToggle) {
-                console.warn('⚠️ #wrapper oder #menu-toggle nicht gefunden');
-                return;
-            }
-
-
-            // Listener auf den Menu Toggle Button
-            menuToggle.addEventListener('click', (e) => {
-                e.preventDefault();
-                console.log('🔘 Menu Toggle geklickt');
-
-
-                // Toggle die Klasse
-                wrapper.classList.toggle('menuDisplayed');
-
-
-                // ✅ KRITISCH: Warte bis CSS-Transition fertig ist (0.4s)
-                // dann updateSize() aufrufen
-                setTimeout(() => {
-                    self._updateCalendarSize();
-                }, 420);  // 0.4s Transition + 20ms Buffer
-
-
-                console.log('✅ Sidebar Toggle + Calendar Resize geplant');
-            });
-
-
-            console.log('✅ Sidebar Toggle setup fertig');
-        } catch (e) {
-            console.error('❌ Sidebar Toggle Setup Error:', e);
-        }
-    }
-
-
 
 
     /**
@@ -483,13 +551,11 @@ class KronosApp {
         try {
             const self = this;
 
-
             window.addEventListener('resize', () => {
                 // Mit Debounce: nur alle 250ms aufrufen
                 if (this.resizeTimeout) {
                     clearTimeout(this.resizeTimeout);
                 }
-
 
                 this.resizeTimeout = setTimeout(() => {
                     console.log('📏 Window Resize erkannt, Update Calendar Size');
@@ -497,14 +563,11 @@ class KronosApp {
                 }, 250);
             });
 
-
             console.log('✅ Window Resize Listener setup fertig');
         } catch (e) {
             console.error('❌ Window Resize Setup Error:', e);
         }
     }
-
-
 
 
     /**
@@ -521,7 +584,6 @@ class KronosApp {
                 return;
             }
 
-
             console.log('🔄 FullCalendar updateSize() wird aufgerufen...');
             window.kronosCalendar.calendar.updateSize();
             console.log('✅ Calendar Size updated!');
@@ -529,8 +591,6 @@ class KronosApp {
             console.error('❌ updateCalendarSize Error:', e);
         }
     }
-
-
 
 
     /**
@@ -551,8 +611,6 @@ class KronosApp {
             console.error('❌ Update View Buttons Error:', e);
         }
     }
-
-
 
 
     /**
@@ -583,8 +641,6 @@ class KronosApp {
     }
 
 
-
-
     /**
      * ✅ FIX 2: Setze Begrüßung mit korrekten Frappe Properties
      */
@@ -612,8 +668,6 @@ class KronosApp {
     }
 
 
-
-
     /**
      * ✅ FIX 2: Zeige Fehler mit frappe.show_alert() statt alert()
      */
@@ -629,8 +683,6 @@ class KronosApp {
             console.error('ERROR:', message);
         }
     }
-
-
 
 
     /**
@@ -654,14 +706,17 @@ class KronosApp {
                 this.resizeObserver.disconnect();
             }
 
+            // Cleanup Sidebar Module
+            if (window.kronosSidebar && typeof window.kronosSidebar.cleanup === 'function') {
+                window.kronosSidebar.cleanup();
+            }
+
             console.log('✅ Cleanup fertig');
         } catch (e) {
             console.error('❌ Cleanup Error:', e);
         }
     }
 }
-
-
 
 
 /**

@@ -190,3 +190,82 @@ def get_calendar_events(start_date, end_date):
         frappe.logger().error(f"Error in get_calendar_events: {str(e)}")
         frappe.throw(f"Error getting events: {str(e)}")
 
+@frappe.whitelist()
+def get_calendars_grouped_by_permissions():
+    """
+    Gibt Kalender gruppiert nach Berechtigung zurück (Schreib > Lese).
+    Keine Duplikate!
+    
+    Returns:
+        {
+            "calendars_with_write": [{name, display_name, color, can_write}, ...],
+            "calendars_with_read": [{name, display_name, color, can_write}, ...]
+        }
+    """
+    user = frappe.session.user
+    
+    try:
+        calendars = frappe.get_all(
+            "Kalender",
+            fields=["name", "calendar_name", "calendar_color"]
+        )
+        
+        write_calendars = []
+        read_calendars = []
+        processed_names = set()  # Verhindert Duplikate
+        
+        for cal in calendars:
+            doc = frappe.get_doc("Kalender", cal.name)
+            
+            can_read = False
+            can_write = False
+            
+            # Leserechte prüfen
+            for row in doc.leserechte or []:
+                if _user_has_role(user, row.role):
+                    can_read = True
+                    break
+            
+            # Schreibrechte prüfen
+            for row in doc.schreibrechte or []:
+                if _user_has_role(user, row.role):
+                    can_write = True
+                    break
+            
+            # Admin darf alles
+            if user == "Administrator":
+                can_read = True
+                can_write = True
+            
+            if can_write:
+                # Schreiberecht ist gewichtiger
+                write_calendars.append({
+                    "name": doc.name,
+                    "display_name": doc.calendar_name or doc.name,
+                    "color": doc.calendar_color or "#667eea",
+                    "can_write": True,
+                })
+                processed_names.add(doc.name)
+            elif can_read:
+                # Nur Leserecht (nicht doppelt wenn schon in write)
+                read_calendars.append({
+                    "name": doc.name,
+                    "display_name": doc.calendar_name or doc.name,
+                    "color": doc.calendar_color or "#667eea",
+                    "can_write": False,
+                })
+                processed_names.add(doc.name)
+        
+        frappe.logger().info(
+            f"✓ get_calendars_grouped_by_permissions: "
+            f"{len(write_calendars)} write, {len(read_calendars)} read for {user}"
+        )
+        
+        return {
+            "calendars_with_write": write_calendars,
+            "calendars_with_read": read_calendars,
+        }
+        
+    except Exception as e:
+        frappe.logger().error(f"Error in get_calendars_grouped_by_permissions: {str(e)}")
+        frappe.throw(f"Error getting calendars: {str(e)}")
