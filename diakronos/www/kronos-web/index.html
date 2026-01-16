@@ -1,16 +1,28 @@
 {% extends "templates/web.html" %}
 
-
-
 {% block title %}Kronos Kalender{% endblock %}
 
-
-
 {% block style %}
-<link rel="stylesheet" href="/assets/diakronos/css/kronos_web.css?v=1.0.23">
+<!-- ZUERST: Frappe verstecken -->
+<style>
+  body > .frappe-control { display: none !important; }
+  .sidebar-menu { display: none !important; }
+  .navbar { display: none !important; }
+  html, body { margin: 0; padding: 0; overflow: hidden; }
+</style>
+
+<link rel="stylesheet" href="/assets/diakronos/css/design_tokens_variables.css?v=1.0.0">
+<link rel="stylesheet" href="/assets/diakronos/css/design_base_reset.css?v=1.0.0">
+<link rel="stylesheet" href="/assets/diakronos/css/design_typography_styles.css?v=1.0.0">
+<link rel="stylesheet" href="/assets/diakronos/css/design_component_button.css?v=1.0.2">
+<link rel="stylesheet" href="/assets/diakronos/css/design_component_form.css?v=1.0.0">
+<link rel="stylesheet" href="/assets/diakronos/css/design_component_card.css?v=1.0.0">
+<link rel="stylesheet" href="/assets/diakronos/css/design_component_layout.css?v=1.0.0">
+<link rel="stylesheet" href="/assets/diakronos/css/design_component_accessibility.css?v=1.0.0">
+<link rel="stylesheet" href="/assets/diakronos/css/design_theme_darkmode.css?v=1.0.0">
+<link rel="stylesheet" href="/assets/diakronos/css/design_fonts_loader.css?v=1.0.0">
+<link rel="stylesheet" href="/assets/diakronos/css/kronos_web.css?v=1.0.33">
 {% endblock %}
-
-
 
 {% block page_content %}
 <div id="wrapper">
@@ -35,28 +47,36 @@
         </nav>
     </header>
 
-
-
     <!-- CONTENT BLOCK - Grid mit Sidebar + Kalender als GESCHWISTER -->
     <div id="page-content-wrapper">
         
         <!-- SIDEBAR - 1. Grid-Spalte (versteckt bei grid-template-columns: 0 1fr) -->
         <div id="sidebar-wrapper">
-            <ul class="sidebar-nav">
-                <li><a href="#">Home</a></li>
-                <li><a href="#">About</a></li>
-                <li><a href="#">Contact</a></li>
+            <div class="sidebar-nav-header">
+                <button id="back-button-sidebar" class="back-btn" title="Zurück">←</button>
+            </div>
+            
+            <ul class="sidebar-nav" id="sidebar-nav">
+                <li><a href="#">📋 About</a></li>
+                <li><a href="#">📧 Contact</a></li>
             </ul>
             
             <!-- 🎯 DARK MODE TOGGLE - UNTEN IN SIDEBAR -->
-            <div class="sidebar-footer">
-                <button id="darkmode-toggle" class="darkmode-btn" title="Dunkelmodus">
-                    <span class="darkmode-icon">🌙</span>
-                    <span class="darkmode-label">Dunkelmodus</span>
-                </button>
+            <div class="sidebar-darkmode">
+                <input type="checkbox" id="darkmode-checkbox" class="hidden" />
+                <label for="darkmode-checkbox" class="darkmode-toggle">
+                    <div class="darkmode-circle">
+                        <div class="darkmode-star star-1"></div>
+                        <div class="darkmode-star star-2"></div>
+                        <div class="darkmode-star star-3"></div>
+                    </div>
+                </label>
+                <div class="darkmode-label">
+                    <span class="darkmode-label-title">Design</span>
+                    <span class="darkmode-label-description">Dunkel/Hell</span>
+                </div>
             </div>
         </div>
-
 
 
         <!-- KALENDER - 2. Grid-Spalte (füllt verfügbaren Platz) -->
@@ -66,20 +86,33 @@
             </div>
         </div>
 
-
     </div>
-
-
 
 </div>
 {% endblock %}
 
-
-
 {% block script %}
+<!-- 🎯 FRAPPE VERSTECKEN - SPÄTER APPROACH -->
+<script>
+// NICHT sofort ausführen - warten bis alles geladen ist
+window.addEventListener('load', function() {
+    'use strict';
+    
+    // Jetzt DARF Frappe Template existieren
+    const frappeUI = document.querySelector('.frappe-control');
+    const sidebar = document.querySelector('.sidebar-menu');
+    const navbar = document.querySelector('.navbar');
+    
+    if (frappeUI) frappeUI.style.display = 'none';
+    if (sidebar) sidebar.style.display = 'none';
+    if (navbar) navbar.style.display = 'none';
+    
+    console.log('✅ Frappe UI versteckt');
+});
+</script>
+
+<!-- FullCalendar -->
 <script src="/assets/diakronos/js/fullcalendar.min.js?v=6.1.16"></script>
-
-
 
 <!-- 🔧 KRONOS MODAL MODULES (in dieser Reihenfolge laden!) -->
 <script src="/assets/diakronos/js/modules/modal_helpers.js?v=1.0.1"></script>
@@ -91,23 +124,22 @@
 <script src="/assets/diakronos/js/modules/kronos_modal.js?v=1.0.1"></script>
 
 
+<!-- 🎯 SIDEBAR MODULE -->
+<!--<script src="/assets/diakronos/js/modules/kronos_web_sidebar.js?v=1.0.3"></script>-->
 
 <!-- Hauptapplication -->
-<script src="/assets/diakronos/js/kronos_web.js?v=1.0.67"></script>
+<script src="/assets/diakronos/js/kronos_web.js?v=1.0.71"></script>
 
-
-<!-- 🎯 SMOOTH RESIZE ANIMATIONS für FullCalendar v6.1.16 -->
-<script src="/assets/diakronos/js/kronos_smooth_resize.js?v=1.0.1"></script>
+<!-- 🎯 SMOOTH RESIZE ANIMATIONS -->
+<!--<script src="/assets/diakronos/js/kronos_smooth_resize.js?v=1.0.3"></script>-->
 
 <!-- 🌙 DARK MODE SCRIPT -->
 <script>
 (function() {
     'use strict';
     
-    const darkModeBtn = document.getElementById('darkmode-toggle');
-    const darkModeIcon = darkModeBtn?.querySelector('.darkmode-icon');
+    const darkmodeCheckbox = document.getElementById('darkmode-checkbox');
     
-    // ✅ Lade gespeicherte Preference
     function initDarkMode() {
         const saved = localStorage.getItem('kronos-darkmode');
         const prefersLight = !window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -120,38 +152,28 @@
         }
     }
     
-    // ✅ Dark Mode aktivieren
     function enableDarkMode() {
         document.documentElement.setAttribute('data-color-scheme', 'dark');
         localStorage.setItem('kronos-darkmode', 'true');
-        if (darkModeIcon) darkModeIcon.textContent = '☀️';
-        if (darkModeBtn) darkModeBtn.classList.add('active');
-        console.log('🌙 Dark Mode aktiviert');
+        if (darkmodeCheckbox) darkmodeCheckbox.checked = true;
     }
     
-    // ✅ Dark Mode deaktivieren
     function disableDarkMode() {
         document.documentElement.setAttribute('data-color-scheme', 'light');
         localStorage.setItem('kronos-darkmode', 'false');
-        if (darkModeIcon) darkModeIcon.textContent = '🌙';
-        if (darkModeBtn) darkModeBtn.classList.remove('active');
-        console.log('☀️ Light Mode aktiviert');
+        if (darkmodeCheckbox) darkmodeCheckbox.checked = false;
     }
     
-    // ✅ Toggle Handler
-    if (darkModeBtn) {
-        darkModeBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const isDark = document.documentElement.getAttribute('data-color-scheme') === 'dark';
-            if (isDark) {
-                disableDarkMode();
-            } else {
+    if (darkmodeCheckbox) {
+        darkmodeCheckbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
                 enableDarkMode();
+            } else {
+                disableDarkMode();
             }
         });
     }
     
-    // ✅ Initialisiere beim Load
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initDarkMode);
     } else {
