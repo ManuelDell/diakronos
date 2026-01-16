@@ -17,6 +17,7 @@
  * 
  * 🆕 FIX: Sidebar Toggle + FullCalendar updateSize()
  * 🆕 SMOOTH RESIZE: Integrierte Transition für Calendar
+ * 🆕 WEEK NUMBERS: Wochennummern aktiviert + custom styling
  */
 
 
@@ -27,7 +28,7 @@ class KronosApp {
     constructor() {
         this.modules = {};
         this.ready = false;
-        this.version = '1.0.27';  // ← BUMP: 1.0.27 (Integrated Smooth Resize)
+        this.version = '1.0.28';  // ← BUMP: 1.0.28 (Week Numbers Integration)
         
         console.log(`🚀 KronosApp v${this.version} - Initialisiere...`);
         this.init();
@@ -218,6 +219,7 @@ class KronosApp {
             }
             
             window.kronosCalendar.init();
+            this.setupWeekNumbers();
             this.setupSmoothResize();
             this.setupControls();
             this.setupSidebarToggle();
@@ -230,6 +232,45 @@ class KronosApp {
         } catch (e) {
             console.error('❌ Fehler beim Starten der App:', e);
             this._showError('Fehler beim Starten der App');
+        }
+    }
+
+
+
+
+    /**
+     * 🆕 SETUP WEEK NUMBERS
+     * ═════════════════════════════════════════════════════════════
+     * 
+     * Aktiviert Wochennummern mit Custom Format (nur Nummern, keine W)
+     * Wird direkt nach Calendar-Initialisierung aufgerufen
+     */
+    setupWeekNumbers() {
+        try {
+            console.log('📅 Aktiviere Wochennummern...');
+            
+            // Warte kurz bis Calendar vollständig initialisiert ist
+            setTimeout(() => {
+                if (!window.kronosCalendar || !window.kronosCalendar.calendar) {
+                    console.warn('⚠️ FullCalendar nicht verfügbar für Week Numbers');
+                    return;
+                }
+                
+                // ✅ Aktiviere Wochennummern
+                window.kronosCalendar.calendar.setOption('weekNumbers', true);
+                
+                // ✅ ISO 8601 Standard (Woche beginnt Montag)
+                window.kronosCalendar.calendar.setOption('weekNumberCalculation', 'ISO');
+                
+                // ✅ Custom Format: nur Nummer (1, 2, 3...) ohne "W"
+                window.kronosCalendar.calendar.setOption('weekNumberFormat', {
+                    week: 'numeric'
+                });
+                
+                console.log('✅ Wochennummern aktiviert! (ISO 8601, ohne W-Prefix)');
+            }, 100);
+        } catch (e) {
+            console.error('❌ setupWeekNumbers Error:', e);
         }
     }
 
@@ -386,7 +427,7 @@ class KronosApp {
      * 
      * Lösung: Nach der CSS-Transition updateSize() aufrufen!
      * 
-     * Transition dauert 0.5s → wir warten 550ms und rufen updateSize() auf
+     * Transition dauert 0.4s → wir warten 420ms und rufen updateSize() auf
      */
     setupSidebarToggle() {
         try {
