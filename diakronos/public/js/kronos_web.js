@@ -14,7 +14,11 @@
  * ⚠️ WICHTIG: kronos_modal.js wird vom Template geladen, NICHT hier!
  * 
  * Naming: calendar_init_diakronos
+ * 
+ * 🆕 FIX: Sidebar Toggle + FullCalendar updateSize()
+ * 🆕 SMOOTH RESIZE: Integrierte Transition für Calendar
  */
+
 
 
 
@@ -23,11 +27,12 @@ class KronosApp {
     constructor() {
         this.modules = {};
         this.ready = false;
-        this.version = '1.0.25';  // ← BUMP: 1.0.25 (Modal Timing-Fix)
+        this.version = '1.0.27';  // ← BUMP: 1.0.27 (Integrated Smooth Resize)
         
         console.log(`🚀 KronosApp v${this.version} - Initialisiere...`);
         this.init();
     }
+
 
 
 
@@ -44,6 +49,7 @@ class KronosApp {
             this._showError('Fehler beim Initialisieren der App');
         }
     }
+
 
 
 
@@ -85,6 +91,7 @@ class KronosApp {
 
 
 
+
     /**
      * ✅ FIX 2: Warte bis FullCalendar vollständig geladen ist
      */
@@ -98,6 +105,7 @@ class KronosApp {
         console.log('✅ FullCalendar bereit!');
         this.loadModules();
     }
+
 
 
 
@@ -143,6 +151,7 @@ class KronosApp {
 
 
 
+
     /**
      * 🆕 WAIT FOR KRONOS MODAL
      * Warte bis das Modal-Modul vom Template geladen wurde
@@ -157,6 +166,7 @@ class KronosApp {
         console.log('✅ KronosModal Modul vom Template geladen');
         this.start();
     }
+
 
 
 
@@ -188,6 +198,7 @@ class KronosApp {
 
 
 
+
     /**
      * ✅ FIX 5: Starte App wenn alle Module bereit sind
      */
@@ -207,7 +218,10 @@ class KronosApp {
             }
             
             window.kronosCalendar.init();
+            this.setupSmoothResize();
             this.setupControls();
+            this.setupSidebarToggle();
+            this.setupWindowResize();
             this.setGreeting();
             this.updateMonth();
             
@@ -218,6 +232,72 @@ class KronosApp {
             this._showError('Fehler beim Starten der App');
         }
     }
+
+
+
+
+    /**
+     * 🆕 SETUP SMOOTH RESIZE ANIMATIONS
+     * ═════════════════════════════════════════════════════════════
+     * 
+     * Integriert CSS Transitions + ResizeObserver für smooth Calendar Resizing
+     * Dies ist die HAUPTLÖSUNG für das Smooth Resize Problem!
+     */
+    setupSmoothResize() {
+        try {
+            console.log('🎯 Aktiviere Smooth Resize Animations...');
+            
+            const calendarWrapper = document.querySelector('.calendar-wrapper');
+            const kronosApp = document.getElementById('kronos-app');
+            const fcElement = document.querySelector('.fc');
+            
+            // ✅ 1. CSS Transitions auf dem Wrapper Container
+            if (calendarWrapper) {
+                calendarWrapper.style.transition = 'all 400ms cubic-bezier(0.16, 1, 0.3, 1)';
+                calendarWrapper.style.willChange = 'height, width';
+            }
+            
+            // ✅ 2. CSS Transitions auf FullCalendar selbst
+            if (fcElement) {
+                fcElement.style.transition = 'height 400ms cubic-bezier(0.16, 1, 0.3, 1), width 400ms cubic-bezier(0.16, 1, 0.3, 1)';
+            }
+            
+            // ✅ 3. ResizeObserver für Größenänderungen
+            let resizeDebounce;
+            const resizeObserver = new ResizeObserver(() => {
+                clearTimeout(resizeDebounce);
+                resizeDebounce = setTimeout(() => {
+                    if (window.kronosCalendar && window.kronosCalendar.calendar) {
+                        window.kronosCalendar.calendar.updateSize();
+                        console.log('🔄 ResizeObserver: updateSize() aufgerufen');
+                    }
+                }, 100);
+            });
+            
+            // Beobachte nur wenn kronosApp existiert
+            if (kronosApp) {
+                resizeObserver.observe(kronosApp);
+                this.resizeObserver = resizeObserver; // Für Cleanup
+            }
+            
+            // ✅ 4. Hook für View-Änderungen
+            if (window.kronosCalendar && window.kronosCalendar.calendar) {
+                window.kronosCalendar.calendar.on('datesSet', () => {
+                    setTimeout(() => {
+                        if (window.kronosCalendar && window.kronosCalendar.calendar) {
+                            window.kronosCalendar.calendar.updateSize();
+                            console.log('🔄 datesSet Hook: updateSize() aufgerufen');
+                        }
+                    }, 50);
+                });
+            }
+            
+            console.log('✅ Smooth Resize Animations aktiviert!');
+        } catch (e) {
+            console.error('❌ setupSmoothResize Error:', e);
+        }
+    }
+
 
 
 
@@ -285,12 +365,130 @@ class KronosApp {
                 window.location.href = '/app/übersichtsseite';
             });
 
-            
+
             console.log('✅ Controls setup fertig');
         } catch (e) {
             console.error('❌ Setup Controls Error:', e);
         }
     }
+
+
+
+
+    /**
+     * 🆕 SIDEBAR TOGGLE MIT FULLCALENDAR RESIZE
+     * ═════════════════════════════════════════════
+     * 
+     * Das ist die KRITISCHE FUNKTION für die Sidebar!
+     * 
+     * Problem: Wenn die Grid-Spalten wechseln (0 1fr ↔ 250px 1fr),
+     * merkt FullCalendar davon NICHTS und bleibt bei der alten Breite.
+     * 
+     * Lösung: Nach der CSS-Transition updateSize() aufrufen!
+     * 
+     * Transition dauert 0.5s → wir warten 550ms und rufen updateSize() auf
+     */
+    setupSidebarToggle() {
+        try {
+            const self = this;
+            const wrapper = document.getElementById('wrapper');
+            const menuToggle = document.getElementById('menu-toggle');
+
+
+            if (!wrapper || !menuToggle) {
+                console.warn('⚠️ #wrapper oder #menu-toggle nicht gefunden');
+                return;
+            }
+
+
+            // Listener auf den Menu Toggle Button
+            menuToggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('🔘 Menu Toggle geklickt');
+
+
+                // Toggle die Klasse
+                wrapper.classList.toggle('menuDisplayed');
+
+
+                // ✅ KRITISCH: Warte bis CSS-Transition fertig ist (0.4s)
+                // dann updateSize() aufrufen
+                setTimeout(() => {
+                    self._updateCalendarSize();
+                }, 420);  // 0.4s Transition + 20ms Buffer
+
+
+                console.log('✅ Sidebar Toggle + Calendar Resize geplant');
+            });
+
+
+            console.log('✅ Sidebar Toggle setup fertig');
+        } catch (e) {
+            console.error('❌ Sidebar Toggle Setup Error:', e);
+        }
+    }
+
+
+
+
+    /**
+     * 🆕 WINDOW RESIZE LISTENER
+     * ═════════════════════════
+     * 
+     * Falls sich die Browser-Breite ändert (z.B. bei Responsive),
+     * auch dann updateSize() aufrufen
+     */
+    setupWindowResize() {
+        try {
+            const self = this;
+
+
+            window.addEventListener('resize', () => {
+                // Mit Debounce: nur alle 250ms aufrufen
+                if (this.resizeTimeout) {
+                    clearTimeout(this.resizeTimeout);
+                }
+
+
+                this.resizeTimeout = setTimeout(() => {
+                    console.log('📏 Window Resize erkannt, Update Calendar Size');
+                    self._updateCalendarSize();
+                }, 250);
+            });
+
+
+            console.log('✅ Window Resize Listener setup fertig');
+        } catch (e) {
+            console.error('❌ Window Resize Setup Error:', e);
+        }
+    }
+
+
+
+
+    /**
+     * 🆕 UPDATE CALENDAR SIZE
+     * ═══════════════════════
+     * 
+     * ZENTRALE HILFSFUNKTION: Ruft calendar.updateSize() auf
+     * wenn FullCalendar verfügbar ist
+     */
+    _updateCalendarSize() {
+        try {
+            if (!window.kronosCalendar || !window.kronosCalendar.calendar) {
+                console.warn('⚠️ FullCalendar nicht verfügbar für updateSize()');
+                return;
+            }
+
+
+            console.log('🔄 FullCalendar updateSize() wird aufgerufen...');
+            window.kronosCalendar.calendar.updateSize();
+            console.log('✅ Calendar Size updated!');
+        } catch (e) {
+            console.error('❌ updateCalendarSize Error:', e);
+        }
+    }
+
 
 
 
@@ -312,6 +510,7 @@ class KronosApp {
             console.error('❌ Update View Buttons Error:', e);
         }
     }
+
 
 
 
@@ -344,6 +543,7 @@ class KronosApp {
 
 
 
+
     /**
      * ✅ FIX 2: Setze Begrüßung mit korrekten Frappe Properties
      */
@@ -372,6 +572,7 @@ class KronosApp {
 
 
 
+
     /**
      * ✅ FIX 2: Zeige Fehler mit frappe.show_alert() statt alert()
      */
@@ -390,6 +591,7 @@ class KronosApp {
 
 
 
+
     /**
      * ✅ FIX 5: Cleanup-Methode zum Entfernen von Event Listenern
      */
@@ -400,12 +602,24 @@ class KronosApp {
                     el.removeEventListener('click', callback);
                 });
             }
+            
+            // Cleanup Window Resize
+            if (this.resizeTimeout) {
+                clearTimeout(this.resizeTimeout);
+            }
+            
+            // Cleanup ResizeObserver
+            if (this.resizeObserver) {
+                this.resizeObserver.disconnect();
+            }
+
             console.log('✅ Cleanup fertig');
         } catch (e) {
             console.error('❌ Cleanup Error:', e);
         }
     }
 }
+
 
 
 
