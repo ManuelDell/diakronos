@@ -1,0 +1,721 @@
+/* diakronos/public/css/kronos_calendar_custom.css */
+/* awesome_bar_size_relative_define: Relativ Größe mit Faktor (z.B. 1.5 für 1,5-fach) */
+/* Zentraler Faktor – ändere hier, um alles zu skalieren */
+:root {
+    --size-factor: 1.5; /* Faktor ändern, z.B. 1.2 für kleiner, 2.0 für größer */
+}
+
+/* Awesome-Bar vergrößern (relativ zu Frappe-Basis) */
+.navbar {
+    height: calc(48px * var(--size-factor)) !important; /* Basis 48px * Faktor */
+    padding: calc(10px * var(--size-factor)) 0 !important; /* Zentrierung relativ */
+}
+
+.navbar .container {
+    height: 100% !important;
+    padding: 0 calc(1rem * var(--size-factor)) !important;
+}
+
+/* Icons/Schrift relativ skalieren */
+.system-icon img {
+    height: calc(30px * var(--size-factor)); /* Relativ zu Basis 30px */
+}
+
+.current-month, .current-year {
+    font-size: calc(14px * var(--size-factor)); /* Relativ zu Basis 14px */
+}
+
+.search-lupe svg, .drag-button svg, .apps-symbol svg {
+    width: calc(14px * var(--size-factor)); /* Relativ zu Basis 20px */
+    height: calc(14px * var(--size-factor));
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/* Basis-Reset & Frappe-Variablen für Light/Darkmode */
+/* ─────────────────────────────────────────────────────────────── */
+.kronos-container {
+    height: calc(100vh - 70px) !important;
+    background: var(--card-bg);
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    color: var(--text-color);
+}
+
+/* FullCalendar Container – größer & sauber */
+#calendar {
+    font-family: var(--font-family-base);
+    color: var(--text-color);
+    background: var(--card-bg);
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/* FullCalendar – Events & Tage optimieren (Google-Look, übertragen auf Frappe) */
+/* ─────────────────────────────────────────────────────────────── */
+/* Events schöner */
+/* Reset für Events – keine Farb-Deklarationen, transparent für FullCalendar-inline */
+.fc-event {
+    background-color: transparent; /* Keine default-Farbe, lass JS inline setzten */
+    border-color: transparent; /* Kein default-Rand */
+    color: inherit; /* Text von FullCalendar/Theme */
+    box-shadow: none; /* Entferne Shadows, falls override */
+    border-radius: var(--border-radius-sm); /* Früheres var(--radius-sm) → Frappe */
+    padding: var(--space-2) var(--space-6); /* Früheres padding */
+    transition: all var(--duration-fast) var(--ease-standard); /* Früheres transition */
+}
+
+/* Darkmode-Reset (falls dein Theme wechselt) */
+[data-theme="dark"] .fc-event {
+    background-color: transparent;
+    border-color: transparent;
+}
+
+.fc-event:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15); /* Früheres shadow */
+    transform: translateY(-1px); /* Früheres transform */
+}
+
+/* Event-Titel & Zeit */
+.fc-event-title {
+    font-weight: 500; /* Früheres font-weight */
+    line-height: 1.3; /* Früheres line-height */
+    color: var(--text-color); /* Frappe-Text */
+}
+
+/* Heutiger Tag hervorheben */
+.fc-day-today {
+    background: rgba(var(--primary-rgb), 0.08) !important; /* Früheres rgba */
+    border-color: var(--primary) !important; /* Früheres border */
+}
+
+/* Toolbar (falls noch sichtbar – sollte weg sein) */
+.fc .fc-toolbar {
+    display: none !important; /* Sicherheit: Interner Header komplett weg */
+}
+
+/* Mehr Platz für Kalender */
+.layout-main-section {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Darkmode – Frappe-Variablen übernehmen automatisch */
+[data-theme="dark"] .fc-event {
+    color: var(--text-on-primary-dark);
+}
+
+[data-theme="dark"] .fc-day-today {
+    background: rgba(var(--primary-rgb), 0.15) !important;
+}
+
+/* Custom-Buttons – zentriert & kompakt */
+.kronos-custom-buttons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 10px;
+}
+
+.kronos-custom-buttons .btn {
+    padding: 2px 2px;
+    font-size: 21px;
+    min-width: 50px;
+    text-align: center;
+    background: var(--control-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.kronos-custom-buttons .btn:hover {
+    background: var(--control-bg-hover);
+}
+
+.kronos-custom-buttons .btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+/* Kalender maximal groß */
+.layout-main-section {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.kronos-container {
+    height: calc(100vh - 70px) !important;
+}
+
+/* Darkmode */
+[data-theme="dark"] .kronos-custom-buttons .btn {
+    background: var(--gray-700);
+    color: white;
+}
+
+/* awesome_bar_css_adjust: Styles für custom Awesome-Bar (Google-Style) */
+.navbar .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.left-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.middle-section {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.right-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.current-month, .current-year {
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+.search-lupe, .kombi-button, .apps-symbol {
+    cursor: pointer;
+}
+
+/* Darkmode */
+[data-theme="dark"] .navbar .container {
+    background: var(--gray-800);
+}
+
+/* awesome_bar_buttons_size_adjust: Kleiner Buttons für Awesome-Bar (Google-Style) */
+.kronos-custom-buttons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 10px;
+}
+
+.kronos-custom-buttons .btn {
+    padding: 2px 8px;
+    font-size: 21px;
+    min-width: 50px;
+    text-align: center;
+    background: var(--control-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.kronos-custom-buttons .btn:hover {
+    background: var(--control-bg-hover);
+}
+
+.kronos-custom-buttons .btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+/* Darkmode */
+[data-theme="dark"] .kronos-custom-buttons .btn {
+    background: var(--gray-700);
+    color: white;
+}
+
+/* awesome_bar_size_adjust: Vergrößert Awesome-Bar auf 1,5-fach (72px) mit !important */
+.navbar {
+    height: 72px !important; /* 1,5-fach von 48px, überschreibt Frappe/Bootstrap */
+    padding: 10px 0 !important; /* Zentrierung */
+}
+
+.navbar .container {
+    height: 100% !important; /* Full Height für Container */
+    padding: 0 1rem !important;
+}
+
+.navbar-nav .nav-link {
+    padding: 0 !important; /* Adjust für Items */
+}
+
+/* Darkmode */
+[data-theme="dark"] .navbar {
+    background: var(--gray-800);
+}
+
+.left-section, .right-section {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.system-icon img {
+    height: 55px; /* 1,5-fach adjust */
+}
+
+.current-month, .current-year {
+    font-size: 21px; /* Adjust für Größe */
+}
+
+.search-lupe, .drag-button, .kombi-button, .apps-symbol {
+    padding: 0px; /* Kompakt */
+}
+
+/* Darkmode */
+[data-theme="dark"] .navbar {
+    background: var(--gray-800);
+}
+
+/* DOUBLE BUTTON DESIGN – Clone-adapted with pill-shape rounding */
+.double-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent; /* Transparent, zeigt Bar-Hintergrund */
+    border: 1px solid var(--border-color); /* Leichter Rand für Sichtbarkeit */
+    border-radius: calc(20px * var(--size-factor)); /* Gesamter Pill-Radius */
+    height: calc(32px * var(--size-factor)); /* Relative Höhe */
+    width: calc(100px * var(--size-factor)); /* Breiter für Clone-like space */
+    position: relative;
+    transition: none; /* Kein Übergang für Hover, nur bei Klick */
+    overflow: hidden; /* Clippt innere Ecken für sauberen Pill-Look */
+}
+
+/* Innere Hälften als Buttons – Clone-like flex with clip */
+.double-button button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50%;
+    height: 100%;
+    border: none;
+    cursor: pointer;
+    background-color: transparent; /* Standard: Transparent/inaktiv */
+    transition: background-color 0.2s; /* Clone smooth change */
+    overflow: hidden; /* Clippt überstehenden Text/Icon */
+}
+
+.double-button .left-part {
+    border-right: 1px solid var(--border-color); /* Trennlinie zwischen Hälften */
+    border-top-left-radius: calc(20px * var(--size-factor)); /* Links oben abgerundet */
+    border-bottom-left-radius: calc(20px * var(--size-factor)); /* Links unten abgerundet */
+}
+
+.double-button .right-part {
+    border-top-right-radius: calc(20px * var(--size-factor)); /* Rechts oben abgerundet */
+    border-bottom-right-radius: calc(20px * var(--size-factor)); /* Rechts unten abgerundet */
+}
+
+/* Active-Zustand: Farbig hinterlegt wie in Clone (conditional bg) */
+.double-button button.active {
+    background-color: var(--blue-300); /* Frappe-Primary-Farbe (z.B. blau) */
+    color: var(--text-on-primary); /* Weißer Text/Icon für Kontrast */
+}
+
+/* Inaktiv: Weiß/transparent, dunkles Icon */
+.double-button button:not(.active) {
+    background-color: var(--control-bg); /* Leicht weiß/grau für Sichtbarkeit */
+    color: var(--text-color); /* Dunkler Text/Icon */
+}
+
+/* Hover: Leicht wie in Clone (background hover) */
+.double-button button:hover {
+    background-color: var(--control-bg-hover); /* Clone-like hover feedback */
+}
+
+/* Active-Feedback beim Drücken */
+.double-button button:active {
+    background-color: var(--blue-500); /* Leicht dunkleres Blau beim Klick */
+}
+
+/* Icons: Immer sichtbar, skaliert */
+.double-button img {
+    height: calc(24px * var(--size-factor)); /* Etwas größer für besseren Fit */
+    width: auto;
+    vertical-align: middle;
+    filter: none; /* Kein Filter, Farbe kommt von color */
+}
+
+/* Fallback für fehlende Icons – Clone-like text clip */
+.double-button button img {
+    display: block; /* Sicherstellen, dass img Platz einnimmt */
+}
+
+.double-button button.left-part:not(:has(img))::before {
+    content: "Monat"; /* Fallback-Text für links */
+    font-size: calc(12px * var(--size-factor)); /* Clone-adjusted font */
+    color: inherit;
+    display: block;
+    white-space: nowrap; /* Eine Zeile */
+    overflow: hidden; /* Clippt überstehenden Text */
+    text-overflow: ellipsis; /* Fügt '...' bei Overflow hinzu */
+}
+
+.double-button button.right-part:not(:has(img))::before {
+    content: "Woche"; /* Fallback-Text für rechts */
+    font-size: calc(12px * var(--size-factor)); /* Clone-adjusted font */
+    color: inherit;
+    display: block;
+    white-space: nowrap; /* Eine Zeile */
+    overflow: hidden; /* Clippt überstehenden Text */
+    text-overflow: ellipsis; /* Fügt '...' bei Overflow hinzu */
+}
+
+/* Darkmode-Anpassungen – Clone compatible */
+[data-theme="dark"] .double-button {
+    background-color: transparent;
+    border-color: var(--dark-border-color);
+}
+
+[data-theme="dark"] .double-button button:not(.active) {
+    background-color: var(--gray-800); /* Dunkler Hintergrund im Darkmode */
+    color: var(--text-light);
+}
+
+[data-theme="dark"] .double-button button.active {
+    background-color: var(--blue-500); /* Geändert: Helleres Blau statt schwarz für active – verhindert "komplett schwarz" */
+    color: var(--text-on-primary);
+}
+
+[data-theme="dark"] .double-button button:active {
+    background-color: var(--blue-600); /* Dunkleres Blau beim Drücken, passend zu active */
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/* FULLCALENDAR CUSTOM STYLING (früheres Styling übertragen auf Frappe) */
+/* ─────────────────────────────────────────────────────────────── */
+.fc {
+    font-family: var(--font-family-base); /* Früheres var(--font-family-base) → Frappe */
+    font-size: var(--font-size-base); /* Früheres var(--font-size-base) → Frappe */
+    color: var(--text-color); /* Früheres var(--color-text) → Frappe */
+}
+
+.fc button {
+    color: inherit; /* Früheres inherit */
+    font-family: var(--font-family-base); /* Früheres var(--font-family-base) → Frappe */
+}
+
+.fc-button-primary {
+    background-color: var(--primary); /* Früheres var(--color-primary) → Frappe */
+    border-color: var(--primary); /* Früheres var(--color-primary) → Frappe */
+    border-radius: var(--border-radius-md); /* Früheres var(--radius-base) → Frappe */
+    padding: var(--space-8) var(--space-16); /* Früheres padding */
+    font-weight: var(--font-weight-medium); /* Früheres font-weight */
+    transition: all var(--duration-normal) var(--ease-standard); /* Früheres transition */
+    box-shadow: var(--shadow-xs); /* Früheres var(--shadow-xs) → Frappe */
+}
+
+.fc-button-primary:hover {
+    background-color: var(--primary-hover); /* Früheres var(--color-primary-hover) → Frappe */
+    border-color: var(--primary-hover); /* Früheres var(--color-primary-hover) → Frappe */
+    box-shadow: var(--shadow-sm); /* Früheres var(--shadow-sm) → Frappe */
+}
+
+.fc-button-primary:not(:disabled).fc-button-active {
+    background-color: var(--primary-active); /* Früheres var(--color-primary-active) → Frappe (falls existent, sonst --primary-hover) */
+    border-color: var(--primary-active); /* Früheres var(--color-primary-active) → Frappe */
+    box-shadow: var(--shadow-inset-sm); /* Früheres var(--shadow-inset-sm) → Frappe */
+}
+
+.fc-button-primary:focus-visible {
+    outline: var(--focus-outline); /* Früheres var(--focus-outline) → Frappe */
+    outline-offset: 2px; /* Früheres offset */
+}
+
+.fc-col-header-cell {
+    background-color: var(--card-bg); /* Früheres var(--color-surface) → Frappe */
+    border-color: var(--border-color); /* Früheres var(--color-border) → Frappe */
+    color: var(--text-color); /* Früheres var(--color-text) → Frappe */
+    padding: var(--space-12) 0; /* Früheres padding */
+    font-weight: var(--font-weight-semibold); /* Früheres font-weight */
+    font-size: var(--font-size-sm); /* Früheres var(--font-size-sm) → Frappe */
+    text-transform: uppercase; /* Früheres uppercase */
+    letter-spacing: var(--letter-spacing-tight); /* Früheres letter-spacing */
+}
+
+.fc-daygrid-day {
+    background-color: var(--card-bg); /* Früheres var(--color-background) → Frappe */
+    border-color: var(--border-color); /* Früheres var(--color-border) → Frappe */
+    transition: background-color var(--duration-fast) var(--ease-standard); /* Früheres transition */
+}
+
+.fc-daygrid-day:hover {
+    background-color: var(--gray-100); /* Früheres var(--color-secondary) → Frappe hellgrau */
+}
+
+.fc-daygrid-day.fc-day-other {
+    background-color: var(--gray-100); /* Früheres var(--color-secondary) → Frappe */
+    opacity: 0.6; /* Früheres opacity */
+}
+
+.fc-daygrid-day-number {
+    padding: var(--space-8); /* Früheres padding */
+    color: var(--text-color); /* Früheres var(--color-text) → Frappe */
+    font-weight: var(--font-weight-medium); /* Früheres font-weight */
+    font-size: var(--font-size-sm); /* Früheres var(--font-size-sm) → Frappe */
+}
+
+.fc-event {
+    background-color: var(--primary); /* Früheres var(--color-primary) → Frappe */
+    border-color: var(--primary); /* Früheres var(--color-primary) → Frappe */
+    border-radius: var(--border-radius-sm); /* Früheres var(--radius-sm) → Frappe */
+    padding: var(--space-2) var(--space-6); /* Früheres padding */
+    transition: all var(--duration-fast) var(--ease-standard); /* Früheres transition */
+}
+
+.fc-event:hover {
+    background-color: var(--primary-hover); /* Früheres var(--color-primary-hover) → Frappe */
+    box-shadow: var(--shadow-sm); /* Früheres var(--shadow-sm) → Frappe */
+}
+
+.fc-event-title {
+    color: var(--text-on-primary); /* Früheres var(--color-btn-primary-text) → Frappe */
+    font-weight: var(--font-weight-medium); /* Früheres font-weight */
+    font-size: var(--font-size-sm); /* Früheres var(--font-size-sm) → Frappe */
+}
+
+.fc-daygrid-day-frame {
+    position: relative;
+    min-height: 100px; /* Früheres min-height */
+}
+
+.fc-col-header {
+    background-color: var(--card-bg); /* Früheres var(--color-surface) → Frappe */
+    border-color: var(--border-color); /* Früheres var(--color-border) → Frappe */
+}
+
+.fc-daygrid-body {
+    border-color: var(--border-color); /* Früheres var(--color-border) → Frappe */
+}
+
+.fc-timegrid-slot {
+    height: 3em; /* Früheres height */
+    border-color: var(--border-color); /* Früheres var(--color-card-border) → Frappe */
+}
+
+.fc-timegrid-body {
+    border-color: var(--border-color); /* Früheres var(--color-border) → Frappe */
+}
+
+.fc-scrollgrid {
+    border-color: var(--border-color); /* Früheres var(--color-border) → Frappe */
+    border-radius: var(--border-radius-md); /* Früheres var(--radius-base) → Frappe */
+    overflow: hidden; /* Früheres overflow */
+}
+
+.fc-scrollgrid-sync-inner {
+    background-color: var(--card-bg); /* Früheres var(--color-background) → Frappe */
+}
+
+/* Dark Mode FullCalendar (übertragen auf Frappe) */
+[data-theme="dark"] .fc {
+    color: var(--text-color); /* Früheres var(--color-text) → Frappe */
+}
+
+[data-theme="dark"] .fc-col-header-cell {
+    background-color: var(--gray-800); /* Früheres var(--color-surface) → Frappe dark */
+    border-color: var(--dark-border-color); /* Früheres var(--color-border) → Frappe */
+    color: var(--text-light); /* Früheres var(--color-text) → Frappe */
+}
+
+[data-theme="dark"] .fc-daygrid-day {
+    background-color: var(--gray-900); /* Früheres var(--color-background) → Frappe */
+    border-color: var(--dark-border-color); /* Früheres var(--color-border) → Frappe */
+}
+
+[data-theme="dark"] .fc-daygrid-day:hover {
+    background-color: var(--gray-700); /* Früheres var(--color-secondary) → Frappe */
+}
+
+[data-theme="dark"] .fc-daygrid-day.fc-day-other {
+    background-color: var(--gray-700); /* Früheres var(--color-secondary) → Frappe */
+    opacity: 0.5; /* Früheres opacity */
+}
+
+[data-theme="dark"] .fc-daygrid-day-number {
+    color: var(--text-light); /* Früheres var(--color-text) → Frappe */
+}
+
+[data-theme="dark"] .fc-daygrid-day-frame {
+    background-color: var(--gray-900); /* Früheres var(--color-background) → Frappe */
+}
+
+[data-theme="dark"] .fc-col-header {
+    background-color: var(--gray-800); /* Früheres var(--color-surface) → Frappe */
+    border-color: var(--dark-border-color); /* Früheres var(--color-border) → Frappe */
+}
+
+[data-theme="dark"] .fc-daygrid-body {
+    border-color: var(--dark-border-color); /* Früheres var(--color-border) → Frappe */
+}
+
+[data-theme="dark"] .fc-timegrid-slot {
+    border-color: var(--dark-border-color); /* Früheres var(--color-card-border) → Frappe */
+}
+
+[data-theme="dark"] .fc-scrollgrid {
+    border-color: var(--dark-border-color); /* Früheres var(--color-border) → Frappe */
+}
+
+/* Light mode prefers-color-scheme (übertragen auf Frappe) */
+@media (prefers-color-scheme: dark) {
+    .fc {
+        color: var(--text-color); /* Früheres var(--color-text) → Frappe */
+    }
+    .fc-col-header-cell {
+        background-color: var(--gray-800); /* Früheres var(--color-surface) → Frappe */
+        border-color: var(--dark-border-color); /* Früheres var(--color-border) → Frappe */
+        color: var(--text-light); /* Früheres var(--color-text) → Frappe */
+    }
+    .fc-daygrid-day {
+        background-color: var(--gray-900); /* Früheres var(--color-background) → Frappe */
+        border-color: var(--dark-border-color); /* Früheres var(--color-border) → Frappe */
+    }
+    .fc-daygrid-day:hover {
+        background-color: var(--gray-700); /* Früheres var(--color-secondary) → Frappe */
+    }
+    .fc-daygrid-day.fc-day-other {
+        background-color: var(--gray-700); /* Früheres var(--color-secondary) → Frappe */
+        opacity: 0.5; /* Früheres opacity */
+    }
+    .fc-daygrid-day-number {
+        color: var(--text-light); /* Früheres var(--color-text) → Frappe */
+    }
+    .fc-daygrid-day-frame {
+        background-color: var(--gray-900); /* Früheres var(--color-background) → Frappe */
+    }
+    .fc-col-header {
+        background-color: var(--gray-800); /* Früheres var(--color-surface) → Frappe */
+        border-color: var(--dark-border-color); /* Früheres var(--color-border) → Frappe */
+    }
+    .fc-daygrid-body {
+        border-color: var(--dark-border-color); /* Früheres var(--color-border) → Frappe */
+    }
+    .fc-timegrid-slot {
+        border-color: var(--dark-border-color); /* Früheres var(--color-card-border) → Frappe */
+    }
+    .fc-scrollgrid {
+        border-color: var(--dark-border-color); /* Früheres var(--color-border) → Frappe */
+    }
+}
+
+/* DOUBLE BUTTON DESIGN – Clone-adapted with pill-shape rounding */
+.double-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent; /* Transparent, zeigt Bar-Hintergrund */
+    border: 1px solid var(--border-color); /* Leichter Rand für Sichtbarkeit */
+    border-radius: calc(20px * var(--size-factor)); /* Gesamter Pill-Radius */
+    height: calc(32px * var(--size-factor)); /* Relative Höhe */
+    width: calc(100px * var(--size-factor)); /* Breiter für Clone-like space */
+    position: relative;
+    transition: none; /* Kein Übergang für Hover, nur bei Klick */
+    overflow: hidden; /* Clippt innere Ecken für sauberen Pill-Look */
+}
+
+/* Innere Hälften als Buttons – Clone-like flex with clip */
+.double-button button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50%;
+    height: 100%;
+    border: none;
+    cursor: pointer;
+    background-color: transparent; /* Standard: Transparent/inaktiv */
+    transition: background-color 0.2s; /* Clone smooth change */
+    overflow: hidden; /* Clippt überstehenden Text/Icon */
+}
+
+.double-button .left-part {
+    border-right: 1px solid var(--border-color); /* Trennlinie zwischen Hälften */
+    border-top-left-radius: calc(20px * var(--size-factor)); /* Links oben abgerundet */
+    border-bottom-left-radius: calc(20px * var(--size-factor)); /* Links unten abgerundet */
+}
+
+.double-button .right-part {
+    border-top-right-radius: calc(20px * var(--size-factor)); /* Rechts oben abgerundet */
+    border-bottom-right-radius: calc(20px * var(--size-factor)); /* Rechts unten abgerundet */
+}
+
+/* Active-Zustand: Farbig hinterlegt wie in Clone (conditional bg) */
+.double-button button.active {
+    background-color: var(--blue-300); /* Frappe-Primary-Farbe (z.B. blau) */
+    color: var(--text-on-primary); /* Weißer Text/Icon für Kontrast */
+}
+
+/* Inaktiv: Weiß/transparent, dunkles Icon */
+.double-button button:not(.active) {
+    background-color: var(--control-bg); /* Leicht weiß/grau für Sichtbarkeit */
+    color: var(--text-color); /* Dunkler Text/Icon */
+}
+
+/* Hover: Leicht wie in Clone (background hover) */
+.double-button button:hover {
+    background-color: var(--control-bg-hover); /* Clone-like hover feedback */
+}
+
+/* Active-Feedback beim Drücken */
+.double-button button:active {
+    background-color: var(--blue-500); /* Leicht dunkleres Blau beim Klick */
+}
+
+/* Icons: Immer sichtbar, skaliert */
+.double-button img {
+    height: calc(24px * var(--size-factor)); /* Etwas größer für besseren Fit */
+    width: auto;
+    vertical-align: middle;
+    filter: none; /* Kein Filter, Farbe kommt von color */
+}
+
+/* Fallback für fehlende Icons – Clone-like text clip */
+.double-button button img {
+    display: block; /* Sicherstellen, dass img Platz einnimmt */
+}
+
+.double-button button.left-part:not(:has(img))::before {
+    content: "Monat"; /* Fallback-Text für links */
+    font-size: calc(12px * var(--size-factor)); /* Clone-adjusted font */
+    color: inherit;
+    display: block;
+    white-space: nowrap; /* Eine Zeile */
+    overflow: hidden; /* Clippt überstehenden Text */
+    text-overflow: ellipsis; /* Fügt '...' bei Overflow hinzu */
+}
+
+.double-button button.right-part:not(:has(img))::before {
+    content: "Woche"; /* Fallback-Text für rechts */
+    font-size: calc(12px * var(--size-factor)); /* Clone-adjusted font */
+    color: inherit;
+    display: block;
+    white-space: nowrap; /* Eine Zeile */
+    overflow: hidden; /* Clippt überstehenden Text */
+    text-overflow: ellipsis; /* Fügt '...' bei Overflow hinzu */
+}
+
+/* Darkmode-Anpassungen – Clone compatible */
+[data-theme="dark"] .double-button {
+    background-color: transparent;
+    border-color: var(--dark-border-color);
+}
+
+[data-theme="dark"] .double-button button:not(.active) {
+    background-color: var(--gray-800); /* Dunkler Hintergrund im Darkmode */
+    color: var(--text-light);
+}
+
+[data-theme="dark"] .double-button button.active {
+    background-color: var(--blue-500); /* Geändert: Helleres Blau statt schwarz für active – verhindert "komplett schwarz" */
+    color: var(--text-on-primary);
+}
+
+[data-theme="dark"] .double-button button:active {
+    background-color: var(--blue-600); /* Dunkleres Blau beim Drücken, passend zu active */
+}

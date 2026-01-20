@@ -32,6 +32,29 @@ def parse_iso_datetime_raw(iso_string):
         frappe.throw(f"Ungültiges Datum: {iso_string}")
 
 
+
+@frappe.whitelist()
+def get_events(start, end):
+    """event_get_with_calendar_color_join: Holt Events mit Farbe aus übergeordnetem Kalender."""
+    events = frappe.db.sql("""
+        SELECT
+            elem.name AS id,
+            elem.element_name AS title,
+            elem.element_start AS start,
+            elem.element_end AS end,
+            elem.all_day,
+            COALESCE(kal.calendar_color, elem.element_color, '#007bff') AS color  -- Priorisiert calendar_color, Fallback zu element_color oder Blau
+        FROM `tabElement` elem
+        LEFT JOIN `tabKalender` kal ON kal.name = elem.element_calendar
+        WHERE elem.element_start >= %(start)s
+          AND elem.element_end <= %(end)s
+    """, {'start': start, 'end': end}, as_dict=True)
+    
+    # events_color_debug_log: Logge für Debugging (entferne in Prod)
+    frappe.log_error(f"Events fetched: {len(events)}, Sample color: {events[0]['color'] if events else 'None'}", "event_get_debug")
+    
+    return events
+
 @frappe.whitelist()
 def create_event(element_name, element_start, element_end, element_calendar,
                  all_day=False, description=None, status=None):
