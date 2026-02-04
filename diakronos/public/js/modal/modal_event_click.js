@@ -1,15 +1,7 @@
-/**
- * ═══════════════════════════════════════════════════════════════
- * KRONOS MODAL - EVENT CLICK HANDLER
- * ═══════════════════════════════════════════════════════════════
- */
+// modal_event_click.js – kleiner Fix für v6 Event-Objekt (id aus event.id, extendedProps)
 
 class KronosEventClickHandler {
     
-    /**
-     * 🖱️ EVENT CLICK HANDLER
-     * Wird aufgerufen wenn User auf einen Termin klickt
-     */
     static showEventClickDialog(eventData) {
         console.log('🔍 Event geklickt:', eventData);
         
@@ -23,22 +15,19 @@ class KronosEventClickHandler {
             method: 'frappe.client.get',
             args: {
                 doctype: 'Element',
-                name: eventData.id
+                name: eventData.id  // v6: eventData.id ist der Name
             },
             callback: (r) => {
                 if (r.message) {
                     const element = r.message;
                     console.log('📋 Element Daten geladen:', element);
                     
-                    // Prüfe ob Serientermin
                     const isSeriesInstance = !!element.series_id;
                     console.log('📺 isSeriesInstance:', isSeriesInstance);
                     
                     if (isSeriesInstance) {
-                        // Öffne Serie-Handler
                         KronosSeriesHandler.showSeriesHandler(element);
                     } else {
-                        // Öffne Edit Dialog für normale Termine
                         KronosSmartEditDialog.showSmartEditDialog(element, {
                             action: 'edit_single',
                             title: 'Termin bearbeiten',

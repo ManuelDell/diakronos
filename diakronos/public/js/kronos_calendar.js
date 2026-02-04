@@ -1,6 +1,4 @@
-// diakronos/public/js/kronos_calendar.js
-// events_color_force_inline_apply: Force Farben inline mit eventDidMount (Doku: https://fullcalendar.io/docs/eventDidMount)
-
+// kronos_calendar.js – angepasst für v6 Global Bundle (Plugins entfernt, da im Bundle integriert)
 class KronosCalendar {
     constructor() {
         this.calendar = null;
@@ -11,67 +9,239 @@ class KronosCalendar {
         
         const calendarEl = document.getElementById('calendar');
         if (!calendarEl) {
-            console.error('❌ calendar_element_not_found');
+            console.error('❌ Calendar Element nicht gefunden');
             return;
         }
 
-        this.calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            locale: 'de',
-            headerToolbar: false,
-            height: '100%',
-            editable: true,
-            selectable: true,
-            events: function(fetchInfo, successCallback, failureCallback) {
-                frappe.call({
-                    method: 'diakronos.kronos.api.event_crud.get_events',
-                    args: {
-                        start: fetchInfo.startStr,
-                        end: fetchInfo.endStr
-                    },
-                    callback: (r) => {
-                        if (r.message) {
-                            const events = r.message.map(event => ({
-                                ...event,
-                                backgroundColor: event.color || '#007bff',
-                                borderColor: event.color || '#007bff',
-                                textColor: '#ffffff'
-                            }));
-                            console.log('✅ events_color_debug: Sample event color:', events[0]?.backgroundColor || 'None');
-                            successCallback(events);
-                        } else {
-                            failureCallback('events_load_failed');
-                        }
-                    }
-                });
-            },
-            // events_color_force_inline_apply: Force Farben bei Render (um Overrides zu umgehen)
-        eventDidMount: function(info) {
-                const el = info.el;
-                const bgColor = info.event.backgroundColor || '#007bff';  // Aus Kalender-Farbe via API
-                el.style.backgroundColor = bgColor;  // Inline setzten (priorisiert über CSS)
-                el.style.borderColor = bgColor;
-                el.style.color = '#ffffff';  // Kontrast
-                console.log('✅ eventDidMount_debug: Forced color for', info.event.title, ':', bgColor);  // Debug
-            },
-            dateClick: (info) => {
-                KronosCreateDialog.showCreateDialog(info.dateStr, {});
-            },
-            eventClick: (info) => {
-                KronosEventClickHandler.showEventClickDialog(info.event);
-            }
+        // =========================================================================
+        // KRITISCH: window.FullCalendar muss von kronos_calendar_page.js gesetzt sein!
+        // =========================================================================
+        if (!window.FullCalendar || !window.FullCalendar.Calendar) {
+            console.error('❌ FullCalendar nicht im window verfügbar!');
+            console.error('   Prüfe: Wurde loadFullCalendarGlobal() aufgerufen?');
+            console.error('   window.FullCalendar:', window.FullCalendar);
+            return;
+        }
+
+        // Destrukturiere NUR Calendar aus window.FullCalendar
+        const { 
+            Calendar
+        } = window.FullCalendar;
+
+        // Validierung: Calendar vorhanden? (Plugins sind intern)
+        if (!Calendar) {
+            console.error('❌ Kritische Calendar-Klasse fehlt');
+            return;
+        }
+
+        console.log('✅ FullCalendar verfügbar:', {
+            Calendar: !!Calendar
         });
 
-        this.calendar.render();
-        console.log('✅ kronos_calendar_render: Kalender gerendert');
-    }
+        try {
+            // Erstelle Calendar-Instanz ohne plugins-Array
+            this.calendar = new Calendar(calendarEl, {
+                // plugins: [] ← Entfernt: Nicht nötig beim global bundle
+                initialView: 'dayGridMonth',
+                locale: 'de',
+                // Header wird in kronos_calendar_page.js verwaltet
+                headerToolbar: false,
+                weekNumbers: true,                    // ← Kalenderwochen EIN
+                weekNumbersWithinDays: true,
+                // Layout
+                height: '100%',
+                expandRows: true,
+                // Interaktion
+                editable: true,
+                selectable: true,
+                selectMirror: true,
+                // Events (umgeschrieben auf reines fetch, ohne frappe.call)
+                events: async function(fetchInfo, successCallback, failureCallback) {
+                    console.log('📅 Hole Events für Range:', {
+                        start: fetchInfo.startStr,
+                        end: fetchInfo.endStr
+                    });
 
-    events_refetch() {
-        if (this.calendar) {
-            this.calendar.refetchEvents();
+                    let csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                    if (!csrfToken) {
+                        const match = document.cookie.match(/csrftoken=([^;]+)/);
+                        csrfToken = match ? match[1] : '';
+                        console.log('Fallback CSRF aus Cookie:', csrfToken);
+                    }
+
+                    try {
+                        const response = await fetch('/api/method/diakronos.kronos.api.calendar_get.get_calendar_events', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Frappe-CSRF-Token': csrfToken || ''
+                            },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                                start_date: fetchInfo.startStr.split('T')[0],
+                                end_date: fetchInfo.endStr.split('T')[0],
+                                calendar_filter: JSON.stringify([]) // TODO: Implementiere Filter später, wenn nötig
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(`API-Fehler: ${response.status} - ${errorText}`);
+                        }
+
+                        const result = await response.json();
+                        const events = result.message || [];
+
+                        console.log('✅ Events geladen:', events.length);
+                        successCallback(events);
+                    } catch (err) {
+                        console.error('❌ Events-Laden fehlgeschlagen:', err);
+                        failureCallback(err);
+                    }
+                },
+                // Callbacks
+                datesSet: (info) => {
+                    console.log('📆 Datum-Range aktualisiert:', {
+                        start: info.startStr,
+                        end: info.endStr,
+                        view: info.view.type
+                    });
+                    if (window.kronosMiniCalendar) {
+                        window.kronosMiniCalendar.syncWithMain();
+                    }
+                },
+                dateClick: (info) => {
+                    console.log('📅 Datum geklickt:', info.dateStr);
+                    KronosCreateDialog.showCreateDialog(info.dateStr);
+                },
+                eventClick: (info) => {
+                    console.log('🔍 Event geklickt:', info.event.id);
+                    KronosEventClickHandler.showEventClickDialog(info.event);
+                },
+                eventDrop: (info) => {
+                    console.log('📦 Event verschoben:', info.event.id);
+                    KronosEvents.updateEvent(info.event);
+                },
+                eventResize: (info) => {
+                    console.log('📏 Event resized:', info.event.id);
+                    KronosEvents.updateEvent(info.event);
+                },
+                select: (info) => {
+                    console.log('🗓️ Bereich ausgewählt:', info.startStr);
+                    KronosCreateDialog.showCreateDialog(info.startStr);
+                }
+            });
+
+            // Automatisches Kalender-Resize NACH Abschluss der Sidebar-Transition
+            const sidebar = document.querySelector('.kronos-sidebar');
+
+            if (sidebar && window.kronosCalendar && window.kronosCalendar.calendar) {
+            // Einmaliger Listener für jedes Transition-Ende
+            sidebar.addEventListener('transitionend', (event) => {
+                // Nur reagieren, wenn wirklich die width animiert wurde
+                if (event.propertyName === 'width') {
+                window.kronosCalendar.calendar.updateSize();
+                console.log('✅ Kalender resized NACH Sidebar-Transition-Ende');
+                }
+            });
+
+            console.log('✅ transitionend-Listener auf Sidebar aktiviert');
+            } else {
+            console.warn('⚠️ transitionend-Listener konnte nicht gestartet werden');
+            }
+            this.calendar.render();
+            console.log('✅ kronos_calendar_render: Kalender erfolgreich gerendert');
+            // Innerhalb von kronos_calendar_init, nach calendar.render()
+            // Header-Pfeile verknüpfen
+            const dateDisplay = document.getElementById('current-date-display');
+            const prevBtn = document.querySelector('.prev-month');
+            const nextBtn = document.querySelector('.next-month');
+            const updateDateDisplay = () => {
+                if (dateDisplay) {
+                    dateDisplay.textContent = this.calendar.view.title;
+                }
+            };
+            this.calendar.on('datesSet', updateDateDisplay);
+            updateDateDisplay();
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => this.calendar.prev());
+            }
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => this.calendar.next());
+            }
+            console.log('✅ Eigene Header-Pfeile verknüpft');
+            // Forciere Höhe auf 100%
+            calendarEl.style.height = '100%';
+            this.calendar.updateSize();
+            setTimeout(() => {
+                const fc = document.querySelector('.fc');
+                console.log('FC AFTER INIT HEIGHT:', fc.offsetHeight);
+                console.log('FC STYLE.HEIGHT:', fc.style.height);
+                console.log('CALENDAR EL HEIGHT:', calendarEl.offsetHeight);
+            }, 100);
+        } catch (error) {
+            console.error('❌ Fehler beim Initialisieren:', error);
+            console.error(' Stack:', error.stack);
+            return null;
         }
     }
+
+    // =========================================================================
+    // HELPER METHODEN
+    // =========================================================================
+
+    /**
+     * Events neu laden (z.B. nach Änderungen)
+     */
+    refetchEvents() {
+        if (this.calendar) {
+            this.calendar.refetchEvents();
+            console.log('🔄 Events refetched');
+        } else {
+            console.warn('⚠️ Calendar nicht initialisiert');
+        }
+    }
+
+    /**
+     * Zur bestimmtem Datum springen
+     */
+    gotoDate(dateStr) {
+        if (this.calendar) {
+            this.calendar.gotoDate(dateStr);
+            console.log('➡️ Sprung zu:', dateStr);
+        }
+    }
+
+    /**
+     * View wechseln
+     */
+    changeView(viewName) {
+        if (this.calendar) {
+            this.calendar.changeView(viewName);
+            console.log('👁️ View gewechselt zu:', viewName);
+        }
+    }
+
+    /**
+     * Aktuelles View ermitteln
+     */
+    getCurrentView() {
+        return this.calendar ? this.calendar.view : null;
+    }
+
+    /**
+     * Heute anzeigen
+     */
+    today() {
+        if (this.calendar) {
+            this.calendar.today();
+            console.log('🏠 Heute angezeigt');
+        }
+    }
+    
 }
 
-window.KronosCalendar = KronosCalendar;
-console.log('✅ kronos_calendar_class_loaded');
+window.kronosCalendar = new KronosCalendar();
+window.kronosCalendar.kronos_calendar_init();
+
+console.log('kronosCalendar Instanz gesetzt:', window.kronosCalendar);

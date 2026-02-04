@@ -2,10 +2,10 @@
   "name": "diakronos",
   "version": "1.0.0",
   "description": "Gemeindeverwaltung",
+  "devDependencies": {
+    "baseline-browser-mapping": "^2.9.17"
+  },
   "dependencies": {
-    "tui-code-snippet": "^2.3.0",
-    "tui-date-picker": "^4.3.0",
-    "tui-time-picker": "^2.1.6",
-    "tui-calendar": "^1.15.3"
+    "@fullcalendar/multimonth": "^6.1.20"
   }
 }

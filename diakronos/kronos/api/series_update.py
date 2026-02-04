@@ -57,7 +57,7 @@ def update_series_batch_fast(series_id, updates):
     }
 
 @frappe.whitelist()
-def delete_series_batch(series_id):
+def delete_series_batch_fast(series_id):
     """Löscht alle Elemente einer Serie."""
     if not series_id:
         frappe.throw(_("Series ID erforderlich"))

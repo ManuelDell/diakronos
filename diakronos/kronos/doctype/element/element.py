@@ -15,9 +15,6 @@ class Element(Document):
         if self.repeat_this_event and not self.series_id:
             self.create_series()
 
-    def after_save(self):
-        """Nach dem Speichern – Synchronisiere mit Kalender."""
-        self._sync_to_calendar()
 
     # ════════════════════════════════════════════════════════════════
     # SERIEN-LOGIK
@@ -94,84 +91,6 @@ class Element(Document):
             return add_months(current, 12)
 
         return None
-
-    def _sync_to_calendar(self):
-        """Nach dem Speichern: Synchronisiere Element mit Kalender-Einträgen."""
-        if frappe.flags.get("element_to_calendar_sync"):
-            return
-
-        frappe.flags.element_to_calendar_sync = True
-
-        try:
-            new_cal = self.element_calendar
-            old_cal = None
-
-            previous = self.get_doc_before_save()
-            if previous:
-                old_cal = previous.element_calendar
-
-            # ===== 1. Alten Kalender bereinigen =====
-            if old_cal and old_cal != new_cal and frappe.db.exists("Kalender", old_cal):
-                cal = frappe.get_doc("Kalender", old_cal)
-                link_field = "element"
-                for f in frappe.get_meta("Elementlink").fields:
-                    if f.fieldtype == "Link" and f.options == "Element":
-                        link_field = f.fieldname
-                        break
-
-                rows_to_remove = []
-                for r in cal.calendar_table:
-                    if r.get(link_field) == self.name:
-                        rows_to_remove.append(r)
-
-                for r in rows_to_remove:
-                    cal.calendar_table.remove(r)
-
-                if rows_to_remove:
-                    cal.save(ignore_permissions=True, ignore_version=True)
-
-            # ===== 2. Neue Kalender-Verknüpfung =====
-            if not new_cal:
-                return
-
-            cal = frappe.get_doc("Kalender", new_cal)
-            link_field = "element"
-            for f in frappe.get_meta("Elementlink").fields:
-                if f.fieldtype == "Link" and f.options == "Element":
-                    link_field = f.fieldname
-                    break
-
-            existing_row = None
-            for r in cal.calendar_table:
-                if r.get(link_field) == self.name:
-                    existing_row = r
-                    break
-
-            data = {
-                "doctype": "Elementlink",
-                link_field: self.name,
-                "elementlink_title": self.element_name or self.name,
-                "elementlink_status": self.get("status") or "",
-                "elementlink_start": self.element_start,
-                "elementlink_end": self.element_end,
-            }
-
-            if existing_row:
-                existing_row.elementlink_title = data["elementlink_title"]
-                existing_row.elementlink_status = data["elementlink_status"]
-                existing_row.elementlink_start = data["elementlink_start"]
-                existing_row.elementlink_end = data["elementlink_end"]
-            else:
-                cal.append("calendar_table", data)
-
-            cal.save(ignore_permissions=True, ignore_version=True)
-
-        except Exception as e:
-            frappe.log_error(str(e), "Kalender Sync Fehler")
-
-        finally:
-            frappe.flags.element_to_calendar_sync = False
-
 
 # ════════════════════════════════════════════════════════════════
 # BERECHTIGUNGEN – HILFSFUNKTION
