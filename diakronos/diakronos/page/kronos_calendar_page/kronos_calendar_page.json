@@ -4,7 +4,7 @@
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2026-01-19 17:47:37.405000",
+ "modified": "2026-01-22 12:24:24.133915",
  "modified_by": "Administrator",
  "module": "Diakronos",
  "name": "kronos_calendar_page",
@@ -15,5 +15,5 @@
  "standard": "Yes",
  "style": null,
  "system_page": 0,
- "title": "Kronos Kalendar medium"
+ "title": "Kronos Kalendar"
 }

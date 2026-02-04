@@ -14,16 +14,9 @@
 
 class KronosEvents {
     
-    /**
-     * Aktualisiere einen Event
-     * ✅ RICHTIG: Verwendet formatDateForBackend() für UTC-Konvertierung
-     * ✅ RICHTIG: hat error-Handler
-     * ✅ RICHTIG: cache: false
-     */
     static updateEvent(event) {
         console.log('🔄 Aktualisiere Event:', event.id);
         
-        // 🔐 VALIDIERUNG
         if (!event || !event.id) {
             console.error('❌ Event.id erforderlich');
             frappe.show_alert({ 
@@ -42,31 +35,31 @@ class KronosEvents {
             return;
         }
         
-        // 🔧 KORREKTE KONVERTIERUNG: formatDateForBackend() verwenden!
-        const startStr = window.kronosCalendar.formatDateForBackend(event.start);
-        const endStr = window.kronosCalendar.formatDateForBackend(event.end);
+        // v6: event.start/end sind Date-Objekte → Konvertiere zu UTC-Strings
+        const startStr = event.start.toISOString();  // oder deine formatDateForBackend()
+        const endStr = event.end.toISOString();
         
-        console.log('📤 Sende Update mit UTC-Konvertierung:', { startStr, endStr });
+        console.log('📤 Sende Update:', { startStr, endStr });
         
         frappe.call({
             method: 'diakronos.kronos.api.event_crud.update_event',
             args: {
                 'name': event.id,
                 'element_name': event.title,
-                'element_start': startStr,  // ✅ UTC Format!
-                'element_end': endStr,      // ✅ UTC Format!
-                'element_calendar': event.calendarId || 'Standard'
+                'element_start': startStr,
+                'element_end': endStr,
+                'element_calendar': event.extendedProps.calendarId || 'Standard'  // v6: extendedProps
             },
-            cache: false,  // ← KRITISCH: Nicht cachen!
+            cache: false,
             callback: (r) => {
                 if (r.message) {
-                    console.log('✅ Event aktualisiert:', r.message.name);
+                    console.log('✅ Event aktualisiert:', r.message);
                     frappe.show_alert({
                         message: '✅ Termin aktualisiert',
                         indicator: 'green'
                     });
                     window.kronosCalendar.refetchEvents();
-                } else if (r.exc) {
+                } else {
                     console.error('❌ Update fehlgeschlagen:', r.exc);
                     frappe.show_alert({
                         message: '❌ Fehler beim Aktualisieren',

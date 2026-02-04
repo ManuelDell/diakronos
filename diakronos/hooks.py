@@ -54,39 +54,24 @@ whitelisted_methods = {
     'diakronos.kronos.api.cache_invalidator.invalidate_events_cache',
     'diakronos.kronos.api.calendar_get.clear_events_cache_endpoint',
     'diakronos.kronos.doctype.element.element.get_calendar_and_category_options',
+
 }
-# ───────────────────────────────────────────────────────────────
-# Assets laden – FullCalendar v6 lokal aus deiner App
-# ───────────────────────────────────────────────────────────────
-app_include_js = [
-    "/assets/diakronos/js/fullcalendar_bundle_include/fullcalendar.global.min.js",
-    "/assets/diakronos/js/element_extract_id.js",
-    "/assets/diakronos/js/kronos_events.js",
-    # Entfernt: "/assets/diakronos/js/kronos_calendar.js", # Lädt nun on-demand in kronos_calendar_page.js
-    "/assets/diakronos/js/kronos_modal.js",
-    "/assets/diakronos/js/modal/modal_helpers.js",
-    "/assets/diakronos/js/modal/modal_base.js",
-    "/assets/diakronos/js/modal/modal_event_click.js",
-    "/assets/diakronos/js/modal/modal_smart_edit.js",
-    "/assets/diakronos/js/modal/modal_series_handler.js",
-    "/assets/diakronos/js/modal/modal_create_dialog.js"
-]
-
 app_include_css = [
-    # FullCalendar v6 CSS lokal
-    "/assets/diakronos/js/fullcalendar_bundle_include/fullcalendar.global.min.css",
-    # Deine Custom-Styles
-    "/assets/diakronos/css/kronos_calendar_custom.css",
-    "/assets/diakronos/css/kronos_modal.css"
+    "/assets/diakronos/css/kronos.bundle.css"  # ← genau dieser Pfad (Frappe handhabt Hash)
 ]
 
+# Optional: Wenn du JS schon im Bundle hast, kannst du es auch hier einbinden
+app_include_js = [
+    "/assets/diakronos/js/kronos.bundle.js"
+]
 # ───────────────────────────────────────────────────────────────
 # Optionale, aber empfohlene Ergänzungen
 # ───────────────────────────────────────────────────────────────
 app_include_icons = [
-    "/assets/diakronos/images/diakronos-logo.svg",
-    "/assets/diakronos/images/kalender-icon.png",
-    "/assets/diakronos/images/calendar-week-icon.svg"
+    "/diakronos/images/diakronos-logo.svg",
+    "/diakronos/images/kalender-icon.png",
+    "/diakronos/images/calendar-week-icon.svg"
 ]
+after_install = "diakronos.setup.install.symlink_create_install"
 # Standardmäßig deaktiviert – nur wenn du es wirklich brauchst
 # app_include_fonts = []

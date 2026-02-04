@@ -1,7 +1,6 @@
 {
- "app": "diakronos",
  "charts": [],
- "content": "[{\"id\":\"ddVqOj3Zw5\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">\u00dcbersichtsseite</span>\",\"col\":12}},{\"id\":\"_kneC9zHL2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Kalender\u00fcbersicht\",\"col\":3}},{\"id\":\"GyUyiZMn2m\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Terminkategorie\",\"col\":3}},{\"id\":\"ANQ3g9nLNM\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Terminliste\",\"col\":3}}]",
+ "content": "[{\"id\":\"ddVqOj3Zw5\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">\u00dcbersichtsseite</span>\",\"col\":12}},{\"id\":\"_kneC9zHL2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Kalender\u00fcbersicht\",\"col\":3}},{\"id\":\"GyUyiZMn2m\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Terminkategorie\",\"col\":3}},{\"id\":\"PQXM0eWJoN\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Verf\u00fcgbare Kalender\",\"col\":3}},{\"id\":\"ANQ3g9nLNM\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Terminliste\",\"col\":3}}]",
  "creation": "2026-01-02 16:32:52.717292",
  "custom_blocks": [],
  "docstatus": 0,
@@ -13,9 +12,8 @@
  "indicator_color": "green",
  "is_hidden": 0,
  "label": "\u00dcbersichtsseite",
- "link_type": "DocType",
  "links": [],
- "modified": "2026-01-19 17:51:55.149930",
+ "modified": "2026-01-30 17:31:54.753955",
  "modified_by": "Administrator",
  "module": "Diakronos",
  "name": "\u00dcbersichtsseite",
@@ -30,17 +28,25 @@
   {
    "color": "Grey",
    "doc_view": "List",
-   "label": "Terminkategorie",
-   "link_to": "Eventkategorie",
+   "label": "Kalender\u00fcbersicht",
+   "type": "URL",
+   "url": "https://kico.ecg-hn.de/kronos/calendar"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Verf\u00fcgbare Kalender",
+   "link_to": "Kalender",
    "stats_filter": "[]",
    "type": "DocType"
   },
   {
    "color": "Grey",
    "doc_view": "List",
-   "label": "Kalender\u00fcbersicht",
-   "type": "URL",
-   "url": "https://kico.ecg-hn.de/app/kronos-calendar-page"
+   "label": "Terminkategorie",
+   "link_to": "Eventkategorie",
+   "stats_filter": "[]",
+   "type": "DocType"
   },
   {
    "color": "Grey",
@@ -51,6 +57,5 @@
    "type": "DocType"
   }
  ],
- "title": "\u00dcbersichtsseite",
- "type": "Workspace"
+ "title": "\u00dcbersichtsseite"
 }
