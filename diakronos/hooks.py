@@ -36,10 +36,6 @@ doc_events = {
     "Element": {
         "before_insert": "diakronos.kronos.doctype.element.element.before_insert",
         "after_save": "diakronos.kronos.doctype.element.element.after_save",
-        "after_insert": "diakronos.kronos.api.cache_invalidator.invalidate_events_cache",
-        "after_update": "diakronos.kronos.api.cache_invalidator.invalidate_events_cache",
-        "after_delete": "diakronos.kronos.api.cache_invalidator.invalidate_events_cache",
-        "on_trash": "diakronos.kronos.api.cache_invalidator.invalidate_events_cache",
     }
 }
 # Whitelisted Methods (alles sehr sinnvoll – bleibt fast identisch)
@@ -51,7 +47,6 @@ whitelisted_methods = {
     'diakronos.kronos.kronos_core.get_event_details',
     'diakronos.kronos.kronos_core.check_user_permission',
     # Cache-Management
-    'diakronos.kronos.api.cache_invalidator.invalidate_events_cache',
     'diakronos.kronos.api.calendar_get.clear_events_cache_endpoint',
     'diakronos.kronos.doctype.element.element.get_calendar_and_category_options',
 

@@ -5,7 +5,7 @@ class KronosCalendar {
     }
 
     kronos_calendar_init() {
-        console.log('🗓️ kronos_calendar_init: Starte Kalender...');
+//        console.log('🗓️ kronos_calendar_init: Starte Kalender...');
         
         const calendarEl = document.getElementById('calendar');
         if (!calendarEl) {
@@ -34,9 +34,9 @@ class KronosCalendar {
             return;
         }
 
-        console.log('✅ FullCalendar verfügbar:', {
-            Calendar: !!Calendar
-        });
+//        console.log('✅ FullCalendar verfügbar:', {
+//            Calendar: !!Calendar
+//        });
 
         try {
             // Erstelle Calendar-Instanz ohne plugins-Array
@@ -57,16 +57,16 @@ class KronosCalendar {
                 selectMirror: true,
                 // Events (umgeschrieben auf reines fetch, ohne frappe.call)
                 events: async function(fetchInfo, successCallback, failureCallback) {
-                    console.log('📅 Hole Events für Range:', {
-                        start: fetchInfo.startStr,
-                        end: fetchInfo.endStr
-                    });
+//                    console.log('📅 Hole Events für Range:', {
+//                        start: fetchInfo.startStr,
+//                        end: fetchInfo.endStr
+//                    });
 
                     let csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
                     if (!csrfToken) {
                         const match = document.cookie.match(/csrftoken=([^;]+)/);
                         csrfToken = match ? match[1] : '';
-                        console.log('Fallback CSRF aus Cookie:', csrfToken);
+//                        console.log('Fallback CSRF aus Cookie:', csrfToken);
                     }
 
                     try {
@@ -92,7 +92,7 @@ class KronosCalendar {
                         const result = await response.json();
                         const events = result.message || [];
 
-                        console.log('✅ Events geladen:', events.length);
+//                        console.log('✅ Events geladen:', events.length);
                         successCallback(events);
                     } catch (err) {
                         console.error('❌ Events-Laden fehlgeschlagen:', err);
@@ -100,16 +100,16 @@ class KronosCalendar {
                     }
                 },
                 // Callbacks
-                datesSet: (info) => {
-                    console.log('📆 Datum-Range aktualisiert:', {
-                        start: info.startStr,
-                        end: info.endStr,
-                        view: info.view.type
-                    });
-                    if (window.kronosMiniCalendar) {
-                        window.kronosMiniCalendar.syncWithMain();
-                    }
-                },
+//                datesSet: (info) => {
+//                    console.log('📆 Datum-Range aktualisiert:', {
+//                        start: info.startStr,
+//                        end: info.endStr,
+//                        view: info.view.type
+//                    });
+//                    if (window.kronosMiniCalendar) {
+//                        window.kronosMiniCalendar.syncWithMain();
+//                    }
+//                },
                 dateClick: (info) => {
                     console.log('📅 Datum geklickt:', info.dateStr);
                     KronosCreateDialog.showCreateDialog(info.dateStr);
@@ -141,13 +141,13 @@ class KronosCalendar {
                 // Nur reagieren, wenn wirklich die width animiert wurde
                 if (event.propertyName === 'width') {
                 window.kronosCalendar.calendar.updateSize();
-                console.log('✅ Kalender resized NACH Sidebar-Transition-Ende');
+                //console.log('✅ Kalender resized NACH Sidebar-Transition-Ende');
                 }
             });
 
-            console.log('✅ transitionend-Listener auf Sidebar aktiviert');
-            } else {
-            console.warn('⚠️ transitionend-Listener konnte nicht gestartet werden');
+//            console.log('✅ transitionend-Listener auf Sidebar aktiviert');
+//            } else {
+//            console.warn('⚠️ transitionend-Listener konnte nicht gestartet werden');
             }
             this.calendar.render();
             console.log('✅ kronos_calendar_render: Kalender erfolgreich gerendert');
@@ -169,7 +169,7 @@ class KronosCalendar {
             if (nextBtn) {
                 nextBtn.addEventListener('click', () => this.calendar.next());
             }
-            console.log('✅ Eigene Header-Pfeile verknüpft');
+//            console.log('✅ Eigene Header-Pfeile verknüpft');
             // Forciere Höhe auf 100%
             calendarEl.style.height = '100%';
             this.calendar.updateSize();
@@ -196,7 +196,7 @@ class KronosCalendar {
     refetchEvents() {
         if (this.calendar) {
             this.calendar.refetchEvents();
-            console.log('🔄 Events refetched');
+//            console.log('🔄 Events refetched');
         } else {
             console.warn('⚠️ Calendar nicht initialisiert');
         }
@@ -208,7 +208,7 @@ class KronosCalendar {
     gotoDate(dateStr) {
         if (this.calendar) {
             this.calendar.gotoDate(dateStr);
-            console.log('➡️ Sprung zu:', dateStr);
+//            console.log('➡️ Sprung zu:', dateStr);
         }
     }
 
@@ -218,7 +218,7 @@ class KronosCalendar {
     changeView(viewName) {
         if (this.calendar) {
             this.calendar.changeView(viewName);
-            console.log('👁️ View gewechselt zu:', viewName);
+//            console.log('👁️ View gewechselt zu:', viewName);
         }
     }
 
@@ -235,7 +235,7 @@ class KronosCalendar {
     today() {
         if (this.calendar) {
             this.calendar.today();
-            console.log('🏠 Heute angezeigt');
+//            console.log('🏠 Heute angezeigt');
         }
     }
     
