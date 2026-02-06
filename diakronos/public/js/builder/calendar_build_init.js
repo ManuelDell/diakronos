@@ -1,4 +1,9 @@
 // calendar_build_init.js – Calendar-Element + Init
+// Alternative / Ergänzung – immer Deutsch erzwingen, wenn nicht anders definiert
+if (window.moment) {
+    moment.locale('de');
+//    console.log('Moment-Locale auf Deutsch fixiert');
+}
 
 window.calendar_build_init = async function(mainContentEl) {
     // ── Header zuerst bauen ─────────────────────────────────────────────────
@@ -12,7 +17,7 @@ window.calendar_build_init = async function(mainContentEl) {
     calendarEl.id = 'calendar';
     calendarEl.className = 'kronos-calendar';
     mainContentEl.appendChild(calendarEl);
-    console.log('✅ Kalender-Element hinzugefügt');
+//    console.log('✅ Kalender-Element hinzugefügt');
 
     // Warte auf KronosCalendar Klasse
     let retries = 0;
@@ -24,59 +29,17 @@ window.calendar_build_init = async function(mainContentEl) {
     if (!window.KronosCalendar) {
         throw new Error('KronosCalendar konnte nicht geladen werden');
     }
-    console.log('✅ KronosCalendar Klasse verfügbar');
+//    console.log('✅ KronosCalendar Klasse verfügbar');
 
     const kronosCalendar = new window.KronosCalendar();
     kronosCalendar.kronos_calendar_init();
-    console.log('✅ Haupt-Kalender initialisiert');
+//   console.log('✅ Haupt-Kalender initialisiert');
 
     const calendarSize = {
         width: document.querySelector('#calendar')?.offsetWidth,
         height: document.querySelector('#calendar')?.offsetHeight
     };
-    console.log('✅ Kalender-Größe:', calendarSize);
-
-    // Mini-Kalender laden 
-    const miniScript = document.createElement('script');
-    miniScript.src = '/assets/diakronos/js/kronos_mini_calendar.js';
-    miniScript.onload = () => {
-        console.log('✅ Mini-Kalender-Script geladen');
-        if (window.KronosMiniCalendar) {
-            new window.KronosMiniCalendar('#mini-kalender');
-            console.log('✅ Mini-Kalender in Sidebar gestartet');
-        }
-    };
-    miniScript.onerror = () => console.error('❌ Mini-Kalender-Script Fehler');
-    document.head.appendChild(miniScript);
-    window.miniCalendar = new KronosMiniCalendar('#mini-kalender');
-
-    // Calendar List aus Frappe
-    const calendarList = document.getElementById('calendar-list');
-    if (calendarList) {
-        frappe.call({
-            method: 'diakronos.kronos.api.calendar_get.get_accessible_calendars',
-            callback: (r) => {
-                if (r.message) {
-                    calendarList.innerHTML = r.message.map(cal => `
-                        <div class="calendar-item">
-                            <input type="checkbox" id="cal-${cal.name}" checked data-calendar="${cal.name}">
-                            <label for="cal-${cal.name}">${cal.title}</label>
-                            <button class="calendar-options-btn" aria-label="More options">⋮</button>
-                        </div>
-                    `).join('');
-                    calendarList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                        checkbox.addEventListener('change', () => {
-                            if (window.kronosCalendar && window.kronosCalendar.calendar) {
-                                window.kronosCalendar.refetchEvents();
-                                console.log('🔄 Events neu geladen (Calendar Checkbox)');
-                            }
-                        });
-                    });
-                    console.log('✅ Kalender-Liste geladen:', r.message.length, 'Kalender');
-                }
-            }
-        });
-    }
+//    console.log('✅ Kalender-Größe:', calendarSize);
 
     // View Switcher Buttons
     const viewBtns = document.querySelectorAll('.view-btn');
@@ -88,11 +51,11 @@ window.calendar_build_init = async function(mainContentEl) {
                 btn.classList.add('active');
                 if (window.kronosCalendar && window.kronosCalendar.calendar) {
                     window.kronosCalendar.changeView(btn.dataset.view);
-                    console.log('👁️ View geändert zu:', btn.dataset.view);
+//                    console.log('👁️ View geändert zu:', btn.dataset.view);
                 }
             });
         });
-        console.log('✅ View-Switcher-Buttons verknüpft');
+//        console.log('✅ View-Switcher-Buttons verknüpft');
     }
 
     // Date Display Update
@@ -106,7 +69,7 @@ window.calendar_build_init = async function(mainContentEl) {
         };
         window.kronosCalendar.calendar.on('datesSet', updateDate);
         updateDate();
-        console.log('✅ Datums-Display verknüpft');
+//        console.log('✅ Datums-Display verknüpft');
     }
 
     // Create Button
@@ -124,7 +87,7 @@ window.calendar_build_init = async function(mainContentEl) {
                 });
             }
         });
-        console.log('✅ Create-Button verknüpft');
+//        console.log('✅ Create-Button verknüpft');
     }
 
     // =====================================
@@ -150,25 +113,25 @@ window.calendar_build_init = async function(mainContentEl) {
         if (prevBtn) {
             prevBtn.addEventListener('click', () => {
                 calendar.prev();
-                console.log('← Vorheriger Monat');
+//                console.log('← Vorheriger Monat');
             });
         }
 
         if (nextBtn) {
             nextBtn.addEventListener('click', () => {
                 calendar.next();
-                console.log('→ Nächster Monat');
+//                console.log('→ Nächster Monat');
             });
         }
 
-        console.log('✅ Navigation über eigene Buttons aktiviert (.prev() / .next())');
-    } else {
-        console.warn('KronosCalendar nicht verfügbar – Navigation wartet');
+//        console.log('✅ Navigation über eigene Buttons aktiviert (.prev() / .next())');
+//    } else {
+//        console.warn('KronosCalendar nicht verfügbar – Navigation wartet');
     }
 
-    frappe.msgprint({
-        message: '✅ Kronos Kalender erfolgreich geladen!',
-        indicator: 'green'
-    });
-    console.log('🎉 KRONOS KALENDER VOLLSTÄNDIG INITIALISIERT');
+//   frappe.msgprint({
+//        message: '✅ Kronos Kalender erfolgreich geladen!',
+//        indicator: 'green'
+//    });
+//    console.log('🎉 KRONOS KALENDER VOLLSTÄNDIG INITIALISIERT');
 };
