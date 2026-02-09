@@ -82,13 +82,21 @@ window.sidebar_build_elements = async function(mainContentEl) {
                 item.className = 'calendar-item';
                 item.setAttribute('data-color', cal.color || 'var(--primary)');
 
+                // Erst innerHTML setzen (damit das input-Element existiert)
                 item.innerHTML = `
                     <input type="checkbox" id="cal-${cal.name}" ${isChecked ? 'checked' : ''}>
                     <label for="cal-${cal.name}">${cal.title || cal.name}</label>
                     ${cal.write ? '<span class="pencil-icon" title="Schreibrecht">✎</span>' : ''}
                 `;
 
+                // Jetzt checkbox holen – existiert jetzt!
                 const checkbox = item.querySelector('input');
+
+                // CSS-Variable + direkte Styles setzen
+                item.style.setProperty('--calendar-color', cal.color || 'var(--primary)');
+                checkbox.style.borderColor = cal.color || 'var(--primary)';
+
+                // Change-Event
                 checkbox.addEventListener('change', () => {
                     if (checkbox.checked) {
                         if (!window.selectedCalendars.includes(cal.name)) {
