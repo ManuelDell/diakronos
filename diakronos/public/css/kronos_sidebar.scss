@@ -218,57 +218,60 @@ CALENDAR LIST (Meine Kalender)
         color: var(--gray-500);
     }
 /* ============================================================================
-   Kalender-Checkbox: Rahmen + Füllung = Kalenderfarbe
+   Kalender-Checkbox – Rahmen IMMER Kalenderfarbe, Füllung nur checked
 ============================================================================ */
 
 .calendar-item {
-    position: relative;  /* Wichtig: damit ::after positioniert werden kann */
+    --calendar-color: var(--gray-500);  /* Sicherer Fallback */
 }
 
+.calendar-item[data-color] {
+    --calendar-color: attr(data-color);
+}
+
+/* Basis (unchecked) */
 .calendar-item input[type="checkbox"] {
     width: 18px;
     height: 18px;
-    border: 2px solid var(--gray-500);  /* Dunkler Default-Rahmen, wenn keine Farbe da */
+    border: 2px solid var(--calendar-color);
     border-radius: 4px;
     appearance: none;
-    background: transparent;
+    background: transparent !important;
     cursor: pointer;
     position: relative;
     transition: all 150ms ease;
+    flex-shrink: 0;
 }
 
 /* Checked: Füllung + Rahmen = Kalenderfarbe */
 .calendar-item input[type="checkbox"]:checked {
-    background-color: var(--calendar-color);   /* Fallback auf --primary */
-    border-color: var(--calendar-color);
+    background-color: var(--calendar-color) !important;
+    border-color: var(--calendar-color) !important;
 }
 
-/* Haken immer weiß */
+/* Weißer Haken */
 .calendar-item input[type="checkbox"]:checked::after {
-    content: "✔";
+    content: "✔" !important;
     position: absolute;
     inset: 0;
-    color: white;
+    color: white !important;
     font-size: 14px;
     line-height: 16px;
     text-align: center;
     font-weight: bold;
 }
 
-/* Farbe pro Kalender setzen – über Eltern-Element */
-.calendar-item[data-color] {
-    --calendar-color: attr(data-color);
-}
-
-/* Wenn unchecked: nur Rahmenfarbe, Füllung transparent */
-.calendar-item input[type="checkbox"] {
-    border-color: var(--calendar-color);
-}
-
-/* Hover für Feedback */
+/* Hover-Effekt */
 .calendar-item:hover input[type="checkbox"] {
-    border-color: var(--calendar-color, var(--primary));
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--calendar-color, var(--primary)) 30%, transparent);
+    border-color: var(--calendar-color);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--calendar-color) 30%, transparent);
+}
+
+/* Sicherstellen, dass nichts überschreibt */
+.calendar-item input[type="checkbox"] {
+    min-width: 18px !important;
+    min-height: 18px !important;
+    visibility: visible !important;
 }
 /* ============================================================================
    8. SIDEBAR TITLE

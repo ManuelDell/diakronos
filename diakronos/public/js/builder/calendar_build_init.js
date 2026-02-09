@@ -128,6 +128,8 @@ window.calendar_build_init = async function(mainContentEl) {
             });
         }
 
+        
+
 //        console.log('✅ Navigation über eigene Buttons aktiviert (.prev() / .next())');
 //    } else {
 //        console.warn('KronosCalendar nicht verfügbar – Navigation wartet');
