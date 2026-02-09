@@ -1,0 +1,81 @@
+:root {
+// ── Semantische Farben (Light Mode Default) ──────────────
+--bg-page:           var(--neutral-white);           // Haupt-Hintergrund
+--bg-surface:        var(--gray-50);                 // Karten, Sidebar, Panels
+--bg-surface-hover:  var(--gray-100);
+--bg-surface-active: var(--gray-200);
+--text-primary:      var(--gray-900);                // Normaler Text, Überschriften
+--text-secondary:    var(--gray-700);
+--text-muted:        var(--gray-500);                // Meta, Hinweise
+--text-light:        var(--neutral-white);           // Text auf dunklem/primary Hintergrund
+--border-default:    var(--gray-300);                // Normale Rahmen, Trennlinien
+--border-subtle:     var(--gray-200);                // Leichte Trennlinien
+--primary-hover:     var(--gray-100);                // Leichter Grau-Hover
+--primary-active:    var(--gray-200);
+--primary-light:     var(--gray-50);                 // Sehr heller Ton
+--success:           #10b981;
+--warning:           #f59e0b;
+--danger:            #ef4444;
+--info:              #0ea5e9;
+// ── Ergänzte Variablen für Kronos (basierend auf genutzten Styles) ──
+--overlay-dark:      rgba(0, 0, 0, 0.5);             // Für Modals/Backdrops
+--shadow-color:      rgba(0, 0, 0, 0.1);             // Leichter Schatten
+--focus-ring:        0 0 0 3px rgba(59, 130, 246, 0.3);  // Blauer Fokus
+// ──Gaps ────────────────────────────────────────────────
+--gap-tiny: 4px;
+--gap-sm: 8px;
+--gap: 10px;
+--gap-m: 12px;
+--gap-l: 14px;
+--gap-xl: 16px;
+--gap-2xl: 20px;
+--gap-full: 999px;
+// Size ────────────────────────────────────────────────
+--size-tiny: 4px;
+--size: 40px;
+--size-huge: 8px;
+// Buttons ────────────────────────────────────────────────
+--botton-inactive:      var(--neutral-white);
+--button-active:         #86adbd;
+--botton-hover:          #9bb6c1;
+--button-icon-inactive:  var(--gray-500);
+--button-icon-active:    #000000;
+--botton-icon-hover:     #000000;
+// Button Size ───────────────────────────
+--button-height-sm: 20px;
+--button-height-m:25px;
+--button-height: 40px;
+--button-height-l: 45px;
+--button-height-xl: 55px;
+--button-height-xxl: 70px;
+--button-width-sm: 30px;
+--button-width-m:35px;
+--button-width: 40px;
+--button-width-l: 45px;
+--button-width-xl: 55px;
+--button-width-xxl: 70px;
+}
+// ── Dark Mode ────────────────────────────────────────────────
+.dark {
+--bg-page:           #0f172a;                        // Dunkler Hintergrund
+--bg-surface:        #1e293b;
+--bg-surface-hover:  #334155;
+--bg-surface-active: #475569;
+--text-primary:      #f1f5f9;
+--text-secondary:    #cbd5e1;
+--text-muted:        #94a3b8;
+--text-light:        #f1f5f9;
+--default:    #475569;
+--subtle:     #334155;
+--primary:           #f1f5f9;                        // Hell für Buttons im Dark Mode
+--primary-hover:     #cbd5e1;
+--primary-active:    #94a3b8;
+--primary-light:     #1e293b1a;                      // Transparente Variante
+--success:           #34d399;
+--warning:           #fbbf24;
+--danger:            #f87171;
+--info:              #38bdf8;
+--overlay-dark:      rgba(255, 255, 255, 0.1);       // Heller Overlay im Dark
+--shadow-color:      rgba(255, 255, 255, 0.05);
+--focus-ring:        0 0 0 3px rgba(96, 165, 250, 0.3);
+}

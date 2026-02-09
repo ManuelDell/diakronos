@@ -2,11 +2,11 @@ import frappe
 from diakronos.scripts.get_hashed_asset import find_latest_hashed_file  # ← Import aus scripts/
 from diakronos.kronos.api.permissions import (
     get_session_info,
-    has_calendar_permission,
     get_accessible_calendars,
     can_create_event,
     get_element_creation_dialog_defaults
 )
+from diakronos.kronos.api.calendar_get import get_calendar_events
 
 def get_context(context):
     context.no_cache = 1

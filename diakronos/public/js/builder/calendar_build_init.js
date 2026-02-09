@@ -13,6 +13,10 @@ window.calendar_build_init = async function(mainContentEl) {
     } else {
         console.error('Konnte header_build_elements nicht aufrufen');
     }
+    if (typeof window.sidebar_build_elements === 'function') {
+        console.log('Sidebar-Bau vor Kalender-Init');
+        await window.sidebar_build_elements(mainContentEl);  // ← await, damit selectedCalendars da ist
+    }
     const calendarEl = document.createElement('div');
     calendarEl.id = 'calendar';
     calendarEl.className = 'kronos-calendar';

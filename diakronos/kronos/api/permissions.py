@@ -23,102 +23,51 @@ def get_session_info():
         "name": user
     }
 
-@frappe.whitelist()
-def has_calendar_permission(calendar_name, permission_type='read'):
-    """
-    Prüfe ob aktueller Benutzer Berechtigung für einen Kalender hat
-    
-    Schema: Kalender hat:
-    - leserechte (Table mit Roles)
-    - schreibrechte (Table mit Roles)
-    
-    Args:
-        calendar_name (str): Name des Kalenders
-        permission_type (str): 'read' oder 'write'
-    
-    Returns:
-        bool: True wenn Berechtigung vorhanden
-    """
-    user = frappe.session.user
-    user_roles = set(frappe.get_roles(user))
-    
-    # Admins haben immer alle Rechte
-    if user == "Guest":
-        return False
-    if "Administrator" in user_roles or "System Manager" in user_roles:
-        return True
-    
-    try:
-        calendar = frappe.get_doc('Kalender', calendar_name)
-    except frappe.DoesNotExistError:
-        frappe.logger().warning(f'Kalender {calendar_name} nicht gefunden')
-        return False
-    
-    if permission_type == 'read':
-        # Prüfe leserechte Table
-        read_roles = calendar.get('leserechte', []) or []
-        for entry in read_roles:
-            role = entry.get('role') or entry.get('user_role')
-            if role and role in user_roles:
-                return True
-    elif permission_type == 'write':
-        # Prüfe schreibrechte Table
-        write_roles = calendar.get('schreibrechte', []) or []
-        for entry in write_roles:
-            role = entry.get('role') or entry.get('user_role')
-            if role and role in user_roles:
-                return True
-    
-    return False
-
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=False)
 def get_accessible_calendars():
     """
-    Gibt Kalender zurück, die der aktuelle User lesen darf (via leserechte).
-    
-    Returns:
-        list: [{name, display_name, color, can_write}, ...]
+    Gibt alle Kalender zurück, auf die der User mindestens Leserecht hat.
+    Frontend erwartet: name, title, color, write (bool)
     """
     user = frappe.session.user
-    
+    if user == "Guest":
+        return []
+
     try:
-        calendars = frappe.get_all(
-            "Kalender",
-            fields=["name", "calendar_name", "calendar_color"]
-        )
-        
+        calendars = frappe.get_all("Kalender", fields=["name"])
+
         result = []
         for cal in calendars:
             doc = frappe.get_doc("Kalender", cal.name)
-            
+
             can_read = False
             can_write = False
-            
+
             # Leserechte prüfen
-            for row in doc.leserechte or []:
+            for row in doc.get("leserechte") or []:
                 if _user_has_role(user, row.role):
                     can_read = True
-            
+
             # Schreibrechte prüfen
-            for row in doc.schreibrechte or []:
+            for row in doc.get("schreibrechte") or []:
                 if _user_has_role(user, row.role):
                     can_write = True
-                    can_read = True
-            
+                    can_read = True  # Schreibrecht impliziert immer Leserecht
+
             if can_read:
                 result.append({
                     "name": doc.name,
-                    "display_name": doc.calendar_name or doc.name,
-                    "color": doc.calendar_color or "#667eea",  # Aus _colors.scss (--blue)
-                    "can_write": can_write,
+                    "title": doc.calendar_name or doc.name,
+                    "color": doc.calendar_color or "#9ca3af",  # var(--gray-400)
+                    "write": can_write
                 })
-        
+
         return result
-        
+
     except Exception as e:
         frappe.log_error(str(e), "get_accessible_calendars")
         return []
-
+    
 @frappe.whitelist()
 def can_create_event():
     """

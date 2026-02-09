@@ -1,0 +1,288 @@
+/*============================================================================
+KRONOS CALENDAR - SIDEBAR (UPDATED)
+Kalender-Listen, Mini-Kalender, Navigation
+============================================================================ */
+/* ============================================================================
+
+SIDEBAR SECTIONS
+============================================================================ */
+.kronos-sidebar {
+width: 280px;                 // normale Breite, wenn offen
+transition: width 0.3s ease-in-out;  // sanfte Animation
+overflow: hidden;             // Inhalt verschwindet sauber
+background: var(--bg-surface);
+border: none;
+}
+.kronos-sidebar:not(.active) {
+width: 0px;                   // geschlossen = Breite 0
+}
+.kronos-sidebar.active {
+width: 280px;
+border: none;                 // offen = volle Breite
+}
+
+.sidebar-section {
+padding: 16px;
+border: none
+}
+
+
+/* ============================================================================
+Platzhalter
+============================================================================ */
+.sidebar-placeholder {
+
+}
+/* ============================================================================
+   10. MINI KALENDER
+   ============================================================================ */
+.sidebar-calendar {
+    padding-top: 50px;
+    margin: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+    /* Mini-Kalender – Referenz-Layout */
+    .mini-cal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 8px 4px;
+        color: var(--text-primary);
+    }
+
+    .mini-title {
+        font-size: 15px;
+        font-weight: 500;
+    }
+
+    .mini-nav {
+        display: flex;
+        gap: 2px;
+    }
+
+    .mini-prev,
+    .mini-next {
+        background: none;
+        border: none;
+        font-size: 16px;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 0 6px;
+        line-height: 1;
+    }
+
+    /* Gesamtes Grid */
+    .mini-cal-grid {
+        display: grid;
+        grid-template-columns: 32px repeat(7, 1fr); /* KW-Spalte 32px + 7 Tage */
+        width: 100%;
+        font-size: 13px;
+        color: var(--text-primary);
+        background: var(--bg-surface);
+        gap: 0;
+    }
+
+    /* Header-Zeile (Wochentage) */
+    .mini-cal-header-row {
+        display: contents;
+    }
+
+    .mini-week-header,
+    .mini-day-header {
+        padding: 4px 0;
+        text-align: center;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    /* KW-Spalte – auf gleicher Höhe wie Tage */
+    .mini-week-number {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 500;
+        color: var(--text-muted);
+        background: var(--gray-50);
+        font-size: 13px; /* gleiche Schriftgröße wie Tage */
+    }
+
+    /* Wochenzeilen – alles bündig */
+    .mini-cal-week-row {
+        display: contents;
+    }
+
+    .mini-cal-day {
+        padding: 4px 0; /* sehr minimal */
+        text-align: center;
+        border: none !important;
+        line-height: 1.4; /* gleiche Höhe wie KW */
+    }
+
+    .mini-cal-day.other-month {
+        color: var(--text-muted);
+        opacity: 0.5;
+    }
+
+    /* Heutiger Tag – Kreis mit dunklerem Blau */
+    .mini-cal-day.today {
+        position: relative;
+        color: var(--text-primary);
+        font-weight: bold;
+    }
+
+    .mini-cal-day.today::after {
+        content: '';
+        position: absolute;
+        inset: -1px;                    /* etwas größer als die Zahl */
+        border: 2px solid color-mix(in srgb, var(--primary) 80%, var(--bg-surface));
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: -1;
+    }
+
+/* ============================================================================
+CALENDAR LIST (Meine Kalender)
+============================================================================ */
+/* Die Section, die Titel + Liste enthält */
+.sidebar-calenderlist-section {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;                /* nimmt restlichen Platz in Sidebar */
+    min-height: 150px;           /* verhindert Kollabieren */
+    padding: 0 16px 16px 16px;   /* etwas mehr Platz unten */
+}
+
+/* Die Liste selbst */
+#calendar-list.sidebar-calenderlist {
+    flex-grow: 1;                /* wächst innerhalb der Section */
+    min-height: 100px;           /* Mindesthöhe, auch leer */
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+}
+
+/* Wenn leer → sichtbarer Platzhalter (Debug-Hilfe) */
+#calendar-list:empty::before {
+    content: "Kalenderliste wird geladen...";
+    display: block;
+    padding: 16px;
+    color: var(--text-muted);
+    text-align: center;
+    font-style: italic;
+}
+    .calendar-item {
+    display: flex;
+    align-items: left;
+    gap: var(--gap-sm);
+    padding: 4px 8px;
+    border-radius: var(--border-radius-tiny);
+    cursor: pointer;
+    transition: all 150ms ease;
+    }
+    .calendar-item:hover {
+    background-color: var(--bg-surface-hover);
+    }
+    .calendar-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: var(--primary);
+    }
+    .calendar-checkbox {
+    accent-color: var(--primary);
+    }
+    .calendar-group {
+        margin-bottom: 16px;
+    }
+
+    .group-title {
+        font-size: var(--text-sm);
+        color: var(--text-muted);
+        margin: 0 0 8px 0;
+        font-weight: 500;
+    }
+
+    .calendar-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 8px;
+    }
+    
+    .pencil-icon {
+        margin-left: auto;
+        font-size: 15px;
+        color: var(--gray-500);
+    }
+/* ============================================================================
+   Kalender-Checkbox: Rahmen + Füllung = Kalenderfarbe
+============================================================================ */
+
+.calendar-item {
+    position: relative;  /* Wichtig: damit ::after positioniert werden kann */
+}
+
+.calendar-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--gray-500);  /* Dunkler Default-Rahmen, wenn keine Farbe da */
+    border-radius: 4px;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    transition: all 150ms ease;
+}
+
+/* Checked: Füllung + Rahmen = Kalenderfarbe */
+.calendar-item input[type="checkbox"]:checked {
+    background-color: var(--calendar-color);   /* Fallback auf --primary */
+    border-color: var(--calendar-color);
+}
+
+/* Haken immer weiß */
+.calendar-item input[type="checkbox"]:checked::after {
+    content: "✔";
+    position: absolute;
+    inset: 0;
+    color: white;
+    font-size: 14px;
+    line-height: 16px;
+    text-align: center;
+    font-weight: bold;
+}
+
+/* Farbe pro Kalender setzen – über Eltern-Element */
+.calendar-item[data-color] {
+    --calendar-color: attr(data-color);
+}
+
+/* Wenn unchecked: nur Rahmenfarbe, Füllung transparent */
+.calendar-item input[type="checkbox"] {
+    border-color: var(--calendar-color);
+}
+
+/* Hover für Feedback */
+.calendar-item:hover input[type="checkbox"] {
+    border-color: var(--calendar-color, var(--primary));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--calendar-color, var(--primary)) 30%, transparent);
+}
+/* ============================================================================
+   8. SIDEBAR TITLE
+   ============================================================================ */
+.sidebar-title {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-bold);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 12px 16px;
+    margin: 12px 0 0;
+}
+/* =================================================
+Sidebar, Kalenderliste
+=====================================*/
+

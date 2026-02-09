@@ -46,8 +46,7 @@ class KronosCalendar {
                 locale: 'de',
                 // Header wird in kronos_calendar_page.js verwaltet
                 headerToolbar: false,
-                weekNumbers: true,                    // ← Kalenderwochen EIN
-                weekNumbersWithinDays: true,
+                weekNumbers: true, 
                 // Layout
                 height: '100%',
                 expandRows: true,
@@ -57,45 +56,37 @@ class KronosCalendar {
                 selectMirror: true,
                 // Events (umgeschrieben auf reines fetch, ohne frappe.call)
                 events: async function(fetchInfo, successCallback, failureCallback) {
-//                    console.log('📅 Hole Events für Range:', {
-//                        start: fetchInfo.startStr,
-//                        end: fetchInfo.endStr
-//                    });
+                    const startDate = fetchInfo.startStr.split('T')[0];
+                    const endDate   = fetchInfo.endStr.split('T')[0];
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
-                    let csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-                    if (!csrfToken) {
-                        const match = document.cookie.match(/csrftoken=([^;]+)/);
-                        csrfToken = match ? match[1] : '';
-//                        console.log('Fallback CSRF aus Cookie:', csrfToken);
-                    }
+                    console.log('Events-Fetch gestartet – Zeitraum:', startDate, 'bis', endDate);
+                    console.log('Ausgewählte Kalender (Fallback):', window.selectedCalendars || 'NOCH NICHT GESETZT');
 
                     try {
                         const response = await fetch('/api/method/diakronos.kronos.api.calendar_get.get_calendar_events', {
                             method: 'POST',
+                            credentials: 'include',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-Frappe-CSRF-Token': csrfToken || ''
+                                'X-Frappe-CSRF-Token': csrfToken
                             },
-                            credentials: 'include',
                             body: JSON.stringify({
-                                start_date: fetchInfo.startStr.split('T')[0],
-                                end_date: fetchInfo.endStr.split('T')[0],
-                                calendar_filter: JSON.stringify([]) // TODO: Implementiere Filter später, wenn nötig
+                                start_date: startDate,
+                                end_date: endDate,
+                                calendar_filter: JSON.stringify(window.selectedCalendars || [])  // Fallback leer → alle erlaubten
                             })
                         });
 
-                        if (!response.ok) {
-                            const errorText = await response.text();
-                            throw new Error(`API-Fehler: ${response.status} - ${errorText}`);
-                        }
+                        if (!response.ok) throw new Error(await response.text());
 
                         const result = await response.json();
-                        const events = result.message || [];
+                        const events = result.message || result || [];
+                        console.log('Gefetchte Events:', events.length, events);
 
-//                        console.log('✅ Events geladen:', events.length);
                         successCallback(events);
                     } catch (err) {
-                        console.error('❌ Events-Laden fehlgeschlagen:', err);
+                        console.error('❌ Events Fetch Fehler:', err);
                         failureCallback(err);
                     }
                 },
