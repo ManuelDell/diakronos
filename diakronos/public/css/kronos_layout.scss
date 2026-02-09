@@ -1,0 +1,248 @@
+/* ============================================================================
+   1. GLOBAL RESET
+   ============================================================================ */
+:root {
+//==== Header Colortheme (hc-xx)
+    --hc-primary: var();
+    --hc-secondary: var();
+    --hc-tertiary: var();
+    
+//==== Header Forms (hf-xx)
+    --hf-border: var();
+    --hf-border-radius: var();
+
+//==== Header Buttons (hb-xx)
+    --hb-bg-inactive: var();
+    --hb-bg-hover: var();
+    --hb-bg-active: var();
+    --hb-border: var();
+    --hb-border-radius: var();
+
+}
+
+   * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+}
+
+body {
+    color: var(--text-color);
+    background-color: var(--bg-color);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ============================================================================
+   2. APP CONTAINER
+   ============================================================================ */
+.kronos-app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* ============================================================================
+   3. HEADER
+   ============================================================================ */
+.kronos-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background-color: var(--bg-surface);
+    height: 60px;
+    z-index: var(--z-index-medium);
+    gap: var(--gap-m)
+}
+
+.header-left {
+    display: flex;
+    align-items: left;
+    gap: 16px;
+}
+
+.header-left img {
+    height: 40px;
+}
+
+.header-center {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-right: 30px;
+}
+
+.view-switcher {
+    display: flex;
+    gap: 8px;
+}
+
+.view-btn {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 150ms ease;
+}
+
+.view-btn.active {
+    background-color: var(--primary);
+    color: var(--text-on-primary);
+    border-color: var(--primary);
+}
+
+.view-btn:hover {
+    background-color: var(--card-bg);
+    border-color: var(--gray-400);
+}
+
+.date-span {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.header-right {
+    display: flex;
+    align-items: right;
+    gap: 16px;
+}
+
+.icon-btn {
+    padding: 8px;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-color);
+    transition: all 150ms ease;
+}
+
+.icon-btn:hover {
+    color: var(--primary);
+}
+
+/* ============================================================================
+   4. MAIN CONTENT
+   ============================================================================ */
+.kronos-main-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    background-color: var(--bg-surface) !important;
+}
+
+/* ============================================================================
+   5. SIDEBAR
+   ============================================================================ */
+
+/*In Kronos_sidebar.scss. zu definieren
+
+/* ============================================================================
+   6. CALENDAR
+   ============================================================================ */
+
+.kronos-calendar {
+    flex: 1;
+    overflow: hidden;
+}
+
+.fc {
+    height: 100%;
+    border-radius: 24px;
+    background-color: var(--bg-page) !important;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);  // optional – sieht edler aus
+
+}
+
+.fc-theme-standard .fc-scrollgrid {
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+}
+
+.fc-view-harness {
+  flex-grow: 1; /* because this harness is WITHIN the .fc's flexbox */
+  position: relative;
+}
+
+.fc .fc-daygrid-day-top {
+    text-align: center !important;           // überschreibt right-align
+}
+
+.fc .fc-daygrid-day-number {
+    margin: 0 auto !important;               // zentriert das Element
+    padding: 4px 0 !important;               // etwas Luft oben/unten
+    display: inline-block !important;
+    min-width: 24px;                         // verhindert zu enges Aussehen
+    text-align: center !important;
+    font-weight: var(--weight-medium);
+    color: var(--text-primary);
+
+}
+
+.fc-scrollgrid-section-header {
+    background-color: var(--bg-surface-active);
+}
+
+.fc .fc-daygrid-week-number {
+  position: absolute !important;
+  left: -50px;                      // links außerhalb
+  width: 40px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: transparent;
+  padding: 4px 0;
+  z-index: 5;
+}
+
+.fc .fc-daygrid-week-number > span {
+  display: block;
+  background: var(--gray-100);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+/* ============================================================================
+   7. SIDEBAR SECTIONS
+   ============================================================================ */
+.sidebar-section {
+    padding: 16px;
+}
+
+.sidebar-section:last-child {
+    border-bottom: none;
+}
+
+/* ============================================================================
+   18. PRINT
+   ============================================================================ */
+@media print {
+    .kronos-header,
+    .kronos-sidebar,
+    .menu-btn,
+    .search-bar {
+        display: none !important;
+    }
+    
+    .kronos-app-container {
+        height: auto;
+    }
+    
+    .kronos-calendar-container {
+        width: 100%;
+    }
+}

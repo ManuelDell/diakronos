@@ -40,14 +40,9 @@ doc_events = {
 }
 # Whitelisted Methods (alles sehr sinnvoll – bleibt fast identisch)
 whitelisted_methods = {
-    # kronos_core
-    'diakronos.kronos.kronos_core.get_accessible_calendars',
-    'diakronos.kronos.kronos_core.get_calendar_details',
-    'diakronos.kronos.kronos_core.get_calendar_events',
-    'diakronos.kronos.kronos_core.get_event_details',
-    'diakronos.kronos.kronos_core.check_user_permission',
+
+    'diakronos.kronos.api.calendar_get.get_calendar_events'
     # Cache-Management
-    'diakronos.kronos.api.calendar_get.clear_events_cache_endpoint',
     'diakronos.kronos.doctype.element.element.get_calendar_and_category_options',
 
 }

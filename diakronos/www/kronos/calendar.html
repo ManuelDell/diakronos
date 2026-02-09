@@ -8,48 +8,35 @@
     <meta name="csrf-token" content="{{ csrf_token }}">
 </head>
 <body data-user-initial="{{ user_initial }}" data-user-fullname="{{ user_fullname }}">
-    <meta name="csrf-token" content="{{ csrf_token }}">
-    <!-- Nur das Nötigste für frappe.call + session -->
 
     {% if not is_logged_in %}
-    <div class="login-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; color: white; font-family: sans-serif;">
-        <div style="background: white; color: black; padding: 32px; border-radius: 12px; text-align: center; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-            <h2 style="margin: 0 0 16px;">Willkommen bei Kronos</h2>
-            <p style="margin: 0 0 24px; font-size: 1.1rem;">Um den Kalender zu nutzen, musst du dich anmelden.</p>
-            <a href="/login?redirect-to=/kronos/calendar"
-            style="display: inline-block; padding: 12px 32px; background: var(--primary); color: white; text-decoration: none; border-radius: 8px; font-weight: 500;">
-                Jetzt anmelden
-            </a>
+    <div class="login-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+        <div style="background: white; padding: 20px; border-radius: 8px; text-align: center;">
+            <p>Sie müssen angemeldet sein, um Kronos zu nutzen.</p>
+            <a href="/login" style="color: blue;">Zum Login</a>
         </div>
     </div>
-    {% endif %} 
-    
+    {% endif %}
+
     <div class="kronos-app-container">
         <!-- HEADER -->
-        <!-- HEADER – genau wie gewünscht: Logo + Hamburger links | Pfeile + Monat mittig | View-Dropdown + Profil rechts -->
-    <header class="kronos-header">
-        <body data-user-initial="{{ user_initial }}" data-user-fullname="{{ user_fullname }}">
-    </header>
+        <header class="kronos-header"></header>
 
         <!-- MAIN CONTENT: Sidebar + Calendar -->
         <main class="kronos-main-content">
             <!-- Sidebar -->
-             <button class="kronos-fab" aria-label="Neuen Termin erstellen">
+            <button class="kronos-fab" aria-label="Neuen Termin erstellen">
                 <span class="fab-icon">+</span>
                 <span class="fab-text">Neuer Termin</span>
-            </button>   
+            </button>
             <aside class="kronos-sidebar" aria-label="Calendar Navigation">
-                <div class="sidebar-section"></div>
-                <div class="sidebar-section">
+                <div class="sidebar-section sidebar-placeholder"></div>
+                <div class="sidebar-section sidebar-calendar">
                     <div id="mini-kalender"></div>
                 </div>
-                <div class="sidebar-section">
+                <div class="sidebar-section sidebar-calenderlist-section">
                     <h3 class="sidebar-title">Meine Kalender</h3>
-                    <div id="calendar-list"></div>
-                    <button class="add-calendar-btn">+ Kalender hinzufügen</button>
-                </div>
-                <div class="sidebar-section">
-                    <button class="sidebar-settings-btn">Einstellungen</button>
+                    <div id="calendar-list" class="sidebar-calenderlist"></div>
                 </div>
             </aside>
 
@@ -57,6 +44,7 @@
             <div id="calendar" class="kronos-calendar"></div>
         </main>
     </div>
+</body>
 
     <!-- Bibliotheken -->
     <script src="/assets/diakronos/js/lib/moment/moment.min.js"></script>
@@ -87,6 +75,17 @@
                 console.warn('FullCalendar nicht verfügbar');
             }
         });
+    </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('DOMContentLoaded – starte Sidebar-Bau');
+        const mainContent = document.querySelector('.kronos-main-content');
+        if (mainContent && window.sidebar_build_elements) {
+            window.sidebar_build_elements(mainContent);
+        } else {
+            console.error('Konnte sidebar_build_elements nicht aufrufen');
+        }
+    });
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
