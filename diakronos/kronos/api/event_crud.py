@@ -5,6 +5,8 @@ CREATE, UPDATE, DELETE Events
 import frappe
 from frappe import _
 from dateutil import parser as dateutil_parser
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
 
 
 def parse_iso_datetime_raw(iso_string):
@@ -57,29 +59,28 @@ def get_events(start, end):
 
 @frappe.whitelist()
 def create_event(element_name, element_start, element_end, element_calendar,
-                 all_day=False, description=None, status=None):
+                 all_day=False, description=None, status=None, element_category=None):
     """Erstelle neues Event"""
     try:
         start_dt = parse_iso_datetime_raw(element_start)
         end_dt = parse_iso_datetime_raw(element_end) if element_end else start_dt
-        
+
         doc = frappe.new_doc("Element")
-        doc.element_name = element_name
+        doc.element_name     = element_name
         doc.element_calendar = element_calendar
-        doc.element_start = start_dt
-        doc.element_end = end_dt
-        doc.all_day = all_day if all_day else 0
-        doc.status = status or "Festgelegt"
-        
-        if description:
-            doc.description = description
-        
+        doc.element_start    = start_dt
+        doc.element_end      = end_dt
+        doc.all_day          = int(all_day) if all_day else 0
+        doc.status           = status or "Festgelegt"
+        doc.description      = description or ''
+        doc.element_category = element_category or ''
+
         doc.save(ignore_permissions=True)
         frappe.db.commit()
-        
+
         frappe.log_error(f'✅ Event erstellt: {doc.name}', "create_event")
         return {"success": True, "id": doc.name}
-        
+
     except Exception as e:
         frappe.log_error(str(e), "create_event ERROR")
         frappe.throw(str(e))
@@ -158,6 +159,37 @@ def delete_event(name):
 
 
 @frappe.whitelist()
+def save_event(name, element_name, element_start, element_end, element_calendar,
+               all_day=0, description=None, status=None, element_category=None, series_id=None):
+    """Volles Überschreiben eines Events – kein Diff, alle Felder werden gesetzt."""
+    try:
+        if not name or name in ['undefined', 'null', '']:
+            frappe.throw(f"Invalid ID: {name}")
+
+        doc = frappe.get_doc("Element", name)
+        doc.element_name = element_name
+        doc.element_calendar = element_calendar
+        doc.element_start = parse_iso_datetime_raw(element_start)
+        doc.element_end = parse_iso_datetime_raw(element_end)
+        doc.all_day = int(all_day) if all_day else 0
+        doc.description = description or ''
+        doc.status = status or 'Festgelegt'
+        doc.element_category = element_category or ''
+        doc.series_id = series_id or ''  # Leer = aus Serie gelöst
+
+        frappe.flags.allow_series_edit = True
+        doc.save(ignore_permissions=True)
+        frappe.db.commit()
+
+        frappe.log_error(f'✅ Event gespeichert (save_event): {doc.name}', "save_event")
+        return {"success": True, "id": doc.name}
+
+    except Exception as e:
+        frappe.log_error(f'❌ {str(e)}', "save_event ERROR")
+        frappe.throw(str(e))
+
+
+@frappe.whitelist()
 def get_event_details(name):
     """Hole Event Details"""
     try:
@@ -180,4 +212,63 @@ def get_event_details(name):
         }
     except Exception as e:
         frappe.log_error(str(e), "get_event_details ERROR")
+        frappe.throw(str(e))
+
+
+@frappe.whitelist()
+def create_series(element_name, element_start, element_end, element_calendar,
+                  repeat_type='weekly', series_end=None, all_day=False,
+                  description=None, status=None, element_category=None):
+    """Erstelle eine Serie wiederkehrender Termine."""
+    try:
+        from datetime import datetime
+
+        start_str = parse_iso_datetime_raw(element_start)
+        end_str   = parse_iso_datetime_raw(element_end) if element_end else start_str
+
+        start_dt = datetime.strptime(start_str, '%Y-%m-%d %H:%M:%S')
+        end_dt   = datetime.strptime(end_str,   '%Y-%m-%d %H:%M:%S')
+        duration = end_dt - start_dt
+
+        if series_end:
+            series_end_dt = datetime.strptime(series_end[:10], '%Y-%m-%d')
+        else:
+            series_end_dt = None  # Nur max_events begrenzt
+
+        # Schrittweite je Typ
+        steps = {
+            'daily':   lambda d: d + timedelta(days=1),
+            'weekly':  lambda d: d + timedelta(weeks=1),
+            'monthly': lambda d: d + relativedelta(months=1),
+            'yearly':  lambda d: d + relativedelta(years=1),
+        }
+        advance = steps.get(repeat_type, steps['weekly'])
+
+        series_id = frappe.generate_hash(length=12)
+        current = start_dt
+        created = 0
+        max_events = 100  # Maximale Terminanzahl
+
+        while created < max_events and (series_end_dt is None or current.date() <= series_end_dt.date()):
+            doc = frappe.new_doc("Element")
+            doc.element_name     = element_name
+            doc.element_calendar = element_calendar
+            doc.element_start    = current.strftime('%Y-%m-%d %H:%M:%S')
+            doc.element_end      = (current + duration).strftime('%Y-%m-%d %H:%M:%S')
+            doc.all_day          = int(all_day) if all_day else 0
+            doc.status           = status or 'Festgelegt'
+            doc.description      = description or ''
+            doc.element_category = element_category or ''
+            doc.series_id        = series_id
+            doc.repeat_this_event = 1
+            doc.save(ignore_permissions=True)
+            created += 1
+            current = advance(current)
+
+        frappe.db.commit()
+        frappe.log_error(f'✅ Serie erstellt: {series_id}, {created} Termine', "create_series")
+        return {"success": True, "series_id": series_id, "created_count": created}
+
+    except Exception as e:
+        frappe.log_error(str(e), "create_series ERROR")
         frappe.throw(str(e))

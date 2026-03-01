@@ -312,8 +312,12 @@ white-space: nowrap;
     border-color: var(--border-default);
 }
 /* ============================================================================
-PROFILE AVATAR
+PROFILE AVATAR + DROPDOWN
 ============================================================================ */
+.profile-menu-wrapper {
+    position: relative;
+}
+
 .profile-avatar {
     width: var(--button-width);
     height: var(--button-height);
@@ -327,9 +331,80 @@ PROFILE AVATAR
     font-weight: var(--weight-bold);
     box-shadow: var(--shadow-lg);
     cursor: pointer;
+    user-select: none;
+    transition: box-shadow 150ms ease;
+
+    &:hover {
+        box-shadow: 0 0 0 2px var(--primary);
+    }
 }
-.profile-avatar:hover {
-border-color: var(--text-muted);
+
+.profile-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 180px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14);
+    padding: 6px;
+    z-index: 2000;
+
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 150ms ease, transform 150ms ease;
+
+    &.open {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+}
+
+.profile-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--text-primary);
+    text-decoration: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background 120ms ease;
+
+    svg {
+        color: var(--text-muted);
+        flex-shrink: 0;
+    }
+
+    &:hover {
+        background: var(--bg-surface-hover);
+    }
+}
+
+.profile-dropdown-logout {
+    color: var(--red-500, #e53e3e);
+
+    svg {
+        color: var(--red-400, #fc8181);
+    }
+
+    &:hover {
+        background: color-mix(in srgb, var(--red-500, #e53e3e) 10%, transparent);
+    }
+}
+
+.profile-dropdown-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 4px 0;
 }
 
 
@@ -382,5 +457,8 @@ display: none;
 }
 .kronos-fab {
   display: none;
+}
+.current-date{
+  display: none
 }
 }

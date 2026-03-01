@@ -82,3 +82,7 @@ def symlink_create_install():
     # ...
 
     print("✅ Symlink-Installation abgeschlossen")
+
+    # 5. nginx für CalDAV-Zugriff konfigurieren
+    from diakronos.setup.nginx import setup_caldav_nginx
+    setup_caldav_nginx()

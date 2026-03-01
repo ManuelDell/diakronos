@@ -67,7 +67,41 @@ def get_accessible_calendars():
     except Exception as e:
         frappe.log_error(str(e), "get_accessible_calendars")
         return []
-    
+# diakronos/kronos/api/permissions.py
+
+@frappe.whitelist(allow_guest=False)
+def get_writable_calendars():
+    user = frappe.session.user
+    if user == "Administrator":
+        return frappe.get_all("Kalender", fields=["name", "calendar_name", "calendar_color"], order_by="calendar_name")
+
+    # Kalender, bei denen der User in der Child-Table "schreibrechte" vorkommt
+    writable = frappe.get_all(
+        "Kalender",
+        filters={
+            "schreibrechte": ["like", f"%{user}%"]  # funktioniert bei Text-Feld, aber bei Child-Table unsicher
+        },
+        fields=["name", "calendar_name", "calendar_color"],
+        order_by="calendar_name"
+    )
+
+    # Besser: Child-Table abfragen
+    if not writable:
+        writable = frappe.get_all(
+            "Kalender Has Role",
+            filters={"role": ["in", frappe.get_roles(user)]},
+            fields=["parent as name"],
+            distinct=True
+        )
+        writable = frappe.get_all(
+            "Kalender",
+            filters={"name": ["in", [w.name for w in writable]]},
+            fields=["name", "calendar_name", "calendar_color"],
+            order_by="calendar_name"
+        )
+
+    return writable
+
 @frappe.whitelist()
 def can_create_event():
     """

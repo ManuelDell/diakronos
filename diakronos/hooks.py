@@ -62,6 +62,18 @@ app_include_icons = [
     "/diakronos/images/kalender-icon.png",
     "/diakronos/images/calendar-week-icon.svg"
 ]
+# ── Startseite nach Login (nach Rolle) ───────────────────────────────────────
+# Nutzer mit dieser Rolle landen direkt beim Kalender statt beim Desk.
+# Mehrere Rollen möglich – erste Übereinstimmung gewinnt.
+role_home_page = {
+    "Mitglied": "/kronos/calendar",
+}
+
 after_install = "diakronos.setup.install.symlink_create_install"
-# Standardmäßig deaktiviert – nur wenn du es wirklich brauchst
-# app_include_fonts = []
+
+# ── CalDAV-Server (minimal, read-only, eingebettet in Frappe) ────────────────
+# Fängt /dav/* und /.well-known/caldav ab, bevor Frappe routet.
+# Clients: Apple Calendar, Thunderbird, DAVx⁵ (Android)
+# Zugriff:  Frappe-Zugangsdaten (E-Mail + Passwort) als Basic Auth
+# URL:      https://<deine-domain>/dav/<deine-email>/
+before_request = ["diakronos.caldav.server.intercept"]

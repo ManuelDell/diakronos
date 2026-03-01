@@ -289,3 +289,195 @@ CALENDAR LIST (Meine Kalender)
 Sidebar, Kalenderliste
 =====================================*/
 
+/* ============================================================================
+   HILFE-BUTTON (unten in der Sidebar)
+============================================================================ */
+.sidebar-help-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: calc(100% - 32px);
+    margin: 12px 16px 16px;
+    padding: 8px 14px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 150ms ease;
+    white-space: nowrap;
+
+    &:hover {
+        background: var(--bg-surface-hover);
+        border-color: var(--primary);
+        color: var(--text-primary);
+
+        .sidebar-help-icon {
+            background: var(--primary);
+            color: white;
+        }
+    }
+}
+
+.sidebar-help-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--gray-200);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+    transition: all 150ms ease;
+}
+
+/* ============================================================================
+   HILFE-OVERLAY (Modal)
+============================================================================ */
+.diakronos-help-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 200ms ease;
+    padding: 16px;
+
+    &.visible {
+        opacity: 1;
+    }
+}
+
+.diakronos-help-box {
+    background: var(--bg-surface);
+    border-radius: 12px;
+    padding: 28px 32px 24px;
+    max-width: 520px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+
+    transform: translateY(12px);
+    transition: transform 200ms ease;
+
+    .diakronos-help-overlay.visible & {
+        transform: translateY(0);
+    }
+}
+
+.diakronos-help-close {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0 4px;
+
+    &:hover {
+        color: var(--text-primary);
+    }
+}
+
+.diakronos-help-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.diakronos-help-intro {
+    font-size: 14px;
+    color: var(--text-color);
+    line-height: 1.55;
+    margin: 0 0 16px;
+}
+
+.diakronos-help-credentials {
+    background: var(--bg-light, var(--gray-50));
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.diakronos-help-cred-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.diakronos-help-cred-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.diakronos-help-cred-value {
+    font-size: 13px;
+    font-family: monospace;
+    color: var(--text-primary);
+    word-break: break-all;
+
+    &.diakronos-help-cred-muted {
+        font-family: inherit;
+        font-style: italic;
+        color: var(--text-muted);
+    }
+}
+
+.diakronos-help-section {
+    margin-bottom: 18px;
+
+    h3 {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--primary);
+        margin: 0 0 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+    }
+
+    ol {
+        margin: 0;
+        padding-left: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    li {
+        font-size: 14px;
+        color: var(--text-color);
+        line-height: 1.5;
+    }
+}
+
+.diakronos-help-footer {
+    margin-top: 20px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+}
+

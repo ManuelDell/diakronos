@@ -86,4 +86,5 @@ class ElementExtractId {
     }
 }
 
+export { ElementExtractId };
 console.log('✅ ElementExtractId Modul geladen');
