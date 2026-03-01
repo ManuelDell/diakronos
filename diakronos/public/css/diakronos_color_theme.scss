@@ -10,6 +10,7 @@
 --text-light:        var(--neutral-white);           // Text auf dunklem/primary Hintergrund
 --border-default:    var(--gray-300);                // Normale Rahmen, Trennlinien
 --border-subtle:     var(--gray-200);                // Leichte Trennlinien
+--primary:           var(--gray-400);
 --primary-hover:     var(--gray-100);                // Leichter Grau-Hover
 --primary-active:    var(--gray-200);
 --primary-light:     var(--gray-50);                 // Sehr heller Ton
@@ -54,6 +55,22 @@
 --button-width-l: 45px;
 --button-width-xl: 55px;
 --button-width-xxl: 70px;
+//==== Header Colortheme (hc-xx)
+    --hc-primary: var();
+    --hc-secondary: var();
+    --hc-tertiary: var();
+    
+//==== Header Forms (hf-xx)
+    --hf-border: var();
+    --hf-border-radius: var();
+
+//==== Header Buttons (hb-xx)
+    --hb-bg-inactive: var();
+    --hb-bg-hover: var();
+    --hb-bg-active: var();
+    --hb-border: var();
+    --hb-border-radius: var();
+
 }
 // ── Dark Mode ────────────────────────────────────────────────
 .dark {

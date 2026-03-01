@@ -53,46 +53,5 @@
 
     <!-- Dein Bundle -->
     <script type="module" src="{{ kronos_js }}"></script>
-
-
-    <!-- Init (später in JS auslagern) -->
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('Kronos Portal geladen');
-
-            if (window.FullCalendar) {
-                const calendarEl = document.getElementById('calendar');
-                const calendar = new FullCalendar.Calendar(calendarEl, {
-                    initialView: 'dayGridMonth',
-                    events: [
-                        { title: 'Testtermin', start: '2026-01-30' }
-                    ],
-                    headerToolbar: false
-                });
-                calendar.render();
-                console.log('FullCalendar initialisiert');
-            } else {
-                console.warn('FullCalendar nicht verfügbar');
-            }
-        });
-    </script>
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('DOMContentLoaded – starte Sidebar-Bau');
-        const mainContent = document.querySelector('.kronos-main-content');
-        if (mainContent && window.sidebar_build_elements) {
-            window.sidebar_build_elements(mainContent);
-        } else {
-            console.error('Konnte sidebar_build_elements nicht aufrufen');
-        }
-    });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            if (window.header_build_elements) {
-                window.header_build_elements();
-            }
-        });
-    </script>  
 </body>
 </html>
