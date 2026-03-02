@@ -8,6 +8,9 @@ Eine **Frappe-App** für Gemeinde- und Kirchenverwaltung mit webbasiertem Kalend
 
 Diakronos bringt einen vollwertigen Kalender direkt in die Frappe-Oberfläche – ohne die Frappe-Standard-UI zu verwenden. Die App stellt eine eigenständige Webseite (`/kronos`) bereit, die auf **FullCalendar** basiert und nahtlos mit dem Frappe-Backend kommuniziert.
 
+<img width="1850" height="640" alt="Kalenderübersicht Beispiel befüllt nach google Import" src="https://github.com/user-attachments/assets/5cfe2f18-6c5d-468d-b073-13ad2260fdf5" />
+
+
 Kernziele:
 - Gemeindetermine sichtbar und pflegbar machen
 - Verschiedene Nutzergruppen (z. B. Gottesdienst-Team, Vorstand, Öffentlichkeit) mit unterschiedlichen Rechten versehen
@@ -72,6 +75,9 @@ Kernziele:
 - OAuth2-basierter Import aus Google Calendar
 - Verhindert Duplikate via `google_event_id`
 - Konfiguration über Frappe-DocType `Google Calendar Settings`
+
+<img width="694" height="397" alt="Importierte Termine" src="https://github.com/user-attachments/assets/e1e54181-66b3-4239-82c8-782a3e18e1b4" />
+
 
 ---
 
