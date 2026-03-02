@@ -36,6 +36,7 @@ class KronosCalendar {
             this.calendar = new Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
                 locale: 'de',
+                eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
                 headerToolbar: false,
                 weekNumbers: true,
                 height: '100%',
@@ -100,7 +101,17 @@ class KronosCalendar {
                 },
 
                 eventClick: function(info) {
-                    console.log('🔍 Event geklickt:', info.event.id);
+                    const isMobile = window.innerWidth <= 768;
+                    const currentView = info.view.type;
+
+                    // Mobile + Monatsansicht: Termin-Klick öffnet Tagesansicht des Tages
+                    if (isMobile && currentView === 'dayGridMonth') {
+                        info.view.calendar.changeView('timeGridDay', info.event.start);
+                        info.jsEvent.preventDefault();
+                        return;
+                    }
+
+                    // Standard: Modal anzeigen (Desktop oder bereits in Tagesansicht)
                     const eventData = info.event;
                     if (!eventData || !eventData.id) return;
 
@@ -180,6 +191,22 @@ class KronosCalendar {
 
             this.calendar.render();
             console.log('✅ Kalender erfolgreich gerendert');
+
+            // Mobile: Swipe nach rechts in der Tagesansicht → zurück zur Monatsansicht
+            let _swipeStartX = 0;
+            calendarEl.addEventListener('touchstart', (e) => {
+                _swipeStartX = e.touches[0].clientX;
+            }, { passive: true });
+            calendarEl.addEventListener('touchend', (e) => {
+                const delta = e.changedTouches[0].clientX - _swipeStartX;
+                const viewType = this.calendar.view.type;
+                if (viewType === 'timeGridDay') {
+                    if (delta > 80) this.calendar.changeView('dayGridMonth');
+                } else if (viewType === 'dayGridMonth') {
+                    if (delta < -80) this.calendar.next();
+                    else if (delta > 80) this.calendar.prev();
+                }
+            }, { passive: true });
 
             // Header-Navigation verknüpfen
             const dateDisplay = document.getElementById('current-date-display');

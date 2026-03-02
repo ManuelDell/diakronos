@@ -35,6 +35,12 @@ def update_series_batch_fast(series_id, updates):
     if invalid:
         frappe.throw(f"Nicht erlaubte Felder: {', '.join(invalid)}")
 
+    # Sicherheitshinweis: Feldnamen werden per f-String in den SQL-String eingebaut.
+    # Das ist sicher weil:
+    #   1. Die Whitelist oben jeden Feldnamen prüft und bei Abweichung frappe.throw() auslöst.
+    #   2. Feldnamen in Backticks gesetzt → Column-Name-Injection verhindert.
+    #   3. Alle Werte via %s parametrisiert → keine Wert-Injection möglich.
+    # Der Batch-UPDATE bleibt aus Performance-Gründen (ein SQL statt N einzelner Aufrufe).
     set_parts = [f"`{field}` = %s" for field in updates.keys()]
     values = list(updates.values())
     values.append(series_id)

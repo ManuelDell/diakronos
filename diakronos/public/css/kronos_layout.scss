@@ -199,6 +199,44 @@ body {
   border-radius: 4px;
   padding: 2px 6px;
 }
+
+/* FullCalendar Event Styling – angelehnt an Google Calendar
+   --------------------------------------------------------- */
+
+/* Monatsansicht: horizontale Event-Chips */
+.fc-daygrid-event {
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 12px;
+    line-height: 1.5;
+    overflow: hidden;
+}
+
+/* Wochen-/Tagesansicht: vertikale Event-Blöcke */
+.fc-timegrid-event {
+    border-radius: 4px;
+    padding: 2px 5px;
+    font-size: 12px;
+    overflow: hidden;
+}
+
+/* Terminname: mittleres Gewicht (wie Google Calendar) */
+.fc-event-title {
+    font-weight: 500;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Uhrzeit: etwas kleiner + leicht gedimmt gegenüber dem Terminname */
+.fc-event-time {
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.85;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
 /* ============================================================================
    7. SIDEBAR SECTIONS
    ============================================================================ */
@@ -208,6 +246,48 @@ body {
 
 .sidebar-section:last-child {
     border-bottom: none;
+}
+
+/* ============================================================================
+   17. MOBILE
+   ============================================================================ */
+@media (max-width: 768px) {
+    /* Uhrzeit in Kalender-Terminen ausblenden – nimmt auf kleinen Screens zu viel Platz */
+    .fc-event-time {
+        display: none !important;
+    }
+}
+
+@media (max-width: 430px) {
+    /* Sehr kleine Bildschirme (iPhone 12/13/14 Hochformat) */
+
+    .fc-daygrid-event {
+        font-size: 11px;
+        padding: 0 1px;
+    }
+
+    .fc-event-title {
+        font-size: 11px;
+    }
+
+    .fc-daygrid-event-harness {
+        margin-top: 0 !important;
+    }
+
+    /* Punkt: Abstand zum Text so klein wie möglich */
+    .fc-daygrid-event-dot {
+        margin: 0 1px 0 0 !important;
+    }
+
+    .fc-daygrid-day-events {
+        padding: 0 1px !important;
+    }
+
+    .fc .fc-daygrid-day-number {
+        font-size: 11px;
+        min-width: 18px;
+        padding: 2px 0 !important;
+    }
 }
 
 /* ============================================================================

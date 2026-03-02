@@ -11,6 +11,12 @@ console.log('✅ Kronos Bundle geladen');
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Kronos Initialisierung startet');
+
+    // Benutzer-Rollen aus data-Attribut lesen (gesetzt durch calendar.py)
+    window._kronosUserRoles = JSON.parse(
+        document.body.dataset.userRoles || '[]'
+    );
+
     try {
         header_build_elements();
         sidebar_build_elements();

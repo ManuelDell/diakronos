@@ -290,6 +290,52 @@ Sidebar, Kalenderliste
 =====================================*/
 
 /* ============================================================================
+   IMPORT-BUTTON (unten in der Sidebar, nur für Admin / Kalenderguru)
+============================================================================ */
+.sidebar-import-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: calc(100% - 32px);
+    margin: 8px 16px 4px;
+    padding: 8px 14px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 150ms ease;
+    white-space: nowrap;
+
+    &:hover {
+        background: var(--bg-surface-hover);
+        border-color: #4285F4;
+        color: #4285F4;
+
+        .sidebar-import-icon {
+            background: #4285F4;
+            color: white;
+        }
+    }
+}
+
+.sidebar-import-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--gray-200);
+    color: var(--text-muted);
+    font-size: 12px;
+    flex-shrink: 0;
+    transition: all 150ms ease;
+}
+
+/* ============================================================================
    HILFE-BUTTON (unten in der Sidebar)
 ============================================================================ */
 .sidebar-help-btn {

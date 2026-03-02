@@ -64,7 +64,7 @@ class DiakronosViewModal {
                             <dl class="diakronos-dl">
                                 <dt>Kalender</dt><dd>${element.element_calendar || '—'}</dd>
                                 <dt>Kategorie</dt><dd>${element.event_category_name || '—'}</dd>
-                                <dt>Beschreibung</dt><dd class="description">${element.description?.replace(/\n/g, '<br>') || '—'}</dd>
+                                <dt>Beschreibung</dt><dd class="description"></dd>
                             </dl>
                         </div>
                     </div>
@@ -75,6 +75,14 @@ class DiakronosViewModal {
         document.body.insertAdjacentHTML('beforeend', modalHTML);
 
         const modal = document.querySelector('.diakronos-modal:last-child');
+
+        // Beschreibung sicher per DOM einfügen (XSS-Schutz: kein innerHTML für User-Inhalte)
+        const descEl = modal.querySelector('.description');
+        const descText = element.description || '—';
+        descText.split('\n').forEach((line, i) => {
+            if (i > 0) descEl.appendChild(document.createElement('br'));
+            descEl.appendChild(document.createTextNode(line));
+        });
         setTimeout(() => modal.classList.add('show'), 10);
 
         // Schließen-Logik

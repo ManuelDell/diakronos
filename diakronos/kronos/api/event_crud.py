@@ -26,7 +26,6 @@ def parse_iso_datetime_raw(iso_string):
         dt_naive = dt.replace(tzinfo=None)
         result = dt_naive.strftime('%Y-%m-%d %H:%M:%S')
         
-        frappe.log_error(f"parse_iso_datetime_raw: '{iso_string}' → '{result}'", "parse_iso_datetime_raw")
         return result
         
     except Exception as e:
@@ -52,16 +51,23 @@ def get_events(start, end):
           AND elem.element_end <= %(end)s
     """, {'start': start, 'end': end}, as_dict=True)
     
-    # events_color_debug_log: Logge für Debugging (entferne in Prod)
-    frappe.log_error(f"Events fetched: {len(events)}, Sample color: {events[0]['color'] if events else 'None'}", "event_get_debug")
-    
     return events
+
+def _assert_write_access(calendar_name):
+    """Wirft PermissionError wenn der aktuelle User kein Schreibrecht auf den Kalender hat."""
+    from diakronos.kronos.api.permissions import get_accessible_calendars
+    calendars = get_accessible_calendars()
+    writable = {c["name"] for c in calendars if c.get("write")}
+    if calendar_name not in writable:
+        frappe.throw(_("Kein Schreibzugriff auf Kalender: {0}").format(calendar_name), frappe.PermissionError)
+
 
 @frappe.whitelist()
 def create_event(element_name, element_start, element_end, element_calendar,
                  all_day=False, description=None, status=None, element_category=None):
     """Erstelle neues Event"""
     try:
+        _assert_write_access(element_calendar)
         start_dt = parse_iso_datetime_raw(element_start)
         end_dt = parse_iso_datetime_raw(element_end) if element_end else start_dt
 
@@ -78,7 +84,6 @@ def create_event(element_name, element_start, element_end, element_calendar,
         doc.save(ignore_permissions=True)
         frappe.db.commit()
 
-        frappe.log_error(f'✅ Event erstellt: {doc.name}', "create_event")
         return {"success": True, "id": doc.name}
 
     except Exception as e:
@@ -93,50 +98,42 @@ def update_event(name, element_name=None, element_start=None, element_end=None,
     try:
         if not name or name in ['undefined', 'null', '']:
             frappe.throw(f"Invalid ID: {name}")
-        
-        frappe.log_error(f'🔧 Updating Event {name}:', "update_event")
-        
+
         doc = frappe.get_doc("Element", name)
-        
+        _assert_write_access(doc.element_calendar)
+
         if element_name is not None:
             doc.element_name = element_name
-            frappe.log_error(f'  - element_name: {element_name}', "update_event")
-        
+
         if element_start is not None:
-            parsed_start = parse_iso_datetime_raw(element_start)
-            doc.element_start = parsed_start
-            frappe.log_error(f'  - element_start: {element_start} → {parsed_start}', "update_event")
-        
+            doc.element_start = parse_iso_datetime_raw(element_start)
+
         if element_end is not None:
-            parsed_end = parse_iso_datetime_raw(element_end)
-            doc.element_end = parsed_end
-            frappe.log_error(f'  - element_end: {element_end} → {parsed_end}', "update_event")
+            doc.element_end = parse_iso_datetime_raw(element_end)
         else:
             if element_start is not None:
                 doc.element_end = doc.element_start
-        
+
         if element_calendar is not None:
+            _assert_write_access(element_calendar)
             doc.element_calendar = element_calendar
-            frappe.log_error(f'  - element_calendar: {element_calendar}', "update_event")
-        
+
         if all_day is not None:
             doc.all_day = all_day
-        
+
         if description is not None:
             doc.description = description
-        
+
         if status is not None:
             doc.status = status
-        
+
         doc.save(ignore_permissions=True)
         frappe.db.commit()
-        
-        frappe.log_error(f'✅ Event gespeichert: {doc.name}', "update_event")
-        
+
         return {"success": True, "id": doc.name}
-        
+
     except Exception as e:
-        frappe.log_error(f'❌ {str(e)}', "update_event ERROR")
+        frappe.log_error(f"{name}: {str(e)}", "update_event ERROR")
         frappe.throw(str(e))
 
 
@@ -146,15 +143,17 @@ def delete_event(name):
     try:
         if not name or name in ['undefined', 'null', '']:
             frappe.throw(f"Invalid ID: {name}")
-        
+
+        doc = frappe.get_doc("Element", name)
+        _assert_write_access(doc.element_calendar)
+
         frappe.delete_doc("Element", name, ignore_permissions=True, force=True)
         frappe.db.commit()
-        
-        frappe.log_error(f'✅ Event gelöscht: {name}', "delete_event")
+
         return {"success": True}
-        
+
     except Exception as e:
-        frappe.log_error(str(e), "delete_event ERROR")
+        frappe.log_error(f"{name}: {str(e)}", "delete_event ERROR")
         frappe.throw(str(e))
 
 
@@ -167,6 +166,10 @@ def save_event(name, element_name, element_start, element_end, element_calendar,
             frappe.throw(f"Invalid ID: {name}")
 
         doc = frappe.get_doc("Element", name)
+        _assert_write_access(doc.element_calendar)
+        if element_calendar != doc.element_calendar:
+            _assert_write_access(element_calendar)
+
         doc.element_name = element_name
         doc.element_calendar = element_calendar
         doc.element_start = parse_iso_datetime_raw(element_start)
@@ -181,11 +184,10 @@ def save_event(name, element_name, element_start, element_end, element_calendar,
         doc.save(ignore_permissions=True)
         frappe.db.commit()
 
-        frappe.log_error(f'✅ Event gespeichert (save_event): {doc.name}', "save_event")
         return {"success": True, "id": doc.name}
 
     except Exception as e:
-        frappe.log_error(f'❌ {str(e)}', "save_event ERROR")
+        frappe.log_error(f"{name}: {str(e)}", "save_event ERROR")
         frappe.throw(str(e))
 
 
@@ -222,6 +224,7 @@ def create_series(element_name, element_start, element_end, element_calendar,
     """Erstelle eine Serie wiederkehrender Termine."""
     try:
         from datetime import datetime
+        _assert_write_access(element_calendar)
 
         start_str = parse_iso_datetime_raw(element_start)
         end_str   = parse_iso_datetime_raw(element_end) if element_end else start_str
@@ -266,7 +269,6 @@ def create_series(element_name, element_start, element_end, element_calendar,
             current = advance(current)
 
         frappe.db.commit()
-        frappe.log_error(f'✅ Serie erstellt: {series_id}, {created} Termine', "create_series")
         return {"success": True, "series_id": series_id, "created_count": created}
 
     except Exception as e:
