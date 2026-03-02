@@ -182,22 +182,19 @@ body {
 }
 
 .fc .fc-daygrid-week-number {
-  position: absolute !important;
-  left: -50px;                      // links außerhalb
-  width: 40px;
+  /* Kein position:absolute – bleibt in FullCalendars eigenem Grid-Spalt */
+  width: 36px;
   text-align: center;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-muted);
-  background: transparent;
-  padding: 4px 0;
-  z-index: 5;
+  padding: 4px 2px;
 }
 
 .fc .fc-daygrid-week-number > span {
-  display: block;
+  display: inline-block;
   background: var(--gray-100);
   border-radius: 4px;
-  padding: 2px 6px;
+  padding: 2px 4px;
 }
 
 /* FullCalendar Event Styling – angelehnt an Google Calendar
@@ -256,6 +253,20 @@ body {
     .fc-event-time {
         display: none !important;
     }
+
+    /* Kalenderwochen: Soothing Blue, fett, 25 % kleiner als Tagesnummern */
+    .fc .fc-daygrid-week-number {
+        width: 20px;
+        font-size: 8px;
+        font-weight: 700;
+        color: #6a9fd8;
+        padding: 2px 0;
+    }
+    .fc .fc-daygrid-week-number > span {
+        background: transparent;
+        padding: 0;
+        border-radius: 0;
+    }
 }
 
 @media (max-width: 430px) {
@@ -287,6 +298,12 @@ body {
         font-size: 11px;
         min-width: 18px;
         padding: 2px 0 !important;
+    }
+
+    /* Kalenderwochen: bleibt 8 px (= ~25 % kleiner als 11 px Tagesnummern) */
+    .fc .fc-daygrid-week-number {
+        font-size: 8px;
+        width: 18px;
     }
 }
 

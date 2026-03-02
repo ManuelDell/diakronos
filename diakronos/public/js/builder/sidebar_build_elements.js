@@ -233,11 +233,13 @@ function _showHelpModal() {
     document.body.appendChild(overlay);
     requestAnimationFrame(() => overlay.classList.add('visible'));
 
-    // Schließen per Klick auf X oder Außenbereich
-    overlay.querySelector('.diakronos-help-close').addEventListener('click', () => {
+    // Schließen per Klick auf X oder Außenbereich → nach Transition aus DOM entfernen
+    function closeOverlay() {
         overlay.classList.remove('visible');
-    });
+        overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
+    }
+    overlay.querySelector('.diakronos-help-close').addEventListener('click', closeOverlay);
     overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.classList.remove('visible');
+        if (e.target === overlay) closeOverlay();
     });
 };

@@ -39,6 +39,20 @@ class KronosCalendar {
                 eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
                 headerToolbar: false,
                 weekNumbers: true,
+                fixedWeekCount: false,
+                navLinks: true,
+                navLinkDayClick: (date) => {
+                    if (window.innerWidth <= 768) return;
+                    this.calendar.changeView('timeGridDay', date);
+                    const sel = document.getElementById('view-selector');
+                    if (sel) sel.value = 'timeGridDay';
+                },
+                navLinkWeekClick: (weekStart) => {
+                    if (window.innerWidth <= 768) return;
+                    this.calendar.changeView('timeGridWeek', weekStart);
+                    const sel = document.getElementById('view-selector');
+                    if (sel) sel.value = 'timeGridWeek';
+                },
                 height: '100%',
                 expandRows: true,
                 editable: !isViewMode,
@@ -84,18 +98,11 @@ class KronosCalendar {
                 },
 
                 dateClick: function(info) {
-                    console.log('📅 Datum geklickt:', info.dateStr);
+                    // Im Bearbeitungsmodus übernimmt `select` den Create-Dialog –
+                    // so wird verhindert dass beide Handler gleichzeitig feuern.
                     if (getViewMode()) {
                         if (DiakronosDayEventsModal) {
                             DiakronosDayEventsModal.show(info.dateStr);
-                        }
-                    } else {
-                        if (DiakronosCreateModal) {
-                            DiakronosCreateModal.show({
-                                start: info.startStr || info.dateStr + 'T00:00',
-                                end: info.endStr || info.dateStr + 'T23:59',
-                                allDay: info.allDay || !info.endStr
-                            });
                         }
                     }
                 },
@@ -168,14 +175,24 @@ class KronosCalendar {
                 },
 
                 select: (info) => {
-                    console.log('🗓️ Bereich ausgewählt:', info.startStr);
-                    if (DiakronosCreateModal) {
-                        DiakronosCreateModal.show({
-                            start: info.startStr,
-                            end: info.endStr,
-                            allDay: info.allDay
-                        });
-                    }
+                    if (!DiakronosCreateModal) return;
+
+                    const date = info.startStr.slice(0, 10); // "YYYY-MM-DD"
+                    const now  = new Date();
+                    // Auf 5 Minuten runden
+                    const roundedMin = Math.round(now.getMinutes() / 5) * 5;
+                    const carryHour  = Math.floor(roundedMin / 60);
+                    const h = (now.getHours() + carryHour) % 24;
+                    const m = roundedMin % 60;
+                    const pad = n => String(n).padStart(2, '0');
+
+                    const startStr = `${date}T${pad(h)}:${pad(m)}`;
+                    const endStr   = `${date}T${pad((h + 1) % 24)}:${pad(m)}`;
+
+                    DiakronosCreateModal.show({
+                        element_start: startStr,
+                        element_end:   endStr,
+                    });
                 }
             });
 

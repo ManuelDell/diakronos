@@ -244,6 +244,15 @@
   box-shadow: var(--focus-ring);
 }
 
+/* Flatpickr: Wrapper auf volle Breite, altInput-Styling erbt von input */
+.form-group .flatpickr-wrapper {
+  width: 100%;
+}
+.form-group .flatpickr-input.alt-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .form-row {
   display: flex;
   gap: var(--gap-xl);

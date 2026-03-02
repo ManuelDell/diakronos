@@ -24,6 +24,11 @@ export function header_build_elements() {
     hamburger.innerHTML = '<span class="line"></span><span class="line"></span><span class="line"></span>';
     headerLeft.appendChild(hamburger);
 
+    const mobileMonthDisplay = document.createElement('span');
+    mobileMonthDisplay.id = 'mobile-month-display';
+    mobileMonthDisplay.className = 'mobile-month-display';
+    headerLeft.appendChild(mobileMonthDisplay);
+
     const logo = document.createElement('img');
     logo.src = '/assets/diakronos/images/diakronos-logo.svg';
     logo.alt = 'Diakronos Logo';
@@ -116,6 +121,26 @@ export function header_build_elements() {
     `;
     headerRight.appendChild(toggleGroup);
 
+    // Heute-Icon-Button (nur Mobile)
+    const todayIconBtn = document.createElement('button');
+    todayIconBtn.className = 'today-icon-btn';
+    todayIconBtn.setAttribute('aria-label', 'Zum heutigen Tag springen');
+    todayIconBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+        <circle cx="12" cy="16" r="1.5" fill="currentColor" stroke="none"/>
+    </svg>`;
+    todayIconBtn.addEventListener('click', () => {
+        kronosCalendar?.calendar?.today();
+        if (kronosMiniCalendar) {
+            kronosMiniCalendar.m = moment();
+            kronosMiniCalendar.render();
+        }
+    });
+    headerRight.appendChild(todayIconBtn);
+
     // Profil-Avatar + Dropdown
     const profileWrapper = document.createElement('div');
     profileWrapper.className = 'profile-menu-wrapper';
@@ -158,7 +183,20 @@ export function header_build_elements() {
     // Dropdown öffnen/schließen
     profileAvatar.addEventListener('click', (e) => {
         e.stopPropagation();
+        const isOpening = !profileDropdown.classList.contains('open');
         profileDropdown.classList.toggle('open');
+        if (isOpening) {
+            // Position zurücksetzen, dann gegen Viewport prüfen
+            profileDropdown.style.left = '';
+            profileDropdown.style.right = '0';
+            requestAnimationFrame(() => {
+                const rect = profileDropdown.getBoundingClientRect();
+                if (rect.left < 8) {
+                    profileDropdown.style.right = 'auto';
+                    profileDropdown.style.left = '0';
+                }
+            });
+        }
     });
     document.addEventListener('click', () => profileDropdown.classList.remove('open'));
     profileDropdown.addEventListener('click', (e) => e.stopPropagation());
@@ -223,7 +261,11 @@ export function header_build_elements() {
         const sidebar = document.querySelector('.kronos-sidebar');
         if (sidebar) {
             sidebar.classList.toggle('active');
-            sidebar.style.width = sidebar.classList.contains('active') ? '280px' : '0px';
+            if (window.innerWidth > 768) {
+                sidebar.style.width = sidebar.classList.contains('active') ? '280px' : '0px';
+            } else {
+                sidebar.style.width = '';  // CSS-Medienabfrage übernimmt auf Mobile
+            }
         }
         hamburger.classList.toggle('is-active');
     });
@@ -236,6 +278,10 @@ export function header_build_elements() {
 
             const updateDateDisplay = () => {
                 dateDisplay.textContent = calendar.view.title || '';
+                const mobileEl = document.getElementById('mobile-month-display');
+                if (mobileEl) {
+                    mobileEl.textContent = moment(calendar.getDate()).locale('de').format('MMMM');
+                }
             };
             calendar.on('datesSet', updateDateDisplay);
             updateDateDisplay();
@@ -281,8 +327,17 @@ export function header_build_elements() {
 
             const result = await response.json();
             const userInfo = result.message;
-            profileAvatar.textContent = userInfo.initial || '?';
             profileAvatar.setAttribute('title', userInfo.full_name || userInfo.name);
+            if (userInfo.user_image) {
+                profileAvatar.innerHTML = '';
+                const img = document.createElement('img');
+                img.src = userInfo.user_image;
+                img.alt = userInfo.full_name || userInfo.name;
+                img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+                profileAvatar.appendChild(img);
+            } else {
+                profileAvatar.textContent = userInfo.initial || '?';
+            }
         } catch (err) {
             console.error('Avatar-Ladefehler:', err);
             profileAvatar.textContent = '!';

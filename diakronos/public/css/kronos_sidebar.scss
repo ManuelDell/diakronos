@@ -173,45 +173,37 @@ CALENDAR LIST (Meine Kalender)
     text-align: center;
     font-style: italic;
 }
-    .calendar-item {
-    display: flex;
-    align-items: left;
-    gap: var(--gap-sm);
-    padding: 4px 8px;
-    border-radius: var(--border-radius-tiny);
-    cursor: pointer;
-    transition: all 150ms ease;
-    }
-    .calendar-item:hover {
-    background-color: var(--bg-surface-hover);
-    }
     .calendar-color {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background-color: var(--primary);
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background-color: var(--primary);
     }
     .calendar-checkbox {
-    accent-color: var(--primary);
+        accent-color: var(--primary);
     }
     .calendar-group {
-        margin-bottom: 16px;
+        margin-bottom: 12px;
     }
-
     .group-title {
         font-size: var(--text-sm);
         color: var(--text-muted);
-        margin: 0 0 8px 0;
+        margin: 0 0 4px 0;
+        padding: 0;
         font-weight: 500;
     }
-
     .calendar-item {
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 6px 8px;
+        padding: 4px 0;
+        border-radius: var(--border-radius-tiny);
+        cursor: pointer;
+        transition: background-color 150ms ease;
     }
-    
+    .calendar-item:hover {
+        background-color: var(--bg-surface-hover);
+    }
     .pencil-icon {
         margin-left: auto;
         font-size: 15px;
@@ -282,7 +274,7 @@ CALENDAR LIST (Meine Kalender)
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    padding: 12px 16px;
+    padding: 12px 0;
     margin: 12px 0 0;
 }
 /* =================================================
@@ -525,5 +517,33 @@ Sidebar, Kalenderliste
     font-size: 11px;
     color: var(--text-muted);
     text-align: center;
+}
+
+/* ============================================================================
+   MOBILE: Sidebar als Vollbild-Overlay ab 60px (Header-Höhe)
+============================================================================ */
+@media (max-width: 768px) {
+    .kronos-sidebar {
+        position: fixed;
+        top: 60px;
+        left: 0;
+        bottom: 0;
+        z-index: 500;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .kronos-sidebar.active {
+        width: 100% !important;
+    }
+    .kronos-sidebar:not(.active) {
+        width: 0 !important;
+        overflow: hidden;
+    }
+    .sidebar-calendar {
+        display: none;
+    }
+    .sidebar-import-btn {
+        display: none;
+    }
 }
 

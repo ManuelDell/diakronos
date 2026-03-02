@@ -1,149 +1,90 @@
-> **Hinweis:** Diese App befindet sich aktiv in Entwicklung. Der `develop-frappe-page`-Branch ist der aktuelle Arbeitsstand. `main` ist noch nicht produktionsreif.
+# Diakronos – Kronos Kalender
 
-# Diakronos
-
-Eine Frappe-App für Gemeinde- und Kirchenverwaltung. Kern ist ein webbasierter Kalender (`/kronos/calendar`) mit eingebettetem CalDAV-Server für die Synchronisation mit iPhone, Android und Thunderbird.
+Eine Frappe-App für Gemeinde- und Kirchenverwaltung mit webbasiertem Kalender, CalDAV-Server und rollenbasierten Berechtigungen.
 
 ---
 
-## Features
+## Neuigkeiten in diesem Release (März 2026)
 
-### Kronos – Kalender (Kern)
+### Mobile UX komplett überarbeitet
 
-| Feature | Status |
-|---------|--------|
-| Monats-, Wochen-, Tagesansicht | ✅ |
-| Termin erstellen, bearbeiten, löschen | ✅ |
-| Serienlermine (täglich / wöchentlich / monatlich / jährlich, max. 100) | ✅ |
-| Drag & Drop und Resize im Bearbeitungsmodus | ✅ |
-| Kalender-Farbcodierung | ✅ |
-| Rollen-basierte Berechtigungen (Lesen / Schreiben pro Kalender) | ✅ |
-| Mini-Kalender in der Sidebar | ✅ |
-| Profil-Dropdown mit Abmelden / Desk / Apps | ✅ |
-| CalDAV-Server (eingebettet, Basic Auth mit Frappe-Zugangsdaten) | ✅ |
-| Automatische nginx-Konfiguration bei Installation | ✅ |
-| Startseiten-Weiterleitung nach Login (nach Rolle) | ✅ |
+Der Header auf Mobilgeräten (`≤ 768 px`) wurde neu strukturiert:
 
-### Weitere Module (in Entwicklung)
+- **Links:** Hamburger-Menü (öffnet Sidebar als Vollbild-Overlay) + aktueller Monatsname (ohne Jahr)
+- **Rechts:** Heute-Button (Icon) + Profil-Avatar
+- View-Switcher, Navigation und Mini-Kalender sind auf Mobile ausgeblendet
+- Sidebar ist touch-scrollbar (`-webkit-overflow-scrolling: touch`)
 
-- **Diakonos** – Mitgliederverwaltung (Mitglied, Besucher, Kinder, Dienstbereich)
-- **Psalmos** – Musikverwaltung (geplant)
+### Profil-Avatar mit Frappe-Benutzerbildern
 
----
+Wenn ein Nutzer in Frappe ein Profilbild hinterlegt hat, wird es im Avatar-Button angezeigt. Ohne Bild: Initialbuchstabe wie bisher.
 
-## Installation
+### Flatpickr – neuer Datum/Uhrzeit-Picker
 
-```bash
-# 1. App holen
-cd ~/frappe-bench
-bench get-app https://github.com/deinname/diakronos.git
+Der native `datetime-local`-Browser-Picker wurde durch **Flatpickr** ersetzt (CDN-geladen):
 
-# 2. App auf Site installieren (führt setup/install.py aus → nginx wird automatisch konfiguriert)
-bench --site deine-site.de install-app diakronos
+- Deutsch lokalisiert
+- 24-h-Format, 5-Minuten-Schritte
+- Anzeige: „15. März 2026, 14:30"
+- **Beginn** und **Ende** in Create- und Edit-Modal
+- **Serie endet am** im Create-Modal (nur Datum)
+- Start → End wird automatisch auf +1 h gesetzt
 
-# 3. Assets bauen
-bench build --app diakronos
+### Datum-Vorausfüllung beim Klick auf einen leeren Tag
 
-# 4. Datenbank migrieren und Cache leeren
-bench migrate
-bench clear-cache
+Im Bearbeitungsmodus: Klick auf einen Tag füllt Beginn mit dem Datum des Tages + aktueller Uhrzeit (auf 5 Min gerundet) vor. Ende = Beginn + 1 h. Der FAB-Button öffnet den Dialog weiterhin ohne Vorbelegung.
 
-# 5. Neustart
-bench restart
-```
+### NavLinks (Desktop): Klick navigiert direkt in die Ansicht
 
-Kalender öffnen: `https://deine-domain.de/kronos/calendar`
+- Klick auf eine **Tageszahl** → Tagesansicht (`timeGridDay`)
+- Klick auf eine **Kalenderwochenzahl** → Wochenansicht (`timeGridWeek`)
+- Nur auf Desktop (`> 768 px`), Mobile-Verhalten unverändert
+
+### Kalenderwochen
+
+- Desktop: sichtbar in FullCalendars natürlicher Grid-Spalte (statt absolut positioniert)
+- Mobile: blau (`#6a9fd8`), fett, 8 px (ca. 25 % kleiner als Tagesnummern)
+
+### fixedWeekCount: false
+
+FullCalendar zeigt jetzt nur so viele Wochen wie der Monat wirklich braucht. Behebt das Problem der winzigen letzten Zeile bei 5-Wochen-Monaten.
 
 ---
 
-## CalDAV-Sync
+## Bugfixes
 
-Der eingebettete CalDAV-Server stellt Kalender für externe Clients bereit.
-
-**Zugangsdaten:**
-| Feld | Wert |
-|------|------|
-| Server-Adresse | `https://deine-domain.de/dav/` |
-| Benutzername | Frappe-E-Mail-Adresse |
-| Passwort | Frappe-Passwort |
-
-**Clients:**
-- **iPhone/iPad:** Einstellungen → Apps → Kalender → Kalender-Accounts → Account hinzufügen → Andere → CalDAV
-- **Android:** App [DAVx⁵](https://www.davx5.com/) (Play Store) → Mit URL und Benutzername anmelden
-- **Thunderbird:** Kalender-Ansicht → Neuer Kalender → Im Netzwerk → CalDAV
-
-> **Hinweis nginx:** Die Installation konfiguriert nginx automatisch (umgeht den Trailing-Slash-Rewrite für `/dav`).
-> Nach `bench setup nginx` einmalig wiederherstellen:
-> ```bash
-> bench execute diakronos.setup.nginx.setup_caldav_nginx
-> ```
+| # | Problem | Fix |
+|---|---------|-----|
+| 1 | Im Bearbeitungsmodus wurden zwei Create-Dialoge gleichzeitig geöffnet | `dateClick` überlässt dem `select`-Handler das Öffnen |
+| 2 | CalDAV-Hilfe-Modal blockierte nach dem Schließen alle Klicks | Overlay wird nach `transitionend` aus dem DOM entfernt |
+| 3 | Avatar-Dropdown öffnete links außerhalb des sichtbaren Bereichs | Position wird per `getBoundingClientRect()` korrigiert |
+| 4 | Sidebar-Checkboxen starteten auf verschiedenen x-Positionen | Doppelte CSS-Regeln bereinigt, einheitliches Padding |
 
 ---
 
-## Berechtigungen
+## Änderungsprotokoll der betroffenen Dateien
 
-Jeder Kalender hat zwei Benutzer-Tabellen im Desk (`Kalender`-DocType):
-
-- **Leserechte** – Benutzer sehen den Kalender (auch im CalDAV-Sync)
-- **Schreibrechte** – Benutzer können Termine erstellen / bearbeiten / löschen
-
-Die Benutzer-Rollen werden beim CalDAV-Zugriff geprüft – nur freigegebene Kalender werden synchronisiert.
-
----
-
-## Login-Weiterleitung nach Rolle
-
-In `hooks.py` kann konfiguriert werden, welche Rolle nach dem Login direkt zum Kalender weitergeleitet wird:
-
-```python
-role_home_page = {
-    "Mitglied": "/kronos/calendar",
-}
-```
+| Datei | Änderung |
+|-------|---------|
+| `public/js/builder/header_build_elements.js` | Mobile-Header, Heute-Icon, Avatar-Bild, Dropdown-Positionsfix |
+| `public/js/builder/kronos_calendar.js` | `fixedWeekCount`, `navLinks`, `select`-Handler Datum+Zeit |
+| `public/js/builder/sidebar_build_elements.js` | CalDAV-Overlay DOM-Cleanup |
+| `public/js/modal/modal_create.js` | Flatpickr, series_end-Picker, Datum-Vorausfüllung |
+| `public/js/modal/modal_edit.js` | Flatpickr, all-day Handler |
+| `public/css/kronos_layout.scss` | Kalenderwochen-Styling, fixedWeekCount-CSS entfernt |
+| `public/css/kronos_header_buttons.scss` | Mobile-Defaults, Heute-Icon-Button |
+| `public/css/kronos_sidebar.scss` | Mobile Vollbild-Sidebar, touch-scroll |
+| `public/css/kronos_modal.scss` | Flatpickr-Wrapper-CSS |
+| `kronos/api/permissions.py` | `user_image` in `get_session_info` |
+| `www/kronos/calendar.html` | Flatpickr CDN (CSS + JS + DE-Locale) |
 
 ---
 
-## Struktur
+## Bekannte Einschränkungen
 
-```
-diakronos/
-├── caldav/               ← Eingebetteter CalDAV-Server
-│   ├── server.py         ← before_request Hook, Routing
-│   ├── auth.py           ← Basic Auth gegen Frappe-Passwörter
-│   └── ical.py           ← Element → iCalendar Konvertierung
-├── kronos/
-│   ├── api/              ← REST APIs (calendar_get, event_crud, permissions, ...)
-│   └── doctype/          ← Element, Kalender, Eventkategorie
-├── public/
-│   ├── js/
-│   │   ├── backend/      ← State (data.js), Events API (events_api.js)
-│   │   ├── builder/      ← Header, Sidebar, Kalender-Init
-│   │   └── modal/        ← Create, Edit, View, Series Modals
-│   └── css/              ← SCSS-Module
-├── setup/
-│   ├── install.py        ← after_install Hook (Symlinks, Assets, nginx)
-│   └── nginx.py          ← Idempotente nginx-Konfiguration für CalDAV
-└── www/kronos/           ← Web-Page (calendar.html + calendar.py)
-```
+- Flatpickr wird von CDN (jsDelivr) geladen – kein Offline-Betrieb ohne lokale Kopie
+- Für lokalen Betrieb: Dateien nach `/assets/diakronos/js/lib/flatpickr/` kopieren und HTML-Pfade anpassen
 
 ---
 
-## Entwicklung
-
-```bash
-# Assets nach Änderungen neu bauen
-bench build --app diakronos
-
-# nginx CalDAV-Konfiguration wiederherstellen (nach bench setup nginx)
-bench execute diakronos.setup.nginx.setup_caldav_nginx
-```
-
-**Branch-Strategie:**
-- `main` – Production (angestrebt, noch nicht fertig)
-- `develop-frappe-page` – Aktueller Entwicklungsstand
-
----
-
-## Lizenz
-
-MIT License
+*Vorheriger Release: `feat(mobile): swipe-Navigation, Google-Calendar-Styling, Sicherheitsfixes`*

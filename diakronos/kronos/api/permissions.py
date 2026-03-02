@@ -18,9 +18,10 @@ def get_session_info():
         frappe.throw("Nicht angemeldet")
     user_doc = frappe.get_doc("User", user)
     return {
-        "initial": user[0].upper(),
+        "initial": (user_doc.full_name or user)[0].upper(),
         "full_name": user_doc.full_name or user,
-        "name": user
+        "name": user,
+        "user_image": user_doc.user_image or None
     }
 
 @frappe.whitelist(allow_guest=False)
