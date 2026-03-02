@@ -1,0 +1,41 @@
+{
+ "charts": [],
+ "content": "[{\"id\":\"xScqAp1S7x\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Kronos</span>\",\"col\":12}},{\"id\":\"1SOI6ZFlK1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Kalenderoberfl\u00e4che\",\"col\":3}}]",
+ "creation": "2026-03-01 19:43:06.794545",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "group-by",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Kronos",
+ "links": [],
+ "modified": "2026-03-01 19:45:17.107089",
+ "modified_by": "Administrator",
+ "module": "Kronos",
+ "name": "Kronos",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "\u00dcbersichtsseite",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "All"
+  }
+ ],
+ "sequence_id": 33.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Kalenderoberfl\u00e4che",
+   "type": "URL",
+   "url": "/kronos/calendar"
+  }
+ ],
+ "title": "Kronos"
+}

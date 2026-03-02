@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="{{ kronos_css }}">
     <meta name="csrf-token" content="{{ csrf_token }}">
 </head>
-<body data-user-initial="{{ user_initial }}" data-user-fullname="{{ user_fullname }}">
+<body data-user-initial="{{ user_initial }}" data-user-fullname="{{ user_fullname }}" data-user-roles="{{ user_roles_json | e }}">
 
     {% if not is_logged_in %}
     <div class="login-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999;">

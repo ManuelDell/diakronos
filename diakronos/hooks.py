@@ -26,7 +26,7 @@ modules = [
 fixtures = [
     "Workspace",
     "Module Def",
-    "Role",
+    {"dt": "Role", "filters": [["name", "in", ["Mitglied", "Kalenderguru"]]]},
     "Custom Field",
     "Client Script",
     "Dashboard",
@@ -40,11 +40,17 @@ doc_events = {
 }
 # Whitelisted Methods (alles sehr sinnvoll – bleibt fast identisch)
 whitelisted_methods = {
-
-    'diakronos.kronos.api.calendar_get.get_calendar_events'
+    'diakronos.kronos.api.calendar_get.get_calendar_events',
     # Cache-Management
     'diakronos.kronos.doctype.element.element.get_calendar_and_category_options',
-
+    # Google Kalender Import
+    'diakronos.kronos.api.google_import.get_credentials_status',
+    'diakronos.kronos.api.google_import.save_credentials',
+    'diakronos.kronos.api.google_import.get_oauth_url',
+    'diakronos.kronos.api.google_import.exchange_code',
+    'diakronos.kronos.api.google_import.get_google_calendars',
+    'diakronos.kronos.api.google_import.start_import',
+    'diakronos.kronos.api.google_import.upload_ical',
 }
 app_include_css = [
     "/assets/diakronos/css/kronos.bundle.css"  # ← genau dieser Pfad (Frappe handhabt Hash)

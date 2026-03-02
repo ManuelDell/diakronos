@@ -1,0 +1,96 @@
+{
+ "actions": [],
+ "creation": "2026-03-01 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "credentials_section",
+  "client_id",
+  "client_secret",
+  "redirect_uri",
+  "status_section",
+  "authorized",
+  "token_data"
+ ],
+ "fields": [
+  {
+   "fieldname": "credentials_section",
+   "fieldtype": "Section Break",
+   "label": "Google OAuth Zugangsdaten"
+  },
+  {
+   "fieldname": "client_id",
+   "fieldtype": "Data",
+   "label": "Client ID",
+   "reqd": 0,
+   "description": "Google OAuth 2.0 Client-ID aus der Google Cloud Console"
+  },
+  {
+   "fieldname": "client_secret",
+   "fieldtype": "Password",
+   "label": "Client Secret",
+   "reqd": 0,
+   "description": "Google OAuth 2.0 Client-Secret aus der Google Cloud Console"
+  },
+  {
+   "fieldname": "redirect_uri",
+   "fieldtype": "Data",
+   "label": "Redirect URI",
+   "reqd": 0,
+   "description": "Muss exakt mit dem Eintrag in der Google Cloud Console übereinstimmen (z. B. https://kico.ecg-hn.de/google-calendar-callback)"
+  },
+  {
+   "fieldname": "status_section",
+   "fieldtype": "Section Break",
+   "label": "Verbindungsstatus"
+  },
+  {
+   "fieldname": "authorized",
+   "fieldtype": "Check",
+   "label": "Mit Google verbunden",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "token_data",
+   "fieldtype": "Text",
+   "label": "Token Daten (JSON)",
+   "read_only": 1,
+   "description": "Intern gespeicherter OAuth-Token (nicht manuell bearbeiten)"
+  }
+ ],
+ "issingle": 1,
+ "modified": "2026-03-01 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Kronos",
+ "name": "Google Kalender Einstellungen",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 0,
+   "export": 0,
+   "print": 0,
+   "read": 1,
+   "report": 0,
+   "role": "Administrator",
+   "share": 0,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 0,
+   "export": 0,
+   "print": 0,
+   "read": 1,
+   "report": 0,
+   "role": "Kalenderguru",
+   "share": 0,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC"
+}

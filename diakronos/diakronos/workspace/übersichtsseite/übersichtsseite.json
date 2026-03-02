@@ -13,7 +13,7 @@
  "is_hidden": 0,
  "label": "\u00dcbersichtsseite",
  "links": [],
- "modified": "2026-01-30 17:31:54.753955",
+ "modified": "2026-03-01 21:21:22.548961",
  "modified_by": "Administrator",
  "module": "Diakronos",
  "name": "\u00dcbersichtsseite",
@@ -22,7 +22,11 @@
  "parent_page": "",
  "public": 1,
  "quick_lists": [],
- "roles": [],
+ "roles": [
+  {
+   "role": "Mitglied"
+  }
+ ],
  "sequence_id": 32.0,
  "shortcuts": [
   {

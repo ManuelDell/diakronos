@@ -140,6 +140,16 @@ export async function sidebar_build_elements(mainContentEl) {
         kronosCalendar.refetchEvents();
     }
 
+    // ── Import-Button (nur für Administrator / Kalenderguru) ─────────────────
+    const userRoles = window._kronosUserRoles || [];
+    if (userRoles.includes('Administrator') || userRoles.includes('Kalenderguru')) {
+        const importBtn = document.createElement('a');
+        importBtn.className = 'sidebar-import-btn';
+        importBtn.href = '/app/google-kalender-import';
+        importBtn.innerHTML = '<span class="sidebar-import-icon">⬆</span> Kalender importieren';
+        sidebar.appendChild(importBtn);
+    }
+
     // ── Hilfe-Button ────────────────────────────────────────────────────────
     const helpBtn = document.createElement('button');
     helpBtn.className = 'sidebar-help-btn';

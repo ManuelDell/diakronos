@@ -1,3 +1,4 @@
+import json
 import frappe
 from diakronos.scripts.get_hashed_asset import find_latest_hashed_file  # ← Import aus scripts/
 from diakronos.kronos.api.permissions import (
@@ -18,7 +19,6 @@ def get_context(context):
     context.user_initial = user[0].upper() if context.is_logged_in else None
     context.user_fullname = frappe.db.get_value("User", user, "full_name") or "Gast" if context.is_logged_in else None
 
-
     user = frappe.session.user
     context.user_initial = user[0].upper()
     context.user_fullname = frappe.db.get_value("User", user, "full_name") or user
@@ -30,6 +30,7 @@ def get_context(context):
     context.kronos_css = find_latest_hashed_file("kronos.bundle", "css")
     context.kronos_js = find_latest_hashed_file("kronos.bundle", "js")
 
-    frappe.log_error(f"Context gesetzt: user={user}, csrf={context.csrf_token}", "Kronos Debug")
+    # Rollen für Frontend-Berechtigungsprüfung (z. B. Import-Button)
+    context.user_roles_json = json.dumps(frappe.get_roles(user))
 
-    
+

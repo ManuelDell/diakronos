@@ -21,6 +21,7 @@
   "all_day",
   "cb_00",
   "series_id",
+  "google_event_id",
   "element_color",
   "section_break_13",
   "repeat_on",
@@ -206,6 +207,14 @@
    "fieldtype": "Data",
    "label": "series_id",
    "read_only": 1
+  },
+  {
+   "fieldname": "google_event_id",
+   "fieldtype": "Data",
+   "label": "Google Event ID",
+   "read_only": 1,
+   "search_index": 1,
+   "description": "Interne ID des importierten Google-Kalender-Eintrags (Duplikaterkennung)"
   },
   {
    "fieldname": "element_name",
