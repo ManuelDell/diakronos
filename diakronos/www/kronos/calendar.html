@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
     <link rel="stylesheet" href="{{ kronos_css }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <meta name="csrf-token" content="{{ csrf_token }}">
 </head>
 <body data-user-initial="{{ user_initial }}" data-user-fullname="{{ user_fullname }}" data-user-roles="{{ user_roles_json | e }}">
@@ -50,6 +51,10 @@
     <script src="/assets/diakronos/js/lib/moment/moment.min.js"></script>
     <script src="/assets/diakronos/js/lib/moment/moment-timezone-with-data-10-year-range.min.js"></script>
     <script src="/assets/diakronos/js/lib/fullcalendar/index.global.min.js"></script>
+
+    <!-- Flatpickr (Datum/Uhrzeit-Picker) -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/de.js"></script>
 
     <!-- Dein Bundle -->
     <script type="module" src="{{ kronos_js }}"></script>

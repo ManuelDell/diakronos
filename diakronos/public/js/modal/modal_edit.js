@@ -60,11 +60,11 @@ class DiakronosEditModal {
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>Beginn <span class="required">*</span></label>
-                                    <input type="datetime-local" id="element_start" value="${element.element_start ? element.element_start.slice(0, 16) : ''}">
+                                    <input type="text" id="element_start" placeholder="Datum und Uhrzeit wählen" readonly>
                                 </div>
                                 <div class="form-group">
                                     <label>Ende <span class="required">*</span></label>
-                                    <input type="datetime-local" id="element_end" value="${element.element_end ? element.element_end.slice(0, 16) : ''}">
+                                    <input type="text" id="element_end" placeholder="Datum und Uhrzeit wählen" readonly>
                                 </div>
                             </div>
 
@@ -131,6 +131,64 @@ class DiakronosEditModal {
         // 3. HTML einfügen
         document.body.insertAdjacentHTML('beforeend', modalHTML);
         const modal = document.querySelector('.diakronos-modal:last-child');
+
+        // Flatpickr – Datum/Uhrzeit-Picker
+        const startInput = modal.querySelector('#element_start');
+        const endInput   = modal.querySelector('#element_end');
+        let fpStart = null, fpEnd = null;
+
+        if (window.flatpickr) {
+            const fpLocale = window.flatpickr.l10ns?.de || 'default';
+            const baseOpts = {
+                locale:          fpLocale,
+                enableTime:      true,
+                time_24hr:       true,
+                dateFormat:      'Y-m-dTH:i',
+                altInput:        true,
+                altFormat:       'j. F Y, H:i',
+                minuteIncrement: 5,
+            };
+
+            fpStart = window.flatpickr(startInput, {
+                ...baseOpts,
+                defaultDate: element.element_start ? element.element_start.slice(0, 16) : null,
+                onChange: ([date]) => {
+                    if (!date || !fpEnd) return;
+                    const endDates = fpEnd.selectedDates;
+                    if (!endDates.length || endDates[0] <= date) {
+                        fpEnd.setDate(new Date(date.getTime() + 60 * 60 * 1000));
+                    }
+                    fpEnd.set('minDate', date);
+                },
+            });
+
+            fpEnd = window.flatpickr(endInput, {
+                ...baseOpts,
+                defaultDate: element.element_end ? element.element_end.slice(0, 16) : null,
+                minDate:     element.element_start ? element.element_start.slice(0, 16) : null,
+            });
+        }
+
+        // Ganztägig → Zeitfelder deaktivieren
+        const allDayCheckbox = modal.querySelector('#all_day');
+        allDayCheckbox.addEventListener('change', () => {
+            const isAllDay = allDayCheckbox.checked;
+            if (fpStart && fpEnd) {
+                fpStart.set('clickOpens', !isAllDay);
+                fpEnd.set('clickOpens',   !isAllDay);
+                if (fpStart.altInput) fpStart.altInput.disabled = isAllDay;
+                if (fpEnd.altInput)   fpEnd.altInput.disabled   = isAllDay;
+                if (isAllDay) {
+                    const d = fpStart.selectedDates[0] || new Date();
+                    const [y, mo, day] = [d.getFullYear(), d.getMonth(), d.getDate()];
+                    fpStart.setDate(new Date(y, mo, day, 0, 0));
+                    fpEnd.setDate(new Date(y, mo, day, 23, 59));
+                }
+            } else {
+                startInput.disabled = isAllDay;
+                endInput.disabled   = isAllDay;
+            }
+        });
 
         // Tab-Switching
         modal.querySelectorAll('.tab-btn').forEach(btn => {

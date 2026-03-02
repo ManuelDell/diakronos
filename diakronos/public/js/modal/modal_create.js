@@ -63,11 +63,11 @@ class DiakronosCreateModal {
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label>Beginn <span class="required">*</span></label>
-                                        <input type="datetime-local" id="element_start" value="${element.element_start ? element.element_start.slice(0,16) : ''}">
+                                        <input type="text" id="element_start" placeholder="Datum und Uhrzeit wählen" readonly>
                                     </div>
                                     <div class="form-group">
                                         <label>Ende <span class="required">*</span></label>
-                                        <input type="datetime-local" id="element_end" value="${element.element_end ? element.element_end.slice(0,16) : ''}">
+                                        <input type="text" id="element_end" placeholder="Datum und Uhrzeit wählen" readonly>
                                     </div>
                                 </div>
 
@@ -115,7 +115,7 @@ class DiakronosCreateModal {
                                         </div>
                                         <div class="form-group">
                                             <label>Serie endet am</label>
-                                            <input type="date" id="series_end">
+                                            <input type="text" id="series_end" placeholder="Datum wählen" readonly>
                                         </div>
                                     </div>
                                 </div>
@@ -177,16 +177,74 @@ class DiakronosCreateModal {
             seriesOptions.style.display = repeatCheckbox.checked ? 'block' : 'none';
         });
 
+        // Flatpickr – Datum/Uhrzeit-Picker
+        const startInput = modal.querySelector('#element_start');
+        const endInput   = modal.querySelector('#element_end');
+        let fpStart = null, fpEnd = null;
+
+        if (window.flatpickr) {
+            const fpLocale = window.flatpickr.l10ns?.de || 'default';
+            const baseOpts = {
+                locale:          fpLocale,
+                enableTime:      true,
+                time_24hr:       true,
+                dateFormat:      'Y-m-dTH:i',   // ISO-Format für Backend
+                altInput:        true,
+                altFormat:       'j. F Y, H:i',  // Anzeige: "15. März 2026, 14:30"
+                minuteIncrement: 5,
+            };
+
+            fpStart = window.flatpickr(startInput, {
+                ...baseOpts,
+                defaultDate: element.element_start || null,
+                onChange: ([date]) => {
+                    if (!date || !fpEnd) return;
+                    const endDates = fpEnd.selectedDates;
+                    // End automatisch 1 h nach Start setzen wenn leer oder vor Start
+                    if (!endDates.length || endDates[0] <= date) {
+                        fpEnd.setDate(new Date(date.getTime() + 60 * 60 * 1000));
+                    }
+                    fpEnd.set('minDate', date);
+                },
+            });
+
+            fpEnd = window.flatpickr(endInput, {
+                ...baseOpts,
+                defaultDate: element.element_end || null,
+                minDate:     element.element_start || null,
+            });
+
+            // Serien-Enddatum: nur Datum, keine Uhrzeit
+            const seriesEndInput = modal.querySelector('#series_end');
+            if (seriesEndInput) {
+                window.flatpickr(seriesEndInput, {
+                    locale:     fpLocale,
+                    dateFormat: 'Y-m-d',
+                    altInput:   true,
+                    altFormat:  'j. F Y',
+                    minDate:    'today',
+                });
+            }
+        }
+
         // Ganztägig → Zeitfelder deaktivieren
         const allDayCheckbox = modal.querySelector('#all_day');
-        const startInput     = modal.querySelector('#element_start');
-        const endInput       = modal.querySelector('#element_end');
         allDayCheckbox.addEventListener('change', () => {
-            startInput.disabled = allDayCheckbox.checked;
-            endInput.disabled   = allDayCheckbox.checked;
-            if (allDayCheckbox.checked) {
-                startInput.value = startInput.value.slice(0,10) + 'T00:00';
-                endInput.value   = endInput.value.slice(0,10)   + 'T23:59';
+            const isAllDay = allDayCheckbox.checked;
+            if (fpStart && fpEnd) {
+                fpStart.set('clickOpens', !isAllDay);
+                fpEnd.set('clickOpens',   !isAllDay);
+                if (fpStart.altInput) fpStart.altInput.disabled = isAllDay;
+                if (fpEnd.altInput)   fpEnd.altInput.disabled   = isAllDay;
+                if (isAllDay) {
+                    const d = fpStart.selectedDates[0] || new Date();
+                    const [y, mo, day] = [d.getFullYear(), d.getMonth(), d.getDate()];
+                    fpStart.setDate(new Date(y, mo, day, 0, 0));
+                    fpEnd.setDate(new Date(y, mo, day, 23, 59));
+                }
+            } else {
+                startInput.disabled = isAllDay;
+                endInput.disabled   = isAllDay;
             }
         });
 
@@ -216,7 +274,8 @@ class DiakronosCreateModal {
                 showError('Bitte einen Kalender auswählen.');
                 return;
             }
-            if (!startInput.value) {
+            const hasStart = fpStart ? fpStart.selectedDates.length > 0 : !!startInput.value;
+            if (!hasStart) {
                 switchToTab('basic');
                 showError('Bitte Beginn ausfüllen.');
                 return;
