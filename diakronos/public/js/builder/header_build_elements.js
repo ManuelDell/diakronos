@@ -155,17 +155,11 @@ export function header_build_elements() {
     const profileDropdown = document.createElement('div');
     profileDropdown.className = 'profile-dropdown';
     profileDropdown.innerHTML = `
-        <a class="profile-dropdown-item" href="/app">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
-            </svg>
-            Zurück zum Desk
-        </a>
-        <a class="profile-dropdown-item" href="/apps">
+        <a class="profile-dropdown-item" href="/diakronos">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                 <path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/>
             </svg>
-            Apps
+            Startseite
         </a>
         <div class="profile-dropdown-divider"></div>
         <button class="profile-dropdown-item profile-dropdown-logout">
@@ -180,22 +174,16 @@ export function header_build_elements() {
     profileWrapper.appendChild(profileDropdown);
     headerRight.appendChild(profileWrapper);
 
-    // Dropdown öffnen/schließen
+    // Dropdown öffnen/schließen – position: fixed relativ zum Viewport
     profileAvatar.addEventListener('click', (e) => {
         e.stopPropagation();
         const isOpening = !profileDropdown.classList.contains('open');
         profileDropdown.classList.toggle('open');
         if (isOpening) {
-            // Position zurücksetzen, dann gegen Viewport prüfen
+            const avatarRect = profileAvatar.getBoundingClientRect();
+            profileDropdown.style.top  = (avatarRect.bottom + 8) + 'px';
+            profileDropdown.style.right = (window.innerWidth - avatarRect.right) + 'px';
             profileDropdown.style.left = '';
-            profileDropdown.style.right = '0';
-            requestAnimationFrame(() => {
-                const rect = profileDropdown.getBoundingClientRect();
-                if (rect.left < 8) {
-                    profileDropdown.style.right = 'auto';
-                    profileDropdown.style.left = '0';
-                }
-            });
         }
     });
     document.addEventListener('click', () => profileDropdown.classList.remove('open'));
@@ -337,6 +325,18 @@ export function header_build_elements() {
                 profileAvatar.appendChild(img);
             } else {
                 profileAvatar.textContent = userInfo.initial || '?';
+            }
+            // Desk-Zugriff: nur für Administrator und Kalenderguru
+            if (userInfo.can_access_desk) {
+                const deskLink = document.createElement('a');
+                deskLink.className = 'profile-dropdown-item';
+                deskLink.href = '/app';
+                deskLink.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+                    </svg>
+                    Zurück zum Desk`;
+                profileDropdown.insertBefore(deskLink, profileDropdown.firstChild);
             }
         } catch (err) {
             console.error('Avatar-Ladefehler:', err);

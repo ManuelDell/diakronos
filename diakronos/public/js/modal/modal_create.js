@@ -1,6 +1,7 @@
 // modal_create.js – neuer_termin_dialog
 
 import { kronosCalendar } from '../builder/kronos_calendar.js';
+import { escHtml } from '../html_utils.js';
 
 class DiakronosCreateModal {
     static async show(initialData = {}) {
@@ -57,7 +58,7 @@ class DiakronosCreateModal {
                             <div class="diakronos-modal-body">
                                 <div class="form-group">
                                     <label>Titel <span class="required">*</span></label>
-                                    <input type="text" id="element_name" value="${element.element_name || ''}" required>
+                                    <input type="text" id="element_name" value="${escHtml(element.element_name)}" required>
                                 </div>
 
                                 <div class="form-row">
@@ -83,8 +84,8 @@ class DiakronosCreateModal {
                                     <select id="element_calendar">
                                         <option value="">— Bitte wählen —</option>
                                         ${writableCalendars.map(cal => `
-                                            <option value="${cal.name}" data-color="${cal.calendar_color || '#9ca3af'}">
-                                                ${cal.calendar_name || cal.name}
+                                            <option value="${escHtml(cal.name)}" data-color="${escHtml(cal.calendar_color || '#9ca3af')}">
+                                                ${escHtml(cal.calendar_name || cal.name)}
                                             </option>
                                         `).join('')}
                                     </select>
@@ -130,8 +131,8 @@ class DiakronosCreateModal {
                                     <select id="element_category">
                                         <option value="">—</option>
                                         ${categories.map(cat => `
-                                            <option value="${cat.name}">
-                                                ${cat.event_category_name || cat.name}
+                                            <option value="${escHtml(cat.name)}">
+                                                ${escHtml(cat.event_category_name || cat.name)}
                                             </option>
                                         `).join('')}
                                     </select>

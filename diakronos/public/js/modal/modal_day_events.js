@@ -2,6 +2,7 @@
 
 import { kronosCalendar } from '../builder/kronos_calendar.js';
 import { DiakronosViewModal } from './modal_view.js';
+import { escHtml, safeCssColor } from '../html_utils.js';
 
 class DiakronosDayEventsModal {
     static show(dateStr) {
@@ -53,8 +54,8 @@ class DiakronosDayEventsModal {
                             ${dayEvents.length === 0 ? '<p>Keine Termine an diesem Tag.</p>' : ''}
                             <ul class="diakronos-events-list">
                                 ${dayEvents.map(event => `
-                                    <li class="event-item" data-event-id="${event.id}" style="border-left: 4px solid ${event.backgroundColor || 'var(--primary)'}; cursor: pointer;">
-                                        <div class="event-title">${event.title || 'Termin'}</div>
+                                    <li class="event-item" data-event-id="${escHtml(event.id)}" style="border-left: 4px solid ${safeCssColor(event.backgroundColor)}; cursor: pointer;">
+                                        <div class="event-title">${escHtml(event.title) || 'Termin'}</div>
                                         <div class="event-time">
                                             ${event.allDay ? 'Ganztägig' : formatEventTime(event.startStr, event.endStr, event.allDay)}
                                         </div>

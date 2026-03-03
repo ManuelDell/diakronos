@@ -1,6 +1,7 @@
 // modal_edit.js – Termin bearbeiten
 
 import { kronosCalendar } from '../builder/kronos_calendar.js';
+import { escHtml, safeCssColor } from '../html_utils.js';
 
 class DiakronosEditModal {
     static async show(element) {
@@ -37,7 +38,7 @@ class DiakronosEditModal {
         <div class="diakronos-modal fade show" tabindex="-1" role="dialog">
             <div class="diakronos-modal-dialog modal-dialog-centered modal-lg">
                 <div class="diakronos-modal-content">
-                    <div class="diakronos-color-bar" style="background-color: ${element.element_color || 'var(--primary)'};"></div>
+                    <div class="diakronos-color-bar" style="background-color: ${safeCssColor(element.element_color)};"></div>
 
                     <div class="diakronos-modal-header">
                         <h5 class="modal-title">Termin bearbeiten</h5>
@@ -54,7 +55,7 @@ class DiakronosEditModal {
                         <div id="tab-basic" class="tab-content active">
                             <div class="form-group">
                                 <label>Titel <span class="required">*</span></label>
-                                <input type="text" id="element_name" value="${element.element_name || ''}" required>
+                                <input type="text" id="element_name" value="${escHtml(element.element_name)}" required>
                             </div>
 
                             <div class="form-row">
@@ -88,8 +89,8 @@ class DiakronosEditModal {
                                 <select id="element_calendar">
                                     <option value="">— Bitte wählen —</option>
                                     ${writableCalendars.map(cal => `
-                                        <option value="${cal.name}" ${cal.name === element.element_calendar ? 'selected' : ''}>
-                                            ${cal.calendar_name || cal.name}
+                                        <option value="${escHtml(cal.name)}" ${cal.name === element.element_calendar ? 'selected' : ''}>
+                                            ${escHtml(cal.calendar_name || cal.name)}
                                         </option>
                                     `).join('')}
                                 </select>
@@ -99,8 +100,8 @@ class DiakronosEditModal {
                                 <select id="element_category">
                                     <option value="">—</option>
                                     ${categories.map(cat => `
-                                        <option value="${cat.name}" ${cat.name === element.element_category ? 'selected' : ''}>
-                                            ${cat.event_category_name || cat.name}
+                                        <option value="${escHtml(cat.name)}" ${cat.name === element.element_category ? 'selected' : ''}>
+                                            ${escHtml(cat.event_category_name || cat.name)}
                                         </option>
                                     `).join('')}
                                 </select>

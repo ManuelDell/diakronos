@@ -1,0 +1,84 @@
+{
+ "actions": [],
+ "creation": "2026-03-03 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "module_name",
+  "anzeige_name",
+  "icon",
+  "standard_icon",
+  "col_break_1",
+  "im_app_bereich_anzeigen",
+  "sichtbar_fuer_rollen",
+  "section_break_reset",
+  "zuruecksetzen"
+ ],
+ "fields": [
+  {
+   "fieldname": "module_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Modul",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "anzeige_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Anzeigename"
+  },
+  {
+   "fieldname": "icon",
+   "fieldtype": "Attach Image",
+   "in_list_view": 1,
+   "label": "Icon"
+  },
+  {
+   "fieldname": "standard_icon",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Standard-Icon (Pfad)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "im_app_bereich_anzeigen",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Im App-Bereich anzeigen"
+  },
+  {
+   "fieldname": "sichtbar_fuer_rollen",
+   "fieldtype": "Table MultiSelect",
+   "label": "Sichtbar f\u00fcr Rollen",
+   "options": "Diakronos Modul Rolle"
+  },
+  {
+   "fieldname": "section_break_reset",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "zuruecksetzen",
+   "fieldtype": "Button",
+   "label": "\u21ba Auf Standardwerte zur\u00fccksetzen"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-03-03 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Diakronos",
+ "name": "Diakronos Modul Einstellung",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

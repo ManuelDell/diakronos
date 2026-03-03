@@ -5,29 +5,30 @@ CREATE, UPDATE, DELETE Events
 import frappe
 from frappe import _
 from dateutil import parser as dateutil_parser
-from datetime import timedelta
+from datetime import timedelta, datetime as _datetime
 from dateutil.relativedelta import relativedelta
+
+_DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 
 def parse_iso_datetime_raw(iso_string):
-    """Parse ISO UTC String"""
+    """Parse ISO UTC String – strikt validiert, kein blindes Durchleiten."""
     if not iso_string:
         return None
-    
+
     try:
         iso_str = str(iso_string).strip()
-        
-        # Wenn bereits im Format "YYYY-MM-DD HH:MM:SS", nutze direkt
+
+        # Wenn bereits im Format "YYYY-MM-DD HH:MM:SS", strict validieren
         if ' ' in iso_str and 'T' not in iso_str:
+            _datetime.strptime(iso_str, _DATETIME_FORMAT)  # wirft ValueError bei ungültigem Wert
             return iso_str
-        
-        # Parse als UTC
+
+        # Parse als ISO-8601 / UTC
         dt = dateutil_parser.isoparse(iso_str)
         dt_naive = dt.replace(tzinfo=None)
-        result = dt_naive.strftime('%Y-%m-%d %H:%M:%S')
-        
-        return result
-        
+        return dt_naive.strftime(_DATETIME_FORMAT)
+
     except Exception as e:
         frappe.log_error(f"Fehler: {str(e)}", "parse_iso_datetime_raw ERROR")
         frappe.throw(f"Ungültiges Datum: {iso_string}")
@@ -36,22 +37,32 @@ def parse_iso_datetime_raw(iso_string):
 
 @frappe.whitelist()
 def get_events(start, end):
-    """event_get_with_calendar_color_join: Holt Events mit Farbe aus übergeordnetem Kalender."""
-    events = frappe.db.sql("""
+    """Holt Events mit Farbe – nur aus Kalendern, auf die der User Leserecht hat."""
+    from diakronos.kronos.api.permissions import get_accessible_calendars
+    accessible = get_accessible_calendars()
+    if not accessible:
+        return []
+
+    calendar_names = [c["name"] for c in accessible]
+    placeholders = ", ".join(["%s"] * len(calendar_names))
+
+    events = frappe.db.sql(f"""
         SELECT
             elem.name AS id,
             elem.element_name AS title,
             elem.element_start AS start,
             elem.element_end AS end,
             elem.all_day,
-            COALESCE(kal.calendar_color, elem.element_color, '#007bff') AS color  -- Priorisiert calendar_color, Fallback zu element_color oder Blau
+            COALESCE(kal.calendar_color, elem.element_color, '#007bff') AS color
         FROM `tabElement` elem
         LEFT JOIN `tabKalender` kal ON kal.name = elem.element_calendar
-        WHERE elem.element_start >= %(start)s
-          AND elem.element_end <= %(end)s
-    """, {'start': start, 'end': end}, as_dict=True)
-    
+        WHERE elem.element_start >= %s
+          AND elem.element_end <= %s
+          AND elem.element_calendar IN ({placeholders})
+    """, [start, end] + calendar_names, as_dict=True)
+
     return events
+
 
 def _assert_write_access(calendar_name):
     """Wirft PermissionError wenn der aktuelle User kein Schreibrecht auf den Kalender hat."""
@@ -60,6 +71,15 @@ def _assert_write_access(calendar_name):
     writable = {c["name"] for c in calendars if c.get("write")}
     if calendar_name not in writable:
         frappe.throw(_("Kein Schreibzugriff auf Kalender: {0}").format(calendar_name), frappe.PermissionError)
+
+
+def _assert_read_access(calendar_name):
+    """Wirft PermissionError wenn der aktuelle User kein Leserecht auf den Kalender hat."""
+    from diakronos.kronos.api.permissions import get_accessible_calendars
+    calendars = get_accessible_calendars()
+    readable = {c["name"] for c in calendars}
+    if calendar_name not in readable:
+        frappe.throw(_("Kein Lesezugriff auf Kalender: {0}").format(calendar_name), frappe.PermissionError)
 
 
 @frappe.whitelist()
@@ -199,6 +219,7 @@ def get_event_details(name):
             frappe.throw(f"Invalid ID: {name}")
         
         element = frappe.get_doc("Element", name)
+        _assert_read_access(element.element_calendar)
         return {
             'name': element.name,
             'element_name': element.element_name,

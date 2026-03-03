@@ -12,12 +12,18 @@ import json
 @frappe.whitelist()
 def update_series_batch_fast(series_id, updates):
     """Schneller Update aller Elemente einer Serie via SQL."""
-    
+    from diakronos.kronos.api.event_crud import _assert_write_access
+
     if isinstance(updates, str):
         updates = json.loads(updates)
-    
+
     if not series_id:
         frappe.throw("Series ID fehlt")
+
+    first_calendar = frappe.get_value("Element", {"series_id": series_id}, "element_calendar")
+    if not first_calendar:
+        frappe.throw(_("Serie nicht gefunden: {0}").format(series_id))
+    _assert_write_access(first_calendar)
     
     if not updates or not isinstance(updates, dict):
         frappe.throw("Updates müssen ein Dictionary sein")
@@ -65,10 +71,17 @@ def update_series_batch_fast(series_id, updates):
 @frappe.whitelist()
 def delete_future_series_events(series_id, from_date):
     """Löscht alle Elemente einer Serie ab einem bestimmten Datum (inkl. diesem Datum)."""
+    from diakronos.kronos.api.event_crud import _assert_write_access
+
     if not series_id:
         frappe.throw(_("Series ID erforderlich"))
     if not from_date:
         frappe.throw(_("Startdatum erforderlich"))
+
+    first_calendar = frappe.get_value("Element", {"series_id": series_id}, "element_calendar")
+    if not first_calendar:
+        frappe.throw(_("Serie nicht gefunden: {0}").format(series_id))
+    _assert_write_access(first_calendar)
 
     elements = frappe.get_all(
         "Element",
@@ -105,57 +118,47 @@ def delete_future_series_events(series_id, from_date):
 @frappe.whitelist()
 def delete_series_batch_fast(series_id):
     """Löscht alle Elemente einer Serie."""
+    from diakronos.kronos.api.event_crud import _assert_write_access
+
     if not series_id:
         frappe.throw(_("Series ID erforderlich"))
+
+    first_calendar = frappe.get_value("Element", {"series_id": series_id}, "element_calendar")
+    if not first_calendar:
+        frappe.throw(_("Serie nicht gefunden: {0}").format(series_id))
+    _assert_write_access(first_calendar)
     
-    print(f"🗑️ DELETE SERIES: {series_id}")
-    
-    # 🔍 FIND ALL ELEMENTS
     elements = frappe.get_all(
         "Element",
         filters={"series_id": series_id},
         fields=["name", "element_calendar"]
     )
-    
-    print(f"🔍 Gefundene Elemente: {len(elements)}")
-    for e in elements:
-        print(f"   - {e.name} (Kalender: {e.element_calendar})")
-    
-    # ✅ WENN NICHTS GEFUNDEN: Trotzdem erfolgreich zurück (keine Serie vorhanden)
+
     if not elements:
-        print("⚠️ Keine Elemente gefunden für Serie")
         return {
             "success": True,
             "deleted_count": 0,
             "message": _("Keine Termine in dieser Serie gefunden")
         }
-    
+
     deleted_count = 0
-    
+
     for elem in elements:
         try:
-            print(f"🗑️ Lösche Element: {elem.name}")
-            
-            # Entferne aus Kalender
             if elem.element_calendar:
                 try:
                     cal_doc = frappe.get_doc("Kalender", elem.element_calendar)
-                    
                     rows_to_remove = [
                         row for row in cal_doc.calendar_table
                         if row.element == elem.name
                     ]
-                    
                     for row in rows_to_remove:
                         cal_doc.calendar_table.remove(row)
-                    
                     if rows_to_remove:
                         cal_doc.save(ignore_permissions=True, ignore_version=True)
-                        print(f"   ✅ Aus Kalender entfernt")
                 except Exception as cal_error:
-                    print(f"   ⚠️ Kalender-Fehler: {cal_error}")
-            
-            # Lösche Element
+                    frappe.log_error(f"Kalender-Fehler bei {elem.name}: {cal_error}", "Series Delete Calendar Error")
+
             frappe.delete_doc(
                 "Element",
                 elem.name,
@@ -165,19 +168,16 @@ def delete_series_batch_fast(series_id):
                 force=True
             )
             deleted_count += 1
-            print(f"   ✅ Element gelöscht")
-        
+
         except Exception as e:
-            print(f"❌ Fehler beim Löschen von {elem.name}: {str(e)}")
+            frappe.log_error(f"Fehler beim Löschen von {elem.name}: {str(e)}", "Series Delete Error")
             frappe.log_error(
                 f"Fehler beim Löschen von {elem.name}: {str(e)}",
                 "Series Delete Error"
             )
     
     frappe.db.commit()
-    
-    print(f"✅ FERTIG: {deleted_count} Termine gelöscht")
-    
+
     return {
         "success": True,
         "deleted_count": deleted_count,

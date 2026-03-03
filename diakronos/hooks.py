@@ -51,6 +51,12 @@ whitelisted_methods = {
     'diakronos.kronos.api.google_import.get_google_calendars',
     'diakronos.kronos.api.google_import.start_import',
     'diakronos.kronos.api.google_import.upload_ical',
+    # Diakronos Einstellungen
+    'diakronos.diakronos.doctype.diakronos_einstellungen.diakronos_einstellungen.get_module_defaults',
+    # Diakronos Startseite – Modul-Zugriff & Nutzerpräferenz
+    'diakronos.kronos.api.permissions.get_accessible_modules',
+    'diakronos.kronos.api.permissions.set_home_preference',
+    'diakronos.kronos.api.permissions.clear_home_preference',
 }
 app_include_css = [
     "/assets/diakronos/css/kronos.bundle.css"  # ← genau dieser Pfad (Frappe handhabt Hash)
@@ -72,7 +78,9 @@ app_include_icons = [
 # Nutzer mit dieser Rolle landen direkt beim Kalender statt beim Desk.
 # Mehrere Rollen möglich – erste Übereinstimmung gewinnt.
 role_home_page = {
-    "Mitglied": "/kronos/calendar",
+    # /diakronos übernimmt die smarte Weiterleitung:
+    # 1 Modul → direkt dorthin, mehrere → Kachelseite, Präferenz → bevorzugtes Modul
+    "Mitglied": "/diakronos",
 }
 
 after_install = "diakronos.setup.install.symlink_create_install"

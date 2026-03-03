@@ -1,5 +1,7 @@
 // modal_view.js – event_detail_display (bereinigt)
 
+import { escHtml, safeCssColor } from '../html_utils.js';
+
 class DiakronosViewModal {
     static show(element) {
         if (!element?.name) {
@@ -54,16 +56,16 @@ class DiakronosViewModal {
                 <div class="diakronos-modal-dialog modal-dialog-centered modal-md">
                     <div class="diakronos-modal-content">
                         <!-- Farbige Leiste oben – Kalenderfarbe -->
-                        <div class="diakronos-color-bar" style="background-color: ${element.element_color || 'var(--primary)'};"></div>
+                        <div class="diakronos-color-bar" style="background-color: ${safeCssColor(element.element_color)};"></div>
                         <div class="diakronos-modal-header">
-                            <h5 class="modal-title" id="modalLabel">${element.element_name || 'Termin'}</h5>
+                            <h5 class="modal-title" id="modalLabel">${escHtml(element.element_name) || 'Termin'}</h5>
                             <button type="button" class="diakronos-close-btn" aria-label="Schließen">×</button>
                         </div>
                         <div class="diakronos-modal-body">
                             <div class="event-time">${formatEventTime(element.element_start, element.element_end, element.all_day)}</div>
                             <dl class="diakronos-dl">
-                                <dt>Kalender</dt><dd>${element.element_calendar || '—'}</dd>
-                                <dt>Kategorie</dt><dd>${element.event_category_name || '—'}</dd>
+                                <dt>Kalender</dt><dd>${escHtml(element.element_calendar) || '—'}</dd>
+                                <dt>Kategorie</dt><dd>${escHtml(element.event_category_name) || '—'}</dd>
                                 <dt>Beschreibung</dt><dd class="description"></dd>
                             </dl>
                         </div>
