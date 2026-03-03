@@ -1,0 +1,320 @@
+{
+ "actions": [],
+ "creation": "2026-03-03 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "info_html",
+  "diakronos_section",
+  "diakronos_anzeige_name",
+  "diakronos_icon",
+  "diakronos_col_break",
+  "diakronos_sichtbar",
+  "diakronos_rollen",
+  "diakronos_reset",
+  "kronos_section",
+  "kronos_anzeige_name",
+  "kronos_icon",
+  "kronos_col_break",
+  "kronos_sichtbar",
+  "kronos_rollen",
+  "kronos_reset",
+  "kronos_seiten_section",
+  "kronos_kalender_bezeichnung",
+  "kronos_kalender_icon",
+  "diakonos_section",
+  "diakonos_anzeige_name",
+  "diakonos_icon",
+  "diakonos_col_break",
+  "diakonos_sichtbar",
+  "diakonos_rollen",
+  "diakonos_reset",
+  "psalmos_section",
+  "psalmos_anzeige_name",
+  "psalmos_icon",
+  "psalmos_col_break",
+  "psalmos_sichtbar",
+  "psalmos_rollen",
+  "psalmos_reset",
+  "seelsorge_section",
+  "seelsorge_anzeige_name",
+  "seelsorge_icon",
+  "seelsorge_col_break",
+  "seelsorge_sichtbar",
+  "seelsorge_rollen",
+  "seelsorge_reset",
+  "section_break_hinweis",
+  "workspace_hinweis_html"
+ ],
+ "fields": [
+  {
+   "fieldname": "info_html",
+   "fieldtype": "HTML",
+   "options": "<div class=\"alert alert-info\" style=\"margin-bottom:0\">\n  <strong>Diakronos \u2013 App-Einstellungen</strong><br>\n  Konfiguriere hier alle Untermodule: Anzeigename, Icon, Sichtbarkeit im App-Bereich und Rollenzugriff.\n  \u00c4nderungen werden beim Speichern automatisch auf die Frappe-Workspaces \u00fcbertragen.\n</div>"
+  },
+  {
+   "collapsible": 1,
+   "description": "Hauptmodul der App. Erscheint standardm\u00e4\u00dfig als App-Kachel auf dem Frappe-Startbildschirm.",
+   "fieldname": "diakronos_section",
+   "fieldtype": "Section Break",
+   "label": "Diakronos"
+  },
+  {
+   "default": "Diakronos",
+   "fieldname": "diakronos_anzeige_name",
+   "fieldtype": "Data",
+   "label": "Anzeigename"
+  },
+  {
+   "fieldname": "diakronos_icon",
+   "fieldtype": "Attach Image",
+   "label": "Icon"
+  },
+  {
+   "fieldname": "diakronos_col_break",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "Dieses Modul im Frappe-App-Bereich und in der Navigation anzeigen.",
+   "fieldname": "diakronos_sichtbar",
+   "fieldtype": "Check",
+   "label": "Im App-Bereich anzeigen"
+  },
+  {
+   "description": "Leer lassen = f\u00fcr alle sichtbar.",
+   "fieldname": "diakronos_rollen",
+   "fieldtype": "Table MultiSelect",
+   "label": "Sichtbar f\u00fcr Rollen",
+   "options": "Diakronos Modul Rolle"
+  },
+  {
+   "fieldname": "diakronos_reset",
+   "fieldtype": "Button",
+   "label": "\u21ba Auf Standardwerte zur\u00fccksetzen"
+  },
+  {
+   "collapsible": 1,
+   "description": "Kalendermodul und weitere Tools. Hub unter /kronos.",
+   "fieldname": "kronos_section",
+   "fieldtype": "Section Break",
+   "label": "Kronos"
+  },
+  {
+   "default": "Kronos",
+   "fieldname": "kronos_anzeige_name",
+   "fieldtype": "Data",
+   "label": "Anzeigename"
+  },
+  {
+   "fieldname": "kronos_icon",
+   "fieldtype": "Attach Image",
+   "label": "Icon"
+  },
+  {
+   "fieldname": "kronos_col_break",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "Dieses Modul im Frappe-App-Bereich und in der Navigation anzeigen.",
+   "fieldname": "kronos_sichtbar",
+   "fieldtype": "Check",
+   "label": "Im App-Bereich anzeigen"
+  },
+  {
+   "description": "Leer lassen = f\u00fcr alle sichtbar.",
+   "fieldname": "kronos_rollen",
+   "fieldtype": "Table MultiSelect",
+   "label": "Sichtbar f\u00fcr Rollen",
+   "options": "Diakronos Modul Rolle"
+  },
+  {
+   "fieldname": "kronos_reset",
+   "fieldtype": "Button",
+   "label": "\u21ba Auf Standardwerte zur\u00fccksetzen"
+  },
+  {
+   "fieldname": "kronos_seiten_section",
+   "fieldtype": "Section Break",
+   "label": "Seiten"
+  },
+  {
+   "default": "Kalender",
+   "fieldname": "kronos_kalender_bezeichnung",
+   "fieldtype": "Data",
+   "label": "Kalender \u2013 Bezeichnung"
+  },
+  {
+   "fieldname": "kronos_kalender_icon",
+   "fieldtype": "Attach Image",
+   "label": "Kalender \u2013 Icon"
+  },
+  {
+   "collapsible": 1,
+   "description": "Mitgliederverwaltung: Mitglieder, Besucher, Kinder, Dienstbereiche.",
+   "fieldname": "diakonos_section",
+   "fieldtype": "Section Break",
+   "label": "Diakonos"
+  },
+  {
+   "default": "Diakonos",
+   "fieldname": "diakonos_anzeige_name",
+   "fieldtype": "Data",
+   "label": "Anzeigename"
+  },
+  {
+   "fieldname": "diakonos_icon",
+   "fieldtype": "Attach Image",
+   "label": "Icon"
+  },
+  {
+   "fieldname": "diakonos_col_break",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "Dieses Modul im Frappe-App-Bereich und in der Navigation anzeigen.",
+   "fieldname": "diakonos_sichtbar",
+   "fieldtype": "Check",
+   "label": "Im App-Bereich anzeigen"
+  },
+  {
+   "description": "Leer lassen = f\u00fcr alle sichtbar.",
+   "fieldname": "diakonos_rollen",
+   "fieldtype": "Table MultiSelect",
+   "label": "Sichtbar f\u00fcr Rollen",
+   "options": "Diakronos Modul Rolle"
+  },
+  {
+   "fieldname": "diakonos_reset",
+   "fieldtype": "Button",
+   "label": "\u21ba Auf Standardwerte zur\u00fccksetzen"
+  },
+  {
+   "collapsible": 1,
+   "collapsed": 1,
+   "description": "Musikmodul (in Entwicklung). Standardm\u00e4\u00dfig ausgeblendet.",
+   "fieldname": "psalmos_section",
+   "fieldtype": "Section Break",
+   "label": "Psalmos \u2013 Musik"
+  },
+  {
+   "default": "Psalmos \u2013 Musik",
+   "fieldname": "psalmos_anzeige_name",
+   "fieldtype": "Data",
+   "label": "Anzeigename"
+  },
+  {
+   "fieldname": "psalmos_icon",
+   "fieldtype": "Attach Image",
+   "label": "Icon"
+  },
+  {
+   "fieldname": "psalmos_col_break",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Dieses Modul im Frappe-App-Bereich und in der Navigation anzeigen.",
+   "fieldname": "psalmos_sichtbar",
+   "fieldtype": "Check",
+   "label": "Im App-Bereich anzeigen"
+  },
+  {
+   "description": "Leer lassen = f\u00fcr alle sichtbar.",
+   "fieldname": "psalmos_rollen",
+   "fieldtype": "Table MultiSelect",
+   "label": "Sichtbar f\u00fcr Rollen",
+   "options": "Diakronos Modul Rolle"
+  },
+  {
+   "fieldname": "psalmos_reset",
+   "fieldtype": "Button",
+   "label": "\u21ba Auf Standardwerte zur\u00fccksetzen"
+  },
+  {
+   "collapsible": 1,
+   "collapsed": 1,
+   "description": "Seelsorgemodul (in Entwicklung). Standardm\u00e4\u00dfig ausgeblendet.",
+   "fieldname": "seelsorge_section",
+   "fieldtype": "Section Break",
+   "label": "Seelsorge"
+  },
+  {
+   "default": "Seelsorge",
+   "fieldname": "seelsorge_anzeige_name",
+   "fieldtype": "Data",
+   "label": "Anzeigename"
+  },
+  {
+   "fieldname": "seelsorge_icon",
+   "fieldtype": "Attach Image",
+   "label": "Icon"
+  },
+  {
+   "fieldname": "seelsorge_col_break",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Dieses Modul im Frappe-App-Bereich und in der Navigation anzeigen.",
+   "fieldname": "seelsorge_sichtbar",
+   "fieldtype": "Check",
+   "label": "Im App-Bereich anzeigen"
+  },
+  {
+   "description": "Leer lassen = f\u00fcr alle sichtbar.",
+   "fieldname": "seelsorge_rollen",
+   "fieldtype": "Table MultiSelect",
+   "label": "Sichtbar f\u00fcr Rollen",
+   "options": "Diakronos Modul Rolle"
+  },
+  {
+   "fieldname": "seelsorge_reset",
+   "fieldtype": "Button",
+   "label": "\u21ba Auf Standardwerte zur\u00fccksetzen"
+  },
+  {
+   "fieldname": "section_break_hinweis",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "workspace_hinweis_html",
+   "fieldtype": "HTML",
+   "options": "<div class=\"text-muted small\">\n  <strong>Hinweis:</strong> \u00c4nderungen an \u00bbIm App-Bereich anzeigen\u00ab und \u00bbSichtbar f\u00fcr Rollen\u00ab werden beim Speichern auf die zugeh\u00f6rigen Frappe-Workspaces \u00fcbertragen.\n  Icons werden in der Diakronos-eigenen Navigation genutzt.\n  F\u00fcr \u00c4nderungen am App-Bildschirm-Tile ist zus\u00e4tzlich ein <code>bench restart</code> n\u00f6tig.\n</div>"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-03-03 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Diakronos",
+ "name": "Diakronos Einstellungen",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "write": 1,
+   "role": "Administrator"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

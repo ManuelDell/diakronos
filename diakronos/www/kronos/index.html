@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kronos</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="stylesheet" href="{{ kronos_css }}">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: var(--font-stack, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+            background: var(--bg-color, #f4f5f7);
+            color: var(--text-color, #1a1a2e);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ──────────────────────────────────────────────────── */
+        .kronos-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            height: 52px;
+            background: var(--navbar-bg, #fff);
+            border-bottom: 1px solid var(--border-color, #e2e6ea);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .dh-logo-area {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .dh-logo-area img { height: 28px; }
+
+        .dh-app-name {
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--text-color, #1a1a2e);
+        }
+
+        /* ── Hauptinhalt ─────────────────────────────────────────────── */
+        .diakronos-home {
+            flex: 1;
+            max-width: 960px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+        }
+
+        .dh-greeting {
+            font-size: 22px;
+            font-weight: 600;
+            margin: 0 0 8px;
+        }
+
+        .dh-subtitle {
+            font-size: 14px;
+            color: var(--text-muted, #6c757d);
+            margin: 0 0 40px;
+        }
+
+        /* ── Kacheln ─────────────────────────────────────────────────── */
+        .diakronos-module-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+        }
+
+        .diakronos-module-tile {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            padding: 32px 16px 24px;
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid var(--border-color, #e2e6ea);
+            box-shadow: 0 1px 4px rgba(0,0,0,.06);
+            text-decoration: none;
+            color: var(--text-color, #1a1a2e);
+            transition: transform .15s ease, box-shadow .15s ease;
+            cursor: pointer;
+        }
+
+        .diakronos-module-tile:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 18px rgba(0,0,0,.12);
+        }
+
+        .dmt-icon {
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dmt-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .dmt-placeholder {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            background: var(--primary-color, #667eea);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .dmt-label {
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        @media (max-width: 480px) {
+            .diakronos-module-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+            .diakronos-home { padding: 32px 16px 48px; }
+            .dh-greeting { font-size: 18px; }
+        }
+    </style>
+</head>
+<body data-user-initial="{{ user_initial }}" data-user-fullname="{{ user_fullname }}" data-can-access-desk="{{ 'true' if can_access_desk else 'false' }}">
+
+    <header class="kronos-header" id="dk-header">
+        <!-- wird per JS befüllt -->
+    </header>
+
+    <main class="diakronos-home">
+        <h1 class="dh-greeting">Kronos</h1>
+        <p class="dh-subtitle">Wähle ein Tool um loszulegen.</p>
+
+        <div class="diakronos-module-grid">
+            {% for page in pages %}
+            <a class="diakronos-module-tile" href="{{ page.route }}">
+                <div class="dmt-icon">
+                    {% if page.icon %}
+                    <img src="{{ page.icon }}" alt="{{ page.name }}">
+                    {% else %}
+                    <div class="dmt-placeholder">{{ page.name[0] }}</div>
+                    {% endif %}
+                </div>
+                <span class="dmt-label">{{ page.name }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </main>
+
+<script>
+(function () {
+    'use strict';
+
+    const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    function buildHeader() {
+        const header = document.getElementById('dk-header');
+
+        const logoArea = document.createElement('a');
+        logoArea.className = 'dh-logo-area';
+        logoArea.href = '/diakronos';
+        logoArea.innerHTML = `
+            <img src="/assets/diakronos/images/kronos-logo.svg" alt="Kronos Logo"
+                 onerror="this.style.display='none'">
+            <span class="dh-app-name">Kronos</span>
+        `;
+
+        const profileWrapper = document.createElement('div');
+        profileWrapper.className = 'profile-menu-wrapper';
+
+        const profileAvatar = document.createElement('div');
+        profileAvatar.className = 'profile-avatar';
+        profileAvatar.textContent = document.body.dataset.userInitial || '?';
+        profileAvatar.setAttribute('title', document.body.dataset.userFullname || '');
+
+        const canAccessDesk = document.body.dataset.canAccessDesk === 'true';
+        const profileDropdown = document.createElement('div');
+        profileDropdown.className = 'profile-dropdown';
+        profileDropdown.innerHTML = `
+            <a class="profile-dropdown-item" href="/diakronos">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+                Startseite
+            </a>
+            ${canAccessDesk ? `
+            <a class="profile-dropdown-item" href="/app">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                </svg>
+                Zum Desk
+            </a>` : ''}
+            <div class="profile-dropdown-divider"></div>
+            <button class="profile-dropdown-item profile-dropdown-logout">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Abmelden
+            </button>
+        `;
+
+        profileWrapper.appendChild(profileAvatar);
+        profileWrapper.appendChild(profileDropdown);
+
+        profileAvatar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const opening = !profileDropdown.classList.contains('open');
+            profileDropdown.classList.toggle('open');
+            if (opening) {
+                profileDropdown.style.right = '0';
+                profileDropdown.style.left = '';
+                requestAnimationFrame(() => {
+                    const r = profileDropdown.getBoundingClientRect();
+                    if (r.left < 8) {
+                        profileDropdown.style.right = 'auto';
+                        profileDropdown.style.left = '0';
+                    }
+                });
+            }
+        });
+        document.addEventListener('click', () => profileDropdown.classList.remove('open'));
+        profileDropdown.addEventListener('click', (e) => e.stopPropagation());
+
+        profileDropdown.querySelector('.profile-dropdown-logout').addEventListener('click', async () => {
+            try {
+                await fetch('/api/method/logout', {
+                    method: 'POST',
+                    headers: { 'X-Frappe-CSRF-Token': CSRF },
+                    credentials: 'include',
+                });
+            } finally {
+                window.location.href = '/login';
+            }
+        });
+
+        header.appendChild(logoArea);
+        header.appendChild(profileWrapper);
+        loadAvatar(profileAvatar);
+    }
+
+    async function loadAvatar(avatarEl) {
+        try {
+            const res = await fetch('/api/method/diakronos.kronos.api.permissions.get_session_info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': CSRF },
+                credentials: 'include',
+                body: '{}',
+            });
+            if (!res.ok) return;
+            const { message: u } = await res.json();
+            avatarEl.setAttribute('title', u.full_name || u.name);
+            if (u.user_image) {
+                const img = document.createElement('img');
+                img.src = u.user_image;
+                img.alt = u.full_name || '';
+                img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+                avatarEl.textContent = '';
+                avatarEl.appendChild(img);
+            } else {
+                avatarEl.textContent = u.initial || '?';
+            }
+        } catch { /* still */ }
+    }
+
+    buildHeader();
+})();
+</script>
+</body>
+</html>

@@ -1,8 +1,11 @@
 # diakronos/diakronos/kronos/api/permissions.py
 
+import json
 import frappe
 from frappe import _
 from datetime import datetime
+
+DESK_ROLES = {"Kalenderguru"}
 
 def _user_has_role(user, role_name):
     """Prüft, ob User die angegebene Role hat."""
@@ -10,6 +13,12 @@ def _user_has_role(user, role_name):
         return True
     roles = [r.role for r in frappe.get_all("Has Role", filters={"parent": user}, fields=["role"])]
     return role_name in roles
+
+def _can_access_desk(user):
+    """Nur Administrator und Kalenderguru dürfen den Frappe-Desk betreten."""
+    if user == "Administrator":
+        return True
+    return bool(DESK_ROLES & set(frappe.get_roles(user)))
 
 @frappe.whitelist(allow_guest=False)
 def get_session_info():
@@ -21,7 +30,8 @@ def get_session_info():
         "initial": (user_doc.full_name or user)[0].upper(),
         "full_name": user_doc.full_name or user,
         "name": user,
-        "user_image": user_doc.user_image or None
+        "user_image": user_doc.user_image or None,
+        "can_access_desk": _can_access_desk(user),
     }
 
 @frappe.whitelist(allow_guest=False)
@@ -103,66 +113,31 @@ def get_writable_calendars():
 
     return writable
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=False)
 def can_create_event():
     """
-    Prüfe ob aktueller Nutzer Events erstellen darf
-    
-    Wird aufgerufen wenn User auf Tag im Kalender klickt
-    
-    Returns:
-        Dict mit can_create Flag und verfügbaren Kalendern
+    Prüfe ob aktueller Nutzer Events erstellen darf.
+    Wird aufgerufen wenn User auf Tag im Kalender klickt.
+    Returns: Dict mit can_create Flag und verfügbaren Kalendern
     """
     user = frappe.session.user
     if user == "Guest":
-        return {
-            'can_create': False,
-            'default_calendar': None,
-            'writable_calendars': []
-        }
-    
-    user_roles = frappe.get_roles(user)
-    
-    # Admins können überall erstellen
-    if "Administrator" in user_roles or "System Manager" in user_roles:
-        all_calendars = frappe.get_all(
-            'Kalender',
-            fields=['name', 'calendar_name']
-        )
-        writable_calendars = [
-            {'label': cal['calendar_name'], 'value': cal['name']}
-            for cal in all_calendars
-        ]
-        default_calendar = writable_calendars[0]['value'] if writable_calendars else None
-        return {
-            'can_create': len(writable_calendars) > 0,
-            'default_calendar': default_calendar,
-            'writable_calendars': writable_calendars
-        }
-    
-    # Normale Benutzer: Prüfe Kalender-Berechtigungen
-    all_calendars = frappe.get_all(
-        'Kalender',
-        fields=['name', 'calendar_name']
-    )
-    writable_calendars = []
-    default_calendar = None
-    for cal in all_calendars:
-        if has_calendar_permission(cal['name'], 'write'):
-            writable_calendars.append({
-                'label': cal['calendar_name'],
-                'value': cal['name']
-            })
-            if default_calendar is None:
-                default_calendar = cal['name']
-    
+        return {'can_create': False, 'default_calendar': None, 'writable_calendars': []}
+
+    accessible = get_accessible_calendars()
+    writable_calendars = [
+        {'label': c['title'], 'value': c['name']}
+        for c in accessible if c.get('write')
+    ]
+    default_calendar = writable_calendars[0]['value'] if writable_calendars else None
+
     return {
         'can_create': len(writable_calendars) > 0,
         'default_calendar': default_calendar,
         'writable_calendars': writable_calendars
     }
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=False)
 def get_element_creation_dialog_defaults(date_str=None, calendar_name=None):
     """
     Hole Default-Werte für Element-Erstellungs-Dialog
@@ -227,3 +202,45 @@ def get_element_creation_dialog_defaults(date_str=None, calendar_name=None):
             'writable_calendars': [],
             'error': str(e)
         }
+
+
+# ------------------------------------------------------------------ #
+# Diakronos Home – Modul-Zugriff & Nutzerpräferenz                    #
+# ------------------------------------------------------------------ #
+
+@frappe.whitelist(allow_guest=False)
+def get_accessible_modules():
+    """
+    Gibt die für den aktuellen Nutzer zugänglichen Diakronos-Module zurück.
+    Nutzt die Konfiguration aus 'Diakronos Einstellungen'.
+    """
+    from diakronos.www.diakronos.index import _get_accessible_modules
+    return _get_accessible_modules(frappe.session.user)
+
+
+@frappe.whitelist(allow_guest=False)
+def set_home_preference(module_name):
+    """
+    Speichert die bevorzugte Startseite des Nutzers.
+    module_name muss ein zugängliches Modul sein.
+    """
+    accessible = get_accessible_modules()
+    if module_name and not any(m["module_name"] == module_name for m in accessible):
+        frappe.throw("Kein Zugriff auf dieses Modul.")
+
+    try:
+        raw = frappe.db.get_user_settings("Diakronos") or {}
+        settings = json.loads(raw) if isinstance(raw, str) else (raw or {})
+    except Exception:
+        settings = {}
+
+    settings["home_module"] = module_name
+    frappe.db.set_user_settings("Diakronos", frappe.as_json(settings))
+    return {"ok": True}
+
+
+@frappe.whitelist(allow_guest=False)
+def clear_home_preference():
+    """Löscht die Startseiten-Präferenz (zurück zu 'Automatisch')."""
+    frappe.db.set_user_settings("Diakronos", frappe.as_json({}))
+    return {"ok": True}

@@ -4,6 +4,38 @@ Eine **Frappe-App** für Gemeinde- und Kirchenverwaltung mit webbasiertem Kalend
 
 ---
 
+## Changelog
+
+### 2026-03-03 – Sicherheitshärtung + Hub-Navigation
+
+**Hub-Seiten Architektur**
+- Zweistufige Navigation: `/diakronos` zeigt Submodul-Kacheln, Klick → `/kronos` Hub mit Tool-Kacheln
+- Routen und Tools sind hartcodiert (Python); Namen, Icons und Sichtbarkeit sind über *Diakronos Einstellungen* personalisierbar
+- Smart-Redirect: Bei nur einem Tool wird direkt weitergeleitet
+
+**Zugriffssteuerung**
+- Desk-Link im Avatar-Dropdown nur für `Administrator` und `Kalenderguru` sichtbar
+- Serverseitige Prüfung auf allen drei Seiten (`/kronos/calendar`, `/diakronos`, `/kronos`)
+
+**Sicherheitshärtung (API)**
+- `get_events()`: gibt nur Events aus Kalendern zurück, auf die der Nutzer Leserecht hat (IDOR-Lücke geschlossen)
+- `get_event_details()`: prüft Leserecht vor Rückgabe der Details
+- `delete_series_batch_fast()`, `delete_future_series_events()`, `update_series_batch_fast()`: prüfen Schreibrecht vor Ausführung
+- `can_create_event()`: `has_calendar_permission()` (undefiniert, führte zu NameError) durch korrekte Implementierung ersetzt
+- Alle internen API-Endpunkte auf `@frappe.whitelist(allow_guest=False)` umgestellt
+- `parse_iso_datetime_raw()`: Datumswerte werden jetzt strict mit `strptime()` validiert
+
+**Sicherheitshärtung (Frontend)**
+- Neue Utility-Datei `html_utils.js` mit `escHtml()` und `safeCssColor()`
+- Alle Modal-Dateien (`modal_view.js`, `modal_edit.js`, `modal_create.js`, `modal_day_events.js`) nutzen `escHtml()` für Event-Titel, Kalendernamen, Kategorienamen und `safeCssColor()` für Farbwerte – XSS- und CSS-Injection-Schutz
+- Debug-`print()`-Statements aus `series_update.py` entfernt (Information Disclosure)
+
+**Bugfix: Avatar-Dropdown**
+- `.profile-dropdown` von `position: absolute` auf `position: fixed` umgestellt
+- Position wird per `getBoundingClientRect()` aus dem tatsächlichen Avatar-Element berechnet → Dropdown erscheint immer korrekt positioniert, unabhängig von Stacking-Contexts oder `overflow`-Clipping der Elternelemente
+
+---
+
 ## Überblick
 
 Diakronos bringt einen vollwertigen Kalender direkt in die Frappe-Oberfläche – ohne die Frappe-Standard-UI zu verwenden. Die App stellt eine eigenständige Webseite (`/kronos`) bereit, die auf **FullCalendar** basiert und nahtlos mit dem Frappe-Backend kommuniziert.
@@ -198,8 +230,11 @@ Verbindungsdetails für Nutzer: In der App → Sidebar → CalDAV-Symbol.
 
 - **CSRF-Schutz**: Jeder API-Aufruf sendet `X-Frappe-CSRF-Token`
 - **Session-Authentifizierung**: Frappe-Session via Cookie
-- **Fachliche Berechtigungsprüfung**: Jeder Schreibzugriff prüft Kalender-Rechte serverseitig
-- **XSS-Schutz**: Terminbeschreibungen werden nicht als `innerHTML` gerendert
+- **Fachliche Berechtigungsprüfung**: Jeder Lese- und Schreibzugriff prüft Kalender-Rechte serverseitig
+- **XSS-Schutz**: Alle Nutzerdaten (Event-Titel, Kalendernamen, Kategorien) werden mit `escHtml()` escaped; Beschreibungen per `createTextNode()`
+- **CSS-Injection-Schutz**: Farbwerte werden mit `safeCssColor()` auf Hex-Format validiert
+- **IDOR-Schutz**: `get_events()` und `get_event_details()` liefern nur Daten aus zugänglichen Kalendern
+- **Endpunkt-Absicherung**: Alle internen API-Endpunkte mit `allow_guest=False`
 - **CalDAV-Auth**: `frappe.check_password()` (kein Eigenbau)
 - **OAuth State-Validierung**: Google-Import prüft State-Parameter
 
@@ -226,7 +261,7 @@ bench build --app diakronos --watch
 
 ### Branch-Strategie
 - `main` – Produktionsstand
-- `develop-frappe-page` – Aktiver Entwicklungszweig
+- `develop` – Aktiver Entwicklungszweig
 
 ### Konventionen
 - Kein `frappe.call()` / `frappe.show_alert()` im `www`-Bereich – nur `fetch()`

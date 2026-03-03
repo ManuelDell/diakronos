@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"ddVqOj3Zw5\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">\u00dcbersichtsseite</span>\",\"col\":12}},{\"id\":\"_kneC9zHL2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Kalender\u00fcbersicht\",\"col\":3}},{\"id\":\"GyUyiZMn2m\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Terminkategorie\",\"col\":3}},{\"id\":\"PQXM0eWJoN\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Verf\u00fcgbare Kalender\",\"col\":3}},{\"id\":\"ANQ3g9nLNM\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Terminliste\",\"col\":3}}]",
+ "content": "[{\"id\":\"ddVqOj3Zw5\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">\u00dcbersichtsseite</span>\",\"col\":12}},{\"id\":\"_kneC9zHL2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Kalender\u00fcbersicht\",\"col\":3}},{\"id\":\"GyUyiZMn2m\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Terminkategorie\",\"col\":3}},{\"id\":\"PQXM0eWJoN\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Verf\u00fcgbare Kalender\",\"col\":3}},{\"id\":\"ANQ3g9nLNM\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Terminliste\",\"col\":3}},{\"id\":\"SqueRJMH4c\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"App\u00fcbersicht\",\"col\":3}},{\"id\":\"xX8UJH5oQL\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Einstellungen</b></span>\",\"col\":12}},{\"id\":\"eiP_zQ4UOY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Einstellungen\",\"col\":3}}]",
  "creation": "2026-01-02 16:32:52.717292",
  "custom_blocks": [],
  "docstatus": 0,
@@ -13,7 +13,7 @@
  "is_hidden": 0,
  "label": "\u00dcbersichtsseite",
  "links": [],
- "modified": "2026-03-01 21:21:22.548961",
+ "modified": "2026-03-03 15:25:29.548033",
  "modified_by": "Administrator",
  "module": "Diakronos",
  "name": "\u00dcbersichtsseite",
@@ -42,6 +42,20 @@
    "label": "Verf\u00fcgbare Kalender",
    "link_to": "Kalender",
    "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "App\u00fcbersicht",
+   "type": "URL",
+   "url": "/diakronos"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Einstellungen",
+   "link_to": "Diakronos Einstellungen",
    "type": "DocType"
   },
   {
