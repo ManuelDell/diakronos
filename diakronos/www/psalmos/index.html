@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ psalmos_css }}">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+</head>
+<body data-user-initial="{{ user_initial }}" data-user-fullname="{{ user_fullname | e }}">
+
+    <div class="psalmos-app-container">
+
+        <!-- Header (wird per JS befüllt) -->
+        <header class="psalmos-header"></header>
+
+        <!-- Backdrop – schließt Sidebar bei Klick -->
+        <div class="psalmos-sidebar-backdrop"></div>
+
+        <!-- Overlay-Sidebar (legt sich über den Inhalt, schiebt ihn nicht) -->
+        <aside class="psalmos-sidebar" aria-label="Psalmos Navigation">
+            <div class="psalmos-sidebar-inner">
+                <p class="psalmos-sidebar-placeholder">Navigation folgt…</p>
+            </div>
+        </aside>
+
+        <!-- Hauptinhalt: volle Breite, unabhängig vom Sidebar-Zustand -->
+        <main class="psalmos-main-content">
+            <div class="psalmos-content-placeholder">
+                <p>Psalmos – Liederdatenbank</p>
+                <p>Inhalt folgt…</p>
+            </div>
+        </main>
+
+    </div>
+
+    <script type="module" src="{{ psalmos_js }}"></script>
+</body>
+</html>

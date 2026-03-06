@@ -1,5 +1,6 @@
 import json
 import frappe
+from frappe.model.utils.user_settings import get_user_settings as _get_user_settings
 from diakronos.scripts.get_hashed_asset import find_latest_hashed_file
 from diakronos.diakronos.doctype.diakronos_einstellungen.diakronos_einstellungen import (
     KNOWN_MODULES,
@@ -21,7 +22,7 @@ def get_context(context):
 
     # 1. Gespeicherte Nutzerpräferenz prüfen (hat Vorrang)
     try:
-        user_settings = frappe.db.get_user_settings("Diakronos") or {}
+        user_settings = _get_user_settings("Diakronos") or {}
         if isinstance(user_settings, str):
             user_settings = json.loads(user_settings) if user_settings else {}
     except Exception:
