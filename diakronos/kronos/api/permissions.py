@@ -4,6 +4,7 @@ import json
 import frappe
 from frappe import _
 from datetime import datetime
+from frappe.model.utils.user_settings import get_user_settings as _get_user_settings, update_user_settings as _update_user_settings
 
 DESK_ROLES = {"Kalenderguru"}
 
@@ -229,18 +230,18 @@ def set_home_preference(module_name):
         frappe.throw("Kein Zugriff auf dieses Modul.")
 
     try:
-        raw = frappe.db.get_user_settings("Diakronos") or {}
+        raw = _get_user_settings("Diakronos") or {}
         settings = json.loads(raw) if isinstance(raw, str) else (raw or {})
     except Exception:
         settings = {}
 
     settings["home_module"] = module_name
-    frappe.db.set_user_settings("Diakronos", frappe.as_json(settings))
+    _update_user_settings("Diakronos", frappe.as_json(settings), for_update=True)
     return {"ok": True}
 
 
 @frappe.whitelist(allow_guest=False)
 def clear_home_preference():
     """Löscht die Startseiten-Präferenz (zurück zu 'Automatisch')."""
-    frappe.db.set_user_settings("Diakronos", frappe.as_json({}))
+    _update_user_settings("Diakronos", frappe.as_json({}), for_update=True)
     return {"ok": True}

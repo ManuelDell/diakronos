@@ -43,7 +43,8 @@ MODULE_DEFAULTS = {
 # Feste Route-Überschreibungen (übersteuert Workspace-Lookup)
 MODULE_ROUTES = {
     "Diakronos": "/app/\u00fcbersichtsseite",
-    "Kronos":    "/kronos",   # Hub-Seite (leitet bei 1 Tool direkt weiter)
+    "Kronos":    "/kronos",    # Hub-Seite (leitet bei 1 Tool direkt weiter)
+    "Psalmos":   "/psalmos",   # Eigene www-Seite
 }
 
 # Hartcodierte Tool-Seiten pro Submodul (Route nie via Admin änderbar)
@@ -69,8 +70,8 @@ MODULE_PAGES = {
         {
             "key":          "lieder",
             "default_name": "Liederdatenbank",
-            "route":        "/app/psalmos",
-            "default_icon": "",
+            "route":        "/psalmos",
+            "default_icon": "/assets/diakronos/images/psalmos-logo.svg",
         },
     ],
     "Seelsorge": [

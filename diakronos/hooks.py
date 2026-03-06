@@ -26,7 +26,7 @@ modules = [
 fixtures = [
     "Workspace",
     "Module Def",
-    {"dt": "Role", "filters": [["name", "in", ["Mitglied", "Kalenderguru"]]]},
+    {"dt": "Role", "filters": [["name", "in", ["Mitglied", "Kalenderguru", "Psalmos-Nutzer"]]]},
     "Custom Field",
     "Client Script",
     "Dashboard",
