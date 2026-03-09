@@ -12,7 +12,7 @@ add_to_apps_screen = [
         "name": "diakronos",
         "logo": "/assets/diakronos/images/diakronos-logo.svg",
         "title": "Diakronos",
-        "route": "/app/übersichtsseite",
+        "route": "/app/kronos",
     }
 ]
 modules = [
@@ -58,21 +58,14 @@ whitelisted_methods = {
     'diakronos.kronos.api.permissions.set_home_preference',
     'diakronos.kronos.api.permissions.clear_home_preference',
 }
-app_include_css = [
-    "/assets/diakronos/css/kronos.bundle.css"  # ← genau dieser Pfad (Frappe handhabt Hash)
-]
+# Kronos/Psalmos bundles werden NUR auf den jeweiligen www-Pages geladen
+# (calendar.html / psalmos.html) – nicht auf dem Desk.
+# app_include_js / app_include_css bewusst leer gelassen.
 
-# Optional: Wenn du JS schon im Bundle hast, kannst du es auch hier einbinden
-app_include_js = [
-    "/assets/diakronos/js/kronos.bundle.js"
-]
-# ───────────────────────────────────────────────────────────────
-# Optionale, aber empfohlene Ergänzungen
-# ───────────────────────────────────────────────────────────────
 app_include_icons = [
-    "/diakronos/images/diakronos-logo.svg",
-    "/diakronos/images/kalender-icon.png",
-    "/diakronos/images/calendar-week-icon.svg"
+    "/assets/diakronos/images/diakronos-logo.svg",
+    "/assets/diakronos/images/icons/kalender-icon.png",
+    "/assets/diakronos/images/icons/calendar-week-icon.svg"
 ]
 # ── Startseite nach Login (nach Rolle) ───────────────────────────────────────
 # Nutzer mit dieser Rolle landen direkt beim Kalender statt beim Desk.
