@@ -25,7 +25,7 @@ MODULE_DEFAULTS = {
     },
     "Diakonos": {
         "anzeige_name": "Diakonos",
-        "standard_icon": "/assets/diakronos/images/diakonos-logo.svg",
+        "standard_icon": "/assets/diakronos/images/diakronos-logo.svg",
         "im_app_bereich_anzeigen": 1,
     },
     "Psalmos": {
@@ -35,14 +35,14 @@ MODULE_DEFAULTS = {
     },
     "Seelsorge": {
         "anzeige_name": "Seelsorge",
-        "standard_icon": "/assets/diakronos/images/seelsorge-logo.svg",
+        "standard_icon": "",
         "im_app_bereich_anzeigen": 0,
     },
 }
 
 # Feste Route-Überschreibungen (übersteuert Workspace-Lookup)
 MODULE_ROUTES = {
-    "Diakronos": "/app/\u00fcbersichtsseite",
+    "Diakronos": "/app/kronos",
     "Kronos":    "/kronos",    # Hub-Seite (leitet bei 1 Tool direkt weiter)
     "Psalmos":   "/psalmos",   # Eigene www-Seite
 }

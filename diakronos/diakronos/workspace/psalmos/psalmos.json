@@ -1,0 +1,41 @@
+{
+ "charts": [],
+ "content": "[{\"id\":\"h1_psalmos\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Psalmos</b></span>\",\"col\":12}},{\"id\":\"sc_psalmos\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Psalmos (Web)\",\"col\":3}}]",
+ "creation": "2026-03-08 18:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "/assets/diakronos/images/psalmos-logo.svg",
+ "idx": 0,
+ "indicator_color": "purple",
+ "is_hidden": 0,
+ "label": "Psalmos",
+ "links": [],
+ "modified": "2026-03-08 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Kronos",
+ "name": "Psalmos",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "Psalmos-Nutzer"
+  }
+ ],
+ "sequence_id": 4.0,
+ "shortcuts": [
+  {
+   "color": "Purple",
+   "doc_view": "List",
+   "label": "Psalmos (Web)",
+   "type": "URL",
+   "url": "/psalmos"
+  }
+ ],
+ "title": "Psalmos"
+}

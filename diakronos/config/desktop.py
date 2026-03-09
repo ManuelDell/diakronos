@@ -5,9 +5,9 @@ def get_data():
         {
             "module_name": "Diakronos",
             "label": _("Diakronos"),
-            "color": "#7EB26D",
-            "icon": "assets/diakronos/public/images/diakronos-logo.svg",
+            "color": "#4A90D9",
+            "icon": "assets/diakronos/images/kronos-logo.svg",
             "type": "module",
-            "description": _("Dein Kirchenverwaltungsprogramm."),
+            "description": _("Kirchenverwaltung – Kalender, Gemeinde, Einstellungen."),
         }
     ]
