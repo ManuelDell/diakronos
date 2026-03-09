@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diakronos</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="stylesheet" href="{{ kronos_css }}">
+    <style>
+        /* ── Reset & Basis ───────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: var(--font-stack, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+            background: var(--bg-color, #f4f5f7);
+            color: var(--text-color, #1a1a2e);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header (übernimmt Kronos-Klassen) ───────────────────────── */
+        .kronos-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            height: 52px;
+            background: var(--navbar-bg, #fff);
+            border-bottom: 1px solid var(--border-color, #e2e6ea);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .dh-logo-area {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .dh-logo-area img { height: 28px; }
+
+        .dh-app-name {
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--text-color, #1a1a2e);
+        }
+
+        /* ── Hauptinhalt ─────────────────────────────────────────────── */
+        .diakronos-home {
+            flex: 1;
+            max-width: 960px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+        }
+
+        .dh-greeting {
+            font-size: 22px;
+            font-weight: 600;
+            margin: 0 0 8px;
+            color: var(--text-color, #1a1a2e);
+        }
+
+        .dh-subtitle {
+            font-size: 14px;
+            color: var(--text-muted, #6c757d);
+            margin: 0 0 40px;
+        }
+
+        /* ── Modul-Kacheln ───────────────────────────────────────────── */
+        .diakronos-module-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+        }
+
+        .diakronos-module-tile {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            padding: 32px 16px 24px;
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid var(--border-color, #e2e6ea);
+            box-shadow: 0 1px 4px rgba(0,0,0,.06);
+            text-decoration: none;
+            color: var(--text-color, #1a1a2e);
+            transition: transform .15s ease, box-shadow .15s ease;
+            cursor: pointer;
+        }
+
+        .diakronos-module-tile:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 18px rgba(0,0,0,.12);
+        }
+
+        .dmt-icon {
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dmt-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .dmt-placeholder {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            background: var(--primary-color, #667eea);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .dmt-label {
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        /* ── Zahnrad-Button (fixed) ──────────────────────────────────── */
+        .diakronos-pref-btn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #fff;
+            border: 1px solid var(--border-color, #e2e6ea);
+            box-shadow: 0 2px 8px rgba(0,0,0,.12);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted, #6c757d);
+            transition: color .15s, box-shadow .15s;
+        }
+
+        .diakronos-pref-btn:hover {
+            color: var(--text-color, #1a1a2e);
+            box-shadow: 0 4px 16px rgba(0,0,0,.18);
+        }
+
+        /* ── Präferenz-Overlay ───────────────────────────────────────── */
+        .diakronos-pref-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 1;
+            transition: opacity .2s ease;
+        }
+
+        .diakronos-pref-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .diakronos-pref-modal {
+            background: #fff;
+            border-radius: 12px;
+            padding: 28px 32px;
+            min-width: 320px;
+            max-width: 420px;
+            width: 90%;
+            box-shadow: 0 12px 40px rgba(0,0,0,.2);
+            position: relative;
+        }
+
+        .dpm-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .dpm-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .dpm-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            color: var(--text-muted, #6c757d);
+            padding: 0;
+            line-height: 1;
+        }
+
+        .dpm-hint {
+            font-size: 13px;
+            color: var(--text-muted, #6c757d);
+            margin: 0 0 20px;
+        }
+
+        .dpm-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .dpm-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color, #e2e6ea);
+            cursor: pointer;
+            transition: background .12s;
+            font-size: 14px;
+        }
+
+        .dpm-option:hover { background: var(--bg-color, #f4f5f7); }
+
+        .dpm-option input[type="radio"] { accent-color: var(--primary-color, #667eea); }
+
+        .dpm-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .dpm-save-btn {
+            background: var(--primary-color, #667eea);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 9px 22px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity .15s;
+        }
+
+        .dpm-save-btn:hover { opacity: .88; }
+
+        /* ── Responsive ──────────────────────────────────────────────── */
+        @media (max-width: 480px) {
+            .diakronos-module-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+            .diakronos-home { padding: 32px 16px 80px; }
+            .dh-greeting { font-size: 18px; }
+        }
+    </style>
+</head>
+<body data-user-initial="{{ user_initial }}" data-user-fullname="{{ user_fullname }}" data-can-access-desk="{{ 'true' if can_access_desk else 'false' }}">
+
+    <!-- Header -->
+    <header class="kronos-header" id="dk-header">
+        <!-- wird per JS befüllt -->
+    </header>
+
+    <!-- Hauptinhalt -->
+    <main class="diakronos-home">
+        <h1 class="dh-greeting">Hallo, {{ user_fullname }}!</h1>
+        <p class="dh-subtitle">Wähle ein Modul um loszulegen.</p>
+
+        <div class="diakronos-module-grid">
+            {% for mod in modules %}
+            <a class="diakronos-module-tile" href="{{ mod.route }}">
+                <div class="dmt-icon">
+                    {% if mod.icon %}
+                    <img src="{{ mod.icon }}" alt="{{ mod.anzeige_name }}">
+                    {% else %}
+                    <div class="dmt-placeholder">{{ mod.anzeige_name[0] }}</div>
+                    {% endif %}
+                </div>
+                <span class="dmt-label">{{ mod.anzeige_name }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </main>
+
+    <!-- Zahnrad-Button -->
+    <button class="diakronos-pref-btn" id="prefBtn" title="Startseite anpassen" aria-label="Startseite anpassen">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+    </button>
+
+    <!-- Präferenz-Overlay -->
+    <div class="diakronos-pref-overlay hidden" id="prefOverlay" role="dialog" aria-modal="true" aria-labelledby="prefTitle">
+        <div class="diakronos-pref-modal">
+            <div class="dpm-header">
+                <h2 class="dpm-title" id="prefTitle">Meine Startseite</h2>
+                <button class="dpm-close" id="prefClose" aria-label="Schließen">&times;</button>
+            </div>
+            <p class="dpm-hint">Welches Modul soll beim nächsten Öffnen direkt gestartet werden?</p>
+
+            <div class="dpm-options" id="prefOptions">
+                <label class="dpm-option">
+                    <input type="radio" name="homePref" value="">
+                    <span>Automatisch (je nach Zugriff)</span>
+                </label>
+                {% for mod in modules %}
+                <label class="dpm-option">
+                    <input type="radio" name="homePref" value="{{ mod.module_name }}">
+                    <span>{{ mod.anzeige_name }}</span>
+                </label>
+                {% endfor %}
+            </div>
+
+            <div class="dpm-actions">
+                <button class="dpm-save-btn" id="prefSave">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+(function () {
+    'use strict';
+
+    const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const CURRENT_PREF = {{ current_pref | tojson }};
+
+    // ── Header aufbauen ──────────────────────────────────────────────
+    function buildHeader() {
+        const header = document.getElementById('dk-header');
+
+        // Links: Logo + App-Name
+        const logoArea = document.createElement('a');
+        logoArea.className = 'dh-logo-area';
+        logoArea.href = '/diakronos';
+        logoArea.innerHTML = `
+            <img src="/assets/diakronos/images/diakronos-logo.svg" alt="Diakronos Logo"
+                 onerror="this.style.display='none'">
+            <span class="dh-app-name">Diakronos</span>
+        `;
+
+        // Rechts: Avatar + Dropdown
+        const profileWrapper = document.createElement('div');
+        profileWrapper.className = 'profile-menu-wrapper';
+
+        const profileAvatar = document.createElement('div');
+        profileAvatar.className = 'profile-avatar';
+        profileAvatar.textContent = document.body.dataset.userInitial || '?';
+        profileAvatar.setAttribute('title', document.body.dataset.userFullname || '');
+
+        const canAccessDesk = document.body.dataset.canAccessDesk === 'true';
+        const profileDropdown = document.createElement('div');
+        profileDropdown.className = 'profile-dropdown';
+        profileDropdown.innerHTML = `
+            ${canAccessDesk ? `
+            <a class="profile-dropdown-item" href="/app">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                </svg>
+                Zum Desk
+            </a>
+            <div class="profile-dropdown-divider"></div>` : ''}
+            <button class="profile-dropdown-item profile-dropdown-logout">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Abmelden
+            </button>
+        `;
+
+        profileWrapper.appendChild(profileAvatar);
+        profileWrapper.appendChild(profileDropdown);
+
+        // Avatar-Toggle
+        profileAvatar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const opening = !profileDropdown.classList.contains('open');
+            profileDropdown.classList.toggle('open');
+            if (opening) {
+                profileDropdown.style.right = '0';
+                profileDropdown.style.left = '';
+                requestAnimationFrame(() => {
+                    const r = profileDropdown.getBoundingClientRect();
+                    if (r.left < 8) {
+                        profileDropdown.style.right = 'auto';
+                        profileDropdown.style.left = '0';
+                    }
+                });
+            }
+        });
+        document.addEventListener('click', () => profileDropdown.classList.remove('open'));
+        profileDropdown.addEventListener('click', (e) => e.stopPropagation());
+
+        // Logout
+        profileDropdown.querySelector('.profile-dropdown-logout').addEventListener('click', async () => {
+            try {
+                await fetch('/api/method/logout', {
+                    method: 'POST',
+                    headers: { 'X-Frappe-CSRF-Token': CSRF },
+                    credentials: 'include',
+                });
+            } finally {
+                window.location.href = '/login';
+            }
+        });
+
+        header.appendChild(logoArea);
+        header.appendChild(profileWrapper);
+
+        // Avatar asynchron laden
+        loadAvatar(profileAvatar);
+    }
+
+    async function loadAvatar(avatarEl) {
+        try {
+            const res = await fetch('/api/method/diakronos.kronos.api.permissions.get_session_info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': CSRF },
+                credentials: 'include',
+                body: '{}',
+            });
+            if (!res.ok) return;
+            const { message: u } = await res.json();
+            avatarEl.setAttribute('title', u.full_name || u.name);
+            if (u.user_image) {
+                const img = document.createElement('img');
+                img.src = u.user_image;
+                img.alt = u.full_name || '';
+                img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+                avatarEl.textContent = '';
+                avatarEl.appendChild(img);
+            } else {
+                avatarEl.textContent = u.initial || '?';
+            }
+        } catch { /* Avatar-Fehler still ignorieren */ }
+    }
+
+    // ── Präferenz-Overlay ────────────────────────────────────────────
+    const overlay  = document.getElementById('prefOverlay');
+    const prefBtn  = document.getElementById('prefBtn');
+    const closeBtn = document.getElementById('prefClose');
+    const saveBtn  = document.getElementById('prefSave');
+
+    function openOverlay() {
+        // Aktuelle Präferenz vorbelegen
+        const radios = overlay.querySelectorAll('input[name="homePref"]');
+        radios.forEach(r => { r.checked = (r.value === (CURRENT_PREF || '')); });
+        overlay.classList.remove('hidden');
+    }
+
+    function closeOverlay() {
+        overlay.classList.add('hidden');
+    }
+
+    prefBtn.addEventListener('click', openOverlay);
+    closeBtn.addEventListener('click', closeOverlay);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeOverlay(); });
+
+    saveBtn.addEventListener('click', async () => {
+        const selected = overlay.querySelector('input[name="homePref"]:checked')?.value ?? '';
+        saveBtn.disabled = true;
+        saveBtn.textContent = '…';
+
+        try {
+            const method = selected
+                ? 'diakronos.kronos.api.permissions.set_home_preference'
+                : 'diakronos.kronos.api.permissions.clear_home_preference';
+
+            const body = selected
+                ? JSON.stringify({ module_name: selected })
+                : '{}';
+
+            const res = await fetch(`/api/method/${method}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': CSRF },
+                credentials: 'include',
+                body,
+            });
+
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                throw new Error('Speichern fehlgeschlagen');
+            }
+        } catch (err) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Speichern';
+            alert('Fehler beim Speichern. Bitte erneut versuchen.');
+        }
+    });
+
+    // Keyboard-Schließen (Escape)
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeOverlay();
+    });
+
+    // ── Init ─────────────────────────────────────────────────────────
+    buildHeader();
+})();
+</script>
+</body>
+</html>

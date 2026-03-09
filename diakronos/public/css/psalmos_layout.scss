@@ -1,0 +1,98 @@
+/* psalmos_layout.scss – Layout für die /psalmos SPA-Seite
+ * Kernunterschied zu Kronos: Sidebar legt sich IMMER als Overlay über den Inhalt,
+ * verdrängt ihn nie (auch auf Desktop nicht). */
+
+html,
+body {
+    height: 100vh;
+    overflow: hidden;
+}
+
+.psalmos-app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+/* Identische Geometrie wie .kronos-header; Styles für Buttons/Avatar
+   kommen aus kronos_header_buttons.scss (gemeinsam genutzt). */
+.psalmos-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 60px;
+    flex-shrink: 0;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+    z-index: 100;
+}
+
+/* ── Overlay-Sidebar ─────────────────────────────────────────────────────── */
+/* IMMER position:fixed – niemals side-by-side mit dem Inhalt. */
+.psalmos-sidebar {
+    position: fixed;
+    top: 60px;
+    left: -290px;          /* 280px Breite + 10px Puffer damit Box-Shadow unsichtbar */
+    width: 280px;
+    height: calc(100vh - 60px);
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border-color);
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.08);
+    z-index: 500;
+    overflow-y: auto;
+    transition: left 0.3s ease;
+
+    &.active {
+        left: 0;
+    }
+}
+
+/* Halbtransparenter Hintergrund – schließt Sidebar bei Klick */
+.psalmos-sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 60px 0 0 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 499;
+
+    &.active {
+        display: block;
+    }
+}
+
+.psalmos-sidebar-inner {
+    padding: 16px;
+}
+
+.psalmos-sidebar-placeholder {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    font-style: italic;
+    padding: 8px 0;
+}
+
+/* ── Hauptinhalt ─────────────────────────────────────────────────────────── */
+/* Volle Breite – der Overlay-Sidebar entzieht keinen Platz. */
+.psalmos-main-content {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg-page);
+    padding: 24px;
+}
+
+/* Platzhalter-Text bis echte Inhalte kommen */
+.psalmos-content-placeholder {
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 80px;
+    font-size: var(--text-lg);
+
+    p + p {
+        margin-top: 8px;
+        font-size: var(--text-sm);
+    }
+}

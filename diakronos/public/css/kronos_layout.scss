@@ -1,0 +1,328 @@
+/* ============================================================================
+   1. GLOBAL RESET
+   ============================================================================ */
+
+
+   * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+}
+
+body {
+    color: var(--text-color);
+    background-color: var(--bg-color);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ============================================================================
+   2. APP CONTAINER
+   ============================================================================ */
+.kronos-app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* ============================================================================
+   3. HEADER
+   ============================================================================ */
+.kronos-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background-color: var(--bg-surface);
+    height: 60px;
+    z-index: var(--z-index-medium);
+    gap: var(--gap-m)
+}
+
+.header-left {
+    display: flex;
+    align-items: left;
+    gap: 16px;
+}
+
+.header-left img {
+    height: 40px;
+}
+
+.header-center {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-right: 30px;
+}
+
+.view-switcher {
+    display: flex;
+    gap: 8px;
+}
+
+.view-btn {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 150ms ease;
+}
+
+.view-btn.active {
+    background-color: var(--primary);
+    color: var(--text-on-primary);
+    border-color: var(--primary);
+}
+
+.view-btn:hover {
+    background-color: var(--card-bg);
+    border-color: var(--gray-400);
+}
+
+.date-span {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.header-right {
+    display: flex;
+    align-items: right;
+    gap: 16px;
+}
+
+.icon-btn {
+    padding: 8px;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-color);
+    transition: all 150ms ease;
+}
+
+.icon-btn:hover {
+    color: var(--primary);
+}
+
+/* ============================================================================
+   4. MAIN CONTENT
+   ============================================================================ */
+.kronos-main-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    background-color: var(--bg-surface) !important;
+}
+
+/* ============================================================================
+   5. SIDEBAR
+   ============================================================================ */
+
+/*In Kronos_sidebar.scss. zu definieren
+
+/* ============================================================================
+   6. CALENDAR
+   ============================================================================ */
+
+.kronos-calendar {
+    flex: 1;
+    overflow: hidden;
+}
+
+.fc {
+    height: 100%;
+    border-radius: 24px;
+    background-color: var(--bg-page) !important;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);  // optional – sieht edler aus
+
+}
+
+.fc-theme-standard .fc-scrollgrid {
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+}
+
+.fc-view-harness {
+  flex-grow: 1; /* because this harness is WITHIN the .fc's flexbox */
+  position: relative;
+}
+
+.fc .fc-daygrid-day-top {
+    text-align: center !important;           // überschreibt right-align
+}
+
+.fc .fc-daygrid-day-number {
+    margin: 0 auto !important;               // zentriert das Element
+    padding: 4px 0 !important;               // etwas Luft oben/unten
+    display: inline-block !important;
+    min-width: 24px;                         // verhindert zu enges Aussehen
+    text-align: center !important;
+    font-weight: var(--weight-medium);
+    color: var(--text-primary);
+
+}
+
+.fc-scrollgrid-section-header {
+    background-color: var(--bg-surface-active);
+}
+
+.fc .fc-daygrid-week-number {
+  /* Kein position:absolute – bleibt in FullCalendars eigenem Grid-Spalt */
+  width: 36px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 4px 2px;
+}
+
+.fc .fc-daygrid-week-number > span {
+  display: inline-block;
+  background: var(--gray-100);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+/* FullCalendar Event Styling – angelehnt an Google Calendar
+   --------------------------------------------------------- */
+
+/* Monatsansicht: horizontale Event-Chips */
+.fc-daygrid-event {
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 12px;
+    line-height: 1.5;
+    overflow: hidden;
+}
+
+/* Wochen-/Tagesansicht: vertikale Event-Blöcke */
+.fc-timegrid-event {
+    border-radius: 4px;
+    padding: 2px 5px;
+    font-size: 12px;
+    overflow: hidden;
+}
+
+/* Terminname: mittleres Gewicht (wie Google Calendar) */
+.fc-event-title {
+    font-weight: 500;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Uhrzeit: etwas kleiner + leicht gedimmt gegenüber dem Terminname */
+.fc-event-time {
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.85;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+/* ============================================================================
+   7. SIDEBAR SECTIONS
+   ============================================================================ */
+.sidebar-section {
+    padding: 16px;
+}
+
+.sidebar-section:last-child {
+    border-bottom: none;
+}
+
+/* ============================================================================
+   17. MOBILE
+   ============================================================================ */
+@media (max-width: 768px) {
+    /* Uhrzeit in Kalender-Terminen ausblenden – nimmt auf kleinen Screens zu viel Platz */
+    .fc-event-time {
+        display: none !important;
+    }
+
+    /* Kalenderwochen: Soothing Blue, fett, 25 % kleiner als Tagesnummern */
+    .fc .fc-daygrid-week-number {
+        width: 20px;
+        font-size: 8px;
+        font-weight: 700;
+        color: #6a9fd8;
+        padding: 2px 0;
+    }
+    .fc .fc-daygrid-week-number > span {
+        background: transparent;
+        padding: 0;
+        border-radius: 0;
+    }
+}
+
+@media (max-width: 430px) {
+    /* Sehr kleine Bildschirme (iPhone 12/13/14 Hochformat) */
+
+    .fc-daygrid-event {
+        font-size: 11px;
+        padding: 0 1px;
+    }
+
+    .fc-event-title {
+        font-size: 11px;
+    }
+
+    .fc-daygrid-event-harness {
+        margin-top: 0 !important;
+    }
+
+    /* Punkt: Abstand zum Text so klein wie möglich */
+    .fc-daygrid-event-dot {
+        margin: 0 1px 0 0 !important;
+    }
+
+    .fc-daygrid-day-events {
+        padding: 0 1px !important;
+    }
+
+    .fc .fc-daygrid-day-number {
+        font-size: 11px;
+        min-width: 18px;
+        padding: 2px 0 !important;
+    }
+
+    /* Kalenderwochen: bleibt 8 px (= ~25 % kleiner als 11 px Tagesnummern) */
+    .fc .fc-daygrid-week-number {
+        font-size: 8px;
+        width: 18px;
+    }
+}
+
+/* ============================================================================
+   18. PRINT
+   ============================================================================ */
+@media print {
+    .kronos-header,
+    .kronos-sidebar,
+    .menu-btn,
+    .search-bar {
+        display: none !important;
+    }
+    
+    .kronos-app-container {
+        height: auto;
+    }
+    
+    .kronos-calendar-container {
+        width: 100%;
+    }
+}

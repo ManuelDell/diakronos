@@ -1,0 +1,509 @@
+/* ============================================================================
+
+BASE BUTTON (Grundlage für alle interaktiven Elemente)
+============================================================================ */
+.btn-base,
+.nav-btn,
+.view-dropdown {
+padding: 8px 12px;
+height: var(--button-height);
+border: 1px solid var(--border-default);
+border-radius: var(--border-radius-sm);
+background-color: var(--bg-page);
+color: var(--text-primary);
+font-size: var(--text-base);
+font-weight: var(--weight-medium);
+cursor: pointer;
+transition: all 150ms ease;
+display: flex;
+align-items: center;
+justify-content: center;
+}
+
+.btn-base:hover,
+.nav-btn:hover,
+.view-dropdown:hover {
+background-color: var(--bg-surface-hover);
+border-color: var(--border-default);
+}
+
+/* ============================================================================
+   FAB - Floating Action Button mit Expand-Effekt
+   ============================================================================ */
+
+.kronos-fab {
+  position: fixed;
+  inset-block-start: 84px;          // top
+  inset-inline-start: 24px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;                    // mehr Platz für Text
+  width: var(--button-height);                  // Start: Kreis
+  height: var(--button-height);
+  border: none;
+  border-radius: var(--border-radius-xl);
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+/* Hover: Immer expandieren (wenn nicht dauerhaft offen) */
+.kronos-fab:hover {
+  width: 180px;
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--shadow-lg);
+  background-color: var(--bg-page);
+}
+
+/* Icon & Text */
+.kronos-fab .fab-icon {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.kronos-fab .fab-text {
+  opacity: 0;
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: opacity 0.3s ease 0.1s;
+  display: none;
+}
+
+/* Hover: Text einblenden */
+.kronos-fab:hover .fab-text {
+  opacity: 1;
+  display: inline;
+}
+
+/* ============================================================================
+   Sidebar AUSGEKLAPPT → Button DAUERHAFT breit + Text sichtbar
+   ============================================================================ */
+
+/* Wichtig: ~ statt + verwenden (irgendwo danach) */
+.kronos-sidebar.active ~ .kronos-main-content .kronos-fab,
+body:has(.kronos-sidebar.active) .kronos-fab {  /* Fallback, falls FAB in body */
+  width: 200px !important;
+  border-radius: var(--border-radius-xl) !important;
+  background-color: var(--bg-page) !important;
+  box-shadow: var(--shadow-md) !important;
+  transform: scale(1.05);               // leicht größer wirken
+}
+
+/* Text immer sichtbar, wenn Sidebar offen */
+.kronos-sidebar.active ~ .kronos-main-content .kronos-fab .fab-text,
+body:has(.kronos-sidebar.active) .kronos-fab .fab-text {
+  opacity: 1 !important;
+  transition: none;
+  display: inline;
+}
+
+/* Hover bei offenem Sidebar: nur leicht mehr Breite + stärkerer Schatten */
+.kronos-sidebar.active ~ .kronos-main-content .kronos-fab:hover,
+body:has(.kronos-sidebar.active) .kronos-fab:hover {
+  width: 220px !important;
+  box-shadow: var(--shadow-lg) !important;
+  background-color: var(--bg-page) !important;
+}
+
+/* ============================================================================
+   Sidebar ZUGEKLAPPT → Nur bei Hover expandieren
+   ============================================================================ */
+.kronos-sidebar:not(.active) ~ .kronos-main-content .kronos-fab,
+body:not(:has(.kronos-sidebar.active)) .kronos-fab {
+  /* Hier bleibt alles wie Basis → Kreis + Hover-Expand */
+}
+
+/* ============================================================================
+2. NAVIGATION BUTTONS (Pfeile links/rechts)
+============================================================================ */
+.nav-btn {
+min-width: var(--button-height);
+height: var(--button-height);
+color: var(--text-primary);
+font-weight: var(--weight-medium);
+cursor: pointer;
+transition: all 150ms ease;
+display: flex;
+align-items: center;
+justify-content: center;
+border-radius: var(-border-radius-lg);
+}
+.nav-btn:hover {
+background-color: var(--bg-surface-hover);
+}
+.nav-btn svg {
+width: var(--button-height-sm);
+height: var(--button-height-sm);
+fill: var(--text-primary);
+}
+/* ============================================================================
+3. CURRENT DATE DISPLAY (Monat + Jahr)
+============================================================================ */
+.current-date, 
+.calendar-name-in-header {
+font-size: var(--text-3xl);
+font-weight: 350;
+color: var(--text-primary);
+padding: 0 16px;
+white-space: nowrap;
+}
+/* ============================================================================
+4. VIEW DROPDOWN (Monat/Woche/Tag/Liste)
+============================================================================ */
+.view-dropdown {
+    min-width: 120px;
+    color: var(--text-primary);
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    background-color: var(--bg-page);
+    border: 1px solid var(--border-default);
+    box-shadow: var(--shadow-lg);
+    cursor: pointer;
+    transition: all 150ms ease;
+    border-radius: var(-border-radius-lg);
+    height: 40px;
+}
+.view-dropdown:hover {
+    background-color: var(--bg-surface-hover);
+    border-color: var(--border-default);
+}
+.view-dropdown:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* ============================================================================
+   TOGGLE BUTTON GROUP (z.B. für Views oder Modi)
+   - Zwei Buttons nebeneinander ohne Gap
+   - Äußerer Container: Abgerundet links/rechts
+   - Innere Buttons: Flach an Berührungsstelle mit Trennlinie
+   - Active-State: Primär-Farbe, bleibt "gedrückt"
+   - JS: Nur einer aktiv (Toggle-Logik)
+   ============================================================================ */
+
+.toggle-container {
+    display: inline-flex;
+    box-shadow: var(--shadow-lg);
+    border-radius: 25px;
+    overflow: hidden;  // Verhindert Überlappungen
+    background-color: var(--card-bg);
+}
+
+.toggle-btn { 
+    flex: 1;
+    padding: 8px 16px;
+    background-color: var(--botton-inactive);
+    border: var(--border-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 150ms ease;
+    min-width: var(--button-width-l);
+    height: var(--button-height);
+}
+
+.toggle-btn svg {
+    width: var(--button-width-sm);
+    height: var(--button-width-sm);
+    fill: var(--button-icon-inactive);
+    transition: fill 150ms ease;
+}
+
+.toggle-btn:hover {
+    background-color: var(--botton-hover);
+}
+
+.toggle-btn.active {
+    background-color: var(--button-active);
+}
+
+.toggle-btn.active svg {
+    fill: var(--button-icon-active);
+}
+
+/* Linker Button */
+.toggle-left {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+/* Rechter Button */
+.toggle-right {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+/* Fokus/Accessibility */
+.toggle-btn:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+}
+
+/* ============================================================================
+   5. HAMBURGER MENU (#hamburger-3 – wird zu ← Pfeil)
+   ============================================================================ */
+.hamburger {
+    width: 25px;
+    height: 20px;
+    position: relative;
+    cursor: pointer;
+    display: flex;              /* ← das war wahrscheinlich none */
+    flex-direction: column;
+    justify-content: space-between;
+    margin-left: var(--gap-m);          /* etwas Abstand zum Logo */
+}
+
+/* Linien-Definition (falls nicht schon vorhanden) */
+.hamburger .line {
+    display: block;
+    height: 2px;
+    width: 100%;
+    background: var(--text-color);
+    border-radius: 2px;
+    transition: all 0.25s ease-in-out;
+}
+
+/* Positionierung der drei Linien */
+#hamburger-3 .line:nth-child(1) { top: 14px; }
+#hamburger-3 .line:nth-child(2) { top: 16px; }
+#hamburger-3 .line:nth-child(3) { top: 18px; }
+
+/* Animation zu ← Pfeil (wie gewünscht) */
+#hamburger-3.is-active .line:nth-child(1) { top: 6px; }
+
+
+#hamburger-3.is-active .line:nth-child(3) { top: 14px; }
+
+/* Optional: Hover-Effekt */
+.hamburger:hover .line {
+    background: var(--primary);
+}
+
+// Today Button =============================
+
+.todaybutton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  width: var(--button-width-xxl);
+  height: var(--button-height);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  background-color: var(--bg-page);
+  border: 1px solid var(--border-default);
+  border-radius: var(--border-radius-lg);
+  cursor: pointer;
+}
+
+.todaybutton:hover {
+    background-color: var(--bg-surface-hover);
+    border-color: var(--border-default);
+}
+/* ============================================================================
+PROFILE AVATAR + DROPDOWN
+============================================================================ */
+.profile-menu-wrapper {
+    position: relative;
+}
+
+.profile-avatar {
+    width: var(--button-width);
+    height: var(--button-height);
+    border-radius: 50%;
+    background-color: var(--bg-page);
+    color: var(--text-on-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-base);
+    font-weight: var(--weight-bold);
+    box-shadow: var(--shadow-lg);
+    cursor: pointer;
+    user-select: none;
+    transition: box-shadow 150ms ease;
+
+    &:hover {
+        box-shadow: 0 0 0 2px var(--primary);
+    }
+}
+
+.profile-dropdown {
+    position: fixed;
+    min-width: 180px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14);
+    padding: 6px;
+    z-index: 9999;
+
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 150ms ease, transform 150ms ease;
+
+    &.open {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+}
+
+.profile-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--text-primary);
+    text-decoration: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background 120ms ease;
+
+    svg {
+        color: var(--text-muted);
+        flex-shrink: 0;
+    }
+
+    &:hover {
+        background: var(--bg-surface-hover);
+    }
+}
+
+.profile-dropdown-logout {
+    color: var(--red-500, #e53e3e);
+
+    svg {
+        color: var(--red-400, #fc8181);
+    }
+
+    &:hover {
+        background: color-mix(in srgb, var(--red-500, #e53e3e) 10%, transparent);
+    }
+}
+
+.profile-dropdown-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 4px 0;
+}
+
+
+/* ============================================================================
+7. FLEX CONTAINER (header-left, -center, -right)
+============================================================================ */
+.header-left,
+.header-right {
+display: flex;
+align-items: center;
+gap: var(--gap-m);
+}
+.header-center {
+flex: 1;
+align-items: left;
+gap: var(--gap-m);
+padding: 0 var(--gap-m);
+}
+.header-right {
+justify-content: flex-end;
+}
+/* ============================================================================
+8. ALLGEMEIN – Desktop-Defaults für Mobile-only Elemente
+============================================================================ */
+.mobile-month-display {
+    display: none;
+    font-size: var(--text-xl);
+    font-weight: var(--weight-medium);
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.today-icon-btn {
+    display: none;
+    width: var(--button-height);
+    height: var(--button-height);
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    color: var(--text-primary);
+    transition: color 150ms ease;
+    flex-shrink: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+    box-shadow: none;
+}
+.today-icon-btn:hover {
+    color: var(--primary);
+}
+.today-icon-btn svg {
+    display: block;
+    pointer-events: none;
+}
+
+/* ============================================================================
+9. ALLGEMEIN – Responsives Verhalten (Mobile ≤ 768px)
+============================================================================ */
+@media (max-width: 768px) {
+.header-center {
+    display: none;
+}
+.current-date {
+    display: none;
+}
+.hamburger {
+    display: flex;
+}
+.profile-avatar {
+    display: flex;
+}
+.mobile-month-display {
+    display: block;
+}
+.today-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.todaybutton {
+    display: none;
+}
+.toggle-container {
+    display: none;
+}
+.calendar-name-in-header {
+    display: none;
+}
+#logopicture {
+    display: none;
+}
+.kronos-fab {
+    display: none;
+}
+.prev-month,
+.next-month {
+    display: none;
+}
+.view-dropdown {
+    display: none;
+}
+}

@@ -1,0 +1,80 @@
+{
+ "charts": [],
+ "content": "[{\"id\":\"h1_kalender\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Kalender</b></span>\",\"col\":12}},{\"id\":\"sc_kalenderansicht\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Kalenderansicht (Web)\",\"col\":3}},{\"id\":\"sc_google_import\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Google Import\",\"col\":3}},{\"id\":\"sc_termine\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Terminliste\",\"col\":3}},{\"id\":\"sc_kategorien\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Terminkategorie\",\"col\":3}},{\"id\":\"sc_kalender\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Verfügbare Kalender\",\"col\":3}},{\"id\":\"sc_google_einst\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Google Kalender Einstellungen\",\"col\":3}}]",
+ "creation": "2026-03-01 19:43:06.794545",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "/assets/diakronos/images/kronos-logo.svg",
+ "idx": 0,
+ "indicator_color": "blue",
+ "is_hidden": 0,
+ "label": "Kronos",
+ "links": [],
+ "modified": "2026-03-08 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Kronos",
+ "name": "Kronos",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "Mitglied"
+  }
+ ],
+ "sequence_id": 1.0,
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "Kalenderansicht (Web)",
+   "type": "URL",
+   "url": "/kronos/calendar"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "Google Import",
+   "link_to": "google-kalender-import",
+   "type": "Page"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Terminliste",
+   "link_to": "Element",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Terminkategorie",
+   "link_to": "Eventkategorie",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Verfügbare Kalender",
+   "link_to": "Kalender",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Google Kalender Einstellungen",
+   "link_to": "Google Kalender Einstellungen",
+   "stats_filter": "[]",
+   "type": "DocType"
+  }
+ ],
+ "title": "Kronos"
+}
