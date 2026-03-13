@@ -233,6 +233,7 @@
   background: var(--bg-page);
   color: var(--text-primary);
   font-size: var(--text-base);
+  font-family: inherit;
   transition: border-color 0.2s ease;
 }
 
@@ -373,6 +374,7 @@
   background: var(--bg-page);
   color: var(--text-primary);
   font-size: var(--text-base);
+  font-family: inherit;
   transition: border-color 0.2s ease;
 }
 

@@ -371,9 +371,9 @@
   "home_page": null,
   "is_custom": 0,
   "modified": "2025-12-14 15:15:02.451156",
-  "name": "Kalenderguru",
+  "name": "Kalenderadministrator",
   "restrict_to_domain": null,
-  "role_name": "Kalenderguru",
+  "role_name": "Kalenderadministrator",
   "two_factor_auth": 0
  }
 ]

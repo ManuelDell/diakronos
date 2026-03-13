@@ -449,8 +449,8 @@ def _ensure_kalender(name: str, color: str) -> str:
     doc.calendar_name    = name
     doc.calendar_color   = color or "#4285F4"
     doc.calender_details = "Importiert aus Google Kalender"
-    # Leserechte: Administrator und Kalenderguru standardmäßig
-    for rolle in ("Administrator", "Kalenderguru"):
+    # Leserechte: Administrator und Kalenderadministrator standardmäßig
+    for rolle in ("Administrator", "Kalenderadministrator"):
         doc.append("leserechte", {"role": rolle})
     doc.save(ignore_permissions=True)
     return name

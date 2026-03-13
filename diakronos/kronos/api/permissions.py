@@ -6,7 +6,7 @@ from frappe import _
 from datetime import datetime
 from frappe.model.utils.user_settings import get_user_settings as _get_user_settings, update_user_settings as _update_user_settings
 
-DESK_ROLES = {"Kalenderguru"}
+DESK_ROLES = {"Kalenderadministrator"}
 
 def _user_has_role(user, role_name):
     """Prüft, ob User die angegebene Role hat."""
@@ -16,7 +16,7 @@ def _user_has_role(user, role_name):
     return role_name in roles
 
 def _can_access_desk(user):
-    """Nur Administrator und Kalenderguru dürfen den Frappe-Desk betreten."""
+    """Nur Administrator und Kalenderadministrator dürfen den Frappe-Desk betreten."""
     if user == "Administrator":
         return True
     return bool(DESK_ROLES & set(frappe.get_roles(user)))
@@ -83,36 +83,12 @@ def get_accessible_calendars():
 
 @frappe.whitelist(allow_guest=False)
 def get_writable_calendars():
-    user = frappe.session.user
-    if user == "Administrator":
-        return frappe.get_all("Kalender", fields=["name", "calendar_name", "calendar_color"], order_by="calendar_name")
-
-    # Kalender, bei denen der User in der Child-Table "schreibrechte" vorkommt
-    writable = frappe.get_all(
-        "Kalender",
-        filters={
-            "schreibrechte": ["like", f"%{user}%"]  # funktioniert bei Text-Feld, aber bei Child-Table unsicher
-        },
-        fields=["name", "calendar_name", "calendar_color"],
-        order_by="calendar_name"
-    )
-
-    # Besser: Child-Table abfragen
-    if not writable:
-        writable = frappe.get_all(
-            "Kalender Has Role",
-            filters={"role": ["in", frappe.get_roles(user)]},
-            fields=["parent as name"],
-            distinct=True
-        )
-        writable = frappe.get_all(
-            "Kalender",
-            filters={"name": ["in", [w.name for w in writable]]},
-            fields=["name", "calendar_name", "calendar_color"],
-            order_by="calendar_name"
-        )
-
-    return writable
+    """Gibt nur Kalender zurück, auf die der User Schreibzugriff hat."""
+    accessible = get_accessible_calendars()
+    return [
+        {"name": c["name"], "calendar_name": c["title"], "calendar_color": c["color"]}
+        for c in accessible if c.get("write")
+    ]
 
 @frappe.whitelist(allow_guest=False)
 def can_create_event():
