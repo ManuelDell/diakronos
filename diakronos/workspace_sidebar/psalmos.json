@@ -1,0 +1,34 @@
+{
+ "app": "diakronos",
+ "doctype": "Workspace Sidebar",
+ "header_icon": "/assets/diakronos/images/psalmos-logo.svg",
+ "items": [
+  {
+   "child": 0,
+   "collapsible": 0,
+   "idx": 0,
+   "keep_closed": 0,
+   "label": "Home",
+   "link_to": "Psalmos",
+   "link_type": "Workspace",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 0,
+   "idx": 1,
+   "keep_closed": 0,
+   "label": "Psalmos (Web)",
+   "link_to": "/psalmos",
+   "link_type": "URL",
+   "show_arrow": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-03-11 12:00:00.000000",
+ "module": "Kronos",
+ "name": "Psalmos",
+ "standard": 1,
+ "title": "Psalmos"
+}

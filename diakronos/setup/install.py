@@ -6,19 +6,7 @@ from frappe import get_app_path, log_error
 def symlink_create_install():
     """Automatisiert Symlinks und holt externe Bibliotheken bei App-Installation."""
 
-    # 1. Symlink für frappe espresso (unverändert)
-    frappe_scss_path = get_app_path('frappe', 'public', 'scss', 'espresso')
-    diakronos_scss_path = get_app_path('diakronos', 'public', 'scss')
-    symlink_target = os.path.join(diakronos_scss_path, 'frappe_espresso')
-
-    if not os.path.exists(symlink_target):
-        try:
-            os.symlink(frappe_scss_path, symlink_target)
-            print(f"✅ Symlink erstellt: {symlink_target} → {frappe_scss_path}")
-        except Exception as e:
-            log_error("Symlink-Erstellung fehlgeschlagen", str(e))
-
-    # 2. FullCalendar v6 global bundle (nur JS – CSS wird automatisch injiziert) – unverändert
+    # 1. FullCalendar v6 global bundle (nur JS – CSS wird automatisch injiziert)
     fc_version = "6.1.15"  # oder höher, z.B. "6.1.20" wenn du upgraden willst
     base_url = f"https://cdn.jsdelivr.net/npm/fullcalendar@{fc_version}/"
     js_file = {

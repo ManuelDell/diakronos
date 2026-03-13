@@ -9,14 +9,11 @@ export async function sidebar_build_elements(mainContentEl) {
         return;
     }
 
-    console.log('✅ Sidebar gefunden – starte Befüllung');
-
     const miniContainer = sidebar.querySelector('#mini-kalender');
     if (miniContainer && KronosMiniCalendar) {
         if (!miniContainer.dataset.initialized) {
             new KronosMiniCalendar('#mini-kalender');
             miniContainer.dataset.initialized = 'true';
-            console.log('✅ Mini-Kalender in bestehendem Container gestartet');
         }
     } else {
         console.warn('⚠️ Mini-Kalender konnte nicht gestartet werden', {
@@ -51,12 +48,6 @@ export async function sidebar_build_elements(mainContentEl) {
 
             const result = await response.json();
             const calendars = result.message || [];
-            console.log('✅ Kalender via API geladen:', calendars.length);
-            console.log('Empfangene Kalender (raw):', calendars);
-            console.log('Anzahl Kalender:', calendars.length);
-            if (calendars.length > 0) {
-                console.log('Erster Kalender:', calendars[0]);
-            }
 
             calendarList.innerHTML = '';
 
@@ -110,7 +101,6 @@ export async function sidebar_build_elements(mainContentEl) {
                 writable.forEach(cal => {
                     writeGroup.appendChild(createCalendarItem(cal, selected.includes(cal.name)));
                 });
-                console.log('Schreibgruppe gebaut – Kinder:', writeGroup.children.length);
                 calendarList.appendChild(writeGroup);
             }
 
@@ -121,7 +111,6 @@ export async function sidebar_build_elements(mainContentEl) {
                 readableOnly.forEach(cal => {
                     readGroup.appendChild(createCalendarItem(cal, selected.includes(cal.name)));
                 });
-                console.log('Nur-Lesen-Gruppe gebaut – Kinder:', readGroup.children.length);
                 calendarList.appendChild(readGroup);
             }
 
@@ -133,10 +122,7 @@ export async function sidebar_build_elements(mainContentEl) {
 
     await loadCalendars();
 
-    console.log('Sidebar vollständig gerendert – Kalenderanzahl:', calendarList.children.length);
-
     if (kronosCalendar) {
-        console.log('Initial refetch nach Sidebar-Bau');
         kronosCalendar.refetchEvents();
     }
 

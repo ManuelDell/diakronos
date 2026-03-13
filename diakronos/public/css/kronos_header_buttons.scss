@@ -322,7 +322,7 @@ PROFILE AVATAR + DROPDOWN
     width: var(--button-width);
     height: var(--button-height);
     border-radius: 50%;
-    background-color: var(--bg-page);
+    background-color: var(--primary);
     color: var(--text-on-primary);
     display: flex;
     align-items: center;
@@ -332,10 +332,11 @@ PROFILE AVATAR + DROPDOWN
     box-shadow: var(--shadow-lg);
     cursor: pointer;
     user-select: none;
+    overflow: hidden;
     transition: box-shadow 150ms ease;
 
     &:hover {
-        box-shadow: 0 0 0 2px var(--primary);
+        box-shadow: 0 0 0 2px var(--primary-active);
     }
 }
 

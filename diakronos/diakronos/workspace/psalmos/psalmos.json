@@ -13,9 +13,9 @@
  "is_hidden": 0,
  "label": "Psalmos",
  "links": [],
- "modified": "2026-03-08 18:00:00.000000",
+ "modified": "2026-03-11 12:00:00.000000",
  "modified_by": "Administrator",
- "module": "Kronos",
+ "module": "Psalmos",
  "name": "Psalmos",
  "number_cards": [],
  "owner": "Administrator",
@@ -27,7 +27,7 @@
    "role": "Psalmos-Nutzer"
   }
  ],
- "sequence_id": 4.0,
+ "sequence_id": 3.0,
  "shortcuts": [
   {
    "color": "Purple",

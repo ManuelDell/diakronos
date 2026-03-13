@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format:{vorname} {nachname}",
+ "autoname": "format:{name1} {nachname}",
  "creation": "2025-10-15 17:56:44.293887",
  "doctype": "DocType",
  "engine": "InnoDB",

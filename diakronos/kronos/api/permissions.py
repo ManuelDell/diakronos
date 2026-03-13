@@ -215,8 +215,40 @@ def get_accessible_modules():
     Gibt die für den aktuellen Nutzer zugänglichen Diakronos-Module zurück.
     Nutzt die Konfiguration aus 'Diakronos Einstellungen'.
     """
-    from diakronos.www.diakronos.index import _get_accessible_modules
-    return _get_accessible_modules(frappe.session.user)
+    from diakronos.diakronos.doctype.diakronos_einstellungen.diakronos_einstellungen import (
+        KNOWN_MODULES, MODULE_DEFAULTS, MODULE_ROUTES,
+    )
+    user = frappe.session.user
+    try:
+        settings = frappe.get_single("Diakronos Einstellungen")
+    except Exception:
+        return []
+
+    user_roles = set(frappe.get_roles(user))
+    result = []
+    for prefix, module_name in KNOWN_MODULES:
+        mod_defaults = MODULE_DEFAULTS.get(module_name, {})
+        sichtbar = getattr(settings, f"{prefix}_sichtbar", None)
+        if sichtbar is None:
+            sichtbar = mod_defaults.get("im_app_bereich_anzeigen", 1)
+        if not sichtbar:
+            continue
+        role_rows = getattr(settings, f"{prefix}_rollen", None) or []
+        if role_rows:
+            allowed_roles = {row.role for row in role_rows}
+            if not (user_roles & allowed_roles):
+                continue
+        icon  = getattr(settings, f"{prefix}_icon", None) or mod_defaults.get("standard_icon", "")
+        label = getattr(settings, f"{prefix}_anzeige_name", None) or mod_defaults.get("anzeige_name", module_name)
+        route = MODULE_ROUTES.get(module_name) or f"/app/{module_name.lower()}"
+        result.append({
+            "module_name":  module_name,
+            "prefix":       prefix,
+            "anzeige_name": label,
+            "icon":         icon,
+            "route":        route,
+        })
+    return result
 
 
 @frappe.whitelist(allow_guest=False)

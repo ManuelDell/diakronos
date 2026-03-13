@@ -14,7 +14,54 @@ const MODULES = [
 
 // ── Formular-Events ───────────────────────────────────────────────────────────
 
-const formHandlers = { refresh(frm) { /* nothing extra needed */ } };
+const DEMO_METHOD = "diakronos.diakronos.doctype.diakronos_einstellungen.diakronos_einstellungen.run_demo_data_action";
+
+const formHandlers = {
+    refresh(frm) {
+        _updateDemoCheckbox(frm);
+    },
+
+    demodaten_erstellen(frm) {
+        const checked = frm.doc.demodaten_erstellen;
+        const aktiv   = frm.doc.demodaten_aktiv;
+
+        if (checked && !aktiv) {
+            // Checkbox aktiviert → Demodaten erstellen
+            frappe.call({
+                method: DEMO_METHOD,
+                args: { action: "create" },
+                freeze: true,
+                freeze_message: "Demodaten werden erstellt…",
+                callback(r) {
+                    if (!r.exc) frm.reload_doc();
+                    else frm.set_value("demodaten_erstellen", 0);
+                }
+            });
+        } else if (!checked && aktiv) {
+            // Checkbox deaktiviert → Demodaten löschen (mit Bestätigung)
+            frappe.confirm(
+                "<b>Alle Daten unwiderruflich löschen?</b><br>" +
+                "<span class='text-muted'>Kalender, Termine, Mitglieder und Besucher werden permanent gelöscht.</span>",
+                () => {
+                    frappe.call({
+                        method: DEMO_METHOD,
+                        args: { action: "delete" },
+                        freeze: true,
+                        freeze_message: "Daten werden gelöscht…",
+                        callback(r) {
+                            if (!r.exc) frm.reload_doc();
+                            else frm.set_value("demodaten_erstellen", 1);
+                        }
+                    });
+                },
+                () => {
+                    // Abgebrochen → Checkbox zurücksetzen
+                    frm.set_value("demodaten_erstellen", 1);
+                }
+            );
+        }
+    }
+};
 
 // Reset-Button und SVG-Validierung pro Modul registrieren
 MODULES.forEach(([prefix, moduleName, label]) => {
@@ -65,6 +112,32 @@ function _applyDefaults(frm, prefix, moduleName, label) {
                 5
             );
         },
+    });
+}
+
+/**
+ * Sperrt die Demodaten-Checkbox wenn bereits echte Daten vorhanden sind
+ * und keine Demodaten aktiv sind (= echte Daten).
+ */
+function _updateDemoCheckbox(frm) {
+    const demoAktiv = frm.doc.demodaten_aktiv;
+
+    frappe.call({
+        method: "frappe.client.get_count",
+        args: { doctype: "Kalender" },
+        callback(r) {
+            const hatDaten = (r.message || 0) > 0;
+            const sperren  = hatDaten && !demoAktiv;
+
+            frm.set_df_property("demodaten_erstellen", "read_only", sperren ? 1 : 0);
+            frm.set_df_property("demodaten_erstellen", "description",
+                sperren
+                    ? "Gesperrt: Es sind bereits echte Daten vorhanden."
+                    : demoAktiv
+                        ? "Deaktivieren → löscht alle vorhandenen Daten."
+                        : "Aktivieren → erstellt Beispieldaten (nur möglich wenn keine Daten vorhanden)."
+            );
+        }
     });
 }
 
