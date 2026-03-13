@@ -43,6 +43,11 @@
   "seelsorge_sichtbar",
   "seelsorge_rollen",
   "seelsorge_reset",
+  "demodaten_section",
+  "demodaten_info_html",
+  "demodaten_col_break",
+  "demodaten_erstellen",
+  "demodaten_aktiv",
   "section_break_hinweis",
   "workspace_hinweis_html"
  ],
@@ -274,6 +279,38 @@
    "fieldname": "seelsorge_reset",
    "fieldtype": "Button",
    "label": "\u21ba Auf Standardwerte zur\u00fccksetzen"
+  },
+  {
+   "collapsible": 1,
+   "collapsed": 1,
+   "description": "Erstellt oder löscht Beispieldaten (Kalender, Termine, Mitglieder, Besucher). Nur möglich solange keine echten Daten vorhanden sind.",
+   "fieldname": "demodaten_section",
+   "fieldtype": "Section Break",
+   "label": "Demodaten"
+  },
+  {
+   "fieldname": "demodaten_info_html",
+   "fieldtype": "HTML",
+   "options": "<div class=\"alert alert-warning\" style=\"margin-bottom:0\">\n  <strong>⚠ Hinweis:</strong> Demodaten können nur erstellt werden, wenn die App noch keine echten Daten enthält (Kalender, Termine, Mitglieder, Besucher).<br>\n  <b>Aktivieren</b> = Beispieldaten für 3 Monate anlegen. &nbsp; <b>Deaktivieren</b> = <u>alle</u> vorhandenen Daten unwiderruflich löschen.\n</div>"
+  },
+  {
+   "fieldname": "demodaten_col_break",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Aktivieren: Demodaten erstellen. Deaktivieren: alle Daten löschen.",
+   "fieldname": "demodaten_erstellen",
+   "fieldtype": "Check",
+   "label": "Demodaten aktiv"
+  },
+  {
+   "default": "0",
+   "fieldname": "demodaten_aktiv",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Demodaten wurden erstellt",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_hinweis",

@@ -147,21 +147,24 @@ export function header_build_elements() {
 
     const profileAvatar = document.createElement('div');
     profileAvatar.className = 'profile-avatar';
-    const initial  = document.body.dataset.userInitial  || '?';
-    const fullname = document.body.dataset.userFullname || 'Gast';
-    profileAvatar.textContent = initial;
+    const initial   = document.body.dataset.userInitial  || '?';
+    const fullname  = document.body.dataset.userFullname || 'Gast';
+    const userImage = document.body.dataset.userImage    || '';
     profileAvatar.setAttribute('title', fullname);
+    if (userImage) {
+        const img = document.createElement('img');
+        img.alt = fullname;
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+        img.onerror = () => { profileAvatar.innerHTML = ''; profileAvatar.textContent = initial; };
+        img.src = userImage;
+        profileAvatar.appendChild(img);
+    } else {
+        profileAvatar.textContent = initial;
+    }
 
     const profileDropdown = document.createElement('div');
     profileDropdown.className = 'profile-dropdown';
     profileDropdown.innerHTML = `
-        <a class="profile-dropdown-item" href="/diakronos">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/>
-            </svg>
-            Startseite
-        </a>
-        <div class="profile-dropdown-divider"></div>
         <button class="profile-dropdown-item profile-dropdown-logout">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                 <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
@@ -288,46 +291,20 @@ export function header_build_elements() {
         }
     }, 10000);
 
-    // ── Avatar per API laden ─────────────────────────────────────────────────
-    async function loadUserAvatar() {
-        let csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-        if (!csrfToken) {
-            const match = document.cookie.match(/csrftoken=([^;]+)/);
-            csrfToken = match ? match[1] : '';
-        }
-        if (!csrfToken) {
-            profileAvatar.textContent = '!';
-            return;
-        }
-
+    // ── Desk-Link per API prüfen (nur für berechtigte Nutzer) ────────────────
+    async function loadDeskLink() {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        if (!csrfToken) return;
         try {
             const response = await fetch('/api/method/diakronos.kronos.api.permissions.get_session_info', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Frappe-CSRF-Token': csrfToken
-                },
+                headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrfToken },
                 credentials: 'include',
                 body: JSON.stringify({})
             });
-
-            if (!response.ok) throw new Error(`API-Fehler: ${response.status}`);
-
-            const result = await response.json();
-            const userInfo = result.message;
-            profileAvatar.setAttribute('title', userInfo.full_name || userInfo.name);
-            if (userInfo.user_image) {
-                profileAvatar.innerHTML = '';
-                const img = document.createElement('img');
-                img.src = userInfo.user_image;
-                img.alt = userInfo.full_name || userInfo.name;
-                img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
-                profileAvatar.appendChild(img);
-            } else {
-                profileAvatar.textContent = userInfo.initial || '?';
-            }
-            // Desk-Zugriff: nur für Administrator und Kalenderguru
-            if (userInfo.can_access_desk) {
+            if (!response.ok) return;
+            const { message: userInfo } = await response.json();
+            if (userInfo?.can_access_desk) {
                 const deskLink = document.createElement('a');
                 deskLink.className = 'profile-dropdown-item';
                 deskLink.href = '/app';
@@ -338,11 +315,8 @@ export function header_build_elements() {
                     Zurück zum Desk`;
                 profileDropdown.insertBefore(deskLink, profileDropdown.firstChild);
             }
-        } catch (err) {
-            console.error('Avatar-Ladefehler:', err);
-            profileAvatar.textContent = '!';
-        }
+        } catch (_) { /* kein Desk-Link – kein Problem */ }
     }
 
-    loadUserAvatar();
+    loadDeskLink();
 }

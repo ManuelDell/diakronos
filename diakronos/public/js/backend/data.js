@@ -1,8 +1,6 @@
 // diakronos/public/js/backend/data.js
 
 export async function fetch_accessible_calendars() {
-    console.log('🔄 Data-Fetch: Lade erlaubte Kalender (via native API)...');
-    
     try {
         // Direkter REST-API Aufruf an Frappe
         const response = await fetch('/api/method/diakronos.kronos.api.calendar_get.get_accessible_calendars', {
@@ -23,8 +21,6 @@ export async function fetch_accessible_calendars() {
         const calendars = data.message;
 
         if (calendars && Array.isArray(calendars)) {
-            console.log(`✅ Data-Fetch: ${calendars.length} Kalender gefunden`);
-            
             if (window.kronosState) {
                 window.kronosState.setAvailableCalendars(calendars);
                 const initialSelected = calendars.map(cal => cal.name);
@@ -44,10 +40,7 @@ export async function fetch_accessible_calendars() {
 // true = View-Modus (Standard, nur Lesen), false = Bearbeitungs-Modus
 let viewMode = true;
 
-export const setViewMode = (val) => { 
-    viewMode = !!val; 
-    console.log('🔄 ViewMode geändert auf:', viewMode ? 'VIEW' : 'EDIT');
-};
+export const setViewMode = (val) => { viewMode = !!val; };
 export const getViewMode = () => viewMode;
 
 
@@ -55,10 +48,7 @@ export const getViewMode = () => viewMode;
 // Array mit den Namen der ausgewählten Kalender. Leer = Alle anzeigen.
 let selectedCalendars = [];
 
-export const setSelectedCalendars = (calendarsArray) => { 
-    selectedCalendars = calendarsArray || []; 
-    console.log('📁 Aktive Kalender-Filter:', selectedCalendars);
-};
+export const setSelectedCalendars = (calendarsArray) => { selectedCalendars = calendarsArray || []; };
 export const getSelectedCalendars = () => selectedCalendars;
 
 // TEMPORÄR FÜR DIE KONSOLE ZUM TESTEN:
