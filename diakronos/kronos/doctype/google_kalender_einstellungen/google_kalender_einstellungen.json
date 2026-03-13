@@ -86,7 +86,7 @@
    "print": 0,
    "read": 1,
    "report": 0,
-   "role": "Kalenderguru",
+   "role": "Kalenderadministrator",
    "share": 0,
    "write": 1
   }

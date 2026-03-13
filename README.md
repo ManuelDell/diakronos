@@ -44,7 +44,7 @@ Eine **Frappe-App** für Gemeinde- und Kirchenverwaltung – modular aufgebaut r
 ### 2026-03-03 – Sicherheitshärtung + Hub-Navigation
 
 **Zugriffssteuerung**
-- Desk-Link im Avatar-Dropdown nur für `Administrator` und `Kalenderguru` sichtbar
+- Desk-Link im Avatar-Dropdown nur für `Administrator` und `Kalenderadministrator` sichtbar
 - Serverseitige Prüfung auf allen Seiten
 
 **Sicherheitshärtung (API)**
@@ -95,7 +95,7 @@ Diakronos bringt Gemeinde-Werkzeuge direkt in die Frappe-Oberfläche, ohne die F
 
 | Rolle | Rechte |
 |-------|--------|
-| `Kalenderguru` | Alle Kalender lesen & schreiben, Kalender verwalten |
+| `Kalenderadministrator` | Alle Kalender lesen & schreiben, Kalender verwalten |
 | `Mitglied` | Zugriff auf Kronos- und Diakonos-Workspace |
 | Kalender-spezifisch | Lese- oder Schreibrecht pro Kalender konfigurierbar |
 

@@ -187,7 +187,11 @@ def save_event(name, element_name, element_start, element_end, element_calendar,
 
         doc = frappe.get_doc("Element", name)
         _assert_write_access(doc.element_calendar)
-        if element_calendar != doc.element_calendar:
+
+        # Leeres element_calendar bedeutet: Kalender unverändert lassen
+        if not element_calendar or element_calendar in ('undefined', 'null'):
+            element_calendar = doc.element_calendar
+        elif element_calendar != doc.element_calendar:
             _assert_write_access(element_calendar)
 
         doc.element_name = element_name

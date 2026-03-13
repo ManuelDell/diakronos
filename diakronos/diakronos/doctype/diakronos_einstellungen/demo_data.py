@@ -147,9 +147,9 @@ def _create_kalender():
             "calendar_color": color,
             "calender_details": details,
         })
-        # Leserechte: Mitglied, Schreibrechte: Kalenderguru
+        # Leserechte: Mitglied, Schreibrechte: Kalenderadministrator
         doc.append("leserechte",   {"role": "Mitglied"})
-        doc.append("schreibrechte", {"role": "Kalenderguru"})
+        doc.append("schreibrechte", {"role": "Kalenderadministrator"})
         doc.insert(ignore_permissions=True, ignore_mandatory=True)
         names[cal_name] = doc.name
     return names
