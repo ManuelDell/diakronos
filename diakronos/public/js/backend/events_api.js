@@ -21,8 +21,6 @@ class KronosEvents {
      * @param {Object} calendarRef  – KronosCalendar-Instanz (für refetchEvents)
      */
     static async updateEvent(event, calendarRef, forceSeriesDetach = false) {
-        console.log('🔄 Aktualisiere Event:', event.id);
-
         if (!event?.id) {
             console.error('❌ Event.id erforderlich');
             return;
@@ -61,7 +59,6 @@ class KronosEvents {
 
             const result = await response.json();
             if (result.message?.success) {
-                console.log('✅ Event aktualisiert:', result.message.id);
                 calendarRef?.refetchEvents();
             } else {
                 console.error('❌ Update fehlgeschlagen:', result.exc);
@@ -79,8 +76,6 @@ class KronosEvents {
      * @param {Object} calendarRef – KronosCalendar-Instanz (für refetchEvents)
      */
     static async createEvent(title, start, end, element_calendar, calendarRef, extraFields = {}) {
-        console.log('➕ Erstelle Event:', { title, start, end });
-
         if (!title?.trim()) {
             console.error('❌ Titel erforderlich');
             return;
@@ -122,7 +117,6 @@ class KronosEvents {
 
             const result = await response.json();
             if (result.message?.id) {
-                console.log('✅ Event erstellt:', result.message.id);
                 calendarRef?.refetchEvents();
             }
         } catch (err) {
@@ -136,8 +130,6 @@ class KronosEvents {
      * @param {Object} calendarRef – KronosCalendar-Instanz (für refetchEvents)
      */
     static async deleteEvent(eventId, calendarRef) {
-        console.log('🗑️ Lösche Event:', eventId);
-
         if (!eventId) {
             console.error('❌ Event-ID erforderlich');
             return;
@@ -154,7 +146,6 @@ class KronosEvents {
 
             if (!response.ok) throw new Error(await response.text());
 
-            console.log('✅ Event gelöscht:', eventId);
             calendarRef?.refetchEvents();
         } catch (err) {
             console.error('❌ Delete Fehler:', err);
@@ -163,4 +154,3 @@ class KronosEvents {
 }
 
 export { KronosEvents };
-console.log('✅ events_api.js geladen');

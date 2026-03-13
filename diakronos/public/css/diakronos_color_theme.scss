@@ -1,80 +1,156 @@
 :root {
-// ── Semantische Farben (Light Mode Default) ──────────────
---bg-page:           var(--neutral-white);           // Haupt-Hintergrund
---bg-surface:        var(--gray-50);                 // Karten, Sidebar, Panels
+// ── Grau-Palette (vormals frappe espresso) ────────────────────
+--neutral-white:     #ffffff;
+--gray-50:           #f8f8f8;
+--gray-100:          #f3f3f3;
+--gray-200:          #ededed;
+--gray-300:          #e2e2e2;
+--gray-400:          #c7c7c7;
+--gray-500:          #999999;
+--gray-600:          #7c7c7c;
+--gray-700:          #525252;
+--gray-800:          #383838;
+--gray-900:          #171717;
+
+// ── Semantische Farben (Light Mode) ──────────────────────────
+--bg-page:           var(--neutral-white);
+--bg-surface:        var(--gray-50);
 --bg-surface-hover:  var(--gray-100);
 --bg-surface-active: var(--gray-200);
---text-primary:      var(--gray-900);                // Normaler Text, Überschriften
+--text-primary:      var(--gray-900);
 --text-secondary:    var(--gray-700);
---text-muted:        var(--gray-500);                // Meta, Hinweise
---text-light:        var(--neutral-white);           // Text auf dunklem/primary Hintergrund
---border-default:    var(--gray-300);                // Normale Rahmen, Trennlinien
---border-subtle:     var(--gray-200);                // Leichte Trennlinien
+--text-muted:        var(--gray-500);
+--text-light:        var(--neutral-white);
+--border-default:    var(--gray-300);
+--border-subtle:     var(--gray-200);
 --primary:           var(--gray-400);
---primary-hover:     var(--gray-100);                // Leichter Grau-Hover
+--primary-hover:     var(--gray-100);
 --primary-active:    var(--gray-200);
---primary-light:     var(--gray-50);                 // Sehr heller Ton
+--primary-light:     var(--gray-50);
 --success:           #10b981;
 --warning:           #f59e0b;
 --danger:            #ef4444;
+--danger-active:     #dc2626;
 --info:              #0ea5e9;
-// ── Ergänzte Variablen für Kronos (basierend auf genutzten Styles) ──
---overlay-dark:      rgba(0, 0, 0, 0.5);             // Für Modals/Backdrops
---shadow-color:      rgba(0, 0, 0, 0.1);             // Leichter Schatten
---focus-ring:        0 0 0 3px rgba(59, 130, 246, 0.3);  // Blauer Fokus
-// ──Gaps ────────────────────────────────────────────────
+--red-400:           #fc8181;
+--red-500:           #ef4444;
+
+// ── Aliase (Legacy-Kompatibilität) ────────────────────────────
+--text-color:        var(--text-primary);
+--bg-color:          var(--bg-page);
+--card-bg:           var(--bg-surface);
+--border-color:      var(--border-default);
+--text-on-primary:   var(--text-light);
+--primary-color:     var(--primary);
+--navbar-bg:         var(--bg-surface);
+--bg-light:          var(--gray-100);
+
+// ── Z-Index ───────────────────────────────────────────────────
+--z-index-medium:    10;
+
+// ── Typografie ────────────────────────────────────────────────
+--text-xs:           0.75rem;    // 12px
+--text-sm:           0.875rem;   // 14px
+--text-base:         1rem;       // 16px
+--text-lg:           1.125rem;   // 18px
+--text-xl:           1.25rem;    // 20px
+--text-2xl:          1.5rem;     // 24px
+--text-3xl:          1.875rem;   // 30px
+--weight-thin:       300;
+--weight-light:      300;
+--weight-normal:     400;
+--weight-medium:     500;
+--weight-semibold:   600;
+--weight-bold:       700;
+
+// ── Border Radius ─────────────────────────────────────────────
+--border-radius-tiny: 2px;
+--border-radius-xs:  4px;
+--border-radius-sm:  6px;
+--border-radius-md:  8px;
+--border-radius-lg:  12px;
+--border-radius-xl:  16px;
+--border-radius-full: 999px;
+
+// ── Schatten ──────────────────────────────────────────────────
+--shadow-sm:         0 1px 2px rgba(0, 0, 0, 0.06);
+--shadow-md:         0 2px 8px rgba(0, 0, 0, 0.10);
+--shadow-lg:         0 4px 16px rgba(0, 0, 0, 0.14);
+--shadow-xl:         0 8px 32px rgba(0, 0, 0, 0.18);
+
+// ── Hilfsvariablen ────────────────────────────────────────────
+--overlay-dark:      rgba(0, 0, 0, 0.5);
+--shadow-color:      rgba(0, 0, 0, 0.1);
+--focus-ring:        0 0 0 3px rgba(59, 130, 246, 0.3);
+
+// ── Abstände ─────────────────────────────────────────────────
 --gap-tiny: 4px;
---gap-sm: 8px;
---gap: 10px;
---gap-m: 12px;
---gap-l: 14px;
---gap-xl: 16px;
---gap-2xl: 20px;
---gap-full: 999px;
-// Size ────────────────────────────────────────────────
+--gap-sm:   8px;
+--gap:      10px;
+--gap-m:    12px;
+--gap-l:    14px;
+--gap-xl:   16px;
+--gap-2xl:  20px;
+--gap-full:  999px;
+
+// ── Größen ───────────────────────────────────────────────────
 --size-tiny: 4px;
---size: 40px;
+--size:      40px;
 --size-huge: 8px;
-// Buttons ────────────────────────────────────────────────
+
+// ── Buttons ──────────────────────────────────────────────────
 --botton-inactive:      var(--neutral-white);
 --button-active:         #86adbd;
 --botton-hover:          #9bb6c1;
 --button-icon-inactive:  var(--gray-500);
 --button-icon-active:    #000000;
 --botton-icon-hover:     #000000;
-// Button Size ───────────────────────────
---button-height-sm: 20px;
---button-height-m:25px;
---button-height: 40px;
---button-height-l: 45px;
---button-height-xl: 55px;
+
+--button-height-sm:  20px;
+--button-height-m:   25px;
+--button-height:     40px;
+--button-height-l:   45px;
+--button-height-xl:  55px;
 --button-height-xxl: 70px;
---button-width-sm: 30px;
---button-width-m:35px;
---button-width: 40px;
---button-width-l: 45px;
---button-width-xl: 55px;
---button-width-xxl: 70px;
-//==== Header Colortheme (hc-xx)
-    --hc-primary: var();
-    --hc-secondary: var();
-    --hc-tertiary: var();
-    
-//==== Header Forms (hf-xx)
-    --hf-border: var();
-    --hf-border-radius: var();
+--button-width-sm:   30px;
+--button-width-m:    35px;
+--button-width:      40px;
+--button-width-l:    45px;
+--button-width-xl:   55px;
+--button-width-xxl:  70px;
 
-//==== Header Buttons (hb-xx)
-    --hb-bg-inactive: var();
-    --hb-bg-hover: var();
-    --hb-bg-active: var();
-    --hb-border: var();
-    --hb-border-radius: var();
+// ── Header Colortheme (hc-xx) ─────────────────────────────────
+--hc-primary:   var(--bg-surface);
+--hc-secondary: var(--bg-surface-hover);
+--hc-tertiary:  var(--bg-surface-active);
 
+// ── Header Forms (hf-xx) ─────────────────────────────────────
+--hf-border:        var(--border-default);
+--hf-border-radius: var(--border-radius-md);
+
+// ── Header Buttons (hb-xx) ───────────────────────────────────
+--hb-bg-inactive:   var(--botton-inactive);
+--hb-bg-hover:      var(--botton-hover);
+--hb-bg-active:     var(--button-active);
+--hb-border:        var(--border-default);
+--hb-border-radius: var(--border-radius-sm);
 }
+
 // ── Dark Mode ────────────────────────────────────────────────
 .dark {
---bg-page:           #0f172a;                        // Dunkler Hintergrund
+--neutral-white:     #f1f5f9;
+--gray-50:           #1e293b;
+--gray-100:          #263244;
+--gray-200:          #334155;
+--gray-300:          #475569;
+--gray-400:          #64748b;
+--gray-500:          #94a3b8;
+--gray-600:          #cbd5e1;
+--gray-700:          #e2e8f0;
+--gray-800:          #f1f5f9;
+--gray-900:          #f8fafc;
+
+--bg-page:           #0f172a;
 --bg-surface:        #1e293b;
 --bg-surface-hover:  #334155;
 --bg-surface-active: #475569;
@@ -82,17 +158,43 @@
 --text-secondary:    #cbd5e1;
 --text-muted:        #94a3b8;
 --text-light:        #f1f5f9;
---default:    #475569;
---subtle:     #334155;
---primary:           #f1f5f9;                        // Hell für Buttons im Dark Mode
+--border-default:    #475569;
+--border-subtle:     #334155;
+--primary:           #f1f5f9;
 --primary-hover:     #cbd5e1;
 --primary-active:    #94a3b8;
---primary-light:     #1e293b1a;                      // Transparente Variante
+--primary-light:     rgba(30, 41, 59, 0.1);
 --success:           #34d399;
 --warning:           #fbbf24;
 --danger:            #f87171;
+--danger-active:     #ef4444;
 --info:              #38bdf8;
---overlay-dark:      rgba(255, 255, 255, 0.1);       // Heller Overlay im Dark
+--red-400:           #feb2b2;
+--red-500:           #f87171;
+
+--text-color:        var(--text-primary);
+--bg-color:          var(--bg-page);
+--card-bg:           var(--bg-surface);
+--border-color:      var(--border-default);
+--text-on-primary:   var(--text-light);
+--navbar-bg:         var(--bg-surface);
+--bg-light:          var(--gray-200);
+
+--overlay-dark:      rgba(255, 255, 255, 0.1);
 --shadow-color:      rgba(255, 255, 255, 0.05);
 --focus-ring:        0 0 0 3px rgba(96, 165, 250, 0.3);
+--shadow-sm:         0 1px 2px rgba(0, 0, 0, 0.3);
+--shadow-md:         0 2px 8px rgba(0, 0, 0, 0.4);
+--shadow-lg:         0 4px 16px rgba(0, 0, 0, 0.5);
+--shadow-xl:         0 8px 32px rgba(0, 0, 0, 0.6);
+
+--button-icon-inactive: var(--gray-500);
+--button-icon-active:   var(--gray-900);
+--botton-icon-hover:    var(--gray-900);
+
+--hc-primary:   var(--bg-surface);
+--hc-secondary: var(--bg-surface-hover);
+--hc-tertiary:  var(--bg-surface-active);
+--hf-border:    var(--border-default);
+--hb-border:    var(--border-default);
 }

@@ -65,9 +65,6 @@ class KronosCalendar {
                     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                     const activeCalendars = getSelectedCalendars();
 
-                    console.log('Events-Fetch gestartet – Zeitraum:', startDate, 'bis', endDate);
-                    console.log('Ausgewählte Kalender Filter:', activeCalendars.length > 0 ? activeCalendars : 'ALLE');
-
                     try {
                         const response = await fetch('/api/method/diakronos.kronos.api.calendar_get.get_calendar_events', {
                             method: 'POST',
@@ -89,7 +86,6 @@ class KronosCalendar {
 
                         const result = await response.json();
                         const events = result.message || [];
-                        console.log('Gefetchte Events:', events.length);
                         successCallback(events);
                     } catch (err) {
                         console.error('❌ Events Fetch Fehler:', err);
@@ -145,7 +141,6 @@ class KronosCalendar {
 
                 // Arrow-Funktionen → this zeigt auf KronosCalendar-Instanz
                 eventDrop: async (info) => {
-                    console.log('📦 Event verschoben:', info.event.id);
                     const props = info.event.extendedProps || {};
                     if (props.series_id) {
                         if (!sessionAutoConvertSeries) {
@@ -160,7 +155,6 @@ class KronosCalendar {
                 },
 
                 eventResize: async (info) => {
-                    console.log('📏 Event resized:', info.event.id);
                     const props = info.event.extendedProps || {};
                     if (props.series_id) {
                         if (!sessionAutoConvertSeries) {
@@ -207,7 +201,6 @@ class KronosCalendar {
             }
 
             this.calendar.render();
-            console.log('✅ Kalender erfolgreich gerendert');
 
             // Mobile: Swipe nach rechts in der Tagesansicht → zurück zur Monatsansicht
             let _swipeStartX = 0;

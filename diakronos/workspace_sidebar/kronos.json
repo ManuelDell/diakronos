@@ -1,0 +1,78 @@
+{
+ "app": "diakronos",
+ "doctype": "Workspace Sidebar",
+ "header_icon": "/assets/diakronos/images/kronos-logo.svg",
+ "items": [
+  {
+   "child": 0,
+   "collapsible": 0,
+   "idx": 0,
+   "keep_closed": 0,
+   "label": "Home",
+   "link_to": "Kronos",
+   "link_type": "Workspace",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 0,
+   "idx": 1,
+   "keep_closed": 0,
+   "label": "Kalenderansicht (Web)",
+   "link_to": "/kronos/calendar",
+   "link_type": "URL",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 0,
+   "idx": 2,
+   "keep_closed": 0,
+   "label": "Terminliste",
+   "link_to": "Element",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 0,
+   "idx": 3,
+   "keep_closed": 0,
+   "label": "Terminkategorie",
+   "link_to": "Eventkategorie",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 0,
+   "idx": 4,
+   "keep_closed": 0,
+   "label": "Verfügbare Kalender",
+   "link_to": "Kalender",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 0,
+   "idx": 5,
+   "keep_closed": 0,
+   "label": "Google Kalender Einstellungen",
+   "link_to": "Google Kalender Einstellungen",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-03-11 12:00:00.000000",
+ "module": "Kronos",
+ "name": "Kronos",
+ "standard": 1,
+ "title": "Kronos"
+}

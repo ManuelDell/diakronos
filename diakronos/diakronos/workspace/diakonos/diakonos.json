@@ -7,15 +7,15 @@
  "doctype": "Workspace",
  "for_user": "",
  "hide_custom": 0,
- "icon": "/assets/diakronos/images/diakronos-logo.svg",
+ "icon": "/assets/diakronos/images/diakonos-logo.svg",
  "idx": 0,
  "indicator_color": "green",
  "is_hidden": 0,
  "label": "Diakonos",
  "links": [],
- "modified": "2026-03-08 18:00:00.000000",
+ "modified": "2026-03-11 12:00:00.000000",
  "modified_by": "Administrator",
- "module": "Kronos",
+ "module": "Diakonos",
  "name": "Diakonos",
  "number_cards": [],
  "owner": "Administrator",
@@ -27,7 +27,7 @@
    "role": "Mitglied"
   }
  ],
- "sequence_id": 3.0,
+ "sequence_id": 4.0,
  "shortcuts": [
   {
    "color": "Green",

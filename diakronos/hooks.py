@@ -53,6 +53,7 @@ whitelisted_methods = {
     'diakronos.kronos.api.google_import.upload_ical',
     # Diakronos Einstellungen
     'diakronos.diakronos.doctype.diakronos_einstellungen.diakronos_einstellungen.get_module_defaults',
+    'diakronos.diakronos.doctype.diakronos_einstellungen.diakronos_einstellungen.run_demo_data_action',
     # Diakronos Startseite – Modul-Zugriff & Nutzerpräferenz
     'diakronos.kronos.api.permissions.get_accessible_modules',
     'diakronos.kronos.api.permissions.set_home_preference',
@@ -67,14 +68,6 @@ app_include_icons = [
     "/assets/diakronos/images/icons/kalender-icon.png",
     "/assets/diakronos/images/icons/calendar-week-icon.svg"
 ]
-# ── Startseite nach Login (nach Rolle) ───────────────────────────────────────
-# Nutzer mit dieser Rolle landen direkt beim Kalender statt beim Desk.
-# Mehrere Rollen möglich – erste Übereinstimmung gewinnt.
-role_home_page = {
-    # /diakronos übernimmt die smarte Weiterleitung:
-    # 1 Modul → direkt dorthin, mehrere → Kachelseite, Präferenz → bevorzugtes Modul
-    "Mitglied": "/diakronos",
-}
 
 after_install = "diakronos.setup.install.symlink_create_install"
 

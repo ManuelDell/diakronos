@@ -1,0 +1,18 @@
+{
+ "app": "diakronos",
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon": "/assets/diakronos/images/diakonos-logo.svg",
+ "icon_type": "Link",
+ "label": "Diakonos",
+ "link_to": "Diakonos",
+ "link_type": "Workspace Sidebar",
+ "logo_url": "/assets/diakronos/images/diakonos-logo.svg",
+ "modified": "2026-03-11 12:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "Diakonos",
+ "owner": "Administrator",
+ "restrict_removal": 0,
+ "roles": [],
+ "standard": 1
+}

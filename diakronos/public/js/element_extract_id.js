@@ -32,7 +32,6 @@ class ElementExtractId {
                 source.value !== '' && 
                 typeof source.value === 'string') {
                 
-                console.log(`✅ ElementExtractId: ID aus "${source.name}" = "${source.value}"`);
                 return source.value;
             }
         }
@@ -87,4 +86,3 @@ class ElementExtractId {
 }
 
 export { ElementExtractId };
-console.log('✅ ElementExtractId Modul geladen');

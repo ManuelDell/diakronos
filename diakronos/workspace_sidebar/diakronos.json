@@ -1,0 +1,56 @@
+{
+ "app": "diakronos",
+ "doctype": "Workspace Sidebar",
+ "header_icon": "/assets/diakronos/images/diakronos-logo.svg",
+ "items": [
+  {
+   "child": 0,
+   "collapsible": 0,
+   "idx": 0,
+   "keep_closed": 0,
+   "label": "Home",
+   "link_to": "Diakronos",
+   "link_type": "Workspace",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 0,
+   "idx": 1,
+   "keep_closed": 0,
+   "label": "Diakronos Einstellungen",
+   "link_to": "Diakronos Einstellungen",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 0,
+   "idx": 2,
+   "keep_closed": 0,
+   "label": "Modul Einstellungen",
+   "link_to": "Diakronos Modul Einstellung",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 0,
+   "idx": 3,
+   "keep_closed": 0,
+   "label": "Nutzerrechte",
+   "link_to": "Nutzereinzelrechte",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-03-11 12:00:00.000000",
+ "module": "Diakronos",
+ "name": "Diakronos",
+ "standard": 1,
+ "title": "Diakronos"
+}

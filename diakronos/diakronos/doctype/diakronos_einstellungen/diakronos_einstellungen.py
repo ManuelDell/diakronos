@@ -2,6 +2,7 @@ import os
 import re
 import frappe
 from frappe.model.document import Document
+from diakronos.diakronos.doctype.diakronos_einstellungen import demo_data as _demo
 
 # (field_prefix, Frappe-Modulname)
 KNOWN_MODULES = [
@@ -194,6 +195,38 @@ class DiakronosEinstellungen(Document):
 # ------------------------------------------------------------------ #
 # Whitelisted API                                                      #
 # ------------------------------------------------------------------ #
+
+
+@frappe.whitelist()
+def run_demo_data_action(action):
+    """Demodaten erstellen oder löschen. Wird direkt vom Formular-JS aufgerufen."""
+    if action == "create":
+        _demo.create_demo_data()
+        frappe.db.set_single_value("Diakronos Einstellungen", "demodaten_aktiv",    1)
+        frappe.db.set_single_value("Diakronos Einstellungen", "demodaten_erstellen", 1)
+        frappe.msgprint(
+            msg=(
+                "Demodaten wurden erfolgreich erstellt:<br>"
+                f"• <b>{len(_demo.KATEGORIEN)}</b> Eventkategorien<br>"
+                f"• <b>{len(_demo.KALENDER)}</b> Kalender<br>"
+                f"• <b>{len(_demo.MITGLIEDER)}</b> Mitglieder<br>"
+                f"• <b>{len(_demo.BESUCHER)}</b> Besucher<br>"
+                "• Termine für Vormonat, aktuellen Monat und Folgemonat"
+            ),
+            title="Demodaten erstellt",
+            indicator="green",
+        )
+    elif action == "delete":
+        _demo.delete_demo_data()
+        frappe.db.set_single_value("Diakronos Einstellungen", "demodaten_aktiv",    0)
+        frappe.db.set_single_value("Diakronos Einstellungen", "demodaten_erstellen", 0)
+        frappe.msgprint(
+            msg="Alle Demodaten wurden gelöscht.",
+            title="Demodaten entfernt",
+            indicator="blue",
+        )
+    else:
+        frappe.throw(f"Unbekannte Aktion: {action}")
 
 
 @frappe.whitelist()

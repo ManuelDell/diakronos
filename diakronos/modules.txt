@@ -1,5 +1,4 @@
 Diakronos
 Kronos
-Diakonos
 Psalmos
-Seelsorge
+Diakonos

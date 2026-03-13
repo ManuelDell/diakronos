@@ -19,7 +19,7 @@ def get_context(context):
     # Berechtigungsprüfung: muss Psalmos-Nutzer oder Administrator sein
     roles = set(frappe.get_roles(user))
     if not (roles & PSALMOS_ROLES):
-        frappe.local.flags.redirect_location = "/diakronos"
+        frappe.local.flags.redirect_location = "/app"
         raise frappe.Redirect
 
     context.no_cache = 1

@@ -23,5 +23,4 @@ export function kronos_calendar_init() {
         fab.addEventListener('click', () => DiakronosCreateModal.show({}));
     }
 
-    console.log('🎉 KRONOS KALENDER VOLLSTÄNDIG INITIALISIERT');
 }

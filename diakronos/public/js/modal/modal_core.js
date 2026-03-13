@@ -48,4 +48,3 @@ class DiakronosModalBase {
 
 // ✅ ES6 Export statt window Deklaration
 export { DiakronosModalBase };
-console.log('modal_core.js geladen – DiakronosModalBase exportiert');
