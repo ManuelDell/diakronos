@@ -6,6 +6,6 @@
     "baseline-browser-mapping": "^2.9.17"
   },
   "dependencies": {
-    "@fullcalendar/multimonth": "^6.1.20"
+    "@event-calendar/build": "^5.4.2"
   }
 }

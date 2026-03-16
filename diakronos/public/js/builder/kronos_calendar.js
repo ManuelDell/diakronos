@@ -1,4 +1,4 @@
-// builder/kronos_calendar.js – Haupt-Kalender Klasse
+// builder/kronos_calendar.js – Haupt-Kalender Klasse (EventCalendar)
 
 import { DiakronosDayEventsModal } from '../modal/modal_day_events.js';
 import { DiakronosCreateModal } from '../modal/modal_create.js';
@@ -23,41 +23,24 @@ class KronosCalendar {
             return;
         }
 
-        const { Calendar } = window.FullCalendar;
+        const Calendar = window.EventCalendar;
         if (!Calendar) {
-            console.error('❌ Kritische Calendar-Klasse fehlt');
+            console.error('❌ EventCalendar nicht gefunden (window.EventCalendar)');
             return;
         }
 
         try {
-            // editable und selectable initial anhand des viewMode-State setzen
             const isViewMode = getViewMode();
 
             this.calendar = new Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
+                view: 'dayGridMonth',
                 locale: 'de',
                 eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
                 headerToolbar: false,
                 weekNumbers: true,
-                fixedWeekCount: false,
-                navLinks: true,
-                navLinkDayClick: (date) => {
-                    if (window.innerWidth <= 768) return;
-                    this.calendar.changeView('timeGridDay', date);
-                    const sel = document.getElementById('view-selector');
-                    if (sel) sel.value = 'timeGridDay';
-                },
-                navLinkWeekClick: (weekStart) => {
-                    if (window.innerWidth <= 768) return;
-                    this.calendar.changeView('timeGridWeek', weekStart);
-                    const sel = document.getElementById('view-selector');
-                    if (sel) sel.value = 'timeGridWeek';
-                },
                 height: '100%',
-                expandRows: true,
                 editable: !isViewMode,
                 selectable: !isViewMode,
-                selectMirror: true,
 
                 events: async function(fetchInfo, successCallback, failureCallback) {
                     const startDate = fetchInfo.startStr.split('T')[0];
@@ -94,8 +77,6 @@ class KronosCalendar {
                 },
 
                 dateClick: function(info) {
-                    // Im Bearbeitungsmodus übernimmt `select` den Create-Dialog –
-                    // so wird verhindert dass beide Handler gleichzeitig feuern.
                     if (getViewMode()) {
                         if (DiakronosDayEventsModal) {
                             DiakronosDayEventsModal.show(info.dateStr);
@@ -107,14 +88,13 @@ class KronosCalendar {
                     const isMobile = window.innerWidth <= 768;
                     const currentView = info.view.type;
 
-                    // Mobile + Monatsansicht: Termin-Klick öffnet Tagesansicht des Tages
+                    // Mobile + Monatsansicht: Termin-Klick öffnet Tagesansicht
                     if (isMobile && currentView === 'dayGridMonth') {
-                        info.view.calendar.changeView('timeGridDay', info.event.start);
+                        kronosCalendar.changeView('timeGridDay', info.event.start);
                         info.jsEvent.preventDefault();
                         return;
                     }
 
-                    // Standard: Modal anzeigen (Desktop oder bereits in Tagesansicht)
                     const eventData = info.event;
                     if (!eventData || !eventData.id) return;
 
@@ -139,7 +119,6 @@ class KronosCalendar {
                     info.jsEvent.preventDefault();
                 },
 
-                // Arrow-Funktionen → this zeigt auf KronosCalendar-Instanz
                 eventDrop: async (info) => {
                     const props = info.event.extendedProps || {};
                     if (props.series_id) {
@@ -171,9 +150,8 @@ class KronosCalendar {
                 select: (info) => {
                     if (!DiakronosCreateModal) return;
 
-                    const date = info.startStr.slice(0, 10); // "YYYY-MM-DD"
+                    const date = info.startStr.slice(0, 10);
                     const now  = new Date();
-                    // Auf 5 Minuten runden
                     const roundedMin = Math.round(now.getMinutes() / 5) * 5;
                     const carryHour  = Math.floor(roundedMin / 60);
                     const h = (now.getHours() + carryHour) % 24;
@@ -187,6 +165,11 @@ class KronosCalendar {
                         element_start: startStr,
                         element_end:   endStr,
                     });
+                },
+
+                // datesSet broadcastet an alle Listener via Custom-Event
+                datesSet: (info) => {
+                    document.dispatchEvent(new CustomEvent('ec:datesSet', { detail: info }));
                 }
             });
 
@@ -194,48 +177,29 @@ class KronosCalendar {
             const sidebar = document.querySelector('.kronos-sidebar');
             if (sidebar) {
                 sidebar.addEventListener('transitionend', (event) => {
-                    if (event.propertyName === 'width' && this.calendar) {
-                        this.calendar.updateSize();
+                    if (event.propertyName === 'width') {
+                        // EventCalendar resized automatisch
                     }
                 });
             }
 
-            this.calendar.render();
-
-            // Mobile: Swipe nach rechts in der Tagesansicht → zurück zur Monatsansicht
+            // Mobile: Swipe-Navigation
             let _swipeStartX = 0;
             calendarEl.addEventListener('touchstart', (e) => {
                 _swipeStartX = e.touches[0].clientX;
             }, { passive: true });
             calendarEl.addEventListener('touchend', (e) => {
                 const delta = e.changedTouches[0].clientX - _swipeStartX;
-                const viewType = this.calendar.view.type;
+                const viewType = this.calendar.getOption('view');
                 if (viewType === 'timeGridDay') {
-                    if (delta > 80) this.calendar.changeView('dayGridMonth');
+                    if (delta > 80) this.changeView('dayGridMonth');
                 } else if (viewType === 'dayGridMonth') {
                     if (delta < -80) this.calendar.next();
                     else if (delta > 80) this.calendar.prev();
                 }
             }, { passive: true });
 
-            // Header-Navigation verknüpfen
-            const dateDisplay = document.getElementById('current-date-display');
-            const prevBtn = document.querySelector('.prev-month');
-            const nextBtn = document.querySelector('.next-month');
-
-            const updateDateDisplay = () => {
-                if (dateDisplay && this.calendar) {
-                    dateDisplay.textContent = this.calendar.view.title;
-                }
-            };
-
-            this.calendar.on('datesSet', updateDateDisplay);
-            updateDateDisplay();
-
-            // Navigation wird in header_build_elements.js verdrahtet (kein Doppel-Listener)
-
             calendarEl.style.height = '100%';
-            this.calendar.updateSize();
 
         } catch (error) {
             console.error('❌ Fehler beim Initialisieren:', error);
@@ -249,7 +213,6 @@ class KronosCalendar {
 
     refetchEvents() {
         if (this.calendar) {
-            this.calendar.updateSize();
             setTimeout(() => { this.calendar.refetchEvents(); }, 50);
         } else {
             console.warn('⚠️ Calendar nicht initialisiert');
@@ -257,15 +220,17 @@ class KronosCalendar {
     }
 
     gotoDate(dateStr) {
-        if (this.calendar) this.calendar.gotoDate(dateStr);
+        if (this.calendar) this.calendar.setOption('date', new Date(dateStr));
     }
 
-    changeView(viewName) {
-        if (this.calendar) this.calendar.changeView(viewName);
+    changeView(viewName, date) {
+        if (!this.calendar) return;
+        this.calendar.setOption('view', viewName);
+        if (date) this.calendar.setOption('date', date instanceof Date ? date : new Date(date));
     }
 
     getCurrentView() {
-        return this.calendar ? this.calendar.view : null;
+        return this.calendar ? { type: this.calendar.getOption('view') } : null;
     }
 
     today() {

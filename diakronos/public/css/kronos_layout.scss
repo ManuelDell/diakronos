@@ -143,82 +143,72 @@ body {
     overflow: hidden;
 }
 
-.fc {
+/* ============================================================================
+   EventCalendar Styling – angelehnt an Google Calendar
+   ============================================================================ */
+
+.ec {
     height: 100%;
     border-radius: 24px;
     background-color: var(--bg-page) !important;
     overflow: hidden;
-    box-shadow: var(--shadow-md);  // optional – sieht edler aus
-
+    box-shadow: var(--shadow-md);
+    font-family: inherit;
 }
 
-.fc-theme-standard .fc-scrollgrid {
-  border-radius: 12px;
-  border: 1px solid var(--border-default);
+.ec-header {
+    background-color: var(--bg-surface-active);
+    border-bottom: 1px solid var(--border-default);
 }
 
-.fc-view-harness {
-  flex-grow: 1; /* because this harness is WITHIN the .fc's flexbox */
-  position: relative;
+.ec-body {
+    border: 1px solid var(--border-default);
+    border-radius: 0 0 12px 12px;
 }
 
-.fc .fc-daygrid-day-top {
-    text-align: center !important;           // überschreibt right-align
+/* Kalenderwochen */
+.ec .ec-row-head {
+    width: 36px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 4px 2px;
 }
 
-.fc .fc-daygrid-day-number {
-    margin: 0 auto !important;               // zentriert das Element
-    padding: 4px 0 !important;               // etwas Luft oben/unten
+.ec .ec-row-head > * {
+    display: inline-block;
+    background: var(--gray-100);
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+
+/* Tagesnummer zentriert */
+.ec .ec-day-head {
+    text-align: center !important;
+}
+
+.ec .ec-day-head a,
+.ec .ec-day-head span {
+    margin: 0 auto !important;
+    padding: 4px 0 !important;
     display: inline-block !important;
-    min-width: 24px;                         // verhindert zu enges Aussehen
+    min-width: 24px;
     text-align: center !important;
     font-weight: var(--weight-medium);
     color: var(--text-primary);
-
 }
 
-.fc-scrollgrid-section-header {
-    background-color: var(--bg-surface-active);
-}
+/* EventCalendar Event Styling – angelehnt an Google Calendar */
 
-.fc .fc-daygrid-week-number {
-  /* Kein position:absolute – bleibt in FullCalendars eigenem Grid-Spalt */
-  width: 36px;
-  text-align: center;
-  font-size: 12px;
-  color: var(--text-muted);
-  padding: 4px 2px;
-}
-
-.fc .fc-daygrid-week-number > span {
-  display: inline-block;
-  background: var(--gray-100);
-  border-radius: 4px;
-  padding: 2px 4px;
-}
-
-/* FullCalendar Event Styling – angelehnt an Google Calendar
-   --------------------------------------------------------- */
-
-/* Monatsansicht: horizontale Event-Chips */
-.fc-daygrid-event {
+/* Alle Events */
+.ec-event {
     border-radius: 4px;
-    padding: 1px 5px;
-    font-size: 12px;
-    line-height: 1.5;
-    overflow: hidden;
-}
-
-/* Wochen-/Tagesansicht: vertikale Event-Blöcke */
-.fc-timegrid-event {
-    border-radius: 4px;
-    padding: 2px 5px;
     font-size: 12px;
     overflow: hidden;
 }
 
-/* Terminname: mittleres Gewicht (wie Google Calendar) */
-.fc-event-title {
+/* Terminname */
+.ec-event-title {
     font-weight: 500;
     font-size: 12px;
     overflow: hidden;
@@ -226,8 +216,8 @@ body {
     white-space: nowrap;
 }
 
-/* Uhrzeit: etwas kleiner + leicht gedimmt gegenüber dem Terminname */
-.fc-event-time {
+/* Uhrzeit */
+.ec-event-time {
     font-size: 11px;
     font-weight: 400;
     opacity: 0.85;
@@ -250,19 +240,19 @@ body {
    ============================================================================ */
 @media (max-width: 768px) {
     /* Uhrzeit in Kalender-Terminen ausblenden – nimmt auf kleinen Screens zu viel Platz */
-    .fc-event-time {
+    .ec-event-time {
         display: none !important;
     }
 
     /* Kalenderwochen: Soothing Blue, fett, 25 % kleiner als Tagesnummern */
-    .fc .fc-daygrid-week-number {
+    .ec .ec-row-head {
         width: 20px;
         font-size: 8px;
         font-weight: 700;
         color: #6a9fd8;
         padding: 2px 0;
     }
-    .fc .fc-daygrid-week-number > span {
+    .ec .ec-row-head > * {
         background: transparent;
         padding: 0;
         border-radius: 0;
@@ -272,36 +262,28 @@ body {
 @media (max-width: 430px) {
     /* Sehr kleine Bildschirme (iPhone 12/13/14 Hochformat) */
 
-    .fc-daygrid-event {
+    .ec-event {
         font-size: 11px;
         padding: 0 1px;
     }
 
-    .fc-event-title {
+    .ec-event-title {
         font-size: 11px;
     }
 
-    .fc-daygrid-event-harness {
-        margin-top: 0 !important;
-    }
-
-    /* Punkt: Abstand zum Text so klein wie möglich */
-    .fc-daygrid-event-dot {
-        margin: 0 1px 0 0 !important;
-    }
-
-    .fc-daygrid-day-events {
+    .ec .ec-events {
         padding: 0 1px !important;
     }
 
-    .fc .fc-daygrid-day-number {
+    .ec .ec-day-head a,
+    .ec .ec-day-head span {
         font-size: 11px;
         min-width: 18px;
         padding: 2px 0 !important;
     }
 
-    /* Kalenderwochen: bleibt 8 px (= ~25 % kleiner als 11 px Tagesnummern) */
-    .fc .fc-daygrid-week-number {
+    /* Kalenderwochen: bleibt 8 px */
+    .ec .ec-row-head {
         font-size: 8px;
         width: 18px;
     }
