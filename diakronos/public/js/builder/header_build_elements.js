@@ -99,6 +99,7 @@ export function header_build_elements() {
         <option value="dayGridMonth">Monat</option>
         <option value="timeGridWeek">Woche</option>
         <option value="timeGridDay">Tag</option>
+        <option value="listMonth">Liste</option>
     `;
     headerRight.appendChild(viewSelector);
 
@@ -239,11 +240,8 @@ export function header_build_elements() {
         setViewMode(isView);
 
         if (kronosCalendar?.calendar) {
-            kronosCalendar.calendar.setOption('editable',              !isView);
-            kronosCalendar.calendar.setOption('eventStartEditable',    !isView);
-            kronosCalendar.calendar.setOption('eventDurationEditable', !isView);
-            kronosCalendar.calendar.setOption('droppable',             !isView);
-            kronosCalendar.calendar.setOption('selectable',            !isView);
+            kronosCalendar.calendar.setOption('editable',   !isView);
+            kronosCalendar.calendar.setOption('selectable', !isView);
         }
     });
 
@@ -262,24 +260,22 @@ export function header_build_elements() {
     });
 
     // ── Kalender-Navigation (Polling bis Kalender initialisiert) ─────────────
+    // Header-Datum via ec:datesSet DOM-Event (EventCalendar hat kein .on())
+    document.addEventListener('ec:datesSet', (e) => {
+        dateDisplay.textContent = e.detail.view.title || '';
+        const mobileEl = document.getElementById('mobile-month-display');
+        if (mobileEl) {
+            mobileEl.textContent = moment(e.detail.start).locale('de').format('MMMM');
+        }
+    });
+
     const tryConnectCalendar = setInterval(() => {
         if (kronosCalendar?.calendar) {
             clearInterval(tryConnectCalendar);
             const calendar = kronosCalendar.calendar;
-
-            const updateDateDisplay = () => {
-                dateDisplay.textContent = calendar.view.title || '';
-                const mobileEl = document.getElementById('mobile-month-display');
-                if (mobileEl) {
-                    mobileEl.textContent = moment(calendar.getDate()).locale('de').format('MMMM');
-                }
-            };
-            calendar.on('datesSet', updateDateDisplay);
-            updateDateDisplay();
-
             prevBtn.addEventListener('click', () => calendar.prev());
             nextBtn.addEventListener('click', () => calendar.next());
-            viewSelector.addEventListener('change', (e) => calendar.changeView(e.target.value));
+            viewSelector.addEventListener('change', (e) => kronosCalendar.changeView(e.target.value));
         }
     }, 200);
 

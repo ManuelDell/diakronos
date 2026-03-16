@@ -1,7 +1,5 @@
 // builder/kronos_mini_calendar.js – Mini-Monatskalender mit Moment.js
 
-import { kronosCalendar } from './kronos_calendar.js';
-
 // Moment.js Locale auf Deutsch setzen (moment ist als globales Script geladen)
 if (typeof moment !== 'undefined') {
     moment.locale('de');
@@ -110,14 +108,9 @@ class KronosMiniCalendar {
     }
 
     syncWithMain() {
-        if (!kronosCalendar?.calendar) {
-            console.warn('Haupt-Kalender nicht verfügbar – Sync deaktiviert');
-            return;
-        }
-        const mainCalendar = kronosCalendar.calendar;
-        mainCalendar.on('datesSet', () => {
-            const newDate = mainCalendar.getDate();
-            const newMonth = moment(newDate).startOf('month');
+        // EventCalendar hat kein .on() – stattdessen ec:datesSet DOM-Event
+        document.addEventListener('ec:datesSet', (e) => {
+            const newMonth = moment(e.detail.start).startOf('month');
             if (!this.m.isSame(newMonth, 'month')) {
                 this.m = newMonth;
                 this.render();
