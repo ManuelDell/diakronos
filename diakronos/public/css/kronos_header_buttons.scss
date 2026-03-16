@@ -462,9 +462,18 @@ justify-content: flex-end;
 }
 
 /* ============================================================================
-9. ALLGEMEIN – Responsives Verhalten (Mobile ≤ 768px)
+9. ALLGEMEIN – Responsives Verhalten
 ============================================================================ */
-@media (max-width: 768px) {
+
+/* Desktop (Maus/Trackpad): Avatar ausblenden */
+@media (pointer: fine) {
+    .profile-menu-wrapper {
+        display: none;
+    }
+}
+
+/* Mobile ≤ 768px (Touch-Geräte) */
+@media (max-width: 768px) and (pointer: coarse) {
 .header-center {
     display: none;
 }

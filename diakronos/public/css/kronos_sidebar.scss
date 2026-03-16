@@ -520,7 +520,7 @@ Sidebar, Kalenderliste
 /* ============================================================================
    MOBILE: Sidebar als Vollbild-Overlay ab 60px (Header-Höhe)
 ============================================================================ */
-@media (max-width: 768px) {
+@media (max-width: 768px) and (pointer: coarse) {
     .kronos-sidebar {
         position: fixed;
         top: 60px;
