@@ -23,16 +23,15 @@ class KronosCalendar {
             return;
         }
 
-        const Calendar = window.EventCalendar;
-        if (!Calendar) {
-            console.error('❌ EventCalendar nicht gefunden (window.EventCalendar)');
+        if (!window.EventCalendar?.create) {
+            console.error('❌ EventCalendar nicht gefunden (window.EventCalendar.create)');
             return;
         }
 
         try {
             const isViewMode = getViewMode();
 
-            this.calendar = new Calendar(calendarEl, {
+            this.calendar = window.EventCalendar.create(calendarEl, {
                 view: 'dayGridMonth',
                 locale: 'de',
                 eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
@@ -42,45 +41,59 @@ class KronosCalendar {
                 editable: !isViewMode,
                 selectable: !isViewMode,
 
-                events: async function(fetchInfo, successCallback, failureCallback) {
-                    const startDate = fetchInfo.startStr.split('T')[0];
-                    const endDate   = fetchInfo.endStr.split('T')[0];
-                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-                    const activeCalendars = getSelectedCalendars();
+                events: [],
+                eventSources: [
+                    {
+                        events: function(fetchInfo, successCallback, failureCallback) {
+                            const startDate = fetchInfo.startStr ? fetchInfo.startStr.split('T')[0] : '';
+                            const endDate   = fetchInfo.endStr   ? fetchInfo.endStr.split('T')[0]   : '';
+                            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                            const activeCalendars = getSelectedCalendars();
 
-                    try {
-                        const response = await fetch('/api/method/diakronos.kronos.api.calendar_get.get_calendar_events', {
-                            method: 'POST',
-                            headers: {
-                                'Accept': 'application/json',
-                                'Content-Type': 'application/json',
-                                'X-Frappe-CSRF-Token': csrfToken
-                            },
-                            body: JSON.stringify({
-                                start_date: startDate,
-                                end_date: endDate,
-                                calendar_filter: JSON.stringify(activeCalendars)
+                            fetch('/api/method/diakronos.kronos.api.calendar_get.get_calendar_events', {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json',
+                                    'X-Frappe-CSRF-Token': csrfToken
+                                },
+                                body: JSON.stringify({
+                                    start_date: startDate,
+                                    end_date: endDate,
+                                    calendar_filter: JSON.stringify(activeCalendars)
+                                })
                             })
-                        });
-
-                        if (!response.ok) {
-                            throw new Error(await response.text());
+                            .then(response => {
+                                if (!response.ok) return response.text().then(t => { throw new Error(t); });
+                                return response.json();
+                            })
+                            .then(result => successCallback(result.message || []))
+                            .catch(err => {
+                                console.error('❌ Events Fetch Fehler:', err);
+                                failureCallback(err);
+                            });
                         }
-
-                        const result = await response.json();
-                        const events = result.message || [];
-                        successCallback(events);
-                    } catch (err) {
-                        console.error('❌ Events Fetch Fehler:', err);
-                        failureCallback(err);
                     }
-                },
+                ],
 
                 dateClick: function(info) {
                     if (getViewMode()) {
                         if (DiakronosDayEventsModal) {
                             DiakronosDayEventsModal.show(info.dateStr);
                         }
+                    } else {
+                        // Edit-Modus: Create-Modal mit Datum vorbelegen
+                        if (!DiakronosCreateModal) return;
+                        const now = new Date();
+                        const roundedMin = Math.round(now.getMinutes() / 5) * 5;
+                        const carryHour = Math.floor(roundedMin / 60);
+                        const h = (now.getHours() + carryHour) % 24;
+                        const m = roundedMin % 60;
+                        const pad = n => String(n).padStart(2, '0');
+                        DiakronosCreateModal.show({
+                            element_start: `${info.dateStr}T${pad(h)}:${pad(m)}`,
+                            element_end:   `${info.dateStr}T${pad((h + 1) % 24)}:${pad(m)}`,
+                        });
                     }
                 },
 
@@ -220,7 +233,7 @@ class KronosCalendar {
     }
 
     gotoDate(dateStr) {
-        if (this.calendar) this.calendar.setOption('date', new Date(dateStr));
+        if (this.calendar) this.calendar.setOption('date', dateStr instanceof Date ? dateStr : new Date(dateStr));
     }
 
     changeView(viewName, date) {
@@ -230,11 +243,11 @@ class KronosCalendar {
     }
 
     getCurrentView() {
-        return this.calendar ? { type: this.calendar.getOption('view') } : null;
+        return this.calendar ? this.calendar.getView() : null;
     }
 
     today() {
-        if (this.calendar) this.calendar.today();
+        if (this.calendar) this.calendar.setOption('date', new Date());
     }
 }
 

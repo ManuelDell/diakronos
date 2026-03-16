@@ -160,7 +160,7 @@
 }
 
 // Mobile Anpassung
-@media (max-width: 640px) {
+@media (max-width: 640px) and (pointer: coarse) {
   .diakronos-modal-dialog {
     max-width: 100%;
     margin: var(--gap-m);
@@ -326,7 +326,7 @@
 }
 
 // Mobile Anpassung
-@media (max-width: 640px) {
+@media (max-width: 640px) and (pointer: coarse) {
   .diakronos-modal-dialog {
     max-width: 100%;
     margin: var(--gap-m);
@@ -477,7 +477,7 @@
 }
 
 // Mobile: Checkboxen untereinander
-@media (max-width: 640px) {
+@media (max-width: 640px) and (pointer: coarse) {
   .checkbox-row {
     flex-direction: column;
     gap: var(--gap-m);
