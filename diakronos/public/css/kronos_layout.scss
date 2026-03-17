@@ -57,7 +57,9 @@ body {
 }
 
 .header-left img {
+    width: 40px;
     height: 40px;
+    object-fit: contain;
 }
 
 .header-center {
@@ -238,6 +240,37 @@ body {
     flex-shrink: 0;
     white-space: nowrap;
 }
+
+/* ============================================================================
+   DOT-STYLE – Timed Events im Monatsview (wie FullCalendar-Standard)
+   Transparenter Hintergrund + farbiger Kreis + Titel
+   Ganztägige Events behalten farbigen Hintergrund
+   ============================================================================ */
+.ec-event.ec-event-dot-style {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    color: var(--text-primary);
+    padding: 0 2px;
+}
+
+.ec-dot-body {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
+    overflow: hidden;
+    flex-wrap: nowrap;
+}
+
+.ec-dot {
+    width: 8px;
+    height: 8px;
+    min-width: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
 /* ============================================================================
    7. SIDEBAR SECTIONS
    ============================================================================ */
