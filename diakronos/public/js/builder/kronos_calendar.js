@@ -183,6 +183,43 @@ class KronosCalendar {
                 // datesSet broadcastet an alle Listener via Custom-Event
                 datesSet: (info) => {
                     document.dispatchEvent(new CustomEvent('ec:datesSet', { detail: info }));
+                },
+
+                // Dot-Style für Termine im Monatsview (wie FullCalendar-Standard)
+                eventClassNames: (info) => {
+                    const isMonthView = this.calendar?.getOption('view') === 'dayGridMonth';
+                    const isMobile   = window.innerWidth <= 430;
+                    const isMultiDay = !info.event.allDay && info.event.end &&
+                        new Date(info.event.start).toDateString() !== new Date(info.event.end).toDateString();
+                    const useDot = !info.event.allDay && isMonthView && !isMobile && !isMultiDay;
+                    return useDot ? ['ec-event-dot-style'] : [];
+                },
+
+                eventContent: (info) => {
+                    const event = info.event;
+                    const isMonthView = this.calendar?.getOption('view') === 'dayGridMonth';
+                    const isMobile   = window.innerWidth <= 430;
+                    const isMultiDay = !event.allDay && event.end &&
+                        new Date(event.start).toDateString() !== new Date(event.end).toDateString();
+                    const safe = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+                    if (!event.allDay && isMonthView && !isMobile && !isMultiDay) {
+                        const color = event.backgroundColor || 'var(--primary)';
+                        return { html:
+                            `<div class="ec-event-body ec-dot-body">` +
+                            `<span class="ec-dot" style="background:${safe(color)}"></span>` +
+                            `<h4 class="ec-event-title">${safe(event.title)}</h4>` +
+                            `</div>`
+                        };
+                    }
+
+                    // Ganztags- und Mehrtagestermine: keine Uhrzeit anzeigen
+                    const showTime = !event.allDay && !isMultiDay;
+                    const timeHtml = showTime && info.timeText
+                        ? `<span class="ec-event-time">${safe(info.timeText)}</span>` : '';
+                    return { html:
+                        `<div class="ec-event-body">${timeHtml}<h4 class="ec-event-title">${safe(event.title)}</h4></div>`
+                    };
                 }
             });
 
