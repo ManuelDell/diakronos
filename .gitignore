@@ -57,3 +57,13 @@ jspm_packages/
 # Backup-Dateien
 *.backup.html
 public.backup/
+
+# SSH-Schlüssel – NIEMALS committen
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+github
+github.pub
