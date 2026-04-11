@@ -57,3 +57,15 @@ jspm_packages/
 # Backup-Dateien
 *.backup.html
 public.backup/
+
+# SSH-Keys – dürfen nie ins Repository
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+id_ecdsa
+id_ecdsa.pub
+github
+github.pub
+*.pem
+*.key
