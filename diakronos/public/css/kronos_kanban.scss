@@ -449,6 +449,140 @@ html, body {
     padding: 3px 9px;
 }
 
+// ── Serie-Badge ───────────────────────────────────────────────────────────────
+.kanban-serie-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    padding: 2px 7px;
+    font-size: 0.66rem;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+    svg { flex-shrink: 0; }
+}
+
+.kanban-serie-badge-lg {
+    @extend .kanban-serie-badge;
+    font-size: 0.78rem;
+    padding: 3px 10px;
+}
+
+// ── Serie-Karte ───────────────────────────────────────────────────────────────
+.kanban-card-serie {
+    .kanban-card-header { flex-wrap: wrap; gap: 4px; }
+}
+
+// ── Serie-Konflikt-Liste (in der Karte) ───────────────────────────────────────
+.kanban-serie-konflikt-list {
+    margin-top: 8px;
+    border-top: 1px solid #fca5a5;
+    padding-top: 6px;
+}
+
+.kanban-serie-konflikt-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #991b1b;
+    cursor: pointer;
+    user-select: none;
+    padding: 2px 0;
+    .kanban-toggle-icon {
+        margin-left: auto;
+        transition: transform 0.2s;
+        &.rotated { transform: rotate(180deg); }
+    }
+}
+
+.kanban-serie-konflikt-items {
+    display: none;
+    margin-top: 4px;
+    padding: 0;
+    list-style: none;
+    &.open { display: block; }
+}
+
+.kanban-serie-konflikt-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 0;
+    font-size: 0.76rem;
+    color: #7f1d1d;
+    border-bottom: 1px solid #fee2e2;
+    &:last-child { border-bottom: none; }
+
+    .kanban-serie-resolve-btn {
+        margin-left: auto;
+        padding: 2px 8px;
+        font-size: 0.7rem;
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+        border-radius: 4px;
+        cursor: pointer;
+        &:hover { background: #fca5a5; }
+    }
+}
+
+// ── Serien-Modal-Body ─────────────────────────────────────────────────────────
+.kanban-serie-modal-body {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.kanban-serie-info-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.87rem;
+    color: var(--text-secondary, #6b7280);
+    svg { flex-shrink: 0; }
+}
+
+.kanban-serie-conflict-intro {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 8px;
+}
+
+.kanban-serie-conflict-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.kanban-serie-conflict-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    background: #fff5f5;
+    border: 1px solid #fca5a5;
+    border-radius: 6px;
+    font-size: 0.82rem;
+}
+
+.kanban-serie-conflict-date {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #991b1b;
+    font-weight: 500;
+}
+
 // ── Drag States ───────────────────────────────────────────────────────────────
 .kanban-ghost {
     opacity: 0.35;

@@ -15,9 +15,9 @@ const API = {
 };
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let boardData    = { vorschlaege: [], konflikte: [], staging: [], notifications: {} };
-let stagingIds   = [];  // ordered list of IDs in Festlegen column
-let ressources   = [];  // [{id, title}]
+let boardData  = { vorschlaege: [], konflikte: [], staging: [], notifications: {} };
+let stagingIds = [];  // ordered list of individual event IDs in Festlegen column
+let ressources = [];  // [{id, title}]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtDate(str, allDay) {
@@ -32,7 +32,6 @@ function fmtDate(str, allDay) {
 
 function toDateTimeLocal(str) {
     if (!str) return '';
-    // str: "2024-01-15 14:00:00" → "2024-01-15T14:00"
     return str.slice(0, 16).replace(' ', 'T');
 }
 
@@ -45,11 +44,110 @@ function safe(s) {
     return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// ── Card builder ──────────────────────────────────────────────────────────────
+// ── Serie Grouping ────────────────────────────────────────────────────────────
+/**
+ * Groups a flat list of events into display items:
+ * - Events without series_id → kept as-is ({type: "event", ...})
+ * - Events with same series_id → grouped into one {type: "serie", ...}
+ */
+function groupItems(events) {
+    const seriesMap = {};
+    const result    = [];
+
+    events.forEach(ev => {
+        if (ev.series_id) {
+            if (!seriesMap[ev.series_id]) seriesMap[ev.series_id] = [];
+            seriesMap[ev.series_id].push(ev);
+        } else {
+            result.push(ev);
+        }
+    });
+
+    Object.entries(seriesMap).forEach(([sid, evts]) => {
+        const sorted      = [...evts].sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+        const first       = sorted[0];
+        const last        = sorted[sorted.length - 1];
+        const hasKonflikt = evts.some(e => e.status === 'Konflikt');
+        result.push({
+            type:            'serie',
+            id:              sid,
+            series_id:       sid,
+            title:           first.title,
+            count:           evts.length,
+            event_ids:       evts.map(e => e.id),
+            events:          evts,
+            first_start:     first.start,
+            last_start:      last.start,
+            all_day:         first.all_day,
+            calendar:        first.calendar,
+            calendar_title:  first.calendar_title,
+            calendar_color:  first.calendar_color,
+            has_konflikt:    hasKonflikt,
+            konflikt_events: evts.filter(e => e.status === 'Konflikt'),
+            status:          hasKonflikt ? 'Konflikt' : 'Vorschlag',
+        });
+    });
+
+    return result;
+}
+
+/**
+ * Rebuilds the staging display groups from boardData.staging + stagingIds order.
+ * Series events are collapsed into one group; singles stay as individual items.
+ */
+function buildStagingGroups() {
+    const seriesMap = {};
+    boardData.staging.forEach(ev => {
+        if (ev.series_id) {
+            if (!seriesMap[ev.series_id]) seriesMap[ev.series_id] = [];
+            seriesMap[ev.series_id].push(ev);
+        }
+    });
+
+    const groups    = [];
+    const processed = new Set();
+
+    for (const id of stagingIds) {
+        const ev = boardData.staging.find(e => e.id === id);
+        if (!ev) continue;
+
+        if (ev.series_id) {
+            if (processed.has(ev.series_id)) continue;
+            processed.add(ev.series_id);
+            const evts   = seriesMap[ev.series_id] || [];
+            const sorted = [...evts].sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+            groups.push({
+                type:           'serie',
+                id:             ev.series_id,
+                series_id:      ev.series_id,
+                title:          ev.title,
+                count:          evts.length,
+                event_ids:      evts.map(e => e.id),
+                first_start:    sorted[0]?.start,
+                last_start:     sorted[sorted.length - 1]?.start,
+                all_day:        ev.all_day,
+                calendar_title: ev.calendar_title,
+                calendar_color: ev.calendar_color,
+                _origin:        ev._origin || 'vorschlaege',
+            });
+        } else {
+            if (processed.has(ev.id)) continue;
+            processed.add(ev.id);
+            groups.push(ev);
+        }
+    }
+    return groups;
+}
+
+// ── Card builders ─────────────────────────────────────────────────────────────
+const ICON_REPEAT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v-3a3 3 0 0 1 3-3h13m-3-3l3 3l-3 3"/><path d="M20 12v3a3 3 0 0 1-3 3h-13m3 3l-3-3l3-3"/></svg>`;
+const ICON_WARN   = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><circle cx="12" cy="17" r=".5" fill="currentColor"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87l-8.106-13.536a1.914 1.914 0 0 0-3.274 0z"/></svg>`;
+
 function buildCard(event, column) {
     const card = document.createElement('div');
     card.className = 'kanban-card' + (column === 'konflikte' ? ' kanban-card-konflikt' : '');
     card.dataset.id     = event.id;
+    card.dataset.type   = 'event';
     card.dataset.origin = column === 'festlegen' ? (event._origin || 'vorschlaege') : column;
 
     const notif = boardData.notifications[event.id];
@@ -68,15 +166,10 @@ function buildCard(event, column) {
         : '';
 
     const removeBtn = column === 'festlegen'
-        ? `<button class="kanban-card-remove" title="Zurück">×</button>`
-        : '';
+        ? `<button class="kanban-card-remove" title="Zurück">×</button>` : '';
 
     const konfliktBadge = column === 'konflikte'
-        ? `<span class="kanban-badge-konflikt">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><circle cx="12" cy="17" r=".5" fill="currentColor"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87l-8.106-13.536a1.914 1.914 0 0 0-3.274 0z"/></svg>
-              Konflikt
-           </span>`
-        : '';
+        ? `<span class="kanban-badge-konflikt">${ICON_WARN} Konflikt</span>` : '';
 
     card.innerHTML = `
         <div class="kanban-card-strip" style="background:${event.calendar_color}"></div>
@@ -95,84 +188,203 @@ function buildCard(event, column) {
             ${notifHtml}
         </div>
     `;
+    return card;
+}
+
+function buildSeriesCard(group, column) {
+    const card = document.createElement('div');
+    card.className = 'kanban-card kanban-card-serie' + (group.has_konflikt ? ' kanban-card-konflikt' : '');
+    card.dataset.id     = group.series_id;
+    card.dataset.type   = 'serie';
+    card.dataset.origin = column === 'festlegen' ? (group._origin || 'vorschlaege') : column;
+
+    const removeBtn = column === 'festlegen'
+        ? `<button class="kanban-card-remove" title="Zurück">×</button>` : '';
+
+    const konfliktBadge = group.has_konflikt
+        ? `<span class="kanban-badge-konflikt">${ICON_WARN} Konflikt</span>` : '';
+
+    // Date range
+    const sameDay = group.first_start === group.last_start;
+    const dateRange = sameDay
+        ? fmtDate(group.first_start, group.all_day)
+        : `${fmtDate(group.first_start, group.all_day)} – ${fmtDate(group.last_start, group.all_day)}`;
+
+    // Conflicting dates list (only in konflikte column, collapsed by default)
+    let konfliktListHtml = '';
+    if (column === 'konflikte' && group.konflikt_events?.length) {
+        const items = group.konflikt_events.map(ev =>
+            `<li class="kanban-serie-konflikt-item" data-id="${safe(ev.id)}">
+                ${ICON_WARN} ${fmtDate(ev.start, ev.all_day)}
+                <button class="kanban-serie-resolve-btn" data-id="${safe(ev.id)}" title="Diesen Konflikt auflösen">Auflösen</button>
+             </li>`
+        ).join('');
+        konfliktListHtml = `
+            <div class="kanban-serie-konflikt-list">
+                <div class="kanban-serie-konflikt-header" data-toggle="conflict-list">
+                    ${ICON_WARN} ${group.konflikt_events.length} von ${group.count} Terminen haben einen Konflikt
+                    <svg class="kanban-toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6l6-6"/></svg>
+                </div>
+                <ul class="kanban-serie-konflikt-items">${items}</ul>
+            </div>`;
+    }
+
+    card.innerHTML = `
+        <div class="kanban-card-strip" style="background:${group.calendar_color}"></div>
+        <div class="kanban-card-body">
+            <div class="kanban-card-header">
+                <span class="kanban-card-title">${safe(group.title)}</span>
+                <span class="kanban-serie-badge">${ICON_REPEAT} ${group.count} Termine</span>
+                ${konfliktBadge}
+                ${removeBtn}
+            </div>
+            <div class="kanban-card-time">${dateRange}</div>
+            <div class="kanban-card-cal">
+                <span class="kanban-dot" style="background:${group.calendar_color}"></span>
+                ${safe(group.calendar_title)}
+            </div>
+            ${konfliktListHtml}
+        </div>
+    `;
+
+    // Toggle conflict list
+    card.querySelector('[data-toggle="conflict-list"]')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const list = card.querySelector('.kanban-serie-konflikt-items');
+        const icon = card.querySelector('.kanban-toggle-icon');
+        list?.classList.toggle('open');
+        icon?.classList.toggle('rotated');
+    });
 
     return card;
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
 function renderBoard() {
-    const sortV = document.getElementById('sort-vorschlaege');
-    const sortK = document.getElementById('sort-konflikte');
-    const sortF = document.getElementById('sort-festlegen');
+    const sortV    = document.getElementById('sort-vorschlaege');
+    const sortK    = document.getElementById('sort-konflikte');
+    const sortF    = document.getElementById('sort-festlegen');
     const dropHint = document.getElementById('drop-hint');
 
     sortV.innerHTML = '';
     sortK.innerHTML = '';
     sortF.innerHTML = '';
 
-    if (boardData.vorschlaege.length === 0) {
+    // ── Vorschläge ────────────────────────────────────────────────────────────
+    const groupedV = groupItems(boardData.vorschlaege);
+    if (groupedV.length === 0) {
         sortV.innerHTML = '<div class="kanban-empty-hint">Keine Vorschläge</div>';
     } else {
-        boardData.vorschlaege.forEach(ev => {
-            const card = buildCard(ev, 'vorschlaege');
-            card.addEventListener('click', () => openEditModal(ev));
-            sortV.appendChild(card);
+        groupedV.forEach(item => {
+            if (item.type === 'serie') {
+                const card = buildSeriesCard(item, 'vorschlaege');
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('.kanban-card-remove')) return;
+                    openSeriesModal(item);
+                });
+                sortV.appendChild(card);
+            } else {
+                const card = buildCard(item, 'vorschlaege');
+                card.addEventListener('click', () => openEditModal(item));
+                sortV.appendChild(card);
+            }
         });
     }
 
-    if (boardData.konflikte.length === 0) {
+    // ── Konflikte ─────────────────────────────────────────────────────────────
+    const groupedK = groupItems(boardData.konflikte);
+    if (groupedK.length === 0) {
         sortK.innerHTML = '<div class="kanban-empty-hint">Keine Konflikte</div>';
     } else {
-        boardData.konflikte.forEach(ev => {
-            const card = buildCard(ev, 'konflikte');
-            card.addEventListener('click', () => openConflictModal(ev));
-            sortK.appendChild(card);
+        groupedK.forEach(item => {
+            if (item.type === 'serie') {
+                const card = buildSeriesCard(item, 'konflikte');
+                // Wire up individual "Auflösen" buttons
+                card.querySelectorAll('.kanban-serie-resolve-btn').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const eid = btn.dataset.id;
+                        const ev  = item.events.find(x => x.id === eid);
+                        if (ev) await openConflictModal(ev);
+                    });
+                });
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('.kanban-serie-resolve-btn')) return;
+                    if (e.target.closest('[data-toggle="conflict-list"]')) return;
+                    openSeriesKonfliktModal(item);
+                });
+                sortK.appendChild(card);
+            } else {
+                const card = buildCard(item, 'konflikte');
+                card.addEventListener('click', () => openConflictModal(item));
+                sortK.appendChild(card);
+            }
         });
     }
 
-    // Festlegen column
-    const stagingEvents = stagingIds
-        .map(id => boardData.staging.find(e => e.id === id) || null)
-        .filter(Boolean);
+    // ── Festlegen ─────────────────────────────────────────────────────────────
+    const stagingGroups = buildStagingGroups();
 
-    if (stagingEvents.length === 0) {
+    if (stagingGroups.length === 0) {
         dropHint.style.display = 'flex';
     } else {
         dropHint.style.display = 'none';
-        stagingEvents.forEach(ev => {
-            const card = buildCard(ev, 'festlegen');
-            card.querySelector('.kanban-card-remove')?.addEventListener('click', (e) => {
-                e.stopPropagation();
-                removeFromStaging(ev.id);
-            });
-            card.addEventListener('click', (e) => {
-                if (e.target.classList.contains('kanban-card-remove')) return;
-                openEditModal(ev);
-            });
+        stagingGroups.forEach(item => {
+            let card;
+            if (item.type === 'serie') {
+                card = buildSeriesCard(item, 'festlegen');
+                card.querySelector('.kanban-card-remove')?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    removeFromStaging(item.series_id, 'serie');
+                });
+                card.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('kanban-card-remove')) return;
+                    openSeriesModal(item);
+                });
+            } else {
+                card = buildCard(item, 'festlegen');
+                card.querySelector('.kanban-card-remove')?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    removeFromStaging(item.id, 'event');
+                });
+                card.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('kanban-card-remove')) return;
+                    openEditModal(item);
+                });
+            }
             sortF.appendChild(card);
         });
     }
 
     // Update counts
-    document.getElementById('count-vorschlaege').textContent = boardData.vorschlaege.length;
-    document.getElementById('count-konflikte').textContent   = boardData.konflikte.length;
-    document.getElementById('count-festlegen').textContent   = stagingEvents.length;
+    const totalV = boardData.vorschlaege.length;
+    const totalK = boardData.konflikte.length;
+    const totalF = stagingIds.length; // individual event count
+    document.getElementById('count-vorschlaege').textContent = totalV;
+    document.getElementById('count-konflikte').textContent   = totalK;
+    document.getElementById('count-festlegen').textContent   = totalF;
 
     // Save button state
-    const saveBtn = document.getElementById('kanban-save-btn');
-    saveBtn.disabled = stagingEvents.length === 0;
+    document.getElementById('kanban-save-btn').disabled = stagingIds.length === 0;
 }
 
-function removeFromStaging(id) {
-    stagingIds = stagingIds.filter(i => i !== id);
-    // Move back to its origin column
-    const ev = boardData.staging.find(e => e.id === id);
-    if (ev) {
-        boardData.staging = boardData.staging.filter(e => e.id !== id);
-        if (ev.status === 'Konflikt') {
-            boardData.konflikte.push(ev);
-        } else {
-            boardData.vorschlaege.push(ev);
+function removeFromStaging(id, type) {
+    if (type === 'serie') {
+        const seriesEvents = boardData.staging.filter(e => e.series_id === id);
+        const seriesEventIds = new Set(seriesEvents.map(e => e.id));
+        stagingIds = stagingIds.filter(sid => !seriesEventIds.has(sid));
+        boardData.staging = boardData.staging.filter(e => e.series_id !== id);
+        seriesEvents.forEach(ev => {
+            if (ev.status === 'Konflikt') boardData.konflikte.push(ev);
+            else boardData.vorschlaege.push(ev);
+        });
+    } else {
+        stagingIds = stagingIds.filter(i => i !== id);
+        const ev = boardData.staging.find(e => e.id === id);
+        if (ev) {
+            boardData.staging = boardData.staging.filter(e => e.id !== id);
+            if (ev.status === 'Konflikt') boardData.konflikte.push(ev);
+            else boardData.vorschlaege.push(ev);
         }
     }
     renderBoard();
@@ -186,45 +398,57 @@ function initSortable() {
 
     // Vorschläge: can be dragged to Festlegen
     Sortable.create(document.getElementById('sort-vorschlaege'), {
-        group:     { name: 'vorschlaege', pull: true, put: false },
-        sort:      false,
-        animation: 150,
+        group:      { name: 'vorschlaege', pull: true, put: false },
+        sort:       false,
+        animation:  150,
         ghostClass: 'kanban-ghost',
         dragClass:  'kanban-dragging',
-        filter:    '.kanban-empty-hint',
+        filter:     '.kanban-empty-hint',
     });
 
     // Festlegen: accepts from Vorschläge only
     Sortable.create(document.getElementById('sort-festlegen'), {
-        group:     { name: 'festlegen', pull: false, put: ['vorschlaege'] },
-        sort:      true,
-        animation: 150,
+        group:      { name: 'festlegen', pull: false, put: ['vorschlaege'] },
+        sort:       true,
+        animation:  150,
         ghostClass: 'kanban-ghost',
         dragClass:  'kanban-dragging',
         onAdd(evt) {
-            const id = evt.item.dataset.id;
+            const id   = evt.item.dataset.id;
+            const type = evt.item.dataset.type || 'event';
             if (!id) return;
-            // Find event in vorschlaege
-            const ev = boardData.vorschlaege.find(e => e.id === id);
-            if (!ev) return;
-            boardData.vorschlaege = boardData.vorschlaege.filter(e => e.id !== id);
-            ev._origin = 'vorschlaege';
-            boardData.staging.push(ev);
-            if (!stagingIds.includes(id)) stagingIds.push(id);
+
+            if (type === 'serie') {
+                // Move all individual events of this series from vorschlaege to staging
+                const seriesEvents = boardData.vorschlaege.filter(e => e.series_id === id);
+                if (!seriesEvents.length) return;
+                boardData.vorschlaege = boardData.vorschlaege.filter(e => e.series_id !== id);
+                seriesEvents.forEach(ev => {
+                    ev._origin = 'vorschlaege';
+                    boardData.staging.push(ev);
+                    if (!stagingIds.includes(ev.id)) stagingIds.push(ev.id);
+                });
+            } else {
+                const ev = boardData.vorschlaege.find(e => e.id === id);
+                if (!ev) return;
+                boardData.vorschlaege = boardData.vorschlaege.filter(e => e.id !== id);
+                ev._origin = 'vorschlaege';
+                boardData.staging.push(ev);
+                if (!stagingIds.includes(id)) stagingIds.push(id);
+            }
             renderBoard();
             debouncedSaveState();
         },
     });
 }
 
-// ── Edit modal (for Vorschläge + Festlegen cards) ─────────────────────────────
+// ── Modals ────────────────────────────────────────────────────────────────────
 function openEditModal(event) {
-    // Simple inline edit modal for non-conflict events
     const overlay = document.getElementById('conflict-overlay');
-    overlay.innerHTML = buildEditModalHTML(event, null);
+    overlay.innerHTML = buildEditModalHTML(event);
     overlay.style.display = 'flex';
 
-    const form = overlay.querySelector('.kanban-edit-form');
+    const form     = overlay.querySelector('.kanban-edit-form');
     const closeBtn = overlay.querySelector('.kanban-modal-close');
 
     closeBtn.onclick = () => { overlay.style.display = 'none'; };
@@ -232,14 +456,12 @@ function openEditModal(event) {
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const data = getFormData(form, event);
+        const data      = getFormData(form, event);
         const submitBtn = form.querySelector('[type=submit]');
         submitBtn.disabled = true;
         try {
             await API.post('diakronos.kronos.api.kanban_api.resolve_conflict', {
-                element_id: event.id,
-                action: 'vorschlag',
-                ...data,
+                element_id: event.id, action: 'vorschlag', ...data,
             });
             overlay.style.display = 'none';
             await reloadBoard();
@@ -250,7 +472,6 @@ function openEditModal(event) {
     });
 }
 
-// ── Conflict modal ────────────────────────────────────────────────────────────
 async function openConflictModal(event) {
     const overlay = document.getElementById('conflict-overlay');
     overlay.innerHTML = `<div class="kanban-modal-loading">Lade Konfliktdaten…</div>`;
@@ -258,23 +479,16 @@ async function openConflictModal(event) {
 
     let partner = null;
     try {
-        partner = await API.post('diakronos.kronos.api.kanban_api.get_conflict_partner', {
-            element_id: event.id
-        });
+        partner = await API.post('diakronos.kronos.api.kanban_api.get_conflict_partner', { element_id: event.id });
     } catch(e) { /* no partner */ }
 
     overlay.innerHTML = buildConflictModalHTML(event, partner);
 
     const form = overlay.querySelector('.kanban-edit-form');
 
-    overlay.querySelector('.kanban-modal-close').onclick = () => {
-        overlay.style.display = 'none';
-    };
-    overlay.addEventListener('click', e => {
-        if (e.target === overlay) overlay.style.display = 'none';
-    }, { once: true });
+    overlay.querySelector('.kanban-modal-close').onclick = () => { overlay.style.display = 'none'; };
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.style.display = 'none'; }, { once: true });
 
-    // "Konflikt ignorieren" → ignore_conflict=true, move to Festlegen
     overlay.querySelector('#btn-ignore').onclick = async () => {
         const data = getFormData(form, event);
         overlay.querySelector('#btn-ignore').disabled = true;
@@ -282,10 +496,7 @@ async function openConflictModal(event) {
             await API.post('diakronos.kronos.api.kanban_api.resolve_conflict', {
                 element_id: event.id, action: 'ignore', ...data,
             });
-            // Reload, then move to staging
             await reloadBoard();
-            // After reload, the event should now be in vorschlaege (status=Vorschlag)
-            // Move it to staging
             const freshEv = boardData.vorschlaege.find(e => e.id === event.id);
             if (freshEv) {
                 boardData.vorschlaege = boardData.vorschlaege.filter(e => e.id !== event.id);
@@ -302,7 +513,6 @@ async function openConflictModal(event) {
         }
     };
 
-    // "Vorschlagen" → set status=Vorschlag, move to Vorschläge column
     overlay.querySelector('#btn-vorschlag').onclick = async () => {
         const data = getFormData(form, event);
         overlay.querySelector('#btn-vorschlag').disabled = true;
@@ -318,7 +528,6 @@ async function openConflictModal(event) {
         }
     };
 
-    // "Festlegen" → save edits, move to Festlegen staging
     overlay.querySelector('#btn-festlegen').onclick = async () => {
         const data = getFormData(form, event);
         overlay.querySelector('#btn-festlegen').disabled = true;
@@ -326,7 +535,6 @@ async function openConflictModal(event) {
             await API.post('diakronos.kronos.api.kanban_api.resolve_conflict', {
                 element_id: event.id, action: 'festlegen', ...data,
             });
-            // Move from konflikte to staging
             await reloadBoard();
             const freshEv = boardData.konflikte.find(e => e.id === event.id)
                          || boardData.vorschlaege.find(e => e.id === event.id);
@@ -347,8 +555,95 @@ async function openConflictModal(event) {
     };
 }
 
+function openSeriesModal(group) {
+    const overlay = document.getElementById('conflict-overlay');
+    const countLabel = group.count === 1 ? '1 Termin' : `${group.count} Termine`;
+    const dateRange = group.first_start === group.last_start
+        ? fmtDate(group.first_start, group.all_day)
+        : `${fmtDate(group.first_start, group.all_day)} – ${fmtDate(group.last_start, group.all_day)}`;
+
+    overlay.innerHTML = `
+        <div class="kanban-modal-box kanban-modal-edit">
+            <div class="kanban-modal-header">
+                <div class="kanban-modal-title-row">
+                    <h3>${safe(group.title)}</h3>
+                    <span class="kanban-serie-badge-lg">${ICON_REPEAT} ${countLabel}</span>
+                </div>
+                <button class="kanban-modal-close">&times;</button>
+            </div>
+            <div class="kanban-serie-modal-body">
+                <div class="kanban-serie-info-row">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/></svg>
+                    ${safe(dateRange)}
+                </div>
+                <div class="kanban-serie-info-row">
+                    <span class="kanban-dot" style="background:${group.calendar_color}"></span>
+                    ${safe(group.calendar_title)}
+                </div>
+            </div>
+            <div class="kanban-modal-footer">
+                <button class="btn btn-secondary" id="btn-serie-close">Schließen</button>
+            </div>
+        </div>
+    `;
+    overlay.style.display = 'flex';
+    overlay.querySelector('.kanban-modal-close').onclick   = () => { overlay.style.display = 'none'; };
+    overlay.querySelector('#btn-serie-close').onclick      = () => { overlay.style.display = 'none'; };
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.style.display = 'none'; }, { once: true });
+}
+
+function openSeriesKonfliktModal(group) {
+    const overlay = document.getElementById('conflict-overlay');
+
+    const itemsHtml = (group.konflikt_events || []).map(ev => `
+        <div class="kanban-serie-conflict-row">
+            <div class="kanban-serie-conflict-date">${ICON_WARN} ${fmtDate(ev.start, ev.all_day)}</div>
+            <button class="btn btn-sm btn-secondary kanban-open-conflict-btn" data-id="${safe(ev.id)}">Auflösen</button>
+        </div>
+    `).join('');
+
+    overlay.innerHTML = `
+        <div class="kanban-modal-box kanban-modal-conflict">
+            <div class="kanban-modal-header">
+                <div class="kanban-modal-title-row">
+                    <h3>${safe(group.title)}</h3>
+                    <span class="kanban-badge-konflikt-lg">${ICON_WARN} ${group.konflikt_events?.length || 0} Konflikte</span>
+                </div>
+                <button class="kanban-modal-close">&times;</button>
+            </div>
+            <div class="kanban-serie-modal-body">
+                <p class="kanban-serie-conflict-intro">
+                    ${group.konflikt_events?.length} von ${group.count} Serienterminen haben eine Doppelbuchung.
+                    Löse jeden Konflikt einzeln auf.
+                </p>
+                <div class="kanban-serie-conflict-list">${itemsHtml}</div>
+            </div>
+            <div class="kanban-modal-footer">
+                <button class="btn btn-secondary" id="btn-serie-close">Schließen</button>
+            </div>
+        </div>
+    `;
+    overlay.style.display = 'flex';
+
+    overlay.querySelector('.kanban-modal-close').onclick = () => { overlay.style.display = 'none'; };
+    overlay.querySelector('#btn-serie-close').onclick    = () => { overlay.style.display = 'none'; };
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.style.display = 'none'; }, { once: true });
+
+    // Wire "Auflösen" buttons for individual conflict events
+    overlay.querySelectorAll('.kanban-open-conflict-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            overlay.style.display = 'none';
+            const eid = btn.dataset.id;
+            const ev  = (group.events || []).find(x => x.id === eid)
+                     || boardData.konflikte.find(x => x.id === eid);
+            if (ev) await openConflictModal(ev);
+        });
+    });
+}
+
+// ── Form helpers ──────────────────────────────────────────────────────────────
 function getFormData(form, event) {
-    const fd = new FormData(form);
+    const fd     = new FormData(form);
     const allDay = form.querySelector('[name=all_day]')?.checked;
     return {
         title:         fd.get('title') || event.title,
@@ -400,7 +695,7 @@ function buildEditFormFields(event) {
     `;
 }
 
-function buildEditModalHTML(event, partner) {
+function buildEditModalHTML(event) {
     return `
         <div class="kanban-modal-box kanban-modal-edit">
             <div class="kanban-modal-header">
@@ -438,9 +733,7 @@ function buildConflictModalHTML(event, partner) {
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-12a3 3 0 0 1-3-3z"/><path d="M3 17a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v0a2 2 0 0 1-2 2h-14a2 2 0 0 1-2-2z"/></svg>
                     ${safe(partner.ressource)}
                 </div>` : ''}
-                <p class="kanban-partner-hint">
-                    Passe Zeit oder Raum an, um den Konflikt zu vermeiden, oder ignoriere ihn bewusst.
-                </p>
+                <p class="kanban-partner-hint">Passe Zeit oder Raum an um den Konflikt zu vermeiden, oder ignoriere ihn bewusst.</p>
             </div>
         </div>
     ` : `<div class="kanban-conflict-partner kanban-partner-empty">
@@ -452,10 +745,7 @@ function buildConflictModalHTML(event, partner) {
             <div class="kanban-modal-header">
                 <div class="kanban-modal-title-row">
                     <h3>Konflikt auflösen</h3>
-                    <span class="kanban-badge-konflikt-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><circle cx="12" cy="17" r=".5" fill="currentColor"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87l-8.106-13.536a1.914 1.914 0 0 0-3.274 0z"/></svg>
-                        Konflikt
-                    </span>
+                    <span class="kanban-badge-konflikt-lg">${ICON_WARN} Konflikt</span>
                 </div>
                 <button class="kanban-modal-close">&times;</button>
             </div>
@@ -486,13 +776,13 @@ function buildConflictModalHTML(event, partner) {
     `;
 }
 
-// ── Finalize (Save button) ────────────────────────────────────────────────────
+// ── Finalize ──────────────────────────────────────────────────────────────────
 async function finalizeStaging() {
     const btn = document.getElementById('kanban-save-btn');
     btn.disabled = true;
     btn.textContent = '…';
     try {
-        const result = await API.post('diakronos.kronos.api.kanban_api.finalize_staged_events', {
+        await API.post('diakronos.kronos.api.kanban_api.finalize_staged_events', {
             event_ids: stagingIds
         });
         stagingIds = [];
@@ -517,10 +807,8 @@ function debouncedSaveState() {
 
 // ── Reload ────────────────────────────────────────────────────────────────────
 async function reloadBoard() {
-    boardData = await API.post('diakronos.kronos.api.kanban_api.get_kanban_board_data');
-    // Merge staging IDs: keep only IDs that are in boardData.staging
+    boardData  = await API.post('diakronos.kronos.api.kanban_api.get_kanban_board_data');
     stagingIds = stagingIds.filter(id => boardData.staging.some(e => e.id === id));
-    // Add any staging events from boardData not yet in stagingIds
     boardData.staging.forEach(e => {
         if (!stagingIds.includes(e.id)) stagingIds.push(e.id);
     });
@@ -541,9 +829,9 @@ function buildAvatarHeader() {
     avatar.title = fullname;
     if (userImage) {
         const img = document.createElement('img');
-        img.alt = fullname;
+        img.alt    = fullname;
         img.onerror = () => { avatar.innerHTML = ''; avatar.textContent = initial; };
-        img.src = userImage;
+        img.src    = userImage;
         avatar.appendChild(img);
     } else {
         avatar.textContent = initial;
@@ -594,7 +882,7 @@ function loadSortableJS() {
     return new Promise((resolve, reject) => {
         if (window.Sortable) { resolve(); return; }
         const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js';
+        script.src    = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js';
         script.onload = resolve;
         script.onerror = reject;
         document.head.appendChild(script);
@@ -605,22 +893,16 @@ function loadSortableJS() {
 document.addEventListener('DOMContentLoaded', async () => {
     buildAvatarHeader();
 
-    // Load SortableJS from CDN
-    try {
-        await loadSortableJS();
-    } catch(e) {
-        console.error('SortableJS konnte nicht geladen werden', e);
-    }
+    try { await loadSortableJS(); }
+    catch(e) { console.error('SortableJS konnte nicht geladen werden', e); }
 
-    // Load ressources for dropdowns
     try {
         const r = await API.post('diakronos.kronos.api.ressource_api.get_ressources');
         ressources = (r || []).map(x => ({ id: x.id, title: x.title }));
     } catch(e) { /* no ressources */ }
 
-    // Load board
     try {
-        boardData = await API.post('diakronos.kronos.api.kanban_api.get_kanban_board_data');
+        boardData  = await API.post('diakronos.kronos.api.kanban_api.get_kanban_board_data');
         stagingIds = boardData.staging.map(e => e.id);
     } catch(e) {
         console.error('Board-Daten konnten nicht geladen werden', e);

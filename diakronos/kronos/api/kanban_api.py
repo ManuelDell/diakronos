@@ -8,6 +8,7 @@ from .permissions import get_accessible_calendars
 def _fmt_event(e, cal_info):
     cal = cal_info.get(e.element_calendar, {})
     return {
+        "type":           "event",
         "id":             e.name,
         "title":          e.element_name or "Termin",
         "start":          str(e.element_start),
@@ -17,6 +18,7 @@ def _fmt_event(e, cal_info):
         "calendar_title": cal.get("title", e.element_calendar),
         "calendar_color": cal.get("color", "#3b82f6"),
         "status":         e.status,
+        "series_id":      e.series_id or "",
         "ressource":      e.ressource or "",
         "description":    e.description or "",
         "modified":       str(e.modified),
@@ -24,7 +26,7 @@ def _fmt_event(e, cal_info):
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=False)
 def get_kanban_board_data():
     user = frappe.session.user
     if user == "Guest":
@@ -47,7 +49,7 @@ def get_kanban_board_data():
     _fields = [
         "name", "element_name", "element_start", "element_end", "all_day",
         "element_calendar", "element_category", "status", "ressource",
-        "ignore_conflict", "description", "modified", "modified_by",
+        "ignore_conflict", "description", "modified", "modified_by", "series_id",
     ]
 
     raw_v = frappe.get_all("Element",
@@ -92,7 +94,7 @@ def get_kanban_board_data():
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=False)
 def save_staging_state(staging_ids):
     user = frappe.session.user
     if user == "Guest":
@@ -124,7 +126,7 @@ def save_staging_state(staging_ids):
     return {"ok": True}
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=False)
 def finalize_staged_events(event_ids):
     user = frappe.session.user
     if user == "Guest":
@@ -151,7 +153,7 @@ def finalize_staged_events(event_ids):
     return {"finalized": count}
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=False)
 def get_conflict_partner(element_id):
     user = frappe.session.user
     if user == "Guest":
@@ -192,7 +194,7 @@ def get_conflict_partner(element_id):
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=False)
 def resolve_conflict(element_id, action, title=None, element_start=None,
                      element_end=None, all_day=None, ressource=None, description=None):
     """
