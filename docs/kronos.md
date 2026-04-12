@@ -200,6 +200,6 @@ In der Timeline-Ansicht (EventCalendar `resourceTimeGrid`):
 - Kanban-Moderationsseite (`/kronos/moderation`) mit SortableJS
 - `view_mode`-Parameter: Im Lesemodus sehen alle nur `Festgelegt`-Termine
 - CalDAV liefert ausschließlich `Festgelegt`-Termine
-- `Kalenderadministrator` sieht alle Kalender und alle Statuses
+- `Kalenderadministrator` sieht alle Kalender und alle Stati
 - Alle Icons auf Tabler Icons (SVG, MIT) umgestellt
 - SSH-Key aus vollständiger Git-Historie entfernt
