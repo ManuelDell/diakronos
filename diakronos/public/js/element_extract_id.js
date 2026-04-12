@@ -2,7 +2,7 @@
  * ═══════════════════════════════════════════════════════════════
  * ELEMENT - EXTRACT ID
  * ═══════════════════════════════════════════════════════════════
- * Utility für Element-ID Extraction aus FullCalendar Events
+ * Utility für Element-ID Extraction aus EventCalendar Events
  * ROBUST gegen verschiedene Quellen und Fehler
  */
 

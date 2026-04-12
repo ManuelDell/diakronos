@@ -101,6 +101,31 @@ export function buildStandardHeader({
     rightSlot.style.cssText = 'display:contents;';
     headerRight.appendChild(rightSlot);
 
+    // View/Edit Toggle Button (immer vorhanden)
+    const viewEditToggle = document.createElement('button');
+    viewEditToggle.className = 'view-edit-toggle';
+    viewEditToggle.setAttribute('aria-label', 'Ansichtsmodus umschalten');
+    viewEditToggle.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="view-icon">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+            <circle cx="12" cy="12" r="3"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="edit-icon" style="display:none;">
+            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+        </svg>
+    `;
+    viewEditToggle.addEventListener('click', () => {
+        const isViewMode = viewEditToggle.classList.contains('view-mode');
+        viewEditToggle.classList.toggle('view-mode', !isViewMode);
+        viewEditToggle.classList.toggle('edit-mode', isViewMode);
+        document.dispatchEvent(new CustomEvent('diakronos:toggleViewMode', { 
+            detail: { isViewMode: !isViewMode } 
+        }));
+    });
+    // Standardmäßig im View-Modus starten
+    viewEditToggle.classList.add('view-mode');
+    headerRight.appendChild(viewEditToggle);
+
     // Avatar + Dropdown (immer vorhanden)
     const profileWrapper = document.createElement('div');
     profileWrapper.className = 'profile-menu-wrapper';

@@ -41,6 +41,7 @@ class KronosCalendar {
                 editable: !isViewMode,
                 selectable: !isViewMode,
 
+                resources: [],
                 events: [],
                 eventSources: [
                     {
@@ -60,7 +61,8 @@ class KronosCalendar {
                                 body: JSON.stringify({
                                     start_date: startDate,
                                     end_date: endDate,
-                                    calendar_filter: JSON.stringify(activeCalendars)
+                                    calendar_filter: JSON.stringify(activeCalendars),
+                                    view_mode: getViewMode()
                                 })
                             })
                             .then(response => {
@@ -251,6 +253,9 @@ class KronosCalendar {
 
             calendarEl.style.height = '100%';
 
+            // Ressourcen für Timeline-Ansicht laden
+            this._loadResources();
+
         } catch (error) {
             console.error('❌ Fehler beim Initialisieren:', error);
             console.error(' Stack:', error.stack);
@@ -260,6 +265,26 @@ class KronosCalendar {
     // =========================================================================
     // HELPER METHODEN
     // =========================================================================
+
+    async _loadResources() {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        try {
+            const res = await fetch('/api/method/diakronos.kronos.api.ressource_api.get_ressources', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf },
+                body: JSON.stringify({})
+            });
+            const data = await res.json();
+            const resources = (data.message || []).map(r => ({ id: r.id, title: r.title }));
+            // Dummy-Resource für Termine ohne Raum-Zuordnung
+            resources.push({ id: '__unassigned__', title: 'Nicht zugeordnet' });
+            if (this.calendar) {
+                this.calendar.setOption('resources', resources);
+            }
+        } catch (e) {
+            console.warn('Ressourcen konnten nicht geladen werden:', e);
+        }
+    }
 
     refetchEvents() {
         if (this.calendar) {

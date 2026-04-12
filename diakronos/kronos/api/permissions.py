@@ -3,7 +3,6 @@
 import json
 import frappe
 from frappe import _
-from datetime import datetime
 from frappe.model.utils.user_settings import get_user_settings as _get_user_settings, update_user_settings as _update_user_settings
 
 DESK_ROLES = {"Kalenderadministrator"}
@@ -14,6 +13,23 @@ def _user_has_role(user, role_name):
         return True
     roles = [r.role for r in frappe.get_all("Has Role", filters={"parent": user}, fields=["role"])]
     return role_name in roles
+
+
+def _is_kalenderadministrator(user):
+    """Prüft ob User die globale Kalenderadministrator-Rolle hat (oder Administrator ist)."""
+    if user == "Administrator":
+        return True
+    return _user_has_role(user, "Kalenderadministrator")
+
+
+def _is_moderator_of(user, calendar_doc):
+    """Prüft ob User Moderator dieses Kalenders ist (via Kalendermoderatoren-Tabelle)."""
+    if user == "Administrator":
+        return True
+    for row in calendar_doc.get("kalendermoderatoren") or []:
+        if row.user == user:
+            return True
+    return False
 
 def _can_access_desk(user):
     """Nur Administrator und Kalenderadministrator dürfen den Frappe-Desk betreten."""
@@ -27,12 +43,15 @@ def get_session_info():
     if user == "Guest":
         frappe.throw("Nicht angemeldet")
     user_doc = frappe.get_doc("User", user)
+    accessible = get_accessible_calendars()
+    can_moderate = any(c.get("is_moderator") for c in accessible)
     return {
         "initial": (user_doc.full_name or user)[0].upper(),
         "full_name": user_doc.full_name or user,
         "name": user,
         "user_image": user_doc.user_image or None,
         "can_access_desk": _can_access_desk(user),
+        "can_moderate": can_moderate,
     }
 
 @frappe.whitelist(allow_guest=False)
@@ -46,11 +65,24 @@ def get_accessible_calendars():
         return []
 
     try:
+        is_global_admin = _is_kalenderadministrator(user)
         calendars = frappe.get_all("Kalender", fields=["name"])
 
         result = []
         for cal in calendars:
             doc = frappe.get_doc("Kalender", cal.name)
+
+            # Kalenderadministrator hat vollen Zugriff auf alle Kalender
+            if is_global_admin:
+                result.append({
+                    "name":            doc.name,
+                    "title":           doc.calendar_name or doc.name,
+                    "color":           doc.calendar_color or "#9ca3af",
+                    "write":           True,
+                    "is_moderator":    True,
+                    "selbstverwaltet": bool(doc.selbstverwaltet),
+                })
+                continue
 
             can_read = False
             can_write = False
@@ -66,12 +98,19 @@ def get_accessible_calendars():
                     can_write = True
                     can_read = True  # Schreibrecht impliziert immer Leserecht
 
+            is_mod = _is_moderator_of(user, doc)
+            if is_mod:
+                can_read  = True
+                can_write = True
+
             if can_read:
                 result.append({
-                    "name": doc.name,
-                    "title": doc.calendar_name or doc.name,
-                    "color": doc.calendar_color or "#9ca3af",  # var(--gray-400)
-                    "write": can_write
+                    "name":            doc.name,
+                    "title":           doc.calendar_name or doc.name,
+                    "color":           doc.calendar_color or "#9ca3af",
+                    "write":           can_write,
+                    "is_moderator":    is_mod,
+                    "selbstverwaltet": bool(doc.selbstverwaltet),
                 })
 
         return result
@@ -89,96 +128,6 @@ def get_writable_calendars():
         {"name": c["name"], "calendar_name": c["title"], "calendar_color": c["color"]}
         for c in accessible if c.get("write")
     ]
-
-@frappe.whitelist(allow_guest=False)
-def can_create_event():
-    """
-    Prüfe ob aktueller Nutzer Events erstellen darf.
-    Wird aufgerufen wenn User auf Tag im Kalender klickt.
-    Returns: Dict mit can_create Flag und verfügbaren Kalendern
-    """
-    user = frappe.session.user
-    if user == "Guest":
-        return {'can_create': False, 'default_calendar': None, 'writable_calendars': []}
-
-    accessible = get_accessible_calendars()
-    writable_calendars = [
-        {'label': c['title'], 'value': c['name']}
-        for c in accessible if c.get('write')
-    ]
-    default_calendar = writable_calendars[0]['value'] if writable_calendars else None
-
-    return {
-        'can_create': len(writable_calendars) > 0,
-        'default_calendar': default_calendar,
-        'writable_calendars': writable_calendars
-    }
-
-@frappe.whitelist(allow_guest=False)
-def get_element_creation_dialog_defaults(date_str=None, calendar_name=None):
-    """
-    Hole Default-Werte für Element-Erstellungs-Dialog
-    
-    Args:
-        date_str: Datum als String "2026-01-05"
-        calendar_name: Standard-Kalender
-    
-    Returns:
-        Dict mit defaults und can_create Flag
-    """
-    try:
-        can_create_response = can_create_event()
-        if not can_create_response['can_create']:
-            return {
-                'can_create': False,
-                'defaults': {},
-                'writable_calendars': [],
-                'error': _('Keine Berechtigung zum Erstellen')
-            }
-        
-        selected_calendar = calendar_name or can_create_response['default_calendar']
-        if selected_calendar:
-            if not any(cal['value'] == selected_calendar for cal in can_create_response['writable_calendars']):
-                frappe.throw(f'Keine Berechtigung für Kalender: {selected_calendar}')
-        
-        defaults = {
-            'element_calendar': selected_calendar,
-        }
-        
-        if date_str:
-            try:
-                dt = datetime.strptime(date_str, '%Y-%m-%d')
-                start_time = dt.replace(hour=10, minute=0, second=0)
-                end_time = start_time.replace(hour=11)
-                defaults['element_start'] = start_time.strftime('%Y-%m-%d %H:%M:%S')
-                defaults['element_end'] = end_time.strftime('%Y-%m-%d %H:%M:%S')
-            except Exception as e:
-                frappe.log_error(
-                    f'Fehler beim Datums-Parsing: {str(e)}',
-                    'get_element_creation_dialog_defaults'
-                )
-        
-        return {
-            'can_create': True,
-            'defaults': defaults,
-            'writable_calendars': can_create_response['writable_calendars']
-        }
-        
-    except frappe.ValidationError as ve:
-        return {
-            'can_create': False,
-            'defaults': {},
-            'writable_calendars': [],
-            'error': str(ve)
-        }
-    except Exception as e:
-        frappe.log_error(str(e), 'get_element_creation_dialog_defaults')
-        return {
-            'can_create': False,
-            'defaults': {},
-            'writable_calendars': [],
-            'error': str(e)
-        }
 
 
 # ------------------------------------------------------------------ #

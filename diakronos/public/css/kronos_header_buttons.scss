@@ -123,6 +123,66 @@ body:not(:has(.kronos-sidebar.active)) .kronos-fab {
 }
 
 /* ============================================================================
+   FLOATING PENDING-SAVE-BUTTON (unten rechts, über allem)
+============================================================================ */
+.kronos-pending-btn {
+    position: fixed;
+    bottom: 28px;
+    right: 24px;
+    z-index: 1001;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: var(--button-height);
+    padding: 0 16px 0 14px;
+    border: none;
+    border-radius: var(--border-radius-xl);
+    background: var(--primary);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    text-decoration: none;
+    transition: background 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+
+    &:hover {
+        background: var(--primary-hover, color-mix(in srgb, var(--primary) 85%, #000));
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-1px);
+        color: #fff;
+        text-decoration: none;
+    }
+
+    &:active {
+        transform: translateY(0);
+    }
+
+    svg {
+        flex-shrink: 0;
+    }
+}
+
+.pending-btn-text {
+    white-space: nowrap;
+}
+
+.pending-btn-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.3);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* ============================================================================
 2. NAVIGATION BUTTONS (Pfeile links/rechts)
 ============================================================================ */
 .nav-btn {
@@ -507,7 +567,70 @@ justify-content: flex-end;
 .next-month {
     display: none;
 }
-.view-dropdown {
+    .view-dropdown {
+        display: none;
+    }
+}
+
+/* ============================================================================
+   VIEW/EDIT TOGGLE BUTTON (Eye/Pen Icons)
+   ============================================================================ */
+.view-edit-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--button-height);
+    height: var(--button-height);
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    color: var(--text-primary);
+    transition: all 150ms ease;
+    flex-shrink: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+    box-shadow: none;
+}
+
+.view-edit-toggle:hover {
+    color: var(--primary);
+    background-color: var(--bg-surface-hover);
+}
+
+.view-edit-toggle:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* Icon-Größe und Farbe - gleiche Icons in beiden Modi */
+.view-edit-toggle .view-icon,
+.view-edit-toggle .edit-icon {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    stroke-width: 1.25;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex-shrink: 0;
+}
+
+/* View-Modus: Auge sichtbar */
+.view-edit-toggle.view-mode .view-icon {
+    display: block;
+}
+
+.view-edit-toggle.view-mode .edit-icon {
     display: none;
 }
+
+/* Edit-Modus: Stift sichtbar */
+.view-edit-toggle.edit-mode .view-icon {
+    display: none;
+}
+
+.view-edit-toggle.edit-mode .edit-icon {
+    display: block;
 }

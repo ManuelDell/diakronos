@@ -94,6 +94,7 @@ export function header_build_elements() {
         <option value="timeGridWeek">Woche</option>
         <option value="timeGridDay">Tag</option>
         <option value="listMonth">Liste</option>
+        <option value="resourceTimelineWeek">Ressourcenplan</option>
     `;
     headerRight.appendChild(viewSelector);
 
@@ -224,6 +225,8 @@ export function header_build_elements() {
         if (kronosCalendar?.calendar) {
             kronosCalendar.calendar.setOption('editable',   !isView);
             kronosCalendar.calendar.setOption('selectable', !isView);
+            // Termine neu laden: view_mode ändert welche Statuses sichtbar sind
+            kronosCalendar.refetchEvents();
         }
     });
 
@@ -288,6 +291,14 @@ export function header_build_elements() {
                 deskLink.href = '/app';
                 deskLink.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1"/><path d="M5 16h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1"/><path d="M15 12h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1"/><path d="M15 4h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1"/></svg> Zurück zum Desk`;
                 profileDropdown.insertBefore(deskLink, profileDropdown.firstChild);
+            }
+            if (userInfo?.can_moderate) {
+                const modLink = document.createElement('a');
+                modLink.className = 'profile-dropdown-item';
+                modLink.href = '/kronos/moderation';
+                modLink.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6h-6z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6h-6z"/><path d="M17 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/></svg> Terminmoderation`;
+                const logoutBtn = profileDropdown.querySelector('.profile-dropdown-logout');
+                profileDropdown.insertBefore(modLink, logoutBtn);
             }
         } catch (_) { /* kein Desk-Link – kein Problem */ }
     }

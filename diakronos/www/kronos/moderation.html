@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ kanban_css }}">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+</head>
+<body data-user-initial="{{ user_initial }}"
+      data-user-fullname="{{ user_fullname }}"
+      data-user-image="{{ user_image }}"
+      data-user-roles="{{ user_roles_json | e }}">
+
+<div class="kanban-page">
+
+    <!-- Single Header: Logo + Title + Save + Avatar -->
+    <header class="kanban-header">
+        <div class="kanban-header-left">
+            <img src="/assets/diakronos/images/diakronos-logo.svg" alt="Diakronos" class="kanban-logo">
+            <h1 class="kanban-page-title">Terminmoderation</h1>
+        </div>
+        <div class="kanban-header-right">
+            <button class="kanban-save-btn" id="kanban-save-btn" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10-10"/></svg>
+                Alle festlegen
+            </button>
+            <div class="kanban-avatar-wrapper" id="kanban-avatar-wrapper"></div>
+        </div>
+    </header>
+
+    <!-- Kanban Board – Spalten enthalten ihren Header selbst -->
+    <div class="kanban-board" id="kanban-board">
+
+        <!-- Konflikte (LINKS) -->
+        <div class="kanban-column kanban-column-konflikte" id="col-konflikte">
+            <div class="kanban-col-header">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><circle cx="12" cy="17" r=".5" fill="currentColor"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87l-8.106-13.536a1.914 1.914 0 0 0-3.274 0z"/></svg>
+                <span class="kanban-col-title">Konflikte</span>
+                <span class="kanban-count" id="count-konflikte">0</span>
+            </div>
+            <div class="kanban-col-body" id="sort-konflikte">
+                <div class="kanban-empty-hint">Keine Konflikte</div>
+            </div>
+        </div>
+
+        <!-- Vorschläge (MITTE) -->
+        <div class="kanban-column kanban-column-vorschlaege" id="col-vorschlaege">
+            <div class="kanban-col-header">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 8v4l3 3"/></svg>
+                <span class="kanban-col-title">Vorschläge</span>
+                <span class="kanban-count" id="count-vorschlaege">0</span>
+            </div>
+            <div class="kanban-col-body" id="sort-vorschlaege">
+                <div class="kanban-empty-hint">Keine Vorschläge</div>
+            </div>
+        </div>
+
+        <!-- Festlegen (RECHTS) -->
+        <div class="kanban-column kanban-column-festlegen" id="col-festlegen">
+            <div class="kanban-col-header">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10-10"/></svg>
+                <span class="kanban-col-title">Festlegen</span>
+                <span class="kanban-count" id="count-festlegen">0</span>
+            </div>
+            <div class="kanban-drop-hint" id="drop-hint">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12l7 7l7-7"/></svg>
+                Termine hierher ziehen
+            </div>
+            <div class="kanban-col-body" id="sort-festlegen"></div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal Overlay (filled by JS) -->
+<div class="kanban-conflict-overlay" id="conflict-overlay" style="display:none"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="{{ kanban_js }}" type="module"></script>
+</body>
+</html>

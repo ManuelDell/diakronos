@@ -2,6 +2,7 @@
 
 import { kronosCalendar } from '../builder/kronos_calendar.js';
 import { escHtml, safeCssColor } from '../html_utils.js';
+import { showConflictModal } from './modal_conflict.js';
 
 class DiakronosEditModal {
     static async show(element) {
@@ -10,30 +11,29 @@ class DiakronosEditModal {
             return;
         }
 
-        // 1. Daten laden BEVOR das HTML gebaut wird
-        let writableCalendars = [];
-        try {
-            const res = await fetch('/api/method/diakronos.kronos.api.permissions.get_writable_calendars');
-            if (res.ok) {
-                const data = await res.json();
-                writableCalendars = data.message || [];
-            }
-        } catch (err) {
-            console.warn('Schreibrechte konnten nicht geladen werden:', err);
-        }
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
-        let categories = [];
-        try {
-            const res = await fetch('/api/resource/Eventkategorie?fields=["name","event_category_name"]&limit_page_length=500');
-            if (res.ok) {
-                const data = await res.json();
-                categories = data.data || [];
-            }
-        } catch (err) {
-            console.warn('Kategorien konnten nicht geladen werden:', err);
-        }
+        // Daten parallel laden
+        const [writableCalendars, categories, ressources, settings] = await Promise.all([
+            fetch('/api/method/diakronos.kronos.api.permissions.get_writable_calendars')
+                .then(r => r.ok ? r.json().then(d => d.message || []) : [])
+                .catch(() => []),
+            fetch('/api/resource/Eventkategorie?fields=["name","event_category_name"]&limit_page_length=500')
+                .then(r => r.ok ? r.json().then(d => d.data || []) : [])
+                .catch(() => []),
+            fetch('/api/method/diakronos.kronos.api.ressource_api.get_ressources', {
+                method: 'POST', headers: { 'X-Frappe-CSRF-Token': csrfToken }
+            }).then(r => r.ok ? r.json().then(d => d.message || []) : [])
+              .catch(() => []),
+            fetch('/api/method/diakronos.kronos.api.ressource_api.get_kronos_settings', {
+                method: 'POST', headers: { 'X-Frappe-CSRF-Token': csrfToken }
+            }).then(r => r.ok ? r.json().then(d => d.message || {}) : {})
+              .catch(() => ({})),
+        ]);
 
-        // 2. HTML mit vorhandenen Daten bauen
+        const ressourcePflicht  = settings.ressource_pflichtfeld || false;
+        const currentRessource  = element.ressource || '';
+
         const modalHTML = `
         <div class="diakronos-modal fade show" tabindex="-1" role="dialog">
             <div class="diakronos-modal-dialog modal-dialog-centered modal-lg">
@@ -76,9 +76,21 @@ class DiakronosEditModal {
                                 </label>
                             </div>
 
+                            <div class="form-group">
+                                <label>Ressource ${ressourcePflicht ? '<span class="required">*</span>' : ''}</label>
+                                <select id="element_ressource">
+                                    <option value="">— Kein Raum —</option>
+                                    ${ressources.map(r => `
+                                        <option value="${escHtml(r.id)}" ${currentRessource === r.id ? 'selected' : ''}>
+                                            ${escHtml(r.title)}${r.kapazitaet ? ` (${r.kapazitaet} Plätze)` : ''}
+                                        </option>
+                                    `).join('')}
+                                </select>
+                            </div>
+
                             <div class="description-group">
                                 <label>Beschreibung</label>
-                                <textarea id="description" rows="5">${element.description || ''}</textarea>
+                                <textarea id="description" rows="4">${element.description || ''}</textarea>
                             </div>
                         </div>
 
@@ -106,6 +118,12 @@ class DiakronosEditModal {
                                     `).join('')}
                                 </select>
                             </div>
+                            <div class="checkbox-row">
+                                <label class="checkbox-label checkbox-label-muted" title="Dieser Termin löst keine Konflikte aus, auch wenn die Ressource belegt ist">
+                                    <input type="checkbox" id="ignore_conflict" ${element.ignore_conflict ? 'checked' : ''}>
+                                    Konflikte ignorieren
+                                </label>
+                            </div>
                         </div>
                     </div>
 
@@ -129,11 +147,10 @@ class DiakronosEditModal {
         </div>
         `;
 
-        // 3. HTML einfügen
         document.body.insertAdjacentHTML('beforeend', modalHTML);
         const modal = document.querySelector('.diakronos-modal:last-child');
 
-        // Flatpickr – Datum/Uhrzeit-Picker
+        // Flatpickr
         const startInput = modal.querySelector('#element_start');
         const endInput   = modal.querySelector('#element_end');
         let fpStart = null, fpEnd = null;
@@ -141,13 +158,9 @@ class DiakronosEditModal {
         if (window.flatpickr) {
             const fpLocale = window.flatpickr.l10ns?.de || 'default';
             const baseOpts = {
-                locale:          fpLocale,
-                enableTime:      true,
-                time_24hr:       true,
-                dateFormat:      'Y-m-dTH:i',
-                altInput:        true,
-                altFormat:       'j. F Y, H:i',
-                minuteIncrement: 5,
+                locale: fpLocale, enableTime: true, time_24hr: true,
+                dateFormat: 'Y-m-dTH:i', altInput: true,
+                altFormat: 'j. F Y, H:i', minuteIncrement: 5,
             };
 
             fpStart = window.flatpickr(startInput, {
@@ -170,20 +183,28 @@ class DiakronosEditModal {
             });
         }
 
-        // Ganztägig → Zeitfelder deaktivieren
+        // Ganztägig → nur Zeitauswahl deaktivieren, Datumsauswahl bleibt aktiv
         const allDayCheckbox = modal.querySelector('#all_day');
         allDayCheckbox.addEventListener('change', () => {
             const isAllDay = allDayCheckbox.checked;
             if (fpStart && fpEnd) {
-                fpStart.set('clickOpens', !isAllDay);
-                fpEnd.set('clickOpens',   !isAllDay);
-                if (fpStart.altInput) fpStart.altInput.disabled = isAllDay;
-                if (fpEnd.altInput)   fpEnd.altInput.disabled   = isAllDay;
+                // Datumsauswahl immer erlauben (clickOpens = true)
+                // Nur Zeitauswahl dynamisch ein/ausschalten
+                fpStart.set('enableTime', !isAllDay);
+                fpEnd.set('enableTime', !isAllDay);
+                // altInput nicht deaktivieren (Eingabefeld bleibt bedienbar)
                 if (isAllDay) {
-                    const d = fpStart.selectedDates[0] || new Date();
-                    const [y, mo, day] = [d.getFullYear(), d.getMonth(), d.getDate()];
-                    fpStart.setDate(new Date(y, mo, day, 0, 0));
-                    fpEnd.setDate(new Date(y, mo, day, 23, 59));
+                    // Nur Zeitkomponenten anpassen, Datum beibehalten
+                    const startDate = fpStart.selectedDates[0];
+                    const endDate = fpEnd.selectedDates[0] || startDate;
+                    
+                    if (startDate) {
+                        fpStart.setDate(new Date(startDate.getFullYear(), startDate.getMonth(), 
+                                                startDate.getDate(), 0, 0));
+                    }
+                    if (endDate) {
+                        fpEnd.setDate(new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59));
+                    }
                 }
             } else {
                 startInput.disabled = isAllDay;
@@ -200,6 +221,19 @@ class DiakronosEditModal {
                 modal.querySelector(`#tab-${btn.dataset.tab}`).classList.add('active');
             });
         });
+
+        const switchToTab = (tabName) => {
+            modal.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            modal.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            modal.querySelector(`[data-tab="${tabName}"]`)?.classList.add('active');
+            modal.querySelector(`#tab-${tabName}`)?.classList.add('active');
+        };
+
+        const showError = (msg) => {
+            const el = modal.querySelector('#modal-error');
+            el.textContent = msg;
+            el.classList.add('visible');
+        };
 
         // Schließen
         modal.querySelector('.diakronos-close-btn').onclick = () => modal.remove();
@@ -219,14 +253,14 @@ class DiakronosEditModal {
             mainFooter.style.display    = 'flex';
         };
         modal.querySelector('#delete-confirm-btn').addEventListener('click', async () => {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
             try {
                 const response = await fetch('/api/method/diakronos.kronos.api.event_crud.delete_event', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
-                        'X-Frappe-CSRF-Token': csrfToken
+                        'X-Frappe-CSRF-Token': csrf
                     },
                     body: JSON.stringify({ name: element.name })
                 });
@@ -236,9 +270,7 @@ class DiakronosEditModal {
                 } else {
                     confirmFooter.style.display = 'none';
                     mainFooter.style.display    = 'flex';
-                    const errEl = modal.querySelector('#modal-error');
-                    errEl.textContent = 'Löschen fehlgeschlagen. Bitte erneut versuchen.';
-                    errEl.classList.add('visible');
+                    showError('Löschen fehlgeschlagen. Bitte erneut versuchen.');
                 }
             } catch (err) {
                 console.error('API-Fehler:', err);
@@ -247,17 +279,70 @@ class DiakronosEditModal {
 
         // Speichern
         modal.querySelector('#save-btn').addEventListener('click', async () => {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            const csrf         = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            const ressourceVal = modal.querySelector('#element_ressource').value;
+            const ignoreConf   = modal.querySelector('#ignore_conflict').checked;
+            const startVal     = startInput.value;
+            const endVal       = endInput.value;
+
+            if (!modal.querySelector('#element_name').value.trim()) {
+                switchToTab('basic');
+                showError('Bitte einen Titel eingeben.');
+                return;
+            }
+
+            if (ressourcePflicht && !ressourceVal) {
+                switchToTab('basic');
+                showError('Bitte eine Ressource auswählen (Pflichtfeld in den Einstellungen).');
+                return;
+            }
+
+            // Konfliktprüfung
+            let finalStatus        = element.status || 'Festgelegt';
+            let finalIgnoreConflict = ignoreConf;
+
+            if (ressourceVal && !ignoreConf) {
+                try {
+                    const conflictRes = await fetch('/api/method/diakronos.kronos.api.ressource_api.check_resource_conflict', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf },
+                        body: JSON.stringify({
+                            ressource:     ressourceVal,
+                            element_start: startVal,
+                            element_end:   endVal,
+                            exclude_id:    element.name
+                        })
+                    });
+                    if (conflictRes.ok) {
+                        const conflictData = (await conflictRes.json()).message;
+                        if (conflictData) {
+                            const decision = await showConflictModal(conflictData);
+                            if (decision === null) return; // Abbrechen
+                            if (decision === 'ignore')   finalIgnoreConflict = true;
+                            if (decision === 'conflict') finalStatus = 'Konflikt';
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Konfliktprüfung fehlgeschlagen (wird ignoriert):', e);
+                }
+            }
+
+            const saveBtn = modal.querySelector('#save-btn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = '…';
+
             const payload = {
                 name:             element.name,
                 element_name:     modal.querySelector('#element_name').value,
-                element_start:    modal.querySelector('#element_start').value,
-                element_end:      modal.querySelector('#element_end').value,
-                all_day:          modal.querySelector('#all_day').checked,
+                element_start:    startVal,
+                element_end:      endVal,
+                all_day:          allDayCheckbox.checked,
                 description:      modal.querySelector('#description').value,
                 element_category: modal.querySelector('#element_category').value,
                 element_calendar: modal.querySelector('#element_calendar').value,
-                status:           element.status || 'Festgelegt',
+                ressource:        ressourceVal,
+                ignore_conflict:  finalIgnoreConflict,
+                status:           finalStatus,
                 series_id:        element.series_id || ''
             };
 
@@ -267,26 +352,29 @@ class DiakronosEditModal {
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
-                        'X-Frappe-CSRF-Token': csrfToken
+                        'X-Frappe-CSRF-Token': csrf
                     },
                     body: JSON.stringify(payload)
                 });
 
-                const errEl = modal.querySelector('#modal-error');
                 if (response.ok) {
+                    if (finalStatus === 'Konflikt') {
+                        document.dispatchEvent(new CustomEvent('kronos:conflict_created'));
+                    }
                     if (kronosCalendar) kronosCalendar.refetchEvents();
                     modal.remove();
                 } else {
                     const errText = await response.text();
                     console.error('Fehler beim Speichern:', errText);
-                    errEl.textContent = 'Fehler beim Speichern. Bitte erneut versuchen.';
-                    errEl.classList.add('visible');
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Speichern';
+                    showError('Fehler beim Speichern. Bitte erneut versuchen.');
                 }
             } catch (err) {
                 console.error('API-Fehler:', err);
-                const errEl = modal.querySelector('#modal-error');
-                errEl.textContent = 'Verbindungsfehler. Bitte Seite neu laden.';
-                errEl.classList.add('visible');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Speichern';
+                showError('Verbindungsfehler. Bitte Seite neu laden.');
             }
         });
     }

@@ -1,0 +1,23 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["user", "staging_events", "event_snapshots"],
+ "fields": [
+  {"fieldname": "user", "fieldtype": "Link", "label": "Benutzer", "options": "User", "reqd": 1, "in_list_view": 1, "unique": 1},
+  {"fieldname": "staging_events", "fieldtype": "Code", "label": "Staging Events (JSON)", "options": "JSON", "default": "[]"},
+  {"fieldname": "event_snapshots", "fieldtype": "Code", "label": "Event Snapshots (JSON)", "options": "JSON", "default": "{}"}
+ ],
+ "links": [],
+ "module": "Kronos",
+ "name": "Kronos Kanban Zustand",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "read": 1, "role": "System Manager", "write": 1},
+  {"create": 1, "read": 1, "role": "Kalenderadministrator", "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 0
+}
