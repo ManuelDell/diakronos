@@ -143,7 +143,7 @@ class DiakronosSeriesHandler {
                 const confirmed = await showConfirm(`Alle Termine dieser Serie ab <strong>${name}</strong> löschen?`);
                 if (!confirmed) return;
                 try {
-                    await fetch('/api/method/diakronos.kronos.api.series_update.delete_future_series_events', {
+                    await fetch('/api/method/diakronos.kronos.api.series.delete_future_series_events', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Frappe-CSRF-Token': CSRF() },
                         body: JSON.stringify({ series_id: element.series_id, from_date: element.element_start })
@@ -160,7 +160,7 @@ class DiakronosSeriesHandler {
                 const confirmed = await showConfirm(`Gesamte Serie <strong>${name}</strong> unwiderruflich löschen?`);
                 if (!confirmed) return;
                 try {
-                    await fetch('/api/method/diakronos.kronos.api.series_update.delete_series_batch_fast', {
+                    await fetch('/api/method/diakronos.kronos.api.series.delete_series_batch_fast', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Frappe-CSRF-Token': CSRF() },
                         body: JSON.stringify({ series_id: element.series_id })

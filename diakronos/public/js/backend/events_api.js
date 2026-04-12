@@ -17,7 +17,7 @@ class KronosEvents {
 
     /**
      * Aktualisiert ein Event nach Drag & Drop oder Resize.
-     * @param {Object} event        – FullCalendar event object
+     * @param {Object} event        – EventCalendar event object
      * @param {Object} calendarRef  – KronosCalendar-Instanz (für refetchEvents)
      */
     static async updateEvent(event, calendarRef, forceSeriesDetach = false) {

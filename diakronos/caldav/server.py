@@ -148,8 +148,8 @@ def _check_access(user, cal_name):
 
 
 def _get_events(cal_name, start=None, end=None):
-    """Holt Element-Dokumente eines Kalenders, optional nach Zeitraum gefiltert."""
-    filters = {'element_calendar': cal_name}
+    """Holt Element-Dokumente eines Kalenders (nur Festgelegt), optional nach Zeitraum gefiltert."""
+    filters = {'element_calendar': cal_name, 'status': 'Festgelegt'}
     if start:
         filters['element_end']   = ['>=', start]
     if end:

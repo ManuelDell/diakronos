@@ -22,9 +22,9 @@
   box-shadow: var(--shadow-lg);
   width: 100%;
   max-width: 480px;
-  max-height: 90vh;
+  max-height: calc(100vh - 100px);
   margin: var(--gap-l);
-  overflow: hidden;
+  overflow-y: auto;
   transform: translateY(-30px);
   transition: transform 0.3s ease;
 }
@@ -79,6 +79,25 @@
   padding: var(--gap-xl);
   overflow-y: auto;
   flex: 1;
+}
+
+// ── Modal Content Container ───────────────────────────────────────────────────
+.diakronos-modal-content {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 100px);
+}
+
+// ── Modal Footer ──────────────────────────────────────────────────────────────
+.diakronos-modal-footer {
+  padding: var(--gap-l) var(--gap-xl);
+  border-top: 1px solid var(--border-default);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--gap-l);
+  background: var(--bg-surface);
+  flex-shrink: 0;
 }
 
 .event-time {
@@ -409,6 +428,284 @@
 
 .btn-danger:hover {
   background: var(--danger-active);
+}
+
+.btn-warning {
+  background: #f59e0b;
+  color: #fff;
+  border: none;
+  padding: var(--gap-m) var(--gap-l);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: background 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-warning:hover {
+  background: #d97706;
+}
+
+// ── Konflikt-Modal ──────────────────────────────────────────────────────────
+.diakronos-conflict-modal .diakronos-modal-content {
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 420px;
+}
+
+.conflict-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border-default);
+  background: #fef3c7;
+
+  h5 {
+    margin: 0;
+    flex: 1;
+    font-size: 16px;
+    font-weight: 600;
+    color: #92400e;
+  }
+}
+
+.conflict-icon {
+  display: flex;
+  align-items: center;
+  color: #d97706;
+}
+
+.conflict-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #92400e;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 2px;
+
+  &:hover { color: #7c2d12; }
+}
+
+.conflict-modal-body {
+  padding: 16px 20px;
+}
+
+.conflict-message {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: 0 0 10px;
+}
+
+.conflict-event-card {
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  strong {
+    font-size: 14px;
+    color: var(--text-primary);
+  }
+}
+
+.conflict-event-time {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.conflict-question {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.conflict-modal-footer {
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border-default);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+  }
+}
+
+// ── Session-Save-Modal ──────────────────────────────────────────────────────
+.diakronos-session-modal .diakronos-modal-content {
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 440px;
+}
+
+.session-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.session-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.session-step-indicator {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.session-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border-default);
+  transition: background 200ms ease;
+
+  &.active {
+    background: var(--primary);
+  }
+}
+
+.session-modal-body {
+  padding: 16px 20px;
+}
+
+.session-calendar-info {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.session-cal-name {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.session-event-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-surface-hover);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.session-event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.session-event-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-subtle);
+
+  &:last-child { border-bottom: none; }
+
+  svg { flex-shrink: 0; color: var(--text-muted); }
+}
+
+.session-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-surface-hover);
+  border-radius: var(--border-radius-sm);
+  padding: 8px 10px;
+  margin-bottom: 4px;
+
+  svg { flex-shrink: 0; margin-top: 1px; }
+}
+
+.selbstverwaltet-hint {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.session-modal-footer {
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border-default);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+  }
+}
+
+// ── Admin-Leiste (Alle freigeben) ────────────────────────────────────────────
+.session-admin-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px 14px;
+  border-top: 2px solid var(--primary);
+  background: color-mix(in srgb, var(--primary) 6%, var(--bg-surface));
+  border-radius: 0 0 var(--border-radius-md) var(--border-radius-md);
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+}
+
+.session-admin-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+
+  svg { flex-shrink: 0; }
 }
 
 // Checkboxen nebeneinander (neuer Name: checkbox-row)

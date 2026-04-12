@@ -1,41 +1,41 @@
 // modal_create.js – neuer_termin_dialog
 
 import { kronosCalendar } from '../builder/kronos_calendar.js';
-import { escHtml } from '../html_utils.js';
+import { escHtml }         from '../html_utils.js';
+import { PendingManager }  from '../backend/pending_manager.js';
+import { showConflictModal } from './modal_conflict.js';
 
 class DiakronosCreateModal {
     static async show(initialData = {}) {
         const element = initialData || {};
 
-        // Schreibbare Kalender laden (inkl. Farbe)
-        let writableCalendars = [];
-        try {
-            const res = await fetch('/api/method/diakronos.kronos.api.permissions.get_writable_calendars');
-            if (res.ok) {
-                const data = await res.json();
-                writableCalendars = data.message || [];
-            }
-        } catch (err) {
-            console.warn('Schreibrechte konnten nicht geladen werden:', err);
-        }
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
-        // Farb-Map: { calendarName → color }
+        // Schreibbare Kalender, Kategorien, Ressourcen und Einstellungen parallel laden
+        const [writableCalendars, categories, ressources, settings] = await Promise.all([
+            fetch('/api/method/diakronos.kronos.api.permissions.get_writable_calendars')
+                .then(r => r.ok ? r.json().then(d => d.message || []) : [])
+                .catch(() => []),
+            fetch('/api/resource/Eventkategorie?fields=["name","event_category_name"]&limit_page_length=500')
+                .then(r => r.ok ? r.json().then(d => d.data || []) : [])
+                .catch(() => []),
+            fetch('/api/method/diakronos.kronos.api.ressource_api.get_ressources', {
+                method: 'POST', headers: { 'X-Frappe-CSRF-Token': csrfToken }
+            }).then(r => r.ok ? r.json().then(d => d.message || []) : [])
+              .catch(() => []),
+            fetch('/api/method/diakronos.kronos.api.ressource_api.get_kronos_settings', {
+                method: 'POST', headers: { 'X-Frappe-CSRF-Token': csrfToken }
+            }).then(r => r.ok ? r.json().then(d => d.message || {}) : {})
+              .catch(() => ({})),
+        ]);
+
         const calendarColors = {};
         writableCalendars.forEach(cal => {
             calendarColors[cal.name] = cal.calendar_color || '#9ca3af';
         });
 
-        // Alle Kategorien laden
-        let categories = [];
-        try {
-            const res = await fetch('/api/resource/Eventkategorie?fields=["name","event_category_name"]&limit_page_length=500');
-            if (res.ok) {
-                const data = await res.json();
-                categories = data.data || [];
-            }
-        } catch (err) {
-            console.warn('Kategorien konnten nicht geladen werden:', err);
-        }
+        const ressourcePflicht    = settings.ressource_pflichtfeld || false;
+        const standardRessource   = element.ressource || settings.standard_ressource || '';
 
         const modalHTML = `
             <div class="diakronos-modal" tabindex="-1" role="dialog">
@@ -53,12 +53,12 @@ class DiakronosCreateModal {
                             <button class="tab-btn" data-tab="details">Details</button>
                         </div>
 
-                        <!-- Tab 1: Grunddaten – Titel, Zeit, Kalender -->
+                        <!-- Tab 1: Grunddaten -->
                         <div id="tab-basic" class="tab-content active">
                             <div class="diakronos-modal-body">
                                 <div class="form-group">
                                     <label>Titel <span class="required">*</span></label>
-                                    <input type="text" id="element_name" value="${escHtml(element.element_name)}" required>
+                                    <input type="text" id="element_name" value="${escHtml(element.element_name || '')}" required>
                                 </div>
 
                                 <div class="form-row">
@@ -90,10 +90,22 @@ class DiakronosCreateModal {
                                         `).join('')}
                                     </select>
                                 </div>
+
+                                <div class="form-group">
+                                    <label>Ressource ${ressourcePflicht ? '<span class="required">*</span>' : ''}</label>
+                                    <select id="element_ressource">
+                                        <option value="">— Kein Raum —</option>
+                                        ${ressources.map(r => `
+                                            <option value="${escHtml(r.id)}" ${standardRessource === r.id ? 'selected' : ''}>
+                                                ${escHtml(r.title)}${r.kapazitaet ? ` (${r.kapazitaet} Plätze)` : ''}
+                                            </option>
+                                        `).join('')}
+                                    </select>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Tab 2: Details – Serie, Beschreibung, Kategorie -->
+                        <!-- Tab 2: Details -->
                         <div id="tab-details" class="tab-content">
                             <div class="diakronos-modal-body">
                                 <div class="checkbox-row">
@@ -137,6 +149,13 @@ class DiakronosCreateModal {
                                         `).join('')}
                                     </select>
                                 </div>
+
+                                <div class="checkbox-row">
+                                    <label class="checkbox-label checkbox-label-muted" title="Dieser Termin löst keine Konflikte aus, auch wenn die Ressource belegt ist">
+                                        <input type="checkbox" id="ignore_conflict" ${element.ignore_conflict ? 'checked' : ''}>
+                                        Konflikte ignorieren
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -154,12 +173,18 @@ class DiakronosCreateModal {
         const modal = document.querySelector('.diakronos-modal:last-child');
         requestAnimationFrame(() => modal.classList.add('show'));
 
-        // Farbleiste live aktualisieren bei Kalender-Auswahl
+        // Farbleiste
         const colorBar  = modal.querySelector('#modal-color-bar');
         const calSelect = modal.querySelector('#element_calendar');
         calSelect.addEventListener('change', () => {
             colorBar.style.backgroundColor = calendarColors[calSelect.value] || 'var(--primary)';
         });
+
+        // Vorauswahl Kalender-Farbe
+        if (element.element_calendar && calendarColors[element.element_calendar]) {
+            calSelect.value = element.element_calendar;
+            colorBar.style.backgroundColor = calendarColors[element.element_calendar];
+        }
 
         // Tab-Switching
         modal.querySelectorAll('.tab-btn').forEach(btn => {
@@ -171,14 +196,14 @@ class DiakronosCreateModal {
             });
         });
 
-        // Serie Checkbox
+        // Serie-Checkbox
         const repeatCheckbox = modal.querySelector('#repeat_this_event');
         const seriesOptions  = modal.querySelector('#series-options');
         repeatCheckbox.addEventListener('change', () => {
             seriesOptions.style.display = repeatCheckbox.checked ? 'block' : 'none';
         });
 
-        // Flatpickr – Datum/Uhrzeit-Picker
+        // Flatpickr
         const startInput = modal.querySelector('#element_start');
         const endInput   = modal.querySelector('#element_end');
         let fpStart = null, fpEnd = null;
@@ -186,73 +211,66 @@ class DiakronosCreateModal {
         if (window.flatpickr) {
             const fpLocale = window.flatpickr.l10ns?.de || 'default';
             const baseOpts = {
-                locale:          fpLocale,
-                enableTime:      true,
-                time_24hr:       true,
-                dateFormat:      'Y-m-dTH:i',   // ISO-Format für Backend
-                altInput:        true,
-                altFormat:       'j. F Y, H:i',  // Anzeige: "15. März 2026, 14:30"
-                minuteIncrement: 5,
+                locale: fpLocale, enableTime: true, time_24hr: true,
+                dateFormat: 'Y-m-dTH:i', altInput: true,
+                altFormat: 'j. F Y, H:i', minuteIncrement: 5,
             };
-
             fpStart = window.flatpickr(startInput, {
                 ...baseOpts,
                 defaultDate: element.element_start || null,
                 onChange: ([date]) => {
                     if (!date || !fpEnd) return;
                     const endDates = fpEnd.selectedDates;
-                    // End automatisch 1 h nach Start setzen wenn leer oder vor Start
                     if (!endDates.length || endDates[0] <= date) {
                         fpEnd.setDate(new Date(date.getTime() + 60 * 60 * 1000));
                     }
                     fpEnd.set('minDate', date);
                 },
             });
-
             fpEnd = window.flatpickr(endInput, {
                 ...baseOpts,
                 defaultDate: element.element_end || null,
-                minDate:     element.element_start || null,
+                minDate: element.element_start || null,
             });
-
-            // Serien-Enddatum: nur Datum, keine Uhrzeit
             const seriesEndInput = modal.querySelector('#series_end');
             if (seriesEndInput) {
                 window.flatpickr(seriesEndInput, {
-                    locale:     fpLocale,
-                    dateFormat: 'Y-m-d',
-                    altInput:   true,
-                    altFormat:  'j. F Y',
-                    minDate:    'today',
+                    locale: fpLocale, dateFormat: 'Y-m-d',
+                    altInput: true, altFormat: 'j. F Y', minDate: 'today',
                 });
             }
         }
 
-        // Ganztägig → Zeitfelder deaktivieren
+        // Ganztägig
         const allDayCheckbox = modal.querySelector('#all_day');
         allDayCheckbox.addEventListener('change', () => {
             const isAllDay = allDayCheckbox.checked;
             if (fpStart && fpEnd) {
-                fpStart.set('clickOpens', !isAllDay);
-                fpEnd.set('clickOpens',   !isAllDay);
-                if (fpStart.altInput) fpStart.altInput.disabled = isAllDay;
-                if (fpEnd.altInput)   fpEnd.altInput.disabled   = isAllDay;
+                fpStart.set('enableTime', !isAllDay);
+                fpEnd.set('enableTime', !isAllDay);
                 if (isAllDay) {
-                    const d = fpStart.selectedDates[0] || new Date();
-                    const [y, mo, day] = [d.getFullYear(), d.getMonth(), d.getDate()];
-                    fpStart.setDate(new Date(y, mo, day, 0, 0));
-                    fpEnd.setDate(new Date(y, mo, day, 23, 59));
+                    // Nur Zeitkomponenten anpassen, Datum beibehalten
+                    const startDate = fpStart.selectedDates[0];
+                    const endDate = fpEnd.selectedDates[0] || startDate;
+                    
+                    if (startDate) {
+                        fpStart.setDate(new Date(startDate.getFullYear(), startDate.getMonth(), 
+                                                startDate.getDate(), 0, 0));
+                    }
+                    if (endDate) {
+                        fpEnd.setDate(new Date(endDate.getFullYear(), endDate.getMonth(), 
+                                              endDate.getDate(), 23, 59));
+                    }
                 }
-            } else {
-                startInput.disabled = isAllDay;
-                endInput.disabled   = isAllDay;
             }
         });
 
         // Schließen
-        modal.querySelector('.diakronos-close-btn').onclick = () => modal.remove();
-        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.remove(); }, { once: true });
+        const closeModal = () => { modal.classList.remove('show'); setTimeout(() => modal.remove(), 200); };
+        modal.querySelector('.diakronos-close-btn').onclick = closeModal;
+        modal.querySelector('#cancel-btn').onclick = closeModal;
+        modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); }, { once: true });
 
         const showError = (msg) => {
             const el = modal.querySelector('#modal-error');
@@ -263,41 +281,78 @@ class DiakronosCreateModal {
         const switchToTab = (tabName) => {
             modal.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             modal.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            modal.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-            modal.querySelector(`#tab-${tabName}`).classList.add('active');
+            modal.querySelector(`[data-tab="${tabName}"]`)?.classList.add('active');
+            modal.querySelector(`#tab-${tabName}`)?.classList.add('active');
         };
 
         // Speichern
         modal.querySelector('#save-btn').addEventListener('click', async () => {
-            const calendarVal = calSelect.value;
-            if (!calendarVal) {
-                switchToTab('basic');
-                showError('Bitte einen Kalender auswählen.');
-                return;
-            }
+            const calendarVal  = calSelect.value;
+            const ressourceVal = modal.querySelector('#element_ressource').value;
+            const titleVal     = modal.querySelector('#element_name').value.trim();
+
+            if (!titleVal) { switchToTab('basic'); showError('Bitte einen Titel eingeben.'); return; }
+            if (!calendarVal) { switchToTab('basic'); showError('Bitte einen Kalender auswählen.'); return; }
+
             const hasStart = fpStart ? fpStart.selectedDates.length > 0 : !!startInput.value;
-            if (!hasStart) {
+            if (!hasStart) { switchToTab('basic'); showError('Bitte Beginn ausfüllen.'); return; }
+
+            if (ressourcePflicht && !ressourceVal) {
                 switchToTab('basic');
-                showError('Bitte Beginn ausfüllen.');
+                showError('Bitte eine Ressource auswählen (Pflichtfeld in den Einstellungen).');
                 return;
             }
 
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-            const isSeries  = repeatCheckbox.checked;
+            const startVal   = startInput.value;
+            const endVal     = endInput.value;
+            const isSeries   = repeatCheckbox.checked;
+            const ignoreConf = modal.querySelector('#ignore_conflict').checked;
+
+            // Konfliktprüfung
+            let finalStatus        = undefined; // Backend setzt "Vorschlag"
+            let finalIgnoreConflict = ignoreConf;
+
+            if (ressourceVal && !ignoreConf) {
+                const csrfT = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                try {
+                    const conflictRes = await fetch('/api/method/diakronos.kronos.api.ressource_api.check_resource_conflict', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrfT },
+                        body: JSON.stringify({ ressource: ressourceVal, element_start: startVal, element_end: endVal })
+                    });
+                    if (conflictRes.ok) {
+                        const conflictData = (await conflictRes.json()).message;
+                        if (conflictData) {
+                            const decision = await showConflictModal(conflictData);
+                            if (decision === null) return; // Abbrechen
+                            if (decision === 'ignore')   finalIgnoreConflict = true;
+                            if (decision === 'conflict') finalStatus = 'Konflikt';
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Konfliktprüfung fehlgeschlagen (wird ignoriert):', e);
+                }
+            }
+
+            const saveBtn = modal.querySelector('#save-btn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = '…';
 
             const endpoint = isSeries
                 ? '/api/method/diakronos.kronos.api.event_crud.create_series'
                 : '/api/method/diakronos.kronos.api.event_crud.create_event';
 
             const payload = {
-                element_name:     modal.querySelector('#element_name').value,
-                element_start:    startInput.value,
-                element_end:      endInput.value,
+                element_name:     titleVal,
+                element_start:    startVal,
+                element_end:      endVal,
                 element_calendar: calendarVal,
                 all_day:          allDayCheckbox.checked,
                 description:      modal.querySelector('#description').value,
                 element_category: modal.querySelector('#element_category').value,
-                status:           'Festgelegt',
+                ressource:        ressourceVal,
+                ignore_conflict:  finalIgnoreConflict,
+                ...(finalStatus ? { status: finalStatus } : {}),
             };
 
             if (isSeries) {
@@ -317,21 +372,31 @@ class DiakronosCreateModal {
                 });
 
                 if (response.ok) {
+                    const result = await response.json();
+                    // Einzeltermin: id, Serientermine: created_ids[]
+                    const createdIds = result.message?.created_ids || (result.message?.id ? [result.message.id] : []);
+                    for (const id of createdIds) {
+                        PendingManager.add(id, calendarVal, titleVal);
+                    }
+                    if (finalStatus === 'Konflikt') {
+                        document.dispatchEvent(new CustomEvent('kronos:conflict_created'));
+                    }
                     if (kronosCalendar) kronosCalendar.refetchEvents();
-                    modal.remove();
+                    closeModal();
                 } else {
                     const errText = await response.text();
                     console.error('Fehler-Details:', errText);
                     showError('Fehler beim Erstellen. Bitte erneut versuchen.');
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Erstellen';
                 }
             } catch (err) {
                 console.error('API-Fehler:', err);
                 showError('Verbindungsfehler. Bitte Seite neu laden.');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Erstellen';
             }
         });
-
-        // Abbrechen
-        modal.querySelector('#cancel-btn').onclick = () => modal.remove();
     }
 }
 

@@ -1,5 +1,8 @@
 // diakronos/public/js/backend/data.js
 
+// Importiere setState und getState aus dem gemeinsamen Zustandsmodul
+import { setState, getState } from '../shared/state.js';
+
 export async function fetch_accessible_calendars() {
     try {
         // Direkter REST-API Aufruf an Frappe
@@ -37,19 +40,27 @@ export async function fetch_accessible_calendars() {
     }
 }
 
-// true = View-Modus (Standard, nur Lesen), false = Bearbeitungs-Modus
-let viewMode = true;
+// Funktion zum Setzen des View-Modus
+export const setViewMode = (val) => {
+    // 'true' bedeutet View-Modus, 'false' Bearbeitungsmodus
+    const mode = val ? 'view' : 'edit';
+    setState('viewMode', mode);
+};
 
-export const setViewMode = (val) => { viewMode = !!val; };
-export const getViewMode = () => viewMode;
+// Funktion zum Abrufen des View-Modus
+export const getViewMode = () => {
+    const mode = getState('viewMode');
+    // Rückgabe als boolean für Abwärtskompatibilität
+    return mode !== 'edit';
+};
 
 
 // --- CALENDAR FILTER STATE ---
-// Array mit den Namen der ausgewählten Kalender. Leer = Alle anzeigen.
-let selectedCalendars = [];
+export const setSelectedCalendars = (calendarsArray) => {
+    setState('selectedCalendars', calendarsArray || []);
+};
 
-export const setSelectedCalendars = (calendarsArray) => { selectedCalendars = calendarsArray || []; };
-export const getSelectedCalendars = () => selectedCalendars;
-
-// TEMPORÄR FÜR DIE KONSOLE ZUM TESTEN:
-//window.test_fetch_calendars = fetch_accessible_calendars;
+export const getSelectedCalendars = () => {
+    const val = getState('selectedCalendars');
+    return val !== undefined ? val : [];
+};

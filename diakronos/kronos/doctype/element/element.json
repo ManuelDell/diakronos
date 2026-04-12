@@ -14,6 +14,8 @@
   "element_category",
   "element_calendar",
   "status",
+  "ressource",
+  "ignore_conflict",
   "column_break_4",
   "element_start",
   "element_end",
@@ -61,6 +63,19 @@
   {
    "fieldname": "column_break_4",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ressource",
+   "fieldtype": "Link",
+   "label": "Ressource",
+   "options": "Ressource"
+  },
+  {
+   "default": "0",
+   "fieldname": "ignore_conflict",
+   "fieldtype": "Check",
+   "label": "Konflikte ignorieren",
+   "description": "Dieser Termin l\u00f6st keine Konfliktwarnungen aus"
   },
   {
    "default": "Festgelegt",

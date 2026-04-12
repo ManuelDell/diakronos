@@ -1,0 +1,61 @@
+{
+ "actions": [],
+ "creation": "2026-03-17 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ressource_section",
+  "ressource_pflichtfeld",
+  "standard_ressource"
+ ],
+ "fields": [
+  {
+   "fieldname": "ressource_section",
+   "fieldtype": "Section Break",
+   "label": "Ressourcen"
+  },
+  {
+   "default": "0",
+   "fieldname": "ressource_pflichtfeld",
+   "fieldtype": "Check",
+   "label": "Ressource als Pflichtfeld",
+   "description": "Wenn aktiviert, muss bei jedem neuen Termin eine Ressource ausgew\u00e4hlt werden"
+  },
+  {
+   "fieldname": "standard_ressource",
+   "fieldtype": "Link",
+   "label": "Standard-Ressource",
+   "options": "Ressource",
+   "description": "Wird beim Erstellen neuer Termine automatisch vorausgew\u00e4hlt"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-03-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Kronos",
+ "name": "Kronos Einstellungen",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "role": "Kalenderadministrator"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -28,6 +28,12 @@ export async function sidebar_build_elements(mainContentEl) {
         return;
     }
 
+    // ── Sidebar-Titel ─────────────────────────────────────────────────────────
+    const calSection = sidebar.querySelector('.sidebar-calenderlist-section');
+    const titleEl = calSection?.querySelector('.sidebar-title');
+    if (titleEl) titleEl.textContent = 'Meine Kalender';
+
+    // ── Kalender-Liste laden ─────────────────────────────────────────────────
     calendarList.innerHTML = '<p class="text-muted p-3">Kalender werden geladen...</p>';
 
     async function loadCalendars() {
@@ -126,7 +132,7 @@ export async function sidebar_build_elements(mainContentEl) {
         kronosCalendar.refetchEvents();
     }
 
-    // ── Import-Button (nur für Administrator / Kalenderadministrator) ─────────────────
+    // ── Import-Button (nur für Administrator / Kalenderadministrator) ─────────
     const userRoles = window._kronosUserRoles || [];
     if (userRoles.includes('Administrator') || userRoles.includes('Kalenderadministrator')) {
         const importBtn = document.createElement('a');
@@ -136,7 +142,7 @@ export async function sidebar_build_elements(mainContentEl) {
         sidebar.appendChild(importBtn);
     }
 
-    // ── Hilfe-Button ────────────────────────────────────────────────────────
+    // ── Hilfe-Button ─────────────────────────────────────────────────────────
     const helpBtn = document.createElement('button');
     helpBtn.className = 'sidebar-help-btn';
     helpBtn.innerHTML = '<span class="sidebar-help-icon">?</span> Hilfe & Infos';
@@ -145,7 +151,6 @@ export async function sidebar_build_elements(mainContentEl) {
 }
 
 function _showHelpModal() {
-    // Nur einmal einfügen
     if (document.getElementById('diakronos-help-overlay')) {
         document.getElementById('diakronos-help-overlay').classList.add('visible');
         return;
@@ -219,7 +224,6 @@ function _showHelpModal() {
     document.body.appendChild(overlay);
     requestAnimationFrame(() => overlay.classList.add('visible'));
 
-    // Schließen per Klick auf X oder Außenbereich → nach Transition aus DOM entfernen
     function closeOverlay() {
         overlay.classList.remove('visible');
         overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });

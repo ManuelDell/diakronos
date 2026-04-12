@@ -11,9 +11,12 @@
   "calendar_name",
   "calendar_color",
   "calender_details",
+  "selbstverwaltet",
   "section_break_obuf",
   "leserechte",
   "schreibrechte",
+  "section_break_mods",
+  "kalendermoderatoren",
   "calender_elementlist"
  ],
  "fields": [
@@ -36,6 +39,18 @@
    "reqd": 1
   },
   {
+   "fieldname": "section_break_mods",
+   "fieldtype": "Section Break",
+   "label": "Moderatoren"
+  },
+  {
+   "fieldname": "kalendermoderatoren",
+   "fieldtype": "Table",
+   "label": "Kalendermoderatoren",
+   "options": "Kalender Moderator",
+   "description": "Nutzer in dieser Liste sehen zus\u00e4tzlich Vorschl\u00e4ge und Konflikte f\u00fcr diesen Kalender"
+  },
+  {
    "fieldname": "calender_elementlist",
    "fieldtype": "Tab Break",
    "label": "Termine"
@@ -47,6 +62,13 @@
    "label": "Name",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "selbstverwaltet",
+   "fieldtype": "Check",
+   "label": "Selbstverwaltet",
+   "description": "Termine in diesem Kalender ben\u00f6tigen keine externe Best\u00e4tigung – Ersteller k\u00f6nnen sie direkt festlegen"
   },
   {
    "fieldname": "section_break_obuf",
