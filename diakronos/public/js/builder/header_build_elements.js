@@ -85,6 +85,31 @@ export function header_build_elements() {
     const headerRight = document.createElement('div');
     headerRight.className = 'header-right';
 
+    // Ressourcen-Ansicht-Mapping: Normal-View → Resource-View
+    const RESOURCE_VIEW_MAP = {
+        'dayGridMonth': 'resourceTimelineMonth',
+        'timeGridWeek': 'resourceTimelineWeek',
+        'timeGridDay':  'resourceTimelineDay',
+        'listMonth':    'resourceTimelineWeek',
+    };
+    const RESOURCE_VIEWS = new Set(Object.values(RESOURCE_VIEW_MAP));
+
+    let _lastNormalView  = 'dayGridMonth';
+    let _isResourceView  = false;
+
+    // ── Raumbelegung-Button (Desktop/Tablet only) ─────────────────────────────
+    const resourceBtn = document.createElement('button');
+    resourceBtn.id        = 'resource-toggle-btn';
+    resourceBtn.className = 'resource-toggle-btn';
+    resourceBtn.setAttribute('aria-label', 'Raumbelegung anzeigen');
+    resourceBtn.setAttribute('aria-pressed', 'false');
+    resourceBtn.title = 'Raumbelegung';
+    resourceBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5z"/><path d="M3 13a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6z"/><path d="M15 13a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-6z"/></svg>
+        <span class="resource-btn-label">Raumbelegung</span>
+    `;
+    headerRight.appendChild(resourceBtn);
+
     const viewSelector = document.createElement('select');
     viewSelector.id = 'view-selector';
     viewSelector.className = 'view-dropdown';
@@ -94,7 +119,6 @@ export function header_build_elements() {
         <option value="timeGridWeek">Woche</option>
         <option value="timeGridDay">Tag</option>
         <option value="listMonth">Liste</option>
-        <option value="resourceTimelineWeek">Ressourcenplan</option>
     `;
     headerRight.appendChild(viewSelector);
 
@@ -252,6 +276,17 @@ export function header_build_elements() {
         if (mobileEl) {
             mobileEl.textContent = moment(e.detail.start).locale('de').format('MMMM');
         }
+
+        // Raumbelegung-Button-Status synchronisieren
+        const viewType = e.detail.view.type;
+        _isResourceView = RESOURCE_VIEWS.has(viewType);
+        resourceBtn.classList.toggle('active', _isResourceView);
+        resourceBtn.setAttribute('aria-pressed', _isResourceView ? 'true' : 'false');
+
+        // Dropdown-Wert aktualisieren (zeigt Normal-View, nicht Resource-View)
+        if (!_isResourceView && viewSelector.value !== viewType) {
+            viewSelector.value = viewType;
+        }
     });
 
     const tryConnectCalendar = setInterval(() => {
@@ -260,7 +295,29 @@ export function header_build_elements() {
             const calendar = kronosCalendar.calendar;
             prevBtn.addEventListener('click', () => calendar.prev());
             nextBtn.addEventListener('click', () => calendar.next());
-            viewSelector.addEventListener('change', (e) => kronosCalendar.changeView(e.target.value));
+
+            viewSelector.addEventListener('change', (e) => {
+                _lastNormalView = e.target.value;
+                _isResourceView = false;
+                resourceBtn.classList.remove('active');
+                resourceBtn.setAttribute('aria-pressed', 'false');
+                kronosCalendar.changeView(e.target.value);
+            });
+
+            resourceBtn.addEventListener('click', () => {
+                if (_isResourceView) {
+                    // Zurück zur normalen Ansicht
+                    kronosCalendar.changeView(_lastNormalView);
+                } else {
+                    // Aktuelle Normal-Ansicht merken, zur Ressource-Ansicht wechseln
+                    const currentView = calendar.getOption('view');
+                    if (!RESOURCE_VIEWS.has(currentView)) {
+                        _lastNormalView = currentView;
+                    }
+                    const resourceView = RESOURCE_VIEW_MAP[_lastNormalView] || 'resourceTimelineWeek';
+                    kronosCalendar.changeView(resourceView);
+                }
+            });
         }
     }, 200);
 
