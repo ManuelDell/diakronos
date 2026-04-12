@@ -21,6 +21,9 @@ Gebaut für Freikirchen und kleinere Gemeinden, die eine einfache, ehrliche Lös
 
 Kronos ist ein vollständiger Gemeinde-Kalender, der direkt im Browser läuft – keine App nötig. Termine lassen sich mit Apple Kalender, Thunderbird und allen gängigen Kalender-Apps synchronisieren (CalDAV).
 
+![Kronos Beispiel](https://github.com/user-attachments/assets/fa249469-805a-46ff-a5ab-80d9d583f4e4)
+
+
 **Was ihr bekommt:**
 - Monats-, Wochen- und Tagesansicht
 - Mehrere Kalender mit eigenen Farben und Zugriffsrechten
@@ -32,6 +35,10 @@ Kronos ist ein vollständiger Gemeinde-Kalender, der direkt im Browser läuft �
 
 → [Technische Dokumentation Kronos](docs/kronos.md)
 
+Import von Google Kalendar und iCal Dateien:
+<img width="694" height="397" alt="Importierte Termine" src="https://github.com/user-attachments/assets/80bbe75f-6bdd-410d-a3c8-e711dbccb962" />
+Moderation:
+<img width="1854" height="1016" alt="Moderation" src="https://github.com/user-attachments/assets/7c3dbdbb-b208-4dbc-846e-7147dfdd4056" />
 ---
 
 ## Diakonos – Mitglieder
