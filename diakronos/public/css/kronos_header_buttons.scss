@@ -634,3 +634,75 @@ justify-content: flex-end;
 .view-edit-toggle.edit-mode .edit-icon {
     display: block;
 }
+
+/* ============================================================================
+   RAUMBELEGUNG TOGGLE BUTTON (Desktop only, links neben der Ansichtsauswahl)
+   ============================================================================ */
+.resource-toggle-btn {
+    display: none; /* Mobile: hidden by default */
+    align-items: center;
+    gap: 6px;
+    height: var(--button-height);
+    padding: 0 12px;
+    background-color: var(--bg-page);
+    border: 1px solid var(--border-default);
+    border-radius: var(--border-radius-sm);
+    color: var(--text-primary);
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: var(--shadow-lg);
+    transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+    flex-shrink: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+
+    svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+        stroke-width: 1.5;
+        flex-shrink: 0;
+    }
+
+    &:hover {
+        background-color: var(--bg-surface-hover);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+    }
+
+    /* Pressed / active state */
+    &.active {
+        background-color: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+
+        svg {
+            stroke: #fff;
+        }
+
+        &:hover {
+            background-color: var(--primary-hover, color-mix(in srgb, var(--primary) 85%, #000));
+            border-color: var(--primary-hover, color-mix(in srgb, var(--primary) 85%, #000));
+        }
+    }
+}
+
+/* Show on wide screens (desktop + wide tablet) */
+@media (min-width: 900px) {
+    .resource-toggle-btn {
+        display: flex;
+    }
+}
+
+/* Also hide on mobile touch devices via existing breakpoint */
+@media (max-width: 768px) and (pointer: coarse) {
+    .resource-toggle-btn {
+        display: none !important;
+    }
+}
