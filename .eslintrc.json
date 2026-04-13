@@ -1,0 +1,25 @@
+{
+  "env": {
+    "browser": true,
+    "es2022": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "extends": ["eslint:recommended"],
+  "globals": {
+    "moment": "readonly"
+  },
+  "rules": {
+    "no-console": "off",
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "no-inner-declarations": "off"
+  },
+  "ignorePatterns": [
+    "**/lib/**",
+    "**/*.min.js",
+    "**/kanban.bundle.js",
+    "node_modules/**"
+  ]
+}
