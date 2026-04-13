@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main, v16]
+  pull_request:
+    branches: [main, v16]
+
+jobs:
+  python-checks:
+    name: Python – Syntax & Import-Konsistenz
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python 3.12 einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Syntax & Import-Konsistenz prüfen
+        run: python3 scripts/check_imports.py
