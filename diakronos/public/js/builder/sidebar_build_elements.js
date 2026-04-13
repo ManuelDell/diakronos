@@ -232,4 +232,4 @@ function _showHelpModal() {
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) closeOverlay();
     });
-};
+}
