@@ -306,7 +306,8 @@ export function header_build_elements() {
 
             resourceBtn.addEventListener('click', () => {
                 if (_isResourceView) {
-                    // Zurück zur normalen Ansicht
+                    // Zurück zur normalen Ansicht: Slot-Dauer zurücksetzen
+                    calendar.setOption('slotDuration', '01:00:00');
                     kronosCalendar.changeView(_lastNormalView);
                 } else {
                     // Aktuelle Normal-Ansicht merken, zur Ressource-Ansicht wechseln
@@ -314,6 +315,8 @@ export function header_build_elements() {
                     if (!RESOURCE_VIEWS.has(currentView)) {
                         _lastNormalView = currentView;
                     }
+                    // Tagesscheiben statt Stundenscheiben – alle drei Resource-Ansichten
+                    calendar.setOption('slotDuration', {days: 1});
                     const resourceView = RESOURCE_VIEW_MAP[_lastNormalView] || 'resourceTimelineWeek';
                     kronosCalendar.changeView(resourceView);
                 }

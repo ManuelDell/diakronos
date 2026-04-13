@@ -182,8 +182,8 @@ body {
     border-radius: 0 0 12px 12px;
 }
 
-/* Kalenderwochen */
-.ec .ec-row-head {
+/* Kalenderwochen (nur nicht-Ressource-Ansichten) */
+.ec:not(.ec-resource) .ec-row-head {
     width: 36px;
     text-align: center;
     font-size: 12px;
@@ -191,11 +191,42 @@ body {
     padding: 4px 2px;
 }
 
-.ec .ec-row-head > * {
+.ec:not(.ec-resource) .ec-row-head > * {
     display: inline-block;
     background: var(--gray-100);
     border-radius: 4px;
     padding: 2px 4px;
+}
+
+/* Ressourcen-Timeline: Sidebar breiter, Schrift 50 % größer */
+.ec.ec-resource {
+    overflow: auto; /* Ressource-Zeilen können vertikal scrollen */
+}
+
+.ec.ec-resource .ec-sidebar {
+    min-width: 200px;
+}
+
+.ec.ec-resource .ec-row-head {
+    min-width: 200px;
+    max-width: 200px;
+    font-size: 18px;   /* Basis ~12 px × 1.5 */
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    color: var(--text-primary);
+}
+
+/* Ressource-Body füllt volle Breite und scrollt vertikal wenn Räume nicht alle passen */
+.ec.ec-resource .ec-body {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: auto;
 }
 
 /* Tagesnummer zentriert */
@@ -292,14 +323,14 @@ body {
     }
 
     /* Kalenderwochen: Soothing Blue, fett, 25 % kleiner als Tagesnummern */
-    .ec .ec-row-head {
+    .ec:not(.ec-resource) .ec-row-head {
         width: 20px;
         font-size: 8px;
         font-weight: 700;
         color: #6a9fd8;
         padding: 2px 0;
     }
-    .ec .ec-row-head > * {
+    .ec:not(.ec-resource) .ec-row-head > * {
         background: transparent;
         padding: 0;
         border-radius: 0;
@@ -330,7 +361,7 @@ body {
     }
 
     /* Kalenderwochen: bleibt 8 px */
-    .ec .ec-row-head {
+    .ec:not(.ec-resource) .ec-row-head {
         font-size: 8px;
         width: 18px;
     }

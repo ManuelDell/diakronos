@@ -14,7 +14,6 @@ from .event_crud import (
     create_event,
     update_event,
     delete_event,
-    get_event_details
 )
 
 # Nur die wirklich häufig genutzten exportieren
@@ -26,8 +25,4 @@ __all__ = [
     'create_event',
     'update_event',
     'delete_event',
-    'get_event_details',
-    # sync-Funktionen nur, wenn sie oft von außen gebraucht werden
-    # 'sync_nextcloud_events',
-    # 'sync_all_calendars',
 ]

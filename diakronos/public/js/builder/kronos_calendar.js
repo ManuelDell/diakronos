@@ -14,6 +14,7 @@ let sessionAutoConvertSeries = false;
 class KronosCalendar {
     constructor() {
         this.calendar = null;
+        this._resourcesLoaded = false;
     }
 
     kronos_calendar_init() {
@@ -185,6 +186,17 @@ class KronosCalendar {
                 // datesSet broadcastet an alle Listener via Custom-Event
                 datesSet: (info) => {
                     document.dispatchEvent(new CustomEvent('ec:datesSet', { detail: info }));
+                    const vt = info.view.type;
+                    const isResourceView = vt === 'resourceTimelineDay'
+                        || vt === 'resourceTimelineWeek'
+                        || vt === 'resourceTimelineMonth';
+
+                    if (isResourceView) {
+                        // Ressourcen laden sobald die Ressourcenansicht erstmals aktiviert wird
+                        if (!this._resourcesLoaded) {
+                            this._loadResources();
+                        }
+                    }
                 },
 
                 // Dot-Style für Termine im Monatsview (wie FullCalendar-Standard)
@@ -252,9 +264,7 @@ class KronosCalendar {
             }, { passive: true });
 
             calendarEl.style.height = '100%';
-
-            // Ressourcen für Timeline-Ansicht laden
-            this._loadResources();
+            // Ressourcen werden lazy beim ersten Wechsel in eine Ressourcen-Ansicht geladen
 
         } catch (error) {
             console.error('❌ Fehler beim Initialisieren:', error);
@@ -267,6 +277,7 @@ class KronosCalendar {
     // =========================================================================
 
     async _loadResources() {
+        this._resourcesLoaded = true; // vorzeitig setzen → kein Doppel-Request
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
         try {
             const res = await fetch('/api/method/diakronos.kronos.api.ressource_api.get_ressources', {
@@ -276,12 +287,15 @@ class KronosCalendar {
             });
             const data = await res.json();
             const resources = (data.message || []).map(r => ({ id: r.id, title: r.title }));
-            // Dummy-Resource für Termine ohne Raum-Zuordnung
+            // Dummy-Resource für Termine ohne Raum-Zuordnung (am Ende)
             resources.push({ id: '__unassigned__', title: 'Nicht zugeordnet' });
             if (this.calendar) {
                 this.calendar.setOption('resources', resources);
+                // refetchResources() zwingt EC die Ressource-Zeilen neu zu rendern
+                this.calendar.refetchResources();
             }
         } catch (e) {
+            this._resourcesLoaded = false; // bei Fehler: nächster Versuch erlaubt
             console.warn('Ressourcen konnten nicht geladen werden:', e);
         }
     }
