@@ -26,6 +26,7 @@ Kronos ist ein vollständiger Gemeinde-Kalender, der direkt im Browser läuft �
 
 **Was ihr bekommt:**
 - Monats-, Wochen- und Tagesansicht
+- **Raumbelegungsansicht** – alle Räume auf einen Blick, wer hat wann gebucht
 - Mehrere Kalender mit eigenen Farben und Zugriffsrechten
 - Räume und Ressourcen verwalten – mit automatischer Doppelbuchungs-Erkennung
 - Wiederkehrende Termine (täglich, wöchentlich, monatlich, jährlich)

@@ -47,13 +47,6 @@ export function header_build_elements() {
     todaybutton.id = 'today-btn';
     todaybutton.textContent = 'Heute';
     todaybutton.setAttribute('aria-label', 'Zum heutigen Tag springen');
-    todaybutton.addEventListener('click', () => {
-        kronosCalendar?.calendar?.today();
-        if (kronosMiniCalendar) {
-            kronosMiniCalendar.m = moment();
-            kronosMiniCalendar.render();
-        }
-    });
     headerLeft.appendChild(todaybutton);
     header.appendChild(headerLeft);
 
@@ -142,13 +135,6 @@ export function header_build_elements() {
     todayIconBtn.className = 'today-icon-btn';
     todayIconBtn.setAttribute('aria-label', 'Zum heutigen Tag springen');
     todayIconBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/><path d="M11 15h1"/><path d="M12 15v3"/></svg>`;
-    todayIconBtn.addEventListener('click', () => {
-        kronosCalendar?.calendar?.today();
-        if (kronosMiniCalendar) {
-            kronosMiniCalendar.m = moment();
-            kronosMiniCalendar.render();
-        }
-    });
     headerRight.appendChild(todayIconBtn);
 
     // Profil-Avatar + Dropdown
@@ -295,6 +281,20 @@ export function header_build_elements() {
             const calendar = kronosCalendar.calendar;
             prevBtn.addEventListener('click', () => calendar.prev());
             nextBtn.addEventListener('click', () => calendar.next());
+
+            // Add event listeners for today buttons
+            const todayBtn = document.getElementById('today-btn');
+            const todayIcon = document.querySelector('.today-icon-btn');
+            const todayHandler = () => {
+                kronosCalendar.calendar.today();
+                if (kronosMiniCalendar) {
+                    kronosMiniCalendar.m = moment();
+                    kronosMiniCalendar.render();
+                }
+            };
+            if (todayBtn) todayBtn.addEventListener('click', todayHandler);
+            if (todayIcon) todayIcon.addEventListener('click', todayHandler);
+
 
             viewSelector.addEventListener('change', (e) => {
                 _lastNormalView = e.target.value;
