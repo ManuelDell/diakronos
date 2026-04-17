@@ -39,6 +39,7 @@ class KronosCalendar {
                 headerToolbar: false,
                 weekNumbers: true,
                 height: '100%',
+                resourceAreaWidth: 200,
                 editable: !isViewMode,
                 selectable: !isViewMode,
 
@@ -70,7 +71,21 @@ class KronosCalendar {
                                 if (!response.ok) return response.text().then(t => { throw new Error(t); });
                                 return response.json();
                             })
-                            .then(result => successCallback(result.message || []))
+                            .then(result => {
+                                const events = result.message || [];
+                                const processedEvents = events.map(ev => {
+                                    // Force allDay: false for events with time component
+                                    if (ev.start && typeof ev.start === 'string' && ev.start.includes('T')) {
+                                        ev.allDay = false;
+                                    }
+                                    if (ev.end && typeof ev.end === 'string' && ev.end.includes('T')) {
+                                        ev.allDay = false;
+                                    }
+                                    // If end is not set for timed event, FullCalendar will use default duration
+                                    return ev;
+                                });
+                                successCallback(processedEvents);
+                            })
                             .catch(err => {
                                 console.error('❌ Events Fetch Fehler:', err);
                                 failureCallback(err);

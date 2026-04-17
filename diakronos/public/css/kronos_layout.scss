@@ -204,13 +204,13 @@ body {
 }
 
 .ec.ec-resource .ec-sidebar {
-    min-width: 200px;
+    min-width: 15%;
+    max-width: 250px;
 }
 
 .ec.ec-resource .ec-row-head {
-    min-width: 200px;
-    max-width: 200px;
-    font-size: 18px;   /* Basis ~12 px × 1.5 */
+    width: 100%;
+    font-size: 16px;
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
@@ -218,15 +218,30 @@ body {
     padding: 0 12px;
     display: flex;
     align-items: center;
-    color: var(--text-primary);
+    color: var(--text-color);
 }
 
-/* Ressource-Body füllt volle Breite und scrollt vertikal wenn Räume nicht alle passen */
-.ec.ec-resource .ec-body {
+/*
+ * Ressourcen-Timeline: Nur ec-main korrigieren.
+ * EC nutzt subgrid-Kette: ec-main → ec-body → ec-grid → days.
+ * ec-body, ec-sidebar, ec-grid NICHT überschreiben – EC positioniert
+ * via subgrid selbst (sidebar: grid-area 1/1/-1/2, grid: grid-column-start 2).
+ *
+ * Problem mit EC-Default: grid-template-columns: max-content repeat(N, min-content)
+ * → Spalten werden nur so breit wie der Inhalt (schmal).
+ * Fix: 1fr pro Spalte → gleichmäßige Verteilung auf volle Breite.
+ */
+.ec.ec-resource .ec-main {
+    grid-template-columns: max-content repeat(var(--ec-grid-cols, 7), 1fr) !important;
+    overflow: auto;
+}
+
+
+
+/* Normale Zeitraster-Ansicht (Woche/Tag): Terminfeldbereich füllt volle Höhe */
+.ec:not(.ec-resource) .ec-main {
     flex: 1;
-    min-width: 0;
-    overflow-y: auto;
-    overflow-x: auto;
+    min-height: 0;
 }
 
 /* Tagesnummer zentriert */
