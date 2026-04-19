@@ -1,4 +1,5 @@
-# Diakronos
+<img width="1353" height="440" alt="grafik" src="https://github.com/user-attachments/assets/df0d3c84-bf23-4bfe-bf23-7014b2e6333b" />
+
 
 **Diakronos** ist eine kostenlose, selbst-gehostete Gemeinde-Software – eine offene Alternative zu ChurchTools. Eure Daten bleiben bei euch, auf eurem eigenen Server. Keine monatlichen Kosten, keine Cloud, kein Datenschutz-Kompromiss.
 
