@@ -232,3 +232,31 @@ def resolve_conflict(element_id, action, title=None, element_start=None,
 
     doc.save(ignore_permissions=True)
     return {"id": doc.name, "new_status": doc.status, "action": action}
+
+
+@frappe.whitelist(allow_guest=False)
+def get_moderation_count():
+    """
+    Gibt die Anzahl der zu moderierenden Termine zurück.
+    Zählt Termine mit Status 'Vorschlag' oder 'Konflikt' in Kalendern,
+    für die der Nutzer Moderationsrechte hat.
+    Serien werden als ein Termin gezählt (DISTINCT series_id oder name).
+    """
+    if frappe.session.user == "Guest":
+        return {"count": 0}
+
+    allowed = get_accessible_calendars()
+    mod_cals = [c["name"] for c in allowed if c.get("is_moderator")]
+    if not mod_cals:
+        return {"count": 0}
+
+    placeholders = ", ".join(["%s"] * len(mod_cals))
+    result = frappe.db.sql(f"""
+        SELECT COUNT(DISTINCT COALESCE(NULLIF(series_id, ''), name)) AS cnt
+        FROM `tabElement`
+        WHERE status IN ('Vorschlag', 'Konflikt')
+          AND element_calendar IN ({placeholders})
+    """, mod_cals, as_dict=True)
+
+    count = result[0].cnt if result else 0
+    return {"count": int(count)}

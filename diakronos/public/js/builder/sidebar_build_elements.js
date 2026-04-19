@@ -1,4 +1,4 @@
-import { KronosMiniCalendar } from "./kronos_mini_calendar.js";
+import { KronosMiniCalendar, initMiniCalendar } from "./kronos_mini_calendar.js";
 import { kronosCalendar } from "./kronos_calendar.js";
 import { setSelectedCalendars, getSelectedCalendars } from '../backend/data.js';
 
@@ -12,7 +12,7 @@ export async function sidebar_build_elements(mainContentEl) {
     const miniContainer = sidebar.querySelector('#mini-kalender');
     if (miniContainer && KronosMiniCalendar) {
         if (!miniContainer.dataset.initialized) {
-            new KronosMiniCalendar('#mini-kalender');
+            initMiniCalendar();
             miniContainer.dataset.initialized = 'true';
         }
     } else {

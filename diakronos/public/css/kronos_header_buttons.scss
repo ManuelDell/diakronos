@@ -163,6 +163,10 @@ body:not(:has(.kronos-sidebar.active)) .kronos-fab {
     }
 }
 
+.kronos-pending-btn[hidden] {
+    display: none;
+}
+
 .pending-btn-text {
     white-space: nowrap;
 }

@@ -7,6 +7,23 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+### Kronos – Moderationsbutton & Navigation
+
+**Behoben**
+- Moderationsbutton (FAB links unten) ist jetzt nur sichtbar wenn gleichzeitig der Bearbeitungsmodus aktiv ist UND Termine mit Status „Vorschlag" oder „Konflikt" vorliegen – im Beobachtungsmodus bleibt er immer ausgeblendet
+- `Heute`-Button setzt jetzt auch den Mini-Kalender in der Sidebar auf den heutigen Tag zurück (vorher: nur Hauptkalender reagierte)
+- Moderationsbutton: `display: flex` im CSS überschrieb das HTML-`hidden`-Attribut; Spezifitätsfehler behoben mit `.kronos-pending-btn[hidden] { display: none }`
+
+**Neu**
+- Backend-Endpunkt `get_moderation_count`: gibt die Anzahl zu moderierender Termine zurück (Vorschlag + Konflikt, Serien als ein Termin, nur für Kalender mit Moderationsrecht)
+
+**Technisch**
+- `_syncModerationBtn` ersetzt altes `_syncPendingBtn`: prüft Edit-Modus und holt Count aus DB statt aus Session-State
+- `initMiniCalendar()` wird jetzt korrekt über den Singleton aufgerufen, sodass der exportierte `kronosMiniCalendar`-Binding für andere Module sichtbar ist
+- `kronosCalendar.today()` statt direktem `kronosCalendar.calendar.today()` (EC hat keine native `today()`-Methode)
+
+---
+
 ### Kronos – Raumbelegungsansicht
 
 **Behoben**
@@ -16,8 +33,6 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 **Technisch**
 - EC-Subgrid-Kette (`ec-main → ec-body → ec-grid`) bleibt intakt; nur `ec-main` wird überschrieben
-- `Heute`-Button-Event-Listener werden erst nach Kalender-Initialisierung gesetzt (verhindert Race Condition)
-- `resourceAreaWidth: 200` als explizite EC-Option gesetzt
 
 ---
 
