@@ -7,6 +7,27 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+### Kronos – Terminsuche (Awesome Bar)
+
+**Neu**
+- Suchleiste für Kronos: öffnet per Klick auf „Suche" im Avatar-Dropdown oder mit Ctrl+F
+- Zweiphasen-UI: zentrierte Suchleiste → nach Enter/Suchen-Klick bewegt sie sich nach oben, Ergebnisse erscheinen darunter (CSS-Transition)
+- Wasserfallsuche: zuerst Titel, dann + Kalendername/Raum, dann + Beschreibung
+- Serientermine werden gruppiert (frühste Instanz + Anzahl der Termine)
+- Klick auf Ergebnis → Kalender springt in Monatsansicht auf den Termin, kurze Puls-Animation
+- Auf der Moderationsseite: Klick auf Ergebnis leitet zum Kalender weiter (`/kronos/calendar?date=…`)
+- Tastaturnavigation: Esc schließt, Pfeiltasten navigieren Ergebnisse, Enter öffnet aktives Ergebnis
+
+**Technisch**
+- Neues Backend-Modul `diakronos/kronos/api/search_api.py` mit Endpunkt `search_events`
+- Neues Frontend-Modul `diakronos/public/js/search/kronos_search.js` (Overlay-Logik)
+- Neues CSS `diakronos/public/css/kronos_search.scss` (Overlay + Puls-Animation)
+- `kronos_search.scss` in `kronos.bundle.scss` und `kanban.bundle.scss` eingebunden
+- `kronosCalendar.highlightEvent(id, dateStr)` + `_highlightEventId` in `kronos_calendar.js`
+- Ctrl+F wird global abgefangen (Browser-Suche unterdrückt) – auf Kalender- und Moderationsseite
+
+---
+
 ### Kronos – Moderationsbutton & Navigation
 
 **Behoben**

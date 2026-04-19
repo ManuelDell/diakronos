@@ -15,6 +15,7 @@ class KronosCalendar {
     constructor() {
         this.calendar = null;
         this._resourcesLoaded = false;
+        this._highlightEventId = null;
     }
 
     kronos_calendar_init() {
@@ -221,7 +222,10 @@ class KronosCalendar {
                     const isMultiDay = !info.event.allDay && info.event.end &&
                         new Date(info.event.start).toDateString() !== new Date(info.event.end).toDateString();
                     const useDot = !info.event.allDay && isMonthView && !isMobile && !isMultiDay;
-                    return useDot ? ['ec-event-dot-style'] : [];
+                    const classes = useDot ? ['ec-event-dot-style'] : [];
+                    if (this._highlightEventId && info.event.id === this._highlightEventId)
+                        classes.push('kronos-event-highlight');
+                    return classes;
                 },
 
                 eventContent: (info) => {
@@ -331,6 +335,12 @@ class KronosCalendar {
         if (!this.calendar) return;
         this.calendar.setOption('view', viewName);
         if (date) this.calendar.setOption('date', date instanceof Date ? date : new Date(date));
+    }
+
+    highlightEvent(id, dateStr) {
+        this._highlightEventId = id;
+        this.changeView('dayGridMonth', dateStr);
+        setTimeout(() => { this._highlightEventId = null; }, 2500);
     }
 
     getCurrentView() {
