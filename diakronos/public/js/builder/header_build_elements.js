@@ -286,7 +286,7 @@ export function header_build_elements() {
             const todayBtn = document.getElementById('today-btn');
             const todayIcon = document.querySelector('.today-icon-btn');
             const todayHandler = () => {
-                kronosCalendar.calendar.today();
+                kronosCalendar.today();
                 if (kronosMiniCalendar) {
                     kronosMiniCalendar.m = moment();
                     kronosMiniCalendar.render();
