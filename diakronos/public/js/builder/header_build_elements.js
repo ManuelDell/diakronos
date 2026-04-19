@@ -364,4 +364,22 @@ export function header_build_elements() {
     }
 
     loadDeskLink();
+
+    // ── Suche-Button im Dropdown + Ctrl+F ────────────────────────────────────
+    const searchBtn = document.createElement('button');
+    searchBtn.className = 'profile-dropdown-item';
+    searchBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg> Suche`;
+    searchBtn.addEventListener('click', () => {
+        profileDropdown.classList.remove('open');
+        document.dispatchEvent(new CustomEvent('kronosSearch:open'));
+    });
+    const logoutBtn = profileDropdown.querySelector('.profile-dropdown-logout');
+    profileDropdown.insertBefore(searchBtn, logoutBtn);
+
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            document.dispatchEvent(new CustomEvent('kronosSearch:open'));
+        }
+    }, { capture: true });
 }

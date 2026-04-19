@@ -842,6 +842,93 @@ html, body {
 .btn-warning   { background: #d97706; color: #fff; &:hover:not(:disabled) { background: #b45309; } }
 .btn-success   { background: #059669; color: #fff; &:hover:not(:disabled) { background: #047857; } }
 
+// ── Split-Modal (Info + Monatskalender) ──────────────────────────────────────
+.kanban-modal-with-cal { max-width: 700px; }
+
+.kanban-modal-split {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.kanban-modal-left {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+}
+
+.kanban-modal-cal-panel {
+    width: 230px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border-subtle, #f3f4f6);
+    padding: 16px 14px;
+    background: var(--bg-surface, #f9fafb);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+// ── Mini-Monatskalender ───────────────────────────────────────────────────────
+.kanban-mini-cal { width: 100%; }
+
+.kanban-mini-cal-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary, #171717);
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+.kanban-mini-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.kanban-mini-cal-dh {
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: var(--text-muted, #9ca3af);
+    text-align: center;
+    padding-bottom: 4px;
+}
+
+.kanban-mini-cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    color: var(--text-secondary, #374151);
+    border-radius: 50%;
+    pointer-events: none;
+
+    &.is-today { font-weight: 700; color: var(--primary); }
+    &.is-event { background: var(--primary); color: #fff; font-weight: 600; }
+    &.is-today.is-event { outline: 2px solid var(--primary); outline-offset: 2px; }
+}
+
+// ── Serien-Aktionen ───────────────────────────────────────────────────────────
+.btn-danger-outline {
+    background: transparent;
+    border: 1px solid var(--red-400, #f87171);
+    color: var(--red-500, #ef4444);
+    &:hover:not(:disabled) { background: var(--red-50, #fef2f2); }
+}
+
+.btn-danger {
+    background: var(--red-500, #ef4444);
+    border: 1px solid var(--red-600, #dc2626);
+    color: #fff;
+    &:hover:not(:disabled) { background: var(--red-600, #dc2626); }
+}
+
+.kanban-serie-delete-confirm {
+    padding: 20px 20px;
+    p { font-size: 0.9rem; color: var(--text-primary, #171717); line-height: 1.5; }
+}
+
 // ── Responsive ───────────────────────────────────────────────────────────────
 @media (max-width: 768px) {
     .kanban-board { flex-direction: column; overflow-y: auto; overflow-x: hidden; }
@@ -852,4 +939,6 @@ html, body {
     .kanban-modal-conflict { max-width: 100%; max-height: 95vh; }
     .kanban-form-row { grid-template-columns: 1fr; }
     .kanban-page-title { display: none; }
+    .kanban-modal-split { flex-direction: column; }
+    .kanban-modal-cal-panel { width: 100%; border-left: none; border-top: 1px solid var(--border-subtle, #f3f4f6); }
 }

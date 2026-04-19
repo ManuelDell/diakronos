@@ -1,5 +1,7 @@
 // kanban.bundle.js – Terminmoderation Kanban Board
 
+import { initKronosSearch } from './search/kronos_search.js';
+
 const API = {
     async post(method, body = {}) {
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -442,10 +444,73 @@ function initSortable() {
     });
 }
 
+// ── Mini-Monatskalender ───────────────────────────────────────────────────────
+function buildMiniMonthCalendar(refDateStr, highlightDates = []) {
+    const ref = new Date(refDateStr);
+    if (isNaN(ref)) return '';
+    const year = ref.getFullYear(), month = ref.getMonth();
+    const MONTHS = ['Januar','Februar','März','April','Mai','Juni',
+                    'Juli','August','September','Oktober','November','Dezember'];
+    const DAYS   = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+
+    const hSet = new Set(highlightDates.map(d => {
+        const dt = new Date(d);
+        return isNaN(dt) ? null : `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
+    }).filter(Boolean));
+
+    const firstDow    = (new Date(year, month, 1).getDay() + 6) % 7; // Mon=0
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today       = new Date();
+
+    let html = `<div class="kanban-mini-cal">
+        <div class="kanban-mini-cal-title">${MONTHS[month]} ${year}</div>
+        <div class="kanban-mini-cal-grid">`;
+    DAYS.forEach(d => { html += `<div class="kanban-mini-cal-dh">${d}</div>`; });
+    for (let i = 0; i < firstDow; i++) html += `<div class="kanban-mini-cal-day"></div>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+        const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+        const isEvent = hSet.has(`${year}-${month}-${d}`);
+        let cls = 'kanban-mini-cal-day';
+        if (isToday) cls += ' is-today';
+        if (isEvent) cls += ' is-event';
+        html += `<div class="${cls}">${d}</div>`;
+    }
+    return html + '</div></div>';
+}
+
 // ── Modals ────────────────────────────────────────────────────────────────────
 function openEditModal(event) {
     const overlay = document.getElementById('conflict-overlay');
-    overlay.innerHTML = buildEditModalHTML(event);
+    const wide = window.innerWidth >= 860;
+
+    const calPanel = wide && event.start
+        ? `<div class="kanban-modal-cal-panel">
+               ${buildMiniMonthCalendar(event.start, [event.start])}
+           </div>`
+        : '';
+
+    if (wide && event.start) {
+        overlay.innerHTML = `
+            <div class="kanban-modal-box kanban-modal-with-cal">
+                <div class="kanban-modal-header">
+                    <h3>Termin bearbeiten</h3>
+                    <button class="kanban-modal-close">&times;</button>
+                </div>
+                <div class="kanban-modal-split">
+                    <div class="kanban-modal-left">
+                        <form class="kanban-edit-form" style="padding:16px 18px">
+                            ${buildEditFormFields(event)}
+                            <div class="kanban-modal-footer" style="border-top:none;padding:8px 0 0">
+                                <button type="submit" class="btn btn-primary">Speichern</button>
+                            </div>
+                        </form>
+                    </div>
+                    ${calPanel}
+                </div>
+            </div>`;
+    } else {
+        overlay.innerHTML = buildEditModalHTML(event);
+    }
     overlay.style.display = 'flex';
 
     const form     = overlay.querySelector('.kanban-edit-form');
@@ -557,13 +622,115 @@ async function openConflictModal(event) {
 
 function openSeriesModal(group) {
     const overlay = document.getElementById('conflict-overlay');
+    const wide = window.innerWidth >= 860;
     const countLabel = group.count === 1 ? '1 Termin' : `${group.count} Termine`;
     const dateRange = group.first_start === group.last_start
         ? fmtDate(group.first_start, group.all_day)
         : `${fmtDate(group.first_start, group.all_day)} – ${fmtDate(group.last_start, group.all_day)}`;
 
+    const calPanel = wide
+        ? `<div class="kanban-modal-cal-panel">
+               ${buildMiniMonthCalendar(group.first_start, (group.events || []).map(e => e.start))}
+           </div>`
+        : '';
+
+    const boxClass = wide ? 'kanban-modal-with-cal' : 'kanban-modal-edit';
+
+    function wrapBody(innerHtml) {
+        return wide
+            ? `<div class="kanban-modal-split">
+                   <div class="kanban-modal-left"><div class="kanban-serie-modal-body">${innerHtml}</div></div>
+                   ${calPanel}
+               </div>`
+            : `<div class="kanban-serie-modal-body">${innerHtml}</div>`;
+    }
+
+    const infoHtml = `
+        <div class="kanban-serie-info-row">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/></svg>
+            ${safe(dateRange)}
+        </div>
+        <div class="kanban-serie-info-row">
+            <span class="kanban-dot" style="background:${group.calendar_color}"></span>
+            ${safe(group.calendar_title)}
+        </div>`;
+
+    function renderView() {
+        overlay.querySelector('.kanban-modal-dynamic-body').innerHTML = wrapBody(infoHtml);
+        overlay.querySelector('.kanban-modal-dynamic-footer').innerHTML = `
+            <button class="btn btn-danger-outline" id="btn-serie-delete">Löschen</button>
+            <div style="flex:1"></div>
+            <button class="btn btn-secondary" id="btn-serie-close">Schließen</button>
+            <button class="btn btn-primary" id="btn-serie-edit">Bearbeiten</button>`;
+        bindViewButtons();
+    }
+
+    function renderEdit() {
+        overlay.querySelector('.kanban-modal-dynamic-body').innerHTML = wrapBody(`
+            <div class="kanban-form-group" style="padding:16px 18px 0">
+                <label>Titel (alle ${group.count} Termine)</label>
+                <input type="text" id="serie-edit-title" value="${safe(group.title)}" class="kanban-input" required>
+            </div>`);
+        overlay.querySelector('.kanban-modal-dynamic-footer').innerHTML = `
+            <button class="btn btn-danger-outline" id="btn-serie-delete">Löschen</button>
+            <div style="flex:1"></div>
+            <button class="btn btn-secondary" id="btn-serie-cancel">Abbrechen</button>
+            <button class="btn btn-primary" id="btn-serie-save">Speichern</button>`;
+        overlay.querySelector('#btn-serie-cancel').onclick = renderView;
+        overlay.querySelector('#btn-serie-delete').onclick = renderConfirmDelete;
+        overlay.querySelector('#btn-serie-save').onclick   = async () => {
+            const title = overlay.querySelector('#serie-edit-title')?.value?.trim();
+            if (!title) return;
+            const btn = overlay.querySelector('#btn-serie-save');
+            btn.disabled = true;
+            try {
+                await API.post('diakronos.kronos.api.series.update_series_batch_fast', {
+                    series_id: group.series_id,
+                    updates: { element_name: title }
+                });
+                overlay.style.display = 'none';
+                await reloadBoard();
+            } catch(e) {
+                console.error(e);
+                btn.disabled = false;
+            }
+        };
+    }
+
+    function renderConfirmDelete() {
+        overlay.querySelector('.kanban-modal-dynamic-body').innerHTML = wrapBody(`
+            <div class="kanban-serie-delete-confirm">
+                <p>Sollen wirklich alle <strong>${group.count} Termine</strong> der Serie <strong>${safe(group.title)}</strong> unwiderruflich gelöscht werden?</p>
+            </div>`);
+        overlay.querySelector('.kanban-modal-dynamic-footer').innerHTML = `
+            <button class="btn btn-secondary" id="btn-serie-cancel">Abbrechen</button>
+            <div style="flex:1"></div>
+            <button class="btn btn-danger" id="btn-serie-confirm-delete">Alle löschen</button>`;
+        overlay.querySelector('#btn-serie-cancel').onclick = renderView;
+        overlay.querySelector('#btn-serie-confirm-delete').onclick = async () => {
+            const btn = overlay.querySelector('#btn-serie-confirm-delete');
+            btn.disabled = true;
+            try {
+                await API.post('diakronos.kronos.api.series.delete_series_batch_fast', {
+                    series_id: group.series_id
+                });
+                overlay.style.display = 'none';
+                await reloadBoard();
+            } catch(e) {
+                console.error(e);
+                btn.disabled = false;
+            }
+        };
+    }
+
+    function bindViewButtons() {
+        overlay.querySelector('#btn-serie-close').onclick  = () => { overlay.style.display = 'none'; };
+        overlay.querySelector('#btn-serie-edit').onclick   = renderEdit;
+        overlay.querySelector('#btn-serie-delete').onclick = renderConfirmDelete;
+    }
+
     overlay.innerHTML = `
-        <div class="kanban-modal-box kanban-modal-edit">
+        <div class="kanban-modal-box ${boxClass}">
             <div class="kanban-modal-header">
                 <div class="kanban-modal-title-row">
                     <h3>${safe(group.title)}</h3>
@@ -571,25 +738,15 @@ function openSeriesModal(group) {
                 </div>
                 <button class="kanban-modal-close">&times;</button>
             </div>
-            <div class="kanban-serie-modal-body">
-                <div class="kanban-serie-info-row">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/></svg>
-                    ${safe(dateRange)}
-                </div>
-                <div class="kanban-serie-info-row">
-                    <span class="kanban-dot" style="background:${group.calendar_color}"></span>
-                    ${safe(group.calendar_title)}
-                </div>
-            </div>
-            <div class="kanban-modal-footer">
-                <button class="btn btn-secondary" id="btn-serie-close">Schließen</button>
-            </div>
+            <div class="kanban-modal-dynamic-body"></div>
+            <div class="kanban-modal-footer kanban-modal-dynamic-footer"></div>
         </div>
     `;
     overlay.style.display = 'flex';
-    overlay.querySelector('.kanban-modal-close').onclick   = () => { overlay.style.display = 'none'; };
-    overlay.querySelector('#btn-serie-close').onclick      = () => { overlay.style.display = 'none'; };
+    overlay.querySelector('.kanban-modal-close').onclick = () => { overlay.style.display = 'none'; };
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.style.display = 'none'; }, { once: true });
+
+    renderView();
 }
 
 function openSeriesKonfliktModal(group) {
@@ -844,6 +1001,10 @@ function buildAvatarHeader() {
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/></svg>
             Zurück zum Kalender
         </a>
+        <button class="kanban-dropdown-item kanban-dropdown-search">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            Suche
+        </button>
         <div class="kanban-dropdown-divider"></div>
         <button class="kanban-dropdown-item kanban-dropdown-logout">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 8v-2a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-2"/><path d="M9 12h12l-3-3"/><path d="M18 15l3-3"/></svg>
@@ -866,6 +1027,11 @@ function buildAvatarHeader() {
     });
     document.addEventListener('click', () => dropdown.classList.remove('open'));
     dropdown.addEventListener('click', e => e.stopPropagation());
+
+    dropdown.querySelector('.kanban-dropdown-search').addEventListener('click', () => {
+        dropdown.classList.remove('open');
+        document.dispatchEvent(new CustomEvent('kronosSearch:open'));
+    });
 
     dropdown.querySelector('.kanban-dropdown-logout').addEventListener('click', async () => {
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -913,4 +1079,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSortable();
 
     document.getElementById('kanban-save-btn').addEventListener('click', finalizeStaging);
+
+    // ── Suche ─────────────────────────────────────────────────────────────────
+    initKronosSearch((event) => {
+        const date = (event.start || '').slice(0, 10);
+        window.location.href = `/kronos/calendar${date ? '?date=' + date : ''}`;
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            document.dispatchEvent(new CustomEvent('kronosSearch:open'));
+        }
+    }, { capture: true });
 });
