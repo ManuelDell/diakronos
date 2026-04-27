@@ -1,0 +1,53 @@
+{
+ "actions": [],
+ "creation": "2026-04-19 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "beziehung_zu",
+  "beziehungstyp",
+  "ist_spiegel"
+ ],
+ "fields": [
+  {
+   "fieldname": "beziehung_zu",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Beziehung zu",
+   "options": "Mitglied",
+   "reqd": 1
+  },
+  {
+   "fieldname": "beziehungstyp",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Beziehungstyp",
+   "options": "Elternteil\nKind\nEhepartner\nGeschwister\nSonstiges",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "ist_spiegel",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Ist Spiegeleintrag",
+   "print_hide": 1,
+   "report_hide": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-04-19 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Diakonos",
+ "name": "Mitglied Beziehung",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

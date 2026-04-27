@@ -1,0 +1,13 @@
+{
+ "creation": "2026-04-20 12:00:00.000000",
+ "doctype": "Page",
+ "module": "Diakonos",
+ "name": "diakonos-statistik",
+ "page_name": "diakonos-statistik",
+ "roles": [
+  {"role": "Mitgliederadministrator"},
+  {"role": "System Manager"}
+ ],
+ "standard": "Yes",
+ "title": "Statistik"
+}

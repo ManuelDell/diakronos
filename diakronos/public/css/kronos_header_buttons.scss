@@ -207,7 +207,8 @@ background-color: var(--bg-surface-hover);
 .nav-btn svg {
 width: var(--button-height-sm);
 height: var(--button-height-sm);
-fill: var(--text-primary);
+fill: none;
+stroke: currentColor;
 }
 /* ============================================================================
 3. CURRENT DATE DISPLAY (Monat + Jahr)
@@ -279,8 +280,9 @@ white-space: nowrap;
 .toggle-btn svg {
     width: var(--button-width-sm);
     height: var(--button-width-sm);
-    fill: var(--button-icon-inactive);
-    transition: fill 150ms ease;
+    // stroke-width über CSS-Variable (--icon-stroke) steuerbar → icons.js nutzt var(--icon-stroke, 1.5)
+    --icon-stroke: 1.5;
+    transition: stroke-width 150ms ease;
 }
 
 .toggle-btn:hover {
@@ -289,10 +291,12 @@ white-space: nowrap;
 
 .toggle-btn.active {
     background-color: var(--button-active);
+    // Aktiver Zustand: dickere Linie statt gefülltes Icon
+    --icon-stroke: 2.5;
 }
 
 .toggle-btn.active svg {
-    fill: var(--button-icon-active);
+    // stroke-width wird über --icon-stroke gesteuert (kein fill nötig)
 }
 
 /* Linker Button */

@@ -1,6 +1,7 @@
 // kanban.bundle.js – Terminmoderation Kanban Board
 
 import { initKronosSearch } from './search/kronos_search.js';
+import { ICON_REPEAT_SM as ICON_REPEAT, ICON_WARN, ICON_INFO, ICON_BUILDING, ICON_BUILDING_MD, ICON_CALENDAR, ICON_CALENDAR_LG, ICON_WARN_LG, ICON_CLOCK, ICON_EYE_OFF, ICON_CHECK, ICON_FLOPPY, ICON_SEARCH_SM, ICON_LOGOUT } from './shared/icons.js';
 
 const API = {
     async post(method, body = {}) {
@@ -142,8 +143,6 @@ function buildStagingGroups() {
 }
 
 // ── Card builders ─────────────────────────────────────────────────────────────
-const ICON_REPEAT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v-3a3 3 0 0 1 3-3h13m-3-3l3 3l-3 3"/><path d="M20 12v3a3 3 0 0 1-3 3h-13m3 3l-3-3l3-3"/></svg>`;
-const ICON_WARN   = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><circle cx="12" cy="17" r=".5" fill="currentColor"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87l-8.106-13.536a1.914 1.914 0 0 0-3.274 0z"/></svg>`;
 
 function buildCard(event, column) {
     const card = document.createElement('div');
@@ -154,17 +153,11 @@ function buildCard(event, column) {
 
     const notif = boardData.notifications[event.id];
     const notifHtml = notif
-        ? `<div class="kanban-card-notif">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16v.01"/></svg>
-              Bearbeitet von ${safe(notif.by || 'Unbekannt')}
-           </div>`
+        ? `<div class="kanban-card-notif">${ICON_INFO} Bearbeitet von ${safe(notif.by || 'Unbekannt')}</div>`
         : '';
 
     const ressourceHtml = event.ressource
-        ? `<div class="kanban-card-ressource">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-12a3 3 0 0 1-3-3z"/><path d="M3 17a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v0a2 2 0 0 1-2 2h-14a2 2 0 0 1-2-2z"/></svg>
-              ${safe(event.ressource)}
-           </div>`
+        ? `<div class="kanban-card-ressource">${ICON_BUILDING} ${safe(event.ressource)}</div>`
         : '';
 
     const removeBtn = column === 'festlegen'
@@ -646,10 +639,7 @@ function openSeriesModal(group) {
     }
 
     const infoHtml = `
-        <div class="kanban-serie-info-row">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/></svg>
-            ${safe(dateRange)}
-        </div>
+        <div class="kanban-serie-info-row">${ICON_CALENDAR} ${safe(dateRange)}</div>
         <div class="kanban-serie-info-row">
             <span class="kanban-dot" style="background:${group.calendar_color}"></span>
             ${safe(group.calendar_title)}
@@ -872,24 +862,12 @@ function buildEditModalHTML(event) {
 function buildConflictModalHTML(event, partner) {
     const partnerHtml = partner ? `
         <div class="kanban-conflict-partner">
-            <div class="kanban-conflict-partner-header">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><circle cx="12" cy="17" r=".5" fill="currentColor"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87l-8.106-13.536a1.914 1.914 0 0 0-3.274 0z"/></svg>
-                Überschneidung mit
-            </div>
+            <div class="kanban-conflict-partner-header">${ICON_WARN_LG} Überschneidung mit</div>
             <div class="kanban-partner-card">
                 <div class="kanban-partner-title">${safe(partner.title)}</div>
-                <div class="kanban-partner-time">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/></svg>
-                    ${fmtDate(partner.start, partner.all_day)}
-                </div>
-                <div class="kanban-partner-cal">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
-                    ${safe(partner.calendar)}
-                </div>
-                ${partner.ressource ? `<div class="kanban-partner-ressource">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-12a3 3 0 0 1-3-3z"/><path d="M3 17a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v0a2 2 0 0 1-2 2h-14a2 2 0 0 1-2-2z"/></svg>
-                    ${safe(partner.ressource)}
-                </div>` : ''}
+                <div class="kanban-partner-time">${ICON_CALENDAR} ${fmtDate(partner.start, partner.all_day)}</div>
+                <div class="kanban-partner-cal">${ICON_CLOCK} ${safe(partner.calendar)}</div>
+                ${partner.ressource ? `<div class="kanban-partner-ressource">${ICON_BUILDING_MD} ${safe(partner.ressource)}</div>` : ''}
                 <p class="kanban-partner-hint">Passe Zeit oder Raum an um den Konflikt zu vermeiden, oder ignoriere ihn bewusst.</p>
             </div>
         </div>
@@ -915,19 +893,10 @@ function buildConflictModalHTML(event, partner) {
                 ${partnerHtml}
             </div>
             <div class="kanban-modal-footer kanban-conflict-footer">
-                <button class="btn btn-secondary" id="btn-ignore">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.584 10.587a2 2 0 0 0 2.828 2.83"/><path d="M9.363 5.365a9.466 9.466 0 0 1 2.637-.365c4 0 7.333 2.333 10 7c-.778 1.361-1.612 2.524-2.503 3.488m-2.14 1.861c-1.631 1.1-3.415 1.651-5.357 1.651c-4 0-7.333-2.333-10-7c1.369-2.395 2.913-4.175 4.632-5.341"/></svg>
-                    Konflikt ignorieren
-                </button>
+                <button class="btn btn-secondary" id="btn-ignore">${ICON_EYE_OFF} Konflikt ignorieren</button>
                 <div style="flex:1"></div>
-                <button class="btn btn-warning" id="btn-vorschlag">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 8v4l3 3"/></svg>
-                    Vorschlagen
-                </button>
-                <button class="btn btn-success" id="btn-festlegen">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10-10"/></svg>
-                    Festlegen
-                </button>
+                <button class="btn btn-warning" id="btn-vorschlag">${ICON_CLOCK} Vorschlagen</button>
+                <button class="btn btn-success" id="btn-festlegen">${ICON_CHECK} Festlegen</button>
             </div>
         </div>
     `;
@@ -947,7 +916,7 @@ async function finalizeStaging() {
     } catch(e) {
         console.error('Finalisierung fehlgeschlagen', e);
         btn.disabled = false;
-        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h10l4 4v10a2 2 0 0 1-2 2h-12a2 2 0 0 1-2-2v-12a2 2 0 0 1 2-2"/><path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0"/><path d="M14 4l0 4l-6 0l0-4"/></svg> Alle festlegen`;
+        btn.innerHTML = `${ICON_FLOPPY} Alle festlegen`;
     }
 }
 
@@ -997,19 +966,10 @@ function buildAvatarHeader() {
     const dropdown = document.createElement('div');
     dropdown.className = 'kanban-dropdown';
     dropdown.innerHTML = `
-        <a class="kanban-dropdown-item" href="/kronos/calendar">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/></svg>
-            Zurück zum Kalender
-        </a>
-        <button class="kanban-dropdown-item kanban-dropdown-search">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-            Suche
-        </button>
+        <a class="kanban-dropdown-item" href="/kronos/calendar">${ICON_CALENDAR_LG} Zurück zum Kalender</a>
+        <button class="kanban-dropdown-item kanban-dropdown-search">${ICON_SEARCH_SM} Suche</button>
         <div class="kanban-dropdown-divider"></div>
-        <button class="kanban-dropdown-item kanban-dropdown-logout">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 8v-2a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-2"/><path d="M9 12h12l-3-3"/><path d="M18 15l3-3"/></svg>
-            Abmelden
-        </button>
+        <button class="kanban-dropdown-item kanban-dropdown-logout">${ICON_LOGOUT} Abmelden</button>
     `;
 
     wrapper.appendChild(avatar);

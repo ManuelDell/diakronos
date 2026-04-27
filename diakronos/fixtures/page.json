@@ -1,0 +1,344 @@
+[
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2017-05-03 05:59:33.702308",
+  "module": "Printing",
+  "name": "print-format-builder",
+  "page_name": "print-format-builder",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "role": "System Manager"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "Print Format Builder"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2015-09-24 01:26:06.225378",
+  "module": "Desk",
+  "name": "backups",
+  "page_name": "backups",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "role": "System Manager"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "Download Backups"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2020-12-16 12:29:08.610352",
+  "module": "Core",
+  "name": "dashboard-view",
+  "page_name": "dashboard-view",
+  "restrict_to_domain": null,
+  "roles": [],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "Dashboard"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2020-10-09 17:23:15.163030",
+  "module": "Printing",
+  "name": "print",
+  "page_name": "print",
+  "restrict_to_domain": null,
+  "roles": [],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": null
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2021-07-10 12:22:16.138485",
+  "module": "Printing",
+  "name": "print-format-builder-beta",
+  "page_name": "print-format-builder-beta",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "role": "System Manager"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": null
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2023-05-01 13:02:17.223595",
+  "module": "Workflow",
+  "name": "workflow-builder",
+  "page_name": "workflow-builder",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "role": "System Manager"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "Workflow Builder"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": "",
+  "modified": "2025-10-08 13:31:06.525425",
+  "module": "Desk",
+  "name": "desktop",
+  "page_name": "desktop",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "role": "All"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 1,
+  "title": "Desktop"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2026-01-22 12:24:24.133915",
+  "module": "Diakronos",
+  "name": "kronos_calendar_page",
+  "page_name": "kronos_calendar_page",
+  "restrict_to_domain": null,
+  "roles": [],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "Kronos Kalendar"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2026-03-01 10:00:00",
+  "module": "Diakronos",
+  "name": "google-kalender-import",
+  "page_name": "google-kalender-import",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "role": "Administrator"
+   },
+   {
+    "role": "Kalenderadministrator"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "Google Kalender Import"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": "octicon octicon-globe",
+  "modified": "2026-03-22 00:00:00",
+  "module": "GrapeBuild",
+  "name": "grapebuild-hub",
+  "page_name": "grapebuild-hub",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "role": "System Manager"
+   },
+   {
+    "role": "Website Manager"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "GrapeBuild Hub"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": "octicon octicon-pencil",
+  "modified": "2026-03-22 00:00:00",
+  "module": "GrapeBuild",
+  "name": "grapebuild-builder",
+  "page_name": "grapebuild-builder",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "role": "System Manager"
+   },
+   {
+    "role": "Website Manager"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "GrapeBuild Editor"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2026-04-20 15:46:32.555266",
+  "module": "Diakonos",
+  "name": "dsgvo-uebersicht",
+  "page_name": "dsgvo-uebersicht",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "role": "Mitgliederadministrator"
+   },
+   {
+    "role": "System Manager"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "DSGVO-Übersicht"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2026-04-20 15:46:32.391324",
+  "module": "Diakonos",
+  "name": "diakonos-statistik",
+  "page_name": "diakonos-statistik",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "role": "Mitgliederadministrator"
+   },
+   {
+    "role": "System Manager"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "Statistik"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2026-04-20 15:46:32.454006",
+  "module": "Diakonos",
+  "name": "anmeldungen-hub",
+  "page_name": "anmeldungen-hub",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "role": "Mitgliederadministrator"
+   },
+   {
+    "role": "System Manager"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "Anmeldungen"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": "fa fa-lock",
+  "modified": "2013-07-11 14:43:43",
+  "module": "Core",
+  "name": "permission-manager",
+  "page_name": "permission-manager",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "role": "System Manager"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "Role Permissions Manager"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2017-04-12 18:45:00.774654",
+  "module": "Desk",
+  "name": "setup-wizard",
+  "page_name": "setup-wizard",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "role": "System Manager"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 1,
+  "title": "Setup Wizard"
+ }
+]

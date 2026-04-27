@@ -1,0 +1,180 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:gruppenname",
+ "creation": "2026-04-19 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "gruppeninfo_section",
+  "gruppenname",
+  "dienstbereich",
+  "gruppentyp",
+  "status",
+  "sichtbarkeit",
+  "column_break_grp1",
+  "bild",
+  "ancestor_path",
+  "details_section",
+  "beschreibung",
+  "column_break_grp2",
+  "treffpunkt",
+  "treffzeit",
+  "verantwortliche_section",
+  "verantwortliche",
+  "mitglieder_section",
+  "mitglieder"
+ ],
+ "fields": [
+  {
+   "fieldname": "gruppeninfo_section",
+   "fieldtype": "Section Break",
+   "label": "Gruppeninformation"
+  },
+  {
+   "fieldname": "gruppenname",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Gruppenname",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "dienstbereich",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Dienstbereich",
+   "options": "Dienstbereich",
+   "reqd": 1
+  },
+  {
+   "fieldname": "gruppentyp",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Gruppentyp",
+   "options": "Gruppentyp"
+  },
+  {
+   "default": "Aktiv",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Aktiv\nInaktiv\nArchiviert"
+  },
+  {
+   "default": "Intern",
+   "fieldname": "sichtbarkeit",
+   "fieldtype": "Select",
+   "label": "Sichtbarkeit",
+   "options": "\u00d6ffentlich\nIntern\nVersteckt"
+  },
+  {
+   "fieldname": "column_break_grp1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bild",
+   "fieldtype": "Attach Image",
+   "label": "Bild"
+  },
+  {
+   "fieldname": "ancestor_path",
+   "fieldtype": "Data",
+   "label": "Ancestor Path",
+   "hidden": 1,
+   "read_only": 1,
+   "description": "Precomputed hierarchy path for permission checks"
+  },
+  {
+   "fieldname": "details_section",
+   "fieldtype": "Section Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "beschreibung",
+   "fieldtype": "Small Text",
+   "label": "Beschreibung"
+  },
+  {
+   "fieldname": "column_break_grp2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "treffpunkt",
+   "fieldtype": "Data",
+   "label": "Treffpunkt"
+  },
+  {
+   "fieldname": "treffzeit",
+   "fieldtype": "Data",
+   "label": "Treffzeit",
+   "description": "z.B. Jeden Dienstag 19:00"
+  },
+  {
+   "fieldname": "verantwortliche_section",
+   "fieldtype": "Section Break",
+   "label": "Verantwortliche"
+  },
+  {
+   "fieldname": "verantwortliche",
+   "fieldtype": "Table",
+   "label": "Verantwortliche",
+   "options": "Gruppe Verantwortlicher"
+  },
+  {
+   "fieldname": "mitglieder_section",
+   "fieldtype": "Section Break",
+   "label": "Mitglieder"
+  },
+  {
+   "fieldname": "mitglieder",
+   "fieldtype": "Table",
+   "label": "Mitglieder",
+   "options": "Gruppenmitgliedschaft"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-04-19 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Diakonos",
+ "name": "Gruppe",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [
+  {
+   "color": "Green",
+   "title": "Aktiv"
+  },
+  {
+   "color": "Yellow",
+   "title": "Inaktiv"
+  },
+  {
+   "color": "Gray",
+   "title": "Archiviert"
+  }
+ ],
+ "title_field": "gruppenname"
+}

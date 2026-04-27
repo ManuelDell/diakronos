@@ -1,0 +1,161 @@
+@import "./diakronos_color_theme.scss";
+
+/* ── Seiten-Container ────────────────────────────────────────────────────── */
+#org-chart-container {
+    width: 100vw;
+    height: 100vh;
+    background: var(--bg-page, #f5f6fa);
+    overflow: hidden;
+}
+
+.oc-loading,
+.oc-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: 1.1rem;
+    color: var(--text-muted, #888);
+}
+
+.oc-error {
+    color: var(--red-500, #e53e3e);
+}
+
+/* ── Basis-Node ──────────────────────────────────────────────────────────── */
+.oc-node {
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+    padding: 10px 14px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    font-family: inherit;
+    border: 1px solid var(--border-color, #e2e8f0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    cursor: default;
+    transition: box-shadow 150ms ease, transform 150ms ease;
+
+    &:hover {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+        transform: translateY(-1px);
+    }
+}
+
+/* ── Organisations-Node (Root) ───────────────────────────────────────────── */
+.oc-node--org {
+    background: var(--primary, #667eea);
+    color: #fff;
+    border-color: transparent;
+    align-items: center;
+    text-align: center;
+}
+
+.oc-org-name {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.oc-org-meta {
+    font-size: 0.8rem;
+    opacity: 0.85;
+}
+
+/* ── Gruppen-Node ────────────────────────────────────────────────────────── */
+.oc-node--gruppe {
+    background: var(--bg-surface, #fff);
+    color: var(--text-primary, #1a202c);
+    cursor: pointer;
+}
+
+.oc-gruppe-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.oc-gruppe-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary, #1a202c);
+}
+
+.oc-gruppe-typ {
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: var(--primary-light, #ebf4ff);
+    color: var(--primary, #667eea);
+    white-space: nowrap;
+}
+
+.oc-gruppe-leiter {
+    font-size: 0.75rem;
+    color: var(--text-muted, #718096);
+}
+
+.oc-gruppe-count {
+    font-size: 0.75rem;
+    color: var(--text-muted, #718096);
+}
+
+/* ── Mitglieder-Node ─────────────────────────────────────────────────────── */
+.oc-node--mitglied {
+    background: var(--bg-page, #f7fafc);
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 12px;
+}
+
+.oc-mitglied-foto {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.oc-mitglied-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--primary, #667eea);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.oc-mitglied-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.oc-mitglied-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary, #1a202c);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.oc-mitglied-rolle {
+    font-size: 0.72rem;
+    color: var(--text-muted, #718096);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

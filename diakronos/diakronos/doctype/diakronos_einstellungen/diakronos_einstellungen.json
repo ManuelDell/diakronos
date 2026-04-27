@@ -5,6 +5,8 @@
  "engine": "InnoDB",
  "field_order": [
   "info_html",
+  "organisation_section",
+  "organisationsname",
   "diakronos_section",
   "diakronos_anzeige_name",
   "diakronos_icon",
@@ -56,6 +58,17 @@
    "fieldname": "info_html",
    "fieldtype": "HTML",
    "options": "<div class=\"alert alert-info\" style=\"margin-bottom:0\">\n  <strong>Diakronos \u2013 App-Einstellungen</strong><br>\n  Konfiguriere hier alle Untermodule: Anzeigename, Icon, Sichtbarkeit im App-Bereich und Rollenzugriff.\n  \u00c4nderungen werden beim Speichern automatisch auf die Frappe-Workspaces \u00fcbertragen.\n</div>"
+  },
+  {
+   "fieldname": "organisation_section",
+   "fieldtype": "Section Break",
+   "label": "Organisation"
+  },
+  {
+   "description": "Name der Freikirche / Organisation \u2013 erscheint als Wurzel-Knoten im Organigramm.",
+   "fieldname": "organisationsname",
+   "fieldtype": "Data",
+   "label": "Name der Organisation"
   },
   {
    "collapsible": 1,

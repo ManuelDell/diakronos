@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diakonos Test</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+</head>
+<body>
+    <div id="app"></div>
+    <script>
+        window.__DIakonosBOOT = {
+            user_fullname: {{ user_fullname | tojson }},
+            user_image:    {{ user_image | tojson }},
+            csrf_token:    {{ csrf_token | tojson }},
+            is_admin:      {{ is_admin | tojson }},
+            mitglied:      {{ (mitglied or {}) | tojson }},
+            modules:       {{ (modules or []) | tojson }},
+        };
+        console.log("BOOT", window.__DIakonosBOOT);
+    </script>
+    <script type="module" src="/assets/diakronos/frontend/diakonos.js"></script>
+</body>
+</html>

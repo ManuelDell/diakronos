@@ -134,10 +134,47 @@
 --hb-bg-active:     var(--button-active);
 --hb-border:        var(--border-default);
 --hb-border-radius: var(--border-radius-sm);
+
+// ── Bridge zu Diakonos Design System ──────────────────────────
+--dk-brand-50:  #eef1f8;
+--dk-brand-100: #d6dcea;
+--dk-brand-200: #aab5d2;
+--dk-brand-300: #6e7ca6;
+--dk-brand-400: #3e4d78;
+--dk-brand-500: #1c2850;
+--dk-brand-600: #0b1538;
+--dk-brand-700: #050c27;
+--dk-brand-800: #00051f;
+--dk-brand-900: #00030f;
+--dk-accent:    #d4a24c;
+
+--bg-page:           var(--dk-brand-50);
+--bg-surface:        #ffffff;
+--bg-surface-hover:  var(--dk-brand-100);
+--bg-surface-active: var(--dk-brand-200);
+--text-primary:      var(--dk-brand-900);
+--text-secondary:    var(--dk-brand-700);
+--text-muted:        var(--dk-brand-500);
+--border-default:    var(--dk-brand-200);
+--primary:           var(--dk-brand-800);
+--primary-hover:     var(--dk-brand-700);
+--primary-active:    var(--dk-brand-600);
+--primary-light:     var(--dk-brand-50);
+--success:           #16a34a;
+--warning:           #d97706;
+--danger:            #dc2626;
+--info:              #2563eb;
+
+--shadow-sm: 0 1px 3px rgba(10,15,40,.06), 0 1px 2px rgba(10,15,40,.04);
+--shadow-md: 0 4px 12px rgba(10,15,40,.07), 0 2px 4px rgba(10,15,40,.04);
+--shadow-lg: 0 14px 40px rgba(10,15,40,.12), 0 4px 12px rgba(10,15,40,.06);
+
+--border-radius-md: 12px;
+--text-base: 0.875rem;
 }
 
 // ── Dark Mode ────────────────────────────────────────────────
-.dark {
+[data-theme="dark"] {
 --neutral-white:     #f1f5f9;
 --gray-50:           #1e293b;
 --gray-100:          #263244;
@@ -150,20 +187,20 @@
 --gray-800:          #f1f5f9;
 --gray-900:          #f8fafc;
 
---bg-page:           #0f172a;
---bg-surface:        #1e293b;
---bg-surface-hover:  #334155;
---bg-surface-active: #475569;
---text-primary:      #f1f5f9;
---text-secondary:    #cbd5e1;
---text-muted:        #94a3b8;
+--bg-page:           #0a0e22;
+--bg-surface:        #111631;
+--bg-surface-hover:  #1a2148;
+--bg-surface-active: #232a52;
+--text-primary:      #e8eaf4;
+--text-secondary:    #9ba3c1;
+--text-muted:        #6a7199;
 --text-light:        #f1f5f9;
---border-default:    #475569;
+--border-default:    #232a52;
 --border-subtle:     #334155;
---primary:           #f1f5f9;
---primary-hover:     #cbd5e1;
---primary-active:    #94a3b8;
---primary-light:     rgba(30, 41, 59, 0.1);
+--primary:           #ffffff;
+--primary-hover:     #c9cee0;
+--primary-active:    #9ba3c1;
+--primary-light:     rgba(255,255,255,.1);
 --success:           #34d399;
 --warning:           #fbbf24;
 --danger:            #f87171;
@@ -183,9 +220,9 @@
 --overlay-dark:      rgba(255, 255, 255, 0.1);
 --shadow-color:      rgba(255, 255, 255, 0.05);
 --focus-ring:        0 0 0 3px rgba(96, 165, 250, 0.3);
---shadow-sm:         0 1px 2px rgba(0, 0, 0, 0.3);
---shadow-md:         0 2px 8px rgba(0, 0, 0, 0.4);
---shadow-lg:         0 4px 16px rgba(0, 0, 0, 0.5);
+--shadow-sm: 0 1px 3px rgba(0,0,0,.35), 0 1px 2px rgba(0,0,0,.25);
+--shadow-md: 0 4px 12px rgba(0,0,0,.4), 0 2px 4px rgba(0,0,0,.3);
+--shadow-lg: 0 14px 40px rgba(0,0,0,.5);
 --shadow-xl:         0 8px 32px rgba(0, 0, 0, 0.6);
 
 --button-icon-inactive: var(--gray-500);

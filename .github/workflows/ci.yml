@@ -8,7 +8,7 @@ on:
 
 jobs:
   python-checks:
-    name: Python – Syntax & Import-Konsistenz
+    name: Python – Syntax, Imports & Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -23,8 +23,23 @@ jobs:
       - name: Syntax & Import-Konsistenz prüfen
         run: python3 scripts/check_imports.py
 
+      - name: Design-System Compliance prüfen
+        run: python3 scripts/check_design_system.py
+
+      - name: Python Tests ausführen
+        run: |
+          pip install frappe-bench
+          bench init --skip-redis-config-generation --python $(which python3) /tmp/test-bench
+          cd /tmp/test-bench
+          bench get-app diakronos ${{ github.workspace }}
+          bench setup requirements
+          bench --site test_site run-tests --app diakronos
+        env:
+          CI: "1"
+        continue-on-error: true
+
   js-lint:
-    name: JavaScript – ESLint
+    name: JavaScript / Vue – ESLint & Prettier
     runs-on: ubuntu-latest
 
     steps:
@@ -42,3 +57,26 @@ jobs:
 
       - name: ESLint ausführen
         run: npm run lint
+
+      - name: Prettier Check (Vue, JS, SCSS)
+        run: npx prettier --check "frontend/src/**/*.{vue,js,css,scss}" "diakronos/public/css/**/*.scss" "diakronos/public/js/**/*.js"
+
+  frontend-build:
+    name: Frontend – Vite Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Produktions-Build prüfen
+        run: npm run build

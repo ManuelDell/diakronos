@@ -1,7 +1,7 @@
 {
  "actions": [
   {
-   "action": "diakronos.mitgliedverwaltung.mitglied_zu_nutzer",
+   "action": "diakronos.diakonos.api.nutzer.mitglied_zu_nutzer",
    "action_type": "Server Action",
    "label": "Benutzer erstellen"
   }
@@ -20,10 +20,17 @@
   "column_break_xoiq",
   "email",
   "benutzer_mit_mitglied_anlegen",
+  "foto",
   "personenbezogene_daten_section",
+  "status",
+  "ancestor_path",
   "geburtstag",
   "telefonnummer",
   "column_break_btjt",
+  "geschlecht",
+  "familienstand",
+  "ehepartner",
+  "column_break_btjt2",
   "postleitzahl",
   "wohnort",
   "column_break_hfeq",
@@ -38,7 +45,20 @@
   "auf_bemerkung_gesetzt",
   "auf_bemerkung_gesetzt_seit",
   "ausgeschlossen",
-  "ausgeschlossen_seit"
+  "ausgeschlossen_seit",
+  "datenschutz_section",
+  "datenschutz_einwilligung",
+  "datenschutz_datum",
+  "column_break_ds1",
+  "notiz",
+  "bereiche_tab",
+  "bereiche_section",
+  "bereiche",
+  "tags_section",
+  "tags",
+  "beziehungen_tab",
+  "beziehungen_section",
+  "beziehungen"
  ],
  "fields": [
   {
@@ -184,6 +204,134 @@
    "fieldtype": "Date",
    "label": "Ausgeschlossen seit",
    "mandatory_depends_on": "eval:doc.ausgeschlossen == 1"
+  },
+  {
+   "fieldname": "foto",
+   "fieldtype": "Attach Image",
+   "label": "Foto"
+  },
+  {
+   "default": "Mitglied",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Mitglied\nGast\nKind\nInaktiv\nArchiviert"
+  },
+  {
+   "fieldname": "ancestor_path",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "read_only": 1,
+   "description": "Precomputed hierarchy path for permission checks"
+  },
+  {
+   "fieldname": "geschlecht",
+   "fieldtype": "Select",
+   "label": "Geschlecht",
+   "options": "\nMännlich\nWeiblich\nDivers\nKeine Angabe"
+  },
+  {
+   "fieldname": "familienstand",
+   "fieldtype": "Select",
+   "label": "Familienstand",
+   "options": "\nLedig\nVerheiratet\nVerwitwet\nGetrennt"
+  },
+  {
+   "fieldname": "elternteil",
+   "fieldtype": "Link",
+   "label": "Elternteil",
+   "options": "Mitglied",
+   "depends_on": "eval:doc.status == 'Kind'",
+   "description": "Nur wenn Status = Kind"
+  },
+  {
+   "fieldname": "ehepartner",
+   "fieldtype": "Link",
+   "label": "Ehepartner",
+   "options": "Mitglied"
+  },
+  {
+   "fieldname": "column_break_btjt2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "datenschutz_section",
+   "fieldtype": "Section Break",
+   "label": "Datenschutz"
+  },
+  {
+   "default": "0",
+   "fieldname": "datenschutz_einwilligung",
+   "fieldtype": "Check",
+   "label": "DSGVO-Einwilligung erteilt",
+   "read_only": 1,
+   "description": "Wird automatisch gesetzt wenn eine aktive DSGVO Einwilligung vorliegt"
+  },
+  {
+   "fieldname": "datenschutz_datum",
+   "fieldtype": "Date",
+   "label": "Datum der Einwilligung",
+   "depends_on": "eval:doc.datenschutz_einwilligung == 1",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dsgvo_export",
+   "fieldtype": "Button",
+   "label": "DSGVO-Daten exportieren"
+  },
+  {
+   "fieldname": "column_break_ds1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "notiz",
+   "fieldtype": "Small Text",
+   "label": "Interne Notiz"
+  },
+  {
+   "fieldname": "bereiche_tab",
+   "fieldtype": "Tab Break",
+   "label": "Bereiche & Tags"
+  },
+  {
+   "fieldname": "bereiche_section",
+   "fieldtype": "Section Break",
+   "label": "Dienstbereiche"
+  },
+  {
+   "fieldname": "bereiche",
+   "fieldtype": "Table",
+   "label": "Dienstbereiche",
+   "options": "Mitglied Bereich"
+  },
+  {
+   "fieldname": "tags_section",
+   "fieldtype": "Section Break",
+   "label": "Tags"
+  },
+  {
+   "fieldname": "tags",
+   "fieldtype": "Table",
+   "label": "Tags",
+   "options": "Mitglied Tag"
+  },
+  {
+   "fieldname": "beziehungen_tab",
+   "fieldtype": "Tab Break",
+   "label": "Beziehungen"
+  },
+  {
+   "fieldname": "beziehungen_section",
+   "fieldtype": "Section Break",
+   "label": "Familienbeziehungen"
+  },
+  {
+   "fieldname": "beziehungen",
+   "fieldtype": "Table",
+   "label": "Beziehungen",
+   "options": "Mitglied Beziehung"
   }
  ],
  "grid_page_length": 50,
@@ -206,6 +354,18 @@
    "report": 1,
    "role": "System Manager",
    "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Mitgliederadministrator",
+   "share": 0,
    "write": 1
   }
  ],

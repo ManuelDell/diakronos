@@ -1,0 +1,130 @@
+{
+ "actions": [],
+ "autoname": "format:REGLINK-{####}",
+ "creation": "2026-04-19 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "bezeichnung",
+  "typ",
+  "aktiv",
+  "column_break_rl1",
+  "slug",
+  "gueltig_bis",
+  "max_anmeldungen",
+  "anmeldungen_count",
+  "link_section",
+  "link_anzeige"
+ ],
+ "fields": [
+  {
+   "fieldname": "bezeichnung",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Bezeichnung",
+   "reqd": 1,
+   "description": "z.B. 'Erstkontakt Herbst 2026' oder 'Gäste Gemeindefest'"
+  },
+  {
+   "fieldname": "typ",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Typ",
+   "options": "Mitglied-Registrierung\nGast-Anmeldung",
+   "reqd": 1,
+   "description": "Legt fest welches Formular erscheint und welchen Status das Mitglied bekommt"
+  },
+  {
+   "default": "1",
+   "fieldname": "aktiv",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Aktiv"
+  },
+  {
+   "fieldname": "column_break_rl1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "slug",
+   "fieldtype": "Data",
+   "label": "Token (Slug)",
+   "read_only": 1,
+   "unique": 1,
+   "description": "Wird automatisch generiert"
+  },
+  {
+   "fieldname": "gueltig_bis",
+   "fieldtype": "Date",
+   "label": "Gültig bis",
+   "description": "Leer = unbegrenzt"
+  },
+  {
+   "default": "0",
+   "fieldname": "max_anmeldungen",
+   "fieldtype": "Int",
+   "label": "Max. Anmeldungen",
+   "description": "0 = unbegrenzt (Bulk-Modus)"
+  },
+  {
+   "default": "0",
+   "fieldname": "anmeldungen_count",
+   "fieldtype": "Int",
+   "label": "Bereits angemeldet",
+   "read_only": 1
+  },
+  {
+   "fieldname": "link_section",
+   "fieldtype": "Section Break",
+   "label": "Registrierungslink"
+  },
+  {
+   "fieldname": "link_anzeige",
+   "fieldtype": "Data",
+   "label": "Link (zum Kopieren)",
+   "read_only": 1,
+   "description": "Diesen Link teilen"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-04-19 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Diakonos",
+ "name": "Registrierungslink",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 0,
+   "export": 1,
+   "print": 0,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 0,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 0,
+   "export": 1,
+   "print": 0,
+   "read": 1,
+   "report": 1,
+   "role": "Mitgliederadministrator",
+   "share": 0,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "bezeichnung"
+}

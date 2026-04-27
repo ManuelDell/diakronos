@@ -39,14 +39,6 @@ MITGLIEDER = [
     ("Werner",  "Schulz",    "werner.schulz@example.de",   "1948-01-09", "70178", "Stuttgart", "Vogelsangstraße",   "29"),
 ]
 
-BESUCHER = [
-    ("Lena",   "Zimmermann", "2025-09-15", 0),
-    ("Felix",  "Hartmann",   "2025-11-01", 0),
-    ("Monika", "Braun",      "2025-10-20", 1),
-    ("Paul",   "Koch",       "2026-01-12", 0),
-    ("Ingrid", "Richter",    "2025-08-03", 0),
-]
-
 
 # ── Hilfsfunktionen ───────────────────────────────────────────────────────────
 
@@ -104,7 +96,6 @@ def has_existing_data():
         frappe.db.count("Kalender") > 0
         or frappe.db.count("Element") > 0
         or frappe.db.count("Mitglied") > 0
-        or frappe.db.count("Besucher") > 0
         or frappe.db.count("Eventkategorie") > 0
     )
 
@@ -121,7 +112,6 @@ def create_demo_data():
     _create_kategorien()
     kal_namen = _create_kalender()
     _create_mitglieder()
-    _create_besucher()
     _create_events(kal_namen)
 
 
@@ -178,19 +168,6 @@ def _create_mitglieder():
         })
         doc.insert(ignore_permissions=True, ignore_mandatory=True)
 
-
-def _create_besucher():
-    for vorname, nachname, seit, ehemals in BESUCHER:
-        if frappe.get_all("Besucher", filters={"name1": vorname, "nachname": nachname}, limit=1):
-            continue
-        frappe.get_doc({
-            "doctype": "Besucher",
-            "name1":                        vorname,
-            "nachname":                     nachname,
-            "besucher_seit":                seit,
-            "ehemaliges_gemeindemitglied":  ehemals,
-        }).insert(ignore_permissions=True, ignore_mandatory=True,
-                  set_name=f"{vorname} {nachname}")
 
 
 def _create_events(kal_namen):
@@ -417,7 +394,7 @@ def _create_events(kal_namen):
 # ── Löschen ────────────────────────────────────────────────────────────────────
 
 def delete_demo_data():
-    for doctype in ["Element", "Kalender", "Eventkategorie", "Mitglied", "Besucher"]:
+    for doctype in ["Element", "Kalender", "Eventkategorie", "Mitglied"]:
         records = frappe.get_all(doctype, fields=["name"])
         for r in records:
             try:

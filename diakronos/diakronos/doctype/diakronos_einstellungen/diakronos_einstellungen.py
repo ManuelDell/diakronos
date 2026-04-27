@@ -210,7 +210,6 @@ def run_demo_data_action(action):
                 f"• <b>{len(_demo.KATEGORIEN)}</b> Eventkategorien<br>"
                 f"• <b>{len(_demo.KALENDER)}</b> Kalender<br>"
                 f"• <b>{len(_demo.MITGLIEDER)}</b> Mitglieder<br>"
-                f"• <b>{len(_demo.BESUCHER)}</b> Besucher<br>"
                 "• Termine für Vormonat, aktuellen Monat und Folgemonat"
             ),
             title="Demodaten erstellt",

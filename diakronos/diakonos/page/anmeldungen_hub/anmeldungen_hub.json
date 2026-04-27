@@ -1,0 +1,13 @@
+{
+ "creation": "2026-04-20 12:00:00.000000",
+ "doctype": "Page",
+ "module": "Diakonos",
+ "name": "anmeldungen-hub",
+ "page_name": "anmeldungen-hub",
+ "roles": [
+  {"role": "Mitgliederadministrator"},
+  {"role": "System Manager"}
+ ],
+ "standard": "Yes",
+ "title": "Anmeldungen"
+}

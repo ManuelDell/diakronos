@@ -1,0 +1,56 @@
+{
+ "actions": [],
+ "creation": "2026-04-19 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "mitglied",
+  "dienstrolle",
+  "bestaetigt",
+  "notiz"
+ ],
+ "fields": [
+  {
+   "fieldname": "mitglied",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Mitglied",
+   "options": "Mitglied",
+   "reqd": 1
+  },
+  {
+   "fieldname": "dienstrolle",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Dienstrolle",
+   "options": "Dienstrolle"
+  },
+  {
+   "default": "0",
+   "fieldname": "bestaetigt",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Best\u00e4tigt"
+  },
+  {
+   "fieldname": "notiz",
+   "fieldtype": "Small Text",
+   "label": "Notiz"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-04-19 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Kronos",
+ "name": "Element Mitarbeiter",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

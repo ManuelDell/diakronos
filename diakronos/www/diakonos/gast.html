@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gast-Anmeldung</title>
+    <meta name="csrf-token" content="{{ frappe.session.csrf_token }}">
+</head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        window.__diakronos = {
+            token:      {{ token | tojson }},
+            linkFehler: {{ (link_fehler or "") | tojson }},
+        };
+    </script>
+    <script type="module" src="/assets/diakronos/frontend/gast.js"></script>
+</body>
+</html>

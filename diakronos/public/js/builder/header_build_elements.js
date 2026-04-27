@@ -3,6 +3,7 @@
 import { kronosMiniCalendar } from './kronos_mini_calendar.js';
 import { kronosCalendar } from './kronos_calendar.js';
 import { setViewMode } from '../backend/data.js';
+import { ICON_CHEVRON_LEFT, ICON_CHEVRON_RIGHT, ICON_ROOM_VIEW, ICON_EYE, ICON_PENCIL, ICON_CALENDAR_TODAY, ICON_LOGOUT, ICON_DASHBOARD, ICON_MODERATION, ICON_SEARCH_SM } from '../shared/icons.js';
 
 export function header_build_elements() {
     const header = document.querySelector('.kronos-header');
@@ -57,13 +58,13 @@ export function header_build_elements() {
     const prevBtn = document.createElement('button');
     prevBtn.className = 'nav-btn prev-month';
     prevBtn.setAttribute('aria-label', 'Vorheriger Monat');
-    prevBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6l6 6"/></svg>`;
+    prevBtn.innerHTML = ICON_CHEVRON_LEFT;
     headerCenter.appendChild(prevBtn);
 
     const nextBtn = document.createElement('button');
     nextBtn.className = 'nav-btn next-month';
     nextBtn.setAttribute('aria-label', 'Nächster Monat');
-    nextBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6l-6 6"/></svg>`;
+    nextBtn.innerHTML = ICON_CHEVRON_RIGHT;
     headerCenter.appendChild(nextBtn);
 
     const dateDisplay = document.createElement('span');
@@ -97,10 +98,7 @@ export function header_build_elements() {
     resourceBtn.setAttribute('aria-label', 'Raumbelegung anzeigen');
     resourceBtn.setAttribute('aria-pressed', 'false');
     resourceBtn.title = 'Raumbelegung';
-    resourceBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5z"/><path d="M3 13a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6z"/><path d="M15 13a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-6z"/></svg>
-        <span class="resource-btn-label">Raumbelegung</span>
-    `;
+    resourceBtn.innerHTML = `${ICON_ROOM_VIEW}<span class="resource-btn-label">Raumbelegung</span>`;
     headerRight.appendChild(resourceBtn);
 
     const viewSelector = document.createElement('select');
@@ -121,12 +119,8 @@ export function header_build_elements() {
     toggleGroup.setAttribute('data-toggle-group', 'edit-mode');
     toggleGroup.setAttribute('aria-label', 'Bearbeitungs- / Ansichtsmodus');
     toggleGroup.innerHTML = `
-        <button class="toggle-btn toggle-left active" aria-label="Ansichtsmodus" title="Nur anzeigen">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg>
-        </button>
-        <button class="toggle-btn toggle-right" aria-label="Bearbeitungsmodus" title="Termine verschieben / bearbeiten">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></svg>
-        </button>
+        <button class="toggle-btn toggle-left active" aria-label="Ansichtsmodus" title="Nur anzeigen">${ICON_EYE}</button>
+        <button class="toggle-btn toggle-right" aria-label="Bearbeitungsmodus" title="Termine verschieben / bearbeiten">${ICON_PENCIL}</button>
     `;
     headerRight.appendChild(toggleGroup);
 
@@ -134,7 +128,7 @@ export function header_build_elements() {
     const todayIconBtn = document.createElement('button');
     todayIconBtn.className = 'today-icon-btn';
     todayIconBtn.setAttribute('aria-label', 'Zum heutigen Tag springen');
-    todayIconBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/><path d="M11 15h1"/><path d="M12 15v3"/></svg>`;
+    todayIconBtn.innerHTML = ICON_CALENDAR_TODAY;
     headerRight.appendChild(todayIconBtn);
 
     // Profil-Avatar + Dropdown
@@ -161,10 +155,7 @@ export function header_build_elements() {
     const profileDropdown = document.createElement('div');
     profileDropdown.className = 'profile-dropdown';
     profileDropdown.innerHTML = `
-        <button class="profile-dropdown-item profile-dropdown-logout">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2"/><path d="M9 12h12l-3 -3"/><path d="M18 15l3 -3"/></svg>
-            Abmelden
-        </button>
+        <button class="profile-dropdown-item profile-dropdown-logout">${ICON_LOGOUT} Abmelden</button>
     `;
 
     profileWrapper.appendChild(profileAvatar);
@@ -349,14 +340,14 @@ export function header_build_elements() {
                 const deskLink = document.createElement('a');
                 deskLink.className = 'profile-dropdown-item';
                 deskLink.href = '/app';
-                deskLink.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1"/><path d="M5 16h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1"/><path d="M15 12h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1"/><path d="M15 4h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1"/></svg> Zurück zum Desk`;
+                deskLink.innerHTML = `${ICON_DASHBOARD} Zurück zum Desk`;
                 profileDropdown.insertBefore(deskLink, profileDropdown.firstChild);
             }
             if (userInfo?.can_moderate) {
                 const modLink = document.createElement('a');
                 modLink.className = 'profile-dropdown-item';
                 modLink.href = '/kronos/moderation';
-                modLink.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6h-6z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6h-6z"/><path d="M17 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/></svg> Terminmoderation`;
+                modLink.innerHTML = `${ICON_MODERATION} Terminmoderation`;
                 const logoutBtn = profileDropdown.querySelector('.profile-dropdown-logout');
                 profileDropdown.insertBefore(modLink, logoutBtn);
             }
@@ -368,7 +359,7 @@ export function header_build_elements() {
     // ── Suche-Button im Dropdown + Ctrl+F ────────────────────────────────────
     const searchBtn = document.createElement('button');
     searchBtn.className = 'profile-dropdown-item';
-    searchBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg> Suche`;
+    searchBtn.innerHTML = `${ICON_SEARCH_SM} Suche`;
     searchBtn.addEventListener('click', () => {
         profileDropdown.classList.remove('open');
         document.dispatchEvent(new CustomEvent('kronosSearch:open'));

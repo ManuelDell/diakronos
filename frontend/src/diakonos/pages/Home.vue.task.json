@@ -1,0 +1,305 @@
+{
+  "component": "Home.vue – Mitglieds-Dashboard + Ressourcenportal",
+  "status": "Frontend implementiert, Backend-Aufgaben offen",
+  "todo": [
+    {
+      "id": "BE-001",
+      "title": "API: Meine Dienste abrufen",
+      "endpoint": "diakronos.diakonos.api.dienstplan.get_meine_dienste",
+      "method": "GET",
+      "params": { "user_email": "string", "limit": 5, "status": ["confirmed", "pending"] },
+      "response": [
+        { "id": "string", "title": "string", "date": "YYYY-MM-DD", "time": "string", "group": "string", "status": "confirmed|pending" }
+      ],
+      "notes": "Liefert die nächsten anstehenden Dienste des eingeloggten Mitglieds. Status 'confirmed' = Bestätigt, 'pending' = Ausstehend."
+    },
+    {
+      "id": "BE-002",
+      "title": "API: Dienstanfragen abrufen",
+      "endpoint": "diakronos.diakonos.api.dienstplan.get_dienstanfragen",
+      "method": "GET",
+      "params": { "user_email": "string" },
+      "response": [
+        { "id": "string", "title": "string", "date": "YYYY-MM-DD", "group": "string", "status": "pending" }
+      ],
+      "notes": "Liefert offene Dienstanfragen für das Mitglied."
+    },
+    {
+      "id": "BE-003",
+      "title": "API: Dienstanfrage beantworten",
+      "endpoint": "diakronos.diakonos.api.dienstplan.respond_anfrage",
+      "method": "POST",
+      "params": { "id": "string", "response": "accept|decline" },
+      "response": { "success": true, "message": "string" },
+      "notes": "Mitglied kann eine Dienstanfrage annehmen (accept) oder ablehnen (decline). Bei Annahme wird ein Dienst-Eintrag erstellt."
+    },
+    {
+      "id": "BE-004",
+      "title": "API: Kalender-Events abrufen",
+      "endpoint": "diakronos.diakonos.api.kalender.get_events",
+      "method": "GET",
+      "params": { "month": "number", "year": "number", "user_email": "string" },
+      "response": [
+        { "date": "YYYY-MM-DD", "title": "string", "type": "dienst|termin|gruppe" }
+      ],
+      "notes": "Liefert alle Events für einen Monat. Typen: 'dienst' = Dienst, 'termin' = Allgemeiner Termin, 'gruppe' = Gruppentreffen."
+    },
+    {
+      "id": "BE-005",
+      "title": "API: Kontaktliste abrufen",
+      "endpoint": "diakronos.diakonos.api.mitglieder.get_kontaktliste",
+      "method": "GET",
+      "params": { "user_email": "string", "search": "string?" },
+      "response": [
+        { "id": "string", "vorname": "string", "nachname": "string", "role": "string", "email": "string?", "phone": "string?" }
+      ],
+      "notes": "Liefert die Kontaktliste der Gemeinde. Filterbar per search-Parameter. Email und Phone dürfen null sein (DSGVO)."
+    },
+    {
+      "id": "BE-006",
+      "title": "Permission Check für alle neuen Endpoints",
+      "notes": "Jeder Endpoint muss prüfen, ob user_email zum eingeloggten User passt. Kein Zugriff auf fremde Daten."
+    },
+    {
+      "id": "BE-007",
+      "title": "API: Ressourcen-Liste abrufen",
+      "endpoint": "diakronos.diakonos.api.ressourcen.get_ressourcen_liste",
+      "method": "GET",
+      "params": { "search": "string?", "type": "room|vehicle|item?", "status": "available|booked|maintenance?" },
+      "response": [
+        { "id": "string", "name": "string", "type": "room|vehicle|item", "description": "string", "capacity": "number?", "status": "available|booked|maintenance", "tags": ["string"], "image": "string?" }
+      ],
+      "notes": "Liefert alle Ressourcen (Räume, Fahrzeuge, Gegenstände). Filterbar nach Typ und Status."
+    },
+    {
+      "id": "BE-008",
+      "title": "API: Ressource-Detail & Buchungen abrufen",
+      "endpoint": "diakronos.diakonos.api.ressourcen.get_ressource_detail",
+      "method": "GET",
+      "params": { "resource_id": "string", "date_from": "YYYY-MM-DD?", "date_to": "YYYY-MM-DD?" },
+      "response": {
+        "resource": { "id": "string", "name": "string", "type": "room|vehicle|item", "description": "string", "capacity": "number?", "status": "string", "tags": ["string"] },
+        "bookings": [
+          { "id": "string", "title": "string", "date": "YYYY-MM-DD", "time": "string", "user": "string", "purpose": "string" }
+        ]
+      },
+      "notes": "Liefert Detailinformationen und bevorstehende Buchungen einer Ressource."
+    },
+    {
+      "id": "BE-009",
+      "title": "API: Buchung erstellen",
+      "endpoint": "diakronos.diakonos.api.ressourcen.create_buchung",
+      "method": "POST",
+      "params": { "resource_id": "string", "date": "YYYY-MM-DD", "start_time": "HH:MM", "end_time": "HH:MM", "purpose": "string", "notes": "string?", "user_email": "string" },
+      "response": { "success": true, "booking_id": "string", "message": "string" },
+      "notes": "Erstellt eine neue Buchung. Muss prüfen ob Zeitraum verfügbar (Konfliktprüfung). Rückgabe success=false bei Überlappung."
+    },
+    {
+      "id": "BE-010",
+      "title": "API: Buchung bearbeiten",
+      "endpoint": "diakronos.diakonos.api.ressourcen.update_buchung",
+      "method": "POST",
+      "params": { "id": "string", "date": "YYYY-MM-DD?", "start_time": "HH:MM?", "end_time": "HH:MM?", "purpose": "string?", "notes": "string?", "user_email": "string" },
+      "response": { "success": true, "message": "string" },
+      "notes": "Nur eigene Buchungen bearbeitbar (user_email prüfen). Admin darf alle bearbeiten."
+    },
+    {
+      "id": "BE-011",
+      "title": "API: Buchung stornieren",
+      "endpoint": "diakronos.diakonos.api.ressourcen.delete_buchung",
+      "method": "POST",
+      "params": { "id": "string", "user_email": "string" },
+      "response": { "success": true, "message": "string" },
+      "notes": "Storniert eine Buchung. Nur eigene Buchungen stornierbar (user_email prüfen). Admin darf alle stornieren."
+    },
+    {
+      "id": "BE-012",
+      "title": "API: Meine Buchungen abrufen",
+      "endpoint": "diakronos.diakonos.api.ressourcen.get_meine_buchungen",
+      "method": "GET",
+      "params": { "user_email": "string", "status": "upcoming|past|all?" },
+      "response": [
+        { "id": "string", "resourceId": "string", "resourceName": "string", "resourceType": "room|vehicle|item", "date": "string", "time": "string", "purpose": "string" }
+      ],
+      "notes": "Liefert alle Buchungen des eingeloggten Mitglieds. Optional filterbar nach upcoming/past."
+    },
+    {
+      "id": "BE-013",
+      "title": "API: Verfügbarkeit prüfen",
+      "endpoint": "diakronos.diakonos.api.ressourcen.check_verfuegbarkeit",
+      "method": "GET",
+      "params": { "resource_id": "string", "date": "YYYY-MM-DD" },
+      "response": {
+        "slots": [
+          { "hour": 0, "booked": false, "booking_id": "string?" }
+        ]
+      },
+      "notes": "Liefert 24 Stunden-Slots für einen Tag. 'booked' = true wenn in dieser Stunde bereits gebucht. Wird für die Verfügbarkeits-Anzeige im Buchungsmodal benötigt."
+    },
+    {
+      "id": "BE-015",
+      "title": "DocType: Ressource anlegen",
+      "notes": "Neuer Frappe-DocType 'Ressource' mit Feldern: name, type (Select: Raum/Fahrzeug/Gegenstand), description, capacity (Int), status (Select: Verfügbar/Belegt/Wartung), tags (Table), image (Attach Image)."
+    },
+    {
+      "id": "BE-016",
+      "title": "DocType: Ressourcen-Buchung anlegen",
+      "notes": "Neuer Frappe-DocType 'Ressourcen Buchung' mit Feldern: resource (Link Ressource), user (Link User), date (Date), start_time (Time), end_time (Time), purpose (Data), notes (Text), status (Select: Bestätigt/Storniert)."
+    },
+    {
+      "id": "BE-017",
+      "title": "API: Beiträge-Liste abrufen",
+      "endpoint": "diakronos.diakonos.api.beitraege.get_beitraege_liste",
+      "method": "GET",
+      "params": { "search": "string?", "category": "string?", "limit": 20, "offset": 0 },
+      "response": [
+        { "id": "string", "title": "string", "excerpt": "string", "category": "string", "author": "string", "author_avatar": "string", "date": "YYYY-MM-DD", "comments": 0, "image": "string?" }
+      ],
+      "notes": "Liefert Beiträge für den internen Gemeindebrief. Filterbar nach Kategorie und durchsuchbar."
+    },
+    {
+      "id": "BE-018",
+      "title": "API: Beitrag-Detail abrufen",
+      "endpoint": "diakronos.diakonos.api.beitraege.get_beitrag_detail",
+      "method": "GET",
+      "params": { "id": "string" },
+      "response": {
+        "id": "string", "title": "string", "content": "string (HTML)", "category": "string", "author": "string", "author_avatar": "string", "date": "YYYY-MM-DD", "comments": 0,
+        "comment_list": [
+          { "id": "string", "author": "string", "avatar": "string", "text": "string", "date": "YYYY-MM-DD" }
+        ]
+      },
+      "notes": "Liefert den vollständigen Beitrag inklusive Kommentaren."
+    },
+    {
+      "id": "BE-019",
+      "title": "API: Beitrag erstellen",
+      "endpoint": "diakronos.diakonos.api.beitraege.create_beitrag",
+      "method": "POST",
+      "params": { "title": "string", "excerpt": "string", "content": "string (HTML)", "category": "string", "image": "string?", "author_email": "string" },
+      "response": { "success": true, "id": "string" },
+      "notes": "Erstellt einen neuen Beitrag. Nur für Admin und berechtigte Redakteure."
+    },
+    {
+      "id": "BE-020",
+      "title": "API: Beitrag bearbeiten",
+      "endpoint": "diakronos.diakonos.api.beitraege.update_beitrag",
+      "method": "POST",
+      "params": { "id": "string", "title": "string?", "excerpt": "string?", "content": "string?", "category": "string?", "image": "string?" },
+      "response": { "success": true },
+      "notes": "Bearbeitet einen Beitrag. Nur Admin oder der ursprüngliche Autor."
+    },
+    {
+      "id": "BE-021",
+      "title": "API: Beitrag löschen",
+      "endpoint": "diakronos.diakonos.api.beitraege.delete_beitrag",
+      "method": "POST",
+      "params": { "id": "string" },
+      "response": { "success": true },
+      "notes": "Löscht einen Beitrag. Nur Admin."
+    },
+    {
+      "id": "BE-022",
+      "title": "API: Kommentar erstellen",
+      "endpoint": "diakronos.diakonos.api.beitraege.create_kommentar",
+      "method": "POST",
+      "params": { "beitrag_id": "string", "text": "string", "author_email": "string" },
+      "response": { "success": true, "id": "string" },
+      "notes": "Fügt einen Kommentar zu einem Beitrag hinzu. Jeder eingeloggte User darf kommentieren."
+    },
+    {
+      "id": "BE-023",
+      "title": "DocType: Beitrag anlegen",
+      "notes": "Neuer Frappe-DocType 'Beitrag' mit Feldern: title (Data), excerpt (Text), content (Text Editor), category (Select: Ankündigung/Gottesdienst/Jugend/Gemeindeleben/Allgemein), author (Link User), date (Date), image (Attach Image), status (Select: Entwurf/Veröffentlicht/Archiviert)."
+    },
+    {
+      "id": "BE-024",
+      "title": "DocType: Beitrag-Kommentar anlegen",
+      "notes": "Neuer Frappe-DocType 'Beitrag Kommentar' mit Feldern: beitrag (Link Beitrag), author (Link User), text (Text), date (Datetime)."
+    },
+    {
+      "id": "BE-025",
+      "title": "API: Wiki-Artikel-Liste abrufen",
+      "endpoint": "diakronos.diakonos.api.wiki.get_wiki_artikel_liste",
+      "method": "GET",
+      "params": { "search": "string?", "category": "string?", "tag": "string?" },
+      "response": [
+        { "id": "string", "title": "string", "excerpt": "string", "category": "string", "tags": ["string"], "author": "string", "author_avatar": "string", "updated_at": "YYYY-MM-DD", "is_new": false }
+      ],
+      "notes": "Liefert alle Wiki-Artikel. Filterbar nach Kategorie, Tag und durchsuchbar."
+    },
+    {
+      "id": "BE-026",
+      "title": "API: Wiki-Artikel-Detail abrufen",
+      "endpoint": "diakronos.diakonos.api.wiki.get_wiki_artikel_detail",
+      "method": "GET",
+      "params": { "id": "string" },
+      "response": {
+        "id": "string", "title": "string", "content": "string (HTML)", "category": "string", "tags": ["string"], "author": "string", "author_avatar": "string", "updated_at": "YYYY-MM-DD",
+        "versions": [
+          { "id": "string", "date": "YYYY-MM-DD", "author": "string", "note": "string" }
+        ]
+      },
+      "notes": "Liefert den vollständigen Wiki-Artikel inklusive Versionsverlauf."
+    },
+    {
+      "id": "BE-027",
+      "title": "API: Wiki-Artikel erstellen",
+      "endpoint": "diakronos.diakonos.api.wiki.create_wiki_artikel",
+      "method": "POST",
+      "params": { "title": "string", "excerpt": "string", "content": "string (HTML)", "category": "string", "tags": "string (kommagetrennt)", "author_email": "string" },
+      "response": { "success": true, "id": "string" },
+      "notes": "Erstellt einen neuen Wiki-Artikel. Alle eingeloggten User dürfen erstellen (wiki-community)."
+    },
+    {
+      "id": "BE-028",
+      "title": "API: Wiki-Artikel bearbeiten",
+      "endpoint": "diakronos.diakonos.api.wiki.update_wiki_artikel",
+      "method": "POST",
+      "params": { "id": "string", "title": "string?", "excerpt": "string?", "content": "string?", "category": "string?", "tags": "string?", "change_note": "string" },
+      "response": { "success": true },
+      "notes": "Bearbeitet einen Wiki-Artikel. Speichert automatisch eine neue Version mit change_note. Alle eingeloggten User dürfen bearbeiten."
+    },
+    {
+      "id": "BE-029",
+      "title": "API: Wiki-Artikel löschen",
+      "endpoint": "diakronos.diakonos.api.wiki.delete_wiki_artikel",
+      "method": "POST",
+      "params": { "id": "string" },
+      "response": { "success": true },
+      "notes": "Löscht einen Wiki-Artikel. Nur Admin oder der ursprüngliche Autor."
+    },
+    {
+      "id": "BE-030",
+      "title": "API: Wiki-Kategorien abrufen",
+      "endpoint": "diakronos.diakonos.api.wiki.get_wiki_kategorien",
+      "method": "GET",
+      "params": {},
+      "response": [
+        { "id": "string", "name": "string", "count": 0 }
+      ],
+      "notes": "Liefert alle Wiki-Kategorien mit Artikel-Anzahl."
+    },
+    {
+      "id": "BE-031",
+      "title": "API: Wiki-Tags abrufen",
+      "endpoint": "diakronos.diakonos.api.wiki.get_wiki_tags",
+      "method": "GET",
+      "params": { "limit": 20 },
+      "response": [
+        { "name": "string", "count": 0 }
+      ],
+      "notes": "Liefert die beliebtesten Tags mit Nutzungshäufigkeit."
+    },
+    {
+      "id": "BE-032",
+      "title": "DocType: Wiki-Artikel anlegen",
+      "notes": "Neuer Frappe-DocType 'Wiki Artikel' mit Feldern: title (Data), excerpt (Text), content (Text Editor), category (Select: Technik/Abläufe/Räume/Kontakte/FAQ), tags (Table), author (Link User), updated_at (Date), status (Select: Entwurf/Veröffentlicht)."
+    },
+    {
+      "id": "BE-033",
+      "title": "DocType: Wiki-Version anlegen",
+      "notes": "Neuer Frappe-DocType 'Wiki Version' mit Feldern: artikel (Link Wiki Artikel), author (Link User), content (Text Editor), change_note (Data), date (Datetime). Speichert den vollständigen Inhalt jeder Version."
+    }
+  ]
+}

@@ -8,41 +8,20 @@
  "field_order": [
   "dienstbereich_section",
   "ministry",
-  "ministry_leader",
-  "ministry_read_role",
-  "einzelberechtigung_section",
-  "ministry_read_user",
-  "ministry_write_user"
+  "sortierung",
+  "farbe",
+  "icon",
+  "column_break_db1",
+  "beschreibung",
+  "ancestor_path",
+  "verantwortliche_section",
+  "verantwortliche"
  ],
  "fields": [
   {
-   "fieldname": "einzelberechtigung_section",
+   "fieldname": "dienstbereich_section",
    "fieldtype": "Section Break",
-   "label": "Zus\u00e4tzliche Einzelberechtigung"
-  },
-  {
-   "fieldname": "ministry_read_user",
-   "fieldtype": "Table",
-   "label": "Leseberechtigung (Einzelnutzer)",
-   "options": "Nutzereinzelrechte"
-  },
-  {
-   "fieldname": "ministry_write_user",
-   "fieldtype": "Table",
-   "label": "Schreibberechtigung (Einzelnutzer)",
-   "options": "Nutzereinzelrechte"
-  },
-  {
-   "fieldname": "ministry_read_role",
-   "fieldtype": "Link",
-   "label": "Rollenberechtigung",
-   "options": "Role"
-  },
-  {
-   "fieldname": "ministry_leader",
-   "fieldtype": "Link",
-   "label": "Verantwortlicher Leiter",
-   "options": "User"
+   "label": "Dienstbereich"
   },
   {
    "fieldname": "ministry",
@@ -53,15 +32,55 @@
    "unique": 1
   },
   {
-   "fieldname": "dienstbereich_section",
+   "default": "0",
+   "fieldname": "sortierung",
+   "fieldtype": "Int",
+   "label": "Sortierung"
+  },
+  {
+   "fieldname": "farbe",
+   "fieldtype": "Color",
+   "label": "Farbe"
+  },
+  {
+   "fieldname": "icon",
+   "fieldtype": "Data",
+   "label": "Icon",
+   "description": "z.B. icon-users oder emoji 🎵"
+  },
+  {
+   "fieldname": "column_break_db1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "beschreibung",
+   "fieldtype": "Small Text",
+   "label": "Beschreibung"
+  },
+  {
+   "fieldname": "ancestor_path",
+   "fieldtype": "Data",
+   "label": "Ancestor Path",
+   "hidden": 1,
+   "read_only": 1,
+   "description": "Precomputed hierarchy path for permission checks"
+  },
+  {
+   "fieldname": "verantwortliche_section",
    "fieldtype": "Section Break",
-   "label": "Dienstbereich"
+   "label": "Verantwortliche"
+  },
+  {
+   "fieldname": "verantwortliche",
+   "fieldtype": "Table",
+   "label": "Verantwortliche",
+   "options": "Dienstbereich Verantwortlicher"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-10-17 12:59:12.274894",
+ "modified": "2026-04-19 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Diakonos",
  "name": "Dienstbereich",
@@ -82,8 +101,8 @@
   }
  ],
  "row_format": "Dynamic",
- "rows_threshold_for_grid_search": 20,
- "sort_field": "creation",
- "sort_order": "DESC",
- "states": []
+ "sort_field": "sortierung",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "ministry"
 }

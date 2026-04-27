@@ -3,6 +3,14 @@ from __future__ import unicode_literals
 import frappe
 from frappe.model.document import Document
 from frappe.utils import getdate, add_days, add_months, now
+import datetime as _dt
+
+
+def _dt_to_str(value):
+    """Konvertiert datetime-Objekt oder String in 'YYYY-MM-DD HH:MM:SS' String."""
+    if isinstance(value, (_dt.datetime, _dt.date)):
+        return str(value)
+    return value or ""
 
 
 class Element(Document):
@@ -29,7 +37,12 @@ class Element(Document):
         if not target_calendar:
             frappe.throw("Bitte zuerst einen Kalender auswählen (Feld 'element_calendar')")
 
-        start_date = getdate(self.element_start.split(" ")[0])
+        start_str = _dt_to_str(self.element_start)
+        end_str   = _dt_to_str(self.element_end)
+        start_date = getdate(start_str.split(" ")[0])
+        start_time = start_str.split(" ")[1] if " " in start_str else "00:00:00"
+        end_time   = end_str.split(" ")[1]   if end_str and " " in end_str else "01:00:00"
+
         current = start_date
         end_date = getdate(self.repeat_till) if self.repeat_till else None
         max_events = 200
@@ -44,8 +57,8 @@ class Element(Document):
             new_el = frappe.get_doc({
                 "doctype": "Element",
                 "element_name": self.element_name,
-                "element_start": f"{current} {self.element_start.split(' ')[1]}",
-                "element_end": self.element_end and f"{current} {self.element_end.split(' ')[1]}" or None,
+                "element_start": f"{current} {start_time}",
+                "element_end": f"{current} {end_time}" if end_str else None,
                 "element_category": self.element_category,
                 "element_color": self.element_color,
                 "status": "Festgelegt",

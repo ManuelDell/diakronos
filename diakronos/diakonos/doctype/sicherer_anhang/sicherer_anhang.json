@@ -1,0 +1,126 @@
+{
+ "actions": [],
+ "allow_import": 0,
+ "autoname": "format:ANH-{mitglied}-{####}",
+ "creation": "2026-04-19 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "mitglied",
+  "datei",
+  "column_break_anh1",
+  "dateiname",
+  "dateityp",
+  "details_section",
+  "loeschfrist",
+  "sichtbarkeits_ebene",
+  "column_break_anh2",
+  "beschreibung"
+ ],
+ "fields": [
+  {
+   "fieldname": "mitglied",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Mitglied",
+   "options": "Mitglied",
+   "reqd": 1
+  },
+  {
+   "fieldname": "datei",
+   "fieldtype": "Attach",
+   "label": "Datei",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_anh1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "dateiname",
+   "fieldtype": "Data",
+   "label": "Anzeigename"
+  },
+  {
+   "fieldname": "dateityp",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Dateityp",
+   "options": "PDF\nBild\nSonstiges"
+  },
+  {
+   "fieldname": "details_section",
+   "fieldtype": "Section Break",
+   "label": "Verwaltung"
+  },
+  {
+   "fieldname": "loeschfrist",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Löschfrist",
+   "description": "Datei wird ab diesem Datum als abgelaufen markiert"
+  },
+  {
+   "fieldname": "sichtbarkeits_ebene",
+   "fieldtype": "Select",
+   "label": "Sichtbarkeit",
+   "options": "Nur Verantwortliche\nDienstbereich\nGruppe\nUntergruppe"
+  },
+  {
+   "fieldname": "column_break_anh2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "beschreibung",
+   "fieldtype": "Small Text",
+   "label": "Beschreibung"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 0,
+ "links": [
+  {
+   "group": "Mitglied",
+   "link_doctype": "Mitglied",
+   "link_fieldname": "mitglied"
+  }
+ ],
+ "modified": "2026-04-19 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Diakonos",
+ "name": "Sicherer Anhang",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 0,
+   "export": 0,
+   "print": 0,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 0,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 0,
+   "export": 1,
+   "print": 0,
+   "read": 1,
+   "report": 1,
+   "role": "Mitgliederadministrator",
+   "share": 0,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "dateiname"
+}

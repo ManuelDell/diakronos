@@ -2,6 +2,8 @@
 // Verwendet dieselben CSS-Klassen wie Kronos (header-left, header-right,
 // hamburger #hamburger-3, profile-avatar …) für visuell identischen Header.
 
+import { ICON_EYE, ICON_PENCIL, ICON_HOME, ICON_LOGOUT, ICON_DASHBOARD, ICON_MUSIC } from '../shared/icons.js';
+
 export function buildPsalmosHeader() {
     const header = document.querySelector('.psalmos-header');
     if (!header) {
@@ -27,21 +29,12 @@ export function buildPsalmosHeader() {
 
     // Logo: Musiknoten-SVG (analog zu diakronos-logo.svg in Kronos)
     const logoWrapper = document.createElement('div');
-    logoWrapper.style.cssText = 'display:flex;align-items:center;gap:8px;height:var(--button-height);';
-
-    const logoIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    logoIcon.setAttribute('viewBox', '0 0 24 24');
-    logoIcon.setAttribute('height', 'var(--button-height)');
-    logoIcon.setAttribute('fill', 'currentColor');
-    logoIcon.setAttribute('aria-hidden', 'true');
-    logoIcon.style.color = 'var(--primary)';
-    logoIcon.innerHTML = '<path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/>';
+    logoWrapper.style.cssText = 'display:flex;align-items:center;gap:8px;height:var(--button-height);color:var(--primary);';
+    logoWrapper.innerHTML = ICON_MUSIC;
 
     const logoText = document.createElement('span');
     logoText.textContent = 'Psalmos';
     logoText.style.cssText = 'font-weight:600;font-size:1.1rem;color:var(--text-color);white-space:nowrap;';
-
-    logoWrapper.appendChild(logoIcon);
     logoWrapper.appendChild(logoText);
     headerLeft.appendChild(logoWrapper);
     header.appendChild(headerLeft);
@@ -54,15 +47,7 @@ export function buildPsalmosHeader() {
     const viewEditToggle = document.createElement('button');
     viewEditToggle.className = 'view-edit-toggle';
     viewEditToggle.setAttribute('aria-label', 'Ansichtsmodus umschalten');
-    viewEditToggle.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" class="view-icon">
-            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
-            <circle cx="12" cy="12" r="3"/>
-        </svg>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" class="edit-icon" style="display:none;">
-            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
-        </svg>
-    `;
+    viewEditToggle.innerHTML = `${ICON_EYE}${ICON_PENCIL}`;
     viewEditToggle.addEventListener('click', () => {
         const isViewMode = viewEditToggle.classList.contains('view-mode');
         viewEditToggle.classList.toggle('view-mode', !isViewMode);
@@ -85,15 +70,9 @@ export function buildPsalmosHeader() {
     const profileDropdown = document.createElement('div');
     profileDropdown.className = 'profile-dropdown';
     profileDropdown.innerHTML = `
-        <a class="profile-dropdown-item" href="/diakronos">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l-2 0l9 -9l9 9l-2 0"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"/><path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"/></svg>
-            Startseite
-        </a>
+        <a class="profile-dropdown-item" href="/diakronos">${ICON_HOME} Startseite</a>
         <div class="profile-dropdown-divider"></div>
-        <button class="profile-dropdown-item profile-dropdown-logout">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2"/><path d="M9 12h12l-3 -3"/><path d="M18 15l3 -3"/></svg>
-            Abmelden
-        </button>
+        <button class="profile-dropdown-item profile-dropdown-logout">${ICON_LOGOUT} Abmelden</button>
     `;
 
     profileWrapper.appendChild(profileAvatar);
@@ -169,7 +148,7 @@ async function _loadUserAvatar(profileAvatar, profileDropdown) {
             const deskLink = document.createElement('a');
             deskLink.className = 'profile-dropdown-item';
             deskLink.href = '/app';
-            deskLink.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1"/><path d="M5 16h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1"/><path d="M15 12h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1"/><path d="M15 4h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1"/></svg> Zurück zum Desk`;
+            deskLink.innerHTML = `${ICON_DASHBOARD} Zurück zum Desk`;
             profileDropdown.insertBefore(deskLink, profileDropdown.firstChild);
         }
     } catch (err) {

@@ -2,14 +2,27 @@
   "name": "diakronos",
   "version": "1.0.0",
   "description": "Gemeindeverwaltung",
-  "devDependencies": {
-    "baseline-browser-mapping": "^2.9.17",
-    "eslint": "^8.57.1"
-  },
   "scripts": {
-    "lint": "eslint 'diakronos/public/js/**/*.js'"
+    "lint": "eslint 'diakronos/public/js/**/*.js'",
+    "dev": "vite",
+    "build": "vite build"
   },
   "dependencies": {
-    "@event-calendar/build": "^5.4.2"
+    "@event-calendar/build": "^5.4.2",
+    "@tabler/icons": "^3.41.1",
+    "d3": "^7.9.0",
+    "lucide-static": "latest",
+    "d3-org-chart": "^3.1.1",
+    "frappe-ui": "latest",
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "autoprefixer": "^10.4.0",
+    "baseline-browser-mapping": "^2.9.17",
+    "eslint": "^8.57.1",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "vite": "^5.0.0"
   }
 }

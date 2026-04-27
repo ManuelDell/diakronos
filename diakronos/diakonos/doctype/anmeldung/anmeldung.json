@@ -1,0 +1,255 @@
+{
+ "actions": [],
+ "allow_guest": 1,
+ "autoname": "ANM.######",
+ "creation": "2026-04-19 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "anmeldungstyp_section",
+  "anmeldungstyp",
+  "status",
+  "anmeldedatum",
+  "verarbeitet",
+  "mitglied",
+  "registrierungslink",
+  "person_section",
+  "vorname",
+  "nachname",
+  "column_break_anm1",
+  "email",
+  "telefon",
+  "geburtstag",
+  "dsgvo_section",
+  "dsgvo_zustimmung",
+  "dsgvo_text_snapshot",
+  "column_break_dsgvo",
+  "ip_adresse",
+  "referenz_section",
+  "referenz_typ",
+  "element",
+  "gruppe",
+  "kommentar_section",
+  "kommentar"
+ ],
+ "fields": [
+  {
+   "fieldname": "anmeldungstyp_section",
+   "fieldtype": "Section Break",
+   "label": "Anmeldungstyp"
+  },
+  {
+   "default": "Mitglied-Registrierung",
+   "fieldname": "anmeldungstyp",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Typ",
+   "options": "Mitglied-Registrierung\nGast-Anmeldung\nVeranstaltung\nGruppe",
+   "reqd": 1
+  },
+  {
+   "default": "Ausstehend",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Anmeldeanfrage\nAusstehend\nBestätigt\nAbgelehnt\nWarteliste"
+  },
+  {
+   "fieldname": "anmeldedatum",
+   "fieldtype": "Datetime",
+   "label": "Anmeldedatum",
+   "read_only": 1,
+   "default": "Now"
+  },
+  {
+   "default": "0",
+   "fieldname": "verarbeitet",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Verarbeitet",
+   "read_only": 1
+  },
+  {
+   "fieldname": "mitglied",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Mitglied (verknüpft)",
+   "options": "Mitglied",
+   "read_only": 1
+  },
+  {
+   "fieldname": "registrierungslink",
+   "fieldtype": "Link",
+   "label": "Registrierungslink",
+   "options": "Registrierungslink",
+   "read_only": 1
+  },
+  {
+   "fieldname": "person_section",
+   "fieldtype": "Section Break",
+   "label": "Personendaten"
+  },
+  {
+   "fieldname": "vorname",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Vorname",
+   "reqd": 1
+  },
+  {
+   "fieldname": "nachname",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Nachname",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_anm1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "E-Mail",
+   "options": "Email",
+   "depends_on": "eval:doc.anmeldungstyp === 'Mitglied-Registrierung'"
+  },
+  {
+   "fieldname": "telefon",
+   "fieldtype": "Phone",
+   "label": "Telefon",
+   "depends_on": "eval:doc.anmeldungstyp === 'Mitglied-Registrierung'"
+  },
+  {
+   "fieldname": "geburtstag",
+   "fieldtype": "Date",
+   "label": "Geburtstag",
+   "depends_on": "eval:doc.anmeldungstyp === 'Mitglied-Registrierung'"
+  },
+  {
+   "fieldname": "dsgvo_section",
+   "fieldtype": "Section Break",
+   "label": "Datenschutz"
+  },
+  {
+   "default": "0",
+   "fieldname": "dsgvo_zustimmung",
+   "fieldtype": "Check",
+   "label": "DSGVO-Einwilligung erteilt",
+   "reqd": 1
+  },
+  {
+   "fieldname": "dsgvo_text_snapshot",
+   "fieldtype": "Small Text",
+   "label": "Einwilligungstext (Snapshot)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_dsgvo",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ip_adresse",
+   "fieldtype": "Data",
+   "label": "IP-Adresse",
+   "read_only": 1
+  },
+  {
+   "fieldname": "referenz_section",
+   "fieldtype": "Section Break",
+   "label": "Bezug (Veranstaltung / Gruppe)",
+   "depends_on": "eval:['Veranstaltung','Gruppe'].includes(doc.anmeldungstyp)"
+  },
+  {
+   "fieldname": "referenz_typ",
+   "fieldtype": "Select",
+   "label": "Referenztyp",
+   "options": "\nElement\nGruppe",
+   "depends_on": "eval:['Veranstaltung','Gruppe'].includes(doc.anmeldungstyp)"
+  },
+  {
+   "fieldname": "element",
+   "fieldtype": "Link",
+   "label": "Termin",
+   "options": "Element",
+   "depends_on": "eval:doc.referenz_typ === 'Element'"
+  },
+  {
+   "fieldname": "gruppe",
+   "fieldtype": "Link",
+   "label": "Gruppe",
+   "options": "Gruppe",
+   "depends_on": "eval:doc.referenz_typ === 'Gruppe'"
+  },
+  {
+   "fieldname": "kommentar_section",
+   "fieldtype": "Section Break",
+   "label": "Kommentar"
+  },
+  {
+   "fieldname": "kommentar",
+   "fieldtype": "Small Text",
+   "label": "Kommentar"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-04-19 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Diakonos",
+ "name": "Anmeldung",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 0,
+   "export": 1,
+   "print": 0,
+   "read": 1,
+   "report": 1,
+   "role": "Mitgliederadministrator",
+   "share": 0,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 0,
+   "read": 0,
+   "report": 0,
+   "role": "Guest",
+   "share": 0,
+   "write": 0
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [
+  {"color": "Orange", "title": "Anmeldeanfrage"},
+  {"color": "Yellow", "title": "Ausstehend"},
+  {"color": "Green",  "title": "Bestätigt"},
+  {"color": "Red",    "title": "Abgelehnt"},
+  {"color": "Blue",   "title": "Warteliste"}
+ ]
+}

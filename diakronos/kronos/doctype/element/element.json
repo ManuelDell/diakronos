@@ -40,6 +40,10 @@
   "description",
   "participants",
   "event_participants",
+  "mitarbeiter_section",
+  "mitarbeiter",
+  "ablaufplan_section",
+  "ablaufplan",
   "section_break_jlqd",
   "reference_doctype",
   "column_break_pjkw",
@@ -186,6 +190,28 @@
    "fieldtype": "Table",
    "label": "Event Participants",
    "options": "Event Participants"
+  },
+  {
+   "fieldname": "mitarbeiter_section",
+   "fieldtype": "Section Break",
+   "label": "Mitarbeiter"
+  },
+  {
+   "fieldname": "mitarbeiter",
+   "fieldtype": "Table",
+   "label": "Mitarbeiter",
+   "options": "Element Mitarbeiter"
+  },
+  {
+   "fieldname": "ablaufplan_section",
+   "fieldtype": "Section Break",
+   "label": "Ablaufplan"
+  },
+  {
+   "fieldname": "ablaufplan",
+   "fieldtype": "Link",
+   "label": "Ablaufplan",
+   "options": "Ablaufplan"
   },
   {
    "fieldname": "section_break_jlqd",

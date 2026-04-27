@@ -26,6 +26,7 @@ modules = [
 fixtures = [
     "Workspace",
     "Module Def",
+    "Page",
     {"dt": "Role", "filters": [["name", "in", ["Mitglied", "Kalenderadministrator", "Psalmos-Nutzer"]]]},
     "Custom Field",
     "Client Script",
@@ -36,7 +37,18 @@ doc_events = {
     "Element": {
         "before_insert": "diakronos.kronos.doctype.element.element.before_insert",
         "after_save": "diakronos.kronos.doctype.element.element.after_save",
-    }
+    },
+    "Audit Log": {
+        "on_update": "diakronos.diakonos.doctype.audit_log.audit_log.prevent_modification",
+        "on_trash": "diakronos.diakonos.doctype.audit_log.audit_log.prevent_modification",
+    },
+}
+
+# Scheduler Events
+scheduler_events = {
+    "daily": [
+        "diakronos.diakonos.api.audit_policy.anonymize.anonymize_expired_audit_logs",
+    ],
 }
 # Whitelisted Methods (alles sehr sinnvoll – bleibt fast identisch)
 whitelisted_methods = {
@@ -54,6 +66,8 @@ whitelisted_methods = {
     # Diakronos Einstellungen
     'diakronos.diakronos.doctype.diakronos_einstellungen.diakronos_einstellungen.get_module_defaults',
     'diakronos.diakronos.doctype.diakronos_einstellungen.diakronos_einstellungen.run_demo_data_action',
+    # Diakonos Organigramm
+    'diakronos.diakonos.api.orgchart_api.get_orgchart_data',
     # Diakronos Startseite – Modul-Zugriff & Nutzerpräferenz
     'diakronos.kronos.api.permissions.get_accessible_modules',
     'diakronos.kronos.api.permissions.set_home_preference',
@@ -71,9 +85,31 @@ app_include_icons = [
 
 after_install = "diakronos.setup.install.symlink_create_install"
 
+# ── SPA Routing: catch-all für Diakonos ─────────────────────────────────────────────────────────────
+# Alle /diakonos/* URLs werden auf index.py umgeleitet (Vue Router übernimmt Hash-Routing).
+website_route_rules = [
+    {"from_route": "/diakonos/<path:app_path>", "to_route": "/diakonos/index"},
+]
+
+# ── Diakonos Vue-Bundles (gebaut via `vite build` im App-Root) ───────────────
+# Build-Befehl: cd /home/erpnext/frappe-bench/apps/diakronos && npm install && npm run build
+# Output:       diakronos/public/frontend/{admin,registrierung,gast,organigramm}.js
+# Desk-Pages laden admin.js via dynamischem import() in den jeweiligen page.js-Dateien.
+
 # ── CalDAV-Server (minimal, read-only, eingebettet in Frappe) ────────────────
 # Fängt /dav/* und /.well-known/caldav ab, bevor Frappe routet.
 # Clients: Apple Calendar, Thunderbird, DAVx⁵ (Android)
 # Zugriff:  Frappe-Zugangsdaten (E-Mail + Passwort) als Basic Auth
 # URL:      https://<deine-domain>/dav/<deine-email>/
 before_request = ["diakronos.caldav.server.intercept"]
+
+# ── Raven (Chat – optional, noch nicht aktiv) ────────────────────────────────
+# Raven ist eine native Frappe-Chat-App: https://github.com/The-Commit-Company/Raven
+# Installation wenn gewünscht:
+#   bench get-app raven
+#   bench --site <site> install-app raven
+#
+# Geplante Integration (Phase spät):
+# - Jede Gruppe automatisch einen Raven-Channel erstellen
+# - Event: doc_events["Gruppe"]["after_insert"] → raven_integration.create_channel(doc)
+# Solange Raven nicht installiert ist, bleibt dieser Block auskommentiert.

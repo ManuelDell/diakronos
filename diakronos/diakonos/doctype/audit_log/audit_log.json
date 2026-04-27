@@ -1,0 +1,254 @@
+{
+ "actions": [],
+ "allow_import": 0,
+ "allow_rename": 0,
+ "autoname": "format:AUDIT-{YYYY}-{#####}",
+ "creation": "2026-04-19 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "zeitstempel",
+  "action_typ",
+  "actor",
+  "column_break_audit1",
+  "target_doctype",
+  "target_name",
+  "target_user",
+  "notification_gesendet",
+  "policy_section",
+  "policy_triggered",
+  "consequence",
+  "field_changed",
+  "values_section",
+  "old_value",
+  "new_value",
+  "confirmation_section",
+  "confirm_reason",
+  "confirmed_at",
+  "begruendung_section",
+  "begruendung",
+  "status_section",
+  "status",
+  "error_message",
+  "meta_section",
+  "ip_address",
+  "user_agent",
+  "anonymized_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "zeitstempel",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Zeitstempel",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "action_typ",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Aktion",
+   "options": "Datenzugriff\nProfiländerung\nDateizugriff\nDateilöschung\nDSGVO-Export\nBerechtigungsänderung\nSonstiges",
+   "reqd": 1
+  },
+  {
+   "fieldname": "actor",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Ausführender Nutzer",
+   "options": "User",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_audit1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "target_doctype",
+   "fieldtype": "Data",
+   "label": "Ziel-DocType",
+   "read_only": 1
+  },
+  {
+   "fieldname": "target_name",
+   "fieldtype": "Data",
+   "label": "Ziel-Datensatz",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "notification_gesendet",
+   "fieldtype": "Check",
+   "label": "Benachrichtigung gesendet",
+   "read_only": 1
+  },
+  {
+   "fieldname": "policy_section",
+   "fieldtype": "Section Break",
+   "label": "Policy"
+  },
+  {
+   "fieldname": "policy_triggered",
+   "fieldtype": "Link",
+   "label": "Ausgel\u00f6ste Policy",
+   "options": "Audit Policy",
+   "read_only": 1
+  },
+  {
+   "fieldname": "consequence",
+   "fieldtype": "Select",
+   "label": "Konsequenz",
+   "options": "audit_silent\nnotify\nconfirm_required",
+   "read_only": 1
+  },
+  {
+   "fieldname": "field_changed",
+   "fieldtype": "Data",
+   "label": "Ge\u00e4ndertes Feld",
+   "read_only": 1
+  },
+  {
+   "fieldname": "values_section",
+   "fieldtype": "Section Break",
+   "label": "Werte"
+  },
+  {
+   "fieldname": "old_value",
+   "fieldtype": "Small Text",
+   "label": "Alter Wert",
+   "read_only": 1
+  },
+  {
+   "fieldname": "new_value",
+   "fieldtype": "Small Text",
+   "label": "Neuer Wert",
+   "read_only": 1
+  },
+  {
+   "fieldname": "confirmation_section",
+   "fieldtype": "Section Break",
+   "label": "Best\u00e4tigung"
+  },
+  {
+   "fieldname": "confirm_reason",
+   "fieldtype": "Small Text",
+   "label": "Best\u00e4tigungsgrund",
+   "read_only": 1
+  },
+  {
+   "fieldname": "confirmed_at",
+   "fieldtype": "Datetime",
+   "label": "Best\u00e4tigt am",
+   "read_only": 1
+  },
+  {
+   "fieldname": "begruendung_section",
+   "fieldtype": "Section Break",
+   "label": "Begr\u00fcndung"
+  },
+  {
+   "fieldname": "begruendung",
+   "fieldtype": "Small Text",
+   "label": "Begr\u00fcndung / Kontext",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status_section",
+   "fieldtype": "Section Break",
+   "label": "Status"
+  },
+  {
+   "default": "completed",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "attempted\ncompleted\nfailed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "error_message",
+   "fieldtype": "Small Text",
+   "label": "Fehlermeldung",
+   "read_only": 1
+  },
+  {
+   "fieldname": "meta_section",
+   "fieldtype": "Section Break",
+   "label": "Metadaten"
+  },
+  {
+   "fieldname": "ip_address",
+   "fieldtype": "Data",
+   "label": "IP-Adresse",
+   "read_only": 1
+  },
+  {
+   "fieldname": "user_agent",
+   "fieldtype": "Data",
+   "label": "User-Agent",
+   "read_only": 1
+  },
+  {
+   "fieldname": "anonymized_at",
+   "fieldtype": "Datetime",
+   "index": 1,
+   "label": "Anonymisiert am",
+   "read_only": 1
+  },
+  {
+   "fieldname": "target_user",
+   "fieldtype": "Link",
+   "index": 1,
+   "label": "Betroffener Benutzer",
+   "options": "User",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "in_create": 0,
+ "index_web_pages_for_search": 0,
+ "is_submittable": 0,
+ "links": [],
+ "modified": "2026-04-19 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Diakonos",
+ "name": "Audit Log",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 0,
+   "write": 0
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Mitgliederadministrator",
+   "share": 0,
+   "write": 0
+  }
+ ],
+ "read_only": 1,
+ "row_format": "Dynamic",
+ "sort_field": "zeitstempel",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "action_typ",
+ "track_changes": 1
+}
