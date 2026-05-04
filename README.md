@@ -3,6 +3,8 @@
 
 **Diakronos** ist eine kostenlose, selbst-gehostete Gemeinde-Software – eine offene Alternative zu ChurchTools. Eure Daten bleiben bei euch, auf eurem eigenen Server. Keine monatlichen Kosten, keine Cloud, kein Datenschutz-Kompromiss.
 
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/manueldell)
+
 Gebaut für Freikirchen und kleinere Gemeinden, die eine einfache, ehrliche Lösung suchen.
 
 ---
