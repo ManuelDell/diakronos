@@ -1,0 +1,1 @@
+import{_ as t}from"./_plugin-vue_export-helper-BsiTN75d.js";import{c as s,a as r,g as o}from"./plugin-BkaNtrzt.js";const n={},c={class:"dk-screen dk-screen-enter"};function a(d,e){return o(),s("div",c,[...e[0]||(e[0]=[r("h1",null,"Profil",-1),r("p",{class:"text-[var(--dk-text-muted)]"},"Hier erscheint das Benutzerprofil.",-1)])])}const f=t(n,[["render",a]]);export{f as default};

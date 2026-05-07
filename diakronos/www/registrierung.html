@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mitglied werden</title>
+    <meta name="csrf-token" content="{{ frappe.session.csrf_token }}">
+    <link rel="stylesheet" href="/assets/diakronos/frontend/css/style-ChfS9jcs.css">
+  </head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        window.__diakronos = {
+            token:      {{ token | tojson }},
+            linkFehler: {{ (link_fehler or "") | tojson }},
+            felder:     {{ (felder or []) | tojson }},
+            mitKinder:  {{ (mit_kinder or 0) | tojson }},
+        };
+    </script>
+    <script type="module" src="/assets/diakronos/frontend/registrierung.js"></script>
+</body>
+</html>

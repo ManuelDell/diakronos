@@ -48,6 +48,7 @@ doc_events = {
 scheduler_events = {
     "daily": [
         "diakronos.diakonos.api.audit_policy.anonymize.anonymize_expired_audit_logs",
+        "diakronos.diakonos.api.cleanup.delete_alte_anmeldeanfragen",
     ],
 }
 # Whitelisted Methods (alles sehr sinnvoll – bleibt fast identisch)
@@ -72,6 +73,55 @@ whitelisted_methods = {
     'diakronos.kronos.api.permissions.get_accessible_modules',
     'diakronos.kronos.api.permissions.set_home_preference',
     'diakronos.kronos.api.permissions.clear_home_preference',
+    # Diakonos Gruppen
+    'diakronos.diakonos.api.gruppen.get_gruppen_hierarchie',
+    # Diakonos Mitglied-Verwaltung
+    'diakronos.diakonos.api.mitglieder.create_mitglied',
+    'diakronos.diakonos.api.mitglieder.get_mitglied',
+    'diakronos.diakonos.api.mitglieder.update_mitglied',
+    'diakronos.diakonos.api.mitglieder.get_mitglieder_list',
+    # Diakonos Admin-Hub
+    'diakronos.diakonos.api.admin_hub.get_statistik',
+    'diakronos.diakonos.api.admin_hub.get_anmeldungen_hub',
+    'diakronos.diakonos.api.admin_hub.get_dsgvo_uebersicht',
+    'diakronos.diakonos.api.admin_hub.genehmige_anmeldung',
+    'diakronos.diakonos.api.admin_hub.lehne_anmeldung_ab',
+    'diakronos.diakonos.api.admin_hub.get_anmeldeformulare',
+    'diakronos.diakonos.api.admin_hub.create_anmeldeformular',
+    'diakronos.diakonos.api.admin_hub.update_anmeldeformular_felder',
+    # Diakonos Registrierungslinks
+    'diakronos.diakonos.api.registrierungslink_api.create_link',
+    'diakronos.diakonos.api.registrierungslink_api.update_link',
+    'diakronos.diakonos.api.registrierungslink_api.delete_link',
+    'diakronos.diakonos.api.registrierungslink_api.toggle_link',
+    # Ressourcen
+    'diakronos.diakonos.api.ressourcen.get_ressourcen_liste',
+    'diakronos.diakonos.api.ressourcen.get_ressource_buchungen',
+    'diakronos.diakonos.api.ressourcen.get_meine_buchungen',
+    'diakronos.diakonos.api.ressourcen.check_verfuegbarkeit',
+    'diakronos.diakonos.api.ressourcen.create_buchung',
+    'diakronos.diakonos.api.ressourcen.update_buchung',
+    'diakronos.diakonos.api.ressourcen.delete_buchung',
+    # Kalender (SPA-Ansicht)
+    'diakronos.diakonos.api.kalender.get_events',
+    # Veranstaltungsanmeldung (One-Click für Mitglieder)
+    'diakronos.diakonos.api.veranstaltungsanmeldung.register_mitglied',
+    'diakronos.diakonos.api.veranstaltungsanmeldung.check_anmeldestatus',
+    # Beiträge
+    'diakronos.diakonos.api.beitraege.get_beitraege_liste',
+    'diakronos.diakonos.api.beitraege.get_beitrag_detail',
+    'diakronos.diakonos.api.beitraege.create_beitrag',
+    'diakronos.diakonos.api.beitraege.update_beitrag',
+    'diakronos.diakonos.api.beitraege.delete_beitrag',
+    'diakronos.diakonos.api.beitraege.create_kommentar',
+    # Wiki
+    'diakronos.diakonos.api.wiki.get_wiki_artikel_liste',
+    'diakronos.diakonos.api.wiki.get_wiki_artikel_detail',
+    'diakronos.diakonos.api.wiki.create_wiki_artikel',
+    'diakronos.diakonos.api.wiki.update_wiki_artikel',
+    'diakronos.diakonos.api.wiki.delete_wiki_artikel',
+    'diakronos.diakonos.api.wiki.get_wiki_kategorien',
+    'diakronos.diakonos.api.wiki.get_wiki_tags',
 }
 # Kronos/Psalmos bundles werden NUR auf den jeweiligen www-Pages geladen
 # (calendar.html / psalmos.html) – nicht auf dem Desk.
@@ -84,6 +134,9 @@ app_include_icons = [
 ]
 
 after_install = "diakronos.setup.install.symlink_create_install"
+
+# ── Login-Redirect: Admins → /app, alle anderen → /diakonos ─────────────────
+get_website_user_home_page = "diakronos.auth.get_home_page"
 
 # ── SPA Routing: catch-all für Diakonos ─────────────────────────────────────────────────────────────
 # Alle /diakonos/* URLs werden auf index.py umgeleitet (Vue Router übernimmt Hash-Routing).

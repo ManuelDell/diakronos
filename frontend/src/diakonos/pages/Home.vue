@@ -15,7 +15,7 @@
           <button class="dk-btn dk-btn-secondary">
             <IconDownload /> Export
           </button>
-          <button class="dk-btn dk-btn-primary" @click="navigate('#/anmeldungen')">
+          <button class="dk-btn dk-btn-primary" @click="showCreateModal = true">
             <IconPlus /> Neues Mitglied
           </button>
         </div>
@@ -37,7 +37,7 @@
       </div>
 
       <div class="dk-quick-row">
-        <button class="dk-quick-card" @click="navigate('#/anmeldungen')">
+        <button class="dk-quick-card" @click="showCreateModal = true">
           <div class="dk-quick-icon"><IconUserPlus /></div>
           <div>
             <div class="dk-quick-title">Mitglied hinzufügen</div>
@@ -363,16 +363,110 @@
         </div>
       </div>
     </template>
+
+    <!-- ==================== NEUES MITGLIED MODAL ==================== -->
+    <!-- Teleport to body → Position im Template irrelevant -->
+    <DkModal v-model="showCreateModal" title="Neues Mitglied anlegen">
+      <div class="cm-form">
+        <div class="cm-row">
+          <div class="cm-field">
+            <label class="cm-label">Vorname <span class="cm-required">*</span></label>
+            <input v-model="createForm.vorname" class="cm-input" type="text" placeholder="Vorname" autofocus />
+          </div>
+          <div class="cm-field">
+            <label class="cm-label">Nachname <span class="cm-required">*</span></label>
+            <input v-model="createForm.nachname" class="cm-input" type="text" placeholder="Nachname" />
+          </div>
+        </div>
+        <div class="cm-field">
+          <label class="cm-label">E-Mail</label>
+          <input v-model="createForm.email" class="cm-input" type="email" placeholder="email@beispiel.de" />
+        </div>
+        <div class="cm-row">
+          <div class="cm-field">
+            <label class="cm-label">Status</label>
+            <select v-model="createForm.status" class="cm-input">
+              <option value="Gast">Gast</option>
+              <option value="Mitglied">Mitglied</option>
+              <option value="Passiver Gast">Passiver Gast</option>
+              <option value="Passives Mitglied">Passives Mitglied</option>
+            </select>
+          </div>
+          <div class="cm-field">
+            <label class="cm-label">Gruppe</label>
+            <select v-model="createForm.gruppe_id" class="cm-input">
+              <option value="">– Keine –</option>
+              <option v-for="g in gruppenList" :key="g.name" :value="g.name">{{ g.gruppenname }}</option>
+            </select>
+          </div>
+        </div>
+        <label v-if="createForm.email" class="cm-checkbox-row">
+          <input v-model="createForm.create_user" type="checkbox" />
+          <span>Login-Account anlegen (Willkommens-E-Mail wird verschickt)</span>
+        </label>
+        <div v-if="createError" class="cm-error">{{ createError }}</div>
+      </div>
+      <template #footer>
+        <button class="dk-btn dk-btn-secondary" @click="showCreateModal = false" :disabled="createLoading">Abbrechen</button>
+        <button class="dk-btn dk-btn-primary" @click="submitCreate" :disabled="createLoading">
+          {{ createLoading ? 'Wird angelegt …' : 'Mitglied anlegen' }}
+        </button>
+      </template>
+    </DkModal>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, h } from 'vue'
+import { ref, computed, onMounted, reactive, h } from 'vue'
 import { useSession } from '../composables/useSession.js'
 import { apiCall } from '../composables/useApi.js'
 import { navigate } from '../router.js'
+import { showToast } from '../composables/useToast.js'
+import DkModal from '../components/DkModal.vue'
 
 const { user, isAdmin } = useSession()
+
+// --- Modal: Neues Mitglied ---
+const showCreateModal = ref(false)
+const createLoading = ref(false)
+const createError = ref('')
+const gruppenList = ref([])
+const createForm = reactive({ vorname: '', nachname: '', email: '', status: 'Gast', gruppe_id: '', create_user: false })
+
+async function loadGruppen() {
+  try {
+    const data = await apiCall('diakronos.diakonos.api.gruppen.get_gruppen_hierarchie')
+    gruppenList.value = (data || []).map(g => ({ name: g.name, gruppenname: g.gruppenname || g.name }))
+  } catch { /* silent */ }
+}
+
+async function submitCreate() {
+  createError.value = ''
+  if (!createForm.vorname.trim() || !createForm.nachname.trim()) {
+    createError.value = 'Vor- und Nachname sind Pflichtfelder.'
+    return
+  }
+  createLoading.value = true
+  try {
+    const res = await apiCall('diakronos.diakonos.api.mitglieder.create_mitglied', {
+      vorname: createForm.vorname.trim(),
+      nachname: createForm.nachname.trim(),
+      email: createForm.email.trim(),
+      status: createForm.status,
+      gruppe_id: createForm.gruppe_id || null,
+      create_user: createForm.create_user ? 1 : 0,
+    })
+    showCreateModal.value = false
+    Object.assign(createForm, { vorname: '', nachname: '', email: '', status: 'Gast', gruppe_id: '', create_user: false })
+    showToast(`${res.mitglied_name} wurde angelegt.`, 'success')
+    loadData()
+  } catch (e) {
+    createError.value = e?.message || 'Fehler beim Anlegen.'
+  } finally {
+    createLoading.value = false
+  }
+}
+
 const loading = ref(true)
 const mitgliederData = ref({})
 const dsgvo = ref({ ok: 0, fehlt: 0, widerrufen: 0 })
@@ -396,16 +490,15 @@ const m = computed(() => mitgliederData.value)
 const stats = computed(() => [
   { label: 'Mitglieder gesamt', value: m.value.gesamt || 0,   note: 'Registriert' },
   { label: 'Aktive Mitglieder', value: m.value.mitglied || 0, note: 'Status Mitglied', trend: 'up' },
-  { label: 'Gäste & Kinder',    value: (m.value.gast || 0) + (m.value.kind || 0), note: 'Gast + Kind', trend: 'flat' },
+  { label: 'Gäste',             value: m.value.gast || 0,     note: 'Status Gast', trend: 'flat' },
   { label: 'Anmeldeanfragen',   value: anmeldungenStats.value.offen || 0, note: 'Offen', trend: (anmeldungenStats.value.offen || 0) > 0 ? 'up' : 'flat' },
 ])
 
 const statusRows = computed(() => [
-  { label: 'Mitglied',   value: m.value.mitglied   || 0, color: '#16a34a' },
-  { label: 'Gast',       value: m.value.gast       || 0, color: '#d97706' },
-  { label: 'Kind',       value: m.value.kind       || 0, color: '#2563eb' },
-  { label: 'Inaktiv',    value: m.value.inaktiv    || 0, color: '#9ca3af' },
-  { label: 'Archiviert', value: m.value.archiviert || 0, color: '#dc2626' },
+  { label: 'Mitglied',          value: m.value.mitglied          || 0, color: '#16a34a' },
+  { label: 'Gast',              value: m.value.gast              || 0, color: '#d97706' },
+  { label: 'Passives Mitglied', value: m.value.passives_mitglied || 0, color: '#9ca3af' },
+  { label: 'Passiver Gast',     value: m.value.passiver_gast     || 0, color: '#d1d5db' },
 ])
 
 const dsgvoPct = computed(() => {
@@ -441,6 +534,7 @@ onMounted(() => {
   if (isAdmin.value) {
     loadData()
     loadAnmeldungen()
+    loadGruppen()
   } else {
     loading.value = false
     loadMemberDashboard()
@@ -619,6 +713,53 @@ const IconTrendDown    = () => h('svg', { width:12, height:12, viewBox:'0 0 24 2
 </script>
 
 <style scoped>
+/* ================================================================
+   CREATE MEMBER MODAL
+   ================================================================ */
+.cm-form { display: flex; flex-direction: column; gap: 14px; padding: 4px 0 8px; }
+.cm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cm-field { display: flex; flex-direction: column; gap: 4px; }
+.cm-label { font-size: 12px; font-weight: 600; color: var(--dk-text-muted); }
+.cm-required { color: var(--dk-danger); }
+.cm-input {
+  padding: 8px 10px;
+  border: 1px solid var(--dk-border);
+  border-radius: 8px;
+  background: var(--dk-surface-2);
+  color: var(--dk-text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color var(--dk-fast);
+  width: 100%;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.cm-input:focus { border-color: var(--dk-border-strong); box-shadow: 0 0 0 3px color-mix(in oklch, var(--dk-brand-500) 12%, transparent); }
+select.cm-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  cursor: pointer;
+}
+.cm-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--dk-text-muted);
+  cursor: pointer;
+}
+.cm-checkbox-row input { accent-color: var(--dk-brand-500); width: 15px; height: 15px; }
+.cm-error {
+  font-size: 13px;
+  color: var(--dk-danger);
+  background: color-mix(in oklch, var(--dk-danger) 8%, var(--dk-surface));
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
 /* ================================================================
    MEMBER DASHBOARD STYLES
    ================================================================ */

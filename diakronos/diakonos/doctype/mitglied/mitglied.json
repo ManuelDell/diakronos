@@ -211,13 +211,13 @@
    "label": "Foto"
   },
   {
-   "default": "Mitglied",
+   "default": "Gast",
    "fieldname": "status",
    "fieldtype": "Select",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "Mitglied\nGast\nKind\nInaktiv\nArchiviert"
+   "options": "Mitglied\nGast\nPassiver Gast\nPassives Mitglied"
   },
   {
    "fieldname": "ancestor_path",
@@ -242,9 +242,7 @@
    "fieldname": "elternteil",
    "fieldtype": "Link",
    "label": "Elternteil",
-   "options": "Mitglied",
-   "depends_on": "eval:doc.status == 'Kind'",
-   "description": "Nur wenn Status = Kind"
+   "options": "Mitglied"
   },
   {
    "fieldname": "ehepartner",

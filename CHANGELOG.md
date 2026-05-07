@@ -7,6 +7,65 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+### Diakonos – Registrierung Phase 2
+
+**Neu**
+- Öffentliches Anmeldeformular (`/diakonos/registrierung?token=…`) zeigt dynamische Custom-Felder und eine Kinder-Sektion, die im Anmeldeformular konfiguriert werden
+- Antworten auf Custom-Felder und Kinder-Einträge werden in eigenen Child-Tables gespeichert (`Anmeldung Antwort`, `Anmeldung Kind`)
+- Dokument-Bestätigung: Formulare können PDF-Dokumente mit Pflicht-Checkboxen enthalten – Einreichung nur nach Bestätigung aller Pflichtdokumente möglich
+- Admin-Hub: Anmeldungs-Detail-Modal zeigt Custom-Antworten und Kinder-Einträge
+- Felder-Builder im Anmeldeformular-Modal: Admins können Textfelder, Auswahlfelder, Ja/Nein, Datum und Pflichtfelder per UI konfigurieren
+- **One-Click-Veranstaltungsanmeldung**: Eingeloggte Mitglieder können sich direkt aus dem Kalender heraus für Veranstaltungen anmelden (neuer Endpoint `register_mitglied`)
+- Neuer Endpoint `check_anmeldestatus` prüft ob ein Nutzer bereits angemeldet ist
+
+**Behoben**
+- `allow_guest = True` fehlte in `www/diakonos/registrierung.py` und `gast.py` → Gäste wurden zu `/login` umgeleitet (behoben)
+- `newLink.anmeldeformular` → `newLink.anmeldeformular_id` in `Registrierung.vue` (korrekter Parameter für `create_link`)
+
+---
+
+### Diakonos – Ressourcen & Buchungen
+
+**Neu**
+- Neues Modul: Ressourcen-Buchung für Räume, Fahrzeuge und Gegenstände
+- `Ressource` DocType erweitert: `typ` (Raum/Fahrzeug/Gegenstand), `wartung`-Flag, `tags`
+- `Ressourcen Buchung` DocType mit Autoname `BUCHUNG-.YYYY.-.####`, Status (Aktiv/Storniert) und Konfliktprüfung
+- APIs: `get_ressourcen_liste`, `get_ressource_buchungen`, `get_meine_buchungen`, `check_verfuegbarkeit`, `create_buchung`, `update_buchung`, `delete_buchung`
+- Ressourcen.vue komplett auf echte API-Calls umgestellt (kein Mock mehr)
+- Verfügbarkeits-Balken lädt Buchungen dynamisch nach wenn Ressource im Buchungsformular gewechselt wird
+
+**Behoben**
+- Bearbeiten-Modal parste Datum/Zeit nicht korrekt aus bestehenden Buchungen
+
+---
+
+### Diakonos – Beiträge & Wiki
+
+**Neu**
+- Neues Modul: Beiträge (Ankündigungen, Gemeindenachrichten) mit Kommentarfunktion
+- `Beitrag` DocType (autoname `BEITRAG-.YYYY.-.####`) mit Child `Beitrag Kommentar`
+- APIs: `get_beitraege_liste`, `get_beitrag_detail`, `create_beitrag`, `update_beitrag`, `delete_beitrag`, `create_kommentar`
+- Neues Modul: Internes Wiki (Wissensdatenbank) für Mitglieder
+- `Wiki Artikel` DocType (autoname `WIKI-.YYYY.-.####`) mit Tags, Kategorien, Vorschautext
+- APIs: `get_wiki_artikel_liste`, `get_wiki_artikel_detail`, `create_wiki_artikel`, `update_wiki_artikel`, `delete_wiki_artikel`, `get_wiki_kategorien`, `get_wiki_tags`
+- Beitraege.vue und Wiki.vue vollständig auf echte API-Calls umgestellt
+- Admin-Check in beiden Modulen über `useSession().isAdmin` (korrekte Rollenerkennung)
+- XSS-Schutz: `v-html`-Ausgaben in Beiträgen und Wiki-Artikeln werden durch DOMPurify bereinigt
+
+**Behoben**
+- Kategorie-ID `abluaeufe` → `ablaeufe` in Wiki.vue (Tipp- und Umlautfehler)
+
+---
+
+### Diakonos – Kalender (SPA)
+
+**Neu**
+- Kalender.vue lädt jetzt echte Termine aus dem Kronos-Kalender (`status = Festgelegt`)
+- Klick auf einen Termin öffnet ein Detail-Modal mit Datum und Uhrzeit
+- Termine mit aktiver Anmeldung zeigen einen „Jetzt anmelden"-Button – direkte One-Click-Anmeldung für eingeloggte Mitglieder
+
+---
+
 ### Kronos – Terminsuche (Awesome Bar)
 
 **Neu**

@@ -126,6 +126,63 @@ def get_mitglieder_liste(start=0, limit=20, suche="", status="", sort_by="name",
     }
 
 
+# ── Erstellen ───────────────────────────────────────────────────────────────
+
+@frappe.whitelist()
+def create_mitglied(vorname, nachname, email="", status="Gast", gruppe_id=None, create_user=False):
+    """
+    Legt ein neues Mitglied an.
+    Optionen:
+      - gruppe_id: fügt das Mitglied direkt einer Gruppe hinzu
+      - create_user: legt gleichzeitig einen Frappe-Website-User an (benötigt E-Mail)
+    """
+    roles = frappe.get_roles(frappe.session.user)
+    if not any(r in roles for r in ADMIN_ROLES):
+        frappe.throw(_("Nur Administratoren dürfen Mitglieder anlegen."), frappe.PermissionError)
+
+    vorname = (vorname or "").strip()
+    nachname = (nachname or "").strip()
+    email = (email or "").strip().lower()
+
+    if not vorname or not nachname:
+        frappe.throw(_("Vor- und Nachname sind Pflichtfelder."), frappe.ValidationError)
+
+    if frappe.utils.cint(create_user) and not email:
+        frappe.throw(_("Eine E-Mail-Adresse wird benötigt um einen Login-Account anzulegen."), frappe.ValidationError)
+
+    valid_statuses = {"Mitglied", "Gast", "Passiver Gast", "Passives Mitglied"}
+    if status not in valid_statuses:
+        status = "Gast"
+
+    doc = frappe.get_doc({
+        "doctype": "Mitglied",
+        "vorname": vorname,
+        "nachname": nachname,
+        "email": email or None,
+        "status": status,
+    })
+    doc.insert(ignore_permissions=True)
+
+    if gruppe_id:
+        try:
+            from diakronos.diakonos.api.gruppen import add_mitglied_to_gruppe
+            add_mitglied_to_gruppe(gruppe_id=gruppe_id, mitglied_id=doc.name, rolle="Mitglied", is_untergruppe=False)
+        except Exception as e:
+            frappe.log_error(f"Gruppe-Zuweisung fehlgeschlagen: {e}", "create_mitglied")
+
+    if frappe.utils.cint(create_user) and email:
+        from diakronos.diakonos.api.nutzer import mitglied_zu_nutzer
+        mitglied_zu_nutzer(doc)
+
+    frappe.db.commit()
+
+    return {
+        "success": True,
+        "mitglied_id": doc.name,
+        "mitglied_name": f"{vorname} {nachname}",
+    }
+
+
 # ── Detail ──────────────────────────────────────────────────────────────────
 
 @frappe.whitelist()

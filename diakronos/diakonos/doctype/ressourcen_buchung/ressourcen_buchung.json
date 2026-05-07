@@ -1,0 +1,112 @@
+{
+ "actions": [],
+ "autoname": "BUCHUNG-.YYYY.-.####",
+ "creation": "2026-04-27 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ressource",
+  "zweck",
+  "datum_von",
+  "datum_bis",
+  "column_break_1",
+  "gebucht_von",
+  "gebucht_von_name",
+  "status",
+  "section_notizen",
+  "notizen"
+ ],
+ "fields": [
+  {
+   "fieldname": "ressource",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Ressource",
+   "options": "Ressource",
+   "reqd": 1
+  },
+  {
+   "fieldname": "zweck",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Zweck / Titel",
+   "reqd": 1
+  },
+  {
+   "fieldname": "datum_von",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Von",
+   "reqd": 1
+  },
+  {
+   "fieldname": "datum_bis",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Bis",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gebucht_von",
+   "fieldtype": "Data",
+   "label": "Gebucht von (E-Mail)"
+  },
+  {
+   "fieldname": "gebucht_von_name",
+   "fieldtype": "Data",
+   "label": "Gebucht von (Name)"
+  },
+  {
+   "default": "Aktiv",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Aktiv\nStorniert"
+  },
+  {
+   "fieldname": "section_notizen",
+   "fieldtype": "Section Break",
+   "label": "Notizen"
+  },
+  {
+   "fieldname": "notizen",
+   "fieldtype": "Small Text",
+   "label": "Notizen"
+  }
+ ],
+ "modified": "2026-04-27 00:00:00.000000",
+ "module": "Diakonos",
+ "name": "Ressourcen Buchung",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "write": 1,
+   "role": "System Manager"
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "read": 1,
+   "write": 1,
+   "role": "Mitgliederadministrator"
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "read": 1,
+   "write": 0,
+   "role": "Mitglied"
+  }
+ ],
+ "sort_field": "datum_von",
+ "sort_order": "ASC",
+ "states": []
+}

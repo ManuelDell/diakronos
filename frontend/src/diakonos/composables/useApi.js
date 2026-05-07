@@ -3,8 +3,6 @@
  * Nutzt fetch() statt frappe.call() – www-space kompatibel.
  */
 
-const csrf_token = window.__DIakonosBOOT?.csrf_token || ''
-
 export class AuditConfirmationRequired extends Error {
     constructor(policy) {
         super('Audit confirmation required')
@@ -15,6 +13,7 @@ export class AuditConfirmationRequired extends Error {
 
 export async function apiCall(method, args = {}, options = {}) {
     const url = '/api/method/' + method
+    const csrf_token = window.__DIakonosBOOT?.csrf_token || ''
     const fetchOptions = {
         method: 'POST',
         headers: {
@@ -92,6 +91,7 @@ export async function apiGet(method, args = {}) {
         if (v !== undefined && v !== null) params.append(k, v)
     })
     const url = '/api/method/' + method + '?' + params.toString()
+    const csrf_token = window.__DIakonosBOOT?.csrf_token || ''
     const res = await fetch(url, {
         headers: {
             'X-Frappe-CSRF-Token': csrf_token,

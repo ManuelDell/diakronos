@@ -66,6 +66,27 @@ def get_anmeldungen_hub():
         limit=500,
     )
 
+    # Lade Antworten + Kinder für jede Anmeldung
+    anmeldung_names = [a.name for a in anmeldungen]
+
+    antworten_map = {}
+    for a in frappe.get_all("Anmeldung Antwort",
+                             filters={"parent": ["in", anmeldung_names]},
+                             fields=["parent", "feldlabel", "antwort"]):
+        antworten_map.setdefault(a.parent, []).append({"label": a.feldlabel, "wert": a.antwort})
+
+    kinder_map = {}
+    for k in frappe.get_all("Anmeldung Kind",
+                              filters={"parent": ["in", anmeldung_names]},
+                              fields=["parent", "vorname", "nachname", "geburtstag"]):
+        kinder_map.setdefault(k.parent, []).append(
+            {"vorname": k.vorname, "nachname": k.nachname, "geburtstag": str(k.geburtstag or "")}
+        )
+
+    for a in anmeldungen:
+        a["antworten"] = antworten_map.get(a.name, [])
+        a["kinder"] = kinder_map.get(a.name, [])
+
     links = frappe.get_all(
         "Registrierungslink",
         fields=["name", "bezeichnung", "typ", "aktiv", "slug",
@@ -82,10 +103,22 @@ def get_statistik():
 
     # Mitglieder
     alle_mitglieder = frappe.get_all("Mitglied", fields=["name", "status", "datenschutz_einwilligung"])
-    m_stats = {"gesamt": len(alle_mitglieder), "mitglied": 0, "gast": 0, "kind": 0, "inaktiv": 0, "archiviert": 0}
+    m_stats = {
+        "gesamt": len(alle_mitglieder),
+        "mitglied": 0,
+        "gast": 0,
+        "passives_mitglied": 0,
+        "passiver_gast": 0,
+    }
+    STATUS_KEY_MAP = {
+        "Mitglied": "mitglied",
+        "Gast": "gast",
+        "Passives Mitglied": "passives_mitglied",
+        "Passiver Gast": "passiver_gast",
+    }
     for m in alle_mitglieder:
-        key = (m.status or "").lower()
-        if key in m_stats:
+        key = STATUS_KEY_MAP.get(m.status or "")
+        if key:
             m_stats[key] += 1
 
     # DSGVO
@@ -128,3 +161,85 @@ def get_statistik():
             "top": top_links,
         },
     }
+
+
+@frappe.whitelist()
+def genehmige_anmeldung(anmeldung_id):
+    """Setzt Anmeldung auf 'Best\u00e4tigt' → on_update() erstellt Mitglied + DSGVO."""
+    _require_admin()
+
+    doc = frappe.get_doc("Anmeldung", anmeldung_id)
+    doc.status = "Best\u00e4tigt"
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+
+    return {"success": True, "mitglied": doc.mitglied}
+
+
+@frappe.whitelist()
+def lehne_anmeldung_ab(anmeldung_id, grund=""):
+    """Setzt Anmeldung auf 'Abgelehnt'."""
+    _require_admin()
+
+    doc = frappe.get_doc("Anmeldung", anmeldung_id)
+    doc.status = "Abgelehnt"
+    if grund:
+        doc.kommentar = (doc.kommentar or "") + f"\n[Abgelehnt: {grund}]"
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+
+    return {"success": True}
+
+
+@frappe.whitelist()
+def get_anmeldeformulare():
+    """Liste aller Anmeldeformulare f\u00fcr Dropdowns."""
+    _require_admin()
+
+    formulare = frappe.get_all(
+        "Anmeldeformular",
+        fields=["name", "bezeichnung", "mit_gaesten", "mit_kinder"],
+        order_by="bezeichnung asc",
+    )
+    return {"formulare": formulare}
+
+
+@frappe.whitelist()
+def create_anmeldeformular(bezeichnung, mit_gaesten=0, mit_kinder=0):
+    """Schnellanlage eines Anmeldeformulars aus dem Hub."""
+    _require_admin()
+
+    doc = frappe.get_doc({
+        "doctype": "Anmeldeformular",
+        "bezeichnung": bezeichnung,
+        "mit_gaesten": int(mit_gaesten or 0),
+        "mit_kinder": int(mit_kinder or 0),
+    })
+    doc.insert(ignore_permissions=True)
+    frappe.db.commit()
+
+    return {"success": True, "id": doc.name}
+
+
+@frappe.whitelist()
+def update_anmeldeformular_felder(formular_id, felder_json):
+    """Ersetzt alle Felder eines Anmeldeformulars."""
+    _require_admin()
+    import json as _json
+
+    form = frappe.get_doc("Anmeldeformular", formular_id)
+    felder = _json.loads(felder_json) if isinstance(felder_json, str) else felder_json
+
+    form.felder = []
+    for f in felder:
+        form.append("felder", {
+            "label":      f.get("label", ""),
+            "feldtyp":    f.get("feldtyp", "Text"),
+            "optionen":   f.get("optionen", ""),
+            "pflichtfeld": int(f.get("pflichtfeld", 0)),
+            "fuer_gaeste": int(f.get("fuer_gaeste", 0)),
+            "fuer_kinder": int(f.get("fuer_kinder", 0)),
+        })
+    form.save(ignore_permissions=True)
+    frappe.db.commit()
+    return {"success": True}

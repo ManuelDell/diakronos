@@ -8,7 +8,7 @@
  "doctype": "DocType",
  "document_type": "Document",
  "engine": "InnoDB",
- "field_order": [
+  "field_order": [
   "details",
   "element_name",
   "element_category",
@@ -44,13 +44,16 @@
   "mitarbeiter",
   "ablaufplan_section",
   "ablaufplan",
+  "anmeldung_section",
+  "anmeldung_aktiv",
+  "registrierungslink",
   "section_break_jlqd",
   "reference_doctype",
   "column_break_pjkw",
   "reference_docname",
   "section_break_qemp",
   "links"
- ],
+  ],
  "fields": [
   {
    "fieldname": "details",
@@ -212,6 +215,24 @@
    "fieldtype": "Link",
    "label": "Ablaufplan",
    "options": "Ablaufplan"
+  },
+  {
+   "fieldname": "anmeldung_section",
+   "fieldtype": "Section Break",
+   "label": "Anmeldung"
+  },
+  {
+   "default": "0",
+   "fieldname": "anmeldung_aktiv",
+   "fieldtype": "Check",
+   "label": "Anmeldung aktiv"
+  },
+  {
+   "fieldname": "registrierungslink",
+   "fieldtype": "Link",
+   "label": "Registrierungslink",
+   "options": "Registrierungslink",
+   "depends_on": "eval:doc.anmeldung_aktiv"
   },
   {
    "fieldname": "section_break_jlqd",

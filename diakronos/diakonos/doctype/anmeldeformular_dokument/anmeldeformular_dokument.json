@@ -1,0 +1,43 @@
+{
+ "actions": [],
+ "creation": "2026-04-27 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "label",
+  "datei",
+  "bestaetigung_pflicht"
+ ],
+ "fields": [
+  {
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Label",
+   "reqd": 1
+  },
+  {
+   "fieldname": "datei",
+   "fieldtype": "Attach",
+   "in_list_view": 1,
+   "label": "Datei (PDF)"
+  },
+  {
+   "default": "0",
+   "fieldname": "bestaetigung_pflicht",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Bestätigungspflicht"
+  }
+ ],
+ "istable": 1,
+ "modified": "2026-04-27 00:00:00.000000",
+ "module": "Diakonos",
+ "name": "Anmeldeformular Dokument",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

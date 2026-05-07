@@ -9,16 +9,20 @@ def log(action_typ, target_doctype, target_name, begruendung=""):
     """Schreibt einen Audit-Log-Eintrag. Immer ignore_permissions, da intern."""
     if action_typ not in VALID_ACTIONS:
         action_typ = "Sonstiges"
-    frappe.get_doc({
-        "doctype": "Audit Log",
-        "zeitstempel": now_datetime(),
-        "action_typ": action_typ,
-        "actor": frappe.session.user,
-        "target_doctype": target_doctype,
-        "target_name": target_name,
-        "begruendung": begruendung,
-        "notification_gesendet": 0,
-    }).insert(ignore_permissions=True)
+    frappe.local.audit_policy_logged = True
+    try:
+        frappe.get_doc({
+            "doctype": "Audit Log",
+            "zeitstempel": now_datetime(),
+            "action_typ": action_typ,
+            "actor": frappe.session.user,
+            "target_doctype": target_doctype,
+            "target_name": target_name,
+            "begruendung": begruendung,
+            "notification_gesendet": 0,
+        }).insert(ignore_permissions=True)
+    finally:
+        frappe.local.audit_policy_logged = False
 
 
 @frappe.whitelist()

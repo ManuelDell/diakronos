@@ -28,7 +28,7 @@ def _validate_token(token):
     link = frappe.db.get_value(
         "Registrierungslink",
         {"slug": token, "aktiv": 1},
-        ["name", "typ", "gueltig_bis", "max_anmeldungen", "anmeldungen_count"],
+        ["name", "typ", "gueltig_bis", "max_anmeldungen", "anmeldungen_count", "anmeldeformular"],
         as_dict=True,
     )
 
@@ -46,24 +46,51 @@ def _validate_token(token):
 
 @frappe.whitelist(allow_guest=True)
 def validate_token(token):
-    """Gibt Typ des Links zurück (für Frontend-Initialisierung)."""
+    """Gibt Typ + Formular-Felder des Links zurück (für Frontend-Initialisierung)."""
     link = _validate_token(token)
-    return {"typ": link.typ}
+
+    felder = []
+    mit_kinder = 0
+    mit_gaesten = 0
+
+    if link.anmeldeformular:
+        form = frappe.get_doc("Anmeldeformular", link.anmeldeformular)
+        mit_kinder = form.mit_kinder or 0
+        mit_gaesten = form.mit_gaesten or 0
+        felder = [
+            {
+                "label":       f.label,
+                "feldtyp":     f.feldtyp,
+                "optionen":    f.optionen or "",
+                "pflichtfeld": f.pflichtfeld,
+                "fuer_gaeste": f.fuer_gaeste,
+                "fuer_kinder": f.fuer_kinder,
+            }
+            for f in form.felder
+        ]
+
+    return {
+        "typ":         link.typ,
+        "felder":      felder,
+        "mit_kinder":  mit_kinder,
+        "mit_gaesten": mit_gaesten,
+    }
 
 
 @frappe.whitelist(allow_guest=True)
-def submit_registrierung(token, vorname, nachname, email="", telefon="", geburtstag="", kommentar=""):
+def submit_registrierung(token, vorname, nachname, email="", telefon="", geburtstag="",
+                         kommentar="", antworten="[]", kinder="[]"):
     """Mitglied-Registrierung via Token-Link."""
     link = _validate_token(token)
 
-    if link.typ != "Mitglied-Registrierung":
+    if link.typ != "Mitglied-Registrierung" and link.typ != "Veranstaltung":
         frappe.throw("Dieser Link ist nicht für die Mitglied-Registrierung freigegeben.", frappe.PermissionError)
 
     _validate_name(vorname, nachname)
 
     doc = frappe.get_doc({
         "doctype":             "Anmeldung",
-        "anmeldungstyp":       "Mitglied-Registrierung",
+        "anmeldungstyp":       "Mitglied-Registrierung" if link.typ == "Mitglied-Registrierung" else "Veranstaltung",
         "vorname":             vorname.strip(),
         "nachname":            nachname.strip(),
         "email":               email.strip(),
@@ -78,6 +105,35 @@ def submit_registrierung(token, vorname, nachname, email="", telefon="", geburts
         "registrierungslink":  link.name,
     })
     doc.insert(ignore_permissions=True)
+
+    # Antworten speichern
+    try:
+        import json as _json
+        antworten_list = _json.loads(antworten) if isinstance(antworten, str) else antworten
+        for a in antworten_list:
+            doc.append("antworten", {
+                "feldlabel": a.get("label", ""),
+                "antwort":   str(a.get("wert", "")),
+            })
+        if antworten_list:
+            doc.save(ignore_permissions=True)
+    except Exception:
+        pass
+
+    # Kinder speichern
+    try:
+        import json as _json
+        kinder_list = _json.loads(kinder) if isinstance(kinder, str) else kinder
+        for k in kinder_list:
+            doc.append("kinder", {
+                "vorname":    k.get("vorname", ""),
+                "nachname":   k.get("nachname", ""),
+                "geburtstag": k.get("geburtstag") or None,
+            })
+        if kinder_list:
+            doc.save(ignore_permissions=True)
+    except Exception:
+        pass
 
     frappe.db.set_value(
         "Registrierungslink", link.name, "anmeldungen_count",

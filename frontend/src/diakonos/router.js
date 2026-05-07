@@ -10,7 +10,6 @@ const pages = {
     Adressbuch:      () => import('./pages/Adressbuch.vue'),
     Kalender:        () => import('./pages/Kalender.vue'),
     Dienstplan:      () => import('./pages/Dienstplan.vue'),
-    Anmeldungen:     () => import('./pages/Anmeldungen.vue'),
     Organigramm:     () => import('./pages/Organigramm.vue'),
     Statistik:       () => import('./pages/Statistik.vue'),
     Dsgvo:           () => import('./pages/Dsgvo.vue'),
@@ -18,6 +17,7 @@ const pages = {
     Ressourcen:      () => import('./pages/Ressourcen.vue'),
     Beitraege:       () => import('./pages/Beitraege.vue'),
     Wiki:            () => import('./pages/Wiki.vue'),
+    Registrierung:   () => import('./pages/Registrierung.vue'),
 }
 
 // Exact routes
@@ -28,7 +28,8 @@ const routeMap = {
     '#/adressbuch':    'Adressbuch',
     '#/kalender':      'Kalender',
     '#/dienstplan':    'Dienstplan',
-    '#/anmeldungen':   'Anmeldungen',
+    '#/anmeldungen':   'Registrierung',
+    '#/registrierung': 'Registrierung',
     '#/organigramm':   'Organigramm',
     '#/statistik':     'Statistik',
     '#/dsgvo':         'Dsgvo',
@@ -117,6 +118,24 @@ export function getRouteParam(key) {
 export function getRouteParams() {
     return { ...currentRouteParams.value }
 }
+
+// ── Gast-Guard ──────────────────────────────────────────────────────────────
+// Routen, die ein Gast (Status = 'Gast') aufrufen darf
+const GAST_ALLOWED_ROUTES = new Set(['#/', '#/kalender', '#/profile'])
+const GAST_ALLOWED_PAGES  = new Set(['Home', 'Kalender', 'Profile'])
+
+onBeforeEach(({ to, name }) => {
+    const boot = window.__DIakonosBOOT || {}
+    const mitglied = boot.mitglied || null
+    const isAdmin  = boot.is_admin  || false
+    if (isAdmin) return            // Admins dürfen alles
+    if (!mitglied) return          // Kein Mitglied-Datensatz → kein Guard
+    if (mitglied.status !== 'Gast') return   // Vollmitglieder dürfen alles
+    if (GAST_ALLOWED_PAGES.has(name)) return // Erlaubte Seite
+    // Gesperrte Route → zurück zum Dashboard
+    navigate('#/')
+    return false
+})
 
 // Listen to hash changes
 window.addEventListener('hashchange', resolveRoute)

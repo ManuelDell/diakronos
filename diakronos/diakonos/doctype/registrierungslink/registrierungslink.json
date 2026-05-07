@@ -4,7 +4,7 @@
  "creation": "2026-04-19 12:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": [
+  "field_order": [
   "bezeichnung",
   "typ",
   "aktiv",
@@ -13,9 +13,12 @@
   "gueltig_bis",
   "max_anmeldungen",
   "anmeldungen_count",
+  "formular_section",
+  "anmeldeformular",
+  "element",
   "link_section",
   "link_anzeige"
- ],
+  ],
  "fields": [
   {
    "fieldname": "bezeichnung",
@@ -31,7 +34,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Typ",
-   "options": "Mitglied-Registrierung\nGast-Anmeldung",
+   "options": "Mitglied-Registrierung\nGast-Anmeldung\nVeranstaltung",
    "reqd": 1,
    "description": "Legt fest welches Formular erscheint und welchen Status das Mitglied bekommt"
   },
@@ -73,6 +76,24 @@
    "fieldtype": "Int",
    "label": "Bereits angemeldet",
    "read_only": 1
+  },
+  {
+   "fieldname": "formular_section",
+   "fieldtype": "Section Break",
+   "label": "Formular & Verknüpfung"
+  },
+  {
+   "fieldname": "anmeldeformular",
+   "fieldtype": "Link",
+   "label": "Anmeldeformular",
+   "options": "Anmeldeformular"
+  },
+  {
+   "fieldname": "element",
+   "fieldtype": "Link",
+   "label": "Element (Veranstaltung)",
+   "options": "Element",
+   "depends_on": "eval:doc.typ === 'Veranstaltung'"
   },
   {
    "fieldname": "link_section",

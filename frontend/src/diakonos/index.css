@@ -815,6 +815,8 @@ select.dk-form-select { appearance: auto; }
    ===================================================================== */
 .dk-btn-danger { background: var(--dk-danger); color: #fff; }
 .dk-btn-danger:hover { background: color-mix(in oklch, var(--dk-danger) 85%, black); }
+.dk-btn-success { background: var(--dk-success); color: #fff; }
+.dk-btn-success:hover { background: color-mix(in oklch, var(--dk-success) 85%, black); }
 
 /* =====================================================================
    Grid Utilities

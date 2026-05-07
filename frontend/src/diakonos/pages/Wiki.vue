@@ -127,9 +127,13 @@
         <div v-if="selectedArticle" class="wk-detail">
           <div class="wk-detail-header">
             <span class="wk-detail-cat" :class="selectedArticle.category">{{ categoryName(selectedArticle.category) }}</span>
-            <button class="wk-detail-close" @click="showArticleDetail = false">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button v-if="isAdmin" class="dk-btn dk-btn-ghost dk-btn-sm" @click="openEditor(selectedArticle); showArticleDetail = false">Bearbeiten</button>
+              <button v-if="isAdmin" class="dk-btn dk-btn-ghost dk-btn-sm" style="color:var(--dk-danger)" @click="deleteArticle(selectedArticle)">Löschen</button>
+              <button class="wk-detail-close" @click="showArticleDetail = false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
           </div>
 
           <div class="wk-detail-body">
@@ -144,7 +148,7 @@
                 <span v-for="tag in selectedArticle.tags" :key="tag" class="wk-tag">{{ tag }}</span>
               </div>
             </div>
-            <div class="wk-detail-content" v-html="selectedArticle.content" />
+            <div class="wk-detail-content" v-html="sanitize(selectedArticle.content)" />
 
             <!-- Related Articles -->
             <div v-if="relatedArticles.length > 0" class="wk-related">
@@ -162,23 +166,6 @@
               </div>
             </div>
 
-            <!-- Version History -->
-            <div class="wk-versions">
-              <h4>Versionsverlauf</h4>
-              <div class="wk-version-list">
-                <div
-                  v-for="v in selectedArticle.versions"
-                  :key="v.id"
-                  class="wk-version-item"
-                >
-                  <div class="wk-version-dot" />
-                  <div class="wk-version-body">
-                    <div class="wk-version-date">{{ formatDate(v.date) }} · {{ v.author }}</div>
-                    <div class="wk-version-note">{{ v.note }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -218,10 +205,6 @@
             <label>Inhalt</label>
             <textarea v-model="editorForm.content" class="dk-form-input" rows="10" placeholder="Artikel-Inhalt (HTML erlaubt)…" />
           </div>
-          <div class="dk-form-group">
-            <label>Änderungsnotiz</label>
-            <input v-model="editorForm.changeNote" class="dk-form-input" type="text" placeholder="z. B. 'Kontaktdaten aktualisiert'" />
-          </div>
         </div>
         <div class="dk-modal-actions">
           <button class="dk-btn dk-btn-secondary" @click="showEditor = false">Abbrechen</button>
@@ -234,96 +217,106 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import DOMPurify from 'dompurify'
+import { apiCall } from '../composables/useApi.js'
+import { showToast } from '../composables/useToast.js'
+import { useSession } from '../composables/useSession.js'
 
-const isAdmin = window.__DIakonosBOOT?.user_role === 'Admin'
+function sanitize(html) { return DOMPurify.sanitize(html || '') }
+
+const { isAdmin } = useSession()
 
 /* ─── Categories ─── */
 const categories = [
   { id: 'all', name: 'Alle', icon: '★' },
   { id: 'technik', name: 'Technik', icon: '⚙️' },
-  { id: 'abluaeufe', name: 'Abläufe', icon: '📋' },
+  { id: 'ablaeufe', name: 'Abläufe', icon: '📋' },
   { id: 'raeume', name: 'Räume', icon: '🏢' },
   { id: 'kontakte', name: 'Kontakte', icon: '📞' },
   { id: 'faq', name: 'FAQ', icon: '❓' },
 ]
 
-/* ─── Mock Articles ─── */
-const articles = ref([
-  {
-    id: 1, title: 'Tonanlage bedienen – Schritt-für-Schritt',
-    excerpt: 'Anleitung für die Bedienung der Mischpulte und Lautsprecher im Gemeindesaal.',
-    content: '<h3>Vorbereitung</h3><p>Schalten Sie zuerst die Stromversorgung über den Hauptschalter rechts neben der Bühne ein.</p><h3>Mischpult</h3><ul><li>Kanal 1–4: Mikrofone</li><li>Kanal 5–6: Instrumente</li><li>Master-Fader auf 0 dB</li></ul><h3>Lautsprecher</h3><p>Die Aktivlautsprecher sind bereits verkabelt. Bitte nichts umstecken!</p><p>Bei Problemen: <strong>Peter Müller (0176/12345678)</strong></p>',
-    category: 'technik', tags: ['Tonanlage', 'Mischpult', 'Anleitung'],
-    author: 'Peter Müller', authorAvatar: 'PM', updatedAt: '2026-04-22', isNew: false,
-    versions: [
-      { id: 1, date: '2026-04-22', author: 'Peter Müller', note: 'Kontaktdaten aktualisiert' },
-      { id: 2, date: '2026-03-15', author: 'Peter Müller', note: 'Erste Version' },
-    ]
-  },
-  {
-    id: 2, title: 'Beamer & Präsentation im Gottesdienst',
-    excerpt: 'So richtest du den Beamer ein und spielst Präsentationen ab.',
-    content: '<h3>Beamer einschalten</h3><p>Der Beamer befindet sich an der Decke über der Bühne. Die Fernbedienung liegt im Technik-Rack.</p><h3>Quellen</h3><ul><li>HDMI 1: Laptop</li><li>HDMI 2: Kamera</li></ul><h3>Präsentation</h3><p>Empfohlene Software: <strong>OpenLP</strong> oder <strong>PowerPoint</strong>. Auflösung: 1920×1080.</p>',
-    category: 'technik', tags: ['Beamer', 'Präsentation', 'Gottesdienst'],
-    author: 'Lisa Schmidt', authorAvatar: 'LS', updatedAt: '2026-04-20', isNew: false,
-    versions: [
-      { id: 1, date: '2026-04-20', author: 'Lisa Schmidt', note: 'OpenLP hinzugefügt' },
-    ]
-  },
-  {
-    id: 3, title: 'Ablauf Sonntagsgottesdienst',
-    excerpt: 'Der Standardablauf für unsere Sonntagsgottesdienste.',
-    content: '<h3>Zeitplan</h3><table style="width:100%;border-collapse:collapse;margin:12px 0"><tr style="border-bottom:1px solid var(--dk-divider)"><td style="padding:6px"><strong>09:30</strong></td><td style="padding:6px">Technik-Check</td></tr><tr style="border-bottom:1px solid var(--dk-divider)"><td style="padding:6px"><strong>10:00</strong></td><td style="padding:6px">Gottesdienstbeginn</td></tr><tr style="border-bottom:1px solid var(--dk-divider)"><td style="padding:6px"><strong>10:45</strong></td><td style="padding:6px">Predigt</td></tr><tr style="border-bottom:1px solid var(--dk-divider)"><td style="padding:6px"><strong>11:15</strong></td><td style="padding:6px">Abschluss & Kaffeerunde</td></tr></table><h3>Aufgaben</h3><ul><li>Predigt: Pastor Müller</li><li>Technik: Peter Müller</li><li>Kinderbetreuung: Jugendteam</li></ul>',
-    category: 'abluaeufe', tags: ['Gottesdienst', 'Ablauf', 'Zeitplan'],
-    author: 'Pastor Müller', authorAvatar: 'PM', updatedAt: '2026-04-18', isNew: false,
-    versions: [
-      { id: 1, date: '2026-04-18', author: 'Pastor Müller', note: 'Zeiten angepasst' },
-    ]
-  },
-  {
-    id: 4, title: 'Gemeindesaal – Nutzungsregeln',
-    excerpt: 'Regeln für die Nutzung des Gemeindesaals und der Technik.',
-    content: '<h3>Allgemeines</h3><ul><li>Der Saal ist nach Nutzung aufzuräumen</li><li>Keine Essensreste im Saal zurücklassen</li><li>Technik ausschalten und abschließen</li></ul><h3>Buchung</h3><p>Räume werden über das <a href="#/ressourcen">Ressourcenportal</a> gebucht.</p><h3>Kontakt</h3><p>Bei Fragen: <strong>Sekretariat (sekretariat@gemeinde.de)</strong></p>',
-    category: 'raeume', tags: ['Gemeindesaal', 'Regeln', 'Buchung'],
-    author: 'Sekretariat', authorAvatar: 'SE', updatedAt: '2026-04-15', isNew: false,
-    versions: [
-      { id: 1, date: '2026-04-15', author: 'Sekretariat', note: 'Ressourcenportal-Link hinzugefügt' },
-    ]
-  },
-  {
-    id: 5, title: 'Ansprechpartner & Kontakte',
-    excerpt: 'Übersicht aller wichtigen Ansprechpartner in der Gemeinde.',
-    content: '<h3>Pastor</h3><p><strong>Thomas Müller</strong><br>Email: pastor@gemeinde.de<br>Tel: 0123/456789</p><h3>Jugendleitung</h3><p><strong>David Klein</strong><br>Email: jugend@gemeinde.de<br>Tel: 0176/9876543</p><h3>Sekretariat</h3><p><strong>Anna Schmidt</strong><br>Email: sekretariat@gemeinde.de<br>Tel: 0123/456790</p><h3>Technik</h3><p><strong>Peter Müller</strong><br>Email: technik@gemeinde.de<br>Tel: 0176/12345678</p>',
-    category: 'kontakte', tags: ['Kontakte', 'Ansprechpartner', 'Telefon'],
-    author: 'Sekretariat', authorAvatar: 'SE', updatedAt: '2026-04-12', isNew: false,
-    versions: [
-      { id: 1, date: '2026-04-12', author: 'Sekretariat', note: 'David Klein hinzugefügt' },
-    ]
-  },
-  {
-    id: 6, title: 'Wie buche ich einen Raum?',
-    excerpt: 'Schritt-für-Schritt Anleitung zur Raumbuchung.',
-    content: '<h3>Schritt 1</h3><p>Öffne das <a href="#/ressourcen">Ressourcenportal</a> im Menü.</p><h3>Schritt 2</h3><p>Wähle die gewünschte Ressource aus (z. B. Gemeindesaal).</p><h3>Schritt 3</h3><p>Klicke auf <strong>"Buchen"</strong> und fülle das Formular aus.</p><h3>Schritt 4</h3><p>Die Buchung wird automatisch bestätigt, sofern kein Konflikt besteht.</p>',
-    category: 'faq', tags: ['FAQ', 'Raumbuchung', 'Ressourcen'],
-    author: 'Sekretariat', authorAvatar: 'SE', updatedAt: '2026-04-25', isNew: true,
-    versions: [
-      { id: 1, date: '2026-04-25', author: 'Sekretariat', note: 'Neuer Artikel' },
-    ]
-  },
-])
-
 /* ─── State ─── */
+const articles = ref([])
 const activeCategory = ref('all')
 const searchQuery = ref('')
 const showArticleDetail = ref(false)
 const selectedArticle = ref(null)
 const showEditor = ref(false)
 const editingArticle = ref(null)
+const saving = ref(false)
 
 const editorForm = ref({
-  title: '', category: 'technik', tags: '', excerpt: '', content: '', changeNote: ''
+  title: '', category: 'technik', tags: '', excerpt: '', content: ''
 })
+
+/* ─── API ─── */
+async function loadArticles() {
+  const params = {}
+  if (activeCategory.value && activeCategory.value !== 'all') params.kategorie = activeCategory.value
+  if (searchQuery.value.trim()) params.search = searchQuery.value.trim()
+  const res = await apiCall('diakronos.diakonos.api.wiki.get_wiki_artikel_liste', params)
+  if (res) articles.value = res
+}
+
+async function openArticle(article) {
+  showArticleDetail.value = true
+  selectedArticle.value = { ...article, content: '' }
+  const res = await apiCall('diakronos.diakonos.api.wiki.get_wiki_artikel_detail', { artikel_id: article.id })
+  if (res) selectedArticle.value = res
+}
+
+async function saveArticle() {
+  const f = editorForm.value
+  if (!f.title.trim()) return
+  saving.value = true
+  try {
+    if (editingArticle.value) {
+      const res = await apiCall('diakronos.diakonos.api.wiki.update_wiki_artikel', {
+        artikel_id: editingArticle.value.id,
+        titel:      f.title.trim(),
+        inhalt:     f.content,
+        kategorie:  f.category,
+        tags:       f.tags.trim(),
+        auszug:     f.excerpt.trim(),
+      })
+      if (res?.success) {
+        showToast('Artikel gespeichert.', 'success')
+        showEditor.value = false
+        await loadArticles()
+      }
+    } else {
+      const res = await apiCall('diakronos.diakonos.api.wiki.create_wiki_artikel', {
+        titel:     f.title.trim(),
+        inhalt:    f.content,
+        kategorie: f.category,
+        tags:      f.tags.trim(),
+        auszug:    f.excerpt.trim(),
+      })
+      if (res?.artikel_id) {
+        showToast('Artikel erstellt.', 'success')
+        showEditor.value = false
+        await loadArticles()
+      }
+    }
+  } finally {
+    saving.value = false
+  }
+}
+
+async function deleteArticle(article) {
+  if (!confirm(`Artikel "${article.title}" wirklich löschen?`)) return
+  const res = await apiCall('diakronos.diakonos.api.wiki.delete_wiki_artikel', { artikel_id: article.id })
+  if (res?.success) {
+    showToast('Artikel gelöscht.', 'success')
+    showArticleDetail.value = false
+    selectedArticle.value = null
+    await loadArticles()
+  }
+}
+
+onMounted(loadArticles)
 
 /* ─── Computed ─── */
 const filteredArticles = computed(() => {
@@ -334,12 +327,12 @@ const filteredArticles = computed(() => {
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter(a =>
-      a.title.toLowerCase().includes(q) ||
-      a.excerpt.toLowerCase().includes(q) ||
-      a.tags.some(t => t.toLowerCase().includes(q))
+      (a.title || '').toLowerCase().includes(q) ||
+      (a.excerpt || '').toLowerCase().includes(q) ||
+      (a.tags || []).some(t => t.toLowerCase().includes(q))
     )
   }
-  return list.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+  return list
 })
 
 const articleCountByCategory = computed(() => {
@@ -348,16 +341,12 @@ const articleCountByCategory = computed(() => {
   return counts
 })
 
-const recentlyUpdated = computed(() => {
-  return [...articles.value]
-    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-    .slice(0, 5)
-})
+const recentlyUpdated = computed(() => articles.value.slice(0, 5))
 
 const popularTags = computed(() => {
   const tagCounts = {}
   articles.value.forEach(a => {
-    a.tags.forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1 })
+    (a.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1 })
   })
   return Object.entries(tagCounts)
     .map(([name, count]) => ({ name, count }))
@@ -369,7 +358,7 @@ const relatedArticles = computed(() => {
   if (!selectedArticle.value) return []
   return articles.value
     .filter(a => a.id !== selectedArticle.value.id &&
-      a.tags.some(t => selectedArticle.value.tags.includes(t)))
+      (a.tags || []).some(t => (selectedArticle.value.tags || []).includes(t)))
     .slice(0, 3)
 })
 
@@ -379,8 +368,7 @@ function categoryName(id) {
 }
 function formatDate(d) {
   if (!d) return ''
-  const date = new Date(d)
-  return date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
+  return new Date(d).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 function timeAgo(d) {
   const now = new Date()
@@ -392,56 +380,12 @@ function timeAgo(d) {
   if (diff < 30) return `vor ${Math.floor(diff / 7)} Wochen`
   return `vor ${Math.floor(diff / 30)} Monaten`
 }
-function openArticle(article) {
-  selectedArticle.value = article
-  showArticleDetail.value = true
-}
 function openEditor(article = null) {
   editingArticle.value = article
   editorForm.value = article
-    ? { ...article, tags: article.tags.join(', ') }
-    : { title: '', category: 'technik', tags: '', excerpt: '', content: '', changeNote: '' }
+    ? { title: article.title, category: article.category, tags: (article.tags || []).join(', '), excerpt: article.excerpt || '', content: article.content || '' }
+    : { title: '', category: 'technik', tags: '', excerpt: '', content: '' }
   showEditor.value = true
-}
-function saveArticle() {
-  const f = editorForm.value
-  if (!f.title.trim()) return
-  const tags = f.tags.split(',').map(t => t.trim()).filter(Boolean)
-  if (editingArticle.value) {
-    const idx = articles.value.findIndex(a => a.id === editingArticle.value.id)
-    if (idx !== -1) {
-      const a = articles.value[idx]
-      a.title = f.title
-      a.category = f.category
-      a.tags = tags
-      a.excerpt = f.excerpt
-      a.content = f.content
-      a.updatedAt = new Date().toISOString().split('T')[0]
-      a.versions.unshift({
-        id: Date.now(),
-        date: a.updatedAt,
-        author: window.__DIakonosBOOT?.user_name || 'Ich',
-        note: f.changeNote || 'Bearbeitet'
-      })
-    }
-  } else {
-    articles.value.unshift({
-      id: Date.now(),
-      ...f,
-      tags,
-      author: window.__DIakonosBOOT?.user_name || 'Ich',
-      authorAvatar: (window.__DIakonosBOOT?.user_name || 'Ich').split(' ').map(n => n[0]).join('').slice(0, 2),
-      updatedAt: new Date().toISOString().split('T')[0],
-      isNew: true,
-      versions: [{
-        id: Date.now(),
-        date: new Date().toISOString().split('T')[0],
-        author: window.__DIakonosBOOT?.user_name || 'Ich',
-        note: 'Erstellt'
-      }]
-    })
-  }
-  showEditor.value = false
 }
 </script>
 
@@ -563,7 +507,7 @@ function saveArticle() {
   letter-spacing: 0.03em;
 }
 .wk-article-cat.technik { background: #f0f4ff; color: #1d4ed8; }
-.wk-article-cat.abluaeufe { background: #f0fdf4; color: #15803d; }
+.wk-article-cat.ablaeufe { background: #f0fdf4; color: #15803d; }
 .wk-article-cat.raeume { background: #fef3e2; color: #b45309; }
 .wk-article-cat.kontakte { background: #fdf2f8; color: #be185d; }
 .wk-article-cat.faq { background: #f5f5f4; color: #57534e; }
@@ -723,7 +667,7 @@ function saveArticle() {
   letter-spacing: 0.03em;
 }
 .wk-detail-cat.technik { background: #f0f4ff; color: #1d4ed8; }
-.wk-detail-cat.abluaeufe { background: #f0fdf4; color: #15803d; }
+.wk-detail-cat.ablaeufe { background: #f0fdf4; color: #15803d; }
 .wk-detail-cat.raeume { background: #fef3e2; color: #b45309; }
 .wk-detail-cat.kontakte { background: #fdf2f8; color: #be185d; }
 .wk-detail-cat.faq { background: #f5f5f4; color: #57534e; }

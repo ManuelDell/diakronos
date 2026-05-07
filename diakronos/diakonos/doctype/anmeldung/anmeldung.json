@@ -5,7 +5,7 @@
  "creation": "2026-04-19 00:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": [
+  "field_order": [
   "anmeldungstyp_section",
   "anmeldungstyp",
   "status",
@@ -30,8 +30,12 @@
   "element",
   "gruppe",
   "kommentar_section",
-  "kommentar"
- ],
+  "kommentar",
+  "kinder_section",
+  "kinder",
+  "antworten_section",
+  "antworten"
+  ],
  "fields": [
   {
    "fieldname": "anmeldungstyp_section",
@@ -193,6 +197,28 @@
    "fieldname": "kommentar",
    "fieldtype": "Small Text",
    "label": "Kommentar"
+  },
+  {
+   "fieldname": "kinder_section",
+   "fieldtype": "Section Break",
+   "label": "Kinder"
+  },
+  {
+   "fieldname": "kinder",
+   "fieldtype": "Table",
+   "label": "Angemeldete Kinder",
+   "options": "Anmeldung Kind"
+  },
+  {
+   "fieldname": "antworten_section",
+   "fieldtype": "Section Break",
+   "label": "Antworten"
+  },
+  {
+   "fieldname": "antworten",
+   "fieldtype": "Table",
+   "label": "Formular-Antworten",
+   "options": "Anmeldung Antwort"
   }
  ],
  "grid_page_length": 50,

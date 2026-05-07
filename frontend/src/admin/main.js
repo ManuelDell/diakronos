@@ -9,7 +9,7 @@ import Statistik from './Statistik.vue'
 
 function makeApp(Component) {
     const app = createApp(Component)
-    app.use(FrappeUI)
+    app.use(FrappeUI, { socketio: false, resources: false })
     return app
 }
 

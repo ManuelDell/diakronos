@@ -1,0 +1,126 @@
+{
+ "actions": [],
+ "autoname": "BEITRAG-.YYYY.-.####",
+ "creation": "2026-04-27 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "titel",
+  "kategorie",
+  "datum",
+  "column_break_1",
+  "autor",
+  "autor_email",
+  "veroeffentlicht",
+  "section_inhalt",
+  "auszug",
+  "inhalt",
+  "bild",
+  "section_kommentare",
+  "kommentare"
+ ],
+ "fields": [
+  {
+   "fieldname": "titel",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Titel",
+   "reqd": 1
+  },
+  {
+   "fieldname": "kategorie",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Kategorie",
+   "options": "ankuendigung\ngottesdienst\njugend\ngemeindeleben\nallgemein"
+  },
+  {
+   "fieldname": "datum",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Datum"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "autor",
+   "fieldtype": "Data",
+   "label": "Autor (Name)"
+  },
+  {
+   "fieldname": "autor_email",
+   "fieldtype": "Data",
+   "label": "Autor (E-Mail)"
+  },
+  {
+   "default": "1",
+   "fieldname": "veroeffentlicht",
+   "fieldtype": "Check",
+   "label": "Veröffentlicht"
+  },
+  {
+   "fieldname": "section_inhalt",
+   "fieldtype": "Section Break",
+   "label": "Inhalt"
+  },
+  {
+   "fieldname": "auszug",
+   "fieldtype": "Small Text",
+   "label": "Auszug"
+  },
+  {
+   "fieldname": "inhalt",
+   "fieldtype": "Long Text",
+   "label": "Inhalt (HTML)"
+  },
+  {
+   "fieldname": "bild",
+   "fieldtype": "Attach Image",
+   "label": "Bild"
+  },
+  {
+   "fieldname": "section_kommentare",
+   "fieldtype": "Section Break",
+   "label": "Kommentare"
+  },
+  {
+   "fieldname": "kommentare",
+   "fieldtype": "Table",
+   "label": "Kommentare",
+   "options": "Beitrag Kommentar"
+  }
+ ],
+ "modified": "2026-04-27 00:00:00.000000",
+ "module": "Diakonos",
+ "name": "Beitrag",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "write": 1,
+   "role": "System Manager"
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "write": 1,
+   "role": "Mitgliederadministrator"
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "read": 1,
+   "write": 0,
+   "role": "Mitglied"
+  }
+ ],
+ "sort_field": "datum",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "titel"
+}

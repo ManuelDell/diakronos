@@ -1,0 +1,48 @@
+{
+ "actions": [],
+ "creation": "2026-04-27 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "autor",
+  "autor_email",
+  "datum",
+  "text"
+ ],
+ "fields": [
+  {
+   "fieldname": "autor",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Autor"
+  },
+  {
+   "fieldname": "autor_email",
+   "fieldtype": "Data",
+   "label": "E-Mail"
+  },
+  {
+   "fieldname": "datum",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Datum"
+  },
+  {
+   "fieldname": "text",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Text",
+   "reqd": 1
+  }
+ ],
+ "istable": 1,
+ "modified": "2026-04-27 00:00:00.000000",
+ "module": "Diakonos",
+ "name": "Beitrag Kommentar",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

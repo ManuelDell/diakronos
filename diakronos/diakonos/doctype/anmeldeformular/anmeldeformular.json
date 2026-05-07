@@ -1,0 +1,127 @@
+{
+ "actions": [],
+ "autoname": "format:AF-{####}",
+ "creation": "2026-04-27 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "bezeichnung",
+  "beschreibung",
+  "column_break_af1",
+  "mit_gaesten",
+  "mit_kinder",
+  "felder_section",
+  "felder",
+  "dokumente_section",
+  "dokumente",
+  "texte_section",
+  "dsgvo_text_override",
+  "bestaetigung_text"
+ ],
+ "fields": [
+  {
+   "fieldname": "bezeichnung",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Bezeichnung",
+   "reqd": 1
+  },
+  {
+   "fieldname": "beschreibung",
+   "fieldtype": "Small Text",
+   "label": "Beschreibung"
+  },
+  {
+   "fieldname": "column_break_af1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "mit_gaesten",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Mit Gästen"
+  },
+  {
+   "default": "0",
+   "fieldname": "mit_kinder",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Mit Kinder-Option"
+  },
+  {
+   "fieldname": "felder_section",
+   "fieldtype": "Section Break",
+   "label": "Felder"
+  },
+  {
+   "fieldname": "felder",
+   "fieldtype": "Table",
+   "label": "Formularfelder",
+   "options": "Anmeldeformular Feld"
+  },
+  {
+   "fieldname": "dokumente_section",
+   "fieldtype": "Section Break",
+   "label": "Dokumente"
+  },
+  {
+   "fieldname": "dokumente",
+   "fieldtype": "Table",
+   "label": "Anhänge",
+   "options": "Anmeldeformular Dokument"
+  },
+  {
+   "fieldname": "texte_section",
+   "fieldtype": "Section Break",
+   "label": "Texte"
+  },
+  {
+   "fieldname": "dsgvo_text_override",
+   "fieldtype": "Small Text",
+   "label": "DSGVO-Text (Override)",
+   "description": "Leer = Standardtext wird verwendet"
+  },
+  {
+   "fieldname": "bestaetigung_text",
+   "fieldtype": "Small Text",
+   "label": "Bestätigungstext",
+   "description": "Text nach erfolgreicher Anmeldung"
+  }
+ ],
+ "modified": "2026-04-27 00:00:00.000000",
+ "module": "Diakonos",
+ "name": "Anmeldeformular",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 0,
+   "export": 1,
+   "print": 0,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 0,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 0,
+   "export": 1,
+   "print": 0,
+   "read": 1,
+   "report": 1,
+   "role": "Mitgliederadministrator",
+   "share": 0,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "bezeichnung"
+}

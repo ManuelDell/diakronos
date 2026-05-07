@@ -11,7 +11,7 @@ Gebaut für Freikirchen und kleinere Gemeinden, die eine einfache, ehrliche Lös
 | Modul | Stand | Kurzbeschreibung |
 |-------|-------|-----------------|
 | **Kronos** | ✅ Einsatzbereit | Gemeinde-Kalender mit CalDAV-Sync, Raumverwaltung und Freigabe-Workflow |
-| **Diakonos** | 🚧 In Entwicklung | Mitgliederverwaltung, Gruppen, DSGVO-Tools |
+| **Diakonos** | 🚧 Beta | Mitgliederverwaltung, Gruppen, DSGVO-Tools, Ressourcen, Beiträge, Wiki, Registrierung |
 | **Psalmos** | 📋 Geplant | Liedverwaltung, Gottesdienst-Ablaufplaner, OpenLP-Import |
 | **Oikonomia** | 📋 Geplant | Kassenbuch, Kollekten, Spendenbescheinigungen |
 
@@ -43,17 +43,22 @@ Moderation:
 <img width="1854" height="1016" alt="Moderation" src="https://github.com/user-attachments/assets/7c3dbdbb-b208-4dbc-846e-7147dfdd4056" />
 ---
 
-## Diakonos – Mitglieder
+## Diakonos – Mitglieder & Gemeindeplattform
 
-> 🚧 Grundstruktur vorhanden – vollständige Umsetzung in Arbeit
+> 🚧 Beta – Kernfunktionen einsatzbereit, weitere Features in Entwicklung
 
-Diakonos wird die zentrale Anlaufstelle für alles rund um Mitglieder und Gruppen:
+Diakonos ist die zentrale Anlaufstelle für alles rund um Mitglieder, Gruppen und das Gemeindeleben.
 
-**Was kommt:**
-- Mitgliederdaten verwalten (Kontakt, Adresse, Gruppen, Eintrittsdatum)
-- Gruppenmanagement mit Mitgliedschaftsverwaltung
-- DSGVO-Werkzeuge: Einwilligung erfassen, Daten auf Knopfdruck exportieren oder löschen
-- Berichte und Übersichten
+**Was bereits funktioniert:**
+- Mitgliederdaten verwalten (Kontakt, Adresse, Gruppen, Eintrittsdatum, Bild)
+- Gruppenmanagement mit Hierarchie und Mitgliedschaftsverwaltung
+- DSGVO-Werkzeuge: Einwilligungen erfassen, Daten exportieren oder anonymisieren, Audit-Log
+- **Registrierungs-Links**: Öffentliche Anmeldeformulare mit Custom-Feldern, Dokument-Bestätigung und Kinder-Anmeldung
+- **Ressourcen-Buchung**: Räume, Fahrzeuge, Gegenstände buchen mit Konfliktprüfung und Verfügbarkeitsanzeige
+- **Beiträge**: Ankündigungen und Gemeindenachrichten mit Kommentarfunktion
+- **Wiki**: Interne Wissensdatenbank mit Kategorien und Stichwortsuche
+- **Veranstaltungsanmeldung**: Mitglieder melden sich per One-Click direkt aus dem Kalender an
+- Admin-Hub: Anmeldungsübersicht, Genehmigungs-Workflow, Statistiken, DSGVO-Übersicht
 
 → [Technische Dokumentation Diakonos](docs/diakonos.md)
 

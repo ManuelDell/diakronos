@@ -15,6 +15,9 @@ class Registrierungslink(Document):
         self._update_link_anzeige()
 
     def _update_link_anzeige(self):
-        pfad = "registrierung" if self.typ == "Mitglied-Registrierung" else "gast"
-        url = f"/diakonos/{pfad}?token={self.slug}"
+        if self.typ == "Veranstaltung":
+            url = f"/registrierung?token={self.slug}"
+        else:
+            pfad = "registrierung" if self.typ == "Mitglied-Registrierung" else "gast"
+            url = f"/{pfad}?token={self.slug}"
         frappe.db.set_value("Registrierungslink", self.name, "link_anzeige", url, update_modified=False)

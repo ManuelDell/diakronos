@@ -7,9 +7,12 @@
  "engine": "InnoDB",
  "field_order": [
   "ressource_name",
+  "typ",
   "kapazitaet",
+  "wartung",
   "column_break_r1",
   "bild",
+  "tags",
   "beschreibung"
  ],
  "fields": [
@@ -22,10 +25,24 @@
    "unique": 1
   },
   {
+   "fieldname": "typ",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Typ",
+   "options": "Raum\nFahrzeug\nGegenstand",
+   "reqd": 1
+  },
+  {
    "fieldname": "kapazitaet",
    "fieldtype": "Int",
    "label": "Kapazit\u00e4t",
    "description": "Maximale Personenanzahl (nur informativ)"
+  },
+  {
+   "default": "0",
+   "fieldname": "wartung",
+   "fieldtype": "Check",
+   "label": "In Wartung"
   },
   {
    "fieldname": "column_break_r1",
@@ -35,6 +52,12 @@
    "fieldname": "bild",
    "fieldtype": "Attach Image",
    "label": "Bild"
+  },
+  {
+   "fieldname": "tags",
+   "fieldtype": "Small Text",
+   "label": "Tags",
+   "description": "Kommagetrennt, z.\u00a0B. Beamer, K\u00fcche"
   },
   {
    "fieldname": "beschreibung",

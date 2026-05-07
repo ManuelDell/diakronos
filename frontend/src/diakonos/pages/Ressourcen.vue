@@ -301,52 +301,21 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, h } from 'vue'
+import { ref, computed, onMounted, watch, h } from 'vue'
 import { useSession } from '../composables/useSession.js'
-import { navigate } from '../router.js'
+import { apiCall } from '../composables/useApi.js'
+import { showToast } from '../composables/useToast.js'
 
 const { isAdmin } = useSession()
 
 // ============================================================
-// MOCK DATA - TODO_BACKEND: Replace with API calls
-// ============================================================
-
-// TODO_BACKEND: GET diakronos.diakonos.api.ressourcen.get_ressourcen_liste
-// Params: { search?, type?, status? }
-// Returns: [{ id, name, type, description, capacity?, status, tags[], image? }]
-const resources = ref([
-  { id: 'R-001', name: 'Gemeindesaal', type: 'room', description: 'Großer Saal mit Bühne, Beamer und Tonanlage. Für bis zu 120 Personen.', capacity: 120, status: 'available', tags: ['Beamer', 'Tonanlage', 'Küche', 'Rollstuhlgerecht'] },
-  { id: 'R-002', name: 'Besprechungsraum', type: 'room', description: 'Kleiner Raum mit Tisch für 8 Personen. Ideal für Teamsitzungen.', capacity: 8, status: 'available', tags: ['Whiteboard', 'TV'] },
-  { id: 'R-003', name: 'Kirchencafé', type: 'room', description: 'Gemütlicher Raum mit Küche und Sitzgruppen.', capacity: 30, status: 'booked', tags: ['Küche', 'Kaffeemaschine'] },
-  { id: 'V-001', name: 'Gemeindebus', type: 'vehicle', description: '9-Sitzer Kleinbus, Führerschein Klasse B.', capacity: 9, status: 'available', tags: ['Klima', 'Anhängerkupplung'] },
-  { id: 'V-002', name: 'Pkw (Gemeinde)', type: 'vehicle', description: 'VW Passat Kombi, Führerschein Klasse B.', capacity: 5, status: 'maintenance', tags: ['Dachträger'] },
-  { id: 'I-001', name: 'Beamer Full-HD', type: 'item', description: 'Epson Beamer, 4000 Lumen, Full HD.', capacity: null, status: 'available', tags: ['Full HD', 'HDMI', '4000 Lumen'] },
-  { id: 'I-002', name: 'Tonmischpult', type: 'item', description: 'Yamaha 16-Kanal Digitalmischpult.', capacity: null, status: 'available', tags: ['16 Kanäle', 'Digital', 'USB'] },
-  { id: 'I-003', name: 'Fotostativ', type: 'item', description: 'Robustes Aluminium-Stativ bis 2m Höhe.', capacity: null, status: 'booked', tags: ['Aluminium', '2m'] },
-])
-
-// TODO_BACKEND: GET diakronos.diakonos.api.ressourcen.get_ressource_buchungen
-// Params: { resource_id, date_from?, date_to? }
-// Returns: [{ id, title, date, time, user }]
-const allBookings = ref([
-  { id: 'B-001', resourceId: 'R-001', resourceName: 'Gemeindesaal', resourceType: 'room', title: 'Gottesdienst', day: '27', month: 'Apr', date: '2026-04-27', time: '10:00 – 12:00', user: 'Pfarrer Schmidt', purpose: 'Sonntagsgottesdienst' },
-  { id: 'B-002', resourceId: 'R-001', resourceName: 'Gemeindesaal', resourceType: 'room', title: 'Jugendabend', day: '30', month: 'Apr', date: '2026-04-30', time: '18:30 – 21:00', user: 'Julia Hoffmann', purpose: 'Jugendtreffen' },
-  { id: 'B-003', resourceId: 'R-003', resourceName: 'Kirchencafé', resourceType: 'room', title: 'Frühstück', day: '28', month: 'Apr', date: '2026-04-28', time: '09:00 – 11:00', user: 'Seniorenkreis', purpose: 'Seniorenfrühstück' },
-  { id: 'B-004', resourceId: 'V-001', resourceName: 'Gemeindebus', resourceType: 'vehicle', title: 'Fahrt Jugendcamp', day: '02', month: 'Mai', date: '2026-05-02', time: '08:00 – 18:00', user: 'Markus Becker', purpose: 'Jugendcamp Transport' },
-  { id: 'B-005', resourceId: 'I-003', resourceName: 'Fotostativ', resourceType: 'item', title: 'Konfirmation', day: '15', month: 'Mai', date: '2026-05-15', time: '14:00 – 16:00', user: 'Technik-Team', purpose: 'Fotos Konfirmation' },
-])
-
-// TODO_BACKEND: GET diakronos.diakonos.api.ressourcen.get_meine_buchungen
-// Params: { user_email }
-// Returns: [{ id, resourceId, resourceName, resourceType, date, time, purpose }]
-const myBookings = ref([
-  { id: 'B-004', resourceId: 'V-001', resourceName: 'Gemeindebus', resourceType: 'vehicle', date: 'Sa, 02. Mai 2026', time: '08:00 – 18:00', purpose: 'Jugendcamp Transport' },
-  { id: 'B-006', resourceId: 'R-002', resourceName: 'Besprechungsraum', resourceType: 'room', date: 'Mi, 29. Apr 2026', time: '19:00 – 20:30', purpose: 'Teamleitungssitzung' },
-])
-
-// ============================================================
 // STATE
 // ============================================================
+const resources = ref([])
+const allBookings = ref([])
+const myBookings = ref([])
+const loading = ref(false)
+
 const viewMode = ref('grid')
 const searchQuery = ref('')
 const typeFilter = ref('')
@@ -354,6 +323,7 @@ const selectedResource = ref(null)
 const showMyBookings = ref(false)
 const bookingModalOpen = ref(false)
 const editingBooking = ref(null)
+const submittingBooking = ref(false)
 const searchDebounce = ref(null)
 
 const bookingForm = ref({
@@ -363,6 +333,51 @@ const bookingForm = ref({
   endTime: '',
   purpose: '',
   notes: ''
+})
+
+// ============================================================
+// DATA LOADING
+// ============================================================
+async function loadResources() {
+  loading.value = true
+  try {
+    resources.value = await apiCall('diakronos.diakonos.api.ressourcen.get_ressourcen_liste')
+  } catch (err) {
+    showToast('Ressourcen konnten nicht geladen werden', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadMyBookings() {
+  try {
+    myBookings.value = await apiCall('diakronos.diakonos.api.ressourcen.get_meine_buchungen')
+  } catch (err) {
+    console.error('Meine Buchungen:', err)
+  }
+}
+
+async function loadResourceBookings(resourceId) {
+  try {
+    allBookings.value = await apiCall(
+      'diakronos.diakonos.api.ressourcen.get_ressource_buchungen',
+      { ressource_id: resourceId }
+    )
+  } catch (err) {
+    console.error('Ressource-Buchungen:', err)
+  }
+}
+
+onMounted(() => {
+  loadResources()
+  loadMyBookings()
+})
+
+// Wenn Ressource im Buchungsformular wechselt → Buchungen für Verfügbarkeitsanzeige nachladen
+watch(() => bookingForm.value.resourceId, async (id) => {
+  if (id && id !== selectedResource.value?.id) {
+    await loadResourceBookings(id)
+  }
 })
 
 // ============================================================
@@ -396,12 +411,7 @@ const typeFilters = computed(() => {
   ]
 })
 
-const resourceBookings = computed(() => {
-  if (!selectedResource.value) return []
-  return allBookings.value
-    .filter(b => b.resourceId === selectedResource.value.id)
-    .slice(0, 5)
-})
+const resourceBookings = computed(() => allBookings.value.slice(0, 5))
 
 const canSubmitBooking = computed(() => {
   return bookingForm.value.resourceId &&
@@ -411,16 +421,22 @@ const canSubmitBooking = computed(() => {
     bookingForm.value.purpose.trim()
 })
 
-// Mock availability slots (24h)
 const availabilitySlots = computed(() => {
   const slots = []
   for (let i = 0; i < 24; i++) {
-    slots.push({
-      hour: i,
-      booked: [8, 9, 10, 14, 15].includes(i), // Mock booked hours
-      selected: false,
-      label: `${String(i).padStart(2, '0')}:00`
-    })
+    const label = `${String(i).padStart(2, '0')}:00`
+    const slotStart = bookingForm.value.date
+      ? `${bookingForm.value.date} ${label}:00`
+      : null
+    const booked = slotStart
+      ? allBookings.value.some(b => {
+          const from = new Date(b._datum_von || 0)
+          const to   = new Date(b._datum_bis || 0)
+          const t    = new Date(slotStart)
+          return t >= from && t < to
+        })
+      : false
+    slots.push({ hour: i, booked, selected: false, label })
   }
   return slots
 })
@@ -430,14 +446,17 @@ const availabilitySlots = computed(() => {
 // ============================================================
 function onSearchInput() {
   clearTimeout(searchDebounce.value)
-  searchDebounce.value = setTimeout(() => {
-    // TODO_BACKEND: Trigger search API
-  }, 300)
+  searchDebounce.value = setTimeout(() => loadResources(), 300)
 }
 
-function selectResource(r) {
+async function selectResource(r) {
   selectedResource.value = selectedResource.value?.id === r.id ? null : r
   showMyBookings.value = false
+  if (selectedResource.value) {
+    await loadResourceBookings(r.id)
+  } else {
+    allBookings.value = []
+  }
 }
 
 function typeLabel(type) {
@@ -467,27 +486,60 @@ function editBooking(booking) {
   editingBooking.value = booking
   bookingForm.value = {
     resourceId: booking.resourceId,
-    date: '2026-04-27', // Parse from booking.date
-    startTime: '08:00',
-    endTime: '18:00',
-    purpose: booking.purpose,
+    date: booking.date || new Date().toISOString().split('T')[0],
+    startTime: (booking.time || '08:00').split(' – ')[0],
+    endTime:   (booking.time || '18:00').split(' – ')[1] || '18:00',
+    purpose:   booking.purpose || '',
     notes: ''
   }
   bookingModalOpen.value = true
 }
 
-function submitBooking() {
-  // TODO_BACKEND: POST diakronos.diakonos.api.ressourcen.create_buchung
-  // Params: { resource_id, date, start_time, end_time, purpose, notes, user_email }
-  console.log('Booking submitted:', bookingForm.value)
-  bookingModalOpen.value = false
+async function submitBooking() {
+  if (!canSubmitBooking.value) return
+  submittingBooking.value = true
+  const f = bookingForm.value
+  const datum_von = `${f.date} ${f.startTime}:00`
+  const datum_bis = `${f.date} ${f.endTime}:00`
+  try {
+    if (editingBooking.value) {
+      await apiCall('diakronos.diakonos.api.ressourcen.update_buchung', {
+        buchung_id: editingBooking.value.id,
+        datum_von, datum_bis,
+        zweck: f.purpose,
+        notizen: f.notes,
+      })
+      showToast('Buchung aktualisiert')
+    } else {
+      await apiCall('diakronos.diakonos.api.ressourcen.create_buchung', {
+        ressource_id: f.resourceId,
+        datum_von, datum_bis,
+        zweck: f.purpose,
+        notizen: f.notes,
+      })
+      showToast('Buchung erstellt')
+    }
+    bookingModalOpen.value = false
+    await loadResources()
+    await loadMyBookings()
+    if (selectedResource.value) await loadResourceBookings(selectedResource.value.id)
+  } catch (err) {
+    showToast(err?.message || 'Fehler beim Speichern', 'error')
+  } finally {
+    submittingBooking.value = false
+  }
 }
 
-function cancelBooking(id) {
-  // TODO_BACKEND: DELETE diakronos.diakonos.api.ressourcen.delete_buchung
-  // Params: { id, user_email }
+async function cancelBooking(id) {
   if (!confirm('Buchung wirklich stornieren?')) return
-  myBookings.value = myBookings.value.filter(b => b.id !== id)
+  try {
+    await apiCall('diakronos.diakonos.api.ressourcen.delete_buchung', { buchung_id: id })
+    showToast('Buchung storniert')
+    myBookings.value = myBookings.value.filter(b => b.id !== id)
+    await loadResources()
+  } catch (err) {
+    showToast(err?.message || 'Fehler', 'error')
+  }
 }
 
 function formatDateShort(d) {

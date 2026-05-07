@@ -149,7 +149,7 @@
               </div>
               <span>{{ formatDate(selectedPost.date) }}</span>
             </div>
-            <div class="bt-detail-content" v-html="selectedPost.content" />
+            <div class="bt-detail-content" v-html="sanitize(selectedPost.content)" />
 
             <!-- Comments -->
             <div class="bt-comments">
@@ -220,9 +220,15 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import DOMPurify from 'dompurify'
+import { useSession } from '../composables/useSession.js'
+import { apiCall } from '../composables/useApi.js'
+import { showToast } from '../composables/useToast.js'
 
-const isAdmin = window.__DIakonosBOOT?.user_role === 'Admin'
+function sanitize(html) { return DOMPurify.sanitize(html || '') }
+
+const { isAdmin } = useSession()
 
 /* ─── Categories ─── */
 const categories = [
@@ -234,61 +240,8 @@ const categories = [
   { id: 'allgemein', name: 'Allgemein' },
 ]
 
-/* ─── Mock Posts ─── */
-const posts = ref([
-  {
-    id: 1, title: 'Sommerfest 2026 – Save the Date!',
-    excerpt: 'Am 15. August feiern wir unser jährliches Sommerfest auf dem Gemeindegelände. Musik, Grillen und Spiele für die ganze Familie.',
-    content: '<p>Am <strong>15. August 2026</strong> laden wir alle Gemeindemitglieder herzlich zu unserem jährlichen Sommerfest ein!</p><p>Auf dem Programm stehen:</p><ul><li>Live-Musik ab 16:00 Uhr</li><li>Grillbuffet für Groß und Klein</li><li>Kinderbetreuung mit Hüpfburg und Bastelstation</li><li>Gemeinsamer Gottesdienst um 19:00 Uhr</li></ul><p>Bringt eure Freunde und Nachbarn mit – alle sind willkommen!</p>',
-    category: 'ankuendigung', image: '',
-    author: 'Pastor Müller', authorAvatar: 'PM', date: '2026-04-20',
-    comments: 3,
-    commentList: [
-      { id: 1, author: 'Anna S.', avatar: 'AS', text: 'Freue mich schon!', date: '2026-04-21' },
-      { id: 2, author: 'Thomas B.', avatar: 'TB', text: 'Kann ich beim Grillen helfen?', date: '2026-04-22' },
-    ]
-  },
-  {
-    id: 2, title: 'Neuer Jugendleiter vorgestellt',
-    excerpt: 'Wir begrüßen David Klein als neuen Jugendleiter. Er übernimmt ab Juni die Leitung der Jugendgruppe.',
-    content: '<p>Wir freuen uns, <strong>David Klein</strong> als neuen Jugendleiter begrüßen zu dürfen!</p><p>David ist 28 Jahre alt, studiert Theologie und engagiert sich seit drei Jahren ehrenamtlich in unserer Jugendarbeit. Ab <strong>Juni 2026</strong> übernimmt er die Leitung der Jugendgruppe.</p><p>Ein erstes Kennenlernen findet am <strong>5. Mai um 19:30 Uhr</strong> im Besprechungsraum statt.</p>',
-    category: 'jugend', image: '',
-    author: 'Gemeinderat', authorAvatar: 'GR', date: '2026-04-18',
-    comments: 5,
-    commentList: [
-      { id: 1, author: 'Lisa M.', avatar: 'LM', text: 'Herzlich willkommen David!', date: '2026-04-18' },
-    ]
-  },
-  {
-    id: 3, title: 'Änderungen im Gottesdienstablauf ab Mai',
-    excerpt: 'Ab dem 1. Mai gibt es kleine Anpassungen im Ablauf unserer Sonntagsgottesdienste. Hier die Übersicht.',
-    content: '<p>Ab <strong>1. Mai 2026</strong> gibt es folgende Anpassungen im Gottesdienstablauf:</p><ul><li>Beginn um 10:00 Uhr (statt 10:30 Uhr)</li><li>Neue Kinderbetreuung während des Gottesdienstes</li><li>Kaffeerunde nach dem Gottesdienst im Kirchencafé</li></ul>',
-    category: 'gottesdienst', image: '',
-    author: 'Pastor Müller', authorAvatar: 'PM', date: '2026-04-15',
-    comments: 1,
-    commentList: []
-  },
-  {
-    id: 4, title: 'Ehrenamtliche Helfer gesucht: Gartenpflege',
-    excerpt: 'Unser Gemeindegarten braucht wieder grüne Daumen! Wir suchen ehrenamtliche Helfer für die Pflege der Außenanlagen.',
-    content: '<p>Unser Gemeindegarten ist ein wichtiger Treffpunkt – doch er braucht eure Hilfe!</p><p>Wir suchen ehrenamtliche Helfer für:</p><ul><li>Rasenmähen (wöchentlich)</li><li>Beetpflege</li><li>Hecke schneiden</li></ul><p>Bei Interesse meldet euch bei <strong>Peter Gärtner</strong> (p.gaertner@gemeinde.de).</p>',
-    category: 'gemeindeleben', image: '',
-    author: 'Peter Gärtner', authorAvatar: 'PG', date: '2026-04-10',
-    comments: 0,
-    commentList: []
-  },
-  {
-    id: 5, title: 'Gemeinderatssitzung Protokoll März',
-    excerpt: 'Das Protokoll der Gemeinderatssitzung vom 15. März ist jetzt verfügbar.',
-    content: '<p>Das Protokoll der Gemeinderatssitzung vom <strong>15. März 2026</strong> steht nun allen Mitgliedern zur Einsicht zur Verfügung.</p><p>Besprochene Themen:</p><ul><li>Haushaltsplan 2026/2027</li><li>Sommerfest-Planung</li><li>Neue Beschallungsanlage</li></ul>',
-    category: 'allgemein', image: '',
-    author: 'Sekretariat', authorAvatar: 'SE', date: '2026-04-05',
-    comments: 2,
-    commentList: []
-  },
-])
-
 /* ─── State ─── */
+const posts = ref([])
 const activeCategory = ref('all')
 const searchQuery = ref('')
 const showPostDetail = ref(false)
@@ -296,10 +249,36 @@ const selectedPost = ref(null)
 const showEditor = ref(false)
 const editingPost = ref(null)
 const newComment = ref('')
+const savingPost = ref(false)
+const addingComment = ref(false)
 
 const editorForm = ref({
   title: '', category: 'allgemein', image: '', excerpt: '', content: ''
 })
+
+/* ─── Data Loading ─── */
+async function loadPosts() {
+  try {
+    posts.value = await apiCall('diakronos.diakonos.api.beitraege.get_beitraege_liste')
+  } catch (err) {
+    showToast('Beiträge konnten nicht geladen werden', 'error')
+  }
+}
+
+async function openPost(post) {
+  try {
+    const detail = await apiCall('diakronos.diakonos.api.beitraege.get_beitrag_detail', { beitrag_id: post.id })
+    selectedPost.value = {
+      ...detail,
+      authorAvatar: (detail.author || '').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?',
+    }
+    showPostDetail.value = true
+  } catch (err) {
+    showToast('Beitrag konnte nicht geladen werden', 'error')
+  }
+}
+
+onMounted(loadPosts)
 
 /* ─── Computed ─── */
 const filteredPosts = computed(() => {
@@ -348,50 +327,73 @@ function categoryName(id) {
 }
 function formatDate(d) {
   if (!d) return ''
-  const date = new Date(d)
-  return date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-function openPost(post) {
-  selectedPost.value = post
-  showPostDetail.value = true
+  return new Date(d).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 function openEditor(post = null) {
   editingPost.value = post
   editorForm.value = post
-    ? { ...post }
+    ? { title: post.title, category: post.category, image: post.image || '', excerpt: post.excerpt, content: post.content || '' }
     : { title: '', category: 'allgemein', image: '', excerpt: '', content: '' }
   showEditor.value = true
 }
-function savePost() {
+async function savePost() {
   const f = editorForm.value
   if (!f.title.trim()) return
-  if (editingPost.value) {
-    const idx = posts.value.findIndex(p => p.id === editingPost.value.id)
-    if (idx !== -1) posts.value[idx] = { ...posts.value[idx], ...f }
-  } else {
-    posts.value.unshift({
-      id: Date.now(),
-      ...f,
-      author: window.__DIakonosBOOT?.user_name || 'Ich',
-      authorAvatar: (window.__DIakonosBOOT?.user_name || 'Ich').split(' ').map(n => n[0]).join('').slice(0, 2),
-      date: new Date().toISOString().split('T')[0],
-      comments: 0,
-      commentList: []
-    })
+  savingPost.value = true
+  try {
+    if (editingPost.value) {
+      await apiCall('diakronos.diakonos.api.beitraege.update_beitrag', {
+        beitrag_id: editingPost.value.id,
+        titel: f.title, inhalt: f.content, kategorie: f.category,
+        auszug: f.excerpt, bild: f.image || '',
+      })
+      showToast('Beitrag aktualisiert')
+    } else {
+      await apiCall('diakronos.diakonos.api.beitraege.create_beitrag', {
+        titel: f.title, inhalt: f.content, kategorie: f.category,
+        auszug: f.excerpt, bild: f.image || '',
+      })
+      showToast('Beitrag erstellt')
+    }
+    showEditor.value = false
+    await loadPosts()
+  } catch (err) {
+    showToast(err?.message || 'Fehler beim Speichern', 'error')
+  } finally {
+    savingPost.value = false
   }
-  showEditor.value = false
 }
-function addComment() {
+async function deletePost(post) {
+  if (!confirm('Beitrag wirklich löschen?')) return
+  try {
+    await apiCall('diakronos.diakonos.api.beitraege.delete_beitrag', { beitrag_id: post.id })
+    showToast('Beitrag gelöscht')
+    showPostDetail.value = false
+    selectedPost.value = null
+    await loadPosts()
+  } catch (err) {
+    showToast(err?.message || 'Fehler', 'error')
+  }
+}
+async function addComment() {
   if (!newComment.value.trim() || !selectedPost.value) return
-  selectedPost.value.commentList.push({
-    id: Date.now(),
-    author: window.__DIakonosBOOT?.user_name || 'Ich',
-    avatar: (window.__DIakonosBOOT?.user_name || 'Ich').split(' ').map(n => n[0]).join('').slice(0, 2),
-    text: newComment.value,
-    date: new Date().toISOString().split('T')[0]
-  })
-  selectedPost.value.comments++
-  newComment.value = ''
+  addingComment.value = true
+  try {
+    const res = await apiCall('diakronos.diakonos.api.beitraege.create_kommentar', {
+      beitrag_id: selectedPost.value.id,
+      text: newComment.value.trim(),
+    })
+    if (res.success) {
+      selectedPost.value.commentList = selectedPost.value.commentList || []
+      selectedPost.value.commentList.push(res.kommentar)
+      selectedPost.value.comments = (selectedPost.value.comments || 0) + 1
+      newComment.value = ''
+    }
+  } catch (err) {
+    showToast(err?.message || 'Fehler', 'error')
+  } finally {
+    addingComment.value = false
+  }
 }
 </script>
 

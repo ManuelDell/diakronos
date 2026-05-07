@@ -1,0 +1,68 @@
+{
+ "actions": [],
+ "creation": "2026-04-27 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "label",
+  "feldtyp",
+  "optionen",
+  "pflichtfeld",
+  "fuer_gaeste",
+  "fuer_kinder"
+ ],
+ "fields": [
+  {
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Label",
+   "reqd": 1
+  },
+  {
+   "fieldname": "feldtyp",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Feldtyp",
+   "options": "Text\nZahl\nDatum\nJa-Nein\nAuswahl\nDatei-Upload",
+   "reqd": 1
+  },
+  {
+   "fieldname": "optionen",
+   "fieldtype": "Small Text",
+   "label": "Optionen",
+   "description": "Zeilengetrennt (nur bei Feldtyp 'Auswahl')"
+  },
+  {
+   "default": "0",
+   "fieldname": "pflichtfeld",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Pflichtfeld"
+  },
+  {
+   "default": "0",
+   "fieldname": "fuer_gaeste",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Für Gäste sichtbar"
+  },
+  {
+   "default": "0",
+   "fieldname": "fuer_kinder",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Für Kinder-Einträge"
+  }
+ ],
+ "istable": 1,
+ "modified": "2026-04-27 00:00:00.000000",
+ "module": "Diakonos",
+ "name": "Anmeldeformular Feld",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

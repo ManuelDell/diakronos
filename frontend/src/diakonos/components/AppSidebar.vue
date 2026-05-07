@@ -46,20 +46,24 @@
     <nav class="dk-sb-nav">
       <div class="dk-sb-section">Diakonos</div>
       <NavItem href="#/" icon="home" label="Dashboard" :active="page === 'Home'" :collapsed="collapsed" />
-      <NavItem href="#/mitglieder" icon="users" label="Mitglieder" :active="page === 'Mitglieder' || page === 'MitgliedDetail'" :collapsed="collapsed" />
-      <NavItem href="#/gruppen" icon="layout-grid" label="Gruppen" :active="page === 'Gruppen' || page === 'GruppeDetail'" :collapsed="collapsed" />
-      <NavItem href="#/adressbuch" icon="book-open" label="Adressbuch" :active="page === 'Adressbuch'" :collapsed="collapsed" />
+      <template v-if="!isGast">
+        <NavItem href="#/mitglieder" icon="users" label="Mitglieder" :active="page === 'Mitglieder' || page === 'MitgliedDetail'" :collapsed="collapsed" />
+        <NavItem href="#/gruppen" icon="layout-grid" label="Gruppen" :active="page === 'Gruppen' || page === 'GruppeDetail'" :collapsed="collapsed" />
+        <NavItem href="#/adressbuch" icon="book-open" label="Adressbuch" :active="page === 'Adressbuch'" :collapsed="collapsed" />
+      </template>
 
       <div class="dk-sb-section" style="margin-top:8px">Kronos</div>
       <NavItem href="#/kalender" icon="calendar" label="Kalender" :active="page === 'Kalender'" :collapsed="collapsed" />
-      <NavItem href="#/dienstplan" icon="clock" label="Dienstplan" :active="page === 'Dienstplan'" :collapsed="collapsed" />
-      <NavItem href="#/ressourcen" icon="box" label="Ressourcen" :active="page === 'Ressourcen'" :collapsed="collapsed" />
-      <NavItem href="#/beitraege" icon="file-text" label="Beiträge" :active="page === 'Beitraege'" :collapsed="collapsed" />
-      <NavItem href="#/wiki" icon="help-circle" label="Wiki" :active="page === 'Wiki'" :collapsed="collapsed" />
+      <template v-if="!isGast">
+        <NavItem href="#/dienstplan" icon="clock" label="Dienstplan" :active="page === 'Dienstplan'" :collapsed="collapsed" />
+        <NavItem href="#/ressourcen" icon="box" label="Ressourcen" :active="page === 'Ressourcen'" :collapsed="collapsed" />
+        <NavItem href="#/beitraege" icon="file-text" label="Beiträge" :active="page === 'Beitraege'" :collapsed="collapsed" />
+        <NavItem href="#/wiki" icon="help-circle" label="Wiki" :active="page === 'Wiki'" :collapsed="collapsed" />
+      </template>
 
       <template v-if="isAdmin">
         <div class="dk-sb-section" style="margin-top:8px">Verwaltung</div>
-        <NavItem href="#/anmeldungen" icon="user-plus" label="Anmeldungen" :active="page === 'Anmeldungen'" :collapsed="collapsed" :badge="pendingCount" />
+        <NavItem href="#/registrierung" icon="clipboard-list" label="Registrierung" :active="page === 'Registrierung'" :collapsed="collapsed" :badge="pendingCount" />
         <NavItem href="#/organigramm" icon="git-branch" label="Organigramm" :active="page === 'Organigramm'" :collapsed="collapsed" />
         <NavItem href="#/statistik" icon="bar-chart-2" label="Statistik" :active="page === 'Statistik'" :collapsed="collapsed" />
         <NavItem href="#/dsgvo" icon="shield" label="DSGVO" :active="page === 'Dsgvo'" :collapsed="collapsed" />
@@ -143,6 +147,8 @@ const emit = defineEmits(['toggle-collapse', 'toggle-theme', 'close-mobile'])
 
 const { user, mitglied, isAdmin, isAdminMode, enterAdminMode, exitAdminMode } = useSession()
 const page = currentPageName
+
+const isGast = computed(() => !isAdmin.value && mitglied.value?.status === 'Gast')
 
 const showAdminDialog = ref(false)
 const adminReason = ref('')
