@@ -185,11 +185,11 @@
           <h3>Neuen Registrierungslink erstellen</h3>
           <div class="dk-form-group">
             <label>Bezeichnung *</label>
-            <input v-model="newLink.bezeichnung" class="dk-input" placeholder="z. B. Gemeindefest 2026" />
+            <input v-model="newLink.bezeichnung" class="dk-form-input" placeholder="z. B. Gemeindefest 2026" />
           </div>
           <div class="dk-form-group">
             <label>Typ *</label>
-            <select v-model="newLink.typ" class="dk-input">
+            <select v-model="newLink.typ" class="dk-form-select">
               <option value="Mitglied-Registrierung">Mitglied-Registrierung</option>
               <option value="Gast-Anmeldung">Gast-Anmeldung</option>
               <option value="Veranstaltung">Veranstaltung</option>
@@ -197,15 +197,15 @@
           </div>
           <div class="dk-form-group">
             <label>Gültig bis</label>
-            <input v-model="newLink.gueltig_bis" type="date" class="dk-input" />
+            <input v-model="newLink.gueltig_bis" type="date" class="dk-form-input" />
           </div>
           <div class="dk-form-group">
             <label>Max. Anmeldungen (0 = unbegrenzt)</label>
-            <input v-model.number="newLink.max_anmeldungen" type="number" class="dk-input" min="0" />
+            <input v-model.number="newLink.max_anmeldungen" type="number" class="dk-form-input" min="0" />
           </div>
           <div class="dk-form-group">
             <label>Anmeldeformular</label>
-            <select v-model="newLink.anmeldeformular_id" class="dk-input">
+            <select v-model="newLink.anmeldeformular_id" class="dk-form-select">
               <option value="">– Keines –</option>
               <option v-for="f in formulare" :key="f.name" :value="f.name">{{ f.bezeichnung }}</option>
             </select>
@@ -225,7 +225,7 @@
           <h3>Neues Anmeldeformular</h3>
           <div class="dk-form-group">
             <label>Bezeichnung *</label>
-            <input v-model="newFormular.bezeichnung" class="dk-input" placeholder="z. B. Standard-Anmeldung" />
+            <input v-model="newFormular.bezeichnung" class="dk-form-input" placeholder="z. B. Standard-Anmeldung" />
           </div>
           <div class="dk-form-group" style="display:flex;gap:16px">
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
@@ -237,14 +237,14 @@
           </div>
 
           <!-- Felder-Builder -->
-          <div class="cm-felder-section" style="margin-top:12px">
-            <div class="cm-felder-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="margin-top:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
               <span style="font-size:13px;font-weight:600;color:var(--dk-text)">Felder</span>
               <button type="button" class="dk-btn dk-btn-sm dk-btn-secondary" @click="addFeld">+ Feld</button>
             </div>
-            <div v-for="(f, i) in formularFelder" :key="i" class="cm-feld-row" style="display:grid;grid-template-columns:1fr 120px 60px 28px;gap:8px;align-items:center;margin-bottom:8px">
-              <input v-model="f.label" placeholder="Bezeichnung *" class="dk-input" style="font-size:13px" />
-              <select v-model="f.feldtyp" class="dk-input" style="font-size:13px">
+            <div v-for="(f, i) in formularFelder" :key="i" style="display:grid;grid-template-columns:1fr 120px 60px 28px;gap:8px;align-items:center;margin-bottom:8px">
+              <input v-model="f.label" placeholder="Bezeichnung *" class="dk-form-input" style="font-size:13px" />
+              <select v-model="f.feldtyp" class="dk-form-select" style="font-size:13px">
                 <option v-for="t in feldTypen" :value="t">{{ t }}</option>
               </select>
               <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;color:var(--dk-text-muted)">

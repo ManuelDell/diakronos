@@ -1,6 +1,10 @@
 <template>
     <div class="dk-screen dk-screen-enter">
-        <h1 class="text-2xl font-bold mb-4">Adressbuch</h1>
+        <div class="dk-screen-header">
+            <div>
+                <h1 class="text-2xl font-bold mb-4">Adressbuch</h1>
+            </div>
+        </div>
 
         <!-- Suchfeld -->
         <div class="mb-4">

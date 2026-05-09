@@ -20,6 +20,16 @@
    "unique": 1
   },
   {
+   "fieldname": "bild",
+   "fieldtype": "Attach Image",
+   "label": "Bild"
+  },
+  {
+   "fieldname": "farbe",
+   "fieldtype": "Color",
+   "label": "Farbe"
+  },
+  {
    "fieldname": "rollen_section",
    "fieldtype": "Section Break",
    "label": "Rollen"

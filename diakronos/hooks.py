@@ -75,6 +75,14 @@ whitelisted_methods = {
     'diakronos.kronos.api.permissions.clear_home_preference',
     # Diakonos Gruppen
     'diakronos.diakonos.api.gruppen.get_gruppen_hierarchie',
+    'diakronos.diakonos.api.gruppen.get_gruppen_for_orgchart',
+    'diakronos.diakonos.api.gruppen.get_user_create_permissions',
+    'diakronos.diakonos.api.gruppen.create_dienstbereich',
+    'diakronos.diakonos.api.gruppen.create_gruppe',
+    'diakronos.diakonos.api.gruppen.create_untergruppe',
+    'diakronos.diakonos.api.gruppen.update_gruppe',
+    'diakronos.diakonos.api.gruppen.update_untergruppe',
+    'diakronos.diakonos.api.gruppen.get_gruppen_page_data',
     # Diakonos Mitglied-Verwaltung
     'diakronos.diakonos.api.mitglieder.create_mitglied',
     'diakronos.diakonos.api.mitglieder.get_mitglied',

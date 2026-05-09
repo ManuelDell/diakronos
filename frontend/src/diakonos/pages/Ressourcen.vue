@@ -48,17 +48,17 @@
     </div>
 
     <!-- Main Content Grid -->
-    <div class="rs-layout" :class="{ 'has-sidebar': showMyBookings || selectedResource }">
+    <div class="dk-two-col-wide rs-layout" :class="{ 'has-sidebar': showMyBookings || selectedResource }">
 
       <!-- Ressourcen-Grid / List -->
       <div class="rs-main">
 
         <!-- Grid View -->
-        <div v-if="viewMode === 'grid'" class="rs-grid">
+        <div v-if="viewMode === 'grid'" class="dk-card-grid">
           <div
             v-for="r in filteredResources"
             :key="r.id"
-            class="rs-card"
+            class="dk-content-card rs-card"
             :class="{ 'is-selected': selectedResource?.id === r.id }"
             @click="selectResource(r)"
           >
@@ -81,7 +81,7 @@
                 <span v-for="tag in r.tags" :key="tag" class="rs-tag">{{ tag }}</span>
               </div>
               <div class="rs-card-footer">
-                <button class="rs-btn-book" @click.stop="openBookingModal(r)">
+                <button class="dk-btn dk-btn-sm dk-btn-primary rs-btn-book" @click.stop="openBookingModal(r)">
                   <IconCalendar style="width:12px;height:12px" /> Buchen
                 </button>
               </div>
@@ -90,8 +90,8 @@
         </div>
 
         <!-- List View -->
-        <div v-else class="rs-list">
-          <div class="rs-list-header">
+        <div v-else class="dk-card-list">
+          <div class="dk-card-list-header">
             <span style="flex:1">Name</span>
             <span style="width:120px">Typ</span>
             <span style="width:100px">Status</span>
@@ -100,7 +100,7 @@
           <div
             v-for="r in filteredResources"
             :key="r.id"
-            class="rs-list-row"
+            class="dk-card-list-row rs-list-row"
             :class="{ 'is-selected': selectedResource?.id === r.id }"
             @click="selectResource(r)"
           >
@@ -583,12 +583,6 @@ const IconInfo         = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 /* ================================================================
    LAYOUT
    ================================================================ */
-.rs-layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-  align-items: start;
-}
 .rs-layout.has-sidebar {
   grid-template-columns: 1fr 360px;
 }
@@ -610,12 +604,6 @@ const IconInfo         = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 /* ================================================================
    GRID VIEW
    ================================================================ */
-.rs-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-}
-
 .rs-card {
   background: var(--dk-surface);
   border: 1px solid var(--dk-border);
@@ -745,25 +733,11 @@ const IconInfo         = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 /* ================================================================
    LIST VIEW
    ================================================================ */
-.rs-list {
-  background: var(--dk-surface);
-  border: 1px solid var(--dk-border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-.rs-list-header {
-  display: flex;
-  align-items: center;
-  padding: 10px 16px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--dk-text-subtle);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--dk-divider);
-  background: var(--dk-surface-2);
-}
-.rs-list-row {
+.rs-list-row:last-child { border-bottom: none; }
+.rs-list-row:hover { background: var(--dk-surface-hover); }
+.rs-list-row.is-selected { background: rgba(212,162,76,.06); }
+
+.rs-list-name {
   display: flex;
   align-items: center;
   padding: 12px 16px;
@@ -1166,15 +1140,6 @@ const IconInfo         = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   }
 }
 @media (max-width: 640px) {
-  .rs-grid {
-    grid-template-columns: 1fr;
-  }
-  .rs-list-header { display: none; }
-  .rs-list-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
   .rs-form-row {
     grid-template-columns: 1fr;
   }

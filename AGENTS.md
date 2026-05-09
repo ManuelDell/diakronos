@@ -187,3 +187,4 @@ Dienstbereich  ←  Dienstbereich Verantwortlicher.user (Frappe User)
 4. CalDAV intercepts before Frappe routing — don't add `/dav/*` www routes
 5. `public/frontend/` JS is git-tracked — commit after every build that changes behaviour
 6. Frappe child tables: `doc.append(fieldname, {...})` + `doc.save()` — never direct DB insert
+7. d3-org-chart v3 requires EXACTLY ONE root node (parentId: null). Multiple roots → `Error: multiple roots`. Always include one virtual root `{"id":"virtual-root","parentId":None,"type":"root"}`; render it invisibly with `nodeWidth(d => d.data.type==='root' ? 1 : 200)` etc.

@@ -26,15 +26,15 @@
           {{ c.name }} {{ c.id === 'all' ? posts.length : postCountByCategory[c.id] || 0 }}
         </button>
       </div>
-      <div class="dk-search" style="max-width:280px">
+      <div class="dk-search-bar" style="max-width:280px">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input v-model="searchQuery" type="text" placeholder="Beiträge durchsuchen…" />
       </div>
     </div>
 
-    <div class="bt-layout">
+    <div class="dk-two-col">
       <!-- Posts Feed -->
-      <div class="bt-feed">
+      <div class="dk-feed">
         <div v-if="filteredPosts.length === 0" class="dk-empty">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           <p>Keine Beiträge gefunden.</p>
@@ -43,7 +43,7 @@
         <article
           v-for="post in filteredPosts"
           :key="post.id"
-          class="bt-post"
+          class="dk-content-card bt-post"
           @click="openPost(post)"
         >
           <div v-if="post.image" class="bt-post-image" :style="{ backgroundImage: `url(${post.image})` }">
@@ -58,7 +58,7 @@
             <p class="bt-post-excerpt">{{ post.excerpt }}</p>
             <div class="bt-post-meta">
               <div class="bt-post-author">
-                <div class="bt-avatar">{{ post.authorAvatar }}</div>
+                <div class="dk-avatar dk-avatar-sm">{{ post.authorAvatar }}</div>
                 <span>{{ post.author }}</span>
               </div>
               <span class="bt-post-date">{{ formatDate(post.date) }}</span>
@@ -72,14 +72,14 @@
       </div>
 
       <!-- Sidebar -->
-      <aside class="bt-sidebar">
+      <aside class="dk-aside">
         <!-- Popular -->
-        <div class="bt-widget">
-          <h4>Beliebte Beiträge</h4>
+        <div class="dk-widget">
+          <h4 class="dk-widget-title">Beliebte Beiträge</h4>
           <div
             v-for="p in popularPosts"
             :key="p.id"
-            class="bt-popular"
+            class="dk-widget-item bt-popular"
             @click="openPost(p)"
           >
             <div class="bt-popular-num">{{ p.rank }}</div>
@@ -91,8 +91,8 @@
         </div>
 
         <!-- Categories -->
-        <div class="bt-widget">
-          <h4>Kategorien</h4>
+        <div class="dk-widget">
+          <h4 class="dk-widget-title">Kategorien</h4>
           <div class="bt-cat-list">
             <div
               v-for="c in categories.filter(c => c.id !== 'all')"
@@ -108,8 +108,8 @@
         </div>
 
         <!-- Archive -->
-        <div class="bt-widget">
-          <h4>Archiv</h4>
+        <div class="dk-widget">
+          <h4 class="dk-widget-title">Archiv</h4>
           <div class="bt-archive-list">
             <div
               v-for="a in archiveMonths"
@@ -144,7 +144,7 @@
             <h2 class="bt-detail-title">{{ selectedPost.title }}</h2>
             <div class="bt-detail-meta">
               <div class="bt-post-author">
-                <div class="bt-avatar">{{ selectedPost.authorAvatar }}</div>
+                <div class="dk-avatar dk-avatar-sm">{{ selectedPost.authorAvatar }}</div>
                 <span>{{ selectedPost.author }}</span>
               </div>
               <span>{{ formatDate(selectedPost.date) }}</span>
@@ -155,7 +155,7 @@
             <div class="bt-comments">
               <h4>Kommentare ({{ selectedPost.comments }})</h4>
               <div v-for="c in selectedPost.commentList" :key="c.id" class="bt-comment">
-                <div class="bt-comment-avatar">{{ c.avatar }}</div>
+                <div class="dk-avatar dk-avatar-md">{{ c.avatar }}</div>
                 <div class="bt-comment-body">
                   <div class="bt-comment-header">
                     <strong>{{ c.author }}</strong>
@@ -183,7 +183,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-        <div class="dk-modal-body">
+        <div >
           <div class="dk-form-group">
             <label>Titel</label>
             <input v-model="editorForm.title" class="dk-form-input" type="text" placeholder="Titel des Beitrags" />
@@ -398,21 +398,7 @@ async function addComment() {
 </script>
 
 <style scoped>
-/* Layout */
-.bt-layout {
-  display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: 24px;
-  align-items: start;
-}
-@media (max-width: 1100px) {
-  .bt-layout { grid-template-columns: 1fr; }
-  .bt-sidebar { order: -1; }
-}
-
 /* Feed */
-.bt-feed { display: flex; flex-direction: column; gap: 16px; }
-
 .bt-post {
   background: var(--dk-surface);
   border: 1px solid var(--dk-border);
@@ -489,18 +475,6 @@ async function addComment() {
   align-items: center;
   gap: 8px;
 }
-.bt-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--dk-brand-100);
-  color: var(--dk-brand-500);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  font-weight: 700;
-}
 .bt-post-date { font-size: 12px; }
 .bt-post-comments {
   display: inline-flex;
@@ -510,34 +484,6 @@ async function addComment() {
 }
 
 /* Sidebar */
-.bt-sidebar { display: flex; flex-direction: column; gap: 16px; }
-.bt-widget {
-  background: var(--dk-surface);
-  border: 1px solid var(--dk-border);
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: var(--dk-shadow-xs);
-}
-.bt-widget h4 {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--dk-text-subtle);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin: 0 0 12px;
-}
-
-.bt-popular {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--dk-divider);
-  cursor: pointer;
-  transition: background var(--dk-fast);
-}
-.bt-popular:last-child { border-bottom: none; }
-.bt-popular:hover { background: var(--dk-surface-hover); margin: 0 -16px; padding: 8px 16px; }
 .bt-popular-num {
   width: 22px;
   height: 22px;
@@ -709,19 +655,6 @@ async function addComment() {
   border-bottom: 1px solid var(--dk-divider);
 }
 .bt-comment:last-child { border-bottom: none; }
-.bt-comment-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--dk-surface-2);
-  color: var(--dk-text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
 .bt-comment-body { flex: 1; }
 .bt-comment-header {
   display: flex;
@@ -751,5 +684,4 @@ async function addComment() {
 .bt-comment-form input:focus { outline: none; border-color: var(--dk-accent); }
 
 /* Editor Modal sizing */
-.dk-modal--lg { max-width: 720px; }
 </style>

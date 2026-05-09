@@ -1,7 +1,11 @@
 <template>
     <div class="dk-screen dk-screen-enter">
-        <h1 class="text-2xl font-bold mb-2">DSGVO</h1>
-        <p class="text-[var(--dk-text-muted)] mb-6">Datenschutz-Grundverordnung – Einwilligungen & Widerruf</p>
+        <div class="dk-screen-header">
+            <div>
+                <h1 class="text-2xl font-bold mb-2">DSGVO</h1>
+                <p class="text-[var(--dk-text-muted)] mb-6">Datenschutz-Grundverordnung – Einwilligungen & Widerruf</p>
+            </div>
+        </div>
 
         <div v-if="loading" class="dk-skeleton dk-skeleton-card" style="height:160px"></div>
 

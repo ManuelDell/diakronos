@@ -156,7 +156,7 @@
                             </td>
                             <td class="text-[var(--dk-text-muted)]">{{ formatDate(m.beitrittsdatum) || '\u2013' }}</td>
                             <td v-if="isAdminMode" class="text-right">
-                                <button class="text-[var(--dk-danger)] hover:opacity-80 text-sm font-medium" @click="removeMitglied(m)">
+                                <button class="dk-btn dk-btn-ghost dk-btn-sm" style="color:var(--dk-danger);" @click="removeMitglied(m)">
                                     Entfernen
                                 </button>
                             </td>

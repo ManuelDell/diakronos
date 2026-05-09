@@ -449,6 +449,150 @@ body { -webkit-tap-highlight-color: transparent; margin: 0; }
 .dk-screen-actions { display: flex; align-items: center; gap: 8px; }
 
 /* =====================================================================
+   Layout Utilities — Content + Sidebar, Card Grid, Feed
+   ===================================================================== */
+
+/* Two-column: main content + sidebar */
+.dk-two-col {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
+  align-items: start;
+}
+.dk-two-col-wide { grid-template-columns: 1fr 360px; }
+@media (max-width: 1100px) {
+  .dk-two-col, .dk-two-col-wide { grid-template-columns: 1fr; }
+}
+
+/* Content sidebar (aside, not app sidebar) */
+.dk-aside { display: flex; flex-direction: column; gap: 16px; }
+
+/* Sidebar widget */
+.dk-widget {
+  background: var(--dk-surface);
+  border: 1px solid var(--dk-border);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: var(--dk-shadow-xs);
+}
+.dk-widget-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dk-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 12px;
+}
+
+/* Card grid */
+.dk-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.dk-card-grid-sm { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+@media (max-width: 640px) { .dk-card-grid { grid-template-columns: 1fr; } }
+
+/* Content card (clickable card with hover lift) */
+.dk-content-card {
+  background: var(--dk-surface);
+  border: 1px solid var(--dk-border);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color var(--dk-med), box-shadow var(--dk-med), transform var(--dk-med);
+  box-shadow: var(--dk-shadow-xs);
+}
+.dk-content-card:hover {
+  border-color: var(--dk-border-strong);
+  box-shadow: var(--dk-shadow-sm);
+  transform: translateY(-2px);
+}
+
+/* Feed (vertical list of cards) */
+.dk-feed { display: flex; flex-direction: column; gap: 16px; }
+
+/* Avatar */
+.dk-avatar {
+  border-radius: 50%;
+  background: var(--dk-brand-100);
+  color: var(--dk-brand-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.dk-avatar-sm { width: 24px; height: 24px; font-size: 9px; }
+.dk-avatar-md { width: 32px; height: 32px; font-size: 11px; }
+.dk-avatar-lg { width: 40px; height: 40px; font-size: 14px; }
+
+/* Standalone search bar (larger than toolbar search) */
+.dk-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--dk-surface);
+  border: 1px solid var(--dk-border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  transition: border-color var(--dk-fast);
+  margin-bottom: 20px;
+}
+.dk-search-bar:focus-within { border-color: var(--dk-accent); }
+.dk-search-bar svg { color: var(--dk-text-muted); flex-shrink: 0; }
+.dk-search-bar input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--dk-text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+.dk-search-bar input::placeholder { color: var(--dk-text-subtle); }
+
+/* Widget list item (used in sidebar widgets) */
+.dk-widget-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--dk-divider);
+  cursor: pointer;
+  transition: background var(--dk-fast);
+  text-decoration: none;
+}
+.dk-widget-item:last-child { border-bottom: none; }
+.dk-widget-item:hover { background: var(--dk-surface-hover); margin: 0 -16px; padding: 8px 16px; }
+
+/* Card list (bordered box for list views) */
+.dk-card-list {
+  background: var(--dk-surface);
+  border: 1px solid var(--dk-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.dk-card-list-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--dk-divider);
+  cursor: pointer;
+  transition: background var(--dk-fast);
+}
+.dk-card-list-row:last-child { border-bottom: none; }
+.dk-card-list-row:hover { background: var(--dk-surface-hover); }
+.dk-card-list-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dk-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--dk-divider);
+  background: var(--dk-surface-2);
+}
+
+/* =====================================================================
    Buttons
    ===================================================================== */
 .dk-btn {
@@ -706,6 +850,8 @@ body { -webkit-tap-highlight-color: transparent; margin: 0; }
   padding: 24px;
   box-shadow: var(--dk-shadow-lg);
 }
+.dk-modal--sm { max-width: 320px; }
+.dk-modal--lg { max-width: 720px; }
 .dk-modal h3 { font-size: 16px; font-weight: 600; margin: 0 0 6px; }
 .dk-modal p  { font-size: 13px; color: var(--dk-text-muted); margin: 0 0 16px; }
 .dk-modal textarea {
@@ -740,6 +886,7 @@ body { -webkit-tap-highlight-color: transparent; margin: 0; }
    ===================================================================== */
 .dk-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
 .dk-form-group { display: flex; flex-direction: column; gap: 4px; }
+.dk-form-group { margin-bottom: 14px; }
 .dk-form-group label { font-size: 13px; font-weight: 500; color: var(--dk-text-muted); }
 .dk-form-input, .dk-form-select, .dk-form-textarea { padding: 8px 12px; background: var(--dk-surface); border: 1px solid var(--dk-border); border-radius: 8px; font-size: 14px; font-family: inherit; color: var(--dk-text); outline: none; transition: border-color var(--dk-fast), box-shadow var(--dk-fast); width: 100%; }
 .dk-form-input::placeholder, .dk-form-textarea::placeholder { color: var(--dk-text-subtle); }
@@ -779,7 +926,7 @@ select.dk-form-select { appearance: auto; }
 /* =====================================================================
    Empty State
    ===================================================================== */
-.dk-empty { padding: 60px 32px; text-align: center; color: var(--dk-text-muted); }
+.dk-empty { padding: 60px 32px; text-align: center; color: var(--dk-text-muted); display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .dk-empty-icon { color: var(--dk-text-subtle); margin-bottom: 12px; }
 .dk-empty-title { font-size: 14px; font-weight: 500; color: var(--dk-text); margin: 0 0 4px; }
 .dk-empty-desc { font-size: 13px; color: var(--dk-text-muted); margin: 0; }
@@ -817,6 +964,9 @@ select.dk-form-select { appearance: auto; }
 .dk-btn-danger:hover { background: color-mix(in oklch, var(--dk-danger) 85%, black); }
 .dk-btn-success { background: var(--dk-success); color: #fff; }
 .dk-btn-success:hover { background: color-mix(in oklch, var(--dk-success) 85%, black); }
+.dk-btn-warning { background: var(--dk-warning); color: #fff; }
+.dk-btn-warning:hover { background: color-mix(in oklch, var(--dk-warning) 85%, black); }
+[data-theme="dark"] .dk-btn-warning { background: color-mix(in oklch, var(--dk-warning) 80%, white); }
 
 /* =====================================================================
    Grid Utilities

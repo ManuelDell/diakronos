@@ -317,3 +317,301 @@ def _paths_overlap(user_path, target_path):
     user_gruppen, user_bereiche = _extract_segments(user_path)
     target_gruppen, target_bereiche = _extract_segments(target_path)
     return bool(user_gruppen & target_gruppen or user_bereiche & target_bereiche)
+
+
+@frappe.whitelist()
+def get_gruppen_for_orgchart():
+	"""Gibt Dienstbereiche, Gruppen und Untergruppen als flaches Array für d3-org-chart zurück."""
+	gruppen_result = get_gruppen_hierarchie()
+	gruppen_list = gruppen_result.get("gruppen", [])
+
+	dienstbereiche = frappe.get_all(
+		"Dienstbereich",
+		fields=["name", "ministry", "farbe", "icon", "beschreibung"],
+		order_by="sortierung asc, ministry asc",
+	)
+
+	untergruppen = frappe.get_all(
+		"Untergruppe",
+		fields=["name", "untergruppenname", "gruppe", "status", "beschreibung"],
+		filters={"status": ["!=", "Archiviert"]},
+		order_by="untergruppenname asc",
+	)
+
+	ug_counts = {}
+	for u in untergruppen:
+		ug_counts[u["name"]] = frappe.db.count("Untergruppenmitgliedschaft", {"parent": u["name"], "status": "Aktiv"})
+
+	nodes = [{"id": "virtual-root", "parentId": None, "name": "", "type": "root"}]
+
+	db_names = {db["name"] for db in dienstbereiche}
+	for db in dienstbereiche:
+		nodes.append({
+			"id": f"db_{db['name']}",
+			"parentId": "virtual-root",
+			"name": db["ministry"],
+			"type": "dienstbereich",
+			"raw_name": db["name"],
+			"farbe": db.get("farbe") or "#667eea",
+			"icon": db.get("icon") or "",
+			"beschreibung": db.get("beschreibung") or "",
+		})
+
+	gruppe_extra = {g["name"]: g for g in frappe.get_all(
+		"Gruppe",
+		fields=["name", "treffpunkt", "treffzeit"],
+	)}
+
+	gruppe_names = set()
+	for g in gruppen_list:
+		if not g.get("dienstbereich") or g["dienstbereich"] not in db_names:
+			continue
+		gruppe_names.add(g["name"])
+		extra = gruppe_extra.get(g["name"], {})
+		nodes.append({
+			"id": f"g_{g['name']}",
+			"parentId": f"db_{g['dienstbereich']}",
+			"name": g["gruppenname"],
+			"type": "gruppe",
+			"raw_name": g["name"],
+			"mitglieder_count": g.get("mitglieder_count", 0),
+			"beschreibung": g.get("beschreibung") or "",
+			"treffpunkt": extra.get("treffpunkt") or "",
+			"treffzeit": extra.get("treffzeit") or "",
+		})
+
+	ug_extra = {u["name"]: u for u in frappe.get_all(
+		"Untergruppe",
+		fields=["name", "treffpunkt", "treffzeit"],
+	)}
+
+	for u in untergruppen:
+		if not u.get("gruppe") or u["gruppe"] not in gruppe_names:
+			continue
+		extra = ug_extra.get(u["name"], {})
+		nodes.append({
+			"id": f"ug_{u['name']}",
+			"parentId": f"g_{u['gruppe']}",
+			"name": u["untergruppenname"],
+			"type": "untergruppe",
+			"raw_name": u["name"],
+			"mitglieder_count": ug_counts.get(u["name"], 0),
+			"beschreibung": u.get("beschreibung") or "",
+			"treffpunkt": extra.get("treffpunkt") or "",
+			"treffzeit": extra.get("treffzeit") or "",
+		})
+
+	return {"success": True, "nodes": nodes}
+
+
+@frappe.whitelist()
+def get_user_create_permissions():
+	"""Gibt zurück, welche Strukturen der aktuelle User erstellen darf."""
+	user = frappe.session.user
+	roles = frappe.get_roles(user)
+	is_admin = any(r in roles for r in ["System Manager", "Mitgliederadministrator"])
+
+	result = {
+		"can_create_dienstbereich": False,
+		"can_create_gruppe": False,
+		"can_create_untergruppe": False,
+		"allowed_dienstbereiche": [],
+		"allowed_gruppen": [],
+	}
+
+	if is_admin or "Gemeindeverantwortlicher" in roles:
+		result["can_create_dienstbereich"] = True
+
+	db_verantwortlich = frappe.db.sql(
+		"SELECT DISTINCT parent FROM `tabDienstbereich Verantwortlicher` WHERE user = %s", user, as_dict=True
+	)
+	if db_verantwortlich or is_admin:
+		result["can_create_gruppe"] = True
+		result["allowed_dienstbereiche"] = [r["parent"] for r in db_verantwortlich]
+
+	g_verantwortlich = frappe.db.sql(
+		"SELECT DISTINCT parent FROM `tabGruppe Verantwortlicher` WHERE user = %s",
+		user, as_dict=True
+	)
+	if g_verantwortlich or is_admin:
+		result["can_create_untergruppe"] = True
+		result["allowed_gruppen"] = [r["parent"] for r in g_verantwortlich]
+
+	result["can_create_any"] = any([
+		result["can_create_dienstbereich"],
+		result["can_create_gruppe"],
+		result["can_create_untergruppe"],
+	])
+	return result
+
+
+@frappe.whitelist()
+def create_dienstbereich(name, beschreibung=None, farbe=None):
+	"""Erstellt einen neuen Dienstbereich. Nur für Gemeindeverantwortliche."""
+	user = frappe.session.user
+	roles = frappe.get_roles(user)
+	if not any(r in roles for r in ["System Manager", "Mitgliederadministrator", "Gemeindeverantwortlicher"]):
+		frappe.throw(_("Nur Gemeindeverantwortliche können Dienstbereiche erstellen."), frappe.PermissionError)
+	doc = frappe.get_doc({
+		"doctype": "Dienstbereich",
+		"ministry": name,
+		"beschreibung": beschreibung or "",
+		"farbe": farbe or "#667eea",
+	})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "name": doc.name}
+
+
+@frappe.whitelist()
+def create_gruppe(name, dienstbereich, gruppentyp=None, beschreibung=None, treffpunkt=None, treffzeit=None):
+	"""Erstellt eine neue Gruppe. Nur für Dienstbereichsverantwortliche."""
+	user = frappe.session.user
+	roles = frappe.get_roles(user)
+	is_admin = any(r in roles for r in ["System Manager", "Mitgliederadministrator"])
+	if not is_admin:
+		if not frappe.db.exists("Dienstbereich Verantwortlicher", {"parent": dienstbereich, "user": user}):
+			frappe.throw(_("Du bist kein Verantwortlicher dieses Dienstbereichs."), frappe.PermissionError)
+	doc = frappe.get_doc({
+		"doctype": "Gruppe",
+		"gruppenname": name,
+		"dienstbereich": dienstbereich,
+		"gruppentyp": gruppentyp or None,
+		"beschreibung": beschreibung or "",
+		"treffpunkt": treffpunkt or "",
+		"treffzeit": treffzeit or "",
+		"status": "Aktiv",
+	})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "name": doc.name}
+
+
+@frappe.whitelist()
+def create_untergruppe(name, gruppe, beschreibung=None, treffpunkt=None, treffzeit=None):
+	"""Erstellt eine neue Untergruppe. Nur für Gruppenverantwortliche."""
+	user = frappe.session.user
+	roles = frappe.get_roles(user)
+	is_admin = any(r in roles for r in ["System Manager", "Mitgliederadministrator"])
+	if not is_admin:
+		mitglied = _get_current_user_mitglied()
+		if not mitglied or not frappe.db.exists("Gruppe Verantwortlicher", {"parent": gruppe, "user": user}):
+			frappe.throw(_("Du bist kein Verantwortlicher dieser Gruppe."), frappe.PermissionError)
+	doc = frappe.get_doc({
+		"doctype": "Untergruppe",
+		"untergruppenname": name,
+		"gruppe": gruppe,
+		"beschreibung": beschreibung or "",
+		"treffpunkt": treffpunkt or "",
+		"treffzeit": treffzeit or "",
+		"status": "Aktiv",
+	})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "name": doc.name}
+
+
+@frappe.whitelist()
+def update_gruppe(name, gruppenname=None, beschreibung=None, treffpunkt=None, treffzeit=None):
+	"""Aktualisiert eine Gruppe. Verantwortliche oder uebergeordnete Admins."""
+	user = frappe.session.user
+	roles = frappe.get_roles(user)
+	is_admin = any(r in roles for r in ["System Manager", "Mitgliederadministrator"])
+	if not is_admin:
+		gruppe_doc = frappe.get_doc("Gruppe", name)
+		is_db_verantwortlich = frappe.db.exists("Dienstbereich Verantwortlicher", {"parent": gruppe_doc.dienstbereich, "user": user})
+		is_g_verantwortlich = frappe.db.exists("Gruppe Verantwortlicher", {"parent": name, "user": user})
+		if not is_db_verantwortlich and not is_g_verantwortlich:
+			frappe.throw(_("Keine Berechtigung zum Bearbeiten dieser Gruppe."), frappe.PermissionError)
+	doc = frappe.get_doc("Gruppe", name)
+	if gruppenname: doc.gruppenname = gruppenname
+	if beschreibung is not None: doc.beschreibung = beschreibung
+	if treffpunkt is not None: doc.treffpunkt = treffpunkt
+	if treffzeit is not None: doc.treffzeit = treffzeit
+	doc.save()
+	frappe.db.commit()
+	return {"success": True}
+
+
+@frappe.whitelist()
+def update_untergruppe(name, untergruppenname=None, beschreibung=None, treffpunkt=None, treffzeit=None):
+	"""Aktualisiert eine Untergruppe."""
+	user = frappe.session.user
+	roles = frappe.get_roles(user)
+	is_admin = any(r in roles for r in ["System Manager", "Mitgliederadministrator"])
+	if not is_admin:
+		ug_doc = frappe.get_doc("Untergruppe", name)
+		is_g_verantwortlich = frappe.db.exists("Gruppe Verantwortlicher", {"parent": ug_doc.gruppe, "user": user})
+		is_ug_verantwortlich = frappe.db.exists("Untergruppe Verantwortlicher", {"parent": name, "user": user})
+		if not is_g_verantwortlich and not is_ug_verantwortlich:
+			frappe.throw(_("Keine Berechtigung zum Bearbeiten dieser Untergruppe."), frappe.PermissionError)
+	doc = frappe.get_doc("Untergruppe", name)
+	if untergruppenname: doc.untergruppenname = untergruppenname
+	if beschreibung is not None: doc.beschreibung = beschreibung
+	if treffpunkt is not None: doc.treffpunkt = treffpunkt
+	if treffzeit is not None: doc.treffzeit = treffzeit
+	doc.save()
+	frappe.db.commit()
+	return {"success": True}
+
+
+@frappe.whitelist()
+def get_gruppen_page_data():
+    user = frappe.session.user
+    roles = frappe.get_roles(user)
+    is_admin = any(r in roles for r in ["System Manager", "Mitgliederadministrator"])
+    mitglied_name = frappe.db.get_value("Mitglied", {"user": user}, "name")
+    verantwortlich = frappe.db.sql(
+        "SELECT DISTINCT parent FROM `tabGruppe Verantwortlicher` WHERE user=%s", user, as_dict=True)
+    verantwortlich_names = {r["parent"] for r in verantwortlich}
+    member_names = set()
+    if mitglied_name:
+        rows = frappe.db.sql(
+            "SELECT DISTINCT parent FROM `tabGruppenmitgliedschaft` WHERE mitglied=%s AND status='Aktiv'",
+            mitglied_name, as_dict=True)
+        member_names = {r["parent"] for r in rows}
+    my_groups = verantwortlich_names | member_names
+
+    def g_dict(g, ist_verantwortlich=False, ist_meins=False):
+        db_abbr, db_farbe = "", "#667eea"
+        if g.get("dienstbereich"):
+            db_doc = frappe.db.get_value("Dienstbereich", g["dienstbereich"], ["ministry","farbe"], as_dict=True) or {}
+            db_name = db_doc.get("ministry") or ""
+            db_farbe = db_doc.get("farbe") or "#667eea"
+            db_abbr = "".join(w[0].upper() for w in db_name.split()[:2]) if db_name else ""
+        typ_name = ""
+        if g.get("gruppentyp"):
+            typ_name = frappe.db.get_value("Gruppentyp", g["gruppentyp"], "typname") or ""
+        count = frappe.db.count("Gruppenmitgliedschaft", {"parent": g["name"], "status": "Aktiv"})
+        return {"name": g["name"], "gruppenname": g["gruppenname"],
+            "dienstbereich_abbr": db_abbr, "dienstbereich_farbe": db_farbe,
+            "gruppentyp_name": typ_name, "bild": g.get("bild") or "",
+            "mitglieder_count": count,
+            "ist_verantwortlich": ist_verantwortlich, "ist_meins": ist_meins}
+
+    meine_gruppen = []
+    filters = {"status": "Aktiv"}
+    if not is_admin and my_groups:
+        filters["name"] = ["in", list(my_groups)]
+    if is_admin or my_groups:
+        for g in frappe.get_all("Gruppe", filters=filters,
+                fields=["name","gruppenname","dienstbereich","gruppentyp","bild"]):
+            meine_gruppen.append(g_dict(g,
+                ist_verantwortlich=g["name"] in verantwortlich_names, ist_meins=True))
+
+    typen = []
+    for typ in frappe.get_all("Gruppentyp", fields=["name","typname","bild","farbe"]):
+        gruppen = []
+        for g in frappe.get_all("Gruppe",
+                filters={"gruppentyp": typ["name"], "status": "Aktiv"},
+                fields=["name","gruppenname","dienstbereich","bild","sichtbarkeit"]):
+            if g["sichtbarkeit"] == "Versteckt":
+                continue
+            if g["sichtbarkeit"] == "Intern" and g["name"] not in my_groups and not is_admin:
+                continue
+            gruppen.append(g_dict(g, ist_meins=g["name"] in my_groups))
+        typen.append({"name": typ["name"], "typname": typ["typname"],
+            "bild": typ.get("bild") or "", "farbe": typ.get("farbe") or "#667eea",
+            "gruppen": gruppen, "gruppen_count": len(gruppen)})
+
+    return {"meine_gruppen": meine_gruppen, "gruppentypen": typen}

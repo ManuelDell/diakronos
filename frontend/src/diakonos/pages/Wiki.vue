@@ -14,7 +14,7 @@
     </div>
 
     <!-- Search Bar -->
-    <div class="wk-search-bar">
+    <div class="dk-search-bar">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input v-model="searchQuery" type="text" placeholder="Wiki durchsuchen…" />
       <kbd v-if="searchQuery" class="wk-search-clear" @click="searchQuery = ''">
@@ -22,7 +22,7 @@
       </kbd>
     </div>
 
-    <div class="wk-layout">
+    <div class="dk-two-col">
       <!-- Main Content -->
       <div class="wk-main">
         <!-- Categories -->
@@ -46,11 +46,11 @@
           <p>Keine Artikel gefunden.</p>
         </div>
 
-        <div class="wk-articles">
+        <div class="dk-feed">
           <div
             v-for="article in filteredArticles"
             :key="article.id"
-            class="wk-article-card"
+            class="dk-content-card wk-article-card"
             @click="openArticle(article)"
           >
             <div class="wk-article-header">
@@ -62,7 +62,7 @@
             <div class="wk-article-footer">
               <div class="wk-article-meta">
                 <span class="wk-article-author">
-                  <div class="wk-avatar">{{ article.authorAvatar }}</div>
+                  <div class="dk-avatar dk-avatar-sm">{{ article.authorAvatar }}</div>
                   {{ article.author }}
                 </span>
                 <span class="wk-article-date">bearbeitet {{ timeAgo(article.updatedAt) }}</span>
@@ -76,14 +76,14 @@
       </div>
 
       <!-- Sidebar -->
-      <aside class="wk-sidebar">
+      <aside class="dk-aside">
         <!-- Recently Updated -->
-        <div class="wk-widget">
-          <h4>Zuletzt bearbeitet</h4>
+        <div class="dk-widget">
+          <h4 class="dk-widget-title">Zuletzt bearbeitet</h4>
           <div
             v-for="a in recentlyUpdated"
             :key="a.id"
-            class="wk-recent"
+            class="dk-widget-item"
             @click="openArticle(a)"
           >
             <div class="wk-recent-body">
@@ -94,8 +94,8 @@
         </div>
 
         <!-- Popular Tags -->
-        <div class="wk-widget">
-          <h4>Beliebte Schlagwörter</h4>
+        <div class="dk-widget">
+          <h4 class="dk-widget-title">Beliebte Schlagwörter</h4>
           <div class="wk-tag-cloud">
             <span
               v-for="tag in popularTags"
@@ -111,7 +111,7 @@
 
         <!-- Quick Help -->
         <div class="wk-widget wk-widget--info">
-          <h4>Hilfe & Support</h4>
+          <h4 class="dk-widget-title">Hilfe & Support</h4>
           <p class="wk-help-text">
             Du findest nicht was du suchst? Frag im 
             <a href="#/gruppen">Gemeinde-Chat</a> nach oder kontaktiere das 
@@ -140,7 +140,7 @@
             <h2 class="wk-detail-title">{{ selectedArticle.title }}</h2>
             <div class="wk-detail-meta">
               <span class="wk-article-author">
-                <div class="wk-avatar">{{ selectedArticle.authorAvatar }}</div>
+                <div class="dk-avatar dk-avatar-sm">{{ selectedArticle.authorAvatar }}</div>
                 {{ selectedArticle.author }}
               </span>
               <span>Zuletzt bearbeitet: {{ formatDate(selectedArticle.updatedAt) }}</span>
@@ -180,7 +180,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-        <div class="dk-modal-body">
+        <div >
           <div class="dk-form-group">
             <label>Titel</label>
             <input v-model="editorForm.title" class="dk-form-input" type="text" placeholder="Titel des Artikels" />
@@ -391,48 +391,10 @@ function openEditor(article = null) {
 
 <style scoped>
 /* Layout */
-.wk-layout {
-  display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: 24px;
-  align-items: start;
-}
 @media (max-width: 1100px) {
-  .wk-layout { grid-template-columns: 1fr; }
-  .wk-sidebar { order: -1; }
 }
 
 /* Search Bar */
-.wk-search-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--dk-surface);
-  border: 1px solid var(--dk-border);
-  border-radius: 10px;
-  padding: 10px 14px;
-  margin-bottom: 20px;
-  transition: border-color var(--dk-fast);
-}
-.wk-search-bar:focus-within { border-color: var(--dk-accent); }
-.wk-search-bar svg { color: var(--dk-text-muted); flex-shrink: 0; }
-.wk-search-bar input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  color: var(--dk-text);
-  font-size: 14px;
-  font-family: inherit;
-  outline: none;
-}
-.wk-search-bar input::placeholder { color: var(--dk-text-subtle); }
-.wk-search-clear {
-  cursor: pointer;
-  color: var(--dk-text-muted);
-  transition: color var(--dk-fast);
-}
-.wk-search-clear:hover { color: var(--dk-text); }
-
 /* Categories */
 .wk-categories {
   display: flex;
@@ -583,14 +545,6 @@ function openEditor(article = null) {
 }
 
 /* Sidebar */
-.wk-sidebar { display: flex; flex-direction: column; gap: 16px; }
-.wk-widget {
-  background: var(--dk-surface);
-  border: 1px solid var(--dk-border);
-  border-radius: 10px;
-  padding: 16px;
-  box-shadow: var(--dk-shadow-xs);
-}
 .wk-widget h4 {
   font-size: 12px;
   font-weight: 600;
@@ -599,25 +553,7 @@ function openEditor(article = null) {
   letter-spacing: 0.06em;
   margin: 0 0 12px;
 }
-.wk-widget--info { background: linear-gradient(135deg, rgba(212,162,76,.08) 0%, rgba(212,162,76,.02) 100%); }
-
-.wk-recent {
-  padding: 8px 0;
-  border-bottom: 1px solid var(--dk-divider);
-  cursor: pointer;
-  transition: background var(--dk-fast);
-}
-.wk-recent:last-child { border-bottom: none; }
-.wk-recent:hover { background: var(--dk-surface-hover); margin: 0 -16px; padding: 8px 16px; }
-.wk-recent-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--dk-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.wk-recent-info { font-size: 11px; color: var(--dk-text-muted); margin-top: 1px; }
+/* .wk-widget--info intentionally unstyled — uses dk-widget base */
 
 .wk-tag-cloud {
   display: flex;
@@ -800,5 +736,4 @@ function openEditor(article = null) {
 }
 
 /* Modal sizing */
-.dk-modal--lg { max-width: 720px; }
 </style>

@@ -48,7 +48,7 @@
       <NavItem href="#/" icon="home" label="Dashboard" :active="page === 'Home'" :collapsed="collapsed" />
       <template v-if="!isGast">
         <NavItem href="#/mitglieder" icon="users" label="Mitglieder" :active="page === 'Mitglieder' || page === 'MitgliedDetail'" :collapsed="collapsed" />
-        <NavItem href="#/gruppen" icon="layout-grid" label="Gruppen" :active="page === 'Gruppen' || page === 'GruppeDetail'" :collapsed="collapsed" />
+        <NavItem href="#/gruppen" icon="layout-grid" label="Gruppen" :active="currentHash === '#/gruppen' || currentHash.startsWith('#/gruppe/')" :collapsed="collapsed" />
         <NavItem href="#/adressbuch" icon="book-open" label="Adressbuch" :active="page === 'Adressbuch'" :collapsed="collapsed" />
       </template>
 
@@ -64,7 +64,7 @@
       <template v-if="isAdmin">
         <div class="dk-sb-section" style="margin-top:8px">Verwaltung</div>
         <NavItem href="#/registrierung" icon="clipboard-list" label="Registrierung" :active="page === 'Registrierung'" :collapsed="collapsed" :badge="pendingCount" />
-        <NavItem href="#/organigramm" icon="git-branch" label="Organigramm" :active="page === 'Organigramm'" :collapsed="collapsed" />
+        <NavItem href="#/organigramm" icon="git-branch" label="Organigramm" :active="currentHash === '#/organigramm'" :collapsed="collapsed" />
         <NavItem href="#/statistik" icon="bar-chart-2" label="Statistik" :active="page === 'Statistik'" :collapsed="collapsed" />
         <NavItem href="#/dsgvo" icon="shield" label="DSGVO" :active="page === 'Dsgvo'" :collapsed="collapsed" />
       </template>
@@ -137,7 +137,7 @@
 <script setup>
 import { ref, computed, h, resolveComponent } from 'vue'
 import { useSession } from '../composables/useSession.js'
-import { currentPageName } from '../router.js'
+import { currentPageName, currentHash } from '../router.js'
 
 const props = defineProps({
   collapsed: Boolean,
