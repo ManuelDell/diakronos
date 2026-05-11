@@ -1,4 +1,5 @@
 @import 'frappe-ui/style.css';
+@import './kronos.css';
 
 /* =====================================================================
    Diakronos Design System
@@ -121,13 +122,13 @@ body { -webkit-tap-highlight-color: transparent; margin: 0; }
    Sidebar
    ===================================================================== */
 .dk-sidebar {
+  width: var(--dk-sidebar-w);
   display: flex;
   flex-direction: column;
   background: var(--dk-sb-bg);
   color: var(--dk-sb-text);
   border-right: 1px solid var(--dk-sb-border);
   overflow: hidden;
-  transition: width var(--dk-med) var(--dk-ease);
 }
 
 .dk-sb-top {
@@ -144,7 +145,7 @@ body { -webkit-tap-highlight-color: transparent; margin: 0; }
   gap: 10px;
   flex: 1;
   min-width: 0;
-  padding: 4px;
+
   border-radius: 8px;
   transition: background var(--dk-fast);
   cursor: pointer;

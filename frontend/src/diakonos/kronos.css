@@ -1,0 +1,1418 @@
+/* ============================================================
+   kronos.css — Kronos Vue Integration
+   CSS-Variablen-Bridge: Kronos-Vars → dk-* Tokens
+   ============================================================ */
+
+/* Bridge: Alle Kronos-Variablen auf dk-* Token-System mappen */
+.kronos-page,
+.diakronos-modal,
+.diakronos-conflict-modal,
+.diakronos-help-overlay {
+  --text-color: var(--dk-text);
+  --text-primary: var(--dk-text);
+  --text-muted: var(--dk-text-muted);
+  --text-on-primary: #fff;
+  --bg-color: var(--dk-bg);
+  --bg-page: var(--dk-bg);
+  --bg-surface: var(--dk-surface);
+  --bg-surface-hover: var(--dk-surface-hover, rgba(0,0,0,.04));
+  --bg-surface-active: var(--dk-surface-2);
+  --bg-light: var(--dk-surface-2);
+  --border-color: var(--dk-border);
+  --border-default: var(--dk-border);
+  --primary: var(--dk-brand-500);
+  --danger: var(--dk-danger);
+  --overlay-dark: rgba(0,0,0,.5);
+  --shadow-md: 0 2px 8px rgba(0,0,0,.08);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,.14);
+  --border-radius-md: 12px;
+  --border-radius-sm: 8px;
+  --border-radius-tiny: 4px;
+  --gap-xl: 24px;
+  --gap-l: 16px;
+  --gap-m: 12px;
+  --gap-sm: 8px;
+  --gap-xs: 4px;
+  --text-xl: 18px;
+  --text-sm: 13px;
+  --text-xs: 11px;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-medium: 500;
+  --z-index-medium: 100;
+  --gray-50: var(--dk-surface-2);
+  --gray-100: var(--dk-surface-2);
+  --gray-200: var(--dk-border);
+  --gray-400: var(--dk-text-subtle);
+  --gray-500: var(--dk-text-muted);
+  --button-height: 36px;
+}
+
+/* ============================================================
+   KRONOS HEADER
+   ============================================================ */
+.kronos-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background-color: var(--dk-surface);
+  border-bottom: 1px solid var(--dk-border);
+  height: 60px;
+  flex-shrink: 0;
+  z-index: 100;
+  gap: 12px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  justify-content: center;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.current-date {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--dk-text);
+  min-width: 160px;
+  text-align: center;
+}
+
+.todaybutton {
+  padding: 6px 14px;
+  border: 1px solid var(--dk-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dk-text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.todaybutton:hover {
+  background: var(--dk-surface-hover, rgba(0,0,0,.04));
+  border-color: var(--dk-brand-500);
+}
+
+.nav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--dk-text-muted);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 150ms ease, background 150ms ease;
+}
+.nav-btn:hover {
+  color: var(--dk-text);
+  background: var(--dk-surface-2);
+}
+
+.view-dropdown {
+  padding: 6px 10px;
+  border: 1px solid var(--dk-border);
+  border-radius: 6px;
+  background: var(--dk-surface);
+  color: var(--dk-text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* Toggle View/Edit */
+.toggle-container {
+  display: flex;
+  border: 1px solid var(--dk-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.toggle-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 10px;
+  cursor: pointer;
+  color: var(--dk-text-muted);
+  display: flex;
+  align-items: center;
+  transition: all 150ms ease;
+}
+.toggle-btn.active {
+  background: var(--dk-brand-500);
+  color: #fff;
+}
+.toggle-btn:hover:not(.active) {
+  background: var(--dk-surface-2);
+  color: var(--dk-text);
+}
+
+/* Raumbelegung Button */
+.resource-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--dk-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dk-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.resource-toggle-btn:hover,
+.resource-toggle-btn.active {
+  background: var(--dk-brand-500);
+  color: #fff;
+  border-color: var(--dk-brand-500);
+}
+
+/* Hamburger */
+.hamburger {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+.hamburger .line {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: var(--dk-text-muted);
+  border-radius: 2px;
+  transition: all 150ms ease;
+}
+.hamburger:hover .line {
+  background: var(--dk-text);
+}
+
+/* Profile Avatar */
+.profile-menu-wrapper {
+  position: relative;
+}
+.profile-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--dk-brand-500);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.profile-dropdown {
+  position: fixed;
+  background: var(--dk-surface);
+  border: 1px solid var(--dk-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.14);
+  min-width: 180px;
+  z-index: 9999;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+.profile-dropdown.open {
+  display: flex;
+}
+.profile-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--dk-text);
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 150ms ease;
+}
+.profile-dropdown-item:hover {
+  background: var(--dk-surface-2);
+}
+.profile-dropdown-logout {
+  color: var(--dk-danger);
+  border-top: 1px solid var(--dk-border);
+}
+
+/* Mobile month display */
+.mobile-month-display {
+  display: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--dk-text);
+}
+
+/* ============================================================
+   KRONOS SIDEBAR
+   ============================================================ */
+.kronos-sidebar {
+  width: var(--dk-sidebar-w, 256px);
+  flex-shrink: 0;
+  background: var(--dk-sb-bg);
+  color: var(--dk-sb-text);
+  border-right: 1px solid var(--dk-sb-border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: hidden;
+  overflow-x: hidden;
+  height: 100%;
+}
+
+.dk-app.is-collapsed .kronos-sidebar {
+  width: var(--dk-sidebar-col);
+}
+.kronos-sidebar ::-webkit-scrollbar { width: 6px; }
+.kronos-sidebar ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 3px; }
+
+/* Back-Button ← Diakonos */
+/* Back-Button — mirrors .dk-sb-top / .dk-sb-brand structure */
+.kronos-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 10px;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--dk-sb-border);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  text-decoration: none;
+  min-height: var(--dk-topbar-h, 56px);
+  transition: background 150ms ease;
+  flex-shrink: 0;
+}
+.kronos-back-btn:hover {
+  background: var(--dk-sb-hover);
+}
+.kronos-back-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: var(--dk-brand-800);
+  border: 1px solid rgba(255,255,255,.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.kronos-back-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  min-width: 0;
+}
+.kronos-back-name {
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+.kronos-back-sub {
+  color: var(--dk-sb-text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-divider {
+  height: 1px;
+  background: var(--dk-sb-border);
+  margin: 0;
+}
+
+/* Sidebar Sections */
+.sidebar-calenderlist-section {
+  display: flex;
+  flex-direction: column;
+  padding: 0 16px 16px;
+  flex: 1;
+  overflow-y: auto;
+}
+.sidebar-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--dk-sb-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 12px 0 4px;
+  margin: 0;
+}
+.calendar-group {
+  margin-bottom: 12px;
+}
+.group-title {
+  font-size: 12px;
+  color: var(--dk-text-muted);
+  margin: 0 0 4px;
+  font-weight: 500;
+}
+.calendar-item {
+  --calendar-color: var(--dk-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.calendar-item:hover {
+  background: var(--dk-surface-2);
+}
+.calendar-item input[type=checkbox] {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--calendar-color);
+  border-radius: 4px;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 150ms ease;
+}
+.calendar-item input[type=checkbox]:checked {
+  background-color: var(--calendar-color);
+  border-color: var(--calendar-color);
+}
+.calendar-item input[type=checkbox]:checked::after {
+  content: ✔;
+  position: absolute;
+  inset: 0;
+  color: #fff;
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  font-weight: bold;
+}
+.calendar-item label {
+  font-size: 13px;
+  color: var(--dk-text);
+  cursor: pointer;
+  flex: 1;
+}
+.pencil-icon {
+  font-size: 15px;
+  color: rgba(255,255,255,0.75);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* Sidebar Buttons */
+.sidebar-help-btn,
+.sidebar-import-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 32px);
+  margin: 4px 16px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid var(--dk-border);
+  border-radius: 8px;
+  color: var(--dk-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 150ms ease;
+  white-space: nowrap;
+}
+.sidebar-help-btn:hover,
+.sidebar-import-btn:hover {
+  background: var(--dk-surface-2);
+  border-color: var(--dk-brand-500);
+  color: var(--dk-text);
+}
+
+/* ============================================================
+   MINI KALENDER
+   ============================================================ */
+.kronos-mini-calendar {
+  padding: 8px;
+}
+.mini-cal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 8px 4px;
+  color: var(--dk-text);
+}
+.mini-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+.mini-nav {
+  display: flex;
+  gap: 2px;
+}
+.mini-prev,
+.mini-next {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--dk-text-muted);
+  cursor: pointer;
+  padding: 0 6px;
+}
+.mini-prev:hover,
+.mini-next:hover {
+  color: var(--dk-text);
+}
+.mini-cal-grid {
+  display: grid;
+  grid-template-columns: 32px repeat(7, 1fr);
+  width: 100%;
+  font-size: 12px;
+  color: var(--dk-text);
+}
+.mini-cal-header-row {
+  display: contents;
+}
+.mini-week-header,
+.mini-day-header {
+  padding: 4px 0;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--dk-text-muted);
+}
+.mini-week-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--dk-text-muted);
+  background: var(--dk-surface-2);
+}
+.mini-cal-week-row {
+  display: contents;
+}
+.mini-cal-day {
+  padding: 4px 0;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 150ms ease;
+}
+.mini-cal-day:hover {
+  background: var(--dk-surface-2);
+}
+.mini-cal-day.other-month {
+  color: var(--dk-text-muted);
+  opacity: 0.5;
+}
+.mini-cal-day.today {
+  font-weight: 700;
+  color: var(--dk-brand-500);
+  outline: 2px solid var(--dk-brand-500);
+  outline-offset: -2px;
+  border-radius: 50%;
+}
+
+/* ============================================================
+   DIAKRONOS MODALS
+   ============================================================ */
+.diakronos-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  padding: 16px;
+}
+.diakronos-modal.show {
+  opacity: 1;
+}
+.diakronos-modal-dialog {
+  background: var(--dk-surface);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.14);
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  transform: translateY(-20px);
+  transition: transform 0.3s ease;
+}
+.modal-lg .diakronos-modal-dialog,
+.diakronos-modal-dialog.modal-lg {
+  max-width: 640px;
+}
+.diakronos-modal.show .diakronos-modal-dialog {
+  transform: translateY(0);
+}
+.diakronos-modal-content {
+  display: flex;
+  flex-direction: column;
+}
+.diakronos-color-bar {
+  height: 6px;
+  width: 100%;
+  background: var(--dk-brand-500);
+  border-radius: 12px 12px 0 0;
+  flex-shrink: 0;
+}
+.diakronos-modal-header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--dk-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--dk-text);
+}
+.diakronos-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--dk-text-muted);
+  font-size: 24px;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color 150ms ease;
+}
+.diakronos-close-btn:hover {
+  color: var(--dk-danger);
+}
+.diakronos-modal-body {
+  padding: 16px 20px;
+}
+.diakronos-modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--dk-border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Tabs */
+.diakronos-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--dk-border);
+  padding: 0 20px;
+}
+.tab-btn {
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--dk-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 150ms, border-color 150ms;
+}
+.tab-btn.active {
+  color: var(--dk-brand-500);
+  border-bottom-color: var(--dk-brand-500);
+}
+.tab-content {
+  display: none;
+}
+.tab-content.active {
+  display: block;
+}
+
+/* Form Groups in Modals */
+.form-group {
+  margin-bottom: 14px;
+}
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dk-text-muted);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.form-group input[type=text],
+.form-group input[type=email],
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--dk-border);
+  border-radius: 8px;
+  background: var(--dk-surface);
+  color: var(--dk-text);
+  font-size: 14px;
+  transition: border-color 150ms ease;
+  box-sizing: border-box;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--dk-brand-500);
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.checkbox-row {
+  margin-bottom: 10px;
+}
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--dk-text);
+  cursor: pointer;
+}
+.checkbox-label-muted {
+  color: var(--dk-text-muted);
+}
+.series-options {
+  background: var(--dk-surface-2);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.description-group {
+  margin-bottom: 14px;
+}
+.description-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dk-text-muted);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+.description-group textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--dk-border);
+  border-radius: 8px;
+  background: var(--dk-surface);
+  color: var(--dk-text);
+  font-size: 14px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.required {
+  color: var(--dk-danger);
+}
+.modal-error {
+  color: var(--dk-danger);
+  font-size: 12px;
+  padding: 0 20px;
+  min-height: 16px;
+  display: none;
+}
+.modal-error.visible {
+  display: block;
+}
+.footer-right {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.delete-confirm {
+  background: var(--dk-surface-2);
+}
+.delete-confirm-text {
+  font-size: 13px;
+  color: var(--dk-text);
+}
+
+/* Modal Buttons */
+.btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--dk-brand-500);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--dk-brand-600, color-mix(in oklch, var(--dk-brand-500) 85%, black));
+}
+.btn-secondary {
+  background: var(--dk-surface-2);
+  color: var(--dk-text);
+  border: 1px solid var(--dk-border);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--dk-border);
+}
+.btn-danger {
+  background: var(--dk-danger);
+  color: #fff;
+}
+.btn-danger:hover:not(:disabled) {
+  opacity: 0.88;
+}
+.btn-warning {
+  background: var(--dk-warning);
+  color: #fff;
+}
+.btn-warning:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+/* Series Dialog */
+.series-option-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.series-event-name {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--dk-text);
+  margin-bottom: 8px;
+}
+.series-prompt, .series-confirm-text {
+  font-size: 13px;
+  color: var(--dk-text-muted);
+  margin-bottom: 4px;
+}
+.drag-confirm-body {
+  padding: 16px 20px;
+}
+
+/* Conflict Modal */
+.conflict-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--dk-border);
+}
+.conflict-icon {
+  color: var(--dk-warning);
+  display: flex;
+}
+.conflict-modal-body {
+  padding: 16px 20px;
+}
+.conflict-message {
+  font-size: 13px;
+  color: var(--dk-text-muted);
+  margin-bottom: 10px;
+}
+.conflict-event-card {
+  background: var(--dk-surface-2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.conflict-event-card strong {
+  font-size: 14px;
+  color: var(--dk-text);
+}
+.conflict-event-time {
+  font-size: 12px;
+  color: var(--dk-text-muted);
+}
+.conflict-question {
+  font-size: 13px;
+  color: var(--dk-text);
+  font-weight: 500;
+}
+.conflict-modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--dk-border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Event View Modal */
+.event-time {
+  font-size: 14px;
+  color: var(--dk-text-muted);
+  margin-bottom: 12px;
+}
+.diakronos-dl {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 6px 12px;
+  font-size: 13px;
+}
+.diakronos-dl dt {
+  font-weight: 600;
+  color: var(--dk-text-muted);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding-top: 2px;
+}
+.diakronos-dl dd {
+  margin: 0;
+  color: var(--dk-text);
+}
+
+/* Day Events Modal */
+.diakronos-events-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.event-item {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--dk-surface-2);
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.event-item:hover {
+  background: var(--dk-border);
+}
+.event-item .event-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--dk-text);
+}
+.event-item .event-time {
+  font-size: 12px;
+  color: var(--dk-text-muted);
+  margin-top: 2px;
+}
+
+/* Help Overlay */
+.diakronos-help-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  padding: 16px;
+}
+.diakronos-help-overlay.visible {
+  opacity: 1;
+}
+.diakronos-help-box {
+  background: var(--dk-surface);
+  border-radius: 12px;
+  padding: 28px 32px 24px;
+  max-width: 520px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
+}
+.diakronos-help-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--dk-text-muted);
+  cursor: pointer;
+}
+.diakronos-help-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--dk-text);
+  margin: 0 0 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--dk-border);
+}
+.diakronos-help-credentials {
+  background: var(--dk-surface-2);
+  border: 1px solid var(--dk-border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+.diakronos-help-cred-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dk-text-muted);
+  text-transform: uppercase;
+}
+.diakronos-help-cred-value {
+  font-size: 13px;
+  font-family: monospace;
+  color: var(--dk-text);
+}
+.diakronos-help-section {
+  margin-bottom: 18px;
+}
+.diakronos-help-section h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dk-brand-500);
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+.diakronos-help-section ol {
+  margin: 0;
+  padding-left: 20px;
+}
+.diakronos-help-section li {
+  font-size: 14px;
+  color: var(--dk-text);
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+.diakronos-help-footer {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dk-border);
+  font-size: 11px;
+  color: var(--dk-text-muted);
+  text-align: center;
+}
+
+/* ============================================================
+   EVENTCALENDAR (.ec) OVERRIDES
+   ============================================================ */
+.ec {
+  height: 100%;
+  background-color: var(--dk-bg) !important;
+  font-family: inherit;
+}
+.ec * {
+  font-family: inherit;
+}
+.ec-month-view .ec-day-grid .ec-main { --ec-row-height: minmax(0, 1fr); }
+.ec-month-view .ec-day-grid .ec-events { overflow: hidden; }
+.ec-month-view .ec-main {
+  flex-grow: 1;
+  overflow: hidden;
+}
+.ec:not(.ec-resource) .ec-row-head {
+  width: 36px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--dk-text-muted);
+  padding: 4px 2px;
+}
+.ec:not(.ec-resource) .ec-main {
+  flex: 1;
+  min-height: 0;
+}
+.ec .ec-day-head {
+  text-align: center !important;
+}
+.ec .ec-day-head a,
+.ec .ec-day-head span {
+  margin: 0 auto !important;
+  padding: 4px 0 !important;
+  display: inline-block !important;
+  min-width: 24px;
+  text-align: center !important;
+  font-weight: 500;
+}
+.ec-day { overflow: hidden !important; }
+.ec-day-grid .ec-day { overflow: hidden !important; }
+.ec-event {
+  border-radius: 4px;
+  font-size: 12px;
+  overflow: hidden;
+}
+.ec-event-title {
+  font-weight: 500;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ec-event-time {
+  font-size: 11px;
+  opacity: 0.85;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.ec-event.ec-event-dot-style {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--dk-text);
+  padding: 0 2px;
+}
+.ec-dot-body {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  flex-wrap: nowrap;
+}
+.ec-dot {
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Resource Timeline */
+.ec.ec-resource .ec-sidebar {
+  min-width: 15%;
+  max-width: 250px;
+}
+.ec.ec-resource .ec-main {
+  grid-template-columns: max-content repeat(var(--ec-grid-cols, 7), 1fr) !important;
+  overflow: auto;
+
+/* EventCalendar — Resource Group Headers */
+.ec-res-group-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+.ec-res-normal-label {
+  display: block;
+  font-size: 0.85rem;
+}
+}
+
+/* Flatpickr integration */
+.flatpickr-calendar {
+  z-index: 10000 !important;
+}
+
+/* ============================================================
+   MOBILE
+   ============================================================ */
+@media (max-width: 768px) {
+  .kronos-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 500;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  .kronos-sidebar.open {
+    transform: translateX(0);
+  }
+  .resource-btn-label {
+    display: none;
+  }
+  .ec-event-time {
+    display: none !important;
+  }
+  .mobile-month-display {
+    display: inline;
+  }
+}
+
+
+/* === Kronos Sidebar — Diakonos style hierarchy === */
+
+/* Section labels: 11px uppercase muted — same as .dk-sb-section */
+.kronos-sidebar .sidebar-calenderlist-section {
+  display: flex;
+  flex-direction: column;
+  padding: 0 10px 10px;
+  flex: 1;
+  overflow-y: auto;
+}
+.kronos-sidebar .sidebar-title {
+  padding: 10px 4px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dk-sb-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+.kronos-sidebar .group-title {
+  padding: 8px 4px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dk-sb-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+/* Calendar items: 13px medium — same as .dk-nav-item */
+.kronos-sidebar .calendar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: var(--dk-sb-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.kronos-sidebar .calendar-item:hover {
+  background: var(--dk-sb-hover);
+  color: #fff;
+}
+.kronos-sidebar .calendar-item label {
+  color: var(--dk-sb-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  flex: 1;
+}
+.kronos-sidebar .pencil-icon {
+  font-size: 15px;
+  color: rgba(255,255,255,0.75);
+  flex-shrink: 0;
+  line-height: 1;
+}
+/* Footer buttons: same style as .dk-nav-item */
+.kronos-sidebar .sidebar-help-btn,
+.kronos-sidebar .sidebar-import-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dk-sb-text);
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--dk-sb-border);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 150ms ease;
+}
+.kronos-sidebar .sidebar-help-btn:hover,
+.kronos-sidebar .sidebar-import-btn:hover {
+  background: var(--dk-sb-hover);
+  color: #fff;
+}
+.kronos-sidebar .sidebar-help-icon,
+.kronos-sidebar .sidebar-import-icon {
+  color: var(--dk-sb-text-muted);
+  font-size: 13px;
+}
+/* Checkbox colors on dark bg */
+.kronos-sidebar .calendar-item input[type=checkbox] {
+  accent-color: var(--calendar-color, var(--dk-brand-500));
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+/* Mini-cal dark hierarchy */
+.kronos-sidebar .kronos-mini-calendar {
+  padding: 8px 10px 4px;
+  border-bottom: 1px solid var(--dk-sb-border);
+}
+.kronos-sidebar .mini-cal-header {
+  color: var(--dk-sb-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.kronos-sidebar .mini-cal-header button {
+  color: var(--dk-sb-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 150ms ease;
+}
+.kronos-sidebar .mini-cal-header button:hover {
+  background: var(--dk-sb-hover);
+  color: #fff;
+}
+.kronos-sidebar .mini-cal-header-row span {
+  color: var(--dk-sb-text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.kronos-sidebar .mini-cal-day {
+  color: var(--dk-sb-text);
+  font-size: 12px;
+}
+.kronos-sidebar .mini-cal-day:hover {
+  background: var(--dk-sb-hover);
+  color: #fff;
+}
+.kronos-sidebar .mini-cal-day.other-month {
+  color: var(--dk-sb-text-muted);
+  opacity: 0.4;
+}
+.kronos-sidebar .mini-cal-day.today {
+  background: var(--dk-brand-500);
+  color: #fff;
+  font-weight: 600;
+}
+.kronos-sidebar .mini-cal-week-num {
+  color: var(--dk-sb-text-muted);
+  font-size: 10px;
+}
+/* Transition */
+.sidebar-swap-enter-active,
+.sidebar-swap-leave-active {
+  transition: opacity 220ms ease;
+}
+.sidebar-swap-enter-from,
+.sidebar-swap-leave-to { opacity: 0; }
+.sidebar-swap-enter-to,
+.sidebar-swap-leave-from { opacity: 1; }
+
+.dk-content--kronos {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.kronos-page-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.kronos-calendar-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 2%;
+}
+
+/* ===== Shared Modal Styles (alle Kronos-Modals) ===== */
+.diakronos-modal {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1050;
+}
+.diakronos-modal-dialog {
+  background: var(--dk-surface, #fff);
+  border-radius: 8px; max-width: 560px; width: 90%;
+  max-height: 90vh; overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}
+.diakronos-modal-content {
+  display: flex; flex-direction: column; max-height: 90vh;
+}
+.diakronos-color-bar { height: 6px; width: 100%; }
+.diakronos-modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 20px; border-bottom: 1px solid var(--dk-border, #e5e7eb);
+}
+.diakronos-modal-header h5 { margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--dk-text); }
+.diakronos-modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+.diakronos-modal-footer {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 12px 20px; border-top: 1px solid var(--dk-border, #e5e7eb);
+}
+.diakronos-close-btn {
+  background: none; border: none; font-size: 1.5rem;
+  cursor: pointer; color: var(--dk-text-muted, #6b7280); line-height: 1;
+}
+/* Conflict dialog extras */
+.conflict-modal-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 20px; border-bottom: 1px solid var(--dk-border, #e5e7eb);
+}
+.conflict-modal-header h5 { margin: 0; flex: 1; font-size: 1rem; font-weight: 600; }
+.conflict-icon { color: var(--dk-warning, #d97706); }
+.conflict-modal-body { padding: 16px 20px; }
+.conflict-modal-footer {
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;
+  padding: 12px 20px; border-top: 1px solid var(--dk-border, #e5e7eb);
+}
+.conflict-event-card {
+  background: var(--dk-surface-2, #f3f4f6); border-radius: 6px;
+  padding: 10px 14px; margin: 8px 0; display: flex; flex-direction: column; gap: 4px;
+}
+.conflict-event-time { font-size: 0.85rem; color: var(--dk-text-muted, #6b7280); }
+.conflict-question { font-weight: 500; margin: 12px 0 0; }
+/* Series dialog */
+.series-option-btns { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.series-event-name { font-weight: 600; margin-bottom: 8px; }
+/* DayEvents */
+.day-events-list { display: flex; flex-direction: column; gap: 8px; }
+.day-event-item {
+  padding: 8px 12px; border-radius: 6px; cursor: pointer;
+  background: var(--dk-surface-2, #f9fafb);
+  transition: background 0.15s;
+}
+.day-event-item:hover { background: var(--dk-surface-hover, #f3f4f6); }
+.day-event-time { font-size: 0.8rem; color: var(--dk-text-muted); }
+.day-event-name { font-weight: 500; font-size: 0.9rem; }
+.day-event-calendar { font-size: 0.8rem; }
+/* EventView */
+.event-time { font-size: 0.9rem; color: var(--dk-text-muted); margin-bottom: 12px; }
+.diakronos-dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; }
+.diakronos-dl dt { font-weight: 500; color: var(--dk-text-muted); white-space: nowrap; }
+.diakronos-dl dd { margin: 0; }
+/* Shared button classes used in these modals */
+.btn { padding: 8px 14px; border-radius: 6px; font-size: 0.875rem; cursor: pointer; border: none; font-weight: 500; }
+.btn-primary { background: var(--dk-brand-500, #2563eb); color: #fff; }
+.btn-secondary { background: var(--dk-surface-2, #f3f4f6); color: var(--dk-text, #374151); }
+.btn-danger { background: var(--dk-danger, #dc2626); color: #fff; }
+.btn-warning { background: var(--dk-warning, #d97706); color: #fff; }

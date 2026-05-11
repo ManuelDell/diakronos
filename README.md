@@ -26,7 +26,7 @@ Kronos ist ein vollständiger Gemeinde-Kalender, der direkt im Browser läuft �
 
 **Was ihr bekommt:**
 - Monats-, Wochen- und Tagesansicht
-- **Raumbelegungsansicht** – alle Räume auf einen Blick, wer hat wann gebucht
+- **Ressourcenplan** – alle Räume auf einen Blick, wer hat wann gebucht
 - Mehrere Kalender mit eigenen Farben und Zugriffsrechten
 - Räume und Ressourcen verwalten – mit automatischer Doppelbuchungs-Erkennung
 - Wiederkehrende Termine (täglich, wöchentlich, monatlich, jährlich)
@@ -34,6 +34,8 @@ Kronos ist ein vollständiger Gemeinde-Kalender, der direkt im Browser läuft �
 - Moderations-Workflow: neue Termine werden als Vorschlag eingereicht und von Berechtigten freigegeben
 - Synchronisation mit Apple Kalender, Thunderbird, DAVx⁵ und Google Calendar
 - Funktioniert auch auf dem Handy
+
+> ✨ **Kronos ist jetzt vollständig in die Diakonos Vue-SPA integriert** – einheitliches Layout, gemeinsame Sidebar und durchgängige Navigation.
 
 → [Technische Dokumentation Kronos](docs/kronos.md)
 

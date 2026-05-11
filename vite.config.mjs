@@ -75,15 +75,30 @@ function lucideIcons() {
   }
 }
 
+
+function eventCalendarEsm() {
+  return {
+    name: 'event-calendar-esm',
+    transform(code, id) {
+      if (id.includes('@event-calendar/build') && id.endsWith('.js')) {
+        return { code: code + '\nexport default EventCalendar;\n', map: null }
+      }
+    }
+  }
+}
 export default defineConfig({
     base: '/assets/diakronos/frontend/',
-    plugins: [vue(), lucideIcons()],
+    plugins: [vue(), lucideIcons(), eventCalendarEsm()],
     build: {
         outDir: 'diakronos/public/frontend',
         emptyOutDir: true,
         manifest: true,
         cssCodeSplit: false,
         rollupOptions: {
+            onwarn(warning, warn) {
+              if (warning.code === "MISSING_EXPORT" && warning.exporter?.includes("@event-calendar")) return
+              warn(warning)
+            },
             input: {
                 diakonos: path.resolve(__dirname, 'frontend/src/diakonos/main.js'),
                 admin: path.resolve(__dirname, 'frontend/src/admin/main.js'),
@@ -113,7 +128,7 @@ export default defineConfig({
         extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.vue'],
     },
     optimizeDeps: {
-        include: ['vue', 'frappe-ui'],
+        include: ['vue', 'frappe-ui', '@event-calendar/build'],
         exclude: [],
     },
 })

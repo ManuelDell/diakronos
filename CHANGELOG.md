@@ -7,6 +7,28 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+### Kronos Vue 3 Integration
+
+#### Added
+- Kronos vollständig in Diakonos Vue 3 SPA integriert (einheitliches Layout, Sidebar, Navigation)
+- Ressourcenplan mit dynamischer Gruppierung nach Typ (Räume / Fahrzeuge / Gegenstände)
+- Typen werden aus Frappe DocType-Meta geladen (konfigurierbar)
+- Ressourcen mit Expand/Collapse pro Gruppe (EventCalendar children-API)
+
+#### Fixed
+- Sidebar-Breite springt nicht mehr beim Wechsel zwischen Seiten
+- Back-Button in KronosSidebar funktioniert wieder
+- Kalender-Events werden korrekt geladen
+- 2% Padding um EventCalendar
+- Modals zeigen Formularfelder korrekt an (tab-content display-Fix)
+- Checkboxen rendern korrekt (appearance: auto)
+- Löschen-Button im Edit-Modal
+- Ressource Drag-Drop in Timeline speichert korrekt
+
+#### Changed
+- Button "Raumbelegung" → "Ressourcenplan"
+- Sidebar-Kalender-Liste: flache Liste statt Gruppen, Stift-Icon immer sichtbar
+
 ### Diakonos – Registrierung Phase 2
 
 **Neu**
