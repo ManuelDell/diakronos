@@ -1,5 +1,6 @@
 import frappe
 from frappe.utils import getdate, nowdate
+from diakronos.diakonos.utils.frontend import get_frontend_assets
 
 allow_guest = True
 
@@ -7,6 +8,7 @@ allow_guest = True
 def get_context(context):
     context.no_cache = 1
     context.title = "Mitglied werden"
+    context.js_file, context.css_files = get_frontend_assets("registrierung")
 
     token = frappe.request.args.get("token", "")
     context.token = token

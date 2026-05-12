@@ -1,6 +1,5 @@
 import frappe
-import json
-import os
+from diakronos.diakonos.utils.frontend import get_frontend_assets
 
 
 def get_context(context):
@@ -38,31 +37,7 @@ def get_context(context):
     except Exception:
         pass
 
-    # ── 5. Vite Manifest – finde diakonos Assets ───────────────────────────────
-    manifest_path = frappe.get_app_path("diakronos", "public", "frontend", ".vite", "manifest.json")
-    manifest = {}
-    if os.path.exists(manifest_path):
-        with open(manifest_path) as f:
-            manifest = json.load(f)
-
-    # Finde den diakonos Entry Point
-    diakonos_entry = None
-    for key, value in manifest.items():
-        if value.get("isEntry") and "diakonos" in key:
-            diakonos_entry = value
-            break
-
-    css_files = []
-    js_file = None
-    if diakonos_entry:
-        js_file = diakonos_entry.get("file")
-        # Vite 5+ cssCodeSplit=false → globales style.css im Manifest
-        style_entry = manifest.get("style.css")
-        if style_entry:
-            css_files.append(style_entry.get("file"))
-        # Fallback: css direkt am Entry Point
-        if diakonos_entry.get("css"):
-            css_files.extend(diakonos_entry["css"])
+    js_file, css_files = get_frontend_assets("diakonos")
 
     context.title = "Diakonos"
     context.user_email = user_doc.get("email") or user

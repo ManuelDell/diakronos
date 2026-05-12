@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mitglied werden</title>
     <meta name="csrf-token" content="{{ frappe.session.csrf_token }}">
-    <link rel="stylesheet" href="/assets/diakronos/frontend/css/style-ChfS9jcs.css">
+    {%- for css in css_files %}
+    <link rel="stylesheet" href="/assets/diakronos/frontend/{{ css }}">
+    {%- endfor %}
   </head>
 <body>
     <div id="app"></div>
@@ -19,6 +21,6 @@
             dokumente:  {{ (dokumente or []) | tojson }},
         };
     </script>
-    <script type="module" src="/assets/diakronos/frontend/registrierung.js"></script>
+    <script type="module" src="/assets/diakronos/frontend/{{ js_file }}"></script>
 </body>
 </html>

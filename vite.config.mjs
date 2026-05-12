@@ -107,7 +107,7 @@ export default defineConfig({
                 organigramm: path.resolve(__dirname, 'frontend/src/organigramm/main.js'),
             },
             output: {
-                entryFileNames: '[name].js',
+                entryFileNames: '[name]-[hash].js',
                 chunkFileNames: 'chunks/[name]-[hash].js',
                 assetFileNames: (assetInfo) => {
                     const info = assetInfo.name.split('.')

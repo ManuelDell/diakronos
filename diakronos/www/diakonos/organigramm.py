@@ -1,8 +1,10 @@
 import frappe
+from diakronos.diakonos.utils.frontend import get_frontend_assets
 
 
 def get_context(context):
     context.no_cache = 1
+    context.js_file, context.css_files = get_frontend_assets("organigramm")
 
     if frappe.session.user in ("Guest", None):
         frappe.local.flags.redirect_location = "/login"
