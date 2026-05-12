@@ -41,7 +41,8 @@
     "empty_state_message": "Keine anstehenden Termine.",
     "required_permission": "Kronos Element,read",
     "enabled": 1,
-    "is_system": 1
+    "is_system": 1,
+    "api_method": "diakronos.diakonos.api.dashboard.get_upcoming_events"
   },
   {
     "doctype": "Dashboard Widget",
@@ -70,7 +71,8 @@
     "refresh_interval": 120,
     "empty_state_mode": "hide_card",
     "enabled": 1,
-    "is_system": 1
+    "is_system": 1,
+    "api_method": "diakronos.diakonos.api.dashboard.get_pinned_beitraege"
   },
   {
     "doctype": "Dashboard Widget",
@@ -85,7 +87,8 @@
     "empty_state_mode": "hide_card",
     "required_permission": "Wiki Artikel,read",
     "enabled": 1,
-    "is_system": 1
+    "is_system": 1,
+    "api_method": "diakronos.diakonos.api.dashboard.get_recent_articles"
   },
   {
     "doctype": "Dashboard Widget",
@@ -100,7 +103,8 @@
     "empty_state_mode": "show_message",
     "required_permission": "Kronos Element,read",
     "enabled": 1,
-    "is_system": 1
+    "is_system": 1,
+    "api_method": "diakronos.diakonos.api.dashboard.get_events_for_month"
   },
   {
     "doctype": "Dashboard Widget",
@@ -114,7 +118,8 @@
     "refresh_interval": 60,
     "empty_state_mode": "hide_card",
     "enabled": 1,
-    "is_system": 1
+    "is_system": 1,
+    "api_method": "diakronos.diakonos.api.dashboard.get_meine_buchungen_widget"
   },
   {
     "doctype": "Dashboard Widget",
