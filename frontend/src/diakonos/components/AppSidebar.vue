@@ -66,7 +66,6 @@
         <NavItem href="#/registrierung" icon="clipboard-list" label="Registrierung" :active="page === 'Registrierung'" :collapsed="collapsed" :badge="pendingCount" />
         <NavItem href="#/organigramm" icon="git-branch" label="Organigramm" :active="currentHash === '#/organigramm'" :collapsed="collapsed" />
         <NavItem href="#/statistik" icon="bar-chart-2" label="Statistik" :active="page === 'Statistik'" :collapsed="collapsed" />
-        <NavItem href="#/dsgvo" icon="shield" label="DSGVO" :active="page === 'Dsgvo'" :collapsed="collapsed" />
       </template>
     </nav>
 

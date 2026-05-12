@@ -34,12 +34,12 @@
   "postleitzahl",
   "wohnort",
   "column_break_hfeq",
-  "stra\u00dfe",
+  "straße",
   "nummer",
   "mitgliedstand",
   "mitgliedstand_section",
   "mitglied_seit",
-  "personenbezogene_daten_l\u00f6schen",
+  "personenbezogene_daten_löschen",
   "user",
   "column_break_mzyl",
   "auf_bemerkung_gesetzt",
@@ -49,6 +49,7 @@
   "datenschutz_section",
   "datenschutz_einwilligung",
   "datenschutz_datum",
+  "adressbuch_sichtbarkeit",
   "column_break_ds1",
   "notiz",
   "bereiche_tab",
@@ -141,9 +142,9 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "stra\u00dfe",
+   "fieldname": "straße",
    "fieldtype": "Data",
-   "label": "Stra\u00dfe"
+   "label": "Straße"
   },
   {
    "fieldname": "nummer",
@@ -167,9 +168,9 @@
    "placeholder": "frappe.utils.now_datetime()"
   },
   {
-   "fieldname": "personenbezogene_daten_l\u00f6schen",
+   "fieldname": "personenbezogene_daten_löschen",
    "fieldtype": "Button",
-   "label": "Personenbezogene Daten l\u00f6schen"
+   "label": "Personenbezogene Daten löschen"
   },
   {
    "fieldname": "user",
@@ -273,6 +274,18 @@
    "label": "Datum der Einwilligung",
    "depends_on": "eval:doc.datenschutz_einwilligung == 1",
    "read_only": 1
+  },
+  {
+   "fieldname": "adressbuch_sichtbarkeit",
+   "fieldtype": "JSON",
+   "label": "Adressbuch Sichtbarkeit",
+   "insert_after": "datenschutz_datum"
+  },
+  {
+   "fieldname": "adressbuch_sichtbarkeit",
+   "fieldtype": "JSON",
+   "label": "Adressbuch Sichtbarkeit",
+   "insert_after": "datenschutz_datum"
   },
   {
    "fieldname": "dsgvo_export",

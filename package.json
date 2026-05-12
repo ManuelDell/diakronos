@@ -18,6 +18,7 @@
     "lucide-static": "latest",
     "pinia": "^3.0.4",
     "vue": "^3.4.0",
+    "vue-advanced-cropper": "^2.8.9",
     "vue-draggable-plus": "^0.6.1",
     "vue-router": "^5.0.6"
   },

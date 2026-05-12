@@ -78,7 +78,7 @@ export default {
             loading.value = true
             error.value = null
             try {
-                const payload = await apiCall('diakronos.diakonos.api.mitglieder.get_mitglieder_liste', {
+                const payload = await apiCall('diakronos.diakonos.api.mitglieder.get_adressbuch', {
                     start: 0,
                     limit: 100,
                     suche: search.value || undefined,
