@@ -119,30 +119,31 @@ function onDayClick(day) {
 
 <style scoped>
 .kronos-mini-calendar { font-family: var(--font-family, sans-serif); }
-.mini-cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.mini-cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .mini-title { font-weight: 600; font-size: 13px; }
 .mini-nav { display: flex; gap: 2px; }
 .mini-nav button { background: none; border: none; cursor: pointer; font-size: 18px; padding: 0 4px; line-height: 1; color: var(--dk-text-muted, #666); }
 .mini-nav button:hover { color: var(--dk-text, #15182a); }
-.mini-cal-header-row, .mini-cal-week-row { display: grid; grid-template-columns: 20px repeat(7, 1fr); }
-.mini-cal-header-row { margin-bottom: 2px; }
-.mini-day-header { text-align: center; font-size: 10px; font-weight: 600; color: var(--dk-text-muted, #666); padding-bottom: 2px; }
+.mini-cal-grid { display: block; width: 100%; }
+.mini-cal-header-row, .mini-cal-week-row { display: grid; grid-template-columns: 18px repeat(7, 1fr); gap: 0 1px; min-width: 0; }
+.mini-cal-header-row { margin-bottom: 4px; }
+.mini-day-header { text-align: center; font-size: 10px; font-weight: 600; color: var(--dk-text-muted, #666); padding-bottom: 4px; min-width: 0; overflow: hidden; }
 .mini-week-header { }
-.mini-week-number { font-size: 9px; color: var(--dk-text-subtle, #999); display: flex; align-items: center; justify-content: center; }
+.mini-week-number { font-size: 9px; color: var(--dk-text-subtle, #999); display: flex; align-items: center; justify-content: center; min-width: 0; }
+.mini-cal-week-row { margin-bottom: 2px; align-items: center; }
 .mini-cal-day {
   position: relative;
-  text-align: center;
   font-size: 11px;
-  line-height: 22px;
   cursor: pointer;
   border-radius: 50%;
-  width: 22px;
-  height: 22px;
-  margin: 1px auto;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
+  min-width: 0;
+  width: 100%;
+  aspect-ratio: 1;
+  max-width: 26px;
+  margin: 0 auto;
 }
 .mini-cal-day:hover { background: var(--dk-bg-subtle, #f3f3ef); }
 .mini-cal-day.other-month { color: var(--dk-text-subtle, #bbb); }

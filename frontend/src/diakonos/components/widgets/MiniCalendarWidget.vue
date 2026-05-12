@@ -1,5 +1,5 @@
 <template>
-  <BaseWidgetCard label="Mini-Kalender" gridSize="small" :loading="false" :error="null" :isEmpty="false" :isEditing @refresh="loadEvents" @hide="$emit('hide')" @collapse-change="$emit('collapse-change', $event)">
+  <BaseWidgetCard label="Mini-Kalender" gridSize="medium" :loading="false" :error="null" :isEmpty="false" :isEditing @refresh="loadEvents" @hide="$emit('hide')" @collapse-change="$emit('collapse-change', $event)">
     <KronosMiniCalendar
       :currentMonth="currentMonth"
       :eventDays="eventDays"
