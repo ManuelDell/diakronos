@@ -1,9 +1,9 @@
 <template>
   <BaseWidgetCard label="Ankündigungen" gridSize="medium" :loading :error :isEmpty emptyMessage="Keine Ankündigungen." :isEditing @refresh="refresh" @hide="$emit('hide')" @collapse-change="$emit('collapse-change', $event)">
-    <ul class="widget-list">
-      <li v-for="item in (data || []).slice(0, 3)" :key="item.id">
-        <div class="announce-subject">{{ item.title }}</div>
-        <div class="announce-content">{{ (item.excerpt || '').slice(0, 100) }}</div>
+    <ul class="wl-list">
+      <li v-for="item in (data || []).slice(0, 3)" :key="item.id" class="wl-announce">
+        <div class="wl-announce-title">{{ item.title }}</div>
+        <div v-if="item.excerpt" class="wl-announce-excerpt">{{ item.excerpt }}</div>
       </li>
     </ul>
   </BaseWidgetCard>

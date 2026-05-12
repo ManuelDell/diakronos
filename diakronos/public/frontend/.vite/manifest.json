@@ -56,7 +56,7 @@
     ]
   },
   "frontend/src/diakonos/components/widgets/AnnouncementsWidget.vue": {
-    "file": "chunks/AnnouncementsWidget-NrhKAqT7.js",
+    "file": "chunks/AnnouncementsWidget-DXU0PGvF.js",
     "name": "AnnouncementsWidget",
     "src": "frontend/src/diakonos/components/widgets/AnnouncementsWidget.vue",
     "isDynamicEntry": true,
@@ -78,7 +78,7 @@
     ]
   },
   "frontend/src/diakonos/components/widgets/GreetingWidget.vue": {
-    "file": "chunks/GreetingWidget-BP-7l_cS.js",
+    "file": "chunks/GreetingWidget-BKzVBhS7.js",
     "name": "GreetingWidget",
     "src": "frontend/src/diakonos/components/widgets/GreetingWidget.vue",
     "isDynamicEntry": true,
@@ -168,7 +168,7 @@
     ]
   },
   "frontend/src/diakonos/components/widgets/QuickLinksWidget.vue": {
-    "file": "chunks/QuickLinksWidget-9nBTm1Ts.js",
+    "file": "chunks/QuickLinksWidget-D_nPPbkm.js",
     "name": "QuickLinksWidget",
     "src": "frontend/src/diakonos/components/widgets/QuickLinksWidget.vue",
     "isDynamicEntry": true,
@@ -183,7 +183,7 @@
     ]
   },
   "frontend/src/diakonos/components/widgets/UpcomingEventsWidget.vue": {
-    "file": "chunks/UpcomingEventsWidget-DiTBTiP4.js",
+    "file": "chunks/UpcomingEventsWidget-pwvCBim2.js",
     "name": "UpcomingEventsWidget",
     "src": "frontend/src/diakonos/components/widgets/UpcomingEventsWidget.vue",
     "isDynamicEntry": true,
@@ -194,7 +194,7 @@
     ]
   },
   "frontend/src/diakonos/components/widgets/WikiRecentWidget.vue": {
-    "file": "chunks/WikiRecentWidget-s9VHFsro.js",
+    "file": "chunks/WikiRecentWidget-Cdd0q0Nv.js",
     "name": "WikiRecentWidget",
     "src": "frontend/src/diakonos/components/widgets/WikiRecentWidget.vue",
     "isDynamicEntry": true,
@@ -205,7 +205,7 @@
     ]
   },
   "frontend/src/diakonos/main.js": {
-    "file": "diakonos-D_n1Wdst.js",
+    "file": "diakonos-CdNAV0dn.js",
     "name": "diakonos",
     "src": "frontend/src/diakonos/main.js",
     "isEntry": true,
@@ -237,7 +237,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Adressbuch.vue": {
-    "file": "chunks/Adressbuch-Cj0RLCd4.js",
+    "file": "chunks/Adressbuch-DkKxGZML.js",
     "name": "Adressbuch",
     "src": "frontend/src/diakonos/pages/Adressbuch.vue",
     "isDynamicEntry": true,
@@ -252,7 +252,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Beitraege.vue": {
-    "file": "chunks/Beitraege-BMbSMRJh.js",
+    "file": "chunks/Beitraege-DOCtTG-z.js",
     "name": "Beitraege",
     "src": "frontend/src/diakonos/pages/Beitraege.vue",
     "isDynamicEntry": true,
@@ -268,7 +268,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Dienstplan.vue": {
-    "file": "chunks/Dienstplan-DwsTnoeE.js",
+    "file": "chunks/Dienstplan-CaDbGBb7.js",
     "name": "Dienstplan",
     "src": "frontend/src/diakonos/pages/Dienstplan.vue",
     "isDynamicEntry": true,
@@ -283,7 +283,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Dsgvo.vue": {
-    "file": "chunks/Dsgvo-upCFIWPX.js",
+    "file": "chunks/Dsgvo-BVkqkMfw.js",
     "name": "Dsgvo",
     "src": "frontend/src/diakonos/pages/Dsgvo.vue",
     "isDynamicEntry": true,
@@ -299,7 +299,7 @@
     ]
   },
   "frontend/src/diakonos/pages/GruppeDetail.vue": {
-    "file": "chunks/GruppeDetail-DbE22DpR.js",
+    "file": "chunks/GruppeDetail-qXTxoOuU.js",
     "name": "GruppeDetail",
     "src": "frontend/src/diakonos/pages/GruppeDetail.vue",
     "isDynamicEntry": true,
@@ -315,7 +315,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Gruppen.vue": {
-    "file": "chunks/Gruppen-J9_Gy6qi.js",
+    "file": "chunks/Gruppen-DcSsX9J3.js",
     "name": "Gruppen",
     "src": "frontend/src/diakonos/pages/Gruppen.vue",
     "isDynamicEntry": true,
@@ -330,7 +330,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Home.vue": {
-    "file": "chunks/Home-BMvtRt2Z.js",
+    "file": "chunks/Home-BXfsTADu.js",
     "name": "Home",
     "src": "frontend/src/diakonos/pages/Home.vue",
     "isDynamicEntry": true,
@@ -360,7 +360,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Kalender.vue": {
-    "file": "chunks/Kalender-eIzU-3IU.js",
+    "file": "chunks/Kalender-Dl0sAANH.js",
     "name": "Kalender",
     "src": "frontend/src/diakonos/pages/Kalender.vue",
     "isDynamicEntry": true,
@@ -376,7 +376,7 @@
     ]
   },
   "frontend/src/diakonos/pages/MitgliedDetail.vue": {
-    "file": "chunks/MitgliedDetail-CdFr5H_a.js",
+    "file": "chunks/MitgliedDetail-myMzdV9z.js",
     "name": "MitgliedDetail",
     "src": "frontend/src/diakonos/pages/MitgliedDetail.vue",
     "isDynamicEntry": true,
@@ -392,7 +392,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Mitglieder.vue": {
-    "file": "chunks/Mitglieder-jB46UMUG.js",
+    "file": "chunks/Mitglieder-D76zjsL5.js",
     "name": "Mitglieder",
     "src": "frontend/src/diakonos/pages/Mitglieder.vue",
     "isDynamicEntry": true,
@@ -407,7 +407,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Organigramm.vue": {
-    "file": "chunks/Organigramm-D80gJZKw.js",
+    "file": "chunks/Organigramm-DyTAMKyO.js",
     "name": "Organigramm",
     "src": "frontend/src/diakonos/pages/Organigramm.vue",
     "isDynamicEntry": true,
@@ -433,7 +433,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Registrierung.vue": {
-    "file": "chunks/Registrierung-DmWFvSaj.js",
+    "file": "chunks/Registrierung-B1QYN8_x.js",
     "name": "Registrierung",
     "src": "frontend/src/diakonos/pages/Registrierung.vue",
     "isDynamicEntry": true,
@@ -448,7 +448,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Ressourcen.vue": {
-    "file": "chunks/Ressourcen-DxOJR2VU.js",
+    "file": "chunks/Ressourcen-Jnkq4FG4.js",
     "name": "Ressourcen",
     "src": "frontend/src/diakonos/pages/Ressourcen.vue",
     "isDynamicEntry": true,
@@ -464,7 +464,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Statistik.vue": {
-    "file": "chunks/Statistik-DGccYVR2.js",
+    "file": "chunks/Statistik-BoGDXWrp.js",
     "name": "Statistik",
     "src": "frontend/src/diakonos/pages/Statistik.vue",
     "isDynamicEntry": true,
@@ -479,7 +479,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Wiki.vue": {
-    "file": "chunks/Wiki-CTKBrOyg.js",
+    "file": "chunks/Wiki-B2e-RrY1.js",
     "name": "Wiki",
     "src": "frontend/src/diakonos/pages/Wiki.vue",
     "isDynamicEntry": true,
@@ -552,7 +552,7 @@
     "src": "node_modules/frappe-ui/src/fonts/Inter/Inter.var.woff2"
   },
   "style.css": {
-    "file": "css/style--R3uA9gL.css",
+    "file": "css/style-DvcGhTgz.css",
     "src": "style.css"
   }
 }

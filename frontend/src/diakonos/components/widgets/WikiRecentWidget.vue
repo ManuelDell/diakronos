@@ -1,9 +1,9 @@
 <template>
   <BaseWidgetCard label="Wiki-Einträge" gridSize="small" :loading :error :isEmpty emptyMessage="Keine Wiki-Einträge." :isEditing @refresh="refresh" @hide="$emit('hide')" @collapse-change="$emit('collapse-change', $event)">
-    <ul class="widget-list">
-      <li v-for="item in data" :key="item.route" style="display:flex;flex-direction:column;gap:2px">
-        <a :href="'#/wiki'" style="font-weight:500">{{ item.title }}</a>
-        <span class="meta">{{ formatDate(item.modified) }}</span>
+    <ul class="wl-list">
+      <li v-for="item in data" :key="item.route" class="wl-wiki">
+        <a :href="'#/wiki'" class="wl-wiki-title">{{ item.title }}</a>
+        <span class="wl-wiki-date">{{ formatDate(item.modified) }}</span>
       </li>
     </ul>
   </BaseWidgetCard>

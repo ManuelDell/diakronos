@@ -1,10 +1,12 @@
 <template>
   <BaseWidgetCard label="Anstehende Termine" gridSize="medium" :loading :error :isEmpty emptyMessage="Keine anstehenden Termine." :isEditing @refresh="refresh" @hide="$emit('hide')" @collapse-change="$emit('collapse-change', $event)">
-    <ul class="widget-list">
-      <li v-for="item in data" :key="item.id">
-        <div class="event-date">{{ formatDate(item.start) }}</div>
-        <div class="event-name">{{ item.title }}</div>
-        <div v-if="item.calendar" class="event-cal">{{ item.calendar }}</div>
+    <ul class="wl-list">
+      <li v-for="item in data" :key="item.id" class="wl-event">
+        <div class="wl-event-accent"></div>
+        <div class="wl-event-body">
+          <div class="wl-event-title">{{ item.title }}</div>
+          <div class="wl-event-date">{{ formatDate(item.start) }}</div>
+        </div>
       </li>
     </ul>
   </BaseWidgetCard>
