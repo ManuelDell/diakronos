@@ -1,0 +1,39 @@
+{
+  "doctype": "DocType",
+  "name": "Dashboard Widget",
+  "module": "Diakonos",
+  "autoname": "field:widget_id",
+  "is_submittable": 0,
+  "issingle": 0,
+  "track_changes": 0,
+  "fields": [
+    {"fieldname": "widget_id", "fieldtype": "Data", "label": "Widget ID", "reqd": 1, "unique": 1, "in_list_view": 1},
+    {"fieldname": "label", "fieldtype": "Data", "label": "Anzeigename", "reqd": 1, "in_list_view": 1},
+    {"fieldname": "description", "fieldtype": "Text", "label": "Beschreibung"},
+    {"fieldname": "col_b1", "fieldtype": "Column Break"},
+    {"fieldname": "widget_type", "fieldtype": "Select", "label": "Widget-Typ", "options": "info_card\naction_card\nstat_card\nlist_card\ncalendar_mini\nchart_card\ncustom_html", "default": "info_card"},
+    {"fieldname": "category", "fieldtype": "Select", "label": "Kategorie", "options": "info\naction\nadmin\npersonal", "default": "info", "in_list_view": 1},
+    {"fieldname": "icon", "fieldtype": "Data", "label": "Icon-Name"},
+    {"fieldname": "sec_permissions", "fieldtype": "Section Break", "label": "Berechtigungen"},
+    {"fieldname": "required_role", "fieldtype": "Link", "options": "Role", "label": "Erforderliche Rolle"},
+    {"fieldname": "required_permission", "fieldtype": "Data", "label": "Erforderliche Berechtigung", "description": "Format: DocType,perm (z.B. Mitglied,read)"},
+    {"fieldname": "sec_data", "fieldtype": "Section Break", "label": "Daten"},
+    {"fieldname": "api_method", "fieldtype": "Data", "label": "API-Methode"},
+    {"fieldname": "api_args", "fieldtype": "JSON", "label": "Standard-API-Argumente"},
+    {"fieldname": "refresh_interval", "fieldtype": "Int", "label": "Aktualisierung (Sek)", "default": 60},
+    {"fieldname": "sec_display", "fieldtype": "Section Break", "label": "Darstellung"},
+    {"fieldname": "grid_size", "fieldtype": "Select", "label": "Kartengröße", "options": "small\nmedium\nlarge\nfull", "default": "medium"},
+    {"fieldname": "default_position", "fieldtype": "Int", "label": "Standard-Position", "default": 0},
+    {"fieldname": "col_b2", "fieldtype": "Column Break"},
+    {"fieldname": "default_visible", "fieldtype": "Check", "label": "Standardmäßig sichtbar", "default": 1},
+    {"fieldname": "enabled", "fieldtype": "Check", "label": "Aktiv", "default": 1},
+    {"fieldname": "is_system", "fieldtype": "Check", "label": "System-Widget (nicht löschbar)", "default": 0},
+    {"fieldname": "sec_empty", "fieldtype": "Section Break", "label": "Leerer Zustand"},
+    {"fieldname": "empty_state_mode", "fieldtype": "Select", "label": "Verhalten wenn leer", "options": "show_message\nhide_card\nshow_collapsed", "default": "show_message"},
+    {"fieldname": "empty_state_message", "fieldtype": "Data", "label": "Nachricht wenn leer", "default": "Alles erledigt"}
+  ],
+  "permissions": [
+    {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+    {"role": "Mitgliederadministrator", "read": 1, "write": 1, "create": 0, "delete": 0}
+  ]
+}

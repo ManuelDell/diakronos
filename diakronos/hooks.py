@@ -31,6 +31,7 @@ fixtures = [
     "Custom Field",
     "Client Script",
     "Dashboard",
+    "Dashboard Widget",
 ]
 # Doc-Events (Cache-Invalidierung bleibt erhalten – sehr gut!)
 doc_events = {

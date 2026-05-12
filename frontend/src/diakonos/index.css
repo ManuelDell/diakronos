@@ -1014,3 +1014,212 @@ select.dk-form-select { appearance: auto; }
 .diakonos-toast--error   { background: #dc2626; }
 .diakonos-toast--info    { background: #2563eb; }
 .diakonos-toast--warning { background: #d97706; }
+/* ============================================================
+   Widget Grid & Cards — Diakonos Modulares Dashboard
+   ============================================================ */
+
+.dk-widget-grid-wrapper {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+  padding: 0 0 80px;
+}
+
+/* Größen */
+.dk-widget-small  { grid-column: span 1; }
+.dk-widget-medium { grid-column: span 1; }
+.dk-widget-large  { grid-column: span 2; }
+.dk-widget-full   { grid-column: 1 / -1; }
+
+@media (max-width: 720px) {
+  .dk-widget-large,
+  .dk-widget-full { grid-column: 1 / -1; }
+}
+
+/* Base Card */
+.dk-widget-card {
+  background: var(--dk-surface);
+  border: 1px solid var(--dk-border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+}
+.dk-widget-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+.dk-widget-editing {
+  outline: 2px dashed var(--dk-brand-500);
+  outline-offset: 2px;
+}
+
+/* Header */
+.dk-widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--dk-border);
+}
+.dk-widget-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dk-widget-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dk-text-muted, rgba(0,0,0,0.5));
+  margin: 0;
+}
+.dk-widget-badge {
+  background: var(--dk-brand-500);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  min-width: 18px;
+  text-align: center;
+}
+.dk-widget-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.dk-widget-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--dk-text-muted, rgba(0,0,0,0.4));
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: background 0.1s, color 0.1s;
+}
+.dk-widget-action-btn:hover { background: var(--dk-surface-2); color: var(--dk-text); }
+.dk-widget-hide-btn:hover   { color: var(--dk-danger, #e74c3c); }
+
+/* Body */
+.dk-widget-body {
+  padding: 14px 16px;
+}
+
+/* Skeleton */
+.dk-widget-skeleton-card { min-height: 120px; }
+.dk-skeleton-line {
+  height: 12px;
+  background: var(--dk-border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  animation: dk-pulse 1.5s ease-in-out infinite;
+}
+@keyframes dk-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* Empty / Error */
+.dk-widget-empty,
+.dk-widget-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 0;
+  color: var(--dk-text-muted, rgba(0,0,0,0.4));
+  font-size: 0.85rem;
+  text-align: center;
+}
+.dk-widget-error { color: var(--dk-danger, #e74c3c); }
+
+/* Edit bar */
+.dk-widget-edit-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--dk-brand-500);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 10px;
+  margin-bottom: 18px;
+}
+.dk-widget-edit-label { font-size: 0.9rem; font-weight: 600; }
+
+/* FAB */
+.dk-widget-edit-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--dk-brand-500);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  transition: transform 0.15s, box-shadow 0.15s;
+  z-index: 100;
+}
+.dk-widget-edit-fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.24);
+}
+
+/* Hidden widgets section */
+.dk-widget-hidden-section { margin-top: 32px; }
+.dk-widget-hidden-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dk-text-muted, rgba(0,0,0,0.4));
+  margin-bottom: 10px;
+}
+.dk-widget-hidden-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.dk-widget-hidden-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px dashed var(--dk-border);
+  border-radius: 20px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: var(--dk-text-muted, rgba(0,0,0,0.5));
+  transition: border-color 0.1s, color 0.1s;
+}
+.dk-widget-hidden-item:hover { border-color: var(--dk-brand-500); color: var(--dk-brand-500); }
+
+/* Greeting widget */
+.dk-widget-greeting { padding: 0 !important; border: none !important; background: transparent !important; }
+.dk-widget-greeting-inner { padding: 6px 0 12px; }
+
+/* Mini-calendar grid */
+.dk-mini-cal { width: 100%; }
+.dk-mini-cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.8rem; font-weight: 600; }
+.dk-mini-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.dk-mini-cal-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.dk-mini-cal-day:hover { background: var(--dk-surface-2); }
+.dk-mini-cal-day.today { background: var(--dk-brand-500); color: #fff; font-weight: 700; }
+.dk-mini-cal-day.other-month { color: var(--dk-text-muted, rgba(0,0,0,0.3)); }
+.dk-mini-cal-weekday { font-size: 0.68rem; font-weight: 600; text-align: center; color: var(--dk-text-muted, rgba(0,0,0,0.4)); padding-bottom: 4px; }
+
+/* Drag handle cursor */
+.dk-drag-handle { cursor: grab; }
+.dk-drag-handle:active { cursor: grabbing; }

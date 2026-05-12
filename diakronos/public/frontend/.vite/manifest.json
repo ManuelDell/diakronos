@@ -1,10 +1,17 @@
 {
-  "_FormControl.vue_vue_type_script_setup_true_lang-C0EnYSGe.js": {
-    "file": "chunks/FormControl.vue_vue_type_script_setup_true_lang-C0EnYSGe.js",
+  "_BaseWidgetCard-XNAChiux.js": {
+    "file": "chunks/BaseWidgetCard-XNAChiux.js",
+    "name": "BaseWidgetCard",
+    "imports": [
+      "_plugin-CFqY2Gtn.js"
+    ]
+  },
+  "_FormControl.vue_vue_type_script_setup_true_lang-BzKEMeom.js": {
+    "file": "chunks/FormControl.vue_vue_type_script_setup_true_lang-BzKEMeom.js",
     "name": "FormControl.vue_vue_type_script_setup_true_lang",
     "imports": [
-      "_plugin-B4ztsCFF.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js",
+      "_plugin-CFqY2Gtn.js",
+      "__plugin-vue_export-helper-CVq6knyy.js",
       "__commonjsHelpers-Cpj98o6Y.js"
     ]
   },
@@ -12,24 +19,31 @@
     "file": "chunks/_commonjsHelpers-Cpj98o6Y.js",
     "name": "_commonjsHelpers"
   },
-  "__plugin-vue_export-helper-44Ut5cLW.js": {
-    "file": "chunks/_plugin-vue_export-helper-44Ut5cLW.js",
+  "__plugin-vue_export-helper-CVq6knyy.js": {
+    "file": "chunks/_plugin-vue_export-helper-CVq6knyy.js",
     "name": "_plugin-vue_export-helper",
     "imports": [
-      "_plugin-B4ztsCFF.js"
+      "_plugin-CFqY2Gtn.js"
     ]
   },
   "_d3-org-chart-CeVDfFxl.js": {
     "file": "chunks/d3-org-chart-CeVDfFxl.js",
     "name": "d3-org-chart"
   },
-  "_plugin-B4ztsCFF.js": {
-    "file": "chunks/plugin-B4ztsCFF.js",
+  "_plugin-CFqY2Gtn.js": {
+    "file": "chunks/plugin-CFqY2Gtn.js",
     "name": "plugin"
   },
   "_useToast-CZcxHWEm.js": {
     "file": "chunks/useToast-CZcxHWEm.js",
     "name": "useToast"
+  },
+  "_useWidgetData-DOVtJVGq.js": {
+    "file": "chunks/useWidgetData-DOVtJVGq.js",
+    "name": "useWidgetData",
+    "imports": [
+      "_plugin-CFqY2Gtn.js"
+    ]
   },
   "frontend/src/admin/main.js": {
     "file": "admin.js",
@@ -41,14 +55,163 @@
       "assets/Inter-Italic.var-BGHziHgI.woff2"
     ]
   },
+  "frontend/src/diakonos/components/widgets/AnnouncementsWidget.vue": {
+    "file": "chunks/AnnouncementsWidget-BHZh5Uh9.js",
+    "name": "AnnouncementsWidget",
+    "src": "frontend/src/diakonos/components/widgets/AnnouncementsWidget.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BaseWidgetCard-XNAChiux.js",
+      "_useWidgetData-DOVtJVGq.js",
+      "_plugin-CFqY2Gtn.js"
+    ]
+  },
+  "frontend/src/diakonos/components/widgets/DsgvoComplianceWidget.vue": {
+    "file": "chunks/DsgvoComplianceWidget-ChuW4Vqr.js",
+    "name": "DsgvoComplianceWidget",
+    "src": "frontend/src/diakonos/components/widgets/DsgvoComplianceWidget.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BaseWidgetCard-XNAChiux.js",
+      "_useWidgetData-DOVtJVGq.js",
+      "_plugin-CFqY2Gtn.js"
+    ]
+  },
+  "frontend/src/diakonos/components/widgets/GreetingWidget.vue": {
+    "file": "chunks/GreetingWidget-BJIA_EzL.js",
+    "name": "GreetingWidget",
+    "src": "frontend/src/diakonos/components/widgets/GreetingWidget.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "frontend/src/diakonos/main.js",
+      "_plugin-CFqY2Gtn.js",
+      "__plugin-vue_export-helper-CVq6knyy.js"
+    ],
+    "assets": [
+      "assets/Inter.var-C9xDBOS3.woff2",
+      "assets/Inter-Italic.var-BGHziHgI.woff2"
+    ]
+  },
+  "frontend/src/diakonos/components/widgets/ManageRegistrationsWidget.vue": {
+    "file": "chunks/ManageRegistrationsWidget-CRMIBFzq.js",
+    "name": "ManageRegistrationsWidget",
+    "src": "frontend/src/diakonos/components/widgets/ManageRegistrationsWidget.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BaseWidgetCard-XNAChiux.js",
+      "_useWidgetData-DOVtJVGq.js",
+      "_plugin-CFqY2Gtn.js"
+    ]
+  },
+  "frontend/src/diakonos/components/widgets/MemberStatsWidget.vue": {
+    "file": "chunks/MemberStatsWidget-B-FjXIAi.js",
+    "name": "MemberStatsWidget",
+    "src": "frontend/src/diakonos/components/widgets/MemberStatsWidget.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BaseWidgetCard-XNAChiux.js",
+      "_useWidgetData-DOVtJVGq.js",
+      "_plugin-CFqY2Gtn.js"
+    ]
+  },
+  "frontend/src/diakonos/components/widgets/MiniCalendarWidget.vue": {
+    "file": "chunks/MiniCalendarWidget-c114Oeex.js",
+    "name": "MiniCalendarWidget",
+    "src": "frontend/src/diakonos/components/widgets/MiniCalendarWidget.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BaseWidgetCard-XNAChiux.js",
+      "_plugin-CFqY2Gtn.js"
+    ]
+  },
+  "frontend/src/diakonos/components/widgets/MyBookingsWidget.vue": {
+    "file": "chunks/MyBookingsWidget-ChkJf48U.js",
+    "name": "MyBookingsWidget",
+    "src": "frontend/src/diakonos/components/widgets/MyBookingsWidget.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BaseWidgetCard-XNAChiux.js",
+      "_useWidgetData-DOVtJVGq.js",
+      "_plugin-CFqY2Gtn.js"
+    ]
+  },
+  "frontend/src/diakonos/components/widgets/MyServicesWidget.vue": {
+    "file": "chunks/MyServicesWidget-BRh_UnUh.js",
+    "name": "MyServicesWidget",
+    "src": "frontend/src/diakonos/components/widgets/MyServicesWidget.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BaseWidgetCard-XNAChiux.js",
+      "_plugin-CFqY2Gtn.js"
+    ]
+  },
+  "frontend/src/diakonos/components/widgets/OpenSignupsWidget.vue": {
+    "file": "chunks/OpenSignupsWidget-B0T5mfKH.js",
+    "name": "OpenSignupsWidget",
+    "src": "frontend/src/diakonos/components/widgets/OpenSignupsWidget.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BaseWidgetCard-XNAChiux.js",
+      "_useWidgetData-DOVtJVGq.js",
+      "_plugin-CFqY2Gtn.js"
+    ]
+  },
+  "frontend/src/diakonos/components/widgets/PendingRegistrationsWidget.vue": {
+    "file": "chunks/PendingRegistrationsWidget-BfTuWluE.js",
+    "name": "PendingRegistrationsWidget",
+    "src": "frontend/src/diakonos/components/widgets/PendingRegistrationsWidget.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BaseWidgetCard-XNAChiux.js",
+      "_useWidgetData-DOVtJVGq.js",
+      "_plugin-CFqY2Gtn.js"
+    ]
+  },
+  "frontend/src/diakonos/components/widgets/QuickLinksWidget.vue": {
+    "file": "chunks/QuickLinksWidget-Cl2ZWMcO.js",
+    "name": "QuickLinksWidget",
+    "src": "frontend/src/diakonos/components/widgets/QuickLinksWidget.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "frontend/src/diakonos/main.js",
+      "_plugin-CFqY2Gtn.js",
+      "__plugin-vue_export-helper-CVq6knyy.js"
+    ],
+    "assets": [
+      "assets/Inter.var-C9xDBOS3.woff2",
+      "assets/Inter-Italic.var-BGHziHgI.woff2"
+    ]
+  },
+  "frontend/src/diakonos/components/widgets/UpcomingEventsWidget.vue": {
+    "file": "chunks/UpcomingEventsWidget-BGo9dfbh.js",
+    "name": "UpcomingEventsWidget",
+    "src": "frontend/src/diakonos/components/widgets/UpcomingEventsWidget.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BaseWidgetCard-XNAChiux.js",
+      "_useWidgetData-DOVtJVGq.js",
+      "_plugin-CFqY2Gtn.js"
+    ]
+  },
+  "frontend/src/diakonos/components/widgets/WikiRecentWidget.vue": {
+    "file": "chunks/WikiRecentWidget-BtOYAOvu.js",
+    "name": "WikiRecentWidget",
+    "src": "frontend/src/diakonos/components/widgets/WikiRecentWidget.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BaseWidgetCard-XNAChiux.js",
+      "_useWidgetData-DOVtJVGq.js",
+      "_plugin-CFqY2Gtn.js"
+    ]
+  },
   "frontend/src/diakonos/main.js": {
     "file": "diakonos.js",
     "name": "diakonos",
     "src": "frontend/src/diakonos/main.js",
     "isEntry": true,
     "imports": [
-      "_plugin-B4ztsCFF.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js"
+      "_plugin-CFqY2Gtn.js",
+      "__plugin-vue_export-helper-CVq6knyy.js"
     ],
     "dynamicImports": [
       "frontend/src/diakonos/pages/Home.vue",
@@ -74,14 +237,14 @@
     ]
   },
   "frontend/src/diakonos/pages/Adressbuch.vue": {
-    "file": "chunks/Adressbuch-CROlcW0P.js",
+    "file": "chunks/Adressbuch-B68-UAoz.js",
     "name": "Adressbuch",
     "src": "frontend/src/diakonos/pages/Adressbuch.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_plugin-B4ztsCFF.js",
+      "_plugin-CFqY2Gtn.js",
       "frontend/src/diakonos/main.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js"
+      "__plugin-vue_export-helper-CVq6knyy.js"
     ],
     "assets": [
       "assets/Inter.var-C9xDBOS3.woff2",
@@ -89,15 +252,15 @@
     ]
   },
   "frontend/src/diakonos/pages/Beitraege.vue": {
-    "file": "chunks/Beitraege-BNP_8x_3.js",
+    "file": "chunks/Beitraege-DLJ6SdOS.js",
     "name": "Beitraege",
     "src": "frontend/src/diakonos/pages/Beitraege.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_plugin-B4ztsCFF.js",
+      "_plugin-CFqY2Gtn.js",
       "frontend/src/diakonos/main.js",
       "_useToast-CZcxHWEm.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js"
+      "__plugin-vue_export-helper-CVq6knyy.js"
     ],
     "assets": [
       "assets/Inter.var-C9xDBOS3.woff2",
@@ -105,14 +268,14 @@
     ]
   },
   "frontend/src/diakonos/pages/Dienstplan.vue": {
-    "file": "chunks/Dienstplan-DEu7p5-D.js",
+    "file": "chunks/Dienstplan-CZZSYGVW.js",
     "name": "Dienstplan",
     "src": "frontend/src/diakonos/pages/Dienstplan.vue",
     "isDynamicEntry": true,
     "imports": [
       "frontend/src/diakonos/main.js",
-      "_plugin-B4ztsCFF.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js"
+      "_plugin-CFqY2Gtn.js",
+      "__plugin-vue_export-helper-CVq6knyy.js"
     ],
     "assets": [
       "assets/Inter.var-C9xDBOS3.woff2",
@@ -120,15 +283,15 @@
     ]
   },
   "frontend/src/diakonos/pages/Dsgvo.vue": {
-    "file": "chunks/Dsgvo-6ATqAtum.js",
+    "file": "chunks/Dsgvo-xaI7pNWV.js",
     "name": "Dsgvo",
     "src": "frontend/src/diakonos/pages/Dsgvo.vue",
     "isDynamicEntry": true,
     "imports": [
       "frontend/src/diakonos/main.js",
       "_useToast-CZcxHWEm.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js",
-      "_plugin-B4ztsCFF.js"
+      "__plugin-vue_export-helper-CVq6knyy.js",
+      "_plugin-CFqY2Gtn.js"
     ],
     "assets": [
       "assets/Inter.var-C9xDBOS3.woff2",
@@ -136,15 +299,15 @@
     ]
   },
   "frontend/src/diakonos/pages/GruppeDetail.vue": {
-    "file": "chunks/GruppeDetail-BWQ9hrDn.js",
+    "file": "chunks/GruppeDetail-CMEI1WRh.js",
     "name": "GruppeDetail",
     "src": "frontend/src/diakonos/pages/GruppeDetail.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_plugin-B4ztsCFF.js",
+      "_plugin-CFqY2Gtn.js",
       "frontend/src/diakonos/main.js",
       "_useToast-CZcxHWEm.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js"
+      "__plugin-vue_export-helper-CVq6knyy.js"
     ],
     "assets": [
       "assets/Inter.var-C9xDBOS3.woff2",
@@ -152,14 +315,14 @@
     ]
   },
   "frontend/src/diakonos/pages/Gruppen.vue": {
-    "file": "chunks/Gruppen-D9bkxBEk.js",
+    "file": "chunks/Gruppen-BgJgBKD6.js",
     "name": "Gruppen",
     "src": "frontend/src/diakonos/pages/Gruppen.vue",
     "isDynamicEntry": true,
     "imports": [
       "frontend/src/diakonos/main.js",
-      "_plugin-B4ztsCFF.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js"
+      "_plugin-CFqY2Gtn.js",
+      "__plugin-vue_export-helper-CVq6knyy.js"
     ],
     "assets": [
       "assets/Inter.var-C9xDBOS3.woff2",
@@ -167,15 +330,29 @@
     ]
   },
   "frontend/src/diakonos/pages/Home.vue": {
-    "file": "chunks/Home-Ox8vrUaC.js",
+    "file": "chunks/Home-Box8L5sh.js",
     "name": "Home",
     "src": "frontend/src/diakonos/pages/Home.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_plugin-B4ztsCFF.js",
+      "_plugin-CFqY2Gtn.js",
       "frontend/src/diakonos/main.js",
-      "_useToast-CZcxHWEm.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js"
+      "__plugin-vue_export-helper-CVq6knyy.js"
+    ],
+    "dynamicImports": [
+      "frontend/src/diakonos/components/widgets/GreetingWidget.vue",
+      "frontend/src/diakonos/components/widgets/QuickLinksWidget.vue",
+      "frontend/src/diakonos/components/widgets/UpcomingEventsWidget.vue",
+      "frontend/src/diakonos/components/widgets/MyServicesWidget.vue",
+      "frontend/src/diakonos/components/widgets/AnnouncementsWidget.vue",
+      "frontend/src/diakonos/components/widgets/WikiRecentWidget.vue",
+      "frontend/src/diakonos/components/widgets/MiniCalendarWidget.vue",
+      "frontend/src/diakonos/components/widgets/MyBookingsWidget.vue",
+      "frontend/src/diakonos/components/widgets/PendingRegistrationsWidget.vue",
+      "frontend/src/diakonos/components/widgets/ManageRegistrationsWidget.vue",
+      "frontend/src/diakonos/components/widgets/DsgvoComplianceWidget.vue",
+      "frontend/src/diakonos/components/widgets/MemberStatsWidget.vue",
+      "frontend/src/diakonos/components/widgets/OpenSignupsWidget.vue"
     ],
     "assets": [
       "assets/Inter.var-C9xDBOS3.woff2",
@@ -183,14 +360,14 @@
     ]
   },
   "frontend/src/diakonos/pages/Kalender.vue": {
-    "file": "chunks/Kalender-DC2nIRDU.js",
+    "file": "chunks/Kalender-4VjTgPRw.js",
     "name": "Kalender",
     "src": "frontend/src/diakonos/pages/Kalender.vue",
     "isDynamicEntry": true,
     "imports": [
       "frontend/src/diakonos/main.js",
-      "_plugin-B4ztsCFF.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js",
+      "_plugin-CFqY2Gtn.js",
+      "__plugin-vue_export-helper-CVq6knyy.js",
       "__commonjsHelpers-Cpj98o6Y.js"
     ],
     "assets": [
@@ -199,15 +376,15 @@
     ]
   },
   "frontend/src/diakonos/pages/MitgliedDetail.vue": {
-    "file": "chunks/MitgliedDetail-CbL5kPPB.js",
+    "file": "chunks/MitgliedDetail-B9KzZY5F.js",
     "name": "MitgliedDetail",
     "src": "frontend/src/diakonos/pages/MitgliedDetail.vue",
     "isDynamicEntry": true,
     "imports": [
       "frontend/src/diakonos/main.js",
       "_useToast-CZcxHWEm.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js",
-      "_plugin-B4ztsCFF.js"
+      "__plugin-vue_export-helper-CVq6knyy.js",
+      "_plugin-CFqY2Gtn.js"
     ],
     "assets": [
       "assets/Inter.var-C9xDBOS3.woff2",
@@ -215,14 +392,14 @@
     ]
   },
   "frontend/src/diakonos/pages/Mitglieder.vue": {
-    "file": "chunks/Mitglieder-BCP57L68.js",
+    "file": "chunks/Mitglieder-BhIhFE3Z.js",
     "name": "Mitglieder",
     "src": "frontend/src/diakonos/pages/Mitglieder.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_plugin-B4ztsCFF.js",
+      "_plugin-CFqY2Gtn.js",
       "frontend/src/diakonos/main.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js"
+      "__plugin-vue_export-helper-CVq6knyy.js"
     ],
     "assets": [
       "assets/Inter.var-C9xDBOS3.woff2",
@@ -230,15 +407,15 @@
     ]
   },
   "frontend/src/diakonos/pages/Organigramm.vue": {
-    "file": "chunks/Organigramm-CylFj_6z.js",
+    "file": "chunks/Organigramm-CgwrE4jM.js",
     "name": "Organigramm",
     "src": "frontend/src/diakonos/pages/Organigramm.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_plugin-B4ztsCFF.js",
+      "_plugin-CFqY2Gtn.js",
       "_d3-org-chart-CeVDfFxl.js",
       "frontend/src/diakonos/main.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js"
+      "__plugin-vue_export-helper-CVq6knyy.js"
     ],
     "assets": [
       "assets/Inter.var-C9xDBOS3.woff2",
@@ -246,24 +423,24 @@
     ]
   },
   "frontend/src/diakonos/pages/Profile.vue": {
-    "file": "chunks/Profile-BeFQpylU.js",
+    "file": "chunks/Profile-45hGE9VM.js",
     "name": "Profile",
     "src": "frontend/src/diakonos/pages/Profile.vue",
     "isDynamicEntry": true,
     "imports": [
-      "__plugin-vue_export-helper-44Ut5cLW.js",
-      "_plugin-B4ztsCFF.js"
+      "__plugin-vue_export-helper-CVq6knyy.js",
+      "_plugin-CFqY2Gtn.js"
     ]
   },
   "frontend/src/diakonos/pages/Registrierung.vue": {
-    "file": "chunks/Registrierung-DeBVv8Qk.js",
+    "file": "chunks/Registrierung-p11YsEu8.js",
     "name": "Registrierung",
     "src": "frontend/src/diakonos/pages/Registrierung.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_plugin-B4ztsCFF.js",
+      "_plugin-CFqY2Gtn.js",
       "frontend/src/diakonos/main.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js"
+      "__plugin-vue_export-helper-CVq6knyy.js"
     ],
     "assets": [
       "assets/Inter.var-C9xDBOS3.woff2",
@@ -271,15 +448,15 @@
     ]
   },
   "frontend/src/diakonos/pages/Ressourcen.vue": {
-    "file": "chunks/Ressourcen-CXqLr0Im.js",
+    "file": "chunks/Ressourcen-IME9Pqdq.js",
     "name": "Ressourcen",
     "src": "frontend/src/diakonos/pages/Ressourcen.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_plugin-B4ztsCFF.js",
+      "_plugin-CFqY2Gtn.js",
       "frontend/src/diakonos/main.js",
       "_useToast-CZcxHWEm.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js"
+      "__plugin-vue_export-helper-CVq6knyy.js"
     ],
     "assets": [
       "assets/Inter.var-C9xDBOS3.woff2",
@@ -287,14 +464,14 @@
     ]
   },
   "frontend/src/diakonos/pages/Statistik.vue": {
-    "file": "chunks/Statistik-CnRcEYwl.js",
+    "file": "chunks/Statistik-D5ImNRSF.js",
     "name": "Statistik",
     "src": "frontend/src/diakonos/pages/Statistik.vue",
     "isDynamicEntry": true,
     "imports": [
       "frontend/src/diakonos/main.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js",
-      "_plugin-B4ztsCFF.js"
+      "__plugin-vue_export-helper-CVq6knyy.js",
+      "_plugin-CFqY2Gtn.js"
     ],
     "assets": [
       "assets/Inter.var-C9xDBOS3.woff2",
@@ -302,15 +479,15 @@
     ]
   },
   "frontend/src/diakonos/pages/Wiki.vue": {
-    "file": "chunks/Wiki-D35QxYdz.js",
+    "file": "chunks/Wiki-C2dh-LMR.js",
     "name": "Wiki",
     "src": "frontend/src/diakonos/pages/Wiki.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_plugin-B4ztsCFF.js",
+      "_plugin-CFqY2Gtn.js",
       "frontend/src/diakonos/main.js",
       "_useToast-CZcxHWEm.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js"
+      "__plugin-vue_export-helper-CVq6knyy.js"
     ],
     "assets": [
       "assets/Inter.var-C9xDBOS3.woff2",
@@ -323,10 +500,10 @@
     "src": "frontend/src/gast/main.js",
     "isEntry": true,
     "imports": [
-      "_plugin-B4ztsCFF.js",
+      "_plugin-CFqY2Gtn.js",
       "frontend/src/admin/main.js",
-      "_FormControl.vue_vue_type_script_setup_true_lang-C0EnYSGe.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js",
+      "_FormControl.vue_vue_type_script_setup_true_lang-BzKEMeom.js",
+      "__plugin-vue_export-helper-CVq6knyy.js",
       "__commonjsHelpers-Cpj98o6Y.js"
     ],
     "assets": [
@@ -340,7 +517,7 @@
     "src": "frontend/src/organigramm/main.js",
     "isEntry": true,
     "imports": [
-      "_plugin-B4ztsCFF.js",
+      "_plugin-CFqY2Gtn.js",
       "frontend/src/admin/main.js",
       "_d3-org-chart-CeVDfFxl.js"
     ],
@@ -355,10 +532,10 @@
     "src": "frontend/src/registrierung/main.js",
     "isEntry": true,
     "imports": [
-      "_plugin-B4ztsCFF.js",
+      "_plugin-CFqY2Gtn.js",
       "frontend/src/admin/main.js",
-      "_FormControl.vue_vue_type_script_setup_true_lang-C0EnYSGe.js",
-      "__plugin-vue_export-helper-44Ut5cLW.js",
+      "_FormControl.vue_vue_type_script_setup_true_lang-BzKEMeom.js",
+      "__plugin-vue_export-helper-CVq6knyy.js",
       "__commonjsHelpers-Cpj98o6Y.js"
     ],
     "assets": [
@@ -375,7 +552,7 @@
     "src": "node_modules/frappe-ui/src/fonts/Inter/Inter.var.woff2"
   },
   "style.css": {
-    "file": "css/style-CMXGEtPP.css",
+    "file": "css/style--R3uA9gL.css",
     "src": "style.css"
   }
 }
