@@ -181,6 +181,12 @@ def get_upcoming_events(limit=5):
         limit=int(limit),
         ignore_permissions=True,
     )
+    cal_colors = {}
+    for e in events:
+        if e.element_calendar and e.element_calendar not in cal_colors:
+            cal_colors[e.element_calendar] = (
+                frappe.db.get_value("Kalender", e.element_calendar, "calendar_color") or ""
+            )
     return [
         {
             "id":       e.name,
@@ -188,6 +194,7 @@ def get_upcoming_events(limit=5):
             "start":    str(e.element_start) if e.element_start else "",
             "end":      str(e.element_end) if e.element_end else "",
             "calendar": e.element_calendar or "",
+            "color":    cal_colors.get(e.element_calendar, ""),
         }
         for e in events
     ]
@@ -266,18 +273,17 @@ def get_recent_articles(limit=3):
 def get_meine_buchungen_widget(upcoming_only=1, limit=3):
     """Kommende Ressourcen-Buchungen des aktuellen Nutzers."""
     user = frappe.session.user
-    filters = {"nutzer": user}
+    filters = {"gebucht_von": user, "status": "Aktiv"}
     if int(upcoming_only):
-        filters["start_date"] = [">=", datetime.date.today().strftime("%Y-%m-%d")]
+        filters["datum_von"] = [">=", datetime.date.today().strftime("%Y-%m-%d")]
     rows = frappe.get_all(
         "Ressourcen Buchung",
         filters=filters,
-        fields=["name", "ressource", "start_date", "end_date", "zweck", "status"],
-        order_by="start_date asc",
+        fields=["name", "ressource", "datum_von", "datum_bis", "zweck", "status"],
+        order_by="datum_von asc",
         limit=int(limit),
         ignore_permissions=True,
     )
-    # Ressource-Name auflösen
     result = []
     for r in rows:
         ressource_name = frappe.db.get_value("Ressource", r.ressource, "ressource_name") or r.ressource
@@ -285,8 +291,8 @@ def get_meine_buchungen_widget(upcoming_only=1, limit=3):
             "id":             r.name,
             "ressource":      r.ressource,
             "ressource_name": ressource_name,
-            "start":          str(r.start_date) if r.start_date else "",
-            "end":            str(r.end_date) if r.end_date else "",
+            "start":          str(r.datum_von) if r.datum_von else "",
+            "end":            str(r.datum_bis) if r.datum_bis else "",
             "zweck":          r.zweck or "",
             "status":         r.status or "",
         })

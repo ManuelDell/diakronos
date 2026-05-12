@@ -1,45 +1,48 @@
 <template>
-  <BaseWidgetCard label="Mini-Kalender" gridSize="small" :loading="false" :error="null" :isEmpty="false" :isEditing @refresh="refresh" @hide="$emit('hide')" @collapse-change="$emit('collapse-change', $event)">
-    <div class="mini-calendar">
-      <div class="cal-header">
-        <span v-for="d in ['Mo','Di','Mi','Do','Fr','Sa','So']" :key="d">{{ d }}</span>
-      </div>
-      <div class="cal-days">
-        <span v-for="day in calendarDays" :key="day.key" :class="{ 'out-of-month': !day.current, 'today': day.today }" @click="navigate('#/kalender')">
-          {{ day.label }}
-        </span>
-      </div>
-    </div>
+  <BaseWidgetCard label="Mini-Kalender" gridSize="small" :loading="false" :error="null" :isEmpty="false" :isEditing @refresh="loadEvents" @hide="$emit('hide')" @collapse-change="$emit('collapse-change', $event)">
+    <KronosMiniCalendar
+      :currentMonth="currentMonth"
+      :eventDays="eventDays"
+      @monthChange="onMonthChange"
+      @dateClick="goToCalendar"
+    />
   </BaseWidgetCard>
 </template>
+
 <script setup>
+import { ref, onMounted } from 'vue'
 import BaseWidgetCard from './BaseWidgetCard.vue'
-import { computed } from 'vue'
-const props = defineProps({ isEditing: Boolean, refreshInterval: { type: Number, default: 60 } })
+import KronosMiniCalendar from '../kronos/KronosMiniCalendar.vue'
+
+const props = defineProps({ isEditing: Boolean, refreshInterval: { type: Number, default: 0 } })
 const emit = defineEmits(['hide', 'collapse-change'])
-const refresh = () => {}
-const navigate = (href) => { window.location.hash = href }
-const calendarDays = computed(() => {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth()
-  const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
-  const startDay = (firstDay.getDay() + 6) % 7
-  const daysInMonth = lastDay.getDate()
-  const days = []
-  const prevMonthLast = new Date(year, month, 0).getDate()
-  for (let i = startDay - 1; i >= 0; i--) {
-    days.push({ key: 'p' + i, label: prevMonthLast - i, current: false, today: false })
-  }
-  const today = now.getDate()
-  for (let i = 1; i <= daysInMonth; i++) {
-    days.push({ key: 'c' + i, label: i, current: true, today: i === today })
-  }
-  const remaining = (7 - (days.length % 7)) % 7
-  for (let i = 1; i <= remaining; i++) {
-    days.push({ key: 'n' + i, label: i, current: false, today: false })
-  }
-  return days
-})
+
+const now = new Date()
+const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
+const eventDays = ref([])
+
+async function loadEvents() {
+  const [y, m] = currentMonth.value.split('-').map(Number)
+  try {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || ''
+    const res = await fetch('/api/method/diakronos.diakonos.api.dashboard.get_events_for_month', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf },
+      body: JSON.stringify({ year: y, month: m }),
+    })
+    const json = await res.json()
+    eventDays.value = json.message?.event_days || []
+  } catch { eventDays.value = [] }
+}
+
+function onMonthChange(month) {
+  currentMonth.value = month
+  loadEvents()
+}
+
+function goToCalendar(dateStr) {
+  window.location.hash = '#/kalender'
+}
+
+onMounted(loadEvents)
 </script>

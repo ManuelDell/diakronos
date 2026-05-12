@@ -3,8 +3,8 @@
     <div class="mini-cal-header">
       <span class="mini-title">{{ monthTitle }}</span>
       <div class="mini-nav">
-        <button class="mini-prev" @click="prevMonth">&lt;</button>
-        <button class="mini-next" @click="nextMonth">&gt;</button>
+        <button class="mini-prev" @click="prevMonth">‹</button>
+        <button class="mini-next" @click="nextMonth">›</button>
       </div>
     </div>
     <div class="mini-cal-grid">
@@ -17,10 +17,11 @@
         <div
           v-for="day in week.days"
           :key="day.dateStr"
-          :class="['mini-cal-day', { 'other-month': day.otherMonth, 'today': day.isToday }]"
+          :class="['mini-cal-day', { 'other-month': day.otherMonth, 'today': day.isToday, 'has-event': eventDays.includes(day.dateStr) }]"
           @click="onDayClick(day)"
         >
           {{ day.dayNum }}
+          <span v-if="!day.otherMonth && eventDays.includes(day.dateStr)" class="event-dot"></span>
         </div>
       </div>
     </div>
@@ -37,12 +38,13 @@ const props = defineProps({
       const now = new Date();
       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     }
-  }
+  },
+  eventDays: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(['dateClick', 'monthChange']);
 
-const dayHeaders = ['S', 'M', 'D', 'M', 'D', 'F', 'S'];
+const dayHeaders = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 const months = [
   'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -67,137 +69,94 @@ function getISOWeek(date) {
 const weeks = computed(() => {
   const [y, m] = props.currentMonth.split('-').map(Number);
   const firstOfMonth = new Date(y, m - 1, 1);
-  const firstDay = firstOfMonth.getDay();
+  const firstDay = (firstOfMonth.getDay() + 6) % 7; // Mon=0
   const daysInMonth = new Date(y, m, 0).getDate();
-  const numWeeks = Math.ceil((daysInMonth + firstDay) / 7);
   const today = new Date();
-  const isCurrentMonth = today.getFullYear() === y && today.getMonth() === m - 1;
-
   const result = [];
   let dayCounter = 1 - firstDay;
 
-  for (let week = 0; week < numWeeks; week++) {
-    const weekStartDate = new Date(y, m - 1, 1 + dayCounter);
+  while (dayCounter <= daysInMonth) {
+    const weekStartDate = new Date(y, m - 1, dayCounter < 1 ? 1 : dayCounter);
     const weekNum = getISOWeek(weekStartDate);
     const days = [];
-
     for (let d = 0; d < 7; d++) {
       let dayNum, otherMonth = false, isToday = false, dateStr = '';
-
       if (dayCounter <= 0) {
         dayNum = new Date(y, m - 1, 0).getDate() + dayCounter;
         otherMonth = true;
-        const prevMonth = m === 1 ? 12 : m - 1;
-        const prevYear = m === 1 ? y - 1 : y;
-        dateStr = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+        const pm = m === 1 ? 12 : m - 1, py = m === 1 ? y - 1 : y;
+        dateStr = `${py}-${String(pm).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
       } else if (dayCounter > daysInMonth) {
         dayNum = dayCounter - daysInMonth;
         otherMonth = true;
-        const nextMonth = m === 12 ? 1 : m + 1;
-        const nextYear = m === 12 ? y + 1 : y;
-        dateStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+        const nm = m === 12 ? 1 : m + 1, ny = m === 12 ? y + 1 : y;
+        dateStr = `${ny}-${String(nm).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
       } else {
         dayNum = dayCounter;
-        if (isCurrentMonth && dayNum === today.getDate()) {
-          isToday = true;
-        }
+        isToday = today.getFullYear() === y && today.getMonth() === m - 1 && today.getDate() === dayNum;
         dateStr = `${y}-${String(m).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
       }
-
       days.push({ dayNum, otherMonth, isToday, dateStr });
       dayCounter++;
     }
-
     result.push({ weekNum, days });
   }
-
   return result;
 });
 
 function prevMonth() {
   const [y, m] = props.currentMonth.split('-').map(Number);
-  const newDate = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
-  emit('monthChange', newDate);
+  emit('monthChange', m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`);
 }
-
 function nextMonth() {
   const [y, m] = props.currentMonth.split('-').map(Number);
-  const newDate = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
-  emit('monthChange', newDate);
+  emit('monthChange', m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`);
 }
-
 function onDayClick(day) {
   emit('dateClick', day.dateStr);
 }
 </script>
 
 <style scoped>
-.kronos-mini-calendar {
-  padding: 12px;
-  font-family: var(--font-family, sans-serif);
-}
-.mini-cal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-.mini-title {
-  font-weight: 600;
-  font-size: 14px;
-}
-.mini-nav button {
-  background: none;
-  border: none;
+.kronos-mini-calendar { font-family: var(--font-family, sans-serif); }
+.mini-cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.mini-title { font-weight: 600; font-size: 13px; }
+.mini-nav { display: flex; gap: 2px; }
+.mini-nav button { background: none; border: none; cursor: pointer; font-size: 18px; padding: 0 4px; line-height: 1; color: var(--dk-text-muted, #666); }
+.mini-nav button:hover { color: var(--dk-text, #15182a); }
+.mini-cal-header-row, .mini-cal-week-row { display: grid; grid-template-columns: 20px repeat(7, 1fr); }
+.mini-cal-header-row { margin-bottom: 2px; }
+.mini-day-header { text-align: center; font-size: 10px; font-weight: 600; color: var(--dk-text-muted, #666); padding-bottom: 2px; }
+.mini-week-header { }
+.mini-week-number { font-size: 9px; color: var(--dk-text-subtle, #999); display: flex; align-items: center; justify-content: center; }
+.mini-cal-day {
+  position: relative;
+  text-align: center;
+  font-size: 11px;
+  line-height: 22px;
   cursor: pointer;
-  font-size: 16px;
-  padding: 2px 6px;
-  color: var(--text-color, #333);
-}
-.mini-cal-grid {
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  margin: 1px auto;
   display: flex;
   flex-direction: column;
-}
-.mini-cal-header-row,
-.mini-cal-week-row {
-  display: grid;
-  grid-template-columns: 24px repeat(7, 1fr);
-}
-.mini-cal-header-row {
-  margin-bottom: 4px;
-}
-.mini-day-header,
-.mini-cal-day {
-  text-align: center;
-  font-size: 12px;
-  line-height: 24px;
-}
-.mini-day-header {
-  font-weight: 600;
-  color: var(--muted-color, #666);
-}
-.mini-week-number {
-  font-size: 10px;
-  color: var(--muted-color, #999);
-  display: flex;
   align-items: center;
   justify-content: center;
 }
-.mini-cal-day {
-  cursor: pointer;
+.mini-cal-day:hover { background: var(--dk-bg-subtle, #f3f3ef); }
+.mini-cal-day.other-month { color: var(--dk-text-subtle, #bbb); }
+.mini-cal-day.today { background: var(--dk-brand-500, #1c2850); color: #fff; font-weight: 700; }
+.mini-cal-day.has-event:not(.today) { font-weight: 600; }
+.event-dot {
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  margin: 0 auto;
+  background: var(--dk-accent, #d4a24c);
 }
-.mini-cal-day:hover {
-  background: var(--hover-bg, #eee);
-}
-.mini-cal-day.other-month {
-  color: var(--muted-color, #bbb);
-}
-.mini-cal-day.today {
-  background: var(--primary, #007bff);
-  color: #fff;
-}
+.mini-cal-day.today .event-dot { background: rgba(255,255,255,0.8); }
 </style>

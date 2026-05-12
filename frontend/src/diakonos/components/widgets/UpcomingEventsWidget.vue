@@ -2,7 +2,7 @@
   <BaseWidgetCard label="Anstehende Termine" gridSize="medium" :loading :error :isEmpty emptyMessage="Keine anstehenden Termine." :isEditing @refresh="refresh" @hide="$emit('hide')" @collapse-change="$emit('collapse-change', $event)">
     <ul class="wl-list">
       <li v-for="item in data" :key="item.id" class="wl-event">
-        <div class="wl-event-accent"></div>
+        <div class="wl-event-accent" :style="item.color ? `background:${item.color}` : ''"></div>
         <div class="wl-event-body">
           <div class="wl-event-title">{{ item.title }}</div>
           <div class="wl-event-date">{{ formatDate(item.start) }}</div>
