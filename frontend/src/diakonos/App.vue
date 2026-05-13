@@ -1,7 +1,7 @@
 <template>
   <FrappeUIProvider>
     <div class="dk-app" :class="{ 'is-collapsed': sidebarCollapsed }" :data-theme="theme">
-      <KronosSidebar v-if="isKronosMode" @backClick="navigate('#/')" @calendarsChange="store.setSelectedCalendars($event)" />
+      <KronosSidebar v-if="isKronosMode" @backClick="navigate('#/')" />
       <AppSidebar v-else :collapsed="sidebarCollapsed" :theme="theme" @toggle-collapse="sidebarCollapsed = !sidebarCollapsed" @toggle-theme="toggleTheme" />
       <div class="dk-main-wrap">
         <AppTopbar v-if="!isKronosMode" :collapsed="sidebarCollapsed" @toggle-collapse="sidebarCollapsed = !sidebarCollapsed" />
@@ -23,13 +23,11 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { FrappeUIProvider } from 'frappe-ui'
-import { useKronosStore } from './composables/useKronosStore.js'
 import AppSidebar from './components/AppSidebar.vue'
 import AppTopbar from './components/AppTopbar.vue'
 import AuditConfirmModal from './components/AuditConfirmModal.vue'
 import KronosSidebar from './components/kronos/KronosSidebar.vue'
 import { currentComponent, currentHash, navigate } from './router.js'
-const store = useKronosStore()
 
 const sidebarCollapsed = ref(false)
 const theme = ref(localStorage.getItem('dk-theme') || 'light')

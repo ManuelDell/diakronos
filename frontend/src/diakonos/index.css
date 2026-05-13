@@ -994,6 +994,8 @@ select.dk-form-select { appearance: auto; }
   .dk-sidebar { display: none; }
   .dk-stats-row, .dk-quick-row { grid-template-columns: 1fr; }
   .dk-topbar-search { display: none; }
+  .dk-content { padding-bottom: calc(56px + env(safe-area-inset-bottom) + 24px) !important; }
+  .dk-screen { padding-bottom: calc(56px + env(safe-area-inset-bottom) + 24px) !important; }
 }
 
 /* =====================================================================
