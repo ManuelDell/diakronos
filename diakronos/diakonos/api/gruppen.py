@@ -90,7 +90,19 @@ def get_gruppe_detail(gruppe_id):
     """
     perms = check_permission("Gruppe", gruppe_id, "read")
     if not perms.get("allowed"):
-        frappe.throw(_("Kein Zugriff auf diese Gruppe."), frappe.PermissionError)
+        # Direktmitglied-Check: User könnte Mitglied sein ohne ancestor_path-Überlappung
+        current_mitglied = frappe.db.get_value("Mitglied",
+            {"user": frappe.session.user}, "name") or \
+            frappe.db.get_value("Mitglied",
+            {"email": frappe.db.get_value("User", frappe.session.user, "email")}, "name")
+        if current_mitglied:
+            is_direct_member = frappe.db.exists("Gruppenmitgliedschaft", {
+                "parent": gruppe_id, "mitglied": current_mitglied
+            })
+            if not is_direct_member:
+                frappe.throw(_("Kein Zugriff auf diese Gruppe."), frappe.PermissionError)
+        else:
+            frappe.throw(_("Kein Zugriff auf diese Gruppe."), frappe.PermissionError)
 
     gruppe = frappe.get_doc("Gruppe", gruppe_id)
     if not gruppe:
@@ -156,8 +168,17 @@ def get_gruppe_detail(gruppe_id):
             limit=5,
             ignore_permissions=True,
         )
+    # Prüfe ob aktueller User Mitglied ist (für Frontend-Logik)
+    current_mitglied_id = frappe.db.get_value("Mitglied",
+        {"user": frappe.session.user}, "name") or \
+        frappe.db.get_value("Mitglied",
+        {"email": frappe.db.get_value("User", frappe.session.user, "email")}, "name")
+    is_member = bool(frappe.db.exists("Gruppenmitgliedschaft", {
+        "parent": gruppe_id, "mitglied": current_mitglied_id
+    })) if current_mitglied_id else False
     return {
         "success": True,
+        "is_member": is_member,
         "gruppe": {
             "name": gruppe.name,
             "gruppenname": gruppe.gruppenname,
@@ -184,7 +205,19 @@ def get_untergruppe_detail(untergruppe_id):
     """Gibt Details einer Untergruppe inkl. Mitglieder zurück."""
     perms = check_permission("Untergruppe", untergruppe_id, "read")
     if not perms.get("allowed"):
-        frappe.throw(_("Kein Zugriff auf diese Untergruppe."), frappe.PermissionError)
+        # Direktmitglied-Check: User könnte Mitglied sein ohne ancestor_path-Überlappung
+        current_mitglied = frappe.db.get_value("Mitglied",
+            {"user": frappe.session.user}, "name") or \
+            frappe.db.get_value("Mitglied",
+            {"email": frappe.db.get_value("User", frappe.session.user, "email")}, "name")
+        if current_mitglied:
+            is_direct_member = frappe.db.exists("Untergruppenmitgliedschaft", {
+                "parent": untergruppe_id, "mitglied": current_mitglied
+            })
+            if not is_direct_member:
+                frappe.throw(_("Kein Zugriff auf diese Untergruppe."), frappe.PermissionError)
+        else:
+            frappe.throw(_("Kein Zugriff auf diese Untergruppe."), frappe.PermissionError)
 
     ug = frappe.get_doc("Untergruppe", untergruppe_id)
     if not ug:
@@ -219,8 +252,17 @@ def get_untergruppe_detail(untergruppe_id):
         order_by="pinned desc, creation desc",
         ignore_permissions=True,
     )
+    # Prüfe ob aktueller User Mitglied ist (für Frontend-Logik)
+    current_mitglied_id = frappe.db.get_value("Mitglied",
+        {"user": frappe.session.user}, "name") or \
+        frappe.db.get_value("Mitglied",
+        {"email": frappe.db.get_value("User", frappe.session.user, "email")}, "name")
+    is_member = bool(frappe.db.exists("Untergruppenmitgliedschaft", {
+        "parent": untergruppe_id, "mitglied": current_mitglied_id
+    })) if current_mitglied_id else False
     return {
         "success": True,
+        "is_member": is_member,
         "untergruppe": {
             "name": ug.name,
             "untergruppenname": ug.untergruppenname,

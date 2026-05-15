@@ -97,11 +97,28 @@
                 </template>
             </div>
 
+            <!-- Nächste Termine -->
+            <div class="card mb-4">
+                <h2 class="text-lg font-semibold text-[var(--dk-text)] mb-3">Nächste Termine</h2>
+                <div v-if="termine.length === 0" class="text-sm text-[var(--dk-text-muted)]">Keine bevorstehenden Termine.</div>
+                <div v-else class="grid grid-cols-2 gap-3" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr))">
+                    <div v-for="t in termine" :key="t.name"
+                        class="p-3 rounded-lg bg-[var(--dk-surface-hover)] border border-[var(--dk-border)]">
+                        <div class="text-sm font-medium text-[var(--dk-text)]">{{ t.titel || t.subject || t.name }}</div>
+                        <div class="text-xs text-[var(--dk-text-muted)] mt-1">{{ formatDate(t.starts_on || t.datum) }}</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Aufgaben -->
             <div class="card mb-4">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="text-lg font-semibold text-[var(--dk-text)]">Aufgaben</h2>
-                    <button v-if="canManage" class="dk-btn dk-btn-ghost dk-btn-sm" @click="showAufgabeInput = !showAufgabeInput">+</button>
+                    <button v-if="canManage" class="add-btn" @click="showAufgabeInput = !showAufgabeInput">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                        </svg>
+                    </button>
                 </div>
                 <!-- Neue Aufgabe Inline -->
                 <div v-if="showAufgabeInput" class="flex gap-2 mb-3">
@@ -140,7 +157,11 @@
             <div class="card mb-4">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="text-lg font-semibold text-[var(--dk-text)]">Ankündigungen</h2>
-                    <button v-if="canManage" class="dk-btn dk-btn-ghost dk-btn-sm" @click="showAnkuendigungForm = !showAnkuendigungForm">+</button>
+                    <button v-if="canManage" class="add-btn" @click="showAnkuendigungForm = !showAnkuendigungForm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                        </svg>
+                    </button>
                 </div>
                 <!-- Neue Ankündigung Form -->
                 <div v-if="showAnkuendigungForm" class="flex flex-col gap-3 mb-4 p-3 rounded-lg bg-[var(--dk-surface-2)] border border-[var(--dk-border)]">
@@ -193,15 +214,15 @@
                 </ul>
             </div>
 
-            <!-- Mitglieder (für canManage) -->
-            <div class="card mb-4">
+            <!-- Mitglieder (volle Tabelle nur für canManage) -->
+            <div v-if="canManage" class="card mb-4">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-lg font-semibold text-[var(--dk-text)]">Mitglieder</h2>
                     <span class="text-sm text-[var(--dk-text-muted)]">{{ mitglieder.length }} Mitglied(er)</span>
                 </div>
 
-                <!-- Mitglied hinzufügen (canManage) -->
-                <div v-if="canManage" class="flex gap-2 mb-4">
+                <!-- Mitglied hinzufügen -->
+                <div class="flex gap-2 mb-4">
                     <input
                         v-model="neuesMitglied"
                         type="text"
@@ -221,7 +242,7 @@
                                 <th>Rolle</th>
                                 <th>Status</th>
                                 <th>Beitrittsdatum</th>
-                                <th v-if="canManage" class="text-right">Aktionen</th>
+                                <th class="text-right">Aktionen</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -233,9 +254,7 @@
                                     <span v-else>{{ m.vollstaendiger_name || m.name || '–' }}</span>
                                 </td>
                                 <td>
-                                    <span v-if="!canManage" class="text-[var(--dk-text-muted)]">{{ m.rolle || '–' }}</span>
                                     <select
-                                        v-else
                                         v-model="m.rolle"
                                         class="dk-form-input py-1 text-sm"
                                         @change="updateRolle(m)"
@@ -259,7 +278,7 @@
                                     >{{ m.status || 'Unbekannt' }}</span>
                                 </td>
                                 <td class="text-[var(--dk-text-muted)]">{{ formatDate(m.beitrittsdatum) || '–' }}</td>
-                                <td v-if="canManage" class="text-right">
+                                <td class="text-right">
                                     <button class="dk-btn dk-btn-ghost dk-btn-sm" style="color:var(--dk-danger);" @click="removeMitglied(m)">
                                         Entfernen
                                     </button>
@@ -268,6 +287,12 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            <!-- Mitglieder Summary (nur für normale Mitglieder) -->
+            <div v-if="!canManage && mitglieder.length > 0" class="card mb-4">
+                <h2 class="text-lg font-semibold text-[var(--dk-text)]">Mitglieder</h2>
+                <p class="text-sm text-[var(--dk-text-muted)] mt-1">{{ mitglieder.length }} Mitglieder in dieser Gruppe</p>
             </div>
         </template>
     </div>
@@ -293,6 +318,8 @@ export default {
         const aufgaben = ref([])
         const ankuendigungen = ref([])
         const wikiArtikel = ref([])
+        const termine = ref([])
+        const isMember = ref(false)
         const loading = ref(false)
         const error = ref(null)
         const neuesMitglied = ref('')
@@ -361,6 +388,9 @@ export default {
             return false
         })
 
+        // canView: User darf Gruppe-Dashboard sehen (Mitglied ODER canManage)
+        const canView = computed(() => isMember.value || canManage.value)
+
         function initials(name) {
             if (!name) return '?'
             return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -404,6 +434,16 @@ export default {
                 aufgaben.value = data?.aufgaben || []
                 ankuendigungen.value = data?.ankuendigungen || []
                 wikiArtikel.value = data?.wiki_artikel || []
+                isMember.value = data?.is_member || false
+                // Nächste Termine laden
+                try {
+                    const kal = await apiCall('diakronos.diakonos.api.kalender.get_events', {
+                        gruppe: gruppeId.value, limit: 4, future_only: 1
+                    })
+                    termine.value = (kal?.data || kal?.events || []).slice(0, 4)
+                } catch (e) {
+                    termine.value = [] // kein Fehler anzeigen wenn API nicht unterstützt
+                }
             } catch (err) {
                 error.value = err?.message || 'Fehler beim Laden'
             } finally {
@@ -585,10 +625,13 @@ export default {
             aufgaben,
             ankuendigungen,
             wikiArtikel,
+            termine,
+            isMember,
             loading,
             error,
             isAdmin,
             canManage,
+            canView,
             neuesMitglied,
             displayName,
             currentStatus,
@@ -622,3 +665,26 @@ export default {
     },
 }
 </script>
+
+<style scoped>
+.add-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--dk-brand-600, #f97316);
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: translateX(6px);
+    transition: opacity 0.2s, transform 0.2s;
+    flex-shrink: 0;
+}
+.card:hover .add-btn {
+    opacity: 1;
+    transform: translateX(0);
+}
+</style>
