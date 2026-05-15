@@ -1,5 +1,6 @@
 import frappe
 import json
+from diakronos.diakonos.api.dsgvo_log import log_einwilligung
 
 
 def _get_my_mitglied():
@@ -121,6 +122,7 @@ def update_einwilligung(typ, erteilt):
     else:
         frappe.throw("Ungueltiger Einwilligungstyp")
     frappe.db.commit()
+    log_einwilligung(mid, typ, "erteilt" if erteilt else "widerrufen")
     return {"ok": True}
 
 @frappe.whitelist()
@@ -141,6 +143,9 @@ def delete_my_data():
     doc.nummer = ""
     doc.geburtstag = None
     doc.foto = None
+    hatte_datenschutz = bool(doc.datenschutz_einwilligung)
+    hatte_foto = bool(doc.get("foto_einwilligung"))
+    hatte_werbung = bool(doc.get("werbeeinwilligung"))
     doc.datenschutz_einwilligung = 0
     doc.foto_einwilligung = 0
     doc.foto_datum = None
@@ -153,5 +158,11 @@ def delete_my_data():
 
     frappe.db.set_value("User", user, "enabled", 0)
     frappe.db.commit()
+    if hatte_datenschutz:
+        log_einwilligung(mid, "datenschutz", "widerrufen")
+    if hatte_foto:
+        log_einwilligung(mid, "foto", "widerrufen")
+    if hatte_werbung:
+        log_einwilligung(mid, "werbung", "widerrufen")
     frappe.local.login_manager.logout()
     return {"ok": True}

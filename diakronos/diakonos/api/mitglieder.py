@@ -3,6 +3,7 @@
 
 import json
 import frappe
+from diakronos.diakonos.api.dsgvo_log import log_einwilligung
 from frappe import _
 
 from diakronos.diakonos.api.session import get_mitglied_permissions
@@ -420,9 +421,23 @@ def widerruf_einwilligung(mitglied_id, **kwargs):
         frappe.local.audit_confirmation = confirmation
 
     doc = frappe.get_doc("Mitglied", mitglied_id)
+    hatte_datenschutz = bool(doc.datenschutz_einwilligung)
+    hatte_foto = bool(doc.get("foto_einwilligung"))
+    hatte_werbung = bool(doc.get("werbeeinwilligung"))
     doc.datenschutz_einwilligung = 0
     doc.datenschutz_datum = None
+    doc.foto_einwilligung = 0
+    doc.foto_datum = None
+    doc.werbeeinwilligung = 0
+    doc.werbung_datum = None
     doc.save()
+    frappe.db.commit()
+    if hatte_datenschutz:
+        log_einwilligung(mitglied_id, "datenschutz", "widerrufen", quelle="admin")
+    if hatte_foto:
+        log_einwilligung(mitglied_id, "foto", "widerrufen", quelle="admin")
+    if hatte_werbung:
+        log_einwilligung(mitglied_id, "werbung", "widerrufen", quelle="admin")
 
     return {
         "success": True,
