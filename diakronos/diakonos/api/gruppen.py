@@ -135,16 +135,16 @@ def get_gruppe_detail(gruppe_id):
     # Verantwortliche auflösen
     verantwortliche = []
     for row in gruppe.get("verantwortliche") or []:
-        if row.verantwortlicher:
-            v = frappe.db.get_value("Mitglied", row.verantwortlicher, ["vorname", "nachname", "email"], as_dict=True)
+        if row.user:
+            v = frappe.db.get_value("Mitglied", {"user": row.user}, ["vorname", "nachname", "email", "foto"], as_dict=True)
             if v:
                 verantwortliche.append({
-                    "verantwortlicher": row.verantwortlicher,
+                    "verantwortlicher": row.user,
                     "name": f"{v.get('vorname', '')} {v.get('nachname', '')}".strip(),
                     "email": v.get("email"),
-                    "rolle": row.rolle,
-                })
+                    "foto": v.get("foto"),
 
+                })
     aufgaben = frappe.get_all(
         "Gruppen Aufgabe",
         filters={"gruppe": gruppe_id},

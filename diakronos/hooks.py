@@ -83,6 +83,7 @@ whitelisted_methods = {
     'diakronos.diakonos.api.gruppen.update_untergruppe',
     'diakronos.diakonos.api.gruppen.get_gruppen_page_data',
     # Diakonos Mitglied-Verwaltung
+    'diakronos.diakonos.api.gruppen.get_gruppe_detail',
     'diakronos.diakonos.api.mitglieder.create_mitglied',
     'diakronos.diakonos.api.mitglieder.get_mitglied',
     'diakronos.diakonos.api.mitglieder.update_mitglied',

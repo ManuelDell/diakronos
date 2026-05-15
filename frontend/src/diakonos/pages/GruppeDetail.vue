@@ -43,149 +43,175 @@
         </div>
 
         <template v-else>
-            <!-- Beschreibung -->
-            <div class="card mb-4">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="text-lg font-semibold text-[var(--dk-text)]">Details</h2>
-                    <button v-if="canManage && !editingDesc" class="dk-btn dk-btn-ghost dk-btn-sm" @click="startEditDesc">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                    </button>
-                </div>
-                <template v-if="!editingDesc">
-                    <div class="dk-data-grid">
-                        <div class="dk-data-row">
-                            <span class="dk-data-label">Beschreibung</span>
-                            <span class="dk-data-value">{{ currentDesc || '–' }}</span>
-                        </div>
-                        <div class="dk-data-row">
-                            <span class="dk-data-label">Treffpunkt</span>
-                            <span class="dk-data-value">{{ currentTreffpunkt || '–' }}</span>
-                        </div>
-                        <div class="dk-data-row">
-                            <span class="dk-data-label">Treffzeit</span>
-                            <span class="dk-data-value">{{ currentTreffzeit || '–' }}</span>
-                        </div>
-                        <div v-if="verantwortliche.length > 0" class="dk-data-row">
-                            <span class="dk-data-label">Verantwortliche</span>
-                            <span class="dk-data-value">{{ verantwortliche.map(v => v.name).join(', ') }}</span>
-                        </div>
-                    </div>
-                </template>
-                <template v-else>
-                    <div class="flex flex-col gap-3">
-                        <div>
-                            <label class="text-sm font-medium text-[var(--dk-text-muted)] mb-1 block">Beschreibung</label>
-                            <textarea v-model="editDesc" class="dk-form-input" rows="3" />
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-[var(--dk-text-muted)] mb-1 block">Treffpunkt</label>
-                            <input v-model="editTreffpunkt" class="dk-form-input" type="text" />
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-[var(--dk-text-muted)] mb-1 block">Treffzeit</label>
-                            <input v-model="editTreffzeit" class="dk-form-input" type="text" />
-                        </div>
-                        <div class="flex gap-2">
-                            <button class="dk-btn dk-btn-primary dk-btn-sm" :disabled="savingDesc" @click="saveDesc">
-                                {{ savingDesc ? 'Speichern...' : 'Speichern' }}
+            <!-- 2-column grid -->
+            <div class="detail-grid">
+                <!-- LEFT COLUMN -->
+                <div class="detail-left">
+                    <!-- Details card -->
+                    <div class="card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-semibold text-[var(--dk-text)]">Details</h2>
+                            <button v-if="canManage && !editingDesc" class="dk-btn dk-btn-ghost dk-btn-sm" @click="startEditDesc">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
                             </button>
-                            <button class="dk-btn dk-btn-ghost dk-btn-sm" @click="cancelEditDesc">Abbrechen</button>
+                        </div>
+                        <template v-if="!editingDesc">
+                            <div class="dk-data-grid">
+                                <div class="dk-data-row">
+                                    <span class="dk-data-label">Beschreibung</span>
+                                    <span class="dk-data-value">{{ currentDesc || '–' }}</span>
+                                </div>
+                                <div class="dk-data-row">
+                                    <span class="dk-data-label">Treffpunkt</span>
+                                    <span class="dk-data-value">{{ currentTreffpunkt || '–' }}</span>
+                                </div>
+                                <div class="dk-data-row">
+                                    <span class="dk-data-label">Treffzeit</span>
+                                    <span class="dk-data-value">{{ currentTreffzeit || '–' }}</span>
+                                </div>
+                                <div v-if="verantwortliche.length > 0" class="dk-data-row">
+                                    <span class="dk-data-label">Verantwortliche</span>
+                                    <span class="dk-data-value">{{ verantwortliche.map(v => v.name).join(', ') }}</span>
+                                </div>
+                            </div>
+                        </template>
+                        <template v-else>
+                            <div class="flex flex-col gap-3">
+                                <div>
+                                    <label class="text-sm font-medium text-[var(--dk-text-muted)] mb-1 block">Beschreibung</label>
+                                    <textarea v-model="editDesc" class="dk-form-input" rows="3" />
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-[var(--dk-text-muted)] mb-1 block">Treffpunkt</label>
+                                    <input v-model="editTreffpunkt" class="dk-form-input" type="text" />
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-[var(--dk-text-muted)] mb-1 block">Treffzeit</label>
+                                    <input v-model="editTreffzeit" class="dk-form-input" type="text" />
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="dk-btn dk-btn-primary dk-btn-sm" :disabled="savingDesc" @click="saveDesc">
+                                        {{ savingDesc ? 'Speichern...' : 'Speichern' }}
+                                    </button>
+                                    <button class="dk-btn dk-btn-ghost dk-btn-sm" @click="cancelEditDesc">Abbrechen</button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Nächste Termine -->
+                    <div class="card">
+                        <h2 class="text-lg font-semibold text-[var(--dk-text)] mb-3">Nächste Termine</h2>
+                        <div v-if="termine.length === 0" class="text-sm text-[var(--dk-text-muted)]">Keine bevorstehenden Termine.</div>
+                        <div v-else class="termin-tiles">
+                            <div v-for="t in termine" :key="t.name" class="termin-tile">
+                                <div class="termin-date">{{ formatDate(t.starts_on || t.datum) }}</div>
+                                <div class="termin-title">{{ t.titel || t.subject || t.name }}</div>
+                            </div>
                         </div>
                     </div>
-                </template>
-            </div>
 
-            <!-- Nächste Termine -->
-            <div class="card mb-4">
-                <h2 class="text-lg font-semibold text-[var(--dk-text)] mb-3">Nächste Termine</h2>
-                <div v-if="termine.length === 0" class="text-sm text-[var(--dk-text-muted)]">Keine bevorstehenden Termine.</div>
-                <div v-else class="grid grid-cols-2 gap-3" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr))">
-                    <div v-for="t in termine" :key="t.name"
-                        class="p-3 rounded-lg bg-[var(--dk-surface-hover)] border border-[var(--dk-border)]">
-                        <div class="text-sm font-medium text-[var(--dk-text)]">{{ t.titel || t.subject || t.name }}</div>
-                        <div class="text-xs text-[var(--dk-text-muted)] mt-1">{{ formatDate(t.starts_on || t.datum) }}</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Aufgaben -->
-            <div class="card mb-4">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="text-lg font-semibold text-[var(--dk-text)]">Aufgaben</h2>
-                    <button v-if="canManage" class="add-btn" @click="showAufgabeInput = !showAufgabeInput">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                        </svg>
-                    </button>
-                </div>
-                <!-- Neue Aufgabe Inline -->
-                <div v-if="showAufgabeInput" class="flex gap-2 mb-3">
-                    <input
-                        v-model="neueAufgabe"
-                        type="text"
-                        placeholder="Neue Aufgabe..."
-                        class="dk-form-input flex-1"
-                        @keyup.enter="createAufgabe"
-                    />
-                    <button class="dk-btn dk-btn-primary dk-btn-sm" :disabled="!neueAufgabe.trim()" @click="createAufgabe">Hinzufügen</button>
-                    <button class="dk-btn dk-btn-ghost dk-btn-sm" @click="showAufgabeInput = false; neueAufgabe = ''">✕</button>
-                </div>
-                <div v-if="aufgaben.length === 0" class="text-[var(--dk-text-muted)] text-sm">Keine Aufgaben vorhanden.</div>
-                <ul v-else class="flex flex-col gap-1">
-                    <li
-                        v-for="a in aufgaben"
-                        :key="a.name"
-                        class="flex items-center gap-3 py-2 border-b border-[var(--dk-border)] last:border-0"
-                    >
-                        <input
-                            type="checkbox"
-                            :checked="a.erledigt"
-                            class="accent-[var(--dk-brand-700)]"
-                            @change="toggleAufgabe(a)"
-                        />
-                        <span :class="a.erledigt ? 'line-through text-[var(--dk-text-muted)]' : 'text-[var(--dk-text)]'" class="flex-1 text-sm">
-                            {{ a.titel }}
-                        </span>
-                        <span v-if="a.faellig && !a.erledigt" class="text-xs text-[var(--dk-text-muted)]">{{ formatDate(a.faellig) }}</span>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- Ankündigungen -->
-            <div class="card mb-4">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="text-lg font-semibold text-[var(--dk-text)]">Ankündigungen</h2>
-                    <button v-if="canManage" class="add-btn" @click="showAnkuendigungForm = !showAnkuendigungForm">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                        </svg>
-                    </button>
-                </div>
-                <!-- Neue Ankündigung Form -->
-                <div v-if="showAnkuendigungForm" class="flex flex-col gap-3 mb-4 p-3 rounded-lg bg-[var(--dk-surface-2)] border border-[var(--dk-border)]">
-                    <input v-model="neueAnkuendigungTitel" type="text" placeholder="Titel" class="dk-form-input" />
-                    <textarea v-model="neueAnkuendigungText" placeholder="Text (optional)" class="dk-form-input" rows="3" />
-                    <div class="flex gap-2">
-                        <button class="dk-btn dk-btn-primary dk-btn-sm" :disabled="!neueAnkuendigungTitel.trim()" @click="createAnkuendigung">Veröffentlichen</button>
-                        <button class="dk-btn dk-btn-ghost dk-btn-sm" @click="showAnkuendigungForm = false; neueAnkuendigungTitel = ''; neueAnkuendigungText = ''">Abbrechen</button>
-                    </div>
-                </div>
-                <div v-if="ankuendigungen.length === 0" class="text-[var(--dk-text-muted)] text-sm">Keine Ankündigungen vorhanden.</div>
-                <ul v-else class="flex flex-col gap-2">
-                    <li
-                        v-for="a in ankuendigungen"
-                        :key="a.name"
-                        class="p-3 rounded-lg bg-[var(--dk-surface-2)] border border-[var(--dk-border)]"
-                    >
-                        <div class="flex items-center gap-2 mb-1">
-                            <span v-if="a.pinned" class="dk-badge dk-badge-warning text-xs">Angepinnt</span>
-                            <span class="font-medium text-[var(--dk-text)] text-sm">{{ a.titel }}</span>
+                    <!-- Ankündigungen -->
+                    <div class="card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-semibold text-[var(--dk-text)]">Ankündigungen</h2>
                         </div>
-                        <p v-if="a.text" class="text-xs text-[var(--dk-text-muted)]">{{ truncate(a.text, 100) }}</p>
-                    </li>
-                </ul>
+                        <button v-if="canManage" class="add-btn" @click="showAnkuendigungForm = !showAnkuendigungForm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
+                        </button>
+                        <!-- Neue Ankündigung Form -->
+                        <div v-if="showAnkuendigungForm" class="flex flex-col gap-3 mb-4 p-3 rounded-lg bg-[var(--dk-surface-2)] border border-[var(--dk-border)]">
+                            <input v-model="neueAnkuendigungTitel" type="text" placeholder="Titel" class="dk-form-input" />
+                            <textarea v-model="neueAnkuendigungText" placeholder="Text (optional)" class="dk-form-input" rows="3" />
+                            <div class="flex gap-2">
+                                <button class="dk-btn dk-btn-primary dk-btn-sm" :disabled="!neueAnkuendigungTitel.trim()" @click="createAnkuendigung">Veröffentlichen</button>
+                                <button class="dk-btn dk-btn-ghost dk-btn-sm" @click="showAnkuendigungForm = false; neueAnkuendigungTitel = ''; neueAnkuendigungText = ''">Abbrechen</button>
+                            </div>
+                        </div>
+                        <div v-if="ankuendigungen.length === 0" class="text-[var(--dk-text-muted)] text-sm">Keine Ankündigungen vorhanden.</div>
+                        <ul v-else class="flex flex-col gap-2">
+                            <li
+                                v-for="a in ankuendigungen"
+                                :key="a.name"
+                                class="p-3 rounded-lg bg-[var(--dk-surface-2)] border border-[var(--dk-border)]"
+                            >
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span v-if="a.pinned" class="dk-badge dk-badge-warning text-xs">Angepinnt</span>
+                                    <span class="font-medium text-[var(--dk-text)] text-sm">{{ a.titel }}</span>
+                                </div>
+                                <p v-if="a.text" class="text-xs text-[var(--dk-text-muted)]">{{ truncate(a.text, 100) }}</p>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN -->
+                <div class="detail-right">
+                    <!-- Aufgaben -->
+                    <div class="card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-semibold text-[var(--dk-text)]">Aufgaben</h2>
+                        </div>
+                        <button v-if="canManage" class="add-btn" @click="showAufgabeInput = !showAufgabeInput">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
+                        </button>
+                        <!-- Neue Aufgabe Inline -->
+                        <div v-if="showAufgabeInput" class="flex gap-2 mb-3">
+                            <input
+                                v-model="neueAufgabe"
+                                type="text"
+                                placeholder="Neue Aufgabe..."
+                                class="dk-form-input flex-1"
+                                @keyup.enter="createAufgabe"
+                            />
+                            <button class="dk-btn dk-btn-primary dk-btn-sm" :disabled="!neueAufgabe.trim()" @click="createAufgabe">Hinzufügen</button>
+                            <button class="dk-btn dk-btn-ghost dk-btn-sm" @click="showAufgabeInput = false; neueAufgabe = ''">✕</button>
+                        </div>
+                        <div v-if="aufgaben.length === 0" class="text-[var(--dk-text-muted)] text-sm">Keine Aufgaben vorhanden.</div>
+                        <ul v-else class="flex flex-col gap-1">
+                            <li
+                                v-for="a in aufgaben"
+                                :key="a.name"
+                                class="flex items-center gap-3 py-2 border-b border-[var(--dk-border)] last:border-0"
+                            >
+                                <input
+                                    type="checkbox"
+                                    :checked="a.erledigt"
+                                    class="accent-[var(--dk-brand-700)]"
+                                    @change="toggleAufgabe(a)"
+                                />
+                                <span :class="a.erledigt ? 'line-through text-[var(--dk-text-muted)]' : 'text-[var(--dk-text)]'" class="flex-1 text-sm">
+                                    {{ a.titel }}
+                                </span>
+                                <span v-if="a.faellig && !a.erledigt" class="text-xs text-[var(--dk-text-muted)]">{{ formatDate(a.faellig) }}</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Wiki Artikel -->
+                    <div v-if="wikiArtikel.length > 0 || canManage" class="card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-semibold text-[var(--dk-text)]">Wiki</h2>
+                        </div>
+                        <a v-if="canManage" class="add-btn" href="#/wiki">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
+                        </a>
+                        <div v-if="wikiArtikel.length === 0" class="text-[var(--dk-text-muted)] text-sm">Noch keine Wiki-Artikel.</div>
+                        <ul v-else class="flex flex-col gap-1">
+                            <li v-for="w in wikiArtikel" :key="w.name">
+                                <a :href="`#/wiki/${w.name}`" class="text-sm text-[var(--dk-brand-700)] hover:underline">{{ w.titel || w.name }}</a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
             </div>
 
             <!-- Untergruppen (falls vorhanden) -->
@@ -202,16 +228,6 @@
                         {{ u.untergruppenname || u.gruppenname || u.name }}
                     </a>
                 </div>
-            </div>
-
-            <!-- Wiki Artikel -->
-            <div v-if="wikiArtikel.length > 0" class="card mb-4">
-                <h2 class="text-lg font-semibold text-[var(--dk-text)] mb-3">Wiki</h2>
-                <ul class="flex flex-col gap-1">
-                    <li v-for="w in wikiArtikel" :key="w.name">
-                        <a :href="`#/wiki/${w.name}`" class="text-sm text-[var(--dk-brand-700)] hover:underline">{{ w.titel || w.name }}</a>
-                    </li>
-                </ul>
             </div>
 
             <!-- Mitglieder (volle Tabelle nur für canManage) -->
@@ -667,7 +683,28 @@ export default {
 </script>
 
 <style scoped>
+.card {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .add-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
     width: 28px;
     height: 28px;
     border-radius: 50%;
@@ -681,10 +718,49 @@ export default {
     opacity: 0;
     transform: translateX(6px);
     transition: opacity 0.2s, transform 0.2s;
-    flex-shrink: 0;
+    z-index: 5;
 }
+
 .card:hover .add-btn {
     opacity: 1;
     transform: translateX(0);
+}
+
+.termin-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.termin-tile {
+    flex: 0 0 calc(25% - 0.75rem);
+    min-width: 110px;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background: var(--dk-surface-hover);
+    border: 1px solid var(--dk-border);
+    text-align: center;
+}
+
+.termin-date {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--dk-text);
+    line-height: 1.2;
+}
+
+.termin-title {
+    font-size: 0.75rem;
+    color: var(--dk-text-muted);
+    margin-top: 0.25rem;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+@media (max-width: 768px) {
+    .termin-tile {
+        flex: 0 0 calc(50% - 0.5rem);
+        min-width: 0;
+    }
 }
 </style>
