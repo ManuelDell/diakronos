@@ -228,6 +228,35 @@ def get_mitglied_detail(mitglied_id):
 
 # ── Update ──────────────────────────────────────────────────────────────────
 
+
+def _log_profil_aenderung(mitglied_id, changed_fields):
+    """Schreibt einen Audit-Log-Eintrag fuer Admin-Aenderungen an Mitglied-Stammdaten."""
+    import json as _json
+    frappe.local.audit_policy_logged = True
+    try:
+        frappe.get_doc({
+            "doctype": "Audit Log",
+            "zeitstempel": frappe.utils.now_datetime(),
+            "action_typ": "Profiländerung",
+            "actor": frappe.session.user,
+            "target_doctype": "Mitglied",
+            "target_name": mitglied_id,
+            "field_changed": ", ".join(changed_fields.keys()),
+            "old_value": _json.dumps(
+                {k: v["alt"] for k, v in changed_fields.items()}, ensure_ascii=False
+            ),
+            "new_value": _json.dumps(
+                {k: v["neu"] for k, v in changed_fields.items()}, ensure_ascii=False
+            ),
+            "notification_gesendet": 0,
+        }).insert(ignore_permissions=True)
+        frappe.db.commit()
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "Mitglied Aenderungs-Log Fehler")
+    finally:
+        frappe.local.audit_policy_logged = False
+
+
 @frappe.whitelist()
 def update_mitglied(mitglied_id, data, **kwargs):
     """
@@ -262,6 +291,17 @@ def update_mitglied(mitglied_id, data, **kwargs):
         "ort": "wohnort",
     }
 
+    # Persönliche Felder fuer Logging
+    personal_fields = {
+        "vorname", "nachname", "email", "telefonnummer", "geburtstag",
+        "postleitzahl", "wohnort", "strasse", "nummer", "geschlecht", "familienstand",
+    }
+    # strasse statt straße wegen Encoding-Sicherheit beim Vergleich
+    old_values = {}
+    for f in personal_fields:
+        fname = "straße" if f == "strasse" else f
+        old_values[f] = getattr(doc, fname, None)
+
     updated = False
     for key, value in data.items():
         mapped_key = field_aliases.get(key, key)
@@ -271,6 +311,24 @@ def update_mitglied(mitglied_id, data, **kwargs):
 
     if updated:
         doc.save()
+
+    # Aenderungen loggen - nur wenn Admin fremde Daten bearbeitet
+    if updated:
+        try:
+            from diakronos.diakonos.api.profile import _get_my_mitglied as _own_mid
+            is_self = (_own_mid() == mitglied_id)
+        except Exception:
+            is_self = False
+        if not is_self:
+            changed = {}
+            for f in personal_fields:
+                fname = "straße" if f == "strasse" else f
+                old_v = str(old_values.get(f) or "")
+                new_v = str(getattr(doc, fname, None) or "")
+                if old_v != new_v:
+                    changed[fname] = {"alt": old_v, "neu": new_v}
+            if changed:
+                _log_profil_aenderung(mitglied_id, changed)
 
     return {
         "success": True,

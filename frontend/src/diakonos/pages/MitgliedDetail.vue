@@ -76,32 +76,46 @@
         <!-- Tab: Details -->
         <div v-else-if="activeTab === 'details'" class="card">
             <h2 class="text-lg font-semibold text-[var(--dk-text)] mb-4">Persönliche Daten</h2>
-            <div class="space-y-3">
+
+            <!-- View mode -->
+            <div v-if="!isEditing" class="space-y-3">
+                <div class="data-row">
+                    <span class="data-label">Vorname</span>
+                    <span class="data-value">{{ mitglied?.vorname || '–' }}</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Nachname</span>
+                    <span class="data-value">{{ mitglied?.nachname || '–' }}</span>
+                </div>
                 <div class="data-row">
                     <span class="data-label">E-Mail</span>
                     <span class="data-value">{{ mitglied?.email || '–' }}</span>
                 </div>
                 <div class="data-row">
                     <span class="data-label">Telefon</span>
-                    <span class="data-value">{{ mitglied?.telefon || '–' }}</span>
+                    <span class="data-value">{{ mitglied?.telefonnummer || '–' }}</span>
                 </div>
                 <div class="data-row">
                     <span class="data-label">Geburtstag</span>
                     <span class="data-value">{{ formatDate(mitglied?.geburtstag) || '–' }}</span>
                 </div>
                 <div class="data-row">
+                    <span class="data-label">Geschlecht</span>
+                    <span class="data-value">{{ mitglied?.geschlecht || '–' }}</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Familienstand</span>
+                    <span class="data-value">{{ mitglied?.familienstand || '–' }}</span>
+                </div>
+                <div class="data-row">
                     <span class="data-label">Adresse</span>
                     <span class="data-value">
-                        <template v-if="mitglied?.strasse || mitglied?.hausnummer || mitglied?.plz || mitglied?.ort">
-                            {{ [mitglied?.strasse, mitglied?.hausnummer].filter(Boolean).join(' ') }}<br v-if="mitglied?.strasse || mitglied?.hausnummer" />
-                            {{ [mitglied?.plz, mitglied?.ort].filter(Boolean).join(' ') }}
+                        <template v-if="mitglied?.straße || mitglied?.nummer || mitglied?.postleitzahl || mitglied?.wohnort">
+                            {{ [mitglied?.straße, mitglied?.nummer].filter(Boolean).join(' ') }}<br v-if="mitglied?.straße || mitglied?.nummer" />
+                            {{ [mitglied?.postleitzahl, mitglied?.wohnort].filter(Boolean).join(' ') }}
                         </template>
                         <template v-else>–</template>
                     </span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label">Geschlecht</span>
-                    <span class="data-value">{{ mitglied?.geschlecht || '–' }}</span>
                 </div>
                 <div class="data-row">
                     <span class="data-label">Eintrittsdatum</span>
@@ -110,6 +124,66 @@
                 <div class="data-row">
                     <span class="data-label">Letzte Anmeldung</span>
                     <span class="data-value">{{ formatDate(mitglied?.letzte_anmeldung) || '–' }}</span>
+                </div>
+            </div>
+
+            <!-- Edit mode -->
+            <div v-else class="edit-form">
+                <div class="edit-grid">
+                    <div class="edit-field">
+                        <label class="edit-label">Vorname</label>
+                        <input v-model="editForm.vorname" type="text" class="dk-form-input" />
+                    </div>
+                    <div class="edit-field">
+                        <label class="edit-label">Nachname</label>
+                        <input v-model="editForm.nachname" type="text" class="dk-form-input" />
+                    </div>
+                    <div class="edit-field">
+                        <label class="edit-label">E-Mail</label>
+                        <input v-model="editForm.email" type="email" class="dk-form-input" />
+                    </div>
+                    <div class="edit-field">
+                        <label class="edit-label">Telefon</label>
+                        <input v-model="editForm.telefon" type="tel" class="dk-form-input" />
+                    </div>
+                    <div class="edit-field">
+                        <label class="edit-label">Geburtstag</label>
+                        <input v-model="editForm.geburtstag" type="date" class="dk-form-input" />
+                    </div>
+                    <div class="edit-field">
+                        <label class="edit-label">Geschlecht</label>
+                        <select v-model="editForm.geschlecht" class="dk-form-input">
+                            <option value="">– keine Angabe –</option>
+                            <option>Männlich</option>
+                            <option>Weiblich</option>
+                            <option>Divers</option>
+                        </select>
+                    </div>
+                    <div class="edit-field">
+                        <label class="edit-label">Familienstand</label>
+                        <select v-model="editForm.familienstand" class="dk-form-input">
+                            <option value="">– keine Angabe –</option>
+                            <option>Ledig</option>
+                            <option>Verheiratet</option>
+                            <option>Verwitwet</option>
+                            <option>Geschieden</option>
+                        </select>
+                    </div>
+                    <div class="edit-field edit-field-full">
+                        <label class="edit-label">Straße &amp; Hausnummer</label>
+                        <div class="flex gap-2">
+                            <input v-model="editForm.strasse" type="text" class="dk-form-input" placeholder="Straße" style="flex:1" />
+                            <input v-model="editForm.hausnummer" type="text" class="dk-form-input" placeholder="Nr." style="width:70px" />
+                        </div>
+                    </div>
+                    <div class="edit-field">
+                        <label class="edit-label">PLZ</label>
+                        <input v-model="editForm.plz" type="text" class="dk-form-input" />
+                    </div>
+                    <div class="edit-field">
+                        <label class="edit-label">Ort</label>
+                        <input v-model="editForm.ort" type="text" class="dk-form-input" />
+                    </div>
                 </div>
             </div>
         </div>
@@ -183,14 +257,14 @@ import { apiCall, AuditConfirmationRequired } from '../composables/useApi.js'
 import { useAuditConfirm } from '../composables/useAuditConfirm.js'
 import { showToast } from '../composables/useToast.js'
 
-const { user, isAdmin } = useSession()
+const { isAdmin } = useSession()
 const { openConfirm, isSubmitting } = useAuditConfirm()
 
 const mitglied = ref(null)
 const loading = ref(true)
 const error = ref(null)
 const isSaving = ref(false)
-const canEdit = computed(() => !error.value && mitglied.value && (isAdmin.value || user.value?.email === mitglied.value?.email))
+const canEdit = computed(() => !error.value && mitglied.value && isAdmin.value)
 const isEditing = ref(false)
 const activeTab = ref('details')
 
@@ -203,6 +277,8 @@ const tabs = [
 ]
 
 const editForm = reactive({
+    vorname: '',
+    nachname: '',
     email: '',
     telefon: '',
     geburtstag: '',
@@ -211,6 +287,7 @@ const editForm = reactive({
     plz: '',
     ort: '',
     geschlecht: '',
+    familienstand: '',
 })
 
 const dsgvo = reactive({
@@ -251,16 +328,30 @@ function formatDate(date) {
     }
 }
 
+function _fillEditForm(payload) {
+    Object.assign(editForm, {
+        vorname: payload.vorname || '',
+        nachname: payload.nachname || '',
+        email: payload.email || '',
+        telefon: payload.telefonnummer || '',
+        geburtstag: payload.geburtstag || '',
+        strasse: payload.straße || '',
+        hausnummer: payload.nummer || '',
+        plz: payload.postleitzahl || '',
+        ort: payload.wohnort || '',
+        geschlecht: payload.geschlecht || '',
+        familienstand: payload.familienstand || '',
+    })
+}
+
 async function loadMitglied() {
     loading.value = true
     error.value = null
     try {
         const id = getRouteParam('id')
-        console.log('[MitgliedDetail] Route ID:', id)
         if (!id) throw new Error('Keine Mitglied-ID angegeben')
 
         const response = await apiCall('diakronos.diakonos.api.mitglieder.get_mitglied_detail', { mitglied_id: id })
-        console.log('[MitgliedDetail] API response:', response)
         const payload = response?.data ?? response
 
         if (!payload || typeof payload !== 'object') {
@@ -268,20 +359,8 @@ async function loadMitglied() {
         }
 
         mitglied.value = payload
+        _fillEditForm(payload)
 
-        // Populate edit form
-        Object.assign(editForm, {
-            email: payload.email || '',
-            telefon: payload.telefon || '',
-            geburtstag: payload.geburtstag || '',
-            strasse: payload.strasse || '',
-            hausnummer: payload.hausnummer || '',
-            plz: payload.plz || '',
-            ort: payload.ort || '',
-            geschlecht: payload.geschlecht || '',
-        })
-
-        // Populate DSGVO
         if (payload.dsgvo) {
             Object.assign(dsgvo, payload.dsgvo)
         }
@@ -294,16 +373,7 @@ async function loadMitglied() {
 }
 
 function startEdit() {
-    Object.assign(editForm, {
-        email: mitglied.value?.email || '',
-        telefon: mitglied.value?.telefon || '',
-        geburtstag: mitglied.value?.geburtstag || '',
-        strasse: mitglied.value?.strasse || '',
-        hausnummer: mitglied.value?.hausnummer || '',
-        plz: mitglied.value?.plz || '',
-        ort: mitglied.value?.ort || '',
-        geschlecht: mitglied.value?.geschlecht || '',
-    })
+    _fillEditForm(mitglied.value || {})
     isEditing.value = true
 }
 
@@ -317,11 +387,10 @@ async function saveEdit() {
     const idempotencyKey = generateIdempotencyKey()
     try {
         const id = getRouteParam('id')
-        const payload = {
+        await apiCall('diakronos.diakonos.api.mitglieder.update_mitglied', {
             mitglied_id: id,
-            ...editForm,
-        }
-        await apiCall('diakronos.diakonos.api.mitglieder.update_mitglied', payload)
+            data: JSON.stringify({ ...editForm }),
+        })
         showToast('Mitglied gespeichert', 'success')
         isEditing.value = false
         await loadMitglied()
@@ -333,18 +402,17 @@ async function saveEdit() {
                 return
             }
             const id = getRouteParam('id')
-            const payload = {
-                mitglied_id: id,
-                ...editForm,
-                __audit_confirmation: {
-                    policy_name: err.policy.policy_name,
-                    reason: reason,
-                    idempotency_key: idempotencyKey,
-                }
-            }
             isSubmitting.value = true
             try {
-                await apiCall('diakronos.diakonos.api.mitglieder.update_mitglied', payload)
+                await apiCall('diakronos.diakonos.api.mitglieder.update_mitglied', {
+                    mitglied_id: id,
+                    data: JSON.stringify({ ...editForm }),
+                    __audit_confirmation: JSON.stringify({
+                        policy_name: err.policy.policy_name,
+                        reason: reason,
+                        idempotency_key: idempotencyKey,
+                    }),
+                })
                 showToast('Mitglied gespeichert', 'success')
                 isEditing.value = false
                 await loadMitglied()
@@ -387,11 +455,11 @@ async function widerrufEinwilligung() {
             try {
                 await apiCall('diakronos.diakonos.api.mitglieder.widerruf_einwilligung', {
                     mitglied_id: id,
-                    __audit_confirmation: {
+                    __audit_confirmation: JSON.stringify({
                         policy_name: err.policy.policy_name,
                         reason: reason,
                         idempotency_key: idempotencyKey,
-                    }
+                    }),
                 })
                 showToast('Einwilligungen widerrufen', 'success')
                 await loadMitglied()
@@ -489,18 +557,42 @@ onMounted(loadMitglied)
     border-radius: 9999px;
 }
 
-.admin-badge {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
-    border-radius: 9999px;
-    background: var(--dk-primary);
-    color: white;
-}
-
 .card {
     background: var(--dk-surface);
     border: 1px solid var(--dk-border);
     border-radius: 0.75rem;
     padding: 1.5rem;
+}
+
+.edit-form {
+    padding-top: 0.25rem;
+}
+
+.edit-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 600px) {
+    .edit-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.edit-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.edit-field-full {
+    grid-column: 1 / -1;
+}
+
+.edit-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--dk-text-muted);
 }
 </style>
