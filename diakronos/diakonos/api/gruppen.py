@@ -135,14 +135,14 @@ def get_gruppe_detail(gruppe_id):
 
     aufgaben = frappe.get_all(
         "Gruppen Aufgabe",
-        filters={"gruppe": gruppe_id, "untergruppe": ["", None]},
+        filters={"gruppe": gruppe_id},
         fields=["name", "titel", "erledigt", "faellig"],
         order_by="erledigt asc, creation asc",
         ignore_permissions=True,
     )
     ankuendigungen = frappe.get_all(
         "Gruppen Ankuendigung",
-        filters={"gruppe": gruppe_id, "untergruppe": ["", None]},
+        filters={"gruppe": gruppe_id},
         fields=["name", "titel", "text", "pinned", "creation"],
         order_by="pinned desc, creation desc",
         ignore_permissions=True,
