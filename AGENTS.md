@@ -104,10 +104,10 @@ frappe.db.commit()
 
 | Phase | Was | Status |
 |---|---|---|
-| Phase 1 | `Einwilligung Log` DocType anlegen | 🔲 Ausstehend |
-| Phase 2 | `_log_einwilligung()` Helper in `profile.py` | 🔲 Ausstehend |
-| Phase 3 | Alle Hook-Punkte verdrahten | 🔲 Ausstehend |
-| Phase 4 | Admin-seitiges Hook via DocType `validate`/`on_update` | 🔲 Ausstehend |
+| Phase 1 | `Einwilligung Log` DocType anlegen | ✅ Implementiert |
+| Phase 2 | `log_einwilligung()` Helper in `api/dsgvo_log.py` | ✅ Implementiert |
+| Phase 3 | Alle Hook-Punkte verdrahten | ✅ Implementiert |
+| Phase 4 | Immutability via `before_save` + `on_trash` | ✅ Implementiert |
 | Phase 5 | Anonymisierung bei `delete_my_data` verifizieren | ✅ Implementiert |
 
 ---
