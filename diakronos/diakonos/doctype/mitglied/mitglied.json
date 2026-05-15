@@ -59,8 +59,6 @@
   "bereiche_tab",
   "bereiche_section",
   "bereiche",
-  "tags_section",
-  "tags",
   "beziehungen_tab",
   "beziehungen_section",
   "beziehungen"
@@ -340,17 +338,6 @@
    "fieldtype": "Table",
    "label": "Dienstbereiche",
    "options": "Mitglied Bereich"
-  },
-  {
-   "fieldname": "tags_section",
-   "fieldtype": "Section Break",
-   "label": "Tags"
-  },
-  {
-   "fieldname": "tags",
-   "fieldtype": "Table",
-   "label": "Tags",
-   "options": "Mitglied Tag"
   },
   {
    "fieldname": "beziehungen_tab",
