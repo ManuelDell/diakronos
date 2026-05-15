@@ -25,6 +25,7 @@
         <div ref="meineScroll" style="display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding-bottom:6px;scrollbar-width:none;-ms-overflow-style:none;">
           <div v-for="g in meineGruppen" :key="g.name"
                style="flex:0 0 190px;border-radius:12px;overflow:hidden;background:var(--dk-surface);border:1px solid var(--dk-border);scroll-snap-align:start;cursor:pointer;transition:box-shadow 0.15s,transform 0.15s;"
+               @click="() => { window.location.hash = '#/gruppe/' + g.name }"
                @mouseenter="e=>{e.currentTarget.style.boxShadow='0 4px 18px rgba(0,0,0,0.13)';e.currentTarget.style.transform='translateY(-2px)'}"
                @mouseleave="e=>{e.currentTarget.style.boxShadow='none';e.currentTarget.style.transform='none'}">
             <div style="height:96px;position:relative;overflow:hidden;">
@@ -97,6 +98,7 @@
           <div v-else style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:11px;">
             <div v-for="g in selectedTyp.gruppen" :key="g.name"
                  style="border-radius:10px;overflow:hidden;background:var(--dk-surface-2);border:1px solid var(--dk-border);cursor:pointer;transition:box-shadow 0.12s;"
+                 @click="() => { window.location.hash = '#/gruppe/' + g.name }"
                  @mouseenter="e=>e.currentTarget.style.boxShadow='0 2px 10px rgba(0,0,0,0.09)'"
                  @mouseleave="e=>e.currentTarget.style.boxShadow='none'">
               <div style="height:72px;overflow:hidden;position:relative;">

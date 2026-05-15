@@ -133,6 +133,29 @@ def get_gruppe_detail(gruppe_id):
                     "rolle": row.rolle,
                 })
 
+    aufgaben = frappe.get_all(
+        "Gruppen Aufgabe",
+        filters={"gruppe": gruppe_id, "untergruppe": ["", None]},
+        fields=["name", "titel", "erledigt", "faellig"],
+        order_by="erledigt asc, creation asc",
+        ignore_permissions=True,
+    )
+    ankuendigungen = frappe.get_all(
+        "Gruppen Ankuendigung",
+        filters={"gruppe": gruppe_id, "untergruppe": ["", None]},
+        fields=["name", "titel", "text", "pinned", "creation"],
+        order_by="pinned desc, creation desc",
+        ignore_permissions=True,
+    )
+    wiki_artikel = []
+    if frappe.db.has_column("Wiki Artikel", "gruppe"):
+        wiki_artikel = frappe.get_all(
+            "Wiki Artikel",
+            filters={"gruppe": gruppe_id},
+            fields=["name", "titel"],
+            limit=5,
+            ignore_permissions=True,
+        )
     return {
         "success": True,
         "gruppe": {
@@ -150,6 +173,9 @@ def get_gruppe_detail(gruppe_id):
         "untergruppen": untergruppen,
         "mitglieder": mitglieder,
         "verantwortliche": verantwortliche,
+        "aufgaben": aufgaben,
+        "ankuendigungen": ankuendigungen,
+        "wiki_artikel": wiki_artikel,
     }
 
 
@@ -179,6 +205,20 @@ def get_untergruppe_detail(untergruppe_id):
                     "beitrittsdatum": row.beitrittsdatum,
                 })
 
+    aufgaben_ug = frappe.get_all(
+        "Gruppen Aufgabe",
+        filters={"untergruppe": untergruppe_id},
+        fields=["name", "titel", "erledigt", "faellig"],
+        order_by="erledigt asc, creation asc",
+        ignore_permissions=True,
+    )
+    ankuendigungen_ug = frappe.get_all(
+        "Gruppen Ankuendigung",
+        filters={"untergruppe": untergruppe_id},
+        fields=["name", "titel", "text", "pinned", "creation"],
+        order_by="pinned desc, creation desc",
+        ignore_permissions=True,
+    )
     return {
         "success": True,
         "untergruppe": {
@@ -193,6 +233,8 @@ def get_untergruppe_detail(untergruppe_id):
             "bild": ug.bild,
         },
         "mitglieder": mitglieder,
+        "aufgaben": aufgaben_ug,
+        "ankuendigungen": ankuendigungen_ug,
     }
 
 
@@ -609,3 +651,95 @@ def get_gruppen_page_data():
             "gruppen": gruppen, "gruppen_count": len(gruppen)})
 
     return {"meine_gruppen": meine_gruppen, "gruppentypen": typen}
+
+
+# ── Aufgaben ─────────────────────────────────────────────────────────────────
+
+@frappe.whitelist()
+def get_aufgaben(gruppe_id=None, untergruppe_id=None):
+    filters = {}
+    if untergruppe_id:
+        filters[untergruppe] = untergruppe_id
+    elif gruppe_id:
+        filters[gruppe] = gruppe_id
+    else:
+        frappe.throw(gruppe_id oder untergruppe_id erforderlich)
+    items = frappe.get_all(
+        Gruppen Aufgabe,
+        filters=filters,
+        fields=[name, titel, erledigt, faellig, erstellt_von],
+        order_by=erledigt asc, creation asc,
+        ignore_permissions=True,
+    )
+    return {success: True, data: items}
+
+
+@frappe.whitelist()
+def create_aufgabe(titel, gruppe_id=None, untergruppe_id=None, faellig=None):
+    from diakronos.diakonos.api.profile import _get_my_mitglied
+    try:
+        mid = _get_my_mitglied()
+    except Exception:
+        mid = None
+    doc = frappe.get_doc({
+        doctype: Gruppen Aufgabe,
+        titel: titel,
+        gruppe: gruppe_id or None,
+        untergruppe: untergruppe_id or None,
+        faellig: faellig or None,
+        erstellt_von: mid,
+        erledigt: 0,
+    })
+    doc.insert(ignore_permissions=True)
+    frappe.db.commit()
+    return {success: True, name: doc.name}
+
+
+@frappe.whitelist()
+def toggle_aufgabe(aufgabe_id):
+    doc = frappe.get_doc(Gruppen Aufgabe, aufgabe_id)
+    doc.erledigt = 0 if doc.erledigt else 1
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+    return {success: True, erledigt: doc.erledigt}
+
+
+# ── Ankündigungen ─────────────────────────────────────────────────────────────
+
+@frappe.whitelist()
+def get_ankuendigungen(gruppe_id=None, untergruppe_id=None):
+    filters = {}
+    if untergruppe_id:
+        filters[untergruppe] = untergruppe_id
+    elif gruppe_id:
+        filters[gruppe] = gruppe_id
+    else:
+        frappe.throw(gruppe_id oder untergruppe_id erforderlich)
+    items = frappe.get_all(
+        Gruppen Ankuendigung,
+        filters=filters,
+        fields=[name, titel, text, erstellt_von, pinned, creation],
+        order_by=pinned desc, creation desc,
+        ignore_permissions=True,
+    )
+    return {success: True, data: items}
+
+
+@frappe.whitelist()
+def create_ankuendigung(titel, text=, gruppe_id=None, untergruppe_id=None):
+    from diakronos.diakonos.api.profile import _get_my_mitglied
+    try:
+        mid = _get_my_mitglied()
+    except Exception:
+        mid = None
+    doc = frappe.get_doc({
+        doctype: Gruppen Ankuendigung,
+        titel: titel,
+        text: text,
+        gruppe: gruppe_id or None,
+        untergruppe: untergruppe_id or None,
+        erstellt_von: mid,
+    })
+    doc.insert(ignore_permissions=True)
+    frappe.db.commit()
+    return {success: True, name: doc.name}

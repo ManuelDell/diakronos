@@ -679,7 +679,7 @@ body { -webkit-tap-highlight-color: transparent; margin: 0; }
 .dk-stat-trend.down { color: var(--dk-danger); }
 .dk-stat-trend.flat { color: var(--dk-text-muted); }
 
-.dk-quick-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; }
+.dk-quick-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 1%; }
 .dk-quick-card {
   display: flex;
   align-items: flex-start;
