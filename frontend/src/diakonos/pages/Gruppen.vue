@@ -42,7 +42,7 @@
             v-for="g in gefilterteMeineGruppen"
             :key="g.name"
             class="gr-kachel"
-            @click="() => { location.hash = '#/gruppe/' + g.name }"
+            @click="() => { navigate('#/gruppe/' + g.name) }"
             @mouseenter="e=>{e.currentTarget.style.boxShadow='0 4px 18px rgba(0,0,0,0.13)';e.currentTarget.style.transform='translateY(-2px)'}"
             @mouseleave="e=>{e.currentTarget.style.boxShadow='none';e.currentTarget.style.transform='none'}"
           >
@@ -93,7 +93,7 @@
             v-for="g in gefilterteAlleGruppen"
             :key="g.name"
             class="gr-kachel"
-            @click="() => { location.hash = '#/gruppe/' + g.name }"
+            @click="() => { navigate('#/gruppe/' + g.name) }"
             @mouseenter="e=>{e.currentTarget.style.boxShadow='0 4px 18px rgba(0,0,0,0.13)';e.currentTarget.style.transform='translateY(-2px)'}"
             @mouseleave="e=>{e.currentTarget.style.boxShadow='none';e.currentTarget.style.transform='none'}"
           >
@@ -118,6 +118,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { navigate } from '../router.js'
 import { apiCall } from '../composables/useApi.js'
 
 const loading = ref(true)
