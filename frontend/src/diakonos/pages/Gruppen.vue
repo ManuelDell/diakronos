@@ -133,7 +133,7 @@ const aktiverAlleChip = ref('alle')
 const meineDienstbereichChips = computed(() => {
   const map = new Map()
   for (const g of meineGruppen.value) {
-    const name = g.dienstbereich_name || g.dienstbereich_abbr || 'Unbekannt'
+    const name = g.dienstbereich_name || 'Unbekannt'
     map.set(name, (map.get(name) || 0) + 1)
   }
   const chips = [{ id: 'alle', label: 'Alle', count: meineGruppen.value.length }]
@@ -147,7 +147,7 @@ const meineDienstbereichChips = computed(() => {
 const gefilterteMeineGruppen = computed(() => {
   if (aktiverMeineChip.value === 'alle') return meineGruppen.value
   const name = aktiverMeineChip.value
-  return meineGruppen.value.filter(g => (g.dienstbereich_name || g.dienstbereich_abbr || 'Unbekannt') === name)
+  return meineGruppen.value.filter(g => (g.dienstbereich_name || 'Unbekannt') === name)
 })
 
 // ─── Alle Gruppen: flaches Array aus andereGruppen ───

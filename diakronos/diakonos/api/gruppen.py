@@ -651,18 +651,17 @@ def get_gruppen_page_data():
     my_groups = verantwortlich_names | member_names
 
     def g_dict(g, ist_verantwortlich=False, ist_meins=False):
-        db_abbr, db_farbe = "", "#667eea"
+        db_name, db_farbe = "", "#667eea"
         if g.get("dienstbereich"):
             db_doc = frappe.db.get_value("Dienstbereich", g["dienstbereich"], ["ministry","farbe"], as_dict=True) or {}
             db_name = db_doc.get("ministry") or ""
             db_farbe = db_doc.get("farbe") or "#667eea"
-            db_abbr = "".join(w[0].upper() for w in db_name.split()[:2]) if db_name else ""
         typ_name = ""
         if g.get("gruppentyp"):
             typ_name = frappe.db.get_value("Gruppentyp", g["gruppentyp"], "typname") or ""
         count = frappe.db.count("Gruppenmitgliedschaft", {"parent": g["name"], "status": "Aktiv"})
         return {"name": g["name"], "gruppenname": g["gruppenname"],
-            "dienstbereich_abbr": db_abbr, "dienstbereich_farbe": db_farbe,
+            "dienstbereich_name": db_name, "dienstbereich_farbe": db_farbe,
             "gruppentyp_name": typ_name, "bild": g.get("bild") or "",
             "mitglieder_count": count,
             "ist_verantwortlich": ist_verantwortlich, "ist_meins": ist_meins}
