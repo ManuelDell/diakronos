@@ -49,6 +49,10 @@
   "datenschutz_section",
   "datenschutz_einwilligung",
   "datenschutz_datum",
+  "foto_einwilligung",
+  "foto_datum",
+  "werbeeinwilligung",
+  "werbung_datum",
   "adressbuch_sichtbarkeit",
   "column_break_ds1",
   "notiz",
@@ -274,6 +278,32 @@
    "label": "Datum der Einwilligung",
    "depends_on": "eval:doc.datenschutz_einwilligung == 1",
    "read_only": 1
+  },
+  {
+   "fieldname": "foto_einwilligung",
+   "fieldtype": "Check",
+   "label": "Foto-Einwilligung erteilt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "foto_datum",
+   "fieldtype": "Date",
+   "label": "Datum der Foto-Einwilligung",
+   "read_only": 1,
+   "depends_on": "eval:doc.foto_einwilligung"
+  },
+  {
+   "fieldname": "werbeeinwilligung",
+   "fieldtype": "Check",
+   "label": "Werbeeinwilligung erteilt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "werbung_datum",
+   "fieldtype": "Date",
+   "label": "Datum der Werbeeinwilligung",
+   "read_only": 1,
+   "depends_on": "eval:doc.werbeeinwilligung"
   },
   {
    "fieldname": "adressbuch_sichtbarkeit",

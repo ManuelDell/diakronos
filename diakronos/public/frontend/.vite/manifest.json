@@ -78,7 +78,7 @@
     ]
   },
   "frontend/src/diakonos/components/widgets/GreetingWidget.vue": {
-    "file": "chunks/GreetingWidget-mHOyBUh5.js",
+    "file": "chunks/GreetingWidget-C2gwxn1G.js",
     "name": "GreetingWidget",
     "src": "frontend/src/diakonos/components/widgets/GreetingWidget.vue",
     "isDynamicEntry": true,
@@ -169,7 +169,7 @@
     ]
   },
   "frontend/src/diakonos/components/widgets/QuickLinksWidget.vue": {
-    "file": "chunks/QuickLinksWidget-DhgTomQs.js",
+    "file": "chunks/QuickLinksWidget-BbFQ0N07.js",
     "name": "QuickLinksWidget",
     "src": "frontend/src/diakonos/components/widgets/QuickLinksWidget.vue",
     "isDynamicEntry": true,
@@ -206,7 +206,7 @@
     ]
   },
   "frontend/src/diakonos/main.js": {
-    "file": "diakonos-BmChkvnJ.js",
+    "file": "diakonos-BadDshtd.js",
     "name": "diakonos",
     "src": "frontend/src/diakonos/main.js",
     "isEntry": true,
@@ -239,7 +239,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Adressbuch.vue": {
-    "file": "chunks/Adressbuch-BwSFYje8.js",
+    "file": "chunks/Adressbuch-DoDquy9D.js",
     "name": "Adressbuch",
     "src": "frontend/src/diakonos/pages/Adressbuch.vue",
     "isDynamicEntry": true,
@@ -254,7 +254,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Beitraege.vue": {
-    "file": "chunks/Beitraege-X0ow-Rdo.js",
+    "file": "chunks/Beitraege-D2I4KRS1.js",
     "name": "Beitraege",
     "src": "frontend/src/diakonos/pages/Beitraege.vue",
     "isDynamicEntry": true,
@@ -270,7 +270,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Dienstplan.vue": {
-    "file": "chunks/Dienstplan-BKhAwIV3.js",
+    "file": "chunks/Dienstplan-6CHi5dlt.js",
     "name": "Dienstplan",
     "src": "frontend/src/diakonos/pages/Dienstplan.vue",
     "isDynamicEntry": true,
@@ -285,7 +285,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Dsgvo.vue": {
-    "file": "chunks/Dsgvo-OEW9EcjR.js",
+    "file": "chunks/Dsgvo-D4kyu7Oc.js",
     "name": "Dsgvo",
     "src": "frontend/src/diakonos/pages/Dsgvo.vue",
     "isDynamicEntry": true,
@@ -301,7 +301,7 @@
     ]
   },
   "frontend/src/diakonos/pages/GruppeDetail.vue": {
-    "file": "chunks/GruppeDetail-Dzp_Chmu.js",
+    "file": "chunks/GruppeDetail-D1v27a0x.js",
     "name": "GruppeDetail",
     "src": "frontend/src/diakonos/pages/GruppeDetail.vue",
     "isDynamicEntry": true,
@@ -317,7 +317,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Gruppen.vue": {
-    "file": "chunks/Gruppen-B0_htiQi.js",
+    "file": "chunks/Gruppen-CaRVZWau.js",
     "name": "Gruppen",
     "src": "frontend/src/diakonos/pages/Gruppen.vue",
     "isDynamicEntry": true,
@@ -332,7 +332,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Home.vue": {
-    "file": "chunks/Home-3tL8-8qV.js",
+    "file": "chunks/Home-DgOS27Oi.js",
     "name": "Home",
     "src": "frontend/src/diakonos/pages/Home.vue",
     "isDynamicEntry": true,
@@ -373,7 +373,7 @@
     ]
   },
   "frontend/src/diakonos/pages/MitgliedDetail.vue": {
-    "file": "chunks/MitgliedDetail-BMOuPFEE.js",
+    "file": "chunks/MitgliedDetail-BieKOmAF.js",
     "name": "MitgliedDetail",
     "src": "frontend/src/diakonos/pages/MitgliedDetail.vue",
     "isDynamicEntry": true,
@@ -389,7 +389,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Mitglieder.vue": {
-    "file": "chunks/Mitglieder-Cm0clAho.js",
+    "file": "chunks/Mitglieder-DU5YvGfx.js",
     "name": "Mitglieder",
     "src": "frontend/src/diakonos/pages/Mitglieder.vue",
     "isDynamicEntry": true,
@@ -414,7 +414,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Organigramm.vue": {
-    "file": "chunks/Organigramm-BkHIbanN.js",
+    "file": "chunks/Organigramm-CzMXLrS6.js",
     "name": "Organigramm",
     "src": "frontend/src/diakonos/pages/Organigramm.vue",
     "isDynamicEntry": true,
@@ -430,7 +430,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Profile.vue": {
-    "file": "chunks/Profile-B3AEfLpd.js",
+    "file": "chunks/Profile-BJptd-E-.js",
     "name": "Profile",
     "src": "frontend/src/diakonos/pages/Profile.vue",
     "isDynamicEntry": true,
@@ -440,7 +440,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Registrierung.vue": {
-    "file": "chunks/Registrierung-CQ7N1qJz.js",
+    "file": "chunks/Registrierung-CN1FvWpK.js",
     "name": "Registrierung",
     "src": "frontend/src/diakonos/pages/Registrierung.vue",
     "isDynamicEntry": true,
@@ -455,7 +455,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Ressourcen.vue": {
-    "file": "chunks/Ressourcen-CTxPFu7F.js",
+    "file": "chunks/Ressourcen-CDBKid3Q.js",
     "name": "Ressourcen",
     "src": "frontend/src/diakonos/pages/Ressourcen.vue",
     "isDynamicEntry": true,
@@ -471,7 +471,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Statistik.vue": {
-    "file": "chunks/Statistik-CYxmdzk3.js",
+    "file": "chunks/Statistik-BCdnLzfk.js",
     "name": "Statistik",
     "src": "frontend/src/diakonos/pages/Statistik.vue",
     "isDynamicEntry": true,
@@ -486,7 +486,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Wiki.vue": {
-    "file": "chunks/Wiki-mGptOB5V.js",
+    "file": "chunks/Wiki-xhcG7jaJ.js",
     "name": "Wiki",
     "src": "frontend/src/diakonos/pages/Wiki.vue",
     "isDynamicEntry": true,
@@ -559,7 +559,7 @@
     "src": "node_modules/frappe-ui/src/fonts/Inter/Inter.var.woff2"
   },
   "style.css": {
-    "file": "css/style-BPrrrO50.css",
+    "file": "css/style-O3Y6HtZl.css",
     "src": "style.css"
   }
 }

@@ -43,6 +43,10 @@ def get_my_profile():
         "familienstand": doc.familienstand or "",
         "datenschutz_einwilligung": bool(doc.datenschutz_einwilligung),
         "datenschutz_datum": str(doc.datenschutz_datum) if doc.datenschutz_datum else None,
+        "foto_einwilligung": bool(doc.get("foto_einwilligung")),
+        "foto_datum": str(doc.get("foto_datum")) if doc.get("foto_datum") else None,
+        "werbeeinwilligung": bool(doc.get("werbeeinwilligung")),
+        "werbung_datum": str(doc.get("werbung_datum")) if doc.get("werbung_datum") else None,
         "adressbuch_sichtbarkeit": sichtbarkeit,
     }
 
@@ -93,6 +97,29 @@ def update_profile_picture(file_url=None):
     return {"ok": True}
 
 
+
+
+@frappe.whitelist()
+def update_einwilligung(typ, erteilt):
+    """Setzt Foto- oder Werbeeinwilligung (nur eigenes Profil)."""
+    user = frappe.session.user
+    if user == "Guest":
+        frappe.throw("Nicht angemeldet", frappe.PermissionError)
+    mid = _get_my_mitglied()
+    doc = frappe.get_doc("Mitglied", mid)
+    erteilt = frappe.utils.cint(erteilt)
+    if typ == "foto":
+        doc.foto_einwilligung = erteilt
+        doc.foto_datum = frappe.utils.nowdate() if erteilt else None
+    elif typ == "werbung":
+        doc.werbeeinwilligung = erteilt
+        doc.werbung_datum = frappe.utils.nowdate() if erteilt else None
+    else:
+        frappe.throw("Ungueltiger Einwilligungstyp")
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+    return {"ok": True}
+
 @frappe.whitelist()
 def delete_my_data():
     """DSGVO-Widerruf: Anonymisiert alle Daten und deaktiviert den Account."""
@@ -112,6 +139,10 @@ def delete_my_data():
     doc.geburtstag = None
     doc.foto = None
     doc.datenschutz_einwilligung = 0
+    doc.foto_einwilligung = 0
+    doc.foto_datum = None
+    doc.werbeeinwilligung = 0
+    doc.werbung_datum = None
     doc.adressbuch_sichtbarkeit = json.dumps(
         {"email": False, "telefonnummer": False, "adresse": False, "geburtstag": False}
     )

@@ -199,6 +199,15 @@ def get_mitglied_detail(mitglied_id):
     doc = frappe.get_doc("Mitglied", mitglied_id)
     result = doc.as_dict()
 
+    result["dsgvo"] = {
+        "datenschutz": bool(doc.datenschutz_einwilligung),
+        "datenschutz_datum": str(doc.datenschutz_datum) if doc.datenschutz_datum else None,
+        "foto": bool(doc.get("foto_einwilligung")),
+        "foto_datum": str(doc.get("foto_datum")) if doc.get("foto_datum") else None,
+        "werbung": bool(doc.get("werbeeinwilligung")),
+        "werbung_datum": str(doc.get("werbung_datum")) if doc.get("werbung_datum") else None,
+    }
+
     # Gruppenmitgliedschaften explizit anreichern (falls nicht in as_dict)
     gruppenmitgliedschaften = frappe.get_all(
         "Gruppenmitgliedschaft",

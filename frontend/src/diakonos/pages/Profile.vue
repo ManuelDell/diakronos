@@ -203,7 +203,37 @@
           </div>
         </div>
 
-        <div class="prof-dsgvo-actions">
+        <!-- Foto-Einwilligung -->
+        <div class="prof-consent-row">
+          <div class="prof-consent-info">
+            <div class="prof-consent-label">Foto-Einwilligung</div>
+            <div class="prof-consent-desc dk-text-muted">
+              {{ profile.foto_einwilligung ? ('Erteilt am ' + formatDate(profile.foto_datum)) : 'Nicht erteilt' }}
+            </div>
+          </div>
+          <button
+            class="dk-btn dk-btn-sm"
+            :class="profile.foto_einwilligung ? 'dk-btn-ghost' : 'dk-btn-primary'"
+            :disabled="savingConsent"
+            @click="toggleEinwilligung('foto', !profile.foto_einwilligung)"
+          >{{ profile.foto_einwilligung ? 'Widerrufen' : 'Erteilen' }}</button>
+        </div>
+        <!-- Werbeeinwilligung -->
+        <div class="prof-consent-row">
+          <div class="prof-consent-info">
+            <div class="prof-consent-label">Werbeeinwilligung</div>
+            <div class="prof-consent-desc dk-text-muted">
+              {{ profile.werbeeinwilligung ? ('Erteilt am ' + formatDate(profile.werbung_datum)) : 'Nicht erteilt' }}
+            </div>
+          </div>
+          <button
+            class="dk-btn dk-btn-sm"
+            :class="profile.werbeeinwilligung ? 'dk-btn-ghost' : 'dk-btn-primary'"
+            :disabled="savingConsent"
+            @click="toggleEinwilligung('werbung', !profile.werbeeinwilligung)"
+          >{{ profile.werbeeinwilligung ? 'Widerrufen' : 'Erteilen' }}</button>
+        </div>
+                <div class="prof-dsgvo-actions">
           <button class="dk-btn dk-btn-danger dk-btn-sm" @click="showDeleteConfirm = true">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
             Einwilligung widerrufen & Daten löschen
@@ -310,6 +340,7 @@ const saving = ref(false)
 const editingData = ref(false)
 const uploadingPhoto = ref(false)
 const deleting = ref(false)
+const savingConsent = ref(false)
 const showCrop = ref(false)
 const showDeleteConfirm = ref(false)
 const deleteConfirmText = ref('')
@@ -462,6 +493,18 @@ async function executeDelete() {
   }
 }
 
+async function toggleEinwilligung(typ, erteilt) {
+  savingConsent.value = true
+  try {
+    await apiFetch(`profile.update_einwilligung`, { typ, erteilt: erteilt ? 1 : 0 })
+    await loadProfile()
+  } catch (e) {
+    console.error(e)
+  } finally {
+    savingConsent.value = false
+  }
+}
+
 onMounted(loadProfile)
 </script>
 
@@ -600,4 +643,15 @@ onMounted(loadProfile)
   .prof-field-row { grid-template-columns: 1fr; }
   .prof-avatar-card { flex-direction: column; text-align: center; }
 }
+/* Consent rows (Foto, Werbung) */
+.prof-consent-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px;
+  border-top: 1px solid var(--dk-border);
+  gap: 12px;
+}
+.prof-consent-info { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.prof-consent-label { font-size: 14px; font-weight: 500; }
+.prof-consent-desc { font-size: 12px; }
+
 </style>
