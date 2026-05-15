@@ -650,7 +650,42 @@ def get_gruppen_page_data():
             "bild": typ.get("bild") or "", "farbe": typ.get("farbe") or "#667eea",
             "gruppen": gruppen, "gruppen_count": len(gruppen)})
 
-    return {"meine_gruppen": meine_gruppen, "gruppentypen": typen}
+    # Alle Gruppen (nur für Admins) — Gruppen wo Admin KEIN Mitglied/Verantwortlicher ist
+    andere_gruppen_by_db = []
+    if is_admin:
+        # Dienstbereiche für Sortierung laden
+        db_info_map = {}
+        for db_doc in frappe.get_all("Dienstbereich", fields=["name", "ministry", "farbe"], order_by="sortierung asc, ministry asc"):
+            db_info_map[db_doc["name"]] = db_doc
+
+        alle_gruppen_raw = frappe.get_all(
+            "Gruppe",
+            filters={"status": "Aktiv"},
+            fields=["name", "gruppenname", "dienstbereich", "gruppentyp", "bild"],
+            order_by="gruppenname asc",
+        )
+        # Nur Gruppen wo Admin kein Mitglied/Verantwortlicher ist
+        andere_raw = [g for g in alle_gruppen_raw if g["name"] not in my_groups]
+
+        # Nach Dienstbereich gruppieren
+        by_db = {}
+        for g in andere_raw:
+            db_key = g.get("dienstbereich") or "__kein_db__"
+            if db_key not in by_db:
+                db_meta = db_info_map.get(db_key, {})
+                by_db[db_key] = {
+                    "dienstbereich": db_key,
+                    "dienstbereich_name": db_meta.get("ministry") or db_key,
+                    "dienstbereich_farbe": db_meta.get("farbe") or "#667eea",
+                    "gruppen": [],
+                }
+            by_db[db_key]["gruppen"].append(g_dict(g, ist_meins=False))
+
+        # Sortiert nach Dienstbereich-Name ausgeben
+        andere_gruppen_by_db = sorted(by_db.values(), key=lambda x: x["dienstbereich_name"])
+
+    return {"meine_gruppen": meine_gruppen, "gruppentypen": typen,
+            "andere_gruppen": andere_gruppen_by_db, "is_admin": is_admin}
 
 
 
