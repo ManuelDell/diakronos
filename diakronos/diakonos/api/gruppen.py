@@ -5,7 +5,6 @@ import frappe
 from frappe import _
 
 from diakronos.diakonos.api.session import check_permission
-from diakronos.diakonos.api.zugriff import verify_admin_session
 
 ADMIN_ROLES = ["System Manager", "Mitgliederadministrator"]
 
@@ -21,11 +20,6 @@ def get_gruppen_hierarchie():
     is_admin = any(r in roles for r in ADMIN_ROLES)
 
     is_admin_mode = False
-    if is_admin:
-        try:
-            is_admin_mode = verify_admin_session().get("active", False)
-        except Exception:
-            pass
 
     # Alle Gruppen laden
     gruppen = frappe.get_all(

@@ -18,6 +18,7 @@ const pages = {
     Beitraege:       () => import('./pages/Beitraege.vue'),
     Wiki:            () => import('./pages/Wiki.vue'),
     Registrierung:   () => import('./pages/Registrierung.vue'),
+    Moderation:      () => import('./pages/Moderation.vue'),
 }
 
 // Exact routes
@@ -30,6 +31,7 @@ const routeMap = {
     '#/dienstplan':    'Dienstplan',
     '#/anmeldungen':   'Registrierung',
     '#/registrierung': 'Registrierung',
+    '#/moderation':    'Moderation',
     '#/organigramm':  'Organigramm',
     '#/statistik':     'Statistik',
     '#/dsgvo':         'Dsgvo',

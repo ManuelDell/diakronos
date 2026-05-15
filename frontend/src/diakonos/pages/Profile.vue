@@ -5,7 +5,6 @@
     <div class="dk-screen-header" style="margin-bottom:0">
       <div>
         <h1>Mein Profil</h1>
-        <p class="dk-text-muted">Persönliche Daten, Sichtbarkeit & Datenschutz</p>
       </div>
     </div>
 

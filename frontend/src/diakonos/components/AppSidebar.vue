@@ -66,28 +66,13 @@
         <NavItem href="#/registrierung" icon="clipboard-list" label="Registrierung" :active="page === 'Registrierung'" :collapsed="collapsed" :badge="pendingCount" />
         <NavItem href="#/organigramm" icon="git-branch" label="Organigramm" :active="currentHash === '#/organigramm'" :collapsed="collapsed" />
         <NavItem href="#/statistik" icon="bar-chart-2" label="Statistik" :active="page === 'Statistik'" :collapsed="collapsed" />
+        <NavItem href="#/dsgvo" icon="shield" label="DSGVO" :active="page === 'Dsgvo'" :collapsed="collapsed" />
       </template>
     </nav>
 
     <!-- Footer -->
     <div class="dk-sb-foot">
-      <!-- Kronos/Psalmos Upsell -->
-      <div v-if="!collapsed" class="dk-sb-upsell">
-        <div class="dk-sb-upsell-title">Kronos & Psalmos</div>
-        <div class="dk-sb-upsell-body">Kalender und Gottesdienstmodul – bald verfügbar.</div>
-      </div>
 
-      <!-- Admin Mode Toggle -->
-      <button
-        v-if="isAdmin"
-        class="dk-sb-admin-toggle"
-        :class="isAdminMode ? 'is-on' : 'is-off'"
-        @click="isAdminMode ? exitAdminMode() : (showAdminDialog = true)"
-        :title="collapsed ? (isAdminMode ? 'Admin-Modus beenden' : 'Admin-Modus') : ''"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        <span v-if="!collapsed">{{ isAdminMode ? 'Admin-Modus beenden' : 'Admin-Modus' }}</span>
-      </button>
 
       <!-- User -->
       <a href="#/profile" class="dk-sb-user">
@@ -109,28 +94,7 @@
     </div>
   </aside>
 
-  <!-- Admin Mode Dialog -->
-  <Teleport to="body">
-    <div v-if="showAdminDialog" class="dk-modal-overlay" @click.self="showAdminDialog = false">
-      <div class="dk-modal">
-        <h3>Admin-Modus aktivieren</h3>
-        <p>Bitte gib eine Begründung ein. Sie wird protokolliert und der zuständigen Stelle gemeldet.</p>
-        <textarea
-          v-model="adminReason"
-          rows="3"
-          placeholder="z. B. Korrektur Mitgliedsdaten für Herrn Mustermann…"
-        />
-        <div class="dk-modal-actions">
-          <button class="dk-btn dk-btn-secondary" @click="showAdminDialog = false">Abbrechen</button>
-          <button
-            class="dk-btn dk-btn-primary"
-            :disabled="!adminReason.trim()"
-            @click="doActivateAdmin"
-          >Aktivieren</button>
-        </div>
-      </div>
-    </div>
-  </Teleport>
+
 </template>
 
 <script setup>
@@ -144,13 +108,12 @@ const props = defineProps({
 })
 const emit = defineEmits(['toggle-collapse', 'toggle-theme', 'close-mobile'])
 
-const { user, mitglied, isAdmin, isAdminMode, enterAdminMode, exitAdminMode } = useSession()
+const { user, mitglied, isAdmin } = useSession()
 const page = currentPageName
 
 const isGast = computed(() => !isAdmin.value && mitglied.value?.status === 'Gast')
 
-const showAdminDialog = ref(false)
-const adminReason = ref('')
+
 const pendingCount = ref(0)
 
 const churchName = window.__DIakonosBOOT?.church_name || 'Meine Gemeinde'
@@ -167,12 +130,7 @@ const avatarColor = computed(() => {
   return AVATAR_COLORS[idx]
 })
 
-function doActivateAdmin() {
-  if (!adminReason.value.trim()) return
-  enterAdminMode(adminReason.value.trim())
-  showAdminDialog.value = false
-  adminReason.value = ''
-}
+
 
 // --- NavItem as inline component ---
 const ICONS = {

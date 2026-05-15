@@ -33,7 +33,7 @@
             </div>
 
             <button
-                v-if="isAdminMode"
+                v-if="isAdmin"
                 class="dk-btn dk-btn-danger"
                 @click="widerrufen"
                 :disabled="!einwilligung.aktiv || revoking"
@@ -54,7 +54,7 @@ import { showToast } from '../composables/useToast.js'
 export default {
     name: 'Dsgvo',
     setup() {
-        const { isAdminMode } = useSession()
+        const { isAdmin } = useSession()
         const loading = ref(true)
         const revoking = ref(false)
         const einwilligung = ref({ aktiv: false, datum: null })
@@ -102,7 +102,7 @@ export default {
             }
         }
 
-        return { loading, revoking, einwilligung, isAdminMode, widerrufen }
+        return { loading, revoking, einwilligung, isAdmin, widerrufen }
     }
 }
 </script>

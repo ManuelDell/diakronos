@@ -3,7 +3,11 @@ import json
 
 
 def _get_my_mitglied():
-    name = frappe.db.get_value("Mitglied", {"user": frappe.session.user}, "name")
+    user = frappe.session.user
+    name = frappe.db.get_value("Mitglied", {"user": user}, "name")
+    if not name:
+        email = frappe.db.get_value("User", user, "email") or user
+        name = frappe.db.get_value("Mitglied", {"email": email}, "name")
     if not name:
         frappe.throw("Kein Mitglied-Datensatz für diesen Nutzer gefunden.")
     return name
@@ -14,7 +18,7 @@ def get_my_profile():
     mid = _get_my_mitglied()
     doc = frappe.get_doc("Mitglied", mid)
 
-    sichtbarkeit = doc.adressbuch_sichtbarkeit
+    sichtbarkeit = doc.get("adressbuch_sichtbarkeit")
     if isinstance(sichtbarkeit, str):
         try:
             sichtbarkeit = json.loads(sichtbarkeit)
@@ -61,6 +65,9 @@ def update_my_profile(vorname=None, nachname=None, telefonnummer=None,
     if geburtstag is not None:   doc.geburtstag = geburtstag or None
     if geschlecht is not None:   doc.geschlecht = geschlecht
     if familienstand is not None: doc.familienstand = familienstand
+    if not hasattr(frappe.local, "audit_skip"):
+        frappe.local.audit_skip = set()
+    frappe.local.audit_skip.add(doc.name)
     doc.save(ignore_permissions=True)
     frappe.db.commit()
     return {"ok": True}

@@ -17,6 +17,7 @@
         <AuditConfirmModal v-if="!isKronosMode" />
       </div>
     </div>
+    <AppBottomNav @open-admin-dialog="handleOpenAdminDialog" />
   </FrappeUIProvider>
 </template>
 
@@ -27,6 +28,7 @@ import AppSidebar from './components/AppSidebar.vue'
 import AppTopbar from './components/AppTopbar.vue'
 import AuditConfirmModal from './components/AuditConfirmModal.vue'
 import KronosSidebar from './components/kronos/KronosSidebar.vue'
+import AppBottomNav from './components/AppBottomNav.vue'
 import { currentComponent, currentHash, navigate } from './router.js'
 
 const sidebarCollapsed = ref(false)
@@ -38,6 +40,9 @@ watch(isKronosMode, (val) => {
   if (val) sidebarCollapsed.value = false
 })
 
+import { useSession } from './composables/useSession.js'
+const { enterAdminMode } = useSession()
+function handleOpenAdminDialog() { enterAdminMode() }
 function toggleTheme() {
   theme.value = theme.value === 'dark' ? 'light' : 'dark'
   localStorage.setItem('dk-theme', theme.value)

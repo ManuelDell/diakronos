@@ -119,3 +119,24 @@ async function resetLayout() {
   await store.resetToDefaults()
 }
 </script>
+<style scoped>
+@media (hover: none) and (pointer: coarse) {
+  .dk-widget-edit-fab {
+    position: static !important;
+    bottom: auto !important;
+    right: auto !important;
+    display: flex !important;
+    width: 100%;
+    margin-top: 12px;
+    justify-content: center;
+    background: none !important;
+    box-shadow: none !important;
+    border: 1px solid var(--dk-border) !important;
+    border-radius: 8px !important;
+    color: var(--dk-text-muted) !important;
+    padding: 10px 16px !important;
+    font-size: 13px !important;
+    gap: 6px;
+  }
+}
+</style>

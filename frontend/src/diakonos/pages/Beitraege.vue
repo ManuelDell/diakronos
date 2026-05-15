@@ -424,13 +424,13 @@ async function addComment() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #eef1f8 0%, #d6dcea 100%);
+  background: linear-gradient(135deg, color-mix(in oklch, var(--dk-cat-allgemein) 12%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-cat-allgemein) 24%, var(--dk-surface-2)) 100%);
 }
-.bt-post-image--placeholder.cat-ankuendigung { background: linear-gradient(135deg, #fef3e2 0%, #fde8c4 100%); }
-.bt-post-image--placeholder.cat-gottesdienst { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
-.bt-post-image--placeholder.cat-jugend { background: linear-gradient(135deg, #f0f4ff 0%, #e0e8ff 100%); }
-.bt-post-image--placeholder.cat-gemeindeleben { background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%); }
-.bt-post-image--placeholder.cat-allgemein { background: linear-gradient(135deg, #f5f5f4 0%, #e7e5e4 100%); }
+.bt-post-image--placeholder.cat-ankuendigung  { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-cat-ankuendigung) 12%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-cat-ankuendigung) 24%, var(--dk-surface-2)) 100%); }
+.bt-post-image--placeholder.cat-gottesdienst  { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-cat-gottesdienst) 12%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-cat-gottesdienst) 24%, var(--dk-surface-2)) 100%); }
+.bt-post-image--placeholder.cat-jugend        { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-cat-jugend) 12%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-cat-jugend) 24%, var(--dk-surface-2)) 100%); }
+.bt-post-image--placeholder.cat-gemeindeleben { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-cat-gemeindeleben) 12%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-cat-gemeindeleben) 24%, var(--dk-surface-2)) 100%); }
+.bt-post-image--placeholder.cat-allgemein     { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-cat-allgemein) 12%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-cat-allgemein) 24%, var(--dk-surface-2)) 100%); }
 
 .bt-post-cat {
   position: absolute;
@@ -440,10 +440,14 @@ async function addComment() {
   font-weight: 600;
   padding: 4px 10px;
   border-radius: 6px;
-  background: rgba(255,255,255,.92);
-  color: var(--dk-text);
-  backdrop-filter: blur(4px);
+  color: #fff;
+  background: var(--dk-cat-allgemein);
 }
+.bt-post-cat.ankuendigung  { background: var(--dk-cat-ankuendigung); }
+.bt-post-cat.gottesdienst  { background: var(--dk-cat-gottesdienst); }
+.bt-post-cat.jugend        { background: var(--dk-cat-jugend); }
+.bt-post-cat.gemeindeleben { background: var(--dk-cat-gemeindeleben); }
+.bt-post-cat.allgemein     { background: var(--dk-cat-allgemein); }
 
 .bt-post-body { padding: 16px; }
 .bt-post-title {
@@ -525,11 +529,11 @@ async function addComment() {
   border-radius: 50%;
   flex-shrink: 0;
 }
-.bt-cat-dot.ankuendigung { background: #d97706; }
-.bt-cat-dot.gottesdienst { background: #16a34a; }
-.bt-cat-dot.jugend { background: #2563eb; }
-.bt-cat-dot.gemeindeleben { background: #db2777; }
-.bt-cat-dot.allgemein { background: #78716c; }
+.bt-cat-dot.ankuendigung  { background: var(--dk-cat-ankuendigung); }
+.bt-cat-dot.gottesdienst  { background: var(--dk-cat-gottesdienst); }
+.bt-cat-dot.jugend        { background: var(--dk-cat-jugend); }
+.bt-cat-dot.gemeindeleben { background: var(--dk-cat-gemeindeleben); }
+.bt-cat-dot.allgemein     { background: var(--dk-cat-allgemein); }
 .bt-cat-name { flex: 1; font-size: 13px; color: var(--dk-text); }
 .bt-cat-count {
   font-size: 12px;
@@ -566,13 +570,13 @@ async function addComment() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #eef1f8 0%, #d6dcea 100%);
+  background: linear-gradient(135deg, color-mix(in oklch, var(--dk-cat-allgemein) 12%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-cat-allgemein) 24%, var(--dk-surface-2)) 100%);
 }
-.bt-detail-image--placeholder.cat-ankuendigung { background: linear-gradient(135deg, #fef3e2 0%, #fde8c4 100%); }
-.bt-detail-image--placeholder.cat-gottesdienst { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
-.bt-detail-image--placeholder.cat-jugend { background: linear-gradient(135deg, #f0f4ff 0%, #e0e8ff 100%); }
-.bt-detail-image--placeholder.cat-gemeindeleben { background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%); }
-.bt-detail-image--placeholder.cat-allgemein { background: linear-gradient(135deg, #f5f5f4 0%, #e7e5e4 100%); }
+.bt-detail-image--placeholder.cat-ankuendigung  { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-cat-ankuendigung) 12%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-cat-ankuendigung) 24%, var(--dk-surface-2)) 100%); }
+.bt-detail-image--placeholder.cat-gottesdienst  { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-cat-gottesdienst) 12%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-cat-gottesdienst) 24%, var(--dk-surface-2)) 100%); }
+.bt-detail-image--placeholder.cat-jugend        { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-cat-jugend) 12%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-cat-jugend) 24%, var(--dk-surface-2)) 100%); }
+.bt-detail-image--placeholder.cat-gemeindeleben { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-cat-gemeindeleben) 12%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-cat-gemeindeleben) 24%, var(--dk-surface-2)) 100%); }
+.bt-detail-image--placeholder.cat-allgemein     { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-cat-allgemein) 12%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-cat-allgemein) 24%, var(--dk-surface-2)) 100%); }
 
 .bt-detail-close {
   position: absolute;
@@ -603,11 +607,12 @@ async function addComment() {
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
-.bt-detail-cat.ankuendigung { background: #fef3e2; color: #b45309; }
-.bt-detail-cat.gottesdienst { background: #dcfce7; color: #15803d; }
-.bt-detail-cat.jugend { background: #dbeafe; color: #1d4ed8; }
-.bt-detail-cat.gemeindeleben { background: #fce7f3; color: #be185d; }
-.bt-detail-cat.allgemein { background: #f5f5f4; color: #57534e; }
+.bt-detail-cat { color: #fff; }
+.bt-detail-cat.ankuendigung  { background: var(--dk-cat-ankuendigung); }
+.bt-detail-cat.gottesdienst  { background: var(--dk-cat-gottesdienst); }
+.bt-detail-cat.jugend        { background: var(--dk-cat-jugend); }
+.bt-detail-cat.gemeindeleben { background: var(--dk-cat-gemeindeleben); }
+.bt-detail-cat.allgemein     { background: var(--dk-cat-allgemein); }
 
 .bt-detail-title {
   font-size: 22px;

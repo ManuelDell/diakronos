@@ -277,15 +277,9 @@
   },
   {
    "fieldname": "adressbuch_sichtbarkeit",
-   "fieldtype": "JSON",
+   "fieldtype": "Small Text",
    "label": "Adressbuch Sichtbarkeit",
-   "insert_after": "datenschutz_datum"
-  },
-  {
-   "fieldname": "adressbuch_sichtbarkeit",
-   "fieldtype": "JSON",
-   "label": "Adressbuch Sichtbarkeit",
-   "insert_after": "datenschutz_datum"
+   "hidden": 1
   },
   {
    "fieldname": "dsgvo_export",

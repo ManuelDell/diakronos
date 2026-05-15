@@ -61,6 +61,7 @@ Diakonos ist die zentrale Anlaufstelle für alles rund um Mitglieder, Gruppen un
 - **Wiki**: Interne Wissensdatenbank mit Kategorien und Stichwortsuche
 - **Veranstaltungsanmeldung**: Mitglieder melden sich per One-Click direkt aus dem Kalender an
 - Admin-Hub: Anmeldungsübersicht, Genehmigungs-Workflow, Statistiken, DSGVO-Übersicht
+- **Moderationsbereich**: Termingenehmigungen, Registrierungsanträge und Benutzeranfragen zentral verwalten
 
 → [Technische Dokumentation Diakonos](docs/diakonos.md)
 

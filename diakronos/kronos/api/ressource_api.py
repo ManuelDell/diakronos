@@ -99,14 +99,14 @@ def finalize_pending_events(event_ids, as_final=True):
 @frappe.whitelist(allow_guest=False)
 def get_conflict_events():
     """Gibt Konflikt-Events zurück (nur für Moderatoren)."""
-    if not frappe.has_permission("Kronos Element", "read"):
+    if not frappe.has_permission("Element", "read"):
         frappe.throw(_("Keine Berechtigung"), frappe.PermissionError)
 
     events = frappe.db.sql("""
         SELECT a.name, a.element_name, a.element_start, a.element_end,
                a.ressource, a.element_calendar
-        FROM `tabKronos Element` a
-        JOIN `tabKronos Element` b
+        FROM `tabElement` a
+        JOIN `tabElement` b
           ON a.ressource = b.ressource
          AND a.name != b.name
          AND a.element_start < b.element_end

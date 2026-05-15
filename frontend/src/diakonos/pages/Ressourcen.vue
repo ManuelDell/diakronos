@@ -631,17 +631,17 @@ const IconInfo         = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   position: relative;
   background: var(--dk-surface-2);
 }
-.rs-card-image.type-room { background: linear-gradient(135deg, #eef1f8 0%, #d6dcea 100%); }
-.rs-card-image.type-vehicle { background: linear-gradient(135deg, #fef3e2 0%, #fde8c4 100%); }
-.rs-card-image.type-item { background: linear-gradient(135deg, #f0f4ff 0%, #e0e8ff 100%); }
+.rs-card-image.type-room    { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-brand-500) 10%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-brand-500) 20%, var(--dk-surface-2)) 100%); }
+.rs-card-image.type-vehicle { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-res-vehicle) 10%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-res-vehicle) 20%, var(--dk-surface-2)) 100%); }
+.rs-card-image.type-item    { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-res-item) 10%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-res-item) 20%, var(--dk-surface-2)) 100%); }
 
 .rs-card-icon {
   color: var(--dk-brand-400);
   opacity: 0.5;
 }
 .rs-card-image.type-room .rs-card-icon { color: var(--dk-brand-500); }
-.rs-card-image.type-vehicle .rs-card-icon { color: #d97706; }
-.rs-card-image.type-item .rs-card-icon { color: #2563eb; }
+.rs-card-image.type-vehicle .rs-card-icon { color: var(--dk-res-vehicle); }
+.rs-card-image.type-item .rs-card-icon    { color: var(--dk-res-item); }
 
 .rs-card-badge {
   position: absolute;
@@ -654,9 +654,9 @@ const IconInfo         = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
-.rs-card-badge.available { background: rgba(22,163,74,.12); color: var(--dk-success); }
-.rs-card-badge.booked { background: rgba(220,38,38,.10); color: var(--dk-danger); }
-.rs-card-badge.maintenance { background: rgba(217,119,6,.10); color: var(--dk-warning); }
+.rs-card-badge.available   { background: color-mix(in oklch, var(--dk-success) 12%, var(--dk-surface)); color: var(--dk-success); }
+.rs-card-badge.booked      { background: color-mix(in oklch, var(--dk-danger)  10%, var(--dk-surface)); color: var(--dk-danger); }
+.rs-card-badge.maintenance { background: color-mix(in oklch, var(--dk-warning) 12%, var(--dk-surface)); color: var(--dk-warning); }
 
 .rs-card-body {
   padding: 14px 16px 16px;
@@ -767,8 +767,8 @@ const IconInfo         = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   background: var(--dk-surface-2);
   color: var(--dk-brand-500);
 }
-.rs-list-icon.type-vehicle { color: #d97706; background: #fef3e2; }
-.rs-list-icon.type-item { color: #2563eb; background: #f0f4ff; }
+.rs-list-icon.type-vehicle { color: var(--dk-res-vehicle); background: color-mix(in oklch, var(--dk-res-vehicle) 12%, var(--dk-surface-2)); }
+.rs-list-icon.type-item    { color: var(--dk-res-item);    background: color-mix(in oklch, var(--dk-res-item)    12%, var(--dk-surface-2)); }
 .rs-list-title {
   font-size: 14px;
   font-weight: 500;
@@ -792,9 +792,9 @@ const IconInfo         = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   background: var(--dk-surface-2);
   color: var(--dk-text-muted);
 }
-.rs-type-badge.room { background: #eef1f8; color: var(--dk-brand-500); }
-.rs-type-badge.vehicle { background: #fef3e2; color: #b45309; }
-.rs-type-badge.item { background: #f0f4ff; color: #1d4ed8; }
+.rs-type-badge.room    { background: color-mix(in oklch, var(--dk-brand-500) 10%, var(--dk-surface-2)); color: var(--dk-brand-500); }
+.rs-type-badge.vehicle { background: color-mix(in oklch, var(--dk-res-vehicle) 12%, var(--dk-surface-2)); color: var(--dk-res-vehicle); }
+.rs-type-badge.item    { background: color-mix(in oklch, var(--dk-res-item)    12%, var(--dk-surface-2)); color: var(--dk-res-item); }
 
 .rs-status-dot {
   display: inline-flex;
@@ -866,9 +866,9 @@ const IconInfo         = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   align-items: center;
   justify-content: center;
 }
-.rs-detail-image.type-room { background: linear-gradient(135deg, #eef1f8 0%, #d6dcea 100%); }
-.rs-detail-image.type-vehicle { background: linear-gradient(135deg, #fef3e2 0%, #fde8c4 100%); }
-.rs-detail-image.type-item { background: linear-gradient(135deg, #f0f4ff 0%, #e0e8ff 100%); }
+.rs-detail-image.type-room    { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-brand-500) 10%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-brand-500) 20%, var(--dk-surface-2)) 100%); }
+.rs-detail-image.type-vehicle { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-res-vehicle) 10%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-res-vehicle) 20%, var(--dk-surface-2)) 100%); }
+.rs-detail-image.type-item    { background: linear-gradient(135deg, color-mix(in oklch, var(--dk-res-item) 10%, var(--dk-surface-2)) 0%, color-mix(in oklch, var(--dk-res-item) 20%, var(--dk-surface-2)) 100%); }
 .rs-detail-icon {
   color: var(--dk-brand-400);
   opacity: 0.6;
@@ -998,8 +998,8 @@ const IconInfo         = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   background: var(--dk-brand-400);
 }
 .rs-my-booking-color.type-room { background: var(--dk-brand-400); }
-.rs-my-booking-color.type-vehicle { background: #d97706; }
-.rs-my-booking-color.type-item { background: #2563eb; }
+.rs-my-booking-color.type-vehicle { background: var(--dk-res-vehicle); }
+.rs-my-booking-color.type-item    { background: var(--dk-res-item); }
 .rs-my-booking-body { flex: 1; min-width: 0; }
 .rs-my-booking-title {
   font-size: 13px;

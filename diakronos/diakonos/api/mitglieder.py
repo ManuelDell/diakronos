@@ -447,66 +447,6 @@ def _extract_path_segments(path):
 # ── Adressbuch ───────────────────────────────────────────────────────────────
 
 @frappe.whitelist()
-def get_adressbuch(suche=''):
-    import json
-    user = frappe.session.user
-    roles = frappe.get_roles(user)
-    is_admin = any(r in roles for r in ADMIN_ROLES)
-
-    params = {'suche': f'%{suche}%' if suche else '%%'}
-    where = '1=1'
-    if not is_admin:
-        current = _get_current_user_mitglied()
-        if current and current.get('ancestor_path'):
-            segs = _extract_path_segments(current['ancestor_path'])
-            if segs:
-                clauses = []
-                for i, seg in enumerate(segs):
-                    k = f'seg_{i}'
-                    clauses.append(f"CONCAT('/', COALESCE(m.ancestor_path, ''), '/') LIKE %({k})s")
-                    params[k] = f'%/{seg}/%'
-                where = '(' + ' OR '.join(clauses) + ')'
-            else:
-                where = 'm.email = %(ue)s'
-                params['ue'] = frappe.db.get_value('User', user, 'email') or user
-        else:
-            where = 'm.email = %(ue)s'
-            params['ue'] = frappe.db.get_value('User', user, 'email') or user
-
-    rows = frappe.db.sql(f'''
-        SELECT m.name, m.vorname, m.nachname, m.email, m.telefonnummer,
-               m.postleitzahl, m.wohnort, m.straße, m.nummer,
-               m.geburtstag, m.foto, m.adressbuch_sichtbarkeit
-        FROM  m
-        WHERE (m.vorname LIKE %(suche)s OR m.nachname LIKE %(suche)s OR m.email LIKE %(suche)s)
-          AND {where}
-        ORDER BY m.nachname, m.vorname
-        LIMIT 200
-    ''', params, as_dict=True)
-
-    result = []
-    for m in rows:
-        sicht = {}
-        try: sicht = json.loads(m.adressbuch_sichtbarkeit or '{}')
-        except Exception: pass
-        entry = {
-            'name': m.name,
-            'vorname': m.vorname,
-            'nachname': m.nachname,
-            'foto': m.foto,
-            'email': m.email if sicht.get('email', True) else None,
-            'telefonnummer': m.telefonnummer if sicht.get('telefonnummer', True) else None,
-            'postleitzahl': m.postleitzahl if sicht.get('adresse', False) else None,
-            'wohnort': m.wohnort if sicht.get('adresse', False) else None,
-            'geburtstag': str(m.geburtstag) if (m.geburtstag and sicht.get('geburtstag', False)) else None,
-        }
-        result.append(entry)
-    return {'data': result}
-
-
-# ── Adressbuch ───────────────────────────────────────────────────────────────
-
-@frappe.whitelist()
 def get_adressbuch(suche=""):
     import json as _json
     user = frappe.session.user

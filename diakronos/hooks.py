@@ -30,8 +30,6 @@ fixtures = [
     {"dt": "Role", "filters": [["name", "in", ["Mitglied", "Kalenderadministrator", "Psalmos-Nutzer"]]]},
     "Custom Field",
     "Client Script",
-    "Dashboard",
-    "Dashboard Widget",
 ]
 # Doc-Events (Cache-Invalidierung bleibt erhalten – sehr gut!)
 doc_events = {

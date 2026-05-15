@@ -24,9 +24,7 @@
                         <span v-if="gruppe?.dienstbereich" class="dk-badge">
                             {{ gruppe.dienstbereich }}
                         </span>
-                        <span v-if="isAdminMode" class="dk-badge dk-badge-brand">
-                            Admin-Mode
-                        </span>
+
                     </div>
                 </div>
             </div>
@@ -93,7 +91,7 @@
             </div>
 
             <!-- Mitglied hinzuf\u00fcgen (nur Admin-Mode) -->
-            <div v-if="isAdminMode" class="flex gap-2 mb-4">
+            <div v-if="isAdmin" class="flex gap-2 mb-4">
                 <input
                     v-model="neuesMitglied"
                     type="text"
@@ -115,7 +113,7 @@
                             <th>Rolle</th>
                             <th>Status</th>
                             <th>Beitrittsdatum</th>
-                            <th v-if="isAdminMode" class="text-right">Aktionen</th>
+                            <th v-if="isAdmin" class="text-right">Aktionen</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -127,7 +125,7 @@
                                 <span v-else>{{ m.vollstaendiger_name || m.name || '\u2013' }}</span>
                             </td>
                             <td>
-                                <span v-if="!isAdminMode" class="text-[var(--dk-text-muted)]">{{ m.rolle || '\u2013' }}</span>
+                                <span v-if="!isAdmin" class="text-[var(--dk-text-muted)]">{{ m.rolle || '\u2013' }}</span>
                                 <select
                                     v-else
                                     v-model="m.rolle"
@@ -155,7 +153,7 @@
                                 </span>
                             </td>
                             <td class="text-[var(--dk-text-muted)]">{{ formatDate(m.beitrittsdatum) || '\u2013' }}</td>
-                            <td v-if="isAdminMode" class="text-right">
+                            <td v-if="isAdmin" class="text-right">
                                 <button class="dk-btn dk-btn-ghost dk-btn-sm" style="color:var(--dk-danger);" @click="removeMitglied(m)">
                                     Entfernen
                                 </button>
@@ -178,7 +176,7 @@ import { showToast } from '../composables/useToast.js'
 export default {
     name: 'GruppeDetail',
     setup() {
-        const { isAdminMode } = useSession()
+        const { isAdmin } = useSession()
 
         const gruppe = ref(null)
         const mitglieder = ref([])
@@ -215,7 +213,6 @@ export default {
         }
 
         async function addMitglied() {
-            if (!isAdminMode.value) return
             const id = gruppeId.value
             const mitglied = neuesMitglied.value.trim()
             if (!id || !mitglied) return
@@ -237,7 +234,6 @@ export default {
         }
 
         async function removeMitglied(m) {
-            if (!isAdminMode.value) return
             const id = gruppeId.value
             const mitglied_id = m.mitglied || m.name
             if (!id || !mitglied_id) return
@@ -259,7 +255,6 @@ export default {
         }
 
         async function updateRolle(m) {
-            if (!isAdminMode.value) return
             const id = gruppeId.value
             const mitglied_id = m.mitglied || m.name
             if (!id || !mitglied_id) return
@@ -290,7 +285,7 @@ export default {
             untergruppen,
             loading,
             error,
-            isAdminMode,
+            isAdmin,
             neuesMitglied,
             formatDate,
             addMitglied,

@@ -51,13 +51,6 @@ def get_current_user_context():
 
     # Admin-Mode prüfen (nur relevant wenn is_admin)
     is_admin_mode = False
-    if is_admin:
-        from diakronos.diakonos.api.zugriff import verify_admin_session
-        try:
-            admin_check = verify_admin_session()
-            is_admin_mode = admin_check.get("active", False)
-        except Exception:
-            pass
 
     # Module (aus Diakronos Einstellungen)
     accessible_modules = []
@@ -105,12 +98,6 @@ def get_mitglied_permissions(mitglied_id):
     roles = frappe.get_roles(user)
     is_admin = any(r in roles for r in ADMIN_ROLES)
     is_admin_mode = False
-    if is_admin:
-        from diakronos.diakonos.api.zugriff import verify_admin_session
-        try:
-            is_admin_mode = verify_admin_session().get("active", False)
-        except Exception:
-            pass
 
     # Admin hat generell Zugriff (kein separater Admin-Mode mehr nötig)
     if is_admin:
@@ -166,12 +153,6 @@ def check_permission(doctype, docname, permission_type="read"):
     is_admin = any(r in roles for r in ADMIN_ROLES)
 
     is_admin_mode = False
-    if is_admin:
-        from diakronos.diakonos.api.zugriff import verify_admin_session
-        try:
-            is_admin_mode = verify_admin_session().get("active", False)
-        except Exception:
-            pass
 
     # Admin hat generell Vollzugriff (kein separater Admin-Mode mehr nötig)
     if is_admin:

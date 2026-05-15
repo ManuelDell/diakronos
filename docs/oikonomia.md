@@ -2,7 +2,26 @@
 
 → [Zurück zur Übersicht](../README.md)
 
-> 📋 Modul geplant – Umsetzung erst nach externer steuerrechtlicher Prüfung
+> Modul geplant – noch nicht begonnen
+
+---
+
+## Aktueller Stand
+
+Von Oikonomia existiert kein Code. Es gibt keine `oikonomia/`-Verzeichnisstruktur unter `diakronos/`.
+Im Frappe-Desk existiert lediglich ein Workspace-Eintrag als Fixture (`fixtures/Workspace/`), der das Modul in der Navigation erscheinen lässt — ohne jegliche Funktionalität dahinter.
+
+---
+
+## Geplanter Zweck
+
+Oikonomia soll die Finanzverwaltung der Gemeinde abdecken, ausgelegt für Körperschaften mit Einnahmenüberschussrechnung (EÜR nach § 4 Abs. 3 EStG):
+
+- Kassenbuch mit unveränderlichen Buchungseinträgen (GoBD-Konzept)
+- Kollekten-Erfassung mit Stückelungsprotokoll
+- Spendenbescheinigungen nach amtlichem Muster
+- Bankimport via CAMT.053 (ISO 20022) und CSV
+- Monatliche und jährliche Abschlüsse mit Hash-Chain
 
 ---
 
@@ -11,11 +30,11 @@
 ```
 oikonomia/
   doctype/
-    kassenbuch_eintrag/      # Einzelbuchung (unveränderlich nach Abschluss)
+    kassenbuch_eintrag/      # Einzelbuchung (nach Abschluss gesperrt)
     kassenbuch_abschluss/    # Monats-/Jahresabschluss mit Hash-Chain
     kollekte/                # Kollekten-Erfassung + Zählprotokoll
-    kollekte_position/       # Child-Table: Stückelung
-    spendenbescheinigung/    # PDF-Bescheinigung nach amtlichem Muster
+    kollekte_position/       # Child-Table: Stückelung (Münzen/Scheine)
+    spendenbescheinigung/    # PDF nach amtlichem Bundesfinanzministerium-Muster
     bankimport/              # CAMT.053 / CSV-Importprotokoll
   api/
     kassenbuch_api.py        # CRUD (mit Unveränderlichkeits-Lock)
@@ -27,94 +46,42 @@ oikonomia/
     jahresuebersicht/        # Jahresbericht
     kollektenbericht/        # Kollekten nach Datum und Verwendungszweck
   www/
-    oikonomia/               # Finanz-SPA
+    oikonomia/               # Finanz-SPA (Vue)
 ```
 
 ---
 
-## Datenbankmodell (Entwurf)
+## Was fehlt um Oikonomia zu starten
 
-### `KassenbuchEintrag`
-
-| Feld | Typ | Beschreibung |
-|------|-----|-------------|
-| `buchungsdatum` | Date | Buchungsdatum |
-| `betrag` | Currency | Betrag (positiv = Einnahme, negativ = Ausgabe) |
-| `buchungstext` | Data | Beschreibung der Buchung |
-| `kategorie` | Link → Buchungskategorie | Einnahme-/Ausgabenkategorie |
-| `beleg_nummer` | Data | Belegnummer für Dokumentation |
-| `erstellt_von` | Link → User | Erfassender Nutzer |
-| `gesperrt` | Check | True nach Monatsabschluss → unveränderlich |
-| `hash` | Data | SHA-256 Hash der Buchungsdaten (GoBD-Nachweis) |
-
-### `KollektePosition` (Child-Table)
-
-| Feld | Beschreibung |
-|------|-------------|
-| `stueckelung` | Nennwert (z. B. 0.01, 0.02, 0.05, ..., 50.00, 100.00) |
-| `anzahl` | Stückzahl |
-| `summe` | Automatisch berechnet (stueckelung × anzahl) |
-
-### `Spendenbescheinigung`
-
-| Feld | Beschreibung |
-|------|-------------|
-| `mitglied` | Link → Mitglied |
-| `spendensumme` | Currency |
-| `zeitraum_von` | Date |
-| `zeitraum_bis` | Date |
-| `ausstellungsdatum` | Date |
-| `pdf_datei` | Attach (generiertes PDF) |
+1. Verzeichnis `diakronos/oikonomia/` mit `__init__.py` anlegen
+2. Doctypes anlegen: `KassenbuchEintrag`, `KassenbuchAbschluss`, `Kollekte`, `KollektePosition`, `Spendenbescheinigung`, `BankImport`
+3. API-Dateien erstellen
+4. Whitelist-Einträge in `hooks.py` ergänzen
+5. Frontend-SPA (Vue) bauen
+6. Steuerrechtliche Prüfung durch Steuerberater vor Produktiveinsatz
 
 ---
 
-## GoBD-Compliance-Konzept
-
-GoBD (Grundsätze zur ordnungsmäßigen Führung und Aufbewahrung von Büchern) stellt folgende Anforderungen:
+## GoBD-Konzept (geplant)
 
 | Anforderung | Geplante Umsetzung |
 |-------------|-------------------|
-| Unveränderlichkeit | `gesperrt`-Flag nach Monatsabschluss; direkte DB-Änderungen werden durch Frappe-Permissions geblockt |
-| Nachvollziehbarkeit | Jede Buchung enthält `erstellt_von`, `erstellt_am` (Frappe-Standard) |
-| Vollständigkeit | Monatsabschluss-Mechanismus: offene Buchungen müssen vor Abschluss bestätigt werden |
-| Unveränderlicher Nachweis | SHA-256 Hash je Buchung; Abschluss enthält Hash der Vorgänger-Buchung (Hash-Chain) |
-| Aufbewahrung | Buchungen bleiben nach gesetzlicher Aufbewahrungsfrist (10 Jahre) in der Datenbank |
-
-> ⚠️ **Wichtig:** Die technische Umsetzung allein macht ein System nicht GoBD-konform. Die Verantwortung für ordnungsgemäße Buchführung, korrekte Kategorisierung und fristgerechte Aufbewahrung liegt bei der Gemeinde. Eine Prüfung durch einen Steuerberater wird dringend empfohlen.
+| Unveränderlichkeit | `gesperrt`-Flag nach Monatsabschluss |
+| Nachvollziehbarkeit | `erstellt_von`, `erstellt_am` (Frappe-Standard) |
+| Vollständigkeit | Monatsabschluss-Mechanismus |
+| Nachweis | SHA-256 Hash je Buchung; Hash-Chain über Abschlüsse |
+| Aufbewahrung | Buchungen verbleiben dauerhaft in der Datenbank |
 
 ---
 
-## CAMT.053 / CSV-Bankimport
+## Hinweise
 
-- CAMT.053: XML-basiertes Kontoauszugsformat (ISO 20022), von deutschen Banken unterstützt
-- CSV: Fallback für Banken ohne CAMT-Support (Mapping bank-spezifisch konfigurierbar)
-- Import erstellt ungesperrte Entwurfs-Buchungen zur manuellen Prüfung vor Bestätigung
+**GoBD:** Die technische Implementierung allein stellt keine GoBD-Konformität sicher. Die Verantwortung für ordnungsgemäße Buchführung liegt bei der Gemeinde. Vor Produktiveinsatz ist eine Steuerberater-Prüfung erforderlich.
 
----
+**Spendenbescheinigungen:** Nur für als gemeinnützig anerkannte Körperschaften rechtlich zulässig. Das amtliche Muster des Bundesfinanzministeriums kann sich ändern — die Gemeinde ist für Aktualität verantwortlich.
 
-## Spendenbescheinigungen
+**CAMT.053:** XML-basiertes Kontoauszugsformat nach ISO 20022, von deutschen Banken unterstützt.
 
-- Generierung als PDF nach dem offiziellen Muster des Bundesfinanzministeriums
-- Nur für als gemeinnützig anerkannte Körperschaften rechtlich zulässig
-- PDF wird als Anhang am `Spendenbescheinigung`-Dokument gespeichert
+**Geltungsbereich:** Dieses Modul richtet sich an Vereine und Körperschaften mit EÜR. Nicht geeignet für bilanzpflichtige Körperschaften (HGB, doppelte Buchführung).
 
-> **Hinweis:** Das amtliche Muster für Spendenbescheinigungen kann sich ändern. Die Gemeinde ist verantwortlich sicherzustellen, dass das verwendete Muster aktuell und korrekt ist. Vor dem produktiven Einsatz Prüfung durch Steuerberater erforderlich.
-
----
-
-## Geplante Berichte
-
-| Bericht | Beschreibung |
-|---------|-------------|
-| Monatsübersicht | Einnahmen, Ausgaben, Saldo pro Monat |
-| Jahresbericht | Jährliche Zusammenfassung mit Kategorien |
-| Kollektenbericht | Kollekten nach Datum, Betrag und Verwendungszweck |
-| Spendenliste | Alle Spenden eines Zeitraums mit Empfänger (für interne Kontrolle) |
-
----
-
-## Rechtliche Einordnung
-
-Dieses Modul richtet sich an Vereine und Körperschaften, die **Einnahmenüberschussrechnung (EÜR)** nach § 4 Abs. 3 EStG führen. Es ist **nicht** für bilanzpflichtige Körperschaften (doppelte Buchführung nach HGB) konzipiert.
-
-Für bilanzpflichtige Gemeinden (z. B. Körperschaften des öffentlichen Rechts oder größere eingetragene Vereine) ist eine spezialisierte Buchhaltungssoftware erforderlich.
+Geplante Umsetzung: nach Abschluss von Diakonos-Kern und Psalmos, erst nach externer steuerrechtlicher Prüfung.

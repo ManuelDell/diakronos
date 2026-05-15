@@ -200,4 +200,9 @@ onMounted(() => {
   height: 100%;
   overflow: hidden;
 }
+@media (hover: none) and (pointer: coarse) {
+  .kronos-page-content {
+    padding-bottom: 80px;
+  }
+}
 </style>

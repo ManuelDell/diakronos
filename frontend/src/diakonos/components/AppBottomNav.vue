@@ -111,19 +111,13 @@
                 </div>
                 <span>Organigramm</span>
               </a>
+              <a class="dk-bn-sheet-item" href="#/moderation" @click="closeMore">
+                <div class="dk-bn-sheet-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M4 5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1l0-4"/><path d="M14 5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1l0-4"/><path d="M4 15a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1l0-4"/><path d="M14 17h6m-3-3v6"/></svg>
+                </div>
+                <span>Moderation</span>
+              </a>
             </template>
-          </div>
-
-          <!-- Admin Toggle im Sheet -->
-          <div v-if="isAdmin" class="dk-bn-sheet-footer">
-            <button
-              class="dk-bn-admin-toggle"
-              :class="isAdminMode ? 'is-on' : 'is-off'"
-              @click="isAdminMode ? exitAdminMode() : openAdminDialog()"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              {{ isAdminMode ? 'Admin-Modus beenden' : 'Admin-Modus aktivieren' }}
-            </button>
           </div>
 
         </div>
@@ -137,10 +131,10 @@ import { ref, computed } from 'vue'
 import { currentPageName, currentHash, navigate } from '../router.js'
 import { useSession } from '../composables/useSession.js'
 
-const { user, mitglied, isAdmin, isAdminMode, exitAdminMode, enterAdminMode } = useSession()
+const { user, mitglied, isAdmin } = useSession()
 
 const props = defineProps({ isKronosMode: Boolean })
-const emit = defineEmits(['open-admin-dialog'])
+const emit = defineEmits([])
 
 const page = currentPageName
 const showMore = ref(false)
@@ -159,10 +153,6 @@ const avatarColor = computed(() => {
 
 function toggleMore() { showMore.value = !showMore.value }
 function closeMore() { showMore.value = false }
-function openAdminDialog() {
-  closeMore()
-  emit('open-admin-dialog')
-}
 </script>
 
 <style scoped>
@@ -171,7 +161,7 @@ function openAdminDialog() {
   display: none;
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  height: calc(56px + env(safe-area-inset-bottom));
+  height: calc(64px + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
   background: var(--dk-surface);
   border-top: 1px solid var(--dk-border);
@@ -179,7 +169,7 @@ function openAdminDialog() {
   flex-direction: row;
   align-items: stretch;
 }
-@media (max-width: 720px) {
+@media (hover: none) and (pointer: coarse) {
   .dk-bottom-nav { display: flex; }
 }
 
@@ -260,17 +250,6 @@ function openAdminDialog() {
   border-top: 1px solid var(--dk-border);
   margin-top: 8px;
 }
-.dk-bn-admin-toggle {
-  width: 100%; padding: 10px 16px;
-  border-radius: 10px; border: none;
-  display: flex; align-items: center; gap: 8px;
-  font-size: 13px; font-weight: 500; cursor: pointer;
-  background: var(--dk-surface-2); color: var(--dk-text);
-}
-.dk-bn-admin-toggle.is-on {
-  background: rgba(28,40,80,0.12); color: var(--dk-brand-500, #1c2850);
-}
-
 /* Sheet transition */
 .sheet-enter-active, .sheet-leave-active { transition: opacity 0.2s; }
 .sheet-enter-active .dk-bn-sheet, .sheet-leave-active .dk-bn-sheet {

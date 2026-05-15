@@ -19,8 +19,8 @@ import { useSession } from '../../composables/useSession'
 const { user } = useSession()
 
 const firstName = computed(() => {
-  if (!user.value?.full_name) return ''
-  return user.value.full_name.split(' ')[0]
+  if (!user.value?.fullname) return ''
+  return user.value.fullname.split(' ')[0]
 })
 
 const greeting = computed(() => {

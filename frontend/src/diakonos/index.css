@@ -20,6 +20,16 @@
   --dk-brand-900: #00030f;
   --dk-accent:    #d4a24c;
   --dk-accent-d:  #b8872f;
+  --dk-primary:   var(--dk-brand-800);
+  /* Category colors */
+  --dk-cat-ankuendigung:  #d97706;
+  --dk-cat-gottesdienst:  #16a34a;
+  --dk-cat-jugend:        #2563eb;
+  --dk-cat-gemeindeleben: #db2777;
+  --dk-cat-allgemein:     #78716c;
+  /* Resource types */
+  --dk-res-vehicle: #d97706;
+  --dk-res-item:    #2563eb;
 
   /* Status */
   --dk-success: #16a34a;
@@ -122,7 +132,7 @@ body { -webkit-tap-highlight-color: transparent; margin: 0; }
    Sidebar
    ===================================================================== */
 .dk-sidebar {
-  width: var(--dk-sidebar-w);
+  width: 100%;
   display: flex;
   flex-direction: column;
   background: var(--dk-sb-bg);
@@ -180,7 +190,9 @@ body { -webkit-tap-highlight-color: transparent; margin: 0; }
   transition: background var(--dk-fast), color var(--dk-fast);
 }
 .dk-sb-collapse:hover { background: var(--dk-sb-hover); color: #fff; }
-.is-collapsed .dk-sb-top { justify-content: center; }
+.is-collapsed .dk-sb-top { justify-content: center; padding: 14px 6px 10px; }
+.is-collapsed .dk-sb-brand { display: none; }
+.is-collapsed .dk-sb-nav { padding: 6px 0; }
 .is-collapsed .dk-sb-collapse { display: flex; }
 
 /* Search */
@@ -769,6 +781,8 @@ body { -webkit-tap-highlight-color: transparent; margin: 0; }
   color: var(--dk-text-muted);
 }
 .dk-filter-chip.is-active .dk-chip-count { background: rgba(255,255,255,.2); color: #fff; }
+
+.dk-filter-group { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .dk-table {
   width: 100%;
