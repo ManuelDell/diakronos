@@ -106,17 +106,20 @@ def update_einwilligung(typ, erteilt):
     if user == "Guest":
         frappe.throw("Nicht angemeldet", frappe.PermissionError)
     mid = _get_my_mitglied()
-    doc = frappe.get_doc("Mitglied", mid)
     erteilt = frappe.utils.cint(erteilt)
+    heute = frappe.utils.nowdate() if erteilt else None
     if typ == "foto":
-        doc.foto_einwilligung = erteilt
-        doc.foto_datum = frappe.utils.nowdate() if erteilt else None
+        frappe.db.set_value("Mitglied", mid, {
+            "foto_einwilligung": erteilt,
+            "foto_datum": heute,
+        })
     elif typ == "werbung":
-        doc.werbeeinwilligung = erteilt
-        doc.werbung_datum = frappe.utils.nowdate() if erteilt else None
+        frappe.db.set_value("Mitglied", mid, {
+            "werbeeinwilligung": erteilt,
+            "werbung_datum": heute,
+        })
     else:
         frappe.throw("Ungueltiger Einwilligungstyp")
-    doc.save(ignore_permissions=True)
     frappe.db.commit()
     return {"ok": True}
 

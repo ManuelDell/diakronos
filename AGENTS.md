@@ -1,190 +1,120 @@
-# Diakronos — AGENTS.md
+# AGENTS.md — Diakronos DSGVO-Compliance
 
-Self-hosted church management (Frappe + Vue 3 + MariaDB). MIT, Dells Dienste.  
-**App path:** `/home/erpnext/frappe-bench/apps/diakronos/`  
-**Branch:** `develop` (active), `v16` (local dev base)  
-**Build:** `cd apps/diakronos && yarn build` → `diakronos/public/frontend/`  
-**Bench root:** `/home/erpnext/frappe-bench`  
-**Dev SSH host:** `lokal-Frappe-Development`
+**Dieses Dokument ist bindend für alle KI-Agenten und Entwickler, die an diesem Codebase arbeiten.**
 
 ---
 
-## Stack & Build
+## 1. Grundsatz
 
-- Backend: Frappe (Python), whitelisted methods via `hooks.py`
-- Frontend: Vue 3 SPA (Vite), hash-based routing, `--dk-*` CSS design system
-- DB: MariaDB via Frappe ORM
-- **`bench build` does NOT compile Vue** — always `yarn build` in app root
-- Built JS is **tracked in git** (`public/frontend/` not gitignored)
-- After DocType/Python changes: `bench migrate` + `bench restart`
+Diakronos verarbeitet personenbezogene Daten von Vereinsmitgliedern nach DSGVO.
+Jede Einwilligung (Datenschutzerklärung, Foto, Werbung) muss:
+
+- **nachweisbar** sein (Art. 7 Abs. 1 DSGVO)
+- **unveränderlich geloggt** werden (Art. 5 Abs. 2 DSGVO — Rechenschaftspflicht)
+- **nach Datenlöschung erhalten bleiben** (Art. 17 Abs. 3 lit. b DSGVO — Logs überleben den Account)
 
 ---
 
-## Python Module Map
+## 2. Einwilligungs-Felder im DocType `Mitglied`
 
-| Dir | Role | Notes |
+| Feldname | Typ | Bedeutung |
 |---|---|---|
-| `diakronos/diakronos/` | Core: settings, auth, fixtures | App config — not member module |
-| `diakronos/diakonos/` | Member management module | **Different from `diakronos/`** |
-| `diakronos/kronos/` | Calendar & events | `Element` = main event DocType |
-| `diakronos/psalmos/` | Song management | Stub only, no active code |
-| `diakronos/seelsorge/` | Pastoral care | Stub only, no active code |
-| `diakronos/caldav/` | Read-only CalDAV server | Intercepts `/dav/*` via `before_request` |
+| `datenschutz_einwilligung` | Check | Allgemeine Datenschutzerklärung |
+| `datenschutz_datum` | Date | Datum der Zustimmung |
+| `foto_einwilligung` | Check | Einwilligung zur Foto-/Bildveröffentlichung |
+| `foto_datum` | Date | Datum der Foto-Einwilligung |
+| `werbeeinwilligung` | Check | Einwilligung zu Werbezwecken |
+| `werbung_datum` | Date | Datum der Werbeeinwilligung |
+
+**Alle sechs Felder sind `read_only: 1` im DocType-JSON** — sie dürfen NUR über whitelisted API-Funktionen geändert werden, niemals direkt über die Frappe-UI oder rohe DB-Updates ohne Logging.
 
 ---
 
-## DocTypes
+## 3. Pflicht-Logging — Einwilligung Log
 
-**Diakonos** (`diakonos/doctype/`):  
-`anmeldeformular`, `anmeldeformular_dokument`, `anmeldeformular_feld`, `anmeldung`, `anmeldung_antwort`, `anmeldung_kind`, `audit_log`, `audit_policy`, `beitrag`, `beitrag_kommentar`, `dienstbereich`, `dienstbereich_verantwortlicher` *(child: `user` → Frappe User)*, `dienstrolle`, `dsgvo_einwilligung`, `gruppe`, `gruppe_verantwortlicher` *(child: `verantwortlicher` → Mitglied)*, `gruppenmitgliedschaft`, `gruppenrolle`, `gruppentyp`, `mitglied`, `mitglied_bereich`, `mitglied_beziehung`, `mitglied_tag`, `registrierungslink`, `ressourcen_buchung`, `sicherer_anhang`, `untergruppe`, `untergruppe_verantwortlicher`, `untergruppenmitgliedschaft`, `user_notification_preference`, `wiki_artikel`
+**TODO: DocType `Einwilligung Log` (Phase 1 — noch zu implementieren)**
 
-**Kronos** (`kronos/doctype/`):  
-`ablaufplan`, `ablaufplan_position`, `element`, `element_mitarbeiter`, `eventkategorie`, `google_kalender_einstellungen`, `kalender`, `kalender_moderator`, `kronos_einstellungen`, `kronos_kanban_zustand`, `ressource`
-
----
-
-## API Layer
-
-**Rule:** Every public endpoint must be in `hooks.py → whitelisted_methods` (else 403).
-
-**Diakonos API** (`diakonos/api/`):
-
-| File | Responsibility |
-|---|---|
-| `admin_hub.py` | Stats, Anmeldungen, DSGVO overview, approval flows |
-| `audit.py` | Audit log read |
-| `audit_policy/` | DSGVO anonymisation policy |
-| `beitraege.py` | Posts + comments CRUD |
-| `cleanup.py` | Daily cleanup scheduler (old Anmeldeanfragen) |
-| `dienstplan.py` | Service roster (backend TODO — stubs in Home.vue) |
-| `dsgvo_export.py` | DSGVO data export |
-| `gruppen.py` | Group hierarchy, create Dienstbereich/Gruppe/Untergruppe, permissions |
-| `kalender.py` | SPA calendar events |
-| `mitglieder.py` | Member CRUD, list |
-| `nutzer.py` | User account ops |
-| `orgchart_api.py` | Org-chart data |
-| `registrierung.py` | Public registration flow |
-| `registrierungslink_api.py` | Registration link CRUD |
-| `ressourcen.py` | Resource booking CRUD |
-| `session.py` | `check_permission(doctype, name, perm)` |
-| `veranstaltungsanmeldung.py` | One-click event registration |
-| `wiki.py` | Wiki CRUD |
-| `zugriff.py` | `verify_admin_session()` for elevated ops |
-
-**Kronos API** (`kronos/api/`):
-
-| File | Responsibility |
-|---|---|
-| `calendar_get.py` | Main calendar events feed |
-| `event_crud.py` | Element create/update/delete |
-| `google_import.py` | Google Calendar OAuth + import |
-| `kanban_api.py` | Kanban board state |
-| `permissions.py` | Module access, home preference |
-| `ressource_api.py` | Room/resource calendar |
-| `search_api.py` | Awesome Bar event search |
-| `series.py` | Recurring event series logic |
-
----
-
-## Frontend (Vue 3 SPA)
-
-**Source:** `frontend/src/diakonos/`
-
-**Pages:** `Home`, `Mitglieder`, `MitgliedDetail`, `Gruppen`, `GruppeDetail`, `Adressbuch`, `Kalender`, `Dienstplan`, `Organigramm`, `Statistik`, `Dsgvo`, `Profile`, `Ressourcen`, `Beitraege`, `Wiki`, `Registrierung`
-
-**Components:** `AppSidebar`, `AppTopbar`, `AuditConfirmModal`, `DkModal`, `GruppenItem`
-
-**Composables:**
-
-| File | Purpose |
-|---|---|
-| `useApi.js` | `apiCall(method, args)` → `frappe.call` wrapper |
-| `useSession.js` | Current user / mitglied / isAdmin |
-| `useMitglieder.js` | Shared member list/cache |
-| `useNotifications.js` | In-app notifications |
-| `useToast.js` | Toast messages |
-| `useAuditConfirm.js` | Audit confirmation modal trigger |
-
-**Routing (hash-based):**
-- Exact: `#/` `#/mitglieder` `#/gruppen` `#/kalender` etc.
-- Dynamic: `#/mitglied/:id` → `MitgliedDetail`, `#/gruppe/:id` → `GruppeDetail`
-- Guards: Gast-status → locked to `#/` `#/kalender` `#/profile`
-
-**WWW routes:**
-
-| Path | Handler |
-|---|---|
-| `/diakonos/*` | Vue SPA (hash router takes over) |
-| `/dav/*` | CalDAV (intercept in `before_request`) |
-| `/registrierung` | Public registration SPA |
-| `/gast` | Guest view SPA |
-| `/kronos` | Kronos calendar page |
-
-**CSS design system:** `--dk-surface`, `--dk-surface-2`, `--dk-text`, `--dk-text-muted`, `--dk-text-subtle`, `--dk-border`, `--dk-btn-primary`, `--dk-danger`, `--dk-primary`
-
-**Modal pattern:** `<DkModal>` component or `<Teleport to="body">` + `.dk-modal-overlay > .dk-modal`
-
-**Login redirect:** Admins → `/app` | Members → `/diakonos` (via `auth.py::get_home_page`)
-
----
-
-## Permission Model
-
-**Frappe Roles:** System Manager, Mitgliederadministrator, Gemeindeverantwortlicher, Kalenderadministrator, Psalmos-Nutzer, Mitglied
-
-**Group hierarchy (top → bottom):**
+Jede Änderung an Einwilligungs-Feldern MUSS einen unveränderlichen Log-Eintrag erzeugen mit:
 
 ```
-Dienstbereich  ←  Dienstbereich Verantwortlicher.user (Frappe User)
-  └── Gruppe   ←  Gruppe Verantwortlicher.verantwortlicher (→ Mitglied)
-        └── Untergruppe  ←  Untergruppe Verantwortlicher.verantwortlicher (→ Mitglied)
+- mitglied: Link zu Mitglied (Name/ID)
+- typ: "datenschutz" | "foto" | "werbung"
+- aktion: "erteilt" | "widerrufen"
+- datum: datetime (UTC)
+- ip_adresse: Request-IP (anonymisiert: letztes Oktett = 0)
+- user_agent: Browser-String (gekürzt auf max 200 Zeichen)
+- quelle: "selfservice" | "admin" | "import" | "api"
+- unveraenderlich: 1 (kein Delete, kein Amend erlaubt)
 ```
 
-**Creation rules (top-down only):**
-- Gemeindeverantwortliche → create Dienstbereich
-- Dienstbereichsverantwortliche → create Gruppe (in their Dienstbereich)
-- Gruppenverantwortliche → create Untergruppe (in their Gruppe)
-
-**`ancestor_path` field:** Precomputed hierarchy path on `Gruppe`, `Untergruppe`, `Mitglied` for efficient permission checks.
-
-**Audit Log:** Immutable (`on_update`/`on_trash` → throw). Daily scheduler anonymises expired entries per `DsgvoEinwilligung` policy.
-
-**Admin session:** `verify_admin_session()` in `zugriff.py` — required for admin-hub elevated ops, separate from Frappe role check.
+**Implementierungs-Regeln:**
+- DocType: `submit`-fähig, kein `is_submittable` nötig — stattdessen: kein Delete-Permission für niemanden
+- `on_trash`-Hook im DocType: `frappe.throw("Einwilligung-Logs dürfen nicht gelöscht werden")`
+- Log-Einträge überleben Anonymisierung (referenzieren `mitglied.name`, nicht die PII)
 
 ---
 
-## Open TODOs
+## 4. Hook-Punkte — Wo muss geloggt werden?
 
-| Area | Status |
-|---|---|
-| `Dienstplan` | Frontend stubs only (`get_meine_dienste`, `get_dienstanfragen`), no backend |
-| `Kronos core/manager.py` | 3× `# TODO: Phase 2` — advanced series logic |
-| `Psalmos` | Dir + www-page exists, no DocTypes/API |
-| `Seelsorge` | Dir exists, no implementation |
-| Raven chat | Planned integration (group → channel), commented out in hooks.py |
-
----
-
-## Quick Reference
-
-| Task | Command / Location |
-|---|---|
-| Build frontend | `cd /home/erpnext/frappe-bench/apps/diakronos && yarn build` |
-| Start bench | `cd /home/erpnext/frappe-bench && bench start` |
-| Migrate DB | `cd /home/erpnext/frappe-bench && bench migrate` |
-| Restart workers | `cd /home/erpnext/frappe-bench && bench restart` |
-| Add API endpoint | Implement in `diakonos/api/` → add to `hooks.py` `whitelisted_methods` |
-| New DocType | Create JSON in `doctype/` dir → `bench migrate` |
-| Frontend API call | `apiCall('diakronos.diakonos.api.module.function', {args})` |
+| Funktion | Datei | Typ | Pflicht |
+|---|---|---|---|
+| `update_einwilligung(typ="foto")` | `api/profile.py` | foto / werbung | ✅ |
+| `update_einwilligung(typ="werbung")` | `api/profile.py` | foto / werbung | ✅ |
+| `widerruf_einwilligung()` | `api/mitglieder.py` | alle | ✅ |
+| `delete_my_data()` | `api/profile.py` | alle (Widerruf) | ✅ |
+| Initiale Registrierung | (zukünftig) | datenschutz | ✅ |
+| Admin-seitige Änderung | Frappe DocType Hook | alle | ✅ |
 
 ---
 
-## Critical Gotchas
+## 5. Anonymisierung bei Datenlöschung (`delete_my_data`)
 
-1. `bench build` ≠ Vue build — use `yarn build` always
-2. `diakronos/` (app config) ≠ `diakonos/` (member module) — easy typo, hard bug
-3. New `@frappe.whitelist()` methods need manual entry in `hooks.py → whitelisted_methods`
-4. CalDAV intercepts before Frappe routing — don't add `/dav/*` www routes
-5. `public/frontend/` JS is git-tracked — commit after every build that changes behaviour
-6. Frappe child tables: `doc.append(fieldname, {...})` + `doc.save()` — never direct DB insert
-7. d3-org-chart v3 requires EXACTLY ONE root node (parentId: null). Multiple roots → `Error: multiple roots`. Always include one virtual root `{"id":"virtual-root","parentId":None,"type":"root"}`; render it invisibly with `nodeWidth(d => d.data.type==='root' ? 1 : 200)` etc.
+Wenn ein Mitglied seine Daten löscht (Art. 17 DSGVO):
+
+1. PII-Felder werden überschrieben (Vorname="Gelöscht", Email=deleted-{name}@deleted.invalid, etc.)
+2. Alle Einwilligungs-Felder werden auf `0` / `None` gesetzt
+3. **Log-Einträge bleiben erhalten** — sie referenzieren nur `mitglied.name` (technische ID), nicht PII
+4. Der Frappe-User-Account wird deaktiviert
+
+---
+
+## 6. Regeln für KI-Agenten
+
+### ❌ VERBOTEN — niemals tun:
+- Einwilligungs-Felder direkt via `doc.field = value; doc.save()` ändern ohne `_log_einwilligung()` aufzurufen
+- Log-Einträge löschen, archivieren oder modifizieren
+- Die `on_trash`-Sperre im `Einwilligung Log` DocType entfernen oder umgehen
+- `frappe.db.sql("UPDATE tabMitglied SET foto_einwilligung=...")` ohne Log
+- `ignore_permissions=True` bei Einwilligungs-Änderungen ohne gleichzeitigen Log-Eintrag
+
+### ✅ ERLAUBT — so sollen Einwilligungen geändert werden:
+```python
+# Korrekt: frappe.db.set_value() + _log_einwilligung()
+frappe.db.set_value("Mitglied", mid, {"foto_einwilligung": 1, "foto_datum": heute})
+_log_einwilligung(mid, "foto", "erteilt", quelle="selfservice")
+frappe.db.commit()
+```
+
+### ⚠️ WARNUNG — Audit Policy:
+`doc.save(ignore_permissions=True)` auf dem DocType `Mitglied` kann durch die Frappe Audit Policy (`CONFIRM_REQUIRED`) abgebrochen werden — der Save schlägt dann lautlos fehl. Daher: für Einwilligungs-Felder immer `frappe.db.set_value()` verwenden.
+
+---
+
+## 7. Geplante Implementierungs-Phasen
+
+| Phase | Was | Status |
+|---|---|---|
+| Phase 1 | `Einwilligung Log` DocType anlegen | 🔲 Ausstehend |
+| Phase 2 | `_log_einwilligung()` Helper in `profile.py` | 🔲 Ausstehend |
+| Phase 3 | Alle Hook-Punkte verdrahten | 🔲 Ausstehend |
+| Phase 4 | Admin-seitiges Hook via DocType `validate`/`on_update` | 🔲 Ausstehend |
+| Phase 5 | Anonymisierung bei `delete_my_data` verifizieren | ✅ Implementiert |
+
+---
+
+## 8. Verantwortlichkeit
+
+Der technisch Verantwortliche nach Art. 24 DSGVO für dieses System ist der Betreiber der Diakronos-Instanz.
+Dieses Dokument ist Teil der technischen und organisatorischen Maßnahmen (TOM) nach Art. 32 DSGVO.
+
+Letzte Aktualisierung: 2026-05-15
