@@ -78,7 +78,7 @@
     ]
   },
   "frontend/src/diakonos/components/widgets/GreetingWidget.vue": {
-    "file": "chunks/GreetingWidget-DUT_MmhR.js",
+    "file": "chunks/GreetingWidget-1csuwzJa.js",
     "name": "GreetingWidget",
     "src": "frontend/src/diakonos/components/widgets/GreetingWidget.vue",
     "isDynamicEntry": true,
@@ -169,7 +169,7 @@
     ]
   },
   "frontend/src/diakonos/components/widgets/QuickLinksWidget.vue": {
-    "file": "chunks/QuickLinksWidget-Ca5d6xIQ.js",
+    "file": "chunks/QuickLinksWidget-B1b3BH28.js",
     "name": "QuickLinksWidget",
     "src": "frontend/src/diakonos/components/widgets/QuickLinksWidget.vue",
     "isDynamicEntry": true,
@@ -206,7 +206,7 @@
     ]
   },
   "frontend/src/diakonos/main.js": {
-    "file": "diakonos-CI65b6P5.js",
+    "file": "diakonos-BsezCrAJ.js",
     "name": "diakonos",
     "src": "frontend/src/diakonos/main.js",
     "isEntry": true,
@@ -239,7 +239,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Adressbuch.vue": {
-    "file": "chunks/Adressbuch-DjHhcP5p.js",
+    "file": "chunks/Adressbuch-C5_C6QEP.js",
     "name": "Adressbuch",
     "src": "frontend/src/diakonos/pages/Adressbuch.vue",
     "isDynamicEntry": true,
@@ -254,7 +254,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Beitraege.vue": {
-    "file": "chunks/Beitraege-CzeNIjW1.js",
+    "file": "chunks/Beitraege-BthVZPEP.js",
     "name": "Beitraege",
     "src": "frontend/src/diakonos/pages/Beitraege.vue",
     "isDynamicEntry": true,
@@ -270,7 +270,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Dienstplan.vue": {
-    "file": "chunks/Dienstplan-Cbq4KChB.js",
+    "file": "chunks/Dienstplan-DYTkzrGM.js",
     "name": "Dienstplan",
     "src": "frontend/src/diakonos/pages/Dienstplan.vue",
     "isDynamicEntry": true,
@@ -285,7 +285,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Dsgvo.vue": {
-    "file": "chunks/Dsgvo-ByrmHTzH.js",
+    "file": "chunks/Dsgvo-BIKtjiKp.js",
     "name": "Dsgvo",
     "src": "frontend/src/diakonos/pages/Dsgvo.vue",
     "isDynamicEntry": true,
@@ -301,7 +301,7 @@
     ]
   },
   "frontend/src/diakonos/pages/GruppeDetail.vue": {
-    "file": "chunks/GruppeDetail-A85qhEf7.js",
+    "file": "chunks/GruppeDetail-C3YZsG-9.js",
     "name": "GruppeDetail",
     "src": "frontend/src/diakonos/pages/GruppeDetail.vue",
     "isDynamicEntry": true,
@@ -317,7 +317,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Gruppen.vue": {
-    "file": "chunks/Gruppen-D5yuKwW_.js",
+    "file": "chunks/Gruppen-XsxVw6sg.js",
     "name": "Gruppen",
     "src": "frontend/src/diakonos/pages/Gruppen.vue",
     "isDynamicEntry": true,
@@ -332,7 +332,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Home.vue": {
-    "file": "chunks/Home-D5UzTGiT.js",
+    "file": "chunks/Home-DYFCljFv.js",
     "name": "Home",
     "src": "frontend/src/diakonos/pages/Home.vue",
     "isDynamicEntry": true,
@@ -373,7 +373,7 @@
     ]
   },
   "frontend/src/diakonos/pages/MitgliedDetail.vue": {
-    "file": "chunks/MitgliedDetail-miRoGeB1.js",
+    "file": "chunks/MitgliedDetail-1MQBl4F2.js",
     "name": "MitgliedDetail",
     "src": "frontend/src/diakonos/pages/MitgliedDetail.vue",
     "isDynamicEntry": true,
@@ -389,7 +389,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Mitglieder.vue": {
-    "file": "chunks/Mitglieder-D78l7eFH.js",
+    "file": "chunks/Mitglieder-BkeCayqs.js",
     "name": "Mitglieder",
     "src": "frontend/src/diakonos/pages/Mitglieder.vue",
     "isDynamicEntry": true,
@@ -414,7 +414,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Organigramm.vue": {
-    "file": "chunks/Organigramm-BxDZV0RM.js",
+    "file": "chunks/Organigramm-Bn1ZwJRU.js",
     "name": "Organigramm",
     "src": "frontend/src/diakonos/pages/Organigramm.vue",
     "isDynamicEntry": true,
@@ -440,7 +440,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Registrierung.vue": {
-    "file": "chunks/Registrierung-CrYd7we8.js",
+    "file": "chunks/Registrierung-DnemiUpb.js",
     "name": "Registrierung",
     "src": "frontend/src/diakonos/pages/Registrierung.vue",
     "isDynamicEntry": true,
@@ -455,7 +455,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Ressourcen.vue": {
-    "file": "chunks/Ressourcen-S6RTr9p3.js",
+    "file": "chunks/Ressourcen-CVGC0TNL.js",
     "name": "Ressourcen",
     "src": "frontend/src/diakonos/pages/Ressourcen.vue",
     "isDynamicEntry": true,
@@ -471,7 +471,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Statistik.vue": {
-    "file": "chunks/Statistik-CaPX-CEu.js",
+    "file": "chunks/Statistik-BCkvnK_C.js",
     "name": "Statistik",
     "src": "frontend/src/diakonos/pages/Statistik.vue",
     "isDynamicEntry": true,
@@ -486,7 +486,7 @@
     ]
   },
   "frontend/src/diakonos/pages/Wiki.vue": {
-    "file": "chunks/Wiki-CcG1SWJM.js",
+    "file": "chunks/Wiki-CNXimEch.js",
     "name": "Wiki",
     "src": "frontend/src/diakonos/pages/Wiki.vue",
     "isDynamicEntry": true,
@@ -559,7 +559,7 @@
     "src": "node_modules/frappe-ui/src/fonts/Inter/Inter.var.woff2"
   },
   "style.css": {
-    "file": "css/style-D0jQqb25.css",
+    "file": "css/style-BLmNtBtV.css",
     "src": "style.css"
   }
 }

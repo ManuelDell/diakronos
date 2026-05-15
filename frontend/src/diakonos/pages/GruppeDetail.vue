@@ -1,6 +1,6 @@
 <template>
     <div class="dk-screen dk-screen-enter">
-        <!-- Header -->
+        <!-- Header Row -->
         <div class="dk-screen-header">
             <div class="flex items-center gap-4">
                 <a href="#/gruppen" class="text-[var(--dk-text-muted)] hover:text-[var(--dk-text)] transition">
@@ -24,9 +24,9 @@
                 </div>
             </div>
             <!-- Avatar des ersten Verantwortlichen -->
-            <div v-if="verantwortliche.length > 0" class="avatar" style="flex-shrink:0;">
-                <img v-if="verantwortliche[0].foto" :src="verantwortliche[0].foto" :alt="verantwortliche[0].name" class="avatar-img" />
-                <span v-else class="avatar-initials">{{ initials(verantwortliche[0].name) }}</span>
+            <div v-if="verantwortliche.length > 0" class="grup-avatar">
+                <img v-if="verantwortliche[0].foto" :src="verantwortliche[0].foto" :alt="verantwortliche[0].name" />
+                <span v-else>{{ initials(verantwortliche[0].name) }}</span>
             </div>
         </div>
 
@@ -44,271 +44,311 @@
 
         <template v-else>
             <!-- 2-column grid -->
-            <div class="detail-grid">
+            <div class="grup-grid">
                 <!-- LEFT COLUMN -->
-                <div class="detail-left">
-                    <!-- Details card -->
-                    <div class="card">
-                        <div class="flex items-center justify-between mb-3">
-                            <h2 class="text-lg font-semibold text-[var(--dk-text)]">Details</h2>
-                            <button v-if="canManage && !editingDesc" class="dk-btn dk-btn-ghost dk-btn-sm" @click="startEditDesc">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                            </button>
+                <div class="grup-left">
+                    <!-- Details Widget -->
+                    <div class="dk-widget-card">
+                        <div class="dk-widget-header">
+                            <div class="dk-widget-header-left">
+                                <span class="dk-widget-icon">ℹ️</span>
+                                <span class="dk-widget-title">Details</span>
+                            </div>
+                            <div class="dk-widget-header-actions">
+                                <button v-if="canManage && !editingDesc" class="grup-add-btn" @click="startEditDesc">+</button>
+                            </div>
                         </div>
-                        <template v-if="!editingDesc">
-                            <div class="dk-data-grid">
-                                <div class="dk-data-row">
-                                    <span class="dk-data-label">Beschreibung</span>
-                                    <span class="dk-data-value">{{ currentDesc || '–' }}</span>
+                        <div class="dk-widget-body">
+                            <template v-if="!editingDesc">
+                                <div class="dk-data-grid">
+                                    <div class="dk-data-row">
+                                        <span class="dk-data-label">Beschreibung</span>
+                                        <span class="dk-data-value">{{ currentDesc || '–' }}</span>
+                                    </div>
+                                    <div class="dk-data-row">
+                                        <span class="dk-data-label">Treffpunkt</span>
+                                        <span class="dk-data-value">{{ currentTreffpunkt || '–' }}</span>
+                                    </div>
+                                    <div class="dk-data-row">
+                                        <span class="dk-data-label">Treffzeit</span>
+                                        <span class="dk-data-value">{{ currentTreffzeit || '–' }}</span>
+                                    </div>
+                                    <div v-if="verantwortliche.length > 0" class="dk-data-row">
+                                        <span class="dk-data-label">Verantwortliche</span>
+                                        <span class="dk-data-value">{{ verantwortliche.map(v => v.name).join(', ') }}</span>
+                                    </div>
                                 </div>
-                                <div class="dk-data-row">
-                                    <span class="dk-data-label">Treffpunkt</span>
-                                    <span class="dk-data-value">{{ currentTreffpunkt || '–' }}</span>
+                            </template>
+                            <template v-else>
+                                <div class="flex flex-col gap-3">
+                                    <div>
+                                        <label class="text-sm font-medium text-[var(--dk-text-muted)] mb-1 block">Beschreibung</label>
+                                        <textarea v-model="editDesc" class="dk-form-input" rows="3" />
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-[var(--dk-text-muted)] mb-1 block">Treffpunkt</label>
+                                        <input v-model="editTreffpunkt" class="dk-form-input" type="text" />
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-[var(--dk-text-muted)] mb-1 block">Treffzeit</label>
+                                        <input v-model="editTreffzeit" class="dk-form-input" type="text" />
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button class="dk-btn dk-btn-primary dk-btn-sm" :disabled="savingDesc" @click="saveDesc">
+                                            {{ savingDesc ? 'Speichern...' : 'Speichern' }}
+                                        </button>
+                                        <button class="dk-btn dk-btn-ghost dk-btn-sm" @click="cancelEditDesc">Abbrechen</button>
+                                    </div>
                                 </div>
-                                <div class="dk-data-row">
-                                    <span class="dk-data-label">Treffzeit</span>
-                                    <span class="dk-data-value">{{ currentTreffzeit || '–' }}</span>
-                                </div>
-                                <div v-if="verantwortliche.length > 0" class="dk-data-row">
-                                    <span class="dk-data-label">Verantwortliche</span>
-                                    <span class="dk-data-value">{{ verantwortliche.map(v => v.name).join(', ') }}</span>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Termine Widget -->
+                    <div class="dk-widget-card">
+                        <div class="dk-widget-header">
+                            <div class="dk-widget-header-left">
+                                <span class="dk-widget-icon">📅</span>
+                                <span class="dk-widget-title">Nächste Termine</span>
+                            </div>
+                        </div>
+                        <div class="dk-widget-body">
+                            <div v-if="termine.length === 0" class="text-sm text-[var(--dk-text-muted)]">Keine bevorstehenden Termine.</div>
+                            <div v-else class="grup-termine-row">
+                                <div v-for="t in termine" :key="t.name" class="grup-termin-kachel">
+                                    <div class="grup-termin-datum">{{ formatDate(t.start || t.starts_on || t.datum) }}</div>
+                                    <div class="grup-termin-uhrzeit">{{ new Date(t.start || t.starts_on || t.datum).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) }}</div>
+                                    <div class="grup-termin-titel">{{ t.title || t.titel || t.subject || t.name }}</div>
                                 </div>
                             </div>
-                        </template>
-                        <template v-else>
-                            <div class="flex flex-col gap-3">
-                                <div>
-                                    <label class="text-sm font-medium text-[var(--dk-text-muted)] mb-1 block">Beschreibung</label>
-                                    <textarea v-model="editDesc" class="dk-form-input" rows="3" />
-                                </div>
-                                <div>
-                                    <label class="text-sm font-medium text-[var(--dk-text-muted)] mb-1 block">Treffpunkt</label>
-                                    <input v-model="editTreffpunkt" class="dk-form-input" type="text" />
-                                </div>
-                                <div>
-                                    <label class="text-sm font-medium text-[var(--dk-text-muted)] mb-1 block">Treffzeit</label>
-                                    <input v-model="editTreffzeit" class="dk-form-input" type="text" />
-                                </div>
+                        </div>
+                    </div>
+
+                    <!-- Ankündigungen Widget -->
+                    <div class="dk-widget-card">
+                        <div class="dk-widget-header">
+                            <div class="dk-widget-header-left">
+                                <span class="dk-widget-icon">📢</span>
+                                <span class="dk-widget-title">Ankündigungen</span>
+                            </div>
+                            <div class="dk-widget-header-actions">
+                                <button v-if="canManage" class="grup-add-btn" @click="showAnkuendigungForm = !showAnkuendigungForm">+</button>
+                            </div>
+                        </div>
+                        <div class="dk-widget-body">
+                            <!-- Neue Ankündigung Form -->
+                            <div v-if="showAnkuendigungForm" class="flex flex-col gap-3 mb-4 p-3 rounded-lg bg-[var(--dk-surface-2)] border border-[var(--dk-border)]">
+                                <input v-model="neueAnkuendigungTitel" type="text" placeholder="Titel" class="dk-form-input" />
+                                <textarea v-model="neueAnkuendigungText" placeholder="Text (optional)" class="dk-form-input" rows="3" />
                                 <div class="flex gap-2">
-                                    <button class="dk-btn dk-btn-primary dk-btn-sm" :disabled="savingDesc" @click="saveDesc">
-                                        {{ savingDesc ? 'Speichern...' : 'Speichern' }}
-                                    </button>
-                                    <button class="dk-btn dk-btn-ghost dk-btn-sm" @click="cancelEditDesc">Abbrechen</button>
+                                    <button class="dk-btn dk-btn-primary dk-btn-sm" :disabled="!neueAnkuendigungTitel.trim()" @click="createAnkuendigung">Veröffentlichen</button>
+                                    <button class="dk-btn dk-btn-ghost dk-btn-sm" @click="showAnkuendigungForm = false; neueAnkuendigungTitel = ''; neueAnkuendigungText = ''">Abbrechen</button>
                                 </div>
                             </div>
-                        </template>
-                    </div>
-
-                    <!-- Nächste Termine -->
-                    <div class="card">
-                        <h2 class="text-lg font-semibold text-[var(--dk-text)] mb-3">Nächste Termine</h2>
-                        <div v-if="termine.length === 0" class="text-sm text-[var(--dk-text-muted)]">Keine bevorstehenden Termine.</div>
-                        <div v-else class="termin-tiles">
-                            <div v-for="t in termine" :key="t.name" class="termin-tile">
-                                <div class="termin-date">{{ formatDate(t.starts_on || t.datum) }}</div>
-                                <div class="termin-title">{{ t.titel || t.subject || t.name }}</div>
-                            </div>
+                            <div v-if="ankuendigungen.length === 0" class="text-[var(--dk-text-muted)] text-sm">Keine Ankündigungen vorhanden.</div>
+                            <ul v-else class="flex flex-col gap-2">
+                                <li
+                                    v-for="a in ankuendigungen"
+                                    :key="a.name"
+                                    class="p-3 rounded-lg bg-[var(--dk-surface-2)] border border-[var(--dk-border)]"
+                                >
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span v-if="a.pinned" class="dk-badge dk-badge-warning text-xs">Angepinnt</span>
+                                        <span class="font-medium text-[var(--dk-text)] text-sm">{{ a.titel }}</span>
+                                    </div>
+                                    <p v-if="a.text" class="text-xs text-[var(--dk-text-muted)]">{{ truncate(a.text, 100) }}</p>
+                                </li>
+                            </ul>
                         </div>
-                    </div>
-
-                    <!-- Ankündigungen -->
-                    <div class="card">
-                        <div class="flex items-center justify-between mb-3">
-                            <h2 class="text-lg font-semibold text-[var(--dk-text)]">Ankündigungen</h2>
-                        </div>
-                        <button v-if="canManage" class="add-btn" @click="showAnkuendigungForm = !showAnkuendigungForm">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                            </svg>
-                        </button>
-                        <!-- Neue Ankündigung Form -->
-                        <div v-if="showAnkuendigungForm" class="flex flex-col gap-3 mb-4 p-3 rounded-lg bg-[var(--dk-surface-2)] border border-[var(--dk-border)]">
-                            <input v-model="neueAnkuendigungTitel" type="text" placeholder="Titel" class="dk-form-input" />
-                            <textarea v-model="neueAnkuendigungText" placeholder="Text (optional)" class="dk-form-input" rows="3" />
-                            <div class="flex gap-2">
-                                <button class="dk-btn dk-btn-primary dk-btn-sm" :disabled="!neueAnkuendigungTitel.trim()" @click="createAnkuendigung">Veröffentlichen</button>
-                                <button class="dk-btn dk-btn-ghost dk-btn-sm" @click="showAnkuendigungForm = false; neueAnkuendigungTitel = ''; neueAnkuendigungText = ''">Abbrechen</button>
-                            </div>
-                        </div>
-                        <div v-if="ankuendigungen.length === 0" class="text-[var(--dk-text-muted)] text-sm">Keine Ankündigungen vorhanden.</div>
-                        <ul v-else class="flex flex-col gap-2">
-                            <li
-                                v-for="a in ankuendigungen"
-                                :key="a.name"
-                                class="p-3 rounded-lg bg-[var(--dk-surface-2)] border border-[var(--dk-border)]"
-                            >
-                                <div class="flex items-center gap-2 mb-1">
-                                    <span v-if="a.pinned" class="dk-badge dk-badge-warning text-xs">Angepinnt</span>
-                                    <span class="font-medium text-[var(--dk-text)] text-sm">{{ a.titel }}</span>
-                                </div>
-                                <p v-if="a.text" class="text-xs text-[var(--dk-text-muted)]">{{ truncate(a.text, 100) }}</p>
-                            </li>
-                        </ul>
                     </div>
                 </div>
 
                 <!-- RIGHT COLUMN -->
-                <div class="detail-right">
-                    <!-- Aufgaben -->
-                    <div class="card">
-                        <div class="flex items-center justify-between mb-3">
-                            <h2 class="text-lg font-semibold text-[var(--dk-text)]">Aufgaben</h2>
+                <div class="grup-right">
+                    <!-- Aufgaben Widget -->
+                    <div class="dk-widget-card">
+                        <div class="dk-widget-header">
+                            <div class="dk-widget-header-left">
+                                <span class="dk-widget-icon">📋</span>
+                                <span class="dk-widget-title">Aufgaben</span>
+                            </div>
+                            <div class="dk-widget-header-actions">
+                                <button v-if="canManage" class="grup-add-btn" @click="showAufgabeInput = !showAufgabeInput">+</button>
+                            </div>
                         </div>
-                        <button v-if="canManage" class="add-btn" @click="showAufgabeInput = !showAufgabeInput">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                            </svg>
-                        </button>
-                        <!-- Neue Aufgabe Inline -->
-                        <div v-if="showAufgabeInput" class="flex gap-2 mb-3">
-                            <input
-                                v-model="neueAufgabe"
-                                type="text"
-                                placeholder="Neue Aufgabe..."
-                                class="dk-form-input flex-1"
-                                @keyup.enter="createAufgabe"
-                            />
-                            <button class="dk-btn dk-btn-primary dk-btn-sm" :disabled="!neueAufgabe.trim()" @click="createAufgabe">Hinzufügen</button>
-                            <button class="dk-btn dk-btn-ghost dk-btn-sm" @click="showAufgabeInput = false; neueAufgabe = ''">✕</button>
-                        </div>
-                        <div v-if="aufgaben.length === 0" class="text-[var(--dk-text-muted)] text-sm">Keine Aufgaben vorhanden.</div>
-                        <ul v-else class="flex flex-col gap-1">
-                            <li
-                                v-for="a in aufgaben"
-                                :key="a.name"
-                                class="flex items-center gap-3 py-2 border-b border-[var(--dk-border)] last:border-0"
-                            >
+                        <div class="dk-widget-body">
+                            <!-- Neue Aufgabe Inline -->
+                            <div v-if="showAufgabeInput" class="flex gap-2 mb-3">
                                 <input
-                                    type="checkbox"
-                                    :checked="a.erledigt"
-                                    class="accent-[var(--dk-brand-700)]"
-                                    @change="toggleAufgabe(a)"
+                                    v-model="neueAufgabe"
+                                    type="text"
+                                    placeholder="Neue Aufgabe..."
+                                    class="dk-form-input flex-1"
+                                    @keyup.enter="createAufgabe"
                                 />
-                                <span :class="a.erledigt ? 'line-through text-[var(--dk-text-muted)]' : 'text-[var(--dk-text)]'" class="flex-1 text-sm">
-                                    {{ a.titel }}
-                                </span>
-                                <span v-if="a.faellig && !a.erledigt" class="text-xs text-[var(--dk-text-muted)]">{{ formatDate(a.faellig) }}</span>
-                            </li>
-                        </ul>
-                    </div>
-
-                    <!-- Wiki Artikel -->
-                    <div v-if="wikiArtikel.length > 0 || canManage" class="card">
-                        <div class="flex items-center justify-between mb-3">
-                            <h2 class="text-lg font-semibold text-[var(--dk-text)]">Wiki</h2>
+                                <button class="dk-btn dk-btn-primary dk-btn-sm" :disabled="!neueAufgabe.trim()" @click="createAufgabe">Hinzufügen</button>
+                                <button class="dk-btn dk-btn-ghost dk-btn-sm" @click="showAufgabeInput = false; neueAufgabe = ''">✕</button>
+                            </div>
+                            <div v-if="aufgaben.length === 0" class="text-[var(--dk-text-muted)] text-sm">Keine Aufgaben vorhanden.</div>
+                            <ul v-else class="flex flex-col gap-1">
+                                <li
+                                    v-for="a in aufgaben"
+                                    :key="a.name"
+                                    class="flex items-center gap-3 py-2 border-b border-[var(--dk-border)] last:border-0"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        :checked="a.erledigt"
+                                        class="accent-[var(--dk-brand-700)]"
+                                        @change="toggleAufgabe(a)"
+                                    />
+                                    <span :class="a.erledigt ? 'line-through text-[var(--dk-text-muted)]' : 'text-[var(--dk-text)]'" class="flex-1 text-sm">
+                                        {{ a.titel }}
+                                    </span>
+                                    <span v-if="a.faellig && !a.erledigt" class="text-xs text-[var(--dk-text-muted)]">{{ formatDate(a.faellig) }}</span>
+                                </li>
+                            </ul>
                         </div>
-                        <a v-if="canManage" class="add-btn" href="#/wiki">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                            </svg>
-                        </a>
-                        <div v-if="wikiArtikel.length === 0" class="text-[var(--dk-text-muted)] text-sm">Noch keine Wiki-Artikel.</div>
-                        <ul v-else class="flex flex-col gap-1">
-                            <li v-for="w in wikiArtikel" :key="w.name">
-                                <a :href="`#/wiki/${w.name}`" class="text-sm text-[var(--dk-brand-700)] hover:underline">{{ w.titel || w.name }}</a>
-                            </li>
-                        </ul>
+                    </div>
+
+                    <!-- Wiki Widget -->
+                    <div v-if="wikiArtikel.length > 0 || canManage" class="dk-widget-card">
+                        <div class="dk-widget-header">
+                            <div class="dk-widget-header-left">
+                                <span class="dk-widget-icon">📖</span>
+                                <span class="dk-widget-title">Wiki</span>
+                            </div>
+                            <div class="dk-widget-header-actions">
+                                <a v-if="canManage" class="grup-add-btn" href="#/wiki" style="text-decoration:none;">+</a>
+                            </div>
+                        </div>
+                        <div class="dk-widget-body">
+                            <div v-if="wikiArtikel.length === 0" class="text-[var(--dk-text-muted)] text-sm">Noch keine Wiki-Artikel.</div>
+                            <ul v-else class="flex flex-col gap-1">
+                                <li v-for="w in wikiArtikel" :key="w.name">
+                                    <a :href="`#/wiki/${w.name}`" class="text-sm text-[var(--dk-brand-700)] hover:underline">{{ w.titel || w.name }}</a>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Untergruppen (falls vorhanden) -->
-            <div v-if="untergruppen.length > 0" class="card mb-4">
-                <h2 class="text-lg font-semibold text-[var(--dk-text)] mb-3">Untergruppen</h2>
-                <div class="flex flex-wrap gap-2">
-                    <a
-                        v-for="u in untergruppen"
-                        :key="u.name"
-                        :href="`#/gruppe/${u.name}`"
-                        class="dk-badge hover:bg-[var(--dk-surface-hover)] transition cursor-pointer"
-                        style="text-decoration:none;"
-                    >
-                        {{ u.untergruppenname || u.gruppenname || u.name }}
-                    </a>
+            <!-- Untergruppen (full width, nur wenn vorhanden) -->
+            <div v-if="untergruppen.length > 0" class="dk-widget-card grup-full-width">
+                <div class="dk-widget-header">
+                    <div class="dk-widget-header-left">
+                        <span class="dk-widget-icon">👥</span>
+                        <span class="dk-widget-title">Untergruppen</span>
+                    </div>
+                </div>
+                <div class="dk-widget-body">
+                    <div class="flex flex-wrap gap-2">
+                        <a
+                            v-for="u in untergruppen"
+                            :key="u.name"
+                            :href="`#/gruppe/${u.name}`"
+                            class="dk-badge"
+                            style="cursor:pointer;text-decoration:none;"
+                        >
+                            {{ u.untergruppenname || u.gruppenname || u.name }}
+                        </a>
+                    </div>
                 </div>
             </div>
 
-            <!-- Mitglieder (volle Tabelle nur für canManage) -->
-            <div v-if="canManage" class="card mb-4">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-lg font-semibold text-[var(--dk-text)]">Mitglieder</h2>
-                    <span class="text-sm text-[var(--dk-text-muted)]">{{ mitglieder.length }} Mitglied(er)</span>
+            <!-- Mitglieder Table (nur für canManage) -->
+            <div v-if="canManage" class="dk-widget-card grup-full-width">
+                <div class="dk-widget-header">
+                    <div class="dk-widget-header-left">
+                        <span class="dk-widget-icon">👤</span>
+                        <span class="dk-widget-title">Mitglieder</span>
+                    </div>
+                    <div class="dk-widget-header-actions">
+                        <span class="text-sm text-[var(--dk-text-muted)]">{{ mitglieder.length }} Mitglied(er)</span>
+                    </div>
                 </div>
+                <div class="dk-widget-body">
+                    <!-- Mitglied hinzufügen -->
+                    <div class="flex gap-2 mb-4">
+                        <input
+                            v-model="neuesMitglied"
+                            type="text"
+                            placeholder="Mitglieds-ID oder Name"
+                            class="dk-form-input flex-1"
+                            @keyup.enter="addMitglied"
+                        />
+                        <button class="dk-btn dk-btn-primary" :disabled="!neuesMitglied.trim()" @click="addMitglied">Hinzufügen</button>
+                    </div>
 
-                <!-- Mitglied hinzufügen -->
-                <div class="flex gap-2 mb-4">
-                    <input
-                        v-model="neuesMitglied"
-                        type="text"
-                        placeholder="Mitglieds-ID oder Name"
-                        class="dk-form-input flex-1"
-                        @keyup.enter="addMitglied"
-                    />
-                    <button class="dk-btn dk-btn-primary" :disabled="!neuesMitglied.trim()" @click="addMitglied">Hinzufügen</button>
-                </div>
-
-                <div v-if="mitglieder.length === 0" class="text-[var(--dk-text-muted)]">Keine Mitglieder vorhanden.</div>
-                <div v-else class="overflow-x-auto">
-                    <table class="dk-table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Rolle</th>
-                                <th>Status</th>
-                                <th>Beitrittsdatum</th>
-                                <th class="text-right">Aktionen</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="m in mitglieder" :key="m.name || m.mitglied">
-                                <td class="text-[var(--dk-text)]">
-                                    <a v-if="m.mitglied" :href="`#/mitglied/${m.mitglied}`" class="hover:text-[var(--dk-brand-800)] hover:underline">
-                                        {{ m.vollstaendiger_name || m.name || m.mitglied }}
-                                    </a>
-                                    <span v-else>{{ m.vollstaendiger_name || m.name || '–' }}</span>
-                                </td>
-                                <td>
-                                    <select
-                                        v-model="m.rolle"
-                                        class="dk-form-input py-1 text-sm"
-                                        @change="updateRolle(m)"
-                                    >
-                                        <option value="">–</option>
-                                        <option value="Mitglied">Mitglied</option>
-                                        <option value="Leiter">Leiter</option>
-                                        <option value="Co-Leiter">Co-Leiter</option>
-                                        <option value="Helfer">Helfer</option>
-                                        <option value="Gast">Gast</option>
-                                    </select>
-                                </td>
-                                <td>
-                                    <span
-                                        class="dk-badge"
-                                        :class="{
-                                            'dk-badge-success': m.status === 'Aktiv',
-                                            'dk-badge-danger': m.status === 'Inaktiv',
-                                            'dk-badge-warning': m.status === 'Pausiert'
-                                        }"
-                                    >{{ m.status || 'Unbekannt' }}</span>
-                                </td>
-                                <td class="text-[var(--dk-text-muted)]">{{ formatDate(m.beitrittsdatum) || '–' }}</td>
-                                <td class="text-right">
-                                    <button class="dk-btn dk-btn-ghost dk-btn-sm" style="color:var(--dk-danger);" @click="removeMitglied(m)">
-                                        Entfernen
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div v-if="mitglieder.length === 0" class="text-[var(--dk-text-muted)]">Keine Mitglieder vorhanden.</div>
+                    <div v-else class="overflow-x-auto">
+                        <table class="dk-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Rolle</th>
+                                    <th>Status</th>
+                                    <th>Beitrittsdatum</th>
+                                    <th class="text-right">Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="m in mitglieder" :key="m.name || m.mitglied">
+                                    <td class="text-[var(--dk-text)]">
+                                        <a v-if="m.mitglied" :href="`#/mitglied/${m.mitglied}`" class="hover:text-[var(--dk-brand-800)] hover:underline">
+                                            {{ m.vollstaendiger_name || m.name || m.mitglied }}
+                                        </a>
+                                        <span v-else>{{ m.vollstaendiger_name || m.name || '–' }}</span>
+                                    </td>
+                                    <td>
+                                        <select
+                                            v-model="m.rolle"
+                                            class="dk-form-input py-1 text-sm"
+                                            @change="updateRolle(m)"
+                                        >
+                                            <option value="">–</option>
+                                            <option value="Mitglied">Mitglied</option>
+                                            <option value="Leiter">Leiter</option>
+                                            <option value="Co-Leiter">Co-Leiter</option>
+                                            <option value="Helfer">Helfer</option>
+                                            <option value="Gast">Gast</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <span
+                                            class="dk-badge"
+                                            :class="{
+                                                'dk-badge-success': m.status === 'Aktiv',
+                                                'dk-badge-danger': m.status === 'Inaktiv',
+                                                'dk-badge-warning': m.status === 'Pausiert'
+                                            }"
+                                        >{{ m.status || 'Unbekannt' }}</span>
+                                    </td>
+                                    <td class="text-[var(--dk-text-muted)]">{{ formatDate(m.beitrittsdatum) || '–' }}</td>
+                                    <td class="text-right">
+                                        <button class="dk-btn dk-btn-ghost dk-btn-sm" style="color:var(--dk-danger);" @click="removeMitglied(m)">
+                                            Entfernen
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <!-- Mitglieder Summary (nur für normale Mitglieder) -->
-            <div v-if="!canManage && mitglieder.length > 0" class="card mb-4">
-                <h2 class="text-lg font-semibold text-[var(--dk-text)]">Mitglieder</h2>
-                <p class="text-sm text-[var(--dk-text-muted)] mt-1">{{ mitglieder.length }} Mitglieder in dieser Gruppe</p>
+            <!-- Mitglieder Summary (nur für !canManage && mitglieder.length > 0) -->
+            <div v-if="!canManage && mitglieder.length > 0" class="dk-widget-card grup-full-width">
+                <div class="dk-widget-header">
+                    <div class="dk-widget-header-left">
+                        <span class="dk-widget-icon">👤</span>
+                        <span class="dk-widget-title">Mitglieder</span>
+                    </div>
+                </div>
+                <div class="dk-widget-body">
+                    <p class="text-sm text-[var(--dk-text-muted)]">{{ mitglieder.length }} Mitglieder in dieser Gruppe</p>
+                </div>
             </div>
         </template>
     </div>
@@ -683,84 +723,153 @@ export default {
 </script>
 
 <style scoped>
-.card {
-    position: relative;
-    margin-bottom: 1rem;
-}
-
-.detail-grid {
+.grup-grid {
     display: grid;
     grid-template-columns: 2fr 1fr;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    gap: 16px;
+}
+
+.grup-left {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.grup-right {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.grup-full-width {
+    margin-top: 16px;
 }
 
 @media (max-width: 768px) {
-    .detail-grid {
+    .grup-grid {
         grid-template-columns: 1fr;
     }
 }
 
-.add-btn {
-    position: absolute;
-    bottom: 12px;
-    right: 12px;
+.grup-add-btn {
     width: 28px;
     height: 28px;
     border-radius: 50%;
     background: var(--dk-brand-600, #f97316);
-    color: white;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 300;
     border: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transform: translateX(6px);
-    transition: opacity 0.2s, transform 0.2s;
-    z-index: 5;
+    transform: translateX(8px);
+    transition: opacity .2s, transform .2s;
 }
 
-.card:hover .add-btn {
+.dk-widget-card:hover .grup-add-btn {
     opacity: 1;
     transform: translateX(0);
 }
 
-.termin-tiles {
+.grup-termine-row {
     display: flex;
+    gap: 12px;
     flex-wrap: wrap;
-    gap: 0.75rem;
 }
 
-.termin-tile {
-    flex: 0 0 calc(25% - 0.75rem);
-    min-width: 110px;
-    padding: 0.75rem;
-    border-radius: 0.5rem;
-    background: var(--dk-surface-hover);
+.grup-termin-kachel {
+    flex: 1;
+    min-width: 120px;
+    max-width: 160px;
+    background: var(--dk-surface-2);
     border: 1px solid var(--dk-border);
+    border-radius: 10px;
+    padding: 12px;
     text-align: center;
 }
 
-.termin-date {
-    font-size: 1.1rem;
+.grup-termin-datum {
+    font-size: 18px;
     font-weight: 700;
     color: var(--dk-text);
-    line-height: 1.2;
 }
 
-.termin-title {
-    font-size: 0.75rem;
+.grup-termin-uhrzeit {
+    font-size: 11px;
     color: var(--dk-text-muted);
-    margin-top: 0.25rem;
-    line-height: 1.3;
-    word-break: break-word;
+    margin: 2px 0;
 }
 
-@media (max-width: 768px) {
-    .termin-tile {
-        flex: 0 0 calc(50% - 0.5rem);
-        min-width: 0;
-    }
+.grup-termin-titel {
+    font-size: 12px;
+    color: var(--dk-text);
+}
+
+.grup-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--dk-brand-400);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 600;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.grup-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Preserve existing dk-* class styling compatibility */
+.dk-widget-card {
+    position: relative;
+    background: var(--dk-surface-1, #fff);
+    border: 1px solid var(--dk-border, #e5e7eb);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.dk-widget-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--dk-border, #e5e7eb);
+}
+
+.dk-widget-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dk-widget-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.dk-widget-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--dk-text);
+}
+
+.dk-widget-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dk-widget-body {
+    padding: 16px;
 }
 </style>
