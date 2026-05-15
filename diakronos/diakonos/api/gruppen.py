@@ -653,25 +653,26 @@ def get_gruppen_page_data():
     return {"meine_gruppen": meine_gruppen, "gruppentypen": typen}
 
 
+
 # ── Aufgaben ─────────────────────────────────────────────────────────────────
 
 @frappe.whitelist()
 def get_aufgaben(gruppe_id=None, untergruppe_id=None):
     filters = {}
     if untergruppe_id:
-        filters[untergruppe] = untergruppe_id
+        filters["untergruppe"] = untergruppe_id
     elif gruppe_id:
-        filters[gruppe] = gruppe_id
+        filters["gruppe"] = gruppe_id
     else:
-        frappe.throw(gruppe_id oder untergruppe_id erforderlich)
+        frappe.throw("gruppe_id oder untergruppe_id erforderlich")
     items = frappe.get_all(
-        Gruppen Aufgabe,
+        "Gruppen Aufgabe",
         filters=filters,
-        fields=[name, titel, erledigt, faellig, erstellt_von],
-        order_by=erledigt asc, creation asc,
+        fields=["name", "titel", "erledigt", "faellig", "erstellt_von"],
+        order_by="erledigt asc, creation asc",
         ignore_permissions=True,
     )
-    return {success: True, data: items}
+    return {"success": True, "data": items}
 
 
 @frappe.whitelist()
@@ -682,26 +683,26 @@ def create_aufgabe(titel, gruppe_id=None, untergruppe_id=None, faellig=None):
     except Exception:
         mid = None
     doc = frappe.get_doc({
-        doctype: Gruppen Aufgabe,
-        titel: titel,
-        gruppe: gruppe_id or None,
-        untergruppe: untergruppe_id or None,
-        faellig: faellig or None,
-        erstellt_von: mid,
-        erledigt: 0,
+        "doctype": "Gruppen Aufgabe",
+        "titel": titel,
+        "gruppe": gruppe_id or None,
+        "untergruppe": untergruppe_id or None,
+        "faellig": faellig or None,
+        "erstellt_von": mid,
+        "erledigt": 0,
     })
     doc.insert(ignore_permissions=True)
     frappe.db.commit()
-    return {success: True, name: doc.name}
+    return {"success": True, "name": doc.name}
 
 
 @frappe.whitelist()
 def toggle_aufgabe(aufgabe_id):
-    doc = frappe.get_doc(Gruppen Aufgabe, aufgabe_id)
+    doc = frappe.get_doc("Gruppen Aufgabe", aufgabe_id)
     doc.erledigt = 0 if doc.erledigt else 1
     doc.save(ignore_permissions=True)
     frappe.db.commit()
-    return {success: True, erledigt: doc.erledigt}
+    return {"success": True, "erledigt": doc.erledigt}
 
 
 # ── Ankündigungen ─────────────────────────────────────────────────────────────
@@ -710,36 +711,36 @@ def toggle_aufgabe(aufgabe_id):
 def get_ankuendigungen(gruppe_id=None, untergruppe_id=None):
     filters = {}
     if untergruppe_id:
-        filters[untergruppe] = untergruppe_id
+        filters["untergruppe"] = untergruppe_id
     elif gruppe_id:
-        filters[gruppe] = gruppe_id
+        filters["gruppe"] = gruppe_id
     else:
-        frappe.throw(gruppe_id oder untergruppe_id erforderlich)
+        frappe.throw("gruppe_id oder untergruppe_id erforderlich")
     items = frappe.get_all(
-        Gruppen Ankuendigung,
+        "Gruppen Ankuendigung",
         filters=filters,
-        fields=[name, titel, text, erstellt_von, pinned, creation],
-        order_by=pinned desc, creation desc,
+        fields=["name", "titel", "text", "erstellt_von", "pinned", "creation"],
+        order_by="pinned desc, creation desc",
         ignore_permissions=True,
     )
-    return {success: True, data: items}
+    return {"success": True, "data": items}
 
 
 @frappe.whitelist()
-def create_ankuendigung(titel, text=, gruppe_id=None, untergruppe_id=None):
+def create_ankuendigung(titel, text="", gruppe_id=None, untergruppe_id=None):
     from diakronos.diakonos.api.profile import _get_my_mitglied
     try:
         mid = _get_my_mitglied()
     except Exception:
         mid = None
     doc = frappe.get_doc({
-        doctype: Gruppen Ankuendigung,
-        titel: titel,
-        text: text,
-        gruppe: gruppe_id or None,
-        untergruppe: untergruppe_id or None,
-        erstellt_von: mid,
+        "doctype": "Gruppen Ankuendigung",
+        "titel": titel,
+        "text": text,
+        "gruppe": gruppe_id or None,
+        "untergruppe": untergruppe_id or None,
+        "erstellt_von": mid,
     })
     doc.insert(ignore_permissions=True)
     frappe.db.commit()
-    return {success: True, name: doc.name}
+    return {"success": True, "name": doc.name}
