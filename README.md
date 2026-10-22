@@ -2,6 +2,10 @@
 
 # Diakronos (v2.0.0)
 
+> [!WARNING]
+> **Entwicklungsversion – noch nicht für den produktiven Einsatz geeignet.**
+> Diakronos v2 befindet sich in aktiver Entwicklung. Funktionen, Datenbankschema und Konfiguration können sich noch grundlegend ändern; Fehler und Datenverlust sind nicht ausgeschlossen. Bitte nur zum Ausprobieren und Testen verwenden und keine echten Gemeindedaten ohne eigene Sicherung einspielen.
+
 **Diakronos** ist eine kostenlose, selbst gehostete Software für Gemeinden: Mitglieder, Gruppen, Termine, Dienste, Lieder und Beiträge an einer Stelle. Die Daten bleiben auf dem eigenen Server. Keine monatlichen Kosten, keine Cloud, kein Datenschutz-Kompromiss.
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/manueldell)
