@@ -1,0 +1,41 @@
+{
+  "schema": "diakronos/plantyp@1",
+  "id": "predigerplan",
+  "name": "Predigerplan",
+  "bereich": "Gottesdienst",
+  "beschreibung": "Sonntagspredigten mit festen und Gast-Predigern. Gastprediger höchstens zweimal im Monat, eine Predigtreihe läuft der Reihe nach, Verfügbarkeiten (z. B. nur 1. Sonntag) werden beachtet.",
+  "merkmale": {
+    "person": [
+      { "id": "prediger", "art": "tag", "name": "predigt regelmäßig" },
+      { "id": "gastprediger", "art": "tag", "name": "predigt gelegentlich (Gast)" }
+    ]
+  },
+  "sammlungen": [
+    { "id": "predigtreihe", "name": "Predigtreihe", "beschreibung": "Themen, die der Reihe nach vorkommen." }
+  ],
+  "termine": {
+    "regel": "FREQ=WEEKLY;BYDAY=SU",
+    "feiertage": ["karfreitag", "ostersonntag", "himmelfahrt", "pfingstsonntag", "heiligabend", "1_weihnachtstag"]
+  },
+  "felder": [
+    {
+      "id": "predigt",
+      "art": "gruppe",
+      "inhalt": [
+        { "id": "prediger", "art": "person", "rolle": { "merkmal": "prediger" }, "fuellen": "optimieren" },
+        { "id": "thema", "art": "eintrag", "sammlung": "predigtreihe", "fuellen": "der_reihe_nach", "pflicht": false },
+        { "id": "gast", "art": "person", "rolle": { "merkmal": "gastprediger" }, "fuellen": "optimieren", "pflicht": false }
+      ]
+    },
+    { "id": "moderator", "art": "person", "rolle": { "anmeldung": "mitarbeiter" }, "fuellen": "reihum" }
+  ],
+  "regeln": [
+    { "baustein": "abwesenheit_beachten", "stufe": "muss" },
+    { "baustein": "max_pro_zeitraum", "rolle": { "merkmal": "gastprediger" }, "anzahl": 2, "zeitraum": "monat", "stufe": "sollte" },
+    { "baustein": "gleich_verteilen", "rolle": { "merkmal": "prediger" }, "stufe": "sollte" },
+    { "baustein": "verfuegbarkeit", "person": "anna", "muster": "1.So", "stufe": "muss" }
+  ],
+  "ansichten": [
+    { "art": "tabelle", "spalten": ["predigt.prediger", "predigt.thema", "predigt.gast", "moderator"] }
+  ]
+}

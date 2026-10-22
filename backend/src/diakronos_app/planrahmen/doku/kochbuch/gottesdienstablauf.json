@@ -1,0 +1,73 @@
+{
+  "schema": "diakronos/plantyp@1",
+  "id": "gottesdienstablauf",
+  "name": "Gottesdienst-Ablauf",
+  "bereich": "Gottesdienst",
+  "beschreibung": "Ein einzelner Gottesdienst als Ablauf (art 'ablauf'): modulare Elemente wie Begrüßung, Lied und Predigt, die nacheinander ablaufen. Das Abendmahl erscheint nur bei Anlass 'abendmahl' (strukturierte Bedingung), die Moderation läuft reihum, die Predigt kommt der Reihe nach aus einer vorbereitend befüllten Predigtreihe (umfang 'plan').",
+  "sammlungen": [
+    { "id": "predigtreihe", "name": "Predigtreihe", "umfang": "plan", "beschreibung": "Themen der Predigten, der Reihe nach." }
+  ],
+  "merkmale": {
+    "person": [
+      { "id": "moderator", "art": "tag", "name": "moderiert den Gottesdienst" },
+      { "id": "prediger", "art": "tag", "name": "hält die Predigt" }
+    ]
+  },
+  "termine": {
+    "regel": "FREQ=WEEKLY;BYDAY=SU",
+    "uhrzeit": "10:00"
+  },
+  "anlaesse": [
+    { "id": "abendmahl", "name": "Abendmahl" }
+  ],
+  "felder": [
+    {
+      "id": "ablauf",
+      "art": "ablauf",
+      "anzahl": "1..*",
+      "elemente": [
+        {
+          "typ": "begruessung",
+          "name": "Begrüßung",
+          "inhalt": [ { "id": "moderator", "art": "person", "rolle": { "merkmal": "moderator" }, "fuellen": "reihum" } ]
+        },
+        {
+          "typ": "lied",
+          "name": "Lied",
+          "nummeriert": true,
+          "inhalt": [ { "id": "lied", "art": "eintrag", "sammlung": "lieder" } ]
+        },
+        {
+          "typ": "predigt",
+          "name": "Predigt",
+          "inhalt": [
+            { "id": "thema", "art": "eintrag", "sammlung": "predigtreihe", "fuellen": "der_reihe_nach" },
+            { "id": "prediger", "art": "person", "rolle": { "merkmal": "prediger" }, "fuellen": "optimieren" }
+          ]
+        },
+        {
+          "typ": "abendmahl",
+          "name": "Abendmahl",
+          "bedingung": { "anlass": "abendmahl" },
+          "inhalt": [ { "id": "austeilung", "art": "personen", "anzahl": "2..4", "rolle": { "merkmal": "moderator" } } ]
+        }
+      ]
+    }
+  ],
+  "regeln": [
+    { "baustein": "abwesenheit_beachten", "stufe": "muss" }
+  ],
+  "ansichten": [
+    {
+      "art": "programm",
+      "druck": "A4-hoch",
+      "kopf": "{plan.titel} {termin.datum} {termin.uhrzeit}",
+      "format": {
+        "begruessung": "Begrüßung {moderator.name}",
+        "lied": "{nr} {lied.anzeige}{lied.titel: {lied.titel}}",
+        "predigt": "{thema.titel}{prediger: ({prediger.name})}",
+        "abendmahl": "Abendmahl"
+      }
+    }
+  ]
+}

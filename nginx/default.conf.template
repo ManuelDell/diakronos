@@ -1,0 +1,63 @@
+# OAuth authorization codes/state and user query parameters must not enter logs.
+log_format privacy '$remote_addr - "$request_method $uri $server_protocol" $status $body_bytes_sent';
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+}
+# Docker service addresses may change after app recreation.
+resolver 127.0.0.11 valid=10s ipv6=off;
+upstream diakronos_backend {
+    zone diakronos_backend 64k;
+    server app:8000 resolve;
+}
+server {
+    listen 8081;
+    location = /nginx-health { access_log off; return 200 'ok'; }
+    location / { return 404; }
+}
+server {
+    listen 80 default_server;
+    access_log /var/log/nginx/access.log privacy;
+    server_name ${SERVER_NAME};
+    ${HOST_GUARD}
+    location /.well-known/acme-challenge/ { root /var/www/acme; }
+    location / { return 301 https://${REDIRECT_HOST}${REDIRECT_PORT}$request_uri; }
+}
+server {
+    listen 443 ssl default_server;
+    # Relative redirects preserve the externally configured HTTPS port.
+    absolute_redirect off;
+    access_log /var/log/nginx/access.log privacy;
+    server_name ${SERVER_NAME};
+    ${HOST_GUARD}
+    ssl_certificate ${CERT_PATH};
+    ssl_certificate_key ${KEY_PATH};
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE+AESGCM:ECDHE+CHACHA20;
+    ssl_session_cache shared:TLS:10m;
+    ssl_session_tickets off;
+    ${HSTS}
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy same-origin always;
+    # No CSP/frame restriction: preserve the existing SPA and integrations.
+    client_max_body_size ${BODY_LIMIT};
+    client_body_timeout 300s;
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript image/svg+xml;
+    location = / { return 302 /diakonos; }
+    location / {
+        proxy_pass http://diakronos_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Proto https;
+        # Never append untrusted client-supplied XFF.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Forwarded "";
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_buffering off;
+    }
+}

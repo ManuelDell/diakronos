@@ -1,0 +1,422 @@
+{
+ "Ablaufplan": {
+  "class": "Ablaufplan",
+  "istable": false,
+  "table": "ablaufplan"
+ },
+ "Ablaufplan Position": {
+  "class": "AblaufplanPosition",
+  "istable": true,
+  "table": "ablaufplan_position"
+ },
+ "Anmeldeformular": {
+  "class": "Anmeldeformular",
+  "istable": false,
+  "table": "anmeldeformular"
+ },
+ "Anmeldeformular Dokument": {
+  "class": "AnmeldeformularDokument",
+  "istable": true,
+  "table": "anmeldeformular_dokument"
+ },
+ "Anmeldeformular Feld": {
+  "class": "AnmeldeformularFeld",
+  "istable": true,
+  "table": "anmeldeformular_feld"
+ },
+ "Anmeldung": {
+  "class": "Anmeldung",
+  "istable": false,
+  "table": "anmeldung"
+ },
+ "Anmeldung Antwort": {
+  "class": "AnmeldungAntwort",
+  "istable": true,
+  "table": "anmeldung_antwort"
+ },
+ "Anmeldung Kind": {
+  "class": "AnmeldungKind",
+  "istable": true,
+  "table": "anmeldung_kind"
+ },
+ "Audit Log": {
+  "class": "AuditLog",
+  "istable": false,
+  "table": "audit_log"
+ },
+ "Audit Policy": {
+  "class": "AuditPolicy",
+  "istable": false,
+  "table": "audit_policy"
+ },
+ "Beitrag": {
+  "class": "Beitrag",
+  "istable": false,
+  "table": "beitrag"
+ },
+ "Beitrag Kommentar": {
+  "class": "BeitragKommentar",
+  "istable": true,
+  "table": "beitrag_kommentar"
+ },
+ "Bug Report": {
+  "class": "BugReport",
+  "istable": false,
+  "table": "bug_report"
+ },
+ "DSGVO Einwilligung": {
+  "class": "DSGVOEinwilligung",
+  "istable": false,
+  "table": "dsgvo_einwilligung"
+ },
+ "Dashboard Widget": {
+  "class": "DashboardWidget",
+  "istable": false,
+  "table": "dashboard_widget"
+ },
+ "Dashboard Widget User Config": {
+  "class": "DashboardWidgetUserConfig",
+  "istable": false,
+  "table": "dashboard_widget_user_config"
+ },
+ "Diakronos Einstellungen": {
+  "class": "DiakronosEinstellungen",
+  "istable": false,
+  "table": "diakronos_einstellungen"
+ },
+ "Diakronos Modul Einstellung": {
+  "class": "DiakronosModulEinstellung",
+  "istable": true,
+  "table": "diakronos_modul_einstellung"
+ },
+ "Diakronos Modul Rolle": {
+  "class": "DiakronosModulRolle",
+  "istable": true,
+  "table": "diakronos_modul_rolle"
+ },
+ "Dienstbereich": {
+  "class": "Dienstbereich",
+  "istable": false,
+  "table": "dienstbereich"
+ },
+ "Dienstbereich Verantwortlicher": {
+  "class": "DienstbereichVerantwortlicher",
+  "istable": true,
+  "table": "dienstbereich_verantwortlicher"
+ },
+ "Dienstplan": {
+  "class": "Dienstplan",
+  "istable": false,
+  "table": "dienstplan"
+ },
+ "Dienstplan Mitwirkender": {
+  "class": "DienstplanMitwirkender",
+  "istable": true,
+  "table": "dienstplan_mitwirkender"
+ },
+ "Dienstplan Position": {
+  "class": "DienstplanPosition",
+  "istable": true,
+  "table": "dienstplan_position"
+ },
+ "Dienstplan Position Mitglied": {
+  "class": "DienstplanPositionMitglied",
+  "istable": true,
+  "table": "dienstplan_position_mitglied"
+ },
+ "Dienstplan Teilnehmer": {
+  "class": "DienstplanTeilnehmer",
+  "istable": true,
+  "table": "dienstplan_teilnehmer"
+ },
+ "Dienstplan Termin": {
+  "class": "DienstplanTermin",
+  "istable": true,
+  "table": "dienstplan_termin"
+ },
+ "Dienstplan Vorlage": {
+  "class": "DienstplanVorlage",
+  "istable": false,
+  "table": "dienstplan_vorlage"
+ },
+ "Dienstplan Vorlage Gruppe": {
+  "class": "DienstplanVorlageGruppe",
+  "istable": true,
+  "table": "dienstplan_vorlage_gruppe"
+ },
+ "Dienstplan Vorlage Kategorie": {
+  "class": "DienstplanVorlageKategorie",
+  "istable": true,
+  "table": "dienstplan_vorlage_kategorie"
+ },
+ "Dienstplan Vorlage Slot": {
+  "class": "DienstplanVorlageSlot",
+  "istable": true,
+  "table": "dienstplan_vorlage_slot"
+ },
+ "Dienstrolle": {
+  "class": "Dienstrolle",
+  "istable": false,
+  "table": "dienstrolle"
+ },
+ "DocType": {
+  "class": "DocType",
+  "istable": false,
+  "table": "doctype"
+ },
+ "Dynamic Link": {
+  "class": "DynamicLinkModel",
+  "istable": true,
+  "table": "dynamic_link"
+ },
+ "Element": {
+  "class": "Element",
+  "istable": false,
+  "table": "element"
+ },
+ "Element Aenderung": {
+  "class": "ElementAenderung",
+  "istable": false,
+  "table": "element_aenderung"
+ },
+ "Element Mitarbeiter": {
+  "class": "ElementMitarbeiter",
+  "istable": true,
+  "table": "element_mitarbeiter"
+ },
+ "Element Ressource": {
+  "class": "ElementRessource",
+  "istable": true,
+  "table": "element_ressource"
+ },
+ "Event Participants": {
+  "class": "EventParticipants",
+  "istable": true,
+  "table": "event_participants"
+ },
+ "Eventkategorie": {
+  "class": "Eventkategorie",
+  "istable": false,
+  "table": "eventkategorie"
+ },
+ "File": {
+  "class": "FileModel",
+  "istable": false,
+  "table": "file"
+ },
+ "Google Kalender Einstellungen": {
+  "class": "GoogleKalenderEinstellungen",
+  "istable": false,
+  "table": "google_kalender_einstellungen"
+ },
+ "Gruppe": {
+  "class": "Gruppe",
+  "istable": false,
+  "table": "gruppe"
+ },
+ "Gruppe Verantwortlicher": {
+  "class": "GruppeVerantwortlicher",
+  "istable": true,
+  "table": "gruppe_verantwortlicher"
+ },
+ "Gruppen Ankuendigung": {
+  "class": "GruppenAnkuendigung",
+  "istable": false,
+  "table": "gruppen_ankuendigung"
+ },
+ "Gruppen Aufgabe": {
+  "class": "GruppenAufgabe",
+  "istable": false,
+  "table": "gruppen_aufgabe"
+ },
+ "Gruppenmitgliedschaft": {
+  "class": "Gruppenmitgliedschaft",
+  "istable": true,
+  "table": "gruppenmitgliedschaft"
+ },
+ "Gruppenrolle": {
+  "class": "Gruppenrolle",
+  "istable": true,
+  "table": "gruppenrolle"
+ },
+ "Gruppentyp": {
+  "class": "Gruppentyp",
+  "istable": false,
+  "table": "gruppentyp"
+ },
+ "Has Role": {
+  "class": "HasRole",
+  "istable": true,
+  "table": "has_role"
+ },
+ "Kalender": {
+  "class": "Kalender",
+  "istable": false,
+  "table": "kalender"
+ },
+ "Kalender Moderator": {
+  "class": "KalenderModerator",
+  "istable": true,
+  "table": "kalender_moderator"
+ },
+ "Kronos Einstellungen": {
+  "class": "KronosEinstellungen",
+  "istable": false,
+  "table": "kronos_einstellungen"
+ },
+ "Kronos Kanban Zustand": {
+  "class": "KronosKanbanZustand",
+  "istable": false,
+  "table": "kronos_kanban_zustand"
+ },
+ "Lied": {
+  "class": "Lied",
+  "istable": false,
+  "table": "lied"
+ },
+ "Lied Anlass": {
+  "class": "LiedAnlass",
+  "istable": true,
+  "table": "lied_anlass"
+ },
+ "Lied Gruppenzuordnung": {
+  "class": "LiedGruppenzuordnung",
+  "istable": true,
+  "table": "lied_gruppenzuordnung"
+ },
+ "Lied Kategorie": {
+  "class": "LiedKategorie",
+  "istable": true,
+  "table": "lied_kategorie"
+ },
+ "Lied Material": {
+  "class": "LiedMaterial",
+  "istable": true,
+  "table": "lied_material"
+ },
+ "Liedanlass": {
+  "class": "Liedanlass",
+  "istable": false,
+  "table": "liedanlass"
+ },
+ "Liedfassung": {
+  "class": "Liedfassung",
+  "istable": false,
+  "table": "liedfassung"
+ },
+ "Liedgruppe": {
+  "class": "Liedgruppe",
+  "istable": false,
+  "table": "liedgruppe"
+ },
+ "Liedgruppe Lied": {
+  "class": "LiedgruppeLied",
+  "istable": true,
+  "table": "liedgruppe_lied"
+ },
+ "Liedgruppe Rolle": {
+  "class": "LiedgruppeRolle",
+  "istable": true,
+  "table": "liedgruppe_rolle"
+ },
+ "Liedkategorie": {
+  "class": "Liedkategorie",
+  "istable": false,
+  "table": "liedkategorie"
+ },
+ "Liedstrophe": {
+  "class": "Liedstrophe",
+  "istable": true,
+  "table": "liedstrophe"
+ },
+ "Mitglied": {
+  "class": "Mitglied",
+  "istable": false,
+  "table": "mitglied"
+ },
+ "Mitglied Bereich": {
+  "class": "MitgliedBereich",
+  "istable": true,
+  "table": "mitglied_bereich"
+ },
+ "Mitglied Beziehung": {
+  "class": "MitgliedBeziehung",
+  "istable": true,
+  "table": "mitglied_beziehung"
+ },
+ "Notification Log": {
+  "class": "NotificationLog",
+  "istable": false,
+  "table": "notification_log"
+ },
+ "Nutzereinzelrechte": {
+  "class": "Nutzereinzelrechte",
+  "istable": true,
+  "table": "nutzereinzelrechte"
+ },
+ "Registrierungslink": {
+  "class": "Registrierungslink",
+  "istable": false,
+  "table": "registrierungslink"
+ },
+ "Ressource": {
+  "class": "Ressource",
+  "istable": false,
+  "table": "ressource"
+ },
+ "Ressourcen Buchung": {
+  "class": "RessourcenBuchung",
+  "istable": false,
+  "table": "ressourcen_buchung"
+ },
+ "Role": {
+  "class": "Role",
+  "istable": false,
+  "table": "role"
+ },
+ "Rollenbesetzung": {
+  "class": "Rollenbesetzung",
+  "istable": false,
+  "table": "rollenbesetzung"
+ },
+ "Sicherer Anhang": {
+  "class": "SichererAnhang",
+  "istable": false,
+  "table": "sicherer_anhang"
+ },
+ "Untergruppe": {
+  "class": "Untergruppe",
+  "istable": false,
+  "table": "untergruppe"
+ },
+ "Untergruppe Verantwortlicher": {
+  "class": "UntergruppeVerantwortlicher",
+  "istable": true,
+  "table": "untergruppe_verantwortlicher"
+ },
+ "Untergruppenmitgliedschaft": {
+  "class": "Untergruppenmitgliedschaft",
+  "istable": true,
+  "table": "untergruppenmitgliedschaft"
+ },
+ "User": {
+  "class": "User",
+  "istable": false,
+  "table": "user"
+ },
+ "User Notification Preference": {
+  "class": "UserNotificationPreference",
+  "istable": false,
+  "table": "user_notification_preference"
+ },
+ "User Role": {
+  "class": "UserRole",
+  "istable": true,
+  "table": "user_role"
+ },
+ "Wiki Artikel": {
+  "class": "WikiArtikel",
+  "istable": false,
+  "table": "wiki_artikel"
+ }
+}

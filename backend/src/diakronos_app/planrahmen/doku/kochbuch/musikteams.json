@@ -1,0 +1,58 @@
+{
+  "schema": "diakronos/plantyp@1",
+  "id": "musikteams",
+  "name": "Einteilung Musikteams",
+  "bereich": "Musik",
+  "beschreibung": "Aushang Q4/2026: mehrere Musikteams teilen sich die Sonntagsgottesdienste. Ein ganzes Team spielt sonntags (Team, optional mit Gast), freitags zuvor proben die Sänger desselben Teams (abgeleitete Reihe mit Versatz -2T). Das Monatslied wird am 2. Sonntag eingeführt; Feiertags-Gottesdienste haben keine Probe.",
+  "merkmale": {
+    "person": [
+      { "id": "saenger", "art": "tag", "name": "singt im Musikteam" }
+    ]
+  },
+  "terminreihen": [
+    {
+      "id": "gottesdienst",
+      "termine": { "regel": "FREQ=WEEKLY;BYDAY=SU", "uhrzeit": "10:00", "feiertage": ["heiligabend", "1_weihnachtstag", "silvester"] },
+      "felder": [
+        { "id": "team", "art": "team", "teams": { "gruppe_unter": "Musikteams" }, "fuellen": "reihum" },
+        { "id": "gaeste", "art": "personen", "pflicht": false, "fuellen": "manuell" },
+        { "id": "monatslied", "art": "eintrag", "sammlung": "lieder", "fuellen": "manuell", "bedingung": { "termin_im_monat": 2 } },
+        { "id": "hinweis", "art": "text", "pflicht": false }
+      ]
+    },
+    {
+      "id": "probe",
+      "name": "Sänger",
+      "termine": {
+        "abgeleitet": { "von": "gottesdienst", "versatz": "-2T", "nur_wenn": { "nicht": { "anlass": "feiertag" } } },
+        "ausnahmen": { "feiertage": true }
+      },
+      "felder": [
+        { "id": "team", "art": "team", "fuellen": "vorbelegen", "aus": "bezug.team", "mitglieder": { "merkmal": "saenger" } }
+      ]
+    }
+  ],
+  "anlaesse": [
+    { "id": "abendmahl", "name": "Abendmahl" },
+    { "id": "taufe", "name": "Taufe" },
+    { "id": "feiertag", "name": "Feiertag" }
+  ],
+  "regeln": [
+    { "baustein": "verfuegbarkeit", "team": "Gruppe 3", "muster": { "termin_im_monat": 1 }, "stufe": "muss" },
+    { "baustein": "gleich_verteilen", "feld": "team", "stufe": "sollte" },
+    { "baustein": "abwesenheit_beachten", "stufe": "muss" }
+  ],
+  "ansichten": [
+    {
+      "art": "kalender",
+      "spalten": "monat",
+      "alle_tage": true,
+      "kw": true,
+      "druck": "A4-quer",
+      "format": {
+        "gottesdienst": "{team.name}{gaeste: + {gaeste.vorname}}{anlass: ({anlass})}{monatslied.titel: Monatslied „{monatslied.titel}“}",
+        "probe": "Sänger {team.name}"
+      }
+    }
+  ]
+}

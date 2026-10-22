@@ -1,0 +1,19 @@
+{
+  "plantyp": "programm",
+  "titel": "Beispiel-Liederabend 20.03.2026 / 17:00 Uhr (Musterhausen)",
+  "eintraege": [
+    { "element_id": "l1", "typ": "lied", "feld_pfad": "ablauf/l1.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 1", "buch": "MB", "seite": "84", "dirigent": "Jo/Lea" } },
+    { "element_id": "l2", "typ": "lied", "feld_pfad": "ablauf/l2.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 2", "buch": "MB", "seite": "168", "ensemble": ["Solo"] } },
+    { "element_id": "l3", "typ": "lied", "feld_pfad": "ablauf/l3.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 3", "buch": "MB", "seite": "112" } },
+    { "element_id": "l4", "typ": "lied", "feld_pfad": "ablauf/l4.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 4", "buch": "MB", "seite": "118" } },
+    { "element_id": "l5", "typ": "lied", "feld_pfad": "ablauf/l5.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 5", "buch": "MB", "seite": "" } },
+    { "element_id": "l6", "typ": "lied", "feld_pfad": "ablauf/l6.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 6", "buch": "KB", "seite": "84" } },
+    { "element_id": "l7", "typ": "lied", "feld_pfad": "ablauf/l7.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 7", "buch": "MB" } },
+    { "element_id": "l8", "typ": "lied", "feld_pfad": "ablauf/l8.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 8", "buch": "MB", "seite": "198" } },
+    { "element_id": "l9", "typ": "lied", "feld_pfad": "ablauf/l9.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 9", "buch": "MB", "seite": "150" } },
+    { "element_id": "l10", "typ": "lied", "feld_pfad": "ablauf/l10.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 10", "buch": "MB", "seite": "75" } },
+    { "element_id": "l11", "typ": "lied", "feld_pfad": "ablauf/l11.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 11", "buch": "MB", "seite": "35" } },
+    { "element_id": "l12", "typ": "lied", "feld_pfad": "ablauf/l12.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 12", "buch": "MB", "seite": "130" } },
+    { "element_id": "l13", "typ": "lied", "feld_pfad": "ablauf/l13.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 13", "buch": "MB", "seite": "13" } }
+  ]
+}

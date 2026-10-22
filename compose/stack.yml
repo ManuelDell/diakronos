@@ -1,0 +1,247 @@
+x-app-env: &app-env
+  DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://diakronos:${POSTGRES_PASSWORD:-diakronos}@db:5432/diakronos}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+  APP_ENV: ${APP_ENV:-development}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  # Pflicht, kein Default: der Schluessel signiert die Sitzungs-Cookies und
+  # verschluesselt gespeicherte Zugangsdaten. Ein einkompilierter Platzhalter
+  # waere in jeder Kopie dieser Datei derselbe — deshalb bricht Compose ohne
+  # SECRET_KEY mit Meldung ab (wie POSTGRES_PASSWORD).
+  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY muss in .env gesetzt sein (openssl rand -hex 32)}
+  # P2c: Ablage der hochgeladenen Dateien (upload_file). Bind-Mount unten.
+  FILES_DIR: ${FILES_DIR:-/data/files}
+  # A1b1: Sitzungs-Schicht (siehe backend/src/diakronos_app/settings.py).
+  MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
+  # ST2: eigenes Limit fuer Audio-Material (Notenbeispiele/Aufnahmen).
+  MAX_UPLOAD_BYTES_AUDIO: ${MAX_UPLOAD_BYTES_AUDIO:-52428800}
+  SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-86400}
+  SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-auto}
+  # A1b2: Startbenutzer der Erstinstallation. Leer -> kein Benutzer angelegt.
+  ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+  # A1c1: Brute-Force-Sperre fuer den Login. Defaults greifen immer, damit
+  # eine bestehende Installation ohne Aenderung startet und trotzdem sperrt.
+  # A1c10: die Schwelle haengt an der KENNUNGSART — 5 am Konto, 25 an der
+  # Adresse. Eine Zahl fuer beide war an der Adresse der Grund fuer den
+  # Betriebsausfall (ein Benutzer sperrte das ganze Buero aus).
+  LOGIN_MAX_VERSUCHE: ${LOGIN_MAX_VERSUCHE:-5}
+  LOGIN_MAX_VERSUCHE_IP: ${LOGIN_MAX_VERSUCHE_IP:-25}
+  LOGIN_SPERRE_SEKUNDEN: ${LOGIN_SPERRE_SEKUNDEN:-300}
+  LOGIN_SPERRE_MAX_FAKTOR: ${LOGIN_SPERRE_MAX_FAKTOR:-16}
+  # A1c10: eigene Adressen (Loopback, privat, link-local, unspecified)
+  # werden weder gezaehlt noch gesperrt — hinter einem Reverse-Proxy sieht
+  # die App ohnehin die Proxy-Adresse, und deren Sperre traegt nicht nur
+  # nichts, sie sperrt jeden beliebigen Nutzer mit. Auf 1 hebt die Regel
+  # ausdruecklich auf; das trifft dann ALLE Benutzer hinter der Adresse.
+  # Die Kontosperre bleibt in jedem Fall unberuehrt.
+  LOGIN_IP_SPERRE_AUCH_PRIVAT: ${LOGIN_IP_SPERRE_AUCH_PRIVAT:-0}
+  # A1c2: Steht die App HINTER einem Reverse-Proxy (Nginx/Traefik/Caddy),
+  # ist `request.client.host` fuer alle Benutzer dieselbe Proxy-Adresse und
+  # der Adresszaehler laeuft dann an dieser einen Adresse. Nur wenn hier 1
+  # steht, wird `X-Forwarded-For` ausgewertet — damit die Adresse des
+  # echten Absenders gezaehlt wird und die Adresssperre im Internet
+  # greifen kann.
+  # Default 0 = fail closed: ohne den Schalter wird der Header ignoriert
+  # (sonst koennte jeder Client die Adresssperre per Kopfzeile umgehen).
+  BEHIND_PROXY: ${BEHIND_PROXY:-0}
+  # A1c6: Rate-Limit des Entscherr-Werkzeugs, je Administrator-KONTO.
+  # Default 10 je 10 Minuten. Fail closed: 0 waere "keine Grenze" und ist
+  # hier der bewusst schlechtere Wert — wer eine bestehende Installation
+  # hochfaehrt, bekommt die Begrenzung also ohne Zutun.
+  WERKZEUGLIMIT_ENTSPRERREN: ${WERKZEUGLIMIT_ENTSPRERREN:-10}
+  WERKZEUGLIMIT_ENTSPRERREN_FENSTER: ${WERKZEUGLIMIT_ENTSPRERREN_FENSTER:-600}
+  # ── SEC1: Anmeldung ueber Authentik ──────────────────────────────────────
+  # OIDC (Standardweg) und Forward-Auth-Kopfzeilen — BEIDE standardmaessig AUS.
+  # Ohne diese Variablen verhaelt sich der Stack exakt wie heute (lokales
+  # Formular) -> Bestandsschutz. Secrets nur ueber .env oder *_FILE.
+  AUTH_OIDC_ENABLED: ${AUTH_OIDC_ENABLED:-0}
+  AUTH_OIDC_ISSUER: ${AUTH_OIDC_ISSUER:-}
+  AUTH_OIDC_CLIENT_ID: ${AUTH_OIDC_CLIENT_ID:-}
+  AUTH_OIDC_CLIENT_SECRET: ${AUTH_OIDC_CLIENT_SECRET:-}
+  AUTH_OIDC_CLIENT_SECRET_FILE: ${AUTH_OIDC_CLIENT_SECRET_FILE:-}
+  AUTH_OIDC_SCOPES: ${AUTH_OIDC_SCOPES:-openid email profile groups}
+  AUTH_OIDC_REDIRECT_URL: ${AUTH_OIDC_REDIRECT_URL:-}
+  AUTH_OIDC_LOGOUT: ${AUTH_OIDC_LOGOUT:-1}
+  AUTH_OIDC_ANBIETERNAME: ${AUTH_OIDC_ANBIETERNAME:-Authentik}
+  AUTH_OIDC_METADATA_TTL: ${AUTH_OIDC_METADATA_TTL:-3600}
+  AUTH_OIDC_LEEWAY: ${AUTH_OIDC_LEEWAY:-30}
+  AUTH_LOCAL_LOGIN: ${AUTH_LOCAL_LOGIN:-nur-admin}
+  APP_BASE_URL: ${APP_BASE_URL:-}
+  AUTH_PROXY_HEADER_ENABLED: ${AUTH_PROXY_HEADER_ENABLED:-0}
+  AUTH_PROXY_TRUSTED_IPS: ${AUTH_PROXY_TRUSTED_IPS:-}
+  AUTH_PROXY_SHARED_SECRET: ${AUTH_PROXY_SHARED_SECRET:-}
+  AUTH_PROXY_SHARED_SECRET_FILE: ${AUTH_PROXY_SHARED_SECRET_FILE:-}
+  AUTH_PROXY_HEADER_SECRET: ${AUTH_PROXY_HEADER_SECRET:-X-Diakronos-Proxy-Secret}
+  AUTH_PROXY_HEADER_USERNAME: ${AUTH_PROXY_HEADER_USERNAME:-X-authentik-username}
+  AUTH_PROXY_HEADER_EMAIL: ${AUTH_PROXY_HEADER_EMAIL:-X-authentik-email}
+  AUTH_PROXY_HEADER_UID: ${AUTH_PROXY_HEADER_UID:-X-authentik-uid}
+  AUTH_PROXY_HEADER_GROUPS: ${AUTH_PROXY_HEADER_GROUPS:-X-authentik-groups}
+  # DM1: Dev-Modus (roter Rahmen, Element-Auswahl, Befunde, Backend-
+  # Ueberwachung, Bericht). **Default AUS** — aus heisst: keine Endpunkte,
+  # keine Middleware, kein Overlay. Einschalten: DEVMODE_ENABLED=1 und die
+  # Rolle "Tester" vergeben (Administratoren duerfen ohnehin).
+  # Siehe BETRIEBSANLEITUNG.md.
+  DEVMODE_ENABLED: ${DEVMODE_ENABLED:-0}
+  # DM1: optionaler Sprech-zu-Text-Dienst (OpenAI-kompatibel, z.B. Whisper).
+  # Ohne STT_URL bietet der Browser nur die Web-Speech-API an (Chrome/Edge/
+  # Safari) oder reines Tippen.
+  STT_URL: ${STT_URL:-}
+  STT_MODEL: ${STT_MODEL:-whisper-1}
+  STT_API_KEY: ${STT_API_KEY:-}
+  STT_SPRACHE: ${STT_SPRACHE:-de}
+  # BLD-R2: Zahl der Uvicorn-Arbeiten des app-Dienstes. Default 2 — eine
+  # lange Anfrage (z. B. ein grosser Plan-Vorschlag) blockiert damit nicht
+  # mehr die gesamte App. 1 stellt das alte Verhalten her; auf einem kleinen
+  # Server mit wenig Arbeitsspeicher ggf. 1 setzen. Siehe BETRIEBSANLEITUNG.md.
+  WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+  # ── BACKUP-1: eigene Datensicherung ──────────────────────────────────────
+  # Ablage der Sicherungen. Liegt im Daten-Bind-Mount (Default ${DATA_DIR}/sicherungen),
+  # damit die Dumps ein `docker compose down` ueberleben — im Image waeren sie
+  # beim naechsten Container weg. Die Rechte setzt die App selbst (0700).
+  # Siehe BETRIEBSANLEITUNG.md, Abschnitt "Datensicherung".
+  BACKUP_DIR: ${BACKUP_DIR:-/data/sicherungen}
+  # Erstbelegung der Einstellungen (danach gilt, was in der Oberflaeche steht):
+  # automatisch an/aus, Uhrzeit (Ortszeit, Europe/Berlin) und Aufbewahrung in
+  # Tagen. Die Aufbewahrung ist Pflicht, Minimum 1 Tag.
+  BACKUP_AUTOMATISCH: ${BACKUP_AUTOMATISCH:-1}
+  BACKUP_UHRZEIT: ${BACKUP_UHRZEIT:-03:00}
+  BACKUP_AUFBEWAHRUNG_TAGE: ${BACKUP_AUFBEWAHRUNG_TAGE:-30}
+  BACKUP_TIMEOUT_SEKUNDEN: ${BACKUP_TIMEOUT_SEKUNDEN:-1800}
+  # Verbindung fuer pg_dump (app und scheduler).
+  # pg_dump laeuft in app UND scheduler — beide haengen am Compose-Netz und
+  # erreichen die Datenbank als `db:5432` (geprueft 2026-10-20 im Teststack:
+  # der Umweg ueber host.docker.internal war schlicht falsch — der Scheduler
+  # IST im Compose-Netz, und der veroeffentlichte DB_PORT haengt an 127.0.0.1
+  # des Host-Rechners und ist aus dem Container nicht erreichbar).
+  BACKUP_DB_HOST: ${BACKUP_DB_HOST:-db}
+  BACKUP_DB_PORT: ${BACKUP_DB_PORT:-5432}
+  BACKUP_DB_NAME: ${POSTGRES_DB:-diakronos}
+  BACKUP_DB_USER: ${POSTGRES_USER:-diakronos}
+  BACKUP_DB_PASSWORD: ${POSTGRES_PASSWORD:-}
+
+  # ── MAIL-1: Mailversand — Einstellungen in der Datenbank, keine ENV ─────
+  # Bis MAIL-1 wurden SMTP_* hier durchgereicht (DSGVO-1). Seit MAIL-1 wird der
+  # Mailversand als System Manager in der Oberfläche eingerichtet
+  # (#/einstellungen/mailversand) und liegt verschlüsselt in `smtp_einstellungen`.
+  # Die SMTP_*-Variablen entfallen (S4) — kein zweiter halber Weg.
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-diakronos}
+      POSTGRES_USER: ${POSTGRES_USER:-diakronos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss in .env gesetzt sein}
+    volumes:
+      # SEC1 TEIL D: eigener Speicherort je Datenart. Default bleibt
+      # ${DATA_DIR:-../data}/pg — Bestandsschutz: ohne neue Variablen verhaelt
+      # sich eine bestehende Installation exakt wie heute.
+      - ${PG_DATA_DIR:-${DATA_DIR:-../data}/pg}:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-diakronos} -d ${POSTGRES_DB:-diakronos}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  app:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: ${APP_IMAGE:-diakronos-standalone-app:latest}
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+    volumes:
+      # P2c: persistente Dateiablage fuer upload_file.
+      # SEC1 TEIL D: eigener Speicherort (Default ${DATA_DIR}/files).
+      - type: bind
+        source: ${FILES_HOST_DIR:-${DATA_DIR:-../data}/files}
+        target: /data/files
+      # BACKUP-1: Ablage der Sicherungen (Dump + Dateiarchiv). Eigenes
+      # Verzeichnis im selben Datenbaum; die App setzt die Rechte (0700).
+      - type: bind
+        source: ${BACKUP_HOST_DIR:-${DATA_DIR:-../data}/sicherungen}
+        target: /data/sicherungen
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 120s
+
+  worker:
+    image: ${APP_IMAGE:-diakronos-standalone-app:latest}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    command: ["rq", "worker", "--url", "${REDIS_URL:-redis://redis:6379/0}", "default"]
+    environment:
+      <<: *app-env
+    volumes:
+      # P2c: derselbe Dateibaum wie `app` (Worker verarbeitet Anhaenge).
+      # SEC1 TEIL D: eigener Speicherort (Default ${DATA_DIR}/files).
+      - type: bind
+        source: ${FILES_HOST_DIR:-${DATA_DIR:-../data}/files}
+        target: /data/files
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # Serialize empty-DB migration/bootstrap before background processes.
+      app:
+        condition: service_healthy
+
+  scheduler:
+    image: ${APP_IMAGE:-diakronos-standalone-app:latest}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    command: ["python", "-m", "diakronos_app.scheduler"]
+    environment:
+      # BACKUP-1: HIER laeuft die taegliche Sicherung. Die Verbindung zur
+      # Datenbank kommt aus *app-env (db:5432, Compose-Netz — der Scheduler
+      # haengt darin wie jeder andere Dienst des Stacks).
+      <<: *app-env
+    volumes:
+      # BACKUP-1: derselbe Sicherungsordner wie `app` — die Liste in der
+      # Oberflaeche (app) zeigt Dateien, die der scheduler schreibt.
+      - type: bind
+        source: ${BACKUP_HOST_DIR:-${DATA_DIR:-../data}/sicherungen}
+        target: /data/sicherungen
+      # BACKUP-1: ebenso dieselbe Dateiablage — sonst wuerde der scheduler ein
+      # LEERES files.tar.gz schreiben, weil /data/files im Container ohne
+      # Einhaengung leer ist (im Teststack gefunden).
+      - type: bind
+        source: ${FILES_HOST_DIR:-${DATA_DIR:-../data}/files}
+        target: /data/files
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy

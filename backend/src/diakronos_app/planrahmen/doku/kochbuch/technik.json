@@ -1,0 +1,37 @@
+{
+  "schema": "diakronos/plantyp@1",
+  "id": "technik",
+  "name": "Technikplan",
+  "bereich": "Technik",
+  "beschreibung": "Beamer und Ton je Gottesdienst: mindestens eine erfahrene Person je Bereich (Merkmal), erfahrene und unerfahrene werden fair gemischt.",
+  "merkmale": {
+    "person": [
+      { "id": "erfahren_beamer", "art": "tag", "name": "erfahren mit Beamer" },
+      { "id": "erfahren_ton", "art": "tag", "name": "erfahren mit Ton" },
+      { "id": "technik_helfer", "art": "tag", "name": "hilft in der Technik" }
+    ]
+  },
+  "termine": {
+    "regel": "FREQ=WEEKLY;BYDAY=SU"
+  },
+  "felder": [
+    {
+      "id": "technik",
+      "art": "gruppe",
+      "inhalt": [
+        { "id": "beamer", "art": "person", "rolle": { "merkmal": "erfahren_beamer" }, "fuellen": "optimieren" },
+        { "id": "ton", "art": "person", "rolle": { "merkmal": "erfahren_ton" }, "fuellen": "optimieren" },
+        { "id": "hilfe", "art": "personen", "anzahl": "0..2", "rolle": { "merkmal": "technik_helfer" }, "fuellen": "optimieren" }
+      ]
+    }
+  ],
+  "regeln": [
+    { "baustein": "abwesenheit_beachten", "stufe": "muss" },
+    { "baustein": "min_pro_zeitraum", "rolle": { "merkmal": "erfahren_beamer" }, "anzahl": 1, "zeitraum": "termin", "stufe": "muss" },
+    { "baustein": "min_pro_zeitraum", "rolle": { "merkmal": "erfahren_ton" }, "anzahl": 1, "zeitraum": "termin", "stufe": "muss" },
+    { "baustein": "gleich_verteilen", "rolle": { "merkmal": "technik_helfer" }, "stufe": "sollte" }
+  ],
+  "ansichten": [
+    { "art": "tabelle", "spalten": ["technik.beamer", "technik.ton", "technik.hilfe"] }
+  ]
+}

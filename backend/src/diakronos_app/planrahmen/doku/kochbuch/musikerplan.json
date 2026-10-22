@@ -1,0 +1,40 @@
+{
+  "schema": "diakronos/plantyp@1",
+  "id": "musikerplan",
+  "name": "Musikerplan",
+  "bereich": "Lobpreis",
+  "beschreibung": "Band-Besetzung je Gottesdienst mit Pflichtinstrumenten. Niemand spielt zwei Instrumente zugleich; die Besetzung wird fair über die Musiker verteilt.",
+  "merkmale": {
+    "person": [
+      { "id": "schlagzeug", "art": "tag", "name": "spielt Schlagzeug" },
+      { "id": "bass", "art": "tag", "name": "spielt Bass" },
+      { "id": "gitarre", "art": "tag", "name": "spielt Gitarre" },
+      { "id": "keys", "art": "tag", "name": "spielt Keyboard" },
+      { "id": "gesang", "art": "tag", "name": "singt" }
+    ]
+  },
+  "termine": {
+    "regel": "FREQ=WEEKLY;BYDAY=SU"
+  },
+  "felder": [
+    {
+      "id": "besetzung",
+      "art": "gruppe",
+      "inhalt": [
+        { "id": "schlagzeug", "art": "person", "rolle": { "merkmal": "schlagzeug" }, "fuellen": "optimieren" },
+        { "id": "bass", "art": "person", "rolle": { "merkmal": "bass" }, "fuellen": "optimieren" },
+        { "id": "gitarre", "art": "personen", "anzahl": "1..2", "rolle": { "merkmal": "gitarre" }, "fuellen": "optimieren" },
+        { "id": "keys", "art": "person", "rolle": { "merkmal": "keys" }, "fuellen": "optimieren" },
+        { "id": "gesang", "art": "personen", "anzahl": "2..4", "rolle": { "merkmal": "gesang" }, "fuellen": "optimieren" }
+      ]
+    }
+  ],
+  "regeln": [
+    { "baustein": "abwesenheit_beachten", "stufe": "muss" },
+    { "baustein": "nicht_gleichzeitig", "felder": ["besetzung.schlagzeug", "besetzung.bass", "besetzung.gitarre", "besetzung.keys"], "stufe": "muss" },
+    { "baustein": "gleich_verteilen", "rolle": { "eine": [ { "merkmal": "schlagzeug" }, { "merkmal": "bass" }, { "merkmal": "gitarre" }, { "merkmal": "keys" } ] }, "stufe": "sollte" }
+  ],
+  "ansichten": [
+    { "art": "tabelle", "spalten": ["besetzung.schlagzeug", "besetzung.bass", "besetzung.gitarre", "besetzung.keys", "besetzung.gesang"] }
+  ]
+}

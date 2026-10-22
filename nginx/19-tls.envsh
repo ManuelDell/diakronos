@@ -1,0 +1,65 @@
+#!/bin/sh
+# Sourced by the official nginx entrypoint before its envsubst pass.
+set -eu
+fail() { echo "TLS configuration: $*" >&2; exit 1; }
+# nginx normalizes $host; use the same canonical DNS name in every TLS process.
+export DOMAIN=$(printf '%s' "${DOMAIN:-}" | tr '[:upper:]' '[:lower:]')
+case "$DOMAIN" in
+  *[!a-zA-Z0-9.-]*|.*|-*|*..*|*.) fail "DOMAIN must be a plain DNS hostname (no URL or port)" ;;
+esac
+case "${HTTPS_PORT:-443}" in ''|*[!0-9]*) fail "HTTPS_PORT must be numeric" ;; esac
+case "${MAX_UPLOAD_BYTES:-10485760}" in ''|*[!0-9]*) fail "MAX_UPLOAD_BYTES must be numeric" ;; esac
+[ "${MAX_UPLOAD_BYTES:-10485760}" -gt 0 ] || fail "MAX_UPLOAD_BYTES must be positive"
+# ST2: das Audio-Limit darf groesser sein; der Proxy-Body-Limit folgt dem Maximum
+# beider Grenzen, sonst schlaegt ein Audio-Upload schon an nginx fehl (413).
+case "${MAX_UPLOAD_BYTES_AUDIO:-52428800}" in ''|*[!0-9]*) fail "MAX_UPLOAD_BYTES_AUDIO must be numeric" ;; esac
+[ "${MAX_UPLOAD_BYTES_AUDIO:-52428800}" -gt 0 ] || fail "MAX_UPLOAD_BYTES_AUDIO must be positive"
+case "${TLS_MODE:-selfsigned}" in
+  selfsigned) ;;
+  custom)
+    [ -s "$TLS_CERT_PATH" ] && [ -s "$TLS_KEY_PATH" ] || fail "custom requires readable TLS_CERT_PATH and TLS_KEY_PATH (default /custom/fullchain.pem and /custom/privkey.pem)"
+    ;;
+  letsencrypt)
+    [ -n "$DOMAIN" ] || fail "letsencrypt requires DOMAIN"
+    [ -n "${ACME_EMAIL:-}" ] || fail "letsencrypt requires ACME_EMAIL"
+    case "${ACME_STAGING:-0}" in 0|1) ;; *) fail "ACME_STAGING must be 0 or 1" ;; esac
+    echo "$DOMAIN" | grep -Eq '^[0-9.]+$' && fail "letsencrypt requires a DNS domain, not an IP"
+    case "$DOMAIN" in *.*) ;; *) fail "letsencrypt requires a public DNS domain" ;; esac
+    ;;
+  *) fail "TLS_MODE must be selfsigned, custom or letsencrypt" ;;
+esac
+mkdir -p /tls
+# Persist across recreation; renew when SANs change or expiry is near.
+san="DNS:${DOMAIN:-localhost},DNS:localhost,IP:127.0.0.1"
+[ -z "${HOST_IP:-}" ] || san="$san,IP:$HOST_IP"
+if [ "${TLS_MODE:-selfsigned}" != custom ]; then
+  if [ ! -s /tls/bootstrap.key ] || [ "$(cat /tls/bootstrap.san 2>/dev/null || true)" != "$san" ] || ! openssl x509 -in /tls/bootstrap.pem -noout -checkend 86400 >/dev/null 2>&1; then
+    openssl req -x509 -nodes -newkey rsa:2048 -days 365 -subj "/CN=${DOMAIN:-localhost}" \
+      -addext "subjectAltName=$san" -keyout /tls/bootstrap.key.new -out /tls/bootstrap.pem.new
+    chmod 600 /tls/bootstrap.key.new
+    mv /tls/bootstrap.key.new /tls/bootstrap.key
+    mv /tls/bootstrap.pem.new /tls/bootstrap.pem
+    printf '%s' "$san" > /tls/bootstrap.san
+  fi
+fi
+export CERT_PATH=/tls/bootstrap.pem KEY_PATH=/tls/bootstrap.key
+if [ "${TLS_MODE:-selfsigned}" = custom ]; then
+  export CERT_PATH="$TLS_CERT_PATH" KEY_PATH="$TLS_KEY_PATH"
+elif [ "$TLS_MODE" = letsencrypt ]; then
+  # Never reuse another domain's (or expired) certificate after reconfiguration.
+  if [ "$(cat /tls/live.domain 2>/dev/null || true)" != "$DOMAIN" ] || ! openssl x509 -in /tls/live.pem -noout -checkend 0 >/dev/null 2>&1; then
+    rm -f /tls/live.pem /tls/live.key /tls/changed
+  fi
+  /usr/local/bin/sync-cert
+  if [ -s /tls/live.pem ]; then export CERT_PATH=/tls/live.pem KEY_PATH=/tls/live.key; fi
+fi
+export SERVER_NAME="${DOMAIN:-_}" HOST_GUARD="" REDIRECT_HOST='$host' REDIRECT_PORT=""
+if [ -n "$DOMAIN" ]; then
+  export HOST_GUARD="if (\$host != $DOMAIN) { return 444; }" REDIRECT_HOST="$DOMAIN"
+fi
+[ "$HTTPS_PORT" = 443 ] || export REDIRECT_PORT=":$HTTPS_PORT"
+export BODY_LIMIT=$(( (MAX_UPLOAD_BYTES > MAX_UPLOAD_BYTES_AUDIO ? MAX_UPLOAD_BYTES : MAX_UPLOAD_BYTES_AUDIO) + 1048576 )) HSTS=""
+# Do not pin an untrusted bootstrap/selfsigned certificate in a browser.
+if [ "${TLS_MODE:-selfsigned}" = custom ] || [ "$CERT_PATH" = /tls/live.pem ]; then
+  export HSTS='add_header Strict-Transport-Security "max-age=31536000" always;'
+fi

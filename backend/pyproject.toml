@@ -1,0 +1,101 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "diakronos-app"
+version = "2.0.0"
+description = "Diakronos — FastAPI-Backend"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115.0,<1.0.0",
+    "uvicorn[standard]>=0.32.0,<1.0.0",
+    # `sqlalchemy[asyncio]`, nicht das nackte sqlalchemy: sqladmin 0.32 importiert
+    # `sqlalchemy.ext.asyncio` UNBEDINGT (u.a. _queries.py:8, application.py:20),
+    # sqladmin selbst deklariert aber nur `sqlalchemy>=2.0`. Ohne das Extra fehlt
+    # greenlet im Image und `import sqladmin` bricht schon beim Laden ab
+    # (ImportError mit Verweis auf 'sqlalchemy[asyncio]'). Das Extra ist damit
+    # die Erklaerung, nicht der Fix — siehe greenlet unten fuer die Untergrenze.
+    "sqlalchemy[asyncio]>=2.0.30,<3.0.0",
+    "psycopg[binary]>=3.2.0,<4.0.0",
+    "alembic>=1.13.0,<2.0.0",
+    "pydantic>=2.9.0,<3.0.0",
+    "pydantic-settings>=2.6.0,<3.0.0",
+    "argon2-cffi>=23.1.0,<26.0.0",
+    "rq>=2.1.0,<3.0.0",
+    "redis>=5.0.0,<7.0.0",
+    "python-socketio>=5.11.0,<6.0.0",
+    "apscheduler>=3.10.0,<4.0.0",
+    "python-multipart>=0.0.12,<1.0.0",
+    "httpx>=0.27.0,<1.0.0",
+    "cryptography>=43.0.0,<47.0.0",
+    "icalendar>=6.0.0,<8.0.0",
+    "python-dateutil>=2.9.0,<3.0.0",
+    "pytest>=8.3.0,<10.0.0",
+    "sqladmin>=0.20.0,<1.0.0",
+    # greenlet ist die Paketierungshuelle, die das asyncio-Extra mitzieht; SQLAlchemy
+    # selbst fordert dafuer nur `greenlet>=1`. Diese Untergrenze ist deshalb
+    # echte Zusicherung und nicht Kosmetik: greenlet 1.x/2.x liefert fuer cp312
+    # (Image-Basis python:3.12-slim) KEIN manylinux-Rad, nur sdist -> ein
+    # unbedachter Resolver-Pfad muesste im Image aus Quelltext bauen und
+    # scheitert dort. Ab 3.0.0 gibt es cp312-manylinux-x86_64-Raeder (belegt am
+    # 01.10.2026 gegen PyPI). Wer die Zeile entfernt, baut den Fehler neu.
+    "greenlet>=3.0,<4.0.0",
+    "sqlalchemy-continuum>=1.4.0,<2.0.0",
+    # jsonschema ist die Grundlage der Plantyp-Pruefung (Plan-Rahmen P1):
+    # backend/src/diakronos_app/planrahmen/pruefung.py validiert Plantyp-Dateien
+    # gegen das JSON Schema 2020-12 in schema/plantyp-1.json. Ohne dieses Paket
+    # bricht `import diakronos_app.planrahmen.pruefung` bereits beim Import ab.
+    # Untergrenze 4.18: liefert Draft-2020-12-Unterstuetzung und die stabile
+    # `iter_errors`-Schnittstelle; jsonschema 4 wird im Image/PyPI weiter gepflegt.
+    "jsonschema>=4.18.0,<5.0.0",
+    # Authlib ist die bewaehrte Bibliothek fuer OIDC (SEC1): JWS-/JWK-Pruefung
+    # (authlib.jose) und den Authorization-Code-Flow. Eigenbau der Token-
+    # Verifikation waere genau der Fehler, den die Karte ausschliesst. Authlib
+    # 1.x nutzt httpx (bereits Abhaengigkeit) fuer die HTTP-Aufrufe.
+    # Untergrenze 1.3: stabile `jose`-API mit claims_options/validate(leeway).
+    "authlib>=1.3.0,<2.0.0",
+]
+
+[project.optional-dependencies]
+# Test-/Werkzeug-Abhaengigkeiten. Das Image installiert diese Gruppe
+# (Dockerfile: `pip install -e ".[dev]"`), weil der Testlauf laut Makefile
+# IM app-Container stattfindet.
+#   requests: der python-socketio-CLIENT (transport=http) braucht es fuer den
+#   echten Verbindungsaufbau in tests/test_p6a_queue_realtime.py. Ohne das
+#   Paket bricht der Realtime-Test im frisch gebauten Image ab
+#   ("requests package is not installed").
+dev = [
+    "pytest>=8.3.0,<10.0.0",
+    "httpx>=0.27.0,<1.0.0",
+    "requests>=2.32.0,<3.0.0",
+    # P0-2b: haengt ein Test in der Engine (unbegrenzte Wiederholungsregel),
+    # bricht pytest-timeout ihn ab statt den ganzen Testlauf zu blockieren.
+    # Genau dafuer ist der Test in test_p0_2_server_haenger.py geschrieben.
+    "pytest-timeout>=2.3.0,<3.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# Laufzeit-/Test-Dateien des Plan-Rahmens muessen auch bei einer
+# Nicht-Editable-Install (Rad/Install aus dem sdist) mitkommen: das
+# Plantyp-Schema (schema/*.json) und die Doku (doku/**/*.md, doku/kochbuch/*.json).
+# Grund: docs/ steht in .dockerignore und ist im Image NICHT vorhanden; alle zur
+# Laufzeit oder in Tests benoetigten Dateien liegen deshalb IM Paket und werden
+# ueber importlib.resources gelesen (NACHTRAG DOCKER).
+[tool.setuptools.package-data]
+"diakronos_app.import_metadaten" = ["*.json", "*.tsv"]
+"diakronos_app.models" = ["_mapping.json"]
+"diakronos_app.planrahmen" = ["schema/*.json", "doku/*.md", "doku/kochbuch/*.json", "doku/instanzen/*.json"]
+# DM1: der Dev-Modus braucht keine Laufzeit-Dateien im Paket (kein Katalog,
+# keine Regeln). Die Ablage erfolgt ausschliesslich unter FILES_DIR.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# P0-2b: kein Test darf den Lauf blockieren. Ein Haenger (z. B. eine
+# unbegrenzte Wiederholungsregel, die die Engine-Grenze umgeht) wird nach
+# 60 s als Fehler gemeldet. Einzelne Tests koennen per
+# @pytest.mark.timeout(...) strenger sein.
+timeout = 60
+timeout_method = "thread"

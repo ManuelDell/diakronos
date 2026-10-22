@@ -1,0 +1,82 @@
+{
+  "schema": "diakronos/plantyp@1",
+  "id": "freizeit",
+  "name": "Freizeitplan",
+  "bereich": "Freizeit",
+  "beschreibung": "Mehrtagige Freizeit mit festem Tagesraster: die Bibelarbeit läuft der Reihe nach durch eine vorbereitend befüllte Themenreihe (Sammlung mit umfang 'plan'), Tagesleitung und Mitarbeiter werden reihum bzw. fair verteilt. Nachmittags- und Abendblock haben Varianten (Sonne/Regen) und Teile.",
+  "parameter": [
+    { "id": "zeitraum", "art": "zeitraum", "name": "Zeitraum" },
+    { "id": "thema", "art": "text", "name": "Thema" }
+  ],
+  "sammlungen": [
+    { "id": "bibelarbeiten", "name": "Bibelarbeiten", "umfang": "plan", "beschreibung": "Themenreihe, die vorbereitend in den Plan geladen wird; der Reihe nach, eine pro Tag." },
+    { "id": "spiele", "name": "Spiele", "beschreibung": "Freie Spielideen für den Nachmittag." }
+  ],
+  "merkmale": {
+    "bibelarbeiten": [
+      { "id": "stelle", "art": "text", "name": "Bibelstelle" },
+      { "id": "lernvers", "art": "text", "name": "Lernvers" }
+    ]
+  },
+  "termine": {
+    "zeitraum": "{parameter.zeitraum}"
+  },
+  "felder": [
+    { "id": "tagesleitung", "art": "person", "rolle": { "anmeldung": "mitarbeiter" }, "fuellen": "reihum" },
+    {
+      "id": "bibelfreude",
+      "art": "gruppe",
+      "zeit": "08:00-08:30",
+      "inhalt": [
+        { "id": "leitung", "art": "personen", "rolle": { "anmeldung": "mitarbeiter" } }
+      ]
+    },
+    {
+      "id": "frohe_stunde",
+      "art": "gruppe",
+      "zeit": "10:30-12:00",
+      "inhalt": [
+        { "id": "bibelarbeit", "art": "eintrag", "sammlung": "bibelarbeiten", "fuellen": "der_reihe_nach" },
+        { "id": "leitung", "art": "personen", "anzahl": "1..2", "rolle": { "anmeldung": "mitarbeiter" } }
+      ]
+    },
+    {
+      "id": "nachmittag",
+      "art": "gruppe",
+      "zeit": "14:30-17:30",
+      "varianten": [
+        "sonne",
+        { "id": "regen", "name": "Regen", "inhalt": [
+          { "id": "programm_regen", "art": "text", "name": "Programm (Regen)" },
+          { "id": "leitung_regen", "art": "personen", "name": "Leitung", "rolle": { "anmeldung": "mitarbeiter" } },
+          { "id": "halle", "art": "text", "name": "Ausweichraum" }
+        ] }
+      ],
+      "inhalt": [
+        { "id": "programm", "art": "text" },
+        { "id": "spiel", "art": "eintrag", "sammlung": "spiele" },
+        { "id": "leitung", "art": "personen", "rolle": { "anmeldung": "mitarbeiter" } }
+      ]
+    },
+    {
+      "id": "abend",
+      "art": "gruppe",
+      "zeit": "19:30-22:00",
+      "varianten": ["sonne", "regen"],
+      "teile": [
+        { "id": "programm", "name": "Programm", "inhalt": [ { "id": "gestaltung", "art": "text", "name": "Programmtext" } ] },
+        { "id": "abschluss", "name": "Abschluss", "inhalt": [ { "id": "abendlied", "art": "eintrag", "sammlung": "lieder" } ] }
+      ],
+      "inhalt": [
+        { "id": "leitung", "art": "personen", "rolle": { "anmeldung": "mitarbeiter" } }
+      ]
+    }
+  ],
+  "regeln": [
+    { "baustein": "gleich_verteilen", "rolle": { "anmeldung": "mitarbeiter" }, "stufe": "sollte" },
+    { "baustein": "abwesenheit_beachten", "stufe": "muss" }
+  ],
+  "ansichten": [
+    { "art": "raster", "zeilen": "termin", "druck": "A4-quer" }
+  ]
+}

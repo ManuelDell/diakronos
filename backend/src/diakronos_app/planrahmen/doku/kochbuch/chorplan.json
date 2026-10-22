@@ -1,0 +1,73 @@
+{
+  "schema": "diakronos/plantyp@1",
+  "id": "chorplan",
+  "name": "Chorplan",
+  "bereich": "Chor",
+  "beschreibung": "Wöchentlicher Gottesdienst am Sonntag mit Liedauswahl, Wiederholen/Einüben und Einsingen. Der Generator wählt die Lieder nach Mindestabstand und Anlass, das Einsingen läuft reihum. Anlässe können Felder ausblenden (Kinderchor, chorfrei). Die Vorlage ist an die Gruppe 'Chor' gebunden: als Personen kommen nur Mitglieder dieser Gruppe in Frage (Personenpool).",
+  "gruppen": ["Chor"],
+  "merkmale": {
+    "person": [
+      { "id": "dirigent", "art": "tag", "name": "dirigiert" },
+      { "id": "klavier", "art": "tag", "name": "spielt Klavier" },
+      { "id": "einsingen", "art": "tag", "name": "leitet Einsingen" },
+      { "id": "instrument", "art": "auswahl", "name": "Instrument", "mehrfach": true,
+        "werte": ["Floete", "Geige", "Gitarre"],
+        "anzeigenamen": { "Floete": "Flöte" } }
+    ],
+    "lieder": [
+      { "id": "dirigent", "art": "person", "name": "Standard-Dirigent", "rolle": { "merkmal": "dirigent" } },
+      { "id": "klavier", "art": "person", "name": "Standard-Klavier", "rolle": { "merkmal": "klavier" } },
+      { "id": "thema", "art": "auswahl", "name": "Thema", "mehrfach": true, "quelle": "psalmos.kategorie" },
+      { "id": "instrument", "art": "auswahl", "name": "Instrument", "mehrfach": true, "werte": ["Geige", "Gitarre", "Kontrabass"] }
+    ]
+  },
+  "termine": {
+    "regel": "FREQ=WEEKLY;BYDAY=SU",
+    "uhrzeit": "10:00",
+    "feiertage": ["karfreitag", "ostersonntag", "himmelfahrt", "pfingstsonntag", "heiligabend", "1_weihnachtstag"]
+  },
+  "anlaesse": [
+    { "id": "kinderchor", "name": "Kinderchor", "wirkung": { "ohne": ["lieder", "einsingen", "einueben"] } },
+    { "id": "chorfrei", "name": "Chorfrei (Freizeit/Sommerpause)", "wirkung": { "ohne": ["lieder", "einueben", "einsingen"] } },
+    { "id": "abendmahl", "name": "Abendmahl" },
+    { "id": "erntedank", "name": "Erntedank" },
+    { "id": "advent", "name": "Advent" }
+  ],
+  "felder": [
+    {
+      "id": "lieder",
+      "name": "Lied",
+      "art": "eintrag",
+      "sammlung": "lieder",
+      "anzahl": 3,
+      "inhalt": [
+        { "id": "dirigent", "art": "person", "rolle": { "merkmal": "dirigent" }, "fuellen": "vorbelegen", "aus": "eintrag.dirigent" },
+        { "id": "klavier", "art": "person", "rolle": { "merkmal": "klavier" }, "fuellen": "vorbelegen", "aus": "eintrag.klavier" },
+        { "id": "solo", "art": "personen", "pflicht": false, "fuellen": "manuell" }
+      ]
+    },
+    { "id": "einueben", "name": "Wiederholen/Einüben", "art": "eintrag", "sammlung": "lieder", "anzahl": "0..2" },
+    { "id": "einsingen", "art": "person", "rolle": { "merkmal": "einsingen" }, "fuellen": "reihum" }
+  ],
+  "regeln": [
+    { "baustein": "abwesenheit_beachten", "stufe": "muss" },
+    { "baustein": "mindestabstand", "feld": "lieder", "wochen": 8, "stufe": "sollte" },
+    { "baustein": "vorher_geuebt", "feld": "lieder", "uebungsfeld": "einueben", "mindestens": 2, "stufe": "sollte" },
+    { "baustein": "passend_zum_anlass", "feld": "lieder", "merkmal": "thema", "stufe": "sollte" }
+  ],
+  "ansichten": [
+    {
+      "art": "tabelle",
+      "name": "Plan",
+      "spalten": ["anlass", "lieder", "einueben", "einsingen"],
+      "format": { "lieder": "{eintrag.anzeige}{dirigent.kuerzel: /{dirigent.kuerzel}}{klavier.kuerzel: /{klavier.kuerzel}}{eintrag.titel: {eintrag.titel}}" }
+    },
+    {
+      "art": "druck",
+      "name": "Aushang",
+      "druck": "A4-quer",
+      "spalten": ["anlass", "lieder", "einueben", "einsingen"],
+      "format": { "lieder": "{eintrag.anzeige}{dirigent.kuerzel: /{dirigent.kuerzel}}{klavier.kuerzel: /{klavier.kuerzel}}{eintrag.titel: {eintrag.titel}}" }
+    }
+  ]
+}

@@ -1,0 +1,403 @@
+/* =====================================================================
+   DIAKRONOS TOKENS — SINGLE SOURCE OF TRUTH
+   Stil „A · Ruhig & Klar“ (Referenz: anhang/quellen/ui-vorschlaege.html,
+   [data-stil="a"]).
+
+   REGEL: Komponenten und Seiten nutzen AUSSCHLIESSLICH diese Variablen.
+   Keine festen Farbwerte (#hex, rgb(), hsl()) in .vue-Dateien — der
+   Wächter-Test (frontend/tests/waechter-tokens.test.mjs) erzwingt das
+   für pages/planrahmen, components/planrahmen und components/ui.
+
+   Aufbau:
+     1. Farbskala (Rohwerte)          --dk-*-<stufe>
+     2. Semantische Tokens (hell)     im :root
+     3. Semantische Tokens (dunkel)   unter [data-theme="dark"]
+     4. Typografie / Raum / Form / Zustand
+     5. Veraltete Aliase              (Kompatibilität, nicht mehr verwenden)
+
+   Die kanonischen, stilbeschreibenden Kurznamen entsprechen dem Mockup
+   (--bg, --surface, --line, --text, --primary, --accent, --ok, …). Sie
+   gelten innerhalb des App-Rahmens; sie werden global auf :root definiert,
+   damit auch Teleports (Dialoge an <body>) sie sehen.
+   ===================================================================== */
+
+/* =====================================================================
+   1 · FARBSKALA (Rohwerte — nur hier dürfen Hex-Werte stehen)
+   ===================================================================== */
+:root {
+  /* Marke: Tiefes Navy (Leitfarbe) */
+  --dk-navy-50:  #eef1f8;
+  --dk-navy-100: #d6dcea;
+  --dk-navy-200: #aab5d2;
+  --dk-navy-300: #6e7ca6;
+  --dk-navy-400: #3e4d78;
+  --dk-navy-500: #1c2850;   /* Primärfarbe Stil A */
+  --dk-navy-600: #141d3f;
+  --dk-navy-700: #11183a;   /* Seitenleiste */
+  --dk-navy-800: #050b29;
+  --dk-navy-900: #00051f;
+
+  /* Akzent: Messing-Gold */
+  --dk-gold-50:  #f7efdc;   /* Akzent-Fläche (soft) */
+  --dk-gold-100: #f1d391;   /* aktive Sidebar-Schrift */
+  --dk-gold-300: #e0b866;
+  --dk-gold-500: #c9952f;   /* Akzentfarbe Stil A */
+  --dk-gold-600: #b8872f;
+  --dk-gold-700: #96691f;
+
+  /* Neutrals warm */
+  --dk-warm-0:  #ffffff;
+  --dk-warm-25: #fafaf8;
+  --dk-warm-50: #f4f4f0;
+  --dk-warm-100:#ececE6;
+  --dk-warm-150:#e7e6e0;
+  --dk-warm-200:#d4d4cc;
+  /* DES-R15: Das Hilfsgrau erreichte auf Weiss nur 3,17:1 und auf dem
+     Tabellenkopf 2,88:1 (WCAG AA verlangt 4,5:1). #6b7088 liegt bei 4,6:1. */
+  --dk-warm-400:#6b7088;
+  --dk-warm-500:#5b6178;
+  --dk-warm-900:#15182a;
+
+  /* Dunkle Flächen */
+  --dk-ink-0:  #070a1b;
+  --dk-ink-1:  #0a0e22;
+  --dk-ink-2:  #111631;
+  --dk-ink-3:  #151b3a;
+  --dk-ink-4:  #1a2148;
+  --dk-ink-line:#232a52;
+  --dk-ink-line-strong:#2e376a;
+  --dk-ink-text:#e8eaf4;
+  --dk-ink-text-muted:#9ba3c1;
+  --dk-ink-text-subtle:#6a7199;
+
+  /* Status-Rohwerte */
+  --dk-green-600: #2f7d4f;
+  --dk-green-50:  #e7f3ec;
+  --dk-amber-700: #a86a12;
+  --dk-amber-50:  #fbf1df;
+  --dk-amber-800: #854f0b;   /* DES-R15: Abzeichen-Schrift mit >= 4.5:1 */
+  --dk-red-700:   #b42318;
+  --dk-red-50:    #fdecea;
+  --dk-blue-700:  #1d4ed8;
+  --dk-blue-800:  #1b3fb0;   /* DES-R15: Abzeichen-Schrift mit >= 4.5:1 */
+  --dk-blue-50:   #e8efff;
+
+  /* DES-R15: Schriftfarbe auf den farbigen Kalender-Terminkacheln. Sie wird
+     mit den Kategoriefarben gemischt (weisses Papier) und ergibt so auch auf
+     Hellgruen/Orange/Blau mehr als 4,5:1 — vorher stand dort Weiss (1,6–2,4:1). */
+  --dk-event-ink: #12183a;
+
+  /* DES-08: Initialenkreise. Jedes Paar ist Flaechenfarbe + passende
+     Schriftfarbe und in BEIDEN Themes lesbar (vorher: --primary-ink, weiss
+     auf Gold 2,68:1 / dunkel 1,41:1). */
+  --dk-avatar-1-bg: #c3cbe3; --dk-avatar-1-ink: #12183a;
+  --dk-avatar-2-bg: #3e4d78; --dk-avatar-2-ink: #ffffff;
+  --dk-avatar-3-bg: #e2c489; --dk-avatar-3-ink: #3d2c05;
+  --dk-avatar-4-bg: #9fd4b4; --dk-avatar-4-ink: #10321f;
+  --dk-avatar-5-bg: #b9c2ee; --dk-avatar-5-ink: #14204d;
+  --dk-avatar-6-bg: #efc0b4; --dk-avatar-6-ink: #4a1508;
+
+  /* Kategorien (Kalender/Kronos) — aus index.css übernommen */
+  --dk-cat-ankuendigung:  #d97706;
+  --dk-cat-gottesdienst:  #16a34a;
+  --dk-cat-jugend:        #2563eb;
+  --dk-cat-gemeindeleben: #db2777;
+  --dk-cat-allgemein:     #78716c;
+  --dk-res-vehicle: #d97706;
+  --dk-res-item:    #2563eb;
+}
+
+/* =====================================================================
+   2 · SEMANTISCHE TOKENS — HELL (Stil A)
+   ===================================================================== */
+:root {
+  /* Flächen & Linien */
+  --bg:              var(--dk-warm-25);
+  --bg-subtle:       #f3f3ef;
+  --surface:         var(--dk-warm-0);
+  --surface-2:       var(--dk-warm-50);
+  --surface-hover:   #f1f1ec;
+  --line:            var(--dk-warm-150);
+  --line-strong:     var(--dk-warm-200);
+  --divider:         var(--dk-warm-100);
+
+  /* Schrift */
+  --text:            var(--dk-warm-900);
+  --muted:           var(--dk-warm-500);
+  --subtle:          var(--dk-warm-400);
+  --primary:         var(--dk-navy-500);
+  --primary-hover:   var(--dk-navy-600);
+  --primary-ink:     #ffffff;
+  --accent:          var(--dk-gold-500);
+  --accent-d:        var(--dk-gold-600);
+  --accent-soft:     var(--dk-gold-50);
+  /* P3-4 (Restpunkt 7): Der Fokusring war `navy-400` mit 55 % Deckkraft —
+     auf Weiß nur ~2,7:1 und damit unter den 3:1, die WCAG 1.4.11 für
+     Nicht-Text-Kontrast verlangt. Jetzt eine deckende Farbe (9,1:1 auf Weiß). */
+  --focus-ring:      var(--dk-navy-400);
+  /* P3-4b/K2: Der Seitenleisten-Fokusring. --focus-ring (navy-400, #3e4d78)
+     erreicht auf der hellen Seitenleiste (navy-700, #11183a) nur 2,09:1 und
+     damit nicht die 3:1 aus WCAG 1.4.11. Auf der dunklen Flaeche liegen
+     navy-50 (#eef1f8, 15,3:1) und gold-300 (#c9952f-aehnlich, 10,3:1) deutlich
+     darueber; der Ring bleibt deckend, damit er auch auf den aktiven
+     (gold-gemischten) Eintraegen sichtbar bleibt. */
+  --focus-ring-side: #eef1f8;
+  /* DES-R15: Abzeichen-Schriften eine Stufe dunkler, damit sie auf ihrer
+     weichen Flaeche 4,5:1 erreichen (vorher 3,96 / 4,42:1). */
+  --badge-ink-warn:  var(--dk-amber-800);
+  --badge-ink-ok:    var(--dk-green-600);
+  --badge-ink-info:  var(--dk-blue-800);
+  --event-ink:       var(--dk-event-ink);
+
+  /* Seitenleiste (immer dunkel, Stil A) */
+  --side-bg:         var(--dk-navy-700);
+  --side-bg2:        var(--dk-navy-800);
+  --side-text:       #c9cde0;
+  --side-text-muted: #8b92b4;
+  --side-active:     rgba(201,149,47,.18);
+  --side-active-text:#f1d391;
+  --side-hover:      rgba(255,255,255,.06);
+  --side-border:     rgba(255,255,255,.09);
+
+  /* Status (Ton + Fläche) */
+  --ok:        var(--dk-green-600);
+  --ok-soft:   var(--dk-green-50);
+  --warn:      var(--dk-amber-700);
+  --warn-soft: var(--dk-amber-50);
+  --err:       var(--dk-red-700);
+  --err-soft:  var(--dk-red-50);
+  --info:      var(--dk-blue-700);
+  --info-soft: var(--dk-blue-50);
+
+  /* Form */
+  --radius:    8px;
+  --radius-sm: 6px;
+  --radius-lg: 12px;
+  --badge-r:   999px;
+
+  /* Raum (4er-Raster) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --pad: 14px;
+  --gap: 12px;
+
+  /* Maße */
+  --control-h: 34px;
+  --row-h:     44px;
+  --topbar-h:  56px;
+  --sidebar-w:   256px;
+  --sidebar-col: 64px;
+
+  /* Symbolgrößen (DES-10): vorher standen 11/12/13/14/16 px als style-Attribut
+     an einzelnen Symbolen — uneinheitlich und in Tests nicht prüfbar. */
+  --icon-xs:  12px;
+  --icon-sm:  14px;
+  --icon-md:  16px;
+  --icon-lg:  20px;
+
+  /* Zustand & Bewegung */
+  --shadow:    0 1px 2px rgba(17,24,58,.06);
+  --shadow-sm: 0 1px 3px rgba(17,24,58,.06), 0 1px 2px rgba(17,24,58,.04);
+  --shadow-md: 0 4px 12px rgba(17,24,58,.07), 0 2px 4px rgba(17,24,58,.04);
+  --shadow-lg: 0 14px 40px rgba(17,24,58,.12), 4px 12px rgba(17,24,58,.06);
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --fast: 120ms;
+  --med:  200ms;
+
+  /* Überlagerung (Abdunkeln hinter Modalen/Masken) — einzige Quelle */
+  --overlay: rgba(0,0,0,.5);
+
+  /* Z-Ebenen */
+  --z-base:    1;
+  --z-sticky:  10;
+  --z-drawer:  200;
+  --z-sheet:   300;
+  --z-modal:   400;
+  --z-toast:   1000;
+
+  /* Typografie */
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --fs:     14px;
+  --fs-h1:  26px;
+  --fs-h2:  19px;
+  --fs-h3:  16px;
+  --fs-h4:  14px;
+  --fs-sm:  12px;
+  --fs-xs:  11px;
+  --fw-h:   650;
+}
+
+/* =====================================================================
+   3 · SEMANTISCHE TOKENS — DUNKEL (gleiche Namen)
+   DES-R1: Der Waehler nennt zusaetzlich `:root[data-theme="dark"]`, weil das
+   Theme seit DES-R1 auch am <html> stehen kann; so greift es unabhaengig
+   davon, ob es am Wurzelelement oder am App-Container sitzt.
+   ===================================================================== */
+[data-theme="dark"],
+:root[data-theme="dark"] {
+  --bg:              var(--dk-ink-1);
+  --bg-subtle:       var(--dk-ink-0);
+  --surface:         var(--dk-ink-2);
+  --surface-2:       var(--dk-ink-3);
+  --surface-hover:   var(--dk-ink-4);
+  --line:            var(--dk-ink-line);
+  --line-strong:     var(--dk-ink-line-strong);
+  --divider:         #1c2247;
+
+  --text:            var(--dk-ink-text);
+  --muted:           var(--dk-ink-text-muted);
+  --subtle:          var(--dk-ink-text-subtle);
+  --primary:         #ffffff;
+  --primary-hover:   var(--dk-navy-100);
+  --primary-ink:     var(--dk-navy-900);
+  --accent:          var(--dk-gold-300);
+  --accent-d:        var(--dk-gold-100);
+  --accent-soft:     rgba(201,149,47,.16);
+  /* P3-4 (Restpunkt 7): deckend statt 60 % — 12,6:1 auf der dunklen Fläche
+     (vorher genügte der Ring zwar 3:1, war aber je nach Untergrund dünn). */
+  --focus-ring:      var(--dk-navy-200);
+  /* P3-4b/K2: auf der dunklen Seitenleiste (navy-800) erreicht navy-200 8,4:1
+     — der Ring bleibt wie im hellen Theme eine einzige, deckende Farbe. */
+  --focus-ring-side: var(--dk-navy-200);
+
+  --side-bg:         var(--dk-navy-800);
+  --side-bg2:        var(--dk-navy-900);
+  --side-text:       #c9cde0;
+  --side-text-muted: #8b92b4;
+  --side-active:     rgba(201,149,47,.22);
+  --side-active-text:#f1d391;
+  --side-hover:      rgba(255,255,255,.06);
+  --side-border:     rgba(255,255,255,.09);
+
+  /* DES-R15: Status-Schriften und Abzeichen im Dunkelmodus. */
+  --badge-ink-warn:  var(--dk-gold-300);
+  --badge-ink-ok:    #8fdcaa;
+  --badge-ink-info:  var(--dk-navy-100);
+  /* DES-R15 Terminkacheln: im Dunkelmodus bleibt die Kachelfarbe kraeftig,
+     die Schrift wird aufgehellt statt abgedunkelt. */
+  --event-ink:       var(--dk-ink-0);
+
+  --ok:        #5bc98a;
+  --ok-soft:   rgba(47,125,79,.22);
+  --warn:      #e0b163;
+  --warn-soft: rgba(168,106,18,.22);
+  --err:       #f08b7d;
+  --err-soft:  rgba(180,35,24,.24);
+  --info:      #8fb2ff;
+  --info-soft: rgba(29,78,216,.24);
+
+  --shadow:    0 1px 2px rgba(0,0,0,.30);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.35), 0 1px 2px rgba(0,0,0,.25);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.40), 0 2px 4px rgba(0,0,0,.30);
+  --shadow-lg: 0 14px 40px rgba(0,0,0,.50);
+}
+
+/* =====================================================================
+   3b · DRUCK (Nachtrag R-P1-12)
+   Auf dem Papier gilt IMMER das helle Schema, auch wenn am Bildschirm der
+   Dunkelmodus laeuft. Die Werte stehen hier (einzige Quelle fuer Rohwerte)
+   und werden in PrAnsicht.vue im @media print auf die semantischen Namen
+   umgebogen; die Plan-Ansichten nutzen sie ueber denselben Namen.
+   ===================================================================== */
+:root {
+  --druck-bg:         var(--dk-warm-0);
+  --druck-text:       var(--dk-warm-900);
+  --druck-muted:      var(--dk-warm-500);
+  --druck-subtle:     var(--dk-warm-400);
+  --druck-line:       var(--dk-warm-200);
+  --druck-line-strong:var(--dk-warm-400);
+  --druck-primary:    var(--dk-navy-500);
+  --druck-accent:     var(--dk-gold-700);
+}
+
+/* =====================================================================
+   4 · VERALTET (Kompabilitäts-Aliase)
+   Diese --dk-Namen bleiben, damit bestehende Seiten/Altdateien nicht
+   brechen (DS2 baut sie ab). In NEUEM Code NICHT mehr verwenden —
+   stattdessen die kanonischen Kurznamen oben.
+   ===================================================================== */
+/* WICHTIG: Aliase müssen in beiden Themes deklariert werden. Ein
+   `--x: var(--y)` wird in dem Geltungsbereich aufgelöst, in dem es steht —
+   stünde es nur unter :root, friert es die hellen Werte ein und der
+   Dunkelmodus bliebe im Inhalt hell (Hauptbereich-Falle). */
+:root,
+[data-theme="dark"],
+:root[data-theme="dark"] {
+  --dk-bg:           var(--bg);
+  --dk-bg-subtle:    var(--bg-subtle);
+  --dk-surface:      var(--surface);
+  --dk-surface-2:    var(--surface-2);
+  --dk-surface-hover:var(--surface-hover);
+  --dk-border:       var(--line);
+  --dk-border-strong:var(--line-strong);
+  --dk-divider:      var(--divider);
+  --dk-text:         var(--text);
+  --dk-text-muted:   var(--muted);
+  --dk-text-subtle:  var(--subtle);
+
+  --dk-primary:      var(--primary);
+  --dk-accent:       var(--accent);
+  --dk-accent-d:     var(--accent-d);
+
+  --dk-brand-50:  var(--dk-navy-50);
+  --dk-brand-100: var(--dk-navy-100);
+  --dk-brand-200: var(--dk-navy-200);
+  --dk-brand-300: var(--dk-navy-300);
+  --dk-brand-400: var(--dk-navy-400);
+  --dk-brand-500: var(--dk-navy-500);
+  --dk-brand-600: var(--dk-navy-600);
+  --dk-brand-700: var(--dk-navy-700);
+  --dk-brand-800: var(--dk-navy-800);
+  --dk-brand-900: var(--dk-navy-900);
+
+  --dk-success: var(--ok);
+  --dk-warning: var(--warn);
+  --dk-danger:  var(--err);
+  --dk-info:    var(--info);
+
+  --dk-sb-bg:         var(--side-bg);
+  --dk-sb-bg2:        var(--side-bg2);
+  --dk-sb-text:       var(--side-text);
+  --dk-sb-text-muted: var(--side-text-muted);
+  --dk-sb-hover:      var(--side-hover);
+  --dk-sb-active:     var(--side-active);
+  --dk-sb-border:     var(--side-border);
+
+  --dk-shadow-xs: var(--shadow);
+  --dk-shadow-sm: var(--shadow-sm);
+  --dk-shadow-md: var(--shadow-md);
+  --dk-shadow-lg: var(--shadow-lg);
+
+  --dk-ease: var(--ease);
+  --dk-fast: var(--fast);
+  --dk-med:  var(--med);
+
+  --dk-sidebar-w:   var(--sidebar-w);
+  --dk-sidebar-col: var(--sidebar-col);
+  --dk-topbar-h:    var(--topbar-h);
+}
+
+/* DES-R4: Markenfarben-Aliase im Dunkelmodus. Die Skala --dk-navy-* ist das
+   TIEFE Navy der Marke — als Schrift oder Symbol auf dunklem Grund
+   verschwindet sie (Dashboard-Link 2,15:1, Schrittkreise unsichtbar). Im
+   Dunkelmodus zeigen die Alias-Stufen deshalb auf die HELLEN Stufen derselben
+   Skala; Flaechen (Seitenleiste, Logo) nutzen ohnehin eigene Seitenleisten-
+   Tokens und bleiben dunkel. */
+[data-theme="dark"],
+:root[data-theme="dark"] {
+  --dk-brand-50:  var(--dk-navy-900);
+  --dk-brand-100: var(--dk-navy-800);
+  --dk-brand-200: var(--dk-navy-700);
+  --dk-brand-300: var(--dk-navy-400);
+  --dk-brand-400: var(--dk-navy-300);
+  --dk-brand-500: var(--dk-navy-200);
+  --dk-brand-600: var(--dk-navy-200);
+  --dk-brand-700: var(--dk-navy-100);
+  --dk-brand-800: var(--dk-navy-100);
+  --dk-brand-900: var(--dk-navy-50);
+}

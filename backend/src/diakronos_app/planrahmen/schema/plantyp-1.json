@@ -1,0 +1,913 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diakronos.app/schema/plantyp-1.json",
+  "title": "Plantyp (Diakronos Plan-Rahmen, Version 1)",
+  "description": "Eine Plantyp-Datei beschreibt die wiederverwendbare Vorlage eines Gemeinde-Plans: welche Termine er hat, welche Felder pro Termin geplant werden, welche Personen (Rollen) dafuer in Frage kommen, welche Regeln gelten und wie der Plan angezeigt wird. Ein konkreter Plan ist eine Instanz eines Plantyps fuer einen Zeitraum; er wird hier NICHT beschrieben. Diese Datei deckt nur die Struktur (den Typ) ab — die Eintraege selbst leben im Plan.\n\nPrinzip Gutmuetigkeit (P10): eine minimale Datei mit nur `schema` und `id` ist gueltig; alle uebrigen Angaben sind optional oder haben sinnvolle Vorgaben. Jede Eigenschaft ist hier auf Deutsch erklaert, damit ein KI-Agent beim Erstellen einer Datei und ein Laie beim Nachschlagen sie verstehen.",
+  "type": "object",
+  "required": ["schema", "id"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "diakronos/plantyp@1",
+      "description": "Kennzeichnung der Datei als Plantyp-Version 1. Muss exakt diesen Wert haben, damit die Pruefung weiss, welches Schema anzuwenden ist.",
+      "examples": ["diakronos/plantyp@1"]
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_\\-]*$",
+      "description": "Stabiler, maschinenlesbarer Kurzname des Plantyps (Kleinbuchstaben, Ziffern, Unterstrich, Bindestrich; kein Leerzeichen, kein Umlaut). Ueber diese Kennung werden Plantypen angesprochen und versioniert — nie ueber den Anzeigenamen.",
+      "examples": ["chorplan", "freizeit", "predigerplan"]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Anzeigename des Plantyps, wie ihn Menschen sehen.",
+      "examples": ["Chorplan", "Freizeitplan"]
+    },
+    "bereich": {
+      "type": "string",
+      "description": "Organisatorische Zuordnung (z. B. Dienstbereich in Diakronos). Rein beschreibend; sie beeinflusst die Struktur nicht.",
+      "examples": ["Chor", "Freizeit"]
+    },
+    "beschreibung": {
+      "type": "string",
+      "description": "Freie, menschliche Beschreibung, was dieser Plantyp regelt und wie er zu verwenden ist.",
+      "examples": ["Wochentliche Chorprobe am Sonntag mit Liedauswahl und Einsingen."]
+    },
+    "gueltig_ab": {
+      "type": "string",
+      "format": "date",
+      "description": "Erster Tag, ab dem diese Version des Plantyps gilt. Aenderungen an der Struktur werden als neue Version angelegt; bereits vergangene Termine behalten ihre alte Struktur (P4).",
+      "examples": ["2026-01-01"]
+    },
+    "parameter": {
+      "type": "array",
+      "description": "Parameter sind Platzhalter, die der Plantyp deklariert und die erst der konkrete Plan mit Werten fuellt (Zeitraum, Thema, Themenreihe …). Im Plantyp werden Parameter ueber '{parameter.<id>}' referenziert.",
+      "items": { "$ref": "#/$defs/parameter" }
+    },
+    "gruppen": {
+      "type": "array",
+      "description": "Diakonos-Gruppen, an die diese Planvorlage gebunden ist (Kennungen der Tabelle 'gruppe'). Ist mindestens eine Gruppe genannt, kommen als Personen nur noch Mitglieder dieser Gruppen in Frage (PERSONENPOOL) — die Planer sehen dann nur das, was sie sehen muessen. Leer/fehlend = alle Personen (bisheriges Verhalten). Mehrere Gruppen sind erlaubt (ODER).",
+      "items": { "type": "string" },
+      "examples": [["Chor"], ["Chor", "Jugendchor"]]
+    },
+    "inkl_untergruppen": {
+      "type": "boolean",
+      "default": false,
+      "description": "Nur wirksam zusammen mit 'gruppen': true = Mitglieder aller Untergruppen der genannten Gruppen zaehlen zum Personenpool dazu (Untergruppe = eine Gruppe, deren 'obergruppe' die genannte Gruppe ist). false = nur die direkten Mitglieder der genannten Gruppen.",
+      "examples": [true]
+    },
+    "merkmale": {
+      "$ref": "#/$defs/merkmale"
+    },
+    "sammlungen": {
+      "type": "array",
+      "description": "Eigene Sammlungen dieses Plantyps: benannte Listen von Dingen, die in Feldern als 'eintrag' ausgewaehlt werden (Bibelarbeiten, Spiele, Predigtreihen, Raeume …). Die Sammlung 'lieder' ist eingebaut (Psalmos-Liedgut) und braucht hier nicht angelegt zu werden.",
+      "items": { "$ref": "#/$defs/sammlung" }
+    },
+    "termine": {
+      "$ref": "#/$defs/termine"
+    },
+    "anlaesse": {
+      "type": "array",
+      "description": "Anlaesse markieren einzelne Termine (Abendmahl, Kinderchor, Taufe, Erntedank …). Sie koennen auf die Struktur wirken: Felder ausblenden, hinzufuegen oder Regeln steuern. Anlaesse kommen manuell, aus dem Kalender oder aus Feiertagen.",
+      "items": { "$ref": "#/$defs/anlass" }
+    },
+    "felder": {
+      "$ref": "#/$defs/feldliste"
+    },
+    "terminreihen": {
+      "type": "array",
+      "description": "Mehrere Terminreihen pro Plantyp, jede mit eigener Zeitachse und eigenen Feldern (z. B. 'gottesdienst' und 'probe'). Ist 'terminreihen' gesetzt, duerfen die Top-Level-Form 'termine' + 'felder' NICHT zusaetzlich verwendet werden (sie sind die KURZFORM fuer genau eine Reihe mit der Kennung 'standard'); beides gleichzeitig ist ein Fehler. Bei mehreren Reihen bekommen Feld-Pfade das Praefix '<reihe>:' (im Format 'reihe' nicht 'standard' => 'gottesdienst:team', die Kurzform-Reihe 'standard' bleibt ohne Praefix).",
+      "items": { "$ref": "#/$defs/terminreihe" }
+    },
+    "rollen": {
+      "type": "array",
+      "description": "Benannte Rollen, die in mehreren Feldern wiederverwendet werden koennen. Eine Rolle legt fest, WER fuer ein Feld in Frage kommt (ein Filter ueber Personen). Felder koennen eine Rolle entweder direkt inline angeben oder hier einmal benennen und per Kennung referenzieren.",
+      "items": { "$ref": "#/$defs/benannte_rolle" }
+    },
+    "regeln": {
+      "type": "array",
+      "description": "Regeln, die der Generator beim Fuellen des Plans beachten soll. Jede Regel ist ein benannter Baustein mit Parametern und einer Stufe (muss/sollte/hinweis). Welche Parameter ein Baustein akzeptiert, prueft die Baustein-Registry — nicht dieses Schema, damit neue Bausteine ohne Schema-Bruch dazukommen (P11).",
+      "items": { "$ref": "#/$defs/regel" }
+    },
+    "ansichten": {
+      "type": "array",
+      "description": "Ausgaben des Plans: Tabelle, Raster, Ablauf, Personensicht, Druck, iCal-Export — mit Formatvorlagen fuer die Zellen. Ein Plantyp kann mehrere Ansichten haben (Aushang, Chorleiter, Beamer).",
+      "items": { "$ref": "#/$defs/ansicht" }
+    },
+    "uebernahme": {
+      "$ref": "#/$defs/uebernahme",
+      "description": "Optionale Deklaration, dass dieser Plantyp Eintraege (bzw. Ablauf-Elemente) aus einem anderen Plan uebernehmen darf — z. B. uebernimmt der Weihnachtsmarkt die Lieder des Adventssingens inkl. Besetzung und weicht danach ab. Die Ausfuehrung kommt in einer spaeteren Ausbaustufe (PR4); hier wird nur deklariert und dokumentiert."
+    }
+  },
+
+  "$defs": {
+    "parameter": {
+      "type": "object",
+      "required": ["id", "art"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/feld_id" },
+        "art": {
+          "type": "string",
+          "enum": ["text", "zahl", "datum", "zeitraum", "auswahl"],
+          "description": "Art des Parameters: 'text' (freier Text, z. B. Thema), 'zahl', 'datum', 'zeitraum' (zwei Daten von/bis) oder 'auswahl' (einer aus einer festen Liste, mit `werte`). Hinweis: eine Sammlung wird NICHT ueber einen Parameter der Art 'sammlung' ausgewaehlt, sondern als eigene Sammlung mit `umfang: 'plan'` deklariert und direkt per Kennung referenziert."
+        },
+        "name": { "type": "string", "description": "Anzeigename des Parameters." },
+        "werte": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Feste Auswahlliste, nur bei art 'auswahl'. Die Werte sind zugleich die GESPEICHERTEN Kennungen (ASCII-Schreibweise ohne Umlaute, z. B. 'Maennerchor'); sie werden nie nachtraeglich umbenannt, sonst passen gespeicherte Plaene nicht mehr."
+        },
+        "anzeigenamen": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Nur bei art 'auswahl': Anzeigename je Auswahlwert, z. B. {\"Maennerchor\": \"Männerchor\"}. Der Schluessel ist der gespeicherte Wert aus `werte`, der Text das, was die Oberflaeche zeigt. Fehlt ein Eintrag, wird der Wert selbst angezeigt."
+        },
+        "mehrfach": {
+          "type": "boolean",
+          "description": "Ob der Parameter mehrere Werte gleichzeitig halten darf."
+        }
+      }
+    },
+
+    "merkmale": {
+      "type": "object",
+      "description": "Merkmale sind deklarierte Eigenschaften einer Person oder eines Sammlungseintrags (z. B. 'spielt Klavier', 'Stimme'). Sie werden einmal deklariert und von Rollen, Vorbelegungen und Regeln benutzt. Zwei Schluessel sind fest: 'person' (Merkmale, die Personen beschreiben) und 'lieder' (Merkmale, die Eintraege der eingebauten Liedsammlung beschreiben). Fuer jede eigene Sammlung kann ein eigener Schluessel mit deren Kennung kommen.",
+      "type": "object",
+      "properties": {
+        "person": {
+          "type": "array",
+          "description": "Merkmale, die eine Person beschreiben (Faehigkeiten, Kenntnisse).",
+          "items": { "$ref": "#/$defs/merkmal" }
+        },
+        "lieder": {
+          "type": "array",
+          "description": "Merkmale, die einen Eintrag der eingebauten Liedsammlung 'lieder' beschreiben (z. B. Standard-Dirigent eines Liedes).",
+          "items": { "$ref": "#/$defs/merkmal" }
+        }
+      },
+      "additionalProperties": {
+        "type": "array",
+        "description": "Merkmale fuer eine eigene Sammlung; der Eigenschaftsname ist die Kennung der Sammlung.",
+        "items": { "$ref": "#/$defs/merkmal" }
+      }
+    },
+
+    "merkmal": {
+      "type": "object",
+      "required": ["id", "art"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/feld_id" },
+        "name": { "type": "string", "description": "Anzeigename des Merkmals." },
+        "art": {
+          "type": "string",
+          "enum": ["tag", "auswahl", "text", "zahl", "datum", "person"],
+          "description": "Art des Merkmalswerts: 'tag' (ja/nein, z. B. 'spielt Klavier'), 'auswahl' (ein Wert aus einer Liste, z. B. Stimme Sopran/Alt, mit `werte`), 'text', 'zahl', 'datum' oder 'person' (verweist auf eine Person, z. B. Standard-Dirigent eines Liedes — dann ueber `rolle` eingeschraenkt)."
+        },
+        "werte": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Feste Auswahlliste, nur bei art 'auswahl'. Die Werte sind zugleich die GESPEICHERTEN Kennungen (ASCII-Schreibweise ohne Umlaute, z. B. 'Maennerchor'); sie werden nie nachtraeglich umbenannt, sonst passen gespeicherte Plaene nicht mehr."
+        },
+        "anzeigenamen": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Nur bei art 'auswahl': Anzeigename je Auswahlwert, z. B. {\"Maennerchor\": \"Männerchor\"}. Der Schluessel ist der gespeicherte Wert aus `werte`, der Text das, was die Oberflaeche zeigt. Fehlt ein Eintrag, wird der Wert selbst angezeigt."
+        },
+        "mehrfach": {
+          "type": "boolean",
+          "default": false,
+          "description": "Ob ein Traeger mehrere Werte gleichzeitig haben darf (z. B. Instrumente: mehrere zugleich)."
+        },
+        "rolle": {
+          "$ref": "#/$defs/rollen_filter",
+          "description": "Nur bei art 'person': schraenkt ein, welche Personen als Wert in Frage kommen."
+        },
+        "quelle": {
+          "type": "string",
+          "enum": ["psalmos.kategorie"],
+          "description": "Nur bei art 'auswahl': woher die Werte dieses Merkmals stammen. 'psalmos.kategorie' = die Werte sind die Psalmos-Liedkategorien (Tabelle 'liedkategorie'); die Zuordnung eines Liedes wird in 'lied_kategorie' gepflegt. Damit gibt es EINE Wahrheit fuer Themen: keine eigene Werteliste im Merkmal, sondern die bestehenden Liedkategorien. Ohne 'quelle' gelten die im Merkmal deklarierten 'werte'."
+        }
+      }
+    },
+
+    "sammlung": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/feld_id" },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Anzeigename der Sammlung."
+        },
+        "beschreibung": { "type": "string", "description": "Freie Beschreibung, was diese Sammlung enthaelt." },
+        "umfang": {
+          "type": "string",
+          "enum": ["gemeinde", "plan"],
+          "default": "gemeinde",
+          "description": "Geltungsbereich der Sammlung: 'gemeinde' (Vorgabe — dauerhafte, gemeinde- oder plannuebergreifende Liste, z. B. Lieder, Raeume) oder 'plan' (gehoert zum einzelnen Plan und wird beim Anlegen/Vorbereiten befuellt, z. B. die Themenreihe einer Freizeit). Eine 'plan'-Sammlung ist der Weg, Themen vorbereitend in einen Plan zu laden — nicht ein gleichnamiger Parameter (der frueher fuer Verwirrung sorgte).",
+          "examples": ["gemeinde", "plan"]
+        }
+      }
+    },
+
+    "termine": {
+      "type": "object",
+      "description": "Woher die Zeilen des Plans kommen. Die Quellen sind frei kombinierbar; aus ihnen wird die Zeitachse des Plans berechnet.",
+      "additionalProperties": false,
+      "properties": {
+        "regel": {
+          "type": "string",
+          "description": "Wiederholung im iCalendar-RRULE-Format, z. B. 'FREQ=WEEKLY;BYDAY=SU'. Gefuellt von einem 'zeitraum' (von-bis), dem der Plantyp angibt oder der Plan als Parameter '{parameter.<id>}' liefert.",
+          "examples": ["FREQ=WEEKLY;BYDAY=SU"]
+        },
+        "uhrzeit": {
+          "type": "string",
+          "description": "Optionale (Start-)Uhrzeit der regelmaessigen Termine im Format HH:MM, z. B. die Gottesdienst-Uhrzeit '10:00'. Gilt fuer alle Termine der Reihe, ausser ein einzelner 'manuell'-Termin nennt eine eigene Uhrzeit.",
+          "examples": ["10:00", "19:30"]
+        },
+        "von": {
+          "type": "string",
+          "description": "Anfang des Zeitraums, in dem die Wiederholung gilt. Darf eine Parameterreferenz '{parameter.<id>}' sein.",
+          "examples": ["2026-01-01", "{parameter.zeitraum}"]
+        },
+        "bis": {
+          "type": "string",
+          "description": "Ende des Zeitraums, in dem die Wiederholung gilt. Darf eine Parameterreferenz '{parameter.<id>}' sein.",
+          "examples": ["2026-12-31", "{parameter.zeitraum}"]
+        },
+        "zeitraum": {
+          "type": "string",
+          "description": "Jeder Tag (oder bestimmte Wochentage, siehe `wochentage`) zwischen zwei Daten — typisch fuer eine Freizeit. Wert ist eine Parameterreferenz '{parameter.<id>}' auf einen Parameter der Art 'zeitraum'.",
+          "examples": ["{parameter.zeitraum}"]
+        },
+        "wochentage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/wochentag" },
+          "description": "Bei 'zeitraum': nur diese Wochentage einschliessen. Ohne Angabe gilt jeder Tag."
+        },
+        "kalender": {
+          "type": "object",
+          "description": "Termine aus dem Diakronos-Kalender (Kronos) nach Kategorie oder Gruppe.",
+          "additionalProperties": false,
+          "properties": {
+            "kategorie": { "type": "string", "description": "Kategorie/Kalender, aus dem Termine uebernommen werden (z. B. Gottesdienste)." },
+            "gruppe": { "type": "string", "description": "Gruppe, deren Termine uebernommen werden (z. B. Proben)." }
+          }
+        },
+        "feiertage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/feiertag" },
+          "description": "Benannte, bewegliche Feiertage, die als Termine eingefuegt werden (Karfreitag, Himmelfahrt, Heiligabend …). Jeder Feiertag setzt zugleich einen Anlass gleichen Namens.",
+          "examples": [["karfreitag", "himmelfahrt", "heiligabend"]]
+        },
+        "manuell": {
+          "type": "array",
+          "description": "Einzelne Termine von Hand, die nicht aus einer Regel oder einem Kalender kommen.",
+          "items": { "$ref": "#/$defs/manueller_termin" }
+        },
+        "ausnahmen": {
+          "description": "Termine, die aus der berechneten Reihe entfallen. Zwei Formen: eine Liste einzeln genannter Termine ODER ein Objekt {feiertage: true}, das an Feiertagen automatisch ausfaellt (z. B. keine Probe an Feiertagen).",
+          "oneOf": [
+            { "type": "array", "items": { "$ref": "#/$defs/ausnahme" } },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "feiertage": { "type": "boolean", "description": "true = die Reihe faellt an Feiertagen aus." }
+              }
+            }
+          ],
+          "examples": [[{"datum": "2026-12-25"}], {"feiertage": true}]
+        },
+        "abgeleitet": {
+          "$ref": "#/$defs/abgeleitet",
+          "description": "Termine, die relativ zu einer anderen Terminreihe berechnet werden (z. B. die Probe am Freitag vor dem Gottesdienst). Aendert sich der Ursprungstermin, zieht die abgeleitete Reihe nach."
+        }
+      }
+    },
+
+    "wochentag": {
+      "type": "string",
+      "enum": ["mo", "di", "mi", "do", "fr", "sa", "so"],
+      "description": "Wochentag als zweibuchstabiges Kuerzel.",
+      "examples": ["so", "mo"]
+    },
+
+    "feiertag": {
+      "type": "string",
+      "description": "Schluessel eines beweglichen Feiertags (Oster- und Adventberechnung). Bekannte Schluessel stehen in der Doku (REFERENZ.md); der Schluessel ist zugleich der Anlassname.",
+      "examples": ["karfreitag", "himmelfahrt", "heiligabend", "osterdienstag"]
+    },
+
+    "manueller_termin": {
+      "type": "object",
+      "required": ["datum"],
+      "additionalProperties": false,
+      "properties": {
+        "datum": {
+          "type": "string",
+          "format": "date",
+          "description": "Datum dieses Termins."
+        },
+        "name": { "type": "string", "description": "Optionaler Anzeigename des Termins." },
+        "uhrzeit": { "type": "string", "description": "Uhrzeit im Format HH:MM, falls zutreffend.", "examples": ["19:30"] },
+        "anlaesse": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Anlaesse, die auf diesen Termin zutreffen (Kennungen aus `anlaesse`)."
+        }
+      }
+    },
+
+    "ausnahme": {
+      "type": "object",
+      "required": ["datum"],
+      "additionalProperties": false,
+      "properties": {
+        "datum": {
+          "type": "string",
+          "format": "date",
+          "description": "Datum, das aus der berechneten Reihe entfaellt."
+        },
+        "grund": { "type": "string", "description": "Optionaler Grund der Ausnahme (erscheint dem Planenden als Hinweis)." }
+      }
+    },
+
+    "anlass": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/feld_id" },
+        "name": { "type": "string", "description": "Anzeigename des Anlasses." },
+        "wirkung": {
+          "$ref": "#/$defs/wirkung",
+          "description": "Wie dieser Anlass auf die Struktur wirkt: Felder ausblenden ('ohne'), hinzufuegen ('mit') oder Regeln steuern ('regeln')."
+        }
+      }
+    },
+
+    "wirkung": {
+      "type": "object",
+      "description": "Die Wirkung eines Anlasses auf die Feldstruktur eines Termins.",
+      "additionalProperties": false,
+      "properties": {
+        "ohne": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Feld-Kennungen (oberste Ebene), die bei diesem Anlass entfallen. Beispiel: Kinderchor → kein Einsingen.",
+          "examples": [["einsingen", "einueben"]]
+        },
+        "mit": {
+          "type": "array",
+          "description": "Zusaetzliche Felder, die nur bei diesem Anlass erscheinen.",
+          "items": { "$ref": "#/$defs/feld" }
+        },
+        "regeln": {
+          "type": "array",
+          "description": "Regeln, die nur bei diesem Anlass greifen.",
+          "items": { "$ref": "#/$defs/regel" }
+        },
+        "bedingung": {
+          "$ref": "#/$defs/bedingung_knoten",
+          "description": "Optionale strukturierte Bedingung, unter der diese Wirkung erst greift (z. B. 'ohne' nur, wenn zugleich ein weiterer Anlass vorliegt). Gleiche Knoten-Grammatik wie die Feld-Bedingungen. Ohne Angabe gilt die Wirkung immer, wenn ihr Anlass gesetzt ist. Kann zudem die Feld-Kennung ein bedingungsbehaftetes Feld der Oberebene sein, das dann entfallt."
+        }
+      }
+    },
+
+    "feldliste": {
+      "type": "array",
+      "description": "Die Felder, die pro Termin geplant werden — auf oberster Ebene des Plantyps. Felder sind rekursiv: eine 'gruppe' enthaelt Unterfelder ('inhalt'), ein 'eintrag' kann eigene Unterfelder tragen.",
+      "items": { "$ref": "#/$defs/feld" }
+    },
+
+    "feld": {
+      "type": "object",
+      "required": ["id", "art"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/feld_id" },
+        "name": { "type": "string", "description": "Anzeigename des Felds." },
+        "art": {
+          "type": "string",
+          "enum": ["person", "personen", "eintrag", "text", "zahl", "datum", "auswahl", "gruppe", "team", "ablauf"],
+          "description": "Art des Felds: 'person' (genau eine Person in einer Rolle), 'personen' (eine oder mehrere Personen), 'eintrag' (ein Element aus einer Sammlung), 'text'/'zahl'/'datum'/'auswahl' (freie bzw. eingeschraenkte Angabe), 'gruppe' (enthaelt Unterfelder in `inhalt`), 'team' (eine Gruppe von Personen, ausgewaehlt ueber `teams`) oder 'ablauf' (eine geordnete, frei sortierbare Liste heterogener Elemente, deklariert in `elemente` — z. B. ein Programmablauf aus Liedern, Szenen und einer Predigt)."
+        },
+        "anzahl": {
+          "$ref": "#/$defs/anzahl",
+          "description": "Wie viele Instanzen dieses Felds je Termin geplant werden: eine feste Zahl oder einen Bereich 'min..max'. Ohne Angabe gilt 1."
+        },
+        "pflicht": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ob das Feld gefuellt sein muss. Ein nicht fuellbares Pflichtfeld bleibt leer und erzeugt eine Meldung (nie einen Fehler)."
+        },
+        "zeit": {
+          "type": "string",
+          "description": "Zeitfenster dieses Felds innerhalb des Termins, z. B. '10:30-12:00'.",
+          "examples": ["10:30-12:00"]
+        },
+        "bedingung": {
+          "$ref": "#/$defs/bedingung_knoten",
+          "description": "Strukturierte Bedingung, unter der dieses Feld erscheint (z. B. nur bei Anlass 'abendmahl' oder nur bei Variante 'regen'). Gleiche Knoten-Grammatik wie die Rollenfilter — KEIN freier Ausdrucks-String. Einzelknoten: 'anlass', 'wochentag', 'variante', 'parameter', 'feld_gesetzt', 'datum_ab', 'datum_bis', 'termin_nr'; verknuepft mit 'alle' (UND), 'eine' (ODER), 'nicht'."
+        },
+        "sammlung": {
+          "type": "string",
+          "description": "Nur bei art 'eintrag': Kennung der Sammlung, aus der gewaehlt wird ('lieder' oder eine eigene). Darf eine Parameterreferenz '{parameter.<id>}' auf einen Sammlungsparameter sein.",
+          "examples": ["lieder", "{parameter.bibelarbeiten}"]
+        },
+        "rolle": {
+          "$ref": "#/$defs/rolle",
+          "description": "Nur bei art 'person'/'personen': welche Personen in Frage kommen. Entweder ein Filter direkt oder die Kennung einer benannten Rolle (mit '@' davor, z. B. '@mitarbeiter')."
+        },
+        "teams": {
+          "description": "Nur bei art 'team': welche Teams (Diakonos-Gruppen) in Frage kommen. Entweder ein Objekt {gruppe_unter: '<Gruppentyp/Obergruppe>'} (alle Gruppen darunter) oder eine Liste von Team-Kennungen.",
+          "oneOf": [
+            { "type": "object", "additionalProperties": false, "properties": { "gruppe_unter": { "type": "string" } } },
+            { "type": "array", "items": { "type": "string" } }
+          ],
+          "examples": [{ "gruppe_unter": "Musikteams" }, ["Gruppe 1", "Gruppe 3"]]
+        },
+        "mitglieder": {
+          "$ref": "#/$defs/rollen_filter",
+          "description": "Nur bei art 'team': optionaler Rollenfilter, der eine TEILMENGE der Teammitglieder auswaehlt (z. B. nur die Saenger des Teams)."
+        },
+        "werte": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Feste Auswahlliste, nur bei art 'auswahl'. Die Werte sind zugleich die GESPEICHERTEN Kennungen (ASCII-Schreibweise ohne Umlaute, z. B. 'Maennerchor'); sie werden nie nachtraeglich umbenannt, sonst passen gespeicherte Plaene nicht mehr."
+        },
+        "anzeigenamen": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Nur bei art 'auswahl': Anzeigename je Auswahlwert, z. B. {\"Maennerchor\": \"Männerchor\"}. Der Schluessel ist der gespeicherte Wert aus `werte`, der Text das, was die Oberflaeche zeigt. Fehlt ein Eintrag, wird der Wert selbst angezeigt."
+        },
+        "mehrfach": {
+          "type": "boolean",
+          "default": false,
+          "description": "Nur bei art 'auswahl': ob das Feld mehrere Werte zugleich halten darf (z. B. Ensemble 'Chor' UND Begleitung 'Orchester' — 'Mir/Orch' als Kombination aus Person und Ensemble)."
+        },
+        "fuellen": {
+          "$ref": "#/$defs/fuellstrategie",
+          "description": "Wie der Generator dieses Feld befuellt: manuell, reihum, der_reihe_nach, vorbelegen oder optimieren. Ohne Angabe gilt 'optimieren' bei Rollen-/Sammlungsfeldern, sonst 'manuell'."
+        },
+        "aus": {
+          "type": "string",
+          "description": "Nur bei fuellen 'vorbelegen': woher der Wert kommt. Entweder ein Merkmal des Sammlungseintrags ('eintrag.<merkmal>', z. B. 'eintrag.dirigent') oder ein Feld-Pfad eines anderen Felds. Darf Parameterreferenzen enthalten."
+        },
+        "inhalt": {
+          "type": "array",
+          "description": "Nur bei art 'gruppe': die Unterfelder dieser Gruppe.",
+          "items": { "$ref": "#/$defs/feld" }
+        },
+        "varianten": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/variante" },
+          "description": "Nur bei art 'gruppe': alternative Auspraegungen, von denen EINE gilt (z. B. 'sonne'/'regen'); beide werden geplant, es gilt je Termin eine. Jede Variante ist ein Objekt {id, name?, inhalt?, bedingung?} ODER die Kurzform eines Strings (dann sind 'name', 'inhalt' und 'bedingung' leer). Ohne eigenes 'inhalt' gilt das der Gruppe; mit eigenem 'inhalt' ersetzt es das der Gruppe fuer diese Variante (die Regen-Variante darf so andere Felder haben).",
+          "examples": [["sonne", "regen"], [{"id": "regen", "name": "Regen", "inhalt": [{"id": "halle", "art": "text"}]}]]
+        },
+        "teile": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/teil" },
+          "description": "Nur bei art 'gruppe': Abschnitte, die nacheinander ablaufen (z. B. 'programm', 'abschluss'). Jeder Teil ist ein Objekt {id, name?, inhalt?, bedingung?} ODER die Kurzform eines Strings. Ohne eigenes 'inhalt' gilt das der Gruppe; mit eigenem 'inhalt' ersetzt es das der Gruppe fuer diesen Teil.",
+          "examples": [["programm", "abschluss"], [{"id": "abschluss", "name": "Abschluss", "bedingung": {"anlass": "abendmahl"}}]]
+        },
+        "elemente": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ablauf_element" },
+          "description": "Nur bei art 'ablauf': die erlaubten Elementtypen des Ablaufs, in der Reihenfolge ihrer Deklaration. Jedes Element ist ein Objekt {typ, name?, nummeriert?, inhalt, bedingung?}; der `typ` muss innerhalb des Ablaufs eindeutig sein. Die Elemente eines konkreten Plans werden ueber eine stabile Element-Kennung angesprochen, nicht ueber ihre Position — Feldpfad-Format 'ablauf/<element_id>.<feld>' (bleibt beim Umsortieren stabil); Verweise in Regeln/Formaten nutzen 'ablauf.<typ>' fuer alle Elemente eines Typs.",
+          "examples": [[{"typ": "lied", "nummeriert": true, "inhalt": [{"id": "lied", "art": "eintrag", "sammlung": "lieder"}]}, {"typ": "szene", "inhalt": [{"id": "titel", "art": "text"}]}]]
+        }
+      }
+    },
+
+    "anzahl": {
+      "description": "Wie viele Instanzen eines Felds je Termin geplant werden: eine feste Zahl (z. B. 3) oder einen Bereich 'min..max' (z. B. '0..2'), als String in der Form 'min..max' geschrieben. Ein offenes Ende ist als Stern erlaubt ('1..*', '0..*') — typisch fuer die Feldart 'ablauf', deren Elementliste beliebig lang wird.",
+      "oneOf": [
+        { "type": "integer", "minimum": 0, "examples": [1, 3] },
+        { "type": "string", "pattern": "^[0-9]+\\.\\.([0-9]*|\\*)$", "examples": ["0..2", "1..2", "1..*", "0..*"] }
+      ]
+    },
+
+    "rolle": {
+      "description": "Welche Personen fuer ein Feld in Frage kommen. Entweder ein Filter (Objekt) oder die Referenz auf eine benannte Rolle (String mit '@').",
+      "oneOf": [
+        { "$ref": "#/$defs/rollen_filter" },
+        { "$ref": "#/$defs/rollen_referenz" }
+      ]
+    },
+
+    "rollen_referenz": {
+      "type": "string",
+      "pattern": "^@[a-z0-9][a-z0-9_\\-]*$",
+      "description": "Referenz auf eine Rolle aus der `rollen`-Liste: '@' gefolgt von der Rollen-Kennung.",
+      "examples": ["@mitarbeiter"]
+    },
+
+    "rollen_filter": {
+      "description": "Ein Filter ist rekursiv aus UND ('alle'), ODER ('eine') und 'nicht' zusammengesetzt; Blaetter sind die Einzelkriterien 'merkmal', 'gruppe', 'anmeldung' und 'person'.",
+      "$ref": "#/$defs/rollen_knoten"
+    },
+
+    "rollen_knoten": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "alle": {
+          "type": "array",
+          "description": "UND-Verknuepfung: alle enthaltenen Kriterien muessen zutreffen.",
+          "items": { "$ref": "#/$defs/rollen_knoten" }
+        },
+        "eine": {
+          "type": "array",
+          "description": "ODER-Verknuepfung: mindestens eines der enthaltenen Kriterien muss zutreffen.",
+          "items": { "$ref": "#/$defs/rollen_knoten" }
+        },
+        "nicht": {
+          "$ref": "#/$defs/rollen_knoten",
+          "description": "Negation: das enthaltene Kriterium darf NICHT zutreffen."
+        },
+        "merkmal": {
+          "type": "string",
+          "description": "Person hat das Merkmal mit dieser Kennung (aus 'merkmale.person').",
+          "examples": ["klavier", "dirigent"]
+        },
+        "gruppe": {
+          "type": "string",
+          "description": "Person gehoert zur Gruppe mit dieser Kennung.",
+          "examples": ["Chor"]
+        },
+        "anmeldung": {
+          "type": "string",
+          "description": "Person hat sich fuer die Veranstaltung mit dieser Kennung angemeldet.",
+          "examples": ["mitarbeiter"]
+        },
+        "person": {
+          "type": "string",
+          "description": "Eine konkrete Person (Kennung), z. B. der Gastredner.",
+          "examples": ["gast"]
+        }
+      }
+    },
+
+    "benannte_rolle": {
+      "type": "object",
+      "required": ["id", "filter"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/feld_id" },
+        "name": { "type": "string", "description": "Anzeigename der Rolle." },
+        "filter": {
+          "$ref": "#/$defs/rollen_filter",
+          "description": "Der Filter, der diese Rolle auswaehlt."
+        }
+      }
+    },
+
+    "fuellstrategie": {
+      "type": "string",
+      "enum": ["manuell", "reihum", "der_reihe_nach", "vorbelegen", "optimieren"],
+      "description": "Wie der Generator das Feld befuellt: 'manuell' (nie automatisch), 'reihum' (Personen der Rolle der Reihe nach), 'der_reihe_nach' (Sammlungseintraege in ihrer Reihenfolge), 'vorbelegen' (Wert aus 'aus' uebernehmen), 'optimieren' (bestmoegliche Wahl nach allen Regeln).",
+      "examples": ["reihum", "vorbelegen"]
+    },
+
+    "regel": {
+      "type": "object",
+      "required": ["baustein"],
+      "additionalProperties": false,
+      "properties": {
+        "baustein": {
+          "type": "string",
+          "description": "Kennung des Regel-Bausteins (z. B. 'mindestabstand', 'max_pro_zeitraum'). Welche Parameter der Baustein akzeptiert, prueft die Baustein-Registry — nicht dieses Schema (P11)."
+        },
+        "stufe": {
+          "type": "string",
+          "enum": ["muss", "sollte", "hinweis"],
+          "default": "sollte",
+          "description": "'muss' wird nie verletzt, 'sollte' wird moeglichst erfuellt (Verstoss sichtbar), 'hinweis' wird nur angezeigt."
+        },
+        "gewicht": {
+          "type": "number",
+          "description": "Optionaler Gewichtungsfaktor, wenn mehrere 'sollte'-Regeln gegeneinander abgewogen werden.",
+          "examples": [1.0, 2.5]
+        }
+      },
+      "propertyNames": {
+        "description": "Alle uebrigen Eigenschaften sind Parameter des jeweiligen Bausteins (z. B. 'feld', 'wochen', 'anzahl'). Sie werden gegen die Baustein-Registry geprueft."
+      },
+      "additionalProperties": true
+    },
+
+    "ansicht": {
+      "type": "object",
+      "required": ["art"],
+      "additionalProperties": false,
+      "properties": {
+        "art": {
+          "type": "string",
+          "enum": ["tabelle", "raster", "ablauf", "meine_dienste", "druck", "ical", "kalender", "programm"],
+          "description": "Art der Ansicht: 'tabelle' (Termin × Felder), 'raster' (Tag × Block mit Karten), 'ablauf' (ein Termin als Liste), 'meine_dienste' (Personensicht), 'druck' (Druckausgabe), 'ical' (Export), 'kalender' (Monats-Aushang: Monatsspalten, optional alle Tage inkl. leerer und KW-Spalte) oder 'programm' (Programmheft/Liedzettel eines 'ablauf'-Felds, A4-hoch, mit 'kopf'/'fuss' und einer Formatvorlage je Elementtyp)."
+        },
+        "name": { "type": "string", "description": "Optionaler Name dieser Ansicht (z. B. 'Aushang')." },
+        "spalten": {
+          "description": "Welche Felder als Spalten erscheinen. Bei 'tabelle' eine Liste von Feld-Kennungen; bei 'kalender' eine Liste von Feld-Kennungen oder 'monat'.",
+          "oneOf": [
+            { "type": "array", "items": { "type": "string" }, "examples": [["anlass", "lieder", "einsingen"]] },
+            { "type": "string", "enum": ["monat"], "examples": ["monat"] }
+          ]
+        },
+        "zeilen": {
+          "type": "string",
+          "description": "Bei 'raster': was eine Zeile bildet (z. B. 'termin')."
+        },
+        "alle_tage": {
+          "type": "boolean",
+          "description": "Bei 'kalender': auch leere Tage als Zeilen zeigen (sonst nur Tage mit Termin)."
+        },
+        "kw": {
+          "type": "boolean",
+          "description": "Bei 'kalender': eine Kalenderwochen-Spalte anzeigen."
+        },
+        "format": {
+          "type": "object",
+          "description": "Formatvorlagen fuer Zellen, Schluessel ist die Feld-Kennung (bei 'kalender'/mehreren Terminreihen ggf. 'reihe:feld'), Wert ein Muster mit Platzhaltern in geschweiften Klammern. Ein Platzhalter darf eine BEDINGUNG tragen: '{feld: text}' gibt 'text' nur aus, wenn 'feld' gesetzt ist (z. B. '{gaeste: + {gaeste.vorname}}').",
+          "additionalProperties": { "type": "string" },
+          "examples": [{ "lieder": "{eintrag.buch} Nr.{eintrag.nummer} /{dirigent.kuerzel}/{klavier.kuerzel}/ {eintrag.titel}" }, { "gottesdienst": "{team.name}{gaeste: + {gaeste.vorname}}" }]
+        },
+        "druck": {
+          "type": "string",
+          "description": "Bei 'druck', 'kalender' und 'programm': Papierformat und Ausrichtung.",
+          "examples": ["A4-quer", "A4-hoch"]
+        },
+        "kopf": {
+          "type": "string",
+          "description": "Bei 'programm': die Ueberschrift des Programmhefts/Liedzettels, eine Formatvorlage mit Platzhaltern auf den Plan, den Termin und Plan-Parameter (z. B. '{plan.titel} {termin.datum}\\n{parameter.motto}')."
+        },
+        "fuss": {
+          "type": "string",
+          "description": "Bei 'programm': die Fusszeile des Programmhefts/Liedzettels (Zitat, Bibelvers …), ebenfalls eine Formatvorlage auf Plan/Parameter (z. B. '{parameter.schlusswort}')."
+        }
+      }
+    },
+
+    "terminreihe": {
+      "type": "object",
+      "required": ["id", "termine", "felder"],
+      "additionalProperties": false,
+      "description": "Eine Terminreihe: eine eigene Zeitachse (`termine`) mit eigenen Feldern (`felder`) und optional eigenen Anlaessen. Mehrere Reihen pro Plantyp ermoeglichen z. B. 'gottesdienst' (Sonntag) und die daraus abgeleitete 'probe' (Freitag davor).",
+      "properties": {
+        "id": { "$ref": "#/$defs/feld_id" },
+        "name": { "type": "string", "description": "Anzeigename der Reihe (z. B. 'Sänger')." },
+        "termine": { "$ref": "#/$defs/termine" },
+        "felder": { "$ref": "#/$defs/feldliste" },
+        "anlaesse": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/anlass" },
+          "description": "Optionale, nur fuer diese Reihe gueltige Anlaesse (zusaetzlich zu den top-level Anlaessen)."
+        }
+      }
+    },
+
+    "abgeleitet": {
+      "type": "object",
+      "required": ["von", "versatz"],
+      "additionalProperties": false,
+      "description": "Ableitung: die Termine dieser Reihe liegen relativ zu denen einer anderen Reihe. 'versatz' verschiebt jeden Ursprungstermin um eine ISO8601-artige Dauer ('-2T' zwei Tage frueher, '+1W' eine Woche spaeter, '-3h' drei Stunden frueher).",
+      "properties": {
+        "von": {
+          "type": "string",
+          "description": "Kennung der anderen Terminreihe (oder 'standard' fuer die Kurzform-Reihe).",
+          "examples": ["gottesdienst"]
+        },
+        "versatz": {
+          "type": "string",
+          "description": "Versatz als vorzeichenbehaftete Dauer: +/- gefolgt von Zahl + Einheit (T Tag, W Woche, h Stunde, min Minute).",
+          "examples": ["-2T", "+1W", "-3h"]
+        },
+        "nur_wenn": {
+          "$ref": "#/$defs/bedingung_knoten",
+          "description": "Optionale Bedingung, unter der ein abgeleiteter Termin ueberhaupt entsteht (z. B. keine Probe an Feiertagen)."
+        }
+      }
+    },
+
+    "bedingung_knoten": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 1,
+      "description": "Ein strukturierter Bedingungs-Knoten. Genau EINE Eigenschaft ist gesetzt; Blattknoten pruefen einen Einzelpunkt, zusammengesetzte ('alle' UND, 'eine' ODER, 'nicht') verschachteln weitere Knoten. Dieselbe Grammatik wie die Rollen-Filter — es gibt KEINEN freien Ausdrucks-String.",
+      "properties": {
+        "alle": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bedingung_knoten" },
+          "description": "UND: alle enthaltenen Bedingungen muessen zutreffen."
+        },
+        "eine": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bedingung_knoten" },
+          "description": "ODER: mindestens eine der enthaltenen Bedingungen muss zutreffen."
+        },
+        "nicht": {
+          "$ref": "#/$defs/bedingung_knoten",
+          "description": "Negation: die enthaltene Bedingung darf NICHT zutreffen."
+        },
+        "anlass": {
+          "type": "string",
+          "description": "Der Termin traegt den Anlass mit dieser Kennung.",
+          "examples": ["abendmahl", "kinderchor"]
+        },
+        "wochentag": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/wochentag" },
+          "description": "Der Termin faellt auf einen dieser Wochentage.",
+          "examples": [["so"], ["so", "mi"]]
+        },
+        "variante": {
+          "type": "string",
+          "description": "Es gilt die Variante mit dieser Kennung (nur innerhalb eines 'gruppe'-Felds mit Varianten sinnvoll).",
+          "examples": ["regen"]
+        },
+        "parameter": {
+          "$ref": "#/$defs/bedingung_parameter",
+          "description": "Der Plan-Parameter mit dieser Kennung hat den angegebenen Wert."
+        },
+        "feld_gesetzt": {
+          "type": "string",
+          "description": "Das Feld unter diesem Feld-Pfad ist gefuellt (Pfad wie 'abend.leitung' oder 'eintrag.dirigent').",
+          "examples": ["abend.leitung", "lieder"]
+        },
+        "datum_ab": {
+          "type": "string",
+          "format": "date",
+          "description": "Der Termin liegt an oder nach diesem Datum (JJJJ-MM-TT).",
+          "examples": ["2026-06-01"]
+        },
+        "datum_bis": {
+          "type": "string",
+          "format": "date",
+          "description": "Der Termin liegt an oder vor diesem Datum (JJJJ-MM-TT).",
+          "examples": ["2026-08-31"]
+        },
+        "termin_nr": {
+          "$ref": "#/$defs/bedingung_termin_nr",
+          "description": "Regelmaessige Position des Termins in der Reihe (z. B. jeder 2. Termin)."
+        },
+        "termin_im_monat": {
+          "type": "integer",
+          "description": "Der n-te Termin DER Reihe innerhalb seines Monats (negative Zahl = von hinten, z. B. -1 = der letzte Termin des Monats).",
+          "examples": [1, 2, -1]
+        }
+      }
+    },
+
+    "bedingung_parameter": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/feld_id" },
+        "gleich": {
+          "description": "Wert, den der Parameter haben muss (String, Zahl oder Wahrheitswert).",
+          "examples": ["herbst", 3]
+        }
+      }
+    },
+
+    "bedingung_termin_nr": {
+      "type": "object",
+      "required": ["jede"],
+      "additionalProperties": false,
+      "properties": {
+        "jede": {
+          "type": "integer",
+          "minimum": 2,
+          "description": "Jeder n-te Termin in der Reihe (z. B. 2 = jeder zweite Termin).",
+          "examples": [2]
+        }
+      }
+    },
+
+    "variante": {
+      "description": "Eine Variante eines 'gruppe'-Felds: entweder die Kurzform eines Strings (nur die Kennung) oder ein Objekt {id, name?, inhalt?, bedingung?}.",
+      "oneOf": [
+        { "type": "string", "pattern": "^[a-z0-9][a-z0-9_\\-]*$", "examples": ["sonne", "regen"] },
+        { "$ref": "#/$defs/variante_objekt" }
+      ]
+    },
+
+    "variante_objekt": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/feld_id" },
+        "name": { "type": "string", "description": "Anzeigename der Variante." },
+        "inhalt": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/feld" },
+          "description": "Eigene Unterfelder dieser Variante. Ohne Angabe gilt das 'inhalt' der Gruppe; mit Angabe ersetzt es dieses fuer diese Variante."
+        },
+        "bedingung": { "$ref": "#/$defs/bedingung_knoten" }
+      }
+    },
+
+    "teil": {
+      "description": "Ein Teil eines 'gruppe'-Felds (nacheinander ablaufende Abschnitte): entweder die Kurzform eines Strings oder ein Objekt {id, name?, inhalt?, bedingung?}.",
+      "oneOf": [
+        { "type": "string", "pattern": "^[a-z0-9][a-z0-9_\\-]*$", "examples": ["programm", "abschluss"] },
+        { "$ref": "#/$defs/teil_objekt" }
+      ]
+    },
+
+    "teil_objekt": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/feld_id" },
+        "name": { "type": "string", "description": "Anzeigename des Teils." },
+        "inhalt": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/feld" },
+          "description": "Eigene Unterfelder dieses Teils. Ohne Angabe gilt das 'inhalt' der Gruppe; mit Angabe ersetzt es dieses fuer diesen Teil."
+        },
+        "bedingung": { "$ref": "#/$defs/bedingung_knoten" }
+      }
+    },
+
+    "ablauf_element": {
+      "type": "object",
+      "required": ["typ", "inhalt"],
+      "additionalProperties": false,
+      "description": "Ein erlaubter Elementtyp eines 'ablauf'-Felds. Der `typ` ist die stabile Kennung, ueber die Verweise ('ablauf.<typ>') und Formatvorlagen den Elementtyp ansprechen; `nummeriert` laesst die Elemente dieses Typs mit einer laufenden Nummer ('nr') versehen, die NUR innerhalb nummerierter Typen weiterzaehlt (Szenen zwischen nummerierten Liedern verschieben die Liednummern nicht).",
+      "properties": {
+        "typ": { "$ref": "#/$defs/feld_id", "description": "Stabile Kennung des Elementtyps (z. B. 'lied', 'szene', 'predigt'); muss innerhalb desselben Ablaufs eindeutig sein." },
+        "name": { "type": "string", "description": "Anzeigename des Elementtyps." },
+        "nummeriert": {
+          "type": "boolean",
+          "default": false,
+          "description": "Ob Elemente dieses Typs eine laufende Nummer (Attribut 'nr') tragen. Die Nummerierung zaehlt nur innerhalb desselben Elementtyps, nicht ueber alle Elemente."
+        },
+        "inhalt": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/feld" },
+          "description": "Die Felder, die ein Element dieses Typs traegt (z. B. ein 'lied'-Element: das Lied selbst, Ensemble, Begleitung, Dirigent, Klavier)."
+        },
+        "bedingung": {
+          "$ref": "#/$defs/bedingung_knoten",
+          "description": "Optionale Bedingung, unter der ein Element dieses Typs ueberhaupt erscheint."
+        }
+      }
+    },
+
+    "fremd_feld": {
+      "type": "object",
+      "required": ["plantyp", "feld"],
+      "additionalProperties": false,
+      "description": "Ein Bezug auf ein Feld eines ANDEREN Plantyps (planuebergreifend). Der `plantyp` nennt dessen Kennung, `feld` den Feld-Pfad dort. Da die Existenz des fremden Plantyps zur Pruefzeit unbekannt sein kann, meldet die Pruefung eine WARNUNG ('fremder_plantyp_ungeprueft') statt eines Fehlers; die Engine/API loest den Verweis zur Laufzeit auf.",
+      "properties": {
+        "plantyp": { "type": "string", "description": "Kennung des fremden Plantyps." },
+        "feld": { "type": "string", "description": "Feld-Pfad im fremden Plantyp (z. B. 'einueben')." }
+      },
+      "examples": [{"plantyp": "chorplan", "feld": "einueben"}]
+    },
+
+    "uebernahme": {
+      "type": "object",
+      "required": ["erlaubt_von", "felder"],
+      "additionalProperties": false,
+      "description": "Deklaration, dass dieser Plantyp Eintraege (bzw. Ablauf-Elemente) aus einem anderen Plan uebernehmen darf. `erlaubt_von` nennt die Quell-Plantypen, `felder` die uebernehmbaren Felder. Die Ausfuehrung (das eigentliche Kopieren) kommt in einer spaeteren Ausbaustufe; hier wird nur deklariert und dokumentiert.",
+      "properties": {
+        "erlaubt_von": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Kennungen der Plantypen, aus denen uebernommen werden darf."
+        },
+        "felder": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Feld-Kennungen (bzw. -Pfade), die aus dem Quellplan uebernommen werden."
+        }
+      },
+      "examples": [{"erlaubt_von": ["programm"], "felder": ["ablauf.lied"]}]
+    },
+
+    "feld_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_\\-]*$",
+      "description": "Stabile, maschinenlesbare Kennung (Kleinbuchstaben, Ziffern, Unterstrich, Bindestrich). Ueber Kennungen werden Felder, Merkmale, Sammlungen und Anlaesse angesprochen — nie ueber Positionen oder Anzeigenamen (P3).",
+      "examples": ["lieder", "einsingen", "frohe_stunde"]
+    }
+  }
+}

@@ -1,0 +1,7 @@
+# Compose >= 2.20: structural port/trust selection, no app port in HTTPS mode.
+# Supported COMPOSE_PROFILES: empty (legacy HTTP), or exactly https.
+name: diakronos-standalone
+include:
+  - path:
+      - compose/stack.yml
+      - compose/${COMPOSE_PROFILES:-http}.yml

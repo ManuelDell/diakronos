@@ -1,0 +1,26 @@
+# Build-Kontext ist der Projekt-Root. Alles ausschliessen, was der Container
+# nicht braucht — vor allem node_modules (wird in Stage 1 frisch installiert)
+# und den bereits gebauten dist/ (wird dort ebenfalls neu gebaut).
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+
+# Nie in Images/Repos
+.git
+.gitignore
+.env
+.env.*
+*.log
+# Persistent data and operator TLS private keys must not enter build contexts.
+data/
+certs/
+
+# Referenz-Baum (nicht Teil des Deployments)
+referenz/
+inventar/
+docs/

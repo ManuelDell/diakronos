@@ -1,0 +1,80 @@
+{
+  "schema": "diakronos/plantyp@1",
+  "id": "programm",
+  "name": "Programmablauf",
+  "bereich": "Chor",
+  "beschreibung": "Ein Programmheft/Liedzettel einer einzelnen Veranstaltung (Adventssingen, Weihnachtsmarkt): ein geordneter Ablauf aus nummerierten Liedern, Szenen eines Anspiels und einer Predigt. Die Lieder müssen zuvor im Chorplan geübt worden sein (planübergreifende Regel 'vorher_geuebt' mit 'uebung').",
+  "parameter": [
+    { "id": "datum", "art": "datum", "name": "Datum" },
+    { "id": "uhrzeit", "art": "text", "name": "Uhrzeit" },
+    { "id": "motto", "art": "text", "name": "Motto" },
+    { "id": "untertitel", "art": "text", "name": "Untertitel" },
+    { "id": "schlusswort", "art": "text", "name": "Zitat / Bibelvers" }
+  ],
+  "termine": {
+    "manuell": [ { "datum": "{parameter.datum}", "uhrzeit": "{parameter.uhrzeit}" } ]
+  },
+  "felder": [
+    {
+      "id": "ablauf",
+      "art": "ablauf",
+      "anzahl": "1..*",
+      "elemente": [
+        {
+          "typ": "lied",
+          "name": "Lied",
+          "nummeriert": true,
+          "inhalt": [
+            { "id": "lied", "art": "eintrag", "sammlung": "lieder" },
+            { "id": "beginn", "art": "text", "name": "Beginn (Uhrzeit)", "pflicht": false },
+            { "id": "dauer", "art": "zahl", "name": "Dauer (Minuten)", "pflicht": false },
+            { "id": "verantwortlich", "art": "person", "name": "Verantwortlich", "pflicht": false },
+            { "id": "technik", "art": "text", "name": "Technik", "pflicht": false },
+            { "id": "ensemble", "art": "auswahl", "mehrfach": true,
+        "werte": ["Chor", "Maennerchor", "Frauenchor", "Solo", "Orchester"],
+        "anzeigenamen": { "Maennerchor": "Männerchor" } },
+            { "id": "begleitung", "art": "auswahl", "mehrfach": true, "werte": ["Orchester", "Gitarre", "Violine", "Klavier"] },
+            { "id": "dirigent", "art": "person", "fuellen": "vorbelegen", "aus": "eintrag.dirigent" },
+            { "id": "klavier", "art": "personen", "fuellen": "vorbelegen", "aus": "eintrag.klavier" }
+          ]
+        },
+        { "typ": "szene", "name": "Szene", "inhalt": [
+            { "id": "titel", "art": "text" },
+            { "id": "beginn", "art": "text", "name": "Beginn (Uhrzeit)", "pflicht": false },
+            { "id": "dauer", "art": "zahl", "name": "Dauer (Minuten)", "pflicht": false },
+            { "id": "verantwortlich", "art": "person", "name": "Verantwortlich", "pflicht": false },
+            { "id": "technik", "art": "text", "name": "Technik", "pflicht": false }
+        ] },
+        { "typ": "predigt", "name": "Predigt", "inhalt": [
+            { "id": "prediger", "art": "person", "pflicht": false },
+            { "id": "beginn", "art": "text", "name": "Beginn (Uhrzeit)", "pflicht": false },
+            { "id": "dauer", "art": "zahl", "name": "Dauer (Minuten)", "pflicht": false },
+            { "id": "verantwortlich", "art": "person", "name": "Verantwortlich", "pflicht": false },
+            { "id": "technik", "art": "text", "name": "Technik", "pflicht": false }
+        ] }
+      ]
+    }
+  ],
+  "regeln": [
+    {
+      "baustein": "vorher_geuebt",
+      "feld": "ablauf.lied",
+      "uebung": { "plantyp": "chorplan", "feld": "einueben" },
+      "mindestens": 3,
+      "stufe": "sollte"
+    }
+  ],
+  "ansichten": [
+    {
+      "art": "programm",
+      "druck": "A4-hoch",
+      "kopf": "{plan.titel} {termin.datum}\n{parameter.motto}\n{parameter.untertitel}",
+      "fuss": "{parameter.schlusswort}",
+      "format": {
+        "lied": "{nr}{lied.anzeige: | {lied.anzeige}}{lied.titel: | {lied.titel}}{ensemble: | {ensemble}}{begleitung: | {begleitung}}{dirigent.kuerzel: /{dirigent.kuerzel}}{klavier.kuerzel: /{klavier.kuerzel}}",
+        "szene": "— {titel} —",
+        "predigt": "Predigt{prediger: ({prediger.name})}"
+      }
+    }
+  ]
+}

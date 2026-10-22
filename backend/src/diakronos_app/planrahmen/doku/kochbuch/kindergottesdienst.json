@@ -1,0 +1,39 @@
+{
+  "schema": "diakronos/plantyp@1",
+  "id": "kindergottesdienst",
+  "name": "Kindergottesdienst",
+  "bereich": "Kinder",
+  "beschreibung": "Altersgetrennter Kindergottesdienst: je Altersgruppe ein eigener Raum (Variante). Pro Programmpunkt läuft die Auswahl aus der Sammlung der Reihe nach, Mitarbeiter werden fair verteilt.",
+  "sammlungen": [
+    { "id": "programme", "name": "Programme", "beschreibung": "Bestehende Programm-Bausteine im Ablauf." }
+  ],
+  "merkmale": {
+    "person": [
+      { "id": "leiter", "art": "tag", "name": "leitet eine Gruppe" },
+      { "id": "helfer", "art": "tag", "name": "hilft mit" }
+    ]
+  },
+  "termine": {
+    "regel": "FREQ=WEEKLY;BYDAY=SU"
+  },
+  "felder": [
+    {
+      "id": "altersgruppe",
+      "art": "gruppe",
+      "varianten": ["gruppe_0_3", "gruppe_3_6", "gruppe_6_10"],
+      "inhalt": [
+        { "id": "raum", "art": "auswahl", "werte": ["Hauptraum", "Nebenraum", "Jugendraum"] },
+        { "id": "programm", "art": "eintrag", "sammlung": "programme", "fuellen": "der_reihe_nach" },
+        { "id": "leiter", "art": "person", "rolle": { "merkmal": "leiter" }, "fuellen": "optimieren" },
+        { "id": "helfer", "art": "personen", "anzahl": "1..2", "rolle": { "merkmal": "helfer" }, "fuellen": "optimieren" }
+      ]
+    }
+  ],
+  "regeln": [
+    { "baustein": "abwesenheit_beachten", "stufe": "muss" },
+    { "baustein": "gleich_verteilen", "rolle": { "eine": [ { "merkmal": "leiter" }, { "merkmal": "helfer" } ] }, "stufe": "sollte" }
+  ],
+  "ansichten": [
+    { "art": "raster", "zeilen": "termin" }
+  ]
+}

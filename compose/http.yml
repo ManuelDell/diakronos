@@ -1,0 +1,4 @@
+services:
+  app:
+    ports:
+      - "${APP_BIND_ADDR:-127.0.0.1}:${APP_PORT:-8100}:8000"

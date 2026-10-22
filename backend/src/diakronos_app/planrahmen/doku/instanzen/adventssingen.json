@@ -1,0 +1,19 @@
+{
+  "plantyp": "programm",
+  "titel": "Adventskonzert 06.12.2026 (Musterhausen)",
+  "motto": "Beispiel-Motto: Licht im Winter",
+  "eintraege": [
+    { "element_id": "l1", "typ": "lied", "feld_pfad": "ablauf/l1.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 1", "buch": "MB", "seite": "", "ensemble": ["Orchester"], "dirigent": "Mir" } },
+    { "element_id": "s1", "typ": "szene", "feld_pfad": "ablauf/s1.titel", "wert": { "art": "text", "text": "Szene 1: Beispiel-Anspiel am Marktplatz" } },
+    { "element_id": "l2", "typ": "lied", "feld_pfad": "ablauf/l2.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 2", "buch": "MB", "seite": "150", "ensemble": ["Chor"], "begleitung": ["Gitarre"], "dirigent": "Mir" } },
+    { "element_id": "s2", "typ": "szene", "feld_pfad": "ablauf/s2.titel", "wert": { "art": "text", "text": "Szene 2: Beispiel-Begegnung im Garten" } },
+    { "element_id": "l3", "typ": "lied", "feld_pfad": "ablauf/l3.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 3", "buch": "MB", "seite": "136", "ensemble": ["Chor"], "begleitung": ["Violine"] } },
+    { "element_id": "l4", "typ": "lied", "feld_pfad": "ablauf/l4.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 4", "buch": "MB", "seite": "", "ensemble": ["Chor", "Solo"] } },
+    { "element_id": "l5", "typ": "lied", "feld_pfad": "ablauf/l5.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 5", "buch": "MB", "seite": "160", "ensemble": ["Chor"], "begleitung": ["Orchester"] } },
+    { "element_id": "l6", "typ": "lied", "feld_pfad": "ablauf/l6.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 6", "buch": "MB", "seite": "", "ensemble": ["Chor"], "begleitung": ["Orchester"] } },
+    { "element_id": "l7", "typ": "lied", "feld_pfad": "ablauf/l7.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 7", "buch": "KB", "ensemble": ["Maennerchor"] } },
+    { "element_id": "p1", "typ": "predigt", "feld_pfad": "ablauf/p1.prediger", "wert": { "art": "person", "name": "" } },
+    { "element_id": "l8", "typ": "lied", "feld_pfad": "ablauf/l8.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 8", "buch": "KB", "ensemble": ["Chor"] } },
+    { "element_id": "l9", "typ": "lied", "feld_pfad": "ablauf/l9.lied", "wert": { "art": "eintrag", "titel": "Beispiel-Lied 9", "buch": "MB", "seite": "", "ensemble": ["Solo"], "begleitung": ["Orchester"] } }
+  ]
+}

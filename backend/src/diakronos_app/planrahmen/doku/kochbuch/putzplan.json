@@ -1,0 +1,32 @@
+{
+  "schema": "diakronos/plantyp@1",
+  "id": "putzplan",
+  "name": "Putzplan",
+  "bereich": "Haus",
+  "beschreibung": "Wöchentliche Reinigung, reihum über die Familien einer Gruppe. Eine feste Zweier-Kombination putzt immer gemeinsam (zusammen), Abwesenheiten werden übersprungen.",
+  "merkmale": {
+    "person": [
+      { "id": "familie", "art": "auswahl", "name": "Familie", "mehrfach": false, "werte": ["Beispiel", "Muster", "Clausen", "Dreis", "Ebert"] }
+    ]
+  },
+  "termine": {
+    "regel": "FREQ=WEEKLY;BYDAY=SA"
+  },
+  "felder": [
+    {
+      "id": "reinigung",
+      "art": "gruppe",
+      "inhalt": [
+        { "id": "familie", "art": "person", "rolle": { "gruppe": "Hauskreis" }, "fuellen": "reihum" },
+        { "id": "bereich", "art": "auswahl", "werte": ["Untergeschoss", "Obergeschoss", "Aussenbereich"] }
+      ]
+    }
+  ],
+  "regeln": [
+    { "baustein": "abwesenheit_beachten", "stufe": "muss" },
+    { "baustein": "zusammen", "personen": ["anna", "bruno"], "stufe": "sollte" }
+  ],
+  "ansichten": [
+    { "art": "tabelle", "spalten": ["reinigung.familie", "reinigung.bereich"] }
+  ]
+}

@@ -1,0 +1,24 @@
+__pycache__/
+*.pyc
+node_modules/
+.venv/
+.env
+data/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+frontend/dist/
+
+# SPA-Build-Artefakte (werden von `npm run build` erzeugt; im Docker-Image
+# baut Stage 1 sie frisch). Verhindert, dass Hunderte Bundle-Dateien ins Repo
+# gelangen und jeden Diff unlesbar machen.
+
+# Frontend-Dependencies (werden per npm ci installiert).
+# Beide Schreibweisen: mit Schraegstrich nur das Verzeichnis, ohne Schraegstrich
+# auch eine Datei oder einen SYMLINK dieses Namens (B1: ein committeter Link
+# `frontend/node_modules` brach den Merge im Haupt-Checkout ab).
+frontend/node_modules
+frontend/node_modules/
+.worktrees/
+# TLS private keys and operator-provided certificate chains never enter Git.
+certs/

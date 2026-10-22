@@ -1,0 +1,107 @@
+[
+  {
+    "schluessel": "aschermittwoch",
+    "name": "Aschermittwoch",
+    "art": "oster"
+  },
+  {
+    "schluessel": "palmsonntag",
+    "name": "Palmsonntag",
+    "art": "oster"
+  },
+  {
+    "schluessel": "gruendonnerstag",
+    "name": "Gründonnerstag",
+    "art": "oster"
+  },
+  {
+    "schluessel": "karfreitag",
+    "name": "Karfreitag",
+    "art": "oster"
+  },
+  {
+    "schluessel": "ostersonntag",
+    "name": "Ostersonntag",
+    "art": "oster"
+  },
+  {
+    "schluessel": "ostermontag",
+    "name": "Ostermontag",
+    "art": "oster"
+  },
+  {
+    "schluessel": "himmelfahrt",
+    "name": "Christi Himmelfahrt",
+    "art": "oster"
+  },
+  {
+    "schluessel": "pfingstsonntag",
+    "name": "Pfingstsonntag",
+    "art": "oster"
+  },
+  {
+    "schluessel": "pfingstmontag",
+    "name": "Pfingstmontag",
+    "art": "oster"
+  },
+  {
+    "schluessel": "fronleichnam",
+    "name": "Fronleichnam",
+    "art": "oster"
+  },
+  {
+    "schluessel": "neujahr",
+    "name": "Neujahr",
+    "art": "fest"
+  },
+  {
+    "schluessel": "silvester",
+    "name": "Silvester",
+    "art": "fest"
+  },
+  {
+    "schluessel": "1_advent",
+    "name": "1. Advent",
+    "art": "advent"
+  },
+  {
+    "schluessel": "2_advent",
+    "name": "2. Advent",
+    "art": "advent"
+  },
+  {
+    "schluessel": "3_advent",
+    "name": "3. Advent",
+    "art": "advent"
+  },
+  {
+    "schluessel": "4_advent",
+    "name": "4. Advent",
+    "art": "advent"
+  },
+  {
+    "schluessel": "heiligabend",
+    "name": "Heiligabend",
+    "art": "fest"
+  },
+  {
+    "schluessel": "1_weihnachtstag",
+    "name": "1. Weihnachtstag",
+    "art": "fest"
+  },
+  {
+    "schluessel": "2_weihnachtstag",
+    "name": "2. Weihnachtstag",
+    "art": "fest"
+  },
+  {
+    "schluessel": "buss_und_bettag",
+    "name": "Buß- und Bettag",
+    "art": "advent"
+  },
+  {
+    "schluessel": "erntedank",
+    "name": "Erntedank",
+    "art": "erntedank"
+  }
+]

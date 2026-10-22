@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Basis-Reset für Vue-Apps in Frappe-Desk-Kontext */
+[data-diakonos-app] * {
+    box-sizing: border-box;
+}
