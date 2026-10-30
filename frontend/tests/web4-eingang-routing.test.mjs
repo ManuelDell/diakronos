@@ -182,7 +182,10 @@ test('WEB-4: Host-Header geht unverändert an beide Upstreams', () => {
     /proxy_set_header\s+Host\s+(\$proxy_host|\$host;)/,
     'der Host darf nicht auf den Upstream-Namen umgeschrieben werden',
   )
-  assert.match(conf, /proxy_set_header\s+X-Forwarded-Proto\s+\$scheme;/)
+  // Hinter NPM/TLS muss das urspruengliche Schema durchgereicht werden (sonst
+  // Sitzungs-Cookie ohne Secure-Flag, Vorfall 30.10.); Fallback auf $scheme.
+  assert.match(conf, /proxy_set_header\s+X-Forwarded-Proto\s+\$weitergabe_schema;/)
+  assert.match(conf, /map \$http_x_forwarded_proto \$weitergabe_schema \{[^}]*""\s+\$scheme;/)
   assert.match(conf, /proxy_set_header\s+X-Forwarded-For\s+\$remote_addr;/)
 })
 

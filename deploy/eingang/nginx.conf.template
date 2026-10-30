@@ -40,6 +40,15 @@
 # unveraendert. Doppelt gesetzte Header (z. B. zwei CSP oder zwei HSTS) sind
 # ein Fehler, kein Sicherheitsgewinn.
 
+# Schema der ECHTEN Client-Verbindung: hinter NPM (TLS) kommt die Anfrage per http an
+# den Eingang; NPM meldet das urspruengliche Schema in X-Forwarded-Proto. Das muss
+# durchgereicht werden, sonst halten Diakronos/Primo die Verbindung fuer http
+# (Folge: Sitzungs-Cookie ohne Secure-Flag). Fehlt der Kopf, gilt das eigene Schema.
+map $http_x_forwarded_proto $weitergabe_schema {
+    default $http_x_forwarded_proto;
+    ""      $scheme;
+}
+
 map $http_upgrade $verbindung_upgrade {
     default upgrade;
     ''      close;
@@ -88,7 +97,7 @@ server {
     proxy_set_header Host              $http_host;
     proxy_set_header X-Real-IP         $remote_addr;
     proxy_set_header X-Forwarded-For   $remote_addr;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Proto $weitergabe_schema;
     proxy_set_header X-Forwarded-Host  $http_host;
     proxy_set_header Upgrade           $http_upgrade;
     proxy_set_header Connection        $verbindung_upgrade;
