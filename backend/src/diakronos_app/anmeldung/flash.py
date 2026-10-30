@@ -71,6 +71,19 @@ MELDUNG_LEER = "Bitte gib deine E-Mail-Adresse und dein Passwort ein."
 FLASH_PATH = "/login"
 
 
+def flash_pfad() -> str:
+    """`Path` des Flash-Cookies MIT Betriebs-Praefix (WEB-5a).
+
+    Ohne Praefix unveraendert `/login`. Mit `DIAKRONOS_BASE_PATH=/diakronos`
+    liegt die Anmeldeseite unter `/diakronos/login` — der Cookie muss dort
+    gesetzt, gelesen und geloescht werden, sonst landet die Fehlermeldung nie
+    in der Maske.
+    """
+    from diakronos_app import base_path
+
+    return base_path.pfad(FLASH_PATH)
+
+
 def _signatur(abgelaufen: str, email_b64: str) -> str:
     """HMAC-SHA256 ueber Nutzlast + Ablauf, Schluessel aus `secret_key`."""
     from diakronos_app.settings import settings
@@ -118,7 +131,7 @@ def setze_flash(response: Response, email: str, *, leer: bool = False) -> None:
         value=wert,
         httponly=True,
         samesite="lax",
-        path=FLASH_PATH,
+        path=flash_pfad(),
         secure=_secure_flag(),
         max_age=FLASH_TTL_SEKUNDEN,
     )
@@ -130,7 +143,7 @@ def loesche_flash(response: Response) -> None:
         key=COOKIE_NAME,
         httponly=True,
         samesite="lax",
-        path=FLASH_PATH,
+        path=flash_pfad(),
         secure=_secure_flag(),
     )
 

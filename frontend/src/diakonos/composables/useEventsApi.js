@@ -1,4 +1,6 @@
 import { apiAntwortPruefen } from './useApi.js'
+// WEB-5b: Adressen unter dem Betriebs-Praefix bauen.
+import { apiUrl, ressourceUrl } from '../../shared/basis.js'
 function toLocalDateTimeString(date) {
   const pad = n => String(n).padStart(2, "0")
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
@@ -24,7 +26,7 @@ export async function getMeinTermin(elementId) {
   if (!elementId) return null
   try {
     const res = await fetch(
-      "/api/method/diakronos.kronos.api.calendar_get.get_mein_termin",
+      apiUrl('diakronos.kronos.api.calendar_get.get_mein_termin'),
       {
         method: "POST",
         headers: {
@@ -64,7 +66,7 @@ export function useEventsApi() {
       || props.ressource 
       || ""
     try {
-      const res = await fetch("/api/method/diakronos.kronos.api.event_crud.save_event", {
+      const res = await fetch(apiUrl('diakronos.kronos.api.event_crud.save_event'), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -106,7 +108,7 @@ export function useEventsApi() {
     const startStr = start instanceof Date ? toLocalDateTimeString(start) : start
     const endStr   = end instanceof Date   ? toLocalDateTimeString(end)   : (end || startStr)
     try {
-      const res = await fetch("/api/method/diakronos.kronos.api.event_crud.create_event", {
+      const res = await fetch(apiUrl('diakronos.kronos.api.event_crud.create_event'), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -142,7 +144,7 @@ export function useEventsApi() {
   async function deleteEvent(eventId, onSuccess) {
     if (!eventId) return false
     try {
-      const res = await fetch(`/api/resource/Element/${eventId}`, {
+      const res = await fetch(ressourceUrl(`Element/${eventId}`), {
         method: "DELETE",
         headers: { "X-Frappe-CSRF-Token": getCsrfToken() }
       })

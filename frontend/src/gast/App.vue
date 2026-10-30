@@ -63,6 +63,8 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
+// WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
+import { apiUrl } from '../shared/basis.js'
 // DEP-1: eigene Bausteine statt frappe-ui (Button/FormControl/ErrorMessage).
 import DkButton from '../diakonos/components/ui/DkButton.vue'
 import DkField from '../diakonos/components/ui/DkField.vue'
@@ -97,7 +99,7 @@ async function absenden() {
     try {
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content
                    || window.csrf_token || ''
-        const res = await fetch('/api/method/diakronos.diakonos.api.registrierung.submit_gast', {
+        const res = await fetch(apiUrl('diakronos.diakonos.api.registrierung.submit_gast'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

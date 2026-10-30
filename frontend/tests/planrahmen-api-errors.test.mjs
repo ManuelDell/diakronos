@@ -7,6 +7,12 @@ const source = readFileSync(new URL('../src/diakonos/composables/useApi.js', imp
   // OP-UI-1 (Rest): gemeinsame Regeln aus shared/sitzung-pruefen.js inline.
   .replace("import { istSitzungsAbbruch } from '../../shared/sitzung-pruefen.js'",
     "const istSitzungsAbbruch = (status, data) => [401, 419].includes(status) || (status === 417 && data?.exc_type === 'CSRFTokenError')")
+  // WEB-5b: die Praefix-Hilfsdatei laedt im data:-Modul nicht nach (kein
+  // hierarchischer Basispfad). Sie hat keinen eigenen Zustand — ohne Praefix
+  // liefert sie genau die alte Adresse; geprueft wird sie in
+  // tests/web5b-basis.test.mjs.
+  .replace("import { apiUrl } from '../../shared/basis.js'",
+    "const apiUrl = (methode) => '/api/method/' + methode")
 const { apiCall } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'))
 globalThis.window = { __DIakonosBOOT: { csrf_token: 'test-token' } }
 

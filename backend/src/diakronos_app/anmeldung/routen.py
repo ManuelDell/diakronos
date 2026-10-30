@@ -42,8 +42,17 @@ logger = logging.getLogger("diakronos_app.anmeldung.routen")
 
 __all__ = ["registriere_routen", "SPA_ZIEL", "LOKALES_LOGIN_ERLAUBT"]
 
-# Ziel nach erfolgreicher Anmeldung (SPA-Startseite).
+# Ziel nach erfolgreicher Anmeldung (SPA-Startseite). APP-eigener Pfad —
+# der Betriebs-Praefix kommt erst beim Bauen der Adresse davor (WEB-5a,
+# `base_path.pfad`).
 SPA_ZIEL = "/diakonos"
+
+
+def _spa_ziel() -> str:
+    """SPA-Startseite mit Betriebs-Praefix (`''` -> unveraendert)."""
+    from diakronos_app import base_path
+
+    return base_path.pfad(SPA_ZIEL)
 
 # Pfade, die ein Forward-Auth-Proxy AUSSCHLIESSEN muss (TEIL C). Hier nur als
 # Konstante dokumentiert; die Durchsetzung ist eine Proxy-Konfiguration.
@@ -58,6 +67,17 @@ FORWARD_AUTH_AUSNAHMEN = (
 )
 
 
+def _login_adresse() -> str:
+    """`/login` mit Betriebs-Praefix (WEB-5a).
+
+    Die Anmeldeseite (und jeder Link dorthin) liegt mit gesetztem
+    `DIAKRONOS_BASE_PATH` unter `{Praefix}/login`. Ohne Praefix unveraendert.
+    """
+    from diakronos_app import base_path
+
+    return base_path.pfad("/login")
+
+
 def _relatives_ziel(kandidat: str | None) -> str:
     """Nur pfadrelative Ziele zulassen (Open-Redirect verhindern).
 
@@ -66,11 +86,11 @@ def _relatives_ziel(kandidat: str | None) -> str:
     """
     ziel = unquote(str(kandidat or "")).strip()
     if not ziel.startswith("/") or ziel.startswith("//"):
-        return SPA_ZIEL
+        return _spa_ziel()
     if "\\" in ziel:
-        return SPA_ZIEL
+        return _spa_ziel()
     if any(ord(c) < 0x20 or c in "\x7f\x85\u2028\u2029" for c in ziel):
-        return SPA_ZIEL
+        return _spa_ziel()
     return ziel
 
 
@@ -97,7 +117,7 @@ def _anbieter_knopf_html() -> str:
     cfg = konf.oidc_konfiguration()
     name = html.escape(cfg.anbietername or "Anbieter", quote=True)
     return (
-        '<a class="dk-sso" href="/login?sso=1">'
+        f'<a class="dk-sso" href="{_login_adresse()}?sso=1">'
         f"Mit {name} anmelden</a>"
     )
 
@@ -125,8 +145,20 @@ def _hash_bruecke_seite(ziel: str) -> str:
     # schliesst (derselbe Schutz wie `spa._boot_json`).
     import html
     from urllib.parse import quote
-    noscript_ziel = html.escape('/login?sso=1&redirect-to=' + quote(_relatives_ziel(ziel), safe=''), quote=True)
+    noscript_ziel = html.escape(
+        _login_adresse() + '?sso=1&redirect-to=' + quote(_relatives_ziel(ziel), safe=''),
+        quote=True,
+    )
     ziel_js = json.dumps(ziel).replace("<", "\\u003c").replace(">", "\\u003e")
+    # WEB-5a: die Anmeldeadresse traegt den Betriebs-Praefix. OHNE Praefix
+    # bleibt der Quelltext Zeichen fuer Zeichen der bisherige (Literal
+    # `/login`, kein JSON-String) — SO sieht die Seite heute aus.
+    _login_adr = _login_adresse()
+    if _login_adr == "/login":
+        login_js, login_href = "'/login'", "/login"
+    else:
+        login_js = json.dumps(_login_adr).replace("<", "\\u003c").replace(">", "\\u003e")
+        login_href = html.escape(_login_adr, quote=True)
     return f"""<!DOCTYPE html>
 <html lang="de">
 <head><meta charset="UTF-8">
@@ -144,9 +176,9 @@ def _hash_bruecke_seite(ziel: str) -> str:
             if (hash) {{ sessionStorage.setItem('dk-login-hash', hash); }}
         }} catch (e) {{ /* kein Speicher -> Anmeldung laeuft ohne Hash */ }}
         try {{
-            window.location.replace('/login?sso=1&redirect-to=' + encodeURIComponent(ziel));
+            window.location.replace('{login_href}?sso=1&redirect-to=' + encodeURIComponent(ziel));
         }} catch (e) {{
-            window.location.href = '/login?sso=1&redirect-to=' + encodeURIComponent(ziel);
+            window.location.href = '{login_href}?sso=1&redirect-to=' + encodeURIComponent(ziel);
         }}
     }})();
 </script>
@@ -164,6 +196,16 @@ def _hash_wiederherstellen_seite(ziel: str) -> str:
     """
     # Wie in `_hash_bruecke_seite`: JS-Literal, `<`/`>` als Unicode-Escape.
     ziel_js = json.dumps(ziel).replace("<", "\\u003c").replace(">", "\\u003e")
+    # WEB-5a: die Anmeldeadresse traegt den Betriebs-Praefix. OHNE Praefix
+    # bleibt es beim bisherigen Literal `/login` (kein JSON-String) — so
+    # sieht die Seite exakt aus wie vorher. Mit Praefix steht die Adresse im
+    # JS-Literal und bekommt dieselbe `<`-Neutralisierung wie das Ziel.
+    _login_adr = _login_adresse()
+    login_js = (
+        "'/login'"
+        if _login_adr == "/login"
+        else json.dumps(_login_adr).replace("<", "\\u003c").replace(">", "\\u003e")
+    )
     return f"""<!DOCTYPE html>
 <html lang="de">
 <head><meta charset="UTF-8">
@@ -201,7 +243,7 @@ def _cookies_aus_request(request) -> object:
 
 
 def erstelle_anmeldeseite(
-    next_url: str = SPA_ZIEL,
+    next_url: str | None = None,
     *,
     meldung: str = "",
     email: str = "",
@@ -220,7 +262,14 @@ def erstelle_anmeldeseite(
     """
     import html
 
+    from diakronos_app import base_path as _path
     from diakronos_app.spa import DEFAULT_CHURCH_NAME, _settings_zeile
+
+    # WEB-5a: ohne Angabe die SPA-Startseite MIT Betriebs-Praefix. Der
+    # Default wird erst hier ausgewertet (nicht als Parameterwert), sonst
+    # stuende der Praefix schon beim Import fest.
+    if next_url is None:
+        next_url = _spa_ziel()
 
     oidc_an = konf.oidc_aktiv()
     lokal = _lokales_login_erlaubt()
@@ -276,8 +325,12 @@ def erstelle_anmeldeseite(
             if csrf_html
             else ""
         )
+        # WEB-5a: das Formular postet an die PRAEFIGIERTE API.
+        login_api = html.escape(
+            _path.pfad("/api/method/login"), quote=True
+        )
         formular_block = f"""
-        <form method="post" action="/api/method/login" accept-charset="utf-8">
+        <form method="post" action="{login_api}" accept-charset="utf-8">
             <input type="hidden" name="redirect-to" value="{ziel_kodiert}">{csrf_feld}
             <label for="dk-usr">E-Mail oder Benutzername</label>
             <input id="dk-usr" name="usr" type="text" autocomplete="username"
@@ -386,12 +439,15 @@ def _sitzungscookie(response: Response, sid: str) -> None:
     from diakronos_app.api.auth import _secure_flag
     from diakronos_app.settings import settings
 
+    # WEB-5a: derselbe Cookie-Pfad wie beim lokalen Login (Betriebs-Praefix).
+    from diakronos_app.api.auth import _cookie_path
+
     response.set_cookie(
         key="sid",
         value=sid,
         httponly=True,
         samesite="lax",
-        path="/",
+        path=_cookie_path(),
         secure=_secure_flag(),
         max_age=int(settings.session_ttl_seconds),
     )
@@ -419,6 +475,7 @@ def _fehler_seite(meldung: str, status: int = 403) -> Response:
     import html
 
     text = html.escape(meldung, quote=True)
+    login_adresse = html.escape(_login_adresse(), quote=True)
     seite = f"""<!DOCTYPE html>
 <html lang="de"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -428,7 +485,7 @@ display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0
 main{{max-width:28rem;background:#fff;padding:2rem;border-radius:.75rem;
 box-shadow:0 1px 3px rgba(16,24,40,.1)}}a{{color:#2f5d8a}}</style></head>
 <body><main><h1 style="font-size:1.15rem">Anmeldung nicht moeglich</h1>
-<p>{text}</p><p><a href="/login">Erneut versuchen</a></p></main></body></html>"""
+<p>{text}</p><p><a href="{login_adresse}">Erneut versuchen</a></p></main></body></html>"""
     return HTMLResponse(seite, status_code=status)
 
 
@@ -648,7 +705,7 @@ def _schliesse_login_ab(
     if ziel:
         response = HTMLResponse(_hash_wiederherstellen_seite(_relatives_ziel(ziel)))
     else:
-        response = RedirectResponse(SPA_ZIEL, status_code=303)
+        response = RedirectResponse(_spa_ziel(), status_code=303)
     _sitzungscookie(response, sid)
     logger.info("Anmeldung ueber Anbieter erfolgreich (Benutzer siehe Audit-Log).")
     return response
@@ -675,7 +732,7 @@ def _abmelden(request: Request, *, redirect: bool) -> Response:
     beende_lokale_sitzung(request)
 
     cfg = konf.oidc_konfiguration()
-    ziel = SPA_ZIEL
+    ziel = _spa_ziel()
     if konf.oidc_aktiv() and cfg.logout:
         try:
             meta = oidc.hole_metadaten(cfg)
@@ -687,12 +744,12 @@ def _abmelden(request: Request, *, redirect: bool) -> Response:
 
                     teile = urlsplit(cfg.redirect_url)
                     parameter["post_logout_redirect_uri"] = (
-                        f"{teile.scheme}://{teile.netloc}{SPA_ZIEL}"
+                        f"{teile.scheme}://{teile.netloc}{_spa_ziel()}"
                     )
                 trenner = "&" if "?" in meta.end_session_endpoint else "?"
                 ziel = meta.end_session_endpoint + trenner + urlencode(parameter)
         except oidc.OidcFehler:
-            ziel = SPA_ZIEL
+            ziel = _spa_ziel()
 
     if redirect:
         response: Response = RedirectResponse(ziel, status_code=303)

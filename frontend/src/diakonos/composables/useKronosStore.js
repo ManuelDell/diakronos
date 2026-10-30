@@ -1,6 +1,8 @@
 import { apiAntwortPruefen } from './useApi.js'
 import { ref, computed } from "vue"
 import { useImpersonation } from './useImpersonation.js'
+// WEB-5b: Adressen unter dem Betriebs-Praefix bauen.
+import { apiUrl } from '../../shared/basis.js'
 
 const viewMode = ref("view")
 const userRoles = ref([])
@@ -45,7 +47,7 @@ export function useKronosStore() {
     try {
       const body = imp.isActive.value ? { __impersonated_as: imp.mitglied.value } : {}
       const csrf_token = window.__DIakonosBOOT?.csrf_token || ''
-      const response = await fetch("/api/method/diakronos.kronos.api.permissions.get_accessible_calendars", {
+      const response = await fetch(apiUrl('diakronos.kronos.api.permissions.get_accessible_calendars'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

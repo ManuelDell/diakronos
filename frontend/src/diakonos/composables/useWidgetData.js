@@ -1,8 +1,9 @@
 import { apiAntwortPruefen } from './useApi.js'
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useImpersonation } from './useImpersonation.js'
+import { apiUrl } from '../../shared/basis.js'
 
-const API_BASE = '/api/method/diakronos.diakonos.api.dashboard.get_widget_data'
+const API_BASE = apiUrl('diakronos.diakonos.api.dashboard.get_widget_data')
 
 export function useWidgetData(widgetId, refreshInterval = 0) {
   const data = ref(null)

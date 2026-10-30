@@ -1,5 +1,7 @@
 <script setup>
 import { apiAntwortPruefen } from '../../composables/useApi.js'
+// WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
+import { apiUrl } from '../../../shared/basis.js'
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import * as _EC from '@event-calendar/build'
 import '@event-calendar/build/dist/event-calendar.min.css'
@@ -114,7 +116,7 @@ onMounted(() => {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || ''
             const activeCalendars = props.selectedCalendars
 
-            fetch('/api/method/diakronos.kronos.api.calendar_get.get_calendar_events', {
+            fetch(apiUrl('diakronos.kronos.api.calendar_get.get_calendar_events'), {
               method: 'POST',
               headers: {
                 'Accept': 'application/json',
@@ -349,7 +351,7 @@ async function _loadResources() {
   _resourcesLoaded.value = true
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || ''
   try {
-    const res = await fetch('/api/method/diakronos.kronos.api.ressource_api.get_ressources', {
+    const res = await fetch(apiUrl('diakronos.kronos.api.ressource_api.get_ressources'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf },
       body: JSON.stringify({})

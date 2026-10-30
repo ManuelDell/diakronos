@@ -11,6 +11,8 @@
 
 <script setup>
 import { apiAntwortPruefen } from '../../composables/useApi.js'
+// WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
+import { apiUrl } from '../../../shared/basis.js'
 import { ref, onMounted } from 'vue'
 import BaseWidgetCard from './BaseWidgetCard.vue'
 import KronosMiniCalendar from '../kronos/KronosMiniCalendar.vue'
@@ -30,7 +32,7 @@ async function loadEvents() {
     const csrf = window.__DIakonosBOOT?.csrf_token || ''
     const body = { year: y, month: m }
     if (imp.isActive.value) body.__impersonated_as = imp.mitglied.value
-    const res = await fetch('/api/method/diakronos.diakonos.api.dashboard.get_events_for_month', {
+    const res = await fetch(apiUrl('diakronos.diakonos.api.dashboard.get_events_for_month'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf },
       body: JSON.stringify(body),

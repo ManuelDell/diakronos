@@ -1,5 +1,7 @@
 <script setup>
 import { apiAntwortPruefen } from '../../composables/useApi.js'
+// WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
+import { apiUrl } from '../../../shared/basis.js'
 import { computed, ref } from 'vue'
 import { showToast } from '../../composables/useToast.js'
 import { useDialogFokus } from '../../composables/useDialogFokus.js'
@@ -61,8 +63,8 @@ async function deleteAction(type) {
   loescht.value = true
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || ''
   const endpoint = type === 'future'
-    ? '/api/method/diakronos.kronos.api.series.delete_future_series_events'
-    : '/api/method/diakronos.kronos.api.series.delete_series_batch_fast'
+    ? apiUrl('diakronos.kronos.api.series.delete_future_series_events')
+    : apiUrl('diakronos.kronos.api.series.delete_series_batch_fast')
   const body = type === 'future'
     // BLD-R5: Das Datum wird als reiner ISO-Tag gesendet (`YYYY-MM-DD`).
     // Vorher ging der ganze Zeitstempel aus dem Kalender mit („2026-11-08

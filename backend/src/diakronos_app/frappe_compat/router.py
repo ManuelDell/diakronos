@@ -576,6 +576,32 @@ def _maybe_import(path: str) -> None:
 				continue
 
 
+def _praefixierte_datei_urls(wert: Any) -> Any:
+	"""WEB-5a: `file_url`-Werte in einer Antwort mit Betriebs-Praefix.
+
+	In der Datenbank stehen `/files/…` und `/private/files/…` (Frappe-Erbe,
+	Karte: DB NICHT migrieren). Bei der AUSGABE muessen die Adressen unter dem
+	Praefix stimmen. Angefasst wird ausschliesslich der SCHLUESSEL `file_url` —
+	ein beliebiger Text mit `/files/` am Anfang bleibt unberuehrt.
+
+	Ohne Praefix (`DIAKRONOS_BASE_PATH` leer) gibt die Funktion den Wert
+	unveraendert zurueck und laesst sich deshalb gefahrlos auf jedem Leseweg
+	einsetzen.
+	"""
+	from diakronos_app.base_path import aktiver_praefix, datei_url
+
+	if not aktiver_praefix():
+		return wert
+	if isinstance(wert, dict):
+		return {
+			k: (datei_url(v) if k == "file_url" and isinstance(v, str) else _praefixierte_datei_urls(v))
+			for k, v in wert.items()
+		}
+	if isinstance(wert, (list, tuple, set)):
+		return [_praefixierte_datei_urls(v) for v in wert]
+	return wert
+
+
 def _serialize_payload(value: Any) -> Any:
 	"""Antwortwert JSON-faehig machen (Datetime/Decimal/Document/ORM-Objekte).
 
@@ -584,7 +610,16 @@ def _serialize_payload(value: Any) -> Any:
 	von der Spaltenauswahl unabhaengige Verteidigungslinie — sie greift auch
 	fuer Pfade, die ein Modell direkt serialisieren (z.B. die Antwort nach
 	einem POST/PUT). Siehe `query.ist_gesperrtes_feld`.
+
+	WEB-5a: `file_url`-Werte bekommen den Betriebs-Praefix (DB bleibt
+	unveraendert). Das geschieht NACH dem Verwerfen der gesperrten Felder und
+	nur auf dem fertigen Ergebnis, damit die Feld-Sperre unberuehrt bleibt.
 	"""
+	return _praefixierte_datei_urls(_serialize_roh(value))
+
+
+def _serialize_roh(value: Any) -> Any:
+	"""Teil von `_serialize_payload` OHNE die Praefix-Behandlung."""
 	from datetime import date, datetime, time
 	from decimal import Decimal
 
@@ -598,16 +633,16 @@ def _serialize_payload(value: Any) -> Any:
 		return float(value)
 	if isinstance(value, dict):
 		return {
-			k: _serialize_payload(v) for k, v in value.items()
+			k: _serialize_roh(v) for k, v in value.items()
 			if not ist_gesperrtes_feld(k)
 		}
 	if isinstance(value, (list, tuple, set)):
-		return [_serialize_payload(v) for v in value]
+		return [_serialize_roh(v) for v in value]
 	if hasattr(value, "as_dict"):
-		return _serialize_payload(value.as_dict())
+		return _serialize_roh(value.as_dict())
 	if hasattr(value, "__table__"):
 		return {
-			c.name: _serialize_payload(getattr(value, c.name))
+			c.name: _serialize_roh(getattr(value, c.name))
 			for c in value.__table__.columns
 			if not ist_gesperrtes_feld(c.name)
 		}

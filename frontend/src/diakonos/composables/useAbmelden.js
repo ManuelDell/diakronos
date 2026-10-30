@@ -24,6 +24,8 @@
  * (nutzerbezogene Staende duerfen nicht beim naechsten Nutzer auftauchen).
  */
 import { cacheLeeren } from './usePlanrahmenCache.js'
+// WEB-5b: Abmelde- und Anmeldeadressen unter dem Betriebs-Praefix.
+import { anmeldeUrl, apiUrl, basisPfad, mitBasis } from '../../shared/basis.js'
 
 function csrfToken() {
     return window.__DIakonosBOOT?.csrf_token || ''
@@ -101,7 +103,7 @@ export function alleBrowserStaendeLeeren() {
 function zielOderLogin(pfad) {
     const ziel = String(pfad || '').trim()
     // Ein SPA-Ziel ist kein Abmeldeziel: dann lokal auf /login.
-    if (!ziel || ziel === '/diakonos' || ziel === '/' || ziel === '#/') return '/login'
+    if (!ziel || ziel === mitBasis('/diakonos') || ziel === '/' || ziel === '#/') return anmeldeUrl()
     return ziel
 }
 
@@ -113,10 +115,10 @@ function zielOderLogin(pfad) {
  */
 export async function abmelden() {
     // Bevorzugt die SEC1-Route: sie deckt lokalen UND OIDC-Logout ab.
-    let res = await post('/logout')
+    let res = await post(mitBasis('/logout'))
     if (!res.ok && (res.status === 404 || res.status === 405 || res.status === 0)) {
         // Fallback: nur der Frappe-kompatible Pfad ist vorhanden.
-        res = await post('/api/method/logout')
+        res = await post(apiUrl('logout'))
     }
 
     if (!res.ok) {

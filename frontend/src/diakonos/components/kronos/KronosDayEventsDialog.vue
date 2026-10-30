@@ -1,5 +1,7 @@
 <script setup>
 import { apiAntwortPruefen } from '../../composables/useApi.js'
+// WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
+import { apiUrl } from '../../../shared/basis.js'
 import { ref, watch } from 'vue'
 import { formatTimeRange } from './dayEventLabel.mjs'
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js'
@@ -26,7 +28,7 @@ async function loadDayEvents() {
   loading.value = true
   try {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || ''
-    const res = await fetch('/api/method/diakronos.kronos.api.calendar_get.get_calendar_events', {
+    const res = await fetch(apiUrl('diakronos.kronos.api.calendar_get.get_calendar_events'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -104,9 +104,22 @@ function eventCalendarEsm() {
 }
 export default defineConfig({
     // ANPASSUNG 1 (nicht SPA-Quellcode): Basis-Pfad der ausgelieferten Assets.
-    // Frappe servierte unter /assets/diakronos/frontend/; das Standalone-Backend
-    // serviert unter /diakonos/assets/.
-    base: '/diakonos/assets/',
+    //
+    // WEB-5b (S2): RELATIV, nicht absolut. Der Build kennt den Betriebs-Präfix
+    // (`DIAKRONOS_BASE_PATH`) nicht — ein fester Wert wie '/diakonos/assets/'
+    // wäre unter '/gemeinde/diakronos/assets/…' falsch und würde einen zweiten
+    // Build je Präfix erzwingen (Karte: ausdrücklich NICHT).
+    //
+    // Mit './' schreibt Vite './assets/<datei>.js' ins index.html. Das
+    // index.html wird vom Server unter '{basePath}/diakonos/…' ausgeliefert
+    // (auch für die Hash-Routen, die dort alle denselben Verzeichnispfad
+    // haben), das Bundle liegt unter '{basePath}/diakonos/assets/…'. Der
+    // relative Pfad löst deshalb zur Laufzeit immer richtig auf — MIT und OHNE
+    // Präfix, ohne dass das Bundle den Präfix kennen muss.
+    //
+    // ACHTUNG für andere Stellen: `base` wirkt auch auf Adressen, die im CODE
+    // per `import` entstehen (Fonts, Bilder) — die werden relativ aufgelöst.
+    base: './',
     plugins: [vue(), lucideIcons(), eventCalendarEsm()],
     build: {
         // ANPASSUNG 2: Output-Pfad → frontend/dist (statt diakronos/public/frontend).

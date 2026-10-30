@@ -52,6 +52,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Resp
 
 from diakronos_app.frappe_compat.session import GUEST, session
 from diakronos_app.settings import settings
+from diakronos_app import base_path
 
 logger = logging.getLogger("diakronos_app.spa")
 
@@ -286,6 +287,10 @@ def boot_fuer_request() -> dict[str, Any]:
     rollen = permissions.get_roles(user)
     return {
         "user": user,
+        # WEB-5a: Betriebs-Praefix fuer das Frontend (`''` = keiner). Die SPA
+        # baut damit ihre eigenen Adressen (API, Dateien, socket.io, Logout).
+        # Vertrag: frontend/BOOT_VERTRAG.md.
+        "basePath": base_path.aktiver_praefix(),
         "user_fullname": user_doc.get("full_name") or ("" if user == GUEST else user),
         "user_email": email,
         "user_image": user_doc.get("user_image") or "",
@@ -540,7 +545,9 @@ def _entry_assets(entry: str) -> tuple[str | None, list[str]]:
     if not rec:
         return None, []
     js_file = rec.get("file")
-    js_url = f"{SPA_PREFIX}/assets/{js_file}" if js_file else None
+    # WEB-5a: `SPA_PREFIX` bleibt der APP-eigene Pfad; der Betriebs-Praefix
+    # (`DIAKRONOS_BASE_PATH`) kommt nur beim Bauen der Adresse davor.
+    js_url = base_path.pfad(f"{SPA_PREFIX}/assets/{js_file}") if js_file else None
 
     css_files: list[str] = []
     style_rec = manifest.get("style.css")
@@ -548,7 +555,7 @@ def _entry_assets(entry: str) -> tuple[str | None, list[str]]:
         css_files.append(style_rec["file"])
     css_files.extend(rec.get("css") or [])
 
-    css_urls = [f"{SPA_PREFIX}/assets/{c}" for c in css_files]
+    css_urls = [base_path.pfad(f"{SPA_PREFIX}/assets/{c}") for c in css_files]
     return js_url, css_urls
 
 
@@ -791,7 +798,7 @@ def render_login(next_url: str = SPA_PREFIX, *, meldung: str = "", email: str = 
     <main class="dk-login">
         <h1>{gemeinde}</h1>
         <p class="sub">Bitte melde dich an, um fortzufahren.</p>{meldung_block}
-        <form method="post" action="/api/method/login" accept-charset="utf-8">
+        <form method="post" action="{base_path.pfad('/api/method/login')}" accept-charset="utf-8">
             <input type="hidden" name="redirect-to" value="{ziel_kodiert}">{csrf_feld}
             <label for="dk-usr">E-Mail oder Benutzername</label>
             <input id="dk-usr" name="usr" type="text" autocomplete="username"
@@ -1099,11 +1106,14 @@ def mount_spa(app: FastAPI) -> None:
                     from urllib.parse import quote
 
                     return RedirectResponse(
-                        f"/login?redirect-to={quote(_altpfad, safe='')}", status_code=303
+                        base_path.pfad(
+                            f"/login?redirect-to={quote(base_path.pfad(_altpfad), safe='')}"
+                        ),
+                        status_code=303,
                     )
-                return _login_maske(request, _altpfad)
+                return _login_maske(request, base_path.pfad(_altpfad))
             return RedirectResponse(
-                f"{SPA_PREFIX}/{_ziel}", status_code=307
+                base_path.pfad(f"{SPA_PREFIX}/{_ziel}"), status_code=307
             )
 
         app.get(_altpfad, include_in_schema=False)(_altpfad_view)
@@ -1120,7 +1130,7 @@ def mount_spa(app: FastAPI) -> None:
             request: Request,
             _neu: str = _neu,
         ) -> Response:
-            ziel = f"{SPA_PREFIX}/{_neu}"
+            ziel = base_path.pfad(f"{SPA_PREFIX}/{_neu}")
             query = str(request.url.query or "")
             if query:
                 ziel = f"{ziel}?{query}"
@@ -1187,12 +1197,13 @@ def mount_spa(app: FastAPI) -> None:
             # bisher: die Maske wird inline ausgeliefert (Bestandsschutz).
             from diakronos_app.anmeldung.konfiguration import oidc_aktiv
 
-            ziel = f"{SPA_PREFIX}/{full_path}".rstrip("/") or SPA_PREFIX
+            ziel = base_path.pfad(f"{SPA_PREFIX}/{full_path}").rstrip("/") or base_path.pfad(SPA_PREFIX)
             if oidc_aktiv():
                 from urllib.parse import quote
 
                 return RedirectResponse(
-                    f"/login?redirect-to={quote(ziel, safe='')}", status_code=303
+                    base_path.pfad(f"/login?redirect-to={quote(ziel, safe='')}"),
+                    status_code=303,
                 )
             return _login_maske(request, ziel)
 

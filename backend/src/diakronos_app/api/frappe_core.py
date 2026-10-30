@@ -416,10 +416,14 @@ def upload_file(
         sess.add(doc)
         sess.commit()
         sess.refresh(doc)
+        from diakronos_app.base_path import datei_url
+
         return {
             "name": doc.name,
             "file_name": doc.file_name,
-            "file_url": doc.file_url,
+            # WEB-5a: DB bleibt bei `/files/…`; die AUSGABE traegt den
+            # Betriebs-Praefix, damit die SPA die Datei findet.
+            "file_url": datei_url(doc.file_url),
             "is_private": doc.is_private,
             "file_size": doc.file_size,
             "content_hash": doc.content_hash,

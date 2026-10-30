@@ -93,6 +93,19 @@ def _response(body='', status=200, headers=None, content_type=None):
     return Response(body, status_code=status, headers=headers or {}, **kwargs)
 
 
+def _dav_pfad() -> str:
+    """WEB-5a: Wurzel des DAV-Baums MIT Betriebs-Praefix (ohne Schluss-``/``).
+
+    Ohne Praefix leer — die Adressen bleiben dann exakt wie bisher
+    (``/dav/…``). Mit ``DIAKRONOS_BASE_PATH=/diakronos`` wird daraus
+    ``/diakronos/dav/…``; der Dispatcher vergleicht weiter gegen den
+    APP-eigenen Pfad, weil der Mount den Praefix abschneidet.
+    """
+    from diakronos_app import base_path
+
+    return base_path.aktiver_praefix()
+
+
 def _xml(body):
     """Antwortform des Originals: 207 Multi-Status mit XML-Prolog."""
     return Response(
@@ -283,15 +296,15 @@ def _propfind_root(user):
     u = _href(user)
     body = f'''<D:multistatus xmlns:D="{_DAV}" xmlns:C="{_CAL}">
   <D:response>
-    <D:href>/dav/</D:href>
+    <D:href>{_dav_pfad()}/dav/</D:href>
     <D:propstat>
       <D:prop>
         <D:resourcetype><D:collection/></D:resourcetype>
-        <D:current-user-principal><D:href>/dav/{u}/</D:href></D:current-user-principal>
-        <C:calendar-home-set><D:href>/dav/{u}/</D:href></C:calendar-home-set>
+        <D:current-user-principal><D:href>{_dav_pfad()}/dav/{u}/</D:href></D:current-user-principal>
+        <C:calendar-home-set><D:href>{_dav_pfad()}/dav/{u}/</D:href></C:calendar-home-set>
         <C:calendar-user-address-set>
           <D:href>mailto:{_text(user)}</D:href>
-          <D:href>/dav/{u}/</D:href>
+          <D:href>{_dav_pfad()}/dav/{u}/</D:href>
         </C:calendar-user-address-set>
       </D:prop>
       <D:status>HTTP/1.1 200 OK</D:status>
@@ -310,7 +323,7 @@ def _propfind_home(user):
     for cal in calendars:
         c = _href(cal["name"])
         entries += f'''  <D:response>
-    <D:href>/dav/{u}/{c}/</D:href>
+    <D:href>{_dav_pfad()}/dav/{u}/{c}/</D:href>
     <D:propstat>
       <D:prop>
         <D:resourcetype><D:collection/><C:calendar/></D:resourcetype>
@@ -326,11 +339,11 @@ def _propfind_home(user):
 
     body = f'''<D:multistatus xmlns:D="{_DAV}" xmlns:C="{_CAL}">
   <D:response>
-    <D:href>/dav/{u}/</D:href>
+    <D:href>{_dav_pfad()}/dav/{u}/</D:href>
     <D:propstat>
       <D:prop>
         <D:resourcetype><D:collection/></D:resourcetype>
-        <C:calendar-home-set><D:href>/dav/{u}/</D:href></C:calendar-home-set>
+        <C:calendar-home-set><D:href>{_dav_pfad()}/dav/{u}/</D:href></C:calendar-home-set>
       </D:prop>
       <D:status>HTTP/1.1 200 OK</D:status>
     </D:propstat>
@@ -351,7 +364,7 @@ def _propfind_calendar(user, cal_name, request):
 
     body = f'''<D:multistatus xmlns:D="{_DAV}" xmlns:C="{_CAL}">
   <D:response>
-    <D:href>/dav/{u}/{c}/</D:href>
+    <D:href>{_dav_pfad()}/dav/{u}/{c}/</D:href>
     <D:propstat>
       <D:prop>
         <D:resourcetype><D:collection/><C:calendar/></D:resourcetype>
@@ -368,7 +381,7 @@ def _propfind_calendar(user, cal_name, request):
         for el in _get_events(cal_name):
             etag = str(el.modified or el.creation)
             body += f'''  <D:response>
-    <D:href>/dav/{u}/{c}/{_href(el.name)}.ics</D:href>
+    <D:href>{_dav_pfad()}/dav/{u}/{c}/{_href(el.name)}.ics</D:href>
     <D:propstat>
       <D:prop>
         <D:resourcetype/>
@@ -423,7 +436,7 @@ def _report_calendar(user, cal_name, request, body_bytes):
         ical = element_to_ical(el)
         etag = str(el.modified or el.creation)
         body += f'''  <D:response>
-    <D:href>/dav/{u}/{c}/{_href(el.name)}.ics</D:href>
+    <D:href>{_dav_pfad()}/dav/{u}/{c}/{_href(el.name)}.ics</D:href>
     <D:propstat>
       <D:prop>
         <D:getcontenttype>text/calendar;charset=utf-8</D:getcontenttype>
@@ -607,7 +620,7 @@ async def _route(request, user, path):
 
 async def _well_known_caldav(request):
     """`/.well-known/caldav` -> 301 auf `/dav/` (wie im Original)."""
-    return _response('', status=301, headers={'Location': '/dav/'})
+    return _response('', status=301, headers={'Location': _dav_pfad() + '/dav/'})
 
 
 # Methoden, die der DAV-Baum bedient. `PROPFIND`/`REPORT`/`OPTIONS` sind keine

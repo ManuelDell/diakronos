@@ -65,6 +65,8 @@
 
 <script setup>
 import { apiAntwortPruefen } from '../composables/useApi.js'
+// WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
+import { apiUrl } from '../../shared/basis.js'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { useDashboardConfig } from '../stores/dashboardConfig'
@@ -119,7 +121,7 @@ onUnmounted(() => clearInterval(badgeTimer))
 async function loadBadgeCounts() {
   try {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || ''
-    const res = await fetch('/api/method/diakronos.diakonos.api.dashboard.get_widget_badge_counts', {
+    const res = await fetch(apiUrl('diakronos.diakonos.api.dashboard.get_widget_badge_counts'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf },
       body: JSON.stringify({}),

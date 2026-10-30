@@ -1,4 +1,6 @@
 """Öffentliche Passwort-Seite: kein Boot mit Personendaten, keine Fremdanfragen."""
+import html
+
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
@@ -7,7 +9,16 @@ router = APIRouter()
 
 @router.get("/diakonos/passwort-setzen", include_in_schema=False)
 def passwort_seite():
-    return HTMLResponse(_SEITE, headers={
+    # WEB-5a: die Seite baut ihre Adressen (API, Login-Link) mit dem
+    # Betriebs-Praefix. Reine HTML-Platzhalter — kein Nutzerinhalt, deshalb
+    # direkt eingesetzt und escaped. Die Route selbst bleibt app-eigen; der
+    # Praefix kommt vom Mount.
+    from diakronos_app import base_path
+
+    api = html.escape(base_path.pfad("/api/method/zugang.passwort_uebernehmen"), quote=True)
+    login = html.escape(base_path.pfad("/login"), quote=True)
+    seite = _SEITE.replace("__API__", api).replace("__LOGIN__", login)
+    return HTMLResponse(seite, headers={
         "Cache-Control": "no-store", "Referrer-Policy": "no-referrer",
         "X-Content-Type-Options": "nosniff",
         "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
@@ -41,7 +52,7 @@ button { margin-top: 1.25rem; border: 0; background: var(--primary); color: var(
 <input id="wiederholung" type="password" autocomplete="new-password" minlength="8" maxlength="1024" required>
 <button id="speichern" type="submit">Passwort speichern</button>
 </form>
-<p id="erfolg" role="status" hidden>Dein Passwort wurde gespeichert. <a href="/login">Jetzt anmelden</a></p>
+<p id="erfolg" role="status" hidden>Dein Passwort wurde gespeichert. <a href="__LOGIN__">Jetzt anmelden</a></p>
 <script>
 const token = new URLSearchParams(location.hash.slice(1)).get('token') || '';
 history.replaceState(null, '', location.pathname);
@@ -60,7 +71,7 @@ formular.addEventListener('submit', async (event) => {
   if (passwort.value !== wiederholung.value) { melden('Die Passwörter stimmen nicht überein.'); wiederholung.focus(); return; }
   knopf.disabled = true; knopf.textContent = 'Wird gespeichert…'; fehler.hidden = true;
   try {
-    const antwort = await fetch('/api/method/zugang.passwort_uebernehmen', {
+    const antwort = await fetch('__API__', {
       method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, passwort: passwort.value }),
     });

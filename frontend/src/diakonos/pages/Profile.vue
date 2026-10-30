@@ -277,6 +277,8 @@
  * kommen aus components/ui; Farben nur aus tokens.css.
  */
 import { ref, computed, reactive, onMounted } from 'vue'
+// WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
+import { apiUrl } from '../../shared/basis.js'
 import { Cropper } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
@@ -483,7 +485,7 @@ async function cropAndUpload() {
     fd.append('is_private', '0')
     fd.append('folder', 'Home/Attachments')
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || ''
-    const res = await fetch('/api/method/upload_file', {
+    const res = await fetch(apiUrl('upload_file'), {
       method: 'POST',
       headers: { 'X-Frappe-CSRF-Token': csrf },
       body: fd,

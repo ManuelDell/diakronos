@@ -9,6 +9,7 @@
 import { ref, computed } from 'vue'
 import { apiCall } from './useApi.js'
 import { apiAntwortPruefen } from './useApi.js'
+import { apiUrl } from '../../shared/basis.js'
 import { formatTemplate } from '../components/planrahmen/format.mjs'
 import { GELOESCHT_ANZEIGE, istGeloescht } from './geloeschte-person.mjs'
 import { stammdatenNormalisieren } from '../components/planrahmen/stammdaten.mjs'
@@ -490,7 +491,7 @@ async function sammlungsmerkmalWertePflegen(plantyp, schluessel, aktion, wert, n
  * weil `apiCall` JSON erzwingt.
  */
 async function uploadDatei(file) {
-    const url = '/api/method/upload_file'
+    const url = apiUrl('upload_file')
     const csrf_token = window.__DIakonosBOOT?.csrf_token || ''
     const form = new FormData()
     form.append('file', file, file.name)

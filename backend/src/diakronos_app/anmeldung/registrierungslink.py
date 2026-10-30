@@ -122,7 +122,11 @@ def link_anzeige(typ, slug) -> str:
     wert = str(slug or "").strip()
     if not wert:
         return ""
-    pfad = f"/diakonos/{link_seite(typ)}?token={wert}"
+    # WEB-5a: unter dem Betriebs-Praefix liegt die Seite unter
+    # `/diakonos/diakonos/…` — der Link muss genau dorthin zeigen.
+    from diakronos_app import base_path
+
+    pfad = base_path.pfad(f"/diakonos/{link_seite(typ)}?token={wert}")
     basis = oeffentliche_basis()
     return f"{basis}{pfad}" if basis else pfad
 

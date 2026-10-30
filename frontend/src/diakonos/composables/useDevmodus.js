@@ -10,6 +10,8 @@
 import { ref } from 'vue'
 
 import { apiCall } from '../composables/useApi.js'
+// WEB-5b: Adressen unter dem Betriebs-Praefix bauen (bildUrl).
+import { apiUrl } from '../../shared/basis.js'
 
 const PRAEFIX = 'diakronos.devmodus.api.'
 const SCHLUESSEL = 'dk-devmodus-an'
@@ -50,7 +52,7 @@ function ruf(methode, args = {}) {
  * Stattdessen der Dev-Modus-Endpunkt, der die Dev-Rechte prueft.
  */
 export function bildUrl(pfad) {
-  return '/api/method/' + PRAEFIX + 'bild?pfad=' + encodeURIComponent(String(pfad))
+  return apiUrl(PRAEFIX + 'bild') + '?pfad=' + encodeURIComponent(String(pfad))
 }
 
 /** Fehlermeldungen (pfad/code/meldung/hinweis) lesbar machen. */

@@ -84,7 +84,9 @@ assert.match(
   const rumpf = `async function uploadBild(datei, formularId) {${quelle.slice(0, ende)}}`
   const gesendet = []
   const apparat = new Function(
-    'document', 'window', 'formularMeldung', 'fetch', 'FormData',
+    // WEB-5b: `uploadBild` baut die Adresse ueber apiUrl() — ohne Praefix ist
+    // das genau '/api/method/upload_file' (tests/web5b-basis.test.mjs).
+    'document', 'window', 'formularMeldung', 'fetch', 'FormData', 'apiUrl',
     `${rumpf}\nreturn uploadBild;`,
   )
   const formDataAttrappe = class {
@@ -100,6 +102,9 @@ assert.match(
       return { ok: true, json: async () => ({ message: { file_url: '/files/abc-bild.png' } }) }
     },
     formDataAttrappe,
+    // WEB-5b: `uploadBild` baut die Adresse ueber apiUrl() — ohne Praefix ist
+    // das genau '/api/method/upload_file' (tests/web5b-basis.test.mjs).
+    (methode) => '/api/method/' + methode,
   )
   const antwort = await uploadBild({ name: 'banner.png' }, 'AF-REG1C')
   assert.equal(antwort.file_url, '/files/abc-bild.png', 'REG-1c: Upload-Antwort wird durchgereicht')
@@ -136,7 +141,7 @@ assert.match(
 )
 // Die Pruefung steht VOR dem Hochladen (im Auswahl-Zweig, nicht im Speichern).
 assert.ok(
-  regSkript.indexOf('datei.size > grenze') < regSkript.indexOf("fetch('/api/method/upload_file'"),
+  regSkript.indexOf('datei.size > grenze') < regSkript.indexOf('fetch(apiUrl(\'upload_file\')'),
   'REG-1c: die Groessenpruefung liegt nicht vor dem Upload',
 )
 

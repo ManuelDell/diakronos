@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { cacheLeeren } from './usePlanrahmenCache.js'
+import { anmeldeUrl, apiUrl } from '../../shared/basis.js'
 
 // Eingaben bleiben im geöffneten Tab. Kein automatischer Neuversuch einer
 // Schreibaktion, kein Entwurf mit personenbezogenen Daten im Browserspeicher.
@@ -13,13 +14,13 @@ export function sitzungBeendet() {
 
 export function anmeldeAdresse() {
     const ziel = window.location.pathname + window.location.search + window.location.hash
-    return '/login?redirect-to=' + encodeURIComponent(ziel)
+    return anmeldeUrl(ziel)
 }
 
 export async function sitzungFortsetzen() {
     sitzungsHinweis.value = ''
     try {
-        const res = await fetch('/api/method/diakronos.diakonos.api.session.sitzung_status', {
+        const res = await fetch(apiUrl('diakronos.diakonos.api.session.sitzung_status'), {
             credentials: 'same-origin', headers: { Accept: 'application/json' },
         })
         if (!res.ok) throw new Error('Bitte melde dich zuerst im neuen Tab an.')

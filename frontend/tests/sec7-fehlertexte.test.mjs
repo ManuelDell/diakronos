@@ -136,7 +136,11 @@ test('die SPA baut Methodenpfade nur aus dotted names', () => {
   // `encodeURIComponent` und kein Zusammenbau aus Nutzereingaben passiert:
   // der Pfad muss bereits ein gültiger dotted name sein, sonst antwortet
   // der Server jetzt mit 404 „Methode nicht gefunden".
-  assert.match(quelle, /const url = '\/api\/method\/' \+ method/)
+  // WEB-5b: der Pfad entsteht ueber apiUrl() (Betriebs-Praefix). Gleiche
+  // Zusicherung: reines Anhaengen des dotted name, keine Kodierung.
+  assert.match(quelle, /const url = apiUrl\(method\)/)
+  assert.match(readFileSync(new URL('../src/shared/basis.js', import.meta.url), 'utf8'),
+    /return mitBasis\('\/api\/method\/' \+ String\(methode \|\| ''\)\)/)
   assert.ok(
     !/api\/method\/.encodeURIComponent/.test(quelle),
     'kein Kodieren des Methodenpfads — das würde die Whitelist nur umgehen wollen',

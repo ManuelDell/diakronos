@@ -181,7 +181,9 @@ assert.match(
 )
 // Upload laeuft ueber DENSELBEN Weg wie ueberall (upload_file, Multipart) und
 // nur erzeugte Dateinamen sind zuordenbar (Backend: `pruefe_bilddatei`).
-assert.match(regSkript, /fetch\('\/api\/method\/upload_file'/, 'REG-1b: Upload nutzt den vorhandenen Endpunkt')
+// WEB-5b: der Pfad wird jetzt ueber apiUrl('upload_file') gebaut (Betriebs-
+// Praefix aus DIAKRONOS_BASE_PATH) — derselbe Endpunkt, ohne Literal.
+assert.ok(regQuelle.includes("apiUrl('upload_file')"), 'REG-1b: Upload nutzt den vorhandenen Endpunkt')
 assert.match(regSkript, /X-Frappe-CSRF-Token/, 'REG-1b: Upload ohne CSRF-Kopf')
 assert.ok(regSkript.includes('banner_bild_datei'), 'REG-1b: Banner-Dateiname wird nicht mitgegeben')
 assert.ok(regSkript.includes('hintergrund_bild_datei'), 'REG-1b: Hintergrund-Dateiname wird nicht mitgegeben')

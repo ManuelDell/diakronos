@@ -65,6 +65,9 @@ server_tokens off;
 server {
     listen 80 default_server;
     server_name _;
+    # Hinter NPM (TLS) relative Weiterleitungen ausliefern, sonst nennt nginx
+    # sein eigenes Schema (http) in Location.
+    absolute_redirect off;
     # Pfad aus der Umgebung (Container: /var/log/nginx/access.log, Test:
     # Arbeitsordner) — das Format `eingang` bleibt in beiden Faellen gleich.
     access_log ${EINGANG_ACCESS_LOG} eingang;

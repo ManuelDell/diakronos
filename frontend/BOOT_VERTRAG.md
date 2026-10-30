@@ -49,6 +49,7 @@ sind unkritisch.
 
 ```jsonc
 {
+  "basePath":      "",                       // string (WEB-5a, "" = kein Praefix)
   "user_fullname": "Test Nutzer",           // string
   "user_email":    "test@example.invalid",  // string
   "user_image":    "",                      // string (URL, darf leer sein)
@@ -98,6 +99,7 @@ Wert kann nie einen 404 erzeugen, weil er das Dokument nie verlaesst.
 
 | Feld | Typ | Gelesen in | Wirkung |
 |---|---|---|---|
+| `basePath` | string | `src/shared/basis.js` (einziger Leser, WEB-5b) | Betriebs-Praefix aus `DIAKRONOS_BASE_PATH` (`""` = keiner). **WEB-5a-Vertrag:** mit Praefix liegen API (`/api/method`, `/api/resource`), Anmeldung (`/login`, `/logout`), Dateien (`/files/…`, `/private/files/…`, in Antworten bereits praefigiert), `socket.io` und `/healthz` unter `{basePath}/…`. **WEB-5b:** das Frontend setzt den Praefix an EINER Stelle (`mitBasis()`/`apiUrl()`/`dateiUrl()`/`anmeldeUrl()`/`socketPfad()`); kein Quelltext ausserhalb dieser Datei enthaelt ein Backend-Pfad-Literal (Waechter: `tests/web5b-praefix.test.mjs`). Hash-Routen der SPA bleiben unveraendert. |
 | `user_fullname` | string | `useSession.js:8` | Anzeigename (Sidebar/Topbar) |
 | `user_email` | string | `useSession.js:9` | E-Mail des Nutzers |
 | `user_image` | string | `useSession.js:10` | Avatar-URL |
@@ -154,3 +156,39 @@ window.__DIakonosBOOT = {"user_fullname": "Test Nutzer", "user_email": "test@exa
 7. `church_name` / `logo_url` ergänzen.
 8. `json.dumps` muss die Werte HTML-sicher escapen (`</script>` in Freitext!) —
    im Dummy irrelevant, im echten Betrieb ein XSS-Vektor.
+
+## Verdrahtung im Frontend (WEB-5b)
+
+Eine Quelle: `frontend/src/shared/basis.js`.
+
+| Helfer | Ergebnis ohne Praefix | mit `basePath="/diakonos"` |
+|---|---|---|
+| `basisPfad()` | `""` | `/diakonos` |
+| `mitBasis('/logout')` | `/logout` | `/diakonos/logout` |
+| `apiUrl('x.y')` | `/api/method/x.y` | `/diakonos/api/method/x.y` |
+| `ressourceUrl('Element/1')` | `/api/resource/Element/1` | `/diakonos/api/resource/Element/1` |
+| `dateiUrl('/files/a.png')` | `/files/a.png` | `/diakonos/files/a.png` |
+| `anmeldeUrl(ziel)` | `/login?redirect-to=…` | `/diakonos/login?redirect-to=…` |
+| `socketPfad()` | `/socket.io` | `/diakonos/socket.io` |
+
+Regeln:
+
+* `mitBasis` ist **idempotent** — ein bereits praefigierter Wert (der Server
+  liefert `file_url` und Registrierungslinks schon praefigiert) wird nicht
+  doppelt versehen. Absolute Adressen (`http:`, `data:`, `blob:`, `//host`)
+  bleiben unveraendert.
+* Der Wert wird bei JEDEM Aufruf aus `window.__DIakonosBOOT` gelesen (der
+  Sitzungsablauf schreibt das Objekt zur Laufzeit um) — keine Kopie beim
+  Modul-Import.
+* Fehlt das Boot-Objekt (die Bundles `gast`, `registrierung`, `organigramm`
+  auf oeffentlichen Seiten), gilt „kein Praefix".
+
+## Assets (S2)
+
+`vite.config.mjs` setzt `base: './'` — **relativ**, nicht absolut. Das
+`index.html` wird vom Server unter `{basePath}/diakonos/…` ausgeliefert
+(gilt auch fuer alle Hash-Routen, dort ist der Verzeichnispfad derselbe),
+das Bundle liegt unter `{basePath}/diakonos/assets/…`. `'./assets/…'` loest
+deshalb zur Laufzeit immer richtig auf — MIT und OHNE Praefix, aus EINEM
+Build. Ein absoluter `base`-Wert waere unter jedem anderen Praefix falsch und
+wuerde einen zweiten Build je Praefix erzwingen.

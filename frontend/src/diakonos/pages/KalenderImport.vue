@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { apiCall } from '../composables/useApi.js'
+// WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
+import { mitBasis } from '../../shared/basis.js'
 import { navigate } from '../router.js'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkButton from '../components/ui/DkButton.vue'
@@ -15,7 +17,8 @@ const busy = ref(false)
 const error = ref('')
 const clientId = ref('')
 const clientSecret = ref('')
-const redirectUri = ref(window.location.origin + '/google-calendar-callback')
+// WEB-5b: die Ruecksprungadresse liegt unter dem Betriebs-Praefix (WEB-5a).
+const redirectUri = ref(window.location.origin + mitBasis('/google-calendar-callback'))
 const calendars = ref([])
 const existing = ref([])
 const importing = ref(false)
@@ -78,7 +81,7 @@ async function saveCredentials() {
     step.value = 2
     calendars.value = []
   } catch {
-    error.value = 'Zugangsdaten konnten nicht gespeichert werden. Prüfe deine Berechtigung und die Redirect-URI (Pfad /google-calendar-callback).'
+    error.value = 'Zugangsdaten konnten nicht gespeichert werden. Prüfe deine Berechtigung und die Redirect-URI (Pfad {Präfix}/google-calendar-callback).'
   } finally {
     clientSecret.value = ''
     clientId.value = ''

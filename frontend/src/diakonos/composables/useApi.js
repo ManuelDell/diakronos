@@ -6,6 +6,8 @@
 import { useImpersonation } from './useImpersonation.js'
 import { sitzungBeendet } from './useSitzungsablauf.js'
 import { istSitzungsAbbruch } from '../../shared/sitzung-pruefen.js'
+// WEB-5b: EINE Quelle fuer den Betriebs-Praefix (DIAKRONOS_BASE_PATH).
+import { apiUrl } from '../../shared/basis.js'
 
 export class AuditConfirmationRequired extends Error {
     constructor(policy) {
@@ -60,7 +62,7 @@ export async function apiAntwortPruefen(res, { fehlerWerfen = true } = {}) {
 }
 
 export async function apiCall(method, args = {}, options = {}) {
-    const url = '/api/method/' + method
+    const url = apiUrl(method)
     const csrf_token = window.__DIakonosBOOT?.csrf_token || ''
     const imp = useImpersonation()
     const body = imp.isActive.value
@@ -156,7 +158,7 @@ export async function apiGet(method, args = {}) {
     Object.entries(allArgs).forEach(([k, v]) => {
         if (v !== undefined && v !== null) params.append(k, v)
     })
-    const url = '/api/method/' + method + '?' + params.toString()
+    const url = apiUrl(method) + '?' + params.toString()
     const csrf_token = window.__DIakonosBOOT?.csrf_token || ''
     const res = await fetch(url, {
         headers: {

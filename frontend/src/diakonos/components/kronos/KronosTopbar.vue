@@ -98,6 +98,8 @@
 
 <script setup>
 import { apiAntwortPruefen } from '../../composables/useApi.js'
+// WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
+import { apiUrl } from '../../../shared/basis.js'
 import { ref, computed, watch, onMounted } from 'vue';
 import DkButton from '../ui/DkButton.vue';
 
@@ -173,7 +175,7 @@ async function loadDeskLink() {
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
   if (!csrfToken) return;
   try {
-    const res = await fetch('/api/method/diakronos.kronos.api.permissions.get_session_info', {
+    const res = await fetch(apiUrl('diakronos.kronos.api.permissions.get_session_info'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrfToken },
       credentials: 'include',

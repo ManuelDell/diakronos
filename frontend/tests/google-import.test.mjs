@@ -10,6 +10,10 @@ function setup({ status = {}, fail = '', search = '', staende = [], staendeFehle
     // DEP-2: setTimeout/clearTimeout werden festgehalten und NICHT ausgefuehrt —
     // sonst haelt der 2-s-Abfragetakt des Imports den Test-Runner offen.
     setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length }, clearTimeout: () => {}, btoa, Uint8Array,
+    // WEB-5b: die Seite baut Adressen ueber mitBasis() (Betriebs-Praefix). Der
+    // Kontext kennt kein Boot-Objekt -> kein Praefix, also die alte Adresse
+    // (das Verhalten von mitBasis pruefen die web5b-Tests).
+    mitBasis: (pfad) => '/' + String(pfad || '').replace(/^\/+/, ''),
     window: { __DIakonosBOOT: { is_admin: true, csrf_token: 'csrf-test' }, location: { origin: 'https://example.org', href: `https://example.org/diakonos${search}#/kalender/import`, search, assign: () => {} }, history: { replaceState: (...args) => history.push(args) } },
     __api: async (method, args) => { calls.push({ method, args }); if (fail && method.endsWith(fail)) throw Error('SECRET sensitive server error'); if (method.endsWith('get_credentials_status')) return status; if (method.endsWith('get_google_calendars')) return [{ id: 'one', summary: 'Gemeinde', backgroundColor: '#ff0000' }]; if (method.includes('get_list')) assert.fail('Desk get_list RPC does not exist in standalone'); if (method.endsWith('get_writable_calendars')) return [{ name: 'Bestand', calendar_name: 'Bestand' }]; if (method.endsWith('get_import_progress')) { if (staendeFehler) throw Error('SECRET progress error'); return { state: staende.length ? staende.shift() : null } } if (method.endsWith('start_import')) return { queued: true }; if (method.endsWith('upload_ical')) return { imported: 1, skipped: 0, kalender: 'Neu' }; return { success: true } }
   }

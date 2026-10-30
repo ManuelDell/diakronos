@@ -1,8 +1,10 @@
 import { apiAntwortPruefen } from '../composables/useApi.js'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { mitBasis } from '../../shared/basis.js'
 
-const API = '/api/method/diakronos.diakonos.api.dashboard'
+// WEB-5b: der Praefix kommt vom Server (DIAKRONOS_BASE_PATH), nicht aus dem Build.
+const API = mitBasis('/api/method/diakronos.diakonos.api.dashboard')
 
 async function apiFetch(method, body = {}) {
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || ''

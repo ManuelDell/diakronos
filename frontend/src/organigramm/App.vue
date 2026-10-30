@@ -44,6 +44,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+// WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
+import { apiUrl } from '../shared/basis.js'
 // DEP-1: eigener Baustein statt Spinner aus frappe-ui; das Profilbild steht
 // direkt im Kopf (Bild oder Initialen, siehe .oc-kopf-*).
 import DkSpinner from '../diakonos/components/ui/DkSpinner.vue'
@@ -115,7 +117,7 @@ function nodeWidth(d) {
 
 onMounted(async () => {
     try {
-        const res = await fetch('/api/method/diakronos.diakonos.api.orgchart_api.get_orgchart_data', {
+        const res = await fetch(apiUrl('diakronos.diakonos.api.orgchart_api.get_orgchart_data'), {
             headers: { 'X-Frappe-CSRF-Token': csrf },
         })
         // OP-UI-1: 401/419 leitet zur Anmeldemaske (Rücksprung auf diese

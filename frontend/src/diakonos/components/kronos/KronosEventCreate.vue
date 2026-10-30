@@ -173,6 +173,8 @@
 
 <script setup>
 import { apiAntwortPruefen } from '../../composables/useApi.js'
+// WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
+import { apiUrl, ressourceUrl } from '../../../shared/basis.js'
 import { ref, reactive, watch, computed, onMounted, nextTick } from 'vue'
 import { useFormularSchutz } from '../../composables/useFormularSchutz.js'
 import { pruefeSitzungsAntwort } from '../../composables/useApi.js'
@@ -354,21 +356,21 @@ async function loadData() {
   try {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || ''
     const [calRes, catRes, resRes, settingsRes, sessRes] = await Promise.all([
-      fetch("/api/method/diakronos.kronos.api.permissions.get_writable_calendars", { credentials: 'same-origin' }).then(apiAntwortPruefen),
-      fetch("/api/resource/Eventkategorie?fields=[\"name\",\"event_category_name\"]&limit_page_length=500", { credentials: 'same-origin' }).then(apiAntwortPruefen),
-      fetch("/api/method/diakronos.kronos.api.ressource_api.get_ressources", {
+      fetch(apiUrl('diakronos.kronos.api.permissions.get_writable_calendars'), { credentials: 'same-origin' }).then(apiAntwortPruefen),
+      fetch(ressourceUrl('Eventkategorie?fields=[\\"name\\",\\"event_category_name\\"]&limit_page_length=500'), { credentials: 'same-origin' }).then(apiAntwortPruefen),
+      fetch(apiUrl('diakronos.kronos.api.ressource_api.get_ressources'), {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf },
         body: JSON.stringify({})
       }).then(apiAntwortPruefen),
-      fetch("/api/method/diakronos.kronos.api.ressource_api.get_kronos_settings", {
+      fetch(apiUrl('diakronos.kronos.api.ressource_api.get_kronos_settings'), {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf },
         body: JSON.stringify({})
       }).then(apiAntwortPruefen),
-      fetch("/api/method/diakronos.kronos.api.permissions.get_session_info", { credentials: 'same-origin' }).then(apiAntwortPruefen).catch(() => ({}))
+      fetch(apiUrl('diakronos.kronos.api.permissions.get_session_info'), { credentials: 'same-origin' }).then(apiAntwortPruefen).catch(() => ({}))
     ])
 
     calendars.value = calRes.message || []
@@ -396,7 +398,7 @@ async function checkConflict() {
 
   try {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || ''
-    const res = await fetch("/api/method/diakronos.kronos.api.ressource_api.check_resource_conflict", {
+    const res = await fetch(apiUrl('diakronos.kronos.api.ressource_api.check_resource_conflict'), {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf },
@@ -527,14 +529,14 @@ async function doSave() {
     if (form.is_series && form.repeat_type) {
       payload.repeat_type = form.repeat_type
       payload.series_end = form.series_end || null
-      res = await fetch("/api/method/diakronos.kronos.api.event_crud.create_series", {
+      res = await fetch(apiUrl('diakronos.kronos.api.event_crud.create_series'), {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf },
         body: JSON.stringify(payload)
       })
     } else {
-      res = await fetch("/api/method/diakronos.kronos.api.event_crud.create_event", {
+      res = await fetch(apiUrl('diakronos.kronos.api.event_crud.create_event'), {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf },

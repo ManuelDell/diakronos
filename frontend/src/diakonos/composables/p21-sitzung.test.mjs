@@ -11,6 +11,11 @@ apiQuelle = apiQuelle.replace("import { sitzungBeendet } from './useSitzungsabla
 apiQuelle = apiQuelle.replace(
     "import { istSitzungsAbbruch } from '../../shared/sitzung-pruefen.js'",
     "const istSitzungsAbbruch = (status, data) => [401, 419].includes(status) || (status === 417 && data?.exc_type === 'CSRFTokenError')")
+// WEB-5b: die Praefix-Hilfsdatei hat im data:-Modul keinen Basispfad — sie hat
+// keinen eigenen Zustand; ohne Praefix liefert sie die alte Adresse
+// (geprueft in tests/web5b-basis.test.mjs).
+apiQuelle = apiQuelle.replace("import { apiUrl } from '../../shared/basis.js'",
+    "const apiUrl = (methode) => '/api/method/' + methode")
 const api = await import('data:text/javascript;base64,' + Buffer.from(apiQuelle).toString('base64'))
 test('OP-UI-1: POST und GET zeigen den zentralen Sitzungsablauf', async () => {
     globalThis.window = { __DIakonosBOOT: { csrf_token: 'token' } }
@@ -60,6 +65,10 @@ let leert = 0
 let quelle = await readFile(new URL('./useSitzungsablauf.js', import.meta.url), 'utf8')
 quelle = quelle.replace("import { ref } from 'vue'", 'const ref = value => ({value})')
 quelle = quelle.replace("import { cacheLeeren } from './usePlanrahmenCache.js'", 'const cacheLeeren = () => globalThis.__leeren()')
+// WEB-5b: Praefix-Hilfsdatei ebenfalls inline (ohne Praefix = alte Adresse);
+// das Verhalten selbst prueft tests/web5b-basis.test.mjs.
+quelle = quelle.replace("import { anmeldeUrl, apiUrl } from '../../shared/basis.js'",
+    "const apiUrl = (m) => '/api/method/' + m\nconst anmeldeUrl = (z) => '/login?redirect-to=' + encodeURIComponent(z)")
 globalThis.__leeren = () => leert++
 const mod = await import('data:text/javascript;base64,' + Buffer.from(quelle).toString('base64'))
 globalThis.window = { location: { pathname: '/diakonos', search: '', hash: '#/wiki' }, __DIakonosBOOT: { user: 'konto', csrf_token: 'alt' } }

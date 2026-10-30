@@ -69,6 +69,11 @@ from starlette.middleware.gzip import GZipMiddleware  # noqa: E402
 
 from diakronos_app.sec_header import SicherheitsHeaderMiddleware  # noqa: E402
 
+# WEB-5a: Pfad-Beschnitt fuer den Socket-Baum unter einem Praefix.
+from diakronos_app.frappe_compat.socket_praefix import (  # noqa: E402
+    PraefixSocketMiddleware,
+)
+
 # Frappe-kompatible Endpunkte (/api/method/*, /api/resource/*).
 # Bewusst unter dem Praefix /api gemountet, damit spaetere SPA-Statik-Auslieferung
 # (/, /assets/*, SPA-Fallback) nicht kollidiert. Vertrag: backend/API_VERTRAG.md
@@ -134,8 +139,15 @@ def _check_redis() -> bool:
         return False
 
 
-def erstelle_app(einstellungen=None) -> FastAPI:
-    """Baut die FastAPI-Anwendung.
+def _not_found():
+    """WEB-5a: 404 der App, wenn die Adresse mit Praefix nicht ihr gehoert."""
+    from starlette.responses import JSONResponse
+
+    return JSONResponse({"detail": "Not Found"}, status_code=404)
+
+
+def erstelle_app(einstellungen=None):
+    """Baut die Anwendung: FastAPI, mit Praefix eine Starlette-Huelle darum.
 
     Warum als Funktion und nicht beim Import (SEC-4): die abgeschaltete
     API-Doku haengt an einer Einstellung und wird beim Anlegen von
@@ -146,6 +158,13 @@ def erstelle_app(einstellungen=None) -> FastAPI:
     baut neu (`tests/test_sec4_header_doku.py`).
     """
     s = einstellungen if einstellungen is not None else settings
+
+    # WEB-5a: der Prozess-Praefix steht ab hier fest. Alle Adressen, die
+    # Laufzeitcode baut (`base_path.pfad` / `base_path.datei_url`), richten
+    # sich danach. Leer = kein Praefix = unveraendertes Verhalten.
+    from diakronos_app import base_path as _base_path
+
+    praefix = _base_path.setze_praefix(getattr(s, "diakronos_base_path", ""))
 
     docs_url, redoc_url, openapi_url = _doku_adressen(s)
     app = FastAPI(
@@ -183,6 +202,15 @@ def erstelle_app(einstellungen=None) -> FastAPI:
     # Reihenfolge: add_middleware schiebt jede neue Schicht VOR die bisherigen;
     # gzip als aeusserste Schicht komprimiert damit auch die SPA-Assets und JSON.
     app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+    # WEB-5a: Engine.IO vergleicht den ROHEN Pfad (es liest `root_path` nicht).
+    # Unter dem Praefix muss der Pfad vorher beschnitten werden, sonst
+    # antwortet der Handshake 404 — Begruendung und Messung in
+    # `frappe_compat/socket_praefix.py`. Ohne Praefix wirkungslos.
+    # Steht VOR der Kopfzeilen-Schicht, damit die Kopfzeilen die aeusserste
+    # Schicht bleiben (sec4-Waechter); inhaltlich beruehren sie sich nicht:
+    # diese Schicht aendert nur den Pfad.
+    app.add_middleware(PraefixSocketMiddleware, praefix=praefix)
 
     # SEC-4: Sicherheits-Kopfzeilen (HSTS, CSP, X-Frame-Options,
     # X-Content-Type-Options, Referrer-Policy) auf JEDER Antwort.
@@ -225,9 +253,16 @@ def erstelle_app(einstellungen=None) -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     def wurzel():
-        """Die Startadresse fuehrt in die SPA (relativ: gilt hinter jedem Proxy/jeder Domain)."""
+        """Die Startadresse fuehrt in die SPA (relativ: gilt hinter jedem Proxy/jeder Domain).
+
+        WEB-5a: MIT Praefix gehoert `/` der Website — die App antwortet 404
+        und leitet nichts um (die Wurzel ist nicht ihre). Der Alias
+        `{Praefix}` -> `{Praefix}/diakonos` sitzt in `base_path.praefigiere`.
+        """
         from starlette.responses import RedirectResponse
 
+        if _base_path.aktiver_praefix():
+            return _not_found()
         return RedirectResponse("/diakonos", status_code=302)
 
     # ──────────────────────────────────────────────────────────────────────
@@ -237,7 +272,14 @@ def erstelle_app(einstellungen=None) -> FastAPI:
     # zusaetzlich explizit aus.
     # ──────────────────────────────────────────────────────────────────────
     mount_spa(app)
-    return app
+
+    # ──────────────────────────────────────────────────────────────────────
+    # WEB-5a: der ganze Betrieb unter `DIAKRONOS_BASE_PATH`.
+    # MUSS ZULETZT kommen: erst wenn alle Routen stehen, wird die komplette
+    # Anwendung (inkl. socket.io und /healthz) unter den Praefix gehaengt.
+    # Ohne Praefix kommt die Anwendung unveraendert zurueck.
+    # ──────────────────────────────────────────────────────────────────────
+    return _base_path.praefigiere(app, praefix)
 
 
 # Die Anwendung des Prozesses. `uvicorn diakronos_app.main:app` und der

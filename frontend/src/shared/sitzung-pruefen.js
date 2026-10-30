@@ -19,6 +19,9 @@
  */
 
 /** Serverzeichen für „nicht mehr angemeldet" (S14). */
+// WEB-5b: Anmeldemaske unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH).
+import { anmeldeUrl } from './basis.js'
+
 export const SITZUNGS_STATUS = [401, 419]
 
 /** Klartext, wenn der Server keinen brauchbaren Text mitliefert (S6). */
@@ -39,7 +42,7 @@ export function anmeldeZiel() {
   const pfad = globalThis.location?.pathname || ''
   const suche = globalThis.location?.search || ''
   const hash = globalThis.location?.hash || ''
-  return '/login?redirect-to=' + encodeURIComponent(pfad + suche + hash)
+  return anmeldeUrl(pfad + suche + hash)
 }
 
 /**

@@ -67,6 +67,14 @@ x-app-env: &app-env
   AUTH_OIDC_LEEWAY: ${AUTH_OIDC_LEEWAY:-30}
   AUTH_LOCAL_LOGIN: ${AUTH_LOCAL_LOGIN:-nur-admin}
   APP_BASE_URL: ${APP_BASE_URL:-}
+  # WEB-5a: Pfad-Praefix des GESAMTEN Betriebs. Leer (Default) = heutiges
+  # Verhalten, keine Aenderung fuer bestehende Installationen. Beispiel:
+  # DIAKRONOS_BASE_PATH=/diakronos -> App, Login, API, Dateien, socket.io und
+  # healthz liegen unter /diakronos/...; ohne Praefix antworten diese Pfade
+  # NICHT (404), damit die statische Website auf "/" ungestoert bleibt. Der
+  # Eingang (nginx) reicht den Praefix UNVERAENDERT durch.
+  # Normalisierung: fuehrender Schraegstrich, kein abschliessender.
+  DIAKRONOS_BASE_PATH: ${DIAKRONOS_BASE_PATH:-}
   AUTH_PROXY_HEADER_ENABLED: ${AUTH_PROXY_HEADER_ENABLED:-0}
   AUTH_PROXY_TRUSTED_IPS: ${AUTH_PROXY_TRUSTED_IPS:-}
   AUTH_PROXY_SHARED_SECRET: ${AUTH_PROXY_SHARED_SECRET:-}
@@ -199,7 +207,11 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8000/healthz"]
+      # WEB-5a: Der Healthcheck MUSS den Betriebs-Praefix mitgehen — mit
+      # DIAKRONOS_BASE_PATH antwortet `/healthz` bewusst NICHT mehr (sonst
+      # kollidierte die App mit der Website unter derselben Domain). Ohne
+      # Praefix bleibt der Aufruf genau wie bisher.
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000${DIAKRONOS_BASE_PATH:-}/healthz"]
       interval: 10s
       timeout: 5s
       retries: 6

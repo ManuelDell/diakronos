@@ -43,6 +43,9 @@ function baueKomponente({ status = {}, staende = [] } = {}) {
     onMounted: fn => mounted.push(fn), onBeforeUnmount: fn => unmounted.push(fn),
     navigate: () => {}, URL, URLSearchParams, btoa, Uint8Array, setTimeout: (fn, ms) => (timers.push({ fn, ms }), timers.length),
     clearTimeout: () => {},
+    // WEB-5b: Adressen der Seite laufen ueber mitBasis(); ohne Boot-Objekt im
+    // Kontext ergibt das die alte Adresse (Verhalten: tests/web5b-basis.test.mjs).
+    mitBasis: (pfad) => '/' + String(pfad || '').replace(/^\/+/, ''),
     window: {
       __DIakonosBOOT: { is_admin: true, csrf_token: 'csrf-test' },
       location: { origin: 'https://example.org', href: 'https://example.org/diakronos#/kalender/import', assign: () => {} },

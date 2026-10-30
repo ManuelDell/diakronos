@@ -157,8 +157,15 @@ def save_credentials(client_id=None, client_secret=None, redirect_uri="", reques
             throw("Ungültige Google-Credentials.")
     if not client_id.strip() or not client_secret:
         throw("Client-ID und Client-Secret fehlen.")
+    # WEB-5a: der Callback liegt unter dem Betriebs-Praefix. `base_url` kennt
+    # den Praefix NICHT (Starlette setzt `root_path`, `base_url` bleibt der
+    # Netzlokationsteil) — deshalb hier explizit davorsetzen.
+    from diakronos_app import base_path as _base_path
+
     redirect_uri = redirect_uri or (
-        str(request.base_url).rstrip("/") + "/google-calendar-callback" if request
+        str(request.base_url).rstrip("/")
+        + _base_path.pfad("/google-calendar-callback")
+        if request
         else ""
     )
     try:
@@ -167,7 +174,11 @@ def save_credentials(client_id=None, client_secret=None, redirect_uri="", reques
         throw("Ungültige Redirect-URI.")
     if (parsed.scheme not in {"http", "https"} or not parsed.hostname
             or parsed.username or parsed.password or parsed.query or parsed.fragment
-            or parsed.path != "/google-calendar-callback" or len(redirect_uri) > 140):
+            or parsed.path not in (
+                "/google-calendar-callback",
+                _base_path.pfad("/google-calendar-callback"),
+            )
+            or len(redirect_uri) > 140):
         throw("Ungültige Redirect-URI (Google-Callback erforderlich).")
     encrypted = encrypt_secret(client_secret)
     with database.SessionLocal.begin() as db:

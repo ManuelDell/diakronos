@@ -28,6 +28,8 @@ Test-Zertifizierungsstelle geprüft; ein echter ACME-Abruf bleibt ausdrücklich 
 12. [Speicherorte konfigurieren und umziehen (SEC1 TEIL D)](#12-speicherorte-konfigurieren-und-umziehen-sec1-teil-d)
 13. [Dev-Modus (DM1)](#13-dev-modus-dm1)
 14. [Datensicherung (BACKUP-1)](#14-datensicherung-backup-1) — mit Anleitung zum Wiederherstellen
+15. [Website-Verwaltung über Primo (WEB-1, optional)](#15-website-verwaltung-über-primo-web-1-optional)
+16. [Betrieb unter einem Pfad-Präfix (WEB-5a)](#16-betrieb-unter-einem-pfad-präfix-web-5a) — Website auf `/`, Diakronos unter `/diakronos/…`
 
 ---
 
@@ -125,6 +127,14 @@ curl -ksS https://localhost/healthz
 curl -ksS -o /dev/null -w '%{http_code}\n' https://localhost/diakonos
 # erwartet: 200
 # -k nur im lokalen selfsigned-Modus; bei DOMAIN die Domain einsetzen.
+```
+
+**Mit Pfad-Präfix** (Abschnitt 15, `DIAKRONOS_BASE_PATH=/diakronos`) liegen
+beide Adressen unter dem Präfix — und nur dort:
+
+```bash
+curl -ksS https://localhost/diakronos/healthz
+curl -ksS -o /dev/null -w '%{http_code}\n' https://localhost/diakronos/diakonos
 ```
 
 `"db":true` und `"redis":true` heißen: Datenbank und Redis antworten. Steht
@@ -2179,3 +2189,112 @@ Danach in der Oberfläche den Website-Bereich öffnen: Zustand muss
 `verbunden` sein. Schlägt die Übergabe fehl, steht im Diakronos-Log nur
 „HTTP <status>" bzw. „nicht erreichbar" — bewusst ohne Adressen, Konten oder
 Token.
+---
+
+## 16. Betrieb unter einem Pfad-Präfix (WEB-5a)
+
+### 16.1 Wozu
+
+Unter **einer** Gemeinde-Domain kann auf `/` die statische Website liegen
+(Primo) und **alles** von Diakronos unter einem Präfix, zum Beispiel
+`/diakronos/…`. Ein Eingang (nginx) reicht `/diakronos/…` **unverändert** an
+Diakronos durch — es wird nichts abgeschnitten.
+
+Ohne diese Einstellung ändert sich **nichts**: der Standard ist leer, die App
+liegt wie bisher auf `/`, `/login`, `/api/…`, `/diakonos`.
+
+### 16.2 Einstellen
+
+In der `.env`:
+
+```
+DIAKRONOS_BASE_PATH=/diakronos
+```
+
+Regeln für den Wert:
+
+* führender Schrägstrich, **kein** abschließender (`/diakronos`, nicht
+  `/diakronos/` — beides wird zwar auf dasselbe gebracht, aber so ist es
+  eindeutig),
+* verschachtelt erlaubt (`/gemeinde/app`),
+* unbrauchbare Werte (Leerzeichen, `?`, `#`, `\`, `..`) **brechen den Start
+  ab**. Das ist Absicht: ein still verworfener Wert sähe wie „gesetzt“ aus.
+
+Danach `docker compose up -d` (der Healthcheck nimmt den Präfix automatisch
+mit).
+
+### 16.3 Was dann wo liegt
+
+| Zweck | Adresse |
+|---|---|
+| App (SPA) | `/diakronos/diakonos` (Kurzform `/diakronos` leitet dorthin, 302) |
+| Assets | `/diakronos/diakonos/assets/…` |
+| Anmeldung / Abmeldung | `/diakronos/login`, `/diakronos/logout` |
+| Anbieter-Anmeldung (OIDC) | `/diakronos/auth/oidc/start`, `…/callback` |
+| API | `/diakronos/api/method/…`, `/diakronos/api/resource/…` |
+| Dateien | `/diakronos/files/…`, `/diakronos/private/files/…` |
+| Registrierungsbilder | `/diakronos/public/registrierung/<token>/bild/<rolle>` |
+| Google-Kalender-Rückkehr | `/diakronos/google-calendar-callback` |
+| Echtzeit (socket.io) | `/diakronos/socket.io/` |
+| Zustandsprüfung | `/diakronos/healthz` |
+
+Dieselben Pfade **ohne** Präfix antworten mit **404**. Das ist gewollt: sonst
+könnte eine Website-Seite mit einem App-Pfad kollidieren. Auch `/healthz`
+macht keine Ausnahme — deshalb ruft der Container-Healthcheck im
+`compose/stack.yml` die Präfix-Adresse auf.
+
+`/` selbst gehört in diesem Betrieb der **Website**: Diakronos leitet dort
+nichts um. Die Weiterleitung `/login` → `/diakronos/login` macht der Eingang.
+
+### 16.4 Adressen, die Sie anpassen müssen
+
+* **Anbieter-Anmeldung (OIDC):** ist `AUTH_OIDC_REDIRECT_URL` gesetzt, muss
+  dort der Präfix stehen (`https://gemeinde.example.org/diakronos/auth/oidc/callback`).
+  Ist die Variable leer, wird die Adresse aus `APP_BASE_URL` + Präfix gebaut.
+  Im Anbieter (z. B. Authentik) dieselbe Adresse eintragen.
+* **Google-Kalender:** die Rücksprungadresse heißt jetzt
+  `https://…/diakronos/google-calendar-callback`. Sie wird beim Speichern der
+  Zugangsdaten vorgeschlagen; in der Google-Console muss sie ebenfalls stehen.
+* **CalDAV-Clients:** die Adressen lauten `https://…/diakronos/dav/…`.
+* **Lesezeichen/QR-Codes** auf alte Adressen führen ins Leere (404). Neu
+  ausgeben.
+* **Registrierungslinks:** bereits verschickte Links zeigen auf die alte
+  Adresse. In der Verwaltung werden die Links jetzt mit Präfix angezeigt —
+  kopieren Sie die betroffenen Links neu.
+
+### 16.5 Was unverändert bleibt
+
+* Die **Datenbank** enthält weiter `/files/…` bzw. `/private/files/…`. Der
+  Präfix wird erst beim Ausliefern davorgesetzt; es gibt **keine**
+  Datenmigration.
+* Das Anmelde-Cookie (`sid`) und der Hinweis-Cookie gelten nur noch unter dem
+  Präfix (`Path=/diakronos`) — die Website auf `/` bekommt sie nicht zu sehen.
+* Bereits laufende Sitzungen von vor der Umstellung bleiben gültig; das alte
+  Cookie (`Path=/`) wird allerdings nicht mehr mitgeschickt. Wer sich nach
+  der Umstellung einmal neu anmeldet, hat wieder eine Sitzung.
+
+### 16.6 Zurücknehmen
+
+`DIAKRONOS_BASE_PATH` leeren (oder die Zeile entfernen) und
+`docker compose up -d`. Die App liegt dann wieder auf `/`, `/login`, `/api/…`.
+
+### 16.7 Oberfläche (SPA) unter dem Präfix (WEB-5b)
+
+Die Oberfläche einschließlich der Bundles `gast`, `registrierung` und
+`organigramm` baut **alle** Backend-Adressen über eine zentrale Hilfsdatei
+(`frontend/src/shared/basis.js`) und liest den Präfix aus dem Boot-Objekt
+(`window.__DIakonosBOOT.basePath`). Sie folgt damit automatisch der
+Einstellung: Nach einem Wechsel von `DIAKRONOS_BASE_PATH` genügt **ein
+Neustart** (`docker compose up -d`) — es gibt **keinen zweiten Build** und
+nichts am Browser-Cache zu leeren.
+
+* Anmeldung, Sitzungsablauf (Rücksprung zur Anmeldemaske), Abmelden,
+  Registrierungs- und Gast-Links, Kalender-Import (Rückkehr von Google) sowie
+  die Live-Verbindung (`socket.io`) tragen den Präfix ohne Zutun.
+* Die SPA-Dateien selbst werden relativ geladen (`./assets/…`) — deshalb
+  funktioniert dasselbe Image unter jedem Präfix.
+* Adressen, die der Server in Antworten liefert (z. B. `file_url`), sind
+  bereits präfigiert; die Oberfläche verdoppelt den Präfix nicht.
+
+Wer den Präfix ändert, sollte danach einmal Anmelden, die Mitgliederliste
+öffnen und einen Kalender aufrufen (die Live-Verbindung verbindet sich dort).

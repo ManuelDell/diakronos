@@ -551,6 +551,8 @@
  */
 import { ref, computed, onMounted, h } from 'vue'
 import { apiCall } from '../composables/useApi.js'
+// WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
+import { apiUrl } from '../../shared/basis.js'
 import { showToast } from '../composables/useToast.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import { pflichtFehler } from '../composables/formularPruefung.mjs'
@@ -1576,7 +1578,7 @@ async function uploadBild(datei, formularId) {
   form.append('is_private', 'true')
   form.append('doctype', 'Anmeldeformular')
   form.append('docname', formularId)
-  const res = await fetch('/api/method/upload_file', {
+  const res = await fetch(apiUrl('upload_file'), {
     method: 'POST',
     headers: { 'X-Frappe-CSRF-Token': csrf },
     body: form,

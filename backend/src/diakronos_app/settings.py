@@ -40,6 +40,20 @@ class Settings(BaseSettings):
     # Healthcheck-Zeitbudget in Sekunden fuer die einzelnen Verbindungstests.
     healthcheck_timeout: float = 5.0
 
+    # ── WEB-5a: Pfad-Praefix des gesamten Betriebs ────────────────────────
+    # Liegt Diakronos neben einer statischen Website unter EINER Domain
+    # (`/` = Website, `/diakronos/…` = App), steht hier der Praefix.
+    # Default "" = kein Praefix = heutiges Verhalten, unveraendert.
+    # Normalisierung (fuehrender Schraegstrich, kein abschliessender) macht
+    # `base_path.normalisiere`; ein unbrauchbarer Wert bricht den Start ab,
+    # statt still verworfen zu werden.
+    # Der Eingang (nginx) reicht den Praefix UNVERAENDERT durch — die App
+    # bietet ihre Routen deshalb selbst darunter an (siehe `base_path.py`).
+    diakronos_base_path: str = Field(
+        "",
+        validation_alias=AliasChoices("DIAKRONOS_BASE_PATH", "diakronos_base_path"),
+    )
+
     # P2c: Ablage der hochgeladenen Dateien (Dateisystem, NICHT die DB).
     # Im Container zeigt das auf das Volume /data/files.
     files_dir: str = "/data/files"
@@ -769,7 +783,10 @@ class Settings(BaseSettings):
             return self.auth_oidc_redirect_url.strip()
         basis = self.app_base_url.strip().rstrip("/")
         if basis:
-            return f"{basis}/auth/oidc/callback"
+            # WEB-5a: der Callback liegt unter dem Praefix (`/diakronos/auth/…`).
+            from diakronos_app.base_path import normalisiere as _praefix
+
+            return f"{basis}{_praefix(self.diakronos_base_path)}/auth/oidc/callback"
         return ""
 
 

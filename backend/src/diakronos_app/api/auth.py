@@ -153,13 +153,25 @@ def _secure_flag() -> bool:
     return get_header("X-Forwarded-Ssl").lower() == "on"
 
 
+def _cookie_path() -> str:
+    """`Path` der Diakronos-Cookies: der Betriebs-Praefix (sonst `/`).
+
+    WEB-5a: Mit `DIAKRONOS_BASE_PATH=/diakronos` soll das `sid`-Cookie die
+    Website auf `/` NICHT begleiten (Karte: „Cookie-Path (sid und CSRF) auf
+    das Praefix setzen"). Ohne Praefix bleibt `/` = unveraendert.
+    """
+    from diakronos_app import base_path
+
+    return base_path.aktiver_praefix() or "/"
+
+
 def _setze_cookie(response: Response, sid: str) -> None:
     response.set_cookie(
         key=COOKIE_NAME,
         value=sid,
         httponly=True,
         samesite="lax",
-        path="/",
+        path=_cookie_path(),
         secure=_secure_flag(),
         max_age=int(settings.session_ttl_seconds),
     )
@@ -170,9 +182,27 @@ def _loesche_cookie(response: Response) -> None:
         key=COOKIE_NAME,
         httponly=True,
         samesite="lax",
-        path="/",
+        path=_cookie_path(),
         secure=_secure_flag(),
     )
+
+
+def spaziel() -> str:
+    """Adresse der SPA-Startseite — mit Betriebs-Praefix (WEB-5a).
+
+    Ersetzt direkte Zugriffe auf `SPA_ZIEL`: die Konstante ist der APP-eigene
+    Pfad, der Praefix wird erst beim Bauen der Adresse davorgesetzt.
+    """
+    from diakronos_app import base_path
+
+    return base_path.pfad(SPA_ZIEL)
+
+
+def login_pfad() -> str:
+    """Adresse der Anmeldeseite — mit Betriebs-Praefix (WEB-5a)."""
+    from diakronos_app import base_path
+
+    return base_path.pfad("/login")
 
 
 @whitelist(allow_guest=True)
@@ -756,7 +786,7 @@ def login_formular_fehler(request, args: dict | None = None) -> Response:
     # LETZTEN). Jetzt hat die /login-Abfrage genau `noredirect` (und ggf.
     # `frag`); alles andere steckt kodiert im Ziel.
     pfad, _, fragment = ziel.partition("#")
-    location = f"/login?noredirect=1&redirect-to={quote(pfad, safe='')}"
+    location = f"{login_pfad()}?noredirect=1&redirect-to={quote(pfad, safe='')}"
     if fragment:
         # Nicht in die `redirect-to`-Kopfzeile, aber auch nicht verlieren: der
         # Handler von `/login` nimmt `frag` aus der ABFRAGE (Browser senden
@@ -822,14 +852,14 @@ def _redirect_ziel(kandidat: Any) -> str:
 
     ziel = unquote(str(kandidat or "")).strip()
     if not ziel.startswith("/") or ziel.startswith("//"):
-        return SPA_ZIEL
+        return spaziel()
     # `\` wird von manchen Browsern wie `/` behandelt — `\/evil.de` waere
     # sonst ein Weg aus der Anwendung heraus.
     if "\\" in ziel:
-        return SPA_ZIEL
+        return spaziel()
     if any(c in _KOPFZEILEN_VERBOT for c in ziel):
         logger.warning("redirect-to mit Steuerzeichen verworfen (gekuerzt).")
-        return SPA_ZIEL
+        return spaziel()
     return ziel
 
 

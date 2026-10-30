@@ -19,6 +19,10 @@ source = source.replace("import { apiCall } from './useApi.js'", 'const apiCall 
 // Der Upload verwendet die echte Antwortprüfung, nur die JSON-Fachaufrufe sind isoliert.
 source = source.replace("import { apiAntwortPruefen } from './useApi.js'",
   `import { apiAntwortPruefen } from '${new URL('../src/diakonos/composables/useApi.js', import.meta.url).href}'`)
+// WEB-5b: die Praefix-Hilfsdatei per absoluter Adresse einbinden (im
+// data:-Modul gaebe es keinen Basispfad) — geprueft in tests/web5b-basis.test.mjs.
+source = source.replace("import { apiUrl } from '../../shared/basis.js'",
+  `import { apiUrl } from '${new URL('../src/shared/basis.js', import.meta.url).href}'`)
 source = source.replace("import { formatTemplate } from '../components/planrahmen/format.mjs'", 'const formatTemplate = globalThis.__ui1Format')
 source = source.replace("import { stammdatenNormalisieren } from '../components/planrahmen/stammdaten.mjs'", 'const stammdatenNormalisieren = globalThis.__ui2Stamm')
 // P3-1c: die beiden neuen Helfer-Importe auf Inline-Ersatz umstellen, damit
