@@ -353,7 +353,9 @@ def test_benutzer_ohne_mitglied_bekommt_ehrliche_antwort_kein_500(client, welt):
     res = client.post(f"/api/method/{PROFILE}.get_my_profile")
     assert res.status_code == 417, res.text
     body = res.json()
-    assert body["exc_type"] == "ValidationError"
+    # SEC-8/S2: der Klassenname ist generisch — die MELDUNG bleibt der
+    # Fachtext, den `Profile.vue` anzeigt.
+    assert body["exc_type"] == "Error"
     assert "Deinem Konto ist noch kein Mitglied zugeordnet." in body["message"]
     assert "message" in body  # Frappe-Envelope
 

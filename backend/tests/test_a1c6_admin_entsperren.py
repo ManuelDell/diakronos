@@ -346,7 +346,8 @@ def test_fehlt_der_benutzername_wird_abgelehnt(admin_http, patched_db):
     r = c.post(PFAD, json={})
 
     assert r.status_code == 417
-    assert r.json()["exc_type"] == "ValidationError"
+    # SEC-8/S2: Klassenname generisch (Allowlist enthält ValidationError nicht).
+    assert r.json()["exc_type"] == "Error"
 
 
 # ── 5. Die IP bleibt gesperrt ──────────────────────────────────────────────

@@ -12,7 +12,10 @@ def test_token_api_bremst_vor_db(client, monkeypatch):
     # (dev.ecg-hn.de) fand genau hier eine Bremse ohne Wirkung; ein Skript
     # soll sie an der Statuszeile erkennen. Die Meldung bleibt dieselbe.
     assert r.status_code == 429, r.text
-    assert r.json()['exc_type'] == 'RateLimitError', r.text
+    # SEC-8/S2: RateLimitError steht nicht auf der Allowlist — der Client
+    # sieht den generischen Wert. Die Grenze bleibt an der STATUSZEILE
+    # erkennbar (429), der Text bleibt derselbe.
+    assert r.json()['exc_type'] == 'Error', r.text
     assert 'viele' in r.json()['message']
 
 

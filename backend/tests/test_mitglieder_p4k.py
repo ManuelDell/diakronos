@@ -153,7 +153,9 @@ def test_create_mitglied_legt_an(client, seed_mitglieder, rollen, sess):
 def test_create_mitglied_verlangt_vorname_und_nachname(client, seed_mitglieder, rollen):
     r = client.post("/api/method/mitglieder.create_mitglied", json={"vorname": "Nur"})
     assert r.status_code == 417, r.text
-    assert r.json().get("exception") in {"ValidationError", "MandatoryError"}
+    # SEC-8/S2: der Klassenname geht nur nach Allowlist nach aussen; ein
+    # Fachfehler (ValidationError/MandatoryError) erscheint als "Error".
+    assert r.json().get("exception") == "Error"
 
 
 # ── update_mitglied ─────────────────────────────────────────────────────────
@@ -187,7 +189,9 @@ def test_update_mitglied_unbekanntes_mitglied_scheitert(client, seed_mitglieder,
     r = client.post("/api/method/mitglieder.update_mitglied",
                     json={"mitglied_id": "M-9999", "data": {"vorname": "X"}})
     assert r.status_code >= 400, r.text
-    assert r.json().get("exception") in {"DoesNotExistError", "ValidationError"}
+    # SEC-8/S2: „gibt es nicht" vs. „Eingabe falsch" ist am Klassennamen nicht
+    # mehr unterscheidbar — beides ist ein generischer Fehler.
+    assert r.json().get("exception") == "Error"
 
 
 def test_update_mitglied_with_confirmation_braucht_bestaetigung(client, seed_mitglieder, rollen):

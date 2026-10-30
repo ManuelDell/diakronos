@@ -166,7 +166,8 @@ def test_get_ueber_alias_meldet_nicht_an(patched_db, fake_redis, _register_gefue
 
     assert not _hat_sid(r), f"GET {pfad} hat eine Sitzung gesetzt: {_set_cookie_koepfe(r)}"
     assert r.status_code == 405, r.text
-    assert r.json().get("exc_type") == "MethodNotAllowed", r.text
+    # SEC-8/S2: generischer Klassenname; die 405 bleibt an der Statuszeile.
+    assert r.json().get("exc_type") == "Error", r.text
 
 
 @pytest.mark.parametrize("pfad", _ALLE)
@@ -294,7 +295,10 @@ def test_falsches_passwort_ueber_alias_skript_bekommt_json(patched_db, fake_redi
         )
 
     assert r.status_code == 401, r.text
-    assert r.json().get("exc_type") == "AuthenticationError", r.text
+    # SEC-8/S2: AuthenticationError steht nicht auf der Frontend-Allowlist —
+    # der Client sieht den generischen Wert. Die 401 bleibt (die SPA wertet
+    # den Status aus, nicht die Klasse).
+    assert r.json().get("exc_type") == "Error", r.text
 
 
 # ── Die Naht selbst: Erkennung am Funktionsobjekt ─────────────────────────

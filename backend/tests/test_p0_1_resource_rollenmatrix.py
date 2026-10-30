@@ -246,7 +246,8 @@ def test_loeschen_fehler_liefert_417_statt_500(client, patched_db, monkeypatch):
 	r = client.delete("/api/resource/Element/E-DEL")
 	assert r.status_code == 417, r.text
 	body = r.json()
-	assert body["exception"] == "ValidationError"
+	# SEC-8/S2: der Klassenname ist generisch — die MELDUNG traegt die Ursache.
+	assert body["exception"] == "Error"
 	assert "kann nicht gelöscht werden" in body["message"]
 	assert "foreign key constraint" not in body["message"].lower()
 

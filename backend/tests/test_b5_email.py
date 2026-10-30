@@ -31,7 +31,8 @@ def test_admin_cannot_move_member_onto_occupied_email(client, email_world, set_u
                     json={'mitglied_id': 'M-0002', 'data': {'email': email, 'vorname': 'Not written'},
                           'audit_confirmation': {'bestaetigt': True}})
     assert r.status_code == 417
-    assert r.json()['exception'] == 'ValidationError'
+    # SEC-8/S2: Klassenname generisch — die Ablehnung bleibt an 417 + Text.
+    assert r.json()['exception'] == 'Error'
     email_world.expire_all()
     assert email_world.get(Mitglied, 'M-0002').email == B
     assert email_world.get(Mitglied, 'M-0002').vorname == 'Bruno'

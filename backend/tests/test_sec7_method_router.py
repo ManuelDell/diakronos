@@ -102,7 +102,8 @@ def test_leerer_body_verraet_die_signatur_nicht(client):
     assert r.status_code == 417, r.text
     body = r.json()
     assert body["message"] == "Ungueltige Anfrage"
-    assert body["exc_type"] == body["exception"] == "ValidationError"
+    # SEC-8/S2: ValidationError steht nicht auf der Allowlist -> "Error".
+    assert body["exc_type"] == body["exception"] == "Error"
     _kein_intern(r.text)
     # Die Parameternamen des Endpunkts sind Teil der Signatur.
     for name in ("token", "vorname", "nachname", "dsgvo"):
@@ -236,4 +237,4 @@ def test_fachfehler_behalten_ihre_meldung(client):
 
     assert r.status_code == 417
     assert r.json()["message"] == "zu jung"
-    assert r.json()["exc_type"] == "ValidationError"
+    assert r.json()["exc_type"] == "Error"

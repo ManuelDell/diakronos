@@ -127,8 +127,64 @@ def _coerce_query(value: str) -> Any:
 		return value
 
 
+# ── SEC-8 (Pentest R3-A): Exception-Klassennamen nur nach Allowlist ─────────
+#
+# Pentest Runde 3 (R3-A, NIEDRIG) fand `exception`/`exc_type` mit internen
+# Python-Klassennamen in JEDER Fehlerantwort: `DoesNotExistError`,
+# `ValidationError`, `NotFound`, `MethodNotAllowed`, `InternalError`, …
+# Zusammen mit dem Status ergab das eine Landkarte der Fehlerarten (welcher
+# Endpunkt existiert, welcher nicht, welcher Argumente verlangt).
+#
+# Wegnehmen darf man das Feld aber NICHT: Die SPA wertet es aus (verifiziert
+# per grep ueber `frontend/src`, SEC-8/S1):
+#
+#   * `CSRFTokenError` + 417 → `shared/sitzung-pruefen.js:34`
+#     (`istSitzungsAbbruch`) → Sitzung neu aufbauen statt Fachfehler zeigen.
+#     Genau daran haengen `useApi.apiCall/apiGet` (Sitzungsablauf,
+#     Schreibwiederholung) und die eigenstaendigen Bundles gast/registrierung/
+#     organigramm.
+#   * `SessionExpired` → 401 an denselben Stellen; die Meldung ist zwar
+#     Klartext, aber Tests und Bundles unterscheiden 401/419 als Sitzung.
+#   * `PermissionError` → 403 bleibt Rechtefehler; `useApi` und die
+#     Mitgliedsseite zeigen ihn als „darf ich nicht“ und versuchen NICHT, die
+#     Sitzung zu erneuern (`MitgliedDetail.vue`, Abschnitt P1-9b).
+#
+# Diese drei sind damit ein STABILER VERTRAG (Allowlist) und werden
+# unveraendert ausgeliefert. Alles andere — auch jeder kuenftig neu
+# eingefuehrte Fehlertyp — geht als `Error` nach aussen; der echte Name
+# landet im Log (Diagnose bleibt moeglich, der Client sieht ihn nicht).
+EXC_TYPEN_ALLOWLIST = frozenset({"CSRFTokenError", "SessionExpired", "PermissionError"})
+
+#: Was der Client fuer alle uebrigen Fehler sieht.
+GENERISCHER_EXC_TYP = "Error"
+
+
+def _oeffentlicher_exc_name(exc_name: str, msg: str, status: int) -> str:
+	"""Klassenname fuer den Client — Allowlist oder generisch (SEC-8/S2)."""
+	if exc_name in EXC_TYPEN_ALLOWLIST:
+		return exc_name
+	_buche_exc_intern(exc_name, msg, status)
+	return GENERISCHER_EXC_TYP
+
+
+def _buche_exc_intern(exc_name: str, msg: str, status: int) -> None:
+	"""Echten Klassennamen ins Log — nur wenn er nicht ohnehin nach aussen geht."""
+	logger.info(
+		"Fehlerantwort bleibt generisch (status=%s, exc=%s): %s",
+		status,
+		exc_name,
+		str(msg)[:200],
+	)
+
+
+def _fehler_koerper(msg: str, exc_name: str, status: int) -> dict[str, Any]:
+	"""Vertragskoerper einer Fehlerantwort (eine Wahrheit fuer alle Wege)."""
+	oeffentlich = _oeffentlicher_exc_name(exc_name, msg, status)
+	return {"message": str(msg), "exception": oeffentlich, "exc_type": oeffentlich}
+
+
 def _error_response(msg: str, exc_name: str, status: int) -> JSONResponse:
-	return JSONResponse(status_code=status, content={"message": str(msg), "exception": exc_name, "exc_type": exc_name})
+	return JSONResponse(status_code=status, content=_fehler_koerper(msg, exc_name, status))
 
 
 # ── SEC-7 (N4): generische Fehlerantworten ──────────────────────────────────
@@ -333,11 +389,11 @@ async def call_method(path: str, request: Request):
 			return antwort
 		return JSONResponse(
 			status_code=405,
-			content={
-				"message": "Diese Methode ist fuer diesen Endpunkt nicht erlaubt.",
-				"exception": "MethodNotAllowed",
-				"exc_type": "MethodNotAllowed",
-			},
+			content=_fehler_koerper(
+				"Diese Methode ist fuer diesen Endpunkt nicht erlaubt.",
+				"MethodNotAllowed",
+				405,
+			),
 			headers={"Allow": "POST"},
 		)
 	if _guest_denied(fn):
@@ -385,6 +441,13 @@ async def call_method(path: str, request: Request):
 		# kein Diagnosetext; SEC-7/S1 betrifft nur Python-Signaturen und
 		# interne Namen aus unerwarteten Ausnahmen.
 		return _error_response(str(exc), exc.exc_name, exc.http_status)
+	# SEC-8/S3: alle Argumentfehler — fehlende wie ueberzaehlige oder falsch
+	# typisierte — enden hier in DEMSELBEN Bild (417, generische Meldung).
+	# Vorher lief ein falscher Typ (z. B. `geburtsdatum: 123`) in den
+	# `except Exception`-Zweig und wurde 500 „Interner Fehler" — ein 500 fuer
+	# eine Eingabe, die der Aufrufer selbst verursacht hat (und ein weiteres
+	# Unterscheidungsmerkmal mehr). `FrappeCompatError` bleibt davon
+	# unberuehrt (Block darueber).
 	except (TypeError, ValueError, KeyError) as exc:
 		# SEC-7/S1 (N4): hier stand die Python-Signatur im Klartext
 		# („submit_registrierung() missing 3 required positional arguments …").

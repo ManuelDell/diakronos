@@ -1,0 +1,19 @@
+# SEC-8 — Vertrag der erlaubten exc_type/exception-Werte (Kopie fuer den Node-Test)
+#
+# Quelle: backend/src/diakronos_app/frappe_compat/router.py -> EXC_TYPEN_ALLOWLIST
+# und backend/tests/test_sec8_exception_allowlist.py (nagelt sie fest).
+#
+# Diese Datei liegt INNERHALB von frontend/, weil der Frontend-Schritt des
+# Images nur frontend/ kopiert. Der Node-Test (tests/sec8-fehlerklassen.test.mjs)
+# liest sie und prueft, dass das Frontend GENAU diese Werte auswertet.
+#
+# Aendert sich die Allowlist im Backend, muss diese Datei mitgezogen werden —
+# der Node-Test wird sonst rot. Das ist Absicht: der Vertrag soll explizit sein.
+#
+# allowlist:
+CSRFTokenError
+SessionExpired
+PermissionError
+#
+# generisch (alles andere):
+Error

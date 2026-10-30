@@ -53,8 +53,11 @@ def _endpunkt(schreiben: bool = False) -> Callable:
         def aufruf(*args: Any, **kwargs: Any) -> Any:
             request = kwargs.pop("request", None)
             if schreiben and (request is None or request.method != "POST"):
-                return JSONResponse(status_code=405, content={"message": "Schreibdienst benötigt POST.",
-                                                               "exc_type": "MethodNotAllowed"}, headers={"Allow": "POST"})
+                from diakronos_app.frappe_compat.router import _fehler_koerper
+
+                return JSONResponse(status_code=405, content=_fehler_koerper(
+                    "Schreibdienst benötigt POST.", "MethodNotAllowed", 405),
+                    headers={"Allow": "POST"})
             try:
                 try:
                     api_sig.bind(*args, **kwargs)
@@ -71,8 +74,13 @@ def _endpunkt(schreiben: bool = False) -> Callable:
                     with db.als_aktuelle_sitzung(s):
                         return fn(Dienste(s, session.user), *args, **kwargs)
             except DienstFehler as exc:
-                return JSONResponse(status_code=417, content={"message": str(exc), "exc_type": "ValidationError",
-                                                               "exception": "ValidationError", "meldungen": exc.meldungen})
+                # SEC-8/S2: der Klassenname kommt aus der zentralen Allowlist —
+                # ein Fehlertyp, der dort nicht steht, geht als „Error“ hinaus.
+                from diakronos_app.frappe_compat.router import _fehler_koerper
+
+                return JSONResponse(status_code=417, content={
+                    **_fehler_koerper(str(exc), "ValidationError", 417),
+                    "meldungen": exc.meldungen})
         aufruf.__signature__ = api_sig
         return whitelist(allow_guest=False)(aufruf)
     return dekorator

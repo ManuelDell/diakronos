@@ -165,7 +165,7 @@ def test_insert_unbekannter_doctype_ist_417(client):
 		json={"doc": {"doctype": "GibtEsNicht", "name": "X-1"}},
 	)
 	assert r.status_code == 417
-	assert r.json()["exception"] == "ValidationError"
+	assert r.json()["exception"] == "Error"
 
 
 def test_insert_ohne_doctype_ist_417(client):
@@ -246,7 +246,7 @@ def test_upload_file_legt_file_dokument_an(client, files_dir):
 def test_upload_file_ohne_datei_ist_417(client, files_dir):
 	r = client.post("/api/method/upload_file", data={"is_private": "0"})
 	assert r.status_code == 417
-	assert r.json()["exception"] == "ValidationError"
+	assert r.json()["exception"] == "Error"
 
 
 def test_upload_file_leere_datei_ist_417(client, files_dir):
@@ -278,7 +278,7 @@ def test_upload_file_verbotener_typ_ist_417(client, files_dir):
 		files={"file": ("boese.exe", io.BytesIO(b"MZ"), "application/x-msdownload")},
 	)
 	assert r.status_code == 417
-	assert r.json()["exception"] == "ValidationError"
+	assert r.json()["exception"] == "Error"
 
 
 def test_upload_file_zu_gross_ist_417(client, files_dir, monkeypatch):

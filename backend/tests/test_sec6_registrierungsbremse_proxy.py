@@ -157,7 +157,8 @@ def test_s1_validate_token_zaehlt_trotz_privater_adresse(
 
     gebremst = _validiere(client)
     assert gebremst.status_code == 429, gebremst.text
-    assert gebremst.json()["exc_type"] == "RateLimitError", gebremst.text
+    # SEC-8/S2: Klassenname generisch — die Grenze steht an der Statuszeile (429).
+    assert gebremst.json()["exc_type"] == "Error", gebremst.text
     assert "zu viele" in gebremst.text.lower(), gebremst.text
 
 
@@ -218,7 +219,8 @@ def test_s1_submit_registrierung_linkgrenze_greift_trotz_privater_adresse(
 
     gebremst = _post_anmeldung(client, nachname="Vier")
     assert gebremst.status_code == 429, gebremst.text
-    assert gebremst.json()["exc_type"] == "RateLimitError", gebremst.text
+    # SEC-8/S2: Klassenname generisch — die Grenze steht an der Statuszeile (429).
+    assert gebremst.json()["exc_type"] == "Error", gebremst.text
     assert "zu viele" in gebremst.text.lower(), gebremst.text
 
 

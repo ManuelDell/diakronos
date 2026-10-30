@@ -428,7 +428,8 @@ def test_detail_unbekannt(client, welt):
     resp = client.post(f"/api/method/{BUGREPORT}.detail", json={"name": "NOPE"})
     # Router-Konvention: DoesNotExist -> 404 (nicht 417).
     assert resp.status_code == 404, resp.text
-    assert resp.json().get("exc_type") == "DoesNotExistError"
+    # SEC-8/S2: der Klassenname ist generisch, der STATUS nennt die Ursache.
+    assert resp.json().get("exc_type") == "Error"
 
 
 # ── set_status ──────────────────────────────────────────────────────────────

@@ -49,20 +49,38 @@ Body:
 { "message": "<Klartextmeldung>", "exception": "<Exc-Klasse>", "exc_type": "<Exc-Klasse>" }
 ```
 
+**a1) `exc_type`/`exception` nur nach Allowlist (SEC-8/S2, Pentest R3-A):**
+Das Feld traegt **nicht** mehr den internen Python-Klassennamen, sondern nur
+noch einen der drei Werte, die die SPA tatsaechlich auswertet:
+
+| Wert | Wo die SPA ihn liest |
+|---|---|
+| `CSRFTokenError` (417) | `shared/sitzung-pruefen.js` → `istSitzungsAbbruch`: Sitzung neu aufbauen statt Fachfehler zeigen |
+| `SessionExpired` (401) | dieselbe Stelle; 401/419 gelten als Sitzungsende |
+| `PermissionError` (403) | Rechte-Anzeige (`useApi.js`, `MitgliedDetail.vue`) — kein Sitzungs-Neuaufbau |
+
+**Alle anderen** Fehler tragen `exception` = `exc_type` = `"Error"`. Die
+Meldung (`message`) bleibt der Fachtext; der echte Klassenname geht ins Log
+(`diakronos_app.frappe_compat.router`, Level INFO). Die Allowlist steht als
+`EXC_TYPEN_ALLOWLIST` in `frappe_compat/router.py` und ist per Test
+festgenagelt (`backend/tests/test_sec8_exception_allowlist.py`) — sie darf nur
+wachsen, wenn das Frontend den neuen Wert auch auswertet.
+
 **b) `exc` im 200er-Body:** Der Client prueft zusaetzlich `data.exc` und wirft
 daraus. Wir liefern `exc` nur, wenn wir es bewusst setzen (Audit-Pfad); fuer den
 Normalfall genuegt `message` + HTTP-Status.
 
 **c) Diagnosetexte bleiben im Log (SEC-7/S1+S2):** Fehlerantworten des
 Method-Routers enthalten NIE eine Python-Signatur, einen internen
-Funktionsnamen oder eine Exception-Klasse aus unerwarteten Ausnahmen. Konkret:
+Funktionsnamen oder eine Exception-Klasse aus unerwarteten Ausnahmen. Konkret
+(alle Zeilen mit `exc_type` = `"Error"`, siehe a1):
 
 | Fall | Status | Body |
 |---|---|---|
-| fehlende/falsche/unerwartete Argumente (`TypeError`, `ValueError`, `KeyError` aus der Fachfunktion) | `417` | `{"message": "Ungueltige Anfrage", "exception": "ValidationError", "exc_type": "ValidationError"}` |
-| unbekannter Methodenname **und** unzulaessiger Pfad (`..`, `/`, `\`, `%`, Leerzeichen, leeres Segment) | `404` | `{"message": "Methode nicht gefunden", "exception": "NotFound", "exc_type": "NotFound"}` |
-| unerwarteter Fehler in der Fachfunktion | `500` | `{"message": "Interner Fehler", "exception": "InternalError", "exc_type": "InternalError"}` — Traceback nur im Log |
-| fachlicher Fehler (`frappe.throw` → `FrappeCompatError`) | `exc.http_status` | unveraendert: `message` = Fachtext, `exception`/`exc_type` = Klasse (`ValidationError`, `PermissionError`, `CSRFTokenError`, `SessionExpired`, …) |
+| fehlende/falsche/unerwartete Argumente (`TypeError`, `ValueError`, `KeyError`, auch falsche Typen) | `417` | `{"message": "Ungueltige Anfrage", "exception": "Error", "exc_type": "Error"}` |
+| unbekannter Methodenname **und** unzulaessiger Pfad (`..`, `/`, `\`, `%`, Leerzeichen, leeres Segment) | `404` | `{"message": "Methode nicht gefunden", "exception": "Error", "exc_type": "Error"}` |
+| unerwarteter Fehler in der Fachfunktion | `500` | `{"message": "Interner Fehler", "exception": "Error", "exc_type": "Error"}` — Traceback nur im Log |
+| fachlicher Fehler (`frappe.throw` → `FrappeCompatError`, z. B. `ValidationError`, `DoesNotExistError`) | `exc.http_status` | `message` = Fachtext, `exception`/`exc_type` = `"Error"` (ausser den drei Allowlist-Werten) |
 
 Der Methodenpfad wird **vor** jeder Aufloesung gegen eine Whitelist geprueft:
 `[A-Za-z0-9_]+` in Segmenten, getrennt durch genau einen Punkt, max. 255

@@ -29,7 +29,8 @@ def test_method_envelope_get(client):
 def test_method_unknown_404(client):
 	r = client.post("/api/method/gibt.es.nicht")
 	assert r.status_code == 404
-	assert r.json()["exception"] == "NotFound"
+	# SEC-8/S2: kein interner Klassenname mehr — generischer Wert.
+	assert r.json()["exception"] == "Error"
 
 
 def test_method_validation_error_is_417(client):
@@ -37,7 +38,7 @@ def test_method_validation_error_is_417(client):
 	assert r.status_code == 417
 	body = r.json()
 	assert body["message"] == "zu jung"
-	assert body["exception"] == "ValidationError"
+	assert body["exception"] == "Error"  # SEC-8/S2: Allowlist statt Klassenname
 
 
 def _als_admin(monkeypatch):
@@ -210,7 +211,7 @@ def test_resource_get_missing_404(client, seed_mitglieder, monkeypatch):
 	_als_admin(monkeypatch)
 	r = client.get("/api/resource/Mitglied/M-9999")
 	assert r.status_code == 404
-	assert r.json()["exception"] == "DoesNotExistError"
+	assert r.json()["exception"] == "Error"  # SEC-8/S2: generisch
 
 
 def test_resource_unknown_doctype_404(client):
@@ -349,7 +350,7 @@ def test_mitglied_detail_unbekannt_ist_404(client, seed_mitglieder, rollen):
 	r = client.get("/api/method/mitglieder.get_mitglied_detail",
 	               params={"mitglied_id": "M-9999"})
 	assert r.status_code == 404
-	assert r.json()["exception"] == "DoesNotExistError"
+	assert r.json()["exception"] == "Error"  # SEC-8/S2: generisch
 
 
 def test_mitglied_detail_guest_wird_abgewiesen(client, seed_mitglieder):

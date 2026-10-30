@@ -122,7 +122,8 @@ def test_get_ohne_browserkopf_meldet_nicht_an(patched_db, fake_redis):
 
     assert not _hat_sid(r)
     assert r.status_code == 405, r.text
-    assert r.json()["exc_type"] == "MethodNotAllowed"
+    # SEC-8/S2: MethodNotAllowed steht nicht auf der Allowlist — generisch.
+    assert r.json()["exc_type"] == "Error"
 
 
 def test_get_meldet_nicht_an_wenn_eine_sitzung_liegt(patched_db, fake_redis):
@@ -213,7 +214,10 @@ def test_andere_endpunkte_lesen_query_weiter(patched_db, fake_redis):
         )
 
     assert r.status_code in (200, 401), r.text
-    assert r.json().get("exc_type") != "ValidationError", r.text
+    # SEC-8/S2: die Antwort unterscheidet Argument- und Auth-Fehler nicht mehr
+    # ueber den Klassennamen — geprueft wird, dass ueberhaupt kein
+    # Argumentfehler entstand (die Query-Argumente kommen hier an).
+    assert r.json().get("exc_type") != "Error" or r.status_code == 200, r.text
 
 
 def test_router_argumente_aus_query_nur_beim_login_ignoriert():

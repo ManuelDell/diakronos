@@ -27,8 +27,12 @@ FRAPPE_MODULE = "diakronos.devmodus.api"
 
 def _fehler(meldung: str, feld: str = "/", code: str = "ungueltig",
             hinweis: str = "") -> JSONResponse:
+    # SEC-8/S2: Klassenname zentral ueber die Allowlist (ValidationError ist
+    # dort NICHT enthalten → der Client sieht „Error").
+    from diakronos_app.frappe_compat.router import _fehler_koerper
+
     return JSONResponse(status_code=417, content={
-        "message": meldung, "exc_type": "ValidationError", "exception": "ValidationError",
+        **_fehler_koerper(meldung, "ValidationError", 417),
         "meldungen": [{"pfad": feld, "code": code, "meldung": meldung, "hinweis": hinweis}],
     })
 
@@ -43,13 +47,15 @@ def _endpunkt(schreiben: bool = False) -> Callable:
     def dekorator(fn: Callable) -> Callable:
         @wraps(fn)
         def aufruf(*args: Any, request: Any = None, **kwargs: Any) -> Any:
+            from diakronos_app.frappe_compat.router import _fehler_koerper
+
             if not einstellungen.aktiv():
                 # Ohne Schalter existiert der Dev-Modus nicht.
-                return JSONResponse(status_code=404, content={
-                    "message": "Nicht gefunden", "exception": "NotFound", "exc_type": "NotFound"})
+                return JSONResponse(status_code=404, content=_fehler_koerper(
+                    "Nicht gefunden", "NotFound", 404))
             if schreiben and (request is None or request.method != "POST"):
-                return JSONResponse(status_code=405, content={
-                    "message": "Schreibdienst benötigt POST.", "exc_type": "MethodNotAllowed"},
+                return JSONResponse(status_code=405, content=_fehler_koerper(
+                    "Schreibdienst benötigt POST.", "MethodNotAllowed", 405),
                     headers={"Allow": "POST"})
             try:
                 with db.SessionLocal.begin() as s:
@@ -59,9 +65,8 @@ def _endpunkt(schreiben: bool = False) -> Callable:
             except dienste.DevFehler as exc:
                 return _fehler(str(exc), exc.meldungen[0].get("pfad", "/"))
             except FrappePermissionError as exc:
-                return JSONResponse(status_code=403, content={
-                    "message": str(exc), "exc_type": "PermissionError",
-                    "exception": "PermissionError"})
+                return JSONResponse(status_code=403, content=_fehler_koerper(
+                    str(exc), "PermissionError", 403))
         aufruf.__signature__ = _signatur(fn)
         return whitelist(allow_guest=False)(aufruf)
 
@@ -188,9 +193,10 @@ def bild(s: Any, wer: str, pfad: str) -> Any:
     """
     datei = dienste.bild_pfad(pfad)
     if datei is None:
-        return JSONResponse(status_code=404, content={
-            "message": "Bild nicht gefunden.", "exception": "DoesNotExistError",
-            "exc_type": "DoesNotExistError"})
+        from diakronos_app.frappe_compat.router import _fehler_koerper
+
+        return JSONResponse(status_code=404, content=_fehler_koerper(
+            "Bild nicht gefunden.", "DoesNotExistError", 404))
     from fastapi.responses import FileResponse
 
     from diakronos_app.files import binary_content_type
