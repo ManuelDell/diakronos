@@ -84,14 +84,16 @@ class AblaufplanPosition(Base):
 class Element(Base):
     __tablename__ = "element"
 
-    # `name` ist der Primaerschluessel und technisch NICHT nullbar. Die
-    # Annotation traegt trotzdem `| None`, weil der Frappe-Weg fuer DocTypes
-    # mit Benennungsregel (hier `ELE-…`) die Kennung NICHT mitschickt:
-    # `_create("Element", {...})` laesst `name` weg und die Schicht vergibt
-    # sie. Mit `Mapped[str]` bricht `Document(...)`/`model(**data)` mit
-    # „name darf nicht NULL sein“ ab, bevor die Regel ueberhaupt greifen kann
-    # (gefunden beim Demo-Seed PUB-2). Die Datenbank setzt die Regel durch.
-    name: Mapped[str | None] = mapped_column(String(140), primary_key=True)
+    # `name` ist der Primaerschluessel und traegt die Kennung des Termins
+    # (`gottesdienst-2026-11-01`, `termin-…`); die Anzeige steht in
+    # `element_name`. NOT NULL ist fachlich richtig — so legt die Baseline
+    # (`p1bmodelle`, `sa.Column('name', …, nullable=False)`) die Spalte an und
+    # so steht sie im Betrieb. Das Modell sagt dasselbe; vorher trug es hier
+    # `| None` (PUB-2), und `alembic check` meldete dauerhaft
+    # `modify_nullable 'element.name'` (Befund NET-1/DRIFT-1).
+    # Die Kennung vergibt `_create` (`api_helpers`), bevor das Modell entsteht —
+    # ein fehlender Wert scheitert dort, nicht an der Deklaration.
+    name: Mapped[str] = mapped_column(String(140), primary_key=True)
     creation: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
     modified: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
     modified_by: Mapped[str | None] = mapped_column(String(140), nullable=True)

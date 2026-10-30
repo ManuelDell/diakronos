@@ -180,6 +180,10 @@ async function ladeAnsicht() {
   code = `
 const computed = (f) => ({ get value() { return f() } });
 const defineAsyncComponent = () => ({});
+const defineExpose = () => {};
+const ref = (v) => ({ value: v });
+const onMounted = () => {};
+const apiCall = async () => ({});
 const navigate = () => {};
 const currentHash = { value: '#/gruppen' };
 ${code}

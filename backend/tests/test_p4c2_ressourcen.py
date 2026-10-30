@@ -326,10 +326,14 @@ def test_verfuegbarkeit_pflichtfelder(client, als_anna):
     # Original (Frappe) bindet die Positionsparameter ebenfalls VOR der eigenen
     # Guard `if not ressource_id or not datum_von or not datum_bis` -> auch dort
     # 417, nur mit Bindungs- statt Guard-Meldung. Verhalten identisch.
+    # SEC-7/S1: Die Bindungs-Meldung ist jetzt generisch („Ungueltige
+    # Anfrage") — vorher stand dort die Python-Signatur. Der Status bleibt
+    # 417, damit sich Fehlen der Argumente und die Guard darunter nicht ueber
+    # den Status unterscheiden lassen.
     r = client.get(f"/api/method/{MODUL}.check_verfuegbarkeit",
                    params={"ressource_id": "RES-RAUM"})
     assert r.status_code == 417
-    assert "Falsche Argumente" in r.json()["message"]
+    assert r.json()["message"] == "Ungueltige Anfrage"
 
     # Leere Strings erreichen dagegen die Guard im Endpunkt selbst.
     r = client.get(f"/api/method/{MODUL}.check_verfuegbarkeit",

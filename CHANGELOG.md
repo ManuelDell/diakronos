@@ -53,3 +53,22 @@ Frappe-App wird nicht mehr weiterentwickelt; ihr Stand bleibt als
   Sichtbarkeitseinstellung der Person.
 - Anmeldesperre gegen Durchprobieren, HTTPS über den mitgelieferten nginx
   oder einen eigenen Reverse-Proxy, Konfiguration ausschließlich über `.env`.
+
+## Unveröffentlicht
+
+### Sicherheit (SEC-3, Pentest dev.ecg-hn.de)
+
+- **Registrierungslink-Token** — der Token eines NEUEN Links entsteht immer
+  serverseitig als starkes Zufallstoken (`secrets.token_urlsafe(32)`,
+  43 Zeichen); ein beim Anlegen mitgeschickter `slug` wird verworfen — auch
+  über `POST /api/resource/Registrierungslink`. **Bestehende Links bleiben
+  unverändert gültig** (der gespeicherte Slug wird nicht angefasst).
+- **Ratenbegrenzung der Registrierung** — ein überschrittenes Limit auf
+  `validate_token` und `submit_registrierung` antwortet jetzt mit HTTP **429**
+  (`RateLimitError`) statt 417; Skripte und Monitore können „zu viele
+  Versuche“ damit von „ungültige Eingabe“ unterscheiden. Die Grenzen
+  (`REGISTRIERUNG_MAX_*`) sind unverändert.
+- Migration `sec3_reglink_token` ändert **keine Daten**; sie vermerkt in der
+  neuen Tabelle `schema_stand`, dass die Installation die starke Tokenform
+  kennt.
+

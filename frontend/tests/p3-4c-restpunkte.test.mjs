@@ -21,10 +21,24 @@ const lies = p => readFileSync(new URL(p, root), 'utf8')
 const INDEX_CSS = 'src/diakonos/index.css'
 const GRUPPEN = 'src/diakonos/pages/Gruppen.vue'
 
-/** Der Block `@media (hover: none) and (pointer: coarse) { … }` im Stylesheet. */
+/**
+ * Der Block mit den Mindest-Tippzielen im Stylesheet.
+ * FIX-6: Der Block hing früher an `(hover: none) and (pointer: coarse)`; seit
+ * der Operator-Entscheidung (27.10.) hängen die Touch-Anpassungen NUR am
+ * groben Zeiger, ohne Breite: `@media (pointer: coarse) {`.
+ */
 function groberZeigerBlock(css) {
-  const start = css.indexOf('@media (hover: none) and (pointer: coarse)')
-  assert.ok(start >= 0, 'Regel fuer groben Zeiger fehlt in index.css')
+  const kopfJetzt = '@media (pointer: coarse) {'
+  const anfang = css.includes(kopfJetzt) ? { stelle: css.indexOf(kopfJetzt) } : null
+  assert.ok(anfang, 'Regel fuer groben Zeiger fehlt in index.css')
+  // Die spaetere (aktuelle) Fassung gilt: der alte Block steht nur noch im
+  // Kopfkommentar der Datei, nicht als Regel.
+  return blockAb(css, anfang.stelle)
+}
+
+/** Block ab `start` bis zur passenden schliessenden Klammer. */
+function blockAb(css, start) {
+  assert.ok(start >= 0, 'Block nicht gefunden')
   // Bis zur passenden schliessenden Klammer mitzaehlen.
   let tiefe = 0
   let i = css.indexOf('{', start)

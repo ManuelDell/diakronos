@@ -82,7 +82,10 @@ test('DSGVO-2c · die Daten-Schutz-Seite führt auf die neue Arbeitsliste', () =
 test('DSGVO-2c · Zähler bei offenen Anträgen (Liste, Übersicht, Aufgaben)', () => {
   assert.match(liste, /Anträge warten/)
   assert.match(liste, /Antrag wartet/)
-  assert.match(uebersicht, /get_loeschantraege/)
+  // DSGVO-2c2 (2): die Übersicht holt die Zahl NICHT mehr direkt, sondern
+  // über den einen Helfer `offeneAntraegeZaehlen()`.
+  assert.match(uebersicht, /offeneAntraegeZaehlen/)
+  assert.match(api, /get_loeschantraege/)
   assert.match(uebersicht, /label: 'Löschanträge'/)
   assert.match(uebersicht, /auf Freigabe/)
 })

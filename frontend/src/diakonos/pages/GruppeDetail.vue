@@ -394,7 +394,10 @@ export default {
             { key: 'rolle', label: 'Rolle' },
             { key: 'status', label: 'Status' },
             { key: 'beitritt', label: 'Beitrittsdatum' },
-            { key: 'aktionen', label: 'Aktionen', numeric: true },
+            /* FIX-4: Aktionen-Spalte — `aktion: true` gibt dem `<th>` und der
+               Zelle `.is-aktion` (Mindestbreite, Umbruch) und schaltet die
+               Tabelle auf `table-layout: fixed`. */
+            { key: 'aktionen', label: 'Aktionen', numeric: true, aktion: true },
         ]
         const statusVariante = computed(() => varianteFuer(currentStatus.value))
         function varianteFuer(status) {
@@ -760,15 +763,33 @@ export default {
 </script>
 
 <style scoped>
+/* FIX-5 (Befund DMB-096ae0364b59): „Gap zwischen den Kacheln nicht
+   einheitlich“. Das Raster und die beiden Spalten hatten je eigenes gap,
+   der Vollbreiten-Block darunter nur `margin-top`. Jetzt gilt EIN Abstand für
+   alles: --grid-gap. Die Spalten sind zugleich `minmax(0, …)` — ohne die 0
+   kann eine lange Zeile (z. B. eine lange Ankündigung) die Spalte breiter
+   machen als ihr Anteil, und das Raster läuft am Handy seitlich über. */
 .grup-grid {
     display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: var(--sp-4);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: var(--grid-gap);
 }
-.grup-spalte { display: flex; flex-direction: column; gap: var(--sp-4); }
-.grup-breit { margin-top: var(--sp-4); }
+.grup-spalte { display: flex; flex-direction: column; gap: var(--grid-gap); min-width: 0; }
+.grup-breit { margin-top: var(--grid-gap); }
 @media (max-width: 768px) {
-    .grup-grid { grid-template-columns: 1fr; }
+    .grup-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* FIX-5 (Befund DMB-096ae0364b59): „Kartenköpfe unterschiedlich hoch“.
+   Innerhalb dieser Seite waren Kopfzeilen mit Aktionsknopf 4 px höher als
+   solche ohne (Kopf mit Knopf 57 px, ohne 53 px): der Knopf (DkButton „sm“)
+   ist höher als eine Zeile Titeltext. Der Ausgleich gilt NUR für die Karten
+   dieser Seite — nicht in DkCard, damit nicht ~30 andere Stellen app-weit
+   ihre Kopfhöhe ändern. Nebeneinander („Details“ mit Stift, „Nächste Termine“
+   ohne) stehen dadurch beide auf derselben Höhe.
+   :deep, weil der Kopf in DkCard (scoped) liegt. */
+.dk-screen :deep(.dk-ui-card-kopf) {
+    min-height: calc(var(--row-h) + 2 * var(--sp-2));
 }
 
 .grup-zustand { padding: var(--sp-8); text-align: center; color: var(--muted); }
@@ -788,7 +809,9 @@ export default {
 }
 .grup-datenzeile:last-child { border-bottom: none; }
 .grup-datenlabel { font-weight: 500; color: var(--muted); }
-.grup-datenwert { color: var(--text); text-align: right; }
+/* FIX-5: `min-width: 0` — eine lange, unumbrüchliche Beschreibung (URL,
+   @-Nennung) schob sonst die ganze Rasterspalte auseinander. */
+.grup-datenwert { color: var(--text); text-align: right; min-width: 0; overflow-wrap: anywhere; }
 
 .grup-formular { display: flex; flex-direction: column; gap: var(--sp-3); }
 .grup-neu { margin-bottom: var(--sp-4); padding: var(--sp-3); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); }
@@ -798,9 +821,11 @@ export default {
 .grup-zeile-abstand { margin-bottom: var(--sp-4); }
 
 .grup-termine { display: flex; gap: var(--sp-3); flex-wrap: wrap; }
+/* FIX-5: `flex: 1` mit `min-width: 120px` ließ die Termin-Kacheln am Handy
+   über die Kartenbreite hinauslaufen. `min-width: 0` erlaubt das Schrumpfen. */
 .grup-termin {
-    flex: 1;
-    min-width: 120px;
+    flex: 1 1 120px;
+    min-width: 0;
     max-width: 160px;
     background: var(--surface-2);
     border: 1px solid var(--line);

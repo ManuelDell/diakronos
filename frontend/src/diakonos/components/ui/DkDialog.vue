@@ -135,7 +135,7 @@ useZurueckSchliesst(
   padding: var(--pad) calc(var(--pad) * 1.2);
   border-bottom: 1px solid var(--line);
 }
-.dk-ui-dialog-titel { font-size: var(--fs-h3); font-weight: var(--fw-h); margin: 0; }
+.dk-ui-dialog-titel { font-size: var(--fs-h3); font-weight: var(--fw-h); margin: 0; color: var(--text); }
 .dk-ui-dialog-schliessen {
   display: inline-flex;
   align-items: center;

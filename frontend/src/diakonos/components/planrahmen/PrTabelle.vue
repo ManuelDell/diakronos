@@ -29,8 +29,13 @@
             <span v-if="!gruppenZellen(t, s).length" class="pr-tabelle-leer">–</span>
           </template>
           <template v-else>
-            <span v-for="(inst, ii) in instanzen(t, s)" :key="ii" class="pr-tabelle-karte-zeile pr-tabelle-instanz-text">
-              {{ inst.text }}<span v-if="inst.fixiert" class="pr-tabelle-pin" title="Von Hand festgelegt">📌</span>
+            <span
+              v-for="(zeile, ii) in liedZeilen(t, s)"
+              :key="ii"
+              class="pr-tabelle-karte-zeile pr-tabelle-instanz-text"
+              :class="{ 'pr-tabelle-instanz-text--rahmen': zeile.gerahmt }"
+            >
+              {{ zeile.text }}<span v-if="zeile.fixiert" class="pr-tabelle-pin" title="Von Hand festgelegt">📌</span>
             </span>
             <span v-if="!instanzen(t, s).length" class="pr-tabelle-leer">–</span>
           </template>
@@ -83,11 +88,19 @@
               </div>
               <span v-if="!gruppenZellen(t, s).length" class="pr-tabelle-leer">–</span>
             </template>
-            <!-- Einfaches Feld: eine Zeile je Instanz, mit Fixierungs- und Regelhinweis -->
+            <!-- Einfaches Feld: eine Zeile je Instanz, mit Fixierungs- und Regelhinweis.
+                 DEV-6: Lieder (Sammlung „lieder") bekommen je Zeile einen
+                 kleinen Rahmen — mehrere Lieder einer Zelle bleiben so
+                 unterscheidbar (Befund DMB-45e5dfcda737). -->
             <template v-else>
-              <div v-for="(inst, ii) in instanzen(t, s)" :key="ii" class="pr-tabelle-instanz">
+              <div
+                v-for="(zeile, ii) in liedZeilen(t, s)"
+                :key="ii"
+                class="pr-tabelle-instanz"
+                :class="{ 'pr-tabelle-instanz--rahmen': zeile.gerahmt }"
+              >
                 <span class="pr-tabelle-instanz-text">
-                  {{ inst.text }}<span v-if="inst.fixiert" class="pr-tabelle-pin" title="Von Hand festgelegt">📌</span>
+                  {{ zeile.text }}<span v-if="zeile.fixiert" class="pr-tabelle-pin" title="Von Hand festgelegt">📌</span>
                 </span>
               </div>
             </template>
@@ -116,6 +129,8 @@ import { zellenInhalt } from './zellen.js'
 import PrMeldungen from './PrMeldungen.vue'
 import { terminMeldungen } from './meldungen.mjs'
 import { anlassName, sichtbareAnlaesse } from './anlaesse.mjs'
+import { MOBIL_GRENZE_PX } from '../../composables/eingabeart.mjs'
+import { istLiedSpalte, zellZeilen } from './lied-rahmen.mjs'
 
 const props = defineProps({
   plan: { type: Object, default: null },
@@ -174,8 +189,15 @@ function anlaesse(t) { return sichtbareAnlaesse(t.anlaesse) }
 /** UXP-R22: Katalognamen statt interner Kennungen (Auflösung in anlaesse.mjs). */
 function anlassText(a) { return anlassName(a, erstdefinition.value?.anlaesse) }
 
-/** UXP-R15: Mobil (< 640 px) wird die Tabelle zur Kartenliste. */
-const MOBIL_ABFRAGE = '(max-width: 640px)'
+/**
+ * UXP-R15: Mobil wird die Tabelle zur Kartenliste.
+ * FIX-6: Das ist eine LAYOUT-Umschaltung, hängt also nur an der Breite —
+ * und zwar an DERSELBEN Grenze wie das App-Gerüst (720 px,
+ * `composables/eingabeart.mjs` `MOBIL_GRENZE_PX`). Die eigene 640-px-Grenze
+ * war der Rest, der bei 641–720 px eine Tabelle zeigte, während die App
+ * schon einspaltig war. Ein Touch-Notebook mit Maus behält die Tabelle.
+ */
+const MOBIL_ABFRAGE = `(max-width: ${MOBIL_GRENZE_PX}px)`
 const istMobil = ref(typeof window !== 'undefined' && window.matchMedia
     ? window.matchMedia(MOBIL_ABFRAGE).matches : false)
 let mobilAbhoerer = null
@@ -216,6 +238,15 @@ function zeilenFuer(t, s) {
 }
 function instanzen(t, s) { return s.anlass || s.feld?.art === 'gruppe' ? [] : zeilenFuer(t, s) }
 function gruppenZellen(t, s) { return s.feld?.art === 'gruppe' ? zeilenFuer(t, s) : [] }
+
+/**
+ * DEV-6: Zeilen eines einfachen Felds — Liedzellen (Sammlung „lieder") mit
+ * Rahmen je Zeile, damit mehrere Lieder einer Zelle unterscheidbar bleiben
+ * (Befund DMB-45e5dfcda737). Leere Werte bleiben ohne Rahmen.
+ */
+function liedZeilen(t, s) {
+    return zellZeilen(instanzen(t, s), istLiedSpalte(s))
+}
 </script>
 
 <style scoped>
@@ -263,7 +294,21 @@ function gruppenZellen(t, s) { return s.feld?.art === 'gruppe' ? zeilenFuer(t, s
 .pr-tabelle-leer { color: var(--dk-text-subtle); }
 .pr-tabelle-entfaellt { opacity: 0.55; }
 .pr-tabelle-entfaellt .pr-tabelle-datum { text-decoration: line-through; }
-.pr-tabelle-instanz + .pr-tabelle-instanz { margin-top: 3px; }
+.pr-tabelle-instanz + .pr-tabelle-instanz { margin-top: 4px; }
+/* DEV-6 (DMB-45e5dfcda737): Jedes Lied einer Liedzelle bekommt einen kleinen
+   Rahmen. Desktop-Zeile und mobile Karte nutzen dieselben Design-Tokens —
+   Hell- und Dunkelmodus folgen damit ohne eigene Farbwerte. */
+.pr-tabelle-instanz--rahmen,
+.pr-tabelle-instanz-text--rahmen {
+  border: 1px solid var(--dk-border);
+  border-radius: var(--radius);
+  background: var(--dk-surface-2);
+  padding: 3px 8px;
+}
+/* Mobil sind die Instanzenzeilen bisher reine Blockzeilen: mit Rahmen
+   brauchen sie Abstand zueinander (Desktop regelt das über + .pr-tabelle-instanz). */
+.pr-tabelle-karte .pr-tabelle-instanz-text + .pr-tabelle-instanz-text { margin-top: 4px; }
+.pr-tabelle-karte .pr-tabelle-instanz-text--rahmen { display: block; }
 .pr-tabelle-instanz-text { color: var(--dk-text); }
 .pr-tabelle-pin { margin-left: 4px; font-size: 0.72rem; }
 .pr-tabelle-meldung { margin-left: 4px; font-size: 0.72rem; cursor: help; }

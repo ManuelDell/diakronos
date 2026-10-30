@@ -11,7 +11,9 @@ const skript = quelle.match(/<script setup>([\s\S]*?)<\/script>/)[1].replace(/^i
 
 function seite(apiCall = async () => ({})) {
   const meldungen = []
-  return new Function('ref', 'computed', 'h', 'onMounted', 'defineProps', 'apiCall', 'showToast', 'useFormularSchutz', 'pflichtFehler', 'requestAnimationFrame', `
+  // UX-A2a: das Skript der Seite kennt jetzt zusätzlich `defineEmits` (der
+  // Unterbereich kommt aus der Bereichsliste und geht als Ereignis zurück).
+  return new Function('ref', 'computed', 'h', 'onMounted', 'defineProps', 'defineEmits', 'apiCall', 'showToast', 'useFormularSchutz', 'pflichtFehler', 'requestAnimationFrame', `
     ${skript}
     return { newLink, newFormular, formularFelder, showCreateLink, showCreateFormular,
       formularBearbeitet, formularBearbeiten, formularEntfernen,
@@ -24,7 +26,7 @@ function seite(apiCall = async () => ({})) {
       aufnehmenSchutz, aufnehmenSchliessen, aufnehmenBestaetigen, aufnehmenLaeuft,
       ablehnen, ablehnenFuer, ablehnGrund, ablehnenFehler, ablehnenLaeuft,
       ablehnenSchutz, ablehnenSchliessen, ablehnenBestaetigen }
-  `)(ref, computed, h, () => {}, () => {}, apiCall, (...args) => meldungen.push(args), useFormularSchutz, pflichtFehler, () => {})
+  `)(ref, computed, h, () => {}, () => {}, () => {}, apiCall, (...args) => meldungen.push(args), useFormularSchutz, pflichtFehler, () => {})
 }
 
 for (const art of ['link', 'formular']) {

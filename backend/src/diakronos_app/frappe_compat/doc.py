@@ -18,9 +18,14 @@ from .exceptions import DoesNotExistError
 class Document:
 	"""Wrapper mit Frappe-artigem Zugriff. Das Modell bleibt die Wahrheit."""
 
-	def __init__(self, obj: Any, session=None, besitzt_sitzung: bool | None = None):
+	def __init__(self, obj: Any, session=None, besitzt_sitzung: bool | None = None,
+	             auslassen: frozenset[str] | set[str] | None = None):
 		self._obj = obj
 		self._session = session
+		# SEC-1: Spalten, die `as_dict()` NIE ausgibt (Geheimnisse wie
+		# `password_hash`). Der Feldzugriff (`doc.feld`) bleibt unberuehrt —
+		# die Sperre gilt dem Serialisieren, nicht dem Lesen im Server.
+		self._auslassen = frozenset(auslassen or ())
 		# Nur Sessions schliessen, die wir selbst geoeffnet haben.
 		# `besitzt_sitzung` ist die explizite Aussage des Aufrufers (get_doc);
 		# ohne Angabe gilt die alte Regel: eine uebergebene Sitzung gehoert uns.
@@ -103,7 +108,13 @@ class Document:
 		return doctype_fuer_klasse(type(self._obj).__name__) or type(self._obj).__name__
 
 	def as_dict(self) -> dict:
-		return {c.name: getattr(self._obj, c.name) for c in self._obj.__table__.columns}
+		# SEC-1: Geheimspalten (siehe `_auslassen`) verlassen das Dokument
+		# nicht — `GET /api/resource/{doctype}/{name}` serialisiert genau hier.
+		return {
+			c.name: getattr(self._obj, c.name)
+			for c in self._obj.__table__.columns
+			if c.name not in self._auslassen
+		}
 
 	# ── Persistenz ─────────────────────────────────────────────────────────
 	def _coerce_typen(self) -> None:

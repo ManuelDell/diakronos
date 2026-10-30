@@ -21,7 +21,23 @@ from diakronos_app.spa import mount_spa
 logging.basicConfig(level=settings.log_level.upper())
 logger = logging.getLogger("diakronos_app")
 
-app = FastAPI(title="Diakronos API", version=__version__)
+
+def _doku_adressen(einstellungen=None) -> tuple[str | None, str | None, str | None]:
+    """SEC-4: Adressen von Swagger, ReDoc und OpenAPI — ohne Schalter `None`.
+
+    Pentest-Befund 8: `/docs`, `/redoc` und `/openapi.json` waren ohne
+    Anmeldung erreichbar und legten alle Pfade der App offen. `None` schaltet
+    die jeweilige Route in FastAPI ab; sie antwortet dann 404. Eingeschaltet
+    wird nur ueber `SEC_DOKU_OEFFENTLICH=1` (settings.py, Default aus).
+
+    Eigene Funktion, damit die Regel genau EINE Quelle hat (Karte ist
+    getestet) und `main` beim Import nichts weiter entscheiden muss.
+    """
+    s = einstellungen if einstellungen is not None else settings
+    if getattr(s, "sec_doku_oeffentlich", False):
+        return "/docs", "/redoc", "/openapi.json"
+    return None, None, None
+
 
 # Request-Kontext (Client-IP / Kopfzeilen) fuer `frappe.request`-Ersatz.
 # MUSS vor den Endpunkten registriert werden, damit portierte Funktionen
@@ -47,63 +63,33 @@ from diakronos_app.frappe_compat.auth_middleware import (  # noqa: E402
 #   ForwardAuth -> Session -> CSRF -> RequestContext -> Endpunkt.
 from diakronos_app.anmeldung.middleware import ForwardAuthMiddleware  # noqa: E402
 
-app.add_middleware(RequestContextMiddleware)
-
-# DM1: Dev-Modus-Ueberwachung. Sie MUSS NACH der Session-Aufloesung laufen,
-# damit `session.user` gesetzt ist — sonst sieht sie nur "Guest" und sammelt
-# nichts. `add_middleware` schiebt jede neue Schicht VOR die bisherigen, d.h.
-# die ZULETZT hinzugefuegte laeuft als erste. Deshalb wird die Dev-Modus-
-# Schicht HIER (vor Csrf/Session) hinzugefuegt: die Session-Schicht kommt
-# spaeter dazu und laeuft damit VOR ihr.
-# Ablauf pro Request: Session -> DevModus -> CSRF -> RequestContext -> Endpunkt.
 from diakronos_app.devmodus import einstellungen as _devmodus_einstellungen  # noqa: E402
 
-if _devmodus_einstellungen.aktiv():
-    from diakronos_app.devmodus import ueberwachung as _devmodus_ueberwachung  # noqa: E402
-
-    _devmodus_ueberwachung.installiere(app)
-    logger.info("Dev-Modus ist eingeschaltet (DEVMODE_ENABLED).")
-
-app.add_middleware(CsrfMiddleware)
-app.add_middleware(SessionMiddleware)
-app.add_middleware(ForwardAuthMiddleware)
-
-# PF1: gzip fuer alle Antworten ueber 1 KB. Die Plan-/Stammdaten-Antworten sind
-# grosse JSON-Koerper (Plan oeffnen ~200 KB); unkomprimiert kostet das im
-# lokalen Netz spuerbar Uebertragungszeit. GZipMiddleware kommt aus Starlette
-# (bereits Abhaengigkeit von FastAPI) — keine neue Abhaengigkeit.
-# Reihenfolge: add_middleware schiebt jede neue Schicht VOR die bisherigen;
-# gzip als aeusserste Schicht komprimiert damit auch die SPA-Assets und JSON.
 from starlette.middleware.gzip import GZipMiddleware  # noqa: E402
 
-app.add_middleware(GZipMiddleware, minimum_size=1024)
+from diakronos_app.sec_header import SicherheitsHeaderMiddleware  # noqa: E402
 
 # Frappe-kompatible Endpunkte (/api/method/*, /api/resource/*).
 # Bewusst unter dem Praefix /api gemountet, damit spaetere SPA-Statik-Auslieferung
 # (/, /assets/*, SPA-Fallback) nicht kollidiert. Vertrag: backend/API_VERTRAG.md
 from diakronos_app.frappe_compat import router as _compat_router  # noqa: E402
 
-_compat_router.mount(app)
-
 # Authenticated file delivery must precede the SPA catch-all.
 from diakronos_app.files import router as _files_router  # noqa: E402
 
-app.include_router(_files_router)
+# REG-1a: Bilder eines Anmeldeformulars — OEFFENTLICH, aber nur ueber den
+# Registrierungstoken (`/public/registrierung/<token>/bild/<rolle>`). Muss
+# ebenfalls VOR dem SPA-Catch-all stehen, sonst liefert die SPA ein HTML.
+from diakronos_app.formularbilder_api import router as _formularbilder_router  # noqa: E402
 
 # OAuth callback keeps its original public path, but requires an admin session.
 from diakronos_app.google_callback import router as _google_callback_router  # noqa: E402
 
-app.include_router(_google_callback_router)
-
 from diakronos_app.anmeldung.passwortseite import router as _passwort_router  # noqa: E402
-
-app.include_router(_passwort_router)
 
 # Socket.IO fuer `publish_realtime` (P6a). Der Pfad `/socket.io` ist der
 # Default des JS-Clients (`io()`), die SPA verbindet sich ohne Optionen.
 from diakronos_app.frappe_compat.realtime import socket_app  # noqa: E402
-
-app.mount("/socket.io", socket_app)
 
 # DM1: Dev-Modus (ersetzt die Testsuite). Die Endpunkte werden ueber den
 # Import registriert; die Middleware wurde bereits oben eingehaengt (siehe
@@ -111,34 +97,14 @@ app.mount("/socket.io", socket_app)
 # nicht gesetzt, passiert hier nichts: keine Endpunkte, kein Monitoring.
 from diakronos_app.devmodus import api as _devmodus_api  # noqa: E402
 
-_devmodus_api.registriere(app)
-
 # CalDAV (P6b) — portierter, NUR LESENDER DAV-Baum unter /dav/ und
 # /.well-known/caldav. Eigener HTTP-Baum, NICHT ueber /api/method erreichbar:
 # ein Kalender-Client schickt OPTIONS/PROPFIND/REPORT.
 from diakronos_app.caldav import register_dav_routes  # noqa: E402
 
-register_dav_routes(app)
-
 # SEC1: /login, /auth/oidc/*, /logout. MUSS vor `mount_spa(app)` stehen — der
 # SPA-Catch-all wuerde /login sonst schlucken.
 from diakronos_app.anmeldung.routen import registriere_routen  # noqa: E402
-
-registriere_routen(app)
-
-# SEC1: Startpruefung der Anmeldekonfiguration laeuft NICHT beim Import (Tests
-# importieren `main` mit eigenen Flags), sondern ueber den Container-Entrypoint
-# (`python -m diakronos_app.anmeldung.startup`) — genau wie die Erstinstallation.
-
-# BEIDES MUSS VOR `mount_spa(app)` STEHEN — der SPA-Catch-all wuerde sonst
-# /socket.io und /dav/ verdecken. Reihenfolge in dieser Datei:
-#   API-Router -> /healthz -> socket.io -> CalDAV -> Anmelde-Routen -> mount_spa.
-
-# Die Erstinstallation (A1b3) laeuft NICHT hier beim Import, sondern im
-# Container-Entrypoint per `python -m diakronos_app.erstinstallation` NACH
-# `alembic upgrade head`. Grund: beim Import von `main` in Tests darf kein
-# Bootstrap gegen die echte DB laufen, und die `user`-Tabelle existiert erst
-# nach den Migrationen.
 
 
 def _check_db() -> bool:
@@ -168,30 +134,113 @@ def _check_redis() -> bool:
         return False
 
 
-@app.get("/healthz")
-def healthz() -> dict:
-    db_ok = _check_db()
-    redis_ok = _check_redis()
-    all_ok = db_ok and redis_ok
-    return {
-        "status": "ok" if all_ok else "degraded",
-        "db": db_ok,
-        "redis": redis_ok,
-    }
+def erstelle_app(einstellungen=None) -> FastAPI:
+    """Baut die FastAPI-Anwendung.
+
+    Warum als Funktion und nicht beim Import (SEC-4): die abgeschaltete
+    API-Doku haengt an einer Einstellung und wird beim Anlegen von
+    `FastAPI(...)` festgelegt. Als Import-Nebenwirkung liesse sich das nicht
+    mehr pruefen (die Tests importieren `main` einmal je Prozess) und ein
+    Umschalten ohne Neustart waere ausgeschlossen. `settings` ist modulweit
+    gecacht; wer eine andere Umgebung pruefen will, leert diesen Cache und
+    baut neu (`tests/test_sec4_header_doku.py`).
+    """
+    s = einstellungen if einstellungen is not None else settings
+
+    docs_url, redoc_url, openapi_url = _doku_adressen(s)
+    app = FastAPI(
+        title="Diakronos API",
+        version=__version__,
+        docs_url=docs_url,
+        redoc_url=redoc_url,
+        openapi_url=openapi_url,
+    )
 
 
-@app.get("/", include_in_schema=False)
-def wurzel():
-    """Die Startadresse fuehrt in die SPA (relativ: gilt hinter jedem Proxy/jeder Domain)."""
-    from starlette.responses import RedirectResponse
+    app.add_middleware(RequestContextMiddleware)
 
-    return RedirectResponse("/diakonos", status_code=302)
+    # Dev-Modus-Ueberwachung: sie MUSS NACH der Session-Aufloesung laufen,
+    # damit `session.user` gesetzt ist — sonst sieht sie nur "Guest" und sammelt
+    # nichts. `add_middleware` schiebt jede neue Schicht VOR die bisherigen,
+    # d.h. die ZULETZT hinzugefuegte laeuft als erste. Deshalb wird die
+    # Dev-Modus-Schicht HIER (vor Csrf/Session) hinzugefuegt: die
+    # Session-Schicht kommt spaeter dazu und laeuft damit VOR ihr.
+    # Ablauf pro Request: Session -> DevModus -> CSRF -> RequestContext -> Endpunkt.
+    if _devmodus_einstellungen.aktiv(s):
+        from diakronos_app.devmodus import ueberwachung as _devmodus_ueberwachung
+
+        _devmodus_ueberwachung.installiere(app)
+        logger.info("Dev-Modus ist eingeschaltet (DEVMODE_ENABLED).")
+
+    app.add_middleware(CsrfMiddleware)
+    app.add_middleware(SessionMiddleware)
+    app.add_middleware(ForwardAuthMiddleware)
+
+    # PF1: gzip fuer alle Antworten ueber 1 KB. Die Plan-/Stammdaten-Antworten
+    # sind grosse JSON-Koerper (Plan oeffnen ~200 KB); unkomprimiert kostet das
+    # im lokalen Netz spuerbar Uebertragungszeit. GZipMiddleware kommt aus
+    # Starlette (bereits Abhaengigkeit von FastAPI) — keine neue Abhaengigkeit.
+    # Reihenfolge: add_middleware schiebt jede neue Schicht VOR die bisherigen;
+    # gzip als aeusserste Schicht komprimiert damit auch die SPA-Assets und JSON.
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+    # SEC-4: Sicherheits-Kopfzeilen (HSTS, CSP, X-Frame-Options,
+    # X-Content-Type-Options, Referrer-Policy) auf JEDER Antwort.
+    # Diese Schicht wird ZULETZT hinzugefuegt und laeuft damit als aeusserste —
+    # so bekommen auch Antworten die Kopfzeilen, die eine innere Schicht selbst
+    # abschliesst (CSRF 417, Anmeldung 401, Fehlerseiten des Servers).
+    # Sie UEBERSCHREIBT keine vorhandene Kopfzeile: engere Policies einzelner
+    # Endpunkte (z.B. `default-src 'none'; sandbox` bei Formularbildern) bleiben.
+    # Ablauf pro Request danach:
+    #   Kopfzeilen -> gzip -> ForwardAuth -> Session -> DevModus -> CSRF
+    #   -> RequestContext -> Endpunkt.
+    app.add_middleware(SicherheitsHeaderMiddleware)
+
+    _compat_router.mount(app)
+
+    app.include_router(_files_router)
+    app.include_router(_formularbilder_router)
+    app.include_router(_google_callback_router)
+    app.include_router(_passwort_router)
+
+    app.mount("/socket.io", socket_app)
+
+    _devmodus_api.registriere(app)
+
+    register_dav_routes(app)
+
+    # SEC1: /login, /auth/oidc/*, /logout. MUSS vor `mount_spa(app)` stehen.
+    registriere_routen(app)
+
+    @app.get("/healthz")
+    def healthz() -> dict:
+        db_ok = _check_db()
+        redis_ok = _check_redis()
+        all_ok = db_ok and redis_ok
+        return {
+            "status": "ok" if all_ok else "degraded",
+            "db": db_ok,
+            "redis": redis_ok,
+        }
+
+    @app.get("/", include_in_schema=False)
+    def wurzel():
+        """Die Startadresse fuehrt in die SPA (relativ: gilt hinter jedem Proxy/jeder Domain)."""
+        from starlette.responses import RedirectResponse
+
+        return RedirectResponse("/diakonos", status_code=302)
+
+    # ──────────────────────────────────────────────────────────────────────
+    # SPA-Auslieferung — MUSS ZULETZT registriert werden.
+    # Der Catch-all unter /diakonos wuerde sonst spaeter definierte Routen
+    # (/healthz, /api/*) verdecken. mount_spa() schliesst diese Praefixe
+    # zusaetzlich explizit aus.
+    # ──────────────────────────────────────────────────────────────────────
+    mount_spa(app)
+    return app
 
 
-# ──────────────────────────────────────────────────────────────────────────
-# SPA-Auslieferung — MUSS ZULETZT registriert werden.
-# Der Catch-all unter /diakonos wuerde sonst spaeter definierte Routen
-# (/healthz, /api/*) verdecken. mount_spa() schliesst diese Praefixe
-# zusaetzlich explizit aus.
-# ──────────────────────────────────────────────────────────────────────────
-mount_spa(app)
+# Die Anwendung des Prozesses. `uvicorn diakronos_app.main:app` und der
+# TestClient greifen genau hierauf zu.
+app = erstelle_app()
+

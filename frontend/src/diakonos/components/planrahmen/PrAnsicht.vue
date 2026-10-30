@@ -163,9 +163,20 @@ const druckZeitraum = computed(() => {
 const DRUCK_AUSBLENDEN = [
     '.dk-sidebar', '.dk-topbar', '.dk-bottom-nav', '.diakonos-toast-container',
     '.dk-screen-actions', '.dk-crumbs', '.dk-crumb', '.dk-crumb-sep',
+    '.dk-screen-header', '.dk-screen-sub',
     '.pr-druck-leiste', '.pr-ansicht-druckleiste', '.pr-plan-leiste',
     '.pr-plan-meldungen', '.pr-erststart', '.pr-legende',
     '.dk-devmodus-rahmen', '.dk-dev-start', '.impersonation-banner',
+    // FIX-2 (Befund DMB-a48b13606d12): „Drucken nimmt Hinweise und Fehler mit
+    // in den Druck.“ Die Prüf-Meldungen stehen in der Plantabelle selbst
+    // (PrMeldungen kompakt je Termin) und als Warnblock darüber; dazu kommen
+    // der Handy-Hinweis (PLAN-M1), das Archiv-Hinweisband und die
+    // Bearbeitungs-Kennzeichnung der Zellen (Klickbarkeit, 📌).
+    '.pr-meldungen', '.pr-meldungen-uebersicht', '.pr-meldungen-gruppe',
+    '.pr-meldungen-termin', '.pr-meldung', '.pr-meldung--fehler',
+    '.pr-meldung--warnung', '.pr-meldung--hinweis', '.pr-meldung--info',
+    '.pr-hinweis-handy', '.pr-plan-archiv', '.pr-plan-zustand',
+    '.pr-tabelle-bearbeiten-hinweis', '.pr-editor-hinweis',
 ]
 const DRUCK_BESCHNITT = [
     '.pr-tabelle tr', '.pr-raster-tabelle tr', '.pr-ablauf-element', '.pr-tabelle-karte',
@@ -228,6 +239,33 @@ function druckCss(ausrichtung) {
       body.pr-druck-aktiv .dk-main-wrap, body.pr-druck-aktiv .dk-content {
         display: block !important; height: auto !important; overflow: visible !important; }
       body.pr-druck-aktiv ${DRUCK_AUSBLENDEN.join(', body.pr-druck-aktiv ')} { display: none !important; }
+      /* FIX-2: Hinweisbaender UND die Pruef-Meldungen in der Plantabelle
+         (PrMeldungen kompakt je Termin) bleiben weg. Die Meldungsknoten
+         hingen bisher als <summary>/<div> in den Zellen und wanderten mit ins
+         PDF. druckCss() wird zur Laufzeit als eigenes <style> eingehaengt und
+         ist damit NICHT gescopt — die Klassennamen der Kindkomponenten
+         greifen deshalb direkt. .dk-badge steht bewusst NICHT in der Liste:
+         „entfallen“ und Anlass-Badges sind Planinhalt. Scharf wird
+         das Ganze erst zur Laufzeit ueber body.pr-druck-aktiv (beforeprint
+         bzw. deklarierte Druckansicht), am Bildschirm bleibt alles sichtbar. */
+      body.pr-druck-aktiv .pr-meldungen,
+      body.pr-druck-aktiv .pr-meldungen-uebersicht,
+      body.pr-druck-aktiv .pr-meldungen-gruppe,
+      body.pr-druck-aktiv .pr-meldungen-termin,
+      body.pr-druck-aktiv .pr-meldung,
+      body.pr-druck-aktiv .pr-meldung-meldung,
+      body.pr-druck-aktiv .pr-meldung-hinweis,
+      body.pr-druck-aktiv .pr-meldung-pfad,
+      body.pr-druck-aktiv .pr-meldung-piktogramm,
+      body.pr-druck-aktiv .pr-meldungen-kopf,
+      body.pr-druck-aktiv .pr-meldungen-anzeigen,
+      body.pr-druck-aktiv .pr-hinweis-handy-text,
+      body.pr-druck-aktiv .pr-hinweis-handy-zu { display: none !important; }
+      /* Bearbeitungs-Kennzeichnung am Papier: der Zeiger klickt nichts an,
+         und 📌 ist Bildschirmsprache der Legende (die im Druck entfaellt). */
+      body.pr-druck-aktiv .pr-tabelle-karte-wert--klickbar,
+      body.pr-druck-aktiv .pr-tabelle-pin { cursor: auto !important; }
+      body.pr-druck-aktiv .pr-tabelle-pin { display: none !important; }
       body.pr-druck-aktiv .dk-main-wrap { padding: 0 !important; margin: 0 !important; }
       body.pr-druck-aktiv .dk-content, body.pr-druck-aktiv .dk-screen {
         padding: 0 !important; margin: 0 !important; max-width: none !important; width: auto !important; }

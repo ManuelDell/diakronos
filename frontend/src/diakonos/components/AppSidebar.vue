@@ -97,7 +97,7 @@
 </template>
 
 <script setup>
-import { computed, h, reactive, onMounted, onUnmounted } from 'vue'
+import { computed, h, onMounted, onUnmounted } from 'vue'
 import { useSession } from '../composables/useSession.js'
 import { initialen } from '../composables/anzeigename.mjs'
 import { useAbmelden } from '../composables/useAbmelden.js'
@@ -105,7 +105,7 @@ import { showToast } from '../composables/useToast.js'
 import { currentPageName, currentHash } from '../router.js'
 import { MENUE, ICON_PFADE, sichtbareEintraege } from '../menue.js'
 import { PRODUKTNAME } from './ui/begriffe.mjs'
-import { navigationZaehler } from '../composables/useVerwaltung.js'
+import { anfragenZaehler, anfragenZaehlerBeobachten } from '../composables/useVerwaltung.js'
 
 const props = defineProps({
   collapsed: Boolean,
@@ -136,24 +136,24 @@ const isGast = computed(() => !isAdmin.value && mitglied.value?.status === 'Gast
    „Registrierung 0“, obwohl offene Anmeldungen vorlagen. Die Zahl kommt vom
    Server (`get_navigation_zaehler`); ohne Rolle fehlt der Schlüssel, dann
    wird nichts eingeblendet (nie eine erfundene Null). Ein Fehler bleibt
-   still: eine Kennzahl darf die Navigation nicht stören. */
-const zaehler = reactive({ anfragen: 0 })
-let zaehlerTimer = null
-
-async function ladeZaehler() {
-  try {
-    const antwort = await navigationZaehler()
-    zaehler.anfragen = Number(antwort?.anfragen || 0)
-  } catch {
-    zaehler.anfragen = 0
-  }
-}
+   still: eine Kennzahl darf die Navigation nicht stören.
+   UX-A2a: Die Abfrage und der Stand liegen in `useVerwaltung.js`, weil die
+   Mitglieder-Bereichsliste dieselbe Zahl an „Anfragen“ zeigt — eine Abfrage,
+   ein Stand, keine zwei Anzeigen mit verschiedenen Zahlen.
+   UX-A2a2: Auch der Takt ist gemeinsam (`anfragenZaehlerBeobachten`): EIN
+   Intervall für Seitenleiste und Bereich, nicht eines je Bauteil. Gefragt
+   wird nur mit Mitgliederadministrator-Recht — sonst liefe die Leiste bei
+   jedem Nutzer in eine Absage. */
+const zaehler = anfragenZaehler
+let zaehlerAbmelden = null
 
 onMounted(() => {
-  ladeZaehler()
-  zaehlerTimer = setInterval(ladeZaehler, 60_000)
+  zaehlerAbmelden = anfragenZaehlerBeobachten()
 })
-onUnmounted(() => { if (zaehlerTimer) clearInterval(zaehlerTimer) })
+onUnmounted(() => {
+  if (zaehlerAbmelden) zaehlerAbmelden()
+  zaehlerAbmelden = null
+})
 
 const sichtbaresMenue = computed(() =>
   MENUE
@@ -174,7 +174,7 @@ function istAktiv(eintrag) {
 }
 
 function badgeFuer(eintrag) {
-  if (eintrag.badge === 'anfragen' && zaehler.anfragen > 0) return zaehler.anfragen
+  if (eintrag.badge === 'anfragen' && zaehler.value > 0) return zaehler.value
   return null
 }
 

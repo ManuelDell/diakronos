@@ -644,38 +644,32 @@ def get_moderation_vorschlaege(limit=20):
     `kanban_api._mod_calendars`, also `get_accessible_calendars` mit
     `is_moderator`). Ohne Moderationskalender -> leere Liste (kein Fehler),
     dieselbe Antwort wie im Kanban-Brett.
+
+    DEV-8 (Befund DMB-7bee65f6c32b): Die Liste der Moderationsseite und diese
+    Kachel duerfen nicht auseinanderlaufen. Deshalb steht die ABFRAGE in
+    `_offene_moderations_vorschlaege` — dieselbe Funktion versorgt den
+    Zaehler der Kachel (`get_widget_badge_counts`), die Seitenleiste
+    (`get_navigation_zaehler`), und `kanban_api.get_moderation_count` (Badge
+    der Moderationsseite) zaehlt dieselbe Menge ueber denselben Kern. Der
+    frueher hier benutzte Zeitfilter `element_start >= jetzt` ist entfallen:
+    das Kanban-Brett (die Moderationsseite) blendet vergangene Vorschlaege
+    NICHT aus — die Kachel haette sie sonst verschluckt und eine andere Zahl
+    gezeigt als die Seite.
     """
-    from diakronos_app.api.kronos.permissions import get_accessible_calendars
-
-    allowed = get_accessible_calendars() or []
-    mod_cals = [c["name"] for c in allowed if isinstance(c, dict) and c.get("is_moderator")]
-    if not mod_cals:
+    rows = _offene_moderations_vorschlaege(limit=limit)
+    if not rows:
         return []
-
-    grenze = max(int(limit or 0), 0)
-    jetzt = datetime.datetime.now()
-    rows = get_all(
-        "Element",
-        filters={
-            "element_calendar": ["in", mod_cals],
-            "status": "Vorschlag",
-            "element_start": [">=", jetzt],
-        },
-        fields=["name", "element_name", "element_start", "element_end",
-                "all_day", "ressource", "element_calendar", "status"],
-        order_by="element_start asc",
-        limit_page_length=grenze or None,
-    ) or []
 
     cal_info: dict[str, dict[str, str]] = {}
     out: list[dict[str, Any]] = []
     for e in rows:
-        cal = e.get("element_calendar")
+        cal = str(e.get("element_calendar") or "")
         if cal not in cal_info:
-            row = get_value("Kalender", cal, ["calendar_name", "calendar_color"],
-                            as_dict=True) or {}
+            _row = get_value("Kalender", cal, ["calendar_name", "calendar_color"],
+                             as_dict=True)
+            row: dict[str, Any] = _row if isinstance(_row, dict) else {}
             cal_info[cal] = {
-                "title": row.get("calendar_name") or cal or "",
+                "title": row.get("calendar_name") or cal,
                 "color": row.get("calendar_color") or "#3b82f6",
             }
         out.append({
@@ -691,6 +685,71 @@ def get_moderation_vorschlaege(limit=20):
             "status":         e.get("status") or "",
         })
     return out
+
+
+def _moderations_kalender() -> list[str]:
+    """Kalender, die der Aufrufer MODERIERT (dieselbe Schranke wie das Brett)."""
+    from diakronos_app.api.kronos.permissions import get_accessible_calendars
+
+    allowed = get_accessible_calendars() or []
+    return [
+        c["name"] for c in allowed
+        if isinstance(c, dict) and c.get("is_moderator") and c.get("name")
+    ]
+
+
+def offene_moderations_vorschlaege(limit=None) -> list[dict[str, Any]]:
+    """DIE Abfrage hinter Kachel, Seitenleiste und Moderations-Badge (DEV-8).
+
+    Befund DMB-7bee65f6c32b: Die Startseiten-Kachel „Zu moderierende Termine“
+    zeigte eine Zahl, die Moderationsseite eine Liste — und beide kamen aus
+    verschiedenen Abfragen (Kachel: Ressourcen-Ueberschneidungen). Hier steht
+    die eine Menge, die der Titel verspricht: Termine mit Status ``Vorschlag``
+    in Kalendern, die der Aufrufer moderiert.
+
+    Genau diese Menge zeigt das Kanban-Brett der Moderationsseite
+    (`kanban_api.get_kanban_board_data.raw_v`). Sie wird hier NICHT gefiltert
+    (kein Zeitfenster, kein Serien-Zusammenfassen) — der Zaehler unten ist
+    ``len(...)`` dieser Liste, damit Zahl und Liste nicht auseinanderlaufen
+    koennen.
+
+    Ohne Moderationskalender: leere Liste (kein Fehler) — wie das Brett.
+    """
+    mod_cals = _moderations_kalender()
+    if not mod_cals:
+        return []
+
+    grenze = None if limit is None else max(int(limit or 0), 0)
+    if grenze == 0:
+        return []
+
+    rows = get_all(
+        "Element",
+        filters={
+            "element_calendar": ["in", mod_cals],
+            "status": "Vorschlag",
+        },
+        fields=["name", "element_name", "element_start", "element_end",
+                "all_day", "ressource", "element_calendar", "status"],
+        order_by="element_start asc",
+        limit_page_length=grenze,
+    ) or []
+    return [r for r in rows if isinstance(r, dict)]
+
+
+# Rueckwaerts-Kompatibilitaet: Der Name wird von `kanban_api` und Tests benutzt.
+_offene_moderations_vorschlaege = offene_moderations_vorschlaege
+
+
+def _count_offene_moderations_vorschlaege() -> int:
+    """Zahl der offenen Vorschlaege der moderierten Kalender (DEV-8).
+
+    Vorher zaehlte die Kachel `_count_ueberlappende_ressourcen_events` —
+    Ressourcen-Doppelbelegungen aus allen Terminen, jeder Status. Ergebnis:
+    Kachel 2, Moderationsseite leer. Jetzt ist der Zaehler die Laenge genau
+    der Liste, die `get_moderation_vorschlaege` (die Kachel selbst) liefert.
+    """
+    return len(offene_moderations_vorschlaege())
 
 
 def _get_effective_user() -> str:
@@ -718,6 +777,25 @@ def _get_effective_user() -> str:
 # ── Badge-Counts (Phase 4) ──────────────────────────────────────────────────
 
 
+def _kalender_rollen(user: str) -> tuple[str, ...]:
+    """Rollen des Kontos — mit der ``Administrator``-Regel der Kalender-Rechte.
+
+    `frappe_compat.permissions.get_roles` kennt keinen Sonderfall fuer das
+    Konto ``Administrator`` (es liest nur die `Has Role`-Tabelle). Die
+    Kalender-/Terminrechte dagegen schon
+    (`kronos.permissions._is_kalenderadministrator`: ``Administrator`` gilt
+    immer als Kalenderadministrator). Mit der reinen Tabellen-Abfrage fehlten
+    dem Betriebskonto auf der Startseite die Kachel-Zaehler, obwohl es alles
+    darf — genau deshalb braucht `get_widget_badge_counts` diese Ergaenzung.
+    Andere Konten sind unveraendert (`get_roles` 1:1).
+    """
+    rollen = set(permissions.get_roles(user))
+    if user == "Administrator":
+        rollen.update({"Kalenderadministrator", "System Manager",
+                       "Mitgliederadministrator"})
+    return tuple(sorted(rollen))
+
+
 @whitelist(allow_guest=False)
 def get_widget_badge_counts():
     """Gibt Anzahl-Badges fuer Action-Widgets zurueck.
@@ -731,12 +809,17 @@ def get_widget_badge_counts():
     nicht sehen darf. 1:1 uebernommen, per Test belegt.
     """
     user = session.user
-    roles = permissions.get_roles(user)
+    roles = _kalender_rollen(user)
     result: dict[str, int] = {}
 
     # pending-registrations: Termine zur Moderation (Kalenderadmin)
+    #
+    # DEV-8 (DMB-7bee65f6c32b): Der Zaehler ist die Laenge GENAU der Liste,
+    # die die Kachel zeigt (`get_moderation_vorschlaege` ->
+    # `offene_moderations_vorschlaege`). Vorher zaehlte er
+    # Ressourcen-Doppelbelegungen — Kachel 2, Moderationsseite leer.
     if "Kalenderadministrator" in roles or "System Manager" in roles:
-        count = _count_ueberlappende_ressourcen_events()
+        count = _count_offene_moderations_vorschlaege()
         result["pending-registrations"] = int(count or 0)
 
     # manage-registrations: Offene Anmeldungen (Admin)
@@ -799,6 +882,15 @@ def get_navigation_zaehler():
 
 def _count_ueberlappende_ressourcen_events() -> int:
     """COUNT(DISTINCT a.name) ueber die Selbst-Ueberlappung von `Element`.
+
+    DEV-8: NICHT mehr der Zaehler der Kachel „Zu moderierende Termine“ —
+    gezaehlt wird dort seit diesem Fix `_count_offene_moderations_vorschlaege`
+    (offene Vorschlaege der moderierten Kalender, = Laenge der Liste).
+    Ressourcen-Konflikte bleiben sichtbar: in der Spalte „Konflikte“ des
+    Moderations-Bretts, im Konflikt-Dialog beim Speichern
+    (`check_resource_conflict`) und ueber
+    `ressource_api.get_conflict_events`. Diese Funktion bleibt als
+    eigenstaendige Auswertung erhalten (kein toter Aufrufpfad in der Kachel).
 
     Original-SQL (dashboard.py:319-330) — die Original-Datenbank erlaubt
     einen Self-JOIN auf dieselbe Tabelle:

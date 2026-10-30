@@ -63,6 +63,8 @@ def test_herkunftspruefung_steht_vor_der_bremse():
     IP-Zaehler mit Angriffsverkehr flutbar.
     """
     quelle = _quelle("api/auth.py")
+    # SEC-4: der Aufruf steht unveraendert an derselben Stelle (der zusaetzliche
+    # Token-Zweig haengt IM Rumpf dieses `if`, nicht davor).
     pos_herkunft = quelle.index("if request is not None and not _herkunft_ist_eigen(request):")
     pos_bremse = quelle.index("loginversuche.pruefe_und_merke(")
     assert pos_herkunft < pos_bremse

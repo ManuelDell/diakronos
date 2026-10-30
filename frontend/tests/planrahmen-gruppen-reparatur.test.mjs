@@ -23,9 +23,12 @@ const read = (p) => readFileSync(new URL(p, root), 'utf8')
 // ── UXD-R4: Parameternamen passen zum Backend ───────────────────────────────
 {
   const org = read('components/gruppen/OrganigrammAnsicht.vue')
-  assert.ok(org.includes('dienstbereich: f.parent'), 'create_gruppe nutzt `dienstbereich`')
-  assert.ok(org.includes('gruppe: f.parent'), 'create_untergruppe nutzt `gruppe`')
-  assert.ok(org.includes('untergruppenname: editForm.value.name.trim()'), 'update_untergruppe nutzt `untergruppenname`')
+  // DEV-1: Seit dem gemeinsamen Anlege-Dialog liegen Methode und Feldnamen in
+  // `composables/gruppenAnlegen.mjs` (eine Quelle für Liste UND Organigramm).
+  const anlegen = read('composables/gruppenAnlegen.mjs')
+  assert.ok(anlegen.includes('dienstbereich: f.parent'), 'create_gruppe nutzt `dienstbereich`')
+  assert.ok(anlegen.includes('gruppe: f.parent'), 'create_untergruppe nutzt `gruppe`')
+  assert.ok(org.includes('anlegeAufruf('), 'Organigramm: Anlegen über den gemeinsamen Baustein')
   assert.ok(!org.includes('parent: f.parent'), 'kein `parent` mehr an create_gruppe/untergruppe')
   assert.ok(!/alert\(/.test(org), 'Organigramm: kein roher alert() mehr, sondern Toast')
 }

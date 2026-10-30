@@ -1,6 +1,19 @@
-@import 'frappe-ui/style.css';
+/* DEP-1: kein `frappe-ui/style.css` mehr — die Schrift „Inter“ liegt lokal
+   im Buendel und wird in `tokens.css` eingebunden (dort erreichen sie alle
+   vier Einstiege). */
+/* DEP-2b: LAYER-REIHENFOLGE — die erste Deklaration legt sie fest.
+   `reset` steht UNTEN: das Grundreset (src/grundreset.css) darf nie eine
+   Komponentenklasse (.dk-ui-chip, .dk-btn, …) oder ein Token ueberstimmen.
+   Ohne diese Zeile entschiede die Stelle im Buendel — und Vite stellt die
+   per @import eingesammelten Regeln HINTER die direkt geschriebenen, das
+   Reset landete also nach den Komponenten (Befund: Filterchips ohne Rahmen,
+   Hintergrund und Innenabstand). Tailwinds `theme`/`utilities` bleiben wie
+   bisher in ihren eigenen Layern. */
+@layer reset, theme, kronos, base, components, utilities;
+
 @import './tokens.css';
 @import './kronos.css';
+@import '../grundreset.css';
 
 /* =====================================================================
    Diakronos Design System
@@ -13,7 +26,32 @@ html {
   font-feature-settings: 'calt' 1, 'cv01' 1, 'cv03' 1, 'cv04' 1, 'cv11' 1;
 }
 html, body, #app { height: 100%; overflow: hidden; }
-body { -webkit-tap-highlight-color: transparent; margin: 0; }
+
+/* Grundreset: steht in `src/grundreset.css` und wird von ALLEN vier Einstiegen
+   geladen (diakonos, gast, registrierung, organigramm). Bis DEP-2 kam es aus
+   dem Tailwind-Preflight; seit Tailwind 4 ist der bewusst aus (src/style.css),
+   deshalb eine eigene, gemeinsame Datei statt einer Regel nur hier — sonst
+   haetten registrierung/organigramm (die index.css nicht laden) kein Reset
+   (Operator-Review DEP-2, Punkt 5). Enthalten: box-sizing, Schrift am `body`,
+   Schrift/Abstaende der Formularelemente, Bilder, Tabellen.
+   Die Sofortkorrektur 23.10. aus main (`box-sizing` an `*`, `font: inherit`
+   an den Formularelementen, `body{margin:0}`) steht vollstaendig in
+   grundreset.css und wird von dort geladen — hier keine zweite Kopie.
+   DEP-2b: die Reset-Selektoren dort stehen jetzt ausnahmslos in `:where(...)`
+   (Spezifitaet 0), damit Komponentenklassen wie `.dk-ui-chip` IMMER gewinnen. */
+
+/* =====================================================================
+   DEV-3 · Überschriften tragen IMMER die Textfarbe des Themes
+   Befund DMB-ab3be95cc15a: `.dk-modal h3` hatte keine Farbe. Überschriften
+   erben die Farbe ihres Elternteils — steht dort eine feste oder gar keine
+   Farbe, wird die Schrift im Dunkelmodus schwarz auf dunkelblauer Fläche.
+   Deshalb setzen ALLE Überschriftenebenen (h1–h4) die Farb-Token --text;
+   einzelne Komponenten dürfen das nicht überschreiben (Wächter-Test
+   frontend/tests/dev3-dialog-ueberschriften.test.mjs).
+   ===================================================================== */
+h1, h2, h3, h4 {
+  color: var(--text);
+}
 
 /* =====================================================================
    DES-R3 · Sichtbarer Tastaturfokus (WCAG 2.4.7)
@@ -86,62 +124,50 @@ body { -webkit-tap-highlight-color: transparent; margin: 0; }
 @media print { .dk-sprunglink { display: none !important; } }
 
 /* =====================================================================
-   UXD-R9 und OP-HANDY-14 · Mobil: Felder richtig dimensionieren
+   FIX-6 · ZWEI Kriterien (Befund DMB-d446e449ba22; Operator 27.10.)
    ---------------------------------------------------------------------
-   UXD-R9: Flex-Kinder (Eingabefelder) koennen ohne `min-width:0` nicht unter
-   ihre Inhaltsbreite schrumpfen. Am Handy schob das die Bearbeiten-Formulare
-   von Mitglied/Profil über den Kartenrand, „Nr.“ war abgeschnitten.
-   OP-HANDY-14: iOS-Safari zoomt beim Antippen automatisch in jedes Feld mit
-   weniger als 16 px Schrift (Login 15 px, Suche 13/14 px, Auswahllisten
-   11/12 px). Diese zentrale Regel hebt alle Felder im groben Zeiger auf 16 px
-   — nur bei echberührungsfähigen Eingaben (`pointer: coarse`), damit die
-   Desktop-Dichte unveraendert bleibt. Die Login-Masken (spa.py, routen.py)
-   tragen dieselbe Regel separat, weil sie nicht vom SPA-Stylesheet kommen.
-   ===================================================================== */
-input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
-  min-width: 0;
-}
-@media (hover: none) and (pointer: coarse) {
-  input:not([type="checkbox"]):not([type="radio"]),
-  select,
-  textarea,
-  .dk-ui-eingabe,
-  .dk-form-input,
-  .dk-form-select {
-    font-size: 16px;
-  }
+   Bisher fragten die Mobil-Regeln nur `(hover: none) and (pointer: coarse)`.
+   Ein Zeigegerät, das Touch KANN und dessen PRIMAERER Zeiger grob ist, gilt
+   dem Browser damit als „Touch“ — auch wenn eine Maus oder ein Trackpad
+   daneben vorhanden ist und die Fläche Desktop-Breite hat. Genau dort
+   erschienen mobile Elemente (Befund: Viewport 1410×755).
 
-  /* OP-HANDY-26: Am Handy waren viele Tippziele kleiner als die von WCAG 2.5.8
-     verlangten 24 px (gemessen: Termin-Chips im Monat 47×22, „Aktualisieren“
-     22×22, „Plan öffnen“ 67×17, Sichtbarkeits-Kästchen 16×16, Dialog-✕ 24–32).
-     Eine Regel statt 30 Einzelstellen: kleine Knöpfe, Chip-Flächen und
-     Kontrollkästchen bekommen mindestens 24 px Höhe, Symbole/Kästchen
-     mindestens 24 px Kantenlänge. Nur bei grobem Zeiger (Touch), damit die
-     Desktop-Dichte unverändert bleibt. */
-  .dk-btn,
-  .dk-btn-sm,
-  .dk-btn-icon,
-  .dk-ui-chip,
-  .dk-filter-chip,
-  input[type="checkbox"],
-  input[type="radio"] {
-    min-height: 24px;
-  }
-  .dk-btn-icon,
-  button > svg,
-  input[type="checkbox"],
-  input[type="radio"] {
-    min-width: 24px;
-  }
-  /* Ein Kästchen wird über die ganze Beschriftungsfläche antippbar, sonst
-     bleibt das 16-px-Kästchen das einzige Ziel. */
-  label:has(> input[type="checkbox"]),
-  label:has(> input[type="radio"]) {
-    display: inline-flex;
-    align-items: center;
-    min-height: 24px;
-  }
-}
+   Getrennt nach der Frage, die die Regel beantwortet:
+
+     LAYOUT  Nur die BREITE:      mobilLayout = Breite <= 720 px
+             (.dk-app einspaltig, Seitenleiste aus, untere Leiste an)
+             Ein schmales Fenster MIT Maus bekommt Mobil-Layout samt unterer
+             Leiste (Navigation); ein Touch-Laptop mit 1410 px bleibt Desktop.
+
+     TOUCH   Nur der ZEIGER:      groberZeiger = (pointer: coarse)
+             (16-px-Felder gegen den iOS-Zoom, Tippziel-Mindestgrößen) —
+             unabhängig von der Breite, damit das iPad im Querformat sie
+             behält und ein Desktop mit Maus sie nie bekommt.
+
+   Nie Kriterium ist die bloße Touch-Fähigkeit (`(any-pointer: coarse)`,
+   `maxTouchPoints`, `ontouchstart`) — und auch nicht `(any-pointer: fine)`:
+   daraus folgte in der ersten Fassung, dass ein Handy mit Maus kein
+   Mobil-Layout mehr bekäme.
+
+   Definition an EINER Stelle: `composables/eingabeart.mjs`
+   (`istMobilLayout`, `istTouch`, `SCHMAL_ABFRAGE`, `GROBER_ZEIGER_ABFRAGE`).
+   Änderungen hier immer synchron — die Node-Tests
+   `tests/fix6-zeigegeraet.test.mjs` und `tests/fix6-keine-zeiger-syntax.test.mjs`
+   vergleichen beide Fassungen. Bewusst `(pointer: coarse)` und kein
+   `not (... or ...)` (Safari < 16.4 kennt Stufe 4 nicht).
+   ===================================================================== */
+
+/* --- Layout: nur nach Breite ---------------------------------------- */
+/* Der wirksame 720-px-Block steht aus Kaskaden-Gründen am DATEIENDE (K2) —
+   siehe Kommentar «FIX-6 · Layout im Mobil-Layout» dort. Ein Block an dieser
+   Stelle landet im Bündel VOR den Grundregeln (Vite sammelt @import ein) und
+   wird von `.dk-quick-row` / `@media (max-width: 1100px)` überschrieben. */
+
+/* --- Touch: nur bei grobem Zeiger, unabhängig von der Breite -------- */
+/* Der Block steht aus Kaskaden-Gründen am DATEIENDE — siehe Kommentar
+   «FIX-6 · Touch-Anpassungen» dort. */
+/* OP-HANDY-10 (flaches Querformat, z. B. 844×390) steht ebenfalls am
+   DATEIENDE — siehe «FIX-6 · Layout im Mobil-Layout». */
 
 /* =====================================================================
    App Shell
@@ -622,6 +648,9 @@ input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
 /* Card grid */
 .dk-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 .dk-card-grid-sm { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+/* Inhaltsumbruch, kein Layout: die Kartenraster dieser Seite gehen im
+   Dialog/in der Karte von mehreren auf eine Spalte — der Seitenrahmen schaltet
+   bereits bei 720 px (siehe `.dk-app` am Dateiende). */
 @media (max-width: 640px) { .dk-card-grid { grid-template-columns: 1fr; } }
 
 /* Content card (clickable card with hover lift) */
@@ -663,10 +692,16 @@ input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
   display: flex;
   align-items: center;
   gap: 10px;
+  /* FIX-3 (Befund DMB-eb3ae73fc36f): Das Feld stand allein über den Innenabstand
+     (10 px oben/unten) auf 39 px, neben dem Filterchip (34 px) und dem
+     DkButton „md“ (--control-h) also 5 px zu hoch. Die Höhe kommt jetzt aus
+     einem Token, der Abstand nur noch waagerecht — damit stehen Feld, Chip
+     und Knopf in jeder Filterzeile gleich hoch. */
+  min-height: var(--filter-h);
   background: var(--dk-surface);
   border: 1px solid var(--dk-border);
   border-radius: 10px;
-  padding: 10px 14px;
+  padding: 0 14px;
   transition: border-color var(--dk-fast);
   margin-bottom: 20px;
 }
@@ -933,7 +968,10 @@ a.gr-kachel:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 .dk-toolbar-search { position: relative; flex: 1; min-width: 220px; max-width: 400px; }
 .dk-toolbar-search input {
   width: 100%;
-  padding: 8px 12px 8px 34px;
+  /* FIX-3: gleiche Höhe wie Chip, DkButton „md“ und .dk-search-bar — die
+     Höhe kommt aus --filter-h, der Innenabstand ist rein waagerecht. */
+  min-height: var(--filter-h);
+  padding: 0 12px 0 34px;
   background: var(--dk-surface);
   border: 1px solid var(--dk-border);
   border-radius: 8px;
@@ -967,7 +1005,10 @@ a.gr-kachel:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px;
+  /* FIX-3: Höhe aus demselben Token wie Suchfeld und Knopf (vorher nur
+     Innenabstand → 34 px, aber ohne gemeinsame Quelle). */
+  height: var(--filter-h);
+  padding: 0 12px;
   background: var(--dk-surface);
   border: 1px solid var(--dk-border);
   border-radius: 8px;
@@ -982,8 +1023,14 @@ a.gr-kachel:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 .dk-filter-chip:hover { background: var(--dk-surface-hover); color: var(--dk-text); }
 .dk-ui-chip.is-active,
 .dk-filter-chip.is-active { background: var(--dk-brand-800); color: #fff; border-color: var(--dk-brand-800); }
+/* DEV-4: Der aktive Filter stand im Dunkelmodus auf WEISSER Fläche mit der
+   Schriftfarbe des THEMES (hell) — 1,37:1, praktisch unlesbar (auf jeder
+   Seite mit Filterchips: Lieder, Beiträge, Gruppen, Ressourcen, Löschanträge).
+   Die Fläche bleibt hell (Marke), die Schrift kommt jetzt aus der festen
+   dunklen Markenstufe statt aus --dk-brand-800, das im Dunkelmodus auf die
+   HELLE Stufe zeigt. */
 [data-theme="dark"] .dk-ui-chip.is-active,
-[data-theme="dark"] .dk-filter-chip.is-active { background: #fff; color: var(--dk-brand-800); border-color: #fff; }
+[data-theme="dark"] .dk-filter-chip.is-active { background: #fff; color: var(--dk-navy-800); border-color: #fff; }
 .dk-ui-chip-zahl,
 .dk-chip-count {
   font-size: 11px;
@@ -994,12 +1041,19 @@ a.gr-kachel:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 }
 .dk-ui-chip.is-active .dk-ui-chip-zahl,
 .dk-filter-chip.is-active .dk-chip-count { background: rgba(255,255,255,.2); color: #fff; }
-[data-theme="dark"] .dk-ui-chip.is-active .dk-ui-chip-zahl { background: rgba(0,0,0,.15); color: var(--dk-brand-800); }
+/* DEV-4: Die Zahl im aktiven Chip stand im Dunkelmodus ebenfalls auf der
+   hellen Fläche — Schrift dunkel (feste Markenstufe), damit sie lesbar bleibt. */
+[data-theme="dark"] .dk-ui-chip.is-active .dk-ui-chip-zahl { background: rgba(0,0,0,.15); color: var(--dk-navy-700); }
+[data-theme="dark"] .dk-filter-chip.is-active .dk-chip-count { background: rgba(0,0,0,.15); color: var(--dk-navy-700); }
 
 .dk-filter-group { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* DES-01: Filterzeile = Suchfeld + Chips. Vorher trug nur jede Seite ihre
-   eigenen Abstände (das Klassenpaar `.dk-filters` war nirgends definiert). */
+   eigenen Abstände (das Klassenpaar `.dk-filters` war nirgends definiert).
+   FIX-3: Hier wird die Höhe der Zeile EINMAL festgelegt: Kinder strecken sich
+   auf die Zeilenhöhe, das Suchfeld wächst nicht über seinen Inhalt hinaus.
+   Damit sind Chip, Suchfeld und Knopf überall gleich hoch, ohne dass eine
+   Seite die Maße nachbaut. */
 .dk-filters {
   display: flex;
   align-items: center;
@@ -1007,6 +1061,11 @@ a.gr-kachel:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
   gap: 8px;
   margin-bottom: var(--sp-3);
 }
+.dk-filters > * { flex: none; }
+.dk-filters > .dk-search-bar { align-self: center; }
+/* Die Chip-Zeile ist im Bündel ein eigenes Flex-Kind; sie darf mitwachsen,
+   aber nicht schrumpfen (sonst quetscht das Suchfeld die Chips). */
+.dk-filters > .dk-ui-chips { flex: 0 1 auto; }
 
 .dk-table {
   width: 100%;
@@ -1077,7 +1136,7 @@ a.gr-kachel:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,3,15,.5);
+  background: var(--overlay);
   padding: 16px;
 }
 .dk-modal {
@@ -1091,7 +1150,7 @@ a.gr-kachel:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 }
 .dk-modal--sm { max-width: 320px; }
 .dk-modal--lg { max-width: 720px; }
-.dk-modal h3 { font-size: 16px; font-weight: 600; margin: 0 0 6px; }
+.dk-modal h3 { font-size: 16px; font-weight: 600; margin: 0 0 6px; color: var(--dk-text); }
 .dk-modal p  { font-size: 13px; color: var(--dk-text-muted); margin: 0 0 16px; }
 .dk-modal textarea {
   width: 100%;
@@ -1142,6 +1201,52 @@ a.gr-kachel:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 .dk-form-input::placeholder, .dk-form-textarea::placeholder { color: var(--dk-text-subtle); }
 .dk-form-actions { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 8px; }
 select.dk-form-select { appearance: auto; }
+
+/* DEV-3: `.dk-ui-eingabe` stand in der `min-width`-Regel, hatte aber selbst
+   keine Gestalt — Felder in Dialogen/Karten (z. B. „Neue Gruppe“) blieben die
+   hellen Browser-Vorgaben (weiß mit schwarzer Schrift), auch im Dunkelmodus.
+   Hier nur die FARBE aus Tokens: Fläche, Schrift, Rahmen-Platzhalter und
+   Fokus folgen den Theme-Tokens. Form (Breite, Innenabstand, Radius) bleibt
+   Sache der jeweiligen Komponente — sonst änderte die Regel ungewollt
+   Felder app-weit, die gar kein `.dk-form-input` sind (z. B. das
+   Treffzeit-Auswahlfeld im Organigramm).
+   Die Schriftgröße wird ABSICHTLICH nicht gesetzt: die Touch-Regel
+   OP-HANDY-14 weiter oben (16 px) muss gewinnen, sonst zoomt iOS beim
+   Antippen wieder hinein. */
+.dk-ui-eingabe {
+  background: var(--dk-surface);
+  color: var(--dk-text);
+  border: 1px solid var(--dk-border);
+}
+.dk-ui-eingabe::placeholder { color: var(--dk-text-subtle); }
+.dk-ui-eingabe:focus-visible { border-color: var(--dk-border-strong); }
+/* DEV-4: Verweis auf die Markenfarbe (z. B. Profil „Passwort vergessen?“)
+   nahm --primary — im Dunkelmodus ist das WEISS und damit im Formular nicht
+   als Verweis zu erkennen. Eigene Verweis-Token je Theme.
+   Der Verweis selbst steht bei seiner Seite (`.prof-link` in Profile.vue) —
+   eine allgemeine Regel `a.dk-verweis` gab es hier ohne Benutzer und wurde
+   im Review beanstandet; der Wächter prüft, dass jeder --link-Verbraucher
+   eine echte Stelle im Quelltext hat. */
+/* DEV-4: `.dk-ui-eingabe` ist an mehreren Stellen die Feldklasse (Profil
+   außerhalb von Dialogen, Treffzeit, Formulare) — dort hatte das Feld nur
+   Farbe, aber keine FORM (Radius 0, kein Innenabstand), während die
+   Auswahlfelder daneben rund waren (Review-Zusatz DEV-3).
+   Deshalb bekommt `.dk-ui-eingabe` seine Grundform aus den Tokens; die
+   Farben stehen weiter oben. Innenabstand und Radius folgen dem Rest der
+   Felder (`.dk-form-input`: 8/12 px, --radius) — ein Auswahlfeld daneben ist
+   damit gleich hoch und gleich rund.
+   DEV-4b: Der Dialog-Block darunter wiederholte Innenabstand, Radius und
+   font-family der Grundform. Geblieben ist nur die Breite — die Felder in
+   Dialogen füllen die Zeile, alles andere steht schon oben. */
+.dk-ui-eingabe {
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-family: inherit;
+}
+.dk-modal .dk-ui-eingabe,
+.dk-ui-dialog .dk-ui-eingabe {
+  width: 100%;
+}
 
 /* =====================================================================
    Data Grid
@@ -1226,7 +1331,11 @@ select.dk-form-select { appearance: auto; }
 .dk-grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
 .dk-grid-cols-7 { grid-template-columns: repeat(7, 1fr); }
 @media (max-width: 1100px) { .dk-grid-cols-4 { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 720px) { .dk-grid-cols-2, .dk-grid-cols-3, .dk-grid-cols-4 { grid-template-columns: 1fr; } }
+/* FIX-6: Einspaltig wird in der Mobil-Lage (Breite <= 720 px) — dieselbe
+   Bedingung wie `.dk-app` oben (Layout richtet sich nur nach der Breite). */
+@media (max-width: 720px) {
+  .dk-grid-cols-2, .dk-grid-cols-3, .dk-grid-cols-4 { grid-template-columns: 1fr; }
+}
 
 /* =====================================================================
    Responsive
@@ -1237,23 +1346,9 @@ select.dk-form-select { appearance: auto; }
   .dk-quick-row { grid-template-columns: repeat(2, 1fr); }
   .dk-screen { padding: 24px 24px 60px; }
 }
-@media (max-width: 720px) {
-  .dk-app { grid-template-columns: 1fr; }
-  .dk-sidebar { display: none; }
-  .dk-stats-row, .dk-quick-row { grid-template-columns: 1fr; }
-  .dk-topbar-search { display: none; }
-  .dk-content { padding-bottom: calc(56px + env(safe-area-inset-bottom) + 24px) !important; }
-  .dk-screen { padding-bottom: calc(56px + env(safe-area-inset-bottom) + 24px) !important; }
-}
-/* OP-HANDY-10: Flaches Touch-Querformat (z. B. 844x390) — hier greift die
-   720-px-Regel nicht (Breite 844), aber eine 256-px-Seitenleiste plus untere
-   Leiste waeren gleichzeitig sichtbar und verdeckten einander. Eine Regel für
-   beide: Seitenleiste aus, untere Leiste bleibt. */
-@media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-height: 480px) {
-  .dk-app { grid-template-columns: 1fr; }
-  .dk-sidebar,
-  .kronos-sidebar { display: none; }
-}
+/* FIX-6: Die Mobil-Regel weiter oben («Layout: nur nach Breite») enthält
+   bereits alles, was unter 720 px gilt — hier bleibt deshalb nichts übrig.
+   OP-HANDY-10 (flaches Querformat) steht ebenfalls oben. */
 
 /* =====================================================================
    Toast (keep existing)
@@ -1304,6 +1399,7 @@ select.dk-form-select { appearance: auto; }
 .dk-widget-large  { grid-column: span 2; }
 .dk-widget-full   { grid-column: 1 / -1; }
 
+/* FIX-6: Widget-Raster — dieselbe Mobil-Bedingung wie `.dk-app` (Breite). */
 @media (max-width: 720px) {
   .dk-widget-large,
   .dk-widget-full { grid-column: 1 / -1; }
@@ -1343,7 +1439,7 @@ select.dk-form-select { appearance: auto; }
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--dk-text-muted, rgba(0,0,0,0.5));
+  color: var(--dk-text-muted);
   margin: 0;
 }
 .dk-widget-badge {
@@ -1365,7 +1461,7 @@ select.dk-form-select { appearance: auto; }
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--dk-text-muted, rgba(0,0,0,0.4));
+  color: var(--dk-text-muted);
   padding: 4px;
   border-radius: 6px;
   display: flex;
@@ -1373,7 +1469,7 @@ select.dk-form-select { appearance: auto; }
   transition: background 0.1s, color 0.1s;
 }
 .dk-widget-action-btn:hover { background: var(--dk-surface-2); color: var(--dk-text); }
-.dk-widget-hide-btn:hover   { color: var(--dk-danger, #e74c3c); }
+.dk-widget-hide-btn:hover   { color: var(--dk-danger); }
 
 /* Body */
 .dk-widget-body {
@@ -1402,11 +1498,17 @@ select.dk-form-select { appearance: auto; }
   align-items: center;
   gap: 8px;
   padding: 24px 0;
-  color: var(--dk-text-muted, rgba(0,0,0,0.4));
+  color: var(--dk-text-muted);
   font-size: 0.85rem;
   text-align: center;
 }
-.dk-widget-error { color: var(--dk-danger, #e74c3c); }
+.dk-widget-error { color: var(--dk-danger); }
+
+/* DEV-4b: Hier stand `[data-theme="dark"] .dk-tab.is-active { color: var(--dk-navy-900) }`
+   — dunkelblaue Schrift auf dunkler Fläche (`.dk-tab` hat `background: none`),
+   der aktive Reiter war im Dunkelmodus fast unsichtbar (Planrahmen: Plan,
+   Plantyp-Editor, Stammdaten). Es gilt wieder die Regel im Tabs-Block oben
+   (`[data-theme="dark"] .dk-tab.is-active { color: #fff }`). */
 
 /* Edit bar */
 .dk-widget-edit-bar {
@@ -1452,7 +1554,7 @@ select.dk-form-select { appearance: auto; }
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--dk-text-muted, rgba(0,0,0,0.4));
+  color: var(--dk-text-muted);
   margin-bottom: 10px;
 }
 .dk-widget-hidden-list { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -1465,7 +1567,7 @@ select.dk-form-select { appearance: auto; }
   border-radius: 20px;
   font-size: 0.82rem;
   cursor: pointer;
-  color: var(--dk-text-muted, rgba(0,0,0,0.5));
+  color: var(--dk-text-muted);
   transition: border-color 0.1s, color 0.1s;
 }
 .dk-widget-hidden-item:hover { border-color: var(--dk-brand-500); color: var(--dk-brand-500); }
@@ -1490,8 +1592,8 @@ select.dk-form-select { appearance: auto; }
 }
 .dk-mini-cal-day:hover { background: var(--dk-surface-2); }
 .dk-mini-cal-day.today { background: var(--dk-brand-500); color: #fff; font-weight: 700; }
-.dk-mini-cal-day.other-month { color: var(--dk-text-muted, rgba(0,0,0,0.3)); }
-.dk-mini-cal-weekday { font-size: 0.68rem; font-weight: 600; text-align: center; color: var(--dk-text-muted, rgba(0,0,0,0.4)); padding-bottom: 4px; }
+.dk-mini-cal-day.other-month { color: var(--dk-text-subtle); }
+.dk-mini-cal-weekday { font-size: 0.68rem; font-weight: 600; text-align: center; color: var(--dk-text-muted); padding-bottom: 4px; }
 
 /* Drag handle cursor */
 .dk-drag-handle { cursor: grab; }
@@ -1592,3 +1694,112 @@ select.dk-form-select { appearance: auto; }
 .dk-icon-lg { width: var(--icon-lg); height: var(--icon-lg); }
 /* Symbol soll in einer Textzeile seine Größe behalten (DES-10). */
 .dk-schrumpf-nicht { flex-shrink: 0; }
+
+/* =====================================================================
+   FIX-6 · Layout-Gerüst im Mobil-Layout — NACH den Grundregeln
+   ---------------------------------------------------------------------
+   Diese Regeln stehen bewusst am DATEIENDE, nicht im Mobil-Block oben.
+   Befund (Wegwerf-Stack t_fba1a868, Lage 390 px, gemessen mit
+   tools/demo/fix6-zeigeraet.mjs): Die Media-Regel oben stand im fertigen
+   Bündel an Position 2850, die Grundregel `.dk-sidebar { display: flex }`
+   aber an Position 4293 — beide ohne @layer und mit derselben Spezifität,
+   also gewann die SPÄTERE Grundregel: `.dk-app` blieb `256px 134px` und die
+   Seitenleiste `flex`. Vite sammelt `@import`-Regeln hinter den direkt
+   geschriebenen Regeln ein, deshalb wandert der obere Block nach vorn.
+   Am Dateiende steht diese Regel nach allen Grundregeln der Datei; da sie
+   nur in der Mobil-Lage gilt, ändert sie am Desktop nichts.
+   Die Breite ist die EINE Grenze der App (composables/eingabeart.mjs,
+   MOBIL_GRENZE_PX = 720): Layout richtet sich nur nach der Breite.
+   ===================================================================== */
+@media (max-width: 720px) {
+  .dk-app { grid-template-columns: 1fr; }
+  .dk-sidebar { display: none; }
+  /* FIX-6b/K2: Die einspaltigen Reihen stehen HIER, nicht im Block oben —
+     `.dk-quick-row` (repeat(3, 1fr)) und `@media (max-width: 1100px)`
+     (repeat(2, 1fr)) setzen sie sonst im Bündel zurück. Befund: die
+     QuickLinks waren bei 390 px zweispaltig. */
+  .dk-stats-row, .dk-quick-row { grid-template-columns: 1fr; }
+  .dk-content { padding-bottom: calc(56px + env(safe-area-inset-bottom) + 24px) !important; }
+  .dk-screen { padding-bottom: calc(56px + env(safe-area-inset-bottom) + 24px) !important; }
+  /* FIX-6b/K2: `.dk-topbar-search` und `.kronos-header .sidebar-toggle-btn`
+     standen hier, sind aber tot: `.dk-topbar-search` kommt in keinem Template
+     vor, und den Umschalter regelt `KronosTopbar.vue` selbst — scoped, aber
+     auf einem Kind-Element (`.sidebar-toggle-btn` mit eigenem data-Attribut),
+     deshalb genügt dort ein einfacher Klassenselektor (dieselbe Abschaltung
+     bei 768 px in der Komponente). */
+}
+
+/* =====================================================================
+   FIX-6 · OP-HANDY-10 — flaches Querformat (z. B. 844×390)
+   ---------------------------------------------------------------------
+   Hier greift die 720-px-Regel nicht (Breite 844), aber eine 256-px-Seiten-
+   leiste plus untere Leiste wären gleichzeitig sichtbar und verdeckten
+   einander. Eine Regel für beide: Seitenleiste aus, untere Leiste bleibt.
+   Das ist eine LAYOUT-Frage → nur die Geräteform (Breite/Höhe), nicht der
+   Zeiger. Ein flaches Desktop-Fenster bekommt damit dasselbe Gerüst wie das
+   Handy im Querformat. (Operator-Auflage: dieser Block bleibt geometrisch.)
+   FIX-6b/K1: Er stand oben in der Datei und damit im Bündel VOR den
+   Grundregeln `.dk-app { display: grid }`, `.dk-sidebar { display: flex }`
+   — er wirkte deshalb nicht (Befund: Seitenleiste und
+   untere Leiste gleichzeitig). Am Dateiende steht er nach allen Grundregeln.
+   ===================================================================== */
+@media (max-height: 480px) and (orientation: landscape) {
+  .dk-app { grid-template-columns: 1fr; }
+  .dk-sidebar { display: none; }
+}
+
+/* =====================================================================
+   FIX-6b/K3 · UXD-R9 — Formularfelder immer schrumpffähig
+   ---------------------------------------------------------------------
+   Flex-Kinder (Eingabefelder) können ohne `min-width: 0` nicht unter ihre
+   Inhaltsbreite schrumpfen; Bearbeiten-Formulare liefen dann über den
+   Kartenrand, „Nr.“ war abgeschnitten. Das ist KEINE Touch-Frage: die Regel
+   gilt bei jeder Breite und jedem Zeiger. Sie stand bis FIX-6 auf main
+   unbedingt (dort ~139), rutschte dann in den `(pointer: coarse)`-Block und
+   fehlte damit bei feinem Zeiger (700-px-Fenster, Desktop). Hier steht sie
+   wieder unbedingt, nach allen Feld-Grundregeln der Datei.
+   ===================================================================== */
+input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
+  min-width: 0;
+}
+
+/* =====================================================================
+   FIX-6 · Touch-Anpassungen — NACH den Grundregeln
+   ---------------------------------------------------------------------
+   Tippziel-Mindestgrößen (OP-HANDY-26) und 16-px-Felder (OP-HANDY-14,
+   iOS-Zoom) richten sich NUR nach dem Zeigegerät: `(pointer: coarse)`,
+   ohne Breite — ein iPad im Querformat behält sie, ein Desktop mit Maus
+   bekommt sie nie. Bisher stand der Block weiter oben in dieser Datei; im
+   Bündel landete er damit VOR den Grundregeln der Felder
+   (`input { font-size: 14px }` u. a.), die ihn deshalb überschrieben
+   (Messung t_fba1a868: 11 px statt 16 px auf 390 px). Am Dateiende steht
+   er nach allen Grundregeln. Die Werte sind unverändert — bis auf
+   `min-width: 0`, das seit FIX-6b/K3 unbedingt oben steht (keine
+   Zeiger-Frage) und hier nicht mehr abhängig vom groben Zeiger hängt.
+   ===================================================================== */
+@media (pointer: coarse) {
+  input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
+    font-size: 16px;
+  }
+  .dk-btn,
+  .dk-btn-sm,
+  .dk-btn-icon,
+  .dk-ui-chip,
+  .dk-filter-chip,
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 24px;
+  }
+  .dk-btn-icon,
+  button > svg,
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-width: 24px;
+  }
+  label:has(> input[type="checkbox"]),
+  label:has(> input[type="radio"]) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+  }
+}

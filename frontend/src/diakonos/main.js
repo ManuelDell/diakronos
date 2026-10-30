@@ -1,6 +1,10 @@
 import { createApp } from 'vue'
-import { FrappeUI } from 'frappe-ui'
-import 'frappe-ui/style.css'
+// FIX-6: Layer-Reihenfolge ZUERST — sonst legt style.css (Tailwind) sie fest
+// und die spätere `@media (max-width: 720px)`-Regel aus index.css steht im
+// Layer `utilities` unter der Grundregel `.dk-sidebar { display: flex }`
+// (`components`): Auf 390 px blieb die Seitenleiste sichtbar. Belegt in der
+// Messung t_fba1a868 (fix6-zeigegeraet.mjs, Lage 390-coarse).
+import '../layer-reihenfolge.css'
 import './index.css'
 import './kronos.css'
 import App from './App.vue'
@@ -20,7 +24,6 @@ if (kennung) {
 }
 
 const app = createApp(App)
-app.use(FrappeUI, { socketio: false, resources: false })
 
 // DM1: Komponenten-Kette fuer den Dev-Modus. Im Produktionsbuild entfernt Vue
 // `__vueParentComponent` — ohne diese Anmerkung bliebe die Komponentenkette

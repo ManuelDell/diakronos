@@ -21,7 +21,7 @@ Test-Zertifizierungsstelle geprüft; ein echter ACME-Abruf bleibt ausdrücklich 
 5. [Die Oberfläche](#5-die-oberfläche) — darin 5.6 [Kalender importieren (Google / iCal)](#56-kalender-importieren-google--ical)
 6. [Kalender im CalDAV-Client einrichten](#6-kalender-im-caldav-client-einrichten)
 7. [Wenn etwas nicht geht](#7-wenn-etwas-nicht-geht)
-8. [Sicherheit im Betrieb](#8-sicherheit-im-betrieb) — Anmeldesperren (8.1–8.4), Sitzungsende (8.5), Adressbuch-Sichtbarkeit (8.6), Uploads (8.7), Gruppen-Aufgaben (8.8), Internet-Checkliste (8.9)
+8. [Sicherheit im Betrieb](#8-sicherheit-im-betrieb) — Anmeldesperren (8.1–8.4), Sitzungsende (8.5), Adressbuch-Sichtbarkeit (8.6), Uploads (8.7), Gruppen-Aufgaben (8.8), Internet-Checkliste (8.9), Sicherheits-Kopfzeilen und API-Doku (8.10)
 9. [Nicht vorhanden / bewusst offen](#9-nicht-vorhanden--bewusst-offen)
 10. [HTTPS und Domain-Betrieb](#10-https-und-domain-betrieb) — darin 10.6 [nginx im laufenden Betrieb aktivieren / zurückrollen](#106-nginx-im-laufenden-betrieb-aktivieren--zurückrollen)
 11. [Anmeldung über Authentik (SEC1)](#11-anmeldung-über-authentik-sec1)
@@ -989,6 +989,88 @@ Sie sie veröffentlichen wollen, entscheiden Sie vorher, und zwar ausdrücklich,
 - **Zugang zur Shell.** Wer auf den Server kann, kann dort auch Konten
   anlegen und die Anmeldesperren aufheben. Das ist normal und gewollt —
   aber wissen Sie, wer das ist.
+
+---
+
+## 8.10 Sicherheits-Kopfzeilen und API-Doku (SEC-4)
+
+### 8.10.1 Was in jeder Antwort steht
+
+Jede Antwort der App — die Seiten unter `/diakonos`, `/api/*`, `/healthz`,
+Bilder und Fehlermeldungen — traegt diese Kopfzeilen:
+
+| Kopfzeile | Wert | wogegen |
+|---|---|---|
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | Herunterstufen auf HTTP, Mitlesen beim ersten Aufruf |
+| `Content-Security-Policy` | restriktiv, siehe unten | fremde Skripte, Clickjacking, Einbetten in fremde Seiten |
+| `X-Frame-Options` | `DENY` | Einbetten in ein fremdes Fenster (Clickjacking) |
+| `X-Content-Type-Options` | `nosniff` | eine Datei als anderen Typ ausfuehren |
+| `Referrer-Policy` | `no-referrer` | Adressen (mit Token!) an fremde Seiten weitergeben |
+
+Gesetzt wird das an **einer** Stelle im Backend
+(`backend/src/diakronos_app/sec_header.py`), nicht im nginx. Grund: der
+Backend-Port (`APP_PORT`, Standard 8100) ist direkt erreichbar, und eine
+Kopfzeile nur im Proxy fehlt dort. Einzelne Endpunkte, die eine **engere**
+Regel brauchen (z. B. Bilder mit `default-src 'none'; sandbox`), behalten
+ihre eigene Fassung; sie wird nicht ueberschrieben und nicht doppelt
+gesendet.
+
+Die Content-Security-Policy erlaubt Skripte, Stile, Schriften, Bilder und
+Verbindungen **nur von der eigenen Adresse** (ausser `data:`/`blob:` fuer
+Vorschaubilder). Kein `unsafe-eval`. `unsafe-inline` ist fuer Skripte und
+Stile gesetzt, weil die ausgelieferte Seite ein eingebettetes Skript (das
+Startobjekt der Oberflaeche) und die Anmeldemaske eingebettete Stile traegt.
+Bei einer Fehlermeldung der Art „Refused to load …“ in der
+Browser-Konsole (F12) fehlt eine Quelle in dieser Liste — bitte melden,
+nicht selbst aufweichen.
+
+**HSTS und Unterdomains.** `includeSubDomains` verpflichtet alle
+Unteradressen Ihrer Domain dauerhaft auf HTTPS. Laeuft unter derselben
+Domain noch etwas, das nur ueber HTTP erreichbar ist, nehmen Sie das vorher
+in Betrieb oder verzichten auf HSTS, indem Sie in
+`sec_header.py`/`nginx` eingreifen — die Vorgabe ist bewusst streng.
+
+### 8.10.2 Die API-Doku ist aus
+
+`/docs` (Swagger), `/redoc` und `/openapi.json` antworten mit **404**.
+Diese drei Adressen waren ohne Anmeldung erreichbar und legten alle Pfade
+der App offen (Sicherheitspruefung 2026-10-29).
+
+Nur fuer Entwicklung und Fehlersuche einschalten — in der `.env`:
+
+```
+SEC_DOKU_OEFFENTLICH=1
+```
+
+Danach den Stack neu starten (`docker compose -p diakronos-standalone restart app`).
+Ohne diesen Eintrag oder mit `0` ist die Doku aus; ein Neustart genuegt zum
+Abschalten. Die Kopfzeilen aus 8.10.1 gelten auch fuer die Doku.
+
+### 8.10.3 Kein Versions-Banner
+
+Der nginx gibt keine Versionsnummer mehr preis (`server_tokens off` in
+`nginx/default.conf.template`). Frueher stand in jeder Antwort
+`server: openresty` samt Version — eine Vorlage fuer gezielte Angriffe.
+
+### 8.10.4 Anmeldung: warum das Formular einen Token traegt
+
+Wer sich anmeldet, sieht davon nichts — aber es ist wichtig zu wissen,
+warum es so ist: Die Anmeldung prueft, ob ein Formular von DIESER Seite
+kommt. Frueher tat sie das ueber den `Referer`; `no-referrer` (8.10.1)
+entfernt ihn. Deshalb traegt das Anmeldeformular jetzt einen **signierten
+Token** (`<input name="_csrf">`, 12 Stunden gueltig, gebunden an
+`SECRET_KEY`). Er beweist: dieses Formular stammt von diesem Server.
+
+Was das fuer den Betrieb bedeutet:
+
+- **`SECRET_KEY` bleibt Pflicht** und darf nicht gewechselt werden, waehrend
+  ein Anmeldeformular offen ist. Nach einem Wechsel laedt man die
+  Anmeldeseite neu (F5) — dann kommt ein frischer Token.
+- Weiterhin gilt: ein FREMDER `Origin` wird abgewiesen, auch mit Token;
+  Clients ohne Browser-Kopfzeilen (Apps, Skripte, `curl`) verhalten sich
+  wie bisher.
+- Kein `sid`-Cookie, keine Redis-Sitzung fuer die Maske noetig — faellt
+  Redis aus, laesst sich die Maske trotzdem anzeigen.
 
 ---
 

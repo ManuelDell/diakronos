@@ -359,6 +359,11 @@ function datumDeutschKurz(d) {
   font-size: var(--fs-sm);
   color: var(--muted);
 }
+/* FIX-6: größere Tippziele = TOUCH-Anpassung, also nur der Zeiger
+   (`(pointer: coarse)`, Touch-Kriterium der App) — unabhängig
+   von der Breite, damit ein iPad im Querformat sie behält. Der frühere
+   Zusatz „Breite <= 720 px“ nahm sie dem Tablet; `(hover: none)` war zu weit
+   (Touch-Notebook mit Maus). */
 @media (pointer: coarse) {
   .dk-ui-datumzeit-eingabe { min-height: 44px; font-size: var(--fs-md, 16px); }
 }

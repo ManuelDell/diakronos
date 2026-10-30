@@ -41,6 +41,20 @@ class DuplicateEntryError(FrappeCompatError):
 	exc_name = "DuplicateEntryError"
 
 
+class RateLimitError(FrappeCompatError):
+	"""Zu viele Versuche in einem Zeitfenster (SEC-3).
+
+	HTTP **429** statt 417: der Aufruf war nicht falsch, er kam zu oft. Ein
+	Skript soll die Bremse an der Statuszeile erkennen; ein Mensch liest den
+	verstaendlichen Satz im Rumpf (`registrierungsbremse.fehlermeldung`).
+	Kein `Retry-After`: wann das Fenster endet, ist eine interne Diagnose und
+	hilft nur dem Angreifer (dieselbe Abwaegung wie in der Loginbremse/A1c1).
+	"""
+
+	exc_name = "RateLimitError"
+	http_status = 429
+
+
 def throw(msg: str, exc: type[FrappeCompatError] | FrappeCompatError | None = None) -> None:
 	"""Entspricht `frappe.throw(msg, exc)`.
 

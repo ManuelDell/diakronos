@@ -1718,6 +1718,9 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
     max-height: none;
   }
 }
+/* Inhaltsumbruch, kein Layout: Felderpaare im Buchungsdialog und die
+   Knopfreihen der Anfragekarte stehen untereinander. Der Seitenrahmen
+   (`.rs-layout`) schaltet bereits bei 1100 px. */
 @media (max-width: 640px) {
   .rs-form-row {
     grid-template-columns: 1fr;

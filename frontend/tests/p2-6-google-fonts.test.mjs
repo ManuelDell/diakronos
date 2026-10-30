@@ -46,23 +46,31 @@ test('keine Frontend-Quelle verweist auf einen Google-Schrift-Host (OP-HANDY-17)
   assert.deepEqual(treffer, [], `Fremde Schriftquelle gefunden:\n${treffer.join('\n')}`)
 })
 
-test('Inter kommt lokal aus dem Buendel (frappe-ui, OFL)', () => {
-  // `index.css` zieht `frappe-ui/style.css`; DORT steht das @font-face mit
-  // der WOFF2-Datei. Ohne diese Kette waere die Schrift schlicht weg —
-  // der Test bindet die lokale Verfuegbarkeit an den Nachweis oben.
-  const indexCss = fs.readFileSync(path.join(src, 'diakonos/index.css'), 'utf8')
-  assert.match(indexCss, /@import\s+['"]frappe-ui\/style\.css['"]/, (
-    'index.css muss frappe-ui/style.css importieren — sonst fehlt die lokale Inter-Schrift.'
+test('Inter kommt lokal aus dem Buendel (@fontsource/inter, OFL)', () => {
+  // DEP-1: Frueher zog `index.css` die Schrift ueber `frappe-ui/style.css`
+  // (dort lag das @font-face mit der WOFF2-Datei). frappe-ui ist entfernt;
+  // jetzt liegen die Schnitte als eigenes Paket im Buendel. Der Test bindet
+  // die lokale Verfuegbarkeit weiter an die Quellen (kein Fremdhost oben).
+  const tokensCss = fs.readFileSync(path.join(src, 'diakonos/tokens.css'), 'utf8')
+  // tokens.css laden ALLE vier Einstiege (diakonos, gast, registrierung,
+  // organigramm) — der Import steht deshalb dort und nicht in index.css.
+  assert.match(tokensCss, /@import\s+['"]@fontsource\/inter\/latin-400\.css['"]/, (
+    'tokens.css muss die lokale Inter-Schrift importieren — sonst ist sie im Buendel weg.'
   ))
 
-  const frappeStyle = path.resolve(
-    hier, '../node_modules/frappe-ui/src/fonts/Inter/inter.css'
-  )
-  assert.ok(fs.existsSync(frappeStyle), `Lokale Inter-Quelle fehlt: ${frappeStyle}`)
-  const face = fs.readFileSync(frappeStyle, 'utf8')
-  assert.match(face, /@font-face/, 'frappe-ui/fonts/Inter/inter.css deklariert kein @font-face.')
-  assert.match(face, /Inter\.var\.woff2/, 'Inter-Variable-Schrift nicht referenziert.')
-  // Und die Datei selbst muss existieren (kein toter Verweis im Buendel).
-  const woff2 = path.resolve(hier, '../node_modules/frappe-ui/src/fonts/Inter/Inter.var.woff2')
+  const pkg = JSON.parse(fs.readFileSync(path.resolve(hier, '../package.json'), 'utf8'))
+  assert.ok(pkg.dependencies['@fontsource/inter'], (
+    '@fontsource/inter fehlt in package.json.'
+  ))
+
+  const fontCss = path.resolve(hier, '../node_modules/@fontsource/inter/latin-400.css')
+  assert.ok(fs.existsSync(fontCss), `Lokale Inter-Quelle fehlt: ${fontCss}`)
+  const face = fs.readFileSync(fontCss, 'utf8')
+  assert.match(face, /@font-face/, '@fontsource/inter/latin-400.css deklariert kein @font-face.')
+  // @fontsource/inter schreibt die Datei klein: 'Inter' ist der Familienname,
+  // der Dateiname 'inter-latin-400-normal.woff2'.
+  const datei = (face.match(/url\((["']?)([^"')]+\.woff2)\1\)/) || [])[2]
+  assert.ok(datei, 'Kein url(...woff2) in @fontsource/inter/latin-400.css gefunden.')
+  const woff2 = path.resolve(hier, '../node_modules/@fontsource/inter', datei)
   assert.ok(fs.existsSync(woff2), `WOFF2-Datei fehlt: ${woff2}`)
 })

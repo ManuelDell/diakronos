@@ -42,7 +42,9 @@ _AUSGENOMMENE_INDIZES = {"uq_mitglied_email_normalisiert"}
 #: Fachdatum — ohne Eintrag hier meldet `alembic check` dauerhaft
 #: „remove_table“ und der Abnahme-Lauf bricht ab. Angelegt und (im
 #: `downgrade`) geloescht wird sie von `id1_mitglied_kennungen`.
-_NUR_MIGRATION_TABELLEN = {"id1_mitglied_kennung"}
+#: `schema_stand` (SEC-3) ebenso: ein Vermerk „diese Installation kennt die
+#: starke Tokenform“, angelegt von `sec3_reglink_token`.
+_NUR_MIGRATION_TABELLEN = {"id1_mitglied_kennung", "schema_stand"}
 
 
 def _include_object(obj, name, type_, reflected, compare_to):

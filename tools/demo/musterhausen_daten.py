@@ -251,7 +251,13 @@ GRUPPEN: list[dict[str, Any]] = [
         ],
     },
     {
-        "name": "technik", "anzeige": "Technikteam", "bereich": "technik", "typ": "team",
+        # SEED-1: Die KENNUNG ist „technik-team“, nicht „technik“ — der
+        # Dienstbereich daneben heisst bereits `technik` (Z. 212), und
+        # `api/orgchart_api` bildet die Knoten-`id` aus dem docname. Zwei
+        # Knoten mit derselben `id` lassen d3-org-chart mit
+        # „ambiguous: technik“ abbrechen; das Organigramm der Demo laedt dann
+        # nicht. Anzeigename bleibt „Technikteam“.
+        "name": "technik-team", "anzeige": "Technikteam", "bereich": "technik", "typ": "team",
         "beschreibung": "Ton, Beamer und Übertragung der Gottesdienste.",
         "treffpunkt": "Technikraum", "treffzeit": "nach Absprache",
         "leitung": "Niklas Jäger",

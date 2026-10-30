@@ -299,7 +299,8 @@ def get_anmeldungen_hub():
         "Registrierungslink",
         fields=[
             "name", "bezeichnung", "typ", "aktiv", "slug",
-            "gueltig_bis", "max_anmeldungen", "anmeldungen_count", "link_anzeige",
+            "gueltig_ab", "gueltig_bis", "max_anmeldungen", "anmeldungen_count",
+            "link_anzeige",
         ],
         order_by="creation desc",
     )
@@ -751,6 +752,30 @@ def get_anmeldeformulare():
     return {"formulare": formulare}
 
 
+def _formular_beschreibung(doc) -> str:
+    """Beschreibung eines Formulars in der Form, die gespeichert/angezeigt wird (REG-1a)."""
+    from diakronos_app.anmeldung.formularbilder import normalisiere_beschreibung
+
+    return normalisiere_beschreibung(doc.get("beschreibung"))
+
+
+def _bild_dateiname(wert) -> str:
+    """Spaltenwert eines Formularbildes -> reiner Dateiname (``""`` wenn keins)."""
+    from diakronos_app.anmeldung.formularbilder import dateiname_aus_wert
+
+    return dateiname_aus_wert(wert)
+
+
+def _bild_url(name: str) -> str:
+    """Anzeige-Adresse eines Formularbildes fuer die VERWALTUNG.
+
+    ``/files/<name>`` verlangt eine Anmeldung — genau richtig fuer die
+    Vorschau in der Verwaltung. Besucher bekommen das Bild ausschliesslich
+    ueber ``/public/registrierung/<token>/bild/<rolle>`` (REG-1a).
+    """
+    return f"/files/{name}" if name else ""
+
+
 @whitelist(allow_guest=False)
 def get_anmeldeformular_felder(formular_id):
     """Die Felder eines Anmeldeformulars (OP-ADMIN-19).
@@ -786,18 +811,43 @@ def get_anmeldeformular_felder(formular_id):
         "bezeichnung": doc.get("bezeichnung") or doc.name,
         "mit_gaesten": 1 if doc.get("mit_gaesten") else 0,
         "mit_kinder": 1 if doc.get("mit_kinder") else 0,
+        # REG-1a: Beschreibung (reiner Text) und Bilder des Formulars. Die
+        # Bildfelder tragen den DATEINAMEN; `banner_bild_url`/
+        # `hintergrund_bild_url` sind die Wege, unter denen die Oberflaeche die
+        # Bilder ansehen kann (Admin-Abruf ueber `/files/<name>`).
+        "beschreibung": _formular_beschreibung(doc),
+        "bannerbild": _bild_dateiname(doc.get("bannerbild")),
+        "hintergrundbild": _bild_dateiname(doc.get("hintergrundbild")),
+        "banner_bild_url": _bild_url(_bild_dateiname(doc.get("bannerbild"))),
+        "hintergrund_bild_url": _bild_url(_bild_dateiname(doc.get("hintergrundbild"))),
         "felder": felder,
     }
 
 
 @whitelist(allow_guest=False)
 def update_anmeldeformular(formular_id, bezeichnung=None, mit_gaesten=None,
-                           mit_kinder=None, felder_json=None):
-    """Anmeldeformular aendern: Bezeichnung, Schalter, Felder (OP-ADMIN-19).
+                           mit_kinder=None, felder_json=None,
+                           beschreibung=None, banner_bild_datei=None,
+                           hintergrund_bild_datei=None, bilder_entfernen=""):
+    """Anmeldeformular aendern: Bezeichnung, Schalter, Felder, Kopf (OP-ADMIN-19, REG-1a).
 
     `felder_json` ersetzt die Feldliste vollstaendig (wie
     `update_anmeldeformular_felder`); `None` laesst sie unveraendert. Die drei
     uebrigen Felder sind der Kopf des Formulars.
+
+    REG-1a — Beschreibung und Bilder:
+
+      * ``beschreibung``: freier Text (Markdown-light), wird ueber
+        `normalisiere_beschreibung` bereinigt gespeichert (NIE HTML).
+      * ``banner_bild_datei``/``hintergrund_bild_datei``: Dateiname einer Datei,
+        die VORHER ueber den vorhandenen Upload (`upload_file`) abgelegt wurde.
+        Geprueft wird, dass die Datei existiert und ein Rasterbild ist (Magic
+        Bytes); gespeichert wird der reine Dateiname.
+      * ``bilder_entfernen``: Komma-Liste der Rollen (``banner``,
+        ``hintergrund``), deren Bild geleert werden soll.
+
+    Alle drei sind optional — ein Aufruf ohne sie aendert die Bilder/Beschreibung
+    nicht (Rueckwaertskompatibilitaet fuer die bisherige Oberflaeche).
     """
     _require_admin()
 
@@ -818,8 +868,69 @@ def update_anmeldeformular(formular_id, bezeichnung=None, mit_gaesten=None,
     if mit_kinder is not None:
         werte["mit_kinder"] = 1 if int(mit_kinder or 0) else 0
 
+    if beschreibung is not None:
+        from diakronos_app.anmeldung.formularbilder import normalisiere_beschreibung
+
+        werte["beschreibung"] = normalisiere_beschreibung(beschreibung) or None
+
+    # REG-1a: Bilder. Erst neue setzen, dann ausdrueckliche Entfernungen —
+    # ein Aufruf darf beides nennen, „entfernen“ gewinnt (klare Regel).
+    from diakronos_app.anmeldung.formularbilder import BILD_ROLLEN, pruefe_bilddatei
+
+    for rolle, wert, feld in (
+        ("banner", banner_bild_datei, "bannerbild"),
+        ("hintergrund", hintergrund_bild_datei, "hintergrundbild"),
+    ):
+        name = str(wert or "").strip()
+        if not name:
+            continue
+        geprueft = pruefe_bilddatei(name, doc.name)
+        if geprueft is None:
+            raise ValidationError(
+                f"Das {rolle.capitalize()}-Bild ist keine gültige Bilddatei "
+                "(PNG, JPEG, GIF oder WebP) oder wurde nicht hochgeladen."
+            )
+        werte[feld] = geprueft
+    zu_entfernen = {
+        teil.strip().lower()
+        for teil in str(bilder_entfernen or "").replace(";", ",").split(",")
+        if teil.strip()
+    }
+    unbekannt = zu_entfernen - set(BILD_ROLLEN)
+    if unbekannt:
+        raise ValidationError(
+            f"Unbekannte Bildrolle(n): {', '.join(sorted(unbekannt))}. "
+            f"Erlaubt: {', '.join(sorted(BILD_ROLLEN))}."
+        )
+    for rolle in zu_entfernen:
+        werte[BILD_ROLLEN[rolle]] = None
+
+    # REG-1a (Operator-Review, Punkt 1): Welche Bilder verliert das Formular?
+    # Alte Werte merken, BEVOR geschrieben wird — danach sind sie weg. Ein
+    # Bild, das im selben Aufruf neu gesetzt wird, bleibt (es steht in `werte`).
+    neue_bilder = {str(werte.get(spalte) or "") for spalte in BILD_ROLLEN.values()}
+    alte_bilder = [
+        alt
+        for alt in (_bild_dateiname(doc.get(spalte)) for spalte in BILD_ROLLEN.values())
+        if alt and alt not in neue_bilder
+    ]
+
     if werte:
-        _update_doc("Anmeldeformular", doc.name, werte)
+        # „Bild entfernen“ setzt die Spalte bewusst auf NULL; `_update_doc`
+        # schreibt None nur fuer ausdruecklich genannte Felder. Gleiches gilt
+        # fuer eine geleerte Beschreibung.
+        _update_doc(
+            "Anmeldeformular", doc.name, werte,
+            explizite_null={"bannerbild", "hintergrundbild", "beschreibung"},
+        )
+
+    # Erst NACH dem Schreiben aufraeumen: jetzt sieht `bild_noch_in_gebrauch`
+    # die neue Zuordnung. Geteilte Dateien bleiben, weil ein anderes Formular
+    # sie noch fuehrt.
+    from diakronos_app.anmeldung.formularbilder import raeume_bild_auf
+
+    for dateiname in alte_bilder:
+        raeume_bild_auf(dateiname, ausser_formular=doc.name)
 
     if felder_json is not None:
         update_anmeldeformular_felder(doc.name, felder_json)
@@ -854,9 +965,24 @@ def delete_anmeldeformular(formular_id, bestaetigt=0):
     if not int(bestaetigt or 0):
         raise ValidationError("Zum Löschen bitte bestätigen.")
 
+    # REG-1a (Operator-Review, Punkt 1): Die Bilder des Formulars verlieren mit
+    # ihm ihren Zweck. Datei + `File`-Datensatz werden mitgeloescht — aber erst
+    # NACH dem Loeschen der Zeile, damit `bild_noch_in_gebrauch` die eigene
+    # Zuordnung nicht mehr sieht und nur ein WIRKLICH anderes Formular schuetzt.
+    from diakronos_app.anmeldung.formularbilder import raeume_bild_auf
+
+    bilder = [
+        name
+        for name in (_bild_dateiname(doc.get(spalte)) for spalte in ("bannerbild", "hintergrundbild"))
+        if name
+    ]
+
     _child_delete("Anmeldeformular Feld", doc.name, "felder")
     _child_delete("Anmeldeformular Dokument", doc.name, "dokumente")
     _delete_doc("Anmeldeformular", doc.name)
+
+    for name in bilder:
+        raeume_bild_auf(name, ausser_formular=doc.name)
     return {"success": True, "id": doc.name}
 
 
@@ -875,6 +1001,33 @@ def create_anmeldeformular(bezeichnung, mit_gaesten=0, mit_kinder=0):
     )
 
     return {"success": True, "id": doc_name}
+
+
+@whitelist(allow_guest=False)
+def get_anmeldeformular_kopf(formular_id):
+    """Kopf eines Anmeldeformulars: Bezeichnung, Schalter, Text, Bilder (REG-1a).
+
+    Die SPA braucht den Kopf zum BEARBEITEN; `get_anmeldeformular_felder` liefert
+    nur die Feldliste. Dieselbe Form wie dort, ergaenzt um ``erfolg``.
+    """
+    _require_admin()
+
+    doc = get_doc("Anmeldeformular", str(formular_id or "").strip())
+    if doc is None:
+        raise ValidationError("Anmeldeformular nicht gefunden.")
+
+    return {
+        "success": True,
+        "name": doc.name,
+        "bezeichnung": doc.get("bezeichnung") or doc.name,
+        "mit_gaesten": 1 if doc.get("mit_gaesten") else 0,
+        "mit_kinder": 1 if doc.get("mit_kinder") else 0,
+        "beschreibung": _formular_beschreibung(doc),
+        "bannerbild": _bild_dateiname(doc.get("bannerbild")),
+        "hintergrundbild": _bild_dateiname(doc.get("hintergrundbild")),
+        "banner_bild_url": _bild_url(_bild_dateiname(doc.get("bannerbild"))),
+        "hintergrund_bild_url": _bild_url(_bild_dateiname(doc.get("hintergrundbild"))),
+    }
 
 
 @whitelist(allow_guest=False)

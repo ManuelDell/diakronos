@@ -1,6 +1,26 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind 4 — Grundlage der Utility-Klassen (Stil A).
+ *
+ * DEP-1 hat das Frappe-Preset entfernt; DEP-2 hebt das Paket auf die
+ * fehlerfreie Hauptversion (3.4.19 bekommt keine Sicherheitskorrekturen mehr,
+ * `v3-lts` bleibt darauf stehen — die offenen Meldungen betreffen
+ * chokidar/braces/micromatch/fast-glob und postcss-nested).
+ *
+ * NUR Theme und Utilities, KEIN Preflight: das Projekt setzt sein eigenes
+ * Reset (index.css: `*{box-sizing}`, `body{margin:0}`, Listen, Ränder).
+ * Tailwinds Preflight wuerde Tabellen, Ueberschriften und Formulare app-weit
+ * umstellen — eine zweite Gestaltungsquelle, die den Dunkelmodus und die
+ * Dk-Bausteine ueberschreibt.
+ *
+ * `@source` statt automatischer Erkennung: sonst durchsucht Tailwind auch
+ * Tests und Markdown nach Klassennamen. Die Quellen stehen ausdruecklich hier.
+ *
+ * FARBEN bleiben Sache von `src/diakonos/tokens.css` (Hell-/Dunkelmodus) —
+ * ein hier einkopiertes Farbschema waere eine ZWEITE Farbquelle.
+ */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+@source "./**/*.{vue,js}";
 
 /* Basis-Reset für Vue-Apps in Frappe-Desk-Kontext */
 [data-diakonos-app] * {

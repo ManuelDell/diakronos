@@ -5,7 +5,7 @@ für Tests, die Vue-Komponenten kompilieren. Vom Projektverzeichnis aus:
 
 ```sh
 cd frontend
-npm ci --legacy-peer-deps --no-audit --no-fund
+npm ci --no-audit --no-fund
 node --test src/diakonos/components/planrahmen/*.test.mjs tests/planrahmen-*.test.mjs
 npm run build
 ```
@@ -18,7 +18,7 @@ docker run --rm -v "$PWD:/source:ro" node:22-alpine sh -c '
   cp -a /source/frontend/. /work/frontend/
   cp -a /source/backend/src /work/backend/
   cd /work/frontend
-  npm ci --legacy-peer-deps --no-audit --no-fund
+  npm ci --no-audit --no-fund
   node --test src/diakonos/components/planrahmen/*.test.mjs tests/planrahmen-*.test.mjs
 '
 ```

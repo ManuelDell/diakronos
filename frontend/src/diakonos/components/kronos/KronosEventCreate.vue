@@ -188,7 +188,7 @@ import DkHint from '../ui/DkHint.vue'
 import { showToast } from '../../composables/useToast.js'
 import { useDialogFokus } from '../../composables/useDialogFokus.js'
 import {
-  zerlegeDatumZeit, baueDatumZeit, vorschlagBeginn, endeAusBeginn, istDatum,
+  zerlegeDatumZeit, baueDatumZeit, vorschlagZeitraum, istDatum,
   pruefeZeitraumMitDatum, datumNach,
 } from '../../composables/datumZeit.mjs'
 
@@ -302,12 +302,23 @@ function resetForm() {
     if (props.initialData.element_end) form.element_end = props.initialData.element_end
     if (props.initialData.element_calendar) form.element_calendar = props.initialData.element_calendar
   }
-  // S8/OP-UI-20: Ohne Klickzeit beginnt ein neuer Termin um 19:00 und endet
-  // um 20:00 (vorher 00:00 bzw. ganz ohne Uhrzeit).
+  // DEV-5: Ohne Klickzeit beginnt ein neuer Termin mit der NÄCHSTEN vollen
+  // Stunde (Browserzeit) und endet eine Stunde später; der Tag des Klicks
+  // bleibt. Ein angeklickter Slot liefert bereits eine Uhrzeit und wird
+  // dadurch nicht angefasst.
   const beginn = zerlegeDatumZeit(form.element_start)
   if (beginn.datum && !beginn.zeit) {
-    form.element_start = baueDatumZeit(beginn.datum, vorschlagBeginn())
-    form.element_end = baueDatumZeit(beginn.datum, endeAusBeginn(vorschlagBeginn()))
+    const v = vorschlagZeitraum(new Date(), beginn.datum)
+    form.element_start = baueDatumZeit(v.datum, v.beginn)
+    form.element_end = baueDatumZeit(v.endeDatum, v.ende)
+  }
+  // Auch ohne Datum gibt es sinnvolle Felder: heute, nächste volle Stunde.
+  if (!form.element_start) {
+    const v = vorschlagZeitraum()
+    if (v.datum) {
+      form.element_start = baueDatumZeit(v.datum, v.beginn)
+      form.element_end = baueDatumZeit(v.endeDatum, v.ende)
+    }
   }
 
   activeTab.value = 'basic'

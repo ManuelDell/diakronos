@@ -8,6 +8,9 @@ globalThis.__sdVue = {
   computed: (f) => (typeof f === 'function' ? { get value() { return f() } } : f),
   watch: () => {},
   onUnmounted: () => {},
+  // PLAN-M1: der Hinweis am Handy wird hier nicht geprueft — die Seite
+  // bekommt einen stillen Ersatz, damit sie ohne Browser aufbaubar bleibt.
+  onMounted: () => {},
 }
 globalThis.__sdProps = { plantyp: '', plan: '' }
 globalThis.__sdRouten = {}
@@ -73,8 +76,11 @@ folie = {
 let code = readFileSync(new URL('../src/diakonos/pages/planrahmen/Stammdaten.vue', import.meta.url), 'utf8')
 code = code.split('<script setup>')[1].split('</script>')[0]
 code = code.replace(/import[^\n]+from[^\n]+\n/g, '')
-code = `const { ref, reactive, computed, watch, onUnmounted } = globalThis.__sdVue
+code = `const { ref, reactive, computed, watch, onMounted, onUnmounted } = globalThis.__sdVue
 const usePlanrahmen = () => globalThis.__sdApi
+const useHandyHinweis = () => ({ geschlossen: () => false, schliessen: () => true })
+const hinweisZeigen = () => false
+const istSchmal = () => false
 const getRouteParam = globalThis.__sdRoute
 const showToast = globalThis.__sdToast
 const fehlerMeldungen = globalThis.__sdFehler

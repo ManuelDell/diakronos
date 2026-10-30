@@ -1,4 +1,8 @@
 <template>
+  <!-- PLAN-W1: Reine Betrachter sehen Prüf-Warnungen NIE. Der Server liefert
+       sie ihnen nicht aus; diese Sperre ist die zweite, unabhängige Wand
+       (auch ein alter Browser-Cache-Stand kommt so nicht durch). -->
+  <template v-if="meldungenZeigen">
   <details v-if="kompakt && meldungen.length" class="pr-meldungen-termin">
     <summary
       :class="{ 'pr-meldung--fehler': gruppiert.anzahl.fehler }"
@@ -6,11 +10,16 @@
     >{{ gruppiert.anzahl.fehler ? '⛔' : '⚠️' }} {{ meldungen.length }}<span class="pr-meldungen-sr"> {{ kompaktName }}</span></summary>
     <PrMeldungen :meldungen="meldungen" />
   </details>
-  <details v-else-if="zusammenfassung && meldungen.length" class="pr-meldungen-uebersicht">
+  <details
+    v-else-if="zusammenfassung && meldungen.length"
+    class="pr-meldungen-uebersicht"
+    :open="offen === null ? undefined : offen"
+    @toggle="offenSetzen($event)"
+  >
     <summary class="pr-meldungen-kopf">
       <span class="pr-meldungen-pfeil" aria-hidden="true">▸</span>
       <span class="pr-meldungen-titel">{{ titel }}: {{ gruppiert.anzahl.fehler }} Fehler · {{ gruppiert.anzahl.warnung }} {{ gruppiert.anzahl.warnung === 1 ? 'Warnung' : 'Warnungen' }} · {{ gruppiert.anzahl.hinweis }} {{ gruppiert.anzahl.hinweis === 1 ? 'Hinweis' : 'Hinweise' }}</span>
-      <span class="dk-btn dk-btn-secondary dk-btn-sm pr-meldungen-anzeigen">Anzeigen</span>
+      <span class="dk-btn dk-btn-secondary dk-btn-sm pr-meldungen-anzeigen">{{ offen ? 'Einklappen' : 'Anzeigen' }}</span>
     </summary>
     <details v-for="g in gruppiert.gruppen" :key="g.key" class="pr-meldungen-gruppe">
       <summary><span class="pr-meldungen-pfeil" aria-hidden="true">▸</span>{{ regelTitel(g.regel, g.meldungen.length, ersteDefinition) }} · Anzeigen</summary>
@@ -34,10 +43,11 @@
       </span>
     </div>
   </div>
+  </template>
 </template>
 
 <script setup>
-import { computed, inject } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
 import { feldBeschriftung, regelTitel, meldungsKurz } from './klartext.mjs'
 import { meldungsGruppen } from './meldungen.mjs'
 import { stufeSprache } from '../ui/statussprache.mjs'
@@ -54,8 +64,19 @@ const props = defineProps({
   kompakt: { type: Boolean, default: false },
   titel: { type: String, default: 'Regelprüfung' },
   zusammenfassung: { type: Boolean, default: false },
+  /* PLAN-W1: Einklapp-Zustand von außen (null = eigene Wahl des Bausteins).
+     Der Plan merkt sich die Wahl je Benutzer im localStorage; andere
+     Aufrufer (Plantyp-Editor, Diff-Vorschauen) bleiben unberührt. */
+  offen: { type: Boolean, default: null },
 })
+const emit = defineEmits(['aktualisiert:offen'])
 const anzeige = inject('planrahmenAnzeige', null)
+/* PLAN-W1: Darf der Betrachter Prüf-Warnungen überhaupt sehen? Der Server
+   liefert sie nur Bearbeitern aus; im Plan setzt die Seite dies zusätzlich
+   strikt nach dem Bearbeitungsrecht. Ohne Angabe (andere Seiten) bleibt es
+   beim bisherigen Verhalten. */
+const warnungenErlaubt = inject('planrahmenWarnungen', null)
+const meldungenZeigen = computed(() => warnungenErlaubt === null || warnungenErlaubt.value !== false)
 const ersteDefinition = computed(() => anzeige?.value?.definitionen?.values().next().value || {})
 
 /** DES-R20: unterscheidbarer Name der kompakten Zeile. */
@@ -81,6 +102,21 @@ function pfadRoh(m) {
   return m.feld_pfad || m.bewertung?.feld_pfad || m.pfad
 }
 const gruppiert = computed(() => meldungsGruppen(props.meldungen))
+
+// PLAN-W1: Das native `toggle`-Ereignis feuert auch, wenn die Bindung `open`
+// den Zustand setzt (beim Aufbau und bei Wechsel der Meldungen). Nur eine
+// Bedienung durch den Menschen darf den gemerkten Zustand ändern — deshalb
+// eine kurze Sperre nach jedem Wechsel von `props.offen`.
+const sperre = ref(false)
+watch(() => props.offen, () => {
+  sperre.value = true
+  setTimeout(() => { sperre.value = false }, 0)
+})
+function offenSetzen(ereignis) {
+  if (sperre.value || props.offen === null) return
+  const an = !!ereignis?.target?.open
+  if (an !== props.offen) emit('aktualisiert:offen', an)
+}
 
 function piktogramm(stufe) {
   return stufeSprache(stufe).piktogramm

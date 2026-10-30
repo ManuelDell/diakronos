@@ -206,6 +206,7 @@ def erstelle_anmeldeseite(
     meldung: str = "",
     email: str = "",
     request=None,
+    csrf_token: str = "",
 ) -> str:
     """Anmeldeseite: Anbieter-Knopf (Hauptweg) + optionales lokales Formular.
 
@@ -265,9 +266,19 @@ def erstelle_anmeldeseite(
         # Bei aktivem OIDC ist das Formular der Notzugang (klein, unter dem Knopf).
         # LOGIN-2/K: Der Fokus gehoert nach einem Fehlschlag ins PASSWORTFELD —
         # die E-Mail steht ja schon drin, der naechste Griff ist das Passwort.
+        # SEC-4: Der signierte Token der Maske (`maske_token.py`). Er beweist
+        # dem Login, dass das Formular von DIESEM Server stammt — noetig, weil
+        # `Referrer-Policy: no-referrer` den `Referer` entfernt (siehe
+        # `api/auth._herkunft_ist_eigen`). Ohne Token bleibt das Feld weg.
+        csrf_html = html.escape(csrf_token or "", quote=True)
+        csrf_feld = (
+            f'\n            <input type="hidden" name="_csrf" value="{csrf_html}">'
+            if csrf_html
+            else ""
+        )
         formular_block = f"""
         <form method="post" action="/api/method/login" accept-charset="utf-8">
-            <input type="hidden" name="redirect-to" value="{ziel_kodiert}">
+            <input type="hidden" name="redirect-to" value="{ziel_kodiert}">{csrf_feld}
             <label for="dk-usr">E-Mail oder Benutzername</label>
             <input id="dk-usr" name="usr" type="text" autocomplete="username"
                    autocapitalize="none" autocorrect="off" spellcheck="false" required
@@ -318,8 +329,11 @@ def erstelle_anmeldeseite(
            (der Block war toter Code, Bedingung nie erreichbar). */
         /* OP-HANDY-14: iOS-Safari zoomt beim Antippen in Felder unter 16 px
            (hier 15 px). Im groben Zeiger deshalb 16 px — dieselbe Regel wie im
-           SPA-Stylesheet und in spa.py. */
-        @media (hover: none) and (pointer: coarse) {{
+           SPA-Stylesheet und in spa.py.
+           FIX-6: wie dort nur der Zeiger (`(pointer: coarse)`), weil die
+           Maske keine Breiten-Umschaltung hat — und kein `not (... or ...)`
+           (Safari < 16.4). */
+        @media (pointer: coarse) {{
             input, select, textarea {{ font-size: 16px; }}
         }}
     </style>
@@ -470,7 +484,17 @@ def registriere_routen(app: FastAPI) -> None:
         # Meldung nach jedem Neuladen weiter da.
         from diakronos_app.anmeldung import flash
 
-        antwort: Response = HTMLResponse(erstelle_anmeldeseite(ziel, request=request))
+        # SEC-4: signierter Token fuer das Formular (kein Sitzungsbedarf).
+        from diakronos_app.anmeldung.maske_token import erzeuge_token
+
+        try:
+            csrf_token = erzeuge_token()
+        except Exception:  # noqa: BLE001 — ohne Schluessel bleibt die Maske bedienbar
+            logger.warning("Anmeldemaske ohne Token (SECRET_KEY fehlt?)")
+            csrf_token = ""
+        antwort: Response = HTMLResponse(
+            erstelle_anmeldeseite(ziel, request=request, csrf_token=csrf_token)
+        )
         flash.loesche_flash(antwort)
         return antwort
 

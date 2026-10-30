@@ -116,14 +116,14 @@ onMounted(laden)
 </script>
 
 <style scoped>
-.wk-hinweis { font-size: var(--fs-sm); color: var(--text-muted); margin: 0 0 var(--sp-3); }
-.wk-zustand { color: var(--text-muted); padding: var(--sp-3) 0; }
-.wk-muted { color: var(--text-muted); }
+.wk-hinweis { font-size: var(--fs-sm); color: var(--muted); margin: 0 0 var(--sp-3); }
+.wk-zustand { color: var(--muted); padding: var(--sp-3) 0; }
+.wk-muted { color: var(--muted); }
 .wk-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
 .wk-eintrag { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
 .wk-daten { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .wk-name { font-weight: 500; }
-.wk-konto { color: var(--text-muted); font-size: var(--fs-sm); }
+.wk-konto { color: var(--muted); font-size: var(--fs-sm); }
 .wk-abschnitt { margin-top: var(--sp-4); border-top: 1px solid var(--line); padding-top: var(--sp-3); }
 .wk-abschnitt-titel { margin: 0 0 var(--sp-2); font-size: var(--fs-md); }
 .wk-abschnitt .wk-hinweis { margin-bottom: var(--sp-2); }

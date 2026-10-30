@@ -80,6 +80,9 @@ export function alleBrowserStaendeLeeren() {
     // W4: auch die uebrigen nutzerbezogenen Staende im localStorage entfernen
     // (Entwuerfe und Impersonationszustand), damit nach dem Abmelden kein
     // naechster Nutzer Reste sieht.
+    // PLAN-W1: Die Einklapp-Wahl des Warnblocks (`pr-warnblock:<benutzer>`)
+    // bleibt BEWUSST stehen — sie haengt am Benutzer und soll beim naechsten
+    // Anmelden wieder gelten.
     const PRAEFIXE = ['pr-entwurf:', 'dk-entwurf', 'dk-impersonation', 'dk-imp']
     try {
         const s = window.localStorage

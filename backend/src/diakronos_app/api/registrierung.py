@@ -39,7 +39,7 @@ FRAPPE_MODULE = "diakronos.diakonos.api.registrierung"
 
 import json as _json
 import logging
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import func, or_, update
@@ -57,6 +57,7 @@ from diakronos_app.frappe_compat.api_helpers import (
 )
 from diakronos_app.frappe_compat.exceptions import (
     PermissionError as FrappePermissionError,
+    RateLimitError,
     ValidationError,
 )
 from diakronos_app.frappe_compat.session import session as compat_session
@@ -157,7 +158,13 @@ def _pruefe_dsgvo_fassung(angezeigte_fassung: Any) -> None:
 # Felder des Registrierungslink, die `_validate_token` liest (Original: get_value-Liste).
 _LINK_FIELDS = (
     "name",
+    # REG-1b (Befund aus der Abnahme im Image): `slug` fehlte hier. Der Wert
+    # ist der Token des Links und wird fuer die BILDPFADE gebraucht
+    # (`bild_pfad(link["slug"], …)`); ohne ihn fiel der Pfad still auf ``""``
+    # und die oeffentliche Seite zeigte weder Banner noch Hintergrund.
+    "slug",
     "typ",
+    "gueltig_ab",
     "gueltig_bis",
     "max_anmeldungen",
     "anmeldungen_count",
@@ -240,7 +247,10 @@ def _pruefe_bremse(token) -> dict:
         erlaubt, grund = registrierungsbremse.pruefe(ip, gepruefter_token)
         if not erlaubt:
             logger.warning("Registrierung gebremst (Grund=%s).", grund or "unbekannt")
-            throw(registrierungsbremse.fehlermeldung(), ValidationError)
+            # SEC-3: ein gebremster Versuch ist kein Fachfehler, sondern eine
+            # Grenze — 429 (RateLimitError), damit Skripte und Monitore die
+            # Bremse von „ungueltige Eingabe“ (417) unterscheiden koennen.
+            throw(registrierungsbremse.fehlermeldung(), RateLimitError)
 
     pruefen(request_context.zaehler_client_ip())
     link = _validate_token(token)
@@ -287,14 +297,57 @@ def _get_client_ip() -> str:
     return request_context.zaehler_client_ip() or ""
 
 
-def _validate_token(token):
+def _validate_token(token, *, admin: bool = False):
     """Prueft Token und gibt den Registrierungslink-Datensatz zurueck.
 
     Wirft `PermissionError` bei ungueltigem/abgelaufenem/vollem Link
     (Original: `frappe.throw(..., frappe.PermissionError)`).
+
+    REG-1a: ``admin=True`` ueberspringt die PRUEFUNGEN, nicht den Zugriff —
+    nur fuer Aufrufer, die ihre Adminrolle bereits geprueft haben
+    (`registrierungslink_api.get_oeffentliche_daten`). Die Verwaltung muss einen
+    noch nicht gueltigen Link ansehen koennen; ein unbekannter/abgeschalteter
+    Token bleibt auch dort ein Fehler.
     """
     if not token:
         throw("Kein Registrierungstoken angegeben.", FrappePermissionError)
+
+    # REG-1b: Bild-Token der Formular-VORSCHAU (`vorschau-<formular>`).
+    # Er ist kein Registrierungslink und gilt NUR fuer Administratoren —
+    # die Vorschau zeigt niemandem sonst ein Bild, und ein Besucher mit
+    # geratenem Token bekommt dieselbe Verweigerung wie bei jedem falschen
+    # Token (kein Hinweis darauf, dass es das Formular gibt).
+    from diakronos_app.api.registrierung_vorschau import ist_vorschau_token
+
+    if ist_vorschau_token(token):
+        if not admin:
+            throw("Ungültiger oder deaktivierter Registrierungslink.", FrappePermissionError)
+        formular_id = str(token)[len("vorschau-"):]
+        if not formular_id:
+            throw("Ungültiger oder deaktivierter Registrierungslink.", FrappePermissionError)
+        # REG-1c (3): Der Token traegt nur eine Formular-Kennung. Existiert das
+        # Formular nicht (geloescht, vertippt), ist der Token ungueltig — sonst
+        # liefe ein geratener Token weiter und lieferte eine „leere“ Seite
+        # statt einer klaren Absage. Ergebnis ist eine Verweigerung wie bei
+        # jedem falschen Token (kein Hinweis darauf, was es gibt).
+        # `get_value` statt `get_doc`: es liefert `None` statt zu werfen, die
+        # Antwort bleibt damit die uebliche Verweigerung des Link-Pfads.
+        vorhanden = get_value("Anmeldeformular", formular_id, "name")
+        if not vorhanden:
+            throw("Ungültiger oder deaktivierter Registrierungslink.", FrappePermissionError)
+        # „Link“-Form fuer die weiteren Aufrufer: es gibt keinen echten Link,
+        # aber ein Anmeldeformular — mehr brauchen Bild und Anzeige nicht.
+        return {
+            "name": None,
+            "typ": None,
+            "bezeichnung": None,
+            "slug": str(token),
+            "gueltig_ab": None,
+            "gueltig_bis": None,
+            "max_anmeldungen": 0,
+            "anmeldungen_count": 0,
+            "anmeldeformular": formular_id,
+        }
 
     link = get_value(
         "Registrierungslink",
@@ -306,7 +359,21 @@ def _validate_token(token):
     if not link:
         throw("Ungültiger oder deaktivierter Registrierungslink.", FrappePermissionError)
 
-    if link.get("gueltig_bis") and _as_date(link["gueltig_bis"]) < date.today():
+    if admin:
+        return link
+
+    ab = link.get("gueltig_ab")
+    heute = _heute_gemeinde()
+    if ab and _as_date(ab) > heute:
+        # REG-1a: klare Meldung statt „ungueltig“ — die Person soll wissen,
+        # ab wann es geht (Datum in deutscher Schreibweise, wie ueberall in der
+        # Oberflaeche; das gespeicherte Datum selbst bleibt ISO JJJJ-MM-TT).
+        throw(
+            f"Anmeldung ab {_as_date(ab).strftime('%d.%m.%Y')} möglich.",
+            FrappePermissionError,
+        )
+
+    if link.get("gueltig_bis") and _as_date(link["gueltig_bis"]) < heute:
         throw("Dieser Registrierungslink ist abgelaufen.", FrappePermissionError)
 
     max_anmeldungen = link.get("max_anmeldungen") or 0
@@ -384,6 +451,32 @@ def _as_date(value) -> date:
     return date.fromisoformat(str(value)[:10])
 
 
+def heute_ortszeit() -> datetime:
+    """Jetzt in der Zeitzone der Gemeinde (``settings.calendar_timezone``).
+
+    REG-1c: Die Rechnung steht NICHT mehr hier, sondern EINMAL in
+    ``anmeldung.registrierungslink.jetzt_gemeinde`` — Anzeige-Zustand
+    (``zustand``) und Wirkung (``_validate_token``) koennen damit nicht mehr
+    auseinanderlaufen. Der Name bleibt als duenner Verweis erhalten, weil
+    Tests den Zeitpunkt unter ihm festnageln.
+    """
+    from diakronos_app.anmeldung import registrierungslink as _link
+
+    return _link.jetzt_gemeinde()
+
+
+def _heute_gemeinde() -> date:
+    """HEUTE in der Zeitzone der Gemeinde — nie ``date.today()`` des Containers.
+
+    Der Container laeuft in UTC; eine Gemeinde in Europe/Berlin ist damit um
+    Mitternacht zwei Stunden „hinterher“. Mit ``date.today()`` begann ein Link
+    „gueltig ab 26.10.“ erst um 02:00 Ortszeit und lief entsprechend zwei
+    Stunden zu lang (Operator-Review REG-1a, Punkt 5). Anzeige (``zustand``)
+    und Wirkung (``_validate_token``) rechnen gleich: dieselbe Funktion.
+    """
+    return heute_ortszeit().date()
+
+
 def _validate_name(vorname, nachname) -> None:
     """Original: `_validate_name` — Pflichtfelder der Anmeldung."""
     if not (vorname and vorname.strip()):
@@ -404,56 +497,163 @@ def _load_list(raw, name: str) -> list[dict]:
     return [row for row in parsed if isinstance(row, dict)] if isinstance(parsed, list) else []
 
 
+def _formular_felder(link: dict | None, *, token: str | None = None) -> dict:
+    """Felder, Dokumente und Bilder des Formulars zu einem Link (REG-1a).
+
+    Eine Quelle fuer `validate_token` (SPA-Rueckgabe) und
+    `get_oeffentliche_formular` (oeffentliche Anzeige), damit Formularliste und
+    Kopf (Beschreibung/Bilder) nicht auseinanderlaufen.
+
+    ``link=None`` (REG-1b) liefert das leere Geruest — so baut die
+    Formular-VORSCHAU einen Zustand „noch kein Formular gewaehlt“ aus
+    derselben Funktion statt aus einer zweiten, driftenden Kopie.
+
+    ``token`` (REG-1b) ueberschreibt den Link-Token fuer die Bildpfade. Die
+    Vorschau kennt keinen Registrierungslink; sie braucht trotzdem eine
+    Adresse, unter der der angemeldete Administrator das Bild sieht. Ohne
+    ``token`` gilt weiter der Slug des Links (oeffentlicher Fall).
+
+    Rueckgabe:
+
+        {
+          "felder": [...],          # wie bisher (Label, Typ, Optionen, Pflicht…)
+          "mit_kinder": int,        # 0/1
+          "mit_gaesten": int,       # 0/1
+          "beschreibung": str,      # reiner Text/Markdown-light (NIE HTML)
+          "banner_bild": str,       # relativer Abrufpfad oder ""
+          "hintergrund_bild": str,  # relativer Abrufpfad oder ""
+        }
+
+    Die Bildpfade sind RELATIV (`/public/registrierung/<token>/bild/<rolle>`):
+    der oeffentliche Abruf braucht den Token, weil die Bilder bewusst NICHT
+    ueber `/files/…` erreichbar sind.
+    """
+    daten: dict = {
+        "felder": [],
+        "mit_kinder": 0,
+        "mit_gaesten": 0,
+        "beschreibung": "",
+        "banner_bild": "",
+        "hintergrund_bild": "",
+    }
+    if not link or not link.get("anmeldeformular"):
+        return daten
+
+    form = get_doc("Anmeldeformular", link["anmeldeformular"])
+    # `form.felder` ist eine Kind-Tabelle: `get_doc` liefert kein
+    # Kind-Attribut, deshalb ueber `_child_rows`. Die Feldliste wird
+    # explizit uebergeben — ohne sie liefert der Helfer nur name/idx.
+    for f in _child_rows(
+        "Anmeldeformular Feld",
+        form.name,
+        "felder",
+        fields=[
+            "label",
+            "feldtyp",
+            "optionen",
+            "pflichtfeld",
+            "fuer_gaeste",
+            "fuer_kinder",
+        ],
+    ):
+        daten["felder"].append(
+            {
+                "label": f.get("label"),
+                "feldtyp": f.get("feldtyp"),
+                "optionen": f.get("optionen") or "",
+                "pflichtfeld": f.get("pflichtfeld"),
+                "fuer_gaeste": f.get("fuer_gaeste"),
+                "fuer_kinder": f.get("fuer_kinder"),
+            }
+        )
+    daten["mit_kinder"] = form.mit_kinder or 0
+    daten["mit_gaesten"] = form.mit_gaesten or 0
+
+    from diakronos_app.anmeldung.formularbilder import (
+        bild_pfad,
+        normalisiere_beschreibung,
+    )
+
+    daten["beschreibung"] = normalisiere_beschreibung(getattr(form, "beschreibung", ""))
+    # REG-1b: `token` ueberschreibt den Link-Slug (Vorschau der Verwaltung).
+    pfad_token = token if token is not None else link.get("slug")
+    daten["banner_bild"] = bild_pfad(pfad_token, "banner", getattr(form, "bannerbild", None))
+    daten["hintergrund_bild"] = bild_pfad(
+        pfad_token, "hintergrund", getattr(form, "hintergrundbild", None)
+    )
+    return daten
+
+
 # bewusst oeffentlich: Token-Link-Validierung vor dem Login
 @whitelist(allow_guest=True)
 def validate_token(token):
-    """Gibt Typ + Formular-Felder des Links zurueck (Frontend-Initialisierung)."""
+    """Gibt Typ + Formular-Felder des Links zurueck (Frontend-Initialisierung).
+
+    SEC-3: gebremst wird mit HTTP 429 (`RateLimitError`) — der Pentest fand 12
+    ungebremste Pruefungen mit ungueltigem Token. Die Grenze
+    (`registrierung_max_validierung`) gilt je Adresse und Fenster; `0` schaltet
+    sie aus. Ein Aufruf zaehlt GENAU EINMAL (`zaehle_validierung`), auch fuer
+    ein erfundenes Token — sonst waere die Bremse durch Wechseln des Tokens
+    umgehbar.
+
+    SEC-6: gezaehlt wird IMMER, auch wenn die Adresse privat ist (hinter
+    Proxy/NAT der Normalfall). Der Token wird — ausser bei den Vorschau-Tokens
+    der Verwaltung, die kein Registrierungslink sind — mitgegeben, damit
+    zusaetzlich je Token gezaehlt wird.
+    """
     from diakronos_app.anmeldung import registrierungsbremse
-    if not registrierungsbremse.zaehle_validierung(request_context.zaehler_client_ip()):
-        throw(registrierungsbremse.fehlermeldung(), ValidationError)
+    from diakronos_app.api.registrierung_vorschau import ist_vorschau_token
+
+    zaehl_token = None if ist_vorschau_token(token) else (str(token or "").strip() or None)
+    if not registrierungsbremse.zaehle_validierung(
+        request_context.zaehler_client_ip(), token=zaehl_token
+    ):
+        throw(registrierungsbremse.fehlermeldung(), RateLimitError)
     link = _validate_token(token)
 
-    felder = []
-    mit_kinder = 0
-    mit_gaesten = 0
+    antwort = {"typ": link.get("typ"), **_formular_felder(link)}
+    return antwort
 
-    if link.get("anmeldeformular"):
-        form = get_doc("Anmeldeformular", link["anmeldeformular"])
-        # `form.felder` ist eine Kind-Tabelle: `get_doc` liefert kein
-        # Kind-Attribut, deshalb ueber `_child_rows`. Die Feldliste wird
-        # explizit uebergeben — ohne sie liefert der Helfer nur name/idx.
-        for f in _child_rows(
-            "Anmeldeformular Feld",
-            form.name,
-            "felder",
-            fields=[
-                "label",
-                "feldtyp",
-                "optionen",
-                "pflichtfeld",
-                "fuer_gaeste",
-                "fuer_kinder",
-            ],
-        ):
-            felder.append(
-                {
-                    "label": f.get("label"),
-                    "feldtyp": f.get("feldtyp"),
-                    "optionen": f.get("optionen") or "",
-                    "pflichtfeld": f.get("pflichtfeld"),
-                    "fuer_gaeste": f.get("fuer_gaeste"),
-                    "fuer_kinder": f.get("fuer_kinder"),
-                }
-            )
-        mit_kinder = form.mit_kinder or 0
-        mit_gaesten = form.mit_gaesten or 0
 
-    return {
-        "typ": link.get("typ"),
-        "felder": felder,
-        "mit_kinder": mit_kinder,
-        "mit_gaesten": mit_gaesten,
-    }
+# bewusst oeffentlich: Anzeige des Formulars ohne Login (REG-1a)
+@whitelist(allow_guest=True)
+def get_oeffentliche_formular(token):
+    """Beschreibung, Bilder und Felder eines Registrationlinks (REG-1a).
+
+    Gegenstueck zu `validate_token`, aber ausdruecklich fuer die ANZEIGE des
+    Formulars (die SPA liest beim Seitenaufbau `window.__diakronos`). Die
+    Angaben sind oeffentlich — sie erscheinen genau denen, die den Link haben.
+
+    ``admin=1`` laesst die Verwaltung einen noch nicht gueltigen Link ansehen
+    (REG-1a, Startdatum): die Rolle wird hier geprueft, NICHT vom Client
+    geglaubt. Ohne Adminrolle und vor `gueltig_ab` kommt dieselbe klare Meldung
+    wie beim Absenden („Anmeldung ab …“).
+    """
+    if not token:
+        throw("Kein Registrierungstoken angegeben.", FrappePermissionError)
+
+    # REG-1b: Rollenprüfung ueber `_has_admin_role` — dieselbe, die
+    # `permissions.require_admin` (und damit die ganze Verwaltung) benutzt.
+    # `is_admin()` ist NICHT dieselbe Pruefung: es steigt aus, sobald
+    # `mitglied_ausgeschlossen()` anschlaegt, und behandelt `Administrator`
+    # als Vollzugriff. Die Anzeige muss der Verwaltung folgen, sonst sieht ein
+    # Mitgliederadministrator ohne Mitgliedszeile den eigenen Link nicht.
+    from diakronos_app.frappe_compat.permissions import _has_admin_role
+
+    if _has_admin_role():
+        link = _validate_token(token, admin=True)
+    else:
+        link = _validate_token(token)
+
+    daten = _formular_felder(link)
+    daten.update(
+        {
+            "typ": link.get("typ"),
+            "bezeichnung": link.get("bezeichnung"),
+            "gueltig_ab": str(link.get("gueltig_ab") or "") or None,
+        }
+    )
+    return daten
 
 
 # bewusst oeffentlich: Mitglied-Registrierung via Token-Link ohne Login

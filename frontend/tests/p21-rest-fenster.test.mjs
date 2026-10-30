@@ -14,7 +14,10 @@ import { readFileSync } from 'node:fs'
 const lies = (pfad) => readFileSync(new URL('../src/diakonos/' + pfad, import.meta.url), 'utf8')
 
 const FENSTER = [
-    ['pages/Gruppen.vue', 'Neue Gruppe'],
+    // DEV-1: Das Anlege-Fenster der Liste ist ein eigener Baustein
+    // (components/gruppen/GruppeAnlegenDialog.vue) und wird von der Liste UND
+    // vom Bereichs-Rahmen genutzt; pages/Gruppen.vue enthält es nicht mehr.
+    ['components/gruppen/GruppeAnlegenDialog.vue', 'Neue Gruppe'],
     ['components/gruppen/OrganigrammAnsicht.vue', 'Gruppe verwalten'],
     ['pages/Wiki.vue', 'Wiki-Artikel'],
     ['pages/Beitraege.vue', 'Beitrag'],
@@ -42,10 +45,12 @@ test('OP-UI-23: Abbrechen ist ghost statt secondary (S3.2)', () => {
 })
 
 test('UXD-R22/OP-UI-5: leerer Titel/Name wird am Feld benannt, Knopf bleibt aktiv', () => {
-    const gruppen = lies('pages/Gruppen.vue')
-    assert.match(gruppen, /createFehler/, 'Gruppen: kein Feldfehler-Objekt')
-    assert.match(gruppen, /:error="createFehler\.name"/, 'Gruppen: Name ohne :error')
-    assert.doesNotMatch(gruppen, /:disabled="!createForm\.name\.trim\(\)/, 'Gruppen: Knopf noch gesperrt')
+    // DEV-1: Das Anlege-Fenster der Gruppen liegt jetzt im gemeinsamen
+    // Baustein (Liste und Bereichs-Rahmen nutzen dasselbe).
+    const gruppen = lies('components/gruppen/GruppeAnlegenDialog.vue')
+    assert.match(gruppen, /createFehler|fehler\.name/, 'Gruppen: kein Feldfehler-Objekt')
+    assert.match(gruppen, /:error="fehler\.name"/, 'Gruppen: Name ohne :error')
+    assert.doesNotMatch(gruppen, /:disabled="!form\.name\.trim\(\)/, 'Gruppen: Knopf noch gesperrt')
 
     const organigramm = lies('components/gruppen/OrganigrammAnsicht.vue')
     assert.match(organigramm, /:error="createFehler\.name"/, 'Organigramm: Name ohne :error')

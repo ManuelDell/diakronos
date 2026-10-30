@@ -1,13 +1,27 @@
 """P2b-Beweis: die portierten Endpunkte laufen end-to-end mit echten Daten.
 
-Laeuft gegen die Compose-Umgebung (Postgres). Legt Fixtures in einer
-Transaktion an, misst die HTTP-Antworten ueber TestClient und raeumt wieder auf.
+NET-1: laeuft gegen eine EIGENE Wegwerf-PostgreSQL im eigenen Netz — niemals
+gegen das Betriebsnetz `diakronos-standalone_default`. Das Skript legt
+Mitglieder in der Tabelle `mitglied` an und loescht sie wieder; im Betriebsnetz
+waere das ein Schreibzugriff auf die Betriebsdatenbank (Vorfall 22.10.).
+Der Aufruf unten legt DB, Volume und Netz an und raeumt sie wieder ab
+(exakte eigene Namen, kein prune, Regel 7 der Karte).
 
 Aufruf:
-    docker run --rm --network diakronos-standalone_default \
+    docker network create --label net-1=wegwerf p2b-netz
+    docker volume create p2b-pg
+    docker run -d --rm --name p2b-db --network p2b-netz \
+      -e POSTGRES_USER=diakronos -e POSTGRES_DB=diakronos -e POSTGRES_PASSWORD=<wegwerf> \
+      -v p2b-pg:/var/lib/postgresql/data postgres:17-alpine
+    docker run --rm --network p2b-netz \
+      -e DATABASE_URL=postgresql+psycopg://diakronos:<wegwerf>@p2b-db:5432/diakronos \
+      --entrypoint alembic diakronos-standalone-app:latest -c /app/alembic.ini upgrade head
+    docker run --rm --network p2b-netz \
       -v "$PWD/backend:/w" -e PYTHONPATH=/w/src -e PYTHONDONTWRITEBYTECODE=1 \
-      -e DATABASE_URL=... -e REDIS_URL=... \
+      -e DATABASE_URL=postgresql+psycopg://diakronos:<wegwerf>@p2b-db:5432/diakronos \
+      -e REDIS_URL=redis://127.0.0.1:1/0 -e SECRET_KEY=p2b-disposable-key \
       -w /w diakronos-standalone-app:latest python /w/scripts/p2b_beweis.py
+    docker rm -f p2b-db; docker volume rm p2b-pg; docker network rm p2b-netz
 """
 
 from __future__ import annotations

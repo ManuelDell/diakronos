@@ -204,8 +204,11 @@ function routerAusfuehren(boot) {
     'keine &&-Ausdruecke ueber Refs in v-if')
   assert.ok(vorlage.includes('zeigeExportKnopf'), 'Export-Knopf ueber fertigen Wahrheitswert')
   assert.ok(skript.includes('zeigeExportKnopf = computed'), 'Wahrheitswert im Skript gebildet')
-  assert.match(skript, /aktiverReiter\.value\.id === 'liste'/,
-    'Reiterpruefung im Skript ueber .value')
+  // UX-A2a: der Reiterstreifen ist durch die Bereichsliste ersetzt; die
+  // Pruefung „welcher Eintrag ist offen“ steht weiter im SKRIPT (dort sind
+  // Refs ausgepackt) und vergleicht gegen den Zieldatensatz des Eintrags.
+  assert.match(skript, /aktiverEintrag\.value\?\.id === 'liste'/,
+    'Eintragspruefung im Skript ueber .value')
   assert.ok(vorlage.includes('v-if="istAdmin"'), '„Mitglied hinzufügen“ ueber einfachen Namen')
 }
 

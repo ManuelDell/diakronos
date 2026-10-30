@@ -65,6 +65,34 @@ def _full_name_for_user(user: str | None) -> str | None:
     return get_value("User", user, "full_name")
 
 
+# ── Knoten-Kennungen: Typ-Praefix (ORG-1) ───────────────────────────────────
+# Die Kennung eines Knotens war der docname OHNE Typ. Tragen ein Dienstbereich
+# und eine Gruppe dieselbe Kennung (Altdaten, Import — ueber die Oberflaeche
+# nicht herstellbar, siehe tests/test_seed1_app_kollision.py), standen zwei
+# Knoten mit derselben ``id`` in der Liste und d3-org-chart bricht mit
+# „ambiguous“ ab; das Organigramm laedt dann nicht. Dieselben Praefixe wie im
+# neueren Endpunkt `gruppen.get_gruppen_for_orgchart` — eine Sprechweise fuer
+# beide Listen.
+_ID_PRAEFIX_DIENSTBEREICH = "db_"
+_ID_PRAEFIX_GRUPPE = "g_"
+_ID_PRAEFIX_UNTERGRUPPE = "ug_"
+
+
+def _id_bereich(name: str) -> str:
+    """Knoten-Kennung eines Dienstbereichs."""
+    return f"{_ID_PRAEFIX_DIENSTBEREICH}{name}"
+
+
+def _id_gruppe(name: str) -> str:
+    """Knoten-Kennung einer Gruppe."""
+    return f"{_ID_PRAEFIX_GRUPPE}{name}"
+
+
+def _id_untergruppe(name: str) -> str:
+    """Knoten-Kennung einer Untergruppe."""
+    return f"{_ID_PRAEFIX_UNTERGRUPPE}{name}"
+
+
 @whitelist(allow_guest=False)
 def get_orgchart_data():
     """Flache Knotenliste fuer das d3-Organigramm (Quelle: orgchart_api.py:4)."""
@@ -160,10 +188,13 @@ def get_orgchart_data():
     # Dienstbereich-Knoten — Quelle: orgchart_api.py:106-116
     for db in dienstbereiche:
         nodes.append({
-            "id": db["name"],
+            "id": _id_bereich(db["name"]),
             "parentId": "__root__",
             "name": db["ministry"],
             "node_type": "dienstbereich",
+            # ORG-1: die ECHTE Kennung des Datensatzes neben der Knoten-id —
+            # Klick-Ziele und Bearbeiten brauchen sie ohne Praefix.
+            "raw_name": db["name"],
             "farbe": _normalisiere_farbe(db.get("farbe")),
             "icon": db.get("icon") or "",
             "member_count": 0,
@@ -171,12 +202,14 @@ def get_orgchart_data():
 
     # Gruppen-Knoten — Quelle: orgchart_api.py:118-129
     for g in gruppen:
-        parent_id = g["dienstbereich"] if g.get("dienstbereich") else "__root__"
+        parent_id = (_id_bereich(g["dienstbereich"]) if g.get("dienstbereich")
+                     else "__root__")
         nodes.append({
-            "id": g["name"],
+            "id": _id_gruppe(g["name"]),
             "parentId": parent_id,
             "name": g["gruppenname"],
             "node_type": "gruppe",
+            "raw_name": g["name"],
             "gruppentyp": g.get("gruppentyp") or "",
             "leiter": verantwortliche_map.get(g["name"], ""),
             "member_count": gruppe_counts.get(g["name"], 0),
@@ -185,10 +218,11 @@ def get_orgchart_data():
     # Untergruppen-Knoten — Quelle: orgchart_api.py:131-139
     for ug in untergruppen:
         nodes.append({
-            "id": ug["name"],
-            "parentId": ug["gruppe"] if ug.get("gruppe") else "__root__",
+            "id": _id_untergruppe(ug["name"]),
+            "parentId": _id_gruppe(ug["gruppe"]) if ug.get("gruppe") else "__root__",
             "name": ug["untergruppenname"],
             "node_type": "untergruppe",
+            "raw_name": ug["name"],
             "member_count": untergruppe_counts.get(ug["name"], 0),
         })
 
@@ -196,7 +230,7 @@ def get_orgchart_data():
     for m in gruppe_members:
         nodes.append({
             "id": f"m__{m['mitglied']}__{m['gruppe']}",
-            "parentId": m["gruppe"],
+            "parentId": _id_gruppe(m["gruppe"]),
             "name": m["full_name"],
             "node_type": "mitglied",
             "rolle": m.get("rolle") or "",
@@ -207,7 +241,7 @@ def get_orgchart_data():
     for m in ug_members:
         nodes.append({
             "id": f"m__{m['mitglied']}__{m['untergruppe']}",
-            "parentId": m["untergruppe"],
+            "parentId": _id_untergruppe(m["untergruppe"]),
             "name": m["full_name"],
             "node_type": "mitglied",
             "rolle": m.get("rolle") or "",

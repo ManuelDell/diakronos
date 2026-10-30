@@ -1,20 +1,24 @@
 <template>
-  <div class="dk-screen dk-screen-enter">
+  <div class="dk-screen dk-screen-enter" :class="{ 'reg-screen--dialog': showCreateFormular }">
     <DkPageHeader v-if="!embedded" title="Anfragen" sub="Anfragen, Links & Formulare verwalten" />
 
-    <!-- N2 (Konzept Abschnitt 3, Reiter 3 „Anfragen“): zwei Leitern.
-         Oben der Zustand der Anfragen (Offen/Aufgenommen/Abgelehnt), darunter
-         die Unterbereiche (Anfragen / Links & QR-Codes / Formulare). Der
-         Begriff „Anmeldung“ bleibt dem Login vorbehalten. -->
-    <div class="reg-bereich">
-      <DkTabs
-        v-model="statusTab"
-        :options="statusTabs"
-        aria-label="Nach Status filtern"
-      />
-    </div>
+    <!-- N2 (Konzept Abschnitt 3, Reiter 3 „Anfragen“): der Zustand der
+         Anfragen (Offen/Aufgenommen/Abgelehnt). Der Begriff „Anmeldung“
+         bleibt dem Login vorbehalten.
+         UX-A2a: Die zweite Reiterzeile „Anfragen / Links & QR-Codes /
+         Formulare“ ist entfallen — die Unterbereiche sind jetzt eigene
+         Einträge der Mitglieder-Bereichsliste links (menue.js,
+         ANFRAGEN_UNTERBEREICHE). Der Unterbereich kommt über die Eigenschaft
+         `unterbereich` herein; steht die Seite allein (ohne Rahmen), bleibt
+         der eigene Umschalter — sonst wäre sie dort nicht bedienbar.
+         UX-A2b (Entwurf A2, Befunde DMB-09a956e8457d + DMB-d4f788c04158):
+         Die Status-Reiter „Offen · Aufgenommen · Abgelehnt“ standen ÜBER den
+         Unterbereichen und filterten deshalb auch dann, wenn man bei „Links“
+         oder „Formularen“ war — dort ohne jede Wirkung. Jetzt steht der
+         Statusfilter als Chip-Zeile (DkFilterChips, mit Zahlen) DIREKT über
+         der Anfragen-Tabelle, also nur dort, wo er wirkt. -->
 
-    <div class="reg-bereich">
+    <div v-if="!eingebettet" class="reg-bereich">
       <DkSegment
         v-model="unterbereich"
         :options="unterbereiche"
@@ -24,6 +28,22 @@
 
     <!-- Unterbereich 1: Anfragen -->
     <div v-if="unterbereich === 'anfragen'">
+      <!-- UX-A2b: Statusfilter als Chips MIT Zahlen, direkt über der Tabelle
+           (Entwurf A2). Nur hier — bei Links und Formularen gibt es keinen
+           Statusfilter. „Offen“ ist die Arbeitsliste und deshalb der
+           Ruhezustand (nicht „Alle“); „Alle“ zeigt auch Warteliste-Anfragen.
+           Am Handy scrollt die Zeile seitlich (`scrollbar`), statt in eine
+           zweite Zeile umzubrechen. -->
+      <DkFilterChips
+        v-if="!loading"
+        class="reg-statusfilter"
+        :chips="statusChips"
+        :model-value="statusFilter"
+        scrollbar
+        aria-label="Anfragen nach Status filtern"
+        @waehlen="statusFilter = $event"
+      />
+
       <!-- OP-UI-19: gemeinsames Ladeskelett statt einer eigenen Form. -->
       <DkSkelett v-if="loading" form="tabelle" :anzahl="5" text="Anfragen werden geladen …" />
 
@@ -36,7 +56,7 @@
           <tr v-for="a in filteredAnmeldungen" :key="a.name">
             <td class="reg-jetzt">{{ formatDate(a.anmeldedatum) }}</td>
             <td>{{ a.vorname }} {{ a.nachname }}</td>
-            <td>{{ a.anmeldungstyp }}</td>
+            <td>{{ artText(a.anmeldungstyp) }}</td>
             <td>
               <!-- OP-ADMIN-7: Dublettenwarnung direkt in der Zeile. Sie kommt
                    aus dem Server (`email_vorhanden`), nicht aus einer im
@@ -48,8 +68,17 @@
               </DkBadge>
               <span v-else class="reg-muted">–</span>
             </td>
-            <td><DkBadge :variant="statusVariante(a.status)">{{ a.status }}</DkBadge></td>
             <td>
+              <!-- UX-A2b: dieselbe Sprache wie die Filterchips (Offen ·
+                   Aufgenommen · Abgelehnt) statt der rohen Server-Werte
+                   „Anmeldeanfrage / Ausstehend / Bestätigt“. -->
+              <DkBadge :variant="statusSprache(a.status).variant">{{ statusSprache(a.status).wort }}</DkBadge>
+            </td>
+            <td class="is-aktion">
+              <!-- FIX-4: Aktionszelle mit `.is-aktion` — DkTable hält sie in
+                   ihrer Spalte (Umbruch statt Überlagerung). Der Wrapper
+                   `.reg-aktionen` hält die Knöpfe als Flex-Zeile mit
+                   Token-Abstand (Punkt 3 der Review-Auflage). -->
               <div class="reg-aktionen">
                 <DkButton v-if="istOffen(a)"
                   variant="primary" size="sm" :disabled="processing[a.name]" @click="aufnehmen(a)">
@@ -96,11 +125,19 @@
           <!-- N3: voller Link, anklickbar; Kopieren/Teilen/Oeffnen/QR. -->
           <RegLinkTeilen :link="l.link_anzeige" :bezeichnung="l.bezeichnung" />
 
-          <!-- N3: Gültigkeit und Plätze sichtbar (Konzept Abschnitt 5). -->
-          <div v-if="l.gueltig_bis" class="reg-link-ablauf">
-            Gültig bis: {{ formatDate(l.gueltig_bis) }}
+          <!-- N3: Gültigkeit und Plätze sichtbar (Konzept Abschnitt 5).
+               REG-1b: „Gültig ab“ steht neben „Gültig bis“ — vor diesem Tag
+               ist der Link für Besucher noch nicht nutzbar. -->
+          <div v-if="l.gueltig_ab || l.gueltig_bis" class="reg-link-zeitraum">
+            <span v-if="l.gueltig_ab">Gültig ab: {{ formatDate(l.gueltig_ab) }}</span>
+            <span v-if="l.gueltig_ab && l.gueltig_bis" class="reg-muted">·</span>
+            <span v-if="l.gueltig_bis">Gültig bis: {{ formatDate(l.gueltig_bis) }}</span>
           </div>
           <div v-else class="reg-link-meta">Ohne Ablaufdatum</div>
+
+          <div v-if="l.gueltig_ab && l.zustand === 'bevorstehend'" class="reg-link-meta">
+            <span>Startet am {{ formatDate(l.gueltig_ab) }} — bis dahin sehen Besucher nur einen Hinweis.</span>
+          </div>
 
           <div class="reg-link-plaetze">
             <span v-if="l.plaetze_gesamt > 0">
@@ -156,7 +193,7 @@
             <!-- OP-ADMIN-19: Die Zahl kommt vom Server (`felder_anzahl`); vorher
                  stand hier fest „–“, weil die Kind-Zeilen unsichtbar waren. -->
             <td>{{ f.felder_anzahl }}</td>
-            <td class="reg-aktionen">
+            <td class="is-aktion">
               <DkButton variant="secondary" size="sm" @click="formularBearbeiten(f)">Bearbeiten</DkButton>
               <DkButton variant="danger" size="sm" @click="formularEntfernen(f)">Löschen</DkButton>
             </td>
@@ -176,10 +213,18 @@
         <DkField v-slot="feld" label="Typ" required :error="linkFehler.typ">
           <DkSelect v-bind="feld" v-model="newLink.typ" :options="linkTypOptionen" />
         </DkField>
-        <DkField label="Gültig bis">
-          <input v-model="newLink.gueltig_bis" type="date" class="dk-ui-eingabe"
-            :disabled="newLink.ohne_ablauf" />
-        </DkField>
+        <!-- REG-1b: Start und Ende eines Links gehoeren zusammen — sie stehen
+             deshalb nebeneinander (Zeitraum in Leserichtung). Am Handy bricht
+             die Reihe um (`.reg-zeitraum`). -->
+        <div class="reg-zeitraum">
+          <DkField label="Gültig ab" help="Leer = sofort nutzbar.">
+            <input v-model="newLink.gueltig_ab" type="date" class="dk-ui-eingabe" />
+          </DkField>
+          <DkField label="Gültig bis">
+            <input v-model="newLink.gueltig_bis" type="date" class="dk-ui-eingabe"
+              :disabled="newLink.ohne_ablauf" />
+          </DkField>
+        </div>
         <label class="reg-schalter">
           <input v-model="newLink.ohne_ablauf" type="checkbox" />
           <span>Ohne Ablauf (unbefristet, unabhängig von der Vorgabe)</span>
@@ -217,6 +262,36 @@
           <DkCheckbox v-model="newFormular.mit_kinder" label="Mit Kinder-Option" />
         </div>
 
+        <!-- REG-1b: Beschreibung — reiner Text, erscheint über dem Formular. -->
+        <DkField label="Beschreibung"
+                 help="Erscheint über dem Formular. Absätze und Zeilenumbrüche bleiben erhalten.">
+          <textarea v-model="newFormular.beschreibung" class="dk-ui-eingabe" rows="4"
+                    maxlength="5000" data-test="reg-formular-beschreibung"
+                    placeholder="z. B. Herzlich willkommen! Melde dich hier für die Gemeinde an." />
+        </DkField>
+
+        <!-- REG-1b: Banner und Hintergrundbild. Banner steht über dem Kopf,
+             Hintergrund liegt gedämpft hinter der Karte. -->
+        <div class="reg-bilder">
+          <div v-for="bild in bildFelder" :key="bild.rolle" class="reg-bild">
+            <span class="reg-bild-titel">{{ bild.titel }}</span>
+            <img v-if="bild.url" :src="bild.url" alt="" class="reg-bild-vorschau" />
+            <div class="reg-bild-aktionen">
+              <input :ref="el => (bildEingabe[bild.rolle] = el)" type="file"
+                     accept="image/png,image/jpeg,image/gif,image/webp"
+                     class="reg-bild-datei"
+                     :data-test="`reg-formular-${bild.rolle}-datei`"
+                     @change="bildGewaehlt(bild.rolle, $event)" />
+              <DkButton v-if="bild.url" variant="danger" size="sm"
+                        :data-test="`reg-formular-${bild.rolle}-entfernen`"
+                        @click="bildEntfernen(bild.rolle)">
+                Entfernen
+              </DkButton>
+            </div>
+            <span class="reg-bild-hinweis">{{ bild.hinweis }}</span>
+          </div>
+        </div>
+
         <!-- Felder -->
         <div class="reg-feldbau">
           <div class="reg-feldbau-kopf">
@@ -236,11 +311,57 @@
       </form>
       <template #footer>
         <DkButton variant="secondary" :disabled="formularSpeichert" @click="formularSchliessen">Abbrechen</DkButton>
+        <!-- REG-1b: Vorschau — zeigt das Formular wie Besucher es sehen
+             (dieselbe Komponente wie die öffentliche Seite), ohne Absenden. -->
+        <DkButton variant="secondary" :disabled="formularSpeichert" data-test="reg-formular-vorschau"
+                  @click="vorschauOeffnen">
+          Vorschau
+        </DkButton>
         <DkButton variant="primary" type="submit" form="reg-formular-form" :loading="formularSpeichert">
           {{ formularBearbeitet ? 'Speichern' : 'Erstellen' }}
         </DkButton>
       </template>
     </DkDialog>
+
+    <!-- REG-1b: Vorschau des Anmeldeformulars. Bewusst KEIN DkDialog: dort
+         gelten die Verwaltungs-Maße, hier soll die Seite in ihrer echten
+         Breite stehen (520 px Karte wie öffentlich, am Handy volle Breite). -->
+    <Teleport to="body">
+      <div v-if="vorschauOffen" class="reg-vorschau-overlay" @mousedown.self="vorschauSchliessen">
+        <div class="reg-vorschau" role="dialog" aria-modal="true"
+             aria-label="Vorschau des Anmeldeformulars">
+          <div class="reg-vorschau-kopf">
+            <h3 class="reg-vorschau-titel">Vorschau — so sehen Besucher das Formular</h3>
+            <DkButton variant="secondary" size="sm" data-test="reg-vorschau-schliessen"
+                      @click="vorschauSchliessen">Schließen</DkButton>
+          </div>
+          <!-- Dieselbe Komponente wie die öffentliche Registrierungsseite. -->
+          <div class="reg-vorschau-buehne">
+            <div class="reg-vorschau-seite">
+              <div class="reg-vorschau-karte dk-pub-card">
+                <DkAnmeldeformular
+                  vorschau
+                  :felder="vorschauDaten.felder"
+                  :mit-kinder="vorschauDaten.mit_kinder"
+                  :dokumente="vorschauDaten.dokumente || []"
+                  :texte="vorschauDaten.texte || {}"
+                  :willkommenstext="vorschauDaten.willkommenstext || ''"
+                  :beschreibung="vorschauDaten.beschreibung || ''"
+                  :banner-bild="vorschauDaten.banner_bild || ''"
+                  :titel="newFormular.mit_kinder ? 'Anmeldung' : 'Mitglied werden'"
+                  :subtitel="newFormular.mit_kinder
+                    ? 'Melde dich und deine Kinder an. Alle Daten werden sicher gespeichert.'
+                    : 'Registriere dich als Gemeindemitglied. Alle Daten werden sicher gespeichert.'"
+                />
+              </div>
+            </div>
+          </div>
+          <p class="reg-vorschau-fuss">
+            Gezeigt werden die Angaben aus dem Editor — Beschreibung und Felder auch ungespeichert.
+          </p>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Dialog: Link verlaengern (N3, Konzept Abschnitt 5) -->
     <DkDialog :model-value="!!verlaengernFuer" :title="verlaengernTitel"
@@ -304,8 +425,8 @@
           <div><strong>E-Mail:</strong> {{ detailAnmeldung.email || '–' }}</div>
           <div><strong>Telefon:</strong> {{ detailAnmeldung.telefon || '–' }}</div>
           <div><strong>Geburtstag:</strong> {{ detailAnmeldung.geburtstag ? formatDate(detailAnmeldung.geburtstag) : '–' }}</div>
-          <div><strong>Typ:</strong> {{ detailAnmeldung.anmeldungstyp }}</div>
-          <div><strong>Status:</strong> <DkBadge :variant="statusVariante(detailAnmeldung.status)">{{ detailAnmeldung.status }}</DkBadge></div>
+          <div><strong>Typ:</strong> {{ artText(detailAnmeldung.anmeldungstyp) }}</div>
+          <div><strong>Status:</strong> <DkBadge :variant="statusSprache(detailAnmeldung.status).variant">{{ statusSprache(detailAnmeldung.status).wort }}</DkBadge></div>
           <div><strong>Datum:</strong> {{ formatDate(detailAnmeldung.anmeldedatum) }}</div>
           <div v-if="detailAnmeldung.kommentar"><strong>Kommentar:</strong> {{ detailAnmeldung.kommentar }}</div>
         </div>
@@ -407,9 +528,16 @@
  * Anfragen — Anfragen/Links/Formulare im Design-System (N2).
  *
  * Reiter „Anfragen“ des Mitglieder-Bereichs (Konzept Abschnitt 3, Reiter 3).
- * Aufbau: oben der Status der Anfragen (Offen mit Zähler / Aufgenommen /
- * Abgelehnt), darunter die Unterbereiche Anfragen, Links & QR-Codes und
- * Formulare. Das Wort „Anmeldung“ bleibt dem Login vorbehalten.
+ * Aufbau: oben der Unterbereich (Anfragen / Links & QR-Codes / Formulare),
+ * darunter der Inhalt. UX-A2a: Die Unterbereiche Anfragen, Links & QR-Codes
+ * und Formulare sind seit Entwurf A2 Einträge der Mitglieder-Bereichsliste
+ * (menue.js ANFRAGEN_UNTERBEREICHE) — die zweite Reiterzeile in dieser Seite
+ * ist entfallen. Das Wort „Anmeldung“ bleibt dem Login vorbehalten.
+ * UX-A2b: Der Status der Anfragen (Offen · Aufgenommen · Abgelehnt) ist kein
+ * Reiter mehr über den Unterbereichen (dort filterte er auch „Links“ und
+ * „Formulare“, wo er nichts bewirkte), sondern eine Chip-Zeile MIT ZAHLEN
+ * direkt über der Anfragen-Tabelle. Tabelle und Detailfenster nennen die
+ * Zustände in derselben Sprache wie die Chips.
  *
  * OP-ADMIN-7: Aufnehmen ist kein Ein-Klick-Vorgang mehr. Das Fenster zeigt
  * Name, E-Mail und den Dublettenhinweis und lässt Status und Gruppe wählen.
@@ -426,16 +554,25 @@ import { apiCall } from '../composables/useApi.js'
 import { showToast } from '../composables/useToast.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import { pflichtFehler } from '../composables/formularPruefung.mjs'
+import { anfragenZahlAuffrischen } from '../composables/useVerwaltung.js'
 
-// Im Mitglieder-Bereich eingebettet: eigener Kopf entfällt.
-defineProps({ embedded: { type: Boolean, default: false } })
+// Im Mitglieder-Bereich eingebettet: eigener Kopf entfällt, und der
+// Unterbereich kommt als EIGENSCHAFT aus der Bereichsliste des Rahmens
+// (UX-A2a). Die Seite schaltet dann nichts selbst um — die Navigation des
+// Bereichs liegt links neben dem Inhalt. Steht die Seite allein (ohne
+// Rahmen), bleibt der eigene Umschalter und schaltet lokal.
+const props = defineProps({
+  embedded: { type: Boolean, default: false },
+  unterbereich: { type: String, default: '' },
+})
+const eingebettet = computed(() => props.embedded === true)
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkButton from '../components/ui/DkButton.vue'
 import DkBadge from '../components/ui/DkBadge.vue'
 import DkCard from '../components/ui/DkCard.vue'
 import DkDialog from '../components/ui/DkDialog.vue'
-import DkTabs from '../components/ui/DkTabs.vue'
 import DkSegment from '../components/ui/DkSegment.vue'
+import DkFilterChips from '../components/ui/DkFilterChips.vue'
 import DkField from '../components/ui/DkField.vue'
 import DkSelect from '../components/ui/DkSelect.vue'
 import DkCheckbox from '../components/ui/DkCheckbox.vue'
@@ -444,6 +581,10 @@ import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
 import DkHint from '../components/ui/DkHint.vue'
 import RegLinkTeilen from '../components/registrierung/RegLinkTeilen.vue'
+// REG-1b: die Anzeige des Anmeldeformulars — DIESELBE Komponente zeigt die
+// öffentliche Registrierungsseite. Die Vorschau im Editor ist damit keine
+// zweite, driftende Vorlage.
+import DkAnmeldeformular from '../../registrierung/components/DkAnmeldeformular.vue'
 
 const loading = ref(true)
 const loadingLinks = ref(true)
@@ -474,27 +615,100 @@ function bestaetigenAntwort(wert) {
 /** OP-ADMIN-7: Statuswerte der Anfrage, die als „offen“ gelten. */
 const OFFENE_ANMELDESTATI = ['Anmeldeanfrage', 'Ausstehend']
 
-/** Unterbereich (Konzept-Reiter 3): Anfragen | Links & QR-Codes | Formulare. */
-const unterbereich = ref('anfragen')
-const unterbereiche = [
+/** Unterbereich (Konzept-Reiter 3): Anfragen | Links & QR-Codes | Formulare.
+ *  UX-A2a: Im Mitglieder-Rahmen ist der Unterbereich ein Eintrag der
+ *  Bereichsliste — er kommt über die Eigenschaft herein und wird hier NICHT
+ *  umgeschaltet (die Navigation liegt links, der Rahmen setzt die Adresse).
+ *  Steht die Seite allein (embedded = false), schaltet der eigene Umschalter
+ *  weiter lokal. */
+const UNTERBEREICHE = [
   { value: 'anfragen', label: 'Anfragen' },
   { value: 'links',    label: 'Links & QR-Codes' },
   { value: 'formulare', label: 'Formulare' },
 ]
+const unterbereiche = UNTERBEREICHE
+const unterbereichLokal = ref('anfragen')
+const unterbereich = computed({
+  get() {
+    const vonAussen = props.unterbereich
+    if (eingebettet.value && UNTERBEREICHE.some(u => u.value === vonAussen)) return vonAussen
+    return unterbereichLokal.value
+  },
+  set(wert) {
+    // Im eingebetteten Betrieb ist der Unterbereich Navigation des Rahmens
+    // (Bereichsliste) — hier gibt es keinen Umschalter, also nichts zu setzen.
+    if (eingebettet.value) return
+    unterbereichLokal.value = wert
+  },
+})
 
-/** Statusleiter der Anfragen (Konzept-Reiter 3). */
-const statusTab = ref('offen')
-const statusTabs = computed(() => [
-  { value: 'offen',     label: `Offen (${zaehle('offen')})` },
-  { value: 'genehmigt', label: 'Aufgenommen' },
-  { value: 'abgelehnt', label: 'Abgelehnt' },
-])
+/** Statusleiter der Anfragen (Konzept-Reiter 3).
+ *  UX-A2b: erster Eintrag ist „Alle“ (Korrektur nach Operator-Review) — ohne
+ *  ihn gäbe es keinen sichtbaren Zustand für „nichts gefiltert“; ein zweiter
+ *  Klick auf den gewählten Chip landet dort (`naechsterChip`). Die Zahl je
+ *  Zustand kommt aus DERSELBEN Zählung, die den Filter fährt (`zaehle`). */
+const STATUS_LEITER = [
+  { wert: 'alle',      label: 'Alle',         leer: 'Keine Anfragen vorhanden' },
+  { wert: 'offen',     label: 'Offen',        leer: 'Keine offenen Anfragen' },
+  { wert: 'genehmigt', label: 'Aufgenommen',  leer: 'Keine aufgenommenen Anfragen' },
+  { wert: 'abgelehnt', label: 'Abgelehnt',    leer: 'Keine abgelehnten Anfragen' },
+]
+
+/**
+ * UX-A2b: Statusfilter als Chip-Zeile ÜBER der Anfragen-Tabelle.
+ *
+ * Die frühere Reiterzeile stand über den Unterbereichen und filterte auch
+ * dann, wenn „Links“ oder „Formulare“ gewählt war — dort ohne Wirkung
+ * (DMB-09a956e8457d). Als Chips direkt über der Tabelle wirkt der Filter
+ * genau dort, wo er hingehört; Zahlen machen den Bestand ohne Klick lesbar.
+ * `DkFilterChips` liefert Aussehen, Abwählbarkeit und `aria-pressed`.
+ */
+const statusFilter = ref('offen')
+const statusChips = computed(() => STATUS_LEITER.map(s => ({
+  id: s.wert,
+  label: s.label,
+  anzahl: zaehle(s.wert),
+})))
 
 function zaehle(art) {
+  if (art === 'alle') return anmeldungen.value.length
   if (art === 'offen') return anmeldungen.value.filter(istOffen).length
   if (art === 'genehmigt') return anmeldungen.value.filter(a => a.status === 'Bestätigt').length
   if (art === 'abgelehnt') return anmeldungen.value.filter(a => a.status === 'Abgelehnt').length
   return 0
+}
+
+/**
+ * UX-A2b: Wort und Kennzeichen eines Anfragestatus — EINE Quelle für Tabelle
+ * und Detailfenster, in derselben Sprache wie die Filterchips.
+ *
+ * Die Filter heissen „Offen · Aufgenommen · Abgelehnt“; die Tabelle zeigte
+ * davor die rohen Server-Werte („Anmeldeanfrage“, „Ausstehend“,
+ * „Bestätigt“) — derselbe Sachverhalt hiess an zwei Stellen anders
+ * (Nebenbefund aus dem Entwurf). Die WORDLISTE bleibt hier: `statussprache.mjs`
+ * kennt Plan- und Prüfstatus, keine Anmeldestati — ein Eintrag dort wäre ein
+ * Fremdwert in einem Modul, das Pläne beschreibt.
+ */
+const ANMELDESTATUS_SPRACHE = {
+  'Anmeldeanfrage': { wort: 'Offen',       variant: 'warn' },
+  'Ausstehend':     { wort: 'Offen',       variant: 'warn' },
+  'Bestätigt':      { wort: 'Aufgenommen', variant: 'ok' },
+  'Abgelehnt':      { wort: 'Abgelehnt',   variant: 'err' },
+  'Warteliste':     { wort: 'Warteliste',  variant: 'info' },
+}
+function statusSprache(status) {
+  return ANMELDESTATUS_SPRACHE[status] || { wort: status || '–', variant: 'neutral' }
+}
+
+/** UX-A2b: Anmeldetyp in Klartext („Mitglied“, „Gast“, …) statt des rohen
+ *  Select-Werts („Mitglied-Registrierung“). Unbekannte Werte bleiben stehen —
+ *  nie ein geratener Name. */
+const ANMELDETYP_SPRACHE = {
+  'Mitglied-Registrierung': 'Mitglied',
+  'Gast-Anmeldung': 'Gast',
+}
+function artText(typ) {
+  return ANMELDETYP_SPRACHE[typ] || typ || '–'
 }
 
 /** Ist die Anfrage noch offen (aufnehmbar/ablehnbar)? */
@@ -505,17 +719,22 @@ function istOffen(a) {
 const anmeldungSpalten = [
   { key: 'datum', label: 'Datum' },
   { key: 'name', label: 'Name' },
-  { key: 'art', label: 'Art' },
+  // UX-A2b: Die Spalte hiess „Art“ und zeigte den rohen Wert
+  // („Mitglied-Registrierung“, „Gast-Anmeldung“). Vorlage und Entwurf A2
+  // nennen sie „Typ“.
+  { key: 'typ', label: 'Typ' },
   { key: 'hinweis', label: 'Hinweis' },
   { key: 'status', label: 'Status' },
-  { key: 'aktionen', label: 'Aktionen' },
+  // FIX-4: Aktionen-Spalte — `aktion: true` gibt dem `<th>` und der Zelle
+  // `.is-aktion` (Mindestbreite, Umbruch statt Überlagerung am Handy).
+  { key: 'aktionen', label: 'Aktionen', aktion: true },
 ]
 const formularSpalten = [
   { key: 'bez', label: 'Bezeichnung' },
   { key: 'gaeste', label: 'Gäste' },
   { key: 'kinder', label: 'Kinder' },
   { key: 'felder', label: 'Felder' },
-  { key: 'aktionen', label: 'Aktionen' },
+  { key: 'aktionen', label: 'Aktionen', aktion: true },
 ]
 const linkTypOptionen = [
   { value: 'Mitglied-Registrierung', label: 'Mitglied-Registrierung' },
@@ -543,19 +762,21 @@ const gruppeOptionen = computed(() => [
   ...gruppenAuswahl.value.map(g => ({ value: g.name, label: g.gruppenname || g.name })),
 ])
 
+/**
+ * Warteliste-Anfragen gehören unter „Alle“ (Operator-Review): sie sind weder
+ * offen (nicht aufnehmbar/ablehnbar) noch aufgenommen noch abgelehnt und
+ * verschwänden sonst in einem unsichtbaren Zustand.
+ */
 const filteredAnmeldungen = computed(() => {
-  if (statusTab.value === 'offen') return anmeldungen.value.filter(istOffen)
-  if (statusTab.value === 'genehmigt') return anmeldungen.value.filter(a => a.status === 'Bestätigt')
-  if (statusTab.value === 'abgelehnt') return anmeldungen.value.filter(a => a.status === 'Abgelehnt')
+  if (statusFilter.value === 'offen') return anmeldungen.value.filter(istOffen)
+  if (statusFilter.value === 'genehmigt') return anmeldungen.value.filter(a => a.status === 'Bestätigt')
+  if (statusFilter.value === 'abgelehnt') return anmeldungen.value.filter(a => a.status === 'Abgelehnt')
   return anmeldungen.value
 })
 
-const leerText = computed(() => {
-  if (statusTab.value === 'offen') return 'Keine offenen Anfragen'
-  if (statusTab.value === 'genehmigt') return 'Keine aufgenommenen Anfragen'
-  if (statusTab.value === 'abgelehnt') return 'Keine abgelehnten Anfragen'
-  return 'Keine Anfragen vorhanden'
-})
+const leerText = computed(() => (
+  STATUS_LEITER.find(s => s.wert === statusFilter.value)?.leer ?? 'Keine Anfragen vorhanden'
+))
 
 async function fetchData() {
   let anfragenAktuell = false
@@ -672,6 +893,10 @@ async function aufnehmenBestaetigen() {
         showToast(w, 'warning')
       }
       await fetchData()
+      // UX-A2a2: Aufgenommen heißt eine offene Anfrage weniger — die
+      // gemeinsame Kennzahl (Seitenleiste + Bereichsliste) sofort nachziehen,
+      // statt bis zu einer Minute eine falsche Zahl zu zeigen.
+      anfragenZahlAuffrischen()
     }
   } catch (err) {
     // M2 (R-N2-code): Der Server kann das Aufnehmen verweigern (z.B. eine
@@ -730,6 +955,9 @@ async function ablehnenBestaetigen() {
       ablehnenSchutz.merken()
       showToast('Anfrage abgelehnt')
       await fetchData()
+      // UX-A2a2: abgelehnt heißt eine offene Anfrage weniger — Kennzahl sofort
+      // nachziehen (Seitenleiste und Bereichsliste teilen den Stand).
+      anfragenZahlAuffrischen()
     }
   } catch (err) {
     ablehnenFehler.value = err?.message || 'Ablehnen nicht möglich.'
@@ -755,6 +983,8 @@ const leererLink = () => {
   return {
     bezeichnung: '', typ: 'Mitglied-Registrierung',
     gueltig_bis: gueltig, max_anmeldungen: v.maxAnmeldungen || 0, anmeldeformular_id: '',
+    // REG-1b: „gültig ab“ — leer heisst SOFORT nutzbar (Server: NULL).
+    gueltig_ab: '',
     // M-1 (R-N9b): ausdruecklich unbefristet/unbegrenzt, unabhaengig von der
     // Gemeinde-Vorgabe. Leer heisst weiter Vorgabe (Server wendet sie an).
     ohne_ablauf: false, unbegrenzt: false,
@@ -806,6 +1036,7 @@ function istAus(l) {
 function zustandText(l) {
   switch (l.zustand) {
     case 'abgelaufen': return 'Abgelaufen'
+    case 'bevorstehend': return 'Startet später'
     case 'voll':       return 'Voll'
     case 'inaktiv':    return 'inaktiv'
     case 'aktiv':      return 'aktiv'
@@ -816,6 +1047,7 @@ function zustandText(l) {
 function zustandVariante(l) {
   switch (l.zustand) {
     case 'abgelaufen': return 'err'
+    case 'bevorstehend': return 'info'
     case 'voll':       return 'warn'
     case 'inaktiv':    return 'neutral'
     case 'aktiv':      return 'ok'
@@ -966,7 +1198,11 @@ async function deleteLink(l) {
 // ── Formulare ─────────────────────────────────────────────────────────────
 
 const showCreateFormular = ref(false)
-const leeresFormular = () => ({ bezeichnung: '', mit_gaesten: false, mit_kinder: false })
+// REG-1b: Beschreibung und Bilder gehören zum Formularkopf (Backend REG-1a:
+// `beschreibung`, `bannerbild`, `hintergrundbild`).
+const leeresFormular = () => ({
+  bezeichnung: '', mit_gaesten: false, mit_kinder: false, beschreibung: '',
+})
 const newFormular = ref(leeresFormular())
 const formularFelder = ref([])
 const formularSpeichert = ref(false)
@@ -975,6 +1211,167 @@ const formularFehler = ref({})
 // gerade bearbeitet wird. Ohne diesen Wert gab es keinen Weg, ein bestehendes
 // Formular zu öffnen oder zu ändern.
 const formularBearbeitet = ref(null)
+
+// ── REG-1b: Banner, Hintergrund und Vorschau ──────────────────────────────
+/** Bildrollen des Formulars — Rollennamen wie in der API (`/bild/<rolle>`). */
+const BILD_ROLLEN = ['banner', 'hintergrund']
+/** Anzeige der beiden Bildfelder (URL = Vorschau der Verwaltung, `/files/…`). */
+const formularBilder = ref({ banner: '', hintergrund: '' })
+/** Gerade gewählte, noch nicht hochgeladene Datei je Rolle. */
+const bildDateien = ref({ banner: null, hintergrund: null })
+/** Eingabeelemente je Rolle — nach dem Übernehmen leeren. */
+const bildEingabe = ref({})
+/** Rollen, deren Bild beim Speichern entfernt werden soll. */
+const bilderEntfernen = ref([])
+const bildFehler = ref('')
+
+const bildFelder = computed(() => [
+  {
+    rolle: 'banner',
+    titel: 'Banner',
+    url: formularBilder.value.banner,
+    hinweis: 'Steht über dem Formularkopf. PNG, JPEG, GIF oder WebP.',
+  },
+  {
+    rolle: 'hintergrund',
+    titel: 'Hintergrund',
+    url: formularBilder.value.hintergrund,
+    hinweis: 'Liegt gedämpft hinter der Anmeldeseite. Wird beim Speichern übernommen.',
+  },
+])
+
+function bilderZuruecksetzen() {
+  formularBilder.value = { banner: '', hintergrund: '' }
+  bildDateien.value = { banner: null, hintergrund: null }
+  bilderEntfernen.value = []
+  bildFehler.value = ''
+  for (const rolle of BILD_ROLLEN) {
+    const el = bildEingabe.value[rolle]
+    if (el) el.value = ''
+  }
+}
+
+/** Grenze eines Formularbildes in Bytes — aus dem Boot-Objekt, also derselbe
+ *  Wert, den der Server beim Upload zieht (`api.frappe_core.upload_limit`).
+ *  Fehlt die Angabe (0), entscheidet der Server allein.
+ *
+ *  Absichtlich eine Funktion: der Wert wird erst beim Pruefen gelesen, nicht
+ *  beim Laden des Moduls (die Seite laeuft auch in Tests ohne `window`). */
+function bildMaxBytes() {
+  return Number(window.__DIakonosBOOT?.bild_upload_max_bytes) || 0
+}
+
+/** Grenze als Text „10 MB“ (bzw. mit einer Nachkommastelle, wenn noetig). */
+function bildMaxText(bytes) {
+  if (!bytes) return ''
+  const mb = bytes / (1024 * 1024)
+  const zahl = Number.isInteger(mb) ? String(mb) : mb.toFixed(1).replace('.', ',')
+  return `${zahl} MB`
+}
+
+/** Datei gewählt: nur Vorschau im Editor; hochgeladen wird beim Speichern. */
+function bildGewaehlt(rolle, ereignis) {
+  const datei = ereignis?.target?.files?.[0] || null
+  bildDateien.value[rolle] = datei
+  bildFehler.value = ''
+  if (!datei) return
+  if (!/^image\/(png|jpeg|gif|webp)$/.test(datei.type)) {
+    bildFehler.value = 'Nur PNG, JPEG, GIF oder WebP — andere Dateien lehnt der Server ab.'
+    bildDateien.value[rolle] = null
+    return
+  }
+  // REG-1c (4): Groesse VOR dem Upload pruefen — sonst laedt der Besucher
+  // minutenlang hoch, nur damit der Server am Ende ablehnt. Die Grenze ist
+  // derselbe Wert, den `upload_file` zieht (`bild_upload_max_bytes`).
+  const grenze = bildMaxBytes()
+  if (grenze && datei.size > grenze) {
+    bildFehler.value = `Das Bild ist zu groß — erlaubt sind max. ${bildMaxText(grenze)}. `
+      + 'Bitte ein kleineres Bild wählen.'
+    bildDateien.value[rolle] = null
+    const el = ereignis?.target
+    if (el) el.value = ''
+    return
+  }
+  // „Entfernen“ zurücknehmen: die neue Datei ersetzt das alte Bild.
+  bilderEntfernen.value = bilderEntfernen.value.filter(r => r !== rolle)
+  if (typeof URL !== 'undefined' && URL.createObjectURL) {
+    formularBilder.value = { ...formularBilder.value, [rolle]: URL.createObjectURL(datei) }
+  }
+}
+
+function bildEntfernen(rolle) {
+  bildDateien.value = { ...bildDateien.value, [rolle]: null }
+  formularBilder.value = { ...formularBilder.value, [rolle]: '' }
+  const el = bildEingabe.value[rolle]
+  if (el) el.value = ''
+  if (!bilderEntfernen.value.includes(rolle)) {
+    bilderEntfernen.value = [...bilderEntfernen.value, rolle]
+  }
+}
+
+// ── Vorschau (REG-1b) ─────────────────────────────────────────────────────
+const vorschauOffen = ref(false)
+const vorschauDaten = ref({ felder: [], mit_kinder: 0, dokumente: [], texte: {}, beschreibung: '' })
+const vorschauLaedt = ref(false)
+
+/** Die Felder so, wie sie gespeichert würden (ohne leere Bezeichnungen). */
+function felderFuerAnzeige() {
+  return formularFelder.value
+    .filter(f => String(f.label || '').trim())
+    .map(f => ({
+      label: String(f.label).trim(),
+      feldtyp: f.feldtyp || 'Text',
+      optionen: f.optionen || '',
+      pflichtfeld: f.pflichtfeld ? 1 : 0,
+      fuer_gaeste: f.fuer_gaeste ? 1 : 0,
+      fuer_kinder: f.fuer_kinder ? 1 : 0,
+    }))
+}
+
+/**
+ * Vorschau öffnen. Die Daten kommen vom Server (`get_formular_vorschau`) —
+ * derselbe Weg, den die öffentliche Seite nimmt (`_formular_felder`), inklusive
+ * Beschreibung, Bildpfaden und Einwilligungstexten. Damit die Vorschau beim
+ * Tippen mitläuft, werden die gerade im Editor stehenden Angaben mitgeschickt.
+ */
+async function vorschauOeffnen() {
+  if (vorschauLaedt.value) return
+  vorschauLaedt.value = true
+  try {
+    const antwort = await apiCall('diakronos.diakonos.api.registrierung_vorschau.get_formular_vorschau', {
+      formular_id: formularBearbeitet.value || '',
+      felder: JSON.stringify(felderFuerAnzeige()),
+      mit_kinder: newFormular.value.mit_kinder ? 1 : 0,
+      mit_gaesten: newFormular.value.mit_gaesten ? 1 : 0,
+      beschreibung: newFormular.value.beschreibung || '',
+    })
+    const daten = antwort?.message ?? antwort
+    vorschauDaten.value = {
+      felder: Array.isArray(daten?.felder) ? daten.felder : felderFuerAnzeige(),
+      mit_kinder: daten?.mit_kinder ? 1 : 0,
+      dokumente: Array.isArray(daten?.dokumente) ? daten.dokumente : [],
+      texte: daten?.texte || {},
+      willkommenstext: daten?.willkommenstext || '',
+      beschreibung: daten?.beschreibung || newFormular.value.beschreibung || '',
+      banner_bild: daten?.banner_bild || '',
+      hintergrund_bild: daten?.hintergrund_bild || '',
+    }
+    // Noch nicht gespeicherte Bilder: die lokale Vorschau ist besser als nichts.
+    if (!vorschauDaten.value.banner_bild && formularBilder.value.banner?.startsWith('blob:')) {
+      vorschauDaten.value.banner_bild = formularBilder.value.banner
+    }
+    vorschauOffen.value = true
+  } catch (err) {
+    showToast(formularMeldung(err, 'Die Vorschau konnte nicht geladen werden.'), 'error')
+  } finally {
+    vorschauLaedt.value = false
+  }
+}
+
+function vorschauSchliessen() {
+  vorschauOffen.value = false
+}
+
 const formularSchutz = useFormularSchutz(
   () => [newFormular.value, formularFelder.value], () => formularSpeichert.value,
 )
@@ -983,6 +1380,7 @@ function formularOeffnen() {
   formularFelder.value = []
   formularFehler.value = {}
   formularBearbeitet.value = null
+  bilderZuruecksetzen()
   formularSchutz.merken()
   showCreateFormular.value = true
 }
@@ -992,6 +1390,7 @@ function formularOeffnen() {
  *  es diesen Weg gar nicht, ein Formular war damit nicht aenderbar. */
 async function formularBearbeiten(f) {
   formularFehler.value = {}
+  bilderZuruecksetzen()
   try {
     const antwort = await apiCall('diakronos.diakonos.api.admin_hub.get_anmeldeformular_felder', {
       formular_id: f.name,
@@ -1002,6 +1401,14 @@ async function formularBearbeiten(f) {
       bezeichnung: daten?.bezeichnung || f.bezeichnung || '',
       mit_gaesten: !!daten?.mit_gaesten,
       mit_kinder: !!daten?.mit_kinder,
+      beschreibung: daten?.beschreibung || '',
+    }
+    // REG-1b: Banner und Hintergrund sind eigene Felder des Kopfes; sie kommen
+    // aus `get_anmeldeformular_felder` (banner_bild_url/hintergrund_bild_url,
+    // Pfade unter `/files/…` — für die Verwaltung angemeldet erreichbar).
+    formularBilder.value = {
+      banner: daten?.banner_bild_url || '',
+      hintergrund: daten?.hintergrund_bild_url || '',
     }
     formularFelder.value = (Array.isArray(daten?.felder) ? daten.felder : []).map(z => ({
       label: z.label || '',
@@ -1071,6 +1478,47 @@ async function createFormular() {
       fuer_gaeste: f.fuer_gaeste ? 1 : 0,
       fuer_kinder: f.fuer_kinder ? 1 : 0,
     }))
+    // REG-1b: Bilder H O C H L A D E N, bevor der Kopf geschrieben wird — der
+    // Server nimmt nur Dateinamen an, die vorher über `upload_file` entstanden
+    // sind (`pruefe_bilddatei`). Erst danach wird zugeordnet.
+    const kopf = {
+      beschreibung: newFormular.value.beschreibung || '',
+    }
+    // REG-1c: bei einem NEUEN Formular gibt es die Kennung noch nicht — sie
+    // entsteht erst beim Anlegen. Die Datei muss aber an genau dieses Formular
+    // angehängt sein, sonst lehnt der Server sie ab. Deshalb: erst anlegen,
+    // dann hochladen, dann in EINEM Aufruf zuordnen (siehe unten).
+    const neuesFormular = !formularBearbeitet.value
+    if (neuesFormular) {
+      const res = await apiCall('diakronos.diakonos.api.admin_hub.create_anmeldeformular', {
+        bezeichnung: newFormular.value.bezeichnung,
+        mit_gaesten: newFormular.value.mit_gaesten ? 1 : 0,
+        mit_kinder: newFormular.value.mit_kinder ? 1 : 0,
+      })
+      if (!res?.success) throw new Error('Das Formular konnte nicht angelegt werden.')
+      formularBearbeitet.value = res.id
+    }
+    const formularId = formularBearbeitet.value
+    bildFehler.value = ''
+    for (const rolle of BILD_ROLLEN) {
+      const datei = bildDateien.value[rolle]
+      if (!datei) continue
+      try {
+        const hoch = await uploadBild(datei, formularId)
+        const dateiname = String(hoch?.file_url || '').split('/').pop()
+        if (!dateiname) throw new Error('Der Upload lieferte keinen Dateinamen.')
+        kopf[rolle === 'banner' ? 'banner_bild_datei' : 'hintergrund_bild_datei'] = dateiname
+        bildDateien.value = { ...bildDateien.value, [rolle]: null }
+      } catch (err) {
+        // Das Formular wird trotzdem gespeichert, aber der Grund steht sichtbar
+        // im Fenster — ein stillschweigend fehlendes Bild wäre schlimmer.
+        bildFehler.value = formularMeldung(err, 'Das Bild konnte nicht hochgeladen werden.')
+      }
+    }
+    if (bilderEntfernen.value.length) {
+      kopf.bilder_entfernen = bilderEntfernen.value.join(',')
+    }
+
     if (formularBearbeitet.value) {
       // OP-ADMIN-19: aendern — Kopf und Felder in EINEM Aufruf, damit ein
       // halb gespeichertes Formular nicht entstehen kann.
@@ -1080,28 +1528,25 @@ async function createFormular() {
         mit_gaesten: newFormular.value.mit_gaesten ? 1 : 0,
         mit_kinder: newFormular.value.mit_kinder ? 1 : 0,
         felder_json: JSON.stringify(cleanFelder),
+        ...kopf,
       })
       showToast('Formular gespeichert')
     } else {
-      const res = await apiCall('diakronos.diakonos.api.admin_hub.create_anmeldeformular', {
-        bezeichnung: newFormular.value.bezeichnung,
-        mit_gaesten: newFormular.value.mit_gaesten ? 1 : 0,
-        mit_kinder: newFormular.value.mit_kinder ? 1 : 0,
-      })
-      if (res.success) {
-        if (cleanFelder.length > 0) {
-          await apiCall('diakronos.diakonos.api.admin_hub.update_anmeldeformular_felder', {
-            formular_id: res.id,
-            felder_json: JSON.stringify(cleanFelder),
-          })
-        }
-        showToast('Formular erstellt')
-      }
+      // REG-1c: das Formular wurde oben bereits angelegt (die Bilder brauchen
+      // seine Kennung). Felder, Beschreibung und Bilder sind im Aufruf oben
+      // mitgeschrieben — hier bleibt nur die Rueckmeldung.
+      showToast('Formular erstellt')
+    }
+    if (bildFehler.value) {
+      // Der Text bleibt stehen (Fenster schließt nicht) — nichts wurde gelöscht.
+      formularFehler.value = { speichern: bildFehler.value }
+      return
     }
     showCreateFormular.value = false
     newFormular.value = leeresFormular()
     formularFelder.value = []
     formularBearbeitet.value = null
+    bilderZuruecksetzen()
     formularSchutz.merken()
     await fetchData()
   } catch (err) {
@@ -1109,6 +1554,39 @@ async function createFormular() {
   } finally {
     formularSpeichert.value = false
   }
+}
+
+/**
+ * REG-1b: Datei über den vorhandenen Weg hochladen (`upload_file`, Multipart).
+ *
+ * Bewusst rohes `fetch`: `apiCall` erzwingt JSON. Der CSRF-Kopf ist Pflicht —
+ * ohne ihn lehnt der Server den Schreibzugriff ab (wie beim Anhängen von
+ * Lied-Material, `usePlanrahmen.uploadDatei`).
+ *
+ * REG-1c (Punkt 1): `doctype`/`docname` werden MITGESCHICKT. Der Server nimmt
+ * ein Bild nur noch an, wenn der `File`-Datensatz an GENAU DIESES
+ * Anmeldeformular angehängt ist (`formularbilder.pruefe_bilddatei`). Ohne die
+ * beiden Felder entstünde eine Datei ohne Bezug — die Zuordnung wäre unmöglich.
+ */
+async function uploadBild(datei, formularId) {
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.content
+             || window.__DIakonosBOOT?.csrf_token || ''
+  const form = new FormData()
+  form.append('file', datei, datei.name)
+  form.append('is_private', 'true')
+  form.append('doctype', 'Anmeldeformular')
+  form.append('docname', formularId)
+  const res = await fetch('/api/method/upload_file', {
+    method: 'POST',
+    headers: { 'X-Frappe-CSRF-Token': csrf },
+    body: form,
+  })
+  let daten = null
+  try { daten = await res.json() } catch { daten = null }
+  if (!res.ok || daten?.exc) {
+    throw new Error(formularMeldung(daten, `Das Bild konnte nicht hochgeladen werden (HTTP ${res.status}).`))
+  }
+  return daten?.message || daten
 }
 
 // ── Details ───────────────────────────────────────────────────────────────
@@ -1144,17 +1622,9 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-/** Anfragestatus → Kennzeichen-Variante. */
-function statusVariante(status) {
-  const map = {
-    'Bestätigt': 'ok',
-    'Ausstehend': 'warn',
-    'Anmeldeanfrage': 'warn',
-    'Abgelehnt': 'err',
-    'Warteliste': 'info',
-  }
-  return map[status] || 'neutral'
-}
+/** Anfragestatus → Kennzeichen-Variante.
+ *  UX-A2b: ersetzt durch `statusSprache` (Wort UND Kennzeichen in derselben
+ *  Sprache wie die Filterchips). */
 
 // Symbole (dekorativ)
 const IconPlus  = () => h('svg', { width:14, height:14, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', 'stroke-width':2, 'stroke-linecap':'round', 'stroke-linejoin':'round' }, [h('line',{x1:12,y1:5,x2:12,y2:19}), h('line',{x1:5,y1:12,x2:19,y2:12})])
@@ -1171,13 +1641,24 @@ onMounted(() => { fetchData(); ladeLinkVorgaben() })
 <style scoped>
 .reg-bereich { margin-bottom: var(--sp-5); }
 
+/* UX-A2b: Statusfilter (Chip-Zeile) direkt über der Anfragen-Tabelle. Abstand
+   wie bei den übrigen Filterzeilen (DES-01: 8 px bis zur Liste). Das seitliche
+   Scrollen am Handy bringt `scrollbar` von `DkFilterChips` mit
+   (`.dk-ui-chips.is-scrollbar`) — hier bleibt nur der Abstand. */
+.reg-statusfilter { margin-bottom: var(--sp-3); }
+
 .reg-aktion { display: flex; margin-bottom: var(--sp-5); }
 
 /* OP-UI-19: Die eigene Ladeform (reg-skelett) ist durch DkSkelett ersetzt. */
 
 .reg-jetzt { white-space: nowrap; }
 .reg-muted { color: var(--muted); }
-.reg-aktionen { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* FIX-4: `.reg-aktionen` ist der Wrapper IN der Aktionszelle (Anfragen-
+   Tabelle) — er hält die Knöpfe als Flex-Zeile mit Token-Abstand. Auf einem
+   `<td>` selbst war `display:flex` wirkungslos (ein `<td>` ist keine
+   Flex-Zelle); die Aktionsspalte hält jetzt DkTable über `td.is-aktion`. */
+.reg-aktionen { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
 
 .reg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--sp-4); }
 /* N3: abgelaufene/volle/ausgeschaltete Links treten zurück (Konzept: „Karte grau“). */
@@ -1197,6 +1678,10 @@ onMounted(() => { fetchData(); ladeLinkVorgaben() })
 .reg-schalter input { margin-top: var(--sp-1); flex-shrink: 0; }
 .reg-formular { display: flex; flex-direction: column; gap: var(--sp-3); }
 .reg-kaestchen { display: flex; gap: var(--sp-4); flex-wrap: wrap; }
+/* REG-1b: „Gültig ab“ und „Gültig bis“ nebeneinander (ein Zeitraum), am Handy
+   untereinander — die Felder bleiben in jedem Fall bedienbar. */
+.reg-zeitraum { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+@media (max-width: 520px) { .reg-zeitraum { grid-template-columns: 1fr; } }
 .reg-feldbau { margin-top: var(--sp-3); }
 .reg-feldbau-kopf { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--sp-3); }
 .reg-feldbau-titel { font-size: var(--fs-sm); font-weight: 600; color: var(--text); }
@@ -1204,6 +1689,71 @@ onMounted(() => { fetchData(); ladeLinkVorgaben() })
 @media (max-width: 520px) { .reg-feldzeile { grid-template-columns: 1fr; } }
 
 .reg-detail { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+/* REG-1b: Banner/Hintergrund im Formular-Editor. */
+.reg-bilder { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+@media (max-width: 520px) { .reg-bilder { grid-template-columns: 1fr; } }
+.reg-bild { display: flex; flex-direction: column; gap: var(--sp-2); }
+.reg-bild-titel { font-size: var(--fs-sm); font-weight: 600; color: var(--text); }
+.reg-bild-vorschau {
+  display: block; width: 100%; max-height: 120px; object-fit: cover;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.reg-bild-aktionen { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.reg-bild-datei { font-size: var(--fs-sm); color: var(--text); max-width: 100%; }
+.reg-bild-hinweis { font-size: var(--fs-sm); color: var(--muted); }
+
+/* REG-1b: Die Vorschau steht in der Breite der öffentlichen Seite.
+   Die Karte selbst bringt ihre Maße mit (`dk-pub-card`, 520 px, am Handy
+   volle Breite) — hier nur die Bühne drumherum. */
+.reg-vorschau-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: color-mix(in oklch, var(--dk-navy-900) 60%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+}
+.reg-vorschau {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  width: 100%;
+  max-width: 760px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.reg-vorschau-kopf {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3); padding: var(--sp-4);
+  border-bottom: 1px solid var(--divider);
+}
+.reg-vorschau-titel { font-size: var(--fs-h4); font-weight: var(--fw-h); color: var(--text); margin: 0; }
+.reg-vorschau-buehne { overflow: auto; background: var(--bg); padding: var(--sp-6) var(--sp-4); }
+.reg-vorschau-seite { display: flex; justify-content: center; }
+/* Die Karte in der Vorschau ist DIESELBE wie oeffentlich (`dk-pub-card`):
+   Breite, Innenabstand, Rahmen und Farbe kommen aus `registrierung/App.vue`
+   (dort global, also auch hier gueltig). Hier nur der Schatten fuer die Buehne. */
+.reg-vorschau-karte { box-shadow: var(--shadow-md); box-sizing: border-box; }
+.reg-vorschau-fuss {
+  margin: 0; padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--divider);
+  font-size: var(--fs-sm); color: var(--muted);
+}
+/* Inhaltsumbruch, kein Layout: die Formular-VORSCHAU (Dialog im Bearbeiten-
+   Bereich) füllt am schmalen Gerät die Fläche — das ist keine App-Layout-
+   Umschaltung, die Vorschau-Bühne liegt in einem Dialog. */
+@media (max-width: 640px) {
+  .reg-vorschau-overlay { padding: 0; }
+  .reg-vorschau { max-width: none; height: 100vh; max-height: none; border-radius: 0; }
+  .reg-vorschau-buehne { padding: var(--sp-4) var(--sp-3); }
+}
 .reg-dialog-text { margin: 0 0 var(--sp-3); color: var(--text); line-height: 1.5; }
 .reg-detail-grid { display: grid; gap: var(--sp-3); font-size: var(--fs); }
 .reg-detail-grid div { color: var(--text); }

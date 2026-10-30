@@ -42,10 +42,16 @@ abgeschaltet werden (`*_max = 0` = unbegrenzt) — der Default ist die Grenze,
 nicht das Nichts. Wer eine bestehende Installation hochfaehrt, bekommt die
 Bremse also automatisch.
 
-Eigene Adressen (Loopback, privat) werden — wie in der Loginbremse — NICHT
-gezaehlt: hinter einem Reverse-Proxy waere die Adresse die des Proxies, und
-eine Grenze darauf traefe jede Anmeldung der Gemeinde. Der Link-Zaehler wirkt
-dort weiterhin. Die Regel sitzt an EINER Stelle (`_zaehle_ip`).
+Eigene Adressen (Loopback, privat) werden beim REINEN IP-Zaehler — wie in der
+Loginbremse — NICHT gezaehlt: hinter einem Reverse-Proxy waere die Adresse die
+des Proxies, und eine Grenze darauf traefe jede Anmeldung der Gemeinde.
+
+SEC-6 (Pentest Runde 2, Befund N2): Genau deshalb ist der IP-Zaehler hinter
+Proxy/NAT wirkungslos — und VORHER haing auch der LINK-Zaehler stumm daran,
+weil `pruefe` nach einer uebersprungenen Adresspruefung gar nicht mehr
+weiterzaehlte. Der TOKEN-/LINK-Zaehler und der VALIDIERUNGS-Zaehler zaehlen
+deshalb jetzt IMMER, unabhaengig von der Adresse; nur der reine IP-Zaehler
+behaelt die Befreiung (`_zaehle_ip`).
 """
 
 from __future__ import annotations
@@ -108,11 +114,17 @@ def _fenster() -> int:
 
 
 def _zaehle_ip(client, ip: str | None) -> bool:
-    """Ist die Adresse zaehlbar (keine eigene Infrastruktur, gueltig)?
+    """Ist die Adresse fuer den REINEN IP-Zaehler zaehlbar (keine eigene)?
 
-    Die eine Stelle, an der die Proxy-/Infrastruktur-Regel sitzt — kein
-    Aufrufer kann sie umgehen. Ist keine Adresse bekannt oder ist sie privat,
-    traegt der Link-Zaehler die Bremse allein.
+    Die eine Stelle, an der die Proxy-/Infrastruktur-Regel sitzt — fuer den
+    Adresszaehler. Ist keine Adresse bekannt oder ist sie privat, wird die
+    Adresse nicht gezaehlt.
+
+    SEC-6: Das gilt AUSSCHLIESSLICH hier. Link- und Validierungszaehler
+    duerfen diese Bitte nicht mehr mitbenutzen — hinter Proxy/NAT ist JEDE
+    sichtbare Adresse privat, eine Adressbefreiung haette dort die ganze
+    Bremse abgeschaltet (Pentest-Befund N2). Der Parameter `client` bleibt,
+    damit bestehende Aufrufe/Aufrufer unveraendert bleiben.
     """
     adresse = parse_ip(ip)
     if adresse is None:
@@ -159,6 +171,11 @@ def pruefe(ip: str | None, token: str | None = None, client=None) -> tuple[bool,
     Absendewegen prüft api/registrierung.py zuerst nur die Adresse, validiert
     dann den Token und zählt erst danach den Link. Ungeprüfte fremde Tokens
     dürfen hier nicht als Link übergeben werden.
+
+    SEC-6: Der Link-Zaehler laeuft IMMER — auch wenn die Adresse privat ist
+    oder ganz fehlt (hinter Proxy/NAT der Normalfall). Vorher haing er an der
+    Adressbefreiung und feuerte dort nie (Pentest N2: 25 Anmeldungen ueber
+    denselben Link ohne 429).
     """
     client = client or _client()
     erlaubt = True
@@ -181,28 +198,54 @@ def pruefe(ip: str | None, token: str | None = None, client=None) -> tuple[bool,
     return erlaubt, grund
 
 
-def zaehle_validierung(ip: str | None, client=None) -> bool:
+def zaehle_validierung(ip: str | None, client=None, token: str | None = None) -> bool:
     """Bremse fuer die TOKENPRUEFUNG (Seitenaufruf / `validate_token`).
 
     Eigener Zaehler mit eigener, hoeherer Grenze: ein Besucher laedt die Seite
     mehrfach (Reload, Weiterleitung), ein Skript dagegen soll die DB nicht mit
     Tokenabfragen fluten. Rueckgabe True = erlaubt.
+
+    SEC-6: Gezaehlt wird IMMER, auch bei privater/fehlender Adresse — hinter
+    Proxy/NAT war die Adressbefreiung sonst gleichbedeutend mit „keine
+    Bremse“ (Pentest N2: 65 Pruefungen ohne 429). Ist ein `token` bekannt,
+    zaehlt zusaetzlich der Zaehler JE TOKEN: sonst koennte ein Skript die
+    Grenze mit staendig neuen Tokens umgehen, sobald zwei Absender hinter
+    demselben Proxy sitzen. Ein unbekannter Token ist ein Guessing-Versuch
+    und verbraucht das Kontingent ebenfalls.
     """
     client = client or _client()
-    if not _zaehle_ip(client, ip):
-        return True
-    return _zaehle(
-        client, f"{VALIDIERUNG_PRAEFIX}ip:{_hash(str(parse_ip(ip)))}", _max_valid()
-    )
+    angefragt = f"{VALIDIERUNG_PRAEFIX}ip:{_hash(str(parse_ip(ip)))}"
+    if parse_ip(ip) is None:
+        # Ohne gueltige Adresse bleibt keine Adresskennung — dann traegt der
+        # Token-Zaehler allein (er ist ohnehin der eigentliche Schutz).
+        if not (token and token.strip()):
+            return True
+        return _zaehle(client, f"{VALIDIERUNG_PRAEFIX}link:{_hash(token.strip())}", _max_valid())
+
+    erlaubt = _zaehle(client, angefragt, _max_valid())
+    if token and token.strip():
+        # Beide Zaehler werden immer mitgezaehlt; gebremst wird, sobald einer
+        # die Grenze ueberschreitet (kein `and`-Kurzschluss).
+        ok_token = _zaehle(
+            client, f"{VALIDIERUNG_PRAEFIX}link:{_hash(token.strip())}", _max_valid()
+        )
+        erlaubt = erlaubt and ok_token
+    return erlaubt
 
 
 def zaehler_stand(ip: str | None, token: str | None = None, client=None) -> dict[str, int]:
-    """Liest die Zaehler OHNE sie zu veraendern. Fuer Tests/Diagnose."""
+    """Liest die Zaehler OHNE sie zu veraendern. Fuer Tests/Diagnose.
+
+    SEC-6: Link- und Validierungszaehler werden auch bei privater Adresse
+    gelesen — sie laufen dort ja mit. Nur der reine IP-Zaehler bleibt bei
+    eigener Adresse bewusst auf 0, weil er dort nicht greift.
+    """
     client = client or _client()
     stand = {"ip": 0, "link": 0, "validierung": 0}
     adresse = parse_ip(ip)
-    if _zaehle_ip(client, ip) and adresse is not None:
-        stand["ip"] = int(client.get(f"{SCHLUESSEL_PRAEFIX}ip:{_hash(str(adresse))}") or 0)
+    if adresse is not None:
+        if _zaehle_ip(client, ip):
+            stand["ip"] = int(client.get(f"{SCHLUESSEL_PRAEFIX}ip:{_hash(str(adresse))}") or 0)
         stand["validierung"] = int(
             client.get(f"{VALIDIERUNG_PRAEFIX}ip:{_hash(str(adresse))}") or 0
         )

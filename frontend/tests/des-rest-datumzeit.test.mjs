@@ -60,18 +60,23 @@ test('OP-UI-20 · Vorschau nennt Tag, Datum und Zeit', () => {
 })
 
 test('OP-UI-20 · Vorschlag ist 19:00–20:00 (S8)', () => {
+  // DEV-5: Der Vorschlag ist inzwischen die nächste volle Stunde der
+  // Browserzeit (Test: tests/dev5-termin-aktuelle-stunde.test.mjs). Die alte
+  // Konstante bleibt als Rückfall erhalten.
   assert.equal(VORSCHLAG_BEGINN, '19:00')
-  assert.equal(vorschlagBeginn(), '19:00')
+  assert.equal(vorschlagBeginn(null, new Date(2026, 11, 30, 18, 40)), '19:00')
   assert.equal(endeAusBeginn('19:00'), '20:00')
 })
 
 test('OP-UI-20 · angeklickte Stunde schlägt den Vorschlag', () => {
+  // DEV-5: Ein unsinniger Klickwert fällt auf die nächste volle Stunde der
+  // Browserzeit zurück (früher: fest 19:00).
+  const abend = new Date(2026, 11, 30, 18, 40)
   assert.equal(vorschlagBeginn(9), '09:00')
   assert.equal(vorschlagBeginn(0), '00:00')
   assert.equal(vorschlagBeginn(23), '23:00')
-  // Unsinn fällt auf den Standard zurück.
-  assert.equal(vorschlagBeginn(24), '19:00')
-  assert.equal(vorschlagBeginn('x'), '19:00')
+  assert.equal(vorschlagBeginn(24, abend), '19:00')
+  assert.equal(vorschlagBeginn('x', abend), '19:00')
 })
 
 test('OP-UI-20 · Ende über Mitternacht wird gekappt, nicht negativ', () => {

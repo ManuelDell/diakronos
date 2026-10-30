@@ -32,7 +32,6 @@ test('N6: Verwaltungsreiter ersetzt die falsche eigene DSGVO-Seite', () => {
   const page = lies('pages/mitglieder/Datenschutz.vue')
   assert.match(page, /get_loeschantraege/)
   assert.match(page, /createObjectURL/)
-  assert.match(page, /nur_antrag: istAntrag.value/)
   assert.match(page, /:close-on-overlay="false"/)
   assert.match(page, /zweiteBestaetigung\(schritt.value, wort.value\)/)
   assert.match(page, /if \(sendet.value\) return/)

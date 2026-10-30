@@ -322,7 +322,29 @@ def boot_fuer_request() -> dict[str, Any]:
         # UXD-R21: Kontaktadresse der Gemeindeleitung. Die Wiki-Hilfe zeigt
         # sie nur, wenn sie gepflegt ist — sonst bleibt der Hinweis weg.
         "gemeinde_kontakt_email": _gemeinde_kontakt_email(),
+        # REG-1c (4): Groessenlimit eines Formularbildes in BYTES. Die
+        # Oberflaeche prueft die gewaehlte Datei damit VOR dem Upload und nennt
+        # in der Meldung genau diese Grenze („max. X MB“). Der Wert kommt aus
+        # derselben Funktion, die `upload_file` ablehnt
+        # (`api.frappe_core.bild_upload_max_bytes`) — er kann nicht driften.
+        "bild_upload_max_bytes": _bild_upload_max_bytes(),
     }
+
+
+def _bild_upload_max_bytes() -> int:
+    """Limit eines Formularbildes fuer das Boot-Objekt (nie eine Exception).
+
+    Ein kaputter/fehlender Einstellungswert darf die SPA nicht aufhalten: dann
+    steht hier 0 = „unbekannt“, und die Oberflaeche laesst den Server
+    entscheiden (er lehnt weiterhin selbst ab).
+    """
+    try:
+        from diakronos_app.api.frappe_core import bild_upload_max_bytes
+
+        return int(bild_upload_max_bytes())
+    except Exception:  # noqa: BLE001 — Anzeige darf nicht scheitern
+        logger.warning("Upload-Limit fuer Formularbilder nicht lesbar.")
+        return 0
 
 
 def _gemeinde_kontakt_email() -> str:
@@ -388,12 +410,16 @@ def _willkommenstext() -> str:
         return ""
 
 
-def _oeffentliche_texte() -> dict[str, Any]:
+def oeffentliche_texte() -> dict[str, Any]:
     """Die Texte fuer die oeffentliche Registrierungsseite (N9b, H-1).
 
     Kommt aus ``api/gemeinde.wirksame_texte`` — derselben Quelle, aus der
     ``submit_registrierung``/``submit_gast`` den Beleg-Snapshot bilden. So
     kann der angezeigte Wortlaut nicht vom gespeicherten abweichen.
+
+    REG-1b: steht OEFFENTLICH (nicht mehr als ``_oeffentliche_texte``), weil
+    die Vorschau im Formular-Editor DENSELBEN Wortlaut zeigen muss wie die
+    oeffentliche Seite.
 
     Nie eine Exception: die oeffentliche Seite darf nicht an einer fehlenden
     Einstellung scheitern (dieselbe Regel wie ``_oeffentliche_adresse``).
@@ -645,7 +671,7 @@ def render_index(
 
 
 
-def render_login(next_url: str = SPA_PREFIX, *, meldung: str = "", email: str = "") -> str:
+def render_login(next_url: str = SPA_PREFIX, *, meldung: str = "", email: str = "", csrf_token: str = "") -> str:
     """Serverseitige Anmeldemaske (deutsch, ohne JavaScript).
 
     Die SPA hat keine eigene Anmeldeseite und wird nicht angetastet. Das
@@ -683,6 +709,15 @@ def render_login(next_url: str = SPA_PREFIX, *, meldung: str = "", email: str = 
     meldung_block = (
         f'\n        <p class="dk-meldung" role="alert">{meldung_html}</p>'
         if meldung
+        else ""
+    )
+    # SEC-4: signierter Token der Maske (siehe `anmeldung/maske_token.py`).
+    # Ohne ihn wird die RICHTIGE Anmeldung abgewiesen, weil
+    # `Referrer-Policy: no-referrer` den `Referer` aus dem Formular entfernt.
+    csrf_html = html.escape(csrf_token or "", quote=True)
+    csrf_feld = (
+        f'\n            <input type="hidden" name="_csrf" value="{csrf_html}">'
+        if csrf_html
         else ""
     )
 
@@ -732,8 +767,12 @@ def render_login(next_url: str = SPA_PREFIX, *, meldung: str = "", email: str = 
         .dk-meldung:empty {{ display: none; }}
         /* OP-HANDY-14: iOS-Safari zoomt beim Antippen in Felder unter 16 px
            (hier 15 px) und laesst den Ausschnitt verschoben stehen. Im groben
-           Zeiger deshalb 16 px — dieselbe Regel wie im SPA-Stylesheet. */
-        @media (hover: none) and (pointer: coarse) {{
+           Zeiger deshalb 16 px — dieselbe Regel wie im SPA-Stylesheet.
+           FIX-6: „grober Zeiger“ heisst hier wie im SPA-Stylesheet:
+           `(pointer: coarse)` — unabhängig von der Breite (das Formular ist
+           ohnehin immer schmal), und bewusst NICHT `not (... or ...)`
+           (Safari < 16.4 kennt die Stufe 4 der Media Queries nicht). */
+        @media (pointer: coarse) {{
             input, select, textarea {{ font-size: 16px; }}
         }}
         @media (prefers-color-scheme: dark) {{
@@ -753,7 +792,7 @@ def render_login(next_url: str = SPA_PREFIX, *, meldung: str = "", email: str = 
         <h1>{gemeinde}</h1>
         <p class="sub">Bitte melde dich an, um fortzufahren.</p>{meldung_block}
         <form method="post" action="/api/method/login" accept-charset="utf-8">
-            <input type="hidden" name="redirect-to" value="{ziel_kodiert}">
+            <input type="hidden" name="redirect-to" value="{ziel_kodiert}">{csrf_feld}
             <label for="dk-usr">E-Mail oder Benutzername</label>
             <input id="dk-usr" name="usr" type="text" autocomplete="username"
                    autocapitalize="none" autocorrect="off" spellcheck="false" required
@@ -813,7 +852,15 @@ def _login_maske(request, next_url: str) -> Response:
     ausschliesslich auf die Anmeldeseite `/login`
     (`anmeldung/routen.py::login_route`), wo der Cookie tatsaechlich ankommt.
     """
-    return _no_store(HTMLResponse(render_login(next_url)))
+    # SEC-4: signierter Token fuer das Formular (zustandslos, ohne Sitzung).
+    from diakronos_app.anmeldung.maske_token import erzeuge_token
+
+    try:
+        csrf_token = erzeuge_token()
+    except Exception:  # noqa: BLE001 — ohne Schluessel bleibt die Maske bedienbar
+        logger.warning("Anmeldemaske ohne Token (SECRET_KEY fehlt?)")
+        csrf_token = ""
+    return _no_store(HTMLResponse(render_login(next_url, csrf_token=csrf_token)))
 
 
 def _no_store(response: Response) -> Response:
@@ -883,7 +930,7 @@ def _oeffentliche_daten(seite: str, token: str) -> dict[str, Any]:
         # N9b (H-1/M-1/M-2): die Texte, die der Person angezeigt werden — aus
         # derselben Quelle, aus der `submit_*` den Beleg-Snapshot bildet
         # (`gemeinde.wirksame_texte`). Angezeigt = gespeichert (Art. 7 DSGVO).
-        "texte": _oeffentliche_texte(),
+        "texte": oeffentliche_texte(),
         # M-1: der gepflegte Willkommenstext erscheint ueber dem Formular.
         "willkommenstext": _willkommenstext(),
     }
@@ -921,6 +968,13 @@ def _oeffentliche_daten(seite: str, token: str) -> dict[str, Any]:
     daten["token"] = token
     daten["felder"] = antwort.get("felder") or []
     daten["mitKinder"] = antwort.get("mit_kinder") or 0
+    # REG-1a: Beschreibung und Bilder des Formulars. `beschreibung` ist reiner
+    # Text (die SPA zeigt ihn NIEMALS per v-html); die Bildpfade sind relativ
+    # und tragen den Token, weil die Bilder ausschliesslich ueber das Formular
+    # abrufbar sind (`/public/registrierung/<token>/bild/<rolle>`).
+    daten["beschreibung"] = antwort.get("beschreibung") or ""
+    daten["bannerBild"] = antwort.get("banner_bild") or ""
+    daten["hintergrundBild"] = antwort.get("hintergrund_bild") or ""
     return daten
 
 

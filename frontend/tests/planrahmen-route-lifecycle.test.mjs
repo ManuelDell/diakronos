@@ -5,6 +5,8 @@ import { test } from 'node:test'
 import { setImmediate as tick } from 'node:timers/promises'
 import { ref, reactive, shallowRef, computed, watch, nextTick, effectScope } from 'vue'
 import * as helpers from '../src/diakonos/components/planrahmen/editor.mjs'
+// UX-C3a: Sprungleiste/Erklärspalte — die Seite nutzt die Regeln aus abschnitte.mjs.
+import * as abschnitte from '../src/diakonos/components/planrahmen/abschnitte.mjs'
 
 function harness(pageName = 'Plan', hash = '#/planrahmen/plan/plan-a', erlaubt = true) {
   const scope = effectScope()
@@ -19,7 +21,7 @@ function harness(pageName = 'Plan', hash = '#/planrahmen/plan/plan-a', erlaubt =
   const calls = []
   const pending = []
   const imports = []
-  const context = { ...helpers, jsonPruefen: helpers.jsonUebernehmen,
+  const context = { ...helpers, ...abschnitte, jsonPruefen: helpers.jsonUebernehmen,
     window, console, ref, reactive, shallowRef, computed, watch,
     // P3-4b/B1: Fenstertitel liegt in fenstertitel.js (importfrei).
     setzeFenstertitel() {},
@@ -27,6 +29,12 @@ function harness(pageName = 'Plan', hash = '#/planrahmen/plan/plan-a', erlaubt =
     onUnmounted() {}, onMounted() {}, provide() {}, defineEmits: () => () => {}, defineExpose() {},
     defineProps: () => ({ plantyp: '', plan: '' }), setTimeout: () => 0, clearTimeout() {},
     cacheLeeren() {}, showToast() {},
+    // PLAN-W1: Einklapp-Zustand des Warnblocks (je Benutzer im localStorage).
+    useWarnblock: () => ({ eingeklappt: () => false, setzen() {}, umschalten: () => false }),
+    // PLAN-M1: Hinweis am Handy — hier nicht Gegenstand des Tests, der
+    // Router-Ablauf darf aber nicht an seinem Fehlen scheitern.
+    useHandyHinweis: () => ({ geschlossen: () => false, schliessen() { return true }, setzen() {} }),
+    hinweisZeigen: () => false, istSchmal: () => false,
     fehlerMeldungen: e => [e.message],
     usePlanrahmen: () => ({
       schemaHolen: async () => ({}), kochbuchListe: async () => [], bedarf: async () => [],

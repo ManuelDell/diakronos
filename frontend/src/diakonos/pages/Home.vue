@@ -156,7 +156,13 @@ async function resetLayout() {
 .hm-skelett-breit { width: 80%; }
 .hm-skelett-mittel { width: 60%; }
 
-@media (hover: none) and (pointer: coarse) {
+/* FIX-6: Der Bearbeiten-Knopf der Startseite wird in der Mobil-Lage zur
+   breiten Leiste unter den Kacheln — LAYOUT, also nur die Breite
+   (index.css «FIX-6 · Layout nur nach Breite», composables/eingabeart.mjs
+   `istMobilLayout`). Vorher stand hier `(hover: none) and (pointer: coarse)`:
+   ein Touch-Notebook mit 1410 px bekam die mobile Leiste, obwohl Maus und
+   Platz vorhanden sind. */
+@media (max-width: 720px) {
   .dk-widget-edit-fab {
     position: static !important;
     bottom: auto !important;

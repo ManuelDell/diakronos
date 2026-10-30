@@ -32,28 +32,93 @@ function block(name) {
   return skript.slice(start, ende === -1 ? undefined : ende)
 }
 
-// ── Statusleiter mit Zähler ─────────────────────────────────────────────────
+// ── Statusleiter als Chips über der Tabelle (UX-A2b) ───────────────────────
+// UX-A2b (Entwurf A2, Befunde DMB-09a956e8457d + DMB-d4f788c04158): Die
+// Status-Reiter „Offen · Aufgenommen · Abgelehnt“ standen ÜBER den
+// Unterbereichen und filterten deshalb auch bei „Links“ und „Formularen“ —
+// dort ohne Wirkung. Jetzt ist der Statusfilter eine Chip-Zeile MIT ZAHLEN
+// direkt über der Anfragen-Tabelle.
 {
-  const statusTabs = block('statusTabs')
-  assert.ok(skript.includes("const statusTab = ref('offen')"), 'Statusleiter beginnt bei „Offen“')
-  assert.ok(statusTabs.includes('Offen (${zaehle('), '„Offen“ traegt einen Zähler')
-  // W1: das Glossar ersetzt „Genehmigt“ auf der Statusleiter durch
-  // „Aufgenommen“ — der gespeicherte Kennwert bleibt `genehmigt`.
-  assert.ok(statusTabs.includes("label: 'Aufgenommen'"), 'Statusreiter Aufgenommen')
-  assert.ok(statusTabs.includes('Abgelehnt'), 'Statusreiter Abgelehnt')
+  assert.ok(skript.includes("const statusFilter = ref('offen')"), 'Statusfilter beginnt bei „Offen“')
+  const leiter = block('STATUS_LEITER')
+  assert.ok(leiter.includes("label: 'Offen'"), 'Chip Offen')
+  assert.ok(leiter.includes("label: 'Aufgenommen'"), 'Chip Aufgenommen')
+  assert.ok(leiter.includes("label: 'Abgelehnt'"), 'Chip Abgelehnt')
+  // Die Zahl je Chip kommt aus derselben Zählung wie der Filter.
+  assert.ok(block('statusChips').includes('anzahl: zaehle(s.wert)'), 'Chips tragen die Zahlen')
+  assert.ok(skript.includes('const statusChips = computed'), 'Chip-Zeile ist berechnet')
+  // Nur über der Tabelle: innerhalb des Anfragen-Unterbereichs, vor der Karte.
+  const anfragenBlock = vorlage.slice(
+    vorlage.indexOf("v-if=\"unterbereich === 'anfragen'\""),
+    vorlage.indexOf("v-if=\"unterbereich === 'links'\""),
+  )
+  assert.ok(anfragenBlock.includes('<DkFilterChips'), 'Chip-Zeile im Anfragen-Bereich')
+  assert.ok(anfragenBlock.indexOf('<DkFilterChips') < anfragenBlock.indexOf('<DkCard'),
+    'Chip-Zeile steht ÜBER der Tabelle')
+  // Kein Statusfilter bei Links und Formularen (je eigener Block ohne Chips).
+  for (const [von, bis] of [["'links'", "'formulare'"], ["'formulare'", null]]) {
+    const anfang = vorlage.indexOf(`v-if="unterbereich === ${von}"`)
+    assert.ok(anfang > 0, `Unterbereich ${von} vorhanden`)
+    const ende = bis ? vorlage.indexOf(`v-if="unterbereich === ${bis}"`) : vorlage.length
+    assert.ok(!vorlage.slice(anfang, ende).includes('DkFilterChips'),
+      `kein Statusfilter bei ${von}`)
+  }
+  // Die alte Reiterzeile ist fort: kein DkTabs mehr auf dieser Seite.
+  assert.ok(!reg.includes('DkTabs'), 'die Status-Reiterzeile (DkTabs) ist entfallen')
+  assert.ok(reg.includes("import DkFilterChips from '../components/ui/DkFilterChips.vue'"),
+    'Chip-Baustein eingebunden')
+  // Der Filter fährt die Liste.
+  assert.ok(block('filteredAnmeldungen').includes('statusFilter.value'),
+    'die Tabelle richtet sich nach dem Statusfilter')
+}
+
+// ── Dieselbe Sprache in Tabelle, Detailfenster und Filtern (UX-A2b) ────────
+{
+  const sprache = block('ANMELDESTATUS_SPRACHE')
+  for (const wort of ['Offen', 'Aufgenommen', 'Abgelehnt']) {
+    assert.ok(sprache.includes(`wort: '${wort}'`), `Statussprache nennt „${wort}“`)
+  }
+  // Die rohen Server-Werte bleiben der Schlüssel — die Anzeige ist übersetzt.
+  for (const roh of ['Anmeldeanfrage', 'Ausstehend', 'Bestätigt', 'Abgelehnt']) {
+    assert.ok(sprache.includes(`'${roh}'`), `Schlüssel „${roh}“`)
+  }
+  assert.ok(vorlage.includes('statusSprache(a.status).wort'), 'Tabelle zeigt die Statussprache')
+  assert.ok(!vorlage.includes('{{ a.status }}'), 'Tabelle zeigt nicht mehr den rohen Status')
+  assert.ok(vorlage.includes('statusSprache(detailAnmeldung.status).wort'),
+    'Detailfenster zeigt dieselbe Sprache')
+  assert.ok(!skript.includes('function statusVariante'), 'die alte zweite Wortliste ist entfernt')
+  // Die Spalte heisst „Typ“ (wie in der Vorlage), nicht „Art“.
+  assert.ok(skript.includes("label: 'Typ'"), 'Spalte Typ')
+  assert.ok(!skript.includes("label: 'Art'"), 'Spalte „Art“ ist entfallen')
+  assert.ok(vorlage.includes('artText(a.anmeldungstyp)'), 'Typ in Klartext statt Rohwert')
+  const typen = block('ANMELDETYP_SPRACHE')
+  assert.ok(typen.includes("'Mitglied-Registrierung': 'Mitglied'"), 'Mitglied-Registrierung → Mitglied')
+  assert.ok(typen.includes("'Gast-Anmeldung': 'Gast'"), 'Gast-Anmeldung → Gast')
 }
 
 // ── Unterbereiche ──────────────────────────────────────────────────────────
+// UX-A2a: Die zweite Reiterzeile entfällt — die Unterbereiche sind Einträge
+// der Mitglieder-Bereichsliste (menue.js ANFRAGEN_UNTERBEREICHE) und kommen
+// über die Eigenschaft `unterbereich` herein. Ein Wechsel geht als Ereignis an
+// den Rahmen. Allein (ohne Rahmen) schaltet der eigene Umschalter weiter.
 {
-  const unter = block('unterbereiche')
-  assert.ok(skript.includes("const unterbereich = ref('anfragen')"), 'Unterbereich beginnt bei Anfragen')
+  const unter = block('UNTERBEREICHE')
+  assert.ok(skript.includes("const unterbereichLokal = ref('anfragen')"), 'Unterbereich beginnt bei Anfragen')
   assert.ok(unter.includes("'anfragen'"), 'Unterbereich Anfragen')
   assert.ok(unter.includes('Links & QR-Codes'), 'Unterbereich Links & QR-Codes')
   assert.ok(unter.includes('Formulare'), 'Unterbereich Formulare')
+  assert.ok(skript.includes("unterbereich: { type: String, default: '' }"),
+    'Unterbereich kommt über die Eigenschaft herein')
+  // UX-A2a, Operator-Review Punkt 4: Im eingebetteten Betrieb gibt es keinen
+  // Umschalter mehr, also auch kein Wechsel-Ereignis an den Rahmen (die
+  // Bereichsliste links ist die Navigation).
+  assert.ok(!skript.includes("emit('unterbereich-wechsel'"),
+    'kein toter Wechsel mehr an den Rahmen')
+  assert.match(vorlage, /v-if="!eingebettet"/, 'eigener Umschalter nur ohne Rahmen')
 }
 
-// ── Liste: Datum/Name/Art/Hinweis/Status ───────────────────────────────────
-for (const spanne of ['Datum', 'Name', 'Art', 'Hinweis', 'Status']) {
+// ── Liste: Datum/Name/Typ/Hinweis/Status ───────────────────────────────────
+for (const spanne of ['Datum', 'Name', 'Typ', 'Hinweis', 'Status']) {
   assert.ok(skript.includes(`label: '${spanne}'`), `Spalte ${spanne}`)
 }
 
@@ -88,7 +153,8 @@ assert.ok(skript.includes('ablehnenFuer'), 'Ablehnen-Dialog vorhanden')
 assert.ok(vorlage.includes('Ablehnen'), 'Ablehnen-Knopf vorhanden')
 
 // ── Kopf und Reiter kommen weiter aus dem Design-System ────────────────────
-for (const bez of ['DkPageHeader', 'DkTabs', 'DkSegment', 'DkCard', 'DkTable', 'DkDialog']) {
+// UX-A2b: DkTabs ist entfallen (der Statusfilter ist eine Chip-Zeile).
+for (const bez of ['DkPageHeader', 'DkFilterChips', 'DkSegment', 'DkCard', 'DkTable', 'DkDialog']) {
   assert.ok(reg.includes(bez), `Baustein ${bez} verwendet`)
 }
 // Eingebettet im Mitglieder-Rahmen: kein zweiter Kopf.

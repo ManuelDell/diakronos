@@ -10,7 +10,8 @@
  * Festlegungen (S8):
  *  - Sichtbar ist IMMER Deutsch: „Mi., 30.12.2026, 19:00“.
  *  - Der Wert im Modell bleibt das, was der Server erwartet: „2026-12-30 19:00“.
- *  - Vorschlag für neue Termine: 19:00–20:00 bzw. die angeklickte Stunde.
+ *  - Vorschlag für neue Termine: nächste volle Stunde, Dauer eine Stunde
+ *    (DEV-5; vorher fest 19:00).
  *  - Wochenbeginn ist Montag.
  *
  * Reine Funktionen ohne Vue/DOM — im Node-Test prüfbar.
@@ -129,17 +130,84 @@ export function endeAusBeginn(beginn, dauerMinuten = VORSCHLAG_DAUER_MINUTEN) {
 }
 
 /**
- * Beginn für einen neuen Termin (S8): 19:00–20:00. Wurde im Kalender eine
- * Stunde angeklickt, gilt diese Stunde und die Dauer bleibt eine Stunde.
+ * Beginn für einen neuen Termin (DEV-5): die NÄCHSTE volle Stunde der
+ * Browserzeit, aufgerundet (14:20 → 15:00, 14:00 → 14:00, 23:30 → 00:00).
+ * Wurde im Kalender eine Stunde oder ein Zeitfenster angeklickt, gilt
+ * stattdessen diese Uhrzeit (`geklickteStunde`, z. B. 9 oder „19:30“).
+ *
+ * `jetzt` ist nur für den Test da; ohne Angabe gilt die aktuelle Zeit.
  */
-export function vorschlagBeginn(geklickteStunde = null) {
+export function vorschlagBeginn(geklickteStunde = null, jetzt = new Date()) {
   // `Number(null)` waere 0 — ein fehlender Klick darf nicht Mitternacht ergeben.
-  if (geklickteStunde === null || geklickteStunde === undefined || geklickteStunde === '') {
-    return VORSCHLAG_BEGINN
+  const klick = geklickteStunde instanceof Date ? null : geklickteStunde
+  // Der Test darf „jetzt“ auch als ersten Wert übergeben.
+  const zeitpunkt = geklickteStunde instanceof Date ? geklickteStunde : jetzt
+  if (klick !== null && klick !== undefined && klick !== '') {
+    const roh = String(klick).trim()
+    // „19:30“ (Slot aus Woche/Tag) zählt unverändert.
+    const mitMinuten = roh.match(/^(\d{1,2}):(\d{2})$/)
+    if (mitMinuten) {
+      const h = Number(mitMinuten[1])
+      const mi = Number(mitMinuten[2])
+      if (h >= 0 && h <= 23 && mi >= 0 && mi <= 59) return `${zwei(h)}:${zwei(mi)}`
+    }
+    const h = Number(roh)
+    // Auch eine unbrauchbare Klickangabe fällt auf die aktuelle Stunde zurück
+    // (vorher war es die feste 19:00).
+    if (Number.isInteger(h) && h >= 0 && h <= 23) return `${zwei(h)}:00`
   }
-  const h = Number(geklickteStunde)
-  if (Number.isInteger(h) && h >= 0 && h <= 23) return `${zwei(h)}:00`
-  return VORSCHLAG_BEGINN
+  return naechsteVolleStunde(zeitpunkt)
+}
+
+/** „Jetzt“ → nächste volle Stunde als „HH:MM“ (aufgerundet, 23:30 → 00:00). */
+function naechsteVolleStunde(jetzt) {
+  const d = jetzt instanceof Date ? jetzt : new Date(jetzt)
+  if (Number.isNaN(d.getTime())) return VORSCHLAG_BEGINN
+  const stunde = d.getHours() + (d.getMinutes() > 0 ? 1 : 0)
+  return `${zwei(stunde % 24)}:00`
+}
+
+/** „YYYY-MM-DD“ um `anzahl` Tage verschieben (unlesbares bleibt leer). */
+export function datumPlusTage(datum, anzahl = 1) {
+  const m = String(datum || '').match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return ''
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + Number(anzahl), 12))
+  if (Number.isNaN(d.getTime())) return ''
+  return `${d.getUTCFullYear()}-${zwei(d.getUTCMonth() + 1)}-${zwei(d.getUTCDate())}`
+}
+
+/**
+ * Vollständiger Vorschlag für einen NEUEN Termin (DEV-5):
+ *  - `datum`      der angeklickte Tag, sonst der heutige Tag
+ *  - `beginn`     die angeklickte Slot-Zeit, sonst die nächste volle Stunde
+ *  - `ende`/`endeDatum`  eine Stunde später (über Mitternacht mit Tageswechsel)
+ *
+ * Damit legt der Dialog den Termin auch dann richtig an, wenn der Vorschlag
+ * über Mitternacht geht (23:30 → Tag des Klicks 00:00–01:00 des Folgetags).
+ */
+export function vorschlagZeitraum(jetzt = new Date(), datum = '', slotZeit = '') {
+  const d = jetzt instanceof Date ? jetzt : new Date(jetzt)
+  const gueltig = !Number.isNaN(d.getTime())
+  const tag = istDatum(datum)
+    ? String(datum)
+    : (gueltig ? `${d.getFullYear()}-${zwei(d.getMonth() + 1)}-${zwei(d.getDate())}` : '')
+  const beginn = vorschlagBeginn(slotZeit || null, gueltig ? d : new Date())
+  // Rutscht der Beginn über Mitternacht (23:30 → 00:00), ist das der Folgetag.
+  const ueberMitternacht = gueltig && !slotZeit && d.getMinutes() > 0 && d.getHours() === 23
+  const datumBeginn = ueberMitternacht ? datumPlusTage(tag, 1) : tag
+  // Ende = Beginn + 1 h; ab 23:00 auf dem Folgetag.
+  const beginnMinuten = minuten(beginn)
+  const endeGesamt = beginnMinuten < 0 ? -1 : beginnMinuten + VORSCHLAG_DAUER_MINUTEN
+  const endeUeberMitternacht = endeGesamt >= 24 * 60
+  const ende = endeGesamt < 0
+    ? ''
+    : `${zwei(Math.floor((endeGesamt % (24 * 60)) / 60))}:${zwei(endeGesamt % 60)}`
+  return {
+    datum: datumBeginn,
+    beginn,
+    ende,
+    endeDatum: endeUeberMitternacht ? datumPlusTage(datumBeginn, 1) : datumBeginn,
+  }
 }
 
 /**

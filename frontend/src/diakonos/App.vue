@@ -1,5 +1,9 @@
 <template>
-  <FrappeUIProvider>
+  <!-- DEP-1: Der Anbieter von frappe-ui war eine reine Hülle — Socket und
+       Ressourcen waren im Plugin ohnehin abgeschaltet (main.js), und keine
+       Komponente hat ihn benutzt. Ersatzlos entfernt; jede der bisherigen
+       Wurzeln (Seitenleiste, Sprunglink, Kopfleiste, Hauptbereich, Dialoge)
+       steht weiterhin unmittelbar hier, deshalb bleibt die Vorlage mehrteilig. -->
     <!-- DES-R18: Sprunglink. Am Dashboard lagen 24 Tab-Stopps vor dem Inhalt
          (Seitenleiste, Kopfleiste). Er ist das erste fokussierbare Element,
          bleibt ausserhalb des Fokus unsichtbar und springt zum Hauptbereich.
@@ -85,12 +89,10 @@
     />
     <SitzungsHinweis />
     <DkBestaetigung />
-  </FrappeUIProvider>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { FrappeUIProvider } from 'frappe-ui'
 import AppSidebar from './components/AppSidebar.vue'
 import SitzungsHinweis from './components/SitzungsHinweis.vue'
 import DkBestaetigung from './components/ui/DkBestaetigung.vue'

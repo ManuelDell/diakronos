@@ -66,7 +66,12 @@ test('OP-ADMIN-12: „Als Mitglied anzeigen“ ist entfernt', () => {
 
 test('UXD-R18: die Seitenleiste holt die Kennzahl vom Server', () => {
   const sidebar = lies('components/AppSidebar.vue')
-  assert.match(sidebar, /navigationZaehler/)
+  // UX-A2a: die Abfrage liegt im gemeinsamen Composable (eine Abfrage für
+  // Seitenleiste UND Mitglieder-Bereichsliste) — die Seitenleiste nutzt sie.
+  // UX-A2a2: die Leiste hält auch den gemeinsamen Takt und holt die Zahl nicht
+  // mehr selbst (`anfragenZahlLaden` steht nur noch im Composable).
+  assert.match(sidebar, /anfragenZaehlerBeobachten/)
+  assert.match(lies('composables/useVerwaltung.js'), /navigationZaehler/)
   // Kein fester Platzhalter mehr.
   assert.doesNotMatch(sidebar, /pendingCount = computed\(\(\) => 0\)/)
 })

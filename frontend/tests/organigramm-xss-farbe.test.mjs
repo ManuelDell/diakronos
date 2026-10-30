@@ -55,11 +55,14 @@ const computed = (f) => ({ get value() { return f() } });
 const onMounted = () => {};
 const onBeforeUnmount = () => {};
 const nextTick = () => Promise.resolve();
-// In <script setup> stellt Vue defineProps/onBeforeUnmount bereit; die Attrappen
+// In <script setup> stellt Vue defineProps/defineExpose bereit; die Attrappen
 // genuegen, weil dieser Test nur die reinen Ausgabe-Funktionen prueft.
 const defineProps = () => ({});
+const defineExpose = () => {};
+const defineAsyncComponent = () => ({});
 const OrgChart = function () {};
 const apiCall = async () => ({});
+const anlegenAufruf = () => ({ methode: '', parameter: {}, toast: '' });
 globalThis.window = globalThis.window || {};
 ${zusatz}
 ${code}
@@ -76,6 +79,7 @@ const ref = (v) => ({ value: v });
 const computed = (f) => ({ get value() { return f() } });
 const onMounted = () => {};
 const defineProps = () => ({});
+const defineExpose = () => {};
 const watch = () => {};
 const navigate = () => {};
 const currentHash = { value: '#/gruppen' };

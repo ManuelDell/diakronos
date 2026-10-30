@@ -6,19 +6,23 @@
                     bg-white border-b border-gray-100 shadow-sm">
             <span class="font-semibold text-gray-700">Organigramm</span>
             <div class="flex items-center gap-2">
-                <Avatar
+                <!-- DEP-1: Bild oder Initialen — dasselbe Bild wie in den
+                     Organigramm-Knoten (.oc-mitglied-foto / .oc-mitglied-avatar,
+                     Tokens aus tokens.css) statt Avatar aus frappe-ui. -->
+                <img
                     v-if="userImage"
-                    :image="userImage"
-                    :label="userFullname"
-                    size="sm"
+                    :src="userImage"
+                    :alt="userFullname"
+                    class="oc-kopf-foto"
                 />
+                <span v-else-if="userFullname" class="oc-kopf-avatar" aria-hidden="true">{{ initials(userFullname) }}</span>
                 <span class="text-sm text-gray-600">{{ userFullname }}</span>
             </div>
         </div>
 
         <!-- Loading -->
         <div v-if="loading" class="flex items-center justify-center h-full text-gray-400">
-            <Spinner class="w-6 h-6 mr-2" />
+            <DkSpinner text="Organigramm wird geladen" klein class="mr-2" />
             Organigramm wird geladen…
         </div>
 
@@ -40,7 +44,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Spinner, Avatar } from 'frappe-ui'
+// DEP-1: eigener Baustein statt Spinner aus frappe-ui; das Profilbild steht
+// direkt im Kopf (Bild oder Initialen, siehe .oc-kopf-*).
+import DkSpinner from '../diakonos/components/ui/DkSpinner.vue'
 import { OrgChart } from 'd3-org-chart'
 // UXD-R5: dieselben sicheren Ausgabe-Helfer wie in der Organigramm-Ansicht
 // (diakonos/components/gruppen/OrganigrammAnsicht.vue) — keine Kopie.
@@ -187,6 +193,16 @@ onMounted(async () => {
     background: var(--info-soft); color: var(--info);
     display: flex; align-items: center; justify-content: center;
     font-size: .78rem; font-weight: 700; flex-shrink: 0;
+}
+
+/* DEP-1: Profilbild im Kopf (ersetzt Avatar aus frappe-ui). Kleinere Fassung
+   derselben Form wie im Knoten. */
+.oc-kopf-foto { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.oc-kopf-avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--info-soft); color: var(--info);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .68rem; font-weight: 700; flex-shrink: 0;
 }
 .oc-mitglied-name { font-size: .82rem; font-weight: 600; color: var(--text); }
 .oc-mitglied-rolle { font-size: .72rem; color: var(--subtle); margin-top: 1px; }

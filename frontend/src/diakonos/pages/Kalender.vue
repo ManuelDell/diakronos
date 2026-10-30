@@ -166,17 +166,18 @@ function onDateClick(info) {
     const ende = defaultEndZeit(beginn)
     createInitialData.value = {
       element_start: `${tag}T${beginn}`,
-      element_end: `${tag}T${ende}`
+      // DEV-5: 23:00 + 1 h ist der Folgetag, nicht 00:00 desselben Tages.
+      element_end: `${endeTagAusZeit(tag, beginn, ende)}T${ende}`
     }
     showCreate.value = true
   }
 }
 
 /**
- * Standard-Beginnzeit fuer einen Klick: Monat der Vorschlag aus S8 (19:00),
- * Woche/Tag die angeklickte Stunde. Vorher war es 09:00 — im Gemeindeleben
- * (Chor, Musikteam, Hauskreis) ist der Abend der Normalfall, jeder neue Termin
- * musste von Hand nachgezogen werden.
+ * Standard-Beginnzeit fuer einen Klick (DEV-5): Woche/Tag uebernehmen die
+ * angeklickte Slot-Zeit unveraendert. Das Monatsraster liefert nur 00:00 —
+ * dort (und bei einem reinen Tagesklick) gilt die NAECHSTE volle Stunde der
+ * Browserzeit; vorher war es fest 19:00.
  */
 function defaultStartZeit(info) {
   const str = String(info.dateStr || '')
@@ -198,6 +199,23 @@ function defaultEndZeit(beginn) {
   const [h, m] = String(beginn).split(':').map(Number)
   const endH = String((h + 1) % 24).padStart(2, '0')
   return `${endH}:${String(m).padStart(2, '0')}`
+}
+
+/** Endtag zu einer Endzeit: ab Mitternacht ist es der Folgetag (DEV-5). */
+function endeTagAusZeit(startTag, startZeit, endeZeit) {
+  const s = String(startZeit || '').match(/^(\d{1,2}):/)?.[1]
+  const e = String(endeZeit || '').match(/^(\d{1,2}):/)?.[1]
+  if (s === undefined || e === undefined) return startTag
+  return Number(e) < Number(s) ? naechsterTag(startTag) : startTag
+}
+
+/** „YYYY-MM-DD“ + 1 Tag (Monats-/Jahreswechsel inklusive). */
+function naechsterTag(datum) {
+  const m = String(datum || '').match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return datum
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + 1, 12))
+  const zwei = (n) => String(n).padStart(2, '0')
+  return `${d.getUTCFullYear()}-${zwei(d.getUTCMonth() + 1)}-${zwei(d.getUTCDate())}`
 }
 
 function onSelect(info) {
@@ -320,7 +338,12 @@ onMounted(() => {
   height: 100%;
   overflow: hidden;
 }
-@media (hover: none) and (pointer: coarse) {
+/* FIX-6: Der Fußabstand für die untere Leiste gilt in der Mobil-Lage —
+   LAYOUT, also nur die Breite (index.css «FIX-6 · Layout nur nach Breite»).
+   Vorher stand hier `(hover: none) and (pointer: coarse)`: auf einem
+   Touch-Notebook mit 1410 px entstand 80 px Leerraum unter dem Inhalt,
+   obwohl die untere Leiste dort gar nicht erscheint. */
+@media (max-width: 720px) {
   .kronos-page-content {
     padding-bottom: 80px;
   }

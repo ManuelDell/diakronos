@@ -3,17 +3,23 @@ import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 import { test } from 'node:test'
 import * as helpers from '../src/diakonos/components/planrahmen/editor.mjs'
+// UX-C3a: die Seite lädt die Abschnitts-Regeln selbst (Sprungleiste) —
+// im vm-Kontext stehen sie wie die übrigen Importe vorn (letzte gewinnt).
+import * as abschnitte from '../src/diakonos/components/planrahmen/abschnitte.mjs'
 
 const source = readFileSync(new URL('../src/diakonos/pages/planrahmen/PlantypEditor.vue', import.meta.url), 'utf8')
 function editor() {
   const calls = []
-  const context = { ...helpers, setTimeout, clearTimeout,
+  const context = { ...helpers, ...abschnitte, setTimeout, clearTimeout,
     ref: value => ({ value }), computed: f => ({ get value() { return f() } }),
     watch() {}, onMounted() {}, onUnmounted() {}, defineEmits: () => () => {}, defineExpose() {},
     getRouteParam: () => 'neu', onBeforeEach: () => () => {}, showToast() {},
     fehlerMeldungen: e => [{ meldung: e.message }], jsonPruefen: helpers.jsonUebernehmen,
     window: { sessionStorage: { getItem: () => null, removeItem() {} }, addEventListener() {}, removeEventListener() {} },
     usePlanrahmen: () => ({ plantypSpeichern: async d => { calls.push(d); return {} }, plantypVersionenListe: async () => [], bedarf: async () => [] }),
+    // PLAN-M1: Hinweis am Handy — hier nicht Gegenstand des Tests.
+    useHandyHinweis: () => ({ geschlossen: () => false, schliessen() { return true }, setzen() {} }),
+    hinweisZeigen: () => false, istSchmal: () => false,
   }
   vm.createContext(context)
   vm.runInContext(source.split('<script setup>')[1].split('</script>')[0].replace(/^import .*\n/gm, ''), context)

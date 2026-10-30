@@ -299,7 +299,11 @@ onMounted(() => {
   border: 1px dashed var(--line);
   border-radius: var(--radius);
 }
-@media (hover: none) and (pointer: coarse) {
+/* FIX-6: Beschriftung „Moderation“ weicht in der Mobil-Lage dem Symbol —
+   LAYOUT, also nur die Breite (index.css «FIX-6 · Layout nur nach Breite»).
+   Vorher genügte `(hover: none) and (pointer: coarse)`, wodurch auf einem
+   Touch-Notebook mit 1410 px Breite die Beschriftung verschwand. */
+@media (max-width: 720px) {
   .moderation-btn-label { display: none; }
 }
 
@@ -333,7 +337,7 @@ onMounted(() => {
 
 </style>
 <style scoped>
-@media (hover: none) and (pointer: coarse) {
+@media (max-width: 720px) {
   .date-year { display: none; }
   .resource-toggle-btn { display: none; }
   .view-dropdown { font-size: var(--fs-xs); padding: 4px 6px; }

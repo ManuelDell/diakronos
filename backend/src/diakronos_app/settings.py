@@ -121,6 +121,19 @@ class Settings(BaseSettings):
     # `DEVMODE_ENABLED=1` in `.env` setzen (siehe BETRIEBSANLEITUNG.md).
     devmode_enabled: bool = False
 
+    # ── SEC-4: API-Doku (Swagger/ReDoc/OpenAPI) ─────────────────────────────
+    # Pentest-Befund 8: `/docs`, `/redoc` und `/openapi.json` waren ohne
+    # Anmeldung erreichbar und legten alle Pfade der App offen. **Default AUS**
+    # — eine normale Installation zeigt keine Doku und antwortet mit 404.
+    # Nur fuer Entwicklung/Fehlersuche einschalten:
+    #   SEC_DOKU_OEFFENTLICH=1
+    # Wer die Doku im Betrieb braucht, schaltet sie kurz ein und danach wieder
+    # aus; die Kopfzeilen (SEC-4, `sec_header.py`) gelten auch dann.
+    sec_doku_oeffentlich: bool = Field(
+        False,
+        validation_alias=AliasChoices("SEC_DOKU_OEFFENTLICH", "sec_doku_oeffentlich"),
+    )
+
     # ── A1b1: Sitzungs-Schicht ──────────────────────────────────────────────
     # `Secure`-Flag am Session-Cookie. Der Stack laeuft ohne TLS-Terminator
     # Drei Zustaende, Default `auto`:

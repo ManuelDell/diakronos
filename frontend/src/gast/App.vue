@@ -23,11 +23,21 @@
                     Schnell und einfach – nur dein Name und eine kurze Datenschutzzustimmung.
                 </p>
 
-                <ErrorMessage v-if="fehler" :message="fehler" class="mb-4" />
+                <DkFehlertext v-if="fehler" :message="fehler" class="mb-4" />
 
                 <form @submit.prevent="absenden" class="dk-pub-form" novalidate>
-                    <FormControl type="text" label="Vorname *" v-model="form.vorname" autocomplete="given-name" />
-                    <FormControl type="text" label="Nachname *" v-model="form.nachname" autocomplete="family-name" />
+                    <DkField label="Vorname" required>
+                        <template #default="{ id, ariaDescribedby, ariaInvalid }">
+                            <DkEingabe :id="id" v-model="form.vorname" autocomplete="given-name"
+                                       :aria-describedby="ariaDescribedby" :aria-invalid="ariaInvalid" />
+                        </template>
+                    </DkField>
+                    <DkField label="Nachname" required>
+                        <template #default="{ id, ariaDescribedby, ariaInvalid }">
+                            <DkEingabe :id="id" v-model="form.nachname" autocomplete="family-name"
+                                       :aria-describedby="ariaDescribedby" :aria-invalid="ariaInvalid" />
+                        </template>
+                    </DkField>
 
                     <!-- DSGVO / Einwilligung: Text kommt vom Server
                          (window.__diakronos.texte). Genau dieser Wortlaut wird
@@ -42,9 +52,9 @@
                         </label>
                     </div>
 
-                    <Button type="submit" variant="solid" class="dk-pub-submit" :loading="loading">
+                    <DkButton type="submit" variant="primary" block :loading="loading">
                         Anmelden
-                    </Button>
+                    </DkButton>
                 </form>
             </template>
         </div>
@@ -53,7 +63,11 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { Button, FormControl, ErrorMessage } from 'frappe-ui'
+// DEP-1: eigene Bausteine statt frappe-ui (Button/FormControl/ErrorMessage).
+import DkButton from '../diakonos/components/ui/DkButton.vue'
+import DkField from '../diakonos/components/ui/DkField.vue'
+import DkEingabe from '../diakonos/components/ui/DkEingabe.vue'
+import DkFehlertext from '../diakonos/components/ui/DkFehlertext.vue'
 
 const token      = window.__diakronos?.token || ''
 const linkFehler = window.__diakronos?.linkFehler || ''
@@ -154,6 +168,8 @@ function parseServerError(data) {
   padding: 40px;
 }
 
+/* Inhaltsumbruch, kein Layout: nur der Innenabstand der öffentlichen Karte
+   (die Seite selbst ist immer zentriert, ohne Rahmen). */
 @media (max-width: 640px) {
   .dk-pub-card { padding: 24px; }
   .dk-pub-page { padding: 16px; }
@@ -224,15 +240,5 @@ function parseServerError(data) {
 .dk-pub-dsgvo-label {
   font-weight: 500;
   color: var(--text);
-}
-
-.dk-pub-submit {
-  width: 100%;
-  background: var(--primary) !important;
-  border-color: var(--primary) !important;
-}
-.dk-pub-submit:hover {
-  background: var(--primary-hover) !important;
-  border-color: var(--primary-hover) !important;
 }
 </style>

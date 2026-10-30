@@ -39,6 +39,16 @@ test('PrAnsicht reicht das Recht als meldungen-zeigen an Tabelle/Raster/Kalender
 
 test('Die Planseite zeigt die Regelpruefung nur mit Bearbeitungsrecht (UXP-R19)', () => {
   const q = lies('pages/planrahmen/Plan.vue')
-  assert.match(q, /<PrMeldungen v-if="darfBearbeiten" :meldungen="terminMeldungen\(eintraege\)"/,
+  // PLAN-W1: Der Block der Regelpruefung ist an darfBearbeiten gebunden UND
+  // ein-/ausklappbar (Einklapp-Zustand je Benutzer im localStorage).
+  const block = q.match(/<PrMeldungen\s[^>]*titel="Regelprüfung des aktuellen Plans"[\s\S]{0,400}?\/>/)
+  assert.ok(block, 'Plan.vue: Warnblock der Regelprüfung nicht gefunden')
+  assert.match(block[0], /v-if="darfBearbeiten"/,
     'Plan.vue: Regelprüfung des Plans nicht an darfBearbeiten gebunden')
+  assert.match(block[0], /:meldungen="terminMeldungen\(eintraege\)"/,
+    'Plan.vue: Warnblock zeigt nicht die Termin-Meldungen')
+  assert.match(block[0], /:offen="warnblockOffen"/,
+    'Plan.vue: Warnblock ohne Einklapp-Zustand')
+  assert.match(block[0], /@aktualisiert:offen="warnblockMerken"/,
+    'Plan.vue: Einklapp-Zustand wird nicht gemerkt')
 })

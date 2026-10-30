@@ -67,12 +67,15 @@
 
         <div v-if="f.art === 'eintrag'" class="pr-fb-zeile">
           <label class="pr-fb-label">Liste, aus der gewählt wird
-            <input v-model="f.sammlung" type="text" class="dk-form-input" list="pr-fb-sammlungen" placeholder="lieder" aria-label="Liste" />
-            <datalist id="pr-fb-sammlungen">
-              <option value="lieder" />
-              <option v-for="s in kontext.sammlungen || []" :key="s.id" :value="s.id" />
-            </datalist>
-            <span class="pr-fb-hilfe">Eingebaute Liste „lieder“, eigene Kennung oder {parameter.x}</span>
+            <!-- UX-C3b: Listennamen sind Kennungen — Auswahl statt Freitext.
+                 „{parameter.x}“ bleibt als Altwert sichtbar (Sonderform). -->
+            <PrAuswahl
+              :model-value="f.sammlung" :optionen="sammlungAuswahl"
+              platzhalter="— Liste wählen —" aria-label="Liste" info="sammlung"
+              :unbekannt-name="'keine bekannte Liste'" anderer-wert
+              @update:model-value="f.sammlung = $event || undefined"
+            />
+            <span class="pr-fb-hilfe">Eingebaute Liste „lieder“, eine eigene Sammlung oder {'{parameter.x}'}</span>
           </label>
         </div>
 
@@ -90,10 +93,16 @@
               <option value="liste">Bestimmte Teams auflisten</option>
             </select>
           </label>
-          <label v-if="teamsModus(i) === 'gruppe_unter'" class="pr-fb-label">Obergruppe
-            <input type="text" class="dk-form-input" :value="f.teams?.gruppe_unter || ''" placeholder="Musikteams" @input="teamsSetzen(f, { gruppe_unter: $event.target.value })" />
+        <label v-if="f.art === 'team' && teamsModus(i) === 'gruppe_unter'" class="pr-fb-label">Obergruppe
+            <!-- UX-C3b: Gruppenkennung — Auswahl aus den Gruppen der Gemeinde. -->
+            <PrAuswahl
+              :model-value="f.teams?.gruppe_unter || ''" :optionen="gruppenAuswahl"
+              platzhalter="— Gruppe wählen —" aria-label="Obergruppe"
+              :unbekannt-name="'keine bekannte Gruppe'" anderer-wert
+              @update:model-value="teamsSetzen(f, { gruppe_unter: $event })"
+            />
           </label>
-          <label v-else class="pr-fb-label">Teams (mit Komma getrennt)
+          <label v-if="f.art === 'team' && teamsModus(i) === 'liste'" class="pr-fb-label">Teams (mit Komma getrennt)
             <input type="text" class="dk-form-input" :value="Array.isArray(f.teams) ? f.teams.join(', ') : ''" @change="listeSetzen(f, 'teams', $event.target.value)" />
           </label>
         </div>
@@ -114,7 +123,15 @@
             </select>
           </label>
           <label v-if="f.fuellen === 'vorbelegen'" class="pr-fb-label">Wert kommt aus
-            <input v-model="f.aus" type="text" class="dk-form-input" placeholder="eintrag.dirigent oder anderes Feld" aria-label="Bezugsfeld" />
+            <!-- UX-C3b: Bezugsfeld ist ein Feldpfad — Auswahl statt Freitext.
+                 „eintrag.x“ / „bezug.team“ bleiben als Altwert wählbar. -->
+            <PrAuswahl
+              :model-value="f.aus" :optionen="bezugAuswahl"
+              platzhalter="— Feld wählen —" aria-label="Bezugsfeld" info="bezugsfeld"
+              :unbekannt-name="'unbekannter Feldpfad'"
+              :warnung="ausWarnung(f)" anderer-wert
+              @update:model-value="f.aus = $event || undefined"
+            />
             <span class="pr-fb-hilfe">Eigenschaft des Listeneintrags (eintrag.x), Feldpfad oder bezug.team</span>
           </label>
         </div>
@@ -228,10 +245,14 @@
  * Unterfelder, Varianten, Teile, Elementtypen). Der Baum wird IN PLACE
  * verwaltet — die Referenz zur Definition bleibt erhalten.
  */
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import PrKnotenEditor from './PrKnotenEditor.vue'
+import PrAuswahl from './PrAuswahl.vue'
 import PrMeldungen from './PrMeldungen.vue'
 import { FELD_ARTEN, FUELLSTRATEGIEN, leeresFeld, anzahlLesen, anzahlAus, feldVerschieben, feldEinruecken, feldPruefPfad, meldungenAmFeld } from './editor.mjs'
+import {
+  bezugOptionen, gruppenOptionen, sammlungOptionen,
+} from './auswahl.mjs'
 
 const props = defineProps({
   felder: { type: Array, required: true },
@@ -245,6 +266,33 @@ defineEmits(['ausruecken'])
 
 const auf = ref(null)
 const neueArt = ref('text')
+
+/**
+ * UX-C3b: Wahlwerte der Kennungsfelder. Alles kommt aus der Definition bzw.
+ * aus `einrichten_rechte` des Servers — kein Freitext, wo eine Kennung exakt
+ * passen muss. Ein gespeicherter Altwert bleibt in `PrAuswahl` sichtbar.
+ */
+const sammlungAuswahl = computed(() => sammlungOptionen(definitionsQuelle()))
+const gruppenAuswahl = computed(() => gruppenOptionen(props.kontext?.gruppen))
+/** Bezugsfeld (`aus`): Feldpfade der Definition — dieselbe Quelle wie die Prüfung. */
+const bezugAuswahl = computed(() => bezugOptionen(definitionsQuelle()))
+
+/** Die Definition kommt seit UX-C3b über den Kontext (`kontext.definition`). */
+function definitionsQuelle() {
+  const k = props.kontext || {}
+  if (k.definition) return k.definition
+  // Rückfall (ältere Aufrufer): Sammlungen direkt am Kontext.
+  return { sammlungen: Array.isArray(k.sammlungen) ? k.sammlungen : [] }
+}
+
+/** Warum ein gespeicherter Bezug kein Feldpfad der Definition ist. */
+function ausWarnung(feld) {
+  const wert = String(feld?.aus || '')
+  if (!wert) return ''
+  if (/^(eintrag|bezug)\./.test(wert)) return ''
+  return `„${wert}“ ist kein Feldpfad dieser Vorlage — der Wert bleibt erhalten, `
+    + 'die Prüfung meldet ihn als unbekanntes Bezugsfeld.'
+}
 
 function verschieben(i, delta) { feldVerschieben(props.felder, i, delta) }
 function einruecken(i) { feldEinruecken(props.felder, i) }
@@ -374,6 +422,8 @@ function stufenFuer(i) {
 .pr-fb-zweig { border: 1px dashed var(--dk-border); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
 .pr-fb-neu { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pr-fb-neu-wahl { max-width: 260px; }
+/* Inhaltsumbruch, kein Layout: die Felder einer Feldzeile stehen untereinander
+   (Breitenbegrenzungen fallen weg), die Karte bleibt bestehen. */
 @media (max-width: 640px) {
   .pr-fb-id, .pr-fb-name, .pr-fb-art { max-width: none; width: 100%; }
   .pr-fb-aktionen { margin-left: 0; }

@@ -52,7 +52,10 @@ export async function getConflictPartner(elementId) {
  * Löst einen Konflikt auf oder entscheidet über einen Vorschlag.
  * @param {string} elementId
  * @param {'ignore'|'vorschlag'|'festlegen'|'ablehnen'} action
- * @param {Object} [edits] — Optionale Formularfelder (title, element_start, element_end, all_day, ressource, description, grund)
+ * @param {Object} [edits] — Optionale Formularfelder (title, element_start, element_end, all_day, ressource, description, grund, ueberschneidung)
+ *   `ueberschneidung: 1` (DEV-7b) nur aus dem Konflikt-Dialog bei `festlegen`:
+ *   der Termin gilt bewusst trotz Überschneidung und bekommt serverseitig
+ *   zusätzlich `ignore_conflict=1` — er erscheint nicht erneut als Konflikt.
  * @returns {{ id: string, new_status: string, action: string }}
  */
 export async function resolveConflict(elementId, action, edits = {}) {

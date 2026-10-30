@@ -58,5 +58,10 @@ function label(o) { return (o !== null && typeof o === 'object') ? (o.label ?? o
   border-bottom-color: var(--accent);
   font-weight: 650;
 }
+/* DEV-4: Der aktive Reiter nahm --primary — im Dunkelmodus ist das WEISS und
+   der Reiter damit von den inaktiven (--muted) nicht zu unterscheiden; die
+   Auswahl war nur am dünnen Strich zu erraten (Seiten Mitglieder, Lieder,
+   Adressbuch). Akzentschrift statt Weiß. */
+[data-theme="dark"] .dk-ui-tab.is-active { color: var(--accent); }
 .dk-ui-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 </style>

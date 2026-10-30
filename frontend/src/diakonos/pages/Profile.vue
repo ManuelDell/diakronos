@@ -651,8 +651,11 @@ onMounted(async () => {
 .prof-strasse .prof-nr,
 .prof-strasse .dk-ui-eingabe.prof-nr { flex: 0 0 70px; }
 .prof-strasse .dk-ui-eingabe { min-width: 0; }
-.prof-hinweis { font-size: var(--fs-sm); color: var(--muted); }
-.prof-link { margin-left: var(--sp-2); font-size: var(--fs-sm); color: var(--primary); text-decoration: none; }
+.prof-hinweis { font-size: var(--fs-sm); color: var(--muted); display: block; }
+/* DEV-4: Der Hinweis stand ohne Abstand direkt hinter der E-Mail-Adresse
+   („admin@example.org Passwort vergessen? …“ las sich wie ein Satz). */
+.prof-hinweis .prof-klein { display: block; margin-top: var(--sp-1); }
+.prof-link { margin-left: var(--sp-2); font-size: var(--fs-sm); color: var(--link); text-decoration: none; }
 .prof-link:hover { text-decoration: underline; }
 
 /* Umschalter */

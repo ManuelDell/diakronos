@@ -220,11 +220,46 @@ _SAFE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 def _upload_limit(content_type: str) -> int:
-    """Groessenlimit je Content-Type: Audio/Notensatz nutzen ihr eigenes Limit."""
+    """Groessenlimit je Content-Type: Audio/Notensatz nutzen ihr eigenes Limit.
+
+    REG-1c (4): nur noch Verweis auf `upload_limit` — dort steht die Grenze
+    EINMAL, und das Boot-Objekt der SPA nennt der Oberflaeche denselben Wert.
+    """
+    return upload_limit(content_type)
+
+
+def upload_limit(content_type: str) -> int:
+    """Groessenlimit eines Uploads je Content-Type (Bytes).
+
+    Audio/Notensatz nutzen ihr eigenes, hoeheres Limit
+    (`settings.max_upload_bytes_audio`), alles andere das allgemeine
+    (`settings.max_upload_bytes`).
+
+    REG-1c (4): EINE Quelle fuer Server UND Anzeige. `upload_file` weist
+    danach ab (``api.frappe_core._upload_limit``) und das Boot-Objekt der SPA
+    nennt der Oberflaeche genau denselben Wert
+    (``bild_upload_max_bytes``) — die Meldung „max. X MB“ kann damit nicht von
+    der Grenze abweichen, die der Server wirklich zieht.
+    """
     if content_type in _AUDIO_MATERIAL_TYPES:
         return int(getattr(settings, "max_upload_bytes_audio", 0)
                    or settings.max_upload_bytes)
-    return settings.max_upload_bytes
+    return int(settings.max_upload_bytes)
+
+
+#: Die Bildtypen, die ein Formularbild sein duerfen (REG-1a/REG-1c). Das
+#: Groessenlimit fuer sie ist `upload_limit("image/png")`.
+BILD_CONTENT_TYPES = frozenset({"image/png", "image/jpeg", "image/gif", "image/webp"})
+
+
+def bild_upload_max_bytes() -> int:
+    """Groessenlimit eines Formularbildes in Bytes (dieselbe Grenze wie der Upload).
+
+    Alle vier erlaubten Bildtypen teilen das allgemeine Limit; die Funktion
+    fragt es trotzdem je Typ ab, damit eine spaetere Sonderregel fuer einen
+    Bildtyp hier automatisch mitgeht.
+    """
+    return max(upload_limit(typ) for typ in BILD_CONTENT_TYPES)
 
 
 def _sanitize_filename(name: str) -> str:

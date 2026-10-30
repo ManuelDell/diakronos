@@ -7,6 +7,8 @@
  * die ohne Browser geprüft werden kann.
  */
 
+import { MOBIL_GRENZE_PX } from './eingabeart.mjs'
+
 /**
  * `tel:`-taugliche Nummer. Der RFC lässt nur Ziffern und ein führendes „+“;
  * Leerzeichen, Klammern, Punkte und Bindestriche sind in der Anzeige üblich,
@@ -34,10 +36,11 @@ export function mailHref(mail) {
 
 /**
  * Karten-Ansicht nur auf schmalen Anzeigen (dieselbe Schwelle wie die App:
- * `.dk-sidebar` verschwindet bei 720 px).
+ * `.dk-sidebar` verschwindet unterhalb von `MOBIL_GRENZE_PX`; die Zahl stand
+ * hier früher ein zweites Mal — FIX-6c).
  */
 export function kartenAnsicht(breitePx) {
   const b = Number(breitePx)
   if (!Number.isFinite(b)) return false
-  return b <= 720
+  return b > 0 && b <= MOBIL_GRENZE_PX
 }

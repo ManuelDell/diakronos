@@ -1,4 +1,22 @@
 /* =====================================================================
+   DEP-1 — Schrift „Inter“ lokal im Buendel (@fontsource/inter, SIL OFL 1.1).
+   ---------------------------------------------------------------------
+   Bis hierher kam die Schrift über `frappe-ui/style.css`. Dieses Paket ist
+   entfernt; die Schnitte 400/500/600/700 kommen jetzt aus @fontsource/inter
+   (gleiche Familie, keine Anfrage an einen fremden Host). Liegt hier statt in
+   index.css, weil ALLE vier Einstiege tokens.css einbinden (diakonos, gast,
+   registrierung, organigramm) — index.css nur zwei davon.
+   ===================================================================== */
+/* Nur die LATEINISCHEN Schnitte: die Oberfläche ist deutsch; die übrigen
+   Teilbereiche (kyrillisch, griechisch, vietnamesisch) lagen vorher über
+   UNSERE @imports im Bündel und fehlen sonst nirgends — 9 statt 28 Dateien,
+   rund 240 KB weniger im Build. */
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-600.css';
+@import '@fontsource/inter/latin-700.css';
+
+/* =====================================================================
    DIAKRONOS TOKENS — SINGLE SOURCE OF TRUTH
    Stil „A · Ruhig & Klar“ (Referenz: anhang/quellen/ui-vorschlaege.html,
    [data-stil="a"]).
@@ -128,6 +146,12 @@
   --primary:         var(--dk-navy-500);
   --primary-hover:   var(--dk-navy-600);
   --primary-ink:     #ffffff;
+  /* DEV-4: Verweise im Fließtext. Bis hier nahmen sie --primary; im
+     Dunkelmodus ist das WEISS und damit nicht als Verweis erkennbar (Profil
+     „Passwort vergessen?“). Eigene Token, hell navy-500 (7,1:1 auf Weiß),
+     dunkel navy-200 (7,6:1 auf der dunklen Fläche). */
+  --link:            var(--dk-navy-500);
+  --link-hover:      var(--dk-navy-700);
   --accent:          var(--dk-gold-500);
   --accent-d:        var(--dk-gold-600);
   --accent-soft:     var(--dk-gold-50);
@@ -185,9 +209,18 @@
   --sp-8: 32px;
   --pad: 14px;
   --gap: 12px;
+  /* FIX-5: EIN Abstand für Karten-Raster (Zeile, Spalte und Vollbreiten-Block
+     darunter). Vorher trug jede Stelle ihr eigenes Maß — die Gruppen-Detail-
+     seite wirkte dadurch ungleichmäßig (Befund DMB-096ae0364b59). */
+  --grid-gap: var(--sp-4);
 
   /* Maße */
   --control-h: 34px;
+  /* FIX-3: Höhe der Filterzeile (Suchfeld ↔ DkButton „md“ ↔ Filterchip).
+     Suchfeld und Chip standen vorher auf 9 px Innenabstand bzw. 7 px/12 px
+     und liefen damit 4 px auseinander. Jetzt kommt die Höhe beider aus
+     --control-h, die Innenabstände nur noch waagerecht. */
+  --filter-h: var(--control-h);
   --row-h:     44px;
   --topbar-h:  56px;
   --sidebar-w:   256px;
@@ -255,6 +288,9 @@
   --primary:         #ffffff;
   --primary-hover:   var(--dk-navy-100);
   --primary-ink:     var(--dk-navy-900);
+  /* DEV-4: Verweise im Dunkelmodus hell (7,6:1 auf der dunklen Fläche). */
+  --link:            var(--dk-navy-200);
+  --link-hover:      var(--dk-navy-50);
   --accent:          var(--dk-gold-300);
   --accent-d:        var(--dk-gold-100);
   --accent-soft:     rgba(201,149,47,.16);

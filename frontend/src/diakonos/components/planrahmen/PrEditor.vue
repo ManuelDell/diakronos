@@ -654,6 +654,8 @@ function nachrichten(liste) {
   max-width: 9.5rem; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap; flex-shrink: 0;
 }
+/* Inhaltsumbruch, kein Layout: die Vorschlagszeile (Name | Abzeichen) bricht
+   um, damit die Abzeichen einzeilig bleiben; die Liste selbst bleibt. */
 @media (max-width: 640px) {
   .pr-ed-wahl { flex-wrap: wrap; }
   .pr-ed-badge { max-width: 100%; }

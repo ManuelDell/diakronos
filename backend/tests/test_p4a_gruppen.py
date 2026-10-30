@@ -694,14 +694,17 @@ def test_orgchart_data_root_und_kinder(hierarchie):
     assert by_id["__root__"]["node_type"] == "org"
     assert by_id["__root__"]["name"] == "Meine Gemeinde"  # kein Single -> Default
 
-    assert by_id["DB-A"]["node_type"] == "dienstbereich"
-    assert by_id["DB-A"]["parentId"] == "__root__"
-    assert by_id["G-A1"]["parentId"] == "DB-A"
-    assert by_id["G-A1"]["node_type"] == "gruppe"
-    assert by_id["G-A1"]["leiter"] == "Gruppenverantw"     # aus User.full_name
-    assert by_id["G-A1"]["member_count"] == 2              # nur Aktive
-    assert by_id["UG-A1"]["parentId"] == "G-A1"
-    assert by_id["UG-A1"]["member_count"] == 1
+    assert by_id["db_DB-A"]["node_type"] == "dienstbereich"
+    assert by_id["db_DB-A"]["parentId"] == "__root__"
+    assert by_id["db_DB-A"]["raw_name"] == "DB-A"
+    assert by_id["g_G-A1"]["parentId"] == "db_DB-A"
+    assert by_id["g_G-A1"]["node_type"] == "gruppe"
+    assert by_id["g_G-A1"]["raw_name"] == "G-A1"
+    assert by_id["g_G-A1"]["leiter"] == "Gruppenverantw"   # aus User.full_name
+    assert by_id["g_G-A1"]["member_count"] == 2            # nur Aktive
+    assert by_id["ug_UG-A1"]["parentId"] == "g_G-A1"
+    assert by_id["ug_UG-A1"]["raw_name"] == "UG-A1"
+    assert by_id["ug_UG-A1"]["member_count"] == 1
 
     mitglied_knoten = [n for n in nodes if n["node_type"] == "mitglied"]
     assert {n["id"] for n in mitglied_knoten} == {
@@ -716,7 +719,7 @@ def test_orgchart_data_archivierte_gruppe_fehlt(hierarchie):
 
     set_user("admin@example.org")
     ids = {n["id"] for n in get_orgchart_data()}
-    assert "G-ARCH" not in ids
+    assert "g_G-ARCH" not in ids
 
 # ── HTTP-Routing: beide Module sind ueber /api/method erreichbar ────────────
 # Die Reinheits-Tests oben rufen die Funktionen direkt. Hier wird geprueft,
@@ -827,12 +830,12 @@ def test_orgchart_api_farbe_bereinigt(hierarchie):
     db.save()
 
     by_id = {n["id"]: n for n in get_orgchart_data()}
-    assert by_id["DB-A"]["farbe"] == "#667eea"
+    assert by_id["db_DB-A"]["farbe"] == "#667eea"
 
     # Gueltige Farbe bleibt erhalten.
     db2 = get_doc("Dienstbereich", "DB-B")
     db2.farbe = "3b82f6"
     db2.save()
     by_id2 = {n["id"]: n for n in get_orgchart_data()}
-    assert by_id2["DB-B"]["farbe"] == "#3b82f6"
+    assert by_id2["db_DB-B"]["farbe"] == "#3b82f6"
 

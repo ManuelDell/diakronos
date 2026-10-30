@@ -335,6 +335,8 @@ onMounted(laden)
 .kv-farbe-wert { font-size: var(--fs-sm); color: var(--muted); }
 .kv-hinweis { font-size: var(--fs-sm); color: var(--muted); margin: 0; }
 
+/* Inhaltsumbruch, kein Layout: die Knopfleiste der Karte nimmt die volle
+   Kartenbreite (die Karte bleibt eine Karte). */
 @media (max-width: 640px) {
   .kv-karte-aktionen { width: 100%; }
 }

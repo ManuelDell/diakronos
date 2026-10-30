@@ -17,16 +17,21 @@ import { readFileSync } from 'node:fs'
 const lesen = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8')
 
 const registrierung = lesen('../src/registrierung/App.vue')
+// REG-1b: Die ANZEIGE des Anmeldeformulars liegt jetzt in einer eigenen
+// Komponente — dieselbe zeigt die Vorschau im Editor. Der Servertext und die
+// Interpolation stehen deshalb dort; `App.vue` ist nur noch der Seitenrahmen.
+const registrierungFormular = lesen('../src/registrierung/components/DkAnmeldeformular.vue')
 const gast = lesen('../src/gast/App.vue')
 const wartende = lesen('../src/diakonos/components/WartendeKontenKarte.vue')
 const regSeite = lesen('../src/diakonos/pages/Registrierung.vue')
 
 test('H-1 Registrierung: Einwilligungstext kommt vom Server und ist reiner Text', () => {
   assert.match(registrierung, /window\.__diakronos\?\.texte/, 'Texte muessen aus dem Boot-Objekt kommen')
-  assert.match(registrierung, /\{\{\s*texte\.einwilligung\s*\}\}/, 'Einwilligung als Text ausgeben')
+  assert.match(registrierungFormular, /\{\{\s*texte\.einwilligung\s*\}\}/, 'Einwilligung als Text ausgeben')
+  assert.doesNotMatch(registrierungFormular, /v-html\s*=/, 'kein v-html (XSS-Schutz, reiner Text)')
   assert.doesNotMatch(registrierung, /v-html\s*=/, 'kein v-html (XSS-Schutz, reiner Text)')
   // Der alte fest eingebaute Text darf nicht mehr existieren.
-  assert.doesNotMatch(registrierung, /Deine personenbezogenen Daten werden zum Zweck/)
+  assert.doesNotMatch(registrierungFormular, /Deine personenbezogenen Daten werden zum Zweck/)
 })
 
 test('H-1 Gast: Einwilligungstext kommt vom Server und ist reiner Text', () => {
@@ -37,8 +42,8 @@ test('H-1 Gast: Einwilligungstext kommt vom Server und ist reiner Text', () => {
 
 test('M-1: Willkommenstext und Datenschutzerklaerung sind angebunden', () => {
   assert.match(registrierung, /willkommenstext/)
-  assert.match(registrierung, /texte\.datenschutzerklaerung/)
-  assert.match(registrierung, /texte\.aufbewahrung/)
+  assert.match(registrierungFormular, /texte\.datenschutzerklaerung/)
+  assert.match(registrierungFormular, /texte\.aufbewahrung/)
   assert.match(gast, /willkommenstext/)
 })
 

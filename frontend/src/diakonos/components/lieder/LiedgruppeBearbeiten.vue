@@ -248,8 +248,10 @@ async function speichern() {
 .lgb-titel { font-size: var(--fs-sm); font-weight: 500; color: var(--text); }
 .lgb-num { font-size: var(--fs-sm); color: var(--muted); }
 .lgb-aktionen { margin-left: auto; display: inline-flex; gap: var(--sp-1); flex-wrap: wrap; }
-.lgb-suche { margin-top: var(--sp-2); }
-.lgb-suche-feld { max-width: 360px; }
+.lgb-suche { margin-top: var(--sp-2); display: flex; gap: var(--sp-2); align-items: flex-start; flex-wrap: wrap; }
+/* FIX-3: Das Feld steht in derselben Zeile wie der Knopf „Hinzufügen“
+   (.dk-btn-sm). Beide bekommen dieselbe Höhe (--filter-h). */
+.lgb-suche-feld { max-width: 360px; flex: 1 1 240px; }
 .lgb-treffer { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .lgb-leer { font-size: var(--fs-sm); color: var(--muted); }
 </style>

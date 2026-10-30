@@ -30,12 +30,14 @@ und zeigte fuer abgelaufene Links einfach „aktiv“ (Konzept Abschnitt 5).
 from __future__ import annotations
 
 import secrets
-from datetime import date
+from datetime import date, datetime
 
 __all__ = ["SEITE_GAST", "SEITE_REGISTRIERUNG", "TYPG_GAST", "neuer_token",
+           "TOKEN_LAENGE", "TOKEN_MINDESTLAENGE",
            "link_seite", "link_anzeige", "normalisiere_link", "zustand",
+           "jetzt_gemeinde", "heute_gemeinde",
            "ZUSTAND_AKTIV", "ZUSTAND_INAKTIV", "ZUSTAND_ABGELAUFEN",
-           "ZUSTAND_VOLL", "OFFENE_ANMELDESTATI"]
+           "ZUSTAND_VOLL", "ZUSTAND_BEVORSTEHEND", "OFFENE_ANMELDESTATI"]
 
 # SPA-Seiten der oeffentlichen Links.
 SEITE_REGISTRIERUNG = "registrierung"
@@ -46,13 +48,31 @@ TYPG_GAST = "Gast-Anmeldung"
 
 
 def neuer_token() -> str:
-    """Zufallstoken eines neuen Registrierungslink (~80 Bit).
+    """Zufallstoken eines neuen Registrierungslink (256 Bit, SEC-3).
 
     `validate_token` sucht `{"slug": token}` und jede neu angelegte Adresse
     braucht einen nicht erratbaren Wert; ohne Token war der Link nie nutzbar
     (UXD-R2).
+
+    SEC-3 (Pentest dev.ecg-hn.de, MITTEL): hier stand `token_urlsafe(10)` —
+    rund 60 Bit, und der Slug liess sich beim Anlegen ausserdem frei
+    vorgeben („pt-mitglied“). Beides zusammen machte Registrierungslinks
+    erratbar. Jetzt 32 Zufallsbytes = 43 Zeichen base64url (~256 Bit); der
+    Wert ist fuer Menschen nicht mehr tippbar und wird nur noch kopiert.
+
+    BESTEHENDE Links bleiben gueltig: gelesen wird `slug` unveraendert, die
+    Laenge wird nirgends geprueft. Betroffen ist ausschliesslich die
+    NEUANLAGE.
     """
-    return secrets.token_urlsafe(10)
+    return secrets.token_urlsafe(32)
+
+
+#: Laenge eines Tokens aus `neuer_token()` (`run(secrets.token_urlsafe(32))`).
+TOKEN_LAENGE = 43
+#: Kleinste akzeptable Laenge fuer einen VOM SERVER erzeugten Token. Die
+#: Grenze steht hier, damit „stark“ eine pruefbare Zahl hat und nicht nur
+#: eine Absicht ist (`len(neuer_token()) >= TOKEN_MINDESTLAENGE`).
+TOKEN_MINDESTLAENGE = 32
 
 
 def link_seite(typ) -> str:
@@ -125,9 +145,54 @@ ZUSTAND_AKTIV = "aktiv"
 ZUSTAND_INAKTIV = "inaktiv"
 ZUSTAND_ABGELAUFEN = "abgelaufen"
 ZUSTAND_VOLL = "voll"
+# REG-1a: „gueltig ab“ liegt in der Zukunft — fuer Besucher noch nicht nutzbar.
+ZUSTAND_BEVORSTEHEND = "bevorstehend"
 
 # Anmeldestati, die als „offene Anfrage“ gelten (wie `admin_hub` und N2).
 OFFENE_ANMELDESTATI = ("Anmeldeanfrage", "Ausstehend")
+
+
+# ── Zeit der Gemeinde: EINE Quelle fuer Anzeige und Wirkung (REG-1c) ───────
+#
+# Bis REG-1b rechneten zwei Stellen die Zeitzone selbst aus: `heute_gemeinde`
+# hier (Anzeige-Zustand) und `heute_ortszeit`/`_heute_gemeinde` in
+# `api.registrierung` (Wirkung von „gueltig ab/bis“). Beide Kopien waren
+# gleich — aber eine Aenderung an einer Stelle haette Anzeige und Wirkung
+# auseinanderlaufen lassen (genau der Fehler, den dieses Modul sonst
+# vermeidet). Die Rechnung steht deshalb NUR noch hier; `api.registrierung`
+# reicht sie unter den gewohnten Namen weiter (Tests und Aufrufer bleiben).
+
+
+def jetzt_gemeinde() -> datetime:
+    """Jetzt in der Zeitzone der Gemeinde (``settings.calendar_timezone``).
+
+    Der Container laeuft in UTC; eine Gemeinde in Europe/Berlin liegt damit um
+    Mitternacht zwei Stunden zurueck. Ist die Einstellung unbrauchbar, gilt
+    UTC (nie eine Exception: eine kaputte Zeitzone darf keinen Link toeten).
+    """
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+    from diakronos_app.settings import settings
+
+    try:
+        zone = ZoneInfo(str(getattr(settings, "calendar_timezone", "") or "UTC"))
+    except (ValueError, ZoneInfoNotFoundError):
+        zone = ZoneInfo("UTC")
+    return datetime.now(zone)
+
+
+def heute_gemeinde(jetzt: datetime | None = None) -> date:
+    """HEUTE in der Zeitzone der Gemeinde — nie ``date.today()`` des Containers.
+
+    Der Container laeuft in UTC; eine Gemeinde in Europe/Berlin liegt damit um
+    Mitternacht zwei Stunden „hinterher“. Mit ``date.today()`` begann ein Link
+    „gueltig ab 26.10.“ erst um 02:00 Ortszeit und lief entsprechend zu lang
+    (Operator-Review REG-1a, Punkt 5). EINE Quelle fuer Anzeige (``zustand``)
+    und Wirkung (``api.registrierung._validate_token``).
+
+    ``jetzt`` dient Tests, die den Mitternachtsfall festnageln muessen.
+    """
+    return (jetzt or jetzt_gemeinde()).date()
 
 
 def _als_datum(wert) -> date | None:
@@ -155,13 +220,15 @@ def zustand(link: dict, offene_anfragen: int = 0, heute: date | None = None) -> 
 
     Reihenfolge der Pruefung wie im oeffentlichen Pfad
     (`api/registrierung.py:_validate_token`), damit Anzeige und Wirkung nicht
-    auseinanderlaufen: ausgeschaltet -> abgelaufen -> voll -> aktiv.
+    auseinanderlaufen: ausgeschaltet -> abgelaufen -> bevorstehend -> voll -> aktiv.
 
     Rueckgabe (alle Felder sind Anzeigewerte, keine Rechte):
 
         {
-          "zustand": "aktiv" | "inaktiv" | "abgelaufen" | "voll",
+          "zustand": "aktiv" | "inaktiv" | "abgelaufen" | "bevorstehend" | "voll",
           "abgelaufen": bool,           # auch bei inaktiv geprueft
+          "bevorstehend": bool,         # REG-1a: `gueltig_ab` liegt in der Zukunft
+          "gueltig_ab": str | None,     # ISO-Datum oder None (sofort)
           "voll": bool,                 # Kontingent aufgebraucht
           "plaetze_belegt": int,
           "plaetze_gesamt": int,        # 0 = unbegrenzt
@@ -173,19 +240,24 @@ def zustand(link: dict, offene_anfragen: int = 0, heute: date | None = None) -> 
           "wuerde_ausgeblendet": bool,
         }
     """
-    heute = heute or date.today()
+    heute = heute or heute_gemeinde()
     max_anmeldungen = _ganzzahl(link.get("max_anmeldungen"))
     belegt = _ganzzahl(link.get("anmeldungen_count"))
     aktiv = bool(_ganzzahl(link.get("aktiv")))
     bis = _als_datum(link.get("gueltig_bis"))
+    ab = _als_datum(link.get("gueltig_ab"))
 
     abgelaufen = bool(bis and bis < heute)
+    # REG-1a: der Link ist erst AB diesem Tag nutzbar; am Tag selbst schon.
+    bevorstehend = bool(ab and ab > heute)
     voll = bool(max_anmeldungen > 0 and belegt >= max_anmeldungen)
 
     if not aktiv:
         wert = ZUSTAND_INAKTIV
     elif abgelaufen:
         wert = ZUSTAND_ABGELAUFEN
+    elif bevorstehend:
+        wert = ZUSTAND_BEVORSTEHEND
     elif voll:
         wert = ZUSTAND_VOLL
     else:
@@ -194,6 +266,8 @@ def zustand(link: dict, offene_anfragen: int = 0, heute: date | None = None) -> 
     return {
         "zustand": wert,
         "abgelaufen": abgelaufen,
+        "bevorstehend": bevorstehend,
+        "gueltig_ab": ab.isoformat() if ab else None,
         "voll": voll,
         "plaetze_belegt": belegt,
         "plaetze_gesamt": max_anmeldungen,

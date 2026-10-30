@@ -6,6 +6,9 @@ map $http_upgrade $connection_upgrade {
 }
 # Docker service addresses may change after app recreation.
 resolver 127.0.0.11 valid=10s ipv6=off;
+# SEC-4: kein Versions-Banner. Der Pentest las `server: openresty` aus jeder
+# Antwort; `off` schickt nur noch `server: nginx` ohne Versionsnummer.
+server_tokens off;
 upstream diakronos_backend {
     zone diakronos_backend 64k;
     server app:8000 resolve;
@@ -37,9 +40,17 @@ server {
     ssl_session_cache shared:TLS:10m;
     ssl_session_tickets off;
     ${HSTS}
-    add_header X-Content-Type-Options nosniff always;
-    add_header Referrer-Policy same-origin always;
-    # No CSP/frame restriction: preserve the existing SPA and integrations.
+    # SEC-4 Review: X-Content-Type-Options und Referrer-Policy NICHT hier —
+    # nginx haengte `Referrer-Policy: same-origin` an und ueberschrieb damit
+    # das `no-referrer` der App (Browser nimmt den letzten Wert). Alle diese
+    # Kopfzeilen setzt jetzt ausschliesslich die App (sec_header.py), auf allen
+    # Antworten, auch bei nginx-Umgehung.
+    # SEC-4: KEINE CSP und KEIN HSTS auf dieser Ebene. Beides setzt die App
+    # selbst (`backend/src/diakronos_app/sec_header.py`) und gilt damit auch
+    # fuer Antworten, die den nginx umgehen (direkter App-Port). Zwei Quellen
+    # fuer dieselbe Kopfzeile haetten verschiedene Werte ergeben (nginx hier
+    # `same-origin`, App `no-referrer`); doppelt gesendete Kopfzeilen wertet
+    # der Browser ausserdem unvorhersehbar aus.
     client_max_body_size ${BODY_LIMIT};
     client_body_timeout 300s;
     gzip on;

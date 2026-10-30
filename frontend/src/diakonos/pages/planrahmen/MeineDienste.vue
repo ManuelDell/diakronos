@@ -24,49 +24,83 @@
         </p>
       </div>
 
-      <section v-for="g in gruppen" :key="g.name" class="pr-md-gruppe">
-        <h2 class="pr-md-gruppe-titel">
-          {{ g.name }}
-          <a v-if="g.plan" class="pr-md-planlink" :href="planLink(g)">Plan öffnen</a>
-        </h2>
-        <!-- OP-HANDY-6: „geändert am“-Marker — der Planer sieht, wann zuletzt
-             veroeffentlicht wurde; das nimmt die Frage „gilt das noch?“ heraus. -->
-        <p v-if="geaendertText(g)" class="pr-md-stand">
-          Stand: {{ geaendertText(g) }}
-        </p>
-        <div class="dk-list">
-          <div
-            v-for="(d, i) in g.dienste"
-            :key="kennung(d, i)"
-            class="dk-list-item pr-md-zeile"
-            :class="{ 'pr-md-zeile--konflikt': d.abwesend }"
+      <template v-else>
+        <!-- UX-B2: Legende der Rollenfarben. Sie zeigt nur Rollen, die in den
+             angezeigten Diensten wirklich vorkommen — Buchstabe UND Klartext,
+             damit die Farbe nicht das einzige Unterscheidungsmittel ist. -->
+        <ul v-if="legendeEintraege.length" class="pr-md-legende" aria-label="Rollen">
+          <li class="pr-md-legende-titel">Rollen</li>
+          <li
+            v-for="e in legendeEintraege"
+            :key="e.rolle"
+            class="pr-md-legende-punkt"
+            :data-art="e.farbe"
           >
-            <div class="pr-md-zeile-kopf">
-              <span class="pr-md-datum">{{ datumText(d.termin) }}</span>
-              <span v-if="d.uhrzeit" class="pr-md-uhrzeit">{{ uhrzeitText(d.uhrzeit) }}</span>
-              <span v-if="d.lied_titel" class="pr-md-lied">{{ d.lied_titel }}</span>
-            </div>
-            <div class="pr-md-zeile-rolle">
-              <span class="pr-md-feld">{{ feldName(d.feld_pfad) }}</span>
-              <span v-if="d.anlass" class="pr-md-anlass">{{ d.anlass }}</span>
-              <span v-if="d.termin_titel" class="pr-md-anlass">{{ d.termin_titel }}</span>
-            </div>
-            <div v-if="d.mitwirkende && d.mitwirkende.length" class="pr-md-mitwirkende">
-              {{ mitwirkendeText(d.mitwirkende) }}
-            </div>
-            <div v-if="d.abwesend" class="pr-md-konflikt">
-              ⚠️ Du hast für diesen Tag eine Abwesenheit gemeldet — bitte kläre die Einteilung.
-            </div>
-            <div class="pr-md-zeile-aktionen">
-              <button
-                type="button" class="dk-btn dk-btn-ghost dk-btn-sm"
-                :disabled="absageLaeuft[d.feld_pfad]"
-                @click="absageAnfragen(d, g)"
-              >{{ absageLaeuft[d.feld_pfad] ? 'Wird abgesagt …' : 'Absagen' }}</button>
-            </div>
+            <span class="pr-md-rolle-zeichen" :data-art="e.farbe" aria-hidden="true">{{ e.zeichen }}</span>
+            {{ e.text }}
+          </li>
+        </ul>
+
+        <!-- UX-B2: Plan-Kopf (Titel, Plan öffnen, Stand) einmal je Plan. -->
+        <div v-for="g in gruppen" :key="g.name" class="pr-md-plan">
+          <div class="pr-md-plan-kopf">
+            <h2 class="pr-md-gruppe-titel">{{ g.name }}</h2>
+            <a v-if="g.plan" class="pr-md-planlink" :href="planLink(g)">Plan öffnen</a>
+            <!-- OP-HANDY-6: „geändert am“-Marker — der Planer sieht, wann zuletzt
+                 veroeffentlicht wurde; das nimmt die Frage „gilt das noch?“ heraus. -->
+            <span v-if="geaendertText(g)" class="pr-md-stand">Stand: {{ geaendertText(g) }}</span>
+          </div>
+
+          <div class="pr-md-monate">
+            <section v-for="m in g.monate" :key="m.schluessel" class="dk-card pr-md-monat">
+              <header class="pr-md-monat-kopf">
+                <h3 class="pr-md-monat-titel">{{ m.titel }}</h3>
+                <span class="dk-badge">{{ diensteText(m.dienste.length) }}</span>
+              </header>
+              <ul class="pr-md-monat-liste">
+                <li
+                  v-for="(d, i) in m.dienste"
+                  :key="kennung(d, i)"
+                  class="pr-md-monat-zeile"
+                  :class="{ 'pr-md-monat-zeile--konflikt': d.abwesend }"
+                >
+                  <span
+                    class="pr-md-rolle-zeichen"
+                    :data-art="rollenFarbe(d.feld_pfad || d.feld_name)"
+                    :title="feldName(d.feld_pfad)"
+                    :aria-label="feldName(d.feld_pfad)"
+                  >{{ rollenZeichen(d.feld_pfad || d.feld_name, feldName(d.feld_pfad)) }}</span>
+                  <div class="pr-md-monat-haupt">
+                    <p class="pr-md-monat-kopfzeile">
+                      <span class="pr-md-datum">{{ datumText(d.termin) }}</span>
+                      <span v-if="d.uhrzeit" class="pr-md-uhrzeit">{{ uhrzeitText(d.uhrzeit) }}</span>
+                      <span class="pr-md-feld">{{ feldName(d.feld_pfad) }}</span>
+                    </p>
+                    <p v-if="d.lied_titel" class="pr-md-lied">{{ d.lied_titel }}</p>
+                    <p v-if="d.anlass || d.termin_titel" class="pr-md-anlass">
+                      {{ [d.anlass, d.termin_titel].filter(Boolean).join(' · ') }}
+                    </p>
+                    <p v-if="d.mitwirkende && d.mitwirkende.length" class="pr-md-mitwirkende">
+                      {{ mitwirkendeText(d.mitwirkende) }}
+                    </p>
+                    <p v-if="d.abwesend" class="pr-md-konflikt">
+                      ⚠️ Du hast für diesen Tag eine Abwesenheit gemeldet — bitte kläre die Einteilung.
+                    </p>
+                  </div>
+                  <div class="pr-md-monat-aktion">
+                    <button
+                      type="button" class="dk-btn dk-btn-ghost dk-btn-sm"
+                      :disabled="absageLaeuft[d.feld_pfad]"
+                      @click="absageAnfragen(d, g)"
+                    >{{ absageLaeuft[d.feld_pfad] ? 'Wird abgesagt …' : 'Absagen' }}</button>
+                  </div>
+                </li>
+              </ul>
+            </section>
           </div>
         </div>
-      </section>
+      </template>
+
 
       <!-- UXP-R17: gemeldete Abwesenheiten — nach dem Neuladen sichtbar, loeschbar. -->
       <section class="dk-card pr-md-abwesenheit">
@@ -168,6 +202,9 @@ import { pflichtFehler, erstesFehlerfeld } from '../../composables/formularPruef
 import DkModal from '../../components/DkModal.vue'
 import PrMeldungen from '../../components/planrahmen/PrMeldungen.vue'
 import { feldName, mitwirkendeText } from '../../components/planrahmen/meine-dienste.mjs'
+import {
+    monatsGruppen, rollenFarbe, rollenZeichen, legende, diensteText,
+} from '../../components/planrahmen/meine-dienste-monate.mjs'
 
 const { meineDienste, abwesenheitMelden, abwesenheitenListe, abwesenheitLoeschen, dienstAbsagen } = usePlanrahmen()
 const { mitglied } = useSession()
@@ -208,7 +245,7 @@ onMounted(() => {
     abwesenheitenLaden()
 })
 
-// ── Dienste nach Plan gruppieren ───────────────────────────────────────────
+// ── Dienste nach Plan, darin je Monat eine Karte (UX-B2) ───────────────────
 
 const gruppen = computed(() => {
     const karte = new Map()
@@ -217,11 +254,16 @@ const gruppen = computed(() => {
         if (!karte.has(key)) karte.set(key, { plan: d.plan || '', name: d.titel || 'Plan', dienste: [] })
         karte.get(key).dienste.push(d)
     }
-    return [...karte.values()].map((g) => ({
-        ...g,
-        dienste: g.dienste.slice().sort((a, b) => String(a.termin || '').localeCompare(String(b.termin || ''))),
-    })).sort((a, b) => (a.dienste[0]?.termin || '').localeCompare(b.dienste[0]?.termin || ''))
+    return [...karte.values()].map((g) => {
+        const sortiert = g.dienste.slice().sort((a, b) => String(a.termin || '').localeCompare(String(b.termin || '')))
+        // Eine Karte je Monat; `dienste` bleibt fuer die Absage-/Stand-Logik
+        // erhalten (geaendertText liest daraus), `monate` traegt die Karten.
+        return { ...g, dienste: sortiert, monate: monatsGruppen(sortiert) }
+    }).sort((a, b) => (a.dienste[0]?.termin || '').localeCompare(b.dienste[0]?.termin || ''))
 })
+
+/** Legende: nur Rollen, die in den angezeigten Diensten vorkommen. */
+const legendeEintraege = computed(() => legende(dienste.value, (rolle) => feldName(rolle)))
 
 function kennung(d, i) {
     return `${d.plan || ''}-${d.termin_id || d.termin || ''}-${d.feld_pfad || ''}-${i}`
@@ -348,13 +390,99 @@ async function abwesenheitLoeschenAktion(a) {
 .pr-md-zustand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--dk-text-muted); font-size: 0.9rem; }
 .pr-md-zustand--fehler { color: var(--dk-danger); }
 .pr-md-gruppe + .pr-md-gruppe { margin-top: 24px; }
+.pr-md-plan + .pr-md-plan { margin-top: 28px; }
+.pr-md-plan-kopf { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; }
 .pr-md-gruppe-titel {
   display: flex; align-items: baseline; gap: 10px;
   font-size: 0.76rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
-  color: var(--dk-text-muted); margin: 0 0 10px;
+  color: var(--dk-text-muted); margin: 0;
 }
 .pr-md-planlink { font-size: 0.72rem; text-transform: none; letter-spacing: 0; color: var(--dk-brand-700, var(--dk-info)); }
-.pr-md-stand { font-size: 0.72rem; color: var(--dk-text-muted); margin: -6px 0 10px; }
+.pr-md-stand { font-size: 0.72rem; color: var(--dk-text-muted); margin: 0; }
+
+/* ── UX-B2/B2b: Monatskarten mit Rollenfarbe ──────────────────────────────
+   Je Monat eine Karte (dk-card), darin eine Zeile je Dienst mit farbigem
+   Rollenzeichen. Die Zeichen tragen IMMER einen Buchstaben — die Farbe ist
+   nie das einzige Unterscheidungsmittel (WCAG 1.4.1).
+
+   Variante D (Operator-Entscheidung 2026-10-24): FLÄCHE = Rollenton 12 %
+   (hell) / 22 % (dunkel) ueber der Kartenfläche, SCHRIFT einheitlich --text.
+   Kein einziger Farbwert steht hier fest — die Töne kommen aus den Tokens
+   --accent, --info, --ok, --muted; die Deckkraft aus FLAECHE_HELL/FLAECHE_DUNKEL. */
+.pr-md-legende {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  list-style: none; margin: 0 0 20px; padding: 10px 14px;
+  border: 1px solid var(--dk-border); border-radius: var(--radius);
+  background: var(--dk-surface-2);
+}
+.pr-md-legende-titel {
+  font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--dk-text-muted);
+}
+.pr-md-legende-punkt {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 0.82rem; color: var(--dk-text);
+}
+.pr-md-rolle-zeichen {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; flex: 0 0 26px;
+  border-radius: var(--radius-sm);
+  font-size: 0.76rem; font-weight: 700; line-height: 1;
+  /* Rueckfall (unbekannte Rolle): Fläche ohne Rollenton, nur Rahmen. */
+  background: transparent; color: var(--dk-text);
+  border: 1px solid var(--dk-border-strong);
+}
+.pr-md-rolle-zeichen[data-art="accent"],
+.pr-md-rolle-zeichen[data-art="info"],
+.pr-md-rolle-zeichen[data-art="ok"],
+.pr-md-rolle-zeichen[data-art="warm-500"] {
+  background: color-mix(in srgb, var(--rolle-ton) var(--rolle-flaeche), var(--surface));
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--rolle-ton) 35%, var(--line));
+}
+/* Der Ton je Rolle — nur vorhandene Tokens, kein neuer Farbwert. */
+.pr-md-rolle-zeichen[data-art="accent"]   { --rolle-ton: var(--accent); }
+.pr-md-rolle-zeichen[data-art="info"]     { --rolle-ton: var(--info); }
+.pr-md-rolle-zeichen[data-art="ok"]       { --rolle-ton: var(--ok); }
+/* Einsingen: neutral (warmgrau) statt --warn. Im Dunkelmodus liegen --accent
+   und --warn auf demselben Farbton. `--muted` ist dort zu blau und rueckt bei
+   22 % an --info heran; `--dk-warm-500` (Rohwert, themenunabhaengig) haelt zu
+   allen drei anderen Rollen sichtbaren Abstand. */
+.pr-md-rolle-zeichen[data-art="warm-500"] { --rolle-ton: var(--dk-warm-500); }
+
+/* Deckkraft der Fläche: hell 12 %, dunkel 22 % (dort verschwinden 12 %).
+   Gesetzt an den beiden Stellen, die ein Rollenzeichen tragen (Legende und
+   Dienstzeile) — nicht an einem Sammel-Selektor, den es im DOM nicht gibt. */
+.pr-md-legende,
+.pr-md-monat-zeile { --rolle-flaeche: 12%; }
+[data-theme="dark"] .pr-md-legende,
+[data-theme="dark"] .pr-md-monat-zeile,
+:root[data-theme="dark"] .pr-md-legende,
+:root[data-theme="dark"] .pr-md-monat-zeile { --rolle-flaeche: 22%; }
+
+.pr-md-monate { display: flex; flex-direction: column; gap: 14px; }
+.pr-md-monat { overflow: hidden; }
+.pr-md-monat-kopf {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px; border-bottom: 1px solid var(--dk-divider);
+  background: var(--dk-surface-2);
+}
+.pr-md-monat-titel {
+  font-size: 0.95rem; font-weight: 650; color: var(--dk-text); margin: 0;
+  letter-spacing: 0.01em;
+}
+.pr-md-monat-liste { list-style: none; margin: 0; padding: 0; }
+.pr-md-monat-zeile {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 16px; border-bottom: 1px solid var(--dk-divider);
+}
+.pr-md-monat-zeile:last-child { border-bottom: none; }
+.pr-md-monat-zeile:hover { background: var(--dk-surface-hover); }
+.pr-md-monat-zeile--konflikt { border-left: 3px solid var(--dk-warning); padding-left: 13px; }
+.pr-md-monat-haupt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.pr-md-monat-haupt > p { margin: 0; }
+.pr-md-monat-kopfzeile { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.pr-md-monat-aktion { flex: 0 0 auto; }
 .pr-md-zeile { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
 .pr-md-zeile--konflikt { border-left: 3px solid var(--dk-warning); padding-left: 10px; }
 .pr-md-zeile-kopf { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -367,6 +495,23 @@ async function abwesenheitLoeschenAktion(a) {
 .pr-md-mitwirkende { font-size: 0.8rem; color: var(--dk-text-muted); }
 .pr-md-konflikt { font-size: 0.8rem; color: var(--dk-warning); }
 .pr-md-zeile-aktionen { display: flex; gap: 8px; margin-top: 2px; }
+
+/* Mobil: die Absage-Aktion rueckt unter den Text, das Rollenzeichen bleibt
+   links in der Zeile — die Monatskarten bleiben so auch auf 390 px lesbar. */
+/* FIX-6: Mobil-Umschaltung — LAYOUT, also nur die Breite (index.css
+   «FIX-6 · Layout nur nach Breite», dieselbe Grenze 720 px).
+   Runde 2 (Messung t_fba1a868): Der Umbruch braucht im Mobil-Layout
+   100 % Breite. `.pr-md-monat-haupt { flex: 1 1 auto }` behielt sonst seine
+   Inhaltsbreite (278 px) und `flex-wrap: wrap` hatte nichts umzubrechen — die
+   Absage-Aktion rutschte NICHT unter den Text, sondern blieb in der Zeile
+   daneben. Desktop unverändert (Regel gilt nur <= 720 px). */
+@media (max-width: 720px) {
+  .pr-md-legende { gap: 10px 14px; padding: 10px 12px; }
+  .pr-md-monat-zeile { flex-wrap: wrap; padding: 12px; }
+  .pr-md-monat-haupt { flex: 1 1 100%; }
+  .pr-md-monat-aktion { margin-left: 38px; }
+  .pr-md-monat-kopf { padding: 10px 12px; }
+}
 .pr-md-abwesenheit { padding: 18px 20px; margin-top: 28px; }
 .pr-md-hinweis { font-size: 0.84rem; color: var(--dk-text-muted); margin: 0 0 12px; }
 .pr-md-block { margin-bottom: 10px; }

@@ -1,0 +1,121 @@
+/* Grundreset fuer ALLE vier Einstiege (diakonos, gast, registrierung,
+ * organigramm).
+ *
+ * Warum eine eigene Datei: Bis Tailwind 3 kam dieses Reset aus dessen Preflight
+ * (`@tailwind base`). DEP-1 hat das Frappe-Preset entfernt, DEP-2 hat Tailwind
+ * auf die 4er-Reihe gehoben und bindet bewusst NUR `theme` + `utilities` ein —
+ * der Preflight bleibt draussen, weil er Tabellen, Ueberschriften und Formulare
+ * app-weit umstellt und damit eine zweite Gestaltungsquelle waere.
+ *
+ * Folge (Operator-Review DEP-2, Punkt 5): `registrierung` und `organigramm`
+ * luden nur `tokens.css` — dort fehlte danach jedes Reset (Felder in
+ * Browser-Schrift, widths als content-box). Deshalb steht das Reset jetzt hier
+ * und wird von JEDEM Einstieg geladen: eine Quelle, vier Einstiege.
+ *
+ * ── DEP-2b: LAYER `reset` (Befund HOCH, Regression) ──────────────────────
+ * Die erste Fassung schrieb ungelayerte Regeln:
+ *   button, [type='button'], … { background: none; border: 0; padding: 0 }
+ * Damit standen zwei Dinge gegen die Komponenten:
+ *
+ *  1. SPEZIFITAET: `[type='button']` wiegt (0,1,0) — so viel wie `.dk-ui-chip`.
+ *  2. REIHENFOLGE: `index.css` zieht das Reset per `@import` nach oben, Vite
+ *     sammelt `@import`-Inhalte aber ein und stellt sie hinter die direkt
+ *     geschriebenen Regeln. Im Buendel stand `box-sizing` bei Byte 56273, die
+ *     Tokens bei 92965, `.dk-ui-chip` aber schon bei 1307. Das Reset kam also
+ *     NACH den Komponenten.
+ *
+ * Ergebnis: die Filterchips verloren Rahmen, Hintergrund und Innenabstand
+ * (bis 8,4 % Pixeldiff auf `beitraege-mobil`).
+ *
+ * Reparatur in zwei Stufen — beide sind noetig:
+ *
+ *  a) Die ganze Datei liegt in `@layer reset`. Eine ungelayerte Regel schlaegt
+ *     JEDEN Layer; liegen Reset und Komponenten in Layern, entscheidet die
+ *     Layer-Reihenfolge und nicht mehr die Stelle im Buendel. `reset` wird in
+ *     `index.css` VOR allen anderen Layern deklariert und steht damit immer
+ *     unten — unabhaengig davon, wo Vite die Bytes hinlegt.
+ *  b) Zusaetzlich steht jeder Selektor in `:where(...)` (Spezifitaet 0). Das
+ *     ist der Guertel zum Hosentraeger: selbst wenn jemand eine Regel spaeter
+ *     aus dem Layer herauszieht, kann sie eine Komponentenklasse nicht mehr
+ *     ueberstimmen.
+ *
+ * Warum beides und nicht nur eines (beides gemessen, siehe Waechter-Test):
+ *  - NUR `@layer` verliert gegen JEDE ungelayerte Regel — also auch gegen die
+ *    alte Fassung, die ein Bearbeiter spaeter versehentlich wieder einfuegt.
+ *  - NUR `:where()` verliert gegen JEDE Regel, die spaeter im Dokument steht:
+ *    die alte Regel an das Ende des Kopfes gehaengt ueberschrieb den Chip
+ *    sofort wieder (background transparent, border 0, padding 0).
+ *
+ * Waechter: frontend/tests/dep2b-grundreset-spezifitaet.test.mjs — Layer,
+ * `:where()`-Form, nachgerechnete Spezifitaet und Position im Buendel.
+ *
+ * Bewusst NICHT enthalten:
+ *   - Farbschema/Theme  -> tokens.css
+ *   - Utility-Klassen   -> src/style.css (@source)
+ *   - Listen, Ränder, Überschriften-Groessen: Tailwinds Preflight setzte sie
+ *     auf 0/1em und nahm Aufzaehlungspunkten die Marker. Das Projekt gestaltet
+ *     diese Elemente selbst; ein Reset dort wuerde bestehende Seiten umstellen.
+ */
+
+@layer reset {
+  /* 1) Breiten als border-box: sonst wird `width: 100%` plus Innenabstand
+     breiter als der Bereich (`.dk-screen` ragte rechts heraus). */
+  :where(*),
+  :where(*::before),
+  :where(*::after) {
+    box-sizing: border-box;
+  }
+
+  /* 2) Schrift am Wurzelelement: Elemente AUSSERHALB von `.dk-app` (Sprunglink,
+     untere Leiste, Platzhalter-Ansichten) erbten sonst die Browser-Vorgabe.
+     Die Farbe bleibt Sache der Tokens (Theme). */
+  :where(html) {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  :where(body) {
+    margin: 0;
+    -webkit-tap-highlight-color: transparent;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* 3) Formularelemente: Browser geben ihnen eigene Schrift (Arial statt Inter),
+     eigenen Innenabstand (1px 2px) und einen eigenen Rahmen. Die Komponenten
+     setzen Form und Farbe selbst — hier nur „erben statt Browser-Vorgabe". */
+  :where(button, input, optgroup, select, textarea) {
+    font: inherit;
+    color: inherit;
+    margin: 0;
+  }
+
+  :where(button, [type='button'], [type='submit'], [type='reset']) {
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    -webkit-appearance: button;
+  }
+
+  /* 4) Bilder/SVG sprengen ohne das ihre Spalte (width-attr statt CSS). */
+  :where(img, svg, video, canvas) {
+    display: block;
+    max-width: 100%;
+  }
+
+  /* 5) Tabellen erben die Rahmendichte des Projekts, nicht die des Browsers. */
+  :where(table) {
+    border-collapse: collapse;
+  }
+
+  /* 6) Ersatz fuer `[hidden]`, das Utilities ueberschreiben koennten.
+     Absichtlich OHNE `:where()` und MIT `!important`: `display`-Utilities
+     (`.flex`, `.grid`, …) sind ebenfalls eine einzige Klasse, koennten die
+     Ausblendung also je nach Reihenfolge aushebeln. Ein per `v-show` oder
+     `hidden`-Attribut ausgeblendetes Element MUSS verschwinden — `!important`
+     schlaegt jede normale Deklaration, unabhaengig von Spezifitaet und Layer. */
+  [hidden] {
+    display: none !important;
+  }
+}

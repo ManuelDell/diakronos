@@ -105,7 +105,7 @@
  * überhaupt ausliefert; der Server prüft jedes Recht erneut (403).
  */
 import {
-  ANTRAG_FILTER, antragsStatusText, beantragtText, nameFuerAntrag,
+  ANTRAG_FILTER, antragsStatusText, beantragtText, nameFuerAntrag, standText,
 } from './loeschantraege.mjs'
 import { computed } from 'vue'
 import DkCard from '../ui/DkCard.vue'
@@ -134,12 +134,6 @@ const emit = defineEmits(['freigeben', 'ablehnen', 'filter'])
 const offenAnzahl = computed(
   () => (props.filter === 'offen' && props.geladen ? props.antraege.length : 0),
 )
-
-function standText(a) {
-  const stand = antragsStatusText(a)
-  if (stand.am) return `${stand.text} · ${stand.am}`
-  return stand.text
-}
 
 function filterWechseln(wert) {
   // DkFilterChips schaltet einen zweiten Klick auf denselben Chip ab

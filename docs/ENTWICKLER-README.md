@@ -68,7 +68,7 @@ mitreisst.
 **Frontend-Tests ohne Build** (Node ≥ 20):
 
 ```
-cd frontend && npm ci --legacy-peer-deps && npm test
+cd frontend && npm ci && npm test
 ```
 
 **Migrationen** werden immer gegen eine frische Datenbank **und** gegen eine

@@ -22,3 +22,11 @@ frontend/node_modules/
 .worktrees/
 # TLS private keys and operator-provided certificate chains never enter Git.
 certs/
+
+# FIX-5: eigener Wegwerf-Stack (Compose-Projekt fix5r2) — Daten und Env bleiben lokal.
+.fix5r2.env
+compose/.fix5r2/
+
+# FIX-6b: eigener Wegwerf-Stack (Compose-Projekt fix6b) — Env bleibt lokal.
+.env.fix6b
+compose/.fix6b/

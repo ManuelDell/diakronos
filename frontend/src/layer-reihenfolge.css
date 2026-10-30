@@ -1,0 +1,18 @@
+/* DEP-2b — Layer-Reihenfolge fuer die Einstiege OHNE index.css.
+ *
+ * `registrierung` und `organigramm` laden `tokens.css` + `grundreset.css`
+ * direkt (sie ziehen die SPA-Stylesheetkette nicht ein). Die CSS-Layer-
+ * Reihenfolge gilt je Buendel, und die ERSTE Deklaration legt sie fest.
+ * Diese Datei wird deshalb als erstes Stylesheet geladen: `reset` ist damit
+ * der schwaechste Layer, egal wo das Grundreset im Buendel landet.
+ *
+ * Warum eine eigene Datei und nicht im Grundreset selbst: dort gaelte die
+ * Reihenfolge fuer ALLE vier Einstiege und wuerde die der SPA
+ * (`src/diakonos/index.css`) mitbestimmen, wo `kronos` und `base` dazwischen
+ * liegen. Die SPA bringt ihre Reihenfolge selbst mit.
+ *
+ * Die Liste muss zu `src/diakonos/index.css` passen, nur ohne die Layer, die
+ * diese beiden Einstiege nicht laden. Waechter:
+ * frontend/tests/dep2b-grundreset-spezifitaet.test.mjs.
+ */
+@layer reset, theme, utilities;

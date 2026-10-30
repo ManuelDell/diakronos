@@ -58,8 +58,10 @@ if [ -n "$DOMAIN" ]; then
   export HOST_GUARD="if (\$host != $DOMAIN) { return 444; }" REDIRECT_HOST="$DOMAIN"
 fi
 [ "$HTTPS_PORT" = 443 ] || export REDIRECT_PORT=":$HTTPS_PORT"
-export BODY_LIMIT=$(( (MAX_UPLOAD_BYTES > MAX_UPLOAD_BYTES_AUDIO ? MAX_UPLOAD_BYTES : MAX_UPLOAD_BYTES_AUDIO) + 1048576 )) HSTS=""
-# Do not pin an untrusted bootstrap/selfsigned certificate in a browser.
-if [ "${TLS_MODE:-selfsigned}" = custom ] || [ "$CERT_PATH" = /tls/live.pem ]; then
-  export HSTS='add_header Strict-Transport-Security "max-age=31536000" always;'
-fi
+export BODY_LIMIT=$(( (MAX_UPLOAD_BYTES > MAX_UPLOAD_BYTES_AUDIO ? MAX_UPLOAD_BYTES : MAX_UPLOAD_BYTES_AUDIO) + 1048576 )) HSTS=''
+# SEC-4: HSTS kommt NICHT mehr von hier. Die App setzt `Strict-Transport-Security`
+# selbst (`backend/src/diakronos_app/sec_header.py`) und damit auch fuer
+# Antworten, die diesen nginx umgehen. Ein zweiter `add_header` derselben
+# Kopfzeile ergaebe eine Doppelsetzung mit abweichendem Wert (hier ohne
+# `includeSubDomains`) — deshalb bleibt HSTS an dieser Stelle leer.
+

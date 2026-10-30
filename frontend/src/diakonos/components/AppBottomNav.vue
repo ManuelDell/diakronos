@@ -26,7 +26,7 @@
          erscheint jetzt nur noch, wenn es wirklich etwas zu zeigen gibt —
          das schließt den Theme-Umschalter (DES-R22) ein. Da das Blatt immer
          den Theme-Umschalter enthält, ist es nie leer (R-P2-3-code K1). -->
-    <button class="dk-bn-tab" :class="{ active: showMore }" @click.stop="toggleMore">
+    <button class="dk-bn-tab" :class="{ active: showMore }" :aria-expanded="showMore" @click.stop="toggleMore">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>
       </svg>
@@ -48,8 +48,24 @@
           tabindex="-1"
           @keydown="tastenFaenger"
         >
-          <div class="dk-bn-sheet-handle"></div>
-          <div class="dk-bn-sheet-title">Navigation</div>
+          <!-- FIX-1 (DMB-a2d846875201): Der Kopf (Griff + Zustandszeile) war
+               reine Anzeige — am Handy ließ sich das Blatt nur durch Auswahl
+               eines Eintrags schließen. Er ist jetzt ein Knopf: Tippen auf
+               Griff, „Navigation“ oder den Pfeil klappt zu. -->
+          <button
+            type="button"
+            class="dk-bn-sheet-kopf"
+            :aria-label="KOPF_ARIA"
+            @click="closeMore"
+          >
+            <span class="dk-bn-sheet-handle" aria-hidden="true"></span>
+            <span class="dk-bn-sheet-kopfzeile">
+              <span class="dk-bn-sheet-title">{{ KOPF_TEXT }}</span>
+              <svg class="dk-bn-sheet-pfeil" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </span>
+          </button>
 
           <!-- DES-R22: Der Theme-Umschalter lag nur in der Seitenleiste — am
                Handy ist sie ausgeblendet, der Knopf damit unerreichbar. Hier
@@ -99,6 +115,7 @@ import { fusstabs } from './fusstabs.mjs'
 import { useDialogFokus } from '../composables/useDialogFokus.js'
 import { useZurueckSchliesst } from '../composables/useZurueckSchliesst.js'
 import { umschalterText } from '../composables/theme.mjs'
+import { KOPF_TEXT, KOPF_ARIA } from './mehrBlatt.mjs'
 
 const { user, mitglied, isAdmin, istTester: istTesterRef, devmodeAn: devmodeAnRef, anzeigeName } = useSession()
 
@@ -158,6 +175,9 @@ function avatarStil(name) {
   return { background: paar.bg, color: paar.ink }
 }
 
+/* Ein Tipp auf „Mehr“ schaltet das Blatt um — wie bisher (der zweite Tipp
+   schließt es also). Kein eigener Regelbaustein: eine zweite Fassung neben
+   dieser Zeile wäre ungenutzter Code. */
 function toggleMore() { showMore.value = !showMore.value }
 function closeMore() { showMore.value = false }
 
@@ -184,14 +204,20 @@ useZurueckSchliesst(showMore, closeMore)
   flex-direction: row;
   align-items: stretch;
 }
-@media (hover: none) and (pointer: coarse) and (max-width: 720px) {
+/* FIX-6: Untere Leiste = Mobil-Layout, also nur die Breite (<= 720 px,
+   index.css «FIX-6 · Layout nur nach Breite»). Ein schmales Fenster MIT Maus
+   bekommt sie ebenfalls — sie ist dort die Navigation. Vorher genügte
+   `(hover: none) and (pointer: coarse)`: ein Touch-Notebook im Querformat
+   bekam sie über den Folgeblock. */
+@media (max-width: 720px) {
   .dk-bottom-nav { display: flex; }
 }
 /* OP-HANDY-10: Im Querformat am Handy (844x390) waren Seitenleiste UND untere
    Leiste gleichzeitig sichtbar — Kontobereich und „Hilfe & Infos“ der
    Seitenleiste wurden von der unteren Leiste verdeckt. Eine Regel für beide:
-   In flachen Touch-Querformaten nur die untere Leiste. */
-@media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-height: 480px) {
+   In flachen Querformaten nur die untere Leiste. FIX-6: „flach“ ist eine
+   LAYOUT-Frage — nur Geräteform (Höhe/Orientierung), nicht der Zeiger. */
+@media (max-height: 480px) and (orientation: landscape) {
   .dk-bottom-nav { display: flex; }
 }
 
@@ -201,14 +227,34 @@ useZurueckSchliesst(showMore, closeMore)
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 3px;
   text-decoration: none;
-  color: var(--dk-text-muted);
-  font-size: 10px; font-weight: 500;
+  /* Operator-Review DEP-2, Punkt 6: die Beschriftungen der unteren Leiste waren
+     mit 10 px/500 zu duenn und zu hell (--dk-text-muted) — am Handy kaum lesbar.
+     Jetzt kraeftiger (600) und in der Textfarbe des Themes. Die Groesse bleibt
+     10 px: 5 Reiter muessen in 390 px passen („Ressourcen" ist der laengste). */
+  color: var(--dk-text);
+  font-size: 10px; font-weight: 600;
   background: none; border: none; cursor: pointer;
   padding: 0;
   transition: color 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.dk-bn-tab.active { color: var(--primary); }
+/* Der aktive Reiter nahm --primary — im Dunkelmodus ist das WEISS und damit von
+   den inaktiven nicht zu unterscheiden (dieselbe Falle wie DEV-4 bei DkTabs).
+   --accent ist in beiden Themes die Markenfarbe: hell 4,84:1, dunkel 9,48:1
+   auf der Leistenfläche. Zusaetzlich ein Unterstrich, damit der Zustand nicht
+   allein an der Farbe haengt (WCAG 1.4.1). */
+.dk-bn-tab.active {
+  color: var(--accent);
+  font-weight: 700;
+}
+.dk-bn-tab.active span { position: relative; }
+.dk-bn-tab.active span::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -3px;
+  height: 2px; border-radius: 1px;
+  background: var(--accent);
+}
 .dk-bn-tab svg { flex-shrink: 0; }
 
 /* Avatar mini */
@@ -232,7 +278,41 @@ useZurueckSchliesst(showMore, closeMore)
   max-height: 80vh;
   overflow-y: auto;
 }
+/* FIX-1: Der Kopf ist die Schließfläche. Er trägt die Breite des Blattes,
+   damit der Griff großzügig treffbar ist (am Handy mindestens 44 px hoch),
+   und bleibt optisch eine ruhige Kopfzeile ohne eigene Fläche. */
+.dk-bn-sheet-kopf {
+  display: block;
+  width: 100%;
+  /* Trefferfläche: 12 px über dem Griff + 4 px Griff + 8 px darunter + 12 px
+     Zeile ≈ 44 px — die übliche Mindestgröße für Finger. */
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--dk-text-muted);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dk-bn-sheet-kopf:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.dk-bn-sheet-kopfzeile {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+  padding: 0 20px 12px;
+}
+.dk-bn-sheet-pfeil {
+  flex-shrink: 0;
+  color: var(--dk-text-muted);
+}
+/* FIX-1 (Operator-Review): Der Griff ist jetzt ein <span> im Knopf. Ohne
+   display:block wäre er ein Inline-Element — Breite/Höhe fielen weg und der
+   Strich war unsichtbar. Er bleibt auch so nur Anzeige (aria-hidden). */
 .dk-bn-sheet-handle {
+  display: block;
   width: 36px; height: 4px; border-radius: 2px;
   background: var(--dk-border);
   margin: 12px auto 8px;
@@ -241,7 +321,7 @@ useZurueckSchliesst(showMore, closeMore)
   font-size: 12px; font-weight: 600;
   color: var(--dk-text-muted);
   text-transform: uppercase; letter-spacing: 0.5px;
-  padding: 4px 20px 12px;
+  padding: 0;
 }
 /* DES-R22: Theme-Umschalter im „Mehr“-Blatt — am Handy war er sonst
    unerreichbar (die Seitenleiste ist dort ausgeblendet). */

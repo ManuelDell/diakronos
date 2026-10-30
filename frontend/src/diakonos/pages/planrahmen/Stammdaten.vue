@@ -39,6 +39,14 @@
     </div>
 
     <template v-else>
+      <!-- PLAN-M1: Hinweis am Handy (nur schmal + Bearbeitungsrecht + nicht
+           geschlossen). Sperrt nichts — Ansehen bleibt vollständig möglich. -->
+      <PrHandyHinweis
+        :sichtbar="handyHinweisZeigen"
+        :darf-bearbeiten="darfBearbeiten"
+        @geschlossen="handyHinweisSchliessen"
+      />
+
       <!-- ST3: Personenpool-Hinweis — Planer sehen nur die Pool-Personen. -->
       <div v-if="poolInfo && poolInfo.gruppen && poolInfo.gruppen.length" class="pr-stamm-pool">
         <span class="pr-stamm-pool-text">
@@ -340,14 +348,16 @@
  * Umfang 'plan' braucht die konkrete Plan-ID; ohne Plan ist die Sammlung
  * schreibgeschützt (Vorbereitung läuft im Plan).
  */
-import { ref, reactive, computed, watch, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { getRouteParam } from '../../router.js'
 import { usePlanrahmen, fehlerMeldungen, datumText } from '../../composables/usePlanrahmen.js'
 import { showToast } from '../../composables/useToast.js'
 import BedarfDialog from '../../components/planrahmen/BedarfDialog.vue'
 import MerkmalWert from '../../components/planrahmen/MerkmalWert.vue'
 import PrMeldungen from '../../components/planrahmen/PrMeldungen.vue'
+import PrHandyHinweis from '../../components/planrahmen/PrHandyHinweis.vue'
 import LiederPflege from '../../components/planrahmen/LiederPflege.vue'
+import { useHandyHinweis, hinweisZeigen, istSchmal } from '../../composables/handyHinweis.mjs'
 import { VueDraggable } from 'vue-draggable-plus'
 
 const props = defineProps({
@@ -392,6 +402,30 @@ const hervorhebung = ref('')
 // liegt zentral in usePlanrahmen.stammdatenHolen — hier wird konsumiert.
 const definition = computed(() => daten.value?.definition || null)
 const darfBearbeiten = computed(() => !!daten.value?.darf_bearbeiten)
+
+// PLAN-M1: Hinweis am Handy — nur schmal + Bearbeitungsrecht + nicht
+// geschlossen. Rein Hinweis, nichts wird gesperrt.
+const handyHinweis = useHandyHinweis()
+const breiteAmFenster = ref(typeof window !== 'undefined' ? window.innerWidth : 0)
+const handyHinweisGeschlossen = ref(false)
+const handyHinweisZeigen = computed(() => !handyHinweisGeschlossen.value
+    && hinweisZeigen({
+        schmal: istSchmal(breiteAmFenster.value),
+        darfBearbeiten: darfBearbeiten.value,
+        geschlossen: false,
+    }))
+function beiGroessenAenderung() {
+    breiteAmFenster.value = typeof window !== 'undefined' ? window.innerWidth : 0
+}
+function handyHinweisSchliessen() {
+    handyHinweis.schliessen()
+    handyHinweisGeschlossen.value = true
+}
+onMounted(() => {
+    handyHinweisGeschlossen.value = handyHinweis.geschlossen()
+    beiGroessenAenderung()
+    if (typeof window !== 'undefined') window.addEventListener('resize', beiGroessenAenderung)
+})
 const titelZusatz = computed(() => definition.value?.name || geladenerTyp.value || '')
 const kopfText = computed(() => {
     const teile = []
@@ -466,7 +500,10 @@ async function ladenStarten() {
 }
 
 let ladeNummer = 0
-onUnmounted(() => { ladeNummer += 1 })
+onUnmounted(() => {
+    ladeNummer += 1
+    if (typeof window !== 'undefined') window.removeEventListener('resize', beiGroessenAenderung)
+})
 
 /** Nach Schreibvorgängen neu laden, ohne die Seite neu aufzubauen. */
 async function datenNeuLaden() {

@@ -4,10 +4,15 @@ from diakronos_app.frappe_compat.session import set_user
 
 def test_token_api_bremst_vor_db(client, monkeypatch):
     from diakronos_app.anmeldung import registrierungsbremse
-    monkeypatch.setattr(registrierungsbremse, 'zaehle_validierung', lambda ip: False)
+    monkeypatch.setattr(registrierungsbremse, 'zaehle_validierung', lambda ip, token=None: False)
     set_user('Guest')
     r = client.post('/api/method/diakronos.diakonos.api.registrierung.validate_token', json={'token':'ungueltig'})
-    assert r.status_code == 417, r.text
+    # SEC-3: ein gebremster Versuch ist eine Grenze, kein Fachfehler. Die
+    # Antwort ist deshalb HTTP 429 (`RateLimitError`) statt 417 — der Pentest
+    # (dev.ecg-hn.de) fand genau hier eine Bremse ohne Wirkung; ein Skript
+    # soll sie an der Statuszeile erkennen. Die Meldung bleibt dieselbe.
+    assert r.status_code == 429, r.text
+    assert r.json()['exc_type'] == 'RateLimitError', r.text
     assert 'viele' in r.json()['message']
 
 

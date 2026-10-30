@@ -36,6 +36,12 @@
             <input type="checkbox" :checked="(spaltenVon(a) || []).includes(f.pfad)" @change="spaltenToggle(a, f.pfad, $event.target.checked)" />
             {{ f.name || f.pfad }}
           </label>
+          <!-- UX-C3b: eine Spalte, die es nicht mehr gibt, bleibt als
+               „unbekannter Wert“ sichtbar (die Prüfung meldet sie). -->
+          <label v-for="pfad in unbekannteSpalten(a)" :key="'u' + pfad" class="pr-an-chip pr-an-chip--alt">
+            <input type="checkbox" checked @change="spaltenToggle(a, pfad, $event.target.checked)" />
+            {{ pfad }} (unbekannter Wert)
+          </label>
         </div>
         <PrPfadMeldungen :meldungen="meldungen" :pfad="'ansichten/' + i + '/spalten'" />
         <template v-if="a.art === 'kalender'">
@@ -86,19 +92,18 @@
         <h5 class="pr-an-titel">Formatvorlagen der Zellen</h5>
         <PrPfadMeldungen :meldungen="meldungen" :pfad="'ansichten/' + i + '/format'" exakt />
         <div v-for="(vorlage, schluessel) in formatVon(a)" :key="schluessel" class="pr-an-format">
-          <input
-            :value="schluessel" type="text" class="dk-form-input pr-an-schluessel"
-            list="pr-an-feldpfade" aria-label="Feld"
-            @change="formatSchluesselWechseln(a, schluessel, $event.target.value)"
+          <!-- UX-C3b: Die Formatvorlage hängt an einer Feld-Kennung — Auswahl
+               statt Freitext; ein Altwert bleibt als „unbekannter Wert“. -->
+          <PrAuswahl
+            class="pr-an-schluessel" :model-value="schluessel" :optionen="feldPfadOptionen"
+            aria-label="Feld" :unbekannt-name="'unbekannter Feldpfad'"
+            @update:model-value="formatSchluesselWechseln(a, schluessel, $event)"
           />
           <input v-model="a.format[schluessel]" type="text" class="dk-form-input" placeholder="{eintrag.buch} {eintrag.titel}" aria-label="Formatvorlage" />
           <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Formatvorlage entfernen" @click="delete a.format[schluessel]">✕</button>
           <p class="pr-an-vorschau">Vorschau: {{ formatVorschau(a.format[schluessel]) }}</p>
           <div class="pr-an-formatfehler"><PrPfadMeldungen :meldungen="meldungen" :pfad="'ansichten/' + i + '/format/' + schluessel" /></div>
         </div>
-        <datalist id="pr-an-feldpfade">
-          <option v-for="f in feldPfade" :key="f.pfad" :value="f.pfad" />
-        </datalist>
         <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="formatHinzufuegen(a)">+ Formatvorlage hinzufügen</button>
       </div>
     </div>
@@ -114,9 +119,11 @@
  * Beispielwerten aus der eigenen Definition — keine erfundenen Inhalte).
  */
 import { computed } from 'vue'
+import PrAuswahl from './PrAuswahl.vue'
 import PrPfadMeldungen from './PrPfadMeldungen.vue'
 import { ANSICHTS_ARTEN, DRUCK_FORMATE, feldPfadListe } from './editor.mjs'
 import { formatTemplate } from './format.mjs'
+import { feldPfadOptionen as feldPfadOptionenAus } from './auswahl.mjs'
 
 const props = defineProps({
   ansichten: { type: Array, required: true },
@@ -135,6 +142,15 @@ const feldPfade = computed(() => {
   }
   return liste
 })
+
+/** UX-C3b: Feldpfade als Auswahl (Formatvorlagen, Spalten). */
+const feldPfadOptionen = computed(() => feldPfadOptionenAus(props.definition, feldPfadListe))
+
+/** Gespeicherte Spalten, die es in der Definition nicht (mehr) gibt. */
+function unbekannteSpalten(ansicht) {
+  const bekannt = new Set(feldPfade.value.map((f) => f.pfad))
+  return spaltenVon(ansicht).filter((pfad) => pfad && pfad !== 'anlass' && !bekannt.has(pfad))
+}
 
 /** Beispielkontext für die Formatvorschau — nur Struktur aus der Definition. */
 const beispiel = computed(() => {
@@ -220,6 +236,9 @@ function kalenderSpalten(ansicht, monat) {
 .pr-an-format { display: grid; grid-template-columns: minmax(120px, 200px) 1fr auto; gap: 6px; align-items: center; }
 .pr-an-formatfehler { grid-column: 1 / -1; }
 .pr-an-schluessel { font-family: ui-monospace, monospace; font-size: 0.82rem; }
+.pr-an-chip--alt { color: var(--dk-warning); }
 .pr-an-vorschau { grid-column: 1 / -1; font-size: 0.78rem; color: var(--dk-text-muted); margin: 0; font-style: italic; }
+/* Inhaltsumbruch, kein Layout: die drei Spalten einer Formatzeile
+   (Auswahl | Feld | Aktion) stehen untereinander. */
 @media (max-width: 640px) { .pr-an-format { grid-template-columns: 1fr; } }
 </style>

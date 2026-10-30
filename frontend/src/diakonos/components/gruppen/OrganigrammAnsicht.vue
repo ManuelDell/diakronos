@@ -155,6 +155,8 @@ import { showToast } from '../../composables/useToast.js'
 import DkButton from '../ui/DkButton.vue'
 import DkDialog from '../ui/DkDialog.vue'
 import { baueTreffzeit, WOCHENTAGE } from '../../composables/treffzeit.mjs'
+// DEV-1: Methode und Feldnamen der drei Anlege-Aufrufe aus EINER Quelle.
+import { anlegeAufruf } from '../../composables/gruppenAnlegen.mjs'
 import DkField from '../ui/DkField.vue'
 import DkSelect from '../ui/DkSelect.vue'
 import DkEmpty from '../ui/DkEmpty.vue'
@@ -344,27 +346,14 @@ async function submitCreate() {
     }
     sendingCreate.value = true
     try {
-        if (f.typ === 'dienstbereich') {
-            await apiCall('diakronos.diakonos.api.gruppen.create_dienstbereich', {
-                name: f.name.trim(),
-                farbe: f.farbe || standardFarbe()
-            })
-            showToast('Dienstbereich angelegt', 'success') // OP-ADMIN-22
-        } else if (f.typ === 'gruppe') {
-            // UXD-R4: das Backend verlangt `dienstbereich` (nicht `parent`).
-            await apiCall('diakronos.diakonos.api.gruppen.create_gruppe', {
-                name: f.name.trim(),
-                dienstbereich: f.parent
-            })
-            showToast('Gruppe angelegt', 'success')
-        } else if (f.typ === 'untergruppe') {
-            // UXD-R4: das Backend verlangt `gruppe` (nicht `parent`).
-            await apiCall('diakronos.diakonos.api.gruppen.create_untergruppe', {
-                name: f.name.trim(),
-                gruppe: f.parent
-            })
-            showToast('Untergruppe angelegt', 'success')
-        }
+        // DEV-1: Methode und Feldnamen kommen aus EINER Quelle — derselbe
+        // Baustein versorgt den Dialog der Listenansicht
+        // (composables/gruppenAnlegen.mjs). Der Farb-Standard bleibt hier.
+        const { methode, parameter, toast } = anlegeAufruf(f.typ, {
+            ...f, farbe: f.farbe || standardFarbe(),
+        })
+        await apiCall(methode, parameter)
+        showToast(toast, 'success')
         closeCreateModal()
         await loadData()
     } catch (err) {

@@ -74,16 +74,21 @@ def _env_wahr(name: str) -> bool:
     return wert in {"1", "true", "yes", "on", "ja"}
 
 
-def aktiv() -> bool:
+def aktiv(einstellungen=None) -> bool:
     """Ist der Dev-Modus eingeschaltet?
 
     Gelesen wird die Einstellung (Compose/`.env`); zusaetzlich akzeptiert der
     Prozess die Umgebungsvariable unmittelbar, damit Tests den Schalter ohne
     Neustart setzen koennen.
+
+    `einstellungen` (SEC-4): der Aufrufer kann seine Einstellungen
+    durchreichen — `main.erstelle_app()` baut die App auch fuer Tests, die
+    eine andere Umgebung pruefen. Ohne Angabe gilt die modulweite Einstellung.
     """
     if _env_wahr("DEVMODE_ENABLED"):
         return True
-    return bool(getattr(settings, "devmode_enabled", False))
+    quelle = einstellungen if einstellungen is not None else settings
+    return bool(getattr(quelle, "devmode_enabled", False))
 
 
 def stt_verfuegbar() -> bool:

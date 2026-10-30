@@ -35,6 +35,35 @@ from .pruefung import pruefe_plantyp
 from .rechte import Rechte, _plantyp_gruppen
 from .regeln.auswertung import pruefe_plan
 
+# PLAN-W1: Felder einer Eintragszeile, die Pruef-Meldungen tragen. Nur wer den
+# Plan bearbeiten darf, sieht sie (PrMeldungen im Plan).
+MELDUNGS_FELDER = ("meldungen", "bewertung")
+
+
+def ohne_meldungen(zeile: dict[str, Any]) -> dict[str, Any]:
+    """Kopie einer Eintragszeile ohne Pruef-Warnungen (Betrachter-Sicht).
+
+    Befund DMB-7d8e3068c388: Die Regelpruefung ist internes Planerwissen. Die
+    Meldungen haengen als Spalte am EINTRAG und reisten deshalb im selben
+    ``eintraege``-Feld wie der Wert — ein reiner Betrachter bekam sie mit.
+    Diese Funktion entfernt sie an jeder Auslieferungsstelle (Entwurf,
+    Veroeffentlichungs-Snapshot) und laesst den Rest der Zeile unberuehrt.
+    """
+    return {k: v for k, v in (zeile or {}).items() if k not in MELDUNGS_FELDER}
+
+
+def stand_ohne_meldungen(stand: dict[str, Any] | None) -> dict[str, Any]:
+    """Veroeffentlichungs-Stand mit geschwärzten Pruef-Warnungen.
+
+    Die Schwaerzung sitzt an der WURZEL (``veroeffentlichen``), der
+    Auslieferung an Betrachter (``plan_holen``) und beim Lesen des
+    Snapshots — so kann kein alter Snapshot mit ``meldungen``/``bewertung``
+    und keine kuenftige Auslieferungsstelle sie durchreichen (PLAN-W1).
+    """
+    stand = dict(stand or {})
+    stand["eintraege"] = [ohne_meldungen(e) for e in stand.get("eintraege", ())]
+    return stand
+
 
 class DienstFehler(Exception):
     """Strukturierte, öffentlich lesbare Fachmeldungen (ohne interne Daten)."""
@@ -1365,6 +1394,12 @@ class Dienste:
         aufgeloest. Ergebnisform je Eintrag ist identisch zu
         ``termin_struktur`` (``termin``/``version``/``slots``), damit die
         Oberflaeche nichts umbauen muss.
+
+        PLAN-W1: Ohne Bearbeitungsrecht bleibt es bei einer reinen
+        Typ-/Feldinformation — die Eintragszeilen des Veroeffentlichungs-
+        Stands werden nicht mehr mitgelesen. So kann auch ein stehen-
+        gebliebener Snapshot keine Pruef-Meldungen an Betrachter durchreichen;
+        die Werte traegt die Planseite ohnehin aus ``plan_holen``.
         """
         p, _, bearbeiten = self._plan(plan, False)
         if not bearbeiten:
@@ -1430,14 +1465,16 @@ class Dienste:
         if p.status == "archiviert" and not bearbeiten:
             fehler("/plan", "Dieser Plan ist archiviert und nicht mehr einsehbar.",
                    "plan.archiviert")
-        stand = {**zeile(p), **self._stand(p)} if bearbeiten else deepcopy(p.veroeffentlichter_stand)
-        # P1-11b M1/UXP-R19: Bei aelteren, schon veroeffentlichten Staenden (vor
-        # der Schwärzung beim Veroeffentlichen) kann die Spalte `meldungen`
-        # noch im Snapshot stehen. Hier defensiv entfernen, damit kein
-        # Nicht-Bearbeitungs-Zugriff interne Regelpruefungen leckt.
-        if not bearbeiten and stand:
-            for e in stand.get("eintraege", ()):
-                e.pop("meldungen", None)
+        stand = {**zeile(p), **self._stand(p)} if bearbeiten else p.veroeffentlichter_stand
+        # PLAN-W1 (Befund DMB-7d8e3068c388): Pruef-Warnungen (PrMeldungen) sind
+        # internes Planerwissen — wer den Plan nur ANSEHEN darf, bekommt sie
+        # weder im Entwurf noch in einem stehengebliebenen Veroeffentlichungs-
+        # Snapshot. Die Schwaerzung sitzt an der Wurzel (veroeffentlichen),
+        # hier wird sie beim Ausliefern erneut erzwungen.
+        if not stand:
+            stand = {}
+        elif not bearbeiten:
+            stand = stand_ohne_meldungen(stand)
         quelle = self._quelle(typ, p)
         paare: list[tuple[EngineTermin, dict[str, Any]]] = []
         eintraege: list[EngineEintrag] = []
@@ -2407,8 +2444,7 @@ class Dienste:
         # die Spalte `meldungen` in jeden Nicht-Bearbeitungs-Zugriff. Schon hier
         # an der Wurzel entfernen, damit jede Ansicht auf den veroeffentlichten
         # Stand frei davon ist — nicht nur die, die man gerade kennt.
-        for e in stand["eintraege"]:
-            e.pop("meldungen", None)
+        stand["eintraege"] = [ohne_meldungen(e) for e in stand["eintraege"]]
         p.veroeffentlichter_stand = stand
         gruppe = self._schreibabschluss(p, vorher, "veroeffentlichen")
         # BF1-B: Der Diff vergleicht ANWESENHEIT, nicht nur den Wert. Vorher war

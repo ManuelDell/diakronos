@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { io } from 'socket.io-client'
 import { apiCall } from '../composables/useApi.js'
 import { navigate } from '../router.js'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
@@ -21,7 +20,11 @@ const calendars = ref([])
 const existing = ref([])
 const importing = ref(false)
 const result = ref(null)
-const progress = ref({})
+// DEP-2b: Startzustand statt `{}` — das Template liest `progress.calendar_name`
+// und `progress.status`, ohne auf einen Stand warten zu koennen. Mit `{}`
+// standen beide auf `undefined`; mit `null` (so kam die erste Abfrage zurueck)
+// warf das Template. Der Zustand ist damit immer ein Objekt.
+const progress = ref({ status: 'startet', imported: 0 })
 const warnings = ref([])
 const icalMode = ref('new')
 const icalName = ref('')
@@ -30,7 +33,13 @@ const icalColor = ref('#4285F4')
 const icalFile = ref(null)
 const icalResult = ref(null)
 const disabled = computed(() => busy.value || importing.value || loading.value)
-let socket = null
+// DEP-2: Der Fortschritt kommt per Abfrage (RPC `get_import_progress`), nicht
+// mehr über Socket.IO (`socket.io-client` ist damit entfallen). Begründung:
+// der Client war die einzige Nutzung des Pakets; die Abfrage funktioniert mit
+// beliebig vielen Uvicorn-Arbeitern (kein Sticky-Session-Zwang) und braucht
+// keine zusätzliche Verbindung, die im Hausnetz scheitern kann.
+const POLL_INTERVALUE = 2000
+let pollTimer = null
 let deadline = null
 let disposed = false
 
@@ -92,15 +101,33 @@ async function authorize() {
 function stopProgress() {
   importing.value = false
   clearTimeout(deadline)
-  socket?.off('gcal_import_progress')
-  socket?.disconnect()
-  socket = null
+  clearTimeout(pollTimer)
+  pollTimer = null
 }
+// DEP-2b (Review 1, HOCH): Die erste Abfrage kommt regelmaessig VOR dem ersten
+// Stand des Hintergrundauftrags zurueck (`{"state": null}`). Vorher wurde der
+// Stand damit auf `null` gesetzt; das Template las danach `progress.calendar_name`
+// und die Seite stuerzte ab. `null` heisst deshalb ausdruecklich „noch nichts
+// gemeldet" — der zuletzt bekannte Stand bleibt stehen (anfangs der
+// Startzustand), der Balken zeigt weiter „wird gestartet".
 function receiveProgress(data) {
   if (disposed || !importing.value) return
+  if (!data || typeof data !== 'object') return
+  // Reihenfolge der Meldungen: ein Zwischenstand darf einen Abschluss nicht
+  // ueberschreiben, der schon abgeholt wurde (der Stand in Redis bleibt bis
+  // `PROGRESS_TTL` liegen, bis `start_import` ihn loescht).
+  if (progress.value.status === 'done') return
   progress.value = data
-  if (data.status === 'warning') warnings.value.push('Ein Termin wurde übersprungen, weil er nicht unterstützt wird.')
-  if (data.status === 'error') warnings.value.push('Ein Kalender konnte nicht vollständig importiert werden.')
+  // DEP-2b (Review 3, MITTEL): Warnungen gehoeren dem SERVER-Stand, nicht der
+  // Seite. Vorher haengte jede Abfrage (alle 2 s) dieselbe stehende Warnung
+  // erneut an, und Warnungen, die zwischen zwei Abfragen kamen, gingen
+  // verloren. Jetzt bringt der Stand die vollstaendige Liste mit; fehlt sie
+  // (aeltere Fassung), bleibt der bisherige Stand erhalten.
+  if (Array.isArray(data.warnings)) {
+    warnings.value = data.warnings.filter(w => typeof w === 'string' && w)
+  } else if (data.status === 'warning' && data.warning) {
+    if (!warnings.value.includes(data.warning)) warnings.value = [...warnings.value, data.warning]
+  }
   if (data.status === 'done') {
     result.value = data
     if (data.error) error.value = 'Der Import wurde nicht vollständig abgeschlossen. Bereits importierte Kalender bleiben erhalten. Bitte erneut verbinden und den Import prüfen.'
@@ -108,27 +135,17 @@ function receiveProgress(data) {
     loadExisting().catch(() => { error.value = 'Zielkalender konnten nicht aktualisiert werden. Bitte lade die Seite neu.' })
   }
 }
-function connectProgress() {
-  socket = io({ autoConnect: false, withCredentials: true, timeout: 10000,
-    // Nur WebSocket (Befund W2): Uvicorn laeuft mit mehreren Arbeitern ohne
-    // Sticky Sessions. Engine.IO beginnt mit HTTP-Long-Polling; die Poll-
-    // Anfragen einer sid landen dann bei verschiedenen Arbeitern und der
-    // Server antwortet 'Invalid session' — der Fortschrittsbalken bricht ab.
-    // Eine WebSocket-Verbindung bleibt fuer ihre ganze Laufzeit bei einem
-    // Arbeiter und funktioniert damit auch mit WEB_CONCURRENCY > 1.
-    transports: ['websocket'],
-    // Engine.IO polling POSTs pass through the same CSRF middleware as RPCs.
-    extraHeaders: { 'X-Frappe-CSRF-Token': window.__DIakonosBOOT?.csrf_token || '' },
-  })
-  socket.on('gcal_import_progress', receiveProgress)
-  socket.on('disconnect', () => {
-    if (importing.value) error.value = 'Fortschrittsverbindung unterbrochen. Der Import kann im Hintergrund weiterlaufen; bitte nicht erneut starten und die Kalender anschließend prüfen.'
-  })
-  return new Promise((resolve, reject) => {
-    if (socket.connected) return resolve()
-    socket.once('connect', resolve)
-    socket.once('connect_error', reject)
-    socket.connect()
+// Abfrage-Takt: Runde, dann Pause (POLL_INTERVALUE), dann nächste Runde —
+// nur solange der Import läuft und die Seite noch steht.
+function pollRunde() {
+  if (disposed || !importing.value) return
+  apiCall(prefix + 'get_import_progress').then((stand) => {
+    receiveProgress(stand?.state)
+  }).catch(() => {
+    // still: der Import läuft im Hintergrund weiter, ein einzelner Aussetzer
+    // darf den Balken nicht einfrieren — die nächste Runde versucht es erneut.
+  }).finally(() => {
+    if (!disposed && importing.value) pollTimer = setTimeout(pollRunde, POLL_INTERVALUE)
   })
 }
 async function startGoogleImport() {
@@ -141,21 +158,19 @@ async function startGoogleImport() {
   if (!mappings.length) { error.value = 'Bitte mindestens einen Kalender auswählen.'; return }
   importing.value = true
   result.value = null
-  progress.value = {}
+  progress.value = { status: 'startet', imported: 0 }
   warnings.value = []
   try {
-    // Connect first: even a fast RQ job must not finish before the listener exists.
-    await connectProgress()
-    if (disposed) { stopProgress(); return }
     const response = await apiCall(prefix + 'start_import', { mappings_json: JSON.stringify(mappings) })
     if (!response?.queued) throw new Error()
     if (importing.value) deadline = setTimeout(() => {
       error.value = 'Keine Abschlussmeldung erhalten. Der Import kann weiterlaufen. Prüfe die Kalender vor einem erneuten Import.'
       stopProgress()
     }, 660000)
+    pollRunde()
   } catch {
     stopProgress()
-    error.value = 'Import konnte nicht gestartet werden. Prüfe deine Berechtigung, die Google-Verbindung und die Fortschrittsverbindung.'
+    error.value = 'Import konnte nicht gestartet werden. Prüfe deine Berechtigung und die Google-Verbindung.'
   }
 }
 async function importIcal() {
@@ -263,7 +278,7 @@ onBeforeUnmount(() => {
           </div>
         </fieldset>
       </template>
-      <p v-if="importing" role="status" aria-live="polite">Import läuft … Kalender: {{ progress.calendar_name || 'Warte auf den Hintergrundauftrag' }} <span v-if="progress.cal_num">({{ progress.cal_num }}/{{ progress.cal_total }})</span> · Termine importiert: {{ progress.imported || 0 }}</p>
+      <p v-if="importing" role="status" aria-live="polite">Import läuft … Kalender: {{ progress?.calendar_name || 'Warte auf den Hintergrundauftrag' }} <span v-if="progress?.cal_num">({{ progress.cal_num }}/{{ progress.cal_total }})</span> · Termine importiert: {{ progress?.imported || 0 }}</p>
       <p v-for="(warning, index) in warnings" :key="index">{{ warning }}</p>
       <div v-if="result" role="status"><h2>{{ result.error ? 'Import teilweise fehlgeschlagen' : 'Import abgeschlossen' }}</h2><p>{{ result.total_imported || 0 }} Termine importiert, {{ result.total_skipped || 0 }} übersprungen.</p><p v-for="(cal, index) in result.calendars" :key="index">{{ cal.google_name }} → {{ cal.frappe_kalender }}: {{ cal.imported }} importiert, {{ cal.skipped }} übersprungen.</p></div>
       <DkButton v-if="!loading" :disabled="disabled" @click="error = ''; loadStatus()">Status erneut laden</DkButton>
@@ -314,5 +329,7 @@ input:not([type=checkbox]):not([type=radio]):not([type=color]), select {
 }
 input[type=color] { max-width: 100px; height: 34px; }
 input:focus, select:focus { outline: 2px solid var(--focus-ring); outline-offset: 0; }
+/* Inhaltsumbruch, kein Layout: nur der Innenabstand der Karte, damit der
+   Inhalt auf schmalen Geräten Platz hat. */
 @media (max-width: 640px) { .dk-import { padding: var(--sp-3); } .dk-import-card { padding: var(--sp-4); } }
 </style>

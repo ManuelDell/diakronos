@@ -343,10 +343,16 @@ make test                 # oder: docker compose exec app python -m pytest -q
 
 # Frontend
 cd frontend
-npm ci --legacy-peer-deps --no-audit --no-fund
+npm ci --no-audit --no-fund
 node --test src/diakonos/components/planrahmen/*.test.mjs tests/planrahmen-*.test.mjs
 npm run build
 ```
+
+`--legacy-peer-deps` ist **nicht** mehr nötig (DEP-1 hat `frappe-ui` entfernt,
+DEP-2 `@vitejs/plugin-vue` auf `^6` gehoben; der Peer-Bereich passt zu
+`vite@7`). Wer den Schalter trotzdem setzt, baut an der geprüften Kette vorbei —
+der Wächter-Test `frontend/tests/dep2-review.test.mjs` prüft, dass er in
+Dockerfile und Doku nicht zurückkehrt.
 
 Reine Unit-Tests ohne laufenden Stack:
 

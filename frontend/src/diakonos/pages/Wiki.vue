@@ -27,19 +27,18 @@
       <!-- Hauptbereich -->
       <div class="wk-main">
         <!-- Kategorien -->
-        <div class="wk-cat-chips">
-          <button
-            v-for="c in categories"
-            :key="c.id"
-            class="wk-cat-chip"
-            :class="{ 'is-active': activeCategory === c.id }"
-            @click="activeCategory = c.id"
-          >
-            <span class="wk-cat-icon" :class="c.id">{{ c.icon }}</span>
-            <span>{{ c.name }}</span>
-            <span class="wk-cat-count">{{ articleCountByCategory[c.id] || 0 }}</span>
-          </button>
-        </div>
+        <!-- FIX-3: Kategorien als gemeinsamer Chip-Baustein (DkFilterChips)
+             statt eigener Knöpfe. Die Seite baute die Filterzeile bisher
+             selbst — mit 29 px hohen Knöpfen neben dem Suchfeld, das über
+             seinen Innenabstand auf 39 px kam. Jetzt kommt beides aus
+             --filter-h (index.css) und bleibt auch neben dem Feld gleich hoch. -->
+        <DkFilterChips
+          :chips="kategorieChips"
+          :model-value="activeCategory"
+          alle-wert="all"
+          aria-label="Wiki nach Kategorie filtern"
+          @waehlen="activeCategory = $event"
+        />
 
         <!-- Artikel -->
         <DkEmpty
@@ -229,6 +228,7 @@ import DkDialog from '../components/ui/DkDialog.vue'
 import DkField from '../components/ui/DkField.vue'
 import DkSelect from '../components/ui/DkSelect.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
+import DkFilterChips from '../components/ui/DkFilterChips.vue'
 import { getRouteParam } from '../router.js'
 
 function sanitize(html) { return DOMPurify.sanitize(html || '') }
@@ -290,6 +290,13 @@ async function editorSchliessen() {
 /* Bausteine beschicken */
 const kategorieOptionen = computed(() =>
   categories.filter(c => c.id !== 'all').map(c => ({ value: c.id, label: c.name })))
+
+/* FIX-3: Chip-Zeile aus der festen Kategorienliste (Zahlen aus dem Bestand).
+   „Alle“ ist der Ruhezustand (Wert 'alle'), die Kategorien tragen ihren
+   Schlüssel; `activeCategory` bleibt unverändert 'all'/'technik'/… — die
+   Chips liefern nur den Wert, das Filtern selbst hängt weiter an loadArticles. */
+const kategorieChips = computed(() =>
+  categories.map(c => ({ id: c.id, label: c.name, anzahl: articleCountByCategory.value[c.id] || 0 })))
 
 /* ─── API ─── */
 async function loadArticles() {
@@ -513,34 +520,12 @@ function openEditor(article = null) {
 .wk-suche { margin-bottom: var(--sp-4); }
 .wk-suche-clear { cursor: pointer; }
 
-/* Kategorien */
-.wk-cat-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-5); }
-.wk-cat-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px var(--sp-3);
-  border-radius: var(--radius);
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--text);
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all var(--fast) var(--ease);
-}
-.wk-cat-chip:hover { border-color: var(--line-strong); background: var(--surface-hover); }
-.wk-cat-chip.is-active { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
-.wk-cat-icon { font-size: var(--fs); line-height: 1; }
-.wk-cat-count {
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  background: var(--surface-2);
-  padding: 1px 6px;
-  border-radius: var(--badge-r);
-  color: var(--muted);
-}
-.wk-cat-chip.is-active .wk-cat-count { background: color-mix(in oklch, var(--primary-ink) 22%, transparent); color: var(--primary-ink); }
+/* Kategorien: die Zeile ist jetzt der gemeinsame Baustein DkFilterChips
+   (.dk-ui-chips/.dk-ui-chip in index.css). Die früheren Eigenregeln
+   .wk-cat-chips/.wk-cat-chip/.wk-cat-icon/.wk-cat-count sind mit FIX-3
+   entfallen — sie waren der Grund, warum die Knöpfe hier anders hoch waren
+   als das Suchfeld daneben. Nur der Abstand zur Artikelliste bleibt. */
+.wk-main > .dk-ui-chips { margin-bottom: var(--sp-5); }
 
 /* Artikel */
 .wk-article-card {

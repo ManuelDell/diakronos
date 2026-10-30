@@ -48,6 +48,7 @@ from diakronos_app.api import profile  # noqa: F401 — P4n: Profilseite (6 Pfad
 from diakronos_app.api import psalmos  # noqa: F401 — P4i: Psalmos/Musik (8 Pfade)
 from diakronos_app.api import registrierung  # noqa: F401 — P4e: Registrierung (allow_guest!)
 from diakronos_app.api import registrierungslink_api  # noqa: F401 — P4e: Link-Verwaltung (Admin)
+from diakronos_app.api import registrierung_vorschau  # noqa: F401 — REG-1b: Formular-Vorschau (Admin)
 from diakronos_app.api import veranstaltungsanmeldung  # noqa: F401 — P4e: Veranstaltungs-Anmeldung
 from diakronos_app.api import verantwortliche  # noqa: F401 — P1-8: Verantwortliche/Rollen pflegbar
 from diakronos_app.api import zugang  # noqa: F401 — P1-8: Zugang (Konto/Rollen/Sperren)

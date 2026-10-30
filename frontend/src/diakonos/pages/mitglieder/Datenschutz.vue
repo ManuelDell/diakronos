@@ -30,12 +30,12 @@
         <p>Gezählt werden Personen, nicht einzelne Protokolleinträge.</p>
         <div class="ds-filter">
           <label>Stand
-            <select v-model="stand" class="dk-input">
+            <select v-model="stand" class="dk-form-select">
               <option value="">Alle ({{ personen.length }})</option>
               <option v-for="(text, wert) in DATENSCHUTZ_STAND" :key="wert" :value="wert">{{ text }} ({{ stats[wert] || 0 }})</option>
             </select>
           </label>
-          <label>Person suchen<input v-model="suche" type="search" class="dk-input" placeholder="Name oder E-Mail" /></label>
+          <label>Person suchen<input v-model="suche" type="search" class="dk-form-input" placeholder="Name oder E-Mail" /></label>
         </div>
         <p role="status">{{ gefiltert.length }} von {{ personen.length }} Personen</p>
         <p v-if="!gefiltert.length">Keine Personen für diese Auswahl.</p>
@@ -57,7 +57,7 @@
         </ul>
       </DkCard>
     </template>
-    <DkDialog :model-value="offen" :title="dialogTitel" :close-on-overlay="false" @update:model-value="schliessen">
+    <DkDialog :model-value="offen" title="Person anonymisieren" :close-on-overlay="false" @update:model-value="schliessen">
       <template v-if="ziel">
         <p><strong>{{ name(ziel) }}</strong></p>
         <DkHint variant="warn">Die Anonymisierung kann nicht rückgängig gemacht werden.</DkHint>
@@ -65,7 +65,7 @@
         <p>Bereinigt werden Namen, Kontaktangaben, Geburtstag, Foto-Verweis und Notiz im Personenstamm sowie zugeordnete Registrierungsdaten mit Antworten und Kindern. Bereiche und Familienbeziehungen werden entfernt. Das lokale Konto wird gesperrt und seine Sitzungen werden beendet.</p>
         <p>Dienstplan-Historie, technische Kennungen (auch die Konto-Kennung) und Einwilligungsnachweise bleiben erhalten. Kennungen können Namen oder E-Mail-Adressen enthalten; die Konto-Kennung bleibt belegt. Dateien, Freitextnennungen in Beiträgen und ein externes Anmeldekonto werden nicht automatisch entfernt. Prüfe sie gesondert.</p>
         <label v-if="schritt === 2" class="ds-bestaetigung">Zum endgültigen Anonymisieren ANONYMISIEREN eingeben
-          <input v-model="wort" class="dk-input" autocomplete="off" />
+          <input v-model="wort" class="dk-form-input" autocomplete="off" />
         </label>
         <DkHint v-if="dialogFehler" variant="err" role="alert">{{ dialogFehler }}</DkHint>
       </template>
@@ -96,9 +96,8 @@ const personen = ref([]), stats = ref({}), antraege = ref([])
 const mailversand = ref({ eingerichtet: true, darf_aendern: false })
 const laedt = ref(true), geladen = ref(false), fehler = ref('')
 const suche = ref(''), stand = ref(new URLSearchParams(window.location.hash.split('?')[1] || '').get('stand') || '')
-const exportId = ref(''), ziel = ref(null), schritt = ref(0), wort = ref(''), sendet = ref(false), dialogFehler = ref(''), istAntrag = ref(false)
+const exportId = ref(''), ziel = ref(null), schritt = ref(0), wort = ref(''), sendet = ref(false), dialogFehler = ref('')
 const offen = computed(() => schritt.value > 0)
-const dialogTitel = computed(() => istAntrag.value ? 'Löschantrag prüfen' : 'Person anonymisieren')
 const gefiltert = computed(() => gefiltertePersonen(personen.value, stand.value, suche.value))
 // DSGVO-2d: gelöschte Person -> „Gelöschte Person“ (eine Regel, s. Helfer).
 const name = personenAnzeige
@@ -143,9 +142,8 @@ async function auskunft(m) {
   finally { exportId.value = '' }
 }
 
-function oeffnen(m, antrag = false) {
+function oeffnen(m) {
   ziel.value = m
-  istAntrag.value = antrag
   schritt.value = 1
   wort.value = ''
   dialogFehler.value = ''
@@ -166,7 +164,7 @@ async function anonymisieren() {
   try {
     await apiCall(API + 'anonymisieren', {
       mitglied_id: ziel.value.name || ziel.value.mitglied,
-      bestaetigt: true, bestaetigung: wort.value, nur_antrag: istAntrag.value,
+      bestaetigt: true, bestaetigung: wort.value,
     })
     schritt.value = 0
     ziel.value = null
@@ -179,6 +177,11 @@ onMounted(laden)
 </script>
 
 <style scoped>
+/* DEV-4: Auf dieser Seite stand die Feldklasse `.dk-input` — die gibt es im
+   Stylesheet NICHT. Das Auswahlfeld und das Suchfeld waren dadurch die hellen
+   Browser-Vorgaben: weiße Fläche, Radius 0, heller Text darauf (Befund
+   DMB-abb58354487b). Jetzt die vorhandene Feldklasse der Bibliothek
+   (`.dk-form-input` / `.dk-form-select`). */
 .ds-bereich { display: grid; gap: var(--sp-4); }
 .ds-filter, .ds-aktionen { display: flex; gap: var(--sp-3); flex-wrap: wrap; }
 .ds-filter label, .ds-bestaetigung { display: grid; gap: var(--sp-2); }

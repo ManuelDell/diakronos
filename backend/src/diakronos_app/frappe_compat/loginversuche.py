@@ -714,6 +714,16 @@ def _sperr_dauer(client: Any, sperr_key: str) -> int:
     Sperrzeit tatsaechlich abgelaufen ist — nicht bei jedem Login, sonst
     koennte ein Angreifer mit einem einzigen gültigen (z. B. gestohlenen)
     Passwort den Backoff zuruecksetzen und im Rhythmus weiterlaufen.
+
+    SEC-2 — die Sperre darf sich nicht FESTFAHREN. Hier stand die Stufe
+    schon vor der ersten Sperre mitgezaehlt (`_setze_sperre` rief erst
+    `_erhoehe_stufe`, dann diese Funktion), und jedes Klopfen waehrend
+    einer laufenden Sperre hat die Folge-Dauer erneut auf den Deckel
+    gesetzt. Ein Pentest mit 27 Versuchen hinterliess damit ein Konto, das
+    80 Minuten ohne jede Bremse in der Antwort gesperrt war — ein Lockout
+    ohne wirksames Zeitfenster, und im Betrieb ein Ausfall fuer den, der
+    sich vertippt hat. Die Stufe waechst deshalb nur noch beim SETZEN einer
+    neuen Sperre (`_setze_sperre`), nicht beim Verlaengern.
     """
     stufen_key = f"{sperr_key}:stufe"
     stufe = _gelesen(client, stufen_key)
@@ -832,18 +842,31 @@ def pruefe_und_merke(
 
 
 def _verlaengere_sperre(client: Any, sperr_key: str) -> None:
-    """Verlaengert eine bestehende Sperre um die (verdoppelte) Backoff-Dauer.
+    """Verlaengert eine bestehende Sperre auf die (gestufte) Backoff-Dauer.
 
-    Jeder weitere Versuch waehrend der Sperr setzt die Ablaufzeit neu — mit
-    dem Faktor der aktuellen Stufe. Ein Angreifer, der alle 10 Sekunden
-    klopft, haelt sich damit nicht nur draussen, er verliessert sich selbst
-    in eine immer laengere Sperre. Genau das ist der Zweck des Backoffs.
+    Jeder weitere Versuch waehrend der Sperr setzt die Ablaufzeit neu — ein
+    Angreifer, der alle 10 Sekunden klopft, haelt sich damit nicht nur
+    draussen, seine Sperre wird auch nicht still kuendbar. Das ist der Zweck
+    des Verlaengerns.
+
+    **SEC-2 — hier wird die Stufe NICHT mehr erhoeht.** Vorher stand das
+    drin, und damit wuchs die Folge-Dauer mit jedem Klopfen bis zum Deckel
+    (16 x Grunddauer). Wer waehrend einer Sperre 8-mal klopft, hatte danach
+    eine 80-Minuten-Sperre — und die wurde bei jedem weiteren Versuch
+    erneut gesetzt. Im Messfall des Pentests (27 Versuche in Sekunden) war
+    das Konto danach 80 Minuten zu, ohne dass die Antwortform das zeigte:
+    genau der Befund "27 Fehlversuche ohne jede Bremse".
+
+    Die Stufe waechst jetzt ausschliesslich in `_setze_sperre` — einmal je
+    FEHLSERIE. Klopfen waehrend der Sperre verlaengert auf dieselbe Dauer,
+    statt die naechste zu verdoppeln. Fuer einen Durchlauf ueber Nacht ist
+    das weiter unattraktiv (er kostet die volle Sperrzeit je Versuch), fuer
+    den Menschen, der sich vertippt hat, ist es die Grenze zum Ausfall.
     """
     if not client.exists(sperr_key):
         return
     dauer = _sperr_dauer(client, sperr_key)
     client.set(sperr_key, str(int(dauer)), ex=dauer)
-    _erhoehe_stufe(client, sperr_key, dauer)
 
 
 def _erhoehe_stufe(client: Any, sperr_key: str, dauer: int) -> None:
@@ -865,7 +888,23 @@ def _erhoehe_stufe(client: Any, sperr_key: str, dauer: int) -> None:
 
 
 def _setze_sperre(client: Any, zaehler_key: str, sperr_key: str) -> None:
-    """Setzt die Sperre, zaehlt die Backoff-Stufe hoch und leert den Zaehler."""
+    """Setzt die Sperre, zaehlt die Backoff-Stufe hoch und leert den Zaehler.
+
+    **Reihenfolge ist hier die halbe Miete (SEC-2).** Frueher stand die
+    Stufe ERHOEHUNG vor dem Lesen der Dauer — die erste Sperre war damit
+    schon die zweite Stufe (60 s statt der eingestellten 300 s), und der
+    Deckel war nach 7 statt 8 Fehlserien erreicht. Jetzt wird die Dauer aus
+    dem STAND VOR dieser Fehlserie gelesen und die Stufe danach erhoeht:
+    die erste Sperre ist `<login_sperre_sekunden>`, jede weitere Fehlserie
+    verdoppelt.
+
+    Eine hier geloeschte Stufe waere falsch: nach dem Ablauf raeumt Redis
+    Sperre und Stufe gemeinsam ueber ihre TTL ab (`_erhoehe_stufe` setzt
+    die TTL der Stufe auf die Sperrdauer). Ein zusaetzliches "keine Sperre
+    mehr -> Stufe weg" haette die Stufe auch dann verworfen, wenn die Sperre
+    gerade auslaeuft und im selben Augenblick neu gesetzt wird — gemessen
+    im Test: die Kurve blieb dann bei 300 s stehen statt zu verdoppeln.
+    """
     dauer = _sperr_dauer(client, sperr_key)
     client.set(sperr_key, str(int(dauer)), ex=dauer)
     _erhoehe_stufe(client, sperr_key, dauer)

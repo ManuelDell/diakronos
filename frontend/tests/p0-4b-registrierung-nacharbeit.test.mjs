@@ -54,8 +54,11 @@ const lesen = (rel) => readFileSync(new URL(rel, wurzel), 'utf8')
 }
 
 // ── Befund 6: die Einwilligung wird mitgesendet ─────────────────────────────
+// REG-1b: Das Registrierungsformular liegt jetzt in der gemeinsamen Anzeige
+// `registrierung/components/DkAnmeldeformular.vue` (sie zeigt ebenfalls die
+// Vorschau im Editor); `registrierung/App.vue` ist nur noch der Seitenrahmen.
 
-for (const rel of ['registrierung/App.vue', 'gast/App.vue']) {
+for (const rel of ['registrierung/components/DkAnmeldeformular.vue', 'gast/App.vue']) {
   const quelle = lesen(rel)
   const { descriptor, errors } = parse(quelle, { filename: rel })
   assert.deepEqual(errors, [], rel + ': SFC-Struktur')

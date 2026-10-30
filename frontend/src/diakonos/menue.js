@@ -98,6 +98,127 @@ export const MITGLIEDER_REITER = [
     { id: 'import', label: 'Import', href: '#/mitglieder/import', seite: 'MitgliederImport', rolle: 'admin' },
 ]
 
+/**
+ * Unterbereiche von „Anfragen“ (UX-A2a). Bis hierher waren sie eine zweite
+ * Reiterzeile IN der Anfragen-Seite; jetzt sind sie eigene Einträge der
+ * Mitglieder-Bereichsliste, eingerückt UNTER „Anfragen“.
+ *
+ * Entwurf A2 (Operator-Review, Punkt 3): „Anfragen“ selbst IST der erste
+ * Unterbereich — der Hauptpunkt mit der Zahl führt auf die Anfragenliste.
+ * Deshalb steht hier nur, was eingerückt DARUNTER gehört: „Links & QR-Codes“
+ * und „Formulare“. Ein zweiter Eintrag „Anfragen“ wäre ein doppelter Punkt.
+ *
+ * Jeder Unterbereich hat eine EIGENE Adresse mit Abfrageteil
+ * (`#/mitglieder/anfragen?bereich=links`). Der Abfrageteil ist bewusst
+ * gewählt: die Seite bleibt dieselbe (Router, Rechte-Guard, Fenstertitel),
+ * der Unterbereich ist teilbar und übersteht das Neuladen. Ohne Abfrageteil
+ * ist es der erste Eintrag.
+ *
+ * `seite` gilt für alle drei Ansichten — die Seitenleiste markiert weiter
+ * „Mitglieder“, der Rechte-Guard (`ADMIN_ONLY_PAGES`) prüft weiter
+ * `MitgliederAnfragen`.
+ */
+export const ANFRAGEN_UNTERBEREICHE = [
+    { id: 'links', label: 'Links & QR-Codes', seite: 'MitgliederAnfragen', rolle: 'admin' },
+    { id: 'formulare', label: 'Formulare', seite: 'MitgliederAnfragen', rolle: 'admin' },
+]
+
+/** Der Unterbereich, auf den der Hauptpunkt „Anfragen“ führt (die Liste). */
+export const ANFRAGEN_HAUPTBEREICH = 'anfragen'
+
+/**
+ * Werte der Einträge. Ober- und Unterpunkt teilen sich NICHT denselben Wert —
+ * sonst wären alle gleichzeitig „gewählt“ (im Browser gefunden: drei
+ * aria-current). `bereichsWertFuer`/`aktiverBereichsWert` bilden dasselbe Paar
+ * im Rahmen (pages/mitglieder/Bereich.vue).
+ */
+export function bereichsWert(seite) {
+    return seite || ''
+}
+
+/** Wert eines Unterbereichs: Seite plus Unterbereich. */
+export function unterbereichsWert(seite, bereich) {
+    return bereich ? `${seite}:${bereich}` : bereichsWert(seite)
+}
+
+/**
+ * Die Einträge der Mitglieder-Bereichsliste in Anzeigereihenfolge — EINE
+ * Quelle für Oberfläche, Tests und Adressen.
+ *
+ * `zahl: 'anfragen'` ist eine Kennzahl-QUELLE, kein Wert: die Zahl offener
+ * Anfragen kommt vom Server (`get_navigation_zaehler`, dieselbe Abfrage und
+ * derselbe Stand wie die Kennzahl an „Mitglieder“ in der Seitenleiste). Ohne
+ * Zahl fehlt der Schlüssel — dann wird nichts angezeigt (nie eine erfundene
+ * Null).
+ *
+ * Der Hauptpunkt „Anfragen“ führt auf die Anfragenliste (`?bereich=anfragen`
+ * wäre derselbe Inhalt) und trägt die Zahl; darunter stehen eingerückt nur
+ * „Links & QR-Codes“ und „Formulare“ (Entwurf A2).
+ *
+ * @param {{istAdmin?: boolean, anfragenZahl?: number|null}} optionen
+ * @returns {Array<{id, label, href, value, seite, rolle, zahl, unterpunkte}>}
+ */
+export function mitgliederBereichEintraege({ istAdmin = false, anfragenZahl = null } = {}) {
+    const sichtbar = sichtbareMitgliederReiter({ istAdmin })
+    const eintraege = sichtbar.map(r => ({
+        id: r.id,
+        label: r.label,
+        href: r.href,
+        value: bereichsWert(r.seite),
+        seite: r.seite,
+        rolle: r.rolle,
+        zahl: r.id === 'anfragen' ? anfragenZahl : null,
+    }))
+    const anfragen = eintraege.find(e => e.id === 'anfragen')
+    if (anfragen) {
+        const unter = sichtbareAnfragenUnterbereiche({ istAdmin })
+        if (unter.length) {
+            anfragen.unterpunkte = unter.map(u => ({
+                id: 'anfragen-' + u.id,
+                label: u.label,
+                href: `#/mitglieder/anfragen?bereich=${u.id}`,
+                value: unterbereichsWert(u.seite, u.id),
+                seite: u.seite,
+                bereich: u.id,
+                rolle: u.rolle,
+                zahl: null,
+            }))
+        }
+    }
+    return eintraege
+}
+
+/** Sichtbare Unterbereiche von „Anfragen“ (ohne Recht: keine). */
+export function sichtbareAnfragenUnterbereiche({ istAdmin = false } = {}) {
+    return ANFRAGEN_UNTERBEREICHE.filter(u => u.rolle !== 'admin' || istAdmin)
+}
+
+/**
+ * Gewählter Eintrag der Bereichsliste aus der Adresse (Hash).
+ * → { eintrag, unterbereich } oder null, wenn die Adresse nicht zum
+ * Mitglieder-Bereich gehört.
+ *
+ * Die Anfragen-Adresse ohne Abfrageteil (oder mit `bereich=anfragen`) ist der
+ * Hauptpunkt selbst — dann ist `unterbereich` null und der Hauptpunkt trägt
+ * die Markierung. Ein unbekannter `bereich`-Wert fällt ebenfalls darauf
+ * zurück, damit alte Lesezeichen gültig bleiben.
+ */
+export function bereichsEintragAusHash(hash, { istAdmin = false, anfragenZahl = null } = {}) {
+    const eintraege = mitgliederBereichEintraege({ istAdmin, anfragenZahl })
+    const roh = typeof hash === 'string' ? hash : ''
+    const [pfad, abfrage] = roh.split('?')
+    const eintrag = (eintraege.find(e =>
+        (e.unterpunkte || []).some(u => u.href.split('?')[0] === pfad))
+        || eintraege.find(e => e.href === pfad))
+    if (!eintrag) return null
+    let unterbereich = null
+    if (eintrag.unterpunkte) {
+        const werte = new URLSearchParams(abfrage || '')
+        unterbereich = eintrag.unterpunkte.find(u => u.bereich === werte.get('bereich')) || null
+    }
+    return { eintrag, unterbereich }
+}
+
 /** Symbolvorrat: Pfade im 24×24-Raster. */
 export const ICON_PFADE = {
     home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10',

@@ -47,7 +47,7 @@ const klassen = computed(() => [
   align-items: center;
   justify-content: center;
   gap: 7px;
-  height: var(--control-h);
+  height: var(--filter-h);
   padding: 0 14px;
   border-radius: var(--radius);
   border: 1px solid transparent;
@@ -76,7 +76,10 @@ const klassen = computed(() => [
 .dk-ui-btn :deep(svg) { flex: none; }
 
 /* md */
-.dk-ui-btn--md { height: var(--control-h); padding: 0 14px; }
+/* FIX-3: Höhe aus demselben Token wie Suchfeld (.dk-search-bar) und
+   Filterchip (.dk-ui-chip) — in einer Filterzeile stehen alle gleich hoch.
+   --filter-h ist heute --control-h; eine Quelle bleibt es trotzdem. */
+.dk-ui-btn--md { height: var(--filter-h); padding: 0 14px; }
 /* sm */
 .dk-ui-btn--sm { height: 28px; padding: 0 10px; font-size: var(--fs-sm); }
 
@@ -118,6 +121,15 @@ const klassen = computed(() => [
 .dk-ui-btn--danger:hover:not(:disabled) {
   background: color-mix(in oklch, var(--err) 85%, black);
 }
+
+/* DEV-4: Im Dunkelmodus war die Schrift der Primär- und Gefahrenknöpfe
+   `--primary-ink` = navy-900 (dunkelblau) auf WEISSER Fläche — der Knopf
+   wirkte wie ein leerer Block mit unlesbarer Beschriftung (Seiten „Meine
+   Dienste“, „Ressourcen“).
+   DEV-4b (Review): Die Korrektur sah eine eigene Dunkelmodus-Regel vor, die
+   `color: var(--dk-navy-900)` noch einmal setzte — `--primary-ink` zeigt im
+   Dunkelmodus aber bereits auf `--dk-navy-900` (tokens.css), die Regel war
+   wirkungslos und ist entfernt. */
 
 .dk-ui-spinner {
   width: 13px;

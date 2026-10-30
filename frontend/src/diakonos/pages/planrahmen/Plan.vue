@@ -59,6 +59,13 @@
 
     <!-- P1-14b: Ein archivierter Plan ist schreibgeschützt; der Weg zurück ist
          ausdrücklich („Aus dem Archiv holen“), nicht eine stille Änderung. -->
+    <!-- PLAN-M1: Hinweis am Handy (nur schmal + Bearbeitungsrecht + nicht
+         geschlossen). Sperrt nichts — Ansehen bleibt vollständig möglich. -->
+    <PrHandyHinweis
+      :sichtbar="handyHinweisZeigen"
+      :darf-bearbeiten="darfBearbeiten"
+      @geschlossen="handyHinweisSchliessen"
+    />
     <div v-if="istArchiviert" class="pr-plan-archiv" data-test="pr-plan-archiv-hinweis">
       <strong>Dieser Plan ist archiviert.</strong>
       Er ist für Mitglieder nicht mehr sichtbar. Hol ihn mit „Aus dem Archiv holen“ zurück, bevor du ihn änderst.
@@ -79,10 +86,21 @@
       </div>
 
       <PrErststart v-if="darfBearbeiten" :bedarf="bedarfListe" :definition="erstdefinition || {}" :stammdaten="'#/planrahmen/vorbereiten/' + encodeURIComponent(planId)" panel angelegt :veroeffentlicht="plan?.status === 'veroeffentlicht'" @stammdaten-oeffnen="stammdatenPanelOeffnen" />
-      <!-- UXP-R19: Die Regelprüfung ist internes Planerwissen („0 Fehler ·
-           39 Warnungen"). Mitglieder lesen nur den veröffentlichten Stand und
-           duerfen die Prüfung nicht sehen. -->
-      <PrMeldungen v-if="darfBearbeiten" :meldungen="terminMeldungen(eintraege)" zusammenfassung titel="Regelprüfung des aktuellen Plans" />
+      <!-- UXP-R19 / PLAN-W1: Die Regelprüfung ist internes Planerwissen („0
+           Fehler · 39 Warnungen“). Mitglieder lesen nur den veröffentlichten
+           Stand und duerfen die Prüfung nicht sehen — der Server liefert sie
+           ihnen auch nicht aus. Fuer Planer ist der Block ein- und ausklappbar;
+           die Wahl merkt sich der Browser je Benutzer (Befund DMB-7d8e3068c388:
+           „Die Warnung muss man einstellen oder deaktivieren können, wenn man
+           den Plan nur ansieht“). -->
+      <PrMeldungen
+        v-if="darfBearbeiten"
+        :meldungen="terminMeldungen(eintraege)"
+        zusammenfassung
+        titel="Regelprüfung des aktuellen Plans"
+        :offen="warnblockOffen"
+        @aktualisiert:offen="warnblockMerken"
+      />
       <PrLegende />
 
       <!-- Ansichtenwahl + Terminwahl für Ablauf-/Programmansichten -->
@@ -233,7 +251,7 @@
  * Operationen der PrAblauf-Komponente, Generator und Veröffentlichung
  * jeweils mit Vorschau vor dem Schreibaufruf.
  */
-import { ref, computed, watch, onUnmounted, provide, nextTick } from 'vue'
+import { ref, computed, watch, onUnmounted, onMounted, provide, nextTick } from 'vue'
 import { getRouteParam } from '../../router.js'
 import { usePlanrahmen, datumText, fehlerMeldungen } from '../../composables/usePlanrahmen.js'
 import { showToast } from '../../composables/useToast.js'
@@ -241,6 +259,7 @@ import DkModal from '../../components/DkModal.vue'
 import DkDialog from '../../components/ui/DkDialog.vue'
 import PrAnsicht from '../../components/planrahmen/PrAnsicht.vue'
 import PrDiff from '../../components/planrahmen/PrDiff.vue'
+import PrHandyHinweis from '../../components/planrahmen/PrHandyHinweis.vue'
 import PrMeldungen from '../../components/planrahmen/PrMeldungen.vue'
 import PrErststart from '../../components/planrahmen/PrErststart.vue'
 import PrEditor from '../../components/planrahmen/PrEditor.vue'
@@ -249,6 +268,8 @@ import PrStammdatenPanel from '../../components/planrahmen/PrStammdatenPanel.vue
 import { terminMeldungen } from '../../components/planrahmen/meldungen.mjs'
 import { diffAnzeigeLaden, kandidatenZiel } from '../../components/planrahmen/klartext.mjs'
 import { statusSprache, statusBadgeKlasse } from '../../components/ui/statussprache.mjs'
+import { useWarnblock } from '../../composables/warnblock.mjs'
+import { useHandyHinweis, hinweisZeigen, istSchmal } from '../../composables/handyHinweis.mjs'
 
 const { planHolen, planStandVersion, terminStruktur, terminStrukturen, planGenerieren, planEntwurf, undoPlan, undoVorschau, veroeffentlichen, ablaufAendern, feldKandidaten, terminAendern, bedarf,
         planArchivieren, planLoeschen, planKopieren } = usePlanrahmen()
@@ -296,6 +317,43 @@ provide('planrahmenAnzeige', computed(() => ({
     definitionen: definitionen.value, termine: termine.value,
     anzeige: { ...(planDaten.value?.anzeige || {}), ...diffAnzeige.value },
 })))
+// PLAN-W1: Prüf-Warnungen (auch die kompakten Zeilen-Meldungen in Tabelle,
+// Raster und Kalender) strikt nur für Bearbeiter — unabhängig davon, was ein
+// alter Cache-Stand noch mitbringt. Die Ansicht übernimmt dasselbe Recht als
+// `meldungen-zeigen`; dieser Riegel ist die zweite Wand.
+provide('planrahmenWarnungen', computed(() => darfBearbeiten.value))
+
+// PLAN-W1: Einklapp-Zustand des Warnblocks, je Benutzer gemerkt (localStorage).
+// `warnblockOffen` ist true, solange die Prüfung aufgeklappt ist; der Planer
+// entscheidet es über den Kopf des Blocks, der Baustein meldet jede Bedienung.
+const warnblock = useWarnblock()
+const warnblockOffen = ref(!warnblock.eingeklappt())
+function warnblockMerken(offen) {
+    warnblockOffen.value = offen !== false
+    warnblock.setzen(!warnblockOffen.value)
+}
+
+// PLAN-M1: Hinweis am Handy — „Zum Bearbeiten an einen Desktop wechseln“.
+// Sichtbar nur auf schmalen Bildschirmen (dieselbe 720-px-Grenze wie die
+// Mobil-Umschaltung der App), nur mit Bearbeitungsrecht und nur solange der
+// Benutzer ihn nicht geschlossen hat (localStorage, je Benutzer, 30 Tage).
+// ANSEHEN bleibt unberührt: das Band sperrt nichts, es schiebt nur Inhalt.
+const handyHinweis = useHandyHinweis()
+const breite = ref(typeof window !== 'undefined' ? window.innerWidth : 0)
+const handyHinweisGeschlossen = ref(false)
+const handyHinweisZeigen = computed(() => !handyHinweisGeschlossen.value
+    && hinweisZeigen({ schmal: istSchmal(breite.value), darfBearbeiten: darfBearbeiten.value, geschlossen: false }))
+function handyHinweisSchliessen() {
+    handyHinweis.schliessen()
+    handyHinweisGeschlossen.value = true
+}
+function beiGroessenAenderung() {
+    breite.value = typeof window !== 'undefined' ? window.innerWidth : 0
+}
+onMounted(() => {
+    handyHinweisGeschlossen.value = handyHinweis.geschlossen()
+    if (typeof window !== 'undefined') window.addEventListener('resize', beiGroessenAenderung)
+})
 
 // ── Plan-Daten ─────────────────────────────────────────────────────────────
 
@@ -514,7 +572,10 @@ watch(planId, () => {
     neuLaden()
 }, { immediate: true, flush: 'sync' })
 
-onUnmounted(() => { ladeNummer += 1 })
+onUnmounted(() => {
+    ladeNummer += 1
+    if (typeof window !== 'undefined') window.removeEventListener('resize', beiGroessenAenderung)
+})
 
 watch(brauchtTermin, (braucht) => {
     if (braucht && !terminIdWahl.value) terminIdWahl.value = termine.value[0]?.id || ''

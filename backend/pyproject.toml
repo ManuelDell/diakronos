@@ -28,7 +28,14 @@ dependencies = [
     "apscheduler>=3.10.0,<4.0.0",
     "python-multipart>=0.0.12,<1.0.0",
     "httpx>=0.27.0,<1.0.0",
-    "cryptography>=43.0.0,<47.0.0",
+    # DEP-3: cryptography >= 50. pip-audit meldete fuer 46.0.7 sieben
+    # Schwachstellen (PYSEC-2026-3552/3553/3554, GHSA-537c-gmf6-5ccf; Fixes in
+    # 48.0.1/49.0/50.0.0). Die Untergrenze ist die Fix-Version, die Obergrenze
+    # <51 haelt den naechsten grossen Sprung draussen. Der Wechsel ist
+    # datenvertraeglich: Fernet-Geheimtexte aus 46.0.7 werden weiter
+    # entschluesselt — Beleg in tests/test_dep3_cryptography_altdaten.py mit
+    # echten Vektoren der alten Version.
+    "cryptography>=50.0.0,<51.0.0",
     "icalendar>=6.0.0,<8.0.0",
     "python-dateutil>=2.9.0,<3.0.0",
     "pytest>=8.3.0,<10.0.0",

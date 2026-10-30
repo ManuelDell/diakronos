@@ -275,6 +275,62 @@ def _serialize(value: Any) -> Any:
 	return value
 
 
+#: SEC-1: Feldnamen, die der Resource-Serializer NIE ausgibt (Pentest-Befund
+#: HOCH: ``GET /api/resource/User`` lieferte den argon2id-Passwort-Hash).
+#:
+#: Die Sperre sitzt hier — im gemeinsamen Engpass von ``GET /api/resource/
+#: {doctype}`` (Liste) und ``GET /api/resource/{doctype}/{name}`` (Einzelabruf,
+#: inkl. ``fields``-Projektion, ``pluck`` und ``as_list``) — und nicht in den
+#: Endpunkten: eine Sicherung, die man an N Stellen nachziehen muss, wird an
+#: einer vergessen (dieselbe Begruendung wie bei ``_spaltenwert``). Sie gilt
+#: fuer ALLE DocTypes, weil ein neuer DocType mit Geheimspalte sonst still
+#: leckt.
+#:
+#: Vorbild ist die Feldnamen-Sperrliste der DSGVO-Anonymisierung
+#: (``dsgvo_anonymisierung.py``, ``_NICHT_TEXT``).
+#:
+#: Bewusst NICHT gesperrt: ``content_hash`` (SHA-256 einer Datei — ein
+#: Integritaetsnachweis, kein Geheimnis; die SPA und ``upload_file`` lesen ihn)
+#: und ``schluessel``/``slug``/``user`` (keine Geheimnisse, nur Bezeichner).
+_GESPERRTE_FELDER = frozenset({
+	"password_hash",
+	"token_hash",
+	"api_key",
+	"apikey",
+	"secret",
+	"password",
+	"passwort",
+})
+
+#: Endungen, die ein Feld zu einem Geheimnis machen: ``_hash`` (``*_secret``
+#: und ``api_key`` stehen bereits oben; ``content_hash`` ist die Ausnahme und
+#: wird in ``ist_gesperrtes_feld`` ausgenommen).
+_GESPERRTE_ENDUNGEN = ("_hash", "_secret")
+
+#: Ausnahmen von der Endungsregel ``_hash``: Integritaetswerte, die die SPA
+#: nachweislich liest (``api/frappe_core.py:upload_file`` liefert
+#: ``content_hash`` an Profile.vue) und die kein Geheimnis sind.
+_HASH_AUSNAHMEN = frozenset({"content_hash"})
+
+
+def ist_gesperrtes_feld(name: str) -> bool:
+	"""Darf dieses Feld niemals in einer Resource-Antwort stehen? (SEC-1)
+
+	Regel: exakter Namenstreffer in :data:`_GESPERRTE_FELDER`, Endung
+	``_hash``/``_secret`` — ausser den Integritaetswerten in
+	:data:`_HASH_AUSNAHMEN`. Gross-/Kleinschreibung ist egal, damit
+	``Password_Hash`` nicht durchrutscht.
+	"""
+	feld = str(name or "").strip().lower()
+	if not feld:
+		return False
+	if feld in _GESPERRTE_FELDER:
+		return True
+	if feld in _HASH_AUSNAHMEN:
+		return False
+	return feld.endswith(_GESPERRTE_ENDUNGEN)
+
+
 def _row_to_dict(row, field_map: list[tuple[str, str]]) -> dict:
 	out: dict[str, Any] = {}
 	for attr, alias in field_map:
@@ -311,9 +367,17 @@ def get_all(
 		# Feldauswahl
 		pluck_field = pluck
 		if pluck_field is not None:
+			# SEC-1: ein Geheimnis ist weder als Spalte noch als ``pluck``
+			# auswaehlbar — die Sperre greift VOR dem Query-Bau, sonst stuende
+			# der Hash als nackter Skalar in der Antwort.
+			if ist_gesperrtes_feld(pluck_field):
+				raise DoesNotExistError(f"{doctype}: unbekanntes Feld {pluck_field!r}")
 			fields = [pluck_field]
 		if not fields or fields == "*":
-			field_map = [(c.name, c.name) for c in model.__table__.columns]
+			# SEC-1: Geheimspalten werden gar nicht erst gelesen (Defense in
+			# depth — selbst wenn ein Serializer sie spaeter uebersieht).
+			field_map = [(c.name, c.name) for c in model.__table__.columns
+			             if not ist_gesperrtes_feld(c.name)]
 		elif isinstance(fields, str):
 			field_map = [(_field(column_names(doctype), doctype, f)[0], _field(column_names(doctype), doctype, f)[1] or f)
 			             for f in (x.strip() for x in fields.split(",")) if f]
@@ -322,6 +386,11 @@ def get_all(
 			for f in fields:
 				base, alias = _field(column_names(doctype), doctype, f)
 				field_map.append((base, alias or f))
+		# SEC-1: auch eine ausdrueckliche Projektion oder ein Alias darf ein
+		# Geheimnis nicht zurueckholen (``fields=["password_hash as x"]``).
+		if any(ist_gesperrtes_feld(attr) or ist_gesperrtes_feld(alias)
+		       for attr, alias in field_map):
+			raise DoesNotExistError(f"{doctype}: unbekanntes Feld (gesperrt)")
 
 		cols = [getattr(model, attr) for attr, _ in field_map]
 		query = select(*cols)
@@ -385,7 +454,16 @@ def get_doc(doctype: str, name: str, session: Session | None = None):
 		obj = sess.get(model, name)
 		if obj is None:
 			raise DoesNotExistError(f"{doctype} {name!r} existiert nicht")
-		return Document(obj, session=sess, besitzt_sitzung=own_session)
+		# SEC-1: der Einzelabruf wird ueber `as_dict()` serialisiert. Statt
+		# jeden Aufrufer zu bitten, die Sperre zu beachten, nimmt das Dokument
+		# Geheimspalten gar nicht erst in den Serialisierungspfad auf.
+		return Document(
+			obj, session=sess, besitzt_sitzung=own_session,
+			auslassen=frozenset(
+				c.name for c in model.__table__.columns
+				if ist_gesperrtes_feld(c.name)
+			),
+		)
 	finally:
 		if own_session:
 			# Session offen halten, solange das Dokument lebt (Lazy-Attribute);

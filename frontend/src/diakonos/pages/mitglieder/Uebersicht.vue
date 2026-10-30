@@ -69,6 +69,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { apiCall } from '../../composables/useApi.js'
+import { offeneAntraegeZaehlen } from '../../composables/useLoeschantraege.js'
 import { navigate } from '../../router.js'
 import DkCard from '../../components/ui/DkCard.vue'
 import DkButton from '../../components/ui/DkButton.vue'
@@ -80,7 +81,9 @@ defineProps({ embedded: { type: Boolean, default: false } })
 const loading = ref(true)
 const error = ref('')
 // DSGVO-2c: Zahl offener Löschanträge. `null` = keine Auskunft (Fehler) —
-// dann bleibt der Hinweis aus, statt eine erfundene Null zu zeigen.
+// dann zeigt die Kachel KEINE Zahl („–“) und keinen Hinweis, statt eine
+// erfundene Null zu behaupten. DSGVO-2c2: gezählt wird über den vorhandenen
+// Helfer `offeneAntraegeZaehlen()`, damit es nur EINEN Weg zur Zahl gibt.
 const offeneLoeschantraege = ref(null)
 const stats = ref({
   mitglieder: { gesamt: 0, mitglied: 0, gast: 0, passives_mitglied: 0, passiver_gast: 0 },
@@ -95,10 +98,10 @@ async function laden() {
   loading.value = true
   error.value = ''
   // Die Löschanträge kommen aus ihrem eigenen Endpunkt und dürfen die
-  // Kennzahlen nicht kippen: ein Fehler lässt den Hinweis einfach aus.
-  apiCall('diakronos.diakonos.api.datenschutz.get_loeschantraege')
-    .then(liste => { offeneLoeschantraege.value = Array.isArray(liste) ? liste.length : null })
-    .catch(() => { offeneLoeschantraege.value = null })
+  // Kennzahlen nicht kippen: ein Fehler lässt die Kachel leer („–“).
+  // DSGVO-2c2: über den Helfer aus `useLoeschantraege.js` — nicht zweimal
+  // dasselbe zählen. `null` heißt dabei ausdrücklich „keine Auskunft“.
+  offeneLoeschantraege.value = await offeneAntraegeZaehlen()
   try {
     stats.value = await apiCall('diakronos.diakonos.api.admin_hub.get_statistik')
   } catch (e) {
@@ -137,10 +140,13 @@ const kacheln = computed(() => {
     },
     // DSGVO-2c: eigener Zähler für offene Löschanträge — sie gaben bisher
     // nirgends auf der Übersicht zu erkennen, dass etwas zu tun ist.
+    // DSGVO-2c2: ohne Auskunft (`null`) steht hier „–“ statt einer 0, die es
+    // nicht gibt; Ton und Hinweis hängen ebenfalls an einer echten Zahl.
     {
-      id: 'loeschantraege', label: 'Löschanträge', wert: offeneLoeschantraege.value ?? 0,
-      ton: (offeneLoeschantraege.value ? 'warn' : 'neutral'), href: HREF.loeschantraege,
-      hinweis: offeneLoeschantraege.value ? 'warten auf Freigabe' : '',
+      id: 'loeschantraege', label: 'Löschanträge',
+      wert: offeneLoeschantraege.value === null ? '–' : offeneLoeschantraege.value,
+      ton: ((offeneLoeschantraege.value ?? 0) > 0 ? 'warn' : 'neutral'), href: HREF.loeschantraege,
+      hinweis: (offeneLoeschantraege.value ?? 0) > 0 ? 'warten auf Freigabe' : '',
     },
   ]
 })

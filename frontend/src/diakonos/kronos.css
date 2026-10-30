@@ -15,7 +15,7 @@
   --bg-color: var(--dk-bg);
   --bg-page: var(--dk-bg);
   --bg-surface: var(--dk-surface);
-  --bg-surface-hover: var(--dk-surface-hover, rgba(0,0,0,.04));
+  --bg-surface-hover: var(--dk-surface-hover);
   --bg-surface-active: var(--dk-surface-2);
   --bg-light: var(--dk-surface-2);
   --border-color: var(--dk-border);
@@ -103,7 +103,7 @@
   transition: all 150ms ease;
 }
 .todaybutton:hover {
-  background: var(--dk-surface-hover, rgba(0,0,0,.04));
+  background: var(--dk-surface-hover);
   border-color: var(--line-strong);
 }
 
@@ -570,6 +570,8 @@
   transform: translateY(-20px);
   transition: transform 0.3s ease;
 }
+/* Kein Umbruch (FIX-6d): 640 px ist hier die BREITE des großen Dialogs, keine
+   Media-Query. Umschaltpunkte des Layouts liegen bei 720 px. */
 .modal-lg .diakronos-modal-dialog,
 .diakronos-modal-dialog.modal-lg {
   max-width: 640px;
@@ -1152,6 +1154,9 @@ html[data-theme] .ec,
    bei gleicher Wichtigkeit gewinnt die spaetere Regel. Die Wochenzahl blieb
    dadurch trotz `display: none` sichtbar („W4028“ am Handy). Deshalb hier
    eine Stufe hoeher spezifiziert: `.ec .ec-day-head > .ec-week-number`. */
+/* Inhaltsumbruch, kein Layout: die Wochennummer im Monatsraster hat in der
+   schmalen Tagesspalte keinen Platz. Die Layout-Lage (Leiste, Kopf) schaltet
+   bei 720 px. */
 @media (max-width: 640px) {
   .ec .ec-day-head > .ec-week-number { display: none !important; }
 }
@@ -1473,18 +1478,23 @@ html[data-theme] .ec,
 }
 
 /* ===== Shared Modal Styles (alle Kronos-Modals) ===== */
+/* DEV-3: Dialogfasern ausschliesslich ueber Tokens. Vorher standen hier
+   feste Fallback-Farben (surface/weiss, e5e7eb, 6b7280, 374151) — die
+   greifen, solange die Variable fehlt, und faerben dann auch im
+   Dunkelmodus hell. */
 .diakronos-modal {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,0.5);
+  background: var(--overlay);
   display: flex; align-items: center; justify-content: center;
   z-index: 1050;
 }
 .diakronos-modal-dialog {
-  background: var(--dk-surface, #fff);
+  background: var(--dk-surface);
+  border: 1px solid var(--dk-border);
   border-radius: 8px; max-width: 560px; width: 90%;
   max-height: 90vh; overflow: hidden;
   display: flex; flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  box-shadow: var(--dk-shadow-lg);
 }
 .diakronos-modal-content {
   display: flex; flex-direction: column; max-height: 90vh;
@@ -1492,47 +1502,48 @@ html[data-theme] .ec,
 .diakronos-color-bar { height: 6px; width: 100%; }
 .diakronos-modal-header {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 16px 20px; border-bottom: 1px solid var(--dk-border, #e5e7eb);
+  padding: 16px 20px; border-bottom: 1px solid var(--dk-border);
 }
 .diakronos-modal-header h5 { margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--dk-text); }
-.diakronos-modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+.diakronos-modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; color: var(--dk-text); }
 .diakronos-modal-footer {
   display: flex; justify-content: flex-end; gap: 10px;
-  padding: 12px 20px; border-top: 1px solid var(--dk-border, #e5e7eb);
+  padding: 12px 20px; border-top: 1px solid var(--dk-border);
 }
 .diakronos-close-btn {
   background: none; border: none; font-size: 1.5rem;
-  cursor: pointer; color: var(--dk-text-muted, #6b7280); line-height: 1;
+  cursor: pointer; color: var(--dk-text-muted); line-height: 1;
 }
 /* Conflict dialog extras */
 .conflict-modal-header {
   display: flex; align-items: center; gap: 10px;
-  padding: 16px 20px; border-bottom: 1px solid var(--dk-border, #e5e7eb);
+  padding: 16px 20px; border-bottom: 1px solid var(--dk-border);
 }
-.conflict-modal-header h5 { margin: 0; flex: 1; font-size: 1rem; font-weight: 600; }
-.conflict-icon { color: var(--dk-warning, #d97706); }
-.conflict-modal-body { padding: 16px 20px; }
+.conflict-modal-header h5 { margin: 0; flex: 1; font-size: 1rem; font-weight: 600; color: var(--dk-text); }
+.conflict-icon { color: var(--dk-warning); }
+.conflict-modal-body { padding: 16px 20px; color: var(--dk-text); }
 .conflict-modal-footer {
   display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;
-  padding: 12px 20px; border-top: 1px solid var(--dk-border, #e5e7eb);
+  padding: 12px 20px; border-top: 1px solid var(--dk-border);
 }
 .conflict-event-card {
-  background: var(--dk-surface-2, #f3f4f6); border-radius: 6px;
+  background: var(--dk-surface-2); border-radius: 6px;
   padding: 10px 14px; margin: 8px 0; display: flex; flex-direction: column; gap: 4px;
 }
-.conflict-event-time { font-size: 0.85rem; color: var(--dk-text-muted, #6b7280); }
-.conflict-question { font-weight: 500; margin: 12px 0 0; }
+.conflict-event-time { font-size: 0.85rem; color: var(--dk-text-muted); }
+.conflict-question { font-weight: 500; margin: 12px 0 0; color: var(--dk-text); }
 /* Series dialog */
 .series-option-btns { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-.series-event-name { font-weight: 600; margin-bottom: 8px; }
+.series-event-name { font-weight: 600; margin-bottom: 8px; color: var(--dk-text); }
 /* DayEvents */
 .day-events-list { display: flex; flex-direction: column; gap: 8px; }
 .day-event-item {
   padding: 8px 12px; border-radius: 6px; cursor: pointer;
-  background: var(--dk-surface-2, #f9fafb);
+  background: var(--dk-surface-2);
+  color: var(--dk-text);
   transition: background 0.15s;
 }
-.day-event-item:hover { background: var(--dk-surface-hover, #f3f4f6); }
+.day-event-item:hover { background: var(--dk-surface-hover); }
 .day-event-time { font-size: 0.8rem; color: var(--dk-text-muted); }
 .day-event-name { font-weight: 500; font-size: 0.9rem; }
 .day-event-calendar { font-size: 0.8rem; }
@@ -1544,6 +1555,11 @@ html[data-theme] .ec,
 /* Shared button classes used in these modals */
 .btn { padding: 8px 14px; border-radius: 6px; font-size: 0.875rem; cursor: pointer; border: none; font-weight: 500; }
 .btn-primary { background: var(--primary); color: var(--primary-ink); }
-.btn-secondary { background: var(--dk-surface-2, #f3f4f6); color: var(--dk-text, #374151); }
-.btn-danger { background: var(--dk-danger, #dc2626); color: #fff; }
-.btn-warning { background: var(--dk-warning, #d97706); color: #fff; }
+.btn-secondary { background: var(--dk-surface-2); color: var(--dk-text); }
+.btn-danger { background: var(--dk-danger); color: #fff; }
+/* DEV-4: Dieselbe Falle wie in DkButton.vue — im Dunkelmodus ist
+   --primary-ink dunkelblau, die Fläche aber weiß. DEV-4b (Review): Die dafür
+   eingefügte Dunkelmodus-Regel setzte `color: var(--dk-navy-900)` und damit
+   denselben Wert, auf den --primary-ink im Dunkelmodus ohnehin zeigt
+   (tokens.css) — wirkungslos, entfernt. */
+.btn-warning { background: var(--dk-warning); color: #fff; }

@@ -12,6 +12,7 @@ from __future__ import annotations
 import inspect
 import json
 import logging
+import re
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -130,6 +131,66 @@ def _error_response(msg: str, exc_name: str, status: int) -> JSONResponse:
 	return JSONResponse(status_code=status, content={"message": str(msg), "exception": exc_name, "exc_type": exc_name})
 
 
+# ── SEC-7 (N4): generische Fehlerantworten ──────────────────────────────────
+#
+# Pentest R2 fand 417-Antworten mit der Python-Signatur im Klartext
+# („submit_registrierung() missing 3 required positional arguments: token,
+# vorname, nachname"). Damit liess sich die Methodenflaeche aufzaehlen: 404
+# heisst „gibt es nicht", 417 verriet den Endpunkt UND seine Parameter.
+#
+# Ab hier gilt: Diagnosetexte gehen ins Log, der Client bekommt EINE Meldung
+# fuer alle Argumentfehler. Der Status bleibt 417 — Frappes Konvention, auf
+# die sich die SPA verlaesst (`!res.ok`); ein zweiter Status waere selbst
+# wieder ein Unterscheidungsmerkmal.
+_ARGUMENTFEHLER_MELDUNG = "Ungueltige Anfrage"
+_ARGUMENTFEHLER_TYP = "ValidationError"
+
+
+def _argumentfehler(path: str, exc: BaseException, request: Request) -> JSONResponse:
+	"""417 mit generischer Meldung; Ursache und Signatur nur ins Log (SEC-7/S1)."""
+	logger.warning(
+		"Methodenaufruf %s (%s) mit unbrauchbaren Argumenten: %s: %s",
+		path,
+		request.method,
+		type(exc).__name__,
+		exc,
+	)
+	return _error_response(_ARGUMENTFEHLER_MELDUNG, _ARGUMENTFEHLER_TYP, 417)
+
+
+def _nicht_gefunden(request: Request) -> JSONResponse:
+	"""404 fuer unbekannte UND fuer unzulaessige Methodenpfade (SEC-7/S2).
+
+	Bewusst ohne den angefragten Pfad in der Meldung: ein gespiegelter Pfad
+	ist eine Reflektion, und fuer die Unterscheidung „ungueltig" vs. „gibt es
+	nicht" soll es kein zweites Fehlerbild geben.
+	"""
+	logger.info("Methodenpfad %r (%s) abgewiesen.", request.url.path, request.method)
+	return _error_response("Methode nicht gefunden", "NotFound", 404)
+
+
+# SEC-7/S2: Whitelist fuer den Methodenpfad. Erlaubt ist genau ein
+# dotted name aus ASCII-Buchstaben, Ziffern und `_`, getrennt durch EINEN
+# Punkt. Alles andere — `..`, `/`, `\`, `%`, Leerraum, Nullbytes, fuehrender
+# oder doppelter Punkt — erreicht weder das Register noch `importlib`.
+# Begruendung fuer die Enge: jeder der 37 Methodenpfade im Repo (Frontend,
+# Backend, Tests, Skripte) passt in dieses Muster; Frappe-Methoden sind
+# Python-Namen und koennen nichts anderes enthalten.
+_METHODENPFAD = re.compile(r"[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*\Z")
+
+# Laengengrenze: kein echter Methodenpfad ist laenger; schuetzt davor, dass
+# ein ueberlanger Pfad erst im Import teuer wird.
+_METHODENPFAD_MAX = 255
+
+
+def _gueltiger_methodenpfad(path: str) -> bool:
+	"""True, wenn `path` ein zulaessiger dotted name ist (SEC-7/S2)."""
+	if not path or len(path) > _METHODENPFAD_MAX:
+		return False
+	return _METHODENPFAD.match(path) is not None
+
+
+
 def _json(payload: Any, status: int = 200) -> JSONResponse:
 	return JSONResponse(status_code=status, content=payload)
 
@@ -234,13 +295,20 @@ def _ist_browser_navigation(request: Request) -> bool:
 
 @router.api_route("/method/{path:path}", methods=["GET", "POST", "PUT", "PATCH"], operation_id="call_method")
 async def call_method(path: str, request: Request):
+	# SEC-7/S2 (N5): Der Pfad wird VOR jeder Aufloesung geprueft. Vorher lief
+	# `..%2F..%2Fetc%2Fpasswd` bis in `_maybe_import` und endete in einem
+	# unbehandelten 500 (TypeError aus dem relativen Import) — ein Fehlerbild,
+	# das einen Programmfehler vortaeuschte und die Verzeichnisstruktur
+	# sondierbar machte (Ja/Nein je Pfad).
+	if not _gueltiger_methodenpfad(path):
+		return _nicht_gefunden(request)
 	fn = lookup(path)
 	if fn is None:
 		# Fallback: Modul importieren (registriert die Funktionen).
 		_maybe_import(path)
 		fn = lookup(path)
 	if fn is None:
-		return _error_response(f"Methode {path!r} nicht gefunden", "NotFound", 404)
+		return _nicht_gefunden(request)
 
 	# LOGIN-3/H1(a): Der Login nimmt NUR POST an. Eine GET-Anmeldung ist der
 	# klassische CSRF-Weg ohne Formular (`<img src="/api/method/login?usr=…&pwd=…">`,
@@ -311,9 +379,40 @@ async def call_method(path: str, request: Request):
 				return login_formular_fehler(request, kwargs)
 			except Exception:  # noqa: BLE001 — die Fehlerantwort darf nicht scheitern
 				logger.exception("Login-Fehlerantwort (Formular) nicht baubar.")
+		# A1b2-rest-Vertrag: `exc_type`/`exception` an der Exception-Klasse
+		# bleiben (`SessionExpired`, `CSRFTokenError`, …) — die SPA und die
+		# Tests werten sie aus. Die MELDUNG ist Fachinhalt (`frappe.throw`),
+		# kein Diagnosetext; SEC-7/S1 betrifft nur Python-Signaturen und
+		# interne Namen aus unerwarteten Ausnahmen.
 		return _error_response(str(exc), exc.exc_name, exc.http_status)
-	except TypeError as exc:
-		return _error_response(f"Falsche Argumente fuer {path}: {exc}", "ValidationError", 417)
+	except (TypeError, ValueError, KeyError) as exc:
+		# SEC-7/S1 (N4): hier stand die Python-Signatur im Klartext
+		# („submit_registrierung() missing 3 required positional arguments …").
+		# Fehlende, falsche und unerwartete Argumente — auch der Aufruf mit
+		# `*args`/`**fehlt` — enden jetzt in EINER generischen 417-Antwort.
+		# `ValueError`/`KeyError` gehoeren dazu: sie tragen Schluessel- und
+		# Feldnamen nach aussen („unbekanntes Feld 'bezeichnung'").
+		# `FrappeCompatError` bleibt davon unberuehrt (Block darueber).
+		return _argumentfehler(path, exc, request)
+	except Exception as exc:  # noqa: BLE001 — SEC-7/S1: nie 500 mit Interna
+		# SEC-7/S1: Bisher lief ein unerwarteter Fehler aus einer Fachfunktion
+		# als roher 500 mit Traceback nach aussen. Der Client bekommt jetzt
+		# eine generische 500 ohne Details.
+		#
+		# NICHT geschluckt wird `RuntimeError` — und zwar aus einem gemessenen
+		# Grund: die DSGVO-/Datenschutz-Tests stellen ihre Falle als
+		# `event.listen(engine, "before_cursor_execute", ...)` mit einem
+		# `RuntimeError` und erwarten, dass der Fehler den Aufruf erreicht
+		# (`pytest.raises(RuntimeError)`), damit sie den Rollback pruefen
+		# koennen. Ein pauschaler Fänger machte diese Zusagen unsichtbar
+		# (3 Tests rot, `test_dsgvo1_anonymisierung`,
+		# `test_dsgvo1b_review`, `test_n7_profil_datenschutz`). Der Import
+		# laesst den Traceback ebenfalls bis zum Server durch — genau wie
+		# vorher; nur die Antwort an den Client ist jetzt generisch.
+		logger.exception("Methodenaufruf %s (%s) fehlgeschlagen.", path, request.method)
+		if isinstance(exc, RuntimeError):
+			raise
+		return _error_response("Interner Fehler", "InternalError", 500)
 	# A1b1: Endpunkte, die den Response selbst bauen muessen (Set-Cookie beim
 	# Login/Logout), geben direkt eine `Response` zurueck. Alles andere bleibt
 	# im Frappe-Envelope `{"message": ...}`.
@@ -415,9 +514,18 @@ def _maybe_import(path: str) -> None:
 
 
 def _serialize_payload(value: Any) -> Any:
-	"""Antwortwert JSON-faehig machen (Datetime/Decimal/Document/ORM-Objekte)."""
+	"""Antwortwert JSON-faehig machen (Datetime/Decimal/Document/ORM-Objekte).
+
+	SEC-1: Dict-Schluessel, die ein Geheimnis benennen (`password_hash`,
+	`*_hash`, `*_secret`, `api_key` …), werden verworfen. Das ist die zweite,
+	von der Spaltenauswahl unabhaengige Verteidigungslinie — sie greift auch
+	fuer Pfade, die ein Modell direkt serialisieren (z.B. die Antwort nach
+	einem POST/PUT). Siehe `query.ist_gesperrtes_feld`.
+	"""
 	from datetime import date, datetime, time
 	from decimal import Decimal
+
+	from .query import ist_gesperrtes_feld
 
 	if value is None or isinstance(value, (str, int, float, bool)):
 		return value
@@ -426,13 +534,20 @@ def _serialize_payload(value: Any) -> Any:
 	if isinstance(value, Decimal):
 		return float(value)
 	if isinstance(value, dict):
-		return {k: _serialize_payload(v) for k, v in value.items()}
+		return {
+			k: _serialize_payload(v) for k, v in value.items()
+			if not ist_gesperrtes_feld(k)
+		}
 	if isinstance(value, (list, tuple, set)):
 		return [_serialize_payload(v) for v in value]
 	if hasattr(value, "as_dict"):
 		return _serialize_payload(value.as_dict())
 	if hasattr(value, "__table__"):
-		return {c.name: _serialize_payload(getattr(value, c.name)) for c in value.__table__.columns}
+		return {
+			c.name: _serialize_payload(getattr(value, c.name))
+			for c in value.__table__.columns
+			if not ist_gesperrtes_feld(c.name)
+		}
 	return value
 
 
@@ -444,8 +559,12 @@ def _private_resource_denied(doctype: str) -> bool:
 	if frappe_session.user == "Guest":
 		return True
 	if doctype in {"User", "Has Role"}:
+		# SEC-1 (S2): dieselbe Regel wie `_resource_denied` — sonst liefe die
+		# zweite Verteidigungslinie fuer den Sondernutzer `Administrator`
+		# wieder in ein 403.
 		from diakronos_app.frappe_compat.permissions import get_roles
-		return "System Manager" not in set(get_roles())
+		return ("System Manager" not in set(get_roles())
+		        and frappe_session.user != "Administrator")
 	# G1a: neither ciphertext nor credentials writes belong in generic CRUD.
 	if doctype == "Google Kalender Einstellungen":
 		return True
@@ -531,6 +650,26 @@ def _ist_resource_admin() -> bool:
 	return bool(set(ADMIN_ROLES) & set(get_roles(user)))
 
 
+def _ist_benutzer_admin() -> bool:
+	"""Darf dieser Aufruf Konten und Rollen (`User`/`Has Role`) sehen? (SEC-1)
+
+	Enger als `_ist_resource_admin`: nur die Systemverwaltung. `ADMIN_ROLES`
+	enthaelt auch `Mitgliederadministrator` — der verwaltet Mitglieder und
+	darf die Konten mit Passwort-Hashes NICHT lesen.
+	"""
+	from diakronos_app.frappe_compat.permissions import ADMIN_ROLES, get_roles
+
+	user = frappe_session.user
+	if not user or user == "Guest":
+		return False
+	if user == "Administrator":
+		return True
+	# Nur die Rolle `System Manager` zaehlt. `Mitgliederadministrator` steht
+	# ebenfalls in `ADMIN_ROLES`, verwaltet aber Mitglieder, nicht Konten —
+	# er darf die Passwort-Hashes nicht lesen.
+	return "System Manager" in set(get_roles(user)) & set(ADMIN_ROLES)
+
+
 def _resource_denied(doctype: str, aktion: str) -> str | None:
 	"""Rollenmatrix fuer `/api/resource` — fail closed (BLD-R1 Rest).
 
@@ -554,8 +693,14 @@ def _resource_denied(doctype: str, aktion: str) -> str | None:
 	if doctype in _PLANRAHMEN_DOCTYPES:
 		return "Auf diese Daten ist der generische Zugriff gesperrt."
 	if doctype in {"User", "Has Role"}:
-		from diakronos_app.frappe_compat.permissions import get_roles
-		if "System Manager" not in set(get_roles()):
+		# SEC-1 (S2): Konten und Rollen nur fuer die Systemverwaltung. Es gilt
+		# dieselbe Menge wie `permissions.is_admin` — `System Manager`, die
+		# Rollen aus `ADMIN_ROLES` und der Sondernutzer `Administrator`
+		# (die Erstinstallation legt ihn ohne `Has Role`-Zeile an; ohne diese
+		# Ausnahme waere die Kontenverwaltung fuer ihn gesperrt).
+		# `Mitgliederadministrator` bleibt ausdruecklich draussen: er verwaltet
+		# Mitglieder, nicht Konten mit Passwort-Hashes.
+		if not _ist_benutzer_admin():
 			return "Benutzerkonten und Rollen nur fuer System Manager."
 		return None
 	if _ist_resource_admin():
@@ -746,6 +891,25 @@ def _apply_resource_write(doctype: str, name: str | None, body: dict):
 
 	model = model_for(doctype)
 	cols = column_names(doctype)
+	# SEC-5 (Pentest R2, N1): Credential-Felder gehoeren NICHT auf den
+	# generischen Schreibweg. Vorher landete jeder Payload-Schluessel per
+	# `setattr`/Konstruktor in der Zeile — damit war `password_hash` ueber
+	# POST/PUT /api/resource/User setzbar (Mass-Assignment: Konto uebernehmen,
+	# ohne das alte Passwort zu kennen). Geheimnisse setzt ausschliesslich der
+	# dedizierte Weg (`api/zugang.py`, `set-password`, `passwoerter.neuer_hash`).
+	# Abgelehnt wird der ganze Request (400) statt still verworfen: der Aufrufer
+	# soll wissen, dass sein Schreibversuch nicht stattgefunden hat. `content_hash`
+	# bleibt erlaubt (Integritaetswert, konsistent zu SEC-1).
+	from diakronos_app.frappe_compat.query import ist_gesperrtes_feld
+
+	if any(ist_gesperrtes_feld(k) for k in body):
+		# Generische Meldung — der Feldname selbst wird nicht gespiegelt.
+		return _error_response(
+			f"{doctype} konnte nicht gespeichert werden — bitte die Eingaben "
+			"prüfen.",
+			"ValidationError",
+			400,
+		)
 	payload = {k: v for k, v in body.items() if k in cols}
 	from diakronos_app.frappe_compat.api_helpers import _coerce, _new_name, _normalisiere_leere_links
 	payload = _coerce(doctype, _normalisiere_leere_links(doctype, payload))
@@ -756,6 +920,14 @@ def _apply_resource_write(doctype: str, name: str | None, body: dict):
 		# ein Bestandsname, den es nicht gibt.
 		payload.pop("name", None)
 		payload["name"] = _new_name()
+	if doctype == "Registrierungslink" and name is None:
+		# SEC-3: der Token eines NEUEN Links entsteht IMMER serverseitig
+		# (43 Zeichen, ~256 Bit). Der Pentest setzte hier `slug: "pt-mitglied"`
+		# durch; der Wert wird jetzt verworfen. BESTEHENDE Links bleiben
+		# unberuehrt — eine AENDERUNG (`name` im Pfad) fasst den Slug nicht an.
+		from diakronos_app.frappe_compat.api_helpers import _registrierungslink_token
+
+		payload = _registrierungslink_token(payload)
 	if doctype == "Mitglied":
 		# P1-8c (Pflicht 1): derselbe generische Weg wie `PUT /api/resource/...`
 		# — der Schutz gegen Aussperren eines Verwaltungskontos und gegen das
@@ -804,7 +976,10 @@ def _apply_resource_write(doctype: str, name: str | None, body: dict):
 				setattr(obj, k, v)
 		sess.commit()
 		sess.refresh(obj)
-		return {c.name: _serialize_payload(getattr(obj, c.name)) for c in model.__table__.columns}
+		# SEC-1: das ganze Dict durch _serialize_payload, damit auch die KEYS
+		# gegen die Sperrliste laufen — sonst leakt die POST/PUT-Antwort
+		# password_hash, obwohl die Lesewege ihn filtern.
+		return _serialize_payload({c.name: getattr(obj, c.name) for c in model.__table__.columns})
 	except Exception as exc:
 		sess.rollback()
 		# BLD-04/05 (P0-1-Rest): NIE die rohe SQLAlchemy-/SQL-Meldung ausliefern.

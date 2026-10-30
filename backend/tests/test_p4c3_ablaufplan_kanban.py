@@ -461,24 +461,47 @@ def test_resolve_conflict_ignore_setzt_ignore_flag(client, als_moderator):
 
 
 def test_resolve_conflict_festlegen_speichert_aenderungen(client, als_moderator):
+    """„Freigeben“ aus dem Konflikt-Dialog: Felder speichern UND freigeben.
+
+    DEV-7 (Befund DMB-eb5c6c69ea54): frueher blieb der Status bei `festlegen`
+    auf „Konflikt“ — der einzige Freigabeweg war das Staging. Jetzt gilt
+    derselbe Zielzustand wie dort („Festgelegt“), inkl. Audit-Eintrag.
+    """
     r = client.post(f"/api/method/{KANBAN_MODUL}.resolve_conflict",
                     data={"element_id": "ELE-3", "action": "festlegen",
                           "title": "Neuer Titel"})
     assert r.status_code == 200, r.text
-    assert r.json()["message"]["new_status"] == "Konflikt"
+    assert r.json()["message"]["new_status"] == "Festgelegt"
 
     from diakronos_app.frappe_compat.query import get_value
     assert get_value("Element", "ELE-3", "element_name") == "Neuer Titel"
+    assert get_value("Element", "ELE-3", "status") == "Festgelegt"
+    assert get_value("Element", "ELE-3", "moderiert_von")
 
 
 # ── get_moderation_count ────────────────────────────────────────────────────
 
 
 def test_moderation_count_zaehlt_serie_einmal(client, als_moderator):
-    """ELE-3 + ELE-4 teilen SERIE-A; ELE-2 ist Vorschlag -> 2 eindeutige."""
+    """DEV-8: Das Seiten-Badge = Anzahl der Vorschlaege im Brett.
+
+    ELE-2 (Status „Vorschlag“, Kalender KALENDER) ist der EINE offene
+    Vorschlag. ELE-3/ELE-4 stehen auf „Konflikt“ und liegen im Brett in der
+    eigenen Spalte „Konflikte“; ELE-5 gehoert zu einem fremden Kalender.
+    Frueher zaehlte diese Zahl Vorschlag+Konflikt und Serien einmal
+    (Ergebnis 2) — genau die Abweichung, die die Startseiten-Kachel zeigte:
+    Zahl groesser als die Vorschlagsliste.
+    """
     r = client.get(f"/api/method/{KANBAN_MODUL}.get_moderation_count")
     assert r.status_code == 200, r.text
-    assert r.json()["message"] == {"count": 2}
+    assert r.json()["message"] == {"count": 1}
+
+    # Gegenprobe: dieselbe Zahl wie die Vorschlagsliste des Bretts.
+    from diakronos_app.api.kronos import kanban_api
+
+    board = kanban_api.get_kanban_board_data()
+    assert r.json()["message"]["count"] == len(board["vorschlaege"])
+    assert len(board["konflikte"]) == 2  # Konflikte bleiben in ihrer Spalte
 
 
 def test_moderation_count_ohne_rechte_null(client, als_anna):

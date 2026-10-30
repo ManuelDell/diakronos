@@ -33,20 +33,35 @@
       </template>
     </DkPageHeader>
 
-    <!-- Reiterleiste nur für Mitgliederadministratoren (Konzept Abschnitt 3);
-         für alle anderen ist die Liste die einzige Ansicht. -->
-    <DkTabs
-      v-if="reiter.length > 1"
-      class="mb-reiter"
-      :model-value="aktiverReiter.id"
-      :options="reiter.map(r => ({ value: r.id, label: r.label }))"
-      aria-label="Bereiche von Mitglieder"
-      @update:model-value="reiterWechseln"
-    />
+    <!-- UX-A2a: Bereichsliste links neben dem Inhalt (am Handy eine
+         waagerechte Reiterzeile). Sie ersetzt den Reiterstreifen; die
+         Unterbereiche von „Anfragen“ sind eigene, eingerückte Einträge
+         („Anfragen“ selbst ist der Hauptpunkt mit der Zahl).
+         Nur für Mitgliederadministratoren mehr als ein Eintrag (Konzept
+         Abschnitt 3); für alle anderen ist die Liste die einzige Ansicht. -->
+    <div class="mb-raster" :class="{ 'ohne-liste': !zeigtBereichsliste }">
+      <DkBereichsliste
+        v-if="zeigtBereichsliste"
+        class="mb-liste"
+        :model-value="aktiverEintragValue"
+        :options="bereichsEintraege"
+        aria-label="Bereiche von Mitglieder"
+      />
 
-    <!-- Inhalt des aktiven Reiters. Die Körper stammen aus den vorhandenen
-         Seiten; ihr eigener Kopf ist dort ausgeblendet (embedded). -->
-    <component :is="inhalt" ref="liste" embedded />
+      <!-- Inhalt des aktiven Eintrags. Die Körper stammen aus den vorhandenen
+           Seiten; ihr eigener Kopf ist dort ausgeblendet (embedded).
+           UX-A2a: KEIN role="tabpanel" — die Einträge sind Links einer
+           Navigation (kein Reiter-Muster). Der Bereich trägt einen Namen für
+           Vorlesehilfen und ist per Tastatur erreichbar. -->
+      <div class="mb-inhalt" :aria-label="inhaltName" role="region" tabindex="0">
+        <component
+          :is="inhalt"
+          ref="liste"
+          embedded
+          :unterbereich="unterbereich"
+        />
+      </div>
+    </div>
 
     <!-- Dialog „Mitglied hinzufügen“ (Neuordnung N4). Ersetzt den früheren
          Sprung in die Anmeldungen: hier entsteht die Person direkt (Zugang
@@ -61,14 +76,21 @@
 
 <script setup>
 /**
- * Mitglieder — Rahmen mit Reitern (Neuordnung N1).
- * Kopf und Reiterleiste kommen aus der zentralen Definition (menue.js);
- * jeder Reiter hat eine eigene Adresse. Die Inhalte sind eigene bzw. die
- * vorhandenen Seiten, eingebettet über ihr Merkmal `embedded`.
+ * Mitglieder — Rahmen mit Bereichsliste (Neuordnung N1, UX-A2a).
+ * Kopf und Einträge kommen aus der zentralen Definition (menue.js); jeder
+ * Eintrag hat eine eigene Adresse.
  *
- * Export (P1-9b + N1b): Der Rahmen zeigt den Knopf NUR im Reiter „Liste“ und
- * ruft die echte Server-Export-Funktion der Liste über ihre Template-Ref auf
- * (defineExpose). Der fruehere zweite, clientseitige Export ist entfallen —
+ * UX-A2a (Entwurf A2, Manuel 23.10.): Der Reiterstreifen ist durch EINE feste
+ * Liste links neben dem Inhalt ersetzt (am Handy: waagerechte Reiterzeile).
+ * Die Unterbereiche von „Anfragen“ (Links & QR-Codes · Formulare) sind eigene,
+ * eingerückte Einträge dieser Liste — „Anfragen“ selbst ist der Hauptpunkt mit
+ * der Zahl; die bisherige zweite Reiterzeile in der Anfragen-Seite entfällt.
+ * Neben „Anfragen“ steht die Zahl offener Anfragen aus demselben Stand wie an
+ * „Mitglieder“ in der Seitenleiste (eine Abfrage für beide Anzeigen).
+ *
+ * Export (P1-9b + N1b): Der Rahmen zeigt den Knopf NUR beim Eintrag „Liste“
+ * und ruft die echte Server-Export-Funktion der Liste über ihre Template-Ref
+ * auf (defineExpose). Der fruehere zweite, clientseitige Export ist entfallen —
  * er widersprach dem serverseitigen Export (CSV-Entschaerfung, alle Zeilen).
  * „Mitglied hinzufügen“ öffnet seit N4 den eigenen Dialog (Zugang „kein
  * Zugang“) statt in die Anmeldungen zu springen; einen „Importieren“-Knopf
@@ -76,25 +98,25 @@
  * Beschriftung (Befund R-N1-code N1-4).
  */
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
-import { currentPageName, navigate } from '../../router.js'
+import { currentHash, currentPageName } from '../../router.js'
 import { apiCall } from '../../composables/useApi.js'
 import { useSession } from '../../composables/useSession.js'
-import { MITGLIEDER_REITER, sichtbareMitgliederReiter } from '../../menue.js'
+import { bereichsEintragAusHash, bereichsWert, mitgliederBereichEintraege, unterbereichsWert } from '../../menue.js'
+import { anfragenZaehler, anfragenZahlAuffrischen } from '../../composables/useVerwaltung.js'
 import { showToast } from '../../composables/useToast.js'
 import DkPageHeader from '../../components/ui/DkPageHeader.vue'
 import DkButton from '../../components/ui/DkButton.vue'
-import DkTabs from '../../components/ui/DkTabs.vue'
+import DkBereichsliste from '../../components/ui/DkBereichsliste.vue'
 import MitgliedHinzufuegenDialog from '../../components/mitglieder/MitgliedHinzufuegenDialog.vue'
 
 const { isAdmin } = useSession()
 const seite = currentPageName
 // ACHTUNG: In der VORLAGE werden Verweise aus `script setup` NICHT
 // automatisch ausgepackt, wenn sie in einem Ausdruck stehen (v-if="a && b").
-// Deshalb hier fertige Wahrheitswerte bereitstellen; `aktiverReiter` bleibt
-// eine Ref (nur `.id`/`.value` in Skripten).
+// Deshalb hier fertige Wahrheitswerte bereitstellen.
 const istAdmin = computed(() => isAdmin.value === true)
 
-// Inhalte der Reiter. Die Übersicht ist die eigene, neue Seite (N1); die
+// Inhalte der Einträge. Die Übersicht ist die eigene, neue Seite (N1); die
 // Liste bleibt die vorhandene Seite.
 const UEBERSICHT   = defineAsyncComponent(() => import('./Uebersicht.vue'))
 const LISTE        = defineAsyncComponent(() => import('../Mitglieder.vue'))
@@ -104,17 +126,47 @@ const DATENSCHUTZ  = defineAsyncComponent(() => import('./Datenschutz.vue'))
 const LOESCHANTRAEGE = defineAsyncComponent(() => import('./Loeschantraege.vue'))
 const IMPORT       = defineAsyncComponent(() => import('./Import.vue'))
 
-const reiter = computed(() => sichtbareMitgliederReiter({ istAdmin: isAdmin.value }))
+// ── Einträge und Auswahl ───────────────────────────────────────────────────
 
-const aktiverReiter = computed(() =>
-  reiter.value.find(r => r.seite === seite.value)
-  || reiter.value.find(r => r.id === 'liste')
-  || reiter.value[0]
-  || MITGLIEDER_REITER[1],
-)
+// Kennzahl offener Anfragen: DERSELBE Stand wie an „Mitglieder“ in der
+// Seitenleiste (useVerwaltung.js, eine Abfrage für beide Anzeigen). Der
+// Bereich LIEST nur — kein eigenes Intervall (UX-A2a2 Punkt 3): den Takt hält
+// die Seitenleiste über `anfragenZaehlerBeobachten`, hier steht kein
+// `setInterval`. Auch beim Wechsel des Eintrags wird nicht nachgefragt; die
+// Zahl ändert sich im Minutentakt bzw. nach einer Handlung (Aufnehmen/
+// Ablehnen ruft die Anfragen-Seite `anfragenZahlAuffrischen`).
+const anfragenZahl = anfragenZaehler
+
+const bereichsEintraege = computed(() => mitgliederBereichEintraege({
+  istAdmin: isAdmin.value === true,
+  anfragenZahl: anfragenZahl.value,
+}))
+
+/** Nur Mitgliederadministratoren sehen mehr als einen Eintrag. */
+const zeigtBereichsliste = computed(() => bereichsEintraege.value.length > 1)
+
+const aktiveAuswahl = computed(() => bereichsEintragAusHash(currentHash.value, {
+  istAdmin: isAdmin.value === true,
+  anfragenZahl: anfragenZahl.value,
+}))
+
+const aktiverEintrag = computed(() => aktiveAuswahl.value?.eintrag || null)
+const unterbereich = computed(() => aktiveAuswahl.value?.unterbereich?.bereich || null)
+
+/** Gewählter Wert für die Liste: Seite bzw. Seite + Unterbereich (menue.js,
+ *  damit Ober- und Unterpunkte NICHT gleichzeitig als gewählt gelten).
+ *  Der Anfragen-Hauptpunkt ohne Abfrageteil bleibt der Hauptpunkt selbst. */
+const aktiverEintragValue = computed(() => {
+  const unter = aktiveAuswahl.value?.unterbereich
+  return unter ? unterbereichsWert(unter.seite, unter.bereich)
+    : bereichsWert(aktiveAuswahl.value?.eintrag?.seite || seite.value)
+})
+
+/** Name des Inhaltsbereichs für Vorlesehilfen (role="region"). */
+const inhaltName = computed(() => aktiverEintrag.value?.label || 'Mitglieder')
 
 const inhalt = computed(() => {
-  switch (aktiverReiter.value.id) {
+  switch (aktiverEintrag.value?.id) {
     case 'uebersicht':  return UEBERSICHT
     case 'anfragen':    return ANFRAGEN
     case 'datenschutz': return DATENSCHUTZ
@@ -125,23 +177,23 @@ const inhalt = computed(() => {
 })
 
 const unterzeile = computed(() => {
-  if (aktiverReiter.value.id === 'liste') return 'Alle Personen der Gemeinde'
-  if (aktiverReiter.value.id === 'import') return 'Personen aus einer CSV-Datei einlesen'
+  if (aktiverEintrag.value?.id === 'liste') return 'Alle Personen der Gemeinde'
+  if (aktiverEintrag.value?.id === 'import') return 'Personen aus einer CSV-Datei einlesen'
   return ''
 })
 
-/** Export nur im Reiter „Liste“ und nur fuer Mitgliederadministratoren.
- *  Bewusst ein fertiger Wahrheitswert: `v-if="istAdmin && aktiverReiter.id…"`
- *  waere in der Vorlage falsch (kein Auspacken in Ausdruecken). */
+/** Export nur beim Eintrag „Liste“ und nur fuer Mitgliederadministratoren.
+ *  Bewusst ein fertiger Wahrheitswert: `v-if="istAdmin && …"` waere in der
+ *  Vorlage falsch (kein Auspacken in Ausdruecken). */
 const zeigeExportKnopf = computed(
-  () => istAdmin.value === true && aktiverReiter.value.id === 'liste',
+  () => istAdmin.value === true && aktiverEintrag.value?.id === 'liste',
 )
 
-/** N11: Der Reiter „Import“ hat keine eingebettete Liste, deren Export
+/** N11: Der Eintrag „Import“ hat keine eingebettete Liste, deren Export
  *  gerufen werden koennte — hier holt der Server den Export direkt. Nur fuer
  *  Mitgliederadministratoren (der Server verweigert sonst ohnehin). */
 const zeigeImportExportKnopf = computed(
-  () => istAdmin.value === true && aktiverReiter.value.id === 'import',
+  () => istAdmin.value === true && aktiverEintrag.value?.id === 'import',
 )
 
 // Die eingebettete Liste meldet ihren Umfang selbst (eigener Kopf im
@@ -168,12 +220,13 @@ async function exportieren() {
   }
 }
 
-function reiterWechseln(id) {
-  const ziel = reiter.value.find(r => r.id === id)
-  if (ziel) navigate(ziel.href)
-}
+/** Wechsel des Unterbereichs INNERHALB der Anfragen-Seite. Der Rahmen hat
+ *  dafür keinen Umschalter (die Bereichsliste links ist die Navigation); die
+ *  Seite allein — ohne `embedded` — schaltet lokal und schreibt die Adresse
+ *  selbst. Das frühere Ereignis `unterbereich-wechsel` samt Empfänger ist
+ *  entfallen (UX-A2a2): es wurde von keiner Seite mehr ausgelöst. */
 
-/** Export direkt vom Server (Reiter „Import“, N11). Der Server entschaerft die
+/** Export direkt vom Server (Eintrag „Import“, N11). Der Server entschaerft die
  *  Zellen und quotet die Datei; hier wird nur gespeichert. Die frueheren
  *  Client-Basteleien (naives Teilen an „;“ und eigene Entschaerfung) sind
  *  entfallen, weil sie gequotete Zellen falsch behandelten. */
@@ -217,7 +270,23 @@ async function gruppenLaden() {
   }
 }
 
-onMounted(gruppenLaden)
+onMounted(() => {
+  gruppenLaden()
+})
+
+// ── Aufnehmen/Ablehnen: die Kennzahl sofort nachziehen ─────────────────────
+
+/**
+ * Weiterreichen an die eingebettete Anfragen-Seite (UX-A2a2): nach einer
+ * Handlung, die die Zahl offener Anfragen ändert (aufnehmen/ablehnen), holt
+ * der Bereich den gemeinsamen Stand EINMAL neu. NICHT bei jedem Wechsel des
+ * Eintrags — das war die zusätzliche Abfrage aus dem Review.
+ */
+function anfragenStandAuffrischen() {
+  anfragenZahlAuffrischen()
+}
+
+defineExpose({ anfragenStandAuffrischen })
 
 async function mitgliedHinzufuegen() {
   await gruppenLaden()
@@ -233,8 +302,25 @@ function nachAnlegen() {
 </script>
 
 <style scoped>
-.mb-reiter { margin-bottom: var(--sp-3); }
+/* UX-A2a: Bereichsliste links, Inhalt rechts. Auf schmalen Anzeigen stellt
+   die Komponente selbst auf eine waagerechte Reiterzeile um (≤ 720 px);
+   hier wird dann nur das Raster einspaltig. */
+.mb-raster {
+  display: grid;
+  grid-template-columns: 216px minmax(0, 1fr);
+  gap: var(--sp-6);
+  align-items: start;
+}
+.mb-raster.ohne-liste { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 1100px) {
+  .mb-raster { grid-template-columns: 184px minmax(0, 1fr); gap: var(--sp-4); }
+}
+@media (max-width: 720px) {
+  .mb-raster { grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
+}
 /* Die eingebetteten Seiten bringen ihren eigenen .dk-screen mit; hier liegt
    der Rahmen schon in einem, deshalb innen Abstand und Breite aufheben. */
+.mb-inhalt { min-width: 0; }
+.mb-inhalt:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; border-radius: var(--radius); }
 .bereich :deep(.dk-screen) { max-width: none; padding: 0; margin: 0; }
 </style>

@@ -53,6 +53,23 @@ Body:
 daraus. Wir liefern `exc` nur, wenn wir es bewusst setzen (Audit-Pfad); fuer den
 Normalfall genuegt `message` + HTTP-Status.
 
+**c) Diagnosetexte bleiben im Log (SEC-7/S1+S2):** Fehlerantworten des
+Method-Routers enthalten NIE eine Python-Signatur, einen internen
+Funktionsnamen oder eine Exception-Klasse aus unerwarteten Ausnahmen. Konkret:
+
+| Fall | Status | Body |
+|---|---|---|
+| fehlende/falsche/unerwartete Argumente (`TypeError`, `ValueError`, `KeyError` aus der Fachfunktion) | `417` | `{"message": "Ungueltige Anfrage", "exception": "ValidationError", "exc_type": "ValidationError"}` |
+| unbekannter Methodenname **und** unzulaessiger Pfad (`..`, `/`, `\`, `%`, Leerzeichen, leeres Segment) | `404` | `{"message": "Methode nicht gefunden", "exception": "NotFound", "exc_type": "NotFound"}` |
+| unerwarteter Fehler in der Fachfunktion | `500` | `{"message": "Interner Fehler", "exception": "InternalError", "exc_type": "InternalError"}` — Traceback nur im Log |
+| fachlicher Fehler (`frappe.throw` → `FrappeCompatError`) | `exc.http_status` | unveraendert: `message` = Fachtext, `exception`/`exc_type` = Klasse (`ValidationError`, `PermissionError`, `CSRFTokenError`, `SessionExpired`, …) |
+
+Der Methodenpfad wird **vor** jeder Aufloesung gegen eine Whitelist geprueft:
+`[A-Za-z0-9_]+` in Segmenten, getrennt durch genau einen Punkt, max. 255
+Zeichen. Damit ist weder Methoden- noch Signatur-Enumeration ueber
+unterschiedliche Fehlerbilder moeglich, und Pfad-Traversal endet in einem
+sauberen 404 statt in einem 500.
+
 **Sonderfall Audit (`AuditConfirmationRequired`):** nicht Teil von P2a. Wenn in
 `message`/`exc` der String `CONFIRM_REQUIRED:` vorkommt, parst die SPA die
 Policy. Diese Ausnahme wird erst in einer spaeteren Karte bedient; der Router
@@ -266,3 +283,108 @@ Gegen ein echtes uvicorn auf Port 8123/8124 mit der echten Postgres-DB:
 → alle neutralisiert; `>10 MB` → 417; `Eventkategorie`/`Element` mit
 `fields`+`limit_page_length` → 200. Test-Suite: **113 passed / 6 skipped / 0 failed**
 (3x randomisiert stabil).
+
+---
+
+## REG-1a — Registrierung: Startdatum, Beschreibung, Bilder (Manuel 23.10.)
+
+Alle Wege, ueber die ein BESUCHER einen Registrierungslink benutzt, sprechen
+dieselbe Fachpruefung (`api/registrierung._validate_token`). Neues Feld:
+`registrierungslink.gueltig_ab` (DATE, `NULL` = sofort gueltig). Vor diesem Tag
+ist der Link fuer Besucher gesperrt, Administratoren sehen ihn weiter.
+
+### `GET /api/method/diakronos.diakonos.api.registrierung.validate_token`
+
+Zusaetzliche Felder in `message` (die bisherigen bleiben unveraendert):
+
+| Feld | Typ | Bedeutung |
+|---|---|---|
+| `beschreibung` | string | Beschreibung des Formulars, bereinigter reiner Text (kein HTML, Markdown-Betonungen entfernt) |
+| `banner_bild` | string | relativer Abrufpfad `/public/registrierung/<token>/bild/banner` oder `""` |
+| `hintergrund_bild` | string | relativer Abrufpfad `/public/registrierung/<token>/bild/hintergrund` oder `""` |
+
+Vor `gueltig_ab` antwortet der Endpunkt wie bei einem abgelaufenen Link:
+
+```json
+HTTP 403
+{"message": "Anmeldung ab 26.10.2026 möglich.", "exception": "PermissionError", "exc_type": "PermissionError"}
+```
+
+Derselbe Text erscheint auf der ausgelieferten Seite als
+`window.__diakronos.linkFehler`; `submit_registrierung` und `submit_gast`
+verweigern identisch. Am Tag selbst (und danach) ist der Link nutzbar.
+
+### `GET /api/method/diakronos.diakonos.api.registrierung.get_oeffentliche_formular`
+
+Anzeige-Endpunkt fuer das Formular (Felder + Kopf in einem Aufruf), ebenfalls
+oeffentlich:
+
+```json
+{"message": {"typ": "Mitglied-Registrierung", "bezeichnung": "Einladung",
+             "gueltig_ab": "2026-10-26", "felder": [...], "mit_kinder": 1,
+             "mit_gaesten": 0, "beschreibung": "...",
+             "banner_bild": "/public/registrierung/<token>/bild/banner",
+             "hintergrund_bild": ""}}
+```
+
+Ist der Aufrufer Administrator (Rolle geprueft, nicht vom Client geglaubt),
+wird die Startdatum-Pruefung uebersprungen — die Verwaltung muss einen noch
+nicht gueltigen Link ansehen koennen. Ein unbekannter oder abgeschalteter
+Token bleibt auch dann ein Fehler (403).
+
+### `GET /public/registrierung/<token>/bild/<banner|hintergrund>`
+
+Das Bild selbst (`inline`, `Cache-Control: public, max-age=300`,
+`X-Content-Type-Options: nosniff`). Oeffentlich, aber NUR mit gueltigem
+Registrierungstoken und nur fuer Rasterbilder (PNG/JPEG/GIF/WebP, aus den
+Magic-Bytes bestimmt). `GET /files/<name>` verlangt weiter eine Anmeldung —
+die Formularbilder sind am Formular vorbei nicht abrufbar.
+
+### Verwaltung (nur Mitgliederadministratoren)
+
+`create_link`/`update_link` (`registrierungslink_api`) nehmen `gueltig_ab`
+(`JJJJ-MM-TT`, leer = sofort); `update_link` schreibt ein leeres Datum
+ausdruecklich auf `NULL`. Antworten enthalten `gueltig_ab`. Der Zustand der
+Linkliste (`admin_hub.get_anmeldungen_hub`) kennt zusaetzlich
+`"bevorstehend": true` (vor `gueltig_ab`) und `"gueltig_ab": "JJJJ-MM-TT"`.
+
+**Zeitraum-Pruefung.** `gueltig_ab` muss vor `gueltig_bis` liegen; sonst
+HTTP 417 mit beiden Daten im Text (`„Gültig ab“ (…) liegt nach „gültig bis“
+(…)`). Beim `update_link` wird der jeweils andere Wert aus dem Bestand
+herangezogen, wenn er im Aufruf fehlt.
+
+**Zeitzone.** „Heute“ ist der Tag in `settings.calendar_timezone`
+(Default `Europe/Berlin`, ENV `CALENDAR_TIMEZONE`) — nicht der Tag des
+Containers. Anzeige (`registrierungslink.zustand`) und Wirkung
+(`_validate_token`) benutzen dieselbe Quelle
+(`anmeldung/registrierungslink.heute_gemeinde`), damit ein Link nicht in der
+einen Ansicht „bevorstehend“ und in der anderen „aktiv“ ist.
+
+`admin_hub.update_anmeldeformular` erweitert um:
+
+| Parameter | Bedeutung |
+|---|---|
+| `beschreibung` | Text des Formulars; normalisiert gespeichert, **Klartext** (leer = `NULL`) |
+| `banner_bild_datei` / `hintergrund_bild_datei` | Dateiname einer vorher per `upload_file` hochgeladenen Datei; geprueft wird der `File`-Datensatz (Herkunft), die Privatablage und das Rasterbild (sonst 417) |
+| `bilder_entfernen` | Komma-Liste `banner,hintergrund` → Spalte leeren **und Datei + `File`-Datensatz loeschen** |
+
+**Beschreibung ist Klartext.** Gespeichert und ausgeliefert wird der reine
+Text (Markdown-Betonungen entfernt, Steuerzeichen entfernt, hoechstens 5000
+Zeichen). `<` und `>` bleiben **Zeichen im Text** — auch der HTML-Anfang
+`<script>` steht wortgetreu drin. Das Escaping macht ausschliesslich die
+Anzeige (`{{ }}` in `registrierung/App.vue`, nie `v-html`); der Server maskiert
+NICHT, sonst laese der Besucher woertlich `&lt;`.
+
+**Bild-Lebenszyklus.** Zulaessig ist nur eine Datei aus dem Formular-Upload:
+es muss einen `File`-Datensatz zu genau diesem Dateinamen geben, er darf keine
+private Datei eines anderen Mitglieds sein (`is_private` mit fremdem
+Eigentuemer bzw. `/private/files/…`), und die Magic-Bytes muessen ein
+Rasterbild sein. Wird ein Bild ersetzt, per `bilder_entfernen` entfernt oder
+das Formular geloescht (`delete_anmeldeformular`), werden **Datei und
+`File`-Datensatz** mitgeloescht — sofern kein anderes Formular dieselbe Datei
+noch fuehrt (geteilte Uploads bleiben erhalten).
+
+`admin_hub.get_anmeldeformular_kopf` liefert Bezeichnung, Schalter,
+`beschreibung`, `bannerbild`/`hintergrundbild` (Dateiname) sowie
+`banner_bild_url`/`hintergrund_bild_url` (`/files/<name>` fuer die Vorschau der
+Verwaltung).

@@ -16,26 +16,15 @@
     </div>
 
     <!-- Anlegen (OP-ADMIN-6/UXD-R4): gleiche Felder wie im Organigramm, hier
-         an der Stelle, an der die Gruppen auch erscheinen. -->
-    <DkDialog v-model="showCreate" :title="createForm.typ === 'untergruppe' ? 'Neue Untergruppe' : 'Neue Gruppe'">
-      <!-- OP-UI-23: <form @submit.prevent> — Enter im Feld sendet dieselbe
-           Hauptaktion wie der Knopf (statt wirkungslos zu bleiben). -->
-      <form class="gr-formular" @submit.prevent="submitCreate">
-        <DkField label="Name" required :error="createFehler.name">
-          <input v-model="createForm.name" type="text" class="dk-ui-eingabe" placeholder="Name eingeben" required />
-        </DkField>
-        <DkField v-if="createForm.typ === 'gruppe'" label="Dienstbereich" required :error="createFehler.parent">
-          <DkSelect v-model="createForm.parent" :options="dienstbereichOptionen" placeholder="Bitte wählen" />
-        </DkField>
-        <DkField v-else label="Gruppe" required :error="createFehler.parent">
-          <DkSelect v-model="createForm.parent" :options="gruppenOptionen" placeholder="Bitte wählen" />
-        </DkField>
-      </form>
-      <template #footer>
-        <DkButton variant="ghost" @click="showCreate = false">Abbrechen</DkButton>
-        <DkButton variant="primary" :loading="sendingCreate" @click="submitCreate">Erstellen</DkButton>
-      </template>
-    </DkDialog>
+         an der Stelle, an der die Gruppen auch erscheinen. DEV-1: der Dialog
+         ist ein eigener Baustein — dieselbe Maske nutzt der Bereichs-Rahmen. -->
+    <GruppeAnlegenDialog
+      v-model="showCreate"
+      :typ="createTyp"
+      :dienstbereiche="alleDienstbereiche"
+      :gruppen="alleGruppenNamen"
+      @angelegt="loadData"
+    />
 
     <!-- OP-UI-19: Der Seitenkopf steht schon, der Inhalt ist ein ruhiges
          Skelett. Vorher stand hier „Lade…“ ohne Umriss; nach dem Laden
@@ -52,8 +41,9 @@
         </div>
 
         <!-- DES-01: eine Chip-Zeile aus dem Baustein (vorher 28 handgebaute
-             Knöpfe in 12 Seiten, hier zusätzlich ohne umschaltbaren Zustand). -->
-        <div class="gr-filterzeile">
+             Knöpfe in 12 Seiten, hier zusätzlich ohne umschaltbaren Zustand).
+             DEV-1: nur ab zwei Dienstbereichen — bei einem filtert sie nichts. -->
+        <div v-if="zeigeMeineChips" class="gr-filterzeile">
           <DkFilterChips
             :chips="meineDienstbereichChips"
             :model-value="aktiverMeineChip"
@@ -74,7 +64,7 @@
         >
           <DkButton variant="ghost" size="sm" @click="chipWaehlen('meine', 'alle')">Alle zeigen</DkButton>
         </DkEmpty>
-        <div v-else class="gr-grid-scroll">
+        <div v-else class="gr-grid-scroll" data-raster="meine">
           <a
             v-for="g in gefilterteMeineGruppen"
             :key="g.name"
@@ -104,7 +94,7 @@
           <span class="gr-zaehler">{{ gefilterteAlleGruppen.length }}</span>
         </div>
 
-        <div class="gr-filterzeile">
+        <div v-if="zeigeAlleChips" class="gr-filterzeile">
           <DkFilterChips
             :chips="alleDienstbereichChips"
             :model-value="aktiverAlleChip"
@@ -122,7 +112,7 @@
         >
           <DkButton variant="ghost" size="sm" @click="chipWaehlen('alle', 'alle')">Alle zeigen</DkButton>
         </DkEmpty>
-        <div v-else class="gr-grid-scroll">
+        <div v-else class="gr-grid-scroll" data-raster="alle">
           <a
             v-for="g in gefilterteAlleGruppen"
             :key="g.name"
@@ -163,13 +153,13 @@ import { apiCall } from '../composables/useApi.js'
 import { showToast } from '../composables/useToast.js'
 import { adresseSchreiben, zustandAusAdresse, pfadOhneAbfrage } from '../composables/listenzustand.mjs'
 import { chipsAus, filtereNachChip } from '../composables/filterChips.mjs'
+// DEV-1: Bereichszahl für die Chip-Zeilen (Befund DMB-c6f79cf0f5c6).
+import { bereicheAus } from '../composables/gruppenAnlegen.mjs'
 import DkButton from '../components/ui/DkButton.vue'
-import DkDialog from '../components/ui/DkDialog.vue'
-import DkField from '../components/ui/DkField.vue'
-import DkSelect from '../components/ui/DkSelect.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkFilterChips from '../components/ui/DkFilterChips.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
+import GruppeAnlegenDialog from '../components/gruppen/GruppeAnlegenDialog.vue'
 
 // Im Gruppen-Bereich eingebettet: eigener Kopf entfällt.
 defineProps({ embedded: { type: Boolean, default: false } })
@@ -184,62 +174,11 @@ const perms = ref({ can_create_any: false, can_create_gruppe: false, can_create_
 const alleDienstbereiche = ref([])
 const alleGruppenNamen = ref([])
 const showCreate = ref(false)
-const sendingCreate = ref(false)
-const createForm = ref({ typ: 'gruppe', name: '', parent: '' })
-// OP-UI-5/UXD-R22: der Knopf bleibt aktiv; der Klick prüft und benennt das
-// fehlende Feld, statt stumm nichts zu tun (vorher `:disabled`).
-const createFehler = ref({ name: '', parent: '' })
-
-const dienstbereichOptionen = computed(() =>
-  alleDienstbereiche.value.map(d => ({ value: d.name, label: d.ministry || d.name })))
-const gruppenOptionen = computed(() =>
-  alleGruppenNamen.value.map(g => ({ value: g.name, label: g.gruppenname || g.name })))
+const createTyp = ref('gruppe')
 
 function openCreate(typ) {
-  createForm.value = { typ, name: '', parent: '' }
-  createFehler.value = { name: '', parent: '' }
+  createTyp.value = typ
   showCreate.value = true
-}
-
-/** Pflichtfelder prüfen (OP-UI-5): Fehler am Feld, Fokus ins erste Feld. */
-function pruefeCreate() {
-  const f = createForm.value
-  const fehler = { name: '', parent: '' }
-  if (!f.name.trim()) fehler.name = 'Bitte einen Namen angeben.'
-  if (!f.parent) fehler.parent = f.typ === 'untergruppe'
-    ? 'Bitte eine Gruppe wählen.'
-    : 'Bitte einen Dienstbereich wählen.'
-  createFehler.value = fehler
-  return !fehler.name && !fehler.parent
-}
-
-async function submitCreate() {
-  if (sendingCreate.value) return
-  if (!pruefeCreate()) {
-    requestAnimationFrame(() => document.querySelector('.gr-formular .dk-ui-eingabe')?.focus())
-    return
-  }
-  const f = createForm.value
-  sendingCreate.value = true
-  try {
-    if (f.typ === 'untergruppe') {
-      await apiCall('diakronos.diakonos.api.gruppen.create_untergruppe', {
-        name: f.name.trim(), gruppe: f.parent,
-      })
-      showToast('Untergruppe angelegt', 'success')
-    } else {
-      await apiCall('diakronos.diakonos.api.gruppen.create_gruppe', {
-        name: f.name.trim(), dienstbereich: f.parent,
-      })
-      showToast('Gruppe angelegt', 'success')
-    }
-    showCreate.value = false
-    await loadData()
-  } catch (err) {
-    showToast(err?.message || 'Fehler beim Anlegen', 'error')
-  } finally {
-    sendingCreate.value = false
-  }
 }
 
 const aktiverMeineChip = ref('alle')
@@ -286,6 +225,12 @@ const dienstbereichVon = (g) => g.dienstbereich_name || ''
 const meineDienstbereichChips = computed(() => chipsAus(meineGruppen.value, dienstbereichVon))
 const gefilterteMeineGruppen = computed(() =>
   filtereNachChip(meineGruppen.value, aktiverMeineChip.value, dienstbereichVon))
+/**
+ * DEV-1 (Befund DMB-c6f79cf0f5c6): Bei nur EINEM Dienstbereich hat die
+ * Chip-Zeile keine sichtbare Wirkung — jede Auswahl zeigt dieselben Gruppen.
+ * Dann bleibt die Zeile weg.
+ */
+const zeigeMeineChips = computed(() => bereicheAus(meineGruppen.value, dienstbereichVon).length > 1)
 
 // ─── Alle Gruppen: flaches Array aus andereGruppen ───
 const alleGruppenFlach = computed(() => {
@@ -305,6 +250,8 @@ const alleGruppenFlach = computed(() => {
 const alleDienstbereichChips = computed(() => chipsAus(alleGruppenFlach.value, dienstbereichVon))
 const gefilterteAlleGruppen = computed(() =>
   filtereNachChip(alleGruppenFlach.value, aktiverAlleChip.value, dienstbereichVon))
+/** DEV-1: dieselbe Regel wie oben, für die Zeile „Alle Gruppen“. */
+const zeigeAlleChips = computed(() => bereicheAus(alleGruppenFlach.value, dienstbereichVon).length > 1)
 
 async function loadData() {
   loading.value = true
@@ -328,6 +275,10 @@ onMounted(() => {
   aktiverAlleChip.value = chipAusAdresse()
   loadData()
 })
+
+// DEV-1: der Bereichs-Rahmen lädt die Liste nach dem Anlegen neu (der Dialog
+// sitzt im Seitenkopf des Rahmens, die Daten gehören aber hierher).
+defineExpose({ reload: loadData })
 </script>
 
 <style scoped>
@@ -392,6 +343,11 @@ onMounted(() => {
   padding-bottom: 8px;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  /* FIX-5 (DEV-1): `min-width: 0` — als Rasterkind in einem Flex-/Block-
+     Rahmen darf sich der Streifen nicht an seinem Inhalt orientieren, sonst
+     schiebt er die Seite in die Breite statt selbst zu scrollen. */
+  min-width: 0;
+  max-width: 100%;
 }
 @media (max-width: 400px) {
   .gr-grid-scroll { grid-auto-columns: minmax(132px, 168px); }
@@ -402,10 +358,14 @@ onMounted(() => {
 .gr-kachel {
   /* DES-R7: `width:100%` zusammen mit der früheren inhaltsbasierten Spalte
      war eine der Ursachen des 45-px-Fehlers. Die Breite kommt jetzt aus
-     `grid-auto-columns` der Spalte — die Kachel füllt sie nur aus. */
-  width: auto;
+     `grid-auto-columns` der Spalte — die Kachel füllt sie nur aus.
+     FIX-5 (DEV-1): `max-width: 190px` galt trotzdem absolut; die Handy-Regel
+     unten setzte die SPALTE auf 132–168 px, die Kachel blieb aber bis 190 px
+     breit und lief seitlich über. Das Höchstmaß gehört deshalb zur Spalte:
+     `100%` = genau eine Rasterspalte, nie mehr. */
+  width: 100%;
   min-width: 0;
-  max-width: 190px;
+  max-width: 100%;
   border-radius: 12px;
   overflow: hidden;
   background: var(--dk-surface);

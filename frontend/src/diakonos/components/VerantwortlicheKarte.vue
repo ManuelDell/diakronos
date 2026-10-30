@@ -182,10 +182,10 @@ watch(() => [props.doctype, props.name], laden)
 <style scoped>
 .verw-hinweis {
   font-size: var(--fs-sm);
-  color: var(--text-muted);
+  color: var(--muted);
   margin: 0 0 var(--sp-3);
 }
-.verw-zustand { color: var(--text-muted); padding: var(--sp-3) 0; }
+.verw-zustand { color: var(--muted); padding: var(--sp-3) 0; }
 .verw-liste { list-style: none; margin: 0; padding: 0; }
 .verw-eintrag {
   display: flex;
@@ -196,19 +196,19 @@ watch(() => [props.doctype, props.name], laden)
   border-bottom: 1px solid var(--line);
 }
 .verw-eintrag--treffer { cursor: pointer; }
-.verw-eintrag--treffer:hover { background: var(--surface-2, #f5f6f8); }
+.verw-eintrag--treffer:hover { background: var(--surface-2); }
 .verw-name { font-weight: var(--fw-medium, 500); }
-.verw-email { color: var(--text-muted); font-size: var(--fs-sm); }
+.verw-email { color: var(--muted); font-size: var(--fs-sm); }
 .verw-entfernen {
   background: none;
   border: none;
-  color: var(--dk-err, #b42318);
+  color: var(--err);
   cursor: pointer;
   font-size: var(--fs-sm);
   padding: 0;
 }
 .verw-formular { display: flex; flex-direction: column; gap: var(--sp-3); }
 .verw-treffer { list-style: none; margin: 0; padding: 0; max-height: 12rem; overflow: auto; }
-.verw-leer { color: var(--text-muted); font-size: var(--fs-sm); margin: 0; }
+.verw-leer { color: var(--muted); font-size: var(--fs-sm); margin: 0; }
 .verw-aktionen { display: flex; gap: var(--sp-2); }
 </style>

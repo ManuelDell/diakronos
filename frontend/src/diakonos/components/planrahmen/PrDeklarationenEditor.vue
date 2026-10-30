@@ -66,10 +66,14 @@
           <PrPfadMeldungen :meldungen="meldungen" :pfad="'merkmale/' + ziel.wert + '/' + i" />
           <template v-if="m.art === 'person'">
             <div v-if="typeof m.rolle === 'string'" class="pr-dek-zeile">
+              <!-- UX-C3b: Rollenreferenz über Auswahl; eine nicht (mehr)
+                   vorhandene Rolle bleibt als „unbekannter Wert“ sichtbar. -->
               <label class="pr-dek-label">Welche Personen als Wert?
-                <select class="dk-form-select" :value="m.rolle" @change="merkmalsRolleSetzen(m, $event.target.value)">
-                  <option v-for="r in kontext.rollen || []" :key="r.id" :value="'@' + r.id">{{ r.name || r.id }}</option>
-                </select>
+                <PrAuswahl
+                  :model-value="rollenKennung(m.rolle)" :optionen="rollenAuswahl"
+                  aria-label="Benannte Rolle" :unbekannt-name="'unbekannte Rolle'"
+                  @update:model-value="merkmalsRolleSetzen(m, $event ? '@' + $event : '')"
+                />
               </label>
               <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="delete m.rolle">Rollenreferenz lösen</button>
             </div>
@@ -150,11 +154,15 @@
 /**
  * Deklarationen des Plantyps: Planparameter, Merkmale (Person + Sammlungen),
  * eigene Sammlungen und benannte Rollen — alles in place auf der Definition.
+ * UX-C3b: Kennungsfelder (Rollenreferenz) sind Auswahllisten; ein Altwert
+ * bleibt sichtbar.
  */
 import { computed } from 'vue'
 import PrKnotenEditor from './PrKnotenEditor.vue'
+import PrAuswahl from './PrAuswahl.vue'
 import PrPfadMeldungen from './PrPfadMeldungen.vue'
 import { PARAMETER_ARTEN, MERKMALS_ARTEN, merkmalsZiele } from './editor.mjs'
+import { option } from './auswahl.mjs'
 
 const props = defineProps({
   definition: { type: Object, required: true },
@@ -175,6 +183,16 @@ const parameter = computed(() => vorhandeneListe('parameter'))
 const sammlungen = computed(() => vorhandeneListe('sammlungen'))
 const rollen = computed(() => vorhandeneListe('rollen'))
 const ziele = computed(() => merkmalsZiele(props.definition))
+
+/** UX-C3b: benannte Rollen als Auswahl (Kennung `@rolle` ohne das @). */
+const rollenAuswahl = computed(() => (props.kontext.rollen || [])
+  .filter((r) => r && r.id)
+  .map((r) => option(r.id, r.name ? `${r.name} (${r.id})` : r.id)))
+
+/** `'@mitarbeiter'` → `'mitarbeiter'` (Anzeigewert der Auswahl). */
+function rollenKennung(rolle) {
+  return typeof rolle === 'string' && rolle.startsWith('@') ? rolle.slice(1) : String(rolle || '')
+}
 
 function parameterHinzufuegen() { sicherListe('parameter').push({ id: '', art: 'text', name: '' }) }
 function sammlungHinzufuegen() { sicherListe('sammlungen').push({ id: '', name: '', umfang: 'gemeinde' }) }
@@ -197,6 +215,7 @@ function istKnoten(wert) {
 
 /** Rollenreferenz eines Personen-Merkmalwerts setzen ('@x' bleibt String). */
 function merkmalsRolleSetzen(m, wert) {
+  // Leere Auswahl entfernt die Referenz — das Feld wird wieder zum Filter.
   if (wert) m.rolle = wert
   else delete m.rolle
 }
@@ -224,5 +243,7 @@ function listeSetzen(obj, schluessel, roh) {
 .pr-dek-kurz { max-width: 180px; font-family: ui-monospace, monospace; }
 .pr-dek-schalter { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--dk-text); cursor: pointer; padding-bottom: 8px; }
 .pr-dek-details summary { cursor: pointer; font-size: 0.8rem; color: var(--dk-text-muted); }
-@media (max-width: 640px) { .pr-dek-kurz { max-width: none; width: 100%; } }
+/* FIX-6: Umbruch nach der einen Breitengrenze der App (720 px,
+   composables/eingabeart.mjs `MOBIL_GRENZE_PX`) statt einer eigenen 640 px. */
+@media (max-width: 720px) { .pr-dek-kurz { max-width: none; width: 100%; } }
 </style>

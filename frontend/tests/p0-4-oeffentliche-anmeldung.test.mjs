@@ -29,8 +29,13 @@ const wurzel = new URL('../src/', import.meta.url)
 const lesen = (rel) => readFileSync(new URL(rel, wurzel), 'utf8')
 
 // ── UXD-R27: die Public-Apps zeigen den Serverfehlertext ────────────────────
+// REG-1b: Das Anmeldeformular der Registrierung ist in die gemeinsame
+// Komponente `registrierung/components/DkAnmeldeformular.vue` gewandert (sie
+// zeigt auch die Vorschau im Editor). `parseServerError` steht deshalb dort —
+// geprueft wird weiterhin, dass genau EINE Umsetzung existiert und App.vue
+// keine zweite Kopie fuehrt.
 
-for (const rel of ['registrierung/App.vue', 'gast/App.vue']) {
+for (const rel of ['registrierung/components/DkAnmeldeformular.vue', 'gast/App.vue']) {
   const quelle = lesen(rel)
   const { descriptor, errors } = parse(quelle, { filename: rel })
   assert.deepEqual(errors, [], rel + ': SFC-Struktur')
@@ -57,6 +62,15 @@ for (const rel of ['registrierung/App.vue', 'gast/App.vue']) {
   assert.equal(ausgeben({ message: '', _server_messages: JSON.stringify([JSON.stringify({ message: 'Alt' })]) }),
     'Alt', rel + ': Altform bleibt nutzbar')
   assert.equal(ausgeben({}), 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.', rel)
+}
+
+// Keine zweite Umsetzung: die Seite selbst reicht nur durch.
+{
+  const seite = parse(lesen('registrierung/App.vue'), { filename: 'registrierung/App.vue' })
+  assert.ok(
+    !/function parseServerError/.test(seite.descriptor.scriptSetup.content),
+    'registrierung/App.vue: zweite Kopie von parseServerError',
+  )
 }
 
 // ── UXD-R3: kopierter Link ist eine vollstaendige Adresse ───────────────────

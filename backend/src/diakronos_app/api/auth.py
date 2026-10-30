@@ -230,8 +230,25 @@ def login(usr: str | None = None, pwd: str | None = None, request=None, **kwargs
     # Die Ablehnung ist die des falschen Passworts: gleiche Meldung, gleicher
     # Status, kein Cookie, kein Hinweis auf den Grund.
     if request is not None and not _herkunft_ist_eigen(request):
-        logger.info("Anmeldung von fremder Herkunft abgewiesen.")
-        raise AuthenticationError(UNGUELTIGE_ANMELDEDATEN)
+        # SEC-4: Seit `Referrer-Policy: no-referrer` fehlt der `Referer` in
+        # JEDER Anfrage — auch im eigenen Anmeldeformular. Nach einer
+        # Umleitung (303 auf /login nach einem Tippfehler) kam deshalb gar
+        # kein Herkunftsmerkmal mehr an, und die RICHTIGE Anmeldung wurde als
+        # „fremde Herkunft“ abgewiesen (Abnahme im Browser, 2026-10-29).
+        # Der signierte Token der Maske ist der Gegenbeweis: er stammt
+        # nachweislich von diesem Server (`anmeldung/maske_token.py`).
+        # `Sec-Fetch-Site` bindet ihn an den Browser-Kontext (beim Klick in
+        # unserer Maske immer `same-origin`/`none`); ein fremdes Dokument
+        # liefert `cross-site` und fliegt oben schon raus.
+        # Ein FREMDER `Origin`/`Referer` bleibt abgewiesen, auch mit Token:
+        # der Token ersetzt nur die FEHLENDE Kopfzeile, er hebt die Pruefung
+        # nicht auf. `_herkunft_ist_eigen` unterscheidet das nicht, deshalb
+        # steht die Frage hier direkt.
+        _kopf = getattr(request, "headers", {})
+        _fremd = _herkunft_ist_fremd(_kopf)
+        if _fremd or not _maske_token_ist_gueltig(_maske_token_aus_args(kwargs)):
+            logger.info("Anmeldung von fremder Herkunft abgewiesen.")
+            raise AuthenticationError(UNGUELTIGE_ANMELDEDATEN)
 
     # ── A1c1: Sperre VOR der Passwortpruefung ─────────────────────────────
     # Zwei unabhaengige Zaehler (Benutzer + IP). Gesperrt heisst: exakt
@@ -402,7 +419,7 @@ def _lokaler_login_erlaubt(benutzer: str) -> bool:
     return bool(set(ADMIN_ROLES) & set(get_roles(benutzer)))
 
 
-def _herkunft_ist_eigen(request) -> bool:
+def _herkunft_ist_eigen(request, args=None) -> bool:
     """LOGIN-2/S2 + LOGIN-3/H1(c)/N-1 — kam die Anmeldung von DIESER Seite?
 
     Reihenfolge und Begruendung:
@@ -451,7 +468,70 @@ def _herkunft_ist_eigen(request) -> bool:
     if referer:
         return _herkunft_aus_url(referer) == ziel
 
+    # SEC-4: Fehlen beide, bleibt es wie bisher erlaubt (Skript, `curl`,
+    # Abnahme-Tools haben kein Browser-Merkmal). Der Token der Anmeldemaske
+    # entscheidet NICHT hier: `Sec-Fetch-Site` ist nur ein HINWEIS (jeder
+    # Client darf ihn setzen), es bindet keinen Aufruf an unsere Maske. Diese
+    # Stelle bleibt deshalb genau bei `Origin`/`Referer` — die Regel, die
+    # LOGIN-2/LOGIN-3 aufgestellt und getestet haben.
     return True
+
+
+def _herkunft_ist_fremd(kopf, request=None) -> bool:
+    """SEC-4: Traegt die Anfrage eine FREMDES `Origin`/`Referer`?
+
+    Kleine Schwester von `_herkunft_ist_eigen` fuer den Token-Zweig:
+    ``True`` nur, wenn eine der beiden Kopfzeilen da IST und nicht zur
+    eigenen Herkunft passt. Eine FEHLENDE Kopfzeile ist hier bewusst nicht
+    „fremd“ — genau dafuer gibt es den Token.
+
+    Sonderfall ``Origin: null`` (in der Abnahme im Browser beobachtet,
+    2026-10-29): Chromium schickt diesen Wert bei einem Formular-POST nach
+    einer Umleitung, wenn kein `Referer` gesetzt ist (`no-referrer`). „null“
+    ist keine fremde, weil keine Herkunft — dafuer entscheidet dann der
+    Token. Ein Paar mit echtem fremden `Origin` bleibt fremd.
+    """
+    try:
+        wert = str(kopf.get(_ORIGIN_HEADER) or "").strip()
+        if wert.lower() == "null":
+            wert = ""
+        ziel = _eigene_herkunft(kopf)
+        if ziel is None:
+            return False
+        if wert and _herkunft_aus_url(wert) != ziel:
+            return True
+        referer = str(kopf.get(_REFERER_HEADER) or "").strip()
+        return bool(referer) and _herkunft_aus_url(referer) != ziel
+    except Exception:  # noqa: BLE001 — nicht pruefbar heisst "nicht fremd"
+        return False
+
+
+def _maske_token_aus_args(args) -> str:
+    """SEC-4: Der Token der Anmeldemaske aus den Formularfeldern (`_csrf`).
+
+    Der Compat-Router reicht die Felder als `kwargs` an `login` weiter; das
+    ist der zuverlaessige Weg, weil `request.form()` dort bereits gelesen
+    wurde. Der Kopfzeilen-Weg (`X-Frappe-CSRF-Token`) ist der der SPA und
+    spielt hier keine Rolle.
+    """
+    if not args:
+        return ""
+    try:
+        return str(args.get("_csrf") or args.get("csrf_token") or "").strip()
+    except Exception:  # noqa: BLE001 — kein Token ist auch ein Ergebnis
+        return ""
+
+
+def _maske_token_ist_gueltig(token: str) -> bool:
+    """SEC-4: Ist das ein Token, den UNSERE Anmeldemaske ausgestellt hat?"""
+    if not token:
+        return False
+    try:
+        from diakronos_app.anmeldung.maske_token import token_ist_gueltig
+
+        return token_ist_gueltig(token)
+    except Exception:  # noqa: BLE001 — jeder Fehler heisst "nicht nachweisbar"
+        return False
 
 
 def _eigene_herkunft(kopf) -> tuple[str, str, str] | None:

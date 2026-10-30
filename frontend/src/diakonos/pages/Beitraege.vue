@@ -28,7 +28,14 @@
       />
       <div class="dk-search-bar bt-suche">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input v-model="searchQuery" type="text" placeholder="Beiträge durchsuchen…" />
+        <!-- FIX-3: kurzer Platzhalter, damit er neben den Chips NICHT
+             abgeschnitten wird; der volle Text steht im aria-label. -->
+        <input
+          v-model="searchQuery"
+          type="text"
+          aria-label="Beiträge durchsuchen"
+          placeholder="Suchen…"
+        />
       </div>
     </div>
 
@@ -519,8 +526,39 @@ async function addComment() {
 .bt-post-comments { display: inline-flex; align-items: center; gap: var(--sp-1); margin-left: auto; }
 
 /* Seitenspalte */
-.bt-filter { margin-bottom: var(--sp-6); display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
-.bt-suche { max-width: 280px; flex: 1; min-width: 200px; }
+.bt-filter {
+  margin-bottom: var(--sp-6);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  /* FIX-3: KEIN Umbruch. Vorher (flex-wrap: wrap) rutschte das Suchfeld bei
+     344 px in die naechste Zeile, weil die 4 Chips 296 px belegten — Feld und
+     Chip waren dann zwar gleich hoch, standen aber untereinander. Jetzt bleibt
+     alles in EINER Zeile: die Chips duerfen seitlich scrollen, das Feld
+     behaelt seine Breite (flex: none). */
+  flex-wrap: nowrap;
+}
+/* FIX-3: Höhe kommt aus --filter-h (index.css: .dk-search-bar, .dk-ui-chip).
+   Breite: am Desktop nimmt das Feld den Rest (max 280 px), am Handy eine feste
+   Spalte, damit die Chip-Zeile daneben scrollen kann statt umzubrechen. */
+.bt-suche { max-width: 280px; flex: 1 1 auto; min-width: 140px; align-self: center; margin-bottom: 0; }
+
+@media (max-width: 700px) {
+  /* Am Handy: Chips scrollen waagerecht, das Feld steht rechts daneben. */
+  .bt-filter { align-items: center; }
+  .bt-filter > .dk-ui-chips {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    align-items: center;
+  }
+  .bt-filter > .dk-ui-chips::-webkit-scrollbar { display: none; }
+  /* FIX-3: schmal (Rest der Zeile), aber breit genug fuer den Platzhalter
+     „Beiträge durchsuchen…“ — 100 px schnitten ihn ab. */
+  .bt-suche { flex: 0 0 148px; min-width: 148px; max-width: none; align-self: center; margin-bottom: 0; }
+}
 
 .bt-popular-num {
   width: 22px;

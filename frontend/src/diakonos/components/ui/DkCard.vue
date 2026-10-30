@@ -46,7 +46,7 @@ defineProps({
   padding: var(--pad) calc(var(--pad) * 1.2);
   border-bottom: 1px solid var(--line);
 }
-.dk-ui-card-titel { font-size: var(--fs-h3); font-weight: var(--fw-h); margin: 0; }
+.dk-ui-card-titel { font-size: var(--fs-h3); font-weight: var(--fw-h); margin: 0; color: var(--text); }
 .dk-ui-card-aktionen { display: flex; align-items: center; gap: var(--sp-2); }
 .dk-ui-card-koerper { padding: calc(var(--pad) * 1.2); }
 .dk-ui-card-koerper.is-flach { padding: 0; }

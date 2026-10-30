@@ -32,14 +32,18 @@
           />
         </div>
         <!-- OP-HANDY-13: Am Handy liegen die Filter in einem Blatt, damit die
-             Treffer nicht unter die Tastatur rutschen. -->
-        <button
-          class="dk-btn dk-btn-secondary dk-btn-sm ld-filter-knopf"
+             Treffer nicht unter die Tastatur rutschen.
+             FIX-3: Der Knopf war ein Alt-Baustein (.dk-btn-sm, ~27 px) neben dem
+             Suchfeld (39 px). Jetzt DkButton „md“ — Höhe --control-h, also
+             dieselbe wie das Suchfeld (--filter-h). -->
+        <DkButton
+          variant="secondary"
+          class="ld-filter-knopf"
           :aria-expanded="String(filterBlatt)"
           @click="filterBlatt = !filterBlatt"
         >
           Filter<span v-if="aktiveFilterZahl" class="ld-filter-zahl">{{ aktiveFilterZahl }}</span>
-        </button>
+        </DkButton>
       </div>
 
       <!-- DES-R21: Filter als EINE Zeile in fester Reihenfolge (Chips, dann
@@ -549,6 +553,9 @@ function neuesLied() {
 /* Der „Filter"-Knopf und die Karten sind nur am Handy nötig; am Desktop
    bleiben die gewohnte Tabelle und die offene Filterzeile. */
 .ld-filter-knopf { display: none; }
+/* FIX-3: Der Knopf steht am Handy neben dem Suchfeld und ist ein DkButton
+   (Höhe --control-h = --filter-h); das Feld daneben kommt seit FIX-3 ebenfalls
+   auf --filter-h. Kein eigenes Maß mehr an dieser Stelle. */
 .ld-filter-zahl {
   display: inline-grid; place-items: center; min-width: 16px; height: 16px;
   margin-left: 5px; padding: 0 4px; border-radius: 8px;
@@ -568,8 +575,12 @@ function neuesLied() {
 
 @media (max-width: 700px) {
   .ld-neu { width: 100%; justify-content: center; }
-  /* Filter nur auf Wunsch (Blatt), Treffer als Karten statt breiter Tabelle. */
-  .ld-suche { flex: 1 1 auto; }
+  /* Filter nur auf Wunsch (Blatt), Treffer als Karten statt breiter Tabelle.
+     FIX-3: Feld und Knopf teilen sich die Zeile. Vorher fraß das Feld
+     (flex: 1 1 auto, aber mit min-width 220px) die ganze Breite und der Knopf
+     rutschte darunter — der Befund „unterschiedlich groß“ war auch ein
+     Zeilenproblem. Jetzt: Feld nimmt den Rest, Knopf behält seine Breite. */
+  .ld-suche { flex: 1 1 0; min-width: 0; }
   .ld-filter-knopf { display: inline-flex; flex: none; }
   .ld-filterzeile { display: none !important; }
   .ld-filterzeile.is-offen { display: flex !important; }

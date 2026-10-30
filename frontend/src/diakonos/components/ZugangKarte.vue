@@ -196,11 +196,11 @@ onMounted(laden)
 </script>
 
 <style scoped>
-.zug-hinweis { font-size: var(--fs-sm); color: var(--text-muted); margin: 0 0 var(--sp-3); }
-.zug-zustand { color: var(--text-muted); padding: var(--sp-3) 0; }
-.zug-muted { color: var(--text-muted); }
+.zug-hinweis { font-size: var(--fs-sm); color: var(--muted); margin: 0 0 var(--sp-3); }
+.zug-zustand { color: var(--muted); padding: var(--sp-3) 0; }
+.zug-muted { color: var(--muted); }
 .zug-daten { margin: 0 0 var(--sp-3); }
-.zug-daten dt { font-size: var(--fs-sm); color: var(--text-muted); }
+.zug-daten dt { font-size: var(--fs-sm); color: var(--muted); }
 .zug-daten dd { margin: 0 0 var(--sp-2); }
 .zug-rollen { display: flex; flex-direction: column; gap: var(--sp-2); }
 .zug-rolle { display: flex; align-items: center; gap: var(--sp-2); }

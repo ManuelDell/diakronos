@@ -156,6 +156,21 @@ def _anzeigename(kennung: str | None) -> str:
     return kennung
 
 
+def _wahr(wert) -> bool:
+    """Formularwerte kommen als Text (``"1"``/``"0"``/``"true"``) oder als Zahl.
+
+    DEV-7b: `ueberschneidung` wird ueber ``apiCall`` als JSON geschickt; die
+    Compat-Schicht reicht es unveraendert durch. Ein einfaches ``if wert``
+    waere hier falsch — ``"0"`` ist ein nicht-leerer String, aber gemeint ist
+    „nein“.
+    """
+    if wert is None:
+        return False
+    if isinstance(wert, str):
+        return wert.strip().lower() in {"1", "true", "yes", "ja", "on"}
+    return bool(wert)
+
+
 def _mod_calendars():
     """Kalender, fuer die der aktuelle User Moderationsrechte hat."""
     from diakronos_app.api.kronos.permissions import get_accessible_calendars
@@ -343,7 +358,12 @@ def finalize_staged_events(event_ids):
     for eid in erlaubte_ids:
         try:
             # Original: frappe.db.set_value("Element", eid, "status", "Festgelegt")
-            _update_doc("Element", eid, {"status": "Festgelegt"})
+            # DEV-7 (Befund DMB-eb5c6c69ea54): Auch diese Freigabe schreibt den
+            # Freigebenden mit (Audit, wie `resolve_conflict`) — inklusive der
+            # Selbstfreigabe eines Moderators an seinem EIGENEN Termin: die
+            # Schranke ist das Moderationsrecht am Kalender (`_require_moderator`
+            # oben), es gibt bewusst keinen Vergleich `owner == user`.
+            _update_doc("Element", eid, {"status": "Festgelegt", "moderiert_von": user})
             count += 1
         except Exception as ex:  # noqa: BLE001 — Original loggt und macht weiter
             log_error(str(ex), f"finalize_event {eid}")
@@ -436,12 +456,22 @@ def get_conflict_partner(element_id):
 @whitelist(allow_guest=False)
 def resolve_conflict(element_id, action, title=None, element_start=None,
                      element_end=None, all_day=None, ressource=None, description=None,
-                     grund=None):
+                     grund=None, ueberschneidung=None):
     """
     action: 'ignore'     -> ignore_conflict=1, status=Vorschlag -> to staging
             'vorschlag'  -> status=Vorschlag, ignore_conflict=0 -> to vorschlaege col
-            'festlegen'  -> save edits, status=Konflikt stays   -> to staging
+            'festlegen'  -> Aenderungen speichern, status=Festgelegt (freigegeben)
             'ablehnen'   -> status=Abgelehnt, Pflichtgrund (OP-EVENT-12)
+
+    ueberschneidung (DEV-7b): 1 = der Aufruf kommt aus dem Konflikt-Dialog;
+    der Termin wird bewusst TROTZ Ueberschneidung freigegeben und bekommt
+    zusaetzlich `ignore_conflict=1`.
+
+    Moderation (DEV-7, Befund DMB-eb5c6c69ea54, Manuel): die Schranke ist
+    `_require_moderator` — das Moderationsrecht am KALENDER des Termins. Es
+    gibt bewusst KEINEN Vergleich `owner == user`: ein Kalendermoderator gibt
+    seinen EIGENEN Vorschlag genauso frei/ab wie einen fremden. Sonst bliebe
+    ein Kalender mit nur einem Verwalter ohne Freigabeweg.
     """
     user = session.user
     if user == "Guest":
@@ -490,6 +520,26 @@ def resolve_conflict(element_id, action, title=None, element_start=None,
     elif action == "vorschlag":
         werte["status"] = "Vorschlag"
         werte["ignore_conflict"] = 0
+    elif action == "festlegen":
+        # DEV-7: „Freigeben“ aus der Vorschlags-/Konfliktliste. Vorher setzte
+        # dieser Zweig KEINEN Status — ein einfacher Vorschlag blieb ewig
+        # „Vorschlag“ und hatte (ausser dem Drag&Drop ins Staging) keinen
+        # Freigabeweg. Jetzt gilt derselbe Zielzustand wie in
+        # `finalize_staged_events`, inkl. Audit-Eintrag `moderiert_von`.
+        #
+        # DEV-7b (Operator-Entscheidung aus dem Opus-Review): Ein Termin, der
+        # MIT Konflikt freigegeben wird, gilt als BEWUSST uebergangen — er
+        # bekommt zusaetzlich `ignore_conflict=1`. Sonst stünde er weiter als
+        # offener Konflikt auf dem Board, obwohl ein Moderator entschieden hat
+        # (er tauchte sonst erneut auf). `ueberschneidung` ist der Schalter der
+        # Dialog-Oberflaeche: NUR der Konflikt-Dialog setzt ihn (dort steht der
+        # Hinweis „Gibt den Termin trotz Überschneidung frei“ an der Aktion).
+        # Aus dem Vorschlagsdialog (ohne Ueberschneidung) bleibt der Vermerk
+        # unberuehrt — dort gibt es nichts zu uebergehen.
+        werte["status"] = "Festgelegt"
+        werte["moderiert_von"] = user
+        if _wahr(ueberschneidung):
+            werte["ignore_conflict"] = 1
 
     # Original: doc.save(ignore_permissions=True) — Felder UND Status zusammen.
     if werte:
@@ -525,29 +575,26 @@ def _benachrichtige_owner(doc, element_id, grund):
 def get_moderation_count():
     """
     Gibt die Anzahl der zu moderierenden Termine zurueck.
-    Zaehlt Termine mit Status 'Vorschlag' oder 'Konflikt' in Kalendern,
-    fuer die der Nutzer Moderationsrechte hat.
-    Serien werden als ein Termin gezaehlt (DISTINCT series_id oder name).
+
+    DEV-8 (DMB-7bee65f6c32b): Das ist das Badge auf der Moderationsseite.
+    Es zaehlt DIESELBE Menge, die das Brett links unter „Vorschlaege“ zeigt
+    (Status ``Vorschlag`` in moderierten Kalendern) — und genau die zeigt auch
+    die Startseiten-Kachel. Dafuer wird die EINE Abfrage aus
+    `dashboard.offene_moderations_vorschlaege` verwendet; Kachel, Seitenleiste
+    und Seiten-Badge koennen nicht mehr auseinanderlaufen.
+
+    Abweichung zum Altcode (dokumentiert): frueher zaehlten ``Vorschlag`` UND
+    ``Konflikt``, Serien als EIN Termin (DISTINCT series_id). Das Brett zeigt
+    Serientermine jedoch einzeln und Konflikte in einer eigenen Spalte — die
+    Zahl war damit strukturell groesser als die Vorschlagsliste (genau der
+    Befund). Konflikte bleiben in ihrer Spalte sichtbar und unveraendert.
     """
     if session.user == "Guest":
         return {"count": 0}
 
-    allowed, mod_cals = _mod_calendars()
-    if not mod_cals:
-        return {"count": 0}
+    from diakronos_app.api.dashboard import offene_moderations_vorschlaege
 
-    # Original: COUNT(DISTINCT COALESCE(NULLIF(series_id, ''), name)).
-    rows = get_all(
-        "Element",
-        filters={"status": ["in", ["Vorschlag", "Konflikt"]], "element_calendar": ["in", mod_cals]},
-        fields=["name", "series_id"],
-    )
-    eindeutig = set()
-    for r in rows:
-        series_id = r["series_id"]  # type: ignore[index]
-        eindeutig.add(series_id if series_id else r["name"])  # type: ignore[index]
-
-    return {"count": len(eindeutig)}
+    return {"count": len(offene_moderations_vorschlaege())}
 
 
 __all__ = [

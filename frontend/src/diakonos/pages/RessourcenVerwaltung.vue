@@ -37,7 +37,7 @@
             <DkBadge v-if="r.wartung" variant="warn">In Wartung</DkBadge>
             <span v-else class="rv-muted">verfügbar</span>
           </td>
-          <td class="rv-aktionen">
+          <td class="is-aktion">
             <DkButton variant="secondary" size="sm" @click="bearbeiten(r)">Bearbeiten</DkButton>
             <DkButton variant="danger" size="sm" @click="entfernen(r)">Löschen</DkButton>
           </td>
@@ -139,7 +139,8 @@ const spalten = [
   { key: 'typ', label: 'Art' },
   { key: 'kapazitaet', label: 'Kapazität', numeric: true },
   { key: 'status', label: 'Zustand' },
-  { key: 'aktionen', label: 'Aktionen' },
+  // FIX-4: Aktionsspalte (`td.is-aktion`) — hält die Knöpfe in ihrer Spalte.
+  { key: 'aktionen', label: 'Aktionen', aktion: true },
 ]
 
 const zeilen = ref([])
@@ -273,6 +274,7 @@ onMounted(laden)
 .rv-seite { display: flex; flex-direction: column; gap: var(--sp-4); }
 .rv-zustand { color: var(--muted); padding: var(--sp-4) 0; }
 .rv-muted { color: var(--muted); font-size: var(--fs-sm); }
-.rv-aktionen { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+/* FIX-4: `display:flex` auf dem `<td>` war wirkungslos — die Aktionsspalte
+   hält jetzt DkTable (`td.is-aktion`, Knöpfe als direkte Zellkinder). */
 .rv-formular { display: flex; flex-direction: column; gap: var(--sp-3); }
 </style>

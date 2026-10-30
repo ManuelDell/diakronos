@@ -275,9 +275,9 @@ defineExpose({ laden })
 .dk-aenderung-konflikt {
   margin-top: var(--sp-3);
   padding: var(--sp-3);
-  border: 1px solid var(--warn, #b45309);
+  border: 1px solid var(--warn);
   border-radius: var(--radius);
-  background: var(--warn-bg, rgba(180, 83, 9, 0.08));
+  background: var(--warn-soft);
   font-size: var(--fs-sm);
 }
 .dk-konflikt-zeile {

@@ -48,6 +48,21 @@
         <DkButton variant="secondary" :disabled="submitting" @click="showEditModal = false">
           Abbrechen
         </DkButton>
+        <!-- DEV-7 (Befund DMB-eb5c6c69ea54): Ein Kalendermoderator muss den
+             Vorschlag hier freigeben koennen — auch seinen EIGENEN. Vorher
+             hatte dieser Dialog nur „Speichern“ (blieb Vorschlag) und
+             „Ablehnen“; der einzige Freigabeweg war Drag&Drop ins Staging.
+             Die Schranke ist serverseitig `_require_moderator`; wer nicht
+             moderiert, kommt an diese Seite gar nicht heran. Der Knopf
+             uebernimmt die Aenderungen aus dem Formular mit (`festlegen`). -->
+        <DkButton
+          variant="secondary"
+          :disabled="submitting || !editForm.title.trim()"
+          data-testid="dk-mod-freigeben"
+          @click="submitFreigeben"
+        >
+          Freigeben
+        </DkButton>
         <DkButton variant="primary" :loading="submitting" @click="submitEdit">
           {{ submitting ? '…' : 'Speichern' }}
         </DkButton>
@@ -183,23 +198,40 @@
     </template>
 
     <template #footer>
-      <div class="dk-mod-conflict-footer">
-        <DkButton variant="secondary" :disabled="submitting" @click="resolveAction('ignore')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-          Konflikt ignorieren
-        </DkButton>
-        <div class="dk-mod-luecke"></div>
-        <DkButton variant="secondary" :disabled="submitting" @click="showConflictModal = false">
-          Abbrechen
-        </DkButton>
-        <DkButton variant="secondary" class="dk-mod-btn-warn" :disabled="submitting" @click="resolveAction('vorschlag')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          Vorschlagen
-        </DkButton>
-        <DkButton variant="primary" class="dk-mod-btn-ok" :disabled="submitting" @click="resolveAction('festlegen')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10-10"/></svg>
-          Freigeben
-        </DkButton>
+      <div class="dk-mod-konflikt-fuss">
+        <div class="dk-mod-conflict-footer">
+          <DkButton variant="secondary" :disabled="submitting" @click="resolveAction('ignore')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            Konflikt ignorieren
+          </DkButton>
+          <div class="dk-mod-luecke"></div>
+          <DkButton variant="secondary" :disabled="submitting" @click="showConflictModal = false">
+            Abbrechen
+          </DkButton>
+          <DkButton variant="secondary" class="dk-mod-btn-warn" :disabled="submitting" @click="resolveAction('vorschlag')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Vorschlagen
+          </DkButton>
+          <DkButton
+            variant="primary"
+            class="dk-mod-btn-ok"
+            :disabled="submitting"
+            data-testid="dk-mod-freigeben-konflikt"
+            :title="'Gibt den Termin trotz Überschneidung frei'"
+            @click="resolveAction('festlegen')"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10-10"/></svg>
+            Freigeben
+          </DkButton>
+        </div>
+        <!-- DEV-7b: Der Hinweis nennt die Folge, die der Moderator mit dieser
+             Entscheidung trifft: der Termin gilt trotz Ueberschneidung, und
+             der Konflikt gilt als bewusst uebergangen (er kommt nicht
+             wieder). Eigene Zeile unter der Knopfleiste — neben dem Knopf war
+             er auf 390 px nur 94 px breit (Befund beim Nachher-Bild). -->
+        <p v-if="!conflictLoading" class="dk-mod-konflikt-hinweis">
+          „Freigeben“ gibt den Termin trotz Überschneidung frei — der Konflikt gilt damit als bewusst übergangen.
+        </p>
       </div>
     </template>
   </DkModal>
@@ -396,6 +428,31 @@ async function submitEdit() {
   }
 }
 
+/**
+ * DEV-7 (Befund DMB-eb5c6c69ea54): Vorschlag aus dem Dialog freigeben.
+ *
+ * Nimmt die (ggf. korrigierten) Formularwerte mit und setzt den Termin auf
+ * „Festgelegt“ — fuer eigene und fremde Vorschlaege gleich. Vorher blieb der
+ * Termin nach „Speichern“ ein Vorschlag, und der Dialog bot gar keine Freigabe
+ * an; der einzige Weg war das Staging. Wer hier klickt, ist bereits als
+ * Moderator am Kalender angemeldet (die Seite ist Moderatoren vorbehalten,
+ * `_require_moderator` prueft es serverseitig erneut).
+ */
+async function submitFreigeben() {
+  if (!editEvent.value) return
+  submitting.value = true
+  try {
+    await resolveConflict(editEvent.value.id, 'festlegen', getEditFormData(editForm.value))
+    showEditModal.value = false
+    showToast('Termin freigegeben', 'success')
+    emit('resolved')
+  } catch (e) {
+    showToast(e.message || 'Fehler beim Freigeben', 'error')
+  } finally {
+    submitting.value = false
+  }
+}
+
 // ── OP-EVENT-12: Ablehnen mit Pflicht-Begruendung ─────────────────────────────
 const showAblehnenModal = ref(false)
 const ablehnenGrund = ref('')
@@ -475,7 +532,14 @@ async function resolveAction(action) {
   if (!conflictEvent.value) return
   submitting.value = true
   try {
-    await resolveConflict(conflictEvent.value.id, action, getEditFormData(conflictForm.value))
+    // DEV-7b: Dieser Dialog loest eine UEBERSCHNEIDUNG auf. „Freigeben“ gibt
+    // den Termin bewusst TROTZ Konflikt frei (Operator-Entscheidung) — dann
+    // muss der Konflikt als bewusst uebergangen gelten, sonst taucht der
+    // Termin erneut als Konflikt auf. `ueberschneidung: 1` setzt serverseitig
+    // zusaetzlich `ignore_conflict=1` (kanban_api.resolve_conflict).
+    const werte = getEditFormData(conflictForm.value)
+    if (action === 'festlegen') werte.ueberschneidung = 1
+    await resolveConflict(conflictEvent.value.id, action, werte)
     showConflictModal.value = false
     emit('resolved')
   } catch (e) {
@@ -625,7 +689,6 @@ defineExpose({
   transition: border-color var(--fast);
 }
 .dk-mod-input:focus { border-color: var(--dk-navy-400); }
-.dk-mod-footer { display: flex; justify-content: flex-end; padding-top: var(--sp-2); }
 /* DES-02: `style="flex:1"` als Klasse — schiebt die Hauptaktion nach rechts. */
 .dk-mod-luecke { flex: 1; }
 .dk-mod-loading { padding: var(--sp-6); text-align: center; color: var(--muted); font-size: 13px; }
@@ -646,7 +709,32 @@ defineExpose({
 .dk-mod-partner--empty p { margin: 0; font-size: 13px; color: var(--muted); }
 
 /* Conflict footer */
+/* DEV-7b (Befund Opus-Review, Befund 1): Die Basisregel wurde beim Umbau der
+   Knopfleiste geloescht (Commit 6033c69) — nur der @media-Block blieb. Ohne
+   sie steht die Fussleiste auf dem Desktop nicht als Zeile rechtsbuendig
+   ausgerichtet: „Ablehnen…“ verlässt die Knopfreihe und rutscht in eine
+   eigene Zeile (alle drei Dialoge, ModerationModals.vue Z. 43/93/135).
+   `dk-modal-actions` (DkModal) brachte die Zeile nebenbei ins Lot, DkDialog
+   (`.dk-ui-dialog-fuss`) nicht — deshalb fehlte es dort sichtbar. */
+.dk-mod-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  padding-top: var(--sp-2);
+}
 .dk-mod-conflict-footer { display: flex; align-items: center; gap: var(--sp-2); width: 100%; }
+/* DEV-7: Die Knopfleiste des Vorschlagsdialogs hat jetzt vier Knoepfe
+   (Ablehnen / Abbrechen / Freigeben / Speichern) — vorher waren es drei.
+   Am Handy (390 px) ist nebeneinander kein Platz; sie bricht deshalb um,
+   „Ablehnen…“ steht dann allein in der ersten Zeile. Bis 480 px bekommt
+   jeder Knopf seine natuerliche Breite (`DkButton` schrumpft sonst und
+   schneidet das Label ab). */
+@media (max-width: 480px) {
+  .dk-mod-footer { flex-wrap: wrap; row-gap: var(--sp-2); }
+  .dk-mod-footer > * { flex: 0 0 auto; }
+  .dk-mod-footer .dk-mod-luecke { flex: 1 0 100%; height: 0; }
+}
 
 /* Series modal */
 .dk-mod-series-header { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-3); }
@@ -679,6 +767,14 @@ defineExpose({
 }
 .dk-mod-btn-inline:hover { background: var(--surface-hover); }
 .dk-mod-btn-warn { color: var(--warn); }
+/* DEV-7b: Hinweis unter der Konflikt-Knopfleiste (Folge der bewussten Freigabe). */
+.dk-mod-konflikt-fuss { display: flex; flex-direction: column; width: 100%; }
+.dk-mod-konflikt-hinweis {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  line-height: 1.5;
+}
 .dk-mod-btn-ok { }
 .dk-mod-btn-danger-outline { color: var(--err); }
 </style>

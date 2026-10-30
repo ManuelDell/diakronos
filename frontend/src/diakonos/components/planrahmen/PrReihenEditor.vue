@@ -3,13 +3,21 @@
     <!-- Kurzform: eine Zeitachse, Felder ohne Präfix -->
     <template v-if="!reihen.length">
       <PrTermineEditor :termine="sicherTermine()" :reihen-ids="['standard']" :kontext="kontext" :meldungen="meldungen" basis-pfad="termine" />
-      <h4 class="pr-re-titel">Felder pro Termin</h4>
+      <!-- UX-C3a: Kennung der Zwischenüberschrift „Felder pro Termin“ kommt von
+           außen (Sprungziel „Felder“ des Plantyp-Editors) — hier nur der Halt. -->
+      <h4 class="pr-re-titel" :id="felderAnker || undefined" :data-abschnitt="felderAnker || undefined">Felder pro Termin</h4>
       <PrFelderEditor :felder="sicherFelder()" :kontext="kontext" :meldungen="meldungen" basis-pfad="felder/" />
       <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="zuReihenWechseln">+ Zweite Terminreihe (z. B. Probe am Freitag)</button>
     </template>
 
     <!-- Mehrere Reihen: jede mit eigener Zeitachse und eigenen Feldern -->
     <template v-else>
+      <!-- UX-C3b (Operator-Zusatz aus Review UX-C3a): Bei mehreren Terminreihen
+           gab es keine Kennung für die Sprungleiste — „Felder“ bewirkte nichts.
+           Die Kennung hängt jetzt an der Feld-Überschrift der ERSTEN Reihe
+           (Sprungziel = ihre Felder). Eine Kennung, die von außen kommt
+           (`felderAnker`), gewinnt: in der Kurzform trägt sie „Felder pro
+           Termin“ bereits selbst. -->
       <div v-for="(reihe, ri) in reihen" :key="ri" class="pr-re-reihe">
         <div class="pr-re-kopf">
           <input v-model="reihe.id" type="text" class="dk-form-input pr-re-id" placeholder="gottesdienst" aria-label="Kennung der Reihe" />
@@ -23,7 +31,11 @@
           >✕</button>
         </div>
         <PrTermineEditor :termine="sicherReihenTermine(reihe)" :reihen-ids="reihenIds" :kontext="kontext" :meldungen="meldungen" :basis-pfad="'terminreihen/' + ri + '/termine'" />
-        <h5 class="pr-re-unter-titel">Felder dieser Reihe<span v-if="reihe.id"> — Pfade beginnen mit „{{ reihe.id }}:“</span></h5>
+        <h5
+          class="pr-re-unter-titel"
+          :id="ri === 0 && felderAnker ? felderAnker : undefined"
+          :data-abschnitt="ri === 0 && felderAnker ? felderAnker : undefined"
+        >Felder dieser Reihe<span v-if="reihe.id"> — Pfade beginnen mit „{{ reihe.id }}:“</span></h5>
         <PrFelderEditor
           :felder="sicherReihenFelder(reihe)" :kontext="kontext"
           :meldungen="meldungen" :basis-pfad="'terminreihen/' + ri + '/felder/'"
@@ -54,6 +66,12 @@ const props = defineProps({
   definition: { type: Object, required: true },
   kontext: { type: Object, default: () => ({}) },
   meldungen: { type: Array, default: () => [] },
+  /**
+   * UX-C3a: Kennung, die die Zwischenüberschrift „Felder pro Termin“ als
+   * Sprungziel trägt (`pr-pe-felder`). Sie kommt aus `abschnitte.mjs`, damit
+   * Sprungliste und Markup dieselbe Quelle nutzen. Leer = kein Sprungziel.
+   */
+  felderAnker: { type: String, default: '' },
 })
 
 const reihen = computed(() => (Array.isArray(props.definition.terminreihen) ? props.definition.terminreihen : []))
@@ -107,10 +125,14 @@ function zurKurzform() {
 
 <style scoped>
 .pr-re { display: flex; flex-direction: column; gap: 14px; }
-.pr-re-titel { font-size: 0.76rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 6px 0 0; }
+/* UX-C3a: „Felder pro Termin“ kann ein Sprungziel des Plantyp-Editors sein
+   (`felderAnker`). Der Abstand zur Lesekante muss HIER stehen: das scoped-CSS
+   der Seite erreicht ein Element im Kind nicht (Scoped-Attribut fehlt), die
+   Überschrift klebte sonst unter dem Band der Sprungleiste. */
+.pr-re-titel { scroll-margin-top: 90px; font-size: 0.76rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 6px 0 0; }
 .pr-re-reihe { border: 1px solid var(--dk-border); border-radius: 12px; background: var(--dk-surface); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .pr-re-kopf { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .pr-re-id { max-width: 180px; font-family: ui-monospace, monospace; }
-.pr-re-unter-titel { font-size: 0.74rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 4px 0 0; }
+.pr-re-unter-titel { scroll-margin-top: 90px; font-size: 0.74rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 4px 0 0; }
 .pr-re-knopfzeile { display: flex; gap: 8px; flex-wrap: wrap; }
 </style>

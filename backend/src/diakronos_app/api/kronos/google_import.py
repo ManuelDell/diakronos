@@ -50,6 +50,76 @@ def _require_import_admin():
         throw("Kalender-Import nur für Administratoren.", PermissionError)
 
 
+# ── DEP-2: Fortschritt des Google-Imports abfragbar machen ────────────────
+# Bisher meldete der Hintergrundauftrag seinen Fortschritt ausschliesslich per
+# Socket.IO (`publish_realtime`). Die SPA haengt deshalb an einer zweiten
+# Verbindung; faellt sie aus, bleibt der Balken stehen. Der Stand wird jetzt
+# ZUSAETZLICH als letzter Wert in Redis abgelegt (Schluessel je Benutzer) und
+# von `get_import_progress` gelesen — die SPA fragt im Takt von 2 s ab.
+# `publish_realtime` bleibt unveraendert: der Kanal `gcal_import_progress` ist
+# Vertrag (realtime.py) und wird weiter bedient.
+PROGRESS_TTL = 3600
+_SCHLUESSEL = "diakronos:gcal-import-progress:{benutzer}"
+
+
+def _progress_client():
+    return Redis.from_url(app_settings.redis_url, decode_responses=True)
+
+
+def _merke_fortschritt(benutzer: str, data: dict) -> None:
+    """Letzten Fortschrittsstand ablegen — nie ein Fehler nach aussen.
+
+    Der Import darf nicht daran scheitern, dass Redis kurz nicht antwortet;
+    dann bleibt eben der vorherige Stand stehen (die Sitzung selbst liegt
+    ohnehin schon in Redis).
+    """
+    try:
+        _progress_client().set(_SCHLUESSEL.format(benutzer=benutzer),
+                               json.dumps(data), ex=PROGRESS_TTL)
+    except (RedisError, OSError):
+        pass
+
+
+def _lies_fortschritt(benutzer: str) -> dict | None:
+    try:
+        roh = _progress_client().get(_SCHLUESSEL.format(benutzer=benutzer))
+    except (RedisError, OSError):
+        return None
+    if not roh:
+        return None
+    try:
+        stand = json.loads(roh)
+    except ValueError:
+        return None
+    return stand if isinstance(stand, dict) else None
+
+
+def _loesche_fortschritt(benutzer: str) -> None:
+    """Alten Stand beim Start eines Imports entfernen (Review DEP-2, Punkt 2).
+
+    Ohne das liest ein zweiter Import innerhalb von `PROGRESS_TTL` zuerst den
+    Abschluss des VORIGEN Laufs (`status: done`) — die Seite beendet dann
+    sofort den Balken und zeigt das alte Ergebnis. Ein Fehler wird wie beim
+    Ablegen verschluckt: der Import selbst darf daran nicht scheitern.
+    """
+    try:
+        _progress_client().delete(_SCHLUESSEL.format(benutzer=benutzer))
+    except (RedisError, OSError):
+        pass
+
+
+@whitelist(allow_guest=False)
+def get_import_progress():
+    """Zuletzt gemeldeter Stand des Google-Imports (DEP-2).
+
+    Liefert `{"state": None}`, solange (oder wenn nicht mehr) nichts vorliegt —
+    der Aufrufer darf daraus ausdruecklich NICHT schliessen, dass der Import
+    abgeschlossen ist: nach `PROGRESS_TTL` verfaellt der Stand.
+    """
+    _require_import_admin()
+    return {"state": _lies_fortschritt(session.user)}
+
+
 def _get_settings(db):
     return db.scalar(select(GoogleKalenderEinstellungen).where(
         GoogleKalenderEinstellungen.name == SETTINGS_NAME).with_for_update())
@@ -348,6 +418,9 @@ def start_import(mappings_json=None, request=None):
     mappings = _validate_mappings(mappings)
     # Verify authorization before claiming the job is queued; worker refreshes as needed.
     _get_valid_access_token()
+    # Review DEP-2, Punkt 2: der Stand des vorigen Laufs gilt fuer diesen Import
+    # nicht — sonst meldet die erste Abfrage sofort das alte `done`.
+    _loesche_fortschritt(session.user)
     try:
         enqueue(_do_import, mappings=mappings, user=session.user, queue="default", timeout=600)
     except Exception:
@@ -386,11 +459,20 @@ def _map_google_event(event, calendar_name):
 
 
 def _import_events_from_google(google_calendar_id, frappe_calendar_name, access_token,
-                               user=None, time_filter="all", db=None):
+                               user=None, time_filter="all", db=None, pub=None):
     if db is None:
         with database.SessionLocal.begin() as transaction:
             return _import_events_from_google(google_calendar_id, frappe_calendar_name, access_token,
-                                               user, time_filter, transaction)
+                                               user, time_filter, transaction, pub)
+    # DEP-2 (Review 3): Der Aufrufer im Worker reicht seine Meldefunktion durch,
+    # damit die Zwischenwarnung in derselben Liste landet wie der Fortschritt.
+    # Ohne `pub` (direkter Aufruf) wird wie bisher einzeln gemeldet.
+    def melde(data):
+        if pub is not None:
+            pub(data)
+        else:
+            publish_realtime("gcal_import_progress", data, user=user or session.user)
+            _merke_fortschritt(user or session.user, data)
     params = {"maxResults": 250, "singleEvents": "true", "orderBy": "startTime"}
     days = {"from_today": 0, "last_year": 365, "last_3_years": 1095}
     if time_filter in days:
@@ -399,8 +481,8 @@ def _import_events_from_google(google_calendar_id, frappe_calendar_name, access_
     imported = skipped = seen = 0
     for items in _google_pages("/calendars/" + quote(google_calendar_id, safe="") + "/events", access_token, params):
         if seen == 0 and len(items) == 250:
-            publish_realtime("gcal_import_progress", {"status": "warning",
-                             "warning": "Grosser Kalender: Import kann laenger dauern."}, user=user or session.user)
+            melde({"status": "warning",
+                   "warning": "Grosser Kalender: Import kann laenger dauern."})
         for event in items:
             seen += 1
             if seen > MAX_EVENTS:
@@ -412,8 +494,8 @@ def _import_events_from_google(google_calendar_id, frappe_calendar_name, access_
             _create_element_from_dict(fields, db)
             known.add(fields["google_event_id"])
             imported += 1
-        publish_realtime("gcal_import_progress", {"status": "importing", "calendar_name": frappe_calendar_name,
-                         "imported": imported, "skipped": skipped}, user=user or session.user)
+        melde({"status": "importing", "calendar_name": frappe_calendar_name,
+               "imported": imported, "skipped": skipped})
     return imported, skipped
 
 
@@ -423,8 +505,24 @@ def _do_import(mappings, user):
     session.user = user
     results = []
     errors = False
+    # Review DEP-2, Punkt 3: Die Seite kann nur abfragen, was im Stand steht.
+    # Zwischenwarnungen (z. B. „grosser Kalender") wurden bisher nur einzeln
+    # gemeldet und gingen verloren, wenn sie zwischen zwei Abfragen kamen —
+    # deshalb traegt JEDER Stand die vollstaendige Liste mit (ohne Dubletten).
+    warnungen = []
+
     def pub(data):
+        # Die Meldung mit Einzeltext (`warning`) traegt ihre Warnung selbst; sie
+        # kommt hier herein, bevor der Stand abgelegt wird — die Liste ist damit
+        # immer vollstaendig und ohne Dubletten.
+        einzeln = data.get("warning")
+        if isinstance(einzeln, str) and einzeln and einzeln not in warnungen:
+            warnungen.append(einzeln)
+        if data.get("warnings") is None:
+            data = {**data, "warnings": list(warnungen)}
         publish_realtime("gcal_import_progress", data, user=user)
+        # DEP-2: derselbe Stand zusaetzlich fuer die Abfrage der SPA ablegen.
+        _merke_fortschritt(user, data)
     try:
         if not ist_aktiv(user):
             throw("Import-Benutzer nicht mehr aktiv.", PermissionError)
@@ -439,13 +537,17 @@ def _do_import(mappings, user):
                     pub({"status": "starting", "calendar_name": name, "cal_num": idx + 1,
                          "cal_total": len(mappings), "imported": 0})
                     imported, skipped = _import_events_from_google(mapping["google_id"], name, token,
-                                                                  user, mapping["time_filter"], db)
+                                                                  user, mapping["time_filter"], db,
+                                                                  pub=pub)
                 results.append({"google_name": mapping["google_name"], "frappe_kalender": name,
                                 "imported": imported, "skipped": skipped})
             except Exception:
                 errors = True
                 # Transaction rolled back; never report partial writes as successful.
-                pub({"status": "error", "error": "Kalender-Import fehlgeschlagen. Bitte Verbindung/Zeitfilter pruefen."})
+                # Review 3: auch diese Meldung gehoert in die Warnliste, damit der
+                # spaetere Stand sie noch traegt (die Seite zeigt nur die Liste).
+                fehler = "Kalender-Import fehlgeschlagen. Bitte Verbindung/Zeitfilter pruefen."
+                pub({"status": "error", "error": fehler, "warning": fehler})
     except Exception:
         errors = True
     finally:

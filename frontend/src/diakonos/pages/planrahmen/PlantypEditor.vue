@@ -32,6 +32,14 @@
     </div>
 
     <template v-else>
+      <!-- PLAN-M1: Hinweis am Handy (nur schmal + Bearbeitungsrecht + nicht
+           geschlossen). Sperrt nichts — Ansehen bleibt vollständig möglich. -->
+      <PrHandyHinweis
+        :sichtbar="handyHinweisZeigen"
+        :darf-bearbeiten="darfVorlageBearbeiten"
+        @geschlossen="handyHinweisSchliessen"
+      />
+
       <!-- ST1: gemerkter Entwurf — wiederherstellen oder verwerfen. -->
       <div v-if="entwurfFrage" class="pr-pe-entwurf dk-card" data-test="pr-pe-entwurf-frage">
         <p class="pr-pe-entwurf-text">Es gibt einen gemerkten Entwurf dieser Planvorlage (lokale, ungespeicherte Änderungen). Entwurf wiederherstellen?</p>
@@ -56,8 +64,24 @@
       <PrMeldungen v-else-if="pruefMeldungen.length" :meldungen="pruefMeldungen" zusammenfassung />
       <div v-else-if="pruefStand === 'ok'" class="pr-pe-pruefstatus pr-pe-pruefstatus--ok" role="status">Keine Beanstandungen — die Definition ist gültig.</div>
 
-      <!-- Formular -->
-      <div v-if="reiter === 'formular'" class="pr-pe-form">
+      <!-- UX-C3a: Sprungleiste (links) · Formular (Mitte) · Erklärspalte
+           (rechts, erst ab 1200 px). Unter 900 px wird die Sprungliste zur
+           waagerechten Leiste.
+           Das Raster gilt NUR für den Formular-Reiter: JSON und Probelauf
+           sind eigene Flächen über die volle Breite (im Review landeten sie
+           in der 190-px-Spalte, weil das Raster sie mit umschloss). -->
+      <div
+        v-if="reiter === 'formular'"
+        class="pr-pe-raster" :class="{ 'pr-pe-raster--mit-erklaerung': erklaerungZeigen }"
+        data-test="pr-pe-raster"
+      >
+        <PrSprungleiste
+          :aktiv="aktiverAbschnittId"
+          :definition="definition"
+          @springen="springen"
+        />
+
+        <div class="pr-pe-form">
         <!-- UXP-R5: Kennung gehört schon einer Vorlage -> nicht still überschreiben. -->
         <div v-if="istNeu && vorhandeneKennung" class="pr-pe-kollision dk-card" data-test="pr-pe-kennung-kollision">
           <p class="pr-pe-kollision-text">
@@ -73,7 +97,7 @@
             Ich möchte eine neue Version der bestehenden Vorlage „{{ vorhandeneKennungName }}“ anlegen.
           </label>
         </div>
-        <section class="pr-pe-abschnitt">
+        <section :id="zielId('grunddaten')" class="pr-pe-abschnitt" :data-abschnitt="zielId('grunddaten')">
           <h2 class="pr-pe-titel">Grunddaten</h2>
           <div class="pr-pe-zeile">
             <label class="pr-pe-label">Kennung (stabiler Kurzname)
@@ -87,13 +111,17 @@
             </label>
             <label class="pr-pe-label">Dienstbereich
               <!-- UXP-R9: Auswahlliste statt Freitext; findet die Kochbuch-Bereiche
-                   keine Entsprechung, bleibt der eingetragene Wert wählbar. -->
-              <select v-if="bereichOptionen.length" v-model="definition.bereich" class="dk-form-select">
-                <option value="">— keinen Bereich —</option>
-                <option v-for="b in bereichOptionen" :key="b.kennung" :value="b.kennung">{{ b.name }}</option>
-                <option v-if="unbekannterBereich" :value="definition.bereich">{{ definition.bereich }} (nicht vorhanden)</option>
-              </select>
-              <input v-else v-model="definition.bereich" type="text" class="dk-form-input" placeholder="Chor" />
+                   keine Entsprechung, bleibt der eingetragene Wert wählbar.
+                   UX-C3b: das ⓘ erklärt den Begriff (Text aus dem Glossar). -->
+              <span class="pr-pe-mit-info">
+                <select v-if="bereichOptionen.length" v-model="definition.bereich" class="dk-form-select">
+                  <option value="">— keinen Bereich —</option>
+                  <option v-for="b in bereichOptionen" :key="b.kennung" :value="b.kennung">{{ b.name }}</option>
+                  <option v-if="unbekannterBereich" :value="definition.bereich">{{ definition.bereich }} (nicht vorhanden)</option>
+                </select>
+                <input v-else v-model="definition.bereich" type="text" class="dk-form-input" placeholder="Chor" />
+                <PrInfo id="dienstbereich" />
+              </span>
               <span v-if="definition.bereich && !bereichBekannt" class="pr-pe-hilfe pr-pe-hilfe--warnung">
                 Diesen Dienstbereich gibt es in der Gemeinde nicht. Wähle einen vorhandenen Bereich.
               </span>
@@ -144,12 +172,18 @@
           </div>
         </section>
 
-        <section id="pr-pe-termine" class="pr-pe-abschnitt">
+        <section :id="zielId('termine')" class="pr-pe-abschnitt" :data-abschnitt="zielId('termine')">
           <h2 class="pr-pe-titel">Termine und Felder</h2>
-          <PrReihenEditor :definition="definition" :kontext="kontext" :meldungen="pruefMeldungen" />
+          <!-- UX-C3a: das Sprungziel „Felder“ sitzt am Feld-Teil INNERHALB des
+               Bausteins (Zwischenüberschrift „Felder pro Termin“) — nicht
+               hinter dem ganzen Block, sonst landete man bei „Anlässe“. -->
+          <PrReihenEditor
+            :definition="definition" :kontext="kontext" :meldungen="pruefMeldungen"
+            :felder-anker="zielId('felder')"
+          />
         </section>
 
-        <section class="pr-pe-abschnitt">
+        <section :id="zielId('anlaesse')" class="pr-pe-abschnitt" :data-abschnitt="zielId('anlaesse')">
           <h2 class="pr-pe-titel">Anlässe</h2>
           <p class="pr-pe-hinweis">
             Anlässe markieren einzelne Termine (Abendmahl, Kinderchor, Erntedank …)
@@ -218,7 +252,7 @@
           <PrDeklarationenEditor :definition="definition" :kontext="kontext" :meldungen="pruefMeldungen" />
         </section>
 
-        <section id="pr-pe-regeln" class="pr-pe-abschnitt">
+        <section :id="zielId('regeln')" class="pr-pe-abschnitt" :data-abschnitt="zielId('regeln')">
           <h2 class="pr-pe-titel">Regeln</h2>
           <PrRegelnEditor :regeln="regeln" :bausteine="regelBausteine" :kontext="kontext" :meldungen="pruefMeldungen" />
           <p v-if="!Object.keys(regelBausteine).length" class="pr-pe-hinweis">
@@ -227,7 +261,7 @@
           </p>
         </section>
 
-        <section class="pr-pe-abschnitt">
+        <section :id="zielId('ansichten')" class="pr-pe-abschnitt" :data-abschnitt="zielId('ansichten')">
           <h2 class="pr-pe-titel">Ansichten</h2>
           <PrAnsichtenEditor :ansichten="ansichten" :definition="definition" :meldungen="pruefMeldungen" />
         </section>
@@ -249,9 +283,16 @@
             vergangene Termine behalten ihre alte Struktur.
           </p>
         </section>
+        </div>
+
+        <!-- UX-C3a: nur im Formular-Reiter; unter 1200 px per CSS ausgeblendet. -->
+        <PrErklaerung
+          :abschnitt="aktiverAbschnittId"
+          :breite="breiteAmFenster"
+        />
       </div>
 
-      <!-- JSON: synchron und verlustfrei -->
+      <!-- JSON: synchron und verlustfrei (eigene Fläche, volle Breite) -->
       <div v-else-if="reiter === 'json'" class="pr-pe-json">
         <p class="pr-pe-hinweis">
           Die vollständige Definition als JSON. Gültige Änderungen wirken sofort
@@ -265,7 +306,7 @@
         ></textarea>
       </div>
 
-      <!-- Probelauf (Parent-Komponente, API trockenlauf) -->
+      <!-- Probelauf (Parent-Komponente, API trockenlauf; volle Breite) -->
       <div v-else-if="reiter === 'probelauf'" class="pr-pe-probe" id="pr-pe-probelauf">
         <Probelauf :definition="definition" />
       </div>
@@ -286,6 +327,7 @@
       <!-- OP-UI-23: <form @submit.prevent> — Enter im Feld speichert. -->
       <form class="pr-pe-speichern" @submit.prevent="speichern">
         <button type="submit" class="pr-pe-sr-submit" tabindex="-1" aria-hidden="true"></button>
+
         <!-- UXP-R12: ehrlicher Dialogtext + Zahl der betroffenen Termine. -->
         <p class="pr-pe-hinweis">
           Vergangene Termine behalten ihre alte Struktur. Bereits angelegte Termine
@@ -341,6 +383,7 @@ import { usePlanrahmen, fehlerMeldungen, datumText } from '../../composables/use
 import { useEntwurf } from '../../composables/useEntwurf.js'
 import { showToast } from '../../composables/useToast.js'
 import { bestaetigen } from '../../composables/useBestaetigen.js'
+import { useHandyHinweis, hinweisZeigen, istSchmal } from '../../composables/handyHinweis.mjs'
 import DkModal from '../../components/DkModal.vue'
 import PrMeldungen from '../../components/planrahmen/PrMeldungen.vue'
 import PrPfadMeldungen from '../../components/planrahmen/PrPfadMeldungen.vue'
@@ -351,9 +394,15 @@ import PrDeklarationenEditor from '../../components/planrahmen/PrDeklarationenEd
 import PrRegelnEditor from '../../components/planrahmen/PrRegelnEditor.vue'
 import PrAnsichtenEditor from '../../components/planrahmen/PrAnsichtenEditor.vue'
 import Probelauf from '../../components/planrahmen/Probelauf.vue'
+import PrHandyHinweis from '../../components/planrahmen/PrHandyHinweis.vue'
 import BedarfDialog from '../../components/planrahmen/BedarfDialog.vue'
 import PrStammdatenPanel from '../../components/planrahmen/PrStammdatenPanel.vue'
+import PrSprungleiste from '../../components/planrahmen/PrSprungleiste.vue'
+import PrErklaerung from '../../components/planrahmen/PrErklaerung.vue'
+import PrInfo from '../../components/planrahmen/PrInfo.vue'
+import { ABSCHNITTE, ERSTER_ABSCHNITT, aktiverAbschnitt, erklaerspalteZeigen, istMessbar, lesekanteFuer, zielId } from '../../components/planrahmen/abschnitte.mjs'
 import { leereDefinition, jsonText, jsonUebernehmen as jsonPruefen, feldPfadListe, feldKennungen } from '../../components/planrahmen/editor.mjs'
+import { plantypOptionen } from '../../components/planrahmen/auswahl.mjs'
 
 const emit = defineEmits(['gespeichert'])
 
@@ -372,6 +421,126 @@ const REITER = [
 
 const laden = ref(true)
 const darfVorlageBearbeiten = ref(false)
+// PLAN-M1: Hinweis am Handy — nur schmal + Bearbeitungsrecht + nicht
+// geschlossen (Kern in composables/handyHinweis.mjs). Sperrt nichts.
+const handyHinweis = useHandyHinweis()
+const breiteAmFenster = ref(typeof window !== 'undefined' ? window.innerWidth : 0)
+const handyHinweisGeschlossen = ref(false)
+const handyHinweisZeigen = computed(() => !handyHinweisGeschlossen.value
+  && hinweisZeigen({
+    schmal: istSchmal(breiteAmFenster.value),
+    darfBearbeiten: darfVorlageBearbeiten.value,
+    geschlossen: false,
+  }))
+function beiGroessenAenderung() {
+  breiteAmFenster.value = typeof window !== 'undefined' ? window.innerWidth : 0
+  aktivenAbschnittMessen()
+}
+
+// Beim ersten Aufbau sind die Positionen der Abschnitte (Bilder, Raster)
+// noch nicht belastbar — deshalb wird nach dem Laden einmal nachgemessen.
+watch(laden, (laeuft) => { if (!laeuft && !beendet) aktivenAbschnittMessen() }, { flush: 'post' })
+
+function handyHinweisSchliessen() {
+  handyHinweis.schliessen()
+  handyHinweisGeschlossen.value = true
+}
+
+// ── UX-C3a: Sprungleiste und Erklärspalte ──────────────────────────────────
+// Der aktive Abschnitt folgt dem Scrollen: es gilt die letzte Überschrift,
+// die die Lesekante (LESEKANTE unter dem oberen Rand) erreicht hat. Gemessen
+// wird gegen den scrollenden Behälter (.dk-content), nicht gegen das Fenster.
+// Die Regel selbst steht ohne DOM in abschnitte.mjs (dort geprüft).
+const aktiverAbschnittId = ref(ERSTER_ABSCHNITT)
+const erklaerungZeigen = computed(() => erklaerspalteZeigen(breiteAmFenster.value))
+
+/** Der scrollende Behälter der App — sonst das Dokument. */
+function scrollBehaelter() {
+  if (typeof document === 'undefined') return null
+  return document.querySelector('.dk-content') || document.scrollingElement || null
+}
+
+// Der Behälter wird beim Aufbau EINMAL gemerkt: beim Abbau ist das Markup
+// schon abgeräumt, dann fände `querySelector` ihn nicht mehr und das
+// Scroll-Ereignis bliebe angemeldet (Fehler nach dem Verlassen der Seite).
+let gemerkterBehaelter = null
+
+/** Positionen der Abschnitte im Sichtfenster dieses Behälters. */
+function abschnittPositionen() {
+  if (typeof document === 'undefined') return []
+  const behaelter = gemerkterBehaelter || scrollBehaelter()
+  const oben = behaelter && behaelter !== document.scrollingElement
+    ? behaelter.getBoundingClientRect().top
+    : 0
+  return ABSCHNITTE.map((a) => {
+    const el = document.getElementById(zielId(a.id))
+    const kasten = el ? el.getBoundingClientRect() : null
+    // `Anlässe` liegt z. B. in einem ausgeblendeten Reiter: dann keine
+    // Position statt einer falschen (0).
+    return { id: a.id, top: istMessbar(kasten) ? kasten.top - oben : Number.POSITIVE_INFINITY }
+  })
+}
+
+function aktivenAbschnittMessen() {
+  if (beendet || typeof document === 'undefined' || reiter.value !== 'formular') return
+  // Nach einem Sprung gilt das Ziel, bis der Nutzer selbst weiterscrollt
+  // (sprungZiel wird von beiScroll gelöscht) oder die Zeit abläuft.
+  if (sprungZiel) {
+    aktiverAbschnittId.value = sprungZiel
+    return
+  }
+  const behaelter = gemerkterBehaelter || scrollBehaelter()
+  // Am unteren Ende gibt es keinen Abschnitt mehr unter der Lesekante: ohne
+  // diese Regel bliebe die Markierung auf dem vorletzten Eintrag stehen,
+  // obwohl der letzte vollständig sichtbar ist.
+  if (behaelter && behaelter !== document.scrollingElement
+    && behaelter.scrollTop + behaelter.clientHeight >= behaelter.scrollHeight - 8) {
+    aktiverAbschnittId.value = ABSCHNITTE[ABSCHNITTE.length - 1].id
+    return
+  }
+  aktiverAbschnittId.value = aktiverAbschnitt(abschnittPositionen(), lesekanteFuer(breiteAmFenster.value))
+}
+// Zählt die Scroll-Meldungen seit dem Sprung (das erste gehört zum Sprung).
+let sprungMessungen = 0
+
+/** Sprung: zum Abschnitt scrollen und ihn als aktiv setzen. */
+async function springen(id) {
+  if (typeof document === 'undefined') return
+  aktiverAbschnittId.value = id
+  const el = document.getElementById(zielId(id))
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  // Nach dem Scrollen nachmessen — sonst springt die Markierung zurück,
+  // wenn die Lesekante den Abschnitt noch nicht erreicht hat. Wer den Sprung
+  // selbst auslöst, will DIESEN Abschnitt sehen: sprungZiel hält die
+  // Markierung dort, bis eigenes Scrollen oder Zeitablauf es aufhebt.
+  sprungZiel = id
+  sprungMessungen = 0
+  clearTimeout(sprungTimer)
+  sprungTimer = setTimeout(aktivenAbschnittMessen, 700)
+  clearTimeout(sprungZielTimer)
+  sprungZielTimer = setTimeout(() => { sprungZiel = '' }, 2500)
+}
+let sprungTimer = null
+let sprungZiel = ''
+let sprungZielTimer = null
+
+/** Rückmeldung des Behälters drosseln (ein Maß je Bild). */
+let messBild = 0
+let beendet = false
+function beiScroll() {
+  if (messBild) return
+  messBild = requestAnimationFrame(() => {
+    messBild = 0
+    // Eigenes Scrollen hebt den gemerkten Sprung auf — das erste Maß nach dem
+    // Sprung gehört noch zum Sprung selbst.
+    if (sprungZiel && ++sprungMessungen > 1) { sprungZiel = ''; clearTimeout(sprungZielTimer) }
+    // Nach dem Verlassen der Seite darf kein Zeitgeber mehr messen (die
+    // Bausteine sind dann abgebaut — sonst „Unhandled error“ im Watcher).
+    if (beendet) return
+    aktivenAbschnittMessen()
+  })
+}
 const seitenFehler = ref([])
 const definition = ref(leereDefinition())
 const reiter = ref('formular')
@@ -420,6 +589,8 @@ const pruefFehler = computed(() => pruefMeldungen.value.filter((m) => m.stufe ==
 const gruppenAuswahl = ref([])
 // UXP-R9: waehlbare Dienstbereiche (Kennung + Anzeigename) aus einrichten_rechte.
 const bereichOptionen = ref([])
+// UX-C3b: Planvorlagen-Kennungen, mit Anzeigename (fuer fremde Verweise).
+const plantypNamen = ref(new Map())
 const gewaehlteGruppen = computed(() => Array.isArray(definition.value.gruppen) ? definition.value.gruppen : [])
 
 /** UXP-R10: gebundene Gruppen, die es in der Gemeinde nicht (mehr) gibt. */
@@ -437,6 +608,15 @@ function gruppenName(kennung) {
 const bereichBekannt = computed(() =>
   !definition.value.bereich || bereichOptionen.value.some((b) => b.kennung === definition.value.bereich))
 const unbekannterBereich = computed(() => !!definition.value.bereich && !bereichBekannt.value)
+
+/**
+ * UX-C3b: fremde Planvorlagen für planübergreifende Verweise („uebung“,
+ * „auch_in“). Quelle ist `plantypen_liste` (schon für die Kennungs-Kollision
+ * geladen); die eigene Vorlage bleibt außen vor.
+ */
+const plantypAuswahl = computed(() => plantypOptionen(
+  [...plantypNamen.value].map(([id, name]) => ({ id, schluessel: id, name })),
+  definition.value.id))
 
 /** UXP-R5: die Kennung gehört bereits einer bestehenden Vorlage. */
 const vorhandeneKennung = computed(() =>
@@ -467,12 +647,22 @@ const ansichten = computed(() => (Array.isArray(definition.value.ansichten) ? de
 /** Top-Level-Felder für die Anlass-Wirkung 'ohne' (Kurzform oder Reihen). */
 const topFeldIds = computed(() => feldKennungen(definition.value))
 
+/**
+ * Kontext der Bausteine. UX-C3b: `definition` (für Auswahllisten von Feldern,
+ * Sammlungen, Anlässen …), `gruppen` (aus einrichten_rechte) und `plantypen`
+ * (fremde Planvorlagen) kommen mit — so muss kein Baustein eigene Quellen
+ * erfinden.
+ */
 const kontext = computed(() => ({
   parameter: definition.value.parameter || [],
   anlaesse: anlaesse.value,
   rollen: definition.value.rollen || [],
   sammlungen: definition.value.sammlungen || [],
   feldPfade: feldPfadListeGesamt(),
+  definition: definition.value,
+  gruppen: gruppenAuswahl.value,
+  plantypen: plantypAuswahl.value,
+  eigenerPlantyp: definition.value.id || '',
 }))
 
 function feldPfadListeGesamt() {
@@ -578,7 +768,15 @@ async function ladenAlles() {
         (Array.isArray(typen) ? typen : [])
           .filter((t) => t.schluessel)
           .map((t) => [t.schluessel, t.name || t.schluessel]))
-    } catch { bekannteKennungen.value = new Map() }
+      // UX-C3b: dieselbe Liste mit Anzeigenamen für fremde Planvorlagen.
+      plantypNamen.value = new Map(
+        (Array.isArray(typen) ? typen : [])
+          .filter((t) => t.schluessel || t.id)
+          .map((t) => [t.schluessel || t.id, t.name || t.schluessel || t.id]))
+    } catch {
+      bekannteKennungen.value = new Map()
+      plantypNamen.value = new Map()
+    }
     // ST3: waehlbare Gruppen (nur berechtigte Planer erhalten eine Liste).
     try {
       const rechte = await einrichtenRechte()
@@ -689,14 +887,40 @@ function vorDemVerlassen(event) {
   event.preventDefault()
   event.returnValue = ''
 }
-onMounted(() => window.addEventListener('beforeunload', vorDemVerlassen))
+onMounted(() => {
+  beendet = false
+  window.addEventListener('beforeunload', vorDemVerlassen)
+  // PLAN-M1: Hinweis am Handy — der geschlossene Zustand kommt aus dem
+  // Speicher (je Benutzer, 30 Tage), die Breite wird beim Aufbau gelesen und
+  // bei jeder Größenänderung nachgezogen (Drehen des Geräts).
+  handyHinweisGeschlossen.value = handyHinweis.geschlossen()
+  beiGroessenAenderung()
+  window.addEventListener('resize', beiGroessenAenderung)
+  // UX-C3a: der scrollende Behälter der App meldet das Scrollen; zur Sicherheit
+  // auch das Fenster (falls die Seite ohne .dk-content läuft). Der Behälter
+  // wird gemerkt, damit der Abbau denselben Knoten abmeldet.
+  gemerkterBehaelter = scrollBehaelter()
+  gemerkterBehaelter?.addEventListener('scroll', beiScroll, { passive: true })
+  window.addEventListener('scroll', beiScroll, { passive: true })
+})
 onUnmounted(() => {
+  beendet = true
   guardEntfernen()
   ++ladeNummer
   ++pruefNummer
   clearTimeout(pruefTimer)
   clearTimeout(entwurfTimer)
+  clearTimeout(sprungTimer)
+  // UX-C3a: auch den Sprung-Zeitgeber löschen — sonst schreibt er nach dem
+  // Verlassen in eine nicht mehr vorhandene Seite.
+  clearTimeout(sprungZielTimer)
+  sprungZiel = ''
+  if (messBild) cancelAnimationFrame(messBild)
   window.removeEventListener('beforeunload', vorDemVerlassen)
+  window.removeEventListener('resize', beiGroessenAenderung)
+  gemerkterBehaelter?.removeEventListener('scroll', beiScroll)
+  gemerkterBehaelter = null
+  window.removeEventListener('scroll', beiScroll)
 })
 
 // ── Speichern ──────────────────────────────────────────────────────────────
@@ -817,7 +1041,29 @@ async function stammdatenPanelGeschlossen() {
 .pr-pe-pruefstatus { font-size: 0.82rem; color: var(--dk-text-muted); padding: 6px 0; }
 .pr-pe-pruefstatus--ok { color: var(--ok); }
 .pr-pe-form { display: flex; flex-direction: column; gap: 26px; }
-.pr-pe-abschnitt { display: flex; flex-direction: column; gap: 10px; }
+
+/* UX-C3a: Sprungleiste · Formular · Erklärspalte (Entwurf C3).
+   Das Raster umschließt NUR den Formular-Reiter; JSON und Probelauf stehen
+   als eigene Flächen daneben und nutzen die volle Breite.
+   Ab 1200 px drei Spalten, darunter zwei (Erklärspalte entfällt), unter
+   900 px eine — dort wird die Sprungliste zur waagerechten Leiste. */
+.pr-pe-raster { display: grid; grid-template-columns: 1fr; gap: var(--sp-5); align-items: start; }
+.pr-pe-raster--mit-erklaerung { grid-template-columns: 190px minmax(0, 1fr) 300px; }
+.pr-pe-raster > .pr-pe-form { grid-column: 2; }
+@media (max-width: 1199px) {
+  .pr-pe-raster { grid-template-columns: 170px minmax(0, 1fr); }
+  .pr-pe-raster > .pr-pe-form { grid-column: 2; }
+}
+@media (max-width: 900px) {
+  .pr-pe-raster { grid-template-columns: 1fr; gap: var(--sp-4); }
+  .pr-pe-raster > .pr-pe-form { grid-column: 1; }
+}
+
+/* Sprungziele der Seite tragen denselben Abstand zur Lesekante wie die
+   Abschnitte. Die Zwischenüberschrift „Felder pro Termin“ liegt in einem
+   Kind-Baustein — ihr Abstand steht dort (scoped-CSS der Seite erreicht sie
+   nicht, siehe PrReihenEditor.vue). */
+.pr-pe-abschnitt { display: flex; flex-direction: column; gap: 10px; scroll-margin-top: 90px; }
 .pr-pe-titel {
   font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--dk-text-muted); margin: 0; border-bottom: 1px solid var(--dk-divider); padding-bottom: 6px;
@@ -833,6 +1079,8 @@ async function stammdatenPanelGeschlossen() {
 .pr-pe-unbekannte-liste li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .pr-pe-unbekannte-kennung { font-family: ui-monospace, monospace; font-size: 0.82rem; color: var(--dk-text); }
 .pr-pe-hilfe--warnung { color: var(--dk-warning); }
+/* UX-C3b: Auswahlfeld mit ⓘ daneben (Begriffserklärung aus dem Glossar). */
+.pr-pe-mit-info { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .pr-pe-kollision {
   display: flex; flex-direction: column; gap: 8px; padding: 12px;
   border: 1px solid color-mix(in oklch, var(--dk-warning) 45%, var(--dk-border));
@@ -871,6 +1119,8 @@ async function stammdatenPanelGeschlossen() {
 }
 .pr-pe-entwurf-text { margin: 0; font-size: 0.86rem; color: var(--dk-text); }
 .pr-pe-entwurf-aktionen { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Inhaltsumbruch, kein Layout: das Kurzfeld gibt seine 220-px-Breite auf und
+   nimmt die Zeile. */
 @media (max-width: 640px) {
   .pr-pe-kurz { max-width: none; width: 100%; }
 }

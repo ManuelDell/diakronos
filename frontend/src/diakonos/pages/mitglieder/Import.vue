@@ -366,7 +366,7 @@ function musterHerunterladen() {
 
 <style scoped>
 .mi-bereich { display: flex; flex-direction: column; gap: var(--sp-4); }
-.mi-hinweis { font-size: var(--fs-sm); color: var(--text-muted); margin-top: var(--sp-2); }
+.mi-hinweis { font-size: var(--fs-sm); color: var(--muted); margin-top: var(--sp-2); }
 .mi-datei { font-size: var(--fs-sm); color: var(--text); }
 .mi-raster {
   display: grid;
@@ -381,9 +381,9 @@ function musterHerunterladen() {
   flex-wrap: wrap;
 }
 .mi-fehlt { color: var(--err); font-size: var(--fs-sm); }
-.mi-bereit { color: var(--text-muted); font-size: var(--fs-sm); }
+.mi-bereit { color: var(--muted); font-size: var(--fs-sm); }
 .mi-zahlen { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
-.mi-gesamt { color: var(--text-muted); font-size: var(--fs-sm); }
-.mi-nr { color: var(--text-muted); font-size: var(--fs-sm); }
+.mi-gesamt { color: var(--muted); font-size: var(--fs-sm); }
+.mi-nr { color: var(--muted); font-size: var(--fs-sm); }
 .mi-ergebnis { margin-top: var(--sp-3); }
 </style>

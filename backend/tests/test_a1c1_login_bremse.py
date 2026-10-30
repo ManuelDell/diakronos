@@ -397,15 +397,76 @@ def test_sperrzeit_waechst_mit_jeweiligem_versuch(guest_client, patched_db, fake
 
 
 def test_backoff_ist_gedeckelt(guest_client, patched_db, fake_redis):
-    """Nach sehr vielen Versuchen ist die Sperrzeit nicht unendlich."""
+    """Nach sehr vielen FehlSERIEN ist die Sperrzeit nicht unendlich.
+
+    SEC-2: Der Test hat vorher waehrend EINER laufenden Sperre 40-mal
+    geklopft und daraus `300 * 16` erwartet — er hat damit genau den Fehler
+    festgeschrieben, der im Pentest als "27 Fehlversuche ohne jede Bremse"
+    auffiel: jedes Klopfen verdoppelte die naechste Dauer, bis der Deckel
+    stand, und dort blieb sie. Die Sperre war danach 80 Minuten nicht mehr
+    abzuschuetteln, ohne dass die Antwortform das zeigte.
+
+    Geprueft wird jetzt die eigentliche Zusage: **jede neue Fehlserie**
+    verdoppelt, und irgendwann ist Schluss (Deckel). Klopfen innerhalb
+    einer Sperre verlaengert nur (siehe
+    `test_klopfen_waehrend_der_sperre_laesst_sie_nicht_auf_den_deckel_laufen`).
+    """
     _lege_benutzer(patched_db, "anna@example.org", "geheim-123")
-    _sperre(guest_client, "anna@example.org", "falsch")
 
     client = loginversuche._client()
-    for _ in range(40):
-        _post(guest_client, "anna@example.org", "falsch")
+    dauern = []
 
-    assert int(client.get(_einziger_sperr_key(client))) == 300 * 16
+    def _nur_kontosperre() -> int:
+        """Die Sperre, die aus dem KONTO-Zaehler kommt.
+
+        Zwei Zaehler sperren unabhaengig (Konto 5, Adresse 25). Nach fuenf
+        Fehlserien auf dasselbe Konto steht die Adresse ebenfalls auf der
+        Schwelle und loest mit aus — das ist gewollt (A1c10), wuerde hier
+        aber die Backoff-Kurve des Kontos verfaelschen. Der IP-Zaehler wird
+        deshalb je Runde geleert; geprueft wird die Kontokurve.
+
+        Der Sperrschluessel des Kontos entsteht aus demselben Hash wie sein
+        Zaehlerschluessel (Modulkopf: `_kennungen`), nur mit dem
+        bereichsuebergreifenden Praefix.
+        """
+        konto_key = loginversuche._key_benutzer("anna@example.org").replace(
+            loginversuche.SCHLUESSEL_PRAEFIX, loginversuche.SPERRE_PRAEFIX, 1
+        )
+        assert client.exists(konto_key), (
+            f"Kontosperre fehlt: {[k for k in client._values if k.startswith(loginversuche.SPERRE_PRAEFIX)]}"
+        )
+        return int(client.get(konto_key))
+
+    def _nach_der_runde() -> None:
+        """Sperren ablaufen lassen (Stufen bleiben) und den IP-Zaehler leeren."""
+        for key in [k for k in list(client._values) if k.startswith(loginversuche.SPERRE_PRAEFIX)]:
+            if not key.endswith(":stufe"):
+                client._values.pop(key, None)
+                client._ttl.pop(key, None)
+        for key in [k for k in list(client._values) if k.startswith(loginversuche.SCHLUESSEL_PRAEFIX)]:
+            if ":ip:" in key:
+                client._values.pop(key, None)
+                client._ttl.pop(key, None)
+
+    for _ in range(8):
+        for _versuch in range(6):
+            _post(guest_client, "anna@example.org", "falsch")
+        dauern.append(_nur_kontosperre())
+        _nach_der_runde()
+
+    assert dauern[0] == 300, f"erste Fehlserie ist die Grunddauer: {dauern[0]}"
+    assert dauern == sorted(dauern), f"Sperrzeit muss je Fehlserie wachsen: {dauern}"
+    # Verdopplung: 300, 600, 1200, 2400 — dann greift der Deckel (16x = 4800).
+    assert dauern[:4] == [300, 600, 1200, 2400], f"Verdopplung stimmt nicht: {dauern}"
+    assert max(dauern) == 300 * 16, f"Deckel nicht erreicht: {dauern}"
+
+    # Und der Deckel haelt: noch mehr Fehlserien aendern nichts mehr.
+    for _ in range(10):
+        for _versuch in range(6):
+            _post(guest_client, "anna@example.org", "falsch")
+        dauer = _nur_kontosperre()
+        assert dauer <= 300 * 16, f"Backoff-Deckel verletzt: {dauer}"
+        _nach_der_runde()
 
 
 def test_alle_zaehler_haben_einen_ttl(guest_client, patched_db, fake_redis):

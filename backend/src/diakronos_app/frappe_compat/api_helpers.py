@@ -71,6 +71,7 @@ __all__ = [
     "_coerce",
     "_count",
     "_create",
+    "_registrierungslink_token",
     "_delete_doc",
     "_bulk_update_by_field",
     "_generate_hash",
@@ -506,6 +507,43 @@ def _ruecknahme(sess: Any, eigene: bool) -> None:
         sess.rollback()
 
 
+def _registrierungslink_token(data: dict[str, Any]) -> dict[str, Any]:
+    """SEC-3: neuer Registrierungslink — Token und Anzeige kommen vom Server.
+
+    Der Befund des Pentests (dev.ecg-hn.de): `POST /api/resource/
+    Registrierungslink` nahm einen frei gewaehlten, kurzen ``slug`` an
+    („pt-mitglied“). Ein aus Bezeichnung, Klarnamen oder Nummern abgeleiteter
+    Slug macht Registrierungslinks erratbar — wer ihn errät, registriert sich
+    selbst.
+
+    Deshalb gilt fuer die NEUANLAGE (dieser Pfad und `create_link`):
+
+      * ``slug``       — immer `registrierungslink.neuer_token()`
+                         (``secrets.token_urlsafe(32)``, 43 Zeichen, ~256 Bit);
+                         ein mitgeschickter Wert wird verworfen.
+      * ``link_anzeige`` — aus dem neuen Token neu gebildet, damit Anzeige und
+                         Token nicht auseinanderlaufen.
+      * ``anmeldungen_count`` — 0, wenn nicht angegeben (die Zusage aus
+                         UXD-R2: eine neue Zeile startet ohne Anmeldungen).
+      * ``aktiv``      — 1, wenn nicht angegeben (wie im Frappe-Original, das
+                         einen neuen Link einschaltet).
+
+    BESTEHENDE Links bleiben gueltig: hier wird nur eine neue Zeile gebaut.
+    Lesen, Aendern und Loeschen fassen den ``slug`` nicht an.
+    """
+    from diakronos_app.anmeldung.registrierungslink import link_anzeige, neuer_token
+
+    data = dict(data)
+    data.pop("slug", None)
+    slug = neuer_token()
+    data["slug"] = slug
+    if "link_anzeige" in column_names("Registrierungslink"):
+        data["link_anzeige"] = link_anzeige(data.get("typ"), slug)
+    data.setdefault("anmeldungen_count", 0)
+    data.setdefault("aktiv", 1)
+    return data
+
+
 def _create(doctype: str, values: dict[str, Any]) -> str:
     """`frappe.new_doc(doctype).save()` + commit. Gibt den `name` zurueck.
 
@@ -533,6 +571,18 @@ def _create(doctype: str, values: dict[str, Any]) -> str:
         # pruefen) — die Schranke darunter sieht danach den gespeicherten Wert.
         data = _normalisiere_mitglied_email(data)
         _pruefe_mitglied_schreibzugriff(data)
+    elif doctype == "Registrierungslink":
+        # SEC-3: der Token eines NEUEN Links entsteht IMMER hier — gesetzt
+        # wird er wie bei `create_link` aus `registrierungslink.neuer_token()`
+        # (43 Zeichen, ~256 Bit). Ein vom Client mitgeschickter `slug`
+        # („pt-mitglied“) wird stillschweigend verworfen; die Anzeige wird
+        # daraus neu gebildet, damit `link_anzeige` und `slug` nie
+        # auseinanderlaufen. BESTEHENDE Links bleiben unberuehrt (gelesen
+        # wird `slug` unveraendert) — betroffen ist nur die Neuanlage.
+        # Die Kennung `name` vergibt wie ueberall der Server (Zweig darunter).
+        data = _registrierungslink_token(data)
+        if not data.get("name"):
+            data["name"] = _new_name()
     elif doctype in _VERWALTUNGS_DOCTYPES:
         # N12b: derselbe Weg wie `/api/resource` — auch beim Anlegen kann
         # `name` einen bestehenden Platz ueberschreiben (Frappe-Save mit

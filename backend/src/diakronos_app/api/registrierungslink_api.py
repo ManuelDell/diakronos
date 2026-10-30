@@ -64,6 +64,9 @@ from diakronos_app.frappe_compat.api_helpers import (
 _ALLOWED_UPDATE_FIELDS = frozenset(
     {
         "bezeichnung",
+        # REG-1a: „gueltig ab“ — vor diesem Tag ist der Link fuer Besucher
+        # nicht nutzbar (Admins sehen ihn weiter).
+        "gueltig_ab",
         "gueltig_bis",
         "max_anmeldungen",
         "anmeldeformular",
@@ -78,6 +81,7 @@ _LINK_RESPONSE_FIELDS = (
     "bezeichnung",
     "typ",
     "aktiv",
+    "gueltig_ab",
     "gueltig_bis",
     "max_anmeldungen",
     "anmeldungen_count",
@@ -176,9 +180,51 @@ def _mit_vorgaben(gueltig_bis, max_anmeldungen, *, ohne_ablauf=False, unbegrenzt
 
 
 
+def _datum_oder_leer(wert, feld: str) -> str:
+    """Datum aus der Verwaltung pruefen: `JJJJ-MM-TT` oder `""` (REG-1a).
+
+    Vorher ging ein ungueltiges Datum roh an die Datenbank und der Admin bekam
+    einen 500er mit SQL-Text (vgl. `verlaengern_link`); hier wird vorab
+    geprueft und eine verstaendliche Meldung geworfen.
+    """
+    text = str(wert or "").strip()
+    if not text:
+        return ""
+    try:
+        return _dt.date.fromisoformat(text[:10]).isoformat()
+    except ValueError:
+        throw(
+            f"Ungültiges Datum „{wert}“ für {feld}. Erwartet JJJJ-MM-TT.",
+            ValidationError,
+        )
+
+
+def _pruefe_zeitraum(ab, bis) -> None:
+    """„gueltig ab“ muss VOR „gueltig bis“ liegen (REG-1a, Punkt 5).
+
+    Ein Link, der erst nach seinem Ablauf beginnt, ist nie nutzbar — ein
+    Eingabefehler der Verwaltung, den die Oberflaeche nicht abfaengt (beide
+    Felder stehen dort unabhaengig). Beide Werte sind ISO-Strings oder ``""``
+    (bzw. ``None``); der Vergleich ist deshalb ein reiner Stringvergleich,
+    der bei ISO-Daten der Datumsordnung entspricht.
+    """
+    ab = str(ab or "").strip()[:10]
+    bis = str(bis or "").strip()[:10]
+    if not ab or not bis:
+        return
+    if ab > bis:
+        throw(
+            f"„Gültig ab“ ({_dt.date.fromisoformat(ab).strftime('%d.%m.%Y')}) liegt nach "
+            f"„gültig bis“ ({_dt.date.fromisoformat(bis).strftime('%d.%m.%Y')}). "
+            "Bitte den Zeitraum richtig herum eintragen.",
+            ValidationError,
+        )
+
+
 def _link_antwort(link: dict[str, Any]) -> dict[str, Any]:
     """Antwort-dict eines Registrierungslink (Original: Rueckgabe von create)."""
     gueltig = link.get("gueltig_bis")
+    ab = link.get("gueltig_ab")
     slug = link.get("slug") or ""
     return {
         "name": link.get("name"),
@@ -189,6 +235,8 @@ def _link_antwort(link: dict[str, Any]) -> dict[str, Any]:
         # UXD-R3: absolute Adresse inkl. `/diakonos/…`; Altdaten tragen hier
         # noch den relativen Frappe-Pfad, deshalb wird der Wert neu gebildet.
         "link_anzeige": _link_anzeige(link.get("typ"), slug) if slug else "",
+        # REG-1a: „gueltig ab“ (None = sofort) neben „gueltig bis“.
+        "gueltig_ab": str(ab)[:10] if ab else None,
         "gueltig_bis": str(gueltig) if gueltig else None,
         "max_anmeldungen": link.get("max_anmeldungen"),
         "anmeldungen_count": link.get("anmeldungen_count"),
@@ -207,6 +255,7 @@ def create_link(
     element_id="",
     ohne_ablauf=False,
     unbegrenzt=False,
+    gueltig_ab="",
 ):
     """Erstellt einen neuen Registrierungslink (nur Admin).
 
@@ -224,9 +273,13 @@ def create_link(
     """
     require_admin()
 
+    gueltig_ab = _datum_oder_leer(gueltig_ab, "gültig ab")
     gueltig_bis, max_anmeldungen = _mit_vorgaben(
         gueltig_bis, max_anmeldungen, ohne_ablauf=ohne_ablauf, unbegrenzt=unbegrenzt,
     )
+    # REG-1a (Punkt 5): ein Link, der nach seinem Ablauf beginnt, waere nie
+    # nutzbar. Geprueft wird der ENDGUELTIGE Zeitraum (nach den Vorgaben).
+    _pruefe_zeitraum(gueltig_ab, gueltig_bis)
     slug = _neuer_token()
     name = _create(
         "Registrierungslink",
@@ -236,6 +289,7 @@ def create_link(
             "slug": slug,
             "link_anzeige": _link_anzeige(typ, slug),
             "anmeldungen_count": 0,
+            "gueltig_ab": gueltig_ab or None,
             "gueltig_bis": gueltig_bis or None,
             "max_anmeldungen": int(max_anmeldungen or 0),
             "anmeldeformular": anmeldeformular_id or None,
@@ -257,8 +311,26 @@ def update_link(link_id, **kwargs):
     doc = get_doc("Registrierungslink", link_id)
 
     werte = {k: v for k, v in kwargs.items() if k in _ALLOWED_UPDATE_FIELDS}
+    if "gueltig_ab" in werte:
+        # REG-1a: leeres Feld = sofort gueltig (NULL); unsinniges Datum wird
+        # mit verstaendlicher Meldung abgelehnt statt als DB-Fehler.
+        werte["gueltig_ab"] = _datum_oder_leer(werte["gueltig_ab"], "gültig ab") or None
+    if "gueltig_bis" in werte:
+        werte["gueltig_bis"] = _datum_oder_leer(werte["gueltig_bis"], "gültig bis") or None
+    if "gueltig_ab" in werte or "gueltig_bis" in werte:
+        # REG-1a (Punkt 5): auch beim Aendern muss der Zeitraum stimmen — mit
+        # dem jeweils anderen Wert aus dem BESTAND, wenn er nicht mitkommt.
+        _pruefe_zeitraum(
+            werte.get("gueltig_ab", doc.get("gueltig_ab")),
+            werte.get("gueltig_bis", doc.get("gueltig_bis")),
+        )
     if werte:
-        _update_doc("Registrierungslink", doc.name, werte)
+        # Leere Datumsfelder SIND das Loeschen des Datums — `_update_doc`
+        # schreibt None nur fuer ausdruecklich genannte Felder.
+        _update_doc(
+            "Registrierungslink", doc.name, werte,
+            explizite_null={"gueltig_ab", "gueltig_bis"},
+        )
 
     return {"success": True, "link_id": doc.name}
 

@@ -65,6 +65,14 @@ class Anmeldeformular(Base):
     )
     dsgvo_text_override: Mapped[Any | None] = mapped_column(Text, nullable=True)
     bestaetigung_text: Mapped[Any | None] = mapped_column(Text, nullable=True)
+    # REG-1a: optionale Bilder des Formulars (Spaltennamen = Frappe-`Attach Image`).
+    # Die Werte sind schlichte Dateinamen unter `settings.files_dir`; ausgeliefert
+    # werden sie NUR ueber den oeffentlichen Formular-Endpunkt (`/public/…`), nie
+    # ueber `/files/…`. Frappe fuehrt an dieser Stelle absolute URLs
+    # (`/files/<name>`); der Port speichert bewusst nur den Dateinamen, damit ein
+    # Wechsel von `files_dir`/Host keine toten Verweise hinterlaesst.
+    bannerbild: Mapped[Any | None] = mapped_column(String(140), nullable=True)
+    hintergrundbild: Mapped[Any | None] = mapped_column(String(140), nullable=True)
 
 class AnmeldeformularDokument(Base):
     """Frappe Child-Tabelle (istable=1) — Sortierung immer ueber `idx`."""
@@ -1018,6 +1026,9 @@ class Registrierungslink(Base):
     aktiv: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     slug: Mapped[Any | None] = mapped_column(String(140), nullable=True)
     gueltig_bis: Mapped[Any | None] = mapped_column(Date, nullable=True)
+    # REG-1a: „gueltig ab“ — vor diesem Tag ist der Link fuer Besucher nicht
+    # nutzbar (NULL = sofort). Gegenstueck zu `gueltig_bis`.
+    gueltig_ab: Mapped[Any | None] = mapped_column(Date, nullable=True)
     max_anmeldungen: Mapped[Any | None] = mapped_column(Integer, nullable=True)
     anmeldungen_count: Mapped[Any | None] = mapped_column(Integer, nullable=True)
     anmeldeformular: Mapped[str | None] = mapped_column(String(140), ForeignKey("anmeldeformular.name"), nullable=True)

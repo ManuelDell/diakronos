@@ -36,11 +36,20 @@
         <option v-for="w in WOCHENTAGE" :key="w.kuerzel" :value="w.kuerzel">{{ w.name }}</option>
       </select>
       <div v-else-if="typ === 'parameter'" class="pr-kn-zeile">
-        <select class="dk-form-select" :value="parameterId" aria-label="Parameter" @change="parameterSetzen('id', $event.target.value)">
-          <option value="">— Parameter wählen —</option>
-          <option v-for="p in kontext.parameter || []" :key="p.id" :value="p.id">{{ p.name || p.id }}</option>
-        </select>
+        <PrAuswahl
+          :model-value="parameterId" :optionen="parameterAuswahl" platzhalter="— Parameter wählen —"
+          aria-label="Parameter" anderer-wert @update:model-value="parameterSetzen('id', $event)"
+        />
+        <!-- UX-C3b: Bei einem Auswahl-Parameter ist der Vergleichswert einer
+             seiner Werte — Auswahl statt Freitext. -->
+        <PrAuswahl
+          v-if="parameterWerte.length" :model-value="gleichWert" :optionen="wertAuswahl"
+          platzhalter="— Wert wählen —" aria-label="Gewünschter Wert"
+          :unbekannt-name="'unbekannter Auswahlwert'" anderer-wert
+          @update:model-value="parameterSetzen('gleich', $event)"
+        />
         <input
+          v-else
           class="dk-form-input" type="text" placeholder="gleicher Wert"
           :value="gleichWert" aria-label="Gewünschter Wert"
           @input="parameterSetzen('gleich', $event.target.value)"
@@ -58,6 +67,16 @@
         v-else-if="typ === 'datum'" type="date" class="dk-form-input"
         :value="knoten[schluessel]" aria-label="Datum"
         @change="wertSetzen($event.target.value)"
+      />
+      <!-- UX-C3b: Werte, die exakt passen müssen, sind Auswahllisten; ein
+           gespeicherter Altwert bleibt als „unbekannter Wert“ sichtbar.
+           „Anderer Wert …“ lässt neue Kennungen zu (Review Punkt 2). -->
+      <PrAuswahl
+        v-else-if="auswahlQuelle" :model-value="knoten[schluessel]" :optionen="auswahlQuelle.optionen"
+        :platzhalter="auswahlQuelle.platzhalter" :unbekannt-name="auswahlQuelle.unbekanntName"
+        :warnung="auswahlQuelle.warnung" :aria-label="wertName" :info="auswahlQuelle.info"
+        anderer-wert
+        @update:model-value="wertSetzen($event)"
       />
       <input
         v-else type="text" class="dk-form-input"
@@ -78,7 +97,12 @@
  * damit tiefe Bäume im Plantyp-Editor reaktiv同步 bleiben.
  */
 import { computed } from 'vue'
-import { WOCHENTAGE, ROLLEN_KNOTEN, BEDINGUNGS_KNOTEN, leerenKnoten, knotenSchluessel } from './editor.mjs'
+import PrAuswahl from './PrAuswahl.vue'
+import { WOCHENTAGE, ROLLEN_KNOTEN, BEDINGUNGS_KNOTEN, leerenKnoten, knotenSchluessel, feldPfadListe } from './editor.mjs'
+import {
+  anlassOptionen, feldPfadOptionen, gruppenOptionen, option,
+  personenMerkmalOptionen, sammlungOptionen, varianteOptionen,
+} from './auswahl.mjs'
 
 const props = defineProps({
   knoten: { type: Object, required: true },
@@ -110,6 +134,10 @@ const platzhalter = computed(() => {
   const treffer = optionen.value.find((o) => o.wert === schluessel.value)
   return treffer ? treffer.name : ''
 })
+const wertName = computed(() => {
+  const treffer = optionen.value.find((o) => o.wert === schluessel.value)
+  return treffer ? treffer.name : 'Wert'
+})
 const anzeigeText = computed(() => {
   const key = schluessel.value
   if (!['alle', 'eine', 'nicht'].includes(key)) return ''
@@ -121,6 +149,67 @@ const kinder = computed(() => {
   if (!Array.isArray(props.knoten[key])) props.knoten[key] = []
   return props.knoten[key]
 })
+
+// ── UX-C3b: Auswahllisten für Kennungs-Werte ──────────────────────────────
+
+const definition = computed(() => props.kontext?.definition || {})
+const parameterAuswahl = computed(() => (props.kontext?.parameter || [])
+  .filter((p) => p && p.id)
+  .map((p) => option(p.id, p.name ? `${p.name} (${p.id})` : p.id)))
+
+/** Werte eines Auswahl-Parameters (Vergleichswert der Bedingung). */
+const parameterWerte = computed(() => {
+  const treffer = (props.kontext?.parameter || []).find((p) => p?.id === parameterId.value)
+  return Array.isArray(treffer?.werte) ? treffer.werte : []
+})
+const wertAuswahl = computed(() => parameterWerte.value.map((w) => option(w, w)))
+
+/**
+ * Quellen der Blattwerte, die eine Kennung referenzieren. Für alle anderen
+ * (freier Text, Zahl, Datum) bleibt es beim Eingabefeld — dort ist der Text
+ * wirklich frei (Vorname, Thema …).
+ */
+const auswahlQuelle = computed(() => {
+  const key = schluessel.value
+  const def = definition.value
+  const bauen = (optionen, platzhalter, unbekanntName, info) => {
+    if (!optionen.length) return null
+    return { optionen, platzhalter, unbekanntName, warnung: '', info: info || '' }
+  }
+  if (key === 'anlass') return bauen(anlassOptionen(def), '— Anlass wählen —', 'unbekannter Anlass', 'anlasswert')
+  if (key === 'variante') return bauen(varianteOptionen(def), '— Variante wählen —', 'unbekannte Variante', 'variante')
+  if (key === 'feld_gesetzt') {
+    return bauen(feldPfadOptionen(def, feldPfadListe), '— Feld wählen —', 'unbekannter Feldpfad')
+  }
+  if (props.modus !== 'bedingung') {
+    // Rollenfilter: merkmal/gruppe/anmeldung/person
+    if (key === 'merkmal') {
+      const optionen = [...personenMerkmalOptionen(def), ...sammlungMerkmale(def)]
+      return bauen(optionen, '— Angabe wählen —', 'unbekannte Angabe')
+    }
+    if (key === 'gruppe') return bauen(gruppenOptionen(props.kontext?.gruppen), '— Gruppe wählen —', 'unbekannte Gruppe')
+    if (key === 'anmeldung') {
+      const optionen = sammlungOptionen(def).map((o) => option(o.wert, o.text))
+      return bauen(optionen, '— Liste wählen —', 'unbekannte Liste', 'eingebaute_liste')
+    }
+    if (key === 'person') return null // Personen sind kein Katalog des Editors
+  }
+  return null
+})
+
+/** Merkmale eigener Sammlungen — für Sammlungs-Filter („lieder: thema“). */
+function sammlungMerkmale(def) {
+  const liste = []
+  const merkmale = def?.merkmale && typeof def.merkmale === 'object' ? def.merkmale : {}
+  for (const [ziel, gruppe] of Object.entries(merkmale)) {
+    if (ziel === 'person' || !Array.isArray(gruppe)) continue
+    for (const m of gruppe) {
+      if (!m?.id) continue
+      liste.push(option(`${ziel}:${m.id}`, m.name ? `${ziel}:${m.id} — ${m.name}` : `${ziel}:${m.id}`))
+    }
+  }
+  return liste
+}
 
 const kind = computed(() => {
   if (!props.knoten.nicht || typeof props.knoten.nicht !== 'object') props.knoten.nicht = leerenKnoten(props.modus)
@@ -147,6 +236,10 @@ function wochentageSetzen(el) {
 
 function parameterSetzen(feld, wert) {
   if (!props.knoten.parameter || typeof props.knoten.parameter !== 'object') props.knoten.parameter = { id: '', gleich: '' }
+  // UX-C3b: Ein Wert, den die Liste nicht kennt, wird als „unbekannter Wert“
+  // angezeigt. Bei einem gewechselten Parameter ist der alte Vergleichswert
+  // ohnehin erledigt — er darf nicht als Leiche mitgeschleppt werden.
+  if (feld === 'id' && wert !== props.knoten.parameter.id) props.knoten.parameter.gleich = ''
   props.knoten.parameter[feld] = wert
 }
 

@@ -103,6 +103,22 @@ export function beantragtText(antrag) {
 }
 
 /**
+ * Stand einer Zeile — MIT Datum nur, wenn es ein ANDERES ist als das
+ * Beantragungsdatum.
+ *
+ * DSGVO-2c2: `beantragtText` nennt den Tag der Antragstellung bereits. Stand
+ * und Antragsdatum sind bei einem OFFENEN Antrag derselbe Tag — dann stand das
+ * Datum zweimal in der Zeile („Beantragt am 22.10.2026 · offen · 22.10.2026“).
+ * Bei einem späteren Stand (abgelehnt am 09.10. gegen beantragt am 01.10.) ist
+ * das Datum dagegen eine eigene Auskunft und bleibt stehen.
+ */
+export function standText(antrag) {
+  const stand = antragsStatusText(antrag)
+  if (!stand.am || stand.am === datumDeutsch(antrag?.beantragt_am)) return stand.text
+  return `${stand.text} · ${stand.am}`
+}
+
+/**
  * Anzeigename des Antragstellers.
  *
  * Vor der Löschung stehen Vor- und Nachname in der Antwort der Verwaltung
