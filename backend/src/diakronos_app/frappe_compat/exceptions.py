@@ -41,6 +41,37 @@ class DuplicateEntryError(FrappeCompatError):
 	exc_name = "DuplicateEntryError"
 
 
+class KonfliktError(FrappeCompatError):
+	"""Zwei Dinge widersprechen sich, der Aufruf darf nichts aendern (WEB-1b).
+
+	HTTP **409** statt 417: der Aufruf war formal richtig und vollstaendig,
+	aber der ZUSTAND passt nicht — z. B. „dieses Konto gibt es in Primo schon,
+	die Verknuepfung muss ein Admin machen“ (WEB-1b/B1). 417 heisst in dieser
+	App „Eingabe unbrauchbar“, und genau diese Unterscheidung braucht die
+	Oberflaeche: bei 409 gibt es nichts zu korrigieren, nur zu verknuepfen.
+
+	`exc_name` bleibt ein sprechender Name, geht nach SEC-8 aber NICHT nach
+	aussen (Allowlist unveraendert) — der Client sieht `exc_type = "Error"`
+	und unterscheidet am Status.
+	"""
+
+	exc_name = "KonfliktError"
+	http_status = 409
+
+
+class DienstNichtVerfuegbarError(FrappeCompatError):
+	"""Ein angebundenes Fremdsystem fehlt oder ist nicht erreichbar.
+
+	HTTP **503** statt 417: der Aufruf war fachlich richtig, aber eine
+	Voraussetzung ausserhalb dieser Installation fehlt gerade (WEB-1: die
+	optionale Primo-Anbindung ist nicht eingerichtet oder offline). Die SPA
+	kann daran erkennen, dass es kein Fehler des Benutzers ist.
+	"""
+
+	exc_name = "DienstNichtVerfuegbarError"
+	http_status = 503
+
+
 class RateLimitError(FrappeCompatError):
 	"""Zu viele Versuche in einem Zeitfenster (SEC-3).
 

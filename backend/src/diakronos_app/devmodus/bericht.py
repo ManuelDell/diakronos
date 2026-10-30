@@ -45,10 +45,11 @@ def erzeugen(sitzung: Session, *, seit: datetime | None = None,
     json_pfad = ziel / "bericht.json"
     md_pfad.write_text(markdown(daten), encoding="utf-8")
     json_pfad.write_text(json.dumps(daten, ensure_ascii=False, indent=2), encoding="utf-8")
+    # SEC-10 (Pentest F4-2): nur Schluessel RELATIV zu FILES_DIR ausliefern —
+    # ein absoluter Container-Pfad (/data/files/...) verraet Interna.
     return {
         "bericht": str(md_pfad.relative_to(Path(settings.files_dir).resolve())),
         "json": str(json_pfad.relative_to(Path(settings.files_dir).resolve())),
-        "pfad": str(md_pfad),
         "befunde": len(daten["befunde"]),
         "offen": len(daten["offene_befunde"]),
         "zeitpunkt": daten["zeitpunkt"],
@@ -219,7 +220,7 @@ def _cli() -> int:
     with db.SessionLocal() as sitzung:
         if args.schreiben:
             ergebnis = erzeugen(sitzung, seit=seit, nur_offen=args.offen)
-            print(f"Bericht: {ergebnis['pfad']}")
+            print(f"Bericht: {ergebnis['bericht']}")
             return 0
         daten = sammeln(sitzung, seit=seit, nur_offen=args.offen)
         if args.json:

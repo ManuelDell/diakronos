@@ -1,5 +1,7 @@
 import { ref, computed, shallowRef } from 'vue'
 import { setzeFenstertitel } from './fenstertitel.js'
+// WEB-3: EINE Rollenregel für „Website“ (Menü und Guard teilen sie).
+import { darfWebsite } from './composables/website.mjs'
 
 // Lazy-loaded page components
 // N13: das Organigramm ist keine eigene Seite mehr, sondern die zweite
@@ -32,6 +34,10 @@ const pages = {
     EinstellungenDatenschutz: () => import('./pages/Einstellungen.vue'),
     EinstellungenDatensicherung: () => import('./pages/Einstellungen.vue'),
     EinstellungenMailversand: () => import('./pages/Einstellungen.vue'),
+    // WEB-3: Einstellungs-Abschnitt „Website (Primo)“.
+    EinstellungenWebsite: () => import('./pages/Einstellungen.vue'),
+    // WEB-3: eigene Seite „Website“ mit dem Einstieg in Primo.
+    Website: () => import('./pages/Website.vue'),
     Profile:         () => import('./pages/Profile.vue'),
     Ressourcen:      () => import('./pages/Ressourcen.vue'),
     Beitraege:       () => import('./pages/Beitraege.vue'),
@@ -93,6 +99,9 @@ const routeMap = {
     '#/einstellungen/datensicherung': 'EinstellungenDatensicherung',
     // MAIL-1: eigenes Postfach fuer den Mailversand (nur System Manager — Server prueft).
     '#/einstellungen/mailversand': 'EinstellungenMailversand',
+    // WEB-3: Zustand der Primo-Anbindung + Kurzanleitung.
+    '#/einstellungen/website': 'EinstellungenWebsite',
+    '#/website': 'Website',
     '#/profile':       'Profile',
     '#/ressourcen':    'Ressourcen',
     '#/beitraege':     'Beitraege',
@@ -374,6 +383,8 @@ const ADMIN_ONLY_PAGES = new Set([
     'EinstellungenDatensicherung',
     // MAIL-1: Mailversand ebenso — der Server prueft zusaetzlich (403).
     'EinstellungenMailversand',
+    // WEB-3: „Website (Primo)“ ist ein Einstellungs-Abschnitt wie die anderen.
+    'EinstellungenWebsite',
     'Registrierung',
 ])
 onBeforeEach(({ name }) => {
@@ -388,6 +399,17 @@ onBeforeEach(({ name }) => {
     if (name !== 'DevBefunde') return
     const boot = window.__DIakonosBOOT || {}
     if (boot.devmode && (boot.is_admin || boot.ist_tester)) return
+    navigate('#/')
+    return false
+})
+
+// WEB-3: „Website“ ist für System Manager, Administrator und Website-Moderator
+// gedacht (dieselben Rollen wie `WEBSITE_ROLLEN` im Server). Der Server weist
+// jede Anfrage zusätzlich mit 403 ab — hier wird nur die Seite nicht geladen.
+onBeforeEach(({ name }) => {
+    if (name !== 'Website') return
+    const boot = window.__DIakonosBOOT || {}
+    if (darfWebsite({ rollen: boot.roles })) return
     navigate('#/')
     return false
 })

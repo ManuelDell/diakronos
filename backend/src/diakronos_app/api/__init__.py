@@ -55,6 +55,7 @@ from diakronos_app.api import zugang  # noqa: F401 — P1-8: Zugang (Konto/Rolle
 from diakronos_app.api import ressourcen  # noqa: F401 — P4c2: Ressourcen-Buchung (9 Pfade)
 from diakronos_app.api import session  # noqa: F401 — P4g: User-Context (3 Pfade)
 from diakronos_app.api import wiki  # noqa: F401 — P4f: Wiki-Artikel (7 Pfade)
+from diakronos_app.api import website  # noqa: F401 — WEB-1: Primo-Anbindung (3 Pfade)
 
 
 @whitelist()

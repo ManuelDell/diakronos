@@ -1,0 +1,47 @@
+# WEB-4 — Gemeinde-Eingang: ein nginx vor Diakronos und Primo.
+#
+# Aufruf (aus deploy/eingang/):
+#   cp .env.example .env && $EDITOR .env
+#   docker compose -p diakronos-eingang --env-file .env up -d
+#
+# Der Eingang ist der EINZIGE Dienst dieses Stacks. Er haelt keinen Zustand
+# (kein Volume, keine Datenbank) und veroeffentlicht genau einen Port; davor
+# steht der zentrale Reverse-Proxy (Nginx Proxy Manager) mit TLS.
+#
+# Keine `image:`-Angabe mit fremdem Namen: dieser Stack baut nichts und
+# benutzt ausschliesslich das gepinnte nginx-Image von Docker Hub.
+
+services:
+  eingang:
+    # Gepinnt auf die Minor-Reihe 1.27 (alpine). Fuer reproduzierbare
+    # Deployments hier spaeter den Digest eintragen:
+    #   docker inspect --format '{{index .RepoDigests 0}}' nginx:1.27-alpine
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      # Default nur Loopback: dahinter steht NPM mit TLS. 0.0.0.0 waere ein
+      # unverschluesselter Zugang zum Editor und zum Anmeldeformular.
+      - "${EINGANG_BIND_ADDR:-127.0.0.1}:${EINGANG_PORT:-8120}:80"
+    environment:
+      # Upstreams. Diakronos laeuft mit DIAKRONOS_BASE_PATH=/diakronos (WEB-5)
+      # und liefert seine Funktionen unter genau diesem Praefix aus.
+      EINGANG_DIAKRONOS_UPSTREAM: ${EINGANG_DIAKRONOS_UPSTREAM:-192.168.1.11:8110}
+      EINGANG_PRIMO_UPSTREAM: ${EINGANG_PRIMO_UPSTREAM:-192.168.1.11:8095}
+      EINGANG_DIAKRONOS_PRAEFIX: ${EINGANG_DIAKRONOS_PRAEFIX:-/diakronos}
+      EINGANG_LOGIN_PFAD: ${EINGANG_LOGIN_PFAD:-/diakronos/login}
+      # Protokollziel im Container. Bleibt hier fest: das Image legt
+      # /var/log/nginx bereits an; ein anderer Pfad muesste mitbeschreibbar sein.
+      EINGANG_ACCESS_LOG: /var/log/nginx/access.log
+    volumes:
+      # Vorlage und Entrypoint NUR LESEND einhaengen; die fertige Config
+      # schreibt der Entrypoint in das tmpfs des Containers.
+      - ./nginx.conf.template:/vorlage/nginx.conf.template:ro
+      - ./15-vorlage.sh:/docker-entrypoint.d/15-eingang-vorlage.sh:ro
+    healthcheck:
+      # /_/ antwortet auf dem Eingang IMMER mit 404 (gesperrt) — genau das ist
+      # die billigste Erreichbarkeitsprobe ohne Upstream-Beruehrung.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/_/ || true; nginx -t 2>/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

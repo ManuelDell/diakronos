@@ -1,0 +1,71 @@
+# WEB-2 — Primo-Stack mit nginx-Vorbau (Diakronos-Anbindung).
+#
+# Aufruf (aus deploy/primo/):
+#   cp .env.example .env && $EDITOR .env     # Werte eintragen
+#   docker compose -p diakronos-primo --env-file .env up -d
+#
+# Der Vorbau (nginx) ist der einzige Dienst mit veroeffentlichtem Port. Primo
+# selbst bleibt im Compose-Netz; die Uebergabeseite /diakronos-sso.html muss
+# auf DEMSELBEN Origin wie /admin/ laufen (siehe ANLEITUNG.md).
+#
+# Pinning: das Primo-Image ist auf einen Digest festgelegt, nicht auf ein Tag.
+# Ein Tag (:latest oder :v3.3.1) kann auf dem Registry-Server verschoben
+# werden; der Digest nicht. Aktualisieren = neuen Digest eintragen und
+# PRIMO_VERSION mitziehen (ANLEITUNG.md, Abschnitt "Primo aktualisieren").
+
+services:
+  primo:
+    image: ghcr.io/primocms/primo@sha256:2a76210f6203e26a6d5bdec165c6464555974728520d863d8542f2a3c903e6ee
+    restart: unless-stopped
+    # Kein `ports:` — Primo ist nur ueber den Vorbau erreichbar.
+    volumes:
+      # pb_data enthaelt SQLite-Datenbank UND die publizierten Builds.
+      # Ohne dieses Volume ist alles nach `docker compose down` weg.
+      - primo_pb_data:/app/pb_data
+    environment:
+      # Domainverwaltung: Primo zeigt die DNS-Schritte nur an, DNS+TLS macht
+      # der Reverse-Proxy des Betreibers (hier: nginx-Vorbau + davor NPM).
+      PRIMO_DOMAIN_PROVIDER: manual
+      # Telemetrie (PostHog) aus — Pflicht laut Plan (docs/planrahmen-Praxis:
+      # keine Datenabfluesse ohne Auftrag).
+      PRIMO_ENABLE_USAGE_STATS: "false"
+      # Erstbetrieb. Primo liest diese Variablen NUR beim ersten Start
+      # (leeres pb_data). Spaetere Aenderungen wirken nicht mehr auf
+      # bestehende Konten.
+      PRIMO_SUPERUSER_EMAIL: ${PRIMO_SUPERUSER_EMAIL:-}
+      PRIMO_SUPERUSER_PASSWORD: ${PRIMO_SUPERUSER_PASSWORD:-}
+      PRIMO_USER_EMAIL: ${PRIMO_USER_EMAIL:-}
+      PRIMO_USER_PASSWORD: ${PRIMO_USER_PASSWORD:-}
+      # "0" schaltet die eingebaute taegliche Sicherung ab; Standard ist
+      # 03:00 Ortszeit des Containers. Zeit in Europe/Berlin angeben.
+      PRIMO_BACKUP_CRON: ${PRIMO_BACKUP_CRON:-0 3 * * *}
+      TZ: ${TZ:-Europe/Berlin}
+    healthcheck:
+      # Primo liefert /api/primo/info ohne Anmeldung aus — genau das ist die
+      # Erreichbarkeitsprobe, die auch Diakronos fuer die Erkennung nutzt.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/api/primo/info || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  vorbau:
+    # Gepinnt: nginx:alpine zeigt auf die jeweils aktuelle Alpine-Reihe.
+    # Fuer reproduzierbare Deployments hier den Digest der eingesetzten
+    # Version eintragen (docker inspect --format '{{index .RepoDigests 0}}').
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      primo:
+        condition: service_started
+    ports:
+      # Nur auf der Loopback-Adresse des Hosts; davor steht der zentrale
+      # Reverse-Proxy (NPM) mit TLS. 0.0.0.0 waere eine unverschluesselte
+      # offene Tuer ins Netz, ueber die auch der Anmeldetoken laeuft.
+      - "${PRIMO_BIND_ADDR:-127.0.0.1}:${PRIMO_HTTP_PORT:-8095}:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./diakronos-sso.html:/usr/share/nginx/sso/diakronos-sso.html:ro
+
+volumes:
+  primo_pb_data:

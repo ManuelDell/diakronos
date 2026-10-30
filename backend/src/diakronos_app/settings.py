@@ -111,6 +111,15 @@ class Settings(BaseSettings):
     # allgemeine 10-MB-Limit. Achtung: ein vorgelagerter Reverse-Proxy
     # (NPM/Nginx) braucht ein passendes `client_max_body_size`.
     max_upload_bytes_audio: int = 50 * 1024 * 1024
+    # SEC-10: eigenes Groessenlimit der Dev-Modus-Sprachaufnahme in Bytes
+    # (Default 10 MB, analog zum Bildlimit des Dev-Modus). 0 oder negativ =
+    # ungueltig; es gilt dann der Default. Gilt nur bei DEVMODE_ENABLED=1.
+    devmodus_audio_max_bytes: int = Field(
+        10 * 1024 * 1024,
+        validation_alias=AliasChoices(
+            "DEVMODUS_AUDIO_MAX_BYTES", "devmodus_audio_max_bytes"
+        ),
+    )
 
     # ── DM1: Dev-Modus ─────────────────────────────────────────────────────
     # Schalter des Dev-Modus (roter Rahmen, Element-Auswahl, Befunde,
@@ -524,6 +533,87 @@ class Settings(BaseSettings):
         ),
     )
 
+    # ── WEB-1: optionale Anbindung an Primo (Website-Builder) ───────────────
+    # Primo ist ein GETRENNTES System (eigener Container, eingebettetes
+    # PocketBase). Die Anbindung ist OPTIONAL und schlaeft ohne Konfiguration:
+    # ohne `PRIMO_URL` und Superuser-Zugang meldet der Status-Endpunkt
+    # "nicht_konfiguriert" und es geht kein einziger Aufruf nach aussen.
+    #
+    # `primo_url` ist die INTERNE Adresse (Server -> Primo, z. B.
+    # http://192.168.1.11:8095), `primo_public_url` die Adresse, die der
+    # BROWSER oeffnet (Default = `primo_url`, weil dann beide Wege gleich sind).
+    # Der Login-Uebergabe-Endpunkt gibt dem Browser ausschliesslich
+    # `primo_public_url` zurueck — eine interne Adresse waere fuer ihn
+    # unerreichbar.
+    primo_url: str = Field(
+        "",
+        validation_alias=AliasChoices("PRIMO_URL", "primo_url"),
+    )
+    primo_public_url: str = Field(
+        "",
+        validation_alias=AliasChoices("PRIMO_PUBLIC_URL", "primo_public_url"),
+    )
+    # PocketBase-Superuser. Passwort entweder direkt
+    # (PRIMO_SUPERUSER_PASSWORD) oder als Pfad auf eine Docker-Secret-Datei
+    # (PRIMO_SUPERUSER_PASSWORD_FILE, hat Vorrang — Muster AUTH_OIDC_*).
+    # Beide Werte werden NIE geloggt und nie an den Browser ausgeliefert.
+    primo_superuser_email: str = Field(
+        "",
+        validation_alias=AliasChoices(
+            "PRIMO_SUPERUSER_EMAIL", "primo_superuser_email"
+        ),
+    )
+    primo_superuser_password: str = Field(
+        "",
+        validation_alias=AliasChoices(
+            "PRIMO_SUPERUSER_PASSWORD", "primo_superuser_password"
+        ),
+    )
+    primo_superuser_password_file: str = Field(
+        "",
+        validation_alias=AliasChoices(
+            "PRIMO_SUPERUSER_PASSWORD_FILE", "primo_superuser_password_file"
+        ),
+    )
+    # Kurzer Timeout je Primo-Aufruf (Sekunden). Die Primo-Instanz haengt im
+    # selben Netz wie Diakronos; ein nicht erreichbarer Host darf den
+    # Anfrage-Thread nicht minutenlang blockieren.
+    primo_timeout_sekunden: float = Field(
+        5.0,
+        validation_alias=AliasChoices(
+            "PRIMO_TIMEOUT_SEKUNDEN", "primo_timeout_sekunden"
+        ),
+    )
+    # Gueltigkeit des Uebergabe-Tokens (Sekunden) — PocketBase-`impersonate`
+    # nimmt eine `duration` in Sekunden an.
+    #
+    # WEB-1b (Manuel-UX): 4 Stunden statt 5 Minuten. Grund ist eine Eigenschaft
+    # von PocketBase: ein `impersonate`-Token laesst sich NICHT verlaengern —
+    # die Primo-Sitzung endet mit dem Token. Bei 300 s war jede Arbeit an der
+    # Website nach fuenf Minuten zu Ende, ohne dass sich das im Browser
+    # reparieren liesse (ein neues Token gibt es nur ueber Diakronos).
+    #
+    # Grenzen: 300 (Untergrenze, damit das Token den Seitenaufbau ueberlebt) bis
+    # 43200 (12 h, Obergrenze gegen ein Dauerzugaengsticket). Default 14400.
+    primo_token_sekunden: int = Field(
+        14400,
+        validation_alias=AliasChoices(
+            "PRIMO_TOKEN_SEKUNDEN", "primo_token_sekunden"
+        ),
+    )
+    # Hart gesperrte E-Mail-Adressen (kommagetrennt): mit diesen Adressen wird
+    # NIE ein Primo-Konto angelegt und nie eines benutzt — 409, und zwar VOR
+    # jedem Aufruf nach Primo. Der Default schuetzt das Integrationskonto.
+    # Zusammen mit `primo_superuser_email` (immer gesperrt) ist damit
+    # ausgeschlossen, dass ein Diakronos-Benutzer in das Superuser- oder
+    # Maschinenkonto hineinrutscht.
+    primo_geschuetzte_konten: str = Field(
+        "diakronos-integration@diedells.de",
+        validation_alias=AliasChoices(
+            "PRIMO_GESCHUETZTE_KONTEN", "primo_geschuetzte_konten"
+        ),
+    )
+
     @property
     def oidc_client_secret_effektiv(self) -> str:
         """Client-Secret: `_FILE` (Docker-Secret) hat Vorrang vor dem Klartext.
@@ -542,6 +632,44 @@ class Settings(BaseSettings):
             self.auth_proxy_shared_secret_file, self.auth_proxy_shared_secret
         )
 
+    # ── WEB-1: Primo ────────────────────────────────────────────────────────
+    @property
+    def primo_superuser_password_effektiv(self) -> str:
+        """Superuser-Passwort: `_FILE` (Docker-Secret) hat Vorrang.
+
+        Gleiches Muster wie `oidc_client_secret_effektiv`: eine gesetzte, aber
+        nicht lesbare Datei faellt NICHT still auf ein anderes Passwort
+        zurueck — der Aufruf scheitert dann sichtbar an der Primo-Anmeldung.
+        """
+        return _secret_aus_datei(
+            self.primo_superuser_password_file, self.primo_superuser_password
+        )
+
+    @property
+    def primo_url_effektiv(self) -> str:
+        """Interne Primo-Adresse ohne abschliessenden Schraegstrich."""
+        return str(self.primo_url or "").strip().rstrip("/")
+
+    @property
+    def primo_public_url_effektiv(self) -> str:
+        """Browser-Adresse der Primo-Instanz (Default = `PRIMO_URL`)."""
+        oeffentlich = str(self.primo_public_url or "").strip().rstrip("/")
+        return oeffentlich or self.primo_url_effektiv
+
+    @property
+    def primo_konfiguriert(self) -> bool:
+        """True, sobald Adresse UND Superuser-Zugang gesetzt sind.
+
+        Beides ist noetig: ohne Superuser kann Diakronos weder Konten
+        anlegen noch ein Token ausstellen. Ein halb gesetzter Wert ist
+        gefaehrlicher als keiner, deshalb gilt er als "nicht konfiguriert".
+        """
+        return bool(
+            self.primo_url_effektiv
+            and str(self.primo_superuser_email or "").strip()
+            and self.primo_superuser_password_effektiv
+        )
+
     @field_validator("auth_local_login")
     @classmethod
     def valid_auth_local_login(cls, value: str) -> str:
@@ -552,6 +680,79 @@ class Settings(BaseSettings):
                 "AUTH_LOCAL_LOGIN muss 'an', 'aus' oder 'nur-admin' sein"
             )
         return wert
+
+    @field_validator("primo_token_sekunden")
+    @classmethod
+    def valid_primo_token_sekunden(cls, value: int) -> int:
+        """300..43200 Sekunden (5 Minuten bis 12 Stunden).
+
+        Untergrenze 300: ein kuerzeres Token kann schon waehrend des
+        Seitenaufbaus in Primo ablaufen — dann scheitert der SSO-Einstieg,
+        ohne dass der Benutzer etwas falsch gemacht haette.
+
+        Obergrenze 43200 (12 h): das Token reist im URL-Fragment und ist ein
+        vollstaendiger Zugang zum Primo-Konto (PocketBase kann es nicht
+        verlaengern, siehe `primo_token_sekunden`). Ein Tages- oder
+        Wochenwert waere ein Dauerzugaengsticket in Browser-Historien und
+        Lesezeichen — deshalb eine harte Grenze statt einer Warnung.
+        """
+        try:
+            wert = int(value)
+        except (TypeError, ValueError):
+            raise ValueError("PRIMO_TOKEN_SEKUNDEN muss eine ganze Zahl sein") from None
+        if not 300 <= wert <= 43200:
+            raise ValueError(
+                "PRIMO_TOKEN_SEKUNDEN muss zwischen 300 und 43200 liegen "
+                "(5 Minuten bis 12 Stunden)"
+            )
+        return wert
+
+    @property
+    def primo_geschuetzte_konten_liste(self) -> list[str]:
+        """Hart gesperrte Adressen in Kleinschreibung (ohne Leerzeilen)."""
+        return [
+            teil.strip().lower()
+            for teil in str(self.primo_geschuetzte_konten or "").split(",")
+            if teil.strip()
+        ]
+
+    def primo_ist_geschuetzt(self, email: str) -> bool:
+        """True, wenn diese Adresse nie ein Primo-Konto bekommen darf (B1).
+
+        Zwei Quellen, eine Antwort: die Liste `PRIMO_GESCHUETZTE_KONTEN` und
+        die Superuser-Adresse (`PRIMO_SUPERUSER_EMAIL`) sind immer gesperrt.
+        Vergleich ohne Gross-/Kleinschreibung — PocketBase behandelt
+        Adressen ebenfalls ununterscheidbar.
+        """
+        adresse = str(email or "").strip().lower()
+        if not adresse:
+            return False
+        superuser = str(self.primo_superuser_email or "").strip().lower()
+        return adresse == superuser or adresse in self.primo_geschuetzte_konten_liste
+
+    @property
+    def primo_public_url_warnung(self) -> str | None:
+        """Warnung fuer den Status-Endpunkt, wenn die Browser-Adresse kein https ist.
+
+        Kein Blocker: im LAN (Testaufbau) ist `http`-Primo voellig in Ordnung.
+        Fuer die oeffentliche Nutzung ist es aber ein Fehler — Adressen und
+        Token gingen dann im Klartext ueber die Leitung. Der Hinweis geht nur
+        dann raus, wenn die Anbindung konfiguriert ist; ohne Anbindung gibt es
+        nichts zu warnen.
+        """
+        if not self.primo_konfiguriert:
+            return None
+        adresse = self.primo_public_url_effektiv
+        if not adresse:
+            return None
+        if adresse.lower().startswith("https://"):
+            return None
+        return (
+            "PRIMO_PUBLIC_URL benutzt kein https — für den öffentlichen "
+            "Betrieb ist https Pflicht (Anmeldung und Token gingen sonst im "
+            "Klartext über die Leitung). Nur für den Test im eigenen Netz "
+            "vertretbar."
+        )
 
     @property
     def oidc_scopes_liste(self) -> list[str]:

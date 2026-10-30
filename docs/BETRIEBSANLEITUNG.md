@@ -1817,8 +1817,9 @@ ist aus, sieht nichts — der Schalter gewinnt.
 **Sicherheit:** Passwörter, Tokens, Cookies, CSRF-Werte und JWTs werden vor dem
 Speichern entfernt (`devmodus/redaktion.py`) — auch Eingabewerte von Passwort-
 und versteckten Feldern im gespeicherten `outerHTML`. Bilder werden nur als
-PNG/JPG/WEBP (max. 10 MB), Audio nur als WEBM/OGG/M4A (max. 25 MB) angenommen;
-der **Inhalt** entscheidet, nicht die Endung.
+PNG/JPG/WEBP (max. 10 MB), Audio nur als WEBM/OGG/M4A (max. 10 MB, eigenes
+Limit `DEVMODUS_AUDIO_MAX_BYTES`); der **Inhalt** entscheidet, nicht die
+Endung — HTML, SVG, EXE, leere Daten und fremde Formate werden abgelehnt.
 
 ### 13.4 Befunde ansehen und Bericht erzeugen
 
@@ -2039,3 +2040,142 @@ entsprechen.
 > denn es sind Personendaten) und prüfen Sie dort gelegentlich mit
 > `sha256sum -c SHA256SUMS`, dass die Kopie lesbar ist.
 
+
+## 15. Website-Verwaltung über Primo (WEB-1, optional)
+
+Diakronos kann eine getrennte **Primo**-Instanz (Website-Builder,
+`ghcr.io/primocms/primo:v3.3.1`) anbinden. Primo bleibt ein eigenes System mit
+eigener Datenbank (eingebettetes PocketBase) — Diakronos ist nur der Weg
+hinein. **Ohne Konfiguration schläft das Modul vollständig:** es geht kein
+Aufruf nach außen, die Oberfläche meldet `nicht_konfiguriert`.
+
+### 15.1 Wer darf hinein
+
+| Rolle in Diakronos | Primo-Serverrolle | Wirkung |
+|---|---|---|
+| System Manager | `developer` | volle Website-Verwaltung |
+| Administrator | `developer` | volle Website-Verwaltung |
+| Website-Moderator | `editor` | Redaktion, kein Code |
+| Mitgliederadministrator | — | HTTP 403 (bewusst kein Website-Recht) |
+| alle anderen | — | HTTP 403 |
+
+Die Rolle **Website-Moderator** ist neu (Migration `web1_website_moderator`)
+und wird **nicht automatisch vergeben**. Sie steht absichtlich **nicht** in
+der Zugangs-Rollenauswahl der Oberfläche (WEB-1b): vergeben wird sie nur von
+einem System Manager über `Has Role`. Wird sie entzogen, ist der Zugang
+sofort zu: die Prüfung steht vor jedem Primo-Aufruf.
+
+### 15.2 Einstellungen
+
+In der `.env` (alle Werte optional — leer heißt „nicht eingerichtet"):
+
+```
+PRIMO_URL=http://192.168.1.11:8095          # interne Adresse (Server -> Primo)
+PRIMO_PUBLIC_URL=https://website.example.org # Adresse, die der BROWSER öffnet
+PRIMO_SUPERUSER_EMAIL=…                      # PocketBase-Superuser
+PRIMO_SUPERUSER_PASSWORD=…                   # ODER:
+PRIMO_SUPERUSER_PASSWORD_FILE=/run/secrets/diakronos_primo_superuser
+PRIMO_TIMEOUT_SEKUNDEN=5                     # Timeout je Aufruf
+PRIMO_TOKEN_SEKUNDEN=14400                   # Gültigkeit der Übergabe (300..43200)
+PRIMO_GESCHUETZTE_KONTEN=diakronos-integration@diedells.de
+```
+
+* `PRIMO_PUBLIC_URL` leer → es gilt `PRIMO_URL`. Hinter einem Reverse-Proxy
+  unterscheiden sich beide fast immer; dann **beide** setzen (intern die
+  Container-Adresse, öffentlich `https://…`).
+* **https ist Pflicht für den öffentlichen Betrieb.** Ist `PRIMO_PUBLIC_URL`
+  gesetzt und benutzt kein `https`, liefert der Status-Endpunkt das Feld
+  `warnung` mit einem Hinweis (kein harter Abbruch — der Test im eigenen Netz
+  darf `http` bleiben). Ohne `https` gingen Anmeldung und Token im Klartext
+  über die Leitung.
+* Das Superuser-Passwort kommt als Klartext **oder** als Docker-Secret-Datei
+  (`*_FILE` hat Vorrang — dasselbe Muster wie `AUTH_OIDC_CLIENT_SECRET_FILE`).
+* Beide Zugangsdaten werden **nie** protokolliert und nie an den Browser
+  ausgeliefert.
+* `PRIMO_GESCHUETZTE_KONTEN` (kommagetrennt) und `PRIMO_SUPERUSER_EMAIL` sind
+  **hart gesperrt**: mit diesen Adressen wird nie ein Primo-Konto angelegt
+  oder benutzt — der Aufruf endet mit **409**, und zwar *vor* jedem Aufruf
+  nach Primo. Damit kann niemand über Diakronos in das Superuser- oder
+  Maschinenkonto hineinrutschen.
+
+### 15.3 Endpunkte (Vertrag für die Oberfläche)
+
+Alle über den normalen Methoden-Router, nur für angemeldete Benutzer mit einer
+der Rollen aus 15.1:
+
+```
+GET  /api/method/diakronos_app.api.website.status
+     -> {"status": "nicht_konfiguriert"|"nicht_erreichbar"|"verbunden",
+         "version": "v3.3.1"|null, "site_count": 2|null, "url": "https://…"|null,
+         "warnung": "…"|null}
+
+GET  /api/method/diakronos_app.api.website.rollen
+     -> {"berechtigt": true, "rollen": [...], "primo_rolle": "developer"|"editor"|null}
+
+POST /api/method/diakronos_app.api.website.login_uebergabe   (CSRF-Pflicht, NUR POST)
+     -> {"url": "{PRIMO_PUBLIC_URL}/diakronos-sso.html#token=<token>&record=<base64url>"}
+```
+
+`login_uebergabe` nimmt **ausschließlich POST** an. `GET`/`PUT`/`PATCH`
+liefern **403** (`PermissionError`), und Primo wird dabei nicht angesprochen —
+ein Zugang soll nicht per `<img src="…">`, geteiltem Link oder Proxy-Vorabruf
+entstehen.
+
+Fehlerbilder: **401** (nicht angemeldet), **403** (keine Rolle, oder andere
+Methode als POST), **409** (Zuordnung unklar, siehe 15.4), **417**
+`CSRFTokenError` (CSRF-Header fehlt), **503** (nicht eingerichtet / nicht
+erreichbar / Primo hat abgelehnt).
+
+> Seit SEC-8 geht der interne Fehlerklassenname nur noch nach Allowlist nach
+> außen — ein 503 trägt deshalb `exc_type = "Error"`, nicht
+> `DienstNichtVerfuegbarError`. Die Oberfläche unterscheidet am
+> **HTTP-Status**, nicht am Namen. Keine Antwort enthält ein Passwort oder das
+> Superuser-Token.
+
+### 15.4 Wie die Übergabe funktioniert
+
+1. Diakronos meldet sich als PocketBase-Superuser an
+   (`POST /api/collections/_superusers/auth-with-password`).
+2. **Die Zuordnung entscheidet, nicht die E-Mail-Adresse.** Beim ersten
+   erfolgreichen Login entsteht eine Zeile in `website_primo_konto`
+   (Diakronos-Benutzer ↔ Primo-`users.id`). Ab dann wird ausschließlich diese
+   `primo_id` benutzt.
+
+   | Lage | Ergebnis |
+   |---|---|
+   | Zuordnung vorhanden | nur diese `primo_id`; die Serverrolle wird angeglichen |
+   | Zuordnung vorhanden, Mail in Primo weicht ab | **409**, nichts wird geändert |
+   | keine Zuordnung, kein Konto mit der Mail in Primo | Konto wird angelegt (`verified=true`, Zufallspasswort), Zuordnung gespeichert |
+   | keine Zuordnung, Konto mit der Mail existiert **schon** | **409** „Konto besteht bereits in Primo – Verknüpfung durch Admin nötig"; kein PATCH, kein Token |
+   | Adresse gesperrt (Superuser / `PRIMO_GESCHUETZTE_KONTEN`) | **409**, ohne Aufruf nach Primo |
+
+   Grund für die 409-Fälle: Adressgleichheit ist kein Eigentumsnachweis. Ohne
+   diese Regel könnte ein Diakronos-Benutzer ein bestehendes Primo-Konto
+   übernehmen (oder ein Fremder in sein Konto rutschen). Verknüpfen ist eine
+   Admin-Handlung; die Zeile in `website_primo_konto` ist dabei von Hand zu
+   setzen bzw. zu korrigieren.
+3. PocketBase stellt ein Token aus
+   (`POST /api/collections/users/impersonate/{id}`,
+   `{"duration": PRIMO_TOKEN_SEKUNDEN}`, Default **14400 s = 4 h**).
+   PocketBase kann ein Impersonate-Token **nicht verlängern** — die
+   Primo-Sitzung endet mit dem Token. Bei 5 Minuten war jede Arbeit an der
+   Website nach fünf Minuten zu Ende, ohne dass sich das im Browser beheben
+   ließ; deshalb 4 Stunden (Obergrenze 12 h, Untergrenze 5 min).
+4. Der Browser bekommt eine Adresse auf `PRIMO_PUBLIC_URL` mit
+   `#token=…&record=…` — **nur im URL-Fragment**. Ein Fragment wird vom
+   Browser nicht an einen Server geschickt und landet deshalb in keinem
+   Proxy- oder Server-Log.
+
+Die Seite `diakronos-sso.html` auf der Primo-Seite (Paket WEB-2/WEB-3) liest
+das Fragment, meldet sich mit dem Token an und **entfernt es sofort aus der
+Adresszeile**.
+
+### 15.5 Prüfen
+
+```
+curl -s http://192.168.1.11:8095/api/primo/info     # muss JSON mit "version" liefern
+```
+Danach in der Oberfläche den Website-Bereich öffnen: Zustand muss
+`verbunden` sein. Schlägt die Übergabe fehl, steht im Diakronos-Log nur
+„HTTP <status>" bzw. „nicht erreichbar" — bewusst ohne Adressen, Konten oder
+Token.

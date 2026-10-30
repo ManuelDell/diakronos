@@ -34,9 +34,11 @@ AUDIO_TYPEN: dict[str, str] = {
     "audio/m4a": "m4a",
 }
 
-#: Groessenlimit je Befund-Bild (10 MB) / je Audio (25 MB).
+#: Groessenlimit je Befund-Bild (10 MB) / je Audio (Default 10 MB, SEC-10).
 MAX_BILD_BYTES = 10 * 1024 * 1024
-MAX_AUDIO_BYTES = 25 * 1024 * 1024
+#: Nur der Default — der gueltige Wert kommt aus ``max_audio_bytes()``.
+AUDIO_MAX_BYTES_DEFAULT = 10 * 1024 * 1024
+MAX_AUDIO_BYTES = AUDIO_MAX_BYTES_DEFAULT
 MAX_BILDER = 8
 MAX_BEFUND_TEXT = 8000
 
@@ -94,3 +96,19 @@ def aktiv(einstellungen=None) -> bool:
 def stt_verfuegbar() -> bool:
     """Ist ein serverseitiger Transkriptions-Endpunkt konfiguriert?"""
     return bool(STT_URL)
+
+
+def max_audio_bytes() -> int:
+    """Groessenlimit einer Dev-Modus-Sprachaufnahme in Bytes.
+
+    SEC-10: eigene Einstellung ``DEVMODUS_AUDIO_MAX_BYTES`` (Default 10 MB,
+    spiegelbildlich zum Bildlimit). Ungueltige Werte (0/negativ) fallen auf
+    den Default zurueck — ein Limit von 0 wuerde jede Aufnahme sperren.
+    """
+    wert = getattr(settings, "devmodus_audio_max_bytes", AUDIO_MAX_BYTES_DEFAULT)
+    try:
+        wert = int(wert)
+    except (TypeError, ValueError):
+        return AUDIO_MAX_BYTES_DEFAULT
+    return wert if wert > 0 else AUDIO_MAX_BYTES_DEFAULT
+

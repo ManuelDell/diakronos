@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Anmeldung – Diakronos übergibt an Primo</title>
+<!--
+  Diakronos -> Primo: Login-Uebergabe (WEB-2)
+
+  Aufruf durch Diakronos (WEB-1):
+    {PRIMO_PUBLIC_URL}/diakronos-sso.html#token=<pocketbase-token>&record=<base64url(json)>
+
+  Diese Seite muss auf DEMSELBEN Origin laufen wie /admin/, weil sie die
+  Anmeldung in den Browser-Speicher der Primo-Admin-App schreibt:
+
+    localStorage["pocketbase_auth"] = {"token": "<jwt>", "record": {...}}
+
+  Beleg fuer Schluessel und Wertform (Primo v3.3.1, Image
+  ghcr.io/primocms/primo@sha256:2a76210f..., Bundle
+  /admin/_app/immutable/chunks/d62tkoc0.js): PocketBase-JS-SDK
+  LocalAuthStore mit Konstruktor-Default "pocketbase_auth"; save(token, record)
+  legt genau {token, record} ab; alle Zugriffe laufen ueber window.localStorage.
+  Primo erzeugt die PocketBase-Instanz ohne eigenen Store
+  (new PocketBase(location.origin)), deshalb ist der Default-Speicherort
+  massgeblich.
+
+  Absichtliche Eigenschaften:
+  - KEINE externen Skripte, Stile, Schriften oder Bilder.
+  - Das Fragment wird sofort aus der Adresszeile entfernt
+    (history.replaceState) — der Token soll nicht in Verlauf, Lesezeichen
+    oder Screenshot landen.
+  - Der Token wird NIE ausgegeben: kein Text im Dokument, kein console.*,
+    keine Fehlermeldung mit Tokeninhalt.
+  - Der reine Rechenteil (Funktionen abschneiden/base64UrlText/pruefe …)
+    steht zwischen zwei Zeilen-Markern im Skript, damit
+    tests/web2-sso-uebergabe.test.mjs genau den ausgelieferten Code pruefen
+    kann (keine zweite Wahrheit).
+-->
+<style>
+  :root {
+    color-scheme: light dark;
+    --flaeche: #ffffff;
+    --text: #16202c;
+    --gedaempft: #526072;
+    --rahmen: #d7dee8;
+    --akzent: #1d5f8a;
+    --fehler-flaeche: #fdf2f2;
+    --fehler-rahmen: #b42318;
+    --fehler-text: #7a1c14;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --flaeche: #14181d;
+      --text: #e8edf3;
+      --gedaempft: #a5b2c2;
+      --rahmen: #2c3742;
+      --akzent: #7cb8dd;
+      --fehler-flaeche: #2a1614;
+      --fehler-rahmen: #e06c5f;
+      --fehler-text: #f6c3bd;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: var(--flaeche);
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main {
+    width: 100%;
+    max-width: 30rem;
+    border: 1px solid var(--rahmen);
+    border-radius: 12px;
+    padding: 28px;
+  }
+  h1 { font-size: 1.25rem; line-height: 1.3; margin: 0 0 12px; }
+  p { margin: 0 0 12px; color: var(--gedaempft); }
+  p:last-child { margin-bottom: 0; }
+  a { color: var(--akzent); }
+  .fehler { border-color: var(--fehler-rahmen); background: var(--fehler-flaeche); }
+  .fehler h1, .fehler p { color: var(--fehler-text); }
+  .hinweis-ohne-js { display: none; }
+  noscript .hinweis-ohne-js { display: block; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<main id="inhalt">
+  <noscript>
+    <div class="hinweis-ohne-js">
+      <h1>JavaScript ist erforderlich</h1>
+      <p>Diese Seite überträgt die Anmeldung auf Primo und braucht dafür
+         JavaScript. Bitte erlauben Sie es für diese Adresse und laden Sie die
+         Seite neu.</p>
+      <p>Achtung: solange JavaScript aus ist, bleibt der Anmeldeparameter in
+         der Adresszeile stehen.</p>
+    </div>
+  </noscript>
+  <h1>Anmeldung wird übernommen …</h1>
+  <p>Einen Moment, Sie werden zu Primo weitergeleitet.</p>
+</main>
+
+<script id="dk-sso-uebergabe">
+(function () {
+  'use strict';
+
+  var SPEICHER_SCHLUESSEL = 'pocketbase_auth';
+  var ZIEL = '/admin/';
+
+  // DKRECHEN-ANFANG — reine Rechenteile, von tests/web2-sso-uebergabe.test.mjs
+  // mit node ausgewertet. Keine DOM-, Speicher- oder Netzwerkzugriffe.
+
+  function abschneiden(text, max) {
+    text = String(text == null ? '' : text);
+    return text.length > max ? text.slice(0, max) : text;
+  }
+
+  function zeilenumbrueche(text) { return String(text).replace(/[\r\n]+/g, ' '); }
+
+  // "a=1&b=2" -> {a:"1", b:"2"}. Rueckgabe null bei kaputter Kodierung.
+  function zerlegen(roh) {
+    var teile = {};
+    var listen = String(roh == null ? '' : roh).split('&');
+    for (var i = 0; i < listen.length; i++) {
+      if (!listen[i]) { continue; }
+      var g = listen[i].indexOf('=');
+      if (g < 0) { continue; }
+      var name = listen[i].slice(0, g);
+      var wert = listen[i].slice(g + 1);
+      try { wert = decodeURIComponent(wert.replace(/\+/g, ' ')); } catch (e) { return null; }
+      // Erstes Vorkommen gewinnt — doppelte Parameter sind kein gueltiger Aufruf.
+      if (!Object.prototype.hasOwnProperty.call(teile, name)) { teile[name] = wert; }
+    }
+    return teile;
+  }
+
+  // base64url -> Zeichenkette (UTF-8). atob liefert Bytes; die werden als
+  // Prozentfolge zurueckgelesen, damit Umlaute in E-Mail-Adressen erhalten bleiben.
+  function base64UrlText(text, atobFn) {
+    text = String(text == null ? '' : text);
+    if (!/^[A-Za-z0-9_-]+={0,2}$/.test(text)) { return null; }
+    var b64 = text.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4 !== 0) { b64 += '='; }
+    var rohBytes;
+    try { rohBytes = atobFn(b64); } catch (e) { return null; }
+    try {
+      return decodeURIComponent(rohBytes.split('').map(function (z) {
+        return '%' + ('00' + z.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+    } catch (e2) {
+      return null;
+    }
+  }
+
+  // JWT-Form: drei nichtleere base64url-Abschnitte.
+  function istJwt(token) {
+    var teile = String(token == null ? '' : token).split('.');
+    if (teile.length !== 3) { return false; }
+    for (var i = 0; i < 3; i++) {
+      if (!/^[A-Za-z0-9_-]+$/.test(teile[i])) { return false; }
+    }
+    return true;
+  }
+
+  // Nutzlast eines JWT; null, wenn nicht lesbar.
+  function nutzlast(token, atobFn) {
+    if (!istJwt(token)) { return null; }
+    var text = base64UrlText(String(token).split('.')[1], atobFn);
+    if (!text) { return null; }
+    var daten;
+    try { daten = JSON.parse(text); } catch (e) { return null; }
+    if (!daten || typeof daten !== 'object' || Array.isArray(daten)) { return null; }
+    return daten;
+  }
+
+  // Prueft Fragment und baut den zu speichernden Wert.
+  // Rueckgabe: {ok:true, eintrag:{token,record}} oder {ok:false, titel, text}
+  function pruefe(roh, jetztMs, atobFn) {
+    if (!roh) {
+      return { ok: false, titel: 'Keine Anmeldedaten übergeben',
+        text: 'Der Aufruf enthält keine Übergabewerte. Bitte starten Sie die Anmeldung erneut aus Diakronos.' };
+    }
+
+    var teile = zerlegen(roh);
+    if (!teile || !teile.token) {
+      return { ok: false, titel: 'Übergabe unvollständig',
+        text: 'Der Anmeldeparameter fehlt oder ist beschädigt. Bitte starten Sie die Anmeldung erneut aus Diakronos.' };
+    }
+
+    var token = zeilenumbrueche(abschneiden(teile.token, 8192));
+    if (!istJwt(token)) {
+      return { ok: false, titel: 'Anmeldung ungültig',
+        text: 'Das übergebene Anmeldemerkmal hat ein unbekanntes Format. Bitte starten Sie die Anmeldung erneut aus Diakronos.' };
+    }
+
+    var daten = nutzlast(token, atobFn);
+    if (!daten || (daten.type && daten.type !== 'auth')) {
+      return { ok: false, titel: 'Anmeldung ungültig',
+        text: 'Das übergebene Anmeldemerkmal ist kein Anmeldetoken. Bitte starten Sie die Anmeldung erneut aus Diakronos.' };
+    }
+    if (typeof daten.exp === 'number' && daten.exp * 1000 <= jetztMs) {
+      return { ok: false, titel: 'Anmeldung abgelaufen',
+        text: 'Die Übergabe war zu lange unterwegs. Bitte starten Sie die Anmeldung erneut aus Diakronos.' };
+    }
+
+    var record = null;
+    if (teile.record) {
+      var rohRecord = base64UrlText(abschneiden(teile.record, 65536), atobFn);
+      if (rohRecord) {
+        try { record = JSON.parse(rohRecord); } catch (e) { record = null; }
+      }
+      if (!record || typeof record !== 'object' || Array.isArray(record)) {
+        return { ok: false, titel: 'Übergabe beschädigt',
+          text: 'Die übergebenen Kontodaten sind nicht lesbar. Bitte starten Sie die Anmeldung erneut aus Diakronos.' };
+      }
+      if (typeof record.id !== 'string' || !record.id
+          || typeof record.email !== 'string' || record.email.indexOf('@') < 1) {
+        return { ok: false, titel: 'Übergabe unvollständig',
+          text: 'Die übergebenen Kontodaten enthalten keine gültige Kennung oder E-Mail-Adresse. Bitte starten Sie die Anmeldung erneut aus Diakronos.' };
+      }
+      if (daten.id && daten.id !== record.id) {
+        return { ok: false, titel: 'Übergabe widersprüchlich',
+          text: 'Token und Kontodaten gehören nicht zusammen. Bitte starten Sie die Anmeldung erneut aus Diakronos.' };
+      }
+    } else if (daten.id) {
+      // Ohne Datensatz kann Primo die Anmeldung nicht anzeigen.
+      return { ok: false, titel: 'Übergabe unvollständig',
+        text: 'Die Kontodaten fehlen. Bitte starten Sie die Anmeldung erneut aus Diakronos.' };
+    }
+
+    if (record) {
+      // Fehlende Felder aus dem Token ergaenzen — Primo liest sie fuer die
+      // Anzeige (collectionName) und fuer Rechte-Fragen (collectionId).
+      if (typeof record.collectionId !== 'string') {
+        record.collectionId = typeof daten.collectionId === 'string' ? daten.collectionId : '';
+      }
+      if (typeof record.collectionName !== 'string') {
+        record.collectionName = typeof daten.collectionName === 'string' ? daten.collectionName : 'users';
+      }
+      record.email = record.email.trim();
+    } else {
+      record = { id: daten.id };
+      if (typeof daten.collectionId === 'string') { record.collectionId = daten.collectionId; }
+      record.collectionName = typeof daten.collectionName === 'string' ? daten.collectionName : 'users';
+    }
+
+    return { ok: true, eintrag: { token: token, record: record } };
+  }
+
+  /* DKRECHEN-ENDE */
+
+  var inhalt = document.getElementById('inhalt');
+
+  function fehler(titel, text) {
+    inhalt.className = 'fehler';
+    while (inhalt.firstChild) { inhalt.removeChild(inhalt.firstChild); }
+    var h = document.createElement('h1');
+    h.textContent = titel;
+    var p = document.createElement('p');
+    p.textContent = text;
+    var a = document.createElement('a');
+    a.href = ZIEL;
+    a.textContent = 'Zur Anmeldung bei Primo';
+    inhalt.appendChild(h);
+    inhalt.appendChild(p);
+    inhalt.appendChild(a);
+  }
+
+  // Das Fragment VOR allem anderen entfernen: es enthaelt den Token und soll
+  // nicht im Verlauf, in Lesezeichen oder in einem Screenshot landen.
+  var roh = '';
+  var entfernt = false;
+  try {
+    roh = String(window.location.hash || '').replace(/^#/, '');
+    if (window.location.hash) {
+      window.history.replaceState(null, document.title,
+        window.location.pathname + window.location.search);
+    }
+    entfernt = String(window.location.hash || '') === '';
+  } catch (e) {
+    entfernt = false;
+  }
+
+  var ergebnis = pruefe(roh, Date.now(), function (b64) { return window.atob(b64); });
+  if (!ergebnis.ok) {
+    fehler(ergebnis.titel, ergebnis.text);
+    return;
+  }
+  if (!entfernt) {
+    fehler('Browser zu alt',
+      'Der Anmeldeparameter konnte nicht aus der Adresszeile entfernt werden. Bitte den Link nicht weitergeben und die Seite ohne Anmeldeparameter neu laden.');
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(SPEICHER_SCHLUESSEL, JSON.stringify(ergebnis.eintrag));
+  } catch (e3) {
+    fehler('Speicher nicht verfügbar',
+      'Der Browser lässt das Speichern der Anmeldung nicht zu (privater Modus oder gesperrte Website-Daten). Bitte melden Sie sich direkt bei Primo an.');
+    return;
+  }
+
+  // Gegenlesen: nur bei tatsaechlich geschriebenem Speicher weiterleiten.
+  var geschrieben = null;
+  try { geschrieben = JSON.parse(window.localStorage.getItem(SPEICHER_SCHLUESSEL)); } catch (e4) { geschrieben = null; }
+  if (!geschrieben || geschrieben.token !== ergebnis.eintrag.token) {
+    fehler('Speichern fehlgeschlagen',
+      'Die Anmeldung konnte nicht übernommen werden. Bitte melden Sie sich direkt bei Primo an.');
+    return;
+  }
+
+  window.location.replace(ZIEL);
+})();
+</script>
+</body>
+</html>

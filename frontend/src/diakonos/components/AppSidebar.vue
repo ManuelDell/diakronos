@@ -113,7 +113,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['toggle-collapse', 'toggle-theme', 'close-mobile'])
 
-const { user, mitglied, isAdmin, istTester: istTesterRef, devmodeAn: devmodeAnRef, anzeigeName } = useSession()
+const { user, mitglied, isAdmin, istTester: istTesterRef, devmodeAn: devmodeAnRef, anzeigeName, rollen: rollenRef } = useSession()
 const { abmelden } = useAbmelden()
 
 /** W3: Bei einem Fehler bleibt der Nutzer hier und bekommt eine Meldung —
@@ -163,6 +163,8 @@ const sichtbaresMenue = computed(() =>
         istAdmin: isAdmin.value,
         istTester: istTester.value,
         istGast: isGast.value,
+        // WEB-3: Rollenliste der Sitzung für Einträge mit eigener Rollenliste.
+        rollen: rollenRef?.value || [],
       }),
     }))
     .filter(gruppe => gruppe.eintraege.length > 0),

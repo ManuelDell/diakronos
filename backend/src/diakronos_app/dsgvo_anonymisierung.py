@@ -562,6 +562,16 @@ ZEILEN_LOESCHEN: tuple[tuple[str, str], ...] = (
     # ID-1f: das Umzugsprotokoll der Kennungen (alt -> neu). Es ist kein
     # Nachweis; die Zeile der Person nennt ihren früheren Klarnamen.
     (KENNUNG_ABBILDUNG, "Umzugsprotokoll der Kennungen (früherer Klarname)"),
+    # WEB-1b: die Zuordnung Konto <-> Primo-Konto. Sie enthält die Mail-Adresse
+    # der Person und die fremde Konto-ID (`primo_id`) — beides personenbezogen
+    # und beides ohne Nachweiswert (Art. 17: der Zugang zur Website endet mit
+    # dem Konto). Die Zeile fällt deshalb ganz, statt genullt zu werden: eine
+    # Zuordnung ohne `primo_id` wäre keine Zuordnung, sondern eine Zeile, die
+    # beim nächsten Login wie "keine Zuordnung" wirkte — nur mit dem
+    # Unterschied, dass ein Primärschlüssel übrig bliebe. Das Primo-Konto
+    # selbst liegt in einem FREMDEN System und wird von Diakronos nicht
+    # angefasst (dieselbe Grenze wie bei PocketBase-Passwörtern).
+    ("website_primo_konto", "Zuordnung Konto <-> Primo-Konto (Mail und fremde ID)"),
 )
 
 #: Tabellen mit Konto-Bezug, deren Zeilen gelöscht werden — dort wird VORHER

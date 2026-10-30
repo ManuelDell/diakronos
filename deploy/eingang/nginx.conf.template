@@ -1,0 +1,195 @@
+# WEB-4 — Gemeinde-Eingang: EINE Domain, Pfad-Routing Website / App / Editor.
+#
+# Diese Datei ist eine VORLAGE. Sie enthaelt ${…}-Platzhalter und wird beim
+# Start des Containers von /docker-entrypoint.d/15-eingang-vorlage.sh per
+# `envsubst` nach /etc/nginx/conf.d/default.conf geschrieben (siehe
+# compose.yml). Direkt als nginx-Config ist sie NICHT verwendbar.
+#
+# Platzhalter (NUR diese werden ersetzt, siehe `envsubst '...'` im Entrypoint —
+# nginx-Variablen wie $http_host bleiben dadurch unangetastet):
+#   ${EINGANG_DIAKRONOS_UPSTREAM}  z. B. 192.168.1.11:8110
+#   ${EINGANG_PRIMO_UPSTREAM}      z. B. 192.168.1.11:8095
+#   ${EINGANG_DIAKRONOS_PRAEFIX}   z. B. /diakronos   (OHNE Schraegstrich am Ende)
+#   ${EINGANG_LOGIN_PFAD}          z. B. /diakronos/login
+#
+# ── Routing (Vorgabe Manuel 2026-10-30, verbindlich) ───────────────────────────
+#   /diakronos, /diakronos/…   -> Diakronos, Pfad UNVERAENDERT durchgereicht
+#                                 (Diakronos hoert per DIAKRONOS_BASE_PATH selbst
+#                                  unter dem Praefix — WEB-5). KEIN Praefix-Strippen.
+#   /api/…, /admin/…,          -> Primo-Vorbau (Primo hat /admin und /api fest
+#   /diakronos-sso.html           eingebaut; Diakronos gibt die Wurzel frei).
+#   /primo, /primo/            -> 302 /admin/
+#   /login                     -> 302 ${EINGANG_LOGIN_PFAD}
+#   /_/ (PocketBase-Superuser) -> 404 auf dieser Domain (nur im LAN ueber den
+#                                 Primo-Port erreichbar)
+#   alles andere inkl. /       -> Primo (liefert die Website anhand des
+#                                 Host-Headers aus)
+#   / ohne Site fuer diesen Host-> 302 ${EINGANG_LOGIN_PFAD}
+#                                 (Primo antwortet dann 302 auf sein eigenes
+#                                  /admin — das ist "kein Treffer", siehe unten)
+#
+# ── Host-Header ───────────────────────────────────────────────────────────────
+# `$http_host` geht UNVERAENDERT an beide Upstreams: Primo waehlt die Site
+# anhand des Hosts (serve.go: sites.host), Diakronos baut absolute Links und
+# prueft seinen Origin darauf. X-Forwarded-Proto/For werden gesetzt, damit
+# Diakronos hinter dem Proxy https erkennt (BEHIND_PROXY=1).
+#
+# ── Sicherheits-Kopfzeilen ────────────────────────────────────────────────────
+# Hier werden BEWUSST KEINE Security-Header gesetzt: Diakronos setzt seine
+# eigenen (SEC-4, SicherheitsHeaderMiddleware) und Primo-Antworten bleiben
+# unveraendert. Doppelt gesetzte Header (z. B. zwei CSP oder zwei HSTS) sind
+# ein Fehler, kein Sicherheitsgewinn.
+
+map $http_upgrade $verbindung_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+# "Fuer diesen Host gibt es keine Website": Primo beantwortet / dann mit einer
+# Weiterleitung auf sein eigenes /admin (PocketBase-Fallback, live geprueft an
+# v3.3.1). Beide Formen werden erkannt, die Primo schickt — relativ (`/admin`)
+# und absolut (`http://host/admin`). Ausgewertet wird die Kopfzeile der
+# UPSTREAM-Antwort, deshalb erst in der error_page-Behandlung (siehe unten).
+map $upstream_http_location $ohne_site {
+    default                                                  0;
+    "~*^(https?://[^/]+)?/admin/?$"                          1;
+}
+
+# Log ohne Query: die Registrierungs- und Gastlinks tragen den Token in der
+# Adresszeile. `$uri` statt `$request_uri` haelt ihn aus dem Zugriffslog.
+log_format eingang '$remote_addr - "$request_method $uri $server_protocol" '
+                   '$status $body_bytes_sent upstream=$upstream_addr';
+
+server_tokens off;
+
+server {
+    listen 80 default_server;
+    server_name _;
+    # Pfad aus der Umgebung (Container: /var/log/nginx/access.log, Test:
+    # Arbeitsordner) — das Format `eingang` bleibt in beiden Faellen gleich.
+    access_log ${EINGANG_ACCESS_LOG} eingang;
+    server_name_in_redirect off;
+
+    # Primo-Uploads (Bilder/Assets im Editor) brauchen mehr als die 1 MB
+    # Vorgabe von nginx; Diakronos begrenzt seine Uploads selbst.
+    client_max_body_size 64m;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml image/svg+xml;
+    gzip_min_length 1024;
+
+    # ── Gemeinsame Proxy-Einstellungen gelten fuer BEIDE Upstreams ────────────
+    # (HTTP/1.1 + Upgrade, damit WebSocket (/socket.io bei Diakronos) und SSE
+    #  (/api/realtime bei Primo/PocketBase) durchgehen.)
+    proxy_http_version 1.1;
+    proxy_set_header Host              $http_host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host  $http_host;
+    proxy_set_header Upgrade           $http_upgrade;
+    proxy_set_header Connection        $verbindung_upgrade;
+    # SSE/WebSocket: keine Pufferung, kein Cache, lange Lesezeit.
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_read_timeout  3600s;
+    proxy_send_timeout  3600s;
+
+    # ── 1. Diakronos: /diakronos und alles darunter ──────────────────────────
+    # KEIN Umschreiben des Pfades (Vorgabe WEB-5): Diakronos bekommt exakt
+    # /diakronos/… zu sehen und liefert unter diesem Praefix selbst aus.
+    # Der Praefix wird per Env eingesetzt; zwei Bloecke (exakter Treffer ohne
+    # Schraegstrich + Praefix-Block) decken /diakronos und /diakronos/… ab.
+    location = ${EINGANG_DIAKRONOS_PRAEFIX} {
+        proxy_pass http://${EINGANG_DIAKRONOS_UPSTREAM};
+    }
+
+    location ${EINGANG_DIAKRONOS_PRAEFIX}/ {
+        proxy_pass http://${EINGANG_DIAKRONOS_UPSTREAM};
+    }
+
+    # ── 2. Primo: Editor und PocketBase-API ──────────────────────────────────
+    # /admin/… (Svelte-Editor, inkl. /admin/_app/immutable/…),
+    # /api/…   (PocketBase-REST, /api/primo/*, /api/realtime = SSE)
+    location /api/ {
+        proxy_pass http://${EINGANG_PRIMO_UPSTREAM};
+    }
+
+    location /admin/ {
+        proxy_pass http://${EINGANG_PRIMO_UPSTREAM};
+    }
+
+    # Die Uebergabeseite aus deploy/primo (gleicher Origin wie /admin/).
+    location = /diakronos-sso.html {
+        proxy_pass http://${EINGANG_PRIMO_UPSTREAM};
+    }
+
+    # ── 3. Kurze Weiterleitungen ─────────────────────────────────────────────
+    location = /primo {
+        return 302 /admin/;
+    }
+
+    location = /primo/ {
+        return 302 /admin/;
+    }
+
+    location = /login {
+        # 302 wie vorgegeben; der Pfad ist ein GET-Ziel, ein 302 ist hier
+        # unbedenklich (Methode bleibt GET).
+        return 302 ${EINGANG_LOGIN_PFAD};
+    }
+
+    # PocketBase-Superuser-UI: auf der oeffentlichen Gemeinde-Domain NICHT
+    # erreichbar (nur im LAN ueber den Primo-Port selbst). Bewusst 404 und
+    # nicht 403 — ein 403 wuerde die Existenz der Oberflaeche bestaetigen.
+    # Superuser-Schnittstellen von PocketBase gehoeren nicht auf die oeffentliche
+    # Domain (Review WEB-4): Superuser-Anmeldung, Einstellungen, Backups, Logs,
+    # Cron. Diakronos spricht Primo intern ueber den Vorbau (:8095) an und
+    # braucht keinen dieser Pfade von aussen; der Primo-Editor laeuft als
+    # normaler users-Datensatz und darf diese Endpunkte ohnehin nicht nutzen.
+    location ^~ /api/collections/_superusers/ { return 404; }
+    location ^~ /api/settings { return 404; }
+    location ^~ /api/backups { return 404; }
+    location ^~ /api/logs { return 404; }
+    location ^~ /api/crons { return 404; }
+
+    location /_/ {
+        return 404;
+    }
+
+    # ── 4. Primo: die Website ────────────────────────────────────────────────
+    # Exakt "/" ist der Sonderfall: hat der Host eine veroeffentlichte Site,
+    # liefert Primo die Startseite (200). Hat er KEINE, antwortet Primo mit
+    # 302 auf sein eigenes /admin (PocketBase-Fallback fuer die Wurzel, live
+    # geprueft an v3.3.1: `Location: /admin`). Der Gast der Gemeinde-Domain
+    # gehoert dann in die Anmeldung, nicht in den Editor.
+    #
+    # Die Auswertung passiert ueber `$ohne_site` (map, siehe oben): ein `if`
+    # mit `return` in einem proxy_pass-Block wuerde die Antwort VOR dem
+    # Upstream-Aufruf auswerten — $upstream_http_location ist dort noch leer.
+    location = / {
+        proxy_pass http://${EINGANG_PRIMO_UPSTREAM};
+
+        # Nur HIER werden Primo-Weiterleitungen abgefangen (nicht global:
+        # ein error_page auf Server-Ebene wuerde auch die eigenen `return 302`
+        # der Pfade /login und /primo umbiegen).
+        proxy_intercept_errors on;
+        error_page 301 302 303 307 308 = @eingang_redirect;
+    }
+
+    # Alles Uebrige an den Primo-Vorbau. Er waehlt die Site ueber den
+    # Host-Header; unbekannte Unterseiten (kein Treffer) beantwortet Primo
+    # selbst mit 404 — das bleibt unveraendert.
+    location / {
+        proxy_pass http://${EINGANG_PRIMO_UPSTREAM};
+    }
+
+    # Der Primo-Fallback auf /admin wird NACH der Antwort umgebogen. Das ist
+    # die Stelle, an der $upstream_http_location sicher gefuellt ist.
+    location @eingang_redirect {
+        if ($ohne_site = 1) {
+            return 302 ${EINGANG_LOGIN_PFAD};
+        }
+        return 302 $upstream_http_location;
+    }
+}

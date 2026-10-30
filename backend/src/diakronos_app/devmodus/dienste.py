@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from diakronos_app.files import binary_content_type
 from diakronos_app.models.devmodus import DevBefund, DevEreignis, DevSitzung
 from diakronos_app.settings import settings
+from diakronos_app.devmodus import einstellungen
 from diakronos_app.devmodus.einstellungen import (
     ARTEN,
     AUDIO_TYPEN,
@@ -199,22 +200,50 @@ def bild_speichern(rohdaten: bytes, typ: str | None = None) -> dict[str, Any]:
     return {"pfad": f"devmodus/{tag}/{name}", "typ": erkannt, "bytes": len(rohdaten)}
 
 
+def audio_erkennen(rohdaten: bytes) -> str | None:
+    """Erkennt den Audio-Container am INHALT (nicht am gemeldeten Typ).
+
+    SEC-10 (Pentest F4-1): zugelassen sind nur die drei Container, die
+    ``MediaRecorder`` liefert —
+    WebM/Matroska (EBML ``1A 45 DF A3``), OGG (``OggS``) und M4A/MP4
+    (``ftyp``-Box an Offset 4). Alles andere (HTML, SVG, EXE, Bilder, Text)
+    ergibt ``None``.
+    """
+    if rohdaten.startswith(b"\x1a\x45\xdf\xa3"):
+        return "audio/webm"
+    if rohdaten.startswith(b"OggS"):
+        return "audio/ogg"
+    if len(rohdaten) >= 12 and rohdaten[4:8] == b"ftyp":
+        return "audio/mp4"
+    return None
+
+
 def audio_speichern(rohdaten: bytes, typ: str | None = None) -> dict[str, Any]:
-    """Prueft und speichert eine Sprachaufnahme. Pfad RELATIV zu FILES_DIR."""
-    if len(rohdaten) > MAX_AUDIO_BYTES:
-        raise DevFehler("Aufnahme ist zu groß (max. 25 MB).", "/audio")
-    erkannt = _erkannt_bytes(rohdaten)
-    # MediaRecorder liefert je Browser webm/ogg/mp4. Ist die Erkennung
-    # unsicher (z. B. webm ohne Magic-Treffer), entscheidet der gemeldete Typ.
-    auswahl = erkannt if erkannt in AUDIO_TYPEN else (typ if typ in AUDIO_TYPEN else None)
-    if auswahl is None:
+    """Prueft und speichert eine Sprachaufnahme. Pfad RELATIV zu FILES_DIR.
+
+    Aufbau wie ``bild_speichern``: leere Daten, fremder Inhalt, Widerspruch
+    zwischen Inhalt und gemeldetem Typ sowie zu grosse Aufnahmen werden mit
+    ``DevFehler`` (HTTP 417, gleiche Fehlerform) abgelehnt.
+    """
+    if not rohdaten:
+        raise DevFehler("Die Aufnahme ist leer.", "/audio")
+    grenze = einstellungen.max_audio_bytes()
+    if len(rohdaten) > grenze:
+        raise DevFehler(
+            f"Aufnahme ist zu groß (max. {grenze // (1024 * 1024) or 1} MB).", "/audio")
+    erkannt = audio_erkennen(rohdaten)
+    if erkannt is None or erkannt not in AUDIO_TYPEN:
         raise DevFehler("Nur WEBM, OGG oder M4A sind erlaubt.", "/audio")
+    gemeldet = (typ or "").strip() or None
+    if gemeldet is not None and AUDIO_TYPEN.get(gemeldet) != AUDIO_TYPEN[erkannt]:
+        raise DevFehler("Dateiinhalt passt nicht zum angegebenen Typ.", "/audio")
     tag = jetzt().strftime("%Y-%m-%d")
-    name = secrets.token_hex(8) + "." + AUDIO_TYPEN[auswahl]
+    name = secrets.token_hex(8) + "." + AUDIO_TYPEN[erkannt]
     ziel = _speicher_wurzel() / "devmodus" / tag
     ziel.mkdir(parents=True, exist_ok=True)
     (ziel / name).write_bytes(rohdaten)
-    return {"pfad": f"devmodus/{tag}/{name}", "typ": auswahl, "bytes": len(rohdaten)}
+    return {"pfad": f"devmodus/{tag}/{name}", "typ": erkannt, "bytes": len(rohdaten)}
+
 
 
 def aus_base64(daten: str) -> tuple[bytes, str | None]:

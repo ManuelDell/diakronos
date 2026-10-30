@@ -76,6 +76,21 @@ x-app-env: &app-env
   AUTH_PROXY_HEADER_EMAIL: ${AUTH_PROXY_HEADER_EMAIL:-X-authentik-email}
   AUTH_PROXY_HEADER_UID: ${AUTH_PROXY_HEADER_UID:-X-authentik-uid}
   AUTH_PROXY_HEADER_GROUPS: ${AUTH_PROXY_HEADER_GROUPS:-X-authentik-groups}
+  # ── WEB-1: optionale Anbindung an Primo (Website-Builder) ────────────────
+  # Standardmaessig LEER -> das Modul schlaeft (Status "nicht_konfiguriert").
+  # PRIMO_URL intern (Server->Primo), PRIMO_PUBLIC_URL die Browser-Adresse.
+  # Superuser-Secret nur ueber .env oder *_FILE; wird nie geloggt.
+  PRIMO_URL: ${PRIMO_URL:-}
+  PRIMO_PUBLIC_URL: ${PRIMO_PUBLIC_URL:-}
+  PRIMO_SUPERUSER_EMAIL: ${PRIMO_SUPERUSER_EMAIL:-}
+  PRIMO_SUPERUSER_PASSWORD: ${PRIMO_SUPERUSER_PASSWORD:-}
+  PRIMO_SUPERUSER_PASSWORD_FILE: ${PRIMO_SUPERUSER_PASSWORD_FILE:-}
+  PRIMO_TIMEOUT_SEKUNDEN: ${PRIMO_TIMEOUT_SEKUNDEN:-5}
+  # WEB-1b: 4 Stunden (300..43200). PocketBase kann ein impersonate-Token
+  # NICHT verlaengern — die Primo-Sitzung endet mit dem Token.
+  PRIMO_TOKEN_SEKUNDEN: ${PRIMO_TOKEN_SEKUNDEN:-14400}
+  # Adressen, die nie ein Primo-Konto bekommen (kommagetrennt).
+  PRIMO_GESCHUETZTE_KONTEN: ${PRIMO_GESCHUETZTE_KONTEN:-diakronos-integration@diedells.de}
   # DM1: Dev-Modus (roter Rahmen, Element-Auswahl, Befunde, Backend-
   # Ueberwachung, Bericht). **Default AUS** — aus heisst: keine Endpunkte,
   # keine Middleware, kein Overlay. Einschalten: DEVMODE_ENABLED=1 und die

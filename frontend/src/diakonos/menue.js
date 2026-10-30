@@ -11,6 +11,9 @@
  *   icon     Name aus dem Symbolvorrat (siehe ICON_PFADE)
  *   seiten   Seitennamen, bei denen der Eintrag als „aktiv“ gilt
  *   rolle    'alle' | 'admin'  — nur Komfort: der Server prüft weiter
+ *   rollen   Liste von Rollen, von denen EINE genügen muss (Alternative zu
+ *            `rolle`; WEB-3: „Website“ für System Manager, Administrator und
+ *            Website-Moderator). Nur Komfort — der Server prüft weiter.
  *   tester   true = nur mit Tester-Rolle sichtbar (Dev-Befunde)
  *   badge    optionale Kennzahl-Quelle (siehe AppSidebar)
  *
@@ -24,6 +27,8 @@
  * Gemeinde · Termine & Dienste · Infos · Musik · Verwaltung. Kopfleiste
  * (AppTopbar) und Brotkrumen lesen dieselbe Definition.
  */
+import { WEBSITE_ROLLEN } from './composables/website.mjs'
+
 export const MENUE = [
     {
         gruppe: 'Gemeinde',
@@ -79,7 +84,15 @@ export const MENUE = [
     {
         gruppe: 'Verwaltung',
         eintraege: [
-            { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus'], rolle: 'admin' },
+            // WEB-3: „Website“ steht bei der Verwaltung — die Redaktion der
+            // Gemeinde-Seiten ist eine Verwaltungsaufgabe. Sichtbar für die
+            // WEBSITE_ROLLEN (System Manager, Administrator, Website-Moderator);
+            // fehlt Primo, erklärt die Seite das selbst. Der Server prüft nach.
+            {
+                id: 'website', label: 'Website', href: '#/website', icon: 'globe',
+                seiten: ['Website'], rollen: WEBSITE_ROLLEN,
+            },
+            { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus', 'EinstellungenWebsite'], rolle: 'admin' },
             { id: 'dev-befunde', label: 'Dev-Befunde', href: '#/dev-befunde', icon: 'clipboard-check', seiten: ['DevBefunde'], rolle: 'admin', tester: true },
         ],
     },
@@ -239,16 +252,28 @@ export const ICON_PFADE = {
     'help-circle': 'M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3 M12 17h.01 M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z',
     music: 'M9 18V5l12-2v13 M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0z M21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
     moderation: 'M4 5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1z M14 5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1z M4 15a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1z M14 17h6 M17 14v6',
+    // WEB-3: Globus für „Website“.
+    globe: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M2 12h20 M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
     settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z',
 }
 
 /**
  * Sichtbare Einträge einer Gruppe für den aktuellen Nutzer.
  * Das Ausblenden ist nur Komfort — der Server prüft jedes Recht erneut.
+ *
+ * `rollen` (WEB-3): der Eintrag erscheint, wenn EINE der genannten Rollen in
+ * der Sitzung liegt. Die Rollenliste kommt aus dem Boot-Objekt
+ * (`window.__DIakonosBOOT.roles`); ohne Angabe gilt sie als leer, also sieht
+ * ein Nutzer ohne bekannte Rollen den Eintrag nicht (fail closed).
  */
-export function sichtbareEintraege(gruppe, { istAdmin = false, istTester = false, istGast = false } = {}) {
+export function sichtbareEintraege(gruppe, { istAdmin = false, istTester = false, istGast = false, rollen = [] } = {}) {
+    const meineRollen = new Set(
+        (Array.isArray(rollen) ? rollen : []).map(r => String(r || '').trim()),
+    )
     return (gruppe.eintraege || []).filter(eintrag => {
         if (eintrag.rolle === 'admin' && !istAdmin) return false
+        if (Array.isArray(eintrag.rollen) && eintrag.rollen.length
+            && !eintrag.rollen.some(r => meineRollen.has(r))) return false
         if (eintrag.tester && !(istAdmin && istTester)) return false
         if (istGast) {
             // Gäste sehen nur Dashboard, Kalender und Profil (wie bisher).

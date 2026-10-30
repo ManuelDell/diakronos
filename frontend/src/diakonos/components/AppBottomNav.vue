@@ -117,7 +117,7 @@ import { useZurueckSchliesst } from '../composables/useZurueckSchliesst.js'
 import { umschalterText } from '../composables/theme.mjs'
 import { KOPF_TEXT, KOPF_ARIA } from './mehrBlatt.mjs'
 
-const { user, mitglied, isAdmin, istTester: istTesterRef, devmodeAn: devmodeAnRef, anzeigeName } = useSession()
+const { user, mitglied, isAdmin, istTester: istTesterRef, devmodeAn: devmodeAnRef, anzeigeName, rollen: rollenRef } = useSession()
 
 const props = defineProps({
   isKronosMode: Boolean,
@@ -151,6 +151,8 @@ const sheetEintraege = computed(() =>
       istAdmin: isAdmin.value,
       istTester: istTester.value,
       istGast: isGast.value,
+      // WEB-3: Rollenliste der Sitzung für Einträge mit eigener Rollenliste.
+      rollen: rollenRef?.value || [],
     }))
     .filter(e => !tabZiele.value.has(e.href)),
 )

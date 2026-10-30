@@ -21,6 +21,10 @@ const state = ref({
     // einstellen darf. Der Server entscheidet (`boot.roles`); hier wird nur
     // ausgeblendet, was er ohnehin verweigert.
     istSystemManager: (boot.roles || []).includes('System Manager'),
+    // WEB-3: die vollständige Rollenliste der Sitzung (`Has Role`) — dieselbe
+    // Quelle, aus der der Server `is_admin` ableitet. Menüpunkte mit eigener
+    // Rollenliste („Website“) werden damit ausgeblendet, nicht anders geprüft.
+    rollen: Array.isArray(boot.roles) ? boot.roles : [],
 })
 
 const imp = useImpersonation()
@@ -59,6 +63,10 @@ const devmodeAn = computed(() => state.value.devmodeAn)
 // nicht die des Zuschauers (wie bei `isAdmin`).
 const istSystemManager = computed(() =>
     imp.isActive.value ? false : state.value.istSystemManager)
+// WEB-3: während einer Identitätsübernahme gelten die Rechte des Kontos, nicht
+// die des Zuschauers — wie bei `isAdmin`/`istSystemManager`. Ohne Rollen sieht
+// der Nutzer keine rollengeschützten Einträge (fail closed).
+const rollen = computed(() => imp.isActive.value ? [] : state.value.rollen)
 
 /**
  * OP-HANDY-25: Anzeigename für Begrüßung und Avatar.
@@ -78,6 +86,7 @@ export function useSession() {
         istTester,
         devmodeAn,
         istSystemManager,
+        rollen,
         anzeigeName,
     }
 }

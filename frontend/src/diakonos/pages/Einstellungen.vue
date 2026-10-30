@@ -49,6 +49,9 @@ const DATENSICHERUNG = defineAsyncComponent(() => import('./einstellungen/Datens
 // MAIL-1: Mailversand (SMTP-Postfach). Der Server laesst nur System Manager
 // hinein; sichtbar ist der Abschnitt fuer Administratoren (Komfort).
 const MAILVERSAND = defineAsyncComponent(() => import('./einstellungen/Mailversand.vue'))
+// WEB-3: Zustand der optionalen Primo-Anbindung + Kurzanleitung. Nur Anzeige —
+// eingeschaltet wird sie über settings/.env (der Betrieb).
+const WEBSITE = defineAsyncComponent(() => import('./einstellungen/Website.vue'))
 
 // Reihenfolge wie in der Konzept-Vorgabe (§7): Gemeinde, Anmeldung,
 // Rollen & Rechte, Registrierung, Datenschutz-Texte, Dev-Modus.
@@ -71,6 +74,10 @@ const abschnitte = [
   // Löschung auf Antrag nicht bestätigt werden.
   { id: 'mailversand', label: 'Mailversand', href: '#/einstellungen/mailversand',
     seite: 'EinstellungenMailversand', inhalt: MAILVERSAND },
+  // WEB-3: „Website (Primo)“ steht bei der Technik — es beschreibt eine
+  // Anbindung, keine Gemeindeeinstellung. Der Abschnitt ist nur Anzeige.
+  { id: 'website', label: 'Website (Primo)', href: '#/einstellungen/website',
+    seite: 'EinstellungenWebsite', inhalt: WEBSITE },
   // Entscheidung 10: Dev-Modus ist der letzte Abschnitt. Er ist nur sichtbar,
   // wenn die Instanz ihn zulaesst (Konzept §7) — der Server entscheidet.
   { id: 'dev-modus', label: 'Dev-Modus', href: '#/einstellungen/dev-modus',
