@@ -2,8 +2,14 @@
     <div class="dk-pub-page">
         <div class="dk-pub-card" style="max-width: 400px;">
 
-            <!-- Fehler-Seite -->
-            <div v-if="linkFehler" class="dk-pub-center">
+            <!-- WEB-7 (U2, U6): toter Gast-Link / ohne Token — der Browser
+                 steht schon auf dem Weg zur Hauptseite. Bis dahin bleibt die
+                 Karte leer: keine Meldung, kein „Zurück“ auf die Fehlerseite. -->
+            <div v-if="umgeleitet" class="dk-pub-center" aria-hidden="true">&nbsp;</div>
+
+            <!-- Fehler-Seite: NUR für Fälle mit Rückmeldung (U3) — Rate-Limit,
+                 Serverfehler, zeitliche Grenze des Links. -->
+            <div v-else-if="linkFehler" class="dk-pub-center">
                 <div class="dk-pub-icon-large">🔒</div>
                 <h1 class="dk-pub-title">Zugang nicht möglich</h1>
                 <p class="dk-pub-muted">{{ linkFehler }}</p>
@@ -65,6 +71,11 @@
 import { ref, reactive } from 'vue'
 // WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
 import { apiUrl } from '../shared/basis.js'
+// WEB-7: Entscheidung „toter Link -> Hauptseite ohne Meldung“ (U2).
+import {
+    brauchtWeiterleitung,
+    weiterleitenZurHauptseite,
+} from '../shared/linkziel.js'
 // DEP-1: eigene Bausteine statt frappe-ui (Button/FormControl/ErrorMessage).
 import DkButton from '../diakonos/components/ui/DkButton.vue'
 import DkField from '../diakonos/components/ui/DkField.vue'
@@ -72,7 +83,18 @@ import DkEingabe from '../diakonos/components/ui/DkEingabe.vue'
 import DkFehlertext from '../diakonos/components/ui/DkFehlertext.vue'
 
 const token      = window.__diakronos?.token || ''
+// WEB-7: `linkGrund` vom Server (`spa.py::_link_grund`) — „toter Link“ gegen
+// „die Person braucht eine Erklärung“ (Bremse 429, Serverfehler, zeitliche
+// Grenze) abgrenzen.
+const linkGrund  = window.__diakronos?.linkGrund || ''
 const linkFehler = window.__diakronos?.linkFehler || ''
+
+// WEB-7 (U2): ungültiger/abgelaufener/deaktivierter Gast-Token oder Seite
+// ohne `?token=` -> sofort auf die Wurzel der DOMAIN, ohne Meldung.
+// `replace` ersetzt den Verlaufseintrag (U6).
+const umgeleitet = weiterleitenZurHauptseite(
+    brauchtWeiterleitung({ grund: linkGrund, tokenFehlt: !token }),
+)
 // N9b (H-1, M-1): Einwilligungstext und Willkommenstext kommen vom Server.
 // Es ist GENAU der Wortlaut, den submit_gast als Beleg speichert.
 const texte      = window.__diakronos?.texte || {}

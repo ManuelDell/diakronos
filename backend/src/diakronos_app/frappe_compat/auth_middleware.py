@@ -44,9 +44,9 @@ logger = logging.getLogger("diakronos_app.auth")
 __all__ = [
     "COOKIE_NAME",
     "CSRF_HEADER",
-    "CSRF_EXEMPT_PATHS",
     "SessionMiddleware",
     "CsrfMiddleware",
+    "ist_csrf_ausgenommen",
     "sid_aus_headers",
 ]
 
@@ -56,18 +56,66 @@ COOKIE_NAME = "sid"
 # Header, den die SPA aus `boot.csrf_token` befuellt (useApi.js:18/28).
 CSRF_HEADER = "x-frappe-csrf-token"
 
-# Pfade ohne CSRF-Pruefung: nur der Login (dort gibt es noch keine Sitzung).
-# `/api/method/logout` ist NICHT mehr ausgenommen: sonst koennte jede fremde
-# Seite mit `<img src="/api/method/logout">` oder einem Cross-Site-Formular
-# die Sitzung eines angemeldeten Nutzers beenden (Forced Logout). Die
-# Ablehnung trifft nur Aufrufe, die tatsaechlich eine Sitzung mitbringen —
-# ein Logout ohne Sitzung bleibt ein wirkungsloser No-op.
-CSRF_EXEMPT_PATHS = frozenset(
-    {
-        "/api/method/login",
-        "/api/method/frappe.sessions.get_csrf_token",
-    }
-)
+# ── WEB-8: Der Login ist in JEDER Schreibweise ausgenommen ────────────────
+#
+# Bis WEB-8 stand hier eine Menge EXAKTER Pfade. Mit `DIAKRONOS_BASE_PATH`
+# heisst der Login aber `/diakronos/api/method/login` — und damit fiel er
+# NICHT mehr unter die Ausnahme. Weil jeder Alias (`auth.login`,
+# `frappe.login`, `api.login`, `frappe.login.login`, …) ein eigener Pfad ist,
+# waere auch eine laengere Liste unvollstaendig gewesen.
+#
+# Die Folge war der Befund vom 2026-10-30: wer noch angemeldet war und das
+# Anmeldeformular erneut absandte, bekam 417 `CSRFTokenError` als rohes JSON
+# im Browser — die Middleware verlangte den Kopfzeilen-Token, den ein
+# HTML-Formular nie senden kann. Der Login hat seinen EIGENEN CSRF-Schutz
+# (SEC-4: eigene Herkunft ODER gueltiger Masken-Token `_csrf`, fremde
+# Herkunft immer abgelehnt) — der bleibt unveraendert und ist der alleinige
+# Schutz dieses Endpunkts.
+#
+# Erkannt wird der Login deshalb am LETZTEN Namenssegment und an der erlaubten
+# Endung: `…/api/method/<name>`, wobei `<name>` `login` oder auf `x.login`
+# endet, dazu die Schreibweise ohne `api/method` (`/login`, `/diakronos/login`).
+# Dadurch fallen `/api/method/loginx`, `/api/method/login_und_mehr` und
+# `/api/method/logout` NICHT darunter (siehe `test_web8_login_csrf.py`).
+_CSRF_METHODEN_PRAEFIX = "/api/method/"
+_LOGIN_ENDER = ("login", ".login")
+
+#: Ausser dem Login: die Token-Ausgabe der Sitzung (Vorbestand aus A1b2).
+_WEITERE_AUSNAHMEN = frozenset({"/api/method/frappe.sessions.get_csrf_token"})
+
+
+def _mit_praefix_entfernt(pfad: str) -> str:
+    """Entfernt den aktiven Betriebs-Praefix (`/diakronos/api/…` -> `/api/…`)."""
+    from diakronos_app import base_path
+
+    praefix = base_path.aktiver_praefix()
+    if praefix and (pfad == praefix or pfad.startswith(praefix + "/")):
+        return pfad[len(praefix):] or "/"
+    return pfad
+
+
+def ist_csrf_ausgenommen(pfad: str) -> bool:
+    """True, wenn dieser Pfad NICHT unter die Sitzungs-CSRF-Pflicht faellt.
+
+    WEB-8: Der Login ist in jeder Schreibweise und mit jedem Praefix
+    ausgenommen — er bringt seinen eigenen Schutz mit (SEC-4). Alles andere
+    bleibt unter der Pflicht; die Ausnahme ist absichtlich eng und wird im
+    Test `test_web8_login_csrf.py` in beide Richtungen belegt.
+    """
+    pfad = _mit_praefix_entfernt(str(pfad or "").rstrip("/") or "/")
+    if pfad in _WEITERE_AUSNAHMEN:
+        return True
+    if pfad.startswith(_CSRF_METHODEN_PRAEFIX):
+        # Nur das LETZTE Segment zaehlt: `auth.login` ist der Login,
+        # `login_und_mehr` nicht.
+        name = pfad[len(_CSRF_METHODEN_PRAEFIX):]
+        # Grenze am Punkt (Review WEB-8): nur "login" selbst oder ein voll
+        # qualifizierter Name, der auf ".login" endet — NICHT "irgendwas_login".
+        return name == "login" or name.endswith(".login")
+    # Formular-Adresse der Anmeldemaske (`/login`, mit Praefix `/diakronos/login`).
+    return pfad == "/login"
+
+
 
 _SCHREIBENDE_METHODEN = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
@@ -166,7 +214,7 @@ class CsrfMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.method in _SCHREIBENDE_METHODEN:
             pfad = request.url.path.rstrip("/") or "/"
-            if pfad not in CSRF_EXEMPT_PATHS:
+            if not ist_csrf_ausgenommen(pfad):
                 sid = sid_aus_headers(request.headers)
                 daten = sitzungen.lesen(sid) if sid else None
                 if daten is not None:

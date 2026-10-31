@@ -926,11 +926,18 @@ def _oeffentliche_daten(seite: str, token: str) -> dict[str, Any]:
     Pruefung abweichen.
 
     Ein ungueltiger, abgelaufener oder voller Link ist KEIN Serverfehler: die
-    Seite bleibt HTTP 200 und traegt `linkFehler` ("Zugang nicht moeglich").
+    Seite bleibt HTTP 200 und traegt `linkFehler` („Zugang nicht moeglich“).
+
+    WEB-7: Zusaetzlich steht in `linkGrund` die EINSTUFUNG des Fehlers. Die
+    Seite leitet danach weiter (toter Link -> Hauptseite, ohne Meldung) oder
+    zeigt den Hinweis (Bremse/Serverfehler/zeitliche Grenze). Die Einstufung
+    passiert hier, nicht im Browser: nur hier ist bekannt, WARUM die Pruefung
+    abgelehnt hat.
     """
     daten: dict[str, Any] = {
         "token": "",
         "linkFehler": "",
+        "linkGrund": "",
         "felder": [],
         "mitKinder": 0,
         "dokumente": [],
@@ -942,6 +949,10 @@ def _oeffentliche_daten(seite: str, token: str) -> dict[str, Any]:
         "willkommenstext": _willkommenstext(),
     }
     if not token:
+        # WEB-7 (U1): ohne `?token=` ist die Seite kein Link, sondern eine
+        # Adresse ohne Ziel — die Person bekommt keine Rueckmeldung, sondern
+        # landet auf der Hauptseite der Domain.
+        daten["linkGrund"] = _GRUND_UNBEKANNT
         daten["linkFehler"] = "Kein Registrierungstoken angegeben."
         return daten
 
@@ -970,6 +981,7 @@ def _oeffentliche_daten(seite: str, token: str) -> dict[str, Any]:
                 type(exc).__name__,
             )
         daten["linkFehler"] = _link_fehlermeldung(exc)
+        daten["linkGrund"] = _link_grund(exc)
         return daten
 
     daten["token"] = token
@@ -998,6 +1010,62 @@ def _link_fehlermeldung(exc: Exception) -> str:
         except (TypeError, ValueError):
             pass
     return text
+
+
+# ── WEB-7: Einstufung eines abgelehnten Links ──────────────────────────────
+#
+# Die oeffentlichen Seiten muessen unterscheiden koennen, ob eine
+# Rueckmeldung noch Sinn hat (Karte U1-U4):
+#
+#   unbekannt     Token nicht in der Datenbank / Link deaktiviert  -> U1/U2:
+#                 Weiterleitung auf die Hauptseite OHNE Meldung.
+#   rate_limit    429 der Registrierungsbremse -> U3: Meldung bleibt (die
+#                 Person soll es gleich noch einmal versuchen).
+#   serverfehler  500 -> U3: Meldung bleibt (Diakronos nicht erreichbar).
+#   ab_gleich / abgelaufen / voll
+#                 zeitliche/mengenmaessige Grenze des Links -> U3: Meldung
+#                 bleibt, denn die Person bekommt einen NEUEN Link.
+#
+# Der Grund ist eine feste Zeichenfolge (nie der Fehlertext): er geht ins
+# Boot-Objekt der Seite, nicht ins Log, und traegt keinen Token.
+_GRUND_UNBEKANNT = "unbekannt"
+_GRUND_RATE_LIMIT = "rate_limit"
+_GRUND_SERVERFEHLER = "serverfehler"
+_GRUND_AB_GLEICH = "ab_gleich"
+_GRUND_ABGELAUFEN = "abgelaufen"
+_GRUND_VOLL = "voll"
+
+# Wortlaut stammt aus `api/registrierung.py::_validate_token` (EINE Quelle der
+# Pruefung). Wird dort ein Satz geaendert, faellt der Link hier auf
+# `serverfehler` zurueck — die Seite zeigt dann weiterhin eine Meldung und
+# leitet NICHT still weiter (fail safe: lieber ein Hinweis zu viel).
+_LINK_GRUENDE: tuple[tuple[str, str], ...] = (
+    ("Ungültiger oder deaktivierter Registrierungslink", _GRUND_UNBEKANNT),
+    ("Kein Registrierungstoken angegeben", _GRUND_UNBEKANNT),
+    ("Anmeldung ab ", _GRUND_AB_GLEICH),
+    ("abgelaufen", _GRUND_ABGELAUFEN),
+    ("maximale Anzahl an Anmeldungen", _GRUND_VOLL),
+)
+
+
+def _link_grund(exc: Exception) -> str:
+    """Einstufung eines abgelehnten Links fuer die oeffentliche Seite (WEB-7).
+
+    Liest NUR die Meldung (`_link_fehlermeldung`), nie den Token und nie den
+    Stacktrace. Reihenfolge: erst die Fehlerart (429/5xx), dann der Wortlaut
+    der Fachpruefung.
+    """
+    from diakronos_app.frappe_compat.exceptions import RateLimitError
+
+    if isinstance(exc, RateLimitError):
+        return _GRUND_RATE_LIMIT
+    text = _link_fehlermeldung(exc)
+    for wortlaut, grund in _LINK_GRUENDE:
+        if wortlaut in text:
+            return grund
+    # Alles andere (fehlende Tabelle, kaputte Abfrage, unerwarteter Fehler):
+    # die Seite zeigt den Hinweis, statt still auf die Hauptseite zu fuehren.
+    return _GRUND_SERVERFEHLER
 
 
 

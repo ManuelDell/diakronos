@@ -65,7 +65,14 @@ def test_herkunftspruefung_steht_vor_der_bremse():
     quelle = _quelle("api/auth.py")
     # SEC-4: der Aufruf steht unveraendert an derselben Stelle (der zusaetzliche
     # Token-Zweig haengt IM Rumpf dieses `if`, nicht davor).
-    pos_herkunft = quelle.index("if request is not None and not _herkunft_ist_eigen(request):")
+    # WEB-8: der eigene `Origin` ist inzwischen ein eigener Zweig
+    # (`_eigen = _herkunft_ist_eigen(request)`), damit ein FALSCHER
+    # Masken-Token auch bei eigener Herkunft abgewiesen werden kann. Die
+    # Zusage bleibt: die Herkunftspruefung steht VOR der Bremse.
+    if "if request is not None and not _herkunft_ist_eigen(request):" in quelle:
+        pos_herkunft = quelle.index("if request is not None and not _herkunft_ist_eigen(request):")
+    else:
+        pos_herkunft = quelle.index("_eigen = _herkunft_ist_eigen(request)")
     pos_bremse = quelle.index("loginversuche.pruefe_und_merke(")
     assert pos_herkunft < pos_bremse
 

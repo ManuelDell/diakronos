@@ -20,10 +20,13 @@
 #   /diakronos-sso.html           eingebaut; Diakronos gibt die Wurzel frei).
 #   /primo, /primo/            -> 302 /admin/
 #   /login                     -> 302 ${EINGANG_LOGIN_PFAD}
-#   /_/ (PocketBase-Superuser) -> 404 auf dieser Domain (nur im LAN ueber den
-#                                 Primo-Port erreichbar)
+#   /_/ (PocketBase-Superuser) -> fuer Seitenaufrufe 302 "/" (verraet nichts),
+#                                 API-Anfragen wie bisher 404 (nur im LAN
+#                                 ueber den Primo-Port erreichbar)
 #   alles andere inkl. /       -> Primo (liefert die Website anhand des
 #                                 Host-Headers aus)
+#   unbekannte Adresse (404)   -> 302 "/" bei GET/HEAD mit Accept text/html,
+#                                 sonst bleibt der 404 des Upstreams (WEB-6)
 #   / ohne Site fuer diesen Host-> 302 ${EINGANG_LOGIN_PFAD}
 #                                 (Primo antwortet dann 302 auf sein eigenes
 #                                  /admin — das ist "kein Treffer", siehe unten)
@@ -62,6 +65,49 @@ map $http_upgrade $verbindung_upgrade {
 map $upstream_http_location $ohne_site {
     default                                                  0;
     "~*^(https?://[^/]+)?/admin/?$"                          1;
+}
+
+# WEB-6 — unbekannte Adressen fuehren auf die Hauptseite statt 404 (Manuel
+# 2026-10-30): "Alle nicht registrierten Links sollen auf die Hauptseite
+# fuehren und nicht 404 geben."
+#
+# Als SEITENAUFRUF gilt NUR: GET oder HEAD UND `Accept` enthaelt `text/html`
+# (Browser-Navigation). Alles andere behaelt Status und Kopfzeilen des
+# Upstreams: API-Aufrufe (fetch/XHR, `Accept: application/json`),
+# Bilder/Dateien (`Accept: image/*`), POST/PUT/DELETE. Ein umgebogener
+# API-404 waere ein Datenfehler, den jeder Aufrufer auswerten muss.
+#
+# Einschraenkung, ehrlich benannt: bei einem abgefangenen 404 liefert nginx
+# seinen EIGENEN Fehlerrumpf aus (der Rumpf des Upstreams ist an dieser Stelle
+# verworfen). Status und Kopfzeilen bleiben die des Upstreams, der Text der
+# Fehlermeldung nicht. Wer den Originalrumpf braucht, muss den 404 selbst
+# ausliefern — diese Locations fangen ihn deshalb bewusst NICHT ab (R3).
+#
+# Umsetzung: `error_page 404 = @eingang_unbekannt` in den Seiten-Locations
+# (Website, Diakronos, Editor, /_/) — NICHT in /api/ und den gesperrten
+# Superuser-Pfaden (R3/R4). Im benannten Block entscheidet `$eingang_seitenabruf`:
+#
+#   404 des Upstreams
+#     -> @eingang_unbekannt
+#          kein Seitenaufruf (POST, Accept ohne text/html, API, Datei)
+#            -> 404 bleibt 404 (keine Umleitung)
+#          Seitenaufruf (GET/HEAD + text/html)
+#            -> 302 Location: /
+#
+# Warum der Umweg ueber einen `rewrite` statt eines festen Codes: nginx nimmt
+# an der Code-Stelle von `error_page` und in `return <code>` NUR eine feste
+# Zahl (eine Variable ergibt "invalid value"). Zwei Ziele je Bedingung gehen
+# deshalb nur so: `rewrite ^ /_eingang_unbekannt last` springt in einen
+# INTERNEN Block (von aussen nicht adressierbar), der 404 liefert.
+map $http_accept $eingang_seitenaufruf {
+    default 0;                      # ohne text/html: kein Seitenaufruf
+    "~*text/html" 1;
+}
+
+# HEAD ist wie GET ein Seitenaufruf (Browser/Vorschau pruefen damit die Seite).
+map "$request_method:$eingang_seitenaufruf" $eingang_seitenabruf {
+    default                    0;   # z. B. POST -> 404 bleibt 404
+    "~*^(GET|HEAD):1$"         1;
 }
 
 # Log ohne Query: die Registrierungs- und Gastlinks tragen den Token in der
@@ -112,23 +158,85 @@ server {
     # /diakronos/… zu sehen und liefert unter diesem Praefix selbst aus.
     # Der Praefix wird per Env eingesetzt; zwei Bloecke (exakter Treffer ohne
     # Schraegstrich + Praefix-Block) decken /diakronos und /diakronos/… ab.
+    #
+    # WEB-6 (R1): Ein SEITENAUFRUF (GET/HEAD + Accept text/html), den die App
+    # NICHT kennt (404), wird auf die Hauptseite umgeleitet. Der 404 bleibt
+    # fuer alles andere stehen (R2) — die API-/Datei-Locations unten fangen
+    # bewusst NICHT ab (R3).
+    # `proxy_intercept_errors on` ist hier PFLICHT: ohne die Direktive greift
+    # `error_page` nur fuer Fehler, die nginx selbst erzeugt — der 404 des
+    # Upstreams liefe unveraendert durch (und mit `on` ohne error_page wuerde
+    # nginx seine eigene Fehlerseite einsetzen, deshalb steht beides immer
+    # zusammen).
     location = ${EINGANG_DIAKRONOS_PRAEFIX} {
         proxy_pass http://${EINGANG_DIAKRONOS_UPSTREAM};
+        proxy_intercept_errors on;
+        error_page 404 = @eingang_unbekannt;
     }
 
     location ${EINGANG_DIAKRONOS_PRAEFIX}/ {
+        proxy_pass http://${EINGANG_DIAKRONOS_UPSTREAM};
+        proxy_intercept_errors on;
+        error_page 404 = @eingang_unbekannt;
+    }
+
+    # WEB-6 (R3): Daten- und Dateiwege von Diakronos fangen NICHTS ab.
+    # Der Praefix-Block oben wuerde sonst auch deren 404 auf die Hauptseite
+    # biegen — ein API-Aufruf braucht aber den echten 404 (R2). Diese Bloecke
+    # sind laenger als ${EINGANG_DIAKRONOS_PRAEFIX}/ und gewinnen daher.
+    # Kein `proxy_intercept_errors`: der Fehler des Upstreams bleibt, wie er ist.
+    location ^~ ${EINGANG_DIAKRONOS_PRAEFIX}/api/ {
+        proxy_pass http://${EINGANG_DIAKRONOS_UPSTREAM};
+    }
+
+    location ^~ ${EINGANG_DIAKRONOS_PRAEFIX}/files/ {
+        proxy_pass http://${EINGANG_DIAKRONOS_UPSTREAM};
+    }
+
+    location ^~ ${EINGANG_DIAKRONOS_PRAEFIX}/private/files/ {
+        proxy_pass http://${EINGANG_DIAKRONOS_UPSTREAM};
+    }
+
+    location ^~ ${EINGANG_DIAKRONOS_PRAEFIX}/socket.io/ {
         proxy_pass http://${EINGANG_DIAKRONOS_UPSTREAM};
     }
 
     # ── 2. Primo: Editor und PocketBase-API ──────────────────────────────────
     # /admin/… (Svelte-Editor, inkl. /admin/_app/immutable/…),
     # /api/…   (PocketBase-REST, /api/primo/*, /api/realtime = SSE)
+    #
+    # Reihenfolge: `^~` gewinnt gegen JEDEN Praefix-Block, auch gegen das
+    # `location /` weiter unten. Ohne die Sperren zuerst wuerde `/api/settings`
+    # im Fang-Block landen (NGINX-Praefixregel: der laengste Treffer gewinnt —
+    # `/` ist fuer `/api/settings` der einzige, wenn `/api/` nichts abfaengt).
+    #
+    # Superuser-Schnittstellen von PocketBase gehoeren nicht auf die oeffentliche
+    # Domain (Review WEB-4): Superuser-Anmeldung, Einstellungen, Backups, Logs,
+    # Cron. Diakronos spricht Primo intern ueber den Vorbau (:8095) an und
+    # braucht keinen dieser Pfade von aussen; der Primo-Editor laeuft als
+    # normaler users-Datensatz und darf diese Endpunkte ohnehin nicht nutzen.
+    # WEB-6 (R4): hier bleibt es beim 404 — bewusst OHNE error_page, damit
+    # diese Antworten unveraendert bleiben (API, kein Seitenaufruf).
+    location ^~ /api/collections/_superusers/ { return 404; }
+    location ^~ /api/settings { return 404; }
+    location ^~ /api/backups { return 404; }
+    location ^~ /api/logs { return 404; }
+    location ^~ /api/crons { return 404; }
+
+    # WEB-6 (R3): /api/ der Website (PocketBase) faengt NICHTS ab. Ein 404 der
+    # API ist eine Antwort, die jeder Aufrufer auswertet — ein 302 auf "/"
+    # wuerde dort Fehler verschleiern statt sie zu melden.
     location /api/ {
         proxy_pass http://${EINGANG_PRIMO_UPSTREAM};
     }
 
+    # Der Editor selbst ist eine SEITE: unbekannte Editor-Pfade (alte
+    # Lesezeichen) fuehren wie jede unbekannte Adresse auf die Hauptseite.
+    # Die Daten-Zugriffe des Editors laufen ueber /api/ (siehe oben).
     location /admin/ {
         proxy_pass http://${EINGANG_PRIMO_UPSTREAM};
+        proxy_intercept_errors on;
+        error_page 404 = @eingang_unbekannt;
     }
 
     # Die Uebergabeseite aus deploy/primo (gleicher Origin wie /admin/).
@@ -154,18 +262,13 @@ server {
     # PocketBase-Superuser-UI: auf der oeffentlichen Gemeinde-Domain NICHT
     # erreichbar (nur im LAN ueber den Primo-Port selbst). Bewusst 404 und
     # nicht 403 — ein 403 wuerde die Existenz der Oberflaeche bestaetigen.
-    # Superuser-Schnittstellen von PocketBase gehoeren nicht auf die oeffentliche
-    # Domain (Review WEB-4): Superuser-Anmeldung, Einstellungen, Backups, Logs,
-    # Cron. Diakronos spricht Primo intern ueber den Vorbau (:8095) an und
-    # braucht keinen dieser Pfade von aussen; der Primo-Editor laeuft als
-    # normaler users-Datensatz und darf diese Endpunkte ohnehin nicht nutzen.
-    location ^~ /api/collections/_superusers/ { return 404; }
-    location ^~ /api/settings { return 404; }
-    location ^~ /api/backups { return 404; }
-    location ^~ /api/logs { return 404; }
-    location ^~ /api/crons { return 404; }
-
+    # WEB-6 (R4): der Pfad ist ohnehin gesperrt, also verraet ein 404 nichts.
+    # Fuer einen Seitenaufruf gilt dasselbe wie fuer jede unbekannte Adresse:
+    # 302 auf die Hauptseite — der Besucher landet auf der Startseite, statt
+    # eine Fehlerseite zu sehen. API-Aufrufe behalten den 404.
     location /_/ {
+        proxy_intercept_errors on;
+        error_page 404 = @eingang_unbekannt;
         return 404;
     }
 
@@ -190,10 +293,39 @@ server {
     }
 
     # Alles Uebrige an den Primo-Vorbau. Er waehlt die Site ueber den
-    # Host-Header; unbekannte Unterseiten (kein Treffer) beantwortet Primo
-    # selbst mit 404 — das bleibt unveraendert.
+    # Host-Header. WEB-6 (R1): unbekannte Seiten (404) fuehren auf die
+    # Hauptseite; API- und Datei-Anfragen behalten den 404 des Upstreams
+    # (R2, @eingang_unbekannt). `/` selbst ist oben ein eigener Block (R5).
     location / {
         proxy_pass http://${EINGANG_PRIMO_UPSTREAM};
+        proxy_intercept_errors on;
+        error_page 404 = @eingang_unbekannt;
+    }
+
+    # WEB-6 — Ziel fuer "unbekannte Adresse" aus den Seiten-Locations.
+    #
+    # Seitenaufruf  -> 302 auf die Hauptseite (relativ, absolute_redirect off;
+    #                  die Domain des anfragenden Browsers bleibt stehen).
+    # kein Seitenaufruf -> intern weiter nach /_eingang_unbekannt (404).
+    #
+    # Der `if` laeuft erst NACH dem Upstream-Aufruf: `$request_method` und der
+    # Accept-Kopf stehen dort fest (Begruendung wie bei $ohne_site).
+    location @eingang_unbekannt {
+        if ($eingang_seitenabruf = 0) {
+            rewrite ^ /_eingang_unbekannt last;
+        }
+        # Relativ ("/"), damit absolute_redirect off greift und die Domain des
+        # anfragenden Browsers stehen bleibt (hinter NPM/TLS).
+        return 302 /;
+    }
+
+    # Interner 404 fuer API-/Datei-Anfragen auf unbekannte Adressen (R2):
+    # `internal` — von aussen nicht adressierbar, also kein zweiter Weg an der
+    # Regel vorbei. Der Status bleibt 404; die Kopfzeilen des Upstreams
+    # (Content-Type, Cache-Control …) stehen im Fehlerpfad weiterhin.
+    location = /_eingang_unbekannt {
+        internal;
+        return 404;
     }
 
     # Der Primo-Fallback auf /admin wird NACH der Antwort umgebogen. Das ist

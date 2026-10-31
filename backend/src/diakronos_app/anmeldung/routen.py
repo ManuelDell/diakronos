@@ -436,7 +436,7 @@ def _neue_sitzung_nach_login(request: Request, user: str) -> tuple[str, str]:
 
 def _sitzungscookie(response: Response, sid: str) -> None:
     """Setzt das ``sid``-Cookie in derselben Form wie der lokale Login."""
-    from diakronos_app.api.auth import _secure_flag
+    from diakronos_app.api.auth import _loesche_wurzel_cookie, _secure_flag
     from diakronos_app.settings import settings
 
     # WEB-5a: derselbe Cookie-Pfad wie beim lokalen Login (Betriebs-Praefix).
@@ -451,6 +451,10 @@ def _sitzungscookie(response: Response, sid: str) -> None:
         secure=_secure_flag(),
         max_age=int(settings.session_ttl_seconds),
     )
+    # WEB-8/F3: auch der SSO-Login raeumt ein `sid` auf `Path=/` aus der Zeit
+    # vor `DIAKRONOS_BASE_PATH` weg (sonst kann es die neue Sitzung
+    # verdecken — Chromium/Safari sortieren `Cookie` nicht nach Pfadlaenge).
+    _loesche_wurzel_cookie(response)
 
 
 def _start_weiterleitung(request: Request, ziel: str | None = None) -> Response:

@@ -142,11 +142,16 @@ def test_entnehmen_mit_falschem_oder_leerem_state(monkeypatch):
 
 
 def test_logout_ist_nicht_von_csrf_ausgenommen():
-    """Weder `/api/method/logout` noch `/logout` stehen in der Ausnahmeliste."""
-    from diakronos_app.frappe_compat.auth_middleware import CSRF_EXEMPT_PATHS
+    """Weder `/api/method/logout` noch `/logout` sind ausgenommen.
 
-    assert "/api/method/logout" not in CSRF_EXEMPT_PATHS
-    assert "/logout" not in CSRF_EXEMPT_PATHS
+    WEB-8: Die Ausnahme ist keine Liste exakter Pfade mehr, sondern eine
+    Regel (`auth_middleware.ist_csrf_ausgenommen`) — der Login in jeder
+    Schreibweise. Geprueft wird deshalb die ENTSCHEIDUNG der Middleware.
+    """
+    from diakronos_app.frappe_compat.auth_middleware import ist_csrf_ausgenommen
+
+    assert ist_csrf_ausgenommen("/api/method/logout") is False
+    assert ist_csrf_ausgenommen("/logout") is False
 
 
 def test_logout_ohne_csrf_token_abgewiesen(client):

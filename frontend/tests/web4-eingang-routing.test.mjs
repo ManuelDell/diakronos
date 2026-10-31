@@ -44,12 +44,15 @@ const conf = readFileSync(VORLAGE, 'utf8')
 function locations(text) {
   const aus = []
   // `location = /pfad {` -> exakt; `location /pfad {` -> Praefix.
+  // WEB-6: zusätzlich `location ^~ /pfad {` (Sperren/Streng-Praefix gewinnen in
+  // nginx gegen jeden normalen Praefix-Block). Die Form wird in `typ` geführt,
+  // `exakt` bleibt für die bestehenden Prüfungen wahr/falsch.
   // Zwei Fallen, die der Ausdruck abfangen muss:
   //   * "location" muss ein WORT sein — sonst wird auch
   //     `map $upstream_http_location $ohne_site {` als Block gelesen;
   //   * der Pfad darf ${PLATZHALTER} enthalten — ein einfaches [^\s{]+
   //     bricht an der schliessenden Klammer des Platzhalters ab.
-  const re = /(?:^|[\s;}])location\s+(=\s+)?((?:\$\{[A-Z_]+\}|[^\s{])+)\s*\{/g
+  const re = /(?:^|[\s;}])location\s+(=\s+|\^~\s+)?((?:\$\{[A-Z_]+\}|[^\s{])+)\s*\{/g
   let m
   while ((m = re.exec(text)) !== null) {
     // Rumpf bis zur passenden schließenden Klammer (Blöcke sind hier flach).
@@ -61,7 +64,8 @@ function locations(text) {
       i += 1
     }
     aus.push({
-      exakt: Boolean(m[1]),
+      exakt: Boolean(m[1] && m[1].startsWith('=')),
+      typ: m[1] ? m[1].trim() : '',
       pfad: m[2],
       rumpf: text.slice(re.lastIndex, i - 1),
     })
@@ -276,4 +280,140 @@ test('WEB-4: Beispiel-Env nennt alle Stellschrauben', () => {
   }
   assert.match(env, /^EINGANG_DIAKRONOS_PRAEFIX=\/diakronos$/m)
   assert.match(env, /^EINGANG_LOGIN_PFAD=\/diakronos\/login$/m)
+})
+
+// ── WEB-6: unbekannte Adressen fuehren auf die Hauptseite statt 404 ──────────
+//
+// Vorgabe Manuel 2026-10-30: "Alle nicht registrierten Links sollen auf die
+// Hauptseite fuehren und nicht 404 geben." Die Faelle, die dabei NICHT
+// umgebogen werden duerfen, sind der eigentliche Fehlerherd (API, Dateien,
+// Editor, Superuser-Sperren) — sie werden hier am Aufbau der Vorlage geprueft.
+//
+// Der Laufzeit-Beweis (echte HTTP-Matrix im nginx) steht zwischen den Zeilen
+// von `tools/web4_eingang_matrix.py`; dieser Waechter haelt die STRUKTUR fest.
+
+/** Alle Locations, deren Rumpf 404 abfaengt (WEB-6). */
+const abfaenger = LOC.filter((l) => /error_page\s+404/.test(l.rumpf))
+const pfade = abfaenger.map((l) => l.pfad)
+
+test('WEB-6 (R1): Seiten-Locations fangen den 404 ab und fuehren auf "/"', () => {
+  // Website (Praefix /), Diakronos (Praefix + exakt), Editor, Superuser-UI.
+  for (const pfad of [
+    '/',
+    '${EINGANG_DIAKRONOS_PRAEFIX}',
+    '${EINGANG_DIAKRONOS_PRAEFIX}/',
+    '/admin/',
+    '/_/',
+  ]) {
+    const block = LOC.find((l) => l.pfad === pfad && /error_page\s+404\s+=\s+@eingang_unbekannt;/.test(l.rumpf))
+    assert.ok(block, `location ${pfad} faengt den 404 nicht ab (WEB-6, R1)`)
+  }
+})
+
+test('WEB-6 (R2): als Seitenaufruf gilt nur GET/HEAD mit Accept text/html', () => {
+  assert.match(
+    conf,
+    /map\s+\$http_accept\s+\$eingang_seitenaufruf\s*\{[^}]*default\s+0;[^}]*"~\*text\/html"\s+1;/,
+    'Accept ohne text/html muss als "kein Seitenaufruf" gelten',
+  )
+  assert.match(
+    conf,
+    /map\s+"\$request_method:\$eingang_seitenaufruf"\s+\$eingang_seitenabruf\s*\{[^}]*default\s+0;[^}]*"\~\*\^\(GET\|HEAD\):1\$"\s+1;/,
+    'nur GET und HEAD duerfen als Seitenaufruf gelten',
+  )
+  // Der Handler entscheidet: kein Seitenaufruf -> 404, Seitenaufruf -> 302 "/".
+  const handler = LOC.find((l) => l.pfad === '@eingang_unbekannt')
+  assert.ok(handler, 'location @eingang_unbekannt fehlt')
+  assert.match(
+    handler.rumpf,
+    /if\s*\(\$eingang_seitenabruf\s*=\s*0\)\s*\{\s*rewrite\s+\^\s+\/_eingang_unbekannt\s+last;\s*\}/,
+    'ohne Seitenaufruf muss der 404 bleiben (kein 302)',
+  )
+  assert.match(handler.rumpf, /return\s+302\s+\/;/, 'Seitenaufruf -> 302 auf "/"')
+  // Die 404-Antwort liegt in einem INTERNEN Block (von aussen nicht adressierbar).
+  const intern = LOC.find((l) => l.pfad === '/_eingang_unbekannt')
+  assert.ok(intern, 'location = /_eingang_unbekannt fehlt')
+  assert.match(intern.rumpf, /\binternal;/, 'der 404-Zielblock muss internal sein')
+  assert.match(intern.rumpf, /return\s+404;/, 'der 404-Zielblock muss 404 liefern')
+})
+
+test('WEB-6 (R3): API-, Datei- und Editor-Datenpfade werden NICHT abgefangen', () => {
+  // Diese Locations duerfen den Fehler des Upstreams nicht ersetzen: ein 302
+  // auf "/" waere fuer einen API-Aufrufer eine Schein-Antwort.
+  for (const pfad of [
+    '/api/',                              // PocketBase der Website
+    '${EINGANG_DIAKRONOS_PRAEFIX}/api/',  // Diakronos-API
+    '${EINGANG_DIAKRONOS_PRAEFIX}/files/',
+    '${EINGANG_DIAKRONOS_PRAEFIX}/private/files/',
+    '${EINGANG_DIAKRONOS_PRAEFIX}/socket.io/',
+  ]) {
+    const block = LOC.filter((l) => l.pfad === pfad).pop()
+    assert.ok(block, `location ${pfad} fehlt (WEB-6, R3)`)
+    assert.doesNotMatch(
+      block.rumpf,
+      /error_page|proxy_intercept_errors/,
+      `${pfad} darf keinen 404 abfangen (R3)`,
+    )
+    assert.match(block.rumpf, /proxy_pass\s+http:\/\//, `${pfad} muss an einen Upstream gehen`)
+  }
+  // Die Diakronos-Datenpfade muessen den Praefix-Block ueberstimmen, sonst
+  // faengt dieser ihre 404 ab (nginx: laengster Praefix gewinnt — `^~` macht
+  // das unabhaengig von der Reihenfolge eindeutig).
+  for (const pfad of ['${EINGANG_DIAKRONOS_PRAEFIX}/api/', '${EINGANG_DIAKRONOS_PRAEFIX}/files/']) {
+    assert.ok(
+      LOC.some((l) => l.pfad === pfad && l.typ === '^~'),
+      `${pfad} muss ein eigener ^~-Block sein (sonst faengt der Praefix-Block ab)`,
+    )
+  }
+})
+
+test('WEB-6 (R4): gesperrte Pfade verraten nichts und bleiben 404', () => {
+  // PocketBase-Superuser-API: unveraendert 404, KEIN Umbiegen auf "/".
+  for (const pfad of [
+    '/api/collections/_superusers/',
+    '/api/settings',
+    '/api/backups',
+    '/api/logs',
+    '/api/crons',
+  ]) {
+    const block = LOC.filter((l) => l.pfad === pfad).pop()
+    assert.ok(block, `Sperre ${pfad} fehlt`)
+    assert.match(block.rumpf, /return\s+404;/, `${pfad} muss 404 liefern`)
+    assert.doesNotMatch(block.rumpf, /error_page/, `${pfad} darf nicht auf "/" umbiegen`)
+  }
+  // Die Sperren muessen `^~` tragen: sonst gewinnt der laengere `/`-Block
+  // bzw. der Praefix-Block und die Antwort veraendert sich.
+  assert.match(conf, /location\s+\^~\s+\/api\/settings\s*\{\s*return\s+404;\s*\}/)
+  assert.match(conf, /location\s+\^~\s+\/api\/collections\/_superusers\/\s*\{\s*return\s+404;\s*\}/)
+})
+
+test('WEB-6 (R5): kein Umleitungs-Kreis — "/" wird nicht abgefangen', () => {
+  const wurzel = LOC.find((l) => l.pfad === '/' && l.exakt)
+  assert.ok(wurzel, 'location = / fehlt')
+  assert.doesNotMatch(
+    wurzel.rumpf,
+    /error_page\s+404/,
+    '/ ist das Ziel der Umleitung und darf keinen 404 abfangen (Kreis)',
+  )
+  // Relatives Ziel: absolute_redirect off bleibt gesetzt, sonst nennt nginx
+  // hinter NPM/TLS sein eigenes Schema.
+  assert.match(conf, /absolute_redirect\s+off;/)
+  const handler = LOC.find((l) => l.pfad === '@eingang_unbekannt')
+  assert.match(handler.rumpf, /return\s+302\s+\/;/, 'Ziel muss relativ "/" sein')
+})
+
+test('WEB-6: unbekannte Website-Adresse fuehrt auf die Hauptseite (Vorgabe)', () => {
+  // Der Website-Block (location /) faengt den 404 ab — und zwar MIT
+  // `proxy_intercept_errors on`: ohne diese Direktive greift `error_page`
+  // nur fuer selbst erzeugte Fehler, der 404 des Upstreams liefe durch.
+  const website = LOC.find((l) => l.pfad === '/' && !l.exakt)
+  assert.ok(website, 'location / fehlt')
+  assert.match(website.rumpf, /proxy_intercept_errors\s+on;/)
+  assert.match(website.rumpf, /error_page\s+404\s+=\s+@eingang_unbekannt;/)
+  // Diakronos genauso (beide Bloecke).
+  for (const pfad of ['${EINGANG_DIAKRONOS_PRAEFIX}', '${EINGANG_DIAKRONOS_PRAEFIX}/']) {
+    const block = LOC.find((l) => l.pfad === pfad)
+    assert.match(block.rumpf, /proxy_intercept_errors\s+on;/)
+    assert.match(block.rumpf, /error_page\s+404\s+=\s+@eingang_unbekannt;/)
+  }
 })

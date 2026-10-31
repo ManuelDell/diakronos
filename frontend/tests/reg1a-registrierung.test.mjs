@@ -50,10 +50,19 @@ const formularStil = formular.descriptor.styles.map(s => s.content).join('\n')
 
 // ── Startdatum: die Meldung des Servers wird angezeigt ──────────────────────
 
+// WEB-7 (U3): Die Fehlerseite haengt weiter an `linkFehler` — aber erst NACH
+// der Weiterleitung toter Links (`v-if="umgeleitet"`). „Anmeldung ab …“ ist
+// genau so ein Hinweis-Fall: der Link gilt nur noch nicht, die Person soll es
+// erfahren, nicht still auf die Hauptseite geschickt werden.
 assert.match(
   vorlage,
-  /v-if="linkFehler"/,
+  /v-else-if="linkFehler"/,
   'REG-1a: die Fehlerseite haengt an linkFehler (dort steht „Anmeldung ab …“)',
+)
+assert.match(
+  vorlage,
+  /v-if="umgeleitet"/,
+  'WEB-7: vor der Meldung steht die Weiterleitung des toten Links',
 )
 assert.match(
   vorlage,

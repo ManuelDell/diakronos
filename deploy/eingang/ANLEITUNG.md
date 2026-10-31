@@ -41,8 +41,9 @@ Die echte `.env` gehört **nicht** ins Repository (steht in `.gitignore`).
 | `/api/…`, `/admin/…`, `/diakronos-sso.html` | Primo | unverändert |
 | `/primo`, `/primo/` | — | 302 → `/admin/` |
 | `/login` | — | 302 → `/diakronos/login` |
-| `/_/` (PocketBase-Superuser) | — | **404** (nur im LAN über den Primo-Port) |
+| `/_/` (PocketBase-Superuser) | — | **404**, für Seitenaufrufe 302 → `/` (WEB-6; im LAN über den Primo-Port) |
 | alles andere, inkl. `/` | Primo | Website per Host-Header |
+| unbekannte Adresse (404) | — | 302 → `/`, wenn GET/HEAD mit `Accept: text/html` (§5a) |
 | `/`, wenn der Host **keine** Site hat | — | 302 → `/diakronos/login` |
 
 **Kein Präfix-Strippen:** Diakronos bekommt `/diakronos/…` so zu sehen, wie es
@@ -107,6 +108,64 @@ Primo, das es selbst ausliefert oder mit 404 beantwortet.
 
 Zusätzlich gesperrt (404) auf der öffentlichen Domain: die PocketBase-Superuser-Schnittstellen `/api/collections/_superusers/…`, `/api/settings`, `/api/backups`, `/api/logs`, `/api/crons`. Diakronos nutzt Primo intern über den Vorbau (`:8095`) und braucht sie von außen nicht.
 
+## 5a. Unbekannte Adressen — kein 404 für Besucher (WEB-6)
+
+Ein **Seitenaufruf** auf eine Adresse, die es nicht gibt, landet auf der
+Hauptseite statt auf einer Fehlerseite (Vorgabe Manuel 2026-10-30: „Alle nicht
+registrierten Links sollen auf die Hauptseite führen und nicht 404 geben").
+
+| Anfrage | Antwort |
+|---|---|
+| `GET /impressum-gibts-nicht`, Browser (`Accept: text/html`) | **302 → `/`** |
+| `GET /diakronos/diakonos/gibtsnicht`, Browser | **302 → `/`** |
+| `GET /admin/altes-lesezeichen`, Browser | **302 → `/`** |
+| `GET /_/…` (Superuser-UI), Browser | **302 → `/`** (verrät nichts) |
+| `GET …` mit `Accept: application/json` (fetch/XHR) | **404** wie bisher |
+| `GET …` mit `Accept: image/*` (Bild, Datei) | **404** wie bisher |
+| `POST/PUT/DELETE/PATCH` auf unbekannte Adresse | **404** wie bisher |
+| `/api/…`, `/diakronos/api/…`, `/diakronos/files/…`, `/diakronos/socket.io/…` | **unverändert** (echter Fehler des Servers) |
+| PocketBase-Sperren (`/api/settings`, `/api/backups`, …) | **404**, keine Umleitung |
+| `/` selbst (kein Treffer, keine Site) | 302 → `/diakronos/login` (unverändert) |
+
+**Warum die Trennung:** Ein umgeleiteter API-404 wäre eine Schein-Antwort —
+jeder `fetch`-Aufrufer muss einen echten 404 auswerten können. Als
+Seitenaufruf gilt deshalb nur `GET`/`HEAD` **und** ein `Accept`-Kopf mit
+`text/html` (was Browser bei der Navigation schicken).
+
+**Aufbau in `nginx.conf.template`:**
+
+```
+map $http_accept          $eingang_seitenaufruf     # enthält text/html? 1 : 0
+map "$request_method:…"   $eingang_seitenabruf      # GET/HEAD?          1 : 0
+
+location / {                       # Seiten-Location
+    proxy_intercept_errors on;     # PFLICHT — sonst greift error_page nicht
+    error_page 404 = @eingang_unbekannt;
+}
+location @eingang_unbekannt {
+    if ($eingang_seitenabruf = 0) { rewrite ^ /_eingang_unbekannt last; }
+    return 302 /;                  # relativ
+}
+location = /_eingang_unbekannt { internal; return 404; }
+```
+
+Zwei Eigenheiten von nginx, die den Umweg erklären:
+
+* `error_page` greift bei Proxy-Antworten **nur** mit
+  `proxy_intercept_errors on`. Ohne die Direktive läuft der 404 des Upstreams
+  unverändert durch (live nachgemessen), und mit `on` **ohne** `error_page`
+  setzt nginx seine eigene Fehlerseite ein — beides steht deshalb immer
+  zusammen.
+* An der Code-Stelle von `error_page` und in `return <code>` nimmt nginx nur
+  eine **feste Zahl** (eine Variable ergibt `invalid value`). Die Fallunter-
+  scheidung läuft deshalb über `if`/`rewrite` in einen internen Block.
+
+Der Fehler**text** eines abgefangenen 404 stammt dann von nginx (der Rumpf des
+Upstreams ist an dieser Stelle verworfen). Status und Kopfzeilen bleiben die
+des Upstreams, der Wortlaut der Fehlermeldung nicht — wer den Originalrumpf
+braucht, muss den Fehler selbst ausliefern; die Daten-Pfade unter
+`/diakronos/api/…` fangen deshalb bewusst nichts ab.
+
 ## 6. Nachweise (wie geprüft wird)
 
 **Config-Test im Wegwerf-Container:**
@@ -120,7 +179,7 @@ docker run --rm --network none \
   nginx:1.27-alpine /bin/sh -c '/docker-entrypoint.d/15-eingang-vorlage.sh'
 ```
 
-**Routing-Matrix** (31 Fälle gegen zwei Echo-Upstreams, inkl. WebSocket-Upgrade,
+**Routing-Matrix** (58 Fälle gegen zwei Echo-Upstreams, inkl. WebSocket-Upgrade,
 SSE und der Gegenprobe „/ mit Site bleibt die Website“):
 
 ```bash

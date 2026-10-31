@@ -6,8 +6,15 @@
             <img :src="hintergrundBild" alt="" />
         </div>
         <div class="dk-pub-card">
-            <!-- Fehler-Seite (Link ungültig) -->
-            <div v-if="linkFehler" class="dk-pub-center">
+            <!-- WEB-7 (U1, U6): toter Link / ohne Token — der Browser steht
+                 schon auf dem Weg zur Hauptseite. Bis die Weiterleitung
+                 greift, bleibt die Karte leer: keine Meldung, kein Token,
+                 kein „Zurück“ auf eine Fehlerseite. -->
+            <div v-if="umgeleitet" class="dk-pub-center" aria-hidden="true">&nbsp;</div>
+
+            <!-- Fehler-Seite: NUR noch für Fälle mit Rückmeldung (U3) —
+                 Rate-Limit, Serverfehler, zeitliche Grenze des Links. -->
+            <div v-else-if="linkFehler" class="dk-pub-center">
                 <div class="dk-pub-icon-large">🔒</div>
                 <h1 class="dk-pub-title">Zugang nicht möglich</h1>
                 <p class="dk-pub-muted">{{ linkFehler }}</p>
@@ -46,11 +53,28 @@
 
 <script setup>
 import { ref } from 'vue'
+// WEB-7: Entscheidung „toter Link -> Hauptseite ohne Meldung“ (U1/U2).
+import {
+    brauchtWeiterleitung,
+    weiterleitenZurHauptseite,
+} from '../shared/linkziel.js'
 // REG-1b: gemeinsame Anzeige des Anmeldeformulars (auch die Editor-Vorschau).
 import DkAnmeldeformular from './components/DkAnmeldeformular.vue'
 
 const token      = window.__diakronos?.token || ''
+// WEB-7: `linkGrund` unterscheidet „der Link ist tot“ (Weiterleitung) von
+// „die Person braucht eine Erklärung“ (Bremse, Serverfehler, zeitliche
+// Grenze — U3). Die Einstufung kommt vom Server (`spa.py::_link_grund`).
+const linkGrund  = window.__diakronos?.linkGrund || ''
 const linkFehler = window.__diakronos?.linkFehler || ''
+
+// WEB-7 (U1): ungültiger/deaktivierter Link oder Seite ohne `?token=` ->
+// sofort auf die Wurzel der DOMAIN, ohne Meldung und ohne Token in der
+// Konsole. `replace` ersetzt den Verlaufseintrag (U6): „Zurück“ landet nicht
+// wieder auf der toten Seite.
+const umgeleitet = weiterleitenZurHauptseite(
+    brauchtWeiterleitung({ grund: linkGrund, tokenFehlt: !token }),
+)
 const felder     = window.__diakronos?.felder || []
 const mitKinder  = window.__diakronos?.mitKinder || 0
 const dokumente  = window.__diakronos?.dokumente || []

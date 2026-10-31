@@ -222,15 +222,17 @@ def test_ohne_csrf_token_wird_abgewiesen(admin_http, patched_db):
 
 
 def test_der_endpunkt_ist_nicht_von_der_csrf_pruefung_ausgenommen():
-    """Beleg auf Codeebene: kein Eintrag in `CSRF_EXEMPT_PATHS`.
+    """Beleg auf Codeebene: die CSRF-Middleware nimmt diesen Pfad nicht aus.
 
     Ein Eintrag wuerde die ganze Karte an einer Stelle aushebeln, die man
-    beim Lesen des Endpunkts nicht sieht.
+    beim Lesen des Endpunkts nicht sieht. WEB-8: Die Ausnahme ist eine Regel
+    (`auth_middleware.ist_csrf_ausgenommen`, Login in jeder Schreibweise) —
+    geprueft wird deshalb die Entscheidung der Middleware.
     """
-    from diakronos_app.frappe_compat.auth_middleware import CSRF_EXEMPT_PATHS
+    from diakronos_app.frappe_compat.auth_middleware import ist_csrf_ausgenommen
 
-    assert PFAD not in CSRF_EXEMPT_PATHS
-    assert not any("entsperr" in p for p in CSRF_EXEMPT_PATHS)
+    assert ist_csrf_ausgenommen(PFAD) is False
+    assert ist_csrf_ausgenommen("/api/method/entsperren.entsperren_konto/") is False
 
 
 # ── 3. Die Antwortform verraet nicht, ob es das Konto gibt ─────────────────

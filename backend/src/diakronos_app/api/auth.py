@@ -166,6 +166,7 @@ def _cookie_path() -> str:
 
 
 def _setze_cookie(response: Response, sid: str) -> None:
+    """Setzt das `sid`-Cookie auf dem Betriebs-Pfad (WEB-5a)."""
     response.set_cookie(
         key=COOKIE_NAME,
         value=sid,
@@ -174,6 +175,33 @@ def _setze_cookie(response: Response, sid: str) -> None:
         path=_cookie_path(),
         secure=_secure_flag(),
         max_age=int(settings.session_ttl_seconds),
+    )
+    # WEB-8/F3: Ein `sid` aus der Zeit VOR `DIAKRONOS_BASE_PATH` liegt noch
+    # auf `Path=/`. Chromium/Safari sortieren `Cookie` nicht nach Pfadlaenge,
+    # ein solches Alt-Cookie kann deshalb gewinnen und die frische Sitzung
+    # unsichtbar machen. Es wird beim Login mitgeloescht.
+    _loesche_wurzel_cookie(response)
+
+
+def _loesche_wurzel_cookie(response: Response) -> None:
+    """Wird geloescht, was es nicht gibt: altes `sid` auf `Path=/` (WEB-8/F3).
+
+    Nur relevant, wenn ein Praefix gesetzt ist — ohne Praefix IST `/` der
+    eigene Pfad, dann setzt `_setze_cookie`/`_loesche_cookie` das Cookie
+    ohnehin selbst. Das Loesch-Cookie traegt dieselben Attribute
+    (`HttpOnly`, `SameSite=lax`, `Secure`) wie das Original — ein Browser
+    verweigert das Ueberschreiben, wenn `Secure`/`SameSite` abweichen.
+    """
+    from diakronos_app import base_path
+
+    if not base_path.aktiver_praefix():
+        return
+    response.delete_cookie(
+        key=COOKIE_NAME,
+        httponly=True,
+        samesite="lax",
+        path="/",
+        secure=_secure_flag(),
     )
 
 
@@ -185,6 +213,23 @@ def _loesche_cookie(response: Response) -> None:
         path=_cookie_path(),
         secure=_secure_flag(),
     )
+    # WEB-8/F3: auch beim Logout faellt das Alt-Cookie auf `Path=/`.
+    _loesche_wurzel_cookie(response)
+
+
+def _beende_alte_sitzung(request) -> None:
+    """WEB-8/F2 — eine schon vorhandene Sitzung beim Login beenden.
+
+    Rotation statt Fixierung: wer sich anmeldet, bekommt eine NEUE `sid`,
+    und die alte ist serverseitig ungueltig. Ohne diesen Schritt lebte eine
+    Sitzungskennung, die vor der Passwortpruefung im Browser stand, nach dem
+    Login weiter — genau der Zustand, den ein Angreifer fuer
+    Sitzungs-Fixierung braucht. Der Aufruf ist idempotent: ohne Sitzung
+    passiert nichts.
+    """
+    sid = _sid_aus_request(request)
+    if sid:
+        sitzungen.loeschen(sid)
 
 
 def spaziel() -> str:
@@ -259,26 +304,41 @@ def login(usr: str | None = None, pwd: str | None = None, request=None, **kwargs
     #
     # Die Ablehnung ist die des falschen Passworts: gleiche Meldung, gleicher
     # Status, kein Cookie, kein Hinweis auf den Grund.
-    if request is not None and not _herkunft_ist_eigen(request):
-        # SEC-4: Seit `Referrer-Policy: no-referrer` fehlt der `Referer` in
-        # JEDER Anfrage — auch im eigenen Anmeldeformular. Nach einer
-        # Umleitung (303 auf /login nach einem Tippfehler) kam deshalb gar
-        # kein Herkunftsmerkmal mehr an, und die RICHTIGE Anmeldung wurde als
-        # „fremde Herkunft“ abgewiesen (Abnahme im Browser, 2026-10-29).
-        # Der signierte Token der Maske ist der Gegenbeweis: er stammt
-        # nachweislich von diesem Server (`anmeldung/maske_token.py`).
-        # `Sec-Fetch-Site` bindet ihn an den Browser-Kontext (beim Klick in
-        # unserer Maske immer `same-origin`/`none`); ein fremdes Dokument
-        # liefert `cross-site` und fliegt oben schon raus.
-        # Ein FREMDER `Origin`/`Referer` bleibt abgewiesen, auch mit Token:
-        # der Token ersetzt nur die FEHLENDE Kopfzeile, er hebt die Pruefung
-        # nicht auf. `_herkunft_ist_eigen` unterscheidet das nicht, deshalb
-        # steht die Frage hier direkt.
+    if request is not None:
         _kopf = getattr(request, "headers", {})
-        _fremd = _herkunft_ist_fremd(_kopf)
-        if _fremd or not _maske_token_ist_gueltig(_maske_token_aus_args(kwargs)):
-            logger.info("Anmeldung von fremder Herkunft abgewiesen.")
+        _eigen = _herkunft_ist_eigen(request)
+        if not _eigen:
+            # SEC-4: Seit `Referrer-Policy: no-referrer` fehlt der `Referer` in
+            # JEDER Anfrage — auch im eigenen Anmeldeformular. Nach einer
+            # Umleitung (303 auf /login nach einem Tippfehler) kam deshalb gar
+            # kein Herkunftsmerkmal mehr an, und die RICHTIGE Anmeldung wurde
+            # als „fremde Herkunft“ abgewiesen (Abnahme im Browser,
+            # 2026-10-29). Der signierte Token der Maske ist der Gegenbeweis:
+            # er stammt nachweislich von diesem Server
+            # (`anmeldung/maske_token.py`).
+            # `Sec-Fetch-Site` bindet ihn an den Browser-Kontext (beim Klick in
+            # unserer Maske immer `same-origin`/`none`); ein fremdes Dokument
+            # liefert `cross-site` und fliegt oben schon raus.
+            # Ein FREMDER `Origin`/`Referer` bleibt abgewiesen, auch mit Token:
+            # der Token ersetzt nur die FEHLENDE Kopfzeile, er hebt die
+            # Pruefung nicht auf.
+            if _herkunft_ist_fremd(_kopf) or not _maske_token_ist_gueltig(
+                _maske_token_aus_args(kwargs)
+            ):
+                logger.info("Anmeldung von fremder Herkunft abgewiesen.")
+                raise AuthenticationError(UNGUELTIGE_ANMELDEDATEN)
+        elif _browser_formular_ohne_token(request, kwargs):
+            # LOGIN-3 bindet den eigenen `Origin` an das FEHLEN eines Tokens:
+            # traegt ein Browser-Formular ein `_csrf`-Feld, muss es auch
+            # stimmen. Sonst genuegte ein fremdes Dokument mit EIGENEM
+            # `Origin`? Nein — aber ein Aufruf, der den Masken-Token
+            # mitschickt und dabei einen falschen Wert einsetzt, ist kein
+            # Aufruf unserer Maske; er wird wie fremde Herkunft behandelt.
+            # AUSGENOMMEN bleiben Formulare ohne jedes `_csrf`-Feld
+            # (Vorbestand LOGIN-3: eigene Herkunft genuegt).
+            logger.info("Anmeldung mit ungueltigem Masken-Token abgewiesen.")
             raise AuthenticationError(UNGUELTIGE_ANMELDEDATEN)
+
 
     # ── A1c1: Sperre VOR der Passwortpruefung ─────────────────────────────
     # Zwei unabhaengige Zaehler (Benutzer + IP). Gesperrt heisst: exakt
@@ -380,6 +440,10 @@ def login(usr: str | None = None, pwd: str | None = None, request=None, **kwargs
                              "redirect_to": link["link"]}, headers={"Cache-Control": "no-store"})
 
     sid, csrf_token = sitzungen.anlegen(name)
+    # WEB-8/F2: die Sitzung, die beim Aufruf schon da war, ist ab jetzt
+    # serverseitig ungueltig (Rotation statt Fixierung). Erst HIER, nach
+    # bestandener Passwortpruefung: ein Tippfehler darf niemanden abmelden.
+    _beende_alte_sitzung(request)
     response = JSONResponse(
         content={
             "message": "Logged In",
@@ -447,6 +511,35 @@ def _lokaler_login_erlaubt(benutzer: str) -> bool:
     from diakronos_app.frappe_compat.permissions import ADMIN_ROLES, get_roles
 
     return bool(set(ADMIN_ROLES) & set(get_roles(benutzer)))
+
+
+def _browser_formular_ohne_token(request, args) -> bool:
+    """True: ein Browser-Formular schickt ein `_csrf`-Feld, aber ein FALSCHES.
+
+    Hintergrund (WEB-8, gemessen im Werkzeugkasten der Karte): `_herkunft_ist_eigen`
+    akzeptiert den eigenen `Origin`/`Referer` unabhaengig davon, was im Feld
+    `_csrf` steht. Ein Aufruf, der einen Token MITschickt und dabei einen
+    falschen Wert einsetzt, ist damit genauso gut wie einer ohne Feld — die
+    Signatur wird nicht geprueft. Das ist der Unterschied zwischen „braucht
+    keinen Token“ (LOGIN-3, Vorbestand) und „behauptet, einen zu haben“: wer
+    das Feld ausfuellt, will die Token-Pruefung, bekommt sie auch.
+
+    Bewusst NICHT angetastet: Formulare ohne jedes `_csrf`-Feld und Aufrufe
+    ohne Browser-Merkmal (Skripte, SPA, Abnahme-Tools). Fuer die gilt
+    weiterhin LOGIN-3 (eigener `Origin` genuegt) bzw. SEC-4 (kein Merkmal =
+    kein Browser).
+    """
+    if not _ist_formular_post(request):
+        # Skripte/SPA/Apps schicken kein Formular: es gibt kein `_csrf`-Feld
+        # zu faelschen (LOGIN-3/LOGIN-4 regeln den Rest ueber
+        # `_herkunft_ist_eigen`).
+        return False
+    roh = _maske_token_aus_args(args)
+    if not roh:
+        # Formular OHNE Token: LOGIN-3, unveraendert (eigener `Origin`
+        # genuegt — so ruft z. B. der zweite Tab aus der Browser-Abnahme an).
+        return False
+    return not _maske_token_ist_gueltig(roh)
 
 
 def _herkunft_ist_eigen(request, args=None) -> bool:
