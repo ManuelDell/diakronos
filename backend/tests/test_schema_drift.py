@@ -252,6 +252,20 @@ def test_overlay_spalten_sind_im_modell(live_schema, mapping):
             "Repo-Pruefung gegen die interne Arbeitsunterlage (nicht Teil des "
             "Images)."
         )
+    #: BS-1a: Felder, die Diakronos SELBST eingefuehrt hat (nicht aus Frappe
+    #: geerbt) und die deshalb nie im Live-Abzug stehen koennen. Sie gehoeren
+    #: trotzdem in die Modelle: die Migration `bs1a_website_freigaben` legt
+    #: sie an. Die Liste ist eine Ausnahme mit Begruendung, keine Pauschalregel
+    #: — ein Frappe-geerbtes Feld ohne Live-Spalte faellt weiter auf.
+    EIGENE_SPALTEN = frozenset({
+        "Gruppe.website_freigabe",
+        "Gruppe.website_slug",
+        "Kalender.website_freigabe",
+        "Kalender.website_slug",
+        "Kalender.website_nur_oeffentliche_kategorien",
+        "Beitrag.auf_website",
+    })
+
     overlay = json.loads(overlay_path.read_text(encoding="utf-8"))
     doc_types = overlay.get("docTypes") or {}
 
@@ -263,6 +277,8 @@ def test_overlay_spalten_sind_im_modell(live_schema, mapping):
             continue
         for f in fields:
             if f["fieldname"] not in live_cols:
+                if f"{doctype}.{f['fieldname']}" in EIGENE_SPALTEN:
+                    continue
                 verwaist.append(f"{doctype}.{f['fieldname']}")
     assert not verwaist, (
         "Overlay-Spalten ohne Live-Entsprechung — Overlay-Eintrag entfernen: "

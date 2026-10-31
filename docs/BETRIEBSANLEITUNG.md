@@ -2455,3 +2455,103 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 
 `200` bedeutet: die Testmail liegt beim Empfänger. `503` heißt „nicht
 eingerichtet" (Abschnitt 17.1) oder „Mailversand gestört".
+
+---
+
+## 18. Website-Freigaben (BS-1a)
+
+Damit Bausteine auf der öffentlichen Website (Primo) Daten aus Diakronos
+zeigen dürfen, muss **jedes einzelne Ding** in Diakronos freigegeben werden:
+Kalender, Gruppen, Beiträge und Terminarten. Es gilt der Grundsatz **„nichts
+ist öffentlich, solange es nicht ausdrücklich freigegeben ist"** — alle neuen
+Schalter stehen nach der Migration auf **AUS**.
+
+### 18.1 Was die Migration anlegt
+
+Migration `bs1a_website_freigaben` (ein Kopf, nach `web1b_primo_konto`):
+
+| Tabelle | Feld | Bedeutung |
+|---|---|---|
+| `kalender` | `website_freigabe` | Termine dieses Kalenders dürfen erscheinen (Default **aus**) |
+| `kalender` | `website_slug` | Name in der Adresse (`[a-z0-9-]`, eindeutig, Default leer) |
+| `kalender` | `website_nur_oeffentliche_kategorien` | nur Termine, deren Terminart `oeffentlich` ist (Default **aus**) |
+| `gruppe` | `website_freigabe`, `website_slug` | wie Kalender |
+| `beitrag` | `auf_website` | Beitrag erscheint nur, wenn **zusätzlich** `veroeffentlicht` gilt (Default **aus**) |
+| `website_kontakt_postfach` | `slug` (PK), `bezeichnung`, `email`, `aktiv`, `sortierung` | Empfänger-Postfächer des Kontaktformulars (17) |
+
+Bestehende Daten werden **nicht verändert**; es wird nur ergänzt. Rücknahme:
+`alembic downgrade -1` entfernt Spalten, Indizes und die Postfach-Tabelle
+wieder (Inhalte anderer Spalten bleiben).
+
+### 18.2 Wer darf freigeben
+
+Dieselben Rollen wie die Primo-Anbindung (Abschnitt 15.1): **System Manager**,
+**Administrator**, **Website-Moderator**. Alle anderen bekommen **403**.
+Schreibende Aufrufe brauchen zusätzlich das CSRF-Token der Sitzung
+(`X-Frappe-CSRF-Token`), sonst **417**.
+
+### 18.3 Endpunkte (Vertrag für die Oberfläche und für BS-1b/1c/1d)
+
+```
+GET  /api/method/diakronos_app.api.website.freigaben_lesen
+     -> {"kalender":  [{"name","titel","freigabe","slug","nur_oeffentliche_kategorien"}],
+         "gruppen":   [{"name","titel","freigabe","slug"}],
+         "beitraege_anzahl": 3,
+         "beitraege":  [{"name","titel","veroeffentlicht"}],
+         "postfaecher":[{"slug","bezeichnung","email","aktiv"}],
+         "postfach_fallback": {"aktiv": true|false, "bezeichnung": "Allgemein"},
+         "kategorien": [{"name","titel","oeffentlich"}]}
+
+POST /api/method/diakronos_app.api.website.freigabe_setzen
+     {"art": "kalender"|"gruppe", "name": "<Kennung>", "freigabe": true|false,
+      "slug": "…" (optional), "nur_oeffentliche_kategorien": true|false (optional, nur kalender)}
+     -> {"art","name","titel","freigabe","slug"[,"nur_oeffentliche_kategorien"]}
+
+POST /api/method/diakronos_app.api.website.beitrag_auf_website
+     {"name": "<Beitrag>", "wert": true|false}
+     -> {"name","titel","auf_website","veroeffentlicht"}
+
+POST /api/method/diakronos_app.api.website.postfach_speichern
+     {"slug","bezeichnung","email","aktiv"(optional),"sortierung"(optional)}
+     -> {"postfach": {...}, "postfaecher": [...]}
+
+POST /api/method/diakronos_app.api.website.postfach_loeschen
+     {"slug": "…"}  -> {"postfaecher": [...]}
+
+POST /api/method/diakronos_app.api.website.kategorie_oeffentlich
+     {"name": "<Terminart>", "wert": true|false} -> {"name","titel","oeffentlich"}
+```
+
+Fehler: unbekannte Kennung **404** (`DoesNotExistError`), unbrauchbare Eingabe
+**417** (`ValidationError`) mit einem deutschen Satz; beides ohne Interna.
+
+### 18.4 Slugs
+
+Der Slug ist der Name in der Adresse der Website. Regeln: nur
+`a-z`, `0-9` und `-`, höchstens 140 Zeichen, nicht mit `-` beginnend/endend,
+**eindeutig** je Tabelle. **Reserviert** sind `diakronos`, `primo`, `admin`,
+`api`, `login` und `standard` (letzterer gehört dem Rückfall-Postfach).
+Wird beim Freigeben kein Slug angegeben, wird einer aus dem Anzeigenamen
+abgeleitet („Jugend & Freizeit" → `jugend-freizeit`); ein **bestehender** Slug
+bleibt bei erneutem Speichern stehen und ändert sich auch dann nicht, wenn der
+Anzeigename umbenannt wird.
+
+### 18.5 Kontakt-Postfächer und `WEBSITE_KONTAKT_EMPFAENGER`
+
+* **Keine Zeile** in `website_kontakt_postfach`: es gilt wie bisher
+  `WEBSITE_KONTAKT_EMPFAENGER` (Abschnitt 17) als Postfach `standard` — das
+  Formular verhält sich unverändert. `freigaben_lesen` meldet das in
+  `postfach_fallback`.
+* **Zeilen vorhanden, aber keine aktiv**: die Auswahl ist bewusst
+  abgeschaltet — es wird **kein** stiller Rückfall auf die `.env`-Adresse
+  gemacht.
+* Die E-Mail-Adressen der Postfächer stehen nur in der Verwaltungsantwort;
+  öffentlich dürfen höchstens Slug und Bezeichnung erscheinen.
+
+### 18.6 Datenschutz
+
+Die Freigabe-Schalter sind reine Technik-Metadaten. Was öffentlich ausgegeben
+werden darf, entscheiden die späteren Bausteine (BS-1b…1d) über eine
+**Feld-Positivliste**; Personendaten (Mitglieder, Teilnehmer, Verantwortliche,
+E-Mail-Adressen, interne Kennungen) bleiben grundsätzlich innen vor — auch bei
+freigegebenem Kalender oder freigegebener Gruppe.

@@ -71,6 +71,11 @@ STRUKTUR_SPALTEN = frozenset({
     "besetzung", "fassungsname", "arrangeur", "schwierigkeit", "sprache",
     "nummer", "seite", "buch", "quelle", "anlass", "anlassname",
     "kategoriename", "typname", "existing", "topic",
+    # BS-1a: der URL-Name eines Kalenders/einer Gruppe auf der Website. Eine
+    # Adresskennung des Fachobjekts, kein Name einer Person — `gruppe.website_slug`
+    # wird anders als `gruppenname` auch nicht aus Personennamen gebildet
+    # (die API leitet ihn aus dem Gruppennamen ab, den die Redaktion pflegt).
+    "website_slug",
 })
 
 #: Tabellen, die NIE personenbezogene Daten einer gelöschten Person führen:
@@ -107,6 +112,12 @@ STAMMDATEN_TABELLEN = frozenset({
     # Planrahmen: die Zeilen-IDs sind technische Kennungen (`pr_*`-Tabellen
     # sind per Migration entstanden, nicht per Frappe-Namensreihe).
     "pr_plan", "pr_termin", "pr_verlauf",
+    # BS-1a: die Website-Postfaecher sind KONFIGURATION der Gemeinde
+    # (Funktionspostfaecher wie `kontakt@…`, kein Konto einer gelöschten
+    # Person — dasselbe Argument wie `smtp_einstellungen`). Eine Löschung darf
+    # das Kontaktformular nicht lahmlegen. `slug` ist eine Adresskennung,
+    # keine Person.
+    "website_kontakt_postfach",
 })
 
 #: Namensbestandteile, die einen VERWEIS oder eine Klassifikation kennzeichnen

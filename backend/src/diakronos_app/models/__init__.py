@@ -14,6 +14,7 @@ from diakronos_app.models.gemeinde import (
 from diakronos_app.models.passwortzugang import Passwortzugang
 from diakronos_app.models.sicherung import Sicherungseinstellungen, Sicherungslauf
 from diakronos_app.models.website import PrimoKonto
+from diakronos_app.models.website_kontakt import WebsiteKontaktPostfach
 from diakronos_app.models.smtp import SmtpEinstellungen
 from diakronos_app.models.auth_oidc import Anmeldeeinstellungen
 from diakronos_app.models.auth_oidc import GruppenRolleZuordnung
@@ -236,4 +237,5 @@ __all__ = [
     "WikiArtikel",
     "Sicherungseinstellungen",
     "Sicherungslauf",
+    "WebsiteKontaktPostfach",
 ]

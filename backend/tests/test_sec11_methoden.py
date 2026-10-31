@@ -162,6 +162,8 @@ def test_c5_kein_schreibender_name_ohne_post():
     #: Lesende Funktionen, deren Name ein Schreibverb enthaelt. Alle sind in
     #: der Karte geprueft: sie lesen/berechnen und schreiben nichts.
     LESEND_TROTZ_VERB = {
+        # BS-1a: liest nur die Liste der Website-Freigaben.
+        "freigaben_lesen",
         # Setzt nichts — prueft ein Feld-Kuerzel und meldet den Fehler (417).
         "fail_validation",
         # Vorschau des Rueckgaengig-Ziels („was wuerde undo zuruecknehmen?“).

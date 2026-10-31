@@ -264,6 +264,9 @@ class Beitrag(Base):
     autor: Mapped[Any | None] = mapped_column(String(140), nullable=True)
     autor_email: Mapped[Any | None] = mapped_column(String(140), nullable=True)
     veroeffentlicht: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # overlay(P1d)/BS-1a: Beitrag auf der oeffentlichen Website (G1: Default
+    # AUS). Oeffentlich nur, wenn `veroeffentlicht` UND `auf_website` gelten.
+    auf_website: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     auszug: Mapped[Any | None] = mapped_column(Text, nullable=True)
     inhalt: Mapped[Any | None] = mapped_column(Text, nullable=True)
     bild: Mapped[Any | None] = mapped_column(String(140), nullable=True)
@@ -778,6 +781,14 @@ class Gruppe(Base):
     obergruppe: Mapped[str | None] = mapped_column(String(140), ForeignKey("gruppe.name"), nullable=True)
     # overlay(P1d): in der Live-DB vorhanden, im DocType-JSON nicht
     kalender: Mapped[str | None] = mapped_column(String(140), ForeignKey("kalender.name"), nullable=True)
+    # overlay(P1d)/BS-1a: Freigabe fuer die oeffentliche Website. Default AUS
+    # (G1 Freigabe-Prinzip): nichts ist oeffentlich, solange es hier nicht
+    # ausdruecklich freigegeben ist. Angelegt von Migration bs1a_website_freigaben.
+    website_freigabe: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # overlay(P1d)/BS-1a: URL-sicherer Name auf der Website ([a-z0-9-]);
+    # Eindeutigkeit als partieller Unique-Index in der Migration. `None` =
+    # noch kein Slug vergeben (nur bei freigegebenen Zeilen Pflicht).
+    website_slug: Mapped[str | None] = mapped_column(String(140), nullable=True)
 
 class GruppeVerantwortlicher(Base):
     """Frappe Child-Tabelle (istable=1) — Sortierung immer ueber `idx`."""

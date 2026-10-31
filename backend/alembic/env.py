@@ -35,7 +35,16 @@ target_metadata = Base.metadata
 #: (`lower(TRIM(BOTH FROM email))`) und meldet dauerhaft „remove_index +
 #: add_index“, obwohl der Index korrekt ist. Angelegt und gepflegt wird er
 #: von der Migration `sec2_email_eindeutig`.
-_AUSGENOMMENE_INDIZES = {"uq_mitglied_email_normalisiert"}
+_AUSGENOMMENE_INDIZES = {
+    "uq_mitglied_email_normalisiert",
+    # BS-1a: partielle Unique-Indizes auf `website_slug` (`WHERE website_slug
+    # IS NOT NULL`). Angelegt und gepflegt werden sie von der Migration
+    # `bs1a_website_freigaben`; die Teilbedingung laesst sich nicht
+    # zuverlaessig aus der Metadaten-Deklaration zurueckrendern (gleicher
+    # Grund wie oben), `check` meldete sonst dauerhaft „remove_index“.
+    "uq_kalender_website_slug",
+    "uq_gruppe_website_slug",
+}
 
 #: Tabellen, die NUR eine Migration anlegt (kein Modell): die Abbildung
 #: `alt -> neu` der Kennungen aus ID-1. Sie ist ein Umzugsprotokoll, kein

@@ -4,9 +4,9 @@ Erzeugt von `tools/whitelist_inventar.py` — nicht von Hand bearbeiten.
 Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module.
 
-* registrierte Pfade: **1669**
-* eindeutige Funktionen: **321**
-* lesend: **161**, schreibend: **160**
+* registrierte Pfade: **1699**
+* eindeutige Funktionen: **327**
+* lesend: **161**, schreibend: **166**
 
 ## Einstufung
 
@@ -20,6 +20,8 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 | Funktion | deklariert | nach Name | Methoden |
 |---|---|---|---|
 | `diakronos_app.api.planrahmen.plan_entwurf` | schreibend | lesend | ['POST'] |
+| `diakronos_app.api.website.beitrag_auf_website` | schreibend | lesend | ['POST'] |
+| `diakronos_app.api.website.kategorie_oeffentlich` | schreibend | lesend | ['POST'] |
 
 ## Schreibende Funktionen
 
@@ -164,7 +166,13 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 | `diakronos_app.api.sicherung.sicherung_jetzt` | ['POST'] | nein |
 | `diakronos_app.api.sicherung.sicherung_loeschen` | ['POST'] | nein |
 | `diakronos_app.api.verantwortliche.set_verantwortliche` | ['POST'] | nein |
+| `diakronos_app.api.website.beitrag_auf_website` | ['POST'] | nein |
+| `diakronos_app.api.website.freigabe_setzen` | ['POST'] | nein |
+| `diakronos_app.api.website.freigaben_lesen` | — | nein |
+| `diakronos_app.api.website.kategorie_oeffentlich` | ['POST'] | nein |
 | `diakronos_app.api.website.login_uebergabe` | ['POST'] | nein |
+| `diakronos_app.api.website.postfach_loeschen` | ['POST'] | nein |
+| `diakronos_app.api.website.postfach_speichern` | ['POST'] | nein |
 | `diakronos_app.api.wiki.create_wiki_artikel` | ['POST'] | nein |
 | `diakronos_app.api.wiki.delete_wiki_artikel` | ['POST'] | nein |
 | `diakronos_app.api.wiki.update_wiki_artikel` | ['POST'] | nein |

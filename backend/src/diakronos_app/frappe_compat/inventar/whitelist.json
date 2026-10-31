@@ -5444,6 +5444,84 @@
    "allow_guest": false,
    "deklariert": "schreibend",
    "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.website.beitrag_auf_website",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.website",
+   "nach_name": "lesend",
+   "name": "beitrag_auf_website",
+   "pfade": [
+    "api.beitrag_auf_website",
+    "beitrag_auf_website",
+    "diakronos.diakronos.api.website.beitrag_auf_website",
+    "diakronos_app.api.website.beitrag_auf_website",
+    "website.beitrag_auf_website"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.website.freigabe_setzen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.website",
+   "nach_name": "schreibend",
+   "name": "freigabe_setzen",
+   "pfade": [
+    "api.freigabe_setzen",
+    "diakronos.diakronos.api.website.freigabe_setzen",
+    "diakronos_app.api.website.freigabe_setzen",
+    "freigabe_setzen",
+    "website.freigabe_setzen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.website.freigaben_lesen",
+   "methoden": null,
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.website",
+   "nach_name": "schreibend",
+   "name": "freigaben_lesen",
+   "pfade": [
+    "api.freigaben_lesen",
+    "diakronos.diakronos.api.website.freigaben_lesen",
+    "diakronos_app.api.website.freigaben_lesen",
+    "freigaben_lesen",
+    "website.freigaben_lesen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.website.kategorie_oeffentlich",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.website",
+   "nach_name": "lesend",
+   "name": "kategorie_oeffentlich",
+   "pfade": [
+    "api.kategorie_oeffentlich",
+    "diakronos.diakronos.api.website.kategorie_oeffentlich",
+    "diakronos_app.api.website.kategorie_oeffentlich",
+    "kategorie_oeffentlich",
+    "website.kategorie_oeffentlich"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
    "funktion": "diakronos_app.api.website.login_uebergabe",
    "methoden": [
     "POST"
@@ -5458,6 +5536,46 @@
     "diakronos_app.api.website.login_uebergabe",
     "login_uebergabe",
     "website.login_uebergabe"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.website.postfach_loeschen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.website",
+   "nach_name": "schreibend",
+   "name": "postfach_loeschen",
+   "pfade": [
+    "api.postfach_loeschen",
+    "diakronos.diakronos.api.website.postfach_loeschen",
+    "diakronos_app.api.website.postfach_loeschen",
+    "postfach_loeschen",
+    "website.postfach_loeschen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.website.postfach_speichern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.website",
+   "nach_name": "schreibend",
+   "name": "postfach_speichern",
+   "pfade": [
+    "api.postfach_speichern",
+    "diakronos.diakronos.api.website.postfach_speichern",
+    "diakronos_app.api.website.postfach_speichern",
+    "postfach_speichern",
+    "website.postfach_speichern"
    ]
   },
   {
@@ -6157,8 +6275,8 @@
    ]
   }
  ],
- "funktionen": 321,
- "registrierte_pfade": 1669,
+ "funktionen": 327,
+ "registrierte_pfade": 1699,
  "widersprueche": [
   {
    "allow_guest": false,
@@ -6179,10 +6297,50 @@
     "plan_entwurf",
     "planrahmen.plan_entwurf"
    ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.website.beitrag_auf_website",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.website",
+   "nach_name": "lesend",
+   "name": "beitrag_auf_website",
+   "pfade": [
+    "api.beitrag_auf_website",
+    "beitrag_auf_website",
+    "diakronos.diakronos.api.website.beitrag_auf_website",
+    "diakronos_app.api.website.beitrag_auf_website",
+    "website.beitrag_auf_website"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.website.kategorie_oeffentlich",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.website",
+   "nach_name": "lesend",
+   "name": "kategorie_oeffentlich",
+   "pfade": [
+    "api.kategorie_oeffentlich",
+    "diakronos.diakronos.api.website.kategorie_oeffentlich",
+    "diakronos_app.api.website.kategorie_oeffentlich",
+    "kategorie_oeffentlich",
+    "website.kategorie_oeffentlich"
+   ]
   }
  ],
  "zaehlung": {
   "lesend": 161,
-  "schreibend": 160
+  "schreibend": 166
  }
 }

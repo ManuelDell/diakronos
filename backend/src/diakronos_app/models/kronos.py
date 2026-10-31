@@ -269,6 +269,16 @@ class Kalender(Base):
         order_by="UserRole.idx",
         viewonly=True,
     )
+    # overlay(P1d)/BS-1a: Freigabe fuer die oeffentliche Website. Default AUS
+    # (G1 Freigabe-Prinzip). Angelegt von Migration bs1a_website_freigaben.
+    website_freigabe: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # overlay(P1d)/BS-1a: URL-sicherer Name ([a-z0-9-]); Eindeutigkeit als
+    # partieller Unique-Index in der Migration.
+    website_slug: Mapped[str | None] = mapped_column(String(140), nullable=True)
+    # overlay(P1d)/BS-1a: true = auf der Website nur Termine ausgeben, deren
+    # Eventkategorie `oeffentlich` traegt. Default AUS (alles oder nichts).
+    website_nur_oeffentliche_kategorien: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
 
 class KalenderModerator(Base):
     """Frappe Child-Tabelle (istable=1) — Sortierung immer ueber `idx`."""

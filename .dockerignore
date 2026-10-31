@@ -22,5 +22,10 @@ certs/
 
 # Referenz-Baum (nicht Teil des Deployments)
 referenz/
-inventar/
+# inventar/ bleibt ausgewaehlt im Kontext: der Frontend-Stage baut den
+# Vertragstest tests/bs1a2-website-freigaben.test.mjs, der das
+# Frappe-Drift-Overlay (inventar/schema_overlay.json) liest. Ins Image kommt
+# nur diese EINE Datei (COPY im Dockerfile), der Rest des Inventars nicht.
+inventar/*
+!inventar/schema_overlay.json
 docs/
