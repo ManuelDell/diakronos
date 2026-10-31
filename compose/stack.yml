@@ -99,6 +99,15 @@ x-app-env: &app-env
   PRIMO_TOKEN_SEKUNDEN: ${PRIMO_TOKEN_SEKUNDEN:-14400}
   # Adressen, die nie ein Primo-Konto bekommen (kommagetrennt).
   PRIMO_GESCHUETZTE_KONTEN: ${PRIMO_GESCHUETZTE_KONTEN:-diakronos-integration@diedells.de}
+  # ── WEB-10: oeffentliches Kontaktformular der Website ────────────────────
+  # Empfaenger der Kontaktanfragen. LEER (Default) = nicht eingerichtet ->
+  # der Endpunkt antwortet 503. Die Anfragen werden NICHT gespeichert, sie
+  # gehen ausschliesslich als Mail an diese Adresse.
+  # Ratenbegrenzung: je Adresse 5/Stunde, gesamt 50/Stunde (0 = aus).
+  WEBSITE_KONTAKT_EMPFAENGER: ${WEBSITE_KONTAKT_EMPFAENGER:-}
+  WEBSITE_KONTAKT_MAX_IP: ${WEBSITE_KONTAKT_MAX_IP:-5}
+  WEBSITE_KONTAKT_MAX_GESAMT: ${WEBSITE_KONTAKT_MAX_GESAMT:-50}
+  WEBSITE_KONTAKT_FENSTER_SEKUNDEN: ${WEBSITE_KONTAKT_FENSTER_SEKUNDEN:-3600}
   # DM1: Dev-Modus (roter Rahmen, Element-Auswahl, Befunde, Backend-
   # Ueberwachung, Bericht). **Default AUS** — aus heisst: keine Endpunkte,
   # keine Middleware, kein Overlay. Einschalten: DEVMODE_ENABLED=1 und die

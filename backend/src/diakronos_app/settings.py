@@ -628,6 +628,41 @@ class Settings(BaseSettings):
         ),
     )
 
+    # ── WEB-10: oeffentliches Kontaktformular der Website ───────────────────
+    # Empfaenger aller Anfragen aus dem Kontaktformular (Primo-Website, gleiche
+    # Domain). LEER = das Formular ist nicht eingerichtet: der Endpunkt
+    # antwortet 503 („nicht eingerichtet") und es geht KEINE Mail raus.
+    # Die Anfragen werden NICHT gespeichert — sie gehen ausschliesslich als
+    # E-Mail an diese Adresse (Karte WEB-10, K4).
+    website_kontakt_empfaenger: str = Field(
+        "",
+        validation_alias=AliasChoices(
+            "WEBSITE_KONTAKT_EMPFAENGER", "website_kontakt_empfaenger"
+        ),
+    )
+    # Ratenbegrenzung des oeffentlichen Formulars (WEB-10, K3): je Adresse
+    # 5/Stunde, GESAMT 50/Stunde. Die Gesamtgrenze ist die wirksame: hinter
+    # einem Proxy ist die Adresse fuer alle Besucher dieselbe.
+    # `0` heisst ausdruecklich "unbegrenzt" — der Default ist die Grenze.
+    website_kontakt_max_ip: int = Field(
+        5,
+        validation_alias=AliasChoices(
+            "WEBSITE_KONTAKT_MAX_IP", "website_kontakt_max_ip"
+        ),
+    )
+    website_kontakt_max_gesamt: int = Field(
+        50,
+        validation_alias=AliasChoices(
+            "WEBSITE_KONTAKT_MAX_GESAMT", "website_kontakt_max_gesamt"
+        ),
+    )
+    website_kontakt_fenster_sekunden: int = Field(
+        3600,
+        validation_alias=AliasChoices(
+            "WEBSITE_KONTAKT_FENSTER_SEKUNDEN", "website_kontakt_fenster_sekunden"
+        ),
+    )
+
     @property
     def oidc_client_secret_effektiv(self) -> str:
         """Client-Secret: `_FILE` (Docker-Secret) hat Vorrang vor dem Klartext.

@@ -30,6 +30,7 @@ Test-Zertifizierungsstelle geprüft; ein echter ACME-Abruf bleibt ausdrücklich 
 14. [Datensicherung (BACKUP-1)](#14-datensicherung-backup-1) — mit Anleitung zum Wiederherstellen
 15. [Website-Verwaltung über Primo (WEB-1, optional)](#15-website-verwaltung-über-primo-web-1-optional)
 16. [Betrieb unter einem Pfad-Präfix (WEB-5a)](#16-betrieb-unter-einem-pfad-präfix-web-5a) — Website auf `/`, Diakronos unter `/diakronos/…`
+17. [Kontaktformular der Website (WEB-10)](#17-kontaktformular-der-website-web-10) — sendet nur eine Mail, nichts wird gespeichert
 
 ---
 
@@ -2298,3 +2299,108 @@ nichts am Browser-Cache zu leeren.
 
 Wer den Präfix ändert, sollte danach einmal Anmelden, die Mitgliederliste
 öffnen und einen Kalender aufrufen (die Live-Verbindung verbindet sich dort).
+
+---
+
+## 17. Kontaktformular der Website (WEB-10)
+
+Die statische Gemeinde-Website (Primo, gleiche Domain) hat ein
+**Kontaktformular**. Es **sendet nur eine E-Mail** — Anfragen werden
+**nicht gespeichert**: es gibt keine Tabelle, keinen Eintrag in der
+Datenbank und keinen Speicher-Eintrag im Protokoll. Was ankommt, landet
+ausschließlich im Postfach, das Sie unten eintragen.
+
+### 17.1 Einrichten
+
+In der `.env`:
+
+```
+WEBSITE_KONTAKT_EMPFAENGER=kontakt@gemeinde.example.org
+# Optional (Vorgaben in Klammern):
+# WEBSITE_KONTAKT_MAX_IP=5             (Anfragen je Adresse und Stunde)
+# WEBSITE_KONTAKT_MAX_GESAMT=50        (Anfragen gesamt je Stunde)
+# WEBSITE_KONTAKT_FENSTER_SEKUNDEN=3600
+```
+
+Danach `docker compose up -d`.
+
+* **Ohne `WEBSITE_KONTAKT_EMPFAENGER` ist das Formular nicht eingerichtet:**
+  der Endpunkt antwortet **503 „Kontaktformular ist nicht eingerichtet"**,
+  und es geht keine Mail raus. Es gibt bewusst keinen stillen Ersatzempfänger.
+* Der **Mailversand** selbst muss eingerichtet sein (Abschnitt 15 bzw. das
+  SMTP-Formular unter Einstellungen → Mailversand). Fehlt er, antwortet der
+  Endpunkt ebenfalls **503**.
+* **Reply-To** ist die Adresse der Besucherin: „Antworten" im Mailprogramm
+  geht direkt an sie — nicht an die Gemeinde.
+
+### 17.2 Adresse des Endpunkts (Vertrag für die Website)
+
+```
+POST  https://<domain>/api/method/website.kontakt_senden
+      (mit DIAKRONOS_BASE_PATH: https://<domain>/diakronos/api/method/website.kontakt_senden)
+
+JSON: {"name": "...", "email": "...", "nachricht": "...",
+       "einwilligung": true, "website": ""}
+```
+
+| Antwort | Bedeutung |
+|---|---|
+| `200 {"message":{"ok":true}}` | Mail ist raus (oder der Honeypot hat zugeschlagen, siehe 17.3) |
+| `400` mit `felder` | Eingabe unbrauchbar; je Feld ein Satz für die Besucherin |
+| `403` | Anfrage kam nicht von der eigenen Website (fremde Herkunft) oder war kein POST |
+| `429` | zu viele Anfragen (Bremse) |
+| `503` | nicht eingerichtet, Mailversand fehlt oder gestört, Bremse nicht erreichbar |
+
+Feldregeln: Name 1–100 Zeichen, E-Mail gültige Adresse (höchstens 254
+Zeichen), Nachricht 10–5000 Zeichen, Einwilligung muss `true` sein (JSON-Bool,
+kein Text „true"). Der **Betreff ist fest** („Kontaktformular Website") — die
+Website kann ihn nicht setzen.
+
+### 17.3 Schutzmechanismen
+
+* **Honeypot.** Das Feld `website` ist im Formular unsichtbar und muss **leer**
+  bleiben. Ist es gefüllt, antwortet der Endpunkt **200 `{"ok":true}`**, sendet
+  aber **keine Mail** — ein Bot soll nicht merken, dass er erkannt wurde.
+* **Herkunft.** `Origin` (oder, wenn der Browser keinen schickt, `Referer`)
+  muss zum Host der Anfrage passen. Fehlt beides oder zeigt es auf eine fremde
+  Seite: **403**, keine Mail. Das ersetzt die CSRF-Prüfung, die es für ein
+  Formular ohne Anmeldung nicht geben kann.
+* **Nur POST.** Jede andere Methode: **403**.
+* **Ratenbegrenzung** (Redis, gleitendes Stundenfenster):
+  * je **Adresse** 5 Anfragen/Stunde (`WEBSITE_KONTAKT_MAX_IP`) — gilt für
+    öffentliche und private Adressen; ausgenommen ist nur der Server selbst
+    (Loopback), weil dort der Proxy steht und eine Sperre alle träfe.
+  * **gesamt** 50 Anfragen/Stunde (`WEBSITE_KONTAKT_MAX_GESAMT`) — greift
+    auch hinter einem Proxy, wo alle Besucher dieselbe Adresse haben.
+  * Überschritten: **429** mit einem freundlichen Satz („zu viele Anfragen").
+  * `0` schaltet die jeweilige Grenze ausdrücklich ab — die Vorgabe ist die
+    Grenze, nicht das Nichts. Bei Redis-Ausfall wird **nicht** gesendet (503).
+* **Kopfzeilen-Injektion** ist ausgeschlossen: Betreff und Empfänger sind
+  fest, die Absenderadresse muss vor dem Versand eine strenge Formprüfung
+  bestehen, Zeilenumbrüche fliegen aus dem Namen.
+
+### 17.4 Datenschutz
+
+* Die Anfrage wird **nur per E-Mail weitergeleitet** und **nicht gespeichert** —
+  weder in der Datenbank noch im Anwendungsprotokoll. Ins Protokoll geht nur
+  „Kontaktmail versendet" bzw. der Fehlertyp; Name, Adresse, Nachricht und
+  Zeitpunkt stehen in keiner Logzeile.
+* **Aufbewahrung** richtet sich damit nach dem Postfach beim Empfänger
+  (`WEBSITE_KONTAKT_EMPFAENGER`) — bitte dort die üblichen Fristen beachten.
+* Die Einwilligung (`einwilligung: true`) ist Pflichtfeld; ohne sie wird
+  nichts gesendet. Der Hinweistext im Formular liegt auf der **Website**
+  (Primo), nicht in Diakronos.
+* Es werden **keine** Zugriffsprofile gebildet: die Ratenbegrenzung zählt in
+  Redis nur einen gesalzenen Hash der Adresse und eine Zahl, keine Inhalte.
+
+### 17.5 Prüfen
+
+```
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -X POST https://<domain>/api/method/website.kontakt_senden \
+  -H 'Content-Type: application/json' -H 'Origin: https://<domain>' \
+  -d '{"name":"Test","email":"test@example.org","nachricht":"Das ist ein Test.","einwilligung":true,"website":""}'
+```
+
+`200` bedeutet: die Testmail liegt beim Empfänger. `503` heißt „nicht
+eingerichtet" (Abschnitt 17.1) oder „Mailversand gestört".

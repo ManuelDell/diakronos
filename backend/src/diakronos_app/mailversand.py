@@ -101,17 +101,26 @@ class Einstellungen:
 
 @dataclass(frozen=True)
 class Mail:
-    """Eine fertige Nachricht. `an` ist genau eine Adresse (kein Verteiler)."""
+    """Eine fertige Nachricht. `an` ist genau eine Adresse (kein Verteiler).
+
+    `antwort_an` (optional) landet als `Reply-To`. Der Wert ist eine FERTIGE
+    Kopfzeilenadresse und wird vom Aufrufer geprueft (WEB-10/K4: das
+    Kontaktformular setzt dort die validierte Besucheradresse ein) — dieses
+    Modul baut daraus keine Adresse und parst sie nicht.
+    """
 
     an: str
     betreff: str
     text: str
+    antwort_an: str = ""
 
     def als_nachricht(self, absender: str, absender_name: str = "Diakronos") -> EmailMessage:
         msg = EmailMessage()
         msg["From"] = formataddr((absender_name or "Diakronos", absender))
         msg["To"] = self.an
         msg["Subject"] = self.betreff
+        if self.antwort_an:
+            msg["Reply-To"] = self.antwort_an
         msg["Message-ID"] = make_msgid(domain=(absender.split("@")[-1] or None))
         msg.set_content(self.text)
         return msg

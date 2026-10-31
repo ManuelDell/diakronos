@@ -56,6 +56,7 @@ from diakronos_app.api import ressourcen  # noqa: F401 — P4c2: Ressourcen-Buch
 from diakronos_app.api import session  # noqa: F401 — P4g: User-Context (3 Pfade)
 from diakronos_app.api import wiki  # noqa: F401 — P4f: Wiki-Artikel (7 Pfade)
 from diakronos_app.api import website  # noqa: F401 — WEB-1: Primo-Anbindung (3 Pfade)
+from diakronos_app.website import kontakt as website_kontakt  # noqa: F401 — WEB-10: Kontaktformular (allow_guest!)
 
 
 @whitelist()

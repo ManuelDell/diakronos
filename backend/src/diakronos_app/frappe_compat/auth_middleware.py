@@ -81,7 +81,16 @@ _CSRF_METHODEN_PRAEFIX = "/api/method/"
 _LOGIN_ENDER = ("login", ".login")
 
 #: Ausser dem Login: die Token-Ausgabe der Sitzung (Vorbestand aus A1b2).
-_WEITERE_AUSNAHMEN = frozenset({"/api/method/frappe.sessions.get_csrf_token"})
+# WEB-10: Kontaktformular der Website — öffentlich, ohne Sitzung gedacht, mit
+# eigener strenger Herkunftsprüfung (Origin/Referer = Host). Ohne Ausnahme
+# bekäme ein gleichzeitig in Diakronos angemeldeter Besucher 417, weil die
+# statische Website keinen Sitzungs-CSRF-Token senden kann. NUR exakte Namen.
+_WEITERE_AUSNAHMEN = frozenset({
+    "/api/method/frappe.sessions.get_csrf_token",
+    "/api/method/website.kontakt_senden",
+    "/api/method/kontakt.kontakt_senden",
+    "/api/method/diakronos.diakronos.api.website.kontakt_senden",
+})
 
 
 def _mit_praefix_entfernt(pfad: str) -> str:

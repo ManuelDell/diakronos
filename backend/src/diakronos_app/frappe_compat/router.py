@@ -417,6 +417,15 @@ async def call_method(path: str, request: Request):
 	# Positionale Argumente aus kwargs (Frappe-Parameter sind Keyword-faehig).
 	try:
 		result = fn(**kwargs)
+		# WEB-10: ein `async def`-Endpunkt (das Kontaktformular) liefert eine
+		# Coroutine — der Router laeuft selbst in einer Coroutine und kann sie
+		# hier abwarten. Ohne diesen Schritt stuende die Coroutine als
+		# `message` in der Antwort. Der Rumpf dieses Endpunkts wird dadurch
+		# EHESTENS so lange blockiert wie der Endpunkt selbst (Lesen mit
+		# Zeitlimit, Mailversand im eigenen Faden) — es gibt keine weiteren
+		# `async def`-Endpunkte; ein Test haelt das fest.
+		if inspect.iscoroutine(result):
+			result = await result
 	except FrappeCompatError as exc:
 		# LOGIN-1: Ein BROWSER-Formular (Anmeldemaske) darf niemals rohes JSON
 		# zu sehen bekommen — der Browser zeigt es als Seite an. Kam der Aufruf
