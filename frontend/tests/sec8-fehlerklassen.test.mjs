@@ -30,8 +30,10 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join } from 'node:path'
 
 const HIER = dirname(fileURLToPath(import.meta.url))
@@ -101,14 +103,40 @@ test('kein interner Klassenname steht auf der Allowlist', () => {
 // ── (2) Das Frontend wertet weiter genau diese Werte aus ───────────────────
 
 test('sitzung-pruefen.js erkennt den CSRF-Ablauf am exc_type', () => {
-  const quelle = lies(FRONTEND, 'src', 'shared', 'sitzung-pruefen.js')
-
+  // WEB-8d (N5): die Bedingung steht nicht mehr zeichengleich in dieser
+  // Datei, sondern kommt aus `csrf-heilung.js` (eine Wahrheit). Geprüft wird
+  // deshalb der QUELLTEXT der Heilung UND das Verhalten der Ausfuhr hier.
+  const heilungSrc = lies(FRONTEND, 'src', 'shared', 'csrf-heilung.js')
   assert.match(
-    quelle,
+    heilungSrc,
     /exc_type[^\n]*===\s*'CSRFTokenError'/,
     'ohne diese Bedingung baut die SPA die Sitzung bei CSRF-Ablauf nicht neu auf',
   )
-  assert.match(quelle, /SITZUNGS_STATUS\s*=\s*\[401,\s*419\]/, '401/419 müssen Sitzungsende bleiben')
+  assert.match(heilungSrc, /SITZUNGS_STATUS\s*=\s*\[401,\s*419\]/,
+    '401/419 müssen Sitzungsende bleiben')
+
+  const quelle = lies(FRONTEND, 'src', 'shared', 'sitzung-pruefen.js')
+  assert.match(quelle, /export const istCsrfAblehnung = heilung\.istCsrfAblehnung/,
+    'die CSRF-Regel kommt aus der Heilung (keine Kopie)')
+  assert.match(quelle, /export const SITZUNGS_STATUS = heilung\.SITZUNGS_STATUS/,
+    'die Statusliste kommt aus der Heilung (keine Kopie)')
+})
+
+test('WEB-8d N5: istCsrfAblehnung/SITZUNGS_STATUS wirken AM MODUL (Verhalten)', async () => {
+  // Der echte Weg: die Datei wird mit ihren Nachbarn geladen (kein Nachbau).
+  const ziel = await mkdtemp(join(tmpdir(), 'sec8-'))
+  await mkdir(join(ziel, 'shared'), { recursive: true })
+  for (const name of ['basis.js', 'csrf-heilung.js', 'sitzung-pruefen.js']) {
+    await writeFile(join(ziel, 'shared', name), lies(FRONTEND, 'src', 'shared', name))
+  }
+  const modul = await import(pathToFileURL(join(ziel, 'shared', 'sitzung-pruefen.js')).href)
+
+  assert.deepEqual(modul.SITZUNGS_STATUS, [401, 419])
+  assert.equal(modul.istCsrfAblehnung({ status: 417 }, { exc_type: 'CSRFTokenError' }), true)
+  assert.equal(modul.istCsrfAblehnung({ status: 417 }, { exc_type: 'ValidationError' }), false)
+  assert.equal(modul.istCsrfAblehnung({ status: 401 }, { exc_type: 'CSRFTokenError' }), false)
+  assert.equal(modul.istSitzungsAbbruch(401, {}), true)
+  assert.equal(modul.istSitzungsAbbruch(417, { exc_type: 'CSRFTokenError' }), true)
 })
 
 test('useApi.js prüft jede Fehlerantwort über die gemeinsame Regel', () => {

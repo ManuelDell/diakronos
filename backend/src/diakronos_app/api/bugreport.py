@@ -336,7 +336,7 @@ def _mime_of(data_url):
 # Whitelist                                                              #
 # ---------------------------------------------------------------------- #
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def melden(payload=None, screenshot=None):
     """Legt einen Bug Report an (einzige Erzeugungs-Quelle)."""
     _require_dev_modus()  # Schranke zuerst — auf Produktion faktisch inexistent.
@@ -466,7 +466,7 @@ def detail(name):
     }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def set_status(name, status=None):
     """Status eines Berichts setzen (Desk/Orchestrator). Nur Admins."""
     _require_admin()

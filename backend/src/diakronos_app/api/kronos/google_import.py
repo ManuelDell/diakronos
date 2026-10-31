@@ -147,7 +147,7 @@ def get_credentials_status():
         }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def save_credentials(client_id=None, client_secret=None, redirect_uri="", request=None):
     _require_import_admin()
     if request is not None and request.method != "POST":
@@ -312,7 +312,7 @@ def _exchange_code(code, state, request):
     return {"success": True}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def exchange_code(code=None, state=None, request=None):
     _require_import_admin()
     if request is not None and request.method != "POST":
@@ -415,7 +415,7 @@ def _validate_mappings(mappings):
     return result
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def start_import(mappings_json=None, request=None):
     _require_import_admin()
     if request is not None and request.method != "POST":
@@ -700,7 +700,7 @@ def _ensure_kalender(name: str, color: str, db=None) -> str:
     return name
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def upload_ical(file_content_b64=None, target_kalender="", create_new=True,
                 color="#4285F4", calendar_name_new="", request=None):
     _require_import_admin()

@@ -298,7 +298,7 @@ def test_spa_pfade_sind_registriert(fn):
 @pytest.mark.parametrize("fn", SPA_PFADE)
 def test_guest_wird_ueberall_abgewiesen(client, als_guest, fn):
     """`allow_guest=False` gilt fuer alle 8 Endpunkte."""
-    resp = client.get(f"/api/method/{MUSIK}.{fn}")
+    resp = client.post(f"/api/method/{MUSIK}.{fn}")
     assert resp.status_code == 401, (fn, resp.text)
 
 

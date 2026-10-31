@@ -76,6 +76,8 @@ import {
     brauchtWeiterleitung,
     weiterleitenZurHauptseite,
 } from '../shared/linkziel.js'
+// WEB-8b: CSRF-Ablehnung automatisch heilen (Token neu, 1 Wiederholung).
+import { heileOderMelde } from '../shared/csrf-heilung.js'
 // DEP-1: eigene Bausteine statt frappe-ui (Button/FormControl/ErrorMessage).
 import DkButton from '../diakonos/components/ui/DkButton.vue'
 import DkField from '../diakonos/components/ui/DkField.vue'
@@ -119,13 +121,15 @@ async function absenden() {
 
     loading.value = true
     try {
-        const csrf = document.querySelector('meta[name="csrf-token"]')?.content
-                   || window.csrf_token || ''
-        const res = await fetch(apiUrl('diakronos.diakonos.api.registrierung.submit_gast'), {
+        // WEB-8b: derselbe Aufruf als Funktion, damit eine CSRF-Ablehnung
+        // still geheilt werden kann (Token neu + genau eine Wiederholung,
+        // sonst Force-Refresh). Der Token wird je Versuch frisch gelesen.
+        const anfrage = () => fetch(apiUrl('diakronos.diakonos.api.registrierung.submit_gast'), {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Frappe-CSRF-Token': csrf,
+                'X-Frappe-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || window.csrf_token || '',
             },
             body: JSON.stringify({ token, vorname: form.vorname.trim(), nachname: form.nachname.trim(), dsgvo: form.dsgvo,
                 // N12b (W2a): die Fassung, die der Person angezeigt wurde.
@@ -135,13 +139,30 @@ async function absenden() {
                 // bestaetigt). Wie auf der Registrierungsseite.
                 dsgvo_fassung: texte.einwilligung_fassung ?? '' }),
         })
-        const data = await res.json()
-        if (!res.ok || data.exc) {
+        // WEB-8b: `heileOderMelde` führt die Anfrage selbst aus. Nur bei einer
+        // CSRF-Ablehnung holt es still ein frisches Token und wiederholt GENAU
+        // EINMAL (sonst Force-Refresh mit 60-s-Schleifenschutz). Ohne CSRF
+        // kommt unverändert die erste Antwort zurück.
+        // WEB-8c (R2): die erste Antwort wird mitgegeben — `heileOderMelde`
+        // wiederholt nur bei einer CSRF-Ablehnung und dann genau einmal.
+        // WEB-8d (M1): `gast: true` — die Person hat hier KEIN Konto. Der
+        // Token-Abruf über `session.sitzung_status` verlangt Anmeldung, ein
+        // Gast bekam 401 und landete auf `/login`. Stattdessen: höchstens ein
+        // Neuladen (frisches Seiten-Token), danach die Meldung auf dieser Seite.
+        const erste = await anfrage()
+        const { res, data } = await heileOderMelde({ anfrage, res: erste, gast: true })
+        if (!res.ok || data?.exc) {
             fehler.value = parseServerError(data)
             return
         }
         success.value = true
-    } catch {
+    } catch (e) {
+        // WEB-8c (R8) / WEB-8d (N3): Läuft bereits ein Neuladen/eine
+        // Weiterleitung, blitzt KEIN „Verbindungsfehler" auf. WEB-8d (M1):
+        // `e.meldung` heißt „Seite ist stehen geblieben" — dann kommt der
+        // feste Hinweis an die Stelle der Fehlermeldung.
+        if (e?.neuLaden || e?.weitergeleitet) return
+        if (e?.meldung && e?.hinweis) { fehler.value = e.hinweis; return }
         fehler.value = 'Verbindungsfehler. Bitte versuche es erneut.'
     } finally {
         loading.value = false

@@ -142,7 +142,7 @@ def test_veranstaltungspfad_ist_geroutet(client, admin_umgebung, fn):
     wird hier NICHT auf "!= 404" geprueft, sondern darauf, dass die Meldung
     NICHT die des Routers ist ("Methode ... nicht gefunden").
     """
-    r = client.get(f"/api/method/{MODUL_VERANST}.{fn}", params={"registrierungslink_id": LINK})
+    r = client.post(f"/api/method/{MODUL_VERANST}.{fn}", data={"registrierungslink_id": LINK})
     assert "nicht gefunden'" not in r.text or "Registrierungslink" in r.text, (fn, r.text)
     assert not r.text.startswith('{"message":"Methode'), (fn, r.text)
 
@@ -171,9 +171,9 @@ def test_gast_erreicht_veranstaltung_nicht(client, admin_umgebung, fn):
     """
     set_user("Guest")
     try:
-        r = client.get(
+        r = client.post(
             f"/api/method/{MODUL_VERANST}.{fn}",
-            params={"registrierungslink_id": LINK},
+            data={"registrierungslink_id": LINK},
         )
         assert r.status_code == 401, (fn, r.text)
     finally:

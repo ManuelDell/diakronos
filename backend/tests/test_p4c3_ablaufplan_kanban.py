@@ -173,7 +173,7 @@ def test_kanban_spa_pfade_registriert(fn):
 def test_guest_wird_bei_ablaufplan_abgewiesen(client, fn):
     set_user("Guest")
     try:
-        r = client.get(f"/api/method/{ABLAUFPLAN_MODUL}.{fn}")
+        r = client.post(f"/api/method/{ABLAUFPLAN_MODUL}.{fn}")
         assert r.status_code == 401, (fn, r.text)
     finally:
         set_user("Administrator")
@@ -183,7 +183,7 @@ def test_guest_wird_bei_ablaufplan_abgewiesen(client, fn):
 def test_guest_wird_bei_kanban_abgewiesen(client, fn):
     set_user("Guest")
     try:
-        r = client.get(f"/api/method/{KANBAN_MODUL}.{fn}")
+        r = client.post(f"/api/method/{KANBAN_MODUL}.{fn}")
         assert r.status_code == 401, (fn, r.text)
     finally:
         set_user("Administrator")

@@ -276,7 +276,7 @@ def get_kalender_verwaltung():
     }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_kalender(titel, farbe="", selbstverwaltet=0, leserechte=None,
                     schreibrechte=None, moderatoren=None):
     """Neuen Kalender anlegen.
@@ -316,7 +316,7 @@ def create_kalender(titel, farbe="", selbstverwaltet=0, leserechte=None,
     return {"success": True, "name": name}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_kalender(name, titel=None, farbe=None, selbstverwaltet=None,
                     leserechte=None, schreibrechte=None, moderatoren=None):
     """Kalender aendern: Anzeigename, Farbe, Selbstverwaltung, Rechte, Moderatoren.
@@ -366,7 +366,7 @@ def update_kalender(name, titel=None, farbe=None, selbstverwaltet=None,
     return {"success": True, "name": doc.name}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def delete_kalender(name, bestaetigt=0):
     """Kalender loeschen — nur ohne Verweise, und nur mit Rueckfrage.
 

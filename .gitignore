@@ -30,3 +30,11 @@ compose/.fix5r2/
 # FIX-6b: eigener Wegwerf-Stack (Compose-Projekt fix6b) — Env bleibt lokal.
 .env.fix6b
 compose/.fix6b/
+
+# WEB-8c (R6): versehentlich committete Zwischenablage (Hilfsdatei) — nie wieder.
+.uxa2b-tmp/
+frontend/.uxa2b-tmp/
+
+# WEB-8c: eigener Wegwerf-Stack (Compose-Projekt web8c) — Env und Daten bleiben lokal.
+compose/.web8c.env
+compose/.web8c/

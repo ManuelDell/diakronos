@@ -47,6 +47,8 @@ __all__ = [
     "SessionMiddleware",
     "CsrfMiddleware",
     "ist_csrf_ausgenommen",
+    "fremde_herkunft_abgewiesen",
+    "ist_oeffentlicher_website_endpunkt",
     "sid_aus_headers",
 ]
 
@@ -94,13 +96,35 @@ _WEITERE_AUSNAHMEN = frozenset({
 
 
 def _mit_praefix_entfernt(pfad: str) -> str:
-    """Entfernt den aktiven Betriebs-Praefix (`/diakronos/api/…` -> `/api/…`)."""
-    from diakronos_app import base_path
+	"""Entfernt den aktiven Betriebs-Praefix (`/diakronos/api/…` -> `/api/…`).
 
-    praefix = base_path.aktiver_praefix()
-    if praefix and (pfad == praefix or pfad.startswith(praefix + "/")):
-        return pfad[len(praefix):] or "/"
-    return pfad
+	SEC-11: Ein Pfad, der schon `/{Praefix}/api/…` enthaelt, wird AUCH dann
+	befreit, wenn `aktiver_praefix()` in diesem Prozess leer ist. Grund: in
+	einem ASGI-Mount (`root_path`) steht der Praefix im `request.url.path`,
+	waehrend die Prozessgroesse nur beim Setzen des Praefixes gefuellt ist —
+	dann liefe eine Praefix-Pruefung wie `ist_oeffentlicher_website_endpunkt`
+	ins Leere und liesse z. B. `website.kontakt_senden` unter die
+	Herkunftsschranke fallen (die oeffentliche Website kann sie dann nicht
+	mehr aufrufen). Deshalb werden Prozess-Praefix UND `settings.diakronos_base_path`
+	geprueft — der Pfad selbst nennt den Praefix bereits.
+	"""
+	from diakronos_app import base_path
+	from diakronos_app.settings import settings
+
+	roh = str(pfad or "") or "/"
+	# Zwei Quellen: der Prozess-Praefix UND die Einstellung. Der Prozesswert
+	# ist der gueltige, die Einstellung ist der Rueckfall fuer Faelle, in denen
+	# der Praefix (noch) nicht gesetzt ist — falsch negativ waere hier
+	# gleichbedeutend mit „die Ausnahme greift nicht".
+	kandidaten = {
+		base_path.aktiver_praefix(),
+		str(getattr(settings, "diakronos_base_path", "") or ""),
+	}
+	for praefix in kandidaten:
+		praefix = "/" + praefix.strip("/") if praefix.strip("/") else ""
+		if praefix and (roh == praefix or roh.startswith(praefix + "/")):
+			return roh[len(praefix):] or "/"
+	return roh
 
 
 def ist_csrf_ausgenommen(pfad: str) -> bool:
@@ -127,6 +151,71 @@ def ist_csrf_ausgenommen(pfad: str) -> bool:
 
 
 _SCHREIBENDE_METHODEN = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+# ── SEC-11 (C4): Herkunft als zweite, methodenunabhaengige Schranke ─────────
+#
+# Die Methoden-Sperre (C1/C2) haengt daran, dass ein Endpunkt als schreibend
+# erkannt und deklariert wurde. Diese Schranke haengt an gar nichts: sie gilt
+# fuer JEDEN Aufruf unter `/api/method/*` und `/api/resource/*`, gleich welche
+# Methode. `Sec-Fetch-Site` setzt der Browser selbst — ein Skript kann den Kopf
+# setzen, aber ein Skript braucht kein CSRF (es hat keine Sitzung des Opfers).
+# Fehlt der Kopf (aeltere Browser, curl, Apps, CalDAV), wird NICHT abgewiesen:
+# eine Sperre auf „fehlt" wuerde jeden Nicht-Browser-Aufruf treffen, und die
+# Luecke, um die es geht — ein fremder Link im Browser — traegt ihn immer.
+#
+# Ausgenommen sind die OEFFENTLICHEN Website-Endpunkte: die statische Website
+# ruft sie von einer anderen Herkunft aus auf (eigener Host), und sie bringen
+# ihre eigene, strengere Herkunftspruefung mit (Origin/Referer = Host).
+_API_PRAEFIXE = ("/api/method/", "/api/resource/")
+_FREMDE_HERKUNFT = frozenset({"cross-site", "same-site"})
+_OEFFENTLICHE_WEBSITE_ENDUNGEN = frozenset({"kontakt_senden"})
+
+
+def ist_oeffentlicher_website_endpunkt(pfad: str) -> bool:
+    """True fuer die Website-Endpunkte mit eigener CORS-/Herkunftspruefung."""
+    pfad = _mit_praefix_entfernt(str(pfad or "").rstrip("/") or "/")
+    if not pfad.startswith(_API_PRAEFIXE[0]):
+        return False
+    name = pfad[len(_API_PRAEFIXE[0]):]
+    if name.startswith("website.") or name.startswith("website.oeffentlich."):
+        return True
+    # `kontakt_senden` in jeder Schreibweise (`website.kontakt_senden`,
+    # `diakronos.diakronos.api.website.kontakt_senden`).
+    return name.rsplit(".", 1)[-1] in _OEFFENTLICHE_WEBSITE_ENDUNGEN
+
+
+def fremde_herkunft_abgewiesen(request) -> bool:
+    """True, wenn ein BROWSER aus fremder Herkunft eine API anfasst (SEC-11/C4).
+
+    Geprueft wird ausschliesslich `Sec-Fetch-Site` — `Origin`/`Referer` fehlen
+    bei Navigationen und GET-Aufrufen, sind also hier kein Ersatz.
+
+    Der Betriebs-Praefix wird VOR der Praefix-Pruefung entfernt: unter
+    `/diakronos` heisst der Pfad `/diakronos/api/method/…` und beginnt nicht
+    mit `/api/method/` (Befund Wegwerf-Stack 2026-10-31).
+    """
+    pfad = str(getattr(getattr(request, "url", None), "path", "") or "")
+    if not _mit_praefix_entfernt(pfad).startswith(_API_PRAEFIXE):
+        return False
+    if ist_oeffentlicher_website_endpunkt(pfad):
+        return False
+    herkunft = (request.headers.get("sec-fetch-site") or "").strip().lower()
+    return herkunft in _FREMDE_HERKUNFT
+
+
+def _herkunft_ablehnung() -> Response:
+    """403 fuer fremde Herkunft — Frappe-Konvention (`PermissionError`)."""
+    from starlette.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=403,
+        content={
+            "message": "Die Anfrage kam nicht von dieser Anwendung.",
+            "exception": "PermissionError",
+            "exc_type": "PermissionError",
+        },
+    )
 
 
 def sid_aus_headers(headers) -> str | None:
@@ -221,6 +310,16 @@ class CsrfMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next):
+        # SEC-11/C4: Ein Browser aus fremder Herkunft kommt an KEINE API —
+        # unabhaengig von der Methode. Die Methoden-Sperre (C1/C2) kann diese
+        # Luecke nur schliessen, wenn der Endpunkt als schreibend deklariert
+        # ist; hier haengt nichts an einer Einstufung.
+        if fremde_herkunft_abgewiesen(request):
+            logger.warning(
+                "API-Aufruf aus fremder Herkunft abgewiesen (Sec-Fetch-Site=%s).",
+                request.headers.get("sec-fetch-site"),
+            )
+            return _herkunft_ablehnung()
         if request.method in _SCHREIBENDE_METHODEN:
             pfad = request.url.path.rstrip("/") or "/"
             if not ist_csrf_ausgenommen(pfad):

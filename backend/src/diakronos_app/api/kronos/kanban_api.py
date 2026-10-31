@@ -286,7 +286,7 @@ def get_kanban_board_data():
     }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def save_staging_state(staging_ids):
     user = session.user
     if user == "Guest":
@@ -332,7 +332,7 @@ def save_staging_state(staging_ids):
     return {"ok": True}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def finalize_staged_events(event_ids):
     user = session.user
     if user == "Guest":
@@ -453,7 +453,7 @@ def get_conflict_partner(element_id):
     }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def resolve_conflict(element_id, action, title=None, element_start=None,
                      element_end=None, all_day=None, ressource=None, description=None,
                      grund=None, ueberschneidung=None):

@@ -147,7 +147,7 @@ def test_guest_wird_ueberall_abgewiesen(client, fn):
     """`allow_guest=False` gilt fuer jeden der 9 Endpunkte."""
     set_user("Guest")
     try:
-        resp = client.get(f"/api/method/{MODUL}.{fn}")
+        resp = client.post(f"/api/method/{MODUL}.{fn}")
         assert resp.status_code == 401, (fn, resp.text)
     finally:
         set_user("Administrator")

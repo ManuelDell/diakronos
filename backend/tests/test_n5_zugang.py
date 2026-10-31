@@ -88,7 +88,7 @@ def test_gesperrtes_konto_kann_token_nicht_nutzen(konto, patched_db):
 def test_oeffentlicher_weg_nur_post(client, konto):
     from diakronos_app.anmeldung import passwortzugang as p
     kennung = p.link_erzeugen(konto)["link"].split("#token=")[1]
-    r = client.get("/api/method/zugang.passwort_uebernehmen", params={"kennung": kennung, "passwort": "NeuesPasswort-123"})
+    r = client.post("/api/method/zugang.passwort_uebernehmen", data={"kennung": kennung, "passwort": "NeuesPasswort-123"})
     assert r.status_code >= 400, r.text
     r = client.get("/diakonos/passwort-setzen")
     assert r.status_code == 200, r.text

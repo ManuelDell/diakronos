@@ -56,14 +56,12 @@ import { OrgChart } from 'd3-org-chart'
 import { escapeHtml, sichereBildUrl } from '../shared/sichere-ausgabe.js'
 // OP-UI-1: abgelaufene Anmeldung von fehlender Berechtigung unterscheiden —
 // dieselben Regeln wie im Hauptbereich, ohne Vue-Abhängigkeit.
-import { antwortPruefen, SitzungsFehler } from '../shared/sitzung-pruefen.js'
+import { antwortPruefen } from '../shared/sitzung-pruefen.js'
 
 const loading     = ref(true)
 const fehler      = ref('')
 const userFullname = window.__diakronos?.userFullname || ''
 const userImage    = window.__diakronos?.userImage || ''
-const csrf         = document.querySelector('meta[name="csrf-token"]')?.content
-                   || window.csrf_token || ''
 
 function initials(name) {
     return name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase()
@@ -117,12 +115,17 @@ function nodeWidth(d) {
 
 onMounted(async () => {
     try {
-        const res = await fetch(apiUrl('diakronos.diakonos.api.orgchart_api.get_orgchart_data'), {
-            headers: { 'X-Frappe-CSRF-Token': csrf },
+        // WEB-8b: derselbe Aufruf, damit eine CSRF-Ablehnung still geheilt
+        // werden kann (Token neu + genau eine Wiederholung, sonst Neuladen).
+        // Der Token wird je Versuch frisch aus dem meta-Tag gelesen.
+        const anfrage = () => fetch(apiUrl('diakronos.diakonos.api.orgchart_api.get_orgchart_data'), {
+            credentials: 'same-origin',
+            headers: { 'X-Frappe-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || window.csrf_token || '' },
         })
+        const res = await anfrage()
         // OP-UI-1: 401/419 leitet zur Anmeldemaske (Rücksprung auf diese
         // Adresse); Rechte-/Serverfehler erscheinen als Klartext.
-        const { message: nodes } = await antwortPruefen(res)
+        const { message: nodes } = await antwortPruefen(res, { anfrage })
 
         if (!nodes?.length) {
             fehler.value = 'Keine Gruppen gefunden.'
@@ -151,7 +154,11 @@ onMounted(async () => {
     } catch (e) {
         // Sitzungsabbruch leitet bereits um — dann keine irreführende
         // Fehlerfläche („Fehler beim Laden: 401") stehen lassen.
-        if (e instanceof SitzungsFehler) {
+        // WEB-8d (N4): geprüft wird die MARKIERUNG am Fehler (`e.sitzung`),
+        // nicht `instanceof SitzungsFehler`: die Klasse kann aus einem anderen
+        // Modul kommen (eigener Bundle-Eintrag, data:-Modul im Test) und
+        // `instanceof` wäre dann falsch-negativ.
+        if (e?.sitzung) {
             fehler.value = 'Deine Anmeldung ist abgelaufen. Du wirst zur Anmeldung weitergeleitet.'
         } else {
             fehler.value = `Fehler beim Laden: ${e.message}`

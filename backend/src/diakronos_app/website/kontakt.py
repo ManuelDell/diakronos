@@ -425,7 +425,7 @@ def _antwort(status: int, koerper: dict[str, Any], **headers):
     return antwort
 
 
-@whitelist(allow_guest=True)
+@whitelist(methods=["POST"], allow_guest=True)
 async def kontakt_senden(request=None):
     """Nimmt eine Kontaktanfrage an und sendet SIE als E-Mail (K1–K4).
 

@@ -186,7 +186,7 @@ def get_ablaufplan(element):
     }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def save_ablaufplan(element, positionen):
     """Legt den Ablaufplan LAZY an (wenn Kategorie hat_ablaufplan=1) und
     ueberschreibt danach die Positionen. Verknuepft Element.ablaufplan."""

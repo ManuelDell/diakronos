@@ -435,12 +435,17 @@ def test_geschuetzte_konten_default_ist_diakronos_integration(monkeypatch):
 
 
 def test_login_uebergabe_nur_post(primo_attrappe, als_benutzer):
-    """GET/PUT/PATCH -> 403 PermissionError, Primo wird nicht angesprochen."""
+    """GET/PUT/PATCH -> 405 MethodNotAllowed, Primo wird nicht angesprochen.
+
+    SEC-11: Der Endpunkt traegt jetzt `@whitelist(methods=["POST"])` — die
+    Methode wird VOR der Fachfunktion abgewiesen (vorher entschied der Rumpf
+    selbst mit 403 PermissionError). Ergebnis gleich: keine Uebergabe.
+    """
     c = als_benutzer(ADMIN_MAIL)
     for methode in ("get", "put", "patch"):
         antwort = getattr(c, methode)(f"/api/method/{PFAD_LOGIN}")
-        assert antwort.status_code == 403, (methode, antwort.text)
-        assert antwort.json()["exc_type"] == "PermissionError"
+        assert antwort.status_code == 405, (methode, antwort.text)
+        assert antwort.headers["allow"] == "POST"
     assert primo_attrappe.anzahl("POST", primo.PFAD_SUPERUSER_AUTH) == 0
     assert primo_attrappe.routen() == []
 
@@ -468,9 +473,16 @@ def test_gast_bekommt_401_ohne_primo_aufruf(primo_attrappe, welt, als_benutzer, 
     c = TestClient(app)
     c.__enter__()
     try:
-        antwort = c.get(f"/api/method/{pfad}")
+        # SEC-11: der schreibende `login_uebergabe` ist POST-only — GET endet
+        # mit 405, und zwar VOR der Anmelde-Pruefung. Die 401 („ohne Sitzung")
+        # gilt fuer die erlaubte Methode, deshalb hier GET und POST zusammen.
+        per_get = c.get(f"/api/method/{pfad}")
+        antwort = c.post(f"/api/method/{pfad}")
     finally:
         c.__exit__(None, None, None)
+    if pfad == PFAD_LOGIN:
+        assert per_get.status_code == 405, per_get.text
+        assert per_get.headers["allow"] == "POST"
     assert antwort.status_code == 401, antwort.text
     assert primo_attrappe.routen() == []
 
@@ -480,7 +492,12 @@ def test_mitgliederadministrator_bekommt_403_auf_allen_drei(
     primo_attrappe, als_benutzer, pfad
 ):
     c = als_benutzer(MITGLIEDERADMIN_MAIL)
-    antwort = c.get(f"/api/method/{pfad}")
+    # SEC-11: `login_uebergabe` ist POST-only — die Rollenpruefung gilt fuer POST.
+    if pfad == PFAD_LOGIN:
+        assert c.get(f"/api/method/{pfad}").status_code == 405
+        antwort = c.post(f"/api/method/{pfad}")
+    else:
+        antwort = c.get(f"/api/method/{pfad}")
     assert antwort.status_code == 403, antwort.text
     assert antwort.json()["exc_type"] == "PermissionError"
     assert primo_attrappe.routen() == []

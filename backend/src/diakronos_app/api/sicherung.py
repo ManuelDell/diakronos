@@ -126,7 +126,7 @@ def sicherung_get() -> dict:
 		sess.close()
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def sicherung_einstellungen_speichern(automatisch=None, uhrzeit=None,
                                      aufbewahrung_tage=None) -> dict:
 	"""Einstellungen pruefen und speichern (EINE Transaktion)."""
@@ -145,7 +145,7 @@ def sicherung_einstellungen_speichern(automatisch=None, uhrzeit=None,
 		sess.close()
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def sicherung_jetzt() -> dict:
 	"""„Jetzt sichern“ — ein Lauf von Hand, synchron.
 
@@ -177,7 +177,7 @@ def sicherung_jetzt() -> dict:
 		sess.close()
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def sicherung_loeschen(name: str | None = None) -> dict:
 	"""Eine einzelne Sicherung loeschen (mit Bestaetigungsdialog in der UI).
 

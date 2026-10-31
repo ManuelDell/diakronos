@@ -202,7 +202,7 @@ def _auskunft(mitglied_id):
         }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def loeschung_beantragen(bestaetigt=False, request=None):
     """Die Person stellt für SICH einen Löschantrag (D2).
 
@@ -323,7 +323,7 @@ def _melde_antrag_an_verwaltung(s, person) -> int:
     return anzahl
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def loeschantrag_zurueckziehen(bestaetigt=False, request=None):
     """Die Person zieht ihren Löschantrag zurück (D2), solange er `offen` ist.
 
@@ -446,7 +446,7 @@ def _pruefe_loeschberechtigung(konten: set[str]) -> None:
         _verweigere_letzten_admin_verlust_alle(user, "gelöscht")
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def loeschung_bestaetigen(mitglied_id, bestaetigt=False, request=None):
     """Administrator bestätigt die Löschung auf Antrag (D4) — Reihenfolge zwingend.
 
@@ -624,7 +624,7 @@ def _haenge_antrag_um(s, alt: str, kennung: str) -> None:
               {"neu": kennung, "alt": alt})
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def loeschantrag_ablehnen(mitglied_id, begruendung="", bestaetigt=False, request=None):
     """Administrator lehnt den Löschantrag einer Person ab (DSGVO-2a).
 
@@ -812,7 +812,7 @@ def get_loeschantraege(status=""):
         ]
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def anonymisieren(mitglied_id, bestaetigt=False, bestaetigung='', nur_antrag=False, request=None):
     """Löschung NUR über Antrag → Bestätigung → Mail (N-5, D4).
 

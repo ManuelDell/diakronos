@@ -853,7 +853,7 @@ def get_gruppe_mitglieder_auswahl(gruppe_id, suche="", limit=0, is_untergruppe=F
     return ergebnis
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def add_mitglied_to_gruppe(gruppe_id, mitglied_id, rolle="", is_untergruppe=False):
     """Fügt Mitglied zu Gruppe/Untergruppe hinzu.
 
@@ -887,7 +887,7 @@ def add_mitglied_to_gruppe(gruppe_id, mitglied_id, rolle="", is_untergruppe=Fals
     return {"success": True, "message": "Mitglied hinzugefügt."}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def remove_mitglied_from_gruppe(gruppe_id, mitglied_id, is_untergruppe=False):
     """Entfernt Mitglied aus Gruppe/Untergruppe (W2: gleiche Rechte wie add)."""
     doctype = "Untergruppe" if is_untergruppe else "Gruppe"
@@ -903,7 +903,7 @@ def remove_mitglied_from_gruppe(gruppe_id, mitglied_id, is_untergruppe=False):
     return {"success": True, "message": "Mitglied entfernt."}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_mitglied_rolle(gruppe_id, mitglied_id, rolle, is_untergruppe=False):
     """Ändert Rolle eines Mitglieds in einer Gruppe (W2: gleiche Rechte wie add)."""
     doctype = "Untergruppe" if is_untergruppe else "Gruppe"
@@ -1172,7 +1172,7 @@ def _editierbare_ids(is_admin: bool) -> list[str]:
 # ── Anlegen ─────────────────────────────────────────────────────────────────
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_dienstbereich(name, beschreibung=None, farbe=None):
     """Erstellt einen neuen Dienstbereich. Nur für Gemeindeverantwortliche."""
     roles = get_roles()
@@ -1190,7 +1190,7 @@ def create_dienstbereich(name, beschreibung=None, farbe=None):
     return {"success": True, "name": new_name}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_gruppe(name, dienstbereich, gruppentyp=None, beschreibung=None, treffpunkt=None, treffzeit=None):
     """Erstellt eine neue Gruppe. Nur für Dienstbereichsverantwortliche."""
     is_admin = _is_admin()
@@ -1211,7 +1211,7 @@ def create_gruppe(name, dienstbereich, gruppentyp=None, beschreibung=None, treff
     return {"success": True, "name": new_name}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_untergruppe(name, gruppe, beschreibung=None, treffpunkt=None, treffzeit=None):
     """Erstellt eine neue Untergruppe. Nur für Gruppenverantwortliche."""
     is_admin = _is_admin()
@@ -1232,7 +1232,7 @@ def create_untergruppe(name, gruppe, beschreibung=None, treffpunkt=None, treffze
     return {"success": True, "name": new_name}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_gruppe(name, gruppenname=None, beschreibung=None, treffpunkt=None, treffzeit=None):
     """Aktualisiert eine Gruppe. Verantwortliche oder uebergeordnete Admins."""
     is_admin = _is_admin()
@@ -1253,7 +1253,7 @@ def update_gruppe(name, gruppenname=None, beschreibung=None, treffpunkt=None, tr
     return {"success": True}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_untergruppe(name, untergruppenname=None, beschreibung=None, treffpunkt=None, treffzeit=None):
     """Aktualisiert eine Untergruppe."""
     is_admin = _is_admin()
@@ -1276,7 +1276,7 @@ def update_untergruppe(name, untergruppenname=None, beschreibung=None, treffpunk
     return {"success": True}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_dienstbereich(name, ministry=None, beschreibung=None, farbe=None):
     """Aktualisiert einen Dienstbereich. Nur für Gemeindeverantwortliche.
 
@@ -1636,7 +1636,7 @@ def get_aufgaben(gruppe_id=None, untergruppe_id=None):
     return {"success": True, "data": items}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_aufgabe(titel, gruppe_id=None, untergruppe_id=None, faellig=None):
     _require_inhalte_zugriff(gruppe_id, untergruppe_id, write=True)
     mid = _mitglied_id_des_users()
@@ -1651,7 +1651,7 @@ def create_aufgabe(titel, gruppe_id=None, untergruppe_id=None, faellig=None):
     return {"success": True, "name": new_name}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def toggle_aufgabe(aufgabe_id):
     # Unbekannte und fremde IDs liefern dieselbe 403, auch im Fehlerbody.
     doc = get_value("Gruppen Aufgabe", aufgabe_id,
@@ -1685,7 +1685,7 @@ def get_ankuendigungen(gruppe_id=None, untergruppe_id=None):
     return {"success": True, "data": items}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_ankuendigung(titel, text="", gruppe_id=None, untergruppe_id=None):
     _require_inhalte_zugriff(gruppe_id, untergruppe_id, write=True)
     mid = _mitglied_id_des_users()
@@ -1723,8 +1723,15 @@ _ENDPUNKTE = (
     create_ankuendigung,
 )
 
+# SEC-11: `frappe.whitelist(allow_guest=False)(_fn)` hat die Optionen der
+# Funktion UEBERSCHRIEBEN — `_register` setzt `_OPTIONS[id(fn)]` neu, und damit
+# waren `methods=["POST"]` aus den Dekoratoren oben wirkungslos. Die
+# Original-Pfade kommen deshalb ueber `register_with_frappe_module` (setzt nur
+# Register-Eintraege, keine Optionen); `allow_guest=False` ist ohnehin der
+# Default jeder Registrierung.
 for _fn in _ENDPUNKTE:
-    frappe.whitelist(allow_guest=False)(_fn)
+	frappe.register_with_frappe_module(
+		"diakronos.diakonos.api.gruppen", _fn.__name__, _fn)
 
 del _fn
 

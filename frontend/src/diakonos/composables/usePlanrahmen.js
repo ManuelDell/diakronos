@@ -492,16 +492,27 @@ async function sammlungsmerkmalWertePflegen(plantyp, schluessel, aktion, wert, n
  */
 async function uploadDatei(file) {
     const url = apiUrl('upload_file')
-    const csrf_token = window.__DIakonosBOOT?.csrf_token || ''
-    const form = new FormData()
-    form.append('file', file, file.name)
-    form.append('is_private', 'true')
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'X-Frappe-CSRF-Token': csrf_token },
-        body: form,
-    })
-    const data = await apiAntwortPruefen(res)
+    // WEB-8b: Aufruf als Funktion, damit `apiAntwortPruefen` eine
+    // CSRF-Ablehnung heilen kann (Token neu + genau eine Wiederholung). Der
+    // Token wird je Versuch frisch gelesen und die FormData je Versuch neu
+    // gebaut (ein verbrauchter Body lässt sich nicht erneut senden).
+    const anfrage = () => {
+        const form = new FormData()
+        form.append('file', file, file.name)
+        form.append('is_private', 'true')
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'X-Frappe-CSRF-Token': window.__DIakonosBOOT?.csrf_token || '' },
+            body: form,
+        })
+    }
+    const erste = await anfrage()
+    // WEB-8c (R1): Nach einer erfolgreichen Heilung gilt die WIEDERHOLTE
+    // Antwort, nicht die erste (417). `apiAntwortPruefen` hängt sie als
+    // `dkAntwort` an den Body — vorher wurde mit dem alten `res` geprüft und
+    // `data.message` (ein Objekt) als Fehlertext geworfen („[object Object]").
+    const data = await apiAntwortPruefen(erste, { anfrage })
+    const res = data?.dkAntwort || erste
     if (!res.ok || data?.exc) {
         const err = new Error(data?.message || data?.exception || `HTTP ${res.status}`)
         err.status = res.status

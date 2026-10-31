@@ -28,7 +28,7 @@ from .exceptions import (
 from .query import get_all, get_doc, get_value
 from .queue import EnqueueError, enqueue
 from .realtime import EVENT_GCAL_IMPORT_PROGRESS, publish_realtime, sio, socket_app
-from .registry import whitelist
+from .registry import methoden_fuer, register_with_frappe_module, whitelist
 from .session import GUEST, reset_user, session, set_user
 
 # Berechtigungen — echte Hierarchie-Logik aus P3, fail closed.
@@ -57,6 +57,8 @@ __all__ = [
 	"get_all",
 	"get_value",
 	"whitelist",
+	"methoden_fuer",
+	"register_with_frappe_module",
 	"session",
 	"set_user",
 	"reset_user",

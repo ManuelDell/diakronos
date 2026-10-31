@@ -337,7 +337,7 @@ def get_zugang(mitglied_id: str) -> dict[str, Any]:
     }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def setze_rollen(mitglied_id: str, rollen: list[str] | None = None) -> dict[str, Any]:
     """Rollen eines Kontos setzen — nur aus der festen Diakronos-Liste (Admin).
 
@@ -444,7 +444,7 @@ def _setze_diakronos_rollen(user: str, rollen: list[str]) -> None:
         sess.close()
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def konto_anlegen(mitglied_id: str) -> dict[str, Any]:
     """Konto fuer ein Mitglied anlegen (Admin, OHNE Authentik).
 
@@ -523,7 +523,7 @@ def konto_anlegen(mitglied_id: str) -> dict[str, Any]:
     return {"success": True, "konto": _konto_zeile(email)}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def konto_sperren(mitglied_id: str, gesperrt: bool = True) -> dict[str, Any]:
     """Konto sperren (`enabled=False`) oder freischalten (Admin).
 
@@ -575,7 +575,7 @@ def konto_sperren(mitglied_id: str, gesperrt: bool = True) -> dict[str, Any]:
     return {"success": True, "konto": _konto_zeile(str(user))}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def setze_passwort(mitglied_id: str, passwort: str, request=None) -> dict[str, Any]:
     """Startpasswort eines Kontos setzen (Admin, Argon2).
 
@@ -623,7 +623,7 @@ def setze_passwort(mitglied_id: str, passwort: str, request=None) -> dict[str, A
     return {"success": True}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def konto_freischalten(user: str, freischalten: bool = True) -> dict[str, Any]:
     """Konto direkt ueber seinen Kontonamen sperren/freischalten (Admin).
 
@@ -748,7 +748,7 @@ def get_zugangsmodus():
     return {"oidc_aktiv": oidc_aktiv()}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def einladungslink(mitglied_id: str, request=None):
     _require_admin()
     _nur_post(request)
@@ -853,7 +853,7 @@ def _nur_post(request):
         throw("Diese Aktion ist nur per POST erlaubt.", ValidationError)
 
 
-@whitelist(allow_guest=True)
+@whitelist(methods=["POST"], allow_guest=True)
 def passwort_uebernehmen(token: str, passwort: str, request=None):
     _nur_post(request)
     from fastapi.responses import JSONResponse

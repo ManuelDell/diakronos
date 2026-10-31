@@ -28,20 +28,58 @@ def options_for(fn: Callable) -> dict:
 
 def whitelist(*dargs, **dkwargs):
 	"""Unterstuetzt `@whitelist()` und `@whitelist`.
+
+	SEC-11 (CRIT-1): zusaetzlich `methods=[...]` wie in Frappe:
+
+	    @whitelist(methods=["POST"])     # schreibender Endpunkt
+	    @whitelist(allow_guest=True, methods=["POST"])
+
+	Der Wert ist eine Liste von HTTP-Methoden (oder ein einzelner String). Der
+	Router laesst fuer die Funktion NUR diese Methoden zu; jede andere endet mit
+	405 und fuehrt nichts aus (`router._erlaubte_methoden`). Ohne Angabe bleibt
+	alles wie bisher (GET/POST/PUT/PATCH) — deshalb ist die Umstellung je
+	Endpunkt eine sichtbare, pruefbare Entscheidung und keine stille.
 	"""
 	# direkte Nutzung: @whitelist
 	if len(dargs) == 1 and callable(dargs[0]) and not dkwargs:
 		return _register(dargs[0], {})
 
-	# parametrisierte Nutzung: @whitelist(allow_guest=True)
+	# parametrisierte Nutzung: @whitelist(allow_guest=True, methods=["POST"])
 	def decorator(fn: Callable) -> Callable:
 		return _register(fn, dict(dkwargs))
 
 	return decorator
 
 
+def _normalisiere_methoden(wert) -> tuple[str, ...] | None:
+	"""`methods` aus dem Dekorator in eine aufsteigend sortierte Tupelform."""
+	if wert is None:
+		return None
+	if isinstance(wert, str):
+		wert = [wert]
+	methoden = {str(m).strip().upper() for m in wert if str(m).strip()}
+	if not methoden:
+		return None
+	unbekannt = methoden - _BEKANNTE_METHODEN
+	if unbekannt:
+		raise ValueError(f"Unbekannte HTTP-Methode(n) in @whitelist(methods=…): {sorted(unbekannt)}")
+	return tuple(sorted(methoden))
+
+
+#: Was der Router ueberhaupt annimmt (er routet GET/POST/PUT/PATCH).
+_BEKANNTE_METHODEN = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"})
+
+
+def methoden_fuer(fn: Callable) -> tuple[str, ...] | None:
+	"""Erlaubte HTTP-Methoden dieser Registrierung — `None` = keine Einschraenkung."""
+	return options_for(fn).get("methods")
+
+
 def _register(fn: Callable, options: dict | None = None) -> Callable:
-	_OPTIONS[id(fn)] = {"allow_guest": False, **(options or {})}
+	options = dict(options or {})
+	if "methods" in options:
+		options["methods"] = _normalisiere_methoden(options["methods"])
+	_OPTIONS[id(fn)] = {"allow_guest": False, **options}
 	module = fn.__module__
 	# `diakronos_app.api.mitglieder.get_mitglieder_liste` -> `mitglieder.get_...`
 	short_module = module.split(".")[-1] if module else ""

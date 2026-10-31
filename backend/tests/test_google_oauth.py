@@ -203,15 +203,39 @@ def test_callback_access_log_redacts_code():
 
 @pytest.mark.parametrize("endpoint", ["exchange_code", "start_import"])
 def test_google_writes_require_post(configured, endpoint):
-    assert configured.get(PATH + endpoint).status_code == 417
+    """SEC-11: schreibende Google-Endpunkte sind POST-only (405, keine Wirkung).
+
+    Vorher 417 (Argument-/CSRF-Pruefung nach dem Methodendurchlass);
+    SEC-11 weist die Methode schon vorher ab — derselbe Zweck, eine Stufe
+    frueher.
+    """
+    antwort = configured.get(PATH + endpoint)
+    assert antwort.status_code == 405, antwort.text
+    assert antwort.headers["allow"] == "POST"
 
 
-@pytest.mark.parametrize("endpoint", ["get_oauth_url", "exchange_code", "get_google_calendars", "start_import"])
+@pytest.mark.parametrize("endpoint", ["get_oauth_url", "get_google_calendars"])
 def test_oauth_guest_denied(guest_client, endpoint):
+    """Lesende Google-Endpunkte bleiben bei GET (SEC-11 aendert sie nicht)."""
     assert guest_client.get(PATH + endpoint).status_code == 401
 
 
-@pytest.mark.parametrize("endpoint", ["get_oauth_url", "exchange_code", "get_google_calendars", "start_import"])
+@pytest.mark.parametrize("endpoint", ["get_oauth_url", "get_google_calendars"])
 def test_oauth_nonadmin_denied(client, set_user, endpoint):
     set_user("unknown@example.org")
     assert client.get(PATH + endpoint).status_code == 403
+
+
+@pytest.mark.parametrize("endpoint", ["exchange_code", "start_import"])
+def test_oauth_writes_gate_gilt_fuer_post(guest_client, client, set_user, endpoint):
+    """SEC-11: Die Anmelde-/Rollenpruefung gilt fuer die erlaubte Methode (POST).
+
+    GET endet mit 405 (`test_google_writes_require_post`); wer POST darf,
+    kommt an der Pruefung vorbei — ein Gast nicht (401), ein Nicht-Admin
+    nicht (403).
+    """
+    # Ohne Sitzung antwortet die bestehende Gate-Pruefung 417 (Vertrag dieser
+    # Karte, nicht Gegenstand von SEC-11): der Gast kommt nicht durch.
+    assert guest_client.post(PATH + endpoint).status_code in (401, 417)
+    set_user("unknown@example.org")
+    assert client.post(PATH + endpoint).status_code == 403

@@ -259,7 +259,7 @@ def _konten_schalten(mitglied_id: str, aus: bool) -> list[str]:
     return konten
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def mitglied_austritt(mitglied_id: str, begruendung: str = "", datum: str = "") -> dict[str, Any]:
     """„Austritt / Deaktivieren“ (A1/A2): Person ausgetreten, Konto aus, Sitzungen weg.
 
@@ -346,7 +346,7 @@ def mitglied_austritt(mitglied_id: str, begruendung: str = "", datum: str = "") 
     }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def mitglied_reaktivieren(mitglied_id: str) -> dict[str, Any]:
     """„Reaktivieren“ (A4): Austritt zuruecknehmen, Konto wieder aktiv.
 

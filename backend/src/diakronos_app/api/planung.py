@@ -648,7 +648,7 @@ def get_positionen(plan):
     return result
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def set_position_verantwortlicher(plan, row, mitglied):
     """Setzt den Verantwortlichen einer Position (row = idx oder name)."""
     doc = _get_plan(plan)
@@ -750,7 +750,7 @@ def get_teilnehmer(plan):
     return result
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def set_rollenbesetzung(plan, rolle, mitglied, besetzung_nr=1):
     """Setzt/tauscht eine Rollenbesetzung. Prueft Eindeutigkeit.
 
@@ -873,7 +873,7 @@ def get_besetzungsmatrix(plan):
 # ── Rotation ────────────────────────────────────────────────────────────────
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def generiere_rotation(plan, von, bis, dry_run=True):
     """Verteilt die Positionen reihum ueber die Einsatztermine im Zeitraum.
 
@@ -1004,7 +1004,7 @@ def generiere_rotation(plan, von, bis, dry_run=True):
 # ── Generator (P2-2) ────────────────────────────────────────────────────────
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def generiere_plan(
     plan,
     von,
@@ -1562,7 +1562,7 @@ def _plan_elementnamen(plan_doc):
     ]
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def veroeffentliche_plan(plan):
     """Veroeffentlicht einen Entwurf: materialisiert ihn als Kronos-Elemente.
 
@@ -1706,7 +1706,7 @@ def _element_name(plan_doc, datum):
     return "%s%s" % (plan_doc.plantitel or plan_doc.name, tag)
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def zurueckziehen_plan(plan):
     """Zieht einen veroeffentlichten Plan zurueck in den Entwurf.
 
@@ -2157,7 +2157,7 @@ def get_abgeleitete_positionen(plan):
 # ── Anlegen (PlanWizard) ────────────────────────────────────────────────────
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_plan(payload):
     """Legt einen neuen Dienstplan an (Anlege-Schritt des PlanWizard).
 

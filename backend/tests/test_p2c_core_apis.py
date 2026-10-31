@@ -94,15 +94,26 @@ def test_logout_auch_per_get(client):
 	# PT1: Ein GET-Logout MIT gueltiger Sitzung wird abgewiesen (Forced
 	# Logout per <img src="/api/method/logout">). Der `client`-Fixture bringt
 	# eine Sitzung mit, deshalb hier 417.
+	#
+	# SEC-11: Die Abweisung ist jetzt eine Stufe FRUEHER und fuer JEDE Methode
+	# ausser POST — 405 mit `Allow: POST` statt der CSRF-Ablehnung (417). Das
+	# Ergebnis ist dasselbe (kein Logout per GET), die Begruendung ist
+	# strenger: die Methode kommt gar nicht erst bis zur CSRF-Pruefung.
 	r = client.get("/api/method/logout")
-	assert r.status_code == 417
+	assert r.status_code == 405, r.text
+	assert r.headers["allow"] == "POST"
 
 
 def test_get_logout_ohne_sitzung_bleibt_noop():
-	"""Ohne Sitzung ist GET /api/method/logout ein harmloser No-op.
+	"""SEC-11: GET /api/method/logout wird IMMER abgewiesen — auch ohne Sitzung.
 
-	Auch der Frappe-Endpunkt darf GET nicht grundsaetzlich verbieten — nur
-	mit Sitzung ist es der Zwangs-Logout-Vektor.
+	Vorher galt hier „ohne Sitzung ist es ein harmloser No-op": der Endpunkt
+	durfte GET, weil der einzige befuerchtete Vektor (Zwangs-Logout per
+	`<img src>`) eine Sitzung braucht. Mit SEC-11 gilt fuer alle schreibenden
+	Endpunkte (und `logout` legt/loescht eine Sitzung) eine einzige Regel:
+	nur POST. Damit ist der Endpunkt auch dann nicht per Link ausloesbar,
+	wenn ein Browser Cookies mitschickt und die Annahme „keine Sitzung"
+	nicht zutrifft. Die Antwort ist 405 mit `Allow: POST`, KEIN Logout.
 	"""
 	from fastapi.testclient import TestClient
 
@@ -110,8 +121,13 @@ def test_get_logout_ohne_sitzung_bleibt_noop():
 
 	with TestClient(app) as c:
 		r = c.get("/api/method/logout")
-	assert r.status_code == 200
-	assert r.json()["message"] == "Logged Out"
+	assert r.status_code == 405, r.text
+	assert r.headers["allow"] == "POST"
+	# POST ohne Sitzung bleibt der harmlose No-op (Vertrag unveraendert).
+	with TestClient(app) as c:
+		ok = c.post("/api/method/logout")
+	assert ok.status_code == 200
+	assert ok.json()["message"] == "Logged Out"
 
 
 def test_logout_ist_guest_erlaubt(client):

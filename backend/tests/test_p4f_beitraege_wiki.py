@@ -186,7 +186,7 @@ def test_wiki_spa_pfade_sind_registriert(fn):
                          + [(WIKI, f) for f in SPA_PFADE_WIKI])
 def test_guest_wird_ueberall_abgewiesen(client, als_guest, modul, fn):
     """`allow_guest=False` gilt fuer alle 13 Endpunkte."""
-    resp = client.get(f"/api/method/{modul}.{fn}")
+    resp = client.post(f"/api/method/{modul}.{fn}")
     assert resp.status_code == 401, (modul, fn, resp.text)
 
 
@@ -293,14 +293,14 @@ def test_beitrag_detail_unbekannt_liefert_fehler(client, als_anna):
 
 
 def test_create_beitrag_nur_admin(client, als_anna):
-    r = client.get(f"/api/method/{BEITRAEGE}.create_beitrag",
-                   params={"titel": "Neu", "inhalt": "<p>x</p>"})
+    r = client.post(f"/api/method/{BEITRAEGE}.create_beitrag",
+                   data={"titel": "Neu", "inhalt": "<p>x</p>"})
     assert r.status_code == 403, r.text
 
 
 def test_create_beitrag_legt_veroeffentlichten_beitrag_an(client, als_admin, welt):
-    r = client.get(f"/api/method/{BEITRAEGE}.create_beitrag",
-                   params={"titel": "  Neuer Beitrag  ", "inhalt": "<p>Text</p>",
+    r = client.post(f"/api/method/{BEITRAEGE}.create_beitrag",
+                   data={"titel": "  Neuer Beitrag  ", "inhalt": "<p>Text</p>",
                            "kategorie": "technik", "auszug": "  Kurz  ",
                            "bild": "neu.jpg"})
     assert r.status_code == 200, r.text
@@ -321,8 +321,8 @@ def test_create_beitrag_legt_veroeffentlichten_beitrag_an(client, als_admin, wel
 
 
 def test_create_beitrag_ohne_bild_setzt_null(client, als_admin, welt):
-    r = client.get(f"/api/method/{BEITRAEGE}.create_beitrag",
-                   params={"titel": "Ohne Bild", "inhalt": "<p>x</p>"})
+    r = client.post(f"/api/method/{BEITRAEGE}.create_beitrag",
+                   data={"titel": "Ohne Bild", "inhalt": "<p>x</p>"})
     neu = r.json()["message"]["beitrag_id"]
 
     from diakronos_app.models.diakonos import Beitrag
@@ -332,21 +332,21 @@ def test_create_beitrag_ohne_bild_setzt_null(client, als_admin, welt):
 
 def test_create_beitrag_erscheint_sofort_in_der_liste(client, als_admin):
     """Belegt: Erstanlage landet direkt in der Liste (veroeffentlicht=1)."""
-    client.get(f"/api/method/{BEITRAEGE}.create_beitrag",
-               params={"titel": "Frisch", "inhalt": "<p>x</p>"})
+    client.post(f"/api/method/{BEITRAEGE}.create_beitrag",
+               data={"titel": "Frisch", "inhalt": "<p>x</p>"})
     r = client.get(f"/api/method/{BEITRAEGE}.get_beitraege_liste")
     assert "Frisch" in [b["title"] for b in r.json()["message"]]
 
 
 def test_update_beitrag_nur_admin(client, als_anna):
-    r = client.get(f"/api/method/{BEITRAEGE}.update_beitrag",
-                   params={"beitrag_id": "BEI-1", "titel": "Geaendert"})
+    r = client.post(f"/api/method/{BEITRAEGE}.update_beitrag",
+                   data={"beitrag_id": "BEI-1", "titel": "Geaendert"})
     assert r.status_code == 403, r.text
 
 
 def test_update_beitrag_schreibt_nur_gesetzte_felder(client, als_admin, welt):
-    r = client.get(f"/api/method/{BEITRAEGE}.update_beitrag",
-                   params={"beitrag_id": "BEI-1", "titel": "  Sommerfest 2026  ",
+    r = client.post(f"/api/method/{BEITRAEGE}.update_beitrag",
+                   data={"beitrag_id": "BEI-1", "titel": "  Sommerfest 2026  ",
                            "kategorie": "jugend"})
     assert r.status_code == 200, r.text
 
@@ -359,14 +359,14 @@ def test_update_beitrag_schreibt_nur_gesetzte_felder(client, als_admin, welt):
 
 
 def test_delete_beitrag_nur_admin(client, als_anna):
-    r = client.get(f"/api/method/{BEITRAEGE}.delete_beitrag",
-                   params={"beitrag_id": "BEI-1"})
+    r = client.post(f"/api/method/{BEITRAEGE}.delete_beitrag",
+                   data={"beitrag_id": "BEI-1"})
     assert r.status_code == 403, r.text
 
 
 def test_delete_beitrag_entfernt_zeile(client, als_admin, welt):
-    r = client.get(f"/api/method/{BEITRAEGE}.delete_beitrag",
-                   params={"beitrag_id": "BEI-1"})
+    r = client.post(f"/api/method/{BEITRAEGE}.delete_beitrag",
+                   data={"beitrag_id": "BEI-1"})
     assert r.status_code == 200, r.text
 
     from diakronos_app.models.diakonos import Beitrag
@@ -378,8 +378,8 @@ def test_delete_beitrag_entfernt_zeile(client, als_admin, welt):
 
 
 def test_create_kommentar_legt_kindzeile_an(client, als_anna, welt):
-    r = client.get(f"/api/method/{BEITRAEGE}.create_kommentar",
-                   params={"beitrag_id": "BEI-1", "text": "  Toll!  "})
+    r = client.post(f"/api/method/{BEITRAEGE}.create_kommentar",
+                   data={"beitrag_id": "BEI-1", "text": "  Toll!  "})
     assert r.status_code == 200, r.text
     k = r.json()["message"]["kommentar"]
 
@@ -399,22 +399,22 @@ def test_create_kommentar_legt_kindzeile_an(client, als_anna, welt):
 
 
 def test_create_kommentar_zaehlt_in_der_liste_hoch(client, als_anna):
-    client.get(f"/api/method/{BEITRAEGE}.create_kommentar",
-               params={"beitrag_id": "BEI-3", "text": "Erster!"})
+    client.post(f"/api/method/{BEITRAEGE}.create_kommentar",
+               data={"beitrag_id": "BEI-3", "text": "Erster!"})
     r = client.get(f"/api/method/{BEITRAEGE}.get_beitraege_liste")
     b = {x["id"]: x for x in r.json()["message"]}["BEI-3"]
     assert b["comments"] == 1
 
 
 def test_create_kommentar_leertext_wird_abgelehnt(client, als_anna):
-    r = client.get(f"/api/method/{BEITRAEGE}.create_kommentar",
-                   params={"beitrag_id": "BEI-1", "text": "   "})
+    r = client.post(f"/api/method/{BEITRAEGE}.create_kommentar",
+                   data={"beitrag_id": "BEI-1", "text": "   "})
     assert r.status_code >= 400, r.text
 
 
 def test_create_kommentar_unbekannter_beitrag(client, als_anna):
-    r = client.get(f"/api/method/{BEITRAEGE}.create_kommentar",
-                   params={"beitrag_id": "GIBTSNICHT", "text": "Hallo"})
+    r = client.post(f"/api/method/{BEITRAEGE}.create_kommentar",
+                   data={"beitrag_id": "GIBTSNICHT", "text": "Hallo"})
     assert r.status_code >= 400, r.text
 
 
@@ -530,14 +530,14 @@ def test_wiki_detail_unbekannt_liefert_fehler(client, als_anna):
 
 
 def test_create_wiki_nur_admin(client, als_anna):
-    r = client.get(f"/api/method/{WIKI}.create_wiki_artikel",
-                   params={"titel": "Neu", "inhalt": "<p>x</p>"})
+    r = client.post(f"/api/method/{WIKI}.create_wiki_artikel",
+                   data={"titel": "Neu", "inhalt": "<p>x</p>"})
     assert r.status_code == 403, r.text
 
 
 def test_create_wiki_legt_artikel_an(client, als_admin, welt):
-    r = client.get(f"/api/method/{WIKI}.create_wiki_artikel",
-                   params={"titel": "  Neuer Artikel  ", "inhalt": "<p>Text</p>",
+    r = client.post(f"/api/method/{WIKI}.create_wiki_artikel",
+                   data={"titel": "  Neuer Artikel  ", "inhalt": "<p>Text</p>",
                            "kategorie": "raeume", "tags": "  raum, gross  ",
                            "auszug": "  Kurz  "})
     assert r.status_code == 200, r.text
@@ -556,14 +556,14 @@ def test_create_wiki_legt_artikel_an(client, als_admin, welt):
 
 
 def test_update_wiki_nur_admin(client, als_anna):
-    r = client.get(f"/api/method/{WIKI}.update_wiki_artikel",
-                   params={"artikel_id": "WIK-1", "titel": "Geaendert"})
+    r = client.post(f"/api/method/{WIKI}.update_wiki_artikel",
+                   data={"artikel_id": "WIK-1", "titel": "Geaendert"})
     assert r.status_code == 403, r.text
 
 
 def test_update_wiki_schreibt_gesetzte_felder(client, als_admin, welt):
-    r = client.get(f"/api/method/{WIKI}.update_wiki_artikel",
-                   params={"artikel_id": "WIK-1", "titel": "Beamer 2.0",
+    r = client.post(f"/api/method/{WIKI}.update_wiki_artikel",
+                   data={"artikel_id": "WIK-1", "titel": "Beamer 2.0",
                            "ist_neu": 0})
     assert r.status_code == 200, r.text
 
@@ -576,14 +576,14 @@ def test_update_wiki_schreibt_gesetzte_felder(client, als_admin, welt):
 
 
 def test_delete_wiki_nur_admin(client, als_anna):
-    r = client.get(f"/api/method/{WIKI}.delete_wiki_artikel",
-                   params={"artikel_id": "WIK-1"})
+    r = client.post(f"/api/method/{WIKI}.delete_wiki_artikel",
+                   data={"artikel_id": "WIK-1"})
     assert r.status_code == 403, r.text
 
 
 def test_delete_wiki_entfernt_zeile(client, als_admin, welt):
-    r = client.get(f"/api/method/{WIKI}.delete_wiki_artikel",
-                   params={"artikel_id": "WIK-1"})
+    r = client.post(f"/api/method/{WIKI}.delete_wiki_artikel",
+                   data={"artikel_id": "WIK-1"})
     assert r.status_code == 200, r.text
 
     from diakronos_app.models.diakonos import WikiArtikel
@@ -694,8 +694,8 @@ def test_create_beitrag_setzt_boolean_veroeffentlicht(client, als_admin, welt):
     """Anlage setzt `veroeffentlicht` als echten bool-Wert."""
     from diakronos_app.models.diakonos import Beitrag
 
-    r = client.get(f"/api/method/{BEITRAEGE}.create_beitrag",
-                   params={"titel": "Bool-Test", "inhalt": "<p>x</p>"})
+    r = client.post(f"/api/method/{BEITRAEGE}.create_beitrag",
+                   data={"titel": "Bool-Test", "inhalt": "<p>x</p>"})
     neu = r.json()["message"]["beitrag_id"]
     assert welt.get(Beitrag, neu).veroeffentlicht is True
 
@@ -704,7 +704,7 @@ def test_create_wiki_setzt_boolean_ist_neu(client, als_admin, welt):
     """Anlage setzt `ist_neu` als echten bool-Wert."""
     from diakronos_app.models.diakonos import WikiArtikel
 
-    r = client.get(f"/api/method/{WIKI}.create_wiki_artikel",
-                   params={"titel": "Bool-Wiki", "inhalt": "<p>x</p>"})
+    r = client.post(f"/api/method/{WIKI}.create_wiki_artikel",
+                   data={"titel": "Bool-Wiki", "inhalt": "<p>x</p>"})
     neu = r.json()["message"]["artikel_id"]
     assert welt.get(WikiArtikel, neu).ist_neu is True

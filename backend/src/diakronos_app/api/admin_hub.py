@@ -641,7 +641,7 @@ def _notify_mitgliederadmin(doc, mitglied_name: str) -> None:
         )
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def genehmige_anmeldung(anmeldung_id, dublette_bestaetigt=0, status=None, gruppe=None):
     """Setzt Anmeldung auf 'Bestätigt' → legt Mitglied + DSGVO an.
 
@@ -696,7 +696,7 @@ def genehmige_anmeldung(anmeldung_id, dublette_bestaetigt=0, status=None, gruppe
     return {"success": True, "mitglied": doc.mitglied, "warnungen": warnungen}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def lehne_anmeldung_ab(anmeldung_id, grund=""):
     """Setzt Anmeldung auf 'Abgelehnt' (admin_hub.py:177-189)."""
     _require_admin()
@@ -824,7 +824,7 @@ def get_anmeldeformular_felder(formular_id):
     }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_anmeldeformular(formular_id, bezeichnung=None, mit_gaesten=None,
                            mit_kinder=None, felder_json=None,
                            beschreibung=None, banner_bild_datei=None,
@@ -938,7 +938,7 @@ def update_anmeldeformular(formular_id, bezeichnung=None, mit_gaesten=None,
     return {"success": True, "id": doc.name}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def delete_anmeldeformular(formular_id, bestaetigt=0):
     """Anmeldeformular loeschen — nur ohne zugeordnete Registrierungslinks.
 
@@ -986,7 +986,7 @@ def delete_anmeldeformular(formular_id, bestaetigt=0):
     return {"success": True, "id": doc.name}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_anmeldeformular(bezeichnung, mit_gaesten=0, mit_kinder=0):
     """Schnellanlage eines Anmeldeformulars aus dem Hub (admin_hub.py:204-218)."""
     _require_admin()
@@ -1030,7 +1030,7 @@ def get_anmeldeformular_kopf(formular_id):
     }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_anmeldeformular_felder(formular_id, felder_json):
     """Ersetzt alle Felder eines Anmeldeformulars (admin_hub.py:221-241).
 

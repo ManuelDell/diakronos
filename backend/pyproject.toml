@@ -95,6 +95,10 @@ where = ["src"]
 "diakronos_app.import_metadaten" = ["*.json", "*.tsv"]
 "diakronos_app.models" = ["_mapping.json"]
 "diakronos_app.planrahmen" = ["schema/*.json", "doku/*.md", "doku/kochbuch/*.json", "doku/instanzen/*.json"]
+# SEC-11: Inventar der whitelist-Endpunkte (lesend/schreibend). Liegt im Paket,
+# weil `docs/` in .dockerignore steht und die Waechter (Backend-Test und
+# Frontend-Node-Test) es im Image lesen. Kein Laufzeitbedarf.
+"diakronos_app.frappe_compat.inventar" = ["*.json", "*.md"]
 # DM1: der Dev-Modus braucht keine Laufzeit-Dateien im Paket (kein Katalog,
 # keine Regeln). Die Ablage erfolgt ausschliesslich unter FILES_DIR.
 

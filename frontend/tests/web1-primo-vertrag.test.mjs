@@ -36,9 +36,13 @@ function lies(pfad) {
 test('WEB-1: die drei Endpunkte sind whitelisted und nicht für Gäste', () => {
   const quelle = lies(API)
   for (const name of ['status', 'rollen', 'login_uebergabe']) {
+    // SEC-11 hat die Dekoration erweitert: schreibende Endpunkte tragen
+    // zusätzlich `methods=["POST"]`. Der Vertrag dieser Karte ist unverändert
+    // "whitelisted, NICHT für Gäste" — deshalb wird das `allow_guest=False`
+    // innerhalb der Argumentliste verlangt, nicht die genaue Reihenfolge.
     assert.match(
       quelle,
-      new RegExp(`@whitelist\\(allow_guest=False\\)\\ndef ${name}\\(`),
+      new RegExp(`@whitelist\\([^)\\n]*allow_guest=False[^)\\n]*\\)\\s*\\ndef ${name}\\(`),
       `Endpunkt ${name} fehlt oder ist für Gäste offen`,
     )
   }

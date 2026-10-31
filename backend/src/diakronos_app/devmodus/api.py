@@ -68,7 +68,10 @@ def _endpunkt(schreiben: bool = False) -> Callable:
                 return JSONResponse(status_code=403, content=_fehler_koerper(
                     str(exc), "PermissionError", 403))
         aufruf.__signature__ = _signatur(fn)
-        return whitelist(allow_guest=False)(aufruf)
+        # SEC-11: `schreiben=True` heisst POST-only — die Grenze steht damit
+        # schon im Register und nicht erst im Rumpf (der Rumpf prueft zusaetzlich).
+        return whitelist(allow_guest=False,
+                         **(dict(methods=["POST"]) if schreiben else {}))(aufruf)
 
     return dekorator
 

@@ -10,11 +10,33 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import DkDialog from './ui/DkDialog.vue'
 import DkButton from './ui/DkButton.vue'
-import { sitzungAbgelaufen, sitzungsHinweis, anmeldeAdresse, sitzungFortsetzen } from '../composables/useSitzungsablauf.js'
+import {
+  sitzungAbgelaufen, sitzungsHinweis, anmeldeAdresse, sitzungFortsetzen,
+  sitzungsEndeUebernehmen, sitzungsEndeBeobachten,
+} from '../composables/useSitzungsablauf.js'
 const prueft = ref(false)
+
+// WEB-8c (R4): Ein im Hauptbereich aufgedecktes Sitzungsende muss hier
+// sichtbar werden — auch wenn es NICHT über `sitzungBeendet()` kam
+// (CSRF-Heilung). `sitzungEndeUebernehmen()` öffnet den Dialog selbst.
+watch(
+  () => sitzungAbgelaufen.value,
+  (offen) => { if (!offen) sitzungsEndeUebernehmen() },
+  { immediate: true },
+)
+
+// WEB-8d (M2): Früher fragte ein `setInterval(…, 250)` den Stand 4x je
+// Sekunde ab. Jetzt ist der Stand ein `shallowRef` und dieser Aufbau HÖRT
+// darauf (`sitzungsEndeBeobachten` → `watch`): die Meldung kommt sofort bei
+// der Änderung, ohne Takt und ohne Arbeit im Leerlauf. Die Beobachtung wird
+// beim Abbau der Anzeige gelöst.
+let abmelden = null
+onMounted(() => { abmelden = sitzungsEndeBeobachten(() => { sitzungsEndeUebernehmen() }) })
+onUnmounted(() => { if (abmelden) { abmelden(); abmelden = null } })
+
 async function fortsetzen() {
   if (prueft.value) return
   prueft.value = true

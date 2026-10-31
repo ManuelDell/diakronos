@@ -158,7 +158,18 @@ def test_adminrechte_serverseitig(client, welt, fn):
 
 
 def test_schreiben_nicht_per_get(client, welt):
-    assert client.get(PFAD + 'anonymisieren', params={'mitglied_id': 'N6-A', 'bestaetigt': True, 'bestaetigung': 'ANONYMISIEREN'}).status_code == 417
+    """SEC-11: Schreibende Datenschutz-Endpunkte nehmen NUR POST an.
+
+    Vorher war es 417 (CSRF/Argumentpruefung), weil GET die Fachfunktion
+    erreichte. Jetzt endet GET davor: 405 mit `Allow: POST`, KEINE Wirkung.
+    """
+    antwort = client.get(PFAD + 'anonymisieren',
+                         params={'mitglied_id': 'N6-A', 'bestaetigt': True,
+                                 'bestaetigung': 'ANONYMISIEREN'})
+    assert antwort.status_code == 405, antwort.text
+    assert antwort.headers['allow'] == 'POST'
+    with welt() as s:
+        assert s.get(Mitglied, 'N6-A').vorname == 'Anna'
 
 
 def test_erledigung_verlangt_offenen_antrag(client, welt):
@@ -191,7 +202,10 @@ def test_mitgliederadmin_darf_keinen_system_manager_anonymisieren(client, welt):
 def test_antrag_ohne_bestaetigung_nicht_moeglich(client, welt):
     set_user('person@example.org')
     assert post(client, 'loeschung_beantragen', bestaetigt='false').status_code == 417
-    assert client.get(PFAD + 'loeschung_beantragen', params={'bestaetigt': True}).status_code == 417
+    # SEC-11: GET erreicht die Fachfunktion nicht mehr (405, `Allow: POST`).
+    per_get = client.get(PFAD + 'loeschung_beantragen', params={'bestaetigt': True})
+    assert per_get.status_code == 405, per_get.text
+    assert per_get.headers['allow'] == 'POST'
 
 
 def test_zwei_wirksame_verwaltungskonten_nicht_gemeinsam_aussperren(client, welt):

@@ -154,7 +154,7 @@ def rollen():
     }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def login_uebergabe(request=None):
     """Uebergabe in Primo (S4) — gibt die Browser-URL zurueck.
 

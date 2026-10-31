@@ -3,7 +3,11 @@ import { readFileSync } from 'node:fs'
 // Die einzige Testnaht ersetzt Sitzungs-UI-Reaktivität; apiCall selbst bleibt echt.
 const source = readFileSync(new URL('../src/diakonos/composables/useApi.js', import.meta.url), 'utf8')
   .replace("import { useImpersonation } from './useImpersonation.js'", "const useImpersonation = () => ({ isActive: { value: false } })")
-  .replace("import { sitzungBeendet } from './useSitzungsablauf.js'", "const sitzungBeendet = () => { globalThis.__sitzungBeendet = true }")
+  .replace("import { sitzungBeendet } from './useSitzungsablauf.js'",
+    "const sitzungBeendet = () => { globalThis.__sitzungBeendet = true }")
+  // WEB-8c (R4): der abgelegte Sitzungsfehler (eigene Datei, keine Importe).
+  .replace("import { sitzungsFehlerMerken } from './sitzungsstand.js'",
+    "const sitzungsFehlerMerken = (f) => f")
   // OP-UI-1 (Rest): gemeinsame Regeln aus shared/sitzung-pruefen.js inline.
   .replace("import { istSitzungsAbbruch } from '../../shared/sitzung-pruefen.js'",
     "const istSitzungsAbbruch = (status, data) => [401, 419].includes(status) || (status === 417 && data?.exc_type === 'CSRFTokenError')")
@@ -13,6 +17,15 @@ const source = readFileSync(new URL('../src/diakonos/composables/useApi.js', imp
   // tests/web5b-basis.test.mjs.
   .replace("import { apiUrl } from '../../shared/basis.js'",
     "const apiUrl = (methode) => '/api/method/' + methode")
+  // WEB-8b: die CSRF-Heilung liegt in einer eigenen Datei (shared/csrf-heilung.js).
+  // Im data:-Modul wird sie inline nachgebildet — hier geht es um die FEHLERFORM
+  // von apiCall, nicht um die Heilung; die prueft tests/web8b-csrf-heilung.test.mjs
+  // mit dem echten Modul. `datenVon` liest wie in der Vorlage (tolerant).
+  .replace("import { istCsrfAblehnung, heileOderMelde, datenVon, SITZUNG_HINWEIS } from '../../shared/csrf-heilung.js'",
+    "const istCsrfAblehnung = (res, data) => res?.status === 417 && String(data?.exc_type || '') === 'CSRFTokenError';"
+    + " const heileOderMelde = async ({ anfrage }) => { const res = await anfrage(); return { res, data: await datenVon(res) } };"
+    + " const SITZUNG_HINWEIS = 'Sitzung abgelaufen — bitte neu anmelden.';"
+    + " async function datenVon(res) { if (res?.dkDaten !== undefined) return res.dkDaten; let text = ''; try { text = await res.text() } catch { return { message: `Serverfehler (HTTP ${res?.status})` } } if (!text) return { message: `Serverfehler (HTTP ${res?.status})` }; try { return JSON.parse(text) } catch { return { message: `Serverfehler (HTTP ${res?.status})` } } }")
 const { apiCall } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'))
 globalThis.window = { __DIakonosBOOT: { csrf_token: 'test-token' } }
 

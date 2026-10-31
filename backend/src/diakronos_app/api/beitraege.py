@@ -209,7 +209,7 @@ def get_beitrag_detail(beitrag_id):
     return _beitrag_to_dict(b, with_kommentare=True)
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_beitrag(titel, inhalt, kategorie="allgemein", auszug="", bild=""):
     """Erstellt einen neuen Beitrag (nur Admin).
 
@@ -236,7 +236,7 @@ def create_beitrag(titel, inhalt, kategorie="allgemein", auszug="", bild=""):
     return {"success": True, "beitrag_id": beitrag_id}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_beitrag(beitrag_id, titel="", inhalt="", kategorie="", auszug="", bild=""):
     """Aktualisiert einen Beitrag (nur Admin).
 
@@ -266,7 +266,7 @@ def update_beitrag(beitrag_id, titel="", inhalt="", kategorie="", auszug="", bil
     return {"success": True}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def delete_beitrag(beitrag_id):
     """Löscht einen Beitrag (nur Admin).
 
@@ -282,7 +282,7 @@ def delete_beitrag(beitrag_id):
     return {"success": True}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_kommentar(beitrag_id, text):
     """Fügt einen Kommentar hinzu.
 

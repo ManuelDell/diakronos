@@ -101,11 +101,23 @@ export function dateiUrl(url) {
   return mitBasis(text)
 }
 
-/** Adresse der Anmeldemaske, mit Ruecksprungziel (`redirect-to`). */
-export function anmeldeUrl(ziel) {
+/**
+ * Adresse der Anmeldemaske, mit Ruecksprungziel (`redirect-to`).
+ *
+ * `grund` (WEB-8c R4) ist eine FESTE Kennung, kein Freitext: die Maske bildet
+ * sie auf einen festen Hinweis ab. So kann niemand beliebigen Text ueber die
+ * Adresse einschleusen — und der Hinweis reist trotzdem mit.
+ *   `grund=csrf` -> „Sitzung abgelaufen — bitte neu anmelden."
+ */
+export function anmeldeUrl(ziel, grund) {
   const basis = mitBasis('/login')
-  if (ziel === undefined || ziel === null || ziel === '') return basis
-  return basis + '?redirect-to=' + encodeURIComponent(String(ziel))
+  const teile = []
+  if (ziel !== undefined && ziel !== null && ziel !== '') {
+    teile.push('redirect-to=' + encodeURIComponent(String(ziel)))
+  }
+  const kennung = typeof grund === 'string' ? grund.trim() : ''
+  if (kennung) teile.push('grund=' + encodeURIComponent(kennung))
+  return teile.length ? basis + '?' + teile.join('&') : basis
 }
 
 /**

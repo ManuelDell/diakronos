@@ -88,7 +88,7 @@ WORKZUG_ENTSPRERREN = "entsperren"
 _ANTWORT = "Konto freigegeben."
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def entsperren_konto(user: str | None = None, **kwargs: Any) -> str:
     """Gibt **ein** Konto in beiden Bereichen (Login, CalDAV) frei.
 

@@ -88,7 +88,9 @@ test('anmeldeZiel haengt den Hash an das Rücksprungziel', () => {
     const original = globalThis.location
     globalThis.location = { pathname: '/diakonos', search: '?x=1', hash: '#/gruppe/42' }
     try {
-        assert.equal(anmeldeZiel(), '/login?redirect-to=' + encodeURIComponent('/diakonos?x=1#/gruppe/42'))
+        // WEB-8c (R4): die Anmeldemaske bekommt zusaetzlich die FESTE Kennung
+        // `grund=csrf` (Hinweis ohne Freitext in der Adresse).
+        assert.equal(anmeldeZiel(), '/login?redirect-to=' + encodeURIComponent('/diakonos?x=1#/gruppe/42') + '&grund=csrf')
     } finally {
         globalThis.location = original
     }
@@ -97,6 +99,8 @@ test('anmeldeZiel haengt den Hash an das Rücksprungziel', () => {
 test('Organigramm nutzt die zentrale Pruefung (keine rohe Statusmeldung mehr)', () => {
     const quelle = readFileSync(new URL('../src/organigramm/App.vue', import.meta.url), 'utf8')
     assert.ok(quelle.includes("from '../shared/sitzung-pruefen.js'"), 'Import fehlt')
-    assert.ok(quelle.includes('await antwortPruefen(res)'), 'antwortPruefen nicht verwendet')
+    // WEB-8b: der Aufruf wird als `anfrage` mitgegeben, damit eine
+    // CSRF-Ablehnung geheilt werden kann — die zentrale Prüfung bleibt Pflicht.
+    assert.match(quelle, /await antwortPruefen\(res, \{ anfrage \}\)/, 'antwortPruefen (mit anfrage) nicht verwendet')
     assert.ok(!quelle.includes('throw new Error(res.status)'), 'rohe Statusmeldung noch vorhanden')
 })

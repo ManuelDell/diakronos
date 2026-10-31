@@ -515,7 +515,7 @@ def get_fassungen(lied: str, gruppe: str | None = None) -> list[dict[str, Any]]:
 	return result
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def save_lied(daten: Any) -> dict[str, Any]:
 	"""Lied anlegen oder aendern. `daten` enthaelt `name` fuer Update, sonst Insert.
 
@@ -712,7 +712,7 @@ def _dublette_pruefen(daten: dict[str, Any]) -> None:
 			)
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def save_fassung(daten: Any) -> dict[str, Any]:
 	"""Fassung anlegen oder aendern. `daten` enthaelt `name` fuer Update."""
 	_require_write()
@@ -926,7 +926,7 @@ LIEDGRUPPE_TYPEN = ["Werk", "Musical", "Kantate", "Sammlung", "Gesangbuch",
 LIEDGRUPPE_STATUS = ["Aktiv", "Archiviert"]
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def save_liedgruppe(daten: Any) -> dict[str, Any]:
 	"""Liedgruppe anlegen oder aendern (UXM-R9).
 
@@ -964,7 +964,7 @@ def save_liedgruppe(daten: Any) -> dict[str, Any]:
 			        "gruppenname": doc.gruppenname}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def delete_liedgruppe(liedgruppe: str) -> dict[str, Any]:
 	"""Liedgruppe mit ihren Zuordnungen loeschen (UXM-R9).
 

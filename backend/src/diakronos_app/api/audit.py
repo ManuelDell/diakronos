@@ -180,7 +180,7 @@ def get_unread_notifications():
     return {"success": True, "unread_count": count}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def mark_notifications_read(names=None):
     """Markiert nur die angezeigten, eigenen Eintraege als gelesen."""
     if names is None:

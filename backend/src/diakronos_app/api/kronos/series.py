@@ -84,7 +84,7 @@ def _aenderungen_entfernen(element_name: str) -> int:
     return moderation.aenderungen_zu_element_entfernen(element_name)
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_series_batch_fast(series_id, updates):
     """Schneller Update aller Elemente einer Serie.
 
@@ -201,7 +201,7 @@ def update_series_batch_fast(series_id, updates):
     return antwort
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def delete_future_series_events(series_id, from_date):
     """Loescht alle Elemente einer Serie ab einem bestimmten Datum (inklusive)."""
     if not series_id:
@@ -288,7 +288,7 @@ def _series_datum(wert: Any, feldname: str) -> str:
     return tag
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def delete_series_batch_fast(series_id):
     """Loescht alle Elemente einer Serie."""
     if not series_id:

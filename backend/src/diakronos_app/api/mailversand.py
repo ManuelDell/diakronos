@@ -128,7 +128,7 @@ def mailversand_status() -> dict:
 	}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def mailversand_speichern(host=None, port=None, sicherheit=None, benutzername="",
                           passwort="", passwort_entfernen=False, absender=None,
                           absender_name="", timeout=None) -> dict:
@@ -177,7 +177,7 @@ def mailversand_speichern(host=None, port=None, sicherheit=None, benutzername=""
 	return {"gespeichert": True, "einstellungen": neu}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def mailversand_testmail(host=None, port=None, sicherheit=None, benutzername="",
                          passwort="", absender=None, absender_name="",
                          timeout=None) -> dict:

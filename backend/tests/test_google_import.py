@@ -19,15 +19,32 @@ def test_empty_credentials_status(client):
     }
 
 
-@pytest.mark.parametrize("endpoint", ["get_credentials_status", "save_credentials", "upload_ical"])
+#: Lesende und schreibende Google-Endpunkte getrennt — SEC-11: die
+#: schreibenden nehmen NUR POST an (GET endet mit 405, VOR jeder Rollenpruefung).
+LESEND = ["get_credentials_status"]
+SCHREIBEND = ["save_credentials", "upload_ical"]
+
+
+@pytest.mark.parametrize("endpoint", LESEND + SCHREIBEND)
 def test_guest_denied(guest_client, endpoint):
-    assert guest_client.get(PATH + endpoint).status_code == 401
+    antwort = guest_client.get(PATH + endpoint)
+    if endpoint in SCHREIBEND:
+        # SEC-11: Methode zuerst — 405 mit `Allow: POST`.
+        assert antwort.status_code == 405, antwort.text
+        assert antwort.headers["allow"] == "POST"
+    else:
+        assert antwort.status_code == 401, antwort.text
 
 
-@pytest.mark.parametrize("endpoint", ["get_credentials_status", "save_credentials", "upload_ical"])
+@pytest.mark.parametrize("endpoint", LESEND + SCHREIBEND)
 def test_nonadmin_denied(client, set_user, endpoint):
     set_user("unknown@example.org")
-    assert client.get(PATH + endpoint).status_code == 403
+    antwort = client.get(PATH + endpoint)
+    if endpoint in SCHREIBEND:
+        assert antwort.status_code == 405, antwort.text
+        assert antwort.headers["allow"] == "POST"
+    else:
+        assert antwort.status_code == 403, antwort.text
 
 
 def test_save_encrypted_credentials(client, patched_db):

@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 from starlette.responses import Response
 
+from diakronos_app.frappe_compat import registry
 from diakronos_app.frappe_compat.exceptions import FrappeCompatError
 from diakronos_app.frappe_compat.registry import lookup, options_for
 from diakronos_app.frappe_compat.session import session as frappe_session
@@ -328,10 +329,31 @@ def _query_erlaubt(path: str, fn) -> bool:
 
 
 def _methode_erlaubt(path: str, fn, request: Request) -> bool:
-	"""False, wenn dieser Aufruf die HTTP-Methode nicht annimmt."""
+	"""False, wenn dieser Aufruf die HTTP-Methode nicht annimmt.
+
+	Zwei Quellen, in dieser Reihenfolge:
+
+	  1. SEC-11 (CRIT-1): `@whitelist(methods=[...])`. Schreibende Endpunkte
+	     deklarieren `["POST"]`; dann ist JEDE andere Methode hier zu Ende —
+	     auch fuer den Login, der denselben Weg nimmt.
+	  2. Ohne Deklaration gilt weiter die Login-Regel (LOGIN-3/H1(a)): der Login
+	     nimmt ausschliesslich POST an, alle anderen alles.
+	"""
+	methode = str(getattr(request, "method", "") or "").upper()
+	deklariert = registry.methoden_fuer(fn)
+	if deklariert is not None:
+		return methode in deklariert
 	if not _ist_login_zugang(path, fn):
 		return True
-	return str(getattr(request, "method", "") or "").upper() in _LOGIN_METHODEN
+	return methode in _LOGIN_METHODEN
+
+
+def _erlaubte_methoden(fn) -> tuple[str, ...]:
+	"""Methoden, die der Router fuer diesen Endpunkt zulaesst (fuer den `Allow`-Kopf)."""
+	deklariert = registry.methoden_fuer(fn)
+	if deklariert is not None:
+		return deklariert
+	return tuple(sorted(_LOGIN_METHODEN))
 
 
 
@@ -371,7 +393,14 @@ async def call_method(path: str, request: Request):
 	# geteilter Link): sie traegt keinen `Origin` und faellt nicht unter die
 	# CSRF-Middleware. Ein Browser, der navigiert, landet auf der Anmeldemaske;
 	# ein Skript bekommt 405. In beiden Faellen wird KEINE Sitzung gesetzt.
+	#
+	# SEC-11 (CRIT-1) erweitert genau diesen Weg auf ALLE Endpunkte, die
+	# `@whitelist(methods=[...])` deklarieren: ein Link
+	# `GET /api/method/<schreibende_funktion>?…` aus einer fremden Seite ist
+	# damit derselbe Fall — der Browser-Nutzer landet auf der Anmeldemaske,
+	# ein Skript bekommt 405, und KEINE Fachfunktion wird aufgerufen.
 	if not _methode_erlaubt(path, fn, request):
+		erlaubt = ", ".join(_erlaubte_methoden(fn))
 		if _ist_browser_navigation(request):
 			from urllib.parse import quote
 
@@ -385,8 +414,9 @@ async def call_method(path: str, request: Request):
 				status_code=303,
 			)
 			antwort.headers["Cache-Control"] = "no-store"
-			logger.info("Login per %s abgewiesen; zur Anmeldemaske.", request.method)
+			logger.info("Aufruf per %s abgewiesen (erlaubt: %s).", request.method, erlaubt)
 			return antwort
+		logger.info("Aufruf per %s abgewiesen (erlaubt: %s).", request.method, erlaubt)
 		return JSONResponse(
 			status_code=405,
 			content=_fehler_koerper(
@@ -394,7 +424,7 @@ async def call_method(path: str, request: Request):
 				"MethodNotAllowed",
 				405,
 			),
-			headers={"Allow": "POST"},
+			headers={"Allow": erlaubt},
 		)
 	if _guest_denied(fn):
 		return _error_response("Deine Anmeldung ist abgelaufen. Bitte melde dich neu an.", "SessionExpired", 401)

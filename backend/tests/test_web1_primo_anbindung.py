@@ -315,8 +315,14 @@ def test_status_nicht_erreichbar_auch_bei_fehlerstatus(primo_attrappe, als_benut
 
 @pytest.mark.parametrize("pfad", [PFAD_STATUS, PFAD_ROLLEN, PFAD_LOGIN])
 def test_normales_mitglied_bekommt_403(primo_attrappe, als_benutzer, pfad):
+    # SEC-11: `login_uebergabe` ist POST-only; GET endet mit 405 VOR der
+    # Rollenpruefung. Die Rollenpruefung selbst wird deshalb per POST belegt.
     c = als_benutzer(MITGLIED_MAIL)
-    antwort = c.get(f"/api/method/{pfad}")
+    if pfad == PFAD_LOGIN:
+        assert c.get(f"/api/method/{pfad}").status_code == 405
+        antwort = c.post(f"/api/method/{pfad}")
+    else:
+        antwort = c.get(f"/api/method/{pfad}")
     assert antwort.status_code == 403, antwort.text
     assert antwort.json()["exc_type"] == "PermissionError"
     # Fail closed: ein abgewiesener Aufruf darf Primo NICHT beruehren.

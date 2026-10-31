@@ -366,7 +366,7 @@ def test_dienstplan_spa_pfade_sind_registriert(fn):
                          + [(DIENST, f) for f in SPA_PFADE_DIENSTPLAN])
 def test_guest_wird_ueberall_abgewiesen(client, als_guest, modul, fn):
     """`allow_guest=False` gilt fuer alle 14 Endpunkte."""
-    resp = client.get(f"/api/method/{modul}.{fn}")
+    resp = client.post(f"/api/method/{modul}.{fn}")
     assert resp.status_code == 401, (modul, fn, resp.text)
 
 

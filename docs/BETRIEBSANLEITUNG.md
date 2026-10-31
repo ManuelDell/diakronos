@@ -785,6 +785,31 @@ Identitätsprüfung einzelner Besucher.
 > **Ändern Sie diese Werte nicht im laufenden Betrieb, sondern nehmen Sie sie in
 > die `.env` auf und starten den Stack neu.**
 
+### 8.1b Schreibende Endpunkte nur per POST (SEC-11)
+
+Jeder Endpunkt, der Daten ändert, eine E-Mail versendet oder ein Token anlegt,
+nimmt **ausschließlich POST** an. Ein Aufruf per `GET` — etwa ein Link
+`…/api/method/<funktion>?…`, den jemand auf einer fremden Seite anklickt —
+führt **nichts** aus:
+
+* im Browser (Navigation) landet die Person auf der Anmeldemaske,
+* ein Skript bekommt `405 MethodNotAllowed` mit `Allow: POST`.
+
+Damit ist der klassische CSRF-Weg über `GET` geschlossen — zusätzlich zur
+Prüfung des CSRF-Kopfes, die nur bei schreibenden Methoden greift.
+
+Zusätzlich weist der Server jede Anfrage unter `/api/method/…` und
+`/api/resource/…` ab (`403 PermissionError`), die ein **Browser von einer
+fremden Seite** schickt (`Sec-Fetch-Site: cross-site` oder `same-site`).
+Ausgenommen sind ausschließlich die öffentlichen Website-Endpunkte
+(`website.*`, `kontakt_senden`) — sie bringen ihre eigene Herkunftsprüfung
+mit. Werkzeuge ohne Browser (Apps, CalDAV-Clients, `curl`) senden den Kopf
+nicht und sind nicht betroffen.
+
+Die vollständige Einordnung aller Endpunkte (lesend/schreibend) steht in
+`backend/src/diakronos_app/frappe_compat/inventar/whitelist.md`; erzeugt wird
+sie mit `tools/whitelist_inventar.py`.
+
 ### 8.2 Der gemeinsame Internetanschluss — gelöst
 
 Der Zähler hing früher an der Adresse, von der die Anmeldung kommt. Eine
@@ -2299,6 +2324,32 @@ nichts am Browser-Cache zu leeren.
 
 Wer den Präfix ändert, sollte danach einmal Anmelden, die Mitgliederliste
 öffnen und einen Kalender aufrufen (die Live-Verbindung verbindet sich dort).
+
+### 16.8 Was bei angeschlossener Anbieter-Anmeldung (SSO) NICHT durchkommt (WEB-8d)
+
+Die Oberfläche heilt einen abgelaufenen CSRF-Token selbst: sie holt still ein
+frisches Token (`session.sitzung_status`), wiederholt die Anfrage **genau
+einmal** und lädt sonst die Seite neu. Greift auch das nicht, erscheint der
+feste Hinweis „Sitzung abgelaufen — bitte neu anmelden.“ — im Hauptbereich als
+Dialog, auf den öffentlichen Seiten als Text.
+
+**Grenze bei SSO/OIDC (und Forward-Auth):** Ist die Anmeldung beim
+**Anbieter** (z. B. Authentik) beendet, liefert `session.sitzung_status` keine
+Sitzung mehr. Die Heilung kann den Token dann nicht erneuern, und der Hinweis
+geht auf dem Weg zur Anmeldemaske **verloren**: Wer über SSO kommt, wird vom
+Anbieter meist **ohne Zwischenseite** wieder angemeldet (oder direkt zur
+Startseite geführt). Der Text erscheint dann nicht — die Person landet ohne
+Erklärung wieder in der App oder auf der Anmeldeseite.
+
+Das ist bewusst **nicht** umgangen: ein Hinweis, den man durch eine
+Anbieter-Weiterleitung schickt, wäre ein offener Freitext-Kanal
+(`redirect_uri`/`state`), und der Anbieter entscheidet über die Zielseite.
+Wer die Meldung sehen will, muss sie **nach** der Rückkehr anzeigen (z. B.
+über ein eigenes `?grund=csrf`-Ziel auf der Startseite) — das ist eine eigene
+Aufgabe und hier nicht umgesetzt.
+
+Für den **Betrieb ohne SSO** (Anmeldung mit Konto und Passwort auf `/login`)
+gilt die Grenze nicht: dort erscheint der Hinweis auf der Maske.
 
 ---
 

@@ -1,0 +1,6188 @@
+{
+ "eintraege": [
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.anmeldung.einstellungen_api.anmeldung_get_einstellungen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.anmeldung.einstellungen_api",
+   "nach_name": "lesend",
+   "name": "anmeldung_get_einstellungen",
+   "pfade": [
+    "anmeldung_get_einstellungen",
+    "diakronos.anmeldung.anmeldung_get_einstellungen",
+    "diakronos_app.anmeldung.einstellungen_api.anmeldung_get_einstellungen",
+    "einstellungen_api.anmeldung_get_einstellungen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.anmeldung.einstellungen_api.anmeldung_get_rollen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.anmeldung.einstellungen_api",
+   "nach_name": "lesend",
+   "name": "anmeldung_get_rollen",
+   "pfade": [
+    "anmeldung_get_rollen",
+    "diakronos.anmeldung.anmeldung_get_rollen",
+    "diakronos_app.anmeldung.einstellungen_api.anmeldung_get_rollen",
+    "einstellungen_api.anmeldung_get_rollen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.anmeldung.einstellungen_api.anmeldung_setze_rollen_zuordnung",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.anmeldung.einstellungen_api",
+   "nach_name": "schreibend",
+   "name": "anmeldung_setze_rollen_zuordnung",
+   "pfade": [
+    "anmeldung_setze_rollen_zuordnung",
+    "diakronos.anmeldung.anmeldung_setze_rollen_zuordnung",
+    "diakronos_app.anmeldung.einstellungen_api.anmeldung_setze_rollen_zuordnung",
+    "einstellungen_api.anmeldung_setze_rollen_zuordnung"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.anmeldung.einstellungen_api.anmeldung_setze_unbekannte_nutzer",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.anmeldung.einstellungen_api",
+   "nach_name": "schreibend",
+   "name": "anmeldung_setze_unbekannte_nutzer",
+   "pfade": [
+    "anmeldung_setze_unbekannte_nutzer",
+    "diakronos.anmeldung.anmeldung_setze_unbekannte_nutzer",
+    "diakronos_app.anmeldung.einstellungen_api.anmeldung_setze_unbekannte_nutzer",
+    "einstellungen_api.anmeldung_setze_unbekannte_nutzer"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.anmeldung.einstellungen_api.anmeldung_speichern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.anmeldung.einstellungen_api",
+   "nach_name": "schreibend",
+   "name": "anmeldung_speichern",
+   "pfade": [
+    "anmeldung_speichern",
+    "diakronos.anmeldung.anmeldung_speichern",
+    "diakronos_app.anmeldung.einstellungen_api.anmeldung_speichern",
+    "einstellungen_api.anmeldung_speichern"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.admin_hub.create_anmeldeformular",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.admin_hub",
+   "nach_name": "schreibend",
+   "name": "create_anmeldeformular",
+   "pfade": [
+    "admin_hub.create_anmeldeformular",
+    "api.create_anmeldeformular",
+    "create_anmeldeformular",
+    "diakronos.diakonos.api.admin_hub.create_anmeldeformular",
+    "diakronos_app.api.admin_hub.create_anmeldeformular"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.admin_hub.delete_anmeldeformular",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.admin_hub",
+   "nach_name": "schreibend",
+   "name": "delete_anmeldeformular",
+   "pfade": [
+    "admin_hub.delete_anmeldeformular",
+    "api.delete_anmeldeformular",
+    "delete_anmeldeformular",
+    "diakronos.diakonos.api.admin_hub.delete_anmeldeformular",
+    "diakronos_app.api.admin_hub.delete_anmeldeformular"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.admin_hub.genehmige_anmeldung",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.admin_hub",
+   "nach_name": "schreibend",
+   "name": "genehmige_anmeldung",
+   "pfade": [
+    "admin_hub.genehmige_anmeldung",
+    "api.genehmige_anmeldung",
+    "diakronos.diakonos.api.admin_hub.genehmige_anmeldung",
+    "diakronos_app.api.admin_hub.genehmige_anmeldung",
+    "genehmige_anmeldung"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.admin_hub.get_anmeldeformular_felder",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.admin_hub",
+   "nach_name": "lesend",
+   "name": "get_anmeldeformular_felder",
+   "pfade": [
+    "admin_hub.get_anmeldeformular_felder",
+    "api.get_anmeldeformular_felder",
+    "diakronos.diakonos.api.admin_hub.get_anmeldeformular_felder",
+    "diakronos_app.api.admin_hub.get_anmeldeformular_felder",
+    "get_anmeldeformular_felder"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.admin_hub.get_anmeldeformular_kopf",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.admin_hub",
+   "nach_name": "lesend",
+   "name": "get_anmeldeformular_kopf",
+   "pfade": [
+    "admin_hub.get_anmeldeformular_kopf",
+    "api.get_anmeldeformular_kopf",
+    "diakronos.diakonos.api.admin_hub.get_anmeldeformular_kopf",
+    "diakronos_app.api.admin_hub.get_anmeldeformular_kopf",
+    "get_anmeldeformular_kopf"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.admin_hub.get_anmeldeformulare",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.admin_hub",
+   "nach_name": "lesend",
+   "name": "get_anmeldeformulare",
+   "pfade": [
+    "admin_hub.get_anmeldeformulare",
+    "api.get_anmeldeformulare",
+    "diakronos.diakonos.api.admin_hub.get_anmeldeformulare",
+    "diakronos_app.api.admin_hub.get_anmeldeformulare",
+    "get_anmeldeformulare"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.admin_hub.get_anmeldungen_hub",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.admin_hub",
+   "nach_name": "lesend",
+   "name": "get_anmeldungen_hub",
+   "pfade": [
+    "admin_hub.get_anmeldungen_hub",
+    "api.get_anmeldungen_hub",
+    "diakronos.diakonos.api.admin_hub.get_anmeldungen_hub",
+    "diakronos_app.api.admin_hub.get_anmeldungen_hub",
+    "get_anmeldungen_hub"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.admin_hub.get_dsgvo_uebersicht",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.admin_hub",
+   "nach_name": "lesend",
+   "name": "get_dsgvo_uebersicht",
+   "pfade": [
+    "admin_hub.get_dsgvo_uebersicht",
+    "api.get_dsgvo_uebersicht",
+    "diakronos.diakonos.api.admin_hub.get_dsgvo_uebersicht",
+    "diakronos_app.api.admin_hub.get_dsgvo_uebersicht",
+    "get_dsgvo_uebersicht"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.admin_hub.get_statistik",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.admin_hub",
+   "nach_name": "lesend",
+   "name": "get_statistik",
+   "pfade": [
+    "admin_hub.get_statistik",
+    "api.get_statistik",
+    "diakronos.diakonos.api.admin_hub.get_statistik",
+    "diakronos_app.api.admin_hub.get_statistik",
+    "get_statistik"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.admin_hub.lehne_anmeldung_ab",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.admin_hub",
+   "nach_name": "schreibend",
+   "name": "lehne_anmeldung_ab",
+   "pfade": [
+    "admin_hub.lehne_anmeldung_ab",
+    "api.lehne_anmeldung_ab",
+    "diakronos.diakonos.api.admin_hub.lehne_anmeldung_ab",
+    "diakronos_app.api.admin_hub.lehne_anmeldung_ab",
+    "lehne_anmeldung_ab"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.admin_hub.update_anmeldeformular",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.admin_hub",
+   "nach_name": "schreibend",
+   "name": "update_anmeldeformular",
+   "pfade": [
+    "admin_hub.update_anmeldeformular",
+    "api.update_anmeldeformular",
+    "diakronos.diakonos.api.admin_hub.update_anmeldeformular",
+    "diakronos_app.api.admin_hub.update_anmeldeformular",
+    "update_anmeldeformular"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.admin_hub.update_anmeldeformular_felder",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.admin_hub",
+   "nach_name": "schreibend",
+   "name": "update_anmeldeformular_felder",
+   "pfade": [
+    "admin_hub.update_anmeldeformular_felder",
+    "api.update_anmeldeformular_felder",
+    "diakronos.diakonos.api.admin_hub.update_anmeldeformular_felder",
+    "diakronos_app.api.admin_hub.update_anmeldeformular_felder",
+    "update_anmeldeformular_felder"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.audit.get_my_audit_log",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.audit",
+   "nach_name": "lesend",
+   "name": "get_my_audit_log",
+   "pfade": [
+    "api.get_my_audit_log",
+    "audit.get_my_audit_log",
+    "diakronos.diakonos.api.audit.get_my_audit_log",
+    "diakronos_app.api.audit.get_my_audit_log",
+    "get_my_audit_log"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.audit.get_my_notifications",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.audit",
+   "nach_name": "lesend",
+   "name": "get_my_notifications",
+   "pfade": [
+    "api.get_my_notifications",
+    "audit.get_my_notifications",
+    "diakronos.diakonos.api.audit.get_my_notifications",
+    "diakronos_app.api.audit.get_my_notifications",
+    "get_my_notifications"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.audit.get_unread_notifications",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.audit",
+   "nach_name": "lesend",
+   "name": "get_unread_notifications",
+   "pfade": [
+    "api.get_unread_notifications",
+    "audit.get_unread_notifications",
+    "diakronos.diakonos.api.audit.get_unread_notifications",
+    "diakronos_app.api.audit.get_unread_notifications",
+    "get_unread_notifications"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.audit.mark_notifications_read",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.audit",
+   "nach_name": "schreibend",
+   "name": "mark_notifications_read",
+   "pfade": [
+    "api.mark_notifications_read",
+    "audit.mark_notifications_read",
+    "diakronos.diakonos.api.audit.mark_notifications_read",
+    "diakronos_app.api.audit.mark_notifications_read",
+    "mark_notifications_read"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.austritt.mitglied_austritt",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.austritt",
+   "nach_name": "schreibend",
+   "name": "mitglied_austritt",
+   "pfade": [
+    "api.mitglied_austritt",
+    "austritt.mitglied_austritt",
+    "diakronos.diakonos.api.austritt.mitglied_austritt",
+    "diakronos_app.api.austritt.mitglied_austritt",
+    "mitglied_austritt"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.austritt.mitglied_reaktivieren",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.austritt",
+   "nach_name": "schreibend",
+   "name": "mitglied_reaktivieren",
+   "pfade": [
+    "api.mitglied_reaktivieren",
+    "austritt.mitglied_reaktivieren",
+    "diakronos.diakonos.api.austritt.mitglied_reaktivieren",
+    "diakronos_app.api.austritt.mitglied_reaktivieren",
+    "mitglied_reaktivieren"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.auswahl.get_inhalt_optionen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.auswahl",
+   "nach_name": "lesend",
+   "name": "get_inhalt_optionen",
+   "pfade": [
+    "api.get_inhalt_optionen",
+    "auswahl.get_inhalt_optionen",
+    "diakronos.diakonos.api.auswahl.get_inhalt_optionen",
+    "diakronos_app.api.auswahl.get_inhalt_optionen",
+    "get_inhalt_optionen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.auswahl.get_kalender_optionen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.auswahl",
+   "nach_name": "lesend",
+   "name": "get_kalender_optionen",
+   "pfade": [
+    "api.get_kalender_optionen",
+    "auswahl.get_kalender_optionen",
+    "diakronos.diakonos.api.auswahl.get_kalender_optionen",
+    "diakronos_app.api.auswahl.get_kalender_optionen",
+    "get_kalender_optionen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.auswahl.get_ressourcen_optionen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.auswahl",
+   "nach_name": "lesend",
+   "name": "get_ressourcen_optionen",
+   "pfade": [
+    "api.get_ressourcen_optionen",
+    "auswahl.get_ressourcen_optionen",
+    "diakronos.diakonos.api.auswahl.get_ressourcen_optionen",
+    "diakronos_app.api.auswahl.get_ressourcen_optionen",
+    "get_ressourcen_optionen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.auswahl.get_sammlungen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.auswahl",
+   "nach_name": "lesend",
+   "name": "get_sammlungen",
+   "pfade": [
+    "api.get_sammlungen",
+    "auswahl.get_sammlungen",
+    "diakronos.diakonos.api.auswahl.get_sammlungen",
+    "diakronos_app.api.auswahl.get_sammlungen",
+    "get_sammlungen"
+   ]
+  },
+  {
+   "allow_guest": true,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.auth.login",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.auth",
+   "nach_name": "schreibend",
+   "name": "login",
+   "pfade": [
+    "api.login",
+    "auth.login",
+    "diakronos_app.api.auth.login",
+    "frappe.login.login",
+    "login"
+   ]
+  },
+  {
+   "allow_guest": true,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.auth.logout",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.auth",
+   "nach_name": "schreibend",
+   "name": "logout",
+   "pfade": [
+    "auth.logout",
+    "diakronos_app.api.auth.logout",
+    "frappe.login.logout"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.beitraege.create_beitrag",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.beitraege",
+   "nach_name": "schreibend",
+   "name": "create_beitrag",
+   "pfade": [
+    "api.create_beitrag",
+    "beitraege.create_beitrag",
+    "create_beitrag",
+    "diakronos.diakonos.api.beitraege.create_beitrag",
+    "diakronos_app.api.beitraege.create_beitrag"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.beitraege.create_kommentar",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.beitraege",
+   "nach_name": "schreibend",
+   "name": "create_kommentar",
+   "pfade": [
+    "api.create_kommentar",
+    "beitraege.create_kommentar",
+    "create_kommentar",
+    "diakronos.diakonos.api.beitraege.create_kommentar",
+    "diakronos_app.api.beitraege.create_kommentar"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.beitraege.delete_beitrag",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.beitraege",
+   "nach_name": "schreibend",
+   "name": "delete_beitrag",
+   "pfade": [
+    "api.delete_beitrag",
+    "beitraege.delete_beitrag",
+    "delete_beitrag",
+    "diakronos.diakonos.api.beitraege.delete_beitrag",
+    "diakronos_app.api.beitraege.delete_beitrag"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.beitraege.get_beitraege_liste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.beitraege",
+   "nach_name": "lesend",
+   "name": "get_beitraege_liste",
+   "pfade": [
+    "api.get_beitraege_liste",
+    "beitraege.get_beitraege_liste",
+    "diakronos.diakonos.api.beitraege.get_beitraege_liste",
+    "diakronos_app.api.beitraege.get_beitraege_liste",
+    "get_beitraege_liste"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.beitraege.get_beitrag_detail",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.beitraege",
+   "nach_name": "lesend",
+   "name": "get_beitrag_detail",
+   "pfade": [
+    "api.get_beitrag_detail",
+    "beitraege.get_beitrag_detail",
+    "diakronos.diakonos.api.beitraege.get_beitrag_detail",
+    "diakronos_app.api.beitraege.get_beitrag_detail",
+    "get_beitrag_detail"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.beitraege.update_beitrag",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.beitraege",
+   "nach_name": "schreibend",
+   "name": "update_beitrag",
+   "pfade": [
+    "api.update_beitrag",
+    "beitraege.update_beitrag",
+    "diakronos.diakonos.api.beitraege.update_beitrag",
+    "diakronos_app.api.beitraege.update_beitrag",
+    "update_beitrag"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.bugreport.detail",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.bugreport",
+   "nach_name": "lesend",
+   "name": "detail",
+   "pfade": [
+    "api.detail",
+    "bugreport.detail",
+    "detail",
+    "diakronos.diakonos.api.bugreport.detail",
+    "diakronos_app.api.bugreport.detail"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.bugreport.liste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.bugreport",
+   "nach_name": "lesend",
+   "name": "liste",
+   "pfade": [
+    "api.liste",
+    "bugreport.liste",
+    "diakronos.diakonos.api.bugreport.liste",
+    "diakronos_app.api.bugreport.liste",
+    "liste"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.bugreport.melden",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.bugreport",
+   "nach_name": "schreibend",
+   "name": "melden",
+   "pfade": [
+    "api.melden",
+    "bugreport.melden",
+    "diakronos.diakonos.api.bugreport.melden",
+    "diakronos_app.api.bugreport.melden",
+    "melden"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.bugreport.set_status",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.bugreport",
+   "nach_name": "schreibend",
+   "name": "set_status",
+   "pfade": [
+    "api.set_status",
+    "bugreport.set_status",
+    "diakronos.diakonos.api.bugreport.set_status",
+    "diakronos_app.api.bugreport.set_status",
+    "set_status"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dashboard.get_available_widgets",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dashboard",
+   "nach_name": "lesend",
+   "name": "get_available_widgets",
+   "pfade": [
+    "api.get_available_widgets",
+    "dashboard.get_available_widgets",
+    "diakronos.diakonos.api.dashboard.get_available_widgets",
+    "diakronos_app.api.dashboard.get_available_widgets",
+    "get_available_widgets"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dashboard.get_events_for_month",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dashboard",
+   "nach_name": "lesend",
+   "name": "get_events_for_month",
+   "pfade": [
+    "api.get_events_for_month",
+    "dashboard.get_events_for_month",
+    "diakronos.diakonos.api.dashboard.get_events_for_month",
+    "diakronos_app.api.dashboard.get_events_for_month",
+    "get_events_for_month"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dashboard.get_meine_buchungen_widget",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dashboard",
+   "nach_name": "lesend",
+   "name": "get_meine_buchungen_widget",
+   "pfade": [
+    "api.get_meine_buchungen_widget",
+    "dashboard.get_meine_buchungen_widget",
+    "diakronos.diakonos.api.dashboard.get_meine_buchungen_widget",
+    "diakronos_app.api.dashboard.get_meine_buchungen_widget",
+    "get_meine_buchungen_widget"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dashboard.get_moderation_vorschlaege",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dashboard",
+   "nach_name": "lesend",
+   "name": "get_moderation_vorschlaege",
+   "pfade": [
+    "api.get_moderation_vorschlaege",
+    "dashboard.get_moderation_vorschlaege",
+    "diakronos.diakonos.api.dashboard.get_moderation_vorschlaege",
+    "diakronos_app.api.dashboard.get_moderation_vorschlaege",
+    "get_moderation_vorschlaege"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dashboard.get_navigation_zaehler",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dashboard",
+   "nach_name": "lesend",
+   "name": "get_navigation_zaehler",
+   "pfade": [
+    "api.get_navigation_zaehler",
+    "dashboard.get_navigation_zaehler",
+    "diakronos.diakonos.api.dashboard.get_navigation_zaehler",
+    "diakronos_app.api.dashboard.get_navigation_zaehler",
+    "get_navigation_zaehler"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dashboard.get_pinned_beitraege",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dashboard",
+   "nach_name": "lesend",
+   "name": "get_pinned_beitraege",
+   "pfade": [
+    "api.get_pinned_beitraege",
+    "dashboard.get_pinned_beitraege",
+    "diakronos.diakonos.api.dashboard.get_pinned_beitraege",
+    "diakronos_app.api.dashboard.get_pinned_beitraege",
+    "get_pinned_beitraege"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dashboard.get_recent_articles",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dashboard",
+   "nach_name": "lesend",
+   "name": "get_recent_articles",
+   "pfade": [
+    "api.get_recent_articles",
+    "dashboard.get_recent_articles",
+    "diakronos.diakonos.api.dashboard.get_recent_articles",
+    "diakronos_app.api.dashboard.get_recent_articles",
+    "get_recent_articles"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dashboard.get_upcoming_events",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dashboard",
+   "nach_name": "lesend",
+   "name": "get_upcoming_events",
+   "pfade": [
+    "api.get_upcoming_events",
+    "dashboard.get_upcoming_events",
+    "diakronos.diakonos.api.dashboard.get_upcoming_events",
+    "diakronos_app.api.dashboard.get_upcoming_events",
+    "get_upcoming_events"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dashboard.get_user_config",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dashboard",
+   "nach_name": "lesend",
+   "name": "get_user_config",
+   "pfade": [
+    "api.get_user_config",
+    "dashboard.get_user_config",
+    "diakronos.diakonos.api.dashboard.get_user_config",
+    "diakronos_app.api.dashboard.get_user_config",
+    "get_user_config"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dashboard.get_widget_badge_counts",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dashboard",
+   "nach_name": "lesend",
+   "name": "get_widget_badge_counts",
+   "pfade": [
+    "api.get_widget_badge_counts",
+    "dashboard.get_widget_badge_counts",
+    "diakronos.diakonos.api.dashboard.get_widget_badge_counts",
+    "diakronos_app.api.dashboard.get_widget_badge_counts",
+    "get_widget_badge_counts"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dashboard.get_widget_data",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dashboard",
+   "nach_name": "lesend",
+   "name": "get_widget_data",
+   "pfade": [
+    "api.get_widget_data",
+    "dashboard.get_widget_data",
+    "diakronos.diakonos.api.dashboard.get_widget_data",
+    "diakronos_app.api.dashboard.get_widget_data",
+    "get_widget_data"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.dashboard.reset_user_config",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.dashboard",
+   "nach_name": "schreibend",
+   "name": "reset_user_config",
+   "pfade": [
+    "api.reset_user_config",
+    "dashboard.reset_user_config",
+    "diakronos.diakonos.api.dashboard.reset_user_config",
+    "diakronos_app.api.dashboard.reset_user_config",
+    "reset_user_config"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.dashboard.set_user_config",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.dashboard",
+   "nach_name": "schreibend",
+   "name": "set_user_config",
+   "pfade": [
+    "api.set_user_config",
+    "dashboard.set_user_config",
+    "diakronos.diakonos.api.dashboard.set_user_config",
+    "diakronos_app.api.dashboard.set_user_config",
+    "set_user_config"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.datenschutz.anonymisieren",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.datenschutz",
+   "nach_name": "schreibend",
+   "name": "anonymisieren",
+   "pfade": [
+    "anonymisieren",
+    "api.anonymisieren",
+    "datenschutz.anonymisieren",
+    "diakronos.diakonos.api.datenschutz.anonymisieren",
+    "diakronos_app.api.datenschutz.anonymisieren"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.datenschutz.auskunft",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.datenschutz",
+   "nach_name": "lesend",
+   "name": "auskunft",
+   "pfade": [
+    "api.auskunft",
+    "auskunft",
+    "datenschutz.auskunft",
+    "diakronos.diakonos.api.datenschutz.auskunft",
+    "diakronos_app.api.datenschutz.auskunft"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.datenschutz.get_loeschantraege",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.datenschutz",
+   "nach_name": "lesend",
+   "name": "get_loeschantraege",
+   "pfade": [
+    "api.get_loeschantraege",
+    "datenschutz.get_loeschantraege",
+    "diakronos.diakonos.api.datenschutz.get_loeschantraege",
+    "diakronos_app.api.datenschutz.get_loeschantraege",
+    "get_loeschantraege"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.datenschutz.loeschantrag_ablehnen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.datenschutz",
+   "nach_name": "schreibend",
+   "name": "loeschantrag_ablehnen",
+   "pfade": [
+    "api.loeschantrag_ablehnen",
+    "datenschutz.loeschantrag_ablehnen",
+    "diakronos.diakonos.api.datenschutz.loeschantrag_ablehnen",
+    "diakronos_app.api.datenschutz.loeschantrag_ablehnen",
+    "loeschantrag_ablehnen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.datenschutz.loeschantrag_zurueckziehen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.datenschutz",
+   "nach_name": "schreibend",
+   "name": "loeschantrag_zurueckziehen",
+   "pfade": [
+    "api.loeschantrag_zurueckziehen",
+    "datenschutz.loeschantrag_zurueckziehen",
+    "diakronos.diakonos.api.datenschutz.loeschantrag_zurueckziehen",
+    "diakronos_app.api.datenschutz.loeschantrag_zurueckziehen",
+    "loeschantrag_zurueckziehen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.datenschutz.loeschung_beantragen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.datenschutz",
+   "nach_name": "schreibend",
+   "name": "loeschung_beantragen",
+   "pfade": [
+    "api.loeschung_beantragen",
+    "datenschutz.loeschung_beantragen",
+    "diakronos.diakonos.api.datenschutz.loeschung_beantragen",
+    "diakronos_app.api.datenschutz.loeschung_beantragen",
+    "loeschung_beantragen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.datenschutz.loeschung_bestaetigen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.datenschutz",
+   "nach_name": "schreibend",
+   "name": "loeschung_bestaetigen",
+   "pfade": [
+    "api.loeschung_bestaetigen",
+    "datenschutz.loeschung_bestaetigen",
+    "diakronos.diakonos.api.datenschutz.loeschung_bestaetigen",
+    "diakronos_app.api.datenschutz.loeschung_bestaetigen",
+    "loeschung_bestaetigen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.datenschutz.mein_loeschantrag",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.datenschutz",
+   "nach_name": "lesend",
+   "name": "mein_loeschantrag",
+   "pfade": [
+    "api.mein_loeschantrag",
+    "datenschutz.mein_loeschantrag",
+    "diakronos.diakonos.api.datenschutz.mein_loeschantrag",
+    "diakronos_app.api.datenschutz.mein_loeschantrag",
+    "mein_loeschantrag"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.datenschutz.meine_auskunft",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.datenschutz",
+   "nach_name": "lesend",
+   "name": "meine_auskunft",
+   "pfade": [
+    "api.meine_auskunft",
+    "datenschutz.meine_auskunft",
+    "diakronos.diakonos.api.datenschutz.meine_auskunft",
+    "diakronos_app.api.datenschutz.meine_auskunft",
+    "meine_auskunft"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dienstplan.get_dienstplan",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dienstplan",
+   "nach_name": "lesend",
+   "name": "get_dienstplan",
+   "pfade": [
+    "api.get_dienstplan",
+    "diakronos.diakonos.api.dienstplan.get_dienstplan",
+    "diakronos_app.api.dienstplan.get_dienstplan",
+    "dienstplan.get_dienstplan",
+    "get_dienstplan"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dienstplan.get_dienstrollen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dienstplan",
+   "nach_name": "lesend",
+   "name": "get_dienstrollen",
+   "pfade": [
+    "api.get_dienstrollen",
+    "diakronos.diakonos.api.dienstplan.get_dienstrollen",
+    "diakronos_app.api.dienstplan.get_dienstrollen",
+    "dienstplan.get_dienstrollen",
+    "get_dienstrollen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dienstplan.get_meine_dienste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dienstplan",
+   "nach_name": "lesend",
+   "name": "get_meine_dienste",
+   "pfade": [
+    "api.get_meine_dienste",
+    "diakronos.diakonos.api.dienstplan.get_meine_dienste",
+    "diakronos_app.api.dienstplan.get_meine_dienste",
+    "dienstplan.get_meine_dienste",
+    "get_meine_dienste"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.entsperren.entsperren_konto",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.entsperren",
+   "nach_name": "schreibend",
+   "name": "entsperren_konto",
+   "pfade": [
+    "api.entsperren_konto",
+    "diakronos.diakonos.api.entsperren.entsperren_konto",
+    "diakronos_app.api.entsperren.entsperren_konto",
+    "entsperren.entsperren_konto",
+    "entsperren_konto"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.fail_validation",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api",
+   "nach_name": "lesend",
+   "name": "fail_validation",
+   "pfade": [
+    "api.fail_validation",
+    "diakronos_app.api.fail_validation",
+    "fail_validation"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.frappe_core.insert",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.frappe_core",
+   "nach_name": "schreibend",
+   "name": "insert",
+   "pfade": [
+    "api.insert",
+    "diakronos_app.api.frappe_core.insert",
+    "frappe.client.insert",
+    "frappe_core.insert",
+    "insert"
+   ]
+  },
+  {
+   "allow_guest": true,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.frappe_core.logout",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.frappe_core",
+   "nach_name": "schreibend",
+   "name": "logout",
+   "pfade": [
+    "api.logout",
+    "diakronos_app.api.frappe_core.logout",
+    "frappe_core.logout",
+    "logout"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.frappe_core.upload_file",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.frappe_core",
+   "nach_name": "schreibend",
+   "name": "upload_file",
+   "pfade": [
+    "api.upload_file",
+    "diakronos_app.api.frappe_core.upload_file",
+    "frappe_core.upload_file",
+    "upload_file"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.gemeinde.datenschutz_get_texte",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.gemeinde",
+   "nach_name": "lesend",
+   "name": "datenschutz_get_texte",
+   "pfade": [
+    "api.datenschutz_get_texte",
+    "datenschutz_get_texte",
+    "diakronos.diakonos.api.gemeinde.datenschutz_get_texte",
+    "diakronos_app.api.gemeinde.datenschutz_get_texte",
+    "gemeinde.datenschutz_get_texte"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gemeinde.datenschutz_speichern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gemeinde",
+   "nach_name": "schreibend",
+   "name": "datenschutz_speichern",
+   "pfade": [
+    "api.datenschutz_speichern",
+    "datenschutz_speichern",
+    "diakronos.diakonos.api.gemeinde.datenschutz_speichern",
+    "diakronos_app.api.gemeinde.datenschutz_speichern",
+    "gemeinde.datenschutz_speichern"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.gemeinde.gemeinde_get_einstellungen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.gemeinde",
+   "nach_name": "lesend",
+   "name": "gemeinde_get_einstellungen",
+   "pfade": [
+    "api.gemeinde_get_einstellungen",
+    "diakronos.diakonos.api.gemeinde.gemeinde_get_einstellungen",
+    "diakronos_app.api.gemeinde.gemeinde_get_einstellungen",
+    "gemeinde.gemeinde_get_einstellungen",
+    "gemeinde_get_einstellungen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gemeinde.gemeinde_setze_linkvorgaben",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gemeinde",
+   "nach_name": "schreibend",
+   "name": "gemeinde_setze_linkvorgaben",
+   "pfade": [
+    "api.gemeinde_setze_linkvorgaben",
+    "diakronos.diakonos.api.gemeinde.gemeinde_setze_linkvorgaben",
+    "diakronos_app.api.gemeinde.gemeinde_setze_linkvorgaben",
+    "gemeinde.gemeinde_setze_linkvorgaben",
+    "gemeinde_setze_linkvorgaben"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gemeinde.gemeinde_setze_modul",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gemeinde",
+   "nach_name": "schreibend",
+   "name": "gemeinde_setze_modul",
+   "pfade": [
+    "api.gemeinde_setze_modul",
+    "diakronos.diakonos.api.gemeinde.gemeinde_setze_modul",
+    "diakronos_app.api.gemeinde.gemeinde_setze_modul",
+    "gemeinde.gemeinde_setze_modul",
+    "gemeinde_setze_modul"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gemeinde.gemeinde_speichern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gemeinde",
+   "nach_name": "schreibend",
+   "name": "gemeinde_speichern",
+   "pfade": [
+    "api.gemeinde_speichern",
+    "diakronos.diakonos.api.gemeinde.gemeinde_speichern",
+    "diakronos_app.api.gemeinde.gemeinde_speichern",
+    "gemeinde.gemeinde_speichern",
+    "gemeinde_speichern"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.add_mitglied_to_gruppe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "name": "add_mitglied_to_gruppe",
+   "pfade": [
+    "add_mitglied_to_gruppe",
+    "api.add_mitglied_to_gruppe",
+    "diakronos.diakonos.api.gruppen.add_mitglied_to_gruppe",
+    "diakronos_app.api.gruppen.add_mitglied_to_gruppe",
+    "gruppen.add_mitglied_to_gruppe"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.create_ankuendigung",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "name": "create_ankuendigung",
+   "pfade": [
+    "api.create_ankuendigung",
+    "create_ankuendigung",
+    "diakronos.diakonos.api.gruppen.create_ankuendigung",
+    "diakronos_app.api.gruppen.create_ankuendigung",
+    "gruppen.create_ankuendigung"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.create_aufgabe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "name": "create_aufgabe",
+   "pfade": [
+    "api.create_aufgabe",
+    "create_aufgabe",
+    "diakronos.diakonos.api.gruppen.create_aufgabe",
+    "diakronos_app.api.gruppen.create_aufgabe",
+    "gruppen.create_aufgabe"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.create_dienstbereich",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "name": "create_dienstbereich",
+   "pfade": [
+    "api.create_dienstbereich",
+    "create_dienstbereich",
+    "diakronos.diakonos.api.gruppen.create_dienstbereich",
+    "diakronos_app.api.gruppen.create_dienstbereich",
+    "gruppen.create_dienstbereich"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.create_gruppe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "name": "create_gruppe",
+   "pfade": [
+    "api.create_gruppe",
+    "create_gruppe",
+    "diakronos.diakonos.api.gruppen.create_gruppe",
+    "diakronos_app.api.gruppen.create_gruppe",
+    "gruppen.create_gruppe"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.create_untergruppe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "name": "create_untergruppe",
+   "pfade": [
+    "api.create_untergruppe",
+    "create_untergruppe",
+    "diakronos.diakonos.api.gruppen.create_untergruppe",
+    "diakronos_app.api.gruppen.create_untergruppe",
+    "gruppen.create_untergruppe"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.gruppen.get_ankuendigungen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "lesend",
+   "name": "get_ankuendigungen",
+   "pfade": [
+    "api.get_ankuendigungen",
+    "diakronos.diakonos.api.gruppen.get_ankuendigungen",
+    "diakronos_app.api.gruppen.get_ankuendigungen",
+    "get_ankuendigungen",
+    "gruppen.get_ankuendigungen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.gruppen.get_aufgaben",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "lesend",
+   "name": "get_aufgaben",
+   "pfade": [
+    "api.get_aufgaben",
+    "diakronos.diakonos.api.gruppen.get_aufgaben",
+    "diakronos_app.api.gruppen.get_aufgaben",
+    "get_aufgaben",
+    "gruppen.get_aufgaben"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.gruppen.get_gruppe_detail",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "lesend",
+   "name": "get_gruppe_detail",
+   "pfade": [
+    "api.get_gruppe_detail",
+    "diakronos.diakonos.api.gruppen.get_gruppe_detail",
+    "diakronos_app.api.gruppen.get_gruppe_detail",
+    "get_gruppe_detail",
+    "gruppen.get_gruppe_detail"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.gruppen.get_gruppe_mitglieder_auswahl",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "lesend",
+   "name": "get_gruppe_mitglieder_auswahl",
+   "pfade": [
+    "api.get_gruppe_mitglieder_auswahl",
+    "diakronos.diakonos.api.gruppen.get_gruppe_mitglieder_auswahl",
+    "diakronos_app.api.gruppen.get_gruppe_mitglieder_auswahl",
+    "get_gruppe_mitglieder_auswahl",
+    "gruppen.get_gruppe_mitglieder_auswahl"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.gruppen.get_gruppe_termine",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "lesend",
+   "name": "get_gruppe_termine",
+   "pfade": [
+    "api.get_gruppe_termine",
+    "diakronos.diakonos.api.gruppen.get_gruppe_termine",
+    "diakronos_app.api.gruppen.get_gruppe_termine",
+    "get_gruppe_termine",
+    "gruppen.get_gruppe_termine"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.gruppen.get_gruppen_for_orgchart",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "lesend",
+   "name": "get_gruppen_for_orgchart",
+   "pfade": [
+    "api.get_gruppen_for_orgchart",
+    "diakronos.diakonos.api.gruppen.get_gruppen_for_orgchart",
+    "diakronos_app.api.gruppen.get_gruppen_for_orgchart",
+    "get_gruppen_for_orgchart",
+    "gruppen.get_gruppen_for_orgchart"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.gruppen.get_gruppen_hierarchie",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "lesend",
+   "name": "get_gruppen_hierarchie",
+   "pfade": [
+    "api.get_gruppen_hierarchie",
+    "diakronos.diakonos.api.gruppen.get_gruppen_hierarchie",
+    "diakronos_app.api.gruppen.get_gruppen_hierarchie",
+    "get_gruppen_hierarchie",
+    "gruppen.get_gruppen_hierarchie"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.gruppen.get_gruppen_page_data",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "lesend",
+   "name": "get_gruppen_page_data",
+   "pfade": [
+    "api.get_gruppen_page_data",
+    "diakronos.diakonos.api.gruppen.get_gruppen_page_data",
+    "diakronos_app.api.gruppen.get_gruppen_page_data",
+    "get_gruppen_page_data",
+    "gruppen.get_gruppen_page_data"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.gruppen.get_untergruppe_detail",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "lesend",
+   "name": "get_untergruppe_detail",
+   "pfade": [
+    "api.get_untergruppe_detail",
+    "diakronos.diakonos.api.gruppen.get_untergruppe_detail",
+    "diakronos_app.api.gruppen.get_untergruppe_detail",
+    "get_untergruppe_detail",
+    "gruppen.get_untergruppe_detail"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.get_user_create_permissions",
+   "methoden": null,
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "name": "get_user_create_permissions",
+   "pfade": [
+    "api.get_user_create_permissions",
+    "diakronos.diakonos.api.gruppen.get_user_create_permissions",
+    "diakronos_app.api.gruppen.get_user_create_permissions",
+    "get_user_create_permissions",
+    "gruppen.get_user_create_permissions"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.remove_mitglied_from_gruppe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "name": "remove_mitglied_from_gruppe",
+   "pfade": [
+    "api.remove_mitglied_from_gruppe",
+    "diakronos.diakonos.api.gruppen.remove_mitglied_from_gruppe",
+    "diakronos_app.api.gruppen.remove_mitglied_from_gruppe",
+    "gruppen.remove_mitglied_from_gruppe",
+    "remove_mitglied_from_gruppe"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.toggle_aufgabe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "name": "toggle_aufgabe",
+   "pfade": [
+    "api.toggle_aufgabe",
+    "diakronos.diakonos.api.gruppen.toggle_aufgabe",
+    "diakronos_app.api.gruppen.toggle_aufgabe",
+    "gruppen.toggle_aufgabe",
+    "toggle_aufgabe"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.update_dienstbereich",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "name": "update_dienstbereich",
+   "pfade": [
+    "api.update_dienstbereich",
+    "diakronos.diakonos.api.gruppen.update_dienstbereich",
+    "diakronos_app.api.gruppen.update_dienstbereich",
+    "gruppen.update_dienstbereich",
+    "update_dienstbereich"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.update_gruppe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "name": "update_gruppe",
+   "pfade": [
+    "api.update_gruppe",
+    "diakronos.diakonos.api.gruppen.update_gruppe",
+    "diakronos_app.api.gruppen.update_gruppe",
+    "gruppen.update_gruppe",
+    "update_gruppe"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.update_mitglied_rolle",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "name": "update_mitglied_rolle",
+   "pfade": [
+    "api.update_mitglied_rolle",
+    "diakronos.diakonos.api.gruppen.update_mitglied_rolle",
+    "diakronos_app.api.gruppen.update_mitglied_rolle",
+    "gruppen.update_mitglied_rolle",
+    "update_mitglied_rolle"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.update_untergruppe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "name": "update_untergruppe",
+   "pfade": [
+    "api.update_untergruppe",
+    "diakronos.diakonos.api.gruppen.update_untergruppe",
+    "diakronos_app.api.gruppen.update_untergruppe",
+    "gruppen.update_untergruppe",
+    "update_untergruppe"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.ablaufplan_api.get_ablaufplan",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.ablaufplan_api",
+   "nach_name": "lesend",
+   "name": "get_ablaufplan",
+   "pfade": [
+    "ablaufplan_api.get_ablaufplan",
+    "api.get_ablaufplan",
+    "diakronos.kronos.api.ablaufplan_api.get_ablaufplan",
+    "diakronos_app.api.kronos.ablaufplan_api.get_ablaufplan",
+    "get_ablaufplan",
+    "kronos.ablaufplan_api.get_ablaufplan",
+    "kronos.get_ablaufplan"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.ablaufplan_api.get_termine_am_tag",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.ablaufplan_api",
+   "nach_name": "lesend",
+   "name": "get_termine_am_tag",
+   "pfade": [
+    "ablaufplan_api.get_termine_am_tag",
+    "api.get_termine_am_tag",
+    "diakronos.kronos.api.ablaufplan_api.get_termine_am_tag",
+    "diakronos_app.api.kronos.ablaufplan_api.get_termine_am_tag",
+    "get_termine_am_tag",
+    "kronos.ablaufplan_api.get_termine_am_tag",
+    "kronos.get_termine_am_tag"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.ablaufplan_api.save_ablaufplan",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.ablaufplan_api",
+   "nach_name": "schreibend",
+   "name": "save_ablaufplan",
+   "pfade": [
+    "ablaufplan_api.save_ablaufplan",
+    "api.save_ablaufplan",
+    "diakronos.kronos.api.ablaufplan_api.save_ablaufplan",
+    "diakronos_app.api.kronos.ablaufplan_api.save_ablaufplan",
+    "kronos.ablaufplan_api.save_ablaufplan",
+    "kronos.save_ablaufplan",
+    "save_ablaufplan"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.calendar_get.get_calendar_events",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.calendar_get",
+   "nach_name": "lesend",
+   "name": "get_calendar_events",
+   "pfade": [
+    "api.get_calendar_events",
+    "calendar_get.get_calendar_events",
+    "diakronos.kronos.api.calendar_get.get_calendar_events",
+    "diakronos_app.api.kronos.calendar_get.get_calendar_events",
+    "get_calendar_events",
+    "kronos.calendar_get.get_calendar_events",
+    "kronos.get_calendar_events"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.calendar_get.get_mein_termin",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.calendar_get",
+   "nach_name": "lesend",
+   "name": "get_mein_termin",
+   "pfade": [
+    "api.get_mein_termin",
+    "calendar_get.get_mein_termin",
+    "diakronos.kronos.api.calendar_get.get_mein_termin",
+    "diakronos_app.api.kronos.calendar_get.get_mein_termin",
+    "get_mein_termin",
+    "kronos.calendar_get.get_mein_termin",
+    "kronos.get_mein_termin"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.calendar_get.get_meine_abgelehnten_termine",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.calendar_get",
+   "nach_name": "lesend",
+   "name": "get_meine_abgelehnten_termine",
+   "pfade": [
+    "api.get_meine_abgelehnten_termine",
+    "calendar_get.get_meine_abgelehnten_termine",
+    "diakronos.kronos.api.calendar_get.get_meine_abgelehnten_termine",
+    "diakronos_app.api.kronos.calendar_get.get_meine_abgelehnten_termine",
+    "get_meine_abgelehnten_termine",
+    "kronos.calendar_get.get_meine_abgelehnten_termine",
+    "kronos.get_meine_abgelehnten_termine"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.event_crud.aenderung_ablehnen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.event_crud",
+   "nach_name": "schreibend",
+   "name": "aenderung_ablehnen",
+   "pfade": [
+    "aenderung_ablehnen",
+    "api.aenderung_ablehnen",
+    "diakronos.kronos.api.event_crud.aenderung_ablehnen",
+    "diakronos_app.api.kronos.event_crud.aenderung_ablehnen",
+    "event_crud.aenderung_ablehnen",
+    "kronos.aenderung_ablehnen",
+    "kronos.event_crud.aenderung_ablehnen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.event_crud.aenderung_freigeben",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.event_crud",
+   "nach_name": "schreibend",
+   "name": "aenderung_freigeben",
+   "pfade": [
+    "aenderung_freigeben",
+    "api.aenderung_freigeben",
+    "diakronos.kronos.api.event_crud.aenderung_freigeben",
+    "diakronos_app.api.kronos.event_crud.aenderung_freigeben",
+    "event_crud.aenderung_freigeben",
+    "kronos.aenderung_freigeben",
+    "kronos.event_crud.aenderung_freigeben"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.event_crud.create_event",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.event_crud",
+   "nach_name": "schreibend",
+   "name": "create_event",
+   "pfade": [
+    "api.create_event",
+    "create_event",
+    "diakronos.kronos.api.event_crud.create_event",
+    "diakronos_app.api.kronos.event_crud.create_event",
+    "event_crud.create_event",
+    "kronos.create_event",
+    "kronos.event_crud.create_event"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.event_crud.create_series",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.event_crud",
+   "nach_name": "schreibend",
+   "name": "create_series",
+   "pfade": [
+    "api.create_series",
+    "create_series",
+    "diakronos.kronos.api.event_crud.create_series",
+    "diakronos_app.api.kronos.event_crud.create_series",
+    "event_crud.create_series",
+    "kronos.create_series",
+    "kronos.event_crud.create_series"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.event_crud.delete_event",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.event_crud",
+   "nach_name": "schreibend",
+   "name": "delete_event",
+   "pfade": [
+    "api.delete_event",
+    "delete_event",
+    "diakronos.kronos.api.event_crud.delete_event",
+    "diakronos_app.api.kronos.event_crud.delete_event",
+    "event_crud.delete_event",
+    "kronos.delete_event",
+    "kronos.event_crud.delete_event"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.event_crud.get_offene_aenderungen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.event_crud",
+   "nach_name": "lesend",
+   "name": "get_offene_aenderungen",
+   "pfade": [
+    "api.get_offene_aenderungen",
+    "diakronos.kronos.api.event_crud.get_offene_aenderungen",
+    "diakronos_app.api.kronos.event_crud.get_offene_aenderungen",
+    "event_crud.get_offene_aenderungen",
+    "get_offene_aenderungen",
+    "kronos.event_crud.get_offene_aenderungen",
+    "kronos.get_offene_aenderungen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.event_crud.save_event",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.event_crud",
+   "nach_name": "schreibend",
+   "name": "save_event",
+   "pfade": [
+    "api.save_event",
+    "diakronos.kronos.api.event_crud.save_event",
+    "diakronos_app.api.kronos.event_crud.save_event",
+    "event_crud.save_event",
+    "kronos.event_crud.save_event",
+    "kronos.save_event",
+    "save_event"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.event_crud.update_event",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.event_crud",
+   "nach_name": "schreibend",
+   "name": "update_event",
+   "pfade": [
+    "api.update_event",
+    "diakronos.kronos.api.event_crud.update_event",
+    "diakronos_app.api.kronos.event_crud.update_event",
+    "event_crud.update_event",
+    "kronos.event_crud.update_event",
+    "kronos.update_event",
+    "update_event"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.google_import.exchange_code",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.google_import",
+   "nach_name": "schreibend",
+   "name": "exchange_code",
+   "pfade": [
+    "api.exchange_code",
+    "diakronos.kronos.api.google_import.exchange_code",
+    "diakronos_app.api.kronos.google_import.exchange_code",
+    "exchange_code",
+    "google_import.exchange_code",
+    "kronos.exchange_code",
+    "kronos.google_import.exchange_code"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.google_import.get_credentials_status",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.google_import",
+   "nach_name": "lesend",
+   "name": "get_credentials_status",
+   "pfade": [
+    "api.get_credentials_status",
+    "diakronos.kronos.api.google_import.get_credentials_status",
+    "diakronos_app.api.kronos.google_import.get_credentials_status",
+    "get_credentials_status",
+    "google_import.get_credentials_status",
+    "kronos.get_credentials_status",
+    "kronos.google_import.get_credentials_status"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.google_import.get_google_calendars",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.google_import",
+   "nach_name": "lesend",
+   "name": "get_google_calendars",
+   "pfade": [
+    "api.get_google_calendars",
+    "diakronos.kronos.api.google_import.get_google_calendars",
+    "diakronos_app.api.kronos.google_import.get_google_calendars",
+    "get_google_calendars",
+    "google_import.get_google_calendars",
+    "kronos.get_google_calendars",
+    "kronos.google_import.get_google_calendars"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.google_import.get_import_progress",
+   "methoden": null,
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.google_import",
+   "nach_name": "schreibend",
+   "name": "get_import_progress",
+   "pfade": [
+    "api.get_import_progress",
+    "diakronos.kronos.api.google_import.get_import_progress",
+    "diakronos_app.api.kronos.google_import.get_import_progress",
+    "get_import_progress",
+    "google_import.get_import_progress",
+    "kronos.get_import_progress",
+    "kronos.google_import.get_import_progress"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.google_import.get_oauth_url",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.google_import",
+   "nach_name": "lesend",
+   "name": "get_oauth_url",
+   "pfade": [
+    "api.get_oauth_url",
+    "diakronos.kronos.api.google_import.get_oauth_url",
+    "diakronos_app.api.kronos.google_import.get_oauth_url",
+    "get_oauth_url",
+    "google_import.get_oauth_url",
+    "kronos.get_oauth_url",
+    "kronos.google_import.get_oauth_url"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.google_import.save_credentials",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.google_import",
+   "nach_name": "schreibend",
+   "name": "save_credentials",
+   "pfade": [
+    "api.save_credentials",
+    "diakronos.kronos.api.google_import.save_credentials",
+    "diakronos_app.api.kronos.google_import.save_credentials",
+    "google_import.save_credentials",
+    "kronos.google_import.save_credentials",
+    "kronos.save_credentials",
+    "save_credentials"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.google_import.start_import",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.google_import",
+   "nach_name": "schreibend",
+   "name": "start_import",
+   "pfade": [
+    "api.start_import",
+    "diakronos.kronos.api.google_import.start_import",
+    "diakronos_app.api.kronos.google_import.start_import",
+    "google_import.start_import",
+    "kronos.google_import.start_import",
+    "kronos.start_import",
+    "start_import"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.google_import.upload_ical",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.google_import",
+   "nach_name": "schreibend",
+   "name": "upload_ical",
+   "pfade": [
+    "api.upload_ical",
+    "diakronos.kronos.api.google_import.upload_ical",
+    "diakronos_app.api.kronos.google_import.upload_ical",
+    "google_import.upload_ical",
+    "kronos.google_import.upload_ical",
+    "kronos.upload_ical",
+    "upload_ical"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.kalender.get_events",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.kalender",
+   "nach_name": "lesend",
+   "name": "get_events",
+   "pfade": [
+    "api.get_events",
+    "diakronos.diakonos.api.kalender.get_events",
+    "diakronos_app.api.kronos.kalender.get_events",
+    "get_events",
+    "kalender.get_events",
+    "kronos.get_events",
+    "kronos.kalender.get_events"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.kalender_verwaltung.create_kalender",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.kalender_verwaltung",
+   "nach_name": "schreibend",
+   "name": "create_kalender",
+   "pfade": [
+    "api.create_kalender",
+    "create_kalender",
+    "diakronos.kronos.api.kalender_verwaltung.create_kalender",
+    "diakronos_app.api.kronos.kalender_verwaltung.create_kalender",
+    "kalender_verwaltung.create_kalender",
+    "kronos.create_kalender",
+    "kronos.kalender_verwaltung.create_kalender"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.kalender_verwaltung.delete_kalender",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.kalender_verwaltung",
+   "nach_name": "schreibend",
+   "name": "delete_kalender",
+   "pfade": [
+    "api.delete_kalender",
+    "delete_kalender",
+    "diakronos.kronos.api.kalender_verwaltung.delete_kalender",
+    "diakronos_app.api.kronos.kalender_verwaltung.delete_kalender",
+    "kalender_verwaltung.delete_kalender",
+    "kronos.delete_kalender",
+    "kronos.kalender_verwaltung.delete_kalender"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.kalender_verwaltung.get_kalender_verwaltung",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.kalender_verwaltung",
+   "nach_name": "lesend",
+   "name": "get_kalender_verwaltung",
+   "pfade": [
+    "api.get_kalender_verwaltung",
+    "diakronos.kronos.api.kalender_verwaltung.get_kalender_verwaltung",
+    "diakronos_app.api.kronos.kalender_verwaltung.get_kalender_verwaltung",
+    "get_kalender_verwaltung",
+    "kalender_verwaltung.get_kalender_verwaltung",
+    "kronos.get_kalender_verwaltung",
+    "kronos.kalender_verwaltung.get_kalender_verwaltung"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.kalender_verwaltung.update_kalender",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.kalender_verwaltung",
+   "nach_name": "schreibend",
+   "name": "update_kalender",
+   "pfade": [
+    "api.update_kalender",
+    "diakronos.kronos.api.kalender_verwaltung.update_kalender",
+    "diakronos_app.api.kronos.kalender_verwaltung.update_kalender",
+    "kalender_verwaltung.update_kalender",
+    "kronos.kalender_verwaltung.update_kalender",
+    "kronos.update_kalender",
+    "update_kalender"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.kanban_api.finalize_staged_events",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.kanban_api",
+   "nach_name": "schreibend",
+   "name": "finalize_staged_events",
+   "pfade": [
+    "api.finalize_staged_events",
+    "diakronos.kronos.api.kanban_api.finalize_staged_events",
+    "diakronos_app.api.kronos.kanban_api.finalize_staged_events",
+    "finalize_staged_events",
+    "kanban_api.finalize_staged_events",
+    "kronos.finalize_staged_events",
+    "kronos.kanban_api.finalize_staged_events"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.kanban_api.get_conflict_partner",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.kanban_api",
+   "nach_name": "lesend",
+   "name": "get_conflict_partner",
+   "pfade": [
+    "api.get_conflict_partner",
+    "diakronos.kronos.api.kanban_api.get_conflict_partner",
+    "diakronos_app.api.kronos.kanban_api.get_conflict_partner",
+    "get_conflict_partner",
+    "kanban_api.get_conflict_partner",
+    "kronos.get_conflict_partner",
+    "kronos.kanban_api.get_conflict_partner"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.kanban_api.get_kanban_board_data",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.kanban_api",
+   "nach_name": "lesend",
+   "name": "get_kanban_board_data",
+   "pfade": [
+    "api.get_kanban_board_data",
+    "diakronos.kronos.api.kanban_api.get_kanban_board_data",
+    "diakronos_app.api.kronos.kanban_api.get_kanban_board_data",
+    "get_kanban_board_data",
+    "kanban_api.get_kanban_board_data",
+    "kronos.get_kanban_board_data",
+    "kronos.kanban_api.get_kanban_board_data"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.kanban_api.get_moderation_count",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.kanban_api",
+   "nach_name": "lesend",
+   "name": "get_moderation_count",
+   "pfade": [
+    "api.get_moderation_count",
+    "diakronos.kronos.api.kanban_api.get_moderation_count",
+    "diakronos_app.api.kronos.kanban_api.get_moderation_count",
+    "get_moderation_count",
+    "kanban_api.get_moderation_count",
+    "kronos.get_moderation_count",
+    "kronos.kanban_api.get_moderation_count"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.kanban_api.resolve_conflict",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.kanban_api",
+   "nach_name": "schreibend",
+   "name": "resolve_conflict",
+   "pfade": [
+    "api.resolve_conflict",
+    "diakronos.kronos.api.kanban_api.resolve_conflict",
+    "diakronos_app.api.kronos.kanban_api.resolve_conflict",
+    "kanban_api.resolve_conflict",
+    "kronos.kanban_api.resolve_conflict",
+    "kronos.resolve_conflict",
+    "resolve_conflict"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.kanban_api.save_staging_state",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.kanban_api",
+   "nach_name": "schreibend",
+   "name": "save_staging_state",
+   "pfade": [
+    "api.save_staging_state",
+    "diakronos.kronos.api.kanban_api.save_staging_state",
+    "diakronos_app.api.kronos.kanban_api.save_staging_state",
+    "kanban_api.save_staging_state",
+    "kronos.kanban_api.save_staging_state",
+    "kronos.save_staging_state",
+    "save_staging_state"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.permissions.get_accessible_calendars",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.permissions",
+   "nach_name": "lesend",
+   "name": "get_accessible_calendars",
+   "pfade": [
+    "api.get_accessible_calendars",
+    "diakronos.kronos.api.calendar_get.get_accessible_calendars",
+    "diakronos.kronos.api.permissions.get_accessible_calendars",
+    "diakronos_app.api.kronos.permissions.get_accessible_calendars",
+    "get_accessible_calendars",
+    "kronos.get_accessible_calendars",
+    "kronos.permissions.get_accessible_calendars",
+    "permissions.get_accessible_calendars"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.permissions.get_accessible_modules",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.permissions",
+   "nach_name": "lesend",
+   "name": "get_accessible_modules",
+   "pfade": [
+    "api.get_accessible_modules",
+    "diakronos.kronos.api.permissions.get_accessible_modules",
+    "diakronos_app.api.kronos.permissions.get_accessible_modules",
+    "get_accessible_modules",
+    "kronos.get_accessible_modules",
+    "kronos.permissions.get_accessible_modules",
+    "permissions.get_accessible_modules"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.permissions.get_session_info",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.permissions",
+   "nach_name": "lesend",
+   "name": "get_session_info",
+   "pfade": [
+    "api.get_session_info",
+    "diakronos.kronos.api.permissions.get_session_info",
+    "diakronos_app.api.kronos.permissions.get_session_info",
+    "get_session_info",
+    "kronos.get_session_info",
+    "kronos.permissions.get_session_info",
+    "permissions.get_session_info"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.permissions.get_writable_calendars",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.permissions",
+   "nach_name": "lesend",
+   "name": "get_writable_calendars",
+   "pfade": [
+    "api.get_writable_calendars",
+    "diakronos.kronos.api.permissions.get_writable_calendars",
+    "diakronos_app.api.kronos.permissions.get_writable_calendars",
+    "get_writable_calendars",
+    "kronos.get_writable_calendars",
+    "kronos.permissions.get_writable_calendars",
+    "permissions.get_writable_calendars"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.ressource_api.check_resource_conflict",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.ressource_api",
+   "nach_name": "lesend",
+   "name": "check_resource_conflict",
+   "pfade": [
+    "api.check_resource_conflict",
+    "check_resource_conflict",
+    "diakronos.kronos.api.ressource_api.check_resource_conflict",
+    "diakronos_app.api.kronos.ressource_api.check_resource_conflict",
+    "kronos.check_resource_conflict",
+    "kronos.ressource_api.check_resource_conflict",
+    "ressource_api.check_resource_conflict"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.ressource_api.get_conflict_events",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.ressource_api",
+   "nach_name": "lesend",
+   "name": "get_conflict_events",
+   "pfade": [
+    "api.get_conflict_events",
+    "diakronos.kronos.api.ressource_api.get_conflict_events",
+    "diakronos_app.api.kronos.ressource_api.get_conflict_events",
+    "get_conflict_events",
+    "kronos.get_conflict_events",
+    "kronos.ressource_api.get_conflict_events",
+    "ressource_api.get_conflict_events"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.ressource_api.get_kronos_settings",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.ressource_api",
+   "nach_name": "lesend",
+   "name": "get_kronos_settings",
+   "pfade": [
+    "api.get_kronos_settings",
+    "diakronos.kronos.api.ressource_api.get_kronos_settings",
+    "diakronos_app.api.kronos.ressource_api.get_kronos_settings",
+    "get_kronos_settings",
+    "kronos.get_kronos_settings",
+    "kronos.ressource_api.get_kronos_settings",
+    "ressource_api.get_kronos_settings"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.kronos.ressource_api.get_ressources",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.kronos.ressource_api",
+   "nach_name": "lesend",
+   "name": "get_ressources",
+   "pfade": [
+    "api.get_ressources",
+    "diakronos.kronos.api.ressource_api.get_ressources",
+    "diakronos_app.api.kronos.ressource_api.get_ressources",
+    "get_ressources",
+    "kronos.get_ressources",
+    "kronos.ressource_api.get_ressources",
+    "ressource_api.get_ressources"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.series.delete_future_series_events",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.series",
+   "nach_name": "schreibend",
+   "name": "delete_future_series_events",
+   "pfade": [
+    "api.delete_future_series_events",
+    "delete_future_series_events",
+    "diakronos.kronos.api.series.delete_future_series_events",
+    "diakronos_app.api.kronos.series.delete_future_series_events",
+    "kronos.delete_future_series_events",
+    "kronos.series.delete_future_series_events",
+    "series.delete_future_series_events"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.series.delete_series_batch_fast",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.series",
+   "nach_name": "schreibend",
+   "name": "delete_series_batch_fast",
+   "pfade": [
+    "api.delete_series_batch_fast",
+    "delete_series_batch_fast",
+    "diakronos.kronos.api.series.delete_series_batch_fast",
+    "diakronos_app.api.kronos.series.delete_series_batch_fast",
+    "kronos.delete_series_batch_fast",
+    "kronos.series.delete_series_batch_fast",
+    "series.delete_series_batch_fast"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.series.update_series_batch_fast",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.series",
+   "nach_name": "schreibend",
+   "name": "update_series_batch_fast",
+   "pfade": [
+    "api.update_series_batch_fast",
+    "diakronos.kronos.api.series.update_series_batch_fast",
+    "diakronos_app.api.kronos.series.update_series_batch_fast",
+    "kronos.series.update_series_batch_fast",
+    "kronos.update_series_batch_fast",
+    "series.update_series_batch_fast",
+    "update_series_batch_fast"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.mailversand.mailversand_get",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.mailversand",
+   "nach_name": "lesend",
+   "name": "mailversand_get",
+   "pfade": [
+    "api.mailversand_get",
+    "diakronos.diakonos.api.mailversand.mailversand_get",
+    "diakronos_app.api.mailversand.mailversand_get",
+    "mailversand.mailversand_get",
+    "mailversand_get"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.mailversand.mailversand_speichern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.mailversand",
+   "nach_name": "schreibend",
+   "name": "mailversand_speichern",
+   "pfade": [
+    "api.mailversand_speichern",
+    "diakronos.diakonos.api.mailversand.mailversand_speichern",
+    "diakronos_app.api.mailversand.mailversand_speichern",
+    "mailversand.mailversand_speichern",
+    "mailversand_speichern"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.mailversand.mailversand_status",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.mailversand",
+   "nach_name": "lesend",
+   "name": "mailversand_status",
+   "pfade": [
+    "api.mailversand_status",
+    "diakronos.diakonos.api.mailversand.mailversand_status",
+    "diakronos_app.api.mailversand.mailversand_status",
+    "mailversand.mailversand_status",
+    "mailversand_status"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.mailversand.mailversand_testmail",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.mailversand",
+   "nach_name": "schreibend",
+   "name": "mailversand_testmail",
+   "pfade": [
+    "api.mailversand_testmail",
+    "diakronos.diakonos.api.mailversand.mailversand_testmail",
+    "diakronos_app.api.mailversand.mailversand_testmail",
+    "mailversand.mailversand_testmail",
+    "mailversand_testmail"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.mitglieder.create_mitglied",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "schreibend",
+   "name": "create_mitglied",
+   "pfade": [
+    "api.create_mitglied",
+    "create_mitglied",
+    "diakronos.diakonos.api.mitglieder.create_mitglied",
+    "diakronos_app.api.mitglieder.create_mitglied",
+    "mitglieder.create_mitglied"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.mitglieder.exportiere_mitglieder_csv",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "lesend",
+   "name": "exportiere_mitglieder_csv",
+   "pfade": [
+    "api.exportiere_mitglieder_csv",
+    "diakronos.diakonos.api.mitglieder.exportiere_mitglieder_csv",
+    "diakronos_app.api.mitglieder.exportiere_mitglieder_csv",
+    "exportiere_mitglieder_csv",
+    "mitglieder.exportiere_mitglieder_csv"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.mitglieder.get_adressbuch",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "lesend",
+   "name": "get_adressbuch",
+   "pfade": [
+    "api.get_adressbuch",
+    "diakronos.diakonos.api.mitglieder.get_adressbuch",
+    "diakronos_app.api.mitglieder.get_adressbuch",
+    "get_adressbuch",
+    "mitglieder.get_adressbuch"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.mitglieder.get_beziehungen_for_mitglied",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "lesend",
+   "name": "get_beziehungen_for_mitglied",
+   "pfade": [
+    "api.get_beziehungen_for_mitglied",
+    "diakronos.diakonos.api.mitglieder.get_beziehungen_for_mitglied",
+    "diakronos_app.api.mitglieder.get_beziehungen_for_mitglied",
+    "get_beziehungen_for_mitglied",
+    "mitglieder.get_beziehungen_for_mitglied"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.mitglieder.get_gruppen_for_mitglied",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "lesend",
+   "name": "get_gruppen_for_mitglied",
+   "pfade": [
+    "api.get_gruppen_for_mitglied",
+    "diakronos.diakonos.api.mitglieder.get_gruppen_for_mitglied",
+    "diakronos_app.api.mitglieder.get_gruppen_for_mitglied",
+    "get_gruppen_for_mitglied",
+    "mitglieder.get_gruppen_for_mitglied"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.mitglieder.get_mitglied_detail",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "lesend",
+   "name": "get_mitglied_detail",
+   "pfade": [
+    "api.get_mitglied_detail",
+    "diakronos.diakonos.api.mitglieder.get_mitglied_detail",
+    "diakronos_app.api.mitglieder.get_mitglied_detail",
+    "get_mitglied_detail",
+    "mitglieder.get_mitglied_detail"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.mitglieder.get_mitglieder_liste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "lesend",
+   "name": "get_mitglieder_liste",
+   "pfade": [
+    "api.get_mitglieder_liste",
+    "diakronos.diakonos.api.mitglieder.get_mitglieder_liste",
+    "diakronos_app.api.mitglieder.get_mitglieder_liste",
+    "get_mitglieder_liste",
+    "mitglieder.get_mitglieder_liste"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.mitglieder.import_mitglieder_uebernehmen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "schreibend",
+   "name": "import_mitglieder_uebernehmen",
+   "pfade": [
+    "api.import_mitglieder_uebernehmen",
+    "diakronos.diakonos.api.mitglieder.import_mitglieder_uebernehmen",
+    "diakronos_app.api.mitglieder.import_mitglieder_uebernehmen",
+    "import_mitglieder_uebernehmen",
+    "mitglieder.import_mitglieder_uebernehmen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.mitglieder.import_mitglieder_vorschau",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "schreibend",
+   "name": "import_mitglieder_vorschau",
+   "pfade": [
+    "api.import_mitglieder_vorschau",
+    "diakronos.diakonos.api.mitglieder.import_mitglieder_vorschau",
+    "diakronos_app.api.mitglieder.import_mitglieder_vorschau",
+    "import_mitglieder_vorschau",
+    "mitglieder.import_mitglieder_vorschau"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.mitglieder.pruefe_mitglied_dublette",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "lesend",
+   "name": "pruefe_mitglied_dublette",
+   "pfade": [
+    "api.pruefe_mitglied_dublette",
+    "diakronos.diakonos.api.mitglieder.pruefe_mitglied_dublette",
+    "diakronos_app.api.mitglieder.pruefe_mitglied_dublette",
+    "mitglieder.pruefe_mitglied_dublette",
+    "pruefe_mitglied_dublette"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.mitglieder.schliesse_mitglied_aus",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "lesend",
+   "name": "schliesse_mitglied_aus",
+   "pfade": [
+    "api.schliesse_mitglied_aus",
+    "diakronos.diakonos.api.mitglieder.schliesse_mitglied_aus",
+    "diakronos_app.api.mitglieder.schliesse_mitglied_aus",
+    "mitglieder.schliesse_mitglied_aus",
+    "schliesse_mitglied_aus"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.mitglieder.set_mitglied_status",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "schreibend",
+   "name": "set_mitglied_status",
+   "pfade": [
+    "api.set_mitglied_status",
+    "diakronos.diakonos.api.mitglieder.set_mitglied_status",
+    "diakronos_app.api.mitglieder.set_mitglied_status",
+    "mitglieder.set_mitglied_status",
+    "set_mitglied_status"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.mitglieder.update_mitglied",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "schreibend",
+   "name": "update_mitglied",
+   "pfade": [
+    "api.update_mitglied",
+    "diakronos.diakonos.api.mitglieder.update_mitglied",
+    "diakronos_app.api.mitglieder.update_mitglied",
+    "mitglieder.update_mitglied",
+    "update_mitglied"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.mitglieder.update_mitglied_with_confirmation",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "schreibend",
+   "name": "update_mitglied_with_confirmation",
+   "pfade": [
+    "api.update_mitglied_with_confirmation",
+    "diakronos.diakonos.api.mitglieder.update_mitglied_with_confirmation",
+    "diakronos_app.api.mitglieder.update_mitglied_with_confirmation",
+    "mitglieder.update_mitglied_with_confirmation",
+    "update_mitglied_with_confirmation"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.mitglieder.widerruf_einwilligung",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "schreibend",
+   "name": "widerruf_einwilligung",
+   "pfade": [
+    "api.widerruf_einwilligung",
+    "diakronos.diakonos.api.mitglieder.widerruf_einwilligung",
+    "diakronos_app.api.mitglieder.widerruf_einwilligung",
+    "mitglieder.widerruf_einwilligung",
+    "widerruf_einwilligung"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.orgchart_api.get_orgchart_data",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.orgchart_api",
+   "nach_name": "lesend",
+   "name": "get_orgchart_data",
+   "pfade": [
+    "api.get_orgchart_data",
+    "diakronos.diakonos.api.orgchart_api.get_orgchart_data",
+    "diakronos_app.api.orgchart_api.get_orgchart_data",
+    "get_orgchart_data",
+    "orgchart_api.get_orgchart_data"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.ping",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api",
+   "nach_name": "lesend",
+   "name": "ping",
+   "pfade": [
+    "api.ping",
+    "diakronos_app.api.ping",
+    "ping"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.ablauf_aendern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "ablauf_aendern",
+   "pfade": [
+    "ablauf_aendern",
+    "api.ablauf_aendern",
+    "diakronos.planrahmen.api.ablauf_aendern",
+    "diakronos_app.api.planrahmen.ablauf_aendern",
+    "planrahmen.ablauf_aendern"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.abwesenheit_loeschen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "abwesenheit_loeschen",
+   "pfade": [
+    "abwesenheit_loeschen",
+    "api.abwesenheit_loeschen",
+    "diakronos.planrahmen.api.abwesenheit_loeschen",
+    "diakronos_app.api.planrahmen.abwesenheit_loeschen",
+    "planrahmen.abwesenheit_loeschen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.abwesenheit_melden",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "abwesenheit_melden",
+   "pfade": [
+    "abwesenheit_melden",
+    "api.abwesenheit_melden",
+    "diakronos.planrahmen.api.abwesenheit_melden",
+    "diakronos_app.api.planrahmen.abwesenheit_melden",
+    "planrahmen.abwesenheit_melden"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.abwesenheiten_liste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "abwesenheiten_liste",
+   "pfade": [
+    "abwesenheiten_liste",
+    "api.abwesenheiten_liste",
+    "diakronos.planrahmen.api.abwesenheiten_liste",
+    "diakronos_app.api.planrahmen.abwesenheiten_liste",
+    "planrahmen.abwesenheiten_liste"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.bedarf",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "bedarf",
+   "pfade": [
+    "api.bedarf",
+    "bedarf",
+    "diakronos.planrahmen.api.bedarf",
+    "diakronos_app.api.planrahmen.bedarf",
+    "planrahmen.bedarf"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.dienst_absagen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "dienst_absagen",
+   "pfade": [
+    "api.dienst_absagen",
+    "diakronos.planrahmen.api.dienst_absagen",
+    "diakronos_app.api.planrahmen.dienst_absagen",
+    "dienst_absagen",
+    "planrahmen.dienst_absagen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.doku_holen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "doku_holen",
+   "pfade": [
+    "api.doku_holen",
+    "diakronos.planrahmen.api.doku_holen",
+    "diakronos_app.api.planrahmen.doku_holen",
+    "doku_holen",
+    "planrahmen.doku_holen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.einrichten_rechte",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "einrichten_rechte",
+   "pfade": [
+    "api.einrichten_rechte",
+    "diakronos.planrahmen.api.einrichten_rechte",
+    "diakronos_app.api.planrahmen.einrichten_rechte",
+    "einrichten_rechte",
+    "planrahmen.einrichten_rechte"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.eintrag_loesen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "eintrag_loesen",
+   "pfade": [
+    "api.eintrag_loesen",
+    "diakronos.planrahmen.api.eintrag_loesen",
+    "diakronos_app.api.planrahmen.eintrag_loesen",
+    "eintrag_loesen",
+    "planrahmen.eintrag_loesen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.eintrag_setzen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "eintrag_setzen",
+   "pfade": [
+    "api.eintrag_setzen",
+    "diakronos.planrahmen.api.eintrag_setzen",
+    "diakronos_app.api.planrahmen.eintrag_setzen",
+    "eintrag_setzen",
+    "planrahmen.eintrag_setzen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.feiertage_holen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "feiertage_holen",
+   "pfade": [
+    "api.feiertage_holen",
+    "diakronos.planrahmen.api.feiertage_holen",
+    "diakronos_app.api.planrahmen.feiertage_holen",
+    "feiertage_holen",
+    "planrahmen.feiertage_holen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.feld_kandidaten",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "feld_kandidaten",
+   "pfade": [
+    "api.feld_kandidaten",
+    "diakronos.planrahmen.api.feld_kandidaten",
+    "diakronos_app.api.planrahmen.feld_kandidaten",
+    "feld_kandidaten",
+    "planrahmen.feld_kandidaten"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.kochbuch_holen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "kochbuch_holen",
+   "pfade": [
+    "api.kochbuch_holen",
+    "diakronos.planrahmen.api.kochbuch_holen",
+    "diakronos_app.api.planrahmen.kochbuch_holen",
+    "kochbuch_holen",
+    "planrahmen.kochbuch_holen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.kochbuch_liste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "kochbuch_liste",
+   "pfade": [
+    "api.kochbuch_liste",
+    "diakronos.planrahmen.api.kochbuch_liste",
+    "diakronos_app.api.planrahmen.kochbuch_liste",
+    "kochbuch_liste",
+    "planrahmen.kochbuch_liste"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.lied_material_hinzufuegen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "lied_material_hinzufuegen",
+   "pfade": [
+    "api.lied_material_hinzufuegen",
+    "diakronos.planrahmen.api.lied_material_hinzufuegen",
+    "diakronos_app.api.planrahmen.lied_material_hinzufuegen",
+    "lied_material_hinzufuegen",
+    "planrahmen.lied_material_hinzufuegen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.lied_material_loeschen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "lied_material_loeschen",
+   "pfade": [
+    "api.lied_material_loeschen",
+    "diakronos.planrahmen.api.lied_material_loeschen",
+    "diakronos_app.api.planrahmen.lied_material_loeschen",
+    "lied_material_loeschen",
+    "planrahmen.lied_material_loeschen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.lied_rechte",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "lied_rechte",
+   "pfade": [
+    "api.lied_rechte",
+    "diakronos.planrahmen.api.lied_rechte",
+    "diakronos_app.api.planrahmen.lied_rechte",
+    "lied_rechte",
+    "planrahmen.lied_rechte"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.lied_speichern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "lied_speichern",
+   "pfade": [
+    "api.lied_speichern",
+    "diakronos.planrahmen.api.lied_speichern",
+    "diakronos_app.api.planrahmen.lied_speichern",
+    "lied_speichern",
+    "planrahmen.lied_speichern"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.meine_dienste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "meine_dienste",
+   "pfade": [
+    "api.meine_dienste",
+    "diakronos.planrahmen.api.meine_dienste",
+    "diakronos_app.api.planrahmen.meine_dienste",
+    "meine_dienste",
+    "planrahmen.meine_dienste"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.merkmal_kandidaten",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "merkmal_kandidaten",
+   "pfade": [
+    "api.merkmal_kandidaten",
+    "diakronos.planrahmen.api.merkmal_kandidaten",
+    "diakronos_app.api.planrahmen.merkmal_kandidaten",
+    "merkmal_kandidaten",
+    "planrahmen.merkmal_kandidaten"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.merkmale_pflegen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "merkmale_pflegen",
+   "pfade": [
+    "api.merkmale_pflegen",
+    "diakronos.planrahmen.api.merkmale_pflegen",
+    "diakronos_app.api.planrahmen.merkmale_pflegen",
+    "merkmale_pflegen",
+    "planrahmen.merkmale_pflegen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.plaene_liste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "plaene_liste",
+   "pfade": [
+    "api.plaene_liste",
+    "diakronos.planrahmen.api.plaene_liste",
+    "diakronos_app.api.planrahmen.plaene_liste",
+    "plaene_liste",
+    "planrahmen.plaene_liste"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.plan_aendern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "plan_aendern",
+   "pfade": [
+    "api.plan_aendern",
+    "diakronos.planrahmen.api.plan_aendern",
+    "diakronos_app.api.planrahmen.plan_aendern",
+    "plan_aendern",
+    "planrahmen.plan_aendern"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.plan_anlegen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "plan_anlegen",
+   "pfade": [
+    "api.plan_anlegen",
+    "diakronos.planrahmen.api.plan_anlegen",
+    "diakronos_app.api.planrahmen.plan_anlegen",
+    "plan_anlegen",
+    "planrahmen.plan_anlegen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.plan_archivieren",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "plan_archivieren",
+   "pfade": [
+    "api.plan_archivieren",
+    "diakronos.planrahmen.api.plan_archivieren",
+    "diakronos_app.api.planrahmen.plan_archivieren",
+    "plan_archivieren",
+    "planrahmen.plan_archivieren"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.plan_entwurf",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "plan_entwurf",
+   "pfade": [
+    "api.plan_entwurf",
+    "diakronos.planrahmen.api.plan_entwurf",
+    "diakronos_app.api.planrahmen.plan_entwurf",
+    "plan_entwurf",
+    "planrahmen.plan_entwurf"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.plan_generieren",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "plan_generieren",
+   "pfade": [
+    "api.plan_generieren",
+    "diakronos.planrahmen.api.plan_generieren",
+    "diakronos_app.api.planrahmen.plan_generieren",
+    "plan_generieren",
+    "planrahmen.plan_generieren"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.plan_holen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "plan_holen",
+   "pfade": [
+    "api.plan_holen",
+    "diakronos.planrahmen.api.plan_holen",
+    "diakronos_app.api.planrahmen.plan_holen",
+    "plan_holen",
+    "planrahmen.plan_holen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.plan_kopieren",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "plan_kopieren",
+   "pfade": [
+    "api.plan_kopieren",
+    "diakronos.planrahmen.api.plan_kopieren",
+    "diakronos_app.api.planrahmen.plan_kopieren",
+    "plan_kopieren",
+    "planrahmen.plan_kopieren"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.plan_loeschen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "plan_loeschen",
+   "pfade": [
+    "api.plan_loeschen",
+    "diakronos.planrahmen.api.plan_loeschen",
+    "diakronos_app.api.planrahmen.plan_loeschen",
+    "plan_loeschen",
+    "planrahmen.plan_loeschen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.plan_stand_version",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "plan_stand_version",
+   "pfade": [
+    "api.plan_stand_version",
+    "diakronos.planrahmen.api.plan_stand_version",
+    "diakronos_app.api.planrahmen.plan_stand_version",
+    "plan_stand_version",
+    "planrahmen.plan_stand_version"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.plantyp_auswirkung",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "plantyp_auswirkung",
+   "pfade": [
+    "api.plantyp_auswirkung",
+    "diakronos.planrahmen.api.plantyp_auswirkung",
+    "diakronos_app.api.planrahmen.plantyp_auswirkung",
+    "planrahmen.plantyp_auswirkung",
+    "plantyp_auswirkung"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.plantyp_pruefen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "plantyp_pruefen",
+   "pfade": [
+    "api.plantyp_pruefen",
+    "diakronos.planrahmen.api.plantyp_pruefen",
+    "diakronos_app.api.planrahmen.plantyp_pruefen",
+    "planrahmen.plantyp_pruefen",
+    "plantyp_pruefen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.plantyp_speichern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "plantyp_speichern",
+   "pfade": [
+    "api.plantyp_speichern",
+    "diakronos.planrahmen.api.plantyp_speichern",
+    "diakronos_app.api.planrahmen.plantyp_speichern",
+    "planrahmen.plantyp_speichern",
+    "plantyp_speichern"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.plantyp_versionen_liste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "plantyp_versionen_liste",
+   "pfade": [
+    "api.plantyp_versionen_liste",
+    "diakronos.planrahmen.api.plantyp_versionen_liste",
+    "diakronos_app.api.planrahmen.plantyp_versionen_liste",
+    "planrahmen.plantyp_versionen_liste",
+    "plantyp_versionen_liste"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.plantypen_liste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "plantypen_liste",
+   "pfade": [
+    "api.plantypen_liste",
+    "diakronos.planrahmen.api.plantypen_liste",
+    "diakronos_app.api.planrahmen.plantypen_liste",
+    "planrahmen.plantypen_liste",
+    "plantypen_liste"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.platz_hinzufuegen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "platz_hinzufuegen",
+   "pfade": [
+    "api.platz_hinzufuegen",
+    "diakronos.planrahmen.api.platz_hinzufuegen",
+    "diakronos_app.api.planrahmen.platz_hinzufuegen",
+    "planrahmen.platz_hinzufuegen",
+    "platz_hinzufuegen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.sammlung_pflegen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "sammlung_pflegen",
+   "pfade": [
+    "api.sammlung_pflegen",
+    "diakronos.planrahmen.api.sammlung_pflegen",
+    "diakronos_app.api.planrahmen.sammlung_pflegen",
+    "planrahmen.sammlung_pflegen",
+    "sammlung_pflegen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.sammlungsmerkmal_werte_pflegen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "sammlungsmerkmal_werte_pflegen",
+   "pfade": [
+    "api.sammlungsmerkmal_werte_pflegen",
+    "diakronos.planrahmen.api.sammlungsmerkmal_werte_pflegen",
+    "diakronos_app.api.planrahmen.sammlungsmerkmal_werte_pflegen",
+    "planrahmen.sammlungsmerkmal_werte_pflegen",
+    "sammlungsmerkmal_werte_pflegen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.schema_holen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "schema_holen",
+   "pfade": [
+    "api.schema_holen",
+    "diakronos.planrahmen.api.schema_holen",
+    "diakronos_app.api.planrahmen.schema_holen",
+    "planrahmen.schema_holen",
+    "schema_holen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.stammdaten_holen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "stammdaten_holen",
+   "pfade": [
+    "api.stammdaten_holen",
+    "diakronos.planrahmen.api.stammdaten_holen",
+    "diakronos_app.api.planrahmen.stammdaten_holen",
+    "planrahmen.stammdaten_holen",
+    "stammdaten_holen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.termin_aendern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "termin_aendern",
+   "pfade": [
+    "api.termin_aendern",
+    "diakronos.planrahmen.api.termin_aendern",
+    "diakronos_app.api.planrahmen.termin_aendern",
+    "planrahmen.termin_aendern",
+    "termin_aendern"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.termin_entfernen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "termin_entfernen",
+   "pfade": [
+    "api.termin_entfernen",
+    "diakronos.planrahmen.api.termin_entfernen",
+    "diakronos_app.api.planrahmen.termin_entfernen",
+    "planrahmen.termin_entfernen",
+    "termin_entfernen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.termin_hinzufuegen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "termin_hinzufuegen",
+   "pfade": [
+    "api.termin_hinzufuegen",
+    "diakronos.planrahmen.api.termin_hinzufuegen",
+    "diakronos_app.api.planrahmen.termin_hinzufuegen",
+    "planrahmen.termin_hinzufuegen",
+    "termin_hinzufuegen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.termin_struktur",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "termin_struktur",
+   "pfade": [
+    "api.termin_struktur",
+    "diakronos.planrahmen.api.termin_struktur",
+    "diakronos_app.api.planrahmen.termin_struktur",
+    "planrahmen.termin_struktur",
+    "termin_struktur"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.termin_strukturen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "termin_strukturen",
+   "pfade": [
+    "api.termin_strukturen",
+    "diakronos.planrahmen.api.termin_strukturen",
+    "diakronos_app.api.planrahmen.termin_strukturen",
+    "planrahmen.termin_strukturen",
+    "termin_strukturen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planrahmen.trockenlauf",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "trockenlauf",
+   "pfade": [
+    "api.trockenlauf",
+    "diakronos.planrahmen.api.trockenlauf",
+    "diakronos_app.api.planrahmen.trockenlauf",
+    "planrahmen.trockenlauf",
+    "trockenlauf"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.undo",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "undo",
+   "pfade": [
+    "api.undo",
+    "diakronos.planrahmen.api.undo",
+    "diakronos_app.api.planrahmen.undo",
+    "planrahmen.undo",
+    "undo"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.undo_vorschau",
+   "methoden": null,
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "undo_vorschau",
+   "pfade": [
+    "api.undo_vorschau",
+    "diakronos.planrahmen.api.undo_vorschau",
+    "diakronos_app.api.planrahmen.undo_vorschau",
+    "planrahmen.undo_vorschau",
+    "undo_vorschau"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.veroeffentlichen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "schreibend",
+   "name": "veroeffentlichen",
+   "pfade": [
+    "api.veroeffentlichen",
+    "diakronos.planrahmen.api.veroeffentlichen",
+    "diakronos_app.api.planrahmen.veroeffentlichen",
+    "planrahmen.veroeffentlichen",
+    "veroeffentlichen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planung.create_plan",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planung",
+   "nach_name": "schreibend",
+   "name": "create_plan",
+   "pfade": [
+    "api.create_plan",
+    "create_plan",
+    "diakronos.diakonos.api.planung.create_plan",
+    "diakronos_app.api.planung.create_plan",
+    "planung.create_plan"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planung.generiere_plan",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planung",
+   "nach_name": "schreibend",
+   "name": "generiere_plan",
+   "pfade": [
+    "api.generiere_plan",
+    "diakronos.diakonos.api.planung.generiere_plan",
+    "diakronos_app.api.planung.generiere_plan",
+    "generiere_plan",
+    "planung.generiere_plan"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planung.generiere_rotation",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planung",
+   "nach_name": "schreibend",
+   "name": "generiere_rotation",
+   "pfade": [
+    "api.generiere_rotation",
+    "diakronos.diakonos.api.planung.generiere_rotation",
+    "diakronos_app.api.planung.generiere_rotation",
+    "generiere_rotation",
+    "planung.generiere_rotation"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planung.get_abgeleitete_positionen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planung",
+   "nach_name": "lesend",
+   "name": "get_abgeleitete_positionen",
+   "pfade": [
+    "api.get_abgeleitete_positionen",
+    "diakronos.diakonos.api.planung.get_abgeleitete_positionen",
+    "diakronos_app.api.planung.get_abgeleitete_positionen",
+    "get_abgeleitete_positionen",
+    "planung.get_abgeleitete_positionen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planung.get_besetzungsmatrix",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planung",
+   "nach_name": "lesend",
+   "name": "get_besetzungsmatrix",
+   "pfade": [
+    "api.get_besetzungsmatrix",
+    "diakronos.diakonos.api.planung.get_besetzungsmatrix",
+    "diakronos_app.api.planung.get_besetzungsmatrix",
+    "get_besetzungsmatrix",
+    "planung.get_besetzungsmatrix"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planung.get_plaene",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planung",
+   "nach_name": "lesend",
+   "name": "get_plaene",
+   "pfade": [
+    "api.get_plaene",
+    "diakronos.diakonos.api.planung.get_plaene",
+    "diakronos_app.api.planung.get_plaene",
+    "get_plaene",
+    "planung.get_plaene"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planung.get_plan_uebersicht",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planung",
+   "nach_name": "lesend",
+   "name": "get_plan_uebersicht",
+   "pfade": [
+    "api.get_plan_uebersicht",
+    "diakronos.diakonos.api.planung.get_plan_uebersicht",
+    "diakronos_app.api.planung.get_plan_uebersicht",
+    "get_plan_uebersicht",
+    "planung.get_plan_uebersicht"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planung.get_positionen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planung",
+   "nach_name": "lesend",
+   "name": "get_positionen",
+   "pfade": [
+    "api.get_positionen",
+    "diakronos.diakonos.api.planung.get_positionen",
+    "diakronos_app.api.planung.get_positionen",
+    "get_positionen",
+    "planung.get_positionen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planung.get_teilnehmer",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planung",
+   "nach_name": "lesend",
+   "name": "get_teilnehmer",
+   "pfade": [
+    "api.get_teilnehmer",
+    "diakronos.diakonos.api.planung.get_teilnehmer",
+    "diakronos_app.api.planung.get_teilnehmer",
+    "get_teilnehmer",
+    "planung.get_teilnehmer"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planung.get_vorlagen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planung",
+   "nach_name": "lesend",
+   "name": "get_vorlagen",
+   "pfade": [
+    "api.get_vorlagen",
+    "diakronos.diakonos.api.planung.get_vorlagen",
+    "diakronos_app.api.planung.get_vorlagen",
+    "get_vorlagen",
+    "planung.get_vorlagen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planung.set_position_verantwortlicher",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planung",
+   "nach_name": "schreibend",
+   "name": "set_position_verantwortlicher",
+   "pfade": [
+    "api.set_position_verantwortlicher",
+    "diakronos.diakonos.api.planung.set_position_verantwortlicher",
+    "diakronos_app.api.planung.set_position_verantwortlicher",
+    "planung.set_position_verantwortlicher",
+    "set_position_verantwortlicher"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planung.set_rollenbesetzung",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planung",
+   "nach_name": "schreibend",
+   "name": "set_rollenbesetzung",
+   "pfade": [
+    "api.set_rollenbesetzung",
+    "diakronos.diakonos.api.planung.set_rollenbesetzung",
+    "diakronos_app.api.planung.set_rollenbesetzung",
+    "planung.set_rollenbesetzung",
+    "set_rollenbesetzung"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.planung.speichere_plan_entwurf",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.planung",
+   "nach_name": "lesend",
+   "name": "speichere_plan_entwurf",
+   "pfade": [
+    "api.speichere_plan_entwurf",
+    "diakronos.diakonos.api.planung.speichere_plan_entwurf",
+    "diakronos_app.api.planung.speichere_plan_entwurf",
+    "planung.speichere_plan_entwurf",
+    "speichere_plan_entwurf"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planung.veroeffentliche_plan",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planung",
+   "nach_name": "schreibend",
+   "name": "veroeffentliche_plan",
+   "pfade": [
+    "api.veroeffentliche_plan",
+    "diakronos.diakonos.api.planung.veroeffentliche_plan",
+    "diakronos_app.api.planung.veroeffentliche_plan",
+    "planung.veroeffentliche_plan",
+    "veroeffentliche_plan"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planung.zurueckziehen_plan",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planung",
+   "nach_name": "schreibend",
+   "name": "zurueckziehen_plan",
+   "pfade": [
+    "api.zurueckziehen_plan",
+    "diakronos.diakonos.api.planung.zurueckziehen_plan",
+    "diakronos_app.api.planung.zurueckziehen_plan",
+    "planung.zurueckziehen_plan",
+    "zurueckziehen_plan"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.profile.delete_my_data",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.profile",
+   "nach_name": "schreibend",
+   "name": "delete_my_data",
+   "pfade": [
+    "api.delete_my_data",
+    "delete_my_data",
+    "diakronos.diakonos.api.profile.delete_my_data",
+    "diakronos_app.api.profile.delete_my_data",
+    "profile.delete_my_data"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.profile.get_my_profile",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.profile",
+   "nach_name": "lesend",
+   "name": "get_my_profile",
+   "pfade": [
+    "api.get_my_profile",
+    "diakronos.diakonos.api.profile.get_my_profile",
+    "diakronos_app.api.profile.get_my_profile",
+    "get_my_profile",
+    "profile.get_my_profile"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.profile.update_adressbuch_sichtbarkeit",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.profile",
+   "nach_name": "schreibend",
+   "name": "update_adressbuch_sichtbarkeit",
+   "pfade": [
+    "api.update_adressbuch_sichtbarkeit",
+    "diakronos.diakonos.api.profile.update_adressbuch_sichtbarkeit",
+    "diakronos_app.api.profile.update_adressbuch_sichtbarkeit",
+    "profile.update_adressbuch_sichtbarkeit",
+    "update_adressbuch_sichtbarkeit"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.profile.update_einwilligung",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.profile",
+   "nach_name": "schreibend",
+   "name": "update_einwilligung",
+   "pfade": [
+    "api.update_einwilligung",
+    "diakronos.diakonos.api.profile.update_einwilligung",
+    "diakronos_app.api.profile.update_einwilligung",
+    "profile.update_einwilligung",
+    "update_einwilligung"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.profile.update_my_profile",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.profile",
+   "nach_name": "schreibend",
+   "name": "update_my_profile",
+   "pfade": [
+    "api.update_my_profile",
+    "diakronos.diakonos.api.profile.update_my_profile",
+    "diakronos_app.api.profile.update_my_profile",
+    "profile.update_my_profile",
+    "update_my_profile"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.profile.update_profile_picture",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.profile",
+   "nach_name": "schreibend",
+   "name": "update_profile_picture",
+   "pfade": [
+    "api.update_profile_picture",
+    "diakronos.diakonos.api.profile.update_profile_picture",
+    "diakronos_app.api.profile.update_profile_picture",
+    "profile.update_profile_picture",
+    "update_profile_picture"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.psalmos.musik.delete_liedgruppe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.psalmos.musik",
+   "nach_name": "schreibend",
+   "name": "delete_liedgruppe",
+   "pfade": [
+    "api.delete_liedgruppe",
+    "delete_liedgruppe",
+    "diakronos.psalmos.api.musik.delete_liedgruppe",
+    "diakronos_app.api.psalmos.musik.delete_liedgruppe",
+    "musik.delete_liedgruppe",
+    "psalmos.delete_liedgruppe",
+    "psalmos.musik.delete_liedgruppe"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.psalmos.musik.get_fassungen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.psalmos.musik",
+   "nach_name": "lesend",
+   "name": "get_fassungen",
+   "pfade": [
+    "api.get_fassungen",
+    "diakronos.psalmos.api.musik.get_fassungen",
+    "diakronos_app.api.psalmos.musik.get_fassungen",
+    "get_fassungen",
+    "musik.get_fassungen",
+    "psalmos.get_fassungen",
+    "psalmos.musik.get_fassungen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.psalmos.musik.get_lied_detail",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.psalmos.musik",
+   "nach_name": "lesend",
+   "name": "get_lied_detail",
+   "pfade": [
+    "api.get_lied_detail",
+    "diakronos.psalmos.api.musik.get_lied_detail",
+    "diakronos_app.api.psalmos.musik.get_lied_detail",
+    "get_lied_detail",
+    "musik.get_lied_detail",
+    "psalmos.get_lied_detail",
+    "psalmos.musik.get_lied_detail"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.psalmos.musik.get_lied_filteroptionen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.psalmos.musik",
+   "nach_name": "lesend",
+   "name": "get_lied_filteroptionen",
+   "pfade": [
+    "api.get_lied_filteroptionen",
+    "diakronos.psalmos.api.musik.get_lied_filteroptionen",
+    "diakronos_app.api.psalmos.musik.get_lied_filteroptionen",
+    "get_lied_filteroptionen",
+    "musik.get_lied_filteroptionen",
+    "psalmos.get_lied_filteroptionen",
+    "psalmos.musik.get_lied_filteroptionen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.psalmos.musik.get_lied_historie",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.psalmos.musik",
+   "nach_name": "lesend",
+   "name": "get_lied_historie",
+   "pfade": [
+    "api.get_lied_historie",
+    "diakronos.psalmos.api.musik.get_lied_historie",
+    "diakronos_app.api.psalmos.musik.get_lied_historie",
+    "get_lied_historie",
+    "musik.get_lied_historie",
+    "psalmos.get_lied_historie",
+    "psalmos.musik.get_lied_historie"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.psalmos.musik.get_lieder",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.psalmos.musik",
+   "nach_name": "lesend",
+   "name": "get_lieder",
+   "pfade": [
+    "api.get_lieder",
+    "diakronos.psalmos.api.musik.get_lieder",
+    "diakronos_app.api.psalmos.musik.get_lieder",
+    "get_lieder",
+    "musik.get_lieder",
+    "psalmos.get_lieder",
+    "psalmos.musik.get_lieder"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.psalmos.musik.get_liedgruppe_detail",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.psalmos.musik",
+   "nach_name": "lesend",
+   "name": "get_liedgruppe_detail",
+   "pfade": [
+    "api.get_liedgruppe_detail",
+    "diakronos.psalmos.api.musik.get_liedgruppe_detail",
+    "diakronos_app.api.psalmos.musik.get_liedgruppe_detail",
+    "get_liedgruppe_detail",
+    "musik.get_liedgruppe_detail",
+    "psalmos.get_liedgruppe_detail",
+    "psalmos.musik.get_liedgruppe_detail"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.psalmos.musik.get_liedgruppen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.psalmos.musik",
+   "nach_name": "lesend",
+   "name": "get_liedgruppen",
+   "pfade": [
+    "api.get_liedgruppen",
+    "diakronos.psalmos.api.musik.get_liedgruppen",
+    "diakronos_app.api.psalmos.musik.get_liedgruppen",
+    "get_liedgruppen",
+    "musik.get_liedgruppen",
+    "psalmos.get_liedgruppen",
+    "psalmos.musik.get_liedgruppen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.psalmos.musik.save_fassung",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.psalmos.musik",
+   "nach_name": "schreibend",
+   "name": "save_fassung",
+   "pfade": [
+    "api.save_fassung",
+    "diakronos.psalmos.api.musik.save_fassung",
+    "diakronos_app.api.psalmos.musik.save_fassung",
+    "musik.save_fassung",
+    "psalmos.musik.save_fassung",
+    "psalmos.save_fassung",
+    "save_fassung"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.psalmos.musik.save_lied",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.psalmos.musik",
+   "nach_name": "schreibend",
+   "name": "save_lied",
+   "pfade": [
+    "api.save_lied",
+    "diakronos.psalmos.api.musik.save_lied",
+    "diakronos_app.api.psalmos.musik.save_lied",
+    "musik.save_lied",
+    "psalmos.musik.save_lied",
+    "psalmos.save_lied",
+    "save_lied"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.psalmos.musik.save_liedgruppe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.psalmos.musik",
+   "nach_name": "schreibend",
+   "name": "save_liedgruppe",
+   "pfade": [
+    "api.save_liedgruppe",
+    "diakronos.psalmos.api.musik.save_liedgruppe",
+    "diakronos_app.api.psalmos.musik.save_liedgruppe",
+    "musik.save_liedgruppe",
+    "psalmos.musik.save_liedgruppe",
+    "psalmos.save_liedgruppe",
+    "save_liedgruppe"
+   ]
+  },
+  {
+   "allow_guest": true,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.registrierung.get_oeffentliche_formular",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.registrierung",
+   "nach_name": "lesend",
+   "name": "get_oeffentliche_formular",
+   "pfade": [
+    "api.get_oeffentliche_formular",
+    "diakronos.diakonos.api.registrierung.get_oeffentliche_formular",
+    "diakronos_app.api.registrierung.get_oeffentliche_formular",
+    "get_oeffentliche_formular",
+    "registrierung.get_oeffentliche_formular"
+   ]
+  },
+  {
+   "allow_guest": true,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.registrierung.submit_gast",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.registrierung",
+   "nach_name": "lesend",
+   "name": "submit_gast",
+   "pfade": [
+    "api.submit_gast",
+    "diakronos.diakonos.api.registrierung.submit_gast",
+    "diakronos_app.api.registrierung.submit_gast",
+    "registrierung.submit_gast",
+    "submit_gast"
+   ]
+  },
+  {
+   "allow_guest": true,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.registrierung.submit_registrierung",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.registrierung",
+   "nach_name": "lesend",
+   "name": "submit_registrierung",
+   "pfade": [
+    "api.submit_registrierung",
+    "diakronos.diakonos.api.registrierung.submit_registrierung",
+    "diakronos_app.api.registrierung.submit_registrierung",
+    "registrierung.submit_registrierung",
+    "submit_registrierung"
+   ]
+  },
+  {
+   "allow_guest": true,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.registrierung.validate_token",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.registrierung",
+   "nach_name": "lesend",
+   "name": "validate_token",
+   "pfade": [
+    "api.validate_token",
+    "diakronos.diakonos.api.registrierung.validate_token",
+    "diakronos_app.api.registrierung.validate_token",
+    "registrierung.validate_token",
+    "validate_token"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.registrierung_vorschau.get_formular_vorschau",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.registrierung_vorschau",
+   "nach_name": "lesend",
+   "name": "get_formular_vorschau",
+   "pfade": [
+    "api.get_formular_vorschau",
+    "diakronos.diakonos.api.registrierung_vorschau.get_formular_vorschau",
+    "diakronos_app.api.registrierung_vorschau.get_formular_vorschau",
+    "get_formular_vorschau",
+    "registrierung_vorschau.get_formular_vorschau"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.registrierungslink_api.create_link",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.registrierungslink_api",
+   "nach_name": "schreibend",
+   "name": "create_link",
+   "pfade": [
+    "api.create_link",
+    "create_link",
+    "diakronos.diakonos.api.registrierungslink_api.create_link",
+    "diakronos_app.api.registrierungslink_api.create_link",
+    "registrierungslink_api.create_link"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.registrierungslink_api.delete_link",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.registrierungslink_api",
+   "nach_name": "schreibend",
+   "name": "delete_link",
+   "pfade": [
+    "api.delete_link",
+    "delete_link",
+    "diakronos.diakonos.api.registrierungslink_api.delete_link",
+    "diakronos_app.api.registrierungslink_api.delete_link",
+    "registrierungslink_api.delete_link"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.registrierungslink_api.toggle_link",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.registrierungslink_api",
+   "nach_name": "schreibend",
+   "name": "toggle_link",
+   "pfade": [
+    "api.toggle_link",
+    "diakronos.diakonos.api.registrierungslink_api.toggle_link",
+    "diakronos_app.api.registrierungslink_api.toggle_link",
+    "registrierungslink_api.toggle_link",
+    "toggle_link"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.registrierungslink_api.update_link",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.registrierungslink_api",
+   "nach_name": "schreibend",
+   "name": "update_link",
+   "pfade": [
+    "api.update_link",
+    "diakronos.diakonos.api.registrierungslink_api.update_link",
+    "diakronos_app.api.registrierungslink_api.update_link",
+    "registrierungslink_api.update_link",
+    "update_link"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.registrierungslink_api.verlaengern_link",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.registrierungslink_api",
+   "nach_name": "schreibend",
+   "name": "verlaengern_link",
+   "pfade": [
+    "api.verlaengern_link",
+    "diakronos.diakonos.api.registrierungslink_api.verlaengern_link",
+    "diakronos_app.api.registrierungslink_api.verlaengern_link",
+    "registrierungslink_api.verlaengern_link",
+    "verlaengern_link"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.ressourcen.check_verfuegbarkeit",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.ressourcen",
+   "nach_name": "lesend",
+   "name": "check_verfuegbarkeit",
+   "pfade": [
+    "api.check_verfuegbarkeit",
+    "check_verfuegbarkeit",
+    "diakronos.diakonos.api.ressourcen.check_verfuegbarkeit",
+    "diakronos_app.api.ressourcen.check_verfuegbarkeit",
+    "ressourcen.check_verfuegbarkeit"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.ressourcen.create_buchung",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.ressourcen",
+   "nach_name": "schreibend",
+   "name": "create_buchung",
+   "pfade": [
+    "api.create_buchung",
+    "create_buchung",
+    "diakronos.diakonos.api.ressourcen.create_buchung",
+    "diakronos_app.api.ressourcen.create_buchung",
+    "ressourcen.create_buchung"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.ressourcen.create_ressource",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.ressourcen",
+   "nach_name": "schreibend",
+   "name": "create_ressource",
+   "pfade": [
+    "api.create_ressource",
+    "create_ressource",
+    "diakronos.diakonos.api.ressourcen.create_ressource",
+    "diakronos_app.api.ressourcen.create_ressource",
+    "ressourcen.create_ressource"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.ressourcen.decide_buchung",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.ressourcen",
+   "nach_name": "schreibend",
+   "name": "decide_buchung",
+   "pfade": [
+    "api.decide_buchung",
+    "decide_buchung",
+    "diakronos.diakonos.api.ressourcen.decide_buchung",
+    "diakronos_app.api.ressourcen.decide_buchung",
+    "ressourcen.decide_buchung"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.ressourcen.decide_termin_ressource",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.ressourcen",
+   "nach_name": "schreibend",
+   "name": "decide_termin_ressource",
+   "pfade": [
+    "api.decide_termin_ressource",
+    "decide_termin_ressource",
+    "diakronos.diakonos.api.ressourcen.decide_termin_ressource",
+    "diakronos_app.api.ressourcen.decide_termin_ressource",
+    "ressourcen.decide_termin_ressource"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.ressourcen.delete_buchung",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.ressourcen",
+   "nach_name": "schreibend",
+   "name": "delete_buchung",
+   "pfade": [
+    "api.delete_buchung",
+    "delete_buchung",
+    "diakronos.diakonos.api.ressourcen.delete_buchung",
+    "diakronos_app.api.ressourcen.delete_buchung",
+    "ressourcen.delete_buchung"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.ressourcen.delete_ressource",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.ressourcen",
+   "nach_name": "schreibend",
+   "name": "delete_ressource",
+   "pfade": [
+    "api.delete_ressource",
+    "delete_ressource",
+    "diakronos.diakonos.api.ressourcen.delete_ressource",
+    "diakronos_app.api.ressourcen.delete_ressource",
+    "ressourcen.delete_ressource"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.ressourcen.get_anfragen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.ressourcen",
+   "nach_name": "lesend",
+   "name": "get_anfragen",
+   "pfade": [
+    "api.get_anfragen",
+    "diakronos.diakonos.api.ressourcen.get_anfragen",
+    "diakronos_app.api.ressourcen.get_anfragen",
+    "get_anfragen",
+    "ressourcen.get_anfragen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.ressourcen.get_meine_buchungen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.ressourcen",
+   "nach_name": "lesend",
+   "name": "get_meine_buchungen",
+   "pfade": [
+    "api.get_meine_buchungen",
+    "diakronos.diakonos.api.ressourcen.get_meine_buchungen",
+    "diakronos_app.api.ressourcen.get_meine_buchungen",
+    "get_meine_buchungen",
+    "ressourcen.get_meine_buchungen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.ressourcen.get_ressource_buchungen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.ressourcen",
+   "nach_name": "lesend",
+   "name": "get_ressource_buchungen",
+   "pfade": [
+    "api.get_ressource_buchungen",
+    "diakronos.diakonos.api.ressourcen.get_ressource_buchungen",
+    "diakronos_app.api.ressourcen.get_ressource_buchungen",
+    "get_ressource_buchungen",
+    "ressourcen.get_ressource_buchungen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.ressourcen.get_ressourcen_liste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.ressourcen",
+   "nach_name": "lesend",
+   "name": "get_ressourcen_liste",
+   "pfade": [
+    "api.get_ressourcen_liste",
+    "diakronos.diakonos.api.ressourcen.get_ressourcen_liste",
+    "diakronos_app.api.ressourcen.get_ressourcen_liste",
+    "get_ressourcen_liste",
+    "ressourcen.get_ressourcen_liste"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.ressourcen.get_ressourcen_verwaltung",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.ressourcen",
+   "nach_name": "lesend",
+   "name": "get_ressourcen_verwaltung",
+   "pfade": [
+    "api.get_ressourcen_verwaltung",
+    "diakronos.diakonos.api.ressourcen.get_ressourcen_verwaltung",
+    "diakronos_app.api.ressourcen.get_ressourcen_verwaltung",
+    "get_ressourcen_verwaltung",
+    "ressourcen.get_ressourcen_verwaltung"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.ressourcen.update_buchung",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.ressourcen",
+   "nach_name": "schreibend",
+   "name": "update_buchung",
+   "pfade": [
+    "api.update_buchung",
+    "diakronos.diakonos.api.ressourcen.update_buchung",
+    "diakronos_app.api.ressourcen.update_buchung",
+    "ressourcen.update_buchung",
+    "update_buchung"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.ressourcen.update_ressource",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.ressourcen",
+   "nach_name": "schreibend",
+   "name": "update_ressource",
+   "pfade": [
+    "api.update_ressource",
+    "diakronos.diakonos.api.ressourcen.update_ressource",
+    "diakronos_app.api.ressourcen.update_ressource",
+    "ressourcen.update_ressource",
+    "update_ressource"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.session.check_permission",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.session",
+   "nach_name": "lesend",
+   "name": "check_permission",
+   "pfade": [
+    "api.check_permission",
+    "check_permission",
+    "diakronos.diakonos.api.session.check_permission",
+    "diakronos_app.api.session.check_permission",
+    "session.check_permission"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.session.get_current_user_context",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.session",
+   "nach_name": "lesend",
+   "name": "get_current_user_context",
+   "pfade": [
+    "api.get_current_user_context",
+    "diakronos.diakonos.api.session.get_current_user_context",
+    "diakronos_app.api.session.get_current_user_context",
+    "get_current_user_context",
+    "session.get_current_user_context"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.session.get_mitglied_permissions",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.session",
+   "nach_name": "lesend",
+   "name": "get_mitglied_permissions",
+   "pfade": [
+    "api.get_mitglied_permissions",
+    "diakronos.diakonos.api.session.get_mitglied_permissions",
+    "diakronos_app.api.session.get_mitglied_permissions",
+    "get_mitglied_permissions",
+    "session.get_mitglied_permissions"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.session.sitzung_status",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.session",
+   "nach_name": "lesend",
+   "name": "sitzung_status",
+   "pfade": [
+    "diakronos.diakonos.api.session.sitzung_status",
+    "diakronos_app.api.session.sitzung_status",
+    "session.sitzung_status"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.sicherung.sicherung_einstellungen_speichern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.sicherung",
+   "nach_name": "schreibend",
+   "name": "sicherung_einstellungen_speichern",
+   "pfade": [
+    "api.sicherung_einstellungen_speichern",
+    "diakronos.diakonos.api.sicherung.sicherung_einstellungen_speichern",
+    "diakronos_app.api.sicherung.sicherung_einstellungen_speichern",
+    "sicherung.sicherung_einstellungen_speichern",
+    "sicherung_einstellungen_speichern"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.sicherung.sicherung_get",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.sicherung",
+   "nach_name": "lesend",
+   "name": "sicherung_get",
+   "pfade": [
+    "api.sicherung_get",
+    "diakronos.diakonos.api.sicherung.sicherung_get",
+    "diakronos_app.api.sicherung.sicherung_get",
+    "sicherung.sicherung_get",
+    "sicherung_get"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.sicherung.sicherung_jetzt",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.sicherung",
+   "nach_name": "schreibend",
+   "name": "sicherung_jetzt",
+   "pfade": [
+    "api.sicherung_jetzt",
+    "diakronos.diakonos.api.sicherung.sicherung_jetzt",
+    "diakronos_app.api.sicherung.sicherung_jetzt",
+    "sicherung.sicherung_jetzt",
+    "sicherung_jetzt"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.sicherung.sicherung_loeschen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.sicherung",
+   "nach_name": "schreibend",
+   "name": "sicherung_loeschen",
+   "pfade": [
+    "api.sicherung_loeschen",
+    "diakronos.diakonos.api.sicherung.sicherung_loeschen",
+    "diakronos_app.api.sicherung.sicherung_loeschen",
+    "sicherung.sicherung_loeschen",
+    "sicherung_loeschen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.veranstaltungsanmeldung.check_anmeldestatus",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.veranstaltungsanmeldung",
+   "nach_name": "lesend",
+   "name": "check_anmeldestatus",
+   "pfade": [
+    "api.check_anmeldestatus",
+    "check_anmeldestatus",
+    "diakronos.diakonos.api.veranstaltungsanmeldung.check_anmeldestatus",
+    "diakronos_app.api.veranstaltungsanmeldung.check_anmeldestatus",
+    "veranstaltungsanmeldung.check_anmeldestatus"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.veranstaltungsanmeldung.register_mitglied",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.veranstaltungsanmeldung",
+   "nach_name": "lesend",
+   "name": "register_mitglied",
+   "pfade": [
+    "api.register_mitglied",
+    "diakronos.diakonos.api.veranstaltungsanmeldung.register_mitglied",
+    "diakronos_app.api.veranstaltungsanmeldung.register_mitglied",
+    "register_mitglied",
+    "veranstaltungsanmeldung.register_mitglied"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.verantwortliche.get_verantwortliche",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.verantwortliche",
+   "nach_name": "lesend",
+   "name": "get_verantwortliche",
+   "pfade": [
+    "api.get_verantwortliche",
+    "diakronos_app.api.verantwortliche.get_verantwortliche",
+    "get_verantwortliche",
+    "verantwortliche.get_verantwortliche"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.verantwortliche.get_verantwortliche_auswahl",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.verantwortliche",
+   "nach_name": "lesend",
+   "name": "get_verantwortliche_auswahl",
+   "pfade": [
+    "api.get_verantwortliche_auswahl",
+    "diakronos_app.api.verantwortliche.get_verantwortliche_auswahl",
+    "get_verantwortliche_auswahl",
+    "verantwortliche.get_verantwortliche_auswahl"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.verantwortliche.get_zugangs_rollen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.verantwortliche",
+   "nach_name": "lesend",
+   "name": "get_zugangs_rollen",
+   "pfade": [
+    "api.get_zugangs_rollen",
+    "diakronos_app.api.verantwortliche.get_zugangs_rollen",
+    "get_zugangs_rollen",
+    "verantwortliche.get_zugangs_rollen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.verantwortliche.set_verantwortliche",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.verantwortliche",
+   "nach_name": "schreibend",
+   "name": "set_verantwortliche",
+   "pfade": [
+    "api.set_verantwortliche",
+    "diakronos_app.api.verantwortliche.set_verantwortliche",
+    "set_verantwortliche",
+    "verantwortliche.set_verantwortliche"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.website.login_uebergabe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.website",
+   "nach_name": "schreibend",
+   "name": "login_uebergabe",
+   "pfade": [
+    "api.login_uebergabe",
+    "diakronos.diakronos.api.website.login_uebergabe",
+    "diakronos_app.api.website.login_uebergabe",
+    "login_uebergabe",
+    "website.login_uebergabe"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.website.rollen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.website",
+   "nach_name": "lesend",
+   "name": "rollen",
+   "pfade": [
+    "api.rollen",
+    "diakronos.diakronos.api.website.rollen",
+    "diakronos_app.api.website.rollen",
+    "rollen",
+    "website.rollen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.website.status",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.website",
+   "nach_name": "lesend",
+   "name": "status",
+   "pfade": [
+    "api.status",
+    "diakronos.diakronos.api.website.status",
+    "diakronos_app.api.website.status",
+    "status",
+    "website.status"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.wiki.create_wiki_artikel",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.wiki",
+   "nach_name": "schreibend",
+   "name": "create_wiki_artikel",
+   "pfade": [
+    "api.create_wiki_artikel",
+    "create_wiki_artikel",
+    "diakronos.diakonos.api.wiki.create_wiki_artikel",
+    "diakronos_app.api.wiki.create_wiki_artikel",
+    "wiki.create_wiki_artikel"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.wiki.delete_wiki_artikel",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.wiki",
+   "nach_name": "schreibend",
+   "name": "delete_wiki_artikel",
+   "pfade": [
+    "api.delete_wiki_artikel",
+    "delete_wiki_artikel",
+    "diakronos.diakonos.api.wiki.delete_wiki_artikel",
+    "diakronos_app.api.wiki.delete_wiki_artikel",
+    "wiki.delete_wiki_artikel"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.wiki.get_wiki_artikel_detail",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.wiki",
+   "nach_name": "lesend",
+   "name": "get_wiki_artikel_detail",
+   "pfade": [
+    "api.get_wiki_artikel_detail",
+    "diakronos.diakonos.api.wiki.get_wiki_artikel_detail",
+    "diakronos_app.api.wiki.get_wiki_artikel_detail",
+    "get_wiki_artikel_detail",
+    "wiki.get_wiki_artikel_detail"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.wiki.get_wiki_artikel_liste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.wiki",
+   "nach_name": "lesend",
+   "name": "get_wiki_artikel_liste",
+   "pfade": [
+    "api.get_wiki_artikel_liste",
+    "diakronos.diakonos.api.wiki.get_wiki_artikel_liste",
+    "diakronos_app.api.wiki.get_wiki_artikel_liste",
+    "get_wiki_artikel_liste",
+    "wiki.get_wiki_artikel_liste"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.wiki.get_wiki_kategorien",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.wiki",
+   "nach_name": "lesend",
+   "name": "get_wiki_kategorien",
+   "pfade": [
+    "api.get_wiki_kategorien",
+    "diakronos.diakonos.api.wiki.get_wiki_kategorien",
+    "diakronos_app.api.wiki.get_wiki_kategorien",
+    "get_wiki_kategorien",
+    "wiki.get_wiki_kategorien"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.wiki.get_wiki_tags",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.wiki",
+   "nach_name": "lesend",
+   "name": "get_wiki_tags",
+   "pfade": [
+    "api.get_wiki_tags",
+    "diakronos.diakonos.api.wiki.get_wiki_tags",
+    "diakronos_app.api.wiki.get_wiki_tags",
+    "get_wiki_tags",
+    "wiki.get_wiki_tags"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.wiki.update_wiki_artikel",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.wiki",
+   "nach_name": "schreibend",
+   "name": "update_wiki_artikel",
+   "pfade": [
+    "api.update_wiki_artikel",
+    "diakronos.diakonos.api.wiki.update_wiki_artikel",
+    "diakronos_app.api.wiki.update_wiki_artikel",
+    "update_wiki_artikel",
+    "wiki.update_wiki_artikel"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.zugang.einladungslink",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.zugang",
+   "nach_name": "schreibend",
+   "name": "einladungslink",
+   "pfade": [
+    "api.einladungslink",
+    "diakronos_app.api.zugang.einladungslink",
+    "einladungslink",
+    "zugang.einladungslink"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.zugang.get_konten_liste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.zugang",
+   "nach_name": "lesend",
+   "name": "get_konten_liste",
+   "pfade": [
+    "api.get_konten_liste",
+    "diakronos_app.api.zugang.get_konten_liste",
+    "get_konten_liste",
+    "zugang.get_konten_liste"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.zugang.get_moderator_auswahl",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.zugang",
+   "nach_name": "lesend",
+   "name": "get_moderator_auswahl",
+   "pfade": [
+    "api.get_moderator_auswahl",
+    "diakronos_app.api.zugang.get_moderator_auswahl",
+    "get_moderator_auswahl",
+    "zugang.get_moderator_auswahl"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.zugang.get_rollen_uebersicht",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.zugang",
+   "nach_name": "lesend",
+   "name": "get_rollen_uebersicht",
+   "pfade": [
+    "api.get_rollen_uebersicht",
+    "diakronos_app.api.zugang.get_rollen_uebersicht",
+    "get_rollen_uebersicht",
+    "zugang.get_rollen_uebersicht"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.zugang.get_wartende_konten",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.zugang",
+   "nach_name": "lesend",
+   "name": "get_wartende_konten",
+   "pfade": [
+    "api.get_wartende_konten",
+    "diakronos_app.api.zugang.get_wartende_konten",
+    "get_wartende_konten",
+    "zugang.get_wartende_konten"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.zugang.get_zugang",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.zugang",
+   "nach_name": "lesend",
+   "name": "get_zugang",
+   "pfade": [
+    "api.get_zugang",
+    "diakronos_app.api.zugang.get_zugang",
+    "get_zugang",
+    "zugang.get_zugang"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.zugang.get_zugangsmodus",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.zugang",
+   "nach_name": "lesend",
+   "name": "get_zugangsmodus",
+   "pfade": [
+    "api.get_zugangsmodus",
+    "diakronos_app.api.zugang.get_zugangsmodus",
+    "get_zugangsmodus",
+    "zugang.get_zugangsmodus"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.zugang.konto_anlegen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.zugang",
+   "nach_name": "schreibend",
+   "name": "konto_anlegen",
+   "pfade": [
+    "api.konto_anlegen",
+    "diakronos_app.api.zugang.konto_anlegen",
+    "konto_anlegen",
+    "zugang.konto_anlegen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.zugang.konto_freischalten",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.zugang",
+   "nach_name": "schreibend",
+   "name": "konto_freischalten",
+   "pfade": [
+    "api.konto_freischalten",
+    "diakronos_app.api.zugang.konto_freischalten",
+    "konto_freischalten",
+    "zugang.konto_freischalten"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.zugang.konto_sperren",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.zugang",
+   "nach_name": "schreibend",
+   "name": "konto_sperren",
+   "pfade": [
+    "api.konto_sperren",
+    "diakronos_app.api.zugang.konto_sperren",
+    "konto_sperren",
+    "zugang.konto_sperren"
+   ]
+  },
+  {
+   "allow_guest": true,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.zugang.passwort_uebernehmen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.zugang",
+   "nach_name": "schreibend",
+   "name": "passwort_uebernehmen",
+   "pfade": [
+    "api.passwort_uebernehmen",
+    "diakronos_app.api.zugang.passwort_uebernehmen",
+    "passwort_uebernehmen",
+    "zugang.passwort_uebernehmen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.zugang.setze_passwort",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.zugang",
+   "nach_name": "schreibend",
+   "name": "setze_passwort",
+   "pfade": [
+    "api.setze_passwort",
+    "diakronos_app.api.zugang.setze_passwort",
+    "setze_passwort",
+    "zugang.setze_passwort"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.zugang.setze_rollen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.zugang",
+   "nach_name": "schreibend",
+   "name": "setze_rollen",
+   "pfade": [
+    "api.setze_rollen",
+    "diakronos_app.api.zugang.setze_rollen",
+    "setze_rollen",
+    "zugang.setze_rollen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.devmodus.api.audio_hochladen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.devmodus.api",
+   "nach_name": "schreibend",
+   "name": "audio_hochladen",
+   "pfade": [
+    "api.audio_hochladen",
+    "audio_hochladen",
+    "diakronos.devmodus.api.audio_hochladen",
+    "diakronos_app.devmodus.api.audio_hochladen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.devmodus.api.aufraeumen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.devmodus.api",
+   "nach_name": "schreibend",
+   "name": "aufraeumen",
+   "pfade": [
+    "api.aufraeumen",
+    "aufraeumen",
+    "diakronos.devmodus.api.aufraeumen",
+    "diakronos_app.devmodus.api.aufraeumen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.devmodus.api.befund_holen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.devmodus.api",
+   "nach_name": "lesend",
+   "name": "befund_holen",
+   "pfade": [
+    "api.befund_holen",
+    "befund_holen",
+    "diakronos.devmodus.api.befund_holen",
+    "diakronos_app.devmodus.api.befund_holen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.devmodus.api.befund_loeschen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.devmodus.api",
+   "nach_name": "schreibend",
+   "name": "befund_loeschen",
+   "pfade": [
+    "api.befund_loeschen",
+    "befund_loeschen",
+    "diakronos.devmodus.api.befund_loeschen",
+    "diakronos_app.devmodus.api.befund_loeschen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.devmodus.api.befund_setzen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.devmodus.api",
+   "nach_name": "schreibend",
+   "name": "befund_setzen",
+   "pfade": [
+    "api.befund_setzen",
+    "befund_setzen",
+    "diakronos.devmodus.api.befund_setzen",
+    "diakronos_app.devmodus.api.befund_setzen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.devmodus.api.befund_speichern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.devmodus.api",
+   "nach_name": "schreibend",
+   "name": "befund_speichern",
+   "pfade": [
+    "api.befund_speichern",
+    "befund_speichern",
+    "diakronos.devmodus.api.befund_speichern",
+    "diakronos_app.devmodus.api.befund_speichern"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.devmodus.api.befunde_holen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.devmodus.api",
+   "nach_name": "lesend",
+   "name": "befunde_holen",
+   "pfade": [
+    "api.befunde_holen",
+    "befunde_holen",
+    "diakronos.devmodus.api.befunde_holen",
+    "diakronos_app.devmodus.api.befunde_holen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.devmodus.api.bericht_erzeugen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.devmodus.api",
+   "nach_name": "schreibend",
+   "name": "bericht_erzeugen",
+   "pfade": [
+    "api.bericht_erzeugen",
+    "bericht_erzeugen",
+    "diakronos.devmodus.api.bericht_erzeugen",
+    "diakronos_app.devmodus.api.bericht_erzeugen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.devmodus.api.bild",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.devmodus.api",
+   "nach_name": "lesend",
+   "name": "bild",
+   "pfade": [
+    "api.bild",
+    "bild",
+    "diakronos.devmodus.api.bild",
+    "diakronos_app.devmodus.api.bild"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.devmodus.api.bild_hochladen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.devmodus.api",
+   "nach_name": "schreibend",
+   "name": "bild_hochladen",
+   "pfade": [
+    "api.bild_hochladen",
+    "bild_hochladen",
+    "diakronos.devmodus.api.bild_hochladen",
+    "diakronos_app.devmodus.api.bild_hochladen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.devmodus.api.ereignisse_holen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.devmodus.api",
+   "nach_name": "lesend",
+   "name": "ereignisse_holen",
+   "pfade": [
+    "api.ereignisse_holen",
+    "diakronos.devmodus.api.ereignisse_holen",
+    "diakronos_app.devmodus.api.ereignisse_holen",
+    "ereignisse_holen"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.devmodus.api.sitzung_beenden",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.devmodus.api",
+   "nach_name": "schreibend",
+   "name": "sitzung_beenden",
+   "pfade": [
+    "api.sitzung_beenden",
+    "diakronos.devmodus.api.sitzung_beenden",
+    "diakronos_app.devmodus.api.sitzung_beenden",
+    "sitzung_beenden"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.devmodus.api.sitzung_starten",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.devmodus.api",
+   "nach_name": "schreibend",
+   "name": "sitzung_starten",
+   "pfade": [
+    "api.sitzung_starten",
+    "diakronos.devmodus.api.sitzung_starten",
+    "diakronos_app.devmodus.api.sitzung_starten",
+    "sitzung_starten"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.devmodus.api.sitzung_status",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.devmodus.api",
+   "nach_name": "lesend",
+   "name": "sitzung_status",
+   "pfade": [
+    "api.sitzung_status",
+    "diakronos.devmodus.api.sitzung_status",
+    "diakronos_app.devmodus.api.sitzung_status",
+    "sitzung_status"
+   ]
+  },
+  {
+   "allow_guest": false,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.devmodus.api.uebersicht",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.devmodus.api",
+   "nach_name": "lesend",
+   "name": "uebersicht",
+   "pfade": [
+    "api.uebersicht",
+    "diakronos.devmodus.api.uebersicht",
+    "diakronos_app.devmodus.api.uebersicht",
+    "uebersicht"
+   ]
+  },
+  {
+   "allow_guest": true,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.website.kontakt.kontakt_senden",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.website.kontakt",
+   "nach_name": "schreibend",
+   "name": "kontakt_senden",
+   "pfade": [
+    "diakronos.diakronos.api.website.kontakt_senden",
+    "diakronos_app.website.kontakt.kontakt_senden",
+    "kontakt.kontakt_senden",
+    "kontakt_senden",
+    "website.kontakt_senden"
+   ]
+  }
+ ],
+ "funktionen": 321,
+ "registrierte_pfade": 1669,
+ "widersprueche": [
+  {
+   "allow_guest": false,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.planrahmen.plan_entwurf",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.planrahmen",
+   "nach_name": "lesend",
+   "name": "plan_entwurf",
+   "pfade": [
+    "api.plan_entwurf",
+    "diakronos.planrahmen.api.plan_entwurf",
+    "diakronos_app.api.planrahmen.plan_entwurf",
+    "plan_entwurf",
+    "planrahmen.plan_entwurf"
+   ]
+  }
+ ],
+ "zaehlung": {
+  "lesend": 161,
+  "schreibend": 160
+ }
+}

@@ -290,7 +290,7 @@ def get_user_config():
     return result
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def set_user_config(layout_json):
     """Speichert das personalisierte Layout fuer den aktuellen Nutzer.
 
@@ -336,7 +336,7 @@ def set_user_config(layout_json):
     return {"status": "ok"}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def reset_user_config():
     """Setzt das Layout auf die Standardwerte zurueck.
 

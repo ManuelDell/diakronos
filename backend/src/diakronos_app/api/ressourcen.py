@@ -508,7 +508,7 @@ def check_verfuegbarkeit(ressource_id, datum_von, datum_bis, exclude_id=""):
     }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_buchung(ressource_id, datum_von, datum_bis, zweck, notizen=""):
     """Erstellt eine Buchungs-Anfrage (Status IMMER 'Angefragt').
 
@@ -555,7 +555,7 @@ def create_buchung(ressource_id, datum_von, datum_bis, zweck, notizen=""):
     return result
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def decide_buchung(buchung_id, entscheidung, grund=""):
     """Moderator entscheidet über eine Anfrage: bestätigen oder ablehnen.
 
@@ -631,7 +631,7 @@ def _benachrichtige_buchung(doc, entscheidung: str, grund: str, moderator: str, 
                      document_type=document_type, document_name=document_name)
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def decide_termin_ressource(zeile_id, entscheidung, grund=""):
     """P1-4b (B1): Moderator entscheidet eine TERMIN-Ressource (quelle="termin").
 
@@ -904,7 +904,7 @@ def _event_ressourcen_anfragen() -> list[dict[str, Any]]:
     return ergebnis
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_buchung(buchung_id, zweck, notizen="", datum_von=None, datum_bis=None):
     """Aktualisiert eine eigene Anfrage (nur wenn Status=Angefragt).
 
@@ -978,7 +978,7 @@ def _als_zeitpunkt(wert) -> datetime:
     return ergebnis
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def delete_buchung(buchung_id):
     """Storniert eine eigene Buchung (soft: Status → Storniert).
 
@@ -1095,7 +1095,7 @@ def get_ressourcen_verwaltung():
     }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_ressource(name, typ="Raum", kapazitaet=None, beschreibung="", tags="", wartung=0):
     """Neue Ressource anlegen (Raum, Fahrzeug oder Gegenstand).
 
@@ -1128,7 +1128,7 @@ def create_ressource(name, typ="Raum", kapazitaet=None, beschreibung="", tags=""
     return {"success": True, "id": anzeige}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_ressource(ressource_id, name=None, typ=None, kapazitaet=None,
                      beschreibung=None, tags=None, wartung=None):
     """Ressource aendern. Nicht mitgeschickte Felder bleiben unveraendert.
@@ -1170,7 +1170,7 @@ def update_ressource(ressource_id, name=None, typ=None, kapazitaet=None,
     return {"success": True, "id": doc.name}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def delete_ressource(ressource_id, bestaetigt=0):
     """Ressource entfernen — nur ohne Buchungen und Terminbezug.
 

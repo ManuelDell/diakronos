@@ -250,7 +250,7 @@ def login_pfad() -> str:
     return base_path.pfad("/login")
 
 
-@whitelist(allow_guest=True)
+@whitelist(methods=["POST"], allow_guest=True)
 def login(usr: str | None = None, pwd: str | None = None, request=None, **kwargs: Any):
     """Frappe-kompatibler Login. Felder: `usr` (E-Mail/Username) + `pwd`.
 
@@ -956,7 +956,7 @@ def _redirect_ziel(kandidat: Any) -> str:
     return ziel
 
 
-@whitelist(allow_guest=True)
+@whitelist(methods=["POST"], allow_guest=True)
 def logout(request=None):
     """Beendet die Sitzung: `sid` in Redis loeschen, Cookie entfernen.
 

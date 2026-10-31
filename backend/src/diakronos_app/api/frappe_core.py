@@ -37,9 +37,18 @@ from diakronos_app.frappe_compat.session import session
 from diakronos_app.settings import settings
 
 
-def _register_as(fn, *names: str, allow_guest: bool = False) -> None:
-    """Registriert `fn` unter expliziten Frappe-Pfaden (z. B. `frappe.client.insert`)."""
-    _register(fn, {"allow_guest": allow_guest})
+def _register_as(fn, *names: str, allow_guest: bool = False,
+                 methods: list[str] | None = None) -> None:
+    """Registriert `fn` unter expliziten Frappe-Pfaden (z. B. `frappe.client.insert`).
+
+    SEC-11: `methods=["POST"]` fuer die schreibenden Kernpfade — dieselbe
+    Deklaration wie bei `@whitelist(methods=[...])`, nur fuer die Namen, die
+    nicht ueber einen Dekorator laufen.
+    """
+    optionen: dict = {"allow_guest": allow_guest}
+    if methods is not None:
+        optionen["methods"] = methods
+    _register(fn, optionen)
     from diakronos_app.frappe_compat import registry as _r
 
     for name in names:
@@ -65,7 +74,7 @@ def logout(request=None):
     return _logout(request=request)
 
 
-_register_as(logout, "logout", allow_guest=True)
+_register_as(logout, "logout", allow_guest=True, methods=["POST"])
 
 
 # ── /api/method/frappe.client.insert ────────────────────────────────────────
@@ -196,7 +205,7 @@ def insert(doc: Any = None, **fields: Any) -> dict[str, Any]:
         sess.close()
 
 
-_register_as(insert, "frappe.client.insert")
+_register_as(insert, "frappe.client.insert", methods=["POST"])
 
 
 # ── /api/method/upload_file ─────────────────────────────────────────────────
@@ -447,7 +456,7 @@ def upload_file(
         sess.close()
 
 
-_register_as(upload_file, "upload_file")
+_register_as(upload_file, "upload_file", methods=["POST"])
 
 
 def _jsonable(value: Any) -> Any:

@@ -395,7 +395,7 @@ def _apply_mitarbeiter(name: str, mitarbeiter) -> None:
 # ── Endpunkte ───────────────────────────────────────────────────────────────
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_event(
     element_name,
     element_start,
@@ -450,7 +450,7 @@ def create_event(
         _rethrow(e, "create_event ERROR")
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_event(
     name,
     element_name=None,
@@ -552,7 +552,7 @@ def update_event(
         _rethrow(e, f"update_event ERROR: {name}")
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def delete_event(name):
     """Loesche Event (raeumt offene Aenderungsvorschlaege mit ab)."""
     try:
@@ -590,7 +590,7 @@ def delete_event(name):
         _rethrow(e, f"delete_event ERROR: {name}")
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def save_event(
     name,
     element_name,
@@ -725,7 +725,7 @@ def save_event(
         _rethrow(e, f"save_event ERROR: {name}")
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_series(
     element_name,
     element_start,
@@ -905,7 +905,7 @@ def get_offene_aenderungen():
     return _lade_offene_aenderungen(mod_cals)
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def aenderung_freigeben(name, nur_pruefen=0):
     """Vorgeschlagene Termindaenderung uebernehmen (nur Moderatoren).
 
@@ -967,7 +967,7 @@ def _als_flag(wert) -> bool:
     return str(wert).strip().lower() in ("1", "true", "yes", "on")
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def aenderung_ablehnen(name):
     """Vorgeschlagene Termindaenderung verwerfen (nur Moderatoren)."""
     try:

@@ -353,7 +353,7 @@ def gemeinde_get_einstellungen() -> dict[str, Any]:
         sess.close()
 
 
-@whitelist()
+@whitelist(methods=["POST"])
 def gemeinde_speichern(gemeindename: str = "", kontakt_email: str = "",
                        oeffentliche_adresse: str = "", willkommenstext: str = "",
                        link_laufzeit_tage: Any = None,
@@ -410,7 +410,7 @@ def gemeinde_speichern(gemeindename: str = "", kontakt_email: str = "",
     return {"gespeichert": True}
 
 
-@whitelist()
+@whitelist(methods=["POST"])
 def gemeinde_setze_linkvorgaben(link_laufzeit_tage: int, link_max_anmeldungen: int,
                                 request=None) -> dict[str, Any]:
     """Setzt nur die Vorgaben fuer neue Registrierungslinks (Admin).
@@ -438,7 +438,7 @@ def gemeinde_setze_linkvorgaben(link_laufzeit_tage: int, link_max_anmeldungen: i
     return {"link_laufzeit_tage": laufzeit, "link_max_anmeldungen": maximum}
 
 
-@whitelist()
+@whitelist(methods=["POST"])
 def gemeinde_setze_modul(schluessel: str, sichtbar: bool,
                          request=None) -> dict[str, Any]:
     """Schaltet die Sichtbarkeit eines Moduls (Diakronos/Kronos/...)."""
@@ -494,7 +494,7 @@ def datenschutz_get_texte() -> dict[str, Any]:
         sess.close()
 
 
-@whitelist()
+@whitelist(methods=["POST"])
 def datenschutz_speichern(einwilligung: str = "", datenschutzerklaerung: str = "",
                           aufbewahrung: str = "", veroeffentlicht: bool = False,
                           request=None) -> dict[str, Any]:

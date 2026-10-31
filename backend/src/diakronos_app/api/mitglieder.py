@@ -1308,7 +1308,7 @@ def pruefe_mitglied_dublette(vorname="", nachname="", email=""):
     return {"dublette": None}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_mitglied(vorname, nachname, email="", status="Gast", gruppe_id=None, create_user=False, zugangsart="kein", startpasswort="", request=None):
     """Legt eine Person und optional einen lokalen Zugang an.
 
@@ -1465,7 +1465,7 @@ def _validate_member_update(doc, werte):
         werte.pop("datenschutz_einwilligung")
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_mitglied(mitglied_id, data=None, **kwargs):
     """Aktualisiert ein Mitglied (Quelle: mitglieder.py:271-354).
 
@@ -1560,7 +1560,7 @@ def update_mitglied(mitglied_id, data=None, **kwargs):
     }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_mitglied_with_confirmation(mitglied_id, data, audit_confirmation):
     """Aktualisiert ein Mitglied MIT Audit-Bestaetigung (Quelle: mitglieder.py:372-433).
 
@@ -1704,7 +1704,7 @@ def get_beziehungen_for_mitglied(mitglied_id):
 # ── DSGVO ───────────────────────────────────────────────────────────────────
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def widerruf_einwilligung(mitglied_id, **kwargs):
     """Widerruft die DSGVO-Einwilligung eines Mitglieds (Quelle: mitglieder.py:473-509).
 
@@ -1774,7 +1774,7 @@ MITGLIED_STATUS = ("Mitglied", "Gast", "Passives Mitglied", "Passiver Gast")
 AUSGETRETEN_STATUS = frozenset({"ausgetreten"})
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def set_mitglied_status(mitglied_id, status):
     """Setzt den Status eines Mitglieds (nur Administratoren).
 
@@ -2375,7 +2375,7 @@ def _csv_zeilen(inhalt: str) -> list[dict]:
     return [{(k or "").strip(): (v or "") for k, v in zeile.items()} for zeile in leser]
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def import_mitglieder_vorschau(csv_inhalt, spalten=None, *, _vorgemerkt=None):
     """Vorschau eines Mitglieder-Imports (P1-9; Oberflaeche in N11).
 
@@ -2626,7 +2626,7 @@ def _import_abbruch(zeile: int, fehler) -> None:
     )
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def import_mitglieder_uebernehmen(
     csv_inhalt, spalten=None, dubletten_ueberspringen=True, bestaetigt=0
 ):

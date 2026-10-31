@@ -246,7 +246,7 @@ def test_spa_pfade_registriert(fn):
 def test_guest_wird_abgewiesen(client, fn):
     set_user("Guest")
     try:
-        r = client.get(f"/api/method/{MODUL}.{fn}")
+        r = client.post(f"/api/method/{MODUL}.{fn}")
         assert r.status_code == 401, (fn, r.text)
     finally:
         set_user("Administrator")

@@ -237,7 +237,7 @@ def _pruefe_zuordnungen(sess, zuordnungen):
     return ergebnis
 
 
-@whitelist()
+@whitelist(methods=["POST"])
 def anmeldung_speichern(modus: str, admin_ueber_gruppen: bool = False,
                         zuordnungen: Any = None, request=None) -> dict:
     """N8: Modus, Sicherheitsschalter und Rollen in EINER Transaktion speichern."""
@@ -266,7 +266,7 @@ def anmeldung_speichern(modus: str, admin_ueber_gruppen: bool = False,
     return {"gespeichert": True}
 
 
-@whitelist()
+@whitelist(methods=["POST"])
 def anmeldung_setze_unbekannte_nutzer(modus: str, admin_ueber_gruppen: bool = False) -> dict:
     """Setzt das Verhalten fuer unbekannte Nutzer (Admin)."""
     from datetime import datetime
@@ -300,7 +300,7 @@ def anmeldung_setze_unbekannte_nutzer(modus: str, admin_ueber_gruppen: bool = Fa
         sess.close()
 
 
-@whitelist()
+@whitelist(methods=["POST"])
 def anmeldung_setze_rollen_zuordnung(zuordnungen: Any = None) -> dict:
     """Ersetzt die Gruppen->Rollen-Zuordnung (Admin).
 

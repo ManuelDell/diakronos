@@ -244,7 +244,7 @@ def get_verantwortliche(doctype: str, name: str) -> dict[str, Any]:
     }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def set_verantwortliche(doctype: str, name: str, user: list[str] | None = None) -> dict[str, Any]:
     """Verantwortliche eines Objekts vollstaendig setzen (Liste von Konten).
 

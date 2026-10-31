@@ -67,6 +67,20 @@ FORWARD_AUTH_AUSNAHMEN = (
 )
 
 
+# WEB-8c (R4): Der Client meldet ein Sitzungsende ueber die FESTE Kennung
+# `?grund=csrf` (nicht ueber Freitext — der waere einschleusbar). Hier wird die
+# Kennung auf genau EINEN festen Satz abgebildet; unbekannte Werte zeigen
+# nichts. Textgleich mit `SITZUNG_HINWEIS` in `frontend/src/shared/csrf-heilung.js`.
+GRUND_HINWEISE = {
+    "csrf": "Sitzung abgelaufen — bitte neu anmelden.",
+}
+
+
+def grund_hinweis(grund: str | None) -> str:
+    """Fester Hinweis zu einer Grund-Kennung (`""`, wenn unbekannt)."""
+    return GRUND_HINWEISE.get(str(grund or "").strip(), "")
+
+
 def _login_adresse() -> str:
     """`/login` mit Betriebs-Praefix (WEB-5a).
 
@@ -553,8 +567,16 @@ def registriere_routen(app: FastAPI) -> None:
         except Exception:  # noqa: BLE001 — ohne Schluessel bleibt die Maske bedienbar
             logger.warning("Anmeldemaske ohne Token (SECRET_KEY fehlt?)")
             csrf_token = ""
+        # WEB-8c (R4): Grund-Kennung (`?grund=csrf`) -> fester Hinweis. Der
+        # Hinweis gewinnt NICHT gegen eine echte Flash-Meldung (die erklaert
+        # einen Fehlschlag konkreter).
         antwort: Response = HTMLResponse(
-            erstelle_anmeldeseite(ziel, request=request, csrf_token=csrf_token)
+            erstelle_anmeldeseite(
+                ziel,
+                meldung=grund_hinweis(request.query_params.get("grund")),
+                request=request,
+                csrf_token=csrf_token,
+            )
         )
         flash.loesche_flash(antwort)
         return antwort

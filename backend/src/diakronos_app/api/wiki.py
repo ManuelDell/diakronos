@@ -163,7 +163,7 @@ def get_wiki_artikel_detail(artikel_id):
     return _artikel_to_dict(a, with_content=True)
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_wiki_artikel(titel, inhalt, kategorie="allgemein", tags="", auszug=""):
     """Erstellt einen neuen Wiki-Artikel (nur Admin).
 
@@ -188,7 +188,7 @@ def create_wiki_artikel(titel, inhalt, kategorie="allgemein", tags="", auszug=""
     return {"success": True, "artikel_id": artikel_id}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_wiki_artikel(artikel_id, titel="", inhalt="", kategorie="", tags="", auszug="", ist_neu=None):
     """Aktualisiert einen Wiki-Artikel (nur Admin).
 
@@ -221,7 +221,7 @@ def update_wiki_artikel(artikel_id, titel="", inhalt="", kategorie="", tags="", 
     return {"success": True}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def delete_wiki_artikel(artikel_id):
     """Löscht einen Wiki-Artikel (nur Admin).
 

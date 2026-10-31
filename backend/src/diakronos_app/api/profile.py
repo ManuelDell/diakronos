@@ -220,7 +220,7 @@ def _cint(value) -> int:
         return 0
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_my_profile(vorname=None, nachname=None, telefonnummer=None,
                       postleitzahl=None, wohnort=None, strasse=None,
                       nummer=None, geburtstag=None, geschlecht=None,
@@ -276,7 +276,7 @@ def update_my_profile(vorname=None, nachname=None, telefonnummer=None,
     return {"ok": True}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_adressbuch_sichtbarkeit(settings=None):
     """Speichert die Adressbuch-Sichtbarkeit des eigenen Profils.
 
@@ -311,7 +311,7 @@ def update_adressbuch_sichtbarkeit(settings=None):
 # ── Einwilligung ────────────────────────────────────────────────────────────
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_einwilligung(typ, erteilt):
     """Setzt die Foto- oder Werbeeinwilligung des eigenen Profils.
 
@@ -373,7 +373,7 @@ def update_einwilligung(typ, erteilt):
 # ── Profilbild ──────────────────────────────────────────────────────────────
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_profile_picture(file_url=None):
     """Setzt die Profilbild-URL des eigenen Profils.
 
@@ -410,7 +410,7 @@ def update_profile_picture(file_url=None):
 
 # ── Alter Sofortlöschpfad ──────────────────────────────────────────────────
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def delete_my_data():
     """Alte Clients dürfen den neuen Antrags-/Adminweg nicht umgehen."""
     _get_my_mitglied()

@@ -245,7 +245,7 @@ def _link_antwort(link: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def create_link(
     bezeichnung,
     typ,
@@ -303,7 +303,7 @@ def create_link(
     return {"success": True, "link": _link_antwort({f: doc.get(f) for f in dict.fromkeys(felder)})}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def update_link(link_id, **kwargs):
     """Aktualisiert einen Registrierungslink (nur Admin)."""
     require_admin()
@@ -335,7 +335,7 @@ def update_link(link_id, **kwargs):
     return {"success": True, "link_id": doc.name}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def delete_link(link_id):
     """Loescht einen Link nur, wenn keine bestaetigten Anmeldungen existieren."""
     require_admin()
@@ -360,7 +360,7 @@ def delete_link(link_id):
     return {"success": True}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def toggle_link(link_id):
     """Schaltet einen Link aktiv/inaktiv um (nur Admin)."""
     require_admin()
@@ -372,7 +372,7 @@ def toggle_link(link_id):
     return {"success": True, "aktiv": bool(neu)}
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def verlaengern_link(link_id, gueltig_bis="", max_anmeldungen=None):
     """Verlaengert einen abgelaufenen oder vollen Link (N3, nur Admin).
 
