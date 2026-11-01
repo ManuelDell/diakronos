@@ -29,7 +29,7 @@ Test-Zertifizierungsstelle geprüft; ein echter ACME-Abruf bleibt ausdrücklich 
 13. [Dev-Modus (DM1)](#13-dev-modus-dm1)
 14. [Datensicherung (BACKUP-1)](#14-datensicherung-backup-1) — mit Anleitung zum Wiederherstellen
 15. [Website-Verwaltung über Primo (WEB-1, optional)](#15-website-verwaltung-über-primo-web-1-optional)
-16. [Betrieb unter einem Pfad-Präfix (WEB-5a)](#16-betrieb-unter-einem-pfad-präfix-web-5a) — Website auf `/`, Diakronos unter `/diakronos/…`
+16. [Betrieb unter einem Pfad-Präfix (WEB-5a)](#16-betrieb-unter-einem-pfad-präfix-web-5a) — Website auf `/`, Diakronos unter `/diakronos/…`, darin 16.9 [CSRF-Heilung im Browser](#169-csrf-heilung-was-die-oberfläche-selbst-tut-web-8f-verhaltensänderung)
 17. [Kontaktformular der Website (WEB-10)](#17-kontaktformular-der-website-web-10) — sendet nur eine Mail, nichts wird gespeichert
 
 ---
@@ -2350,6 +2350,29 @@ Aufgabe und hier nicht umgesetzt.
 
 Für den **Betrieb ohne SSO** (Anmeldung mit Konto und Passwort auf `/login`)
 gilt die Grenze nicht: dort erscheint der Hinweis auf der Maske.
+
+### 16.9 CSRF-Heilung: was die Oberfläche selbst tut (WEB-8f, Verhaltensänderung)
+
+Diese Beschreibung ersetzt den Ablauf aus WEB-8b/8c (dort lud der
+Hauptbereich nach zwei erfolglosen Versuchen noch `window.location.reload()`
+— im alten Verhalten wurde das in den Tests als **eine** Neuladung
+festgehalten, jetzt sind es **null**).
+
+| Lage | Verhalten der Oberfläche |
+| --- | --- |
+| **Hauptbereich (angemeldet), CSRF-Ablehnung (417)** | still ein frisches Token holen (`session.sitzung_status`), die Anfrage **genau einmal** wiederholen. Klappt die Wiederholung, merkt die Person nichts. |
+| **Hauptbereich, auch die Wiederholung scheitert** | Der vorhandene **Dialog „Sitzung abgelaufen — bitte neu anmelden.“** erscheint. Es wird **nicht** neu geladen und **nicht** weitergeleitet — Eingaben und Scrollposition bleiben stehen, die Person kann die Anmeldung in einem anderen Tab vornehmen und es erneut versuchen. |
+| **Hauptbereich, irgendein anderer Fehler** (417 `ValidationError`/Feldfehler, 403 fehlende Befugnis, 500 Serverfehler, Netzwerkfehler) | Der Fehler geht **unverändert** an die Stelle, die ihn ausgelöst hat: Feldfehler am Feld, Rechtehinweis als Meldung, „Verbindungsfehler“ bei Netzproblemen. Der Sitzungsdialog erscheint **nie**. (WEB-8f B1: vorher öffnete jeder dieser Fehler fälschlich „Sitzung abgelaufen“.) |
+| **Gast-/Registrierungsseite, CSRF-Ablehnung** | **einmal** die Seite neu laden (frisches Seiten-Token). Danach zeigt die Seite den festen Hinweis „Die Seite wurde neu geladen, bitte Eingaben prüfen.“ |
+| **Gast-/Registrierungsseite, CSRF-Ablehnung innerhalb von 60 s noch einmal** | **kein** weiteres Neuladen (Schleifenschutz), stattdessen der feste Hinweis „Die Seite konnte nicht abgeschickt werden — bitte öffne sie neu und versuche es noch einmal. Dein Link bleibt gültig.“ Die Eingaben bleiben stehen. |
+| **Gast-/Registrierungsseite, 401/419 oder anderer Fehler** | sofort der Text auf der Seite, kein Neuladen, nie eine Weiterleitung zur Anmeldung. |
+
+Die beiden Merker im Browser-Speicher (`sessionStorage`) sind bewusst
+getrennt: `dk-csrf-neuladen` (Zeitstempel, höchstens ein Neuladen je 60 s) und
+`dk-gast-hinweis` (Einmal-Hinweis nach dem Neuladen einer Gastseite, wird nur
+von der Gast-Heilung gesetzt). Wer den Browser-Speicher eines Tabs leert,
+setzt damit auch den Schleifenschutz zurück — das ist gefahrlos, weil der
+Schutz nur das wiederholte Neuladen verhindert.
 
 ---
 

@@ -29,6 +29,13 @@
                     Schnell und einfach – nur dein Name und eine kurze Datenschutzzustimmung.
                 </p>
 
+                <!-- WEB-8e (E3): die Seite wurde gerade automatisch neu geladen
+                     (CSRF-Heilung, frisches Seiten-Token) — die Eingaben sind
+                     weg, das muss die Person wissen. Genau EINMAL. -->
+                <p v-if="nachNeuladen" role="note" class="dk-pub-muted hinweis-neuladen">
+                    {{ hinweisNachNeuladen }}
+                </p>
+
                 <DkFehlertext v-if="fehler" :message="fehler" class="mb-4" />
 
                 <form @submit.prevent="absenden" class="dk-pub-form" novalidate>
@@ -77,7 +84,7 @@ import {
     weiterleitenZurHauptseite,
 } from '../shared/linkziel.js'
 // WEB-8b: CSRF-Ablehnung automatisch heilen (Token neu, 1 Wiederholung).
-import { heileOderMelde } from '../shared/csrf-heilung.js'
+import { heileOderMelde, gastNachNeuladen, HINWEIS_NACH_NEULADEN } from '../shared/csrf-heilung.js'
 // DEP-1: eigene Bausteine statt frappe-ui (Button/FormControl/ErrorMessage).
 import DkButton from '../diakonos/components/ui/DkButton.vue'
 import DkField from '../diakonos/components/ui/DkField.vue'
@@ -105,6 +112,14 @@ const willkommenstext = (window.__diakronos?.willkommenstext || '').trim()
 const success = ref(false)
 const loading = ref(false)
 const fehler  = ref('')
+
+// WEB-8e (E3): wurde die Seite gerade durch die Heilung neu geladen, steht der
+// Merker in `sessionStorage`. `gastNachNeuladen()` gibt ihn genau EINMAL her.
+const nachNeuladen = ref(false)
+const hinweisNachNeuladen = HINWEIS_NACH_NEULADEN
+if (!umgeleitet) {
+    try { nachNeuladen.value = gastNachNeuladen() } catch { nachNeuladen.value = false }
+}
 
 const form = reactive({ vorname: '', nachname: '', dsgvo: false })
 
@@ -157,11 +172,11 @@ async function absenden() {
         }
         success.value = true
     } catch (e) {
-        // WEB-8c (R8) / WEB-8d (N3): Läuft bereits ein Neuladen/eine
-        // Weiterleitung, blitzt KEIN „Verbindungsfehler" auf. WEB-8d (M1):
-        // `e.meldung` heißt „Seite ist stehen geblieben" — dann kommt der
-        // feste Hinweis an die Stelle der Fehlermeldung.
-        if (e?.neuLaden || e?.weitergeleitet) return
+        // WEB-8c (R8) / WEB-8d (N3): Läuft gerade ein Neuladen, blitzt KEINE
+        // Meldung auf (die Seite verschwindet).
+        if (e?.neuLaden) return
+        // WEB-8e (E2/E4): `e.meldung` heißt „Seite ist stehen geblieben" —
+        // sofort der feste Gast-Hinweis (401/419 laden NICHT neu).
         if (e?.meldung && e?.hinweis) { fehler.value = e.hinweis; return }
         fehler.value = 'Verbindungsfehler. Bitte versuche es erneut.'
     } finally {
@@ -240,6 +255,16 @@ function parseServerError(data) {
 }
 
 .dk-pub-form { display: flex; flex-direction: column; gap: 14px; }
+
+/* WEB-8e (E3): kurzer Hinweis nach dem automatischen Neuladen — Token-Werte
+   aus dem gemeinsamen System (Hell- und Dunkelmodus), keine neuen Farben. */
+.hinweis-neuladen {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--warn-soft);
+  color: var(--warn);
+}
 
 .dk-pub-check {
   display: flex;

@@ -308,11 +308,19 @@ test('WEB-8c R3: zwei parallele CSRF-Fehler -> 1 Token-Abruf, 1 reload, KEINE An
 
     const tokenAbrufe = zustand.anfragen.filter(x => x.url.includes('sitzung_status')).length
     assert.equal(tokenAbrufe, 1, 'N parallele 417 teilen sich EINEN Token-Abruf')
-    assert.equal(zustand.reloads, 1, 'genau ein Neuladen')
-    assert.deepEqual(zustand.weiterleitungen, [], 'kein location.assign zur Anmeldung (würde das reload() überschreiben)')
+    // WEB-8e (E1): der Hauptbereich navigiert NICHT mehr weg — er zeigt den
+    // vorhandenen Dialog (weder `reload()` noch `location.assign`).
+    assert.equal(zustand.reloads, 0, 'kein Neuladen im Hauptbereich')
+    assert.deepEqual(zustand.weiterleitungen, [], 'kein location.assign zur Anmeldung')
     assert.equal(a.status, 'rejected')
     assert.equal(b.status, 'rejected')
-    assert.equal(Boolean(a.reason?.neuLaden), true, 'der Aufrufer erkennt „Seite lädt neu“')
+    // WEB-8e (E1): beide Aufrufer gehen als Dialog-Fehler durch —
+    // `sitzung` + `imBereich`, ohne Navigationsmerker.
+    const gruende = [a.reason, b.reason]
+    assert.ok(gruende.every(f => f?.sitzung === true && f?.imBereich === true),
+        'beide sind Dialog-Fehler im Bereich')
+    assert.equal(gruende.some(f => f?.neuLaden), false, 'kein Neulade-Merker im Hauptbereich')
+    assert.equal(gruende.some(f => f?.weitergeleitet), false, 'niemand wird zur Anmeldung geschickt')
 })
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -403,14 +411,15 @@ test('WEB-8c R7: letzteHeilung() liefert null, wenn es keinen sessionStorage gib
 test('WEB-8c R8: Gast-/Registrierungsformular zeigt bei Sitzungsende KEINEN Verbindungsfehler', async () => {
     for (const datei of ['gast/App.vue', 'registrierung/components/DkAnmeldeformular.vue']) {
         const quelle = await lies(datei)
-        // WEB-8d (N3): KEINE Meldung, solange schon navigiert wird.
+        // WEB-8d (N3) / WEB-8e (E2): KEINE Meldung, solange navigiert wird.
+        // WEB-8e: Gastseiten kennen kein `weitergeleitet` mehr (sie werden nie
+        // zur Anmeldung geschickt) — geprueft wird der Weg, der bleibt.
         assert.match(quelle, /e\?\.neuLaden/, `${datei}: fängt e.neuLaden ab`)
-        assert.match(quelle, /e\?\.weitergeleitet/, `${datei}: fängt e.weitergeleitet ab`)
         // Der Fangzweig darf den Verbindungstext NICHT fuer Sitzungsende setzen:
-        // er muss `neuLaden`/`weitergeleitet` VOR der Meldung abfangen.
+        // er muss `neuLaden` VOR der Meldung abfangen.
         const zweig = quelle.slice(quelle.indexOf('} catch (e'), quelle.indexOf('} finally'))
         assert.ok(zweig.length > 0, `${datei}: Fangzweig gefunden`)
-        assert.match(zweig, /if \(e\?\.neuLaden \|\| e\?\.weitergeleitet\) return/,
+        assert.match(zweig, /if \(e\?\.neuLaden\) return/,
             `${datei}: laufende Navigation kehrt VOR jeder Meldung zurueck`)
         const vorMeldung = zweig.slice(0, zweig.indexOf("fehler.value = 'Verbindungsfehler"))
         assert.ok(vorMeldung.length > 0, `${datei}: der Fangzweig setzt die Meldung`)

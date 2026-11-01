@@ -233,9 +233,12 @@ async function gastZweig(datei) {
 }
 
 test('WEB-8d N9: Gastseiten melden bei laufender Navigation NICHTS (Verhalten)', async () => {
+    // WEB-8e (E2): Gastseiten kennen nur noch das NEULADEN — eine
+    // Weiterleitung zur Anmeldung gibt es dort nicht mehr (sie würden die
+    // Person ohne Konto auf /login schicken, genau der M1-Befund).
     for (const datei of ['gast/App.vue', 'registrierung/components/DkAnmeldeformular.vue']) {
         const zweig = await gastZweig(datei)
-        for (const marke of ['neuLaden', 'weitergeleitet']) {
+        for (const marke of ['neuLaden']) {
             const fehler = { value: '' }
             const e = new Error('x')
             e.sitzung = true

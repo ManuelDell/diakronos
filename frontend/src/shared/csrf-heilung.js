@@ -70,6 +70,49 @@
  *       `SITZUNGS_STATUS` von hier (eine Wahrheit statt Kopie).
  *   N6  `SITZUNG_GRUND` und `sitzungsFehler()` sind entfallen (ungenutzt).
  *
+ * NACHTRAG WEB-8e (Restpunkte aus dem Opus-Review zu WEB-8d):
+ *
+ *   E1  Der Hauptbereich OHNE Navigation (SPA-Dialog) wurde bis hier mit
+ *       `zurAnmeldung('neuLaden', {ohneNavigation: true})` gekennzeichnet —
+ *       das setzte `neuLaden` UND `imBereich`. `useApi.js` wertete `neuLaden`
+ *       als „es wird schon navigiert" und der Fehler erreichte den Dialog
+ *       nie (`sitzungImBereich` war unerreichbar). Jetzt tragen diese Fehler
+ *       NUR `imBereich` (`ohneNavigationFehler`), und `useApi.js` zeigt sie
+ *       im vorhandenen Dialog.
+ *   E2  Gastseiten: 401/419 (`SessionExpired`) lösen KEIN Neuladen mehr aus —
+ *       dort gibt es keine Sitzung zu erneuern (Neuladen hätte die Eingaben
+ *       verworfen und den Fehler nur verschoben). Es geht sofort die feste
+ *       Meldung auf der Seite (`gastFehler({neuLaden:false})`); nur eine
+ *       CSRF-Ablehnung nimmt den einmaligen Neulade-Weg.
+ *   E3  Nach dem einmaligen Gast-Neuladen erscheint beim neuen Seitenleben
+ *       EIN kurzer Hinweis (`gastNachNeuladen()` → `HINWEIS_NACH_NEULADEN`);
+ *       der Merker dafür ist derselbe Zeitstempel wie der Schleifenschutz.
+ *   E4  Der Text „Die Anmeldung wird neu geladen …" ist auf Gastseiten
+ *       ersetzt: die Person hat kein Konto und wird nicht angemeldet.
+ *
+ * NACHTRAG WEB-8f (Nachbesserung des Opus-Reviews zu WEB-8e):
+ *
+ *   B1  `useApi.js` zeigt NUR noch Fehler mit `sitzung` im Sitzungsdialog
+ *       (`if (fehler?.sitzung) throw sitzungImBereich(fehler); throw fehler`).
+ *       Ein 417 `ValidationError`, ein 403 `PermissionError`, ein 500 oder ein
+ *       Netzwerkfehler geht unverändert an den Aufrufer (Feldfehler,
+ *       Rechtehinweis, Verbindungstext) — vorher meldete jeder dieser Fehler
+ *       „Sitzung abgelaufen".
+ *   B2  Der Gast-Einmal-Hinweis hängt an einem EIGENEN Merker
+ *       (`dk-gast-hinweis`), nicht mehr am Schleifenschutz-Zeitstempel
+ *       (`dk-csrf-neuladen`): der bleibt jetzt erhalten, deshalb lädt ein
+ *       wiederkehrender CSRF-Fehler innerhalb von 60 s NICHT erneut (kein
+ *       Verlust der Eingaben) und `GAST_HINWEIS` erscheint. Gesetzt wird der
+ *       Hinweis-Merker ausschließlich von der Gast-Heilung; Heilungen im
+ *       Hauptbereich und im Organigramm lösen ihn nicht aus.
+ *   B3  VERHALTENSÄNDERUNG gegenüber WEB-8b/8c (dokumentiert in
+ *       `docs/BETRIEBSANLEITUNG.md`, Abschnitt „CSRF-Heilung"): Der
+ *       Hauptbereich lädt bei einer CSRF-Ablehnung NICHT mehr neu, sondern
+ *       zeigt den vorhandenen Sitzungsdialog (`SitzungsHinweis.vue`). Der Weg
+ *       ist: frisches Token holen -> Anfrage genau einmal wiederholen ->
+ *       scheitert auch das, Dialog (kein Reload, keine Weiterleitung). Der
+ *       R3-Test hält das als 1 -> 0 Neuladungen fest.
+ *
  * SICHERHEIT DER WIEDERHOLUNG (C3): Die CSRF-Prüfung sitzt in der
  * `CsrfMiddleware` VOR der Ausführung der Methode. Eine mit 417 beantwortete
  * Anfrage hat den Server deshalb nachweislich nicht ausgeführt — die einmalige
@@ -96,6 +139,19 @@ import { apiUrl, anmeldeUrl } from './basis.js'
 /** Merker der letzten automatischen Heilung (C2). */
 export const NEULADEN_SCHLUESSEL = 'dk-csrf-neuladen'
 
+/**
+ * Eigener Merker „Gast-Hinweis steht noch aus" (WEB-8f B2).
+ *
+ * Vorher löschte `gastNachNeuladen()` den Zeitstempel `dk-csrf-neuladen` —
+ * also denselben Schlüssel wie der 60-s-Schleifenschutz. Folge: nach dem
+ * ersten Neuladen war der Schleifenschutz weg, jedes weitere Absenden mit
+ * veraltetem Token lud erneut (Eingaben verloren), und weil auch der Merker
+ * für den Hinweis weg war, erschien `GAST_HINWEIS` nie. Jetzt bleibt der
+ * Zeitstempel unangetastet; nur die Gast-Heilung setzt diesen Schlüssel, und
+ * nur `gastNachNeuladen()` nimmt ihn wieder weg (Einmal-Hinweis).
+ */
+export const GAST_HINWEIS_SCHLUESSEL = 'dk-gast-hinweis'
+
 /** Mindestabstand zwischen zwei automatischen Neuladungen. */
 export const NEULADEN_SPERRE_MS = 60_000
 
@@ -109,6 +165,22 @@ export const SITZUNG_HINWEIS = 'Sitzung abgelaufen — bitte neu anmelden.'
 export const GAST_HINWEIS =
   'Die Seite konnte nicht abgeschickt werden — bitte öffne sie neu und versuche es noch einmal. Dein Link bleibt gültig.'
 
+/**
+ * Text, während die Gastseite neu lädt (WEB-8e E4). Früher stand hier „Die
+ * Anmeldung wird neu geladen …" — auf einer Seite ohne Konto falsch.
+ */
+export const GAST_NEULADEN_HINWEIS = 'Die Seite wird neu geladen …'
+
+/**
+ * Hinweis beim NEUEN Seitenleben nach dem einmaligen Gast-Neuladen
+ * (WEB-8e E3): Die Eingaben sind weg, die Person muss wissen warum.
+ */
+export const HINWEIS_NACH_NEULADEN =
+  'Die Seite wurde neu geladen, bitte Eingaben prüfen.'
+
+/** Text des Neuladens im Hauptbereich (dort ist die Anmeldung das Ziel). */
+export const NEULADEN_HINWEIS = 'Die Anmeldung wird neu geladen …'
+
 /** Feste Kennung für die Anmeldemaske (R4): kein Freitext in der Adresse. */
 export const GRUND_CSRF = 'csrf'
 
@@ -117,6 +189,9 @@ export const SITZUNGS_STATUS = [401, 419]
 
 /**
  * Ist die Antwort eine CSRF-Ablehnung (417 + `exc_type=CSRFTokenError`)?
+ *
+ * Genau diese eine Form erzeugt der Server (`CsrfMiddleware._csrf_ablehnung`,
+ * `frappe_compat/auth_middleware.py`) — unverändert seit WEB-8b.
  */
 export function istCsrfAblehnung(res, data) {
   return res?.status === 417 && String(data?.exc_type || '') === 'CSRFTokenError'
@@ -283,6 +358,23 @@ function heilungMerken(jetzt) {
 }
 
 /**
+ * Merker „Gast-Hinweis steht noch aus" setzen (WEB-8f B2).
+ *
+ * @returns {boolean} `true`, wenn er gespeichert ist (sonst erscheint der
+ *   Hinweis beim nächsten Seitenleben nicht — nie ein Fehlerfall).
+ */
+function hinweisMerken() {
+  try {
+    const speicher = globalThis.sessionStorage
+    if (!speicher || typeof speicher.setItem !== 'function') return false
+    speicher.setItem(GAST_HINWEIS_SCHLUESSEL, '1')
+    return speicher.getItem(GAST_HINWEIS_SCHLUESSEL) !== null
+  } catch {
+    return false
+  }
+}
+
+/**
  * Zur Anmeldemaske (C2) — präfixbewusst über `anmeldeUrl()`, mit Rücksprung
  * auf die aktuelle Adresse samt Hash und der festen Kennung `grund=csrf`.
  *
@@ -293,6 +385,11 @@ function heilungMerken(jetzt) {
  *
  * `art` ('neuLaden' | 'weitergeleitet') landet am Fehler, damit die
  * Gast-/Registrierungsseiten (R8) nichts rendern, während navigiert wird.
+ *
+ * `ohneNavigation` (Hauptbereich): der Fehler trägt NUR `imBereich` — die
+ * SPA zeigt den vorhandenen Dialog und navigiert NICHT. Der frühere
+ * Doppelmerker `neuLaden` + `imBereich` ließ `useApi.js` „es wird schon
+ * navigiert" annehmen, der Dialog blieb aus (WEB-8e E1).
  */
 export function zurAnmeldung(art = 'weitergeleitet', { ohneNavigation = false } = {}) {
   if (!ohneNavigation) {
@@ -304,14 +401,31 @@ export function zurAnmeldung(art = 'weitergeleitet', { ohneNavigation = false } 
       globalThis.location?.assign?.(anmeldeUrl(ziel, GRUND_CSRF))
     } catch { /* keine Navigation möglich (Fremdkontext) */ }
   }
+  // Der Aufrufer hat die Anzeige selbst uebernommen (SPA-Dialog).
+  if (ohneNavigation) return imBereichFehler(SITZUNG_HINWEIS, 'SitzungAbgelaufen')
   const fehler = new Error(SITZUNG_HINWEIS)
   fehler.name = 'SitzungAbgelaufen'
   fehler.sitzung = true
   fehler.hinweis = SITZUNG_HINWEIS
   if (art === 'neuLaden') fehler.neuLaden = true
   else fehler.weitergeleitet = true
-  // Der Aufrufer hat die Anzeige selbst uebernommen (SPA-Dialog).
-  if (ohneNavigation) fehler.imBereich = true
+  return fehler
+}
+
+/**
+ * Fehler für „Sitzung ist weg, aber im Hauptbereich OHNE Navigation"
+ * (WEB-8e E1). Merkmale: `sitzung` + `imBereich` — und absichtlich WEDER
+ * `neuLaden` (Seite lädt neu) NOCH `weitergeleitet` (Anmeldemaske). Nur so
+ * erreicht der Fehler `mitSitzungsdialog` in `useApi.js` und damit den
+ * vorhandenen Dialog; `useApi.js` leitet
+ * `navigiertBereits = (neuLaden || weitergeleitet) && !imBereich` daraus ab.
+ */
+export function imBereichFehler(hinweis = SITZUNG_HINWEIS, name = 'SitzungAbgelaufen') {
+  const fehler = new Error(hinweis)
+  fehler.name = name
+  fehler.sitzung = true
+  fehler.imBereich = true
+  fehler.hinweis = hinweis
   return fehler
 }
 
@@ -321,30 +435,29 @@ export function zurAnmeldung(art = 'weitergeleitet', { ohneNavigation = false } 
  * bekommen nur den Fehler.
  */
 export function neuLadenOderAnmelden(jetzt = Date.now(), { ohneNavigation = false } = {}) {
+  // Hauptbereich: die SPA zeigt den Dialog und laedt NICHT neu — auch kein
+  // Merker, damit die naechste echte Pruefung normal entscheiden darf.
+  if (ohneNavigation) return imBereichFehler(SITZUNG_HINWEIS, 'SitzungAbgelaufen')
+
   if (laufendeNavigation) return laeuftFehler(laufendeNavigation)
 
-  if (!ohneNavigation && neuladenErlaubt(jetzt) && heilungMerken(jetzt)) {
+  if (neuladenErlaubt(jetzt) && heilungMerken(jetzt)) {
     laufendeNavigation = 'neuLaden'
     try {
       globalThis.location?.reload?.()
     } catch { /* kein Neuladen möglich */ }
-    const fehler = new Error('Die Anmeldung wird neu geladen …')
+    const fehler = new Error(NEULADEN_HINWEIS)
     fehler.name = 'NeuLaden'
     fehler.sitzung = true
     fehler.neuLaden = true
     fehler.hinweis = SITZUNG_HINWEIS
-    if (ohneNavigation) fehler.imBereich = true
     return fehler
   }
 
   // Kein (weiteres) Neuladen: entweder im 60-s-Fenster (C2) oder ohne
   // nutzbaren Speicher (R7). Dann direkt zur Anmeldung mit Hinweis.
   laufendeNavigation = 'weitergeleitet'
-  const fehler = zurAnmeldung('neuLaden', { ohneNavigation })
-  // Der Hauptbereich zeigt den Hinweis im vorhandenen Dialog; die naechste
-  // Pruefung darf dann wieder normal entscheiden (kein haengender Merker).
-  if (ohneNavigation) laufendeNavigation = ''
-  return fehler
+  return zurAnmeldung('neuLaden')
 }
 
 /** Darf jetzt automatisch neu geladen werden (C2/R7)? */
@@ -360,12 +473,16 @@ export function neuladenErlaubt(jetzt = Date.now()) {
 /**
  * Sitzungsende auf einer GASTSEITE (WEB-8d M1) — ohne Anmeldung, ohne
  * `/login`. Die Person hat kein Konto; ein Token-Abruf über
- * `session.sitzung_status` endete für sie nur in 401. Sie bekommt höchstens
- * EIN frisches Seiten-Token (Neuladen, Schleifenschutz wie C2) und danach
- * eine feste Meldung auf der Seite selbst (`meldung`).
+ * `session.sitzung_status` endete für sie nur in 401. Eine CSRF-Ablehnung
+ * bekommt höchstens EIN frisches Seiten-Token (Neuladen, Schleifenschutz wie
+ * C2); alles andere (auch 401/419, WEB-8e E2) meldet sofort auf der Seite
+ * (`meldung`).
+ *
+ * E4: der Text nennt NIE die Anmeldung — auf einer Gastseite wird niemand
+ * angemeldet. Er beschreibt nur, was die Seite gerade tut bzw. tun soll.
  */
 function gastFehler({ neuLaden }) {
-  const fehler = new Error(neuLaden ? 'Die Anmeldung wird neu geladen …' : GAST_HINWEIS)
+  const fehler = new Error(neuLaden ? GAST_NEULADEN_HINWEIS : GAST_HINWEIS)
   fehler.name = neuLaden ? 'NeuLaden' : 'GastSitzungAbgelaufen'
   fehler.sitzung = true
   fehler.gast = true
@@ -377,24 +494,56 @@ function gastFehler({ neuLaden }) {
 }
 
 /**
- * Gastweg: KEIN Token-Abruf (der verlangt Anmeldung), höchstens EIN
- * automatisches Neuladen und NIEMALS eine Weiterleitung zur Anmeldemaske.
- * Der Schleifenschutz ist derselbe wie im Hauptbereich (C2/R7) — ohne
- * nutzbaren `sessionStorage` gibt es kein Neuladen, weil der Merker sonst
- * über das Neuladen verloren ginge (Endlosschleife).
+ * Gastweg: KEIN Token-Abruf (der verlangt Anmeldung). NUR eine CSRF-Ablehnung
+ * bekommt höchstens EIN automatisches Neuladen (frisches Seiten-Token);
+ * alles andere meldet sofort (`WEB-8e E2`). Der Schleifenschutz ist derselbe
+ * wie im Hauptbereich (C2/R7) — ohne nutzbaren `sessionStorage` gibt es kein
+ * Neuladen, weil der Merker sonst über das Neuladen verloren ginge
+ * (Endlosschleife). NIEMALS eine Weiterleitung zur Anmeldemaske.
  */
-function gastHeilen(jetzt, { ohneNavigation = false } = {}) {
-  // Ein Aufrufer hat die Navigation schon ausgelöst: hier nur noch melden.
+function gastHeilen(jetzt, { ohneNavigation = false, art = 'meldung' } = {}) {
+  // Ein Aufrufer hat das Neuladen schon ausgelöst: hier nur noch melden.
   if (laufendeNavigation) return gastFehler({ neuLaden: false })
+
+  // WEB-8e E2: ein 401/419 (Sitzung weg) ist auf einer Gastseite keine
+  // CSRF-Frage — die Sitzung lässt sich hier nicht erneuern. Neuladen würde
+  // nur die Eingaben verwerfen und den Fehler verschieben.
+  if (art !== 'csrf') return gastFehler({ neuLaden: false })
 
   if (!ohneNavigation && neuladenErlaubt(jetzt) && heilungMerken(jetzt)) {
     laufendeNavigation = 'neuLaden'
     try {
       globalThis.location?.reload?.()
     } catch { /* kein Neuladen möglich (Fremdkontext) */ }
+    // WEB-8f B2: eigener Merker für den Einmal-Hinweis, unabhängig vom
+    // 60-s-Zeitstempel — nur die Gast-Heilung setzt ihn.
+    hinweisMerken()
     return gastFehler({ neuLaden: true })
   }
   return gastFehler({ neuLaden: false })
+}
+
+/**
+ * Hinweis nach dem einmaligen Gast-Neuladen (WEB-8e E3 / WEB-8f B2).
+ *
+ * Der Zeitstempel `dk-csrf-neuladen` (Schleifenschutz) bleibt UNANGETASTET —
+ * er entscheidet weiter, ob ein weiteres Neuladen erlaubt ist. Der Hinweis
+ * hängt an einem eigenen Merker `dk-gast-hinweis`, den ausschließlich die
+ * Gast-Heilung (`gastHeilen`, Art `csrf`) setzt. Heilungen im Hauptbereich
+ * und im Organigramm lösen den Gast-Hinweis deshalb nicht aus.
+ *
+ * @returns {boolean} `true` = den Hinweis zeigen (genau einmal)
+ */
+export function gastNachNeuladen() {
+  try {
+    const speicher = globalThis.sessionStorage
+    if (!speicher || typeof speicher.getItem !== 'function') return false
+    if (speicher.getItem(GAST_HINWEIS_SCHLUESSEL) === null) return false
+    speicher.removeItem(GAST_HINWEIS_SCHLUESSEL)
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -427,15 +576,21 @@ export async function heileOderMelde({ anfrage, res, data, ohneNavigation = fals
   // 1:1 weitergegeben (z. B. 417 `ValidationError`).
   if (gast) {
     // WEB-8d M1: Auf einer Gastseite gibt es keine Sitzung, die man erneuern
-    // könnte — jeder Sitzungs-/CSRF-Fall führt zur Meldung auf der Seite.
-    if (istSitzungsAbbruch(res.status, data)) throw gastHeilen(Date.now(), { ohneNavigation })
+    // könnte — kein Token-Abruf, nie `/login`.
+    // WEB-8e E2: NUR eine CSRF-Ablehnung nimmt den einmaligen Neulade-Weg;
+    // 401/419 meldet sofort auf der Seite (kein Neuladen, keine Meldung erst
+    // nach einem verlorenen Formular).
+    if (istCsrfAblehnung(res, data)) throw gastHeilen(Date.now(), { ohneNavigation, art: 'csrf' })
+    if (istSitzungsAbbruch(res.status, data)) throw gastHeilen(Date.now(), { ohneNavigation, art: 'meldung' })
     return mitDaten(res, data)
   }
 
   if (!istCsrfAblehnung(res, data)) {
     if (istSitzungsAbbruch(res.status, data)) {
       if (laufendeNavigation) throw laeuftFehler(laufendeNavigation)
-      laufendeNavigation = ohneNavigation ? '' : 'weitergeleitet'
+      // Der Hauptbereich (ohneNavigation) zeigt den Dialog und navigiert
+      // nicht — dann keinen Navigationsmerker setzen (WEB-8e E1).
+      if (!ohneNavigation) laufendeNavigation = 'weitergeleitet'
       throw zurAnmeldung('weitergeleitet', { ohneNavigation })
     }
     return mitDaten(res, data)
@@ -447,7 +602,7 @@ export async function heileOderMelde({ anfrage, res, data, ohneNavigation = fals
   if (!token) {
     // Ohne frisches Token ist die Sitzung nicht zu retten: kein sinnloser
     // zweiter Versuch, sondern der gemeldete Weg (Neuladen/Anmeldung).
-    if (ohneNavigation) throw zurAnmeldung('neuLaden', { ohneNavigation: true })
+    if (ohneNavigation) throw imBereichFehler(SITZUNG_HINWEIS, 'SitzungAbgelaufen')
     throw neuLadenOderAnmelden()
   }
   tokenUebernehmen(token)
@@ -459,7 +614,7 @@ export async function heileOderMelde({ anfrage, res, data, ohneNavigation = fals
   if (istCsrfAblehnung(wieder, wiederDaten)) {
     // Nach einer echten Wiederholung gilt der 60-s-Schutz (C2) auch im
     // Hauptbereich: dann oeffnet der Aufrufer den Dialog statt zu laden.
-    throw neuLadenOderAnmelden()
+    throw neuLadenOderAnmelden(Date.now(), { ohneNavigation })
   }
 
   return mitDaten(wieder, wiederDaten)

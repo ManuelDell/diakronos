@@ -30,12 +30,20 @@ apiQuelle = apiQuelle.replace("import { apiUrl } from '../../shared/basis.js'",
     + " async function datenVon(res) { if (res?.dkDaten !== undefined) return res.dkDaten; let text = ''; try { text = await res.text() } catch { return { message: `Serverfehler (HTTP ${res?.status})` } } if (!text) return { message: `Serverfehler (HTTP ${res?.status})` }; try { return JSON.parse(text) } catch { return { message: `Serverfehler (HTTP ${res?.status})` } } }")
 const api = await import('data:text/javascript;base64,' + Buffer.from(apiQuelle).toString('base64'))
 test('OP-UI-1: POST und GET zeigen den zentralen Sitzungsablauf', async () => {
+    // WEB-8f (B1): `pruefeSitzungsAntwort` LIEFERT den Sitzungsfehler, statt nur
+    // den Ablauf-Melder zu rufen — `useApi.js` gibt ihn weiter. Der Test folgt
+    // deshalb dem GEWORFENEN Fehler (vorher wurde der Rückgabewert ignoriert;
+    // das ging nur, solange der Melder als Nebenwirkung lief). Der zentrale
+    // Ablauf (`sitzungBeendet`) muss weiterhin ausgelöst werden, und der Fehler
+    // muss den Status tragen.
     globalThis.window = { __DIakonosBOOT: { csrf_token: 'token' } }
     for (const fn of [api.apiCall, api.apiGet]) {
         globalThis.__ablauf = false
         globalThis.fetch = async () => ({ok:false, status:401, text:async()=>JSON.stringify({message:'Bitte neu anmelden'})})
-        await assert.rejects(fn('test'), e => e.status === 401)
-        assert.equal(globalThis.__ablauf, true)
+        const fehler = await fn('test').then(() => null, (e) => e)
+        assert.ok(fehler, 'ein Sitzungsabbruch endet in einem Fehler')
+        assert.equal(fehler.sitzung, true, 'der Fehler ist als Sitzungsende gekennzeichnet')
+        assert.equal(globalThis.__ablauf, true, 'der zentrale Sitzungsablauf wird ausgelöst')
     }
 })
 

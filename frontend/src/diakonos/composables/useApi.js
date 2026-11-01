@@ -29,8 +29,10 @@ export class AuditConfirmationRequired extends Error {
  * NICHT weg. Grund: `location.assign(login)` würde ein gerade ausgelöstes
  * `location.reload()` der Heilung überschreiben.
  *
- * Erkennung: die Heilung meldet sich mit `zurAnmeldung`/`neuLadenOderAnmelden`
- * (Fehler mit `sitzung`) ODER die Antwort ist ein echter 401/419-Abbruch.
+ * Erkennung: die Heilung meldet sich mit `sitzung` (und `imBereich`, WEB-8e
+ * E1) ODER die Antwort ist ein echter 401/419-Abbruch. `mitSitzungsdialog`
+ * leitet JEDEN Sitzungsfehler ohne laufende Navigation hierher — und NUR
+ * einen Sitzungsfehler (WEB-8f B1: Fachfehler bleiben beim Aufrufer).
  */
 function sitzungImBereich(fehler) {
     sitzungsFehlerMerken(fehler)
@@ -41,13 +43,18 @@ function sitzungImBereich(fehler) {
 }
 
 /**
- * WEB-8d (N3): Wird bei diesem Fehler bereits navigiert? Dann ist der
- * Seitenwechsel schon ausgelöst (`neuLaden` = Force-Refresh, `weitergeleitet`
- * = Anmeldemaske) und es darf KEIN Dialog mehr aufblitzen — er wäre nur ein
- * kurzes Flackern vor dem Verschwinden der Seite.
+ * WEB-8d (N3) / WEB-8e (E1): Wird bei diesem Fehler bereits navigiert? Dann
+ * ist der Seitenwechsel schon ausgelöst (`neuLaden` = Force-Refresh,
+ * `weitergeleitet` = Anmeldemaske) und es darf KEIN Dialog mehr aufblitzen —
+ * er wäre nur ein kurzes Flackern vor dem Verschwinden der Seite.
+ *
+ * `imBereich` schlägt beide Merker: Ein solcher Fehler ist ausdrücklich
+ * „Sitzung weg, aber hier bleiben" (Heilung mit `ohneNavigation`). Die
+ * Bedingung ist bewusst so geschrieben, dass ein Merker-Doppel den Dialog
+ * nie wieder verschluckt (WEB-8e E1: genau das war der Befund).
  */
 function navigiertBereits(fehler) {
-    return Boolean(fehler?.neuLaden || fehler?.weitergeleitet)
+    return Boolean((fehler?.neuLaden || fehler?.weitergeleitet) && !fehler?.imBereich)
 }
 
 /**
@@ -61,7 +68,13 @@ async function mitSitzungsdialog(arbeiten) {
     } catch (fehler) {
         // WEB-8d (N3): Navigation laeuft schon -> durchreichen, nicht zeigen.
         if (navigiertBereits(fehler)) throw fehler
-        if (fehler?.sitzung && !fehler.imBereich) throw sitzungImBereich(fehler)
+        // WEB-8e (E1) + WEB-8f (B1): NUR ein Sitzungsfehler geht in den
+        // Dialog. Vorher lief JEDER Fehler durch `sitzungImBereich` — ein
+        // 417 `ValidationError`, ein 403 `PermissionError`, ein 500 oder ein
+        // Netzwerkfehler zeigten „Sitzung abgelaufen" (Opus-Review WEB-8e,
+        // Blocker B1). Alles ohne `sitzung` bleibt unveraendert beim Aufrufer
+        // (Feldfehler, Rechtehinweis, Verbindungstext).
+        if (fehler?.sitzung) throw sitzungImBereich(fehler)
         throw fehler
     }
 }
@@ -100,8 +113,20 @@ export function pruefeSitzungsAntwort(res, data) {
     // nie einen Freitext aus der Adresse. Der Hauptbereich navigiert NICHT weg:
     // ein `location.assign(login)` würde das `reload()` der Heilung
     // überschreiben.
+    //
+    // WEB-8f (B1): Der Rückgabewert ist der GEWORFENE Fehler (`sitzung`,
+    // `hinweis`) — vorher war es `true`, und `apiCall`/`apiGet` haben ihn
+    // verworfen. Folge: der Aufrufer bekam einen nackten `Error` ohne
+    // `sitzung`, und die Einschränkung „nur Sitzungsfehler in den Dialog"
+    // hätte einen echten 401 still gemacht. `true` bleibt trotzdem wahr, ist
+    // aber jetzt an ein Objekt gebunden (Wahrheitswert unverändert).
     sitzungBeendet(SITZUNG_HINWEIS)
-    return true
+    const fehler = new Error(SITZUNG_HINWEIS)
+    fehler.name = 'SitzungAbgelaufen'
+    fehler.sitzung = true
+    fehler.imBereich = true
+    fehler.hinweis = SITZUNG_HINWEIS
+    return fehler
 }
 
 /** Für Datei-Uploads: gleiche Sitzungs- und Fehlerprüfung ohne JSON-Schreibwiederholung. */
@@ -187,7 +212,15 @@ async function apiCallRoh(method, args = {}, options = {}) {
         error.meldungen = Array.isArray(data?.meldungen) ? data.meldungen : []
         // PF1: Sitzung abgelaufen/abgemeldet -> der nutzerbezogene Browser-Cache
         // darf keinen alten Stand mehr zeigen. Vollstaendig leeren.
-        pruefeSitzungsAntwort(res, data)
+        // WEB-8f (B1): pruefeSitzungsAntwort` ERSETZT den Fehler durch einen
+        // SitzungsFehler, wenn die Antwort ein Sitzungsabbruch ist (401/419).
+        // Vorher wurde der Rueckgabewert verworfen — der Aufrufer bekam einen
+        // nackten `Error` ohne `sitzung`, und WEB-8f haette diesen Fehler dann
+        // (richtig) NICHT mehr in den Dialog gegeben: der Weg „Sitzung
+        // abgelaufen (401) aus dem Server" waere still geworden. Dieselbe
+        // Stelle gibt es in `apiGetRoh`.
+        const sitzungsFehler = pruefeSitzungsAntwort(res, data)
+        if (sitzungsFehler) throw sitzungsFehler
         throw error
     }
 
@@ -272,7 +305,10 @@ async function apiGetRoh(method, args = {}) {
         data = ergebnis.data
     }
     if (!res.ok) {
-        pruefeSitzungsAntwort(res, data)
+        // WEB-8f (B1): ein Sitzungsabbruch (401/419) wird als Sitzungsfehler
+        // weitergegeben — sonst ginge er als nackter Fehler am Dialog vorbei.
+        const sitzungsFehler = pruefeSitzungsAntwort(res, data)
+        if (sitzungsFehler) throw sitzungsFehler
         const error = new Error(data?.message || data?.exception || `HTTP ${res.status}`)
         error.status = res.status
         error.meldungen = Array.isArray(data?.meldungen) ? data.meldungen : []
