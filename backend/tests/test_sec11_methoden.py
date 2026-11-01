@@ -26,6 +26,8 @@ WAS DIESE DATEI FESTHAELT
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 #: Verben, die laut Karte auf eine schreibende Wirkung hindeuten.
@@ -78,21 +80,72 @@ def _register():
 
 
 def _funktionen() -> dict[str, dict]:
-    """`{funktionsname: {optionen, pfade}}` — je Funktion EIN Eintrag."""
+    """`{"modul.name": {…}}` — je Funktion EIN Eintrag (SEC-11b/F3).
+
+    BEFUND (Review SEC-11): der Schluessel war der blosse Funktionsname. Zwei
+    gleichnamige Funktionen aus verschiedenen Modulen (`sitzung_status` in
+    `api.session` und `devmodus.api`) haben einander ueberschrieben — geprueft
+    wurde danach nur eine von beiden, die andere war unsichtbar. Der Schluessel
+    ist jetzt `modul.name`; `name` bleibt als Feld erhalten (inventar/JSON).
+    """
     reg = _register()
     je_fn: dict[int, dict] = {}
     for pfad, fn in reg.registered().items():
         eintrag = je_fn.get(id(fn))
         if eintrag is None:
+            name = getattr(fn, "__name__", "?")
+            modul = getattr(fn, "__module__", "?")
             eintrag = {
-                "name": getattr(fn, "__name__", "?"),
-                "modul": getattr(fn, "__module__", "?"),
+                "name": name,
+                "modul": modul,
+                "schluessel": f"{modul}.{name}",
                 "optionen": reg.options_for(fn),
                 "pfade": [],
             }
             je_fn[id(fn)] = eintrag
         eintrag["pfade"].append(pfad)
-    return {e["name"]: e for e in je_fn.values()}
+    schluessel = [e["schluessel"] for e in je_fn.values()]
+    assert len(schluessel) == len(set(schluessel)), (
+        "SEC-11b/F3: Funktionsschluessel sind nicht eindeutig — "
+        f"{len(schluessel)} Funktionen, {len(set(schluessel))} Schluessel")
+    return {e["schluessel"]: e for e in je_fn.values()}
+
+
+def _werkzeug(dateiname: str):
+    """Ein Werkzeug aus `tools/` laden — im Repo UND im Image (SEC-11b).
+
+    BEFUND (Image-Abnahme 2026-10-31): der Test rechnete mit dem Repo-Pfad
+    `<repo>/tools/...`. IM Image liegt der Quellbaum unter `/app`, die
+    Werkzeuge aber unter `/app/tools` — beides ist derselbe Ort, nur die Zahl
+    der `..` unterscheidet sich (`parents[2]` vs. `parents[1]`). Statt die
+    Herkunft zu raten, werden die Kandidaten durchprobiert.
+    """
+    import importlib.util
+    from pathlib import Path
+
+    hier = Path(__file__).resolve()
+    kandidaten = [
+        hier.parents[2] / "tools" / dateiname,   # Repo: backend/tests -> <repo>/tools
+        hier.parents[1] / "tools" / dateiname,   # Image: /app/tests -> /app/tools
+        Path("/app/tools") / dateiname,          # Image, ausdruecklich
+    ]
+    ziel = next((k for k in kandidaten if k.exists()), None)
+    assert ziel is not None, (
+        f"{dateiname} fehlt — geprueft: " + ", ".join(str(k) for k in kandidaten))
+    spec = importlib.util.spec_from_file_location(
+        f"{ziel.stem}_kopie", ziel)
+    assert spec is not None
+    modul = importlib.util.module_from_spec(spec)
+    # Vor `exec_module` ins Register: sonst kann `dataclasses` die Modul-Typen
+    # nicht aufloesen ("'NoneType' object has no attribute '__dict__'").
+    sys.modules[spec.name] = modul
+    spec.loader.exec_module(modul)
+    return modul
+
+
+def _inventar_modul():
+    """`tools/whitelist_lesen.py` — dieselbe Rumpfpruefung wie das Inventar."""
+    return _werkzeug("whitelist_lesen.py")
 
 
 # ── C1: die Deklaration ist eine Grenze ────────────────────────────────────
@@ -155,53 +208,152 @@ def test_c5_kein_schreibender_name_ohne_post():
     """Waechter der Karte (C5).
 
     Jede whitelist-Funktion, deren Name auf Schreiben deutet, MUSS
-    `methods=["POST"]` tragen. Die Ausnahmen stehen hier namentlich mit
-    Begruendung — eine neue Ausnahme ist damit eine sichtbare Entscheidung
-    und keine stille Luecke.
+    `methods=["POST"]` tragen. Die Ausnahmen stehen im Inventar-Werkzeug
+    (`tools/whitelist_inventar.AUSNAHMEN`) mit Begruendung — eine neue Ausnahme
+    ist damit eine sichtbare Entscheidung und keine stille Luecke.
     """
-    #: Lesende Funktionen, deren Name ein Schreibverb enthaelt. Alle sind in
-    #: der Karte geprueft: sie lesen/berechnen und schreiben nichts.
-    LESEND_TROTZ_VERB = {
-        # BS-1a: liest nur die Liste der Website-Freigaben.
-        "freigaben_lesen",
-        # Setzt nichts — prueft ein Feld-Kuerzel und meldet den Fehler (417).
-        "fail_validation",
-        # Vorschau des Rueckgaengig-Ziels („was wuerde undo zuruecknehmen?“).
-        "undo_vorschau",
-        # Liest nur die Rechte des angemeldeten Nutzers.
-        "get_user_create_permissions",
-        # Liest den Fortschritt des Google-Imports aus Redis — geschrieben wird
-        # von `start_import`/`upload_ical`, nicht hier.
-        "get_import_progress",
-    }
-    verstoesse = []
-    for name, eintrag in _funktionen().items():
-        if not _namen_mit_schreibverdacht(name):
-            continue
-        if name in LESEND_TROTZ_VERB:
-            continue
-        if eintrag["optionen"].get("methods") != ("POST",):
-            verstoesse.append(f"{eintrag['modul']}.{name} -> {eintrag['optionen'].get('methods')}")
+    ausnahmen = _ausnahmen()
+    verstoesse = [
+        f"{e['modul']}.{e['name']} -> {e['optionen'].get('methods')}"
+        for e in _funktionen().values()
+        if _namen_mit_schreibverdacht(e["name"])
+        and e["name"] not in _ausnahmen()
+        and e["optionen"].get("methods") != ("POST",)
+    ]
     assert not verstoesse, (
         "SEC-11/C5: schreibende Endpunkte ohne methods=['POST']:\n  "
         + "\n  ".join(sorted(verstoesse))
     )
 
 
-def test_c5_die_ausnahmeliste_ist_begruendet_und_vollstaendig():
-    """Jeder Name in `LESEND_TROTZ_VERB` existiert wirklich — und ist lesend.
+def _ausnahmen() -> set[str]:
+    """Die begruendeten Ausnahmen des Inventarwerkzeugs (Namen)."""
+    return set(_werkzeug("whitelist_inventar.py").AUSNAHMEN)
 
-    Sonst wuerde die Ausnahmeliste nach einer Umbenennung still ins Leere
-    zeigen und ein echter Verstoss bliebe unbemerkt.
+
+def test_c5b_rumpfpruefung_widerspricht_nie_posten():
+    """SEC-11b (F2) — der WAECHTER DER KARTE: Rumpf gegen Methode.
+
+    Bis hier stufte das Inventar „lesend" nur nach Namen ein. Jetzt entscheidet
+    der Funktionsrumpf (AST, `tools/whitelist_lesen.py`): jede Funktion, in
+    deren Rumpf eine Schreibung steht (`_update_doc`, `insert`, `commit`,
+    `session.add`, `set_value`, Redis `set`/`setex`/`delete`, Dateischreiben,
+    SQL — und eine Ebene Hilfsfunktion im selben Modul), MUSS `POST` sein.
+    Jeder verbleibende Widerspruch braucht einen Eintrag in `AUSNAHMEN`.
     """
-    from diakronos_app.api.planrahmen import undo_vorschau  # noqa: F401
-    from diakronos_app.api.gruppen import get_user_create_permissions  # noqa: F401
+    import inspect
 
+    lesen = _inventar_modul()
+    cache: dict[str, dict] = {}
+    ausnahmen = _ausnahmen()
+    verstoesse = []
+    for e in _funktionen().values():
+        fn = next((f for p, f in _register().registered().items()
+                   if getattr(f, "__module__", "") == e["modul"]
+                   and getattr(f, "__name__", "") == e["name"]), None)
+        if fn is None:  # pragma: no cover — kann bei id-Gleichheit nicht passieren
+            continue
+        try:
+            datei = inspect.getsourcefile(fn)
+        except (OSError, TypeError):  # pragma: no cover
+            datei = None
+        if not datei:
+            continue
+        if datei not in cache:
+            try:
+                cache[datei] = lesen.klassifiziere(lesen.lies(datei))
+            except (OSError, SyntaxError, UnicodeDecodeError):  # pragma: no cover
+                cache[datei] = {}
+        befund = cache[datei].get(e["name"])
+        if befund is None or befund.einstufung != lesen.SCHREIBEND:
+            continue
+        if e["name"] in ausnahmen:
+            continue
+        if e["optionen"].get("methods") != ("POST",):
+            verstoesse.append(
+                f"{e['modul']}.{e['name']} -> {e['optionen'].get('methods')} "
+                f"({lesen.zeilen_gruende(befund, 1)})")
+    assert not verstoesse, (
+        "SEC-11b/F2: Funktionen, deren RUMPF schreibt, ohne methods=['POST']:\n  "
+        + "\n  ".join(sorted(verstoesse)))
+
+
+def test_c5d_ausnahmen_sind_begruendet_und_wirken():
+    """SEC-11b (F2): jede Ausnahme hat einen Grund und deckt einen echten Befund.
+
+    Eine Ausnahme, die auf keine schreibende Funktion mehr zeigt, ist eine
+    stille Luecke fuer die naechste — sie muss weg.
+    """
+    import json
+    from importlib import resources
+
+    roh = json.loads(
+        resources.files("diakronos_app.frappe_compat.inventar")
+        .joinpath("whitelist.json").read_text(encoding="utf-8"))
+    ausnahmen = roh["ausnahmen"]
+    assert ausnahmen, "SEC-11b/F2: das Inventar kennt keine Ausnahmen"
+    for name, grund in ausnahmen.items():
+        assert grund and len(grund) > 10, f"keine Begruendung fuer {name}"
+    # Gedeckt ist eine Ausnahme, wenn ihr Grund im Inventar STEHT und sie einen
+    # der Befunde (Name/Rumpf) gegen „lesend ohne POST" verteidigt. Die vier
+    # Ausnahmen aus SEC-11 C5 (`fail_validation`, `undo_vorschau`,
+    # `get_user_create_permissions`, `get_import_progress`) beruhen auf einem
+    # Namensbefund ohne Rumpfbefund — sie sind gueltig, auch wenn sie in der
+    # Widerspruchstabelle nicht mehr als Abweichung erscheinen.
+    namen = {e["name"] for e in roh["eintraege"]}
+    gedeckt = {w["name"] for w in roh["widersprueche"] if w["ausnahme"]}
+    gedeckt |= set(ausnahmen) & namen
+    ohne_treffer = set(ausnahmen) - gedeckt
+    assert not ohne_treffer, (
+        "Diese Ausnahmen zeigen auf keine registrierte Funktion mehr "
+        "(entfernen): " + ", ".join(sorted(ohne_treffer)))
+    angewandt = set(roh["ausnahmen_angewandt"])
+    assert angewandt <= set(ausnahmen), (
+        "Diese angewandten Ausnahmen stehen nicht mit Begruendung im "
+        "Werkzeug: " + ", ".join(sorted(angewandt - set(ausnahmen))))
+    # Offen ist ein Widerspruch nur, wenn er NICHT post-only ist: ein
+    # Endpunkt, dessen Rumpf und Deklaration beide „schreibend" sagen (nur den
+    # Namen betrifft die Abweichung), ist genau das gewuenschte Ergebnis —
+    # `get_oauth_url` (schreibt, heisst aber „get_…") ist der Musterfall.
+    offen = [w["funktion"] for w in roh["widersprueche"]
+             if not w["ausnahme"] and w["methoden"] != ["POST"]]
+    assert not offen, (
+        "Offene Widersprueche im Inventar — `tools/whitelist_inventar.py` "
+        "neu erzeugen bzw. begruenden:\n  " + "\n  ".join(sorted(offen)))
+
+
+def test_c5c_funktionsschluessel_trennt_gleichnamige_module():
+    """SEC-11b (F3): gleiche Namen in zwei Modulen sind zwei Eintraege."""
     funktionen = _funktionen()
-    for name in ("fail_validation", "undo_vorschau", "get_user_create_permissions"):
-        assert name in funktionen, f"{name} ist nicht (mehr) registriert"
-        assert funktionen[name]["optionen"].get("methods") is None, (
-            f"{name} traegt jetzt eine Methodenliste — Ausnahme pruefen")
+    namen = [e["name"] for e in funktionen.values()]
+    doppelt = {n for n in namen if namen.count(n) > 1}
+    assert doppelt, ("Der Schluessel `modul.name` ist nur dann noetig, wenn es "
+                     "gleichnamige Funktionen gibt — sonst ist der Test blind.")
+    for n in doppelt:
+        assert sum(1 for e in funktionen.values() if e["name"] == n) == namen.count(n)
+
+
+def test_c1_schreibende_get_endpunkte_sind_post_only():
+    """SEC-11b (F1) — die sechs Nachzuegler aus dem Opus-Review.
+
+    Sie waren als „lesend" eingestuft und nahmen GET an. `get_oauth_url`
+    schreibt den OAuth-State nach Redis; die uebrigen legen Zeilen an bzw.
+    aendern sie. Der Waechter oben wuerde sie jetzt auch ohne diesen Test
+    finden — der Test haelt den Stand zusaetzlich an den Pfaaden fest, die die
+    SPA benutzt (ein Rename faellt damit auf).
+    """
+    from diakronos_app.frappe_compat import registry
+
+    from diakronos_app.api.kronos.google_import import get_oauth_url
+    from diakronos_app.api.mitglieder import schliesse_mitglied_aus
+    from diakronos_app.api.planung import speichere_plan_entwurf
+    from diakronos_app.api.registrierung import submit_gast, submit_registrierung
+    from diakronos_app.api.veranstaltungsanmeldung import register_mitglied
+
+    for fn in (schliesse_mitglied_aus, register_mitglied, speichere_plan_entwurf,
+               submit_registrierung, submit_gast, get_oauth_url):
+        assert registry.methoden_fuer(fn) == ("POST",), fn.__name__
+
 
 
 def test_c2_jede_dekoration_behaelt_ihre_bestehenden_argumente():
@@ -273,6 +425,10 @@ def test_c2_inventar_kennt_alle_schreibenden_endpunkte():
         "`tools/whitelist_inventar.py` neu laufen lassen:\n  " + "\n  ".join(sorted(fehlt)))
     assert daten["zaehlung"]["schreibend"] >= len(laut_register)
     assert daten["zaehlung"]["schreibend"] + daten["zaehlung"]["lesend"] == daten["funktionen"]
+    # SEC-11b (F2): die Einstufung kommt aus dem Rumpf, nicht nur aus dem Namen.
+    assert "rumpf_zaehlung" in daten, "Inventar ohne Rumpfbefund — neu erzeugen"
+    assert daten["rumpf_zaehlung"].get("schreibend", 0) > 0
+    assert all("nach_rumpf" in e and "rumpf_grund" in e for e in daten["eintraege"])
 
 
 # ── C4: Herkunftsschranke ──────────────────────────────────────────────────
@@ -356,8 +512,6 @@ def test_c4_oeffentliche_website_endpunkte_sind_ausgenommen():
         "/api/method/website.kontakt_senden",
         "/api/method/kontakt.kontakt_senden",
         "/api/method/diakronos.diakronos.api.website.kontakt_senden",
-        "/api/method/website.login_uebergabe",
-        "/api/method/website.status",
     ):
         assert ist_oeffentlicher_website_endpunkt(pfad) is True, pfad
     for pfad in (
@@ -367,6 +521,47 @@ def test_c4_oeffentliche_website_endpunkte_sind_ausgenommen():
         "/login",
     ):
         assert ist_oeffentlicher_website_endpunkt(pfad) is False, pfad
+
+
+def test_c4b_ausnahme_ist_exakt_und_keine_praefix_regel():
+    """SEC-11b (F4) — die Ausnahme ist die KONKRETE Menge, kein Praefix.
+
+    BEFUND (Review SEC-11): `name.startswith("website.")` befreite JEDEN
+    Endpunkt unter `website.*` von der Herkunftsschranke — auch einen
+    schreibenden, den es morgen gibt. Ein Praefix ist keine Entscheidung.
+    """
+    from diakronos_app.frappe_compat.auth_middleware import (
+        ist_oeffentlicher_website_endpunkt,
+    )
+
+    # Kein Praefix-Zweig mehr: alles, was nur zufaellig so anfaengt, faellt
+    # wieder unter die Schranke.
+    for pfad in (
+        "/api/method/website.oeffentlich.irgendwas_neues",
+        "/api/method/website.oeffentlich",
+        "/api/method/website.gruppe_speichern",
+        "/api/method/diakronos.diakronos.api.website.andere_funktion",
+    ):
+        assert ist_oeffentlicher_website_endpunkt(pfad) is False, pfad
+
+    # Und die Gegenprobe: die echte Ausnahme steht im Register noch da und ist
+    # oeffentlich.
+    from diakronos_app.frappe_compat import registry
+    from diakronos_app.website.kontakt import kontakt_senden
+
+    assert registry.options_for(kontakt_senden).get("allow_guest") is True
+
+
+def test_c4c_toter_zweig_ist_entfernt():
+    """SEC-11b (F4): der alte Praefix-Zweig existiert nicht mehr im Quelltext."""
+    from pathlib import Path
+
+    quelle = (Path(__file__).resolve().parents[1] / "src" / "diakronos_app"
+              / "frappe_compat" / "auth_middleware.py")
+    text = quelle.read_text(encoding="utf-8")
+    assert 'startswith("website.oeffentlich.")' not in text
+    assert 'startswith("website.")' not in text
+
 
 
 def test_c4_kontaktformular_bleibt_von_fremder_herkunft_erreichbar(guest_client):
@@ -474,6 +669,63 @@ def test_stichprobe_browser_navigation_landet_auf_der_anmeldemaske(client):
     assert antwort.status_code == 303, antwort.text
     assert antwort.headers["location"].startswith("/login?noredirect=1")
     assert antwort.headers["cache-control"] == "no-store"
+
+
+def test_stichprobe_f1_ausschluss_per_get_bleibt_ohne_wirkung(
+    client, patched_db, seed_mitglieder,
+):
+    """SEC-11b (F1): `schliesse_mitglied_aus` per GET -> 405, DB unveraendert.
+
+    Vorher nahm der Endpunkt GET an: ein Link auf einer fremden Seite
+    (`<img src="…schliesse_mitglied_aus?mitglied_id=M-0001">`) schloss das
+    Mitglied aus. Geprueft wird nicht nur der Status, sondern der DATENSTAND.
+    """
+    from diakronos_app.models.diakonos import Mitglied
+
+    def _zustand():
+        sess = patched_db()
+        try:
+            m = sess.get(Mitglied, "M-0001")
+            return (m.ausgeschlossen, m.status, str(m.ausgeschlossen_seit))
+        finally:
+            sess.close()
+
+    vorher = _zustand()
+    antwort = client.get(
+        "/api/method/mitglieder.schliesse_mitglied_aus",
+        params={"mitglied_id": "M-0001", "begruendung": "GET-Angriff"},
+    )
+    assert antwort.status_code == 405, antwort.text
+    assert antwort.headers["allow"] == "POST"
+    assert _zustand() == vorher
+
+
+def test_stichprobe_f1_veranstaltungsanmeldung_per_get_bleibt_ohne_wirkung(
+    client, patched_db, seed_mitglieder,
+):
+    """SEC-11b (F1): `register_mitglied` per GET -> 405, keine Anmeldung.
+
+    Eine One-Click-Anmeldung per GET liesse sich von jeder fremden Seite
+    ausloesen (Kapazitaet verbrauchen, Person in eine Veranstaltung buchen).
+    """
+    from sqlalchemy import func, select
+
+    from diakronos_app.models.diakonos import Anmeldung
+
+    def _anzahl():
+        sess = patched_db()
+        try:
+            return sess.execute(select(func.count()).select_from(Anmeldung)).scalar() or 0
+        finally:
+            sess.close()
+
+    vorher = _anzahl()
+    antwort = client.get(
+        "/api/method/veranstaltungsanmeldung.register_mitglied",
+        params={"registrierungslink_id": "RL-1"},
+    )
+    assert antwort.status_code == 405, antwort.text
+    assert _anzahl() == vorher
 
 
 def test_stichprobe_post_bleibt_erlaubt(client, patched_db, seed_mitglieder):

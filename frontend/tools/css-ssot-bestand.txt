@@ -1,0 +1,28 @@
+# ON-0b — eingefrorener Bestand fester Farb-/Schriftwerte im Frontend.
+#
+# Geprueft: ALLE frontend/src/** (.vue/.css/.js/.mjs) AUSSER
+#           frontend/src/diakonos/tokens.css (die Quelle selbst).
+# Format:   relativer/pfad	nzahl_fundstellen
+# Fundstelle = #rgb/#rrggbb/#rrggbbaa | rgb()/rgba() | hsl()/hsla() |
+#              `font-family:` mit konkretem Wert (nicht inherit/var(--…)) |
+#              `font:`-Kurzschreibweise mit Schriftnamen. Inline-Stile zaehlen mit.
+#
+# REGEL (Karte ON-0b, F2): Diese Liste darf NUR SCHRUMPFEN.
+#   * hoehere Zahl oder neuer Eintrag       -> rot
+#     (frontend/tests/on0b-css-ssot.test.mjs)
+#   * behobene Fundstelle nicht nachgezogen -> rot
+# Erzeugt mit (aus frontend/ heraus): node tools/css-ssot-bestand.mjs --schreiben
+#
+# Dokumentierte Ausnahmen (Datendaten, keine Gestaltung — zaehlen nicht):
+#   frontend/src/diakonos/pages/KalenderImport.vue: #4285F4
+#   frontend/src/diakonos/components/planrahmen/meine-dienste-monate.mjs: #e0b866, #e0b163, #5b6178, #9ba3c1, #8fb2ff
+#   frontend/src/shared/kachelfarbe.mjs: #12183a, #2563eb, #db2777, #78716c, #2d78f0, #ee2266
+#   frontend/src/diakonos/components/kronos/KronosCalendar.vue: #12183a
+#
+# Stand (ON-0b, eingefroren): 81 Fundstellen in 6 Dateien.
+frontend/src/diakonos/components/registrierung/RegLinkTeilen.vue	1
+frontend/src/diakonos/index.css	46
+frontend/src/diakonos/kronos.css	29
+frontend/src/grundreset.css	1
+frontend/src/shared/kachelfarbe.mjs	3
+frontend/src/shared/sichere-ausgabe.js	1

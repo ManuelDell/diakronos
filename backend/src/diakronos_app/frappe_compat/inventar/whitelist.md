@@ -1,12 +1,14 @@
-# Inventar der whitelist-Funktionen (SEC-11, C2)
+# Inventar der whitelist-Funktionen (SEC-11 C2, verschaerft SEC-11b F2)
 
 Erzeugt von `tools/whitelist_inventar.py` — nicht von Hand bearbeiten.
 Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
-nach dem Import aller API-Module.
+nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
+(`tools/whitelist_lesen.py`).
 
 * registrierte Pfade: **1699**
 * eindeutige Funktionen: **327**
-* lesend: **161**, schreibend: **166**
+* lesend: **149**, schreibend: **178**
+* Rumpfbefund: schreibend 139, lesend 188, unbekannt 0
 
 ## Einstufung
 
@@ -15,18 +17,75 @@ Token/eine Sitzung an. Im Zweifel schreibend. Schreibende Endpunkte
 tragen `@whitelist(methods=["POST"])`; der Router lehnt dann jede andere
 Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 
-## Widersprueche (Deklaration gegen Name)
+**Lesend gilt nur, wenn weder Rumpf noch Name noch Deklaration schreiben.**
+Der Rumpfbefund (AST) ist maßgeblich: erkannt werden `_update_doc`,
+`insert`, `commit`, `session.add/merge/delete`, `set_value`, `db.set`,
+Redis `set`/`setex`/`delete`, Dateischreiben, SQL und — eine Ebene tief —
+Hilfsfunktionen im selben Modul. Der Name ist Hinweis, nicht Urteil.
 
-| Funktion | deklariert | nach Name | Methoden |
-|---|---|---|---|
-| `diakronos_app.api.planrahmen.plan_entwurf` | schreibend | lesend | ['POST'] |
-| `diakronos_app.api.website.beitrag_auf_website` | schreibend | lesend | ['POST'] |
-| `diakronos_app.api.website.kategorie_oeffentlich` | schreibend | lesend | ['POST'] |
+## Widersprueche (Rumpf / Name / Deklaration)
+
+| Funktion | Methoden | Rumpf | Name | Deklariert | Grund |
+|---|---|---|---|---|---|
+| `diakronos_app.api.auth.logout` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.frappe_core.logout` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.kronos.google_import.get_oauth_url` | ['POST'] | schreibend | lesend | schreibend | Aufruf _state_store.set() |
+| `diakronos_app.api.kronos.series.update_series_batch_fast` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.mailversand.mailversand_speichern` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.mitglieder.import_mitglieder_vorschau` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.ablauf_aendern` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.abwesenheit_melden` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.dienst_absagen` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.eintrag_loesen` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.lied_material_hinzufuegen` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.merkmale_pflegen` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.plan_aendern` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.plan_archivieren` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.plan_entwurf` | ['POST'] | lesend | lesend | schreibend |  |
+| `diakronos_app.api.planrahmen.plan_generieren` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.plan_kopieren` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.platz_hinzufuegen` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.sammlung_pflegen` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.sammlungsmerkmal_werte_pflegen` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.termin_aendern` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.termin_entfernen` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.termin_hinzufuegen` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.undo` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planrahmen.veroeffentlichen` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.planung.generiere_rotation` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.profile.delete_my_data` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.sicherung.sicherung_einstellungen_speichern` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.sicherung.sicherung_jetzt` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.website.beitrag_auf_website` | ['POST'] | schreibend | lesend | schreibend | Aufruf _update_doc() |
+| `diakronos_app.api.website.kategorie_oeffentlich` | ['POST'] | schreibend | lesend | schreibend | Aufruf _update_doc() |
+| `diakronos_app.api.website.login_uebergabe` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.zugang.passwort_uebernehmen` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.devmodus.api.aufraeumen` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.devmodus.api.befund_setzen` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.devmodus.api.bericht_erzeugen` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.devmodus.api.sitzung_beenden` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.devmodus.api.sitzung_starten` | ['POST'] | lesend | schreibend | schreibend |  |
+
+## Ausnahmen (lesend trotz Widerspruch, mit Begruendung)
+
+| Funktion | Methoden | Rumpf | Name | Ausnahme |
+|---|---|---|---|---|
+| `diakronos_app.anmeldung.einstellungen_api.anmeldung_get_einstellungen` | — | schreibend | lesend | Leseansicht; legt fehlende Konfigurationszeile an |
+| `diakronos_app.api.gemeinde.datenschutz_get_texte` | — | schreibend | lesend | Leseansicht; legt fehlende Textzeile an |
+| `diakronos_app.api.gemeinde.gemeinde_get_einstellungen` | — | schreibend | lesend | Leseansicht; legt fehlende Konfigurationszeile an |
+| `diakronos_app.api.gruppen.get_user_create_permissions` | — | lesend | schreibend | liest Rechte, schreibt nichts |
+| `diakronos_app.api.kronos.google_import.get_credentials_status` | — | schreibend | lesend | liest mit Zeiliensperre, schreibt nichts |
+| `diakronos_app.api.kronos.google_import.get_google_calendars` | — | schreibend | lesend | liest mit Zeiliensperre, schreibt nichts |
+| `diakronos_app.api.kronos.google_import.get_import_progress` | — | lesend | schreibend | liest nur den Fortschritt aus Redis |
+| `diakronos_app.api.planrahmen.undo_vorschau` | — | lesend | schreibend | Vorschau, schreibt nichts |
+| `diakronos_app.api.sicherung.sicherung_get` | — | schreibend | lesend | Leseansicht; legt fehlende Einstellungszeile an |
+| `diakronos_app.api.website.freigaben_lesen` | — | lesend | schreibend | Leseansicht der Website-Freigaben |
 
 ## Schreibende Funktionen
 
 | Funktion | Methoden | Gast |
 |---|---|---|
+| `diakronos_app.anmeldung.einstellungen_api.anmeldung_get_einstellungen` | — | nein |
 | `diakronos_app.anmeldung.einstellungen_api.anmeldung_setze_rollen_zuordnung` | ['POST'] | nein |
 | `diakronos_app.anmeldung.einstellungen_api.anmeldung_setze_unbekannte_nutzer` | ['POST'] | nein |
 | `diakronos_app.anmeldung.einstellungen_api.anmeldung_speichern` | ['POST'] | nein |
@@ -58,7 +117,9 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 | `diakronos_app.api.frappe_core.insert` | ['POST'] | nein |
 | `diakronos_app.api.frappe_core.logout` | ['POST'] | ja |
 | `diakronos_app.api.frappe_core.upload_file` | ['POST'] | nein |
+| `diakronos_app.api.gemeinde.datenschutz_get_texte` | — | nein |
 | `diakronos_app.api.gemeinde.datenschutz_speichern` | ['POST'] | nein |
+| `diakronos_app.api.gemeinde.gemeinde_get_einstellungen` | — | nein |
 | `diakronos_app.api.gemeinde.gemeinde_setze_linkvorgaben` | ['POST'] | nein |
 | `diakronos_app.api.gemeinde.gemeinde_setze_modul` | ['POST'] | nein |
 | `diakronos_app.api.gemeinde.gemeinde_speichern` | ['POST'] | nein |
@@ -84,7 +145,10 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 | `diakronos_app.api.kronos.event_crud.save_event` | ['POST'] | nein |
 | `diakronos_app.api.kronos.event_crud.update_event` | ['POST'] | nein |
 | `diakronos_app.api.kronos.google_import.exchange_code` | ['POST'] | nein |
+| `diakronos_app.api.kronos.google_import.get_credentials_status` | — | nein |
+| `diakronos_app.api.kronos.google_import.get_google_calendars` | — | nein |
 | `diakronos_app.api.kronos.google_import.get_import_progress` | — | nein |
+| `diakronos_app.api.kronos.google_import.get_oauth_url` | ['POST'] | nein |
 | `diakronos_app.api.kronos.google_import.save_credentials` | ['POST'] | nein |
 | `diakronos_app.api.kronos.google_import.start_import` | ['POST'] | nein |
 | `diakronos_app.api.kronos.google_import.upload_ical` | ['POST'] | nein |
@@ -102,6 +166,7 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 | `diakronos_app.api.mitglieder.create_mitglied` | ['POST'] | nein |
 | `diakronos_app.api.mitglieder.import_mitglieder_uebernehmen` | ['POST'] | nein |
 | `diakronos_app.api.mitglieder.import_mitglieder_vorschau` | ['POST'] | nein |
+| `diakronos_app.api.mitglieder.schliesse_mitglied_aus` | ['POST'] | nein |
 | `diakronos_app.api.mitglieder.set_mitglied_status` | ['POST'] | nein |
 | `diakronos_app.api.mitglieder.update_mitglied` | ['POST'] | nein |
 | `diakronos_app.api.mitglieder.update_mitglied_with_confirmation` | ['POST'] | nein |
@@ -138,6 +203,7 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 | `diakronos_app.api.planung.generiere_rotation` | ['POST'] | nein |
 | `diakronos_app.api.planung.set_position_verantwortlicher` | ['POST'] | nein |
 | `diakronos_app.api.planung.set_rollenbesetzung` | ['POST'] | nein |
+| `diakronos_app.api.planung.speichere_plan_entwurf` | ['POST'] | nein |
 | `diakronos_app.api.planung.veroeffentliche_plan` | ['POST'] | nein |
 | `diakronos_app.api.planung.zurueckziehen_plan` | ['POST'] | nein |
 | `diakronos_app.api.profile.delete_my_data` | ['POST'] | nein |
@@ -149,6 +215,8 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 | `diakronos_app.api.psalmos.musik.save_fassung` | ['POST'] | nein |
 | `diakronos_app.api.psalmos.musik.save_lied` | ['POST'] | nein |
 | `diakronos_app.api.psalmos.musik.save_liedgruppe` | ['POST'] | nein |
+| `diakronos_app.api.registrierung.submit_gast` | ['POST'] | ja |
+| `diakronos_app.api.registrierung.submit_registrierung` | ['POST'] | ja |
 | `diakronos_app.api.registrierungslink_api.create_link` | ['POST'] | nein |
 | `diakronos_app.api.registrierungslink_api.delete_link` | ['POST'] | nein |
 | `diakronos_app.api.registrierungslink_api.toggle_link` | ['POST'] | nein |
@@ -163,8 +231,10 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 | `diakronos_app.api.ressourcen.update_buchung` | ['POST'] | nein |
 | `diakronos_app.api.ressourcen.update_ressource` | ['POST'] | nein |
 | `diakronos_app.api.sicherung.sicherung_einstellungen_speichern` | ['POST'] | nein |
+| `diakronos_app.api.sicherung.sicherung_get` | — | nein |
 | `diakronos_app.api.sicherung.sicherung_jetzt` | ['POST'] | nein |
 | `diakronos_app.api.sicherung.sicherung_loeschen` | ['POST'] | nein |
+| `diakronos_app.api.veranstaltungsanmeldung.register_mitglied` | ['POST'] | nein |
 | `diakronos_app.api.verantwortliche.set_verantwortliche` | ['POST'] | nein |
 | `diakronos_app.api.website.beitrag_auf_website` | ['POST'] | nein |
 | `diakronos_app.api.website.freigabe_setzen` | ['POST'] | nein |
@@ -198,7 +268,6 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 
 | Funktion | Methoden | Gast |
 |---|---|---|
-| `diakronos_app.anmeldung.einstellungen_api.anmeldung_get_einstellungen` | — | nein |
 | `diakronos_app.anmeldung.einstellungen_api.anmeldung_get_rollen` | — | nein |
 | `diakronos_app.api.admin_hub.get_anmeldeformular_felder` | — | nein |
 | `diakronos_app.api.admin_hub.get_anmeldeformular_kopf` | — | nein |
@@ -236,8 +305,6 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 | `diakronos_app.api.dienstplan.get_dienstrollen` | — | nein |
 | `diakronos_app.api.dienstplan.get_meine_dienste` | — | nein |
 | `diakronos_app.api.fail_validation` | — | nein |
-| `diakronos_app.api.gemeinde.datenschutz_get_texte` | — | nein |
-| `diakronos_app.api.gemeinde.gemeinde_get_einstellungen` | — | nein |
 | `diakronos_app.api.gruppen.get_ankuendigungen` | — | nein |
 | `diakronos_app.api.gruppen.get_aufgaben` | — | nein |
 | `diakronos_app.api.gruppen.get_gruppe_detail` | — | nein |
@@ -253,9 +320,6 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 | `diakronos_app.api.kronos.calendar_get.get_mein_termin` | — | nein |
 | `diakronos_app.api.kronos.calendar_get.get_meine_abgelehnten_termine` | — | nein |
 | `diakronos_app.api.kronos.event_crud.get_offene_aenderungen` | — | nein |
-| `diakronos_app.api.kronos.google_import.get_credentials_status` | — | nein |
-| `diakronos_app.api.kronos.google_import.get_google_calendars` | — | nein |
-| `diakronos_app.api.kronos.google_import.get_oauth_url` | — | nein |
 | `diakronos_app.api.kronos.kalender.get_events` | — | nein |
 | `diakronos_app.api.kronos.kalender_verwaltung.get_kalender_verwaltung` | — | nein |
 | `diakronos_app.api.kronos.kanban_api.get_conflict_partner` | — | nein |
@@ -278,7 +342,6 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 | `diakronos_app.api.mitglieder.get_mitglied_detail` | — | nein |
 | `diakronos_app.api.mitglieder.get_mitglieder_liste` | — | nein |
 | `diakronos_app.api.mitglieder.pruefe_mitglied_dublette` | — | nein |
-| `diakronos_app.api.mitglieder.schliesse_mitglied_aus` | — | nein |
 | `diakronos_app.api.orgchart_api.get_orgchart_data` | — | nein |
 | `diakronos_app.api.ping` | — | nein |
 | `diakronos_app.api.planrahmen.abwesenheiten_liste` | — | nein |
@@ -311,7 +374,6 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 | `diakronos_app.api.planung.get_positionen` | — | nein |
 | `diakronos_app.api.planung.get_teilnehmer` | — | nein |
 | `diakronos_app.api.planung.get_vorlagen` | — | nein |
-| `diakronos_app.api.planung.speichere_plan_entwurf` | — | nein |
 | `diakronos_app.api.profile.get_my_profile` | — | nein |
 | `diakronos_app.api.psalmos.musik.get_fassungen` | — | nein |
 | `diakronos_app.api.psalmos.musik.get_lied_detail` | — | nein |
@@ -321,8 +383,6 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 | `diakronos_app.api.psalmos.musik.get_liedgruppe_detail` | — | nein |
 | `diakronos_app.api.psalmos.musik.get_liedgruppen` | — | nein |
 | `diakronos_app.api.registrierung.get_oeffentliche_formular` | — | ja |
-| `diakronos_app.api.registrierung.submit_gast` | — | ja |
-| `diakronos_app.api.registrierung.submit_registrierung` | — | ja |
 | `diakronos_app.api.registrierung.validate_token` | — | ja |
 | `diakronos_app.api.registrierung_vorschau.get_formular_vorschau` | — | nein |
 | `diakronos_app.api.ressourcen.check_verfuegbarkeit` | — | nein |
@@ -335,9 +395,7 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 | `diakronos_app.api.session.get_current_user_context` | — | nein |
 | `diakronos_app.api.session.get_mitglied_permissions` | — | nein |
 | `diakronos_app.api.session.sitzung_status` | — | nein |
-| `diakronos_app.api.sicherung.sicherung_get` | — | nein |
 | `diakronos_app.api.veranstaltungsanmeldung.check_anmeldestatus` | — | nein |
-| `diakronos_app.api.veranstaltungsanmeldung.register_mitglied` | — | nein |
 | `diakronos_app.api.verantwortliche.get_verantwortliche` | — | nein |
 | `diakronos_app.api.verantwortliche.get_verantwortliche_auswahl` | — | nein |
 | `diakronos_app.api.verantwortliche.get_zugangs_rollen` | — | nein |

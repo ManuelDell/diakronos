@@ -235,7 +235,7 @@ function kalenderSpalten(ansicht, monat) {
 .pr-an-schalter { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--dk-text); cursor: pointer; }
 .pr-an-format { display: grid; grid-template-columns: minmax(120px, 200px) 1fr auto; gap: 6px; align-items: center; }
 .pr-an-formatfehler { grid-column: 1 / -1; }
-.pr-an-schluessel { font-family: ui-monospace, monospace; font-size: 0.82rem; }
+.pr-an-schluessel { font-family: var(--font-mono); font-size: 0.82rem; }
 .pr-an-chip--alt { color: var(--dk-warning); }
 .pr-an-vorschau { grid-column: 1 / -1; font-size: 0.78rem; color: var(--dk-text-muted); margin: 0; font-style: italic; }
 /* Inhaltsumbruch, kein Layout: die drei Spalten einer Formatzeile

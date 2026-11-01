@@ -3,6 +3,21 @@
 Alle nennenswerten Änderungen an Diakronos. Die Versionen folgen der
 [Semantischen Versionierung](https://semver.org/lang/de/).
 
+## Unveröffentlicht
+
+### Sicherheit
+
+- **SEC-11b — restliche schreibende GET-Endpunkte, echtes Inventar.**
+  `schliesse_mitglied_aus`, `register_mitglied`, `speichere_plan_entwurf`,
+  `submit_registrierung`, `submit_gast` und `get_oauth_url` (schreibt den
+  OAuth-State nach Redis) nehmen nur noch POST an; ein GET endet mit 405 und
+  führt nichts aus. Das Inventar (`tools/whitelist_inventar.py`) stuft
+  „lesend" nicht mehr nach dem Namen ein, sondern prüft den Funktionsrumpf
+  (AST, `tools/whitelist_lesen.py`); jeder verbleibende Widerspruch steht mit
+  Begründung in `AUSNAHMEN` (lesend 149, schreibend 172, offen 0). Der Wächter
+  schlüsselt nach `modul.name` (gleichnamige Funktionen überschrieben sich)
+  und die C4-Ausnahme ist eine exakte Namensmenge statt `website.*`.
+
 ## 2.0.0 — 2026-10-22
 
 Neuentwicklung: eigenständig neu gebaut mit FastAPI, PostgreSQL und Vue-SPA,

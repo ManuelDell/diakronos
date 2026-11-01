@@ -1848,7 +1848,7 @@ def _verbinde_ausschluss_mit_konten(mitglied_id: str, ausgeschlossen: bool) -> N
             benutzer_status.vergiss(user)
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def schliesse_mitglied_aus(mitglied_id, begruendung=""):
     """Schliesst ein Mitglied aus (weiches Entfernen, nur Administratoren).
     Ein Mitglied wird nie geloescht (Art. 17 DSGVO laeuft ueber die

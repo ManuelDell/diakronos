@@ -84,6 +84,11 @@ const watch = () => {};
 const navigate = () => {};
 const currentHash = { value: '#/gruppen' };
 ${code}
+// ON-0b: Gruppen.vue holt die Standardfarbe seit ON-0b aus dem gemeinsamen
+// Modul (eine Wahrheit statt zweier Hex-Literale). Der Testlauf schneidet die
+// Import-Zeilen weg — hier wird der Wert deshalb aus DEMSELBEN Modul geholt,
+// das die Seite importiert, damit der Vergleich gegen die echte Quelle prueft.
+import { STANDARD_FARBE } from ${JSON.stringify(new URL('../src/shared/sichere-ausgabe.js', import.meta.url).href)};
 export { kachelFarbe };
 `
   return import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'))

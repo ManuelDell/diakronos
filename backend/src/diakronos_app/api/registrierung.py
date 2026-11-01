@@ -657,7 +657,7 @@ def get_oeffentliche_formular(token):
 
 
 # bewusst oeffentlich: Mitglied-Registrierung via Token-Link ohne Login
-@whitelist(allow_guest=True)
+@whitelist(methods=["POST"], allow_guest=True)
 def submit_registrierung(
     token,
     vorname,
@@ -789,7 +789,7 @@ def submit_registrierung(
 
 
 # bewusst oeffentlich: Gast-Anmeldung via Token-Link ohne Login
-@whitelist(allow_guest=True)
+@whitelist(methods=["POST"], allow_guest=True)
 def submit_gast(token, vorname, nachname, dsgvo=None, dsgvo_fassung=None):
     """Gast-Anmeldung via Token-Link."""
     link = _pruefe_bremse(token)

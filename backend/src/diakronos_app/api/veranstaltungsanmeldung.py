@@ -137,7 +137,7 @@ def _profil_name(user: str) -> tuple[str, str]:
     return teile[0], teile[1]
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def register_mitglied(registrierungslink_id):
     """One-Click-Anmeldung eines eingeloggten Mitglieds zu einer Veranstaltung."""
     user = compat_session.user

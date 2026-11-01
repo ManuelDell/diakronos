@@ -38,8 +38,13 @@ IMAGE_NETZ = ("fix6-zeigegeraet.test.mjs", "fix6-keine-zeiger-syntax.test.mjs")
 
 
 def _lies(pfad: Path) -> str:
-    assert pfad.is_file(), f"{pfad} fehlt"
-    return pfad.read_text(encoding="utf-8")
+    """Datei lesen — Backend-Pfade liegen unter BACKEND (bzw. REPO), das
+    Stylesheet der Server-Seiten unter REPO/frontend."""
+    # `src/…` ist relativ zu backend/, `frontend/src/…` relativ zum Repo.
+    for kandidat in (BACKEND / pfad, REPO / pfad):
+        if kandidat.is_file():
+            return kandidat.read_text(encoding="utf-8")
+    raise AssertionError(f"{pfad} fehlt (gesucht unter {BACKEND} und {REPO / 'frontend'})")
 
 
 def _ohne_kommentare(text: str) -> str:
@@ -47,12 +52,28 @@ def _ohne_kommentare(text: str) -> str:
     return re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
 
 
+# ON-0b (F5): Seit ON-0a/ON-0b tragen die Login-Masken KEIN eigenes CSS mehr —
+# die 16-px-Regel fuer den groben Zeiger steht EINMAL im gemeinsamen
+# Grund-Stylesheet der Server-Seiten (`src/ssot/seiten.css`, ausgeliefert als
+# diakronos-seiten.css). Die Regel gilt weiterhin (der Test prueft sie jetzt
+# dort); die Masken pruefen wir darauf, dass sie sie nicht wieder selbst
+# nachbauen.
 @pytest.mark.parametrize(
     "pfad",
-    ["src/diakronos_app/spa.py", "src/diakronos_app/anmeldung/routen.py"],
+    [
+        "src/diakronos_app/spa.py",
+        "src/diakronos_app/anmeldung/routen.py",
+        "frontend/src/ssot/seiten.css",
+    ],
 )
 def test_fix6_login_maske_nutzt_zeiger_kriterium(pfad: str) -> None:
-    text = _ohne_kommentare(_lies(BACKEND / pfad))
+    text = _ohne_kommentare(_lies(Path(pfad)))
+    if not pfad.endswith("seiten.css"):
+        # Die Maske selbst: KEIN eigenes @media mehr (eine Quelle).
+        assert TOUCH_CSS not in text and "font-size: 16px" not in text, (
+            f"{pfad}: baut die 16-px-Regel wieder selbst — sie gehoert in seiten.css"
+        )
+        return
     assert TOUCH_CSS in text, (
         f"{pfad}: 16-px-Regel der Login-Maske hängt nicht an "
         f"`{TOUCH_CSS}` (nur der Zeiger, ohne Breite)"
@@ -64,7 +85,9 @@ def test_fix6_login_maske_nutzt_zeiger_kriterium(pfad: str) -> None:
     )
     # Die 16-px-Regel steht im Block dieses @media — bis zum nächsten @media.
     block = text.split(TOUCH_CSS)[1].split("@media")[0]
-    assert "font-size: 16px" in block, (
+    # ON-0b: der Wert kommt aus dem Token --fs-in-zeiger (16 px, tokens.css) —
+    # die Regel bleibt 16 px, nur die Zahl steht nicht mehr hier.
+    assert "font-size: var(--fs-in-zeiger)" in block or "font-size: 16px" in block, (
         f"{pfad}: `{TOUCH_CSS}` ohne 16-px-Felder"
     )
 

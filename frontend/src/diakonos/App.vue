@@ -218,7 +218,7 @@ function toggleTheme() {
   box-shadow: var(--shadow-md);
 }
 .impersonation-timer {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   opacity: 0.9;
 }

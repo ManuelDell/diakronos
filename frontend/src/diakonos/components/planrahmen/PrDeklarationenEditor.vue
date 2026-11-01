@@ -240,7 +240,7 @@ function listeSetzen(obj, schluessel, roh) {
 .pr-dek-leer { font-size: 0.8rem; color: var(--dk-text-muted); margin: 0 0 8px; }
 .pr-dek-zeile { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
 .pr-dek-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600; color: var(--dk-text-muted); }
-.pr-dek-kurz { max-width: 180px; font-family: ui-monospace, monospace; }
+.pr-dek-kurz { max-width: 180px; font-family: var(--font-mono); }
 .pr-dek-schalter { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--dk-text); cursor: pointer; padding-bottom: 8px; }
 .pr-dek-details summary { cursor: pointer; font-size: 0.8rem; color: var(--dk-text-muted); }
 /* FIX-6: Umbruch nach der einen Breitengrenze der App (720 px,

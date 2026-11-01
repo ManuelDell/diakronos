@@ -226,8 +226,16 @@ export async function schneideBild(datenUrl, ausschnitt, ladefunktion = null) {
 export function markiere(el) {
   if (!el || !el.style) return () => {}
   const vorher = el.style.outline
-  el.style.outline = '3px solid #e02424'
+  // ON-0b: dasselbe Signalrot wie der Rahmen (tokens.css, --dev-rot).
+  el.style.outline = `3px solid ${tokenWert('--dev-rot', 'red')}`
   return () => { el.style.outline = vorher }
+}
+
+/** Wert einer Token-Variablen fuer Inline-Stile/Bilder — EINE Quelle. */
+function tokenWert(name, ersatz) {
+  if (typeof getComputedStyle !== 'function') return ersatz
+  const wert = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  return wert || ersatz
 }
 
 /**

@@ -56,8 +56,22 @@ if [ "$(id -u)" = "0" ]; then
         "$backup_dir"/*) echo "FILES_DIR must not be inside BACKUP_DIR" >&2; exit 1 ;;
     esac
     mkdir -p "$files_dir"
-    chown -R appuser:appuser "$files_dir"
+    # BACKUP-1d / ON-0b: NICHT `chown -R`. Der Scheitelpunkt ist ein Bind-Mount
+    # auf einen HOST-Ordner — ein rekursives chown zieht dessen gesamten Baum
+    # auf UID 1000 um (gesehen am Ordner backups/ mit Bildern eines FREMDEN
+    # Projekts). Gebraucht wird der Besitz nur fuer das Verzeichnis selbst und
+    # die zwei Unterordner, die der Dienst anlegt; alles darunter gehoert
+    # ohnehin appuser (die App schreibt es).
+    chown appuser:appuser "$files_dir"
     chmod 750 "$files_dir"
+    for unter in "$files_dir"/*; do
+        [ -d "$unter" ] || continue
+        # Nur die eigenen Ablage-Ordner: Dateien des Betriebs bleiben unberuehrt.
+        case "$(basename "$unter")" in
+            uploads|dateien|anlagen|fotos|audio|bilder|temp)
+                chown -R appuser:appuser "$unter" 2>/dev/null || true ;;
+        esac
+    done
     mkdir -p "$backup_dir"
     chown appuser:appuser "$backup_dir"
     chmod 700 "$backup_dir"
@@ -71,6 +85,12 @@ umask 027
 # deshalb VERWEIGERT (Exit 1), statt still falsch weiterzulaufen.
 echo "[entrypoint] Anmeldekonfiguration pruefen ..."
 python -m diakronos_app.anmeldung.startup
+
+# ON-0b (F6): Ohne Frontend-Build erscheinen Anmeldung und Passwort-Seite
+# ungestaltet (die Stylesheets unter /diakonos/assets/ gibt es dann nicht).
+# Nur eine Warnung — ein Betrieb ohne Gestaltung ist bedienbar, ein
+# Startverbot waere haerter als der Befund. Exitcode bleibt immer 0.
+python -m diakronos_app.frontend_build || true
 
 if [ "${SKIP_MIGRATIONS:-0}" != "1" ]; then
     echo "[entrypoint] alembic upgrade head ..."

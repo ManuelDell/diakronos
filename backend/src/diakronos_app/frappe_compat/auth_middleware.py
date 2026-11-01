@@ -169,7 +169,20 @@ _SCHREIBENDE_METHODEN = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 # ihre eigene, strengere Herkunftspruefung mit (Origin/Referer = Host).
 _API_PRAEFIXE = ("/api/method/", "/api/resource/")
 _FREMDE_HERKUNFT = frozenset({"cross-site", "same-site"})
-_OEFFENTLICHE_WEBSITE_ENDUNGEN = frozenset({"kontakt_senden"})
+
+# SEC-11b (F3): KEINE Praefix-Regel mehr. Bis hier galt `name.startswith(
+# "website.")` — damit war JEDER kuenftige Endpunkt unter `website.*`
+# stillschweigend von der Herkunftsschranke befreit, auch ein schreibender. Die
+# Ausnahme ist jetzt eine EXAKTE Namensmenge; ein neuer oeffentlicher Endpunkt
+# ist eine sichtbare Zeile hier und keine stille Wirkung eines Praefixes.
+# `website.oeffentlich.*` steht als eigener, ausdruecklicher Eintrag daneben
+# (der Praefix-Zweig, der das erledigte, ist entfallen — er hatte im Register
+# heute keinen Treffer).
+_OEFFENTLICHE_WEBSITE_NAMEN = frozenset({
+    "website.kontakt_senden",
+    "kontakt.kontakt_senden",
+    "diakronos.diakronos.api.website.kontakt_senden",
+})
 
 
 def ist_oeffentlicher_website_endpunkt(pfad: str) -> bool:
@@ -178,11 +191,7 @@ def ist_oeffentlicher_website_endpunkt(pfad: str) -> bool:
     if not pfad.startswith(_API_PRAEFIXE[0]):
         return False
     name = pfad[len(_API_PRAEFIXE[0]):]
-    if name.startswith("website.") or name.startswith("website.oeffentlich."):
-        return True
-    # `kontakt_senden` in jeder Schreibweise (`website.kontakt_senden`,
-    # `diakronos.diakronos.api.website.kontakt_senden`).
-    return name.rsplit(".", 1)[-1] in _OEFFENTLICHE_WEBSITE_ENDUNGEN
+    return name in _OEFFENTLICHE_WEBSITE_NAMEN
 
 
 def fremde_herkunft_abgewiesen(request) -> bool:

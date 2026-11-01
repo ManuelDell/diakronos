@@ -127,8 +127,10 @@ def _hinweisbereich(seite: str) -> str:
     """Der obere Teil der Maske (dort steht der Hinweis) — ohne Seitenkopf."""
     # `erstelle_anmeldeseite` setzt den Hinweis vor das Formular; alles bis
     # zum Formularbeginn ist der Bereich, in dem ein Hinweis stehen dürfte.
-    stelle = seite.find("<form")
-    return seite[:stelle] if stelle > 0 else seite
+    # ON-0a: der Seitenkopf traegt ein eigenes Theme-Skript — erst ab <body>.
+    anfang = max(seite.find("<body"), 0)
+    stelle = seite.find("<form", anfang)
+    return seite[anfang:stelle] if stelle > 0 else seite[anfang:]
 
 
 def test_html_sonderzeichen_werden_nie_als_markup_ausgegeben(praefix):

@@ -52,7 +52,10 @@ test('Kuerzel ist Strg+Shift+F und der rote Rahmen ist position:fixed', () => {
   assert.ok(logik.includes("KUERZEL_TASTE = 'F'"))
   const rahmen = lies('components/devmodus/Rahmen.vue')
   assert.ok(rahmen.includes('position: fixed'))
-  assert.ok(rahmen.includes('border: 4px solid #e02424'))
+  // ON-0b: das Signalrot kommt aus tokens.css (--dev-rot) — der Rahmen trägt
+  // keine eigene Farbe mehr, die Stärke (4 px) bleibt hier festgehalten.
+  assert.ok(rahmen.includes('border: 4px solid var(--dev-rot)'))
+  assert.ok(!rahmen.includes('#e02424'), 'Rahmen trägt wieder ein eigenes Rot (ON-0b)')
   assert.ok(rahmen.includes('pointer-events: none'))
 })
 

@@ -128,7 +128,18 @@ async function qrAlsPng() {
   const svg = document.querySelector(`[data-qr-svg="${CSS.escape(vollerLink.value)}"]`)
   if (!svg) throw new Error('kein QR-Bild gefunden')
   const { domToPng } = await import('modern-screenshot')
-  return domToPng(svg, { scale: 3, backgroundColor: '#ffffff' })
+  // ON-0b: Der QR-Code braucht eine DECKENDE helle Fläche — ein Token mit
+  // Deckkraft (--surface) würde den Code unlesbar machen. Deshalb das
+  // semantische Ziel eines Scanfelds (tokens.css, eigener Zweck).
+  return domToPng(svg, { scale: 3, backgroundColor: qrFlaeche() })
+}
+
+/** Der Wert von `--qr-flaeche` — EINE Quelle (tokens.css), hier nur gelesen. */
+function qrFlaeche() {
+  const wert = getComputedStyle(document.documentElement)
+    .getPropertyValue('--qr-flaeche')
+    .trim()
+  return wert || 'white'
 }
 
 async function qrHerunterladen() {
@@ -161,10 +172,12 @@ async function qrDrucken() {
     fenster.document.write(
       `<!doctype html><title>${escapeHtml(props.bezeichnung || 'Registrierungslink')}</title>`
       + '<body style="margin:0;display:flex;flex-direction:column;align-items:center;gap:12px;'
-      + 'font-family:system-ui,sans-serif;padding:24px">'
+      // ON-0b: Der Druckbogen ist ein eigenes Dokument — es erbt die Tokens
+      // von /diakonos/assets (die Seite läuft unter derselben Adresse).
+      + `font-family:${cssWert('--font')};padding:24px">`
       + `<img src="${daten}" style="width:min(70vw,480px);height:auto" alt="QR-Code">`
       + `<p style="font-size:18px;text-align:center;word-break:break-all;margin:0">${escapeHtml(props.bezeichnung || '')}</p>`
-      + `<p style="font-size:13px;color:#555;text-align:center;word-break:break-all;margin:0">${escapeHtml(vollerLink.value)}</p>`
+      + `<p style="font-size:13px;color:${cssWert('--text-muted', '--muted')};text-align:center;word-break:break-all;margin:0">${escapeHtml(vollerLink.value)}</p>`
       + '</body>',
     )
     fenster.document.close()
@@ -176,6 +189,21 @@ async function qrDrucken() {
   } finally {
     qrBusy.value = false
   }
+}
+
+/** ON-0b: Token-Wert für ein Stil-Attribut — EINE Quelle (tokens.css).
+ *  Wird ein weiterer Name gebraucht, wird er hier übergeben; das erste
+ *  nicht-leere Ergebnis gewinnt ('--text-muted' ist der Altname von --muted).
+ */
+function cssWert(...namen) {
+  const wurzel = getComputedStyle(document.documentElement)
+  for (const name of namen) {
+    const wert = wurzel.getPropertyValue(name).trim()
+    // SEC-9: der Wert landet in einem geschriebenen Dokument — deshalb
+    // dieselbe Ausgaberegel wie für alle übrigen Fremdwerte (escaped).
+    if (wert) return escapeHtml(wert)
+  }
+  return 'inherit'
 }
 
 function escapeHtml(text) {

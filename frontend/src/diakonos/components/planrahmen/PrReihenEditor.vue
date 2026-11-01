@@ -132,7 +132,7 @@ function zurKurzform() {
 .pr-re-titel { scroll-margin-top: 90px; font-size: 0.76rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 6px 0 0; }
 .pr-re-reihe { border: 1px solid var(--dk-border); border-radius: 12px; background: var(--dk-surface); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .pr-re-kopf { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.pr-re-id { max-width: 180px; font-family: ui-monospace, monospace; }
+.pr-re-id { max-width: 180px; font-family: var(--font-mono); }
 .pr-re-unter-titel { scroll-margin-top: 90px; font-size: 0.74rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 4px 0 0; }
 .pr-re-knopfzeile { display: flex; gap: 8px; flex-wrap: wrap; }
 </style>

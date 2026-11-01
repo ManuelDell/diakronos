@@ -131,7 +131,7 @@ def _anbieter_knopf_html() -> str:
     cfg = konf.oidc_konfiguration()
     name = html.escape(cfg.anbietername or "Anbieter", quote=True)
     return (
-        f'<a class="dk-sso" href="{_login_adresse()}?sso=1">'
+        f'<a class="dk-knopf dk-knopf-weit dk-sso" href="{_login_adresse()}?sso=1">'
         f"Mit {name} anmelden</a>"
     )
 
@@ -263,6 +263,7 @@ def erstelle_anmeldeseite(
     email: str = "",
     request=None,
     csrf_token: str = "",
+    no_redirect: bool = False,
 ) -> str:
     """Anmeldeseite: Anbieter-Knopf (Hauptweg) + optionales lokales Formular.
 
@@ -277,6 +278,7 @@ def erstelle_anmeldeseite(
     import html
 
     from diakronos_app import base_path as _path
+    from diakronos_app.anmeldung import seitenrahmen
     from diakronos_app.spa import DEFAULT_CHURCH_NAME, _settings_zeile
 
     # WEB-5a: ohne Angabe die SPA-Startseite MIT Betriebs-Praefix. Der
@@ -317,6 +319,19 @@ def erstelle_anmeldeseite(
     if oidc_an:
         sso_block = _anbieter_knopf_html()
 
+    # ON-0b: Nach dem Abmelden (`/logout`) landet man HIER — und braucht einen
+    # Weg zurueck auf die Startseite. Ohne diesen Verweis war die oeffentliche
+    # Seite nach dem Abmelden eine Sackgasse (Befund bei der Abnahme: die
+    # Startseite war nur ueber die Adresszeile erreichbar). Nicht bei der
+    # Fehlermeldung nach einem Fehlversuch (`noredirect=1`): dort ist der
+    # naechste Schritt das Formular, nicht die Startseite.
+    zurueck_knopf = ""
+    if not no_redirect:
+        zurueck_knopf = (
+            '\n    <p class="dk-hinweis">'
+            f'<a href="{html.escape(_spa_ziel(), quote=True)}">Zur Startseite</a></p>'
+        )
+
     # LOGIN-3/N-3: Hier stand ein `hinweis_block` fuer den Fall „lokaler Login
     # aus UND kein Anbieter eingerichtet". Diesen Zustand gibt es nicht:
     # `_lokales_login_erlaubt()` liefert ohne OIDC immer True (Bestandsschutz),
@@ -344,16 +359,16 @@ def erstelle_anmeldeseite(
             _path.pfad("/api/method/login"), quote=True
         )
         formular_block = f"""
-        <form method="post" action="{login_api}" accept-charset="utf-8">
+        <form class="dk-formular" method="post" action="{login_api}" accept-charset="utf-8">
             <input type="hidden" name="redirect-to" value="{ziel_kodiert}">{csrf_feld}
-            <label for="dk-usr">E-Mail oder Benutzername</label>
+            <label class="dk-feld" for="dk-usr">E-Mail oder Benutzername</label>
             <input id="dk-usr" name="usr" type="text" autocomplete="username"
                    autocapitalize="none" autocorrect="off" spellcheck="false" required
                    value="{email_html}">
-            <label for="dk-pwd">Passwort</label>
+            <label class="dk-feld" for="dk-pwd">Passwort</label>
             <input id="dk-pwd" name="pwd" type="password"
                    autocomplete="current-password" required{" autofocus" if meldung else ""}>
-            <button type="submit" class="dk-sekundaer">Mit Passwort anmelden</button>
+            <button type="submit" class="dk-knopf dk-knopf-weit dk-knopf-sekundaer">Mit Passwort anmelden</button>
         </form>"""
 
     return f"""<!DOCTYPE html>
@@ -362,57 +377,16 @@ def erstelle_anmeldeseite(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anmelden — {gemeinde}</title>
-    <style>
-        :root {{ color-scheme: light dark; }}
-        body {{ margin: 0; min-height: 100vh; display: flex; align-items: center;
-            justify-content: center; padding: 1.5rem;
-            font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
-            background: #f5f6f8; color: #1f2430; }}
-        .dk-login {{ width: 100%; max-width: 24rem; background: #fff; padding: 2rem;
-            border-radius: .75rem; box-shadow: 0 1px 3px rgba(16,24,40,.1),
-            0 12px 32px rgba(16,24,40,.08); }}
-        .dk-login h1 {{ margin: 0 0 .25rem; font-size: 1.25rem; font-weight: 600; }}
-        .dk-login p.sub {{ margin: 0 0 1.5rem; color: #5b6474; font-size: .875rem; }}
-        label {{ display: block; font-size: .8125rem; font-weight: 500; margin-bottom: .375rem; }}
-        input {{ width: 100%; box-sizing: border-box; padding: .625rem .75rem; margin-bottom: 1rem;
-            font-size: .9375rem; font-family: inherit; color: inherit; background: #fff;
-            border: 1px solid #d3d8e0; border-radius: .5rem; }}
-        button, a.dk-sso {{ display: block; width: 100%; box-sizing: border-box;
-            padding: .6875rem 1rem; font-size: .9375rem; font-weight: 600;
-            font-family: inherit; text-align: center; text-decoration: none;
-            border: 0; border-radius: .5rem; }}
-        button {{ color: #fff; background: #2f5d8a; cursor: pointer; }}
-        button.dk-sekundaer {{ color: #2f5d8a; background: #eef3f8; }}
-        a.dk-sso {{ color: #fff; background: #2f5d8a; margin-bottom: 1rem; }}
-        a.dk-sso:hover, button:hover {{ filter: brightness(.95); }}
-        .hinweis {{ margin: 1rem 0 0; font-size: .75rem; color: #5b6474; }}
-        /* LOGIN-1: Meldung der fehlgeschlagenen Anmeldung — gleiche Optik wie
-           in `spa.render_login`, `role="alert"` steht im Markup. */
-        .dk-meldung {{ margin: 0 0 1rem; padding: .625rem .75rem; font-size: .875rem;
-            color: #8a1f1f; background: #fdecec; border: 1px solid #f3c7c7;
-            border-left: 3px solid #b03030; border-radius: .5rem; }}
-        /* LOGIN-2/S1: erklaert, warum kein Passwortformular da ist. */
-        /* LOGIN-3/N-3: die Regel fuer den entfallenen Hinweisblock ist weg
-           (der Block war toter Code, Bedingung nie erreichbar). */
-        /* OP-HANDY-14: iOS-Safari zoomt beim Antippen in Felder unter 16 px
-           (hier 15 px). Im groben Zeiger deshalb 16 px — dieselbe Regel wie im
-           SPA-Stylesheet und in spa.py.
-           FIX-6: wie dort nur der Zeiger (`(pointer: coarse)`), weil die
-           Maske keine Breiten-Umschaltung hat — und kein `not (... or ...)`
-           (Safari < 16.4). */
-        @media (pointer: coarse) {{
-            input, select, textarea {{ font-size: 16px; }}
-        }}
-    </style>
+{seitenrahmen.head_block()}
 </head>
-<body>
-    <main class="dk-login">
+<body class="dk-seite">
+    <main class="dk-karte">
         <h1>{gemeinde}</h1>
-        <p class="sub">Bitte melde dich an, um fortzufahren.</p>{meldung_block}
+        <p class="dk-unterzeile">Bitte melde dich an, um fortzufahren.</p>{meldung_block}
         {sso_block}
         {formular_block}
-        <p class="hinweis">Anmeldelinks fuer Registrierung und Gastzugriff
-            findest du in der Nachricht der Gemeindeleitung.</p>
+        <p class="dk-hinweis">Anmeldelinks fuer Registrierung und Gastzugriff
+            findest du in der Nachricht der Gemeindeleitung.</p>{zurueck_knopf}
     </main>
     <script>
         // OP-CHOR-4: Der Hash erreicht den Server NIE (Browser senden ihn
@@ -494,15 +468,15 @@ def _fehler_seite(meldung: str, status: int = 403) -> Response:
 
     text = html.escape(meldung, quote=True)
     login_adresse = html.escape(_login_adresse(), quote=True)
+    from diakronos_app.anmeldung import seitenrahmen
+
     seite = f"""<!DOCTYPE html>
 <html lang="de"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Anmeldung nicht moeglich</title>
-<style>body{{font-family:Inter,system-ui,sans-serif;background:#f5f6f8;color:#1f2430;
-display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:1.5rem}}
-main{{max-width:28rem;background:#fff;padding:2rem;border-radius:.75rem;
-box-shadow:0 1px 3px rgba(16,24,40,.1)}}a{{color:#2f5d8a}}</style></head>
-<body><main><h1 style="font-size:1.15rem">Anmeldung nicht moeglich</h1>
+{seitenrahmen.head_block()}</head>
+<body class="dk-seite"><main class="dk-karte dk-karte--breit">
+<h1>Anmeldung nicht moeglich</h1>
 <p>{text}</p><p><a href="{login_adresse}">Erneut versuchen</a></p></main></body></html>"""
     return HTMLResponse(seite, status_code=status)
 
@@ -576,6 +550,7 @@ def registriere_routen(app: FastAPI) -> None:
                 meldung=grund_hinweis(request.query_params.get("grund")),
                 request=request,
                 csrf_token=csrf_token,
+                no_redirect=no_redirect,
             )
         )
         flash.loesche_flash(antwort)

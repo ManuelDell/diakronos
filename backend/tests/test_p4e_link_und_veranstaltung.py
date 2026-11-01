@@ -391,9 +391,10 @@ def test_register_mitglied_legt_anmeldung_mit_profildaten_an(client, als_nutzer,
     sess.commit()
     sess.close()
 
-    r = client.get(
+    # SEC-11b (F1): `register_mitglied` SCHREIBT (Anmeldung + Zaehler) -> POST.
+    r = client.post(
         f"/api/method/{MODUL_VERANST}.register_mitglied",
-        params={"registrierungslink_id": LINK},
+        json={"registrierungslink_id": LINK},
     )
     assert r.status_code == 200, r.text
     msg = r.json()["message"]
@@ -420,8 +421,8 @@ def test_register_mitglied_nutzt_vorname_nachname_aus_full_name(client, als_nutz
     sess.commit()
     sess.close()
 
-    client.get(f"/api/method/{MODUL_VERANST}.register_mitglied",
-               params={"registrierungslink_id": LINK})
+    client.post(f"/api/method/{MODUL_VERANST}.register_mitglied",
+               json={"registrierungslink_id": LINK})
 
     anm = _anmeldungen(patched_db)[0]
     assert anm.vorname == "Nils"
@@ -434,12 +435,12 @@ def test_register_mitglied_verweigert_doppelte_anmeldung(client, als_nutzer, pat
     sess.commit()
     sess.close()
 
-    r1 = client.get(f"/api/method/{MODUL_VERANST}.register_mitglied",
-                    params={"registrierungslink_id": LINK})
+    r1 = client.post(f"/api/method/{MODUL_VERANST}.register_mitglied",
+                    json={"registrierungslink_id": LINK})
     assert r1.status_code == 200, r1.text
 
-    r2 = client.get(f"/api/method/{MODUL_VERANST}.register_mitglied",
-                    params={"registrierungslink_id": LINK})
+    r2 = client.post(f"/api/method/{MODUL_VERANST}.register_mitglied",
+                    json={"registrierungslink_id": LINK})
     assert r2.status_code != 200, r2.text
     assert "bereits" in r2.text
     assert len(_anmeldungen(patched_db)) == 1
@@ -460,8 +461,8 @@ def test_register_mitglied_akzeptiert_neuanmeldung_nach_ablehnung(client, als_nu
     sess.commit()
     sess.close()
 
-    r = client.get(f"/api/method/{MODUL_VERANST}.register_mitglied",
-                   params={"registrierungslink_id": LINK})
+    r = client.post(f"/api/method/{MODUL_VERANST}.register_mitglied",
+                   json={"registrierungslink_id": LINK})
     assert r.status_code == 200, r.text
     assert len(_anmeldungen(patched_db)) == 2
 
@@ -472,8 +473,8 @@ def test_register_mitglied_verweigert_falschen_typ(client, als_nutzer, patched_d
     sess.commit()
     sess.close()
 
-    r = client.get(f"/api/method/{MODUL_VERANST}.register_mitglied",
-                   params={"registrierungslink_id": LINK})
+    r = client.post(f"/api/method/{MODUL_VERANST}.register_mitglied",
+                   json={"registrierungslink_id": LINK})
     assert r.status_code == 403, r.text
     assert "Veranstaltungs-Anmeldungen" in r.text
     assert _anmeldungen(patched_db) == []
@@ -485,8 +486,8 @@ def test_register_mitglied_verweigert_deaktivierten_link(client, als_nutzer, pat
     sess.commit()
     sess.close()
 
-    r = client.get(f"/api/method/{MODUL_VERANST}.register_mitglied",
-                   params={"registrierungslink_id": LINK})
+    r = client.post(f"/api/method/{MODUL_VERANST}.register_mitglied",
+                   json={"registrierungslink_id": LINK})
     assert r.status_code != 200, r.text
     assert _anmeldungen(patched_db) == []
 
@@ -497,8 +498,8 @@ def test_register_mitglied_verweigert_abgelaufenen_link(client, als_nutzer, patc
     sess.commit()
     sess.close()
 
-    r = client.get(f"/api/method/{MODUL_VERANST}.register_mitglied",
-                   params={"registrierungslink_id": LINK})
+    r = client.post(f"/api/method/{MODUL_VERANST}.register_mitglied",
+                   json={"registrierungslink_id": LINK})
     assert r.status_code == 403, r.text
     assert "abgelaufen" in r.text
     assert _anmeldungen(patched_db) == []
@@ -510,16 +511,16 @@ def test_register_mitglied_verweigert_vollen_link(client, als_nutzer, patched_db
     sess.commit()
     sess.close()
 
-    r = client.get(f"/api/method/{MODUL_VERANST}.register_mitglied",
-                   params={"registrierungslink_id": LINK})
+    r = client.post(f"/api/method/{MODUL_VERANST}.register_mitglied",
+                   json={"registrierungslink_id": LINK})
     assert r.status_code == 403, r.text
     assert "maximale Anzahl" in r.text
     assert _anmeldungen(patched_db) == []
 
 
 def test_register_mitglied_verweigert_unbekannten_link(client, als_nutzer, patched_db):
-    r = client.get(f"/api/method/{MODUL_VERANST}.register_mitglied",
-                   params={"registrierungslink_id": "GIBTS-NICHT"})
+    r = client.post(f"/api/method/{MODUL_VERANST}.register_mitglied",
+                   json={"registrierungslink_id": "GIBTS-NICHT"})
     assert r.status_code != 200, r.text
     assert _anmeldungen(patched_db, "GIBTS-NICHT") == []
 
@@ -545,8 +546,8 @@ def test_check_anmeldestatus_true_nach_anmeldung(client, als_nutzer, patched_db)
     sess.commit()
     sess.close()
 
-    client.get(f"/api/method/{MODUL_VERANST}.register_mitglied",
-               params={"registrierungslink_id": LINK})
+    client.post(f"/api/method/{MODUL_VERANST}.register_mitglied",
+                json={"registrierungslink_id": LINK})
 
     r = client.get(f"/api/method/{MODUL_VERANST}.check_anmeldestatus",
                    params={"registrierungslink_id": LINK})

@@ -255,6 +255,12 @@
 
   /* Typografie */
   --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  /* ON-0a: Zellschrift für technische Kennungen (JSON-Felder, Schlüssel,
+     Feld-IDs im Planrahmen-Editor). Sie stand vorher als
+     `ui-monospace, monospace` in neun Vue-Regeln — neun Kopien derselben
+     Entscheidung. Kein Dark-Gegenstück: die Schriftfamilie ist
+     themenunabhängig (nur ihr Umfeld wechselt). */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, "DejaVu Sans Mono", monospace;
   --fs:     14px;
   --fs-h1:  26px;
   --fs-h2:  19px;
@@ -262,6 +268,13 @@
   --fs-h4:  14px;
   --fs-sm:  12px;
   --fs-xs:  11px;
+  /* ON-0a: Mindest-Schriftgröße für Eingabefelder im GROBEN ZEIGER (Handy).
+     iOS-Safari zoomt beim Antippen in Felder unter 16 px und lässt den
+     Ausschnitt verschoben stehen (OP-HANDY-14/FIX-6). Der Wert stand vorher
+     als `16px`-Literal in drei Server-Seiten; hier ist er EINE Wahrheit für
+     SPA und serverseitig gerenderte Seiten (frontend/src/ssot/seiten.css).
+     Kein Dark-Gegenstück: die Größe ist themenunabhängig. */
+  --fs-in-zeiger: 16px;
   --fw-h:   650;
 }
 
@@ -349,6 +362,94 @@
   --druck-line-strong:var(--dk-warm-400);
   --druck-primary:    var(--dk-navy-500);
   --druck-accent:     var(--dk-gold-700);
+}
+
+/* =====================================================================
+   3c · WERKZEUG- UND SONDERFLAECHEN (ON-0b)
+
+   Hier stehen Werte, die NICHT die Gemeinde-Oberflaeche gestalten, sondern
+   ein eigenes Ziel haben. Sie stehen in dieser Datei, weil sie sonst als
+   Hex-/rgba-Literal in einer Komponente oder einem erzeugten Bilde lagen —
+   und weil sie ein eigenes Hell/Dunkel-Paar brauchen.
+
+   a) ENTWICKLUNGSMODUS (--dev-*)
+      Der Befund-Modus ist ein WERKZEUG, kein Teil der Gemeinde-Oberfläche: er
+      sitzt als roter Rahmen ÜBER der ganzen App und muss auf JEDER Fläche
+      erkennbar bleiben — auch über einem Foto oder der dunklen Seitenleiste.
+      Seine Farben standen vorher je Komponente als Hex-Werte in
+      `components/devmodus/*.vue` (15 + 6 + 1 Fundstellen).
+
+   b) QR-/DRUCKFLÄCHE (--qr-flaeche)
+      Ein QR-Code ist nur maschinell lesbar, wenn der Grund DECKEND hell ist.
+      `--surface` trägt im Dunkelmodus Deckkraft — deshalb ein eigenes,
+      absichtlich themenunabhängiges Weiß für BILD- und DRUCKERZEUGNISSE
+      (RegLinkTeilen.vue: PNG und Druckbogen).
+
+   c) ABZEICHEN AUF BILDERN (--badge-auf-bild)
+      Ein Abzeichen, das über einem freien Foto liegt, kann sich nicht auf die
+      Theme-Fläche verlassen: es braucht seinen eigenen dunklen Grund und
+      helle Schrift in BEIDEN Themes.
+   Die Hell/Dunkel-Paare liegen direkt hintereinander (F1–F5), damit die
+   Reihenfolge beider Blöcke vergleichbar bleibt.
+   ===================================================================== */
+:root {
+  /* F1 Signalrot: Rahmen, Etikett, Knopf, Zielmarke */
+  --dev-rot:          #e02424;
+  /* F2 Fläche unter dem Rahmen-Umriss (gleiches Rot, 10 % Deckkraft) */
+  --dev-rot-soft:     rgba(224, 36, 36, 0.10);
+  /* F3 Gedämpftes Rot für den Schriftzug „Beenden“ (7,1:1 auf heller Fläche) */
+  --dev-rot-ink:      #a01b1b;
+  /* F4 Dunkle Werkzeug-Leiste (Tasten-Hinweise, ausgeschalteter Knopf) */
+  --dev-leiste:       rgba(17, 17, 17, 0.82);
+  --dev-leiste-text:  #fff;
+  /* F5 Helle Werkzeug-Fläche des Startknopfs */
+  --dev-flaeche:      rgba(255, 255, 255, 0.92);
+  --dev-flaeche-rand: rgba(224, 36, 36, 0.5);
+  --dev-flaeche-schatten: 0 1px 4px rgba(0, 0, 0, 0.18);
+  /* F6 Trennlinie im Etikett (Rahmen der Knöpfe) */
+  --dev-linie:        rgba(255, 255, 255, 0.35);
+  /* Q1 Deckende Fläche für QR-Bilder und Druckbögen (bewusst themenfest) */
+  --qr-flaeche:       #ffffff;
+  /* B1 Abzeichen über freien Fotos: dunkler Grund, helle Schrift */
+  --badge-auf-bild:        rgba(0, 0, 0, 0.55);
+  --badge-auf-bild-text:   #ffffff;
+}
+
+/* Dunkelmodus: Rahmen und Etiketten bleiben dasselbe Signalrot (es ist der
+   Träger der Aussage „Werkzeug aktiv“), nur die Ruhe-Flächen werden dunkel,
+   damit der Startknopf nicht als weiße Lampe auf dunkler App steht. */
+[data-theme="dark"],
+:root[data-theme="dark"] {
+  /* F1 */ --dev-rot:          #ff6b6b;
+  /* F2 */ --dev-rot-soft:     rgba(255, 107, 107, 0.16);
+  /* F3 */ --dev-rot-ink:      #ffb3b3;
+  /* F4 */ --dev-leiste:       rgba(0, 0, 0, 0.82);
+  /* F4 */ --dev-leiste-text:  #f5f6fa;
+  /* F5 */ --dev-flaeche:      rgba(23, 27, 44, 0.92);
+  /* F5 */ --dev-flaeche-rand: rgba(255, 107, 107, 0.55);
+  /* F5 */ --dev-flaeche-schatten: 0 1px 4px rgba(0, 0, 0, 0.55);
+  /* F6 */ --dev-linie:        rgba(255, 255, 255, 0.35);
+  /* Q1: bleibt weiß — ein QR-Code muss auch im Dunkelmodus lesbar bleiben. */
+  /* B1 */ --badge-auf-bild:      rgba(0, 0, 0, 0.62);
+  /* B1 */ --badge-auf-bild-text: #ffffff;
+}
+
+/* =====================================================================
+   3d · SERVER-SEITEN (ON-0b, F5)
+   Die server-seitig gerenderten Seiten (Anmeldung, Passwort setzen,
+   Fehlerseiten) trugen ihre Schriftgroessen vorher selbst: Label 13 px,
+   Unterzeile 14 px, Eingabe 15 px, Hinweis 12 px. Mit den allgemeinen
+   Tokens (Label/Hinweis 12 px, Eingabe 14 px) waeren sie KLEINER geworden —
+   auf der Anmeldeseite ist das die falsche Richtung (Karte, wenige Zeilen,
+   im Zweifel groesser lesen). Deshalb eigene, SEMANTISCHE Tokens fuer genau
+   diese Rollen: benannt nach dem Zweck, nicht nach der Zahl, und in beiden
+   Themes gleich (Groessen sind themenunabhaengig).
+   ===================================================================== */
+:root {
+  --fs-feld:    13px;   /* Beschriftung eines Formularfelds (vorher 13 px) */
+  --fs-unterzeile: 14px; /* Satz unter der Ueberschrift (vorher 14 px) */
+  --fs-eingabe: 15px;   /* Text IN einem Eingabefeld (vorher 15 px) */
+  --fs-hinweis: 12px;   /* kleiner Hinweis unter dem Formular (vorher 12 px) */
 }
 
 /* =====================================================================

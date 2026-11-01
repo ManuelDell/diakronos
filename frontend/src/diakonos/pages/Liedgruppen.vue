@@ -192,7 +192,7 @@ onMounted(() => {
 }
 .lg-card:hover {
   border-color: var(--dk-brand-400);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 .lg-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }

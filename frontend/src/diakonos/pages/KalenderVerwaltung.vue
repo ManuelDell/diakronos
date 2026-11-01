@@ -164,8 +164,9 @@ const IconPlus = () => h('svg', {
   width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
   'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
 }, [h('line', { x1: 12, y1: 5, x2: 12, y2: 19 }), h('line', { x1: 5, y1: 12, x2: 19, y2: 12 })])
+// ON-0b: Standardfarbe neuer Kalender (eine Wahrheit, shared/sichere-ausgabe.js).
 
-const STANDARD_FARBE = '#3b82f6'
+import { STANDARD_FARBE } from '../../shared/sichere-ausgabe.js'
 
 const kalender = ref([])
 const rollen = ref([])

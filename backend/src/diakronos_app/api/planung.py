@@ -1280,7 +1280,7 @@ def _normalisiere_pool(pool):
     return out
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def speichere_plan_entwurf(plan, payload):
     """Persistiert den tatsaechlichen Rasterinhalt eines Dienstplan-Entwurfs.
 

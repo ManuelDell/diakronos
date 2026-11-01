@@ -232,7 +232,7 @@ def _configured_settings(db):
     return settings
 
 
-@whitelist(allow_guest=False)
+@whitelist(methods=["POST"], allow_guest=False)
 def get_oauth_url(request=None):
     _require_import_admin()
     binding = _session_binding(request)

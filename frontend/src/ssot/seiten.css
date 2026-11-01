@@ -1,0 +1,232 @@
+/* =====================================================================
+   DIAKRONOS — GRUND-STYLESHEET FÜR SERVER-SEITIG GERENDERTE SEITEN
+   ---------------------------------------------------------------------
+   Gilt für Seiten, die das Backend als HTML ausliefert und die NICHT die
+   Vue-SPA laden: Anmeldung (`anmeldung/routen.py`), Passwort setzen
+   (`anmeldung/passwortseite.py`), die Inline-Maske der SPA
+   (`spa.py::render_login`) und die einfachen Fehlerseiten.
+
+   REGELN DIESER DATEI (Karte ON-0a, Manuels Vorgabe „Single Source of
+   Truth für die CSS"):
+     * KEINE eigenen Farb-, Schrift-, Radius- oder Schattenwerte. Alles
+       kommt aus `tokens.css` (var(--…)). Die Token-Datei liefert auch den
+       Dunkelmodus — hier steht deshalb KEIN `prefers-color-scheme`-Block.
+     * KEINE @import-Zeile auf `tokens.css`: die Seiten binden BEIDE Dateien
+       als eigene <link>-Tags ein (Reihenfolge: tokens.css, dann diese).
+       So bleibt `tokens.css` unverändert die einzige Quelle, und der
+       Browser kann sie getrennt cachen.
+     * Ausgeliefert als `{Präfix}/diakonos/assets/diakronos-seiten.css`
+       (stabiler Name, siehe `frontend/vite.config.mjs`).
+
+   Klassen (Vertrag für ON-1 und weitere Server-Seiten):
+     .dk-seite          Seitengerüst: zentriert, volle Höhe, Grundfläche
+     .dk-karte          Karte darin: maximale Breite, Fläche, Radius, Schatten
+     .dk-karte h1       Überschrift
+     .dk-karte .dk-unterzeile
+     .dk-feld           Beschriftung eines Formularfelds
+     input/textarea/select.Die Felder selbst brauchen keine Klasse
+     .dk-knopf          Hauptknopf (Knopf oder Verweis)
+     .dk-knopf-weit     Zusatz: volle Breite (Anmeldeseite)
+     .dk-knopf-sekundaer
+     .dk-hinweis        kleine Hilfszeile unter dem Formular
+     .dk-meldung        Fehler-/Hinweisbox (role="alert" steht im Markup)
+     .dk-formular       Formularblock (Abstand zwischen den Feldern)
+   ===================================================================== */
+
+/* ── Seitengerüst ─────────────────────────────────────────────────────── */
+
+:root {
+  color-scheme: light;
+}
+
+/* ON-0a: Die Seiten setzen `data-theme` (Theme-Skript aus
+   `anmeldung/seitenrahmen.py`, dieselbe Regel wie die SPA). Daran hängt auch
+   die Browser-Oberfläche — sonst bekäme ein dunkel eingestelltes Gerät bei
+   bewusster Wahl „hell“ dunkle Bildlaufleisten. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body.dk-seite {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  font-family: var(--font);
+  font-size: var(--fs);
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ── Karte ────────────────────────────────────────────────────────────── */
+
+.dk-karte {
+  width: 100%;
+  max-width: 24rem;
+  padding: var(--sp-8);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.dk-karte--breit {
+  max-width: 28rem;
+}
+
+.dk-karte h1 {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-h);
+  color: var(--text);
+}
+
+.dk-unterzeile {
+  margin: 0 0 var(--sp-6);
+  color: var(--muted);
+  /* ON-0b (F5): Rolle "Unterzeile" (14 px, wie vorher). */
+  font-size: var(--fs-unterzeile);
+}
+
+/* ── Formular ─────────────────────────────────────────────────────────── */
+
+.dk-formular {
+  margin: 0;
+}
+
+.dk-feld {
+  display: block;
+  margin-bottom: var(--sp-2);
+  /* ON-0b (F5): Rolle "Feldbeschriftung" — eigener Token, nie kleiner als vorher. */
+  font-size: var(--fs-feld);
+  font-weight: 500;
+  color: var(--text);
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  padding: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  font-family: inherit;
+  /* ON-0b (F5): Rolle "Eingabetext" (15 px, wie vorher — nicht 14). */
+  font-size: var(--fs-eingabe);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+
+/* OP-HANDY-14 / FIX-6: iOS-Safari zoomt beim Antippen in Felder unter 16 px
+   und lässt den Ausschnitt verschoben stehen. Dieselbe Regel wie im
+   SPA-Stylesheet — nur der grobe Zeiger, unabhängig von der Breite (das
+   Formular ist ohnehin immer schmal), und bewusst NICHT `not (... or ...)`
+   (Safari < 16.4 kennt Stufe 4 nicht).
+
+   ON-0b (F7): Dieser Kommentar stand über `color-scheme` im `:root`-Block —
+   eine Regel, mit der er nichts zu tun hat. Er steht jetzt DA, wo die Regel
+   wirkt. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: var(--fs-in-zeiger);
+  }
+}
+
+/* DES-R3: EIN sichtbarer Tastaturfokus für die ganze Seite. */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* ── Knöpfe ───────────────────────────────────────────────────────────── */
+
+.dk-knopf {
+  display: inline-block;
+  padding: var(--sp-3) var(--sp-4);
+  font-family: inherit;
+  font-size: var(--fs);
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  color: var(--primary-ink);
+  background: var(--primary);
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.dk-knopf:hover {
+  background: var(--primary-hover);
+}
+
+.dk-knopf-weit {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dk-knopf-sekundaer {
+  color: var(--primary);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+}
+
+.dk-knopf-sekundaer:hover {
+  background: var(--surface-hover);
+}
+
+.dk-knopf:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* ── Hinweis und Meldung ──────────────────────────────────────────────── */
+
+.dk-hinweis {
+  margin: var(--sp-4) 0 0;
+  /* ON-0b (F5): Rolle "Hinweis" (12 px, wie vorher — nicht 11). */
+  font-size: var(--fs-hinweis);
+  color: var(--muted);
+}
+
+/* LOGIN-1: Meldung über dem Formular. Rot nur als Rand + Text, kein
+   Vollton — die Seite bleibt ruhig, der Satz ist trotzdem sofort zu finden.
+   `role="alert"` steht im Markup (Ansage für Screenreader). */
+.dk-meldung {
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--err);
+  background: var(--err-soft);
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--err);
+  border-radius: var(--radius-sm);
+}
+
+.dk-meldung:empty {
+  display: none;
+}
+
+/* Verweise im Fließtext folgen dem Verweis-Token (DEV-4): im Dunkelmodus
+   wäre `--primary` weiß und damit nicht als Verweis erkennbar. */
+.dk-karte a:not(.dk-knopf) {
+  color: var(--link);
+}
+
+.dk-karte a:not(.dk-knopf):hover {
+  color: var(--link-hover);
+}
+
+[hidden] {
+  display: none !important;
+}

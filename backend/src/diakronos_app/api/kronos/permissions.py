@@ -36,6 +36,9 @@ FRAPPE_MODULE = "diakronos.kronos.api.permissions"
 
 from typing import Any
 
+# ON-0b: EINE Standardfarbe für Kalender (vorher stand der Hex-Wert an drei
+# Stellen — hier und in `kalender_verwaltung`).
+from diakronos_app.api.kronos.kalender_verwaltung import STANDARD_FARBE as _STANDARD_FARBE
 from diakronos_app.frappe_compat.permissions import get_roles
 from diakronos_app.frappe_compat.registry import whitelist
 
@@ -302,7 +305,7 @@ def get_accessible_calendars():
                 result.append({
                     "name": doc.name,
                     "title": doc.get("calendar_name") or doc.name,
-                    "color": doc.get("calendar_color") or "#9ca3af",
+                    "color": doc.get("calendar_color") or _STANDARD_FARBE,
                     "write": True,
                     "is_moderator": True,
                     "selbstverwaltet": selbstverwaltet,
@@ -332,7 +335,7 @@ def get_accessible_calendars():
                 result.append({
                     "name": doc.name,
                     "title": doc.get("calendar_name") or doc.name,
-                    "color": doc.get("calendar_color") or "#9ca3af",
+                    "color": doc.get("calendar_color") or _STANDARD_FARBE,
                     "write": can_write,
                     "is_moderator": is_mod,
                     "selbstverwaltet": selbstverwaltet,

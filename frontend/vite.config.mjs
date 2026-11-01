@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import * as LucideIcons from 'lucide-static'
 
 // DEP-1: Die TS-Registrierung (`registerTS`) war nur fuer die .vue-Dateien von
@@ -74,6 +75,131 @@ export default {
 }`
 }
 
+// ── ON-0a: Token- und Seiten-Stylesheet als STABILE Dateien ──────────────
+//
+// WARUM EIN EIGENER PLUGIN
+//   Die SPA bündelt ihr CSS (`cssCodeSplit: false`) zu EINER Datei mit
+//   Inhalts-Hash im Namen (`style-<hash>.css`). Serverseitig gerenderte
+//   Seiten (Anmeldung, Passwort setzen, Fehlerseiten) können diesen Namen
+//   nicht kennen — und dürfen ihn auch nicht kennen, sonst müsste die
+//   Backend-Vorlage den Build-Hash mitschleppen.
+//
+// WAS ER TUT
+//   Er nimmt die beiden CSS-Einstiege des Design-Systems und schreibt sie
+//   unter FESTEN Namen nach `dist/`:
+//     src/diakonos/tokens.css  ->  dist/diakronos-tokens.css
+//     src/ssot/seiten.css      ->  dist/diakronos-seiten.css
+//   `tokens.css` bleibt dabei die einzige Quelle: der Plugin bündelt sie
+//   (löst `@import '@fontsource/…'` auf, damit die Schrift auch auf
+//   Server-Seiten lokal liegt) — er schreibt KEINE Werte um.
+//
+//   Warum `assets/` statt `/diakonos/assets/…`: derselbe Weg wie alle
+//   übrigen Build-Artefakte. Der Catch-all in `spa.py` löst `/diakonos/assets/<name>`
+//   gegen das Build-Verzeichnis auf, das Vite `base: './'` nicht kennt.
+//
+// CACHE-BUSTING
+//   Der Name ist stabil, `spa.py` liefert die Datei deshalb NICHT
+//   `immutable`, sondern `no-cache` + ETag — der Browser fragt nach und
+//   bekommt bei unverändertem Inhalt ein 304. Ein Hash im Namen wäre die
+//   Alternative; dann müsste aber JEDE Server-Seite den Hash kennen.
+const SSOT_DATEIEN = [
+  { quelle: 'src/diakonos/tokens.css', name: 'diakronos-tokens.css' },
+  { quelle: 'src/ssot/seiten.css', name: 'diakronos-seiten.css' },
+]
+
+// `@import '<pfad>';` am Zeilenanfang — genau die Form, die tokens.css für die
+// lokale Schrift nutzt (`@import '@fontsource/inter/latin-400.css';`).
+const CSS_IMPORT = /@import\s+(?:url\()?['"]([^'"]+)['"]\)?\s*;/g
+
+// ON-0b (F3): Wohin die Schriftdateien der Server-Seiten gehen.
+//
+// Vite benennt Schriften sonst nach Inhalt (`assets/inter-latin-400-normal-<hash>.woff2`)
+// und setzt in CSS `url(./assets/<name>)`. Die beiden Server-Stylesheets liegen
+// aber FLACH in `dist/` — `./assets/…` traefe dort nichts, und der Catch-all in
+// `spa.py` hätte den Pfad als Seite behandelt (Anmeldeschranke statt Schrift).
+//
+// Deshalb: EIN fester Ordner `schriften/` mit den NAMEN AUS DER QUELLE
+// (`inter-latin-400-normal.woff2`). Der Name kommt aus dem `@font-face` selbst,
+// hier wird nichts umbenannt — nur der Pfad geradegezogen.
+const SCHRIFT_ORDNER = 'schriften'
+// `url(<pfad>)` in einem @font-face — genau die Form, die @fontsource schreibt
+// (`url(./files/inter-latin-400-normal.woff2) format('woff2')`).
+const SCHRIFT_URL = /url\(\s*(['"]?)([^'")]+?)\1\s*\)/g
+// Wo die Datei im CSS liegt, darf NICHT als Ziel gelten (sie ist kein Build-Artefakt).
+const CSS_DATEI = /\.css$/i
+
+/**
+ * Liest ein Stylesheet und setzt seine `@import`-Zeilen WÖRTLICH ein (rekursiv).
+ *
+ * Warum nicht einfach `fs.readFileSync`: `tokens.css` bindet die lokale Schrift
+ * per `@import` ein. Ohne Auflösung zeigte die ausgelieferte Token-Datei auf
+ * `@fontsource/inter/…`, was im Browser eine Anfrage auf einen Pfad auslöste,
+ * den es unter `/diakonos/assets/` nicht gibt (die Schrift läge unbemerkt im
+ * Falle „Inter-Fallback"). Der Import wird deshalb hier eingesammelt — die
+ * Werte selbst bleiben unverändert, `tokens.css` bleibt die Quelle.
+ *
+ * Der Pfad wird über den Ordner der einbindenden Datei aufgelöst (CSS-Regel).
+ * Ein Paket-Import (`@fontsource/…`) geht über node_modules.
+ */
+function leseCssMitImporten(datei, gesehen = new Set(), schriften = new Map()) {
+  const absolut = path.resolve(datei)
+  if (gesehen.has(absolut)) return '' // Ringbezug: nur einmal
+  gesehen.add(absolut)
+  const text = readFileSync(absolut, 'utf8')
+  // ON-0b (F3): erst die Importe einsetzen …
+  const mitImporten = text.replace(CSS_IMPORT, (_treffer, ziel) => {
+    let pfad = ziel.startsWith('.')
+      ? path.resolve(path.dirname(absolut), ziel)
+      : path.resolve(__dirname, 'node_modules', ziel)
+    if (!existsSync(pfad)) {
+      // Der Import ist keine Datei (z. B. eine Media-Query-Form) — unverändert
+      // stehen lassen, damit nichts stillschweigend verschwindet.
+      return _treffer
+    }
+    return leseCssMitImporten(pfad, gesehen, schriften)
+  })
+  // … dann jede `url()`-Angabe, die auf eine vorhandene SCHRIFTDATEI zeigt,
+  // auf den festen Ordner umschreiben und die Datei vormerken.
+  return mitImporten.replace(SCHRIFT_URL, (treffer, quote, ziel) => {
+    if (/^data:/i.test(ziel) || /^https?:/i.test(ziel) || CSS_DATEI.test(ziel)) return treffer
+    if (!ziel.startsWith('.') || path.isAbsolute(ziel)) return treffer
+    // CSS-Regel: ein relativer Pfad gilt ab dem Ordner der EINBINDENDEN Datei.
+    const kandidat = path.resolve(path.dirname(datei), ziel)
+    if (!existsSync(kandidat) || statSync(kandidat).isDirectory()) return treffer
+    const name = path.basename(kandidat)
+    schriften.set(name, kandidat)
+    return `url(${quote}./${SCHRIFT_ORDNER}/${name}${quote})`
+  })
+}
+
+function ssotStylesheets() {
+  return {
+    name: 'dk-ssot-stylesheets',
+    apply: 'build',
+    // Nach dem Rollup-Bündeln: die beiden Dateien unter festen Namen ablegen.
+    generateBundle() {
+      // ON-0b (F3): JEDE `url()` der Server-Stylesheets muss im Build eine
+      // Datei haben. Gesammelt wird über ALLE Stylesheets, damit derselbe
+      // Schriftstand für beide gilt; ausgegeben wird jede Datei genau einmal.
+      const schriften = new Map()
+      for (const datei of SSOT_DATEIEN) {
+        const css = leseCssMitImporten(path.resolve(__dirname, datei.quelle), new Set(), schriften)
+        if (!css.trim()) {
+          this.error(`ON-0a: ${datei.quelle} ergab kein CSS — Token-Datei leer?`)
+        }
+        this.emitFile({ type: 'asset', fileName: datei.name, source: css })
+      }
+      for (const [name, quelle] of schriften) {
+        this.emitFile({
+          type: 'asset',
+          fileName: `${SCHRIFT_ORDNER}/${name}`,
+          source: readFileSync(quelle),
+        })
+      }
+    },
+  }
+}
+
 function lucideIcons() {
   const icons = getIcons()
   return {
@@ -120,7 +246,7 @@ export default defineConfig({
     // ACHTUNG für andere Stellen: `base` wirkt auch auf Adressen, die im CODE
     // per `import` entstehen (Fonts, Bilder) — die werden relativ aufgelöst.
     base: './',
-    plugins: [vue(), lucideIcons(), eventCalendarEsm()],
+    plugins: [vue(), ssotStylesheets(), lucideIcons(), eventCalendarEsm()],
     build: {
         // ANPASSUNG 2: Output-Pfad → frontend/dist (statt diakronos/public/frontend).
         outDir: 'dist',

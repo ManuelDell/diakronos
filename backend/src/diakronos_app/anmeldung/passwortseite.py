@@ -1,4 +1,11 @@
-"""Öffentliche Passwort-Seite: kein Boot mit Personendaten, keine Fremdanfragen."""
+"""Öffentliche Passwort-Seite: kein Boot mit Personendaten, keine Fremdanfragen.
+
+ON-0a: Farben, Schriften und Formen kommen AUSSCHLIESSLICH aus
+`frontend/src/diakonos/tokens.css` und dem gemeinsamen Grund-Stylesheet
+`frontend/src/ssot/seiten.css`. Der `<head>`-Block wird von
+`anmeldung/seitenrahmen.py` gebaut (präfixbewusst) — hier steht KEIN
+Farbwert und keine Schriftfamilie mehr.
+"""
 import html
 
 from fastapi import APIRouter
@@ -14,43 +21,42 @@ def passwort_seite():
     # direkt eingesetzt und escaped. Die Route selbst bleibt app-eigen; der
     # Praefix kommt vom Mount.
     from diakronos_app import base_path
+    from diakronos_app.anmeldung import seitenrahmen
 
     api = html.escape(base_path.pfad("/api/method/zugang.passwort_uebernehmen"), quote=True)
     login = html.escape(base_path.pfad("/login"), quote=True)
-    seite = _SEITE.replace("__API__", api).replace("__LOGIN__", login)
+    seite = (
+        _SEITE.replace("__API__", api)
+        .replace("__LOGIN__", login)
+        .replace("__HEAD__", seitenrahmen.head_block())
+    )
     return HTMLResponse(seite, headers={
         "Cache-Control": "no-store", "Referrer-Policy": "no-referrer",
         "X-Content-Type-Options": "nosniff",
-        "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+        # ON-0a: kein Inline-<style> mehr -> `style-src` braucht nur die
+        # eigene Adresse (die zwei Build-Dateien). Das Inline-SKRIPT bleibt.
+        # ON-0b (F3): `font-src 'self'` ergänzt — ohne diese Quelle verweigerte
+        # `default-src 'none'` die Schriftdateien der Token-Datei, und die Seite
+        # fiel auf die Systemschrift zurück (im Netzwerkprotokoll als
+        # geblockte Anfrage sichtbar).
+        "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
     })
 
 
 _SEITE = '''<!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Passwort setzen — Diakronos</title>
-<style>
-:root { color-scheme: light dark; --bg: #f5f6f8; --surface: #fff; --text: #1f2430; --muted: #5b6474; --primary: #2f5d8a; --line: #d3d8e0; --err: #b42318; }
-* { box-sizing: border-box; }
-body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 1rem; font: 1rem/1.5 system-ui,sans-serif; background: var(--bg); color: var(--text); }
-main { width: 100%; max-width: 28rem; padding: 1.5rem; background: var(--surface); border: 1px solid var(--line); border-radius: .75rem; }
-h1 { font-size: 1.4rem; margin: 0 0 .5rem; } p { color: var(--muted); }
-label { display: block; margin-top: 1rem; }
-input,button { width: 100%; font: inherit; border-radius: .5rem; padding: .75rem; }
-input { border: 1px solid var(--line); color: var(--text); background: var(--surface); }
-button { margin-top: 1.25rem; border: 0; background: var(--primary); color: var(--surface); cursor: pointer; }
-:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
-[hidden] { display: none !important; } #fehler { color: var(--err); } a { color: var(--primary); }
-@media(prefers-color-scheme:dark) { :root { --bg: #14171d; --surface: #1d212a; --text: #e8eaee; --muted: #abb4c4; --line: #333a47; --primary: #8ab7e4; --err: #ffb4ab; } button { color: var(--bg); } }
-</style></head><body><main>
+__HEAD__
+</head><body class="dk-seite"><main class="dk-karte dk-karte--breit">
 <h1>Passwort setzen</h1>
-<p>Lege dein eigenes Passwort für Diakronos fest. Ein Startpasswort muss dabei durch ein anderes Passwort ersetzt werden.</p>
-<p id="fehler" role="alert" tabindex="-1" hidden></p>
-<form id="formular">
-<label for="passwort">Neues Passwort (mindestens 8 Zeichen)</label>
+<p class="dk-unterzeile">Lege dein eigenes Passwort für Diakronos fest. Ein Startpasswort muss dabei durch ein anderes Passwort ersetzt werden.</p>
+<p id="fehler" class="dk-meldung" role="alert" tabindex="-1" hidden></p>
+<form id="formular" class="dk-formular">
+<label class="dk-feld" for="passwort">Neues Passwort (mindestens 8 Zeichen)</label>
 <input id="passwort" type="password" autocomplete="new-password" minlength="8" maxlength="1024" required>
-<label for="wiederholung">Passwort wiederholen</label>
+<label class="dk-feld" for="wiederholung">Passwort wiederholen</label>
 <input id="wiederholung" type="password" autocomplete="new-password" minlength="8" maxlength="1024" required>
-<button id="speichern" type="submit">Passwort speichern</button>
+<button id="speichern" class="dk-knopf dk-knopf-weit" type="submit">Passwort speichern</button>
 </form>
 <p id="erfolg" role="status" hidden>Dein Passwort wurde gespeichert. <a href="__LOGIN__">Jetzt anmelden</a></p>
 <script>

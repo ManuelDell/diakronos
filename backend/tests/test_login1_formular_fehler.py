@@ -465,7 +465,12 @@ def test_maske_funktioniert_ohne_javascript(patched_db, fake_redis):
                    headers=_BROWSER, follow_redirects=False)
         seite = c.get(r.headers["location"], follow_redirects=False)
 
-    # Die Meldung steht im HTML, nicht in einem Skript.
-    kopf, _, rest = seite.text.partition("<script")
+    # Die Meldung steht im HTML, nicht in einem Skript. ON-0a/ON-0b: seit der
+    # `<head>`-Block den Theme-Startwert als INLINE-Skript traegt, liegt VOR
+    # dem ersten `<script` nur noch der Kopf — geprueft wird der Rumpf
+    # (`<body>`…), nicht „alles vor dem ersten Skript". Die Aussage bleibt:
+    # der Text steht serverseitig im Markup, nicht in einem Skript.
+    _, _, rumpf = seite.text.partition("<body")
+    kopf, _, rest = rumpf.partition("<script")
     assert MELDUNG in kopf, "Meldung muss serverseitig im HTML stehen"
     assert 'role="alert"' in kopf

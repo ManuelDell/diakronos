@@ -159,6 +159,6 @@ details[open] > summary .pr-meldungen-pfeil { transform: rotate(90deg); }
 .pr-meldung--fehler .pr-meldung-meldung { color: var(--dk-danger); font-weight: 600; }
 .pr-meldung--warnung .pr-meldung-meldung { color: var(--dk-warning); font-weight: 600; }
 .pr-meldung-hinweis { color: var(--dk-text-muted); }
-.pr-meldung-pfad { color: var(--dk-text-subtle); font-size: 0.74rem; font-family: monospace; }
+.pr-meldung-pfad { color: var(--dk-text-subtle); font-size: 0.74rem; font-family: var(--font-mono); }
 .pr-meldungen--kompakt .pr-meldung { padding: 5px 8px; font-size: 0.76rem; }
 </style>

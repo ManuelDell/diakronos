@@ -143,7 +143,9 @@ def test_fremder_origin_wird_auch_mit_token_abgewiesen(client):
         follow_redirects=True,
     )
     assert "falsch" in antwort.text
-    assert "dk-login" in antwort.text
+    # ON-0a/ON-0b: die Maske traegt keine eigene `dk-login`-Karte mehr — sie
+    # benutzt das gemeinsame Grund-Stylesheet (`.dk-karte` in seiten.css).
+    assert "dk-karte" in antwort.text, "Anmeldemaske ohne Karte"
 
 
 def test_gefaelschter_token_oeffnet_keine_fremde_herkunft(client):

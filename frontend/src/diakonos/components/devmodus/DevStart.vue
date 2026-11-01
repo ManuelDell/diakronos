@@ -33,6 +33,7 @@ async function einschalten() {
 </script>
 
 <style scoped>
+/* ON-0b: Werte kommen aus tokens.css (--dev-* ist die Werkzeug-Gruppe). */
 .dk-dev-start {
   position: fixed;
   right: 10px;
@@ -41,17 +42,19 @@ async function einschalten() {
   display: flex;
   align-items: center;
   gap: 6px;
-  font: 12px/1.2 system-ui, sans-serif;
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  line-height: 1.2;
   cursor: pointer;
-  border: 1px solid rgba(224, 36, 36, 0.5);
-  background: rgba(255, 255, 255, 0.92);
-  color: #a01b1b;
+  border: 1px solid var(--dev-flaeche-rand);
+  background: var(--dev-flaeche);
+  color: var(--dev-rot-ink);
   padding: 5px 9px;
-  border-radius: 999px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  border-radius: var(--badge-r);
+  box-shadow: var(--dev-flaeche-schatten);
 }
 .dk-dev-start-punkt {
-  width: 8px; height: 8px; border-radius: 50%; background: #e02424;
+  width: 8px; height: 8px; border-radius: 50%; background: var(--dev-rot);
 }
 @media (max-width: 480px) {
   .dk-dev-start { bottom: calc(64px + 8px); }

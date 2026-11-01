@@ -401,7 +401,7 @@ function stufenFuer(i) {
 .pr-fb-feld--tief { background: var(--dk-surface-2); }
 .pr-fb-kopf { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .pr-fb-auf { background: none; border: none; cursor: pointer; font-size: 0.9rem; color: var(--dk-text-muted); padding: 2px 6px; }
-.pr-fb-id { max-width: 170px; font-family: ui-monospace, monospace; font-size: 0.82rem; }
+.pr-fb-id { max-width: 170px; font-family: var(--font-mono); font-size: 0.82rem; }
 .pr-fb-name { max-width: 240px; }
 .pr-fb-art { max-width: 250px; }
 .pr-fb-aktionen { display: inline-flex; gap: 2px; margin-left: auto; }

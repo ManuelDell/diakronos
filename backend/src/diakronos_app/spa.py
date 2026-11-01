@@ -43,6 +43,7 @@ from __future__ import annotations
 import html
 import json
 import logging
+import mimetypes
 import re
 from pathlib import Path
 from typing import Any
@@ -71,6 +72,34 @@ RESERVED_PREFIXES = ("/healthz", "/api", "/docs", "/redoc", "/openapi.json")
 
 # Praefix, unter dem die SPA ausgeliefert wird.
 SPA_PREFIX = "/diakonos"
+
+# ON-0a: die beiden Stylesheets mit FESTEM Namen (Frontend-Build, siehe
+# `frontend/vite.config.mjs`). Sie werden von den serverseitig gerenderten
+# Seiten eingebunden (`anmeldung/seitenrahmen.py`) — deshalb kein Hash im
+# Namen und deshalb NICHT `immutable` gecacht (`_asset_response`).
+SEITENRAHMEN_TOKENS = "diakronos-tokens.css"
+SEITENRAHMEN_STIL = "diakronos-seiten.css"
+# ON-0b (F3): Ordner der Schriftdateien für Server-Seiten. Der Frontend-Build
+# legt dort JEDE Schrift ab, die `tokens.css` per `url()` nennt (`schriften/`),
+# mit dem NAMEN AUS DER QUELLE — dieselbe Bau-Regel wie bei den Stylesheets,
+# damit die Adresse stabil bleibt (`seitenrahmen.schrift_url`).
+SEITENRAHMEN_SCHRIFTEN = "schriften"
+# ON-0b (F3): Unterordner des Builds, die im URL-Pfad stehen muessen, damit
+# relative `url()`-Angaben im CSS aufloesen (`_asset_response`).
+UNTERORDNER_PREFIX = "assets"
+_ANFRAGE_UNTERORDNER = ("schriften", "css", "chunks", "assets")
+# Die Namen der vier eingebundenen Schnitte — EINE Wahrheit für den
+# Auslieferungs-Test (`tests/test_on0b_schriften.py`) und für die Warnung beim
+# Start. Sie stammen aus `@fontsource/inter/latin-<gewicht>.css`, dort
+# `url(./files/inter-latin-<gewicht>-normal.woff2)`.
+SEITENRAHMEN_SCHRIFT_NAMEN = tuple(
+    f"inter-latin-{gewicht}-normal.woff2" for gewicht in (400, 500, 600, 700)
+)
+# ON-0b (F6): Warnung, wenn der Build beim Start fehlt (oder unvollständig ist).
+FRONTEND_FEHLT_MELDUNG = (
+    "Frontend-Build fehlt — Server-Seiten ohne Gestaltung (npm run build in "
+    "frontend/ ausfuehren)"
+)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -728,88 +757,37 @@ def render_login(next_url: str = SPA_PREFIX, *, meldung: str = "", email: str = 
         else ""
     )
 
+    # ON-0a: Farben und Formen stehen AUSSCHLIESSLICH in tokens.css
+    # (frontend/src/diakonos/tokens.css); die Regeln dieser Maske im
+    # gemeinsamen Grund-Stylesheet frontend/src/ssot/seiten.css. Der
+    # `<head>`-Block kommt aus `anmeldung/seitenrahmen.py` und ist
+    # praefixbewusst (WEB-5a). Hier steht KEIN Farbwert mehr.
+    from diakronos_app.anmeldung import seitenrahmen
+
     return f"""<!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anmelden — {gemeinde}</title>
-    <style>
-        :root {{ color-scheme: light dark; }}
-        body {{
-            margin: 0; min-height: 100vh; display: flex; align-items: center;
-            justify-content: center; padding: 1.5rem;
-            font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
-            background: #f5f6f8; color: #1f2430;
-        }}
-        .dk-login {{
-            width: 100%; max-width: 24rem; background: #fff; padding: 2rem;
-            border-radius: .75rem; box-shadow: 0 1px 3px rgba(16,24,40,.1),
-            0 12px 32px rgba(16,24,40,.08);
-        }}
-        .dk-login h1 {{ margin: 0 0 .25rem; font-size: 1.25rem; font-weight: 600; }}
-        .dk-login p.sub {{ margin: 0 0 1.5rem; color: #5b6474; font-size: .875rem; }}
-        label {{ display: block; font-size: .8125rem; font-weight: 500; margin-bottom: .375rem; }}
-        input {{
-            width: 100%; box-sizing: border-box; padding: .625rem .75rem; margin-bottom: 1rem;
-            font-size: .9375rem; font-family: inherit; color: inherit; background: #fff;
-            border: 1px solid #d3d8e0; border-radius: .5rem;
-        }}
-        input:focus {{ outline: 2px solid #3b6ea5; outline-offset: 1px; border-color: #3b6ea5; }}
-        button {{
-            width: 100%; padding: .6875rem 1rem; font-size: .9375rem; font-weight: 600;
-            font-family: inherit; color: #fff; background: #2f5d8a; cursor: pointer;
-            border: 0; border-radius: .5rem;
-        }}
-        button:hover {{ background: #274c72; }}
-        .hinweis {{ margin: 1rem 0 0; font-size: .75rem; color: #5b6474; }}
-        /* LOGIN-1: Meldung ueber dem Formular. Rot nur als Rand + Text, kein
-           Vollton — die Seite bleibt ruhig, der Satz ist trotzdem sofort zu
-           finden. `role="alert"` steht im Markup (Screenreader-Ansage). */
-        .dk-meldung {{
-            margin: 0 0 1rem; padding: .625rem .75rem; font-size: .875rem;
-            color: #8a1f1f; background: #fdecec; border: 1px solid #f3c7c7;
-            border-left: 3px solid #b03030; border-radius: .5rem;
-        }}
-        .dk-meldung:empty {{ display: none; }}
-        /* OP-HANDY-14: iOS-Safari zoomt beim Antippen in Felder unter 16 px
-           (hier 15 px) und laesst den Ausschnitt verschoben stehen. Im groben
-           Zeiger deshalb 16 px — dieselbe Regel wie im SPA-Stylesheet.
-           FIX-6: „grober Zeiger“ heisst hier wie im SPA-Stylesheet:
-           `(pointer: coarse)` — unabhängig von der Breite (das Formular ist
-           ohnehin immer schmal), und bewusst NICHT `not (... or ...)`
-           (Safari < 16.4 kennt die Stufe 4 der Media Queries nicht). */
-        @media (pointer: coarse) {{
-            input, select, textarea {{ font-size: 16px; }}
-        }}
-        @media (prefers-color-scheme: dark) {{
-            body {{ background: #14171d; color: #e8eaee; }}
-            .dk-login {{ background: #1d212a; box-shadow: none; border: 1px solid #2a2f3a; }}
-            p.sub, .hinweis {{ color: #9aa3b2; }}
-            input {{ background: #14171d; border-color: #333a47; }}
-            .dk-meldung {{
-                color: #ffc9c9; background: #3a1d1d; border-color: #5a2a2a;
-                border-left-color: #d06060;
-            }}
-        }}
-    </style>
+{seitenrahmen.head_block()}
 </head>
-<body>
-    <main class="dk-login">
+<body class="dk-seite">
+    <main class="dk-karte">
         <h1>{gemeinde}</h1>
-        <p class="sub">Bitte melde dich an, um fortzufahren.</p>{meldung_block}
-        <form method="post" action="{base_path.pfad('/api/method/login')}" accept-charset="utf-8">
+        <p class="dk-unterzeile">Bitte melde dich an, um fortzufahren.</p>{meldung_block}
+        <form class="dk-formular" method="post" action="{base_path.pfad('/api/method/login')}" accept-charset="utf-8">
             <input type="hidden" name="redirect-to" value="{ziel_kodiert}">{csrf_feld}
-            <label for="dk-usr">E-Mail oder Benutzername</label>
+            <label class="dk-feld" for="dk-usr">E-Mail oder Benutzername</label>
             <input id="dk-usr" name="usr" type="text" autocomplete="username"
                    autocapitalize="none" autocorrect="off" spellcheck="false" required
                    value="{email_html}">
-            <label for="dk-pwd">Passwort</label>
+            <label class="dk-feld" for="dk-pwd">Passwort</label>
             <input id="dk-pwd" name="pwd" type="password"
                    autocomplete="current-password" required{" autofocus" if meldung else ""}>
-            <button type="submit">Anmelden</button>
+            <button class="dk-knopf dk-knopf-weit" type="submit">Anmelden</button>
         </form>
-        <p class="hinweis">Anmeldelinks fuer Registrierung und Gastzugriff
+        <p class="dk-hinweis">Anmeldelinks fuer Registrierung und Gastzugriff
             findest du in der Nachricht der Gemeindeleitung.</p>
     </main>
     <script>
@@ -882,15 +860,106 @@ def _no_store(response: Response) -> Response:
     return response
 
 
-def _asset_response(pfad: Path) -> FileResponse:
-    """Hash-benanntes Build-Artefakt — `immutable` gecacht.
+# Vite benennt gebuendelte Dateien nach ihrem Inhalt (`<name>-<hash>.<ext>`).
+# Nur solche Dateinamen sind innerhalb eines Unterordners eindeutig gehasht;
+# feste Namen (`seiten.css`, `inter-latin-400-normal.woff2`) werden ueber den
+# Inhalt auseinandergehalten und brauchen keine Umleitung.
+_HASH_NAME = re.compile(r"^.+?-[A-Za-z0-9_\-]{6,}\.[A-Za-z0-9]+$")
 
-    Die Dateinamen enthalten einen Inhalts-Hash (`diakonos-CNOeSrea.js`).
-    Beim Aendern des Quellcodes aendert sich der Name, also kann ein Browser
-    das Ergebnis dauerhaft halten: `Cache-Control: public, max-age=31536000,
-    immutable`. Genau das ist der Unterschied zum HTML, das `no-store`
-    bekommen MUSS, weil es den CSRF-Token des Benutzers enthaelt.
+
+# Typ der Schriftdateien: `mimetypes` kennt `.woff2` je nach Python-Stand
+# nicht in jeder Umgebung (im Image gemessen: `application/octet-stream`).
+# Ein falscher Typ kann eine Schrift blockieren — deshalb hier fest.
+_SCHRIFT_TYPEN = {
+    ".woff2": "font/woff2",
+    ".woff": "font/woff",
+    ".ttf": "font/ttf",
+    ".otf": "font/otf",
+}
+
+
+def _datei_typ(pfad: Path) -> str | None:
+    """MIME-Typ einer Build-Datei (Schriften fest, sonst nach Endung)."""
+    typ = _SCHRIFT_TYPEN.get(pfad.suffix.lower())
+    return typ or mimetypes.guess_type(pfad.name)[0]
+
+
+def _adress_unterordner(pfad: Path) -> str | None:
+    """Unterordner, der in der Adresse stehen MUSS (sonst None).
+
+    Die SPA laedt ihre Dateien relativ zu ihrem HTML
+    (`/diakonos/assets/<name>`); dort ist ein Basename eindeutig. Ein
+    SERVER-SEITIGES Stylesheet kann aber eine Datei mit DEM SELBEN Basename
+    einbinden, die in einem ANDEREN Unterverzeichnis liegt: die Token-Datei
+    nennt `./schriften/inter-latin-400-normal.woff2`, waehrend Vite dieselbe
+    Schrift fuer die SPA als `assets/inter-latin-400-normal-<hash>.woff2`
+    fuehrt. Bei einem nackten Basename gewaenne die falsche Datei, und das CSS
+    loeste sie gegen `schriften/` bzw. `css/` auf (404 oder Anmeldeschranke).
+
+    Deshalb gilt: liegt die Datei in einem Build-Unterordner (`schriften/`,
+    `css/`, `chunks/`, `assets/`) und traegt sie einen Hash-Namen, wird ihre
+    Adresse IMMER mit diesem Unterordner gebildet — fuer die SPA sind diese
+    Dateien ohnehin unter genau dieser Adresse eingebunden (Vite `base`).
+    Fuer Root-Dateien und fest benannte Dateien gilt der Basename.
     """
+    if SPA_DIST is None or pfad.parent.name not in _ANFRAGE_UNTERORDNER:
+        return None
+    return pfad.parent.name if _HASH_NAME.match(pfad.name) else None
+
+
+def _asset_response(pfad: Path, angefragt: str | None = None) -> FileResponse:
+    """Build-Artefakt ausliefern — Cache-Regel und Adresse haengen am Dateinamen.
+
+    Die Dateinamen der SPA enthalten einen Inhalts-Hash
+    (`diakonos-CNOeSrea.js`). Beim Aendern des Quellcodes aendert sich der
+    Name, also kann ein Browser das Ergebnis dauerhaft halten:
+    `Cache-Control: public, max-age=31536000, immutable`. Genau das ist der
+    Unterschied zum HTML, das `no-store` bekommen MUSS, weil es den
+    CSRF-Token des Benutzers enthaelt.
+
+    DIE ADRESSE IST TEIL DER ANTWORT (ON-0b, F3)
+    Nennt die Anfrage den Unterordner nicht, in dem eine Hash-Datei liegt
+    (`_adress_unterordner`), wird auf die richtige Adresse umgeleitet
+    (`{Praefix}/diakonos/assets/<unterordner>/<name>`, 307). So steht in der
+    Adresse DASSELBE Verzeichnis wie beim Einbinden, und jede relative
+    `url()` im CSS loest auf die richtige Datei auf. Fragt der Browser die
+    richtige Adresse bereits an, wird direkt ausgeliefert (keine Schleife).
+
+    ON-0a: `diakronos-tokens.css` und `diakronos-seiten.css` tragen einen
+    FESTEN Namen — sie werden von den serverseitig gerenderten Seiten
+    eingebunden, die den Build-Hash nicht kennen koennen. Fuer diese beiden
+    waere `immutable` falsch: eine Aenderung an der Marke erreichte
+    wiederkehrende Besucher nie. Sie bekommen deshalb `no-cache` und einen
+    ETag; der Browser fragt nach und erhaelt bei unveraendertem Inhalt 304.
+
+    ON-0b (F3): Dasselbe gilt fuer die Schriftdateien der Server-Seiten
+    (`schriften/<name>.woff2`, fester Name) — sie werden `no-cache` mit dem
+    Typ `font/woff2` ausgeliefert.
+    """
+    unterordner = _adress_unterordner(pfad)
+    if unterordner:
+        voll = f"{SPA_PREFIX}/{UNTERORDNER_PREFIX}/{unterordner}/{pfad.name}"
+        if angefragt != f"{UNTERORDNER_PREFIX}/{unterordner}/{pfad.name}":
+            return RedirectResponse(url=base_path.pfad(voll), status_code=307)
+        # Die Adresse nennt den Unterordner bereits — direkt ausliefern.
+        typ = _datei_typ(pfad)
+        return FileResponse(
+            str(pfad),
+            media_type=typ,
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
+    if pfad.name in ({SEITENRAHMEN_TOKENS, SEITENRAHMEN_STIL}):
+        return FileResponse(
+            str(pfad),
+            headers={"Cache-Control": "no-cache"},
+        )
+    if pfad.parent.name == SEITENRAHMEN_SCHRIFTEN:
+        typ = _datei_typ(pfad) or "application/octet-stream"
+        return FileResponse(
+            str(pfad),
+            media_type=typ,
+            headers={"Cache-Control": "no-cache"},
+        )
     return FileResponse(
         str(pfad),
         headers={
@@ -1243,7 +1312,7 @@ def mount_spa(app: FastAPI) -> None:
             # gibt — dann ist der Pfad eine Seite und faellt an das Gate.
             echte_datei = _loese_build_datei(full_path)
             if echte_datei is not None:
-                return _asset_response(echte_datei)
+                return _asset_response(echte_datei, full_path)
 
         # 3. Anmeldepflicht fuer die geschuetzten Seiten.
         #

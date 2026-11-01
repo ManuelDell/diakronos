@@ -117,7 +117,7 @@ const success = ref(false)
   align-items: center;
   justify-content: center;
   padding: 24px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font);
   font-size: 14px;
   line-height: 1.5;
   color: var(--text);

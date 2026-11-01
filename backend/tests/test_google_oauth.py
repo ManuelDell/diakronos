@@ -37,7 +37,8 @@ def google(monkeypatch):
 
 
 def authorize(client):
-    response = client.get(PATH + "get_oauth_url")
+    # SEC-11b (F1): `get_oauth_url` SCHREIBT (OAuth-State in Redis) -> nur POST.
+    response = client.post(PATH + "get_oauth_url")
     assert response.status_code == 200
     data = response.json()["message"]
     params = parse_qs(urlsplit(data["url"]).query)
@@ -53,7 +54,7 @@ def test_oauth_url_state_expiry_and_session_binding(configured):
     keys = list(redis.scan_iter("gcal:oauth:*"))
     assert len(keys) == 1
     assert 0 < redis.ttl(keys[0]) <= 600
-    assert configured.get(PATH + "get_oauth_url", cookies={"sid": "foreign"}).status_code == 403
+    assert configured.post(PATH + "get_oauth_url", cookies={"sid": "foreign"}).status_code == 403
 
 
 def test_exchange_one_use_encrypted(configured, google, patched_db):
@@ -216,14 +217,17 @@ def test_google_writes_require_post(configured, endpoint):
 
 @pytest.mark.parametrize("endpoint", ["get_oauth_url", "get_google_calendars"])
 def test_oauth_guest_denied(guest_client, endpoint):
-    """Lesende Google-Endpunkte bleiben bei GET (SEC-11 aendert sie nicht)."""
-    assert guest_client.get(PATH + endpoint).status_code == 401
+    """`get_oauth_url` ist seit SEC-11b (F1) POST (schreibt den OAuth-State in
+    Redis); `get_google_calendars` ist ein Leser und bleibt bei GET."""
+    methode = "post" if endpoint == "get_oauth_url" else "get"
+    assert getattr(guest_client, methode)(PATH + endpoint).status_code == 401
 
 
 @pytest.mark.parametrize("endpoint", ["get_oauth_url", "get_google_calendars"])
 def test_oauth_nonadmin_denied(client, set_user, endpoint):
     set_user("unknown@example.org")
-    assert client.get(PATH + endpoint).status_code == 403
+    methode = "post" if endpoint == "get_oauth_url" else "get"
+    assert getattr(client, methode)(PATH + endpoint).status_code == 403
 
 
 @pytest.mark.parametrize("endpoint", ["exchange_code", "start_import"])

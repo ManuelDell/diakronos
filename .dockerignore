@@ -3,6 +3,10 @@
 # und den bereits gebauten dist/ (wird dort ebenfalls neu gebaut).
 **/node_modules
 **/dist
+# ON-0b (F3): Die Schriftdateien des Builds sind ~200 KB — riesig waeren sie in
+# JEDER Schicht. Der Frontend-Stage baut sie selbst; sie werden nie aus dem
+# Kontext kopiert.
+**/schriften
 **/.venv
 **/__pycache__
 **/*.pyc

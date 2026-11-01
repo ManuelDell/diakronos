@@ -160,6 +160,9 @@ import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkFilterChips from '../components/ui/DkFilterChips.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
 import GruppeAnlegenDialog from '../components/gruppen/GruppeAnlegenDialog.vue'
+// ON-0b: EIN Standardwert für alle farbfähigen Datensätze (vorher standen
+// hier '#667eea', in KalenderVerwaltung '#3b82f6' — zwei Wahrheiten).
+import { STANDARD_FARBE } from '../../shared/sichere-ausgabe.js'
 
 // Im Gruppen-Bereich eingebettet: eigener Kopf entfällt.
 defineProps({ embedded: { type: Boolean, default: false } })
@@ -213,7 +216,6 @@ function chipAusAdresse() {
  * Altbestand (`zzz-keine-farbe`) aus dem CSS und die Kachel bleibt farbig.
  */
 const FARB_MUSTER = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
-const STANDARD_FARBE = '#667eea'
 
 function kachelFarbe(g) {
   const wert = g && g.dienstbereich_farbe
@@ -421,8 +423,8 @@ defineExpose({ reload: loadData })
   position: absolute;
   top: 7px;
   right: 7px;
-  background: rgba(0,0,0,0.55);
-  color: white;
+  background: var(--badge-auf-bild);
+  color: var(--badge-auf-bild-text);
   font-size: 0.62rem;
   padding: 2px 7px;
   border-radius: 20px;

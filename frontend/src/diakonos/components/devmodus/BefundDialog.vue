@@ -260,7 +260,11 @@ function schwaerzen(index, ereignis) {
       const y = Math.min(start.y, jetzt.y) * (img.naturalHeight / img.clientHeight)
       const w = Math.abs(jetzt.x - start.x) * (img.naturalWidth / img.clientWidth)
       const h = Math.abs(jetzt.y - start.y) * (img.naturalHeight / img.clientHeight)
-      ctx.fillStyle = '#000'
+      // ON-0b: Schwärzen schwärzt den BILDPUNKT — die Farbe ist die Aussage,
+      // kein Gestaltungswert. Deshalb der Browser-Standard `black` statt eines
+      // Hex-Literals (kein Token wäre hier richtig: ein Theme-Dunkelgrau
+      // würde beim Speichern in die Bilddatei gebrannt).
+      ctx.fillStyle = 'black'
       ctx.fillRect(x, y, w, h)
     }
     function loslassen() {
@@ -405,7 +409,7 @@ function schliessen() { emit('schliessen') }
 .dk-dm-zeile { display: flex; gap: var(--sp-2); align-items: baseline; flex-wrap: wrap; }
 .dk-dm-label { color: var(--muted); }
 .dk-dm-label em { font-style: normal; font-size: var(--fs-sm); }
-.dk-dm-kontext { font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
+.dk-dm-kontext { font-family: var(--font-mono); overflow-wrap: anywhere; }
 .dk-dm-feld { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
 .dk-dm-feld textarea, .dk-dm-feld select {
   font: inherit; padding: 7px; border-radius: var(--radius-sm);

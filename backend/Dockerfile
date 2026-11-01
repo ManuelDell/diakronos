@@ -29,6 +29,9 @@ COPY backend/src/diakronos_app/api/website.py /backend/src/diakronos_app/api/web
 COPY backend/src/diakronos_app/website/primo.py /backend/src/diakronos_app/website/primo.py
 COPY backend/src/diakronos_app/settings.py /backend/src/diakronos_app/settings.py
 COPY backend/src/diakronos_app/models/website.py /backend/src/diakronos_app/models/website.py
+# ON-0a: der Frontend-Waechter (tests/on0a-*.test.mjs) haelt fest, dass das
+# Backend Tokens + Grund-Stylesheet ueber GENAU diesen Helfer einbindet.
+COPY backend/src/diakronos_app/anmeldung/seitenrahmen.py /backend/src/diakronos_app/anmeldung/seitenrahmen.py
 COPY backend/src/diakronos_app/api/verantwortliche.py /backend/src/diakronos_app/api/verantwortliche.py
 COPY backend/src/diakronos_app/frappe_compat/exceptions.py /backend/src/diakronos_app/frappe_compat/exceptions.py
 COPY backend/src/diakronos_app/frappe_compat/router.py /backend/src/diakronos_app/frappe_compat/router.py
@@ -52,13 +55,25 @@ COPY backend/tests/test_schema_drift.py /backend/tests/test_schema_drift.py
 # Betriebsdateien unter deploy/ (Vorbau, Eingang). Nur diese, kein komplettes backend/src.
 COPY backend/src/diakronos_app/devmodus/ /backend/src/diakronos_app/devmodus/
 COPY deploy/ /deploy/
+# (WEB-10 will hier `docs/BETRIEBSANLEITUNG.md` ins Bild legen — diese Datei
+# steht aber in `.dockerignore` (`docs/`), also gibt es sie im
+# Build-Kontext nicht. Der Test `test_web10_kontakt.py` laeuft deshalb wie
+# bisher nur im Repo, nicht im Image. Ob die Anleitung ins Image soll, ist
+# eine Betreiberentscheidung (Bildgroesse vs. Doku im Container) und nicht
+# Teil dieser Karte.)
 # SEC-11 (C3): der Waechter `tests/sec11-get-schreibend.test.mjs` liest die
 # Liste der schreibenden Endpunkte aus dem Inventar (Regel 13: Dateien
 # ausserhalb von frontend/ brauchen eine ausdrueckliche COPY-Zeile). `docs/`
 # steht in .dockerignore, deshalb liegt das Inventar im Python-Paket.
 COPY backend/src/diakronos_app/frappe_compat/inventar/ /backend/src/diakronos_app/frappe_compat/inventar/
+# SEC-11b (F4): `tests/sec11b-inventar-rumpf.test.mjs` haelt die exakte
+# C4-Ausnahmemenge der Herkunftsschranke am Quelltext fest — nur diese Datei.
+COPY backend/src/diakronos_app/frappe_compat/auth_middleware.py /backend/src/diakronos_app/frappe_compat/auth_middleware.py
 # WEB-5b (S4): die neuen Web5b-Tests stehen am ENDE der Liste (siehe unten).
-RUN node --test tests/web1-*.test.mjs tests/web1b-*.test.mjs src/diakonos/components/planrahmen/*.test.mjs src/diakonos/components/lieder/*.test.mjs src/diakonos/components/ui/*.test.mjs src/diakonos/components/devmodus/*.test.mjs src/diakonos/composables/*.test.mjs tests/planrahmen-*.test.mjs tests/devmodus-*.test.mjs tests/dm2-*.test.mjs tests/dm3-*.test.mjs tests/dm3b-*.test.mjs tests/p0-4*.test.mjs tests/waechter-tokens.test.mjs tests/dkbutton-icon.test.mjs tests/organigramm-xss-farbe.test.mjs tests/google-*.test.mjs tests/p1-9-*.test.mjs tests/p1-10-*.test.mjs tests/p1-11-*.test.mjs tests/p1-12-*.test.mjs tests/n0-*.test.mjs tests/n1-*.test.mjs tests/p1-1-*.test.mjs tests/p1-1b-*.test.mjs tests/n2-*.test.mjs tests/n3-*.test.mjs tests/p1-2-*.test.mjs tests/p1-3-*.test.mjs tests/p1-4-*.test.mjs tests/p1-4b-*.test.mjs tests/n4-*.test.mjs tests/p1-13-*.test.mjs tests/p1-5-*.test.mjs tests/p1-6-*.test.mjs tests/p1-5c-*.test.mjs tests/p2-2-*.test.mjs tests/p2-6-*.test.mjs tests/p2-4-*.test.mjs tests/p1-8-*.test.mjs tests/n5-*.test.mjs tests/n6-*.test.mjs tests/n7-*.test.mjs tests/n8-*.test.mjs tests/p21-*.test.mjs tests/n9-*.test.mjs tests/n9b-*.test.mjs tests/p2-3-*.test.mjs tests/p2-3b-*.test.mjs tests/n10-*.test.mjs tests/p2-5-*.test.mjs tests/p3-1-*.test.mjs tests/n11-*.test.mjs tests/p3-1b-*.test.mjs tests/p3-4-*.test.mjs tests/p3-4b-*.test.mjs tests/n12-*.test.mjs tests/p3-1c-*.test.mjs tests/p3-1d-*.test.mjs tests/p3-4c-*.test.mjs tests/rest1-*.test.mjs tests/des-rest-*.test.mjs tests/rest3-*.test.mjs tests/austritt-*.test.mjs tests/bk1-*.test.mjs tests/dsgvo2b-*.test.mjs tests/dsgvo2c-*.test.mjs tests/dsgvo2c2-*.test.mjs tests/dsgvo2d-*.test.mjs tests/ma1-*.test.mjs tests/ma1b-*.test.mjs tests/dev7-*.test.mjs tests/dev7b-*.test.mjs tests/dev1-*.test.mjs tests/dev3-*.test.mjs tests/dev5-*.test.mjs tests/dev6-*.test.mjs tests/dev8-*.test.mjs tests/dev4-*.test.mjs tests/dev4b-*.test.mjs tests/dep1-*.test.mjs tests/plan-w1-*.test.mjs tests/plan-m1-*.test.mjs tests/dep2-build-kette.test.mjs tests/dep2-review.test.mjs tests/dep2b-*.test.mjs tests/reg1a-*.test.mjs tests/uxa2a-*.test.mjs tests/uxa2a2-*.test.mjs tests/uxa2b-*.test.mjs tests/org-1-*.test.mjs tests/reg1b-*.test.mjs tests/reg1c-*.test.mjs tests/uxb2b-*.test.mjs tests/uxc3a-*.test.mjs tests/uxc3b-*.test.mjs tests/fix1-*.test.mjs tests/fix3-*.test.mjs tests/fix2-*.test.mjs tests/fix5-*.test.mjs tests/fix6-*.test.mjs tests/fix6b-*.test.mjs tests/fix4-*.test.mjs tests/fix6c-*.test.mjs tests/fix6d-*.test.mjs tests/sec3-*.test.mjs tests/sec7-*.test.mjs tests/sec8-*.test.mjs tests/sec9-*.test.mjs tests/web3-*.test.mjs tests/web4-*.test.mjs tests/web2-*.test.mjs tests/sec10-*.test.mjs tests/web5b-*.test.mjs tests/web7-*.test.mjs tests/web8b-*.test.mjs tests/web8c-*.test.mjs tests/web8d-*.test.mjs tests/sec11-*.test.mjs tests/bs1a-*.test.mjs tests/bs1a2-*.test.mjs --test \
+# ON-0b: Rechner und Bestandsliste des Frontend-Waechters liegen IN frontend/
+# (frontend/tools/) und kommen mit `COPY frontend/ ./` mit — keine zusaetzliche
+# COPY-Zeile noetig (Regel 13 bleibt erfuellt: nichts ausserhalb von frontend/).
+RUN node --test tests/web1-*.test.mjs tests/web1b-*.test.mjs src/diakonos/components/planrahmen/*.test.mjs src/diakonos/components/lieder/*.test.mjs src/diakonos/components/ui/*.test.mjs src/diakonos/components/devmodus/*.test.mjs src/diakonos/composables/*.test.mjs tests/planrahmen-*.test.mjs tests/devmodus-*.test.mjs tests/dm2-*.test.mjs tests/dm3-*.test.mjs tests/dm3b-*.test.mjs tests/p0-4*.test.mjs tests/waechter-tokens.test.mjs tests/dkbutton-icon.test.mjs tests/organigramm-xss-farbe.test.mjs tests/google-*.test.mjs tests/p1-9-*.test.mjs tests/p1-10-*.test.mjs tests/p1-11-*.test.mjs tests/p1-12-*.test.mjs tests/n0-*.test.mjs tests/n1-*.test.mjs tests/p1-1-*.test.mjs tests/p1-1b-*.test.mjs tests/n2-*.test.mjs tests/n3-*.test.mjs tests/p1-2-*.test.mjs tests/p1-3-*.test.mjs tests/p1-4-*.test.mjs tests/p1-4b-*.test.mjs tests/n4-*.test.mjs tests/p1-13-*.test.mjs tests/p1-5-*.test.mjs tests/p1-6-*.test.mjs tests/p1-5c-*.test.mjs tests/p2-2-*.test.mjs tests/p2-6-*.test.mjs tests/p2-4-*.test.mjs tests/p1-8-*.test.mjs tests/n5-*.test.mjs tests/n6-*.test.mjs tests/n7-*.test.mjs tests/n8-*.test.mjs tests/p21-*.test.mjs tests/n9-*.test.mjs tests/n9b-*.test.mjs tests/p2-3-*.test.mjs tests/p2-3b-*.test.mjs tests/n10-*.test.mjs tests/p2-5-*.test.mjs tests/p3-1-*.test.mjs tests/n11-*.test.mjs tests/p3-1b-*.test.mjs tests/p3-4-*.test.mjs tests/p3-4b-*.test.mjs tests/n12-*.test.mjs tests/p3-1c-*.test.mjs tests/p3-1d-*.test.mjs tests/p3-4c-*.test.mjs tests/rest1-*.test.mjs tests/des-rest-*.test.mjs tests/rest3-*.test.mjs tests/austritt-*.test.mjs tests/bk1-*.test.mjs tests/dsgvo2b-*.test.mjs tests/dsgvo2c-*.test.mjs tests/dsgvo2c2-*.test.mjs tests/dsgvo2d-*.test.mjs tests/ma1-*.test.mjs tests/ma1b-*.test.mjs tests/dev7-*.test.mjs tests/dev7b-*.test.mjs tests/dev1-*.test.mjs tests/dev3-*.test.mjs tests/dev5-*.test.mjs tests/dev6-*.test.mjs tests/dev8-*.test.mjs tests/dev4-*.test.mjs tests/dev4b-*.test.mjs tests/dep1-*.test.mjs tests/plan-w1-*.test.mjs tests/plan-m1-*.test.mjs tests/dep2-build-kette.test.mjs tests/dep2-review.test.mjs tests/dep2b-*.test.mjs tests/reg1a-*.test.mjs tests/uxa2a-*.test.mjs tests/uxa2a2-*.test.mjs tests/uxa2b-*.test.mjs tests/org-1-*.test.mjs tests/reg1b-*.test.mjs tests/reg1c-*.test.mjs tests/uxb2b-*.test.mjs tests/uxc3a-*.test.mjs tests/uxc3b-*.test.mjs tests/fix1-*.test.mjs tests/fix3-*.test.mjs tests/fix2-*.test.mjs tests/fix5-*.test.mjs tests/fix6-*.test.mjs tests/fix6b-*.test.mjs tests/fix4-*.test.mjs tests/fix6c-*.test.mjs tests/fix6d-*.test.mjs tests/sec3-*.test.mjs tests/sec7-*.test.mjs tests/sec8-*.test.mjs tests/sec9-*.test.mjs tests/web3-*.test.mjs tests/web4-*.test.mjs tests/web2-*.test.mjs tests/sec10-*.test.mjs tests/web5b-*.test.mjs tests/web7-*.test.mjs tests/web8b-*.test.mjs tests/web8c-*.test.mjs tests/web8d-*.test.mjs tests/sec11-*.test.mjs tests/bs1a-*.test.mjs tests/bs1a2-*.test.mjs tests/on0a-*.test.mjs tests/on0b-*.test.mjs tests/sec11b-*.test.mjs --test \
  && npm run build
 
 
@@ -141,6 +156,11 @@ COPY backend/src /app/src
 COPY backend/tests /app/tests
 # P3-2: Importwerkzeuge werden ebenfalls im Image regressionstestet.
 COPY tools/import_aus_frappe.py tools/import_pruefung.py /app/tools/
+# SEC-11 (C2) / SEC-11b (F2,F3): die Inventarwerkzeuge selbst. Das Inventar
+# wird von `tools/whitelist_inventar.py` aus dem Register erzeugt und die
+# Rumpfpruefung (`tools/whitelist_lesen.py`) von ihm UND vom Waechter-Test
+# `tests/test_sec11_methoden.py` benutzt — im Image liegen sie sonst nirgends.
+COPY tools/whitelist_inventar.py tools/whitelist_lesen.py /app/tools/
 # PUB-2: Die Demo-Daten (Seed-Skript + Beispieldaten) werden im Image
 # getestet (`make test` laeuft IM Container; tests/test_demo_musterhausen.py
 # importiert `musterhausen`). Sie werden NICHT vom Entrypoint ausgefuehrt.

@@ -252,6 +252,9 @@ test('SEC-9 (S2): `document.write`-Ausnahmen sind ausnahmslos escaped', () => {
     // `daten` ist ein `data:`-Bild (aus dem eigenen QR-Renderer) und steht in
     // einem `src`-Attribut — dort ist Escape nicht nötig, aber auch nicht
     // schädlich; es wird deshalb mitgeprüft und ist ebenfalls escaped.
+    // ON-0b: `cssWert('--x')` liefert einen Wert aus `tokens.css` und escaped
+    // ihn in der Funktion selbst (dieselbe Regel wie escapeHtml) — deshalb ist
+    // auch dieser Aufruf eine geschützte Stelle.
     const aufrufe = quelle.match(/document\.write\(([\s\S]*?)\n\s*\)/g) || []
     for (const aufruf of aufrufe) {
       const stellen = aufruf.match(/\$\{([^}]*)\}/g) || []
@@ -260,6 +263,8 @@ test('SEC-9 (S2): `document.write`-Ausnahmen sind ausnahmslos escaped', () => {
         // `daten` ist das selbst erzeugte `data:`-Bild — keine Nutzereingabe.
         if (/^\s*daten\s*$/.test(innen)) continue
         if (/(^|[^\w$.])escapeHtml\s*\(/.test(innen)) continue
+        // ON-0b: Token-Wert, in der Funktion selbst escaped.
+        if (/(^|[^\w$.])cssWert\s*\(/.test(innen)) continue
         verstoesse.push(`${relativ(datei)}: ungeschützte Stelle ${stelle}`)
       }
     }

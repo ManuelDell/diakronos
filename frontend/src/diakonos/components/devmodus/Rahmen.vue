@@ -214,10 +214,13 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* ON-0b: Keine eigenen Farben/Radien/Schriften mehr — alles aus tokens.css.
+   Dieses Werkzeug sitzt ÜBER der ganzen App (auch über Fotos), deshalb
+   eigene, deckende Signal-Tokens (--dev-*) statt der Flächen-Tokens. */
 .dk-dev-rahmen {
   position: fixed;
   inset: 0;
-  border: 4px solid #e02424;
+  border: 4px solid var(--dev-rot);
   pointer-events: none;
   z-index: 2147483000;
   box-sizing: border-box;
@@ -233,37 +236,39 @@ onUnmounted(() => {
   flex-wrap: wrap;
   justify-content: flex-end;
   z-index: 2147483001;
-  font: 12px/1.2 system-ui, sans-serif;
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  line-height: 1.2;
 }
 .dk-dev-etikett {
-  background: #e02424;
-  color: #fff;
+  background: var(--dev-rot);
+  color: var(--dev-leiste-text);
   font-weight: 700;
   letter-spacing: 0.05em;
   padding: 3px 7px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 .dk-dev-taste {
-  background: rgba(17, 17, 17, 0.82);
-  color: #fff;
+  background: var(--dev-leiste);
+  color: var(--dev-leiste-text);
   padding: 3px 7px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   white-space: nowrap;
 }
 .dk-dev-knopf {
   font: inherit;
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: #e02424;
-  color: #fff;
+  border: 1px solid var(--dev-linie);
+  background: var(--dev-rot);
+  color: var(--dev-leiste-text);
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
-.dk-dev-knopf.is-aus { background: rgba(17, 17, 17, 0.82); }
+.dk-dev-knopf.is-aus { background: var(--dev-leiste); }
 .dk-dev-umriss {
   position: fixed;
-  border: 2px solid #e02424;
-  background: rgba(224, 36, 36, 0.10);
+  border: 2px solid var(--dev-rot);
+  background: var(--dev-rot-soft);
   pointer-events: none;
   z-index: 2147482999;
 }
@@ -271,11 +276,13 @@ onUnmounted(() => {
   position: absolute;
   top: -22px;
   left: 0;
-  background: #e02424;
-  color: #fff;
-  font: 11px/1.2 ui-monospace, monospace;
+  background: var(--dev-rot);
+  color: var(--dev-leiste-text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.2;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--sp-1);
   white-space: nowrap;
   max-width: 60vw;
   overflow: hidden;

@@ -98,6 +98,111 @@ sicheren Vorgaben), dokumentiert in `.env.example` und BETRIEBSANLEITUNG.
   und private Adressen werden nicht gezählt. Der Notweg zum Entsperren ist das
   CLI-Werkzeug (`python -m diakronos_app.cli_entsperren`).
 
+### Gestaltung: eine Quelle
+
+Farben, Schriften, Radien, Abstände und Schatten stehen **ausschließlich** in
+`frontend/src/diakonos/tokens.css` (CSS-Custom-Properties). Kein `.vue`, keine
+serverseitig gerenderte Seite und kein gemeinsames Stylesheet trägt einen
+eigenen Hex-/`rgb()`-Wert, eine feste Schriftfamilie oder eine feste
+Radius-Zahl. Fehlt ein Wert, wird er **als Token ergänzt** — mit
+Dunkel-Gegenstück unter `[data-theme="dark"]`, sofern der Wert
+themenabhängig ist (Schriftfamilien sind es nicht).
+
+**Die drei Ebenen**
+
+| Ebene | Datei | Inhalt |
+|---|---|---|
+| Tokens | `frontend/src/diakonos/tokens.css` | Rohskala + semantische Tokens, hell und dunkel |
+| Grund-Stylesheet für Server-Seiten | `frontend/src/ssot/seiten.css` | Karte, Felder, Knöpfe, Hinweis-/Fehlerboxen — nur `var(--…)` |
+| SPA-Design-System | `frontend/src/diakonos/index.css` | Komponenten der Vue-Oberfläche |
+
+**Wie Server-Seiten sie einbinden.** Der Frontend-Build schreibt beide Dateien
+unter festen Namen ins Build-Verzeichnis:
+
+```
+frontend/src/diakonos/tokens.css  ->  dist/diakronos-tokens.css
+frontend/src/ssot/seiten.css      ->  dist/diakronos-seiten.css
+```
+
+Die Adressen baut **eine** Stelle,
+`backend/src/diakronos_app/anmeldung/seitenrahmen.py`:
+
+```python
+seitenrahmen.head_block()   # -> zwei <link rel="stylesheet">, präfixbewusst
+seitenrahmen.tokens_url()   # -> {Präfix}/diakonos/assets/diakronos-tokens.css
+seitenrahmen.seiten_url()   # -> {Präfix}/diakonos/assets/diakronos-seiten.css
+seitenrahmen.schrift_url(n) # -> {Präfix}/diakonos/assets/schriften/<n>.woff2
+seitenrahmen.versions_hash() # -> Inhalts-Hash für ?v=… (Cache-Busting)
+```
+
+Jede neue serverseitig gerenderte Seite schreibt `{seitenrahmen.head_block()}`
+in den `<head>` — keine eigene `<style>`-Block, keine eigene Farbe. Die
+Klassen des Grund-Stylesheets (`.dk-seite`, `.dk-karte`, `.dk-feld`,
+`.dk-knopf`, `.dk-hinweis`, `.dk-meldung`, `.dk-formular`) sind der Vertrag.
+
+**Schrift (ON-0b, F3).** `tokens.css` bindet „Inter“ über `@fontsource/inter`
+ein (lokal, keine fremde Anfrage). Der Build setzt die `@import`-Zeilen
+wörtlich ein UND schreibt jede `url()`-Angabe auf den festen Ordner
+`schriften/` um — die Dateien werden unter dem **Namen aus der Quelle**
+ausgegeben:
+
+```
+dist/diakronos-tokens.css       -> url(./schriften/inter-latin-400-normal.woff2)
+dist/schriften/inter-latin-*.woff2|woff
+```
+
+`spa.py` liefert sie mit `font/woff2` bzw. `font/woff` und `no-cache`, **vor**
+der Anmeldeschranke. Die Passwort-Seite trägt in ihrer CSP zusätzlich
+`font-src 'self'` (ohne diese Quelle blockt `default-src 'none'` die Schrift).
+
+**Cache.** Feste Dateinamen → `spa.py` liefert sie mit `Cache-Control:
+no-cache` plus ETag (nicht `immutable` wie die hash-benannten SPA-Artefakte).
+Zusätzlich hängen die `<link>`-Adressen einen Inhalts-Hash an
+(`?v=<12 Zeichen>`, ON-0b F7). Der Hash deckt Tokens, Grundregeln und
+Schriften ab: eine Änderung → neue Adresse, auch für Zwischenspeicher, die
+`no-cache` nicht beantworten.
+
+**Hash-Namen aus Unterordnern.** Vite legt gebündelte Dateien in `css/`,
+`chunks/`, `assets/` ab und benennt sie nach Inhalt. `spa.py` liefert solche
+Dateien nur unter ihrer Unterordner-Adresse aus (`/diakonos/assets/css/…`)
+und leitet eine Anfrage ohne Unterordner dorthin um (307). Sonst lösten die
+relativen `url()` im CSS (z. B. `./<font>-<hash>.woff2`) falsch auf.
+
+**Kein Build.** Fehlt `dist/` (oder eines der beiden Stylesheets), warnen
+beim Start BEIDE Stellen: `spa.mount_spa` (Warnung im Log) und der
+Entrypoint über `python -m diakronos_app.frontend_build`
+(„Frontend-Build fehlt — Server-Seiten ohne Gestaltung (npm run build in
+frontend/ ausfuehren)“). Der Exitcode bleibt 0: eine ungestaltete Anmeldung
+ist bedienbar, ein Startverbot wäre härter als der Befund.
+
+**Der Wächter.** Vier Tests, alle laufen im Image:
+
+- `backend/tests/test_on0a_css_ssot.py` — Fundstellen in den Python-HTML-Vorlagen
+  unter `backend/src/` (jede Zeichenkette mit HTML-Merkmalen einschließlich
+  `style=`, nicht nur ganze Seiten), plus die Auslieferung beider Dateien. Der
+  Bestand steht in `tools/css-ssot-bestand.txt` und darf **nur schrumpfen**;
+  wird eine Stelle behoben, muss die Zahl dort gesenkt werden, sonst wird der
+  Test rot.
+- `frontend/tests/on0b-css-ssot.test.mjs` (ON-0b, F1+F2) — gilt für ALLE
+  `frontend/src/**` (außer `tokens.css`): keine Farben, keine
+  `font-family`/`font:`-Kurzform mit Schriftnamen, auch nicht in Inline-Stilen.
+  Der Bestand steht in `frontend/tools/css-ssot-bestand.txt` (Rechner:
+  `frontend/tools/css-ssot-bestand.mjs`, `--schreiben`); Maßstab ist die im
+  Test hinterlegte Obergrenze — höher oder neu = rot. Datendaten-Farben
+  (Google-, Kalender-, Kachelfarben) sind dort als Ausnahmen dokumentiert.
+- `frontend/tests/on0a-css-ssot.test.mjs` — `seiten.css` frei von Farben,
+  Schriften und Radien; der Build erzeugt beide festen Namen; das Backend nutzt
+  den Helfer.
+- `backend/tests/test_on0b_schriften.py` — jede `url()` der ausgelieferten
+  Server-Stylesheets liefert 200 mit `font/*` (mit und ohne Präfix), die
+  SPA-Schriften lösen auf, die Passwort-CSP erlaubt `font-src`, ohne Build
+  wird gewarnt, und die Schriftgrößen der Anmeldung (13/14/15/12 px) werden
+  nicht kleiner.
+
+Neue Ausnahmen sind **nicht** vorgesehen. Ein unvermeidbarer Sonderfall (etwa
+ein eigenes Druckfenster-Dokument ohne Token-Geltungsbereich) wird im Test mit
+Begründung eingetragen — nicht durch Abschalten der Regel.
+
 ## 4. Offene Punkte
 
 Diese Liste ist ehrlich gemeint und gehört gepflegt:
