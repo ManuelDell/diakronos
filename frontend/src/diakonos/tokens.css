@@ -450,6 +450,20 @@
   --fs-unterzeile: 14px; /* Satz unter der Ueberschrift (vorher 14 px) */
   --fs-eingabe: 15px;   /* Text IN einem Eingabefeld (vorher 15 px) */
   --fs-hinweis: 12px;   /* kleiner Hinweis unter dem Formular (vorher 12 px) */
+  /* ON-0c (R1): die drei restlichen Rollen derselben Seiten. Vorher standen
+     sie als allgemeine Tokens im Stylesheet — und waren KLEINER als das, was
+     die Seiten vor ON-0a selbst trugen:
+       Knopf      14 px (--fs)      -> 15 px
+       Meldung    12 px (--fs-sm)   -> 14 px
+       Titel     19 px (--fs-h2)    -> 20 px
+     Der Fliesstext der Passwort-Seite (`.dk-unterzeile`) stand dort mit 14 px
+     und ist mit --fs-unterzeile ebenfalls abgedeckt; das Grund-Stylesheet
+     fuehrt dafuer die Rolle --fs-fliess (16 px, siehe unten). Alle vier sind
+     Untergrenzen in backend/tests/test_on0b_schriften.py (MINIMUM). */
+  --fs-knopf:   15px;   /* Beschriftung eines Knopfes (vorher 14 px) */
+  --fs-meldung: 14px;   /* Text einer Fehler-/Hinweisbox (vorher 12 px) */
+  --fs-titel:   20px;   /* Ueberschrift einer Server-Seite (vorher 19 px) */
+  --fs-fliess:  16px;   /* Fliesstext der Server-Seiten (vorher 14 px) */
 }
 
 /* =====================================================================

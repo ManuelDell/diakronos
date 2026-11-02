@@ -21,16 +21,20 @@
    Klassen (Vertrag für ON-1 und weitere Server-Seiten):
      .dk-seite          Seitengerüst: zentriert, volle Höhe, Grundfläche
      .dk-karte          Karte darin: maximale Breite, Fläche, Radius, Schatten
-     .dk-karte h1       Überschrift
-     .dk-karte .dk-unterzeile
-     .dk-feld           Beschriftung eines Formularfelds
-     input/textarea/select.Die Felder selbst brauchen keine Klasse
-     .dk-knopf          Hauptknopf (Knopf oder Verweis)
+     .dk-karte h1       Überschrift            (--fs-titel, 20 px)
+     .dk-karte .dk-unterzeile  Fließtext unter der Überschrift (--fs-fliess, 16 px)
+     .dk-feld           Beschriftung eines Formularfelds (--fs-feld)
+     input/textarea/select.Die Felder selbst brauchen keine Klasse (--fs-eingabe)
+     .dk-knopf          Hauptknopf (Knopf oder Verweis)    (--fs-knopf, 15 px)
      .dk-knopf-weit     Zusatz: volle Breite (Anmeldeseite)
      .dk-knopf-sekundaer
-     .dk-hinweis        kleine Hilfszeile unter dem Formular
-     .dk-meldung        Fehler-/Hinweisbox (role="alert" steht im Markup)
+     .dk-hinweis        kleine Hilfszeile unter dem Formular (--fs-hinweis)
+     .dk-meldung        Fehler-/Hinweisbox (--fs-meldung, 14 px; role="alert"
+                        steht im Markup)
      .dk-formular       Formularblock (Abstand zwischen den Feldern)
+
+   Die Rollen-Tokens stehen in `tokens.css` (Abschnitt 3d) — hier stehen keine
+   Schriftgrößen als Zahl (ON-0c, R1).
    ===================================================================== */
 
 /* ── Seitengerüst ─────────────────────────────────────────────────────── */
@@ -83,7 +87,8 @@ body.dk-seite {
 
 .dk-karte h1 {
   margin: 0 0 var(--sp-1);
-  font-size: var(--fs-h2);
+  /* ON-0c (R1): Rolle "Titel" (20 px, vorher 19) — nicht kleiner als vor ON-0a. */
+  font-size: var(--fs-titel);
   font-weight: var(--fw-h);
   color: var(--text);
 }
@@ -91,8 +96,10 @@ body.dk-seite {
 .dk-unterzeile {
   margin: 0 0 var(--sp-6);
   color: var(--muted);
-  /* ON-0b (F5): Rolle "Unterzeile" (14 px, wie vorher). */
-  font-size: var(--fs-unterzeile);
+  /* ON-0b (F5): Rolle "Unterzeile" (14 px, wie vorher).
+     ON-0c (R1): der Fliesstext der Passwort-Seite steht hier — er ist mit
+     der Rolle "Fliesstext" (16 px) nicht kleiner als vor ON-0a. */
+  font-size: var(--fs-fliess);
 }
 
 /* ── Formular ─────────────────────────────────────────────────────────── */
@@ -154,7 +161,8 @@ select {
   display: inline-block;
   padding: var(--sp-3) var(--sp-4);
   font-family: inherit;
-  font-size: var(--fs);
+  /* ON-0c (R1): Rolle "Knopf" (15 px, vorher 14). */
+  font-size: var(--fs-knopf);
   font-weight: 600;
   text-align: center;
   text-decoration: none;
@@ -205,7 +213,9 @@ select {
 .dk-meldung {
   margin: 0 0 var(--sp-4);
   padding: var(--sp-3);
-  font-size: var(--fs-sm);
+  /* ON-0c (R1): Rolle "Meldung" (14 px, vorher 12) — die Fehlerbox ist die
+     wichtigste Zeile der Seite, sie war die kleinste. */
+  font-size: var(--fs-meldung);
   color: var(--err);
   background: var(--err-soft);
   border: 1px solid var(--line-strong);

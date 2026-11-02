@@ -87,6 +87,7 @@ from diakronos_app.frappe_compat.session import session
 # UXD-R28/DES-04: die eine Farbreinigungsstelle — dieselbe nutzt das
 # Organigramm (`api/orgchart_api.py`). Keine zweite Kopie der Pruefregel.
 from diakronos_app.api.farbe import _normalisiere_farbe  # noqa: F401  (Re-Export fuer Tests)
+from diakronos_app.api.farbe import STANDARD_FARBE
 
 ADMIN_ROLES = ["System Manager", "Mitgliederadministrator"]
 
@@ -1441,7 +1442,7 @@ def get_gruppen_page_data():
     my_groups = verantwortlich_names | member_names
 
     def g_dict(g, ist_verantwortlich=False, ist_meins=False):
-        db_name, db_farbe = "", "#667eea"
+        db_name, db_farbe = "", STANDARD_FARBE
         if g.get("dienstbereich"):
             d = get_value(
                 "Dienstbereich", g["dienstbereich"], ["ministry", "farbe"], as_dict=True

@@ -22,7 +22,9 @@
  *       farbe  #rgb/#rrggbb/#rrggbbaa, rgb()/rgba(), hsl()/hsla()
  *       ff     `font-family:` mit konkretem Wert (nicht inherit/var())
  *       font   `font:`-Kurzschreibweise, die einen Schriftnamen nennt
- *              (`font: 12px/1.2 system-ui, sans-serif`), nicht nur Groesse
+ *              (`font: 12px/1.2 system-ui, sans-serif`), oder eine, die
+ *              Anfuehrungszeichen/Komma traegt (`font: 12px/1.2 "Foo Bar"`)
+ *              — ON-0c (R4): vorher fiel der letzte Fall durchs Raster
  *   * Inline-Stile (`style="…"`) sind Text wie jeder andere und werden
  *     deshalb mitgezaehlt.
  *   * Ausnahmen (dokumentiert, zaehlen NICHT) stehen in AUSNAHMEN:
@@ -92,7 +94,10 @@ const KOMMENTAR = /\/\*[\s\S]*?\*\/|(?:^|\s)\/\/[^\n]*/g
 
 const FARB = /#[0-9a-fA-F]{3,8}\b|\brgba?\s*\(|\bhsla?\s*\(/g
 const FF = /font-family\s*:\s*([^;}"']*)/gi
-const FSHORT = /\bfont\s*:\s*([^;}"']*)/gi
+// ON-0c (R4): Der Wert darf Anfuehrungszeichen ENTHALTEN (`"Foo Bar"`,
+// `'Foo Bar'`) — vorher endete die Erfassung am ersten Anfuehrungszeichen,
+// und `font: 12px/1.2 "Foo Bar"` fiel komplett durchs Raster.
+const FSHORT = /\bfont\s*:\s*((?:[^;}"']|"[^"]*"|'[^']*')+)/gi
 const KEINE_EIGENE_SCHRIFT = /^\s*(inherit|var\(--[\w-]+\)|revert|unset|initial|normal)\s*$/i
 const SCHRIFTNAME =
   /\b(Arial|Helvetica|Inter|Roboto|Georgia|Times|Verdana|Tahoma|system-ui|sans-serif|serif|monospace|ui-monospace|Menlo|Consolas|-apple-system|BlinkMacSystemFont)\b/i
@@ -115,6 +120,13 @@ function* dateien(dir) {
   }
 }
 
+/**
+ * ON-0c (R4): Kurzschreibweise mit ANFUEHRUNGSZEICHEN oder KOMMA zaehlt immer
+ * als Schriftwahl — auch wenn kein bekannter Name aus SCHRIFTNAME dabei ist
+ * (`font: 12px/1.2 "Foo Bar"`). Vorher fiel genau dieser Fall durchs Raster.
+ */
+const FSHORT_FAMILIE = /["',]/
+
 /** Alle Fundstellen einer Datei — als Liste der gefundenen Literale. */
 export function fundstellen(text) {
   const ohneKommentar = text.replace(KOMMENTAR, ' ')
@@ -124,7 +136,13 @@ export function fundstellen(text) {
     if (!KEINE_EIGENE_SCHRIFT.test(m[1])) treffer.push(`font-family:${m[1].trim()}`)
   }
   for (const m of ohneKommentar.matchAll(FSHORT)) {
-    if (SCHRIFTNAME.test(m[1])) treffer.push(`font:${m[1].trim()}`)
+    // Ein Treffer, der schon als `font-family:` erfasst wurde, zaehlt nicht
+    // doppelt: der Ausdruck `\bfont\s*:` verlangt den Doppelpunkt direkt nach
+    // `font`, `font-family:` hat dort einen Bindestrich — es gibt also keinen
+    // Ueberschneidungsfall.
+    if (SCHRIFTNAME.test(m[1]) || FSHORT_FAMILIE.test(m[1])) {
+      treffer.push(`font:${m[1].trim()}`)
+    }
   }
   return treffer
 }

@@ -38,9 +38,14 @@ REPO = BACKEND.parent
 QUELLE = BACKEND / "src"
 # ON-0b: die eingefrorene Liste fuer VUE-Quellen liegt seit ON-0b in
 # `frontend/tools/` (der Rechner dazu ebenso — beide IN `frontend/`, damit der
-# Image-Build sie ohne zusaetzliche COPY-Zeile sieht). Fuer die Backend-Vorlagen
-# fuehrt sie dort keinen Eintrag (der Bestand ist leer, siehe unten), deshalb
-# bleibt es bei einem leeren Bestand, wenn die Datei nicht da ist.
+# Image-Build sie ohne zusaetzliche COPY-Zeile sieht).
+# ON-0c (R5): Diese Liste (`tools/css-ssot-bestand.txt`) gilt AUSSCHLIESSLICH
+# fuer die SERVER-Seiten (`backend/src/**/*.py`). Sie steht hier, NICHT in
+# `frontend/` — deshalb fehlt sie im Frontend-Stage des Images, und ein
+# fehlender Bestand gilt als leer. Fuer die Backend-Pruefung ist das korrekt
+# (`test_bestand_ist_leer_und_bleibt_leer` verlangt ohnehin den leeren
+# Bestand); der Test `test_bestandsliste_schrumpft_und_ist_aktuell` wird im
+# Image deshalb uebersprungen — im Repo laeuft er.
 BESTAND = REPO / "tools" / "css-ssot-bestand.txt"
 
 # Feste Farbe: #rgb/#rrggbb/#rrggbbaa, rgb()/rgba(), hsl()/hsla().
@@ -48,6 +53,27 @@ FARB = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\s*\(|\bhsla?\s*\(", re.IGNORECAS
 # Feste Schriftfamilie: `font-family: Inter, …`. `inherit` und `var(--…)` sind
 # erlaubt — sie sind keine eigene Wahrheit, sondern erben die Token.
 SCHRIFT = re.compile(r"font-family\s*:\s*(?!inherit\b|var\()", re.IGNORECASE)
+# ON-0c (R2): die `font:`-Kurzschreibweise MIT Anfuehrungszeichen oder Komma
+# nennt eine Schriftfamilie (`font: 12px/1.2 "Inter", sans-serif`) — genau wie
+# `font-family:`. Ohne Anfuehrungszeichen/Komma ist es eine reine Groessen-
+# Angabe (`font: 600 14px/1.4`) und keine eigene Schriftwahl.
+SCHRIFT_KURZ = re.compile(r"\bfont\s*:[^;{}\n]*[\"',]", re.IGNORECASE)
+
+# ON-0c (R2): Dokumentierte Ausnahme — EIN Literal, nicht die ganze Datei.
+# `kalender_verwaltung.py` liefert die Kalenderfarbe als Nutzdatensatz. Der
+# Wert steht seit ON-0c in `api/farbe.py`; DORT ist die Sammelstelle der
+# Standardfarben, die die Oberflaeche als `style`-Wert malt (Nutzdaten, keine
+# Gestaltung). Ihre Werte sind der Vertrag mit dem Frontend.
+AUSNAHME_LITERALE = {
+    "backend/src/diakronos_app/api/farbe.py": (
+        "#667eea",
+        "#3b82f6",
+        "#4f7cff",
+        "#ef4444",
+        "#9ca3af",
+        "#4285F4",
+    ),
+}
 
 
 def _ist_html_quelle(text: str) -> bool:
@@ -66,21 +92,43 @@ _HTML_MERKMAL = re.compile(
 
 
 def _befunde(datei: Path) -> int:
-    """Zahl der Fundstellen in einer Datei (0, wenn sie kein HTML traegt)."""
+    """Zahl der Fundstellen in einer Datei (0, wenn sie kein HTML traegt).
+
+    ON-0c (R2) — DREI Verschaerfungen gegenueber ON-0b:
+
+    1. Geprueft wird JEDE Datei, in der ein HTML-Merkmal ODER eine Schreibweise
+       fuer Schrift/Farbe steht. Vorher fiel eine Zeichenkette ohne `<div`/
+       `style=` komplett durch (`CSS = "body { font-family: Inter }"`).
+    2. Auch `font:`-Kurzschreibweise mit Anfuehrungszeichen/Komma zaehlt.
+    3. Die Ausnahme fuer `kalender_verwaltung.py` gilt fuer das LITERAL
+       `#9ca3af` (Datendaten), nicht fuer die Datei: jedes weitere Literal in
+       derselben Datei ist wieder eine Fundstelle.
+    """
     quelle = datei.read_text(encoding="utf-8", errors="replace")
-    # ON-0b (F2): nicht mehr nur Dateien mit <html/<style/doctype, sondern JEDE
-    # Zeichenkette mit HTML-Merkmalen einschliesslich `style=`. Ein Farbwert
-    # kann auch in einem Bruchstueck stehen (z. B. `<p style="color:#123">`),
-    # das nie das Wort `<html` enthaelt.
-    # ON-0b (F2): Dokumentierte Ausnahme — reine DATENFARBE. `kalender_verwaltung`
-    # liefert die Kalenderfarbe als Nutzdatensatz (`farbe_standard`), die SPA
-    # malt sie als Kachel. Das ist keine Gestaltungsregel (kein CSS, kein
-    # `style=`), deshalb bleibt es hier bei 0 — Gestaltung bleibt verboten.
-    if datei.name == "kalender_verwaltung.py":
+    # Der Ausnahme-Schluessel ist der Repo-Pfad (`backend/src/…`), nicht der
+    # absolute Pfad der Datei — im Image liegt sie unter /app/backend/src.
+    try:
+        rel = datei.resolve().relative_to(REPO.resolve()).as_posix()
+    except ValueError:
+        rel = datei.as_posix()
+    # Ausnahme-Literale entfernen, BEVOR gezaehlt wird. Steht das Literal nicht
+    # (mehr) in der Datei, bleibt sie unveraendert — die Ausnahme ist dann nur
+    # veraltet, nie ein Freibrief fuer andere Werte.
+    for marke in AUSNAHME_LITERALE.get(rel, ()):
+        quelle = quelle.replace(marke, " ")
+    # ON-0c (R2): HTML-Merkmal ODER eigene Schrift-/Farb-Schreibweise.
+    if not (
+        _HTML_MERKMAL.search(quelle)
+        or SCHRIFT.search(quelle)
+        or SCHRIFT_KURZ.search(quelle)
+        or FARB.search(quelle)
+    ):
         return 0
-    if not _HTML_MERKMAL.search(quelle):
-        return 0
-    return len(FARB.findall(quelle)) + len(SCHRIFT.findall(quelle))
+    return (
+        len(FARB.findall(quelle))
+        + len(SCHRIFT.findall(quelle))
+        + len(SCHRIFT_KURZ.findall(quelle))
+    )
 
 
 def _hat_html_merkmale(datei: Path) -> bool:
@@ -124,6 +172,60 @@ def test_keine_neuen_farbwerte_in_server_seiten() -> None:
         "Neue feste Farb-/Schriftwerte in serverseitigem HTML. Farben, Schriften "
         "und Radien kommen aus tokens.css (var(--…)) bzw. dem gemeinsamen "
         "Grund-Stylesheet (anmeldung/seitenrahmen.py):\n  " + "\n  ".join(neue)
+    )
+
+
+@pytest.mark.skipif(not QUELLE.is_dir(), reason="Quellbaum im Image nicht vorhanden")
+def test_bestand_ist_leer_und_bleibt_leer() -> None:
+    """ON-0c (R2): der Bestand ist 0 — HART geprueft, nicht nur „nicht groesser".
+
+    `test_bestandsliste_schrumpft_und_ist_aktuell` vergleicht die Liste nur mit
+    sich selbst; ein Eintrag, der nie behoben wurde, bliebe damit gueltig.
+    Hier steht die Zusage absolut: es gibt KEINEN Eintrag, und es darf keiner
+    hinzukommen. Ein neuer Freibrief ist damit unmoeglich — auch nicht als
+    „bekannter Altfall".
+    """
+    assert _bestand() == {}, (
+        "tools/css-ssot-bestand.txt muss leer sein (Bestand 0). "
+        f"Eintraege: {_bestand()}"
+    )
+
+
+@pytest.mark.skipif(not QUELLE.is_dir(), reason="Quellbaum im Image nicht vorhanden")
+def test_ausnahme_gilt_nur_fuer_die_sammelstelle(tmp_path) -> None:
+    """ON-0c (R2): Ausnahmen gelten fuer LITERALE, nie fuer ganze Dateien.
+
+    Vorher gab `_befunde` fuer `kalender_verwaltung.py` pauschal 0 zurueck —
+    eine neue Farbe darin waere unsichtbar geblieben. Jetzt gilt die Ausnahme
+    fuer die dokumentierten Werte der Sammelstelle `api/farbe.py`; jedes
+    WEITERE Literal dort (und jede Farbe in jeder anderen Datei) ist eine
+    Fundstelle.
+    """
+    datei = REPO / "backend/src/diakronos_app/api/farbe.py"
+    assert datei.is_file(), f"Datei fehlt: {datei}"
+    assert _befunde(datei) == 0, "die dokumentierten Standardfarben wurden gezaehlt"
+
+    original = datei.read_text(encoding="utf-8")
+    probe = tmp_path / "farbe.py"
+    probe.write_text(
+        original.replace(
+            'GOOGLE_STANDARD_FARBE = "#4285F4"',
+            'GOOGLE_STANDARD_FARBE = "#4285F4"\nNEUE_FARBE = "#123456"',
+        ),
+        encoding="utf-8",
+    )
+    text_probe = probe.read_text(encoding="utf-8")
+    assert 'NEUE_FARBE = "#123456"' in text_probe
+    # Die Probe liegt unter tmp_path (kein Repo-Pfad) -> keine Ausnahme:
+    # das neue Literal MUSS gezaehlt werden.
+    assert _befunde(probe) >= 1, "eine neue Farbe in der Sammelstelle bleibt unsichtbar"
+
+    # Und die Ausnahme greift nur fuer die Sammelstelle: dieselben Literale in
+    # einer ANDEREN Datei sind Fundstellen.
+    fremd = tmp_path / "andere.py"
+    fremd.write_text('FARBE = "#3b82f6"\n', encoding="utf-8")
+    assert _befunde(fremd) == 1, (
+        "ein Literal ausserhalb der Sammelstelle wird nicht gezaehlt"
     )
 
 

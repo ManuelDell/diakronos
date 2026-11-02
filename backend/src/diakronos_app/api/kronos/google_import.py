@@ -15,6 +15,7 @@ from redis.exceptions import RedisError
 from urllib.parse import urlencode, quote
 
 from diakronos_app.frappe_compat import sitzungen
+from diakronos_app.api.farbe import GOOGLE_STANDARD_FARBE
 from diakronos_app.frappe_compat.auth_middleware import sid_aus_headers
 from diakronos_app.frappe_compat.queue import enqueue
 from diakronos_app.frappe_compat.realtime import publish_realtime
@@ -378,7 +379,7 @@ def get_google_calendars():
         for cal in items:
             calendars.append({
                 "id": cal.get("id"), "summary": cal.get("summary", "(Ohne Titel)"),
-                "backgroundColor": cal.get("backgroundColor", "#4285F4"),
+                "backgroundColor": cal.get("backgroundColor", GOOGLE_STANDARD_FARBE),
                 "primary": bool(cal.get("primary", False)),
             })
             if len(calendars) > 10000:
@@ -394,7 +395,7 @@ def _validate_mappings(mappings):
         if not isinstance(m, dict):
             throw("Ungültige Kalenderzuordnung.")
         fields = {"google_id": m.get("google_id"), "google_name": m.get("google_name", "Importierter Kalender"),
-                  "target_kalender": m.get("target_kalender", ""), "color": m.get("color", "#4285F4"),
+                  "target_kalender": m.get("target_kalender", ""), "color": m.get("color", GOOGLE_STANDARD_FARBE),
                   "time_filter": m.get("time_filter", "all"), "create_new": m.get("create_new", True)}
         if (not all(isinstance(fields[k], str) for k in ("google_id", "google_name", "target_kalender", "color", "time_filter"))
                 or not fields["google_id"] or len(fields["google_id"]) > 1024
@@ -702,7 +703,7 @@ def _ensure_kalender(name: str, color: str, db=None) -> str:
 
 @whitelist(methods=["POST"], allow_guest=False)
 def upload_ical(file_content_b64=None, target_kalender="", create_new=True,
-                color="#4285F4", calendar_name_new="", request=None):
+                color=GOOGLE_STANDARD_FARBE, calendar_name_new="", request=None):
     _require_import_admin()
     if request is not None and request.method != "POST":
         throw("iCal-Import nur per POST.")

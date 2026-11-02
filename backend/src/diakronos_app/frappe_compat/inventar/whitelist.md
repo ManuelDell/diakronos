@@ -8,7 +8,7 @@ nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 * registrierte Pfade: **1727**
 * eindeutige Funktionen: **334**
 * lesend: **150**, schreibend: **184**
-* Rumpfbefund: schreibend 144, lesend 190, unbekannt 0
+* Rumpfbefund: schreibend 175, lesend 159, unbekannt 0
 
 ## Einstufung
 
@@ -20,68 +20,44 @@ Methode mit 405 ab (Browser-Navigation: 303 auf die Anmeldemaske).
 **Lesend gilt nur, wenn weder Rumpf noch Name noch Deklaration schreiben.**
 Der Rumpfbefund (AST) ist maßgeblich: erkannt werden `_update_doc`,
 `insert`, `commit`, `session.add/merge/delete`, `set_value`, `db.set`,
-Redis `set`/`setex`/`delete`, Dateischreiben, SQL und — eine Ebene tief —
-Hilfsfunktionen im selben Modul. Der Name ist Hinweis, nicht Urteil.
+Redis `set`/`setex`/`delete`, Dateischreiben, SQL, die Praefixe
+`sende_*`/`benachrichtig*`/`*notify*`/`enqueue*` und — eine Ebene tief —
+Hilfsfunktionen (im selben Modul UND importierte `diakronos_app.*`-Helfer
+mit Modulbezug, SEC-11c/R1). Der Name ist Hinweis, nicht Urteil.
 
 ## Widersprueche (Rumpf / Name / Deklaration)
 
 | Funktion | Methoden | Rumpf | Name | Deklariert | Grund |
 |---|---|---|---|---|---|
-| `diakronos_app.api.auth.logout` | ['POST'] | lesend | schreibend | schreibend |  |
 | `diakronos_app.api.einrichtung.erinnern_spaeter` | ['POST'] | schreibend | lesend | schreibend | Aufruf sess.commit() |
 | `diakronos_app.api.einrichtung.kalender_vorschlag_anlegen` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.frappe_core.logout` | ['POST'] | lesend | schreibend | schreibend |  |
 | `diakronos_app.api.kronos.google_import.get_oauth_url` | ['POST'] | schreibend | lesend | schreibend | Aufruf _state_store.set() |
-| `diakronos_app.api.kronos.series.update_series_batch_fast` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.mailversand.mailversand_speichern` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.mitglieder.import_mitglieder_vorschau` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.ablauf_aendern` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.abwesenheit_melden` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.dienst_absagen` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.eintrag_loesen` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.lied_material_hinzufuegen` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.merkmale_pflegen` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.plan_aendern` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.plan_archivieren` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.plan_entwurf` | ['POST'] | lesend | lesend | schreibend |  |
-| `diakronos_app.api.planrahmen.plan_generieren` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.plan_kopieren` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.platz_hinzufuegen` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.sammlung_pflegen` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.sammlungsmerkmal_werte_pflegen` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.termin_aendern` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.termin_entfernen` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.termin_hinzufuegen` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.undo` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planrahmen.veroeffentlichen` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.planung.generiere_rotation` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.profile.delete_my_data` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.sicherung.sicherung_einstellungen_speichern` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.sicherung.sicherung_jetzt` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.website.beitrag_auf_website` | ['POST'] | schreibend | lesend | schreibend | Aufruf _update_doc() |
-| `diakronos_app.api.website.kategorie_oeffentlich` | ['POST'] | schreibend | lesend | schreibend | Aufruf _update_doc() |
-| `diakronos_app.api.website.login_uebergabe` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.api.zugang.passwort_uebernehmen` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.devmodus.api.aufraeumen` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.devmodus.api.befund_setzen` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.devmodus.api.bericht_erzeugen` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.devmodus.api.sitzung_beenden` | ['POST'] | lesend | schreibend | schreibend |  |
-| `diakronos_app.devmodus.api.sitzung_starten` | ['POST'] | lesend | schreibend | schreibend |  |
 
 ## Ausnahmen (lesend trotz Widerspruch, mit Begruendung)
 
-| Funktion | Methoden | Rumpf | Name | Ausnahme |
-|---|---|---|---|---|
-| `diakronos_app.anmeldung.einstellungen_api.anmeldung_get_einstellungen` | — | schreibend | lesend | Leseansicht; legt fehlende Konfigurationszeile an |
-| `diakronos_app.api.gemeinde.datenschutz_get_texte` | — | schreibend | lesend | Leseansicht; legt fehlende Textzeile an |
-| `diakronos_app.api.gemeinde.gemeinde_get_einstellungen` | — | schreibend | lesend | Leseansicht; legt fehlende Konfigurationszeile an |
-| `diakronos_app.api.gruppen.get_user_create_permissions` | — | lesend | schreibend | liest Rechte, schreibt nichts |
-| `diakronos_app.api.kronos.google_import.get_credentials_status` | — | schreibend | lesend | liest mit Zeiliensperre, schreibt nichts |
-| `diakronos_app.api.kronos.google_import.get_google_calendars` | — | schreibend | lesend | liest mit Zeiliensperre, schreibt nichts |
-| `diakronos_app.api.kronos.google_import.get_import_progress` | — | lesend | schreibend | liest nur den Fortschritt aus Redis |
-| `diakronos_app.api.planrahmen.undo_vorschau` | — | lesend | schreibend | Vorschau, schreibt nichts |
-| `diakronos_app.api.sicherung.sicherung_get` | — | schreibend | lesend | Leseansicht; legt fehlende Einstellungszeile an |
-| `diakronos_app.api.website.freigaben_lesen` | — | lesend | schreibend | Leseansicht der Website-Freigaben |
+| Funktion | Methoden | Rumpf | Name | Ausnahme | Art | Greift |
+|---|---|---|---|---|---|---|
+| `diakronos_app.anmeldung.einstellungen_api.anmeldung_get_einstellungen` | — | schreibend | lesend | Leseansicht; legt fehlende Konfigurationszeile an (Helfer erkannt) | konfig — Leseansicht, die beim ERSTEN Aufruf ihre Konfigurationszeile anlegt (idempotent, ohne Absicht des Nutzers) — der POST waere hier falsch | ja (rumpf) |
+| `diakronos_app.api.frappe_core.logout` | ['POST'] | lesend | schreibend | loescht nur die eigene Sitzung (Abmelden), keine Fachdaten | rueckkanal — der Rumpf loescht nur die eigene Sitzung/den eigenen Token (Abmelden), er aendert keine Fachdaten | ja (name, deklaration) |
+| `diakronos_app.api.gemeinde.datenschutz_get_texte` | — | schreibend | lesend | Leseansicht; legt fehlende Textzeile an (Helfer erkannt) | konfig — Leseansicht, die beim ERSTEN Aufruf ihre Konfigurationszeile anlegt (idempotent, ohne Absicht des Nutzers) — der POST waere hier falsch | ja (rumpf) |
+| `diakronos_app.api.gemeinde.gemeinde_get_einstellungen` | — | schreibend | lesend | Leseansicht; legt fehlende Konfigurationszeile an (Helfer erkannt) | konfig — Leseansicht, die beim ERSTEN Aufruf ihre Konfigurationszeile anlegt (idempotent, ohne Absicht des Nutzers) — der POST waere hier falsch | ja (rumpf) |
+| `diakronos_app.api.gruppen.get_user_create_permissions` | — | lesend | schreibend | liest Rechte, schreibt nichts | name — Namensbefund ohne Rumpfbefund — geprueft, die Funktion liest nur | ja (name) |
+| `diakronos_app.api.kronos.google_import.get_credentials_status` | — | schreibend | lesend | liest mit Zeiliensperre, schreibt nichts | sperre — liest mit Zeiliensperre (`with_for_update`), schreibt nichts | ja (rumpf) |
+| `diakronos_app.api.kronos.google_import.get_google_calendars` | — | schreibend | lesend | liest mit Zeiliensperre, schreibt nichts | sperre — liest mit Zeiliensperre (`with_for_update`), schreibt nichts | ja (rumpf) |
+| `diakronos_app.api.kronos.google_import.get_import_progress` | — | lesend | schreibend | liest nur den Fortschritt aus Redis | name — Namensbefund ohne Rumpfbefund — geprueft, die Funktion liest nur | ja (name) |
+| `diakronos_app.api.mitglieder.import_mitglieder_vorschau` | ['POST'] | lesend | schreibend | reine Vorschau des CSV-Imports, schreibt keine Zeile | nur_vorschau — Namensbefund/Weiterleitung ohne Wirkung: die Funktion schreibt nicht oder die Schreibung haengt an einem Schalter, der per Default aus ist | ja (name, deklaration) |
+| `diakronos_app.api.planrahmen.plan_entwurf` | ['POST'] | schreibend | lesend | Lesezugriff ueber den Schreib-Wrapper (`_endpunkt(True)`); POST ist die Grenze des Wrappers, der Name meint das Lesen des Entwurfs | nur_vorschau — Namensbefund/Weiterleitung ohne Wirkung: die Funktion schreibt nicht oder die Schreibung haengt an einem Schalter, der per Default aus ist | ja (rumpf, deklaration) |
+| `diakronos_app.api.planrahmen.undo_vorschau` | — | lesend | schreibend | Vorschau, schreibt nichts | name — Namensbefund ohne Rumpfbefund — geprueft, die Funktion liest nur | ja (name) |
+| `diakronos_app.api.profile.delete_my_data` | ['POST'] | lesend | schreibend | abgeschalteter Altpfad — wirft nur den Hinweis auf den Loeschantrag | nur_vorschau — Namensbefund/Weiterleitung ohne Wirkung: die Funktion schreibt nicht oder die Schreibung haengt an einem Schalter, der per Default aus ist | ja (name, deklaration) |
+| `diakronos_app.api.sicherung.sicherung_get` | — | schreibend | lesend | Leseansicht; legt fehlende Einstellungszeile an | konfig — Leseansicht, die beim ERSTEN Aufruf ihre Konfigurationszeile anlegt (idempotent, ohne Absicht des Nutzers) — der POST waere hier falsch | ja (rumpf) |
+| `diakronos_app.api.website.beitrag_auf_website` | ['POST'] | schreibend | lesend | Methode wird im Rumpf geprueft (`_nur_post` -> 405) | schranke — prüft die Methode selbst (`_nur_post`) und weist alles ausser POST mit 405 ab — die Grenze steht im Rumpf, nicht in der Deklaration | ja (rumpf, deklaration) |
+| `diakronos_app.api.website.freigaben_lesen` | — | lesend | schreibend | Leseansicht der Website-Freigaben | name — Namensbefund ohne Rumpfbefund — geprueft, die Funktion liest nur | ja (name) |
+| `diakronos_app.api.website.kategorie_oeffentlich` | ['POST'] | schreibend | lesend | Methode wird im Rumpf geprueft (`_nur_post` -> 405) | schranke — prüft die Methode selbst (`_nur_post`) und weist alles ausser POST mit 405 ab — die Grenze steht im Rumpf, nicht in der Deklaration | ja (rumpf, deklaration) |
+| `diakronos_app.api.website.login_uebergabe` | ['POST'] | lesend | schreibend | stellt nur einen Token/URL aus, schreibt keine Fachdaten | rueckkanal — der Rumpf loescht nur die eigene Sitzung/den eigenen Token (Abmelden), er aendert keine Fachdaten | ja (name, deklaration) |
+
+Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entfernen):
+
+* `diakronos_app.api.fail_validation`
 
 ## Schreibende Funktionen
 

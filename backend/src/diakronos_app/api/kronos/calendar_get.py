@@ -49,6 +49,10 @@ from diakronos_app.frappe_compat.api_helpers import (
     throw,
 )
 from diakronos_app.api.kronos.permissions import get_accessible_calendars
+from diakronos_app.api.farbe import (
+    KALENDER_STANDARD_FARBE,
+    KALENDER_STANDARD_FARBE_KONFLIKT,
+)
 
 # Feldauswahl fuer `get_all("Element", ...)` — identisch zum Original.
 _EVENT_FIELDS = [
@@ -324,7 +328,7 @@ def get_calendar_events(start_date, end_date, calendar_filter=None, view_mode=Tr
             color = (
                 get_value("Kalender", element_calendar, "calendar_color")
                 or element_color
-                or "#3b82f6"
+                or KALENDER_STANDARD_FARBE
             )
 
             category_name = ""
@@ -345,8 +349,9 @@ def get_calendar_events(start_date, end_date, calendar_filter=None, view_mode=Tr
             if status == "Vorschlag":
                 bg_color = str(color) + "99"  # leicht transparent
             elif status == "Konflikt":
-                border_color = "#ef4444"
-                bg_color = "#ef444433"
+                border_color = KALENDER_STANDARD_FARBE_KONFLIKT
+                # Anhaengsel "33" = Deckkraft (8-stelliges Hex).
+                bg_color = f"{KALENDER_STANDARD_FARBE_KONFLIKT}33"
 
             formatted.append({
                 "id": _row_get(e, "name"),
@@ -474,7 +479,7 @@ def get_mein_termin(element_id):
         "all_day": bool(doc.get("all_day")),
         "calendar": kalender,
         "calendar_title": cal_info.get("calendar_name") or kalender,
-        "calendar_color": cal_info.get("calendar_color") or "#3b82f6",
+        "calendar_color": cal_info.get("calendar_color") or KALENDER_STANDARD_FARBE,
         "status": doc.get("status"),
         "ressource": doc.get("ressource") or "",
         "description": doc.get("description") or "",
@@ -534,7 +539,7 @@ def get_meine_abgelehnten_termine():
             "all_day": bool(_row_get(e, "all_day")),
             "calendar": kalender,
             "calendar_title": cal_info.get("calendar_name") or kalender,
-            "calendar_color": cal_info.get("calendar_color") or "#3b82f6",
+            "calendar_color": cal_info.get("calendar_color") or KALENDER_STANDARD_FARBE,
             "ablehnungs_grund": _row_get(e, "ablehnungs_grund") or "",
             "moderiert_von": _row_get(e, "moderiert_von") or "",
         })

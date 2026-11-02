@@ -33,18 +33,30 @@ DATEI = Path(__file__).resolve()
 BACKEND = DATEI.parent.parent if DATEI.parent.name == "tests" else DATEI.parent
 REPO = BACKEND.parent
 
+#: SEC-11c (R4): im App-IMAGE liegt der Quellbaum unter `/app` (BACKEND=/app),
+#: der Repo-Elternordner `/` ist KEIN Quellbaum. Frueher rechnete `_lies` mit
+#: `REPO / "frontend/…"` -> `/frontend/…` und fand die SPA-Quellen nie; der
+#: Dockerfile-Pfad `BACKEND / "Dockerfile"` existiert im Image ebenfalls nicht
+#: (backend/Dockerfile wird nicht ins Image kopiert). Beides ist jetzt eine
+#: ausdrueckliche Ortsbestimmung statt einer Rechnung mit `..`: das Image
+#: traegt seine Quellen unter `/app/frontend` mit, das Repo unter `<repo>/frontend`.
+_IMAGE_WURZELN = ("/app",)
+
+
+def _wurzel() -> Path:
+    """Quellbaum-Wurzel: `<repo>` im Worktree, `/app` im Image."""
+    for kandidat in (REPO, BACKEND, *map(Path, _IMAGE_WURZELN)):
+        if (kandidat / "frontend").is_dir():
+            return kandidat
+    # Kein frontend/ gefunden: REPO ist der aussagekraeftigste Pfad fuer die
+    # Fehlermeldung (der Test nennt ihn).
+    return REPO
+
+
+WURZEL = _wurzel()
+
 TOUCH_CSS = "@media (pointer: coarse)"
 IMAGE_NETZ = ("fix6-zeigegeraet.test.mjs", "fix6-keine-zeiger-syntax.test.mjs")
-
-
-def _lies(pfad: Path) -> str:
-    """Datei lesen — Backend-Pfade liegen unter BACKEND (bzw. REPO), das
-    Stylesheet der Server-Seiten unter REPO/frontend."""
-    # `src/…` ist relativ zu backend/, `frontend/src/…` relativ zum Repo.
-    for kandidat in (BACKEND / pfad, REPO / pfad):
-        if kandidat.is_file():
-            return kandidat.read_text(encoding="utf-8")
-    raise AssertionError(f"{pfad} fehlt (gesucht unter {BACKEND} und {REPO / 'frontend'})")
 
 
 def _ohne_kommentare(text: str) -> str:
@@ -67,7 +79,18 @@ def _ohne_kommentare(text: str) -> str:
     ],
 )
 def test_fix6_login_maske_nutzt_zeiger_kriterium(pfad: str) -> None:
-    text = _ohne_kommentare(_lies(Path(pfad)))
+    try:
+        gefunden = next(k for k in (BACKEND / pfad, WURZEL / pfad, REPO / pfad)
+                        if k.is_file())
+    except StopIteration:
+        # SEC-11c (R4): das App-Image traegt von `frontend/` nur `dist/` —
+        # die QUELLE `frontend/src/ssot/seiten.css` gibt es dort nicht. Ein
+        # Skip mit Begruendung ist richtig; der gebaute Stand wird ohnehin vom
+        # Frontend-Bau-Stage geprueft (`backend/Dockerfile --target frontend`).
+        pytest.skip(
+            f"{pfad} liegt im Image nicht vor (nur backend/-Quellen und "
+            f"frontend/dist sind dort) — gesucht unter {BACKEND}, {WURZEL}, {REPO}")
+    text = _ohne_kommentare(gefunden.read_text(encoding="utf-8"))
     if not pfad.endswith("seiten.css"):
         # Die Maske selbst: KEIN eigenes @media mehr (eine Quelle).
         assert TOUCH_CSS not in text and "font-size: 16px" not in text, (
@@ -93,7 +116,23 @@ def test_fix6_login_maske_nutzt_zeiger_kriterium(pfad: str) -> None:
 
 
 def test_fix6_node_tests_stehen_im_image() -> None:
-    dockerfile = _lies(BACKEND / "Dockerfile")
+    """Der Dockerfile-Waechter braucht den Dockerfile — und wenn er fehlt, sagt
+    der Test WARUM er uebersprungen wird (SEC-11c/R4).
+
+    BEFUND (Image-Abnahme SEC-11c): `backend/Dockerfile` wird nicht ins Image
+    kopiert; im Image gab es die Datei nie, der Test brach mit `AssertionError`
+    ab. Richtig ist ein SKIP mit Begruendung: die eine Aussage („das Glob steht
+    in der node --test-Zeile") ist am gebauten Image nicht mehr zu treffen —
+    sie ist bereits Teil des Baus. Im Repo/Worktree laeuft der Test wie bisher.
+    """
+    dockerfile = ((BACKEND / "Dockerfile").read_text(encoding="utf-8")
+                  if (BACKEND / "Dockerfile").is_file() else None)
+    if dockerfile is None:
+        pytest.skip(
+            "backend/Dockerfile liegt nicht im Image (wird nicht kopiert) — "
+            f"gesucht unter {BACKEND / 'Dockerfile'}; die node --test-Liste "
+            "wird im Repo/Worktree geprueft, nicht im gebauten Image"
+        )
     # Die Zeile mit der node --test-Liste (sie endet auf `--test \`).
     zeile = next(
         (z for z in dockerfile.splitlines() if "node --test" in z),
@@ -105,6 +144,6 @@ def test_fix6_node_tests_stehen_im_image() -> None:
     # Die Testdateien selbst müssen im Quellbaum existieren, sonst läuft das
     # Glob im Image ins Leere.
     for name in IMAGE_NETZ:
-        assert (REPO / "frontend/tests" / name).is_file(), (
-            f"frontend/tests/{name} fehlt"
+        assert (WURZEL / "frontend/tests" / name).is_file(), (
+            f"frontend/tests/{name} fehlt (gesucht unter {WURZEL})"
         )

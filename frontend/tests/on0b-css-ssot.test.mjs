@@ -181,6 +181,42 @@ function* dateien(dir) {
     AUSNAHMEN['frontend/src/diakonos/pages/KalenderImport.vue'].includes('#4285F4'),
     'Google-Farbe ist nicht als Ausnahme dokumentiert',
   )
+
+  // ON-0c (R4): Kurzschreibweise MIT Anfuehrungszeichen/Komma zaehlt immer —
+  // vorher brauchte es einen bekannten Namen aus SCHRIFTNAME.
+  assert.deepEqual(fundstellen('.a{font:12px/1.2 "Foo Bar", serif}'), [
+    'font:12px/1.2 "Foo Bar", serif',
+  ])
+  assert.deepEqual(fundstellen(".a{font:12px 'Foo Bar'}"), ["font:12px 'Foo Bar'"])
+  // Komma ohne Anfuehrungszeichen: eigener Name, der nicht in SCHRIFTNAME steht.
+  assert.deepEqual(fundstellen('.a{font:12px FooBar, Baz}'), ['font:12px FooBar, Baz'])
+  // Reine Groesse bleibt erlaubt (kein Komma, kein Anfuehrungszeichen).
+  assert.deepEqual(fundstellen('.a{font:700 14px/1.5 var(--font)}'), [])
+}
+
+// ── 6 · ON-0c (R4): die Ausnahme-Liste ist eingefroren ────────────────────
+{
+  // Die Dokumentation im Kopf von tools/css-ssot-bestand.txt nennt die
+  // Ausnahmen namentlich; ein neuer Eintrag in AUSNAHMEN ohne diese Zusage
+  // waere ein stiller Freibrief. Deshalb steht die Zahl hier fest.
+  const AUSNAHMEN_ANZAHL = 4
+  assert.equal(
+    Object.keys(AUSNAHMEN).length,
+    AUSNAHMEN_ANZAHL,
+    `AUSNAHMEN hat ${Object.keys(AUSNAHMEN).length} Dateien, eingefroren sind ${AUSNAHMEN_ANZAHL} — ` +
+      'eine neue Ausnahme ist eine Entscheidung (Karte), kein Nebeneffekt',
+  )
+  // Und INNERHALB einer Ausnahme nur Farb-Literale: eine Schriftfamilie oder
+  // ein `font:`-Eintrag ist nie „Datendaten".
+  for (const [datei, werte] of Object.entries(AUSNAHMEN)) {
+    assert.ok(Array.isArray(werte) && werte.length > 0, `${datei}: leere Ausnahme`)
+    const falsch = werte.filter((w) => !/^#[0-9a-fA-F]{3,8}$/.test(w))
+    assert.deepEqual(
+      falsch,
+      [],
+      `${datei}: Ausnahmen sind nur Hex-Farben (Datendaten); hier stehen: ${falsch.join(', ')}`,
+    )
+  }
 }
 
 // ── 5 · Die eingefrorene Datei entspricht dem Rechner ─────────────────────

@@ -59,6 +59,7 @@ from starlette.routing import Route
 
 from diakronos_app.frappe_compat.api_helpers import log_error as _log_error
 from diakronos_app.api.kronos.permissions import get_accessible_calendars
+from diakronos_app.api.farbe import KALENDER_STANDARD_FARBE_CALDAV
 from diakronos_app.caldav.auth import get_authenticated_user, unauthorized_response
 from diakronos_app.frappe_compat.query import get_all, get_doc
 
@@ -232,7 +233,7 @@ def _get_user_calendars(user):
             {
                 'name':  c['name'],
                 'title': c.get('title') or c['name'],
-                'color': c.get('color') or '#4f7cff',
+                'color': c.get('color') or KALENDER_STANDARD_FARBE_CALDAV,
             }
             for c in (get_accessible_calendars() or [])
         ]

@@ -17,6 +17,19 @@ FARB_MUSTER = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 
 STANDARD_FARBE = "#667eea"
 
+#: Standardfarben der KALENDER (ON-0c, R2). Sie waren als Literal in sechs
+#: Modulen wiederholt (`#3b82f6` fuenfmal, `#4f7cff`, `#9ca3af`) — dieselbe
+#: Entscheidung an sechs Stellen, genau das, was die CSS-Single-Source-of-Truth
+#: vermeiden soll. Sie sind NUTZDATEN (Kalender-/Ereignisfarbe, die die
+#: Oberflaeche als `style`-Wert malt), keine Gestaltungsregel — deshalb stehen
+#: sie hier zentral und nicht in `tokens.css`. Ein neuer Standard wird HIER
+#: geaendert, nicht an einer Fundstelle.
+KALENDER_STANDARD_FARBE = "#3b82f6"
+KALENDER_STANDARD_FARBE_CALDAV = "#4f7cff"
+KALENDER_STANDARD_FARBE_KONFLIKT = "#ef4444"
+KALENDER_STANDARD_FARBE_OHNE = "#9ca3af"
+GOOGLE_STANDARD_FARBE = "#4285F4"
+
 
 def _normalisiere_farbe(farbe: Any, *, standard: str = STANDARD_FARBE) -> str:
     """Bringt eine Dienstbereich-Farbe in eine sichere, gueltige Form.

@@ -165,6 +165,7 @@ def test_alle_eintraege_liefern_script_tag(client: TestClient, route: str) -> No
     assert "/diakonos/assets/" in resp.text
 
 
+@pytest.mark.timeout(300)
 def test_jede_asset_url_aus_dem_manifest_ist_abrufbar(
     client: TestClient, manifest: dict
 ) -> None:
@@ -174,6 +175,12 @@ def test_jede_asset_url_aus_dem_manifest_ist_abrufbar(
     sein, den die SPA bzw. das CSS tatsaechlich anfragt. Deckt die Bug-Klassen
     1 (Mount verschattet), 3 (doppelter assets/-Praefix) und 4 (Basename-Index)
     in einem Rutsch ab.
+
+    SEC-11c (R4): eigener Timeout. Der Test laedt JEDE Manifest-Datei — im
+    gebauten Image sind das mehrere hundert Anfragen durch denselben
+    TestClient. Unter Last (volle Suite, parallel laufende Container) reisst
+    das das globale `timeout = 60` und der Lauf faellt um, obwohl der Test
+    gruen waere. 300 s sind die Grenze der Karte.
     """
     geprueft = 0
     fehler: list[str] = []

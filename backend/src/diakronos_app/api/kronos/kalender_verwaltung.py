@@ -54,6 +54,7 @@ from diakronos_app.frappe_compat.exceptions import (
     throw,
 )
 from diakronos_app.frappe_compat.registry import whitelist
+from diakronos_app.api.farbe import KALENDER_STANDARD_FARBE, KALENDER_STANDARD_FARBE_OHNE
 from diakronos_app.frappe_compat.session import session
 
 __all__ = [
@@ -64,8 +65,12 @@ __all__ = [
 ]
 
 #: Farbe, wenn keine angegeben ist — dieselbe Vorgabe wie in
-#: `permissions.get_accessible_calendars` („#9ca3af“).
-STANDARD_FARBE = "#9ca3af"
+#: `permissions.get_accessible_calendars`. Der Wert steht in `api/farbe.py`
+#: (ON-0c, R2: EINE Stelle fuer die Standardfarben, keine Literale verstreut).
+STANDARD_FARBE = KALENDER_STANDARD_FARBE_OHNE
+
+#: Beispiel in der Fehlermeldung — ebenfalls zentral (kein Literal im Text).
+BEISPIEL_FARBE = KALENDER_STANDARD_FARBE
 
 #: Kind-Tabellen der Kalender und ihre Elternfelder.
 MODERATOR_FELD = "kalendermoderatoren"
@@ -111,11 +116,11 @@ def _pruefe_farbe(wert: Any) -> str:
     if not text:
         return STANDARD_FARBE
     if len(text) != 7 or not text.startswith("#"):
-        raise ValidationError("Farbe bitte als #rrggbb angeben (z.B. #3b82f6).")
+        raise ValidationError(f"Farbe bitte als #rrggbb angeben (z.B. {BEISPIEL_FARBE}).")
     try:
         int(text[1:], 16)
     except ValueError as exc:
-        raise ValidationError("Farbe bitte als #rrggbb angeben (z.B. #3b82f6).") from exc
+        raise ValidationError(f"Farbe bitte als #rrggbb angeben (z.B. {BEISPIEL_FARBE}).") from exc
     return text.lower()
 
 

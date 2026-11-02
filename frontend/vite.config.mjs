@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import * as LucideIcons from 'lucide-static'
 
@@ -121,12 +122,29 @@ const CSS_IMPORT = /@import\s+(?:url\()?['"]([^'"]+)['"]\)?\s*;/g
 // Deshalb: EIN fester Ordner `schriften/` mit den NAMEN AUS DER QUELLE
 // (`inter-latin-400-normal.woff2`). Der Name kommt aus dem `@font-face` selbst,
 // hier wird nichts umbenannt — nur der Pfad geradegezogen.
+//
+// ON-0c (R3): Der NAME bleibt fest, die ADRESSE bekommt ihren Inhalts-Hash.
+// Vorher lieferte `spa.py` die Dateien unter dem festen Namen `immutable`
+// (ein Jahr), weil `_HASH_NAME` den Namen `inter-latin-400-normal` für
+// hash-benannt hielt — ohne `?v=` konnte ein Besucher nach einem Schriften-
+// Wechsel ein Jahr lang die alte Datei behalten. Der Plugin hängt deshalb
+// `?v=<hash>` an JEDE Schrift-Adresse der Server-Stylesheets, und `spa.py`
+// liefert die Datei deshalb `no-cache`. Der Hash deckt den INHALT ab —
+// dieselbe Schrift ergibt denselben Hash.
 const SCHRIFT_ORDNER = 'schriften'
 // `url(<pfad>)` in einem @font-face — genau die Form, die @fontsource schreibt
 // (`url(./files/inter-latin-400-normal.woff2) format('woff2')`).
 const SCHRIFT_URL = /url\(\s*(['"]?)([^'")]+?)\1\s*\)/g
 // Wo die Datei im CSS liegt, darf NICHT als Ziel gelten (sie ist kein Build-Artefakt).
 const CSS_DATEI = /\.css$/i
+// Lange genug, dass ein Inhaltswechsel sicher eine neue Adresse ergibt
+// (`?v=` in `anmeldung/seitenrahmen.py` nutzt 12 Zeichen — gleiche Länge).
+const HASH_LAENGE = 12
+
+/** Inhalts-Hash einer Schriftdatei (12 Hex-Zeichen, wie `seitenrahmen`). */
+function schriftVersion(absolut) {
+  return createHash('sha256').update(readFileSync(absolut)).digest('hex').slice(0, HASH_LAENGE)
+}
 
 /**
  * Liest ein Stylesheet und setzt seine `@import`-Zeilen WÖRTLICH ein (rekursiv).
@@ -162,13 +180,16 @@ function leseCssMitImporten(datei, gesehen = new Set(), schriften = new Map()) {
   // auf den festen Ordner umschreiben und die Datei vormerken.
   return mitImporten.replace(SCHRIFT_URL, (treffer, quote, ziel) => {
     if (/^data:/i.test(ziel) || /^https?:/i.test(ziel) || CSS_DATEI.test(ziel)) return treffer
-    if (!ziel.startsWith('.') || path.isAbsolute(ziel)) return treffer
+    // ON-0c (R3): `#iefix` und ähnliche Fragmente gehören nicht zum Dateinamen.
+    const rein = ziel.split(/[?#]/)[0]
+    if (!rein.startsWith('.') || path.isAbsolute(rein)) return treffer
     // CSS-Regel: ein relativer Pfad gilt ab dem Ordner der EINBINDENDEN Datei.
-    const kandidat = path.resolve(path.dirname(datei), ziel)
+    const kandidat = path.resolve(path.dirname(datei), rein)
     if (!existsSync(kandidat) || statSync(kandidat).isDirectory()) return treffer
     const name = path.basename(kandidat)
     schriften.set(name, kandidat)
-    return `url(${quote}./${SCHRIFT_ORDNER}/${name}${quote})`
+    // `?v=<Inhalts-Hash>` — sonst hielte ein Zwischenspeicher die alte Schrift.
+    return `url(${quote}./${SCHRIFT_ORDNER}/${name}?v=${schriftVersion(kandidat)}${quote})`
   })
 }
 

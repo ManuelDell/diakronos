@@ -65,6 +65,7 @@ from diakronos_app.frappe_compat.registry import whitelist
 
 from diakronos_app.frappe_compat.exceptions import PermissionError as FrappePermissionError
 from diakronos_app.frappe_compat.exceptions import ValidationError
+from diakronos_app.api.farbe import KALENDER_STANDARD_FARBE
 
 from diakronos_app.frappe_compat.api_helpers import (
     _create,
@@ -101,7 +102,7 @@ def _fmt_event(e, cal_info):
         "all_day":        bool(e.get("all_day")),
         "calendar":       e.get("element_calendar"),
         "calendar_title": cal.get("title", e.get("element_calendar")),
-        "calendar_color": cal.get("color", "#3b82f6"),
+        "calendar_color": cal.get("color", KALENDER_STANDARD_FARBE),
         "status":         e.get("status"),
         "series_id":      e.get("series_id") or "",
         "ressource":      e.get("ressource") or "",
@@ -232,7 +233,7 @@ def get_kanban_board_data():
         row = get_value("Kalender", cn, ["calendar_name", "calendar_color"], as_dict=True) or {}
         cal_info[cn] = {
             "title": row["calendar_name"] or cn,  # type: ignore[index]
-            "color": row["calendar_color"] or "#3b82f6",  # type: ignore[index]
+            "color": row["calendar_color"] or KALENDER_STANDARD_FARBE,  # type: ignore[index]
         }
 
     raw_v = get_all("Element",

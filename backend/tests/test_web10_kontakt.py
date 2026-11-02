@@ -476,8 +476,21 @@ def test_endpunkt_ohne_praefix_ist_404_wenn_praefix_gesetzt(mit_praefix, mail_fa
 
 
 def test_betriebsanleitung_hat_den_abschnitt():
-    """Die Einrichtung muss dort stehen, wo ein Betreiber nachsieht."""
+    """Die Einrichtung muss dort stehen, wo ein Betreiber nachsieht.
+
+    SEC-11c (R4): `docs/` steht in `.dockerignore` und ist im App-Image NICHT
+    vorhanden. Der Test las die Datei mit einem festen Pfad und brach dort mit
+    `FileNotFoundError` ab — die Suite war im Image rot, obwohl der Inhalt in
+    Ordnung ist. Er verhaelt sich jetzt wie `test_sec4_waechter` und
+    `test_login3_doku_caldav`: liegt `docs/` nicht vor, wird er mit Begruendung
+    UEBERSPRUNGEN (nie still bestanden), statt den Lauf zu reissen.
+    """
     anleitung = Path(__file__).resolve().parents[2] / "docs" / "BETRIEBSANLEITUNG.md"
+    if not anleitung.is_file():
+        pytest.skip(
+            "docs/ ist im Image nicht vorhanden (.dockerignore) — die Pruefung "
+            f"der Betriebsdoku entfaellt; erwartet unter {anleitung}"
+        )
     text = anleitung.read_text(encoding="utf-8")
     assert "WEBSITE_KONTAKT_EMPFAENGER" in text
     assert "Kontaktformular" in text

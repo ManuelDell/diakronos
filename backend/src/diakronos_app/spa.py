@@ -891,7 +891,7 @@ def _adress_unterordner(pfad: Path) -> str | None:
     (`/diakonos/assets/<name>`); dort ist ein Basename eindeutig. Ein
     SERVER-SEITIGES Stylesheet kann aber eine Datei mit DEM SELBEN Basename
     einbinden, die in einem ANDEREN Unterverzeichnis liegt: die Token-Datei
-    nennt `./schriften/inter-latin-400-normal.woff2`, waehrend Vite dieselbe
+    nennt `./schriften/inter-latin-400-normal.woff2?v=…`, waehrend Vite dieselbe
     Schrift fuer die SPA als `assets/inter-latin-400-normal-<hash>.woff2`
     fuehrt. Bei einem nackten Basename gewaenne die falsche Datei, und das CSS
     loeste sie gegen `schriften/` bzw. `css/` auf (404 oder Anmeldeschranke).
@@ -901,8 +901,20 @@ def _adress_unterordner(pfad: Path) -> str | None:
     Adresse IMMER mit diesem Unterordner gebildet — fuer die SPA sind diese
     Dateien ohnehin unter genau dieser Adresse eingebunden (Vite `base`).
     Fuer Root-Dateien und fest benannte Dateien gilt der Basename.
+
+    ON-0c (R3): Die Schriften der Server-Seiten (`schriften/…`) sind hier
+    AUSGENOMMEN. Ihre Namen sehen zufaellig wie Hash-Namen aus
+    (`inter-latin-400-normal.woff2` — `400` und `normal` passen auf
+    `_HASH_NAME`), der Name ist aber FEST. Ohne Ausnahme landeten sie im
+    `immutable`-Zweig und ein Besucher behielte nach einem Schriften-Wechsel
+    bis zu ein Jahr die alte Datei. Sie werden unter `{Praefix}/diakonos/assets/
+    schriften/<name>?v=<hash>` geladen (`anmeldung/seitenrahmen.py`,
+    `frontend/vite.config.mjs`) und kommen deshalb in `_asset_response` mit
+    `no-cache` an.
     """
     if SPA_DIST is None or pfad.parent.name not in _ANFRAGE_UNTERORDNER:
+        return None
+    if pfad.parent.name == SEITENRAHMEN_SCHRIFTEN:
         return None
     return pfad.parent.name if _HASH_NAME.match(pfad.name) else None
 
@@ -935,6 +947,13 @@ def _asset_response(pfad: Path, angefragt: str | None = None) -> FileResponse:
     ON-0b (F3): Dasselbe gilt fuer die Schriftdateien der Server-Seiten
     (`schriften/<name>.woff2`, fester Name) — sie werden `no-cache` mit dem
     Typ `font/woff2` ausgeliefert.
+
+    ON-0c (R3): Das war vorher NICHT so: `_adress_unterordner` hielt den Namen
+    `inter-latin-400-normal` fuer hash-benannt und lieferte die Datei
+    `immutable`. Jetzt nimmt `_adress_unterordner` die Schriften aus, und der
+    Build haengt `?v=<Inhalts-Hash>` an die Adresse (Vite-Plugin) — damit
+    erreicht eine geaenderte Schrift jeden Besucher, ohne dass ein
+    Zwischenspeicher sie ein Jahr festhaelt.
     """
     unterordner = _adress_unterordner(pfad)
     if unterordner:

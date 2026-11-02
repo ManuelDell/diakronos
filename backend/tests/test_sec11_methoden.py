@@ -215,9 +215,9 @@ def test_c5_kein_schreibender_name_ohne_post():
     ausnahmen = _ausnahmen()
     verstoesse = [
         f"{e['modul']}.{e['name']} -> {e['optionen'].get('methods')}"
-        for e in _funktionen().values()
+        for e in _betriebseintraege().values()
         if _namen_mit_schreibverdacht(e["name"])
-        and e["name"] not in _ausnahmen()
+        and _schluessel(e) not in _ausnahmen()
         and e["optionen"].get("methods") != ("POST",)
     ]
     assert not verstoesse, (
@@ -227,8 +227,39 @@ def test_c5_kein_schreibender_name_ohne_post():
 
 
 def _ausnahmen() -> set[str]:
-    """Die begruendeten Ausnahmen des Inventarwerkzeugs (Namen)."""
+    """Die begruendeten Ausnahmen des Inventarwerkzeugs — Schluessel `modul.name`.
+
+    SEC-11c (R2): vorher der blosse Funktionsname. Zwei gleichnamige Endpunkte
+    in verschiedenen Modulen (`logout` in `api.auth` und `api.frappe_core`)
+    haetten sich eine Ausnahme geteilt — eine Ausnahme fuer den einen haette
+    den anderen mit freigestellt.
+    """
     return set(_werkzeug("whitelist_inventar.py").AUSNAHMEN)
+
+
+def _schluessel(eintrag: dict) -> str:
+    """`modul.name` eines Register-Eintrags (SEC-11c/R2)."""
+    return f"{eintrag['modul']}.{eintrag['name']}"
+
+
+def _nur_test(eintrag: dict) -> bool:
+    """SEC-11c (R4): entsteht dieser Endpunkt nur in einer Testdatei?
+
+    Testdateien dekorieren Hilfsfunktionen mit `@whitelist(...)`
+    (`boese_methode`, `_werfende_methode`), um Fehlerpfade zu pruefen. Die
+    Dekoration schreibt ins PROZESSWEITE Register und wird nie
+    zurueckgenommen — in der vollen Suite sieht dieser Waechter die Phantome
+    aus fremden Testdateien und meldete „schreibend ohne POST" fuer Funktionen,
+    die im Betrieb nicht existieren. Erkannt am Modulnamen; das Inventar
+    (`tools/whitelist_inventar.py`) filtert mit derselben Regel.
+    """
+    kurz = str(eintrag.get("modul", "")).rsplit(".", 1)[-1]
+    return kurz == "__main__" or kurz.startswith("test_") or kurz.startswith("_test")
+
+
+def _betriebseintraege() -> dict[str, dict]:
+    """`_funktionen()` ohne die Endpunkte, die nur in Testdateien entstehen."""
+    return {k: e for k, e in _funktionen().items() if not _nur_test(e)}
 
 
 def test_c5b_rumpfpruefung_widerspricht_nie_posten():
@@ -247,7 +278,7 @@ def test_c5b_rumpfpruefung_widerspricht_nie_posten():
     cache: dict[str, dict] = {}
     ausnahmen = _ausnahmen()
     verstoesse = []
-    for e in _funktionen().values():
+    for e in _betriebseintraege().values():
         fn = next((f for p, f in _register().registered().items()
                    if getattr(f, "__module__", "") == e["modul"]
                    and getattr(f, "__name__", "") == e["name"]), None)
@@ -267,7 +298,7 @@ def test_c5b_rumpfpruefung_widerspricht_nie_posten():
         befund = cache[datei].get(e["name"])
         if befund is None or befund.einstufung != lesen.SCHREIBEND:
             continue
-        if e["name"] in ausnahmen:
+        if _schluessel(e) in ausnahmen:
             continue
         if e["optionen"].get("methods") != ("POST",):
             verstoesse.append(
@@ -300,8 +331,10 @@ def test_c5d_ausnahmen_sind_begruendet_und_wirken():
     # `get_user_create_permissions`, `get_import_progress`) beruhen auf einem
     # Namensbefund ohne Rumpfbefund — sie sind gueltig, auch wenn sie in der
     # Widerspruchstabelle nicht mehr als Abweichung erscheinen.
-    namen = {e["name"] for e in roh["eintraege"]}
-    gedeckt = {w["name"] for w in roh["widersprueche"] if w["ausnahme"]}
+    # SEC-11c (R2): Schluessel ist `modul.name` — in `eintraege`, in
+    # `widersprueche` und in `AUSNAHMEN`.
+    namen = {e["funktion"] for e in roh["eintraege"]}
+    gedeckt = {w["funktion"] for w in roh["widersprueche"] if w["ausnahme"]}
     gedeckt |= set(ausnahmen) & namen
     ohne_treffer = set(ausnahmen) - gedeckt
     assert not ohne_treffer, (
@@ -417,7 +450,8 @@ def test_c2_inventar_kennt_alle_schreibenden_endpunkte():
     daten = inventar.lade_inventar()
     laut_inventar = {e["funktion"] for e in daten["eintraege"]
                      if e["einstufung"] == "schreibend"}
-    laut_register = {f"{e['modul']}.{e['name']}" for e in _funktionen().values()
+    laut_register = {f"{e['modul']}.{e['name']}"
+                     for e in _betriebseintraege().values()
                      if e["optionen"].get("methods") == ("POST",)}
     fehlt = laut_register - laut_inventar
     assert not fehlt, (

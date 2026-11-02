@@ -333,7 +333,20 @@ def test_backend_scan_prueft_auch_html_bruchstuecke(tmp_path) -> None:
 
 # Vorher (ON-0a-Basis): Label 13 px, Unterzeile 14 px, Eingabe 15 px,
 # Hinweis 12 px. Diese vier Werte sind die Untergrenze.
-MINIMUM = {"--fs-feld": 13, "--fs-unterzeile": 14, "--fs-eingabe": 15, "--fs-hinweis": 12}
+# ON-0c (R1): dazu die drei Restrollen der Server-Seiten — Knopf war 14 px
+# (--fs), Meldung 12 px (--fs-sm), Titel 19 px (--fs-h2); der Fliesstext der
+# Passwort-Seite stand mit 14 px. Sie waren also KLEINER als vor ON-0a, und
+# diese Tabelle ist die Untergrenze.
+MINIMUM = {
+    "--fs-feld": 13,
+    "--fs-unterzeile": 14,
+    "--fs-eingabe": 15,
+    "--fs-hinweis": 12,
+    "--fs-knopf": 15,
+    "--fs-meldung": 14,
+    "--fs-titel": 20,
+    "--fs-fliess": 16,
+}
 
 
 def _tokens_px() -> dict[str, float | None]:
@@ -365,9 +378,24 @@ def test_seiten_stylesheet_nutzt_die_rollen_tokens() -> None:
     """F5: das Grund-Stylesheet bindet die Rollen-Tokens ein (keine Zahlen)."""
     text = (REPO / "frontend" / "src" / "ssot" / "seiten.css").read_text(encoding="utf-8")
     assert ".dk-feld" in text and "var(--fs-feld)" in text
-    assert "var(--fs-unterzeile)" in text
     assert "var(--fs-eingabe)" in text
     assert "var(--fs-hinweis)" in text
+    # ON-0c (R1): die drei Restrollen — und der Fliesstext statt der Unterzeile.
+    assert "var(--fs-knopf)" in text, "Knopf nutzt keine eigene Rolle"
+    assert "var(--fs-meldung)" in text, "Meldung nutzt keine eigene Rolle"
+    assert "var(--fs-titel)" in text, "Ueberschrift nutzt keine eigene Rolle"
+    assert "var(--fs-fliess)" in text, "Fliesstext nutzt keine eigene Rolle"
+    # Die alten, zu kleinen Zuordnungen sind weg (Groesse kommt aus der Rolle,
+    # nicht aus dem allgemeinen Token).
+    for eigenschaft, alt in (
+        ("h1", "var(--fs-h2)"),
+        (".dk-knopf", "var(--fs)"),
+        (".dk-meldung", "var(--fs-sm)"),
+    ):
+        block = text.split(eigenschaft, 1)[1].split("}", 1)[0]
+        assert f"font-size: {alt};" not in block, (
+            f"{eigenschaft} nutzt weiter die allgemeine Groesse {alt}"
+        )
     # Und im groben Zeiger weiterhin 16 px gegen den iOS-Zoom.
     assert "var(--fs-in-zeiger)" in text
     # Der iOS-Kommentar steht bei SEINER Regel (F7): im `:root`-Block (der nur

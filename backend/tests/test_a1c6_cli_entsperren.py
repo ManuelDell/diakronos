@@ -140,8 +140,48 @@ def _aufraeumen(user: str | None = None, ip: str | None = None) -> None:
             client.delete(zaehler, sperr, f"{sperr}:stufe")
 
 
+#: SEC-11c (R4): EINMAL gebaute Schema-Datei (Datei-SQLite), je Test kopiert.
+#: Bewusst ein MODULGLOBALER Zwischenspeicher statt einer `scope="session"`-
+#: Fixture: `test_a1c11_testisolation.py` importiert `echt_stores` aus dieser
+#: Datei und fordert sie direkt an — eine session-weite Fixture waere dort
+#: nicht aufloesbar ("fixture '_schema_vorlage' not found"). Der Zwischenspeicher
+#: haengt am Temp-Verzeichnis des Prozesses und wird nicht aufgeraeumt
+#: (tmp_path_factory des ersten Aufrufs, Prozessende entfernt es).
+_SCHEMA_VORLAGE: Path | None = None
+
+
+def _schema_vorlage_datei(tmp_path_factory) -> Path:
+    """Pfad einer fertig modellierten Datei-SQLite (einmal je Prozess gebaut).
+
+    BEFUND (gemessen im App-Image, `--durations`): `Base.metadata.create_all()`
+    auf einer frischen Datei kostet ~8 s — das Protokoll legt alle Tabellen
+    einzeln an. Bei 30 Tests in dieser Datei waren das ~4 Minuten von 8:30
+    Laufzeit; der Setup-Schritt war in JEDEM Test der langsamste
+    Einzelposten (7–10 s), nicht ein haengender Unterprozess.
+
+    Die Isolation bleibt: jeder Test bekommt eine EIGENE Datei, nur eben als
+    Kopie einer fertigen Vorlage. Ein Test, der das Schema aendert, sieht die
+    Aenderung nicht im naechsten (eigene Datei = eigenes Inode). Die Vorlage
+    wird nie beschrieben.
+    """
+    global _SCHEMA_VORLAGE
+    if _SCHEMA_VORLAGE is not None and _SCHEMA_VORLAGE.is_file():
+        return _SCHEMA_VORLAGE
+    import diakronos_app.models  # noqa: F401 — Modelle registrieren
+    from diakronos_app.models.base import Base
+
+    ziel = tmp_path_factory.mktemp("a1c6-schema") / "vorlage.db"
+    motor = create_engine(f"sqlite+pysqlite:///{ziel}", future=True)
+    try:
+        Base.metadata.create_all(motor)
+    finally:
+        motor.dispose()
+    _SCHEMA_VORLAGE = ziel
+    return ziel
+
+
 @pytest.fixture()
-def echt_stores(tmp_path, monkeypatch, privater_redis_url):
+def echt_stores(tmp_path, monkeypatch, privater_redis_url, tmp_path_factory):
     """Datei-SQLite + privates echtes Redis fuer Test und CLI-Unterprozess.
 
     Der sessionweite Server wird vor und nach jedem Test geleert. Sein
@@ -156,21 +196,19 @@ def echt_stores(tmp_path, monkeypatch, privater_redis_url):
     datenbank_url = f"sqlite+pysqlite:///{datei}"
     monkeypatch.setenv("DATABASE_URL", datenbank_url)
 
-    # Schema anlegen: die Modelle braucht der Testprozess, und der
-    # Unterprozess soll nur lesen, nicht migrieren.
-    import diakronos_app.models  # noqa: F401
+    # Schema bereitstellen: die Modelle braucht der Testprozess, und der
+    # Unterprozess soll nur lesen, nicht migrieren. Die Vorlage ist fertig
+    # modelliert (s. `_schema_vorlage_datei`) — hier nur kopieren.
     import diakronos_app.db as dbmod
-    from diakronos_app.models.base import Base
 
-    motor = create_engine(datenbank_url, future=True)
-    Base.metadata.create_all(motor)
+    shutil.copyfile(_schema_vorlage_datei(tmp_path_factory), datei)
+
     # `diakronos_app.db.SessionLocal` ist beim Import gegen die **Postgres**
     # des Stacks gebunden worden — ENV aus `monkeypatch.setenv` kommt dann
     # zu spaet. Deshalb hier ausdruecklich auf die Datei-DB umhaengen, sonst
     # schreibt der Test in die Betriebsdatenbank (das ist ein echter Neben-
     # effekt, kein Testproblem: die beiden Prozesse muessen dieselbe Datei
     # sehen, sonst ist der ganze Test sinnlos).
-    motor.dispose()
     datei_motor = create_engine(datenbank_url, future=True)
     monkeypatch.setattr(dbmod, "engine", datei_motor)
     monkeypatch.setattr(dbmod, "SessionLocal", sessionmaker(bind=datei_motor, future=True))

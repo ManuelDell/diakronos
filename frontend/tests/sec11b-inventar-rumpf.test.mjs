@@ -70,7 +70,10 @@ test('F2: keine Funktion schreibt im Rumpf, ohne POST zu sein', () => {
   const verstoesse = []
   for (const e of daten.eintraege) {
     if (e.nach_rumpf !== 'schreibend') continue
-    if (e.name in ausnahmen) continue
+    // SEC-11c (R2): Ausnahmen sind seit dieser Karte nach `modul.name`
+    // geschluesselt (vorher der blosse Funktionsname — zwei gleichnamige
+    // Endpunkte in verschiedenen Modulen haetten sich eine Ausnahme geteilt).
+    if (e.funktion in ausnahmen) continue
     const post = Array.isArray(e.methoden) && e.methoden.includes('POST')
     if (!post) verstoesse.push(`${e.funktion} -> ${JSON.stringify(e.methoden)}`)
   }
@@ -89,11 +92,31 @@ test('F2: jede Ausnahme ist begründet — und keine ist still', () => {
   }
   // Jede angewandte Ausnahme ist eine lesende Funktion — sonst wäre sie
   // wirkungslos und würde einen echten Verstoß verdecken.
-  const namen = new Map(daten.eintraege.map((e) => [e.name, e]))
-  for (const name of daten.ausnahmen_angewandt || []) {
-    const e = namen.get(name)
-    assert.ok(e, `${name}: angewandt, aber nicht im Inventar`)
-    assert.equal(e.einstufung, 'lesend', `${name}: Ausnahme auf eine schreibende Funktion`)
+  //
+  // SEC-11c (R2/R3): `ausnahmen_angewandt` führt seit dieser Karte
+  // `modul.name` (nicht mehr den blossen Namen), und `ausnahme_greift` sagt,
+  // ob die Ausnahme einen echten abweichenden Befund deckt. Beides wird hier
+  // geprüft — aber OHNE die Einstufung zu erzwingen: eine Ausnahme kann auch
+  // einen Endpunkt begründen, dessen Deklaration ohnehin POST verlangt
+  // (`logout`, `delete_my_data`); dann ist die Einstufung „schreibend" und die
+  // Ausnahme erklärt trotzdem, warum Rumpf/Name allein nicht zählen.
+  const eintraege = new Map(daten.eintraege.map((e) => [e.funktion, e]))
+  for (const funktion of daten.ausnahmen_angewandt || []) {
+    const e = eintraege.get(funktion)
+    assert.ok(e, `${funktion}: angewandt, aber nicht im Inventar`)
+    assert.equal(e.ausnahme_greift, true,
+      `${funktion}: in ausnahmen_angewandt, aber ausnahme_greift ist falsch`)
+    assert.ok(e.ausnahme_quelle,
+      `${funktion}: greift, nennt aber keine Quelle (rumpf/name/deklaration)`)
+    // „Ausnahme greift" statt `methoden_pflicht POST` (R3).
+    assert.match(String(e.methoden_pflicht), /^Ausnahme greift/,
+      `${funktion}: methoden_pflicht verrät die Ausnahme nicht (${e.methoden_pflicht})`)
+  }
+  // Ausnahmen, die gar keinen abweichenden Befund mehr decken, stehen
+  // ausdrücklich im Inventar (nicht still) — genau das ist die Aussage.
+  for (const funktion of daten.ausnahmen_ohne_quelle || []) {
+    const e = eintraege.get(funktion)
+    assert.ok(e && e.ausnahme, `${funktion}: ohne Quelle, aber ohne Begründung`)
   }
 })
 

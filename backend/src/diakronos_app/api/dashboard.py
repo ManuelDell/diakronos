@@ -95,6 +95,7 @@ from diakronos_app.frappe_compat.exceptions import (
 )
 from diakronos_app.frappe_compat.registry import lookup, whitelist
 from diakronos_app.frappe_compat.session import session
+from diakronos_app.api.farbe import KALENDER_STANDARD_FARBE
 
 __all__ = [
     "get_available_widgets",
@@ -670,7 +671,7 @@ def get_moderation_vorschlaege(limit=20):
             row: dict[str, Any] = _row if isinstance(_row, dict) else {}
             cal_info[cal] = {
                 "title": row.get("calendar_name") or cal,
-                "color": row.get("calendar_color") or "#3b82f6",
+                "color": row.get("calendar_color") or KALENDER_STANDARD_FARBE,
             }
         out.append({
             "id":             e.get("name"),
