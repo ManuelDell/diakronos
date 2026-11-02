@@ -93,6 +93,13 @@ STAMMDATEN_TABELLEN = frozenset({
     # Funktionspostfach der Gemeinde, nicht die Daten einer gelöschten Person —
     # eine Löschung darf den Mailversand nicht lahmlegen. Das Passwort steht
     # dort ausserdem nur als Fernet-Geheimtext.
+    # ON-2: `einrichtung_stand` haelt den Prozess-Stand des Einrichtungs-
+    # Assistenten (je Schritt `offen|erledigt|uebersprungen`, „Assistent
+    # abgeschlossen“, das Erinnerungsdatum). Das sind Zustaende der INSTANZ,
+    # keine Angaben einer Person: die Schritt-Spalten tragen nur diese drei
+    # festen Werte, `modified_by`/`created_by` sind das technische Konto.
+    # Eine Mitgliedsloeschung darf den Assistentenstand nicht veraendern.
+    "einrichtung_stand",
     "smtp_einstellungen",
     "auth_einstellungen", "auth_gruppen_rolle", "dashboard_widget",
     "anmeldeformular", "anmeldeformular_feld", "anmeldeformular_dokument",

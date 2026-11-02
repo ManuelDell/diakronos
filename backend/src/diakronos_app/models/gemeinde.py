@@ -36,7 +36,18 @@ STANDARD_MAX_ANMELDUNGEN = 0  # 0 = ohne Limit
 
 
 class GemeindeEinstellungen(Base):
-    """Single-Zeile: Kontakt, öffentliche Adresse, Willkommenstext, Link-Vorgaben."""
+    """Single-Zeile: Kontakt, öffentliche Adresse, Willkommenstext, Link-Vorgaben.
+
+    ON-2 ergaenzt die Felder, die der Einrichtungs-Assistent (Entwurf Frames
+    04/05) abfragt: ``kurzname``, Anschrift (``strasse``/``plz``/``ort``),
+    ``telefon`` und ``website`` sowie den Verweis auf das hinterlegte Logo.
+
+    Warum hier und nicht in der portierten Frappe-Single
+    ``diakronos_einstellungen``: dort stehen nur die Spalten der Frappe-Vorlage,
+    und ``gemeinde_speichern`` schreibt bewusst nur diese. Alles, was es in
+    Frappe NICHT gab, gehoert seit N9 in diese eigene Zeile (siehe Modulkopf) —
+    so bleibt das generierte Modell unangetastet.
+    """
 
     __tablename__ = "gemeinde_einstellungen"
 
@@ -44,6 +55,17 @@ class GemeindeEinstellungen(Base):
     kontakt_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     oeffentliche_adresse: Mapped[str | None] = mapped_column(String(255), nullable=True)
     willkommenstext: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # ON-2: Kurzname (Kopfzeile, Kalenderkuerzel), Anschrift und Erreichbarkeit.
+    kurzname: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    strasse: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    plz: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    ort: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    telefon: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    website: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # ON-2: Dateiname des Gemeinde-Logos in ``settings.files_dir`` (kein Pfad,
+    # kein Client-Name). Leer = kein Logo -> die Oberflaeche zeigt das
+    # Monogramm aus Kurzname/Gemeindename.
+    logo_datei: Mapped[str | None] = mapped_column(String(255), nullable=True)
     link_laufzeit_tage: Mapped[int] = mapped_column(
         Integer, nullable=False, default=STANDARD_LAUFZEIT_TAGE,
         server_default=str(STANDARD_LAUFZEIT_TAGE),

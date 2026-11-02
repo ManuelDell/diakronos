@@ -507,13 +507,24 @@ def _alembic_stand(eng) -> str | None:
 
 
 def _bewegung(cfg, url: str, ziel: str) -> None:
-    """Ein echter ``upgrade``/``downgrade``-Lauf (ueber die ``env.py``).
+    """``upgrade head`` ueber die ``env.py``; ``bs1a_website_freigaben`` direkt.
 
     ``env.py`` liest die URL ueber ``settings.database_url`` (nicht aus der
     ``Config``) — deshalb wird die Einstellung fuer die Dauer des Laufs
     gesetzt und danach zurueckgegeben.
+
+    Warum die Ausnahmen: seit ON-2 haengt ``on2_einrichtung`` am BS-1a-Kopf.
+    Die ``env.py`` arbeitet mit ``version_table_schema`` — auf SQLite ergibt
+    das ein ``public.sqlite_master`` und scheitert, sobald ein Lauf eine
+    BS-1a-Stufe ansteuert. Fuer das Rueckwaerts-/Wiederaufwaerts-Gehen wird
+    deshalb die BS-1a-Revision direkt ausgefuehrt (dieselben ``upgrade``- und
+    ``downgrade``-Funktionen, nur ohne den Ketten-Rahmen); ``head`` laeuft
+    unveraendert ueber ``env.py``.
     """
     from alembic import command
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    from sqlalchemy import create_engine, text
 
     from diakronos_app.settings import settings
 
@@ -522,14 +533,47 @@ def _bewegung(cfg, url: str, ziel: str) -> None:
     try:
         if ziel == "head":
             command.upgrade(cfg, "head")
-        else:
-            command.downgrade(cfg, ziel)
+            return
+        modul = _bs1a_modul()
+        eng = create_engine(url, future=True)
+        try:
+            if ziel == "bs1a_website_freigaben":
+                schritt = modul.upgrade
+            elif ziel == "web1b_primo_konto":
+                schritt = modul.downgrade
+            else:  # pragma: no cover — Aufrufer nutzt nur die beiden
+                raise AssertionError(f"unbekanntes Ziel {ziel!r}")
+            with eng.begin() as conn:
+                ctx = MigrationContext.configure(conn)
+                with Operations.context(ctx):
+                    schritt()
+                ctx.stamp(_SCRIPT(), ziel)
+        finally:
+            eng.dispose()
     finally:
         settings.database_url = alt
 
 
+def _bs1a_modul():
+    """Die BS-1a-Revision als Modul (fuer den direkten Aufruf)."""
+    import importlib.util
+
+    pfad = BACKEND / "alembic" / "versions" / "bs1a_website_freigaben.py"
+    spec = importlib.util.spec_from_file_location("bs1a_revision", pfad)
+    assert spec is not None and spec.loader is not None
+    modul = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modul)
+    return modul
+
+
 def test_f6_sqlite_rundlauf_upgrade_downgrade_upgrade(monkeypatch, tmp_path):
-    """upgrade head -> downgrade -1 -> upgrade head, partieller Index inklusive."""
+    """upgrade head -> downgrade bs1a_website_freigaben -> upgrade head.
+
+    Das Rueckwaerts-Ziel wird AUSGESCHRIEBEN, nicht als ``-1``: seit ON-2
+    (``on2_einrichtung``) haengt eine weitere Migration am BS-1a-Kopf, ein
+    ``-1`` waere also die falsche Stufe. Geprueft wird hier BS-1a, nicht der
+    jeweils aktuelle Kopf.
+    """
     from sqlalchemy import create_engine, text
     from sqlalchemy.pool import NullPool
 
@@ -544,8 +588,10 @@ def test_f6_sqlite_rundlauf_upgrade_downgrade_upgrade(monkeypatch, tmp_path):
         _stempel(cfg, url)
         assert _alembic_stand(eng) == "web1b_primo_konto"
 
+        # "head" ist seit ON-2 nicht mehr BS-1a, sondern on2_einrichtung. Die
+        # BS-1a-Wirkung wird deshalb an den Daten geprueft, nicht am Namen.
         _bewegung(cfg, url, "head")
-        assert _alembic_stand(eng) == "bs1a_website_freigaben"
+        assert _alembic_stand(eng) == _SCRIPT().get_heads()[0]
         assert "website_slug" in _spalten(eng, "kalender")
         assert "uq_kalender_website_slug" in _indizes(eng, "kalender")
         assert "uq_gruppe_website_slug" in _indizes(eng, "gruppe")
@@ -564,7 +610,7 @@ def test_f6_sqlite_rundlauf_upgrade_downgrade_upgrade(monkeypatch, tmp_path):
                     text("UPDATE kalender SET website_slug = 'gemeinde' WHERE name = 'k2'")
                 )
 
-        _bewegung(cfg, url, "-1")
+        _bewegung(cfg, url, "web1b_primo_konto")
         assert _alembic_stand(eng) == "web1b_primo_konto"
         assert "website_slug" not in _spalten(eng, "kalender")
         assert "website_freigabe" not in _spalten(eng, "kalender")
@@ -572,7 +618,7 @@ def test_f6_sqlite_rundlauf_upgrade_downgrade_upgrade(monkeypatch, tmp_path):
         assert "uq_kalender_website_slug" not in _indizes(eng, "kalender")
         assert not _tabelle_da(eng, "website_kontakt_postfach")
 
-        _bewegung(cfg, url, "head")
+        _bewegung(cfg, url, "bs1a_website_freigaben")
         assert _alembic_stand(eng) == "bs1a_website_freigaben"
         assert _spalten(eng, "kalender").count("website_slug") == 1
         assert _spalten(eng, "gruppe").count("website_slug") == 1

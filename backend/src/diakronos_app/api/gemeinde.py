@@ -12,8 +12,17 @@ Aufgeteilt in drei Abschnitte:
   Willkommenstext und Standardwerte fuer neue Registrierungslinks.
 * ``gemeinde_setze_modul`` — die Modul-Sichtbarkeit von Diakronos/Kronos/
   Diakonos/Psalmos/Seelsorge (die ``*_sichtbar``-Spalten derselben Single).
+* ``gemeinde_logo_hochladen`` / ``gemeinde_logo_entfernen`` — das Gemeinde-Logo
+  (ON-2). Die AUSLIEFERUNG liegt bewusst nicht hier, sondern in
+  ``gemeinde_logo.py``: sie ist oeffentlich und braucht eine eigene Route
+  ausserhalb von ``/api/method``.
 * ``datenschutz_get_texte`` / ``datenschutz_speichern`` — die pflegbaren
   Einwilligungs-, Datenschutz- und Aufbewahrungstexte samt Versionszaehler.
+
+ON-2 (Einrichtungs-Assistent): ``gemeinde_speichern`` und
+``gemeinde_get_einstellungen`` fuehren zusaetzlich Kurzname, Anschrift,
+Telefon, Website und den Logo-Verweis; die Zeitzone wird nur ANGEZEIGT
+(``CALENDAR_TIMEZONE``, nicht editierbar).
 
 Alles wird serverseitig geprueft (Pflichtfelder, Laengen, erlaubte Werte) und
 in EINER Transaktion geschrieben — kein stiller Teilstand.
@@ -46,6 +55,8 @@ __all__ = [
     "gemeinde_speichern",
     "gemeinde_setze_linkvorgaben",
     "gemeinde_setze_modul",
+    "gemeinde_logo_hochladen",
+    "gemeinde_logo_entfernen",
     "datenschutz_get_texte",
     "datenschutz_speichern",
     "oeffentliche_texte",
@@ -93,6 +104,13 @@ _MAX_EMAIL = 255
 _MAX_ADRESSE = 255
 _MAX_WILLKOMMEN = 4000
 _MAX_TEXT = 20000
+# ON-2: Laengen der Felder aus dem Einrichtungsschritt „Kontakt“ (Entwurf 05).
+_MAX_KURZNAME = 40
+_MAX_STRASSE = 120
+_MAX_PLZ = 10
+_MAX_ORT = 120
+_MAX_TELEFON = 40
+_MAX_WEBSITE = 255
 
 #: Voreinstellungen der Datenschutz-Texte, wenn noch nichts gepflegt wurde.
 #: Sie sind bewusst schlicht und ersetzen keine Rechtsberatung — die Gemeinde
@@ -206,6 +224,23 @@ def _text(wert: Any, feld: str, max_laenge: int, pflicht: bool = False) -> str |
     if not wert:
         if pflicht:
             raise ValidationError(f"{feld} ist ein Pflichtfeld.")
+        return None
+    if len(wert) > max_laenge:
+        raise ValidationError(f"{feld} ist zu lang (hoechstens {max_laenge} Zeichen).")
+    return wert
+
+
+def _text_optional_len(wert: Any, feld: str, max_laenge: int) -> str | None:
+    """Bereinigt ein optionales Freitextfeld und prueft NUR die Laenge.
+
+    Anders als ``_text`` mit ``pflicht=False`` ist ein leerer Wert hier kein
+    Fehler und kein ``None``-Sonderfall: er loescht das Feld. Die Meldung nennt
+    das Feld in der Sprache der Oberflaeche („Postleitzahl“), nicht die Spalte.
+    """
+    if wert is None:
+        return None
+    wert = str(wert).strip()
+    if not wert:
         return None
     if len(wert) > max_laenge:
         raise ValidationError(f"{feld} ist zu lang (hoechstens {max_laenge} Zeichen).")
@@ -335,6 +370,24 @@ def gemeinde_get_einstellungen() -> dict[str, Any]:
             "kontakt_email": g.kontakt_email or "",
             "oeffentliche_adresse": g.oeffentliche_adresse or "",
             "willkommenstext": g.willkommenstext or "",
+            # ON-2 (D1): Felder des Einrichtungs-Assistenten.
+            "kurzname": g.kurzname or "",
+            "strasse": g.strasse or "",
+            "plz": g.plz or "",
+            "ort": g.ort or "",
+            "telefon": g.telefon or "",
+            "website": g.website or "",
+            # Die Zeitzone wird NUR angezeigt. Sie ist eine Betriebseinstellung
+            # (CALENDAR_TIMEZONE) und gilt fuer alle Termine — eine Gemeinde
+            # soll sie nicht versehentlich umstellen koennen.
+            "zeitzone": _anzeige_zeitzone(),
+            "zeitzone_hinweis": ZEITZONE_HINWEIS,
+            # F6: massgeblich ist die DATEI, nicht der Eintrag — dieselbe
+            # Regel wie im Status-Punkt (``logo_pfad(...) is not None``). Ein
+            # von Hand geloeschtes Logo ist kein Logo; die Oberflaeche zeigt
+            # dann das Monogramm statt ein 404-Bild einzubinden.
+            "logo_vorhanden": _logo_da(g.logo_datei),
+            "logo_url": logo_url() if _logo_da(g.logo_datei) else "",
             "link_laufzeit_tage": int(g.link_laufzeit_tage or STANDARD_LAUFZEIT_TAGE),
             "link_max_anmeldungen": int(g.link_max_anmeldungen or 0),
             # Die Anzeigenamen der Module zeigt die Oberflaeche nur zur Info —
@@ -358,6 +411,8 @@ def gemeinde_speichern(gemeindename: str = "", kontakt_email: str = "",
                        oeffentliche_adresse: str = "", willkommenstext: str = "",
                        link_laufzeit_tage: Any = None,
                        link_max_anmeldungen: Any = None,
+                       kurzname: str = "", strasse: str = "", plz: str = "",
+                       ort: str = "", telefon: str = "", website: str = "",
                        request=None) -> dict[str, Any]:
     """Speichert die Gemeinde-Angaben und Link-Vorgaben in einer Transaktion.
 
@@ -365,6 +420,13 @@ def gemeinde_speichern(gemeindename: str = "", kontakt_email: str = "",
     Wert, bleibt die gespeicherte Vorgabe erhalten. So kann die Karte „Gemeinde“
     speichern, ohne die auf der Karte „Registrierung“ gepflegten Werte
     versehentlich auf den Standard zurückzusetzen.
+
+    ON-2: ``kurzname``, ``strasse``, ``plz``, ``ort``, ``telefon`` und
+    ``website`` gehoeren zum Einrichtungsschritt „Kontakt“ (Entwurf Frame 05).
+    Sie werden — anders als die Link-Vorgaben — immer geschrieben: die
+    Oberflaeche schickt den vollstaendigen Satz, ein leeres Feld loescht die
+    Angabe. Die Zeitzone ist KEIN Parameter: sie steht in der Konfiguration
+    (``CALENDAR_TIMEZONE``) und wird nur angezeigt.
     """
     from datetime import datetime
 
@@ -389,6 +451,24 @@ def gemeinde_speichern(gemeindename: str = "", kontakt_email: str = "",
     maximum = (None if link_max_anmeldungen is None
                else _zahl(link_max_anmeldungen, "Hoechstzahl Anmeldungen", 0, _MAX_ANMELDUNGEN))
 
+    # ON-2 (D1): die Felder des Einrichtungs-Assistenten. ``website`` bekommt
+    # dieselbe Pruefung wie ``oeffentliche_adresse`` (nur http/https) — eine
+    # ``javascript:``-Adresse in einem Link der Gemeinde waere eine offene Tuer.
+    # ``zeitzone`` wird bewusst NICHT gelesen: der Wert kommt aus der
+    # Konfiguration (CALENDAR_TIMEZONE) und ist hier nur zur Anzeige gedacht.
+    kurz = _text_optional_len(kurzname, "Kurzname", _MAX_KURZNAME)
+    strasse_wert = _text_optional_len(strasse, "Strasse", _MAX_STRASSE)
+    plz_wert = _text_optional_len(plz, "Postleitzahl", _MAX_PLZ)
+    if plz_wert is not None and not plz_wert.isdigit():
+        raise ValidationError("Postleitzahl muss aus Ziffern bestehen.")
+    ort_wert = _text_optional_len(ort, "Ort", _MAX_ORT)
+    telefon_wert = _text_optional_len(telefon, "Telefon", _MAX_TELEFON)
+    website_wert = _text_optional_len(website, "Website", _MAX_WEBSITE)
+    if website_wert is not None:
+        if not (website_wert.startswith("http://") or website_wert.startswith("https://")):
+            raise ValidationError("Website muss mit http:// oder https:// beginnen.")
+        website_wert = website_wert.rstrip("/")
+
     with SessionLocal() as sess:
         g = _gemeinde_zeile(sess)
         d = _diakronos_einstellungen(sess)
@@ -398,6 +478,17 @@ def gemeinde_speichern(gemeindename: str = "", kontakt_email: str = "",
         g.kontakt_email = email
         g.oeffentliche_adresse = adresse
         g.willkommenstext = willkommen
+        # ON-2: Ein LEERES Feld loescht die Angabe (der Assistent darf Felder
+        # ueberspringen; ein spaeteres Leeren muss moeglich bleiben). Der
+        # Unterschied zu den Link-Vorgaben oben ist beabsichtigt: dort ist
+        # "nicht mitgeschickt" ein echter Fall, hier schickt die Oberflaeche
+        # den vollstaendigen Satz Felder.
+        g.kurzname = kurz
+        g.strasse = strasse_wert
+        g.plz = plz_wert
+        g.ort = ort_wert
+        g.telefon = telefon_wert
+        g.website = website_wert
         if laufzeit is not None:
             g.link_laufzeit_tage = laufzeit
         if maximum is not None:
@@ -436,6 +527,110 @@ def gemeinde_setze_linkvorgaben(link_laufzeit_tage: int, link_max_anmeldungen: i
         g.created_by = g.created_by or besitzer
         sess.commit()
     return {"link_laufzeit_tage": laufzeit, "link_max_anmeldungen": maximum}
+
+
+#: ON-2: Der Hinweis unter dem Zeitzonenfeld (Entwurf Frame 05, wörtlich:
+#: „Voreingestellt – die Zeitzone gilt für alle Termine.“). Bewusst als Text
+#: vom Server: die Karte „Zeitzone“ ist eine Anzeige der Konfiguration, keine
+#: Eingabe — der Satz muss also nicht in der Oberflaeche nachgebaut werden.
+ZEITZONE_HINWEIS = "Voreingestellt – die Zeitzone gilt für alle Termine."
+
+
+def _anzeige_zeitzone() -> str:
+    """Der wirksame Wert von ``CALENDAR_TIMEZONE`` — nur zur Anzeige.
+
+    Quelle ist ausschliesslich die Konfiguration (``settings.calendar_timezone``,
+    geprueft beim Start gegen die IANA-Datenbank). Es gibt bewusst KEINEN
+    Schreibweg: die Zone gilt fuer alle Termine und gehoert dem Betreiber.
+    """
+    from diakronos_app.settings import settings
+
+    return str(settings.calendar_timezone or "")
+
+
+def logo_url() -> str:
+    """Oeffentliche Adresse des Logos (MIT Praefix) — EINE Quelle."""
+    from diakronos_app.gemeinde_logo import logo_url as _url
+
+    return _url()
+
+
+def _logo_da(name: str | None) -> bool:
+    """Ist ein Logo HINTERLEGT UND VORHANDEN? (F6, wie ``einrichtung.status``.)
+
+    Nicht ``bool(g.logo_datei)``: eine von Hand geloeschte Datei ist kein Logo.
+    ``logo_pfad`` prueft Muster, Ordner und Existenz in einem Schritt — so
+    gilt in Anzeige und Status-Punkt dieselbe Regel.
+    """
+    from diakronos_app.gemeinde_logo import logo_pfad
+
+    return logo_pfad(name) is not None
+
+
+def _tee(mehr: dict[str, Any]) -> dict[str, Any]:
+    """Antwort der Logo-Endpunkte — immer derselbe Satz Felder."""
+    return {"logo_vorhanden": True, "logo_url": logo_url(), **mehr}
+
+
+@whitelist(methods=["POST"])
+def gemeinde_logo_hochladen(file: Any = None, request=None) -> dict[str, Any]:
+    """Legt das Gemeinde-Logo ab (nur Admin-Rollen).
+
+    Erlaubt sind PNG, JPEG und WebP bis 2 MB; der Typ wird an den Magic-Bytes
+    erkannt (``gemeinde_logo.pruefe_und_lege_ab``). SVG lehnt der Server ab —
+    es kann Skripte enthalten. Ein vorhandenes Logo wird ersetzt und die alte
+    Datei danach geloescht (keine verwaisten Bilder im Datenverzeichnis).
+    """
+    from diakronos_app.db import SessionLocal
+    from diakronos_app.gemeinde_logo import entferne_datei, pruefe_und_lege_ab
+
+    besitzer = _angemeldeter_admin()
+    if request is not None and request.method != "POST":
+        raise ValidationError("Hochladen ist nur per POST erlaubt.")
+    if file is None:
+        raise ValidationError("Es wurde keine Datei uebergeben.")
+
+    deklariert = getattr(file, "content_type", None)
+    name, typ = pruefe_und_lege_ab(file, deklariert)
+
+    from datetime import datetime
+
+    alt: str | None = None
+    with SessionLocal() as sess:
+        g = _gemeinde_zeile(sess)
+        alt = g.logo_datei
+        g.logo_datei = name
+        g.modified = datetime.now()
+        g.modified_by = besitzer
+        g.created_by = g.created_by or besitzer
+        sess.commit()
+    if alt and alt != name:
+        entferne_datei(alt)
+    logger.info("Gemeinde-Logo gesetzt (%s).", typ)
+    return _tee({"gespeichert": True})
+
+
+@whitelist(methods=["POST"])
+def gemeinde_logo_entfernen(request=None) -> dict[str, Any]:
+    """Entfernt das Gemeinde-Logo (nur Admin-Rollen). Ohne Logo: kein Fehler."""
+    from datetime import datetime
+
+    from diakronos_app.db import SessionLocal
+    from diakronos_app.gemeinde_logo import entferne_datei
+
+    besitzer = _angemeldeter_admin()
+    if request is not None and request.method != "POST":
+        raise ValidationError("Entfernen ist nur per POST erlaubt.")
+    with SessionLocal() as sess:
+        g = _gemeinde_zeile(sess)
+        alt = g.logo_datei
+        g.logo_datei = None
+        g.modified = datetime.now()
+        g.modified_by = besitzer
+        sess.commit()
+    if alt:
+        entferne_datei(alt)
+    return {"logo_vorhanden": False, "logo_url": "", "gespeichert": True}
 
 
 @whitelist(methods=["POST"])

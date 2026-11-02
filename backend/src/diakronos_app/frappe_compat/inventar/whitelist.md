@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **1699**
-* eindeutige Funktionen: **327**
-* lesend: **149**, schreibend: **178**
-* Rumpfbefund: schreibend 139, lesend 188, unbekannt 0
+* registrierte Pfade: **1727**
+* eindeutige Funktionen: **334**
+* lesend: **150**, schreibend: **184**
+* Rumpfbefund: schreibend 144, lesend 190, unbekannt 0
 
 ## Einstufung
 
@@ -28,6 +28,8 @@ Hilfsfunktionen im selben Modul. Der Name ist Hinweis, nicht Urteil.
 | Funktion | Methoden | Rumpf | Name | Deklariert | Grund |
 |---|---|---|---|---|---|
 | `diakronos_app.api.auth.logout` | ['POST'] | lesend | schreibend | schreibend |  |
+| `diakronos_app.api.einrichtung.erinnern_spaeter` | ['POST'] | schreibend | lesend | schreibend | Aufruf sess.commit() |
+| `diakronos_app.api.einrichtung.kalender_vorschlag_anlegen` | ['POST'] | lesend | schreibend | schreibend |  |
 | `diakronos_app.api.frappe_core.logout` | ['POST'] | lesend | schreibend | schreibend |  |
 | `diakronos_app.api.kronos.google_import.get_oauth_url` | ['POST'] | schreibend | lesend | schreibend | Aufruf _state_store.set() |
 | `diakronos_app.api.kronos.series.update_series_batch_fast` | ['POST'] | lesend | schreibend | schreibend |  |
@@ -113,6 +115,10 @@ Hilfsfunktionen im selben Modul. Der Name ist Hinweis, nicht Urteil.
 | `diakronos_app.api.datenschutz.loeschantrag_zurueckziehen` | ['POST'] | nein |
 | `diakronos_app.api.datenschutz.loeschung_beantragen` | ['POST'] | nein |
 | `diakronos_app.api.datenschutz.loeschung_bestaetigen` | ['POST'] | nein |
+| `diakronos_app.api.einrichtung.abschliessen` | ['POST'] | nein |
+| `diakronos_app.api.einrichtung.erinnern_spaeter` | ['POST'] | nein |
+| `diakronos_app.api.einrichtung.kalender_vorschlag_anlegen` | ['POST'] | nein |
+| `diakronos_app.api.einrichtung.schritt_setzen` | ['POST'] | nein |
 | `diakronos_app.api.entsperren.entsperren_konto` | ['POST'] | nein |
 | `diakronos_app.api.frappe_core.insert` | ['POST'] | nein |
 | `diakronos_app.api.frappe_core.logout` | ['POST'] | ja |
@@ -120,6 +126,8 @@ Hilfsfunktionen im selben Modul. Der Name ist Hinweis, nicht Urteil.
 | `diakronos_app.api.gemeinde.datenschutz_get_texte` | — | nein |
 | `diakronos_app.api.gemeinde.datenschutz_speichern` | ['POST'] | nein |
 | `diakronos_app.api.gemeinde.gemeinde_get_einstellungen` | — | nein |
+| `diakronos_app.api.gemeinde.gemeinde_logo_entfernen` | ['POST'] | nein |
+| `diakronos_app.api.gemeinde.gemeinde_logo_hochladen` | ['POST'] | nein |
 | `diakronos_app.api.gemeinde.gemeinde_setze_linkvorgaben` | ['POST'] | nein |
 | `diakronos_app.api.gemeinde.gemeinde_setze_modul` | ['POST'] | nein |
 | `diakronos_app.api.gemeinde.gemeinde_speichern` | ['POST'] | nein |
@@ -304,6 +312,7 @@ Hilfsfunktionen im selben Modul. Der Name ist Hinweis, nicht Urteil.
 | `diakronos_app.api.dienstplan.get_dienstplan` | — | nein |
 | `diakronos_app.api.dienstplan.get_dienstrollen` | — | nein |
 | `diakronos_app.api.dienstplan.get_meine_dienste` | — | nein |
+| `diakronos_app.api.einrichtung.status` | — | nein |
 | `diakronos_app.api.fail_validation` | — | nein |
 | `diakronos_app.api.gruppen.get_ankuendigungen` | — | nein |
 | `diakronos_app.api.gruppen.get_aufgaben` | — | nein |

@@ -1412,6 +1412,112 @@
    "ausnahme": null,
    "deklariert": "schreibend",
    "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.einrichtung.abschliessen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.einrichtung",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "abschliessen",
+   "pfade": [
+    "abschliessen",
+    "api.abschliessen",
+    "diakronos_app.api.einrichtung.abschliessen",
+    "einrichtung.abschliessen"
+   ],
+   "rumpf_grund": "Aufruf sess.commit()"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.einrichtung.erinnern_spaeter",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.einrichtung",
+   "nach_name": "lesend",
+   "nach_rumpf": "schreibend",
+   "name": "erinnern_spaeter",
+   "pfade": [
+    "api.erinnern_spaeter",
+    "diakronos_app.api.einrichtung.erinnern_spaeter",
+    "einrichtung.erinnern_spaeter",
+    "erinnern_spaeter"
+   ],
+   "rumpf_grund": "Aufruf sess.commit()"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.einrichtung.kalender_vorschlag_anlegen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.einrichtung",
+   "nach_name": "schreibend",
+   "nach_rumpf": "lesend",
+   "name": "kalender_vorschlag_anlegen",
+   "pfade": [
+    "api.kalender_vorschlag_anlegen",
+    "diakronos_app.api.einrichtung.kalender_vorschlag_anlegen",
+    "einrichtung.kalender_vorschlag_anlegen",
+    "kalender_vorschlag_anlegen"
+   ],
+   "rumpf_grund": ""
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.einrichtung.schritt_setzen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.einrichtung",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "schritt_setzen",
+   "pfade": [
+    "api.schritt_setzen",
+    "diakronos_app.api.einrichtung.schritt_setzen",
+    "einrichtung.schritt_setzen",
+    "schritt_setzen"
+   ],
+   "rumpf_grund": "Aufruf sess.commit()"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.einrichtung.status",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.einrichtung",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "status",
+   "pfade": [
+    "diakronos_app.api.einrichtung.status",
+    "einrichtung.status"
+   ],
+   "rumpf_grund": ""
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
    "funktion": "diakronos_app.api.entsperren.entsperren_konto",
    "methoden": [
     "POST"
@@ -1580,6 +1686,52 @@
     "gemeinde_get_einstellungen"
    ],
    "rumpf_grund": "ueber _diakronos_einstellungen(): Aufruf sess.flush()"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gemeinde.gemeinde_logo_entfernen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gemeinde",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "gemeinde_logo_entfernen",
+   "pfade": [
+    "api.gemeinde_logo_entfernen",
+    "diakronos.diakonos.api.gemeinde.gemeinde_logo_entfernen",
+    "diakronos_app.api.gemeinde.gemeinde_logo_entfernen",
+    "gemeinde.gemeinde_logo_entfernen",
+    "gemeinde_logo_entfernen"
+   ],
+   "rumpf_grund": "Aufruf sess.commit()"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gemeinde.gemeinde_logo_hochladen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gemeinde",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "gemeinde_logo_hochladen",
+   "pfade": [
+    "api.gemeinde_logo_hochladen",
+    "diakronos.diakonos.api.gemeinde.gemeinde_logo_hochladen",
+    "diakronos_app.api.gemeinde.gemeinde_logo_hochladen",
+    "gemeinde.gemeinde_logo_hochladen",
+    "gemeinde_logo_hochladen"
+   ],
+   "rumpf_grund": "Aufruf sess.commit()"
   },
   {
    "allow_guest": false,
@@ -7284,11 +7436,11 @@
    "rumpf_grund": "Aufruf sende_kontaktmail()"
   }
  ],
- "funktionen": 327,
- "registrierte_pfade": 1699,
+ "funktionen": 334,
+ "registrierte_pfade": 1727,
  "rumpf_zaehlung": {
-  "lesend": 188,
-  "schreibend": 139
+  "lesend": 190,
+  "schreibend": 144
  },
  "widersprueche": [
   {
@@ -7329,6 +7481,50 @@
     "auth.logout",
     "diakronos_app.api.auth.logout",
     "frappe.login.logout"
+   ],
+   "rumpf_grund": ""
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.einrichtung.erinnern_spaeter",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.einrichtung",
+   "nach_name": "lesend",
+   "nach_rumpf": "schreibend",
+   "name": "erinnern_spaeter",
+   "pfade": [
+    "api.erinnern_spaeter",
+    "diakronos_app.api.einrichtung.erinnern_spaeter",
+    "einrichtung.erinnern_spaeter",
+    "erinnern_spaeter"
+   ],
+   "rumpf_grund": "Aufruf sess.commit()"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.einrichtung.kalender_vorschlag_anlegen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.einrichtung",
+   "nach_name": "schreibend",
+   "nach_rumpf": "lesend",
+   "name": "kalender_vorschlag_anlegen",
+   "pfade": [
+    "api.kalender_vorschlag_anlegen",
+    "diakronos_app.api.einrichtung.kalender_vorschlag_anlegen",
+    "einrichtung.kalender_vorschlag_anlegen",
+    "kalender_vorschlag_anlegen"
    ],
    "rumpf_grund": ""
   },
@@ -8377,7 +8573,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 149,
-  "schreibend": 178
+  "lesend": 150,
+  "schreibend": 184
  }
 }

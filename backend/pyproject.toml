@@ -24,7 +24,9 @@ dependencies = [
     "argon2-cffi>=23.1.0,<26.0.0",
     "rq>=2.1.0,<3.0.0",
     "redis>=5.0.0,<7.0.0",
-    "python-socketio>=5.11.0,<6.0.0",
+    # <5.18: 5.18.0 bricht die Realtime-Zustellung (test_p6a_queue_realtime,
+    # test_google_realtime: kein Ereignis empfangen), festgestellt 2026-11-02.
+    "python-socketio>=5.11.0,<5.18.0",
     "apscheduler>=3.10.0,<4.0.0",
     "python-multipart>=0.0.12,<1.0.0",
     "httpx>=0.27.0,<1.0.0",
@@ -56,6 +58,12 @@ dependencies = [
     # Untergrenze 4.18: liefert Draft-2020-12-Unterstuetzung und die stabile
     # `iter_errors`-Schnittstelle; jsonschema 4 wird im Image/PyPI weiter gepflegt.
     "jsonschema>=4.18.0,<5.0.0",
+    # defusedxml ist der Parser fuer die SVG-Pruefung des Gemeinde-Logos
+    # (ON-2b): er verweigert Dokumenttypen und externe Entitaeten — damit ist
+    # XXE ausgeschlossen, ohne dass wir selbst sanitisieren. Untergrenze 0.7:
+    # stabile `defusedxml.ElementTree.fromstring` und die
+    # `DefusedXmlException`-Hierarchie.
+    "defusedxml>=0.7.0,<1.0.0",
     # Authlib ist die bewaehrte Bibliothek fuer OIDC (SEC1): JWS-/JWK-Pruefung
     # (authlib.jose) und den Authorization-Code-Flow. Eigenbau der Token-
     # Verifikation waere genau der Fehler, den die Karte ausschliesst. Authlib

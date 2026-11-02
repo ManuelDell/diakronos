@@ -228,6 +228,11 @@ def erstelle_app(einstellungen=None):
 
     app.include_router(_files_router)
     app.include_router(_formularbilder_router)
+    # ON-2: das Gemeinde-Logo ist OEFFENTLICH (Anmeldeseite, Website) und muss
+    # deshalb ebenfalls VOR dem SPA-Catch-all stehen.
+    from diakronos_app.gemeinde_logo import registriere as _registriere_logo
+
+    _registriere_logo(app)
     app.include_router(_google_callback_router)
     app.include_router(_passwort_router)
 

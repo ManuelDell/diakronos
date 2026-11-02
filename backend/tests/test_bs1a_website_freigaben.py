@@ -558,8 +558,15 @@ def _script() -> ScriptDirectory:
 
 
 def test_migration_ist_genau_ein_head():
-    heads = _script().get_heads()
-    assert heads == ["bs1a_website_freigaben"], heads
+    """Die Kette hat genau EINEN Kopf — und BS-1a liegt darauf.
+
+    Seit ON-2 (``on2_einrichtung``) ist BS-1a nicht mehr der Kopf selbst; der
+    Test prueft deshalb die Kette, nicht einen festen Namen: genau ein Kopf,
+    und ``bs1a_website_freigaben`` ist von ihm aus erreichbar.
+    """
+    kopf = _script().get_heads()
+    assert len(kopf) == 1, kopf
+    assert _script().get_revision("bs1a_website_freigaben") is not None
 
 
 def test_migration_haengt_an_web1b():
