@@ -100,6 +100,14 @@ STAMMDATEN_TABELLEN = frozenset({
     # festen Werte, `modified_by`/`created_by` sind das technische Konto.
     # Eine Mitgliedsloeschung darf den Assistentenstand nicht veraendern.
     "einrichtung_stand",
+    # ON-1b: `einrichtung_token` haelt Hash + Ablauf des EINMAL-Links zum
+    # ersten Administrator. Instanz-Zustand wie `registrierungslink`: kein
+    # Konto, kein Mitglied, keine Angabe einer Person — `token_hash` ist ein
+    # SHA-256-Wert ohne Rueckrechnung, `name` ein fester Schluessel, die
+    # uebrigen Spalten sind Zeitstempel/Zaehler. Die Zeile verschwindet ohnehin
+    # beim Anlegen des Administrators; eine Mitgliedsloeschung darf den
+    # Einrichtungsvorgang nicht anfassen.
+    "einrichtung_token",
     "smtp_einstellungen",
     "auth_einstellungen", "auth_gruppen_rolle", "dashboard_widget",
     "anmeldeformular", "anmeldeformular_feld", "anmeldeformular_dokument",

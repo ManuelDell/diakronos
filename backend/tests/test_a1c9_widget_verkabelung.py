@@ -187,18 +187,26 @@ def test_conflict_events_unter_widget_pfad_erreichbar():
     )
 
 
-def test_jeder_widget_zeiger_ist_auffindbar():
+def test_jeder_widget_zeiger_ist_auffindbar(welt):
     """KEINE Widget-Zeile darf auf eine nicht vorhandene Funktion zeigen.
 
     Das ist der Test, der diese Fehlerklasse fuer die Zukunft schliesst —
     nicht nur fuer `pending-registrations`, sondern fuer jede Zeile.
     """
+    from diakronos_app.db import lesesitzung
     from diakronos_app.frappe_compat.query import get_all
 
-    zeilen = get_all(
-        "Dashboard Widget",
-        fields=["widget_id", "api_method"],
-    ) or []
+    # BS-1c: die Fixture `welt` ist PFLICHT. Ohne sie oeffnete `get_all` ohne
+    # laufenden Request die echte `database_url` — im Image ohne Netz ein
+    # Namensfehler (`db`), mit Netz ein Zugriff auf die Betriebsdatenbank
+    # (Kartenregel 11). `lesesitzung` nimmt die Sitzung des Aufrufs
+    # (`patched_db`) und schliesst nur eine eigene.
+    with lesesitzung() as sess:
+        zeilen = get_all(
+            "Dashboard Widget",
+            fields=["widget_id", "api_method"],
+            session=sess,
+        ) or []
     tot = [
         r["widget_id"]
         for r in zeilen

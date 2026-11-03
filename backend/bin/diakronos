@@ -1,0 +1,36 @@
+#!/bin/sh
+# Diakronos — kleiner Kommando-Einstiegspunkt im Container (Karte ON-1).
+#
+# Aufruf im Betrieb:
+#   docker compose exec app diakronos einrichtungslink
+#
+# Erzeugt einen NEUEN Einrichtungs-Link und macht einen alten ungueltig.
+# Wirksam nur, solange kein Benutzer existiert; danach meldet der Befehl
+# „Einrichtung bereits abgeschlossen." (Exitcode 0 — das ist kein Fehler).
+#
+# Warum ein Shell-Skript und kein setuptools-`console_scripts`:
+# der Einstiegspunkt muss auch dann funktionieren, wenn die Installation
+# nicht ueber pip laeuft (Entwicklung, `python -m`); das Skript ruft
+# ausschliesslich das Python-Modul auf und bringt keine zweite Wahrheit mit.
+set -eu
+
+fall="${1:-link}"
+case "$fall" in
+    einrichtungslink|link)
+        exec python -m diakronos_app.einrichtung link
+        ;;
+    -h|--help|help)
+        cat <<'HILFE'
+Aufruf: diakronos <befehl>
+
+  einrichtungslink   Neuen Einrichtungs-Link erzeugen (nur solange kein
+                     Benutzer existiert). Ein alter Link wird ungueltig.
+  help               Diese Hilfe.
+HILFE
+        ;;
+    *)
+        echo "Unbekannter Befehl: $fall" >&2
+        echo "Aufruf: diakronos einrichtungslink" >&2
+        exit 2
+        ;;
+esac

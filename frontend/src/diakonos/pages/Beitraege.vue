@@ -204,6 +204,26 @@
         <DkField label="Inhalt">
           <textarea v-model="editorForm.content" class="dk-ui-eingabe" rows="8" placeholder="Vollständiger Inhalt…" />
         </DkField>
+        <!-- BS-1d (U3): Freigabe für die Website. Der Server schaltet sie über
+             `website.beitrag_auf_website`; wirksam wird sie nur zusammen mit
+             „veröffentlicht“. Ausschalten geht ohne Rückfrage, Einschalten
+             fragt nach (G1: nichts wird ohne Willen öffentlich). -->
+        <div v-if="editingPost && darfWebsite" class="bt-website">
+          <DkCheckbox
+            :model-value="aufWebsite"
+            :disabled="savingPost || websiteLaeuft"
+            @update:model-value="websiteUmschalten"
+          >
+            Auf Website zeigen
+          </DkCheckbox>
+          <p class="bt-website-hilfe">
+            Nur zusammen mit „veröffentlicht“ sichtbar. Titel, Vorschautext und
+            Inhalt erscheinen dann auf der Website — Personenangaben nicht.
+          </p>
+        </div>
+        <p v-else-if="darfWebsite" class="bt-website-hilfe">
+          Die Freigabe für die Website lässt sich nach dem ersten Speichern setzen.
+        </p>
       </form>
       <template #footer>
         <DkButton variant="ghost" @click="editorSchliessen">Abbrechen</DkButton>
@@ -224,6 +244,8 @@ import { ref, computed, onMounted } from 'vue'
 import DOMPurify from 'dompurify'
 import { useSession } from '../composables/useSession.js'
 import { apiCall } from '../composables/useApi.js'
+import { useWebsiteFreigaben } from '../composables/useWebsiteFreigaben.js'
+import { darfFreigabenVerwalten } from '../../shared/website-freigaben.mjs'
 import { suchNormal } from '../composables/bf1Anzeige.js'
 import { chipsAus } from '../composables/filterChips.mjs'
 import { showToast } from '../composables/useToast.js'
@@ -239,10 +261,13 @@ import DkSelect from '../components/ui/DkSelect.vue'
 import DkFilterChips from '../components/ui/DkFilterChips.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
+import DkCheckbox from '../components/ui/DkCheckbox.vue'
 
 function sanitize(html) { return DOMPurify.sanitize(html || '') }
 
-const { isAdmin } = useSession()
+const { isAdmin, rollen } = useSession()
+// BS-1d: Website-Schalter nur für Website-Rollen (Server antwortet sonst 403).
+const darfWebsite = computed(() => darfFreigabenVerwalten({ rollen: rollen.value }))
 
 /* ─── Kategorien ─── */
 const categories = [
@@ -376,12 +401,49 @@ function formatDate(d) {
   return new Date(d).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 const editorSchutz = useFormularSchutz(() => editorForm.value, () => savingPost.value)
+
+/* ─── BS-1d (U3): Website-Freigabe des Beitrags ───────────────────────────
+ * Der Schalter steht im Editor, geschaltet wird er über
+ * `website.beitrag_auf_website` (POST über `apiCall`, CSRF) — NICHT über
+ * `update_beitrag`. Deshalb bewahrt `openEditor` den Stand aus der Liste, und
+ * `savePost` schickt ihn nicht mit.
+ */
+const { beitragSetzen } = useWebsiteFreigaben()
+const websiteLaeuft = ref(false)
+const aufWebsite = ref(false)
+
+async function websiteUmschalten(wert) {
+  if (!editingPost.value || websiteLaeuft.value) return
+  const an = wert === true
+  if (an && !(await bestaetigen({
+    titel: 'Beitrag auf der Website zeigen?',
+    text: `„${editingPost.value.title}“ erscheint auf der Website, sobald er zusätzlich `
+      + 'veröffentlicht ist. Titel, Vorschautext, Inhalt und Bild des Beitrags werden dabei '
+      + 'öffentlich — Personenangaben (Autor, Kommentare) nicht.',
+    aktion: 'Freigeben',
+  }))) return
+  websiteLaeuft.value = true
+  const ergebnis = await beitragSetzen(editingPost.value.id, an)
+  websiteLaeuft.value = false
+  if (!ergebnis.ok) {
+    showToast(ergebnis.fehler, 'error')
+    return
+  }
+  aufWebsite.value = an
+  const eintrag = posts.value.find((p) => p.id === editingPost.value.id)
+  if (eintrag) eintrag.auf_website = an
+  showToast(an ? 'Beitrag steht auf der Website' : 'Beitrag von der Website genommen')
+}
+
 async function editorSchliessen() {
   if (await editorSchutz.darfSchliessen()) showEditor.value = false
 }
 function openEditor(post = null) {
   editingPost.value = post
   editorFehler.value = { titel: '' }
+  // BS-1d: Stand der Website-Freigabe aus der Liste (Default AUS) — der
+  // Schalter ist NICHT Teil des Formulars und wird nicht mitgespeichert.
+  aufWebsite.value = post?.auf_website === true
   editorForm.value = post
     ? { title: post.title, category: post.category, image: post.image || '', excerpt: post.excerpt, content: post.content || '' }
     : { title: '', category: 'allgemein', image: '', excerpt: '', content: '' }
@@ -690,4 +752,7 @@ async function addComment() {
 
 /* Editor */
 .bt-editor { display: flex; flex-direction: column; gap: var(--sp-3); }
+/* BS-1d (U3): Website-Freigabe im Editor — Schalter mit kurzer Erklärung. */
+.bt-website { display: grid; gap: var(--sp-1); }
+.bt-website-hilfe { margin: 0; color: var(--muted); font-size: var(--fs-sm); }
 </style>

@@ -33,3 +33,8 @@ referenz/
 inventar/*
 !inventar/schema_overlay.json
 docs/
+# ON-1b: `frontend/tests/on1b-einrichtung.test.mjs` (Frontend-Stage, node --test)
+# haelt fest, dass die Betreiber-Anleitung den Reverse-Proxy-Fall nennt (F1) —
+# dort landet der Einrichtungs-Token, und die App kann ihn nicht wegfiltern.
+# Ausnahme wie bei inventar/: nur DIESE eine Datei kommt in den Kontext.
+!docs/BETRIEBSANLEITUNG.md

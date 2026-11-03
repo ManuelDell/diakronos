@@ -169,8 +169,15 @@ def test_pfad_und_datei_url_idempotent_und_schonend(monkeypatch):
         base_path.setze_praefix("")
 
 
-def test_default_ist_leer_und_aendert_nichts():
-    """S1: Default "" = heutiges Verhalten; die bestehende App bleibt unveraendert."""
+def test_default_ist_leer_und_aendert_nichts(monkeypatch):
+    """S1: Default "" = heutiges Verhalten; die bestehende App bleibt unveraendert.
+
+    ON-1-Abnahme: Das frisch gebaute Image meldet ``DIAKRONOS_BASE_PATH=/diakronos``
+    (ENV aus dem Abnahme-Stack). Der Test prueft deshalb den DEFAULT der
+    Einstellung, nicht die Umgebung des Laufenden — zwei Prozessumgebungen
+    duerfen sich hier nicht unterscheiden.
+    """
+    monkeypatch.setattr(echte_settings, "diakronos_base_path", "")
     assert echte_settings.diakronos_base_path == ""
 
 

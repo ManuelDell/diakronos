@@ -87,8 +87,80 @@ fehlender — Compose meldet dann
 ### 2.3 Den ersten Administrator anlegen (nur bei Erstinstallation)
 
 Eine frische Installation hat **keine** Benutzer. Ohne Benutzer bleibt die
-Oberfläche stehen und niemand kann sich anmelden. Deshalb setzen Sie **einmalig**
-in der `.env`:
+Oberfläche stehen und niemand kann sich anmelden. Dafür gibt es **zwei** Wege —
+nehmen Sie den ersten, wenn Sie nicht wissen, welchen:
+
+#### a) Über den Einrichtungslink (empfohlen)
+
+Beim ersten Start erzeugt die App einen einmaligen Link und schreibt ihn als
+Kasten ins Log des `app`-Containers:
+
+```bash
+docker compose logs app | less
+```
+
+```
+09:41:03  WARN  Kein Systemadministrator vorhanden
+
+  ┌─ ERSTEINRICHTUNG ────────────────────────────────────────────
+  │  Es gibt noch keinen Systemadministrator.
+  │  Öffnen Sie diesen Link, um ihn anzulegen
+  │  (einmalig gültig, 7 Tage):
+  │  https://gemeinde.example.org/diakronos/einrichtung/k7Qe8vT2…
+  │  ─────────────────────────────────────────────────────────────
+  │  Neuen Link erzeugen:
+  │    docker compose exec app diakronos einrichtungslink
+  └───────────────────────────────────────────────────────────────
+```
+
+Eigenschaften, die Sie kennen sollten:
+
+- Der Link ist **einmalig** und **7 Tage** gültig. Der Server kennt ihn nur als
+  Hash — ein Auszug aus der Datenbank enthält keinen benutzbaren Link.
+- **Der Link ist der Schlüssel.** Wer ihn hat, kann den Administrator anlegen.
+  Geben Sie ihn nicht weiter und nicht in ein Ticket oder eine Chat-Gruppe.
+- Fehlt `APP_BASE_URL` in der `.env`, steht im Kasten statt der vollen Adresse
+  nur ein Pfad (plus Hinweis). Setzen Sie `APP_BASE_URL=https://ihre-domain`
+  und starten Sie den Stack neu (`docker compose up -d`); der bestehende Link
+  bleibt dabei gültig.
+- Ein **Neustart** des Stacks macht den Link NICHT ungültig — die Ausgabe
+  erscheint bei jedem Start, bis ein Administrator existiert.
+- Einen **neuen** Link erzeugen Sie so (der alte wird damit ungültig):
+
+  ```bash
+  docker compose exec app diakronos einrichtungslink
+  ```
+
+  Der Befehl wirkt nur, solange kein Benutzer existiert; danach meldet er
+  „Einrichtung bereits abgeschlossen."
+
+Auf dem Link legen Sie Vorname, Nachname, E-Mail und Passwort fest. Danach ist
+der Link verbraucht — ein erneuter Aufruf zeigt „Dieser Einrichtungslink ist
+nicht mehr gültig". Die Seite liegt unter `{Adresse}/diakonos/einrichtung/…`
+und funktioniert mit und ohne `DIAKRONOS_BASE_PATH`.
+
+> **Werden später alle Benutzer gelöscht**, erscheint beim nächsten Start wieder
+> ein Einrichtungslink im Log: die Bedingung ist „keine Benutzer vorhanden", und
+> die ist dann wieder erfüllt.
+
+**Der Token steht nicht im Zugriffsprotokoll.** Das Protokoll des
+`app`-Containers schreibt den Pfad jeder Anfrage mit — und bei diesem Link *ist*
+der Pfad das Geheimnis. Die App ersetzt ihn deshalb in der Zeile durch
+`/einrichtung/***` (aus `/diakronos/einrichtung/k7Qe8vT2…` wird
+`/diakronos/einrichtung/***`); Status, Methode und Dauer bleiben lesbar.
+
+> **Reverse-Proxy-Logs sind ebenfalls betroffen.** nginx, Nginx Proxy Manager
+> oder ein Load Balancer vor der App protokollieren den *vollständigen*
+> Anforderungspfad — dort steht der Token dann im Klartext, und die App kann
+> das nicht verhindern. Wenn Sie den Einrichtungslink nutzen, schützen Sie
+> diese Logs (Zugriff nur für Administratoren, Aufbewahrung begrenzen) oder
+> schalten Sie die Pfadaufzeichnung für `/einrichtung/` ab. Alternativ den Weg
+> (b) über `ADMIN_EMAIL`/`ADMIN_PASSWORD` nehmen — dabei entsteht kein Link.
+
+#### b) Kopflos über `ADMIN_EMAIL` und `ADMIN_PASSWORD`
+
+Für Automatisierung (z. B. ein Skript, das den Stack aufsetzt) können Sie den
+Administrator stattdessen in der `.env` vorgeben:
 
 | Variable | Bedeutung |
 |---|---|
@@ -101,12 +173,15 @@ Zwei Dinge, die hier oft überraschen:
   Sobald ein einziger Benutzer existiert, passiert nichts mehr. Ein gesetztes
   `ADMIN_PASSWORD` kann eine bestehende Installation also **nicht** verändern
   und **kein** zweites Konto anlegen.
-- Sind nur *einer* der beiden Werte gesetzt, wird nichts angelegt. Im Log steht
-  dann eine Warnung.
+- Sind nur *einer* der beiden Werte gesetzt, wird nichts angelegt und **kein**
+  Einrichtungs-Link erzeugt (ein halb gesetzter Wert ist gefährlicher als
+  keiner). Im Log steht dann eine Warnung — ergänzen Sie den fehlenden Wert
+  oder entfernen Sie beide und starten Sie neu.
 
-> Beim Ausprobieren auf einer frischen Testdatenbank: `ADMIN_EMAIL` und
-> `ADMIN_PASSWORD` **vor** dem ersten Start setzen. Nachträglich hat der Stack
-> keine Funktion, die das nachholt.
+> Beim Ausprobieren auf einer frischen Testdatenbank: entweder `ADMIN_EMAIL`
+> und `ADMIN_PASSWORD` **vor** dem ersten Start setzen — oder den Weg über den
+> Einrichtungs-Link (a) nehmen. Die Zeilen können nach dem ersten Start wieder
+> entfernt werden.
 
 ### 2.4 Starten
 
@@ -1413,6 +1488,10 @@ verwenden (`ports: !reset []`, benötigt Compose >= 2.24.4). Loopback eines
 NPM-Containers ist nicht der Host. X-Forwarded-For **überschreiben**, nie
 anhängen; X-Forwarded-Proto=https und korrekten Host setzen. Diese manuelle
 Betriebsart verlangt eigene Netz-/Firewall-Konfiguration. Siehe 8.4/8.9.
+`X-Forwarded-Proto` ist seit BS-1bc auch für das **Kontaktformular** nötig: die
+Herkunftsprüfung (`website/kontakt.py`, `_eigenes_schema`) nimmt bei
+`BEHIND_PROXY=1` das Schema aus diesem Kopf. Fehlt er, kommt das Schema der
+Proxy-Verbindung (`http`) an, und das eigene Formular würde mit 403 abgewiesen.
 Beim eingebauten nginx setzt Compose `BEHIND_PROXY=1` automatisch **und**
 entfernt strukturell alle App-Port-Veröffentlichungen.
 
@@ -2394,6 +2473,8 @@ WEBSITE_KONTAKT_EMPFAENGER=kontakt@gemeinde.example.org
 # WEBSITE_KONTAKT_MAX_IP=5             (Anfragen je Adresse und Stunde)
 # WEBSITE_KONTAKT_MAX_GESAMT=50        (Anfragen gesamt je Stunde)
 # WEBSITE_KONTAKT_FENSTER_SEKUNDEN=3600
+# WEBSITE_KONTAKT_LISTE_MAX_IP=30      (Abrufe der Postfach-Liste je Adresse/Stunde)
+# WEBSITE_KONTAKT_LISTE_MAX_GESAMT=600 (Abrufe der Postfach-Liste gesamt/Stunde)
 ```
 
 Danach `docker compose up -d`.
@@ -2428,7 +2509,106 @@ JSON: {"name": "...", "email": "...", "nachricht": "...",
 Feldregeln: Name 1–100 Zeichen, E-Mail gültige Adresse (höchstens 254
 Zeichen), Nachricht 10–5000 Zeichen, Einwilligung muss `true` sein (JSON-Bool,
 kein Text „true"). Der **Betreff ist fest** („Kontaktformular Website") — die
-Website kann ihn nicht setzen.
+Website kann ihn nicht ersetzen, höchstens ergänzen (siehe 17.2b).
+
+### 17.2a Auswahl-Postfächer (BS-1c)
+
+Seit BS-1c kann das Formular **mehrere Empfänger** anbieten. Die Postfächer
+werden in der Verwaltung gepflegt (`website.postfach_speichern` /
+`postfach_loeschen`, Tabelle `website_kontakt_postfach`, siehe 18.1). Was die
+Website wissen darf, steht unter:
+
+```
+GET  https://<domain>/api/method/website.oeffentlich.postfaecher
+     -> {"message": {"postfaecher": [{"slug": "allgemein",
+                                      "bezeichnung": "Allgemeine Anfragen"}, …]}}
+```
+
+* Nur **aktive** Postfächer, nur `slug` und `bezeichnung`; die
+  **E-Mail-Adresse wird nie ausgeliefert**.
+* Ohne gepflegte Postfächer erscheint das Rückfall-Postfach `standard`
+  (Bezeichnung „Allgemein") — solange `WEBSITE_KONTAKT_EMPFAENGER` gesetzt ist.
+* Ist ein Postfach **inaktiv**, erscheint es nicht und wird auch nicht
+  angenommen (Antwort `400` im Feld `postfach`).
+* Die Liste ist 5 Minuten zwischenspeicherbar (`Cache-Control: public,
+  max-age=300`).
+
+Im Formular wird `postfach` als optionales Feld mitgeschickt:
+
+```
+{"name": "…", "email": "…", "nachricht": "…", "einwilligung": true,
+ "website": "", "postfach": "jugend", "betreff_zusatz": "Gemeindefest"}
+```
+
+* `postfach` **fehlt oder ist leer** → das Postfach `standard`, sonst das
+  **erste aktive** (nach *Sortierung*), sonst `WEBSITE_KONTAKT_EMPFAENGER`.
+* Unbekannter oder inaktiver Slug → **400** im Feld `postfach`, keine Mail.
+  Die Meldung nennt die vorhandenen Postfächer nicht.
+* Gibt es Postfach-Zeilen, ist aber **keines aktiv**, antwortet der Endpunkt
+  **503** („nicht eingerichtet") — es gibt keinen stillen Rückfall. Das ist
+  eine bewusste Betreiberentscheidung (BS-1c2/F7): wer alle Postfächer
+  abschaltet, will das Formular abschalten und nicht still an ein anderes
+  Postfach ableiten. Die Liste `website.oeffentlich.postfaecher` ist in
+  diesem Zustand **leer**, das Formular zeigt also keine Auswahl an.
+* Die Liste selbst ist **ratenbegrenzt** (BS-1c2/F5) — eigener Zähler,
+  `WEBSITE_KONTAKT_LISTE_MAX_IP` (30/Stunde je Adresse) bzw.
+  `WEBSITE_KONTAKT_LISTE_MAX_GESAMT` (600/Stunde). Ein Abruf der Liste
+  verbraucht **kein** Kontaktkontingent. Ist Redis nicht erreichbar: `503`.
+
+### 17.2b Betreff-Zusatz (BS-1c)
+
+Das optionale Feld `betreff_zusatz` hängt an den festen Betreff:
+
+```
+Betreff: Kontaktformular Website - Gemeindefest
+```
+
+* höchstens **100 Zeichen**;
+* **jeder Zeilenumbruch und jedes Steuerzeichen führt zu `400`** (Feld
+  `betreff_zusatz`) und es geht **keine** Mail raus — der Zusatz wird nicht
+  stillschweigend „bereinigt". Abgelehnt wird die volle Menge
+  `[\x00-\x1f\x7f\x85\u2028\u2029]` — also auch Tabulator, `\x08`, `\x1f`,
+  `\x7f`, NEL (`\x85`) und die Unicode-Zeilentrenner U+2028/U+2029
+  (BS-1c2/F6);
+* fehlt das Feld, lautet der Betreff unverändert „Kontaktformular Website".
+
+### 17.2c Herkunft Primo (BS-1c)
+
+Läuft die Website (Primo) unter einer **eigenen Adresse**
+(`PRIMO_PUBLIC_URL`, z. B. `https://website.example.org`) und nicht unter der
+Diakronos-Domain, dann ist genau diese Herkunft zugelassen — zusätzlich zur
+eigenen Domain:
+
+* `Origin` (oder `Referer`) = `PRIMO_PUBLIC_URL` → **200**;
+* Antworten für diese Herkunft tragen `Access-Control-Allow-Origin` mit
+  GENAU dieser Adresse und **kein** `Access-Control-Allow-Credentials`;
+* `OPTIONS` (CORS-Preflight) auf den Kontaktpfad antwortet **204** mit
+  `Access-Control-Allow-Methods: POST, OPTIONS` und
+  `Access-Control-Allow-Headers: Content-Type`;
+* jede **andere** Herkunft bleibt **403** (auch beim Preflight), ohne
+  CORS-Kopfzeile. Cookies/Sitzungen werden für das Formular nicht gebraucht.
+
+Verglichen wird die **Herkunft** — Schema, Host UND Port (BS-1c2/F2), nicht
+nur der Host:
+
+* beide Seiten werden normalisiert: Schema und Host klein, **Standardport
+  fällt weg** (`https://x:443` == `https://x`), **Pfad/Query/Fragment fallen
+  weg** (`https://x/diakronos` → `https://x`);
+* ein anderes **Schema** (`http` statt `https`) oder ein anderer **Port**
+  (`:8443`) ist damit eine **fremde** Herkunft → `403`;
+* zurückgegeben wird in `Access-Control-Allow-Origin` immer die
+  **normalisierte** Herkunft (nie `*`, nie eine Liste).
+
+`PRIMO_PUBLIC_URL` leer → es gilt `PRIMO_URL`; sind beide leer, ist — wie
+bisher — nur die eigene Domain zugelassen. **Wichtig für TLS-Vorbauten:** der
+eigene Host wird aus der Anfrage (`Schema` + `Host`-Kopf) gebildet. Hört TLS
+vor Diakronos auf und reicht der Vorbau einen `http`-Host herein, während der
+Browser `https://…` schickt, dann gehört die öffentliche Adresse in
+`PRIMO_PUBLIC_URL` — sonst wird die eigene Herkunft als fremd abgewiesen.
+Alle Antworten dieses Abschnitts tragen unabhängig davon `Vary: Origin`
+(BS-1c2/F4), damit kein Zwischenspeicher die CORS-Antwort der einen Herkunft
+an eine andere ausliefert.
+
 
 ### 17.3 Schutzmechanismen
 
@@ -2578,3 +2758,137 @@ werden darf, entscheiden die späteren Bausteine (BS-1b…1d) über eine
 **Feld-Positivliste**; Personendaten (Mitglieder, Teilnehmer, Verantwortliche,
 E-Mail-Adressen, interne Kennungen) bleiben grundsätzlich innen vor — auch bei
 freigegebenem Kalender oder freigegebener Gruppe.
+
+## 19. Öffentliche Lese-API der Website (BS-1b)
+
+Die Bausteine der Website (Primo) lesen Termine, Gruppen und Beiträge aus
+Diakronos. Was dabei öffentlich wird, entscheidet **ausschließlich** die
+Freigabe aus Abschnitt 18 — es gibt keine zweite Stelle.
+
+### 19.1 Grundsatz: nichts ist öffentlich ohne Freigabe
+
+* Ein Kalender ist öffentlich, wenn **Website-Freigabe** gesetzt ist **und** er
+  einen Kürzel (Slug) hat.
+* Ein Termin ist öffentlich, wenn sein Kalender freigegeben ist **und** sein
+  Status **„Festgelegt"** lautet. Entwürfe („Vorschlag"), Konflikt-Termine,
+  abgelehnte Termine und „Bestätigt" bleiben innen.
+* Trägt ein Kalender **„nur öffentliche Kategorien"**, erscheinen nur Termine,
+  deren Terminart in **Verwaltung → Terminarten** als öffentlich markiert ist.
+* Eine Gruppe ist öffentlich, wenn **Website-Freigabe** gesetzt ist; als
+  **„Versteckt"** markierte Gruppen erscheinen nie.
+* Ein Beitrag ist öffentlich, wenn er **veröffentlicht** ist **und** „auf die
+  Website stellen" gesetzt hat (Abschnitt 18.3, `beitrag_auf_website`).
+
+Es wird **nie** ein ganzer Datensatz ausgegeben, sondern nur eine feste
+Feld-Liste. **Nicht** öffentlich: Mitglieder, Teilnehmer, Mitarbeitende,
+Ablehnungsgründe, Ablauf-/Dienstpläne, Personen-Kennungen, E-Mail-Adressen,
+Autor- und Leiternamen.
+
+### 19.2 Endpunkte (Vertrag für BS-2*)
+
+Alle Endpunkte sind **nur GET** und ohne Anmeldung erreichbar. Sie liegen
+unter dem Betriebs-Präfix (`DIAKRONOS_BASE_PATH`, Abschnitt 16), z. B.
+`/diakronos/api/method/website.oeffentlich.termine` bzw.
+`/diakronos/website/oeffentlich/termine`.
+
+| Endpunkt | Zweck |
+|---|---|
+| `website.oeffentlich.kalender` | `[{slug, titel, farbe}]` |
+| `website.oeffentlich.termine` | Termine im Zeitfenster |
+| `website.oeffentlich.naechster_termin` | ein Termin oder `null` |
+| `website.oeffentlich.gruppen` | `[{slug, name, typ, beschreibung, treffzeit, treffpunkt, bild_url}]` |
+| `website.oeffentlich.gruppe` | dasselbe + `naechste_termine` (max. 10) |
+| `website.oeffentlich.beitraege` | Beiträge, `inhalt` als bereinigtes HTML |
+
+Zusätzlich drei eigene Adressen (eigener Inhaltstyp bzw. CORS):
+
+| Adresse | Zweck |
+|---|---|
+| `{Präfix}/website/ical/{kalender-slug}.ics` | Kalender-Abo (iCalendar) |
+| `{Präfix}/website/bild/{art}/{slug}` | Bild einer freigegebenen Gruppe/eines Beitrags |
+| `{Präfix}/website/oeffentlich/{funktion}` | dieselben sechs Abfragen, mit CORS |
+
+**Parameter** (Termine): `kalender` (Slug, mehrere mit Komma), `von`/`bis`
+(`JJJJ-MM-TT`, Vorgabe heute bis +90 Tage, höchstens 400 Tage), `kategorie`,
+`gruppe`, `limit` (Vorgabe 50, höchstens 500). Beiträge: `limit`
+(Vorgabe 10, höchstens 50), `kategorie`.
+
+Ein unbekannter oder **nicht freigegebener** Slug wird still verworfen (leere
+Liste); eine Gruppe per Slug, ein iCal-Feed und ein Bild antworten **404** —
+es ist also nicht erkennbar, ob es den Eintrag gibt.
+
+### 19.3 Einstellungen
+
+```
+# Bremse der öffentlichen Lese-API (je Adresse und Minute)
+# WEBSITE_OEFFENTLICH_MAX_IP=120
+# WEBSITE_OEFFENTLICH_MAX_GESAMT=0            (0 = aus; sinnvoll, weil hinter
+#                                              einem Proxy alle dieselbe Adresse haben)
+# WEBSITE_OEFFENTLICH_FENSTER_SEKUNDEN=60
+```
+
+Nur nötig, wenn die Website auf einer **anderen Adresse** läuft als Diakronos:
+
+```
+PRIMO_PUBLIC_URL=https://www.gemeinde.example.org
+```
+
+Dann sendet die App `Access-Control-Allow-Origin` **nur** für diese Herkunft —
+ohne Anmeldedaten. Ohne diese Einstellung gibt es keine CORS-Kopfzeilen (bei
+gleicher Domain auch nicht nötig). Nach Änderungen: `docker compose up -d`.
+
+### 19.4 Cache, Bremse, Bilder
+
+* Antworten werden **5 Minuten** zwischengespeichert (`Cache-Control: public,
+  max-age=300`). Eine Freigabe wird deshalb erst nach spätestens 5 Minuten
+  sichtbar; ein Zurücknehmen wirkt genauso verzögert. Bei Bedarf kurz warten
+  oder den Eingang umgehen.
+* Die Bremse erlaubt **120 Anfragen je Minute und Adresse**; darüber antwortet
+  die API **429** mit einer allgemeinen Meldung. Ist Redis nicht erreichbar,
+  wird **nicht** ausgeliefert (503) — lieber eine Anfrage weniger als ein
+  ungebremster Weg.
+* Bilder werden nur für **freigegebene** Gruppen und Beiträge ausgeliefert,
+  und nur als PNG/JPEG/GIF/WebP. **SVG wird nie ausgeliefert** (kann Skript
+  enthalten). Ein Bild ohne Freigabe ergibt 404.
+
+### 19.5 Prüfen
+
+```
+curl -s https://<ihre-domain>/diakronos/api/method/website.oeffentlich.kalender
+curl -sI https://<ihre-domain>/diakronos/website/ical/<kalender-slug>.ics
+```
+
+Erwartung: ohne Freigaben eine **leere Liste** `{"message": []}`; mit Freigabe
+die Kalender/Gruppen Ihrer Website. Der iCal-Feed beginnt mit
+`BEGIN:VCALENDAR`.
+
+### 19.6 Hinweise für die Bausteine (BS-2*)
+
+Drei Punkte, die beim Bau der Primo-Bausteine sonst zu Überraschungen führen:
+
+* **Clientseitig abrufen, nicht serverseitig.** Alle Besucher einer Website
+  erscheinen beim serverseitigen Abruf aus **einer** Adresse (der des
+  Webservers). Sie teilen sich damit die Bremse aus 19.3 — bei 120 Anfragen je
+  Minute ist ein normaler Besucherstrom schnell darüber. Die Bausteine holen
+  die Daten deshalb **im Browser** (dafür gibt es die CORS-Variante unter
+  `{Präfix}/website/oeffentlich/{funktion}`); dann zählt jede Adresse für
+  sich. Serverseitiges Abrufen ist nur mit eigenem Cache und eigener
+  Zugriffsplanung sinnvoll.
+* **Beschreibungen erscheinen als Klartext.** `beschreibung` (Termine,
+  Gruppen) und `auszug` (Beiträge) werden als Text veröffentlicht, nicht als
+  HTML — was in Diakronos in die Beschreibung getippt wird, steht danach
+  wörtlich auf der Website. Die Freigabe-Oberfläche muss darauf hinweisen,
+  bevor jemand etwas freigibt.
+* **Der iCal-Feed ist ein Abo.** Kalender-Programme holen ihn in festem Takt
+  (mehrfach am Tag); er zählt damit ebenfalls auf die Bremse ein, aber aus
+  Sicht der abrufenden Adresse. Bei vielen Abonnenten `WEBSITE_OEFFENTLICH_MAX_IP`
+  anheben.
+* **Ganztägige Termine im Feed (BS-1bc).** Diakronos speichert das Ende
+  ganztägiger Termine **einschließlich** (das Formular zählt „n Tage" inklusive
+  letztem Tag; ein eintägiger Termin hat Ende = Beginn). iCalendar verlangt
+  `DTEND;VALUE=DATE` dagegen **ausschließlich** — der Feed setzt deshalb immer
+  `DTEND = Ende + 1 Tag` (fehlt das Ende: Beginn + 1). Ein Termin 7.–8. April
+  steht im Feed als `DTSTART 20260407` / `DTEND 20260409` und erscheint im
+  Kalender-Programm damit als zwei Tage. Ändert sich das Speicherformat im
+  Formular, muss diese Stelle mit: `website/oeffentlich_inhalt.py`
+  (`termin_ics`, `_ohne_eine_tagesspanne`).

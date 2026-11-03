@@ -245,6 +245,24 @@ def erstelle_app(einstellungen=None):
     # SEC1: /login, /auth/oidc/*, /logout. MUSS vor `mount_spa(app)` stehen.
     registriere_routen(app)
 
+    # BS-1b: oeffentliche Website-Ausgabe als eigene Routen (iCal-Feed,
+    # Bild-Route, CORS-Variante der Lese-API). Ebenfalls VOR dem SPA-Catch-all
+    # — sonst liefert die SPA auf `/website/…` HTML. Unter dem Betriebs-
+    # Praefix (`DIAKRONOS_BASE_PATH`) liegen sie automatisch mit, weil der
+    # ganze Bau unter dem Mount haengt.
+    from diakronos_app.website.oeffentlich_api import registriere_routen as _website_oeffentlich_routen
+
+    _website_oeffentlich_routen(app)
+
+    # ON-1: Seiten der Ersteinrichtung (`/einrichtung/<token>`) — ebenfalls
+    # NACH `anmeldung.routen` und VOR `mount_spa(app)`. Sie bringen ihren
+    # eigenen CSRF-Schutz mit (Herkunft + Masken-Token, SEC-4).
+    from diakronos_app.anmeldung.einrichtung_routen import (
+        registriere_routen as _registriere_einrichtung,
+    )
+
+    _registriere_einrichtung(app)
+
     @app.get("/healthz")
     def healthz() -> dict:
         db_ok = _check_db()

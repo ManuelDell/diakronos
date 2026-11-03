@@ -80,7 +80,7 @@ def link_seite(typ) -> str:
     return SEITE_GAST if str(typ or "") == TYPG_GAST else SEITE_REGISTRIERUNG
 
 
-def oeffentliche_basis() -> str:
+def oeffentliche_basis(session=None) -> str:
     """Die gepflegte oeffentliche Adresse der Gemeinde (ohne Schluss-``/``).
 
     M-1: ``Einstellungen → Gemeinde → Öffentliche Adresse`` wird damit
@@ -91,13 +91,23 @@ def oeffentliche_basis() -> str:
 
     Nie eine Exception: eine fehlende Einstellung darf die Linkanzeige nicht
     wegkaufen.
+
+    ``session`` (BS-1b2/F2): eine bereits offene Sitzung. Ohne sie oeffnet die
+    Funktion eine EIGENE — richtig fuer einen einzelnen Aufruf, falsch in
+    einer Schleife ueber viele Zeilen (je Aufruf eine Abfrage). Die
+    oeffentliche Lese-API reicht deshalb ihre Lesesitzung herein.
     """
     try:
-        from diakronos_app.db import SessionLocal
         from diakronos_app.models.gemeinde import (
             GEMEINDE_EINSTELLUNGEN_NAME,
             GemeindeEinstellungen,
         )
+
+        if session is not None:
+            zeile = session.get(GemeindeEinstellungen, GEMEINDE_EINSTELLUNGEN_NAME)
+            return (zeile.oeffentliche_adresse or "").strip().rstrip("/") if zeile else ""
+
+        from diakronos_app.db import SessionLocal
 
         with SessionLocal() as sess:
             zeile = sess.get(GemeindeEinstellungen, GEMEINDE_EINSTELLUNGEN_NAME)
@@ -106,7 +116,7 @@ def oeffentliche_basis() -> str:
         return ""
 
 
-def link_anzeige(typ, slug) -> str:
+def link_anzeige(typ, slug, session=None, basis: str | None = None) -> str:
     """Vollstaendige Adresse des Links fuer Anzeige/Kopieren (UXD-R3).
 
     Altdaten trugen hier einen relativen Pfad `/registrierung?token=…` aus der
@@ -118,6 +128,11 @@ def link_anzeige(typ, slug) -> str:
     geteilter Link auf den Host, den die Gemeinde veroeffentlicht hat. Ohne
     gepflegte Adresse bleibt es der relative Pfad (die Oberflaeche ergaenzt
     den eigenen Ursprung).
+
+    ``session``/``basis`` (BS-1b2/F2): offene Sitzung des Aufrufers bzw. die
+    bereits gelesene oeffentliche Adresse. Ohne beides wird beides neu
+    gelesen — richtig fuer einen einzelnen Aufruf, falsch in einer Schleife
+    ueber viele Zeilen (dann je Zeile eine Abfrage).
     """
     wert = str(slug or "").strip()
     if not wert:
@@ -127,7 +142,13 @@ def link_anzeige(typ, slug) -> str:
     from diakronos_app import base_path
 
     pfad = base_path.pfad(f"/diakonos/{link_seite(typ)}?token={wert}")
-    basis = oeffentliche_basis()
+    if basis is None:
+        try:
+            basis = oeffentliche_basis(session)
+        except TypeError:
+            # Ein Ersatz ohne Parameter (Tests/aeltere Aufrufer) bleibt
+            # gueltig — der Vertrag war vor BS-1b2 `oeffentliche_basis()`.
+            basis = oeffentliche_basis()
     return f"{basis}{pfad}" if basis else pfad
 
 

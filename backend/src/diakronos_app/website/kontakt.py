@@ -6,7 +6,9 @@ Der Vertrag (WEB-9b baut das Formular dagegen)
     POST {Praefix}/api/method/website.kontakt_senden        (allow_guest)
 
     JSON: {"name": str, "email": str, "nachricht": str,
-           "einwilligung": true, "website": str}
+           "einwilligung": true, "website": str,
+           "postfach": str,           # optional, BS-1c/K1
+           "betreff_zusatz": str}     # optional, BS-1c/K3
 
     Erfolg:            200 {"message": {"ok": true}}
     Feldpruefung:      400 {"message": "...", "felder": {"<feld>": "..."}, ...}
@@ -14,6 +16,35 @@ Der Vertrag (WEB-9b baut das Formular dagegen)
     andere Methode:    403
     zu viele Anfragen: 429
     nicht eingerichtet/ Versandfehler/ Bremse aus: 503
+    OPTIONS (Preflight): 204 mit CORS-Kopfzeilen fuer die Primo-Herkunft
+
+    GET {Praefix}/api/method/website.oeffentlich.postfaecher  (allow_guest)
+
+    Erfolg: 200 {"message": {"postfaecher": [{"slug": str, "bezeichnung": str}]}}
+    (nur aktive Postfaecher, NIE die E-Mail-Adresse — BS-1c/K2)
+    zu viele Anfragen: 429; Bremse aus: 503 (eigener Eimer der Bremse, F5)
+
+BS-1c2 — Nachbesserung nach dem Opus-Review
+============================================
+
+  F1  Die Postfach-Liste steht in der EXAKTEN Ausnahmemenge der
+      Sec-Fetch-Site-Schranke (`auth_middleware._OEFFENTLICHE_WEBSITE_NAMEN`,
+      samt Aliassen). Sonst waere sie von der Primo-Herkunft (cross-site)
+      unerreichbar.
+  F2  Herkunft EXAKT: Schema + Host + Port, normalisiert (klein,
+      Standardport weg, Pfad/Query weg) — EINE Funktion
+      `_normalisiere_herkunft`, ein Aufruf fuer `PRIMO_PUBLIC_URL`.
+  F3  Der Preflight (`router._preflight`) bekommt den Request NUR noch bei
+      ausdruecklicher Anmeldung `@whitelist(preflight="self")`, nicht mehr
+      nach Funktionsgestalt (`async def` + `request`).
+  F4  `Vary: Origin` steht auf JEDER Antwort dieses Moduls — Liste,
+      Formular (jeder Status) und Preflight.
+  F5  Die Postfach-Liste hat einen EIGENEN Eimer der Kontaktbremse
+      (`kontaktbremse.pruefe_liste`).
+  F6  Der Betreff-Zusatz lehnt die VOLLE Steuerzeichenmenge ab
+      (`[\\x00-\\x1f\\x7f\\x85\\u2028\\u2029]`), nicht nur Zeilenumbrueche.
+  F7  Postfaecher angelegt, aber keines aktiv -> `kontakt_senden` bleibt 503
+      (bewusst abgeschaltet, kein stiller Rueckfall); die Liste ist dann leer.
 
 KEINE SPEICHERUNG. Die Anfrage wird nicht in die Datenbank geschrieben und
 nicht ins Protokoll aufgenommen — sie geht ausschliesslich als E-Mail an
@@ -80,8 +111,15 @@ _KURZPFAD = "website.kontakt_senden"
 
 logger = logging.getLogger("diakronos_app.website.kontakt")
 
-#: Fester Betreff — KEINE Eingabe, KEIN Praefix aus dem Formular (K4).
+#: Fester Betreff — KEINE Eingabe (BS-1c/K3 haengt hoechstens den geprueften
+#: Zusatz `betreff_zusatz` an, getrennt durch `BETREFF_TRENNER`).
 BETREFF = "Kontaktformular Website"
+
+#: Trenner zwischen festem Betreff und `betreff_zusatz` (BS-1c/K3).
+BETREFF_TRENNER = " - "
+
+#: Hoechstlaenge des Zusatzes im Betreff (BS-1c/K3).
+BETREFF_ZUSATZ_MAX = 100
 
 # Grenzen der Felder (K2).
 NAME_MIN, NAME_MAX = 1, 100
@@ -102,6 +140,14 @@ KOERPER_ZEITLIMIT = 10.0
 #: Zeilenumbruch einen `Bcc:`-Kopf erzeugen koennen.
 _STEUERZEICHEN = re.compile(r"[\r\n\x00\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029]+")
 
+#: BS-1c2 (F6): die VOLLE Steuerzeichenmenge nach RFC 5322 fuer ein
+#: Kopfzeilenfeld — ``[\\x00-\\x1f\\x7f\\x85\\u2028\\u2029]``. `_STEUERZEICHEN`
+#: enthielt nur die Zeilenumbrueche und einige Trenner; `\\t`, `\\x08`, `\\x1f`
+#: und `\\x7f` kamen dort NICHT vor und landeten im Betreff. Fuer den
+#: Betreff-Zusatz gilt deshalb diese strengere Menge (Ablehnung, nicht
+#: Bereinigung).
+_KOPFZEILEN_STEUERZEICHEN = re.compile(r"[\x00-\x1f\x7f\x85\u2028\u2029]")
+
 # Absichtlich eng und ohne Sonderfaelle: eine Adresse wie im RFC-Header
 # (`local@domain.tld`), keine Anzeigenamen, keine Kommentare, keine
 # Adresslisten. Was hier nicht passt, ist fuer einen Reply-To nicht brauchbar.
@@ -117,6 +163,10 @@ _ZEIT = "%d.%m.%Y um %H:%M Uhr"
 
 # ── Herkunft ───────────────────────────────────────────────────────────────
 
+#: Standardports: werden in einer Herkunft NICHT genannt (`https://x:443` →
+#: `https://x`). BS-1c2/F2.
+_STANDARDPORTS = {"http": 80, "https": 443}
+
 
 def _host(wert: str) -> str:
     """`https://example.org:8443/pfad` -> `example.org` (klein, ohne Port)."""
@@ -129,33 +179,178 @@ def _host(wert: str) -> str:
     return (teile.hostname or "").lower().strip(".")
 
 
+def _normalisiere_herkunft(wert: str) -> str:
+    """Eine Herkunft auf ``schema://host[:port]`` bringen — oder ``""`` (F2).
+
+    BS-1c2/F2: `PRIMO_PUBLIC_URL` und die `Origin`-Kopfzeile wurden bis BS-1c
+    nur ueber den HOST verglichen. Damit galt `http://x` als dieselbe Herkunft
+    wie `https://x`, und `https://x:8443` wie `https://x` — beides ist falsch:
+    eine Herkunft ist laut Standard das Tripel (Schema, Host, Port).
+
+    Regeln (einmal, an EINER Stelle):
+
+      * Schema und Host **klein** (`HTTPS://Example.ORG` == `https://example.org`);
+      * nur `http`/`https` — alles andere (auch `file:`, `null`) ergibt ``""``;
+      * der **Standardport** faellt weg (`https://x:443` -> `https://x`);
+      * **Pfad, Query und Fragment** fallen weg (`https://x/diakronos` ->
+        `https://x`);
+      * Steuerzeichen/Leerraum: ``""`` (nichts davon gehoert in eine Kopfzeile).
+    """
+    from urllib.parse import urlsplit
+
+    roh = str(wert or "").strip()
+    if not roh or _STEUERZEICHEN.search(roh) or any(z.isspace() for z in roh):
+        return ""
+    if "://" not in roh:
+        return ""
+    teile = urlsplit(roh)
+    schema = (teile.scheme or "").lower()
+    if schema not in _STANDARDPORTS:
+        return ""
+    host = (teile.hostname or "").lower().strip(".")
+    if not host:
+        return ""
+    try:
+        port = teile.port
+    except ValueError:  # z. B. `https://x:abc` — kein Port, keine Herkunft
+        return ""
+    if port is None or port == _STANDARDPORTS[schema]:
+        return f"{schema}://{host}"
+    return f"{schema}://{host}:{port}"
+
+
+def _primo_herkunft() -> str:
+    """Die Primo-Herkunft aus den Einstellungen, normalisiert — oder ``""``.
+
+    EINE Stelle fuer Herkunftsvergleich und `cors_herkunft` (F2): bis BS-1c
+    wurde `PRIMO_PUBLIC_URL` zweimal unabhaengig gelesen, und beide Stellen
+    konnten auseinanderlaufen.
+    """
+    try:
+        from diakronos_app.settings import settings
+
+        return _normalisiere_herkunft(settings.primo_public_url_effektiv)
+    except Exception:  # noqa: BLE001 — ohne Einstellung gibt es keine Primo-Herkunft
+        return ""
+
+
+def _eigenes_schema(request) -> str:
+    """Das Schema, unter dem der CLIENT die Anfrage gestellt hat.
+
+    BS-1bc (Proxy-Fix): Bisher kam das Schema aus `request.url.scheme`. Hinter
+    einem TLS-Vorbau (Eingang/nginx, NPM) fuehrt der Proxy die Verbindung zum
+    Backend ueber HTTP; `request.url.scheme` waere dann `http`, waehrend der
+    Browser `https` meldet. Ein `Origin: https://…` passte damit nicht mehr auf
+    die eigene Herkunft — das EIGENE Formular wurde mit 403 abgewiesen, sobald
+    `BEHIND_PROXY` gesetzt war und uvicorn die Kopfzeilen nicht selbst
+    auswertet (`--forwarded-allow-ips` ist NICHT gesetzt).
+
+    Deshalb: bei `settings.behind_proxy` gilt `X-Forwarded-Proto` (erster
+    Wert, nur `http`/`https`) — dieselbe Regel wie `api/auth.py`
+    `_eigene_herkunft`. Ohne die Einstellung bleibt es beim Schema der
+    Anfrage: der Kopf ist frei setzbar, und ohne Zusage ueber den Proxy darf
+    ihn niemand faelschen. `X-Forwarded-Host` wird NIE gelesen (siehe
+    `herkunft_ist_eigen`).
+    """
+    from diakronos_app.settings import settings
+
+    eigenes = str(getattr(getattr(request, "url", None), "scheme", "") or "").lower()
+    if not bool(getattr(settings, "behind_proxy", False)):
+        return eigenes
+    kopf = getattr(request, "headers", {}) or {}
+    weitergeleitet = str(kopf.get("x-forwarded-proto") or "").strip().lower()
+    erster = weitergeleitet.split(",")[0].strip()
+    if erster in _STANDARDPORTS:
+        return erster
+    return eigenes
+
+
+def _herkunfts_erlaubt(request) -> set[str]:
+    """Alle Herkünfte, die als eigene gelten: eigener Host + `PRIMO_PUBLIC_URL`.
+
+    BS-1c/K4: Primo kann auf einer eigenen Herkunft laufen (G3). Dann ist die
+    Herkunft der Primo-Seite keine „fremde" Seite — sie ist die Website dieser
+    Gemeinde. Der eigene Host der Anfrage wird zum Vergleich ebenfalls
+    normalisiert (Schema der Anfrage + `Host`-Kopf), damit `http`/`https` und
+    Standardport nicht zu Fehlentscheidungen fuehren.
+
+    BS-1c2/F2: verglichen wird die HERKUNFT (Schema + Host + Port), nicht mehr
+    der nackte Host — ein falsches Schema oder ein falscher Port ist eine
+    fremde Herkunft.
+
+    BS-1bc (Proxy-Fix): Das Schema kommt bei `BEHIND_PROXY` aus
+    `X-Forwarded-Proto` (`_eigenes_schema`).
+    """
+    erlaubt: set[str] = set()
+    schema = _eigenes_schema(request)
+    host = str((getattr(request, "headers", {}) or {}).get("host", "") or "")
+    if host:
+        erlaubt.add(_normalisiere_herkunft(f"{schema or 'http'}://{host}"))
+    primo = _primo_herkunft()
+    if primo:
+        erlaubt.add(primo)
+    return erlaubt - {""}
+
+
 def herkunft_ist_eigen(request) -> bool:
-    """True, wenn `Origin`/`Referer` zum Host DIESER Anfrage passen (K3).
+    """True, wenn `Origin`/`Referer` zu einer erlaubten Herkunft passen (K3/F2).
 
     Geprueft wird zuerst `Origin` (der Kopf, den ein Formular-`fetch` immer
-    setzt), danach `Referer`. Steht dort eine FREMDE Adresse, ist die Antwort
+    setzt), danach `Referer`. Steht dort eine FREMDE Herkunft, ist die Antwort
     `False` — auch dann, wenn der jeweils andere Kopf passt: eine Anfrage von
     einer fremden Seite soll nicht durch den zweiten Kopf durchrutschen.
     Fehlen beide, ist das Ergebnis ebenfalls `False` (fail closed).
 
+    BS-1c2/F2: Der Vergleich ist EXAKT (`_normalisiere_herkunft` auf beiden
+    Seiten) — Schema, Host und Port muessen passen. Bis BS-1c genuegte der
+    Host; damit war `http://…` fuer `https://…` eine eigene Herkunft und
+    `:8443` gleich `:443`.
+
     `X-Forwarded-Host` wird NICHT gelesen: der Kopf ist frei setzbar, und
-    `settings.behind_proxy` ist eine Zusage ueber die ABSENDER-Adresse. Der
-    Vergleich mit dem Host dieser Anfrage genuegt, weil der Eingang (nginx)
-    den Kopf `Host` unveraendert durchreicht.
+    `settings.behind_proxy` ist eine Zusage ueber die ABSENDER-Adresse. Fuer
+    den eigenen Host genuegt der `Host`-Kopf dieser Anfrage, weil der Eingang
+    (nginx) ihn unveraendert durchreicht; laeuft Diakronos hinter einem
+    TLS-Vorbau, gehoert die oeffentliche Adresse in `PRIMO_PUBLIC_URL`.
     """
-    host = _host(request.headers.get("host", ""))
-    if not host:
+    erlaubte_herkuenfte = _herkunfts_erlaubt(request)
+    if not erlaubte_herkuenfte:
         return False
+    gesehen = False
     for kopf in ("origin", "referer"):
-        wert = request.headers.get(kopf, "").strip()
+        wert = str((getattr(request, "headers", {}) or {}).get(kopf, "") or "").strip()
         if not wert:
             continue
         if kopf == "origin" and wert.lower() == "null":
             # `Origin: null` (Sandbox-iframe, file://) ist keine eigene Seite.
             return False
-        if _host(wert) != host:
+        gesehen = True
+        if _normalisiere_herkunft(wert) not in erlaubte_herkuenfte:
             return False
-    return bool(request.headers.get("origin") or request.headers.get("referer"))
+    return gesehen
+
+
+def cors_herkunft(request) -> str:
+    """Die Antwort-Herkunft fuer `Access-Control-Allow-Origin` — oder `""`.
+
+    BS-1c/K4: Nur wenn die Anfrage von der Herkunft aus `PRIMO_PUBLIC_URL`
+    kommt (also NICHT vom eigenen Host), ist ein CORS-Kopf noetig. Zurueck
+    kommt dann genau diese Herkunft als ``schema://host[:port]`` — nie ``*``,
+    nie eine Liste, nie mit Credentials, immer in normalisierter Form (F2:
+    Standardport weg, Pfad weg, klein). Eine fremde Herkunft bekommt ``""``
+    (der Endpunkt antwortet ihr mit 403, ohne CORS-Kopf).
+    """
+    primo = _primo_herkunft()
+    if not primo:
+        return ""
+    kopf = getattr(request, "headers", {}) or {}
+    origin = _normalisiere_herkunft(kopf.get("origin", ""))
+    if not origin or origin != primo:
+        return ""
+    # Kommt die Anfrage schon auf der Primo-Herkunft an, ist sie die eigene
+    # Herkunft — dann braucht sie kein CORS (gleiches Schema/Host/Port).
+    schema = str(getattr(getattr(request, "url", None), "scheme", "") or "").lower()
+    eigene_herkunft = _normalisiere_herkunft(f"{schema or 'http'}://{kopf.get('host', '')}")
+    return "" if eigene_herkunft == primo else origin
 
 
 # ── Feldpruefung ───────────────────────────────────────────────────────────
@@ -208,6 +403,40 @@ def _als_ja(wert: Any) -> bool:
     return wert is True
 
 
+def pruefe_betreff_zusatz(daten: dict[str, Any]) -> tuple[str, str]:
+    """Prueft `betreff_zusatz` (BS-1c/K3) und liefert `(zusatz, fehler)`.
+
+    Der Zusatz haengt an einem FESTEN Betreff — er ist der einzige
+    Besuchertext, der in eine Kopfzeile gelangt. Deshalb dieselbe Regel wie
+    beim Namen, nur strenger: hoechstens `BETREFF_ZUSATZ_MAX` Zeichen und
+    JEDES Steuerzeichen aus `_KOPFZEILEN_STEUERZEICHEN` (also auch `\\r`,
+    `\\n`, `\\t`, `\\x00`, `\\x7f`, `\\x85`, U+2028) fuehrt zur Ablehnung statt
+    zur Bereinigung (BS-1c2/F6). Ein Formular, das einen Zeilenumbruch
+    schickt, ist kein Tippfehler; es soll nicht stillschweigend „geheilt"
+    werden. Fehlt das Feld oder ist es leer, gibt es keinen Zusatz.
+    """
+    if "betreff_zusatz" not in daten or daten.get("betreff_zusatz") is None:
+        return "", ""
+    wert = _text(daten.get("betreff_zusatz"))
+    # Nur Raender aus LEERZEICHEN entfernen: `strip()` wuerde `"\r\n"` zu einem
+    # leeren Zusatz machen und die Ablehnung umgehen (der Tester prueft genau
+    # diesen Fall). Steuerzeichen bleiben stehen und werden unten abgelehnt.
+    zusatz = wert.strip(" ")
+    if not zusatz:
+        return "", ""
+    if len(zusatz) > BETREFF_ZUSATZ_MAX:
+        return "", (
+            f"Der Zusatz im Betreff darf höchstens {BETREFF_ZUSATZ_MAX} "
+            "Zeichen haben."
+        )
+    if _KOPFZEILEN_STEUERZEICHEN.search(zusatz):
+        return "", (
+            "Der Zusatz im Betreff darf keine Zeilenumbrüche oder "
+            "Steuerzeichen enthalten."
+        )
+    return zusatz, ""
+
+
 def pruefe_felder(daten: dict[str, Any]) -> tuple[dict[str, str], dict[str, str]]:
     """Prueft die Eingabe und liefert `(bereinigt, fehler)`.
 
@@ -253,12 +482,31 @@ def pruefe_felder(daten: dict[str, Any]) -> tuple[dict[str, str], dict[str, str]
             "gesendet werden."
         )
 
+    zusatz, zusatz_fehler = pruefe_betreff_zusatz(daten)
+    if zusatz_fehler:
+        fehler["betreff_zusatz"] = zusatz_fehler
+
     bereinigt = {
         "name": _saubere_kopfzeile(name),
         "email": _saubere_kopfzeile(email),
         "nachricht": nachricht,
+        "postfach": _postfach_slug(daten),
+        "betreff_zusatz": zusatz,
     }
     return bereinigt, fehler
+
+
+def _postfach_slug(daten: dict[str, Any]) -> str:
+    """Der gewuenschte Postfach-Slug aus der Eingabe ("" = keine Auswahl).
+
+    Hier wird NUR der Text gelesen und getrimmt; ob es das Postfach gibt,
+    entscheidet `postfach_waehlen` — und zwar erst, wenn die Felder in
+    Ordnung sind (sonst verriete die Reihenfolge der Meldungen, welche Slugs
+    existieren).
+    """
+    if "postfach" not in daten or daten.get("postfach") is None:
+        return ""
+    return _text(daten.get("postfach")).strip()
 
 
 def honeypot_gefuellt(daten: dict[str, Any]) -> bool:
@@ -309,6 +557,82 @@ class KontaktNichtEingerichtet(RuntimeError):
     """`WEBSITE_KONTAKT_EMPFAENGER` fehlt — es wurde NICHTS versucht (K4, 503)."""
 
 
+class PostfachUnbekannt(ValueError):
+    """Der verlangte Postfach-Slug existiert nicht oder ist inaktiv (BS-1c/K1).
+
+    Die Meldung ist bewusst generisch: sie nennt weder den Slug noch die
+    vorhandenen Postfaecher — sonst liesse sich die Tabelle abfragen.
+    """
+
+
+def postfach_waehlen(slug: str) -> Any:
+    """Loest den gewuenschten Slug in EIN Postfach auf (BS-1c/K1).
+
+    Regel (Vertrag der Karte):
+
+      * Slug angegeben -> genau dieses Postfach, **nur wenn aktiv**; sonst
+        :class:`PostfachUnbekannt` (der Endpunkt antwortet 400).
+      * Kein Slug -> das Postfach ``standard``, sonst das **erste aktive**
+        nach ``sortierung`` (dann ``slug``), sonst — ohne jede Zeile — der
+        Rueckfall ``WEBSITE_KONTAKT_EMPFAENGER``.
+
+    Quelle ist ``website.freigaben.postfaecher_oeffentlich`` (dieselbe Wahrheit
+    wie die oeffentliche Liste K2). Gibt ein :class:`website.freigaben.Postfach`
+    zurueck. Liegt keine Zeile UND ist die Einstellung leer, wirft die
+    Funktion :class:`KontaktNichtEingerichtet` (503 wie in WEB-10).
+    """
+    from diakronos_app.settings import settings
+    from diakronos_app.website import freigaben as regeln
+
+    sess, eigene = _postfach_sitzung()
+    try:
+        liste = regeln.postfaecher_oeffentlich(
+            sess, settings.website_kontakt_empfaenger
+        )
+    finally:
+        if eigene:
+            sess.close()
+
+    gewuenscht = str(slug or "").strip()
+    if gewuenscht:
+        for postfach in liste:
+            if postfach.slug == gewuenscht:
+                return postfach
+        raise PostfachUnbekannt()
+
+    for postfach in liste:
+        if postfach.slug == regeln.POSTFACH_STANDARD:
+            return postfach
+    if liste:
+        return liste[0]
+    # Keine Zeile, kein Rueckfall: dieselbe 503 wie in WEB-10.
+    raise KontaktNichtEingerichtet()
+
+
+def _postfach_sitzung():
+    """DB-Sitzung fuer die Postfach-Aufloesung — `(session, eigene)`.
+
+    Der Endpunkt laeuft OHNE Anmeldung; es gibt also keinen Aufruf-Kontext,
+    aus dem eine Sitzung kaeme. `db.sitzung_fuer_lesen` liefert die Sitzung des
+    Aufrufs, wenn es eine gibt (Verwaltung, Tests), sonst eine eigene, die
+    hier geschlossen wird. Nur LESE-Zugriff — der Endpunkt speichert nichts.
+    """
+    from diakronos_app import db as dbmod
+
+    # Ueber das MODUL lesen, nicht ueber einen frueheren Import: `patched_db`
+    # ersetzt `SessionLocal` (Tests/Naht) — eine eingefrorene Bindung wuerde
+    # daran vorbeigehen und die echte `database_url` anfassen (Kartenregel 11).
+    return dbmod.sitzung_fuer_lesen()
+
+
+def betreff_mit_zusatz(zusatz: str) -> str:
+    """`Kontaktformular Website` bzw. `… - <zugesatz>` (BS-1c/K3)."""
+    text = str(zusatz or "").strip()
+    if not text:
+        return BETREFF
+    return f"{BETREFF}{BETREFF_TRENNER}{text}"
+
+
 def _absenderzeile(bereinigt: dict[str, str]) -> str:
     """`Erika Beispiel <erika@example.org>` — beide Teile sind geprueft.
 
@@ -322,13 +646,14 @@ def _absenderzeile(bereinigt: dict[str, str]) -> str:
     return formataddr((bereinigt["name"], bereinigt["email"]))
 
 
-def sende_kontaktmail(bereinigt: dict[str, str]) -> None:
-    """Verschickt die Kontaktmail (K4).
+def sende_kontaktmail(bereinigt: dict[str, str], postfach=None) -> None:
+    """Verschickt die Kontaktmail (K4, BS-1c/K1+K3).
 
-    An = `WEBSITE_KONTAKT_EMPFAENGER` (Einstellung/ENV), Betreff = `BETREFF`,
-    Reply-To = Absenderadresse. Wirft `KontaktNichtEingerichtet`, wenn kein
-    Empfaenger eingerichtet ist, und `mailversand.MailVersandFehler`, wenn der
-    Versand scheitert.
+    An = das aufgeloeste Postfach (BS-1c/K1) bzw. — ohne Postfach-Zeile —
+    `WEBSITE_KONTAKT_EMPFAENGER`, Betreff = `BETREFF` plus geprueftem
+    `betreff_zusatz`, Reply-To = Absenderadresse. Wirft
+    `KontaktNichtEingerichtet`, wenn kein Empfaenger eingerichtet ist, und
+    `mailversand.MailVersandFehler`, wenn der Versand scheitert.
 
     Zwei Wege, EIN Nachrichtenaufbau (`Mail.als_nachricht`):
 
@@ -342,13 +667,15 @@ def sende_kontaktmail(bereinigt: dict[str, str]) -> None:
     from diakronos_app import mailversand
     from diakronos_app.settings import settings
 
-    empfaenger = str(settings.website_kontakt_empfaenger or "").strip()
+    empfaenger = str(getattr(postfach, "email", "") or "").strip()
+    if not empfaenger:
+        empfaenger = str(settings.website_kontakt_empfaenger or "").strip()
     if not empfaenger:
         raise KontaktNichtEingerichtet()
 
     mail = mailversand.Mail(
         an=empfaenger,
-        betreff=BETREFF,
+        betreff=betreff_mit_zusatz(bereinigt.get("betreff_zusatz", "")),
         text=mailtext(bereinigt),
         antwort_an=_absenderzeile(bereinigt),
     )
@@ -420,16 +747,68 @@ def _antwort(status: int, koerper: dict[str, Any], **headers):
 
     antwort = JSONResponse(status_code=status, content=koerper)
     antwort.headers["Cache-Control"] = "no-store"
+    # BS-1c2 (F4): IMMER `Vary: Origin`. Die Antwort haengt an der Herkunft
+    # (CORS-Kopf oder nicht) — ohne diesen Hinweis darf ein Zwischenspeicher
+    # die Antwort der EINEN Herkunft an eine ANDERE ausliefern.
+    antwort.headers["Vary"] = "Origin"
     for name, wert in headers.items():
         antwort.headers[name] = wert
     return antwort
 
 
-@whitelist(methods=["POST"], allow_guest=True)
+def _cors_kopfzeilen(fremde_herkunft: str) -> dict[str, str]:
+    """CORS-Antwortkopfzeilen fuer genau EINE fremde Herkunft (BS-1c/K4).
+
+    Ohne Herkunft: nur `Vary: Origin` (die eigene Domain braucht kein CORS,
+    aber die Antwort ist trotzdem herkunftsabhaengig — F4).
+    Nie ``*``, nie eine Liste, nie ``Access-Control-Allow-Credentials`` — das
+    Formular schickt keine Cookies, und der Endpunkt braucht keine Sitzung.
+    """
+    if not fremde_herkunft:
+        return {"Vary": "Origin"}
+    return {
+        "Access-Control-Allow-Origin": fremde_herkunft,
+        "Vary": "Origin",
+    }
+
+
+def _antwort_mit_cors(status: int, koerper: dict[str, Any], request, **headers):
+    herkunft = cors_herkunft(request) if request is not None else ""
+    kopf = {**_cors_kopfzeilen(herkunft), **headers}
+    return _antwort(status, koerper, **kopf)
+
+
+def _preflight(request):
+    """Antwort auf OPTIONS (CORS-Preflight) fuer den Kontaktpfad (BS-1c/K4).
+
+    204 ohne Inhalt. Erlaubt wird ``POST`` — mehr nimmt der Endpunkt nicht an.
+    Eine fremde Herkunft bekommt 403 OHNE CORS-Kopfzeilen (der Browser bricht
+    den echten Aufruf dann ab) — dieselbe Entscheidung wie beim POST.
+    """
+    from starlette.responses import Response
+
+    if request is None or not herkunft_ist_eigen(request):
+        logger.warning("Kontaktformular: Preflight aus fremder Herkunft abgewiesen.")
+        return _antwort(403, {"message": "Die Anfrage kam nicht von der Website dieser Gemeinde."})
+
+    herkunft = cors_herkunft(request)
+    antwort = Response(status_code=204)
+    antwort.headers["Cache-Control"] = "no-store"
+    # BS-1c2 (F4): `Vary: Origin` IMMER — auch ohne CORS-Freigabe.
+    antwort.headers["Vary"] = "Origin"
+    if herkunft:
+        antwort.headers["Access-Control-Allow-Origin"] = herkunft
+        antwort.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        antwort.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        antwort.headers["Access-Control-Max-Age"] = "600"
+    return antwort
+
+
+@whitelist(methods=["POST"], preflight="self", allow_guest=True)
 async def kontakt_senden(request=None):
     """Nimmt eine Kontaktanfrage an und sendet SIE als E-Mail (K1–K4).
 
-    Rueckgabe (Vertrag fuer WEB-9b):
+    Rueckgabe (Vertrag fuer WEB-9b, erweitert um BS-1c):
 
         200 {"message": {"ok": true}}
         400 {"message": "Bitte prüfe die markierten Felder.",
@@ -438,25 +817,35 @@ async def kontakt_senden(request=None):
         429 {"message": "…", "exception": "Error", "exc_type": "Error"}
         503 {"message": "…", "exception": "Error", "exc_type": "Error"}
 
+    Zusatzfelder aus BS-1c (alle optional):
+      ``postfach``        Slug aus ``website.oeffentlich.postfaecher`` (K1).
+                          Unbekannt/inaktiv -> 400 im Feld ``postfach``.
+      ``betreff_zusatz``  hoechstens 100 Zeichen ohne Zeilenumbruch (K3);
+                          haengt an den festen Betreff.
+
     Alles andere als POST ist 403 (`PermissionError`, Frappe-Konvention) — der
     Router laesst GET/PUT/PATCH fuer alle Endpunkte offen, die Entschuldigung
-    dafuer steht hier und nicht dort.
+    dafuer steht hier und nicht dort. OPTIONS beantwortet den CORS-Preflight
+    (BS-1c/K4), BEVOR Methode/Herkunft des Formulars geprueft werden.
 
     Reihenfolge (jede Stufe kann abbrechen, KEINE Stufe speichert):
 
       1. Methode (403) — vor allem anderen, auch vor der Herkunft.
-      2. Herkunft (403) — eigene Domain, sonst nichts.
+      2. Herkunft (403) — eigene Domain oder Primo-Herkunft, sonst nichts.
       3. Bremse (429/503) — VOR dem Honeypot gezaehlt, sonst waere sie gratis.
       4. JSON lesen (400).
       5. Honeypot (200, KEINE Mail).
       6. Feldpruefung (400 mit `felder`).
-      7. Empfaenger/Mailversand (503) — Betreff fest, Reply-To geprueft.
+      7. Postfach aufloesen (400 im Feld `postfach` / 503 nicht eingerichtet).
+      8. Mailversand (503) — Betreff fest + Zusatz, Reply-To geprueft.
     """
     from diakronos_app import request_context
     from diakronos_app.anmeldung import kontaktbremse
     from diakronos_app.frappe_compat.router import _fehler_koerper
 
     methode = str(getattr(request, "method", "") or "").upper()
+    if methode == "OPTIONS":
+        return _preflight(request)
     if methode != "POST":
         logger.info("Kontaktformular per %s abgewiesen (nur POST).", methode or "?")
         return _antwort(403, _fehler_koerper(
@@ -473,48 +862,155 @@ async def kontakt_senden(request=None):
         erlaubt, grund = kontaktbremse.pruefe(request_context.zaehler_client_ip())
     except Exception as ex:  # noqa: BLE001 — Bremse faellt aus: fail closed
         logger.warning("Kontaktformular: Bremse nicht erreichbar (%s).", type(ex).__name__)
-        return _antwort(503, _fehler_koerper(
+        return _antwort_mit_cors(503, _fehler_koerper(
             "Das Kontaktformular ist gerade nicht verfügbar. Bitte später erneut.",
-            "RateLimitError", 503))
+            "RateLimitError", 503), request)
 
     if not erlaubt:
         logger.warning("Kontaktformular gebremst (Grund=%s).", grund or "unbekannt")
-        return _antwort(429, _fehler_koerper(
-            kontaktbremse.fehlermeldung(), "RateLimitError", 429))
+        return _antwort_mit_cors(429, _fehler_koerper(
+            kontaktbremse.fehlermeldung(), "RateLimitError", 429), request)
 
     daten = await _lese_json(request)
     if daten is None:
-        return _antwort(400, _fehler_koerper(
-            "Die Anfrage konnte nicht gelesen werden.", "ValidationError", 400))
+        return _antwort_mit_cors(400, _fehler_koerper(
+            "Die Anfrage konnte nicht gelesen werden.", "ValidationError", 400), request)
 
     if honeypot_gefuellt(daten):
         # Bot: hoeflich „ok", aber KEINE Mail und kein Hinweis auf die Erkennung.
         logger.info("Kontaktformular: Honeypot gefüllt — keine Mail.")
-        return _antwort(200, {"message": {"ok": True}})
+        return _antwort_mit_cors(200, {"message": {"ok": True}}, request)
 
     bereinigt, fehler = pruefe_felder(daten)
     if fehler:
         koerper = _fehler_koerper(
             "Bitte prüfe die markierten Felder.", "ValidationError", 400)
         koerper["felder"] = fehler
-        return _antwort(400, koerper)
+        return _antwort_mit_cors(400, koerper, request)
 
     try:
-        sende_kontaktmail(bereinigt)
+        postfach = _postfach_zuordnen(bereinigt.get("postfach", ""))
+    except PostfachUnbekannt:
+        logger.warning("Kontaktformular: unbekanntes oder inaktives Postfach abgewiesen.")
+        koerper = _fehler_koerper(
+            "Bitte prüfe die markierten Felder.", "ValidationError", 400)
+        koerper["felder"] = {
+            "postfach": "Dieses Postfach gibt es nicht. Bitte wähle eines aus der Liste."
+        }
+        return _antwort_mit_cors(400, koerper, request)
     except KontaktNichtEingerichtet:
         logger.warning("Kontaktformular: WEBSITE_KONTAKT_EMPFAENGER fehlt.")
-        return _antwort(503, _fehler_koerper(
-            "Das Kontaktformular ist nicht eingerichtet.", "Error", 503))
+        return _antwort_mit_cors(503, _fehler_koerper(
+            "Das Kontaktformular ist nicht eingerichtet.", "Error", 503), request)
+    except Exception as ex:  # noqa: BLE001 — Datenbankfehler: 503, ohne Interna
+        logger.warning("Kontaktformular: Postfach nicht lesbar (%s).", type(ex).__name__)
+        return _antwort_mit_cors(503, _fehler_koerper(
+            "Das Kontaktformular ist gerade nicht verfügbar. Bitte später erneut.",
+            "Error", 503), request)
+
+    try:
+        sende_kontaktmail(bereinigt, postfach)
+    except KontaktNichtEingerichtet:
+        logger.warning("Kontaktformular: WEBSITE_KONTAKT_EMPFAENGER fehlt.")
+        return _antwort_mit_cors(503, _fehler_koerper(
+            "Das Kontaktformular ist nicht eingerichtet.", "Error", 503), request)
     except Exception as ex:  # noqa: BLE001 — Versandfehler: 503, ohne Interna
         # NUR der Fehlertyp geht ins Protokoll — nie Name, Adresse, Nachricht.
         logger.warning("Kontaktmail nicht versendet (%s).", type(ex).__name__)
-        return _antwort(503, _fehler_koerper(
+        return _antwort_mit_cors(503, _fehler_koerper(
             "Die Nachricht konnte gerade nicht versendet werden. "
             "Bitte später erneut versuchen oder die Gemeinde direkt anschreiben.",
-            "Error", 503))
+            "Error", 503), request)
 
     logger.info("Kontaktmail versendet.")
-    return _antwort(200, {"message": {"ok": True}})
+    return _antwort_mit_cors(200, {"message": {"ok": True}}, request)
+
+
+def _postfach_zuordnen(slug: str):
+    """`postfach_waehlen` fuer den Endpunkt (eigener Name fuer Tests/Patches)."""
+    return postfach_waehlen(slug)
+
+
+@whitelist(methods=["GET"], allow_guest=True)
+def postfaecher_oeffentlich(request=None):
+    """Die Postfaecher, die das Formular anbieten darf (BS-1c/K2).
+
+    Rueckgabe: ``{"message": {"postfaecher": [{"slug", "bezeichnung"}, …]}}``
+    — nur AKTIVE Postfaecher, nur diese zwei Felder. **Keine E-Mail-Adresse**
+    (G1), keine interne Kennung, keine Zaehlung. Ist nichts eingerichtet (keine
+    Zeile und kein Rueckfall), ist die Liste LEER — der Endpunkt antwortet
+    trotzdem 200: „nichts zur Auswahl" ist keine Stoerung, sondern der Zustand
+    vor der Einrichtung (das Formular zeigt dann keine Auswahl an).
+
+    BS-1c2 (F7): Sind Postfaecher ANGELEGT, aber KEINES ist aktiv, ist die
+    Liste ebenfalls leer — das Formular darf dann nicht still auf ein anderes
+    Postfach ausweichen. ``kontakt_senden`` antwortet in diesem Zustand
+    bewusst **503** („nicht eingerichtet", Betreiberentscheidung: abgeschaltet
+    ist abgeschaltet und kein stiller Rueckfall).
+
+    BS-1c2 (F5): Die Liste geht durch einen EIGENEN Eimer der Kontaktbremse
+    (`kontaktbremse.pruefe_liste`). Ein oeffentlicher GET, der die Datenbank
+    liest, darf nicht ungebremst sein; gemeinsam mit dem Formular geteilt
+    haette ein Abruf der Liste aber das Kontaktkontingent der Besucherin
+    verbraucht. Ist die Bremse nicht erreichbar: 503 (fail closed, wie beim
+    Formular).
+
+    Reihenfolge nach ``sortierung``, dann ``slug`` — dieselbe Ordnung, nach
+    der ``kontakt_senden`` ohne Slug das erste aktive Postfach waehlt.
+    """
+    from diakronos_app.settings import settings
+    from diakronos_app.website import freigaben as regeln
+
+    gebremst = _liste_gebremst(request)
+    if gebremst is not None:
+        return gebremst
+
+    sess, eigene = _postfach_sitzung()
+    try:
+        liste = regeln.postfaecher_oeffentlich(
+            sess, settings.website_kontakt_empfaenger
+        )
+    finally:
+        if eigene:
+            sess.close()
+
+    daten = [
+        {"slug": str(p.slug), "bezeichnung": str(p.bezeichnung)}
+        for p in liste
+        if bool(p.aktiv)
+    ]
+    antwort = _antwort_mit_cors(200, {"message": {"postfaecher": daten}}, request)
+    # Kurz zwischenspeicherbar (G4): die Liste aendert sich nur, wenn die
+    # Verwaltung ein Postfach pflegt.
+    antwort.headers["Cache-Control"] = "public, max-age=300"
+    return antwort
+
+
+def _liste_gebremst(request):
+    """Bremse fuer die Postfach-Liste (F5) — `None` = durchgelassen.
+
+    Eigener Eimer (`kontaktbremse.pruefe_liste`), damit ein Abruf der Liste
+    das Kontaktkontingent nicht verbraucht. Antworten tragen wie alle
+    Kontakt-Antworten `Vary: Origin` und den CORS-Kopf der Primo-Herkunft
+    (F4) — sonst bricht der Browser den eigentlichen `fetch` ab.
+    """
+    from diakronos_app import request_context
+    from diakronos_app.anmeldung import kontaktbremse
+    from diakronos_app.frappe_compat.router import _fehler_koerper
+
+    try:
+        erlaubt, grund = kontaktbremse.pruefe_liste(request_context.zaehler_client_ip())
+    except Exception as ex:  # noqa: BLE001 — Bremse faellt aus: fail closed
+        logger.warning("Postfach-Liste: Bremse nicht erreichbar (%s).", type(ex).__name__)
+        return _antwort_mit_cors(503, _fehler_koerper(
+            "Die Liste ist gerade nicht verfügbar. Bitte später erneut.",
+            "RateLimitError", 503), request)
+
+    if not erlaubt:
+        logger.warning("Postfach-Liste gebremst (Grund=%s).", grund or "unbekannt")
+        return _antwort_mit_cors(429, _fehler_koerper(
+            kontaktbremse.fehlermeldung(), "RateLimitError", 429), request)
+    return None
 
 
 def _registriere_kurzpfad() -> None:
@@ -526,11 +1022,17 @@ def _registriere_kurzpfad() -> None:
     Optionen (`allow_guest=True`, `router._guest_denied` liest sie ueber
     `options_for(fn)` und nicht ueber den Namen).
 
+    BS-1c/K2: derselbe Weg fuer `website.oeffentlich.postfaecher` — der Name
+    der Karte, auf `postfaecher_oeffentlich` gelegt (Optionen: Gast, nur GET).
+
     Idempotent: ein zweiter Import ueberschreibt nur denselben Eintrag.
     """
     from diakronos_app.frappe_compat.registry import register_with_frappe_module
 
     register_with_frappe_module("website", "kontakt_senden", kontakt_senden)
+    register_with_frappe_module(
+        "website.oeffentlich", "postfaecher", postfaecher_oeffentlich
+    )
 
 
 # Beim Import ausfuehren (das Modul wird von `diakronos_app.api` gezogen, also
@@ -541,12 +1043,20 @@ _registriere_kurzpfad()
 
 __all__ = [
     "BETREFF",
+    "BETREFF_TRENNER",
+    "BETREFF_ZUSATZ_MAX",
     "KontaktNichtEingerichtet",
+    "PostfachUnbekannt",
+    "betreff_mit_zusatz",
+    "cors_herkunft",
     "email_gueltig",
     "herkunft_ist_eigen",
     "honeypot_gefuellt",
     "kontakt_senden",
     "mailtext",
+    "postfaecher_oeffentlich",
+    "postfach_waehlen",
+    "pruefe_betreff_zusatz",
     "pruefe_felder",
     "sende_kontaktmail",
 ]

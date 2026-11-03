@@ -39,6 +39,12 @@ def whitelist(*dargs, **dkwargs):
 	405 und fuehrt nichts aus (`router._erlaubte_methoden`). Ohne Angabe bleibt
 	alles wie bisher (GET/POST/PUT/PATCH) — deshalb ist die Umstellung je
 	Endpunkt eine sichtbare, pruefbare Entscheidung und keine stille.
+
+	BS-1c2 (F3): zusaetzlich `preflight="self"` — NUR der so angemeldete
+	Endpunkt bekommt den OPTIONS-Preflight hereingereicht und beantwortet ihn
+	selbst (Herkunft/CORS, Kontaktformular BS-1c/K4). Ohne diese Anmeldung
+	antwortet der Router auf OPTIONS mit einer leeren 204 und fuehrt nichts
+	aus (`router._beantwortet_preflight_selbst`).
 	"""
 	# direkte Nutzung: @whitelist
 	if len(dargs) == 1 and callable(dargs[0]) and not dkwargs:
@@ -199,3 +205,28 @@ def nachregistrieren() -> int:
 
 def registered() -> dict[str, Callable]:
 	return dict(_REGISTRY)
+
+
+def nackte_namen_entfernen(funktionen) -> list[str]:
+	"""Entfernt die NACKTEN Registernamen dieser Funktionen (BS-1b2/F7).
+
+	`@whitelist` legt jede Funktion unter ihrem blossen `__name__` ab
+	(`kalender`, `termine`, `gruppe`, …). Fuer die oeffentliche Lese-API sind
+	diese Namen eine Kollisionsflaeche mit den gleichnamigen
+	Verwaltungsfunktionen (`api/kronos/calendar_get.termine`,
+	`api/gruppen.gruppen`) — je nach Importreihenfolge gewinnt eine der
+	beiden Fassungen, und niemand merkt es.
+
+	Entfernt werden nur Eintraege, die GENAU auf eine der uebergebenen
+	Funktionen zeigen; alle anderen Namen (Kurzpfade, Frappe-Originalpfade,
+	Fremdfunktionen) bleiben. Idempotent. Rueckgabe: die entfernten Namen.
+	"""
+	ziele = {id(fn) for fn in (funktionen or {}).values() if callable(fn)}
+	entfernt = [
+		key
+		for key, fn in list(_REGISTRY.items())
+		if "." not in key and id(fn) in ziele
+	]
+	for key in entfernt:
+		_REGISTRY.pop(key, None)
+	return entfernt

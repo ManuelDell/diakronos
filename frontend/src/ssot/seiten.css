@@ -240,3 +240,215 @@ select {
 [hidden] {
   display: none !important;
 }
+
+/* ── ON-1: Seiten der Ersteinrichtung („Administrator anlegen", „Link ungültig")
+   ---------------------------------------------------------------------------
+   Entwurf 02/03/13. Wie oben gilt: KEINE Farbe, Schrift, kein Radius als
+   Wert — alles über var(--…). Die Höhe der Eingaben kommt aus --control-h,
+   damit Passwortfeld und Auge-Knopf auf einer Linie sitzen. */
+
+.dk-karte--breit.dk-einrichtung {
+  padding: var(--sp-8);
+}
+
+.dk-mitte {
+  text-align: center;
+}
+
+.dk-monogramm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--sp-8) + var(--sp-1));
+  height: calc(var(--sp-8) + var(--sp-1));
+  margin: 0 auto var(--sp-2);
+  font-size: var(--fs-monogramm);
+  font-weight: var(--fw-h);
+  color: var(--accent);
+  background: var(--primary);
+  border-radius: var(--radius-lg);
+}
+
+.dk-marke {
+  margin: 0 0 var(--sp-6);
+  font-size: var(--fs-h4);
+  font-weight: var(--fw-h);
+  text-align: center;
+  color: var(--primary);
+}
+
+/* Zwei Felder nebeneinander (Vorname / Nachname), mobil untereinander. */
+.dk-feldpaar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+}
+
+@media (max-width: 30rem) {
+  .dk-feldpaar {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+.dk-pflicht {
+  color: var(--err);
+}
+
+/* Eingabe mit Knopf darin (Auge): der Knopf sitzt rechts im Feldrahmen. */
+.dk-eingabe {
+  position: relative;
+  display: block;
+  margin-bottom: var(--sp-4);
+}
+
+.dk-eingabe input {
+  margin-bottom: 0;
+  padding-right: calc(var(--control-h) + var(--sp-2));
+}
+
+.dk-auge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h);
+  height: 100%;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--fs-hinweis);
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.dk-auge:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+/* Staerkeanzeige: vier Segmente, Farbe je Stufe aus den Status-Tokens. */
+.dk-staerke {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-1);
+  margin: calc(var(--sp-1) * -1) 0 var(--sp-2);
+}
+
+.dk-staerke span {
+  height: var(--sp-1);
+  background: var(--line);
+  border-radius: var(--badge-r);
+}
+
+.dk-staerke[data-stufe="1"] span:nth-child(-n + 1),
+.dk-staerke-text[data-stufe="1"] {
+  background: var(--err);
+  color: var(--err);
+}
+
+.dk-staerke[data-stufe="2"] span:nth-child(-n + 2),
+.dk-staerke-text[data-stufe="2"] {
+  background: var(--warn);
+  color: var(--warn);
+}
+
+.dk-staerke[data-stufe="3"] span:nth-child(-n + 3),
+.dk-staerke-text[data-stufe="3"] {
+  background: var(--info);
+  color: var(--info);
+}
+
+.dk-staerke[data-stufe="4"] span,
+.dk-staerke-text[data-stufe="4"] {
+  background: var(--ok);
+  color: var(--ok);
+}
+
+/* Der Text steht NEBEN dem Balken-Muster nicht im Balken: die Regel oben
+   setzt `background` mit — fuer den Text zaehlt nur die Farbe. */
+.dk-staerke-text {
+  margin: 0 0 var(--sp-4);
+  font-size: var(--fs-hinweis);
+  font-weight: 600;
+  background: transparent;
+}
+
+.dk-hinweis--eng {
+  margin: calc(var(--sp-2) * -1) 0 var(--sp-4);
+}
+
+.dk-hinweis--mitte {
+  text-align: center;
+}
+
+.dk-hinweis--klein {
+  font-size: var(--fs-hinweis);
+  color: var(--subtle);
+}
+
+/* Befehl/Wert in Monospace — helle Flaeche, Rahmen wie ein Eingabefeld. */
+.dk-befehl {
+  display: inline-block;
+  padding: var(--sp-1) var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-hinweis);
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
+}
+
+.dk-befehl--breit {
+  display: block;
+}
+
+/* Hinweiszeichen der Seite „Link ungueltig" (Entwurf 03). */
+.dk-warnzeichen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--sp-8) + var(--sp-2));
+  height: calc(var(--sp-8) + var(--sp-2));
+  margin: 0 auto var(--sp-4);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-h);
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-radius: var(--badge-r);
+}
+
+.dk-trenner {
+  margin: var(--sp-6) 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.dk-abschnitt {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-abschnitt);
+  font-weight: var(--fw-h);
+  color: var(--text);
+}
+
+/* ON-1: Die Fußzeile liegt UNTER der Karte, nicht daneben. `body.dk-seite`
+   ist ein zentrierender Flex-Behälter OHNE Umbruch (`flex-wrap: nowrap`) —
+   ein drittes Kind läuft deshalb in dieselbe Zeile wie die Karte (im
+   Abnahme-Screenshot rechts neben ihr; `flex-basis` allein half nicht, weil
+   ohne Umbruch keine neue Zeile entsteht). Die Seite wird darum zur Spalte:
+   Karte und Fußzeile stehen untereinander, beide waagerecht zentriert. */
+body.dk-seite {
+  flex-direction: column;
+}
+
+.dk-seitenfuss {
+  margin-top: var(--sp-6);
+  font-size: var(--fs-hinweis);
+  color: var(--subtle);
+  text-align: center;
+}

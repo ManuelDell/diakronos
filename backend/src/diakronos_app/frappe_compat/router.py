@@ -371,8 +371,66 @@ def _ist_browser_navigation(request: Request) -> bool:
 	)
 
 
-@router.api_route("/method/{path:path}", methods=["GET", "POST", "PUT", "PATCH"], operation_id="call_method")
+#: BS-1c2 (F3): Endpunkte, die den CORS-PREFLIGHT selbst beantworten, werden
+#: hier ausdruecklich angemeldet (`preflight=self` im `@whitelist`-Aufruf).
+#: Bis BS-1c entschied die FUNKTIONSGESTALT (`async def` + Parameter
+#: `request`) — damit haette jeder kuenftige asynchrone Endpunkt mit
+#: `request` stillschweigend den Preflight geerbt und wuerde bei OPTIONS
+#: AUSGEFUEHRT. Jetzt gilt nur noch eine sichtbare Anmeldung.
+_PREFLIGHT_SELBST = "self"
+
+
+async def _preflight(path: str, request: Request):
+	"""BS-1c/K4, praezisiert in BS-1c2 (F3): OPTIONS auf `/api/method/…`.
+
+	Zwei Faelle, EIN Grundsatz — ein Preflight fuehrt NICHTS aus, was nicht
+	ausdruecklich als Preflight-Behandler angemeldet ist:
+
+	  * Der Endpunkt traegt `preflight="self"` in seiner `@whitelist`-
+	    Deklaration (das Kontaktformular, BS-1c/K4). NUR er bekommt den
+	    Request; er entscheidet selbst ueber Herkunft und CORS-Kopfzeilen
+	    (eigene Herkunft, `PRIMO_PUBLIC_URL`, sonst 403).
+	  * Alles andere — auch ein `async def`-Endpunkt mit `request`-Parameter:
+	    204 ohne Inhalt und ohne CORS-Freigabe. Kein Register-Orakel
+	    (unbekannter Pfad antwortet gleich), keine Sitzung, keine
+	    Fachfunktion.
+
+	`@whitelist(methods=[...])` bleibt unberuehrt: OPTIONS steht in keiner
+	Deklaration, und ein Endpunkt ohne CORS-Bedarf wird durch den Preflight
+	auch nicht erreichbar — der Browser bricht ohne Freigabe ab.
+	"""
+	from starlette.responses import Response
+
+	fn = lookup(path)
+	if fn is None:
+		_maybe_import(path)
+		fn = lookup(path)
+	if fn is not None and _beantwortet_preflight_selbst(fn):
+		ergebnis = fn(request=request)
+		if inspect.iscoroutine(ergebnis):
+			ergebnis = await ergebnis
+		return ergebnis
+	antwort = Response(status_code=204)
+	antwort.headers["Cache-Control"] = "no-store"
+	antwort.headers["Allow"] = ", ".join(_erlaubte_methoden(fn)) if fn is not None else "GET, POST, PUT, PATCH"
+	return antwort
+
+
+@router.api_route(
+	"/method/{path:path}",
+	methods=["GET", "POST", "PUT", "PATCH", "OPTIONS"],
+	operation_id="call_method",
+)
 async def call_method(path: str, request: Request):
+	# BS-1c/K4: OPTIONS ist der CORS-PREFLIGHT des Browsers. Er darf NICHTS
+	# ausfuehren und NICHTS verraten — die Antwort ist immer leer, fuehrt keine
+	# Fachfunktion aus und unterscheidet sich fuer unbekannte Pfade nicht von
+	# bekannten (kein Orakel ueber das Register). Ein Endpunkt, der CORS
+	# braucht (das Kontaktformular von der Primo-Herkunft), antwortet selbst;
+	# er bekommt VOR jeder anderen Pruefung den Request. SEC-11/C1 („nur die
+	# deklarierten Methoden") bleibt unberuehrt: OPTIONS fuehrt nie etwas aus.
+	if str(getattr(request, "method", "") or "").upper() == "OPTIONS":
+		return await _preflight(path, request)
 	# SEC-7/S2 (N5): Der Pfad wird VOR jeder Aufloesung geprueft. Vorher lief
 	# `..%2F..%2Fetc%2Fpasswd` bis in `_maybe_import` und endete in einem
 	# unbehandelten 500 (TypeError aus dem relativen Import) — ein Fehlerbild,
@@ -546,6 +604,22 @@ def _accepted_params(fn) -> set[str] | None:
 			continue
 		names.add(name)
 	return names
+
+
+def _beantwortet_preflight_selbst(fn) -> bool:
+	"""True, wenn `fn` den CORS-Preflight AUSDRUECKLICH selbst beantwortet (F3).
+
+	Die Anmeldung ist `@whitelist(..., preflight="self")` — eine sichtbare
+	Zeile am Endpunkt, die man beim Lesen der Deklaration sieht. Die
+	Funktionsgestalt (`async def` + `request`) entscheidet NICHT: sonst
+	erbte jeder neue asynchrone Endpunkt mit `request` den Preflight und
+	wuerde bei OPTIONS ausgefuehrt, ohne dass jemand das je beschlossen hat.
+	`request` muss trotzdem deklariert sein — ohne ihn kann der Endpunkt
+	Herkunft und CORS nicht pruefen.
+	"""
+	if options_for(fn).get("preflight") != _PREFLIGHT_SELBST:
+		return False
+	return _hat_namenparameter(fn, "request")
 
 
 def _hat_namenparameter(fn, name: str) -> bool:

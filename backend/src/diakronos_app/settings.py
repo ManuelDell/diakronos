@@ -662,6 +662,52 @@ class Settings(BaseSettings):
             "WEBSITE_KONTAKT_FENSTER_SEKUNDEN", "website_kontakt_fenster_sekunden"
         ),
     )
+    # BS-1c2 (F5): eigener Eimer der Kontaktbremse fuer die OEFFENTLICHE
+    # POSTFACH-LISTE (`website.oeffentlich.postfaecher`). Getrennt vom
+    # Formular, damit ein Listen-Abruf kein Kontaktkontingent verbraucht.
+    # Die Liste ist billig -> hoehere Schwellen als das Formular.
+    # `0` heisst ausdruecklich "unbegrenzt".
+    website_kontakt_liste_max_ip: int = Field(
+        30,
+        validation_alias=AliasChoices(
+            "WEBSITE_KONTAKT_LISTE_MAX_IP", "website_kontakt_liste_max_ip"
+        ),
+    )
+    website_kontakt_liste_max_gesamt: int = Field(
+        600,
+        validation_alias=AliasChoices(
+            "WEBSITE_KONTAKT_LISTE_MAX_GESAMT", "website_kontakt_liste_max_gesamt"
+        ),
+    )
+
+    # ── BS-1b: Bremse der oeffentlichen LESE-API ───────────────────────────
+    # Die Bausteine der Website lesen Termine, Gruppen und Beitraege; ein
+    # Seitenaufbau stellt mehrere Fragen. Deshalb ist diese Grenze
+    # grosszuegig (120 je Adresse und Minute) und nicht die des
+    # Kontaktformulars (5/Stunde, das schuetzt ein POSTFACH).
+    # `WEBSITE_OEFFENTLICH_MAX_GESAMT` steht auf 0 = ausdruecklich aus:
+    # hinter einem Proxy haben alle Besucher EINE Adresse, eine Gesamtgrenze
+    # traefe dann alle. Wer sie will, setzt sie ausdruecklich.
+    # `0` bei MAX_IP heisst ebenfalls "unbegrenzt" (Notfall, nicht Vorgabe).
+    website_oeffentlich_max_ip: int = Field(
+        120,
+        validation_alias=AliasChoices(
+            "WEBSITE_OEFFENTLICH_MAX_IP", "website_oeffentlich_max_ip"
+        ),
+    )
+    website_oeffentlich_max_gesamt: int = Field(
+        0,
+        validation_alias=AliasChoices(
+            "WEBSITE_OEFFENTLICH_MAX_GESAMT", "website_oeffentlich_max_gesamt"
+        ),
+    )
+    website_oeffentlich_fenster_sekunden: int = Field(
+        60,
+        validation_alias=AliasChoices(
+            "WEBSITE_OEFFENTLICH_FENSTER_SEKUNDEN",
+            "website_oeffentlich_fenster_sekunden",
+        ),
+    )
 
     @property
     def oidc_client_secret_effektiv(self) -> str:

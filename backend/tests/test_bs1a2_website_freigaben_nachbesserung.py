@@ -439,9 +439,23 @@ def _indizes(eng, tabelle: str) -> set[str]:
 
 
 def _tabelle_da(eng, name: str) -> bool:
+    """Case-insensibler Tabellentest — OHNE ``schema="public"``.
+
+    ON-1: `on1_einrichtung` fragt die Tabelle ueber
+    ``get_table_names() + get_table_names(schema="public")``. Auf SQLite gibt
+    es kein Schema `public`; SQLAlchemy uebersetzt es zu
+    ``public.sqlite_master`` und der Lauf endet mit einem OperationalError.
+    Beide Migrationen pruefen deshalb zuerst ohne Schema und nur dann mit,
+    wenn die Datenbank ein `public`-Schema kennt (PostgreSQL).
+    """
     from sqlalchemy import inspect
 
-    return str(name).lower() in {t.lower() for t in inspect(eng).get_table_names()}
+    insp = inspect(eng)
+    if name.lower() in {str(k).lower() for k in insp.get_table_names()}:
+        return True
+    if eng.dialect.name != "postgresql":
+        return False
+    return name.lower() in {str(k).lower() for k in insp.get_table_names(schema="public")}
 
 
 def _stempel(cfg, url: str) -> None:
@@ -504,6 +518,37 @@ def _alembic_stand(eng) -> str | None:
 
     with eng.begin() as conn:
         return conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+
+
+def _kopf() -> str:
+    """Aktueller Kopf der Alembic-Kette (nicht mehr `bs1a_website_freigaben`).
+
+    ON-1 hat `on1_einrichtung` hinten angehaengt. Der Test sichert zu, dass
+    `upgrade head` WIRKLICH am Kopf landet — welches Literal das ist, ist
+    Sache der Kette und nicht dieses Tests.
+    """
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    from pathlib import Path
+
+    ini = Path(__file__).resolve().parents[1] / "alembic.ini"
+    cfg = Config(str(ini))
+    cfg.set_main_option("script_location", str(ini.parent / "alembic"))
+    heads = ScriptDirectory.from_config(cfg).get_heads()
+    assert len(heads) == 1, heads
+    return heads[0]
+
+
+def _vorgaenger() -> str:
+    """Revision, die KURZ vor `bs1a_website_freigaben` liegt."""
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    from pathlib import Path
+
+    ini = Path(__file__).resolve().parents[1] / "alembic.ini"
+    cfg = Config(str(ini))
+    cfg.set_main_option("script_location", str(ini.parent / "alembic"))
+    return str(ScriptDirectory.from_config(cfg).get_revision("bs1a_website_freigaben").down_revision)
 
 
 def _bewegung(cfg, url: str, ziel: str) -> None:
@@ -588,10 +633,10 @@ def test_f6_sqlite_rundlauf_upgrade_downgrade_upgrade(monkeypatch, tmp_path):
         _stempel(cfg, url)
         assert _alembic_stand(eng) == "web1b_primo_konto"
 
-        # "head" ist seit ON-2 nicht mehr BS-1a, sondern on2_einrichtung. Die
-        # BS-1a-Wirkung wird deshalb an den Daten geprueft, nicht am Namen.
+        # ON-1: `head` ist inzwischen weiter als bs1a — der Stand wird
+        # deshalb GEGEN den Kopf der Kette geprueft, nicht gegen ein Literal.
         _bewegung(cfg, url, "head")
-        assert _alembic_stand(eng) == _SCRIPT().get_heads()[0]
+        assert _alembic_stand(eng) == _kopf()
         assert "website_slug" in _spalten(eng, "kalender")
         assert "uq_kalender_website_slug" in _indizes(eng, "kalender")
         assert "uq_gruppe_website_slug" in _indizes(eng, "gruppe")
@@ -610,16 +655,20 @@ def test_f6_sqlite_rundlauf_upgrade_downgrade_upgrade(monkeypatch, tmp_path):
                     text("UPDATE kalender SET website_slug = 'gemeinde' WHERE name = 'k2'")
                 )
 
-        _bewegung(cfg, url, "web1b_primo_konto")
-        assert _alembic_stand(eng) == "web1b_primo_konto"
+        # ON-1: ein Schritt zurueck ist das NEUE Vorgaenger-Revision von
+        # `bs1a_website_freigaben` (heute `web1b_primo_konto`) — als Name
+        # gelesen, nicht als Literal, damit der Test beim naechsten Anhaengen
+        # nicht wieder bricht.
+        _bewegung(cfg, url, _vorgaenger())
+        assert _alembic_stand(eng) == _vorgaenger()
         assert "website_slug" not in _spalten(eng, "kalender")
         assert "website_freigabe" not in _spalten(eng, "kalender")
         assert "auf_website" not in _spalten(eng, "beitrag")
         assert "uq_kalender_website_slug" not in _indizes(eng, "kalender")
         assert not _tabelle_da(eng, "website_kontakt_postfach")
 
-        _bewegung(cfg, url, "bs1a_website_freigaben")
-        assert _alembic_stand(eng) == "bs1a_website_freigaben"
+        _bewegung(cfg, url, "head")
+        assert _alembic_stand(eng) == _kopf()
         assert _spalten(eng, "kalender").count("website_slug") == 1
         assert _spalten(eng, "gruppe").count("website_slug") == 1
         assert "uq_kalender_website_slug" in _indizes(eng, "kalender")

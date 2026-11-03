@@ -557,16 +557,22 @@ def _script() -> ScriptDirectory:
     return ScriptDirectory.from_config(cfg)
 
 
-def test_migration_ist_genau_ein_head():
-    """Die Kette hat genau EINEN Kopf — und BS-1a liegt darauf.
+def test_migration_ist_teil_der_einen_kette():
+    """Genau EIN Kopf — und bs1a haengt auf dem Weg dorthin.
 
-    Seit ON-2 (``on2_einrichtung``) ist BS-1a nicht mehr der Kopf selbst; der
-    Test prueft deshalb die Kette, nicht einen festen Namen: genau ein Kopf,
-    und ``bs1a_website_freigaben`` ist von ihm aus erreichbar.
+    Bis ON-1 war `bs1a_website_freigaben` selbst der Kopf. Jede neue Migration
+    haengt sich hinten an (seit ON-2b/ON-1: `on2_einrichtung` -> `on1_einrichtung`);
+    der Waechter prueft deshalb, was er wirklich zusichern will: eine einzige
+    Kette ohne Gabelung, in der bs1a vorkommt. KEIN Literal auf den Nachfolger —
+    das braeche beim naechsten Anhaengen.
     """
-    kopf = _script().get_heads()
-    assert len(kopf) == 1, kopf
-    assert _script().get_revision("bs1a_website_freigaben") is not None
+    script = _script()
+    heads = script.get_heads()
+    assert len(heads) == 1, heads
+    # Genau EINE Migration haengt unmittelbar an bs1a (keine Gabelung dort).
+    nachfolger = [r for r in script.walk_revisions() if r.down_revision == "bs1a_website_freigaben"]
+    assert len(nachfolger) == 1, [r.revision for r in nachfolger]
+    assert script.get_revision(nachfolger[0].revision) is not None
 
 
 def test_migration_haengt_an_web1b():

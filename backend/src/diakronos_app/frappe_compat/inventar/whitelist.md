@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **1727**
-* eindeutige Funktionen: **334**
-* lesend: **150**, schreibend: **184**
-* Rumpfbefund: schreibend 175, lesend 159, unbekannt 0
+* registrierte Pfade: **1756**
+* eindeutige Funktionen: **341**
+* lesend: **157**, schreibend: **184**
+* Rumpfbefund: schreibend 175, lesend 166, unbekannt 0
 
 ## Einstufung
 
@@ -402,3 +402,10 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.devmodus.api.ereignisse_holen` | — | nein |
 | `diakronos_app.devmodus.api.sitzung_status` | — | nein |
 | `diakronos_app.devmodus.api.uebersicht` | — | nein |
+| `diakronos_app.website.kontakt.postfaecher_oeffentlich` | ['GET'] | ja |
+| `diakronos_app.website.oeffentlich_api.beitraege` | ['GET'] | ja |
+| `diakronos_app.website.oeffentlich_api.gruppe` | ['GET'] | ja |
+| `diakronos_app.website.oeffentlich_api.gruppen` | ['GET'] | ja |
+| `diakronos_app.website.oeffentlich_api.kalender` | ['GET'] | ja |
+| `diakronos_app.website.oeffentlich_api.naechster_termin` | ['GET'] | ja |
+| `diakronos_app.website.oeffentlich_api.termine` | ['GET'] | ja |

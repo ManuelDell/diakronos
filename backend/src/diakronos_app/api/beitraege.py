@@ -119,6 +119,11 @@ def _beitrag_to_dict(b, with_kommentare=False):
         "author":   b.get("autor") or "",
         "date":     str(b.get("datum")) if b.get("datum") else "",
         "comments": 0,
+        # BS-1d (U3): Stand der Website-Freigabe, damit die Beitragsbearbeitung
+        # ihren Schalter richtig vorbelegen kann (Default AUS, G1). Der Wert
+        # wird beim Speichern in `savePost` bewahrt — er gehört nicht in die
+        # Felder des Formulars, sondern nur zur Anzeige des Schalters.
+        "auf_website": bool(b.get("auf_website")),
     }
     if with_kommentare:
         kommentare = get_all(
@@ -161,7 +166,14 @@ def get_beitraege_liste(kategorie="", search=""):
     beitraege = get_all(
         "Beitrag",
         filters=_coerce_filters("Beitrag", filters),
-        fields=["name", "titel", "kategorie", "auszug", "bild", "autor", "datum"],
+        # BS-1d (U3): `auf_website` kommt mit, damit Liste und Beitrags-
+        # bearbeitung den Stand der Website-Freigabe anzeigen können (Default
+        # AUS). Der Schalter selbst wird über `website.beitrag_auf_website`
+        # geschaltet, nicht über `update_beitrag`.
+        fields=[
+            "name", "titel", "kategorie", "auszug", "bild", "autor", "datum",
+            "auf_website",
+        ],
         order_by="datum desc",
         limit_page_length=100,
     )

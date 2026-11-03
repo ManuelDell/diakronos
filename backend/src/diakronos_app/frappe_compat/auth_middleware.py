@@ -138,6 +138,13 @@ def ist_csrf_ausgenommen(pfad: str) -> bool:
     pfad = _mit_praefix_entfernt(str(pfad or "").rstrip("/") or "/")
     if pfad in _WEITERE_AUSNAHMEN:
         return True
+    # ON-1: die Seite der Ersteinrichtung. Sie hat KEINE Sitzung (der Benutzer
+    # entsteht dort erst) und bringt ihren eigenen Schutz mit — genau wie der
+    # Login (Herkunft + Masken-Token `_csrf`, SEC-4). Ohne diese Ausnahme
+    # verlangte die Sitzungs-CSRF den Kopfzeilen-Token, den ein HTML-Formular
+    # nicht senden kann (`Besuch im Browser: 417`).
+    if pfad == "/einrichtung" or pfad.startswith("/einrichtung/"):
+        return True
     if pfad.startswith(_CSRF_METHODEN_PRAEFIX):
         # Nur das LETZTE Segment zaehlt: `auth.login` ist der Login,
         # `login_und_mehr` nicht.
@@ -175,13 +182,32 @@ _FREMDE_HERKUNFT = frozenset({"cross-site", "same-site"})
 # stillschweigend von der Herkunftsschranke befreit, auch ein schreibender. Die
 # Ausnahme ist jetzt eine EXAKTE Namensmenge; ein neuer oeffentlicher Endpunkt
 # ist eine sichtbare Zeile hier und keine stille Wirkung eines Praefixes.
-# `website.oeffentlich.*` steht als eigener, ausdruecklicher Eintrag daneben
-# (der Praefix-Zweig, der das erledigte, ist entfallen — er hatte im Register
-# heute keinen Treffer).
+#
+# BS-1b2 (F8): `website.oeffentlich.*` braucht hier KEINEN Eintrag. Diese
+# Schranke greift nur unter `/api/method/*` und `/api/resource/*`; die
+# CORS-Variante der Lese-API liegt aber unter `/website/oeffentlich/<funktion>`
+# AUSSERHALB von `/api/` (eigene Route in `oeffentlich_api.registriere_routen`,
+# vor dem SPA-Catch-all). Der Weg ueber `/api/method/website.oeffentlich.<name>`
+# ist absichtlich NICHT befreit: er ist derselbe Endpunkt wie jeder andere und
+# vertraegt die Herkunftsschranke (G4 verlangt CORS nur fuer den eigenen
+# Website-Pfad). Ausnahme (BS-1bc): die POSTFACH-LISTE des Kontaktformulars
+# (BS-1c2) steht bewusst drin — sie ist der einzige Endpunkt dieser Gruppe, den
+# Primo auch von einer EIGENEN Herkunft holen muss. Die sechs Lese-Endpunkte
+# (kalender, termine, naechster_termin, gruppen, gruppe, beitraege) laufen
+# ausschliesslich ueber `/website/oeffentlich/*` und sind hier NICHT genannt.
 _OEFFENTLICHE_WEBSITE_NAMEN = frozenset({
     "website.kontakt_senden",
     "kontakt.kontakt_senden",
     "diakronos.diakronos.api.website.kontakt_senden",
+    # BS-1c2 (F1): die Postfach-Liste des Kontaktformulars. Primo darf auf
+    # einer EIGENEN Herkunft laufen (G3) und holt die Liste per `fetch` —
+    # der Browser schickt dann `Sec-Fetch-Site: cross-site`. Die Liste ist
+    # ein oeffentlicher GET ohne Sitzung; ihre Herkunfts-/CORS-Pruefung
+    # macht der Endpunkt selbst (`website/kontakt.py`, `cors_herkunft`).
+    # Ohne diesen Eintrag waere sie von der Primo-Herkunft aus unerreichbar.
+    "website.oeffentlich.postfaecher",
+    "kontakt.postfaecher_oeffentlich",
+    "diakronos.diakronos.api.website.postfaecher_oeffentlich",
 })
 
 

@@ -108,6 +108,11 @@ x-app-env: &app-env
   WEBSITE_KONTAKT_MAX_IP: ${WEBSITE_KONTAKT_MAX_IP:-5}
   WEBSITE_KONTAKT_MAX_GESAMT: ${WEBSITE_KONTAKT_MAX_GESAMT:-50}
   WEBSITE_KONTAKT_FENSTER_SEKUNDEN: ${WEBSITE_KONTAKT_FENSTER_SEKUNDEN:-3600}
+  # BS-1c2 (F5): EIGENER Eimer der Bremse fuer die oeffentliche Postfach-LISTE
+  # (GET website.oeffentlich.postfaecher). Getrennt vom Formular, damit ein
+  # Listen-Abruf kein Kontaktkontingent verbraucht. 0 = aus.
+  WEBSITE_KONTAKT_LISTE_MAX_IP: ${WEBSITE_KONTAKT_LISTE_MAX_IP:-30}
+  WEBSITE_KONTAKT_LISTE_MAX_GESAMT: ${WEBSITE_KONTAKT_LISTE_MAX_GESAMT:-600}
   # DM1: Dev-Modus (roter Rahmen, Element-Auswahl, Befunde, Backend-
   # Ueberwachung, Bericht). **Default AUS** — aus heisst: keine Endpunkte,
   # keine Middleware, kein Overlay. Einschalten: DEVMODE_ENABLED=1 und die

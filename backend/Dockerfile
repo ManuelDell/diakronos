@@ -44,6 +44,12 @@ COPY backend/src/diakronos_app/models/website_kontakt.py /backend/src/diakronos_
 COPY backend/src/diakronos_app/models/kronos.py /backend/src/diakronos_app/models/kronos.py
 COPY backend/src/diakronos_app/models/diakonos.py /backend/src/diakronos_app/models/diakonos.py
 COPY backend/alembic/versions/bs1a_website_freigaben.py /backend/alembic/versions/bs1a_website_freigaben.py
+# BS-1d: der Oberflaechen-Test (tests/bs1d-website-freigaben-oberflaeche.test.mjs)
+# vergleicht Rollenliste, Slug-Regeln und Laengengrenzen mit dem Backend und
+# liest den Beitragseditor-Endpunkt (U3: `auf_website` kommt aus der Liste,
+# `update_beitrag` schreibt es NICHT). Beide Dateien daher in diesen Stage.
+COPY backend/src/diakronos_app/website/primo.py /backend/src/diakronos_app/website/primo.py
+COPY backend/src/diakronos_app/api/beitraege.py /backend/src/diakronos_app/api/beitraege.py
 # BS-1a2 (F1/F2/F3/F4/F5/F7): der Nachbesserungs-Vertragstest
 # (tests/bs1a2-website-freigaben.test.mjs) liest ZUSAETZLICH das Frappe-Drift-
 # Overlay (inventar/) und den Drift-Waechter (backend/tests/). Beides liegt
@@ -69,11 +75,56 @@ COPY backend/src/diakronos_app/frappe_compat/inventar/ /backend/src/diakronos_ap
 # SEC-11b (F4): `tests/sec11b-inventar-rumpf.test.mjs` haelt die exakte
 # C4-Ausnahmemenge der Herkunftsschranke am Quelltext fest — nur diese Datei.
 COPY backend/src/diakronos_app/frappe_compat/auth_middleware.py /backend/src/diakronos_app/frappe_compat/auth_middleware.py
+# BS-1c: der Vertragstest (tests/bs1c-kontakt-postfaecher.test.mjs) liest den
+# Kontakt-Endpunkt, den Methoden-Router und die Backend-Tests der Karte —
+# alle ausserhalb von frontend/ (Regel 13, Vorfall SEC-10/WEB-2/WEB-4).
+COPY backend/src/diakronos_app/website/kontakt.py /backend/src/diakronos_app/website/kontakt.py
+COPY backend/tests/test_bs1c_kontakt_postfaecher.py /backend/tests/test_bs1c_kontakt_postfaecher.py
+# BS-1c2 (F3/F5): derselbe Test haelt die Preflight-Anmeldung (`registry.py`)
+# und den eigenen Bremseimer der Liste (`anmeldung/kontaktbremse.py`) fest.
+COPY backend/src/diakronos_app/frappe_compat/registry.py /backend/src/diakronos_app/frappe_compat/registry.py
+COPY backend/src/diakronos_app/anmeldung/kontaktbremse.py /backend/src/diakronos_app/anmeldung/kontaktbremse.py
+# ON-1b (F1/F2/F5): `tests/on1b-einrichtung.test.mjs` haelt den Log-Filter und
+# die Fehlerseite am Quelltext fest und liest dafuer die Routen UND die
+# Betreiber-Anleitung. Beides liegt ausserhalb von frontend/ (Regel 13).
+# `docs/` steht in .dockerignore -> die Anleitung kommt als EINZELNE Datei
+# in den Build-Kontext (wie oben schon fuer tools/ dokumentiert).
+COPY backend/src/diakronos_app/anmeldung/einrichtung_routen.py /backend/src/diakronos_app/anmeldung/einrichtung_routen.py
+COPY backend/src/diakronos_app/einrichtung_seiten.py /backend/src/diakronos_app/einrichtung_seiten.py
+# F8: der Praefix des Startkastens (Entrypoint-Prozess) — derselbe Waechter.
+COPY backend/src/diakronos_app/einrichtung.py /backend/src/diakronos_app/einrichtung.py
+COPY backend/src/diakronos_app/erstinstallation.py /backend/src/diakronos_app/erstinstallation.py
+COPY docs/BETRIEBSANLEITUNG.md /docs/BETRIEBSANLEITUNG.md
 # WEB-5b (S4): die neuen Web5b-Tests stehen am ENDE der Liste (siehe unten).
 # ON-0b: Rechner und Bestandsliste des Frontend-Waechters liegen IN frontend/
 # (frontend/tools/) und kommen mit `COPY frontend/ ./` mit — keine zusaetzliche
 # COPY-Zeile noetig (Regel 13 bleibt erfuellt: nichts ausserhalb von frontend/).
-RUN node --test tests/web1-*.test.mjs tests/web1b-*.test.mjs src/diakonos/components/planrahmen/*.test.mjs src/diakonos/components/lieder/*.test.mjs src/diakonos/components/ui/*.test.mjs src/diakonos/components/devmodus/*.test.mjs src/diakonos/composables/*.test.mjs tests/planrahmen-*.test.mjs tests/devmodus-*.test.mjs tests/dm2-*.test.mjs tests/dm3-*.test.mjs tests/dm3b-*.test.mjs tests/p0-4*.test.mjs tests/waechter-tokens.test.mjs tests/dkbutton-icon.test.mjs tests/organigramm-xss-farbe.test.mjs tests/google-*.test.mjs tests/p1-9-*.test.mjs tests/p1-10-*.test.mjs tests/p1-11-*.test.mjs tests/p1-12-*.test.mjs tests/n0-*.test.mjs tests/n1-*.test.mjs tests/p1-1-*.test.mjs tests/p1-1b-*.test.mjs tests/n2-*.test.mjs tests/n3-*.test.mjs tests/p1-2-*.test.mjs tests/p1-3-*.test.mjs tests/p1-4-*.test.mjs tests/p1-4b-*.test.mjs tests/n4-*.test.mjs tests/p1-13-*.test.mjs tests/p1-5-*.test.mjs tests/p1-6-*.test.mjs tests/p1-5c-*.test.mjs tests/p2-2-*.test.mjs tests/p2-6-*.test.mjs tests/p2-4-*.test.mjs tests/p1-8-*.test.mjs tests/n5-*.test.mjs tests/n6-*.test.mjs tests/n7-*.test.mjs tests/n8-*.test.mjs tests/p21-*.test.mjs tests/n9-*.test.mjs tests/n9b-*.test.mjs tests/p2-3-*.test.mjs tests/p2-3b-*.test.mjs tests/n10-*.test.mjs tests/p2-5-*.test.mjs tests/p3-1-*.test.mjs tests/n11-*.test.mjs tests/p3-1b-*.test.mjs tests/p3-4-*.test.mjs tests/p3-4b-*.test.mjs tests/n12-*.test.mjs tests/p3-1c-*.test.mjs tests/p3-1d-*.test.mjs tests/p3-4c-*.test.mjs tests/rest1-*.test.mjs tests/des-rest-*.test.mjs tests/rest3-*.test.mjs tests/austritt-*.test.mjs tests/bk1-*.test.mjs tests/dsgvo2b-*.test.mjs tests/dsgvo2c-*.test.mjs tests/dsgvo2c2-*.test.mjs tests/dsgvo2d-*.test.mjs tests/ma1-*.test.mjs tests/ma1b-*.test.mjs tests/dev7-*.test.mjs tests/dev7b-*.test.mjs tests/dev1-*.test.mjs tests/dev3-*.test.mjs tests/dev5-*.test.mjs tests/dev6-*.test.mjs tests/dev8-*.test.mjs tests/dev4-*.test.mjs tests/dev4b-*.test.mjs tests/dep1-*.test.mjs tests/plan-w1-*.test.mjs tests/plan-m1-*.test.mjs tests/dep2-build-kette.test.mjs tests/dep2-review.test.mjs tests/dep2b-*.test.mjs tests/reg1a-*.test.mjs tests/uxa2a-*.test.mjs tests/uxa2a2-*.test.mjs tests/uxa2b-*.test.mjs tests/org-1-*.test.mjs tests/reg1b-*.test.mjs tests/reg1c-*.test.mjs tests/uxb2b-*.test.mjs tests/uxc3a-*.test.mjs tests/uxc3b-*.test.mjs tests/fix1-*.test.mjs tests/fix3-*.test.mjs tests/fix2-*.test.mjs tests/fix5-*.test.mjs tests/fix6-*.test.mjs tests/fix6b-*.test.mjs tests/fix4-*.test.mjs tests/fix6c-*.test.mjs tests/fix6d-*.test.mjs tests/sec3-*.test.mjs tests/sec7-*.test.mjs tests/sec8-*.test.mjs tests/sec9-*.test.mjs tests/web3-*.test.mjs tests/web4-*.test.mjs tests/web2-*.test.mjs tests/sec10-*.test.mjs tests/web5b-*.test.mjs tests/web7-*.test.mjs tests/web8b-*.test.mjs tests/web8c-*.test.mjs tests/web8d-*.test.mjs tests/sec11-*.test.mjs tests/bs1a-*.test.mjs tests/bs1a2-*.test.mjs tests/on0a-*.test.mjs tests/on0b-*.test.mjs tests/sec11b-*.test.mjs tests/web8e-*.test.mjs tests/web8f-*.test.mjs tests/on2-*.test.mjs tests/sec11c-*.test.mjs --test \
+# BS-1b/BS-1b2: die Vertragstests (tests/bs1b-*.test.mjs, tests/bs1b2-*.test.mjs)
+# lesen die
+# oeffentliche Lese-API und ihre Regelmodule (Feld-Positivlisten, Allowlist,
+# CORS, Bremse, ICS) sowie die Routen-Registrierung in `main.py`. Wie oben nur
+# die genannten Dateien, kein komplettes backend/src.
+COPY backend/src/diakronos_app/website/oeffentlich_api.py /backend/src/diakronos_app/website/oeffentlich_api.py
+COPY backend/src/diakronos_app/website/oeffentlich_auswahl.py /backend/src/diakronos_app/website/oeffentlich_auswahl.py
+COPY backend/src/diakronos_app/website/oeffentlich_daten.py /backend/src/diakronos_app/website/oeffentlich_daten.py
+COPY backend/src/diakronos_app/website/oeffentlich_http.py /backend/src/diakronos_app/website/oeffentlich_http.py
+COPY backend/src/diakronos_app/website/oeffentlich_bremse.py /backend/src/diakronos_app/website/oeffentlich_bremse.py
+COPY backend/src/diakronos_app/website/oeffentlich_inhalt.py /backend/src/diakronos_app/website/oeffentlich_inhalt.py
+COPY backend/src/diakronos_app/main.py /backend/src/diakronos_app/main.py
+# BS-1b2: der Nachbesserungs-Vertragstest (tests/bs1b2-website-oeffentlich.test.mjs)
+# liest ZUSAETZLICH die Herkunftsschranke, das Register (nackte Namen) und die
+# Linkanzeige. Alle drei liegen ausserhalb von frontend/ und fehlten diesem
+# Stage sonst — der Image-Build braeche an „Datei fehlt" ab (Regel 13).
+# (`registry.py` steht bereits oben bei BS-1c2 — einmal genuegt.)
+COPY backend/src/diakronos_app/anmeldung/registrierungslink.py /backend/src/diakronos_app/anmeldung/registrierungslink.py
+# BS-1bc: der Integrationstest (frontend/tests/bs1bc-integration.test.mjs)
+# haelt Querfix, Proxy-Fix und iCal-Ganztagsende fest — er liest die beiden
+# Backend-Tests der Karten. Beide liegen ausserhalb von frontend/ (Regel 13).
+# Die Dockerfile-Zeile selbst prueft der Node-Test NICHT (in diesem Stage ist
+# die Dockerfile nicht vorhanden) — Nachweis per `docker build --target frontend`.
+COPY backend/tests/test_bs1b2_website_oeffentlich_nachbesserung.py /backend/tests/test_bs1b2_website_oeffentlich_nachbesserung.py
+COPY backend/tests/test_bs1c_kontakt_postfaecher.py /backend/tests/test_bs1c_kontakt_postfaecher.py
+RUN node --test tests/web1-*.test.mjs tests/web1b-*.test.mjs src/diakonos/components/planrahmen/*.test.mjs src/diakonos/components/lieder/*.test.mjs src/diakonos/components/ui/*.test.mjs src/diakonos/components/devmodus/*.test.mjs src/diakonos/composables/*.test.mjs tests/planrahmen-*.test.mjs tests/devmodus-*.test.mjs tests/dm2-*.test.mjs tests/dm3-*.test.mjs tests/dm3b-*.test.mjs tests/p0-4*.test.mjs tests/waechter-tokens.test.mjs tests/dkbutton-icon.test.mjs tests/organigramm-xss-farbe.test.mjs tests/google-*.test.mjs tests/p1-9-*.test.mjs tests/p1-10-*.test.mjs tests/p1-11-*.test.mjs tests/p1-12-*.test.mjs tests/n0-*.test.mjs tests/n1-*.test.mjs tests/p1-1-*.test.mjs tests/p1-1b-*.test.mjs tests/n2-*.test.mjs tests/n3-*.test.mjs tests/p1-2-*.test.mjs tests/p1-3-*.test.mjs tests/p1-4-*.test.mjs tests/p1-4b-*.test.mjs tests/n4-*.test.mjs tests/p1-13-*.test.mjs tests/p1-5-*.test.mjs tests/p1-6-*.test.mjs tests/p1-5c-*.test.mjs tests/p2-2-*.test.mjs tests/p2-6-*.test.mjs tests/p2-4-*.test.mjs tests/p1-8-*.test.mjs tests/n5-*.test.mjs tests/n6-*.test.mjs tests/n7-*.test.mjs tests/n8-*.test.mjs tests/p21-*.test.mjs tests/n9-*.test.mjs tests/n9b-*.test.mjs tests/p2-3-*.test.mjs tests/p2-3b-*.test.mjs tests/n10-*.test.mjs tests/p2-5-*.test.mjs tests/p3-1-*.test.mjs tests/n11-*.test.mjs tests/p3-1b-*.test.mjs tests/p3-4-*.test.mjs tests/p3-4b-*.test.mjs tests/n12-*.test.mjs tests/p3-1c-*.test.mjs tests/p3-1d-*.test.mjs tests/p3-4c-*.test.mjs tests/rest1-*.test.mjs tests/des-rest-*.test.mjs tests/rest3-*.test.mjs tests/austritt-*.test.mjs tests/bk1-*.test.mjs tests/dsgvo2b-*.test.mjs tests/dsgvo2c-*.test.mjs tests/dsgvo2c2-*.test.mjs tests/dsgvo2d-*.test.mjs tests/ma1-*.test.mjs tests/ma1b-*.test.mjs tests/dev7-*.test.mjs tests/dev7b-*.test.mjs tests/dev1-*.test.mjs tests/dev3-*.test.mjs tests/dev5-*.test.mjs tests/dev6-*.test.mjs tests/dev8-*.test.mjs tests/dev4-*.test.mjs tests/dev4b-*.test.mjs tests/dep1-*.test.mjs tests/plan-w1-*.test.mjs tests/plan-m1-*.test.mjs tests/dep2-build-kette.test.mjs tests/dep2-review.test.mjs tests/dep2b-*.test.mjs tests/reg1a-*.test.mjs tests/uxa2a-*.test.mjs tests/uxa2a2-*.test.mjs tests/uxa2b-*.test.mjs tests/org-1-*.test.mjs tests/reg1b-*.test.mjs tests/reg1c-*.test.mjs tests/uxb2b-*.test.mjs tests/uxc3a-*.test.mjs tests/uxc3b-*.test.mjs tests/fix1-*.test.mjs tests/fix3-*.test.mjs tests/fix2-*.test.mjs tests/fix5-*.test.mjs tests/fix6-*.test.mjs tests/fix6b-*.test.mjs tests/fix4-*.test.mjs tests/fix6c-*.test.mjs tests/fix6d-*.test.mjs tests/sec3-*.test.mjs tests/sec7-*.test.mjs tests/sec8-*.test.mjs tests/sec9-*.test.mjs tests/web3-*.test.mjs tests/web4-*.test.mjs tests/web2-*.test.mjs tests/sec10-*.test.mjs tests/web5b-*.test.mjs tests/web7-*.test.mjs tests/web8b-*.test.mjs tests/web8c-*.test.mjs tests/web8d-*.test.mjs tests/sec11-*.test.mjs tests/bs1a-*.test.mjs tests/bs1a2-*.test.mjs tests/on0a-*.test.mjs tests/on0b-*.test.mjs tests/sec11b-*.test.mjs tests/web8e-*.test.mjs tests/web8f-*.test.mjs tests/on2-*.test.mjs tests/sec11c-*.test.mjs tests/bs1b-*.test.mjs tests/bs1b2-*.test.mjs tests/bs1c-*.test.mjs tests/bs1bc-*.test.mjs tests/bs1d-*.test.mjs tests/on1b-*.test.mjs --test \
  && npm run build
 
 
@@ -196,6 +247,11 @@ COPY --from=frontend --chown=appuser:appuser /build/src/diakonos/router.js /app/
 # Notwendig, damit ein frischer `docker compose up` eine benutzbare DB hat.
 COPY --chown=root:root backend/docker-entrypoint.sh /usr/local/bin/diakronos-entrypoint
 RUN chmod 755 /usr/local/bin/diakronos-entrypoint
+
+# ON-1 (E2): `docker compose exec app diakronos einrichtungslink` — der
+# Kommando-Einstiegspunkt fuer den Einrichtungs-Link (backend/bin/diakronos).
+COPY --chown=root:root backend/bin/diakronos /usr/local/bin/diakronos
+RUN chmod 755 /usr/local/bin/diakronos
 
 # Only the volume bootstrap runs as root; entrypoint drops to UID 1000 before
 # migrations, bootstrap Python or the application command is executed.

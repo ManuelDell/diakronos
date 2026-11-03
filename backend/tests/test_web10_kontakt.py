@@ -441,26 +441,40 @@ def test_log_nennt_bei_fehler_nur_den_typ(client, mail_fach, monkeypatch, caplog
 
 @pytest.fixture()
 def mit_praefix(monkeypatch):
-    """Baut die Anwendung mit `/diakronos` und dessen EIGENEM Client."""
+    """Baut die Anwendung mit `/diakronos` und dessen EIGENEM Client.
+
+    BS-1c: `patched_db` und die Bremse-Attrappe gelten AUCH hier — sonst
+    spraeche dieser Client die echte `database_url` an (Kartenregel 11).
+    BS-1bc: die Einstellung wird im `finally` ZURUECKGESTELLT. Ohne das blieb
+    `diakronos_base_path == "/diakronos"` nach diesem Test stehen, und
+    `test_web5a_base_path.py::test_default_ist_leer_und_aendert_nichts`
+    scheiterte in der Vollsuite (isoliert gruen) — ein Test, der eine globale
+    Einstellung setzt, muss sie zurueckgeben.
+    """
     from fastapi.testclient import TestClient
 
     from diakronos_app import base_path
     from diakronos_app.main import erstelle_app
+    from diakronos_app.settings import settings
 
     alt = base_path.aktiver_praefix()
+    alt_wert = settings.diakronos_base_path
     # WEB-5a: der Praefix kommt aus der Einstellung — hier fuer die Dauer des
     # Tests gesetzt (der Prozess-Praefix wird danach zurueckgestellt).
     setze_setting("diakronos_base_path", "/diakronos")
-    app = erstelle_app()
-    c = TestClient(app)
-    c.__enter__()
-    c.headers["Origin"] = "http://testserver"
-    yield c
-    c.__exit__(None, None, None)
-    base_path.setze_praefix(alt)
+    try:
+        app = erstelle_app()
+        c = TestClient(app)
+        c.__enter__()
+        c.headers["Origin"] = "http://testserver"
+        yield c
+        c.__exit__(None, None, None)
+    finally:
+        setze_setting("diakronos_base_path", alt_wert)
+        base_path.setze_praefix(alt)
 
 
-def test_endpunkt_mit_praefix(mit_praefix, mail_fach):
+def test_endpunkt_mit_praefix(mit_praefix, mail_fach, fake_redis, patched_db):
     antwort = mit_praefix.post("/diakronos" + PFAD, json=GUELTIG)
     assert antwort.status_code == 200, antwort.text
     assert len(mail_fach.nachrichten) == 1

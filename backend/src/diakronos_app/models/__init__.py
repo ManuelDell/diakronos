@@ -11,7 +11,12 @@ from diakronos_app.models.gemeinde import (
     DatenschutzTextVeroeffentlicht,
     GemeindeEinstellungen,
 )
-from diakronos_app.models.einrichtung import EINRICHTUNG_STAND_NAME, EinrichtungStand
+from diakronos_app.models.einrichtung import (
+    EINRICHTUNG_STAND_NAME,
+    EINRICHTUNG_TOKEN_NAME,
+    EinrichtungStand,
+    EinrichtungToken,
+)
 from diakronos_app.models.passwortzugang import Passwortzugang
 from diakronos_app.models.sicherung import Sicherungseinstellungen, Sicherungslauf
 from diakronos_app.models.website import PrimoKonto
@@ -133,6 +138,10 @@ __all__ = [
     "DatenschutzText",
     "DatenschutzTextVeroeffentlicht",
     "GemeindeEinstellungen",
+    "EinrichtungStand",
+    "EinrichtungToken",
+    "EINRICHTUNG_STAND_NAME",
+    "EINRICHTUNG_TOKEN_NAME",
     "Ablaufplan",
     "AblaufplanPosition",
     "Abwesenheit",

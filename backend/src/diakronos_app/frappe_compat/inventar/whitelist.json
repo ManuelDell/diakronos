@@ -8827,13 +8827,196 @@
    ],
    "rumpf_grund": "Aufruf sende_kontaktmail()",
    "rumpf_ueber": null
+  },
+  {
+   "allow_guest": true,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": "lesend",
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.website.kontakt.postfaecher_oeffentlich",
+   "methoden": [
+    "GET"
+   ],
+   "methoden_pflicht": "GET/POST",
+   "modul": "diakronos_app.website.kontakt",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "postfaecher_oeffentlich",
+   "pfade": [
+    "diakronos.diakronos.api.website.postfaecher_oeffentlich",
+    "diakronos_app.website.kontakt.postfaecher_oeffentlich",
+    "kontakt.postfaecher_oeffentlich",
+    "postfaecher_oeffentlich",
+    "website.oeffentlich.postfaecher"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": true,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": "lesend",
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.website.oeffentlich_api.beitraege",
+   "methoden": [
+    "GET"
+   ],
+   "methoden_pflicht": "GET/POST",
+   "modul": "diakronos_app.website.oeffentlich_api",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "beitraege",
+   "pfade": [
+    "diakronos.diakronos.api.website.beitraege",
+    "diakronos_app.website.oeffentlich_api.beitraege",
+    "oeffentlich_api.beitraege",
+    "website.oeffentlich.beitraege"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": true,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": "lesend",
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.website.oeffentlich_api.gruppe",
+   "methoden": [
+    "GET"
+   ],
+   "methoden_pflicht": "GET/POST",
+   "modul": "diakronos_app.website.oeffentlich_api",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "gruppe",
+   "pfade": [
+    "diakronos.diakronos.api.website.gruppe",
+    "diakronos_app.website.oeffentlich_api.gruppe",
+    "oeffentlich_api.gruppe",
+    "website.oeffentlich.gruppe"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": true,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": "lesend",
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.website.oeffentlich_api.gruppen",
+   "methoden": [
+    "GET"
+   ],
+   "methoden_pflicht": "GET/POST",
+   "modul": "diakronos_app.website.oeffentlich_api",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "gruppen",
+   "pfade": [
+    "diakronos.diakronos.api.website.gruppen",
+    "diakronos_app.website.oeffentlich_api.gruppen",
+    "oeffentlich_api.gruppen",
+    "website.oeffentlich.gruppen"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": true,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": "lesend",
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.website.oeffentlich_api.kalender",
+   "methoden": [
+    "GET"
+   ],
+   "methoden_pflicht": "GET/POST",
+   "modul": "diakronos_app.website.oeffentlich_api",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "kalender",
+   "pfade": [
+    "diakronos.diakronos.api.website.kalender",
+    "diakronos_app.website.oeffentlich_api.kalender",
+    "oeffentlich_api.kalender",
+    "website.oeffentlich.kalender"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": true,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": "lesend",
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.website.oeffentlich_api.naechster_termin",
+   "methoden": [
+    "GET"
+   ],
+   "methoden_pflicht": "GET/POST",
+   "modul": "diakronos_app.website.oeffentlich_api",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "naechster_termin",
+   "pfade": [
+    "diakronos.diakronos.api.website.naechster_termin",
+    "diakronos_app.website.oeffentlich_api.naechster_termin",
+    "oeffentlich_api.naechster_termin",
+    "website.oeffentlich.naechster_termin"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": true,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": "lesend",
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.website.oeffentlich_api.termine",
+   "methoden": [
+    "GET"
+   ],
+   "methoden_pflicht": "GET/POST",
+   "modul": "diakronos_app.website.oeffentlich_api",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "termine",
+   "pfade": [
+    "diakronos.diakronos.api.website.termine",
+    "diakronos_app.website.oeffentlich_api.termine",
+    "oeffentlich_api.termine",
+    "website.oeffentlich.termine"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
   }
  ],
- "funktionen": 334,
+ "funktionen": 341,
  "nur_test": [],
- "registrierte_pfade": 1727,
+ "registrierte_pfade": 1756,
  "rumpf_zaehlung": {
-  "lesend": 159,
+  "lesend": 166,
   "schreibend": 175
  },
  "widersprueche": [
@@ -9383,7 +9566,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 150,
+  "lesend": 157,
   "schreibend": 184
  }
 }

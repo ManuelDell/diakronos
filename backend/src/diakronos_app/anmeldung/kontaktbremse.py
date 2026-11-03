@@ -56,7 +56,9 @@ __all__ = [
     "SCHLUESSEL_PRAEFIX",
     "GESAMT_KEY",
     "pruefe",
+    "pruefe_liste",
     "zaehler_stand",
+    "liste_zaehler_stand",
     "zuruecksetzen",
     "fehlermeldung",
 ]
@@ -66,6 +68,12 @@ SCHLUESSEL_PRAEFIX = "diakronos:kontakt-versuche:"
 
 # Der Gesamtzaehler (eine Kennung, kein Hash — er traegt keine Personendaten).
 GESAMT_KEY = f"{SCHLUESSEL_PRAEFIX}gesamt"
+
+#: BS-1c2 (F5): eigener Namensraum fuer die oeffentliche Postfach-LISTE.
+#: Getrennt vom Formular, damit ein Listen-Abruf kein Kontaktkontingent
+#: verbraucht (und umgekehrt).
+LISTE_SCHLUESSEL_PRAEFIX = "diakronos:kontakt-liste:"
+LISTE_GESAMT_KEY = f"{LISTE_SCHLUESSEL_PRAEFIX}gesamt"
 
 
 def _client():
@@ -87,6 +95,16 @@ def _max_ip() -> int:
 
 def _max_gesamt() -> int:
     return max(0, int(getattr(settings, "website_kontakt_max_gesamt", 50)))
+
+
+def _max_liste_ip() -> int:
+    """Grenze der Postfach-LISTE je Adresse (BS-1c2/F5). 0 = unbegrenzt."""
+    return max(0, int(getattr(settings, "website_kontakt_liste_max_ip", 30)))
+
+
+def _max_liste_gesamt() -> int:
+    """Grenze der Postfach-LISTE insgesamt (BS-1c2/F5). 0 = unbegrenzt."""
+    return max(0, int(getattr(settings, "website_kontakt_liste_max_gesamt", 600)))
 
 
 def _fenster() -> int:
@@ -160,6 +178,75 @@ def pruefe(ip: str | None, client=None) -> tuple[bool, str]:
     return erlaubt, grund
 
 
+def _ip_key(ip: str) -> str:
+    """Der Adresszaehler der Liste — gesalzener Hash, nie die Adresse."""
+    return f"{LISTE_SCHLUESSEL_PRAEFIX}ip:{_hash(str(parse_ip(ip)))}"
+
+
+def _zaehle_grund(client, key: str, grenze: int) -> str:
+    """Zaehlt EINEN Eimer und meldet ``""`` (durch) oder den Grund.
+
+    BS-1bc (Proxy-Fix, F5): liest den Stand VOR dem Inkrement. Nur so laesst
+    sich „die Adresse hat ihre Grenze schon aufgebraucht" von „diese eine
+    Anfrage war zu viel" unterscheiden — gebraucht fuer die Reihenfolge
+    Adresse-vor-gesamt (siehe `pruefe_liste`). Der Stand ist eine Diagnose,
+    keine Sperre: bei `0` (unbegrenzt) wird gar nicht gelesen.
+    """
+    if grenze <= 0:
+        return ""
+    vorher = int(client.get(key) or 0)
+    if not _inkrement(client, key, grenze):
+        return "ip" if vorher < grenze else "ip_vorher"
+    return ""
+
+
+def pruefe_liste(ip: str | None, client=None) -> tuple[bool, str]:
+    """Bremse fuer die OEFFENTLICHE POSTFACH-LISTE — eigener Eimer (BS-1c2/F5).
+
+    Warum ein eigener Eimer: die Liste ist ein oeffentlicher GET, der die
+    Datenbank liest, und darf deshalb nicht ungebremst sein. Sie darf aber
+    NICHT denselben Zaehler benutzen wie das Formular — sonst verbraucht ein
+    Abruf der Liste das Kontaktkontingent der Besucherin (5/Stunde), und das
+    Formular waere nach wenigen Seitenaufrufen gesperrt.
+
+    Schluesselraum (eigener Namensraum, gleiche Bauform wie `pruefe`):
+
+        diakronos:kontakt-liste:ip:<sha256>   -> "…"
+        diakronos:kontakt-liste:gesamt        -> "…"
+
+    Groessere Schwellen als das Formular (`WEBSITE_KONTAKT_LISTE_MAX_IP`,
+    `…_GESAMT`): die Liste ist billig, das Formular teuer. Fail closed wie
+    `pruefe` (Redis weg -> 503 beim Aufrufer).
+
+    REIHENFOLGE (BS-1bc, Proxy-Fix): erst die ADRESSE, dann GESAMT. Vorher
+    lief GESAMT zuerst — ein Client mit erschlagener Adressgrenze verbrannte
+    damit bei JEDEM weiteren Abruf zusaetzlich das Gesamtkontingent der
+    Gemeinde, und ein einzelner Dauerabrufer konnte die Liste fuer alle
+    sperren. Jetzt:
+
+      * Adresse schon am Limit (``ip_vorher``) -> sofort abweisen, die
+        Gesamtzaehlung wird NICHT mehr angefasst;
+      * sonst Adresse zaehlen (``ip``, falls diese Anfrage zu viel war);
+      * nur wenn die Adresse durchkommt: GESAMT zaehlen (``gesamt``).
+
+    Damit zaehlt jeder einzelne Besucher weiterhin in beide Eimer (die
+    Gesamtgrenze bleibt fuer wechselnde Adressen gueltig), ein bereits
+    gesperrter Client verbraucht aber kein Gesamtkontingent mehr.
+    """
+    client = client or _client()
+    adresse = parse_ip(ip)
+    if not _ist_ausgenommen(ip) and adresse is not None:
+        ergebnis = _zaehle_grund(client, _ip_key(str(adresse)), _max_liste_ip())
+        if ergebnis:
+            return False, ergebnis
+        # Der Adresszaehler hat jetzt gezaehlt; GESAMT gilt trotzdem immer.
+
+    if not _inkrement(client, LISTE_GESAMT_KEY, _max_liste_gesamt()):
+        return False, "gesamt"
+
+    return True, ""
+
+
 def zaehler_stand(ip: str | None, client=None) -> dict[str, int]:
     """Liest beide Zaehler OHNE sie zu veraendern. Fuer Tests/Diagnose.
 
@@ -177,13 +264,33 @@ def zaehler_stand(ip: str | None, client=None) -> dict[str, int]:
     return stand
 
 
+def liste_zaehler_stand(ip: str | None, client=None) -> dict[str, int]:
+    """BS-1bc: Stand der LISTEN-Eimer (Adresse + gesamt) — nur Diagnose.
+
+    Gleiche Bauform wie `zaehler_stand`, eigener Namensraum: der Proxy-Fix
+    ordnet Adresse VOR gesamt, und ob das greift, ist ohne lesbaren Stand
+    nicht pruefbar. Enthaelt keine Kennung.
+    """
+    client = client or _client()
+    stand = {"ip": 0, "gesamt": 0}
+    adresse = parse_ip(ip)
+    if adresse is not None and not _ist_ausgenommen(ip):
+        stand["ip"] = int(client.get(_ip_key(str(adresse))) or 0)
+    stand["gesamt"] = int(client.get(LISTE_GESAMT_KEY) or 0)
+    return stand
+
+
 def zuruecksetzen(client=None) -> None:
-    """Loescht beide Zaehler — fuer Tests und den Notfall (Neustart des Fensters).
+    """Loescht alle Zaehler — fuer Tests und den Notfall (Neustart des Fensters).
+
+    BS-1c2 (F5): auch der Eimer der Postfach-Liste. Ein Test, der nur das
+    Formularfenster zuruecksetzt, liesse die Listen-Zaehler stehen.
 
     NICHT Teil des Anfragepfads: im Betrieb laeuft das Fenster ueber die TTL ab.
     """
     client = client or _client()
     client.delete(GESAMT_KEY)
+    client.delete(LISTE_GESAMT_KEY)
 
 
 def fehlermeldung() -> str:

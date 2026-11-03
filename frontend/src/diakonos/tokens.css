@@ -464,6 +464,14 @@
   --fs-meldung: 14px;   /* Text einer Fehler-/Hinweisbox (vorher 12 px) */
   --fs-titel:   20px;   /* Ueberschrift einer Server-Seite (vorher 19 px) */
   --fs-fliess:  16px;   /* Fliesstext der Server-Seiten (vorher 14 px) */
+  /* ON-1: Rolle „Abschnittsueberschrift" auf Server-Seiten (Entwurf 03:
+     „Neuen Link erzeugen", „Bereits eingerichtet?"). Liegt ueber der
+     Feldbeschriftung, unter der Karten-Ueberschrift — deshalb ein eigener
+     Wert statt einer Umdeutung von --fs-h3. */
+  --fs-abschnitt: 15px;
+  /* ON-1: Rolle „Monogramm der Marke" (Entwurf 02/13: dunkles Quadrat mit
+     goldenem Buchstaben ueber „Diakronos"). */
+  --fs-monogramm: 18px;
 }
 
 /* =====================================================================
