@@ -81,6 +81,7 @@ import { useKronosSidebar } from '../composables/useKronosSidebar.js'
 import { getMeinTermin } from '../composables/useEventsApi.js'
 import { showToast } from '../composables/useToast.js'
 import { vorschlagBeginn } from '../composables/datumZeit.mjs'
+import { endeAusKalender } from '../composables/datumZeit.mjs'
 import KronosTopbar from '../components/kronos/KronosTopbar.vue'
 import KronosSidebar from '../components/kronos/KronosSidebar.vue'
 import KronosCalendar from '../components/kronos/KronosCalendar.vue'
@@ -225,7 +226,11 @@ function onSelect(info) {
   const startTag = String(info.startStr || '').slice(0, 10)
   const startZeit = zeitAusStr(info.startStr) || '09:00'
   const endeStr = String(info.endStr || '')
-  const endeTag = endeStr.slice(0, 10)
+  // ICAL-1b: eine ganztägige Auswahl liefert ein AUSSCHLIESSLICHES Ende;
+  // gespeichert wird einschliesslich (21.–22. -> Ende 22., nicht 23.).
+  const endeTag = info.allDay
+    ? String(endeAusKalender(endeStr.slice(0, 10), true, startTag) || '').slice(0, 10)
+    : endeStr.slice(0, 10)
   const endeZeit = zeitAusStr(endeStr) || defaultEndZeit(startZeit)
   const endeEffektivTag = (endeTag && endeTag !== startTag) ? endeTag : startTag
   const endeEffektivZeit = (endeTag && endeTag !== startTag) ? endeZeit : defaultEndZeit(startZeit)

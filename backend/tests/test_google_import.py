@@ -118,7 +118,7 @@ def test_real_ics_new_calendar_events_and_duplicate_import(client, patched_db):
         assert rows[0].element_name == "Frühstück, Grüße"
         assert rows[0].description == "Erste Zeile\nZweite Zeile"
         assert rows[0].element_start == datetime(2026, 10, 1, 11)
-        assert rows[1].all_day and rows[1].element_end == datetime(2026, 10, 3)
+        assert rows[1].all_day and rows[1].element_end == datetime(2026, 10, 2)
         assert rows[2].element_start == datetime(2026, 10, 5, 18)  # Local calendar wall time
         assert len({r.google_event_id for r in rows}) == 5
         assert all(r.status == "Festgelegt" and r.element_calendar == calendar for r in rows)
@@ -152,7 +152,8 @@ def test_real_ics_new_calendar_events_and_duplicate_import(client, patched_db):
     (":20261005T180000", ":20261005T190000", "",
      [("2026-10-05 18:00:00", "2026-10-05 19:00:00")]),
     (";VALUE=DATE:20261005", ";VALUE=DATE:20261006", "",
-     [("2026-10-05 00:00:00", "2026-10-06 00:00:00")]),
+     # ICAL-1: iCal-Ende 6.10. ist AUSSCHLIESSLICH -> gespeichert eintägig 5. .. 5.
+     [("2026-10-05 00:00:00", "2026-10-05 00:00:00")]),
 ])
 def test_import_calendar_read_preserves_local_display_time(client, patched_db, start, end, rule, expected):
     from diakronos_app.api.kronos.event_crud import parse_iso_datetime_raw
@@ -311,7 +312,9 @@ END:VCALENDAR
         assert rows[1].element_start == datetime(2026, 10, 3, 11)
 
 
-def test_all_day_without_end_defaults_to_next_day(client, patched_db):
+def test_all_day_without_end_is_one_stored_day(client, patched_db):
+    """DTSTART ohne DTEND: iCal-Default ist EIN Tag (RFC 5545), gespeichert
+    wird das einschließend — Ende == Beginn (ICAL-1)."""
     from diakronos_app.models.kronos import Element
     data = b"""BEGIN:VCALENDAR
 VERSION:2.0
@@ -328,7 +331,7 @@ END:VCALENDAR
     with patched_db() as db:
         rows = db.scalars(select(Element).order_by(Element.element_start)).all()
         assert all(row.all_day for row in rows)
-        assert rows[0].element_end == datetime(2026, 10, 2)
+        assert rows[0].element_end == datetime(2026, 10, 1)   # ICAL-1: eintägig
 
 
 @pytest.mark.parametrize("kwargs", [

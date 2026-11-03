@@ -1,11 +1,9 @@
 import { apiAntwortPruefen } from './useApi.js'
 // WEB-5b: Adressen unter dem Betriebs-Praefix bauen.
 import { apiUrl, ressourceUrl } from '../../shared/basis.js'
-function toLocalDateTimeString(date) {
-  const pad = n => String(n).padStart(2, "0")
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
-         `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-}
+// ICAL-1b: Der Kalender zaehlt das Ende ganztags AUSSCHLIESSEND, Diakronos
+// speichert es EINSCHLIESSEND — vor dem Speichern genau einmal zurueckrechnen.
+import { speicherWerte } from './datumZeit.mjs'
 
 function getCsrfToken() {
   return document.querySelector("meta[name=\"csrf-token\"]")?.content || ""
@@ -59,8 +57,11 @@ export function useEventsApi() {
       console.error("useEventsApi.updateEvent: id und start erforderlich")
       return { ok: false, wartet: false }
     }
-    const effectiveEnd = event.end || event.start
-    const props = event.extendedProps || {}
+    // ICAL-1b: Ende ganztags auf die Speicher-Schreibweise zurueckrechnen —
+    // der Kalender liefert es ausschliessend, sonst waechst der Termin um
+    // einen Tag pro Ziehen/Aendern.
+    const werte = speicherWerte(event, forceSeriesDetach)
+    const props = werte.props
     // Get new resource after drag (resource timeline view)
     const newRessource = (event.getResources?.() || [])[0]?.id 
       || props.ressource 
@@ -76,15 +77,15 @@ export function useEventsApi() {
         body: JSON.stringify({
           name:             event.id,
           element_name:     event.title,
-          element_start:    toLocalDateTimeString(event.start),
-          element_end:      toLocalDateTimeString(effectiveEnd),
+          element_start:    werte.beginn,
+          element_end:      werte.ende,
           element_calendar: props.element_calendar || "",
           ressource:        newRessource,
-          all_day:          event.allDay || false,
+          all_day:          werte.allDay,
           description:      props.description || "",
           element_category: props.element_category || "",
           status:           props.status || "Festgelegt",
-          series_id:        forceSeriesDetach ? "" : (props.series_id || "")
+          series_id:        werte.seriesId
         })
       })
       const result = await apiAntwortPruefen(res)

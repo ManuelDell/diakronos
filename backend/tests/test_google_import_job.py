@@ -93,7 +93,7 @@ def test_import_pages_cancelled_dedupe_and_local_times(client, patched_db, monke
     with patched_db() as db:
         events = db.scalars(select(Element).order_by(Element.element_start)).all()
         assert len(events) == 2
-        assert events[0].all_day and events[0].element_end == datetime(2026, 10, 3)
+        assert events[0].all_day and events[0].element_end == datetime(2026, 10, 2)  # ICAL-1
         assert events[1].element_start == datetime(2026, 10, 1, 11)
         assert all(e.owner == "Administrator" for e in events)
         target = events[0].element_calendar

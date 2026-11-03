@@ -6,6 +6,8 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import * as _EC from '@event-calendar/build'
 import '@event-calendar/build/dist/event-calendar.min.css'
 import { useEventsApi } from '../../composables/useEventsApi.js'
+// ICAL-1: ganztägiges Ende für die Anzeige ausschließend machen (+1 Tag).
+import { endeFuerKalender } from '../../composables/datumZeit.mjs'
 import { useImpersonation } from '../../composables/useImpersonation.js'
 import { showToast } from '../../composables/useToast.js'
 import KronosSeriesDialog from './KronosSeriesDialog.vue'
@@ -141,6 +143,12 @@ onMounted(() => {
                 if (ev.end && typeof ev.end === 'string' && ev.end.includes('T')) {
                   ev.allDay = false
                 }
+                // ICAL-1: Die Bibliothek zählt das Ende ganztägiger Termine
+                // AUSSCHLIESSEND (RFC 5545), Diakronos speichert es
+                // EINSCHLIESSEND. Ohne diesen Tag fehlte der zweite Tag eines
+                // mehrtägigen Ganztags-Termins im Monatsraster.
+                const endePlus = endeFuerKalender(ev.end, ev.allDay)
+                if (endePlus) ev.end = endePlus
                 return ev
               })
               successCallback(processedEvents)

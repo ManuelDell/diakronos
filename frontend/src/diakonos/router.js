@@ -57,6 +57,8 @@ const pages = {
     PlanrahmenStammdaten: () => import('./pages/planrahmen/Stammdaten.vue'),
     // DM1: Dev-Befunde (ersetzt die Testsuite).
     DevBefunde:           () => import('./pages/devmodus/Befunde.vue'),
+    // ON-3: Einrichtungs-Assistent (nur Admin-Rollen; Guard + Server prüfen).
+    Einrichtung:          () => import('./pages/einrichtung/Assistent.vue'),
     // N1 (OP-UI-6): unbekannte Adresse → verständliche Seite statt still Dashboard.
     NichtGefunden:        () => import('./pages/NichtGefunden.vue'),
 }
@@ -113,6 +115,9 @@ const routeMap = {
     '#/planrahmen/meine-dienste': 'PlanrahmenDienste',
     '#/planrahmen/einrichten': 'PlanrahmenEinrichten',
     '#/dev-befunde': 'DevBefunde',
+    // ON-3 (W4): dieselbe Adresse ist nach dem Abschluss „Einstellungen →
+    // Einrichtung“ (Checkliste) — EIN Ort, kein zweiter Assistent.
+    '#/einrichtung': 'Einrichtung',
 }
 
 // Dynamic routes: pattern regex → page name
@@ -386,6 +391,9 @@ const ADMIN_ONLY_PAGES = new Set([
     // WEB-3: „Website (Primo)“ ist ein Einstellungs-Abschnitt wie die anderen.
     'EinstellungenWebsite',
     'Registrierung',
+    // ON-3: der Einrichtungs-Assistent ist Verwaltungsarbeit — der Server
+    // weist Nicht-Admins ohnehin mit 403 ab.
+    'Einrichtung',
 ])
 onBeforeEach(({ name }) => {
     if (!ADMIN_ONLY_PAGES.has(name)) return

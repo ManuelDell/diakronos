@@ -440,6 +440,22 @@ def start_import(mappings_json=None, request=None):
     return {"queued": True}
 
 
+def _ganztags_ende_wie_gespeichert(start, ende):
+    """Google-/iCal-Enddatum -> Diakronos-Ende (EINSCHLIESSLICH).
+
+    Google und iCalendar fuehren das Ende ganztagiger Termine
+    AUSSCHLIESSLICH (ein eintaegiger Termin am 2.10. hat DTEND/end.date
+    2026-10-03). Diakronos speichert dagegen einschliesslich. Deshalb hier
+    einen Tag zurueck, mindestens aber auf den Beginn (ein nie leerer Termin).
+    """
+    if isinstance(start, datetime):
+        start = start.date()
+    if isinstance(ende, datetime):
+        ende = ende.date()
+    ende = ende - timedelta(days=1)
+    return start if ende < start else ende
+
+
 def _map_google_event(event, calendar_name):
     try:
         if event.get("status") == "cancelled":
@@ -458,6 +474,8 @@ def _map_google_event(event, calendar_name):
                 end = end.replace(tzinfo=ZoneInfo(end_data.get("timeZone", start_data.get("timeZone", app_settings.calendar_timezone))))
         if end < start:
             return None
+        if all_day:
+            end = _ganztags_ende_wie_gespeichert(start, end)
         uid = event.get("id", "")
         if not isinstance(uid, str) or not uid:
             return None
@@ -621,6 +639,14 @@ def _parse_ical(content: str) -> list[dict]:
                 if prop and prop.params.get("TZID") and getattr(prop.dt, "tzinfo", None) is None:
                     raise ValueError
             duration = end - start
+            if all_day:
+                # iCal fuehrt das Ende ganztagig AUSSCHLIESSLICH, Diakronos
+                # speichert einschliesslich: Dauer um einen Tag kuerzen. Ein
+                # eintaegiger Termin (DTSTART 1.10., DTEND 2.10. oder
+                # DURATION:P1D) hat danach Ende == Beginn.
+                duration = duration - timedelta(days=1)
+                if duration < timedelta(0):
+                    duration = timedelta(0)
             starts = [start]
             rule = ev.get("RRULE")
             if rule:

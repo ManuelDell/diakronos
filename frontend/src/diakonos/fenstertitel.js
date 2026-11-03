@@ -43,6 +43,9 @@ export const SEITENTITEL_NICHT_IM_MENUE = {
     PlanrahmenPlantypEditor: 'Planvorlage bearbeiten',
     PlanrahmenStammdaten: 'Plan vorbereiten',
     DevBefunde: 'Dev-Befunde',
+    // ON-3: der Assistent hat keinen eigenen Menüeintrag (er läuft einmal beim
+    // Einrichten); die Adresse ist zugleich „Einstellungen → Einrichtung“.
+    Einrichtung: 'Einrichtung',
 }
 
 /** Zwischenspeicher der Menüpunkte (menue.js wird nur einmal geladen). */

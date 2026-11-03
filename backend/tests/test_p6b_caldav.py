@@ -180,7 +180,9 @@ def test_ical_ganztaegig_und_uid():
     ics = element_to_ical(El())
     assert 'UID:EV-0002@diakronos' in ics
     assert 'DTSTART;VALUE=DATE:20260927' in ics
-    assert 'DTEND;VALUE=DATE:20260928' in ics
+    # ICAL-1: gespeichertes Ende 28. ist EINSCHLIESSLICH (27.–28. = 2 Tage);
+    # RFC 5545 verlangt das AUSSCHLIESSENDE Ende -> DTEND 29.
+    assert 'DTEND;VALUE=DATE:20260929' in ics
     # Escapes nach RFC 5545: Komma, Semikolon
     assert r'SUMMARY:Gebet\, Abend\; still' in ics
     assert ics.startswith('BEGIN:VCALENDAR\r\n')

@@ -472,6 +472,37 @@
   /* ON-1: Rolle „Monogramm der Marke" (Entwurf 02/13: dunkles Quadrat mit
      goldenem Buchstaben ueber „Diakronos"). */
   --fs-monogramm: 18px;
+  /* ON-3: Rolle „Schrittleiste des Assistenten“ (Entwurf 04–09). Die Schritte
+     auf der linken Leiste stehen zwischen Feldbeschriftung (13 px) und
+     Fliesstext — eigener Wert, damit die Leiste nicht die Schrift eines
+     Formularfelds umdeuten muss. */
+  --fs-schritt: 15px;
+  /* ON-3: Maße des Assistenten aus dem Entwurf, benannt nach dem Zweck statt
+     nach der Zahl. Kein Dark-Gegenstück: Maße und Größen sind
+     themenunabhängig (nur Farben wechseln). */
+  --assistent-leiste: 300px;      /* linke Schrittleiste (Entwurf 04) */
+  --assistent-schritt: 26px;      /* Kreis eines Schritts */
+  --assistent-schritt-haken: 14px;/* Haken INNERHALB des Kreises (ON-3/W5) */
+  --assistent-balken: 4px;        /* Segmentbalken am Handy (Entwurf 14) */
+  --assistent-kopf: 68px;         /* eigene Kopfzeile des Assistenten */
+  --assistent-fuss: 88px;         /* Fußleiste (Entwurf 04) */
+  --assistent-fuss-mobil: 84px;   /* Fußleiste am Handy (Entwurf 14) */
+  --logo-vorschau: 120px;         /* Logo-Feld im Schritt „Gemeinde“ */
+  --logo-klein: 96px;             /* Logo-Feld am Handy */
+  --segment-h: 22px;              /* Schiebeschalter der Modul-Kacheln */
+  --segment-knopf: 16px;
+  /* ON-3 (W5): Die Lage des Schalterknopfs im Schiebeschalter. Der Entwurf
+     zeichnet ihn bei 22 px Höhe mit 16 px Knopf und 3 px Rand; der aus-
+     geschaltete Stand braucht denselben Abstand von rechts. Beides als Token,
+     damit die Komponente keine Pixelrechnung trägt. */
+  --segment-rand: 3px;
+  --segment-weg: 18px;            /* 40 − 16 − 3 − 3 aus dem Entwurf (07) */
+  /* ON-3 (W5): Durchmesser der Kreise in der Fertig-Checkliste (Entwurf 09/15).
+     ON-2 hatte den Haken von Hand versetzt; hier liegen Größe UND Zentrierung
+     (grid/place-items) an einer Stelle. */
+  --check-kreis: 26px;
+  --check-kreis-mobil: 24px;
+  --check-haken: 14px;
 }
 
 /* =====================================================================

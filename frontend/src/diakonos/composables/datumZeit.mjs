@@ -331,3 +331,98 @@ export function istDatum(datum) {
     && d.getUTCMonth() === Number(m[2]) - 1
     && d.getUTCDate() === Number(m[3])
 }
+
+/**
+ * ICAL-1: Terminende für den KALENDER (event-calendar/FullCalendar) berechnen.
+ *
+ * Die Anzeige-Bibliothek zählt bei ganztägigen Terminen das Ende
+ * AUSSCHLIESSEND (FullCalendar-Doku: „end of 2018-09-03 → der Termin reicht
+ * bis 2018-09-02“; RFC 5545, gleiche Regel wie iCalendar). Diakronos speichert
+ * das Ende dagegen EINSCHLIESSLICH — ein als „7.–8.“ eingetragener Termin lag
+ * im Monatsraster deshalb NUR am 7., der zweite Tag fehlte.
+ *
+ * Deshalb hier genau EIN Tag dazu (ganztägig). Termine MIT Uhrzeit bleiben
+ * unverändert: dort ist das Ende eine echte Uhrzeit, kein Datumswechsel.
+ *
+ * Fehlt das Ende, gilt der Beginn (eintägig) → Beginn + 1 Tag.
+ * Rückgabe: `null`, wenn sich nichts ändern soll (kein Ende oder mit Uhrzeit).
+ */
+export function endeFuerKalender(ende, allDay) {
+  if (!allDay) return null
+  const zerlegt = zerlegeDatumZeit(ende)
+  if (!zerlegt.datum) {
+    return null   // ohne Ende bleibt „kein Ende“ — die Bibliothek nimmt den Beginn
+  }
+  const d = new Date(`${zerlegt.datum}T12:00:00Z`)
+  if (Number.isNaN(d.getTime())) return null
+  d.setUTCDate(d.getUTCDate() + 1)
+  const plusEins = d.toISOString().slice(0, 10)
+  // Ein vorhandenes Ende behält seine Zeit-Schreibweise (meist „00:00:00“).
+  const uhr = String(ende || '').trim().slice(10)
+  return uhr ? plusEins + uhr : plusEins
+}
+
+/**
+ * ICAL-1b: die RÜCK-Richtung von `endeFuerKalender` — das angezeigte
+ * Kalender-Ende in das Diakronos-Ende (einschließlich) zurückrechnen.
+ *
+ * Der Kalender liefert das Ende ganztägiger Termine AUSSCHLIESSEND; würde man
+ * es unverändert speichern, wüchse der Termin bei jedem Ziehen oder Ändern um
+ * einen Tag (Befund ICAL-1b). Deshalb hier genau EIN Tag zurück — aber nie vor
+ * den Beginn: ein eintägiger Termin (angezeigtes Ende = Beginn + 1) landet
+ * wieder auf dem Beginn.
+ *
+ * Rückgabe: derselbe Wert in derselben Schreibweise, wenn nichts umzurechnen
+ * ist (Termin mit Uhrzeit, ohne Ende, unlesbares Ende).
+ */
+export function endeAusKalender(ende, allDay, beginn = null) {
+  if (!allDay) return ende
+  const zerlegt = zerlegeDatumZeit(ende)
+  if (!zerlegt.datum) return ende
+  const d = new Date(`${zerlegt.datum}T12:00:00Z`)
+  if (Number.isNaN(d.getTime())) return ende
+  d.setUTCDate(d.getUTCDate() - 1)
+  let minusEins = d.toISOString().slice(0, 10)
+  // Nie vor dem Beginn: liegt das gerechnete Ende vor dem Beginn (z. B. weil
+  // das Ende schon einschließlich kam), gilt der Beginn (eintägig).
+  const beginnDatum = zerlegeDatumZeit(beginn).datum
+  if (beginnDatum && datumNach(beginnDatum, minusEins)) minusEins = beginnDatum
+  const uhr = String(ende || '').trim().slice(10)
+  return uhr ? minusEins + uhr : minusEins
+}
+
+/** Date → „YYYY-MM-DD HH:MM:SS“ in BROWSERzeit (Serverformat, wie bisher). */
+function alsServerZeit(wert) {
+  if (!(wert instanceof Date)) return String(wert ?? '')
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${wert.getFullYear()}-${pad(wert.getMonth() + 1)}-${pad(wert.getDate())} ` +
+         `${pad(wert.getHours())}:${pad(wert.getMinutes())}:${pad(wert.getSeconds())}`
+}
+
+/**
+ * ICAL-1b: Ein Termin-Objekt des Kalenders (event-calendar/FullCalendar) → die
+ * Werte, die der Server erwartet (`save_event`). Das ganztägige Ende wird von
+ * der Anzeige-Schreibweise (ausschließend) auf die Speicher-Schreibweise
+ * (einschließend) zurückgerechnet; sonst verlängerte jedes Ziehen/Ändern den
+ * Termin um einen Tag (Befund ICAL-1b).
+ *
+ * Liegt hier (und nicht in useEventsApi.js), damit der Speicherweg ohne
+ * Vue/DOM im Node-Test prüfbar ist.
+ */
+export function speicherWerte(event, seriesAbloesen = false) {
+  const roh = event || {}
+  const beginn = alsServerZeit(roh.start)
+  const endeRoh = roh.end === null || roh.end === undefined || roh.end === ''
+    ? beginn
+    : alsServerZeit(roh.end)
+  const allDay = Boolean(roh.allDay)
+  const ende = allDay ? endeAusKalender(endeRoh, true, beginn) : endeRoh
+  const props = roh.extendedProps || {}
+  return {
+    beginn,
+    ende: ende || beginn,
+    allDay,
+    props,
+    seriesId: seriesAbloesen ? '' : (props.series_id || ''),
+  }
+}

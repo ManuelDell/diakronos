@@ -14,6 +14,8 @@ liefert — dieselbe Zugriffsform wie im Original.
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 # Original-Modulpfad (Dokumentation; der CalDAV-Server ist NICHT ueber
 # `/api/method/*` erreichbar, es gibt hier also keine Registry-Eintraege.
 # Die iCal-Umwandlung ist eine reine Funktion ohne `@whitelist`.)
@@ -40,6 +42,22 @@ def _fmt_dt(dt, all_day=False):
     return dt.strftime('%Y%m%dT%H%M%S')
 
 
+def _ganztags_enddatum(el):
+    """Enddatum fuer `DTEND;VALUE=DATE` — iCalendar zaehlt AUSSCHLIESSLICH.
+
+    Diakronos speichert das Ende ganztagiger Termine EINSCHLIESSLICH (Formular:
+    „7.–8.“ = 2 Tage, eintaegig: Ende == Beginn). RFC 5545 verlangt dagegen ein
+    ausschliessendes DTEND — sonst zeigt jeder Client einen Tag zu wenig an
+    (7.–8. wurde als 7. gelesen). Deshalb hier +1 Tag; ohne gespeichertes Ende
+    ist der Termin eintaegig, DTEND also Beginn + 1 Tag.
+    """
+    start = getattr(el, 'element_start', None)
+    ende = getattr(el, 'element_end', None) or start
+    if ende is None:
+        return ''
+    return ende + timedelta(days=1)
+
+
 def element_to_ical(el):
     """
     Wandelt ein Frappe-Element-Dokument in einen iCalendar-String um.
@@ -49,7 +67,7 @@ def element_to_ical(el):
 
     if all_day:
         dtstart = f'DTSTART;VALUE=DATE:{_fmt_dt(el.element_start, True)}'
-        dtend   = f'DTEND;VALUE=DATE:{_fmt_dt(el.element_end,   True)}'
+        dtend   = f'DTEND;VALUE=DATE:{_fmt_dt(_ganztags_enddatum(el),   True)}'
     else:
         dtstart = f'DTSTART:{_fmt_dt(el.element_start)}'
         dtend   = f'DTEND:{_fmt_dt(el.element_end)}'
