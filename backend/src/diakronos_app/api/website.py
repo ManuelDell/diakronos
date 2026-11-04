@@ -246,7 +246,69 @@ def login_uebergabe(request=None):
             "Die Website ist gerade nicht erreichbar.",
             DienstNichtVerfuegbarError,
         )
-    return {"url": url}
+    # B2: das Nachziehen laeuft NACH der Antwort (Hintergrundaufgabe), nicht
+    # davor. Zwei Gruende: (1) die Anmeldung wartet nicht auf einen
+    # Bibliotheksschreibvorgang, (2) ein Fehler dort kann die bereits
+    # zugestellte Uebergabe nicht mehr kippen. Ueber den Methoden-Router
+    # (dict-Rueckgabe) geht das nicht — deshalb nimmt der Endpunkt dafuer
+    # ausdruecklich den Response-Weg, wenn ein `request` vorliegt.
+    return _mit_nachziehen({"url": url}, request)
+
+
+def _mit_nachziehen(daten: dict, request) -> dict | object:
+    """Antwortdaten plus Hintergrundaufgabe „Bausteine nachziehen" (B2).
+
+    Ohne `request` (direkter Python-Aufruf, z. B. im Test) bleibt es bei den
+    Daten — der Router verpackt sie wie ueberall. Mit `request` entsteht eine
+    JSON-Antwort mit `BackgroundTask`; der Router reicht eine fertige Response
+    unveraendert durch. **Der Aufruf darf nie scheitern**; die Aufgabe faengt
+    alles (`_bausteine_nachziehen`).
+    """
+    if request is None:
+        return daten
+    from starlette.background import BackgroundTask
+    from starlette.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=200,
+        content={"message": daten},
+        background=BackgroundTask(_bausteine_nachziehen),
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+def _bausteine_nachziehen() -> None:
+    """BS-2a (B2): Bibliothek nachziehen, wenn sie aelter ist als mitgeliefert.
+
+    Laeuft NACH der fertigen Uebergabe-URL. **Ein Fehler hier darf die
+    Anmeldung nicht verhindern** (Kartenvorgabe): jede Ausnahme wird gefangen
+    und nur als Typname protokolliert — keine Inhalte, keine Adressen, keine
+    Token. Der Stand wird vorher gelesen; nur wenn ``installiert <
+    mitgeliefert`` ist, wird ueberhaupt geschrieben (der Normalfall nach dem
+    ersten Lauf kostet damit nur den Lesevorgang).
+
+    BS-2a2 (F2): Ist die mitgelieferte Version in DIESEM Prozess bereits
+    bestaetigt, entfaellt schon der Lesevorgang — kein Superuser-Auth und kein
+    vollstaendiger Bibliotheks-Export bei jedem Login. Der Merker ist reiner
+    Speicher (``bausteine.bestaetigte_version``); nach einem Neustart wird neu
+    geprueft.
+    """
+    from diakronos_app.website import bausteine as bibliothek
+
+    try:
+        if bibliothek.steht_bereit():
+            return
+        stand = bibliothek.bibliothek_stand()
+        if not stand.erreichbar or not stand.veraltet:
+            return
+        bibliothek.sync()
+        logger.info(
+            "Bausteine nachgezogen (%s -> %s).",
+            stand.installiert,
+            stand.mitgeliefert,
+        )
+    except Exception as exc:  # noqa: BLE001 — darf den Login NIE verhindern
+        logger.info("Bausteine nicht nachgezogen (%s).", type(exc).__name__)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -418,6 +480,8 @@ _NUR_POST = frozenset(
         "postfach_speichern",
         "postfach_loeschen",
         "kategorie_oeffentlich",
+        # BS-2a: schreibt in Primo (Bibliothek anlegen/aktualisieren).
+        "bausteine_installieren",
     }
 )
 
@@ -897,3 +961,108 @@ def kategorie_oeffentlich(request=None, name=None, wert=None):
         "titel": str(zeile.get("event_category_name") or zeile.get("name")),
         "oeffentlich": an,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BS-2a — Baustein-Bibliothek (Verwaltung)
+#
+#   website.bausteine_status        (GET)  -> {mitgeliefert_version,
+#                                              installiert_version, bausteine:[…]}
+#   website.bausteine_installieren  (POST) -> Bibliothek in Primo einspielen
+#
+# Rollen wie BS-1a (`_require_website_rolle`: System Manager, Administrator,
+# Website-Moderator). `bausteine_installieren` ist in `_NUR_POST` eingetragen
+# und prueft die Methode als erste Anweisung — Frappe liest Argumente auch aus
+# dem Query-String, und ein GET traegt keinen Origin (also keine CSRF-Pruefung).
+#
+# Der Stand kommt aus Primo selbst (Blocknamen samt Versionsvermerk, BS-0 F2b:
+# Primo hat keine Versionierung) — es gibt bewusst KEINE neue Tabelle und
+# damit keine Migration fuer BS-2a.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@whitelist(allow_guest=False)
+def bausteine_status():
+    """Stand der Baustein-Bibliothek (BS-2a).
+
+    Rueckgabe::
+
+        {"erreichbar": bool,
+         "mitgeliefert_version": int,   # was Diakronos mitbringt
+         "installiert_version": int,    # was in Primo liegt (0 = keine)
+         "veraltet": bool,              # installiert < mitgeliefert
+         "revision": str,               # Revisionskopf des Bibliotheks-Exports
+         "hinweis": str,                # Klartext, wenn nicht abrufbar
+         "bausteine": [{"kennung", "name", "version"}, …]}
+
+    Wirft nie wegen Primo: ein nicht erreichbares oder nicht berechtigtes
+    Primo ist der Zustand ``erreichbar = false`` mit einem Hinweis, keine 500.
+    """
+    _require_website_rolle()
+    from diakronos_app.website import bausteine as bibliothek
+
+    return bibliothek.bibliothek_stand().als_dict()
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def bausteine_installieren(request=None):
+    """Spielt die mitgelieferte Bibliothek in Primo ein (BS-2a, B2).
+
+    Idempotent: Blockname ist ``diakronos/<kennung>@v<version>``; ein zweiter
+    Lauf derselben Version aendert nichts (Primo fuehrt ueber den Namen
+    zusammen, im Wegwerf-Primo belegt).
+
+    **Bereits in Primo-Sites eingesetzte Kopien werden NICHT angefasst.** Primo
+    kopiert einen Bibliotheksblock beim Einsetzen; die Kopie gehoert danach dem
+    Redakteur. Das ist Absicht (BS-0 F2c): eine automatische Uebernahme
+    wuerde jede Anpassung ueberschreiben.
+
+    Rueckgabe: ``{"version": int, "bausteine": [kennung, …], "revision": str,
+    "weg": "zip"|"einzeln"}``.
+
+    Fehler (ohne Interna):
+      * andere Methode als POST      -> 405 (`MethodNotAllowed`, ohne Wirkung)
+      * Primo nicht eingerichtet     -> 503 (`DienstNichtVerfuegbarError`)
+      * Primo lehnt ab / nicht da    -> 503, Protokoll nur mit Statuscode
+      * Quellen unvollstaendig       -> 500 (Auslieferungsfehler, Build)
+    """
+    abweisung = _nur_post(request)
+    if abweisung is not None:
+        return abweisung
+    _require_website_rolle()
+    # BS-2a2: `Error` heisst in der Compat-Schicht `FrappeCompatError` — der
+    # alte Import scheiterte beim ERSTEN Fehlerfall mit ImportError und die
+    # Antwort war ein 500 mit Interna statt der generischen Meldung.
+    from diakronos_app.frappe_compat.exceptions import FrappeCompatError
+    from diakronos_app.website import bausteine as bibliothek
+    from diakronos_app.website import primo as primo_adapter
+
+    try:
+        ergebnis = _im_thread(bibliothek.sync)
+    except primo_adapter.PrimoNichtKonfiguriert:
+        throw(
+            "Die Website-Anbindung (Primo) ist auf dieser Installation nicht eingerichtet.",
+            DienstNichtVerfuegbarError,
+        )
+    except bibliothek.BausteinQuelleFehler:
+        # Ein Fehler der AUSLIEFERUNG (Datei fehlt/ist unbrauchbar), nicht des
+        # Benutzers. Der Betrieb sieht ihn im Log, der Client nur den Status.
+        logger.error("Bausteine: mitgelieferte Quellen unbrauchbar.")
+        throw(
+            "Die mitgelieferten Bausteine sind unvollständig. Bitte den Support informieren.",
+            FrappeCompatError,
+        )
+    except bibliothek.PrimoSyncAbgelehnt as exc:
+        logger.warning("Bausteine: Primo hat den Import abgelehnt (HTTP %s).", exc.status)
+        throw(
+            "Die Bausteine konnten nicht in die Website übernommen werden "
+            "(die Website hat den Zugriff abgelehnt).",
+            DienstNichtVerfuegbarError,
+        )
+    except Exception as exc:  # noqa: BLE001 — Fremdsystem: nie 500 mit Interna
+        logger.warning("Bausteine: Einspielen fehlgeschlagen (%s).", type(exc).__name__)
+        throw(
+            "Die Bausteine konnten gerade nicht übernommen werden.",
+            DienstNichtVerfuegbarError,
+        )
+    return ergebnis.als_dict()

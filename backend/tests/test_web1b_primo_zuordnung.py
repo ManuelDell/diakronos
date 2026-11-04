@@ -181,6 +181,28 @@ class PrimoAttrappe:
                 },
             )
 
+        # BS-2a: der Login-Uebergang zieht die Baustein-Bibliothek nach, wenn
+        # eine aeltere Fassung installiert ist. Die Attrappe bildet eine
+        # EINGERICHTETE Installation ab (Bibliothek aktuell) -> der Hook liest
+        # nur den Stand und schreibt nichts.
+        if pfad == "/api/primo/export-library":
+            import io
+            import zipfile
+
+            from diakronos_app.website import bausteine as bibliothek
+
+            version = bibliothek.mitgelieferte_version()
+            puffer = io.BytesIO()
+            with zipfile.ZipFile(puffer, "w") as archiv:
+                archiv.writestr("library/groups.yaml", '- id: ""\n  name: "Diakronos"\n')
+                for baustein in bibliothek.bausteine_lesen():
+                    archiv.writestr(
+                        f"library/diakronos/{baustein.kennung}/config.yaml",
+                        f'name: "{bibliothek.blockname_mit_version(baustein.kennung, version)}"\n',
+                    )
+            return httpx.Response(200, content=puffer.getvalue(),
+                                  headers={"X-Primo-Revision": "v1:aktuell"})
+
         raise AssertionError(f"Unerwartete Primo-Route: {request.method} {pfad}")
 
     def routen(self) -> list[str]:
@@ -319,7 +341,11 @@ def test_zuordnung_vorhanden_nutzt_nur_diese_primo_id(primo_attrappe, welt, als_
     routen = primo_attrappe.routen()
     assert f"GET {primo.PFAD_USERS}" not in routen
     assert f"POST {primo.PFAD_USERS}" not in routen
-    assert routen[-1] == f"POST /api/collections/users/impersonate/{konto['id']}"
+    # BS-2a: nach dem Impersonate folgt (Hintergrundaufgabe des
+    # Login-Uebergangs) das Nachziehen der Baustein-Bibliothek. Der
+    # Impersonate-Aufruf wird deshalb gesucht, nicht "der letzte" genommen.
+    impersonate_route = f"POST /api/collections/users/impersonate/{konto['id']}"
+    assert impersonate_route in routen
 
 
 def test_zuordnung_mit_abweichender_mail_ist_409_und_aendert_nichts(
@@ -549,7 +575,11 @@ def test_token_dauer_ausserhalb_wird_abgelehnt(monkeypatch, wert):
 def test_impersonate_dauer_ist_vier_stunden(primo_attrappe, als_benutzer):
     c = als_benutzer(MODERATOR_MAIL)
     assert c.post(f"/api/method/{PFAD_LOGIN}").status_code == 200
-    assert primo_attrappe.anfragen[-1][2] == {"duration": 14400}
+    impersonate = [
+        koerper for (methode, pfad, koerper) in primo_attrappe.anfragen
+        if "/impersonate/" in pfad
+    ]
+    assert impersonate and impersonate[-1] == {"duration": 14400}
 
 
 # ── (H) PRIMO_PUBLIC_URL ohne https ────────────────────────────────────────

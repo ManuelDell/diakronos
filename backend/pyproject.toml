@@ -107,6 +107,19 @@ where = ["src"]
 # weil `docs/` in .dockerignore steht und die Waechter (Backend-Test und
 # Frontend-Node-Test) es im Image lesen. Kein Laufzeitbedarf.
 "diakronos_app.frappe_compat.inventar" = ["*.json", "*.md"]
+# BS-2a: Quellen der mitgelieferten Primo-Bausteine. Sie liegen IM Paket, weil
+# `deploy/` in .dockerignore steht und `website/bausteine.py` sie zur LAUFZEIT
+# ueber importlib.resources liest (ZIP-Bau fuer den Bibliotheks-Import).
+# Quelle im Repo ist `deploy/primo/bausteine/`; gespiegelt mit
+# `tools/bausteine_sync.py`, geprueft vom Test test_bs2a_bausteine.py.
+"diakronos_app.website.bausteine.quellen" = [
+    "VERSION",
+    "README.md",
+    "*/block.json",
+    "*/component.svelte",
+    "*/fields.json",
+    "*/README.md",
+]
 # DM1: der Dev-Modus braucht keine Laufzeit-Dateien im Paket (kein Katalog,
 # keine Regeln). Die Ablage erfolgt ausschliesslich unter FILES_DIR.
 

@@ -1,0 +1,22 @@
+[
+  {"name": "ueberschrift", "label": "Überschrift", "type": "text", "default": "Kontakt"},
+  {"name": "einleitung", "label": "Einleitung", "type": "text", "default": "Schreiben Sie uns – wir melden uns so bald wie möglich."},
+  {"name": "basisadresse", "label": "Diakronos-Adresse", "type": "text", "default": ""},
+  {"name": "postfach", "label": "Postfach (Kennung, leer = Standardpostfach)", "type": "text", "default": ""},
+  {"name": "postfach_auswahl", "label": "Auswahl anzeigen", "type": "switch", "default": false},
+  {"name": "einwilligung", "label": "Einwilligungstext", "type": "text", "default": "Ich bin damit einverstanden, dass meine Angaben zur Beantwortung meiner Anfrage verwendet werden."},
+  {"name": "datenschutz_url", "label": "Adresse der Datenschutzseite (leer = kein Link)", "type": "text", "default": ""},
+  {"name": "datenschutz_text", "label": "Beschriftung des Datenschutz-Links", "type": "text", "default": "Datenschutzhinweise"},
+  {"name": "text_name", "label": "Beschriftung des Namensfelds", "type": "text", "default": "Ihr Name"},
+  {"name": "text_email", "label": "Beschriftung des E-Mail-Felds", "type": "text", "default": "Ihre E-Mail-Adresse"},
+  {"name": "text_postfach", "label": "Beschriftung der Postfach-Auswahl", "type": "text", "default": "An wen richtet sich Ihre Nachricht?"},
+  {"name": "text_postfach_fehler", "label": "Meldung, wenn kein Postfach gewählt ist", "type": "text", "default": "Bitte wählen Sie eines aus der Liste."},
+  {"name": "text_postfach_fehler_server", "label": "Meldung, wenn die Website das Postfach nicht kennt", "type": "text", "default": "Dieses Postfach gibt es nicht. Bitte wählen Sie eines aus der Liste."},
+  {"name": "text_nachricht", "label": "Beschriftung des Nachrichtenfelds", "type": "text", "default": "Ihre Nachricht"},
+  {"name": "text_sendet", "label": "Text während des Sendens", "type": "text", "default": "Wird gesendet …"},
+  {"name": "text_adresse_fehlt", "label": "Meldung, wenn die Diakronos-Adresse fehlt", "type": "text", "default": "Das Formular ist nicht eingerichtet (Diakronos-Adresse fehlt)."},
+  {"name": "text_rate_limit", "label": "Meldung bei zu vielen Nachrichten (429)", "type": "text", "default": "Es wurden gerade viele Nachrichten gesendet. Bitte versuchen Sie es später erneut."},
+  {"name": "button_text", "label": "Beschriftung des Absendeknopfs", "type": "text", "default": "Nachricht senden"},
+  {"name": "erfolgstext", "label": "Text nach dem Absenden", "type": "text", "default": "Vielen Dank! Ihre Nachricht ist angekommen."},
+  {"name": "fehlertext", "label": "Text bei einem Fehler", "type": "text", "default": "Die Nachricht konnte nicht gesendet werden. Bitte versuchen Sie es später erneut."}
+]

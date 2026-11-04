@@ -2892,3 +2892,146 @@ Drei Punkte, die beim Bau der Primo-Bausteine sonst zu Überraschungen führen:
   Kalender-Programm damit als zwei Tage. Ändert sich das Speicherformat im
   Formular, muss diese Stelle mit: `website/oeffentlich_inhalt.py`
   (`termin_ics`, `_ohne_eine_tagesspanne`).
+
+## 19. Baustein-Bibliothek für Primo (BS-2a)
+
+Diakronos bringt zwei fertige Website-Bausteine mit, die in der angebundenen
+Primo-Instanz in der Bibliothek erscheinen (Gruppe **Diakronos**). Sie sind
+generisch (keine Gemeindetexte, -farben, -bilder), rufen ihre Daten **beim
+Besucher im Browser** aus der öffentlichen Lese-API (Abschnitt 18) ab und
+lassen sich über Primo-Felder anpassen.
+
+### 19.1 Was mitgeliefert wird
+
+| Kennung | Name in Primo | Zweck |
+|---|---|---|
+| `kontakt` | `diakronos/kontakt@v<n>` | Kontaktformular; die Nachricht geht als E-Mail über `website.kontakt_senden` an ein Postfach aus Abschnitt 18.5. Speichert nichts. |
+| `termine-liste` | `diakronos/termine-liste@v<n>` | Nächste Termine aus den freigegebenen Kalendern/Terminarten/Gruppen; Darstellung komfortabel, kompakt oder Karten. |
+
+Die `<n>` im Namen ist die **Version der Auslieferung**. Primo kennt keine
+Blockversion (Grundlage: `primo-bibliothek.md`, Abschnitt F2b); deshalb steht
+sie im Namen, und Diakronos kann den Stand lesen, ohne eigene Tabellen zu
+führen.
+
+Quellen im Repo: `deploy/primo/bausteine/<kennung>/` (je Baustein
+`component.svelte`, `fields.json`, `block.json`, `README.md`; dazu `VERSION`).
+Zur Laufzeit liest Diakronos die Spiegelung im Python-Paket
+(`diakronos_app/website/bausteine/quellen/`) — `deploy/` ist im Image nicht
+vorhanden. Nach jeder Änderung an einer Quelle:
+
+```
+python tools/bausteine_sync.py            # spiegeln
+python tools/bausteine_sync.py --pruefen  # prüfen (der Test tut genau das)
+```
+
+### 19.2 Einspielen
+
+1. Primo muss angebunden sein (Abschnitt 15.2: `PRIMO_URL`,
+   `PRIMO_SUPERUSER_EMAIL`, `PRIMO_SUPERUSER_PASSWORD`/`_FILE`).
+2. Als Administrator, Systemmanager oder Website-Moderator anmelden
+   (Abschnitt 15.1).
+3. `POST /api/method/diakronos_app.api.website.bausteine_installieren`
+   (CSRF-Token nötig) — legt die Gruppe und die Blöcke an bzw. aktualisiert sie.
+
+Diakronos baut dafür ein ZIP in der Struktur von Primos eigener
+Bibliotheksausgabe und spielt es über `POST /api/primo/import-library` mit
+`expected_revision` ein (die Revision kommt aus `GET /api/primo/export-library`;
+ohne sie antwortet Primo **428**). Kennt eine Primo-Fassung den
+Import-Endpunkt nicht (404/405), schreibt Diakronos die Datensätze einzeln
+(PocketBase-REST) — dasselbe Ergebnis, nur ohne die serverseitige Atomarität.
+
+**Idempotent:** ein zweiter Lauf derselben Version ändert nichts (Primo führt
+über den Blocknamen zusammen). Eine **höhere** Version legt den neuen Namen
+daneben und lässt die alte Fassung stehen.
+
+**Bereits in Primo-Sites eingesetzte Kopien werden NIE automatisch
+überschrieben.** Primo kopiert einen Bibliotheksblock beim Einsetzen; die
+Kopie gehört danach dem Redakteur. Ein bewusstes Nachziehen von Code in
+bestehende Site-Kopien ist eine eigene Aufgabe und in BS-2a **nicht**
+enthalten.
+
+### 19.3 Automatisch beim Anmelden
+
+Beim Übergang in Primo (Abschnitt 15.4) prüft Diakronos, ob die installierte
+Fassung älter ist als die mitgelieferte, und zieht sie nach. Das läuft als
+**Hintergrundaufgabe nach** der Antwort: die Anmeldung wartet nicht darauf,
+und ein Fehler dort (Primo weg, Rechte fehlen) verhindert die Anmeldung
+**nicht** — er steht nur als Zeile im Protokoll (ohne Inhalte, ohne Adressen).
+Ist die Bibliothek aktuell, kostet der Weg nur einen Lesevorgang.
+
+### 19.4 Stand abfragen
+
+```
+GET /api/method/diakronos_app.api.website.bausteine_status
+-> {"erreichbar": true,
+    "mitgeliefert_version": 1,     # was Diakronos mitbringt
+    "installiert_version": 1,      # was in Primo liegt (0 = nichts)
+    "veraltet": false,             # installiert < mitgeliefert
+    "revision": "v1:…",            # Revisionskopf des Bibliotheks-Exports
+    "hinweis": "",
+    "bausteine": [{"kennung": "kontakt", "name": "diakronos/kontakt@v1", "version": 1}, …]}
+```
+
+`erreichbar: false` heißt: Primo ist nicht eingerichtet, nicht erreichbar oder
+der Zugang reicht nicht — der Endpunkt antwortet trotzdem 200 mit einem
+`hinweis` (kein Fehler der Anwendung).
+
+### 19.5 Das Feld „Diakronos-Adresse"
+
+Beide Bausteine holen ihre Daten per `fetch` von einer **absoluten**
+Adresse (ein relativer Pfad scheitert im Editor-iframe und damit auch auf der
+veröffentlichten Seite). Diese Adresse steht in jedem Baustein im Feld
+**Diakronos-Adresse**; der Installer belegt sie mit der öffentlichen Adresse
+der Gemeinde vor:
+
+1. `Einstellungen → Gemeinde → Öffentliche Adresse`, sonst
+2. `APP_BASE_URL` + `DIAKRONOS_BASE_PATH` (Abschnitt 16).
+
+Ist beides leer oder keine absolute `http(s)`-Adresse, bleibt das Feld
+**leer** — es wird keine Adresse erfunden. Dann trägt der Redakteur sie im
+Baustein ein (z. B. `https://gemeinde.example/diakronos`).
+
+### 19.6 Gestaltung
+
+Die Bausteine gestalten ausschließlich über CSS-Custom-Properties mit dem
+Präfix `--dk-`, die **von den Site-Stilen überschrieben** werden
+(`:root { --dk-farbe-akzent: …; }` im Site-Kopf). Die Bausteine **setzen
+diese Tokens nie selbst** — ein Token, das sich selbst als Vorgabe nennt, ist
+nach CSS ungültig und fällt auf „unset" zurück (gemessen: `padding: 0`).
+Verfügbar sind u. a. `--dk-farbe-text`, `--dk-farbe-gedaempft`,
+`--dk-farbe-akzent`, `--dk-farbe-flaeche`, `--dk-farbe-rahmen`,
+`--dk-farbe-warnung`, `--dk-schrift`, `--dk-schrift-ueberschrift`,
+`--dk-groesse-text`, `--dk-groesse-klein`, `--dk-groesse-ueberschrift`,
+`--dk-abstand`, `--dk-abstand-klein`, `--dk-rahmen-radius`,
+`--dk-rahmen-breite`.
+
+### 19.7 Was die Bausteine NICHT tun
+
+* **Nichts wird öffentlich, was nicht freigegeben ist** (Abschnitt 18): die
+  Bausteine lesen ausschließlich die Feld-Positivlisten der öffentlichen API.
+* **Kein serverseitiges Rendern.** Das erste Auslieferungs-HTML trägt einen
+  Ladezustand; die Inhalte kommen im Browser. Ohne JavaScript bleibt der
+  Ladehinweis stehen (bewusste Entscheidung, ohne Gegenwert wäre ein
+  Vorab-Rendern ein zweiter Datenweg).
+* **Keine externen Dienste.** Kein CDN, keine Google-Fonts, kein Tracking;
+  einzige Verbindung ist die Diakronos-Adresse aus dem Feld.
+* **Keine Ratenbremse-Teilung:** weil der Abruf im Browser des Besuchers
+  läuft, zählt jeder Besucher für sich (Abschnitt 18.x, öffentliche API).
+
+### 19.8 Prüfen
+
+```
+# im app-Container (image-intern, ohne Netz gegen den Betrieb nicht möglich)
+python -c "from diakronos_app.website import bausteine as b; print(b.mitgelieferte_version(), [x.kennung for x in b.bausteine_lesen()])"
+
+# Status über die Oberfläche/API: GET …website.bausteine_status
+```
+
+Wiederkehrende Fehlerbilder:
+
+| Symptom | Ursache | Abhilfe |
+|---|---|---|
+| `bausteine_installieren` → 503, „Website hat den Zugriff abgelehnt" | Der Superuser-Zugang darf die Bibliothek nicht schreiben (Rechte/Rolle) | Primo-Zugang prüfen (Abschnitt 15.2), Primo-Version prüfen |
+| Baustein zeigt „nicht abrufbar" | Feld „Diakronos-Adresse" leer/falsch, oder CORS | Adresse absolut eintragen; `PRIMO_PUBLIC_URL` muss der Website-Herkunft entsprechen |
+| Baustein zeigt „keine Termine" | nichts freigegeben (Kalender/Terminart) | Abschnitt 18: Kalender freigeben, Termine im Status „Festgelegt" |
+| Doppelte Blöcke mit verschiedenen `@v` | Absicht: neue Version neben der alten | alte Fassung in Primo löschen, wenn nicht mehr gebraucht |

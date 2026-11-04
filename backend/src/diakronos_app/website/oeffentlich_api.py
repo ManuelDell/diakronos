@@ -563,6 +563,12 @@ _PARAMETER = {
     "gruppen": ("typ",),
     "gruppe": ("slug",),
     "beitraege": ("limit", "kategorie"),
+    # BS-2a2 (Abnahmebefund): der Kontakt-Baustein holt die Postfach-Liste ueber
+    # `{Basis}/website/oeffentlich/postfaecher` (dieselbe CORS-Fassung wie die
+    # Lese-Endpunkte). Bis hier fehlte der Name in dieser Route — der Baustein
+    # bekam 404 und zeigte die Auswahl nie an, obwohl `/api/method/…` sie
+    # lieferte. Ohne Parameter.
+    "postfaecher": (),
 }
 
 _FUNKTIONEN = {}
@@ -571,6 +577,8 @@ _FUNKTIONEN = {}
 def _funktionen() -> dict:
     """Name -> Funktion (erst hier, weil die Funktionen oben stehen muessen)."""
     if not _FUNKTIONEN:
+        from diakronos_app.website.kontakt import postfaecher_oeffentlich
+
         _FUNKTIONEN.update(
             {
                 "kalender": kalender,
@@ -579,6 +587,7 @@ def _funktionen() -> dict:
                 "gruppen": gruppen,
                 "gruppe": gruppe,
                 "beitraege": beitraege,
+                "postfaecher": postfaecher_oeffentlich,
             }
         )
     return _FUNKTIONEN

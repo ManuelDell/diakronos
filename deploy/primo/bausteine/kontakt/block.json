@@ -1,0 +1,6 @@
+{
+  "kennung": "kontakt",
+  "name": "Diakronos: Kontaktformular",
+  "index": 10,
+  "beschreibung": "Kontaktformular, das die Nachricht als E-Mail über Diakronos an ein dort hinterlegtes Postfach sendet. Speichert nichts in der Website."
+}

@@ -34,6 +34,30 @@ from diakronos_app.website import primo
 MODUL = "diakronos_app.api.website"
 PFAD_STATUS = f"{MODUL}.status"
 PFAD_LOGIN = f"{MODUL}.login_uebergabe"
+
+
+def _bibliothek_zip_aktuell() -> bytes:
+    """Ein Bibliotheks-ZIP mit der AKTUELL mitgelieferten Fassung (BS-2a).
+
+    Damit meldet `website/bausteine.bibliothek_stand()` „installiert ==
+    mitgeliefert" und der Login-Uebergang zieht nichts nach — die Attrappe
+    bildet den Zustand einer eingerichteten Installation ab.
+    """
+    import io
+    import zipfile
+
+    from diakronos_app.website import bausteine as bibliothek
+
+    version = bibliothek.mitgelieferte_version()
+    puffer = io.BytesIO()
+    with zipfile.ZipFile(puffer, "w") as archiv:
+        archiv.writestr("library/groups.yaml", '- id: ""\n  name: "Diakronos"\n')
+        for baustein in bibliothek.bausteine_lesen():
+            archiv.writestr(
+                f"library/diakronos/{baustein.kennung}/config.yaml",
+                f'name: "{bibliothek.blockname_mit_version(baustein.kennung, version)}"\n',
+            )
+    return puffer.getvalue()
 PFAD_ROLLEN = f"{MODUL}.rollen"
 
 PRIMO_URL = "http://primo.test:8095"
@@ -160,6 +184,18 @@ class PrimoAttrappe:
                     "duration": koerper.get("duration"),
                 },
             )
+
+        # BS-2a: der Login-Uebergang zieht die Baustein-Bibliothek nach, wenn
+        # eine AELTERE Fassung installiert ist. Diese Attrappe bildet eine
+        # EINGERICHTETE Installation ab — die Bibliothek ist aktuell, also
+        # liest der Hook nur den Stand und schreibt nichts. Der Login-Weg
+        # selbst bleibt damit unveraendert (die Assertions dieses Moduls
+        # pruefen genau ihn).
+        if pfad == "/api/primo/export-library":
+            if auth != "tok-superuser-abc":
+                return httpx.Response(401, json={"message": "unauthorized"})
+            return httpx.Response(200, content=_bibliothek_zip_aktuell(),
+                                  headers={"X-Primo-Revision": "v1:aktuell"})
 
         raise AssertionError(f"Unerwartete Primo-Route: {request.method} {pfad}")
 
@@ -386,8 +422,16 @@ def test_uebergabe_legt_konto_an_und_gibt_fragment(primo_attrappe, als_benutzer)
     assert routen[0] == f"POST {primo.PFAD_SUPERUSER_AUTH}"
     assert f"GET {primo.PFAD_USERS}" in routen
     assert f"POST {primo.PFAD_USERS}" in routen
-    assert routen[-1] == f"POST /api/collections/users/impersonate/{konto['id']}"
-    impersonate_koerper = primo_attrappe.anfragen[-1][2]
+    # BS-2a: nach dem Impersonate folgt (als Hintergrundaufgabe) das
+    # Nachziehen der Baustein-Bibliothek. Der Login-Aufruf bleibt der letzte
+    # Aufruf VOR diesem Nachziehen — hier wird deshalb der Impersonate-Aufruf
+    # direkt gesucht, nicht "der letzte".
+    impersonate_route = f"POST /api/collections/users/impersonate/{konto['id']}"
+    assert impersonate_route in routen
+    assert routen.index(impersonate_route) == max(
+        i for i, r in enumerate(routen) if "impersonate" in r
+    )
+    impersonate_koerper = primo_attrappe.anfragen[routen.index(impersonate_route)][2]
     assert impersonate_koerper == {"duration": 300}
 
 
@@ -451,7 +495,12 @@ def test_impersonate_dauer_kommt_aus_der_einstellung(primo_attrappe, als_benutze
     monkeypatch.setattr(settings, "primo_token_sekunden", 120, raising=False)
     c = als_benutzer(ADMIN_MAIL)
     assert c.post(f"/api/method/{PFAD_LOGIN}").status_code == 200
-    assert primo_attrappe.anfragen[-1][2] == {"duration": 120}
+    # BS-2a: s. o. — der Impersonate-Aufruf wird gesucht, nicht "der letzte".
+    impersonate = [
+        koerper for (methode, pfad, koerper) in primo_attrappe.anfragen
+        if "/impersonate/" in pfad
+    ]
+    assert impersonate and impersonate[-1] == {"duration": 120}
 
 
 # ── Fehlerbilder (keine Interna nach aussen) ───────────────────────────────

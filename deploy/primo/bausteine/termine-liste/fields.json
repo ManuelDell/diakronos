@@ -1,0 +1,30 @@
+[
+  {"name": "ueberschrift", "label": "Überschrift", "type": "text", "default": "Nächste Termine"},
+  {"name": "basisadresse", "label": "Diakronos-Adresse", "type": "text", "default": ""},
+  {
+    "name": "darstellung",
+    "label": "Darstellung",
+    "type": "select",
+    "default": "liste",
+    "config": {
+      "options": [
+        {"value": "liste", "label": "Komfortabel (untereinander)"},
+        {"value": "kompakt", "label": "Kompakt (eine Zeile je Termin)"},
+        {"value": "karten", "label": "Karten"}
+      ]
+    }
+  },
+  {"name": "anzahl", "label": "Anzahl der Termine", "type": "number", "default": 5},
+  {"name": "zeitraum", "label": "Zeitraum in Tagen", "type": "number", "default": 90},
+  {"name": "kalender", "label": "Kalender-Kennungen (kommagetrennt, leer = alle freigegebenen)", "type": "text", "default": ""},
+  {"name": "kategorie", "label": "Kategorie-Kennung (leer = alle freigegebenen)", "type": "text", "default": ""},
+  {"name": "gruppe", "label": "Gruppen-Kürzel (leer = alle)", "type": "text", "default": ""},
+  {"name": "ort_anzeigen", "label": "Ort anzeigen", "type": "switch", "default": true},
+  {"name": "mehr_link", "label": "Adresse für „Alle Termine“ (leer = kein Link)", "type": "text", "default": ""},
+  {"name": "mehr_text", "label": "Beschriftung des Links", "type": "text", "default": "Alle Termine"},
+  {"name": "text_ganztaegig", "label": "Text bei ganztägigen Terminen", "type": "text", "default": "ganztägig"},
+  {"name": "text_laedt", "label": "Text während des Ladens", "type": "text", "default": "Termine werden geladen …"},
+  {"name": "text_anmeldung", "label": "Beschriftung des Anmeldelinks", "type": "text", "default": "Zur Anmeldung"},
+  {"name": "leertext", "label": "Text, wenn keine Termine anstehen", "type": "text", "default": "Zurzeit sind keine Termine angekündigt."},
+  {"name": "fehlertext", "label": "Text, wenn die Termine nicht geladen werden können", "type": "text", "default": "Die Termine sind derzeit nicht abrufbar. Bitte später erneut versuchen."}
+]

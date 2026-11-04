@@ -7677,6 +7677,59 @@
   },
   {
    "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.website.bausteine_installieren",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.website",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "bausteine_installieren",
+   "offen": false,
+   "pfade": [
+    "api.bausteine_installieren",
+    "bausteine_installieren",
+    "diakronos.diakronos.api.website.bausteine_installieren",
+    "diakronos_app.api.website.bausteine_installieren",
+    "website.bausteine_installieren"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.website.bausteine_status",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.website",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "bausteine_status",
+   "pfade": [
+    "api.bausteine_status",
+    "bausteine_status",
+    "diakronos.diakronos.api.website.bausteine_status",
+    "diakronos_app.api.website.bausteine_status",
+    "website.bausteine_status"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
    "ausnahme": "Methode wird im Rumpf geprueft (`_nur_post` -> 405)",
    "ausnahme_art": "schranke",
    "ausnahme_greift": true,
@@ -9012,11 +9065,11 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 341,
+ "funktionen": 343,
  "nur_test": [],
- "registrierte_pfade": 1756,
+ "registrierte_pfade": 1766,
  "rumpf_zaehlung": {
-  "lesend": 166,
+  "lesend": 168,
   "schreibend": 175
  },
  "widersprueche": [
@@ -9456,6 +9509,34 @@
   },
   {
    "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.website.bausteine_installieren",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.website",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "bausteine_installieren",
+   "offen": false,
+   "pfade": [
+    "api.bausteine_installieren",
+    "bausteine_installieren",
+    "diakronos.diakronos.api.website.bausteine_installieren",
+    "diakronos_app.api.website.bausteine_installieren",
+    "website.bausteine_installieren"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
    "ausnahme": "Methode wird im Rumpf geprueft (`_nur_post` -> 405)",
    "ausnahme_art": "schranke",
    "ausnahme_greift": true,
@@ -9566,7 +9647,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 157,
-  "schreibend": 184
+  "lesend": 158,
+  "schreibend": 185
  }
 }

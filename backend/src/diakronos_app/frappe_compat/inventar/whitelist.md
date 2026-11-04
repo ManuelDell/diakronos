@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **1756**
-* eindeutige Funktionen: **341**
-* lesend: **157**, schreibend: **184**
-* Rumpfbefund: schreibend 175, lesend 166, unbekannt 0
+* registrierte Pfade: **1766**
+* eindeutige Funktionen: **343**
+* lesend: **158**, schreibend: **185**
+* Rumpfbefund: schreibend 175, lesend 168, unbekannt 0
 
 ## Einstufung
 
@@ -32,6 +32,10 @@ mit Modulbezug, SEC-11c/R1). Der Name ist Hinweis, nicht Urteil.
 | `diakronos_app.api.einrichtung.erinnern_spaeter` | ['POST'] | schreibend | lesend | schreibend | Aufruf sess.commit() |
 | `diakronos_app.api.einrichtung.kalender_vorschlag_anlegen` | ['POST'] | lesend | schreibend | schreibend |  |
 | `diakronos_app.api.kronos.google_import.get_oauth_url` | ['POST'] | schreibend | lesend | schreibend | Aufruf _state_store.set() |
+
+Entschieden ohne Ausnahme (Quellen einig, die Grenze traegt die Deklaration — keine offene Frage):
+
+* `diakronos_app.api.website.bausteine_installieren` (Methoden ['POST'])
 
 ## Ausnahmen (lesend trotz Widerspruch, mit Begruendung)
 
@@ -220,6 +224,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.sicherung.sicherung_loeschen` | ['POST'] | nein |
 | `diakronos_app.api.veranstaltungsanmeldung.register_mitglied` | ['POST'] | nein |
 | `diakronos_app.api.verantwortliche.set_verantwortliche` | ['POST'] | nein |
+| `diakronos_app.api.website.bausteine_installieren` | ['POST'] | nein |
 | `diakronos_app.api.website.beitrag_auf_website` | ['POST'] | nein |
 | `diakronos_app.api.website.freigabe_setzen` | ['POST'] | nein |
 | `diakronos_app.api.website.freigaben_lesen` | — | nein |
@@ -384,6 +389,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.verantwortliche.get_verantwortliche` | — | nein |
 | `diakronos_app.api.verantwortliche.get_verantwortliche_auswahl` | — | nein |
 | `diakronos_app.api.verantwortliche.get_zugangs_rollen` | — | nein |
+| `diakronos_app.api.website.bausteine_status` | — | nein |
 | `diakronos_app.api.website.rollen` | — | nein |
 | `diakronos_app.api.website.status` | — | nein |
 | `diakronos_app.api.wiki.get_wiki_artikel_detail` | — | nein |
