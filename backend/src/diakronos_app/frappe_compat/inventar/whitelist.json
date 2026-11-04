@@ -7531,6 +7531,34 @@
    "ausnahme_art": null,
    "ausnahme_greift": false,
    "ausnahme_quelle": null,
+   "deklariert": "lesend",
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.suche.global_",
+   "methoden": [
+    "GET"
+   ],
+   "methoden_pflicht": "GET/POST",
+   "modul": "diakronos_app.api.suche",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "global_",
+   "pfade": [
+    "api.global_",
+    "diakronos.diakonos.api.suche.global",
+    "diakronos.diakonos.api.suche.global_",
+    "diakronos_app.api.suche.global_",
+    "global_",
+    "suche.global_"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
    "deklariert": null,
    "einstufung": "lesend",
    "funktion": "diakronos_app.api.veranstaltungsanmeldung.check_anmeldestatus",
@@ -8902,7 +8930,6 @@
     "diakronos.diakronos.api.website.postfaecher_oeffentlich",
     "diakronos_app.website.kontakt.postfaecher_oeffentlich",
     "kontakt.postfaecher_oeffentlich",
-    "postfaecher_oeffentlich",
     "website.oeffentlich.postfaecher"
    ],
    "rumpf_grund": "",
@@ -9065,11 +9092,11 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 343,
+ "funktionen": 344,
  "nur_test": [],
- "registrierte_pfade": 1766,
+ "registrierte_pfade": 1771,
  "rumpf_zaehlung": {
-  "lesend": 168,
+  "lesend": 169,
   "schreibend": 175
  },
  "widersprueche": [
@@ -9647,7 +9674,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 158,
+  "lesend": 159,
   "schreibend": 185
  }
 }

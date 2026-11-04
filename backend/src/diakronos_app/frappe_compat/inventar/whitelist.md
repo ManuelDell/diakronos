@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **1766**
-* eindeutige Funktionen: **343**
-* lesend: **158**, schreibend: **185**
-* Rumpfbefund: schreibend 175, lesend 168, unbekannt 0
+* registrierte Pfade: **1771**
+* eindeutige Funktionen: **344**
+* lesend: **159**, schreibend: **185**
+* Rumpfbefund: schreibend 175, lesend 169, unbekannt 0
 
 ## Einstufung
 
@@ -385,6 +385,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.session.get_current_user_context` | — | nein |
 | `diakronos_app.api.session.get_mitglied_permissions` | — | nein |
 | `diakronos_app.api.session.sitzung_status` | — | nein |
+| `diakronos_app.api.suche.global_` | ['GET'] | nein |
 | `diakronos_app.api.veranstaltungsanmeldung.check_anmeldestatus` | — | nein |
 | `diakronos_app.api.verantwortliche.get_verantwortliche` | — | nein |
 | `diakronos_app.api.verantwortliche.get_verantwortliche_auswahl` | — | nein |

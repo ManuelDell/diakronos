@@ -844,6 +844,24 @@ Die Adressgrenze wird vor jeder Token-Abfrage geprüft; einen Link-Schlüssel
 gibt es erst nach erfolgreicher Token-Prüfung, nicht für erfundene Tokens.
 Auch der öffentliche Seitenaufruf zählt genau einmal gegen die Prüfgrenze.
 
+**Suche der Befehlspalette (Strg+K).** Die Palette fragt bei jedem Tastendruck;
+ein Aufruf liest sieben Quellen (Personen, Gruppen, Termine, Lieder, Wiki,
+Beiträge, Einstellungs-Stichworte). Gezählt wird je **Benutzer** in einem
+festen Fenster — nicht je Adresse, weil hinter einem Proxy alle
+Gemeindeglieder dieselbe Adresse haben. Über der Grenze antwortet der Endpunkt
+mit `429` und „Es sind gerade zu viele Suchanfragen eingegangen.“; die Palette
+zeigt das und tippt nach kurzer Pause weiter. Nur angemeldete Personen dürfen
+suchen (`403` für Gäste). Treffer enthalten **nie** E-Mail-Adressen oder
+Telefonnummern; gesucht wird bei Personen ausschließlich über Vor- und
+Nachnamen und nur in dem Bereich, den die Person ohnehin sehen darf.
+
+| Variable | Vorgabe | Bedeutung |
+|---|---|---|
+| `SUCHE_MAX` | 60 | Suchaufrufe je Benutzer und Fenster |
+| `SUCHE_FENSTER_SEKUNDEN` | 60 | Länge des Fensters (läuft nicht mit) |
+
+`SUCHE_MAX=0` schaltet die Bremse ausdrücklich ab — der Default ist die Grenze.
+
 Betriebsentscheidung bei Redis-Ausfall (P0-4b K5): bewusst **fail closed**.
 Eine öffentliche Registrierung darf nicht ohne wirksame Bremse schreiben.
 Besucher sehen „Anmeldungen können gerade nicht verarbeitet werden. Bitte
@@ -1347,11 +1365,12 @@ Passwort.
 Anmeldelinks für Registrierung und Gastzugriff, die auf der Maske erwähnt
 werden, kommen aus der Gemeindeleitung — dieser Stack erzeugt sie nicht.
 
-**Keine Volltextsuche, obwohl oben „Suchen… ⌘K" steht.** In der Seitenleiste
-und oben rechts stehen zwei Suchfelder. Sie sind derzeit Anzeigeelemente: ein
-Klick öffnet nichts, es gibt kein Eingabefeld und keine Trefferliste. Die
-Mitgliederseite hat ihr eigenes, echtes Suchfeld („Nach Name, E-Mail, Gruppe") —
-das funktioniert.
+**Suchfelder der Befehlspalette.** Die beiden Felder in der Seitenleiste und
+oben rechts („Suchen … Strg K") sind derzeit Anzeigeelemente: ein Klick öffnet
+nichts, es gibt kein Eingabefeld und keine Trefferliste. Der **Server** kann
+seit UX3g suchen (`diakronos.diakonos.api.suche.global`, siehe Abschnitt 8);
+die Oberfläche der Palette ist noch nicht angebunden. Die Mitgliederseite hat
+ihr eigenes, echtes Suchfeld („Nach Name, E-Mail, Gruppe") — das funktioniert.
 
 **Keine Abmelde-Schaltfläche.** Siehe [Abschnitt 3.2](#32-abmelden).
 

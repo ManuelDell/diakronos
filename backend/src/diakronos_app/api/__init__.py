@@ -55,6 +55,8 @@ from diakronos_app.api import verantwortliche  # noqa: F401 — P1-8: Verantwort
 from diakronos_app.api import zugang  # noqa: F401 — P1-8: Zugang (Konto/Rollen/Sperren)
 from diakronos_app.api import ressourcen  # noqa: F401 — P4c2: Ressourcen-Buchung (9 Pfade)
 from diakronos_app.api import session  # noqa: F401 — P4g: User-Context (3 Pfade)
+# UX3g: Such-Endpunkt der Befehlspalette (`suche.global`, GET, nur angemeldet).
+from diakronos_app.api import suche  # noqa: F401 — UX3g: Befehlspalette (1 Pfad)
 from diakronos_app.api import wiki  # noqa: F401 — P4f: Wiki-Artikel (7 Pfade)
 from diakronos_app.api import website  # noqa: F401 — WEB-1: Primo-Anbindung (3 Pfade)
 from diakronos_app.website import kontakt as website_kontakt  # noqa: F401 — WEB-10: Kontaktformular (allow_guest!)

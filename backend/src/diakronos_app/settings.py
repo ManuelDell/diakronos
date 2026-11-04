@@ -365,6 +365,21 @@ class Settings(BaseSettings):
         ),
     )
 
+    # ── UX3g: Ratenbegrenzung der globalen Suche (Befehlspalette) ──────────
+    # Die Palette fragt bei jedem Tastendruck; jeder Aufruf loest sieben
+    # Abfragen aus. Grenze PRO BENUTZER und Fenster (nicht je Adresse —
+    # hinter einem Proxy teilen sich alle Gemeindeglieder eine Adresse).
+    # `SUCHE_MAX = 0` schaltet die Bremse ausdruecklich ab; der Default ist
+    # die Grenze (fail closed, wie bei der Registrierungsbremse).
+    suche_max: int = Field(
+        60,
+        validation_alias=AliasChoices("SUCHE_MAX", "suche_max"),
+    )
+    suche_fenster_sekunden: int = Field(
+        60,
+        validation_alias=AliasChoices("SUCHE_FENSTER_SEKUNDEN", "suche_fenster_sekunden"),
+    )
+
     # ── Mailversand (DSGVO-1 D3, seit MAIL-1 in der Datenbank) ─────────────
     # Bis MAIL-1 standen die SMTP-Werte hier in der Umgebung (SMTP_*). Manuel
     # hat entschieden, dass das Postfach bei der Einrichtung in der Oberfläche
