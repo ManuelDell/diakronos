@@ -210,6 +210,51 @@ def _settings_zeile() -> dict[str, Any]:
     return dict(row) if row else {}
 
 
+def _gemeinde_marke() -> dict[str, str]:
+    """ON-4 (H4): Logo und Name der Gemeinde fuer Kopfzeile und Anmeldeseite.
+
+    Quelle ist der ON-2-Stand (`gemeinde_einstellungen`): `logo_datei` und die
+    schon vorhandene Adresse aus `api.gemeinde` (mit Betriebspraefix und `?v=`,
+    NICHT hier nachgebaut). Ist kein Logo hinterlegt, bleibt `logo_url` leer —
+    die Oberflaeche zeigt dann das Monogramm aus `church_name`.
+
+    Nie eine Exception: eine fehlende Zeile/Tabelle darf weder das Boot-Objekt
+    noch die Anmeldeseite wegkaufen (dieselbe Regel wie `_settings_zeile`).
+    """
+    try:
+        from diakronos_app.api.gemeinde import _logo_da, logo_url  # noqa: PLC0415
+        from diakronos_app.db import SessionLocal
+        from diakronos_app.models.gemeinde import (
+            GEMEINDE_EINSTELLUNGEN_NAME,
+            GemeindeEinstellungen,
+        )
+
+        with SessionLocal() as sess:
+            zeile = sess.get(GemeindeEinstellungen, GEMEINDE_EINSTELLUNGEN_NAME)
+            # Datei UND Eintrag — dieselbe Regel wie `einrichtung.status` (F6).
+            if zeile is None or not _logo_da(zeile.logo_datei):
+                return {"logo_url": ""}
+            return {"logo_url": logo_url() or ""}
+    except Exception as exc:  # noqa: BLE001 — Anzeige darf nicht scheitern
+        logger.warning("Gemeinde-Logo nicht lesbar: %s", type(exc).__name__)
+        return {"logo_url": ""}
+
+
+def _marke_html(name: str) -> str:
+    """ON-4 (H4): fertiges Markup der Seiten-Marke (Logo ODER Monogramm).
+
+    EINE Stelle fuer Anmelde- und Einrichtungsseite: die Adresse kommt FERTIG
+    aus `_gemeinde_marke()` (Betriebspraefix + `?v=`), eingebunden wird NUR per
+    `<img>` (in einem SVG laufen dort keine Skripte, ON-2b). Ohne Logo der
+    erste Buchstabe des Gemeindenamens, sonst „D“.
+    """
+    logo = _gemeinde_marke()["logo_url"]
+    if logo:
+        return f'<img class="dk-marke-bild" src="{html.escape(logo, quote=True)}" alt="">'
+    buchstabe = next((z for z in str(name) if z.isalnum()), "D")
+    return f'<span class="dk-monogramm" aria-hidden="true">{html.escape(buchstabe.upper())}</span>'
+
+
 def _user_zeile(user: str) -> dict[str, Any]:
     """`user`-Tabelle: Anzeigename, E-Mail, Avatar. `{}` wenn unbekannt."""
     from diakronos_app.frappe_compat.query import get_value
@@ -345,9 +390,12 @@ def boot_fuer_request() -> dict[str, Any]:
         "mitglied": _mitglied_zeile(email) if user != GUEST else None,
         "modules": _module_liste() if user != GUEST else [],
         "church_name": einstellungen.get("organisationsname") or DEFAULT_CHURCH_NAME,
-        # `diakonos_icon` ist ein Freitextfeld (Pfad oder URL), kein Anhang —
-        # `diakronos_einstellungen.json` fieldtype "Data".
-        "logo_url": einstellungen.get("diakonos_icon") or None,
+        # ON-4 (H4): Das Logo kommt aus dem ON-2-Stand (`gemeinde_einstellungen`,
+        # Upload in ON-2/ON-4) — FERTIG mit Betriebspraefix und `?v=` (Cache-
+        # Busting). Das alte Freitextfeld `diakonos_icon` war ein Pfad ohne
+        # Datei; die Seitenleiste zeigte deshalb nie ein Logo. Ohne Logodatei
+        # bleibt der Wert leer → die Oberflaeche zeigt das Monogramm.
+        "logo_url": _gemeinde_marke()["logo_url"] or None,
         # N9: die oeffentliche Adresse der Gemeinde. Die Oberflaeche baut damit
         # vollstaendige Links (Registrierung/Passwort) — ist sie leer, faellt sie
         # auf `window.location.origin` zurueck. So stimmt der geteilte Link auch
@@ -362,7 +410,39 @@ def boot_fuer_request() -> dict[str, Any]:
         # derselben Funktion, die `upload_file` ablehnt
         # (`api.frappe_core.bild_upload_max_bytes`) — er kann nicht driften.
         "bild_upload_max_bytes": _bild_upload_max_bytes(),
+        # ON-3b (Orchestrator-Nachtrag): Die Ersteinrichtung ist ein EINMALIGER
+        # Vorgang, keine dauerhafte Seite. Solange `assistent_abgeschlossen`
+        # false ist, fuehrt die SPA einen Admin beim Oeffnen der App auf
+        # `#/einrichtung`; danach gibt es die Adresse fuer die Bedienung nicht
+        # mehr. Der Server liefert dazu nur den STAND (die Rolle entscheidet
+        # `is_admin`), die Leitungsregel steht in `router.js` — eine Wahrheit.
+        "einrichtung_offen": _einrichtung_offen(),
     }
+
+
+def _einrichtung_offen() -> bool:
+    """Laeuft die Ersteinrichtung noch? (ON-3b, Orchestrator-Nachtrag)
+
+    ``True`` = der Assistent ist NICHT abgeschlossen, der Admin gehoert beim
+    Oeffnen der App dorthin; ``False`` = die Ersteinrichtung ist durch und
+    ``#/einrichtung`` existiert fuer die Bedienung nicht mehr (Router → 
+    ``#/einstellungen``).
+
+    Ohne Admin-Zeile gilt ``False``: ist niemand angelegt, gibt es auch keine
+    Sitzung, die geleitet werden koennte (der EinrichtungsLINK fuehrt selbst
+    zum Assistenten). Ein Lesefehler zaehlt ebenfalls als ``False`` — eine
+    kaputte Statuszeile darf niemanden in einer Schleife festhalten.
+    """
+    try:
+        from diakronos_app.db import SessionLocal
+        from diakronos_app.models.einrichtung import EINRICHTUNG_STAND_NAME, EinrichtungStand
+
+        with SessionLocal() as sess:
+            zeile = sess.get(EinrichtungStand, EINRICHTUNG_STAND_NAME)
+            return bool(zeile is not None and not zeile.assistent_abgeschlossen)
+    except Exception:  # noqa: BLE001 — Anzeige darf nicht scheitern
+        logger.warning("Einrichtungs-Stand nicht lesbar.")
+        return False
 
 
 def _bild_upload_max_bytes() -> int:
@@ -740,6 +820,12 @@ def render_login(next_url: str = SPA_PREFIX, *, meldung: str = "", email: str = 
     # URL-kodierten Text, den wir serverseitig dekodieren.
     ziel_kodiert = html.escape(quote(next_url, safe=""), quote=True)
     gemeinde = html.escape(_settings_zeile().get("organisationsname") or DEFAULT_CHURCH_NAME, quote=True)
+    # ON-4 (H4): Marke der Gemeinde ueber dem Formular — hinterlegtes Logo
+    # (ON-2, fertige Adresse mit Praefix und `?v=`), sonst das Monogramm
+    # (erster Buchstabe des Gemeindenamens). Kein Markup, nur ein `<img>` —
+    # damit laufen in einem SVG-Logo keine Skripte (ON-2b). Dieselbe Regel
+    # wie die Route `anmeldung/routen.py::login_route`.
+    marke_html = _marke_html(_settings_zeile().get("organisationsname") or DEFAULT_CHURCH_NAME)
     meldung_html = html.escape(meldung, quote=True)
     email_html = html.escape(email, quote=True)
     meldung_block = (
@@ -774,6 +860,10 @@ def render_login(next_url: str = SPA_PREFIX, *, meldung: str = "", email: str = 
 </head>
 <body class="dk-seite">
     <main class="dk-karte">
+        <div class="dk-markenseite">
+            {marke_html}
+            <p class="dk-marke">Diakronos</p>
+        </div>
         <h1>{gemeinde}</h1>
         <p class="dk-unterzeile">Bitte melde dich an, um fortzufahren.</p>{meldung_block}
         <form class="dk-formular" method="post" action="{base_path.pfad('/api/method/login')}" accept-charset="utf-8">

@@ -13,7 +13,12 @@
       </a>
       <span class="assistent-trenner" aria-hidden="true"></span>
       <span class="assistent-bereich">Einrichtung</span>
-      <button type="button" class="assistent-spaeter" @click="spaeter">
+      <button
+        type="button"
+        class="assistent-spaeter"
+        :disabled="speichert"
+        @click="spaeter"
+      >
         Speichern und später fortsetzen
       </button>
     </header>
@@ -158,6 +163,8 @@ import {
   zeitzoneAnzeige,
 } from '../../composables/einrichtungAssistent.mjs'
 import { useEinrichtungsAssistent } from '../../composables/useEinrichtungsAssistent.js'
+// ON-3b: der Sitzungs-Merker „lieber später“ (Router-Leitung, eine Regel).
+import { merkeEinrichtungGesehen } from '../../einrichtungLeitung.mjs'
 
 const {
   status, gemeinde, schritt, laedt, speichert, fehler, eingaben, feldFehler,
@@ -165,7 +172,7 @@ const {
   logoFehler, logoLaeuft,
   schritte, abgeschlossen, punkte, fortschrittText, moduleListe, monogramm,
   ladeAssistent, geheZu, weiter, ueberspringen, zurueck: zurueckSchritt,
-  abschliessen, ladeLogoHoch, entferneLogo,
+  abschliessen, ladeLogoHoch, entferneLogo, spaeterSichern,
 } = useEinrichtungsAssistent()
 
 const haupt = ref(null)
@@ -242,8 +249,14 @@ async function ueberspringenKlick() {
   haupt.value?.scrollIntoView({ block: 'start' })
 }
 
-/** „Speichern und später fortsetzen“ → Übersicht; der Fortschritt bleibt. */
-function spaeter() {
+/** „Speichern und später fortsetzen“ → sichert die Eingaben, dann Übersicht. */
+async function spaeter() {
+  const gesichert = await spaeterSichern()
+  if (!gesichert) return
+  // ON-3b (Orchestrator-Nachtrag): „lässt ihn raus“ — der Router führt den
+  // Admin beim Öffnen der App in dieser Sitzung nicht erneut her (beim
+  // nächsten Login ist der Merker weg und der Assistent kommt wieder).
+  merkeEinrichtungGesehen(window.sessionStorage)
   navigate(UEBERSICHT_ROUTE)
 }
 
@@ -328,6 +341,7 @@ onMounted(() => {
   border-radius: var(--radius-sm);
 }
 .assistent-spaeter:hover { color: var(--link-hover); text-decoration: underline; }
+.assistent-spaeter:disabled { cursor: progress; text-decoration: none; color: var(--muted); }
 .assistent-spaeter:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
 /* ── Körper: Leiste + Inhalt ─────────────────────────────────────────── */

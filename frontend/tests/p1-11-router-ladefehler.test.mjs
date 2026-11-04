@@ -18,6 +18,11 @@ const lies = p => readFileSync(new URL(p, root), 'utf8')
 function routerAusfuehren({ hash = '#/', ladeFehler = false } = {}) {
   let source = lies('router.js')
   source = source.replace(/^import .*$/gm, '')
+  // ON-3b: die Leitungsregel (Namesraum-Import) wird durch ein Objekt ersetzt.
+  .replace("import * as einrichtungLeitung from './einrichtungLeitung.mjs'",
+      "({ EINRICHTUNG_ROUTE: '#/einrichtung', EINRICHTUNG_ZIEL_NACH_ABSCHLUSS: '#/einstellungen', " +
+      "einrichtungGesehen: () => false, einrichtungsWeiterleitung: () => null, " +
+      "einrichtungSeiteErlaubt: (b) => !b || b.is_admin === true })")
     .replace(/import\([^)]*\)/g,
       ladeFehler ? 'Promise.reject(new Error("Chunk 404"))' : 'Promise.resolve({default: "Seite"})')
     .replace(/^export \{.*\}$/gm, '').replace(/^export /gm, '')

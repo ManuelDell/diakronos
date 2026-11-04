@@ -34,12 +34,18 @@
     </fieldset>
 
     <!-- Die gewählte Route führt in die vorhandene Seite; der Assistent bleibt
-         der Ausgangspunkt (Wiedereinstieg über den ersten offenen Schritt). -->
+         der Ausgangspunkt (Wiedereinstieg über den ersten offenen Schritt).
+
+         ON-3b (N3): Der Hinweis sagte vorher „Der Schritt bleibt offen, bis die
+         Mitglieder angelegt sind.“ — das stimmt NICHT: „Weiter“ setzt den
+         Schritt `erledigt`, unabhängig davon, ob Mitglieder da sind. Offen
+         bleibt der Checklisten-Punkt „Mitglieder“ (er hängt an den echten
+         Daten, `einrichtung.status`), und mit ihm die Einrichtungs-Karte. -->
     <div v-if="mitgliederWahl !== 'spaeter'" class="wahl-ziel">
       <DkButton variant="secondary" @click="$emit('weg', mitgliederWahl)">
         {{ mitgliederWahl === 'import' ? 'Zum Import' : 'Zur Mitgliederliste' }}
       </DkButton>
-      <span class="wahl-ziel-hinweis">Der Schritt bleibt offen, bis die Mitglieder angelegt sind.</span>
+      <span class="wahl-ziel-hinweis">Mit „Weiter“ ist dieser Schritt erledigt. Der Checklisten-Punkt „Mitglieder“ bleibt offen, bis Mitglieder angelegt sind.</span>
     </div>
 
     <section class="vorschlag">

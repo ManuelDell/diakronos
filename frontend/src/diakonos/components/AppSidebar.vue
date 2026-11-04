@@ -5,15 +5,25 @@
     <!-- Top: Brand + Collapse -->
     <div class="dk-sb-top">
       <a href="#/" class="dk-sb-brand" @click="$emit('close-mobile')">
-        <div class="dk-sb-logo">
-          <img v-if="logoUrl" :src="logoUrl" :alt="PRODUKTNAME" />
-          <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <!-- ON-4 (H4, Entwurf 10): Logo der Gemeinde, sonst ihr Monogramm.
+             Die Adresse kommt FERTIG vom Server (Betriebspräfix + `?v=`),
+             der Buchstabe aus derselben Regel wie im Assistenten. Vorher
+             stand hier immer dasselbe Personen-Symbol — die Gemeinde war
+             nicht zu erkennen. Fällt beides aus (kein Status geladen), bleibt
+             das bisherige Symbol stehen. -->
+        <LogoMarke
+          :quelle="logoQuelleMarke"
+          :buchstabe="monogrammMarke"
+          size="md"
+          class="dk-sb-logo"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
             <circle cx="9" cy="7" r="4"/>
             <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
             <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
           </svg>
-        </div>
+        </LogoMarke>
         <div v-if="!collapsed" class="dk-sb-brand-text">
           <span class="dk-sb-brand-name">{{ PRODUKTNAME }}</span>
           <span class="dk-sb-brand-sub">{{ churchName }}</span>
@@ -100,6 +110,9 @@
 import { computed, h, onMounted, onUnmounted } from 'vue'
 import { useSession } from '../composables/useSession.js'
 import { initialen } from '../composables/anzeigename.mjs'
+// ON-4/H4: Logo oder Monogramm der Gemeinde in der Seitenleiste.
+import LogoMarke from './einrichtung/LogoMarke.vue'
+import { monogramm } from '../composables/einrichtung.mjs'
 import { useAbmelden } from '../composables/useAbmelden.js'
 import { showToast } from '../composables/useToast.js'
 import { currentPageName, currentHash } from '../router.js'
@@ -181,7 +194,29 @@ function badgeFuer(eintrag) {
 }
 
 const churchName = window.__DIakonosBOOT?.church_name || 'Meine Gemeinde'
-const logoUrl = window.__DIakonosBOOT?.logo_url || null
+
+/**
+ * ON-4 (H4): Marke der Gemeinde. Das Boot-Objekt trägt `logo_url` und
+ * `church_name` schon immer; das Monogramm kommt aus derselben Funktion wie im
+ * Assistenten (`monogramm`, Kurzname vor Gemeindename — Entwurf 04).
+ *
+ * WARUM NICHT DER STATUS-ABRUF: die Seitenleiste sehen ALLE Rollen, der
+ * Status ist Administratoren vorbehalten (Server: 403). Deshalb werden nur die
+ * Boot-Angaben benutzt — kein zusätzlicher Aufruf, kein 403 im Netz-Log.
+ */
+/**
+ * Das Boot-Objekt ist beim Aufbau der App gesetzt; es aendert sich nur mit
+ * einem Neuladen. Nach dem Hochladen in den Einstellungen zeigt die
+ * Seitenleiste das neue Logo deshalb nach dem naechsten Seitenaufbau — das ist
+ * so gewollt (kein zweiter Zustand neben dem Server).
+ */
+const logoQuelleMarke = computed(() => String(window.__DIakonosBOOT?.logo_url || ''))
+const monogrammMarke = computed(() => {
+  const text = String(churchName || '').trim()
+  if (!text) return ''
+  const buchstabe = monogramm({ gemeindename: text }, text)
+  return buchstabe === '?' ? '' : buchstabe
+})
 
 // OP-HANDY-25: Initialen und Name aus dem gepflegten Mitgliedsnamen.
 const mitgliedName = computed(() => {

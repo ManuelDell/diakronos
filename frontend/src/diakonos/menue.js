@@ -92,15 +92,12 @@ export const MENUE = [
                 id: 'website', label: 'Website', href: '#/website', icon: 'globe',
                 seiten: ['Website'], rollen: WEBSITE_ROLLEN,
             },
-            // ON-3 (W4): „Einrichtung“ als Einstellungen-Abschnitt. Nach dem
-            // Abschluss des Assistenten zeigt dieselbe Adresse die Checkliste
-            // mit den offenen Punkten — deshalb dauerhaft im Menü (nicht nur
-            // während der Ersteinrichtung).
-            {
-                id: 'einrichtung', label: 'Einrichtung', href: '#/einrichtung', icon: 'clipboard-check',
-                seiten: ['Einrichtung'], rolle: 'admin',
-            },
-            { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus', 'EinstellungenWebsite'], rolle: 'admin' },
+            // ON-3b (Orchestrator-Nachtrag): KEIN Menüpunkt „Einrichtung“.
+            // Der Assistent ist die ERSTEINRICHTUNG des Containers, keine
+            // dauerhafte Seite: solange er läuft, führt der Router den Admin
+            // beim Öffnen selbst dorthin; danach gibt es die Adresse für die
+            // Bedienung nicht mehr (sie leitet auf #/einstellungen).
+            { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus', 'EinstellungenWebsite', 'Einrichtung'], rolle: 'admin' },
             { id: 'dev-befunde', label: 'Dev-Befunde', href: '#/dev-befunde', icon: 'clipboard-check', seiten: ['DevBefunde'], rolle: 'admin', tester: true },
         ],
     },

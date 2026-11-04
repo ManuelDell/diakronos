@@ -58,6 +58,10 @@ const WEBSITE = defineAsyncComponent(() => import('./einstellungen/Website.vue')
 const abschnitte = [
   { id: 'gemeinde', label: 'Gemeinde', href: '#/einstellungen/gemeinde',
     seite: 'EinstellungenGemeinde', inhalt: GEMEINDE },
+  // ON-4 (Nachtrag Orchestrator 2026-11-03): KEIN eigener Abschnitt
+  // „Einrichtung“. Nach der Ersteinrichtung werden alle Angaben AUSSCHLIESSLICH
+  // in den Einstellungen gepflegt (Gemeinde, Mailversand, Module …); die
+  // „Einrichten“-Knöpfe führen genau dorthin (Ziel aus `einrichtung.status`).
   { id: 'anmeldung', label: 'Anmeldung (Login)', href: '#/einstellungen/anmeldung',
     seite: 'EinstellungenAnmeldung', inhalt: ANMELDUNG },
   { id: 'rollen', label: 'Rollen & Rechte', href: '#/einstellungen/rollen',

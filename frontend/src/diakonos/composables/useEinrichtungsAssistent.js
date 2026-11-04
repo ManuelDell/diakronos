@@ -315,12 +315,94 @@ export function zurueck() {
 }
 
 /**
- * „Speichern und später fortsetzen“ (Kopfzeile, W1): nur zur Übersicht —
- * der Fortschritt bleibt, weil der Schrittstand auf dem Server liegt.
+ * „Speichern und später fortsetzen“ (Kopfzeile, W1) — ON-3b (N1).
+ *
+ * DER KNOPF SAGT, WAS ER TUT: bis ON-3b sprang er nur zur Übersicht und
+ * verwarf alles, was im Schritt getippt war (Befund Opus-Review ON-3). Jetzt
+ * werden die Eingaben VORHER mit den vorhandenen Endpunkten gesichert —
+ * ausdrücklich OHNE den Schritt als erledigt zu markieren: „später
+ * fortsetzen“ heisst, der Schritt ist noch offen und soll beim Wiedereinstieg
+ * wieder als erster offener Schritt erscheinen (W3).
+ *
+ * Was je Schritt gesichert wird:
+ *  - gemeinde/kontakt: `gemeinde_speichern` mit dem VOLLSTÄNDIGEN Satz
+ *    (`speicherRumpf`) — der Server löscht leere Felder.
+ *  - module: nur die geänderten Schalter (`gemeinde_setze_modul`).
+ *  - mitglieder_kalender: NICHT der Kalender-Vorschlag. Kalender anlegen ist
+ *    eine Fachentscheidung, die erst „Weiter“ auslöst (`weiter()`); „später
+ *    fortsetzen“ ist ausdrücklich der Abbruch ohne Entscheidung.
+ *  - mailversand: die Felder liegen in der Schrittkomponente (deren eigener
+ *    Speicherknopf „Testmail senden“/`speichern`), nicht im Assistenten-
+ *    Zustand — hier wird nichts erfunden.
+ *
+ * Ein unvollständiger Entwurf blockiert NICHT: „später“ ist der Weg, halb
+ * ausgefüllte Angaben zu sichern. Geprüft wird nur, was der Server ohnehin
+ * ablehnen würde (zu lange Werte, unsinnige Adressen) — dann bleibt der
+ * Schritt stehen und der Fehler erscheint am Feld.
+ *
+ * @returns {Promise<boolean>} true = gesichert, die Seite darf zur Übersicht.
  */
-export const SPATER_ZIEL = '#/'
+export async function spaeterSichern() {
+  const aktuell = schritt.value
+  fehler.value = ''
+  setzeFeldfehler({})
+  if (!status.value || aktuell === 'fertig') return true
+  speichert.value = true
+  try {
+    if (aktuell === 'gemeinde' || aktuell === 'kontakt') {
+      // Nur DAS Feld als Pflicht gilt beim „Weiter“; hier wird gesichert,
+      // was da ist (ein leerer Gemeindename wird nicht gespeichert).
+      const rumpf = speicherRumpf(aktuell, gemeinde.value || {}, eingaben)
+      const pruefung = pruefeEntwurfFuerSpeichern(aktuell, eingaben)
+      if (Object.keys(pruefung).length) {
+        setzeFeldfehler(pruefung)
+        return false
+      }
+      const etwasDa = aktuell === 'gemeinde'
+        ? Boolean(String(rumpf.gemeindename || '').trim())
+        : ['strasse', 'plz', 'ort', 'kontakt_email', 'telefon', 'website']
+            .some((feld) => String(rumpf[feld] ?? '').trim())
+      if (etwasDa) {
+        await apiCall(GEMEINDE + 'gemeinde_speichern', rumpf)
+        try {
+          const antwort = await apiCall(GEMEINDE + 'gemeinde_get_einstellungen', {})
+          gemeinde.value = antwort?.message || antwort
+        } catch { /* Anzeige bleibt auf dem alten Stand; kein Schreibweg */ }
+      }
+    } else if (aktuell === 'module') {
+      for (const modul of moduleListe.value) {
+        const gewuenscht = moduleEingaben[modul.schluessel] === true
+        if (gewuenscht === (modul.sichtbar === true)) continue
+        await apiCall(GEMEINDE + 'gemeinde_setze_modul', {
+          schluessel: modul.schluessel, sichtbar: gewuenscht,
+        })
+        modul.sichtbar = gewuenscht
+      }
+    }
+    // KEIN `setzeSchrittZustand`: der Schritt bleibt offen (das ist der Sinn
+    // von „später fortsetzen“). Der Prozessstand wurde beim letzten „Weiter“
+    // gesichert und wird hier nicht verändert.
+    return true
+  } catch (grund) {
+    fehler.value = grund?.message || 'Das Speichern hat nicht geklappt. Bitte erneut versuchen.'
+    return false
+  } finally {
+    speichert.value = false
+  }
+}
 
-/** Logo hochladen (`gemeinde.gemeinde_logo_hochladen`, multipart). */
+/**
+ * Prüfung für „später fortsetzen“: die Grenzen des Servers (`pruefeSchritt`),
+ * aber OHNE die Pflichtfelder — die gehören zu „Weiter“, nicht zum Sichern
+ * eines halben Entwurfs.
+ */
+export function pruefeEntwurfFuerSpeichern(schluessel, entwurf = {}) {
+  const alle = pruefeSchritt(schluessel, entwurf)
+  if (schluessel === 'gemeinde') delete alle.gemeindename
+  return alle
+}
+
+/** „Logo hochladen (`gemeinde.gemeinde_logo_hochladen`, multipart). */
 export async function ladeLogoHoch(datei) {
   logoFehler.value = ''
   const pruefung = logoDateiFehler(datei)
@@ -392,6 +474,9 @@ export async function abschliessen() {
   fehler.value = ''
   try {
     await apiCall(EINRICHTUNG + 'abschliessen', {})
+    // Review ON-3b: Boot-Merker sofort loeschen, sonst leitet der Router bis
+    // zum Neuladen wieder in den Assistenten.
+    if (typeof window !== 'undefined' && window.__DIakonosBOOT) window.__DIakonosBOOT.einrichtung_offen = false
     if (status.value) status.value.assistent_abgeschlossen = true
     await ladeAssistent()
     return true
@@ -416,6 +501,6 @@ export function useEinrichtungsAssistent() {
     schritte, abgeschlossen, punkte, offenePunkte, fortschrittText,
     moduleListe, logoQuelle, monogramm,
     ladeAssistent, geheZu, weiter, ueberspringen, zurueck, abschliessen,
-    ladeLogoHoch, entferneLogo,
+    spaeterSichern, ladeLogoHoch, entferneLogo,
   }
 }

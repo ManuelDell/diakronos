@@ -18,16 +18,16 @@
       <span class="impersonation-timer">{{ remainingTime }}</span>
       <button class="impersonation-stop" @click="stopImpersonation">✕ Beenden</button>
     </div>
-    <div class="dk-app" :class="{ 'is-collapsed': sidebarCollapsed, 'has-impersonation-banner': impersonation.isActive.value }" :data-theme="theme">
+    <div class="dk-app" :class="{ 'is-collapsed': sidebarCollapsed, 'has-impersonation-banner': impersonation.isActive.value, 'dk-app--vollbild': isVollbildMode }" :data-theme="theme">
       <!-- OP-UI-11: Das Hauptmenü bleibt in JEDER Ansicht dasselbe. Vorher
            tauschte der Kalender (und die Moderation) die Hauptnavigation
            gegen eine eigene Leiste; „Zur Hauptnavigation“ warf den Nutzer
            zwei Klicks zurück aufs Dashboard. Jetzt steht überall dieselbe
            Seitenleiste aus menue.js. Die Kalenderliste des Kalenders liegt
            als einklappbares Feld IN der Seite (Kalender.vue). -->
-      <AppSidebar :collapsed="sidebarCollapsed" :theme="theme" @toggle-collapse="sidebarCollapsed = !sidebarCollapsed" @toggle-theme="toggleTheme" />
+      <AppSidebar v-if="!isVollbildMode" :collapsed="sidebarCollapsed" :theme="theme" @toggle-collapse="sidebarCollapsed = !sidebarCollapsed" @toggle-theme="toggleTheme" />
       <div class="dk-main-wrap">
-        <AppTopbar :collapsed="sidebarCollapsed" @toggle-collapse="sidebarCollapsed = !sidebarCollapsed" />
+        <AppTopbar v-if="!isVollbildMode" :collapsed="sidebarCollapsed" @toggle-collapse="sidebarCollapsed = !sidebarCollapsed" />
         <!-- OP-HANDY-24: Fortschrittsbalken während des Seitenwechsels. Bei
              langsamem Netz blieb sonst die alte Seite ohne jede Rückmeldung
              stehen; erst der fertig geladene Chunk wechselte das Bild. -->
@@ -37,7 +37,7 @@
           id="dk-inhalt"
           class="dk-content"
           tabindex="-1"
-          :class="{ 'dk-content--kronos': isKronosMode, 'dk-content--moderation': isModerationMode }"
+          :class="{ 'dk-content--kronos': isKronosMode, 'dk-content--moderation': isModerationMode, 'dk-content--vollbild': isVollbildMode }"
         >
           <!-- UXD-R7: `:key` erzwingt einen Neubau der Seitenkomponente beim
                Wechsel zwischen zwei Detailrouten derselben Seite
@@ -61,7 +61,12 @@
               </div>
             </div>
           </div>
-          <div v-else class="dk-screen dk-screen-enter" style="display:flex;align-items:center;justify-content:center;min-height:300px;">
+          <!-- ON-3b (N4): Der Assistent bringt seinen EIGENEN Ladehinweis mit
+               (`assistent-hinweis`). Der App-Rahmen zeigt beim Chunk-Laden
+               sonst den Standard-Spinner — im Vollbild stünde er allein auf
+               einer leeren Fläche, obwohl die Seite gleich ihre eigene Karte
+               samt Kopfzeile aufbaut. -->
+          <div v-else-if="!isVollbildMode" class="dk-screen dk-screen-enter" style="display:flex;align-items:center;justify-content:center;min-height:300px;">
             <div style="text-align:center;color:var(--dk-text-subtle)">
               <div style="width:32px;height:32px;border:2px solid var(--dk-border);border-top-color:var(--dk-brand-800);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px"></div>
               <p style="font-size:13px;margin:0">Wird geladen…</p>
@@ -78,7 +83,7 @@
     <!-- DM1: Einschalt-Knopf — nur wenn der Server den Dev-Modus erlaubt und
          der Nutzer berechtigt ist, aber noch keine Dev-Sitzung laeuft. -->
     <DevStart v-else-if="devmodusVerfuegbar" />
-    <AppBottomNav :theme="theme" @toggle-theme="toggleTheme" @open-admin-dialog="handleOpenAdminDialog" />
+    <AppBottomNav v-if="!isVollbildMode" :theme="theme" @toggle-theme="toggleTheme" @open-admin-dialog="handleOpenAdminDialog" />
     <!-- K-A (R-P1-8): Detailansicht des EIGENEN abgelehnten Termins aus der
          Kalender-Seitenleiste. Der Termin kommt aus `get_mein_termin`; der
          Server liefert ihn nur an den Antragsteller bzw. Moderatoren, weil
@@ -145,6 +150,18 @@ watch(theme, (wert) => {
 }, { immediate: true })
 const isKronosMode = computed(() => currentHash.value === '#/kalender')
 const isModerationMode = computed(() => currentHash.value === '#/moderation')
+/**
+ * ON-3b (N4): Einrichtungs-Assistent im VOLLBILD (Entwurf 04/09).
+ *
+ * Der Assistent hat seine eigene Kopfzeile (Marke, „Einrichtung“, „Speichern
+ * und später fortsetzen“) und seine eigene Fußleiste. Mit der App-Seitenleiste
+ * und der App-Kopfzeile daneben standen zwei Leisten und zwei Kopfzeilen
+ * übereinander — im Entwurf gibt es genau eine. Deshalb: keine Seitenleiste,
+ * keine App-Kopfzeile, keine untere Navigation, solange `#/einrichtung` offen
+ * ist. Die Rolle bleibt geprüft (Router-Guard + Server), nur das Gerüst
+ * entfällt.
+ */
+const isVollbildMode = computed(() => currentHash.value === '#/einrichtung')
 const impersonation = useImpersonation()
 const now = ref(Date.now())
 

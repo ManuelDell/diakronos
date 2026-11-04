@@ -2,14 +2,22 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import vm from 'node:vm'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
+// ON-4: `useGemeinde` prüft mit DENSELBEN Regeln wie der Assistent
+// (`pruefeSchritt`). Der Test stellt sie bereit und LEITET den dynamischen
+// Import dorthin um — `vm` ohne `importModuleDynamically` kennt kein `import()`.
+const REGELN = await import('../src/diakonos/composables/einrichtungAssistent.mjs')
 
 const source = readFileSync(new URL('../src/diakonos/composables/useGemeinde.js', import.meta.url), 'utf8')
+  .replace('return EINRICHTUNG_REGELN', 'return globalThis.__regeln')
 
 function start(apiCall) {
   const ctx = vm.createContext({
     ref: value => ({ value }),
     computed: f => ({ get value() { return f() } }),
     apiCall,
+    __regeln: REGELN,
   })
   vm.runInContext(
     source.replace(/^import .*$/gm, '')

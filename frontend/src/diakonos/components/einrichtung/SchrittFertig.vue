@@ -75,17 +75,25 @@ defineEmits(['abschliessen', 'uebersicht'])
 
 const ueberschrift = 'Diakronos ist bereit'
 
+/**
+ * ON-3b (N2): Die Unterzeile nennt den ECHTEN Stand aus `einrichtung.status`.
+ *
+ * Vorher stand vor „Zur Übersicht“ immer „Die Ersteinrichtung ist
+ * abgeschlossen.“ — auch wenn laut Checkliste noch Punkte offen waren
+ * (Befund Opus-Review ON-3). Der Abschluss-Knopf schließt den Assistenten ab,
+ * die offenen Punkte bleiben aber bestehen und sind unter
+ * „Einstellungen → Einrichtung“ nachholbar. Wortlaut aus dem Entwurf
+ * (Frame 09/15) — nur die Zahl kommt aus den Daten.
+ */
 const unterzeile = computed(() => {
-  const offen = Number(props.offenAnzahl) || 0
-  const gesamt = Number(props.gesamtAnzahl) || 0
-  if (!props.abgeschlossen) {
-    // Entwurf 09: „Die Ersteinrichtung ist abgeschlossen. Drei Punkte sind noch
-    // offen und lassen sich jederzeit nachholen.“ — die Zahl kommt aus den
-    // echten Daten, der Satz bleibt der des Entwurfs.
-    return 'Die Ersteinrichtung ist abgeschlossen.'
-  }
-  if (offen === 0) return `Alle ${gesamt} Punkte sind erledigt.`
-  return `${offen} ${offen === 1 ? 'Punkt ist' : 'Punkte sind'} noch offen – jederzeit unter Einstellungen → Einrichtung nachholbar.`
+  const offen = Math.max(0, Number(props.offenAnzahl) || 0)
+  if (offen === 0) return 'Alles eingerichtet.'
+  const anfang = `${offen} ${offen === 1 ? 'Punkt ist' : 'Punkte sind'} noch offen`
+  // Der Entwurf sagt für den Abschluss-Schirm: „… und lassen sich jederzeit
+  // nachholen.“ Danach (W4) nennt der Satz den Ort, an dem das geht.
+  return props.abgeschlossen
+    ? `${anfang} – jederzeit unter Einstellungen → Einrichtung nachholbar.`
+    : `${anfang} und ${offen === 1 ? 'lässt' : 'lassen'} sich jederzeit nachholen.`
 })
 </script>
 

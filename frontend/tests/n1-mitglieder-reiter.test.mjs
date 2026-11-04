@@ -22,6 +22,12 @@ const lies = p => readFileSync(new URL(p, root), 'utf8')
 function routerAusfuehren(boot) {
   let source = lies('router.js')
   source = source.replace(/^import .*$/gm, '').replace(/import\([^)]*\)/g, 'Promise.resolve({default: "Seite"})')
+  // ON-3b: die Leitungsregel (einrichtungLeitung.mjs) wird durch
+  // feste Rückgaben ersetzt — dieser Lauf prueft den Router selbst.
+  .replace("import * as einrichtungLeitung from './einrichtungLeitung.mjs'",
+      "({ EINRICHTUNG_ROUTE: '#/einrichtung', EINRICHTUNG_ZIEL_NACH_ABSCHLUSS: '#/einstellungen', " +
+      "einrichtungGesehen: () => false, einrichtungsWeiterleitung: () => null, " +
+      "einrichtungSeiteErlaubt: (b) => !b || b.is_admin === true })")
     .replace(/^export \{.*\}$/gm, '').replace(/^export /gm, '')
   source += '\nglobalThis.router = {onBeforeEach, getRouteParams, currentHash, currentPageName};'
   let hashchange

@@ -301,9 +301,13 @@ def erstelle_anmeldeseite(
         if _gelesen is not None:
             _flash_email, _leer = _gelesen
             _flash_meldung = flash.MELDUNG_LEER if _leer else flash.MELDUNG_FALSCH
-    gemeinde = html.escape(
-        _settings_zeile().get("organisationsname") or DEFAULT_CHURCH_NAME, quote=True
-    )
+    gemeinde_roh = _settings_zeile().get("organisationsname") or DEFAULT_CHURCH_NAME
+    gemeinde = html.escape(gemeinde_roh, quote=True)
+    # ON-4 (H4): Marke der Gemeinde ueber dem Formular (Logo ODER Monogramm) —
+    # EINE Regel fuer alle Server-Seiten (`spa._marke_html`).
+    from diakronos_app.spa import _marke_html
+
+    marke_html = _marke_html(gemeinde_roh)
     ziel_kodiert = html.escape(quote(next_url, safe=""), quote=True)
     # Die aus dem Flash gelesenen Werte GEWINNEN gegen die Parameter: die
     # Parameter existieren nur fuer direkte Aufrufe (Tests, Vorschau).
@@ -381,6 +385,10 @@ def erstelle_anmeldeseite(
 </head>
 <body class="dk-seite">
     <main class="dk-karte">
+        <div class="dk-markenseite">
+            {marke_html}
+            <p class="dk-marke">Diakronos</p>
+        </div>
         <h1>{gemeinde}</h1>
         <p class="dk-unterzeile">Bitte melde dich an, um fortzufahren.</p>{meldung_block}
         {sso_block}

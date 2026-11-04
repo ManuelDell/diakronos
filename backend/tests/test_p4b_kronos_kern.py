@@ -261,6 +261,29 @@ def test_get_accessible_calendars_admin_sieht_alles(kalenderwelt):
     assert {"KAL-PUB", "KAL-SV", "KAL-PRIV"} <= namen
 
 
+def test_get_accessible_calendars_alle_anzahl_nur_fuer_admin(kalenderwelt):
+    """ON-4/H3: `alle_anzahl` kommt NUR bei Kalenderadministratoren mit.
+
+    Ohne diese Zahl koennte die Oberflaeche „noch kein Kalender angelegt“
+    (Einrichtungs-Weg anbieten) nicht von „nichts freigegeben“ (Rechte)
+    unterscheiden — und eine Zahl, die auch einfache Mitglieder saehen, waere
+    eine Auskunft ueber Kalender, die sie nicht sehen duerfen.
+    """
+    from diakronos_app.api.kronos import permissions as perms
+
+    set_user("admin-kal@example.org")
+    admin = perms.get_accessible_calendars()
+    assert admin, "Kalenderadministrator sieht keine Kalender"
+    assert all(c.get("alle_anzahl") == len(admin) for c in admin)
+
+    set_user("mitglied-a@example.org")
+    mitglied = perms.get_accessible_calendars()
+    assert mitglied, "Mitglied hat keine sichtbaren Kalender"
+    assert all("alle_anzahl" not in c for c in mitglied), (
+        "die Gesamtzahl darf Nicht-Administratoren nicht geliefert werden"
+    )
+
+
 def test_get_writable_calendars(kalenderwelt):
     from diakronos_app.api.kronos import permissions as perms
 

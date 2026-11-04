@@ -5,7 +5,14 @@ import vm from 'node:vm'
 
 test('real guest guard redirects a direct import URL before loading its component', () => {
   const source = fs.readFileSync(new URL('../src/diakonos/router.js', import.meta.url), 'utf8')
-    .replace(/^import .*$/gm, '').replace(/^export \{.*\}$/gm, '')
+    .replace(/^import .*$/gm, '')
+    // ON-3b: die Leitungsregel (einrichtungLeitung.mjs) wird durch feste
+    // Rückgaben ersetzt — dieser Lauf prueft den Router selbst.
+    .replace("import * as einrichtungLeitung from './einrichtungLeitung.mjs'",
+      "({ EINRICHTUNG_ROUTE: '#/einrichtung', EINRICHTUNG_ZIEL_NACH_ABSCHLUSS: '#/einstellungen', " +
+      "einrichtungGesehen: () => false, einrichtungsWeiterleitung: () => null, " +
+      "einrichtungSeiteErlaubt: (b) => !b || b.is_admin === true })")
+    .replace(/^export \{.*\}$/gm, '')
     .replace(/export (function|const|let|var) /g, '$1 ')
   const context = { ref: value => ({ value }), shallowRef: value => ({ value }), computed: fn => ({ get value() { return fn() } }),
     window: { __DIakonosBOOT: { mitglied: { status: 'Gast' }, is_admin: false }, location: { hash: '#/kalender/import' }, addEventListener: () => {} } }

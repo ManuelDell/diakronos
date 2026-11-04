@@ -198,6 +198,30 @@ h1, h2, h3, h4 {
 }
 
 /* =====================================================================
+   ON-3b (N4) · Vollbild-Rahmen für Seiten mit eigenem Kopf
+   ---------------------------------------------------------------------
+   Der Einrichtungs-Assistent (Entwurf 04/09) hat seine EIGENE Kopfzeile
+   (Marke, „Einrichtung“, „Speichern und später fortsetzen“) und seine eigene
+   Fußleiste. Neben der App-Seitenleiste und der App-Kopfzeile standen damit
+   zwei Kopfzeilen und zwei Leisten gleichzeitig im Bild — der Entwurf zeigt
+   genau eine. `App.vue` lässt die drei Rahmen-Elemente bei `#/einrichtung`
+   deshalb aus; hier steht nur noch die Spalte, die den Rest füllt.
+   Bewusst ohne Breiten-Bedingung: das gilt am Desktop und am Handy gleich.
+   ===================================================================== */
+.dk-app.dk-app--vollbild { grid-template-columns: 1fr; }
+.dk-content--vollbild {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* Der untere Rand der Mobil-Navigation entfällt: es gibt sie hier nicht
+     (sie läge sonst als leerer Streifen unter der Fußleiste des Assistenten). */
+  padding-bottom: 0 !important;
+}
+.dk-content--vollbild > * { flex: 1 1 auto; min-height: 0; min-width: 0; }
+
+/* =====================================================================
    Sidebar
    ===================================================================== */
 .dk-sidebar {

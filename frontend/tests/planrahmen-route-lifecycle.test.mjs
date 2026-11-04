@@ -49,7 +49,14 @@ function harness(pageName = 'Plan', hash = '#/planrahmen/plan/plan-a', erlaubt =
   }
   vm.createContext(context)
   let router = readFileSync(new URL('../src/diakonos/router.js', import.meta.url), 'utf8')
-  router = router.replace(/^import .*$/gm, '').replace(/import\([^)]*\)/g, 'lazyImport()')
+  router = router.replace(/^import .*$/gm, '')
+    // ON-3b: die Leitungsregel (einrichtungLeitung.mjs) wird durch feste
+    // Rückgaben ersetzt — dieser Lauf prueft den Router selbst.
+    .replace("import * as einrichtungLeitung from './einrichtungLeitung.mjs'",
+      "({ EINRICHTUNG_ROUTE: '#/einrichtung', EINRICHTUNG_ZIEL_NACH_ABSCHLUSS: '#/einstellungen', " +
+      "einrichtungGesehen: () => false, einrichtungsWeiterleitung: () => null, " +
+      "einrichtungSeiteErlaubt: (b) => !b || b.is_admin === true })")
+    .replace(/import\([^)]*\)/g, 'lazyImport()')
     .replace(/^export \{.*\}$/gm, '').replace(/^export /gm, '')
   vm.runInContext(router, context)
   const page = readFileSync(new URL(`../src/diakonos/pages/planrahmen/${pageName}.vue`, import.meta.url), 'utf8')

@@ -74,11 +74,14 @@
 
     <!-- Kartenansicht -->
     <template v-else-if="viewMode === 'cards'">
-      <DkEmpty
+      <!-- ON-4 (H3, Entwurf 12): freundlicher Leerzustand mit den VORHANDENEN
+           Wegen („CSV importieren“, „Mitglied anlegen“) — aber nur, wenn es
+           wirklich keine Person gibt. Greift dagegen Suche/Filter, bleibt der
+           knappe Hinweis stehen (`mitgliederLeerzustand`, ein Test wacht). -->
+      <MitgliederLeerzustand
         v-if="mitglieder.length === 0"
-        title="Keine Mitglieder gefunden"
-        text="Suche oder Filter anpassen."
-        icon="👤"
+        :zustand="leerzustand"
+        @anlegen="anlegenOeffnen"
       />
       <div v-else class="dk-card-grid dk-card-grid-sm mt-cards">
         <!-- DSGVO-2d: Eine gelöschte Person (Status „geloescht“, Kennung
@@ -120,8 +123,13 @@
 
     <!-- Tabellenansicht -->
     <template v-else>
-      <DkTable :spalten="spalten" :leer="mitglieder.length === 0"
-               leer-titel="Keine Mitglieder gefunden" leer-text="Suche oder Filter anpassen.">
+      <MitgliederLeerzustand
+        v-if="mitglieder.length === 0 && leerzustand.leer"
+        :zustand="leerzustand"
+        @anlegen="anlegenOeffnen"
+      />
+      <DkTable v-else :spalten="spalten" :leer="mitglieder.length === 0"
+               :leer-titel="leerzustand.titel" :leer-text="leerzustand.text">
         <tr v-for="m in mitglieder" :key="m.name">
           <td>
             <a v-if="darfProfilLink(m)" class="dk-cell-person dk-zellen-link dk-zellen-link--dehnen" :href="'#/mitglied/' + m.name">
@@ -217,6 +225,9 @@ import DkButton from '../components/ui/DkButton.vue'
 import DkBadge from '../components/ui/DkBadge.vue'
 import DkSegment from '../components/ui/DkSegment.vue'
 import DkTable from '../components/ui/DkTable.vue'
+// ON-4/H3: freundlicher Leerzustand mit den vorhandenen Wegen (Entwurf 12).
+import MitgliederLeerzustand from '../components/einrichtung/MitgliederLeerzustand.vue'
+import { mitgliederLeerzustand } from '../composables/einrichtungsHinweise.mjs'
 import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkHint from '../components/ui/DkHint.vue'
 import WartendeKontenKarte from '../components/WartendeKontenKarte.vue'
@@ -244,6 +255,26 @@ function ohneProfilZiel(m) {
 }
 
 const { isAdmin } = useSession()
+
+// ON-4 (H3): Der Leerzustand kommt aus dem Modul (eine Wahrheit für Liste,
+// Kalender und Karte). Die WIRKLICHE Leere entscheidet der Server: `gesamt_alle`
+// = 0 heißt „es gibt keine Person“; Suche/Filter zeigen den knappen Hinweis.
+const leerzustand = computed(() => mitgliederLeerzustand({
+  gesamtAlle: gesamtAlle.value,
+  admin: isAdmin.value === true,
+}))
+
+/**
+ * „Mitglied anlegen“ aus dem Leerzustand: Der Dialog „Mitglied hinzufügen“
+ * lebt im Rahmen (`pages/mitglieder/Bereich.vue`, ON-N4) — er wird NICHT
+ * doppelt gebaut. Der Rahmen horcht auf dieses Ereignis (`@leer-anlegen`) und
+ * öffnet seinen vorhandenen Dialog; ohne Rahmen (Standalone-Aufruf der Seite)
+ * bleibt der Knopf wirkungslos statt eine zweite Maske zu erfinden.
+ */
+const emit = defineEmits(['leer-anlegen'])
+function anlegenOeffnen() {
+  emit('leer-anlegen')
+}
 
 /** Im Mitglieder-Rahmen (Bereich.vue) eingebettet: dessen Kopf uebernimmt
  *  Unterzeile und Deckknoepfe, dieser eigene Kopf entfaellt dann. */

@@ -255,6 +255,24 @@ select {
   text-align: center;
 }
 
+/* ON-4 (H4): Marke über dem Anmeldeformular (Logo der Gemeinde oder
+   Monogramm). Nur Tokens — keine Zahlen außer den Abständen aus tokens.css. */
+.dk-markenseite {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-6);
+}
+
+.dk-marke-bild {
+  width: calc(var(--sp-8) + var(--sp-2));
+  height: calc(var(--sp-8) + var(--sp-2));
+  object-fit: contain;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
 .dk-monogramm {
   display: flex;
   align-items: center;

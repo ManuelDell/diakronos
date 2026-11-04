@@ -197,12 +197,22 @@ test('das Logo wird nur per <img> eingebunden, nie als Markup (SVG-Schutz)', () 
     '../src/diakonos/components/kronos/ModerationSidebar.vue',
   ]) {
     const quelle = readFileSync(new URL(datei, import.meta.url), 'utf8')
-    assert.match(quelle, /logoUrl/, `${datei} bindet das Logo nicht ein`)
+    // ON-4/H4: Die Seitenleiste bindet die Marke seit ON-4 über `LogoMarke`
+    // ein (Logo ODER Monogramm). Das Logo kommt dabei aus dem Boot-Objekt
+    // (`logo_url`, Zeile `logoQuelleMarke`) statt aus `logoUrl`; entscheidend
+    // bleibt, dass es überhaupt eingebunden wird und NICHT als Markup.
+    const bindetEin = /logoUrl|logo_url|LogoMarke/.test(quelle)
+    assert.ok(bindetEin, `${datei} bindet das Logo nicht ein`)
     assert.equal(/v-html[^>]*logo/i.test(quelle), false,
       `${datei} gibt das Logo als Markup aus`)
     assert.equal(/<(object|embed|iframe)[^>]*logo/i.test(quelle), false,
       `${datei} bettet das Logo als Dokument ein`)
   }
+  // Die Marken-Komponente selbst: nur `<img :src>` — kein Markup, kein Objekt.
+  const marke = readFileSync(
+    new URL('../src/diakonos/components/einrichtung/LogoMarke.vue', import.meta.url), 'utf8')
+  assert.match(marke, /<img v-if="quelle" :src="quelle"/)
+  assert.equal(/v-html/.test(marke), false, 'LogoMarke gibt das Logo als Markup aus')
 })
 
 // ── Single Source of Truth fuer die CSS ─────────────────────────────────────

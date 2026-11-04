@@ -8,6 +8,13 @@
       danach musst du nichts mehr tun.
     </p>
 
+    <!-- ON-4 (H2, Entwurf 11): amber Leiste „Mailversand ist noch nicht
+         eingerichtet.“ mit „Einrichten“. Sie erscheint nach dem Assistenten nur
+         solange der Punkt offen ist und nicht „Später erinnern“ gilt
+         (`hinweisFuer`, ein Test wacht über die Sichtbarkeit). Das Formular
+         darunter bleibt vollständig bedienbar. -->
+    <EinrichtungsLeiste seite="mailversand" :rollen="rollen" />
+
     <DkHint v-if="laedt" role="status">Einstellungen werden geladen …</DkHint>
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
     <DkHint v-if="erfolg" variant="ok" role="status">{{ erfolg }}</DkHint>
@@ -165,8 +172,14 @@ import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
 import DkField from '../../components/ui/DkField.vue'
 import DkDialog from '../../components/ui/DkDialog.vue'
+// ON-4/H2: amber Leiste „… ist noch nicht eingerichtet.“
+import EinrichtungsLeiste from '../../components/einrichtung/EinrichtungsLeiste.vue'
 
 defineProps({ embedded: Boolean })
+
+// ON-4/H2: Die Leiste ist Verwaltungsarbeit (der Server verweigert `status`
+// Nicht-Admins mit 403). `rollen` ist das Boot-Objekt — EIN Feld entscheidet.
+const rollen = window.__DIakonosBOOT || {}
 
 const {
   laedt, speichert, testet, geladen, fehler, erfolg, testFehler, testErfolg,

@@ -286,6 +286,12 @@ def get_accessible_calendars():
     """Alle Kalender, auf die der User mindestens Leserecht hat.
 
     Frontend erwartet: name, title, color, write, is_moderator, selbstverwaltet.
+
+    ON-4 (H3, Leerzustand der Kalenderliste): Ein Kalenderadministrator
+    bekommt zusaetzlich ``alle_anzahl`` — die Zahl ALLER Kalender der Gemeinde.
+    Nur damit kann die Oberflaeche „noch gar kein Kalender“ (Einrichtungs-Weg
+    anbieten) von „nichts freigegeben“ (Rechte) unterscheiden; fuer alle
+    anderen wird die Zahl bewusst NICHT geliefert (sie sehen nicht alle).
     """
     user = _get_effective_user()
     if user == "Guest":
@@ -309,6 +315,8 @@ def get_accessible_calendars():
                     "write": True,
                     "is_moderator": True,
                     "selbstverwaltet": selbstverwaltet,
+                    # ON-4/H3: Gesamtzahl (nur fuer Kalenderadministratoren).
+                    "alle_anzahl": len(calendars),
                 })
                 continue
 

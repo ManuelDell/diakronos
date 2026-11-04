@@ -59,6 +59,7 @@
           ref="liste"
           embedded
           :unterbereich="unterbereich"
+          @leer-anlegen="mitgliedHinzufuegen"
         />
       </div>
     </div>

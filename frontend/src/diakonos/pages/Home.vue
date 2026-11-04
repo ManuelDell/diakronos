@@ -1,6 +1,12 @@
 <template>
   <div class="dk-screen dk-screen-enter">
 
+    <!-- ON-4 (H1, Entwurf 10): Karte „Einrichtung abschließen — n von 7 offen“
+         über der Widget-Übersicht. Sie entscheidet selbst, ob sie erscheint
+         (`karteZeigen`: Admin, Assistent fertig, Punkte offen, keine
+         Erinnerungspause) — hier steht nur der Einbau. -->
+    <EinrichtungsKarte v-if="istAdmin" :admin="istAdmin" />
+
     <!-- Edit-Bar -->
     <div v-if="isEditing" class="dk-widget-edit-bar">
       <span class="dk-widget-edit-label">Übersicht bearbeiten</span>
@@ -72,12 +78,17 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useDashboardConfig } from '../stores/dashboardConfig'
 import { useSession } from '../composables/useSession.js'
 import WidgetGrid from '../components/widgets/WidgetGrid.vue'
+// ON-4/H1: die Einrichtungs-Karte („Einrichtung abschließen“).
+import EinrichtungsKarte from '../components/einrichtung/EinrichtungsKarte.vue'
 
 const pinia = createPinia()
 setActivePinia(pinia)
 
 const store = useDashboardConfig()
-const { user } = useSession()
+const { user, isAdmin: istAdminRef } = useSession()
+// ON-4/H1: Die Einrichtungs-Karte ist Verwaltungsarbeit — nur Admin-Rollen
+// (der Server verweigert `einrichtung.status` sonst mit 403).
+const istAdmin = computed(() => istAdminRef.value === true)
 const isEditing = computed(() => store.isEditing)
 const hiddenWidgets = computed(() => store.allWidgets.filter(w => !w.visible))
 const badgeCounts = ref({})

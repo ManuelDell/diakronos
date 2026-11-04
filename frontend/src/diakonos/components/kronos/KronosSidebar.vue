@@ -28,7 +28,17 @@
     <div class="sidebar-calenderlist-section">
       <h4 class="sidebar-title">Meine Kalender</h4>
       <p v-if="store.loading.value" class="ksb-hinweis">Kalender werden geladen...</p>
-      <p v-else-if="store.availableCalendars.value.length === 0" class="ksb-hinweis">Keine Kalender freigegeben</p>
+      <!-- ON-4 (H3, dasselbe Muster wie die Mitgliederliste): Gibt es noch
+           GAR KEINEN Kalender, wird der Einstieg angeboten; sind nur keine
+           freigegeben, bleibt der knappe Hinweis (Rechte, nicht Einrichtung).
+           `kalenderLeerzustand` entscheidet — ein Test wacht darüber. -->
+      <div v-else-if="store.availableCalendars.value.length === 0" class="ksb-leer">
+        <p class="ksb-hinweis">{{ kalenderLeer.titel }}</p>
+        <p v-if="kalenderLeer.text" class="ksb-hinweis ksb-hinweis--klein">{{ kalenderLeer.text }}</p>
+        <a v-if="kalenderLeer.ziel" :href="kalenderLeer.ziel" class="ksb-leer-link">
+          {{ kalenderLeer.zielText }}
+        </a>
+      </div>
       <template v-else>
         <div
           v-for="cal in store.availableCalendars.value"
@@ -165,12 +175,14 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { navigate } from '../../router.js';
 import { apiCall } from '../../composables/useApi.js';
 import { useKronosStore } from '../../composables/useKronosStore.js';
 // UXD-R28: Kalenderfarbe nur als gueltiger Hex-Wert in die CSS-Variable.
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js';
+// ON-4/H3: Leerzustand der Kalenderliste (dasselbe Muster wie die Mitglieder).
+import { kalenderLeerzustand } from '../../composables/einrichtungsHinweise.mjs';
 
 const props = defineProps({
   // UXK-R9: steuert das Overlay am Handy (Klasse `open` in kronos.css).
@@ -204,6 +216,38 @@ function kurzDatum(wert) {
 }
 
 // Local copy for v-model on checkboxes; syncs with store
+/**
+ * ON-4 (H3): Leerzustand der Kalenderliste (dasselbe Muster wie die
+ * Mitgliederliste). `gesamt` = Zahl ALLER Kalender der Gemeinde — nur
+ * Admin-Rollen dürfen sie erfragen; sonst bleibt sie unbekannt und die Leiste
+ * behauptet NICHT „noch keine Kalender“.
+ */
+const kalenderGesamt = ref(null);
+const kalenderLeer = computed(() => kalenderLeerzustand({
+  anzahl: store.availableCalendars.value.length,
+  gesamt: kalenderGesamt.value,
+  admin: window.__DIakonosBOOT?.is_admin === true,
+}));
+
+/**
+ * Zahl ALLER Kalender der Gemeinde — Grundlage des Leerzustands (ON-4/H3).
+ *
+ * Der Wert wird aus der LISTE der Verwaltungsseite gelesen, die die Leiste
+ * ohnehin kennt: `store.availableCalendars` trägt `alle_anzahl`, sobald ein
+ * Kalenderadministrator sie geladen hat (der Server liefert die Zahl NUR
+ * denen, siehe `permissions.get_accessible_calendars`). Kein eigener Aufruf
+ * hier: der Aufbau der Leiste darf nicht an einer zweiten Abfrage hängen, und
+ * ohne die Zahl bleibt es beim knappen Hinweis („nichts behaupten“).
+ */
+watch(
+  () => store.availableCalendars.value,
+  (liste) => {
+    const zahl = Array.isArray(liste) ? liste.find((k) => typeof k?.alle_anzahl === 'number') : null;
+    kalenderGesamt.value = zahl ? Number(zahl.alle_anzahl) : null;
+  },
+  { immediate: true, deep: false },
+);
+
 const selectedNames = ref([...store.selectedCalendars.value]);
 watch(store.selectedCalendars, (val) => { selectedNames.value = [...val]; });
 
@@ -269,6 +313,27 @@ onMounted(async () => {
   color: var(--muted);
   font-size: var(--fs);
 }
+/* ON-4 (H3): Leerzustand der Kalenderliste mit dem Weg „Kalender anlegen“. */
+.ksb-leer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  padding: var(--sp-2);
+}
+.ksb-hinweis--klein { font-size: var(--fs-sm); padding: 0 var(--sp-3); }
+.ksb-leer-link {
+  margin: var(--sp-2) var(--sp-3);
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--link);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+.ksb-leer-link:hover { background: var(--surface-2); color: var(--link-hover); }
+.ksb-leer-link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
 /* K-A (R-P1-8): Liste der eigenen abgelehnten Termine. */
 .sidebar-ablehnung-section {

@@ -301,6 +301,28 @@ def _email_belegt(sess, email: str) -> bool:
     )
 
 
+def _stand_anlegen(sess) -> None:
+    """Legt die Stand-Zeile der Ersteinrichtung an (ON-3b, Orchestrator-Nachtrag).
+
+    Idempotent: existiert die Zeile schon, bleibt sie unveraendert (ein zweiter
+    Aufruf darf einen laufenden Assistenten NICHT zuruecksetzen). Die Zeile ist
+    die Voraussetzung dafuer, dass `einrichtung_offen` true meldet und die SPA
+    den frisch angelegten Admin in den Assistenten fuehrt.
+    """
+    from diakronos_app.models.einrichtung import EINRICHTUNG_STAND_NAME, EinrichtungStand
+
+    if sess.get(EinrichtungStand, EINRICHTUNG_STAND_NAME) is not None:
+        return
+    jetzt = jetzt_gemeinde().replace(tzinfo=None, microsecond=0)
+    sess.add(EinrichtungStand(
+        name=EINRICHTUNG_STAND_NAME,
+        assistent_abgeschlossen=False,
+        created=jetzt,
+        modified=jetzt,
+    ))
+    sess.flush()
+
+
 def _mitglied_anlegen(sess, *, vorname: str, nachname: str, email: str, konto: str) -> str:
     """Legt das Mitglied zur Person an (Vorname/Nachname/E-Mail, verknuepft ueber `user`).
 
@@ -518,6 +540,12 @@ def registriere_routen(app: FastAPI) -> None:
                 email=werte["email"],
                 konto=werte["email"],
             )
+            # ON-3b (Orchestrator-Nachtrag): Ab jetzt LAEUFT die Ersteinrichtung.
+            # Die Stand-Zeile wird hier angelegt (nicht erst beim ersten
+            # `einrichtung.status`-Aufruf) — sonst meldete die SPA beim ersten
+            # Oeffnen „kein Stand“ und der Admin landete NICHT im Assistenten.
+            # Fehlt die Zeile, ist `einrichtung_offen` false (keine Leitung).
+            _stand_anlegen(sess)
             sess.commit()
         except Exception as exc:  # noqa: BLE001 — nie rohe Fehler an den Browser
             sess.rollback()

@@ -2,6 +2,21 @@ import { ref, computed, shallowRef } from 'vue'
 import { setzeFenstertitel } from './fenstertitel.js'
 // WEB-3: EINE Rollenregel für „Website“ (Menü und Guard teilen sie).
 import { darfWebsite } from './composables/website.mjs'
+// ON-3b: EINE Leitungsregel der Ersteinrichtung. Bewusst als NAMENSRAUM-Import
+// (eine Zeile, ohne freie Namen daneben): die Router-Tests (vm) entfernen die
+// Import-Zeilen und setzen feste Rückgaben ein — der Namesraum wird dort durch
+// ein Objektliteral ersetzt. Aus demselben Grund stehen hier KEINE weiteren
+// Kurzformen-Zeilen daneben (sie überlebten das Streichen).
+import * as einrichtungLeitung from './einrichtungLeitung.mjs'
+
+// Sicherheitsnetz: Läuft der Router ohne die Leitungsdatei (die VM-Tests
+// streichen Importe), darf die Seite NICHT brechen — dann wird nicht
+// geleitet und `#/einrichtung` bleibt erlaubt (der Server prüft erneut).
+const leitung = typeof einrichtungLeitung === 'undefined'
+    ? { EINRICHTUNG_ROUTE: '#/einrichtung', EINRICHTUNG_ZIEL_NACH_ABSCHLUSS: '#/einstellungen',
+        einrichtungsWeiterleitung: () => null, einrichtungSeiteErlaubt: () => true,
+        einrichtungGesehen: () => false }
+    : einrichtungLeitung
 
 // Lazy-loaded page components
 // N13: das Organigramm ist keine eigene Seite mehr, sondern die zweite
@@ -221,6 +236,31 @@ async function resolveRoute() {
     // lesen koennen (Lieder.vue nutzt `window.location.hash`).
     const [rohpfad, abfrage] = zerlegeHash(vollerHash)
     const pfad = ohneSchlussslash(rohpfad)
+    // ON-3b (Orchestrator-Nachtrag): Die Ersteinrichtung ist ein EINMALIGER
+    // Vorgang. Solange sie läuft, führt sie einen Admin beim Öffnen der App
+    // auf den Assistenten (einmal pro Sitzung); danach gibt es die Adresse
+    // für die Bedienung nicht mehr und leitet auf die Einstellungen.
+    // Die Regel selbst steht in der importfreien Leitungsdatei (eine Wahrheit);
+    // die VM-Tests des Routers setzen dort feste Rückgaben ein.
+    const boot = window.__DIakonosBOOT || {}
+    const einrichtungsZiel = leitung.einrichtungsWeiterleitung({
+        pfad,
+        hash: vollerHash,
+        boot,
+        gesehen: leitung.einrichtungGesehen(window.sessionStorage),
+    })
+    if (einrichtungsZiel && einrichtungsZiel !== vollerHash) {
+        window.location.replace(einrichtungsZiel)
+        return
+    }
+    // Ist der Assistent geschlossen, wird seine Seite GAR NICHT mehr geladen
+    // (kein Bündel-Nachladen für eine Seite, die es nicht gibt). Die
+    // Weiterleitung oben greift vorher — hier bleibt nur der Schutz für den
+    // Fall, dass das Ziel gleich der aktuellen Adresse ist.
+    if (pfad === leitung.EINRICHTUNG_ROUTE && !leitung.einrichtungSeiteErlaubt(boot)) {
+        window.location.replace(leitung.EINRICHTUNG_ZIEL_NACH_ABSCHLUSS)
+        return
+    }
     const ziel = weiterleitungsZiel(pfad)
     if (ziel) {
         const zielMitAbfrage = ziel + abfrage

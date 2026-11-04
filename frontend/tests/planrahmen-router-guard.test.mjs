@@ -5,6 +5,12 @@ import { readFileSync } from 'node:fs'
 // Echt ausgeführter Router mit Browser-/Vue-Randobjekten, keine Source-RegEx-Assertion.
 let source = readFileSync(new URL('../src/diakonos/router.js', import.meta.url), 'utf8')
 source = source.replace(/^import .*$/gm, '').replace(/import\([^)]*\)/g, 'Promise.resolve({default: "Seite"})')
+  // ON-3b: die Leitungsregel (einrichtungLeitung.mjs) wird durch
+  // feste Rückgaben ersetzt — dieser Lauf prueft den Router selbst.
+  .replace("import * as einrichtungLeitung from './einrichtungLeitung.mjs'",
+      "({ EINRICHTUNG_ROUTE: '#/einrichtung', EINRICHTUNG_ZIEL_NACH_ABSCHLUSS: '#/einstellungen', " +
+      "einrichtungGesehen: () => false, einrichtungsWeiterleitung: () => null, " +
+      "einrichtungSeiteErlaubt: (b) => !b || b.is_admin === true })")
   .replace(/^export \{.*\}$/gm, '').replace(/^export /gm, '')
 source += '\nglobalThis.router = {onBeforeEach, getRouteParams, currentHash, currentPageName};'
 let hashchange
