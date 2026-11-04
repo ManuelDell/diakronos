@@ -401,6 +401,19 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         # Person. Der Eintrag ist die Entscheidung, die das Inventar verlangt.
         "uhrzeit": ("struktur", "eingestellte Uhrzeit der Sicherung"),
     },
+    "gestaltung_abweichung": {
+        # UX1j: Maße der Oberfläche (Abstände, Rahmen, Radien) — keine
+        # Personendaten. `token` ist der Name der CSS-Variablen (aus der
+        # Positivliste in `gestaltung/tokens.py`), `geaendert_von` der
+        # Benutzername der letzten Änderung. Beides beschreibt eine
+        # EINSTELLUNG, nicht die Person: die Zeile bleibt nach einem
+        # Löschantrag bestehen, weil sie für ALLE gilt und ohne sie die
+        # Oberfläche auf den Standard zurückfiele. Der Benutzername wird
+        # deshalb — wie jede Konto-Angabe an einer Nicht-Personen-Zeile — beim
+        # Löschen des Kontos genullt (`user_null`).
+        "token": ("struktur", "Name der CSS-Variablen aus der Positivliste"),
+        "geaendert_von": ("user_null", "wer die Einstellung zuletzt geändert hat"),
+    },
     "sicherungslauf": {
         # BACKUP-1: Protokoll des Laufs. `ausloeser` („automatisch“/„manuell“)
         # und `meldung` (Fehlertext) beschreiben die Sicherung, nicht die

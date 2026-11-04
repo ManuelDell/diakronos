@@ -183,7 +183,8 @@ test('DEV-3 · .dk-ui-eingabe hat eine Gestalt aus Tokens (kein weißes Browserf
     '.dk-ui-eingabe → background: var(--dk-surface)')
   assert.match(regel.rumpf, /color:\s*var\(--dk-text\)/,
     '.dk-ui-eingabe → color: var(--dk-text)')
-  assert.match(regel.rumpf, /border:\s*1px solid var\(--dk-border\)/,
+  // UX1a: die Breite kommt aus --rahmen-breite (1px) statt als Rohwert.
+  assert.match(regel.rumpf, /border:\s*(?:var\(--rahmen-breite\)|1px) solid var\(--dk-border\)/,
     '.dk-ui-eingabe → border aus Token')
 })
 

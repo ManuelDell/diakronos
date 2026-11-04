@@ -62,14 +62,14 @@ const symbols = computed(() => props.symbol)
   align-items: center;
   text-align: center;
   gap: var(--sp-2);
-  padding: var(--sp-8) var(--sp-6);
+  padding: var(--sp-6) var(--sp-5);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
 }
 .dk-ui-empty-icon {
-  width: calc(var(--sp-8) + var(--sp-8) + var(--sp-2));
-  height: calc(var(--sp-8) + var(--sp-8) + var(--sp-2));
+  width: calc(var(--sp-6) + var(--sp-6) + var(--sp-2));
+  height: calc(var(--sp-6) + var(--sp-6) + var(--sp-2));
   display: grid;
   place-items: center;
   border-radius: 50%;

@@ -63,7 +63,7 @@
       <!-- Error -->
       <div v-else-if="error" class="dk-widget-error">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span>Fehler beim Laden</span>
+        <span>{{ fehlerText }}</span>
         <button class="dk-btn dk-btn-xs" @click="$emit('refresh')">Nochmal</button>
       </div>
 
@@ -80,7 +80,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+// UX2g: eine angezeigte Fehlermeldung statt der Floskel „Fehler beim Laden".
+import { fehlertext } from '../../../shared/fehlertexte.js'
 
 const props = defineProps({
   label:        { type: String, required: true },
@@ -96,6 +98,13 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['refresh', 'hide', 'collapse-change'])
+
+/**
+ * UX2g: Der Fehler wird ANGEZEIGT (er stand vorher als String-Prop bereit,
+ * die Fläche zeigte aber immer „Fehler beim Laden"). Ein Fachsatz des Servers
+ * bleibt stehen; eine leere/technische Meldung wird zum Katalogtext.
+ */
+const fehlerText = computed(() => fehlertext(props.error ? { message: props.error } : null))
 
 const collapsed = ref(props.initialCollapsed)
 

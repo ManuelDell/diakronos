@@ -196,6 +196,9 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { apiCall } from '../composables/useApi.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
+// "Fehler beim Laden" / "Fehler beim Speichern".
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 import { navigate } from '../router.js'
 import { istKopie } from '../components/planrahmen/lied-anzeige.mjs'
 import { listenArgs as liste_args, cacheArgs as liste_cache_args,
@@ -414,7 +417,7 @@ async function reload() {
   } catch (err) {
     // Bei warmem Cache-Stand die Anzeige NICHT kippen (stale ist besser als leer).
     if (!gecacht) {
-      error.value = err?.message || 'Fehler beim Laden der Lieder'
+      error.value = aktionsfehler('laden', err)
     }
     console.error('Lieder — Fehler:', err)
   } finally {

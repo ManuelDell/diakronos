@@ -12,6 +12,8 @@
  *   Dev-Modus:         devmodus.api.uebersicht / sitzung_starten / sitzung_beenden
  */
 import { apiCall } from './useApi.js'
+// UX2g: EINE Quelle für angezeigte Fehlertexte (kein „Unbekannter Fehler").
+import { fehlertext } from '../../shared/fehlertexte.js'
 
 const ZUGANG = 'diakronos.diakonos.api.zugang'
 const VERANTWORTLICHE = 'diakronos.diakonos.api.verantwortliche'
@@ -81,5 +83,7 @@ export function fehlerZeilen(fehler) {
         return meldungen.map(m =>
             [m.pfad, m.meldung, m.hinweis].filter(Boolean).join(' — '))
     }
-    return [fehler?.message || 'Unbekannter Fehler']
+    // UX2g: kein „Unbekannter Fehler" — der Katalog nennt was passiert ist und
+    // was jetzt hilft (Einstufung aus Status/exc_type des Fehlers).
+    return [fehlertext(fehler)]
 }

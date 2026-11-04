@@ -354,9 +354,14 @@ test('N4: die Fußleiste des Assistenten verdeckt „Zur Übersicht“ nicht', (
   const seite = lies('frontend/src/diakonos/pages/einrichtung/Assistent.vue')
   // Der Hauptbereich hält unten Platz für die Fußleiste frei — am Desktop und
   // am Handy (eigene Token-Höhen, keine Zahlen).
-  assert.match(seite, /padding:\s*var\(--sp-8\)[^;]*calc\(var\(--assistent-fuss\)[^;]*\)/,
+  // UX1a2 (F1): Die Fußleisten-Höhe wird aus einem FREMDEN Token addiert.
+  // Seit der eindeutigen Zuordnung ist das Desktop-Maß die 32-px-Stufe
+  // (--sp-6), das Handy-Maß eine Stufe darunter (--sp-alt-20 / --sp-4).
+  // Geprüft wird deshalb: irgendein Abstands-Token PLUS die Fußleisten-Höhe —
+  // nicht ein bestimmter Token-Name (der hat sich in UX1a2 geändert).
+  assert.match(seite, /padding:\s*var\(--sp-[1-8]\)[^;]*calc\(var\(--assistent-fuss\)[^;]*\)/,
     'dem Hauptbereich fehlt der Freiraum für die Fußleiste (Desktop)')
-  assert.match(seite, /padding:\s*var\(--sp-4\)[^;]*calc\(var\(--assistent-fuss-mobil\)[^;]*\)/,
+  assert.match(seite, /padding:\s*var\(--sp-[1-8]\)[^;]*calc\(var\(--assistent-fuss-mobil\)[^;]*\)/,
     'dem Hauptbereich fehlt der Freiraum für die Fußleiste (Mobil)')
   // Der Körper ist der Scrollbereich, nicht die Seite: sonst liegt die
   // Klebefußleiste über dem letzten Inhalt.

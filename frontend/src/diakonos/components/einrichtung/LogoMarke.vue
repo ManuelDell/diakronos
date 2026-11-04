@@ -44,11 +44,11 @@ defineProps({
   line-height: 1;
   font-weight: var(--fw-h);
 }
-.dk-logo-marke--sm { width: var(--sp-6); height: var(--sp-6); }
-.dk-logo-marke--md { width: var(--sp-8); height: var(--sp-8); }
+.dk-logo-marke--sm { width: var(--sp-5); height: var(--sp-5); }
+.dk-logo-marke--md { width: var(--sp-6); height: var(--sp-6); }
 .dk-logo-marke--lg {
-  width: calc(var(--sp-8) + var(--sp-2));
-  height: calc(var(--sp-8) + var(--sp-2));
+  width: calc(var(--sp-6) + var(--sp-2));
+  height: calc(var(--sp-6) + var(--sp-2));
   border-radius: var(--radius-lg);
 }
 .dk-logo-marke-bild {

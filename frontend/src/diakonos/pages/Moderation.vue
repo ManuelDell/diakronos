@@ -178,7 +178,7 @@ onMounted(async () => {
   margin: 0 auto var(--sp-4);
 }
 .mod-verweigert-titel { font-size: var(--fs-h2); font-weight: 600; margin: 0 0 var(--sp-2); color: var(--text); }
-.mod-verweigert-text { font-size: 13px; color: var(--muted); margin: 0 0 var(--sp-5); line-height: 1.6; }
+.mod-verweigert-text { font-size: 13px; color: var(--muted); margin: 0 0 var(--sp-alt-20); line-height: 1.6; }
 
 /* BF1-I: Gemeinsamer Seitenrahmen wie alle anderen Seiten (.dk-screen liefert
    die einheitlichen Raender). Nur die innere Anordnung bleibt flexibel. */

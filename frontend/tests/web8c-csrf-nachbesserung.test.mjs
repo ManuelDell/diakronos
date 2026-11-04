@@ -50,6 +50,8 @@ const NACHBARN = {
 
 // Die echte Präfix-Hilfe (kein Vue, kein Zustand) wird direkt geladen.
 globalThis.__basis = await import('../src/shared/basis.js')
+// UX2g: der Fehlerkatalog (echte Umsetzung) für die `data:`-Module unten.
+globalThis.__fehlertexte = await import('../src/shared/fehlertexte.js')
 
 /** Importiert die Heilung aus einem frischen Temp-Verzeichnis (eigenes Gedächtnis). */
 async function heilungLaden({ ohneNachbarn = false } = {}) {
@@ -113,6 +115,10 @@ async function usePlanrahmenLaden() {
             "const apiUrl = globalThis.__basis.apiUrl")
         .replace(/import \{ ([^}]+) \} from '\.\.\/\.\.\/shared\/csrf-heilung\.js'/,
             (_, namen) => `const { ${namen} } = globalThis.__heilung`)
+        // UX2g: der Fehlerkatalog als echte Umsetzung (der `data:`-Umbau kann
+        // keinen relativen Pfad auflösen).
+        .replace("import { fehlertext } from '../../shared/fehlertexte.js'",
+            "const fehlertext = (...a) => globalThis.__fehlertexte.fehlertext(...a)")
         // `apiCall`/`apiAntwortPruefen` kommen aus dem echt geladenen useApi.js.
         .replace(/^/, 'const { apiCall, apiAntwortPruefen } = globalThis.__api\n')
     const modul = await import('data:text/javascript;base64,' + Buffer.from(quelle).toString('base64'))

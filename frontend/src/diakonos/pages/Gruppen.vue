@@ -294,11 +294,11 @@ defineExpose({ reload: loadData })
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--sp-2);
-  margin-bottom: var(--sp-5);
+  margin-bottom: var(--sp-alt-20);
 }
 .gr-kopf-aktionen { display: flex; gap: var(--sp-2); }
 
-.gr-abschnitt { margin-bottom: var(--sp-8); }
+.gr-abschnitt { margin-bottom: var(--sp-6); }
 .gr-abschnitt--letzter { margin-top: var(--sp-1); }
 .gr-abschnitt-kopf {
   display: flex;

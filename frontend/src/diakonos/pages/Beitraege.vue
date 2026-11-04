@@ -244,6 +244,9 @@ import { ref, computed, onMounted } from 'vue'
 import DOMPurify from 'dompurify'
 import { useSession } from '../composables/useSession.js'
 import { apiCall } from '../composables/useApi.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
+// "Fehler beim Laden" / "Fehler beim Speichern".
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 import { useWebsiteFreigaben } from '../composables/useWebsiteFreigaben.js'
 import { darfFreigabenVerwalten } from '../../shared/website-freigaben.mjs'
 import { suchNormal } from '../composables/bf1Anzeige.js'
@@ -480,7 +483,7 @@ async function savePost() {
     showEditor.value = false
     await loadPosts()
   } catch (err) {
-    showToast(err?.message || 'Fehler beim Speichern', 'error')
+    showToast(aktionsfehler('speichern', err), 'error')
   } finally {
     savingPost.value = false
   }
@@ -589,7 +592,7 @@ async function addComment() {
 
 /* Seitenspalte */
 .bt-filter {
-  margin-bottom: var(--sp-6);
+  margin-bottom: var(--sp-5);
   display: flex;
   align-items: center;
   gap: var(--sp-3);
@@ -716,18 +719,18 @@ async function addComment() {
   gap: var(--sp-4);
   font-size: var(--fs-sm);
   color: var(--muted);
-  margin-bottom: var(--sp-5);
+  margin-bottom: var(--sp-alt-20);
   padding-bottom: var(--sp-4);
   border-bottom: 1px solid var(--divider);
 }
 .bt-detail-content { font-size: var(--fs); line-height: 1.7; color: var(--text); }
 .bt-detail-content :deep(p) { margin: 0 0 var(--sp-3); }
-.bt-detail-content :deep(ul) { margin: 0 0 var(--sp-3) var(--sp-5); padding: 0; }
+.bt-detail-content :deep(ul) { margin: 0 0 var(--sp-3) var(--sp-alt-20); padding: 0; }
 .bt-detail-content :deep(li) { margin-bottom: var(--sp-1); }
 .bt-detail-content :deep(strong) { color: var(--text); }
 
 /* Kommentare */
-.bt-comments { margin-top: var(--sp-6); padding-top: var(--sp-5); border-top: 1px solid var(--divider); }
+.bt-comments { margin-top: var(--sp-5); padding-top: var(--sp-alt-20); border-top: 1px solid var(--divider); }
 .bt-comments h4 { font-size: var(--fs-h4); font-weight: var(--fw-h); color: var(--text); margin: 0 0 var(--sp-3); }
 .bt-comment { display: flex; gap: var(--sp-3); padding: var(--sp-3) 0; border-bottom: 1px solid var(--divider); }
 .bt-comment:last-child { border-bottom: none; }

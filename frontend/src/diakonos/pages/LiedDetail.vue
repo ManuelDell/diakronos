@@ -164,6 +164,9 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { apiCall } from '../composables/useApi.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
+// "Fehler beim Laden" / "Fehler beim Speichern".
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 import { getRouteParam, navigate } from '../router.js'
 import { istKopie } from '../components/planrahmen/lied-anzeige.mjs'
 import { wortImNumerus } from '../components/ui/begriffe.mjs'
@@ -250,7 +253,7 @@ async function loadDetail() {
     liedgruppen.value = data?.liedgruppen || []
     activeTab.value = 0
   } catch (err) {
-    error.value = err?.message || 'Fehler beim Laden des Liedes'
+    error.value = aktionsfehler('laden', err)
     console.error('LiedDetail — Fehler:', err)
   } finally {
     loading.value = false
@@ -285,7 +288,7 @@ async function nachSpeichern(name) {
 </script>
 
 <style scoped>
-.ld-zustand { padding: var(--sp-8); text-align: center; color: var(--muted); }
+.ld-zustand { padding: var(--sp-6); text-align: center; color: var(--muted); }
 .ld-muted { font-size: var(--fs-sm); color: var(--muted); }
 
 .ld-head-inhalt {
@@ -368,7 +371,7 @@ async function nachSpeichern(name) {
 .ld-group-fassung { font-size: var(--fs-sm); color: var(--subtle); }
 
 .ld-fehler {
-  padding: var(--sp-5);
+  padding: var(--sp-alt-20);
   background: var(--err-soft);
   border: 1px solid color-mix(in oklch, var(--err) 25%, var(--line));
   border-radius: var(--radius-lg);

@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **1771**
-* eindeutige Funktionen: **344**
-* lesend: **159**, schreibend: **185**
-* Rumpfbefund: schreibend 175, lesend 169, unbekannt 0
+* registrierte Pfade: **1786**
+* eindeutige Funktionen: **347**
+* lesend: **160**, schreibend: **187**
+* Rumpfbefund: schreibend 177, lesend 170, unbekannt 0
 
 ## Einstufung
 
@@ -251,6 +251,8 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.devmodus.api.bild_hochladen` | ['POST'] | nein |
 | `diakronos_app.devmodus.api.sitzung_beenden` | ['POST'] | nein |
 | `diakronos_app.devmodus.api.sitzung_starten` | ['POST'] | nein |
+| `diakronos_app.gestaltung.api.gestaltung_speichern` | ['POST'] | nein |
+| `diakronos_app.gestaltung.api.gestaltung_zuruecksetzen` | ['POST'] | nein |
 | `diakronos_app.website.kontakt.kontakt_senden` | ['POST'] | ja |
 
 ## Lesende Funktionen
@@ -409,6 +411,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.devmodus.api.ereignisse_holen` | — | nein |
 | `diakronos_app.devmodus.api.sitzung_status` | — | nein |
 | `diakronos_app.devmodus.api.uebersicht` | — | nein |
+| `diakronos_app.gestaltung.api.gestaltung_lesen` | — | nein |
 | `diakronos_app.website.kontakt.postfaecher_oeffentlich` | ['GET'] | ja |
 | `diakronos_app.website.oeffentlich_api.beitraege` | ['GET'] | ja |
 | `diakronos_app.website.oeffentlich_api.gruppe` | ['GET'] | ja |

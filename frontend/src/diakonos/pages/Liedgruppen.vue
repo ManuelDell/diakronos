@@ -75,6 +75,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { apiCall } from '../composables/useApi.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
+// "Fehler beim Laden" / "Fehler beim Speichern".
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 import { navigate } from '../router.js'
 import DkButton from '../components/ui/DkButton.vue'
 import DkFilterChips from '../components/ui/DkFilterChips.vue'
@@ -138,7 +141,7 @@ async function load() {
     const data = await apiCall('diakronos.psalmos.api.musik.get_liedgruppen', { limit: 500 })
     gruppen.value = data || []
   } catch (err) {
-    error.value = err?.message || 'Fehler beim Laden der Liedgruppen'
+    error.value = aktionsfehler('laden', err)
     console.error('Liedgruppen — Fehler:', err)
   } finally {
     loading.value = false

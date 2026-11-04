@@ -45,11 +45,11 @@ const buchstabe = computed(() => daten.value.buchstabe || 'D')
   flex-direction: column;
   align-items: center;
   gap: var(--sp-1);
-  margin-bottom: var(--sp-6);
+  margin-bottom: var(--sp-5);
 }
 .dk-markenseite-bild {
-  width: calc(var(--sp-8) + var(--sp-2));
-  height: calc(var(--sp-8) + var(--sp-2));
+  width: calc(var(--sp-6) + var(--sp-2));
+  height: calc(var(--sp-6) + var(--sp-2));
   object-fit: contain;
   border-radius: var(--radius-lg);
   background: var(--surface);

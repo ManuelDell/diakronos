@@ -37,7 +37,7 @@ function zurueck() {
 <style scoped>
 .ng-karte {
   max-width: 560px;
-  margin: var(--sp-6) auto 0;
+  margin: var(--sp-5) auto 0;
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);

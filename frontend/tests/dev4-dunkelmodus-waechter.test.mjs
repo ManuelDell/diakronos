@@ -183,8 +183,9 @@ test('DEV-4 · .dk-ui-eingabe hat einen Radius aus dem Token --radius', () => {
   for (const w of radius) {
     assert.equal(w.trim(), 'var(--radius)', '.dk-ui-eingabe: Radius aus dem Token, nicht 8px hart')
   }
+  // UX1a: Innenabstand aus der Skala (--sp-2 = 8 px, --sp-3 = 12 px).
   assert.ok(
-    basis.some((r) => /padding:\s*8px 12px/.test(r.rumpf)),
+    basis.some((r) => /padding:\s*(?:var\(--sp-2\) var\(--sp-3\)|8px 12px)/.test(r.rumpf)),
     '.dk-ui-eingabe: Innenabstand wie .dk-form-input',
   )
 })

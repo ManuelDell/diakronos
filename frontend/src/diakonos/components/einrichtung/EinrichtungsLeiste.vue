@@ -75,8 +75,8 @@ watch(() => props.seite, laden)
   display: grid;
   place-items: center;
   flex: none;
-  width: var(--sp-6);
-  height: var(--sp-6);
+  width: var(--sp-5);
+  height: var(--sp-5);
   border-radius: 50%;
   background: var(--warn);
   color: var(--surface);

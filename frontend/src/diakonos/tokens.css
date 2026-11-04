@@ -199,23 +199,71 @@
   --radius-lg: 12px;
   --badge-r:   999px;
 
-  /* Raum (4er-Raster) */
+  /* ── Rahmen (UX1a) ───────────────────────────────────────────────────────
+     EINE Quelle für Rahmenbreite und -farben. Komponenten schreiben
+     `border: var(--rahmen-breite) solid var(--rahmen-farbe)` — nie 1px,
+     nie eine eigene Farbe. Konzept Ä2: Rahmen möglichst ersetzen (Fläche +
+     Schatten); wo ein Rahmen bleibt, kommt er von hier. */
+  --rahmen-breite: 1px;
+  --rahmen-farbe:  var(--line);
+  /* Sanfter Rahmen für getönte Flächen (Karten, Felder auf Fläche). */
+  --rahmen-farbe-sanft: var(--line);
+  /* Kartenrahmen: 0 = konzepttreu „Karten ohne Rahmen“ (Ä2: Fläche +
+     Schatten statt Linien). Die Gestaltungs-Einstellungen (UX1j) dürfen hier
+     abweichen; der Standard ist die Null. */
+  --karte-rahmen: 0;
+
+  /* ── Raum (UX1a: Skala des Konzepts 4·8·12·16·24·32·48·64 px) ──────────
+     NUR diese acht Stufen. Vorher standen hier 4·8·12·16·20·24·32 (20 und 32
+     lagen neben der Skala, 48/64 fehlten).
+     Die Nutzer der ALTEN Skala sind umgezogen — UX1a tat das als Kette und
+     liess alles bei 20 px landen (Karte UX1a2, F1); seit UX1a2 gilt die
+     eindeutige Zuordnung:
+       alt --sp-5 (20 px) → --sp-alt-20 (Zwischenmaß, wird abgebaut)
+       alt --sp-6 (24 px) → --sp-5
+       alt --sp-8 (32 px) → --sp-6                                          */
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
   --sp-4: 16px;
-  --sp-5: 20px;
-  --sp-6: 24px;
-  --sp-8: 32px;
-  --pad: 14px;
-  --gap: 12px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --sp-8: 64px;
+  /* Zwischenmaß 20px (früher --sp-5). Steht NICHT auf der Skala und wird
+     gezielt abgebaut; wer es neu einsetzt, vergrößert den Bestand.
+     Eingefroren durch frontend/tests/ux1a2-abstand-nachbesserung.test.mjs. */
+  --sp-alt-20: 20px;
+
+  /* Innenabstand von Flächen und Formularfeldern (Konzept: 16). */
+  --pad: 16px;
+  /* Abstand innerhalb einer Gruppe — liegt auf der Skala (F3: 12, nicht 8).
+     12 ist --sp-3; nah genug für „gehört zusammen“, weit genug von
+     --abstand-gruppe (24) entfernt, dass der Unterschied sichtbar bleibt. */
+  --gap: var(--sp-3);
+  /* Abstand ZWISCHEN Gruppen: deutlich größer als innerhalb (Prinzip S3,
+     Faktor ≥ 2). Das ist der Abstand, der Zusammengehörigkeit trennt. */
+  --abstand-innen:  var(--sp-2);
+  --abstand-gruppe: var(--sp-5);
+  /* Innenabstand einer Karte (Prinzip Ä1: großzügiger Weißraum). */
+  --karte-innen: var(--sp-4);
   /* FIX-5: EIN Abstand für Karten-Raster (Zeile, Spalte und Vollbreiten-Block
      darunter). Vorher trug jede Stelle ihr eigenes Maß — die Gruppen-Detail-
      seite wirkte dadurch ungleichmäßig (Befund DMB-096ae0364b59). */
   --grid-gap: var(--sp-4);
 
-  /* Maße */
-  --control-h: 34px;
+  /* ── Maße ─────────────────────────────────────────────────────────────────
+     Klickflächen (Konzept: 40 px, bei grobem Zeiger 44 px). Vorher 34 px.
+     Am 40-px-Wert hängt NICHT nur die Höhe eines Knopfes: Suchfeld,
+     Filterchip und die Knöpfe in den Server-Seiten holen ihre Höhe aus
+     `calc(var(--control-h) ± …)`. Deshalb bleiben ALLE diese Rechnungen
+     unverändert — das Bild ist um 6 px höher, die Glieder bleiben auf einer
+     Linie (der Rückfallwert `var(--control-h, 40px)` in MitgliedAuswahl.vue
+     ist mitgezogen).
+     Die 44 px für den groben Zeiger stehen als blockweite Neusetzung im
+     `@media (pointer: coarse)`-Block am Ende von index.css — dort, wo die
+     übrigen Zeiger-Regeln der App stehen (FIX-6/OP-HANDY-14). */
+  --control-h: 40px;
   /* FIX-3: Höhe der Filterzeile (Suchfeld ↔ DkButton „md“ ↔ Filterchip).
      Suchfeld und Chip standen vorher auf 9 px Innenabstand bzw. 7 px/12 px
      und liefen damit 4 px auseinander. Jetzt kommt die Höhe beider aus

@@ -240,7 +240,7 @@ onMounted(laden)
 .dk-ui-kachel-wert.is-warn  { color: var(--warn); }
 .dk-ui-kachel-hinweis { font-size: var(--fs-sm); color: var(--muted); }
 
-.ub-block { margin-top: var(--sp-5); }
+.ub-block { margin-top: var(--sp-alt-20); }
 
 .ub-aufgaben { list-style: none; margin: 0; padding: 0; }
 .ub-aufgaben li {
@@ -254,7 +254,7 @@ onMounted(laden)
 .ub-aufgaben li:first-child { border-top: none; }
 .ub-aufgabe-text { color: var(--text); }
 
-.ub-verteilung { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-5); }
+.ub-verteilung { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-alt-20); }
 .ub-verteilung li { display: flex; flex-direction: column; gap: 2px; }
 .ub-verteilung-name { font-size: var(--fs-sm); color: var(--muted); }
 .ub-verteilung-zahl { font-size: var(--fs-h3); font-weight: 600; font-variant-numeric: tabular-nums; }

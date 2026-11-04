@@ -24,6 +24,8 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parse, compileScript } from 'vue/compiler-sfc'
+// UX2g: der Ersatztext ohne Servermeldung kommt aus dem Fehlerkatalog.
+import { katalogText, fehlertext } from '../src/shared/fehlertexte.js'
 
 const wurzel = new URL('../src/', import.meta.url)
 const lesen = (rel) => readFileSync(new URL(rel, wurzel), 'utf8')
@@ -55,13 +57,19 @@ for (const rel of ['registrierung/components/DkAnmeldeformular.vue', 'gast/App.v
   )
 
   // Die Funktion selbst muss die richtige Meldung liefern.
-  const fn = new Function(`${koerper}; return parseServerError`)
-  const ausgeben = fn()
+  // UX2g: `fehlertext` wird hereingereicht — der Körper allein kennt den
+  // Katalog-Import der Komponente nicht.
+  const fn = new Function('fehlertext', `${koerper}; return parseServerError`)
+  const ausgeben = fn((...a) => fehlertext(...a))
   assert.equal(ausgeben({ message: 'Ungültiger oder deaktivierter Registrierungslink.' }),
     'Ungültiger oder deaktivierter Registrierungslink.', rel)
   assert.equal(ausgeben({ message: '', _server_messages: JSON.stringify([JSON.stringify({ message: 'Alt' })]) }),
     'Alt', rel + ': Altform bleibt nutzbar')
-  assert.equal(ausgeben({}), 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.', rel)
+  // UX2g: ohne Servermeldung nennt der Fehlerkatalog, was passiert ist und
+  // was jetzt hilft — statt der Floskel „Ein Fehler ist aufgetreten".
+  const leer = ausgeben({})
+  assert.equal(leer, katalogText('unbekannt'), rel)
+  assert.match(leer, /versuche|lade|melde/i, rel + ': nennt einen nächsten Schritt')
 }
 
 // Keine zweite Umsetzung: die Seite selbst reicht nur durch.

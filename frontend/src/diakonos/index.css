@@ -708,26 +708,28 @@ h1, h2, h3, h4 {
   flex-shrink: 0;
 }
 .dk-avatar-sm { width: 24px; height: 24px; font-size: 9px; }
-.dk-avatar-md { width: 32px; height: 32px; font-size: 11px; }
+.dk-avatar-md { width: var(--sp-6); height: var(--sp-6); font-size: 11px; }
 .dk-avatar-lg { width: 40px; height: 40px; font-size: 14px; }
 
 /* Standalone search bar (larger than toolbar search) */
 .dk-search-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--sp-2);
   /* FIX-3 (Befund DMB-eb3ae73fc36f): Das Feld stand allein über den Innenabstand
      (10 px oben/unten) auf 39 px, neben dem Filterchip (34 px) und dem
      DkButton „md“ (--control-h) also 5 px zu hoch. Die Höhe kommt jetzt aus
      einem Token, der Abstand nur noch waagerecht — damit stehen Feld, Chip
-     und Knopf in jeder Filterzeile gleich hoch. */
+     und Knopf in jeder Filterzeile gleich hoch.
+     UX1a: die festen Zahlen dieses Blocks (10, 14, 20, 1, 10) stehen jetzt
+     als Skalen-/Rahmen-Token; 14 px werden zu --sp-4 (16). */
   min-height: var(--filter-h);
   background: var(--dk-surface);
-  border: 1px solid var(--dk-border);
-  border-radius: 10px;
-  padding: 0 14px;
+  border: var(--rahmen-breite) solid var(--dk-border);
+  border-radius: var(--radius);
+  padding: 0 var(--sp-4);
   transition: border-color var(--dk-fast);
-  margin-bottom: 20px;
+  margin-bottom: var(--sp-5);
 }
 .dk-search-bar:focus-within { border-color: var(--dk-accent); }
 .dk-search-bar svg { color: var(--dk-text-muted); flex-shrink: 0; }
@@ -1802,6 +1804,14 @@ input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
    Zeiger-Frage) und hier nicht mehr abhängig vom groben Zeiger hängt.
    ===================================================================== */
 @media (pointer: coarse) {
+  /* UX1a2 (Konzept „Klickflächen“): auf dem groben Zeiger wird die Klick-
+     fläche EINE Stufe größer — 44 px statt 40 (Prinzip K4 „Touch ≥ 44 px“).
+     Die Neusetzung steht hier und nicht in tokens.css, weil die Maße dort
+     themenunabhängig gelten; hier hängt sie am Zeigegerät. Alles, was seine
+     Höhe aus `--control-h` holt, folgt mit. */
+  :root {
+    --control-h: 44px;
+  }
   input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
     font-size: 16px;
   }

@@ -146,7 +146,7 @@ function linieKlasse(index) {
   flex: none;
   border-right: 1px solid var(--line);
   background: var(--surface);
-  padding: var(--sp-8) var(--sp-4) var(--sp-6) var(--sp-8);
+  padding: var(--sp-6) var(--sp-4) var(--sp-5) var(--sp-6);
   overflow-y: auto;
 }
 .assistent-leiste-titel {
@@ -157,18 +157,18 @@ function linieKlasse(index) {
   text-transform: none;
 }
 .assistent-leiste-fortschritt {
-  margin: 0 0 var(--sp-8);
+  margin: 0 0 var(--sp-6);
   font-size: var(--fs-sm);
   color: var(--muted);
 }
 .assistent-liste { list-style: none; margin: 0; padding: 0; }
-.assistent-punkt { position: relative; padding-bottom: var(--sp-6); }
+.assistent-punkt { position: relative; padding-bottom: var(--sp-5); }
 .assistent-punkt:last-child { padding-bottom: 0; }
 .assistent-linie {
   position: absolute;
   left: calc(var(--assistent-schritt) / 2 - 1px);
   top: var(--assistent-schritt);
-  bottom: var(--sp-6);
+  bottom: var(--sp-5);
   width: 2px;
   background: var(--line-strong);
 }
@@ -252,7 +252,7 @@ function linieKlasse(index) {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: var(--sp-3) var(--sp-5);
+  padding: var(--sp-3) var(--sp-alt-20);
   background: var(--surface);
 }
 .assistent-mobil-zurueck {
@@ -270,7 +270,7 @@ function linieKlasse(index) {
 .assistent-mobil-name { margin: 0 0 0 auto; font-size: var(--fs-sm); color: var(--muted); }
 .assistent-segment {
   height: var(--assistent-balken);
-  margin: 0 var(--sp-5);
+  margin: 0 var(--sp-alt-20);
   background: var(--divider);
   border-radius: var(--badge-r);
   overflow: hidden;

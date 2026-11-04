@@ -698,8 +698,8 @@ onMounted(loadMitglied)
 </script>
 
 <style scoped>
-.md-tabs { margin-bottom: var(--sp-6); }
-.md-zustand { padding: var(--sp-8); text-align: center; color: var(--muted); }
+.md-tabs { margin-bottom: var(--sp-5); }
+.md-zustand { padding: var(--sp-6); text-align: center; color: var(--muted); }
 .md-muted { color: var(--muted); margin: 0; }
 
 .md-zeile {

@@ -38,6 +38,7 @@ from diakronos_app.api import frappe_core  # noqa: F401 — P2c: Frappe-Core-Met
 from diakronos_app.api import gruppen  # noqa: F401 — P4a: Gruppen (19 Pfade)
 from diakronos_app.api import gemeinde  # noqa: F401 — N9: Gemeinde/Datenschutz-Texte
 from diakronos_app.api import einrichtung  # noqa: F401 — ON-2: Einrichtungs-Status
+from diakronos_app.gestaltung import api as gestaltung_api  # noqa: F401 — UX1j: Gestaltung (System Manager)
 from diakronos_app.api import sicherung  # noqa: F401 — BACKUP-1: Datensicherung (System Manager)
 from diakronos_app.api import mailversand  # noqa: F401 — MAIL-1: SMTP-Einstellungen (System Manager)
 from diakronos_app.api import kronos  # noqa: F401 — P4b: Kronos-Kern (13 Pfade)

@@ -47,7 +47,7 @@ defineProps({
   /* DES-R13 / Entwicklung 16.10.: Auf Detailseiten stieß der Seitenkopf ohne
      jeden Abstand direkt an die erste Karte (0 px). Der Abstand gehört an EINE
      Stelle — hier —, nicht in jede Seite. */
-  margin-bottom: var(--sp-5);
+  margin-bottom: var(--sp-alt-20);
 }
 .dk-ui-pageheader-main { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
 .dk-ui-brot { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--subtle); }
@@ -68,7 +68,7 @@ defineProps({
   gap: var(--sp-3);
   flex-wrap: wrap;
   padding-block: var(--sp-1);
-  min-height: calc(var(--sp-8) + var(--sp-2));
+  min-height: calc(var(--sp-6) + var(--sp-2));
 }
 .dk-ui-pageheader-badges { margin-block: var(--sp-1); }
 </style>

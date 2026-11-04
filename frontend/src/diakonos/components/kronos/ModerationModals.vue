@@ -348,6 +348,9 @@ import {
   deleteSeriesBatchFast,
 } from '../../api/kanbanApi.js'
 import { showToast } from '../../composables/useToast.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
+// "Fehler beim Speichern" / "Unbekannter Fehler".
+import { aktionsfehler } from '../../../shared/fehlertexte.js'
 // UXD-R28: Kalenderfarbe nur als gueltiger Hex-Wert in den style-String.
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js'
 import { serienMeldung } from '../../composables/serienMeldung.mjs'
@@ -422,7 +425,7 @@ async function submitEdit() {
     showEditModal.value = false
     emit('resolved')
   } catch (e) {
-    showToast(e.message || 'Fehler beim Speichern', 'error')
+    showToast(aktionsfehler('speichern', e), 'error')
   } finally {
     submitting.value = false
   }
@@ -612,7 +615,7 @@ async function deleteSeries() {
     showSeriesModal.value = false
     emit('series-deleted')
   } catch (e) {
-    showToast(e.message || 'Fehler beim Löschen der Serie', 'error')
+    showToast(aktionsfehler('loeschen', e), 'error')
   } finally {
     submitting.value = false
   }
@@ -691,7 +694,7 @@ defineExpose({
 .dk-mod-input:focus { border-color: var(--dk-navy-400); }
 /* DES-02: `style="flex:1"` als Klasse — schiebt die Hauptaktion nach rechts. */
 .dk-mod-luecke { flex: 1; }
-.dk-mod-loading { padding: var(--sp-6); text-align: center; color: var(--muted); font-size: 13px; }
+.dk-mod-loading { padding: var(--sp-5); text-align: center; color: var(--muted); font-size: 13px; }
 /* OP-EVENT-12: Hinweis- und Fehlertexte im Ablehnen-Dialog */
 .dk-mod-hinweis { margin: 0; font-size: var(--fs-sm); color: var(--muted); line-height: 1.5; }
 /* P1-5b (W-1): Nur-Lese-Wert im Dialog „Abgelehnter Termin“. */

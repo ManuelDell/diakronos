@@ -574,7 +574,7 @@ onMounted(() => {
 .wf-kopf { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); min-width: 0; }
 .wf-anleitung {
   margin: 0;
-  padding-left: var(--sp-5);
+  padding-left: var(--sp-alt-20);
   display: grid;
   gap: var(--sp-1);
   color: var(--text);

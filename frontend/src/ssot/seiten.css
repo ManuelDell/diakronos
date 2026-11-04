@@ -61,7 +61,7 @@ body.dk-seite {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--sp-6);
+  padding: var(--sp-5);
   font-family: var(--font);
   font-size: var(--fs);
   line-height: 1.5;
@@ -74,7 +74,7 @@ body.dk-seite {
 .dk-karte {
   width: 100%;
   max-width: 24rem;
-  padding: var(--sp-8);
+  padding: var(--sp-6);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
@@ -94,7 +94,7 @@ body.dk-seite {
 }
 
 .dk-unterzeile {
-  margin: 0 0 var(--sp-6);
+  margin: 0 0 var(--sp-5);
   color: var(--muted);
   /* ON-0b (F5): Rolle "Unterzeile" (14 px, wie vorher).
      ON-0c (R1): der Fliesstext der Passwort-Seite steht hier — er ist mit
@@ -248,7 +248,7 @@ select {
    damit Passwortfeld und Auge-Knopf auf einer Linie sitzen. */
 
 .dk-karte--breit.dk-einrichtung {
-  padding: var(--sp-8);
+  padding: var(--sp-6);
 }
 
 .dk-mitte {
@@ -262,12 +262,12 @@ select {
   flex-direction: column;
   align-items: center;
   gap: var(--sp-1);
-  margin-bottom: var(--sp-6);
+  margin-bottom: var(--sp-5);
 }
 
 .dk-marke-bild {
-  width: calc(var(--sp-8) + var(--sp-2));
-  height: calc(var(--sp-8) + var(--sp-2));
+  width: calc(var(--sp-6) + var(--sp-2));
+  height: calc(var(--sp-6) + var(--sp-2));
   object-fit: contain;
   border-radius: var(--radius-lg);
   background: var(--surface);
@@ -277,8 +277,8 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(var(--sp-8) + var(--sp-1));
-  height: calc(var(--sp-8) + var(--sp-1));
+  width: calc(var(--sp-6) + var(--sp-1));
+  height: calc(var(--sp-6) + var(--sp-1));
   margin: 0 auto var(--sp-2);
   font-size: var(--fs-monogramm);
   font-weight: var(--fw-h);
@@ -288,7 +288,7 @@ select {
 }
 
 .dk-marke {
-  margin: 0 0 var(--sp-6);
+  margin: 0 0 var(--sp-5);
   font-size: var(--fs-h4);
   font-weight: var(--fw-h);
   text-align: center;
@@ -431,8 +431,8 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(var(--sp-8) + var(--sp-2));
-  height: calc(var(--sp-8) + var(--sp-2));
+  width: calc(var(--sp-6) + var(--sp-2));
+  height: calc(var(--sp-6) + var(--sp-2));
   margin: 0 auto var(--sp-4);
   font-size: var(--fs-h2);
   font-weight: var(--fw-h);
@@ -442,7 +442,7 @@ select {
 }
 
 .dk-trenner {
-  margin: var(--sp-6) 0;
+  margin: var(--sp-5) 0;
   border: 0;
   border-top: 1px solid var(--line);
 }
@@ -465,7 +465,7 @@ body.dk-seite {
 }
 
 .dk-seitenfuss {
-  margin-top: var(--sp-6);
+  margin-top: var(--sp-5);
   font-size: var(--fs-hinweis);
   color: var(--subtle);
   text-align: center;

@@ -1,5 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import { apiCall } from './useApi.js'
+// UX2g: EINE Quelle für angezeigte Fehlertexte (kein „Fehler beim Laden").
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 
 const mitglieder = ref([])
 const loading = ref(false)
@@ -85,7 +87,7 @@ async function loadMitglieder({ start = 0, append = false } = {}) {
         currentStart = start + rows.length
         hasMore.value = rows.length === limit && currentStart < gesamt.value
     } catch (err) {
-        error.value = err?.message || 'Fehler beim Laden der Mitglieder'
+        error.value = aktionsfehler('laden', err)
         console.error('loadMitglieder error:', err)
     } finally {
         loading.value = false

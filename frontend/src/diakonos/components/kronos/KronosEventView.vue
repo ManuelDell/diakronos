@@ -172,7 +172,7 @@ useZurueckSchliesst(computed(() => props.show), () => emit('update:show', false)
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--sp-4) var(--sp-5);
+  padding: var(--sp-4) var(--sp-alt-20);
   border-bottom: 1px solid var(--line);
 }
 .diakronos-modal-header h5 {
@@ -191,7 +191,7 @@ useZurueckSchliesst(computed(() => props.show), () => emit('update:show', false)
 }
 .diakronos-close-btn:hover { color: var(--text); }
 .diakronos-modal-body {
-  padding: var(--sp-4) var(--sp-5);
+  padding: var(--sp-4) var(--sp-alt-20);
   overflow-y: auto;
 }
 .event-time {

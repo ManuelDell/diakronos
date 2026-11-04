@@ -551,6 +551,9 @@
  */
 import { ref, computed, onMounted, h } from 'vue'
 import { apiCall } from '../composables/useApi.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
+// "Fehler beim Laden" / "Fehler beim Speichern".
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 // WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
 import { apiUrl } from '../../shared/basis.js'
 import { showToast } from '../composables/useToast.js'
@@ -792,7 +795,7 @@ async function fetchData() {
     links.value = res.links || []
   } catch (err) {
     console.error(err)
-    showToast('Fehler beim Laden', 'error')
+    showToast(aktionsfehler('laden', null), 'error')
   } finally {
     loading.value = false
     loadingLinks.value = false
@@ -1641,7 +1644,7 @@ onMounted(() => { fetchData(); ladeLinkVorgaben() })
 </script>
 
 <style scoped>
-.reg-bereich { margin-bottom: var(--sp-5); }
+.reg-bereich { margin-bottom: var(--sp-alt-20); }
 
 /* UX-A2b: Statusfilter (Chip-Zeile) direkt über der Anfragen-Tabelle. Abstand
    wie bei den übrigen Filterzeilen (DES-01: 8 px bis zur Liste). Das seitliche
@@ -1649,7 +1652,7 @@ onMounted(() => { fetchData(); ladeLinkVorgaben() })
    (`.dk-ui-chips.is-scrollbar`) — hier bleibt nur der Abstand. */
 .reg-statusfilter { margin-bottom: var(--sp-3); }
 
-.reg-aktion { display: flex; margin-bottom: var(--sp-5); }
+.reg-aktion { display: flex; margin-bottom: var(--sp-alt-20); }
 
 /* OP-UI-19: Die eigene Ladeform (reg-skelett) ist durch DkSkelett ersetzt. */
 
@@ -1737,7 +1740,7 @@ onMounted(() => { fetchData(); ladeLinkVorgaben() })
   border-bottom: 1px solid var(--divider);
 }
 .reg-vorschau-titel { font-size: var(--fs-h4); font-weight: var(--fw-h); color: var(--text); margin: 0; }
-.reg-vorschau-buehne { overflow: auto; background: var(--bg); padding: var(--sp-6) var(--sp-4); }
+.reg-vorschau-buehne { overflow: auto; background: var(--bg); padding: var(--sp-5) var(--sp-4); }
 .reg-vorschau-seite { display: flex; justify-content: center; }
 /* Die Karte in der Vorschau ist DIESELBE wie oeffentlich (`dk-pub-card`):
    Breite, Innenabstand, Rahmen und Farbe kommen aus `registrierung/App.vue`

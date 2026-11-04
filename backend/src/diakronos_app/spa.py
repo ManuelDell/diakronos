@@ -738,6 +738,20 @@ def render_index(
     css_tags = "\n    ".join(
         f'<link rel="stylesheet" href="{u}">' for u in css_urls
     )
+    # UX1j: die Abweichungen aus den Einstellungen. NACH den Build-Stylesheets
+    # (also nach tokens.css), damit ihre `:root`-Werte gewinnen; `?v=` haengt
+    # nur, wenn es Abweichungen gibt (sonst ist die Datei leer und der Hash
+    # waere eine sinnlose Adresse). Praefixbewusst ueber `seitenrahmen`.
+    from diakronos_app.anmeldung import seitenrahmen as _rahmen
+
+    _gestaltung_url = _rahmen.gestaltung_url()
+    _gestaltung_hash = _rahmen.gestaltung_version()
+    if _gestaltung_hash:
+        _gestaltung_url = f"{_gestaltung_url}?v={_gestaltung_hash}"
+    css_tags = (
+        f"{css_tags}\n    "
+        f'<link rel="stylesheet" href="{html.escape(_gestaltung_url, quote=True)}">'
+    )
     # Die SPA liest window.__DIakonosBOOT synchron beim Modul-Import, daher
     # muss das Objekt VOR dem Entry-Script stehen (BOOT_VERTRAG.md Punkt 2).
     boot_json = _boot_json(boot_data)

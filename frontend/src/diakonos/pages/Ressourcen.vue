@@ -439,6 +439,9 @@
 import { ref, computed, onMounted, watch, nextTick, h } from 'vue'
 import { useSession } from '../composables/useSession.js'
 import { apiCall } from '../composables/useApi.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
+// "Fehler beim Laden" / "Fehler beim Speichern".
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 import { suchNormal } from '../composables/bf1Anzeige.js'
 import {
   entscheidungsArgumente,
@@ -905,7 +908,7 @@ async function submitBooking() {
     await loadMyBookings()
     if (selectedResource.value) await loadResourceBookings(selectedResource.value.id)
   } catch (err) {
-    showToast(err?.message || 'Fehler beim Speichern', 'error')
+    showToast(aktionsfehler('speichern', err), 'error')
   } finally {
     submittingBooking.value = false
   }
@@ -988,7 +991,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-spalte--aktionen { width: 100px; }
 
 .rs-panel-titel { margin: 0; font-size: var(--fs-h3); }
-.rs-panel-leer { padding: var(--sp-8) var(--sp-4); }
+.rs-panel-leer { padding: var(--sp-6) var(--sp-4); }
 .rs-panel-leer-text { margin: 0; font-size: var(--fs); color: var(--muted); }
 .rs-pflicht { color: var(--err); }
 .rs-textarea { resize: vertical; }
@@ -1445,7 +1448,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 
 .rs-form { display: flex; flex-direction: column; gap: var(--sp-3); }
 .rs-form-bis { color: var(--muted); }
-.rs-leer { padding: var(--sp-8) var(--sp-6); }
+.rs-leer { padding: var(--sp-6) var(--sp-5); }
 .rs-detail-booken { width: 100%; margin-top: var(--sp-4); }
 
 /* ================================================================

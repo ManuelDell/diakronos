@@ -28,7 +28,7 @@ defineProps({
   align-items: center;
   text-align: center;
   gap: var(--sp-2);
-  padding: var(--sp-8) var(--sp-6);
+  padding: var(--sp-6) var(--sp-5);
 }
 .dk-ui-empty-icon {
   width: 44px;

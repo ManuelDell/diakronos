@@ -601,17 +601,17 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.prof-loading { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-8) 0; }
+.prof-loading { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-6) 0; }
 .prof-skelett-kreis { width: 60px; height: 60px; border-radius: 50%; background: var(--surface-2); animation: prof-puls 1.5s infinite; }
 .prof-skelett-zeile { flex: 1; height: 16px; width: 40%; border-radius: var(--radius-sm); background: var(--surface-2); animation: prof-puls 1.5s infinite; }
 @keyframes prof-puls { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-.prof-fehler { margin-top: var(--sp-6); }
+.prof-fehler { margin-top: var(--sp-5); }
 .prof-layout { display: flex; flex-direction: column; gap: var(--sp-4); padding-bottom: 80px; }
 .prof-aktionen { display: flex; gap: var(--sp-2); }
 .prof-klein { font-size: var(--fs-sm); color: var(--muted); }
 
 /* Avatar-Karte */
-.prof-avatar-card { display: flex; align-items: center; gap: var(--sp-5); }
+.prof-avatar-card { display: flex; align-items: center; gap: var(--sp-alt-20); }
 .prof-avatar-wrap {
   position: relative; width: 72px; height: 72px;
   border-radius: 50%; cursor: pointer; flex-shrink: 0;

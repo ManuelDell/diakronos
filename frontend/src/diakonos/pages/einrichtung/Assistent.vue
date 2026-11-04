@@ -300,7 +300,7 @@ onMounted(() => {
   z-index: var(--z-sticky);
   flex: none;
   height: var(--assistent-kopf);
-  padding: 0 var(--sp-8);
+  padding: 0 var(--sp-6);
   background: var(--surface);
   border-bottom: 1px solid var(--line);
   flex-wrap: wrap;
@@ -361,7 +361,7 @@ onMounted(() => {
 .assistent-haupt {
   flex: 1 1 0;
   min-width: 0;
-  padding: var(--sp-8) var(--sp-8) calc(var(--assistent-fuss) + var(--sp-8));
+  padding: var(--sp-6) var(--sp-6) calc(var(--assistent-fuss) + var(--sp-6));
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -375,7 +375,7 @@ onMounted(() => {
   width: 100%;
   min-width: 0;
   max-width: 720px;
-  padding: var(--sp-8);
+  padding: var(--sp-6);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
@@ -409,7 +409,7 @@ onMounted(() => {
   justify-content: space-between;
   gap: var(--sp-3);
   min-height: var(--assistent-fuss);
-  padding: var(--sp-3) var(--sp-8);
+  padding: var(--sp-3) var(--sp-6);
 }
 .assistent-fuss-rechts { display: flex; align-items: center; gap: var(--sp-2); margin-left: auto; }
 .assistent-fuss-platz { flex: 1; }
@@ -418,11 +418,11 @@ onMounted(() => {
    Körper wird zur SPALTE — Kopf der Schrittleiste („Schritt n von 6" +
    Segmentbalken) steht dann ÜBER der Karte, nicht daneben. */
 @media (max-width: 900px) {
-  .assistent-kopf { padding: 0 var(--sp-5); height: auto; min-height: var(--assistent-kopf); }
+  .assistent-kopf { padding: 0 var(--sp-alt-20); height: auto; min-height: var(--assistent-kopf); }
   .assistent-koerper { flex-direction: column; }
-  .assistent-haupt { padding: var(--sp-4) var(--sp-5) calc(var(--assistent-fuss-mobil) + var(--sp-5)); }
-  .assistent-karte { padding: var(--sp-5); border: 0; box-shadow: none; background: var(--bg); }
-  .assistent-fuss-inhalt { min-height: var(--assistent-fuss-mobil); padding: var(--sp-3) var(--sp-5); }
+  .assistent-haupt { padding: var(--sp-4) var(--sp-alt-20) calc(var(--assistent-fuss-mobil) + var(--sp-alt-20)); }
+  .assistent-karte { padding: var(--sp-alt-20); border: 0; box-shadow: none; background: var(--bg); }
+  .assistent-fuss-inhalt { min-height: var(--assistent-fuss-mobil); padding: var(--sp-3) var(--sp-alt-20); }
 }
 @media (max-width: 600px) {
   .assistent-marke-text { display: none; }

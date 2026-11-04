@@ -135,6 +135,9 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { apiCall } from '../composables/useApi.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
+// "Fehler beim Laden" / "Fehler beim Speichern".
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 import { getRouteParam, navigate } from '../router.js'
 import { usePlanrahmen, fehlerMeldungen } from '../composables/usePlanrahmen.js'
 import { showToast } from '../composables/useToast.js'
@@ -257,7 +260,7 @@ async function loadDetail() {
     rollen.value = data?.rollen || []
     tab.value = 'lieder'
   } catch (err) {
-    error.value = err?.message || 'Fehler beim Laden der Liedgruppe'
+    error.value = aktionsfehler('laden', err)
     console.error('LiedgruppeDetail — Fehler:', err)
   } finally {
     loading.value = false
@@ -271,7 +274,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.ldg-zustand { padding: var(--sp-8); text-align: center; color: var(--muted); }
+.ldg-zustand { padding: var(--sp-6); text-align: center; color: var(--muted); }
 
 .ldg-head-inhalt {
   display: flex;
@@ -320,7 +323,7 @@ onMounted(() => {
 .ldg-rolle-desc { margin: var(--sp-3) 0 0; font-size: var(--fs-sm); color: var(--muted); }
 
 .ldg-fehler {
-  padding: var(--sp-5);
+  padding: var(--sp-alt-20);
   background: var(--err-soft);
   border: 1px solid color-mix(in oklch, var(--err) 25%, var(--line));
   border-radius: var(--radius-lg);

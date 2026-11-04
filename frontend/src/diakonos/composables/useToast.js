@@ -1,8 +1,19 @@
-/** Ein Rückmeldedienst: Fehler bleiben bis zum Schließen, Erfolge vier Sekunden. */
+/**
+ * Ein Rückmeldedienst: Fehler bleiben bis zum Schließen, Erfolge vier Sekunden.
+ *
+ * UX2g: Ein leerer Text oder eine der alten Floskeln („Fehler",
+ * „Unbekannter Fehler", „API-Fehler") ist keine Auskunft. Statt eines
+ * eigenen Ersatzsatzes fragt der Toast den Fehlerkatalog
+ * (`shared/fehlertexte.js`): er nennt, was passiert ist und was jetzt hilft.
+ */
+import { fehlertext, istFloskel } from '../../shared/fehlertexte.js'
+
 export function rueckmeldeText(message, type) {
     const text = typeof message === 'string' ? message.trim() : ''
-    if (type === 'error' && ['', 'Fehler', 'Unbekannter Fehler', 'API-Fehler'].includes(text)) {
-        return 'Das hat nicht geklappt. Bitte versuche es später noch einmal.'
+    if (type === 'error' && istFloskel(text)) {
+        // Ohne verwertbaren Text bleibt die Lage unklar -> der Katalog nennt
+        // den neutralen nächsten Schritt (Zustand „unbekannt").
+        return fehlertext(null, {})
     }
     return text
 }

@@ -608,7 +608,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--sp-4) var(--sp-5);
+  padding: var(--sp-4) var(--sp-alt-20);
   border-bottom: 1px solid var(--line);
 }
 .diakronos-modal-header h3 {
@@ -628,7 +628,7 @@ onMounted(() => {
 .close-btn:hover { color: var(--text); }
 .diakronos-tabs { margin: 0; }
 .tab-content {
-  padding: var(--sp-4) var(--sp-5);
+  padding: var(--sp-4) var(--sp-alt-20);
   overflow-y: auto;
   max-height: calc(90vh - 200px);
   display: flex;
@@ -731,7 +731,7 @@ onMounted(() => {
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: var(--sp-2);
-  padding: var(--sp-3) var(--sp-5);
+  padding: var(--sp-3) var(--sp-alt-20);
   border-top: 1px solid var(--line);
   background: var(--surface-2);
 }

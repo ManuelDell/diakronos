@@ -266,7 +266,12 @@ def test_seitenrahmen_liefert_tokens_und_grund_stylesheet(monkeypatch) -> None:
         block = seitenrahmen.head_block()
         assert "/diakonos/assets/diakronos-tokens.css" in block
         assert "/diakonos/assets/diakronos-seiten.css" in block
-        assert block.count('rel="stylesheet"') == 2
+        # UX1j: das DRITTE Stylesheet sind die Gestaltungs-Abweichungen
+        # (`{Praefix}/gestaltung.css`, leer ohne Abweichungen). Es steht
+        # ZWISCHEN den beiden: nach tokens.css (überschreibt dessen :root)
+        # und vor seiten.css (dessen Regeln benutzen die Werte).
+        assert "/gestaltung.css" in block
+        assert block.count('rel="stylesheet"') == 3
 
         base_path.setze_praefix("/gemeinde")
         block = seitenrahmen.head_block()
@@ -299,6 +304,9 @@ def test_head_block_traegt_einen_cache_buster() -> None:
     finally:
         base_path.setze_praefix(alt)
     versionen = re.findall(r'href="([^"?]+)\?v=([0-9a-f]{8,})"', block)
+    # UX1j: `gestaltung.css` traegt `?v=` NUR, wenn es Abweichungen gibt
+    # (sonst ist die Datei leer). Hier — ohne Abweichungen — sind es die zwei
+    # Build-Stylesheets; der Praefix-Test darunter prueft die Gestaltung.
     assert len(versionen) == 2, f"Cache-Buster fehlt: {block}"
     werte = {w for _, w in versionen}
     assert len(werte) == 1, "beide Stylesheets muessen DENSELBEN Versionswert tragen"

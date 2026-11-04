@@ -26,6 +26,10 @@
 /** Serverzeichen für „nicht mehr angemeldet" (S14). */
 // WEB-5b: Anmeldemaske unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH).
 import { anmeldeUrl } from './basis.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte. Bewusst KEIN umgekehrter
+// Import in `fehlertexte.js` — die Datei bleibt importfrei, sonst entstuende
+// der Ring CSRF-Heilung <-> Sitzungspruefung <-> Fehlertexte wieder.
+import { fehlertext } from './fehlertexte.js'
 // WEB-8b: CSRF-Ablehnung automatisch heilen (Token neu, 1 Wiederholung, dann
 // Force-Refresh mit 60-s-Schleifenschutz) — EINE Wahrheit für alle Aufrufer.
 // Der Import ist absichtlich ein Namensraum (kein Destrukturieren), damit ein
@@ -77,13 +81,16 @@ export async function liesAntwort(res) {
   }
 }
 
-/** Fehlertext aus einer Antwort in Klartext (S6, OP-UI-15). */
+/**
+ * Fehlertext aus einer Antwort in Klartext (S6, OP-UI-15).
+ *
+ * UX2g: EINE Quelle — `shared/fehlertexte.js` stuft nach HTTP-Status und
+ * `exc_type` ein und ersetzt „Unbekannter Fehler"/„Serverfehler (HTTP 500)".
+ * Ein Fachsatz des Servers bleibt stehen, technische Innereien nie.
+ */
 export function fehlerText(data, status) {
-  const text = typeof data?.message === 'string' ? data.message.trim() : ''
-  if (text && text !== 'Fehler' && text !== 'Unbekannter Fehler') return text
-  const exc = typeof data?.exc === 'string' ? data.exc.trim() : ''
-  if (exc) return exc
-  return status ? `Serverfehler (HTTP ${status})` : ALLGEMEINER_FEHLERTEXT
+  if (status) return fehlertext({ ...data, status })
+  return fehlertext(data)
 }
 
 /**

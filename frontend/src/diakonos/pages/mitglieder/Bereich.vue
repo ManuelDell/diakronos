@@ -309,7 +309,7 @@ function nachAnlegen() {
 .mb-raster {
   display: grid;
   grid-template-columns: 216px minmax(0, 1fr);
-  gap: var(--sp-6);
+  gap: var(--sp-5);
   align-items: start;
 }
 .mb-raster.ohne-liste { grid-template-columns: minmax(0, 1fr); }

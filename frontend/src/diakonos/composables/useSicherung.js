@@ -1,5 +1,7 @@
 import { ref } from 'vue'
 import { apiCall } from './useApi.js'
+// UX2g: EINE Quelle für angezeigte Fehlertexte (kein „Unbekannter Fehler").
+import { fehlertext } from '../../shared/fehlertexte.js'
 
 /**
  * BACKUP-1 — Datensicherung: Einstellungen, Liste, „Jetzt sichern“, Löschen.
@@ -15,11 +17,17 @@ import { apiCall } from './useApi.js'
  */
 const API = 'diakronos.diakonos.api.sicherung.'
 
-/** Fehlertext aus der Serverantwort lesen (Feld `message` der Compat-Schicht). */
+/**
+ * Fehlertext aus der Serverantwort lesen (Feld `message` der Compat-Schicht).
+ *
+ * UX2g: Ein brauchbarer Fachsatz des Servers bleibt stehen; eine Floskel
+ * („Unbekannter Fehler", „API-Fehler") oder technische Innereien nie. Ist die
+ * Lage am Status erkennbar (keine Berechtigung, Server weg, Verbindung
+ * unterbrochen), nennt der Fehlerkatalog sie — sonst bleibt der fachliche
+ * `ersatz`-Satz dieses Bereichs.
+ */
 function meldungAus(fehler, ersatz) {
-    const text = typeof fehler?.message === 'string' ? fehler.message.trim() : ''
-    if (!text || ['Fehler', 'Unbekannter Fehler', 'API-Fehler'].includes(text)) return ersatz
-    return text
+    return fehlertext(fehler, { text: ersatz })
 }
 
 /** Bytes als lesbare Größe — ohne Nachkommastellen bei KB/MB/GB-Angaben sinnlos. */

@@ -35,6 +35,10 @@ function routerAusfuehren({ hash = '#/', ladeFehler = false } = {}) {
   }
   window.history = { replaceState(_s, _t, h) { window.location.hash = h } }
   const context = { window, console, setzeFenstertitel() {},
+    // UX2g: der Router stuft den Ladefehler über den Fehlerkatalog ein.
+    // Wie `setzeFenstertitel` als feste Rückgabe bereitgestellt, weil
+    // `routerAusfuehren` alle Import-Zeilen entfernt.
+    fehlertext: (err) => (err?.message || 'Das hat gerade nicht geklappt.'),
     ref: value => ({ value }),
     shallowRef: value => ({ value }),
     computed: fn => ({ get value() { return fn() } }) }

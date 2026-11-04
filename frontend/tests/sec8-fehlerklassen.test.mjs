@@ -126,7 +126,9 @@ test('WEB-8d N5: istCsrfAblehnung/SITZUNGS_STATUS wirken AM MODUL (Verhalten)', 
   // Der echte Weg: die Datei wird mit ihren Nachbarn geladen (kein Nachbau).
   const ziel = await mkdtemp(join(tmpdir(), 'sec8-'))
   await mkdir(join(ziel, 'shared'), { recursive: true })
-  for (const name of ['basis.js', 'csrf-heilung.js', 'sitzung-pruefen.js']) {
+  // UX2g: `fehlertexte.js` gehört als Nachbar dazu — `sitzung-pruefen.js`
+  // bezieht den Ersatztext von dort (die Datei selbst bleibt importfrei).
+  for (const name of ['basis.js', 'csrf-heilung.js', 'sitzung-pruefen.js', 'fehlertexte.js']) {
     await writeFile(join(ziel, 'shared', name), lies(FRONTEND, 'src', 'shared', name))
   }
   const modul = await import(pathToFileURL(join(ziel, 'shared', 'sitzung-pruefen.js')).href)

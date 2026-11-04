@@ -84,7 +84,9 @@ assert.match(md, /plan_geaendert/, 'Meine Dienste nutzt den Aenderungszeitpunkt 
 assert.match(md, /Stand:/, 'Meine Dienste zeigt keinen Stand-Hinweis')
 
 const css = await readFile(new URL('index.css', WURZEL), 'utf8')
-assert.match(css, /@media[^}]+\.dk-notify-panel\s*\{[^}]*position:\s*fixed[^}]*right:\s*12px/s,
+// UX1a: der Abstand kommt aus der Skala. `--sp-3` IST die 12 px dieses
+// Tests; ein fester Wert 12px wäre hier wieder ein Wert neben den Tokens.
+assert.match(css, /@media[^}]+\.dk-notify-panel\s*\{[^}]*position:\s*fixed[^}]*right:\s*(?:var\(--sp-3\)|12px)/s,
   'Mobile Liste muss am Viewport statt an der eingerueckten Glocke ausgerichtet sein')
 
 console.log('OP-HANDY-6 Frontend: OK')

@@ -8,6 +8,9 @@ import { darfWebsite } from './composables/website.mjs'
 // ein Objektliteral ersetzt. Aus demselben Grund stehen hier KEINE weiteren
 // Kurzformen-Zeilen daneben (sie überlebten das Streichen).
 import * as einrichtungLeitung from './einrichtungLeitung.mjs'
+// UX2g: der Ladefehler einer Seite erscheint als Katalogtext statt als
+// Floskel „Unbekannter Fehler".
+import { fehlertext } from '../shared/fehlertexte.js'
 
 // Sicherheitsnetz: Läuft der Router ohne die Leitungsdatei (die VM-Tests
 // streichen Importe), darf die Seite NICHT brechen — dann wird nicht
@@ -345,8 +348,10 @@ async function resolveRoute() {
         pageLadefehler.value = {
             hash: vollerHash, pageName,
             meldung: 'Die Seite konnte nicht geladen werden.',
-            hinweis: 'Bitte die Seite neu laden. Bleibt der Fehler, den Browser-Zwischenspeicher leeren.',
-            grund: String(err?.message || err || 'Unbekannter Fehler'),
+            hinweis: 'Lade die Seite neu. Bleibt es dabei, leere den Browser-Zwischenspeicher.',
+            // UX2g: `grund` ist reine Diagnose (wird NICHT angezeigt) — der
+            // Katalogtext ersetzt die Floskel „Unbekannter Fehler".
+            grund: fehlertext(err),
         }
     }).finally(() => {
         // OP-HANDY-24: Balken nur beenden, wenn seither kein neuerer Wechsel

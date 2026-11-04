@@ -306,11 +306,11 @@ onBeforeUnmount(() => {
 /* DES-R12: Die Import-Seite war 1000 px breit und saß dadurch 39 px weiter
    rechts als jede andere Seite (x=335 statt 296). Jetzt dieselbe Breite wie
    der normale Seitenrahmen (.dk-screen, 1280 px). */
-.dk-import { padding: var(--sp-6); overflow-y: auto; color: var(--text); max-width: 1280px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-4); }
+.dk-import { padding: var(--sp-5); overflow-y: auto; color: var(--text); max-width: 1280px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-4); }
 .dk-import-tabs { margin-top: var(--sp-2); }
 h2 { font-size: var(--fs-h2); font-weight: 600; margin: var(--sp-4) 0 var(--sp-2); color: var(--text); }
 p { margin: var(--sp-3) 0; }
-.dk-import-card { padding: var(--sp-6); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.dk-import-card { padding: var(--sp-5); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
 fieldset { border: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
 fieldset > label { display: flex; align-items: center; gap: var(--sp-2); margin: 0; }
 .dk-import-mapping { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--line); border-radius: var(--radius); margin: var(--sp-3) 0; }

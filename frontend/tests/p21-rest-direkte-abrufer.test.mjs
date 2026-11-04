@@ -17,8 +17,9 @@ import {
     fehlerText,
     SitzungsFehler,
     anmeldeZiel,
-    ALLGEMEINER_FEHLERTEXT,
 } from '../src/shared/sitzung-pruefen.js'
+// UX2g: der Ersatztext ist der Katalogtext (kein „Serverfehler (HTTP 500)").
+import { katalogText } from '../src/shared/fehlertexte.js'
 
 function antwort(status, body, { json = true } = {}) {
     return {
@@ -79,9 +80,13 @@ test('Nicht-JSON-Antwort (Proxy 500) ergibt verstaendlichen Text statt Parse-Feh
         () => antwortPruefen(antwort(500, 'Internal Server Error', { json: false })),
         (e) => !/Unexpected token/.test(e.message),
     )
-    assert.equal(fehlerText({}, 500), 'Serverfehler (HTTP 500)')
-    assert.equal(fehlerText({ message: 'Fehler' }, 502), 'Serverfehler (HTTP 502)')
-    assert.equal(fehlerText(null, 0), ALLGEMEINER_FEHLERTEXT)
+    // UX2g: kein „Serverfehler (HTTP 500)" — die Lage ergibt den Katalogtext
+    // (was passiert ist · was jetzt hilft), ohne Statuscode.
+    assert.equal(fehlerText({}, 500), katalogText('server'))
+    assert.equal(fehlerText({ message: 'Fehler' }, 502), katalogText('server'))
+    assert.doesNotMatch(fehlerText({}, 500), /\d{3}|HTTP/, 'kein Statuscode in der Meldung')
+    // Ohne jede Lage (kein Status, keine Anfrage) bleibt der neutrale Satz.
+    assert.equal(fehlerText(null, 0), katalogText('unbekannt'))
 })
 
 test('anmeldeZiel haengt den Hash an das Rücksprungziel', () => {

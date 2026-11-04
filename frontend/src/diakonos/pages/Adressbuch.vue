@@ -121,6 +121,9 @@
 <script>
 import { ref, computed, watch, onMounted } from 'vue'
 import { apiCall } from '../composables/useApi.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
+// "Fehler beim Laden" / "Fehler beim Speichern".
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 import { suchNormal } from '../composables/bf1Anzeige.js'
 import { telHref } from '../composables/adressbuch.mjs'
 import { darfProfilLink } from '../composables/geloeschte-person.mjs'
@@ -148,7 +151,7 @@ export default {
                 })
                 mitglieder.value = payload?.data || []
             } catch (err) {
-                error.value = err?.message || 'Fehler beim Laden der Mitglieder'
+                error.value = aktionsfehler('laden', err)
                 console.error('Adressbuch loadMitglieder error:', err)
             } finally {
                 loading.value = false
@@ -203,7 +206,7 @@ export default {
 
 <style scoped>
 /* DES-02: Abstände/Farbe der Zustandsflächen als Klassen. */
-.adr-zustand { padding: var(--sp-8) var(--sp-6); }
+.adr-zustand { padding: var(--sp-6) var(--sp-5); }
 .adr-fehler { color: var(--err); }
 
 /* OP-HANDY-19: Kartenliste statt 5-Spalten-Tabelle auf schmalen Anzeigen. */

@@ -638,8 +638,13 @@ def test_konstanter_vergleich_wird_benutzt():
 def test_migration_ist_genau_ein_head_und_haengt_an_on2():
     """ON-1b: on1_einrichtung haengt seit dem Merge auf on2_einrichtung.
 
-    Die Kette hat weiterhin genau EINEN Kopf (`on1_einrichtung`); ON-2b liegt
-    unmittelbar davor, damit `alembic heads` nicht gabelt.
+    Die Kette hat weiterhin genau EINEN Kopf. Der Kopf ist NICHT mehr
+    `on1_einrichtung`: UX1j (`ux1j_gestaltung`) haengt daran. Geprueft wird
+    deshalb die KOPF-EIGENSCHAFT (genau einer) und die Stellung von
+    on1_einrichtung; welcher Schritt der letzte ist, steht hier nicht mehr
+    fest — sonst muesste diese Zeile bei jeder neuen Migration angefasst
+    werden (und eine vergessene Zeile faellt nur als „Test rot" auf, nicht als
+    echter Fehler).
     """
     from alembic.config import Config
     from alembic.script import ScriptDirectory
@@ -649,6 +654,7 @@ def test_migration_ist_genau_ein_head_und_haengt_an_on2():
     cfg = Config(str(ini))
     cfg.set_main_option("script_location", str(ini.parent / "alembic"))
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["on1_einrichtung"]
+    kopf = script.get_heads()
+    assert len(kopf) == 1, f"die Kette gabelt sich: {kopf}"
     rev = script.get_revision("on1_einrichtung")
     assert rev.down_revision == "on2_einrichtung"

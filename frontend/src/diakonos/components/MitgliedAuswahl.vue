@@ -177,7 +177,7 @@ defineExpose({ neuLaden: () => laden(''), fokussieren: () => eingabe.value?.focu
 }
 .dk-ma-input {
   width: 100%;
-  height: var(--control-h, 34px);
+  height: var(--control-h, 40px);
   padding: 0 12px 0 32px;
   border: 1px solid var(--line);
   border-radius: var(--radius);

@@ -39,9 +39,12 @@ from __future__ import annotations
 
 import hashlib
 import html
+import logging
 from pathlib import Path
 
 from diakronos_app import base_path
+
+logger = logging.getLogger("diakronos_app.anmeldung.seitenrahmen")
 
 #: App-eigener Pfad der gebauten Dateien (der Betriebs-Präfix kommt davor).
 ASSET_PFAD = "/diakonos/assets"
@@ -132,6 +135,39 @@ def _mit_version(url: str) -> str:
     return f"{url}?v={version}" if version else url
 
 
+def gestaltung_url() -> str:
+    """Adresse der Gestaltungs-Abweichungen (präfixbewusst, ohne ``?v=``).
+
+    UX1j: Die Datei enthält AUSSCHLIESSLICH die vom Standard abweichenden
+    Maße (``gestaltung/route.py``). Ohne Abweichungen ist sie LEER — das
+    ``<link>`` schadet dann nicht (ein leerer Stylesheet, ein Aufruf).
+    """
+    from diakronos_app.gestaltung import route
+
+    return route.css_url()
+
+
+def gestaltung_version() -> str:
+    """Inhalts-Hash der Abweichungen für ``?v=`` (leer, wenn es keine gibt).
+
+    Der Hash kommt aus dem INHALT, nicht aus den Dateien des Builds: eine
+    geänderte Einstellung ist eine neue Adresse, ohne dass neu gebaut wird.
+
+    FEHLERTOLERANZ: `head_block()` wird von jeder server-gerenderten Seite
+    aufgerufen — auch von der Anmeldeseite und von Tests ohne Datenbank. Ist
+    die Tabelle nicht erreichbar (frische Installation, DB kurz weg), gilt
+    „keine Abweichungen“ und die Seite bleibt benutzbar. Eine Anmeldeseite,
+    die an einer Gestaltungseinstellung scheitert, wäre ein Rückschritt.
+    """
+    from diakronos_app.gestaltung import speicher
+
+    try:
+        return speicher.css_hash() if speicher.abweichungen() else ""
+    except Exception as exc:  # noqa: BLE001 — nie die Seite an einer Einstellung scheitern lassen
+        logger.warning("Gestaltungs-Abweichungen nicht lesbar: %s", exc.__class__.__name__)
+        return ""
+
+
 def head_block() -> str:
     """Fertiger `<head>`-Block: die zwei `<link>`-Tags plus das Theme-Skript.
 
@@ -161,9 +197,17 @@ def head_block() -> str:
     # ON-0b (F7): `?v=<Inhalts-Hash>` an beiden Adressen (Cache-Busting).
     tokens = html.escape(_mit_version(tokens_url()), quote=True)
     seiten = html.escape(_mit_version(seiten_url()), quote=True)
+    # UX1j: die Abweichungen kommen NACH tokens.css (sie überschreiben dessen
+    # :root-Werte) und VOR seiten.css (die Regeln benutzen sie). Ohne
+    # Abweichungen zeigt `?v=` nichts an — die Datei ist dann leer.
+    gestalt_hash = gestaltung_version()
+    gestaltung = html.escape(gestaltung_url(), quote=True)
+    if gestalt_hash:
+        gestaltung = f"{gestaltung}?v={html.escape(gestalt_hash, quote=True)}"
     return (
         f'    <meta name="color-scheme" content="light dark">\n'
         f'    <link rel="stylesheet" href="{tokens}">\n'
+        f'    <link rel="stylesheet" href="{gestaltung}">\n'
         f'    <link rel="stylesheet" href="{seiten}">\n'
         f"    <script>{THEME_SKRIPT}</script>"
     )

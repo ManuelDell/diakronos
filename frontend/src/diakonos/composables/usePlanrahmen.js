@@ -10,6 +10,8 @@ import { ref, computed } from 'vue'
 import { apiCall } from './useApi.js'
 import { apiAntwortPruefen } from './useApi.js'
 import { apiUrl } from '../../shared/basis.js'
+// UX2g: EINE Quelle für angezeigte Fehlertexte (kein „Unbekannter Fehler").
+import { fehlertext } from '../../shared/fehlertexte.js'
 import { formatTemplate } from '../components/planrahmen/format.mjs'
 import { GELOESCHT_ANZEIGE, istGeloescht } from './geloeschte-person.mjs'
 import { stammdatenNormalisieren } from '../components/planrahmen/stammdaten.mjs'
@@ -103,7 +105,7 @@ export function fehlerMeldungen(err) {
         return err.meldungen.map((m) => ({
             pfad: m.pfad || '',
             code: m.code || '',
-            meldung: m.meldung || 'Unbekannter Fehler.',
+            meldung: m.meldung || fehlertext(null),
             hinweis: m.hinweis || '',
             stufe: m.stufe === 'sollte' ? 'warnung' : (m.stufe || 'fehler'),
         }))
@@ -112,13 +114,12 @@ export function fehlerMeldungen(err) {
 }
 
 export function fehlerText(err) {
-    if (!err) return 'Unbekannter Fehler.'
-    if (err.status === 403) return 'Dafür fehlt dir die Berechtigung.'
-    if (err.status === 404) return 'Der Eintrag wurde nicht gefunden.'
-    if (err.status === 405) return 'Diese Aktion ist hier nicht erlaubt.'
-    if (err.status === 417) return err.message || 'Die Eingaben konnten nicht geprüft werden.'
-    if (err.status === 419 || err.status === 401) return 'Die Sitzung ist abgelaufen — bitte neu anmelden.'
-    return err.message || 'Der Server hat die Anfrage abgelehnt.'
+    // UX2g: EINE Einstufung für alle Bereiche (`shared/fehlertexte.js`) —
+    // ersetzt die frühere eigene Status-Tabelle und das „Unbekannter Fehler.".
+    // Einzige Bereichersonderung: 405 heißt hier „nicht erlaubt", nicht
+    // „Eingabe ungültig" (der Katalog kennt keinen eigenen 405-Zustand).
+    if (err?.status === 405) return 'Diese Aktion ist hier nicht erlaubt.'
+    return fehlertext(err)
 }
 
 // ── Anzeige- und Attribut-Caches ───────────────────────────────────────────

@@ -233,6 +233,9 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useSession } from '../composables/useSession.js'
 import { getRouteParam, navigate } from '../router.js'
 import { apiCall } from '../composables/useApi.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
+// "Fehler beim Laden" / "Fehler beim Speichern".
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 import { showToast } from '../composables/useToast.js'
 import { bestaetigen } from '../composables/useBestaetigen.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
@@ -464,7 +467,7 @@ export default {
                     termine.value = [] // Termine sind Beiwerk, kein Seitenfehler
                 }
             } catch (err) {
-                error.value = err?.message || 'Fehler beim Laden'
+                error.value = aktionsfehler('laden', err)
             } finally {
                 loading.value = false
             }
@@ -509,10 +512,10 @@ export default {
                     editingDesc.value = false
                     fetchGruppe()
                 } else {
-                    showToast('Fehler beim Speichern', 'error')
+                    showToast(aktionsfehler('speichern', res), 'error')
                 }
             } catch (e) {
-                showToast('Fehler beim Speichern', 'error')
+                showToast(aktionsfehler('speichern', e), 'error')
             } finally {
                 savingDesc.value = false
             }
@@ -538,10 +541,10 @@ export default {
                     showToast('Aufgabe erstellt', 'success')
                     fetchGruppe()
                 } else {
-                    showToast('Fehler beim Erstellen', 'error')
+                    showToast(aktionsfehler('anlegen', res), 'error')
                 }
             } catch (e) {
-                showToast('Fehler beim Erstellen', 'error')
+                showToast(aktionsfehler('anlegen', e), 'error')
             } finally {
                 sendingAufgabe.value = false
             }
@@ -578,10 +581,10 @@ export default {
                     showToast('Ankündigung veröffentlicht', 'success')
                     fetchGruppe()
                 } else {
-                    showToast('Fehler beim Erstellen', 'error')
+                    showToast(aktionsfehler('anlegen', res), 'error')
                 }
             } catch (e) {
-                showToast('Fehler beim Erstellen', 'error')
+                showToast(aktionsfehler('anlegen', e), 'error')
             } finally {
                 sendingAnkuendigung.value = false
             }
@@ -632,10 +635,10 @@ export default {
                     fetchGruppe()
                     return true
                 }
-                showToast(res?.message || 'Fehler beim Hinzufügen', 'error')
+                showToast(aktionsfehler('anlegen', res), 'error')
                 return false
             } catch (err) {
-                showToast(err?.message || 'Fehler beim Hinzufügen', 'error')
+                showToast(aktionsfehler('anlegen', err), 'error')
                 return false
             }
         }
@@ -655,10 +658,10 @@ export default {
                     showToast('Mitglied entfernt', 'success')
                     fetchGruppe()
                 } else {
-                    showToast(res?.message || 'Fehler beim Entfernen', 'error')
+                    showToast(aktionsfehler('entfernen', res), 'error')
                 }
             } catch (err) {
-                showToast('Fehler beim Entfernen', 'error')
+                showToast(aktionsfehler('entfernen', err), 'error')
             }
         }
 
@@ -676,10 +679,10 @@ export default {
                 if (res?.success) {
                     showToast('Rolle aktualisiert', 'success')
                 } else {
-                    showToast(res?.message || 'Fehler beim Aktualisieren', 'error')
+                    showToast(aktionsfehler('speichern', res), 'error')
                 }
             } catch (err) {
-                showToast('Fehler beim Aktualisieren', 'error')
+                showToast(aktionsfehler('speichern', err), 'error')
             }
         }
 
@@ -792,7 +795,7 @@ export default {
     min-height: calc(var(--row-h) + 2 * var(--sp-2));
 }
 
-.grup-zustand { padding: var(--sp-8); text-align: center; color: var(--muted); }
+.grup-zustand { padding: var(--sp-6); text-align: center; color: var(--muted); }
 .grup-muted { color: var(--muted); font-size: var(--fs-sm); margin: 0; }
 /* OP-HANDY-19: Namensliste der Gruppenmitglieder für Nicht-Verwalter. */
 .grup-namensliste { list-style: none; margin: 0 0 var(--sp-3); padding: 0; display: flex; flex-direction: column; gap: 6px; }

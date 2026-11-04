@@ -12,6 +12,8 @@ import { ref } from 'vue'
 import { apiCall } from '../composables/useApi.js'
 // WEB-5b: Adressen unter dem Betriebs-Praefix bauen (bildUrl).
 import { apiUrl } from '../../shared/basis.js'
+// UX2g: EINE Quelle für angezeigte Fehlertexte (kein „Unbekannter Fehler").
+import { fehlertext } from '../../shared/fehlertexte.js'
 
 const PRAEFIX = 'diakronos.devmodus.api.'
 const SCHLUESSEL = 'dk-devmodus-an'
@@ -62,7 +64,9 @@ export function fehlerZeilen(fehler) {
     return meldungen.map(m =>
       [m.pfad, m.meldung, m.hinweis].filter(Boolean).join(' — '))
   }
-  return [fehler?.message || 'Unbekannter Fehler']
+  // UX2g: kein „Unbekannter Fehler" — der Katalog nennt was passiert ist und
+  // was jetzt hilft (Einstufung aus Status/exc_type des Fehlers).
+  return [fehlertext(fehler)]
 }
 
 export const devmodusApi = {

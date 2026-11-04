@@ -152,6 +152,9 @@ import { apiCall } from '../../composables/useApi.js'
 // zweite Organigramm-Oberflaeche (organigramm/App.vue) nutzt dieselben Helfer.
 import { escapeHtml, sichereFarbe, STANDARD_FARBE } from '../../../shared/sichere-ausgabe.js'
 import { showToast } from '../../composables/useToast.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
+// "Fehler beim Speichern" / "Unbekannter Fehler".
+import { aktionsfehler } from '../../../shared/fehlertexte.js'
 import DkButton from '../ui/DkButton.vue'
 import DkDialog from '../ui/DkDialog.vue'
 import { baueTreffzeit, WOCHENTAGE } from '../../composables/treffzeit.mjs'
@@ -358,7 +361,7 @@ async function submitCreate() {
         await loadData()
     } catch (err) {
         console.error('Fehler beim Erstellen:', err)
-        showToast('Fehler beim Erstellen: ' + (err.message || 'Unbekannter Fehler'), 'error')
+        showToast(aktionsfehler('anlegen', err), 'error')
     } finally {
         sendingCreate.value = false
     }
@@ -408,7 +411,7 @@ async function submitEdit() {
         await loadData()
     } catch (err) {
         console.error('Fehler beim Speichern:', err)
-        showToast('Fehler beim Speichern: ' + (err.message || 'Unbekannter Fehler'), 'error')
+        showToast(aktionsfehler('speichern', err), 'error')
     } finally {
         sendingEdit.value = false
     }

@@ -18,6 +18,7 @@ from diakronos_app.models.einrichtung import (
     EinrichtungToken,
 )
 from diakronos_app.models.passwortzugang import Passwortzugang
+from diakronos_app.models.gestaltung import GestaltungAbweichung
 from diakronos_app.models.sicherung import Sicherungseinstellungen, Sicherungslauf
 from diakronos_app.models.website import PrimoKonto
 from diakronos_app.models.website_kontakt import WebsiteKontaktPostfach

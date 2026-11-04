@@ -242,6 +242,13 @@ def erstelle_app(einstellungen=None):
 
     register_dav_routes(app)
 
+    # UX1j: die öffentliche Datei `{Präfix}/gestaltung.css` (vom Standard
+    # abweichende Maße). VOR der Anmeldeschranke und VOR `mount_spa` — sie
+    # wird auch auf der Anmeldeseite gebraucht und ist ohne Anmeldung erreichbar.
+    from diakronos_app.gestaltung.route import registriere_routen as _gestaltung_routen
+
+    _gestaltung_routen(app)
+
     # SEC1: /login, /auth/oidc/*, /logout. MUSS vor `mount_spa(app)` stehen.
     registriere_routen(app)
 

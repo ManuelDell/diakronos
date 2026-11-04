@@ -8883,6 +8883,85 @@
    "rumpf_ueber": null
   },
   {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.gestaltung.api.gestaltung_lesen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.gestaltung.api",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "gestaltung_lesen",
+   "pfade": [
+    "api.gestaltung_lesen",
+    "diakronos.diakonos.api.gestaltung.gestaltung_lesen",
+    "diakronos_app.gestaltung.api.gestaltung_lesen",
+    "gestaltung.lesen",
+    "gestaltung_lesen"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.gestaltung.api.gestaltung_speichern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.gestaltung.api",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "gestaltung_speichern",
+   "pfade": [
+    "api.gestaltung_speichern",
+    "diakronos.diakonos.api.gestaltung.gestaltung_speichern",
+    "diakronos_app.gestaltung.api.gestaltung_speichern",
+    "gestaltung.speichern",
+    "gestaltung_speichern"
+   ],
+   "rumpf_grund": "ueber audit.log(): Aufruf _create()",
+   "rumpf_ueber": "diakronos_app.api.audit.log"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.gestaltung.api.gestaltung_zuruecksetzen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.gestaltung.api",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "gestaltung_zuruecksetzen",
+   "pfade": [
+    "api.gestaltung_zuruecksetzen",
+    "diakronos.diakonos.api.gestaltung.gestaltung_zuruecksetzen",
+    "diakronos_app.gestaltung.api.gestaltung_zuruecksetzen",
+    "gestaltung.zuruecksetzen",
+    "gestaltung_zuruecksetzen"
+   ],
+   "rumpf_grund": "ueber audit.log(): Aufruf _create()",
+   "rumpf_ueber": "diakronos_app.api.audit.log"
+  },
+  {
    "allow_guest": true,
    "ausnahme": null,
    "ausnahme_art": null,
@@ -9092,12 +9171,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 344,
+ "funktionen": 347,
  "nur_test": [],
- "registrierte_pfade": 1771,
+ "registrierte_pfade": 1786,
  "rumpf_zaehlung": {
-  "lesend": 169,
-  "schreibend": 175
+  "lesend": 170,
+  "schreibend": 177
  },
  "widersprueche": [
   {
@@ -9674,7 +9753,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 159,
-  "schreibend": 185
+  "lesend": 160,
+  "schreibend": 187
  }
 }

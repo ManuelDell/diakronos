@@ -125,6 +125,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { apiCall } from '../composables/useApi.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
+// "Fehler beim Laden" / "Fehler beim Speichern".
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 
 const loading = ref(true)
 const error = ref(null)
@@ -160,7 +163,7 @@ async function fetchData() {
     const result = await apiCall('diakronos.diakonos.api.dienstplan.get_meine_dienste', {})
     data.value = result || { vorbereitung: [], einsatz: [] }
   } catch (err) {
-    error.value = err?.message || 'Fehler beim Laden der Dienste'
+    error.value = aktionsfehler('laden', err)
     console.error('Dienstplan — Fehler:', err)
   } finally {
     loading.value = false
@@ -174,39 +177,39 @@ onMounted(fetchData)
 .dp-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: var(--sp-4);
   align-items: start;
 }
 @media (max-width: 760px) {
   .dp-grid { grid-template-columns: 1fr; }
 }
-.dp-col { padding: 18px 20px; }
-.dp-col-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dk-text-muted); margin: 0 0 12px; }
-.dp-state { display: flex; align-items: center; gap: 10px; }
+.dp-col { padding: var(--sp-4) var(--sp-4); }
+.dp-col-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dk-text-muted); margin: 0 0 var(--sp-3); }
+.dp-state { display: flex; align-items: center; gap: var(--sp-3); }
 .dp-error { color: var(--dk-danger); }
 
 .dp-entry-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-2);
 }
 .dp-entry-name { font-size: 1rem; font-weight: 600; color: var(--dk-text); line-height: 1.3; }
-.dp-entry-meta { font-size: 0.78rem; color: var(--dk-text-muted); margin-top: 3px; }
-.dp-entry-side { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.dp-entry-meta { font-size: 0.78rem; color: var(--dk-text-muted); margin-top: var(--sp-1); }
+.dp-entry-side { display: inline-flex; align-items: center; gap: var(--sp-2); flex-shrink: 0; }
 .dp-rolle { font-size: 0.72rem; color: var(--dk-text-muted); max-width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.dp-ablauf { border-top: 1px solid var(--dk-divider); margin-top: 10px; padding-top: 12px; }
-.dp-ablauf-title { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-subtle); margin-bottom: 8px; }
-.dp-positions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.dp-ablauf { border-top: var(--rahmen-breite) solid var(--dk-divider); margin-top: var(--sp-3); padding-top: var(--sp-3); }
+.dp-ablauf-title { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-subtle); margin-bottom: var(--sp-2); }
+.dp-positions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
 .dp-pos {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--dk-border);
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius);
+  border: var(--rahmen-breite) solid var(--dk-border);
   background: var(--dk-surface);
 }
 .dp-pos.dp-own {
@@ -226,25 +229,25 @@ onMounted(fetchData)
 .dp-pos-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .dp-pos-name { font-size: 0.84rem; font-weight: 500; color: var(--dk-text); }
 .dp-pos.dp-own .dp-pos-name { color: var(--dk-brand-700); font-weight: 600; }
-.dp-pos-detail { font-size: 0.72rem; color: var(--dk-text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dp-pos-detail { font-size: 0.72rem; color: var(--dk-text-muted); margin-top: var(--sp-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dp-own-badge {
   flex-shrink: 0;
   font-size: var(--fs-xs); font-weight: 600;
-  padding: 2px 8px; border-radius: var(--badge-r);
+  padding: var(--sp-1) var(--sp-2); border-radius: var(--badge-r);
   background: var(--primary); color: var(--primary-ink);
 }
-.dp-no-ablauf { font-size: 0.78rem; color: var(--dk-text-subtle); margin-top: 4px; }
-.dp-empty-inline { font-size: 0.84rem; color: var(--dk-text-muted); padding: 6px 0; }
+.dp-no-ablauf { font-size: 0.78rem; color: var(--dk-text-subtle); margin-top: var(--sp-1); }
+.dp-empty-inline { font-size: 0.84rem; color: var(--dk-text-muted); padding: var(--sp-2) 0; }
 
-.dp-further { padding: 14px 20px; margin-top: 4px; }
+.dp-further { padding: var(--sp-4) var(--sp-4); margin-top: var(--sp-1); }
 .dp-further-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .dp-further-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--dk-divider);
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: var(--rahmen-breite) solid var(--dk-divider);
 }
 .dp-further-row:last-child { border-bottom: none; }
 .dp-further-main { flex: 1; min-width: 0; }

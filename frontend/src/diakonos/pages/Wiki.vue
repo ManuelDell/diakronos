@@ -525,7 +525,7 @@ function openEditor(article = null) {
    .wk-cat-chips/.wk-cat-chip/.wk-cat-icon/.wk-cat-count sind mit FIX-3
    entfallen — sie waren der Grund, warum die Knöpfe hier anders hoch waren
    als das Suchfeld daneben. Nur der Abstand zur Artikelliste bleibt. */
-.wk-main > .dk-ui-chips { margin-bottom: var(--sp-5); }
+.wk-main > .dk-ui-chips { margin-bottom: var(--sp-alt-20); }
 
 /* Artikel */
 .wk-article-card {
@@ -617,9 +617,9 @@ function openEditor(article = null) {
 .wk-detail-tags { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 .wk-detail-content { font-size: var(--fs); line-height: 1.7; color: var(--text); }
 .wk-detail-content :deep(p) { margin: 0 0 var(--sp-3); }
-.wk-detail-content :deep(ul) { margin: 0 0 var(--sp-3) var(--sp-5); padding: 0; }
+.wk-detail-content :deep(ul) { margin: 0 0 var(--sp-3) var(--sp-alt-20); padding: 0; }
 .wk-detail-content :deep(li) { margin-bottom: var(--sp-1); }
-.wk-detail-content :deep(h3) { font-size: var(--fs-h3); font-weight: var(--fw-h); color: var(--text); margin: var(--sp-5) 0 var(--sp-2); }
+.wk-detail-content :deep(h3) { font-size: var(--fs-h3); font-weight: var(--fw-h); color: var(--text); margin: var(--sp-alt-20) 0 var(--sp-2); }
 .wk-detail-content :deep(a) { color: var(--primary); text-decoration: none; }
 .wk-detail-content :deep(a:hover) { text-decoration: underline; }
 .wk-detail-content :deep(table) { width: 100%; border-collapse: collapse; }
@@ -627,7 +627,7 @@ function openEditor(article = null) {
 .wk-detail-content :deep(strong) { color: var(--text); }
 
 /* Ähnliche Artikel */
-.wk-related { margin-top: var(--sp-6); padding-top: var(--sp-5); border-top: 1px solid var(--divider); }
+.wk-related { margin-top: var(--sp-5); padding-top: var(--sp-alt-20); border-top: 1px solid var(--divider); }
 .wk-related h4 { font-size: var(--fs-h4); font-weight: var(--fw-h); color: var(--text); margin: 0 0 var(--sp-3); }
 .wk-related-list { display: flex; flex-direction: column; gap: 6px; }
 .wk-related-item {

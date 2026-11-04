@@ -148,6 +148,9 @@ export async function apiAntwortPruefen(res, { fehlerWerfen = true, anfrage = nu
         if (!fehlerWerfen) return daten
         const error = new Error(daten?.message || 'Das hat nicht geklappt. Bitte später noch einmal versuchen.')
         error.status = res.status
+        // UX2g: die Einstufung im Fehlerkatalog braucht die Klasse — nicht den
+        // Meldungstext. Kein Anzeigetext, nur die Kennung aus dem Antwortkörper.
+        error.exc_type = String(daten?.exc_type || daten?.exception || '')
         error.meldungen = Array.isArray(daten?.meldungen) ? daten.meldungen : []
         throw error
     }
@@ -209,6 +212,8 @@ async function apiCallRoh(method, args = {}, options = {}) {
         const msg = data?.message || data?.exception || `HTTP ${res.status}`
         const error = new Error(msg)
         error.status = res.status
+        // UX2g: Kennung der Fehlerklasse für den Fehlerkatalog (nie Anzeigetext).
+        error.exc_type = String(data?.exc_type || data?.exception || '')
         error.meldungen = Array.isArray(data?.meldungen) ? data.meldungen : []
         // PF1: Sitzung abgelaufen/abgemeldet -> der nutzerbezogene Browser-Cache
         // darf keinen alten Stand mehr zeigen. Vollstaendig leeren.
@@ -311,6 +316,8 @@ async function apiGetRoh(method, args = {}) {
         if (sitzungsFehler) throw sitzungsFehler
         const error = new Error(data?.message || data?.exception || `HTTP ${res.status}`)
         error.status = res.status
+        // UX2g: Kennung der Fehlerklasse für den Fehlerkatalog (nie Anzeigetext).
+        error.exc_type = String(data?.exc_type || data?.exception || '')
         error.meldungen = Array.isArray(data?.meldungen) ? data.meldungen : []
         throw error
     }

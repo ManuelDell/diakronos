@@ -35,6 +35,9 @@
 import { ref, computed, watch } from 'vue'
 import { apiCall } from '../../composables/useApi.js'
 import { showToast } from '../../composables/useToast.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
+// "Fehler beim Speichern" / "Unbekannter Fehler".
+import { aktionsfehler } from '../../../shared/fehlertexte.js'
 import { anlegeAufruf } from '../../composables/gruppenAnlegen.mjs'
 import DkDialog from '../ui/DkDialog.vue'
 import DkButton from '../ui/DkButton.vue'
@@ -107,7 +110,7 @@ async function submit() {
     emit('update:modelValue', false)
     emit('angelegt', { typ: f.typ, name: String(f.name || '').trim() })
   } catch (err) {
-    showToast(err?.message || 'Fehler beim Anlegen', 'error')
+    showToast(aktionsfehler('anlegen', err), 'error')
   } finally {
     sending.value = false
   }

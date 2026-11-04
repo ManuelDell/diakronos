@@ -1047,7 +1047,7 @@ async function stammdatenPanelGeschlossen() {
    als eigene Flächen daneben und nutzen die volle Breite.
    Ab 1200 px drei Spalten, darunter zwei (Erklärspalte entfällt), unter
    900 px eine — dort wird die Sprungliste zur waagerechten Leiste. */
-.pr-pe-raster { display: grid; grid-template-columns: 1fr; gap: var(--sp-5); align-items: start; }
+.pr-pe-raster { display: grid; grid-template-columns: 1fr; gap: var(--sp-alt-20); align-items: start; }
 .pr-pe-raster--mit-erklaerung { grid-template-columns: 190px minmax(0, 1fr) 300px; }
 .pr-pe-raster > .pr-pe-form { grid-column: 2; }
 @media (max-width: 1199px) {

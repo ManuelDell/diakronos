@@ -23,8 +23,14 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const FRONTEND = fileURLToPath(new URL('../src/diakonos/', import.meta.url))
-// frontend/src/diakonos → frontend/src → frontend → Repo-Wurzel.
-const REPO = fileURLToPath(new URL('../../../../', import.meta.url))
+// `frontend/tests/` → `frontend/` → Repo-Wurzel. Der frühere Pfad
+// (`../../../../` ab dieser Datei) zeigte nur zufällig richtig: er führt
+// VIER Ebenen hoch, also aus dem Worktree heraus in den HAUPT-Checkout
+// (`/root/projekte/diakronos-standalone/`). Geprüft wurde damit ein fremder
+// Baum — der Test fiel um, sobald der Haupt-Checkout weiterlief, obwohl der
+// Worktree unverändert war (gedrosselt am 2026-11-04 gemessen). Im Image ist
+// `/build/` die Wurzel, auch dort stimmt dieser Weg.
+const REPO = fileURLToPath(new URL('../', import.meta.url))
 const BACKEND = REPO + 'backend/src/diakronos_app/'
 
 /** Nur Style-Blöcke: Kommentare und Vue-Templates stören die Prüfung. */

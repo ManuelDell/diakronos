@@ -127,6 +127,22 @@ COPY backend/src/diakronos_app/anmeldung/registrierungslink.py /backend/src/diak
 # die Dockerfile nicht vorhanden) — Nachweis per `docker build --target frontend`.
 COPY backend/tests/test_bs1b2_website_oeffentlich_nachbesserung.py /backend/tests/test_bs1b2_website_oeffentlich_nachbesserung.py
 COPY backend/tests/test_bs1c_kontakt_postfaecher.py /backend/tests/test_bs1c_kontakt_postfaecher.py
+# UX1a: `tests/ux1a-abstand-tokens.test.mjs` (T4) haelt fest, dass die
+# Standardwerte der Gestaltungs-Einstellungen (UX1j, `gestaltung/tokens.py`)
+# zu den Werten in `tokens.css` passen — kein Drift zwischen Oberflaeche und
+# Server. Die Datei liegt AUSSERHALB von frontend/ (Regel 13).
+# Ablage unter `/ux1a-backend/` wie bei UX1j: andere Waechter pruefen
+# Backend-Dateien an ihrem echten Pfad mit eigenen Erwartungen; eine Kopie
+# unter dem echten Pfad wuerde deren Zusagen verfaelschen. Die Testdatei
+# liest die Kopie ueber `UX1A_BACKEND` (sonst den Worktree-Pfad).
+# UX1j liegt (Stand dieser Karte) noch auf seinem eigenen Branch, nicht in
+# main — dann gibt es das Verzeichnis nicht. `COPY` auf einen fehlenden Pfad
+# bricht den Build ab, deshalb hier ein bedingtes Kopieren im selben Layer
+# (Build-Kontext ist der Repo-Root, die Quelle kommt aus dem Kontext, nicht
+# aus dem Abbild). Fehlt die Kopie, meldet die Pruefung das ausdruecklich
+# ("Drift-Pruefung uebersprungen") statt still zu bestehen; sobald UX1j
+# gemergt ist, greift sie im Image ohne weitere Aenderung.
+COPY backend/src/diakronos_app/gestaltung/ /ux1a-backend/gestaltung/
 # BS-2a: der Vertragstest (tests/bs2a-bausteine.test.mjs) liest die Quellen der
 # Bausteine (deploy/primo/bausteine/), ihre Spiegelung im Python-Paket, den
 # Installer, die Endpunkte, das whitelist-Inventar und DIESE Dockerfile. Alles
@@ -147,6 +163,24 @@ COPY backend/pyproject.toml /backend/pyproject.toml
 # prueft die Quellen, die Pruefsummendatei (F4) und die Nicht-Ziel-Dateien.
 # Er liest NUR deploy/primo/bausteine/ und das Paket — beide stehen oben schon.
 COPY backend/tests/test_bs2a2_bausteine.py /backend/tests/test_bs2a2_bausteine.py
+# UX1j: `tests/ux1j-gestaltung-backend.test.mjs` haelt die Positivliste, die
+# Rollen-/Methoden-Sperre und die CSS-Ausgabe der Gestaltungs-Einstellungen
+# fest und liest dafuer das Backend-Paket `gestaltung/`, das Modell, die
+# Migration und die Einbaustellen (seitenrahmen.py, spa.py, main.py) —
+# alles AUSSERHALB von frontend/ (Regel 13). Ohne diese Zeilen fehlt der
+# Testdatei der Stoff und der Build braeche an „Datei fehlt\" ab.
+# Ablage bewusst unter `/ux1j-backend/` und NICHT unter `/backend/…`: andere
+# Waechter (z.B. `tests/fix6-keine-zeiger-syntax.test.mjs`) pruefen Dateien an
+# ihrem echten Backend-Pfad mit ERWARTUNGEN, die fuer die Login-Masken gelten
+# (spa.py darf dort KEIN eigenes @media tragen — die Regel steht in
+# seiten.css). Unter dem echten Pfad wuerde dieser Test eine Zusage sehen, die
+# er nie pruefen sollte. Die Testdatei liest die Kopien ueber `UX1J_BACKEND`.
+COPY backend/src/diakronos_app/gestaltung /ux1j-backend/gestaltung
+COPY backend/src/diakronos_app/models/gestaltung.py /ux1j-backend/models/gestaltung.py
+COPY backend/alembic/versions/ux1j_gestaltung.py /ux1j-backend/alembic/versions/ux1j_gestaltung.py
+COPY backend/src/diakronos_app/anmeldung/seitenrahmen.py /ux1j-backend/anmeldung/seitenrahmen.py
+COPY backend/src/diakronos_app/spa.py /ux1j-backend/spa.py
+COPY backend/src/diakronos_app/main.py /ux1j-backend/main.py
 # ON-3: `tests/on3-einrichtung-assistent.test.mjs` liest die neuen Vue-Dateien
 # des Assistenten (liegen IN frontend/ und kommen mit `COPY frontend/ ./`
 # mit). Die Testdatei selbst steht in der Liste unten; der Nachweis läuft
@@ -173,7 +207,7 @@ COPY backend/tests/test_bs2a2_bausteine.py /backend/tests/test_bs2a2_bausteine.p
 # frontend/ -> eigene COPY-Zeile.
 COPY tools/demo/uiux-pruefung.py /tools/demo/uiux-pruefung.py
 COPY tools/demo/ux1i2-probe.py /tools/demo/ux1i2-probe.py
-RUN node --test tests/web1-*.test.mjs tests/web1b-*.test.mjs src/diakonos/components/planrahmen/*.test.mjs src/diakonos/components/lieder/*.test.mjs src/diakonos/components/ui/*.test.mjs src/diakonos/components/devmodus/*.test.mjs src/diakonos/composables/*.test.mjs tests/planrahmen-*.test.mjs tests/devmodus-*.test.mjs tests/dm2-*.test.mjs tests/dm3-*.test.mjs tests/dm3b-*.test.mjs tests/p0-4*.test.mjs tests/waechter-tokens.test.mjs tests/dkbutton-icon.test.mjs tests/organigramm-xss-farbe.test.mjs tests/google-*.test.mjs tests/p1-9-*.test.mjs tests/p1-10-*.test.mjs tests/p1-11-*.test.mjs tests/p1-12-*.test.mjs tests/n0-*.test.mjs tests/n1-*.test.mjs tests/p1-1-*.test.mjs tests/p1-1b-*.test.mjs tests/n2-*.test.mjs tests/n3-*.test.mjs tests/p1-2-*.test.mjs tests/p1-3-*.test.mjs tests/p1-4-*.test.mjs tests/p1-4b-*.test.mjs tests/n4-*.test.mjs tests/p1-13-*.test.mjs tests/p1-5-*.test.mjs tests/p1-6-*.test.mjs tests/p1-5c-*.test.mjs tests/p2-2-*.test.mjs tests/p2-6-*.test.mjs tests/p2-4-*.test.mjs tests/p1-8-*.test.mjs tests/n5-*.test.mjs tests/n6-*.test.mjs tests/n7-*.test.mjs tests/n8-*.test.mjs tests/p21-*.test.mjs tests/n9-*.test.mjs tests/n9b-*.test.mjs tests/p2-3-*.test.mjs tests/p2-3b-*.test.mjs tests/n10-*.test.mjs tests/p2-5-*.test.mjs tests/p3-1-*.test.mjs tests/n11-*.test.mjs tests/p3-1b-*.test.mjs tests/p3-4-*.test.mjs tests/p3-4b-*.test.mjs tests/n12-*.test.mjs tests/p3-1c-*.test.mjs tests/p3-1d-*.test.mjs tests/p3-4c-*.test.mjs tests/rest1-*.test.mjs tests/des-rest-*.test.mjs tests/rest3-*.test.mjs tests/austritt-*.test.mjs tests/bk1-*.test.mjs tests/dsgvo2b-*.test.mjs tests/dsgvo2c-*.test.mjs tests/dsgvo2c2-*.test.mjs tests/dsgvo2d-*.test.mjs tests/ma1-*.test.mjs tests/ma1b-*.test.mjs tests/dev7-*.test.mjs tests/dev7b-*.test.mjs tests/dev1-*.test.mjs tests/dev3-*.test.mjs tests/dev5-*.test.mjs tests/dev6-*.test.mjs tests/dev8-*.test.mjs tests/dev4-*.test.mjs tests/dev4b-*.test.mjs tests/dep1-*.test.mjs tests/plan-w1-*.test.mjs tests/plan-m1-*.test.mjs tests/dep2-build-kette.test.mjs tests/dep2-review.test.mjs tests/dep2b-*.test.mjs tests/reg1a-*.test.mjs tests/uxa2a-*.test.mjs tests/uxa2a2-*.test.mjs tests/uxa2b-*.test.mjs tests/org-1-*.test.mjs tests/reg1b-*.test.mjs tests/reg1c-*.test.mjs tests/uxb2b-*.test.mjs tests/uxc3a-*.test.mjs tests/uxc3b-*.test.mjs tests/fix1-*.test.mjs tests/fix3-*.test.mjs tests/fix2-*.test.mjs tests/fix5-*.test.mjs tests/fix6-*.test.mjs tests/fix6b-*.test.mjs tests/fix4-*.test.mjs tests/fix6c-*.test.mjs tests/fix6d-*.test.mjs tests/sec3-*.test.mjs tests/sec7-*.test.mjs tests/sec8-*.test.mjs tests/sec9-*.test.mjs tests/web3-*.test.mjs tests/web4-*.test.mjs tests/web2-*.test.mjs tests/sec10-*.test.mjs tests/web5b-*.test.mjs tests/web7-*.test.mjs tests/web8b-*.test.mjs tests/web8c-*.test.mjs tests/web8d-*.test.mjs tests/sec11-*.test.mjs tests/bs1a-*.test.mjs tests/bs1a2-*.test.mjs tests/on0a-*.test.mjs tests/on0b-*.test.mjs tests/sec11b-*.test.mjs tests/web8e-*.test.mjs tests/web8f-*.test.mjs tests/on2-*.test.mjs tests/sec11c-*.test.mjs tests/bs1b-*.test.mjs tests/bs1b2-*.test.mjs tests/bs1c-*.test.mjs tests/bs1bc-*.test.mjs tests/bs1d-*.test.mjs tests/on1b-*.test.mjs tests/on3-*.test.mjs tests/on3b-*.test.mjs tests/ical1-*.test.mjs tests/ical1b-*.test.mjs tests/on4-*.test.mjs tests/bs2a-*.test.mjs tests/bs2a2-*.test.mjs tests/ux1i-*.test.mjs tests/ux1i2-*.test.mjs tests/ux3g-*.test.mjs --test \
+RUN node --test tests/web1-*.test.mjs tests/web1b-*.test.mjs src/diakonos/components/planrahmen/*.test.mjs src/diakonos/components/lieder/*.test.mjs src/diakonos/components/ui/*.test.mjs src/diakonos/components/devmodus/*.test.mjs src/diakonos/composables/*.test.mjs tests/planrahmen-*.test.mjs tests/devmodus-*.test.mjs tests/dm2-*.test.mjs tests/dm3-*.test.mjs tests/dm3b-*.test.mjs tests/p0-4*.test.mjs tests/waechter-tokens.test.mjs tests/dkbutton-icon.test.mjs tests/organigramm-xss-farbe.test.mjs tests/google-*.test.mjs tests/p1-9-*.test.mjs tests/p1-10-*.test.mjs tests/p1-11-*.test.mjs tests/p1-12-*.test.mjs tests/n0-*.test.mjs tests/n1-*.test.mjs tests/p1-1-*.test.mjs tests/p1-1b-*.test.mjs tests/n2-*.test.mjs tests/n3-*.test.mjs tests/p1-2-*.test.mjs tests/p1-3-*.test.mjs tests/p1-4-*.test.mjs tests/p1-4b-*.test.mjs tests/n4-*.test.mjs tests/p1-13-*.test.mjs tests/p1-5-*.test.mjs tests/p1-6-*.test.mjs tests/p1-5c-*.test.mjs tests/p2-2-*.test.mjs tests/p2-6-*.test.mjs tests/p2-4-*.test.mjs tests/p1-8-*.test.mjs tests/n5-*.test.mjs tests/n6-*.test.mjs tests/n7-*.test.mjs tests/n8-*.test.mjs tests/p21-*.test.mjs tests/n9-*.test.mjs tests/n9b-*.test.mjs tests/p2-3-*.test.mjs tests/p2-3b-*.test.mjs tests/n10-*.test.mjs tests/p2-5-*.test.mjs tests/p3-1-*.test.mjs tests/n11-*.test.mjs tests/p3-1b-*.test.mjs tests/p3-4-*.test.mjs tests/p3-4b-*.test.mjs tests/n12-*.test.mjs tests/p3-1c-*.test.mjs tests/p3-1d-*.test.mjs tests/p3-4c-*.test.mjs tests/rest1-*.test.mjs tests/des-rest-*.test.mjs tests/rest3-*.test.mjs tests/austritt-*.test.mjs tests/bk1-*.test.mjs tests/dsgvo2b-*.test.mjs tests/dsgvo2c-*.test.mjs tests/dsgvo2c2-*.test.mjs tests/dsgvo2d-*.test.mjs tests/ma1-*.test.mjs tests/ma1b-*.test.mjs tests/dev7-*.test.mjs tests/dev7b-*.test.mjs tests/dev1-*.test.mjs tests/dev3-*.test.mjs tests/dev5-*.test.mjs tests/dev6-*.test.mjs tests/dev8-*.test.mjs tests/dev4-*.test.mjs tests/dev4b-*.test.mjs tests/dep1-*.test.mjs tests/plan-w1-*.test.mjs tests/plan-m1-*.test.mjs tests/dep2-build-kette.test.mjs tests/dep2-review.test.mjs tests/dep2b-*.test.mjs tests/reg1a-*.test.mjs tests/uxa2a-*.test.mjs tests/uxa2a2-*.test.mjs tests/uxa2b-*.test.mjs tests/org-1-*.test.mjs tests/reg1b-*.test.mjs tests/reg1c-*.test.mjs tests/uxb2b-*.test.mjs tests/uxc3a-*.test.mjs tests/uxc3b-*.test.mjs tests/fix1-*.test.mjs tests/fix3-*.test.mjs tests/fix2-*.test.mjs tests/fix5-*.test.mjs tests/fix6-*.test.mjs tests/fix6b-*.test.mjs tests/fix4-*.test.mjs tests/fix6c-*.test.mjs tests/fix6d-*.test.mjs tests/sec3-*.test.mjs tests/sec7-*.test.mjs tests/sec8-*.test.mjs tests/sec9-*.test.mjs tests/web3-*.test.mjs tests/web4-*.test.mjs tests/web2-*.test.mjs tests/sec10-*.test.mjs tests/web5b-*.test.mjs tests/web7-*.test.mjs tests/web8b-*.test.mjs tests/web8c-*.test.mjs tests/web8d-*.test.mjs tests/sec11-*.test.mjs tests/bs1a-*.test.mjs tests/bs1a2-*.test.mjs tests/on0a-*.test.mjs tests/on0b-*.test.mjs tests/sec11b-*.test.mjs tests/web8e-*.test.mjs tests/web8f-*.test.mjs tests/on2-*.test.mjs tests/sec11c-*.test.mjs tests/bs1b-*.test.mjs tests/bs1b2-*.test.mjs tests/bs1c-*.test.mjs tests/bs1bc-*.test.mjs tests/bs1d-*.test.mjs tests/on1b-*.test.mjs tests/on3-*.test.mjs tests/on3b-*.test.mjs tests/ical1-*.test.mjs tests/ical1b-*.test.mjs tests/on4-*.test.mjs tests/bs2a-*.test.mjs tests/bs2a2-*.test.mjs tests/ux1i-*.test.mjs tests/ux1i2-*.test.mjs tests/ux3g-*.test.mjs tests/ux1a-*.test.mjs tests/ux1a2-*.test.mjs tests/ux1j-*.test.mjs tests/ux2g-*.test.mjs --test \
  && npm run build
 
 

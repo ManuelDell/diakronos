@@ -198,6 +198,8 @@
 import { ref, reactive, computed } from 'vue'
 // WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
 import { apiUrl } from '../../shared/basis.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte (kein "Ein Fehler ist aufgetreten").
+import { fehlertext } from '../../shared/fehlertexte.js'
 // WEB-8b: CSRF-Ablehnung automatisch heilen (Token neu, 1 Wiederholung).
 import { heileOderMelde, gastNachNeuladen, HINWEIS_NACH_NEULADEN } from '../../shared/csrf-heilung.js'
 // DEP-1: eigene Bausteine statt frappe-ui (Button/FormControl/ErrorMessage).
@@ -355,7 +357,9 @@ async function absenden() {
 }
 
 function parseServerError(data) {
-    if (!data) return 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.'
+    // UX2g: kein „Ein Fehler ist aufgetreten" — der Fehlerkatalog nennt, was
+    // passiert ist und was jetzt hilft. Ein Fachsatz des Servers bleibt stehen.
+    if (!data) return fehlertext(null)
     // UXD-R27: der Serverfehlertext steht in `message` (Compat-Schicht:
     // `_error_response` -> {"message": …}); die Frappe-Schreibweise
     // `_server_messages` wird weiter unterstuetzt (Altbestand).
@@ -366,7 +370,7 @@ function parseServerError(data) {
         const msgs = JSON.parse(data._server_messages || '[]')
         if (msgs.length) return JSON.parse(msgs[0]).message
     } catch {}
-    return 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.'
+    return fehlertext(null)
 }
 </script>
 

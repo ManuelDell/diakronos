@@ -57,6 +57,8 @@ import { escapeHtml, sichereBildUrl } from '../shared/sichere-ausgabe.js'
 // OP-UI-1: abgelaufene Anmeldung von fehlender Berechtigung unterscheiden —
 // dieselben Regeln wie im Hauptbereich, ohne Vue-Abhängigkeit.
 import { antwortPruefen } from '../shared/sitzung-pruefen.js'
+// UX2g: EINE Quelle fuer angezeigte Fehlertexte (kein "Fehler beim Laden: ...").
+import { fehlertext } from '../shared/fehlertexte.js'
 
 const loading     = ref(true)
 const fehler      = ref('')
@@ -161,7 +163,8 @@ onMounted(async () => {
         if (e?.sitzung) {
             fehler.value = 'Deine Anmeldung ist abgelaufen. Du wirst zur Anmeldung weitergeleitet.'
         } else {
-            fehler.value = `Fehler beim Laden: ${e.message}`
+            // UX2g: Katalogtext statt „Fehler beim Laden: <interner Text>".
+            fehler.value = fehlertext(e)
         }
     } finally {
         loading.value = false
