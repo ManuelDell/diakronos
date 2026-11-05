@@ -497,6 +497,49 @@ h1, h2, h3, h4 {
 .dk-sb-logout svg { flex: none; }
 .dk-sb-logout.is-collapsed { justify-content: center; padding: 8px 0; }
 
+/* UX3a (Entwurf A1): Profilmenü im Fußbereich der Seitenleiste.
+   Der Profilknopf ist ein <button> (vorher ein <a> auf #/profile) — er öffnet
+   ein kleines Menü mit Profil, Entwicklermodus, Dev-Befunde und dem
+   Hell-/Dunkel-Umschalter. Alle Werte kommen aus Tokens — auch die
+   Hervorhebung der Punkte (Sidebar-Töne), keine Schrift-Farbe hart. */
+.dk-sb-profil { position: relative; }
+.dk-sb-user {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dk-sb-chevron { display: inline-flex; align-items: center; color: var(--dk-sb-text-muted); flex: none; }
+.dk-sb-profil-menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+  padding: var(--sp-1);
+  border-radius: var(--radius);
+  background: var(--dk-sb-hover);
+}
+.dk-sb-profil-punkt {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-h);
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--dk-sb-text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.dk-sb-profil-punkt:hover { background: var(--side-hover); color: var(--side-active-text); }
+.dk-sb-profil-punkt:focus-visible { outline: 2px solid var(--focus-ring-side); outline-offset: 1px; }
+
 /* Avatar */
 .dk-avatar {
   display: inline-flex;

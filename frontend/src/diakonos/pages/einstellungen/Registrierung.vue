@@ -38,7 +38,7 @@
       <ul v-else class="rg-formulare">
         <li v-for="f in formulare" :key="f.name" class="rg-formular">
           <span>{{ f.bezeichnung || f.name }}</span>
-          <a href="#/mitglieder/anfragen">Öffnen</a>
+          <a href="#/personen/anfragen">Öffnen</a>
         </li>
       </ul>
     </DkCard>

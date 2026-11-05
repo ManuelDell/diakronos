@@ -47,12 +47,20 @@ function routerAusfuehren(boot) {
 
 // ── Neue Adressen (Entscheidung 4) ──────────────────────────────────────────
 {
-  const h = routerAusfuehren({ is_admin: true, hash: '#/mitglieder/uebersicht' })
+  // UX3a: Der Bereich heißt „Personen“ (vorher „Mitglieder“); die alten
+  // Adressen leiten dauerhaft weiter (eigener Abschnitt unten).
+  const h = routerAusfuehren({ is_admin: true, hash: '#/personen/uebersicht' })
   const erwartet = {
-    '#/mitglieder/uebersicht': 'MitgliederUebersicht',
-    '#/mitglieder/liste': 'MitgliederListe',
-    '#/mitglieder/anfragen': 'MitgliederAnfragen',
-    '#/mitglieder/datenschutz': 'MitgliederDatenschutz',
+    '#/personen/uebersicht': 'MitgliederUebersicht',
+    '#/personen/liste': 'MitgliederListe',
+    '#/personen/anfragen': 'MitgliederAnfragen',
+    '#/personen/datenschutz': 'MitgliederDatenschutz',
+    '#/personen/adressbuch': 'Adressbuch',
+    '#/kalender/pruefen': 'Pruefen',
+    '#/dienste/meine-dienste': 'PlanrahmenDienste',
+    '#/dienste/dienstplaene': 'DiensteDienstplaene',
+    '#/dienste/vorlagen': 'DiensteVorlagen',
+    '#/lieder/gruppen': 'Liedgruppen',
     '#/einstellungen': 'Einstellungen',
     '#/einstellungen/anmeldung': 'EinstellungenAnmeldung',
     // N9: jeder Einstellungs-Abschnitt hat eine eigene Adresse.
@@ -71,12 +79,28 @@ function routerAusfuehren(boot) {
 {
   const h = routerAusfuehren({ is_admin: true, hash: '#/' })
   const erwartet = {
-    '#/registrierung': '#/mitglieder/anfragen',
-    '#/anmeldungen': '#/mitglieder/anfragen',
-    '#/statistik': '#/mitglieder/uebersicht',
+    '#/registrierung': '#/personen/anfragen',
+    '#/anmeldungen': '#/personen/anfragen',
+    '#/statistik': '#/personen/uebersicht',
     '#/anmeldung': '#/einstellungen/anmeldung',
     '#/organigramm': '#/gruppen/organigramm',
-    '#/plaene': '#/planrahmen',
+    '#/plaene': '#/dienste/dienstplaene',
+    // UX3a: umbenannte und zusammengelegte Bereiche — Lesezeichen bleiben gültig.
+    '#/mitglieder/liste': '#/personen/liste',
+    '#/mitglieder/uebersicht': '#/personen/uebersicht',
+    '#/mitglieder/anfragen': '#/personen/anfragen',
+    '#/mitglieder/datenschutz': '#/personen/datenschutz',
+    '#/mitglieder/loeschantraege': '#/personen/loeschantraege',
+    '#/mitglieder/import': '#/personen/import',
+    '#/adressbuch': '#/personen/adressbuch',
+    '#/datenschutz': '#/personen/datenschutz',
+    '#/moderation': '#/kalender/pruefen',
+    '#/dienstplan': '#/dienste/meine-dienste',
+    '#/meine-dienste': '#/dienste/meine-dienste',
+    '#/planrahmen': '#/dienste/dienstplaene',
+    '#/planrahmen/meine-dienste': '#/dienste/meine-dienste',
+    '#/planrahmen/einrichten': '#/dienste/vorlagen',
+    '#/liedgruppen': '#/lieder/gruppen',
   }
   for (const [alt, neu] of Object.entries(erwartet)) {
     h.window.location.hash = alt
@@ -88,14 +112,16 @@ function routerAusfuehren(boot) {
 // ── Rollenabhängige Weiterleitung ───────────────────────────────────────────
 {
   const admin = routerAusfuehren({ is_admin: true, hash: '#/' })
+  admin.gehe('#/personen')
+  assert.equal(admin.window.location.hash, '#/personen/uebersicht', 'Admin → Übersicht')
   admin.gehe('#/mitglieder')
-  assert.equal(admin.window.location.hash, '#/mitglieder/uebersicht', 'Admin → Übersicht')
+  assert.equal(admin.window.location.hash, '#/personen/uebersicht', 'alte Adresse → Übersicht')
   admin.gehe('#/dsgvo')
-  assert.equal(admin.window.location.hash, '#/mitglieder/datenschutz', 'Admin-DSGVO → Datenschutz-Reiter')
+  assert.equal(admin.window.location.hash, '#/personen/datenschutz', 'Admin-DSGVO → Datenschutz-Reiter')
 
   const mitglied = routerAusfuehren({ is_admin: false, mitglied: { status: 'Mitglied' }, hash: '#/' })
-  mitglied.gehe('#/mitglieder')
-  assert.equal(mitglied.window.location.hash, '#/mitglieder/liste', 'Mitglied → Liste')
+  mitglied.gehe('#/personen')
+  assert.equal(mitglied.window.location.hash, '#/personen/liste', 'Mitglied → Liste')
   mitglied.gehe('#/dsgvo')
   assert.equal(mitglied.window.location.hash, '#/profile', 'Mitglied-DSGVO → Profil')
 }
@@ -103,7 +129,7 @@ function routerAusfuehren(boot) {
 // ── Admin-Guard für Verwaltungsseiten ───────────────────────────────────────
 {
   const ohneRecht = routerAusfuehren({ is_admin: false, mitglied: { status: 'Mitglied' }, hash: '#/' })
-  for (const hash of ['#/mitglieder/uebersicht', '#/mitglieder/anfragen', '#/mitglieder/datenschutz', '#/einstellungen', '#/einstellungen/anmeldung']) {
+  for (const hash of ['#/personen/uebersicht', '#/personen/anfragen', '#/personen/datenschutz', '#/einstellungen', '#/einstellungen/anmeldung']) {
     ohneRecht.gehe(hash)
     assert.equal(ohneRecht.window.location.hash, '#/', `${hash} ohne Recht → Dashboard`)
   }
@@ -115,7 +141,7 @@ function routerAusfuehren(boot) {
 // ── EINE Menüdefinition (S12) ───────────────────────────────────────────────
 {
   const menue = lies('menue.js')
-  for (const pflicht of ["'#/mitglieder'", "'#/einstellungen'", "'#/gruppen'", "'#/planrahmen'", "MITGLIEDER_REITER"]) {
+  for (const pflicht of ["'#/personen'", "'#/dienste'", "'#/einstellungen'", "'#/gruppen'", "'#/kalender'", "MITGLIEDER_REITER"]) {
     assert.ok(menue.includes(pflicht), `Menüdefinition enthält ${pflicht}`)
   }
   // Alte Einzelpunkte dürfen nicht mehr als eigene Menüeinträge erscheinen.

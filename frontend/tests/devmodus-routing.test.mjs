@@ -29,13 +29,15 @@ test('neue Dev-Modus-Dateien sind vorhanden', () => {
 })
 
 test('Sidebar nennt Dev-Befunde (nicht Testsuite)', () => {
-  // Seit N0 (S12) steht der Eintrag in der zentralen Menüdefinition; die
-  // Seitenleiste liest ihn von dort.
+  // UX3a: „Dev-Befunde“ ist kein Menüpunkt der Seitenleiste mehr, sondern ein
+  // Werkzeug im PROFILMENÜ (Entwurf A1). Die Seitenleiste zeichnet es, die
+  // Adresse bleibt; der Menüeintrag selbst ist entfallen.
   const nav = lies('components/AppSidebar.vue')
   assert.ok(nav.includes('menue.js'), 'Sidebar nutzt die zentrale Menüdefinition')
+  assert.ok(nav.includes('#/dev-befunde'), 'Profilmenü nennt Dev-Befunde')
   assert.ok(!nav.includes('#/testsuite'))
   const menue = lies('menue.js')
-  assert.ok(menue.includes('#/dev-befunde'))
+  assert.ok(!menue.includes("'#/dev-befunde'"), 'kein eigener Menüpunkt mehr')
   assert.ok(!menue.includes('#/testsuite'))
 })
 

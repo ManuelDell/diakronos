@@ -829,3 +829,63 @@ def test_schreibende_endpunkte_nur_post(admin_umgebung, pfad, daten):
     assert d["erinnerung_ab"] is None
     assert {s["zustand"] for s in d["schritte"]} == {"offen"}
 
+
+
+# ── ON-5 (E2-3): Kalender-Vorschlag darf Rechte nicht still verschlucken ────
+
+
+def test_on5_kalender_vorschlag_durch_den_router_legt_beide_an(admin_umgebung):
+    """Der Weg des Assistenten: ECHTER Router, Admin mit Kalenderrolle.
+
+    Nachgestellt wird der Aufruf, den `useEinrichtungsAssistent.weiter()` macht:
+    `POST /api/method/diakronos.diakonos.api.einrichtung.kalender_vorschlag_anlegen`
+    mit ``namen=["Gottesdienste","Gemeindekalender"]`` (CSRF ueber den
+    Test-Client, Rechte ueber die Rolle). Ergebnis: BEIDE Kalender stehen in
+    der Tabelle — nicht nur „uebersprungen“ in der Antwort.
+    """
+    r = _post(admin_umgebung, EINRICHTUNG + "kalender_vorschlag_anlegen",
+              namen=["Gottesdienste", "Gemeindekalender"])
+    assert r.status_code == 200, r.text
+    d = r.json()["message"]
+    assert d["angelegt"] == ["Gottesdienste", "Gemeindekalender"], d
+    assert d["uebersprungen"] == [], d
+
+    from diakronos_app.db import SessionLocal
+    from diakronos_app.models.kronos import Kalender
+
+    with SessionLocal() as s:
+        namen = {n for (n,) in s.query(Kalender.name)}
+    assert {"Gottesdienste", "Gemeindekalender"} <= namen, namen
+
+
+def test_on5_kalender_vorschlag_ohne_kalenderrolle_meldet_sich(admin_umgebung, patched_db):
+    """Der Befund selbst: Admin-Rolle ja, Kalenderrolle NEIN.
+
+    Vorher antwortete der Endpunkt 200 mit ``uebersprungen: [beide]`` und legte
+    NICHTS an — die Oberflaeche konnte das nicht bemerken. Jetzt kommt ein
+    Rechtefehler (417 mit Klartext), und es bleibt nichts Halbes zurueck.
+    """
+    admin = "on5-admin@example.org"
+    sess = _sitzung(patched_db)
+    # Nur die Einrichtungs-Rolle, ausdruecklich KEIN Kalenderadministrator.
+    _nutzer(sess, admin, ("Mitgliederadministrator",))
+    sess.commit()
+    sess.close()
+
+    from diakronos_app.frappe_compat.session import set_user
+
+    set_user(admin)
+    try:
+        r = _post(admin_umgebung, EINRICHTUNG + "kalender_vorschlag_anlegen",
+                  namen=["Gottesdienste", "Gemeindekalender"])
+    finally:
+        set_user(ADMIN)
+
+    assert r.status_code == 403, r.text
+    assert "Kalenderadministrator" in r.text, r.text
+
+    from diakronos_app.db import SessionLocal
+    from diakronos_app.models.kronos import Kalender
+
+    with SessionLocal() as s:
+        assert s.query(Kalender.name).first() is None, "es wurde trotzdem etwas angelegt"

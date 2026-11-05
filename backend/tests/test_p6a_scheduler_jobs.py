@@ -418,6 +418,8 @@ def test_scheduler_registriert_beide_daily_jobs():
 		"delete_alte_anmeldeanfragen",
 		# N-2: Aufbewahrungsfrist abgelehnter Anbieter-Zuordnungen.
 		"delete_alte_zuordnung_ablehnungen",
+		# UX2b: Papierkorb nach 7 Tagen endgueltig leeren.
+		"papierkorb_aufraeumen",
 	}
 
 

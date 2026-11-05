@@ -8,7 +8,7 @@ import * as helpers from '../src/diakonos/components/planrahmen/editor.mjs'
 // UX-C3a: Sprungleiste/Erklärspalte — die Seite nutzt die Regeln aus abschnitte.mjs.
 import * as abschnitte from '../src/diakonos/components/planrahmen/abschnitte.mjs'
 
-function harness(pageName = 'Plan', hash = '#/planrahmen/plan/plan-a', erlaubt = true) {
+function harness(pageName = 'Plan', hash = '#/dienste/dienstplaene/plan/plan-a', erlaubt = true) {
   const scope = effectScope()
   let hashchange
   const window = {
@@ -70,7 +70,7 @@ function harness(pageName = 'Plan', hash = '#/planrahmen/plan/plan-a', erlaubt =
 test('Plan → Editor startet keine Plan-Abfrage mit Plantyp-Kennung vor dem Unmount', async () => {
   const h = harness()
   try {
-    await h.go('#/planrahmen/einrichten/chorplan')
+    await h.go('#/dienste/vorlagen/chorplan')
     assert.deepEqual(h.calls, [['plan', 'plan-a']])
     h.pending[0]({ plan: { id: 'plan-a' }, termine: [{ id: 't1', plantyp_version: 'v1' }] })
     await nextTick(); await nextTick()
@@ -84,7 +84,7 @@ test('Plan → Editor startet keine Plan-Abfrage mit Plantyp-Kennung vor dem Unm
 test('Echter Plan-ID-Wechsel und Reload bleiben möglich; alte Antworten werden verworfen', async () => {
   const h = harness()
   try {
-    await h.go('#/planrahmen/plan/plan-b')
+    await h.go('#/dienste/dienstplaene/plan/plan-b')
     assert.deepEqual(h.calls, [['plan', 'plan-a'], ['plan', 'plan-b']])
     h.pending[0]({ plan: { id: 'plan-a' }, termine: [] })
     h.pending[1]({ plan: { id: 'plan-b' }, termine: [] })
@@ -99,7 +99,7 @@ test('Echter Plan-ID-Wechsel und Reload bleiben möglich; alte Antworten werden 
 })
 
 test('Verweigerter Vorlagenzugriff erzeugt keine ungespeicherten Änderungen', async () => {
-  const h = harness('PlantypEditor', '#/planrahmen/einrichten/neu', false)
+  const h = harness('PlantypEditor', '#/dienste/vorlagen/neu', false)
   try {
     await tick()
     assert.equal(h.run('dirty.value'), false)
@@ -111,11 +111,11 @@ test('Verweigerter Vorlagenzugriff erzeugt keine ungespeicherten Änderungen', a
 })
 
 test('Editor → Plan lädt weder Versionen der Plan-ID noch eine neue Definition', async () => {
-  const h = harness('PlantypEditor', '#/planrahmen/einrichten/chorplan')
+  const h = harness('PlantypEditor', '#/dienste/vorlagen/chorplan')
   try {
     await tick()
     assert.deepEqual(h.calls, [['versionen', 'chorplan']])
-    await h.go('#/planrahmen/plan/plan-a')
+    await h.go('#/dienste/dienstplaene/plan/plan-a')
     h.pending[0]([{ definition: { id: 'chorplan', name: 'Veraltet' } }])
     await nextTick(); await nextTick()
     assert.deepEqual(h.calls, [['versionen', 'chorplan']])
@@ -126,8 +126,8 @@ test('Editor → Plan lädt weder Versionen der Plan-ID noch eine neue Definitio
 test('Plan → Editor → Plan vor Lazy-Unmount veröffentlicht niemals alte Editor-Parameter', async () => {
   const h = harness()
   try {
-    await h.go('#/planrahmen/einrichten/chorplan')
-    await h.go('#/planrahmen/plan/plan-b')
+    await h.go('#/dienste/vorlagen/chorplan')
+    await h.go('#/dienste/dienstplaene/plan/plan-b')
     assert.deepEqual(h.calls, [['plan', 'plan-a'], ['plan', 'plan-b']])
     h.pending[0]({ plan: { id: 'plan-a' }, termine: [] })
     h.pending[1]({ plan: { id: 'plan-b' }, termine: [] })
@@ -137,11 +137,11 @@ test('Plan → Editor → Plan vor Lazy-Unmount veröffentlicht niemals alte Edi
 })
 
 test('Editor → Plan → Editor vor Lazy-Unmount veröffentlicht niemals alte Plan-Parameter', async () => {
-  const h = harness('PlantypEditor', '#/planrahmen/einrichten/chorplan')
+  const h = harness('PlantypEditor', '#/dienste/vorlagen/chorplan')
   try {
     await tick()
-    await h.go('#/planrahmen/plan/plan-a')
-    await h.go('#/planrahmen/einrichten/musikteams')
+    await h.go('#/dienste/dienstplaene/plan/plan-a')
+    await h.go('#/dienste/vorlagen/musikteams')
     await tick()
     assert.deepEqual(h.calls, [['versionen', 'chorplan'], ['versionen', 'musikteams']])
     h.pending[0]([{ definition: { id: 'chorplan', name: 'Veraltet' } }])
@@ -154,8 +154,8 @@ test('Editor → Plan → Editor vor Lazy-Unmount veröffentlicht niemals alte P
 test('Verspäteter Lazy-Import und Importfehler überschreiben nicht die zurückgekehrte Seite', async () => {
   const h = harness()
   try {
-    await h.go('#/planrahmen/einrichten/chorplan')
-    await h.go('#/planrahmen/plan/plan-b')
+    await h.go('#/dienste/vorlagen/chorplan')
+    await h.go('#/dienste/dienstplaene/plan/plan-b')
     h.imports[2].resolve({ default: 'AktuellerPlan' })
     await tick()
     h.imports[1].resolve({ default: 'VeralteterEditor' })
@@ -166,10 +166,10 @@ test('Verspäteter Lazy-Import und Importfehler überschreiben nicht die zurück
 })
 
 test('Stammdaten → Editor sendet keine kontextlose Anfrage', async () => {
-  const h = harness('Stammdaten', '#/planrahmen/stammdaten/chorplan')
+  const h = harness('Stammdaten', '#/dienste/vorlagen/chorplan/stammdaten/chorplan')
   try {
     assert.deepEqual(h.calls, [['stammdaten', 'chorplan', null]])
-    await h.go('#/planrahmen/einrichten/chorplan')
+    await h.go('#/dienste/vorlagen/chorplan')
     h.pending[0]({ definition: { id: 'chorplan' } })
     await nextTick(); await nextTick()
     assert.deepEqual(h.calls, [['stammdaten', 'chorplan', null]])

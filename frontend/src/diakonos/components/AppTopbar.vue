@@ -169,7 +169,7 @@ const breadcrumbs = computed(() => CRUMB_MAP[page.value] || krumenZuSeite(page.v
 const showBack = computed(() => ['MitgliedDetail', 'GruppeDetail'].includes(page.value))
 
 function navigateBack() {
-  if (page.value === 'MitgliedDetail') navigate('#/mitglieder')
+  if (page.value === 'MitgliedDetail') navigate('#/personen')
   else if (page.value === 'GruppeDetail') navigate('#/gruppen')
 }
 </script>

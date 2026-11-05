@@ -144,6 +144,7 @@
 
 <script setup>
 import { apiAntwortPruefen } from '../../composables/useApi.js'
+import { papierkorbMeldung } from '../../composables/papierkorb.mjs'
 // WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
 import { apiUrl, ressourceUrl } from '../../../shared/basis.js'
 import { ref, reactive, watch, computed, onMounted, nextTick } from 'vue'
@@ -497,7 +498,9 @@ async function doDelete() {
       showToast(extrahiereFehler(data, res), 'error')
       return
     }
-    showToast('Termin gelöscht.', 'success')
+    // UX2b: der Termin liegt im Papierkorb (7 Tage wiederherstellbar) — die
+    // Meldung nennt die Frist aus der Server-Antwort statt „gelöscht“.
+    showToast(papierkorbMeldung(form.element_name || data.message?.id, data.message?.wiederherstellbar_bis), 'success')
     emit('deleted')
     emit('update:show', false)
     showDeleteConfirm.value = false

@@ -86,18 +86,18 @@
       <a
         v-if="canModerate"
         class="moderation-btn"
-        href="#/moderation"
-        title="Terminmoderation öffnen"
+        href="#/kalender/pruefen"
+        title="Termine prüfen und freigeben"
       >
         <span v-html="ICON_MODERATION"></span>
-        <span class="moderation-btn-label">Moderation</span>
+        <span class="moderation-btn-label">Zu prüfen<span v-if="offeneZahl > 0" class="moderation-btn-zahl">{{ offeneZahl }}</span></span>
       </a>
     </div>
   </header>
 </template>
 
 <script setup>
-import { apiAntwortPruefen } from '../../composables/useApi.js'
+import { apiAntwortPruefen, apiCall } from '../../composables/useApi.js'
 // WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
 import { apiUrl } from '../../../shared/basis.js'
 import { ref, computed, watch, onMounted } from 'vue';
@@ -135,7 +135,11 @@ const yearPart = computed(() => {
 const lastNormalView = ref('dayGridMonth');
 const isResourceView = computed(() => RESOURCE_VIEWS.has(props.currentView));
 
-const canModerate = ref(false);
+const canModerate = ref(false)
+// UX3a: Zahl offener Vorschläge für den Reiter „Zu prüfen“. Sie kommt aus
+// derselben Abfrage wie das Moderationsbrett; ein Fehler bleibt still (eine
+// Kennzahl darf die Kopfzeile nicht stören).
+const offeneZahl = ref(0);
 
 const ICON_CHEVRON_LEFT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M15 6l-6 6l6 6"/></svg>`;
 const ICON_CHEVRON_RIGHT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M9 6l6 6l-6 6"/></svg>`;
@@ -183,6 +187,13 @@ async function loadDeskLink() {
     });
     const { message: userInfo } = await apiAntwortPruefen(res);
     canModerate.value = userInfo?.can_moderate || false;
+    // UX3a: Kennzahl am Reiter „Zu prüfen“ — nur für Moderatoren, Fehler still.
+    if (canModerate.value) {
+      try {
+        const anzahl = await apiCall('diakronos.kronos.api.kanban_api.get_moderation_count')
+        offeneZahl.value = Number(anzahl?.count || 0) || 0
+      } catch (_) { offeneZahl.value = 0 }
+    }
   } catch (_) {}
 }
 
@@ -301,7 +312,28 @@ onMounted(() => {
   border: 1px dashed var(--line);
   border-radius: var(--radius);
 }
-/* FIX-6: Beschriftung „Moderation“ weicht in der Mobil-Lage dem Symbol —
+.moderation-btn-label { display: inline-flex; align-items: center; gap: var(--sp-1); }
+/* UX3a: Zahl offener Vorschläge am Reiter „Zu prüfen“ (Entwurf A4 zeigt den
+   Zähler als Badge). Gold = Statusfarbe „zu prüfen“, wie in der Statusfläche
+   der Umschlagtafel (--warn auf --warn-soft, dieselben Tokens wie
+   .dk-badge-warning). */
+/* UX3a2: Werte kommen aus der Skala (tokens.css) statt als Literale —
+   Schrift 12 px (--fs-sm), Innenabstand waagerecht --sp-1, Mindesthöhe und
+   Mindestbreite auf der Zeilenhöhe der Schrift. Gold bleibt Statusfarbe
+   „zu prüfen“. */
+.moderation-btn-zahl {
+  min-width: var(--sp-4);
+  height: var(--sp-4);
+  padding: 0 var(--sp-1);
+  border-radius: var(--badge-r);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: var(--sp-4);
+  text-align: center;
+}
+/* FIX-6: Beschriftung „Zu prüfen“ weicht in der Mobil-Lage dem Symbol —
    LAYOUT, also nur die Breite (index.css «FIX-6 · Layout nur nach Breite»).
    Vorher genügte `(hover: none) and (pointer: coarse)`, wodurch auf einem
    Touch-Notebook mit 1410 px Breite die Beschriftung verschwand. */

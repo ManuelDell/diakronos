@@ -82,6 +82,8 @@ def get_events(start_date, end_date):
                 "element_end": [">=", start_date],
                 "status": "Festgelegt",
                 "element_calendar": ["in", kalender],
+                # UX2b: Termine im Papierkorb zeigt der oeffentliche Kalender nicht.
+                "geloescht_am": ["is", "not set"],
             },
         ),
         fields=[

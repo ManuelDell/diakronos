@@ -638,13 +638,12 @@ def test_konstanter_vergleich_wird_benutzt():
 def test_migration_ist_genau_ein_head_und_haengt_an_on2():
     """ON-1b: on1_einrichtung haengt seit dem Merge auf on2_einrichtung.
 
-    Die Kette hat weiterhin genau EINEN Kopf. Der Kopf ist NICHT mehr
-    `on1_einrichtung`: UX1j (`ux1j_gestaltung`) haengt daran. Geprueft wird
-    deshalb die KOPF-EIGENSCHAFT (genau einer) und die Stellung von
-    on1_einrichtung; welcher Schritt der letzte ist, steht hier nicht mehr
-    fest — sonst muesste diese Zeile bei jeder neuen Migration angefasst
-    werden (und eine vergessene Zeile faellt nur als „Test rot" auf, nicht als
-    echter Fehler).
+    Die Kette hat weiterhin genau EINEN Kopf; ON-2b liegt unmittelbar davor,
+    damit `alembic heads` nicht gabelt. Der Kopf selbst wandert mit jeder
+    neuen Migration weiter (UX2b: `ux2b_papierkorb`), deshalb wird die
+    VERKETTUNG geprueft, nicht ein fest verdrahteter Name: jede Nachfolge-
+    Revision von `on1_einrichtung` muss eine gerade Linie ohne Gabelung
+    bilden.
     """
     from alembic.config import Config
     from alembic.script import ScriptDirectory
@@ -654,7 +653,13 @@ def test_migration_ist_genau_ein_head_und_haengt_an_on2():
     cfg = Config(str(ini))
     cfg.set_main_option("script_location", str(ini.parent / "alembic"))
     script = ScriptDirectory.from_config(cfg)
-    kopf = script.get_heads()
-    assert len(kopf) == 1, f"die Kette gabelt sich: {kopf}"
+    heads = script.get_heads()
+    assert len(heads) == 1, heads          # genau ein Kopf, keine Gabelung
     rev = script.get_revision("on1_einrichtung")
     assert rev.down_revision == "on2_einrichtung"
+    # Vom einzigen Kopf zurueck bis on1_einrichtung: erreichbar, lueckenlos.
+    kette = [r.revision for r in script.iterate_revisions(heads[0], "on1_einrichtung",
+                                                          inclusive=True)]
+    assert kette[-1] == "on1_einrichtung", kette
+    for a, b in zip(kette, kette[1:]):
+        assert script.get_revision(a).down_revision == b, (a, b)

@@ -208,11 +208,17 @@ def test_admin_darf_weiter_lesen_und_schreiben(client, patched_db):
 
 def test_loeschen_fehler_liefert_417_statt_500(client, patched_db, monkeypatch):
 	"""Wurzel: `resource_delete` committet ohne try/except — jede Ausnahme
-	(z. B. Fremdschluessel-Verletzung) schlug als roher 500er durch."""
-	from diakronos_app.models.kronos import Element
+	(z. B. Fremdschluessel-Verletzung) schlug als roher 500er durch.
+
+	UX2b2 (F3): `Element` gehoert zu den fuenf Papierkorb-DocTypes und laeuft
+	seitdem NICHT mehr in den harten Loeschpfad (er landet im Papierkorb, ohne
+	Commit). Dieser Test prueft die Fehlerbehandlung des HARTEN Wegs und nimmt
+	deshalb einen DocType ohne Papierkorb (`Eventkategorie`).
+	"""
+	from diakronos_app.models.kronos import Eventkategorie
 
 	sess = patched_db()
-	sess.add(Element(name="E-DEL", element_name="Waise"))
+	sess.add(Eventkategorie(name="E-DEL", event_category_name="Waise"))
 	sess.commit()
 	sess.close()
 
@@ -243,7 +249,7 @@ def test_loeschen_fehler_liefert_417_statt_500(client, patched_db, monkeypatch):
 	einfach = dbmod.SessionLocal
 	monkeypatch.setattr(dbmod, "SessionLocal", lambda: _KaputteSitzung(einfach()))
 
-	r = client.delete("/api/resource/Element/E-DEL")
+	r = client.delete("/api/resource/Eventkategorie/E-DEL")
 	assert r.status_code == 417, r.text
 	body = r.json()
 	# SEC-8/S2: der Klassenname ist generisch — die MELDUNG traegt die Ursache.
@@ -257,11 +263,14 @@ def test_loeschen_sonstiger_fehler_bleibt_generisch(client, patched_db, monkeypa
 
 	Ein anderer Fehler (z. B. Verbindungsabbruch) darf diese Ursache nicht
 	behaupten — vorher meldete das pauschale `except Exception` sie immer.
+
+	UX2b2 (F3): `Element` laeuft nicht mehr durch den harten Loeschpfad →
+	DocType ohne Papierkorb (`Eventkategorie`).
 	"""
-	from diakronos_app.models.kronos import Element
+	from diakronos_app.models.kronos import Eventkategorie
 
 	sess = patched_db()
-	sess.add(Element(name="E-CONN", element_name="Verbindung"))
+	sess.add(Eventkategorie(name="E-CONN", event_category_name="Verbindung"))
 	sess.commit()
 	sess.close()
 
@@ -280,7 +289,7 @@ def test_loeschen_sonstiger_fehler_bleibt_generisch(client, patched_db, monkeypa
 	echt = dbmod.SessionLocal
 	monkeypatch.setattr(dbmod, "SessionLocal", lambda: _KaputteSitzung(echt()))
 
-	r = client.delete("/api/resource/Element/E-CONN")
+	r = client.delete("/api/resource/Eventkategorie/E-CONN")
 	assert r.status_code == 417, r.text
 	msg = r.json()["message"]
 	assert "wird noch von anderen Einträgen verwendet" not in msg
@@ -288,11 +297,15 @@ def test_loeschen_sonstiger_fehler_bleibt_generisch(client, patched_db, monkeypa
 
 
 def test_loeschen_fehler_laesst_zeile_stehen(client, patched_db, monkeypatch):
-	"""Kein halber Loeschvorgang: nach dem Fehler existiert die Zeile weiter."""
-	from diakronos_app.models.kronos import Element
+	"""Kein halber Loeschvorgang: nach dem Fehler existiert die Zeile weiter.
+
+	UX2b2 (F3): DocType ohne Papierkorb (`Eventkategorie`) — nur dort laeuft
+	der harte Loeschpfad noch.
+	"""
+	from diakronos_app.models.kronos import Eventkategorie
 
 	einfach = patched_db()
-	einfach.add(Element(name="E-BLEIBT", element_name="Bleibt"))
+	einfach.add(Eventkategorie(name="E-BLEIBT", event_category_name="Bleibt"))
 	einfach.commit()
 	einfach.close()
 
@@ -313,8 +326,8 @@ def test_loeschen_fehler_laesst_zeile_stehen(client, patched_db, monkeypatch):
 	echter_factory = dbmod.SessionLocal
 	monkeypatch.setattr(dbmod, "SessionLocal", lambda: _KaputteSitzung(echter_factory()))
 
-	assert client.delete("/api/resource/Element/E-BLEIBT").status_code == 417
+	assert client.delete("/api/resource/Eventkategorie/E-BLEIBT").status_code == 417
 
 	sess = patched_db()
-	assert sess.get(Element, "E-BLEIBT") is not None
+	assert sess.get(Eventkategorie, "E-BLEIBT") is not None
 	sess.close()

@@ -219,6 +219,7 @@ import { suchNormal } from '../composables/bf1Anzeige.js'
 import { showToast } from '../composables/useToast.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import { bestaetigen } from '../composables/useBestaetigen.js'
+import { loeschFrage, papierkorbMeldung, wiederherstellen } from '../composables/papierkorb.mjs'
 import { useSession } from '../composables/useSession.js'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkButton from '../components/ui/DkButton.vue'
@@ -418,13 +419,24 @@ async function saveArticle() {
 }
 
 async function deleteArticle(article) {
-  if (!(await bestaetigen({ titel: 'Artikel löschen?', text: `„${article.title}“ wird unwiderruflich gelöscht.`, aktion: 'Löschen', gefahr: true }))) return
+  // UX2b: „Löschen“ heisst jetzt Papierkorb (7 Tage wiederherstellbar).
+  if (!(await bestaetigen(loeschFrage(article.title, 'Artikel')))) return
   try {
     const res = await apiCall('diakronos.diakonos.api.wiki.delete_wiki_artikel', { artikel_id: article.id })
     if (res?.success) {
-      showToast('Artikel gelöscht.', 'success')
       artikelSchliessen()
       await loadArticles()
+      showToast(papierkorbMeldung(article.title, res.wiederherstellbar_bis), 'success', {
+        aktion: { text: 'Rückgängig', onClick: async () => {
+          const ergebnis = await wiederherstellen('artikel', article.id)
+          if (ergebnis.ok) {
+            showToast(`„${article.title}“ wiederhergestellt.`)
+            await loadArticles()
+          } else {
+            showToast(ergebnis.fehler, 'error')
+          }
+        } },
+      })
     }
   } catch (e) {
     showToast(e.message || 'Artikel konnte nicht gelöscht werden.', 'error')

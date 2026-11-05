@@ -89,8 +89,25 @@ export const devmodusApi = {
  * Beim Start: den Serverzustand holen. Ist der Dev-Modus eingeschaltet UND der
  * Nutzer berechtigt, wird der Overlay-Code geladen (App.vue). Ohne Schalter
  * antwortet der Endpunkt 404 — das ist der Normalfall und kein Fehler.
+ *
+ * ON-5 (Klein): Der Aufruf unterbleibt, wenn die Instanz den Dev-Modus gar
+ * nicht zulässt (Boot-Angabe `devmode` = `DEVMODE_ENABLED`). Vorher fragte
+ * JEDER Seitenaufbau auch bei ausgeschaltetem Dev-Modus — der Server antwortet
+ * darauf (richtig) mit 404, und im Onboarding-Prüflauf stand das als
+ * „Konsolenfehler“ im Bericht, obwohl niemand den Dev-Modus benutzt.
+ * Der Server bleibt die Entscheidung: ist die Boot-Angabe falsch, fängt der
+ * `catch` den 404 weiterhin ab, und `DEV_START` wird ohnehin nur berechtigten
+ * Testern gezeigt (`devmodusVerfuegbar`).
  */
+function devmodusZugelassen() {
+  return Boolean(typeof window !== 'undefined' && window.__DIakonosBOOT?.devmode)
+}
+
 export async function devmodusPruefen() {
+  if (!devmodusZugelassen()) {
+    devmodusAn.value = false
+    return null
+  }
   try {
     const daten = await devmodusApi.uebersicht()
     devmodusKuerzel.value = daten?.kuerzel || 'Strg+Shift+F'

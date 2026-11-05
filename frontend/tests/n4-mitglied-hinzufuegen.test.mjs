@@ -47,7 +47,7 @@ function block(text, name) {
   const fn = bSkript.slice(fnStart, bSkript.indexOf('\n}', fnStart) + 2)
   assert.ok(fn.includes('hinzufuegenOffen.value = true'), 'Knopf öffnet den Dialog')
   assert.ok(
-    !bSkript.includes("navigate('#/mitglieder/anfragen')"),
+    !bSkript.includes("navigate('#/personen/anfragen')"),
     'kein Sprung mehr in die Anmeldungen',
   )
 }

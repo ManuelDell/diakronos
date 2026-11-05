@@ -128,7 +128,7 @@ function status(werte = {}) {
     { schluessel: 'kontakt', erledigt: true, titel: 'Kontakt hinterlegt', hinweis: 'Kontakt hinterlegt.', ziel: '#/einstellungen/gemeinde' },
     { schluessel: 'mailversand', erledigt: false, titel: 'Mailversand', hinweis: 'Nicht eingerichtet – keine Einladungen möglich', ziel: '#/einstellungen/mailversand' },
     { schluessel: 'module', erledigt: true, titel: 'Module festgelegt', hinweis: 'Module sind festgelegt.', ziel: '#/einstellungen' },
-    { schluessel: 'mitglieder', erledigt: false, titel: 'Mitglieder', hinweis: 'Noch keine Mitglieder angelegt', ziel: '#/mitglieder/liste' },
+    { schluessel: 'mitglieder', erledigt: false, titel: 'Mitglieder', hinweis: 'Noch keine Mitglieder angelegt', ziel: '#/personen/liste' },
     { schluessel: 'kalender', erledigt: true, titel: 'Kalender angelegt', hinweis: 'Mindestens ein Kalender ist angelegt.', ziel: '#/kalender/verwalten' },
   ]
   const offen = punkte.filter((p) => p.erledigt === false).length
@@ -251,7 +251,7 @@ test('jede Kartenzeile führt auf ihr Server-Ziel (Einstellungen bzw. Listen)', 
   const zeilen = hinweise.kartenZeilen(status())
   assert.deepEqual(
     zeilen.map((z) => z.ziel),
-    ['#/einstellungen/gemeinde', '#/einstellungen/mailversand', '#/mitglieder/liste'],
+    ['#/einstellungen/gemeinde', '#/einstellungen/mailversand', '#/personen/liste'],
   )
   // Auch der Kalenderpunkt führt in die Kalenderverwaltung, nicht in einen
   // zweiten Einrichtungs-Assistenten.

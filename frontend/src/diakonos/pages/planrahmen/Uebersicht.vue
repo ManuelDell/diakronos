@@ -1,13 +1,16 @@
 <template>
   <div class="dk-screen dk-screen-enter">
+    <!-- UX3a: Die Planübersicht ist der Reiter „Dienstpläne“ im Bereich
+         „Dienste“ (Entwurf A2). -->
+    <DiensteReiter :reiter="DIENSTE_REITER" :seite="currentPageName" aria-label="Bereiche von Dienste" />
     <div class="dk-screen-header">
       <div>
-        <h1 class="dk-screen-title">Pläne</h1>
+        <h1 class="dk-screen-title">Dienstpläne</h1>
         <p class="dk-screen-sub">Gemeinsam planen mit wiederverwendbaren Planvorlagen</p>
       </div>
       <div class="dk-screen-actions">
-        <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/planrahmen/meine-dienste">Meine Dienste</a>
-        <a v-if="kannEinrichten" class="dk-btn dk-btn-secondary dk-btn-sm" href="#/planrahmen/einrichten">Einrichten</a>
+        <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/meine-dienste">Meine Dienste</a>
+        <a v-if="kannEinrichten" class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/vorlagen">Vorlagen</a>
         <button v-if="hatArchiv" type="button" class="dk-btn dk-btn-secondary dk-btn-sm"
                 data-test="pr-ue-archiv-filter" :aria-pressed="archivZeigen ? 'true' : 'false'"
                 @click="archivZeigen = !archivZeigen">
@@ -29,10 +32,10 @@
         <p class="dk-empty-title">Keine Pläne sichtbar</p>
         <p class="dk-empty-desc">
           <template v-if="kannAnlegen">Beginne mit „Neuer Plan“: Wähle eine Planvorlage, pflege die Fähigkeiten der Personen und lege den Zeitraum fest.</template>
-          <template v-else-if="kannEinrichten">Richte zuerst eine Planvorlage unter „Einrichten“ ein. Bereichsverantwortliche können danach einen Plan erstellen.</template>
+          <template v-else-if="kannEinrichten">Richte zuerst eine Planvorlage unter „Vorlagen“ ein. Bereichsverantwortliche können danach einen Plan erstellen.</template>
           <template v-else>Bereichsverantwortliche erstellen und veröffentlichen die Pläne. Für dich ist derzeit kein Plan freigegeben. Persönliche Dienste findest du unter „Meine Dienste“.</template>
         </p>
-        <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/planrahmen/meine-dienste">Meine Dienste öffnen</a>
+        <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/meine-dienste">Meine Dienste öffnen</a>
       </div>
 
       <section v-for="g in gruppen" :key="g.name" class="pr-ue-gruppe">
@@ -42,7 +45,7 @@
             v-for="p in g.plaene"
             :key="p.id"
             class="dk-list-item pr-ue-zeile"
-            :href="'#/planrahmen/plan/' + encodeURIComponent(p.id)"
+            :href="'#/dienste/dienstplaene/plan/' + encodeURIComponent(p.id)"
           >
             <span class="pr-ue-haupt">
               <span class="pr-ue-titel">{{ p.titel }}</span>
@@ -152,6 +155,9 @@
 </template>
 
 <script setup>
+import DiensteReiter from '../../components/DiensteReiter.vue'
+import { DIENSTE_REITER } from '../../menue.js'
+import { currentPageName } from '../../router.js'
 /**
  * Planeliste des Plan-Rahmens: ausschließlich sichtbare Pläne aus
  * plaene_liste, gruppiert nach Plantyp (bei fehlenden Stammdaten nach
@@ -546,7 +552,7 @@ async function planAnlegenOhneBedarf() {
         neuOffen.value = false
         showToast('Plan angelegt.')
         if (erg?.id) {
-            window.location.hash = '#/planrahmen/plan/' + encodeURIComponent(erg.id)
+            window.location.hash = '#/dienste/dienstplaene/plan/' + encodeURIComponent(erg.id)
         } else {
             await ladenAlles()
         }

@@ -60,10 +60,10 @@ test('Mitglieder-Rahmen: Reiter Import mit eigener Adresse und Export', () => {
   assert.match(bereich, /zeigeImportExportKnopf/, 'Export-Knopf im Import-Reiter')
 
   const menue = lies('menue.js')
-  assert.match(menue, /id: 'import', label: 'Import', href: '#\/mitglieder\/import'/, 'Reiter im Menue')
+  assert.match(menue, /id: 'import', label: 'Import', href: '#\/personen\/import'/, 'Reiter im Menue')
 
   const router = lies('router.js')
-  assert.match(router, /'#\/mitglieder\/import':\s*'MitgliederImport'/, 'eigene Adresse')
+  assert.match(router, /'#\/personen\/import':\s*'MitgliederImport'/, 'eigene Adresse')
   assert.match(router, /MitgliederImport:[\s\S]{0,40}Bereich\.vue/, 'Seitenname verdrahtet')
   assert.match(router, /'MitgliederImport'/, 'Import ist eine Verwaltungsseite (Guard)')
 })

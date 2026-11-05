@@ -80,7 +80,7 @@ def test_fehlgeschlagene_loeschung_meldet_keine_absage(client, patched_db, monke
     from diakronos_app.api.kronos import series
     def verweigert(*args):
         raise RuntimeError('Test: Löschen nicht möglich')
-    monkeypatch.setattr(series, '_delete_doc', verweigert)
+    monkeypatch.setattr(series.papierkorb, 'loeschen', verweigert)
     r = client.post('/api/method/diakronos.kronos.api.series.delete_series_batch_fast', json={'series_id': 'p21-serie'})
     assert r.status_code == 200, r.text
     assert r.json()['message']['deleted_count'] == 0

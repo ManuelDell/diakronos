@@ -16,104 +16,110 @@
  *            Website-Moderator). Nur Komfort — der Server prüft weiter.
  *   tester   true = nur mit Tester-Rolle sichtbar (Dev-Befunde)
  *   badge    optionale Kennzahl-Quelle (siehe AppSidebar)
+ *   suche    true = Ziel erscheint in der Befehlspalette (UX3f, noch nicht
+ *            gebaut). Seiten ohne Menüeintrag (z. B. Profil) tragen es am
+ *            Seitennamen.
  *
- * Gruppen folgen der Aufgabenordnung aus dem Neuordnungs-Konzept
- * Abschnitt 2 („Nachher“).
+ * Gruppen folgen dem Entwurf A1 (UX3a, siehe unten).
  */
 
 /**
- * Gruppen folgen der Aufgabenordnung aus dem Neuordnungs-Konzept
- * Abschnitt 2 („Nachher“) und werden für OP-UI-11 nach Aufgaben geschnitten:
- * Gemeinde · Termine & Dienste · Infos · Musik · Verwaltung. Kopfleiste
- * (AppTopbar) und Brotkrumen lesen dieselbe Definition.
+ * Gruppen folgen dem **Entwurf A1** (UX3a, Manuel 2026-11-03/04): Übersicht
+ * steht allein oben, darunter die drei Gruppen „Gemeinde“ (Personen, Gruppen),
+ * „Planen“ (Kalender, Dienste, Ressourcen) und „Inhalte“ (Beiträge, Wiki,
+ * Lieder, Website). „Einstellungen“ liegt NICHT in der Liste, sondern unten im
+ * Fußbereich der Seitenleiste (siehe FUSS_EINTRAEGE); „Profil“ und „Abmelden“
+ * stehen dort ohnehin. Kopfleiste (AppTopbar) und Brotkrumen lesen dieselbe
+ * Definition.
+ *
+ * Die früheren Einzelpunkte „Adressbuch“, „Dienstplan“, „Pläne“, „Meine
+ * Dienste“, „Liedgruppen“, „Moderation“, „Datenschutz“ und „Einrichtung“ sind
+ * KEINE eigenen Menüeinträge mehr; ihre Bereiche sind Reiter bzw. Ansichten
+ * (Adressbuch → Personen, Dienstplan/Meine Dienste → Dienste, Moderation →
+ * Kalender „Zu prüfen“, Liedgruppen → Lieder, Datenschutz → Personen). Die
+ * alten Adressen leiten im Router dauerhaft weiter (Lesezeichen).
  */
 import { WEBSITE_ROLLEN } from './composables/website.mjs'
 
 export const MENUE = [
     {
+        // Gruppe ohne Überschrift (Entwurf A1): „Übersicht“ steht allein oben.
+        gruppe: '',
+        eintraege: [
+            { id: 'dashboard', label: 'Übersicht', href: '#/', icon: 'home', seiten: ['Home'], suche: true },
+        ],
+    },
+    {
         gruppe: 'Gemeinde',
         eintraege: [
-            { id: 'dashboard', label: 'Übersicht', href: '#/', icon: 'home', seiten: ['Home'] },
             {
-                id: 'mitglieder', label: 'Mitglieder', href: '#/mitglieder', icon: 'users',
-                seiten: ['Mitglieder', 'MitgliederUebersicht', 'MitgliederListe', 'MitgliederAnfragen', 'MitgliederDatenschutz', 'MitgliederLoeschantraege', 'MitgliedDetail'],
-                rolle: 'alle', badge: 'anfragen',
+                id: 'personen', label: 'Personen', href: '#/personen', icon: 'users',
+                seiten: ['Personen', 'MitgliederUebersicht', 'MitgliederListe', 'PersonenListe', 'PersonenAnfragen', 'PersonenDatenschutz', 'MitgliederDatenschutz', 'PersonenLoeschantraege',
+                    'MitgliederLoeschantraege', 'PersonenImport', 'MitgliedDetail', 'Adressbuch'],
+                rolle: 'alle', badge: 'anfragen', suche: true,
             },
-            { id: 'adressbuch', label: 'Adressbuch', href: '#/adressbuch', icon: 'book-open', seiten: ['Adressbuch'] },
             {
                 id: 'gruppen', label: 'Gruppen', href: '#/gruppen', icon: 'layout-grid',
-                seiten: ['GruppenBereich', 'GruppeDetail'],
-            },
-            // DES-R9: Der Datenschutz-Reiter hing nur unter „Mitglieder“ und war
-            // am Handy gar nicht erreichbar. Er bekommt einen eigenen Eintrag
-            // (nur Administration — der Server weist alle anderen ohnehin ab).
-            {
-                id: 'datenschutz', label: 'Datenschutz', href: '#/mitglieder/datenschutz',
-                icon: 'shield', seiten: ['MitgliederDatenschutz'], rolle: 'admin',
+                seiten: ['GruppenBereich', 'GruppeDetail'], suche: true,
             },
         ],
     },
     {
-        gruppe: 'Termine & Dienste',
+        gruppe: 'Planen',
         eintraege: [
-            { id: 'kalender', label: 'Kalender', href: '#/kalender', icon: 'calendar', seiten: ['Kalender', 'KalenderImport', 'KalenderVerwaltung'] },
-            { id: 'dienstplan', label: 'Dienstplan', href: '#/dienstplan', icon: 'clock', seiten: ['Dienstplan'] },
-            {
-                id: 'plaene', label: 'Pläne', href: '#/planrahmen', icon: 'clipboard-list',
-                seiten: ['PlanrahmenUebersicht', 'PlanrahmenPlan', 'PlanrahmenEinrichten', 'PlanrahmenPlantypEditor', 'PlanrahmenStammdaten'],
-            },
-            { id: 'meine-dienste', label: 'Meine Dienste', href: '#/planrahmen/meine-dienste', icon: 'user-plus', seiten: ['PlanrahmenDienste'] },
-            { id: 'ressourcen', label: 'Ressourcen', href: '#/ressourcen', icon: 'box', seiten: ['Ressourcen', 'RessourcenVerwaltung'] },
-            { id: 'moderation', label: 'Moderation', href: '#/moderation', icon: 'moderation', seiten: ['Moderation'], rolle: 'admin' },
+            { id: 'kalender', label: 'Kalender', href: '#/kalender', icon: 'calendar', seiten: ['Kalender', 'KalenderImport', 'KalenderVerwaltung', 'Pruefen', 'Moderation'], suche: true },
+            { id: 'dienste', label: 'Dienste', href: '#/dienste', icon: 'clock', seiten: ['Dienste', 'Dienstplan', 'DiensteDienstplaene', 'DiensteVorlagen', 'PlanrahmenUebersicht', 'PlanrahmenPlan', 'PlanrahmenEinrichten', 'PlanrahmenPlantypEditor', 'PlanrahmenStammdaten', 'PlanrahmenDienste'], suche: true },
+            { id: 'ressourcen', label: 'Ressourcen', href: '#/ressourcen', icon: 'box', seiten: ['Ressourcen', 'RessourcenVerwaltung'], suche: true },
         ],
     },
     {
-        gruppe: 'Infos',
+        gruppe: 'Inhalte',
         eintraege: [
-            { id: 'beitraege', label: 'Beiträge', href: '#/beitraege', icon: 'file-text', seiten: ['Beitraege'] },
-            { id: 'wiki', label: 'Wiki', href: '#/wiki', icon: 'help-circle', seiten: ['Wiki'] },
-        ],
-    },
-    {
-        gruppe: 'Musik',
-        eintraege: [
-            { id: 'lieder', label: 'Lieder', href: '#/lieder', icon: 'music', seiten: ['Lieder', 'LiedDetail', 'LiedNeu'] },
-            { id: 'liedgruppen', label: 'Liedgruppen', href: '#/liedgruppen', icon: 'folder', seiten: ['Liedgruppen', 'LiedgruppeDetail'] },
-        ],
-    },
-    {
-        gruppe: 'Verwaltung',
-        eintraege: [
-            // WEB-3: „Website“ steht bei der Verwaltung — die Redaktion der
-            // Gemeinde-Seiten ist eine Verwaltungsaufgabe. Sichtbar für die
-            // WEBSITE_ROLLEN (System Manager, Administrator, Website-Moderator);
-            // fehlt Primo, erklärt die Seite das selbst. Der Server prüft nach.
+            { id: 'beitraege', label: 'Beiträge', href: '#/beitraege', icon: 'file-text', seiten: ['Beitraege'], suche: true },
+            { id: 'wiki', label: 'Wiki', href: '#/wiki', icon: 'help-circle', seiten: ['Wiki'], suche: true },
+            { id: 'lieder', label: 'Lieder', href: '#/lieder', icon: 'music', seiten: ['Lieder', 'LiedDetail', 'LiedNeu', 'Liedgruppen', 'LiedgruppeDetail'], suche: true },
+            // WEB-3: „Website“ steht bei den Inhalten — die Redaktion der
+            // Gemeinde-Seiten ist eine Inhaltsaufgabe (Entwurf A1). Sichtbar für
+            // die WEBSITE_ROLLEN (System Manager, Administrator,
+            // Website-Moderator); der Server prüft nach.
             {
                 id: 'website', label: 'Website', href: '#/website', icon: 'globe',
-                seiten: ['Website'], rollen: WEBSITE_ROLLEN,
+                seiten: ['Website'], rollen: WEBSITE_ROLLEN, suche: true,
             },
-            // ON-3b (Orchestrator-Nachtrag): KEIN Menüpunkt „Einrichtung“.
-            // Der Assistent ist die ERSTEINRICHTUNG des Containers, keine
-            // dauerhafte Seite: solange er läuft, führt der Router den Admin
-            // beim Öffnen selbst dorthin; danach gibt es die Adresse für die
-            // Bedienung nicht mehr (sie leitet auf #/einstellungen).
-            { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus', 'EinstellungenWebsite', 'Einrichtung'], rolle: 'admin' },
-            { id: 'dev-befunde', label: 'Dev-Befunde', href: '#/dev-befunde', icon: 'clipboard-check', seiten: ['DevBefunde'], rolle: 'admin', tester: true },
         ],
     },
 ]
 
-/** Reiterleiste des Mitglieder-Bereichs (Entscheidung 4: jede Adresse eigen).
- *  Nur Reiter, deren Inhalt es schon gibt — kein toter Knopf. */
+/**
+ * Fußbereich der Seitenleiste (Entwurf A1): „Einstellungen“ steht dort, nicht
+ * in der Gruppenliste. Nur Administration — der Server prüft jede Seite erneut.
+ * ON-3b: „Einrichtung“ bleibt KEIN Menüpunkt (Ersteinrichtung des Containers).
+ */
+export const FUSS_EINTRAEGE = [
+    { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus', 'EinstellungenPapierkorb', 'EinstellungenWebsite', 'Einrichtung'], rolle: 'admin', suche: true },
+]
+
+/**
+ * Adressen, die AUSSCHLIESSLICH Admin-Seiten öffnen (Rechte-Guard des Routers
+ * und Sichtbarkeit im Menü ziehen aus DERSELBEN Liste — sonst liefen sie
+ * auseinander). „Dev-Befunde“ und der Entwicklermodus liegen im Profilmenü.
+ */
+export const MENUE_EINTRAEGE = [...MENUE.flatMap(g => g.eintraege), ...FUSS_EINTRAEGE]
+
+/** Reiter des Personen-Bereichs (Entwurf A3; Entscheidung 4: jede Adresse eigen).
+ *  Nur Reiter, deren Inhalt es schon gibt — kein toter Knopf.
+ *  UX3a: „Adressbuch“ und „Datenschutz“ sind Reiter dieses Bereichs geworden
+ *  (vorher eigene Menüpunkte); die Adressen liegen unter `#/personen/…`. */
 export const MITGLIEDER_REITER = [
-    { id: 'uebersicht', label: 'Übersicht', href: '#/mitglieder/uebersicht', seite: 'MitgliederUebersicht', rolle: 'admin' },
-    { id: 'liste', label: 'Liste', href: '#/mitglieder/liste', seite: 'MitgliederListe', rolle: 'alle' },
-    { id: 'anfragen', label: 'Anfragen', href: '#/mitglieder/anfragen', seite: 'MitgliederAnfragen', rolle: 'admin' },
-    { id: 'datenschutz', label: 'Datenschutz', href: '#/mitglieder/datenschutz', seite: 'MitgliederDatenschutz', rolle: 'admin' },
+    { id: 'uebersicht', label: 'Übersicht', href: '#/personen/uebersicht', seite: 'MitgliederUebersicht', rolle: 'admin' },
+    { id: 'liste', label: 'Liste', href: '#/personen/liste', seite: 'MitgliederListe', rolle: 'alle' },
+    { id: 'adressbuch', label: 'Adressbuch', href: '#/personen/adressbuch', seite: 'Adressbuch', rolle: 'alle' },
+    { id: 'anfragen', label: 'Anfragen', href: '#/personen/anfragen', seite: 'MitgliederAnfragen', rolle: 'admin' },
+    { id: 'datenschutz', label: 'Datenschutz', href: '#/personen/datenschutz', seite: 'MitgliederDatenschutz', rolle: 'admin' },
     // DSGVO-2c: eigene Seite für die Arbeitsliste der Verwaltung (vor dem
     // Import, weil sie zu tun gibt — der Import ist Vorbereitung).
-    { id: 'loeschantraege', label: 'Löschanträge', href: '#/mitglieder/loeschantraege', seite: 'MitgliederLoeschantraege', rolle: 'admin' },
-    { id: 'import', label: 'Import', href: '#/mitglieder/import', seite: 'MitgliederImport', rolle: 'admin' },
+    { id: 'loeschantraege', label: 'Löschanträge', href: '#/personen/loeschantraege', seite: 'MitgliederLoeschantraege', rolle: 'admin' },
+    { id: 'import', label: 'Import', href: '#/personen/import', seite: 'MitgliederImport', rolle: 'admin' },
 ]
 
 /**
@@ -194,7 +200,7 @@ export function mitgliederBereichEintraege({ istAdmin = false, anfragenZahl = nu
             anfragen.unterpunkte = unter.map(u => ({
                 id: 'anfragen-' + u.id,
                 label: u.label,
-                href: `#/mitglieder/anfragen?bereich=${u.id}`,
+                href: `#/personen/anfragen?bereich=${u.id}`,
                 value: unterbereichsWert(u.seite, u.id),
                 seite: u.seite,
                 bereich: u.id,
@@ -281,24 +287,50 @@ export function sichtbareEintraege(gruppe, { istAdmin = false, istTester = false
             && !eintrag.rollen.some(r => meineRollen.has(r))) return false
         if (eintrag.tester && !(istAdmin && istTester)) return false
         if (istGast) {
-            // Gäste sehen nur Dashboard, Kalender und Profil (wie bisher).
-            return eintrag.seiten.some(s => ['Home', 'Kalender'].includes(s))
+            // Gäste sehen nur Start, Kalender und Profil (wie bisher, N5).
+            // UX3a2: „Dienste“ wieder entfernt — UX3a hatte den Punkt für
+            // Gäste geöffnet, die Seite ist aber (wie vor UX3a) nicht für sie
+            // gedacht; der Router sperrt sie ebenso.
+            return eintrag.seiten.some(s => GAST_SEITEN.includes(s))
         }
         return true
     })
 }
+
+/** Menü-Einträge, deren Seiten ein Gast öffnen darf (N5, Entwurf A8). */
+export const GAST_SEITEN = ['Home', 'Kalender']
 
 /** Sichtbare Reiter des Mitglieder-Bereichs (ohne Rechte = nur Liste). */
 export function sichtbareMitgliederReiter({ istAdmin = false } = {}) {
     return MITGLIEDER_REITER.filter(r => r.rolle !== 'admin' || istAdmin)
 }
 
-/** Menüeintrag zu einem Seitennamen finden (für die Kopfleiste). */
+/** Sichtbare Reiter einer Bereichsliste (dieselbe Rollenregel wie das Menü). */
+export function sichtbareReiter(reiter, { istAdmin = false } = {}) {
+    return (reiter || []).filter(r => r.rolle !== 'admin' || istAdmin)
+}
+
+/**
+ * Seitenname einer Bereichs-Adresse (`#/dienste/vorlagen` → `DiensteVorlagen`).
+ * Der Abfrageteil (`?bereich=…`) und ein Schluss-Schrägstrich werden ignoriert.
+ * → null, wenn die Adresse nicht zum Bereich gehört.
+ */
+export function reiterAusHash(reiter, hash) {
+    const roh = String(hash || '').split('?')[0].replace(/\/+$/, '')
+    const treffer = (reiter || []).find(r => r.href === roh)
+    return treffer ? treffer.seite : null
+}
+
+/** Menüeintrag zu einem Seitennamen finden (für die Kopfleiste).
+ *  Durchsucht die Gruppen UND den Fußbereich („Einstellungen“). */
 export function eintragZuSeite(seitenName) {
     for (const gruppe of MENUE) {
         for (const eintrag of gruppe.eintraege) {
             if (eintrag.seiten.includes(seitenName)) return { gruppe: gruppe.gruppe, eintrag }
         }
+    }
+    for (const eintrag of FUSS_EINTRAEGE) {
+        if (eintrag.seiten.includes(seitenName)) return { gruppe: '', eintrag }
     }
     return null
 }
@@ -309,3 +341,38 @@ export function krumenZuSeite(seitenName) {
     if (!treffer) return [seitenName]
     return [treffer.eintrag.label]
 }
+
+/**
+ * Reiter des Bereichs „Dienste“ (UX3a, Entwurf A2 … UX3b/3c/3d bauen die
+ * Inhalte). Die Reiter heißen genau wie im Entwurf:
+ *   „Meine Dienste“ · „Dienstpläne“ · „Vorlagen“
+ * Jeder Reiter hat eine EIGENE Adresse (Entscheidung 4: jeder Bereichsteil ist
+ * teilbar). Der Einstieg `#/dienste` öffnet „Meine Dienste“.
+ *
+ * Nur Reiter, deren Inhalt es schon gibt — kein toter Knopf: „Meine Dienste“
+ * ist die bisherige Seite `#/planrahmen/meine-dienste`, „Dienstpläne“ die
+ * bisherige Planübersicht `#/planrahmen`, „Vorlagen“ die Einrichtung
+ * (`#/planrahmen/einrichten`). Die Seitennamen `Dienste` /
+ * `DiensteDienstplaene` / `DiensteVorlagen` gibt es nur, damit die
+ * Seitenleiste den Bereich „Dienste“ markiert — dort entsteht kein zweiter
+ * Eintrag. Unterbereiche (einzelner Plan, Vorlagen-Editor, Stammdaten)
+ * markieren weiter „Dienstpläne“ über ihre Seitennamen.
+ */
+export const DIENSTE_REITER = [
+    { id: 'meine-dienste', label: 'Meine Dienste', href: '#/dienste/meine-dienste', seite: 'PlanrahmenDienste', rolle: 'alle' },
+    { id: 'dienstplaene', label: 'Dienstpläne', href: '#/dienste/dienstplaene', seite: 'DiensteDienstplaene', rolle: 'alle' },
+    { id: 'vorlagen', label: 'Vorlagen', href: '#/dienste/vorlagen', seite: 'DiensteVorlagen', rolle: 'admin' },
+]
+
+/** Reiter des Bereiches „Lieder“ (UX3a): „Lieder“ und „Liedgruppen“.
+ *  Liedgruppen war bis UX3a ein eigener Menüpunkt; jetzt ein Reiter. */
+export const LIEDER_REITER = [
+    { id: 'lieder', label: 'Lieder', href: '#/lieder', seite: 'Lieder', rolle: 'alle' },
+    { id: 'liedgruppen', label: 'Liedgruppen', href: '#/lieder/gruppen', seite: 'Liedgruppen', rolle: 'alle' },
+]
+
+/** Reiter des Kalenders (UX3a, Entwurf A4): Monat · Woche · Liste · „Zu prüfen“.
+ *  Die Reiter „Monat/Woche/Liste“ werden von KronosTopbar gezeichnet (eigener
+ *  Umschalter); `seite` bleibt für beide „Kalender“. „Zu prüfen“ ist die
+ *  frühere Moderationsseite und nur für Moderatoren sichtbar (Server prüft). */
+export const KALENDER_PRUEF_REITER = { label: 'Zu prüfen', seite: 'Pruefen', href: '#/kalender/pruefen' }

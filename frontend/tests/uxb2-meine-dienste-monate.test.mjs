@@ -103,7 +103,8 @@ test('UX-B2: bekannte Rollen bekommen ihren Token', () => {
   assert.equal(rollenFarbe('solo'), 'ok')
   // UX-B2b: Einsingen ist neutral (Grau) — --accent und --warn liegen im
   // Dunkelmodus auf demselben Farbton und wären als Rollen nicht trennbar.
-  assert.equal(rollenFarbe('einsingen'), 'muted')
+  // UX-B2b: Einsingen trägt den warmgrauen Ton `--dk-warm-500` („warm-500“).
+  assert.equal(rollenFarbe('einsingen'), 'warm-500')
 })
 
 test('UX-B2: die Rolle wird aus dem Feldpfad erkannt (lieder[1].solo → solo)', () => {
@@ -145,7 +146,7 @@ test('UX-B2: alle vier Rollen haben vier verschiedene Tokens', () => {
   const werte = Object.values(ROLLEN_FARBEN)
   assert.equal(new Set(werte).size, werte.length)
   // UX-B2b: Einsingen trägt den neutralen Ton statt --warn.
-  assert.deepEqual(werte.slice().sort(), ['accent', 'info', 'muted', 'ok'])
+  assert.deepEqual(werte.slice().sort(), ['accent', 'info', 'ok', 'warm-500'])
 })
 
 test('UX-B2: das Rollenzeichen trägt immer einen Buchstaben (Farbe ist nicht alles)', () => {
@@ -161,7 +162,8 @@ test('UX-B2: das Rollenzeichen trägt immer einen Buchstaben (Farbe ist nicht al
 // ── 4 · Nur vorhandene Tokens ─────────────────────────────────────────────
 
 test('UX-B2: jede Rollenfarbe ist ein vorhandener Token-Name', () => {
-  const erlaubt = new Set(['accent', 'info', 'ok', 'muted', RUECKFALL_FARBE])
+  // UX-B2b: `warm-500` ist `--dk-warm-500` aus tokens.css (Rohwert).
+  const erlaubt = new Set(['accent', 'info', 'ok', 'warm-500', RUECKFALL_FARBE])
   for (const [rolle, farbe] of Object.entries(ROLLEN_FARBEN)) {
     assert.ok(erlaubt.has(farbe), `${rolle} → ${farbe} ist kein vorhandener Token`)
   }
@@ -187,7 +189,7 @@ test('UX-B2: die Seite setzt keine festen Farbwerte (nur data-art + var(--…))'
   })
   assert.deepEqual(verstoesse, [], 'Feste Farbwerte in MeineDienste.vue:\n' + verstoesse.join('\n'))
   // Und die Zuordnung steht als `data-art` — nicht als eingebauter Farbwert.
-  for (const art of ['accent', 'info', 'ok', 'muted']) {
+  for (const art of ['accent', 'info', 'ok', 'warm-500']) {
     assert.match(SEITE, new RegExp(`\\.pr-md-rolle-zeichen\\[data-art="${art}"\\]`),
       `Regel für data-art="${art}" fehlt`)
   }

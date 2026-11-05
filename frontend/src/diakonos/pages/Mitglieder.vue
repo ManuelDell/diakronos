@@ -3,7 +3,7 @@
 
     <!-- Seitenkopf: der Mitglieder-Rahmen (Bereich.vue) bringt seinen
          eigenen Kopf mit; eingebettet entfaellt dieser hier. -->
-    <DkPageHeader v-if="!embedded" title="Mitglieder" :sub="`${mitglieder.length} von ${gesamt} Personen`">
+    <DkPageHeader v-if="!embedded" title="Personen" :sub="`${mitglieder.length} von ${gesamt} Personen`">
       <template #actions>
         <DkButton v-if="isAdmin" variant="secondary" :loading="exporting" @click="exportCsv">
           <IconDownload /> {{ exporting ? 'Exportiere…' : 'Export' }}
@@ -12,7 +12,7 @@
              Reiter N4 (Mitglieder -> Anfragen/Übersicht) auf Basis der in P1-9
              gehaerteten create_mitglied-Funktion. Bis dahin fuehrt der Knopf in
              die Anmeldungsverwaltung (dort bearbeitet der Admin Anmeldungen). -->
-        <DkButton v-if="isAdmin" variant="primary" @click="navigate('#/mitglieder/anfragen')">
+        <DkButton v-if="isAdmin" variant="primary" @click="navigate('#/personen/anfragen')">
           <IconUserPlus /> Mitglied hinzufügen
         </DkButton>
       </template>
@@ -341,7 +341,7 @@ const MT_STATUS_WORT = { [MT_GELOESCHT]: 'Gelöschte Person' }
 
 
 /** N1b (H2): Kacheln der Uebersicht verlinken mit gesetztem Filter
- *  (#/mitglieder/liste?status=Mitglied). Der Wert wird als Startfilter
+ *  (#/personen/liste?status=Mitglied). Der Wert wird als Startfilter
  *  uebernommen und bei Filterwechsel im aktuellen Verlaufseintrag ersetzt.
  *  So bleibt er beim Zurueckkehren aus dem Mitglied-Detail erhalten.
  *

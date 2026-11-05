@@ -58,7 +58,7 @@
     />
     <div v-else-if="art === 'meine_dienste'" class="pr-ansicht-hinweis">
       Diese Ansicht zeigt deine persönlichen Dienste.
-      <button class="dk-btn dk-btn-secondary dk-btn-sm" @click="$emit('navigation', '#/planrahmen/meine-dienste')">
+      <button class="dk-btn dk-btn-secondary dk-btn-sm" @click="$emit('navigation', '#/dienste/meine-dienste')">
         Zu meinen Diensten
       </button>
     </div>

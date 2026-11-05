@@ -1,11 +1,14 @@
 <template>
   <div class="dk-screen dk-screen-enter">
+    <!-- UX3a: Die Einrichtung ist der Reiter „Vorlagen“ im Bereich „Dienste“
+         (Entwurf A2: Meine Dienste · Dienstpläne · Vorlagen). -->
+    <DiensteReiter :reiter="DIENSTE_REITER" :seite="currentPageName" aria-label="Bereiche von Dienste" />
     <div class="dk-screen-header">
       <div>
-        <h1 class="dk-screen-title">Pläne einrichten</h1>
-        <p class="dk-screen-sub">Vorlagen und unveränderliche Versionen für deine Gemeindepläne.</p>
+        <h1 class="dk-screen-title">Vorlagen</h1>
+        <p class="dk-screen-sub">Planvorlagen und unveränderliche Versionen für deine Gemeindepläne.</p>
       </div>
-      <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/planrahmen">Zur Planübersicht</a>
+      <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/dienstplaene">Zu den Dienstplänen</a>
     </div>
 
     <p v-if="laden" role="status">Lade Planvorlagen …</p>
@@ -63,6 +66,9 @@
 </template>
 
 <script setup>
+import DiensteReiter from '../../components/DiensteReiter.vue'
+import { DIENSTE_REITER } from '../../menue.js'
+import { currentPageName } from '../../router.js'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { usePlanrahmen, fehlerMeldungen, datumText } from '../../composables/usePlanrahmen.js'
 import { stammdatenRoute } from '../../components/planrahmen/einrichten-flow.mjs'
@@ -80,7 +86,7 @@ const versionLaedt = ref({})
 const versionFehler = ref({})
 let request = 0
 let aktiv = true
-const editorRoute = key => '#/planrahmen/einrichten/' + encodeURIComponent(key)
+const editorRoute = key => '#/dienste/vorlagen/' + encodeURIComponent(key)
 // UXP-R9/R23: Anzeigenamen fuer ALLE Kochbuch-Vorlagen (vorher nur vier).
 const VORLAGEN_NAMEN = {
   chorplan: 'Chorplan', freizeit: 'Freizeit', musikteams: 'Musikteams',

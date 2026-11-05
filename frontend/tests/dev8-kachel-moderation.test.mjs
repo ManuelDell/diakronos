@@ -52,9 +52,11 @@ test('DEV-8: die Liste der Kachel ist die Server-Antwort, ungefiltert', () => {
   assert.match(WIDGET, /const rest = computed\(\(\) => Math\.max\(0, alle\.value\.length - VORSCHAU_MAX\)\)/)
 })
 
-test('DEV-8: Kachel springt auf die Moderationsseite', () => {
-  assert.match(WIDGET, /window\.location\.hash = '#\/moderation'/)
-  assert.match(WIDGET, /Zur Terminmoderation/)
+test('DEV-8: Kachel springt auf die Prüfseite', () => {
+  // UX3a: „Zu prüfen“ ist der vierte Reiter des Kalenders (vorher
+  // #/moderation); die Kachel führt dorthin.
+  assert.match(WIDGET, /window\.location\.hash = '#\/kalender\/pruefen'/)
+  assert.match(WIDGET, /Zur Prüfseite|Zur Terminmoderation/)
 })
 
 test('DEV-8: Badge-Zahl kommt von der Startseite, nicht aus der Kachel selbst', () => {

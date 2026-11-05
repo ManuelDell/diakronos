@@ -277,6 +277,9 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         "autor": ("protokoll", "Autorenname eines Beitrags"),
         "autor_email": ("protokoll", "Autorenadresse eines Beitrags"),
         "inhalt": ("protokoll", "Freitext kann die Person nennen"),
+        # UX2b: wer geloescht hat. Eine Kontokennung ist personenbezogen —
+        # sie wird wie die uebrigen `*_von`-Spalten behandelt.
+        "geloescht_von": ("user_null", "Konto, das den Beitrag geloescht hat"),
     },
     "beitrag_kommentar": {
         "autor": ("protokoll", "Autorenname eines Kommentars"),
@@ -287,6 +290,8 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         "autor": ("protokoll", "Autorenname"),
         "autor_email": ("protokoll", "Autorenadresse"),
         "inhalt": ("protokoll", "Freitext kann die Person nennen"),
+        # UX2b: wer geloescht hat (Kontokennung, siehe `beitrag`).
+        "geloescht_von": ("user_null", "Konto, das die Wiki-Seite geloescht hat"),
     },
     "bug_report": {
         "mitglied": ("mitglied", "Fehlerbericht der Person"),
@@ -485,7 +490,11 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
     "pr_plantyp": {"created_by": ("user_null", "wer einen Plantyp angelegt hat")},
     "pr_sammlung": {"created_by": ("user_null", "wer eine Sammlung angelegt hat")},
     "pr_merkmal": {"created_by": ("user_null", "wer ein Merkmal angelegt hat")},
-    "gruppe": {"leiter": ("protokoll", "Leiter als Freitextname")},
+    "gruppe": {
+        "leiter": ("protokoll", "Leiter als Freitextname"),
+        # UX2b: wer die Gruppe geloescht hat (Kontokennung).
+        "geloescht_von": ("user_null", "Konto, das die Gruppe geloescht hat"),
+    },
     "notification_log": {
         "for_user": ("user_null", "persönliche Benachrichtigung"),
         "from_user": ("user_null", "Absender einer Benachrichtigung"),
@@ -506,6 +515,17 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         "gebucht_von_name": ("mitglied_platzhalter", "Anzeigename des Buchers"),
     },
 }
+
+#: UX2b — Papierkorb: „wer hat geloescht“. Die Spalte gibt es an fuenf
+#: Tabellen; sie traegt IMMER eine Kontokennung (E-Mail bzw. ``Administrator``)
+#: und wird bei einer DSGVO-Anonymisierung genullt — das Protokoll der
+#: Loeschung selbst bleibt in ``geloescht_am`` erhalten. Das Lied hat keinen
+#: Autorbezug, deshalb steht dort nur diese eine Entscheidung.
+for _papierkorb_tabelle in ("element", "lied"):
+    SPALTEN.setdefault(_papierkorb_tabelle, {}).setdefault(
+        "geloescht_von", ("user_null", "Konto, das den Eintrag geloescht hat"),
+    )
+
 
 #: Spalten, in denen ein AUTOR steht (Name + Adresse) — Beiträge, Kommentare,
 #: Wiki (N-2: das Inventar sagt „protokoll“, der frühere Code kannte diese

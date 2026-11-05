@@ -15,7 +15,7 @@ source = source.replace(/^import .*$/gm, '').replace(/import\([^)]*\)/g, 'Promis
 source += '\nglobalThis.router = {onBeforeEach, getRouteParams, currentHash, currentPageName};'
 let hashchange
 const window = {
-  location: {hash: '#/planrahmen/einrichten/chorplan', replace(hash) {this.hash = hash}},
+  location: {hash: '#/dienste/vorlagen/chorplan', replace(hash) {this.hash = hash}},
   __DIakonosBOOT: {is_admin: true},
   addEventListener(event, fn) {if (event === 'hashchange') hashchange = fn},
 }
@@ -25,23 +25,28 @@ vm.createContext(context)
 vm.runInContext(source, context)
 const {router} = context
 const off = router.onBeforeEach(() => false)
-window.location.hash = '#/planrahmen/einrichten/neu'
+// Eine ANDERE Adresse setzen: eine identische gilt sonst als „dieselbe Route“
+// und der hashchange-Handler wird vom Browser gar nicht ausgelöst.
+window.location.hash = '#/dienste/vorlagen/musikteams'
 hashchange()
-assert.equal(window.location.hash, '#/planrahmen/einrichten/chorplan')
+assert.equal(window.location.hash, '#/dienste/vorlagen/chorplan')
 assert.equal(router.getRouteParams().id, 'chorplan')
 assert.equal(router.currentHash.value, window.location.hash)
 off()
-window.location.hash = '#/planrahmen/einrichten/neu'
+// Eigene Adresse nach dem Abbruch (der Router hat den Hash bereits zurückgesetzt).
+window.location.hash = '#/dienste/vorlagen/neu'
+await new Promise(r => setTimeout(r, 0))
 hashchange()
+await new Promise(r => setTimeout(r, 0))
 assert.equal(router.getRouteParams().id, 'neu')
 assert.equal(router.currentHash.value, window.location.hash)
 // Bestehende Gast-Weiterleitung darf der neue Abbruchschutz nicht überschreiben.
 window.__DIakonosBOOT = {mitglied: {status:'Gast'}}
-window.location.hash = '#/planrahmen'
+window.location.hash = '#/dienste/dienstplaene'
 hashchange()
 assert.equal(window.location.hash, '#/')
 window.__DIakonosBOOT = {is_admin:true}
-window.location.hash = '#/planrahmen/plan/plan-id'
+window.location.hash = '#/dienste/dienstplaene/plan/plan-id'
 hashchange()
 assert.equal(router.currentPageName.value, 'PlanrahmenPlan')
 assert.equal(router.getRouteParams().id, 'plan-id')

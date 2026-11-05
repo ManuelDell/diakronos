@@ -575,7 +575,14 @@ def delete_event(name):
         # stehen (die Freigabe liefe dann in "Termin nicht gefunden").
         _aenderungen_zu_element_entfernen(name)
 
-        _delete_doc("Element", name)
+        # UX2b (Karte P4): API-kompatibel — Aufruf und Rechte bleiben, aber der
+        # Termin geht in den Papierkorb (``geloescht_am``) statt sofort weg und
+        # ist aus jeder Lese-Ausgabe ausgeblendet. ``wiederherstellbar_bis``
+        # ist die Kennung fuer „Rueckgaengig“ (7 Tage).
+        from diakronos_app import papierkorb
+        from diakronos_app.frappe_compat.session import session as _session
+
+        zeitpunkt = papierkorb.loeschen("Element", name, von=str(_session.user or ""))
         if empfaenger:
             try:
                 benachrichtigung.benachrichtige_absage(
@@ -584,10 +591,41 @@ def delete_event(name):
             except Exception as ex:  # noqa: BLE001 — Meldung ist Beiwerk
                 log_error(str(ex), f"termin_absage {name}")
 
-        return {"success": True}
+        return {
+            "success": True,
+            "geloescht_am": zeitpunkt.isoformat(sep=" "),
+            "wiederherstellbar_bis": (
+                zeitpunkt + timedelta(days=papierkorb.AUFBEWAHRUNG_TAGE)
+            ).isoformat(sep=" "),
+        }
 
     except Exception as e:  # noqa: BLE001
         _rethrow(e, f"delete_event ERROR: {name}")
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def wiederherstellen_event(name):
+    """Holt einen Termin aus dem Papierkorb (UX2b P2).
+
+    Rechte: dieselbe Schranke wie Loeschen (`_assert_write_access` auf den
+    Kalender des Termins) — wer nicht loeschen darf, darf auch nicht
+    zurueckholen. Der Termin steht danach wieder an seinem Platz (Kalender,
+    Serien, CalDAV/iCal, Website — je nach Freigabe).
+    """
+    try:
+        if not name or name in ["undefined", "null", ""]:
+            throw(f"Invalid ID: {name}")
+
+        doc = get_doc("Element", name)
+        _assert_write_access(doc.get("element_calendar"))
+
+        from diakronos_app import papierkorb
+
+        papierkorb.wiederherstellen("Element", name)
+        return {"success": True, "id": name}
+
+    except Exception as e:  # noqa: BLE001
+        _rethrow(e, f"wiederherstellen_event ERROR: {name}")
 
 
 @whitelist(methods=["POST"], allow_guest=False)
@@ -991,5 +1029,6 @@ __all__ = [
     "get_offene_aenderungen",
     "parse_iso_datetime_raw",
     "save_event",
+    "wiederherstellen_event",
     "update_event",
 ]

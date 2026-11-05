@@ -6,7 +6,7 @@
        Seite „Einstellungen → Einrichtung“. -->
   <section class="fertig">
     <div class="fertig-zeichen" :class="{ 'ist-offen': offenAnzahl > 0 }" aria-hidden="true">
-      <AssistentSymbol name="haken" :size="29.12" :strich="1.8" />
+      <AssistentSymbol name="haken" :size="'var(--assistent-fertig-zeichen)'" :strich="1.8" />
     </div>
     <h1 class="fertig-titel">{{ ueberschrift }}</h1>
     <p class="fertig-unterzeile">{{ unterzeile }}</p>
@@ -17,7 +17,7 @@
           <AssistentSymbol
             v-if="punkt.erledigt"
             name="haken"
-            :size="13.52"
+            :size="'var(--assistent-fertig-haken)'"
             :strich="2.2"
           />
           <span v-else class="fertig-marke"></span>

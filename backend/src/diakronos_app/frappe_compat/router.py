@@ -950,6 +950,20 @@ async def resource_list(doctype: str, request: Request):
 	as_list = qp.get("as_list") in ("1", "true")
 	pluck = qp.get("pluck")
 
+	# UX2b2 (F3): die generische Liste verhaelt sich wie jede Lese-Ausgabe —
+	# Zeilen im Papierkorb erscheinen nicht. Der Zusatzfilter haengt HINTEN an
+	# die uebergebene Filterliste (gleichheit, keine ODER-Verknuepfung), damit
+	# ein Aufrufer ihn nicht ueberschreiben kann.
+	from diakronos_app.papierkorb import BEREICHE as _PAPIERKORB_BEREICHE
+	from diakronos_app.papierkorb import nur_aktive_filter as _nur_aktive
+
+	if doctype in _PAPIERKORB_BEREICHE:
+		if isinstance(filters, dict):
+			filters = {**filters}
+			filters["geloescht_am"] = ["is", "not set"]
+		else:
+			filters = list(filters or []) + _nur_aktive(doctype)
+
 	try:
 		rows = get_all(
 			doctype,
@@ -996,6 +1010,16 @@ async def resource_get(doctype: str, name: str):
 		doc = get_doc(doctype, name)
 	except FrappeCompatError as exc:
 		return _error_response(str(exc), exc.exc_name, exc.http_status)
+	# UX2b2 (F3): ein Einzelabruf auf eine Zeile im Papierkorb antwortet wie
+	# auf eine nicht vorhandene Zeile — sonst liesse sich der Papierkorb ueber
+	# den generischen CRUD doch wieder auslesen.
+	from diakronos_app.papierkorb import BEREICHE as _PAPIERKORB_BEREICHE
+	from diakronos_app.papierkorb import ist_geloescht as _ist_geloescht
+
+	if doctype in _PAPIERKORB_BEREICHE and _ist_geloescht(doctype, name):
+		return _error_response(
+			f"{doctype} {name!r} nicht gefunden", "DoesNotExistError", 404
+		)
 	return _json({"data": _serialize_payload(doc)})
 
 
@@ -1042,6 +1066,29 @@ async def resource_delete(doctype: str, name: str):
 		return _error_response(f"DocType {doctype!r} nicht gefunden", "DoesNotExistError", 404)
 	from diakronos_app.frappe_compat.query import get_doc
 	from diakronos_app.db import SessionLocal
+
+	# UX2b2 (F3): Ein DELETE ueber den generischen CRUD auf einen der fuenf
+	# Papierkorb-DocTypes loescht NICHT mehr endgueltig — es legt die Zeile in
+	# den Papierkorb, wie jeder andere Loeschweg der Verwaltung. Sonst waere
+	# dieser Pfad ein stilles Hintertuerchen an der 7-Tage-Frist vorbei.
+	# Die Rechtefrage beantwortet `_resource_denied` oben (nur Admin-Rollen
+	# duerfen hier loeschen) — dieselbe Schranke wie in den Endpunkten.
+	from diakronos_app.papierkorb import BEREICHE as _PAPIERKORB_BEREICHE
+	from diakronos_app.papierkorb import loeschen as _in_papierkorb
+
+	if doctype in _PAPIERKORB_BEREICHE:
+		try:
+			get_doc(doctype, name)
+			zeitpunkt = _in_papierkorb(doctype, name, von=str(frappe_session.user or ""))
+		except FrappeCompatError as exc:
+			return _error_response(str(exc), exc.exc_name, exc.http_status)
+		return _json({
+			"data": {
+				"success": True,
+				"name": name,
+				"geloescht_am": zeitpunkt.isoformat(sep=" "),
+			}
+		}, status=202)
 
 	try:
 		doc = get_doc(doctype, name)

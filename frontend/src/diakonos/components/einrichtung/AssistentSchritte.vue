@@ -54,7 +54,7 @@
           class="assistent-mobil-zurueck"
           @click="$emit('zurueck')"
         >
-          <AssistentSymbol name="zurueck" :size="18" />
+          <AssistentSymbol name="zurueck" :size="'var(--assistent-zurueck)'" />
           <span class="assistent-sr">{{ schrittText }}</span>
         </button>
         <p class="assistent-mobil-text" aria-hidden="true">{{ schrittText }}</p>

@@ -108,8 +108,19 @@ def test_op_handy_27_beitrag_loeschen_nimmt_nur_eigene_kommentare_mit(client, pa
         r = client.post('/api/method/diakronos.diakonos.api.beitraege.delete_beitrag', json={'beitrag_id': 'eins'})
         assert r.status_code == 200, r.text
     with patched_db() as s:
-        assert s.get(Beitrag, 'eins') is None
-        assert s.get(BeitragKommentar, 'k1') is None
+        # UX2b: Der methoden-Weg legt in den PAPERKORB (Zeile bleibt,
+        # `geloescht_am` gesetzt, Kommentare bleiben bis zum endgueltigen
+        # Entfernen).
+        #
+        # UX2b2 (F3), Entscheidung: der Generic-Resource-Weg legt EBENFALLS in
+        # den Papierkorb — vorher loeschte er hart und damit an der 7-Tage-Frist
+        # vorbei (ein stilles Hintertuerchen). Beide Wege verhalten sich jetzt
+        # gleich, und in beiden Faellen bleiben die Kommentare bis zum
+        # endgueltigen Entfernen stehen (sonst waere ein Wiederherstellen
+        # unvollstaendig).
+        zeile = s.get(Beitrag, 'eins')
+        assert zeile is not None and zeile.geloescht_am is not None, weg
+        assert s.get(BeitragKommentar, 'k1') is not None, weg
         assert s.get(BeitragKommentar, 'k2') is not None
 
 

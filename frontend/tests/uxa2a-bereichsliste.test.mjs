@@ -55,11 +55,11 @@ function vorlageOhneKommentare(quelle) {
   const eintraege = m.mitgliederBereichEintraege(ADMIN)
   assert.deepEqual(
     eintraege.map(e => e.label),
-    ['Übersicht', 'Liste', 'Anfragen', 'Datenschutz', 'Löschanträge', 'Import'],
-    'die sechs Bereiche in der Reihenfolge des Konzepts',
+    ['Übersicht', 'Liste', 'Adressbuch', 'Anfragen', 'Datenschutz', 'Löschanträge', 'Import'],
+    'die sieben Bereiche in der Reihenfolge des Konzepts (UX3a: Adressbuch ist ein Reiter)',
   )
   for (const e of eintraege) {
-    assert.ok(/^#\/mitglieder\//.test(e.href), `${e.label}: eigene Adresse`)
+    assert.ok(/^#\/personen\//.test(e.href), `${e.label}: eigene Adresse`)
     assert.ok(e.seite, `${e.label}: Seitennamen für die Markierung`)
   }
   // Die Einträge sind aus MITGLIEDER_REITER abgeleitet — keine zweite Liste.
@@ -80,8 +80,10 @@ function vorlageOhneKommentare(quelle) {
 {
   const m = await menue()
   const ohne = m.mitgliederBereichEintraege(MITGLIED)
-  assert.deepEqual(ohne.map(e => e.label), ['Liste'],
-    'ohne Mitgliederadministrator bleibt nur die Liste')
+  // UX3a: Das Adressbuch ist ein Reiter für ALLE (Kontaktdaten der Gemeinde);
+  // alle Verwaltungsreiter bleiben admin-only.
+  assert.deepEqual(ohne.map(e => e.label), ['Liste', 'Adressbuch'],
+    'ohne Mitgliederadministrator bleiben Liste und Adressbuch')
   assert.equal(ohne[0].unterpunkte, undefined, 'ohne Recht auch keine Unterbereiche')
   assert.equal(m.sichtbareAnfragenUnterbereiche(MITGLIED).length, 0,
     'Unterbereiche von Anfragen sind admin-only')
@@ -124,11 +126,11 @@ function vorlageOhneKommentare(quelle) {
 
   assert.deepEqual(
     anfragen.unterpunkte.map(u => u.href),
-    ['#/mitglieder/anfragen?bereich=links', '#/mitglieder/anfragen?bereich=formulare'],
+    ['#/personen/anfragen?bereich=links', '#/personen/anfragen?bereich=formulare'],
     'jeder Unterbereich hat eine eigene, teilbare Adresse',
   )
   // Der Hauptpunkt führt auf die Anfragenliste (dieselbe Seite, erster Bereich).
-  assert.equal(anfragen.href, '#/mitglieder/anfragen', 'Hauptpunkt führt auf die Anfragenliste')
+  assert.equal(anfragen.href, '#/personen/anfragen', 'Hauptpunkt führt auf die Anfragenliste')
   for (const u of anfragen.unterpunkte) {
     assert.equal(u.seite, 'MitgliederAnfragen', 'gleiche Seite → gleicher Rechte-Guard')
   }
@@ -147,15 +149,16 @@ function vorlageOhneKommentare(quelle) {
 
   // Aus der Adresse den richtigen Eintrag/Unterbereich bestimmen.
   const faelle = [
-    ['#/mitglieder/anfragen', 'anfragen', null],
-    ['#/mitglieder/anfragen?bereich=anfragen', 'anfragen', null],
-    ['#/mitglieder/anfragen?bereich=links', 'anfragen', 'links'],
-    ['#/mitglieder/anfragen?bereich=formulare', 'anfragen', 'formulare'],
+    ['#/personen/anfragen', 'anfragen', null],
+    ['#/personen/anfragen?bereich=anfragen', 'anfragen', null],
+    ['#/personen/anfragen?bereich=links', 'anfragen', 'links'],
+    ['#/personen/anfragen?bereich=formulare', 'anfragen', 'formulare'],
     // alte/unbekannte Werte bleiben gültig: der Hauptpunkt trägt die Markierung
-    ['#/mitglieder/anfragen?bereich=gibtsnicht', 'anfragen', null],
-    ['#/mitglieder/anfragen?x=1', 'anfragen', null],
-    ['#/mitglieder/liste?status=Mitglied', 'liste', null],
-    ['#/mitglieder/import', 'import', null],
+    ['#/personen/anfragen?bereich=gibtsnicht', 'anfragen', null],
+    ['#/personen/anfragen?x=1', 'anfragen', null],
+    ['#/personen/liste?status=Mitglied', 'liste', null],
+    ['#/personen/import', 'import', null],
+    ['#/personen/adressbuch', 'adressbuch', null],
   ]
   for (const [hash, id, unter] of faelle) {
     const treffer = m.bereichsEintragAusHash(hash, ADMIN)
@@ -247,11 +250,11 @@ function routerAusfuehren(boot) {
   const h = routerAusfuehren({ is_admin: true, hash: '#/' })
   // Die alten Adressen des Bereichs bleiben gültig (Deep-Links, Lesezeichen).
   const weiter = [
-    ['#/registrierung', '#/mitglieder/anfragen'],
-    ['#/anmeldungen', '#/mitglieder/anfragen'],
-    ['#/registrierung?token=abc', '#/mitglieder/anfragen?token=abc'],
-    ['#/statistik', '#/mitglieder/uebersicht'],
-    ['#/mitglieder', '#/mitglieder/uebersicht'],
+    ['#/registrierung', '#/personen/anfragen'],
+    ['#/anmeldungen', '#/personen/anfragen'],
+    ['#/registrierung?token=abc', '#/personen/anfragen?token=abc'],
+    ['#/statistik', '#/personen/uebersicht'],
+    ['#/mitglieder', '#/personen/uebersicht'],
   ]
   for (const [alt, neu] of weiter) {
     h.gehe(alt)
@@ -260,34 +263,34 @@ function routerAusfuehren(boot) {
   // Alle neuen Adressen lösen auf — auch die Unterbereichs-Adressen, mit
   // Abfrageteil und Schluss-Schrägstrich.
   const seiten = [
-    ['#/mitglieder/uebersicht', 'MitgliederUebersicht'],
-    ['#/mitglieder/liste', 'MitgliederListe'],
-    ['#/mitglieder/anfragen', 'MitgliederAnfragen'],
-    ['#/mitglieder/anfragen?bereich=anfragen', 'MitgliederAnfragen'],
-    ['#/mitglieder/anfragen?bereich=links', 'MitgliederAnfragen'],
-    ['#/mitglieder/anfragen?bereich=formulare', 'MitgliederAnfragen'],
-    ['#/mitglieder/anfragen/', 'MitgliederAnfragen'],
-    ['#/mitglieder/datenschutz', 'MitgliederDatenschutz'],
-    ['#/mitglieder/loeschantraege', 'MitgliederLoeschantraege'],
-    ['#/mitglieder/import', 'MitgliederImport'],
+    ['#/personen/uebersicht', 'MitgliederUebersicht'],
+    ['#/personen/liste', 'MitgliederListe'],
+    ['#/personen/anfragen', 'MitgliederAnfragen'],
+    ['#/personen/anfragen?bereich=anfragen', 'MitgliederAnfragen'],
+    ['#/personen/anfragen?bereich=links', 'MitgliederAnfragen'],
+    ['#/personen/anfragen?bereich=formulare', 'MitgliederAnfragen'],
+    ['#/personen/anfragen/', 'MitgliederAnfragen'],
+    ['#/personen/datenschutz', 'MitgliederDatenschutz'],
+    ['#/personen/loeschantraege', 'MitgliederLoeschantraege'],
+    ['#/personen/import', 'MitgliederImport'],
   ]
   for (const [hash, seite] of seiten) {
     h.gehe(hash)
     assert.equal(h.router.currentPageName.value, seite, `${hash} → ${seite}`)
   }
   // Der Abfrageteil bleibt für die Seite lesbar (dort steht `bereich`).
-  h.gehe('#/mitglieder/anfragen?bereich=links')
-  assert.equal(h.router.currentHash.value, '#/mitglieder/anfragen?bereich=links')
+  h.gehe('#/personen/anfragen?bereich=links')
+  assert.equal(h.router.currentHash.value, '#/personen/anfragen?bereich=links')
 
   // Nicht-Admin: die Admin-Adressen führen weiterhin aufs Dashboard.
   const g = routerAusfuehren({ is_admin: false, hash: '#/' })
-  for (const hash of ['#/mitglieder/anfragen', '#/mitglieder/anfragen?bereich=links',
-    '#/mitglieder/import', '#/mitglieder/loeschantraege']) {
+  for (const hash of ['#/personen/anfragen', '#/personen/anfragen?bereich=links',
+    '#/personen/import', '#/personen/loeschantraege']) {
     g.gehe(hash)
     assert.equal(g.window.location.hash, '#/', `${hash}: ohne Recht zum Dashboard`)
   }
   // …die Liste bleibt erlaubt.
-  g.gehe('#/mitglieder/liste')
+  g.gehe('#/personen/liste')
   assert.equal(g.router.currentPageName.value, 'MitgliederListe', 'Liste für alle')
 }
 

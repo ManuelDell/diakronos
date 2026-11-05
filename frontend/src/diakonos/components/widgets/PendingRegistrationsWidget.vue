@@ -58,7 +58,8 @@ const rest = computed(() => Math.max(0, alle.value.length - VORSCHAU_MAX))
 const isEmpty = computed(() => !data.value || (Array.isArray(data.value) && !data.value.length))
 
 function zurModeration() {
-  window.location.hash = '#/moderation'
+  // UX3a: „Zu prüfen“ ist der vierte Reiter des Kalenders (vorher „Moderation“).
+  window.location.hash = '#/kalender/pruefen'
 }
 </script>
 

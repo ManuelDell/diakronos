@@ -12,12 +12,23 @@
  * Oberfläche lässt nur weg, was der Server ohnehin nicht erlaubt.
  */
 
-/** Feste Fußzeilen-Tabs. `seiten` ordnet den aktiven Zustand zu. */
+/** Feste Fußzeilen-Tabs. `seiten` ordnet den aktiven Zustand zu.
+ *  UX3a (Entwurf A8): Übersicht · Kalender · Dienste · Beiträge · Wiki — die
+ *  Leiste zeigt die häufigen Ziele der Handy-Nutzung; alles andere steht im
+ *  „Mehr“-Blatt (dieselbe Quelle, menue.js). „Dienste“ öffnet die persönliche
+ *  Sicht „Meine Dienste“.
+ *  UX3a2: „Dienste“ ist NICHT mehr für Gäste da — UX3a hatte den Tab (wie den
+ *  Menüpunkt) für Gäste geöffnet, der Bereich ist aber wie vor UX3a nur für
+ *  Mitglieder (der Router sperrt ihn ebenso). Ohne `nurMitglied` bot die
+ *  untere Leiste Gästen ein Ziel, das sie sofort wieder verliessen
+ *  (OP-ADMIN-21: Desktop und Handy bieten dieselben Seiten). */
 export const FUSSTAB_TABS = [
     { href: '#/',          label: 'Übersicht',  icon: 'home',   seiten: ['Home'] },
-    { href: '#/kalender',  label: 'Kalender',   icon: 'calendar', seiten: ['Kalender', 'KalenderImport'] },
-    { href: '#/ressourcen', label: 'Ressourcen', icon: 'box',   seiten: ['Ressourcen'], nurMitglied: true },
-    { href: '#/profile',   label: 'Profil',     avatar: true,   seiten: ['Profile'] },
+    { href: '#/kalender',  label: 'Kalender',   icon: 'calendar', seiten: ['Kalender', 'KalenderImport', 'Pruefen'] },
+    { href: '#/dienste',   label: 'Dienste',    icon: 'clock', nurMitglied: true,
+      seiten: ['Dienste', 'Dienstplan', 'DiensteDienstplaene', 'DiensteVorlagen', 'PlanrahmenUebersicht', 'PlanrahmenPlan', 'PlanrahmenEinrichten', 'PlanrahmenPlantypEditor', 'PlanrahmenStammdaten', 'PlanrahmenDienste'] },
+    { href: '#/beitraege', label: 'Beiträge',   icon: 'file-text', seiten: ['Beitraege'], nurMitglied: true },
+    { href: '#/wiki',      label: 'Wiki',       icon: 'help-circle', seiten: ['Wiki'], nurMitglied: true },
 ]
 
 /**

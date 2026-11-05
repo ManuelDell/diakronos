@@ -49,7 +49,7 @@ function routerAusfuehren({ hash = '#/', ladeFehler = false } = {}) {
 
 // Fehlerfreies Laden: nach dem nächsten Tick steht die Seite, kein Fehler.
 {
-  const h = routerAusfuehren({ hash: '#/planrahmen/meine-dienste' })
+  const h = routerAusfuehren({ hash: '#/dienste/meine-dienste' })
   await new Promise(r => setTimeout(r, 0))
   assert.equal(h.router.currentComponent.value, 'Seite')
   assert.equal(h.router.pageLadefehler.value, null)
@@ -58,7 +58,7 @@ function routerAusfuehren({ hash = '#/', ladeFehler = false } = {}) {
 // Fehlgeschlagenes Laden: KEIN ewiger Spinner — die Seite bleibt null, der
 // Router meldet eine verstaendliche Meldung mit Wiederholen-Pfad.
 {
-  const h = routerAusfuehren({ hash: '#/planrahmen/meine-dienste', ladeFehler: true })
+  const h = routerAusfuehren({ hash: '#/dienste/meine-dienste', ladeFehler: true })
   await new Promise(r => setTimeout(r, 0))
   assert.equal(h.router.currentComponent.value, null)
   const fehler = h.router.pageLadefehler.value
@@ -70,7 +70,7 @@ function routerAusfuehren({ hash = '#/', ladeFehler = false } = {}) {
 
 // „Nochmal versuchen" setzt den Fehler zurück.
 {
-  const h = routerAusfuehren({ hash: '#/planrahmen/meine-dienste', ladeFehler: true })
+  const h = routerAusfuehren({ hash: '#/dienste/meine-dienste', ladeFehler: true })
   await new Promise(r => setTimeout(r, 0))
   assert.ok(h.router.pageLadefehler.value)
   h.router.routeNeuLaden()

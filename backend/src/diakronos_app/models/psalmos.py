@@ -93,6 +93,12 @@ class Lied(Base):
     zuletzt_gesungen: Mapped[Any | None] = mapped_column(Date, nullable=True)
     anzahl_gesungen: Mapped[Any | None] = mapped_column(Integer, nullable=True)
     notiz: Mapped[Any | None] = mapped_column(Text, nullable=True)
+    # UX2b: Papierkorb. `geloescht_am` gesetzt = Lied liegt im Papierkorb und
+    # ist aus jeder Lese-Ausgabe ausgeblendet (Liste, Suche, Planrahmen-Sammlung);
+    # nach `aufbewahrung_tage` (7) entfernt der Scheduler es endgueltig.
+    # Migration ux2b_papierkorb.
+    geloescht_am: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    geloescht_von: Mapped[str | None] = mapped_column(String(140), nullable=True)
 
 class LiedAnlass(Base):
     """Frappe Child-Tabelle (istable=1) — Sortierung immer ueber `idx`."""

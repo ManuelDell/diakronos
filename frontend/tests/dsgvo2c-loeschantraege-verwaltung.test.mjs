@@ -56,14 +56,16 @@ function ohneKommentare(text) {
 // ── 1. Ort der Liste ────────────────────────────────────────────────────────
 
 test('DSGVO-2c · eigene Adresse, Reiter und Admin-Guard', () => {
-  assert.match(router, /'#\/mitglieder\/loeschantraege': 'MitgliederLoeschantraege'/)
+  // UX3a: der Personen-Bereich hat eine neue Adresse; die alte leitet weiter.
+  assert.match(router, /'#\/personen\/loeschantraege': 'MitgliederLoeschantraege'/)
   assert.match(router, /MitgliederLoeschantraege: \(\) => import\('\.\/pages\/mitglieder\/Bereich\.vue'\)/)
   // Direktaufruf ohne Administrator landet auf dem Dashboard.
   const guard = router.slice(router.indexOf('const ADMIN_ONLY_PAGES'))
   assert.match(guard.slice(0, guard.indexOf('])')), /'MitgliederLoeschantraege'/)
   // Reiter + Menü (Seitenleiste bleibt bei „Mitglieder“ markiert).
-  assert.match(menue, /\{ id: 'loeschantraege', label: 'Löschanträge', href: '#\/mitglieder\/loeschantraege', seite: 'MitgliederLoeschantraege', rolle: 'admin' \}/)
-  assert.match(menue, /'MitgliederDatenschutz', 'MitgliederLoeschantraege'/)
+  assert.match(menue, /\{ id: 'loeschantraege', label: 'Löschanträge', href: '#\/personen\/loeschantraege', seite: 'MitgliederLoeschantraege', rolle: 'admin' \}/)
+  // Seitennamen führen zur Markierung „Personen“ in der Seitenleiste.
+  assert.match(menue, /'MitgliederDatenschutz',\s*\n?\s*'PersonenLoeschantraege',\s*\n?\s*'MitgliederLoeschantraege'/)
   // Der Mitglieder-Rahmen zeigt die Seite als Reiterinhalt.
   assert.match(bereich, /import\('\.\/Loeschantraege\.vue'\)/)
   assert.match(bereich, /case 'loeschantraege': return LOESCHANTRAEGE/)
@@ -71,7 +73,7 @@ test('DSGVO-2c · eigene Adresse, Reiter und Admin-Guard', () => {
 
 test('DSGVO-2c · die Daten-Schutz-Seite führt auf die neue Arbeitsliste', () => {
   const datenschutz = lies('pages/mitglieder/Datenschutz.vue')
-  assert.match(datenschutz, /href="#\/mitglieder\/loeschantraege"/)
+  assert.match(datenschutz, /href="#\/personen\/loeschantraege"/)
   // Kein zweiter Freigabe-Weg über den alten Knopf. (Der Dialogtitel
   // „Löschantrag prüfen“ bleibt für den Alt-bestand `anonymisieren` stehen —
   // gesucht wird der Knopf, der früher direkt bestätigt hat.)

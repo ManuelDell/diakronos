@@ -61,7 +61,7 @@
         <p class="logo-zustand">{{ logoUrl ? 'Logo hinterlegt' : 'Kein Logo hinterlegt' }}</p>
         <div class="logo-knoepfe">
           <label class="logo-waehlen">
-            <AssistentSymbol name="hochladen" :size="14" />
+            <AssistentSymbol name="hochladen" :size="'var(--icon-sm)'" />
             <span>{{ logoLaeuft ? 'Wird geladen …' : 'Datei auswählen' }}</span>
             <input
               ref="dateiFeld"
@@ -79,7 +79,7 @@
             :disabled="logoLaeuft"
             @click="$emit('logo-entfernen')"
           >
-            <template #icon><AssistentSymbol name="entfernen" :size="14" /></template>
+            <template #icon><AssistentSymbol name="entfernen" :size="'var(--icon-sm)'" /></template>
             Entfernen
           </DkButton>
         </div>

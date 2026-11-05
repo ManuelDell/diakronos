@@ -148,7 +148,7 @@ function umgebung({ speicher = true, token = 'neu-2', antworten = [OK], reloadZa
         removeItem: (k) => { if (!speicher) throw new Error('gesperrt'); speicherMap.delete(k) },
     }
     const location = {
-        pathname: '/diakronos', search: '', hash: '#/mitglieder',
+        pathname: '/diakronos', search: '', hash: '#/personen',
         reload: () => { if (reloadZaehlt) zustand.reloads++ },
         assign: (ziel) => { zustand.weiterleitungen.push(ziel) },
     }

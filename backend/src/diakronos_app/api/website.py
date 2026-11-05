@@ -415,6 +415,10 @@ def _gruppen_zeilen() -> list[dict]:
 
     return get_all(
         "Gruppe",
+        # UX2b2 (F3): die Freigabeliste zeigt keine geloeschte Gruppe an —
+        # sonst liesse sich eine Freigabe fuer etwas setzen, das es nicht mehr
+        # gibt (und der Slug bliebe auf der Website belegt).
+        filters=[["geloescht_am", "is", "not set"]],
         fields=["name", "gruppenname", "website_freigabe", "website_slug"],
         order_by="gruppenname asc",
     ) or []
@@ -544,7 +548,8 @@ def freigaben_lesen():
     try:
         beitraege = get_all(
             "Beitrag",
-            filters={"auf_website": 1},
+            # UX2b2 (F3): die Beitrags-Freigabeliste ohne Papierkorb.
+            filters={"auf_website": 1, "geloescht_am": ["is", "not set"]},
             fields=["name", "titel", "veroeffentlicht"],
             order_by="datum desc",
             limit_page_length=500,

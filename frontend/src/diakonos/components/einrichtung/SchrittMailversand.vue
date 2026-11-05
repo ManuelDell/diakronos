@@ -122,12 +122,12 @@
 
       <div class="test-zeile">
         <DkButton variant="secondary" :loading="testet" @click="testen">
-          <template #icon><AssistentSymbol name="senden" :size="14" /></template>
+          <template #icon><AssistentSymbol name="senden" :size="'var(--icon-sm)'" /></template>
           Testmail senden
         </DkButton>
         <div class="test-ergebnis" aria-live="polite">
           <p v-if="testErfolg" class="test-ok">
-            <AssistentSymbol name="kreis-haken" :size="17" />
+            <AssistentSymbol name="kreis-haken" :size="'var(--assistent-haken-gross)'" />
             {{ testErfolg }}
           </p>
           <p v-if="testFehler" class="test-fehler" role="alert">{{ testFehler }}</p>

@@ -26,12 +26,12 @@ import re as _re
 from datetime import date as _date
 from typing import Any
 
+from diakronos_app import papierkorb
 from diakronos_app.frappe_compat.registry import whitelist
 
 from diakronos_app.frappe_compat.api_helpers import (
     _bulk_update_by_field,
     _count,
-    _delete_doc,
     get_all,
     get_doc,
     get_value,
@@ -137,7 +137,8 @@ def update_series_batch_fast(series_id, updates):
 
     elemente = get_all(
         "Element",
-        filters={"series_id": series_id},
+        # UX2b: Termine im Papierkorb gehoeren nicht mehr zur wirksamen Serie.
+        filters={"series_id": series_id, "geloescht_am": ["is", "not set"]},
         fields=["name", "status"],
     ) or []
     # W-A (R-P1-8): ein abgelehnter Termin ist erledigt — der Serien-Batch darf
@@ -201,6 +202,13 @@ def update_series_batch_fast(series_id, updates):
     return antwort
 
 
+def _user() -> str:
+    """Wer loescht — steht als `geloescht_von` an der Zeile (UX2b)."""
+    from diakronos_app.frappe_compat.session import session as _session
+
+    return str(_session.user or "")
+
+
 @whitelist(methods=["POST"], allow_guest=False)
 def delete_future_series_events(series_id, from_date):
     """Loescht alle Elemente einer Serie ab einem bestimmten Datum (inklusive)."""
@@ -219,7 +227,8 @@ def delete_future_series_events(series_id, from_date):
 
     elements = get_all(
         "Element",
-        filters={"series_id": series_id, "element_start": [">=", from_date]},
+        filters={"series_id": series_id, "element_start": [">=", from_date],
+                 "geloescht_am": ["is", "not set"]},
         fields=["name", "element_calendar"],
     ) or []
 
@@ -235,14 +244,16 @@ def delete_future_series_events(series_id, from_date):
             stand = absage_vorbereiten(name)
             # W3: offene Aenderungsvorschlaege des Termins mit aufraeumen.
             _aenderungen_entfernen(name)
-            _delete_doc("Element", name)
+            # UX2b: in den Papierkorb statt sofort weg (wiederherstellbar).
+            papierkorb.loeschen("Element", name, von=_user())
             deleted_count += 1
             absagen.merke(stand)
         except Exception as e:  # noqa: BLE001 — Original loggt und macht weiter
             log_error(f"Fehler beim Löschen von {name}: {e}", "Series Delete Future Error")
 
     absagen.melden()
-    return {"success": True, "deleted_count": deleted_count}
+    return {"success": True, "deleted_count": deleted_count,
+            "wiederherstellbar": True}
 
 
 def _series_datum(wert: Any, feldname: str) -> str:
@@ -306,7 +317,9 @@ def delete_series_batch_fast(series_id):
         throw(f"Serie nicht gefunden: {series_id}")
     _assert_write_access(str(first_calendar))
 
-    elements = get_all("Element", filters={"series_id": series_id}, fields=["name"]) or []
+    elements = get_all("Element", filters={"series_id": series_id,
+                                           "geloescht_am": ["is", "not set"]},
+                       fields=["name"]) or []
 
     if not elements:
         return {
@@ -324,7 +337,8 @@ def delete_series_batch_fast(series_id):
             stand = absage_vorbereiten(name)
             # W3: offene Aenderungsvorschlaege des Termins mit aufraeumen.
             _aenderungen_entfernen(name)
-            _delete_doc("Element", name)
+            # UX2b: in den Papierkorb statt sofort weg (wiederherstellbar).
+            papierkorb.loeschen("Element", name, von=_user())
             deleted_count += 1
             absagen.merke(stand)
         except Exception as e:  # noqa: BLE001 — Original loggt und macht weiter
@@ -334,7 +348,8 @@ def delete_series_batch_fast(series_id):
     return {
         "success": True,
         "deleted_count": deleted_count,
-        "message": f"{deleted_count} Termine gelöscht",
+        "message": f"{deleted_count} Termine in den Papierkorb gelegt",
+        "wiederherstellbar": True,
     }
 
 

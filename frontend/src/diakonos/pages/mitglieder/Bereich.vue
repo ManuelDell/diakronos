@@ -5,7 +5,7 @@
          gefilterte Liste (kein clientseitiger Notbehelf). Sichtbar ist er
          nur im Reiter „Liste“; „Mitglied hinzufuegen“ fuehrt wie bisher in
          die Anmeldungsverwaltung, ein Import-Knopf kommt erst mit N11. -->
-    <DkPageHeader title="Mitglieder" :sub="unterzeile">
+    <DkPageHeader title="Personen" :sub="unterzeile">
       <template #actions>
         <!-- Bedingung aus Skripten: in der Vorlage werden Refs in Ausdruecken
              nicht ausgepackt, deshalb hier nur Namen (kein `a && b.id`). -->
@@ -27,7 +27,7 @@
         <template v-if="istAdmin">
           <DkButton variant="primary" @click="mitgliedHinzufuegen">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-            Mitglied hinzufügen
+            Person anlegen
           </DkButton>
         </template>
       </template>
@@ -45,7 +45,7 @@
         class="mb-liste"
         :model-value="aktiverEintragValue"
         :options="bereichsEintraege"
-        aria-label="Bereiche von Mitglieder"
+        aria-label="Bereiche von Personen"
       />
 
       <!-- Inhalt des aktiven Eintrags. Die Körper stammen aus den vorhandenen
@@ -77,7 +77,8 @@
 
 <script setup>
 /**
- * Mitglieder — Rahmen mit Bereichsliste (Neuordnung N1, UX-A2a).
+ * Personen — Rahmen mit Bereichsliste (Neuordnung N1, UX-A2a; UX3a heißt der
+ * Bereich „Personen“, vorher „Mitglieder“).
  * Kopf und Einträge kommen aus der zentralen Definition (menue.js); jeder
  * Eintrag hat eine eigene Adresse.
  *
@@ -126,6 +127,8 @@ const DATENSCHUTZ  = defineAsyncComponent(() => import('./Datenschutz.vue'))
 // DSGVO-2c: eigene Arbeitsliste der Verwaltung (Freigeben/Ablehnen).
 const LOESCHANTRAEGE = defineAsyncComponent(() => import('./Loeschantraege.vue'))
 const IMPORT       = defineAsyncComponent(() => import('./Import.vue'))
+// UX3a: Das Adressbuch ist ein Reiter von „Personen“ (vorher eigener Menüpunkt).
+const ADRESSBUCH   = defineAsyncComponent(() => import('../Adressbuch.vue'))
 
 // ── Einträge und Auswahl ───────────────────────────────────────────────────
 
@@ -164,7 +167,7 @@ const aktiverEintragValue = computed(() => {
 })
 
 /** Name des Inhaltsbereichs für Vorlesehilfen (role="region"). */
-const inhaltName = computed(() => aktiverEintrag.value?.label || 'Mitglieder')
+const inhaltName = computed(() => aktiverEintrag.value?.label || 'Personen')
 
 const inhalt = computed(() => {
   switch (aktiverEintrag.value?.id) {
@@ -173,6 +176,7 @@ const inhalt = computed(() => {
     case 'datenschutz': return DATENSCHUTZ
     case 'loeschantraege': return LOESCHANTRAEGE
     case 'import':      return IMPORT
+    case 'adressbuch':  return ADRESSBUCH
     default:            return LISTE
   }
 })
@@ -180,6 +184,7 @@ const inhalt = computed(() => {
 const unterzeile = computed(() => {
   if (aktiverEintrag.value?.id === 'liste') return 'Alle Personen der Gemeinde'
   if (aktiverEintrag.value?.id === 'import') return 'Personen aus einer CSV-Datei einlesen'
+  if (aktiverEintrag.value?.id === 'adressbuch') return 'Kontaktdaten der Gemeinde'
   return ''
 })
 

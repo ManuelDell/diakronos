@@ -3,6 +3,8 @@ import { apiCall } from './useApi.js'
 // ON-4: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen —
 // derselbe Weg wie der Assistent, NIE ein fester Pfad.
 import { apiUrl } from '../../shared/basis.js'
+// ON-5 (E2-5): die Marke der Gemeinde EINE Stelle fortschreiben.
+import { merkeGemeindeMarke } from './gemeindeMarke.mjs'
 import * as EINRICHTUNG_REGELN from './einrichtungAssistent.mjs'
 // ON-4: EINE Quelle fuer die Pruefungen des Assistenten (KEINE Kopie).
 // Der Import steht zur AUFRUFZEIT (dynamisch): dieses Modul ist reine Logik und
@@ -210,6 +212,8 @@ export function useGemeinde() {
       if (!res.ok) throw new Error(inhalt?.exception || 'Das Logo konnte nicht gespeichert werden.')
       const d = inhalt?.message || inhalt
       logoUrl.value = d?.logo_url || ''
+      // ON-5 (E2-5): Seitenleiste/Marke sofort aktuell (kein Neuladen).
+      merkeGemeindeMarke(d?.logo_url || '')
       erfolg.value = 'Logo gespeichert.'
       return true
     } catch (e) {
@@ -229,6 +233,8 @@ export function useGemeinde() {
       const res = await apiCall(API + 'gemeinde_logo_entfernen', {})
       const d = res?.message || res
       logoUrl.value = d?.logo_url || ''
+      // ON-5 (E2-5): auch das Entfernen muss die Marke sofort leeren.
+      merkeGemeindeMarke(d?.logo_url || '')
       erfolg.value = 'Logo entfernt.'
       return true
     } catch (e) {

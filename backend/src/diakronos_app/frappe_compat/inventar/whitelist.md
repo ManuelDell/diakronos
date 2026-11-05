@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **1786**
-* eindeutige Funktionen: **347**
-* lesend: **160**, schreibend: **187**
-* Rumpfbefund: schreibend 177, lesend 170, unbekannt 0
+* registrierte Pfade: **1829**
+* eindeutige Funktionen: **355**
+* lesend: **161**, schreibend: **194**
+* Rumpfbefund: schreibend 179, lesend 176, unbekannt 0
 
 ## Einstufung
 
@@ -35,7 +35,12 @@ mit Modulbezug, SEC-11c/R1). Der Name ist Hinweis, nicht Urteil.
 
 Entschieden ohne Ausnahme (Quellen einig, die Grenze traegt die Deklaration — keine offene Frage):
 
+* `diakronos_app.api.beitraege.wiederherstellen_beitrag` (Methoden ['POST'])
+* `diakronos_app.api.gruppen.wiederherstellen_gruppe` (Methoden ['POST'])
+* `diakronos_app.api.kronos.event_crud.wiederherstellen_event` (Methoden ['POST'])
+* `diakronos_app.api.psalmos.musik.wiederherstellen_lied` (Methoden ['POST'])
 * `diakronos_app.api.website.bausteine_installieren` (Methoden ['POST'])
+* `diakronos_app.api.wiki.wiederherstellen_wiki_artikel` (Methoden ['POST'])
 
 ## Ausnahmen (lesend trotz Widerspruch, mit Begruendung)
 
@@ -86,6 +91,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.beitraege.create_kommentar` | ['POST'] | nein |
 | `diakronos_app.api.beitraege.delete_beitrag` | ['POST'] | nein |
 | `diakronos_app.api.beitraege.update_beitrag` | ['POST'] | nein |
+| `diakronos_app.api.beitraege.wiederherstellen_beitrag` | ['POST'] | nein |
 | `diakronos_app.api.bugreport.melden` | ['POST'] | nein |
 | `diakronos_app.api.bugreport.set_status` | ['POST'] | nein |
 | `diakronos_app.api.dashboard.reset_user_config` | ['POST'] | nein |
@@ -117,6 +123,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.gruppen.create_dienstbereich` | ['POST'] | nein |
 | `diakronos_app.api.gruppen.create_gruppe` | ['POST'] | nein |
 | `diakronos_app.api.gruppen.create_untergruppe` | ['POST'] | nein |
+| `diakronos_app.api.gruppen.delete_gruppe` | ['POST'] | nein |
 | `diakronos_app.api.gruppen.get_user_create_permissions` | — | nein |
 | `diakronos_app.api.gruppen.remove_mitglied_from_gruppe` | ['POST'] | nein |
 | `diakronos_app.api.gruppen.toggle_aufgabe` | ['POST'] | nein |
@@ -124,6 +131,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.gruppen.update_gruppe` | ['POST'] | nein |
 | `diakronos_app.api.gruppen.update_mitglied_rolle` | ['POST'] | nein |
 | `diakronos_app.api.gruppen.update_untergruppe` | ['POST'] | nein |
+| `diakronos_app.api.gruppen.wiederherstellen_gruppe` | ['POST'] | nein |
 | `diakronos_app.api.kronos.ablaufplan_api.save_ablaufplan` | ['POST'] | nein |
 | `diakronos_app.api.kronos.event_crud.aenderung_ablehnen` | ['POST'] | nein |
 | `diakronos_app.api.kronos.event_crud.aenderung_freigeben` | ['POST'] | nein |
@@ -132,6 +140,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.kronos.event_crud.delete_event` | ['POST'] | nein |
 | `diakronos_app.api.kronos.event_crud.save_event` | ['POST'] | nein |
 | `diakronos_app.api.kronos.event_crud.update_event` | ['POST'] | nein |
+| `diakronos_app.api.kronos.event_crud.wiederherstellen_event` | ['POST'] | nein |
 | `diakronos_app.api.kronos.google_import.exchange_code` | ['POST'] | nein |
 | `diakronos_app.api.kronos.google_import.get_credentials_status` | — | nein |
 | `diakronos_app.api.kronos.google_import.get_google_calendars` | — | nein |
@@ -199,10 +208,12 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.profile.update_einwilligung` | ['POST'] | nein |
 | `diakronos_app.api.profile.update_my_profile` | ['POST'] | nein |
 | `diakronos_app.api.profile.update_profile_picture` | ['POST'] | nein |
+| `diakronos_app.api.psalmos.musik.delete_lied` | ['POST'] | nein |
 | `diakronos_app.api.psalmos.musik.delete_liedgruppe` | ['POST'] | nein |
 | `diakronos_app.api.psalmos.musik.save_fassung` | ['POST'] | nein |
 | `diakronos_app.api.psalmos.musik.save_lied` | ['POST'] | nein |
 | `diakronos_app.api.psalmos.musik.save_liedgruppe` | ['POST'] | nein |
+| `diakronos_app.api.psalmos.musik.wiederherstellen_lied` | ['POST'] | nein |
 | `diakronos_app.api.registrierung.submit_gast` | ['POST'] | ja |
 | `diakronos_app.api.registrierung.submit_registrierung` | ['POST'] | ja |
 | `diakronos_app.api.registrierungslink_api.create_link` | ['POST'] | nein |
@@ -235,6 +246,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.wiki.create_wiki_artikel` | ['POST'] | nein |
 | `diakronos_app.api.wiki.delete_wiki_artikel` | ['POST'] | nein |
 | `diakronos_app.api.wiki.update_wiki_artikel` | ['POST'] | nein |
+| `diakronos_app.api.wiki.wiederherstellen_wiki_artikel` | ['POST'] | nein |
 | `diakronos_app.api.zugang.einladungslink` | ['POST'] | nein |
 | `diakronos_app.api.zugang.konto_anlegen` | ['POST'] | nein |
 | `diakronos_app.api.zugang.konto_freischalten` | ['POST'] | nein |
@@ -335,6 +347,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.mitglieder.get_mitglieder_liste` | — | nein |
 | `diakronos_app.api.mitglieder.pruefe_mitglied_dublette` | — | nein |
 | `diakronos_app.api.orgchart_api.get_orgchart_data` | — | nein |
+| `diakronos_app.api.papierkorb.liste` | — | nein |
 | `diakronos_app.api.ping` | — | nein |
 | `diakronos_app.api.planrahmen.abwesenheiten_liste` | — | nein |
 | `diakronos_app.api.planrahmen.bedarf` | — | nein |

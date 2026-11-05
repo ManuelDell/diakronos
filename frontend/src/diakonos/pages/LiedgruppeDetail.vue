@@ -3,7 +3,7 @@
     <!-- Seitenkopf -->
     <DkPageHeader
       :title="info.gruppenname || info.name || 'Liedgruppe'"
-      :krumen="[{ text: 'Liedgruppen', href: '#/liedgruppen' }, { text: info.gruppenname || info.name || 'Liedgruppe' }]"
+      :krumen="[{ text: 'Liedgruppen', href: '#/lieder/gruppen' }, { text: info.gruppenname || info.name || 'Liedgruppe' }]"
       :badges="kopfBadges"
     >
       <template v-if="darfSchreiben" #actions>
@@ -194,7 +194,7 @@ async function loeschenBestaetigt() {
   try {
     await liedgruppeLoeschen(info.value.name)
     showToast('Liedgruppe gelöscht.')
-    navigate('#/liedgruppen')
+    navigate('#/lieder/gruppen')
   } catch (e) {
     error.value = fehlerMeldungen(e)?.[0]?.meldung || 'Löschen fehlgeschlagen.'
     loeschDialog.value = false

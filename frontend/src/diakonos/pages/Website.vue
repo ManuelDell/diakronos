@@ -1,6 +1,8 @@
 <template>
   <div class="dk-screen dk-screen-enter">
-    <DkPageHeader title="Website" sub="Die Gemeinde-Website in Primo bearbeiten." />
+    <!-- UX3a (Konzept-Entscheidung): Das Werkzeug heißt „Website-Baukasten“,
+         nicht „Primo“ — „Primo“ ist nur der technische Anbieter (WEB-1). -->
+    <DkPageHeader title="Website" sub="Was von der Gemeinde auf der Website erscheint — bearbeitet im Website-Baukasten." />
 
     <div v-if="!darfVerwalten" class="wf-bereich">
       <DkHint variant="warn" role="alert">
@@ -34,7 +36,7 @@
           <div class="wf-aktionen">
             <DkButton variant="primary" :loading="oeffnet" :disabled="!verbunden"
               @click="primoOeffnen">
-              Primo öffnen
+              Website-Baukasten öffnen
             </DkButton>
             <DkButton variant="secondary" :loading="laedt" @click="laden">
               Stand neu laden
@@ -43,7 +45,7 @@
 
           <p v-if="!verbunden" class="wf-hilfe">
             Die Einrichtung der Anbindung steht in den Einstellungen unter
-            „Website (Primo)“. Die Freigaben hier lassen sich auch ohne
+            „Website-Baukasten“. Die Freigaben hier lassen sich auch ohne
             Anbindung pflegen — sie wirken, sobald die Website verbunden ist.
           </p>
         </div>
@@ -542,7 +544,7 @@ async function primoOeffnen() {
     hinweis.value = {
       // Kein „Der Tab ist offen“ — das lässt sich mit `noopener` nicht
       // feststellen (window.open liefert dort immer null).
-      text: 'Die Übergabe an Primo wurde gestartet. Der neue Tab sollte sich öffnen — '
+      text: 'Die Übergabe an den Website-Baukasten wurde gestartet. Der neue Tab sollte sich öffnen — '
         + 'ist er nicht zu sehen, bitte die Pop-up-Sperre für diese Seite prüfen '
         + 'und erneut versuchen.',
       ton: 'ok',

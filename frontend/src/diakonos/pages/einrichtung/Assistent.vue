@@ -266,7 +266,8 @@ function zurUebersicht() {
 
 /** Mitglieder-Weg: vorhandene Seite öffnen (kein zweiter Weg). */
 function mitgliederWeg(weg) {
-  navigate(weg === 'import' ? '#/mitglieder/import' : '#/mitglieder/liste')
+  // UX3a: der Bereich heißt „Personen“ (vorher „Mitglieder“).
+  navigate(weg === 'import' ? '#/personen/import' : '#/personen/liste')
 }
 
 onMounted(() => {

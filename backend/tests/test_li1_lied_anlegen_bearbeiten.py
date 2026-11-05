@@ -258,11 +258,41 @@ def test_nicht_schreiber_bekommt_beim_anlegen_und_aendern_417(client, patched_db
         assert r.json()["meldungen"][0]["code"] == "rechte.lied"
 
 
-def test_loeschen_eines_liedes_existiert_nicht(client, patched_db, chor_def):
-    """Absicht: kein Lösch-Endpunkt — die Karte lässt es ausdrücklich zu,
-    das Löschen wegzulassen und als bekannte Grenze zu nennen."""
+def test_loeschen_eines_liedes_gibt_es_nur_als_papierkorb(client, patched_db, chor_def):
+    """LI-1 liess das Löschen weg; UX2b führt es ein — nur als Papierkorb.
+
+    Die frühere Absicht („kein Lösch-Endpunkt“) gilt unverändert für die hier
+    genannten Ad-hoc-Namen; der EINE Weg ist jetzt `delete_lied` aus der
+    Musikdatenbank (`diakronos.psalmos.api.musik.delete_lied`), und auch der
+    löscht nicht sofort, sondern legt in den Papierkorb (7 Tage
+    wiederherstellbar). Beides wird hier an der Planrahmen-Sicht geprüft:
+    unter `PFAD + "delete_lied"` gibt es weiterhin keinen Endpunkt.
+    """
     stammdaten(patched_db)
     aufruf(client, "plantyp_speichern", definition=chor_def, gueltig_ab="2026-01-01")
-    for name in ("lied_loeschen", "lied_entfernen", "delete_lied"):
+    for name in ("lied_loeschen", "lied_entfernen"):
         r = client.post(PFAD + name, json={"plantyp": "chorplan", "lied": "LIED-1"})
         assert r.status_code == 404, f"{name} darf es nicht geben: {r.status_code}"
+    # `delete_lied` gibt es NUR im Musikdatenbank-Pfad (MPFAD), nicht im
+    # Planrahmen-Pfad. Der Router prueft die Rechte VOR dem Pfad (ein
+    # Nicht-Schreiber bekommt hier 403 statt 404) — entscheidend ist, dass der
+    # Aufruf NICHTS loescht.
+    r = client.post(PFAD + "delete_lied", json={"plantyp": "chorplan", "lied": "LIED-1"})
+    assert r.status_code in (403, 404), r.text
+    from diakronos_app.models.psalmos import Lied
+
+    with patched_db() as _s:
+        _lied = _s.get(Lied, "LIED-1")
+        assert _lied is None or _lied.geloescht_am is None
+
+    # Der echte Weg existiert — schreibende Methode POST, Papierkorb statt weg.
+    from diakronos_app.frappe_compat.registry import lookup, options_for
+
+    fn = lookup("diakronos.psalmos.api.musik.delete_lied")
+    assert fn is not None
+    assert tuple(options_for(fn).get("methods") or ()) == ("POST",)
+    quelle = (
+        __import__("pathlib").Path(__file__).resolve().parents[1]
+        / "src" / "diakronos_app" / "api" / "psalmos" / "musik.py"
+    ).read_text(encoding="utf-8")
+    assert "papierkorb.loeschen(\"Lied\"" in quelle

@@ -276,6 +276,8 @@ def get_termine_am_tag(datum, kalender=None):
 
     filters = {
         "element_start": ["between", [f"{datum} 00:00:00", f"{datum} 23:59:59"]],
+        # UX2b: ein Termin im Papierkorb ist kein Andock-Kandidat.
+        "geloescht_am": ["is", "not set"],
     }
 
     # kalender akzeptiert einen Namen, eine Liste oder eine JSON-Liste

@@ -254,6 +254,7 @@ import { chipsAus } from '../composables/filterChips.mjs'
 import { showToast } from '../composables/useToast.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import { bestaetigen } from '../composables/useBestaetigen.js'
+import { loeschFrage, papierkorbMeldung, wiederherstellen } from '../composables/papierkorb.mjs'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkButton from '../components/ui/DkButton.vue'
 import DkBadge from '../components/ui/DkBadge.vue'
@@ -489,13 +490,26 @@ async function savePost() {
   }
 }
 async function deletePost(post) {
-  if (!(await bestaetigen({ titel: 'Beitrag löschen?', text: `„${post.title}“ wird unwiderruflich gelöscht.`, aktion: 'Löschen', gefahr: true }))) return
+  // UX2b: kein „unwiderruflich“ mehr — der Beitrag landet im Papierkorb
+  // (7 Tage wiederherstellbar). Die Meldung nennt die Frist; „Rückgängig“
+  // holt ihn über `beitraege.wiederherstellen_beitrag` zurück.
+  if (!(await bestaetigen(loeschFrage(post.title, 'Beitrag')))) return
   try {
-    await apiCall('diakronos.diakonos.api.beitraege.delete_beitrag', { beitrag_id: post.id })
-    showToast('Beitrag gelöscht')
+    const antwort = await apiCall('diakronos.diakonos.api.beitraege.delete_beitrag', { beitrag_id: post.id })
     showPostDetail.value = false
     selectedPost.value = null
     await loadPosts()
+    await showToast(papierkorbMeldung(post.title, antwort?.wiederherstellbar_bis), 'success', {
+      aktion: { text: 'Rückgängig', onClick: async () => {
+        const ergebnis = await wiederherstellen('beitrag', post.id)
+        if (ergebnis.ok) {
+          showToast(`„${post.title}“ wiederhergestellt.`)
+          await loadPosts()
+        } else {
+          showToast(ergebnis.fehler, 'error')
+        }
+      } },
+    })
   } catch (err) {
     showToast(err?.message || 'Fehler', 'error')
   }

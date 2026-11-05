@@ -94,9 +94,26 @@ const offeneBefunde = computed(() => {
   return k.offen ?? k.offene ?? k.gesamt ?? '–'
 })
 
+/**
+ * ON-5 (Klein): Der Aufruf `devmodus.api.uebersicht` läuft NUR, wenn die
+ * Instanz den Dev-Modus zulässt (`DEVMODE_ENABLED`, im Boot-Objekt als
+ * `devmode`). Vorher fragte der Abschnitt auch bei ausgeschaltetem Dev-Modus —
+ * der Server antwortet dann (richtig) mit 404, und im Prüflauf stand das als
+ * „Konsolenfehler“ im Bericht. Der 404-Fall bleibt trotzdem abgefangen (der
+ * Server entscheidet, nicht die Oberfläche: eine falsche Boot-Angabe darf
+ * keine Werkzeuge zeigen).
+ */
+const devmodeAn = Boolean(window.__DIakonosBOOT?.devmode)
+
 async function laden() {
   laedt.value = true
   fehler.value = ''
+  if (!devmodeAn) {
+    nichtVerfuegbar.value = true
+    nichtErlaubt.value = false
+    laedt.value = false
+    return
+  }
   try {
     const daten = await devmodusUebersicht()
     berechtigt.value = true

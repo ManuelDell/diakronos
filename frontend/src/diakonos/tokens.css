@@ -535,6 +535,15 @@
   --assistent-kopf: 68px;         /* eigene Kopfzeile des Assistenten */
   --assistent-fuss: 88px;         /* Fußleiste (Entwurf 04) */
   --assistent-fuss-mobil: 84px;   /* Fußleiste am Handy (Entwurf 14) */
+  /* ON-E2E: Symbolgrößen des Assistenten. Sie standen vorher als ZAHLEN im
+     Markup (`:size="29.12"`, `14`, `18`) — gegen die Regel „keine Größen-
+     Zahlen in Komponenten" und für den Wächter unsichtbar. Das Attribut
+     `width`/`height` eines SVG nimmt ausserdem kein `var(…)`; deshalb kommen
+     Größen hierher und werden als CSS gesetzt (AssistentSymbol). */
+  --assistent-fertig-zeichen: 29.12px; /* großer Haken im Abschlusskreis */
+  --assistent-fertig-haken: 13.52px;   /* Haken in der Checklistenzeile */
+  --assistent-haken-gross: 17px;       /* Haken neben „Testmail ist …" */
+  --assistent-zurueck: 18px;           /* Pfeil der Mobil-Kopfzeile */
   --logo-vorschau: 120px;         /* Logo-Feld im Schritt „Gemeinde“ */
   --logo-klein: 96px;             /* Logo-Feld am Handy */
   --segment-h: 22px;              /* Schiebeschalter der Modul-Kacheln */

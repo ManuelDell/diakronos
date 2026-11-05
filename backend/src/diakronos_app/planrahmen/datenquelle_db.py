@@ -820,7 +820,9 @@ class DBDatenquelle:
         lieder = (
             session.execute(
                 select(Lied)
-                .where(Lied.aktiv.is_(True), Lied.docstatus < 2)
+                # UX2b: Lieder im Papierkorb sind keine Sammlungs-Eintraege.
+                .where(Lied.aktiv.is_(True), Lied.docstatus < 2,
+                       Lied.geloescht_am.is_(None))
                 .order_by(Lied.name)
             )
             .scalars()
@@ -1054,6 +1056,8 @@ class DBDatenquelle:
                     Element.docstatus < 2,
                     Element.status == KALENDER_FREIGEGEBEN_STATUS,
                     Element.element_start.is_not(None),
+                    # UX2b: ein Termin im Papierkorb traegt keinen Plan.
+                    Element.geloescht_am.is_(None),
                 )
                 .order_by(Element.element_start, Element.name)
             )

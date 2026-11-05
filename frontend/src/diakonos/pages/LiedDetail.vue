@@ -142,7 +142,7 @@
             <DkEmpty v-if="liedgruppen.length === 0" title="Keine Liedgruppe" text="Dieses Lied steckt in keiner Liedgruppe." icon="📁" />
             <ul v-else class="ld-group-list">
               <li v-for="g in liedgruppen" :key="g.liedgruppe">
-                <a :href="'#/liedgruppen/' + encodeURIComponent(g.liedgruppe)" class="ld-group-link">
+                <a :href="'#/lieder/gruppen/' + encodeURIComponent(g.liedgruppe)" class="ld-group-link">
                   <span class="ld-group-name">{{ g.liedgruppe }}</span>
                   <span v-if="g.nummer" class="ld-group-num">{{ g.nummer }}</span>
                   <span v-if="g.fassung" class="ld-group-fassung">{{ g.fassung }}</span>

@@ -17,8 +17,8 @@
       </div>
       <h2 class="mod-verweigert-titel">Zugriff verweigert</h2>
       <p class="mod-verweigert-text">
-        Du hast keine Berechtigung für die Terminmoderation.<br>
-        Nur Kalender-Moderatoren können Termine moderieren.
+        Du hast keine Berechtigung, Termine zu prüfen.<br>
+        Nur Moderatoren der Kalender können Termine freigeben.
       </p>
       <DkButton variant="secondary" @click="goToKalender">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -27,10 +27,10 @@
     </div>
   </div>
 
-  <!-- Moderation Board -->
+  <!-- Tafel „Zu prüfen“ (UX3a: der vierte Reiter des Kalenders) -->
   <div v-else class="dk-screen dk-screen-wide dk-moderation dk-screen-enter">
     <!-- Header -->
-    <DkPageHeader title="Terminmoderation" :badges="moderationCount > 0 ? [{ text: String(moderationCount), variant: 'akzent' }] : []">
+    <DkPageHeader title="Zu prüfen" :badges="moderationCount > 0 ? [{ text: String(moderationCount), variant: 'akzent' }] : []">
       <template #actions>
         <DkButton variant="ghost" size="sm" class="dk-moderation-mobile-back" aria-label="Zurück zum Kalender" @click="goToKalender">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -48,8 +48,8 @@
     <p class="dk-moderation-erklaerung" data-test="moderation-erklaerung">
       Neue Terminvorschläge landen links unter „Vorschläge“. Ziehst du einen
       Vorschlag nach rechts in „Freigeben“ oder drückst „Alle freigeben“, wird
-      er verbindlich und erscheint im Kalender. Bis dahin sieht ihn nur die
-      Moderation.
+      er verbindlich und erscheint im Kalender. Bis dahin sehen ihn nur die
+      Moderatorinnen und Moderatoren.
     </p>
 
     <!-- Änderungen an freigegebenen Terminen (Operator-Regel 16.10.) -->

@@ -44,10 +44,13 @@
          wurde deshalb entfernt (Seitenleiste UND Kopfzeile) — statt einen
          toten Knopf zu zeigen. -->
 
-    <!-- Navigation — aus der zentralen Menüdefinition (menue.js). -->
+    <!-- Navigation — aus der zentralen Menüdefinition (menue.js).
+         UX3a (Entwurf A1): „Einstellungen“ steht NICHT in der Gruppenliste,
+         sondern unten im Fußbereich; die Gruppen sind Gemeinde · Planen ·
+         Inhalte (eine leere Gruppe „“ = Eintrag ohne Überschrift). -->
     <nav class="dk-sb-nav">
-      <template v-for="(gruppe, gi) in sichtbaresMenue" :key="gruppe.gruppe">
-        <div class="dk-sb-section" :style="gi ? 'margin-top:8px' : ''">{{ gruppe.gruppe }}</div>
+      <template v-for="(gruppe, gi) in sichtbaresMenue" :key="'g' + gi">
+        <div v-if="gruppe.gruppe" class="dk-sb-section" :style="gi ? 'margin-top:var(--sp-2)' : ''">{{ gruppe.gruppe }}</div>
         <NavItem
           v-for="e in gruppe.eintraege"
           :key="e.id"
@@ -61,28 +64,70 @@
       </template>
     </nav>
 
-    <!-- Footer -->
+    <!-- Fußbereich (Entwurf A1): Einstellungen · Profil · Abmelden.
+         UX3a: Entwicklermodus und Dev-Befunde liegen im Profilmenü (siehe
+         unten) — sie sind Werkzeuge, keine Navigation. -->
     <div class="dk-sb-foot">
 
+      <NavItem
+        v-for="e in sichtbareFussEintraege"
+        :key="e.id"
+        :href="e.href"
+        :icon="e.icon"
+        :label="e.label"
+        :active="istAktiv(e)"
+        :collapsed="collapsed"
+        :badge="null"
+      />
 
-      <!-- User -->
-      <a href="#/profile" class="dk-sb-user">
-        <div class="dk-avatar dk-avatar-sm" :style="avatarStil(anzeigeName || user.fullname)">{{ initials }}</div>
-        <div v-if="!collapsed" class="dk-sb-user-text">
-          <!-- OP-HANDY-25: Anzeige = gepflegter Name (Mitglied), nicht der Kontoname. -->
-          <div class="dk-sb-user-name">{{ mitgliedName || user.fullname || 'Nutzer' }}</div>
-          <div class="dk-sb-user-role">{{ mitglied ? `${mitglied.vorname || ''} ${mitglied.nachname || ''}`.trim() || 'Kein Mitglied' : 'Kein Mitglied' }}</div>
-        </div>
+      <!-- UX3a: Profilmenü (Entwurf A1 „Profil / Abmelden“). Der Eintrag
+           öffnet ein kleines Menü: Profil · Entwicklermodus · Dev-Befunde.
+           Die Werkzeuge erscheinen nur, wenn das Backend den Dev-Modus
+           eingeschaltet hat UND der Nutzer Admin oder Tester ist (wie vorher
+           der Menüpunkt „Dev-Befunde“) — der Server prüft dieselbe Rolle. -->
+      <div class="dk-sb-profil">
         <button
-          v-if="!collapsed"
-          class="dk-sb-theme-btn"
-          @click.prevent="$emit('toggle-theme')"
-          :title="theme === 'dark' ? 'Hell-Modus' : 'Dunkel-Modus'"
+          type="button"
+          class="dk-sb-user"
+          :aria-expanded="profilOffen ? 'true' : 'false'"
+          aria-haspopup="menu"
+          @click="profilOffen = !profilOffen"
         >
-          <svg v-if="theme === 'dark'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <div class="dk-avatar dk-avatar-sm" :style="avatarStil(anzeigeName || user.fullname)">{{ initials }}</div>
+          <div v-if="!collapsed" class="dk-sb-user-text">
+            <!-- OP-HANDY-25: Anzeige = gepflegter Name (Mitglied), nicht der Kontoname. -->
+            <div class="dk-sb-user-name">{{ mitgliedName || user.fullname || 'Nutzer' }}</div>
+            <div class="dk-sb-user-role">{{ mitglied ? `${mitglied.vorname || ''} ${mitglied.nachname || ''}`.trim() || 'Kein Mitglied' : 'Kein Mitglied' }}</div>
+          </div>
+          <span v-if="!collapsed" class="dk-sb-chevron" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </span>
         </button>
-      </a>
+
+        <div v-if="profilOffen && !collapsed" class="dk-sb-profil-menu" role="menu">
+          <a href="#/profile" role="menuitem" class="dk-sb-profil-punkt is-profilmenue" @click="profilOffen = false">Profil</a>
+          <a
+            v-if="darfDevWerkzeuge"
+            href="#/einstellungen/dev-modus"
+            role="menuitem"
+            class="dk-sb-profil-punkt is-profilmenue"
+            @click="profilOffen = false"
+          >Entwicklermodus</a>
+          <a
+            v-if="darfDevWerkzeuge"
+            href="#/dev-befunde"
+            role="menuitem"
+            class="dk-sb-profil-punkt is-profilmenue"
+            @click="profilOffen = false"
+          >Dev-Befunde</a>
+          <button
+            type="button"
+            role="menuitem"
+            class="dk-sb-profil-punkt is-profilmenue dk-sb-theme-btn"
+            @click="$emit('toggle-theme')"
+          >{{ theme === 'dark' ? 'Hell-Modus' : 'Dunkel-Modus' }}</button>
+        </div>
+      </div>
 
       <!-- BF1-L: Abmelden — im Nutzerbereich, unten in der Sidebar. -->
       <button
@@ -107,7 +152,7 @@
 </template>
 
 <script setup>
-import { computed, h, onMounted, onUnmounted } from 'vue'
+import { computed, h, onMounted, onUnmounted, ref } from 'vue'
 import { useSession } from '../composables/useSession.js'
 import { initialen } from '../composables/anzeigename.mjs'
 // ON-4/H4: Logo oder Monogramm der Gemeinde in der Seitenleiste.
@@ -116,7 +161,7 @@ import { monogramm } from '../composables/einrichtung.mjs'
 import { useAbmelden } from '../composables/useAbmelden.js'
 import { showToast } from '../composables/useToast.js'
 import { currentPageName, currentHash } from '../router.js'
-import { MENUE, ICON_PFADE, sichtbareEintraege } from '../menue.js'
+import { MENUE, ICON_PFADE, sichtbareEintraege, FUSS_EINTRAEGE } from '../menue.js'
 import { PRODUKTNAME } from './ui/begriffe.mjs'
 import { anfragenZaehler, anfragenZaehlerBeobachten } from '../composables/useVerwaltung.js'
 
@@ -183,6 +228,19 @@ const sichtbaresMenue = computed(() =>
     .filter(gruppe => gruppe.eintraege.length > 0),
 )
 
+/** Fußbereich: „Einstellungen“ (nur Administration). Dieselbe Rollenregel. */
+const sichtbareFussEintraege = computed(() =>
+  FUSS_EINTRAEGE.filter(e => e.rolle !== 'admin' || isAdmin.value === true),
+)
+
+/** Profilmenü offen? (Entwurf A1: Profil, Entwicklermodus, Dev-Befunde) */
+const profilOffen = ref(false)
+
+/** Werkzeuge im Profilmenü nur bei eingeschaltetem Dev-Modus und Admin/Tester. */
+const darfDevWerkzeuge = computed(() => Boolean(
+  (isAdmin.value || istTesterRef?.value) && devmodeAnRef?.value,
+))
+
 function istAktiv(eintrag) {
   if (eintrag.href === '#/gruppen') return currentHash.value.startsWith('#/gruppen') || page.value === 'GruppeDetail'
   return eintrag.seiten.includes(page.value)
@@ -205,12 +263,23 @@ const churchName = window.__DIakonosBOOT?.church_name || 'Meine Gemeinde'
  * Boot-Angaben benutzt — kein zusätzlicher Aufruf, kein 403 im Netz-Log.
  */
 /**
- * Das Boot-Objekt ist beim Aufbau der App gesetzt; es aendert sich nur mit
- * einem Neuladen. Nach dem Hochladen in den Einstellungen zeigt die
- * Seitenleiste das neue Logo deshalb nach dem naechsten Seitenaufbau — das ist
- * so gewollt (kein zweiter Zustand neben dem Server).
+ * Das Boot-Objekt ist beim Aufbau der App gesetzt.
+ *
+ * ON-5 (E2-5): Nach einem Logo-Upload/Entfernen schreibt
+ * `useEinrichtungsAssistent.merkeMarke` die neue Adresse ins Boot-Objekt und
+ * meldet `dk-marke-geaendert`. Das Boot-Objekt ist plain JS — ein `computed`
+ * darauf allein zeichnet NICHT neu (im Prüflauf blieb darum das alte Logo
+ * stehen). Deshalb hält dieses Modul eine eigene `ref`, die das Ereignis
+ * fortschreibt: es bleibt EIN Zustand (der Serverstand), nur mit einem
+ * Auslöser für die Neuzeichnung.
  */
-const logoQuelleMarke = computed(() => String(window.__DIakonosBOOT?.logo_url || ''))
+const markeStand = ref(String(window.__DIakonosBOOT?.logo_url || ''))
+function markeNachziehen() {
+  markeStand.value = String(window.__DIakonosBOOT?.logo_url || '')
+}
+onMounted(() => window.addEventListener('dk-marke-geaendert', markeNachziehen))
+onUnmounted(() => window.removeEventListener('dk-marke-geaendert', markeNachziehen))
+const logoQuelleMarke = computed(() => markeStand.value)
 const monogrammMarke = computed(() => {
   const text = String(churchName || '').trim()
   if (!text) return ''

@@ -365,13 +365,19 @@ def test_delete_beitrag_nur_admin(client, als_anna):
 
 
 def test_delete_beitrag_entfernt_zeile(client, als_admin, welt):
+    """UX2b: „entfernt“ heisst seit dem Papierkorb — unsichtbar, aber da.
+
+    Die Wirkung fuer Leser ist dieselbe (Liste/Detail leer); die Zeile selbst
+    bleibt mit ``geloescht_am`` stehen, damit „Rueckgaengig“ moeglich ist.
+    """
     r = client.post(f"/api/method/{BEITRAEGE}.delete_beitrag",
                    data={"beitrag_id": "BEI-1"})
     assert r.status_code == 200, r.text
 
     from diakronos_app.models.diakonos import Beitrag
 
-    assert welt.get(Beitrag, "BEI-1") is None
+    zeile = welt.get(Beitrag, "BEI-1")
+    assert zeile is not None and zeile.geloescht_am is not None
 
 
 # ── create_kommentar ────────────────────────────────────────────────────────
@@ -582,13 +588,15 @@ def test_delete_wiki_nur_admin(client, als_anna):
 
 
 def test_delete_wiki_entfernt_zeile(client, als_admin, welt):
+    """UX2b: Papierkorb statt hartem Loeschen (siehe delete_beitrag)."""
     r = client.post(f"/api/method/{WIKI}.delete_wiki_artikel",
                    data={"artikel_id": "WIK-1"})
     assert r.status_code == 200, r.text
 
     from diakronos_app.models.diakonos import WikiArtikel
 
-    assert welt.get(WikiArtikel, "WIK-1") is None
+    zeile = welt.get(WikiArtikel, "WIK-1")
+    assert zeile is not None and zeile.geloescht_am is not None
 
 
 # ── Wiki: get_wiki_kategorien / get_wiki_tags ───────────────────────────────

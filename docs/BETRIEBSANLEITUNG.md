@@ -1101,6 +1101,30 @@ der Gruppe gebunden:
 - Bestandsdaten mit widersprüchlicher Zuordnung (Aufgabe verweist auf Gruppe
   und Untergruppe, die nicht zusammengehören) erscheinen nicht in den Listen.
 
+### 8.8b Papierkorb: Löschen ist 7 Tage lang rückgängig zu machen (UX2b)
+
+„Löschen“ entfernt einen Eintrag **nicht sofort**. Er kommt in den Papierkorb
+und verschwindet aus jeder Ansicht — auch aus der öffentlichen Website, den
+Kalender-Abos (CalDAV/iCal) und der Suche. Betroffen sind fünf Bereiche:
+Beitrag, Termin (einzeln oder als Serie), Gruppe, Wiki-Seite und Lied.
+
+- **Frist: höchstens 7 Tage.** Der Scheduler prüft täglich (00:00) und entfernt
+  abgelaufene Einträge endgültig — mit ihren Kind-Einträgen und, wo vorhanden,
+  dem Bild. Die Zahl steht als eine Konstante im Code
+  (`diakronos_app/papierkorb.py`, `AUFBEWAHRUNG_TAGE`) und ist bewusst NICHT
+  einstellbar: eine längere Frist wäre eine zweite Wahrheit über gelöschte Daten.
+- **Rückgängig:** direkt nach dem Löschen bietet die Meldung „Rückgängig“ an.
+  Später steht alles unter **Einstellungen → Papierkorb** (nur Administration):
+  Bereich, Titel, wer gelöscht hat und wann der Eintrag endgültig verschwindet.
+- **Rechte:** Zurückholen verlangt dieselben Rechte wie Löschen. Wer einen
+  fremden Termin nicht löschen darf, kann ihn auch nicht zurückholen.
+- **Endgültig heißt endgültig:** Nach Ablauf der Frist gibt es keinen Weg
+  zurück; eine Sicherung (Abschnitt „Datensicherung“) ist der einzige Rest.
+- **Daten mit Bezug:** Wird ein Termin endgültig entfernt, verlieren Ablaufplan,
+  Dienstplan-Eintrag und Anmeldung ihren Terminbezug (die Zeilen selbst
+  bleiben); eine Gruppe nimmt ihre Mitgliedschaften mit, ein Lied seine
+  Strophen, Fassungen und Materialien.
+
 ### 8.9 Bevor Sie das ins Internet stellen
 
 Diese Anwendung ist für den Betrieb im eigenen Netz gebaut und getestet. Wenn

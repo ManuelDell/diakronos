@@ -433,6 +433,8 @@ def get_dienstplan(start_date=None, end_date=None):
         if not erlaubte_kalender:
             return {"start_date": start_date, "end_date": end_date, "eintraege": []}
         element_filters.append(["element_calendar", "in", erlaubte_kalender])
+    # UX2b: Termine im Papierkorb sind fuer den Dienstplan nicht vorhanden.
+    element_filters.append(["geloescht_am", "is", "not set"])
 
     elements = get_all(
         "Element",
@@ -503,6 +505,7 @@ def get_meine_dienste():
         filters=[
             ["name", "in", element_names],
             ["element_start", ">=", now],
+            ["geloescht_am", "is", "not set"],
         ],
         fields=[
             "name",

@@ -96,6 +96,7 @@ from diakronos_app.frappe_compat.exceptions import (
 from diakronos_app.frappe_compat.registry import lookup, whitelist
 from diakronos_app.frappe_compat.session import session
 from diakronos_app.api.farbe import KALENDER_STANDARD_FARBE
+from diakronos_app.papierkorb import nur_aktive_filter
 
 __all__ = [
     "get_available_widgets",
@@ -472,6 +473,8 @@ def get_upcoming_events(limit=5):
             ["docstatus", "!=", 2],
             ["status", "=", "Festgelegt"],
             ["element_calendar", "in", kalender],
+            # UX2b: Termine im Papierkorb sind weg (auch aus Kacheln/Zaehlern).
+            ["geloescht_am", "is", "not set"],
         ],
         fields=["name", "element_name", "element_start", "element_end", "element_calendar"],
         order_by="element_start asc",
@@ -533,6 +536,7 @@ def get_events_for_month(year=None, month=None):
             ["docstatus", "!=", 2],
             ["status", "=", "Festgelegt"],
             ["element_calendar", "in", kalender],
+            ["geloescht_am", "is", "not set"],
         ],
         fields=["element_start"],
     ) or []
@@ -549,7 +553,12 @@ def get_pinned_beitraege(limit=3):
     """
     rows = get_all(
         "Beitrag",
-        filters=_coerce_filters("Beitrag", {"veroeffentlicht": 1}),
+        # UX2b2 (F3): angeheftete Beitraege — ein geloeschter Beitrag gehoert
+        # nicht aufs Dashboard, auch nicht fuer eine Woche im Papierkorb.
+        filters=_coerce_filters(
+            "Beitrag",
+            {"veroeffentlicht": 1, "geloescht_am": ["is", "not set"]},
+        ),
         fields=["name", "titel", "auszug", "datum", "autor", "bild"],
         order_by="datum desc",
         limit_page_length=int(limit),
@@ -576,6 +585,8 @@ def get_recent_articles(limit=3):
     """
     rows = get_all(
         "Wiki Artikel",
+        # UX2b2 (F3): Wiki-Kachel — geloeschte Artikel nicht mehr anzeigen.
+        filters=nur_aktive_filter("Wiki Artikel"),
         fields=["name", "titel", "modified", "kategorie"],
         order_by="modified desc",
         limit_page_length=int(limit),
@@ -729,6 +740,7 @@ def offene_moderations_vorschlaege(limit=None) -> list[dict[str, Any]]:
         filters={
             "element_calendar": ["in", mod_cals],
             "status": "Vorschlag",
+            "geloescht_am": ["is", "not set"],
         },
         fields=["name", "element_name", "element_start", "element_end",
                 "all_day", "ressource", "element_calendar", "status"],
@@ -913,6 +925,7 @@ def _count_ueberlappende_ressourcen_events() -> int:
         "Element",
         filters=[
             ["docstatus", "!=", 2],
+            ["geloescht_am", "is", "not set"],
         ],
         fields=["name", "ressource", "element_start", "element_end"],
     ) or []

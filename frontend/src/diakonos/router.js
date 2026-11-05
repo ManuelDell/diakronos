@@ -27,6 +27,8 @@ const leitung = typeof einrichtungLeitung === 'undefined'
 // #/organigramm leitet in der Weiterleitungstabelle weiter.
 const pages = {
     Home:            () => import('./pages/Home.vue'),
+    // UX3a: „Personen“ (vorher „Mitglieder“) — derselbe Bereichsrahmen.
+    Personen:        () => import('./pages/mitglieder/Bereich.vue'),
     Mitglieder:      () => import('./pages/mitglieder/Bereich.vue'),
     MitgliederUebersicht:  () => import('./pages/mitglieder/Bereich.vue'),
     MitgliederListe:       () => import('./pages/mitglieder/Bereich.vue'),
@@ -41,7 +43,16 @@ const pages = {
     Kalender:        () => import('./pages/Kalender.vue'),
     KalenderImport:  () => import('./pages/KalenderImport.vue'),
     KalenderVerwaltung: () => import('./pages/KalenderVerwaltung.vue'),
+    // UX3a (Entwurf A4): vierter Kalender-Reiter „Zu prüfen“ = Moderationsseite.
+    Pruefen:         () => import('./pages/Moderation.vue'),
+    Moderation:      () => import('./pages/Moderation.vue'),
     RessourcenVerwaltung: () => import('./pages/RessourcenVerwaltung.vue'),
+    // UX3a: der Bereich „Dienste“ besteht aus vorhandenen Seiten (kein neues
+    // Bauteil): Meine Dienste, Dienstpläne (Planübersicht), Vorlagen
+    // (Einrichtung). Der Rahmen setzt die Reiterleiste darüber.
+    Dienste:             () => import('./pages/planrahmen/MeineDienste.vue'),
+    DiensteDienstplaene: () => import('./pages/planrahmen/Uebersicht.vue'),
+    DiensteVorlagen:     () => import('./pages/planrahmen/Einrichten.vue'),
     Dienstplan:      () => import('./pages/Dienstplan.vue'),
     Einstellungen:   () => import('./pages/Einstellungen.vue'),
     EinstellungenGemeinde: () => import('./pages/Einstellungen.vue'),
@@ -51,6 +62,7 @@ const pages = {
     EinstellungenRegistrierung: () => import('./pages/Einstellungen.vue'),
     EinstellungenDatenschutz: () => import('./pages/Einstellungen.vue'),
     EinstellungenDatensicherung: () => import('./pages/Einstellungen.vue'),
+    EinstellungenPapierkorb: () => import('./pages/Einstellungen.vue'),
     EinstellungenMailversand: () => import('./pages/Einstellungen.vue'),
     // WEB-3: Einstellungs-Abschnitt „Website (Primo)“.
     EinstellungenWebsite: () => import('./pages/Einstellungen.vue'),
@@ -84,28 +96,40 @@ const pages = {
 // Exact routes
 const routeMap = {
     '#/':              'Home',
-    '#/mitglieder':    'Mitglieder',
-    // Entscheidung 4: jeder Mitglieder-Reiter hat eine eigene Adresse.
-    '#/mitglieder/uebersicht': 'MitgliederUebersicht',
-    '#/mitglieder/liste':      'MitgliederListe',
-    '#/mitglieder/anfragen':   'MitgliederAnfragen',
-    '#/mitglieder/datenschutz':'MitgliederDatenschutz',
-    '#/mitglieder/import':     'MitgliederImport',
-    // DSGVO-2c: eigene Seite der Verwaltung für Löschanträge.
-    '#/mitglieder/loeschantraege': 'MitgliederLoeschantraege',
+    // UX3a: der Bereich heißt „Personen“ (vorher „Mitglieder“); die
+    // Seitennamen der Bauteile bleiben, damit Anker/Guards stabil sind.
+    '#/personen':      'Personen',
+    '#/personen/liste':      'MitgliederListe',
+    '#/personen/uebersicht': 'MitgliederUebersicht',
+    '#/personen/anfragen':   'MitgliederAnfragen',
+    '#/personen/datenschutz':'MitgliederDatenschutz',
+    '#/personen/import':     'MitgliederImport',
+    '#/personen/loeschantraege': 'MitgliederLoeschantraege',
+    // UX3a: das Adressbuch ist ein Reiter von „Personen“ (vorher eigener Punkt).
+    '#/personen/adressbuch': 'Adressbuch',
     '#/gruppen':      'GruppenBereich',
     // N13: das Organigramm ist die zweite Ansicht der Gruppenseite
     // (Umschalter Liste/Organigramm), keine eigene Seite mehr.
     '#/gruppen/organigramm': 'GruppenBereich',
-    '#/adressbuch':    'Adressbuch',
     '#/kalender':      'Kalender',
     '#/kalender/import': 'KalenderImport',
     '#/kalender/verwalten': 'KalenderVerwaltung',
+    // UX3a (Entwurf A4): „Zu prüfen“ ist der vierte Reiter des Kalenders —
+    // die bisherige Moderationsseite, nur für Moderatoren (Guard + Server).
+    '#/kalender/pruefen': 'Pruefen',
+    // UX3a: EIN Bereich „Dienste“ mit den Reitern Meine Dienste ·
+    // Dienstpläne · Vorlagen. Der Einstieg öffnet „Meine Dienste“.
+    '#/dienste':                  'Dienste',
+    '#/dienste/meine-dienste':    'PlanrahmenDienste',
+    '#/dienste/dienstplaene':     'DiensteDienstplaene',
+    '#/dienste/vorlagen':         'DiensteVorlagen',
+    // Unterbereiche der Dienstpläne (Plan, Vorlagen-Editor, Stammdaten) —
+    // sie markieren in der Seitenleiste weiter „Dienste“.
+    '#/dienste/dienstplaene/plan':  'DiensteDienstplaene',
+    '#/dienste/dienstplaene/vorbereiten': 'DiensteDienstplaene',
     '#/ressourcen/verwalten': 'RessourcenVerwaltung',
-    '#/dienstplan':    'Dienstplan',
     '#/anmeldungen':   'Registrierung',
     '#/registrierung': 'Registrierung',
-    '#/moderation':    'Moderation',
     '#/einstellungen': 'Einstellungen',
     // Entscheidung „N9": jeder Einstellungs-Abschnitt hat eine eigene Adresse.
     '#/einstellungen/gemeinde':      'EinstellungenGemeinde',
@@ -118,6 +142,8 @@ const routeMap = {
     // BACKUP-1: eigene Datensicherung (nur System Manager — Server prueft).
     '#/einstellungen/datensicherung': 'EinstellungenDatensicherung',
     // MAIL-1: eigenes Postfach fuer den Mailversand (nur System Manager — Server prueft).
+    // UX2b: Papierkorb (nur Administration — der Server prueft die Rolle).
+    '#/einstellungen/papierkorb': 'EinstellungenPapierkorb',
     '#/einstellungen/mailversand': 'EinstellungenMailversand',
     // WEB-3: Zustand der Primo-Anbindung + Kurzanleitung.
     '#/einstellungen/website': 'EinstellungenWebsite',
@@ -127,6 +153,8 @@ const routeMap = {
     '#/beitraege':     'Beitraege',
     '#/wiki':          'Wiki',
     '#/lieder':        'Lieder',
+    // UX3a: Liedgruppen sind der zweite Reiter von „Lieder“.
+    '#/lieder/gruppen': 'Liedgruppen',
     '#/lieder/neu':    'LiedNeu',
     '#/liedgruppen':   'Liedgruppen',
     '#/planrahmen': 'PlanrahmenUebersicht',
@@ -144,9 +172,23 @@ const dynamicRoutes = [
     // UXD-R20: Wiki-Artikel sind teilbar („#/wiki/‹Kennung›“ öffnet den Artikel).
     { pattern: /^#\/wiki\/(.+)$/, page: 'Wiki', param: 'id' },
     { pattern: /^#\/gruppe\/(.+)$/, page: 'GruppeDetail', param: 'id' },
+    // UX3a: Liedgruppen sind ein Reiter von „Lieder“ (wörtlich VOR dem
+    // Detailmuster, sonst schluckte `#/lieder/gruppen/…` den Reiter).
+    { pattern: /^#\/lieder\/gruppen\/(.+)$/, page: 'LiedgruppeDetail', param: 'id' },
     { pattern: /^#\/lieder\/(.+)$/, page: 'LiedDetail', param: 'id' },
-    { pattern: /^#\/liedgruppen\/(.+)$/, page: 'LiedgruppeDetail', param: 'id' },
+    // UX3a2: alte Lesezeichen `#/liedergruppen/‹id›` (Tippfehler-Muster aus
+    // UX3a, dort stand `/liedergruppen/`) bleiben gültig.
+    { pattern: /^#\/liedergruppen\/(.+)$/, page: 'LiedgruppeDetail', param: 'id' },
+    // UX3a: Dienstpläne/Vorlagen sind Reiter von „Dienste“.
+    { pattern: /^#\/dienste\/dienstplaene\/plan\/(.+)$/, page: 'PlanrahmenPlan', param: 'id' },
+    { pattern: /^#\/dienste\/dienstplaene\/vorbereiten\/(.+)$/, page: 'PlanrahmenStammdaten', param: 'plan' },
+    // UX3a: der Vorlagen-Editor liegt unter „Dienste → Vorlagen“. Das Muster
+    // steht HINTER dem Stammdaten-Muster, sonst würde `…/chorplan/stammdaten/neu`
+    // als Editor-Kennung gelesen.
     { pattern: /^#\/planrahmen\/einrichten\/(.+)$/, page: 'PlanrahmenPlantypEditor', param: 'id' },
+    // '-1' ist das Muster „ohne festen Plantyp“ (siehe einrichten-flow.mjs).
+    { pattern: /^#\/dienste\/vorlagen\/([^/]+)\/stammdaten\/(.+)$/, page: 'PlanrahmenStammdaten', param: 'plantyp' },
+    { pattern: /^#\/dienste\/vorlagen\/(.+)$/, page: 'PlanrahmenPlantypEditor', param: 'id' },
     { pattern: /^#\/planrahmen\/stammdaten\/(.+)$/, page: 'PlanrahmenStammdaten', param: 'plantyp' },
     { pattern: /^#\/planrahmen\/vorbereiten\/(.+)$/, page: 'PlanrahmenStammdaten', param: 'plan' },
     { pattern: /^#\/planrahmen\/plan\/(.+)$/, page: 'PlanrahmenPlan', param: 'id' },
@@ -156,15 +198,54 @@ const dynamicRoutes = [
 // Konzept „Neuordnung“ Abschnitt 8: gespeicherte Lesezeichen und geteilte
 // Links bleiben gültig. Rechte werden serverseitig geprüft; wer nicht darf,
 // landet über den Guard auf dem Dashboard.
+//
+// UX3a (Manuel 2026-11-03): Die Menü-Umbenennung darf keine Lesezeichen
+// brechen — JEDE alte Adresse leitet DAUERHAFT weiter. Ziele, die selbst ein
+// Bereich-Einstieg sind, werden in `rolleWeiterleitung` rollenabhängig
+// aufgelöst (`#/mitglieder` und `#/dienste`).
 const WEITERLEITUNGEN = {
-    '#/plaene':       '#/planrahmen',
-    '#/registrierung':'#/mitglieder/anfragen',
-    '#/anmeldungen':  '#/mitglieder/anfragen',
-    '#/statistik':    '#/mitglieder/uebersicht',
+    '#/plaene':       '#/dienste/dienstplaene',
+    '#/registrierung':'#/personen/anfragen',
+    '#/anmeldungen':  '#/personen/anfragen',
+    '#/statistik':    '#/personen/uebersicht',
     '#/anmeldung':    '#/einstellungen/anmeldung',
     // Entscheidung 9: Organigramm wird eine Ansicht in „Gruppen“.
     '#/organigramm':  '#/gruppen/organigramm',
+
+    // ── UX3a: Umbenennungen und zusammengelegte Bereiche ──────────────────
+    // Personen (vorher „Mitglieder“)
+    '#/mitglieder/liste':          '#/personen/liste',
+    '#/mitglieder/uebersicht':     '#/personen/uebersicht',
+    '#/mitglieder/anfragen':       '#/personen/anfragen',
+    '#/mitglieder/datenschutz':    '#/personen/datenschutz',
+    '#/mitglieder/loeschantraege': '#/personen/loeschantraege',
+    '#/mitglieder/import':         '#/personen/import',
+    // Adressbuch und Datenschutz sind Reiter von „Personen“.
+    '#/adressbuch':   '#/personen/adressbuch',
+    '#/datenschutz':  '#/personen/datenschutz',
+    // „Zu prüfen“ ist der vierte Reiter des Kalenders (vorher „Moderation“).
+    '#/moderation':   '#/kalender/pruefen',
+    // Dienste (vorher „Dienstplan“ + „Pläne“ + „Meine Dienste“)
+    '#/dienstplan':   '#/dienste/meine-dienste',
+    '#/meine-dienste':'#/dienste/meine-dienste',
+    '#/planrahmen':   '#/dienste/dienstplaene',
+    '#/planrahmen/meine-dienste': '#/dienste/meine-dienste',
+    '#/planrahmen/einrichten':    '#/dienste/vorlagen',
+    '#/planrahmen/plan':          '#/dienste/dienstplaene',
+    // Liedgruppen sind ein Reiter von „Lieder“.
+    '#/liedgruppen':  '#/lieder/gruppen',
+    // Die Detailmuster alter Form (#/lieder/‹id›, #/liedergruppen/‹id›) bleiben
+    // in `dynamicRoutes` — nur der Reiter „Liedgruppen“ hat eine eigene Adresse.
 }
+
+// Weiterleitungen für Adressen MIT Kennung (Muster → Ziel mit Platzhalter).
+// UX3a2: Das Tippfehler-Muster aus UX3a lautete `/liedergruppen/(.+)` und
+// offenbarte damit, wie die alte Adresse gemeint war: `#/liedgruppen/‹id›`.
+// Solche Lesezeichen leiten DAUERHAFT auf den Reiter „Lieder → Liedgruppen“ um
+// (`location.replace`, Abfrageteil wird wie bei den festen Regeln mitgenommen).
+const MUSTER_WEITERLEITUNGEN = [
+    { pattern: /^#\/liedgruppen\/(.+)$/, ziel: id => `#/lieder/gruppen/${id}` },
+]
 
 // ── Fenstertitel (OP-UI-22, WCAG 2.4.2) ─────────────────────────────────────
 // Ausgelagert nach fenstertitel.js (P3-4b/B1): Dieses Modul ist importfrei und
@@ -189,11 +270,24 @@ function rollenWeiterleitung(pfad) {
     const isAdmin = boot.is_admin || false
     if (pfad === '#/dsgvo') {
         // Abschnitt 8: Admin → Datenschutz-Reiter, alle anderen → Profil.
-        return isAdmin ? '#/mitglieder/datenschutz' : '#/profile'
+        return isAdmin ? '#/personen/datenschutz' : '#/profile'
     }
     if (pfad === '#/mitglieder') {
         // Admins öffnen die Übersicht, alle anderen die Liste.
-        return isAdmin ? '#/mitglieder/uebersicht' : '#/mitglieder/liste'
+        return isAdmin ? '#/personen/uebersicht' : '#/personen/liste'
+    }
+    if (pfad === '#/personen') {
+        // Administratoren sehen den Bereich mit allen Reitern (Übersicht als
+        // Start), alle anderen die Liste. Ersetzt die alte `#/mitglieder`-Regel
+        // — dieselbe Entscheidung, neue Adresse (UX3a).
+        return isAdmin ? '#/personen/uebersicht' : '#/personen/liste'
+    }
+    if (pfad === '#/dienste') {
+        // Einstieg in den Bereich: „Meine Dienste“ ist die persönliche Sicht
+        // (Entwurf A2, aktiv auf der Handy-Startseite). Die Planung liegt einen
+        // Reiter daneben — kein Umweg über ein Rollenrecht nötig.
+        const ziel = '#/dienste/meine-dienste'
+        return pfad === ziel ? null : ziel
     }
     return null
 }
@@ -204,7 +298,13 @@ function rollenWeiterleitung(pfad) {
  * greift wie "#/registrierung" (Befund R-N0-code 3).
  */
 function weiterleitungsZiel(pfad) {
-    return WEITERLEITUNGEN[pfad] || rollenWeiterleitung(pfad) || null
+    const fest = WEITERLEITUNGEN[pfad] || rollenWeiterleitung(pfad)
+    if (fest) return fest
+    for (const regel of MUSTER_WEITERLEITUNGEN) {
+        const m = pfad.match(regel.pattern)
+        if (m) return regel.ziel(m[1])
+    }
+    return null
 }
 
 // Scope und Parameter müssen auch für synchrone Watcher zusammen wechseln.
@@ -402,6 +502,10 @@ export function getRouteParams() {
 
 // ── Gast-Guard ──────────────────────────────────────────────────────────────
 // Routen, die ein Gast (Status = 'Gast') aufrufen darf
+// UX3a2: „Dienste“ wieder herausgenommen — wie vor UX3a (auf main: nur Start,
+// Kalender, Profil). Die Erweiterung in UX3a galt nur dem Menüpunkt; die
+// Seiten selbst sind für Gäste nicht vorgesehen (der Server liefert dort keine
+// fremden Zuordnungen, die persönliche Sicht ist für Mitglieder gedacht).
 const GAST_ALLOWED_ROUTES = new Set(['#/', '#/kalender', '#/profile'])
 const GAST_ALLOWED_PAGES  = new Set(['Home', 'Kalender', 'Profile'])
 
@@ -425,6 +529,8 @@ const ADMIN_ONLY_PAGES = new Set([
     'MitgliederUebersicht', 'MitgliederAnfragen', 'MitgliederDatenschutz', 'MitgliederImport',
     // DSGVO-2c: eigene Seite der Verwaltung (der Server verweigert sonst 403).
     'MitgliederLoeschantraege',
+    // UX3a: „Vorlagen“ (bisheriges Einrichten) ist Verwaltungsarbeit.
+    'DiensteVorlagen', 'PlanrahmenEinrichten',
     'Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung',
     'EinstellungenRollen', 'EinstellungenDevModus',
     'EinstellungenRegistrierung', 'EinstellungenDatenschutz',
@@ -448,6 +554,15 @@ onBeforeEach(({ name }) => {
     return false
 })
 
+// UX3a2: KEIN Admin-Guard für „Zu prüfen“/„Moderation“. Wie auf main dürfen
+// Kalender-Moderatoren ohne Admin-Rolle die Seite erreichen — das Recht kommt
+// vom Server (`can_moderate`); Moderation.vue fragt es ab und der Server prüft
+// jeden Terminvorgang erneut. Ein Guard auf `boot.is_admin` sperrte genau
+// diese Moderatoren aus.
+
+// „Dev-Befunde“ liegt seit UX3a im Profilmenü (nicht mehr in der Seitenleiste).
+// Die Adresse bleibt gültig; der Guard verlangt wie bisher eingeschalteten
+// Dev-Modus und Admin- oder Tester-Rolle.
 onBeforeEach(({ name }) => {
     if (name !== 'DevBefunde') return
     const boot = window.__DIakonosBOOT || {}

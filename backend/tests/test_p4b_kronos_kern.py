@@ -429,7 +429,10 @@ def test_delete_event(kalenderwelt):
     set_user("admin-kal@example.org")
     res = event_crud.delete_event("EL-PUB-1")
     assert res.get("success") is True
-    assert kalenderwelt.get(Element, "EL-PUB-1") is None
+    # UX2b: in den Papierkorb (Zeile bleibt markiert), nicht sofort weg.
+    _zeile = kalenderwelt.get(Element, "EL-PUB-1")
+    assert _zeile is not None and _zeile.geloescht_am is not None
+    assert res.get("wiederherstellbar_bis")
 
 
 def test_delete_event_verweigert_ohne_recht(kalenderwelt):
@@ -524,9 +527,11 @@ def test_delete_future_series_events(kalenderwelt):
     # Filter ist `element_start >= 2025-06-10` (Datum, nicht datetime).
     # Fixture: EL-SER-1 = 02.06., EL-SER-2 = 09.06., EL-SER-3 = 16.06.
     # -> nur EL-SER-3 liegt hinter dem Stichtag.
-    assert kalenderwelt.get(Element, "EL-SER-1") is not None
-    assert kalenderwelt.get(Element, "EL-SER-2") is not None
-    assert kalenderwelt.get(Element, "EL-SER-3") is None
+    # UX2b: geloescht = im Papierkorb markiert (`geloescht_am`), die uebrigen
+    # bleiben unangetastet.
+    assert kalenderwelt.get(Element, "EL-SER-1").geloescht_am is None
+    assert kalenderwelt.get(Element, "EL-SER-2").geloescht_am is None
+    assert kalenderwelt.get(Element, "EL-SER-3").geloescht_am is not None
 
 
 def test_delete_series_batch_fast(kalenderwelt):
@@ -535,8 +540,10 @@ def test_delete_series_batch_fast(kalenderwelt):
     set_user("admin-kal@example.org")
     res = series_api.delete_series_batch_fast("SER-1")
     assert res.get("success") is True
+    # UX2b: alle Serientermine landen im Papierkorb.
     for name in ("EL-SER-1", "EL-SER-2", "EL-SER-3"):
-        assert kalenderwelt.get(Element, name) is None
+        zeile = kalenderwelt.get(Element, name)
+        assert zeile is not None and zeile.geloescht_am is not None
 
 
 def test_delete_series_batch_fast_verweigert_ohne_recht(kalenderwelt):

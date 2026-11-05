@@ -5,8 +5,9 @@
        `tokens.css` die einzige Farbquelle bleibt. `aria-hidden`, weil jedes
        Symbol neben einer Beschriftung steht (dekorativ). -->
   <svg
-    :width="size"
-    :height="size"
+    :width="1"
+    :height="1"
+    :style="{ width: size, height: size }"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -62,15 +63,27 @@
  *
  * `name`: haken | zurueck | bild | hochladen | entfernen | warnung | brief |
  *         senden | kreis-haken
- * `size`: Kantenlänge in px (Standard: das Token --icon-md, also 16 px).
+ * `size`: Kantenlänge; eine Zahl = px, eine CSS-Länge/Tokens wie
+ *         `var(--icon-sm)` (Default `--icon-md`, also 16 px).
  * `strich`: Strichstärke; 2 ist der Standard, 1.6–1.9 passen zu größeren
  *           Symbolen (Entwurf zeichnet z. B. die 29-px-Haken mit ~1.8).
  *
- * Nur `currentColor` — die Komponenten setzen die Farbe über `color: var(…)`.
+ * WARUM DIE ATTRIBUTE `1` TRAGEN UND DIE GRÖSSE AUS TOKENS KOMMT (ON-E2E)
+ * ---------------------------------------------------------------------
+ * `width`/`height` sind SVG-**Attribute** und nehmen nur echte Längen
+ * (`16`, `16px`) — `var(--icon-md)` ist dort keine Länge. Der Browser meldete
+ * das je Symbol mit „<svg> attribute width: Expected length, \"var(…)\"\" in
+ * der Konsole, und die übrigen Regeln des Hauses („keine Größen-Zahlen in
+ * Komponenten", ON-0a/ON-0c) galten für dieses eine Symbol nicht.
+ * Die GRÖSSE kommt deshalb als CSS (`style`, also Token-fähig). Die Attribute
+ * `width`/`height` tragen die konstante Zahl `1` — ein Platzhalter, den CSS
+ * überschreibt; `viewBox="0 0 24 24"` lässt die Zeichnung mitskalieren. So
+ * steht `var(…)` NIE in einem Attribut (die Browser-Warnung entfällt), und
+ * es gibt keine Größen-Zahl mehr im Markup — die Zahl `1` bleibt allein hier.
  */
 defineProps({
   name: { type: String, required: true },
-  size: { type: [String, Number], default: 16 },
+  size: { type: [String, Number], default: 'var(--icon-md)' },
   strich: { type: [String, Number], default: 2 },
 })
 </script>

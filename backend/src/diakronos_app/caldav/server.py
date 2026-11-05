@@ -262,7 +262,18 @@ def _get_events(cal_name, start=None, end=None, uids=None):
     schliesst sie geschlossen nach dem Aufbau der Liste. Rueckgabe und Reihenfolge
     sind unveraendert (Liste von `Document`-Wrappern).
     """
-    filters = {'element_calendar': cal_name, 'status': 'Festgelegt'}
+    # UX2b: ein Termin im Papierkorb verlaesst auch das CalDAV-Adressbuch.
+    #
+    # UX2b2 (F6): Der fruehere Kommentar hier behauptete, der Termin werde als
+    # *ausgefallener* Eintrag ausgeliefert, „damit Clients ihn beim naechsten
+    # Sync entfernen“. Das stimmte nicht — dieser Abruf laesst ihn einfach
+    # weg (der Filter unten) und liefert KEINE Absage. Ein CalDAV-Client
+    # entfernt einen Eintrag, wenn ein REPORT auf seine Ressource mit 404
+    # antwortet; das leistet der Ressourcen-Abruf, sobald die Zeile nicht mehr
+    # in dieser Liste steht. Die Beschreibung war also irrefuehrend, das
+    # Verhalten richtig — die Zusage wird jetzt korrekt benannt.
+    filters = {'element_calendar': cal_name, 'status': 'Festgelegt',
+               'geloescht_am': ['is', 'not set']}
     if start:
         filters['element_end']   = ['>=', start]
     if end:

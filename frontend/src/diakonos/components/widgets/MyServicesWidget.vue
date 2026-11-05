@@ -25,7 +25,7 @@
         </div>
       </li>
     </ul>
-    <a class="msv-link" href="#/planrahmen/meine-dienste">Alle Dienste ansehen</a>
+    <a class="msv-link" href="#/dienste/meine-dienste">Alle Dienste ansehen</a>
   </BaseWidgetCard>
 </template>
 <script setup>

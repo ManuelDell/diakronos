@@ -81,11 +81,11 @@ function routerAusfuehren(boot) {
   const h = routerAusfuehren({ is_admin: true, hash: '#/' })
   const erwartet = {
     '#/anmeldung': '#/einstellungen/anmeldung',
-    '#/registrierung': '#/mitglieder/anfragen',
-    '#/anmeldungen': '#/mitglieder/anfragen',
-    '#/statistik': '#/mitglieder/uebersicht',
+    '#/registrierung': '#/personen/anfragen',
+    '#/anmeldungen': '#/personen/anfragen',
+    '#/statistik': '#/personen/uebersicht',
     '#/organigramm': '#/gruppen/organigramm',
-    '#/plaene': '#/planrahmen',
+    '#/plaene': '#/dienste/dienstplaene',
   }
   for (const [alt, neu] of Object.entries(erwartet)) {
     h.gehe(alt)

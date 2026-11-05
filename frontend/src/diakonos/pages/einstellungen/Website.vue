@@ -1,11 +1,12 @@
 <template>
   <div class="web-abschnitt">
-    <h2>Website (Primo)</h2>
+    <!-- UX3a: „Website-Baukasten“ statt des alten Werkzeugnamens. -->
+    <h2>Website-Baukasten</h2>
     <p>
-      Die Gemeinde-Website wird in Primo gepflegt — einem eigenen System, das
-      Diakronos ansteuert. Die Anbindung ist <strong>optional</strong>: ohne sie
-      arbeitet Diakronos vollständig. Hier siehst du, ob sie steht, und was für
-      die Einrichtung zu tun ist.
+      Die Gemeinde-Website wird im Website-Baukasten gepflegt — einem eigenen
+      System, das Diakronos ansteuert. Die Anbindung ist
+      <strong>optional</strong>: ohne sie arbeitet Diakronos vollständig. Hier
+      siehst du, ob sie steht, und was für die Einrichtung zu tun ist.
     </p>
 
     <!-- ── Zustand ───────────────────────────────────────────────────── -->

@@ -113,12 +113,12 @@ async function laden() {
 
 /** Zieladressen der Reiter mit gesetztem Filter (Konzept Abschnitt 3). */
 const HREF = {
-  liste: '#/mitglieder/liste',
-  mitglieder: '#/mitglieder/liste?status=Mitglied',
-  anfragen: '#/mitglieder/anfragen',
-  datenschutz: '#/mitglieder/datenschutz',
+  liste: '#/personen/liste',
+  mitglieder: '#/personen/liste?status=Mitglied',
+  anfragen: '#/personen/anfragen',
+  datenschutz: '#/personen/datenschutz',
   // DSGVO-2c: eigene Arbeitsliste für Löschanträge.
-  loeschantraege: '#/mitglieder/loeschantraege',
+  loeschantraege: '#/personen/loeschantraege',
 }
 
 const kacheln = computed(() => {

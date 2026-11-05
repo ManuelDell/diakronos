@@ -902,6 +902,8 @@ def generiere_rotation(plan, von, bis, dry_run=True):
             filters={
                 "dienstplan": plan,
                 "element_start": ["between", [von, bis]],
+                # UX2b: Termine im Papierkorb sind keine Einsatztermine.
+                "geloescht_am": ["is", "not set"],
             },
             fields=["name", "element_name", "element_start"],
             order_by="element_start asc",
@@ -1937,7 +1939,8 @@ def _lied_kandidaten(sammlung):
     rows = (
         get_all(
             "Lied",
-            filters={"aktiv": 1},
+            # UX2b2 (F3): der Planrahmen darf keine geloeschten Lieder waehlen.
+            filters={"aktiv": 1, "geloescht_am": ["is", "not set"]},
             fields=["name"],
             order_by="titel asc, name asc",
         )
@@ -2037,6 +2040,7 @@ def _einzeltermine(vorlage, plan_doc, von_d, bis_d):
         filters.append(["element_start", ">=", str(von_d)])
     if bis_d:
         filters.append(["element_start", "<=", str(bis_d)])
+    filters.append(["geloescht_am", "is", "not set"])
     elemente = (
         get_all(
             "Element", filters=filters, fields=["element_start"], order_by="element_start asc"
@@ -2112,7 +2116,8 @@ def get_abgeleitete_positionen(plan):
     elemente = (
         get_all(
             "Element",
-            filters=[["gruppe", "=", gruppe], ["element_start", ">=", now]],
+            filters=[["gruppe", "=", gruppe], ["element_start", ">=", now],
+                     ["geloescht_am", "is", "not set"]],
             fields=["name", "element_name", "element_start", "ablaufplan"],
             order_by="element_start asc",
         )

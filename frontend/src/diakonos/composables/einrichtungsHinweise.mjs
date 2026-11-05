@@ -59,10 +59,10 @@ export const MAILVERSAND_ROUTE = '#/einstellungen/mailversand'
 export const GEMEINDE_ROUTE = '#/einstellungen/gemeinde'
 
 //: Ziel der Mitgliederliste.
-export const MITGLIEDER_ROUTE = '#/mitglieder/liste'
+export const MITGLIEDER_ROUTE = '#/personen/liste'
 
 //: Ziel des Imports.
-export const IMPORT_ROUTE = '#/mitglieder/import'
+export const IMPORT_ROUTE = '#/personen/import'
 
 //: Ziel der Kalenderverwaltung.
 export const KALENDER_VERWALTUNG_ROUTE = '#/kalender/verwalten'
@@ -308,7 +308,7 @@ export function kartenZeilen(status) {
  *   - die Zahl ist unbekannt (`null`) → wie „Filter greift“ behandeln; lieber
  *     zu wenig behaupten als fälschlich „alles leer“.
  *
- * Die Wege sind die VORHANDENEN: `#/mitglieder/import` (Import-Reiter) und
+ * Die Wege sind die VORHANDENEN: `#/personen/import` (Import-Reiter) und
  * der Dialog „Mitglied hinzufügen“ der Liste (`anlegen: true` → der Aufrufer
  * öffnet den vorhandenen Dialog, statt eine zweite Maske zu bauen).
  *

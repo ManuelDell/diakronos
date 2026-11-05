@@ -113,6 +113,12 @@ async function ladeModul(antworten = {}) {
     /from '\.\/einrichtungAssistent\.mjs'/,
     `from '${dateiUrl('frontend/src/diakonos/composables/einrichtungAssistent.mjs')}'`,
   )
+  // ON-5 (E2-5): das Marken-Modul ist eine eigene Datei — ebenfalls echt laden
+  // (die data:-URL kann keine relativen Importe auflösen).
+  quelle = quelle.replace(
+    /from '\.\/gemeindeMarke\.mjs'/,
+    `from '${dateiUrl('frontend/src/diakonos/composables/gemeindeMarke.mjs')}'`,
+  )
   globalThis.window = { __DIakonosBOOT: { csrf_token: '' } }
   ladeZaehler += 1
   const mod = await import('data:text/javascript;base64,'
@@ -312,7 +318,14 @@ test('N3: „Weiter“ setzt den Schritt erledigt — genau das sagt der Hinweis
   const { mod, aufrufe } = await ladeModul({
     'diakronos.diakonos.api.einrichtung.status': status(),
     'diakronos.diakonos.api.gemeinde.gemeinde_get_einstellungen': { gemeindename: 'G' },
-    'diakronos.diakonos.api.einrichtung.kalender_vorschlag_anlegen': {},
+    // ON-5 (E2-3): `weiter()` erledigt den Schritt nur noch, wenn die
+    // gewählten Kalender BESTÄTIGT sind (`angelegt`/`uebersprungen`). Die
+    // Vorbedingung dieses Tests ist „das Anlegen klappt“ — deshalb antwortet
+    // der Server hier wie im Erfolgsfall. Am Verhalten, das der Test prüft
+    // (`schritt_setzen` mit `erledigt`), ändert das nichts.
+    'diakronos.diakonos.api.einrichtung.kalender_vorschlag_anlegen': {
+      angelegt: ['Gottesdienste', 'Gemeindekalender'], uebersprungen: [],
+    },
   })
   const a = mod.useEinrichtungsAssistent()
   await a.ladeAssistent({ start: true })

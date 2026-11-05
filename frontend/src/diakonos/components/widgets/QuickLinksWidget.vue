@@ -61,14 +61,14 @@ const links = computed(() => {
   }
   if (isAdmin.value) {
     return [
-      { href: '#/mitglieder', symbol: 'mitglieder', title: 'Mitgliederliste', desc: 'Alle Mitglieder suchen und verwalten.' },
+      { href: '#/personen', symbol: 'mitglieder', title: 'Personen', desc: 'Alle Personen suchen und verwalten.' },
       { href: '#/gruppen', symbol: 'gruppen', title: 'Gruppen & Dienste', desc: 'Mitarbeitende zu Bereichen zuordnen.' },
       { href: '#/kalender', symbol: 'kalender', title: 'Kalender', desc: 'Termine und Veranstaltungen verwalten.' },
     ]
   }
   return [
     { href: '#/kalender', symbol: 'kalender', title: 'Kalender', desc: 'Termine und Veranstaltungen.' },
-    { href: '#/planrahmen/meine-dienste', symbol: 'dienste', title: 'Meine Dienste', desc: 'Wo du eingeteilt bist.' },
+    { href: '#/dienste/meine-dienste', symbol: 'dienste', title: 'Meine Dienste', desc: 'Wo du eingeteilt bist.' },
     { href: '#/gruppen', symbol: 'gruppen', title: 'Gruppen', desc: 'Deine Gruppen und Bereiche.' },
   ]
 })

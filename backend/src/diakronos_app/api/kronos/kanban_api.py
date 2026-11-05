@@ -237,14 +237,17 @@ def get_kanban_board_data():
         }
 
     raw_v = get_all("Element",
-        filters={"element_calendar": ["in", mod_cals], "status": "Vorschlag"}, fields=_EVENT_FIELDS)
+        filters={"element_calendar": ["in", mod_cals], "status": "Vorschlag",
+                 "geloescht_am": ["is", "not set"]}, fields=_EVENT_FIELDS)
     raw_k = get_all("Element",
-        filters={"element_calendar": ["in", mod_cals], "status": "Konflikt"}, fields=_EVENT_FIELDS)
+        filters={"element_calendar": ["in", mod_cals], "status": "Konflikt",
+                 "geloescht_am": ["is", "not set"]}, fields=_EVENT_FIELDS)
     # P1-5b (W-1): Abgelehnte Termine erscheinen weder im Kalender noch als
     # Vorschlag/Konflikt. Sie bleiben ausschliesslich als Moderations-Historie
     # sichtbar — und nur hier, denn dieses Board ist Moderatoren vorbehalten.
     raw_a = get_all("Element",
-        filters={"element_calendar": ["in", mod_cals], "status": "Abgelehnt"},
+        filters={"element_calendar": ["in", mod_cals], "status": "Abgelehnt",
+                 "geloescht_am": ["is", "not set"]},
         fields=_EVENT_FIELDS, order_by="modified desc", limit_page_length=100)
 
     all_formatted = {e["name"]: _fmt_event(e, cal_info) for e in raw_v + raw_k}
@@ -420,6 +423,10 @@ def get_conflict_partner(element_id):
             "name": ["!=", element_id],
             "element_start": ["<", str(doc.element_end)],
             "element_end": [">", str(doc.element_start)],
+            # UX2b2 (F3): ein Termin im Papierkorb belegt nichts mehr — sonst
+            # meldete der Kanban einen Ressourcenkonflikt mit einem Termin,
+            # den es in der Verwaltung nicht mehr gibt.
+            "geloescht_am": ["is", "not set"],
         },
         fields=["name", "element_name", "element_start", "element_end", "all_day",
                 "element_calendar", "ressource"],

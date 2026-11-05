@@ -1,7 +1,7 @@
 <template>
   <div class="dk-screen dk-screen-wide dk-screen-enter">
     <div class="dk-crumbs">
-      <a class="dk-crumb" href="#/planrahmen">Pläne</a>
+      <a class="dk-crumb" href="#/dienste/dienstplaene">Dienstpläne</a>
       <span class="dk-crumb-sep" aria-hidden="true">/</span>
       <span class="dk-crumb-current">{{ plan?.titel || 'Plan' }}</span>
     </div>
@@ -76,7 +76,7 @@
 
     <div v-else-if="seitenFehler.length" class="pr-plan-zustand pr-plan-zustand--fehler">
       <PrMeldungen :meldungen="seitenFehler" />
-      <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/planrahmen">Zurück zur Übersicht</a>
+      <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/dienstplaene">Zurück zur Übersicht</a>
     </div>
 
     <template v-else>
@@ -85,7 +85,7 @@
         <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Meldungen ausblenden" @click="meldungenSeite = []">Ausblenden</button>
       </div>
 
-      <PrErststart v-if="darfBearbeiten" :bedarf="bedarfListe" :definition="erstdefinition || {}" :stammdaten="'#/planrahmen/vorbereiten/' + encodeURIComponent(planId)" panel angelegt :veroeffentlicht="plan?.status === 'veroeffentlicht'" @stammdaten-oeffnen="stammdatenPanelOeffnen" />
+      <PrErststart v-if="darfBearbeiten" :bedarf="bedarfListe" :definition="erstdefinition || {}" :stammdaten="'#/dienste/dienstplaene/vorbereiten/' + encodeURIComponent(planId)" panel angelegt :veroeffentlicht="plan?.status === 'veroeffentlicht'" @stammdaten-oeffnen="stammdatenPanelOeffnen" />
       <!-- UXP-R19 / PLAN-W1: Die Regelprüfung ist internes Planerwissen („0
            Fehler · 39 Warnungen“). Mitglieder lesen nur den veröffentlichten
            Stand und duerfen die Prüfung nicht sehen — der Server liefert sie
@@ -874,7 +874,7 @@ async function loeschenDurchfuehren() {
         await planLoeschen(planId.value, true)
         loeschenDialogOffen.value = false
         showToast('Plan gelöscht.')
-        window.location.hash = '#/planrahmen'
+        window.location.hash = '#/dienste/dienstplaene'
     } catch (err) {
         loeschenFehler.value = fehlerMeldungen(err)
     } finally {
@@ -896,7 +896,7 @@ async function kopieDurchfuehren() {
         const erg = await planKopieren(planId.value, kopieTitel.value.trim(), true)
         kopieDialogOffen.value = false
         showToast('Kopie angelegt.')
-        if (erg?.plan) window.location.hash = '#/planrahmen/plan/' + encodeURIComponent(erg.plan)
+        if (erg?.plan) window.location.hash = '#/dienste/dienstplaene/plan/' + encodeURIComponent(erg.plan)
     } catch (err) {
         kopieFehler.value = fehlerMeldungen(err)
     } finally {

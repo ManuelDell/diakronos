@@ -65,14 +65,22 @@ def test_absage_beim_loeschen(client, patched_db, monkeypatch, fall, anzahl):
             s.delete(s.get(HasRole, "r-tal"))
     anmelden(client, "moderator")
     if fall == "fehler":
-        from diakronos_app.api.kronos import event_crud
+        # UX2b: Loeschen legt in den Papierkorb — der Fehlerfall wird an der
+        # Stelle erzeugt, die ihn jetzt ausloest (`papierkorb.loeschen`).
+        from diakronos_app import papierkorb
         def scheitert(*args, **kwargs):
             raise ValueError("Loeschen fehlgeschlagen")
-        monkeypatch.setattr(event_crud, "_delete_doc", scheitert)
+        monkeypatch.setattr(papierkorb, "loeschen", scheitert)
     r = client.post(API + "delete_event", json={"name": "E-1"})
     assert (r.status_code == 200) == (fall != "fehler"), r.text
     with patched_db() as s:
-        assert (s.get(Element, "E-1") is None) == (fall != "fehler")
+        # Erfolgreich = im Papierkorb (Zeile bleibt, `geloescht_am` gesetzt);
+        # Fehler = unveraendert und sichtbar.
+        zeile = s.get(Element, "E-1")
+        if fall == "fehler":
+            assert zeile is not None and zeile.geloescht_am is None
+        else:
+            assert zeile is not None and zeile.geloescht_am is not None
     nachrichten = _notifications(patched_db, "talente")
     assert len(nachrichten) == anzahl
     if anzahl:

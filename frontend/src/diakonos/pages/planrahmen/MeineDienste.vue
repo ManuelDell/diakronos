@@ -1,12 +1,14 @@
 <template>
   <div class="dk-screen dk-screen-enter">
+    <!-- UX3a: „Meine Dienste“ ist der erste Reiter des Bereichs „Dienste“. -->
+    <DiensteReiter :reiter="DIENSTE_REITER" :seite="currentPageName" aria-label="Bereiche von Dienste" />
     <div class="dk-screen-header">
       <div>
         <h1 class="dk-screen-title">Meine Dienste</h1>
         <p class="dk-screen-sub">Deine Zuordnungen aus den veröffentlichten Plänen</p>
       </div>
       <div class="dk-screen-actions">
-        <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/planrahmen">Zur Planübersicht</a>
+        <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/dienstplaene">Zu den Dienstplänen</a>
       </div>
     </div>
 
@@ -187,6 +189,9 @@
 </template>
 
 <script setup>
+import DiensteReiter from '../../components/DiensteReiter.vue'
+import { DIENSTE_REITER } from '../../menue.js'
+import { currentPageName } from '../../router.js'
 /**
  * Personensicht des Plan-Rahmens: eigene Zuordnungen aus den
  * veröffentlichten Snapshots (meine_dienste) mit Lied, Uhrzeit und
@@ -271,7 +276,7 @@ function kennung(d, i) {
 
 /** OP-HANDY-5: direkter Sprung zum Plan (Terminwahl in der Planansicht). */
 function planLink(g) {
-    return '#/planrahmen/plan/' + encodeURIComponent(g.plan)
+    return '#/dienste/dienstplaene/plan/' + encodeURIComponent(g.plan)
 }
 
 /**

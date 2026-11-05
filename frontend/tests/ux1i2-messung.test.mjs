@@ -3,7 +3,7 @@
  * melden soll.
  *
  * Anlass (Befund 2026-11-04): der Bericht meldete „36 von 36 mobilen Ansichten
- * ohne Verstoß (0 Stellen)“, obwohl auf `#/mitglieder/liste` mindestens acht
+ * ohne Verstoß (0 Stellen)“, obwohl auf `#/personen/liste` mindestens acht
  * sichtbare `button`/`a[href]` nur 28 px groß sind. Ursache: `page.evaluate`
  * bekam das Mess-Skript mit ZWEI Einzelparametern; Playwright legt den
  * übergebenen Wert dann nur in den ERSTEN Parameter, der zweite ist

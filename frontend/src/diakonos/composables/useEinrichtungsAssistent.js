@@ -16,6 +16,9 @@
 import { computed, reactive, ref } from 'vue'
 
 import { apiCall, apiAntwortPruefen } from './useApi.js'
+// ON-5 (E2-5): die Marke fortschreiben — EINE Stelle, auch fuer die
+// Gemeinde-Einstellungen (`useGemeinde`).
+import { merkeGemeindeMarke } from './gemeindeMarke.mjs'
 // WEB-5b: EINE Quelle fuer den Betriebs-Praefix (DIAKRONOS_BASE_PATH) — auch
 // der Multipart-Weg des Logos laeuft darueber, nie ueber einen festen Pfad.
 import { apiUrl } from '../../shared/basis.js'
@@ -253,7 +256,34 @@ export async function weiter() {
         .filter(([, gewaehlt]) => gewaehlt === true)
         .map(([name]) => name)
       if (namen.length) {
-        await apiCall(EINRICHTUNG + 'kalender_vorschlag_anlegen', { namen })
+        // ON-5 (E2-3): Der Schritt wird erst erledigt, wenn die Kalender
+        // WIRKLICH da sind. Vorher wurde der Fehler verschluckt und der
+        // Schritt trotzdem auf „erledigt“ gesetzt — die Checkliste blieb
+        // danach stumm auf „Noch kein Kalender angelegt“ stehen, ohne dass
+        // jemand erfahren hat, warum.
+        //
+        // Die Regel ist bewusst streng: fehlt einer der gewählten Namen im
+        // Ergebnis (`angelegt` ∪ `uebersprungen`), gilt das Anlegen als
+        // gescheitert. `uebersprungen` zählt mit, weil der Server dort einen
+        // bereits vorhandenen Kalender meldet und ein Duplikat kein Fehler ist.
+        const antwort = await apiCall(EINRICHTUNG + 'kalender_vorschlag_anlegen', { namen })
+        const d = antwort?.message || antwort
+        const vorhanden = new Set([
+          ...(Array.isArray(d?.angelegt) ? d.angelegt : []),
+          ...(Array.isArray(d?.uebersprungen) ? d.uebersprungen : []),
+        ].map((name) => String(name || '').trim().toLowerCase()))
+        const fehlend = namen.filter((name) => !vorhanden.has(name.toLowerCase()))
+        if (fehlend.length) {
+          // Fehlerkatalog-Muster: was (nicht angelegt), warum (Server hat den
+          // Namen nicht bestätigt), was jetzt (Eingaben stehen noch, erneut
+          // versuchen). Die Wahl selbst bleibt unangetastet — sie wird NICHT
+          // wieder auf „erledigt“ gesetzt, der Schritt bleibt stehen.
+          // (Wortlaut „abwählen“ wie im Entwurf, Frame 08.)
+          fehler.value = `Die Kalender ${fehlend.join(', ')} wurden nicht angelegt. `
+            + 'Der Server hat sie nicht bestätigt. Die Auswahl steht noch — '
+            + 'bitte erneut versuchen oder die Häkchen abwählen.'
+          return false
+        }
       }
     }
     // mailversand: die Felder speichert die Schrittkomponente selbst
@@ -435,6 +465,13 @@ export async function ladeLogoHoch(datei) {
       gemeinde.value.logo_url = d?.logo_url || ''
       gemeinde.value.logo_vorhanden = d?.logo_vorhanden === true
     }
+    // ON-5 (E2-5): Die Seitenleiste liest die Marke aus dem Boot-Objekt
+    // (Startwert). Ohne diesen Mitlauf zeigte sie nach dem Upload weiter das
+    // Monogramm, bis die Seite neu geladen wurde — im Erstlauf sah das aus
+    // wie „Logo wird nicht übernommen“. Der Server liefert die Adresse fertig
+    // mit Betriebspräfix und `?v=`-Hash; `merkeGemeindeMarke` schreibt sie ins
+    // Boot-Objekt und meldet `dk-marke-geaendert` (Neuzeichnung).
+    merkeGemeindeMarke(d?.logo_url || '')
     logoDatei.value = null
     return true
   } catch (grund) {
@@ -456,6 +493,9 @@ export async function entferneLogo() {
       gemeinde.value.logo_url = d?.logo_url || ''
       gemeinde.value.logo_vorhanden = d?.logo_vorhanden === true
     }
+    // ON-5 (E2-5): auch das Entfernen muss sofort in der Seitenleiste landen —
+    // sonst bliebe dort ein Logo stehen, das es nicht mehr gibt.
+    merkeGemeindeMarke(d?.logo_url || '')
     logoDatei.value = null
     return true
   } catch (grund) {

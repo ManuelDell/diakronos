@@ -384,6 +384,8 @@ def _conflicting_events(
         "element_start": ["<", element_end],
         "element_end": [">", element_start],
         "docstatus": ["!=", 2],
+        # UX2b: ein Termin im Papierkorb belegt die Ressource nicht mehr.
+        "geloescht_am": ["is", "not set"],
     }
     if exclude_id:
         base_filters["name"] = ["!=", exclude_id]
@@ -570,7 +572,7 @@ def get_conflict_events():
     rows = [
         r for r in (get_all(
             "Element",
-            filters=[["docstatus", "!=", 2]],
+            filters=[["docstatus", "!=", 2], ["geloescht_am", "is", "not set"]],
             fields=["name", "element_name", "element_start", "element_end",
                     "ressource", "element_calendar", "status"],
         ) or [])

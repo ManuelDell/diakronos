@@ -299,7 +299,9 @@ def _gruppen(begriff: str, limit: int, user: str, eigene: set[str]) -> list[dict
     """
     is_admin = permissions.is_admin(user)
     params: dict[str, Any] = {"limit": limit}
-    where = ["g.docstatus <> 2", "COALESCE(g.status, '') = 'Aktiv'"]
+    # UX2b2 (F3): geloeschte Gruppen (Papierkorb) sind nicht auffindbar.
+    where = ["g.docstatus <> 2", "COALESCE(g.status, '') = 'Aktiv'",
+             "g.geloescht_am IS NULL"]
     if not is_admin:
         eigene_liste = sorted(eigene)
         if eigene_liste:
@@ -395,7 +397,8 @@ def _termine(begriff: str, limit: int) -> list[dict[str, str]]:
         "SELECT e.name, e.element_name, e.element_start, e.element_calendar, "
         "k.calendar_name "
         "FROM element e LEFT JOIN kalender k ON k.name = e.element_calendar "
-        "WHERE e.docstatus <> 2 AND (" + " OR ".join(status_glieder) + ") AND "
+        "WHERE e.docstatus <> 2 AND e.geloescht_am IS NULL AND ("
+        + " OR ".join(status_glieder) + ") AND "
         + _begriff_sql(begriff, "t", params, ("e.element_name",))
         + " ORDER BY e.element_start DESC, e.element_name LIMIT :limit"
     )
@@ -420,7 +423,8 @@ def _lieder(begriff: str, limit: int) -> list[dict[str, str]]:
     params["p0"] = _like_wert(begriff)
     sql = (
         "SELECT l.name, l.titel, l.alternativtitel, l.gesangbuch_nummer "
-        "FROM lied l WHERE l.docstatus <> 2 AND COALESCE(l.aktiv, FALSE) = TRUE "
+        "FROM lied l WHERE l.docstatus <> 2 AND l.geloescht_am IS NULL "
+        "AND COALESCE(l.aktiv, FALSE) = TRUE "
         "AND (" + _spalte("l.titel") + " LIKE :p0 ESCAPE '\\' "
         "OR " + _spalte("COALESCE(l.alternativtitel, '')") + " LIKE :p0 ESCAPE '\\' "
         "OR " + _spalte("COALESCE(l.gesangbuch_nummer, '')") + " LIKE :p0 ESCAPE '\\') "
@@ -443,7 +447,7 @@ def _wiki(begriff: str, limit: int) -> list[dict[str, str]]:
     params: dict[str, Any] = {"limit": limit}
     sql = (
         "SELECT w.name, w.titel, w.kategorie, w.tags FROM wiki_artikel w "
-        "WHERE w.docstatus <> 2 AND "
+        "WHERE w.docstatus <> 2 AND w.geloescht_am IS NULL AND "
         + _begriff_sql(begriff, "w", params, ("w.titel", "w.kategorie", "w.tags"))
         + " ORDER BY w.modified DESC, w.titel LIMIT :limit"
     )
@@ -468,7 +472,8 @@ def _beitraege(begriff: str, limit: int) -> list[dict[str, str]]:
     params: dict[str, Any] = {"limit": limit}
     sql = (
         "SELECT b.name, b.titel, b.kategorie FROM beitrag b "
-        "WHERE b.docstatus <> 2 AND COALESCE(b.veroeffentlicht, FALSE) = TRUE AND "
+        "WHERE b.docstatus <> 2 AND b.geloescht_am IS NULL "
+        "AND COALESCE(b.veroeffentlicht, FALSE) = TRUE AND "
         + _begriff_sql(begriff, "b", params, ("b.titel", "b.kategorie"))
         + " ORDER BY b.datum DESC, b.titel LIMIT :limit"
     )

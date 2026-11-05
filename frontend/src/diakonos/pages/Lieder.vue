@@ -1,5 +1,8 @@
 <template>
   <div class="dk-screen dk-screen-wide dk-screen-enter">
+    <!-- UX3a: „Lieder“ und „Liedgruppen“ sind zwei Reiter EINES Bereichs
+         (Entwurf A1) — Liedgruppen war bis UX3a ein eigener Menüpunkt. -->
+    <DiensteReiter :reiter="LIEDER_REITER" :seite="currentPageName" aria-label="Bereiche von Lieder" />
     <!-- Header -->
     <div class="dk-screen-header">
       <div>
@@ -199,7 +202,9 @@ import { apiCall } from '../composables/useApi.js'
 // UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
 // "Fehler beim Laden" / "Fehler beim Speichern".
 import { aktionsfehler } from '../../shared/fehlertexte.js'
-import { navigate } from '../router.js'
+import { navigate, currentPageName } from '../router.js'
+import { LIEDER_REITER } from '../menue.js'
+import DiensteReiter from '../components/DiensteReiter.vue'
 import { istKopie } from '../components/planrahmen/lied-anzeige.mjs'
 import { listenArgs as liste_args, cacheArgs as liste_cache_args,
          cacheAktiv as liste_cache_aktiv, CACHE_NAME } from '../components/lieder/lieder-liste.mjs'

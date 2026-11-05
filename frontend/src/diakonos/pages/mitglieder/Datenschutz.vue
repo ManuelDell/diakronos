@@ -22,7 +22,7 @@
         <p v-if="antraege.length">
           {{ antraege.length }} {{ antraege.length === 1 ? 'Antrag wartet' : 'Anträge warten' }}
           auf Bearbeitung.
-          <a href="#/mitglieder/loeschantraege">Zu den Löschanträgen</a>
+          <a href="#/personen/loeschantraege">Zu den Löschanträgen</a>
         </p>
         <p v-else>Keine offenen Löschanträge.</p>
       </DkCard>

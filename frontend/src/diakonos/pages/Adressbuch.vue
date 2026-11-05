@@ -1,6 +1,9 @@
 <template>
     <div class="dk-screen dk-screen-enter">
-        <div class="dk-screen-header">
+        <!-- UX3a: Das Adressbuch ist ein Reiter von „Personen“; der Bereichs-
+             rahmen zeichnet Kopf und Reiterleiste. Eingebettet entfällt der
+             eigene Seitentitel (wie bei den übrigen Reitern des Bereichs). -->
+        <div v-if="!embedded" class="dk-screen-header">
             <div>
                 <!-- DES-R12: einheitlicher Seitentitel statt Tailwind text-2xl. -->
                 <h1 class="dk-screen-title">Adressbuch</h1>
@@ -134,6 +137,8 @@ import DkSkelett from '../components/ui/DkSkelett.vue'
 export default {
     name: 'Adressbuch',
     components: { DkEmpty, DkSkelett },
+    // UX3a: als Reiter von „Personen“ eingebettet (kein eigener Kopf).
+    props: { embedded: { type: Boolean, default: false } },
     setup() {
         const mitglieder = ref([])
         const loading = ref(false)

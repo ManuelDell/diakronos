@@ -96,12 +96,30 @@ def job_delete_alte_zuordnung_ablehnungen() -> None:
 	logger.info("Job delete_alte_zuordnung_ablehnungen fertig (%s geloescht).", count)
 
 
+def job_papierkorb_aufraeumen() -> None:
+	"""Taeglicher Job (UX2b): Papierkorb-Zeilen nach 7 Tagen endgueltig entfernen.
+
+	Die Frist ist die Fachentscheidung aus Karte UX2b (hoechstens 7 Tage,
+	``papierkorb.AUFBEWAHRUNG_TAGE``). Der Job ist idempotent: was weg ist,
+	ist weg; ein zweiter Lauf findet nichts mehr.
+	"""
+	from diakronos_app import papierkorb
+
+	try:
+		count = papierkorb.aufraeumen()
+	except Exception:  # noqa: BLE001 — ein Fehler darf den Scheduler nicht toeten
+		logger.exception("Job papierkorb_aufraeumen fehlgeschlagen")
+		return
+	logger.info("Job papierkorb_aufraeumen fertig (%s endgueltig entfernt).", count)
+
+
 # (Job-Funktion, Job-Id) — die Registrierung ist damit an EINER Stelle und
 # fuer Tests pruefbar, ohne den BlockingScheduler zu starten.
 DAILY_JOBS: list[tuple] = [
 	(job_anonymize_expired_audit_logs, "anonymize_expired_audit_logs"),
 	(job_delete_alte_anmeldeanfragen, "delete_alte_anmeldeanfragen"),
 	(job_delete_alte_zuordnung_ablehnungen, "delete_alte_zuordnung_ablehnungen"),
+	(job_papierkorb_aufraeumen, "papierkorb_aufraeumen"),
 ]
 
 

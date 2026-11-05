@@ -90,9 +90,12 @@ async function deleteAction(type) {
       confirmLoeschen.value = null
       return
     }
+    // UX2b: Serientermine wandern in den Papierkorb (7 Tage wiederherstellbar).
     const anzahl = data.message?.deleted_count
     showToast(
-      typeof anzahl === 'number' ? `${anzahl} Termine gelöscht.` : 'Serie gelöscht.',
+      typeof anzahl === 'number'
+        ? `${anzahl} Termine in den Papierkorb gelegt — 7 Tage wiederherstellbar.`
+        : 'Serie in den Papierkorb gelegt — 7 Tage wiederherstellbar.',
       'success'
     )
     loescht.value = false

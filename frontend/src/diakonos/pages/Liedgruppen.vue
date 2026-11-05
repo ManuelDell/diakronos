@@ -1,5 +1,7 @@
 <template>
   <div class="dk-screen dk-screen-enter">
+    <!-- UX3a: Liedgruppen sind ein Reiter von „Lieder“ (Entwurf A1). -->
+    <DiensteReiter :reiter="LIEDER_REITER" :seite="currentPageName" aria-label="Bereiche von Lieder" />
     <!-- Header -->
     <div class="dk-screen-header">
       <div>
@@ -53,7 +55,7 @@
           v-for="g in filtered"
           :key="g.name"
           class="lg-card"
-          :href="'#/liedgruppen/' + encodeURIComponent(g.name)"
+          :href="'#/lieder/gruppen/' + encodeURIComponent(g.name)"
         >
           <div class="lg-card-head">
             <span class="dk-badge" :class="typPill(g.typ)">{{ g.typ || 'Sonstiges' }}</span>
@@ -78,7 +80,9 @@ import { apiCall } from '../composables/useApi.js'
 // UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
 // "Fehler beim Laden" / "Fehler beim Speichern".
 import { aktionsfehler } from '../../shared/fehlertexte.js'
-import { navigate } from '../router.js'
+import { navigate, currentPageName } from '../router.js'
+import { LIEDER_REITER } from '../menue.js'
+import DiensteReiter from '../components/DiensteReiter.vue'
 import DkButton from '../components/ui/DkButton.vue'
 import DkFilterChips from '../components/ui/DkFilterChips.vue'
 import { chipsAus, filtereNachChip, istAlle } from '../composables/filterChips.mjs'
@@ -112,7 +116,7 @@ function neueGruppe() {
 
 async function nachSpeichern(name) {
   await load()
-  if (name) navigate('#/liedgruppen/' + encodeURIComponent(name))
+  if (name) navigate('#/lieder/gruppen/' + encodeURIComponent(name))
 }
 
 const TYPEN = ['Werk', 'Musical', 'Kantate', 'Sammlung', 'Gesangbuch', 'Buch', 'Projekt', 'Reihe', 'Mappe', 'Sonstiges']

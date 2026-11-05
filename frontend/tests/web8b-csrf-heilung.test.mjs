@@ -75,7 +75,7 @@ function umgebung({ speicherFrei = true, tokenAntwort = { user: 'anna', csrf_tok
     const location = {
         pathname: '/diakronos',
         search: '',
-        hash: '#/mitglieder',
+        hash: '#/personen',
         reload: () => { zustand.reloads++ },
         assign: (ziel) => { zustand.weiterleitungen.push(ziel) },
     }
@@ -198,7 +198,7 @@ test('WEB-8b C2: im 60-s-Fenster kein zweites Neuladen, sondern Anmeldung mit Hi
     assert.equal(zustand.reloads, 0, 'kein zweites Neuladen im Fenster (keine Schleife)')
     assert.equal(zustand.weiterleitungen.length, 1, 'stattdessen die Anmeldemaske')
     assert.match(zustand.weiterleitungen[0], /^\/diakronos\/login\?redirect-to=/, 'präfixbewusst über anmeldeUrl()')
-    assert.match(decodeURIComponent(zustand.weiterleitungen[0]), /diakronos#\/mitglieder/, 'Rücksprungziel bleibt erhalten')
+    assert.match(decodeURIComponent(zustand.weiterleitungen[0]), /diakronos#\/personen/, 'Rücksprungziel bleibt erhalten')
     assert.ok(fehler, 'der Aufrufer bekommt einen Fehler (kein stilles Weiterlaufen)')
     assert.ok(zustand.logs.every((z) => !z.includes('neu-2') && !z.includes('alt-1')), 'C4: kein Token in der Konsole')
 })

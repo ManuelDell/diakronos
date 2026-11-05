@@ -192,6 +192,8 @@ def _check_konflikte(ressource_id, datum_von, datum_bis, exclude_id=""):
         "element_start": ["<", datum_bis],
         "element_end": [">", datum_von],
         "ignore_conflict": 0,
+        # UX2b: ein Termin im Papierkorb belegt die Ressource nicht mehr.
+        "geloescht_am": ["is", "not set"],
     }
 
     # 2a. Direkte Ressource auf Element
@@ -305,6 +307,7 @@ def _angefragte_termin_ressourcen(ressource_id, datum_von, datum_bis, exclude_id
                 "name": ["in", parent_ids],
                 "element_start": ["<", datum_bis],
                 "element_end": [">", datum_von],
+                "geloescht_am": ["is", "not set"],
             },
             fields=["name", "element_name", "element_start", "element_end", "element_calendar"],
         ) or [])
@@ -855,7 +858,8 @@ def _event_ressourcen_anfragen() -> list[dict[str, Any]]:
     if parent_ids:
         for el in (get_all(
             "Element",
-            filters={"name": ["in", parent_ids]},
+            filters={"name": ["in", parent_ids],
+                     "geloescht_am": ["is", "not set"]},
             fields=["name", "element_name", "element_start", "element_end",
                     "element_calendar", "owner"],
         ) or []):
@@ -1201,7 +1205,9 @@ def delete_ressource(ressource_id, bestaetigt=0):
             "stornierte zählen). Bitte zuerst die Buchungen endgültig löschen."
         )
 
-    termine = get_all("Element", filters={"ressource": doc.name}, fields=["name"]) or []
+    termine = get_all("Element", filters={"ressource": doc.name,
+                                          "geloescht_am": ["is", "not set"]},
+                      fields=["name"]) or []
     if termine:
         raise ValidationError(
             f"Diese Ressource ist noch an {len(termine)} Terminen eingetragen. "

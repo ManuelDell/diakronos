@@ -500,6 +500,8 @@ def _oeffentliches_bild(art: str, slug: str) -> tuple[str, bytes] | None:
             for zeile in sess.query(Beitrag).filter(
                 Beitrag.veroeffentlicht.is_(True),
                 Beitrag.auf_website.is_(True),
+                # UX2b: kein Bild eines Beitrags im Papierkorb.
+                Beitrag.geloescht_am.is_(None),
             ):
                 if auswahl.oeffentliche_kennung("beitrag", zeile.name) == gesucht:
                     treffer = zeile

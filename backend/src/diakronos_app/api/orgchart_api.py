@@ -108,7 +108,8 @@ def get_orgchart_data():
     # Gruppen mit Dienstbereich-Link — Quelle: orgchart_api.py:15-20
     gruppen = get_all(
         "Gruppe",
-        filters={"status": "Aktiv"},
+        # UX2b2 (F3): Organigramm — eine geloeschte Gruppe ist kein Knoten.
+        filters={"status": "Aktiv", "geloescht_am": ["is", "not set"]},
         fields=["name", "gruppenname", "gruppentyp", "dienstbereich"],
     )
 

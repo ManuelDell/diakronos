@@ -138,6 +138,8 @@ def freigegebene_gruppe(sess, slug: str) -> dict | None:
         select(Gruppe).where(
             Gruppe.website_slug == kennung,
             Gruppe.website_freigabe.is_(True),
+            # UX2b: eine Gruppe im Papierkorb ist nicht oeffentlich.
+            Gruppe.geloescht_am.is_(None),
         )
     ).scalars().first()
     if zeile is None:
@@ -258,6 +260,8 @@ def _termin_zeilen(
     bedingungen = [
         Element.element_calendar.in_(namen),
         Element.status == STATUS_OEFFENTLICH,
+        # UX2b: ein Termin im Papierkorb ist nicht oeffentlich.
+        Element.geloescht_am.is_(None),
         # BS-1b2 (F7): geloeschte Termine (docstatus 2) NIE oeffentlich —
         # dieselbe Schranke wie in der Verwaltung, nur im SQL statt in Python.
         Element.docstatus != 2,
@@ -388,6 +392,9 @@ def _oeffentliche_gruppen(sess, kennungen) -> dict[str, dict]:
     zeilen = sess.execute(
         select(Gruppe).where(
             Gruppe.name.in_(gewuenscht),
+            # UX2b2 (F3): der Name einer geloeschten Gruppe darf nicht auf
+            # oeffentlichen Terminen erscheinen.
+            Gruppe.geloescht_am.is_(None),
             Gruppe.website_freigabe.is_(True),
             Gruppe.website_slug.is_not(None),
             Gruppe.website_slug != "",
@@ -420,6 +427,8 @@ def _oeffentliche_gruppe(sess, kennung) -> dict | None:
             Gruppe.website_freigabe.is_(True),
             Gruppe.website_slug.is_not(None),
             Gruppe.website_slug != "",
+            # UX2b: eine Gruppe im Papierkorb ist nicht oeffentlich.
+            Gruppe.geloescht_am.is_(None),
         )
     ).scalars().first()
     if zeile is None or str(zeile.sichtbarkeit or "") == SICHTBARKEIT_VERSTECKT:
@@ -670,6 +679,8 @@ def gruppen(sess, *, typ: str | None = None) -> list[dict]:
             Gruppe.website_freigabe.is_(True),
             Gruppe.website_slug.is_not(None),
             Gruppe.website_slug != "",
+            # UX2b: eine Gruppe im Papierkorb ist nicht oeffentlich.
+            Gruppe.geloescht_am.is_(None),
         )
     ).scalars().all()
     ergebnis = []
@@ -707,6 +718,8 @@ def beitraege_oeffentlich(
     bedingungen = [
         Beitrag.veroeffentlicht.is_(True),
         Beitrag.auf_website.is_(True),
+        # UX2b: ein Beitrag im Papierkorb ist nicht oeffentlich.
+        Beitrag.geloescht_am.is_(None),
     ]
     if kategorie:
         bedingungen.append(Beitrag.kategorie == str(kategorie).strip())
@@ -732,6 +745,8 @@ def oeffentlicher_beitrag(sess, kennung: str) -> dict | None:
         select(Beitrag).where(
             Beitrag.veroeffentlicht.is_(True),
             Beitrag.auf_website.is_(True),
+            # UX2b: ein Beitrag im Papierkorb ist nicht oeffentlich.
+            Beitrag.geloescht_am.is_(None),
         )
     ).scalars().all()
     for zeile in zeilen:

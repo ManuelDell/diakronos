@@ -53,8 +53,8 @@ function routerAusfuehren(boot) {
 {
   const h = routerAusfuehren({ is_admin: true, hash: '#/' })
   h.gehe('#/statistik')
-  assert.equal(h.window.location.hash, '#/mitglieder/uebersicht', '#/statistik → Übersicht')
-  h.gehe('#/mitglieder/uebersicht')
+  assert.equal(h.window.location.hash, '#/personen/uebersicht', '#/statistik → Übersicht')
+  h.gehe('#/personen/uebersicht')
   assert.equal(h.router.currentPageName.value, 'MitgliederUebersicht', 'Übersicht löst auf')
 
   const router = lies('router.js')
@@ -62,7 +62,7 @@ function routerAusfuehren(boot) {
   // EINER Tabelle und jede Adresse hat genau ein Ziel — die alte
   // '#/statistik'-Route ist keine eigene Seite mehr.
   assert.ok(
-    router.includes("'#/statistik':    '#/mitglieder/uebersicht'"),
+    router.includes("'#/statistik':    '#/personen/uebersicht'"),
     '#/statistik ist eine Weiterleitung (keine eigene Seite)',
   )
   assert.ok(!/'#\/statistik'\s*:\s*'[A-Za-z]/.test(router), 'Statistik ist keine eigene Route mehr')
@@ -75,10 +75,10 @@ function routerAusfuehren(boot) {
 {
   const h = routerAusfuehren({ is_admin: true, hash: '#/' })
   const faelle = [
-    ['#/registrierung?token=abc', '#/mitglieder/anfragen?token=abc'],
-    ['#/registrierung/', '#/mitglieder/anfragen'],
-    ['#/statistik/', '#/mitglieder/uebersicht'],
-    ['#/plaene/', '#/planrahmen'],
+    ['#/registrierung?token=abc', '#/personen/anfragen?token=abc'],
+    ['#/registrierung/', '#/personen/anfragen'],
+    ['#/statistik/', '#/personen/uebersicht'],
+    ['#/plaene/', '#/dienste/dienstplaene'],
   ]
   for (const [alt, neu] of faelle) {
     h.window.location.hash = alt
@@ -90,7 +90,7 @@ function routerAusfuehren(boot) {
 // ── Unbekannte Adresse → „Seite nicht gefunden“ (OP-UI-6) ───────────────────
 {
   const h = routerAusfuehren({ is_admin: true, hash: '#/' })
-  for (const unbekannt of ['#/mitglieder/foo', '#/einstellungen/xyz', '#/gibtsnicht']) {
+  for (const unbekannt of ['#/personen/foo', '#/einstellungen/xyz', '#/gibtsnicht']) {
     h.window.location.hash = unbekannt
     h.gehe(unbekannt)
     assert.equal(h.router.currentPageName.value, 'NichtGefunden', `${unbekannt} → NichtGefunden`)
@@ -147,7 +147,7 @@ function routerAusfuehren(boot) {
   const uebersicht = lies('pages/mitglieder/Uebersicht.vue')
   assert.ok(uebersicht.includes('get_statistik'), 'Zahlen kommen aus get_statistik')
   // Jede Kennzahl-Kachel ist klickbar und führt in einen existierenden Reiter.
-  for (const ziel of ['#/mitglieder/liste', '#/mitglieder/anfragen', '#/mitglieder/datenschutz']) {
+  for (const ziel of ['#/personen/liste', '#/personen/anfragen', '#/personen/datenschutz']) {
     assert.ok(uebersicht.includes(ziel), `Kachelziel ${ziel}`)
   }
   // Die Zählung „Datenschutz offen“ kommt aus dsgvo.fehlt (Personen).
@@ -159,10 +159,10 @@ function routerAusfuehren(boot) {
 {
   const h = routerAusfuehren({ is_admin: true, hash: '#/' })
   const faelle = [
-    ['#/mitglieder/liste?status=Mitglied', 'MitgliederListe'],
-    ['#/mitglieder/liste/', 'MitgliederListe'],
-    ['#/mitglieder/uebersicht/', 'MitgliederUebersicht'],
-    ['#/mitglieder/anfragen?x=1', 'MitgliederAnfragen'],
+    ['#/personen/liste?status=Mitglied', 'MitgliederListe'],
+    ['#/personen/liste/', 'MitgliederListe'],
+    ['#/personen/uebersicht/', 'MitgliederUebersicht'],
+    ['#/personen/anfragen?x=1', 'MitgliederAnfragen'],
     ['#/kalender/', 'Kalender'],
     ['#/lieder/neu', 'LiedNeu'],
     ['#/mitglied/MT-0001', 'MitgliedDetail'],
@@ -172,9 +172,9 @@ function routerAusfuehren(boot) {
     assert.equal(h.router.currentPageName.value, seite, `${hash} → ${seite}`)
   }
   // Die Abfrage darf nicht als Seite missverstanden werden.
-  h.gehe('#/mitglieder/liste?status=Mitglied')
+  h.gehe('#/personen/liste?status=Mitglied')
   assert.equal(h.router.currentPageName.value, 'MitgliederListe', 'Abfrage stoert nicht')
-  assert.equal(h.router.currentHash.value, '#/mitglieder/liste?status=Mitglied',
+  assert.equal(h.router.currentHash.value, '#/personen/liste?status=Mitglied',
     'der volle Hash bleibt fuer die Seite erhalten')
   // Auch mit Abfrageteil unbekannter Pfad bleibt „Seite nicht gefunden“.
   h.gehe('#/gibtsnicht?x=1')

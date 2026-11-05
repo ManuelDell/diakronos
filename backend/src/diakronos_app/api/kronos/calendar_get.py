@@ -225,6 +225,11 @@ def get_calendar_events(start_date, end_date, calendar_filter=None, view_mode=Tr
         # Last der frueheren Vollhistorie kam aus den datierten Terminen.
         filters = {
             "element_start": ["<=", fenster_ende],
+            # UX2b2 (F1): geloeschte Termine (Papierkorb) erscheinen in KEINER
+            # Kalenderansicht — auch nicht im Haupt-Feed, den KronosCalendar
+            # und KronosDayEventsDialog lesen. Ohne diesen Filter zeigte der
+            # Kalender einen Termin weiter, der in der Verwaltung schon weg ist.
+            "geloescht_am": ["is", "not set"],
         }
         or_filters = [
             ["element_end", ">=", fenster_start],
@@ -444,10 +449,15 @@ def get_mein_termin(element_id):
         "name", "element_name", "element_start", "element_end", "all_day",
         "element_calendar", "element_category", "status", "ressource",
         "description", "owner", "series_id", "ablehnungs_grund",
-        "moderiert_von", "modified",
+        "moderiert_von", "modified", "geloescht_am",
     ]
     doc = get_value("Element", element_id, felder, as_dict=True)
     if not doc:
+        raise DoesNotExistError("Termin nicht gefunden.")
+    # UX2b2 (F1): ein Termin im Papierkorb ist fuer die Anzeige nicht mehr
+    # vorhanden — dieselbe Antwort wie „gibt es nicht“ (kein Sonderweg, ueber
+    # den sich die geloeschten Daten doch noch abrufen liessen).
+    if doc.get("geloescht_am") is not None:
         raise DoesNotExistError("Termin nicht gefunden.")
 
     owner = str(doc.get("owner") or "")
@@ -516,7 +526,8 @@ def get_meine_abgelehnten_termine():
 
     zeilen = get_all(
         "Element",
-        filters={"owner": aktuell, "status": "Abgelehnt"},
+        filters={"owner": aktuell, "status": "Abgelehnt",
+                 "geloescht_am": ["is", "not set"]},
         fields=[
             "name", "element_name", "element_start", "element_end", "all_day",
             "element_calendar", "ablehnungs_grund", "moderiert_von",
@@ -701,7 +712,8 @@ def _serien_termine(
     Bearbeitungsmodus: dieselbe Aufteilung wie die Terminliste — Moderatoren
     sehen alles AUSSER `Abgelehnt`, die uebrigen Kalender nur `Festgelegt`.
     """
-    basis = {"series_id": ["in", serien_ids]}
+    # UX2b: Termine im Papierkorb zaehlen nicht als Seriengroesse.
+    basis = {"series_id": ["in", serien_ids], "geloescht_am": ["is", "not set"]}
     if nur_festgelegt:
         return get_all(
             "Element",

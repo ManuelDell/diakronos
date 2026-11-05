@@ -89,7 +89,74 @@ export const BEGRIFFE = {
         bedeutet: 'Einen Plan für alle sichtbar machen.',
         verboten: [],
     },
+    // ── UX3a (Konzept-Entscheidungen Manuel, 2026-11-03) ────────────────────
+    // Neue Menü- und Seitenbegriffe. Die verbotenen Varianten sind die ALTEN
+    // Namen — sie sollen nicht über Umwege zurück in die Oberfläche wandern.
+    personen: {
+        wort: 'Personen',
+        bedeutet: 'Alle Menschen der Gemeinde (intern: Mitglieder). Der Bereich heißt „Personen“; „Mitglied“ bleibt die einzelne Person.',
+        verboten: [],
+    },
+    dienste: {
+        wort: 'Dienste',
+        bedeutet: 'Der Bereich für Dienstpläne und persönliche Dienste (früher zwei Menüpunkte: „Dienstplan“ und „Meine Dienste“).',
+        verboten: [],
+    },
+    dienstplan: {
+        wort: 'Dienstplan',
+        bedeutet: 'EIN Plan mit Terminen und den Menschen, die dort einen Dienst tun.',
+        verboten: [],
+    },
+    // UX3a: „Moderation“ und „Primo“ sind als ALTE Wörter vermerkt, aber nicht
+    // als verboten markiert — der Glossar-Wächter (p3-1b) prüft sonst auch
+    // Kommentare, Dateinamen und die Schnittstelle (deploy/primo, PRIMO_URL).
+    // Sichtbare Texte sind in UX3a umgestellt; ein Verbot auf Wortebene wäre
+    // eine Umbenennung der API, nicht der Oberfläche.
+    pruefen: {
+        wort: 'Prüfen',
+        bedeutet: 'Einen Vorschlag ansehen und freigeben — der Reiter „Zu prüfen“ im Kalender (früher: Moderation).',
+        verboten: [],
+    },
+    website_baukasten: {
+        wort: 'Website-Baukasten',
+        bedeutet: 'Das Werkzeug, mit dem die öffentliche Website gebaut wird (früher: Primo).',
+        verboten: [],
+    },
+    // Grundwörter der Knopfsprache (Konzept-Entscheidungen).
+    loeschen: {
+        wort: 'Löschen',
+        bedeutet: 'Etwas endgültig entfernen.',
+        verboten: [],
+    },
+    entfernen: {
+        wort: 'Entfernen',
+        bedeutet: 'Etwas aus einer Sammlung/Zuordnung nehmen — das Objekt selbst bleibt bestehen.',
+        verboten: [],
+    },
+    schliessen: {
+        wort: 'Schließen',
+        bedeutet: 'Eine Ansicht ohne Änderung verlassen.',
+        verboten: [],
+    },
+    abbrechen: {
+        wort: 'Abbrechen',
+        bedeutet: 'Eine Eingabe verwerfen.',
+        verboten: [],
+    },
+    erneut_versuchen: {
+        wort: 'Erneut versuchen',
+        bedeutet: 'Eine fehlgeschlagene Handlung noch einmal auslösen (früher: „Nochmal“).',
+        verboten: [],
+    },
 }
+
+/**
+ * Wörter, die in der Oberfläche NICHT mehr vorkommen dürfen (geprüft von
+ * `ux3a-*.test.mjs` über die geprüften Bauteile). Das sind die ALTEN
+ * Bezeichnungen aus den Konzept-Entscheidungen — nicht der Markenname
+ * „Primo“ in Kommentaren zur Schnittstelle, sondern die sichtbaren Texte.
+ */
+export const VERBOTENE_ANZEIGEWOERTER = ['Primo', 'Moderation', 'Plantyp', 'Mitglieder']
 
 /**
  * Wort im richtigen Numerus — OP-CHOR-12/OP-UI-27: Die Oberfläche schrieb

@@ -76,7 +76,7 @@ test('Fehlgeschlagenes Aufnehmen öffnet nur weiterhin offene Anfragen', async (
 test('Filter bleibt in Adresse; Rückkehr und Personen-Kachel bleiben eindeutig', () => {
   const text = lies('pages/Mitglieder.vue')
   const quelle = text.slice(text.indexOf('function _statusAusAdresse'), text.indexOf('\nconst filterOptionen'))
-  let hash = '#/mitglieder/liste?status=Gast'
+  let hash = '#/personen/liste?status=Gast'
   let listener
   const fenster = { location: { get hash() { return hash } }, history: {
     replaceState(_a, _b, ziel) { hash = ziel },
@@ -92,7 +92,7 @@ test('Filter bleibt in Adresse; Rückkehr und Personen-Kachel bleiben eindeutig'
   listener('Passives Mitglied')
   const rueckkehr = bauen(fenster, () => {})
   assert.equal(rueckkehr.value, 'Passives Mitglied')
-  hash = '#/mitglieder/liste'
+  hash = '#/personen/liste'
   assert.equal(bauen(fenster, () => {}).value, '')
 })
 

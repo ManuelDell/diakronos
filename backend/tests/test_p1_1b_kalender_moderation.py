@@ -357,7 +357,11 @@ def test_delete_event_raeumt_vorschlag(welt):
     )
     assert sess.query(ElementAenderung).count() == 1
     event_crud.delete_event("EL-P11B-W3")
-    assert sess.get(Element, "EL-P11B-W3") is None
+    # UX2b: Loeschen legt in den Papierkorb — die Zeile bleibt markiert stehen,
+    # unsichtbar ist sie ueber `geloescht_am` (hier geprueft, weil dieser Test
+    # die WIRKUNG des Aufraeumens der Aenderungen belegt, nicht das Entfernen).
+    _el = sess.get(Element, "EL-P11B-W3")
+    assert _el is not None and _el.geloescht_am is not None
     assert sess.query(ElementAenderung).count() == 0
 
 
@@ -372,7 +376,8 @@ def test_series_delete_raeumt_vorschlaege(welt):
     )
     assert sess.query(ElementAenderung).count() == 1
     series.delete_series_batch_fast("SER-P11B-W3")
-    assert sess.get(Element, "EL-SER-P11B-W3") is None
+    _el_serie = sess.get(Element, "EL-SER-P11B-W3")
+    assert _el_serie is not None and _el_serie.geloescht_am is not None
     assert sess.query(ElementAenderung).count() == 0
 
 

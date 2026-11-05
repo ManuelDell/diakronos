@@ -1,7 +1,7 @@
 <template>
   <div class="dk-screen dk-screen-enter">
     <div class="dk-crumbs">
-      <a class="dk-crumb" href="#/planrahmen">Pläne</a>
+      <a class="dk-crumb" href="#/dienste/dienstplaene">Dienstpläne</a>
       <span class="dk-crumb-sep" aria-hidden="true">/</span>
       <span class="dk-crumb-current">Stammdaten{{ titelZusatz ? ' — ' + titelZusatz : '' }}</span>
     </div>
@@ -35,7 +35,7 @@
       <p class="dk-empty-desc">
         Die Stammdaten hängen an einer Planvorlage. Öffne sie aus der Planübersicht oder aus der Vorbereitung eines Plans.
       </p>
-      <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/planrahmen">Zur Planübersicht</a>
+      <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/dienstplaene">Zu den Dienstplänen</a>
     </div>
 
     <template v-else>
@@ -80,7 +80,7 @@
       <section v-if="reiter === 'personen'" id="pr-stamm-personen" class="pr-stamm-reiter">
         <p class="pr-stamm-hinweis">
           Die Personen kommen aus den Gemeindemitgliedern.
-          <template v-if="darfGlobaleBearbeiten">Fehlt jemand? <a href="#/mitglieder">In der Mitgliederverwaltung ergänzen</a>.</template>
+          <template v-if="darfGlobaleBearbeiten">Fehlt jemand? <a href="#/personen">Unter „Personen“ ergänzen</a>.</template>
           <template v-else>Fehlt jemand? Bitte die Mitgliederverwaltung um Ergänzung.</template>
           <template v-if="personenListe.length === 0"> Es sind noch keine Personen vorhanden.</template>
           Markiere in der Tabelle, wer z. B. dirigiert oder Klavier spielt; jede Änderung wird sofort gespeichert.
@@ -334,8 +334,8 @@
  * Stammdaten-Pflege des Plan-Rahmens (B5): Personen-Matrix (Person × Merkmal)
  * und Sammlungstabellen mit Reihenfolge, Aktiv-Flag und Merkmalen.
  *
- * Kontext kommt aus der Route: '#/planrahmen/stammdaten/<plantyp>' (Plantyp)
- * oder '#/planrahmen/vorbereiten/<plan>' (Plan-Kontext — der Plantyp wird
+ * Kontext kommt aus der Route (UX3a): '#/dienste/vorlagen/<plantyp>'
+ * (Plantyp) oder '#/dienste/dienstplaene/vorbereiten/<plan>' (Plan-Kontext — der Plantyp wird
  * vor dem Laden über plan_holen ermittelt). Zusätzlich können plantyp/plan
  * als Props übergeben werden (Einbettung durch den Parent).
  *
@@ -372,15 +372,34 @@ const { stammdatenHolen, planHolen, bedarf, merkmalePflegen, sammlungPflegen } =
 /** Fallback: Hash-Form lesen, falls die Route ohne Parameter-Namen integriert ist. */
 function hashKontext() {
     const hash = (typeof window !== 'undefined' && window.location.hash) ? window.location.hash : ''
-    let m = hash.match(/^#\/planrahmen\/stammdaten\/([^/?#]+)/)
+    // UX3a: neue Adressen zuerst — '#/dienste/vorlagen/‹marke›/stammdaten/‹plantyp›'
+    // (die Marke ist ein Platzhalter, der Plantyp steht dahinter) und
+    // '#/dienste/dienstplaene/vorbereiten/‹plan›'. Die alten Formen bleiben
+    // gültig (Router leitet weiter, diese Datei ist auch einzeln einbettbar).
+    let m = hash.match(/^#\/dienste\/vorlagen\/[^/?#]+\/stammdaten\/([^/?#]+)/)
+    if (m) return { plantyp: decodeURIComponent(m[1]), plan: '' }
+    m = hash.match(/^#\/dienste\/dienstplaene\/vorbereiten\/([^/?#]+)/)
+    if (m) return { plantyp: '', plan: decodeURIComponent(m[1]) }
+    m = hash.match(/^#\/planrahmen\/stammdaten\/([^/?#]+)/)
     if (m) return { plantyp: decodeURIComponent(m[1]), plan: '' }
     m = hash.match(/^#\/planrahmen\/vorbereiten\/([^/?#]+)/)
     if (m) return { plantyp: '', plan: decodeURIComponent(m[1]) }
     return { plantyp: '', plan: '' }
 }
-const routePlantyp = computed(() => getRouteParam('plantyp') || '')
-const routePlan = computed(() => getRouteParam('plan') || '')
-const ktxPlantyp = computed(() => routePlantyp.value || props.plantyp || hashKontext().plantyp || '')
+// Der Routen-Parameter kann fehlen (Einbettung, Test-Rand); dann liefert die
+// Funktion `undefined` — daraus darf kein Plantyp „undefined“ werden, sonst
+// liefe eine Abfrage für einen Typ, den es nicht gibt.
+const routePlantyp = computed(() => String(getRouteParam('plantyp') || ''))
+const routePlan = computed(() => String(getRouteParam('plan') || ''))
+/**
+ * Wirksamer Plantyp. Der Platzhalter „-“ aus der Adresse
+ * (`#/dienste/vorlagen/-/stammdaten/…`, siehe einrichten-flow.mjs) zählt NICHT
+ * als Plantyp — er sagt nur „kein bestimmter Typ in der Adresse“.
+ */
+const ktxPlantyp = computed(() => {
+    const roh = routePlantyp.value || props.plantyp || hashKontext().plantyp || ''
+    return roh === '-' ? '' : roh
+})
 const ktxPlan = computed(() => routePlan.value || props.plan || hashKontext().plan || '')
 
 // ── Ladezustand ────────────────────────────────────────────────────────────

@@ -148,8 +148,10 @@ const theme = ref(startTheme({ speicher: window.localStorage, system: systemThem
 watch(theme, (wert) => {
   document.documentElement.setAttribute('data-theme', wert)
 }, { immediate: true })
-const isKronosMode = computed(() => currentHash.value === '#/kalender')
-const isModerationMode = computed(() => currentHash.value === '#/moderation')
+// UX3a: „Zu prüfen“ ist der vierte Reiter des Kalenders — beide Adressen
+// zählen zum Kalender-Layout; die alte Adresse bleibt gültig (Weiterleitung).
+const isKronosMode = computed(() => currentHash.value.startsWith('#/kalender'))
+const isModerationMode = computed(() => ['#/moderation', '#/kalender/pruefen'].includes(currentHash.value))
 /**
  * ON-3b (N4): Einrichtungs-Assistent im VOLLBILD (Entwurf 04/09).
  *

@@ -270,6 +270,9 @@ class Beitrag(Base):
     auszug: Mapped[Any | None] = mapped_column(Text, nullable=True)
     inhalt: Mapped[Any | None] = mapped_column(Text, nullable=True)
     bild: Mapped[Any | None] = mapped_column(String(140), nullable=True)
+    # UX2b: Papierkorb (Migration ux2b_papierkorb).
+    geloescht_am: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    geloescht_von: Mapped[str | None] = mapped_column(String(140), nullable=True)
     kommentare: Mapped[list["BeitragKommentar"]] = relationship(
         primaryjoin="Beitrag.name == foreign(BeitragKommentar.parent) and BeitragKommentar.parentfield == 'kommentare'",
         foreign_keys="[BeitragKommentar.parent]",
@@ -790,6 +793,11 @@ class Gruppe(Base):
     # noch kein Slug vergeben (nur bei freigegebenen Zeilen Pflicht).
     website_slug: Mapped[str | None] = mapped_column(String(140), nullable=True)
 
+    # UX2b: Papierkorb (Migration ux2b_papierkorb). Gesetzt = aus jeder
+    # Lese-Ausgabe ausgeblendet, nach 7 Tagen endgueltig entfernt.
+    geloescht_am: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    geloescht_von: Mapped[str | None] = mapped_column(String(140), nullable=True)
+
 class GruppeVerantwortlicher(Base):
     """Frappe Child-Tabelle (istable=1) — Sortierung immer ueber `idx`."""
     __tablename__ = "gruppe_verantwortlicher"
@@ -1190,3 +1198,6 @@ class WikiArtikel(Base):
     ist_neu: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     auszug: Mapped[Any | None] = mapped_column(Text, nullable=True)
     inhalt: Mapped[Any | None] = mapped_column(Text, nullable=True)
+    # UX2b: Papierkorb (Migration ux2b_papierkorb).
+    geloescht_am: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    geloescht_von: Mapped[str | None] = mapped_column(String(140), nullable=True)

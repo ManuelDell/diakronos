@@ -16,7 +16,7 @@ function router(boot) {
 }
 test('UXM-001: Verwaltungsseiten verweigern Direktaufruf für Mitglieder', () => {
     const r = router({mitglied:{status:'Mitglied'}})
-    for (const hash of ['#/mitglieder/uebersicht', '#/mitglieder/anfragen', '#/einstellungen', '#/einstellungen/anmeldung', '#/dev-befunde']) assert.equal(r.gehe(hash), '#/')
+    for (const hash of ['#/personen/uebersicht', '#/personen/anfragen', '#/einstellungen', '#/einstellungen/anmeldung', '#/dev-befunde']) assert.equal(r.gehe(hash), '#/')
 })
 test('Dev-Befunde bleiben für berechtigte Tester bei aktivem Dev-Modus erreichbar', () => {
     const r = router({mitglied:{status:'Mitglied'}, devmode:true, ist_tester:true})

@@ -545,11 +545,19 @@ def kalender_vorschlag_anlegen(namen: Any = None, request=None) -> dict[str, Any
         )
 
     from diakronos_app.api.kronos.kalender_verwaltung import create_kalender
-    from diakronos_app.frappe_compat.exceptions import FrappeCompatError
+    from diakronos_app.frappe_compat.exceptions import FrappeCompatError, PermissionError
     from diakronos_app.models.kronos import Kalender
 
     angelegt: list[str] = []
     uebersprungen: list[str] = []
+    # ON-5 (E2-3): Frueher wurde JEDER ``FrappeCompatError`` als „uebersprungen“
+    # gemeldet — auch ein Rechtemangel. Der Onboarding-Lauf zeigte damit den
+    # stillen Fall in Reinform: HTTP 200, beide Kalender „uebersprungen“, in
+    # Wahrheit aber keiner angelegt („Nur Kalenderadministratoren duerfen
+    # Kalender verwalten.“). Jetzt wird unterschieden:
+    #   * schon vorhanden / Duplikat  -> uebersprungen (kein Fehler)
+    #   * alles andere (Rechte!)      -> Fehler an den Aufrufer, nichts still
+    #     verworfen und nichts halb angelegt.
     with SessionLocal() as sess:
         vorhanden = {
             str(n).strip().lower()
@@ -561,6 +569,17 @@ def kalender_vorschlag_anlegen(namen: Any = None, request=None) -> dict[str, Any
             continue
         try:
             create_kalender(name)
+        except PermissionError as exc:
+            # Fail closed: an dieser Stelle hat der Assistent bereits eine
+            # Admin-Rolle geprueft — wenn ``create_kalender`` trotzdem
+            # verweigert, fehlt die Kalenderrolle. Das ist eine Meldung an die
+            # Person, kein stiller Verlust.
+            logger.warning("Kalender %r nicht angelegt: %s", name, exc)
+            raise PermissionError(
+                "Die Kalender konnten nicht angelegt werden. Dafuer fehlt das "
+                "Recht „Kalenderadministrator“ — bitte eine Person mit dieser "
+                "Rolle fragen."
+            ) from exc
         except FrappeCompatError as exc:
             # Ein Duplikat, das zwischen Lesen und Schreiben entstanden ist
             # (oder ein gleichnamiger Kalender ueber ``calendar_name``), ist

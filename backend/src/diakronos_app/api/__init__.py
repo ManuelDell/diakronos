@@ -44,6 +44,7 @@ from diakronos_app.api import mailversand  # noqa: F401 — MAIL-1: SMTP-Einstel
 from diakronos_app.api import kronos  # noqa: F401 — P4b: Kronos-Kern (13 Pfade)
 from diakronos_app.api import mitglieder  # noqa: F401
 from diakronos_app.api import orgchart_api  # noqa: F401 — P4a: Organigramm
+from diakronos_app.api import papierkorb as papierkorb_api  # noqa: F401 — UX2b: Papierkorb-Liste (Admin)
 from diakronos_app.api import planung  # noqa: F401 — P4d1: Dienstplanung (17 Pfade)
 from diakronos_app.api import planrahmen  # noqa: F401 — generischer Plan-Rahmen
 from diakronos_app.api import profile  # noqa: F401 — P4n: Profilseite (6 Pfade)

@@ -161,6 +161,12 @@ class Element(Base):
     # p15b_ablehnungsgrund; Vorbild ressourcen_buchung.ablehnungs_grund.
     ablehnungs_grund: Mapped[Any | None] = mapped_column(Text, nullable=True)
     moderiert_von: Mapped[str | None] = mapped_column(String(140), nullable=True)
+    # UX2b: Papierkorb. `geloescht_am` gesetzt = Termin liegt im Papierkorb und
+    # ist aus JEDER Lese-Ausgabe ausgeblendet (Kalender, CalDAV, iCal, Website,
+    # Suche); nach `aufbewahrung_tage` (7) entfernt der Scheduler ihn endgueltig.
+    # Migration ux2b_papierkorb.
+    geloescht_am: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    geloescht_von: Mapped[str | None] = mapped_column(String(140), nullable=True)
 
 class ElementMitarbeiter(Base):
     """Frappe Child-Tabelle (istable=1) — Sortierung immer ueber `idx`."""

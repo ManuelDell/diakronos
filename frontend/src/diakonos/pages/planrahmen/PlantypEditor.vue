@@ -1,9 +1,9 @@
 <template>
   <div class="dk-screen dk-screen-wide dk-screen-enter">
     <div class="dk-crumbs">
-      <a class="dk-crumb" href="#/planrahmen">Pläne</a>
+      <a class="dk-crumb" href="#/dienste/dienstplaene">Dienstpläne</a>
       <span class="dk-crumb-sep" aria-hidden="true">/</span>
-      <a class="dk-crumb" href="#/planrahmen/einrichten">Einrichten</a>
+      <a class="dk-crumb" href="#/dienste/vorlagen">Vorlagen</a>
       <span class="dk-crumb-sep" aria-hidden="true">/</span>
       <span class="dk-crumb-current">{{ titel }}</span>
     </div>
@@ -19,7 +19,7 @@
         </p>
       </div>
       <div class="dk-screen-actions">
-        <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/planrahmen/einrichten">Zur Liste</a>
+        <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/vorlagen">Zur Liste</a>
         <button v-if="darfVorlageBearbeiten && !laden" type="button" class="dk-btn dk-btn-primary dk-btn-sm" :disabled="speichert || !!jsonFehler" @click="speichernOffen = true">Als neue Version speichern …</button>
       </div>
     </div>
@@ -28,7 +28,7 @@
 
     <div v-else-if="seitenFehler.length" class="pr-pe-zustand pr-pe-zustand--fehler">
       <PrMeldungen :meldungen="seitenFehler" />
-      <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/planrahmen/einrichten">Zurück zur Liste</a>
+      <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/vorlagen">Zurück zur Liste</a>
     </div>
 
     <template v-else>

@@ -878,8 +878,8 @@
     "diakronos.diakonos.api.beitraege.delete_beitrag",
     "diakronos_app.api.beitraege.delete_beitrag"
    ],
-   "rumpf_grund": "Aufruf _delete_doc()",
-   "rumpf_ueber": null
+   "rumpf_grund": "ueber papierkorb.loeschen(): Aufruf _update_doc()",
+   "rumpf_ueber": "diakronos_app.papierkorb.loeschen"
   },
   {
    "allow_guest": false,
@@ -963,6 +963,34 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
+   "ausnahme_quelle": "deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.beitraege.wiederherstellen_beitrag",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.beitraege",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "wiederherstellen_beitrag",
+   "offen": false,
+   "pfade": [
+    "api.wiederherstellen_beitrag",
+    "beitraege.wiederherstellen_beitrag",
+    "diakronos.diakonos.api.beitraege.wiederherstellen_beitrag",
+    "diakronos_app.api.beitraege.wiederherstellen_beitrag",
+    "wiederherstellen_beitrag"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
    "ausnahme_quelle": null,
    "deklariert": null,
    "einstufung": "lesend",
@@ -999,11 +1027,9 @@
    "nach_rumpf": "lesend",
    "name": "liste",
    "pfade": [
-    "api.liste",
     "bugreport.liste",
     "diakronos.diakonos.api.bugreport.liste",
-    "diakronos_app.api.bugreport.liste",
-    "liste"
+    "diakronos_app.api.bugreport.liste"
    ],
    "rumpf_grund": "",
    "rumpf_ueber": null
@@ -2340,6 +2366,33 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.delete_gruppe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "delete_gruppe",
+   "pfade": [
+    "api.delete_gruppe",
+    "delete_gruppe",
+    "diakronos.diakonos.api.gruppen.delete_gruppe",
+    "diakronos_app.api.gruppen.delete_gruppe",
+    "gruppen.delete_gruppe"
+   ],
+   "rumpf_grund": "ueber papierkorb.loeschen(): Aufruf _update_doc()",
+   "rumpf_ueber": "diakronos_app.papierkorb.loeschen"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
    "ausnahme_quelle": null,
    "deklariert": null,
    "einstufung": "lesend",
@@ -2753,6 +2806,34 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
+   "ausnahme_quelle": "deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.wiederherstellen_gruppe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "wiederherstellen_gruppe",
+   "offen": false,
+   "pfade": [
+    "api.wiederherstellen_gruppe",
+    "diakronos.diakonos.api.gruppen.wiederherstellen_gruppe",
+    "diakronos_app.api.gruppen.wiederherstellen_gruppe",
+    "gruppen.wiederherstellen_gruppe",
+    "wiederherstellen_gruppe"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
    "ausnahme_quelle": null,
    "deklariert": null,
    "einstufung": "lesend",
@@ -3054,7 +3135,7 @@
     "kronos.delete_event",
     "kronos.event_crud.delete_event"
    ],
-   "rumpf_grund": "Aufruf benachrichtige_absage() (Praefix); Aufruf _delete_doc()",
+   "rumpf_grund": "Aufruf benachrichtige_absage() (Praefix)",
    "rumpf_ueber": null
   },
   {
@@ -3140,6 +3221,36 @@
     "update_event"
    ],
    "rumpf_grund": "SQL-Text „update existierendes eve…\"",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.event_crud.wiederherstellen_event",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.event_crud",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "wiederherstellen_event",
+   "offen": false,
+   "pfade": [
+    "api.wiederherstellen_event",
+    "diakronos.kronos.api.event_crud.wiederherstellen_event",
+    "diakronos_app.api.kronos.event_crud.wiederherstellen_event",
+    "event_crud.wiederherstellen_event",
+    "kronos.event_crud.wiederherstellen_event",
+    "kronos.wiederherstellen_event",
+    "wiederherstellen_event"
+   ],
+   "rumpf_grund": "",
    "rumpf_ueber": null
   },
   {
@@ -3924,8 +4035,8 @@
     "kronos.series.delete_future_series_events",
     "series.delete_future_series_events"
    ],
-   "rumpf_grund": "Aufruf _delete_doc()",
-   "rumpf_ueber": null
+   "rumpf_grund": "ueber _aenderungen_entfernen(): ueber moderation.aenderungen_zu_element_entfernen(): Aufruf _delete_doc()",
+   "rumpf_ueber": "_aenderungen_entfernen"
   },
   {
    "allow_guest": false,
@@ -3953,8 +4064,8 @@
     "kronos.series.delete_series_batch_fast",
     "series.delete_series_batch_fast"
    ],
-   "rumpf_grund": "Aufruf _delete_doc()",
-   "rumpf_ueber": null
+   "rumpf_grund": "ueber _aenderungen_entfernen(): ueber moderation.aenderungen_zu_element_entfernen(): Aufruf _delete_doc()",
+   "rumpf_ueber": "_aenderungen_entfernen"
   },
   {
    "allow_guest": false,
@@ -4502,6 +4613,30 @@
     "diakronos_app.api.orgchart_api.get_orgchart_data",
     "get_orgchart_data",
     "orgchart_api.get_orgchart_data"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.papierkorb.liste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.papierkorb",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "liste",
+   "pfade": [
+    "api.liste",
+    "diakronos_app.api.papierkorb.liste",
+    "liste",
+    "papierkorb.liste"
    ],
    "rumpf_grund": "",
    "rumpf_ueber": null
@@ -6393,6 +6528,35 @@
    "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.psalmos.musik.delete_lied",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.psalmos.musik",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "delete_lied",
+   "pfade": [
+    "api.delete_lied",
+    "delete_lied",
+    "diakronos.psalmos.api.musik.delete_lied",
+    "diakronos_app.api.psalmos.musik.delete_lied",
+    "musik.delete_lied",
+    "psalmos.delete_lied",
+    "psalmos.musik.delete_lied"
+   ],
+   "rumpf_grund": "ueber papierkorb.loeschen(): Aufruf _update_doc()",
+   "rumpf_ueber": "diakronos_app.papierkorb.loeschen"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
    "funktion": "diakronos_app.api.psalmos.musik.delete_liedgruppe",
    "methoden": [
     "POST"
@@ -6688,6 +6852,36 @@
     "save_liedgruppe"
    ],
    "rumpf_grund": "Aufruf _create(); Aufruf _update_doc()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.psalmos.musik.wiederherstellen_lied",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.psalmos.musik",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "wiederherstellen_lied",
+   "offen": false,
+   "pfade": [
+    "api.wiederherstellen_lied",
+    "diakronos.psalmos.api.musik.wiederherstellen_lied",
+    "diakronos_app.api.psalmos.musik.wiederherstellen_lied",
+    "musik.wiederherstellen_lied",
+    "psalmos.musik.wiederherstellen_lied",
+    "psalmos.wiederherstellen_lied",
+    "wiederherstellen_lied"
+   ],
+   "rumpf_grund": "",
    "rumpf_ueber": null
   },
   {
@@ -8048,8 +8242,8 @@
     "diakronos_app.api.wiki.delete_wiki_artikel",
     "wiki.delete_wiki_artikel"
    ],
-   "rumpf_grund": "Aufruf _delete_doc()",
-   "rumpf_ueber": null
+   "rumpf_grund": "ueber papierkorb.loeschen(): Aufruf _update_doc()",
+   "rumpf_ueber": "diakronos_app.papierkorb.loeschen"
   },
   {
    "allow_guest": false,
@@ -8176,6 +8370,34 @@
     "wiki.update_wiki_artikel"
    ],
    "rumpf_grund": "Aufruf _update_doc()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.wiki.wiederherstellen_wiki_artikel",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.wiki",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "wiederherstellen_wiki_artikel",
+   "offen": false,
+   "pfade": [
+    "api.wiederherstellen_wiki_artikel",
+    "diakronos.diakonos.api.wiki.wiederherstellen_wiki_artikel",
+    "diakronos_app.api.wiki.wiederherstellen_wiki_artikel",
+    "wiederherstellen_wiki_artikel",
+    "wiki.wiederherstellen_wiki_artikel"
+   ],
+   "rumpf_grund": "",
    "rumpf_ueber": null
   },
   {
@@ -9171,12 +9393,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 347,
+ "funktionen": 355,
  "nur_test": [],
- "registrierte_pfade": 1786,
+ "registrierte_pfade": 1829,
  "rumpf_zaehlung": {
-  "lesend": 170,
-  "schreibend": 177
+  "lesend": 176,
+  "schreibend": 179
  },
  "widersprueche": [
   {
@@ -9202,6 +9424,34 @@
     "einstellungen_api.anmeldung_get_einstellungen"
    ],
    "rumpf_grund": "Aufruf _hole_oder_erzeuge()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.beitraege.wiederherstellen_beitrag",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.beitraege",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "wiederherstellen_beitrag",
+   "offen": false,
+   "pfade": [
+    "api.wiederherstellen_beitrag",
+    "beitraege.wiederherstellen_beitrag",
+    "diakronos.diakonos.api.beitraege.wiederherstellen_beitrag",
+    "diakronos_app.api.beitraege.wiederherstellen_beitrag",
+    "wiederherstellen_beitrag"
+   ],
+   "rumpf_grund": "",
    "rumpf_ueber": null
   },
   {
@@ -9359,6 +9609,64 @@
     "diakronos_app.api.gruppen.get_user_create_permissions",
     "get_user_create_permissions",
     "gruppen.get_user_create_permissions"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.wiederherstellen_gruppe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "wiederherstellen_gruppe",
+   "offen": false,
+   "pfade": [
+    "api.wiederherstellen_gruppe",
+    "diakronos.diakonos.api.gruppen.wiederherstellen_gruppe",
+    "diakronos_app.api.gruppen.wiederherstellen_gruppe",
+    "gruppen.wiederherstellen_gruppe",
+    "wiederherstellen_gruppe"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.kronos.event_crud.wiederherstellen_event",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.kronos.event_crud",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "wiederherstellen_event",
+   "offen": false,
+   "pfade": [
+    "api.wiederherstellen_event",
+    "diakronos.kronos.api.event_crud.wiederherstellen_event",
+    "diakronos_app.api.kronos.event_crud.wiederherstellen_event",
+    "event_crud.wiederherstellen_event",
+    "kronos.event_crud.wiederherstellen_event",
+    "kronos.wiederherstellen_event",
+    "wiederherstellen_event"
    ],
    "rumpf_grund": "",
    "rumpf_ueber": null
@@ -9589,6 +9897,36 @@
   },
   {
    "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.psalmos.musik.wiederherstellen_lied",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.psalmos.musik",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "wiederherstellen_lied",
+   "offen": false,
+   "pfade": [
+    "api.wiederherstellen_lied",
+    "diakronos.psalmos.api.musik.wiederherstellen_lied",
+    "diakronos_app.api.psalmos.musik.wiederherstellen_lied",
+    "musik.wiederherstellen_lied",
+    "psalmos.musik.wiederherstellen_lied",
+    "psalmos.wiederherstellen_lied",
+    "wiederherstellen_lied"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
    "ausnahme": "Leseansicht; legt fehlende Einstellungszeile an",
    "ausnahme_art": "konfig",
    "ausnahme_greift": true,
@@ -9750,10 +10088,38 @@
    ],
    "rumpf_grund": "",
    "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.wiki.wiederherstellen_wiki_artikel",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.wiki",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "wiederherstellen_wiki_artikel",
+   "offen": false,
+   "pfade": [
+    "api.wiederherstellen_wiki_artikel",
+    "diakronos.diakonos.api.wiki.wiederherstellen_wiki_artikel",
+    "diakronos_app.api.wiki.wiederherstellen_wiki_artikel",
+    "wiederherstellen_wiki_artikel",
+    "wiki.wiederherstellen_wiki_artikel"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
   }
  ],
  "zaehlung": {
-  "lesend": 160,
-  "schreibend": 187
+  "lesend": 161,
+  "schreibend": 194
  }
 }

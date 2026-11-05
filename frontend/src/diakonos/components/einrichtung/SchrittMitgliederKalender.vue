@@ -83,8 +83,8 @@
  * Schritt „Mitglieder & Kalender“ (ON-3/W2, Entwurf 08).
  *
  * Die Wahl „Mitglieder importieren“ und „Erstes Mitglied von Hand“ führen auf
- * die VORHANDENEN Wege (`#/mitglieder/import`, Dialog auf
- * `#/mitglieder/liste`) — kein zweiter Import und kein zweiter Anlege-Dialog.
+ * die VORHANDENEN Wege (`#/personen/import`, Dialog auf
+ * `#/personen/liste`) — kein zweiter Import und kein zweiter Anlege-Dialog.
  * Angelegt wird nur der KALENDER-Vorschlag, und das erst beim „Weiter“
  * (`einrichtung.kalender_vorschlag_anlegen`).
  */

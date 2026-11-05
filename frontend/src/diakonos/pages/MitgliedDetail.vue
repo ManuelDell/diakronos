@@ -3,7 +3,7 @@
         <!-- Seitenkopf -->
         <DkPageHeader
             :title="fullName"
-            :krumen="[{ text: 'Mitglieder', href: '#/mitglieder' }, { text: fullName }]"
+            :krumen="[{ text: 'Personen', href: '#/personen' }, { text: fullName }]"
             :badges="[{ text: mitglied?.status || 'Unbekannt', variant: statusVariante }]"
         >
             <template #actions>

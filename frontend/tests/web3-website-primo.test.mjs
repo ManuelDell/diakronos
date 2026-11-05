@@ -403,11 +403,12 @@ test('WEB-3: fehlendes Fenster und unbrauchbare Adresse werden erklärt', async 
 
 // ── (6) Verdrahtung (Quelltext) ────────────────────────────────────────────
 
-test('WEB-3 (S1): Einstellungen haben den Abschnitt „Website (Primo)“', () => {
+// UX3a: Der Abschnitt heißt „Website-Baukasten“ (vorher „Website (Primo)“).
+test('WEB-3 (S1): Einstellungen haben den Abschnitt „Website-Baukasten“', () => {
     const seite = lies('pages/Einstellungen.vue')
     assert.match(seite, /import\('\.\/einstellungen\/Website\.vue'\)/)
     assert.match(seite, /href: '#\/einstellungen\/website'/)
-    assert.match(seite, /label: 'Website \(Primo\)'/)
+    assert.match(seite, /label: 'Website-Baukasten'/)
     assert.match(seite, /seite: 'EinstellungenWebsite'/)
 
     const abschnitt = lies('pages/einstellungen/Website.vue')
@@ -433,7 +434,7 @@ test('WEB-3 (S2): Router kennt Adressen, Guard und Menü den Eintrag', () => {
     assert.match(guard.slice(0, 400), /navigate\('#\/'\)/)
 
     const seite = lies('pages/Website.vue')
-    assert.match(seite, /Primo öffnen/)
+    assert.match(seite, /Website-Baukasten öffnen/)
     assert.match(seite, /window\.open|oeffneInNeuemTab/)
     assert.match(seite, /SITZUNGS_HINWEIS/)
 })

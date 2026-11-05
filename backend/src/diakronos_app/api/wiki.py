@@ -46,8 +46,10 @@ from __future__ import annotations
 # Original-Frappe-Pfad der SPA (Registry-Schluessel, s. registry.py).
 FRAPPE_MODULE = "diakronos.diakonos.api.wiki"
 
+from datetime import timedelta
 from typing import Any
 
+from diakronos_app import papierkorb
 from diakronos_app.frappe_compat.api_helpers import (
     _coerce_filters,
     _create,
@@ -113,6 +115,22 @@ def _artikel_to_dict(a, with_content=False):
 # ── Endpunkte ───────────────────────────────────────────────────────────────
 
 
+def _tripel(doctype: str, filters: dict) -> list[list]:
+    """`{"feld": wert}` / `{"feld": [op, wert]}` -> `[[feld, op, wert], …]`.
+
+    Fuer das Zusammenfuehren mit `papierkorb.nur_aktive_filter`, das selbst
+    Tripel liefert — der Filter-Compiler versteht eine GEMISCHTE Liste aus
+    Tripeln und Dict-Eintraegen nicht (UX2b).
+    """
+    tripel: list[list] = []
+    for feld, spec in _coerce_filters(doctype, filters).items():
+        if isinstance(spec, (list, tuple)) and len(spec) == 2 and isinstance(spec[0], str):
+            tripel.append([feld, spec[0], spec[1]])
+        else:
+            tripel.append([feld, "=", spec])
+    return tripel
+
+
 @whitelist(allow_guest=False)
 def get_wiki_artikel_liste(kategorie="", search=""):
     """Gibt alle Wiki-Artikel zurück.
@@ -128,7 +146,8 @@ def get_wiki_artikel_liste(kategorie="", search=""):
 
     artikel = get_all(
         "Wiki Artikel",
-        filters=_coerce_filters("Wiki Artikel", filters),
+        # UX2b: ein Artikel im Papierkorb ist in Liste, Detail und Tag-Wolke weg.
+        filters=[*_tripel("Wiki Artikel", filters), ["geloescht_am", "is", "not set"]],
         fields=["name", "titel", "kategorie", "auszug", "tags", "autor", "modified", "ist_neu"],
         order_by="modified desc",
         limit_page_length=200,
@@ -154,10 +173,11 @@ def get_wiki_artikel_detail(artikel_id):
     a = get_value(
         "Wiki Artikel",
         artikel_id,
-        ["name", "titel", "kategorie", "auszug", "tags", "autor", "autor_email", "modified", "ist_neu"],
+        ["name", "titel", "kategorie", "auszug", "tags", "autor", "autor_email", "modified",
+         "ist_neu", "geloescht_am"],
         as_dict=True,
     )
-    if not a:
+    if not a or a.get("geloescht_am") is not None:
         throw("Artikel nicht gefunden.", DoesNotExistError)
 
     return _artikel_to_dict(a, with_content=True)
@@ -223,17 +243,40 @@ def update_wiki_artikel(artikel_id, titel="", inhalt="", kategorie="", tags="", 
 
 @whitelist(methods=["POST"], allow_guest=False)
 def delete_wiki_artikel(artikel_id):
-    """Löscht einen Wiki-Artikel (nur Admin).
+    """Legt einen Wiki-Artikel in den Papierkorb (nur Admin) — UX2b.
 
     Wie im Original ist die einzige Schranke `_require_admin()` — kein
-    gesondertes Verbot fuer fremde Artikel.
+    gesondertes Verbot fuer fremde Artikel. API-kompatibel (Karte P4): die
+    Antwort traegt weiter ``success`` und zusaetzlich die Kennung fuer
+    „Rueckgaengig“ (``wiederherstellbar_bis``).
     """
+    user = _get_user()
+    _require_admin()
+
+    try:
+        zeitpunkt = papierkorb.loeschen("Wiki Artikel", artikel_id, von=user)
+    except DoesNotExistError:
+        throw("Artikel nicht gefunden.", DoesNotExistError)
+
+    return {
+        "success": True,
+        "geloescht_am": zeitpunkt.isoformat(sep=" "),
+        "wiederherstellbar_bis": (zeitpunkt + timedelta(days=papierkorb.AUFBEWAHRUNG_TAGE)).isoformat(sep=" "),
+    }
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def wiederherstellen_wiki_artikel(artikel_id):
+    """Holt einen Wiki-Artikel aus dem Papierkorb (nur Admin) — UX2b P2."""
     _get_user()
     _require_admin()
 
-    _delete_doc("Wiki Artikel", artikel_id)
+    try:
+        papierkorb.wiederherstellen("Wiki Artikel", artikel_id)
+    except DoesNotExistError:
+        throw("Artikel nicht gefunden.", DoesNotExistError)
 
-    return {"success": True}
+    return {"success": True, "artikel_id": artikel_id}
 
 
 @whitelist(allow_guest=False)
@@ -267,7 +310,7 @@ def get_wiki_tags():
     artikel = get_all(
         "Wiki Artikel",
         fields=["tags"],
-        filters=_coerce_filters("Wiki Artikel", {"tags": ["!=", ""]}),
+        filters=[["tags", "!=", ""], ["geloescht_am", "is", "not set"]],
     )
     tags_set = set()
     for a in artikel:
@@ -286,4 +329,5 @@ __all__ = [
     "get_wiki_kategorien",
     "get_wiki_tags",
     "update_wiki_artikel",
+    "wiederherstellen_wiki_artikel",
 ]

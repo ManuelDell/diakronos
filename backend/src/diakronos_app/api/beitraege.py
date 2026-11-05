@@ -52,8 +52,10 @@ from __future__ import annotations
 # Original-Frappe-Pfad der SPA (Registry-Schluessel, s. registry.py).
 FRAPPE_MODULE = "diakronos.diakonos.api.beitraege"
 
+from datetime import timedelta
 from typing import Any
 
+from diakronos_app import papierkorb
 from diakronos_app.frappe_compat.api_helpers import (
     _child_insert,
     _coerce,
@@ -150,6 +152,22 @@ def _beitrag_to_dict(b, with_kommentare=False):
 # ── Endpunkte ───────────────────────────────────────────────────────────────
 
 
+def _as_tripel(filters: dict[str, Any]) -> list[list[Any]]:
+    """`{"feld": wert}` / `{"feld": [op, wert]}` -> `[[feld, op, wert], …]`.
+
+    Fuer das Zusammenfuehren mit `papierkorb.nur_aktive_filter`, das selbst
+    Tripel liefert (eine gemischte Liste aus Tripeln und Dict-Eintraegen
+    versteht der Filter-Compiler nicht).
+    """
+    tripel: list[list[Any]] = []
+    for feld, spec in filters.items():
+        if isinstance(spec, (list, tuple)) and len(spec) == 2 and isinstance(spec[0], str):
+            tripel.append([feld, spec[0], spec[1]])
+        else:
+            tripel.append([feld, "=", spec])
+    return tripel
+
+
 @whitelist(allow_guest=False)
 def get_beitraege_liste(kategorie="", search=""):
     """Gibt alle veröffentlichten Beiträge zurück.
@@ -165,7 +183,10 @@ def get_beitraege_liste(kategorie="", search=""):
 
     beitraege = get_all(
         "Beitrag",
-        filters=_coerce_filters("Beitrag", filters),
+        # UX2b: Papierkorb — geloeschte Beitraege sind in JEDER Lese-Ausgabe
+        # unsichtbar (Liste, Detail, Kommentare, Website, Bild-Route).
+        filters=[*_as_tripel(_coerce_filters("Beitrag", filters)),
+                 *papierkorb.nur_aktive_filter("Beitrag")],
         # BS-1d (U3): `auf_website` kommt mit, damit Liste und Beitrags-
         # bearbeitung den Stand der Website-Freigabe anzeigen können (Default
         # AUS). Der Schalter selbst wird über `website.beitrag_auf_website`
@@ -198,7 +219,9 @@ def get_beitraege_liste(kategorie="", search=""):
 
 def _require_beitrag_view(b, user):
     # Nicht vorhandene und verborgene Beitraege sind von aussen identisch.
-    if not b or (
+    # UX2b: ein Beitrag im Papierkorb ist ebenfalls „nicht vorhanden“ —
+    # sonst waere er ueber seine Kennung weiter lesbar.
+    if not b or b.get("geloescht_am") is not None or (
         b.get("veroeffentlicht") != 1
         and b.get("autor_email") != user
         and not any(role in permissions.get_roles(user) for role in permissions.ADMIN_ROLES)
@@ -214,7 +237,8 @@ def get_beitrag_detail(beitrag_id):
     b = get_value(
         "Beitrag",
         beitrag_id,
-        ["name", "titel", "kategorie", "auszug", "bild", "autor", "autor_email", "datum", "veroeffentlicht"],
+        ["name", "titel", "kategorie", "auszug", "bild", "autor", "autor_email", "datum",
+         "veroeffentlicht", "geloescht_am"],
         as_dict=True,
     )
     _require_beitrag_view(b, user)
@@ -280,18 +304,49 @@ def update_beitrag(beitrag_id, titel="", inhalt="", kategorie="", auszug="", bil
 
 @whitelist(methods=["POST"], allow_guest=False)
 def delete_beitrag(beitrag_id):
-    """Löscht einen Beitrag (nur Admin).
+    """Legt einen Beitrag in den Papierkorb (nur Admin) — UX2b.
+
+    API-kompatibel (Karte P4): Aufruf, Rechte und ``{"success": True}``
+    bleiben, aber die Zeile wird nicht mehr sofort entfernt, sondern
+    bekommt ``geloescht_am``/``geloescht_von`` und verschwindet aus jeder
+    Lese-Ausgabe. Zurueck kommt zusaetzlich die Kennung fuer „Rueckgaengig“
+    (``wiederherstellbar_bis``) und der Zeitpunkt (``geloescht_am``).
 
     Auch das Original verbietet das Loeschen eines FREMDEN Beitrags nicht
     gesondert — die einzige Schranke ist `_require_admin()`. Genau so bleibt
     es hier (keine Verschaerfung, keine Lockerung).
     """
-    _get_user()
+    user = _get_user()
     _require_admin()
 
-    _delete_doc("Beitrag", beitrag_id)
+    try:
+        zeitpunkt = papierkorb.loeschen("Beitrag", beitrag_id, von=user)
+    except DoesNotExistError:
+        throw("Beitrag nicht gefunden.", DoesNotExistError)
 
-    return {"success": True}
+    return {
+        "success": True,
+        "geloescht_am": zeitpunkt.isoformat(sep=" "),
+        "wiederherstellbar_bis": (zeitpunkt + timedelta(days=papierkorb.AUFBEWAHRUNG_TAGE)).isoformat(sep=" "),
+    }
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def wiederherstellen_beitrag(beitrag_id):
+    """Holt einen Beitrag aus dem Papierkorb (nur Admin) — UX2b P2.
+
+    Gleiche Schranke wie das Loeschen (`_require_admin()`), damit niemand
+    etwas zurueckholen kann, das er nicht auch loeschen duerfte.
+    """
+    user = _get_user()
+    _require_admin()
+
+    try:
+        papierkorb.wiederherstellen("Beitrag", beitrag_id)
+    except DoesNotExistError:
+        throw("Beitrag nicht gefunden.", DoesNotExistError)
+
+    return {"success": True, "beitrag_id": beitrag_id}
 
 
 @whitelist(methods=["POST"], allow_guest=False)
@@ -351,4 +406,5 @@ __all__ = [
     "get_beitraege_liste",
     "get_beitrag_detail",
     "update_beitrag",
+    "wiederherstellen_beitrag",
 ]

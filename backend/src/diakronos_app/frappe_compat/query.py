@@ -174,6 +174,13 @@ def _spaltenwert(col, wert: Any) -> Any:
 
 def _koerziere(col, op: str, wert: Any) -> Any:
 	"""Wie `_spaltenwert`, aber fuer Operatoren mit Listenwerten."""
+	# UX2b: `is set` / `is not set` liefern IS [NOT] NULL — der „Wert“ ist hier
+	# KEIN Wert, sondern das Wort der Bedingung. Ohne diese Ausnahme landete
+	# der String in `_spaltenwert`; auf einer DateTime-Spalte warf
+	# `wert.strip()` einen AttributeError (Filter `["geloescht_am", "is", …]`
+	# in der Tripel-Form).
+	if op == "is":
+		return wert
 	if op in ("in", "not in") and isinstance(wert, (list, tuple, set)):
 		return [_spaltenwert(col, v) for v in wert]
 	if op == "between" and isinstance(wert, (list, tuple)) and len(wert) == 2:
@@ -204,6 +211,14 @@ def _compile_filters(doctype: str, model: type, filters) -> list:
 			if not isinstance(item, (list, tuple)) or len(item) != 3:
 				raise ValueError(f"Ungueltiger Filter-Eintrag: {item!r}")
 			feld, op, val = item
+			if str(op).lower() == "is":
+				# UX2b: `["feld", "is", "not set"]` -> IS NULL (Tripel-Form;
+				# dieselbe Regel wie im Dict-Zweig weiter unten).
+				col = getattr(model, feld) if feld in column_names(doctype) else None
+				if col is None:
+					raise KeyError(f"{doctype}: unbekanntes Filterfeld {feld!r}")
+				clauses.append(col.isnot(None) if val == "set" else col.is_(None))
+				continue
 			clauses.append(_condition(doctype, model, feld, (op, val)))
 		return clauses
 

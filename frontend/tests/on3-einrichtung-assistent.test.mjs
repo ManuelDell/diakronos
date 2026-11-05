@@ -299,8 +299,8 @@ test('Pflichtfeld und Fehlertexte sind an Felder gebunden (W5)', () => {
 
 test('der Einrichtungs-Schritt „Mitglieder & Kalender“ benutzt die VORHANDENEN Wege', () => {
   const seite = lies('frontend/src/diakonos/pages/einrichtung/Assistent.vue')
-  assert.match(seite, /#\/mitglieder\/import/, 'kein Verweis auf den vorhandenen Import')
-  assert.match(seite, /#\/mitglieder\/liste/, 'kein Verweis auf die vorhandene Mitgliederliste')
+  assert.match(seite, /#\/personen\/import/, 'kein Verweis auf den vorhandenen Import')
+  assert.match(seite, /#\/personen\/liste/, 'kein Verweis auf die vorhandene Personenliste')
   const schritt = lies('frontend/src/diakonos/components/einrichtung/SchrittMitgliederKalender.vue')
   assert.match(schritt, /#\/gruppen/, 'kein Verweis auf die Gruppenseite')
 })

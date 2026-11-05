@@ -26,6 +26,7 @@ import json as _json
 import unicodedata
 from typing import Any
 
+from diakronos_app import papierkorb
 from diakronos_app.frappe_compat import api_helpers as _sh
 from diakronos_app.frappe_compat import whitelist
 from diakronos_app.frappe_compat.exceptions import DoesNotExistError, PermissionError, throw
@@ -74,7 +75,9 @@ def _is_musikverantwortlicher(user: str) -> bool:
 	# dieser Gruppen pruefen — kein rohes SQL.
 	gruppen = get_all(
 		"Gruppe",
-		filters={"dienstbereich": MUSIK_DIENSTBEREICH},
+		# UX2b2 (F3): eine geloeschte Gruppe verleiht kein Musikrecht mehr.
+		filters={"dienstbereich": MUSIK_DIENSTBEREICH,
+		         "geloescht_am": ["is", "not set"]},
 		fields=["name"],
 		pluck="name",
 	) or []
@@ -306,8 +309,10 @@ def _suche_liednamen(suche: str) -> list[str]:
 		return []
 	like = f"%{_like_maskieren(begriff)}%"
 	names: set[str] = set()
+	# UX2b: Lieder im Papierkorb sind nicht auffindbar.
+	aktiv = [["geloescht_am", "is", "not set"]]
 	for feld in _SUCH_FELDER:
-		for t in get_all("Lied", filters=[[feld, "like", like]], fields=["name"]) or []:
+		for t in get_all("Lied", filters=[[feld, "like", like]] + aktiv, fields=["name"]) or []:
 			names.add(t["name"])
 	# Strophentext durchsuchen (Child-Table tabLiedstrophe)
 	for s in get_all("Liedstrophe", filters=[["text", "like", like]],
@@ -325,7 +330,8 @@ def _suche_liednamen(suche: str) -> list[str]:
 		teil_like = f"%{_like_maskieren(teil)}%"
 		teilnamen: set[str] = set()
 		for feld in _SUCH_FELDER:
-			for t in get_all("Lied", filters=[[feld, "like", teil_like]], fields=["name"]) or []:
+			for t in get_all("Lied", filters=[[feld, "like", teil_like]] + aktiv,
+			                 fields=["name"]) or []:
 				teilnamen.add(t["name"])
 		treffer = teilnamen if treffer is None else (treffer & teilnamen)
 		if not treffer:
@@ -357,7 +363,8 @@ def get_lieder(gruppe: str | None = None, kategorie: str | None = None,
 		if not lied_names:
 			return []
 
-	filters: list[list[Any]] = []
+	# UX2b: Lieder im Papierkorb erscheinen in keiner Liste.
+	filters: list[list[Any]] = [["geloescht_am", "is", "not set"]]
 	if lied_names is not None:
 		filters.append(["name", "in", lied_names])
 	if rechte_status:
@@ -434,6 +441,8 @@ def get_lieder(gruppe: str | None = None, kategorie: str | None = None,
 def get_lied_detail(lied: str) -> dict[str, Any]:
 	"""Kopf + Strophen + Fassungen (je mit Material) + zugehoerige Liedgruppen."""
 	_require_login()
+	if papierkorb.ist_geloescht("Lied", lied):
+		throw("Lied nicht gefunden.", DoesNotExistError)
 	doc = get_doc("Lied", lied)
 
 	strophen = []
@@ -499,6 +508,8 @@ def get_lied_detail(lied: str) -> dict[str, Any]:
 def get_fassungen(lied: str, gruppe: str | None = None) -> list[dict[str, Any]]:
 	"""Alle Fassungen eines Liedes, optional auf eine Gruppe gefiltert."""
 	_require_login()
+	if papierkorb.ist_geloescht("Lied", lied):
+		throw("Lied nicht gefunden.", DoesNotExistError)
 	filters: dict[str, Any] = {"lied": lied}
 	if gruppe:
 		filters["gruppe"] = gruppe
@@ -687,7 +698,8 @@ def _dublette_pruefen(daten: dict[str, Any]) -> None:
 	# `like_exakt` vergleicht ohne Ruecksicht auf Gross-/Kleinschreibung und
 	# Umlautform, behandelt `%`/`_` aber als Zeichen (K-2) — sonst faende ein
 	# Titel wie „100 %" beliebige Lieder.
-	kandidaten = get_all("Lied", filters={"titel": ["like_exakt", titel]},
+	kandidaten = get_all("Lied", filters={"titel": ["like_exakt", titel],
+	                                       "geloescht_am": ["is", "not set"]},
 	                     fields=["name", "titel", "buch", "gesangbuch_nummer"]) if titel else []
 	gesehen: set[str] = set()
 	for r in (kandidaten or []):
@@ -701,7 +713,8 @@ def _dublette_pruefen(daten: dict[str, Any]) -> None:
 				"ein zweites anlegen möchtest."
 			)
 	if buch and nummer:
-		for r in get_all("Lied", filters={"buch": buch, "gesangbuch_nummer": nummer},
+		for r in get_all("Lied", filters={"buch": buch, "gesangbuch_nummer": nummer,
+	                                       "geloescht_am": ["is", "not set"]},
 		                     fields=["name", "titel", "buch", "gesangbuch_nummer"]) or []:
 			if not isinstance(r, dict) or r.get("name") in gesehen:
 				continue
@@ -918,6 +931,50 @@ def get_liedgruppe_detail(liedgruppe: str) -> dict[str, Any]:
 		"lieder": lieder,
 		"rollen": rollen,
 	}
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def delete_lied(lied: str) -> dict[str, Any]:
+	"""Legt ein Lied in den Papierkorb (UX2b).
+
+	Rechte wie beim Schreiben (Musikverantwortlich/Admin) — dieselbe Schranke
+	wie `save_lied`. Das Lied verschwindet aus Liste, Suche, Detail und der
+	Planrahmen-Sammlung; Strophen/Fassungen bleiben bis zum endgueltigen
+	Entfernen (nach 7 Tagen) erhalten, damit das Wiederherstellen vollstaendig
+	ist. Zurueck kommt die Kennung fuer „Rueckgaengig“.
+	"""
+	_require_write()
+	if not lied:
+		throw("Kein Lied angegeben.")
+	user = _require_login()
+
+	try:
+		zeitpunkt = papierkorb.loeschen("Lied", lied, von=user)
+	except DoesNotExistError:
+		throw("Lied nicht gefunden.", DoesNotExistError)
+	from datetime import timedelta
+
+	return {
+		"success": True,
+		"lied": lied,
+		"geloescht_am": zeitpunkt.isoformat(sep=" "),
+		"wiederherstellbar_bis": (
+			zeitpunkt + timedelta(days=papierkorb.AUFBEWAHRUNG_TAGE)
+		).isoformat(sep=" "),
+	}
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def wiederherstellen_lied(lied: str) -> dict[str, Any]:
+	"""Holt ein Lied aus dem Papierkorb (UX2b P2) — gleiche Rechte wie Loeschen."""
+	_require_write()
+	if not lied:
+		throw("Kein Lied angegeben.")
+	try:
+		papierkorb.wiederherstellen("Lied", lied)
+	except DoesNotExistError:
+		throw("Lied nicht gefunden.", DoesNotExistError)
+	return {"success": True, "lied": lied}
 
 
 #: Erlaubte Liedgruppen-Typen (UXM-R9 / Manuels Wunsch „Buch/Projekt/Sammlung/frei").

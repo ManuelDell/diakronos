@@ -54,12 +54,14 @@ from __future__ import annotations
 FRAPPE_MODULE = "diakronos.diakonos.api.gruppen"
 
 import uuid
+from datetime import timedelta as _timedelta
 from datetime import date, datetime, timezone
 from typing import Any
 
 from diakronos_app import frappe_compat as frappe
 from diakronos_app.frappe_compat import db as _db
 from diakronos_app.frappe_compat import whitelist
+from diakronos_app import papierkorb
 from diakronos_app.frappe_compat.exceptions import (
     DoesNotExistError,
     FrappeCompatError,
@@ -392,7 +394,8 @@ def get_gruppen_hierarchie():
             "name", "gruppenname", "dienstbereich", "gruppentyp", "status",
             "sichtbarkeit", "beschreibung", "ancestor_path",
         ],
-        filters={"status": ["!=", "Archiviert"]},
+        # UX2b: eine Gruppe im Papierkorb verschwindet aus dem Baum.
+        filters={"status": ["!=", "Archiviert"], "geloescht_am": ["is", "not set"]},
         order_by="gruppenname asc",
     )
 
@@ -570,6 +573,11 @@ def get_gruppe_detail(gruppe_id):
     geliefert (statt eines 404, auf den die SPA sonst mit einer zweiten
     Abfrage reagiert). Eine ID pro Adresse, eine Antwort — kein Probe-404 mehr.
     """
+    # UX2b: eine Gruppe im Papierkorb ist wie nicht vorhanden (sonst waere sie
+    # ueber ihre Kennung weiter lesbar).
+    if papierkorb.ist_geloescht("Gruppe", gruppe_id):
+        throw("Gruppe nicht gefunden.", DoesNotExistError)
+
     # Erst Gruppe, dann Untergruppe — die ID ist in der Adresse nicht typisiert.
     if get_value("Gruppe", gruppe_id, "name") is None \
             and get_value("Untergruppe", gruppe_id, "name") is not None:
@@ -1008,7 +1016,8 @@ def get_gruppen_for_orgchart():
 
     gruppe_extra = {
         g["name"]: g
-        for g in get_all("Gruppe", fields=["name", "treffpunkt", "treffzeit"])
+        for g in get_all("Gruppe", fields=["name", "treffpunkt", "treffzeit"],
+                         filters=papierkorb.nur_aktive_filter("Gruppe"))
     }
 
     gruppe_names = set()
@@ -1124,7 +1133,8 @@ def _editierbare_ids(is_admin: bool) -> list[str]:
     if is_admin:
         ids: list[str] = []
         ids += [d["name"] for d in get_all("Dienstbereich", fields=["name"])]
-        ids += [g["name"] for g in get_all("Gruppe", fields=["name"])]
+        ids += [g["name"] for g in get_all("Gruppe", fields=["name"],
+                                            filters=papierkorb.nur_aktive_filter("Gruppe"))]
         ids += [u["name"] for u in get_all("Untergruppe", fields=["name"])]
         return sorted(set(ids))
 
@@ -1156,7 +1166,8 @@ def _editierbare_ids(is_admin: bool) -> list[str]:
     # ebenfalls aenderbar (dieselbe Regel wie `_darf_gruppe_verwalten`).
     gruppen_unter_db = {
         g["name"]
-        for g in get_all("Gruppe", fields=["name", "dienstbereich"])
+        for g in get_all("Gruppe", fields=["name", "dienstbereich"],
+                         filters=papierkorb.nur_aktive_filter("Gruppe"))
         if g.get("dienstbereich") in db_verantwortlich
     }
     untergruppen_unter_db = {
@@ -1252,6 +1263,66 @@ def update_gruppe(name, gruppenname=None, beschreibung=None, treffpunkt=None, tr
         "treffzeit": treffzeit,
     })
     return {"success": True}
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def delete_gruppe(name):
+    """Legt eine Gruppe in den Papierkorb (UX2b P1/P2).
+
+    Rechte (UX2b2/F6, Entscheidung des Orchestrators): NUR Administrator-Rollen
+    — `System Manager` oder `Mitgliederadministrator`. NICHT die
+    Gruppenverantwortlichen.
+
+    Begruendung: Loeschen einer Gruppe nimmt sie aus Organigramm,
+    Detailansicht, Auswahlen und der Website — und nach 7 Tagen sind
+    Mitgliedschaften und Verantwortlichkeiten endgueltig weg. Das ist eine
+    Verwaltungsaufgabe, keine Gruppenleitung: ein Gruppenverantwortlicher soll
+    seine Gruppe pflegen (`update_gruppe`), nicht verschwinden lassen. Dieselbe
+    Schranke gilt fuer das Zurueckholen (`wiederherstellen_gruppe`), damit
+    niemand etwas zurueckholt, das er nicht auch loeschen duerfte.
+
+    Die Gruppe verschwindet aus Organigramm, Detailansicht, Auswahlen und der
+    Website; Mitgliedschaften/Verantwortliche bleiben fuer ein spaeteres
+    Wiederherstellen erhalten und werden erst nach 7 Tagen mit entfernt.
+    """
+    _require(
+        _is_admin(),
+        "Nur die Verwaltung (System Manager oder Mitgliederadministrator) "
+        "darf eine Gruppe löschen.",
+    )
+
+    try:
+        zeitpunkt = papierkorb.loeschen("Gruppe", name, von=str(session.user or ""))
+    except DoesNotExistError:
+        throw("Gruppe nicht gefunden.", DoesNotExistError)
+    return {
+        "success": True,
+        "name": name,
+        "geloescht_am": zeitpunkt.isoformat(sep=" "),
+        "wiederherstellbar_bis": (
+            zeitpunkt + _timedelta(days=papierkorb.AUFBEWAHRUNG_TAGE)
+        ).isoformat(sep=" "),
+    }
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def wiederherstellen_gruppe(name):
+    """Holt eine Gruppe aus dem Papierkorb (UX2b P2) — gleiche Rechte wie Loeschen.
+
+    UX2b2/F6: dieselbe Schranke wie `delete_gruppe` (nur Administrator-Rollen).
+    Wer nicht loeschen darf, darf auch nicht zurueckholen.
+    """
+    _require(
+        _is_admin(),
+        "Nur die Verwaltung (System Manager oder Mitgliederadministrator) "
+        "darf eine Gruppe wiederherstellen.",
+    )
+
+    try:
+        papierkorb.wiederherstellen("Gruppe", name)
+    except DoesNotExistError:
+        throw("Gruppe nicht gefunden.", DoesNotExistError)
+    return {"success": True, "name": name}
 
 
 @whitelist(methods=["POST"], allow_guest=False)
@@ -1363,6 +1434,9 @@ def get_gruppe_termine(gruppe_id, tage=60):
             "gruppe": gruppe_id,
             "element_start": ["<=", fenster_ende],
             "element_calendar": ["in", cal_names],
+            # UX2b2 (F3): geloeschte Termine (Papierkorb) gehoeren nicht in die
+            # Terminliste einer Gruppe.
+            "geloescht_am": ["is", "not set"],
         }
         or_filters = [
             ["element_end", ">=", fenster_start],
@@ -1472,6 +1546,8 @@ def get_gruppen_page_data():
         filters["name"] = ["in", list(my_groups)]
     else:
         filters["name"] = ["in", []]
+    # UX2b2 (F3): „Meine Gruppen" — eine geloeschte Gruppe ist nicht mehr meine.
+    filters["geloescht_am"] = ["is", "not set"]
     for g in get_all(
         "Gruppe", filters=filters,
         fields=["name", "gruppenname", "dienstbereich", "gruppentyp", "bild"],
@@ -1487,7 +1563,9 @@ def get_gruppen_page_data():
         gruppen = []
         for g in get_all(
             "Gruppe",
-            filters={"gruppentyp": typ["name"], "status": "Aktiv"},
+            # UX2b2 (F3): Uebersicht — geloeschte Gruppen ausblenden.
+            filters={"gruppentyp": typ["name"], "status": "Aktiv",
+                     "geloescht_am": ["is", "not set"]},
             fields=["name", "gruppenname", "dienstbereich", "bild", "sichtbarkeit"],
         ):
             if g["sichtbarkeit"] == "Versteckt":
@@ -1514,7 +1592,8 @@ def get_gruppen_page_data():
 
         alle_gruppen_raw = get_all(
             "Gruppe",
-            filters={"status": "Aktiv"},
+            # UX2b2 (F3): auch die Admin-Liste zeigt den Papierkorb nicht.
+            filters={"status": "Aktiv", "geloescht_am": ["is", "not set"]},
             fields=["name", "gruppenname", "dienstbereich", "gruppentyp", "bild"],
             order_by="gruppenname asc",
         )
@@ -1555,7 +1634,8 @@ def get_gruppen_page_data():
         gruppen_auswahl = [
             {"name": g["name"], "gruppenname": g.get("gruppenname") or g["name"]}
             for g in get_all("Gruppe", fields=["name", "gruppenname"],
-                             filters={"status": "Aktiv"}, order_by="gruppenname asc")
+                             filters={"status": "Aktiv", "geloescht_am": ["is", "not set"]},
+                             order_by="gruppenname asc")
         ]
 
     return {
@@ -1715,6 +1795,8 @@ _ENDPUNKTE = (
     create_gruppe,
     create_untergruppe,
     update_gruppe,
+    delete_gruppe,
+    wiederherstellen_gruppe,
     update_untergruppe,
     get_gruppen_page_data,
     get_aufgaben,
