@@ -29,6 +29,22 @@ bleiben: `--sp-1 < --sp-2 < … < --sp-8`. Sonst verschiebt eine einzelne
 bedeuten, Prinzip S3) — und niemand sieht dem Wert an, dass er größer ist als
 der nächste. Geprüft wird die Skala als GANZES, auch beim Zurücksetzen eines
 einzelnen Feldes (dann gilt der Standardwert für dieses Feld).
+
+WAS DIE KETTE NICHT IST (UX1j2)
+-------------------------------
+NUR die `--sp-N` bilden die Kette (`SKALA_TOKEN`). Die übrigen Maße
+(`--pad`, `--abstand-gruppe`, `--abstand-innen`, `--karte-innen`) sind KEINE
+Kettenglieder: sie werden einzeln gegen ihre eigenen Min/Max-Grenzen geprüft.
+`--pad` steht als Innenabstand mit 16 px (Bestand 14) unter `--sp-8` (64 px) —
+eine Querregel „`--sp-8` < `--pad`“ hätte JEDE Änderung einer Skalenstufe über
+14 px gesperrt (Live-Befund, 2026-11-05). `gruppe` bleibt trotzdem bei allen
+Abständen `skala` (Anzeigegruppe); die Kette selbst liefert der Server als
+`skala_ordnung` — EINE Quelle für Oberfläche (UX1k) und Server.
+
+Der Speicher prüft die Kette nicht nur beim Speichern, sondern auch beim
+Lesen/CSS-Bauen (`pruefe_skala_gespeichert`): eine Altzeile, die die Kette
+bricht (z. B. aus der Zeit vor dieser Korrektur), wird verworfen und kommt
+nicht ins CSS.
 """
 
 from __future__ import annotations
@@ -45,6 +61,7 @@ __all__ = [
     "SKALA_TOKEN",
     "pruefe_wert",
     "pruefe_skala",
+    "pruefe_skala_gespeichert",
     "standardwerte",
     "wert_oder_standard",
     "zahl_aus",
@@ -180,7 +197,11 @@ def pruefe_wert(name: object, wert: object) -> int:
 
 
 def _skalen_werte(abweichungen: dict[str, int]) -> list[tuple[str, int]]:
-    """Die Skala als ``[(name, wert)]`` — Abweichung, sonst Standard."""
+    """Die Kette als ``[(name, wert)]`` — Abweichung, sonst Standard.
+
+    Nur `SKALA_TOKEN` (``--sp-1 … --sp-8``); `--pad` und die übrigen Abstände
+    sind KEINE Kettenglieder (UX1j2).
+    """
     return [(n, abweichungen.get(n, _JE_NAME[n].standard)) for n in SKALA_TOKEN]
 
 
@@ -190,6 +211,12 @@ def pruefe_skala(abweichungen: dict[str, int]) -> None:
     ``abweichungen`` sind die Abweichungen, die NACH der Änderung gelten
     sollen; fehlende Token nehmen ihren Standardwert. Wirft ``ValueError``
     mit den zwei Namen, die die Ordnung brechen.
+
+    Geprüft werden NUR die Glieder der Kette (`SKALA_TOKEN`), also
+    ``--sp-1 … --sp-8``. Die übrigen Maße (`--pad` u. ä.) stehen bewusst nicht
+    in der Kette: sie haben eigene Min/Max-Grenzen und keine Ordnung zueinander
+    (UX1j2 — vorher wurden sie mitgezählt, wodurch ``--pad`` (16 px) jede
+    Skalenstufe über 14 px sperrte).
     """
     werte = _skalen_werte(abweichungen)
     for (name_a, wert_a), (name_b, wert_b) in zip(werte, werte[1:]):
@@ -200,6 +227,39 @@ def pruefe_skala(abweichungen: dict[str, int]) -> None:
             f"muss kleiner sein als {name_b} ({wert_b} px). Bitte zuerst "
             f"{name_a} verkleinern oder {name_b} vergrößern."
         )
+
+
+def pruefe_skala_gespeichert(abweichungen: dict[str, int]) -> list[str]:
+    """Wie `pruefe_skala`, aber still: gibt die zu VERWERFENDEN Namen zurück.
+
+    Beim LESEN darf eine Altzeile (aus der Zeit vor UX1j2 oder von Hand in die
+    Tabelle geschrieben) nicht das Lesen oder die CSS-Ausgabe unmöglich machen
+    — sie darf nur nicht gelten. Verworfen wird jedes Kettenglied, das von
+    seinem Standard abweicht und an einer gebrochenen Stelle steht (nicht der
+    Nachbar, der noch auf seinem Standard sitzt).
+
+    Beispiel: ``--sp-3 = 30`` bei ``--sp-4 = 16`` → `--sp-3` wird verworfen,
+    die Kette ist danach ``… 12 < 16 …`` wieder in Ordnung. Die Prüfung läuft,
+    bis nichts mehr zu verwerfen ist (eine Änderung kann die nächste Stelle
+    kippen).
+    """
+    werte = {n: abweichungen[n] for n in SKALA_TOKEN if n in abweichungen}
+    verworfen: list[str] = []
+    while True:
+        neu: list[str] = []
+        for name_a, name_b in zip(SKALA_TOKEN, SKALA_TOKEN[1:]):
+            wert_a = werte.get(name_a, _JE_NAME[name_a].standard)
+            wert_b = werte.get(name_b, _JE_NAME[name_b].standard)
+            if wert_b > wert_a:
+                continue
+            for name in (name_a, name_b):
+                if name in werte and name not in verworfen and name not in neu:
+                    neu.append(name)
+        if not neu:  # pragma: no cover — die Standards selbst sind aufsteigend
+            return verworfen
+        for name in neu:
+            werte.pop(name, None)
+            verworfen.append(name)
 
 
 def standardwerte() -> dict[str, int]:

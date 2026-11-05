@@ -94,7 +94,7 @@
             class="dk-mcard-conflict-item"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            {{ fmtDate(ev.start, ev.all_day) }}
+            {{ datumZeitText(ev.start, ev.all_day) }}
             <DkButton
               class="dk-mcard-aufloesen"
               variant="secondary"
@@ -136,6 +136,21 @@ const inFestlegen = computed(() => props.column === 'festlegen')
 
 function formatDate(item) {
   return terminZeitText(item)
+}
+
+/**
+ * FIX-7: Datum/Uhrzeit eines EINZELNEN Konflikttermins in der Serienkarte.
+ *
+ * Vorher stand hier `fmtDate(ev.start, ev.all_day)` — eine Funktion, die es
+ * in diesem Skript nie gab (`fmtDate` lebte nur in `ModerationModals.vue`).
+ * Vue brach beim Aufklappen der Konfliktliste mit „Property "fmtDate" was
+ * accessed during render but is not defined" ab, die Zeile blieb leer.
+ * Jetzt nimmt die Karte denselben Helfer wie ihre eigene Zeitzeile: die
+ * vorhandene Formatierung aus `moderationskarte.js` (deutsches Datum,
+ * Uhrzeit nur bei Terminen mit Uhrzeit).
+ */
+function datumZeitText(start, allDay) {
+  return terminZeitText({ start, end: null, all_day: allDay })
 }
 </script>
 

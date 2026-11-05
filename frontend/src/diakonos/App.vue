@@ -84,14 +84,14 @@
          der Nutzer berechtigt ist, aber noch keine Dev-Sitzung laeuft. -->
     <DevStart v-else-if="devmodusVerfuegbar" />
     <AppBottomNav v-if="!isVollbildMode" :theme="theme" @toggle-theme="toggleTheme" @open-admin-dialog="handleOpenAdminDialog" />
-    <!-- K-A (R-P1-8): Detailansicht des EIGENEN abgelehnten Termins aus der
-         Kalender-Seitenleiste. Der Termin kommt aus `get_mein_termin`; der
-         Server liefert ihn nur an den Antragsteller bzw. Moderatoren, weil
-         abgelehnte Termine sonst aus allen Listen heraus bleiben. -->
-    <KronosEventView
-      v-model:show="showAbgelehntView"
-      :event="abgelehnterTermin"
-    />
+    <!-- FIX-7: Die Detailansicht des eigenen abgelehnten Termins haengt seit
+         OP-UI-11 (`4927b9e2`) an der Kalenderliste in `pages/Kalender.vue` —
+         dort stehen `showAbgelehntView` und `abgelehnterTermin`. Hier stand
+         nur noch das Gerippe, und im Template fehlten BEIDE Bindungen: Vue
+         brach beim Rendern mit „Property "showAbgelehntView" was accessed
+         during render but is not defined" ab, sobald die App neu aufgebaut
+         wurde. Ebenso `KronosEventView`, das hier nicht mehr importiert ist.
+         Waechter: frontend/tests/fix7-vorlagen-bezeichner.test.mjs. -->
     <SitzungsHinweis />
     <DkBestaetigung />
 </template>
@@ -108,9 +108,9 @@ import { currentComponent, currentHash, navigate, pageLadefehler, routeNeuLaden,
 import { useImpersonation } from './composables/useImpersonation.js'
 import { devmodusAn, devmodusAutostart, devmodusPruefen } from './composables/useDevmodus.js'
 import { useSession } from './composables/useSession.js'
-import { useKronosSidebar } from './composables/useKronosSidebar.js'
-import { showToast } from './composables/useToast.js'
-import { getMeinTermin } from './composables/useEventsApi.js'
+// FIX-7: `useKronosSidebar`, `showToast` und `getMeinTermin` standen hier
+// ohne jeden Nutzen — die Kalender-Seitenleiste und die Detailansicht des
+// abgelehnten Termins liegen seit OP-UI-11 in `pages/Kalender.vue`.
 import { startTheme, naechstesTheme, umschalterText } from './composables/theme.mjs'
 
 // DM1: Der Dev-Rahmen wird NUR geladen, wenn der Dev-Modus aktiv ist —

@@ -1,0 +1,187 @@
+/**
+ * FIX-7 — Wächter: keine ungebundenen Template-Bezeichner in `.vue`-Dateien.
+ *
+ * Befund: `ModerationCard.vue` rief im Template `fmtDate(…)`, die Funktion
+ * stand aber nirgends im `<script setup>`. Vue prüft das nicht — beim Rendern
+ * bricht der Ausdruck mit „Property "fmtDate" was accessed during render but
+ * is not defined" ab, die Zeile bleibt leer. Eine Quelle war die
+ * App-Datei selbst (`showAbgelehntView`/`abgelehnterTermin`, daneben
+ * `KronosEventView` ohne Import).
+ *
+ * Dieser Test kompiliert JEDE `.vue` unter `frontend/src` mit
+ * `@vue/compiler-sfc`, sammelt die Ausdrücke des Templates und meldet jeden
+ * freien Namen, der weder im Skript gebunden noch in der Erlaubt-Liste des
+ * Werkzeugs (`tools/vorlagen-bezeichner.mjs`) begründet ist.
+ *
+ * Werkzeug: `frontend/tools/vorlagen-bezeichner.mjs`
+ *   ERLAUBT enthält Sprache, Vue-Globals (`$emit`, `$attrs`, …), die
+ *   vue-router-Globals (`$router`, `$route`) und global registrierte
+ *   Komponenten (`DkToast`). Jeder Eintrag trägt seinen Grund.
+ *
+ * Belege (2026-11-05):
+ *   - Vor dem Fix meldete das Werkzeug drei Stellen; nach dem Fix keine.
+ *   - Gegenprobe unten: eine künstliche Datei mit `fmtDate` muss auffallen.
+ */
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import * as sfc from '@vue/compiler-sfc'
+import * as babel from '@babel/parser'
+import {
+  ERLAUBT,
+  pruefeBaum,
+  pruefeQuelle,
+  vueDateien,
+  freieNamen,
+  sammleSkriptBindings,
+} from '../tools/vorlagen-bezeichner.mjs'
+
+// `frontend/tests/` → `frontend/`. Im Docker-Build ist `/build/` die Wurzel,
+// dort stimmt derselbe Weg (`/build/src`).
+const FRONTEND = fileURLToPath(new URL('../', import.meta.url))
+const QUELLEN = FRONTEND + 'src'
+
+test('alle .vue unter src sind frei von ungebundenen Template-Bezeichnern', () => {
+  const dateien = vueDateien(QUELLEN)
+  // Sicherung gegen einen stillen Leerlauf: der Baum hat >100 Komponenten.
+  assert.ok(dateien.length > 100, `zu wenige .vue gefunden (${dateien.length})`)
+
+  const befunde = pruefeBaum(QUELLEN, sfc, babel, true)
+  const meldung = befunde
+    .map((b) => {
+      if (b.fehler) return `${b.datei}: ${b.fehler}`
+      return `${b.datei}: ${b.fehlend.map((f) => f.name).join(', ')}`
+    })
+    .join('\n')
+  assert.equal(befunde.length, 0, 'ungebundene Template-Bezeichner gefunden:\n' + meldung)
+})
+
+test('Erlaubt-Liste ist begründet (kein stiller Freibrief)', () => {
+  for (const [name, grund] of ERLAUBT) {
+    assert.equal(typeof grund, 'string', `${name} ohne Begründung`)
+    assert.ok(grund.trim().length > 5, `${name}: Begründung zu kurz („${grund}“)`)
+  }
+  // Die Vue- und Router-Globals sind ausdrücklich dabei.
+  for (const name of ['$emit', '$attrs', '$slots', '$props', '$router', '$route']) {
+    assert.ok(ERLAUBT.has(name), `${name} fehlt in der Erlaubt-Liste`)
+  }
+  // ModerationCard.vue:97-Befund darf NICHT als Ausnahme durchgehen.
+  assert.ok(!ERLAUBT.has('fmtDate'), 'fmtDate darf keine Ausnahme sein')
+  assert.ok(!ERLAUBT.has('showAbgelehntView'), 'showAbgelehntView darf keine Ausnahme sein')
+})
+
+test('Gegenprobe: ein ungebundenes Template-Bezeichner wird ERKANNT', () => {
+  const quelle = `<template>
+  <div>
+    <span v-for="ev in liste" :key="ev.id">{{ fmtDate(ev.start, ev.all_day) }}</span>
+    <span>{{ mischung(1, 2) }}</span>
+    <span>{{ gebunden }}</span>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+const gebunden = ref(0)
+const liste = ref([])
+function mischung(a, b) { return a - b }
+</script>
+`
+  const { fehlend, fehler } = pruefeQuelle(quelle, 'gegenprobe.vue', sfc, babel)
+  assert.equal(fehler, null)
+  assert.deepEqual(
+    fehlend.map((f) => f.name),
+    ['fmtDate'],
+    'erwartet wird genau der ungebundene Name — gebundene und lokale Namen nicht',
+  )
+})
+
+test('Gegenprobe: der Originalbefund (ModerationCard) wird ERKANNT', () => {
+  // Die Zeile, die vor dem Fix in ModerationCard.vue stand (ohne die
+  // spätere Korrektur) — als eigene Datei, damit der Test auch dann etwas
+  // prüft, wenn die Komponente selbst längst geheilt ist.
+  const quelle = `<template>
+  <ul>
+    <li v-for="ev in item.konflikt_events" :key="ev.id">
+      {{ fmtDate(ev.start, ev.all_day) }}
+      <button @click.stop="$emit('resolve-conflict', ev)">Auflösen</button>
+    </li>
+  </ul>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+const item = ref({ konflikt_events: [] })
+</script>
+`
+  const { fehlend } = pruefeQuelle(quelle, 'befund.vue', sfc, babel)
+  assert.deepEqual(fehlend.map((f) => f.name), ['fmtDate'])
+})
+
+test('Gegenprobe: die reparierte Moderationskarte ist sauber und nutzt den Helfer', () => {
+  const datei = QUELLEN + '/diakonos/components/kronos/ModerationCard.vue'
+  const quelle = readUtf8(datei)
+  const { fehlend, fehler } = pruefeQuelle(quelle, datei, sfc, babel)
+  assert.equal(fehler, null)
+  assert.deepEqual(fehlend, [], 'ModerationCard hat noch ungebundene Namen')
+  // Der Konfliktzeile steht die Formatierung aus dem vorhandenen Helfer zur
+  // Verfügung — kein zweites, handgeschriebenes Datumsformat.
+  assert.match(quelle, /\{\{\s*datumZeitText\(ev\.start, ev\.all_day\)\s*\}\}/)
+  assert.match(quelle, /function datumZeitText\(/)
+  assert.match(quelle, /import \{ terminZeitText \} from '\.\/moderationskarte\.js'/)
+  assert.ok(!/\{\{\s*fmtDate\(/.test(quelle), 'fmtDate ist zurück')
+})
+
+test('App.vue bringt keinen Kalender-Dialog mehr mit (Detail liegt in Kalender.vue)', () => {
+  // Nur die CODE-Zeilen zaehlen — der Kommentar erklaert den Befund und nennt
+  // die Namen absichtlich.
+  const app = readUtf8(QUELLEN + '/diakonos/App.vue').replace(/<!--[\s\S]*?-->/g, '')
+  assert.ok(!/showAbgelehntView/.test(app), 'showAbgelehntView steht wieder in App.vue')
+  assert.ok(!/abgelehnterTermin/.test(app), 'abgelehnterTermin steht wieder in App.vue')
+  assert.ok(!/<KronosEventView/.test(app), 'KronosEventView steht wieder in App.vue')
+  // Und in der Kalender-Seite ist der Weg vollständig: Seitenleiste meldet
+  // den Klick, die Seite laedt den Termin und oeffnet die Detailansicht.
+  const kalender = readUtf8(QUELLEN + '/diakonos/pages/Kalender.vue')
+  assert.match(kalender, /@ablehnungClick="zeigeAbgelehntenTermin"/)
+  assert.match(kalender, /const showAbgelehntView = ref\(false\)/)
+  assert.match(kalender, /const abgelehnterTermin = ref\(null\)/)
+  assert.match(kalender, /v-model:show="showAbgelehntView"/)
+})
+
+test('FIX-7 · Kalenderliste ist auf dem Desktop erreichbar (gemessener Befund)', () => {
+  // Im Browser (1366 px) hatte `.kronos-sidebar-inpage` sichtbare Breite 0:
+  // `open` kommt nur vom Umschalter, der am Desktop `display: none` ist. Die
+  // Seite klappt die Liste deshalb beim Betreten auf und bei einem Klick auf
+  // einen abgelehnten Termin erneut (Sicherung).
+  const kalender = readUtf8(QUELLEN + '/diakonos/pages/Kalender.vue')
+  assert.match(kalender, /onMounted\(\(\) => \{ if \(window\.matchMedia\('\(min-width: 769px\)'\)\.matches\) kronosSidebar\.auf\(\) \}\)/, 'nur am Desktop automatisch öffnen (am Handy Overlay)')
+  const teil = kalender.slice(kalender.indexOf('async function zeigeAbgelehntenTermin'))
+  assert.match(teil.slice(0, 900), /kronosSidebar\.auf\(\)/)
+})
+
+test('Skript-Bindungen werden an der obersten Ebene gelesen (kein Freibrief)', () => {
+  const code = `import { ref } from 'vue'
+const aussen = ref(0)
+function hilfe() { const innen = 1; return innen }
+if (true) { const nurImBlock = 2 }
+`
+  const namen = sammleSkriptBindings(code, babel)
+  assert.ok(namen.has('ref'))
+  assert.ok(namen.has('aussen'))
+  assert.ok(namen.has('hilfe'))
+  assert.ok(!namen.has('innen'), 'lokale Variable gilt faelschlich als Template-Bindung')
+  assert.ok(!namen.has('nurImBlock'), 'Blockvariable gilt faelschlich als Template-Bindung')
+})
+
+test('freieNamen: Member-Zugriffe und Schluesselwoerter sind keine freien Namen', () => {
+  const ok = babel.parseExpression('a.b + c + typeof d + (e?.f || 0)', { plugins: ['jsx'] })
+  assert.deepEqual([...freieNamen(ok)].sort(), ['a', 'c', 'e'])
+  // `typeof` prueft nur den Typ und ist kein Verweis auf den Namen.
+  const typ = babel.parseExpression('typeof zaehler === "number"', { plugins: ['jsx'] })
+  assert.deepEqual([...freieNamen(typ)], [])
+})
+
+/** Kleiner Helfer: Datei als UTF-8 lesen. */
+function readUtf8(pfad) {
+  return readFileSync(pfad, 'utf8')
+}

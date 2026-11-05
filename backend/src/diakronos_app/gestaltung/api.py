@@ -109,6 +109,10 @@ def _stand(abweichungen: dict[str, int]) -> dict:
         "felder": _felder(abweichungen),
         "standard": T.standardwerte(),
         "abweichungen": dict(sorted(abweichungen.items())),
+        # EINE Quelle für die aufsteigende Kette (UX1j2): nur diese Maße
+        # müssen `--sp-1 < … < --sp-8` bleiben. `--pad` u. ä. stehen NICHT
+        # darin — die Oberfläche (UX1k) soll die Kette nicht selbst raten.
+        "skala_ordnung": list(T.SKALA_TOKEN),
         "css_hash": route.css_hash(),
     }
 

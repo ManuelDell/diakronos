@@ -3,6 +3,7 @@ import { computed, onMounted, onBeforeUnmount } from 'vue'
 import DkBadge from '../ui/DkBadge.vue'
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js'
 import { useZurueckSchliesst } from '../../composables/useZurueckSchliesst.js'
+import { terminZeitZeile } from './terminZeitZeile.mjs'
 
 const props = defineProps({
   show: { type: Boolean, required: true },
@@ -11,23 +12,10 @@ const props = defineProps({
 
 const emit = defineEmits(['update:show'])
 
+// FIX-7b: Die Zeitzeile liest `start`/`end` (Antwort von `get_mein_termin`)
+// und weiterhin `element_start`/`element_end` (Daten aus dem Kalender).
 function formatTime(event) {
-  if (!event) return '—'
-  const s = new Date((event.element_start || '').replace(' ', 'T'))
-  const e = new Date((event.element_end || '').replace(' ', 'T'))
-  const optsD = { weekday: 'short', day: 'numeric', month: 'short' }
-  const optsT = { hour: '2-digit', minute: '2-digit' }
-  const sameDay = s.toDateString() === e.toDateString()
-  if (event.all_day) {
-    return s.toLocaleDateString('de-DE', { ...optsD, year: 'numeric' }) + ' (Ganztägig)'
-  }
-  if (sameDay) {
-    return s.toLocaleDateString('de-DE', optsD) + ' ' +
-           s.toLocaleTimeString('de-DE', optsT) + ' – ' +
-           e.toLocaleTimeString('de-DE', optsT)
-  }
-  return s.toLocaleDateString('de-DE', { ...optsD, ...optsT }) + ' – ' +
-         e.toLocaleDateString('de-DE', { ...optsD, ...optsT })
+  return terminZeitZeile(event)
 }
 
 const descLines = computed(() => {

@@ -21,7 +21,7 @@
         class="kronos-sidebar-inpage"
         :open="kronosSidebar.offen.value"
         @close="kronosSidebar.zu()"
-        @ablehnungClick="$emit('ablehnungClick', $event)"
+        @ablehnungClick="zeigeAbgelehntenTermin"
         @calendarsChange="onCalendarsChange"
       />
       <KronosCalendar
@@ -118,6 +118,13 @@ const hasWriteRight = computed(() =>
 )
 
 // Calendar events
+// FIX-7: Die Kalenderliste (Meine Kalender, Abgelehnte Termine, Hilfe) ist ab
+// 769 px Breite ausgeblendet, weil nur der Handy-Umschalter (`display: none`
+// am Desktop) sie oeffnet. Ohne diesen Aufruf waren ihre Eintraege auf dem
+// Desktop unerreichbar (im Browser gemessen 2026-11-05: sichtbare Breite 0).
+// Nur am Desktop: am Handy (≤ 768 px) ist `.open` ein Overlay über dem Kalender.
+onMounted(() => { if (window.matchMedia('(min-width: 769px)').matches) kronosSidebar.auf() })
+
 function onDatesSet(info) {
   dateTitle.value = info.view?.title || ''
   const start = info.start
@@ -263,6 +270,14 @@ async function zeigeAbgelehntenTermin(elementId) {
   }
   abgelehnterTermin.value = daten
   showAbgelehntView.value = true
+  // FIX-7: Ab 769 px Breite steht die Kalenderliste NICHT mehr im Fluss
+  // (`.kronos-sidebar-inpage` hat Breite 0, `open` kommt nur vom Umschalter,
+  // der dort `display: none` ist) — die Einträge „Abgelehnte Termine“ waren
+  // damit unsichtbar und unklickbar; im Browser gemessen (2026-11-05):
+  // sichtbare Breite 0. `auf()` steht beim Betreten der Seite (siehe oben);
+  // hier bleibt es als Sicherung fuer den Fall, dass jemand die Liste
+  // zugeklappt hat.
+  kronosSidebar.auf()
 }
 
 function onViewChange(viewName) {

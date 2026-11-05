@@ -317,6 +317,22 @@ function bausteinGewechselt(regel) {
   }
 }
 
+/**
+ * FIX-7: Baustein einer Regel wechseln.
+ *
+ * Das Template bindet `@update:model-value="bausteinSetzen(r, $event)"`; die
+ * Funktion fehlte im Skript (Vue brach die Auswahl mit „Property
+ * "bausteinSetzen" was accessed during render but is not defined" ab, der
+ * Baustein liess sich im Plantyp-Editor nicht umstellen). Eingetragen wird
+ * der neue Name und aufgeraeumt, was der neue Baustein nicht mehr kennt —
+ * dafuer gibt es bereits `bausteinGewechselt`, das hier gefaellt war.
+ */
+function bausteinSetzen(regel, wert) {
+  if (!regel) return
+  regel.baustein = typeof wert === 'string' ? wert : (wert && wert.wert) || ''
+  bausteinGewechselt(regel)
+}
+
 function istKnoten(wert) {
   return !!wert && typeof wert === 'object' && !Array.isArray(wert)
 }

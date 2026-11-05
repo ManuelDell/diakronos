@@ -73,7 +73,14 @@ def _gueltig(zeile: GestaltungAbweichung) -> int | None:
 
 
 def abweichungen() -> dict[str, int]:
-    """Die geltenden Abweichungen ``{token: wert}`` — nur gültige Zeilen."""
+    """Die geltenden Abweichungen ``{token: wert}`` — nur gültige Zeilen.
+
+    Zwei Filter: (1) Name + Wert durch die Positivliste (`_gueltig`),
+    (2) die Abstands-Kette ``--sp-1 … --sp-8`` bleibt aufsteigend
+    (`tokens.pruefe_skala_gespeichert`). Eine Altzeile, die die Kette bricht,
+    wird beim Lesen verworfen — sie kommt weder in die Anzeige noch ins CSS,
+    und der nächste Speichervorgang sieht eine saubere Kette.
+    """
     sess, eigene = _sitzung()
     try:
         ergebnis: dict[str, int] = {}
@@ -81,10 +88,12 @@ def abweichungen() -> dict[str, int]:
             wert = _gueltig(zeile)
             if wert is not None:
                 ergebnis[name] = wert
-        return ergebnis
     finally:
         if eigene:
             sess.close()
+    for name in T.pruefe_skala_gespeichert(ergebnis):
+        ergebnis.pop(name, None)
+    return ergebnis
 
 
 def geltende_werte() -> dict[str, int]:
