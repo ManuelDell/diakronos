@@ -66,6 +66,8 @@ const pages = {
     EinstellungenMailversand: () => import('./pages/Einstellungen.vue'),
     // WEB-3: Einstellungs-Abschnitt „Website (Primo)“.
     EinstellungenWebsite: () => import('./pages/Einstellungen.vue'),
+    // UX1k: Einstellungs-Abschnitt „Gestaltung“ (nur System Manager).
+    EinstellungenGestaltung: () => import('./pages/Einstellungen.vue'),
     // WEB-3: eigene Seite „Website“ mit dem Einstieg in Primo.
     Website: () => import('./pages/Website.vue'),
     Profile:         () => import('./pages/Profile.vue'),
@@ -147,6 +149,8 @@ const routeMap = {
     '#/einstellungen/mailversand': 'EinstellungenMailversand',
     // WEB-3: Zustand der Primo-Anbindung + Kurzanleitung.
     '#/einstellungen/website': 'EinstellungenWebsite',
+    // UX1k: Abstände, Rahmen und Rundungen (nur System Manager).
+    '#/einstellungen/gestaltung': 'EinstellungenGestaltung',
     '#/website': 'Website',
     '#/profile':       'Profile',
     '#/ressourcen':    'Ressourcen',
@@ -541,6 +545,9 @@ const ADMIN_ONLY_PAGES = new Set([
     'EinstellungenMailversand',
     // WEB-3: „Website (Primo)“ ist ein Einstellungs-Abschnitt wie die anderen.
     'EinstellungenWebsite',
+    // UX1k: „Gestaltung“ ändert die Maße für alle — der Server verweigert
+    // Nicht-System-Managern ohnehin mit 403.
+    'EinstellungenGestaltung',
     'Registrierung',
     // ON-3: der Einrichtungs-Assistent ist Verwaltungsarbeit — der Server
     // weist Nicht-Admins ohnehin mit 403 ab.

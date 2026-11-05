@@ -5,7 +5,7 @@
       hochgeladenen Dateien. Du stellst hier ein, ob und wann das geschieht und
       wie lange die Sicherungen aufbewahrt werden.</p>
 
-    <DkHint v-if="laedt" role="status">Datensicherung wird geladen …</DkHint>
+    <DkSkelett v-if="laedt" form="zeilen" :anzahl="4" text="Datensicherung wird geladen …" />
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
     <DkErfolgsmeldung :text="erfolg" />
     <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut laden</DkButton>
@@ -119,6 +119,7 @@ import DkField from '../../components/ui/DkField.vue'
 import DkTable from '../../components/ui/DkTable.vue'
 import DkBadge from '../../components/ui/DkBadge.vue'
 import DkErfolgsmeldung from '../../components/ui/DkErfolgsmeldung.vue'
+import DkSkelett from '../../components/ui/DkSkelett.vue'
 
 const {
   laedt, speichert, sichert, geladen, fehler, erfolg,

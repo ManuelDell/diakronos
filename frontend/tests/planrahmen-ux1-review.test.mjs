@@ -13,7 +13,7 @@ test('Bearbeiten benennt jede Liedinstanz eindeutig und wählt das geklickte Zie
   globalThis.__ux1 = { vue, klartext, props, api: { feldKandidaten: async (p, t, f) => { calls.push(f); return { kandidaten: [] } } } }
   let code = readFileSync(new URL('../src/diakonos/components/planrahmen/PrEditor.vue', import.meta.url), 'utf8').split('<script setup>')[1].split('</script>')[0]
   code = code.replace(/import[^\n]+from[^\n]+\n/g, '')
-  code = `const {ref,computed,watch}=globalThis.__ux1.vue; const onMounted=()=>{}; const onUnmounted=()=>{}; const inject=()=>null; const {feldInfo,meldungsKurz,kandidatenHinweise}=globalThis.__ux1.klartext; const defineProps=()=>globalThis.__ux1.props; const defineEmits=()=>()=>{}; const usePlanrahmen=()=>globalThis.__ux1.api; const datumText=x=>x; const wertText=x=>x; const fehlerMeldungen=e=>[{meldung:e.message}]; const feldGehoertZu=(a,b)=>a===b||a.startsWith(b+'[')||a.startsWith(b+'.'); const anzahlBereich=a=>({min:0,max:2});\n` + code
+  code = `const {ref,computed,watch}=globalThis.__ux1.vue; const onMounted=()=>{}; const onUnmounted=()=>{}; const inject=()=>null; const useLadeSkelett=laedt=>({skelettSichtbar:laedt}); const {feldInfo,meldungsKurz,kandidatenHinweise}=globalThis.__ux1.klartext; const defineProps=()=>globalThis.__ux1.props; const defineEmits=()=>()=>{}; const usePlanrahmen=()=>globalThis.__ux1.api; const datumText=x=>x; const wertText=x=>x; const fehlerMeldungen=e=>[{meldung:e.message}]; const feldGehoertZu=(a,b)=>a===b||a.startsWith(b+'[')||a.startsWith(b+'.'); const anzahlBereich=a=>({min:0,max:2});\n` + code
   code += '\nexport {unterZiele,zielPfad};'
   const m = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'))
   props.modelValue = true

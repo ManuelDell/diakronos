@@ -11,6 +11,9 @@ globalThis.__sdVue = {
   // PLAN-M1: der Hinweis am Handy wird hier nicht geprueft — die Seite
   // bekommt einen stillen Ersatz, damit sie ohne Browser aufbaubar bleibt.
   onMounted: () => {},
+  // UX2d3a: Ladeplatzhalter (Organigramm-/Seiten-Skelett) — Attrappe, die
+  // den Zustand durchreicht; hier wird das Laden selbst nicht geprueft.
+  useLadeSkelett: (laedt) => ({ skelettSichtbar: laedt }),
 }
 globalThis.__sdProps = { plantyp: '', plan: '' }
 globalThis.__sdRouten = {}
@@ -77,6 +80,9 @@ let code = readFileSync(new URL('../src/diakonos/pages/planrahmen/Stammdaten.vue
 code = code.split('<script setup>')[1].split('</script>')[0]
 code = code.replace(/import[^\n]+from[^\n]+\n/g, '')
 code = `const { ref, reactive, computed, watch, onMounted, onUnmounted } = globalThis.__sdVue
+// UX2d3a: der Ladeplatzhalter kommt aus der gemeinsamen Verzoegerung; hier
+// wird der Zustand unveraendert durchgereicht (Laden ist nicht Testgegenstand).
+const useLadeSkelett = (laedt) => ({ skelettSichtbar: laedt })
 const usePlanrahmen = () => globalThis.__sdApi
 const useHandyHinweis = () => ({ geschlossen: () => false, schliessen: () => true })
 const hinweisZeigen = () => false

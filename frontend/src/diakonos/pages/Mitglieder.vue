@@ -182,7 +182,7 @@
           :loading="loading"
           @click="loadMore"
         >
-          {{ loading ? 'Laden…' : 'Mehr laden' }}
+          {{ 'Mehr laden' }}
         </DkButton>
         <span v-else class="dk-text-subtle">Alle geladen</span>
       </div>

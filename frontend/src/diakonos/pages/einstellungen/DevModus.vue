@@ -6,7 +6,7 @@
       und nur für Personen mit der Rolle „Tester“ (oder für Verwaltungskonten)
       verfügbar.</p>
 
-    <DkHint v-if="laedt" role="status">Dev-Modus wird geladen …</DkHint>
+    <DkSkelett v-if="laedt" form="zeilen" :anzahl="3" text="Dev-Modus wird geladen …" />
 
     <DkHint v-else-if="nichtVerfuegbar" variant="info" role="status">
       <template v-if="nichtErlaubt">
@@ -76,6 +76,7 @@ import { devmodusUebersicht, fehlerZeilen } from '../../composables/useRollenRec
 import DkButton from '../../components/ui/DkButton.vue'
 import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
+import DkSkelett from '../../components/ui/DkSkelett.vue'
 
 const laedt = ref(true)
 const nichtVerfuegbar = ref(false)

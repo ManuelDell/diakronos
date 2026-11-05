@@ -67,10 +67,9 @@
                einer leeren Fläche, obwohl die Seite gleich ihre eigene Karte
                samt Kopfzeile aufbaut. -->
           <div v-else-if="!isVollbildMode" class="dk-screen dk-screen-enter" style="display:flex;align-items:center;justify-content:center;min-height:300px;">
-            <div style="text-align:center;color:var(--dk-text-subtle)">
-              <div style="width:32px;height:32px;border:2px solid var(--dk-border);border-top-color:var(--dk-brand-800);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px"></div>
-              <p style="font-size:var(--fs-14);margin:0">Wird geladen…</p>
-            </div>
+            <!-- UX2d3a: gemeinsamer Platzhalter statt Spinner mit „Wird
+                 geladen…“. Der Text bleibt als Vorlesehilfe am Baustein. -->
+            <DkSpinner text="Seite wird geladen" />
           </div>
         </div>
         <AuditConfirmModal v-if="!isKronosMode && !isModerationMode" />
@@ -101,6 +100,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import AppSidebar from './components/AppSidebar.vue'
 import SitzungsHinweis from './components/SitzungsHinweis.vue'
 import DkBestaetigung from './components/ui/DkBestaetigung.vue'
+import DkSpinner from './components/ui/DkSpinner.vue'
 import AppTopbar from './components/AppTopbar.vue'
 import AuditConfirmModal from './components/AuditConfirmModal.vue'
 import AppBottomNav from './components/AppBottomNav.vue'

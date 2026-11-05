@@ -23,7 +23,8 @@
       </div>
     </div>
 
-    <div v-if="laden" class="pr-stamm-zustand">Lade Stammdaten …</div>
+    <!-- UX2d3a: Laden zeigt den Umriss (Skelett, erst nach 300 ms), keinen Satz. -->
+    <DkSkelett v-if="skelettSichtbar" form="zeilen" :anzahl="6" text="Stammdaten werden geladen …" />
 
     <div v-else-if="seitenFehler.length" class="pr-stamm-zustand pr-stamm-zustand--fehler">
       <PrMeldungen :meldungen="seitenFehler" />
@@ -356,6 +357,8 @@ import BedarfDialog from '../../components/planrahmen/BedarfDialog.vue'
 import MerkmalWert from '../../components/planrahmen/MerkmalWert.vue'
 import PrMeldungen from '../../components/planrahmen/PrMeldungen.vue'
 import PrHandyHinweis from '../../components/planrahmen/PrHandyHinweis.vue'
+import DkSkelett from '../../components/ui/DkSkelett.vue'
+import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 import LiederPflege from '../../components/planrahmen/LiederPflege.vue'
 import { useHandyHinweis, hinweisZeigen, istSchmal } from '../../composables/handyHinweis.mjs'
 import { VueDraggable } from 'vue-draggable-plus'
@@ -405,6 +408,8 @@ const ktxPlan = computed(() => routePlan.value || props.plan || hashKontext().pl
 // ── Ladezustand ────────────────────────────────────────────────────────────
 
 const laden = ref(true)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar } = useLadeSkelett(laden)
 const beschaeftigt = ref(false)
 const seitenFehler = ref([])
 const schreibFehler = ref([])

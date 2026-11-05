@@ -24,7 +24,7 @@
       </div>
     </div>
 
-    <div v-if="laden" class="pr-pe-zustand">Lade Planvorlage …</div>
+    <DkSkelett v-if="skelettSichtbar" form="zeilen" :anzahl="8" text="Planvorlage wird geladen …" />
 
     <div v-else-if="seitenFehler.length" class="pr-pe-zustand pr-pe-zustand--fehler">
       <PrMeldungen :meldungen="seitenFehler" />
@@ -385,6 +385,8 @@ import { showToast } from '../../composables/useToast.js'
 import { bestaetigen } from '../../composables/useBestaetigen.js'
 import { useHandyHinweis, hinweisZeigen, istSchmal } from '../../composables/handyHinweis.mjs'
 import DkModal from '../../components/DkModal.vue'
+import DkSkelett from '../../components/ui/DkSkelett.vue'
+import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 import PrMeldungen from '../../components/planrahmen/PrMeldungen.vue'
 import PrPfadMeldungen from '../../components/planrahmen/PrPfadMeldungen.vue'
 import PrReihenEditor from '../../components/planrahmen/PrReihenEditor.vue'
@@ -420,6 +422,8 @@ const REITER = [
 ]
 
 const laden = ref(true)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar } = useLadeSkelett(laden)
 const darfVorlageBearbeiten = ref(false)
 // PLAN-M1: Hinweis am Handy — nur schmal + Bearbeitungsrecht + nicht
 // geschlossen (Kern in composables/handyHinweis.mjs). Sperrt nichts.

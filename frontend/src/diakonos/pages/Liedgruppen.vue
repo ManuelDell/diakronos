@@ -28,17 +28,24 @@
     <!-- UXM-R9: Dialog zum Anlegen/Bearbeiten -->
     <LiedgruppeBearbeiten v-model="editorOffen" :detail="editorDetail" @gespeichert="nachSpeichern" />
 
-    <!-- Loading -->
-    <div v-if="loading && gruppen.length === 0" class="ld-state">
-      <div class="ld-spinner"></div>
-      <span>Lade Liedgruppen…</span>
-    </div>
+    <!-- UX2d3a: Laden zeigt die FORM der Liste (Skelett), keinen Satz. Das
+         Skelett erscheint erst nach 300 ms (useLadeSkelett) — kurze Antworten
+         flackern nicht. -->
+    <DkSkelett
+      v-if="skelettSichtbar"
+      form="karten"
+      :anzahl="6"
+      text="Liedgruppen werden geladen …"
+    />
 
-    <!-- Error -->
-    <div v-else-if="error" class="ld-error">
-      {{ error }}
-      <button class="dk-btn dk-btn-secondary dk-btn-sm" @click="load">Nochmal</button>
-    </div>
+    <!-- Fehler: echte Meldung + Wiederholung an `load`. -->
+    <DkEmpty
+      v-else-if="error"
+      icon="!"
+      title="Liedgruppen nicht geladen"
+      :text="error"
+      :erneut-versuchen="load"
+    />
 
     <!-- Grid -->
     <template v-else>
@@ -84,13 +91,18 @@ import { navigate, currentPageName } from '../router.js'
 import { LIEDER_REITER } from '../menue.js'
 import DiensteReiter from '../components/DiensteReiter.vue'
 import DkButton from '../components/ui/DkButton.vue'
+import DkEmpty from '../components/ui/DkEmpty.vue'
+import DkSkelett from '../components/ui/DkSkelett.vue'
 import DkFilterChips from '../components/ui/DkFilterChips.vue'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 import { chipsAus, filtereNachChip, istAlle } from '../composables/filterChips.mjs'
 import LiedgruppeBearbeiten from '../components/lieder/LiedgruppeBearbeiten.vue'
 
 const gruppen = ref([])
 const loading = ref(true)
 const error = ref(null)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar } = useLadeSkelett(loading)
 // Ruhezustand ist der „Alle“-Wert des Bausteins.
 const activeTyp = ref('alle')
 

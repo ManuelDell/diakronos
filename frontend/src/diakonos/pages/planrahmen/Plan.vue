@@ -72,7 +72,9 @@
     </div>
 
 
-    <div v-if="laden" class="pr-plan-zustand">Lade Plan …</div>
+    <!-- UX2d3a: Laden zeigt den Umriss der Plantabelle (Skelett), keinen Satz;
+         es erscheint erst nach 300 ms. -->
+    <DkSkelett v-if="skelettSichtbar" form="tabelle" :anzahl="8" text="Plan wird geladen …" />
 
     <div v-else-if="seitenFehler.length" class="pr-plan-zustand pr-plan-zustand--fehler">
       <PrMeldungen :meldungen="seitenFehler" />
@@ -257,6 +259,8 @@ import { usePlanrahmen, datumText, fehlerMeldungen } from '../../composables/use
 import { showToast } from '../../composables/useToast.js'
 import DkModal from '../../components/DkModal.vue'
 import DkDialog from '../../components/ui/DkDialog.vue'
+import DkSkelett from '../../components/ui/DkSkelett.vue'
+import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 import PrAnsicht from '../../components/planrahmen/PrAnsicht.vue'
 import PrDiff from '../../components/planrahmen/PrDiff.vue'
 import PrHandyHinweis from '../../components/planrahmen/PrHandyHinweis.vue'
@@ -277,6 +281,8 @@ const { planHolen, planStandVersion, terminStruktur, terminStrukturen, planGener
 const planId = computed(() => getRouteParam('id', 'PlanrahmenPlan') || '')
 
 const laden = ref(true)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar } = useLadeSkelett(laden)
 const seitenFehler = ref([])
 const bedarfListe = ref([])
 const meldungenSeite = ref([])

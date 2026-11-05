@@ -27,7 +27,9 @@
       <DkButton class="nav-btn next-month" variant="secondary" size="sm" aria-label="Nächster Monat" @click="$emit('next')">
         <span class="icon-chevron" v-html="ICON_CHEVRON_RIGHT"></span>
       </DkButton>
-      <span class="current-date">{{ shortTitle || 'Lade...' }}<span v-if="yearPart" class="date-year">&nbsp;{{ yearPart }}</span></span>
+      <!-- UX2d3a: solange der Monatstitel fehlt, steht eine leere Stelle mit
+           Breite — kein „Lade...“-Text, der springt. -->
+      <span class="current-date"><span v-if="shortTitle">{{ shortTitle }}<span v-if="yearPart" class="date-year">&nbsp;{{ yearPart }}</span></span><span v-else class="date-platzhalter" aria-hidden="true"><span class="date-skelett"></span></span></span>
     </div>
 
     <div class="header-right">
@@ -261,6 +263,21 @@ onMounted(() => {
   min-width: 0;   /* UXK-008: vorher 120px — sprengte die Zeile am Handy */
   text-align: center;
   color: var(--text);
+}
+/* UX2d3a: Platzhalter für den noch fehlenden Monatstitel — gleiche Höhe wie
+   eine Textzeile, damit die Leiste beim Eintreffen des Titels nicht springt. */
+.date-platzhalter {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  min-height: 1em;
+}
+.date-skelett {
+  display: block;
+  width: 9ch;
+  height: 0.75em;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
 }
 .resource-toggle-btn {
   gap: 6px;

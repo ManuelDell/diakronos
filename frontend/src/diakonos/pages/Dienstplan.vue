@@ -7,11 +7,17 @@
       </div>
     </div>
 
-    <div v-if="loading" class="dp-state text-[var(--dk-text-muted)]">Lade Dienstplan …</div>
-    <div v-else-if="error" class="dp-state dp-error">
-      {{ error }}
-      <button class="dk-btn dk-btn-secondary dk-btn-sm" @click="fetchData">Nochmal</button>
-    </div>
+    <!-- UX2d3a: Laden zeigt den Umriss der beiden Spalten (Skelett), keinen
+         Satz; es erscheint erst nach 300 ms. -->
+    <DkSkelett v-if="skelettSichtbar" form="karten" :anzahl="2" text="Dienstplan wird geladen …" />
+    <DkEmpty
+      v-else-if="error"
+      class="dp-state"
+      icon="!"
+      title="Dienstplan nicht geladen"
+      :text="error"
+      :erneut-versuchen="fetchData"
+    />
 
     <template v-else>
       <div class="dp-grid">
@@ -128,8 +134,13 @@ import { apiCall } from '../composables/useApi.js'
 // UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
 // "Fehler beim Laden" / "Fehler beim Speichern".
 import { aktionsfehler } from '../../shared/fehlertexte.js'
+import DkEmpty from '../components/ui/DkEmpty.vue'
+import DkSkelett from '../components/ui/DkSkelett.vue'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 
 const loading = ref(true)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar } = useLadeSkelett(loading)
 const error = ref(null)
 const data = ref(null)
 

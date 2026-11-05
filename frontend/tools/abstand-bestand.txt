@@ -20,8 +20,8 @@
 #   * neue Datei mit festen Werten          -> rot (nicht in der Liste = 0 erlaubt)
 # Erzeugt mit (aus frontend/ heraus): node tools/abstand-bestand.mjs --schreiben
 #
-# Stand (UX1a2, F5): 1622 Fundstellen in 122 Dateien.
-frontend/src/diakonos/App.vue	10
+# Stand (UX1a2, F5): 1620 Fundstellen in 122 Dateien.
+frontend/src/diakonos/App.vue	8
 frontend/src/diakonos/components/AppBottomNav.vue	24
 frontend/src/diakonos/components/MitgliedAuswahl.vue	15
 frontend/src/diakonos/components/VerantwortlicheKarte.vue	1

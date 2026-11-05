@@ -34,7 +34,8 @@
       />
 
       <main ref="haupt" class="assistent-haupt" tabindex="-1">
-        <p v-if="laedt && !status" class="assistent-hinweis" role="status">Einrichtung wird geladen …</p>
+        <!-- UX2d3a: Umriss statt Satz. -->
+        <DkSkelett v-if="laedt && !status" form="zeilen" :anzahl="4" text="Einrichtung wird geladen …" />
         <div v-else-if="!status" class="assistent-karte">
           <p class="assistent-fehler" role="alert">{{ fehler || 'Die Einrichtung konnte nicht geladen werden.' }}</p>
           <DkButton variant="secondary" @click="ladeAssistent({ start: true })">Erneut laden</DkButton>
@@ -150,6 +151,7 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { navigate } from '../../router.js'
 import DkButton from '../../components/ui/DkButton.vue'
+import DkSkelett from '../../components/ui/DkSkelett.vue'
 import AssistentSchritte from '../../components/einrichtung/AssistentSchritte.vue'
 import SchrittGemeinde from '../../components/einrichtung/SchrittGemeinde.vue'
 import SchrittKontakt from '../../components/einrichtung/SchrittKontakt.vue'

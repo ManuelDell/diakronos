@@ -8,14 +8,17 @@
            Inhalt erscheinen — kein toter Eintrag. Der Dev-Modus erscheint nur,
            wenn die Instanz ihn zulässt (Konzept §7). -->
       <nav class="ei-liste" aria-label="Abschnitte">
-        <a
-          v-for="a in sichtbareAbschnitte"
-          :key="a.id"
-          class="ei-eintrag"
-          :class="{ 'is-active': a.id === aktiverAbschnitt }"
-          :href="a.href"
-          :aria-current="a.id === aktiverAbschnitt ? 'page' : undefined"
-        >{{ a.label }}</a>
+        <div v-for="g in sichtbareGruppen" :key="g.id" class="ei-gruppe">
+          <p class="ei-gruppe-titel">{{ g.titel }}</p>
+          <a
+            v-for="a in g.eintraege"
+            :key="a.id"
+            class="ei-eintrag"
+            :class="{ 'is-active': a.id === aktiverAbschnitt }"
+            :href="a.href"
+            :aria-current="a.id === aktiverAbschnitt ? 'page' : undefined"
+          >{{ a.label }}</a>
+        </div>
       </nav>
 
       <div class="ei-inhalt">
@@ -55,6 +58,8 @@ const MAILVERSAND = defineAsyncComponent(() => import('./einstellungen/Mailversa
 // WEB-3: Zustand der optionalen Primo-Anbindung + Kurzanleitung. Nur Anzeige —
 // eingeschaltet wird sie über settings/.env (der Betrieb).
 const WEBSITE = defineAsyncComponent(() => import('./einstellungen/Website.vue'))
+// UX1k: Abstände, Rahmen und Rundungen (nur System Manager — Server prüft).
+const GESTALTUNG = defineAsyncComponent(() => import('./einstellungen/Gestaltung.vue'))
 
 // Reihenfolge wie in der Konzept-Vorgabe (§7): Gemeinde, Anmeldung,
 // Rollen & Rechte, Registrierung, Datenschutz-Texte, Dev-Modus.
@@ -89,6 +94,13 @@ const abschnitte = [
   // Anbindung, keine Gemeindeeinstellung. Der Abschnitt ist nur Anzeige.
   { id: 'website', label: 'Website-Baukasten', href: '#/einstellungen/website',
     seite: 'EinstellungenWebsite', inhalt: WEBSITE },
+  // UX1k: Gestaltung steht unter „Erweitert“ — sie ändert die Maße für ALLE
+  // Nutzer und ist deshalb seltenes Handwerkszeug, keine Alltagseinstellung
+  // (Prinzip K2/N3). Nur System Manager sehen sie; der Server verweigert
+  // zusätzlich mit 403.
+  { id: 'gestaltung', label: 'Gestaltung', href: '#/einstellungen/gestaltung',
+    seite: 'EinstellungenGestaltung', inhalt: GESTALTUNG,
+    gruppe: 'Erweitert', nurSystemManager: true },
   // Entscheidung 10: Dev-Modus ist der letzte Abschnitt. Er ist nur sichtbar,
   // wenn die Instanz ihn zulaesst (Konzept §7) — der Server entscheidet.
   { id: 'dev-modus', label: 'Dev-Modus', href: '#/einstellungen/dev-modus',
@@ -98,8 +110,32 @@ const abschnitte = [
 // Der Dev-Modus-Eintrag erscheint nur, wenn die Instanz ihn eingeschaltet hat.
 const devmodeAn = computed(() => Boolean(window.__DIakonosBOOT?.devmode))
 
+// UX1k: „Gestaltung“ sieht nur ein System Manager (die Rollenliste der
+// Sitzung; dieselbe Entscheidung trifft der Server). Nur Komfort — kein
+// zweiter Weg an der Serverprüfung vorbei.
+const istSystemManager = computed(() => {
+  const rollen = window.__DIakonosBOOT?.roles
+  return Array.isArray(rollen) && rollen.includes('System Manager')
+})
+
 const sichtbareAbschnitte = computed(() =>
-  abschnitte.filter(a => !a.nurDevmodus || devmodeAn.value))
+  abschnitte.filter(a => (!a.nurDevmodus || devmodeAn.value)
+    && (!a.nurSystemManager || istSystemManager.value)))
+
+// Gruppen für die Abschnittsliste (Prinzip N3: 3–7 je Gruppe; Seltenes unter
+// „Erweitert“). Ohne Gruppenschlüssel gehören die Abschnitte zu „Einstellungen“.
+const sichtbareGruppen = computed(() => {
+  const reihenfolge = ['Einstellungen', 'Erweitert']
+  const nach = new Map(reihenfolge.map(id => [id, []]))
+  for (const a of sichtbareAbschnitte.value) {
+    const id = a.gruppe || 'Einstellungen'
+    if (!nach.has(id)) nach.set(id, [])
+    nach.get(id).push(a)
+  }
+  return [...nach.entries()]
+    .filter(([, liste]) => liste.length)
+    .map(([id, liste]) => ({ id, titel: id, eintraege: liste }))
+})
 
 // Ohne eigene Unterseite (alte Adresse #/einstellungen) zeigt der Bereich die
 // Gemeinde — der erste Abschnitt ist der Einstieg.
@@ -136,7 +172,18 @@ const inhalt = computed(() =>
   border-radius: var(--radius-sm);
   color: var(--muted);
   text-decoration: none;
-  font-weight: 500;
+  font-weight: var(--fw-mittel);
+}
+.ei-gruppe { display: flex; flex-direction: column; gap: var(--sp-1); }
+.ei-gruppe + .ei-gruppe { margin-top: var(--sp-3); }
+.ei-gruppe-titel {
+  margin: 0;
+  padding: 0 var(--sp-3);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-fett);
+  text-transform: uppercase;
+  letter-spacing: .04em;
 }
 .ei-eintrag:hover { color: var(--text); background: var(--surface-2); }
 .ei-eintrag.is-active { color: var(--primary); background: var(--surface-2); }

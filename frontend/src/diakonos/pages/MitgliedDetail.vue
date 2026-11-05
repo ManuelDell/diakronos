@@ -50,8 +50,13 @@
             <DkTabs v-model="activeTab" :options="tabs.map(t => ({ value: t.key, label: t.label }))" aria-label="Bereiche" />
         </div>
 
-        <!-- Laden -->
-        <div v-if="loading" class="md-zustand">Lade Mitglied…</div>
+        <!-- Laden: Umriss statt Satz, erst nach 300 ms (kein Flackern). -->
+        <DkSkelett
+            v-if="skelettSichtbar"
+            form="zeilen"
+            :anzahl="6"
+            text="Mitglied wird geladen …"
+        />
 
         <!-- Fehler -->
         <DkEmpty
@@ -305,9 +310,11 @@ import DkTabs from '../components/ui/DkTabs.vue'
 import DkField from '../components/ui/DkField.vue'
 // UX2f: Feld mit Prüfung — Regeln aus EINER Quelle (duenner Wrapper unten).
 import { pflicht, email as emailRegel, plz as plzRegel } from '../composables/feldPruefung.mjs'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 import DkSelect from '../components/ui/DkSelect.vue'
 import DkHint from '../components/ui/DkHint.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
+import DkSkelett from '../components/ui/DkSkelett.vue'
 import ZugangKarte from '../components/ZugangKarte.vue'
 
 const { isAdmin } = useSession()
@@ -320,6 +327,8 @@ const oidcAktiv = computed(() => !!window.__DIakonosBOOT?.oidc_aktiv)
 
 const mitglied = ref(null)
 const loading = ref(true)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar } = useLadeSkelett(loading)
 const error = ref(null)
 const isSaving = ref(false)
 /** AUSTRITT: Dialog offen (Austritt ODER Reaktivieren — ein Dialog, zwei Faelle). */

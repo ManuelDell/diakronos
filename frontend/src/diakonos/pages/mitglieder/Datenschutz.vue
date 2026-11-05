@@ -3,7 +3,7 @@
     <p>Einwilligungen und Löschanträge der Gemeinde. Auskunft lädt die zugeordneten Daten als JSON-Datei herunter.</p>
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
     <DkButton v-if="fehler" variant="secondary" @click="laden">Erneut laden</DkButton>
-    <p v-if="laedt" role="status">Datenschutz wird geladen…</p>
+    <DkSkelett v-if="laedt" form="zeilen" :anzahl="4" text="Datenschutz wird geladen …" />
     <template v-else-if="geladen">
       <!-- MAIL-1: ohne eingerichteten Mailversand lässt sich kein Löschantrag
            freigeben (die Meldung muss vor der Anonymisierung raus). Der
@@ -87,6 +87,7 @@ import DkCard from '../../components/ui/DkCard.vue'
 import DkButton from '../../components/ui/DkButton.vue'
 import DkHint from '../../components/ui/DkHint.vue'
 import DkDialog from '../../components/ui/DkDialog.vue'
+import DkSkelett from '../../components/ui/DkSkelett.vue'
 
 defineProps({ embedded: Boolean })
 const API = 'diakronos.diakonos.api.datenschutz.'

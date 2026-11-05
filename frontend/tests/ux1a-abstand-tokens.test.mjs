@@ -204,7 +204,7 @@ function px(wert, name) {
  * Zeile hier löschen.
  */
 const OBERGRENZE = {
-  'frontend/src/diakonos/App.vue': 10,
+  'frontend/src/diakonos/App.vue': 8,
   'frontend/src/diakonos/components/AppBottomNav.vue': 24,
   'frontend/src/diakonos/components/AppSidebar.vue': 1,
   'frontend/src/diakonos/components/MitgliedAuswahl.vue': 15,

@@ -12,7 +12,9 @@
             >Gruppen verwalten</DkButton>
         </div>
 
-        <div v-if="loading" class="org-zustand">Lade…</div>
+        <!-- UX2d3a: Platzhalter (Spinner) statt Satz — das Organigramm hat
+             keinen Textumriss, den ein Skelett nachbilden könnte. -->
+        <div v-if="ladeSichtbar" class="org-zustand"><DkSpinner text="Organigramm wird geladen" /></div>
 
         <div v-else-if="nodes.length <= 1" class="org-leer">
             <DkEmpty title="Noch keine Gruppen vorhanden"
@@ -163,6 +165,8 @@ import { anlegeAufruf } from '../../composables/gruppenAnlegen.mjs'
 import DkField from '../ui/DkField.vue'
 import DkSelect from '../ui/DkSelect.vue'
 import DkEmpty from '../ui/DkEmpty.vue'
+import DkSpinner from '../ui/DkSpinner.vue'
+import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 
 const props = defineProps({
     // In der Gruppenansicht steht der Seitenkopf in Gruppen.vue; die kleine
@@ -174,6 +178,8 @@ const props = defineProps({
 })
 
 const loading = ref(true)
+// UX2d3a: Anzeige erst nach 300 ms (kein Flackern bei schneller Antwort).
+const { skelettSichtbar: ladeSichtbar } = useLadeSkelett(loading)
 const nodes = ref([])
 const perms = ref({ can_create_dienstbereich: false, can_create_any: false, can_edit_ids: [] })
 let chart = null

@@ -13,6 +13,8 @@ function editor() {
   const context = { ...helpers, ...abschnitte, setTimeout, clearTimeout,
     ref: value => ({ value }), computed: f => ({ get value() { return f() } }),
     watch() {}, onMounted() {}, onUnmounted() {}, defineEmits: () => () => {}, defineExpose() {},
+    // UX2d3a: Ladeplatzhalter — hier nicht Gegenstand des Tests.
+    useLadeSkelett: laedt => ({ skelettSichtbar: laedt }),
     getRouteParam: () => 'neu', onBeforeEach: () => () => {}, showToast() {},
     fehlerMeldungen: e => [{ meldung: e.message }], jsonPruefen: helpers.jsonUebernehmen,
     window: { sessionStorage: { getItem: () => null, removeItem() {} }, addEventListener() {}, removeEventListener() {} },

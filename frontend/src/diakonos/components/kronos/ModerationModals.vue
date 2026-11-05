@@ -141,7 +141,7 @@
 
   <!-- Conflict Modal -->
   <DkModal v-model="showConflictModal" title="Konflikt auflösen" variant="planrahmen">
-    <div v-if="conflictLoading" class="dk-mod-loading">Lade Konfliktdaten…</div>
+    <DkSkelett v-if="konfliktSichtbar" kurz form="zeilen" :anzahl="4" text="Konfliktdaten werden geladen" />
     <template v-else>
       <form class="dk-mod-form" @submit.prevent>
         <div class="dk-mod-row">
@@ -350,6 +350,8 @@ import DkModal from '../DkModal.vue'
 import DkDialog from '../ui/DkDialog.vue'
 import DkButton from '../ui/DkButton.vue'
 import DkDatumZeit from '../ui/DkDatumZeit.vue'
+import DkSkelett from '../ui/DkSkelett.vue'
+import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 import {
   getConflictPartner,
   resolveConflict,
@@ -515,6 +517,8 @@ const showConflictModal = ref(false)
 const conflictEvent = ref(null)
 const conflictPartner = ref(null)
 const conflictLoading = ref(false)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar: konfliktSichtbar } = useLadeSkelett(conflictLoading)
 const conflictForm = ref({ title: '', start: '', end: '', allDay: false, ressource: '', description: '' })
 
 async function openConflictModal(event) {

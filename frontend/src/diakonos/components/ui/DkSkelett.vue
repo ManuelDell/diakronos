@@ -5,7 +5,11 @@
     role="status"
     :aria-label="text || 'Inhalt wird geladen'"
   >
-    <p v-if="text" class="dk-ui-skelett-text">{{ text }}</p>
+    <!-- UX2d3a: Der Text ist die VORLESE-Hilfe (aria-label), KEINE Anzeige.
+         Vorher stand er zusätzlich als <p> im Bild — damit war jedes Skelett
+         wieder ein „… werden geladen …“-Satz auf dem Bildschirm, also genau
+         der Ladeprosatext, den diese Karte ersetzt. Die Form (Balken) sagt
+         jetzt alles; wer sie nicht sieht, hört den Satz. -->
     <div class="dk-ui-skelett-zeilen" aria-hidden="true">
       <span v-for="n in zeilen" :key="n" class="dk-ui-skelett-zeile" :style="{ width: breiten[(n - 1) % breiten.length] }" />
     </div>
@@ -24,6 +28,10 @@
  * Regel jetzt (Standard S10): Seitenkopf und Seitenumriss stehen sofort, der
  * Inhalt ist ein ruhiges Skelett ohne Zahlen. Kein Zähler, keine Null, keine
  * erfundenen Namen, solange nichts geladen ist.
+ *
+ * UX2d3a: `text` ist ausschliesslich die Vorlese-Hilfe (aria-label). Früher
+ * stand derselbe Satz zusätzlich als Absatz im Bild — das Skelett war damit
+ * wieder ein „… werden geladen …“-Text, also genau die Prosa, die es ersetzt.
  */
 import { computed } from 'vue'
 
@@ -51,11 +59,6 @@ const breiten = ['92%', '78%', '86%', '64%', '90%', '72%']
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-}
-.dk-ui-skelett-text {
-  margin: 0;
-  font-size: var(--fs-sm);
-  color: var(--muted);
 }
 .dk-ui-skelett-zeilen {
   display: flex;

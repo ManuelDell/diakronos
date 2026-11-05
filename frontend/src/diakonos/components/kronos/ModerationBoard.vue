@@ -8,7 +8,7 @@
         <span class="dk-mboard-count">{{ konflikte.length }}</span>
       </div>
       <div ref="sortKonflikte" class="dk-mboard-col-body">
-        <div v-if="loading" class="dk-mboard-empty">Lade Termine …</div>
+        <DkSkelett v-if="boardSichtbar" kurz form="karten" :anzahl="2" text="Termine werden geladen" />
         <DkEmpty
           v-else-if="groupedKonflikte.length === 0"
           icon="✓"
@@ -35,7 +35,7 @@
         <span class="dk-mboard-count">{{ vorschlaege.length }}</span>
       </div>
       <div ref="sortVorschlaege" class="dk-mboard-col-body">
-        <div v-if="loading" class="dk-mboard-empty">Lade Termine …</div>
+        <DkSkelett v-if="boardSichtbar" kurz form="karten" :anzahl="2" text="Termine werden geladen" />
         <DkEmpty
           v-else-if="groupedVorschlaege.length === 0"
           icon="🕒"
@@ -112,6 +112,8 @@ import Sortable from 'sortablejs'
 import ModerationCard from './ModerationCard.vue'
 import ModerationModals from './ModerationModals.vue'
 import DkEmpty from '../ui/DkEmpty.vue'
+import DkSkelett from '../ui/DkSkelett.vue'
+import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 import {
   getBoardData,
   saveStagingState,
@@ -123,6 +125,8 @@ const boardData = ref({ vorschlaege: [], konflikte: [], staging: [], notificatio
 const stagingIds = ref([])
 const ressources = ref([])
 const loading = ref(true)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar: boardSichtbar } = useLadeSkelett(loading)
 
 // ── Template refs ────────────────────────────────────────────────────────────
 const sortVorschlaege = ref(null)

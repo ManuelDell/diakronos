@@ -20,7 +20,7 @@
       </div>
     </div>
 
-    <div v-if="laden" class="pr-ue-zustand">Lade Pläne …</div>
+    <DkSkelett v-if="skelettSichtbar" form="karten" :anzahl="4" text="Pläne werden geladen …" />
 
     <div v-else-if="seitenFehler.length" class="pr-ue-zustand pr-ue-zustand--fehler">
       <PrMeldungen :meldungen="seitenFehler" />
@@ -170,6 +170,8 @@ import { useEntwurf } from '../../composables/useEntwurf.js'
 import { showToast } from '../../composables/useToast.js'
 import { pflichtFehler, erstesFehlerfeld } from '../../composables/formularPruefung.mjs'
 import DkModal from '../../components/DkModal.vue'
+import DkSkelett from '../../components/ui/DkSkelett.vue'
+import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 import PrMeldungen from '../../components/planrahmen/PrMeldungen.vue'
 import PrParameterForm from '../../components/planrahmen/PrParameterForm.vue'
 import PrErststart from '../../components/planrahmen/PrErststart.vue'
@@ -184,6 +186,8 @@ const { plaeneListe, plantypenListe, planAnlegen, einrichtenRechte, bedarf, stam
 const entwurf = useEntwurf('neuer-plan')
 
 const laden = ref(true)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar } = useLadeSkelett(laden)
 const seitenFehler = ref([])
 const plaene = ref([])
 const plantypen = ref(null)   // null = kein Planer (403 stillschweigend)

@@ -5,7 +5,7 @@
       Verantwortliche bestimmen zusätzlich, wer einen Bereich oder eine Gruppe
       pflegen darf.</p>
 
-    <DkHint v-if="laedt" role="status">Übersicht wird geladen …</DkHint>
+    <DkSkelett v-if="laedt" form="zeilen" :anzahl="6" text="Übersicht wird geladen …" />
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
     <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut laden</DkButton>
     <DkErfolgsmeldung :text="erfolg" />
@@ -111,6 +111,7 @@ import DkField from '../../components/ui/DkField.vue'
 import DkDialog from '../../components/ui/DkDialog.vue'
 import DkEmpty from '../../components/ui/DkEmpty.vue'
 import DkErfolgsmeldung from '../../components/ui/DkErfolgsmeldung.vue'
+import DkSkelett from '../../components/ui/DkSkelett.vue'
 import VerantwortlicheKarte from '../../components/VerantwortlicheKarte.vue'
 
 const laedt = ref(true)

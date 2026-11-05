@@ -84,7 +84,7 @@
             >Filter zurücksetzen</button>
           </div>
         </div>
-        <div v-if="kandidatenLaedt" class="pr-ed-leer">Lade Vorschläge …</div>
+        <DkSkelett v-if="kandidatenSichtbar" kurz form="zeilen" :anzahl="3" text="Vorschläge werden geladen …" />
 
         <div v-else-if="kandidatenFehler.length" class="pr-ed-block">
           <PrMeldungen :meldungen="kandidatenFehler" />
@@ -214,6 +214,8 @@
  */
 import { ref, computed, watch, inject, onMounted, onUnmounted } from 'vue'
 import DkModal from '../DkModal.vue'
+import DkSkelett from '../ui/DkSkelett.vue'
+import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 import PrMeldungen from './PrMeldungen.vue'
 import { usePlanrahmen, datumText, wertText, fehlerMeldungen, feldGehoertZu, anzahlBereich } from '../../composables/usePlanrahmen.js'
 import { feldInfo, meldungsKurz, kandidatenHinweise } from './klartext.mjs'
@@ -260,6 +262,8 @@ const kandidatenAnzeige = ref({})
 const planAnzeige = inject('planrahmenAnzeige', null)
 const kandidatenAngaben = computed(() => props.definition?.merkmale?.[slot.value?.sammlung || feldDeklaration.value?.sammlung] || [])
 const kandidatenLaedt = ref(false)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar: kandidatenSichtbar } = useLadeSkelett(kandidatenLaedt)
 const kandidatenFehler = ref([])
 const fehlerListe = ref([])
 const speichert = ref(false)

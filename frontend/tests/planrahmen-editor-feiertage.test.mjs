@@ -7,6 +7,8 @@ import * as helpers from '../src/diakonos/components/planrahmen/editor.mjs'
 const source = readFileSync(new URL('../src/diakonos/components/planrahmen/PrTermineEditor.vue', import.meta.url), 'utf8')
 function editor(termine = {}) {
   const context = { ...helpers, ref: value => ({ value }), computed: f => ({ get value() { return f() } }), watch() {}, defineProps: () => ({ termine, kontext: {} }),
+                  // UX2d3a: Ladeplatzhalter — hier nicht Gegenstand des Tests.
+                  useLadeSkelett: laedt => ({ skelettSichtbar: laedt }),
                   // REST-1: PrTermineEditor meldet sich beim Feiertagskatalog an
                   // (Lebenszyklus-Haken). Im Testlauf ohne Vue sind sie leer.
                   onMounted() {}, onBeforeUnmount() {}, beiFeiertagskatalog: () => () => {} }

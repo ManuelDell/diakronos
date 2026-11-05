@@ -11,7 +11,8 @@
       <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/dienstplaene">Zu den Dienstplänen</a>
     </div>
 
-    <p v-if="laden" role="status">Lade Planvorlagen …</p>
+    <!-- UX2d3a: Laden zeigt den Umriss (Skelett, erst nach 300 ms), keinen Satz. -->
+    <DkSkelett v-if="skelettSichtbar" form="zeilen" :anzahl="5" text="Planvorlagen werden geladen …" />
     <PrMeldungen :meldungen="fehler" />
     <button v-if="fehler.length" class="dk-btn dk-btn-secondary" @click="neuLaden">Nochmal</button>
     <!-- Leerzustand nur bei erfolgreich geladener, aber leerer Liste.
@@ -43,7 +44,7 @@
           <a class="dk-btn dk-btn-ghost dk-btn-sm" :href="stammdatenRoute(typ.schluessel)">Stammdaten einrichten</a>
           <details @toggle="versionenOeffnen(typ, $event.target.open)">
             <summary>Versionen ansehen · aktuell {{ typ.letzte_version?.versionsnummer || '—' }}</summary>
-            <p v-if="versionLaedt[typ.id]" role="status">Lade Versionen …</p>
+            <DkSkelett v-if="versionLaedt[typ.id]" kurz form="zeilen" :anzahl="2" text="Versionen werden geladen …" />
             <PrMeldungen :meldungen="versionFehler[typ.id] || []" />
             <button v-if="versionFehler[typ.id]?.length" class="dk-btn dk-btn-secondary dk-btn-sm" @click="versionenOeffnen(typ, true)">Versionen neu laden</button>
             <ul class="pr-ein-versionen">
@@ -73,6 +74,8 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { usePlanrahmen, fehlerMeldungen, datumText } from '../../composables/usePlanrahmen.js'
 import { stammdatenRoute } from '../../components/planrahmen/einrichten-flow.mjs'
 import PrMeldungen from '../../components/planrahmen/PrMeldungen.vue'
+import DkSkelett from '../../components/ui/DkSkelett.vue'
+import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 
 const { plantypenListe, einrichtenRechte, kochbuchListe, plantypVersionenListe } = usePlanrahmen()
 const typen = ref([])
@@ -80,6 +83,8 @@ const rechte = ref({ darf_anlegen: false })
 const kochbuch = ref([])
 const vorlage = ref('')
 const laden = ref(true)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar } = useLadeSkelett(laden)
 const fehler = ref([])
 const versionen = ref({})
 const versionLaedt = ref({})

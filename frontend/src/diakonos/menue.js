@@ -96,7 +96,7 @@ export const MENUE = [
  * ON-3b: „Einrichtung“ bleibt KEIN Menüpunkt (Ersteinrichtung des Containers).
  */
 export const FUSS_EINTRAEGE = [
-    { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus', 'EinstellungenPapierkorb', 'EinstellungenWebsite', 'Einrichtung'], rolle: 'admin', suche: true },
+    { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus', 'EinstellungenPapierkorb', 'EinstellungenWebsite', 'EinstellungenGestaltung', 'Einrichtung'], rolle: 'admin', suche: true },
 ]
 
 /**

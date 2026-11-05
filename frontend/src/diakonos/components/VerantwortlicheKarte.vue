@@ -11,8 +11,15 @@
       Auswählbar sind nur Personen mit einem Zugang (Konto).
     </p>
 
-    <div v-if="laedt" class="verw-zustand">Lade…</div>
-    <DkHint v-else-if="fehler" variant="err">{{ fehler }}</DkHint>
+    <!-- UX2d3a: Umriss statt Satz; Fehler mit „Erneut versuchen“. -->
+    <DkSkelett v-if="skelettSichtbar" kurz form="zeilen" :anzahl="2" text="Verantwortliche werden geladen …" />
+    <DkEmpty
+      v-else-if="fehler"
+      icon="!"
+      title="Verantwortliche nicht geladen"
+      :text="fehler"
+      :erneut-versuchen="laden"
+    />
 
     <template v-else>
       <!-- Anzeige -->
@@ -84,6 +91,8 @@ import DkButton from './ui/DkButton.vue'
 import DkField from './ui/DkField.vue'
 import DkHint from './ui/DkHint.vue'
 import DkEmpty from './ui/DkEmpty.vue'
+import DkSkelett from './ui/DkSkelett.vue'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 import { verantwortlicheLesen, verantwortlicheSetzen, verantwortlicheAuswahl } from '../composables/usePflege.js'
 import { showToast } from '../composables/useToast.js'
 
@@ -95,6 +104,8 @@ const props = defineProps({
 const emit = defineEmits(['gespeichert'])
 
 const laedt = ref(true)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar } = useLadeSkelett(laedt)
 const fehler = ref('')
 const darfPflegen = ref(false)
 const ausgewaehlt = ref([])

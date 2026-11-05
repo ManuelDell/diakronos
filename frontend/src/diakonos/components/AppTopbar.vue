@@ -47,8 +47,16 @@
             <strong>Benachrichtigungen</strong>
             <button type="button" class="dk-notify-schliessen" title="Schließen" @click="listeOffen = false">✕</button>
           </div>
-          <div v-if="laden" class="dk-notify-zustand">Lade …</div>
-          <div v-else-if="fehler" class="dk-notify-zustand dk-notify-zustand--fehler">{{ fehler }}</div>
+          <!-- UX2d3a: ruhiger Platzhalter statt „Lade …“; bei Fehler die echte
+               Meldung mit „Erneut versuchen“ am vorhandenen `ladeListe`. -->
+          <DkSkelett v-if="listenSichtbar" kurz form="zeilen" :anzahl="3" text="Benachrichtigungen werden geladen" />
+          <DkEmpty
+            v-else-if="fehler"
+            icon="!"
+            title="Benachrichtigungen nicht geladen"
+            :text="fehler"
+            :erneut-versuchen="ladeListe"
+          />
           <div v-else-if="!notifications.length" class="dk-notify-zustand">
             Keine Benachrichtigungen.
           </div>
@@ -76,6 +84,9 @@
 import { computed, ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { currentPageName, navigate } from '../router.js'
 import { useNotifications } from '../composables/useNotifications.js'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
+import DkSkelett from './ui/DkSkelett.vue'
+import DkEmpty from './ui/DkEmpty.vue'
 import { darfAlsGelesenMarkieren } from '../composables/glocke.mjs'
 import { krumenZuSeite } from '../menue.js'
 
@@ -83,6 +94,8 @@ defineProps({ collapsed: Boolean })
 defineEmits(['toggle-collapse'])
 
 const { unreadCount, notifications, laden, fehler, ladeListe, markAsRead } = useNotifications()
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar: listenSichtbar } = useLadeSkelett(laden)
 const page = currentPageName
 
 // Listen-Panel: Klick auf die Glocke laedt die Liste und markiert erst

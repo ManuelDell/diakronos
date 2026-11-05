@@ -5,6 +5,8 @@ import { apiUrl } from '../../../shared/basis.js'
 import { ref, watch } from 'vue'
 import { formatTimeRange } from './dayEventLabel.mjs'
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js'
+import DkSkelett from '../ui/DkSkelett.vue'
+import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 
 const props = defineProps({
   show: { type: Boolean, required: true },
@@ -18,6 +20,8 @@ const emit = defineEmits(['update:show', 'eventClick'])
 
 const dayEvents = ref([])
 const loading = ref(false)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar: ladeSichtbar } = useLadeSkelett(loading)
 
 // P1-5c (4/K3): Die Beschriftungslogik liegt in `dayEventLabel.mjs` und wird
 // von dort importiert — sie ist damit als Funktion testbar (vorher pruefte der
@@ -78,7 +82,7 @@ function onEventClick(ev) {
             <button class="diakronos-close-btn" @click="emit('update:show', false)">&times;</button>
           </div>
           <div class="diakronos-modal-body">
-            <div v-if="loading" class="text-muted">Lade Termine...</div>
+            <DkSkelett v-if="ladeSichtbar" kurz form="zeilen" :anzahl="3" text="Termine werden geladen" />
             <div v-else-if="!dayEvents.length" class="text-muted">Keine Termine an diesem Tag.</div>
             <div v-else class="day-events-list">
               <div

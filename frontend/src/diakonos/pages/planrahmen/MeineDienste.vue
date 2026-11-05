@@ -12,7 +12,8 @@
       </div>
     </div>
 
-    <div v-if="laden" class="pr-md-zustand">Lade Dienste …</div>
+    <!-- UX2d3a: Laden zeigt den Umriss (Skelett, erst nach 300 ms), keinen Satz. -->
+    <DkSkelett v-if="skelettSichtbar" form="zeilen" :anzahl="6" text="Dienste werden geladen …" />
 
     <div v-else-if="seitenFehler.length" class="pr-md-zustand pr-md-zustand--fehler">
       <PrMeldungen :meldungen="seitenFehler" />
@@ -145,7 +146,7 @@
           >{{ abwSpeichert ? 'Wird gemeldet …' : 'Abwesenheit melden' }}</button>
         </template>
 
-        <div v-if="abwLaden" class="pr-md-hinweis pr-md-gemeldet-laden">Lade Abwesenheiten …</div>
+        <DkSkelett v-if="abwSkelettSichtbar" kurz form="zeilen" :anzahl="2" text="Abwesenheiten werden geladen …" />
         <ul v-else-if="abwGemeldet.length" class="pr-md-gemeldet">
           <li v-for="a in abwGemeldet" :key="a.id" class="pr-md-gemeldet-zeile">
             <span>
@@ -205,6 +206,8 @@ import { useSession } from '../../composables/useSession.js'
 import { showToast } from '../../composables/useToast.js'
 import { pflichtFehler, erstesFehlerfeld } from '../../composables/formularPruefung.mjs'
 import DkModal from '../../components/DkModal.vue'
+import DkSkelett from '../../components/ui/DkSkelett.vue'
+import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 import PrMeldungen from '../../components/planrahmen/PrMeldungen.vue'
 import { feldName, mitwirkendeText } from '../../components/planrahmen/meine-dienste.mjs'
 import {
@@ -215,6 +218,8 @@ const { meineDienste, abwesenheitMelden, abwesenheitenListe, abwesenheitLoeschen
 const { mitglied } = useSession()
 
 const laden = ref(true)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar } = useLadeSkelett(laden)
 const seitenFehler = ref([])
 const dienste = ref([])
 
@@ -226,6 +231,8 @@ const abwFehler = ref([])
 const feldFehler = ref({})
 const abwGemeldet = ref([])
 const abwLaden = ref(true)
+// UX2d3a: eigener Platzhalter für die Abwesenheitsliste (gleiche 300-ms-Regel).
+const { skelettSichtbar: abwSkelettSichtbar } = useLadeSkelett(abwLaden)
 const abwLoescht = ref({})
 
 const eigeneKennung = computed(() => mitglied.value?.name || '')

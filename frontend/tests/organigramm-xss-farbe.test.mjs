@@ -55,6 +55,10 @@ const computed = (f) => ({ get value() { return f() } });
 const onMounted = () => {};
 const onBeforeUnmount = () => {};
 const nextTick = () => Promise.resolve();
+// UX2d3a: OrganigrammAnsicht laedt ueber die gemeinsame Verzoegerung
+// (useLadeSkelett). Die Attrappe gibt den Zustand unveraendert zurueck —
+// dieser Test prueft die reine Ausgabe-Funktion, nicht das Ladeverhalten.
+const useLadeSkelett = (laedt) => ({ skelettSichtbar: laedt });
 // In <script setup> stellt Vue defineProps/defineExpose bereit; die Attrappen
 // genuegen, weil dieser Test nur die reinen Ausgabe-Funktionen prueft.
 const defineProps = () => ({});

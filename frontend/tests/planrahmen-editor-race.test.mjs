@@ -12,7 +12,7 @@ globalThis.defineEmits = () => () => {}
 globalThis.__raceApi = { feldKandidaten: (p, t, f) => new Promise((resolve, reject) => requests.push({ p, t, f, resolve, reject })) }
 let code = readFileSync(new URL('../src/diakonos/components/planrahmen/PrEditor.vue', import.meta.url), 'utf8').split('<script setup>')[1].split('</script>')[0]
 code = code.replace(/import[^\n]+from[^\n]+\n/g, '')
-code = `const {ref,computed,watch} = globalThis.__raceVue; const onMounted=()=>{}; const onUnmounted=()=>{}; const inject=()=>null; const usePlanrahmen=()=>globalThis.__raceApi; const datumText=x=>x; const wertText=x=>x; const fehlerMeldungen=e=>[{meldung:e.message}]; const feldGehoertZu=(a,b)=>a===b; const anzahlBereich=a=>({min:0,max:2});\n` + code
+code = `const {ref,computed,watch} = globalThis.__raceVue; const onMounted=()=>{}; const onUnmounted=()=>{}; const inject=()=>null; const usePlanrahmen=()=>globalThis.__raceApi; const useLadeSkelett=laedt=>({skelettSichtbar:laedt}); const datumText=x=>x; const wertText=x=>x; const fehlerMeldungen=e=>[{meldung:e.message}]; const feldGehoertZu=(a,b)=>a===b; const anzahlBereich=a=>({min:0,max:2});\n` + code
 code += '\nexport {zielPfad,kandidatenListe,kandidatenLaedt,kandidatenFehler};'
 const m = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'))
 const tick = async () => { await vue.nextTick(); await vue.nextTick() }

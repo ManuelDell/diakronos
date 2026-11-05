@@ -5,8 +5,16 @@
       anmelden und bekommt keine Rechte.
     </p>
 
-    <div v-if="laedt" class="zug-zustand">Lade…</div>
-    <DkHint v-else-if="fehler" variant="err">{{ fehler }}</DkHint>
+    <!-- UX2d3a: Laden zeigt den Umriss der Felder (Skelett, erst nach 300 ms).
+         Fehler: echte Meldung + „Erneut versuchen“ an `laden`. -->
+    <DkSkelett v-if="skelettSichtbar" kurz form="zeilen" :anzahl="3" text="Zugang wird geladen …" />
+    <DkEmpty
+      v-else-if="fehler"
+      icon="!"
+      title="Zugang nicht geladen"
+      :text="fehler"
+      :erneut-versuchen="laden"
+    />
 
     <template v-else>
       <!-- Kein Konto -->
@@ -100,6 +108,9 @@ import DkCard from './ui/DkCard.vue'
 import DkButton from './ui/DkButton.vue'
 import DkField from './ui/DkField.vue'
 import DkHint from './ui/DkHint.vue'
+import DkEmpty from './ui/DkEmpty.vue'
+import DkSkelett from './ui/DkSkelett.vue'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 import DkBadge from './ui/DkBadge.vue'
 import PasswortLink from './mitglieder/PasswortLink.vue'
 import {
@@ -116,6 +127,8 @@ const props = defineProps({
 const emit = defineEmits(['geaendert'])
 
 const laedt = ref(true)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar } = useLadeSkelett(laedt)
 const fehler = ref('')
 const konto = ref(null)
 const rollenWaehlbar = ref([])

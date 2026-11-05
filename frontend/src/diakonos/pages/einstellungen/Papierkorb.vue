@@ -7,7 +7,7 @@
       Anhängen und Kind-Einträgen.
     </p>
 
-    <DkHint v-if="laedt" role="status">Papierkorb wird geladen …</DkHint>
+    <DkSkelett v-if="laedt" form="tabelle" :anzahl="5" text="Papierkorb wird geladen …" />
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
     <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut laden</DkButton>
 
@@ -52,6 +52,7 @@ import { wiederherstellen } from '../../composables/papierkorb.mjs'
 import DkButton from '../../components/ui/DkButton.vue'
 import DkHint from '../../components/ui/DkHint.vue'
 import DkTable from '../../components/ui/DkTable.vue'
+import DkSkelett from '../../components/ui/DkSkelett.vue'
 
 //: Bereich der Server-Liste -> Schlüssel von `WIEDERHERSTELLEN`.
 const BEREICH_ZU_SCHLUESSEL = {

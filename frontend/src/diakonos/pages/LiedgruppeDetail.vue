@@ -34,14 +34,23 @@
       </template>
     </DkDialog>
 
-    <!-- Laden -->
-    <div v-if="loading" class="ldg-zustand">Lade Liedgruppe…</div>
+    <!-- UX2d3a: Laden zeigt den Umriss (Skelett, erst nach 300 ms), keinen
+         Satz. -->
+    <DkSkelett
+      v-if="skelettSichtbar"
+      form="zeilen"
+      :anzahl="5"
+      text="Liedgruppe wird geladen …"
+    />
 
-    <!-- Fehler -->
-    <div v-else-if="error" class="ldg-fehler">
-      {{ error }}
-      <DkButton variant="secondary" size="sm" @click="loadDetail">Nochmal</DkButton>
-    </div>
+    <!-- Fehler: echte Meldung + Wiederholung an `loadDetail`. -->
+    <DkEmpty
+      v-else-if="error"
+      icon="!"
+      title="Liedgruppe nicht geladen"
+      :text="error"
+      :erneut-versuchen="loadDetail"
+    />
 
     <template v-else>
       <!-- Kopf -->
@@ -148,7 +157,9 @@ import DkBadge from '../components/ui/DkBadge.vue'
 import DkCard from '../components/ui/DkCard.vue'
 import DkTable from '../components/ui/DkTable.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
+import DkSkelett from '../components/ui/DkSkelett.vue'
 import DkDialog from '../components/ui/DkDialog.vue'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 import LiedgruppeBearbeiten from '../components/lieder/LiedgruppeBearbeiten.vue'
 
 const { liedgruppeLoeschen } = usePlanrahmen()
@@ -157,6 +168,8 @@ const info = ref({})
 const lieder = ref([])
 const rollen = ref([])
 const loading = ref(true)
+// UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar } = useLadeSkelett(loading)
 const error = ref(null)
 const tab = ref('lieder')
 

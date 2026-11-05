@@ -82,7 +82,7 @@
         <DkSelect v-model="form.gruppe" :options="gruppeOptionen" empty-value="" />
       </DkField>
 
-      <DkHint v-if="modus === null" variant="info">Anmeldeverfahren wird geladen…</DkHint>
+      <DkSkelett v-if="modus === null" kurz form="zeilen" :anzahl="1" text="Anmeldeverfahren wird geladen" />
       <DkHint v-else-if="modus" variant="info">Die Person meldet sich über Authentik an. Lege sie dort mit derselben E-Mail-Adresse an. Die Zuordnung erfolgt beim ersten Login; hier entsteht nur der Eintrag.</DkHint>
       <fieldset v-else class="mh-zugang">
         <legend>Zugang zu Diakronos</legend>
@@ -170,6 +170,7 @@ import DkField from '../ui/DkField.vue'
 import { pflicht, email as emailRegel } from '../../composables/feldPruefung.mjs'
 import DkSelect from '../ui/DkSelect.vue'
 import DkHint from '../ui/DkHint.vue'
+import DkSkelett from '../ui/DkSkelett.vue'
 import PasswortLink from './PasswortLink.vue'
 
 const API = 'diakronos.diakonos.api.mitglieder.'

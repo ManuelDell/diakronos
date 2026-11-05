@@ -188,7 +188,7 @@
           :disabled="loading"
           @click="loadMore"
         >
-          {{ loading ? 'Laden…' : 'Mehr laden' }}
+          {{ 'Mehr laden' }}
         </button>
         <span v-else class="dk-text-subtle">Alle geladen</span>
       </div>

@@ -58,10 +58,10 @@ export function ladeSkelett(laedt, melden, optionen = {}) {
     }
     laeuft = timer.set(() => {
       laeuft = null
-      // Zwischen Start und Ablauf kann das Laden beendet worden sein (schnelle
-      // Antwort): dann bleibt der Platzhalter aus. Ist noch geladen, zeigt er
-      // sich jetzt.
-      setze(Boolean(laedt))
+      // Endet das Laden vorher, hat `pruefe(false)` den Timer schon abgeräumt —
+      // läuft er ab, wird also noch geladen. (`laedt` ist nur der Startwert;
+      // wer mit `false` startete, sah sonst nie einen Platzhalter.)
+      setze(true)
     }, verzoegerung)
   }
 

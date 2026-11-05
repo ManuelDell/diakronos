@@ -27,6 +27,8 @@ function harness(pageName = 'Plan', hash = '#/dienste/dienstplaene/plan/plan-a',
     setzeFenstertitel() {},
     lazyImport: () => new Promise((resolve, reject) => imports.push({ resolve, reject })),
     onUnmounted() {}, onMounted() {}, provide() {}, defineEmits: () => () => {}, defineExpose() {},
+    // UX2d3a: Ladeplatzhalter — hier nicht Gegenstand des Tests.
+    useLadeSkelett: laedt => ({ skelettSichtbar: laedt }),
     defineProps: () => ({ plantyp: '', plan: '' }), setTimeout: () => 0, clearTimeout() {},
     cacheLeeren() {}, showToast() {},
     // PLAN-W1: Einklapp-Zustand des Warnblocks (je Benutzer im localStorage).
