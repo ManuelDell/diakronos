@@ -205,29 +205,30 @@ onMounted(laden)
 }
 .dk-skeleton-card { border-radius: var(--radius-lg); }
 
-/* Kacheln sind Schaltflächen (klickbar), sehen aber wie ruhige Karten aus. */
+/* Kacheln sind Schaltflächen (klickbar), sehen aber wie ruhige Karten aus.
+   UX1d (D2): kein Rahmen mehr — getönte Fläche + sanfter Schatten trennen
+   sie vom Grund (Prinzip Ä2); die Kennfarbe erscheint erst bei Hover/Fokus. */
 .dk-ui-kachel {
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
   text-align: left;
-  padding: calc(var(--pad) * 1.2);
-  border: 1px solid var(--line);
+  padding: var(--karte-innen);
+  border: var(--karte-rand) solid var(--rahmen-farbe);
   border-radius: var(--radius-lg);
   background: var(--surface);
+  box-shadow: var(--schatten-karte);
   color: inherit;
   font: inherit;
   cursor: pointer;
-  transition: border-color var(--fast), box-shadow var(--fast);
+  transition: box-shadow var(--fast), background var(--fast);
 }
-.dk-ui-kachel:hover { border-color: var(--primary); box-shadow: var(--shadow-md); }
-.dk-ui-kachel:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.dk-ui-kachel:hover { box-shadow: var(--shadow-md); background: var(--surface-hover); }
+.dk-ui-kachel:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: var(--sp-1); }
 .dk-ui-kachel-label {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
+  font-weight: 500;
 }
 .dk-ui-kachel-wert {
   font-size: var(--fs-h1);
@@ -243,15 +244,15 @@ onMounted(laden)
 .ub-block { margin-top: var(--sp-alt-20); }
 
 .ub-aufgaben { list-style: none; margin: 0; padding: 0; }
+/* UX1d (D2): Abstand trennt die Zeilen (Prinzip S3) — die Linie ist weg. */
 .ub-aufgaben li {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
   padding: var(--sp-2) 0;
-  border-top: 1px solid var(--divider);
 }
-.ub-aufgaben li:first-child { border-top: none; }
+.ub-aufgaben li + li { margin-top: var(--sp-1); }
 .ub-aufgabe-text { color: var(--text); }
 
 .ub-verteilung { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-alt-20); }

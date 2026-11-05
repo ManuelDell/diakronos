@@ -238,7 +238,6 @@ const OBERGRENZE = {
   'frontend/src/diakonos/components/kronos/ModerationModals.vue': 10,
   'frontend/src/diakonos/components/lieder/LiedBearbeiten.vue': 7,
   'frontend/src/diakonos/components/lieder/LiedgruppeBearbeiten.vue': 1,
-  'frontend/src/diakonos/components/mitglieder/LoeschantraegeListe.vue': 1,
   'frontend/src/diakonos/components/mitglieder/MitgliedHinzufuegenDialog.vue': 2,
   'frontend/src/diakonos/components/planrahmen/BedarfDialog.vue': 11,
   'frontend/src/diakonos/components/planrahmen/LiederPflege.vue': 37,
@@ -274,7 +273,6 @@ const OBERGRENZE = {
   'frontend/src/diakonos/components/ui/DkBadge.vue': 2,
   'frontend/src/diakonos/components/ui/DkBereichsliste.vue': 12,
   'frontend/src/diakonos/components/ui/DkButton.vue': 7,
-  'frontend/src/diakonos/components/ui/DkCard.vue': 3,
   'frontend/src/diakonos/components/ui/DkDatumZeit.vue': 1,
   'frontend/src/diakonos/components/ui/DkDialog.vue': 3,
   'frontend/src/diakonos/components/ui/DkEingabe.vue': 2,
@@ -290,11 +288,10 @@ const OBERGRENZE = {
   'frontend/src/diakonos/components/website/FreigabeZeile.vue': 2,
   'frontend/src/diakonos/components/widgets/MyServicesWidget.vue': 7,
   'frontend/src/diakonos/components/widgets/PendingRegistrationsWidget.vue': 13,
-  'frontend/src/diakonos/index.css': 315,
+  'frontend/src/diakonos/index.css': 293,
   'frontend/src/diakonos/kronos.css': 188,
   'frontend/src/diakonos/pages/Adressbuch.vue': 9,
   'frontend/src/diakonos/pages/Beitraege.vue': 10,
-  'frontend/src/diakonos/pages/Einstellungen.vue': 1,
   'frontend/src/diakonos/pages/GruppeDetail.vue': 9,
   'frontend/src/diakonos/pages/Gruppen.vue': 17,
   'frontend/src/diakonos/pages/Home.vue': 5,
@@ -319,8 +316,7 @@ const OBERGRENZE = {
   'frontend/src/diakonos/pages/einstellungen/Gemeinde.vue': 1,
   'frontend/src/diakonos/pages/einstellungen/Registrierung.vue': 1,
   'frontend/src/diakonos/pages/einstellungen/RollenRechte.vue': 3,
-  'frontend/src/diakonos/pages/mitglieder/Datenschutz.vue': 1,
-  'frontend/src/diakonos/pages/mitglieder/Uebersicht.vue': 3,
+  'frontend/src/diakonos/pages/mitglieder/Uebersicht.vue': 1,
   'frontend/src/diakonos/pages/planrahmen/Einrichten.vue': 14,
   'frontend/src/diakonos/pages/planrahmen/MeineDienste.vue': 46,
   'frontend/src/diakonos/pages/planrahmen/Plan.vue': 13,
@@ -335,6 +331,10 @@ const OBERGRENZE = {
   // UX1a2 (F5): Stand nach dem Schliessen der Waechter-Luecken.
   // Gemessen am 128 Dateien / 1683 Fundstellen — gezaehlt von
   // frontend/tools/abstand-bestand.mjs, nicht geschaetzt.
+  // UX1d (D1/D2): Karten ohne Rahmen, Trennlinien leise — acht feste Werte
+  // entfallen. DkCard, LoeschantraegeListe, Einstellungen und Datenschutz
+  // stehen auf 0 und sind hier GESTRICHEN (ein Eintrag ohne Fundstelle waere
+  // nur Ballast); index.css 315 -> 293 (der tote Block `.dk-widget`/`.dk-widget-title` kam dazu), Uebersicht 3 -> 1.
 }
 {
   assert.ok(existsSync(LISTE), 'tools/abstand-bestand.txt fehlt')

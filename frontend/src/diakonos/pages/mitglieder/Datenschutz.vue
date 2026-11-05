@@ -187,7 +187,10 @@ onMounted(laden)
 .ds-filter label, .ds-bestaetigung { display: grid; gap: var(--sp-2); }
 .ds-filter label { flex: 1; min-width: 0; }
 .ds-liste { padding: 0; margin: 0; list-style: none; }
-.ds-person { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-3) 0; border-bottom: 1px solid var(--dk-border); flex-wrap: wrap; }
+/* UX1d (D2): nur eine LEISE Trennung, wo der Abstand allein die Zeilen
+   nicht auseinanderhält (dichte Personenliste). */
+.ds-person { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-3) 0; border-bottom: var(--rahmen-breite) solid var(--rahmen-farbe-leise); flex-wrap: wrap; }
+.ds-person:last-child { border-bottom: none; }
 .ds-identitaet { min-width: 0; overflow-wrap: anywhere; }
 .ds-person p { margin: var(--sp-1) 0; color: var(--dk-text-muted); }
 @media (max-width: 600px) { .ds-filter { flex-direction: column; } .ds-aktionen { width: 100%; } }

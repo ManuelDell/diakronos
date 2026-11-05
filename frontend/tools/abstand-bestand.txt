@@ -20,7 +20,7 @@
 #   * neue Datei mit festen Werten          -> rot (nicht in der Liste = 0 erlaubt)
 # Erzeugt mit (aus frontend/ heraus): node tools/abstand-bestand.mjs --schreiben
 #
-# Stand (UX1a2, F5): 1682 Fundstellen in 127 Dateien.
+# Stand (UX1a2, F5): 1652 Fundstellen in 123 Dateien.
 frontend/src/diakonos/App.vue	10
 frontend/src/diakonos/components/AppBottomNav.vue	24
 frontend/src/diakonos/components/MitgliedAuswahl.vue	15
@@ -54,7 +54,6 @@ frontend/src/diakonos/components/kronos/ModerationCard.vue	25
 frontend/src/diakonos/components/kronos/ModerationModals.vue	10
 frontend/src/diakonos/components/lieder/LiedBearbeiten.vue	7
 frontend/src/diakonos/components/lieder/LiedgruppeBearbeiten.vue	1
-frontend/src/diakonos/components/mitglieder/LoeschantraegeListe.vue	1
 frontend/src/diakonos/components/mitglieder/MitgliedHinzufuegenDialog.vue	2
 frontend/src/diakonos/components/planrahmen/BedarfDialog.vue	11
 frontend/src/diakonos/components/planrahmen/LiederPflege.vue	37
@@ -90,7 +89,6 @@ frontend/src/diakonos/components/registrierung/RegLinkTeilen.vue	2
 frontend/src/diakonos/components/ui/DkBadge.vue	2
 frontend/src/diakonos/components/ui/DkBereichsliste.vue	12
 frontend/src/diakonos/components/ui/DkButton.vue	7
-frontend/src/diakonos/components/ui/DkCard.vue	3
 frontend/src/diakonos/components/ui/DkDatumZeit.vue	1
 frontend/src/diakonos/components/ui/DkDialog.vue	3
 frontend/src/diakonos/components/ui/DkEingabe.vue	2
@@ -106,11 +104,10 @@ frontend/src/diakonos/components/ui/DkTabs.vue	3
 frontend/src/diakonos/components/website/FreigabeZeile.vue	2
 frontend/src/diakonos/components/widgets/MyServicesWidget.vue	7
 frontend/src/diakonos/components/widgets/PendingRegistrationsWidget.vue	13
-frontend/src/diakonos/index.css	315
+frontend/src/diakonos/index.css	293
 frontend/src/diakonos/kronos.css	188
 frontend/src/diakonos/pages/Adressbuch.vue	9
 frontend/src/diakonos/pages/Beitraege.vue	10
-frontend/src/diakonos/pages/Einstellungen.vue	1
 frontend/src/diakonos/pages/GruppeDetail.vue	9
 frontend/src/diakonos/pages/Gruppen.vue	17
 frontend/src/diakonos/pages/Home.vue	5
@@ -135,8 +132,7 @@ frontend/src/diakonos/pages/einstellungen/DatenschutzTexte.vue	2
 frontend/src/diakonos/pages/einstellungen/Gemeinde.vue	1
 frontend/src/diakonos/pages/einstellungen/Registrierung.vue	1
 frontend/src/diakonos/pages/einstellungen/RollenRechte.vue	3
-frontend/src/diakonos/pages/mitglieder/Datenschutz.vue	1
-frontend/src/diakonos/pages/mitglieder/Uebersicht.vue	3
+frontend/src/diakonos/pages/mitglieder/Uebersicht.vue	1
 frontend/src/diakonos/pages/planrahmen/Einrichten.vue	14
 frontend/src/diakonos/pages/planrahmen/MeineDienste.vue	46
 frontend/src/diakonos/pages/planrahmen/Plan.vue	13

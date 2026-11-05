@@ -212,6 +212,20 @@
      Schatten statt Linien). Die Gestaltungs-Einstellungen (UX1j) dürfen hier
      abweichen; der Standard ist die Null. */
   --karte-rahmen: 0;
+  /* UX1d (D1): Der Rahmen, den sich eine Karte selbst gibt, wenn
+     `--karte-rahmen` 0 ist. `none` heißt: keine Linie, kein Platz —
+     die Gestaltungs-Einstellungen (UX1j) können `--karte-rahmen` auf 1…4
+     setzen, dann tritt dieser Rahmen an seine Stelle (nur wp8 — dort).
+     Komponenten schreiben `border: var(--karte-rand)` und nie `0`, damit die
+     Einstellung wirkt. */
+  /* UX1d (D1): sanfter Schatten der Karte — die Trennung, die den Rahmen
+     ersetzt (Ä2). Eigener Name, weil die Höhen-Schatten (--shadow-md/-lg)
+     für schwebende Flächen gedacht sind. */
+  --schatten-karte: var(--shadow);
+  /* UX1d (D2): die LEISE Trennlinie. Nur wo Abstand allein nicht reicht
+     (Zeilen einer Liste, deren Zeilen dicht stehen), und ohne Kästen-Kante:
+     hell eine Mischung aus Fläche und Linie, dunkel entsprechend. */
+  --rahmen-farbe-leise: color-mix(in srgb, var(--line) 45%, var(--surface));
 
   /* ── Raum (UX1a: Skala des Konzepts 4·8·12·16·24·32·48·64 px) ──────────
      NUR diese acht Stufen. Vorher standen hier 4·8·12·16·20·24·32 (20 und 32
@@ -326,6 +340,19 @@
   --fw-h:   650;
 }
 
+/* ── UX1d (D1): der Kartenrahmen aus der Gestaltungs-Einstellung ──────────
+   `--karte-rahmen` (UX1j, gestaltung/tokens.py) ist eine ZAHL: 0 = ohne
+   Rahmen (Konzept), 1…4 = so viele Pixel. CSS kann daraus keine Linie
+   bauen (`border: 0 solid …` wäre keine Linie), deshalb fällt der Rahmen
+   über `var()` mit Rückfallwert zurück: ist die Variable 0 oder gar nicht
+   gesetzt, gilt `none` (kein Rahmen, kein Platz); steht dort eine Breite,
+   nimmt der Rahmen sie an — in derselben Farbe wie jeder andere Rahmen.
+   Das steht hier und NICHT in der Komponente, damit alle Karten (DkCard,
+   Widget-Karte, Kachel) derselben Einstellung folgen. */
+:root {
+  --karte-rand: var(--karte-rahmen, 0);
+}
+
 /* =====================================================================
    3 · SEMANTISCHE TOKENS — DUNKEL (gleiche Namen)
    DES-R1: Der Waehler nennt zusaetzlich `:root[data-theme="dark"]`, weil das
@@ -392,6 +419,15 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,.35), 0 1px 2px rgba(0,0,0,.25);
   --shadow-md: 0 4px 12px rgba(0,0,0,.40), 0 2px 4px rgba(0,0,0,.30);
   --shadow-lg: 0 14px 40px rgba(0,0,0,.50);
+  /* UX1d (D1): Der sanfte Kartenschatten im Dunkelmodus. Er trennt auf der
+     dunklen Fläche wie im hellen Theme (der Rahmen entfällt ja), darf aber
+     NICHT das Farbpaar --shadow/--shadow-md überschreiben: das würde die
+     Abstands-Schatten der Komponenten still mitverändern. */
+  --schatten-karte: 0 1px 2px rgba(0, 0, 0, .45);
+  /* UX1d (D2): die leise Trennlinie auf dunklem Grund. Im Dunkelmodus ist
+     „heller mischen“ falsch — die Linie liegt zwischen Fläche und
+     etwas hellerer Linienfarbe. */
+  --rahmen-farbe-leise: color-mix(in srgb, var(--dk-ink-line) 60%, var(--surface));
 }
 
 /* =====================================================================

@@ -49,7 +49,9 @@ import {
  */
 const OBERGRENZE = {
   'frontend/src/diakonos/components/registrierung/RegLinkTeilen.vue': 1,
-  'frontend/src/diakonos/index.css': 46,
+  // UX1d (D1): 46 -> 44 — der tote Block `.dk-widget` und die beiden
+  // rgba()-Schatten der Widget-Karte sind entfallen.
+  'frontend/src/diakonos/index.css': 44,
   'frontend/src/diakonos/kronos.css': 29,
   'frontend/src/grundreset.css': 1,
   'frontend/src/shared/kachelfarbe.mjs': 3,

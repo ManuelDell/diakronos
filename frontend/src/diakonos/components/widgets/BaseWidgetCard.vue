@@ -14,14 +14,10 @@
         <span v-if="badgeCount > 0" class="dk-widget-badge">{{ badgeCount }}</span>
       </div>
       <div class="dk-widget-header-actions">
-        <button
-          v-if="!isEditing"
-          class="dk-widget-action-btn"
-          title="Aktualisieren"
-          @click.stop="$emit('refresh')"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-        </button>
+        <!-- UX1d (D3): Hier stand ein „Aktualisieren“-Knopf je Karte. Die Karte
+             lädt selbst; wann sie zuletzt geladen hat, sagt jetzt der kleine
+             Stand-Hinweis unten in Tertiärfarbe. Im Bearbeiten-Modus bleiben
+             die Griffe (verschieben, ein-/ausklappen, ausblenden). -->
         <button
           v-if="isEditing"
           class="dk-widget-action-btn dk-drag-handle"
@@ -76,11 +72,18 @@
       <!-- Content -->
       <slot v-else />
     </div>
+
+    <!-- UX1d (D3): „Stand hh:mm“ in Tertiärfarbe — der einzige Hinweis auf
+         den Ladezeitpunkt, seit der Neuladen-Knopf je Karte entfallen ist
+         (Prinzip S2: Information über Helligkeit, nicht über ein Bedienelement).
+         Er steht NUR, wenn wirklich geladen wurde; vor dem ersten Ladevorgang
+         und im Fehlerfall schwiege er sonst Falsches. -->
+    <p v-if="!collapsed && standText" class="dk-widget-stand">{{ standText }}</p>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 // UX2g: eine angezeigte Fehlermeldung statt der Floskel „Fehler beim Laden".
 import { fehlertext } from '../../../shared/fehlertexte.js'
 
@@ -107,6 +110,28 @@ const emit = defineEmits(['refresh', 'hide', 'collapse-change'])
 const fehlerText = computed(() => fehlertext(props.error ? { message: props.error } : null))
 
 const collapsed = ref(props.initialCollapsed)
+
+/**
+ * UX1d (D3): Der Zeitpunkt des letzten erfolgreichen Ladens, nur in der
+ * Anzeige. Die Karte lädt selbst (ihre Seite ruft `laden()` beim Einbau und
+ * nach jeder Änderung) — deshalb genügt es, den Wechsel von „lädt“ auf
+ * „fertig“ mitzuschreiben. Kein Timer, keine zweite Uhr: der Text steht
+ * still, bis wieder geladen wird.
+ */
+const stand = ref(null)
+watch(
+  () => props.loading,
+  (laedt, vorher) => {
+    if (vorher === true && laedt === false && !props.error) stand.value = new Date()
+  },
+  { immediate: true },
+)
+const standText = computed(() => {
+  if (!stand.value) return ''
+  const stunde = String(stand.value.getHours()).padStart(2, '0')
+  const minute = String(stand.value.getMinutes()).padStart(2, '0')
+  return `Stand ${stunde}:${minute}`
+})
 
 function toggleCollapse() {
   collapsed.value = !collapsed.value

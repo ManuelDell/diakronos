@@ -693,24 +693,13 @@ h1, h2, h3, h4 {
 }
 
 /* Content sidebar (aside, not app sidebar) */
-.dk-aside { display: flex; flex-direction: column; gap: 16px; }
+.dk-aside { display: flex; flex-direction: column; gap: var(--sp-4); }
 
-/* Sidebar widget */
-.dk-widget {
-  background: var(--dk-surface);
-  border: 1px solid var(--dk-border);
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: var(--dk-shadow-xs);
-}
-.dk-widget-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--dk-text-subtle);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin: 0 0 12px;
-}
+/* UX1d: Hier standen `.dk-widget` und `.dk-widget-title` — totes CSS. Kein
+   Bauteil der App trägt die Klasse `dk-widget` (die Karten heißen
+   `dk-widget-card`, ihre Titel `dk-widget-title` im Widget-Block weiter
+   unten); der Eintrag ohne Bindestrich wurde nirgends gerendert und trug
+   als einziger noch eine Kopflinie-Kopie. Entfernt, nicht auskommentiert. */
 
 /* Card grid */
 .dk-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
@@ -1161,7 +1150,7 @@ a.gr-kachel:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
   user-select: none;
 }
 .dk-table thead th:hover { color: var(--dk-text); }
-.dk-table tbody td { padding: 11px 16px; border-top: 1px solid var(--dk-divider); vertical-align: middle; }
+.dk-table tbody td { padding: 11px 16px; border-top: var(--rahmen-breite) solid var(--rahmen-farbe-leise); vertical-align: middle; }
 .dk-table tbody tr { cursor: pointer; transition: background var(--dk-fast); }
 .dk-table tbody tr:hover { background: var(--dk-surface-hover); }
 .dk-table tbody tr:first-child td { border-top: none; }
@@ -1474,84 +1463,97 @@ select.dk-form-select { appearance: auto; }
   .dk-widget-full { grid-column: 1 / -1; }
 }
 
-/* Base Card */
+/* Base Card
+   UX1d (D1): getönte Fläche + sanfter Schatten statt Rahmen und Kopflinie
+   (Prinzip Ä2). Der Rahmen kommt ausschließlich aus der Gestaltungs-
+   Einstellung (--karte-rand, Standard 0 = kein Rahmen). */
 .dk-widget-card {
   background: var(--dk-surface);
-  border: 1px solid var(--dk-border);
-  border-radius: 12px;
+  border: var(--karte-rand) solid var(--rahmen-farbe);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--schatten-karte);
   overflow: hidden;
-  transition: box-shadow 0.15s;
+  transition: box-shadow var(--fast);
 }
 .dk-widget-card:hover {
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  box-shadow: var(--shadow-md);
 }
 .dk-widget-editing {
   outline: 2px dashed var(--dk-brand-500);
   outline-offset: 2px;
 }
 
-/* Header */
+/* Header — kein Versalien-Grau mehr: der Titel ist normal geschrieben,
+   16 px/600 (UX1d, D1). Abstand statt Trennlinie (S3). */
 .dk-widget-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px 10px;
-  border-bottom: 1px solid var(--dk-border);
+  gap: var(--sp-2);
+  padding: var(--karte-innen) var(--karte-innen) 0;
 }
 .dk-widget-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 .dk-widget-title {
-  font-size: 0.82rem;
+  font-size: var(--fs-h3);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--dk-text-muted);
+  color: var(--text);
   margin: 0;
 }
 .dk-widget-badge {
   background: var(--dk-brand-500);
-  color: #fff;
-  border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 1px 6px;
-  min-width: 18px;
+  color: var(--dk-surface);
+  border-radius: var(--badge-r);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  padding: 0 var(--sp-1);
+  min-width: var(--sp-5);
   text-align: center;
 }
 .dk-widget-header-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
 }
 .dk-widget-action-btn {
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--dk-text-muted);
-  padding: 4px;
-  border-radius: 6px;
+  color: var(--muted);
+  padding: var(--sp-1);
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
-  transition: background 0.1s, color 0.1s;
+  transition: background var(--fast), color var(--fast);
 }
 .dk-widget-action-btn:hover { background: var(--dk-surface-2); color: var(--dk-text); }
 .dk-widget-hide-btn:hover   { color: var(--dk-danger); }
 
 /* Body */
 .dk-widget-body {
-  padding: 14px 16px;
+  padding: var(--sp-3) var(--karte-innen) var(--karte-innen);
+}
+
+/* UX1d (D3): „Stand hh:mm“ — Tertiärfarbe, damit sie hinter dem Inhalt
+   zurücktritt (Prinzip S2: Hierarchie über Helligkeit). */
+.dk-widget-stand {
+  margin: 0;
+  padding: 0 var(--karte-innen) var(--sp-3);
+  color: var(--subtle);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Skeleton */
 .dk-widget-skeleton-card { min-height: 120px; }
 .dk-skeleton-line {
-  height: 12px;
+  height: var(--sp-3);
   background: var(--dk-border);
-  border-radius: 6px;
-  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--sp-2);
   animation: dk-pulse 1.5s ease-in-out infinite;
 }
 @keyframes dk-pulse {
@@ -1676,7 +1678,8 @@ select.dk-form-select { appearance: auto; }
   align-items: stretch;
   gap: 10px;
   padding: 8px 4px;
-  border-bottom: 1px solid var(--dk-border);
+  /* UX1d (D2): leise Trennung — die Karten dieser Listen stehen dicht. */
+  border-bottom: var(--rahmen-breite) solid var(--rahmen-farbe-leise);
 }
 .wl-event:last-child { border-bottom: none; }
 .wl-event-accent {
@@ -1691,7 +1694,7 @@ select.dk-form-select { appearance: auto; }
 
 .wl-announce {
   padding: 8px 4px;
-  border-bottom: 1px solid var(--dk-border);
+  border-bottom: var(--rahmen-breite) solid var(--rahmen-farbe-leise);
 }
 .wl-announce:last-child { border-bottom: none; }
 .wl-announce-title { font-size: 0.875rem; font-weight: 600; color: var(--dk-text); margin-bottom: 3px; }
@@ -1703,7 +1706,7 @@ select.dk-form-select { appearance: auto; }
   justify-content: space-between;
   gap: 8px;
   padding: 8px 4px;
-  border-bottom: 1px solid var(--dk-border);
+  border-bottom: var(--rahmen-breite) solid var(--rahmen-farbe-leise);
 }
 .wl-wiki:last-child { border-bottom: none; }
 .wl-wiki-title { font-size: 0.875rem; font-weight: 500; color: var(--dk-brand-400); text-decoration: none; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -162,7 +162,8 @@ function filterWechseln(wert) {
   justify-content: space-between;
   gap: var(--sp-3);
   padding: var(--sp-3) 0;
-  border-top: 1px solid var(--divider);
+  /* UX1d (D2): leise Trennung statt harter Kante. */
+  border-top: var(--rahmen-breite) solid var(--rahmen-farbe-leise);
   flex-wrap: wrap;
 }
 .la-zeile:first-child { border-top: none; }

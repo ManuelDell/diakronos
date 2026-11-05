@@ -21,6 +21,18 @@
 /**
  * DkCard — ruhige Fläche mit optionalem Kopf, Aktionen und Fuß (Stil A).
  * Nur Tokens, keine festen Farben.
+ *
+ * UX1d (D1): Die Karte hat KEINEN Rahmen und KEINE Kopflinie mehr. Sie
+ * trennt sich über ihre getönte Fläche und den sanften Kartenschatten
+ * (--schatten-karte) vom Grund — Prinzip Ä2 „Abstand/getönte Fläche/sanfter
+ * Schatten statt Linien und Kästen“. Der Kopf trägt den Titel in normaler
+ * Schreibung (16 px/600), nicht mehr in Versalien-Grau; Kopf und Körper
+ * liegen auf derselben Fläche, getrennt nur durch Abstand (Prinzip S3).
+ *
+ * Die Breite eines Rahmens kommt aus der Gestaltungs-Einstellung
+ * (--karte-rand, Standard 0 = kein Rahmen): wer in den Einstellungen einen Rahmen
+ * wählt, bekommt ihn hier — ohne dass die Komponente einen eigenen Wert
+ * kennt.
  */
 defineProps({
   title: { type: String, default: '' },
@@ -32,9 +44,9 @@ defineProps({
 <style scoped>
 .dk-ui-card {
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: var(--karte-rand) solid var(--rahmen-farbe);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
+  box-shadow: var(--schatten-karte);
   overflow: hidden;
 }
 .dk-ui-card-kopf {
@@ -43,16 +55,23 @@ defineProps({
   justify-content: space-between;
   gap: var(--sp-2);
   flex-wrap: wrap;
-  padding: var(--pad) calc(var(--pad) * 1.2);
-  border-bottom: 1px solid var(--line);
+  padding: var(--karte-innen) var(--karte-innen) 0;
 }
-.dk-ui-card-titel { font-size: var(--fs-h3); font-weight: var(--fw-h); margin: 0; color: var(--text); }
+.dk-ui-card-titel {
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  margin: 0;
+  color: var(--text);
+}
 .dk-ui-card-aktionen { display: flex; align-items: center; gap: var(--sp-2); }
-.dk-ui-card-koerper { padding: calc(var(--pad) * 1.2); }
+.dk-ui-card-koerper { padding: var(--karte-innen); }
 .dk-ui-card-koerper.is-flach { padding: 0; }
+/* Mit Kopf sitzt der Körper unter dem Titel — der Abstand kommt aus dem
+   Kopf (padding-bottom 0 + gap unten), damit Titel und Inhalt eine Gruppe
+   bilden und nicht durch eine Linie getrennt werden. */
+.dk-ui-card-kopf + .dk-ui-card-koerper { padding-top: var(--sp-3); }
 .dk-ui-card-fuss {
-  padding: var(--pad) calc(var(--pad) * 1.2);
-  border-top: 1px solid var(--line);
+  padding: var(--sp-3) var(--karte-innen) var(--karte-innen);
   background: var(--surface-2);
 }
 </style>

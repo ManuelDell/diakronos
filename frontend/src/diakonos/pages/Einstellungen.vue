@@ -125,7 +125,10 @@ const inhalt = computed(() =>
   gap: var(--sp-1);
   padding: var(--sp-2);
   background: var(--surface);
-  border: 1px solid var(--line);
+  /* UX1d (D2): Der Kasten um die Abschnittsliste war der äußere „Rahmen im
+     Rahmen“ — die Liste ist eine Navigation, keine Karte in einer Karte.
+     Getönte Fläche genügt; der Rahmen kommt nur aus der Einstellung. */
+  border: var(--karte-rand) solid var(--rahmen-farbe);
   border-radius: var(--radius-lg);
 }
 .ei-eintrag {
@@ -133,7 +136,7 @@ const inhalt = computed(() =>
   border-radius: var(--radius-sm);
   color: var(--muted);
   text-decoration: none;
-  font-weight: 550;
+  font-weight: 500;
 }
 .ei-eintrag:hover { color: var(--text); background: var(--surface-2); }
 .ei-eintrag.is-active { color: var(--primary); background: var(--surface-2); }
