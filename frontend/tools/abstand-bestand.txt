@@ -20,7 +20,7 @@
 #   * neue Datei mit festen Werten          -> rot (nicht in der Liste = 0 erlaubt)
 # Erzeugt mit (aus frontend/ heraus): node tools/abstand-bestand.mjs --schreiben
 #
-# Stand (UX1a2, F5): 1652 Fundstellen in 123 Dateien.
+# Stand (UX1a2, F5): 1630 Fundstellen in 122 Dateien.
 frontend/src/diakonos/App.vue	10
 frontend/src/diakonos/components/AppBottomNav.vue	24
 frontend/src/diakonos/components/MitgliedAuswahl.vue	15
@@ -41,17 +41,17 @@ frontend/src/diakonos/components/einrichtung/SchrittMitgliederKalender.vue	5
 frontend/src/diakonos/components/einrichtung/SchrittModule.vue	1
 frontend/src/diakonos/components/gruppen/OrganigrammAnsicht.vue	9
 frontend/src/diakonos/components/kronos/KronosConflictDialog.vue	1
-frontend/src/diakonos/components/kronos/KronosEventCreate.vue	11
-frontend/src/diakonos/components/kronos/KronosEventEdit.vue	11
+frontend/src/diakonos/components/kronos/KronosEventCreate.vue	8
+frontend/src/diakonos/components/kronos/KronosEventEdit.vue	8
 frontend/src/diakonos/components/kronos/KronosEventView.vue	3
 frontend/src/diakonos/components/kronos/KronosMiniCalendar.vue	7
 frontend/src/diakonos/components/kronos/KronosSeriesDialog.vue	1
 frontend/src/diakonos/components/kronos/KronosSidebar.vue	7
-frontend/src/diakonos/components/kronos/KronosTopbar.vue	16
+frontend/src/diakonos/components/kronos/KronosTopbar.vue	13
 frontend/src/diakonos/components/kronos/ModerationAenderungen.vue	6
 frontend/src/diakonos/components/kronos/ModerationBoard.vue	18
-frontend/src/diakonos/components/kronos/ModerationCard.vue	25
-frontend/src/diakonos/components/kronos/ModerationModals.vue	10
+frontend/src/diakonos/components/kronos/ModerationCard.vue	23
+frontend/src/diakonos/components/kronos/ModerationModals.vue	8
 frontend/src/diakonos/components/lieder/LiedBearbeiten.vue	7
 frontend/src/diakonos/components/lieder/LiedgruppeBearbeiten.vue	1
 frontend/src/diakonos/components/mitglieder/MitgliedHinzufuegenDialog.vue	2
@@ -93,7 +93,6 @@ frontend/src/diakonos/components/ui/DkDatumZeit.vue	1
 frontend/src/diakonos/components/ui/DkDialog.vue	3
 frontend/src/diakonos/components/ui/DkEingabe.vue	2
 frontend/src/diakonos/components/ui/DkFehlertext.vue	1
-frontend/src/diakonos/components/ui/DkField.vue	1
 frontend/src/diakonos/components/ui/DkHint.vue	2
 frontend/src/diakonos/components/ui/DkSegment.vue	4
 frontend/src/diakonos/components/ui/DkSelect.vue	2
@@ -105,7 +104,7 @@ frontend/src/diakonos/components/website/FreigabeZeile.vue	2
 frontend/src/diakonos/components/widgets/MyServicesWidget.vue	7
 frontend/src/diakonos/components/widgets/PendingRegistrationsWidget.vue	13
 frontend/src/diakonos/index.css	293
-frontend/src/diakonos/kronos.css	188
+frontend/src/diakonos/kronos.css	180
 frontend/src/diakonos/pages/Adressbuch.vue	9
 frontend/src/diakonos/pages/Beitraege.vue	10
 frontend/src/diakonos/pages/GruppeDetail.vue	9

@@ -59,23 +59,32 @@
       </template>
     </div>
 
-    <a
+    <!-- UX1e: EIN Knopf-System — die beiden Link-Knöpfe der Leiste waren
+         eigene Links mit Eigenklasse und sind jetzt DkButton (gleiche Ziele,
+         gleiche Beschriftung, weiter echte Links). -->
+    <DkButton
       v-if="zeigeVerwalten"
-      class="sidebar-import-btn"
+      as="a"
+      class="sb-navigationsknopf"
+      variant="ghost"
+      size="sm"
       href="#/kalender/verwalten"
       @click.prevent="navigate('#/kalender/verwalten')"
     >
-      <span class="sidebar-import-icon" aria-hidden="true">⚙</span> Kalender verwalten
-    </a>
+      <span aria-hidden="true">⚙</span> Kalender verwalten
+    </DkButton>
 
-    <a
+    <DkButton
       v-if="showImport"
-      class="sidebar-import-btn"
+      as="a"
+      class="sb-navigationsknopf"
+      variant="ghost"
+      size="sm"
       href="#/kalender/import"
       @click.prevent="navigate('#/kalender/import')"
     >
-      <span class="sidebar-import-icon">⬆</span> Kalender importieren
-    </a>
+      <span aria-hidden="true">⬆</span> Kalender importieren
+    </DkButton>
 
     <!-- K-A (R-P1-8): Die eigenen abgelehnten Termine. Abgelehnte Termine
          bleiben aus allen Listen heraus; hier bekommt der Antragsteller den
@@ -94,9 +103,9 @@
       </button>
     </div>
 
-    <button class="sidebar-help-btn" @click="showHelp = true">
-      <span class="sidebar-help-icon">?</span> Hilfe &amp; Infos
-    </button>
+    <DkButton class="sb-navigationsknopf" variant="ghost" size="sm" @click="showHelp = true">
+      <span aria-hidden="true">?</span> Hilfe &amp; Infos
+    </DkButton>
 
     <div
       v-if="showHelp"
@@ -176,6 +185,8 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
+// UX1e: EIN Knopf-System (verwalten/importieren/Hilfe).
+import DkButton from '../ui/DkButton.vue';
 import { navigate } from '../../router.js';
 import { apiCall } from '../../composables/useApi.js';
 import { useKronosStore } from '../../composables/useKronosStore.js';
@@ -307,6 +318,38 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* UX1e: Die Navigationsknöpfe der Leiste (Kalender verwalten, Kalender
+   importieren, Hilfe & Infos). Vor UX1e standen die Eigenklassen
+   `.sidebar-help-btn` / `.sidebar-import-btn` doppelt in kronos.css (zwei
+   parallele Regelsätze, zwei Optiken); UX1e hat sie durch DkButton (ghost, sm)
+   ersetzt, UX1e2 die toten CSS-Regeln entfernt. Hier bleibt nur die Lage in
+   der Leiste plus die Farben der dunklen Fläche. Werte aus tokens.css, keine
+   festen Farben. */
+/* UX1e2: Die Navigationsknöpfe der Leiste stehen auf der dunklen
+   Seitenleisten-Fläche (--dk-sb-bg). Die Ghost-Variante des Knopf-Systems
+   nimmt --muted/--surface-hover — Farben der HELLEN Fläche; auf der Leiste war
+   die Beschriftung dadurch zu blass und der Hover ein heller Block. Hier
+   bekommt der Knopf die Farben der Leiste: Schrift var(--dk-sb-text), Hover
+   var(--dk-sb-hover) — dieselben Tokens, die die Leiste selbst benutzt, keine
+   neuen Farbwerte. Das ist Gestaltung, KEIN Layout: nur Farben, damit die
+   Regel in jeder Breite gilt und nicht an eine Media-Query gekoppelt ist. */
+.sb-navigationsknopf {
+  /* UX1e2: `display: flex` statt `inline-flex`. Der Knopf ist inline-flex; bei
+     `width: calc(100% - …)` bleibt ein inline-flex-Element dann auf Inhalts-
+     breite (gemessen 22 px — nur das Symbol, der Text wurde abgeschnitten).
+     Als Block-Flex nimmt er die Breite der Leiste an. */
+  display: flex;
+  width: calc(100% - var(--sp-5) * 2);
+  margin: var(--sp-1) var(--sp-5);
+  justify-content: flex-start;
+  color: var(--dk-sb-text);
+  background: transparent;
+}
+.sb-navigationsknopf:hover:not(:disabled),
+.sb-navigationsknopf:focus-visible:not(:disabled) {
+  color: var(--dk-sb-text);
+  background: var(--dk-sb-hover);
+}
 .ksb-hinweis {
   padding: var(--sp-3);
   margin: 0;

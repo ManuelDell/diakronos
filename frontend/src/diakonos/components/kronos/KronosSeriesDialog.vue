@@ -7,6 +7,8 @@ import { showToast } from '../../composables/useToast.js'
 import { useDialogFokus } from '../../composables/useDialogFokus.js'
 // UXD-R28: Terminfarbe nur als gueltiger Hex-Wert in den style-String.
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js'
+// UX1e: EIN Knopf-System — die drei alten `.btn btn-*`-Knöpfe sind DkButton.
+import DkButton from '../ui/DkButton.vue'
 
 const mode = ref(null)      // 'drag' | 'edit'
 const visible = ref(false)
@@ -153,7 +155,7 @@ defineExpose({ showDragConfirmation, showEditOptions })
           <template v-if="mode === 'drag'">
             <div class="diakronos-modal-header">
               <h5>Serientermin</h5>
-              <button class="diakronos-close-btn" @click="close(null)">&times;</button>
+              <button class="diakronos-close-btn" aria-label="Schließen" @click="close(null)">&times;</button>
             </div>
             <div class="diakronos-modal-body drag-confirm-body">
               <p class="series-event-name">{{ eventData?.title }}</p>
@@ -164,8 +166,8 @@ defineExpose({ showDragConfirmation, showEditOptions })
               </label>
             </div>
             <div class="diakronos-modal-footer">
-              <button class="btn btn-secondary" @click="close(null)">Abbrechen</button>
-              <button class="btn btn-primary" @click="close({ confirmed: true, rememberSession })">Ja, Sicher</button>
+              <DkButton variant="secondary" @click="close(null)">Abbrechen</DkButton>
+              <DkButton variant="primary" @click="close({ confirmed: true, rememberSession })">Sichern</DkButton>
             </div>
           </template>
 
@@ -173,7 +175,7 @@ defineExpose({ showDragConfirmation, showEditOptions })
           <template v-else-if="mode === 'edit'">
             <div class="diakronos-modal-header">
               <h5>Serientermin</h5>
-              <button class="diakronos-close-btn" @click="close('cancelled')">&times;</button>
+              <button class="diakronos-close-btn" aria-label="Schließen" @click="close('cancelled')">&times;</button>
             </div>
             <div class="diakronos-modal-body">
               <p class="series-event-name">{{ eventData?.element_name }}</p>
@@ -183,23 +185,34 @@ defineExpose({ showDragConfirmation, showEditOptions })
                   {{ loeschWarnung }}
                 </p>
                 <div class="series-option-btns">
-                  <button class="btn btn-danger" :disabled="loescht" @click="deleteAction(confirmLoeschen)">
-                    {{ loescht ? 'Lösche…' : 'Ja, löschen' }}
-                  </button>
-                  <button class="btn btn-secondary" :disabled="loescht" @click="zurueck">Abbrechen</button>
+                  <DkButton variant="danger" :disabled="loescht" @click="deleteAction(confirmLoeschen)">
+                    {{ loescht ? 'Wird gelöscht …' : 'Ja, löschen' }}
+                  </DkButton>
+                  <DkButton variant="secondary" :disabled="loescht" @click="zurueck">Abbrechen</DkButton>
                 </div>
               </template>
               <template v-else>
                 <p>Was möchtest du tun?</p>
                 <div class="series-option-btns">
-                  <button class="btn btn-primary" @click="close('edit')">Bearbeiten als Einzeltermin</button>
-                  <button class="btn btn-danger" @click="confirmLoeschen = 'future'">Alle nachfolgenden löschen</button>
-                  <button class="btn btn-danger" @click="confirmLoeschen = 'all'">Gesamte Serie löschen</button>
+                  <!-- UX1e2: nur EIN gefüllter Knopf je Fuß. „Bearbeiten als
+                       Einzeltermin“ ist der Hauptweg; die beiden Lösch-Wege
+                       daneben waren gefüllt-rot und zogen den Blick auf die
+                       Nebenaktion. Sie öffnen nur die Rückfrage, deshalb
+                       secondary mit Gefahrenfarbe in der Schrift
+                       (`.series-loeschen-schrift`). Schließen (ohne Änderung)
+                       steht als Kreuz im Kopf — der Fuß trägt keine zweite
+                       Nebenaktion. -->
+                  <DkButton variant="primary" @click="close('edit')">Bearbeiten als Einzeltermin</DkButton>
+                  <DkButton variant="secondary" class="series-loeschen-schrift" @click="confirmLoeschen = 'future'">Alle nachfolgenden löschen</DkButton>
+                  <DkButton variant="secondary" class="series-loeschen-schrift" @click="confirmLoeschen = 'all'">Gesamte Serie löschen</DkButton>
                 </div>
               </template>
             </div>
             <div class="diakronos-modal-footer">
-              <button class="btn btn-secondary" @click="close('cancelled')">Abbrechen</button>
+              <!-- 1b: Die Liste hat drei Knöpfe; bearbeiten bleibt der
+                   Hauptweg. Ein zweiter gefüllter Knopf daneben wäre ein
+                   zweiter Primärknopf in derselben Ansicht (S1). -->
+              <DkButton variant="secondary" @click="close('cancelled')">Abbrechen</DkButton>
             </div>
           </template>
         </div>
@@ -223,4 +236,10 @@ input[type="checkbox"] {
   color: var(--err);
   font-weight: 500;
 }
+/* UX1e2: die beiden Lösch-Wege sind Nebenaktionen (sie öffnen nur die
+   Rückfrage). Fläche secondary, Gefahr in der Schrift — gleiche Farbe wie die
+   Warnung darüber und wie der Gefahrenknopf (--err, im Dunkelmodus eigener
+   Wert). */
+.series-loeschen-schrift { color: var(--err); }
+.series-loeschen-schrift:hover:not(:disabled) { color: var(--err); }
 </style>

@@ -1857,6 +1857,12 @@ input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
      Höhe aus `--control-h` holt, folgt mit. */
   :root {
     --control-h: 44px;
+    /* UX1e2: `--filter-h` zeigt in tokens.css auf `--control-h`, wird aber
+       EINMAL in `:root` ausgewertet — beim Media-Query-Wechsel bleibt der
+       alte Wert (40 px) stehen, und alles, was seine Höhe aus `--filter-h`
+       holt (DkButton „md“), bliebe auf dem Handy zu niedrig. Deshalb hier
+       ausdrücklich mitziehen. */
+    --filter-h: var(--control-h);
   }
   input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
     font-size: 16px;

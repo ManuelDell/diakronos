@@ -1,8 +1,9 @@
 <template>
   <input
+    v-bind="eingabeAttrs()"
     class="dk-ui-eingabe dk-ui-eingabe--feld"
     :type="type"
-    :value="modelValue"
+    :value="modelValue ?? $attrs.value"
     :placeholder="placeholder"
     :autocomplete="autocomplete"
     :disabled="disabled"
@@ -24,19 +25,47 @@
  * tokens.css, dort fehlte sie: Felder in der Registrierung waren die
  * Browser-Vorgaben. Die Farben unten sind dieselben wie in index.css.
  *
- * Verwendung immer innerhalb von <DkField>, damit Label, Pflichtzeichen und
- * Fehlertext aus einer Quelle kommen:
+ * UX2f (BEFUND der Abnahme im Wegwerf-Stack): Das Feld reichte NUR seine
+ * eigenen Props durch. Was `DkField` über `v-bind="feld.feldProps"` zusätzlich
+ * bindet — `id`, `aria-describedby`, `aria-invalid`, `onBlur`, `onFocus`,
+ * `minlength`, `maxlength` — kam als „Attribut" an, und Vue hängt automatisch
+ * nur `class`/`style` an ein Element. Folge: die Prüfung von DkField war am
+ * Feld UNSICHTBAR (kein Blur-Handler, keine aria-Auszeichnung). Deshalb jetzt
+ * `v-bind="$attrs"` am Eingabeelement und `inheritAttrs: false`, damit nichts
+ * doppelt landet.
  *
- *   <DkField label="Vorname" required>
- *     <template #default="{ id, ariaDescribedby, ariaInvalid }">
- *       <DkEingabe :id="id" v-model="form.vorname" :aria-describedby="ariaDescribedby" :aria-invalid="ariaInvalid" />
- *     </template>
+ * UX2f2a (Review-Befund, Punkt 3): `$attrs` brachte ZWEI Dinge durcheinander.
+ *
+ *   * `:value="modelValue"` stand HINTER `v-bind="$attrs"` und überschrieb
+ *     damit den Wert aus dem Feldsatz: `modelValue` hatte die Vorgabe `''`,
+ *     also zeigte ein Feld wie „Kontakt-E-Mail" (`:wert` gesetzt, kein
+ *     `v-model` an DkEingabe) immer leer. Jetzt ist die Vorgabe `undefined`,
+ *     und der Wert kommt aus `modelValue`, sonst aus `$attrs.value`.
+ *   * `onUpdate:modelValue` aus `$attrs` und das eigene
+ *     `update:modelValue` lösten BEIDE aus — eine Eingabe wurde doppelt
+ *     weitergereicht (Zähler, Dublettenprüfung u. a. liefen zweimal). Der
+ *     Zuhörer aus `$attrs` wird nicht mehr angenommen; das eigene
+ *     `update:modelValue` bleibt. `feldProps` liefert ihn seit UX2f2a auch
+ *     nicht mehr (Eingabeannahme läuft über `onInput`).
+ *
+ * Verwendung immer innerhalb von <DkField>:
+ *
+ *   <DkField label="E-Mail" :regel="email()" :wert="form.email"
+ *            @update:wert="form.email = $event">
+ *     <DkEingabe v-bind="feldProps" type="email" />
  *   </DkField>
  *
  * Nur Tokens, keine festen Farben (Wächter-Test).
  */
+import { useAttrs } from 'vue'
+
+defineOptions({ inheritAttrs: false })
+
+const attrs = useAttrs()
+
 defineProps({
-  modelValue: { type: [String, Number], default: '' },
+  // UX2f2a: Vorgabe `undefined` — dann zählt der Wert aus `$attrs` (Feldsatz).
+  modelValue: { type: [String, Number], default: undefined },
   type: { type: String, default: 'text' },
   placeholder: { type: String, default: '' },
   autocomplete: { type: String, default: undefined },
@@ -45,6 +74,17 @@ defineProps({
   name: { type: String, default: undefined },
 })
 defineEmits(['update:modelValue'])
+
+/**
+ * Attribute für das Eingabeelement: `$attrs` OHNE `onUpdate:modelValue`.
+ * Der Zuhörer aus dem Feldsatz würde zusammen mit dem eigenen
+ * `update:modelValue` doppelt feuern (Punkt 3) — er wird hier entfernt.
+ */
+function eingabeAttrs() {
+  const rest = { ...attrs }
+  delete rest['onUpdate:modelValue']
+  return rest
+}
 </script>
 
 <style scoped>

@@ -431,30 +431,12 @@
   line-height: 1;
   white-space: nowrap;
 }
-.sidebar-help-btn,
-.sidebar-import-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: calc(100% - 32px);
-  margin: 4px 16px;
-  padding: 8px 14px;
-  background: transparent;
-  border: 1px solid var(--dk-border);
-  border-radius: 8px;
-  color: var(--dk-text-muted);
-  font-size: 13px;
-  cursor: pointer;
-  text-decoration: none;
-  transition: all 150ms ease;
-  white-space: nowrap;
-}
-.sidebar-help-btn:hover,
-.sidebar-import-btn:hover {
-  background: var(--dk-surface-2);
-  border-color: var(--line-strong);
-  color: var(--dk-text);
-}
+/* UX1e2: Hier standen zwei parallele Regelsätze für die Eigenknöpfe
+   `.sidebar-help-btn` / `.sidebar-import-btn` (Leisten-Knöpfe „Kalender
+   verwalten“, „Kalender importieren“, „Hilfe & Infos“). Seit UX1e sind diese
+   Knöpfe `<DkButton variant="ghost" size="sm">` mit der Klasse
+   `.sb-navigationsknopf` (KronosSidebar.vue); die Klassen kamen im Quellbaum
+   nicht mehr vor — tote Regeln, entfernt. */
 
 /* ============================================================
    MINI KALENDER
@@ -1329,35 +1311,11 @@ html[data-theme] .ec,
   line-height: 1;
   white-space: nowrap;
 }
-/* Footer buttons: same style as .dk-nav-item */
-.kronos-sidebar .sidebar-help-btn,
-.kronos-sidebar .sidebar-import-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--dk-sb-text);
-  background: transparent;
-  border: none;
-  border-top: 1px solid var(--dk-sb-border);
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  text-decoration: none;
-  transition: background 150ms ease;
-}
-.kronos-sidebar .sidebar-help-btn:hover,
-.kronos-sidebar .sidebar-import-btn:hover {
-  background: var(--dk-sb-hover);
-  color: #fff;
-}
-.kronos-sidebar .sidebar-help-icon,
-.kronos-sidebar .sidebar-import-icon {
-  color: var(--dk-sb-text-muted);
-  font-size: 13px;
-}
+/* UX1e2: Der zweite, konkurrierende Regelsatz für `.sidebar-help-btn` /
+   `.sidebar-import-btn` („Footer buttons: same style as .dk-nav-item“) ist
+   ebenfalls tote Regel — dieselbe Umstellung auf DkButton, siehe oben.
+   Die Farben der Leiste (--dk-sb-text / --dk-sb-hover) setzt jetzt
+   KronosSidebar.vue an `.sb-navigationsknopf`. */
 /* Checkbox colors on dark bg */
 .kronos-sidebar .calendar-item input[type=checkbox] {
   accent-color: var(--calendar-color, var(--dk-brand-500));

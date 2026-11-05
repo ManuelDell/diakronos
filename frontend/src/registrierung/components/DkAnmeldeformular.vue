@@ -36,24 +36,27 @@
 
         <form @submit.prevent="vorschau ? null : absenden()" class="dk-pub-form" novalidate>
             <div class="dk-pub-grid-2">
-                <DkField label="Vorname" required>
-                    <template #default="{ id, ariaDescribedby, ariaInvalid }">
-                        <DkEingabe :id="id" v-model="form.vorname" autocomplete="given-name"
-                                   :aria-describedby="ariaDescribedby" :aria-invalid="ariaInvalid" />
-                    </template>
+                <!-- UX2f: Feld mit Prüfung — Meldung beim Verlassen des Feldes,
+                     danach beim Tippen; direkt am Feld, nicht nur oben im Kasten. -->
+                <DkField label="Vorname" required :regel="regelVorname" :wert="form.vorname"
+                         pflicht-name="einen Vornamen" maxlength="140"
+                         v-slot="feld"
+                         @update:wert="form.vorname = $event">
+                    <input v-bind="feld.feldProps" type="text" autocomplete="given-name" />
                 </DkField>
-                <DkField label="Nachname" required>
-                    <template #default="{ id, ariaDescribedby, ariaInvalid }">
-                        <DkEingabe :id="id" v-model="form.nachname" autocomplete="family-name"
-                                   :aria-describedby="ariaDescribedby" :aria-invalid="ariaInvalid" />
-                    </template>
+                <DkField label="Nachname" required :regel="regelNachname" :wert="form.nachname"
+                         pflicht-name="einen Nachnamen" maxlength="140"
+                         v-slot="feld"
+                         @update:wert="form.nachname = $event">
+                    <input v-bind="feld.feldProps" type="text" autocomplete="family-name" />
                 </DkField>
             </div>
-            <DkField label="E-Mail (empfohlen)">
-                <template #default="{ id, ariaDescribedby, ariaInvalid }">
-                    <DkEingabe :id="id" type="email" v-model="form.email" autocomplete="email"
-                               :aria-describedby="ariaDescribedby" :aria-invalid="ariaInvalid" />
-                </template>
+            <DkField label="E-Mail (empfohlen)" :regel="regelEmail" :wert="form.email"
+                     maxlength="255"
+                     help="Ohne Adresse kann die Gemeinde dich nicht erreichen."
+                     v-slot="feld"
+                     @update:wert="form.email = $event">
+                <input v-bind="feld.feldProps" type="email" autocomplete="email" />
             </DkField>
             <div class="dk-pub-grid-2">
                 <DkField label="Telefon (optional)">
@@ -207,6 +210,8 @@ import DkButton from '../../diakonos/components/ui/DkButton.vue'
 import DkField from '../../diakonos/components/ui/DkField.vue'
 import DkEingabe from '../../diakonos/components/ui/DkEingabe.vue'
 import DkFehlertext from '../../diakonos/components/ui/DkFehlertext.vue'
+// UX2f: Prüfregeln aus EINER Quelle (Feld und Absenden nutzen dieselben).
+import { pflicht, email as emailRegel, laenge as laengeRegel } from '../../diakonos/composables/feldPruefung.mjs'
 
 const props = defineProps({
     /** Formular im Vorschau-Modus: keine Absendung, Hinweis darueber. */
@@ -270,11 +275,30 @@ function feldtypToInput(typ) {
     return { Text: 'text', Zahl: 'number', Datum: 'date' }[typ] || 'text'
 }
 
+// UX2f: Regeln der Felder — dieselben Texte am Feld und beim Absenden.
+const regelVorname = (wert) => pflicht('einen Vornamen')(wert) || laengeRegel({ max: 140, name: 'Der Vorname' })(wert)
+const regelNachname = (wert) => pflicht('einen Nachnamen')(wert) || laengeRegel({ max: 140, name: 'Der Nachname' })(wert)
+// Die E-Mail ist hier ausdrücklich freiwillig („empfohlen") — geprüft wird
+// nur, was dasteht.
+const regelEmail = (wert, f) => (String(wert ?? '').trim() ? emailRegel()(wert, f) : '')
+
 async function absenden() {
     if (props.vorschau) return
     fehler.value = ''
-    if (!form.vorname.trim() || !form.nachname.trim()) {
-        fehler.value = 'Vor- und Nachname sind Pflichtfelder.'
+    // UX2f: Die Feldmeldungen stehen am Feld (DkField). Bleibt dort alles
+    // leer, sagt der Kasten oben, WAS fehlt — die Eingaben bleiben stehen.
+    const vornameFehler = regelVorname(form.vorname)
+    const nachnameFehler = regelNachname(form.nachname)
+    if (vornameFehler || nachnameFehler) {
+        fehler.value = vornameFehler && nachnameFehler
+            ? 'Bitte Vor- und Nachnamen angeben.'
+            : (vornameFehler || nachnameFehler)
+        requestAnimationFrame(() => document.querySelector('.dk-pub-form [aria-invalid="true"]')?.focus())
+        return
+    }
+    const emailFehler = regelEmail(form.email)
+    if (emailFehler) {
+        fehler.value = emailFehler
         return
     }
     if (!form.dsgvo) {

@@ -15,6 +15,26 @@ import { fehlertext } from '../../shared/fehlertexte.js'
  * (ja/nein). Deshalb ist `passwort` im Formular immer leer: wer nichts
  * eintippt, lässt das hinterlegte Passwort unverändert.
  */
+// UX2f: Prüfregeln aus EINER Quelle (Feld, Sammelprüfung, Testmail).
+import { pflicht, email as emailRegel } from './feldPruefung.mjs'
+
+/** Absenderadresse: Pflicht und gültige Adresse. */
+export function regelAbsender(wert) {
+    return pflicht('eine Absenderadresse')(wert) || emailRegel()(wert)
+}
+
+/** Mailserver: Pflicht, ein Name wie mail.example.org (ohne Schema, ohne Schrägstrich). */
+export function regelHost(wert) {
+    const roh = String(wert ?? '').trim()
+    if (!roh) return 'Bitte den Namen des Mailservers angeben – z. B. mail.example.org.'
+    if (/^[a-z]+:\/\//i.test(roh)) return 'Ohne http:// davor – z. B. mail.example.org.'
+    if (roh.includes('/')) return 'Ohne Schrägstrich – z. B. mail.example.org.'
+    if (/\s/.test(roh)) return 'Der Name enthält ein Leerzeichen – z. B. mail.example.org.'
+    if (!/^[A-Za-z0-9][A-Za-z0-9.-]*[A-Za-z0-9]$/.test(roh)) {
+        return 'Der Name enthält ein unerlaubtes Zeichen – z. B. mail.example.org.'
+    }
+    return ''
+}
 const API = 'diakronos.diakronos.api.mailversand.'
 
 /**
@@ -130,17 +150,16 @@ export function useMailversand() {
      */
     function pruefeFormular({ alsTest = false } = {}) {
         const f = form.value
-        if (!String(f.host || '').trim()) return 'Bitte den Namen des Mailservers angeben.'
-        if (!/^[A-Za-z0-9][A-Za-z0-9.-]*[A-Za-z0-9]$/.test(String(f.host).trim())) {
-            return 'Der Mailserver ist ein Name wie mail.example.org — ohne http:// und ohne Schrägstrich.'
-        }
+        // UX2f: dieselbe Prüfung wie am Feld (composables/feldPruefung.mjs),
+        // damit die Meldung beim Speichern nicht anders lautet als daneben.
+        const hostFehler = regelHost(f.host)
+        if (hostFehler) return hostFehler
         const port = Number(f.port)
         if (!Number.isInteger(port) || port < 1 || port > 65535) {
             return 'Bitte den Port als Zahl angeben (meist 587).'
         }
-        if (!String(f.absender || '').includes('@')) {
-            return 'Bitte die Absenderadresse angeben.'
-        }
+        const absenderFehler = regelAbsender(f.absender)
+        if (absenderFehler) return absenderFehler
         if (f.sicherheit === 'keine' && String(f.benutzername || '').trim()) {
             return 'Ohne Verschlüsselung geht der Mailversand nur ohne Anmeldung.'
         }

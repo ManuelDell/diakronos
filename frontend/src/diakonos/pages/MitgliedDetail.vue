@@ -102,14 +102,43 @@
             <!-- Bearbeiten -->
             <div v-else class="edit-form">
                 <div class="edit-grid">
-                    <DkField label="Vorname" required :error="formFehler.vorname">
-                        <input v-model="editForm.vorname" type="text" class="dk-ui-eingabe" maxlength="140" />
+                    <DkField
+                        label="Vorname"
+                        required
+                        :error="formFehler.vorname"
+                        :regel="regelVorname"
+                        :wert="editForm.vorname"
+                        pflicht-name="einen Vornamen"
+                        maxlength="140"
+                        @update:wert="editForm.vorname = $event"
+                        v-slot="feld"
+                    >
+                        <input v-bind="feld.feldProps" type="text" autocomplete="given-name" />
                     </DkField>
-                    <DkField label="Nachname" required :error="formFehler.nachname">
-                        <input v-model="editForm.nachname" type="text" class="dk-ui-eingabe" maxlength="140" />
+                    <DkField
+                        label="Nachname"
+                        required
+                        :error="formFehler.nachname"
+                        :regel="regelNachname"
+                        :wert="editForm.nachname"
+                        pflicht-name="einen Nachnamen"
+                        maxlength="140"
+                        @update:wert="editForm.nachname = $event"
+                        v-slot="feld"
+                    >
+                        <input v-bind="feld.feldProps" type="text" autocomplete="family-name" />
                     </DkField>
-                    <DkField label="E-Mail" :error="formFehler.email">
-                        <input v-model="editForm.email" type="email" class="dk-ui-eingabe" maxlength="140" />
+                    <DkField
+                        label="E-Mail"
+                        :error="formFehler.email"
+                        :regel="regelEmail"
+                        :wert="editForm.email"
+                        maxlength="140"
+                        help="Ohne E-Mail-Adresse erreicht die Gemeinde die Person nicht per Mail."
+                        @update:wert="editForm.email = $event"
+                        v-slot="feld"
+                    >
+                        <input v-bind="feld.feldProps" type="email" autocomplete="email" />
                     </DkField>
                     <DkField label="Telefon">
                         <input v-model="editForm.telefon" type="tel" class="dk-ui-eingabe" maxlength="140" />
@@ -132,8 +161,15 @@
                             <input v-model="editForm.hausnummer" type="text" class="dk-ui-eingabe md-nr" placeholder="Nr." maxlength="140" />
                         </div>
                     </DkField>
-                    <DkField label="PLZ">
-                        <input v-model="editForm.plz" type="text" class="dk-ui-eingabe" maxlength="140" />
+                    <DkField
+                        label="PLZ"
+                        :regel="regelPlz"
+                        :wert="editForm.plz"
+                        maxlength="140"
+                        @update:wert="editForm.plz = $event"
+                        v-slot="feld"
+                    >
+                        <input v-bind="feld.feldProps" type="text" inputmode="numeric" autocomplete="postal-code" />
                     </DkField>
                     <DkField label="Ort">
                         <input v-model="editForm.ort" type="text" class="dk-ui-eingabe" maxlength="140" />
@@ -267,6 +303,8 @@ import DkBadge from '../components/ui/DkBadge.vue'
 import DkCard from '../components/ui/DkCard.vue'
 import DkTabs from '../components/ui/DkTabs.vue'
 import DkField from '../components/ui/DkField.vue'
+// UX2f: Feld mit Prüfung — Regeln aus EINER Quelle (duenner Wrapper unten).
+import { pflicht, email as emailRegel, plz as plzRegel } from '../composables/feldPruefung.mjs'
 import DkSelect from '../components/ui/DkSelect.vue'
 import DkHint from '../components/ui/DkHint.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
@@ -329,6 +367,17 @@ const editForm = reactive({
 
 /** UXD-R15/R24: Feldfehler vor dem Senden; Status zur Auswahl. */
 const formFehler = reactive({ vorname: '', nachname: '', email: '' })
+
+// UX2f: Prüfregeln der Felder. Sie prüfen beim Verlassen und danach beim
+// Tippen; die verbindliche Sammelprüfung beim Speichern bleibt
+// `_pruefeFormular()` (sie nutzt dieselben Texte über die Regeln).
+const regelVorname = pflicht('einen Vornamen')
+const regelNachname = pflicht('einen Nachnamen')
+// E-Mail ist hier freiwillig: die Regel prüft nur, was getippt wurde —
+// ein leeres Feld bleibt in Ruhe (Pflicht wäre eine Fachertscheidung).
+const regelEmailOhnePflicht = emailRegel()
+const regelEmail = (wert, form) => (String(wert ?? '').trim() ? regelEmailOhnePflicht(wert, form) : '')
+const regelPlz = (wert, form) => (String(wert ?? '').trim() ? plzRegel()(wert, form) : '')
 const statusOptionen = [
     { value: 'Mitglied', label: 'Mitglied' },
     { value: 'Gast', label: 'Gast' },
@@ -476,13 +525,11 @@ function _fillEditForm(payload) {
 function _pruefeFormular() {
     let ok = true
     Object.assign(formFehler, { vorname: '', nachname: '', email: '' })
-    if (!(editForm.vorname || '').trim()) { formFehler.vorname = 'Vorname ist ein Pflichtfeld.'; ok = false }
-    if (!(editForm.nachname || '').trim()) { formFehler.nachname = 'Nachname ist ein Pflichtfeld.'; ok = false }
-    const mail = (editForm.email || '').trim()
-    if (mail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) {
-        formFehler.email = 'Bitte eine gültige E-Mail-Adresse angeben.'
-        ok = false
-    }
+    // UX2f: dieselben Regeln und dieselben Texte wie am Feld (eine Quelle).
+    formFehler.vorname = regelVorname(editForm.vorname)
+    formFehler.nachname = regelNachname(editForm.nachname)
+    formFehler.email = regelEmail(editForm.email)
+    if (formFehler.vorname || formFehler.nachname || formFehler.email) ok = false
     return ok
 }
 

@@ -35,9 +35,11 @@
         <fieldset class="mv-felder">
           <DkCard title="Server">
             <DkField label="Name des Mailservers" required
-              help="Zum Beispiel mail.example.org — ohne http:// und ohne Schrägstrich.">
-              <input v-model.trim="form.host" class="dk-ui-eingabe" type="text"
-                autocomplete="off" inputmode="url" required />
+              :regel="regelHost" :wert="form.host"
+              help="Zum Beispiel mail.example.org — ohne http:// und ohne Schrägstrich."
+              v-slot="feld"
+              @update:wert="form.host = $event">
+              <input v-bind="feld.feldProps" type="text" inputmode="url" autocomplete="off" />
             </DkField>
 
             <DkField label="Verschlüsselung" required :help="hilfeSicherheit">
@@ -93,10 +95,14 @@
           </DkCard>
 
           <DkCard title="Absender">
+            <!-- UX2f: Feld mit Prüfung — die Adresse wird beim Verlassen und
+                 danach beim Tippen geprüft, die Meldung steht direkt am Feld. -->
             <DkField label="Absenderadresse" required
-              help="Diese Adresse sehen die Empfänger. Meist dieselbe wie der Benutzername.">
-              <input v-model.trim="form.absender" class="dk-ui-eingabe" type="email"
-                autocomplete="off" required />
+              :regel="regelAbsender" :wert="form.absender"
+              help="Diese Adresse sehen die Empfänger. Meist dieselbe wie der Benutzername."
+              v-slot="feld"
+              @update:wert="form.absender = $event">
+              <input v-bind="feld.feldProps" type="email" autocomplete="off" />
             </DkField>
             <DkField label="Absendername"
               help="Zum Beispiel der Name deiner Gemeinde. Ohne Angabe steht dort „Diakronos“.">
@@ -166,7 +172,9 @@
  * nach außen: der Server liefert ausschließlich „Passwort gesetzt: ja/nein“.
  */
 import { ref, computed, onMounted } from 'vue'
-import { useMailversand, SICHERHEIT_ARTEN } from '../../composables/useMailversand.js'
+// UX2f: Absender- und Servernamen-Regel stehen bei den uebrigen Regeln dieses
+// Bereichs (useMailversand) — Feld, Speichern und Testmail nutzen dieselbe.
+import { useMailversand, SICHERHEIT_ARTEN, regelAbsender, regelHost } from '../../composables/useMailversand.js'
 import DkButton from '../../components/ui/DkButton.vue'
 import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'

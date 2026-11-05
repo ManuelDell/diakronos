@@ -176,12 +176,19 @@ test('Gemeindename ist Pflicht, Kurzname hat 40 Zeichen', () => {
   assert.match(pruefeSchritt('gemeinde', { gemeindename: 'x', kurzname: 'a'.repeat(41) }).kurzname, /zu lang/)
 })
 
+// UX2f: Die drei Felder prüfen mit den Regeln aus `composables/feldPruefung.mjs`
+// (dieselben Texte wie am Feld) — die Meldung nennt jetzt, was fehlt.
 test('Kontakt: PLZ nur Ziffern, Website nur http(s), E-Mail plausibel', () => {
   assert.match(pruefeSchritt('kontakt', { plz: '74A72' }).plz, /Ziffern/)
+  assert.match(pruefeSchritt('kontakt', { plz: '7407' }).plz, /4 Stellen, nötig sind 5/)
   assert.deepEqual(pruefeSchritt('kontakt', { plz: '74072' }), {})
-  assert.match(pruefeSchritt('kontakt', { website: 'gemeinde.example' }).website, /http/)
+  assert.match(pruefeSchritt('kontakt', { website: 'gemeinde.example' }).website, /https:\/\//)
+  // UX2f2a: http:// ist wieder erlaubt (LAN-Instanzen, gespeicherte Websites).
+  assert.equal(pruefeSchritt('kontakt', { website: 'http://gemeinde.example.org' }).website, undefined)
   assert.deepEqual(pruefeSchritt('kontakt', { website: 'https://gemeinde.example' }), {})
-  assert.match(pruefeSchritt('kontakt', { kontakt_email: 'keine-adresse' }).kontakt_email, /E-Mail/)
+  // UX2f: die Meldung sagt jetzt, WAS fehlt (und nennt ein Beispiel).
+  assert.match(pruefeSchritt('kontakt', { kontakt_email: 'keine-adresse' }).kontakt_email, /fehlt das @.*z\. B\./)
+  assert.match(pruefeSchritt('kontakt', { kontakt_email: 'max@' }).kontakt_email, /Teil nach dem @/)
 })
 
 test('der Speicherrumpf enthält den VOLLSTÄNDIGEN Satz (der Server löscht Leeres)', () => {

@@ -218,9 +218,14 @@
       @update:model-value="postfachDialog = $event"
     >
       <form class="wf-formular" @submit.prevent="postfachSpeichern">
-        <DkField label="Bezeichnung" required :error="postfachFelder.bezeichnung">
-          <input v-model="postfachFormular.bezeichnung" class="dk-ui-eingabe" type="text"
-            :maxlength="BEZEICHNUNG_MAX" placeholder="z. B. Allgemein" />
+        <!-- UX2f: Feld mit Prüfung — die Meldung steht am Feld (beim Verlassen,
+             danach beim Tippen); die Sammelprüfung beim Speichern bleibt. -->
+        <DkField label="Bezeichnung" required :error="postfachFelder.bezeichnung"
+          :regel="regelPostfachName" :wert="postfachFormular.bezeichnung"
+          pflicht-name="eine Bezeichnung" :maxlength="BEZEICHNUNG_MAX"
+          v-slot="feld"
+          @update:wert="postfachFormular.bezeichnung = $event">
+          <input v-bind="feld.feldProps" type="text" placeholder="z. B. Allgemein" />
         </DkField>
         <DkField label="Kürzel" required :error="postfachFelder.slug"
           :help="postfachFormular.istNeu
@@ -231,9 +236,11 @@
             :maxlength="SLUG_MAX" :disabled="!postfachFormular.istNeu"
             autocomplete="off" spellcheck="false" placeholder="z. B. allgemein" />
         </DkField>
-        <DkField label="E-Mail-Adresse" required :error="postfachFelder.email">
-          <input v-model="postfachFormular.email" class="dk-ui-eingabe" type="email"
-            :maxlength="EMAIL_MAX" placeholder="postfach@example.org" />
+        <DkField label="E-Mail-Adresse" required :error="postfachFelder.email"
+          :regel="regelPostfachEmail" :wert="postfachFormular.email"
+          v-slot="feld"
+          :maxlength="EMAIL_MAX" @update:wert="postfachFormular.email = $event">
+          <input v-bind="feld.feldProps" type="email" placeholder="postfach@example.org" />
         </DkField>
         <DkField label="Reihenfolge" :error="postfachFelder.sortierung"
           help="Kleinere Zahl steht weiter oben.">
@@ -308,6 +315,8 @@ import DkCheckbox from '../components/ui/DkCheckbox.vue'
 import DkDialog from '../components/ui/DkDialog.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkField from '../components/ui/DkField.vue'
+// UX2f: Prüfregeln aus EINER Quelle (Feld und Sammelprüfung).
+import { pflicht, email as emailRegel, laenge as laengeRegel } from '../composables/feldPruefung.mjs'
 import DkHint from '../components/ui/DkHint.vue'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
@@ -447,6 +456,13 @@ function zuBeitraegen() {
 const postfachDialog = ref(false)
 const postfachMeldung = ref('')
 const postfachLaeuft = ref(false)
+// UX2f: Regeln der Postfach-Felder — dieselben Texte wie `postfachPruefen`
+// (shared/website-freigaben.mjs), nur direkt am Feld angezeigt.
+const regelPostfachName = (wert) =>
+  pflicht('eine Bezeichnung')(wert) || laengeRegel({ max: BEZEICHNUNG_MAX, name: 'Die Bezeichnung' })(wert)
+const regelPostfachEmail = (wert) =>
+  pflicht('eine E-Mail-Adresse')(wert) || emailRegel()(wert)
+
 const postfachFelder = ref({ slug: '', bezeichnung: '', email: '', sortierung: '' })
 const postfachFormular = ref({
   slug: '', bezeichnung: '', email: '', aktiv: true, sortierung: '10', istNeu: true,

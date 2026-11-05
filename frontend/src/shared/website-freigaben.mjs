@@ -33,6 +33,9 @@
  * ungültig, und was hier durchgeht, kann dort trotzdem als „vergeben“
  * abgelehnt werden — beides wird im Formular gezeigt, nicht überschrieben.
  */
+// UX2f: E-Mail-Regel aus der gemeinsamen Quelle (Feld = Prüfung).
+import { email as emailRegel } from '../diakonos/composables/feldPruefung.mjs'
+
 
 /** Rollen mit Zugriff auf „Website-Freigaben“ — Deckungsgleich mit
  * `_require_website_rolle` im Backend. */
@@ -264,13 +267,16 @@ export function postfachPruefen({ slug = '', bezeichnung = '', email = '' } = {}
     nameFehler = `Die Bezeichnung ist zu lang (höchstens ${BEZEICHNUNG_MAX} Zeichen).`
   }
 
+  // UX2f: Die Adresse prüft dieselbe Regel wie das Feld (Kontakt-Postfächer).
+  // Ein fehlender Wert behält den alten Wortlaut („Bitte eine E-Mail-Adresse
+  // angeben.") — der ist an dieser Stelle schon so eingeführt.
   let mailFehler = ''
   if (!mailWert) {
     mailFehler = 'Bitte eine E-Mail-Adresse angeben.'
   } else if (mailWert.length > EMAIL_MAX) {
-    mailFehler = 'Die E-Mail-Adresse ist zu lang.'
-  } else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mailWert)) {
-    mailFehler = 'Bitte eine gültige E-Mail-Adresse angeben.'
+    mailFehler = `Die E-Mail-Adresse ist zu lang – erlaubt sind höchstens ${EMAIL_MAX} Zeichen.`
+  } else {
+    mailFehler = emailRegel()(mailWert)
   }
 
   const felder = { slug: slugErg.fehler, bezeichnung: nameFehler, email: mailFehler }

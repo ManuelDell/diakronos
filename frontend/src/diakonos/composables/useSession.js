@@ -4,6 +4,10 @@ import { anzeigename } from './anzeigename.mjs'
 
 const boot = window.__DIakonosBOOT || {}
 
+// UX2f2b: Der Zustand wird für den Prüfstand der Formulare (jsdom-Mount)
+// exportiert — `is_admin` kommt EINMAL beim Modulstart aus dem Boot-Objekt,
+// ohne diesen Weg ließe sich das Bearbeiten-Formular nicht testen. Im Betrieb
+// liest ihn niemand von außen.
 const state = ref({
     user: {
         fullname: boot.user_fullname || '',
@@ -26,6 +30,8 @@ const state = ref({
     // Rollenliste („Website“) werden damit ausgeblendet, nicht anders geprüft.
     rollen: Array.isArray(boot.roles) ? boot.roles : [],
 })
+
+export { state as __zustand };
 
 const imp = useImpersonation()
 

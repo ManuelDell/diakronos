@@ -99,7 +99,10 @@ test('package.json und lockfile führen frappe-ui nicht mehr', () => {
 
 test('die vier Einstiege nutzen die eigenen Dk-Bausteine', () => {
   const erwartet = {
-    'gast/App.vue': ['DkButton', 'DkField', 'DkEingabe', 'DkFehlertext'],
+    // UX2f: Die Felder mit Prüfung sind native <input> mit dem Feldsatz aus
+    // DkField (`v-bind="feld.feldProps"`) — DkEingabe wird dort nicht mehr
+    // gebraucht, bleibt aber der Baustein für einfache Felder.
+    'gast/App.vue': ['DkButton', 'DkField', 'DkFehlertext'],
     // REG-1b: die Anzeige des Formulars liegt in `components/DkAnmeldeformular.vue`
     // (dieselbe Komponente zeigt die Vorschau im Editor). Die Seite ist nur
     // noch der Rahmen — dort stecken keine frappe-ui-Bausteine mehr.

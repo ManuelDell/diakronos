@@ -38,3 +38,6 @@ docs/
 # dort landet der Einrichtungs-Token, und die App kann ihn nicht wegfiltern.
 # Ausnahme wie bei inventar/: nur DIESE eine Datei kommt in den Kontext.
 !docs/BETRIEBSANLEITUNG.md
+
+# Worker-Worktrees (Kanban) — nie in den Build-Kontext
+.worktrees/

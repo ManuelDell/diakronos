@@ -40,8 +40,20 @@
 
             <!-- Tab 1: Grunddaten -->
             <div v-show="activeTab === 'basic'">
-              <DkField label="Titel" required>
-                <input v-model="form.element_name" class="dk-mod-input" type="text" maxlength="140" placeholder="Termintitel" />
+              <!-- UX2f: Feld mit Prüfung — der Titel ist Pflicht, die Meldung steht
+              direkt am Feld; aria-invalid/aria-describedby kommen aus DkField. -->
+              <DkField
+                label="Titel"
+                required
+                :error="titelFehler"
+                :regel="regelTitel"
+                :wert="form.element_name"
+                pflicht-name="einen Titel"
+                maxlength="140"
+                @update:wert="form.element_name = $event"
+                v-slot="feld"
+              >
+                <input v-bind="feld.feldProps" type="text" placeholder="Termintitel" />
               </DkField>
 
               <!-- OP-UI-20: Datum und Uhrzeit über den gemeinsamen Baustein.
@@ -114,9 +126,22 @@
                   </button>
                   <span v-else class="status-chip-text">{{ row.status }}</span>
                 </DkBadge>
-                <button class="remove-row-btn" aria-label="Zeile entfernen" @click="form.zusaetzliche_ressourcen.splice(idx, 1)">&times;</button>
+                <!-- UX1e: EIN Knopf-System. „Zeile entfernen“ ist ein
+                     Ghost-Knopf (nur Symbol, Beschriftung für Vorleser), die
+                     Zeile ergänzen ein Ghost-Knopf über die volle Breite —
+                     vorher zwei Eigenklassen mit eigener Optik. -->
+                <DkButton
+                  class="row-entfernen"
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Ressourcenzeile entfernen"
+                  title="Ressourcenzeile entfernen"
+                  @click="form.zusaetzliche_ressourcen.splice(idx, 1)"
+                >&times;</DkButton>
               </div>
-              <button class="add-row-btn" @click="addAdditionalResource">+ Ressource hinzufügen</button>
+              <DkButton class="row-hinzufuegen" variant="ghost" size="sm" block @click="addAdditionalResource">
+                + Ressource hinzufügen
+              </DkButton>
             </div>
 
             <!-- Tab 2: Details -->
@@ -180,6 +205,8 @@ import { useFormularSchutz } from '../../composables/useFormularSchutz.js'
 import { pruefeSitzungsAntwort } from '../../composables/useApi.js'
 import KronosConflictDialog from './KronosConflictDialog.vue'
 import DkField from '../ui/DkField.vue'
+// UX2f: Prüfregel des Titels aus EINER Quelle (Feld und Sammelprüfung).
+import { pflicht, laenge as laengeRegel } from '../../composables/feldPruefung.mjs'
 import DkDatumZeit from '../ui/DkDatumZeit.vue'
 import DkSelect from '../ui/DkSelect.vue'
 import DkCheckbox from '../ui/DkCheckbox.vue'
@@ -332,6 +359,12 @@ function resetForm() {
 // ISO-Wert und das nicht gebundene Serienende bei `v-show`.
 const zeitFehler = ref({ datum: '', beginn: '', ende: '', enddatum: '' })
 
+// UX2f: Der Termin-Titel ist Pflicht und höchstens 140 Zeichen lang. Dieselbe
+// Regel prüft das Feld beim Verlassen/Tippen UND die Sammelprüfung beim
+// Speichern — eine Quelle, ein Text.
+const regelTitel = (wert) => pflicht('einen Titel')(wert) || laengeRegel({ max: 140, name: 'Der Titel' })(wert)
+const titelFehler = ref('')
+
 const formularSchutz = useFormularSchutz(() => form, () => saving.value)
 async function close() {
   if (await formularSchutz.darfSchliessen()) emit('update:show', false)
@@ -455,8 +488,16 @@ async function save() {
     showToast('Du hast auf keinen Kalender Schreibrecht. Termine kann die Gemeindeleitung für dich anlegen.', 'error')
     return
   }
-  if (!form.element_name || !form.element_calendar || !form.element_start) {
-    showToast('Bitte Titel, Beginn und Kalender ausfüllen.', 'error')
+  // UX2f: der Titel wird AM FELD beanstandet (Meldung + aria-invalid),
+  // nicht nur im Toast; Beginn und Kalender bleiben beim bisherigen Weg.
+  titelFehler.value = regelTitel(form.element_name)
+  if (titelFehler.value) {
+    activeTab.value = 'basic'
+    requestAnimationFrame(() => document.querySelector('[aria-invalid="true"]')?.focus())
+    return
+  }
+  if (!form.element_calendar || !form.element_start) {
+    showToast('Bitte Beginn und Kalender ausfüllen.', 'error')
     return
   }
   // OP-UI-20: Meldung direkt am Feld statt nur im Toast; ein Ende vor dem
@@ -757,33 +798,10 @@ onMounted(() => {
   cursor: pointer;
   padding: 0;
 }
-.remove-row-btn {
-  background: none;
-  border: none;
-  color: var(--subtle);
-  font-size: 1.1rem;
-  cursor: pointer;
-  padding: 0 2px;
-  flex-shrink: 0;
-}
-.remove-row-btn:hover {
-  color: var(--err);
-}
-.add-row-btn {
-  background: none;
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-sm);
-  padding: 6px 12px;
-  font-size: var(--fs-sm);
-  color: var(--muted);
-  font-family: inherit;
-  cursor: pointer;
-  width: 100%;
-}
-.add-row-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
+/* UX1e: `.remove-row-btn` und `.add-row-btn` sind weg — beide sind jetzt
+   DkButton (ghost, sm). Nur die Lage in der Zeile bleibt eigen. */
+.row-entfernen { flex-shrink: 0; font-size: 1rem; }
+.row-hinzufuegen { justify-content: flex-start; }
 
 .diakronos-modal-footer {
   display: flex;

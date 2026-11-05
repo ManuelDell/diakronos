@@ -1,5 +1,21 @@
 <template>
+  <!-- UX1e: `as="a"` — ein Weg, der wirklich nur verlinkt (z. B. „Moderation“
+       in der Kalender-Kopfzeile), bleibt ein echter Link und wird trotzdem vom
+       Knopf-System gestaltet. Alle übrigen Attribute (href, title, aria-*,
+       @click) reicht Vue unverändert durch. -->
+  <a
+    v-if="as === 'a'"
+    :class="klassen"
+    :aria-label="$attrs['aria-label']"
+    :aria-busy="loading || undefined"
+    v-bind="$attrs"
+  >
+    <span v-if="loading" class="dk-ui-spinner" aria-hidden="true"></span>
+    <slot name="icon" />
+    <span v-if="$slots.default" class="dk-ui-btn-label"><slot /></span>
+  </a>
   <button
+    v-else
     :type="htmlType"
     :class="klassen"
     :disabled="disabled || loading"
@@ -30,6 +46,8 @@ const props = defineProps({
   disabled: Boolean,
   loading: Boolean,
   block: Boolean,
+  /** 'button' (Vorgabe) oder 'a' — ein Element, das nur verlinkt. */
+  as: { type: String, default: 'button' },
 })
 const htmlType = computed(() => props.type)
 

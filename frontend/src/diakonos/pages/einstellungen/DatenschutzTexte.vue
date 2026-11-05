@@ -20,7 +20,7 @@
             bestätigt werden, damit die Mitgliedschaft beginnen kann. Gespeichert
             wird er als Beleg genau so, wie er dort stand.</p>
           <DkField label="Einwilligungstext" required v-slot="feld">
-            <textarea v-bind="feld" v-model="einwilligung" class="dk-ui-eingabe" rows="5"
+            <textarea v-bind="feld.feldProps" v-model="einwilligung" class="dk-ui-eingabe" rows="5"
               maxlength="20000"></textarea>
           </DkField>
         </DkCard>
@@ -29,7 +29,7 @@
           <p class="dt-hilfe">Was mit den Daten geschieht und was nicht. Erscheint
             aufklappbar unter der Einwilligung.</p>
           <DkField label="Datenschutzerklärung" required v-slot="feld">
-            <textarea v-bind="feld" v-model="datenschutzerklaerung" class="dk-ui-eingabe" rows="6"
+            <textarea v-bind="feld.feldProps" v-model="datenschutzerklaerung" class="dk-ui-eingabe" rows="6"
               maxlength="20000"></textarea>
           </DkField>
         </DkCard>
@@ -38,7 +38,7 @@
           <p class="dt-hilfe">Wie lange Daten bleiben und was nach einem Löschwunsch gilt.
             Erscheint aufklappbar auf der Anmeldeseite.</p>
           <DkField label="Hinweis zur Aufbewahrung" required v-slot="feld">
-            <textarea v-bind="feld" v-model="aufbewahrung" class="dk-ui-eingabe" rows="4"
+            <textarea v-bind="feld.feldProps" v-model="aufbewahrung" class="dk-ui-eingabe" rows="4"
               maxlength="20000"></textarea>
           </DkField>
         </DkCard>

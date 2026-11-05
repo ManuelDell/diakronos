@@ -1,0 +1,17 @@
+# UX1e — eingefrorener Bestand der ALTEN Knopfklassen im Kalender-/Moderationsbereich.
+#
+# Geprueft: components/kronos/**, pages/Kalender*.vue, pages/Moderation.vue
+#           (.vue/.css/.js/.mjs), ausser Kommentaren.
+# Format:   relativer/pfad<TAB>anzahl_fundstellen
+# Fundstelle = `dk-btn`/`dk-btn-*` | `btn`/`btn-*` | rohe Knopfklassen im Bereich.
+#
+# REGEL: Diese Liste darf NUR SCHRUMPFEN. Neue Alt-Knoepfe sind nicht
+# zulaessig — neue Knoepfe kommen aus DkButton (components/ui/DkButton.vue).
+# Erzeugt mit (aus frontend/ heraus): node tools/ux1e-knopf-bestand.mjs --schreiben
+# Geprueft von frontend/tests/ux1e-knopf-system.test.mjs.
+#
+# Stand (UX1e): 11 Fundstellen in 4 Dateien.
+frontend/src/diakonos/components/kronos/KronosEventCreate.vue	1
+frontend/src/diakonos/components/kronos/KronosEventEdit.vue	1
+frontend/src/diakonos/components/kronos/KronosSidebar.vue	1
+frontend/src/diakonos/components/kronos/KronosTopbar.vue	8

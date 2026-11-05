@@ -7,8 +7,20 @@
     <!-- OP-UI-23: <form @submit.prevent> — Enter im Feld sendet dieselbe
          Hauptaktion wie der Knopf (statt wirkungslos zu bleiben). -->
     <form class="gr-formular" @submit.prevent="submit">
-      <DkField label="Name" required :error="fehler.name">
-        <input v-model="form.name" type="text" class="dk-ui-eingabe" placeholder="Name eingeben" required />
+      <!-- UX2f: Feld mit Prüfung — Meldung beim Verlassen des Feldes, danach
+           beim Tippen; aria-invalid/aria-describedby kommen aus DkField. -->
+      <DkField
+        label="Name"
+        required
+        :error="fehler.name"
+        :regel="regelName"
+        :wert="form.name"
+        pflicht-name="einen Namen"
+        maxlength="140"
+        @update:wert="form.name = $event"
+        v-slot="feld"
+      >
+        <input v-bind="feld.feldProps" type="text" placeholder="Name eingeben" />
       </DkField>
       <DkField v-if="form.typ === 'gruppe'" label="Dienstbereich" required :error="fehler.parent">
         <DkSelect v-model="form.parent" :options="dienstbereichOptionen" placeholder="Bitte wählen" />
@@ -42,6 +54,8 @@ import { anlegeAufruf } from '../../composables/gruppenAnlegen.mjs'
 import DkDialog from '../ui/DkDialog.vue'
 import DkButton from '../ui/DkButton.vue'
 import DkField from '../ui/DkField.vue'
+// UX2f: Prüfregeln aus EINER Quelle.
+import { pflicht, laenge as laengeRegel } from '../../composables/feldPruefung.mjs'
 import DkSelect from '../ui/DkSelect.vue'
 
 const props = defineProps({
@@ -62,6 +76,12 @@ const form = ref({ typ: props.typ, name: '', parent: '' })
 const fehler = ref({ name: '', parent: '' })
 
 const titel = computed(() => (form.value.typ === 'untergruppe' ? 'Neue Untergruppe' : 'Neue Gruppe'))
+
+// UX2f: Der Name ist Pflicht und höchstens 140 Zeichen lang (dieselbe Grenze,
+// die das Feld früher über maxlength hatte — jetzt mit Meldung statt stillem
+// Abschneiden).
+const regelName = (wert, form) =>
+  pflicht('einen Namen')(wert) || laengeRegel({ max: 140, name: 'Der Name' })(wert)
 const dienstbereichOptionen = computed(() =>
   props.dienstbereiche.map(d => ({ value: d.name, label: d.ministry || d.name })))
 const gruppenOptionen = computed(() =>
@@ -83,7 +103,8 @@ function schliessen() {
 function pruefe() {
   const f = form.value
   const nächste = { name: '', parent: '' }
-  if (!f.name.trim()) nächste.name = 'Bitte einen Namen angeben.'
+  // UX2f: dieselben Regeln und Texte wie am Feld (eine Quelle).
+  nächste.name = regelName(f.name, f)
   if (!f.parent) {
     nächste.parent = f.typ === 'untergruppe'
       ? 'Bitte eine Gruppe wählen.'
@@ -96,7 +117,12 @@ function pruefe() {
 async function submit() {
   if (sending.value) return
   if (!pruefe()) {
-    requestAnimationFrame(() => document.querySelector('.gr-formular .dk-ui-eingabe')?.focus())
+    // UX2f: das erste Feld mit Fehler bekommt den Fokus (nicht blind das erste).
+    requestAnimationFrame(() => {
+      const ziel = document.querySelector('.gr-formular [aria-invalid="true"]')
+        || document.querySelector('.gr-formular .dk-ui-eingabe')
+      ziel?.focus()
+    })
     return
   }
   const f = form.value

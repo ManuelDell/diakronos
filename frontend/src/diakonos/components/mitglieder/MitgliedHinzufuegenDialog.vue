@@ -40,11 +40,11 @@
             @blur="dublettePruefen"
           />
         </DkField>
-        <DkField v-slot="feld" label="Nachname" required :error="fehler.nachname">
+        <DkField v-slot="feld" label="Nachname" required :error="fehler.nachname"
+          :regel="regelNachname" :wert="form.nachname" pflicht-name="einen Nachnamen"
+          maxlength="140" @update:wert="form.nachname = $event">
           <input
-            :id="feld.id"
-            :aria-describedby="feld['aria-describedby']"
-            :aria-invalid="feld['aria-invalid']"
+            v-bind="feld.feldProps"
             v-model="form.nachname"
             class="dk-ui-eingabe"
             autocomplete="off"
@@ -59,12 +59,12 @@
           v-slot="feld"
           label="E-Mail"
           :error="fehler.email"
+          :regel="regelEmail" :wert="form.email" maxlength="140"
           help="Ohne E-Mail wird kein Zugang angelegt."
+          @update:wert="form.email = $event"
         >
           <input
-            :id="feld.id"
-            :aria-describedby="feld['aria-describedby']"
-            :aria-invalid="feld['aria-invalid']"
+            v-bind="feld.feldProps"
             v-model="form.email"
             class="dk-ui-eingabe"
             type="email"
@@ -165,6 +165,9 @@ import { navigate } from '../../router.js'
 import DkDialog from '../ui/DkDialog.vue'
 import DkButton from '../ui/DkButton.vue'
 import DkField from '../ui/DkField.vue'
+// UX2f: Prüfregeln aus EINER Quelle — dieselben Texte am Feld und in
+// `pruefefelder()`. E-Mail ist hier freiwillig (nur für den Zugang nötig).
+import { pflicht, email as emailRegel } from '../../composables/feldPruefung.mjs'
 import DkSelect from '../ui/DkSelect.vue'
 import DkHint from '../ui/DkHint.vue'
 import PasswortLink from './PasswortLink.vue'
@@ -185,6 +188,11 @@ const fehler = reactive({ vorname: '', nachname: '', email: '', allgemein: '' })
 // `null`, solange kein Treffer gemeldet ist; sonst {grund, mitglied_id, name, status, gruppen}.
 const dublette = ref(null)
 let pruefung = 0
+// UX2f: Regeln der Person-Felder.
+const regelVorname = (wert) => pflicht('einen Vornamen')(wert)
+const regelNachname = (wert) => pflicht('einen Nachnamen')(wert)
+const regelEmail = (wert, form) => (String(wert ?? '').trim() ? emailRegel()(wert, form) : '')
+
 const laeuft = ref(false)
 const modus = ref(null)
 const zugangsart = ref('link')
@@ -291,8 +299,9 @@ function vorhandeneOeffnen() {
 }
 
 function pruefefelder() {
-  fehler.vorname = form.vorname.trim() ? '' : 'Bitte einen Vornamen angeben.'
-  fehler.nachname = form.nachname.trim() ? '' : 'Bitte einen Nachnamen angeben.'
+  // UX2f: dieselben Regeln und Texte wie am Feld (eine Quelle).
+  fehler.vorname = regelVorname(form.vorname)
+  fehler.nachname = regelNachname(form.nachname)
   if (modus.value === false && zugangsart.value !== 'kein' && !form.email.trim()) {
     fehler.email = 'Für einen Zugang bitte eine E-Mail-Adresse angeben.'
     return false
@@ -301,10 +310,7 @@ function pruefefelder() {
     fehler.allgemein = 'Das Startpasswort muss mindestens 8 Zeichen haben.'
     return false
   }
-  const email = form.email.trim()
-  fehler.email = email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)
-    ? 'Bitte eine gültige E-Mail-Adresse angeben.'
-    : ''
+  fehler.email = regelEmail(form.email)
   return !fehler.vorname && !fehler.nachname && !fehler.email
 }
 

@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useDialogFokus } from '../../composables/useDialogFokus.js'
+import DkButton from '../ui/DkButton.vue'
 
 const visible = ref(false)
 const conflictData = ref(null)
@@ -58,7 +59,7 @@ defineExpose({ show })
               </svg>
             </span>
             <h5>Zeitüberschneidung</h5>
-            <button class="diakronos-close-btn" @click="close(null)">&times;</button>
+            <button class="diakronos-close-btn" aria-label="Schließen" @click="close(null)">&times;</button>
           </div>
           <div class="conflict-modal-body">
             <p>Die gewählte Ressource ist bereits belegt:</p>
@@ -89,9 +90,14 @@ defineExpose({ show })
             <p class="conflict-question">Wie soll fortgefahren werden?</p>
           </div>
           <div class="conflict-modal-footer">
-            <button class="btn btn-secondary" @click="close(null)">Abbrechen</button>
-            <button class="btn btn-warning" @click="close('ignore')">Trotzdem speichern</button>
-            <button class="btn btn-danger" @click="close('conflict')">Als Konflikt markieren</button>
+            <!-- UX1e: EIN Knopf-System (DkButton). Die Zwischenaktion
+                 „Mit Überschneidung speichern“ ist gefahrlos und deshalb
+                 sekundär (variante aus knopfvarianten.mjs: btn-warning ->
+                 secondary); die Warnung trägt der Text, nicht die Knopf-Farbe.
+                 „Trotzdem speichern“ sagte nicht, was danach gilt (I4). -->
+            <DkButton variant="secondary" @click="close(null)">Abbrechen</DkButton>
+            <DkButton variant="secondary" @click="close('ignore')">Mit Überschneidung speichern</DkButton>
+            <DkButton variant="danger" @click="close('conflict')">Als Konflikt markieren</DkButton>
           </div>
         </div>
       </div>

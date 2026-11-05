@@ -36,13 +36,16 @@
           Abgelehnt
         </DkBadge>
 
-        <!-- Remove button (Festlegen column only) -->
-        <button
+        <!-- „Zurück“ aus der Freigabe-Spalte (UX1e: Knopf aus dem System). -->
+        <DkButton
           v-if="inFestlegen"
           class="dk-mcard-remove"
-          title="Zurück"
+          variant="ghost"
+          size="sm"
+          title="Zurück in die Vorschlags-Spalte"
+          aria-label="Termin zurück in die Vorschlags-Spalte"
           @click.stop="$emit('remove', item)"
-        >×</button>
+        >&times;</DkButton>
       </div>
 
       <!-- Date/time -->
@@ -92,7 +95,12 @@
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             {{ fmtDate(ev.start, ev.all_day) }}
-            <button class="dk-mcard-resolve-btn" @click.stop="$emit('resolve-conflict', ev)">Auflösen</button>
+            <DkButton
+              class="dk-mcard-aufloesen"
+              variant="secondary"
+              size="sm"
+              @click.stop="$emit('resolve-conflict', ev)"
+            >Auflösen</DkButton>
           </li>
         </ul>
       </div>
@@ -103,6 +111,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import DkBadge from '../ui/DkBadge.vue'
+// UX1e: EIN Knopf-System für „Zurück“ und „Auflösen“.
+import DkButton from '../ui/DkButton.vue'
 import { terminZeitText } from './moderationskarte.js'
 // UXD-R28: Kalenderfarbe nur als gueltiger Hex-Wert in den style-String.
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js'
@@ -193,25 +203,11 @@ function formatDate(item) {
   flex-shrink: 0;
 }
 
-/* Remove button */
+/* „Zurück“ — UX1e: DkButton (ghost, sm). Nur die Lage bleibt eigen; Farbe
+   und Fläche kommen aus dem Knopf-System, nicht mehr aus einer Eigenregel. */
 .dk-mcard-remove {
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: none;
-  color: var(--subtle);
-  font-size: 16px;
-  cursor: pointer;
-  border-radius: var(--radius-sm);
   flex-shrink: 0;
-  transition: background var(--fast), color var(--fast);
-}
-.dk-mcard-remove:hover {
-  background: var(--err-soft);
-  color: var(--err);
+  padding: 0 var(--sp-1);
 }
 
 /* Time */
@@ -313,19 +309,8 @@ function formatDate(item) {
   background: var(--err-soft);
   border-radius: var(--radius-sm);
 }
-.dk-mcard-resolve-btn {
+/* UX1e: DkButton (secondary, sm) — keine eigene Knopfoptik mehr. */
+.dk-mcard-aufloesen {
   margin-left: auto;
-  padding: 2px 6px;
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  cursor: pointer;
-  transition: background var(--fast);
-}
-.dk-mcard-resolve-btn:hover {
-  background: var(--surface-hover);
 }
 </style>

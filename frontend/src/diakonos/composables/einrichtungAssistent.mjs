@@ -16,6 +16,8 @@
  * Wahrheitslogik — dieselbe Trennung wie in `composables/einrichtung.mjs`.
  */
 
+import { email as emailRegel, plz as plzRegel, url as urlRegel } from './feldPruefung.mjs'
+
 /**
  * Die sechs Schritte des Assistenten in Anzeigereihenfolge.
  *
@@ -165,18 +167,18 @@ export function pruefeSchritt(schluessel, entwurf = {}) {
     }
   }
   if (schluessel === 'kontakt') {
+    // UX2f: E-Mail, PLZ und Website prüfen mit denselben Regeln wie die
+    // Felder selbst (composables/feldPruefung.mjs) — ein Text, eine Wahrheit.
+    // Die Website ist hier freiwillig, aber wenn etwas dasteht, muss es eine
+    // Webadresse sein (nicht bloß „beginnt mit http").
+    // Nur BEANSTANDETE Felder landen im Ergebnis (ein leerer Text ist kein
+    // Fehler und darf nicht als leerer Eintrag erscheinen).
     const email = String(entwurf.kontakt_email ?? '').trim()
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      fehler.kontakt_email = 'Bitte eine gültige E-Mail-Adresse eintragen.'
-    }
+    if (email && emailRegel()(email)) fehler.kontakt_email = emailRegel()(email)
     const plz = String(entwurf.plz ?? '').trim()
-    if (plz && !/^[0-9]{1,10}$/.test(plz)) {
-      fehler.plz = 'Die Postleitzahl besteht aus Ziffern (höchstens 10).'
-    }
+    if (plz && plzRegel()(plz)) fehler.plz = plzRegel()(plz)
     const website = String(entwurf.website ?? '').trim()
-    if (website && !/^https?:\/\//i.test(website)) {
-      fehler.website = 'Die Website muss mit http:// oder https:// beginnen.'
-    }
+    if (website && urlRegel()(website)) fehler.website = urlRegel()(website)
     if (String(entwurf.strasse ?? '').trim().length > 120) {
       fehler.strasse = 'Die Straße ist zu lang (höchstens 120 Zeichen).'
     }

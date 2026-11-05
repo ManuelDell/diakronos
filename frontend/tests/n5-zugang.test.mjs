@@ -30,7 +30,10 @@ test('Passwortvorschlag verwendet CSPRNG und bleibt verdeckt', () => {
 })
 
 test('Felder besitzen gebundene Label-IDs, Fehler bleiben im Dialog', () => {
-  assert.ok((dialog.match(/:id="feld.id"/g) || []).length >= 4)
+  // UX2f: Die Felder binden den Feldsatz (`v-bind="feld.feldProps"`) — darin
+  // stecken `id`, `aria-describedby` und `aria-invalid`. Beides zählt.
+  const gebunden = (dialog.match(/:id="feld\.id"|v-bind="feld\.feldProps"/g) || []).length
+  assert.ok(gebunden >= 4, `nur ${gebunden} Felder mit ID/aria-Bindung`)
   assert.ok((dialog.match(/v-slot="feld"/g) || []).length >= 4)
   assert.match(dialog, /:close-on-overlay="false"/)
   assert.match(dialog, /fehler.allgemein = err\?\.message/)

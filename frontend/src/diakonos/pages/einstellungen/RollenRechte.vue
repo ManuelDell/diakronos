@@ -17,7 +17,7 @@
           Rollen mit Verwaltungsrechten darf nur ein System Manager vergeben oder entziehen.</p>
 
         <DkField label="Person suchen" v-slot="feld">
-          <input v-bind="feld" v-model="suche" class="dk-ui-eingabe" type="search"
+          <input v-bind="feld.feldProps" v-model="suche" class="dk-ui-eingabe" type="search"
             placeholder="Name oder E-Mail …" aria-label="Person suchen" />
         </DkField>
 
@@ -47,7 +47,7 @@
         <p class="rr-hilfe">Verantwortliche dürfen Pläne ihres Bereichs bzw. ihrer Gruppe
           erstellen und bearbeiten. Auswählbar sind nur Personen mit Zugang.</p>
         <DkField label="Bereich oder Gruppe wählen" v-slot="feld">
-          <select v-bind="feld" v-model="bereich" class="dk-ui-eingabe">
+          <select v-bind="feld.feldProps" v-model="bereich" class="dk-ui-eingabe">
             <option value="">Bitte wählen</option>
             <option v-for="b in bereiche" :key="b.id" :value="b.id">{{ b.label }}</option>
           </select>

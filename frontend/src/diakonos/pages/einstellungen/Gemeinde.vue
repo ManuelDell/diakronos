@@ -1,6 +1,8 @@
 <template>
   <div class="gem-abschnitt">
-    <h2>Gemeinde</h2>
+    <!-- UX2f2b (Befund): Hier stand ein zweites `<h2>` — die Seite „Gemeinde“
+         ist eine Seite unter Einstellungen und trägt ihre Überschrift schon im
+         Seitenkopf. Der Einleitungssatz bleibt. -->
     <p>Name, Kontakt und die Adresse, unter der die Gemeinde im Netz erreichbar ist.
       Diese Angaben erscheinen in der App und in geteilten Links.</p>
 
@@ -18,7 +20,7 @@
       <fieldset :disabled="!bedienbar" class="gem-felder">
         <DkCard title="Name und Kontakt">
           <DkField label="Name der Gemeinde" required :error="feldFehler.gemeindename" v-slot="feld">
-            <input v-bind="feld" v-model="gemeindename" class="dk-ui-eingabe" maxlength="140"
+            <input v-bind="feld.feldProps" v-model="gemeindename" class="dk-ui-eingabe" maxlength="140"
               placeholder="z. B. Versöhnungskirche Heilbronn" />
           </DkField>
           <!-- ON-4 (Nachtrag Orchestrator 2026-11-03): Die Angaben aus dem
@@ -26,13 +28,15 @@
                gepflegt — Kurzname, Logo, Anschrift, Telefon, Website. -->
           <DkField label="Kurzname" :error="feldFehler.kurzname"
             help="Erscheint in Kopfzeile und Kalenderkürzeln." v-slot="feld">
-            <input v-bind="feld" v-model="kurzname" class="dk-ui-eingabe" maxlength="40"
+            <input v-bind="feld.feldProps" v-model="kurzname" class="dk-ui-eingabe" maxlength="40"
               placeholder="z. B. Versöhnungskirche" />
           </DkField>
+          <!-- UX2f: E-Mail mit Prüfung — die Meldung steht am Feld (beim
+               Verlassen, danach beim Tippen), nicht erst nach dem Speichern. -->
           <DkField label="Kontakt-E-Mail" help="An diese Adresse wenden sich Personen mit Fragen."
-            :error="feldFehler.kontakt_email" v-slot="feld">
-            <input v-bind="feld" v-model="kontaktEmail" class="dk-ui-eingabe" type="email"
-              maxlength="255" placeholder="buero@gemeinde.example" />
+            :error="feldFehler.kontakt_email" :regel="emailRegel()" :wert="kontaktEmail"
+            maxlength="255" @update:wert="kontaktEmail = $event" v-slot="feld">
+            <DkEingabe v-bind="feld.feldProps" type="email" placeholder="buero@gemeinde.example" />
           </DkField>
         </DkCard>
 
@@ -65,27 +69,30 @@
 
         <DkCard title="Anschrift und Erreichbarkeit">
           <DkField label="Straße und Hausnummer" :error="feldFehler.strasse" v-slot="feld">
-            <input v-bind="feld" v-model="strasse" class="dk-ui-eingabe" maxlength="120"
+            <input v-bind="feld.feldProps" v-model="strasse" class="dk-ui-eingabe" maxlength="120"
               autocomplete="street-address" placeholder="z. B. Kirchplatz 1" />
           </DkField>
           <div class="gem-paar">
-            <DkField label="PLZ" :error="feldFehler.plz" v-slot="feld">
-              <input v-bind="feld" v-model="plz" class="dk-ui-eingabe" maxlength="10"
+            <DkField label="PLZ" :error="feldFehler.plz" :regel="plzRegel()" :wert="plz"
+              maxlength="10" @update:wert="plz = $event" v-slot="feld">
+              <input v-bind="feld.feldProps" v-model="plz" class="dk-ui-eingabe" maxlength="10"
                 inputmode="numeric" autocomplete="postal-code" placeholder="z. B. 12345" />
             </DkField>
             <DkField label="Ort" :error="feldFehler.ort" v-slot="feld">
-              <input v-bind="feld" v-model="ort" class="dk-ui-eingabe" maxlength="120"
+              <input v-bind="feld.feldProps" v-model="ort" class="dk-ui-eingabe" maxlength="120"
                 autocomplete="address-level2" placeholder="z. B. Musterstadt" />
             </DkField>
           </div>
           <DkField label="Telefon" :error="feldFehler.telefon" v-slot="feld">
-            <input v-bind="feld" v-model="telefon" class="dk-ui-eingabe" type="tel"
+            <input v-bind="feld.feldProps" v-model="telefon" class="dk-ui-eingabe" type="tel"
               maxlength="40" placeholder="z. B. +49 7131 123456" />
           </DkField>
-          <DkField label="Website" :error="feldFehler.website"
-            help="Muss mit http:// oder https:// beginnen." v-slot="feld">
-            <input v-bind="feld" v-model="website" class="dk-ui-eingabe" inputmode="url"
-              maxlength="255" placeholder="https://gemeinde.example.org" />
+          <DkField label="Website" :error="feldFehler.website" :regel="urlRegel()"
+            :wert="website" maxlength="255"
+            help="Beginnt mit https:// — z. B. https://gemeinde.example.org."
+            @update:wert="website = $event" v-slot="feld">
+            <input v-bind="feld.feldProps" v-model="website" class="dk-ui-eingabe" maxlength="255"
+              inputmode="url" placeholder="https://gemeinde.example.org" />
           </DkField>
           <!-- Zeitzone: NUR ANZEIGE (Betriebseinstellung CALENDAR_TIMEZONE). -->
           <p class="gem-hilfe">
@@ -98,10 +105,14 @@
           <p class="gem-hilfe">Die Adresse, unter der die Gemeinde von außen erreichbar ist.
             Geteilte Links (Registrierung, Passwort) werden damit vollständig gebaut.
             Bleibt sie leer, nimmt die App die Adresse aus dem Browser.</p>
-          <DkField label="Adresse" placeholder="https://gemeinde.example.org"
-            :error="feldFehler.adresse" v-slot="feld">
-            <input v-bind="feld" v-model="oeffentlicheAdresse" class="dk-ui-eingabe"
-              inputmode="url" maxlength="255" />
+          <!-- UX2f: Die Adressform wird jetzt schon AM FELD geprüft (bisher
+               erst beim Speichern); die Sammelprüfung beim Speichern bleibt. -->
+          <DkField label="Adresse" :error="feldFehler.adresse" :regel="urlRegel()"
+            :wert="oeffentlicheAdresse" maxlength="255"
+            help="Beginnt mit https:// — z. B. https://gemeinde.example.org."
+            @update:wert="oeffentlicheAdresse = $event" v-slot="feld">
+            <DkEingabe v-bind="feld.feldProps" type="text" inputmode="url"
+              placeholder="https://gemeinde.example.org" />
           </DkField>
         </DkCard>
 
@@ -109,7 +120,7 @@
           <p class="gem-hilfe">Erscheint auf der Registrierungs- und Gast-Anmeldeseite
             über dem Formular – ein kurzer Satz genügt.</p>
           <DkField label="Text" v-slot="feld">
-            <textarea v-bind="feld" v-model="willkommenstext" class="dk-ui-eingabe" rows="3"
+            <textarea v-bind="feld.feldProps" v-model="willkommenstext" class="dk-ui-eingabe" rows="3"
               maxlength="4000"></textarea>
           </DkField>
         </DkCard>
@@ -144,6 +155,9 @@ import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
 import DkField from '../../components/ui/DkField.vue'
 import DkErfolgsmeldung from '../../components/ui/DkErfolgsmeldung.vue'
+import DkEingabe from '../../components/ui/DkEingabe.vue'
+// UX2f: Prüfregeln aus EINER Quelle (Feld, Assistent und Sammelprüfung).
+import { email as emailRegel, plz as plzRegel, url as urlRegel } from '../../composables/feldPruefung.mjs'
 // ON-4/H2: amber Leiste „… ist noch nicht eingerichtet.“
 import EinrichtungsLeiste from '../../components/einrichtung/EinrichtungsLeiste.vue'
 // ON-4/H4: Logo oder Monogramm (dieselbe Einbindung wie Seitenleiste/Assistent).
@@ -163,6 +177,12 @@ const rollen = window.__DIakonosBOOT || {}
 const formular = ref(null)
 const feldFehler = ref({})
 
+// UX2f: Prüfregeln der Felder — direkt aus EINER Quelle. Alle Angaben sind
+// freiwillig; die Regeln lassen ein leeres Feld in Ruhe (UX2f2a), deshalb
+// braucht es hier KEINE `…Frei`-Hüllen mehr (UX2f2b, Punkt 4). Pflicht wäre
+// eine Fachertscheidung und steht nicht dahinter.
+// Dieselben Regeln nutzt auch die Sammelprüfung in `pruefeSchritt`.
+
 /** Monogramm wie überall (Kurzname vor Gemeindename, `monogramm()`). */
 const monogramm = computed(() => {
   const buchstabe = monogrammFuer({ kurzname: kurzname.value, gemeindename: gemeindename.value })
@@ -175,11 +195,14 @@ const monogramm = computed(() => {
  * dieselben Validierungen wie im Assistenten, keine Kopie.
  */
 async function speichernMitFokus() {
+  // UX2f2b (Befund): Hier wurde der Fehler IMMER gesetzt — bei gültiger
+  // Adresse stand `adresse: ''` im Objekt, `Object.keys(...).length` war
+  // dadurch nie 0 und `speichernMitFokus` brach JEDES Mal ab: die API wurde
+  // nie gerufen. Jetzt steht nur eine ECHTE Meldung im Objekt (gleiches
+  // Muster wie `useGemeinde.speichern`: nur beanstandete Felder).
   feldFehler.value = {}
-  if (oeffentlicheAdresse.value.trim()
-      && !/^https?:\/\/.+/.test(oeffentlicheAdresse.value.trim())) {
-    feldFehler.value.adresse = 'Bitte mit http:// oder https:// beginnen.'
-  }
+  const adressMeldung = urlRegel()(oeffentlicheAdresse.value)
+  if (adressMeldung) feldFehler.value.adresse = adressMeldung
   if (Object.keys(feldFehler.value).length) {
     await nextTick()
     formular.value?.querySelector('[aria-invalid="true"]')?.focus()
@@ -210,7 +233,7 @@ onMounted(laden)
 
 <style scoped>
 .gem-abschnitt, .gem-felder { display: grid; gap: var(--sp-4); min-width: 0; }
-.gem-abschnitt h2, .gem-abschnitt p { margin: 0; }
+.gem-abschnitt p { margin: 0; }
 .gem-felder { padding: 0; border: 0; margin: 0; }
 .gem-felder:disabled { opacity: .65; }
 .gem-hilfe { display: block; color: var(--muted); font-size: var(--fs-sm); }

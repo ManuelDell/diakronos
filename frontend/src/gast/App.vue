@@ -39,17 +39,19 @@
                 <DkFehlertext v-if="fehler" :message="fehler" class="mb-4" />
 
                 <form @submit.prevent="absenden" class="dk-pub-form" novalidate>
-                    <DkField label="Vorname" required>
-                        <template #default="{ id, ariaDescribedby, ariaInvalid }">
-                            <DkEingabe :id="id" v-model="form.vorname" autocomplete="given-name"
-                                       :aria-describedby="ariaDescribedby" :aria-invalid="ariaInvalid" />
-                        </template>
+                    <!-- UX2f: Feld mit Prüfung — Meldung beim Verlassen des
+                         Feldes, danach beim Tippen; direkt am Feld. -->
+                    <DkField label="Vorname" required :regel="regelVorname" :wert="form.vorname"
+                             pflicht-name="einen Vornamen" maxlength="140"
+                             v-slot="feld"
+                             @update:wert="form.vorname = $event">
+                        <input v-bind="feld.feldProps" type="text" autocomplete="given-name" />
                     </DkField>
-                    <DkField label="Nachname" required>
-                        <template #default="{ id, ariaDescribedby, ariaInvalid }">
-                            <DkEingabe :id="id" v-model="form.nachname" autocomplete="family-name"
-                                       :aria-describedby="ariaDescribedby" :aria-invalid="ariaInvalid" />
-                        </template>
+                    <DkField label="Nachname" required :regel="regelNachname" :wert="form.nachname"
+                             pflicht-name="einen Nachnamen" maxlength="140"
+                             v-slot="feld"
+                             @update:wert="form.nachname = $event">
+                        <input v-bind="feld.feldProps" type="text" autocomplete="family-name" />
                     </DkField>
 
                     <!-- DSGVO / Einwilligung: Text kommt vom Server
@@ -90,8 +92,9 @@ import { heileOderMelde, gastNachNeuladen, HINWEIS_NACH_NEULADEN } from '../shar
 // DEP-1: eigene Bausteine statt frappe-ui (Button/FormControl/ErrorMessage).
 import DkButton from '../diakonos/components/ui/DkButton.vue'
 import DkField from '../diakonos/components/ui/DkField.vue'
-import DkEingabe from '../diakonos/components/ui/DkEingabe.vue'
 import DkFehlertext from '../diakonos/components/ui/DkFehlertext.vue'
+// UX2f: Prüfregeln aus EINER Quelle (Feld und Absenden nutzen dieselben).
+import { pflicht, laenge as laengeRegel } from '../diakonos/composables/feldPruefung.mjs'
 
 const token      = window.__diakronos?.token || ''
 // WEB-7: `linkGrund` vom Server (`spa.py::_link_grund`) — „toter Link“ gegen
@@ -125,10 +128,21 @@ if (!umgeleitet) {
 
 const form = reactive({ vorname: '', nachname: '', dsgvo: false })
 
+// UX2f: Regeln der Felder — dieselben Texte am Feld und beim Absenden.
+const regelVorname = (wert) => pflicht('einen Vornamen')(wert) || laengeRegel({ max: 140, name: 'Der Vorname' })(wert)
+const regelNachname = (wert) => pflicht('einen Nachnamen')(wert) || laengeRegel({ max: 140, name: 'Der Nachname' })(wert)
+
 async function absenden() {
     fehler.value = ''
-    if (!form.vorname.trim() || !form.nachname.trim()) {
-        fehler.value = 'Vor- und Nachname sind Pflichtfelder.'
+    // UX2f: Die Feldmeldungen stehen am Feld. Bleiben beide leer, sagt der
+    // Kasten oben zusammenfassend, was fehlt; die Eingaben bleiben stehen.
+    const vornameFehler = regelVorname(form.vorname)
+    const nachnameFehler = regelNachname(form.nachname)
+    if (vornameFehler || nachnameFehler) {
+        fehler.value = vornameFehler && nachnameFehler
+            ? 'Bitte Vor- und Nachnamen angeben.'
+            : (vornameFehler || nachnameFehler)
+        requestAnimationFrame(() => document.querySelector('.dk-pub-form [aria-invalid="true"]')?.focus())
         return
     }
     if (!form.dsgvo) {

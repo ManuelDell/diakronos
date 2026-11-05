@@ -35,10 +35,10 @@
           </DkHint>
           <div v-for="(z, i) in zuordnungen" :key="i" class="an-zuordnung">
             <DkField label="Gruppe in Authentik" :error="zeilenFehler[i]" v-slot="feld">
-              <input v-bind="feld" v-model="z.gruppe" class="dk-ui-eingabe" maxlength="255" placeholder="z. B. musik-leitung" />
+              <input v-bind="feld.feldProps" v-model="z.gruppe" class="dk-ui-eingabe" maxlength="255" placeholder="z. B. musik-leitung" />
             </DkField>
             <DkField label="Rolle in Diakronos" v-slot="feld">
-              <select v-bind="feld" v-model="z.rolle" class="dk-ui-eingabe">
+              <select v-bind="feld.feldProps" v-model="z.rolle" class="dk-ui-eingabe">
                 <option value="">Bitte wählen</option>
                 <option v-if="z.rolle && !rollen.includes(z.rolle)" :value="z.rolle">{{ z.rolle }} (nicht mehr verfügbar)</option>
                 <option v-for="r in rollen" :key="r" :value="r">{{ r }}</option>

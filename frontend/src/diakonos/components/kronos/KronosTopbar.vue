@@ -83,15 +83,27 @@
         <span class="readonly-label">Nur lesen</span>
       </span>
 
-      <a
+      <!-- UX1e: EIN Knopf-System. Der Moderations-Weg war ein eigenes
+           `<a>` mit Eigenklasse; er ist jetzt ein DkButton (gleiche Aktion,
+           gleiche Beschriftung) und bleibt ein echter Link.
+           UX1e2: KNOPFGRÖSSE md statt sm — 28 px waren in der Kopfzeile
+           kleiner als jede andere Klickfläche daneben (--control-h 40 px,
+           bei pointer:coarse 44 px). Unter 720 px weicht die sichtbare
+           Beschriftung dem Symbol; der Name des Knopfes bleibt deshalb fest
+           am aria-label (UX3a: „Termine prüfen und freigeben“). -->
+      <DkButton
         v-if="canModerate"
-        class="moderation-btn"
+        as="a"
+        class="moderation-btn moderation-knopf"
         href="#/kalender/pruefen"
+        variant="secondary"
+        size="md"
         title="Termine prüfen und freigeben"
+        aria-label="Termine prüfen und freigeben"
       >
         <span v-html="ICON_MODERATION"></span>
         <span class="moderation-btn-label">Zu prüfen<span v-if="offeneZahl > 0" class="moderation-btn-zahl">{{ offeneZahl }}</span></span>
-      </a>
+      </DkButton>
     </div>
   </header>
 </template>
@@ -284,23 +296,6 @@ onMounted(() => {
   background: var(--primary);
   color: var(--primary-ink);
 }
-.moderation-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: var(--control-h);
-  padding: 0 10px;
-  font-size: 13px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  cursor: pointer;
-  color: var(--text);
-  text-decoration: none;
-}
-.moderation-btn:hover {
-  background: var(--surface-hover);
-}
 .readonly-hinweis {
   display: inline-flex;
   align-items: center;
@@ -311,6 +306,14 @@ onMounted(() => {
   color: var(--muted);
   border: 1px dashed var(--line);
   border-radius: var(--radius);
+}
+/* UX1e2: Knopf-Fläche in der Kopfzeile. Das Knopf-System (DkButton) bringt
+   Höhe, Abstand und Optik mit; hier steht nur, wo der Knopf sitzt, damit er
+   mit den Nachbarn (Umschalter, „Nur lesen“) auf einer Linie bleibt.
+   Keine festen Farben. */
+.moderation-knopf {
+  flex: 0 0 auto;
+  align-self: center;
 }
 .moderation-btn-label { display: inline-flex; align-items: center; gap: var(--sp-1); }
 /* UX3a: Zahl offener Vorschläge am Reiter „Zu prüfen“ (Entwurf A4 zeigt den
@@ -336,8 +339,13 @@ onMounted(() => {
 /* FIX-6: Beschriftung „Zu prüfen“ weicht in der Mobil-Lage dem Symbol —
    LAYOUT, also nur die Breite (index.css «FIX-6 · Layout nur nach Breite»).
    Vorher genügte `(hover: none) and (pointer: coarse)`, wodurch auf einem
-   Touch-Notebook mit 1410 px Breite die Beschriftung verschwand. */
+   Touch-Notebook mit 1410 px Breite die Beschriftung verschwand.
+   UX1e2: Der Name des Knopfes bleibt „Termine prüfen und freigeben“ (aria-label am
+   DkButton); nur der sichtbare Text verschwindet. Die mobile Fläche bleibt
+   quadratisch — Innenabstand links/rechts gleich, damit das Symbol mittig
+   steht (statt 14 px fester Polsterung einer schmalen Fläche). */
 @media (max-width: 720px) {
+  .moderation-knopf { padding-left: var(--sp-3); padding-right: var(--sp-3); }
   .moderation-btn-label { display: none; }
 }
 

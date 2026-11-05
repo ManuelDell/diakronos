@@ -140,5 +140,11 @@ test('MAIL-1: die Pruefung im Browser kennt die Grenzen des Servers', () => {
   assert.ok(quelle.includes("f.sicherheit === 'keine' && String(f.benutzername || '').trim()"),
     '„keine“ nur ohne Anmeldung')
   assert.ok(quelle.includes('Für die Anmeldung fehlt das Passwort.'))
-  assert.ok(quelle.includes('Bitte den Namen des Mailservers angeben.'))
+  // UX2f: Servername und Absenderadresse prüfen mit den Regeln aus
+  // `feldPruefung.mjs` (eine Quelle für Feld und Sammelprüfung); der Text
+  // nennt jetzt zusätzlich ein Beispiel.
+  assert.ok(/Bitte den Namen des Mailservers angeben[^']*z\. B\. mail\.example\.org/.test(quelle),
+    'Meldung zum Servernamen fehlt')
+  assert.ok(/regelHost\(f\.host\)/.test(quelle), 'Sammelprüfung nutzt nicht regelHost')
+  assert.ok(/regelAbsender\(f\.absender\)/.test(quelle), 'Sammelprüfung nutzt nicht regelAbsender')
 })

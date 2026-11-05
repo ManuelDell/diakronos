@@ -21,7 +21,7 @@
             </label>
             <DkField label="Uhrzeit" help="Zu dieser Uhrzeit läuft die Sicherung (Ortszeit)."
               v-slot="feld">
-              <input v-bind="feld" v-model="uhrzeit" class="dk-ui-eingabe" type="time"
+              <input v-bind="feld.feldProps" v-model="uhrzeit" class="dk-ui-eingabe" type="time"
                 step="60" required />
             </DkField>
             <p v-if="naechsterLauf" class="sk-hilfe">
@@ -35,7 +35,7 @@
               help="Pflichtfeld. Mindestens 1 Tag, höchstens 3650 Tage."
               v-slot="feld">
               <span class="sk-einheit">
-                <input v-bind="feld" v-model.number="aufbewahrungTage" class="dk-ui-eingabe"
+                <input v-bind="feld.feldProps" v-model.number="aufbewahrungTage" class="dk-ui-eingabe"
                   type="number" min="1" max="3650" step="1" inputmode="numeric" required />
                 <span>Tage</span>
               </span>

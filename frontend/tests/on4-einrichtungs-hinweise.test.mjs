@@ -429,7 +429,12 @@ test('Karte der Übersicht fragt den Status ab und bietet „Später erinnern“
 test('Einstellungen → Gemeinde pflegt die ON-2-Felder (Nachtrag 2026-11-03)', () => {
   const gemeinde = lies('frontend/src/diakonos/pages/einstellungen/Gemeinde.vue')
   for (const feld of ['kurzname', 'strasse', 'plz', 'ort', 'telefon', 'website']) {
-    assert.match(gemeinde, new RegExp(`v-model="${feld}"`), `Feld ${feld} fehlt`)
+    // UX2f: Felder mit Prüfung binden über `:wert` + `@update:wert` (DkField
+    // prüft selbst); alle übrigen weiterhin über `v-model`.
+    assert.ok(
+      gemeinde.includes(`v-model="${feld}"`) || gemeinde.includes(`@update:wert="${feld} =`),
+      `Feld ${feld} fehlt`,
+    )
   }
   // Logo: Vorschau + Hochladen/Entfernen über die vorhandenen ON-2-Endpunkte.
   assert.match(gemeinde, /logoHochladen/)

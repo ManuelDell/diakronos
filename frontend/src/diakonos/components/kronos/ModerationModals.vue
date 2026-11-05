@@ -208,13 +208,14 @@
           <DkButton variant="secondary" :disabled="submitting" @click="showConflictModal = false">
             Abbrechen
           </DkButton>
-          <DkButton variant="secondary" class="dk-mod-btn-warn" :disabled="submitting" @click="resolveAction('vorschlag')">
+          <!-- UX1e: kein „Warn-Knopf“ mehr. „Vorschlagen“ ist gefahrlos und
+               deshalb secondary; die Warnung trägt das Symbol. -->
+          <DkButton variant="secondary" :disabled="submitting" @click="resolveAction('vorschlag')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Vorschlagen
           </DkButton>
           <DkButton
             variant="primary"
-            class="dk-mod-btn-ok"
             :disabled="submitting"
             data-testid="dk-mod-freigeben-konflikt"
             :title="'Gibt den Termin trotz Überschneidung frei'"
@@ -276,14 +277,22 @@
     <template #footer>
       <!-- View mode -->
       <div v-if="seriesMode === 'view'" class="dk-mod-series-footer">
-        <DkButton variant="secondary" class="dk-mod-btn-danger-outline" @click="seriesMode = 'confirm-delete'">Löschen</DkButton>
+        <!-- UX1e2: „Löschen“ stand hier als gefüllter Gefahrenknopf neben dem
+             gefüllten Primärknopf „Bearbeiten“ — zwei gefüllte Knöpfe in einem
+             Fuß, und der rote zog den Blick auf die Nebenaktion. Er öffnet nur
+             die Bestätigung; deshalb secondary wie „Schließen“, die
+             Gefahrenfarbe bleibt der Schrift vorbehalten (Klasse
+             `dk-mod-loeschen-schrift`). -->
+        <DkButton variant="secondary" class="dk-mod-loeschen-schrift" @click="seriesMode = 'confirm-delete'">Löschen</DkButton>
         <div class="dk-mod-luecke"></div>
         <DkButton variant="secondary" @click="showSeriesModal = false">Schließen</DkButton>
         <DkButton variant="primary" @click="seriesMode = 'edit'">Bearbeiten</DkButton>
       </div>
       <!-- Edit mode -->
       <div v-else-if="seriesMode === 'edit'" class="dk-mod-series-footer">
-        <DkButton variant="secondary" class="dk-mod-btn-danger-outline" @click="seriesMode = 'confirm-delete'">Löschen</DkButton>
+        <!-- UX1e2: siehe oben — Löschen ist hier die Nebenaktion zu
+             „Speichern“ und bleibt secondary (Gefahrenfarbe als Schrift). -->
+        <DkButton variant="secondary" class="dk-mod-loeschen-schrift" @click="seriesMode = 'confirm-delete'">Löschen</DkButton>
         <div class="dk-mod-luecke"></div>
         <DkButton variant="secondary" @click="seriesMode = 'view'">Abbrechen</DkButton>
         <DkButton variant="primary" :loading="submitting" @click="saveSeries">
@@ -325,7 +334,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             {{ fmtDate(ev.start, ev.all_day) }}
           </div>
-          <button class="dk-mod-btn-inline" @click="openSeriesConflictSingle(ev)">Auflösen</button>
+          <DkButton variant="secondary" size="sm" @click="openSeriesConflictSingle(ev)">Auflösen</DkButton>
         </div>
       </div>
     </template>
@@ -756,20 +765,11 @@ defineExpose({
 .dk-mod-series-conflict-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: 8px 10px; background: var(--surface-2); border-radius: var(--radius-sm); }
 .dk-mod-series-conflict-date { display: flex; align-items: center; gap: var(--sp-2); font-size: 13px; color: var(--muted); }
 
-/* Kleine Aktions-Knöpfe in Listen */
-.dk-mod-btn-inline {
-  padding: 4px 10px;
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  cursor: pointer;
-  font-family: inherit;
-}
-.dk-mod-btn-inline:hover { background: var(--surface-hover); }
-.dk-mod-btn-warn { color: var(--warn); }
+/* UX1e: `.dk-mod-btn-inline`, `.dk-mod-btn-warn`, `.dk-mod-btn-ok` und
+   `.dk-mod-btn-danger-outline` sind weg — die vier Eigenknöpfe sind jetzt
+   DkButton (secondary/danger, sm) und bekommen ihre Optik vom Knopf-System.
+   Vorher standen zwei verschiedene „Löschen“-Knöpfe nebeneinander: der eine
+   gefüllt rot, der andere rot nur in der Schrift. */
 /* DEV-7b: Hinweis unter der Konflikt-Knopfleiste (Folge der bewussten Freigabe). */
 .dk-mod-konflikt-fuss { display: flex; flex-direction: column; width: 100%; }
 .dk-mod-konflikt-hinweis {
@@ -778,6 +778,10 @@ defineExpose({
   color: var(--muted);
   line-height: 1.5;
 }
-.dk-mod-btn-ok { }
-.dk-mod-btn-danger-outline { color: var(--err); }
+/* UX1e2: Nebenaktion „Löschen“ im Serienfuß. Der Knopf bleibt secondary (die
+   Fläche gehört dem einen Primärknopf), die Gefahr zeigt die Schrift — dieselbe
+   Farbe wie der Gefahrenknopf (--err), nur nicht gefüllt. Im Dunkelmodus zieht
+   --err automatisch mit (tokens.css). */
+.dk-mod-loeschen-schrift { color: var(--err); }
+.dk-mod-loeschen-schrift:hover:not(:disabled) { color: var(--err); }
 </style>

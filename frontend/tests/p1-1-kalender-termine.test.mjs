@@ -93,8 +93,11 @@ test('UXK-002: Hintergrund ignoriert Klicks direkt nach dem Oeffnen', () => {
 // ── UXK-009: maxlength 140 ─────────────────────────────────────────────────
 
 test('UXK-009: beide Titel-Felder begrenzen auf 140 Zeichen', () => {
-  const createTitel = /maxlength="140"[^>]*placeholder="Termintitel"/
-  const editTitel = /maxlength="140"[^>]*placeholder="Termintitel"/
+  // UX2f: Das Titelfeld ist jetzt ein „Feld mit Prüfung" — die Grenze steht als
+  // `maxlength` am DkField (gereicht an die Eingabe), der Platzhalter am
+  // nativen <input> mit dem Feldsatz.
+  const createTitel = /maxlength="140"[\s\S]{0,400}?<input v-bind="feld\.feldProps"[^>]*placeholder="Termintitel"/
+  const editTitel = /maxlength="140"[\s\S]{0,400}?<input v-bind="feld\.feldProps"[^>]*placeholder="Termintitel"/
   assert.match(CREATE, createTitel)
   assert.match(EDIT, editTitel)
 })
