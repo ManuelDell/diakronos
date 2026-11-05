@@ -58,7 +58,7 @@
         <DkButton type="submit" variant="primary" :loading="speichert">Speichern</DkButton>
       </fieldset>
     </form>
-    <p v-if="erfolg" role="status">{{ erfolg }}</p>
+    <DkErfolgsmeldung :text="erfolg" />
 
     <DkCard title="Wartende und gesperrte Konten">
       <p>Hier erscheinen alle inaktiven Konten, auch manuell gesperrte. Prüfe vor dem Zulassen,
@@ -111,6 +111,7 @@ import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
 import DkField from '../../components/ui/DkField.vue'
 import DkDialog from '../../components/ui/DkDialog.vue'
+import DkErfolgsmeldung from '../../components/ui/DkErfolgsmeldung.vue'
 
 const { laedt, speichert, geladen, oidcAktiv, modus, adminUeberGruppen, rollen,
   zuordnungen, fehler, erfolg, zeilenFehler, bedienbar, laden, speichern } = useAnmeldeEinstellungen()

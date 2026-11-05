@@ -117,7 +117,7 @@
         <DkButton type="submit" variant="primary" :loading="speichert">Speichern</DkButton>
       </fieldset>
     </form>
-    <p v-if="erfolg" role="status">{{ erfolg }}</p>
+    <DkErfolgsmeldung :text="erfolg" />
 
     <DkCard title="Module">
       <p class="gem-hilfe">Zeigt an, welche Bereiche in der Navigation erscheinen.
@@ -143,6 +143,7 @@ import DkButton from '../../components/ui/DkButton.vue'
 import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
 import DkField from '../../components/ui/DkField.vue'
+import DkErfolgsmeldung from '../../components/ui/DkErfolgsmeldung.vue'
 // ON-4/H2: amber Leiste „… ist noch nicht eingerichtet.“
 import EinrichtungsLeiste from '../../components/einrichtung/EinrichtungsLeiste.vue'
 // ON-4/H4: Logo oder Monogramm (dieselbe Einbindung wie Seitenleiste/Assistent).

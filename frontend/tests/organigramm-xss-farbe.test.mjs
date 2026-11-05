@@ -81,6 +81,7 @@ const onMounted = () => {};
 const defineProps = () => ({});
 const defineExpose = () => {};
 const watch = () => {};
+const useLadeSkelett = (laedt) => ({ skelettSichtbar: laedt });
 const navigate = () => {};
 const currentHash = { value: '#/gruppen' };
 ${code}

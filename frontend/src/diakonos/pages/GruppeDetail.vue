@@ -17,7 +17,7 @@
 
         <!-- OP-UI-19: Seitenkopf steht schon, der Inhalt ist ein Skelett statt
              eines nackten „Lade…“. -->
-        <DkSkelett v-if="loading" form="zeilen" :anzahl="5" text="Gruppe wird geladen …" />
+        <DkSkelett v-if="loadingSkelett" form="zeilen" :anzahl="5" text="Gruppe wird geladen …" />
 
         <!-- Fehler -->
         <DkHint v-else-if="error" variant="err">{{ error }}</DkHint>
@@ -233,6 +233,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useSession } from '../composables/useSession.js'
 import { getRouteParam, navigate } from '../router.js'
 import { apiCall } from '../composables/useApi.js'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 // UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
 // "Fehler beim Laden" / "Fehler beim Speichern".
 import { aktionsfehler } from '../../shared/fehlertexte.js'
@@ -277,6 +278,8 @@ export default {
         const termine = ref([])
         const isMember = ref(false)
         const loading = ref(false)
+        // UX2d2: der Platzhalter erscheint erst, wenn das Laden merklich dauert.
+        const { skelettSichtbar: loadingSkelett } = useLadeSkelett(loading)
         const error = ref(null)
         /** K5/B-2: die Auswahlliste, um sie nach dem Hinzufuegen neu zu laden. */
         const mitgliedAuswahl = ref(null)
@@ -700,6 +703,7 @@ export default {
 
         return {
             mitgliedAuswahl,
+            loadingSkelett,
             // DSGVO-2d: eine gelöschte Person hat kein Profil (kein Link).
             darfProfilLink,
             // OP-CHOR-12/K2: Numerus-Helfer für „1 Mitglied“/„3 Mitglieder“.

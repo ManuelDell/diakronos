@@ -29,7 +29,7 @@
              keinen einzigen tel:/mailto:-Link — „jemanden anrufen“ war damit
              unmöglich. Die Tabelle bleibt am Schreibtisch (dort ist Platz). -->
         <div class="ab-karten dk-card">
-            <DkSkelett v-if="loading" form="tabelle" :anzahl="6" text="Adressbuch wird geladen …" class="adr-zustand" />
+            <DkSkelett v-if="loadingSkelett" form="tabelle" :anzahl="6" text="Adressbuch wird geladen …" class="adr-zustand" />
             <div v-else-if="error" class="dk-list-empty adr-zustand adr-fehler">{{ error }}</div>
             <DkEmpty
               v-else-if="filteredMitglieder.length === 0"
@@ -124,6 +124,7 @@
 <script>
 import { ref, computed, watch, onMounted } from 'vue'
 import { apiCall } from '../composables/useApi.js'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 // UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
 // "Fehler beim Laden" / "Fehler beim Speichern".
 import { aktionsfehler } from '../../shared/fehlertexte.js'
@@ -142,6 +143,8 @@ export default {
     setup() {
         const mitglieder = ref([])
         const loading = ref(false)
+        // UX2d2: der Platzhalter erscheint erst, wenn das Laden merklich dauert.
+        const { skelettSichtbar: loadingSkelett } = useLadeSkelett(loading)
         const error = ref(null)
         const search = ref('')
 
@@ -198,6 +201,7 @@ export default {
         return {
             search,
             loading,
+            loadingSkelett,
             error,
             filteredMitglieder,
             adrFilterAktiv,

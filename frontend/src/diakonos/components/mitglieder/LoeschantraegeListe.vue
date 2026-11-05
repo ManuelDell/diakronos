@@ -5,7 +5,7 @@
        ohne Erklärung wissen, was zu tun ist. -->
   <DkCard title="Löschanträge">
     <template #actions>
-      <DkButton v-if="!embedded" variant="ghost" size="sm" :disabled="laedt" @click="laden">
+      <DkButton v-if="!embedded" variant="ghost" size="sm" :disabled="laedt" @click="emit('laden')">
         Aktualisieren
       </DkButton>
     </template>
@@ -124,7 +124,7 @@ const props = defineProps({
   /** Eingebettet im Mitglieder-Bereich: kein eigener „Aktualisieren“-Knopf nötig. */
   embedded: { type: Boolean, default: false },
 })
-const emit = defineEmits(['freigeben', 'ablehnen', 'filter'])
+const emit = defineEmits(['freigeben', 'ablehnen', 'filter', 'laden'])
 
 /**
  * Zähler offener Anträge: die Liste unter „Offen“ IST die Arbeitsliste. Bei

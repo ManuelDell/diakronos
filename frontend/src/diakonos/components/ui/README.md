@@ -37,7 +37,9 @@ ausschliesslich aus `../../tokens.css` — feste Farbwerte (`#hex`, `rgb()`,
 | `DkTabs`        | Reiter mit Unterstrich-Aktivzustand              |
 | `DkTable`       | Tabelle mit Kopf, leerem Zustand, Scrollen       |
 | `DkHint`        | Hinweisfläche + Schrittfolge                     |
-| `DkEmpty`       | Leerzustand                                      |
+| `DkEmpty`       | Leerzustand; `erneut-versuchen` baut einen echten „Erneut versuchen"-Knopf |
+| `DkErfolgsmeldung` | Dauerhafte `aria-live`-Region für kurze Rückmeldungen (steht immer im DOM) |
+| `useLadeSkelett` | Bindet `DkSkelett` an den Ladezustand: Platzhalter erst nach 300 ms (kein Flackern) |
 | `DkToast`       | `useToast`: Erfolg 4 s, Fehler bis Schließen, Live-Ansage, Pause bei Maus/Fokus |
 | `DkPageHeader`  | Seitenkopf: Brotkrumen, Titel, Kennzeichen, Aktionen |
 

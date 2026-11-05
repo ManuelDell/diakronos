@@ -28,7 +28,7 @@
         </DkCard>
       </fieldset>
     </form>
-    <p v-if="erfolg" role="status">{{ erfolg }}</p>
+    <DkErfolgsmeldung :text="erfolg" />
 
     <DkCard title="Anmeldeformulare">
       <p class="rg-hilfe">Formulare bestimmen, welche Felder eine Person beim Anmelden
@@ -53,6 +53,7 @@ import DkButton from '../../components/ui/DkButton.vue'
 import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
 import DkField from '../../components/ui/DkField.vue'
+import DkErfolgsmeldung from '../../components/ui/DkErfolgsmeldung.vue'
 
 const { laedt, speichert, geladen, fehler, erfolg, linkLaufzeitTage,
   linkMaxAnmeldungen, bedienbar, laden, linkvorgabenSpeichern } = useGemeinde()

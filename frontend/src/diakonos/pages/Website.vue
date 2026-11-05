@@ -54,7 +54,8 @@
 
       <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
 
-      <DkSkelett v-if="laedt && !daten" form="zeilen" :anzahl="3" text="Freigaben werden geladen …" />
+      <!-- UX2d2: Platzhalter erst nach 300 ms — schnelle Antworten flackern nicht. -->
+      <DkSkelett v-if="freigabenSkelett" form="zeilen" :anzahl="3" text="Freigaben werden geladen …" />
 
       <template v-else-if="daten">
         <!-- ── U1 · Kalender ───────────────────────────────────────────── -->
@@ -310,6 +311,7 @@ import DkField from '../components/ui/DkField.vue'
 import DkHint from '../components/ui/DkHint.vue'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 import DkTable from '../components/ui/DkTable.vue'
 import FreigabeZeile from '../components/website/FreigabeZeile.vue'
 
@@ -325,6 +327,10 @@ const {
   laden, freigabeSetzen, postfachSpeichern: postfachSchreiben,
   postfachLoeschen, kategorieSetzen,
 } = useWebsiteFreigaben()
+
+// UX2d2: der Platzhalter erscheint erst, wenn das Laden merklich dauert.
+const freigabenSkelettGrund = computed(() => laedt.value && !daten.value)
+const { skelettSichtbar: freigabenSkelett } = useLadeSkelett(freigabenSkelettGrund)
 
 /** Primo-Anbindung — Zustand und „Primo öffnen“ (WEB-3, unverändert). */
 const { daten: primoDaten, pruefen, zustand, details, primoOeffnen: holeUndOeffne } = useWebsite()

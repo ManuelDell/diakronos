@@ -45,7 +45,7 @@
         <!-- OP-UI-19/S10: Laden, kein Treffer und „noch nichts da“ sind drei
              verschiedene Fälle. Vorher stand bei 0 Beiträgen „Suche oder
              Filter anpassen.“ — ein Rat, der nichts zu suchen hatte. -->
-        <DkSkelett v-if="postsLaden" form="zeilen" :anzahl="4" text="Beiträge werden geladen …" />
+        <DkSkelett v-if="postsLadenSkelett" form="zeilen" :anzahl="4" text="Beiträge werden geladen …" />
         <DkEmpty
           v-else-if="filteredPosts.length === 0"
           icon="📰"
@@ -244,6 +244,7 @@ import { ref, computed, onMounted } from 'vue'
 import DOMPurify from 'dompurify'
 import { useSession } from '../composables/useSession.js'
 import { apiCall } from '../composables/useApi.js'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 // UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
 // "Fehler beim Laden" / "Fehler beim Speichern".
 import { aktionsfehler } from '../../shared/fehlertexte.js'
@@ -314,6 +315,8 @@ const kategorieChips = computed(() => chipsAus(
 const kategorieOptionen = computed(() =>
   categories.filter(c => c.id !== 'all').map(c => ({ value: c.id, label: c.name })))
 const postsLaden = ref(true)
+// UX2d2: Platzhalter erst nach 300 ms — schnelle Antworten flackern nicht.
+const { skelettSichtbar: postsLadenSkelett } = useLadeSkelett(postsLaden)
 const filterAktiv = computed(() => activeCategory.value !== 'alle' || !!String(searchQuery.value || '').trim())
 const leerZustand = computed(() => (
   filterAktiv.value

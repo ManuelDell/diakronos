@@ -13,7 +13,11 @@ function seite(apiCall = async () => ({})) {
   const meldungen = []
   // UX-A2a: das Skript der Seite kennt jetzt zusätzlich `defineEmits` (der
   // Unterbereich kommt aus der Bereichsliste und geht als Ereignis zurück).
-  return new Function('ref', 'computed', 'h', 'onMounted', 'defineProps', 'defineEmits', 'apiCall', 'showToast', 'useFormularSchutz', 'pflichtFehler', 'requestAnimationFrame', `
+  // UX2d2: die Seite fragt den Ladezustand über `useLadeSkelett` ab. Der
+  // Aufbau hier führt das SFC-Skript ohne Importe aus — die Funktion muss
+  // deshalb als Parameter herein (sonst „not defined").
+  const useLadeSkelett = (laedt) => ({ skelettSichtbar: laedt })
+  return new Function('ref', 'computed', 'h', 'onMounted', 'defineProps', 'defineEmits', 'apiCall', 'showToast', 'useFormularSchutz', 'pflichtFehler', 'requestAnimationFrame', 'useLadeSkelett', `
     ${skript}
     return { newLink, newFormular, formularFelder, showCreateLink, showCreateFormular,
       formularBearbeitet, formularBearbeiten, formularEntfernen,
@@ -26,7 +30,7 @@ function seite(apiCall = async () => ({})) {
       aufnehmenSchutz, aufnehmenSchliessen, aufnehmenBestaetigen, aufnehmenLaeuft,
       ablehnen, ablehnenFuer, ablehnGrund, ablehnenFehler, ablehnenLaeuft,
       ablehnenSchutz, ablehnenSchliessen, ablehnenBestaetigen }
-  `)(ref, computed, h, () => {}, () => {}, () => {}, apiCall, (...args) => meldungen.push(args), useFormularSchutz, pflichtFehler, () => {})
+  `)(ref, computed, h, () => {}, () => {}, () => {}, apiCall, (...args) => meldungen.push(args), useFormularSchutz, pflichtFehler, () => {}, useLadeSkelett)
 }
 
 for (const art of ['link', 'formular']) {

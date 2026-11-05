@@ -7,7 +7,7 @@
 
     <DkHint v-if="laedt" role="status">Datensicherung wird geladen …</DkHint>
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
-    <DkHint v-if="erfolg" role="status">{{ erfolg }}</DkHint>
+    <DkErfolgsmeldung :text="erfolg" />
     <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut laden</DkButton>
 
     <template v-if="geladen">
@@ -118,6 +118,7 @@ import DkHint from '../../components/ui/DkHint.vue'
 import DkField from '../../components/ui/DkField.vue'
 import DkTable from '../../components/ui/DkTable.vue'
 import DkBadge from '../../components/ui/DkBadge.vue'
+import DkErfolgsmeldung from '../../components/ui/DkErfolgsmeldung.vue'
 
 const {
   laedt, speichert, sichert, geladen, fehler, erfolg,

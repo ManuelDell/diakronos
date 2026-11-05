@@ -17,7 +17,7 @@
 
     <DkHint v-if="laedt" role="status">Einstellungen werden geladen …</DkHint>
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
-    <DkHint v-if="erfolg" variant="ok" role="status">{{ erfolg }}</DkHint>
+    <DkErfolgsmeldung :text="erfolg" />
     <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut laden</DkButton>
 
     <template v-if="geladen">
@@ -172,6 +172,7 @@ import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
 import DkField from '../../components/ui/DkField.vue'
 import DkDialog from '../../components/ui/DkDialog.vue'
+import DkErfolgsmeldung from '../../components/ui/DkErfolgsmeldung.vue'
 // ON-4/H2: amber Leiste „… ist noch nicht eingerichtet.“
 import EinrichtungsLeiste from '../../components/einrichtung/EinrichtungsLeiste.vue'
 

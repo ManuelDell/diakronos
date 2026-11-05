@@ -8,7 +8,7 @@
     <DkHint v-if="laedt" role="status">Übersicht wird geladen …</DkHint>
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
     <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut laden</DkButton>
-    <p v-if="erfolg" role="status">{{ erfolg }}</p>
+    <DkErfolgsmeldung :text="erfolg" />
 
     <template v-if="geladen">
       <!-- ── Rollen je Person ───────────────────────────────────────────── -->
@@ -110,6 +110,7 @@ import DkHint from '../../components/ui/DkHint.vue'
 import DkField from '../../components/ui/DkField.vue'
 import DkDialog from '../../components/ui/DkDialog.vue'
 import DkEmpty from '../../components/ui/DkEmpty.vue'
+import DkErfolgsmeldung from '../../components/ui/DkErfolgsmeldung.vue'
 import VerantwortlicheKarte from '../../components/VerantwortlicheKarte.vue'
 
 const laedt = ref(true)

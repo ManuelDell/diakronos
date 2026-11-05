@@ -97,7 +97,7 @@
     <!-- OP-UI-19: eine Ladeform für alle Seiten — das Skelett aus dem
          Baustein. Vorher stand hier ein von Hand gebautes Gerüst neben fünf
          weiteren Ladeformen (Spinner, „Lade…“, leerer Bildschirm …). -->
-    <DkSkelett v-if="loading && lieder.length === 0" form="tabelle" :anzahl="6" text="Lieder werden geladen …" />
+    <DkSkelett v-if="loadingSkelett && lieder.length === 0" form="tabelle" :anzahl="6" text="Lieder werden geladen …" />
 
     <!-- Error -->
     <div v-else-if="error" class="ld-error">
@@ -199,6 +199,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { apiCall } from '../composables/useApi.js'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 // UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
 // "Fehler beim Laden" / "Fehler beim Speichern".
 import { aktionsfehler } from '../../shared/fehlertexte.js'
@@ -218,6 +219,8 @@ import DkEmpty from '../components/ui/DkEmpty.vue'
 
 const lieder = ref([])
 const loading = ref(false)
+// UX2d2: Platzhalter erst nach 300 ms — schnelle Antworten flackern nicht.
+const { skelettSichtbar: loadingSkelett } = useLadeSkelett(loading)
 const loadingMore = ref(false)
 const error = ref(null)
 const hasMore = ref(false)

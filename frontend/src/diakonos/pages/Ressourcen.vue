@@ -70,7 +70,7 @@
       <div class="rs-main">
 
         <!-- OP-UI-19: eine Ladeform für alle Seiten (DkSkelett). -->
-        <DkSkelett v-if="loading" form="karten" :anzahl="6" text="Ressourcen werden geladen …" />
+        <DkSkelett v-if="loadingSkelett" form="karten" :anzahl="6" text="Ressourcen werden geladen …" />
 
         <!-- Grid View -->
         <div v-else-if="viewMode === 'grid'" class="dk-card-grid">
@@ -439,6 +439,7 @@
 import { ref, computed, onMounted, watch, nextTick, h } from 'vue'
 import { useSession } from '../composables/useSession.js'
 import { apiCall } from '../composables/useApi.js'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 // UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
 // "Fehler beim Laden" / "Fehler beim Speichern".
 import { aktionsfehler } from '../../shared/fehlertexte.js'
@@ -470,6 +471,8 @@ const resources = ref([])
 const allBookings = ref([])
 const myBookings = ref([])
 const loading = ref(true)
+// UX2d2: Platzhalter erst nach 300 ms — schnelle Antworten flackern nicht.
+const { skelettSichtbar: loadingSkelett } = useLadeSkelett(loading)
 
 const viewMode = ref('grid')
 const searchQuery = ref('')

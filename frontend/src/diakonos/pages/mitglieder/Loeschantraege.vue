@@ -20,6 +20,7 @@
       @freigeben="freigabeOeffnen"
       @ablehnen="ablehnenOeffnen"
       @filter="filterWechseln"
+      @laden="laden"
     />
 
     <!-- ── Freigeben: Name abtippen, endgültig ── -->

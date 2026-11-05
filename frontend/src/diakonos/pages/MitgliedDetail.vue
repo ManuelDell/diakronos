@@ -54,7 +54,14 @@
         <div v-if="loading" class="md-zustand">Lade Mitglied…</div>
 
         <!-- Fehler -->
-        <DkHint v-else-if="error" variant="err">{{ error }}</DkHint>
+        <DkEmpty
+            v-else-if="error"
+            class="md-zustand"
+            icon="!"
+            title="Mitglied nicht geladen"
+            :text="error"
+            :erneut-versuchen="loadMitglied"
+        />
 
         <!-- AUSTRITT A3/A4: „ausgetreten seit …“ — nur für Administratoren,
              die den Grund auch sehen dürfen. Der Server liefert beides nur an
@@ -262,6 +269,7 @@ import DkTabs from '../components/ui/DkTabs.vue'
 import DkField from '../components/ui/DkField.vue'
 import DkSelect from '../components/ui/DkSelect.vue'
 import DkHint from '../components/ui/DkHint.vue'
+import DkEmpty from '../components/ui/DkEmpty.vue'
 import ZugangKarte from '../components/ZugangKarte.vue'
 
 const { isAdmin } = useSession()

@@ -3,6 +3,13 @@
     <div class="dk-ui-empty-icon" aria-hidden="true">{{ icon }}</div>
     <p class="dk-ui-empty-title">{{ title }}</p>
     <p v-if="text" class="dk-ui-empty-text">{{ text }}</p>
+    <!-- UX2d2: „Erneut versuchen“ ist eine HANDLUNG dieser Fläche, kein Satz.
+         Der Knopf kommt vom gemeinsamen Knopf-System (DkButton, secondary) —
+         genau ein gefüllter Knopf je Ansicht bleibt gewahrt. Ist kein Handler
+         angeschlossen, steht kein Knopf da (keine tote Klickfläche). -->
+    <div v-if="erneutVersuchen" class="dk-ui-empty-aktion">
+      <DkButton variant="secondary" @click="erneutVersuchen">Erneut versuchen</DkButton>
+    </div>
     <div v-if="$slots.aktion || $slots.default" class="dk-ui-empty-aktion">
       <slot name="aktion"><slot /></slot>
     </div>
@@ -13,11 +20,19 @@
 /**
  * DkEmpty — ruhiger Leerzustand (Stil A): Symbol, Titel, Erklärung, Aktion.
  * Nur Tokens, keine festen Farben.
+ *
+ * UX2d2: `erneutVersuchen` ist der Handler für eine Fläche, die nicht geladen
+ * werden konnte. Die Seite reicht ihn durch — dieser Baustein baut den Knopf
+ * dazu. Vorher blieb die Aufforderung ein nackter Text ohne Ziel.
  */
+import DkButton from './DkButton.vue'
+
 defineProps({
   title: { type: String, default: 'Nichts vorhanden' },
   text: { type: String, default: '' },
   icon: { type: String, default: '—' },
+  /** Handler für „Erneut versuchen"; ohne Handler entfällt der Knopf. */
+  erneutVersuchen: { type: Function, default: null },
 })
 </script>
 

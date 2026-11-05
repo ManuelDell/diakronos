@@ -16,7 +16,7 @@
     </DkPageHeader>
 
     <!-- OP-UI-19: eine Ladeform für alle Seiten — Skelett statt „Lade Lied…“. -->
-    <DkSkelett v-if="loading" form="zeilen" :anzahl="6" text="Lied wird geladen …" />
+    <DkSkelett v-if="loadingSkelett" form="zeilen" :anzahl="6" text="Lied wird geladen …" />
 
     <!-- Fehler -->
     <div v-else-if="error" class="ld-fehler">
@@ -164,6 +164,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { apiCall } from '../composables/useApi.js'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 // UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
 // "Fehler beim Laden" / "Fehler beim Speichern".
 import { aktionsfehler } from '../../shared/fehlertexte.js'
@@ -185,6 +186,8 @@ const strophen = ref([])
 const fassungen = ref([])
 const liedgruppen = ref([])
 const loading = ref(true)
+// UX2d2: Platzhalter erst nach 300 ms — schnelle Antworten flackern nicht.
+const { skelettSichtbar: loadingSkelett } = useLadeSkelett(loading)
 const error = ref(null)
 const activeTab = ref(0)
 const bearbeiten = ref(false)

@@ -57,7 +57,7 @@
         <DkButton type="submit" variant="primary" :loading="speichert">Speichern</DkButton>
       </fieldset>
     </form>
-    <p v-if="erfolg" role="status">{{ erfolg }}</p>
+    <DkErfolgsmeldung :text="erfolg" />
   </div>
 </template>
 
@@ -68,6 +68,7 @@ import DkButton from '../../components/ui/DkButton.vue'
 import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
 import DkField from '../../components/ui/DkField.vue'
+import DkErfolgsmeldung from '../../components/ui/DkErfolgsmeldung.vue'
 
 const { laedt, speichert, geladen, fehler, erfolg, einwilligung,
   datenschutzerklaerung, aufbewahrung, veroeffentlicht, version, statusText,

@@ -29,7 +29,7 @@
     <!-- OP-UI-19: Der Seitenkopf steht schon, der Inhalt ist ein ruhiges
          Skelett. Vorher stand hier „Lade…“ ohne Umriss; nach dem Laden
          erschienen Zähler wie „0“, die wie ein Ergebnis aussahen. -->
-    <DkSkelett v-if="loading" form="karten" :anzahl="6" text="Gruppen werden geladen …" />
+    <DkSkelett v-if="loadingSkelett" form="karten" :anzahl="6" text="Gruppen werden geladen …" />
 
     <template v-else>
 
@@ -150,6 +150,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { navigate } from '../router.js'
 import { apiCall } from '../composables/useApi.js'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 import { showToast } from '../composables/useToast.js'
 import { adresseSchreiben, zustandAusAdresse, pfadOhneAbfrage } from '../composables/listenzustand.mjs'
 import { chipsAus, filtereNachChip } from '../composables/filterChips.mjs'
@@ -168,6 +169,8 @@ import { STANDARD_FARBE } from '../../shared/sichere-ausgabe.js'
 defineProps({ embedded: { type: Boolean, default: false } })
 
 const loading = ref(true)
+// UX2d2: Platzhalter erst nach 300 ms — schnelle Antworten flackern nicht.
+const { skelettSichtbar: loadingSkelett } = useLadeSkelett(loading)
 const meineGruppen = ref([])
 const andereGruppen = ref([])
 const isAdmin = ref(false)

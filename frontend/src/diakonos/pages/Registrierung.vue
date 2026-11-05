@@ -45,7 +45,7 @@
       />
 
       <!-- OP-UI-19: gemeinsames Ladeskelett statt einer eigenen Form. -->
-      <DkSkelett v-if="loading" form="tabelle" :anzahl="5" text="Anfragen werden geladen …" />
+      <DkSkelett v-if="loadingSkelett" form="tabelle" :anzahl="5" text="Anfragen werden geladen …" />
 
       <DkCard v-else flach>
         <DkTable
@@ -104,7 +104,7 @@
         </DkButton>
       </div>
 
-      <DkSkelett v-if="loadingLinks" form="karten" :anzahl="3" text="Links werden geladen …" />
+      <DkSkelett v-if="loadingLinksSkelett" form="karten" :anzahl="3" text="Links werden geladen …" />
 
       <DkEmpty v-else-if="links.length === 0" title="Keine Registrierungslinks" text="Lege den ersten Link über „Neuer Link“ an." icon="🔗" />
 
@@ -181,7 +181,7 @@
         </DkButton>
       </div>
 
-      <DkSkelett v-if="loadingFormulare" form="karten" :anzahl="3" text="Formulare werden geladen …" />
+      <DkSkelett v-if="loadingFormulareSkelett" form="karten" :anzahl="3" text="Formulare werden geladen …" />
 
       <DkCard v-else flach>
         <DkTable :spalten="formularSpalten" :leer="formulare.length === 0"
@@ -551,6 +551,7 @@
  */
 import { ref, computed, onMounted, h } from 'vue'
 import { apiCall } from '../composables/useApi.js'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 // UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
 // "Fehler beim Laden" / "Fehler beim Speichern".
 import { aktionsfehler } from '../../shared/fehlertexte.js'
@@ -592,8 +593,14 @@ import RegLinkTeilen from '../components/registrierung/RegLinkTeilen.vue'
 import DkAnmeldeformular from '../../registrierung/components/DkAnmeldeformular.vue'
 
 const loading = ref(true)
+// UX2d2: Platzhalter erst nach 300 ms — schnelle Antworten flackern nicht.
+const { skelettSichtbar: loadingSkelett } = useLadeSkelett(loading)
 const loadingLinks = ref(true)
+// UX2d2: Platzhalter erst nach 300 ms — schnelle Antworten flackern nicht.
+const { skelettSichtbar: loadingLinksSkelett } = useLadeSkelett(loadingLinks)
 const loadingFormulare = ref(true)
+// UX2d2: Platzhalter erst nach 300 ms — schnelle Antworten flackern nicht.
+const { skelettSichtbar: loadingFormulareSkelett } = useLadeSkelett(loadingFormulare)
 const anmeldungen = ref([])
 const links = ref([])
 const formulare = ref([])
