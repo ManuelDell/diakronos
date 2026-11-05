@@ -664,7 +664,7 @@ onMounted(() => {
 .close-btn {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: var(--fs-26);
   cursor: pointer;
   color: var(--muted);
   line-height: 1;
@@ -703,7 +703,7 @@ onMounted(() => {
 
 /* Weitere Ressourcen section */
 .section-divider {
-  font-weight: 600;
+  font-weight: var(--fw-fett);
   font-size: var(--fs);
   color: var(--text);
   margin: var(--sp-2) 0 0;
@@ -739,7 +739,7 @@ onMounted(() => {
 }
 /* UX1e: `.remove-row-btn` und `.add-row-btn` sind weg — beide sind jetzt
    DkButton (ghost, sm). Nur die Lage in der Zeile bleibt eigen. */
-.row-entfernen { flex-shrink: 0; font-size: 1rem; }
+.row-entfernen { flex-shrink: 0; font-size: var(--fs-16); }
 .row-hinzufuegen { justify-content: flex-start; }
 
 /* K1 (DES-REST-b): Auf schmalen Anzeigen passen Löschen + Abbrechen +
@@ -781,6 +781,6 @@ onMounted(() => {
 .delete-confirm-inline span {
   font-size: var(--fs);
   color: var(--err);
-  font-weight: 500;
+  font-weight: var(--fw-mittel);
 }
 </style>

@@ -461,7 +461,7 @@ function parseServerError(data) {
   background: var(--surface-2);
   border-radius: var(--radius-sm);
   color: var(--text);
-  font-size: 14px;
+  font-size: var(--fs-14);
   line-height: 1.55;
   white-space: pre-line;
 }
@@ -478,18 +478,19 @@ function parseServerError(data) {
 
 .dk-pub-center { text-align: center; }
 
-.dk-pub-icon-large { font-size: 48px; margin-bottom: 16px; }
+.dk-pub-icon-large { font-size: var(--fs-26); margin-bottom: 16px; }  /* UX1b: Symbolgroesse
+   steht auf der groessten Stufe; 48 px waere keine Textgroesse. */
 
 .dk-pub-title {
-  font-size: 22px;
-  font-weight: 600;
+  font-size: var(--fs-20);
+  font-weight: var(--fw-fett);
   color: var(--text);
   margin: 0 0 6px 0;
   letter-spacing: -0.01em;
 }
 
 .dk-pub-muted {
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--muted);
   margin: 0;
   line-height: 1.5;
@@ -509,8 +510,8 @@ function parseServerError(data) {
 .dk-pub-field-group { display: flex; flex-direction: column; gap: 6px; }
 
 .dk-pub-label {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-mittel);
   color: var(--text);
 }
 
@@ -519,7 +520,7 @@ function parseServerError(data) {
 .dk-pub-input {
   width: 100%;
   padding: 9px 12px;
-  font-size: 14px;
+  font-size: var(--fs-14);
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--line);
@@ -541,7 +542,7 @@ function parseServerError(data) {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--text);
 }
 
@@ -563,7 +564,7 @@ function parseServerError(data) {
   gap: 10px;
 }
 
-.dk-pub-kinder-title { font-size: 13px; font-weight: 600; color: var(--text); margin: 0; }
+.dk-pub-kinder-title { font-size: var(--fs-14); font-weight: var(--fw-fett); color: var(--text); margin: 0; }
 
 .dk-pub-kinder-row {
   display: grid;
@@ -578,8 +579,8 @@ function parseServerError(data) {
 
 .dk-pub-remove-btn {
   color: var(--err);
-  font-size: 20px;
-  font-weight: 700;
+  font-size: var(--fs-20);
+  font-weight: var(--fw-fett);
   background: none;
   border: none;
   cursor: pointer;
@@ -589,8 +590,8 @@ function parseServerError(data) {
 .dk-pub-remove-btn:hover { color: var(--dk-red-700); }
 
 .dk-pub-add-btn {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-mittel);
   color: var(--primary);
   background: none;
   border: none;
@@ -604,11 +605,11 @@ function parseServerError(data) {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 16px;
-  font-size: 13px;
+  font-size: var(--fs-14);
 }
 .dk-pub-dokumente-title {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-fett);
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -622,17 +623,17 @@ function parseServerError(data) {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 16px;
-  font-size: 13px;
+  font-size: var(--fs-14);
 }
 
 .dk-pub-dsgvo-text { color: var(--muted); margin: 0 0 12px 0; line-height: 1.5; white-space: pre-line; }
 
-.dk-pub-dsgvo-label { font-weight: 500; color: var(--text); }
+.dk-pub-dsgvo-label { font-weight: var(--fw-mittel); color: var(--text); }
 
 /* N9b: der gepflegte Willkommenstext steht hervorgehoben ueber dem Formular. */
 .dk-pub-willkommen {
   color: var(--text);
-  font-weight: 500;
+  font-weight: var(--fw-mittel);
   margin: 0 0 12px 0;
   line-height: 1.5;
   white-space: pre-line;
@@ -644,7 +645,7 @@ function parseServerError(data) {
 .dk-pub-details summary {
   cursor: pointer;
   color: var(--primary);
-  font-weight: 500;
+  font-weight: var(--fw-mittel);
   padding: 4px 0;
 }
 .dk-pub-details .dk-pub-dsgvo-text { margin: 8px 0 0 0; }

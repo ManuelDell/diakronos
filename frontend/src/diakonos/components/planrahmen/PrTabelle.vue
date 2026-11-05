@@ -260,11 +260,11 @@ function liedZeilen(t, s) {
 .pr-tabelle-karte-kopf { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .pr-tabelle-karte .pr-tabelle-datum { display: inline; }
 .pr-tabelle-karte .pr-tabelle-uhrzeit { display: inline; }
-.pr-tabelle-karte-titel { font-size: 0.82rem; color: var(--dk-text-muted); margin-top: 2px; }
+.pr-tabelle-karte-titel { font-size: var(--fs-14); color: var(--dk-text-muted); margin-top: 2px; }
 .pr-tabelle-karte-anlaesse { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .pr-tabelle-karte-feld { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
 .pr-tabelle-karte-name {
-  font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.04em;
   color: var(--dk-text-subtle);
 }
 .pr-tabelle-karte-wert { display: flex; flex-direction: column; gap: 2px; color: var(--dk-text); }
@@ -272,20 +272,20 @@ function liedZeilen(t, s) {
 .pr-tabelle-karte-zeile { display: block; }
 .pr-tabelle-karte-leer { padding: 14px; text-align: center; }
 .pr-tabelle-wrap { overflow-x: auto; border: 1px solid var(--dk-border); border-radius: 12px; background: var(--dk-surface); }
-.pr-tabelle { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.pr-tabelle { width: 100%; border-collapse: collapse; font-size: var(--fs-14); }
 .pr-tabelle th, .pr-tabelle td { padding: 10px 14px; text-align: left; vertical-align: top; }
 .pr-tabelle thead th {
   position: sticky; top: 0; z-index: 1;
   background: var(--dk-surface-2); color: var(--dk-text-muted);
-  font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.04em;
   border-bottom: 1px solid var(--dk-border); white-space: nowrap;
 }
 .pr-tabelle tbody tr { border-top: 1px solid var(--dk-divider); }
 .pr-tabelle tbody tr:hover { background: var(--dk-surface-hover); }
 .pr-tabelle-termin { min-width: 180px; }
-.pr-tabelle-datum { display: block; font-weight: 600; color: var(--dk-text); }
-.pr-tabelle-uhrzeit { display: block; font-size: 0.74rem; color: var(--dk-text-muted); }
-.pr-tabelle-titelfeld { display: block; font-size: 0.76rem; color: var(--dk-text-muted); }
+.pr-tabelle-datum { display: block; font-weight: var(--fw-fett); color: var(--dk-text); }
+.pr-tabelle-uhrzeit { display: block; font-size: var(--fs-12); color: var(--dk-text-muted); }
+.pr-tabelle-titelfeld { display: block; font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-tabelle-termin .dk-badge { margin-top: 4px; margin-right: 4px; }
 .pr-tabelle-zelle { cursor: pointer; min-width: 140px; }
 .pr-tabelle-zelle:hover { background: color-mix(in oklch, var(--dk-brand-400) 6%, var(--dk-surface)); }
@@ -310,10 +310,10 @@ function liedZeilen(t, s) {
 .pr-tabelle-karte .pr-tabelle-instanz-text + .pr-tabelle-instanz-text { margin-top: 4px; }
 .pr-tabelle-karte .pr-tabelle-instanz-text--rahmen { display: block; }
 .pr-tabelle-instanz-text { color: var(--dk-text); }
-.pr-tabelle-pin { margin-left: 4px; font-size: 0.72rem; }
-.pr-tabelle-meldung { margin-left: 4px; font-size: 0.72rem; cursor: help; }
+.pr-tabelle-pin { margin-left: 4px; font-size: var(--fs-12); }
+.pr-tabelle-meldung { margin-left: 4px; font-size: var(--fs-12); cursor: help; }
 .pr-tabelle-gruppe { display: flex; gap: 6px; align-items: baseline; }
 .pr-tabelle-gruppe + .pr-tabelle-gruppe { margin-top: 3px; }
-.pr-tabelle-gruppen-name { flex-shrink: 0; font-size: 0.72rem; color: var(--dk-text-subtle); min-width: 70px; }
+.pr-tabelle-gruppen-name { flex-shrink: 0; font-size: var(--fs-12); color: var(--dk-text-subtle); min-width: 70px; }
 .pr-tabelle-gruppen-wert { color: var(--dk-text); }
 </style>

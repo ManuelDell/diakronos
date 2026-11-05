@@ -60,10 +60,10 @@
                          Reiner Text, kein HTML. -->
                     <div class="dk-pub-dsgvo">
                         <p v-if="willkommenstext" class="dk-pub-willkommen">{{ willkommenstext }}</p>
-                        <p class="dk-pub-dsgvo-text" style="font-size:12px">{{ texte.einwilligung }}</p>
+                        <p class="dk-pub-dsgvo-text" style="font-size:var(--fs-12)">{{ texte.einwilligung }}</p>
                         <label class="dk-pub-check">
                             <input type="checkbox" v-model="form.dsgvo" class="dk-pub-checkbox" />
-                            <span class="dk-pub-dsgvo-label" style="font-size:12px">Ich stimme zu. *</span>
+                            <span class="dk-pub-dsgvo-label" style="font-size:var(--fs-12)">Ich stimme zu. *</span>
                         </label>
                     </div>
 
@@ -230,7 +230,7 @@ function parseServerError(data) {
   justify-content: center;
   padding: 24px;
   font-family: var(--font);
-  font-size: 14px;
+  font-size: var(--fs-14);
   line-height: 1.5;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -255,18 +255,19 @@ function parseServerError(data) {
 
 .dk-pub-center { text-align: center; }
 
-.dk-pub-icon-large { font-size: 48px; margin-bottom: 16px; }
+.dk-pub-icon-large { font-size: var(--fs-26); margin-bottom: 16px; }  /* UX1b: Symbolgroesse
+   steht auf der groessten Stufe; 48 px waere keine Textgroesse. */
 
 .dk-pub-title {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: var(--fs-20);
+  font-weight: var(--fw-fett);
   color: var(--text);
   margin: 0 0 6px 0;
   letter-spacing: -0.01em;
 }
 
 .dk-pub-muted {
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--muted);
   margin: 0;
   line-height: 1.5;
@@ -289,7 +290,7 @@ function parseServerError(data) {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--text);
 }
 
@@ -306,7 +307,7 @@ function parseServerError(data) {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 14px;
-  font-size: 13px;
+  font-size: var(--fs-14);
 }
 
 .dk-pub-dsgvo-text {
@@ -319,14 +320,14 @@ function parseServerError(data) {
 /* N9b: gepflegter Willkommenstext ueber dem Formular. */
 .dk-pub-willkommen {
   color: var(--text);
-  font-weight: 500;
+  font-weight: var(--fw-mittel);
   margin: 0 0 10px 0;
   line-height: 1.5;
   white-space: pre-line;
 }
 
 .dk-pub-dsgvo-label {
-  font-weight: 500;
+  font-weight: var(--fw-mittel);
   color: var(--text);
 }
 </style>

@@ -124,10 +124,10 @@ function piktogramm(stufe) {
 </script>
 
 <style scoped>
-.pr-meldungen-termin { font-size: .76rem; margin-top: 4px; }
+.pr-meldungen-termin { font-size: var(--fs-12); margin-top: 4px; }
 .pr-meldungen-termin > summary { cursor: pointer; color: var(--dk-text-muted); width: fit-content; }
 .pr-meldungen-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-.pr-meldungen-uebersicht { border: 1px solid var(--dk-border); border-radius: 8px; padding: 8px 10px; font-size: .82rem; background: var(--dk-surface-2); }
+.pr-meldungen-uebersicht { border: 1px solid var(--dk-border); border-radius: 8px; padding: 8px 10px; font-size: var(--fs-14); background: var(--dk-surface-2); }
 .pr-meldungen-uebersicht summary { cursor: pointer; }
 .pr-meldungen-kopf { display: flex; align-items: center; gap: 8px; }
 .pr-meldungen-kopf .pr-meldungen-titel { flex: 1; min-width: 0; }
@@ -141,7 +141,7 @@ details[open] > summary .pr-meldungen-pfeil { transform: rotate(90deg); }
   display: flex; align-items: flex-start; gap: 8px;
   padding: 8px 10px; border-radius: 8px;
   border: 1px solid var(--dk-border); background: var(--dk-surface-2);
-  font-size: 0.82rem; line-height: 1.4;
+  font-size: var(--fs-14); line-height: 1.4;
 }
 .pr-meldung--fehler {
   border-color: color-mix(in oklch, var(--dk-danger) 30%, var(--dk-surface));
@@ -156,9 +156,9 @@ details[open] > summary .pr-meldungen-pfeil { transform: rotate(90deg); }
 .pr-meldung--hinweis { color: var(--dk-text-muted); }
 .pr-meldung-piktogramm { flex-shrink: 0; }
 .pr-meldung-text { flex: 1; min-width: 0; color: var(--dk-text); }
-.pr-meldung--fehler .pr-meldung-meldung { color: var(--dk-danger); font-weight: 600; }
-.pr-meldung--warnung .pr-meldung-meldung { color: var(--dk-warning); font-weight: 600; }
+.pr-meldung--fehler .pr-meldung-meldung { color: var(--dk-danger); font-weight: var(--fw-fett); }
+.pr-meldung--warnung .pr-meldung-meldung { color: var(--dk-warning); font-weight: var(--fw-fett); }
 .pr-meldung-hinweis { color: var(--dk-text-muted); }
-.pr-meldung-pfad { color: var(--dk-text-subtle); font-size: 0.74rem; font-family: var(--font-mono); }
-.pr-meldungen--kompakt .pr-meldung { padding: 5px 8px; font-size: 0.76rem; }
+.pr-meldung-pfad { color: var(--dk-text-subtle); font-size: var(--fs-12); font-family: var(--font-mono); }
+.pr-meldungen--kompakt .pr-meldung { padding: 5px 8px; font-size: var(--fs-12); }
 </style>

@@ -16,7 +16,7 @@ dass der Filter den Papierkorb liest und nicht die ganze Abfrage leer laesst.
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 import pytest
 
@@ -241,6 +241,115 @@ def test_planrahmen_waehlt_keine_geloeschten_lieder(client, als_admin, welt):
     assert [x["referenz_name"] for x in wieder] == ["LIE-F3"]
 
 
+def test_generiere_plan_zieht_kein_geloeschtes_lied(client, als_admin, welt):
+    """UX2b3: derselbe Papierkorb-Schutz ueber den ECHTEN Endpunkt.
+
+    ``_lied_kandidaten`` kann fuer sich stimmen, waehrend der Endpunkt den
+    Bestand ueber einen anderen Weg liest (Slot ohne Sammlung, Vorlage-Lookup).
+    Der Test startet ``generiere_plan`` per HTTP mit dry_run (kein Schreiben)
+    und liest die Lied-Position aus der Antwort.
+    """
+    from diakronos_app.models.diakonos import (
+        Dienstbereich,
+        Dienstplan,
+        DienstplanVorlage,
+        DienstplanVorlageSlot,
+    )
+
+    MODUL = "diakronos.diakonos.api.planung"
+    sess = welt
+    sess.add_all([
+        Dienstbereich(name="DB-GD", ministry="Gottesdienst", docstatus=0, idx=0),
+        DienstplanVorlage(
+            name="DV-LIED", vorlagenname="Gottesdienst mit Lied",
+            dienstbereich="DB-GD", betriebsmodus="Termine",
+            einsatz_rhythmus="Woechentlich", einsatz_wochentag="Sonntag",
+            einsatz_uhrzeit=time(10, 0), zuteilung_modus="manuell",
+            rotation_modus="Reihenfolge", docstatus=0, idx=0,
+        ),
+        Dienstplan(
+            name="DP-LIED", plantitel="Gottesdienst Liedtest", vorlage="DV-LIED",
+            dienstbereich="DB-GD", jahr=2026, status="Entwurf", ist_entwurf=1,
+            start_datum=date(2026, 11, 1), ende_datum=date(2026, 11, 30),
+            # Entwurfsschranke: Ersteller = der Aufrufer (Fixture als_admin).
+            owner=ADMIN, docstatus=0, idx=0,
+        ),
+        DienstplanVorlageSlot(
+            name="DVS-LIED", parent="DV-LIED", parenttype="Dienstplan Vorlage",
+            parentfield="slots", reihenfolge=1, bezeichnung="Eingangslied",
+            inhalt_doctype="Lied", docstatus=0, idx=1,
+        ),
+    ])
+    sess.commit()
+
+    def _positionen_im_vorschlag() -> list[dict]:
+        r = client.post(f"/api/method/{MODUL}.generiere_plan",
+                        data={"plan": "DP-LIED", "von": "2026-11-01",
+                              "bis": "2026-11-30", "dry_run": "true"})
+        assert r.status_code == 200, r.text
+        return r.json()["message"]["positionen"]
+
+    vorher = _positionen_im_vorschlag()
+    assert {p["referenz_name"] for p in vorher} == {"LIE-F3"}, vorher
+
+    _loeschen("Lied", "LIE-F3")
+    nachher = _positionen_im_vorschlag()
+    assert "LIE-F3" not in {p["referenz_name"] for p in nachher}, (
+        f"generiere_plan zieht ein geloeschtes Lied ({nachher})"
+    )
+    # Ohne Kandidaten bleibt die Position LEER — der Slot verschwindet nicht.
+    assert nachher and all(p["referenz_name"] is None for p in nachher), nachher
+    assert all(p["referenz_doctype"] is None for p in nachher), nachher
+
+
+# ── Musik: Recht aus einer Gruppe im Dienstbereich ──────────────────────────
+
+
+def test_musikrecht_aus_geloeschter_gruppe_entfaellt(client, als_mitglied, welt):
+    """UX2b2 (F3) / UX2b3: eine Gruppe im Papierkorb verleiht kein Musikrecht.
+
+    ``_is_musikverantwortlicher`` holt die Gruppen des Dienstbereichs „Musik und
+    Worship“ und prueft deren Verantwortliche. Der Papierkorb-Filter stand dort
+    ohne HTTP-Pfad-Test — dieser Test geht ueber ``save_lied`` (POST, echte
+    Rechtepruefung): erst 200 als Verantwortlicher, nach dem Loeschen der
+    Gruppe 403, nach dem Wiederherstellen wieder 200.
+    """
+    from diakronos_app.models.diakonos import Dienstbereich, Gruppe, GruppeVerantwortlicher
+
+    sess = welt
+    sess.add(Dienstbereich(name="Musik und Worship", ministry="Musik und Worship",
+                          docstatus=0, idx=0))
+    sess.add(Gruppe(name="GRU-MUSIK", gruppenname="Worship-Band", status="Aktiv",
+                    sichtbarkeit="Intern", dienstbereich="Musik und Worship",
+                    docstatus=0, idx=0))
+    sess.add(GruppeVerantwortlicher(
+        name="GV-MUSIK", parent="GRU-MUSIK", parenttype="Gruppe",
+        parentfield="verantwortliche", user=MITGLIED, docstatus=0, idx=1,
+    ))
+    sess.commit()
+
+    def _speichern(liedname: str):
+        return client.post(f"/api/method/{MUSIK}.save_lied",
+                           json={"daten": {"name": liedname, "notiz": "geprueft"}})
+
+    vorher = _speichern("LIE-F3")
+    assert vorher.status_code == 200, vorher.text
+
+    set_user(ADMIN)
+    _loeschen("Gruppe", "GRU-MUSIK")
+    set_user(MITGLIED)
+    nachher = _speichern("LIE-F3")
+    assert nachher.status_code == 403, (
+        f"geloeschte Gruppe verleiht weiter Musikrecht ({nachher.text})"
+    )
+
+    set_user(ADMIN)
+    _holen("Gruppe", "GRU-MUSIK")
+    set_user(MITGLIED)
+    wieder = _speichern("LIE-F3")
+    assert wieder.status_code == 200, wieder.text
+
+
 # ── Kanban: Ressourcenkonflikt ──────────────────────────────────────────────
 
 
@@ -361,6 +470,52 @@ def test_resource_liste_behaelt_eigene_filter(client, als_admin, welt):
         )
     daten = client.get("/api/resource/Lied",
                        params={"filters": '{"aktiv": 1}'}).json()["data"]
+    assert [z["name"] for z in daten] == ["LIE-F3B"]
+
+
+def test_resource_dict_filter_nach_geloescht_am_liefert_nichts(client, als_admin, welt):
+    """UX2b3 (5): der Papierkorb-Schutz gilt auch fuer DICT-Filter.
+
+    ``resource_list`` haengt bei dict-Filtern ``filters["geloescht_am"] =
+    ["is", "not set"]`` an (router.py ~:963). Weil der Eintrag den Filter des
+    Aufrufers ERSETZT, ist das Ergebnis immer „nur aktive Zeilen“ — auch wenn
+    der Aufrufer ``["is", "set"]`` (nur Geloeschte) verlangt. Genau das haelt
+    dieser Test fest: das geloeschte Lied taucht unter keinem dict-Filter auf,
+    ohne dass ein fremder Filter (``aktiv``) verloren geht.
+    """
+    from diakronos_app.models.psalmos import Lied
+
+    sess = welt
+    with sess.begin():
+        sess.execute(
+            Lied.__table__.insert().values(
+                name="LIE-F3B", titel="Anderes Lied", aktiv=1, docstatus=0, idx=0
+            )
+        )
+    _loeschen("Lied", "LIE-F3")
+
+    # Gegenprobe: ungefiltert ist nur das aktive Lied zu sehen.
+    assert [z["name"] for z in client.get("/api/resource/Lied").json()["data"]] == [
+        "LIE-F3B"
+    ]
+
+    for filterwert in (
+        '{"geloescht_am": ["is", "set"]}',
+        '{"aktiv": 1, "geloescht_am": ["is", "set"]}',
+    ):
+        r = client.get("/api/resource/Lied", params={"filters": filterwert})
+        assert r.status_code == 200, r.text
+        namen = [z["name"] for z in r.json()["data"]]
+        assert namen == ["LIE-F3B"], (
+            f"dict-Filter {filterwert} verdraengt den Papierkorb-Schutz "
+            f"(Antwort: {namen})"
+        )
+
+    # Der Papierkorb-Filter gewinnt auch gegen den ausdruecklichen Wunsch,
+    # geloeschte Zeilen zu sehen: das geloeschte Lied kommt nie zurueck.
+    daten = client.get("/api/resource/Lied",
+                       params={"filters": '{"geloescht_am": ["is", "not set"]}'}
+                       ).json()["data"]
     assert [z["name"] for z in daten] == ["LIE-F3B"]
 
 

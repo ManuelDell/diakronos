@@ -428,7 +428,7 @@ defineExpose({ reload: loadData })
   right: 7px;
   background: var(--badge-auf-bild);
   color: var(--badge-auf-bild-text);
-  font-size: 0.62rem;
+  font-size: var(--fs-12);
   padding: 2px 7px;
   border-radius: 20px;
   backdrop-filter: blur(4px);
@@ -439,8 +439,8 @@ defineExpose({ reload: loadData })
 }
 
 .gr-kachel-name {
-  font-weight: 600;
-  font-size: 0.87rem;
+  font-weight: var(--fw-fett);
+  font-size: var(--fs-14);
   color: var(--dk-text);
   margin-bottom: 5px;
   white-space: nowrap;
@@ -449,7 +449,7 @@ defineExpose({ reload: loadData })
 }
 
 .gr-typ-tag {
-  font-size: 0.67rem;
+  font-size: var(--fs-12);
   padding: 1px 6px;
   border-radius: 4px;
   background: var(--dk-surface-2);
@@ -458,7 +458,7 @@ defineExpose({ reload: loadData })
 }
 
 .gr-kachel-meta {
-  font-size: 0.75rem;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
 }
 

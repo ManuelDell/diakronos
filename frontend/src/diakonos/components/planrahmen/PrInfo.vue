@@ -59,7 +59,7 @@ function umschalten() { offen.value = !offen.value }
 .pr-info-knopf {
   width: 16px; height: 16px; padding: 0; line-height: 1;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 0.68rem; font-weight: 700; font-style: italic;
+  font-size: var(--fs-12); font-weight: var(--fw-fett); font-style: italic;
   color: var(--dk-text-muted); background: var(--dk-surface-2);
   border: 1px solid var(--dk-border); border-radius: 50%; cursor: help;
 }
@@ -71,14 +71,14 @@ function umschalten() { offen.value = !offen.value }
   background: var(--dk-surface); color: var(--dk-text);
   border: 1px solid var(--dk-border);
   box-shadow: var(--shadow-lg);
-  font-size: 0.78rem; font-weight: 400; line-height: 1.45;
+  font-size: var(--fs-12); font-weight: var(--fw-normal); line-height: 1.45;
   display: none;
 }
 /* Hover UND Tastaturfokus zeigen den Text; der Klick hält ihn offen. */
 .pr-info:hover .pr-info-text,
 .pr-info:focus-within .pr-info-text,
 .pr-info-text.is-offen { display: block; }
-.pr-info-quelle { display: block; margin-top: 4px; color: var(--dk-text-subtle); font-size: 0.7rem; }
+.pr-info-quelle { display: block; margin-top: 4px; color: var(--dk-text-subtle); font-size: var(--fs-12); }
 /* Inhaltsumbruch, kein Layout: der Info-Text schwebt am schmalen Gerät nicht
    mehr, sondern steht unter dem Feld (280 px passten sonst nicht in die
    Dialogbreite). */

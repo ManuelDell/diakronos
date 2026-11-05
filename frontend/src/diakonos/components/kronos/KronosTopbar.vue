@@ -257,7 +257,7 @@ onMounted(() => {
 }
 .current-date {
   font-size: var(--fs-h3);
-  font-weight: 600;
+  font-weight: var(--fw-fett);
   min-width: 0;   /* UXK-008: vorher 120px — sprengte die Zeile am Handy */
   text-align: center;
   color: var(--text);
@@ -268,7 +268,7 @@ onMounted(() => {
 .view-dropdown {
   height: var(--control-h);
   padding: 0 24px 0 10px;
-  font-size: 13px;
+  font-size: var(--fs-14);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -302,7 +302,7 @@ onMounted(() => {
   gap: 6px;
   height: var(--control-h);
   padding: 0 10px;
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--muted);
   border: 1px dashed var(--line);
   border-radius: var(--radius);
@@ -332,7 +332,7 @@ onMounted(() => {
   background: var(--warn-soft);
   color: var(--warn);
   font-size: var(--fs-sm);
-  font-weight: 600;
+  font-weight: var(--fw-fett);
   line-height: var(--sp-4);
   text-align: center;
 }

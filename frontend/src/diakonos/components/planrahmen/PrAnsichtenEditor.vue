@@ -222,22 +222,22 @@ function kalenderSpalten(ansicht, monat) {
 
 <style scoped>
 .pr-an { display: flex; flex-direction: column; gap: 12px; }
-.pr-an-hinweis { font-size: 0.82rem; color: var(--dk-text-muted); margin: 0; line-height: 1.5; }
-.pr-an-hinweis code { font-size: 0.78rem; background: var(--dk-surface-2); padding: 1px 4px; border-radius: 4px; }
-.pr-an-leer { font-size: 0.8rem; color: var(--dk-text-muted); margin: 0; }
+.pr-an-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0; line-height: 1.5; }
+.pr-an-hinweis code { font-size: var(--fs-12); background: var(--dk-surface-2); padding: 1px 4px; border-radius: 4px; }
+.pr-an-leer { font-size: var(--fs-12); color: var(--dk-text-muted); margin: 0; }
 .pr-an-karte { border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
 .pr-an-zeile { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
-.pr-an-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600; color: var(--dk-text-muted); }
+.pr-an-label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); }
 .pr-an-block { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--dk-divider); padding-top: 8px; }
-.pr-an-titel { font-size: 0.74rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 0; }
+.pr-an-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 0; }
 .pr-an-chips { display: flex; flex-wrap: wrap; gap: 6px 12px; }
-.pr-an-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 0.82rem; color: var(--dk-text); cursor: pointer; }
-.pr-an-schalter { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--dk-text); cursor: pointer; }
+.pr-an-chip { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; }
+.pr-an-schalter { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; }
 .pr-an-format { display: grid; grid-template-columns: minmax(120px, 200px) 1fr auto; gap: 6px; align-items: center; }
 .pr-an-formatfehler { grid-column: 1 / -1; }
-.pr-an-schluessel { font-family: var(--font-mono); font-size: 0.82rem; }
+.pr-an-schluessel { font-family: var(--font-mono); font-size: var(--fs-14); }
 .pr-an-chip--alt { color: var(--dk-warning); }
-.pr-an-vorschau { grid-column: 1 / -1; font-size: 0.78rem; color: var(--dk-text-muted); margin: 0; font-style: italic; }
+.pr-an-vorschau { grid-column: 1 / -1; font-size: var(--fs-12); color: var(--dk-text-muted); margin: 0; font-style: italic; }
 /* Inhaltsumbruch, kein Layout: die drei Spalten einer Formatzeile
    (Auswahl | Feld | Aktion) stehen untereinander. */
 @media (max-width: 640px) { .pr-an-format { grid-template-columns: 1fr; } }

@@ -607,17 +607,17 @@ function nachrichten(liste) {
 <style scoped>
 .pr-ed { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .pr-ed-block + .pr-ed-block { margin-top: 8px; }
-.pr-ed-kopf { display: flex; flex-direction: column; gap: 3px; font-size: 0.84rem; color: var(--dk-text-muted); }
+.pr-ed-kopf { display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-14); color: var(--dk-text-muted); }
 .pr-ed-kopf strong { color: var(--dk-text); }
-.pr-ed-pin { margin-left: 6px; font-size: 0.76rem; }
+.pr-ed-pin { margin-left: 6px; font-size: var(--fs-12); }
 .pr-ed-feld { display: flex; flex-direction: column; gap: 5px; }
 /* ST2: Tag-Filter der Lied-Auswahl */
 .pr-ed-tagfilter-reihe { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
-.pr-ed-tagfilter-feld { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; color: var(--dk-text-muted); }
-.pr-ed-tagfilter-wahl { font-size: 12px; padding: 4px 8px; }
-.pr-ed-label { font-size: 0.8rem; font-weight: 600; color: var(--dk-text-muted); }
+.pr-ed-tagfilter-feld { display: inline-flex; gap: 6px; align-items: center; font-size: var(--fs-12); color: var(--dk-text-muted); }
+.pr-ed-tagfilter-wahl { font-size: var(--fs-12); padding: 4px 8px; }
+.pr-ed-label { font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); }
 .pr-ed-gruppe { border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.pr-ed-legend { font-size: 0.8rem; font-weight: 600; color: var(--dk-text-muted); padding: 0 0 4px; }
+.pr-ed-legend { font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); padding: 0 0 4px; }
 .pr-ed-wahl {
   display: flex; align-items: baseline; gap: 9px; padding: 8px 10px;
   border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface);
@@ -630,22 +630,22 @@ function nachrichten(liste) {
 }
 .pr-ed-input { flex-shrink: 0; margin: 0; align-self: center; }
 .pr-ed-wahl-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.pr-ed-wahl-name { font-size: 0.88rem; color: var(--dk-text); font-weight: 500; }
-.pr-ed-wahl-neben { font-size: 0.74rem; color: var(--dk-text-muted); }
+.pr-ed-wahl-name { font-size: var(--fs-14); color: var(--dk-text); font-weight: var(--fw-mittel); }
+.pr-ed-wahl-neben { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-ed-reiter { display: flex; flex-wrap: wrap; gap: 6px; }
 .pr-ed-auswahl { width: 100%; }
 .pr-ed-reiter .is-active {
   border-color: color-mix(in oklch, var(--primary) 45%, var(--line));
   background: color-mix(in oklch, var(--accent) 14%, var(--surface));
-  font-weight: 600;
+  font-weight: var(--fw-fett);
 }
 .pr-ed-warnung {
-  padding: 8px 10px; border-radius: 8px; font-size: 0.8rem;
+  padding: 8px 10px; border-radius: 8px; font-size: var(--fs-12);
   border: 1px solid color-mix(in oklch, var(--dk-warning) 35%, var(--dk-surface));
   background: color-mix(in oklch, var(--dk-warning) 8%, var(--dk-surface));
   color: var(--dk-warning);
 }
-.pr-ed-leer { font-size: 0.84rem; color: var(--dk-text-muted); padding: 4px 0; }
+.pr-ed-leer { font-size: var(--fs-14); color: var(--dk-text-muted); padding: 4px 0; }
 /* OP-CHOR-10: Mobil wurde die Auswahlliste unbedienbar — die Regelabzeichen
    liefen Wort fuer Wort ueber mehrere Zeilen (Karten bis 764 px hoch, rund
    154 Karten). Auf schmalen Geraeten bleiben sie kurz und einzeilig; der

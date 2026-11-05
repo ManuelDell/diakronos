@@ -1,0 +1,70 @@
+# UX1b — eingefrorener Bestand fester Schriftgroessen und -gewichte.
+#
+# Geprueft: ALLE frontend/src/** (.vue/.css/.js/.mjs) AUSSER
+#           frontend/src/diakonos/tokens.css (die Quelle selbst).
+# Format:   relativer/pfad	nzahl_fundstellen
+# Fundstelle = `font-size` mit festem Laengenwert (px/rem/… != 0) |
+#              `font-weight` mit fester Zahl (600, 650, bold …) |
+#              `font`-Kurzschreibweise MIT Groesse |
+#              `font-variant-numeric` mit festem Wert (tabular-nums).
+#              Erlaubt: 0, var(--…), calc() aus var(--…). Inline-Stile zaehlen mit.
+#
+# REGEL (Karte UX1b B2): Diese Liste darf NUR SCHRUMPFEN.
+#   * hoehere Zahl oder neuer Eintrag       -> rot
+#     (frontend/tests/ux1b-schriften.test.mjs)
+#   * behobene Fundstelle nicht nachgezogen -> rot
+#   * neue Datei mit festen Werten          -> rot (nicht in der Liste = 0 erlaubt)
+# Die fuenf Groessen (12/14/16/20/26) und drei Gewichte (400/500/600) stehen
+# als Tokens in tokens.css; Komponenten schreiben `var(--fs-…)`/`var(--fw-…)`.
+# Erzeugt mit (aus frontend/ heraus): node tools/schrift-bestand.mjs --schreiben
+#
+# Stand (UX1b, eingefroren): 105 Fundstellen in 49 Dateien.
+frontend/src/diakonos/components/MitgliedAuswahl.vue	1
+frontend/src/diakonos/components/WartendeKontenKarte.vue	1
+frontend/src/diakonos/components/devmodus/BefundDialog.vue	1
+frontend/src/diakonos/components/devmodus/Rahmen.vue	1
+frontend/src/diakonos/components/einrichtung/AssistentSchritte.vue	3
+frontend/src/diakonos/components/einrichtung/EinrichtungsKarte.vue	1
+frontend/src/diakonos/components/einrichtung/EinrichtungsLeiste.vue	2
+frontend/src/diakonos/components/einrichtung/MitgliederLeerzustand.vue	1
+frontend/src/diakonos/components/einrichtung/SchrittFertig.vue	2
+frontend/src/diakonos/components/einrichtung/SchrittGemeinde.vue	3
+frontend/src/diakonos/components/einrichtung/SchrittKontakt.vue	1
+frontend/src/diakonos/components/einrichtung/SchrittMailversand.vue	3
+frontend/src/diakonos/components/einrichtung/SchrittMitgliederKalender.vue	5
+frontend/src/diakonos/components/einrichtung/SchrittModule.vue	1
+frontend/src/diakonos/components/kronos/KronosSeriesDialog.vue	1
+frontend/src/diakonos/components/kronos/ModerationAenderungen.vue	2
+frontend/src/diakonos/components/lieder/LiedgruppeBearbeiten.vue	2
+frontend/src/diakonos/components/mitglieder/LoeschantraegeListe.vue	3
+frontend/src/diakonos/components/mitglieder/MitgliedHinzufuegenDialog.vue	1
+frontend/src/diakonos/components/planrahmen/PrErklaerung.vue	2
+frontend/src/diakonos/components/planrahmen/PrSprungleiste.vue	1
+frontend/src/diakonos/components/ui/DkBadge.vue	1
+frontend/src/diakonos/components/ui/DkBereichsliste.vue	5
+frontend/src/diakonos/components/ui/DkButton.vue	1
+frontend/src/diakonos/components/ui/DkFehlertext.vue	1
+frontend/src/diakonos/components/ui/DkField.vue	2
+frontend/src/diakonos/components/ui/DkHint.vue	2
+frontend/src/diakonos/components/ui/DkSegment.vue	1
+frontend/src/diakonos/components/ui/DkTable.vue	1
+frontend/src/diakonos/components/ui/DkTabs.vue	2
+frontend/src/diakonos/components/website/FreigabeZeile.vue	1
+frontend/src/diakonos/components/widgets/DsgvoComplianceWidget.vue	1
+frontend/src/diakonos/components/widgets/PendingRegistrationsWidget.vue	1
+frontend/src/diakonos/pages/Beitraege.vue	5
+frontend/src/diakonos/pages/Einstellungen.vue	1
+frontend/src/diakonos/pages/GruppeDetail.vue	5
+frontend/src/diakonos/pages/KalenderImport.vue	1
+frontend/src/diakonos/pages/LiedDetail.vue	4
+frontend/src/diakonos/pages/LiedgruppeDetail.vue	3
+frontend/src/diakonos/pages/MitgliedDetail.vue	3
+frontend/src/diakonos/pages/Profile.vue	6
+frontend/src/diakonos/pages/Registrierung.vue	2
+frontend/src/diakonos/pages/Wiki.vue	2
+frontend/src/diakonos/pages/einrichtung/Assistent.vue	3
+frontend/src/diakonos/pages/einstellungen/DatenschutzTexte.vue	1
+frontend/src/diakonos/pages/einstellungen/Gemeinde.vue	2
+frontend/src/diakonos/pages/einstellungen/RollenRechte.vue	2
+frontend/src/diakonos/pages/mitglieder/Uebersicht.vue	5
+frontend/src/ssot/seiten.css	3

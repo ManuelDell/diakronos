@@ -190,7 +190,7 @@ async function resetLayout() {
     border-radius: 8px !important;
     color: var(--dk-text-muted) !important;
     padding: 10px 16px !important;
-    font-size: 13px !important;
+    font-size: var(--fs-14) !important;
     gap: 6px;
   }
 }

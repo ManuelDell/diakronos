@@ -211,8 +211,13 @@ test('DEV-3 · OP-HANDY-14 bleibt wirksam: am Touchgerät ≥16 px, keine späte
     (r) => r.touch && r.selektor.split(',').map((s) => s.trim()).includes('.dk-ui-eingabe'),
   )
   assert.ok(touch.length > 0, 'index.css: Touch-Regel für Felder vorhanden')
-  assert.equal(parseFloat(touch[touch.length - 1].groesse), TOUCH_MINDESTGROESSE,
-    `Touch-Regel setzt ${TOUCH_MINDESTGROESSE} px (gefunden: ${touch[touch.length - 1].groesse})`)
+  // UX1b: die Groesse steht als Token (`var(--fs-16)`); die Zahl kommt aus
+  // tokens.css. Rohwert und Verweis auf eine Stufe werden beide gelesen.
+  const groesse = touch[touch.length - 1].groesse
+  const stufe = /var\(--fs-(\d+)\)/.exec(groesse)
+  const px = stufe ? Number(stufe[1]) : parseFloat(groesse)
+  assert.equal(px, TOUCH_MINDESTGROESSE,
+    `Touch-Regel setzt ${TOUCH_MINDESTGROESSE} px (gefunden: ${groesse})`)
 
   // Nur die Touch-Regel darf `.dk-ui-eingabe` eine Schriftgröße geben —
   // gleich an welcher Stelle des Stylesheets.

@@ -53,7 +53,7 @@ defineProps({
   border-radius: 50%;
   background: var(--surface-2);
   color: var(--subtle);
-  font-size: 18px;
+  font-size: var(--fs-20);
 }
 .dk-ui-empty-title { font-size: var(--fs-h4); font-weight: var(--fw-h); margin: 0; color: var(--text); }
 .dk-ui-empty-text { font-size: var(--fs); color: var(--muted); margin: 0; max-width: 46ch; line-height: 1.55; }

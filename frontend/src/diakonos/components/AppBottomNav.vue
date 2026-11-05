@@ -231,10 +231,12 @@ useZurueckSchliesst(showMore, closeMore)
   text-decoration: none;
   /* Operator-Review DEP-2, Punkt 6: die Beschriftungen der unteren Leiste waren
      mit 10 px/500 zu duenn und zu hell (--dk-text-muted) — am Handy kaum lesbar.
-     Jetzt kraeftiger (600) und in der Textfarbe des Themes. Die Groesse bleibt
-     10 px: 5 Reiter muessen in 390 px passen („Ressourcen" ist der laengste). */
+     Jetzt kraeftiger (600) und in der Textfarbe des Themes. Die Groesse ist
+     seit UX1b die kleinste Stufe (12 px statt 10): 5 Reiter muessen in 390 px
+     passen („Ressourcen" ist der laengste) — bei 12 px passt die Leiste, der
+     Hinweis auf die 10 px gilt nicht mehr. */
   color: var(--dk-text);
-  font-size: 10px; font-weight: 600;
+  font-size: var(--fs-12); font-weight: var(--fw-fett);
   background: none; border: none; cursor: pointer;
   padding: 0;
   transition: color 0.15s;
@@ -247,7 +249,7 @@ useZurueckSchliesst(showMore, closeMore)
    allein an der Farbe haengt (WCAG 1.4.1). */
 .dk-bn-tab.active {
   color: var(--accent);
-  font-weight: 700;
+  font-weight: var(--fw-fett);
 }
 .dk-bn-tab.active span { position: relative; }
 .dk-bn-tab.active span::after {
@@ -263,7 +265,7 @@ useZurueckSchliesst(showMore, closeMore)
 .dk-bn-avatar {
   width: 22px; height: 22px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 9px; font-weight: 700; color: var(--primary-ink); flex-shrink: 0;
+  font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--primary-ink); flex-shrink: 0;
 }
 
 /* Slide-up sheet */
@@ -320,7 +322,7 @@ useZurueckSchliesst(showMore, closeMore)
   margin: 12px auto 8px;
 }
 .dk-bn-sheet-title {
-  font-size: 12px; font-weight: 600;
+  font-size: var(--fs-12); font-weight: var(--fw-fett);
   color: var(--dk-text-muted);
   text-transform: uppercase; letter-spacing: 0.5px;
   padding: 0;
@@ -331,7 +333,7 @@ useZurueckSchliesst(showMore, closeMore)
   display: flex; align-items: center; justify-content: space-between;
   padding: 4px 20px 12px;
   color: var(--dk-text-muted);
-  font-size: 12px; font-weight: 600;
+  font-size: var(--fs-12); font-weight: var(--fw-fett);
   text-transform: uppercase; letter-spacing: 0.5px;
 }
 .dk-bn-theme-schalter {
@@ -341,7 +343,7 @@ useZurueckSchliesst(showMore, closeMore)
   border-radius: 10px;
   background: var(--dk-surface-2);
   color: var(--dk-text);
-  font-size: 13px; font-weight: 500;
+  font-size: var(--fs-14); font-weight: var(--fw-mittel);
   cursor: pointer;
 }
 .dk-bn-theme-schalter:focus-visible {
@@ -360,7 +362,7 @@ useZurueckSchliesst(showMore, closeMore)
   border-radius: 12px;
   text-decoration: none;
   color: var(--dk-text);
-  font-size: 12px; font-weight: 500;
+  font-size: var(--fs-12); font-weight: var(--fw-mittel);
   background: none;
   transition: background 0.15s;
   -webkit-tap-highlight-color: transparent;

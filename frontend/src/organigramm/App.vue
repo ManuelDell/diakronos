@@ -182,18 +182,18 @@ onMounted(async () => {
     background: var(--primary); color: var(--primary-ink); border-radius: var(--radius);
     padding: 14px 20px; text-align: center;
 }
-.oc-org-name { font-size: .95rem; font-weight: 700; }
-.oc-org-meta { font-size: .78rem; opacity: .85; margin-top: 4px; }
+.oc-org-name { font-size: var(--fs-16); font-weight: var(--fw-fett); }
+.oc-org-meta { font-size: var(--fs-12); opacity: .85; margin-top: 4px; }
 
 .oc-node--gruppe {
     background: var(--surface); border: 2px solid var(--info-soft); border-radius: var(--radius);
     padding: 12px 16px;
 }
 .oc-gruppe-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.oc-gruppe-name { font-size: .9rem; font-weight: 700; color: var(--text); }
-.oc-gruppe-typ { font-size: .72rem; background: var(--info-soft); color: var(--info); border-radius: var(--badge-r); padding: 1px 7px; }
-.oc-gruppe-leiter { font-size: .78rem; color: var(--muted); }
-.oc-gruppe-count { font-size: .78rem; color: var(--subtle); margin-top: 4px; }
+.oc-gruppe-name { font-size: var(--fs-14); font-weight: var(--fw-fett); color: var(--text); }
+.oc-gruppe-typ { font-size: var(--fs-12); background: var(--info-soft); color: var(--info); border-radius: var(--badge-r); padding: 1px 7px; }
+.oc-gruppe-leiter { font-size: var(--fs-12); color: var(--muted); }
+.oc-gruppe-count { font-size: var(--fs-12); color: var(--subtle); margin-top: 4px; }
 
 .oc-node--mitglied {
     display: flex; align-items: center; gap: 10px;
@@ -204,7 +204,7 @@ onMounted(async () => {
     width: 36px; height: 36px; border-radius: 50%;
     background: var(--info-soft); color: var(--info);
     display: flex; align-items: center; justify-content: center;
-    font-size: .78rem; font-weight: 700; flex-shrink: 0;
+    font-size: var(--fs-12); font-weight: var(--fw-fett); flex-shrink: 0;
 }
 
 /* DEP-1: Profilbild im Kopf (ersetzt Avatar aus frappe-ui). Kleinere Fassung
@@ -214,8 +214,8 @@ onMounted(async () => {
     width: 26px; height: 26px; border-radius: 50%;
     background: var(--info-soft); color: var(--info);
     display: flex; align-items: center; justify-content: center;
-    font-size: .68rem; font-weight: 700; flex-shrink: 0;
+    font-size: var(--fs-12); font-weight: var(--fw-fett); flex-shrink: 0;
 }
-.oc-mitglied-name { font-size: .82rem; font-weight: 600; color: var(--text); }
-.oc-mitglied-rolle { font-size: .72rem; color: var(--subtle); margin-top: 1px; }
+.oc-mitglied-name { font-size: var(--fs-14); font-weight: var(--fw-fett); color: var(--text); }
+.oc-mitglied-rolle { font-size: var(--fs-12); color: var(--subtle); margin-top: 1px; }
 </style>

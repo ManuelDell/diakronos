@@ -372,7 +372,7 @@ onMounted(async () => {
   border-radius: var(--radius);
   color: var(--link);
   font-size: var(--fs-sm);
-  font-weight: 600;
+  font-weight: var(--fw-fett);
   text-decoration: none;
 }
 .ksb-leer-link:hover { background: var(--surface-2); color: var(--link-hover); }
@@ -403,7 +403,7 @@ onMounted(async () => {
 }
 .sidebar-ablehnung-item:hover { background: var(--dk-sb-hover); }
 .sidebar-ablehnung-titel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sidebar-ablehnung-zeit { color: var(--dk-sb-text-muted); font-size: 12px; flex: none; }
+.sidebar-ablehnung-zeit { color: var(--dk-sb-text-muted); font-size: var(--fs-12); flex: none; }
 
 /* UXK-R9: Schliessen-Knopf nur im mobilen Overlay zeigen. */
 .kronos-sidebar-close { display: none; }
@@ -421,7 +421,7 @@ onMounted(async () => {
     border-radius: var(--radius-sm);
     background: transparent;
     color: var(--dk-sb-text-muted);
-    font-size: 18px;
+    font-size: var(--fs-20);
     line-height: 1;
     cursor: pointer;
   }

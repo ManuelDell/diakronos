@@ -267,7 +267,9 @@ test('Untere Leiste: kräftige Beschriftung, aktiver Reiter über --accent (Punk
   const quelle = lies('src/diakonos/components/AppBottomNav.vue')
   const stil = ohneKommentare(quelle.match(/<style scoped>([\s\S]*?)<\/style>/)[1])
   const tab = stil.match(/\.dk-bn-tab\s*\{([\s\S]*?)\}/)[1]
-  assert.match(tab, /font-weight:\s*(600|700)/, 'die Beschriftung ist wieder zu dünn')
+  // UX1b: Gewichte sind Tokens — kraeftig heisst var(--fw-fett) (600). Eine
+  // Rohzahl 600/700 gibt es im Stylesheet nicht mehr (Waechter ux1b).
+  assert.match(tab, /font-weight:\s*var\(--fw-fett\)/, 'die Beschriftung ist wieder zu dünn')
   assert.match(tab, /color:\s*var\(--dk-text\)/, 'die Beschriftung nimmt nicht die Textfarbe des Themes')
   assert.doesNotMatch(tab, /--primary/, 'inaktive Reiter nehmen --primary (im Dunkelmodus WEISS)')
   const aktiv = stil.match(/\.dk-bn-tab\.active\s*\{([\s\S]*?)\}/)[1]

@@ -400,25 +400,25 @@ function stufenFuer(i) {
 .pr-fb-feld { border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); padding: 8px 10px; }
 .pr-fb-feld--tief { background: var(--dk-surface-2); }
 .pr-fb-kopf { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.pr-fb-auf { background: none; border: none; cursor: pointer; font-size: 0.9rem; color: var(--dk-text-muted); padding: 2px 6px; }
-.pr-fb-id { max-width: 170px; font-family: var(--font-mono); font-size: 0.82rem; }
+.pr-fb-auf { background: none; border: none; cursor: pointer; font-size: var(--fs-14); color: var(--dk-text-muted); padding: 2px 6px; }
+.pr-fb-id { max-width: 170px; font-family: var(--font-mono); font-size: var(--fs-14); }
 .pr-fb-name { max-width: 240px; }
 .pr-fb-art { max-width: 250px; }
 .pr-fb-aktionen { display: inline-flex; gap: 2px; margin-left: auto; }
 .pr-fb-koerper { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .pr-fb-zeile { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
-.pr-fb-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600; color: var(--dk-text-muted); }
-.pr-fb-hilfe { font-weight: 400; font-size: 0.74rem; color: var(--dk-text-subtle); }
+.pr-fb-label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); }
+.pr-fb-hilfe { font-weight: var(--fw-normal); font-size: var(--fs-12); color: var(--dk-text-subtle); }
 .pr-fb-anzahl { display: inline-flex; align-items: center; gap: 6px; }
 .pr-fb-zahl { max-width: 80px; }
-.pr-fb-bis { font-size: 0.76rem; color: var(--dk-text-subtle); }
+.pr-fb-bis { font-size: var(--fs-12); color: var(--dk-text-subtle); }
 .pr-fb-zeit { max-width: 150px; }
-.pr-fb-schalter { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--dk-text); cursor: pointer; }
+.pr-fb-schalter { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; }
 .pr-fb-schalter--gross { padding-bottom: 8px; }
-.pr-fb-details { font-size: 0.84rem; }
-.pr-fb-details summary { cursor: pointer; color: var(--dk-text-muted); font-size: 0.8rem; font-weight: 600; }
+.pr-fb-details { font-size: var(--fs-14); }
+.pr-fb-details summary { cursor: pointer; color: var(--dk-text-muted); font-size: var(--fs-12); font-weight: var(--fw-fett); }
 .pr-fb-unter { padding-left: 10px; border-left: 3px solid color-mix(in oklch, var(--dk-brand-400) 35%, var(--dk-border)); display: flex; flex-direction: column; gap: 8px; }
-.pr-fb-unter-titel { font-size: 0.74rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 4px 0 0; }
+.pr-fb-unter-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 4px 0 0; }
 .pr-fb-zweig { border: 1px dashed var(--dk-border); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
 .pr-fb-neu { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pr-fb-neu-wahl { max-width: 260px; }

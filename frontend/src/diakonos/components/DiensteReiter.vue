@@ -64,7 +64,7 @@ const aktiveSeite = computed(() => props.seite)
   border-bottom: calc(2 * var(--rahmen-breite)) solid transparent;
   color: var(--dk-text-muted);
   font-size: var(--fs);
-  font-weight: 500;
+  font-weight: var(--fw-mittel);
   text-decoration: none;
 }
 .dk-dienste-reiter-punkt:hover { color: var(--dk-text); }
@@ -72,7 +72,7 @@ const aktiveSeite = computed(() => props.seite)
 .dk-dienste-reiter-punkt.is-aktiv {
   color: var(--accent);
   border-bottom-color: var(--accent);
-  font-weight: 600;
+  font-weight: var(--fw-fett);
 }
 .dk-dienste-reiter-punkt:focus-visible {
   outline: 2px solid var(--focus-ring);

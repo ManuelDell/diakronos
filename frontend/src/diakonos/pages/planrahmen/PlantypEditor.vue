@@ -1034,11 +1034,11 @@ async function stammdatenPanelGeschlossen() {
 </script>
 
 <style scoped>
-.pr-pe-zustand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--dk-text-muted); font-size: 0.9rem; }
+.pr-pe-zustand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--dk-text-muted); font-size: var(--fs-14); }
 .pr-pe-zustand--fehler { color: var(--dk-danger); }
 .pr-pe-tabs { margin-bottom: 12px; }
-.pr-pe-meta { font-size: 0.78rem; color: var(--dk-text-muted); }
-.pr-pe-pruefstatus { font-size: 0.82rem; color: var(--dk-text-muted); padding: 6px 0; }
+.pr-pe-meta { font-size: var(--fs-12); color: var(--dk-text-muted); }
+.pr-pe-pruefstatus { font-size: var(--fs-14); color: var(--dk-text-muted); padding: 6px 0; }
 .pr-pe-pruefstatus--ok { color: var(--ok); }
 .pr-pe-form { display: flex; flex-direction: column; gap: 26px; }
 
@@ -1065,19 +1065,19 @@ async function stammdatenPanelGeschlossen() {
    nicht, siehe PrReihenEditor.vue). */
 .pr-pe-abschnitt { display: flex; flex-direction: column; gap: 10px; scroll-margin-top: 90px; }
 .pr-pe-titel {
-  font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--dk-text-muted); margin: 0; border-bottom: 1px solid var(--dk-divider); padding-bottom: 6px;
 }
-.pr-pe-hinweis { font-size: 0.82rem; color: var(--dk-text-muted); margin: 0; line-height: 1.5; }
+.pr-pe-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0; line-height: 1.5; }
 .pr-pe-hinweis--warnung {
   border: 1px solid color-mix(in oklch, var(--dk-warning) 45%, var(--dk-border));
   border-radius: 10px; padding: 10px 12px;
   background: color-mix(in oklch, var(--dk-warning) 8%, var(--dk-surface));
 }
-.pr-pe-hinweis-text { margin: 0 0 6px; font-size: 0.82rem; color: var(--dk-text); }
+.pr-pe-hinweis-text { margin: 0 0 6px; font-size: var(--fs-14); color: var(--dk-text); }
 .pr-pe-unbekannte-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .pr-pe-unbekannte-liste li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.pr-pe-unbekannte-kennung { font-family: var(--font-mono); font-size: 0.82rem; color: var(--dk-text); }
+.pr-pe-unbekannte-kennung { font-family: var(--font-mono); font-size: var(--fs-14); color: var(--dk-text); }
 .pr-pe-hilfe--warnung { color: var(--dk-warning); }
 /* UX-C3b: Auswahlfeld mit ⓘ daneben (Begriffserklärung aus dem Glossar). */
 .pr-pe-mit-info { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
@@ -1087,23 +1087,23 @@ async function stammdatenPanelGeschlossen() {
   border-radius: 10px;
   background: color-mix(in oklch, var(--dk-warning) 8%, var(--dk-surface));
 }
-.pr-pe-kollision-text { margin: 0; font-size: 0.86rem; color: var(--dk-text); }
-.pr-pe-checkbox { display: inline-flex; align-items: center; gap: 6px; font-size: 0.84rem; color: var(--dk-text); }
-.pr-pe-leer { font-size: 0.82rem; color: var(--dk-text-muted); margin: 0; }
+.pr-pe-kollision-text { margin: 0; font-size: var(--fs-14); color: var(--dk-text); }
+.pr-pe-checkbox { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); color: var(--dk-text); }
+.pr-pe-leer { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0; }
 .pr-pe-zeile { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
-.pr-pe-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600; color: var(--dk-text-muted); min-width: 0; }
+.pr-pe-label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); min-width: 0; }
 .pr-pe-kurz { max-width: 220px; font-family: var(--font-mono); }
-.pr-pe-unter-titel { font-size: 0.74rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 6px 0 0; }
+.pr-pe-unter-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 6px 0 0; }
 .pr-pe-chips { display: flex; flex-wrap: wrap; gap: 6px 12px; }
-.pr-pe-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 0.82rem; color: var(--dk-text); cursor: pointer; font-family: var(--font-mono); }
+.pr-pe-chip { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; font-family: var(--font-mono); }
 .pr-pe-anlass { border: 1px solid var(--dk-border); border-radius: 12px; background: var(--dk-surface); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .pr-pe-versionen { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .pr-pe-version { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); }
-.pr-pe-version-haupt { font-size: 0.86rem; color: var(--dk-text); font-weight: 500; }
+.pr-pe-version-haupt { font-size: var(--fs-14); color: var(--dk-text); font-weight: var(--fw-mittel); }
 .pr-pe-version-neben { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.pr-pe-version-kommentar { font-size: 0.78rem; color: var(--dk-text-muted); }
+.pr-pe-version-kommentar { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-pe-json { display: flex; flex-direction: column; gap: 8px; }
-.pr-pe-jsonfeld { font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.45; }
+.pr-pe-jsonfeld { font-family: var(--font-mono); font-size: var(--fs-12); line-height: 1.45; }
 .pr-pe-speichern { display: flex; flex-direction: column; gap: 12px; }
 /* OP-UI-23: unsichtbarer Absende-Knopf, damit Enter im Feld absendet. */
 .pr-pe-sr-submit {
@@ -1117,7 +1117,7 @@ async function stammdatenPanelGeschlossen() {
   border-radius: 10px;
   background: color-mix(in oklch, var(--dk-warning) 8%, var(--dk-surface));
 }
-.pr-pe-entwurf-text { margin: 0; font-size: 0.86rem; color: var(--dk-text); }
+.pr-pe-entwurf-text { margin: 0; font-size: var(--fs-14); color: var(--dk-text); }
 .pr-pe-entwurf-aktionen { display: flex; gap: 8px; flex-wrap: wrap; }
 /* Inhaltsumbruch, kein Layout: das Kurzfeld gibt seine 220-px-Breite auf und
    nimmt die Zeile. */

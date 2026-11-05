@@ -525,6 +525,50 @@ def test_aufraeumen_entfernt_lied_vollstaendig(patched_db, welt):
     assert welt.get(Liedstrophe, "LIE-1-ST1") is None
 
 
+def test_endgueltig_element_ist_eine_transaktion(patched_db, welt, monkeypatch):
+    """UX2b3: Loeschen scheitert -> die geloesten Verweise bleiben erhalten.
+
+    Der Docstring von ``_endgueltig_element`` verspricht EINE Transaktion. Bis
+    UX2b3 standen die Verweise (``anmeldung.element``, ``ablaufplan.element``,
+    …) bereits auf NULL, wenn das Loeschen des Termins scheiterte: der
+    Termin war noch da, die Anmeldung aber ohne Bezug. Der Test laesst genau
+    das Loeschen scheitern und prueft, dass auch die Verweise unangetastet
+    sind.
+    """
+    from diakronos_app import papierkorb
+    from diakronos_app.frappe_compat import api_helpers
+    from diakronos_app.models.diakonos import Anmeldung
+    from diakronos_app.models.kronos import Ablaufplan, Element
+
+    sess = welt
+    sess.add_all([
+        Anmeldung(name="AN-1", element="ELE-1", docstatus=0, idx=0),
+        Ablaufplan(name="AP-1", titel="Gottesdienst", element="ELE-1",
+                   docstatus=0, idx=0),
+    ])
+    sess.commit()
+
+    papierkorb.loeschen("Element", "ELE-1", von=ADMIN)
+
+    # Fehler genau im Loeschschritt (nachdem die Verweise schon geloest waeren).
+    def _scheitert(*_args, **_kwargs):
+        raise RuntimeError("Loeschen scheitert (Test)")
+
+    monkeypatch.setattr(api_helpers, "_delete_doc", _scheitert)
+
+    with pytest.raises(RuntimeError):
+        papierkorb.endgueltig_entfernen("Element", "ELE-1")
+
+    sess.expire_all()
+    assert sess.get(Element, "ELE-1") is not None, "Testaufbau: Termin fehlt"
+    assert sess.get(Anmeldung, "AN-1").element == "ELE-1", (
+        "Verweis anmeldung.element wurde trotz gescheitertem Loeschen geloest"
+    )
+    assert sess.get(Ablaufplan, "AP-1").element == "ELE-1", (
+        "Verweis ablaufplan.element wurde trotz gescheitertem Loeschen geloest"
+    )
+
+
 def test_scheduler_job_ist_registriert():
     from diakronos_app import scheduler
 

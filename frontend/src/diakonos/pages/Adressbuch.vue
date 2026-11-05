@@ -230,9 +230,9 @@ export default {
   gap: 8px; flex-wrap: wrap;
   margin-bottom: 8px;
 }
-.ab-karte-name { font-weight: 600; color: var(--dk-text); text-decoration: none; }
+.ab-karte-name { font-weight: var(--fw-fett); color: var(--dk-text); text-decoration: none; }
 .ab-karte-name:hover { text-decoration: underline; }
-.ab-karte-ort { font-size: 12px; color: var(--dk-text-muted); }
+.ab-karte-ort { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .ab-karte-aktionen { display: flex; flex-wrap: wrap; gap: 8px; }
 .ab-aktion {
   display: inline-flex; align-items: center; gap: 5px;
@@ -241,7 +241,7 @@ export default {
   border-radius: 9px;
   background: var(--dk-surface-2);
   color: var(--dk-text);
-  font-size: 13px; font-weight: 500;
+  font-size: var(--fs-14); font-weight: var(--fw-mittel);
   text-decoration: none;
 }
 .ab-aktion--leise { color: var(--dk-text-muted); }

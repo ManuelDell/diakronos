@@ -218,17 +218,31 @@ def _endgueltig_element(name: str) -> None:
     ``element_aenderung`` haengt per ``ON DELETE CASCADE`` am Termin und geht
     mit der Zeile (``_delete_doc``). Alles in EINER Transaktion: entweder ist
     der Termin samt geloester Verweise weg oder nichts passiert (F4).
+
+    UX2b3: der Loeschaufruf steht INNERHALB von ``_sitzung_begin()``. Frueher
+    committete der Verweis-Block allein und ``_delete_doc`` lief danach in
+    einer eigenen Transaktion — schlug das Loeschen fehl, standen die
+    Referenzen bereits auf NULL (Anmeldung ohne Termin, obwohl der Termin
+    noch da war). ``_delete_doc`` committet eine GELIEHENE Sitzung nur
+    (``_abschluss`` -> ``flush``); der Commit des Blocks macht beides
+    gemeinsam fest, ein Fehler rollt beides zurueck.
     """
     from sqlalchemy import update
 
+    from diakronos_app.db import als_aktuelle_sitzung
     from diakronos_app.frappe_compat.api_helpers import _delete_doc
     from diakronos_app.frappe_compat.registry_gen import model_for
 
     with _sitzung_begin() as sess:
-        for doctype in _ELEMENT_VERWEISE_NULL:
-            model = model_for(doctype)
-            sess.execute(update(model).where(model.element == name).values(element=None))
-    _delete_doc("Element", name)
+        with als_aktuelle_sitzung(sess):
+            for doctype in _ELEMENT_VERWEISE_NULL:
+                model = model_for(doctype)
+                sess.execute(update(model).where(model.element == name).values(element=None))
+            # Loeschen in DERSELBEN Sitzung: `als_aktuelle_sitzung` laesst
+            # `sitzung_fuer_lesen` (aus `diakronos_app.db`) die geliehene
+            # Sitzung liefern, `_delete_doc` committet sie dann nicht selbst
+            # (`_abschluss` -> flush). Der Commit unten ist der EINE Commit.
+            _delete_doc("Element", name)
 
 
 #: Verweise auf ``gruppe.name`` (UX2b2/F2, vollstaendig per grep ueber die

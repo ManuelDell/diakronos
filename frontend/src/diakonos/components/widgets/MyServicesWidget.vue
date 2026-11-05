@@ -151,17 +151,17 @@ function formatDateTime(s) {
 .msv-row:last-child { border-bottom: none; }
 .msv-main { flex: 1; min-width: 0; }
 .msv-title {
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-mittel);
   color: var(--dk-text);
   line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.msv-meta { font-size: 0.75rem; color: var(--dk-text-muted); margin-top: 2px; }
+.msv-meta { font-size: var(--fs-12); color: var(--dk-text-muted); margin-top: 2px; }
 .msv-side { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.msv-rolle { font-size: 0.72rem; color: var(--dk-text-muted); max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.msv-link { display: inline-block; margin-top: 10px; font-size: 0.8rem; color: var(--dk-brand-700, var(--dk-info)); text-decoration: none; }
+.msv-rolle { font-size: var(--fs-12); color: var(--dk-text-muted); max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msv-link { display: inline-block; margin-top: 10px; font-size: var(--fs-12); color: var(--dk-brand-700, var(--dk-info)); text-decoration: none; }
 .msv-link:hover { text-decoration: underline; }
 </style>

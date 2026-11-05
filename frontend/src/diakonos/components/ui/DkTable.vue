@@ -63,6 +63,9 @@ const hatAktion = computed(() => props.spalten.some((s) => s && s.aktion))
   max-width: 100%;
   min-width: 640px;
   border-collapse: collapse;
+  /* UX1b (Prinzip Ä3): Ziffern in Tabellen gleiche Breite — Spalten stehen
+     sonst nicht untereinander (Wert aus dem Token in tokens.css). */
+  font-variant-numeric: var(--fs-tabular);
   /* FIX-4 (Befund DMB-9a25839dfda4): Seitentabellen hatten `auto`; der Browser
      verteilte die Breite nach Inhalt — die Aktionszelle mit zwei
      `white-space: nowrap`-Knöpfen schob sich dabei über die Nachbarzelle (am

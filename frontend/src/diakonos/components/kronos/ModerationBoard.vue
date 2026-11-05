@@ -424,8 +424,8 @@ defineExpose({
   gap: 8px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--dk-border);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-fett);
 }
 .dk-mboard-col-header--konflikte { color: var(--dk-danger); }
 .dk-mboard-col-header--vorschlaege { color: var(--dk-warning); }
@@ -437,8 +437,8 @@ defineExpose({
 .dk-mboard-col-title { flex: 1; }
 
 .dk-mboard-count {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
   padding: 1px 7px;
   border-radius: 999px;
   background: var(--dk-surface-2);
@@ -459,7 +459,7 @@ defineExpose({
   padding: 24px 12px;
   text-align: center;
   color: var(--dk-text-subtle);
-  font-size: 13px;
+  font-size: var(--fs-14);
 }
 
 .dk-mboard-drop-hint {
@@ -470,7 +470,7 @@ defineExpose({
   gap: 8px;
   padding: 32px 16px;
   color: var(--dk-text-subtle);
-  font-size: 13px;
+  font-size: var(--fs-14);
   border: 2px dashed var(--dk-border);
   border-radius: 8px;
   margin: 8px;

@@ -923,8 +923,8 @@ function nachrichten(liste) {
 
 <style scoped>
 .pr-plan-zeitraum { margin-right: 10px; }
-.pr-plan-stand { margin-left: 10px; color: var(--dk-text-muted); font-size: 0.78rem; }
-.pr-plan-zustand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--dk-text-muted); font-size: 0.9rem; }
+.pr-plan-stand { margin-left: 10px; color: var(--dk-text-muted); font-size: var(--fs-12); }
+.pr-plan-zustand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--dk-text-muted); font-size: var(--fs-14); }
 .pr-plan-zustand--fehler { color: var(--dk-danger); }
 .pr-plan-meldungen { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
 .pr-plan-meldungen > *:first-child { flex: 1; min-width: 0; }
@@ -933,14 +933,14 @@ function nachrichten(liste) {
   flex-wrap: wrap; gap: 12px; margin-bottom: 14px;
 }
 .pr-plan-terminwahl { display: inline-flex; align-items: center; gap: 8px; }
-.pr-plan-terminwahl-label { font-size: 0.8rem; font-weight: 600; color: var(--dk-text-muted); }
+.pr-plan-terminwahl-label { font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); }
 .pr-plan-terminwahl .dk-form-select { width: auto; min-width: 220px; }
-.pr-plan-modaltext { font-size: 0.86rem; color: var(--dk-text-muted); margin: 0 0 12px; }
+.pr-plan-modaltext { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0 0 12px; }
 .pr-plan-archiv {
   padding: 10px 14px; margin-bottom: 14px; border-radius: 10px;
   border: 1px solid color-mix(in oklch, var(--dk-warning) 45%, var(--dk-border));
   background: color-mix(in oklch, var(--dk-warning) 8%, var(--dk-surface));
-  color: var(--dk-text); font-size: 0.88rem;
+  color: var(--dk-text); font-size: var(--fs-14);
 }
 .pr-plan-gefahr { color: var(--dk-danger); }
 </style>

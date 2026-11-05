@@ -627,7 +627,7 @@ function openEditor(article = null) {
   border-bottom: 1px solid var(--divider);
 }
 .wk-detail-tags { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
-.wk-detail-content { font-size: var(--fs); line-height: 1.7; color: var(--text); }
+.wk-detail-content { font-size: var(--fs); line-height: 1.7; color: var(--text); max-width: var(--lesebreite); }
 .wk-detail-content :deep(p) { margin: 0 0 var(--sp-3); }
 .wk-detail-content :deep(ul) { margin: 0 0 var(--sp-3) var(--sp-alt-20); padding: 0; }
 .wk-detail-content :deep(li) { margin-bottom: var(--sp-1); }

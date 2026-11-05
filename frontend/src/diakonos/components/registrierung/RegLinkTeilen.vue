@@ -176,8 +176,8 @@ async function qrDrucken() {
       // von /diakonos/assets (die Seite läuft unter derselben Adresse).
       + `font-family:${cssWert('--font')};padding:24px">`
       + `<img src="${daten}" style="width:min(70vw,480px);height:auto" alt="QR-Code">`
-      + `<p style="font-size:18px;text-align:center;word-break:break-all;margin:0">${escapeHtml(props.bezeichnung || '')}</p>`
-      + `<p style="font-size:13px;color:${cssWert('--text-muted', '--muted')};text-align:center;word-break:break-all;margin:0">${escapeHtml(vollerLink.value)}</p>`
+      + `<p style="font-size:var(--fs-20);text-align:center;word-break:break-all;margin:0">${escapeHtml(props.bezeichnung || '')}</p>`
+      + `<p style="font-size:var(--fs-14);color:${cssWert('--text-muted', '--muted')};text-align:center;word-break:break-all;margin:0">${escapeHtml(vollerLink.value)}</p>`
       + '</body>',
     )
     fenster.document.close()

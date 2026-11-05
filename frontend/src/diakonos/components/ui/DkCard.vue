@@ -59,7 +59,7 @@ defineProps({
 }
 .dk-ui-card-titel {
   font-size: var(--fs-h3);
-  font-weight: 600;
+  font-weight: var(--fw-fett);
   margin: 0;
   color: var(--text);
 }

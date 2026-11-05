@@ -186,8 +186,8 @@ function formatDate(item) {
   margin-bottom: 4px;
 }
 .dk-mcard-title {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-fett);
   color: var(--text);
   flex: 1;
   min-width: 0;
@@ -199,7 +199,7 @@ function formatDate(item) {
 /* Badges (Fläche/Farbe liefert DkBadge) */
 .dk-mcard-badge {
   font-size: var(--fs-xs);
-  font-weight: 600;
+  font-weight: var(--fw-fett);
   flex-shrink: 0;
 }
 

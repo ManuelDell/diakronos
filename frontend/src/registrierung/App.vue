@@ -118,7 +118,7 @@ const success = ref(false)
   justify-content: center;
   padding: 24px;
   font-family: var(--font);
-  font-size: 14px;
+  font-size: var(--fs-14);
   line-height: 1.5;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -202,18 +202,19 @@ const success = ref(false)
 
 .dk-pub-center { text-align: center; }
 
-.dk-pub-icon-large { font-size: 48px; margin-bottom: 16px; }
+.dk-pub-icon-large { font-size: var(--fs-26); margin-bottom: 16px; }  /* UX1b: Symbolgroesse
+   steht auf der groessten Stufe; 48 px waere keine Textgroesse. */
 
 .dk-pub-title {
-  font-size: 22px;
-  font-weight: 600;
+  font-size: var(--fs-20);
+  font-weight: var(--fw-fett);
   color: var(--text);
   margin: 0 0 6px 0;
   letter-spacing: -0.01em;
 }
 
 .dk-pub-muted {
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--muted);
   margin: 0;
   line-height: 1.5;

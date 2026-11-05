@@ -392,18 +392,18 @@ async function abwesenheitLoeschenAktion(a) {
 
 <style scoped>
 .dk-form-error { color: var(--err); font-size: var(--fs-sm); margin: 0; }
-.pr-md-zustand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--dk-text-muted); font-size: 0.9rem; }
+.pr-md-zustand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--dk-text-muted); font-size: var(--fs-14); }
 .pr-md-zustand--fehler { color: var(--dk-danger); }
 .pr-md-gruppe + .pr-md-gruppe { margin-top: 24px; }
 .pr-md-plan + .pr-md-plan { margin-top: 28px; }
 .pr-md-plan-kopf { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; }
 .pr-md-gruppe-titel {
   display: flex; align-items: baseline; gap: 10px;
-  font-size: 0.76rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--dk-text-muted); margin: 0;
 }
-.pr-md-planlink { font-size: 0.72rem; text-transform: none; letter-spacing: 0; color: var(--dk-brand-700, var(--dk-info)); }
-.pr-md-stand { font-size: 0.72rem; color: var(--dk-text-muted); margin: 0; }
+.pr-md-planlink { font-size: var(--fs-12); text-transform: none; letter-spacing: 0; color: var(--dk-brand-700, var(--dk-info)); }
+.pr-md-stand { font-size: var(--fs-12); color: var(--dk-text-muted); margin: 0; }
 
 /* ── UX-B2/B2b: Monatskarten mit Rollenfarbe ──────────────────────────────
    Je Monat eine Karte (dk-card), darin eine Zeile je Dienst mit farbigem
@@ -421,18 +421,18 @@ async function abwesenheitLoeschenAktion(a) {
   background: var(--dk-surface-2);
 }
 .pr-md-legende-titel {
-  font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--dk-text-muted);
 }
 .pr-md-legende-punkt {
   display: inline-flex; align-items: center; gap: 7px;
-  font-size: 0.82rem; color: var(--dk-text);
+  font-size: var(--fs-14); color: var(--dk-text);
 }
 .pr-md-rolle-zeichen {
   display: inline-flex; align-items: center; justify-content: center;
   width: 26px; height: 26px; flex: 0 0 26px;
   border-radius: var(--radius-sm);
-  font-size: 0.76rem; font-weight: 700; line-height: 1;
+  font-size: var(--fs-12); font-weight: var(--fw-fett); line-height: 1;
   /* Rueckfall (unbekannte Rolle): Fläche ohne Rollenton, nur Rahmen. */
   background: transparent; color: var(--dk-text);
   border: 1px solid var(--dk-border-strong);
@@ -473,7 +473,7 @@ async function abwesenheitLoeschenAktion(a) {
   background: var(--dk-surface-2);
 }
 .pr-md-monat-titel {
-  font-size: 0.95rem; font-weight: 650; color: var(--dk-text); margin: 0;
+  font-size: var(--fs-16); font-weight: var(--fw-fett); color: var(--dk-text); margin: 0;
   letter-spacing: 0.01em;
 }
 .pr-md-monat-liste { list-style: none; margin: 0; padding: 0; }
@@ -491,14 +491,14 @@ async function abwesenheitLoeschenAktion(a) {
 .pr-md-zeile { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
 .pr-md-zeile--konflikt { border-left: 3px solid var(--dk-warning); padding-left: 10px; }
 .pr-md-zeile-kopf { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.pr-md-datum { font-size: 0.86rem; font-weight: 600; color: var(--dk-text); }
-.pr-md-uhrzeit { font-size: 0.8rem; color: var(--dk-text-muted); }
-.pr-md-lied { font-size: 0.88rem; color: var(--dk-text); }
+.pr-md-datum { font-size: var(--fs-14); font-weight: var(--fw-fett); color: var(--dk-text); }
+.pr-md-uhrzeit { font-size: var(--fs-12); color: var(--dk-text-muted); }
+.pr-md-lied { font-size: var(--fs-14); color: var(--dk-text); }
 .pr-md-zeile-rolle { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.pr-md-feld { font-size: 0.8rem; color: var(--dk-text-muted); }
-.pr-md-anlass { font-size: 0.78rem; color: var(--dk-text-subtle); }
-.pr-md-mitwirkende { font-size: 0.8rem; color: var(--dk-text-muted); }
-.pr-md-konflikt { font-size: 0.8rem; color: var(--dk-warning); }
+.pr-md-feld { font-size: var(--fs-12); color: var(--dk-text-muted); }
+.pr-md-anlass { font-size: var(--fs-12); color: var(--dk-text-subtle); }
+.pr-md-mitwirkende { font-size: var(--fs-12); color: var(--dk-text-muted); }
+.pr-md-konflikt { font-size: var(--fs-12); color: var(--dk-warning); }
 .pr-md-zeile-aktionen { display: flex; gap: 8px; margin-top: 2px; }
 
 /* Mobil: die Absage-Aktion rueckt unter den Text, das Rollenzeichen bleibt
@@ -518,10 +518,10 @@ async function abwesenheitLoeschenAktion(a) {
   .pr-md-monat-kopf { padding: 10px 12px; }
 }
 .pr-md-abwesenheit { padding: 18px 20px; margin-top: 28px; }
-.pr-md-hinweis { font-size: 0.84rem; color: var(--dk-text-muted); margin: 0 0 12px; }
+.pr-md-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0 0 12px; }
 .pr-md-block { margin-bottom: 10px; }
-.pr-md-modaltext { font-size: 0.9rem; color: var(--dk-text); margin: 0 0 8px; }
-.pr-md-gemeldet { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 0.84rem; color: var(--dk-text); }
+.pr-md-modaltext { font-size: var(--fs-14); color: var(--dk-text); margin: 0 0 8px; }
+.pr-md-gemeldet { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-14); color: var(--dk-text); }
 .pr-md-gemeldet-zeile { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--dk-divider); padding-bottom: 6px; }
 .pr-md-keine-abw { margin-top: 14px; }
 </style>

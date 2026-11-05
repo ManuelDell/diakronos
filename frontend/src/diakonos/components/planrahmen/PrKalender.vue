@@ -78,7 +78,7 @@ function terminText(t) {
 
 <style scoped>
 .pr-kalender-wrap { overflow-x: auto; border: 1px solid var(--dk-border); border-radius: 12px; }
-.pr-kalender { width: 100%; border-collapse: collapse; font-size: .78rem; background: var(--dk-surface); }
+.pr-kalender { width: 100%; border-collapse: collapse; font-size: var(--fs-12); background: var(--dk-surface); }
 .pr-kalender td, .pr-kalender th { border: 1px solid var(--dk-border); padding: 6px; vertical-align: top; }
 .pr-kalender th { background: var(--dk-surface-2); }
 .pr-kalender-termin { border: 0; background: transparent; color: var(--dk-text); text-align: left; cursor: pointer; min-width: 150px; font: inherit; }

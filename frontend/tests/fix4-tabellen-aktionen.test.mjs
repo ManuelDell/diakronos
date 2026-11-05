@@ -143,7 +143,11 @@ test('FIX-4 · Mindestbreite der Aktionsspalte deckt beide Knöpfe (gemessenes R
   const klein = regel(stil, '.dk-ui-btn--sm')
   const rand = /padding:\s*0\s+(\d+)px/.exec(klein)
   const spalt = /gap:\s*(\d+)px/.exec(regel(stil, '.dk-ui-btn {'))
-  const fsSm = /--fs-sm:\s*([\d.]+)(rem|px)/.exec(tokens)
+  // UX1b: --fs-sm zeigt auf die Grundstufe (var(--fs-12)); die Zahl steht
+  // nur noch in --fs-12. Beides wird gelesen — Rohwert oder Verweis.
+  const fsSmRoh = /--fs-sm:\s*([\d.]+)(rem|px)/.exec(tokens)
+  const fsSmStufe = /--fs-sm:\s*var\(--fs-(\d+)\)/.exec(tokens)
+  const fsSm = fsSmRoh || (fsSmStufe ? [null, fsSmStufe[1], 'px'] : null)
   assert.ok(rand && spalt && fsSm, 'Maße aus DkButton/tokens lesbar')
   const randPx = Number(rand[1]) * 2 + 2          // Innenabstand + 1 px Rahmen je Seite
   const luecke = Number(spalt[1])

@@ -462,13 +462,13 @@ function buildNodeContent(d) {
     // Ohne stopPropagation lief der Klick zusaetzlich zum Kasten und die Seite
     // sprang auf die Detailansicht, statt zu bearbeiten (Befund REST-3).
     const editBtn = perms.value.can_edit_ids?.includes(d.data.raw_name || d.data.id)
-        ? `<button onclick="event.stopPropagation(); window.__orgEditNode(${idJs})" style="position:absolute;top:6px;right:6px;background:none;border:none;cursor:pointer;font-size:0.75rem;color:var(--muted);">✏️</button>`
+        ? `<button onclick="event.stopPropagation(); window.__orgEditNode(${idJs})" style="position:absolute;top:6px;right:6px;background:none;border:none;cursor:pointer;font-size:var(--fs-12);color:var(--muted);">✏️</button>`
         : ''
     const memberLine = (!isDB && d.data.mitglieder_count !== undefined)
-        ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:4px;">👤 ${escapeHtml(d.data.mitglieder_count)}</div>`
+        ? `<div style="font-size:var(--fs-12);color:var(--muted);margin-top:4px;">👤 ${escapeHtml(d.data.mitglieder_count)}</div>`
         : ''
     const timeLine = d.data.treffzeit
-        ? `<div style="font-size:0.7rem;color:var(--subtle);margin-top:2px;">🕐 ${escapeHtml(d.data.treffzeit)}</div>`
+        ? `<div style="font-size:var(--fs-12);color:var(--subtle);margin-top:2px;">🕐 ${escapeHtml(d.data.treffzeit)}</div>`
         : ''
     return `<div style="width:${d.width}px;height:${d.height}px;padding:${padding};box-sizing:border-box;border:1px solid var(--line);${bg}${borderLeft}${boxShadow}${borderRadius}${cursor}position:relative;overflow:hidden;"
         onclick="window.__orgNavigateNode(${idJs}, ${typeJs}, ${rawJs})">
@@ -707,8 +707,8 @@ window.__orgNavigateNode = (id, type, rawName) => {
     transition: background var(--fast) var(--ease);
 }
 .org-option:hover { background: var(--surface-2); }
-.org-option-icon { font-size: 1.5rem; }
-.org-option-titel { font-weight: 600; font-size: var(--fs-sm); }
+.org-option-icon { font-size: var(--fs-26); }
+.org-option-titel { font-weight: var(--fw-fett); font-size: var(--fs-sm); }
 .org-option-text { font-size: var(--fs-sm); color: var(--muted); }
 .org-formular { display: flex; flex-direction: column; gap: var(--sp-3); }
 /* UXD-R28: Farbwaehler statt Freitext — es kann kein ungueltiger Wert entstehen. */

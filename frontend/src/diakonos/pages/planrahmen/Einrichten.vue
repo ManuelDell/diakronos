@@ -140,7 +140,7 @@ onUnmounted(() => { aktiv = false; request++ })
 <style scoped>
 .pr-ein-neu { display: grid; gap: 12px; padding: 18px; border: 1px solid var(--dk-border); border-radius: 12px; background: var(--dk-surface); margin-bottom: 22px; max-width: 600px; }
 .pr-ein-neu h2,.pr-ein-typ h2,.pr-ein-kopf p { margin: 0; }
-.pr-ein-neu h2,.pr-ein-typ h2 { font-size: 1rem; }
+.pr-ein-neu h2,.pr-ein-typ h2 { font-size: var(--fs-16); }
 .pr-ein-typ { padding: 18px; border: 1px solid var(--dk-border); border-radius: 12px; margin-top: 14px; min-width: 0; }
 .pr-ein-kopf { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
 .pr-ein-kopf p,.pr-ein-versionen small { color: var(--dk-text-muted); }
@@ -149,5 +149,5 @@ onUnmounted(() => { aktiv = false; request++ })
 .pr-ein-versionen { padding-left: 20px; }
 .pr-ein-versionen li { margin-top: 12px; overflow-wrap: anywhere; }
 .pr-ein-versionen span,.pr-ein-versionen small { display: block; margin-top: 4px; }
-.pr-ein-hinweis { font-size: 0.82rem; color: var(--dk-text-muted); margin: 0; }
+.pr-ein-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0; }
 </style>

@@ -266,6 +266,7 @@
      seite wirkte dadurch ungleichmäßig (Befund DMB-096ae0364b59). */
   --grid-gap: var(--sp-4);
 
+
   /* ── Maße ─────────────────────────────────────────────────────────────────
      Klickflächen (Konzept: 40 px, bei grobem Zeiger 44 px). Vorher 34 px.
      Am 40-px-Wert hängt NICHT nur die Höhe eines Knopfes: Suchfeld,
@@ -278,6 +279,11 @@
      `@media (pointer: coarse)`-Block am Ende von index.css — dort, wo die
      übrigen Zeiger-Regeln der App stehen (FIX-6/OP-HANDY-14). */
   --control-h: 40px;
+  /* UX2a: Die UX-Karten schreiben für Knöpfe, Menüpunkte und Listenzeilen
+     40 px vor (bei pointer:coarse 44 px). `--control-h` ist der Bestandswert
+     für Kompakt-Dichte; neue Flächen, die der Konzept-Vorgabe folgen, nehmen
+     diesen Wert — kein Literal in der Komponente. */
+  --control-h-lg: 40px;
   /* FIX-3: Höhe der Filterzeile (Suchfeld ↔ DkButton „md“ ↔ Filterchip).
      Suchfeld und Chip standen vorher auf 9 px Innenabstand bzw. 7 px/12 px
      und liefen damit 4 px auseinander. Jetzt kommt die Höhe beider aus
@@ -287,6 +293,13 @@
   --topbar-h:  56px;
   --sidebar-w:   256px;
   --sidebar-col: 64px;
+  /* UX2a2b: Die eine Meldungsflaeche (Toast). Breite und Mindesthoehe waren
+     im Meldungsblock des index.css als 420px/56px hart notiert; hier stehen
+     sie wie jeder andere Abstand/Laengenwert. 420px ist keine Skalenzahl
+     (4er-Skala endet bei 64), sondern die gemessene Grenze, ab der ein
+     Satz „Rueckgaengig“ plus zwei Zeilen Text noch gut lesbar bleibt. */
+  --melde-w:    420px;
+  --melde-min-h: 56px;
 
   /* Symbolgrößen (DES-10): vorher standen 11/12/13/14/16 px als style-Attribut
      an einzelnen Symbolen — uneinheitlich und in Tests nicht prüfbar. */
@@ -323,21 +336,57 @@
      Entscheidung. Kein Dark-Gegenstück: die Schriftfamilie ist
      themenunabhängig (nur ihr Umfeld wechselt). */
   --font-mono: ui-monospace, SFMono-Regular, Menlo, "DejaVu Sans Mono", monospace;
-  --fs:     14px;
-  --fs-h1:  26px;
-  --fs-h2:  19px;
-  --fs-h3:  16px;
-  --fs-h4:  14px;
-  --fs-sm:  12px;
-  --fs-xs:  11px;
+  /* ── Schrift (UX1b) ──────────────────────────────────────────────────────
+     FÜNF Größen (12/14/16/20/26) und DREI Gewichte (400/500/600) — mehr nicht
+     (Prinzip Ä3, Konzept-Entscheidung Manuel 2026-11-03). Die Grundstufen
+     `--fs-12 … --fs-26` sind die Wahrheit; alle Rollen-Tokens darunter zeigen
+     NUR auf sie (ein `var(--fs-…)`, nie eine Zahl). Der Wächter
+     (frontend/tests/ux1b-schriften.test.mjs) lässt den Bestand fester
+     Schriftgrößen/-gewichte nur schrumpfen.
+
+     Vorher standen hier 8 Rollen mit 11/12/14/16/19/26 px; `--fs-h2` (19) und
+     `--fs-xs` (11) lagen NEBEN der Skala. 11 px ist obendrein zu klein zum
+     Lesen — es gibt keine Stufe darunter, `--fs-xs` ist jetzt 12. */
+  --fs-12: 12px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-20: 20px;
+  --fs-26: 26px;
+  /* Rollen (nur Verweise auf die fünf Stufen — hier steht KEINE Zahl) */
+  --fs:     var(--fs-14);
+  --fs-h1:  var(--fs-26);
+  --fs-h2:  var(--fs-20);
+  --fs-h3:  var(--fs-16);
+  --fs-h4:  var(--fs-14);
+  --fs-sm:  var(--fs-12);
+  --fs-xs:  var(--fs-12);
+  /* Schreibweise `--fs-md` (klein): sie stand in drei Komponenten als
+     `var(--fs-md, 16px)`/`var(--fs-md)` und war NIE definiert — die Schrift
+     kam nur über den Rückfallwert zustande. Jetzt ist sie 16 px. */
+  --fs-md:  var(--fs-16);
+  /* Gewichte: 400 normal, 500 mittel, 600 fett. `--fw-h` war 650 (Inter hat
+     keinen Schnitt dazwischen — der Browser rundete selbst); es ist jetzt 600
+     und bleibt als Name für „Überschrift“ erhalten. `--fw-medium` stand
+     einmal als Rückfallwert (`var(--fw-medium, 500)`) — jetzt definiert. */
+  --fw-normal: 400;
+  --fw-mittel: 500;
+  --fw-fett:   600;
+  --fw-medium: var(--fw-mittel);
+  --fw-h:      var(--fw-fett);
+  /* Ziffern in Tabellen und Uhrzeiten: gleiche Breite, damit Spalten unter-
+     einander stehen. Als Klasse `.dk-tabular` (index.css) und als Token für
+     Stellen, die es direkt setzen. */
+  --fs-tabular: tabular-nums;
+  /* Fließtext-Container: höchstens ~65 Zeichen je Zeile (Prinzip Ä3).
+     Gemessen in `ch` der aktuellen Schrift — deshalb kein px-Wert. */
+  --lesebreite: 65ch;
   /* ON-0a: Mindest-Schriftgröße für Eingabefelder im GROBEN ZEIGER (Handy).
      iOS-Safari zoomt beim Antippen in Felder unter 16 px und lässt den
      Ausschnitt verschoben stehen (OP-HANDY-14/FIX-6). Der Wert stand vorher
      als `16px`-Literal in drei Server-Seiten; hier ist er EINE Wahrheit für
      SPA und serverseitig gerenderte Seiten (frontend/src/ssot/seiten.css).
      Kein Dark-Gegenstück: die Größe ist themenunabhängig. */
-  --fs-in-zeiger: 16px;
-  --fw-h:   650;
+  --fs-in-zeiger: var(--fs-16);
 }
 
 /* ── UX1d (D1): der Kartenrahmen aus der Gestaltungs-Einstellung ──────────
@@ -530,10 +579,15 @@
    Themes gleich (Groessen sind themenunabhaengig).
    ===================================================================== */
 :root {
-  --fs-feld:    13px;   /* Beschriftung eines Formularfelds (vorher 13 px) */
-  --fs-unterzeile: 14px; /* Satz unter der Ueberschrift (vorher 14 px) */
-  --fs-eingabe: 15px;   /* Text IN einem Eingabefeld (vorher 15 px) */
-  --fs-hinweis: 12px;   /* kleiner Hinweis unter dem Formular (vorher 12 px) */
+  /* UX1b: ALLE Rollen dieser Seiten zeigen jetzt auf die fünf Stufen aus
+     Abschnitt 4 — keine Zahlen mehr hier. Die Zuordnung folgt dem heutigen
+     Sinn, nicht der alten Zahl; die Untergrenzen aus
+     backend/tests/test_on0b_schriften.py (MINIMUM) sind dabei eingehalten
+     und die Seiten werden nirgends kleiner (13→14, 15→16, 18→20, 22→20). */
+  --fs-feld:       var(--fs-14); /* Beschriftung eines Formularfelds (13 → 14) */
+  --fs-unterzeile: var(--fs-14); /* Satz unter der Ueberschrift (14) */
+  --fs-eingabe:    var(--fs-16); /* Text IN einem Eingabefeld (15 → 16) */
+  --fs-hinweis:    var(--fs-12); /* kleiner Hinweis unter dem Formular (12) */
   /* ON-0c (R1): die drei restlichen Rollen derselben Seiten. Vorher standen
      sie als allgemeine Tokens im Stylesheet — und waren KLEINER als das, was
      die Seiten vor ON-0a selbst trugen:
@@ -544,23 +598,23 @@
      und ist mit --fs-unterzeile ebenfalls abgedeckt; das Grund-Stylesheet
      fuehrt dafuer die Rolle --fs-fliess (16 px, siehe unten). Alle vier sind
      Untergrenzen in backend/tests/test_on0b_schriften.py (MINIMUM). */
-  --fs-knopf:   15px;   /* Beschriftung eines Knopfes (vorher 14 px) */
-  --fs-meldung: 14px;   /* Text einer Fehler-/Hinweisbox (vorher 12 px) */
-  --fs-titel:   20px;   /* Ueberschrift einer Server-Seite (vorher 19 px) */
-  --fs-fliess:  16px;   /* Fliesstext der Server-Seiten (vorher 14 px) */
+  --fs-knopf:   var(--fs-16); /* Beschriftung eines Knopfes (15 → 16) */
+  --fs-meldung: var(--fs-14); /* Text einer Fehler-/Hinweisbox (14) */
+  --fs-titel:   var(--fs-20); /* Ueberschrift einer Server-Seite (20) */
+  --fs-fliess:  var(--fs-16); /* Fliesstext der Server-Seiten (16) */
   /* ON-1: Rolle „Abschnittsueberschrift" auf Server-Seiten (Entwurf 03:
      „Neuen Link erzeugen", „Bereits eingerichtet?"). Liegt ueber der
      Feldbeschriftung, unter der Karten-Ueberschrift — deshalb ein eigener
      Wert statt einer Umdeutung von --fs-h3. */
-  --fs-abschnitt: 15px;
+  --fs-abschnitt: var(--fs-16); /* UX1b: 15 → 16 (nächste Stufe) */
   /* ON-1: Rolle „Monogramm der Marke" (Entwurf 02/13: dunkles Quadrat mit
      goldenem Buchstaben ueber „Diakronos"). */
-  --fs-monogramm: 18px;
+  --fs-monogramm: var(--fs-20); /* UX1b: 18 → 20 (nächste Stufe) */
   /* ON-3: Rolle „Schrittleiste des Assistenten“ (Entwurf 04–09). Die Schritte
      auf der linken Leiste stehen zwischen Feldbeschriftung (13 px) und
      Fliesstext — eigener Wert, damit die Leiste nicht die Schrift eines
      Formularfelds umdeuten muss. */
-  --fs-schritt: 15px;
+  --fs-schritt: var(--fs-16); /* UX1b: 15 → 16 (nächste Stufe) */
   /* ON-3: Maße des Assistenten aus dem Entwurf, benannt nach dem Zweck statt
      nach der Zahl. Kein Dark-Gegenstück: Maße und Größen sind
      themenunabhängig (nur Farben wechseln). */

@@ -354,22 +354,22 @@ function textSetzen(regel, name, roh) {
 
 <style scoped>
 .pr-rg { display: flex; flex-direction: column; gap: 12px; }
-.pr-rg-hinweis { font-size: 0.82rem; color: var(--dk-text-muted); margin: 0; line-height: 1.5; }
-.pr-rg-leer { font-size: 0.8rem; color: var(--dk-text-muted); margin: 0; }
+.pr-rg-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0; line-height: 1.5; }
+.pr-rg-leer { font-size: var(--fs-12); color: var(--dk-text-muted); margin: 0; }
 .pr-rg-karte { border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
 .pr-rg-zeile { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
-.pr-rg-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600; color: var(--dk-text-muted); min-width: 0; }
+.pr-rg-label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); min-width: 0; }
 .pr-rg-baustein { max-width: 260px; }
 .pr-rg-stufe { max-width: 240px; }
 .pr-rg-zahl { max-width: 110px; }
 .pr-rg-pflicht { color: var(--dk-danger); }
-.pr-rg-beschreibung { font-size: 0.82rem; color: var(--dk-text); margin: 0; line-height: 1.5; }
-.pr-rg-beschreibung-klein { font-weight: 400; font-size: 0.74rem; color: var(--dk-text-subtle); }
+.pr-rg-beschreibung { font-size: var(--fs-14); color: var(--dk-text); margin: 0; line-height: 1.5; }
+.pr-rg-beschreibung-klein { font-weight: var(--fw-normal); font-size: var(--fs-12); color: var(--dk-text-subtle); }
 .pr-rg-param { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--dk-divider); padding-top: 8px; }
-.pr-rg-schalter { display: inline-flex; align-items: center; gap: 6px; font-size: 0.84rem; color: var(--dk-text); cursor: pointer; }
+.pr-rg-schalter { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; }
 /* UX-C3b: Listen-Referenzen als Chips statt Komma-Freitext. */
 .pr-rg-chips { display: flex; flex-wrap: wrap; gap: 6px 12px; }
-.pr-rg-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 0.82rem; color: var(--dk-text); cursor: pointer; }
-.pr-rg-altwert { font-size: 0.78rem; color: var(--dk-warning); margin: 0; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.pr-rg-chip { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; }
+.pr-rg-altwert { font-size: var(--fs-12); color: var(--dk-warning); margin: 0; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
 .pr-rg-link { background: none; border: none; padding: 0; font: inherit; color: var(--dk-brand-800); text-decoration: underline; cursor: pointer; }
 </style>

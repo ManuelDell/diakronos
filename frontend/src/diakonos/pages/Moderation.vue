@@ -163,7 +163,7 @@ onMounted(async () => {
   animation: mod-spin 0.8s linear infinite;
   margin: 0 auto var(--sp-3);
 }
-.mod-zustand-text { font-size: 13px; margin: 0; }
+.mod-zustand-text { font-size: var(--fs-14); margin: 0; }
 
 .mod-verweigert { text-align: center; max-width: 380px; }
 .mod-verweigert-icon {
@@ -177,8 +177,8 @@ onMounted(async () => {
   justify-content: center;
   margin: 0 auto var(--sp-4);
 }
-.mod-verweigert-titel { font-size: var(--fs-h2); font-weight: 600; margin: 0 0 var(--sp-2); color: var(--text); }
-.mod-verweigert-text { font-size: 13px; color: var(--muted); margin: 0 0 var(--sp-alt-20); line-height: 1.6; }
+.mod-verweigert-titel { font-size: var(--fs-h2); font-weight: var(--fw-fett); margin: 0 0 var(--sp-2); color: var(--text); }
+.mod-verweigert-text { font-size: var(--fs-14); color: var(--muted); margin: 0 0 var(--sp-alt-20); line-height: 1.6; }
 
 /* BF1-I: Gemeinsamer Seitenrahmen wie alle anderen Seiten (.dk-screen liefert
    die einheitlichen Raender). Nur die innere Anordnung bleibt flexibel. */
@@ -187,7 +187,7 @@ onMounted(async () => {
 /* OP-ADMIN-18: kurze Erklärung, was die beiden Ablagen bedeuten. */
 .dk-moderation-erklaerung {
   margin: 0 0 12px;
-  font-size: 13px;
+  font-size: var(--fs-14);
   line-height: 1.5;
   color: var(--dk-text-muted);
   max-width: 70ch;

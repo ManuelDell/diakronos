@@ -76,8 +76,12 @@
   :where(body) {
     margin: 0;
     -webkit-tap-highlight-color: transparent;
+    /* UX1b: die Grundschrift kommt aus der Token-Quelle — 14 px ist dort die
+       Stufe `--fs-14`, hier steht keine Zahl mehr. `tokens.css` ist in allen
+       vier Einstiegen geladen; ein Rückfallwert haelt den Fall ab, dass dieses
+       Reset einmal ohne Tokens eingebunden wird. */
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 14px;
+    font-size: var(--fs-14, 14px);
     line-height: 1.5;
   }
 

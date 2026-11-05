@@ -230,19 +230,19 @@ function listeSetzen(obj, schluessel, roh) {
 
 <style scoped>
 .pr-dek { display: flex; flex-direction: column; gap: 20px; }
-.pr-dek-titel { font-size: 0.76rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 0 0 4px; }
-.pr-dek-hinweis { font-size: 0.82rem; color: var(--dk-text-muted); margin: 0 0 10px; line-height: 1.5; }
-.pr-dek-hinweis code { font-size: 0.78rem; background: var(--dk-surface-2); padding: 1px 4px; border-radius: 4px; }
+.pr-dek-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 0 0 4px; }
+.pr-dek-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0 0 10px; line-height: 1.5; }
+.pr-dek-hinweis code { font-size: var(--fs-12); background: var(--dk-surface-2); padding: 1px 4px; border-radius: 4px; }
 .pr-dek-ziel + .pr-dek-ziel { margin-top: 14px; }
-.pr-dek-ziel-titel { font-size: 0.8rem; font-weight: 600; color: var(--dk-text); margin: 0 0 8px; }
+.pr-dek-ziel-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text); margin: 0 0 8px; }
 .pr-dek-karte { border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
 .pr-dek-karte + .pr-dek-karte { margin-top: 8px; }
-.pr-dek-leer { font-size: 0.8rem; color: var(--dk-text-muted); margin: 0 0 8px; }
+.pr-dek-leer { font-size: var(--fs-12); color: var(--dk-text-muted); margin: 0 0 8px; }
 .pr-dek-zeile { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
-.pr-dek-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600; color: var(--dk-text-muted); }
+.pr-dek-label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); }
 .pr-dek-kurz { max-width: 180px; font-family: var(--font-mono); }
-.pr-dek-schalter { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--dk-text); cursor: pointer; padding-bottom: 8px; }
-.pr-dek-details summary { cursor: pointer; font-size: 0.8rem; color: var(--dk-text-muted); }
+.pr-dek-schalter { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; padding-bottom: 8px; }
+.pr-dek-details summary { cursor: pointer; font-size: var(--fs-12); color: var(--dk-text-muted); }
 /* FIX-6: Umbruch nach der einen Breitengrenze der App (720 px,
    composables/eingabeart.mjs `MOBIL_GRENZE_PX`) statt einer eigenen 640 px. */
 @media (max-width: 720px) { .pr-dek-kurz { max-width: none; width: 100%; } }

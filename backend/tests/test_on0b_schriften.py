@@ -350,19 +350,35 @@ MINIMUM = {
 
 
 def _tokens_px() -> dict[str, float | None]:
-    """Wert (px) der vier Rollen-Tokens aus tokens.css; None = nicht definiert."""
+    """Wert (px) der Rollen-Tokens aus tokens.css; None = nicht definiert.
+
+    UX1b: Die Rollen-Tokens tragen seit der Schriftumstellung KEINE Zahl mehr,
+    sondern einen Verweis auf die Grundstufe (`--fs-feld: var(--fs-14);`).
+    Deshalb wird der Verweis bis zu einem px-Wert aufgeloest (wie in
+    frontend/tests/ux1a-abstand-tokens.test.mjs); eine direkt stehende Zahl
+    gilt weiterhin. Ohne Aufloesung meldete dieser Test alle acht Rollen als
+    „fehlend" — obwohl die Schrift GRÖSSER geworden ist.
+    """
     import re as _re
 
     text = TOKENS.read_text(encoding="utf-8")
-    werte: dict[str, float | None] = {}
-    for name in MINIMUM:
-        m = _re.search(rf"{_re.escape(name)}\s*:\s*([0-9.]+)(px|rem)", text)
+
+    def roh(name: str) -> str | None:
+        m = _re.search(rf"{_re.escape(name)}\s*:\s*([^;]+);", text)
+        return m.group(1).strip() if m else None
+
+    def zahl(wert: str | None, tiefe: int = 0) -> float | None:
+        if not wert or tiefe > 8:
+            return None
+        m = _re.fullmatch(r"var\(\s*--([\w-]+)\s*\)", wert)
+        if m:
+            return zahl(roh(f"--{m.group(1)}"), tiefe + 1)
+        m = _re.fullmatch(r"([0-9.]+)(px|rem)", wert)
         if not m:
-            werte[name] = None
-            continue
-        zahl = float(m.group(1))
-        werte[name] = zahl * 16 if m.group(2) == "rem" else zahl
-    return werte
+            return None
+        return float(m.group(1)) * (16 if m.group(2) == "rem" else 1)
+
+    return {name: zahl(roh(name)) for name in MINIMUM}
 
 
 def test_keine_schrift_der_anmeldung_wird_kleiner() -> None:

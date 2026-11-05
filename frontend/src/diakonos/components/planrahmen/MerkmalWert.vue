@@ -157,9 +157,9 @@ defineExpose({ tagSetzen, auswahlSetzen, personSetzen, textSetzen, datumSetzen, 
 .mk-eingabe {
   width: 100%; padding: 8px 10px; border-radius: 8px;
   border: 1px solid var(--dk-border); background: var(--dk-surface);
-  color: var(--dk-text); font-size: 0.86rem; font-family: inherit;
+  color: var(--dk-text); font-size: var(--fs-14); font-family: inherit;
 }
-.mk-eingabe--kompakt { padding: 4px 6px; font-size: 0.8rem; }
+.mk-eingabe--kompakt { padding: 4px 6px; font-size: var(--fs-12); }
 .mk-eingabe:focus {
   outline: 2px solid color-mix(in oklch, var(--dk-brand-400) 50%, transparent);
   outline-offset: 0; border-color: var(--dk-brand-400);
@@ -170,9 +170,9 @@ defineExpose({ tagSetzen, auswahlSetzen, personSetzen, textSetzen, datumSetzen, 
 .mk-mehrfach { display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .mk-mehrfach-wahl {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: 0.78rem; color: var(--dk-text); cursor: pointer; white-space: nowrap;
+  font-size: var(--fs-12); color: var(--dk-text); cursor: pointer; white-space: nowrap;
 }
 .mk-mehrfach-wahl input { margin: 0; cursor: pointer; }
 .mk-person { display: inline-flex; flex-direction: column; gap: 2px; width: 100%; }
-.mk-hinweis { font-size: 0.72rem; color: var(--dk-text-subtle); }
+.mk-hinweis { font-size: var(--fs-12); color: var(--dk-text-subtle); }
 </style>

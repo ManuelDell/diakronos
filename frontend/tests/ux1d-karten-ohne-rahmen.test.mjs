@@ -98,7 +98,7 @@ test('T1b · DkCard: kein Rahmen, keine Kopflinie, Titel normal geschrieben', ()
   const titelRegel = /\.dk-ui-card-titel\s*\{([^}]*)\}/.exec(quelle)
   assert.ok(titelRegel, '.dk-ui-card-titel fehlt')
   assert.match(titelRegel[1], /font-size:\s*var\(--fs-h3\)/, 'Kartentitel in --fs-h3 (16 px)')
-  assert.match(titelRegel[1], /font-weight:\s*600/, 'Kartentitel in Gewicht 600')
+  assert.match(titelRegel[1], /font-weight:\s*(600|var\(--fw-fett\))/, 'Kartentitel in Gewicht 600')
 })
 
 test('T2 · kein „Rahmen in Rahmen“, Trennlinien leise', () => {
@@ -172,5 +172,5 @@ test('T3 · kein Neuladen-Knopf je Karte, „Stand hh:mm“ in Tertiärfarbe', (
   const stand = /\.dk-widget-stand\s*\{([^}]*)\}/.exec(css)
   assert.ok(stand, '.dk-widget-stand fehlt in index.css')
   assert.match(stand[1], /color:\s*var\(--subtle\)/, 'Stand in Tertiärfarbe')
-  assert.match(stand[1], /font-variant-numeric:\s*tabular-nums/, 'Stand mit gleich breiten Ziffern')
+  assert.match(stand[1], /font-variant-numeric:\s*(tabular-nums|var\(--fs-tabular\))/, 'Stand mit gleich breiten Ziffern')
 })

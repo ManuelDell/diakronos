@@ -160,7 +160,7 @@ onMounted(() => {
 
 <style scoped>
 /* DES-02/OP-UI-19: Leertext als Klasse, zwei getrennte Fälle. */
-.lg-leer-titel { margin: 0; font-size: var(--fs); font-weight: 600; color: var(--text); }
+.lg-leer-titel { margin: 0; font-size: var(--fs); font-weight: var(--fw-fett); color: var(--text); }
 .lg-leer-text { margin: var(--sp-1) 0 0; font-size: var(--fs-sm); color: var(--subtle); }
 
 .ld-state { display: flex; align-items: center; gap: 10px; color: var(--dk-text-muted); padding: 30px 0; }
@@ -177,7 +177,7 @@ onMounted(() => {
   border: 1px solid color-mix(in oklch, var(--dk-danger) 25%, var(--dk-surface));
   border-radius: 12px;
   color: var(--dk-danger);
-  font-size: 13px;
+  font-size: var(--fs-14);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -203,7 +203,7 @@ onMounted(() => {
   transform: translateY(-2px);
 }
 .lg-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.lg-card-name { font-size: 15px; font-weight: 600; color: var(--dk-text); margin-bottom: 8px; }
-.lg-card-meta { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--dk-text-muted); }
+.lg-card-name { font-size: var(--fs-16); font-weight: var(--fw-fett); color: var(--dk-text); margin-bottom: 8px; }
+.lg-card-meta { display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-12); color: var(--dk-text-muted); }
 .lg-card-gruppe { color: var(--dk-text-subtle); }
 </style>

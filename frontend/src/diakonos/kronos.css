@@ -85,8 +85,8 @@
 }
 
 .current-date {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--fs-16);
+  font-weight: var(--fw-mittel);
   color: var(--dk-text);
   min-width: 160px;
   text-align: center;
@@ -98,7 +98,7 @@
   border-radius: 6px;
   background: transparent;
   color: var(--dk-text);
-  font-size: 13px;
+  font-size: var(--fs-14);
   cursor: pointer;
   transition: all 150ms ease;
 }
@@ -130,7 +130,7 @@
   border-radius: 6px;
   background: var(--dk-surface);
   color: var(--dk-text);
-  font-size: 13px;
+  font-size: var(--fs-14);
   cursor: pointer;
 }
 
@@ -170,7 +170,7 @@
   border-radius: 6px;
   background: transparent;
   color: var(--dk-text-muted);
-  font-size: 13px;
+  font-size: var(--fs-14);
   cursor: pointer;
   transition: all 150ms ease;
 }
@@ -216,8 +216,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-fett);
   cursor: pointer;
   overflow: hidden;
   flex-shrink: 0;
@@ -242,7 +242,7 @@
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--dk-text);
   text-decoration: none;
   background: none;
@@ -262,8 +262,8 @@
 /* Mobile month display */
 .mobile-month-display {
   display: none;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: var(--fs-16);
+  font-weight: var(--fw-fett);
   color: var(--dk-text);
 }
 
@@ -332,13 +332,13 @@
 }
 .kronos-back-name {
   color: #fff;
-  font-weight: 600;
-  font-size: 15px;
+  font-weight: var(--fw-fett);
+  font-size: var(--fs-16);
   letter-spacing: -0.01em;
 }
 .kronos-back-sub {
   color: var(--dk-sb-text-muted);
-  font-size: 11px;
+  font-size: var(--fs-12);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -358,8 +358,8 @@
   overflow-y: auto;
 }
 .sidebar-title {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
   color: var(--dk-sb-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -370,10 +370,10 @@
   margin-bottom: 12px;
 }
 .group-title {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
   margin: 0 0 4px;
-  font-weight: 500;
+  font-weight: var(--fw-mittel);
 }
 .calendar-item {
   --calendar-color: var(--dk-text-muted);
@@ -409,13 +409,13 @@
   position: absolute;
   inset: 0;
   color: #fff;
-  font-size: 12px;
+  font-size: var(--fs-12);
   line-height: 16px;
   text-align: center;
-  font-weight: bold;
+  font-weight: var(--fw-fett);
 }
 .calendar-item label {
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--dk-text);
   cursor: pointer;
   flex: 1;
@@ -425,7 +425,7 @@
    Der Stift war die Ursache der Beschwerde: er sah wie ein Bearbeiten-Knopf
    aus. Rechte ändert man jetzt unter „Kalender verwalten“. */
 .ksb-recht-hinweis {
-  font-size: 11px;
+  font-size: var(--fs-12);
   color: rgba(255,255,255,0.7);
   flex-shrink: 0;
   line-height: 1;
@@ -452,8 +452,8 @@
   color: var(--dk-text);
 }
 .mini-title {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-mittel);
 }
 .mini-nav {
   display: flex;
@@ -463,7 +463,7 @@
 .mini-next {
   background: none;
   border: none;
-  font-size: 14px;
+  font-size: var(--fs-14);
   color: var(--dk-text-muted);
   cursor: pointer;
   padding: 0 6px;
@@ -476,7 +476,7 @@
   display: grid;
   grid-template-columns: 32px repeat(7, 1fr);
   width: 100%;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--dk-text);
 }
 .mini-cal-header-row {
@@ -486,15 +486,15 @@
 .mini-day-header {
   padding: 4px 0;
   text-align: center;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
   color: var(--dk-text-muted);
 }
 .mini-week-number {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
   background: var(--dk-surface-2);
 }
@@ -516,7 +516,7 @@
   opacity: 0.5;
 }
 .mini-cal-day.today {
-  font-weight: 700;
+  font-weight: var(--fw-fett);
   color: var(--dk-text);
   outline: 2px solid var(--line-strong);
   outline-offset: -2px;
@@ -581,15 +581,15 @@
 }
 .modal-title {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-16);
+  font-weight: var(--fw-fett);
   color: var(--dk-text);
 }
 .diakronos-close-btn {
   background: transparent;
   border: none;
   color: var(--dk-text-muted);
-  font-size: 24px;
+  font-size: var(--fs-26);
   cursor: pointer;
   width: 32px;
   height: 32px;
@@ -629,8 +629,8 @@
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   color: var(--dk-text-muted);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-mittel);
   cursor: pointer;
   transition: color 150ms, border-color 150ms;
 }
@@ -651,8 +651,8 @@
 }
 .form-group label {
   display: block;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
   color: var(--dk-text-muted);
   margin-bottom: 4px;
   text-transform: uppercase;
@@ -668,7 +668,7 @@
   border-radius: 8px;
   background: var(--dk-surface);
   color: var(--dk-text);
-  font-size: 14px;
+  font-size: var(--fs-14);
   transition: border-color 150ms ease;
   box-sizing: border-box;
 }
@@ -689,7 +689,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--dk-text);
   cursor: pointer;
 }
@@ -707,8 +707,8 @@
 }
 .description-group label {
   display: block;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
   color: var(--dk-text-muted);
   margin-bottom: 4px;
   text-transform: uppercase;
@@ -720,7 +720,7 @@
   border-radius: 8px;
   background: var(--dk-surface);
   color: var(--dk-text);
-  font-size: 14px;
+  font-size: var(--fs-14);
   resize: vertical;
   box-sizing: border-box;
 }
@@ -729,7 +729,7 @@
 }
 .modal-error {
   color: var(--dk-danger);
-  font-size: 12px;
+  font-size: var(--fs-12);
   padding: 0 20px;
   min-height: 16px;
   display: none;
@@ -746,7 +746,7 @@
   background: var(--dk-surface-2);
 }
 .delete-confirm-text {
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--dk-text);
 }
 
@@ -755,8 +755,8 @@
   padding: 8px 18px;
   border-radius: 8px;
   border: none;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-mittel);
   cursor: pointer;
   transition: all 150ms ease;
 }
@@ -802,13 +802,13 @@
   margin-top: 12px;
 }
 .series-event-name {
-  font-weight: 600;
-  font-size: 15px;
+  font-weight: var(--fw-fett);
+  font-size: var(--fs-16);
   color: var(--dk-text);
   margin-bottom: 8px;
 }
 .series-prompt, .series-confirm-text {
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--dk-text-muted);
   margin-bottom: 4px;
 }
@@ -832,7 +832,7 @@
   padding: 16px 20px;
 }
 .conflict-message {
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--dk-text-muted);
   margin-bottom: 10px;
 }
@@ -846,17 +846,17 @@
   gap: 4px;
 }
 .conflict-event-card strong {
-  font-size: 14px;
+  font-size: var(--fs-14);
   color: var(--dk-text);
 }
 .conflict-event-time {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
 }
 .conflict-question {
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--dk-text);
-  font-weight: 500;
+  font-weight: var(--fw-mittel);
 }
 .conflict-modal-footer {
   padding: 12px 20px;
@@ -869,7 +869,7 @@
 
 /* Event View Modal */
 .event-time {
-  font-size: 14px;
+  font-size: var(--fs-14);
   color: var(--dk-text-muted);
   margin-bottom: 12px;
 }
@@ -877,13 +877,13 @@
   display: grid;
   grid-template-columns: 100px 1fr;
   gap: 6px 12px;
-  font-size: 13px;
+  font-size: var(--fs-14);
 }
 .diakronos-dl dt {
-  font-weight: 600;
+  font-weight: var(--fw-fett);
   color: var(--dk-text-muted);
   text-transform: uppercase;
-  font-size: 11px;
+  font-size: var(--fs-12);
   letter-spacing: 0.04em;
   padding-top: 2px;
 }
@@ -912,12 +912,12 @@
   background: var(--dk-border);
 }
 .event-item .event-title {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-mittel);
   color: var(--dk-text);
 }
 .event-item .event-time {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
   margin-top: 2px;
 }
@@ -955,13 +955,13 @@
   right: 16px;
   background: none;
   border: none;
-  font-size: 24px;
+  font-size: var(--fs-26);
   color: var(--dk-text-muted);
   cursor: pointer;
 }
 .diakronos-help-title {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: var(--fs-20);
+  font-weight: var(--fw-fett);
   color: var(--dk-text);
   margin: 0 0 20px;
   padding-bottom: 12px;
@@ -975,19 +975,19 @@
   margin-bottom: 20px;
 }
 .diakronos-help-cred-label {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
   color: var(--dk-text-muted);
   text-transform: uppercase;
 }
 .diakronos-help-cred-value {
-  font-size: 13px;
+  font-size: var(--fs-14);
   font-family: monospace;
   color: var(--dk-text);
 }
 /* OP-ADMIN-20: Hinweis zu Authentik-Konten (kein CalDAV-Passwort per SSO). */
 .diakronos-help-note {
-  font-size: 13px;
+  font-size: var(--fs-14);
   line-height: 1.5;
   color: var(--dk-text-muted);
   background: var(--dk-surface-2);
@@ -1000,8 +1000,8 @@
   margin-bottom: 18px;
 }
 .diakronos-help-section h3 {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-fett);
   color: var(--dk-text);
   margin: 0 0 6px;
   text-transform: uppercase;
@@ -1011,7 +1011,7 @@
   padding-left: 20px;
 }
 .diakronos-help-section li {
-  font-size: 14px;
+  font-size: var(--fs-14);
   color: var(--dk-text);
   line-height: 1.5;
   margin-bottom: 4px;
@@ -1020,7 +1020,7 @@
   margin-top: 20px;
   padding-top: 12px;
   border-top: 1px solid var(--dk-border);
-  font-size: 11px;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
   text-align: center;
 }
@@ -1103,7 +1103,7 @@ html[data-theme] .ec,
 .ec:not(.ec-resource) .ec-row-head {
   width: 36px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
   padding: 4px 2px;
 }
@@ -1121,7 +1121,7 @@ html[data-theme] .ec,
   display: inline-block !important;
   min-width: 24px;
   text-align: center !important;
-  font-weight: 500;
+  font-weight: var(--fw-mittel);
 }
 /* UXK-R14 (P3-4b/Restpunkt 9): „W40“ lag am Handy (390 px) ueber der
    Tageszahl des Montags und las sich als „W4027“. Vorher wurde die
@@ -1155,18 +1155,18 @@ html[data-theme] .ec,
 .ec-list .ec-main { display: block !important; grid-template-rows: none !important; }  /* List-View: kein fixes Month-Grid -> Tage wachsen mit Inhalt, keine Ueberlappung */
 .ec-event {
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--fs-12);
   overflow: hidden;
 }
 .ec-event-title {
-  font-weight: 500;
-  font-size: 12px;
+  font-weight: var(--fw-mittel);
+  font-size: var(--fs-12);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .ec-event-time {
-  font-size: 11px;
+  font-size: var(--fs-12);
   opacity: 0.85;
   flex-shrink: 0;
   white-space: nowrap;
@@ -1206,8 +1206,8 @@ html[data-theme] .ec,
 /* EventCalendar — Resource Group Headers */
 .ec-res-group-label {
   display: block;
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: rgba(0, 0, 0, 0.5);
@@ -1215,7 +1215,7 @@ html[data-theme] .ec,
 }
 .ec-res-normal-label {
   display: block;
-  font-size: 0.85rem;
+  font-size: var(--fs-14);
 }
 }
 
@@ -1264,8 +1264,8 @@ html[data-theme] .ec,
 }
 .kronos-sidebar .sidebar-title {
   padding: 10px 4px 4px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
   color: var(--dk-sb-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1273,8 +1273,8 @@ html[data-theme] .ec,
 }
 .kronos-sidebar .group-title {
   padding: 8px 4px 2px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
   color: var(--dk-sb-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1288,8 +1288,8 @@ html[data-theme] .ec,
   padding: 6px 8px;
   border-radius: 8px;
   color: var(--dk-sb-text);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-mittel);
   cursor: pointer;
   transition: background 150ms ease;
 }
@@ -1299,13 +1299,13 @@ html[data-theme] .ec,
 }
 .kronos-sidebar .calendar-item label {
   color: var(--dk-sb-text);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-mittel);
   cursor: pointer;
   flex: 1;
 }
 .kronos-sidebar .ksb-recht-hinweis {
-  font-size: 11px;
+  font-size: var(--fs-12);
   color: rgba(255,255,255,0.7);
   flex-shrink: 0;
   line-height: 1;
@@ -1330,8 +1330,8 @@ html[data-theme] .ec,
 }
 .kronos-sidebar .mini-cal-header {
   color: var(--dk-sb-text);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-fett);
 }
 .kronos-sidebar .mini-cal-header button {
   color: var(--dk-sb-text-muted);
@@ -1348,13 +1348,13 @@ html[data-theme] .ec,
 }
 .kronos-sidebar .mini-cal-header-row span {
   color: var(--dk-sb-text-muted);
-  font-size: 10px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
   text-transform: uppercase;
 }
 .kronos-sidebar .mini-cal-day {
   color: var(--dk-sb-text);
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 .kronos-sidebar .mini-cal-day:hover {
   background: var(--dk-sb-hover);
@@ -1367,11 +1367,11 @@ html[data-theme] .ec,
 .kronos-sidebar .mini-cal-day.today {
   background: var(--dk-brand-500);
   color: #fff;
-  font-weight: 600;
+  font-weight: var(--fw-fett);
 }
 .kronos-sidebar .mini-cal-week-num {
   color: var(--dk-sb-text-muted);
-  font-size: 10px;
+  font-size: var(--fs-12);
 }
 /* Transition */
 .sidebar-swap-enter-active,
@@ -1462,14 +1462,14 @@ html[data-theme] .ec,
   display: flex; justify-content: space-between; align-items: center;
   padding: 16px 20px; border-bottom: 1px solid var(--dk-border);
 }
-.diakronos-modal-header h5 { margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--dk-text); }
+.diakronos-modal-header h5 { margin: 0; font-size: var(--fs-16); font-weight: var(--fw-fett); color: var(--dk-text); }
 .diakronos-modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; color: var(--dk-text); }
 .diakronos-modal-footer {
   display: flex; justify-content: flex-end; gap: 10px;
   padding: 12px 20px; border-top: 1px solid var(--dk-border);
 }
 .diakronos-close-btn {
-  background: none; border: none; font-size: 1.5rem;
+  background: none; border: none; font-size: var(--fs-26);
   cursor: pointer; color: var(--dk-text-muted); line-height: 1;
 }
 /* Conflict dialog extras */
@@ -1477,7 +1477,7 @@ html[data-theme] .ec,
   display: flex; align-items: center; gap: 10px;
   padding: 16px 20px; border-bottom: 1px solid var(--dk-border);
 }
-.conflict-modal-header h5 { margin: 0; flex: 1; font-size: 1rem; font-weight: 600; color: var(--dk-text); }
+.conflict-modal-header h5 { margin: 0; flex: 1; font-size: var(--fs-16); font-weight: var(--fw-fett); color: var(--dk-text); }
 .conflict-icon { color: var(--dk-warning); }
 .conflict-modal-body { padding: 16px 20px; color: var(--dk-text); }
 .conflict-modal-footer {
@@ -1488,11 +1488,11 @@ html[data-theme] .ec,
   background: var(--dk-surface-2); border-radius: 6px;
   padding: 10px 14px; margin: 8px 0; display: flex; flex-direction: column; gap: 4px;
 }
-.conflict-event-time { font-size: 0.85rem; color: var(--dk-text-muted); }
-.conflict-question { font-weight: 500; margin: 12px 0 0; color: var(--dk-text); }
+.conflict-event-time { font-size: var(--fs-14); color: var(--dk-text-muted); }
+.conflict-question { font-weight: var(--fw-mittel); margin: 12px 0 0; color: var(--dk-text); }
 /* Series dialog */
 .series-option-btns { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-.series-event-name { font-weight: 600; margin-bottom: 8px; color: var(--dk-text); }
+.series-event-name { font-weight: var(--fw-fett); margin-bottom: 8px; color: var(--dk-text); }
 /* DayEvents */
 .day-events-list { display: flex; flex-direction: column; gap: 8px; }
 .day-event-item {
@@ -1502,16 +1502,16 @@ html[data-theme] .ec,
   transition: background 0.15s;
 }
 .day-event-item:hover { background: var(--dk-surface-hover); }
-.day-event-time { font-size: 0.8rem; color: var(--dk-text-muted); }
-.day-event-name { font-weight: 500; font-size: 0.9rem; }
-.day-event-calendar { font-size: 0.8rem; }
+.day-event-time { font-size: var(--fs-12); color: var(--dk-text-muted); }
+.day-event-name { font-weight: var(--fw-mittel); font-size: var(--fs-14); }
+.day-event-calendar { font-size: var(--fs-12); }
 /* EventView */
-.event-time { font-size: 0.9rem; color: var(--dk-text-muted); margin-bottom: 12px; }
+.event-time { font-size: var(--fs-14); color: var(--dk-text-muted); margin-bottom: 12px; }
 .diakronos-dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; }
-.diakronos-dl dt { font-weight: 500; color: var(--dk-text-muted); white-space: nowrap; }
+.diakronos-dl dt { font-weight: var(--fw-mittel); color: var(--dk-text-muted); white-space: nowrap; }
 .diakronos-dl dd { margin: 0; }
 /* Shared button classes used in these modals */
-.btn { padding: 8px 14px; border-radius: 6px; font-size: 0.875rem; cursor: pointer; border: none; font-weight: 500; }
+.btn { padding: 8px 14px; border-radius: 6px; font-size: var(--fs-14); cursor: pointer; border: none; font-weight: var(--fw-mittel); }
 .btn-primary { background: var(--primary); color: var(--primary-ink); }
 .btn-secondary { background: var(--dk-surface-2); color: var(--dk-text); }
 .btn-danger { background: var(--dk-danger); color: #fff; }

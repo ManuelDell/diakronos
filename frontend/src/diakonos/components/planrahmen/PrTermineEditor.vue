@@ -347,20 +347,20 @@ function istKnoten(wert) {
 <style scoped>
 .pr-te { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .pr-te-zeile { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-.pr-te-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600; color: var(--dk-text-muted); min-width: 0; }
+.pr-te-label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); min-width: 0; }
 .pr-te-wiederholung, .pr-te-ref, .pr-te-versatz { display: inline-flex; gap: 6px; align-items: center; }
 .pr-te-klein { max-width: 130px; }
 .pr-te-klein2 { max-width: 70px; }
 .pr-te-zeit { max-width: 130px; }
-.pr-te-vorschau { font-size: 0.86rem; color: var(--dk-text); margin: 0; }
+.pr-te-vorschau { font-size: var(--fs-14); color: var(--dk-text); margin: 0; }
 .pr-te-vorschau strong { color: var(--dk-brand-800); }
-.pr-te-details { font-size: 0.84rem; }
-.pr-te-details summary { cursor: pointer; color: var(--dk-text-muted); font-size: 0.8rem; font-weight: 600; }
-.pr-te-titel { font-size: 0.74rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 0; }
-.pr-te-hinweis { font-size: 0.8rem; color: var(--dk-text-muted); margin: 0; }
+.pr-te-details { font-size: var(--fs-14); }
+.pr-te-details summary { cursor: pointer; color: var(--dk-text-muted); font-size: var(--fs-12); font-weight: var(--fw-fett); }
+.pr-te-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 0; }
+.pr-te-hinweis { font-size: var(--fs-12); color: var(--dk-text-muted); margin: 0; }
 .pr-te-feiertage, .pr-te-ausnahmen, .pr-te-manuell { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--dk-divider); padding-top: 10px; }
-.pr-te-schalter { display: inline-flex; align-items: center; gap: 5px; font-size: 0.82rem; color: var(--dk-text); cursor: pointer; }
-.pr-te-schalter--gross { font-size: 0.86rem; }
+.pr-te-schalter { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; }
+.pr-te-schalter--gross { font-size: var(--fs-14); }
 .pr-te-tage { display: flex; flex-wrap: wrap; gap: 8px 12px; }
 .pr-te-eigener { max-width: 260px; }
 </style>

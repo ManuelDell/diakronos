@@ -1057,8 +1057,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   position: absolute;
   top: 10px;
   right: 10px;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
   padding: 3px 8px;
   border-radius: 999px;
   text-transform: uppercase;
@@ -1072,8 +1072,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   padding: 14px 16px 16px;
 }
 .rs-card-title {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-fett);
   color: var(--dk-text);
   margin-bottom: 4px;
 }
@@ -1111,12 +1111,12 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
   margin-bottom: 8px;
 }
 .rs-card-type {
-  font-weight: 500;
+  font-weight: var(--fw-mittel);
 }
 .rs-card-capacity {
   display: inline-flex;
@@ -1124,7 +1124,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   gap: 4px;
 }
 .rs-card-desc {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
   line-height: 1.45;
   margin-bottom: 10px;
@@ -1140,8 +1140,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   margin-bottom: 12px;
 }
 .rs-tag {
-  font-size: 10px;
-  font-weight: 500;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-mittel);
   padding: 2px 8px;
   border-radius: 4px;
   background: var(--dk-surface-2);
@@ -1152,7 +1152,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   border-top: 1px solid var(--dk-divider);
 }
 .rs-btn-book {
-  font-weight: 600;
+  font-weight: var(--fw-fett);
 }
 
 /* ================================================================
@@ -1195,12 +1195,12 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-list-icon.type-vehicle { color: var(--dk-res-vehicle); background: color-mix(in oklch, var(--dk-res-vehicle) 12%, var(--dk-surface-2)); }
 .rs-list-icon.type-item    { color: var(--dk-res-item);    background: color-mix(in oklch, var(--dk-res-item)    12%, var(--dk-surface-2)); }
 .rs-list-title {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-mittel);
   color: var(--dk-text);
 }
 .rs-list-sub {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
   margin-top: 1px;
   white-space: nowrap;
@@ -1210,8 +1210,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 
 .rs-type-badge {
   display: inline-block;
-  font-size: 11px;
-  font-weight: 500;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-mittel);
   padding: 2px 8px;
   border-radius: 4px;
   background: var(--dk-surface-2);
@@ -1225,8 +1225,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-mittel);
 }
 .rs-status-dot::before {
   content: '';
@@ -1240,7 +1240,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-status-dot.maintenance::before { background: var(--dk-warning); }
 
 .rs-btn-book-sm {
-  font-weight: 600;
+  font-weight: var(--fw-fett);
 }
 
 /* ================================================================
@@ -1288,8 +1288,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   padding: 16px;
 }
 .rs-detail-title {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-16);
+  font-weight: var(--fw-fett);
   color: var(--dk-text);
   margin: 0 0 6px;
 }
@@ -1303,11 +1303,11 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
 }
 .rs-detail-desc {
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--dk-text-muted);
   line-height: 1.5;
   margin: 0 0 16px;
@@ -1317,8 +1317,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   margin-bottom: 16px;
 }
 .rs-detail-section h4 {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
   color: var(--dk-text-subtle);
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1350,14 +1350,14 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   flex-shrink: 0;
 }
 .rs-booking-day {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-fett);
   line-height: 1;
   color: var(--dk-text);
 }
 .rs-booking-month {
-  font-size: 9px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
   text-transform: uppercase;
   color: var(--dk-text-muted);
   margin-top: 2px;
@@ -1367,22 +1367,22 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   min-width: 0;
 }
 .rs-booking-title {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-mittel);
   color: var(--dk-text);
 }
 .rs-booking-time {
-  font-size: 11px;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
   margin-top: 1px;
 }
 .rs-booking-user {
-  font-size: 11px;
+  font-size: var(--fs-12);
   color: var(--dk-text-subtle);
   margin-top: 1px;
 }
 .rs-empty {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
   padding: 8px 0;
 }
@@ -1412,17 +1412,17 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-my-booking-color.type-item    { background: var(--dk-res-item); }
 .rs-my-booking-body { flex: 1; min-width: 0; }
 .rs-my-booking-title {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-mittel);
   color: var(--dk-text);
 }
 .rs-my-booking-date {
-  font-size: 11px;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
   margin-top: 2px;
 }
 .rs-my-booking-purpose {
-  font-size: 11px;
+  font-size: var(--fs-12);
   color: var(--dk-text-subtle);
   margin-top: 1px;
 }
@@ -1462,8 +1462,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 }
 .rs-form-group label {
   display: block;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-mittel);
   color: var(--dk-text-muted);
   margin-bottom: 5px;
 }
@@ -1474,7 +1474,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   border-radius: 8px;
   background: var(--dk-surface);
   color: var(--dk-text);
-  font-size: 13px;
+  font-size: var(--fs-14);
   transition: border-color var(--dk-fast);
   font-family: inherit;
 }
@@ -1516,8 +1516,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-mittel);
   color: var(--dk-text-muted);
   margin-bottom: 8px;
 }
@@ -1546,7 +1546,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   display: flex;
   justify-content: space-between;
   margin-top: 4px;
-  font-size: 9px;
+  font-size: var(--fs-12);
   color: var(--dk-text-subtle);
 }
 
@@ -1555,8 +1555,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
    ================================================================ */
 .rs-status-badge {
   display: inline-block;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
   padding: 2px 8px;
   border-radius: 999px;
   text-transform: uppercase;
@@ -1575,7 +1575,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   margin-top: 6px;
   padding: 6px 8px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: var(--fs-12);
   color: var(--dk-danger);
   background: color-mix(in oklch, var(--dk-danger) 6%, var(--dk-surface));
   line-height: 1.4;
@@ -1599,21 +1599,21 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: var(--fs-16);
+  font-weight: var(--fw-fett);
   color: var(--dk-text);
   margin: 0;
 }
 .rs-moderation-count {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--dk-accent);
   color: var(--dk-brand-800);
 }
 .rs-moderation-empty {
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--dk-text-muted);
   padding: 20px 0;
   text-align: center;
@@ -1636,8 +1636,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   align-items: flex-start;
   gap: 6px;
   padding: 8px 14px;
-  font-size: 11px;
-  font-weight: 500;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-mittel);
   color: var(--dk-warning);
   background: color-mix(in oklch, var(--dk-warning) 8%, var(--dk-surface));
   border-bottom: 1px solid color-mix(in oklch, var(--dk-warning) 15%, var(--dk-border));
@@ -1649,8 +1649,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   padding: 12px 14px;
 }
 .rs-anfrage-ressource {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-fett);
   color: var(--dk-text);
   margin-bottom: 2px;
 }
@@ -1658,8 +1658,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-anfrage-quelle {
   margin-left: 6px;
   padding: 1px 6px;
-  font-size: 10px;
-  font-weight: 500;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-mittel);
   text-transform: none;
   color: var(--dk-text-muted);
   background: var(--dk-surface-2);
@@ -1668,7 +1668,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   vertical-align: middle;
 }
 .rs-anfrage-zweck {
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--dk-text);
   margin-bottom: 6px;
 }
@@ -1676,13 +1676,13 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  font-size: 11px;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
 }
 .rs-anfrage-notiz {
   margin-top: 8px;
   padding: 6px 8px;
-  font-size: 11px;
+  font-size: var(--fs-12);
   color: var(--dk-text-muted);
   background: var(--dk-surface-2);
   border-radius: 6px;

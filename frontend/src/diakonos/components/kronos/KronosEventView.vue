@@ -184,7 +184,7 @@ useZurueckSchliesst(computed(() => props.show), () => emit('update:show', false)
 .diakronos-close-btn {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: var(--fs-26);
   cursor: pointer;
   color: var(--muted);
   line-height: 1;
@@ -215,7 +215,7 @@ useZurueckSchliesst(computed(() => props.show), () => emit('update:show', false)
   margin: 0;
 }
 .diakronos-dl dt {
-  font-weight: 600;
+  font-weight: var(--fw-fett);
   font-size: var(--fs);
   color: var(--text);
 }

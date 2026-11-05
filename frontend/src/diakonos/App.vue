@@ -53,8 +53,8 @@
                Spinner (Dev-Befund #/planrahmen/meine-dienste, 16.10.). -->
           <div v-else-if="pageLadefehler" class="dk-screen dk-screen-enter" style="padding:40px 24px;">
             <div style="max-width:520px;margin:0 auto;text-align:center;">
-              <p style="font-size:15px;font-weight:600;color:var(--dk-text);margin:0 0 6px;">{{ pageLadefehler.meldung }}</p>
-              <p style="font-size:13px;color:var(--dk-text-muted);margin:0 0 16px;">{{ pageLadefehler.hinweis }}</p>
+              <p style="font-size:var(--fs-16);font-weight:var(--fw-fett);color:var(--dk-text);margin:0 0 6px;">{{ pageLadefehler.meldung }}</p>
+              <p style="font-size:var(--fs-14);color:var(--dk-text-muted);margin:0 0 16px;">{{ pageLadefehler.hinweis }}</p>
               <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
                 <button type="button" class="dk-btn dk-btn-primary dk-btn-sm" @click="routeNeuLaden">Nochmal versuchen</button>
                 <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/">Zur Übersicht</a>
@@ -69,7 +69,7 @@
           <div v-else-if="!isVollbildMode" class="dk-screen dk-screen-enter" style="display:flex;align-items:center;justify-content:center;min-height:300px;">
             <div style="text-align:center;color:var(--dk-text-subtle)">
               <div style="width:32px;height:32px;border:2px solid var(--dk-border);border-top-color:var(--dk-brand-800);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px"></div>
-              <p style="font-size:13px;margin:0">Wird geladen…</p>
+              <p style="font-size:var(--fs-14);margin:0">Wird geladen…</p>
             </div>
           </div>
         </div>
@@ -232,13 +232,13 @@ function toggleTheme() {
   align-items: center;
   justify-content: space-between;
   padding: 8px 20px;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-mittel);
   box-shadow: var(--shadow-md);
 }
 .impersonation-timer {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--fs-14);
   opacity: 0.9;
 }
 .impersonation-stop {
@@ -248,8 +248,8 @@ function toggleTheme() {
   padding: 4px 12px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-fett);
   transition: background var(--fast);
 }
 .impersonation-stop:hover { background: color-mix(in oklch, var(--surface) 38%, transparent); }

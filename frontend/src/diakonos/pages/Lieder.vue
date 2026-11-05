@@ -512,16 +512,16 @@ function neuesLied() {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
-.dk-cell-text { font-size: 13px; color: var(--dk-text); }
-.dk-cell-email { font-size: 12px; color: var(--dk-text-subtle); }
-.dk-cell-name { font-size: 13px; font-weight: 500; color: var(--dk-text); }
+.dk-cell-text { font-size: var(--fs-14); color: var(--dk-text); }
+.dk-cell-email { font-size: var(--fs-12); color: var(--dk-text-subtle); }
+.dk-cell-name { font-size: var(--fs-14); font-weight: var(--fw-mittel); color: var(--dk-text); }
 .ld-badge-count {
   background: var(--dk-surface-2);
   border: 1px solid var(--dk-border);
   color: var(--dk-text-muted);
   margin-right: 6px;
 }
-.ld-besetzungen { font-size: 12px; color: var(--dk-text-muted); }
+.ld-besetzungen { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .ld-kopie { font-style: italic; color: var(--dk-text-muted); }
 /* DES-02: Die Inline-Angaben der Werkzeugleiste sind hier zu Klassen geworden. */
 .ld-toolbar { display: flex; flex-direction: column; gap: var(--sp-3); align-items: stretch; }
@@ -551,7 +551,7 @@ function neuesLied() {
   border: 1px solid color-mix(in oklch, var(--dk-danger) 25%, var(--dk-surface));
   border-radius: 12px;
   color: var(--dk-danger);
-  font-size: 13px;
+  font-size: var(--fs-14);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -570,7 +570,7 @@ function neuesLied() {
 .ld-filter-zahl {
   display: inline-grid; place-items: center; min-width: 16px; height: 16px;
   margin-left: 5px; padding: 0 4px; border-radius: 8px;
-  background: var(--primary); color: var(--primary-ink); font-size: 10px;
+  background: var(--primary); color: var(--primary-ink); font-size: var(--fs-12);
 }
 .ld-karten { list-style: none; margin: 0; padding: 0; display: none; flex-direction: column; gap: var(--sp-2); }
 .ld-karte {
@@ -579,9 +579,9 @@ function neuesLied() {
   display: flex; flex-direction: column; gap: 6px;
 }
 .ld-karte-kopf { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); }
-.ld-karte-titel { font-size: 14px; font-weight: 600; color: var(--dk-text); }
-.ld-karte-kennung { font-size: 12px; color: var(--dk-text-muted); flex: none; }
-.ld-karte-alt { font-size: 12px; color: var(--dk-text-subtle); }
+.ld-karte-titel { font-size: var(--fs-14); font-weight: var(--fw-fett); color: var(--dk-text); }
+.ld-karte-kennung { font-size: var(--fs-12); color: var(--dk-text-muted); flex: none; }
+.ld-karte-alt { font-size: var(--fs-12); color: var(--dk-text-subtle); }
 .ld-karte-meta { display: flex; flex-wrap: wrap; gap: 6px; }
 
 @media (max-width: 700px) {

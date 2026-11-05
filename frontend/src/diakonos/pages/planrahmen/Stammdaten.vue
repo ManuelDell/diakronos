@@ -946,15 +946,15 @@ function artText(merkmal) {
 
 <style scoped>
 .pr-stamm-kopf { margin-right: 10px; }
-.pr-stamm-zustand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--dk-text-muted); font-size: 0.9rem; }
+.pr-stamm-zustand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--dk-text-muted); font-size: var(--fs-14); }
 .pr-stamm-zustand--fehler { color: var(--dk-danger); }
 .pr-stamm-fehler { margin-bottom: 14px; }
 .pr-stamm-reiter { margin-top: 16px; }
-.pr-stamm-hinweis { font-size: 0.84rem; color: var(--dk-text-muted); margin: 8px 0; line-height: 1.5; }
-.pr-stamm-pool { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 4px 0 12px; padding: 10px 14px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); font-size: 0.86rem; }
-.pr-stamm-pool-text { color: var(--text); font-weight: 600; }
+.pr-stamm-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 8px 0; line-height: 1.5; }
+.pr-stamm-pool { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 4px 0 12px; padding: 10px 14px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); font-size: var(--fs-14); }
+.pr-stamm-pool-text { color: var(--text); font-weight: var(--fw-fett); }
 .pr-stamm-pool-link { color: var(--primary); text-decoration: underline; }
-.pr-stamm-tab-zahl { font-size: 0.72rem; color: var(--dk-text-subtle); font-weight: 400; }
+.pr-stamm-tab-zahl { font-size: var(--fs-12); color: var(--dk-text-subtle); font-weight: var(--fw-normal); }
 .pr-stamm-filter { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
 .pr-stamm-suche { max-width: 320px; }
 .pr-stamm-gruppenwahl { max-width: 240px; }
@@ -965,11 +965,11 @@ function artText(merkmal) {
   border-radius: 10px;
   background: color-mix(in oklch, var(--dk-brand-400) 6%, var(--dk-surface));
 }
-.pr-stamm-masse-zahl { font-size: 0.82rem; font-weight: 600; color: var(--dk-text); }
+.pr-stamm-masse-zahl { font-size: var(--fs-14); font-weight: var(--fw-fett); color: var(--dk-text); }
 .pr-stamm-masse-merkmal { width: auto; min-width: 180px; }
 .pr-stamm-masse-wert { min-width: 160px; max-width: 320px; }
 .pr-stamm-tabelle-wrap { overflow-x: auto; border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); }
-.pr-stamm-tabelle { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.pr-stamm-tabelle { width: 100%; border-collapse: collapse; font-size: var(--fs-14); }
 .pr-stamm-tabelle th, .pr-stamm-tabelle td {
   padding: 7px 10px; text-align: left; vertical-align: top;
   border-bottom: 1px solid var(--dk-border);
@@ -977,7 +977,7 @@ function artText(merkmal) {
 .pr-stamm-tabelle thead th {
   position: sticky; top: 0; z-index: 1;
   background: var(--dk-surface-2); color: var(--dk-text-muted);
-  font-size: 0.76rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.04em;
   white-space: nowrap;
 }
 .pr-stamm-tabelle tbody tr:last-child th, .pr-stamm-tabelle tbody tr:last-child td { border-bottom: none; }
@@ -989,41 +989,41 @@ function artText(merkmal) {
   background: color-mix(in oklch, var(--dk-warning) 12%, var(--dk-surface-2));
   transition: background 400ms;
 }
-.pr-stamm-art { display: block; font-size: 0.66rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--dk-text-subtle); }
+.pr-stamm-art { display: block; font-size: var(--fs-12); font-weight: var(--fw-normal); text-transform: none; letter-spacing: 0; color: var(--dk-text-subtle); }
 .pr-stamm-zeile--gewaehlt { background: color-mix(in oklch, var(--dk-brand-400) 5%, var(--dk-surface)); }
 .pr-stamm-zeile--inaktiv { opacity: 0.55; }
 .pr-stamm-name { min-width: 180px; }
-.pr-stamm-name-haupt { display: block; font-weight: 600; color: var(--dk-text); }
+.pr-stamm-name-haupt { display: block; font-weight: var(--fw-fett); color: var(--dk-text); }
 .pr-stamm-name-neben { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; margin-top: 2px; }
-.pr-stamm-kuerzel { font-size: 0.74rem; font-weight: 700; color: var(--dk-accent-d); }
+.pr-stamm-kuerzel { font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-accent-d); }
 .pr-stamm-gruppen-chip {
   display: inline-block; padding: 0 7px; border-radius: 999px;
   background: var(--dk-surface-2); border: 1px solid var(--dk-border);
-  font-size: 0.7rem; color: var(--dk-text-muted); white-space: nowrap;
+  font-size: var(--fs-12); color: var(--dk-text-muted); white-space: nowrap;
   max-width: 180px; overflow: hidden; text-overflow: ellipsis;
 }
 .pr-stamm-zelle { min-width: 110px; }
-.pr-stamm-leer { color: var(--dk-text-muted); font-size: 0.84rem; padding: 14px 10px; }
+.pr-stamm-leer { color: var(--dk-text-muted); font-size: var(--fs-14); padding: 14px 10px; }
 .pr-stamm-sammlung + .pr-stamm-sammlung { margin-top: 26px; }
 .pr-stamm-sammlung--hervor .pr-stamm-tabelle-wrap,
 .pr-stamm-sammlung--hervor .pr-stamm-sammlung-kopf { outline: 2px solid color-mix(in oklch, var(--dk-warning) 55%, transparent); outline-offset: 2px; }
 .pr-stamm-sammlung-kopf { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.pr-stamm-sammlung-titel { font-size: 0.95rem; font-weight: 700; color: var(--dk-text); margin: 0; }
-.pr-stamm-anzahl { font-size: 0.78rem; color: var(--dk-text-muted); }
+.pr-stamm-sammlung-titel { font-size: var(--fs-16); font-weight: var(--fw-fett); color: var(--dk-text); margin: 0; }
+.pr-stamm-anzahl { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-stamm-neu { margin-left: auto; }
-.pr-stamm-beschreibung { font-size: 0.8rem; color: var(--dk-text-muted); margin: 4px 0 8px; }
+.pr-stamm-beschreibung { font-size: var(--fs-12); color: var(--dk-text-muted); margin: 4px 0 8px; }
 .pr-stamm-griff { cursor: grab; color: var(--dk-text-subtle); user-select: none; flex-shrink: 0; }
 .pr-stamm-titel-zelle { min-width: 200px; }
 .pr-stamm-titel-eingabe {
   width: 100%; padding: 4px 6px; border-radius: 8px;
   border: 1px solid var(--dk-border); background: var(--dk-surface);
-  color: var(--dk-text); font-size: 0.82rem; font-family: inherit;
+  color: var(--dk-text); font-size: var(--fs-14); font-family: inherit;
 }
 .pr-stamm-titel-eingabe:focus {
   outline: 2px solid color-mix(in oklch, var(--dk-brand-400) 50%, transparent);
   outline-offset: 0; border-color: var(--dk-brand-400);
 }
-.pr-stamm-titel-text { font-weight: 600; color: var(--dk-text); }
+.pr-stamm-titel-text { font-weight: var(--fw-fett); color: var(--dk-text); }
 .pr-stamm-aktiv { width: 56px; text-align: center; color: var(--dk-text-muted); }
 .pr-stamm-aktiv input { margin: 2px 0 0; cursor: pointer; }
 .pr-stamm-sr {

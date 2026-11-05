@@ -784,16 +784,16 @@ defineExpose({ anfragen, ungespeichert, speichern })
 .lb-neu {
   margin-left: 6px; padding: 0 5px; border-radius: 999px;
   background: var(--dk-warning); color: var(--dk-text);
-  font-size: 0.7em; font-weight: 600; text-transform: uppercase; letter-spacing: .03em;
+  font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: .03em;
 }
 .lb-strophe { border: 1px solid var(--line); border-radius: var(--radius); padding: var(--sp-3); margin-bottom: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
 .lb-strophe-kopf { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
-.lb-strophe-nr { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--surface-2); color: var(--muted); font-size: var(--fs-sm); font-weight: 600; }
+.lb-strophe-nr { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--surface-2); color: var(--muted); font-size: var(--fs-sm); font-weight: var(--fw-fett); }
 .lb-strophe-typ { min-width: 130px; }
 .lb-strophe-sprache { max-width: 180px; }
 .lb-strophe-aktionen { display: inline-flex; gap: var(--sp-1); margin-left: auto; flex-wrap: wrap; }
 .lb-strophe-text { resize: vertical; font: inherit; padding: var(--sp-2); line-height: 1.6; }
-.lb-strophe-fehler { margin: 0; font-size: var(--fs-sm); color: var(--err); font-weight: 500; }
+.lb-strophe-fehler { margin: 0; font-size: var(--fs-sm); color: var(--err); font-weight: var(--fw-mittel); }
 .lb-hinweis { font-size: var(--fs-sm); color: var(--muted); margin: 0 0 var(--sp-2); }
 .lb-merkmal-reihe { display: flex; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-2) 0; border-top: 1px solid var(--divider); flex-wrap: wrap; }
 .lb-merkmal-reihe:first-of-type { border-top: none; }
@@ -801,7 +801,7 @@ defineExpose({ anfragen, ungespeichert, speichern })
 .lb-merkmal-werte { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
 .lb-tag-wahl { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-sm); cursor: pointer; }
 .lb-material-gruppe { margin-bottom: var(--sp-3); }
-.lb-material-art { font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
+.lb-material-art { font-size: var(--fs-sm); font-weight: var(--fw-fett); color: var(--muted); }
 .lb-material-liste { list-style: none; margin: var(--sp-1) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
 .lb-material-eintrag { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; font-size: var(--fs-sm); }
 .lb-material-name { color: var(--text); }

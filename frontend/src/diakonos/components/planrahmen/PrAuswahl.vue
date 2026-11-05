@@ -140,7 +140,7 @@ const standardWarnung = computed(() => `„${gespeichert.value}“ steht nicht i
 }
 .pr-auswahl-altwert { font-style: italic; }
 .pr-auswahl-eigener { font-family: inherit; }
-.pr-auswahl-hinweis { font-size: 0.76rem; font-weight: 400; color: var(--dk-warning); line-height: 1.4; max-width: 340px; }
+.pr-auswahl-hinweis { font-size: var(--fs-12); font-weight: var(--fw-normal); color: var(--dk-warning); line-height: 1.4; max-width: 340px; }
 /* Inhaltsumbruch, kein Layout: Feld und Warnhinweis nehmen die volle Breite
    (die 340-px-Grenze des Hinweises fällt weg). */
 @media (max-width: 640px) {

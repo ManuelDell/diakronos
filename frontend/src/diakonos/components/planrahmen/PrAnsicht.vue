@@ -371,8 +371,8 @@ function icsLaden() {
   background: color-mix(in oklch, var(--dk-info) 8%, var(--dk-surface));
   border: 1px solid color-mix(in oklch, var(--dk-info) 25%, var(--dk-surface));
 }
-.pr-ansicht-druckhinweis { font-size: 0.8rem; color: var(--dk-text-muted); }
-.pr-ansicht-hinweis { display: flex; align-items: center; gap: 12px; font-size: 0.86rem; color: var(--dk-text-muted); padding: 10px 0; }
+.pr-ansicht-druckhinweis { font-size: var(--fs-12); color: var(--dk-text-muted); }
+.pr-ansicht-hinweis { display: flex; align-items: center; gap: 12px; font-size: var(--fs-14); color: var(--dk-text-muted); padding: 10px 0; }
 .pr-ansicht--druck { background: var(--dk-surface); }
 /* UXP-R7: Die Druckueberschrift erscheint nur auf dem Papier — am Bildschirm
    traegt die Plan-Kopfzeile bereits Titel und Zeitraum. */
@@ -389,9 +389,9 @@ function icsLaden() {
     display: block; margin-bottom: 10mm; padding-bottom: 3mm;
     border-bottom: 1px solid var(--dk-border-strong);
   }
-  .pr-druck-kopf-titel { display: block; font-size: 15pt; font-weight: 700; color: var(--dk-text); }
-  .pr-druck-kopf-zeitraum { display: block; font-size: 10pt; color: var(--dk-text-muted); margin-top: 1mm; }
-  .pr-tabelle, .pr-raster-tabelle, .pr-kalender { font-size: 9pt; }
+  .pr-druck-kopf-titel { display: block; font-size: var(--fs-20); font-weight: var(--fw-fett); color: var(--dk-text); }
+  .pr-druck-kopf-zeitraum { display: block; font-size: var(--fs-14); color: var(--dk-text-muted); margin-top: 1mm; }
+  .pr-tabelle, .pr-raster-tabelle, .pr-kalender { font-size: var(--fs-12); }
   .pr-tabelle th, .pr-tabelle td,
   .pr-raster-tabelle th, .pr-raster-tabelle td { padding: 4px 6px; }
 }

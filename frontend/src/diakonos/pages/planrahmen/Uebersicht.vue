@@ -571,17 +571,17 @@ async function planAnlegenOhneBedarf() {
 
 <style scoped>
 .dk-form-error { color: var(--err); font-size: var(--fs-sm); margin: 0; }
-.pr-ue-zustand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--dk-text-muted); font-size: 0.9rem; }
+.pr-ue-zustand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--dk-text-muted); font-size: var(--fs-14); }
 .pr-ue-zustand--fehler { color: var(--dk-danger); }
 .pr-ue-gruppe + .pr-ue-gruppe { margin-top: 24px; }
 .pr-ue-gruppe-titel {
-  font-size: 0.76rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--dk-text-muted); margin: 0 0 10px;
 }
 .pr-ue-zeile { text-decoration: none; justify-content: space-between; gap: 14px; }
 .pr-ue-haupt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.pr-ue-titel { font-size: 0.94rem; font-weight: 600; color: var(--dk-text); }
-.pr-ue-meta { font-size: 0.76rem; color: var(--dk-text-muted); }
+.pr-ue-titel { font-size: var(--fs-16); font-weight: var(--fw-fett); color: var(--dk-text); }
+.pr-ue-meta { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-ue-neben { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
 @media (max-width: 600px) {
   .pr-ue-zeile { flex-wrap: wrap; }
@@ -594,8 +594,8 @@ async function planAnlegenOhneBedarf() {
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 .pr-ue-neu-block { margin-bottom: 8px; }
-.pr-ue-neu-hinweis { font-size: 0.84rem; color: var(--dk-text-muted); margin: 4px 0 0; }
-.pr-ue-pool { margin: 8px 0 0; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); color: var(--text); font-weight: 600; }
+.pr-ue-neu-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 4px 0 0; }
+.pr-ue-pool { margin: 8px 0 0; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); color: var(--text); font-weight: var(--fw-fett); }
 .pr-ue-entwurf {
   display: flex; flex-direction: column; gap: 10px;
   padding: 12px; margin-bottom: 6px;
@@ -603,6 +603,6 @@ async function planAnlegenOhneBedarf() {
   border-radius: 10px;
   background: color-mix(in oklch, var(--dk-warning) 8%, var(--dk-surface));
 }
-.pr-ue-entwurf-text { margin: 0; font-size: 0.88rem; color: var(--dk-text); }
+.pr-ue-entwurf-text { margin: 0; font-size: var(--fs-14); color: var(--dk-text); }
 .pr-ue-entwurf-aktionen { display: flex; gap: 8px; flex-wrap: wrap; }
 </style>

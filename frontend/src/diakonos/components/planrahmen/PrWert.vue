@@ -38,7 +38,7 @@ const istLeer = computed(() => chips.value.length === 0 && (props.wert === null 
 .pr-wert-chip {
   display: inline-block; padding: 1px 8px; border-radius: 999px;
   background: var(--dk-surface-2); border: 1px solid var(--dk-border);
-  font-size: 0.78rem; color: var(--dk-text); white-space: nowrap;
+  font-size: var(--fs-12); color: var(--dk-text); white-space: nowrap;
   max-width: 220px; overflow: hidden; text-overflow: ellipsis;
 }
 </style>

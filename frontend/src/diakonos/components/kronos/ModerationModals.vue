@@ -659,10 +659,10 @@ defineExpose({
 /* UXK-R12: `min-width:0` erlaubt es den Feldern in der Zeile zu schrumpfen;
    ohne das ragte das Feld „Ende“ aus dem Dialog. */
 .dk-mod-field { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
-.dk-mod-field label { font-size: var(--fs-sm); font-weight: 500; color: var(--muted); }
+.dk-mod-field label { font-size: var(--fs-sm); font-weight: var(--fw-mittel); color: var(--muted); }
 /* UXK-R12: Die Checkbox „Ganztägig“ war nur 2 px breit (vom globalen
    `input { width: 100% }` zusammengedrueckt). Feste Groesse, nicht schrumpfen. */
-.dk-mod-field--checkbox label { display: flex; align-items: center; gap: var(--sp-2); cursor: pointer; font-size: 13px; }
+.dk-mod-field--checkbox label { display: flex; align-items: center; gap: var(--sp-2); cursor: pointer; font-size: var(--fs-14); }
 .dk-mod-field--checkbox input[type="checkbox"] {
   flex: none;
   width: 16px;
@@ -694,7 +694,7 @@ defineExpose({
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  font-size: 13px;
+  font-size: var(--fs-14);
   font-family: inherit;
   color: var(--text);
   outline: none;
@@ -703,7 +703,7 @@ defineExpose({
 .dk-mod-input:focus { border-color: var(--dk-navy-400); }
 /* DES-02: `style="flex:1"` als Klasse — schiebt die Hauptaktion nach rechts. */
 .dk-mod-luecke { flex: 1; }
-.dk-mod-loading { padding: var(--sp-5); text-align: center; color: var(--muted); font-size: 13px; }
+.dk-mod-loading { padding: var(--sp-5); text-align: center; color: var(--muted); font-size: var(--fs-14); }
 /* OP-EVENT-12: Hinweis- und Fehlertexte im Ablehnen-Dialog */
 .dk-mod-hinweis { margin: 0; font-size: var(--fs-sm); color: var(--muted); line-height: 1.5; }
 /* P1-5b (W-1): Nur-Lese-Wert im Dialog „Abgelehnter Termin“. */
@@ -712,13 +712,13 @@ defineExpose({
 
 /* Partner */
 .dk-mod-partner { margin-top: var(--sp-4); }
-.dk-mod-partner-header { display: flex; align-items: center; gap: var(--sp-2); font-size: 13px; font-weight: 600; color: var(--warn); margin-bottom: var(--sp-2); }
-.dk-mod-partner-card { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--sp-3); font-size: 13px; }
-.dk-mod-partner-title { font-weight: 600; margin-bottom: 4px; }
+.dk-mod-partner-header { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-14); font-weight: var(--fw-fett); color: var(--warn); margin-bottom: var(--sp-2); }
+.dk-mod-partner-card { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--sp-3); font-size: var(--fs-14); }
+.dk-mod-partner-title { font-weight: var(--fw-fett); margin-bottom: 4px; }
 .dk-mod-partner-time, .dk-mod-partner-cal, .dk-mod-partner-ressource { color: var(--muted); font-size: var(--fs-sm); margin-bottom: 2px; }
 .dk-mod-partner-hint { margin: var(--sp-2) 0 0; font-size: var(--fs-sm); color: var(--subtle); }
 .dk-mod-partner--empty { padding: var(--sp-3); background: var(--surface-2); border-radius: var(--radius); }
-.dk-mod-partner--empty p { margin: 0; font-size: 13px; color: var(--muted); }
+.dk-mod-partner--empty p { margin: 0; font-size: var(--fs-14); color: var(--muted); }
 
 /* Conflict footer */
 /* DEV-7b (Befund Opus-Review, Befund 1): Die Basisregel wurde beim Umbau der
@@ -750,20 +750,20 @@ defineExpose({
 
 /* Series modal */
 .dk-mod-series-header { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-3); }
-.dk-mod-series-header h3 { margin: 0; font-size: var(--fs-h3); font-weight: 600; }
+.dk-mod-series-header h3 { margin: 0; font-size: var(--fs-h3); font-weight: var(--fw-fett); }
 .dk-mod-series-badge, .dk-mod-series-badge--konflikt {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: var(--fs-sm); font-weight: 500; padding: 2px 8px; border-radius: var(--badge-r);
+  font-size: var(--fs-sm); font-weight: var(--fw-mittel); padding: 2px 8px; border-radius: var(--badge-r);
   background: var(--surface-2); color: var(--muted);
 }
 .dk-mod-series-badge--konflikt { background: var(--err-soft); color: var(--err); }
-.dk-mod-series-body { font-size: 13px; }
+.dk-mod-series-body { font-size: var(--fs-14); }
 .dk-mod-series-info { display: flex; align-items: center; gap: var(--sp-2); color: var(--muted); margin-bottom: var(--sp-2); }
 .dk-mod-series-footer { display: flex; align-items: center; gap: var(--sp-2); width: 100%; }
-.dk-mod-series-conflict-intro { font-size: 13px; color: var(--muted); margin-bottom: var(--sp-3); }
+.dk-mod-series-conflict-intro { font-size: var(--fs-14); color: var(--muted); margin-bottom: var(--sp-3); }
 .dk-mod-series-conflict-list { display: flex; flex-direction: column; gap: var(--sp-2); }
 .dk-mod-series-conflict-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: 8px 10px; background: var(--surface-2); border-radius: var(--radius-sm); }
-.dk-mod-series-conflict-date { display: flex; align-items: center; gap: var(--sp-2); font-size: 13px; color: var(--muted); }
+.dk-mod-series-conflict-date { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-14); color: var(--muted); }
 
 /* UX1e: `.dk-mod-btn-inline`, `.dk-mod-btn-warn`, `.dk-mod-btn-ok` und
    `.dk-mod-btn-danger-outline` sind weg — die vier Eigenknöpfe sind jetzt

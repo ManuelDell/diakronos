@@ -17,7 +17,7 @@
 /** Sichtbare Legende fuer 📌 (von Hand festgelegt) und (leer) (UX C6). */
 </script>
 <style scoped>
-.pr-legende { margin: 0 0 14px; font-size: .8rem; color: var(--dk-text-muted); }
+.pr-legende { margin: 0 0 14px; font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-legende > summary { cursor: pointer; display: flex; align-items: center; gap: 6px; width: fit-content; }
 .pr-legende-pfeil { display: inline-block; transition: transform 120ms ease; }
 .pr-legende[open] > summary .pr-legende-pfeil { transform: rotate(90deg); }

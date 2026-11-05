@@ -177,10 +177,10 @@ defineExpose({ merkmale, sammlungen, rollen, offeneEintraege, schluessel, einstu
 
 <style scoped>
 .pr-bd { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.pr-bd-intro { font-size: 0.86rem; color: var(--dk-text-muted); margin: 0; line-height: 1.5; }
-.pr-bd-leer { font-size: 0.88rem; color: var(--dk-text-muted); padding: 6px 0; }
+.pr-bd-intro { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0; line-height: 1.5; }
+.pr-bd-leer { font-size: var(--fs-14); color: var(--dk-text-muted); padding: 6px 0; }
 .pr-bd-titel {
-  font-size: 0.76rem; font-weight: 600; text-transform: uppercase;
+  font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase;
   letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 0 0 8px;
 }
 .pr-bd-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -191,10 +191,10 @@ defineExpose({ merkmale, sammlungen, rollen, offeneEintraege, schluessel, einstu
 }
 .pr-bd-eintrag--weg { opacity: 0.6; }
 .pr-bd-haupt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.pr-bd-kennung { font-size: 0.88rem; font-weight: 600; color: var(--dk-text); }
-.pr-bd-abdeckung { font-size: 0.8rem; color: var(--dk-text); }
-.pr-bd-detail { font-size: 0.76rem; color: var(--dk-text-muted); }
+.pr-bd-kennung { font-size: var(--fs-14); font-weight: var(--fw-fett); color: var(--dk-text); }
+.pr-bd-abdeckung { font-size: var(--fs-12); color: var(--dk-text); }
+.pr-bd-detail { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-bd-neben { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
-.pr-bd-status { font-size: 0.78rem; font-style: italic; color: var(--dk-text-muted); }
-.pr-bd-fussnote { font-size: 0.78rem; color: var(--dk-text-subtle); margin: 8px 0 0; }
+.pr-bd-status { font-size: var(--fs-12); font-style: italic; color: var(--dk-text-muted); }
+.pr-bd-fussnote { font-size: var(--fs-12); color: var(--dk-text-subtle); margin: 8px 0 0; }
 </style>

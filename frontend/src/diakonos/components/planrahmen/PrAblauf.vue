@@ -300,7 +300,7 @@ function loeschen(f, index) {
 .pr-ablauf-feld + .pr-ablauf-feld { margin-top: 18px; }
 .pr-element-felder { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
 .pr-ablauf-element--edit { flex-wrap: wrap; }
-.pr-ablauf-titel { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dk-text-muted); margin: 0 0 8px; }
+.pr-ablauf-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.04em; color: var(--dk-text-muted); margin: 0 0 8px; }
 .pr-ablauf-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
 .pr-ablauf-element {
   display: flex; align-items: baseline; gap: 10px;
@@ -309,15 +309,15 @@ function loeschen(f, index) {
 }
 .pr-ablauf-element--edit { cursor: default; }
 .pr-ablauf-griff { cursor: grab; color: var(--dk-text-subtle); flex-shrink: 0; user-select: none; }
-.pr-ablauf-nr { flex-shrink: 0; min-width: 22px; font-weight: 700; color: var(--dk-accent-d); }
+.pr-ablauf-nr { flex-shrink: 0; min-width: 22px; font-weight: var(--fw-fett); color: var(--dk-accent-d); }
 .pr-ablauf-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.pr-ablauf-typ { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dk-text-subtle); }
-.pr-ablauf-wert { color: var(--dk-text); font-size: 0.86rem; }
-.pr-ablauf-leer { font-size: 0.82rem; color: var(--dk-text-muted); padding: 8px 0; }
+.pr-ablauf-typ { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.04em; color: var(--dk-text-subtle); }
+.pr-ablauf-wert { color: var(--dk-text); font-size: var(--fs-14); }
+.pr-ablauf-leer { font-size: var(--fs-14); color: var(--dk-text-muted); padding: 8px 0; }
 .pr-ablauf-hinzufuegen { display: flex; gap: 8px; margin-top: 10px; }
 .pr-ablauf-wahl {
   padding: 6px 8px; border-radius: 8px; border: 1px solid var(--dk-border);
-  background: var(--dk-surface); color: var(--dk-text); font-size: 0.84rem; font-family: inherit;
+  background: var(--dk-surface); color: var(--dk-text); font-size: var(--fs-14); font-family: inherit;
 }
 @media print {
   .pr-ablauf-griff, .pr-ablauf-element--edit > button, .pr-element-felder, .pr-ablauf-hinzufuegen { display: none !important; }
@@ -325,8 +325,8 @@ function loeschen(f, index) {
 }
 /* Programmheft */
 .pr-ablauf--programm { max-width: 720px; margin: 0 auto; padding: 24px; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 4px; }
-.pr-programm-kopf { font-size: 1.2rem; font-weight: 700; text-align: center; white-space: pre-line; margin-bottom: 18px; }
-.pr-programm-fuss { font-size: 0.82rem; text-align: center; white-space: pre-line; margin-top: 18px; color: var(--muted); }
+.pr-programm-kopf { font-size: var(--fs-20); font-weight: var(--fw-fett); text-align: center; white-space: pre-line; margin-bottom: 18px; }
+.pr-programm-fuss { font-size: var(--fs-14); text-align: center; white-space: pre-line; margin-top: 18px; color: var(--muted); }
 .pr-ablauf--programm .pr-ablauf-titel { display: none; }
 .pr-ablauf--programm .pr-ablauf-element { border: none; border-radius: 0; padding: 6px 0; background: transparent; }
 .pr-ablauf--programm .pr-ablauf-typ { display: none; }
@@ -337,5 +337,5 @@ function loeschen(f, index) {
    wirklich enthaelt (`ohneNummer` in PrAblauf.vue) — fehlt `{nr}`, bleibt die
    Nummer sichtbar, statt ganz zu verschwinden. */
 .pr-ablauf--programm .pr-ablauf-nr--verdeckt { display: none; }
-.pr-ablauf--programm .pr-ablauf-wert { font-size: 1rem; }
+.pr-ablauf--programm .pr-ablauf-wert { font-size: var(--fs-16); }
 </style>

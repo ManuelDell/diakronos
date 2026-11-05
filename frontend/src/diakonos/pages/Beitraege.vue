@@ -740,7 +740,7 @@ async function addComment() {
   padding-bottom: var(--sp-4);
   border-bottom: 1px solid var(--divider);
 }
-.bt-detail-content { font-size: var(--fs); line-height: 1.7; color: var(--text); }
+.bt-detail-content { font-size: var(--fs); line-height: 1.7; color: var(--text); max-width: var(--lesebreite); }
 .bt-detail-content :deep(p) { margin: 0 0 var(--sp-3); }
 .bt-detail-content :deep(ul) { margin: 0 0 var(--sp-3) var(--sp-alt-20); padding: 0; }
 .bt-detail-content :deep(li) { margin-bottom: var(--sp-1); }

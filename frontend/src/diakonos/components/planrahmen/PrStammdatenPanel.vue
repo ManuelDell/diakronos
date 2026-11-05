@@ -98,8 +98,8 @@ const { tastenFaenger } = useDialogFokus(offen, fenster, schliessen)
   padding-top: calc(10px + env(safe-area-inset-top));
 }
 .pr-panel-kopf-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.pr-panel-titel { font-size: 0.98rem; color: var(--dk-text); }
-.pr-panel-sub { font-size: 0.78rem; color: var(--dk-text-muted); }
+.pr-panel-titel { font-size: var(--fs-16); color: var(--dk-text); }
+.pr-panel-sub { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-panel-koerper { flex: 1; overflow: auto; }
 /* Die eingebettete Seite bringt ihre eigenen Ränder mit — im Panel etwas enger. */
 .pr-panel-koerper :deep(.dk-screen) { padding-top: 12px; }
