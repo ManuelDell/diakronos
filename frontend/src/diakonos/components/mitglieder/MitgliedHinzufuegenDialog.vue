@@ -106,7 +106,9 @@
           <strong>{{ dubletteAnzeige }}</strong>.
           <template v-if="dublette.mitglied_id">
             Bitte die vorhandene Person
-            <button type="button" class="mh-link" @click="vorhandeneOeffnen">öffnen</button>
+            <!-- UX1f: ein Weg im Satz ist ein Textknopf (ghost, sm) und
+                 keine eigene Knopfoptik — dieselbe Form wie „Öffnen“ darunter. -->
+            <DkButton variant="ghost" size="sm" class="mh-link" @click="vorhandeneOeffnen">öffnen</DkButton>
             statt eine zweite anzulegen.
           </template>
           <template v-else>Bitte eine andere E-Mail-Adresse verwenden.</template>
@@ -114,7 +116,7 @@
         <template v-else>
           Möglicher Treffer:
           <strong>{{ dubletteAnzeige }}</strong>
-          <button type="button" class="mh-link" @click="vorhandeneOeffnen">Öffnen</button>
+          <DkButton variant="ghost" size="sm" class="mh-link" @click="vorhandeneOeffnen">Öffnen</DkButton>
         </template>
       </DkHint>
 
@@ -374,11 +376,9 @@ function schliessen(offen) {
 .mh-paar { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
 .mh-erfolg { display: flex; flex-direction: column; gap: var(--sp-3); }
 /* Hinweis-Link im Fließtext (gleiche Optik wie die übrigen Textlinks). */
-.mh-link {
-  background: none; border: none; padding: 0; margin: 0 2px;
-  color: var(--primary); font: inherit; font-weight: 600;
-  text-decoration: underline; cursor: pointer;
-}
+/* UX1f: Der Textknopf bringt Höhe, Abstand und Farbe aus DkButton (`ghost`,
+   `sm`); hier bleibt nur, dass er IM Satz steht und nicht bündig links sitzt. */
+.mh-link { margin: 0 2px; text-decoration: underline; }
 @media (max-width: 520px) {
   .mh-paar { grid-template-columns: 1fr; }
 }

@@ -48,12 +48,11 @@
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
 
     <template #footer>
-      <DkButton variant="ghost" size="sm" :disabled="laeuft" @click="schliessen(false)">
+      <DkButton variant="secondary" :disabled="laeuft" @click="schliessen(false)">
         Abbrechen
       </DkButton>
       <DkButton
         variant="danger"
-        size="sm"
         :disabled="laeuft || !mailEingerichtet"
         :loading="laeuft"
         @click="ablehnen"

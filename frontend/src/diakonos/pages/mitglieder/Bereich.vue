@@ -25,7 +25,7 @@
           </DkButton>
         </template>
         <template v-if="istAdmin">
-          <DkButton variant="primary" @click="mitgliedHinzufuegen">
+          <DkButton :variant="anlegenIstHauptaktion ? 'primary' : 'secondary'" @click="mitgliedHinzufuegen">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
             Person anlegen
           </DkButton>
@@ -143,6 +143,25 @@ const IMPORT       = defineAsyncComponent(() => import('./Import.vue'))
 // Zahl ändert sich im Minutentakt bzw. nach einer Handlung (Aufnehmen/
 // Ablehnen ruft die Anfragen-Seite `anfragenZahlAuffrischen`).
 const anfragenZahl = anfragenZaehler
+
+/**
+ * UX1f: Die Hauptaktion des Kopfes ist die des SICHTBAREN Eintrags (S1 —
+ * genau ein gefüllter Knopf je Ansicht). Vorher stand „Person anlegen“ als
+ * Primärknopf schon auf 9 von 11 Ansichten, obwohl dort eine andere Arbeit
+ * offenlag: Löschanträge prüfen, Datenschutz, Import, Adressbuch.
+ *
+ * Es bleibt EINE referenzierte Anlege-Tätigkeit; nur ihre Betonung wechselt
+ * mit dem Eintrag. „Person anlegen“ steht weiterhin überall, wo Anlegen die
+ * Hauptsache ist (Übersicht, Liste, Anfragen, Löschanträge) — sekundär auf den
+ * Ansichten, deren Hauptaktion die Seite selbst trägt (Import: „Prüfen“,
+ * Datenschutz: „Auskunft“).
+ */
+const ANLEGEN_NEBENACHLICH = new Set(['import', 'datenschutz'])
+
+/** „Person anlegen“ ist auf dieser Ansicht die Hauptaktion? */
+const anlegenIstHauptaktion = computed(
+  () => !ANLEGEN_NEBENACHLICH.has(aktiverEintrag.value?.id),
+)
 
 const bereichsEintraege = computed(() => mitgliederBereichEintraege({
   istAdmin: isAdmin.value === true,

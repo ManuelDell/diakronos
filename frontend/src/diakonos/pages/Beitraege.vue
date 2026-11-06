@@ -236,7 +236,7 @@
         </p>
       </form>
       <template #footer>
-        <DkButton variant="ghost" @click="editorSchliessen">Abbrechen</DkButton>
+        <DkButton variant="secondary" @click="editorSchliessen">Abbrechen</DkButton>
         <DkButton variant="primary" :disabled="savingPost" @click="savePost">Speichern</DkButton>
       </template>
     </DkDialog>

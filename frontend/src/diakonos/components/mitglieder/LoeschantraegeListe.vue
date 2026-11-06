@@ -73,17 +73,19 @@
           </p>
         </div>
         <div v-if="a.status === 'offen'" class="la-aktionen">
+          <!-- UX1f (S1): Die Hauptaktion dieser Liste ist das Prüfen eines
+               Antrags; „Löschung freigeben“ ist seine Entscheidung und damit
+               der EINE gefüllte Knopf. „Ablehnen“ ist die Gegenentscheidung
+               daneben und deshalb secondary. -->
           <DkButton
             variant="secondary"
-            size="sm"
             :aria-label="'Löschantrag ablehnen: ' + nameFuerAntrag(a)"
             @click="$emit('ablehnen', a)"
           >
             Ablehnen
           </DkButton>
           <DkButton
-            variant="danger"
-            size="sm"
+            variant="primary"
             :aria-label="'Löschung freigeben: ' + nameFuerAntrag(a)"
             @click="$emit('freigeben', a)"
           >

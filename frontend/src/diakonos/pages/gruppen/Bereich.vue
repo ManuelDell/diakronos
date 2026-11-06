@@ -8,11 +8,14 @@
          im Organigramm. -->
     <DkPageHeader title="Gruppen" sub="Übersicht aller Dienstbereiche, Gruppen und Untergruppen.">
       <template #actions>
+        <!-- UX1f (S1): genau EIN gefüllter Knopf je Ansicht. Anlegen ist hier
+             die Hauptsache — die häufigere Art („Gruppe“) trägt die Betonung,
+             die zweite Art steht daneben als secondary. -->
         <template v-if="rechte.canCreateAny">
           <DkButton v-if="rechte.canCreateGruppe" variant="primary" @click="openCreate('gruppe')">
             Gruppe anlegen
           </DkButton>
-          <DkButton v-if="rechte.canCreateUntergruppe" variant="secondary" @click="openCreate('untergruppe')">
+          <DkButton v-if="rechte.canCreateUntergruppe" :variant="rechte.canCreateGruppe ? 'secondary' : 'primary'" @click="openCreate('untergruppe')">
             Untergruppe anlegen
           </DkButton>
         </template>

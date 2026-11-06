@@ -96,7 +96,7 @@
             </div>
             <div v-if="!m.geloescht" class="ds-aktionen">
               <DkButton variant="secondary" :loading="exportId === m.name" :aria-label="'Auskunft für ' + name(m)" @click="auskunft(m)">Auskunft</DkButton>
-              <DkButton variant="danger" :aria-label="'Anonymisieren: ' + name(m)" @click="oeffnen(m)">Anonymisieren</DkButton>
+              <DkButton variant="secondary" class="ds-anonymisieren-schrift" :aria-label="'Anonymisieren: ' + name(m)" @click="oeffnen(m)">Anonymisieren</DkButton>
             </div>
           </li>
         </ul>
@@ -114,9 +114,13 @@
         </label>
         <DkHint v-if="dialogFehler" variant="err" role="alert">{{ dialogFehler }}</DkHint>
       </template>
+      <!-- UX1f (S1): Der Fuß ist in jedem Schritt genau ein Schritt der
+           Anonymisierung, nie zwei Entscheidungen nebeneinander. „Weiter“ ist
+           deshalb secondary — die gefüllte Gefahrenfarbe trägt erst die
+           endgültige Tat („Endgültig anonymisieren“). -->
       <template #footer>
-        <DkButton variant="ghost" :disabled="sendet" @click="schliessen(false)">Abbrechen</DkButton>
-        <DkButton v-if="schritt === 1" variant="danger" @click="schritt = 2">Geprüft, weiter</DkButton>
+        <DkButton variant="secondary" :disabled="sendet" @click="schliessen(false)">Abbrechen</DkButton>
+        <DkButton v-if="schritt === 1" variant="secondary" @click="schritt = 2">Geprüft, weiter</DkButton>
         <DkButton v-else variant="danger" :loading="sendet" @click="anonymisieren">Endgültig anonymisieren</DkButton>
       </template>
     </DkDialog>
@@ -248,6 +252,9 @@ onMounted(laden)
    nicht auseinanderhält (dichte Personenliste). */
 .ds-person { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-3) 0; border-bottom: var(--rahmen-breite) solid var(--rahmen-farbe-leise); flex-wrap: wrap; }
 .ds-person:last-child { border-bottom: none; }
+/* Zerstörende Zeilenaktion: kein zweiter gefüllter Knopf je Zeile, nur Fehlerschrift. */
+.ds-anonymisieren-schrift { color: var(--err); }
+.ds-anonymisieren-schrift:hover:not(:disabled) { color: var(--err); }
 .ds-identitaet { min-width: 0; overflow-wrap: anywhere; }
 .ds-person p { margin: var(--sp-1) 0; color: var(--dk-text-muted); }
 @media (max-width: 600px) { .ds-filter { flex-direction: column; } .ds-aktionen { width: 100%; } }

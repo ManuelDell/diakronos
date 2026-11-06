@@ -212,7 +212,7 @@
         </DkField>
       </form>
       <template #footer>
-        <DkButton variant="ghost" @click="editorSchliessen">Abbrechen</DkButton>
+        <DkButton variant="secondary" @click="editorSchliessen">Abbrechen</DkButton>
         <DkButton variant="primary" :loading="saving" @click="saveArticle">Speichern</DkButton>
       </template>
     </DkDialog>

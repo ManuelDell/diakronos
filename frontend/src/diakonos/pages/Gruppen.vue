@@ -11,7 +11,7 @@
            entscheidet über can_create_*; der Knopf zeigt nur, was er erlaubt. -->
       <div v-if="perms.can_create_any" class="gr-kopf-aktionen">
         <DkButton v-if="perms.can_create_gruppe" variant="primary" @click="openCreate('gruppe')">Gruppe anlegen</DkButton>
-        <DkButton v-if="perms.can_create_untergruppe" variant="secondary" @click="openCreate('untergruppe')">Untergruppe anlegen</DkButton>
+        <DkButton v-if="perms.can_create_untergruppe" :variant="perms.can_create_gruppe ? 'secondary' : 'primary'" @click="openCreate('untergruppe')">Untergruppe anlegen</DkButton>
       </div>
     </div>
 

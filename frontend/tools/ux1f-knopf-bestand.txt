@@ -1,0 +1,17 @@
+# UX1f — eingefrorener Bestand der ALTEN Knopfklassen (Teil 2).
+#
+# Geprueft: pages/mitglieder/**, pages/Mitglieder*.vue, pages/Registrierung.vue,
+#           components/mitglieder/**, components/registrierung/**,
+#           pages/Gruppe*.vue, pages/gruppen/**, components/gruppen/**,
+#           gast/**, registrierung/**, organigramm/**  (.vue/.css/.js/.mjs),
+#           ausser Kommentaren.
+# Format:   relativer/pfad<TAB>anzahl_fundstellen / rohe Knopfelemente
+# Fundstelle = `dk-btn`/`dk-btn-*` | `btn`/`btn-*` | rohe Knopfelemente im Bereich.
+#
+# REGEL: Diese Liste darf NUR SCHRUMPFEN. Neue Alt-Knoepfe sind nicht
+# zulaessig — neue Knoepfe kommen aus DkButton (components/ui/DkButton.vue).
+# Erzeugt mit (aus frontend/ heraus): node tools/ux1f-knopf-bestand.mjs --schreiben
+# Geprueft von frontend/tests/ux1f-knopf-system.test.mjs.
+#
+# Stand (UX1f): 2 Fundstellen in 1 Dateien.
+frontend/src/registrierung/components/DkAnmeldeformular.vue	2

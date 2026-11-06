@@ -1,9 +1,13 @@
 <template>
     <div class="dk-screen dk-screen-enter">
         <!-- Seitenkopf -->
+        <!-- UX1f (N4): „Wo bin ich“ — die Seite hatte weder Brotkrumen noch
+             den Namen ihres Bereichs; jetzt führen die Krumen über „Gruppen“
+             (Seitenname = Menüname) zur Gruppe. Der frühere Untertitel mit den
+             Krumen ist damit doppelt und entfällt. -->
         <DkPageHeader
             :title="displayName"
-            :sub="breadcrumb"
+            :sub="unterzeile"
             :krumen="[{ text: 'Gruppen', href: '#/gruppen' }, { text: displayName }]"
             :badges="[{ text: currentStatus || 'Unbekannt', variant: statusVariante }]"
         >
@@ -57,9 +61,12 @@
                                 <DkField label="Treffzeit">
                                     <input v-model="editTreffzeit" class="dk-ui-eingabe" type="text" />
                                 </DkField>
+                                <!-- UX1f (S1): In der Bearbeitung ist „Speichern“ die
+                                     eine Hauptaktion; „Abbrechen“ verwirft die Eingabe
+                                     (Wortliste) und steht als secondary daneben. -->
                                 <div class="grup-aktionen">
-                                    <DkButton variant="primary" size="sm" :loading="savingDesc" @click="saveDesc">Speichern</DkButton>
-                                    <DkButton variant="ghost" size="sm" @click="cancelEditDesc">Abbrechen</DkButton>
+                                    <DkButton variant="primary" :loading="savingDesc" @click="saveDesc">Speichern</DkButton>
+                                    <DkButton variant="secondary" @click="cancelEditDesc">Abbrechen</DkButton>
                                 </div>
                             </div>
                         </template>
@@ -98,8 +105,10 @@
                             <input v-model="neueAnkuendigungTitel" type="text" placeholder="Titel" class="dk-ui-eingabe" />
                             <textarea v-model="neueAnkuendigungText" placeholder="Text (optional)" class="dk-ui-eingabe" rows="3" />
                             <div class="grup-aktionen">
-                                <DkButton variant="primary" size="sm" :disabled="!neueAnkuendigungTitel.trim() || sendingAnkuendigung" :loading="sendingAnkuendigung" @click="createAnkuendigung">Veröffentlichen</DkButton>
-                                <DkButton variant="ghost" size="sm" @click="showAnkuendigungForm = false; neueAnkuendigungTitel = ''; neueAnkuendigungText = ''">Abbrechen</DkButton>
+                                <DkButton variant="primary" :disabled="!neueAnkuendigungTitel.trim() || sendingAnkuendigung" :loading="sendingAnkuendigung" @click="createAnkuendigung">Veröffentlichen</DkButton>
+                                <!-- UX1f: Hier wird eine Eingabe verworfen — das ist „Abbrechen“
+                                     (Wortliste) und damit ein secondary der vollen Höhe. -->
+                                <DkButton variant="secondary" @click="showAnkuendigungForm = false; neueAnkuendigungTitel = ''; neueAnkuendigungText = ''">Abbrechen</DkButton>
                             </div>
                         </div>
                         <DkEmpty v-if="ankuendigungen.length === 0" title="Keine Ankündigungen vorhanden" icon="📢" />
@@ -126,8 +135,10 @@
                         </template>
                         <div v-if="showAufgabeInput" class="grup-zeile">
                             <input v-model="neueAufgabe" type="text" placeholder="Neue Aufgabe…" class="dk-ui-eingabe" @keyup.enter="createAufgabe" />
-                            <DkButton variant="primary" size="sm" :disabled="!neueAufgabe.trim() || sendingAufgabe" :loading="sendingAufgabe" @click="createAufgabe">Übernehmen</DkButton>
-                            <DkButton variant="ghost" size="sm" @click="showAufgabeInput = false; neueAufgabe = ''">✕</DkButton>
+                            <DkButton variant="primary" :disabled="!neueAufgabe.trim() || sendingAufgabe" :loading="sendingAufgabe" @click="createAufgabe">Übernehmen</DkButton>
+                            <!-- UX1f (N8): „✕“ allein sagt nicht, was passiert (Eingabe
+                                 verwerfen) — der sichtbare Name steht als „Abbrechen“ dran. -->
+                            <DkButton variant="secondary" @click="showAufgabeInput = false; neueAufgabe = ''">Abbrechen</DkButton>
                         </div>
                         <DkEmpty v-if="aufgaben.length === 0" title="Keine Aufgaben vorhanden" icon="📋" />
                         <ul v-else class="grup-liste">
@@ -371,6 +382,18 @@ export default {
                 return `${gruppe.value.dienstbereich_name || gruppe.value.dienstbereich} > ${displayName.value}`
             }
             return null
+        })
+
+        /** Untertitel: der Weg der Gruppe (wie die Krumen zuvor) — ohne den
+         *  Gruppennamen, der schon als Titel steht (S3: keine Dopplung). */
+        const unterzeile = computed(() => {
+            if (untergruppe.value && (untergruppe.value.gruppe_name || untergruppe.value.gruppe)) {
+                return `Untergruppe von ${untergruppe.value.gruppe_name || untergruppe.value.gruppe}`
+            }
+            if (gruppe.value?.dienstbereich) {
+                return `Dienstbereich ${gruppe.value.dienstbereich_name || gruppe.value.dienstbereich}`
+            }
+            return ''
         })
 
         const canManage = computed(() => {
@@ -804,6 +827,7 @@ export default {
             currentTreffpunkt,
             currentTreffzeit,
             breadcrumb,
+            unterzeile,
             editingDesc,
             editName,
             editDesc,

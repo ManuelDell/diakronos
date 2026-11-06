@@ -18,7 +18,7 @@
 # als Tokens in tokens.css; Komponenten schreiben `var(--fs-…)`/`var(--fw-…)`.
 # Erzeugt mit (aus frontend/ heraus): node tools/schrift-bestand.mjs --schreiben
 #
-# Stand (UX1b, eingefroren): 104 Fundstellen in 48 Dateien.
+# Stand (UX1b, eingefroren): 103 Fundstellen in 47 Dateien.
 frontend/src/diakonos/components/MitgliedAuswahl.vue	1
 frontend/src/diakonos/components/WartendeKontenKarte.vue	1
 frontend/src/diakonos/components/devmodus/BefundDialog.vue	1
@@ -37,7 +37,6 @@ frontend/src/diakonos/components/kronos/KronosSeriesDialog.vue	1
 frontend/src/diakonos/components/kronos/ModerationAenderungen.vue	2
 frontend/src/diakonos/components/lieder/LiedgruppeBearbeiten.vue	2
 frontend/src/diakonos/components/mitglieder/LoeschantraegeListe.vue	3
-frontend/src/diakonos/components/mitglieder/MitgliedHinzufuegenDialog.vue	1
 frontend/src/diakonos/components/planrahmen/PrErklaerung.vue	2
 frontend/src/diakonos/components/planrahmen/PrSprungleiste.vue	1
 frontend/src/diakonos/components/ui/DkBadge.vue	1

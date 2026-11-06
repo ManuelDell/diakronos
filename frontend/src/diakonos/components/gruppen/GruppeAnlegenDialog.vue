@@ -30,7 +30,7 @@
       </DkField>
     </form>
     <template #footer>
-      <DkButton variant="ghost" @click="schliessen(false)">Abbrechen</DkButton>
+      <DkButton variant="secondary" @click="schliessen(false)">Abbrechen</DkButton>
       <DkButton variant="primary" :loading="sending" @click="submit">Anlegen</DkButton>
     </template>
   </DkDialog>

@@ -6,15 +6,20 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
 
-      <!-- Back button for detail pages -->
-      <button
+      <!-- Zurück (UX1f): ein Weg der Kopfzeile, kein Alt-Knopf — dieselbe
+           Gestaltung wie die übrigen ghost-Knöpfe (Symbol + Wort, N8), aber in
+           der Höhe der Kopfzeilenknöpfe (md statt sm). -->
+      <DkButton
         v-if="showBack"
-        class="dk-btn dk-btn-ghost dk-btn-sm"
+        variant="ghost"
+        class="dk-zurueck"
         @click="navigateBack"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <template #icon>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </template>
         Zurück
-      </button>
+      </DkButton>
 
       <!-- Breadcrumbs -->
       <nav class="dk-crumbs">
@@ -85,6 +90,7 @@ import { computed, ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { currentPageName, navigate } from '../router.js'
 import { useNotifications } from '../composables/useNotifications.js'
 import { useLadeSkelett } from '../composables/useLadeSkelett.js'
+import DkButton from './ui/DkButton.vue'
 import DkSkelett from './ui/DkSkelett.vue'
 import DkEmpty from './ui/DkEmpty.vue'
 import { darfAlsGelesenMarkieren } from '../composables/glocke.mjs'

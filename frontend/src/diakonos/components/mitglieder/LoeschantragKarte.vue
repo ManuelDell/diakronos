@@ -132,12 +132,11 @@
       <DkHint v-if="dialogFehler" variant="err" role="alert">{{ dialogFehler }}</DkHint>
 
       <template #footer>
-        <DkButton variant="ghost" size="sm" :disabled="laeuft" @click="schliesseDialog(false)">
+        <DkButton variant="secondary" :disabled="laeuft" @click="schliesseDialog(false)">
           Abbrechen
         </DkButton>
         <DkButton
           variant="danger"
-          size="sm"
           :disabled="!bestaetigungVollstaendig({ kaestchen: verstanden, wort, laeuft })"
           :loading="laeuft"
           @click="abschicken"

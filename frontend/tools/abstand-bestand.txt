@@ -20,7 +20,7 @@
 #   * neue Datei mit festen Werten          -> rot (nicht in der Liste = 0 erlaubt)
 # Erzeugt mit (aus frontend/ heraus): node tools/abstand-bestand.mjs --schreiben
 #
-# Stand (UX1a2, F5): 1620 Fundstellen in 122 Dateien.
+# Stand (UX1a2, F5): 1617 Fundstellen in 122 Dateien.
 frontend/src/diakonos/App.vue	8
 frontend/src/diakonos/components/AppBottomNav.vue	24
 frontend/src/diakonos/components/MitgliedAuswahl.vue	15
@@ -39,7 +39,7 @@ frontend/src/diakonos/components/einrichtung/SchrittGemeinde.vue	3
 frontend/src/diakonos/components/einrichtung/SchrittKontakt.vue	1
 frontend/src/diakonos/components/einrichtung/SchrittMitgliederKalender.vue	5
 frontend/src/diakonos/components/einrichtung/SchrittModule.vue	1
-frontend/src/diakonos/components/gruppen/OrganigrammAnsicht.vue	9
+frontend/src/diakonos/components/gruppen/OrganigrammAnsicht.vue	7
 frontend/src/diakonos/components/kronos/KronosConflictDialog.vue	1
 frontend/src/diakonos/components/kronos/KronosEventCreate.vue	8
 frontend/src/diakonos/components/kronos/KronosEventEdit.vue	8
@@ -141,5 +141,5 @@ frontend/src/diakonos/pages/planrahmen/Uebersicht.vue	20
 frontend/src/gast/App.vue	17
 frontend/src/organigramm/App.vue	12
 frontend/src/registrierung/App.vue	9
-frontend/src/registrierung/components/DkAnmeldeformular.vue	34
+frontend/src/registrierung/components/DkAnmeldeformular.vue	33
 frontend/src/ssot/seiten.css	7

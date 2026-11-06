@@ -75,6 +75,12 @@ const BTN = /(?<![\w-])btn(?!-\w*btn)(?:-[\w-]+)?\b/g
 const EIGEN = /(?<![\w-])[\w-]*-(?:btn|button)\b/g
 // Ausnahmen: reine Behaelter-/Strukturklassen, keine Knoepfe.
 const KEINE_KNOEPFE = new Set(['diakronos-close-btn', 'close-btn'])
+// UX1f: KNOPF-SYSTEM-Klassen zaehlen nicht als Alt-Knopf: `DkButton` rendert
+// selbst `class="dk-ui-btn dk-ui-btn--primary …"`. Stuende so ein Element in
+// einer Vorlage, waere es eine FALSCHE Fundstelle — das Gegenteil dessen, was
+// die Liste misst. Die Umstellung selbst prueft der Test ueber `<button>`
+// ohne Baustein.
+const SYSTEM = /^dk-ui-btn[\w-]*$/
 
 /** Pfad in Listen-Schreibweise (`frontend/src/…`). */
 export function relativ(absolut) {
@@ -93,7 +99,7 @@ function* dateien(dir) {
   }
 }
 
-function imBereich(rel) {
+export function imBereich(rel) {
   return BEREICH.some((b) => (b.endsWith('/') ? rel.startsWith(b) : rel === b))
 }
 
@@ -130,6 +136,7 @@ export function fundstellen(text) {
     for (const name of roh.split(/[\s"'`+,:]+/)) {
       if (!name) continue
       if (KEINE_KNOEPFE.has(name)) continue
+      if (SYSTEM.test(name)) continue
       if (DK_BTN.test(name) || BTN.test(name) || EIGEN.test(name)) {
         // `xxx-btn-label` / `xxx-btn-icon` sind Beschriftung und Symbol,
         // nicht der Knopf selbst — der Knopf traegt die Klasse ohne Suffix.
@@ -149,22 +156,40 @@ export function fundstellen(text) {
     const attr = m[1]
     const klassen = /class\s*=\s*("([^"]*)"|'([^']*)')/.exec(attr)
     const wert = klassen ? (klassen[2] != null ? klassen[2] : klassen[3]) : ''
+    // Eine Klasse des neuen Systems (`dk-ui-btn`) macht aus dem rohen Element
+    // zwar kein altes, aber das System ist es auch nicht: ein `<button>` bleibt
+    // ein roher Knopf und damit eine Fundstelle.
     if (!wert.trim()) treffer.push('<button>')
   }
   return treffer
 }
 
-/** Gezaehlte Fundstellen je Datei (nur der Bereich, nur > 0). */
-export function bestand() {
+/**
+ * Gezaehlte Fundstellen je Datei unterhalb `wurzel`, gefiltert mit `pruefung`.
+ *
+ * EIN Rechner fuer alle Knopf-Karten (UX1e: Kalender, UX1f: Personen, Gruppen,
+ * Registrierung, Gast): die Bereiche unterscheiden sich, die Zaehlweise nicht.
+ * Sortiert, damit zwei Laeufe dieselbe Liste ergeben.
+ *
+ * @param {string} wurzel             z. B. `frontend/src`
+ * @param {(rel: string) => boolean} pruefung  Pfad in Listen-Schreibweise
+ * @returns {Map<string, number>}
+ */
+export function dateienImBereich(wurzel, pruefung) {
   const werte = new Map()
-  for (const p of dateien(SRC)) {
+  for (const p of dateien(wurzel)) {
     const rel = relativ(p)
-    if (!imBereich(rel)) continue
+    if (!pruefung(rel)) continue
     if (rel.endsWith('.test.mjs')) continue
     const zahl = fundstellen(readFileSync(p, 'utf8')).length
     if (zahl > 0) werte.set(rel, zahl)
   }
   return new Map([...werte].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+}
+
+/** Gezaehlte Fundstellen je Datei (nur der Bereich, nur > 0). */
+export function bestand() {
+  return dateienImBereich(SRC, imBereich)
 }
 
 /** Die eingefrorene Liste lesen (Datei darf fehlen -> leer). */
@@ -186,7 +211,11 @@ export function liesBestand(datei = LISTE) {
   return werte
 }
 
-/** Prueft „nur schrumpfen“ und liefert die Verstoesse als Textzeilen. */
+/**
+ * Prueft „nur schrumpfen“ und liefert die Verstoesse als Textzeilen.
+ * Ohne Argumente gegen die eigene Liste (Kalenderbereich, UX1e) — andere
+ * Karten reichen ihre eigene Karte hinein (`ux1f-knopf-bestand.mjs`).
+ */
 export function verstoesse(jetzt = bestand(), frueher = liesBestand()) {
   const fehler = []
   for (const [pfad, zahl] of jetzt) {

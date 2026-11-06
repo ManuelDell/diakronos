@@ -119,16 +119,29 @@
                         <input v-model="kind.geburtstag" type="date" placeholder="Geburtstag"
                                class="dk-pub-input" />
                     </div>
+                    <!-- UX1f (I2/N8): „×“ allein war ein 20-px-Zeichen ohne
+                         Klickfläche und ohne Namen. Der Knopf entfernt DIESE
+                         Zeile vom Formular (noch nichts gespeichert) und heißt
+                         deshalb „Entfernen“ — mit sprechendem Namen für
+                         Vorlesehilfen. Ab dem letzten Kind gibt es ihn nicht
+                         mehr (nichts Ungültiges anbieten, I4). -->
                     <div class="dk-pub-kinder-col-1">
-                        <button type="button" @click="kinder.splice(idx,1)"
-                                v-if="kinder.length > 1"
-                                class="dk-pub-remove-btn">×</button>
+                        <DkButton v-if="kinder.length > 1"
+                                  variant="ghost"
+                                  size="sm"
+                                  class="dk-pub-remove-btn"
+                                  :aria-label="`Kind ${idx + 1} entfernen`"
+                                  @click="kinder.splice(idx,1)">Entfernen</DkButton>
                     </div>
                 </div>
-                <button type="button" @click="kinder.push({vorname:'',nachname:'',geburtstag:''})"
-                        class="dk-pub-add-btn">
+                <!-- UX1f: Ein Weg, der etwas HINZUFÜGT, ist ein echter Knopf
+                     (secondary, umrandet) — bis hierher war er nur blauer Text
+                     ohne Klickfläche. Die Hauptaktion der Seite bleibt „Anmelden“. -->
+                <DkButton variant="secondary" size="sm"
+                          class="dk-pub-add-btn"
+                          @click="kinder.push({vorname:'',nachname:'',geburtstag:''})">
                     + Kind hinzufügen
-                </button>
+                </DkButton>
             </div>
 
             <!-- Dokument-Bestätigung -->
@@ -577,29 +590,11 @@ function parseServerError(data) {
   .dk-pub-kinder-col-3, .dk-pub-kinder-col-1 { grid-column: span 1; }
 }
 
-.dk-pub-remove-btn {
-  color: var(--err);
-  font-size: var(--fs-20);
-  font-weight: var(--fw-fett);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0 4px;
-  line-height: 1;
-}
-.dk-pub-remove-btn:hover { color: var(--dk-red-700); }
-
-.dk-pub-add-btn {
-  font-size: var(--fs-14);
-  font-weight: var(--fw-mittel);
-  color: var(--primary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  text-align: left;
-}
-.dk-pub-add-btn:hover { color: var(--primary-hover); text-decoration: underline; }
+/* UX1f: Höhe, Innenabstand, Rahmen und Farbe bringt `DkButton` mit; hier steht
+   nur, wo die beiden Knöpfe der Kinder-Sektion sitzen. Der „Entfernen“-Knopf
+   sitzt in der letzten Spalte der Zeile und schließt mit den Feldern ab. */
+.dk-pub-remove-btn { justify-self: end; }
+.dk-pub-add-btn { align-self: flex-start; }
 
 .dk-pub-dokumente {
   border: 1px solid var(--line);

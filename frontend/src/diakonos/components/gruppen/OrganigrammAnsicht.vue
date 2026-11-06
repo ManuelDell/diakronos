@@ -50,7 +50,7 @@
             </div>
         </div>
         <template #footer>
-            <DkButton variant="ghost" @click="closeManageModal">Abbrechen</DkButton>
+            <DkButton variant="secondary" @click="closeManageModal">Schließen</DkButton>
         </template>
     </DkDialog>
 
@@ -98,7 +98,7 @@
             </DkField>
         </form>
         <template #footer>
-            <DkButton variant="ghost" @click="closeEditModal">Abbrechen</DkButton>
+            <DkButton variant="secondary" @click="closeEditModal">Abbrechen</DkButton>
             <DkButton variant="primary" :disabled="sendingEdit" :loading="sendingEdit" @click="submitEdit">Speichern</DkButton>
         </template>
     </DkDialog>
@@ -127,7 +127,7 @@
             </DkField>
         </form>
         <template #footer>
-            <DkButton variant="ghost" @click="closeCreateModal">Abbrechen</DkButton>
+            <DkButton variant="secondary" @click="closeCreateModal">Abbrechen</DkButton>
             <DkButton variant="primary" :disabled="sendingCreate" :loading="sendingCreate" @click="submitCreate">Anlegen</DkButton>
         </template>
     </DkDialog>
@@ -467,8 +467,13 @@ function buildNodeContent(d) {
     // REST-3: Der Stift sitzt im Kasten, dessen onclick die Gruppe oeffnet.
     // Ohne stopPropagation lief der Klick zusaetzlich zum Kasten und die Seite
     // sprang auf die Detailansicht, statt zu bearbeiten (Befund REST-3).
+        // UX1f: Der Stift im Kasten ist ein Knopf (Klickfläche ≥ 24 px, Tastatur
+    // erreichbar) — dieselbe Gestaltung wie ein `DkButton` der Art `ghost`,
+    // aber als HTML-Text, weil d3-org-chart Markup statt Vue-Bausteine nimmt
+    // (wie Kopf und Kasten oben: Klassen mit Token-Werten, keine Farben).
+    // `.oc-bearbeiten-knopf` liefert Höhe, Abstand und Hover aus tokens.css.
     const editBtn = perms.value.can_edit_ids?.includes(d.data.raw_name || d.data.id)
-        ? `<button onclick="event.stopPropagation(); window.__orgEditNode(${idJs})" style="position:absolute;top:6px;right:6px;background:none;border:none;cursor:pointer;font-size:var(--fs-12);color:var(--muted);">✏️</button>`
+        ? `<button onclick="event.stopPropagation(); window.__orgEditNode(${idJs})" type="button" class="oc-bearbeiten-knopf" aria-label="Gruppe bearbeiten" title="Gruppe bearbeiten">✏️</button>`
         : ''
     const memberLine = (!isDB && d.data.mitglieder_count !== undefined)
         ? `<div style="font-size:var(--fs-12);color:var(--muted);margin-top:4px;">👤 ${escapeHtml(d.data.mitglieder_count)}</div>`
@@ -685,6 +690,36 @@ window.__orgNavigateNode = (id, type, rawName) => {
 .org-treffzeit > select { flex: 1 1 140px; min-width: 0; }
 .org-treffzeit > input { flex: 0 0 auto; min-width: 118px; }
 .org-treffzeit-hinweis { margin: 0; font-size: var(--fs-sm); color: var(--muted); }
+
+/* UX1f: Der Bearbeiten-Knopf im Kasten (siehe buildNodeContent). Höhe und
+   Abstand kommen aus der Abstandsskala, die Farben aus den Tokens — der Stift
+   war vorher ein 12-px-Symbol ohne Klickfläche. Wo die Maus fehlt, wächst die
+   Fläche auf die 44 px der Zeiger-Regel von tokens.css (--control-h). */
+#dk-org-chart :deep(.oc-bearbeiten-knopf) {
+    position: absolute;
+    top: var(--sp-1);
+    right: var(--sp-1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--control-h);
+    height: var(--control-h);
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--muted);
+    font-size: var(--fs-sm);
+    line-height: 1;
+    cursor: pointer;
+}
+#dk-org-chart :deep(.oc-bearbeiten-knopf:hover) {
+    background: var(--surface-hover);
+    color: var(--text);
+}
+#dk-org-chart :deep(.oc-bearbeiten-knopf:focus-visible) {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+}
 
 #dk-org-chart :deep(svg) {
     background: transparent !important;

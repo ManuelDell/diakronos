@@ -74,18 +74,23 @@
                    „Anmeldeanfrage / Ausstehend / Bestätigt“. -->
               <DkBadge :variant="statusSprache(a.status).variant">{{ statusSprache(a.status).wort }}</DkBadge>
             </td>
+            <!-- FIX-4: Aktionszelle mit `.is-aktion` — DkTable hält sie in
+                 ihrer Spalte (Umbruch statt Überlagerung). Der Wrapper
+                 `.reg-aktionen` hält die Knöpfe als Flex-Zeile mit
+                 Token-Abstand (Punkt 3 der Review-Auflage). -->
             <td class="is-aktion">
-              <!-- FIX-4: Aktionszelle mit `.is-aktion` — DkTable hält sie in
-                   ihrer Spalte (Umbruch statt Überlagerung). Der Wrapper
-                   `.reg-aktionen` hält die Knöpfe als Flex-Zeile mit
-                   Token-Abstand (Punkt 3 der Review-Auflage). -->
+              <!-- UX1f (S1): Die Hauptaktion einer offenen Anfrage ist das
+                   Aufnehmen; sie ist der gefüllte Knopf. „Ablehnen“ ist die
+                   Gegenentscheidung und steht als secondary daneben — der
+                   Warnhinweis im Dialog trägt die Folge, nicht die Farbe.
+                   Beide in voller Höhe (--control-h), Reihenfolge unverändert. -->
               <div class="reg-aktionen">
                 <DkButton v-if="istOffen(a)"
-                  variant="primary" size="sm" :disabled="processing[a.name]" @click="aufnehmen(a)">
+                  variant="primary" :disabled="processing[a.name]" @click="aufnehmen(a)">
                   <IconCheck /> Aufnehmen
                 </DkButton>
                 <DkButton v-if="istOffen(a)"
-                  variant="danger" size="sm" :disabled="processing[a.name]" @click="ablehnen(a)">
+                  variant="secondary" :disabled="processing[a.name]" @click="ablehnen(a)">
                   <IconX /> Ablehnen
                 </DkButton>
                 <DkButton variant="secondary" size="sm" @click="showDetail(a)">Details</DkButton>
@@ -161,13 +166,18 @@
           </div>
 
           <div class="reg-link-aktionen">
-            <DkButton v-if="istAus(l)" variant="primary" size="sm" @click="verlaengernOeffnen(l)">
+            <!-- UX1f (S1): „Verlängern“ ist die Hauptaktion eines
+                 abgelaufenen Links und damit der gefüllte Knopf der Zeile;
+                 „Pausieren/Aktivieren“ und „Löschen“ stehen daneben in voller
+                 Höhe. Vorher waren alle drei gleich klein (sm) — der gefüllte
+                 Knopf war der einzige Unterschied. -->
+            <DkButton v-if="istAus(l)" variant="primary" @click="verlaengernOeffnen(l)">
               <IconRefresh /> Verlängern
             </DkButton>
-            <DkButton variant="secondary" size="sm" @click="toggleLink(l)">
+            <DkButton variant="secondary" @click="toggleLink(l)">
               {{ l.aktiv ? 'Pausieren' : 'Aktivieren' }}
             </DkButton>
-            <DkButton variant="danger" size="sm" @click="deleteLink(l)">Löschen</DkButton>
+            <DkButton variant="secondary" class="reg-loeschen-schrift" @click="deleteLink(l)">Löschen</DkButton>
           </div>
         </DkCard>
       </div>
@@ -193,9 +203,12 @@
             <!-- OP-ADMIN-19: Die Zahl kommt vom Server (`felder_anzahl`); vorher
                  stand hier fest „–“, weil die Kind-Zeilen unsichtbar waren. -->
             <td>{{ f.felder_anzahl }}</td>
+            <!-- UX1f (S1): „Bearbeiten“ ist die Arbeit dieser Zeile und damit
+                 der EINE gefüllte Knopf; „Löschen“ (dauerhaft) steht daneben,
+                 die Gefahr trägt die Schriftfarbe. -->
             <td class="is-aktion">
-              <DkButton variant="secondary" size="sm" @click="formularBearbeiten(f)">Bearbeiten</DkButton>
-              <DkButton variant="danger" size="sm" @click="formularEntfernen(f)">Löschen</DkButton>
+              <DkButton variant="primary" @click="formularBearbeiten(f)">Bearbeiten</DkButton>
+              <DkButton variant="secondary" class="reg-loeschen-schrift" @click="formularEntfernen(f)">Löschen</DkButton>
             </td>
           </tr>
         </DkTable>
@@ -1684,6 +1697,11 @@ onMounted(() => { fetchData(); ladeLinkVorgaben() })
 .reg-balken-fuell { height: 100%; background: var(--primary); border-radius: 999px; transition: width .2s var(--ease); }
 .reg-link-ablauf { font-size: var(--fs-sm); color: var(--err); margin-bottom: var(--sp-2); }
 .reg-link-aktionen { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+/* UX1f: „Löschen“ (dauerhaft) ist eine Nebenaktion der Linkliste — die
+   Gefahr traegt die Schriftfarbe, nicht ein zweiter gefuellter Knopf neben
+   „Verlängern“ (S1, wie dk-mod-loeschen-schrift im Kalender). */
+.reg-loeschen-schrift { color: var(--err); }
+.reg-loeschen-schrift:hover:not(:disabled) { color: var(--err); }
 
 .reg-eingaben { border: 0; margin: 0; padding: 0; min-width: 0; }
 .reg-schalter { display: flex; align-items: flex-start; gap: var(--sp-2); font-size: var(--fs-sm); }

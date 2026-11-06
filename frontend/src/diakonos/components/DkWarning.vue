@@ -16,9 +16,12 @@
           <input type="checkbox" v-model="noMore" />
           In dieser Session nicht mehr warnen
         </label>
+        <!-- UX1f: EIN Knopf-System. „Abbrechen“ ist die ruhige Nebenaktion
+             (secondary), die Bestätigung die eine Hauptaktion (primary) — eine
+             Warnung trägt der Text, nicht eine eigene Knopf-Farbe. -->
         <div class="dk-modal-actions">
-          <button class="dk-btn dk-btn-ghost" @click="onCancel">Abbrechen</button>
-          <button class="dk-btn dk-btn-warning" @click="onConfirm">{{ confirmLabel }}</button>
+          <DkButton variant="secondary" @click="onCancel">Abbrechen</DkButton>
+          <DkButton variant="primary" @click="onConfirm">{{ confirmLabel }}</DkButton>
         </div>
       </div>
     </div>
@@ -32,6 +35,7 @@
  */
 import { ref, computed, watch } from 'vue'
 import { useDialogFokus } from '../composables/useDialogFokus.js'
+import DkButton from './ui/DkButton.vue'
 
 const props = defineProps({
   modelValue: Boolean,

@@ -33,13 +33,25 @@ test('OP-UI-23: jedes Formularfenster hat <form @submit.prevent> (Enter sendet)'
     }
 })
 
-test('OP-UI-23: Abbrechen ist ghost statt secondary (S3.2)', () => {
+test('OP-UI-23: Abbrechen ist ruhig statt gefüllt (S3.2, UX1f: secondary)', () => {
     for (const [datei, name] of FENSTER) {
         const code = lies(datei)
         // Der Abbrechen-Knopf in der Fußzeile darf keine zweite Hauptfarbe sein.
-        const treffer = code.match(/<DkButton[^>]*>Abbrechen</g) || []
+        //
+        // UX1f: „ruhig“ heißt secondary, nicht mehr ghost. Ein ghost-Knopf
+        // hat keine Fläche: in einer Leiste mit einem primary daneben wirkte
+        // er wie Text, und in der Höhe war er kleiner als die Felder darüber.
+        // „Abbrechen“ ist eine echte Nebenaktion (Eingabe verwerfen) und
+        // bekommt deshalb Fläche, Rahmen und volle Höhe — aber keine
+        // Betonung, keine Gefahrenfarbe und kein sm.
+        const treffer = code.match(/<DkButton[^>]*>\s*Abbrechen\s*</g) || []
         for (const knopf of treffer) {
-            assert.match(knopf, /variant="ghost"/, `${name}: Abbrechen nicht ghost: ${knopf}`)
+            assert.match(knopf, /variant="secondary"/,
+                `${name}: Abbrechen muss secondary sein: ${knopf}`)
+            assert.doesNotMatch(knopf, /variant="(primary|danger|ghost)"/,
+                `${name}: Abbrechen ist weder Hauptaktion noch Warnung: ${knopf}`)
+            assert.doesNotMatch(knopf, /size="sm"/,
+                `${name}: Abbrechen in voller Höhe (--control-h), nicht sm: ${knopf}`)
         }
     }
 })
