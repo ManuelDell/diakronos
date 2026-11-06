@@ -55,8 +55,8 @@ function vorlageOhneKommentare(quelle) {
   const eintraege = m.mitgliederBereichEintraege(ADMIN)
   assert.deepEqual(
     eintraege.map(e => e.label),
-    ['Übersicht', 'Liste', 'Adressbuch', 'Anfragen', 'Datenschutz', 'Löschanträge', 'Import'],
-    'die sieben Bereiche in der Reihenfolge des Konzepts (UX3a: Adressbuch ist ein Reiter)',
+    ['Liste', 'Anfragen', 'Datenschutz', 'Import'],
+    'die vier Reiter des Entwurfs A3 (UX3b: Liste ist zugleich die Adressbuch-Sicht)',
   )
   for (const e of eintraege) {
     assert.ok(/^#\/personen\//.test(e.href), `${e.label}: eigene Adresse`)
@@ -80,10 +80,11 @@ function vorlageOhneKommentare(quelle) {
 {
   const m = await menue()
   const ohne = m.mitgliederBereichEintraege(MITGLIED)
-  // UX3a: Das Adressbuch ist ein Reiter für ALLE (Kontaktdaten der Gemeinde);
-  // alle Verwaltungsreiter bleiben admin-only.
-  assert.deepEqual(ohne.map(e => e.label), ['Liste', 'Adressbuch'],
-    'ohne Mitgliederadministrator bleiben Liste und Adressbuch')
+  // UX3b: Ohne Recht bleibt EINE Ansicht — „Liste“. Sie zeigt dann die
+  // Adressbuch-Sicht (Kontaktdaten der Gemeinde, dieselbe Zeile); alle
+  // Verwaltungsreiter bleiben admin-only.
+  assert.deepEqual(ohne.map(e => e.label), ['Liste'],
+    'ohne Mitgliederadministrator bleibt die Liste (Adressbuch-Sicht)')
   assert.equal(ohne[0].unterpunkte, undefined, 'ohne Recht auch keine Unterbereiche')
   assert.equal(m.sichtbareAnfragenUnterbereiche(MITGLIED).length, 0,
     'Unterbereiche von Anfragen sind admin-only')
@@ -158,10 +159,17 @@ function vorlageOhneKommentare(quelle) {
     ['#/personen/anfragen?x=1', 'anfragen', null],
     ['#/personen/liste?status=Mitglied', 'liste', null],
     ['#/personen/import', 'import', null],
-    ['#/personen/adressbuch', 'adressbuch', null],
+    // UX3b2: „#/personen/adressbuch“ leitet im Router DAUERHAFT auf die Liste
+    // um (die alte Adressbuch-Seite ist nicht mehr erreichbar) und ist kein
+    // eigener Reiter — die Liste IST die Adressbuch-Sicht ohne Verwaltungsrecht.
+    ['#/personen/adressbuch', null, null, 'kein Eintrag (Weiterleitung im Router)'],
   ]
-  for (const [hash, id, unter] of faelle) {
+  for (const [hash, id, unter, hinweis] of faelle) {
     const treffer = m.bereichsEintragAusHash(hash, ADMIN)
+    if (hinweis === 'kein Eintrag (Weiterleitung im Router)') {
+      assert.equal(treffer, null, `${hash}: ${hinweis}`)
+      continue
+    }
     assert.ok(treffer, `${hash}: Eintrag gefunden`)
     assert.equal(treffer.eintrag.id, id, `${hash} → ${id}`)
     assert.equal(treffer.unterbereich ? treffer.unterbereich.bereich : null, unter,
@@ -254,7 +262,9 @@ function routerAusfuehren(boot) {
     ['#/anmeldungen', '#/personen/anfragen'],
     ['#/registrierung?token=abc', '#/personen/anfragen?token=abc'],
     ['#/statistik', '#/personen/uebersicht'],
-    ['#/mitglieder', '#/personen/uebersicht'],
+    // UX3b2: der Bereichsname führt auf die Liste (der Einstieg), nicht mehr
+    // auf die Übersicht.
+    ['#/mitglieder', '#/personen/liste'],
   ]
   for (const [alt, neu] of weiter) {
     h.gehe(alt)
@@ -264,7 +274,7 @@ function routerAusfuehren(boot) {
   // Abfrageteil und Schluss-Schrägstrich.
   const seiten = [
     ['#/personen/uebersicht', 'MitgliederUebersicht'],
-    ['#/personen/liste', 'MitgliederListe'],
+    ['#/personen/liste', 'Personen'],  // UX3b: zusammengelegte Personen-Seite
     ['#/personen/anfragen', 'MitgliederAnfragen'],
     ['#/personen/anfragen?bereich=anfragen', 'MitgliederAnfragen'],
     ['#/personen/anfragen?bereich=links', 'MitgliederAnfragen'],
@@ -291,7 +301,7 @@ function routerAusfuehren(boot) {
   }
   // …die Liste bleibt erlaubt.
   g.gehe('#/personen/liste')
-  assert.equal(g.router.currentPageName.value, 'MitgliederListe', 'Liste für alle')
+  assert.equal(g.router.currentPageName.value, 'Personen', 'Liste für alle (UX3b: Personen-Seite)')
 }
 
 // ── 6. Rahmen: EINE Liste, kein Reiterstreifen, kein toter Wechsel ─────────

@@ -5,6 +5,8 @@
       :currentView="currentView"
       :viewMode="store.viewMode.value"
       :canWrite="hasWriteRight"
+      :canModerate="darfPruefen"
+      :offeneZahl="offeneZahl"
       @prev="calendarRef?.prev()"
       @next="calendarRef?.next()"
       @today="calendarRef?.today()"
@@ -79,6 +81,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useKronosStore } from '../composables/useKronosStore.js'
 import { useKronosSidebar } from '../composables/useKronosSidebar.js'
 import { getMeinTermin } from '../composables/useEventsApi.js'
+import { getModerationCount } from '../api/kanbanApi.js'
 import { showToast } from '../composables/useToast.js'
 import { vorschlagBeginn } from '../composables/datumZeit.mjs'
 import { endeAusKalender } from '../composables/datumZeit.mjs'
@@ -118,6 +121,26 @@ const hasWriteRight = computed(() =>
 )
 
 // Calendar events
+// UX3d: Reiter „Zu prüfen“ nur für Moderatoren — das Recht steht im
+// Boot-Objekt (`can_moderate`), dieselbe Quelle wie `get_session_info` im
+// Server. Fehlt der Schlüssel (alte Seite, Test), gilt `false`: kein Reiter,
+// den der Server ohnehin verweigern würde.
+const darfPruefen = computed(() => window.__DIakonosBOOT?.can_moderate === true)
+// Zahl offener Prüfungen für die Beschriftung „Zu prüfen (n)“. `null` heißt
+// unbekannt — dann steht keine Zahl (nie eine erfundene 0). Ein Fehler bleibt
+// still: eine Kennzahl darf den Kalender nicht stören.
+const offeneZahl = ref(null)
+
+async function offeneZahlLaden() {
+  if (!darfPruefen.value) return
+  try {
+    const anzahl = await getModerationCount()
+    const n = Number(anzahl?.count)
+    offeneZahl.value = Number.isFinite(n) ? n : null
+  } catch (_) {
+    offeneZahl.value = null
+  }
+}
 // FIX-7: Die Kalenderliste (Meine Kalender, Abgelehnte Termine, Hilfe) ist ab
 // 769 px Breite ausgeblendet, weil nur der Handy-Umschalter (`display: none`
 // am Desktop) sie oeffnet. Ohne diesen Aufruf waren ihre Eintraege auf dem
@@ -347,6 +370,7 @@ function onDayEventClick(eventData) {
 }
 onMounted(() => {
   store.fetchAccessibleCalendars()
+  offeneZahlLaden()
 })
 
 </script>

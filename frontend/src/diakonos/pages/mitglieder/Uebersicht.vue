@@ -126,6 +126,9 @@ async function laden() {
 
 /** Zieladressen der Reiter mit gesetztem Filter (Konzept Abschnitt 3). */
 const HREF = {
+  // UX3a: Der Bereich heißt „Personen“ — die Kacheln führen auf DIESE Adressen
+  // (die alten `#/mitglieder/...` leiten zwar weiter, aber eine Weiterleitung
+  // in einem Link ist ein Umweg; Router-Test n1 vergleicht die Ziele).
   liste: '#/personen/liste',
   mitglieder: '#/personen/liste?status=Mitglied',
   anfragen: '#/personen/anfragen',

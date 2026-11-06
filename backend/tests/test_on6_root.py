@@ -318,7 +318,11 @@ def test_root_kann_keinen_loeschantrag_stellen(client, patched_db, fake_redis) -
     finally:
         set_user("Administrator")
     assert r.status_code in (417, 400), r.text
-    assert "Root-Benutzer" in r.text
+    # ON-6f: Wortwahl wie in ON-6d — „Konto der Hauptverwaltung (root)“ statt
+    # „Root-Benutzer“ (Du-Form).
+    assert "Hauptverwaltung (root)" in r.text, r.text
+    assert "geschützt" in r.text, r.text
+    assert "Root-Benutzer" not in r.text, r.text
 
     from diakronos_app.models.datenschutz import Loeschantrag
 

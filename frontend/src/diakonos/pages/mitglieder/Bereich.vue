@@ -128,7 +128,10 @@ const DATENSCHUTZ  = defineAsyncComponent(() => import('./Datenschutz.vue'))
 const LOESCHANTRAEGE = defineAsyncComponent(() => import('./Loeschantraege.vue'))
 const IMPORT       = defineAsyncComponent(() => import('./Import.vue'))
 // UX3a: Das Adressbuch ist ein Reiter von „Personen“ (vorher eigener Menüpunkt).
-const ADRESSBUCH   = defineAsyncComponent(() => import('../Adressbuch.vue'))
+// UX3b2: KEINE eigene Adressbuch-Seite mehr — die Adressen leiten auf „Personen →
+// Liste“ (dort zeigt die Liste die Freigabe-Sicht). Eine zweite Liste ohne
+// Blättern und Statusfilter wären zwei halbe Wege.
+
 
 // ── Einträge und Auswahl ───────────────────────────────────────────────────
 
@@ -176,7 +179,6 @@ const inhalt = computed(() => {
     case 'datenschutz': return DATENSCHUTZ
     case 'loeschantraege': return LOESCHANTRAEGE
     case 'import':      return IMPORT
-    case 'adressbuch':  return ADRESSBUCH
     default:            return LISTE
   }
 })
@@ -184,7 +186,6 @@ const inhalt = computed(() => {
 const unterzeile = computed(() => {
   if (aktiverEintrag.value?.id === 'liste') return 'Alle Personen der Gemeinde'
   if (aktiverEintrag.value?.id === 'import') return 'Personen aus einer CSV-Datei einlesen'
-  if (aktiverEintrag.value?.id === 'adressbuch') return 'Kontaktdaten der Gemeinde'
   return ''
 })
 

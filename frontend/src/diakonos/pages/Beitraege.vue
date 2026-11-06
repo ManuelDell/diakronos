@@ -60,6 +60,7 @@
           :key="post.id"
           class="dk-content-card bt-post"
           @click="openPost(post)"
+          @contextmenu.prevent="zeilenKontextmenue($event, post)"
         >
           <div v-if="post.image" class="bt-post-image" :style="{ backgroundImage: `url(${post.image})` }">
             <DkBadge class="bt-post-cat" variant="akzent">{{ categoryName(post.category) }}</DkBadge>
@@ -67,6 +68,15 @@
           <div v-else class="bt-post-image bt-post-image--placeholder" :class="`cat-${post.category}`">
             <DkBadge class="bt-post-cat" variant="akzent">{{ categoryName(post.category) }}</DkBadge>
           </div>
+          <!-- UX2e (Entwurf B1, N6): Objekt-Aktionen am Beitrag im „⋯"-Menü;
+               die Karte bleibt ganz klickbar. -->
+          <span class="bt-post-aktionen">
+            <DkAktionen
+              :ref="el => setzeAktion(el, post)"
+              :eintraege="aktionenFuerPost(post)"
+              :label="`Aktionen für ${post.title || 'diesen Beitrag'}`"
+            />
+          </span>
 
           <div class="bt-post-body">
             <h3 class="bt-post-title">{{ post.title }}</h3>
@@ -267,6 +277,8 @@ import DkFilterChips from '../components/ui/DkFilterChips.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
 import DkCheckbox from '../components/ui/DkCheckbox.vue'
+// UX2e: EIN Aktionsmenü „⋯" für alle Listen (Entwurf B1).
+import DkAktionen from '../components/ui/DkAktionen.vue'
 
 function sanitize(html) { return DOMPurify.sanitize(html || '') }
 
@@ -502,21 +514,77 @@ async function deletePost(post) {
     showPostDetail.value = false
     selectedPost.value = null
     await loadPosts()
-    await showToast(papierkorbMeldung(post.title, antwort?.wiederherstellbar_bis), 'success', {
-      aktion: { text: 'Rückgängig', onClick: async () => {
-        const ergebnis = await wiederherstellen('beitrag', post.id)
-        if (ergebnis.ok) {
-          showToast(`„${post.title}“ wiederhergestellt.`)
-          await loadPosts()
-        } else {
-          showToast(ergebnis.fehler, 'error')
-        }
-      } },
-    })
+    await showToast(papierkorbMeldung(post.title, antwort?.wiederherstellbar_bis), 'success', { text: 'Rückgängig', onClick: async () => {
+      const ergebnis = await wiederherstellen('beitrag', post.id)
+      if (ergebnis.ok) {
+        showToast(`„${post.title}“ wiederhergestellt.`)
+        await loadPosts()
+      } else {
+        showToast(ergebnis.fehler, 'error')
+      }
+    } })
   } catch (err) {
     showToast(err?.message || 'Fehler', 'error')
   }
 }
+/* ── UX2e · Aktionsmenü „⋯" an jedem Beitrag (Entwurf B1, N6/K4) ─────────
+   Die Karte hat bisher KEINE Aktion getragen (Bearbeiten/Löschen lagen im
+   Detail-Dialog). Jetzt stehen sie am Eintrag:
+     · Beitrag öffnen        (immer)
+     · Bearbeiten            (Admin)
+     · Löschen               (Admin, gefährlich, abgesetzt am Ende)
+   Rechte: dieselben wie MF3 (isAdmin) — der Server prüft erneut. */
+const aktionRefs = new Map()
+const postSchluessel = (p) => String(p?.id ?? '')
+function setzeAktion(el, p) {
+  const schluessel = postSchluessel(p)
+  if (!schluessel) return
+  if (el) aktionRefs.set(schluessel, el)
+  else aktionRefs.delete(schluessel)
+}
+
+async function bearbeitenPost(post) {
+  // Der Bearbeiten-Dialog braucht den vollen Beitrag (Inhalt), die Liste
+  // liefert nur die Vorschau — deshalb erst den Detailaufruf.
+  try {
+    const detail = await apiCall('diakronos.diakonos.api.beitraege.get_beitrag_detail', { beitrag_id: post.id })
+    openEditor({ ...post, ...detail })
+  } catch (err) {
+    showToast(aktionsfehler('laden', err), 'error')
+  }
+}
+
+async function loeschenPost(post) {
+  // Dieselbe Rückfrage und derselbe Serveraufruf wie im Detail-Dialog.
+  // `selectedPost` NICHT vorher setzen: das Detail-Fenster hängt an dessen
+  // Inhalt (Titel/Teilnehmer) und würde beim Löschen kurz aufgehen.
+  await deletePost(post)
+}
+
+function aktionenFuerPost(post) {
+  const eintraege = [{
+    key: 'oeffnen', label: 'Beitrag öffnen', icon: 'ansehen',
+    aktion: () => openPost(post),
+  }]
+  if (isAdmin.value) {
+    eintraege.push({
+      key: 'bearbeiten', label: 'Bearbeiten', icon: 'bearbeiten',
+      aktion: () => bearbeitenPost(post),
+    })
+    eintraege.push({
+      key: 'loeschen', label: 'Löschen', icon: 'loeschen',
+      gefahr: true,
+      aktion: () => loeschenPost(post),
+    })
+  }
+  return eintraege
+}
+
+/** Rechtsklick auf die Beitragskarte öffnet dasselbe Menü. */
+function zeilenKontextmenue(ereignis, post) {
+  aktionRefs.get(postSchluessel(post))?.oeffnenFuerZeile(ereignis, ereignis?.currentTarget)
+}
+
 async function addComment() {
   // UXD-R11: Doppelklick erzeugte zwei Kommentare — `addingComment` wurde
   // gesetzt, aber nie geprüft.
@@ -557,6 +625,21 @@ async function addComment() {
   border-color: var(--line-strong);
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
+}
+
+/* UX2e: Das „⋯" der Beitragskarte sitzt oben rechts (über dem Bild) und
+   bleibt für alle sichtbar, die die Karte bedienen dürfen. Die Bildfläche
+   hält den Platz frei. */
+.bt-post { position: relative; }
+.bt-post-aktionen {
+  position: absolute;
+  top: var(--sp-1);
+  right: var(--sp-1);
+  z-index: 2;
+}
+.bt-post-aktionen :deep(.dk-ui-aktionen-ausloeser) {
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .bt-post-image {

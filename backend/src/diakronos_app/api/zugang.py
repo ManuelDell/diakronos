@@ -140,8 +140,8 @@ def _verweigere_fremdes_admin_konto(ziel_user: str) -> None:
 #: ausschließen“ auch bei einer harmlosen Bearbeitung (z. B. Telefonnummer
 #: aendern), und fuer den Administrator war nicht erkennbar, was er eigentlich
 #: versucht hatte. ``None`` ist der Rueckfall fuer alles Unbenannte.
-#: Wortlaut s. Karte: Du-Form, kurz, ohne Fachbegriffe („Hauptverwaltung“
-#: statt „Root-Benutzer“).
+#: Wortlaut s. Karte ON-6d: Du-Form, kurz, ohne Fachbegriffe —
+#: „Konto der Hauptverwaltung (root)“ statt „Root-Benutzer“.
 #:
 #: „geschützt“ bleibt in JEDER Fassung stehen: die Proben aus ON-6c pruefen
 #: genau darauf (``test_on6c_root_proben.py``).

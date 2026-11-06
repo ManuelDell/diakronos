@@ -87,16 +87,18 @@
         <!-- DSGVO-2d: Eine gelöschte Person (Status „geloescht“, Kennung
              `geloescht-…`) bleibt als Zeile sichtbar, hat aber kein Profil
              mehr — die Karte ist dann kein Link (`href` leer, `aria-disabled`).
-             Der Name kommt aus der Server-Regel („Gelöschte Person“). -->
+             Der Name kommt aus der Server-Regel („Gelöschte Person“).
+             UX2e: Das „⋯" steht NEBEN dem Link, nicht darin — ein Knopf
+             innerhalb eines <a> ist ungültiges HTML. -->
+        <div v-for="m in mitglieder" :key="m.name" class="mt-karte-huelle">
         <a
-          v-for="m in mitglieder"
-          :key="m.name"
           class="dk-member-card"
           :href="'#/mitglied/' + m.name"
           v-bind="ohneProfilZiel(m)"
           :tabindex="darfProfilLink(m) ? null : -1"
           :aria-disabled="darfProfilLink(m) ? null : 'true'"
           @click="profilOeffnen($event, m)"
+          @contextmenu.prevent="zeilenKontextmenue($event, m)"
           :class="{ 'dk-member-card--ohne-profil': !darfProfilLink(m) }"
         >
           <div class="dk-card-avatar">
@@ -118,6 +120,15 @@
             <DkBadge :variant="statusVariant(m.status)">{{ statusText(m.status) }}</DkBadge>
           </div>
         </a>
+        <span class="mt-karte-aktionen">
+          <DkAktionen
+            :ref="el => setzeAktion(el, m)"
+            :eintraege="aktionenFuer(m)"
+            :label="`Aktionen für ${m.full_name || 'diese Person'}`"
+            @aktion="aktionsEreignis"
+          />
+        </span>
+        </div>
       </div>
     </template>
 
@@ -135,9 +146,16 @@
            Zeile lief beim Rendern auf einen ReferenceError. Der Zustand „die
            erste Antwort ist da" ist `!loading`: erst dann darf die Tabelle
            „nichts da" behaupten, nicht während des Ladens. -->
+      <!-- UX2e (Entwurf B1, N6): Die Zeilen-Knöpfe sind entfallen; alle
+           Objekt-Aktionen stehen im „⋯"-Menü am Zeilenende. Rechtsklick auf die
+           Zeile öffnet dasselbe Menü (ganze Zeile bleibt das Ziel, K4). -->
       <DkTable v-else :spalten="spalten" :leer="!loading && mitglieder.length === 0"
                :leer-titel="leerzustand.titel" :leer-text="leerzustand.text">
-        <tr v-for="m in mitglieder" :key="m.name">
+        <tr
+          v-for="m in mitglieder"
+          :key="m.name"
+          @contextmenu.prevent="zeilenKontextmenue($event, m)"
+        >
           <td>
             <a v-if="darfProfilLink(m)" class="dk-cell-person dk-zellen-link dk-zellen-link--dehnen" :href="'#/mitglied/' + m.name">
               <div class="dk-avatar mt-avatar-klein" :style="avatarStil(m.full_name)">
@@ -174,6 +192,14 @@
           <td v-if="isAdmin && zeigePersoenlicheDaten" class="dk-text-muted">{{ formatAddress(m) }}</td>
           <td v-if="isAdmin && zeigePersoenlicheDaten" class="dk-text-muted">{{ m.geburtstag || '–' }}</td>
           <td class="dk-text-subtle">{{ m.creation ? new Date(m.creation).getFullYear() : '–' }}</td>
+          <td class="dk-zeilen-aktion">
+            <DkAktionen
+              :ref="el => setzeAktion(el, m)"
+              :eintraege="aktionenFuer(m)"
+              :label="`Aktionen für ${m.full_name || 'diese Person'}`"
+              @aktion="aktionsEreignis"
+            />
+          </td>
         </tr>
       </DkTable>
     </template>
@@ -232,6 +258,8 @@ import DkButton from '../components/ui/DkButton.vue'
 import DkBadge from '../components/ui/DkBadge.vue'
 import DkSegment from '../components/ui/DkSegment.vue'
 import DkTable from '../components/ui/DkTable.vue'
+// UX2e: EIN Aktionsmenü „⋯" für alle Listen (Entwurf B1).
+import DkAktionen from '../components/ui/DkAktionen.vue'
 // ON-4/H3: freundlicher Leerzustand mit den vorhandenen Wegen (Entwurf 12).
 import MitgliederLeerzustand from '../components/einrichtung/MitgliederLeerzustand.vue'
 import { mitgliederLeerzustand } from '../composables/einrichtungsHinweise.mjs'
@@ -408,8 +436,56 @@ const spalten = computed(() => {
     )
   }
   liste.push({ key: 'dabei', label: 'Dabei seit' })
+  // UX2e: Aktionsspalte für das „⋯"-Menü (Entwurf B1: „⋯"-Menü je Zeile).
+  liste.push({ key: 'aktionen', label: 'Aktionen', aktion: true })
   return liste
 })
+
+/* ── UX2e · Aktionsmenü je Zeile (Entwurf B1, Prinzip N6/K4) ──────────────
+   Die Einträge eines Eintrags sind das, was es für DIESE Person gibt:
+     · Profil öffnen        (nur solange es ein Profil gibt — DSGVO-2d)
+     · Persönliche Daten…   (Admin: Sichtbarkeit der Felder umschalten)
+     · Als Kontakt exportieren (Admin: dieselbe Server-Datei wie „Export")
+   Gefährliches (Löschen/Anonymisieren) steht hier NICHT: es gibt dafür den
+   eigenen Datenschutz-Weg mit Antrag und Prüfung, keinen Zeilenknopf — eine
+   zweite, halbe Löschmöglichkeit wäre ein zweiter Weg (S4). */
+const aktionRefs = new Map()
+function setzeAktion(el, m) {
+  if (el) aktionRefs.set(m.name, el)
+  else aktionRefs.delete(m.name)
+}
+
+function aktionenFuer(m) {
+  const eintraege = []
+  if (darfProfilLink(m)) {
+    eintraege.push({
+      key: 'profil', label: 'Profil öffnen', icon: 'ansehen',
+      aktion: () => navigate('#/mitglied/' + m.name),
+    })
+  }
+  if (isAdmin.value) {
+    eintraege.push({
+      key: 'daten', label: 'Persönliche Daten ein-/ausblenden', icon: 'notiz',
+      aktion: () => { zeigePersoenlicheDaten.value = !zeigePersoenlicheDaten.value },
+    })
+    eintraege.push({
+      key: 'export', label: 'Als Kontakt exportieren', icon: 'herunterladen',
+      disabled: exporting.value,
+      aktion: exportCsv,
+    })
+  }
+  return eintraege
+}
+
+/** Rechtsklick auf die Zeile (oder Menü-Taste) öffnet dasselbe Menü. */
+function zeilenKontextmenue(ereignis, m) {
+  aktionRefs.get(m.name)?.oeffnenFuerZeile(ereignis, ereignis?.currentTarget)
+}
+
+/** Ein Eintrag ohne eigene Aktion meldet sich hier — nichts erfunden. */
+function aktionsEreignis({ eintrag }) {
+  showToast(`„${eintrag?.label || 'Aktion'}“ ist hier nicht verfügbar.`, 'info')
+}
 
 function formatAddress(m) {
   const parts = []
@@ -630,4 +706,23 @@ const IconSort     = () => h('svg', { width:13, height:13, viewBox:'0 0 24 24', 
   color: var(--muted);
 }
 .mt-wartende { margin-top: var(--sp-4); }
+
+/* UX2e: Die Kartenansicht legt das „⋯" neben die Karte (nicht in den Link —
+   ein Knopf im <a> wäre ungültiges HTML). Die Hülle ist der Bezugsrahmen. */
+.mt-karte-huelle { position: relative; display: flex; }
+.mt-karte-huelle .dk-member-card { flex: 1 1 auto; min-width: 0; }
+.mt-karte-aktionen {
+  position: absolute;
+  top: var(--sp-1);
+  right: var(--sp-1);
+  z-index: 1;
+}
+
+/* UX2e: Die Aktionsspalte trägt nur den „⋯"-Knopf — sie bleibt schmal und
+   nimmt keinen Platz vom Inhalt. */
+.dk-zeilen-aktion {
+  width: var(--control-h);
+  text-align: right;
+  padding-right: var(--sp-2) !important;
+}
 </style>

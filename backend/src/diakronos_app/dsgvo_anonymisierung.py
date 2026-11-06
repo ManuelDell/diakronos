@@ -900,11 +900,13 @@ def anonymisiere(s, mitglied: str, konten, *, dateien: list[str] | None = None) 
     # steht VOR dem ersten Schreibzugriff — es ist noch nichts geschehen.
     from diakronos_app.frappe_compat.permissions import ist_root
 
+    text = ("Das Konto der Hauptverwaltung (root) ist geschützt — es kann "
+            "nicht anonymisiert werden.")
     if mitglied and ist_root(str(mitglied)):
-        raise ValueError("Das Root-Konto kann nicht anonymisiert werden.")
+        raise ValueError(text)
     for konto in (konten or ()):
         if konto and ist_root(str(konto)):
-            raise ValueError("Das Root-Konto kann nicht anonymisiert werden.")
+            raise ValueError(text)
 
     b = bestand_erheben(s, mitglied, konten)
     zaehler: dict[str, int] = {}

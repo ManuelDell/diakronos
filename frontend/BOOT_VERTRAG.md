@@ -105,6 +105,7 @@ Wert kann nie einen 404 erzeugen, weil er das Dokument nie verlaesst.
 | `user_image` | string | `useSession.js:10` | Avatar-URL |
 | `csrf_token` | string | `useApi.js:18,105`, `useKronosStore.js:46`, `useWidgetData.js:19`, `MiniCalendarWidget.vue:29` | Header `X-Frappe-CSRF-Token` bei `apiCall`/`apiGet` |
 | `is_admin` | boolean | `useSession.js:11`, `router.js:146` | Admin-Rechte; **Route-Guard**: Admin darf alles |
+| `can_moderate` | boolean | `menue.js` (`kalenderReiter`) | Darf Termine prüfen (Moderator mindestens eines Kalenders). Steuert NUR die Sichtbarkeit des Kalender-Reiters „Zu prüfen“ (UX3d); jeder Vorgang wird serverseitig erneut geprüft (`get_session_info` → `can_moderate`, dieselbe Quelle `get_accessible_calendars[].is_moderator`). Fehlt der Schlüssel, gilt `false` (kein Reiter). |
 | `mitglied` | object\|null | `useSession.js:13`, `router.js:145,149` | `mitglied.status === 'Gast'` schränkt Routen ein |
 | `modules` | array | `useSession.js:14` | Freigeschaltete Sidebar-Module |
 | `church_name` | string (optional) | `AppSidebar.vue:125`, `ModerationSidebar.vue:51` | Gemeindename; Fallback `'Meine Gemeinde'` |

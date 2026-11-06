@@ -54,10 +54,19 @@
             :key="article.id"
             class="dk-content-card wk-article-card"
             @click="openArticle(article)"
+            @contextmenu.prevent="zeilenKontextmenue($event, article)"
           >
             <div class="wk-article-header">
               <DkBadge variant="neutral">{{ categoryName(article.category) }}</DkBadge>
               <DkBadge v-if="article.isNew" variant="ok">Neu</DkBadge>
+              <!-- UX2e (Entwurf B1, N6): Objekt-Aktionen am Artikel im „⋯"-Menü. -->
+              <span class="wk-article-aktionen">
+                <DkAktionen
+                  :ref="el => setzeAktion(el, article)"
+                  :eintraege="aktionenFuerArtikel(article)"
+                  :label="`Aktionen für ${article.title || 'diesen Artikel'}`"
+                />
+              </span>
             </div>
             <h3 class="wk-article-title">{{ article.title }}</h3>
             <p class="wk-article-excerpt">{{ article.excerpt }}</p>
@@ -230,6 +239,8 @@ import DkField from '../components/ui/DkField.vue'
 import DkSelect from '../components/ui/DkSelect.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkFilterChips from '../components/ui/DkFilterChips.vue'
+// UX2e: EIN Aktionsmenü „⋯" für alle Listen (Entwurf B1).
+import DkAktionen from '../components/ui/DkAktionen.vue'
 import { getRouteParam } from '../router.js'
 
 function sanitize(html) { return DOMPurify.sanitize(html || '') }
@@ -337,6 +348,57 @@ function artikelAdresseSetzen(id) {
  * geschlossenen Artikel wieder. Der Weg über `replaceState` vermeidet auch
  * hier den Neuaufbau der Seite.
  */
+/* ── UX2e · Aktionsmenü „⋯" an jedem Wiki-Artikel (Entwurf B1, N6/K4) ─────
+   Die Karte trägt bisher nur „öffnen" (der ganze Block ist klickbar). Das
+   Menü bringt die Aktionen des Artikels an den Artikel:
+     · Artikel öffnen    (immer)
+     · Bearbeiten        (Admin)
+     · Löschen           (Admin, gefährlich, abgesetzt am Ende)
+   Rechte/Bestätigung wie im Detail-Dialog — dieselbe Funktion `deleteArticle`,
+   damit es EINEN Löschweg gibt (S4). */
+const aktionRefs = new Map()
+const artikelSchluessel = (a) => String(a?.id ?? '')
+function setzeAktion(el, a) {
+  const schluessel = artikelSchluessel(a)
+  if (!schluessel) return
+  if (el) aktionRefs.set(schluessel, el)
+  else aktionRefs.delete(schluessel)
+}
+
+/** Bearbeiten braucht den Inhalt — der kommt erst mit dem Detailaufruf. */
+async function bearbeitenArtikel(article) {
+  try {
+    const detail = await apiCall('diakronos.diakonos.api.wiki.get_wiki_artikel_detail', { artikel_id: article.id })
+    openEditor({ ...article, ...detail })
+  } catch (e) {
+    showToast(e?.message || 'Der Artikel konnte nicht geladen werden.', 'error')
+  }
+}
+
+function aktionenFuerArtikel(article) {
+  const eintraege = [{
+    key: 'oeffnen', label: 'Artikel öffnen', icon: 'ansehen',
+    aktion: () => openArticle(article),
+  }]
+  if (isAdmin.value) {
+    eintraege.push({
+      key: 'bearbeiten', label: 'Bearbeiten', icon: 'bearbeiten',
+      aktion: () => bearbeitenArtikel(article),
+    })
+    eintraege.push({
+      key: 'loeschen', label: 'Löschen', icon: 'loeschen',
+      gefahr: true,
+      aktion: () => deleteArticle(article),
+    })
+  }
+  return eintraege
+}
+
+/** Rechtsklick auf die Artikelkarte öffnet dasselbe Menü. */
+function zeilenKontextmenue(ereignis, article) {
+  aktionRefs.get(artikelSchluessel(article))?.oeffnenFuerZeile(ereignis, ereignis?.currentTarget)
+}
+
 function artikelSchliessen() {
   showArticleDetail.value = false
   selectedArticle.value = null
@@ -426,17 +488,15 @@ async function deleteArticle(article) {
     if (res?.success) {
       artikelSchliessen()
       await loadArticles()
-      showToast(papierkorbMeldung(article.title, res.wiederherstellbar_bis), 'success', {
-        aktion: { text: 'Rückgängig', onClick: async () => {
-          const ergebnis = await wiederherstellen('artikel', article.id)
-          if (ergebnis.ok) {
-            showToast(`„${article.title}“ wiederhergestellt.`)
-            await loadArticles()
-          } else {
-            showToast(ergebnis.fehler, 'error')
-          }
-        } },
-      })
+      showToast(papierkorbMeldung(article.title, res.wiederherstellbar_bis), 'success', { text: 'Rückgängig', onClick: async () => {
+        const ergebnis = await wiederherstellen('artikel', article.id)
+        if (ergebnis.ok) {
+          showToast(`„${article.title}“ wiederhergestellt.`)
+          await loadArticles()
+        } else {
+          showToast(ergebnis.fehler, 'error')
+        }
+      } })
     }
   } catch (e) {
     showToast(e.message || 'Artikel konnte nicht gelöscht werden.', 'error')
@@ -556,6 +616,9 @@ function openEditor(article = null) {
 }
 
 .wk-article-header { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-2); }
+/* UX2e: Das „⋯" schließt die Kopfzeile rechts ab (Badges links, Aktionen
+   rechts) — Symbol und Text stehen dabei auf derselben Linie. */
+.wk-article-aktionen { margin-left: auto; }
 .wk-article-title { font-size: var(--fs-h3); font-weight: var(--fw-h); color: var(--text); margin: 0 0 var(--sp-1); }
 .wk-article-excerpt {
   font-size: var(--fs-sm);

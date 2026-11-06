@@ -381,6 +381,10 @@ def boot_fuer_request() -> dict[str, Any]:
         "is_admin": permissions.ROOT_ROLLE in rollen
                     or any(r in permissions.ADMIN_ROLES for r in rollen),
         "is_root": permissions.ROOT_ROLLE in rollen,
+        # UX3d: nur Moderatoren sehen den Kalender-Reiter „Zu prüfen“. Der
+        # Wert ist derselbe wie `can_moderate` des Endpunkts; die Oberfläche
+        # blendet damit aus, was der Server ohnehin verweigert.
+        "can_moderate": _darf_pruefen(user),
         # MAIL-1b (N3): Die Startseite haelt die DSGVO-Kachel fuer System
         # Manager sichtbar — wer den Mailversand einstellen darf, muss die
         # Warnung „Mailversand ist noch nicht eingerichtet“ sehen. Die Liste
@@ -562,6 +566,32 @@ def oeffentliche_texte() -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001 — Texte sind optional
         logger.warning("Oeffentliche Texte nicht lesbar: %s", type(exc).__name__)
         return {}
+
+
+def _darf_pruefen(user: str) -> bool:
+    """Darf dieser Nutzer Termine pruefen? — fuer das Boot-Objekt (UX3d).
+
+    Die Oberflaeche blendet damit den Kalender-Reiter „Zu prüfen“ aus; das
+    Recht selbst prueft der Server bei jedem Vorgang erneut
+    (`api.kronos.permissions.get_session_info` -> `can_moderate`).
+
+    EINE Quelle mit `can_moderate`: beide lesen `get_accessible_calendars`
+    und deren Feld `is_moderator`. Eine eigene Regel hier (etwa „Administrator
+    darf immer“) wuerde vom Endpunkt abweichen — ein Administrator, der in
+    keinem Kalender Moderator ist, saehe den Reiter und bekaeme von der
+    Tafel „Zugriff verweigert“.
+
+    Fehler ergeben `False`: ohne Sitzung/Kalender kein Reiter (fail closed),
+    und das Boot-Objekt darf nie an einer Abfrage scheitern.
+    """
+    if not user or user == GUEST:
+        return False
+    try:
+        from diakronos_app.api.kronos.permissions import get_accessible_calendars
+
+        return any(bool(c.get("is_moderator")) for c in get_accessible_calendars())
+    except Exception:  # noqa: BLE001 — Boot darf nie scheitern
+        return False
 
 
 def _oidc_aktiv() -> bool:

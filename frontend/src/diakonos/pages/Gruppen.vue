@@ -65,11 +65,11 @@
           <DkButton variant="ghost" size="sm" @click="chipWaehlen('meine', 'alle')">Alle zeigen</DkButton>
         </DkEmpty>
         <div v-else class="gr-grid-scroll" data-raster="meine">
+          <div v-for="g in gefilterteMeineGruppen" :key="g.name" class="gr-kachel-huelle">
           <a
-            v-for="g in gefilterteMeineGruppen"
-            :key="g.name"
             class="gr-kachel"
             :href="'#/gruppe/' + g.name"
+            @contextmenu.prevent="zeilenKontextmenue($event, g, 'meine')"
           >
             <div class="gr-kachel-img">
               <img v-if="g.bild" :src="g.bild" :alt="g.gruppenname" class="gr-kachel-bild" />
@@ -83,7 +83,16 @@
               </div>
               <div class="gr-kachel-meta">👤 {{ g.mitglieder_count }} Mitglieder</div>
             </div>
+            <!-- UX2e: Objekt-Aktionen am Objekt („⋯", Entwurf B1) -->
           </a>
+            <span class="gr-kachel-aktionen">
+              <DkAktionen
+                :ref="el => setzeAktion(el, g, 'meine')"
+                :eintraege="aktionenFuer(g)"
+                :label="`Aktionen für ${g.gruppenname || 'diese Gruppe'}`"
+              />
+            </span>
+          </div>
         </div>
       </section>
 
@@ -113,11 +122,11 @@
           <DkButton variant="ghost" size="sm" @click="chipWaehlen('alle', 'alle')">Alle zeigen</DkButton>
         </DkEmpty>
         <div v-else class="gr-grid-scroll" data-raster="alle">
+          <div v-for="g in gefilterteAlleGruppen" :key="g.name" class="gr-kachel-huelle">
           <a
-            v-for="g in gefilterteAlleGruppen"
-            :key="g.name"
             class="gr-kachel"
             :href="'#/gruppe/' + g.name"
+            @contextmenu.prevent="zeilenKontextmenue($event, g, 'alle')"
           >
             <div class="gr-kachel-img">
               <img v-if="g.bild" :src="g.bild" :alt="g.gruppenname" class="gr-kachel-bild" />
@@ -131,6 +140,14 @@
               <div class="gr-kachel-meta">👤 {{ g.mitglieder_count }} Mitglieder</div>
             </div>
           </a>
+            <span class="gr-kachel-aktionen">
+              <DkAktionen
+                :ref="el => setzeAktion(el, g, 'alle')"
+                :eintraege="aktionenFuer(g)"
+                :label="`Aktionen für ${g.gruppenname || 'diese Gruppe'}`"
+              />
+            </span>
+          </div>
         </div>
       </section>
 
@@ -159,6 +176,8 @@ import { bereicheAus } from '../composables/gruppenAnlegen.mjs'
 import DkButton from '../components/ui/DkButton.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkFilterChips from '../components/ui/DkFilterChips.vue'
+// UX2e: EIN Aktionsmenü „⋯" für alle Listen (Entwurf B1).
+import DkAktionen from '../components/ui/DkAktionen.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
 import GruppeAnlegenDialog from '../components/gruppen/GruppeAnlegenDialog.vue'
 // ON-0b: EIN Standardwert für alle farbfähigen Datensätze (vorher standen
@@ -280,10 +299,48 @@ onMounted(() => {
   aktiverAlleChip.value = chipAusAdresse()
   loadData()
 })
-
 // DEV-1: der Bereichs-Rahmen lädt die Liste nach dem Anlegen neu (der Dialog
 // sitzt im Seitenkopf des Rahmens, die Daten gehören aber hierher).
 defineExpose({ reload: loadData })
+
+/* ── UX2e · Aktionsmenü „⋯" an jeder Gruppe (Entwurf B1, N6/K4) ─────────────
+   Die Kachel bleibt ganz klickbar (Ziel der Gruppe); das Menü sitzt oben
+   rechts in der Kachel und fängt seinen eigenen Klick ab. Angeboten wird nur,
+   was der Server ohnehin erlaubt (`create_permissions.can_edit_ids`): „Bearbeiten"
+   führt auf die Gruppenseite, wo der Änderungsweg liegt (OP-ADMIN-5) — keine
+   zweite, halbe Bearbeitungsmaske (S4). */
+const aktionRefs = new Map()
+const aktionSchluessel = (g, bereich) => `${bereich}|${g?.name}`
+function setzeAktion(el, g, bereich) {
+  const schluessel = aktionSchluessel(g, bereich)
+  if (el) aktionRefs.set(schluessel, el)
+  else aktionRefs.delete(schluessel)
+}
+
+function darfBearbeiten(g) {
+  const ids = perms.value?.can_edit_ids || []
+  return !!g?.name && ids.includes(g.name)
+}
+
+function aktionenFuer(g) {
+  const eintraege = [{
+    key: 'gruppenseite', label: 'Gruppenseite öffnen', icon: 'ansehen',
+    aktion: () => navigate('#/gruppe/' + g.name),
+  }]
+  if (darfBearbeiten(g)) {
+    eintraege.push({
+      key: 'bearbeiten', label: 'Bearbeiten', icon: 'bearbeiten',
+      aktion: () => navigate('#/gruppe/' + g.name),
+    })
+  }
+  return eintraege
+}
+
+/** Rechtsklick auf die Kachel (oder Menü-Taste) öffnet dasselbe Menü. */
+function zeilenKontextmenue(ereignis, g, bereich) {
+  aktionRefs.get(aktionSchluessel(g, bereich))
+    ?.oeffnenFuerZeile(ereignis, ereignis?.currentTarget)
+}
 </script>
 
 <style scoped>
@@ -382,6 +439,8 @@ defineExpose({ reload: loadData })
   text-decoration: none;
   color: inherit;
   display: block;
+  /* UX2e: Bezugsrahmen für das „⋯"-Menü der Kachel. */
+  position: relative;
   /* DES-03: Schatten aus Tokens — im Dunkelmodus eigene, kräftigere Werte.
      Vorher war der Schatten fest (kaum sichtbar auf dunklem Grund) und der
      Hover-Effekt hing an einem Inline-Handler, der beim Umbau auf <a> verloren
@@ -398,6 +457,41 @@ defineExpose({ reload: loadData })
 .gr-kachel:focus-visible {
   outline: 2px solid var(--dk-accent);
   outline-offset: 2px;
+}
+
+/* UX2e: Das „⋯" sitzt oben rechts auf der Bildfläche der Kachel. Es steht im
+   Hover und bei Tastaturfokus deutlich hervor; ohne Hover bleibt es leise,
+   damit das Bild der Kachel wirkt (Prinzip S2: Hierarchie über Helligkeit). */
+/* UX2e: Die Hülle ist der Bezugsrahmen; der Knopf steht NEBEN dem Link
+   (ein <button> in einem <a> wäre ungültiges HTML). */
+.gr-kachel-huelle { position: relative; display: flex; min-width: 0; max-width: 100%; }
+.gr-kachel-huelle .gr-kachel { flex: 1 1 auto; }
+.gr-kachel-aktionen {
+  position: absolute;
+  top: var(--sp-1);
+  right: var(--sp-1);
+  z-index: 1;
+  display: inline-flex;
+}
+.gr-kachel-aktionen :deep(.dk-ui-aktionen-ausloeser) {
+  background: var(--dk-surface);
+  box-shadow: var(--dk-shadow-xs);
+  opacity: .55;
+}
+/* UX2e2 (Punkt 5): Das „⋯" sitzt oben rechts in der Hülle — es ist ein
+   GESCHWISTER des Links, nicht sein Kind. `:hover`/`:focus-within` müssen
+   deshalb an der HÜLLE hängen; am `.gr-kachel` griffen sie nie (der Knopf
+   liegt außerhalb des Links), das ⋯ blieb dauerhaft blass. */
+.gr-kachel-huelle:hover .gr-kachel-aktionen :deep(.dk-ui-aktionen-ausloeser),
+.gr-kachel-huelle:focus-within .gr-kachel-aktionen :deep(.dk-ui-aktionen-ausloeser),
+.gr-kachel-aktionen :deep(.dk-ui-aktionen-ausloeser:hover),
+.gr-kachel-aktionen :deep(.dk-ui-aktionen-ausloeser.is-offen),
+.gr-kachel-aktionen :deep(.dk-ui-aktionen-ausloeser:focus-visible) {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  /* Kein Hover am Handy: dort ist das „⋯" immer voll sichtbar (K4). */
+  .gr-kachel-aktionen :deep(.dk-ui-aktionen-ausloeser) { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   .gr-kachel { transition: none; }

@@ -28,7 +28,10 @@ const leitung = typeof einrichtungLeitung === 'undefined'
 const pages = {
     Home:            () => import('./pages/Home.vue'),
     // UX3a: „Personen“ (vorher „Mitglieder“) — derselbe Bereichsrahmen.
-    Personen:        () => import('./pages/mitglieder/Bereich.vue'),
+    // UX3b: der Einstieg zeigt EINE Ansicht je Rolle (Mitgliederliste für
+    // Administratoren, Adressbuch-Sicht für alle anderen) und führt die vier
+    // Reiter Liste · Anfragen · Datenschutz · Import selbst.
+    Personen:        () => import('./pages/Personen.vue'),
     Mitglieder:      () => import('./pages/mitglieder/Bereich.vue'),
     MitgliederUebersicht:  () => import('./pages/mitglieder/Bereich.vue'),
     MitgliederListe:       () => import('./pages/mitglieder/Bereich.vue'),
@@ -101,14 +104,22 @@ const routeMap = {
     // UX3a: der Bereich heißt „Personen“ (vorher „Mitglieder“); die
     // Seitennamen der Bauteile bleiben, damit Anker/Guards stabil sind.
     '#/personen':      'Personen',
-    '#/personen/liste':      'MitgliederListe',
+    // UX3b: der Reiter „Liste“ ist die zusammengelegte Ansicht (je Rolle
+    // Mitgliederliste oder Adressbuch-Sicht). Er zeigt auf dieselbe Seite wie
+    // der Einstieg — keine zwei Umsetzungen derselben Liste.
+    '#/personen/liste':      'Personen',
     '#/personen/uebersicht': 'MitgliederUebersicht',
     '#/personen/anfragen':   'MitgliederAnfragen',
     '#/personen/datenschutz':'MitgliederDatenschutz',
     '#/personen/import':     'MitgliederImport',
     '#/personen/loeschantraege': 'MitgliederLoeschantraege',
     // UX3a: das Adressbuch ist ein Reiter von „Personen“ (vorher eigener Punkt).
-    '#/personen/adressbuch': 'Adressbuch',
+    // UX3b2: die alte Adressbuch-Seite ist NICHT mehr erreichbar — beide
+    // Adressen leiten DAUERHAFT auf die zusammengelegte Liste (deren Sicht
+    // für Rollen ohne Verwaltungsrecht IST das Adressbuch). Eine eigene
+    // Seite „Adressbuch“ hätte sonst eine zweite Liste ohne Blättern,
+    // Statusfilter und „persönliche Daten“ — zwei halbe Wege.
+    '#/personen/adressbuch': 'Personen',
     '#/gruppen':      'GruppenBereich',
     // N13: das Organigramm ist die zweite Ansicht der Gruppenseite
     // (Umschalter Liste/Organigramm), keine eigene Seite mehr.
@@ -218,6 +229,11 @@ const WEITERLEITUNGEN = {
 
     // ── UX3a: Umbenennungen und zusammengelegte Bereiche ──────────────────
     // Personen (vorher „Mitglieder“)
+    // UX3b2: Auch der bloße Bereichsname führt auf die Liste. Administratoren
+    // landeten vorher auf der „Übersicht“ (Kachel-Dashboard) — die Liste ist
+    // seit UX3b der Einstieg (Entwurf A3: Liste ist der erste Reiter), also
+    // gilt für ALLE dieselbe Weiterleitung.
+    '#/mitglieder':                '#/personen/liste',
     '#/mitglieder/liste':          '#/personen/liste',
     '#/mitglieder/uebersicht':     '#/personen/uebersicht',
     '#/mitglieder/anfragen':       '#/personen/anfragen',
@@ -225,7 +241,10 @@ const WEITERLEITUNGEN = {
     '#/mitglieder/loeschantraege': '#/personen/loeschantraege',
     '#/mitglieder/import':         '#/personen/import',
     // Adressbuch und Datenschutz sind Reiter von „Personen“.
-    '#/adressbuch':   '#/personen/adressbuch',
+    // UX3b2: beide Adressbuch-Schreibweisen leiten DAUERHAFT auf die Liste
+    // (#/personen/liste) — die alte Adressbuch-Seite ist nicht mehr erreichbar.
+    '#/adressbuch':           '#/personen/liste',
+    '#/personen/adressbuch':  '#/personen/liste',
     '#/datenschutz':  '#/personen/datenschutz',
     // „Zu prüfen“ ist der vierte Reiter des Kalenders (vorher „Moderation“).
     '#/moderation':   '#/kalender/pruefen',
@@ -268,6 +287,16 @@ function ohneSchlussslash(pfad) {
     return pfad.length > 2 && pfad.endsWith('/') ? pfad.replace(/\/+$/, '') : pfad
 }
 
+/**
+ * UX3b2 (Befund 6): Steckt im Hash ein `?…`-Teil, gehört er NUR dann ans
+ * Weiterleitungsziel, wenn die Weiterleitung ihn nicht selbst schon trägt
+ * (sonst entstünde `#/personen/liste?status=Mitglied?bereich=…`).
+ */
+function _mitAbfrage(ziel, abfrage) {
+    if (!abfrage) return ziel
+    return ziel.includes('?') ? ziel : ziel + abfrage
+}
+
 // Rollenabhängige Weiterleitungen (nur wenn das Ziel für die Rolle passt).
 function rollenWeiterleitung(pfad) {
     const boot = window.__DIakonosBOOT || {}
@@ -276,15 +305,13 @@ function rollenWeiterleitung(pfad) {
         // Abschnitt 8: Admin → Datenschutz-Reiter, alle anderen → Profil.
         return isAdmin ? '#/personen/datenschutz' : '#/profile'
     }
-    if (pfad === '#/mitglieder') {
-        // Admins öffnen die Übersicht, alle anderen die Liste.
-        return isAdmin ? '#/personen/uebersicht' : '#/personen/liste'
-    }
     if (pfad === '#/personen') {
-        // Administratoren sehen den Bereich mit allen Reitern (Übersicht als
-        // Start), alle anderen die Liste. Ersetzt die alte `#/mitglieder`-Regel
-        // — dieselbe Entscheidung, neue Adresse (UX3a).
-        return isAdmin ? '#/personen/uebersicht' : '#/personen/liste'
+        // UX3b (Entscheidung Manuel): „Personen“ ist EINE Ansicht je Rolle.
+        // Wer die Verwaltungsreiter darf, landet auf der Liste (erste Reiter,
+        // Entwurf A3); alle anderen ebenso — dort zeigt die Seite dann die
+        // Adressbuch-Sicht. Kein Rollenrecht nötig: die Seite fragt den
+        // Server, und der entscheidet über die Felder.
+        return '#/personen/liste'
     }
     if (pfad === '#/dienste') {
         // Einstieg in den Bereich: „Meine Dienste“ ist die persönliche Sicht
@@ -370,7 +397,7 @@ async function resolveRoute() {
     }
     const ziel = weiterleitungsZiel(pfad)
     if (ziel) {
-        const zielMitAbfrage = ziel + abfrage
+        const zielMitAbfrage = _mitAbfrage(ziel, abfrage)
         if (zielMitAbfrage !== vollerHash) {
             window.location.replace(zielMitAbfrage)
             return

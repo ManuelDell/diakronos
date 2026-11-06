@@ -114,7 +114,7 @@
            sonst seitlich über). -->
       <ul v-if="lieder.length" class="ld-karten">
         <li v-for="l in lieder" :key="'k-' + l.name" class="ld-karte-li">
-          <a class="ld-karte" :href="'#/lieder/' + encodeURIComponent(l.name)">
+          <a class="ld-karte" :href="'#/lieder/' + encodeURIComponent(l.name)" @contextmenu.prevent="zeilenKontextmenue($event, l)">
             <div class="ld-karte-kopf">
               <span class="ld-karte-titel">{{ l.titel }}</span>
               <span v-if="l.anzeige" class="ld-karte-kennung" :class="{ 'ld-kopie': istKopie(l) }">{{ l.anzeige }}</span>
@@ -125,6 +125,15 @@
               <span class="dk-badge" :class="rechtePill(l.rechte_status)">{{ l.rechte_status || 'Ungeklärt' }}</span>
             </div>
           </a>
+          <!-- UX2e: dieselben Aktionen am Handy. Das „⋯" steht NEBEN dem Link
+               (ein <button> in einem <a> wäre ungültiges HTML). -->
+          <span class="ld-karte-aktionen">
+            <DkAktionen
+              :ref="el => setzeAktion(el, l)"
+              :eintraege="aktionenFuer(l)"
+              :label="`Aktionen für ${l.titel || 'dieses Lied'}`"
+            />
+          </span>
         </li>
       </ul>
 
@@ -137,6 +146,7 @@
               <th>Fassungen</th>
               <th>Rechte-Status</th>
               <th>Zuletzt gesungen</th>
+              <th>Aktionen</th>
             </tr>
           </thead>
           <tbody>
@@ -144,7 +154,7 @@
                  Zeile; sie darf erst erscheinen, wenn der Ladevorgang durch ist
                  (sonst las man „Keine Lieder gefunden", bevor die Antwort kam). -->
             <tr v-if="!loading && lieder.length === 0" data-leerzustand="lieder">
-              <td colspan="5">
+              <td colspan="6">
                 <DkEmpty
                   title="Keine Lieder gefunden"
                   :text="darfSchreiben
@@ -158,7 +168,14 @@
                 </DkEmpty>
               </td>
             </tr>
-            <tr v-for="l in lieder" :key="l.name">
+            <!-- UX2e (Entwurf B1, N6): alle Aktionen am Eintrag im „⋯"-Menü;
+                 Rechtsklick auf die Zeile öffnet dasselbe Menü. Die Seite selbst
+                 hat keinen Zeilenknopf — nur den einen Primärknopf oben. -->
+            <tr
+              v-for="l in lieder"
+              :key="l.name"
+              @contextmenu.prevent="zeilenKontextmenue($event, l)"
+            >
               <td>
                 <a class="dk-cell-name dk-zellen-link dk-zellen-link--dehnen" :href="'#/lieder/' + encodeURIComponent(l.name)">{{ l.titel }}</a>
                 <div v-if="l.alternativtitel" class="dk-cell-email">{{ l.alternativtitel }}</div>
@@ -178,6 +195,13 @@
                 </span>
               </td>
               <td class="dk-text-muted">{{ l.zuletzt_gesungen ? formatDate(l.zuletzt_gesungen) : '–' }}</td>
+              <td class="dk-zeilen-aktion">
+                <DkAktionen
+                  :ref="el => setzeAktion(el, l)"
+                  :eintraege="aktionenFuer(l)"
+                  :label="`Aktionen für ${l.titel || 'dieses Lied'}`"
+                />
+              </td>
             </tr>
           </tbody>
         </table>
@@ -212,6 +236,11 @@ import { aktionsfehler } from '../../shared/fehlertexte.js'
 import { navigate, currentPageName } from '../router.js'
 import { LIEDER_REITER } from '../menue.js'
 import DiensteReiter from '../components/DiensteReiter.vue'
+// UX2e: Rückfrage vor dem Papierkorb und Meldung danach.
+import { bestaetigen } from '../composables/useBestaetigen.js'
+import { showToast } from '../composables/useToast.js'
+// UX2e2: echter Papierkorb-Weg (Löschfrage, Meldung, Rückgängig).
+import { loeschFrage, papierkorbMeldung, wiederherstellen } from '../composables/papierkorb.mjs'
 import { istKopie } from '../components/planrahmen/lied-anzeige.mjs'
 import { listenArgs as liste_args, cacheArgs as liste_cache_args,
          cacheAktiv as liste_cache_aktiv, CACHE_NAME } from '../components/lieder/lieder-liste.mjs'
@@ -222,6 +251,8 @@ import DkFilterChips from '../components/ui/DkFilterChips.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
 import { chipsMitZahlen, istAlle } from '../composables/filterChips.mjs'
 import DkEmpty from '../components/ui/DkEmpty.vue'
+// UX2e: EIN Aktionsmenü „⋯" für alle Listen (Entwurf B1).
+import DkAktionen from '../components/ui/DkAktionen.vue'
 
 const lieder = ref([])
 const loading = ref(false)
@@ -511,6 +542,83 @@ async function rechteLaden() {
 function neuesLied() {
   navigate('#/lieder/neu')
 }
+
+/* ── UX2e · Aktionsmenü „⋯" an jedem Lied (Entwurf B1, N6/K4) ──────────────
+   Einträge dieses Lieds:
+     · Lied öffnen                (immer)
+     · Bearbeiten                 (nur mit Schreibrecht — dieselbe Auskunft
+                                   wie der „Neues Lied"-Knopf, `darfSchreiben`)
+     · In den Papierkorb legen    (gefährlich, abgesetzt am Ende)
+   Der Papierkorb ist `save_lied` mit `aktiv = false`: das Lied verschwindet
+   aus der Auswahl der Pläne, bleibt aber mit allen Fassungen erhalten. Ein
+   echtes Löschen gibt es in der Lieder-Ablage nicht — der Eintrag verspricht
+   deshalb auch nicht mehr (S4: ein Begriff, ein Verhalten). */
+const aktionRefs = new Map()
+function setzeAktion(el, l) {
+  if (!l?.name) return
+  if (el) aktionRefs.set(l.name, el)
+  else aktionRefs.delete(l.name)
+}
+
+async function bearbeiten(l) {
+  navigate('#/lieder/' + encodeURIComponent(l.name))
+}
+
+/**
+ * Punkt 1 (UX2e2) · „In den Papierkorb legen“ läuft über den ECHTEN
+ * Papierkorb-Weg — genau wie Beiträge und Wiki:
+ *   bestaetigen(loeschFrage(…)) → musik.delete_lied → papierkorbMeldung mit
+ *   „Rückgängig“ (= musik.wiederherstellen_lied).
+ * Vorher lief hier `save_lied {aktiv: false}` — das nahm das Lied nur aus der
+ * Auswahl, ohne Papierkorb und ohne Rückgängig.
+ */
+async function inPapierkorb(l) {
+  if (!(await bestaetigen(loeschFrage(l.titel, 'Lied')))) return
+  try {
+    const antwort = await apiCall('diakronos.psalmos.api.musik.delete_lied', { lied: l.name })
+    await reload()
+    await showToast(papierkorbMeldung(l.titel, antwort?.wiederherstellbar_bis), 'success', {
+      text: 'Rückgängig',
+      onClick: async () => {
+        const ergebnis = await wiederherstellen('lied', l.name)
+        if (ergebnis.ok) {
+          showToast(`„${l.titel}“ wiederhergestellt.`)
+          await reload()
+        } else {
+          showToast(ergebnis.fehler, 'error')
+        }
+      },
+    })
+  } catch (e) {
+    showToast(aktionsfehler('löschen', e), 'error')
+  }
+}
+
+function aktionenFuer(l) {
+  const eintraege = [
+    {
+      key: 'oeffnen', label: 'Lied öffnen', icon: 'ansehen',
+      aktion: () => navigate('#/lieder/' + encodeURIComponent(l.name)),
+    },
+  ]
+  if (darfSchreiben.value) {
+    eintraege.push({
+      key: 'bearbeiten', label: 'Bearbeiten', icon: 'bearbeiten',
+      aktion: () => bearbeiten(l),
+    })
+    eintraege.push({
+      key: 'papierkorb', label: 'In den Papierkorb legen', icon: 'entfernen',
+      gefahr: true,
+      aktion: () => inPapierkorb(l),
+    })
+  }
+  return eintraege
+}
+
+/** Rechtsklick auf die Zeile/Karte öffnet dasselbe Menü. */
+function zeilenKontextmenue(ereignis, l) {
+  aktionRefs.get(l?.name)?.oeffnenFuerZeile(ereignis, ereignis?.currentTarget)
+}
 </script>
 
 <style scoped>
@@ -589,6 +697,17 @@ function neuesLied() {
 .ld-karte-kennung { font-size: var(--fs-12); color: var(--dk-text-muted); flex: none; }
 .ld-karte-alt { font-size: var(--fs-12); color: var(--dk-text-subtle); }
 .ld-karte-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+/* UX2e: Platz für das „⋯" rechts oben — der Titel bekommt den Knopf nicht ins
+   Gehege. */
+.ld-karte-kopf { padding-right: var(--control-h); }
+/* UX2e: Das „⋯" der Liedkarte (Handy-Liste) sitzt oben rechts; die Karte
+   bleibt ganz Link, der Knopf steht daneben im Listenpunkt. */
+.ld-karte-li { position: relative; }
+.ld-karte-aktionen {
+  position: absolute;
+  top: var(--sp-1);
+  right: var(--sp-1);
+}
 
 @media (max-width: 700px) {
   .ld-neu { width: 100%; justify-content: center; }

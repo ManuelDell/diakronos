@@ -29,7 +29,7 @@
         leer-titel="Noch nichts angelegt"
         leer-text="Lege den ersten Raum oder Gegenstand an."
       >
-        <tr v-for="r in zeilen" :key="r.id">
+        <tr v-for="r in zeilen" :key="r.id" @contextmenu.prevent="zeilenKontextmenue($event, r)">
           <td>{{ r.name }}</td>
           <td>{{ r.typ }}</td>
           <td>{{ r.kapazitaet ?? '–' }}</td>
@@ -37,9 +37,14 @@
             <DkBadge v-if="r.wartung" variant="warn">In Wartung</DkBadge>
             <span v-else class="rv-muted">verfügbar</span>
           </td>
+          <!-- UX2e (Entwurf B1, N6): „Bearbeiten"/„Löschen" sind ins „⋯"-Menü
+               gewandert — Gefährliches steht dort abgesetzt am Ende. -->
           <td class="is-aktion">
-            <DkButton variant="secondary" size="sm" @click="bearbeiten(r)">Bearbeiten</DkButton>
-            <DkButton variant="danger" size="sm" @click="entfernen(r)">Löschen</DkButton>
+            <DkAktionen
+              :ref="el => setzeAktion(el, r)"
+              :eintraege="aktionenFuer(r)"
+              :label="`Aktionen für ${r.name || 'diese Ressource'}`"
+            />
           </td>
         </tr>
       </DkTable>
@@ -130,6 +135,8 @@ import DkBadge from '../components/ui/DkBadge.vue'
 import DkHint from '../components/ui/DkHint.vue'
 // UX2d3b (Review UX2d3a/B): Laden zeigt den Umriss, keinen Satz.
 import DkSkelett from '../components/ui/DkSkelett.vue'
+// UX2e: EIN Aktionsmenü „⋯" für alle Listen (Entwurf B1).
+import DkAktionen from '../components/ui/DkAktionen.vue'
 
 const IconPlus = () => h('svg', {
   width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
@@ -270,6 +277,32 @@ async function entfernen(r) {
 }
 
 onMounted(laden)
+
+/* ── UX2e · Aktionsmenü „⋯" an jeder Ressource (Entwurf B1, N6/K4) ─────────
+   Die zwei Zeilenknöpfe sind entfallen; ihre Funktionen stehen jetzt im Menü:
+     · Bearbeiten   (öffnet denselben Dialog)
+     · Löschen      (gefährlich, abgesetzt am Ende; dieselbe Rückfrage)
+   Rechte: der Server entscheidet (`get_ressourcen_verwaltung` liefert die
+   Liste nur an Ressourcenmoderator/Administrator). */
+const aktionRefs = new Map()
+function setzeAktion(el, r) {
+  const schluessel = String(r?.id ?? '')
+  if (!schluessel) return
+  if (el) aktionRefs.set(schluessel, el)
+  else aktionRefs.delete(schluessel)
+}
+
+function aktionenFuer(r) {
+  return [
+    { key: 'bearbeiten', label: 'Bearbeiten', icon: 'bearbeiten', aktion: () => bearbeiten(r) },
+    { key: 'loeschen', label: 'Löschen', icon: 'loeschen', gefahr: true, aktion: () => entfernen(r) },
+  ]
+}
+
+/** Rechtsklick auf die Zeile öffnet dasselbe Menü. */
+function zeilenKontextmenue(ereignis, r) {
+  aktionRefs.get(String(r?.id ?? ''))?.oeffnenFuerZeile(ereignis, ereignis?.currentTarget)
+}
 </script>
 
 <style scoped>

@@ -147,6 +147,8 @@ function routerAusfuehren(boot) {
   const uebersicht = lies('pages/mitglieder/Uebersicht.vue')
   assert.ok(uebersicht.includes('get_statistik'), 'Zahlen kommen aus get_statistik')
   // Jede Kennzahl-Kachel ist klickbar und führt in einen existierenden Reiter.
+  // UX3a: Die Übersicht verlinkt über die HREF-Konstanten; der Test prüft die
+  // ZIELE, nicht die Schreibweise der Verwendung im Quelltext.
   for (const ziel of ['#/personen/liste', '#/personen/anfragen', '#/personen/datenschutz']) {
     assert.ok(uebersicht.includes(ziel), `Kachelziel ${ziel}`)
   }
@@ -159,8 +161,9 @@ function routerAusfuehren(boot) {
 {
   const h = routerAusfuehren({ is_admin: true, hash: '#/' })
   const faelle = [
-    ['#/personen/liste?status=Mitglied', 'MitgliederListe'],
-    ['#/personen/liste/', 'MitgliederListe'],
+    // UX3b: der Reiter „Liste“ ist die zusammengelegte Personen-Seite.
+    ['#/personen/liste?status=Mitglied', 'Personen'],
+    ['#/personen/liste/', 'Personen'],
     ['#/personen/uebersicht/', 'MitgliederUebersicht'],
     ['#/personen/anfragen?x=1', 'MitgliederAnfragen'],
     ['#/kalender/', 'Kalender'],
@@ -173,7 +176,7 @@ function routerAusfuehren(boot) {
   }
   // Die Abfrage darf nicht als Seite missverstanden werden.
   h.gehe('#/personen/liste?status=Mitglied')
-  assert.equal(h.router.currentPageName.value, 'MitgliederListe', 'Abfrage stoert nicht')
+  assert.equal(h.router.currentPageName.value, 'Personen', 'Abfrage stoert nicht')
   assert.equal(h.router.currentHash.value, '#/personen/liste?status=Mitglied',
     'der volle Hash bleibt fuer die Seite erhalten')
   // Auch mit Abfrageteil unbekannter Pfad bleibt „Seite nicht gefunden“.

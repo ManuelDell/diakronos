@@ -149,34 +149,33 @@ test('UX1e/F2: „warning“ gibt es als Knopfvariante nicht mehr', () => {
 //  * Die Ghost-Knöpfe der dunklen Leiste nahmen Farben der HELLEN Fläche
 //    (--muted / --surface-hover). Sie müssen die Tokens der Leiste tragen.
 
-/** Der Moderations-Knopf der Kopfzeile (Quelltext von `<DkButton` bis `>`). */
-function moderationsKnopf(text) {
-  // UX3a hat das Ziel des Reiters umbenannt: „Termine prüfen und freigeben“
-  // (#/kalender/pruefen). Der Knopf selbst ist derselbe geblieben.
-  const start = text.indexOf('href="#/kalender/pruefen"')
-  assert.ok(start >= 0, 'Prüfen-Link gesucht (href="#/kalender/pruefen")')
-  const anfang = text.lastIndexOf('<DkButton', start)
-  const ende = text.indexOf('>', text.indexOf('aria-label', start) >= 0 ? start : start)
-  assert.ok(anfang >= 0, 'Moderations-Link ist ein DkButton')
-  return text.slice(anfang, ende + 1)
-}
+/**
+ * Der Eintrag „Zu prüfen“ — seit UX3d der VIERTE REITER der Kalender-Leiste
+ * (`components/kronos/KalenderReiter.vue`), nicht mehr ein eigener Knopf
+ * rechts in der Kopfzeile. Die beiden Absichten von UX1e2/F3 gelten
+ * unverändert weiter: die Klickfläche ist eine volle Knopfhöhe
+ * (--control-h 40 px, bei pointer:coarse 44 px) und der Eintrag hat einen
+ * festen zugänglichen Namen, auch wenn am Handy nur ein Teil sichtbar ist.
+ */
+const REITER = `${KRONOS}KalenderReiter.vue`
 
-test('UX1e2/F3: der Moderations-Link ist ein Knopf in voller Höhe', () => {
-  const text = vorlage(lies(`${KRONOS}KronosTopbar.vue`))
-  const knopf = moderationsKnopf(text)
-  assert.match(knopf, /\bsize="md"/,
-    'Moderations-Link muss size="md" tragen (--control-h 40/44 px), nicht sm (28 px)')
-  assert.doesNotMatch(knopf, /\bsize="sm"/)
+test('UX1e2/F3: der Eintrag „Zu prüfen“ ist eine Klickfläche in voller Höhe', () => {
+  const quelle = lies(REITER)
+  const regel = quelle.slice(quelle.indexOf('.kal-reiter-punkt {'))
+  assert.match(regel, /min-height:\s*var\(--control-h\)/,
+    'Reiter müssen --control-h (40 px) hoch sein, nicht eine kleinere Fläche')
+  assert.match(quelle, /@media \(pointer: coarse\)[\s\S]*?\.kal-reiter-punkt \{\s*min-height:\s*44px/,
+    'bei Fingerbedienung 44 px (K4)')
 })
 
-test('UX1e2/F3: der Prüfen-Link hat auch mobil einen festen Namen', () => {
-  const quelle = lies(`${KRONOS}KronosTopbar.vue`)
-  const knopf = moderationsKnopf(vorlage(quelle))
-  assert.match(knopf, /aria-label="Termine prüfen und freigeben"/,
-    'aria-label fehlt — unter 720 px ist das Symbol der einzige sichtbare Teil')
-  // Die Ausblendung betrifft nur den sichtbaren Text, nie den Namen.
-  assert.match(quelle, /@media \(max-width: 720px\)[\s\S]*?\.pruefen-knopf-label \{\s*display:\s*none/,
-    'Beschriftung weicht unter 720 px (FIX-6) — der aria-label trägt den Namen')
+test('UX1e2/F3: der Eintrag „Zu prüfen“ ist beschriftet und kein nacktes Symbol', () => {
+  const quelle = lies(REITER)
+  // Beschriftung sichtbar (kein `display:none` im Zeiger-/Breitenblock).
+  assert.match(quelle, /\{\{ r\.label \}\}/, 'Reiter zeigen ihre Beschriftung')
+  assert.doesNotMatch(quelle, /kal-reiter-name[^}]*display:\s*none/,
+    'die Beschriftung darf nicht (auch nicht mobil) verschwinden')
+  // Die Sperre des alten Knopfes bleibt: er war NICHT sm (28 px).
+  assert.doesNotMatch(quelle, /size="sm"/, 'kein kleiner Knopf im Reiter-Streifen')
 })
 
 test('UX1e2/F3: Leistenknöpfe tragen die Farben der dunklen Leiste', () => {
@@ -430,10 +429,10 @@ test('UX1e/F7: Kommentare und Nicht-Knopfklassen zaehlen nicht', () => {
     '<template>',
     '  <!-- <button class="btn btn-secondary">alt</button> -->',
     '  <DkButton variant="primary">Neu</DkButton>',
-    '  <span class="pruefen-knopf-label">Zu prüfen</span>',
+    '  <span class="moderation-btn-label">Moderation</span>',
     '</template>',
     '<style scoped>',
-    '.pruefen-knopf-label { display: none; }',
+    '.moderation-btn-label { display: none; }',
     '</style>',
   ].join('\n')
   assert.deepEqual(fundstellen(probe), [],

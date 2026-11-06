@@ -116,7 +116,7 @@ def root_uebertragen(konto: str, passwort: str = "", bestaetigt: Any = False,
     user = _aktueller_user()
     if not root_benutzer.ist_root(user):
         throw(
-            "Nur der Root-Benutzer darf die Root-Rechte übertragen.",
+            "Nur root selbst kann die Root-Rechte übertragen.",
             FrappePermissionError,
         )
 
@@ -162,7 +162,7 @@ def root_uebertragen(konto: str, passwort: str = "", bestaetigt: Any = False,
             # Fail closed: ohne Zeile gibt es keinen root — dann darf auch
             # niemand uebertragen. Dieselbe Meldung wie oben (kein Orakel).
             throw(
-                "Nur der Root-Benutzer darf die Root-Rechte übertragen.",
+                "Nur root selbst kann die Root-Rechte übertragen.",
                 FrappePermissionError,
             )
 

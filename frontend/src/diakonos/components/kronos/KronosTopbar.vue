@@ -1,6 +1,11 @@
 <template>
+  <div class="kronos-kopf">
   <header class="kronos-header">
     <div class="header-left">
+      <!-- UX3d-Review: im Vollbild der Prüf-Tafel fehlen alle Kalender-
+           Bedienelemente (Seitenleiste, Heute, Blättern, rechte Leiste) —
+           dort wären sie tote Schaltflächen. -->
+      <template v-if="!pruefTafel">
       <!-- UXK-R9: Am Handy liegt die Kalender-Seitenleiste (Kalenderliste,
            CalDAV-Anleitung, Import) dauerhaft ausserhalb des Bildes. Dieser
            Knopf oeffnet sie — nur auf schmalen Bildschirmen sichtbar. -->
@@ -18,21 +23,24 @@
         <span class="today-label">Heute</span>
         <span class="icon-calendar-today" v-html="ICON_CALENDAR_TODAY"></span>
       </DkButton>
+      </template>
     </div>
 
     <div class="header-center">
+      <template v-if="!pruefTafel">
       <DkButton class="nav-btn prev-month" variant="secondary" size="sm" aria-label="Vorheriger Monat" @click="$emit('prev')">
         <span class="icon-chevron" v-html="ICON_CHEVRON_LEFT"></span>
       </DkButton>
       <DkButton class="nav-btn next-month" variant="secondary" size="sm" aria-label="Nächster Monat" @click="$emit('next')">
         <span class="icon-chevron" v-html="ICON_CHEVRON_RIGHT"></span>
       </DkButton>
+      </template>
       <!-- UX2d3a: solange der Monatstitel fehlt, steht eine leere Stelle mit
            Breite — kein „Lade...“-Text, der springt. -->
       <span class="current-date"><span v-if="shortTitle">{{ shortTitle }}<span v-if="yearPart" class="date-year">&nbsp;{{ yearPart }}</span></span><span v-else class="date-platzhalter" aria-hidden="true"><span class="date-skelett"></span></span></span>
     </div>
 
-    <div class="header-right">
+    <div v-if="!pruefTafel" class="header-right">
       <DkButton
         id="resource-toggle-btn"
         class="resource-toggle-btn"
@@ -85,43 +93,60 @@
         <span class="readonly-label">Nur lesen</span>
       </span>
 
-      <!-- UX1e: EIN Knopf-System. Der Moderations-Weg war ein eigenes
-           `<a>` mit Eigenklasse; er ist jetzt ein DkButton (gleiche Aktion,
-           gleiche Beschriftung) und bleibt ein echter Link.
-           UX1e2: KNOPFGRÖSSE md statt sm — 28 px waren in der Kopfzeile
-           kleiner als jede andere Klickfläche daneben (--control-h 40 px,
-           bei pointer:coarse 44 px). Unter 720 px weicht die sichtbare
-           Beschriftung dem Symbol; der Name des Knopfes bleibt deshalb fest
-           am aria-label (UX3a: „Termine prüfen und freigeben“). -->
-      <DkButton
-        v-if="canModerate"
-        as="a"
-        class="pruefen-knopf moderation-knopf"
-        href="#/kalender/pruefen"
-        variant="secondary"
-        size="md"
-        title="Termine prüfen und freigeben"
-        aria-label="Termine prüfen und freigeben"
-      >
-        <span v-html="ICON_PRUEFEN"></span>
-        <span class="pruefen-knopf-label">Zu prüfen<span v-if="offeneZahl > 0" class="pruefen-knopf-zahl">{{ offeneZahl }}</span></span>
-      </DkButton>
+      <!-- UX3d: „Zu prüfen“ ist KEIN eigener Knopf mehr in der Kopfzeile —
+           es ist der vierte Reiter der Kalender-Leiste direkt unter dem Kopf
+           (Entwurf A4: Monat · Woche · Liste · Zu prüfen (n)). Der Knopf
+           rechts machte dieselbe Sache ein zweites Mal und war die einzige
+           Stelle, an der die Zahl stand. -->
     </div>
   </header>
+
+  <!-- UX3d: die Reiterleiste des Kalenders. Sie kommt aus `menue.kalenderReiter`
+       (eine Quelle für Beschriftung, Reihenfolge und die Sichtbarkeit „nur
+       für Moderatoren“).
+       Sie steht AUCH auf der Seite „Zu prüfen“ (dort ist der vierte Eintrag
+       der aktive): der Weg zurück zum Kalender muss sichtbar bleiben; der
+       frühere Stummel-Knopf „Zurück zum Kalender“ entfällt dadurch. Nur im
+       Vollbild der Prüf-Tafel (`pruefTafel`) fehlt sie — dort ersetzt das
+       Brett die Ansicht, und ein Umschalter „Monat/Woche/Liste“ wäre eine
+       tote Schaltfläche. Gerendert wird IMMER (v-if am inneren Element):
+       ein `v-if` um die Komponente ließ die Reiter nach dem Wechsel auf
+       „Zu prüfen“ gar nicht erst entstehen (im Wegwerf-Stack gemessen). -->
+  <KalenderReiter
+    class="kronos-reiter"
+    :class="{ 'kronos-reiter--tafel': pruefTafel }"
+    :options="reiter"
+    :model-value="gewaehlterReiter"
+    @waehlen="onReiterWaehlen"
+  />
+  </div>
 </template>
 
 <script setup>
-import { apiAntwortPruefen, apiCall } from '../../composables/useApi.js'
-// WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
-import { apiUrl } from '../../../shared/basis.js'
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 import DkButton from '../ui/DkButton.vue';
+import KalenderReiter from './KalenderReiter.vue';
+// UX3d: Reiterleiste und Sichtbarkeitsregel „nur Moderatoren“ aus EINER
+// Quelle (dieselbe Liste prüft der Wächter-Test `ux3d-kalender-pruefen`).
+import { kalenderReiter } from '../../menue.js';
 
 const props = defineProps({
   dateTitle: { type: String, default: '' },
   currentView: { type: String, default: 'dayGridMonth' },
   viewMode: { type: String, default: 'view' },
   canWrite: { type: Boolean, default: true },
+  /** UX3d: Reiter „Zu prüfen“ zeigen (Moderator mindestens eines Kalenders). */
+  canModerate: { type: Boolean, default: false },
+  /** Zahl offener Prüfungen — `null` = unbekannt (dann ohne Zahl). */
+  offeneZahl: { type: Number, default: null },
+  /**
+   * Der Kalender steht im Vollbild der Prüf-Tafel. Dann ist das Brett die
+   * Ansicht: die Einträge „Monat/Woche/Liste“ sind ausgeblendet (tote
+   * Schaltfläche), „Zu prüfen“ bleibt als aktive Markierung stehen.
+   */
+  pruefTafel: { type: Boolean, default: false },
+  /** Aktiver Reiter: `kalender`, `pruefen` oder eine Kalender-Ansicht. */
+  aktiverReiter: { type: String, default: 'kalender' },
 });
 
 const emit = defineEmits([
@@ -149,18 +174,49 @@ const yearPart = computed(() => {
 const lastNormalView = ref('dayGridMonth');
 const isResourceView = computed(() => RESOURCE_VIEWS.has(props.currentView));
 
-const canModerate = ref(false)
-// UX3a: Zahl offener Vorschläge für den Reiter „Zu prüfen“. Sie kommt aus
-// derselben Abfrage wie das Moderationsbrett; ein Fehler bleibt still (eine
-// Kennzahl darf die Kopfzeile nicht stören).
-const offeneZahl = ref(0);
+// UX3d: Die Reiterleiste (Monat · Woche · Liste · „Zu prüfen (n)“). Welche
+// Einträge erscheinen, entscheidet `menue.kalenderReiter` — hier wird nur
+// durchgereicht, was die Seite über Rechte und Kennzahl weiß. Die Zahl bleibt
+// `null`, solange sie unbekannt ist (kein erfundenes „0“).
+const reiter = computed(() => {
+  const liste = kalenderReiter({
+    can_moderate: props.canModerate === true,
+    offeneZahl: props.offeneZahl,
+  })
+  // Vollbild der Prüf-Tafel: keine Ansichts-Umschalter, nur der aktive Reiter
+  // (er ist ein Link auf sich selbst — sichtbar als „hier bist du“).
+  if (props.pruefTafel) return liste.filter(r => r.ansicht !== true)
+  return liste
+})
+
+// Welcher Eintrag ist aktiv? Der Reiter ist eine EIGENE Seite (`pruefen`);
+// im Kalender entscheidet die Ansicht. Ressourcenansichten (Timeline) gehören
+// zur Ansicht, aus der sie geöffnet wurden — das ist `lastNormalView`.
+const gewaehlterReiter = computed(() => {
+  if (props.aktiverReiter === 'pruefen') return 'pruefen'
+  const sicht = RESOURCE_VIEWS.has(props.currentView) ? lastNormalView.value : props.currentView
+  if (sicht === 'timeGridWeek') return 'woche'
+  if (sicht === 'timeGridDay') return 'tag'
+  if (sicht === 'listMonth') return 'liste'
+  return 'monat'
+})
+
+/**
+ * Klick auf einen Reiter: „Zu prüfen“ ist ein Link (navigiert der Browser).
+ * Ansichten derselben Seite wechselt diese Komponente — über denselben Weg
+ * wie das frühere Auswahlfeld (`viewChange`), damit Kalender und Kopfzeile
+ * eine Wahrheit behalten.
+ */
+function onReiterWaehlen(r) {
+  if (!r || r.ansicht !== true) return
+  onViewChange({ target: { value: r.aktiv } })
+}
 
 const ICON_CHEVRON_LEFT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M15 6l-6 6l6 6"/></svg>`;
 const ICON_CHEVRON_RIGHT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M9 6l6 6l-6 6"/></svg>`;
 const ICON_EYE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0-4 0"/><path d="M21 12c-2.4 4-5.4 6-9 6c-3.6 0-6.6-2-9-6c2.4-4 5.4-6 9-6c3.6 0 6.6 2 9 6"/></svg>`;
 const ICON_PENCIL = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M4 20h4l10.5-10.5a2.828 2.828 0 1 0-4-4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></svg>`;
 const ICON_ROOM_VIEW = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-12a2 2 0 0 1-2-2l0-12"/><path d="M12 4l0 16"/></svg>`;
-const ICON_PRUEFEN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M4 5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1l0-4"/><path d="M14 5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1l0-4"/><path d="M4 15a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1l0-4"/><path d="M14 17h6m-3-3v6"/></svg>`;
 const ICON_MENU = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>`;
 const ICON_CALENDAR_TODAY = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><line x1="8" y1="16" x2="8.01" y2="16"/></svg>`;
 
@@ -189,42 +245,61 @@ function onResourceToggle() {
 
 // UXK-R16: Der frühere Strg+F-Handler fing die Browsersuche ab, öffnete aber
 // nichts. Entfernt — die normale Browsersuche funktioniert dadurch wieder.
-async function loadDeskLink() {
-  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-  if (!csrfToken) return;
-  try {
-    const res = await fetch(apiUrl('diakronos.kronos.api.permissions.get_session_info'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrfToken },
-      credentials: 'include',
-      body: JSON.stringify({})
-    });
-    const { message: userInfo } = await apiAntwortPruefen(res);
-    canModerate.value = userInfo?.can_moderate || false;
-    // UX3a: Kennzahl am Reiter „Zu prüfen“ — nur für Moderatoren, Fehler still.
-    if (canModerate.value) {
-      try {
-        const anzahl = await apiCall('diakronos.kronos.api.kanban_api.get_moderation_count')
-        offeneZahl.value = Number(anzahl?.count || 0) || 0
-      } catch (_) { offeneZahl.value = 0 }
-    }
-  } catch (_) {}
-}
-
-onMounted(() => {
-  loadDeskLink();
-});
+// UX3d: Das frühere `loadDeskLink()` (Sitzungsinfo + Kennzahl für den
+// „Zu prüfen“-Knopf der Kopfzeile) ist entfallen: das Recht kommt jetzt im
+// Boot-Objekt (`can_moderate`) und die Kennzahl von der Seite — sonst
+// entstünde die Zahl an zwei Stellen und könnte auseinanderlaufen.
 </script>
 
 <style scoped>
+/* UX3d: Kopf + Reiterleiste als EIN Block mit der Trennlinie unten. Vorher
+   trug die Kopfzeile selbst die `border-bottom`; jetzt sitzt die Linie unter
+   den Reitern, damit Kopf und Reiter zusammen wie der Kopf der Seite wirken
+   (Entwurf A4). */
+.kronos-kopf {
+  flex: 0 0 auto;
+  /* Die Reiterleiste gehört in den Kasten: ohne diese Zeile konnte der
+     umbrechende Kopf den verfügbaren Platz auffressen und die Reiter wurden
+     beschnitten. */
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  /* Stapelkontext: die Reiterzeile liegt UNTER dem Kopf und muss ihn beim
+     Scrollen überdecken. Ohne eigenes `z-index` malte der Browser sie unter
+     die (im DOM frühere) Kopfzeile — am Handy lag der obere Teil der Reiter
+     unsichtbar hinter „Heute/Datum/Auswahlfeld“ (im Wegwerf-Stack gemessen:
+     ein Klick auf „Zu prüfen“ traf das Auswahlfeld). */
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.kronos-reiter {
+  margin: 0;
+  padding: 0 var(--sp-4);
+}
+/* Vollbild der Prüf-Tafel: nur der aktive Eintrag steht in der Leiste — die
+   Unterlinie der ganzen Leiste wäre dann eine Linie ohne Inhalt. */
+.kronos-reiter--tafel { border-bottom-color: transparent; }
+/* FIX-6: Die Reiterleiste rückt am Handy bündig mit dem Kopf (dessen
+   Seitenrand dort schmaler ist) — LAYOUT, also nur die Breite, nie der
+   Zeigertyp. */
+@media (max-width: 720px) {
+  .kronos-reiter { padding: 0 var(--sp-3); }
+}
 .kronos-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* UX3d: `min-height` allein ließ die Kopfzeile am Handy auf der festen
+     Zeilenhöhe stehen, während sie ZWEI Zeilen umbrach (`flex-wrap`) — die
+     zweite Zeile (Auswahlfeld, Augen/Stift) ragte aus dem Kasten und legte
+     sich über die Reiterleiste darunter. `height: auto` lässt den Kasten
+     mitwachsen; am Desktop ist er ohnehin genau eine Zeile hoch. */
+  height: auto;
   min-height: var(--topbar-h);
   padding: 8px var(--sp-4);
   background: var(--surface);
-  border-bottom: 1px solid var(--line);
   gap: var(--gap);
   /* UXK-008: Auf schmalen Bildschirmen darf die Kopfzeile nicht aus dem
      Fenster laufen — die Umbruchfaehigkeit ist die Grundlage dafuer, dass
@@ -324,47 +399,18 @@ onMounted(() => {
   border: 1px dashed var(--line);
   border-radius: var(--radius);
 }
-/* UX1e2: Knopf-Fläche in der Kopfzeile. Das Knopf-System (DkButton) bringt
-   Höhe, Abstand und Optik mit; hier steht nur, wo der Knopf sitzt, damit er
-   mit den Nachbarn (Umschalter, „Nur lesen“) auf einer Linie bleibt.
-   Keine festen Farben. */
-.moderation-knopf {
-  flex: 0 0 auto;
-  align-self: center;
-}
-.pruefen-knopf-label { display: inline-flex; align-items: center; gap: var(--sp-1); }
-/* UX3a: Zahl offener Vorschläge am Reiter „Zu prüfen“ (Entwurf A4 zeigt den
-   Zähler als Badge). Gold = Statusfarbe „zu prüfen“, wie in der Statusfläche
-   der Umschlagtafel (--warn auf --warn-soft, dieselben Tokens wie
-   .dk-badge-warning). */
-/* UX3a2: Werte kommen aus der Skala (tokens.css) statt als Literale —
-   Schrift 12 px (--fs-sm), Innenabstand waagerecht --sp-1, Mindesthöhe und
-   Mindestbreite auf der Zeilenhöhe der Schrift. Gold bleibt Statusfarbe
-   „zu prüfen“. */
-.pruefen-knopf-zahl {
-  min-width: var(--sp-4);
-  height: var(--sp-4);
-  padding: 0 var(--sp-1);
-  border-radius: var(--badge-r);
-  background: var(--warn-soft);
-  color: var(--warn);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-fett);
-  line-height: var(--sp-4);
-  text-align: center;
-}
-/* FIX-6: Beschriftung „Zu prüfen“ weicht in der Mobil-Lage dem Symbol —
-   LAYOUT, also nur die Breite (index.css «FIX-6 · Layout nur nach Breite»).
-   Vorher genügte `(hover: none) and (pointer: coarse)`, wodurch auf einem
-   Touch-Notebook mit 1410 px Breite die Beschriftung verschwand.
-   UX1e2: Der Name des Knopfes bleibt „Termine prüfen und freigeben“ (aria-label am
-   DkButton); nur der sichtbare Text verschwindet. Die mobile Fläche bleibt
-   quadratisch — Innenabstand links/rechts gleich, damit das Symbol mittig
-   steht (statt 14 px fester Polsterung einer schmalen Fläche). */
-@media (max-width: 720px) {
-  .moderation-knopf { padding-left: var(--sp-3); padding-right: var(--sp-3); }
-  .pruefen-knopf-label { display: none; }
-}
+
+/* UX3d: Die Styles des früheren „Zu prüfen“-Knopfes in der Kopfzeile
+   (`.moderation-knopf`, `.moderation-btn-label`, `.moderation-btn-zahl`) sind
+   entfallen — dieser Eintrag ist jetzt der vierte Reiter der Kalender-Leiste
+   (components/kronos/KalenderReiter.vue, Zähler dort als `.kal-reiter-zahl`
+   mit denselben Status-Tokens).
+   Der Kommentar MUSS geschlossen werden: ein offenes Kommentierende
+   verschluckte die
+   folgende @media-Regel (der Browser verwarf sie still — im Wegwerf-Stack
+   gemessen: die Bedienzeile blieb am Handy einzeilig und legte sich über die
+   Reiter). Wächter: `ux3d-kalender-pruefen.test.mjs`, „CSS-Kommentare sind
+   geschlossen“. */
 
 /* UXK-008: Auf schmalen Bildschirmen umbrechen Kopfzeile und Bedienelemente
    so, dass Auswahl-Umschalter, Stift „Bearbeiten“ und „Moderation“ im Bild
@@ -378,7 +424,12 @@ onMounted(() => {
   .header-center { order: 2; flex: 1 1 auto; }
   .header-right {
     order: 3;
-    flex: 1 0 100%;       /* volle Breite -> eigene Zeile unter dem Datum */
+    /* `1 0 100%` allein ist ein `flex-basis`-Startwert: ist der Inhalt breiter
+       als das Fenster, wuchs die Basis mit und die Zeile ragte über den Kopf
+       hinaus — das Auswahlfeld lag dann (gemessen 390 px) über der
+       Reiterzeile darunter. `0 0 100%` hält die Zeile am Fenster. */
+    flex: 0 0 100%;
+    min-width: 0;
     justify-content: flex-end;
     flex-wrap: wrap;
     row-gap: 6px;

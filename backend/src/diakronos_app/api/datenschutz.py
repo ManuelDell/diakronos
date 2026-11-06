@@ -215,9 +215,9 @@ def _verweigere_root_loeschung() -> None:
 
     if ist_root(session.user):
         raise ValidationError(
-            "Dieses Konto ist der Root-Benutzer und kann nicht gelöscht werden. "
-            "Bitte zuerst die Root-Rechte an eine andere Person übertragen "
-            "(Einstellungen → Zugang)."
+            "Das Konto der Hauptverwaltung (root) ist geschützt — du kannst "
+            "es nicht löschen. Bitte übertrage zuerst die Root-Rechte an eine "
+            "andere Person (Einstellungen → Zugang)."
         )
 
 
@@ -528,8 +528,9 @@ def loeschung_bestaetigen(mitglied_id, bestaetigt=False, request=None):
 
         if any(ist_root(k) for k in konten):
             raise ValidationError(
-                "Diese Person ist der Root-Benutzer und kann nicht gelöscht "
-                "werden. Bitte zuerst die Root-Rechte übertragen."
+                "Diese Person gehört zur Hauptverwaltung (root) — das Konto "
+                "ist geschützt und kann nicht gelöscht werden. Bitte übertrage "
+                "zuerst die Root-Rechte."
             )
 
         adresse = str(person.email or "").strip()

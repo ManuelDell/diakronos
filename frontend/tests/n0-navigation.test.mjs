@@ -52,10 +52,14 @@ function routerAusfuehren(boot) {
   const h = routerAusfuehren({ is_admin: true, hash: '#/personen/uebersicht' })
   const erwartet = {
     '#/personen/uebersicht': 'MitgliederUebersicht',
-    '#/personen/liste': 'MitgliederListe',
+    // UX3b: der Reiter „Liste“ ist die zusammengelegte Personen-Seite.
+    '#/personen/liste': 'Personen',
     '#/personen/anfragen': 'MitgliederAnfragen',
     '#/personen/datenschutz': 'MitgliederDatenschutz',
-    '#/personen/adressbuch': 'Adressbuch',
+    // UX3b2: die alte Adressbuch-Seite ist entfallen. Die Adresse leitet im
+    // Router auf die Liste; hier (feste Routentabelle ohne Weiterleitungen)
+    // steht deshalb KEIN Eintrag mehr. Die Weiterleitung selbst prüft der
+    // eigene Abschnitt unten bzw. ux3b2-navigation.test.mjs.
     '#/kalender/pruefen': 'Pruefen',
     '#/dienste/meine-dienste': 'PlanrahmenDienste',
     '#/dienste/dienstplaene': 'DiensteDienstplaene',
@@ -92,7 +96,7 @@ function routerAusfuehren(boot) {
     '#/mitglieder/datenschutz': '#/personen/datenschutz',
     '#/mitglieder/loeschantraege': '#/personen/loeschantraege',
     '#/mitglieder/import': '#/personen/import',
-    '#/adressbuch': '#/personen/adressbuch',
+    '#/adressbuch': '#/personen/liste',
     '#/datenschutz': '#/personen/datenschutz',
     '#/moderation': '#/kalender/pruefen',
     '#/dienstplan': '#/dienste/meine-dienste',
@@ -112,10 +116,14 @@ function routerAusfuehren(boot) {
 // ── Rollenabhängige Weiterleitung ───────────────────────────────────────────
 {
   const admin = routerAusfuehren({ is_admin: true, hash: '#/' })
+  // UX3b: der Einstieg führt BEIDE Rollen auf die Liste (dort zeigt die
+  // Seite je Rolle die passende Quelle); die Übersicht bleibt Lesezeichen.
   admin.gehe('#/personen')
-  assert.equal(admin.window.location.hash, '#/personen/uebersicht', 'Admin → Übersicht')
+  assert.equal(admin.window.location.hash, '#/personen/liste', 'Einstieg → Liste')
   admin.gehe('#/mitglieder')
-  assert.equal(admin.window.location.hash, '#/personen/uebersicht', 'alte Adresse → Übersicht')
+  // UX3b2: auch die alte Bereichsadresse führt auf die Liste — vorher landeten
+  // Administratoren auf der Übersicht, obwohl die Liste der Einstieg ist.
+  assert.equal(admin.window.location.hash, '#/personen/liste', 'alte Adresse → Liste')
   admin.gehe('#/dsgvo')
   assert.equal(admin.window.location.hash, '#/personen/datenschutz', 'Admin-DSGVO → Datenschutz-Reiter')
 

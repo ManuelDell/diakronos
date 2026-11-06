@@ -62,34 +62,51 @@ class Rechte:
         markiert ist), nur ohne zweite DB-Verbindung: die Prüfung läuft
         innerhalb der Transaktion, die der Aufrufer ohnehin hält.
 
-        ON-6d (Review ON-6c, Punkt 2): wie :meth:`eigene_gruppen_verantwortung`
-        und die Rollepruefung in :meth:`admin` loest die Pruefung zusaetzlich
-        ueber die EINDEUTIGE E-Mail auf. Ein Konto ohne `Mitglied.user`-
-        Bindung — die Bindung entsteht erst beim ersten Anmelden — war sonst
-        nie ausgeschlossen; `Rechte.admin()` liess es durch, waehrend
-        `get_roles` (Rollenpruefung) es ueber die E-Mail laengst abgewiesen
-        hatte. Zwei Wege, zwei Antworten. Die E-Mail zaehlt nur, wenn sie
-        GENAU EIN Mitglied ohne Kontobindung trifft (dieselbe Bedingung wie
-        :meth:`eigenes_mitglied`).
+        ON-6d/ON-6f: Der Ausschluss wird über DIESELBE Auflösung gelesen wie
+        in `get_roles` — `benutzer_status.wirksame_konten`: `user`-Link UND
+        Konto mit derselben E-Mail, verglichen OHNE Groß-/Kleinschreibung
+        (`normalisiere`, wie `_get_current_user_mitglied`). Ein Konto ohne
+        `Mitglied.user`-Bindung (die Bindung entsteht erst beim ersten
+        Anmelden) war hier sonst nie ausgeschlossen, während `get_roles` es
+        über die Adresse längst abwies — zwei Wege, zwei Antworten.
+
+        NICHT schwächer als `get_roles`: markiert ist markiert, sobald EINE
+        Mitglied-Zeile mit dieser Adresse (oder diesem Konto) ausgeschlossen
+        ist. Mehrdeutige Altbestände sperren damit höchstens ZU viel, nie zu
+        wenig (dieselbe vorsichtige Lesart wie `wirksame_konten`). Die
+        E-Mail-Vergleichsregel selbst steht NICHT hier: sie liegt in
+        `email_belegung.normalisiere` und wird auch von `wirksame_konten`
+        benutzt (Single Source of Truth).
         """
-        if bool(self.session.scalar(
+        from diakronos_app.frappe_compat.benutzer_status import wirksame_konten
+        from diakronos_app.models.diakonos import Mitglied as MitgliedModell
+
+        bindung = bool(self.session.scalar(
             select(Mitglied.ausgeschlossen).where(
                 Mitglied.user == self.benutzer,
                 Mitglied.ausgeschlossen.is_(True),
             ).limit(1)
-        )):
+        ))
+        if bindung:
             return True
-        konto = self.session.get(User, self.benutzer)
-        email = str((konto.email if konto else "") or "").strip()
-        if not email:
+
+        # Kandidaten: alle ausgeschlossenen Mitglieder (Vollscan, wie in
+        # `_kontozustand`) — die Adressauflösung ist Python-seitig, eine
+        # SQL-Vorauswahl faltet Leer-/Sonderzeichen anders als `normalisiere`.
+        kandidaten = [dict(r) for r in self.session.execute(
+            select(MitgliedModell.name, MitgliedModell.user, MitgliedModell.email)
+            .where(MitgliedModell.ausgeschlossen.is_(True))
+        ).mappings()]
+        if not kandidaten:
             return False
-        treffer = self.session.execute(
-            select(Mitglied.ausgeschlossen).where(
-                Mitglied.email == email,
-                Mitglied.user.is_(None),
-            )
-        ).scalars().all()
-        return len(treffer) == 1 and bool(treffer[0])
+        konto = self.session.get(User, self.benutzer)
+        # Dieselbe Konto-Sicht wie `benutzer_status._kontozustand` (die
+        # Adresse kommt aus `User.email`, sonst ist sie der Kontoname).
+        konten = [{"name": self.benutzer, "email": getattr(konto, "email", None)}]
+        for m in kandidaten:
+            if self.benutzer in wirksame_konten(m, _mitglieder=[m], _konten=konten):
+                return True
+        return False
 
     def admin(self) -> bool:
         """Nur Administrator/System Manager, nicht weitere Verwaltungsrollen.

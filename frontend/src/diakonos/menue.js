@@ -54,7 +54,11 @@ export const MENUE = [
         eintraege: [
             {
                 id: 'personen', label: 'Personen', href: '#/personen', icon: 'users',
-                seiten: ['Personen', 'MitgliederUebersicht', 'MitgliederListe', 'PersonenListe', 'PersonenAnfragen', 'PersonenDatenschutz', 'MitgliederDatenschutz', 'PersonenLoeschantraege',
+                // UX3b: „Übersicht“ ist kein Reiter von Personen mehr —
+                // der Einstieg zeigt die Liste (je Rolle Mitglieder- oder
+                // Adressbuch-Sicht). „MitgliederUebersicht“ bleibt als
+                // weitergeleitete Altadresse in der Liste (Lesezeichen).
+                seiten: ['Personen', 'MitgliederListe', 'PersonenListe', 'PersonenAnfragen', 'PersonenDatenschutz', 'MitgliederDatenschutz', 'PersonenLoeschantraege',
                     'MitgliederLoeschantraege', 'PersonenImport', 'MitgliedDetail', 'Adressbuch'],
                 rolle: 'alle', badge: 'anfragen', suche: true,
             },
@@ -111,14 +115,16 @@ export const MENUE_EINTRAEGE = [...MENUE.flatMap(g => g.eintraege), ...FUSS_EINT
  *  UX3a: „Adressbuch“ und „Datenschutz“ sind Reiter dieses Bereichs geworden
  *  (vorher eigene Menüpunkte); die Adressen liegen unter `#/personen/…`. */
 export const MITGLIEDER_REITER = [
-    { id: 'uebersicht', label: 'Übersicht', href: '#/personen/uebersicht', seite: 'MitgliederUebersicht', rolle: 'admin' },
+    // UX3b (Entwurf A3, Entscheidung Manuel): VIER Reiter — Liste · Anfragen ·
+    // Datenschutz · Import. „Liste“ ist für ALLE sichtbar und zeigt je Rolle
+    // die passende Quelle (Mitgliederliste oder Adressbuch-Sicht); ein eigener
+    // Reiter „Adressbuch“ entfällt, weil die Liste diese Sicht schon ist.
+    // Reiter, die nur der Mitgliederbereich selbst kennt (Übersicht,
+    // Löschanträge), stehen hier NICHT: sie haben weiter ihre Adresse, sind
+    // aber kein Reiter des Bereichs mehr (Entwurf A3).
     { id: 'liste', label: 'Liste', href: '#/personen/liste', seite: 'MitgliederListe', rolle: 'alle' },
-    { id: 'adressbuch', label: 'Adressbuch', href: '#/personen/adressbuch', seite: 'Adressbuch', rolle: 'alle' },
     { id: 'anfragen', label: 'Anfragen', href: '#/personen/anfragen', seite: 'MitgliederAnfragen', rolle: 'admin' },
     { id: 'datenschutz', label: 'Datenschutz', href: '#/personen/datenschutz', seite: 'MitgliederDatenschutz', rolle: 'admin' },
-    // DSGVO-2c: eigene Seite für die Arbeitsliste der Verwaltung (vor dem
-    // Import, weil sie zu tun gibt — der Import ist Vorbereitung).
-    { id: 'loeschantraege', label: 'Löschanträge', href: '#/personen/loeschantraege', seite: 'MitgliederLoeschantraege', rolle: 'admin' },
     { id: 'import', label: 'Import', href: '#/personen/import', seite: 'MitgliederImport', rolle: 'admin' },
 ]
 
@@ -375,4 +381,54 @@ export const LIEDER_REITER = [
  *  Die Reiter „Monat/Woche/Liste“ werden von KronosTopbar gezeichnet (eigener
  *  Umschalter); `seite` bleibt für beide „Kalender“. „Zu prüfen“ ist die
  *  frühere Moderationsseite und nur für Moderatoren sichtbar (Server prüft). */
-export const KALENDER_PRUEF_REITER = { label: 'Zu prüfen', seite: 'Pruefen', href: '#/kalender/pruefen' }
+export const KALENDER_PRUEF_REITER = {
+    id: 'pruefen', label: 'Zu prüfen', seite: 'Pruefen', href: '#/kalender/pruefen',
+}
+
+/**
+ * Reiter, die der Kalender dem aktuellen Nutzer ANZEIGT (UX3d).
+ *
+ * Entwurf A4 zeigt am Kopf des Kalenders EINE Leiste
+ * **Monat · Woche · Liste · Zu prüfen (n)**. Der letzte Eintrag erscheint nur
+ * für Moderatoren — Entscheidung Manuel (UX3d): „nur für Moderatoren
+ * sichtbar“. Das Recht kommt aus dem Boot-Objekt (`can_moderate`, dieselbe
+ * Quelle wie `get_session_info` im Server); ohne Angabe gilt `false`
+ * (fail closed — lieber kein Reiter als einer, der „Zugriff verweigert“
+ * anzeigt).
+ *
+ * Die Zahl offener Prüfungen (`offeneZahl`) ist eine Kennzahl, kein Wert:
+ * fehlt sie oder ist sie keine Zahl, bleibt die Beschriftung ohne Zahl — nie
+ * eine erfundene 0.
+ *
+ * @param {{can_moderate?: boolean, offeneZahl?: number|null}} optionen
+ * @returns {Array<{id: string, label: string, href: string|null, seite: string,
+ *                  zahl: number|null, aktiv: string}>}
+ *          `aktiv` ist der Ansichtsname, den `KronosTopbar` als aktiv markiert
+ *          (`dayGridMonth`/`timeGridWeek`/`listMonth`/`pruefen`).
+ */
+export function kalenderReiter({ can_moderate = false, offeneZahl = null } = {}) {
+    const zahl = (offeneZahl === null || offeneZahl === undefined || offeneZahl === '')
+        ? null
+        : (Number.isFinite(Number(offeneZahl)) ? Number(offeneZahl) : null)
+    const reiter = [
+        // `ansicht: true` = Umschalter derselben Seite (Knopf im Bauteil),
+        // ohne = eigene Seite (Link). Das Bauteil entscheidet NICHT anhand
+        // von `href` — ein gesetzter `href` an einem Umschalter würde daraus
+        // einen Seitenwechsel machen.
+        { id: 'monat', label: 'Monat', href: '#/kalender', ansicht: true, seite: 'Kalender', zahl: null, aktiv: 'dayGridMonth' },
+        { id: 'woche', label: 'Woche', href: null, ansicht: true, seite: 'Kalender', zahl: null, aktiv: 'timeGridWeek' },
+        { id: 'liste', label: 'Liste', href: null, ansicht: true, seite: 'Kalender', zahl: null, aktiv: 'listMonth' },
+    ]
+    if (can_moderate === true) {
+        reiter.push({
+            id: KALENDER_PRUEF_REITER.id,
+            label: KALENDER_PRUEF_REITER.label,
+            href: KALENDER_PRUEF_REITER.href,
+            ansicht: false,
+            seite: KALENDER_PRUEF_REITER.seite,
+            zahl: (zahl !== null && zahl > 0) ? zahl : null,
+            aktiv: KALENDER_PRUEF_REITER.id,
+        })
+    }
+    return reiter
+}

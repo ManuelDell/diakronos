@@ -244,7 +244,6 @@ def test_telefonnummer_an_gewOEhnlichem_mitglied_geht_durch(client, patched_db, 
 def test_texte_sind_du_form_und_ohne_fachbegriffe(fake_redis) -> None:
     """„Sie“ und „Root-Benutzer“ gehoeren nicht in die Meldung (UI-Prinzipien)."""
     from diakronos_app.api import zugang
-    from diakronos_app.frappe_compat import api_helpers
 
     volltexte = [
         *zugang._ROOT_TEXTE.values(),
@@ -261,17 +260,6 @@ def test_texte_sind_du_form_und_ohne_fachbegriffe(fake_redis) -> None:
     # Die Glieder fuer das Mitglied stehen hinter „Das Konto … ist geschützt — du kannst “.
     from diakronos_app.api.zugang import _ROOT_TEXTE as _texte
 
-    glieder = [*api_helpers.KONTO_VORGANG_TEXT.values(),
-               *api_helpers.KONTO_FELD_TEXT.values()]
-    for glied in glieder:
-        text = f"Das Konto der Hauptverwaltung (root) ist geschützt — du kannst {glied}."
-        text = " ".join(text.split())
-        assert "Root-Benutzer" not in text, f"Fachbegriff in der Meldung: {text}"
-        assert "Sie " not in text, f"Sie-Form: {text}"
-        assert len(text) <= 130, f"zu lang ({len(text)}): {text}"
-        # Jedes Glied wird auch wirklich verwendet (kein toter Text).
-        assert (glied in api_helpers.KONTO_VORGANG_TEXT.values()
-                or glied in api_helpers.KONTO_FELD_TEXT.values())
     # Und jeder Vorgang hat eine Meldung — kein stiller Rueckfall auf „ändern“.
     for art in ("ausschluss", "loeschung", "dsgvo", "rollen"):
         assert art in _texte, f"kein eigener Text fuer {art}"
@@ -317,11 +305,12 @@ def test_rechte_ausgeschlossen_ueber_eindeutige_email(client, patched_db, fake_r
         sess.close()
 
 
-def test_rechte_ausgeschlossen_email_mehrdeutig_zaehlt_nicht(client, patched_db, fake_redis) -> None:
-    """Zwei Mitglieder an derselben Adresse: keine eindeutige Zuordnung -> nein.
+def test_rechte_ausgeschlossen_email_mehrdeutig_zaehlt_wie_get_roles(client, patched_db, fake_redis) -> None:
+    """Zwei Mitglieder an derselben Adresse: der Ausschluss zaehlt trotzdem.
 
-    Dieselbe Bedingung wie :meth:`Rechte.eigenes_mitglied` — ohne Eindeutigkeit
-    gibt es keine Identitaet. Der partielle Unique-Index
+    Seit ON-6f dieselbe Regel wie ``get_roles`` (fail closed): ein
+    ausgeschlossenes Mitglied an der Adresse sperrt, auch wenn die Adresse
+    nicht eindeutig ist. Der partielle Unique-Index
     (``uq_mitglied_email_normalisiert``) laesst zwei gleiche Adressen im
     Betrieb nicht zu; er wird hier fuer die Dauer des Tests aufgehoben, weil
     die Funktion selbst geprueft wird (Altbestand vor der Migration).
@@ -347,8 +336,9 @@ def test_rechte_ausgeschlossen_email_mehrdeutig_zaehlt_nicht(client, patched_db,
 
     sess = SessionLocal()
     try:
-        # Die Adresse ist nicht EINDEUTIG (zwei Zeilen) -> kein Ausschluss.
-        assert Rechte(sess, konto).ausgeschlossen() is False
+        # Die Adresse ist nicht EINDEUTIG (zwei Zeilen): wie get_roles zaehlt
+        # der Ausschluss trotzdem (ON-6f, fail closed).
+        assert Rechte(sess, konto).ausgeschlossen() is True
         # Gegenprobe: bleibt EINE Zeile uebrig, greift sie wieder.
         sess.get(Mitglied, "M-doppelt-2").email = "andere@x.example"
         sess.flush()

@@ -30,34 +30,53 @@
 
   <!-- Tafel „Zu prüfen“ (UX3a: der vierte Reiter des Kalenders) -->
   <div v-else class="dk-screen dk-screen-wide dk-moderation dk-screen-enter">
-    <!-- Header -->
-    <DkPageHeader title="Zu prüfen" :badges="moderationCount > 0 ? [{ text: String(moderationCount), variant: 'akzent' }] : []">
-      <template #actions>
+    <!-- UX3d: Kopf und Reiterleiste des Kalenders stehen auch hier — der
+         vierte Reiter ist der aktive, „Monat/Woche/Liste“ führen zurück. So
+         ist der Weg hinein und hinaus EIN Muster, und der Seitentitel
+         („Zu prüfen“) steht dort, wo sonst der Monatsname steht. Die
+         Bedienung der Tafel bleibt unverändert (Alle freigeben, Erklärung,
+         Änderungen, Brett). Vorher trug die Seite ihren eigenen Seitenkopf. -->
+    <KronosTopbar
+      class="dk-moderation-kopf"
+      dateTitle="Zu prüfen"
+      :currentView="'pruefen'"
+      viewMode="view"
+      :canWrite="false"
+      :canModerate="true"
+      :offeneZahl="moderationCount > 0 ? moderationCount : null"
+      aktiverReiter="pruefen"
+      pruefTafel
+    />
+
+    <div class="dk-moderation-inhalt">
+      <div class="dk-moderation-aktionen">
         <DkButton variant="ghost" size="sm" class="dk-moderation-mobile-back" aria-label="Zurück zum Kalender" @click="goToKalender">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Kalender
         </DkButton>
+        <span class="dk-moderation-anzahl">{{ moderationCount > 0 ? zahlWort(moderationCount, 'Termin', 'Termine') + ' zu prüfen' : '' }}</span>
         <DkButton variant="primary" :disabled="!canFinalize" @click="finalizeAll">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10-10"/></svg>
           {{ finalizing ? '…' : 'Alle freigeben' }}
         </DkButton>
-      </template>
-    </DkPageHeader>
+      </div>
 
-    <!-- OP-ADMIN-18: Erklärsatz über der Moderationstafel. Wer die Seite
-         zum ersten Mal öffnet, soll ohne Nachfrage wissen, was hier passiert
-         und was die beiden Ablagen bedeuten. -->
-    <p class="dk-moderation-erklaerung" data-test="moderation-erklaerung">
-      Neue Terminvorschläge landen links unter „Vorschläge“. Ziehst du einen
-      Vorschlag nach rechts in „Freigeben“ oder drückst „Alle freigeben“, wird
-      er verbindlich und erscheint im Kalender. Bis dahin sehen ihn nur die
-      Moderatorinnen und Moderatoren.
-    </p>
+      <!-- OP-ADMIN-18: Erklärsatz über der Moderationstafel. Wer die Seite
+           zum ersten Mal öffnet, soll ohne Nachfrage wissen, was hier passiert
+           und was die beiden Ablagen bedeuten. -->
+      <p class="dk-moderation-erklaerung" data-test="moderation-erklaerung">
+        Neue Terminvorschläge landen links unter „Vorschläge“. Ziehst du einen
+        Vorschlag nach rechts in „Freigeben“ oder drückst „Alle freigeben“, wird
+        er verbindlich und erscheint im Kalender. Bis dahin sehen ihn nur die
+        Moderatorinnen und Moderatoren.
+      </p>
 
-    <!-- Änderungen an freigegebenen Terminen (Operator-Regel 16.10.) -->
-    <ModerationAenderungen />
+      <!-- Änderungen an freigegebenen Terminen (Operator-Regel 16.10.) -->
+      <ModerationAenderungen />
 
-    <!-- Board -->
-    <ModerationBoard ref="board" />
+      <!-- Board -->
+      <ModerationBoard ref="board" />
+    </div>
   </div>
 </template>
 
@@ -65,7 +84,7 @@
 import { ref, computed, onMounted } from 'vue'
 import ModerationBoard from '../components/kronos/ModerationBoard.vue'
 import ModerationAenderungen from '../components/kronos/ModerationAenderungen.vue'
-import DkPageHeader from '../components/ui/DkPageHeader.vue'
+import KronosTopbar from '../components/kronos/KronosTopbar.vue'
 import DkButton from '../components/ui/DkButton.vue'
 // UX2d3b (Review UX2d3a/B): Laden/Prüfen zeigt den Umriss, keinen Satz.
 import DkSkelett from '../components/ui/DkSkelett.vue'
@@ -186,6 +205,33 @@ onMounted(async () => {
 /* BF1-I: Gemeinsamer Seitenrahmen wie alle anderen Seiten (.dk-screen liefert
    die einheitlichen Raender). Nur die innere Anordnung bleibt flexibel. */
 .dk-moderation { display: flex; flex-direction: column; }
+/* UX3d: Kopf + Reiterleiste stehen randlos oben (wie im Kalender); erst der
+   Inhalt der Tafel bekommt den Seitenrand. */
+.dk-moderation-inhalt { min-width: 0; }
+.dk-moderation-kopf { margin: calc(-1 * var(--pad)) calc(-1 * var(--pad)) 0; }
+.dk-moderation-inhalt {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--sp-4);
+  min-height: 0;
+}
+/* Aktionszeile: links der Rückweg (am Handy), rechts die Hauptaktion — genau
+   EIN gefüllter Primärknopf je Ansicht (S1). Die Zahl steht als ruhiger Satz
+   zwischen beiden; im Entwurf trägt sie der Reiter. */
+.dk-moderation-aktionen {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  margin: 0 0 var(--sp-3);
+}
+.dk-moderation-anzahl {
+  margin-right: auto;
+  font-size: var(--fs-14);
+  color: var(--dk-text-muted);
+  font-variant-numeric: var(--fs-tabular);
+}
 
 /* OP-ADMIN-18: kurze Erklärung, was die beiden Ablagen bedeuten. */
 .dk-moderation-erklaerung {
@@ -194,12 +240,5 @@ onMounted(async () => {
   line-height: 1.5;
   color: var(--dk-text-muted);
   max-width: 70ch;
-}
-
-/* Mobile back button */
-.dk-moderation-mobile-back { display: none; }
-
-@media (max-width: 768px) {
-  .dk-moderation-mobile-back { display: inline-flex; }
 }
 </style>

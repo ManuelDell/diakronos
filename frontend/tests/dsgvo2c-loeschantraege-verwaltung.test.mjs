@@ -62,8 +62,11 @@ test('DSGVO-2c · eigene Adresse, Reiter und Admin-Guard', () => {
   // Direktaufruf ohne Administrator landet auf dem Dashboard.
   const guard = router.slice(router.indexOf('const ADMIN_ONLY_PAGES'))
   assert.match(guard.slice(0, guard.indexOf('])')), /'MitgliederLoeschantraege'/)
-  // Reiter + Menü (Seitenleiste bleibt bei „Mitglieder“ markiert).
-  assert.match(menue, /\{ id: 'loeschantraege', label: 'Löschanträge', href: '#\/personen\/loeschantraege', seite: 'MitgliederLoeschantraege', rolle: 'admin' \}/)
+  // Menü (Seitenleiste bleibt bei „Personen“ markiert). UX3b: „Löschanträge“
+  // ist kein eigener Reiter des Bereichs mehr (Entwurf A3: vier Reiter), die
+  // Adresse und der Schutz bleiben — sie führt über den Datenschutz-Reiter.
+  assert.doesNotMatch(menue, /\{ id: 'loeschantraege', label: 'Löschanträge',/)
+  assert.match(menue, /'PersonenLoeschantraege',\s*\n?\s*/)
   // Seitennamen führen zur Markierung „Personen“ in der Seitenleiste.
   assert.match(menue, /'MitgliederDatenschutz',\s*\n?\s*'PersonenLoeschantraege',\s*\n?\s*'MitgliederLoeschantraege'/)
   // Der Mitglieder-Rahmen zeigt die Seite als Reiterinhalt.

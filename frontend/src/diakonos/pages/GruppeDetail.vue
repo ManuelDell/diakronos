@@ -182,7 +182,15 @@
 
                 <DkEmpty v-if="mitglieder.length === 0" title="Keine Mitglieder vorhanden" icon="👤" />
                 <DkTable v-else :spalten="mitgliederSpalten">
-                    <tr v-for="m in mitglieder" :key="m.name || m.mitglied">
+                    <!-- UX2e (Entwurf B1, N6): Der Zeilenknopf „Entfernen" ist ins
+                         „⋯"-Menü gewandert; die Rolle lässt sich dort ebenfalls
+                         ändern (dieselbe Serverfunktion). Rechtsklick auf die
+                         Zeile öffnet dasselbe Menü. -->
+                    <tr
+                        v-for="m in mitglieder"
+                        :key="m.name || m.mitglied"
+                        @contextmenu.prevent="zeilenKontextmenue($event, m)"
+                    >
                         <td class="grup-wert">
                             <a v-if="darfProfilLink(m) && m.mitglied" :href="`#/mitglied/${m.mitglied}`" class="grup-link">
                                 {{ m.vollstaendiger_name || m.name || m.mitglied }}
@@ -196,8 +204,14 @@
                             <DkBadge :variant="mitgliedStatusVariante(m.status)">{{ m.status || 'Unbekannt' }}</DkBadge>
                         </td>
                         <td class="grup-muted">{{ formatDate(m.beitrittsdatum) || '–' }}</td>
-                        <td class="grup-rechts">
-                            <DkButton variant="ghost" size="sm" @click="removeMitglied(m)">Entfernen</DkButton>
+                        <td class="dk-zeilen-aktion">
+                            <span class="grup-aktionen">
+                                <DkAktionen
+                                    :ref="el => setzeAktion(el, m)"
+                                    :eintraege="aktionenFuerMitglied(m)"
+                                    :label="`Aktionen für ${m.vollstaendiger_name || m.name || 'dieses Mitglied'}`"
+                                />
+                            </span>
                         </td>
                     </tr>
                 </DkTable>
@@ -250,6 +264,8 @@ import DkField from '../components/ui/DkField.vue'
 import DkSelect from '../components/ui/DkSelect.vue'
 import DkCheckbox from '../components/ui/DkCheckbox.vue'
 import DkTable from '../components/ui/DkTable.vue'
+// UX2e: EIN Aktionsmenü „⋯" für alle Listen (Entwurf B1).
+import DkAktionen from '../components/ui/DkAktionen.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkHint from '../components/ui/DkHint.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
@@ -263,6 +279,7 @@ export default {
     components: {
         DkPageHeader, DkButton, DkBadge, DkCard, DkField, DkSelect,
         DkCheckbox, DkTable, DkEmpty, DkHint, MitgliedAuswahl, VerantwortlicheKarte,
+        DkAktionen,
     },
     setup() {
         const { isAdmin, user } = useSession()
@@ -646,6 +663,64 @@ export default {
             }
         }
 
+        /* ── UX2e · Aktionsmenü der Mitgliederzeile (Entwurf B1, N6/K4) ───────
+           Die Zeile hatte bisher EINEN Knopf („Entfernen"); jetzt trägt das
+           „⋯"-Menü die Aktionen dieses Mitglieds IN dieser Gruppe:
+             · Profil öffnen      (solange es ein Profil gibt)
+             · Rolle ändern       (Untermenü-frei: die Rollen stehen als eigene
+                                   Einträge — 5–8 Einträge, kein Erinnern)
+             · Aus Gruppe entfernen (gefährlich, abgesetzt am Ende; derselbe
+                                   Dialog wie bisher und dieselbe Serverfunktion)
+           Rolle ändern gilt nur für Verwalter (dieselbe Bedingung wie das
+           Rollen-Auswahlfeld daneben: `canManage`). */
+        const aktionRefs = new Map()
+        const mitgliedSchluessel = (m) => String(m.mitglied || m.name || '')
+        function setzeAktion(el, m) {
+            const schluessel = mitgliedSchluessel(m)
+            if (!schluessel) return
+            if (el) aktionRefs.set(schluessel, el)
+            else aktionRefs.delete(schluessel)
+        }
+
+        function aktionenFuerMitglied(m) {
+            const eintraege = []
+            if (darfProfilLink(m) && m.mitglied) {
+                eintraege.push({
+                    key: 'profil', label: 'Profil öffnen', icon: 'ansehen',
+                    aktion: () => navigate('#/mitglied/' + m.mitglied),
+                })
+            }
+            if (canManage.value) {
+                for (const r of rollenOptionen) {
+                    if (r.value === (m.rolle || '')) continue
+                    eintraege.push({
+                        key: 'rolle-' + (r.value || 'ohne'),
+                        label: r.value ? `Rolle „${r.label}"` : 'Rolle zurücksetzen',
+                        icon: 'rolle',
+                        aktion: () => rolleSetzen(m, r.value),
+                    })
+                }
+            }
+            eintraege.push({
+                key: 'entfernen', label: 'Aus Gruppe entfernen', icon: 'entfernen',
+                gefahr: true,
+                aktion: () => removeMitglied(m),
+            })
+            return eintraege
+        }
+
+        /** Rolle setzen — derselbe Weg wie das Auswahlfeld (updateRolle). */
+        async function rolleSetzen(m, wert) {
+            m.rolle = wert
+            await updateRolle(m)
+        }
+
+        /** Rechtsklick auf die Zeile öffnet dasselbe Menü. */
+        function zeilenKontextmenue(ereignis, m) {
+            aktionRefs.get(mitgliedSchluessel(m))
+                ?.oeffnenFuerZeile(ereignis, ereignis?.currentTarget)
+        }
+
         async function removeMitglied(m) {
             const id = gruppeId.value
             const mitglied_id = m.mitglied || m.name
@@ -760,6 +835,10 @@ export default {
             mitgliedAusgewaehlt,
             removeMitglied,
             updateRolle,
+            // UX2e: das Aktionsmenü der Mitgliederzeile.
+            setzeAktion,
+            aktionenFuerMitglied,
+            zeilenKontextmenue,
             // B-3: `navigate('#/wiki')` steht im Template (Options-API ohne
             // <script setup>, keine globalProperties) — ohne diese Zeile war
             // der Wiki-Knopf `undefined` und der Klick warf einen TypeError.
@@ -890,4 +969,11 @@ export default {
 
 .grup-wert { color: var(--text); }
 .grup-rechts { text-align: right; }
+
+/* UX2e: Die Aktionsspalte trägt nur den „⋯"-Knopf — schmal halten, damit die
+   Namensspalte den Platz behält. */
+.dk-zeilen-aktion {
+  width: var(--control-h);
+  text-align: right;
+}
 </style>

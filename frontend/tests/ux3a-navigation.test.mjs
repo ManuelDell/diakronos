@@ -82,11 +82,14 @@ function labels(gruppe) {
     'Moderation', 'Datenschutz', 'Einrichtung']) {
     assert.ok(!alleLabels.includes(alt), `"${alt}" ist kein eigener Menüpunkt mehr`)
   }
-  // Sie leben als Reiter weiter (Adressbuch/Datenschutz → Personen,
-  // Meine Dienste → Dienste, Liedgruppen → Lieder).
+  // Sie leben als Reiter bzw. Ansichten weiter (Meine Dienste → Dienste,
+  // Liedgruppen → Lieder). UX3b (Entscheidung Manuel): „Adressbuch“ ist KEIN
+  // eigener Reiter mehr — „Personen → Liste“ IST die Adressbuch-Sicht für alle
+  // Rollen ohne Verwaltungsrecht. „Datenschutz“ bleibt ein Reiter.
   const personen = M.MITGLIEDER_REITER.map(r => r.label)
-  assert.ok(personen.includes('Adressbuch'), 'Adressbuch ist Reiter von Personen')
-  assert.ok(personen.includes('Datenschutz'), 'Datenschutz ist Reiter von Personen')
+  assert.deepEqual([...personen], ['Liste', 'Anfragen', 'Datenschutz', 'Import'],
+    'die vier Reiter des Entwurfs A3 (UX3b)')
+  assert.ok(!personen.includes('Adressbuch'), 'Adressbuch ist keine eigene Ansicht mehr')
   assert.deepEqual(liste(M.DIENSTE_REITER).map(r => r.label), ['Meine Dienste', 'Dienstpläne', 'Vorlagen'])
   assert.deepEqual(liste(M.LIEDER_REITER).map(r => r.label), ['Lieder', 'Liedgruppen'])
   assert.equal(M.KALENDER_PRUEF_REITER.label, 'Zu prüfen')
@@ -129,9 +132,10 @@ function labels(gruppe) {
   assert.deepEqual(liste(M.sichtbareReiter(M.DIENSTE_REITER, { istAdmin: false })).map(r => r.id),
     ['meine-dienste', 'dienstplaene'])
   assert.equal(M.sichtbareReiter(M.DIENSTE_REITER, { istAdmin: true }).length, 3)
-  // Übersicht/Datenschutz der Personen nur für Admin; Liste für alle.
+  // UX3b: für alle bleibt die Liste (sie zeigt die Adressbuch-Sicht);
+  // Anfragen/Datenschutz/Import sind Admin-Reiter.
   assert.deepEqual(liste(M.sichtbareMitgliederReiter({ istAdmin: false })).map(r => r.id),
-    ['liste', 'adressbuch'])
+    ['liste'])
 
   // Gast (N5/Entwurf A8): nur Start und Kalender — „Dienste“ hat UX3a2
   // wieder entfernt (vor UX3a war der Bereich nicht für Gäste freigegeben).
@@ -198,7 +202,7 @@ function routerAusfuehren(boot) {
     '#/mitglieder/liste': '#/personen/liste',
     '#/mitglieder/uebersicht': '#/personen/uebersicht',
     '#/mitglieder/anfragen': '#/personen/anfragen',
-    '#/adressbuch': '#/personen/adressbuch',
+    '#/adressbuch': '#/personen/liste',
     '#/datenschutz': '#/personen/datenschutz',
     '#/moderation': '#/kalender/pruefen',
     '#/dienstplan': '#/dienste/meine-dienste',
@@ -284,13 +288,20 @@ function routerAusfuehren(boot) {
 // hashchange aus. Hier wird darum zusätzlich geprüft, dass die Zieladresse
 // selbst auf die erwartete Seite auflöst.
 {
-  const admin = routerAusfuehren({ is_admin: true, hash: '#/personen/uebersicht' })
-  assert.equal(admin.router.currentPageName.value, 'MitgliederUebersicht')
+  const admin = routerAusfuehren({ is_admin: true, hash: '#/personen/liste' })
+  assert.equal(admin.router.currentPageName.value, 'Personen')
+  // UX3b: Der Einstieg `#/personen` führt BEIDE Rollen auf die Liste — sie
+  // zeigt je Rolle die passende Quelle (Admin: Mitgliederliste, sonst
+  // Adressbuch-Sicht). Die alte Adresse `#/mitglieder` und die frühere
+  // Übersicht bleiben als Lesezeichen erreichbar.
+  admin.gehe('#/personen')
+  assert.equal(admin.window.location.hash, '#/personen/liste', '#/personen → Liste')
   admin.gehe('#/mitglieder')
-  assert.equal(admin.window.location.hash, '#/personen/uebersicht', 'Admin → Übersicht')
+  // UX3b2: alle Rollen landen auf der Liste (Entwurf A3: sie ist der Einstieg).
+  assert.equal(admin.window.location.hash, '#/personen/liste', 'Admin → Liste (Lesezeichen)')
 
   const mitglied = routerAusfuehren({ is_admin: false, mitglied: { status: 'Mitglied' }, hash: '#/personen/liste' })
-  assert.equal(mitglied.router.currentPageName.value, 'MitgliederListe')
+  assert.equal(mitglied.router.currentPageName.value, 'Personen')
   mitglied.gehe('#/mitglieder')
   assert.equal(mitglied.window.location.hash, '#/personen/liste', 'Mitglied → Liste')
 

@@ -205,8 +205,10 @@ test('FIX-4 · die Tabelle steht in einem Container, der den Überlauf trägt', 
 // ── 3. RessourcenVerwaltung.vue: gleiches Muster ────────────────────────────
 test('FIX-4 · RessourcenVerwaltung zeichnet die Aktionsspalte ebenfalls aus', () => {
   const tpl = vorlage(RESSOURCEN)
-  assert.match(tpl, /<td class="is-aktion">[\s\S]{0,120}?bearbeiten\(r\)/,
-    'gleiches Muster wie in den Formularen (<td class="is-aktion">)')
+  // UX2e: Die Aktionszelle trägt das „⋯“-Menü statt der zwei Zeilenknöpfe.
+  // Die Auszeichnung selbst bleibt dieselbe (FIX-4: `is-aktion` am <td>).
+  assert.match(tpl, /<td class="is-aktion">[\s\S]{0,400}?<DkAktionen/,
+    'gleiches Muster wie in den Formularen (<td class="is-aktion"> mit Aktionsmenü)')
   assert.doesNotMatch(seitenStil(RESSOURCEN), /\.rv-aktionen\s*\{[^}]*display:\s*flex/,
     '.rv-aktionen mit display:flex hat am <td> nichts bewirkt')
 })
@@ -218,10 +220,16 @@ test('FIX-4 · GruppeDetail zeichnet die Aktionsspalte aus (Auflage 2)', () => {
 })
 
 // ── 5. Mitgliederliste bleibt bei `auto` (Auflage 1) ───────────────────────
-test('FIX-4 · Mitgliederliste behält `table-layout: auto` (keine Aktionsspalte)', () => {
-  // Keine Spalte trägt `aktion` → DkTable setzt `has-aktion` nicht → `auto`.
-  assert.doesNotMatch(MITGLIEDER, /aktion:\s*true/,
-    'die Mitgliederliste hat keine Aktionsspalte; sie darf nicht auf fixed rutschen')
+test('FIX-4 · Mitgliederliste: die „⋯"-Spalte ist schmal (kein 200-px-Knopfblock)', () => {
+  // UX2e hat der Mitgliederliste eine Aktionsspalte mit dem „⋯"-Menü gegeben.
+  // Sie trägt deshalb `aktion: true` (FIX-4-Muster, `table-layout: fixed`);
+  // der Grund der ursprünglichen Auflage bleibt gewahrt: die Spalte ist EIN
+  // schmaler Knopf (Zellenklasse `.dk-zeilen-aktion`), kein breiter
+  // Knopfblock — und die Textspalten der Liste halten ihre Breite.
+  assert.match(MITGLIEDER, /aktion:\s*true/, 'die Spalte „Aktionen" ist als Aktionsspalte ausgezeichnet')
+  const stil = MITGLIEDER.slice(MITGLIEDER.indexOf('<style'))
+  assert.match(stil, /\.dk-zeilen-aktion\s*\{[^}]*width:\s*var\(--control-h\)/,
+    'die Aktionszelle ist genau einen Knopf breit')
 })
 
 // ── 6. nur Tokens ──────────────────────────────────────────────────────────
