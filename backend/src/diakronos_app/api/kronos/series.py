@@ -189,15 +189,15 @@ def update_series_batch_fast(series_id, updates):
         # wirksame Aenderung glauben. Die Meldung nennt das Feld.
         antwort["verworfen"] = list(verworfen)
         antwort["meldung"] = (
-            "Der Serien-Status wurde nicht geaendert: die Freigabe ist eine "
-            "Moderationshandlung (Terminmoderation)."
+            "Der Serien-Status wurde nicht geändert: freigeben darf nur, wer "
+            "Termine in diesem Kalender prüft."
         )
     if wartend:
         antwort["aenderung_wartet"] = True
         antwort["wartende_termine"] = wartend
         antwort["meldung"] = (
             f"{wartend} Termin(e) der Serie warten auf Freigabe "
-            "(Terminmoderation)."
+            "(sie werden noch geprüft)."
         )
     return antwort
 

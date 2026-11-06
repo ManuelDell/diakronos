@@ -690,6 +690,19 @@ def _verweigere_geloeschtes_mitglied(name: str) -> None:
     )
 
 
+def _loeschen_art(vorgang: str, *, loeschen: bool) -> str:
+    """ON-6d: Loeschen heisst Loeschen — nicht „bearbeiten“.
+
+    ``_vorgang_fuer`` liefert fuer ``loeschen=True`` den Wert ``anlage``
+    (die bestehende Ableitung dort). Fuer die root-Meldung wird die
+    Zielwirkung aber ausdruecklich benannt: wer root loescht, soll „löschen“
+    lesen, nicht die allgemeine Aenderung.
+    """
+    if loeschen:
+        return "loeschung"
+    return vorgang
+
+
 def _pruefe_mitglied_schreibzugriff(
     values: dict[str, Any], name: str | None = None, *, loeschen: bool = False
 ) -> None:
@@ -841,10 +854,26 @@ def _pruefe_mitglied_schreibzugriff(
     #          (Entkopplung — danach ueber die E-Mail aussperrbar)
     # Ein root-Mitglied ist unantastbar: es darf weder ausgeschlossen,
     # ausgetragen, geloescht noch von seinem Konto getrennt werden.
+    #
+    # ON-6d (Befund Review ON-6c, LOW): der Text richtet sich nach dem
+    # TATSAECHLICHEN Vorgang. Vorher las auch eine harmlose Bearbeitung
+    # (Telefonnummer aendern) „…kann es ausschließen“. Jetzt: Ausschluss und
+    # Freigabe behalten ihren Text, Loeschen und Entkopplung bekommen ihren
+    # eigenen, alles andere ist „bearbeiten“ (mit dem Feld, wenn es einen
+    # eigenen Text hat — z. B. die Telefonnummer).
     from diakronos_app.api.zugang import _verweigere_root_ziel
 
+    vorgang = _vorgang_fuer(values, loeschen=loeschen)
+    konto_art = _loeschen_art(vorgang, loeschen=loeschen)
+    if vorgang in ("ausschluss", "freigabe"):
+        root_art = "ausschluss"
+    elif konto_art == "loeschung":
+        root_art = "loeschung"
+    else:
+        root_art = "bearbeiten"
+    root_feld = _root_feld(values, loeschen=loeschen)
     for konto in sorted(konten_alt | konten_neu | betroffen):
-        _verweigere_root_ziel("", konto, art="ausschluss")
+        _verweigere_root_ziel("", konto, art=root_art, feld=root_feld)
     for konto in betroffen:
         if _rollen_von(konto) & set(_ADMIN_ROLLEN):
             _verweigere_fremdes_admin_konto_mitglied(
@@ -1220,9 +1249,33 @@ def _pruefe_root_schreibzugriff(
     if any(_ist_root_konto(k) for k in ziel):
         wer = str(session.user or "")
         if not _ist_root_konto(wer):
+            # ON-6d: Text nach Vorgang. Hier geht es um das KONTO selbst —
+            # Loeschen, Rollen, Sperren oder eine Feldänderung sind nicht
+            # dasselbe. Fruehere Fassung („…sein Konto und seine Rollen
+            # ändern“) galt fuer alle vier.
+            if doctype == "Has Role":
+                raise FrappePermissionError(
+                    "Das Konto der Hauptverwaltung (root) ist geschützt — du "
+                    "kannst seine Rollen nicht ändern."
+                )
+            if loeschen:
+                raise FrappePermissionError(
+                    "Das Konto der Hauptverwaltung (root) ist geschützt — du "
+                    "kannst es nicht löschen."
+                )
+            schreibt_felder = [
+                k for k in (values or {})
+                if k not in ("name", "enabled")
+                and str((values or {}).get(k) or "") != ""
+            ]
+            if not schreibt_felder:
+                raise FrappePermissionError(
+                    "Das Konto der Hauptverwaltung (root) ist geschützt — du "
+                    "kannst es nicht sperren."
+                )
             raise FrappePermissionError(
-                "Das Root-Konto ist geschützt — nur der Root-Benutzer selbst kann "
-                "sein Konto und seine Rollen ändern."
+                "Das Konto der Hauptverwaltung (root) ist geschützt — du "
+                "kannst seine Angaben nicht ändern."
             )
         return
     if doctype == "Has Role" and not loeschen:
@@ -1343,6 +1396,53 @@ def _vorgang_fuer(values: dict[str, Any], *, loeschen: bool) -> str:
     return "bearbeitung"
 
 
+#: Felder, fuer die es eine EIGENE Bearbeiten-Meldung am root-Konto gibt
+#: (ON-6d). Alles andere faellt auf den allgemeinen Text zurueck.
+ROOT_FELD_TEXT = {
+    "email": "email",
+    "telefon": "telefon",
+    "telefonnummer": "telefon",
+}
+
+
+#: Welches Feld will der Schreibvorgang aendern? (ON-6d, nur fuer den Text)
+#:
+#: Die Felder sind bereits auf Spalten gefiltert. Nicht-``None``-Werte
+#: gewinnen: ein Payload, der ein Feld leert, ist trotzdem eine Aenderung
+#: genau dieses Feldes. Mehrere Felder auf einmal (Formularspeicherung)
+#: nennen keines — dann gilt die allgemeine Meldung.
+#:
+#: Rueckgabe: das FELD (``"telefon"``), nicht der Text; die Uebersetzung macht
+#: das jeweilige Modul, weil Mitglied und User verschiedene Spaltennamen
+#: fuehren (``Mitglied.telefon``, ``Kontakt.telefonnummer``).
+def _root_feld(values: dict[str, Any], *, loeschen: bool) -> str | None:
+    """Feldname fuer die root-Meldung, wenn EIN benennbares Feld geaendert wird."""
+    if loeschen:
+        return None
+    kandidaten = [
+        ROOT_FELD_TEXT[k] for k in (values or {})
+        if k in ROOT_FELD_TEXT and values[k] is not None
+    ]
+    return kandidaten[0] if len(set(kandidaten)) == 1 else None
+
+
+# ── ON-6d: Meldung fuer das root-Konto am MITGLIED ─────────────────────────
+# Jeder Vorgang hat seinen eigenen Text (Du-Form, ohne Fachbegriffe). Vorher
+# las auch eine harmlose Bearbeitung „…kann es ausschließen“.
+KONTO_FELD_TEXT = {
+    "telefon": "die Telefonnummer ändern",
+    "email": "die E-Mail-Adresse ändern",
+}
+
+KONTO_VORGANG_TEXT = {
+    "ausschluss": "es ausschließen",
+    "freigabe": "es ausschließen",
+    "status": "seinen Status ändern",
+    "verknuepfung": "sein Konto ändern",
+    None: "es ändern",
+}
+
+
 def _verweigere_fremdes_admin_konto_mitglied(
     ziel_user: str, *, entsperren: bool = False, vorgang: str | None = None
 ) -> None:
@@ -1381,6 +1481,19 @@ def _verweigere_fremdes_admin_konto_mitglied(
             "Ein Mitglied mit Verwaltungskonto darf nur ein System Manager "
             f"{was}."
         )
+
+
+def _text_fuer_konto(vorgang: str | None, felder: list[str] | None = None) -> str:
+    """Meldungsglied fuer ein root-Konto (ON-6d) — aus ``KONTO_VORGANG_TEXT``.
+
+    ``felder`` sind die geschriebenen Feldnamen; das erste, das einen
+    Fachbegriff hat, bestimmt den Text (Telefonnummer & Co.). Sonst gilt der
+    allgemeine Vorgangstext.
+    """
+    for feld in felder or []:
+        if str(feld) in KONTO_FELD_TEXT:
+            return KONTO_FELD_TEXT[str(feld)]
+    return KONTO_VORGANG_TEXT.get(vorgang or "", KONTO_VORGANG_TEXT[None])
 
 
 def _verweigere_fremdes_konto_verknuepfung(

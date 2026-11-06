@@ -459,7 +459,9 @@ def wende_termin_aenderung_an(
         return ErgebnisAenderung(
             aufteilung=aufteilung,
             aenderung_wartet=True,
-            meldung="Änderung wartet auf Freigabe (Terminmoderation).",
+            # UX2h2: dieselbe Wortwahl wie die Oberfläche („Prüfen“ statt
+            # „Moderation“, „Termin“ statt Fachjargon).
+            meldung="Änderung wartet auf Freigabe (wird noch geprüft).",
         )
 
     # OP-HANDY-6: wirksame Aenderung an einem festgelegten Termin — die
@@ -653,7 +655,7 @@ def vorschlag_anwenden(name: str, element_name: str, neu: dict[str, object]) -> 
             str(neuer_kalender)
         ):
             throw(
-                f"Keine Moderationsrechte fuer Kalender {neuer_kalender}",
+                f"Für den Kalender {neuer_kalender} fehlt dir das Recht, Termine zu prüfen.",
                 FrappePermissionError,
             )
 
@@ -694,7 +696,7 @@ def pruefe_moderationsrecht(name: str):
     calendar = doc.get("element_calendar")
     if not ist_moderator(calendar):
         throw(
-            f"Keine Moderationsrechte fuer Kalender {calendar}",
+            f"Für den Kalender {calendar} fehlt dir das Recht, Termine zu prüfen.",
             FrappePermissionError,
         )
     return doc

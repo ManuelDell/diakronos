@@ -209,7 +209,7 @@ def login_uebergabe(request=None):
         # Theoretisch unerreichbar: `darf_website` und die Zuordnung teilen
         # sich die Rollenliste. Fail closed statt stillschweigend "editor".
         throw(
-            "Für dieses Konto ist in Primo keine Rolle hinterlegt.",
+            "Für dieses Konto ist im Website-Baukasten keine Rolle hinterlegt.",
             FrappePermissionError,
         )
 
@@ -229,7 +229,8 @@ def login_uebergabe(request=None):
         # 503: die Anbindung ist nicht eingeschaltet — kein Fehler des
         # Benutzers, sondern eine fehlende Voraussetzung der Installation.
         throw(
-            "Die Website-Anbindung (Primo) ist auf dieser Installation nicht eingerichtet.",
+            "Die Anbindung an den Website-Baukasten ist auf dieser Installation "
+            "nicht eingerichtet.",
             DienstNichtVerfuegbarError,
         )
     except primo.PrimoAbgelehnt as exc:
@@ -237,7 +238,7 @@ def login_uebergabe(request=None):
         logger.warning("Primo-Uebergabe abgelehnt: HTTP %s", exc.status)
         throw(
             "Die Anmeldung an der Website ist gerade nicht möglich "
-            "(Primo hat den Zugang abgelehnt).",
+            "(der Website-Baukasten hat den Zugang abgelehnt).",
             DienstNichtVerfuegbarError,
         )
     except primo.PrimoNichtErreichbar:
@@ -1046,7 +1047,8 @@ def bausteine_installieren(request=None):
         ergebnis = _im_thread(bibliothek.sync)
     except primo_adapter.PrimoNichtKonfiguriert:
         throw(
-            "Die Website-Anbindung (Primo) ist auf dieser Installation nicht eingerichtet.",
+            "Die Anbindung an den Website-Baukasten ist auf dieser Installation "
+            "nicht eingerichtet.",
             DienstNichtVerfuegbarError,
         )
     except bibliothek.BausteinQuelleFehler:

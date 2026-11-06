@@ -968,7 +968,7 @@ def bibliothek_stand() -> Stand:
         mitgeliefert = 0
 
     if not primo_adapter.settings.primo_konfiguriert:
-        return Stand(mitgeliefert=mitgeliefert, hinweis="Primo ist nicht eingerichtet.")
+        return Stand(mitgeliefert=mitgeliefert, hinweis="Der Website-Baukasten ist nicht eingerichtet.")
 
     try:
         token = _superuser_token()

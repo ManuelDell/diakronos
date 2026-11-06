@@ -213,7 +213,8 @@ def _require_moderator(element_id):
     for c in get_accessible_calendars():
         if c["name"] == calendar and c.get("is_moderator"):
             return doc
-    throw("Keine Moderationsrechte fuer Kalender " + str(calendar), FrappePermissionError)
+    throw("Für den Kalender " + str(calendar) + " fehlt dir das Recht, Termine zu prüfen.",
+          FrappePermissionError)
 
 
 @whitelist(allow_guest=False)

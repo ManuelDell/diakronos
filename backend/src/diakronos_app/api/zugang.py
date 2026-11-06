@@ -135,22 +135,66 @@ def _verweigere_fremdes_admin_konto(ziel_user: str) -> None:
         )
 
 
-#: Was der Aufrufer mit dem root-Konto vorhat. Nur zur Meldung — die Regel ist
-#: fuer JEDEN Vorgang dieselbe („nur root selbst“).
-_ROOT_VORGANG = {
-    "konto": "ändern",
-    "rollen": "die Rollen entziehen",
-    "aenderung": "ändern",
-    "austritt": "austragen",
-    "reaktivierung": "reaktivieren",
-    "ausschluss": "ausschließen",
-    "loeschung": "löschen",
-    "dsgvo": "anonymisieren",
-    "uebertragung": "die Root-Rechte übertragen",
+#: ON-6d (Befund Review ON-6c, LOW): die vollstaendige Meldung je Vorgangsart.
+#: Jeder Vorgang hat seine EIGENE Meldung — vorher stand „…kann es
+#: ausschließen“ auch bei einer harmlosen Bearbeitung (z. B. Telefonnummer
+#: aendern), und fuer den Administrator war nicht erkennbar, was er eigentlich
+#: versucht hatte. ``None`` ist der Rueckfall fuer alles Unbenannte.
+#: Wortlaut s. Karte: Du-Form, kurz, ohne Fachbegriffe („Hauptverwaltung“
+#: statt „Root-Benutzer“).
+#:
+#: „geschützt“ bleibt in JEDER Fassung stehen: die Proben aus ON-6c pruefen
+#: genau darauf (``test_on6c_root_proben.py``).
+_ROOT_TEXTE = {
+    "ausschluss": (
+        "Das Konto der Hauptverwaltung (root) ist geschützt — du kannst es "
+        "nicht ausschließen."
+    ),
+    "loeschung": (
+        "Das Konto der Hauptverwaltung (root) ist geschützt — du kannst es "
+        "nicht löschen."
+    ),
+    "dsgvo": (
+        "Das Konto der Hauptverwaltung (root) ist geschützt — es kann nicht "
+        "anonymisiert werden."
+    ),
+    "rollen": (
+        "Das Konto der Hauptverwaltung (root) ist geschützt — du kannst ihm "
+        "die Rollen nicht entziehen."
+    ),
+    None: (
+        "Das Konto der Hauptverwaltung (root) ist geschützt — nur root selbst "
+        "kann es ändern."
+    ),
+}
+
+#: Bearbeiten-Texte: ``None`` = allgemein, sonst das Feld, das geaendert
+#: werden sollte. Ein Feld, das hier fehlt, faellt auf ``None`` zurueck.
+_ROOT_BEARBEITEN_TEXTE = {
+    None: (
+        "Das Konto der Hauptverwaltung (root) ist geschützt — nur root selbst "
+        "kann es ändern."
+    ),
+    "telefon": (
+        "Das Konto der Hauptverwaltung (root) ist geschützt — du kannst die "
+        "Telefonnummer nicht ändern."
+    ),
+    "email": (
+        "Das Konto der Hauptverwaltung (root) ist geschützt — du kannst die "
+        "E-Mail-Adresse nicht ändern."
+    ),
 }
 
 
-def _verweigere_root_ziel(aufrufer: str, ziel_user: str, *, art: str = "konto") -> None:
+def _root_text(vorgang: str) -> str:
+    """Die Meldung zum tatsaechlichen Vorgang (ON-6d)."""
+    if vorgang in ("konto", "bearbeiten"):
+        return _ROOT_BEARBEITEN_TEXTE[None]
+    return _ROOT_TEXTE.get(vorgang) or _ROOT_TEXTE[None]
+
+
+def _verweigere_root_ziel(aufrufer: str, ziel_user: str, *, art: str = "konto",
+                          feld: str | None = None) -> None:
     """ON-6b: das root-Konto ist fuer JEDE fremde Kontenwirkung gesperrt.
 
     Manuel 2026-11-05: der erste Administrator ist root — „geschützt“. Kein
@@ -162,6 +206,12 @@ def _verweigere_root_ziel(aufrufer: str, ziel_user: str, *, art: str = "konto") 
     ``aufrufer`` LEER heisst: der angemeldete Benutzer. Ein leerer
     ``ziel_user`` ist kein Ziel und wird nicht geprueft — die Regel greift
     nur, wenn wirklich das root-Konto getroffen wird.
+
+    ``art`` waehlt die Meldung (:data:`_ROOT_TEXTE`); ON-6d gibt jeder
+    Vorgangsart ihren eigenen Text. ``bearbeiten`` ist die gewoehnliche
+    Aenderung am Mitglied (Telefonnummer & Co.). ``feld`` benennt sie
+    genauer — ein Feld ohne eigenen Text faellt auf die allgemeine
+    Bearbeiten-Meldung zurueck.
 
     Fail closed in beide Richtungen: das Ziel wird ueber
     :func:`permissions.ist_root` geprueft (liest ``gemeinde_einstellungen``),
@@ -178,11 +228,11 @@ def _verweigere_root_ziel(aufrufer: str, ziel_user: str, *, art: str = "konto") 
     wer = str(aufrufer or "").strip() or str(session.user or "")
     if ist_root(wer):
         return
-    vorgang = _ROOT_VORGANG.get(art, "ändern")
-    throw(
-        f"Das Root-Konto ist geschützt — nur der Root-Benutzer selbst kann es {vorgang}.",
-        FrappePermissionError,
-    )
+    if art in ("konto", "bearbeiten"):
+        text = _ROOT_BEARBEITEN_TEXTE.get(feld) or _ROOT_BEARBEITEN_TEXTE[None]
+    else:
+        text = _root_text(art)
+    throw(text, FrappePermissionError)
 
 
 def _verweigere_root_konto(ziel_user: str) -> None:

@@ -61,13 +61,35 @@ class Rechte:
         (mehrere Mitglieder an einem Konto: ausschliessen, sobald EINES
         markiert ist), nur ohne zweite DB-Verbindung: die Prüfung läuft
         innerhalb der Transaktion, die der Aufrufer ohnehin hält.
+
+        ON-6d (Review ON-6c, Punkt 2): wie :meth:`eigene_gruppen_verantwortung`
+        und die Rollepruefung in :meth:`admin` loest die Pruefung zusaetzlich
+        ueber die EINDEUTIGE E-Mail auf. Ein Konto ohne `Mitglied.user`-
+        Bindung — die Bindung entsteht erst beim ersten Anmelden — war sonst
+        nie ausgeschlossen; `Rechte.admin()` liess es durch, waehrend
+        `get_roles` (Rollenpruefung) es ueber die E-Mail laengst abgewiesen
+        hatte. Zwei Wege, zwei Antworten. Die E-Mail zaehlt nur, wenn sie
+        GENAU EIN Mitglied ohne Kontobindung trifft (dieselbe Bedingung wie
+        :meth:`eigenes_mitglied`).
         """
-        return bool(self.session.scalar(
+        if bool(self.session.scalar(
             select(Mitglied.ausgeschlossen).where(
                 Mitglied.user == self.benutzer,
                 Mitglied.ausgeschlossen.is_(True),
             ).limit(1)
-        ))
+        )):
+            return True
+        konto = self.session.get(User, self.benutzer)
+        email = str((konto.email if konto else "") or "").strip()
+        if not email:
+            return False
+        treffer = self.session.execute(
+            select(Mitglied.ausgeschlossen).where(
+                Mitglied.email == email,
+                Mitglied.user.is_(None),
+            )
+        ).scalars().all()
+        return len(treffer) == 1 and bool(treffer[0])
 
     def admin(self) -> bool:
         """Nur Administrator/System Manager, nicht weitere Verwaltungsrollen.

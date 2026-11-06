@@ -583,7 +583,7 @@ ZEILEN_LOESCHEN: tuple[tuple[str, str], ...] = (
     ("user_notification_preference", "Benachrichtigungseinstellung des Kontos"),
     ("dashboard_widget_user_config", "Widget-Anordnung des Kontos"),
     ("nutzereinzelrechte", "Einzelrechte des Kontos"),
-    ("kalender_moderator", "Kalender-Moderation des Kontos"),
+    ("kalender_moderator", "Prüfrechte im Kalender des Kontos"),
     ("gruppe_verantwortlicher", "Verantwortlichkeiten des Kontos"),
     ("untergruppe_verantwortlicher", "Verantwortlichkeiten des Kontos"),
     ("dienstbereich_verantwortlicher", "Verantwortlichkeiten des Kontos"),
@@ -604,7 +604,7 @@ ZEILEN_LOESCHEN: tuple[tuple[str, str], ...] = (
     # Unterschied, dass ein Primärschlüssel übrig bliebe. Das Primo-Konto
     # selbst liegt in einem FREMDEN System und wird von Diakronos nicht
     # angefasst (dieselbe Grenze wie bei PocketBase-Passwörtern).
-    ("website_primo_konto", "Zuordnung Konto <-> Primo-Konto (Mail und fremde ID)"),
+    ("website_primo_konto", "Zuordnung Konto <-> Website-Konto (Mail und fremde ID)"),
 )
 
 #: Tabellen mit Konto-Bezug, deren Zeilen gelöscht werden — dort wird VORHER

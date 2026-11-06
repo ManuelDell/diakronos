@@ -117,7 +117,7 @@ _EINSTELLUNGEN = (
     ("Datenschutz Texte", "Datenschutz-Texte", "#/einstellungen/datenschutz"),
     ("Datensicherung", "Datensicherung", "#/einstellungen/datensicherung"),
     ("Mailversand", "Mailversand", "#/einstellungen/mailversand"),
-    ("Website", "Website (Primo)", "#/einstellungen/website"),
+    ("Website", "Website-Baukasten", "#/einstellungen/website"),
 )
 
 
