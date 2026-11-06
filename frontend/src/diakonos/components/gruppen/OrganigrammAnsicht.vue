@@ -44,7 +44,7 @@
             <div class="org-option" @click="goToCreate">
                 <span class="org-option-icon">➕</span>
                 <div>
-                    <div class="org-option-titel">Neue Gruppe erstellen</div>
+                    <div class="org-option-titel">Neue Gruppe anlegen</div>
                     <div class="org-option-text">Gruppe, Untergruppe oder Dienstbereich anlegen</div>
                 </div>
             </div>
@@ -128,7 +128,7 @@
         </form>
         <template #footer>
             <DkButton variant="ghost" @click="closeCreateModal">Abbrechen</DkButton>
-            <DkButton variant="primary" :disabled="sendingCreate" :loading="sendingCreate" @click="submitCreate">Erstellen</DkButton>
+            <DkButton variant="primary" :disabled="sendingCreate" :loading="sendingCreate" @click="submitCreate">Anlegen</DkButton>
         </template>
     </DkDialog>
 </template>

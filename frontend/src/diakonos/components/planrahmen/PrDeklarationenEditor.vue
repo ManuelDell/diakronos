@@ -30,7 +30,7 @@
         </div>
         <PrPfadMeldungen :meldungen="meldungen" :pfad="'parameter/' + i" />
       </div>
-      <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="parameterHinzufuegen">+ Parameter hinzufügen</button>
+      <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="parameterHinzufuegen">+ Parameter anlegen</button>
     </section>
 
     <!-- Angaben -->

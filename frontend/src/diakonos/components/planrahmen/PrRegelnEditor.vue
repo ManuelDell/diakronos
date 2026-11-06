@@ -49,7 +49,7 @@
         <template v-if="feld.typ === 'filter'">
           <PrKnotenEditor v-if="istKnoten(r[feld.name])" :knoten="r[feld.name]" modus="rolle" :kontext="kontext" />
           <div class="pr-rg-zeile">
-            <button v-if="!istKnoten(r[feld.name])" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="r[feld.name] = { merkmal: '' }">+ Personen-Filter hinzufügen</button>
+            <button v-if="!istKnoten(r[feld.name])" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="r[feld.name] = { merkmal: '' }">+ Personen-Filter anlegen</button>
             <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="delete r[feld.name]">Filter entfernen</button>
           </div>
         </template>

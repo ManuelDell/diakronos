@@ -9,7 +9,7 @@
 
     <DkSkelett v-if="laedt" form="tabelle" :anzahl="5" text="Papierkorb wird geladen …" />
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
-    <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut laden</DkButton>
+    <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut versuchen</DkButton>
 
     <DkTable
       v-if="geladen"

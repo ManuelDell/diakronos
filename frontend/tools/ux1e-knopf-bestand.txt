@@ -10,8 +10,8 @@
 # Erzeugt mit (aus frontend/ heraus): node tools/ux1e-knopf-bestand.mjs --schreiben
 # Geprueft von frontend/tests/ux1e-knopf-system.test.mjs.
 #
-# Stand (UX1e): 11 Fundstellen in 4 Dateien.
+# Stand (UX1e): 9 Fundstellen in 4 Dateien.
 frontend/src/diakonos/components/kronos/KronosEventCreate.vue	1
 frontend/src/diakonos/components/kronos/KronosEventEdit.vue	1
 frontend/src/diakonos/components/kronos/KronosSidebar.vue	1
-frontend/src/diakonos/components/kronos/KronosTopbar.vue	8
+frontend/src/diakonos/components/kronos/KronosTopbar.vue	6

@@ -42,7 +42,7 @@ export function terminZeitText(start, ende, allDay = false) {
   // K10: Das „ganztägig“-Kennzeichen kommt vom Server (`all_day`), nicht aus
   // einer Uhrzeit-Vermutung. Frueher galt jeder Termin um 00:00 als ganztägig
   // (auch ein echter Mitternachtstermin) und umgekehrt galt ein echtes
-  // Ganztages-Element mit abweichender Endzeit als Uhrzeit-Termin.
+  // Ganztägiger Termin mit abweichender Endzeit als Uhrzeit-Termin.
   const ganztaegig = allDay === true
     || (s.getHours() === 0 && s.getMinutes() === 0
       && (!eGueltig || (e.getHours() === 0 && e.getMinutes() === 0)))
@@ -58,7 +58,7 @@ export function terminZeitText(start, ende, allDay = false) {
 }
 
 /**
- * Baut aus einem Roh-Termin der Moderation ein anzeigbares Element — ohne
+ * Baut aus einem Roh-Termin der Prüfung einen anzeigbaren Text — ohne
  * interne ID (`name`). Titel, Zeit, Ort/Kalender (BF1-G).
  */
 export function terminAnzeige(roh) {

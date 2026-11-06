@@ -94,10 +94,21 @@ def _sid_kopfzeilen(resp) -> list[str]:
 
 
 def _masken_token(client, login_seite: str) -> str:
-    """`_csrf` aus der Anmeldemaske — das Feld, das ein Browser mitsendet."""
+    """`_csrf` aus der Anmeldemaske — das Feld, das ein Browser mitsendet.
+
+    LOGIN-1b: Die Maske erscheint nur noch fuer NICHT angemeldete Aufrufer
+    (die Anmeldeseite leitet eine gueltige Sitzung weiter, auch ohne OIDC).
+    Fuer den Token wird deshalb ein EIGENER, sitzungsloser Client benutzt; das
+    `sid`-Cookie des uebergebenen Clients bleibt unberuehrt. Ohne diesen
+    Umweg muesste der Test den Rueckfall `noredirect=1` o. Ae. benutzen und
+    pruefte dann nicht mehr das, was er pruefen soll.
+    """
     import re
 
-    seite = client.get(login_seite, headers=_BROWSER, follow_redirects=False)
+    from diakronos_app.main import erstelle_app
+
+    with TestClient(erstelle_app()) as maske_client:
+        seite = maske_client.get(login_seite, headers=_BROWSER, follow_redirects=False)
     assert seite.status_code == 200, seite.text
     treffer = re.search(r'name="_csrf" value="([^"]+)"', seite.text)
     assert treffer, "Anmeldemaske ohne _csrf-Feld"

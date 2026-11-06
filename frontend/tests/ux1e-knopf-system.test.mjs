@@ -175,7 +175,7 @@ test('UX1e2/F3: der Prüfen-Link hat auch mobil einen festen Namen', () => {
   assert.match(knopf, /aria-label="Termine prüfen und freigeben"/,
     'aria-label fehlt — unter 720 px ist das Symbol der einzige sichtbare Teil')
   // Die Ausblendung betrifft nur den sichtbaren Text, nie den Namen.
-  assert.match(quelle, /@media \(max-width: 720px\)[\s\S]*?\.moderation-btn-label \{\s*display:\s*none/,
+  assert.match(quelle, /@media \(max-width: 720px\)[\s\S]*?\.pruefen-knopf-label \{\s*display:\s*none/,
     'Beschriftung weicht unter 720 px (FIX-6) — der aria-label trägt den Namen')
 })
 
@@ -430,10 +430,10 @@ test('UX1e/F7: Kommentare und Nicht-Knopfklassen zaehlen nicht', () => {
     '<template>',
     '  <!-- <button class="btn btn-secondary">alt</button> -->',
     '  <DkButton variant="primary">Neu</DkButton>',
-    '  <span class="moderation-btn-label">Moderation</span>',
+    '  <span class="pruefen-knopf-label">Zu prüfen</span>',
     '</template>',
     '<style scoped>',
-    '.moderation-btn-label { display: none; }',
+    '.pruefen-knopf-label { display: none; }',
     '</style>',
   ].join('\n')
   assert.deepEqual(fundstellen(probe), [],

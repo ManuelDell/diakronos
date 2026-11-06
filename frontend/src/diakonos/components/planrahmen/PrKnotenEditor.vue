@@ -15,7 +15,7 @@
         :modus="modus" :knoten="k" :kontext="kontext" :tiefe="tiefe + 1" :entfernbar="true"
         @update="kinder[i] = $event" @entfernen="kinder.splice(i, 1)"
       />
-      <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="kinder.push(leerenKnoten(modus))">+ Kriterium hinzufügen</button>
+      <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="kinder.push(leerenKnoten(modus))">+ Kriterium anlegen</button>
     </div>
 
     <!-- Negation mit genau einem Kriterium -->

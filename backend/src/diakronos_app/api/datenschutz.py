@@ -202,6 +202,25 @@ def _auskunft(mitglied_id):
         }
 
 
+def _verweigere_root_loeschung() -> None:
+    """ON-6: das root-Konto kann keinen Loeschantrag stellen.
+
+    Die Anonymisierung entfernt das Konto vollstaendig — danach gaebe es
+    keinen root mehr, und niemand koennte die Rechte wiederherstellen (die
+    Uebertragung setzt voraus, dass root selbst handelt). Die Karte verlangt:
+    „Austritt/DSGVO-Loeschung des root-Kontos blockiert mit klarer Meldung.“
+    """
+    from diakronos_app.frappe_compat.permissions import ist_root
+    from diakronos_app.frappe_compat.session import session
+
+    if ist_root(session.user):
+        raise ValidationError(
+            "Dieses Konto ist der Root-Benutzer und kann nicht gelöscht werden. "
+            "Bitte zuerst die Root-Rechte an eine andere Person übertragen "
+            "(Einstellungen → Zugang)."
+        )
+
+
 @whitelist(methods=["POST"], allow_guest=False)
 def loeschung_beantragen(bestaetigt=False, request=None):
     """Die Person stellt für SICH einen Löschantrag (D2).
@@ -235,6 +254,7 @@ def loeschung_beantragen(bestaetigt=False, request=None):
     from diakronos_app.db import SessionLocal
 
     mid = _get_my_mitglied()
+    _verweigere_root_loeschung()
     with SessionLocal.begin() as s:
         person = _person(s, mid)  # serialisiert parallele Anträge derselben Person
         if str(person.status or "") == "geloescht":
@@ -430,7 +450,7 @@ def _pruefe_loeschberechtigung(konten: set[str]) -> None:
     from diakronos_app.api.zugang import (
         _aktive_administratoren, _aktive_system_manager,
         _verweigere_fremdes_admin_konto, _verweigere_letzten_admin_verlust,
-        _verweigere_letzten_admin_verlust_alle,
+        _verweigere_letzten_admin_verlust_alle, _verweigere_root_ziel,
     )
     from diakronos_app.frappe_compat.exceptions import PermissionError
 
@@ -441,6 +461,9 @@ def _pruefe_loeschberechtigung(konten: set[str]) -> None:
                 "sonst ist die Verwaltung ausgesperrt."
             )
     for user in sorted(konten):
+        # ON-6b: das root-Konto laesst sich nicht per DSGVO-Loeschung
+        # anonymisieren — auch nicht durch einen anderen System Manager.
+        _verweigere_root_ziel("", user, art="dsgvo")
         _verweigere_fremdes_admin_konto(user)
         _verweigere_letzten_admin_verlust(user, "gelöscht")
         _verweigere_letzten_admin_verlust_alle(user, "gelöscht")
@@ -498,6 +521,16 @@ def loeschung_bestaetigen(mitglied_id, bestaetigt=False, request=None):
             s.scalars(select(User).where(User.name.in_(sorted(konten)))
                       .order_by(User.name).with_for_update()).all()
         _pruefe_loeschberechtigung(konten)
+        # ON-6: das root-Konto ist ueber den Admin-Weg ebenso geschuetzt wie
+        # ueber den eigenen Antrag — die Anonymisierung entfernt das Konto,
+        # danach gaebe es keinen root mehr (und keinen, der ihn uebertraegt).
+        from diakronos_app.frappe_compat.permissions import ist_root
+
+        if any(ist_root(k) for k in konten):
+            raise ValidationError(
+                "Diese Person ist der Root-Benutzer und kann nicht gelöscht "
+                "werden. Bitte zuerst die Root-Rechte übertragen."
+            )
 
         adresse = str(person.email or "").strip()
         if not adresse:

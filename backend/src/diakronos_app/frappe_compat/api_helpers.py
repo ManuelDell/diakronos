@@ -39,12 +39,15 @@ Frappe-Aufrufe des Originals -> Compat-Schicht:
 
 from __future__ import annotations
 
+import logging
 import secrets
 import string
 import sys
 import uuid
 from datetime import date, datetime, timezone
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from diakronos_app.frappe_compat import db as _db
 from diakronos_app.frappe_compat.exceptions import (
@@ -587,7 +590,16 @@ def _create(doctype: str, values: dict[str, Any]) -> str:
         # N12b: derselbe Weg wie `/api/resource` — auch beim Anlegen kann
         # `name` einen bestehenden Platz ueberschreiben (Frappe-Save mit
         # gesetztem `name` ist ein Update).
-        _pruefe_konto_schreibzugriff(doctype, str(data.get("name") or "") or None, data)
+        #
+        # ON-6b: `name is None` heisst hier NICHT „keine Wirkung“ — der
+        # Schreibweg vergibt gleich eine FRISCHE Kennung und legt die Zeile
+        # an. Die root-Schranke muss deshalb auch die NEUE Zeile sehen
+        # (sonst legte ein fremder System Manager ohne `name` eine zweite
+        # `Has Role`-Zeile mit `role: "root"` an). Geprueft wird die Absicht
+        # VOR der Kennungsvergabe; die Pruefung selbst unterscheidet
+        # Anlegen/Update ueber `name`.
+        geplante_kennung = str(data.get("name") or "") or None
+        _pruefe_konto_schreibzugriff(doctype, geplante_kennung, data)
         if not data.get("name"):
             data["name"] = _new_name()
     elif not data.get("name"):
@@ -815,6 +827,24 @@ def _pruefe_mitglied_schreibzugriff(
     betroffen = set(neu_gesperrt) | neu_freigegeben
     if not loeschen and (neu["ausgeschlossen"] or verknuepfung_geaendert):
         betroffen |= konten_alt | konten_neu
+    # ON-6c (Befund 1, HOCH): JEDES Konto, das dieser Vorgang trifft, wird
+    # gegen die root-Regel geprueft — auch beim LOESCHEN und bei der
+    # ENTKOPPLUNG, und auch wenn `betroffen` es nicht enthaelt.
+    #
+    # Vorher griff die Schranke nur ueber `betroffen`, und `betroffen` ist
+    # beim Loeschen allein die Menge der neu GESPERRTEN Konten. Damit waren
+    # ueber den generischen Weg drei Loecher offen (alle nachgestellt):
+    #   PUT    /api/resource/Mitglied/M-root {"ausgeschlossen": 1}  -> 200,
+    #          root hatte danach get_roles() == ()
+    #   DELETE /api/resource/Mitglied/M-root                        -> 202
+    #   PUT    /api/resource/Mitglied/M-root {"user": ""}           -> 200
+    #          (Entkopplung — danach ueber die E-Mail aussperrbar)
+    # Ein root-Mitglied ist unantastbar: es darf weder ausgeschlossen,
+    # ausgetragen, geloescht noch von seinem Konto getrennt werden.
+    from diakronos_app.api.zugang import _verweigere_root_ziel
+
+    for konto in sorted(konten_alt | konten_neu | betroffen):
+        _verweigere_root_ziel("", konto, art="ausschluss")
     for konto in betroffen:
         if _rollen_von(konto) & set(_ADMIN_ROLLEN):
             _verweigere_fremdes_admin_konto_mitglied(
@@ -1006,6 +1036,208 @@ def _ist_aktiv_flag(wert: Any) -> bool:
     return str(wert).strip().lower() not in {"", "0", "false", "nein", "no", "none", "off"}
 
 
+#: Der Rollenname der root-Kennzeichnung. Dieselbe Zeichenkette wie
+#: ``root_benutzer.ROOT_ROLLE``; hier als Modulkonstante, damit die Schranke
+#: unterhalb keine Importkette beim Laden braucht (root_benutzer zieht die
+#: Modelle nach).
+ROOT_ROLLE_NAME = "root"
+
+#: Spaltennamen des DocTypes ``User`` — Zwischenspeicher fuer
+#: :func:`_user_spalten` (ON-6c). Leer heisst „noch nicht gelesen“.
+_USER_SPALTEN: tuple[str, ...] = ()
+
+
+def _ist_root_konto(konto: str) -> bool:
+    """Ist ``konto`` der eingetragene root? (ON-6b, fail closed)"""
+    from diakronos_app.frappe_compat.permissions import ist_root
+
+    name = str(konto or "").strip()
+    return bool(name) and bool(ist_root(name))
+
+
+def _user_bestand(name: str, werte: dict[str, Any]) -> dict[str, Any]:
+    """Bestandswerte der Felder, die der Aufruf am Konto aendern will (ON-6c).
+
+    Liest NUR die angefragten Felder (die Modelle der Konto-Tabelle) und NUR
+    innerhalb der Aufruf-Transaktion — dieselbe Sitzung, dieselbe Sicht, keine
+    zweite Verbindung. Ein Lesefehler heisst: kein Bestand bekannt (``{}``);
+    dann gilt jedes mitgesendete Feld als Aenderung (fail closed).
+    """
+    felder = {str(f) for f in (werte or {}) if str(f)}
+    if not felder:
+        return {}
+    try:
+        spalten = set(_user_spalten())
+        gueltig = sorted(felder & spalten)
+        if not gueltig:
+            return {}
+        return {f: get_value("User", str(name), f) for f in gueltig}
+    except Exception:  # noqa: BLE001 — Unbekanntes zaehlt als Aenderung
+        logger.warning("Bestand des Kontos nicht lesbar — Aenderung angenommen.",
+                       exc_info=True)
+        return {}
+
+
+def _user_spalten() -> list[str]:
+    """Spaltennamen des DocTypes ``User`` (einmal berechnet)."""
+    global _USER_SPALTEN
+
+    if not _USER_SPALTEN:
+        from diakronos_app.models.core import User
+
+        _USER_SPALTEN = tuple(c.name for c in User.__table__.columns)
+    return list(_USER_SPALTEN)
+
+
+def _feld_unveraendert(feld: str, neu: Any, alt: Any) -> bool:
+    """Ist der Wert wirklich derselbe wie im Bestand? (ON-6c)
+
+    ``enabled`` wird wie ueberall ueber :func:`_ist_aktiv_flag` normalisiert
+    (``0``/``"0"``/``false`` sind dasselbe), Text verglichen getrimmt (die SPA
+    schickt Adressen/Formulare unveraendert zurueck), ``None`` und ``""``
+    gelten als gleich (leeres Feld).
+    """
+    if feld == "enabled":
+        return _ist_aktiv_flag(neu) == _ist_aktiv_flag(alt)
+    if neu == alt:
+        return True
+    if neu is None or alt is None:
+        return not str(neu or "").strip() and not str(alt or "").strip()
+    if isinstance(neu, (int, float, bool)) or isinstance(alt, (int, float, bool)):
+        return False
+    return str(neu).strip() == str(alt).strip()
+
+
+def _pruefe_root_schreibzugriff(
+    doctype: str, name: str | None, values: dict[str, Any], *, loeschen: bool = False
+) -> None:
+    """ON-6b: der generische Schreibweg darf das root-Konto nicht antasten.
+
+    DER BEFUND (Sicherheits-Review ON-6, HOCH)
+    ------------------------------------------
+    Ein anderer System Manager kam ueber die generischen Wege an root vorbei —
+    die Wachen standen nur in den benannten Endpunkten:
+
+        PUT    /api/resource/User/<root>            {"enabled": 0}   -> 200
+        DELETE /api/resource/User/<root>                              -> 200
+        DELETE /api/resource/Has Role/<root>-System Manager           -> 202
+
+    Ergebnis: root war gesperrt, geloescht oder ohne Verwaltungsrolle.
+
+    DIE REGEL
+    ---------
+    Jede Wirkung auf das root-Konto ist verweigert, ausser sie kommt von root
+    selbst. Geprueft wird das aus dem AUSDRUECKLICH genannten Ziel:
+
+      * ``User``: ``name`` ist das Konto; geloescht wird es immer, geaendert
+        nur mit Wirkung (``enabled`` auf falsch, ``name`` verbogen).
+        Angelegt wird (``name is None``) nichts — das ist kein Bestandskonto.
+      * ``Has Role``: der ``parent`` der Zeile ist das Konto, dessen Rolle
+        sich aendert. In ``values`` steht bei einer AENDERUNG das NEUE
+        ``parent``, im Bestand das ALTE — BEIDE werden geprueft, weil jeder
+        von beiden root die Rolle nehmen bzw. geben kann:
+        ``DELETE <root>-System Manager`` (Bestand), ``PUT <zeile>
+        {"parent": <root>}`` (neu) und ``PUT <root>-System Manager
+        {"role": "Mitglied"}`` (Bestand, Rolle entzogen).
+      * ``role``: eine Zeile, die zur Rolle ``root`` umgebogen oder geloescht
+        wird, nimmt root seine Kennung (Anzeige/Inventar).
+
+    Die Pruefung steht VOR ``_pruefe_bestand_unveraenderlich`` und vor dem
+    Aussperrschutz: die Meldung soll den Grund nennen, nicht die Mechanik.
+    """
+    from diakronos_app.frappe_compat.session import session
+
+    if doctype == "User":
+        if not name:
+            return
+        ziel = [str(name)]
+        if loeschen:
+            wirkung = True
+        else:
+            werte = values or {}
+            # ON-6c (Befund 2, HOCH): JEDES geaenderte Feld am root-Konto ist
+            # eine Wirkung — nicht nur `enabled` und `name`. Vorher waren
+            # `email` (Uebernahme: die OIDC-Erstanmeldung ordnet ueber die
+            # verifizierte Adresse zu, `anmeldung/zuordnung.py`), `user_type`
+            # und `password_hash` schreibbar (200).
+            #
+            # Unveraendert mitgesendete Felder zaehlen NICHT (die SPA schickt
+            # das ganze Formular zurueck); verglichen wird normalisiert.
+            bestand = _user_bestand(str(name), werte)
+            wirkung = any(
+                not _feld_unveraendert(feld, werte[feld], bestand.get(feld))
+                for feld in werte
+            )
+            # `name` ist der Primaerschluessel (in dieser Installation die
+            # E-Mail) — ein Umbenennen haengt das Konto um.
+            umbenannt = "name" in werte and str(werte.get("name") or "") != str(name)
+            # Sperren/Freischalten: `enabled` ist die eine Wirkung, die
+            # `_pruefe_konto_schreibzugriff` oben schon kennt.
+            gesperrt = "enabled" in werte and not _ist_aktiv_flag(werte.get("enabled"))
+            wirkung = wirkung or umbenannt or gesperrt
+        if not wirkung:
+            return
+    elif doctype == "Has Role":
+        if not name:
+            # ON-6b: eine NEUE Zeile (Anlegen) kann die Kennrolle `root`
+            # vergeben — das ist kein Update am Bestand, aber eine
+            # Rechteaenderung, die nur ueber `api.root.root_uebertragen`
+            # laufen darf (Eintrag + Rolle in einer Transaktion).
+            if str((values or {}).get("role") or "") == ROOT_ROLLE_NAME:
+                raise FrappePermissionError(
+                    "Die Root-Kennzeichnung wird ausschließlich über die "
+                    "Übertragung der Root-Rechte vergeben."
+                )
+            # ON-6c (Befund 5, NIEDRIG): eine neue Zeile MIT `parent` = root
+            # haengt root eine Rolle an (frueher 200). Die Zielpruefung gilt
+            # auch hier — bisher kehrte die Funktion vorher zurueck.
+            ziel = [k for k in (str((values or {}).get("parent") or ""),) if k]
+            if not any(_ist_root_konto(k) for k in ziel):
+                return
+        else:
+            alt_parent = str(get_value("Has Role", str(name), "parent") or "")
+            neu_parent = str((values or {}).get("parent") or "")
+            alt_rolle = str(get_value("Has Role", str(name), "role") or "")
+            neu_rolle = str((values or {}).get("role") or "")
+            ziel = [k for k in (alt_parent, neu_parent) if k]
+            if loeschen and alt_rolle != ROOT_ROLLE_NAME:
+                # Eine andere Rolle zu loeschen nimmt root nichts weg.
+                if not any(_ist_root_konto(k) for k in ziel):
+                    return
+            elif not loeschen:
+                kennung_betroffen = (alt_rolle == ROOT_ROLLE_NAME
+                                     or neu_rolle == ROOT_ROLLE_NAME)
+                if not kennung_betroffen and not any(_ist_root_konto(k) for k in ziel):
+                    return
+            # ON-6c (Befund 4, NIEDRIG): KEIN stiller Durchlauf mehr. Hier
+            # stand `else: return` — damit war
+            #   DELETE /api/resource/Has Role/<root>-root
+            # erlaubt (202) und nahm root seine Kennrolle. Die Zielpruefung
+            # unten faengt den Fall jetzt ab.
+    else:
+        return
+
+    if any(_ist_root_konto(k) for k in ziel):
+        wer = str(session.user or "")
+        if not _ist_root_konto(wer):
+            raise FrappePermissionError(
+                "Das Root-Konto ist geschützt — nur der Root-Benutzer selbst kann "
+                "sein Konto und seine Rollen ändern."
+            )
+        return
+    if doctype == "Has Role" and not loeschen:
+        # Rolle „root“ an einem FREMDEN Konto anlegen/umbiegen: das ist keine
+        # Aenderung AM root-Konto, sondern die Vergabe der Kennzeichnung. Sie
+        # laeuft ausschliesslich ueber `api.root.root_uebertragen` (dort
+        # zusammen mit dem Eintrag in `gemeinde_einstellungen`, damit es nie
+        # zwei Wahrheiten gibt).
+        if str((values or {}).get("role") or "") == ROOT_ROLLE_NAME:
+            raise FrappePermissionError(
+                "Die Root-Kennzeichnung wird ausschließlich über die Übertragung "
+                "der Root-Rechte vergeben."
+            )
+
+
 def _pruefe_konto_schreibzugriff(
     doctype: str, name: str | None, values: dict[str, Any], *, loeschen: bool = False
 ) -> None:
@@ -1028,7 +1260,18 @@ def _pruefe_konto_schreibzugriff(
     `values` sind die zu schreibenden Felder (bereits auf Spalten gefiltert),
     `name` ist die Kennung der Zeile (None beim Anlegen — dann kein Risiko).
     """
-    if doctype not in _VERWALTUNGS_DOCTYPES or not name:
+    if doctype not in _VERWALTUNGS_DOCTYPES:
+        return
+    # ON-6b: root-Konto/-Rollen sind fuer JEDEN ausser root gesperrt — VOR
+    # allen anderen Wachen, damit die Meldung den Grund nennt. Das gilt auch
+    # beim ANLEGEN (`name is None`): eine neue `Has Role`-Zeile mit
+    # `role: "root"` vergibt die Kennzeichnung, und ein `User` mit gesetzter
+    # Kennung ueberschreibt ein bestehendes Konto (Frappe-Save). Der uebrige
+    # Teil dieser Wache (Aussperrschutz, Bestandsfreiheit) braucht dagegen
+    # einen Bestand.
+    _pruefe_root_schreibzugriff(doctype, str(name) if name else None,
+                                values or {}, loeschen=loeschen)
+    if not name:
         return
     _pruefe_bestand_unveraenderlich(doctype, str(name), values or {})
     if doctype == "User" and not loeschen:

@@ -244,7 +244,7 @@
       </form>
       <template #footer>
         <DkButton variant="secondary" :disabled="linkSpeichert" @click="linkSchliessen">Abbrechen</DkButton>
-        <DkButton variant="primary" type="submit" form="reg-link-form" :loading="linkSpeichert">Erstellen</DkButton>
+        <DkButton variant="primary" type="submit" form="reg-link-form" :loading="linkSpeichert">Anlegen</DkButton>
       </template>
     </DkDialog>
 
@@ -318,7 +318,7 @@
           Vorschau
         </DkButton>
         <DkButton variant="primary" type="submit" form="reg-formular-form" :loading="formularSpeichert">
-          {{ formularBearbeitet ? 'Speichern' : 'Erstellen' }}
+          {{ formularBearbeitet ? 'Speichern' : 'Anlegen' }}
         </DkButton>
       </template>
     </DkDialog>

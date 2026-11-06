@@ -374,6 +374,13 @@ def _konto_anlegen(sess, *, email: str, vorname: str, nachname: str, passwort: s
         )
     )
     sess.flush()
+    # ON-6: der ERSTE Administrator ist root — alle Rechte, geschuetzt. Die
+    # Kennzeichnung (Eintrag in `gemeinde_einstellungen.root_benutzer` +
+    # Kennrolle) entsteht in DIESER Transaktion, damit es nie ein Konto mit
+    # Root-Rolle ohne Eintrag gibt (und umgekehrt).
+    from diakronos_app import root_benutzer
+
+    root_benutzer.markiere(sess, email)
     for idx, rolle in enumerate(ADMIN_ROLLEN, start=1):
         sess.add(
             HasRole(

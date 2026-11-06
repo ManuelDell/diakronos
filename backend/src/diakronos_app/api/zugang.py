@@ -116,7 +116,16 @@ def _verweigere_fremdes_admin_konto(ziel_user: str) -> None:
     Mitgliederadministrator konnte das Passwort eines System-Manager-Kontos
     setzen oder dieses sperren — volle Uebernahme. Er darf nur Konten OHNE
     Verwaltungsrolle pflegen.
+
+    ON-6b: Die root-Regel steht als ERSTE Zeile (siehe
+    :func:`_verweigere_root_ziel`) — nicht erst in den Endpunkten, die diese
+    Wache zusaetzlich selbst rufen. Ueber diese eine Wache laufen alle
+    Kontowirkungen dieses Moduls UND die Aufrufer in ``austritt``,
+    ``mitglieder`` und ``datenschutz`` (Austritt, Reaktivierung, Ausschluss,
+    DSGVO-Loeschung). Vorher kam ein anderer System Manager an allen
+    Endpunkt-Wachen vorbei bis hierher und sperrte/loeschte root.
     """
+    _verweigere_root_ziel("", ziel_user, art="konto")
     if _ist_system_manager():
         return
     if _hat_admin_rolle(ziel_user):
@@ -124,6 +133,68 @@ def _verweigere_fremdes_admin_konto(ziel_user: str) -> None:
             "Konten mit Verwaltungsrechten darf nur ein System Manager ändern.",
             FrappePermissionError,
         )
+
+
+#: Was der Aufrufer mit dem root-Konto vorhat. Nur zur Meldung — die Regel ist
+#: fuer JEDEN Vorgang dieselbe („nur root selbst“).
+_ROOT_VORGANG = {
+    "konto": "ändern",
+    "rollen": "die Rollen entziehen",
+    "aenderung": "ändern",
+    "austritt": "austragen",
+    "reaktivierung": "reaktivieren",
+    "ausschluss": "ausschließen",
+    "loeschung": "löschen",
+    "dsgvo": "anonymisieren",
+    "uebertragung": "die Root-Rechte übertragen",
+}
+
+
+def _verweigere_root_ziel(aufrufer: str, ziel_user: str, *, art: str = "konto") -> None:
+    """ON-6b: das root-Konto ist fuer JEDE fremde Kontenwirkung gesperrt.
+
+    Manuel 2026-11-05: der erste Administrator ist root — „geschützt“. Kein
+    anderer Administrator (auch kein System Manager) darf ihn herabstufen,
+    sperren, loeschen, austragen oder ausschliessen. Die Uebergabe laeuft
+    ausschliesslich ueber ``api.root.root_uebertragen`` (eigener Endpunkt,
+    nur root selbst).
+
+    ``aufrufer`` LEER heisst: der angemeldete Benutzer. Ein leerer
+    ``ziel_user`` ist kein Ziel und wird nicht geprueft — die Regel greift
+    nur, wenn wirklich das root-Konto getroffen wird.
+
+    Fail closed in beide Richtungen: das Ziel wird ueber
+    :func:`permissions.ist_root` geprueft (liest ``gemeinde_einstellungen``),
+    der Aufrufer ebenfalls. Ist der Eintrag nicht lesbar, gibt es keinen root
+    — dann ist auch nichts zu schuetzen.
+    """
+    from diakronos_app.frappe_compat.permissions import ist_root
+
+    ziel = str(ziel_user or "").strip()
+    if not ziel:
+        return
+    if not ist_root(ziel):
+        return
+    wer = str(aufrufer or "").strip() or str(session.user or "")
+    if ist_root(wer):
+        return
+    vorgang = _ROOT_VORGANG.get(art, "ändern")
+    throw(
+        f"Das Root-Konto ist geschützt — nur der Root-Benutzer selbst kann es {vorgang}.",
+        FrappePermissionError,
+    )
+
+
+def _verweigere_root_konto(ziel_user: str) -> None:
+    """ON-6: das root-Konto ist fuer JEDE Konten-Aenderung gesperrt.
+
+    Die Pruefung steht VOR jeder anderen Wache dieses Moduls, weil sie fuer
+    alle Aufrufer gilt — auch fuer einen System Manager, den die uebrigen
+    Wachen durchlassen. Seit ON-6b ist sie zusaetzlich die erste Zeile von
+    :func:`_verweigere_fremdes_admin_konto`, damit kein Aufrufer sie
+    vergessen kann.
+    """
+    _verweigere_root_ziel("", ziel_user, art="konto")
 
 
 def _aktive_system_manager(*, _mitglieder=None, _konten=None) -> set[str]:
@@ -379,6 +450,7 @@ def setze_rollen(mitglied_id: str, rollen: list[str] | None = None) -> dict[str,
     # koennte sich ein Mitgliederadministrator zum System Manager machen oder
     # sich selbst einen Admin-Klon anlegen. Ein Mitgliederadministrator darf
     # ausserdem Konten mit Verwaltungsrechten gar nicht erst umrollen.
+    _verweigere_root_ziel("", str(user), art="rollen")
     _verweigere_fremdes_admin_konto(str(user))
     if not _ist_system_manager():
         neu_admin = set(gewuenscht) & {"Mitgliederadministrator"}
@@ -547,6 +619,7 @@ def konto_sperren(mitglied_id: str, gesperrt: bool = True) -> dict[str, Any]:
     # B1/B2 (R-P1-8): Sperren eines Verwaltungskontos nur durch System Manager,
     # und niemals den letzten aktiven System Manager aussperren (auch nicht
     # durch sich selbst).
+    _verweigere_root_ziel("", str(user), art="konto")
     _verweigere_fremdes_admin_konto(str(user))
     if wert:
         _verweigere_letzten_admin_verlust(str(user), "gesperrt")
@@ -598,6 +671,7 @@ def setze_passwort(mitglied_id: str, passwort: str, request=None) -> dict[str, A
 
     # B1 (R-P1-8): ein Mitgliederadministrator darf kein Verwaltungskonto
     # uebernehmen, indem er dessen Startpasswort setzt.
+    _verweigere_root_ziel("", str(user), art="konto")
     _verweigere_fremdes_admin_konto(str(user))
 
     from diakronos_app.db import SessionLocal
@@ -646,6 +720,8 @@ def konto_freischalten(user: str, freischalten: bool = True) -> dict[str, Any]:
     if get_value("User", konto_name, "name") is None:
         throw("Benutzerkonto nicht gefunden.", DoesNotExistError)
 
+    # ON-6: das root-Konto schaltet niemand ausser root selbst (per Uebertragung).
+    _verweigere_root_ziel("", konto_name, art="konto")
     # B1: nur ein System Manager darf Konten mit Verwaltungsrechten schalten.
     _verweigere_fremdes_admin_konto(konto_name)
 

@@ -894,6 +894,18 @@ def anonymisiere(s, mitglied: str, konten, *, dateien: list[str] | None = None) 
     """
     from diakronos_app.models.diakonos import Anmeldung, Mitglied
 
+    # ON-6 (letzte Schranke): das root-Konto wird NIE anonymisiert. Die
+    # Aufrufer (`api/datenschutz`) pruefen das bereits mit klarer Meldung;
+    # diese Zeile ist die Wache fuer einen kuenftigen dritten Aufrufer. Sie
+    # steht VOR dem ersten Schreibzugriff — es ist noch nichts geschehen.
+    from diakronos_app.frappe_compat.permissions import ist_root
+
+    if mitglied and ist_root(str(mitglied)):
+        raise ValueError("Das Root-Konto kann nicht anonymisiert werden.")
+    for konto in (konten or ()):
+        if konto and ist_root(str(konto)):
+            raise ValueError("Das Root-Konto kann nicht anonymisiert werden.")
+
     b = bestand_erheben(s, mitglied, konten)
     zaehler: dict[str, int] = {}
     kennung = neue_kennung()

@@ -14,7 +14,7 @@
     <!-- UX2d3a: Laden zeigt den Umriss (Skelett, erst nach 300 ms), keinen Satz. -->
     <DkSkelett v-if="skelettSichtbar" form="zeilen" :anzahl="5" text="Planvorlagen werden geladen …" />
     <PrMeldungen :meldungen="fehler" />
-    <button v-if="fehler.length" class="dk-btn dk-btn-secondary" @click="neuLaden">Nochmal</button>
+    <button v-if="fehler.length" class="dk-btn dk-btn-secondary" @click="neuLaden">Erneut versuchen</button>
     <!-- Leerzustand nur bei erfolgreich geladener, aber leerer Liste.
          Beim Laden erscheint weder dieser Hinweis noch die Liste: veraltete
          Rendererstände dürfen keine Planvorlagen behaupten, die es nicht gibt. -->

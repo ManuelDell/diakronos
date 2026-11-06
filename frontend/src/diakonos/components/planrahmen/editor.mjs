@@ -63,7 +63,7 @@ export const FELD_ARTEN = [
   { wert: 'auswahl', name: 'Auswahl aus einer Liste' },
   { wert: 'gruppe', name: 'Gruppe mit Unterfeldern' },
   { wert: 'team', name: 'Team (Diakonos-Gruppe)' },
-  { wert: 'ablauf', name: 'Ablauf (Elementtypen)' },
+  { wert: 'ablauf', name: 'Ablauf (Arten der Einträge)' },
 ]
 
 export const FUELLSTRATEGIEN = [

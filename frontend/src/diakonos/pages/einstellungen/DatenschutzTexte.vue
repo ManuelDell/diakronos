@@ -6,7 +6,7 @@
 
     <DkHint v-if="laedt" role="status">Texte werden geladen …</DkHint>
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
-    <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut laden</DkButton>
+    <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut versuchen</DkButton>
 
     <p v-if="geladen" class="dt-fassung">
       <span class="dt-badge">Fassung {{ version }}</span>

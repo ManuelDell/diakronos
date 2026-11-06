@@ -257,6 +257,12 @@ def client(patched_db, fake_redis):
 	der Sitzung noch da und noch `enabled` ist; ohne Zeile gilt der Aufruf als
 	`Guest`. Das ist die beabsichtigte Regel, nicht ein Nebeneffekt — deshalb
 	legt der Fixture sie hier an, statt den Check abzuschwaechen.
+
+	**DEMO-1**: Der rufende Client haengt danach an `request.client`. Die
+	Anmeldung ueber `/api/method/login` liest ihn (Brute-Force-Sperre je
+	Adresse) — ohne echten Client scheitert die Anfrage im Testclient mit
+	„No request object set“. Ein Test, der den Login per HTTP prueft, holt
+	sich deshalb diesen Fixture oder setzt den Client selbst.
 	"""
 	from diakronos_app.main import app
 	from diakronos_app import frappe_compat

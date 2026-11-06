@@ -328,7 +328,7 @@ const kannPlatzHinzufuegen = computed(() => {
 const platzLabel = computed(() => {
     const d = feldDeklarationFeld.value
     const name = (d?.name || feldInfo(props.feldPfad, props.definition, props.termin).name || 'Eintrag').toString()
-    return '+ ' + name + ' hinzufügen'
+    return '+ ' + name + ' anlegen'
 })
 
 const platzLaedt = ref(false)

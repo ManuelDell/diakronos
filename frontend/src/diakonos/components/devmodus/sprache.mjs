@@ -65,7 +65,7 @@ export async function starteAufnahme({ onFehler } = {}) {
   }
   const bevorzugt = ['audio/webm', 'audio/ogg', 'audio/mp4']
   const typ = bevorzugt.find(t => globalThis.MediaRecorder.isTypeSupported?.(t)) || ''
-  const recorder = new MediaRecorder(strom, typ ? { mimeType: typ } : undefined)
+  const recorder = new globalThis.MediaRecorder(strom, typ ? { mimeType: typ } : undefined)
   const stuecke = []
   recorder.ondataavailable = (e) => { if (e.data && e.data.size) stuecke.push(e.data) }
   recorder.start()

@@ -26,8 +26,9 @@ test('DEV-1 · Bereichs-Ansicht bietet „Neue Gruppe/Untergruppe“ im Seitenko
   const bereich = read('pages/gruppen/Bereich.vue')
   assert.match(bereich, /<DkPageHeader[\s\S]*?<template #actions>/,
     'Bereich: der Seitenkopf hat einen Aktionen-Bereich')
-  assert.match(bereich, /\+ Neue Gruppe/, 'Bereich: Knopf „Neue Gruppe“')
-  assert.match(bereich, /\+ Neue Untergruppe/, 'Bereich: Knopf „Neue Untergruppe“')
+  // UX2h: Knopftexte sind Verben („anlegen“) — kein „+ Neue …“ mehr.
+  assert.match(bereich, /Gruppe anlegen/, 'Bereich: Knopf „Gruppe anlegen“')
+  assert.match(bereich, /Untergruppe anlegen/, 'Bereich: Knopf „Untergruppe anlegen“')
   assert.match(bereich, /rechte\.canCreateAny/, 'Bereich: Knopf hängt an den Server-Rechten')
   assert.match(bereich, /rechte\.canCreateGruppe/, 'Bereich: „Neue Gruppe“ hängt am Einzelrecht')
   assert.match(bereich, /rechte\.canCreateUntergruppe/, 'Bereich: „Neue Untergruppe“ hängt am Einzelrecht')

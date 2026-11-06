@@ -375,7 +375,9 @@ def test_post_legt_admin_mit_rollen_und_mitglied_an(client, patched_db, fake_red
                 HasRole.parent == "admin@gemeinde.example"
             )
         }
-        assert rollen == {"System Manager", "Mitgliederadministrator"}
+        # ON-6: der ERSTE Administrator ist zusaetzlich root (Kennzeichnung,
+        # keine Fachrolle) — dieselbe Zusage wie ``test_on6_root.py``.
+        assert rollen == {"System Manager", "Mitgliederadministrator", "root"}
 
         mitglieder = sess.query(Mitglied).all()
         assert len(mitglieder) == 1

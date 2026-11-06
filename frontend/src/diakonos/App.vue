@@ -56,7 +56,7 @@
               <p style="font-size:var(--fs-16);font-weight:var(--fw-fett);color:var(--dk-text);margin:0 0 6px;">{{ pageLadefehler.meldung }}</p>
               <p style="font-size:var(--fs-14);color:var(--dk-text-muted);margin:0 0 16px;">{{ pageLadefehler.hinweis }}</p>
               <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-                <button type="button" class="dk-btn dk-btn-primary dk-btn-sm" @click="routeNeuLaden">Nochmal versuchen</button>
+                <button type="button" class="dk-btn dk-btn-primary dk-btn-sm" @click="routeNeuLaden">Erneut versuchen</button>
                 <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/">Zur Übersicht</a>
               </div>
             </div>

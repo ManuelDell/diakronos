@@ -142,7 +142,7 @@ export function fontCacheLeeren() { _fontCss = null }
 
 /**
  * Rendert den ganzen sichtbaren Bereich (Viewport) als Data-URL-PNG.
- * Dev-Elemente werden ausgeblendet; ``markierung`` (das Zielelement) bleibt
+ * Dev-Markierungen werden ausgeblendet; ``markierung`` (die Zielstelle) bleibt
  * sichtbar und traegt den Umriss.
  */
 export async function fensterAlsPng(domToPng, markierung = null, entferneUmriss = null) {
@@ -222,7 +222,7 @@ export async function schneideBild(datenUrl, ausschnitt, ladefunktion = null) {
   }
 }
 
-/** Markiert ein Element sichtbar (roter Umriss) und liefert eine Aufraeumfunktion. */
+/** Markiert eine Stelle sichtbar (roter Umriss) und liefert eine Aufraeumfunktion. */
 export function markiere(el) {
   if (!el || !el.style) return () => {}
   const vorher = el.style.outline

@@ -24,7 +24,7 @@
 
     <div v-else-if="seitenFehler.length" class="pr-ue-zustand pr-ue-zustand--fehler">
       <PrMeldungen :meldungen="seitenFehler" />
-      <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="ladenAlles">Nochmal</button>
+      <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="ladenAlles">Erneut versuchen</button>
     </div>
 
     <template v-else>
@@ -32,8 +32,8 @@
         <p class="dk-empty-title">Keine Pläne sichtbar</p>
         <p class="dk-empty-desc">
           <template v-if="kannAnlegen">Beginne mit „Neuer Plan“: Wähle eine Planvorlage, pflege die Fähigkeiten der Personen und lege den Zeitraum fest.</template>
-          <template v-else-if="kannEinrichten">Richte zuerst eine Planvorlage unter „Vorlagen“ ein. Bereichsverantwortliche können danach einen Plan erstellen.</template>
-          <template v-else>Bereichsverantwortliche erstellen und veröffentlichen die Pläne. Für dich ist derzeit kein Plan freigegeben. Persönliche Dienste findest du unter „Meine Dienste“.</template>
+          <template v-else-if="kannEinrichten">Richte zuerst eine Planvorlage unter „Vorlagen“ ein. Bereichsverantwortliche können danach einen Plan anlegen.</template>
+          <template v-else>Bereichsverantwortliche legen die Pläne an und veröffentlichen sie. Für dich ist derzeit kein Plan freigegeben. Persönliche Dienste findest du unter „Meine Dienste“.</template>
         </p>
         <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/meine-dienste">Meine Dienste öffnen</a>
       </div>

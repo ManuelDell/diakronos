@@ -28,7 +28,7 @@
 
     <div v-else-if="seitenFehler.length" class="pr-stamm-zustand pr-stamm-zustand--fehler">
       <PrMeldungen :meldungen="seitenFehler" />
-      <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="neuLaden">Nochmal</button>
+      <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="neuLaden">Erneut versuchen</button>
     </div>
 
     <div v-else-if="!daten" class="dk-empty">

@@ -126,7 +126,7 @@
                         </template>
                         <div v-if="showAufgabeInput" class="grup-zeile">
                             <input v-model="neueAufgabe" type="text" placeholder="Neue Aufgabe…" class="dk-ui-eingabe" @keyup.enter="createAufgabe" />
-                            <DkButton variant="primary" size="sm" :disabled="!neueAufgabe.trim() || sendingAufgabe" :loading="sendingAufgabe" @click="createAufgabe">Hinzufügen</DkButton>
+                            <DkButton variant="primary" size="sm" :disabled="!neueAufgabe.trim() || sendingAufgabe" :loading="sendingAufgabe" @click="createAufgabe">Übernehmen</DkButton>
                             <DkButton variant="ghost" size="sm" @click="showAufgabeInput = false; neueAufgabe = ''">✕</DkButton>
                         </div>
                         <DkEmpty v-if="aufgaben.length === 0" title="Keine Aufgaben vorhanden" icon="📋" />

@@ -150,20 +150,20 @@ test('WEB-3: die drei Serverzustände bekommen eigenen Titel und Ton', () => {
 test('WEB-3: „verbunden“ zeigt Version und Seitenzahl, nie erfundene Werte', () => {
     assert.equal(
         verbindungsDetails({ status: 'verbunden', version: 'v3.3.1', site_count: 3 }),
-        'Primo v3.3.1 · 3 Seiten',
+        'Website-Baukasten v3.3.1 · 3 Seiten',
     )
     assert.equal(
         verbindungsDetails({ status: 'verbunden', version: 'v3.3.1', site_count: 1 }),
-        'Primo v3.3.1 · 1 Seite',
+        'Website-Baukasten v3.3.1 · 1 Seite',
     )
     // 0 Seiten ist eine gültige Auskunft (frische Installation).
     assert.equal(
         verbindungsDetails({ status: 'verbunden', version: 'v3.3.1', site_count: 0 }),
-        'Primo v3.3.1 · 0 Seiten',
+        'Website-Baukasten v3.3.1 · 0 Seiten',
     )
     // Fehlende Werte werden ausgelassen, nicht als 0 ausgegeben.
     assert.equal(verbindungsDetails({ status: 'verbunden', site_count: 2 }), '2 Seiten')
-    assert.equal(verbindungsDetails({ status: 'verbunden', version: 'v3.3.1' }), 'Primo v3.3.1')
+    assert.equal(verbindungsDetails({ status: 'verbunden', version: 'v3.3.1' }), 'Website-Baukasten v3.3.1')
     // Nur bei „verbunden“ gibt es Details.
     assert.equal(verbindungsDetails({ status: 'nicht_erreichbar', version: 'v3.3.1' }), '')
     assert.equal(verbindungsDetails(null), '')
@@ -174,7 +174,11 @@ test('WEB-3: „verbunden“ zeigt Version und Seitenzahl, nie erfundene Werte',
 test('WEB-3: die Kurzanleitung nennt Stack, Integrationskonto und die Werte', () => {
     assert.ok(ANSCHLUSS_SCHRITTE.length >= 4)
     const text = ANSCHLUSS_SCHRITTE.map(s => `${s.titel} ${s.text}`).join('\n')
-    // Primo-Stack starten (WEB-2).
+    // UX2h: Die SICHTBARE Anleitung nennt den Baukasten beim neuen Namen
+    // („Website-Baukasten“); Pfad, Compose-Projekt und Prüf-Endpunkt sind
+    // echte Kennungen (WEB-2, primo.py) und bleiben wörtlich stehen.
+    assert.match(text, /Website-Baukasten/)
+    assert.doesNotMatch(text, /Primo /, 'sichtbarer Text nennt noch „Primo“')
     assert.match(text, /deploy\/primo/)
     assert.match(text, /docker compose -p diakronos-primo/)
     assert.match(text, /\/api\/primo\/info/)
@@ -189,9 +193,12 @@ test('WEB-3: die Kurzanleitung nennt Stack, Integrationskonto und die Werte', ()
     for (const wert of BENOETIGTE_WERTE) {
         assert.ok(text.includes(wert), `Kurzanleitung nennt ${wert} nicht`)
     }
-    // Die Anleitung liegt als TEXT vor (kein Link ins Repository).
+    // Die ausführliche Anleitung liegt im Repository (Datei-Pfad, kein Link).
     assert.match(ANLEITUNG_ORT, /deploy\/primo\/ANLEITUNG\.md/)
+    assert.match(ANLEITUNG_ORT, /BETRIEBSANLEITUNG\.md/)
     assert.doesNotMatch(ANLEITUNG_ORT, /https?:\/\//)
+    // UX2h: der sichtbare Text nennt den alten Namen nicht mehr (nur den Pfad).
+    assert.doesNotMatch(ANLEITUNG_ORT, /Primo/)
 })
 
 test('WEB-3: die genannten Einstellungen gibt es wirklich im Server', () => {
@@ -271,7 +278,7 @@ test('WEB-3: „Verbindung prüfen“ fragt den Status-Endpunkt per GET', async 
     assert.equal(a[0].art, 'GET')
     assert.equal(a[0].pfad, 'diakronos.diakronos.api.website.status')
     assert.equal(w.zustand().titel, 'Verbunden')
-    assert.equal(w.details(), 'Primo v3.3.1 · 2 Seiten')
+    assert.equal(w.details(), 'Website-Baukasten v3.3.1 · 2 Seiten')
     assert.equal(w.fehler.value, '')
 })
 

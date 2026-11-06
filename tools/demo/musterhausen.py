@@ -238,6 +238,16 @@ def _benutzer_anlegen(a: Anleger, email: str, passwort: str, voller_name: str) -
     (``planrahmen/rechte.py``: ein deaktiviertes Konto hat keine Rechte, auch
     nicht mit der Rolle). Ein direkt per ORM eingefuegtes Konto blieb dort
     „aus“ — die Plaene liessen sich dann nicht mehr anlegen.
+
+    DEMO-1: Das Passwort wird nach dem Anlegen ueber den Passwortweg der App
+    gesetzt (``frappe_compat.passwoerter.neuer_hash``) und sofort mit
+    ``pruefe()`` gegen das dokumentierte Demo-Passwort verifiziert.
+
+    Die Ursache des Befunds (ein Hash, der sich nicht verifizieren liess)
+    wurde **nicht reproduziert**; der Hash entsteht jetzt an genau einer
+    Stelle und wird nach dem Setzen geprueft. Ist er nicht pruefbar, bricht
+    der Seed mit ``DemoFehler`` ab — ein still falscher Wert verlaesst die
+    Demo damit nicht mehr unbemerkt.
     """
     from diakronos_app.frappe_compat.passwoerter import neuer_hash
 
@@ -247,8 +257,20 @@ def _benutzer_anlegen(a: Anleger, email: str, passwort: str, voller_name: str) -
         "full_name": voller_name,
         "enabled": 1,
         "user_type": "System User",
-        "password_hash": neuer_hash(passwort),
     })
+    konto = a.s.get(User, email)
+    if konto is None:  # pragma: no cover — _create hat die Zeile eben angelegt
+        raise DemoFehler(f"Konto {email!r} wurde nicht angelegt")
+    konto.password_hash = neuer_hash(passwort)
+    a.s.flush()
+    # DEMO-1: Das Passwort ist damit pruefbar — es sei denn, der Hash
+    # widerspricht. Der Befund war „Hash laesst sich nicht verifizieren“;
+    # ein still falscher Wert darf nicht wieder unbemerkt in die Demo laufen.
+    from diakronos_app.frappe_compat.passwoerter import pruefe
+
+    if not pruefe(passwort, konto.password_hash):
+        raise DemoFehler(
+            f"Passwort-Hash fuer {email!r} ist nicht pruefbar — Abbruch")
 
 
 def konten_anlegen(a: Anleger) -> None:
@@ -1861,6 +1883,18 @@ def anlegen(nur_pruefen: bool = False, stichtag: date | None = None) -> str:
             pruefe_leere_datenbank(session)
         a = Anleger(session, nur_pruefen=nur_pruefen)
 
+        # DEMO-1: Die Konten werden wie bisher sofort festgemacht (der
+        # `abschluss()`-Aufruf stand schon auf main — hier nur festgehalten,
+        # WARUM er fuer den Hash wichtig ist).
+        #
+        # `Anleger` haengt die Skript-Sitzung als aktuelle Sitzung ein; der
+        # generische Schreibweg (`_create`) committet dort NICHT, er flusht
+        # nur (siehe `Anleger.neu`/`abschluss`). Der Passwort-Hash, den
+        # `_benutzer_anlegen` der Zeile danach zuweist, haengt sonst bis zum
+        # naechsten Commit in der offenen Transaktion — ein Abbruch davor
+        # hinterlaesst eine Datenbank ohne anmeldbares Konto, obwohl der
+        # Bericht Konten zaehlt.
+        # `--pruefen` schreibt nichts: `abschluss()` rollt dort zurueck.
         einstellungen_anlegen(a)
         konten_anlegen(a)
         a.abschluss()

@@ -113,7 +113,7 @@
     <!-- ── Strophen ───────────────────────────────────────────────────── -->
     <DkCard title="Strophen">
       <template #actions>
-        <DkButton variant="secondary" size="sm" @click="hinzufuegen('Strophe')">Strophe hinzufügen</DkButton>
+        <DkButton variant="secondary" size="sm" @click="hinzufuegen('Strophe')">Strophe anlegen</DkButton>
         <DkButton variant="ghost" size="sm" @click="hinzufuegen('Refrain')">Refrain</DkButton>
         <DkButton variant="ghost" size="sm" @click="hinzufuegen('Bridge')">Bridge</DkButton>
       </template>

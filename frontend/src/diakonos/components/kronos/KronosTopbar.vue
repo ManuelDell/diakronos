@@ -96,15 +96,15 @@
       <DkButton
         v-if="canModerate"
         as="a"
-        class="moderation-btn moderation-knopf"
+        class="pruefen-knopf moderation-knopf"
         href="#/kalender/pruefen"
         variant="secondary"
         size="md"
         title="Termine prüfen und freigeben"
         aria-label="Termine prüfen und freigeben"
       >
-        <span v-html="ICON_MODERATION"></span>
-        <span class="moderation-btn-label">Zu prüfen<span v-if="offeneZahl > 0" class="moderation-btn-zahl">{{ offeneZahl }}</span></span>
+        <span v-html="ICON_PRUEFEN"></span>
+        <span class="pruefen-knopf-label">Zu prüfen<span v-if="offeneZahl > 0" class="pruefen-knopf-zahl">{{ offeneZahl }}</span></span>
       </DkButton>
     </div>
   </header>
@@ -160,7 +160,7 @@ const ICON_CHEVRON_RIGHT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0
 const ICON_EYE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0-4 0"/><path d="M21 12c-2.4 4-5.4 6-9 6c-3.6 0-6.6-2-9-6c2.4-4 5.4-6 9-6c3.6 0 6.6 2 9 6"/></svg>`;
 const ICON_PENCIL = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M4 20h4l10.5-10.5a2.828 2.828 0 1 0-4-4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></svg>`;
 const ICON_ROOM_VIEW = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-12a2 2 0 0 1-2-2l0-12"/><path d="M12 4l0 16"/></svg>`;
-const ICON_MODERATION = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M4 5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1l0-4"/><path d="M14 5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1l0-4"/><path d="M4 15a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1l0-4"/><path d="M14 17h6m-3-3v6"/></svg>`;
+const ICON_PRUEFEN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M4 5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1l0-4"/><path d="M14 5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1l0-4"/><path d="M4 15a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1l0-4"/><path d="M14 17h6m-3-3v6"/></svg>`;
 const ICON_MENU = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>`;
 const ICON_CALENDAR_TODAY = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><line x1="8" y1="16" x2="8.01" y2="16"/></svg>`;
 
@@ -332,7 +332,7 @@ onMounted(() => {
   flex: 0 0 auto;
   align-self: center;
 }
-.moderation-btn-label { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.pruefen-knopf-label { display: inline-flex; align-items: center; gap: var(--sp-1); }
 /* UX3a: Zahl offener Vorschläge am Reiter „Zu prüfen“ (Entwurf A4 zeigt den
    Zähler als Badge). Gold = Statusfarbe „zu prüfen“, wie in der Statusfläche
    der Umschlagtafel (--warn auf --warn-soft, dieselben Tokens wie
@@ -341,7 +341,7 @@ onMounted(() => {
    Schrift 12 px (--fs-sm), Innenabstand waagerecht --sp-1, Mindesthöhe und
    Mindestbreite auf der Zeilenhöhe der Schrift. Gold bleibt Statusfarbe
    „zu prüfen“. */
-.moderation-btn-zahl {
+.pruefen-knopf-zahl {
   min-width: var(--sp-4);
   height: var(--sp-4);
   padding: 0 var(--sp-1);
@@ -363,7 +363,7 @@ onMounted(() => {
    steht (statt 14 px fester Polsterung einer schmalen Fläche). */
 @media (max-width: 720px) {
   .moderation-knopf { padding-left: var(--sp-3); padding-right: var(--sp-3); }
-  .moderation-btn-label { display: none; }
+  .pruefen-knopf-label { display: none; }
 }
 
 /* UXK-008: Auf schmalen Bildschirmen umbrechen Kopfzeile und Bedienelemente

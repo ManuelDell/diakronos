@@ -5,7 +5,7 @@
       <p v-if="bildAufnahmeFehler" class="dk-dm-warnung" role="alert" data-dk-dev>{{ bildAufnahmeFehler }}</p>
       <!-- Element -->
       <div class="dk-dm-zeile">
-        <span class="dk-dm-label">Element</span>
+        <span class="dk-dm-label">Stelle</span>
         <code class="dk-dm-kontext">{{ elementInfo }}</code>
       </div>
 
@@ -140,7 +140,7 @@ const meldung = ref('')
 const bildHinweis = ref('')
 const textFeld = ref(null)
 
-const titel = computed(() => (props.element ? 'Befund melden' : 'Befund ohne Element'))
+const titel = computed(() => (props.element ? 'Befund melden' : 'Befund ohne Stelle'))
 const sttAn = computed(() => Boolean(sttVerfuegbar?.value))
 const webSpeechAn = computed(() => webSpeechVerfuegbar())
 const elementInfo = computed(() => {

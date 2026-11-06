@@ -25,7 +25,7 @@
       <li :class="{ 'is-erledigt': angelegt }">
         <span class="pr-erststart-marke" aria-hidden="true">{{ angelegt ? '✔' : '2' }}</span>
         <div class="pr-erststart-inhalt">
-          <strong>{{ angelegt ? 'Plan erstellt' : 'Plan erstellen' }}<span v-if="angelegt" class="pr-erststart-status"> — erledigt</span></strong>
+          <strong>{{ angelegt ? 'Plan angelegt' : 'Plan anlegen' }}<span v-if="angelegt" class="pr-erststart-status"> — erledigt</span></strong>
           <span> — Titel und Zeitraum angeben.</span>
         </div>
       </li>

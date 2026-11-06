@@ -280,6 +280,13 @@ def bootstrap_erstinstallation() -> str | None:
             # Argon2: der Erst-Admin hat kein importiertes Frappe-Passwort.
             password_hash=neuer_hash(passwort),
         ))
+        # ON-6: der ERSTE Administrator ist root (alle Rechte, geschuetzt) —
+        # auch auf dem kopflosen Weg ueber ADMIN_EMAIL/ADMIN_PASSWORD. Dieselbe
+        # Kennzeichnung wie beim Einrichtungs-Link, damit beide Wege NICHT
+        # auseinanderlaufen.
+        from diakronos_app import root_benutzer
+
+        root_benutzer.markiere(sess, email)
         for idx, rolle in enumerate(ADMIN_ROLLEN, start=1):
             sess.add(HasRole(
                 name=f"{email}-{rolle}",

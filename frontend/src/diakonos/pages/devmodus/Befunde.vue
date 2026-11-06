@@ -1,7 +1,7 @@
 <template>
   <div class="dk-screen dk-screen-enter">
     <DkPageHeader title="Dev-Befunde"
-                  sub="Gemeldete Fehler, Wünsche und Fragen mit Bild, Element und URL."
+                  sub="Gemeldete Fehler, Wünsche und Fragen mit Bild, Stelle und URL."
                   :krumen="[{ text: 'Start', href: '#/' }, { text: 'Dev-Befunde' }]" />
 
     <div class="dk-dm-leiste">
@@ -51,7 +51,7 @@
           <dl class="dk-dm-meta">
             <dt>Ort</dt><dd>{{ b.seite || '—' }} · {{ b.route || '—' }}</dd>
             <dt>URL</dt><dd class="dk-dm-umbrich">{{ b.url || '—' }}</dd>
-            <dt>Element</dt>
+            <dt>Stelle</dt>
             <dd><code>{{ (b.element || {}).selektor || '—' }}</code>
               <span v-if="(b.element || {}).komponenten?.length">
                 · {{ (b.element.komponenten).join(' &gt; ') }}</span></dd>

@@ -31,7 +31,7 @@
     </form>
     <template #footer>
       <DkButton variant="ghost" @click="schliessen(false)">Abbrechen</DkButton>
-      <DkButton variant="primary" :loading="sending" @click="submit">Erstellen</DkButton>
+      <DkButton variant="primary" :loading="sending" @click="submit">Anlegen</DkButton>
     </template>
   </DkDialog>
 </template>

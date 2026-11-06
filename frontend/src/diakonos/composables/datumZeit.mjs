@@ -391,8 +391,12 @@ export function endeAusKalender(ende, allDay, beginn = null) {
   return uhr ? minusEins + uhr : minusEins
 }
 
-/** Date → „YYYY-MM-DD HH:MM:SS“ in BROWSERzeit (Serverformat, wie bisher). */
-function alsServerZeit(wert) {
+/**
+ * Datum → Server-Schreibweise „JJJJ-MM-TT HH:MM:SS“ (Ortszeit).
+ * FIX-8: exportiert, weil `useEventsApi.createEvent` dieselbe Umrechnung
+ * braucht (vorher rief es das nirgends gebundene `toLocalDateTimeString`).
+ */
+export function alsServerZeit(wert) {
   if (!(wert instanceof Date)) return String(wert ?? '')
   const pad = (n) => String(n).padStart(2, '0')
   return `${wert.getFullYear()}-${pad(wert.getMonth() + 1)}-${pad(wert.getDate())} ` +

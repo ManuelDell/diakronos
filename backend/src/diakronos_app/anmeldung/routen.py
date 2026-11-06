@@ -23,6 +23,8 @@ weil sie keinen Frappe-Envelope brauchen und teils HTML/Redirect liefern.
 
 from __future__ import annotations
 
+import re
+
 import json
 import logging
 from urllib.parse import quote, unquote, urlencode
@@ -53,6 +55,16 @@ def _spa_ziel() -> str:
     from diakronos_app import base_path
 
     return base_path.pfad(SPA_ZIEL)
+
+
+# LOGIN-1 (Paket 2026-11-05): Rollen, die in der SPA auf KEINER Seite
+# ankommen — der Router schickt sie auf eine Sperrseite. Eine solche Sitzung
+# darf die Anmeldeseite deshalb NICHT „wegschicken“: sonst leitete ein
+# geteilter Anmeldelink sie in eine Sackgasse, aus der nur der Logout führt.
+# Die Liste ist eine KOPIE von `frontend/src/diakonos/router.js::GAST_ALLOWED`
+# (dort steht `NurGast`); ein Test hält beide Listen zusammen.
+NUR_SPERRSEITE_ROLLEN = ("NurGast",)
+
 
 # Pfade, die ein Forward-Auth-Proxy AUSSCHLIESSEN muss (TEIL C). Hier nur als
 # Konstante dokumentiert; die Durchsetzung ist eine Proxy-Konfiguration.
@@ -97,15 +109,53 @@ def _relatives_ziel(kandidat: str | None) -> str:
 
     Dieselbe Strenge wie `api/auth.py::_redirect_ziel`: führende ``/`` ja,
     ``//`` (protokollrelativ) und Backslashes nein, Steuerzeichen gefiltert.
+
+    LOGIN-1 (Paket 2026-11-05): Das Ergebnis traegt IMMER das Betriebs-Praefix.
+    Bisher wurde der Kandidat unveraendert durchgereicht; die Werte kommen aber
+    APP-relativ (`/diakonos`, wie die Maske sie selbst ins Formular schreibt),
+    und `Location` muss den Praefix nennen, sonst landet der Browser neben der
+    App. Ein Kandidat, der den Praefix schon traegt, bleibt unveraendert
+    (kein doppeltes Praefix).
+
+    LOGIN-1b (Sicherheits-Review LOGIN-1): Punktsegmente (``..`` und ``.``)
+    werden abgelehnt. Der Wert wird EINMAL dekodiert, deshalb kaeme
+    ``/%2e%2e//evil`` bis hierher als ``/..//evil`` an; zusammen mit dem
+    Betriebs-Praefix entstuende ``/diakronos/..//evil`` — der Browser loest das
+    zu ``//evil`` auf und verlaesst die App (protokollrelativer Sprung). Die
+    Pruefung ist absichtlich strenger als noetig: auch ein blosses ``.`` faellt
+    auf die Uebersicht, weil kein echtes Ziel der App so aussieht.
     """
+    from diakronos_app import base_path
+
     ziel = unquote(str(kandidat or "")).strip()
-    if not ziel.startswith("/") or ziel.startswith("//"):
+    if (
+        not ziel.startswith("/")
+        or ziel.startswith("//")
+        or "\\" in ziel
+        or any(ord(c) < 0x20 or c in "\x7f\x85\u2028\u2029" for c in ziel)
+        or _hat_punktsegment(ziel)
+    ):
         return _spa_ziel()
-    if "\\" in ziel:
-        return _spa_ziel()
-    if any(ord(c) < 0x20 or c in "\x7f\x85\u2028\u2029" for c in ziel):
-        return _spa_ziel()
-    return ziel
+    praefix = base_path.aktiver_praefix()
+    if praefix and (ziel == praefix or ziel.startswith(praefix + "/")):
+        return ziel
+    return base_path.pfad(ziel)
+
+
+def _hat_punktsegment(ziel: str) -> bool:
+    """True, wenn ein Pfadsegment genau ``.`` oder ``..`` ist.
+
+    Geprueft wird der PFAD-Teil (vor ``?``/``#``), damit eine Abfrage wie
+    ``?seite=..`` nicht faelschlich abgelehnt wird. Leere Segmente (``/a//b``)
+    sind erlaubt — sie aendern das Ziel nicht.
+    """
+    pfad = ziel.split("#", 1)[0].split("?", 1)[0]
+    # Auch mehrfach kodierte Punkte (``%2e``, ``%252e`` …) zählen: der Browser
+    # liest ``%2e%2e`` im Location-Kopf als ``..`` (Review LOGIN-1b, F1).
+    return any(
+        re.sub(r"%(25)*2e", ".", teil, flags=re.I) in {".", ".."}
+        for teil in pfad.split("/")
+    )
 
 
 def _lokales_login_erlaubt() -> bool:
@@ -419,6 +469,119 @@ def erstelle_anmeldeseite(
 """
 
 
+def _angemeldete_sitzung(request: Request):
+    """Das ``sid`` einer brauchbaren, angemeldeten Sitzung — oder ``None``.
+
+    LOGIN-1 (Paket 2026-11-05): Vor jeder Weiterleitung von der Anmeldeseite
+    stehen DREI Fragen, und dieselben drei stellt die ``SessionMiddleware`` bei
+    jedem Aufruf — die Antworten werden hier nur vorweggenommen:
+
+      1. Gibt es ein ``sid`` und kennt der Sitzungsspeicher es noch?
+         (abgelaufen/erfunden -> ``None``, die Maske erscheint wie bisher)
+      2. Ist das Konto dahinter noch aktiv (``benutzer_status.ist_aktiv``:
+         ``enabled``, nicht ausgeschlossen, ``Guest`` nie)?
+      3. Ist der Weg ueber die Anmeldeseite frei? Hat die Sitzung **kein** SSO
+         (das Flag setzen nur die geprueften Wege OIDC/Forward-Auth), so gilt
+         die Regelschranke aus B1: ein Konto mit einem Startpasswort muss es
+         zuerst wechseln — die Middleware verwirft eine solche Sitzung. Ein
+         Konto mit einer Rolle aus ``NUR_SPERRSEITE_ROLLEN`` saehe in der SPA
+         nur die Sperrseite (eine geteilte Adresse wuerde zur Sackgasse).
+
+    OHNE diese Pruefung entstuende ausgerechnet an der Anmeldeseite eine
+    Schleife: die Weiterleitung in die App braucht eine gueltige Sitzung, die
+    App schickt eine ungueltige zurueck — und die Anmeldeseite schickte wieder
+    hinein.
+
+    Ein Fehler beim Lesen der Rolle zaehlt als „nicht angemeldet“ (fail closed,
+    dieselbe Regel wie in ``benutzer_status``).
+    """
+    from diakronos_app.anmeldung.passwortzugang import wechsel_noetig_gecacht
+    from diakronos_app.frappe_compat import benutzer_status, sitzungen
+    from diakronos_app.frappe_compat.auth_middleware import sid_aus_headers
+
+    sid = sid_aus_headers(request.headers)
+    if not sid:
+        return None
+    daten = sitzungen.lesen(sid)
+    if not daten or not daten.get("user"):
+        return None
+    user = str(daten["user"])
+    if not benutzer_status.ist_aktiv(user):
+        return None
+    if daten.get("sso") is not True and wechsel_noetig_gecacht(user):
+        return None
+    try:
+        from diakronos_app.frappe_compat.permissions import get_roles
+
+        if set(get_roles(user)) & set(NUR_SPERRSEITE_ROLLEN):
+            return None
+    except Exception as exc:  # noqa: BLE001 — fail closed: Maske zeigen
+        logger.warning("Rollen fuer die Anmeldeseite nicht lesbar: %s", exc.__class__.__name__)
+        return None
+    return sid
+
+
+def _ist_oeffentlicher_pfad(pfad: str) -> bool:
+    """True fuer Ziele, die auch ein Gast sehen darf (kein Weiterleiten).
+
+    Verglichen wird der APP-eigene Pfad: `_relatives_ziel` liefert nur
+    pfadrelative Ziele, das Betriebs-Praefix steht davor und fliegt hier raus.
+    """
+    from diakronos_app import base_path
+    from diakronos_app.spa import SPA_PREFIX, _ist_oeffentlich
+
+    rest = str(pfad or "")
+    praefix = base_path.aktiver_praefix()
+    if praefix and rest.startswith(praefix):
+        rest = rest[len(praefix):]
+    if rest == SPA_PREFIX:
+        return False
+    if rest.startswith(SPA_PREFIX + "/"):
+        rest = rest[len(SPA_PREFIX) + 1:]
+    return _ist_oeffentlich(rest)
+
+
+def _weiterleitung_angemeldet(request: Request) -> Response | None:
+    """302, wenn die Anfrage schon angemeldet ist — sonst ``None``.
+
+    LOGIN-1b (Sicherheits-Review LOGIN-1): Die Weiterleitung haengt NICHT mehr
+    an OIDC. `dev.ecg-hn.de` faehrt `AUTH_OIDC_ENABLED=0` — dort ist die normale
+    Anmeldung der einzige Weg, und ein angemeldeter Aufruf von `/login` lief
+    bisher regulaer in die Maske (leeres Passwortfeld, zweite Anmeldung).
+    Die Ausnahmen sind unveraendert die der Route: `noredirect=1`, abgelaufene/
+    gesperrte/ausgeschlossene Sitzung und Rollen ohne App-Zugang
+    (`_angemeldete_sitzung`).
+
+    Das Ziel ist der derzeitige ``redirect-to``-Parameter der Anmeldeseite
+    (derselbe, den das Formular als verstecktes Feld traegt), geprueft mit
+    ``_relatives_ziel``: nur pfadrelativ, ``//host``, Backslashes und
+    Punktsegmente fallen auf die Uebersicht zurueck (kein Open Redirect).
+    Fehlt der Parameter, gilt der Standard ``/diakonos`` — genau das Ziel, das
+    die eigene Anmeldemaske als verstecktes Feld mitschickt, damit „startseite“
+    und „kein Ziel“ dasselbe bedeuten.
+
+    Nicht weitergeleitet wird auf die oeffentlichen Seiten (``registrierung``,
+    ``gast``): dort gehoert niemand hin, der schon angemeldet ist.
+
+    302 und nicht 303: ein ``GET`` soll ein ``GET`` bleiben.
+
+    ``Cache-Control: no-store`` + ``Vary: Cookie`` (LOGIN-1b): die Antwort ist
+    sitzungsabhaengig. Ohne `Vary` kann ein Zwischenspeicher die Weiterleitung
+    des Einen an den Anderen ausliefern; ohne `no-store` ueberlebt der 302 den
+    Logout und schickt den naechsten Menschen an der Maske vorbei.
+    """
+    if _angemeldete_sitzung(request) is None:
+        return None
+    ziel = _relatives_ziel(request.query_params.get("redirect-to") or SPA_ZIEL)
+    if _ist_oeffentlicher_pfad(ziel):
+        ziel = _spa_ziel()
+    return RedirectResponse(
+        ziel,
+        status_code=302,
+        headers={"Cache-Control": "no-store", "Vary": "Cookie"},
+    )
+
+
 def _neue_sitzung_nach_login(request: Request, user: str) -> tuple[str, str]:
     """Sitzungsfixierung vermeiden: alte ``sid`` loeschen, neue anlegen."""
     from diakronos_app.frappe_compat import sitzungen
@@ -503,6 +666,30 @@ def registriere_routen(app: FastAPI) -> None:
         # wenn ihn jemand selbst setzt (dann sieht er die Maske).
         no_redirect = request.query_params.get("noredirect") == "1"
         ziel = _relatives_ziel(request.query_params.get("redirect-to"))
+        # LOGIN-1 (Paket 2026-11-05): Wer schon angemeldet ist, bekommt hier
+        # KEIN Formular mehr, sondern geht weiter — auf das Ziel aus
+        # `redirect-to` bzw. auf die Uebersicht (`_weiterleitung_angemeldet`;
+        # „nur relativ, kein Open Redirect“ steckt darin).
+        #
+        # WARUM HIER, VOR DER ANBIETER-WEICHE: sonst landete derselbe Mensch
+        # einmal auf der Zwischenseite (`/login`) und einmal beim Anbieter,
+        # obwohl er die App schon betreten darf — genau der Befund dieser
+        # Karte. `noredirect=1` (Rueckkehr eines Fehlschlags) bleibt davon
+        # unberuehrt: dort wird IMMER die lokale Maske gezeigt.
+        #
+        # Ein ABGELAUFTER/zurueckgewiesener Zustand leitet nicht weiter:
+        # `_angemeldete_sitzung` fragt dieselben drei Dinge wie die
+        # `SessionMiddleware` (Sitzung vorhanden, Konto aktiv, lokaler Weg
+        # frei). Ohne diese Pruefung entstuende hier eine Schleife.
+        #
+        # LOGIN-1b (Sicherheits-Review LOGIN-1): NICHT mehr an OIDC gebunden.
+        # `dev.ecg-hn.de` faehrt `AUTH_OIDC_ENABLED=0`; dort war die Anmeldung
+        # die NORMALE — und wer schon angemeldet war, sah trotzdem die Maske.
+        # `noredirect=1` bleibt ausgenommen (Rueckkehr eines Fehlschlags).
+        if not no_redirect:
+            weiter: Response | None = _weiterleitung_angemeldet(request)
+            if weiter is not None:
+                return weiter
         # LOGIN-1: Das `#Fragment` des Ziels reist als ABFRAGE-Parameter
         # (`frag=`), weil Browser Fragmente nie an den Server schicken. Es wird
         # hier an das Ziel angehaengt, damit die Maske es wieder in ihr
@@ -529,18 +716,19 @@ def registriere_routen(app: FastAPI) -> None:
                 if request.query_params.get("sso") != "1":
                     return HTMLResponse(_hash_bruecke_seite(ziel))
                 return _start_weiterleitung(request, ziel)
-        if not _lokales_login_erlaubt() and not no_redirect:
-            # Kein lokaler Login erlaubt und OIDC aus -> Zugang nur ueber Anbieter.
-            return _fehler_seite(
-                "Die Anmeldung ist derzeit nicht verfuegbar. Bitte wende dich an die "
-                "Gemeindeleitung.",
-                status=503,
-            )
         # LOGIN-1: Meldung der fehlgeschlagenen Anmeldung anzeigen und den
         # Flash dabei VERBRAUCHEN (Einmal-Gebrauch) — sonst stuende die alte
         # Meldung nach jedem Neuladen weiter da.
         from diakronos_app.anmeldung import flash
 
+        if not _lokales_login_erlaubt() and not no_redirect:
+            # Kein lokaler Login erlaubt -> Zugang nur ueber Anbieter (oder
+            # gar nicht; dann ist das die einzige Auskunft, die noch bleibt).
+            return _fehler_seite(
+                "Die Anmeldung ist derzeit nicht verfuegbar. Bitte wende dich an die "
+                "Gemeindeleitung.",
+                status=503,
+            )
         # SEC-4: signierter Token fuer das Formular (kein Sitzungsbedarf).
         from diakronos_app.anmeldung.maske_token import erzeuge_token
 

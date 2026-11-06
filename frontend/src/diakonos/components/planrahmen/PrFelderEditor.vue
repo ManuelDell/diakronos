@@ -204,7 +204,7 @@
 
         <!-- Elementtypen: nur Ablauf -->
         <div v-if="f.art === 'ablauf'" class="pr-fb-unter">
-          <h5 class="pr-fb-unter-titel">Elementtypen des Ablaufs (in Reihenfolge)</h5>
+          <h5 class="pr-fb-unter-titel">Arten der Ablauf-Einträge (in Reihenfolge)</h5>
           <div v-for="(e, ei) in (f.elemente || [])" :key="'e' + ei" class="pr-fb-zweig">
             <div class="pr-fb-zeile">
               <input v-model="e.typ" type="text" class="dk-form-input pr-fb-id" placeholder="lied" aria-label="Elementtyp" />
@@ -219,11 +219,11 @@
               @ausruecken="zweigAusruecken(e, $event)"
             />
             <div class="pr-fb-zeile">
-              <button v-if="!Array.isArray(e.inhalt)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="e.inhalt = []">+ Felder des Elements hinzufügen</button>
+              <button v-if="!Array.isArray(e.inhalt)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="e.inhalt = []">+ Felder des Eintrags anlegen</button>
               <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="delete e.inhalt">Felder entfernen</button>
             </div>
           </div>
-          <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="f.elemente.push({ typ: '', inhalt: [] })">+ Elementtyp hinzufügen</button>
+          <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="f.elemente.push({ typ: '', inhalt: [] })">+ Art des Eintrags anlegen</button>
         </div>
       </div>
     </div>

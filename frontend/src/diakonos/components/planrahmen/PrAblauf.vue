@@ -13,9 +13,9 @@
 
       <div v-if="!elemente(f.pfad).length" class="pr-ablauf-leer">
         <template v-if="bearbeitbar">
-          Noch keine Elemente — füge unten das erste Element hinzu.
+          Noch keine Einträge — lege unten den ersten an.
         </template>
-        <template v-else>Noch keine Elemente geplant.</template>
+        <template v-else>Noch keine Einträge geplant.</template>
       </div>
 
       <!-- Leseansicht -->
@@ -44,7 +44,7 @@
             <span class="pr-ablauf-typ">{{ typName(f, e.typ) }}</span>
             <span v-for="(z, zi) in inhaltZellen(f, e)" :key="zi" class="pr-ablauf-wert">{{ z }}</span>
           </span>
-          <button class="dk-btn dk-btn-ghost dk-btn-sm" title="Element entfernen" @click="loeschen(f, ei)">✕</button>
+          <button class="dk-btn dk-btn-ghost dk-btn-sm" title="Eintrag entfernen" @click="loeschen(f, ei)">✕</button>
           <div class="pr-element-felder">
             <div v-for="inner in typDeklaration(f, e.typ)?.inhalt || []" :key="inner.id">
               <button class="dk-btn dk-btn-secondary dk-btn-sm"
@@ -60,14 +60,14 @@
       <!-- Element hinzufügen -->
       <div v-if="bearbeitbar" class="pr-ablauf-hinzufuegen">
         <select v-model="neuTyp[f.pfad]" class="pr-ablauf-wahl">
-          <option value="" disabled>Elementtyp wählen …</option>
+          <option value="" disabled>Art des Eintrags wählen …</option>
           <option v-for="t in typen(f)" :key="t.typ" :value="t.typ">{{ t.name || t.typ }}</option>
         </select>
         <button
           class="dk-btn dk-btn-secondary dk-btn-sm"
           :disabled="!neuTyp[f.pfad]"
           @click="hinzufuegen(f)"
-        >Hinzufügen</button>
+        >Übernehmen</button>
       </div>
     </section>
 

@@ -189,7 +189,7 @@ async function importIcal() {
   }
   busy.value = true
   try {
-    const bytes = new Uint8Array(await file.arrayBuffer())
+    const bytes = new globalThis.Uint8Array(await file.arrayBuffer())
     // Read original bytes, not decoded text: preserves UTF-8 without mojibake.
     let binary = ''
     for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192))

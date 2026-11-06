@@ -10,10 +10,10 @@
       <template #actions>
         <template v-if="rechte.canCreateAny">
           <DkButton v-if="rechte.canCreateGruppe" variant="primary" @click="openCreate('gruppe')">
-            + Neue Gruppe
+            Gruppe anlegen
           </DkButton>
           <DkButton v-if="rechte.canCreateUntergruppe" variant="secondary" @click="openCreate('untergruppe')">
-            + Neue Untergruppe
+            Untergruppe anlegen
           </DkButton>
         </template>
       </template>

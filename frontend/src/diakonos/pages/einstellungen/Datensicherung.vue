@@ -8,7 +8,7 @@
     <DkSkelett v-if="laedt" form="zeilen" :anzahl="4" text="Datensicherung wird geladen …" />
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
     <DkErfolgsmeldung :text="erfolg" />
-    <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut laden</DkButton>
+    <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut versuchen</DkButton>
 
     <template v-if="geladen">
       <!-- ── Einstellungen ─────────────────────────────────────────────── -->

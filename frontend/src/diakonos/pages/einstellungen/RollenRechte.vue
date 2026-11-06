@@ -7,7 +7,7 @@
 
     <DkSkelett v-if="laedt" form="zeilen" :anzahl="6" text="Übersicht wird geladen …" />
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
-    <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut laden</DkButton>
+    <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut versuchen</DkButton>
     <DkErfolgsmeldung :text="erfolg" />
 
     <template v-if="geladen">
@@ -45,7 +45,7 @@
       <!-- ── Verantwortliche je Bereich/Gruppe ──────────────────────────── -->
       <DkCard title="Verantwortliche für Bereiche und Gruppen">
         <p class="rr-hilfe">Verantwortliche dürfen Pläne ihres Bereichs bzw. ihrer Gruppe
-          erstellen und bearbeiten. Auswählbar sind nur Personen mit Zugang.</p>
+          anlegen und bearbeiten. Auswählbar sind nur Personen mit Zugang.</p>
         <DkField label="Bereich oder Gruppe wählen" v-slot="feld">
           <select v-bind="feld.feldProps" v-model="bereich" class="dk-ui-eingabe">
             <option value="">Bitte wählen</option>

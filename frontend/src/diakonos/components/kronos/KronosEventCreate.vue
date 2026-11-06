@@ -140,7 +140,7 @@
                 >&times;</DkButton>
               </div>
               <DkButton class="row-hinzufuegen" variant="ghost" size="sm" block @click="addAdditionalResource">
-                + Ressource hinzufügen
+                + Ressource anlegen
               </DkButton>
             </div>
 
@@ -605,8 +605,8 @@ async function doSave() {
     const hinweis = (status === 'Festgelegt')
       ? 'Termin gespeichert.'
       : (istModeratorFuerAuswahl.value
-          ? `Termin gespeichert (${status}) — Sichtbar unter „Terminmoderation“.`
-          : `Termin gespeichert (${status}) — wird von der Terminmoderation geprüft.`)
+          ? `Termin gespeichert (${status}) — Sichtbar unter „Zu prüfen“.`
+          : `Termin gespeichert (${status}) — wird zum Prüfen vorgelegt.`)
     showToast(hinweis, 'success')
     emit('created', angelegt)
     emit('update:show', false)

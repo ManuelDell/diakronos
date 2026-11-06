@@ -62,7 +62,7 @@ const _imp = useImpersonation()
  */
 function meldeWartendeAenderung(ergebnis) {
   if (ergebnis?.wartet) {
-    showToast(ergebnis.meldung || 'Änderung wartet auf Freigabe (Terminmoderation).', 'success')
+    showToast(ergebnis.meldung || 'Änderung wartet auf Freigabe (Zu prüfen).', 'success')
   }
 }
 

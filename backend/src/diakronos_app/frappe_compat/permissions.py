@@ -103,6 +103,61 @@ def ist_user_zeile(parenttype: str | None) -> bool:
     return wert in ("", "User")
 
 
+# ── ON-6: root ──────────────────────────────────────────────────────────────
+
+#: Der Rollenname der root-Kennzeichnung (``root_benutzer.ROOT_ROLLE``). Er
+#: steht in ``get_roles(root)`` und ist damit die Marke, an der ``has_role`` und
+#: ``is_admin`` einen root erkennen — aber NUR, solange ``get_roles`` ihm
+#: Rollen liefert. Ein ausgeschlossener root bekommt ``()`` (ON-6b, Befund 2)
+#: und besteht damit keine Pruefung mehr.
+ROOT_ROLLE = "root"
+
+
+def _ist_root(user: str | None) -> bool:
+    """Ist dieses Konto der eingetragene root? (ON-6, fail closed)
+
+    Die Fachlogik steht in ``diakronos_app.root_benutzer``; hier nur der
+    duenne Ruf, damit ``get_roles`` die EINE Wahrheit benutzt und nicht eine
+    zweite Abfrage auf dieselbe Tabelle fuehrt. Ein Fehler beim Lesen der
+    Einstellungen bedeutet: KEIN root (die Hauptregel bleibt fail closed).
+    """
+    try:
+        from diakronos_app import root_benutzer
+
+        return root_benutzer.ist_root(user)
+    except Exception:  # noqa: BLE001 — fail closed, siehe Docstring
+        return False
+
+
+def _root_rollen(user: str) -> tuple[str, ...]:
+    """Alle Rollen fuer root — die EIGENEN bleiben darin enthalten.
+
+    ``has_role`` und alle Aufrufer lesen die Rollen hierueber. Damit gilt:
+    root besteht jede Rollenpruefung, auch fuer eine Rolle, die es noch gar
+    nicht gibt (``has_role("Kuenftige Rolle")`` -> True). Die Liste selbst
+    dient der Anzeige und der Protokollierung.
+    """
+    rollen: set[str] = set()
+    try:
+        from diakronos_app import root_benutzer
+
+        rollen.update(root_benutzer._alle_rollen())
+    except Exception:  # noqa: BLE001
+        pass
+    rollen.add(ROOT_ROLLE)
+    return tuple(sorted(rollen))
+
+
+def ist_root(user: str | None = None) -> bool:
+    """Oeffentliche Fassung von :func:`_ist_root` (ON-6).
+
+    Fuer Aufrufer, die „ist das der root?“ fragen — z. B. der Schutz in
+    ``api/zugang.py`` und der Boot in ``spa.py``. Nennt kein ``user``, gilt
+    der angemeldete.
+    """
+    return _ist_root(user if user is not None else session.user)
+
+
 def get_roles(user: str | None = None) -> tuple[str, ...]:
     """Rollen eines Benutzers — **echte Quelle** aus der `Has Role`-Tabelle.
 
@@ -133,6 +188,15 @@ def get_roles(user: str | None = None) -> tuple[str, ...]:
     if mitglied_ausgeschlossen(name):
         return ()
 
+    # ON-6: der ERSTE Administrator ist `root` und besteht JEDE
+    # Rollen-/Rechtepruefung (Manuel 2026-11-05: „er ist root/sudo fuer
+    # Diakronos“). Der Kurzschluss sitzt hier — an der EINEN Stelle, aus der
+    # jede andere Pruefung ihre Rollen holt — und nicht an den 100+
+    # Aufrufstellen. Darum steht er NACH den Fail-closed-Schranken: wer
+    # ausgeschlossen oder Guest ist, ist auch als root kein root.
+    if _ist_root(name):
+        return _root_rollen(name)
+
     # R-N10 Punkt 7: nur Kindzeilen des DocType `User`. Die Auswahl holt alle
     # Zeilen des Kontos und schliesst ausdruecklich fremde `parenttype`-Werte
     # aus; altdaten-`parenttype` (NULL/leer) zaehlt als `User` (siehe
@@ -150,8 +214,27 @@ def get_roles(user: str | None = None) -> tuple[str, ...]:
 
 
 def has_role(role: str) -> bool:
-    """Rollen-Praedikat fuer den portierten Code (Frappe `"x" in frappe.get_roles()`)."""
-    return role in get_roles(session.user)
+    """Rollen-Praedikat fuer den portierten Code (Frappe `"x" in frappe.get_roles()`).
+
+    ON-6: fuer den root ist JEDE Rolle wahr — auch eine, die es noch nicht
+    gibt. ``get_roles`` liefert ihm dafuer die bekannten Rollen; diese Zeile
+    schliesst die Luecke fuer alles, was NICHT in der Liste steht („alle
+    Rollen inkl. kuenftiger“, Kartentext Punkt 2).
+    """
+    wert = str(role or "")
+    if not wert:
+        return False
+    # ON-6b: ENTSCHIEDEN wird ueber `get_roles` — die EINE Stelle, die einen
+    # ausgeschlossenen root bereits aussortiert (`mitglied_ausgeschlossen`).
+    # Ein direkter `_ist_root`-Kurzschluss hier haette einem ausgeschlossenen
+    # root weiter JEDE Rolle gegeben (Befund 2 des Sicherheits-Reviews).
+    rollen = get_roles(session.user)
+    if wert in rollen:
+        return True
+    # Fuer einen root stehen in `rollen` alle BEKANNTEN Rollen; diese Zeile
+    # deckt die noch unbekannte (kuenftige) ab. Sie gilt nur, solange
+    # `get_roles` ueberhaupt Rollen liefert — ein ausgeschlossener root hat ().
+    return ROOT_ROLLE in rollen
 
 
 def is_guest(user: str | None = None) -> bool:
@@ -176,7 +259,14 @@ def is_admin(user: str | None = None) -> bool:
     name = user if user is not None else session.user
     if name == "Administrator":
         return True
-    return any(r in get_roles(name) for r in ADMIN_ROLES)
+    # ON-6: root ist Admin, ohne dass diese Liste um eine Rolle erweitert wird
+    # (die Rollenliste ADMIN_ROLES bleibt die fachliche Liste der Verwaltung).
+    # ON-6b: ueber `get_roles` statt ueber `_ist_root` — ein AUSGESCHLOSSENER
+    # root hat keine Rollen und ist damit auch kein Admin mehr.
+    rollen = get_roles(name)
+    if ROOT_ROLLE in rollen:
+        return True
+    return any(r in rollen for r in ADMIN_ROLES)
 
 
 def _has_admin_role(user: str | None = None) -> bool:
@@ -519,6 +609,7 @@ __all__ = [
     "has_bereichs_zugriff",
     "is_admin",
     "is_guest",
+    "ist_root",
     "ist_verantwortlich_fuer",
     "mitglied_permissions",
     "require_admin",

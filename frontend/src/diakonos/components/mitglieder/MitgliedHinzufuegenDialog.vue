@@ -1,7 +1,7 @@
 <template>
   <DkDialog
     :model-value="modelValue"
-    :title="erfolgOffen ? 'Mitglied angelegt' : 'Mitglied hinzufügen'"
+    :title="erfolgOffen ? 'Mitglied angelegt' : 'Mitglied anlegen'"
     :close-on-overlay="false"
     size="md"
     @update:model-value="schliessen"
@@ -142,7 +142,7 @@
 
 <script setup>
 /**
- * Dialog „Mitglied hinzufügen“ (Neuordnung N4).
+ * Dialog „Mitglied anlegen“ (Neuordnung N4).
  *
  * Konzept Abschnitt 4: Pflicht sind Vorname/Nachname, dazu E-Mail, Status und
  * optional eine Gruppe. Beim Tippen fragt der Dialog den Server, ob dieselbe
@@ -239,7 +239,7 @@ watch(() => props.modelValue, async (offen) => {
 })
 
 function passwortVorschlagen() {
-  const zufall = crypto.getRandomValues(new Uint8Array(12))
+  const zufall = crypto.getRandomValues(new globalThis.Uint8Array(12))
   startpasswort.value = Array.from(zufall, z => z.toString(16).padStart(2, '0')).join('')
 }
 

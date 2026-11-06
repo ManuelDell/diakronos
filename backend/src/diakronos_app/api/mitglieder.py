@@ -1894,8 +1894,15 @@ def schliesse_mitglied_aus(mitglied_id, begruendung=""):
     # zusaetzlich, damit der Endpunkt selbst eine verstaendliche Meldung gibt.
     ziel_user = str(get_value("Mitglied", mitglied_id, "user") or "")
     if ziel_user:
-        from diakronos_app.api.zugang import _verweigere_fremdes_admin_konto
+        from diakronos_app.api.zugang import (
+            _verweigere_fremdes_admin_konto,
+            _verweigere_root_ziel,
+        )
 
+        # ON-6b: root wird nicht ausgeschlossen — auch nicht von einem anderen
+        # System Manager (deckt die Wache unten ebenfalls, hier steht der
+        # tatsaechliche Vorgang in der Meldung).
+        _verweigere_root_ziel("", ziel_user, art="ausschluss")
         _verweigere_fremdes_admin_konto(ziel_user)
 
     _update_doc(

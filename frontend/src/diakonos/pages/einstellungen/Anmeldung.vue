@@ -12,7 +12,7 @@
       <p v-else>Authentik ist am Server aktiviert. Dieser Status ist kein Verbindungstest zum Anbieter.</p>
     </DkHint>
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
-    <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut laden</DkButton>
+    <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut versuchen</DkButton>
 
     <form ref="formular" @submit.prevent="speichernMitFokus">
       <fieldset :disabled="!bedienbar" class="an-felder">
@@ -46,7 +46,7 @@
             </DkField>
             <DkButton variant="ghost" :aria-label="`Zuordnung ${i + 1} entfernen`" @click="zuordnungen.splice(i, 1)">Entfernen</DkButton>
           </div>
-          <DkButton variant="secondary" @click="zuordnungen.push({ gruppe: '', rolle: '' })">Zuordnung hinzufügen</DkButton>
+          <DkButton variant="secondary" @click="zuordnungen.push({ gruppe: '', rolle: '' })">Zuordnung ergänzen</DkButton>
           <label class="an-option an-admin">
             <input v-model="adminUeberGruppen" type="checkbox" />
             <span>Verwaltungsrollen über Authentik-Gruppen zulassen</span>
@@ -66,7 +66,7 @@
         und bleibt zur Kontrolle in dieser Liste.</p>
       <DkHint v-if="kontenFehler" variant="err" role="alert">{{ kontenFehler }}</DkHint>
       <DkHint v-if="kontenLaden" role="status">Konten werden geladen …</DkHint>
-      <DkButton v-else variant="ghost" @click="ladeKonten">Liste aktualisieren</DkButton>
+      <DkButton v-else-if="kontenFehler" variant="ghost" @click="ladeKonten">Erneut versuchen</DkButton>
       <p v-if="kontenGeladen && !konten.length">Keine wartenden oder gesperrten Konten.</p>
       <ul class="an-konten">
         <li v-for="k in konten" :key="k.user" class="an-konto">

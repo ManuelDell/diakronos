@@ -66,6 +66,11 @@ class GemeindeEinstellungen(Base):
     # kein Client-Name). Leer = kein Logo -> die Oberflaeche zeigt das
     # Monogramm aus Kurzname/Gemeindename.
     logo_datei: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # ON-6: der Konto-Name des ROOT-Benutzers (der erste Administrator). Leer =
+    # es gibt keinen root. Die Pruefung liest AUSSCHLIESSLICH dieses Feld
+    # (`root_benutzer.ist_root`) — die Kennrolle `root` in `has_role` ist nur
+    # die sichtbare Spur, keine zweite Wahrheit.
+    root_benutzer: Mapped[str | None] = mapped_column(String(140), nullable=True)
     link_laufzeit_tage: Mapped[int] = mapped_column(
         Integer, nullable=False, default=STANDARD_LAUFZEIT_TAGE,
         server_default=str(STANDARD_LAUFZEIT_TAGE),

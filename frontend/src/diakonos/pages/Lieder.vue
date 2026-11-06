@@ -102,7 +102,7 @@
     <!-- Error -->
     <div v-else-if="error" class="ld-error">
       {{ error }}
-      <button class="dk-btn dk-btn-secondary dk-btn-sm" @click="reload">Nochmal</button>
+      <button class="dk-btn dk-btn-secondary dk-btn-sm" @click="reload">Erneut versuchen</button>
     </div>
 
     <!-- Table -->

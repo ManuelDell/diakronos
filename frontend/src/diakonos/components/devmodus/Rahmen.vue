@@ -8,8 +8,8 @@
     <span class="dk-dev-etikett" data-dk-dev>DEV</span>
     <span class="dk-dev-taste" data-dk-dev>{{ kuerzel }}</span>
     <button class="dk-dev-knopf" data-dk-dev type="button" :aria-pressed="auswahlAktiv"
-            :title="'Element auswählen (' + kuerzel + ')'" @click="auswahlUmschalten">
-      {{ auswahlAktiv ? 'Abbrechen' : 'Element wählen' }}
+            :title="'Stelle auswählen (' + kuerzel + ')'" @click="auswahlUmschalten">
+      {{ auswahlAktiv ? 'Abbrechen' : 'Stelle wählen' }}
     </button>
     <button class="dk-dev-knopf is-aus" data-dk-dev type="button" title="Dev-Modus ausschalten"
             @click="ausschalten">aus</button>
@@ -110,7 +110,7 @@ function onKeydown(e) {
 
 function wechsle(richtung) {
   const start = hoverElement.value || elementUnterPunkt(
-    Math.round(innerWidth / 2), Math.round(innerHeight / 2), overlayKnoten())
+    Math.round(window.innerWidth / 2), Math.round(window.innerHeight / 2), overlayKnoten())
   hoverElement.value = wechsleElement(start, richtung, overlayKnoten())
 }
 

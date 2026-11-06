@@ -45,6 +45,7 @@ from diakronos_app.frappe_compat.exceptions import DoesNotExistError
 from diakronos_app.frappe_compat.permissions import (
     check_permission as _compat_check_permission,
     get_roles,
+    ist_root as _ist_root,
     mitglied_permissions as _compat_mitglied_permissions,
 )
 from diakronos_app.frappe_compat.registry import whitelist
@@ -104,7 +105,14 @@ def get_current_user_context():
     )
 
     roles = get_roles(user)
-    is_admin = any(r in roles for r in ADMIN_ROLES)
+    # ON-6: die Rollen von root enthalten bereits alle bekannten; `is_root`
+    # kommt zusaetzlich mit, damit die Oberflaeche den Root-Schutz anzeigen
+    # kann (Konto gesperrt, Uebertragung nur durch root).
+    # ON-6b: `is_root`/`is_admin` ueber die ROLLEN (die Kennrolle `root` steht
+    # in `roles`, sobald das Konto root ist) — ein ausgeschlossener root hat ()
+    # und erscheint damit nicht mehr als root/Admin.
+    bin_root = "root" in roles
+    is_admin = bin_root or any(r in roles for r in ADMIN_ROLES)
 
     # Admin-Mode pruefen (nur relevant wenn is_admin).
     is_admin_mode = False
@@ -130,6 +138,7 @@ def get_current_user_context():
         "email": email,        # Original (session.py)
         "mitglied": mitglied,
         "is_admin": is_admin,
+        "is_root": bin_root,
         "is_admin_mode": is_admin_mode,
         "roles": roles,
         "modules": accessible_modules,

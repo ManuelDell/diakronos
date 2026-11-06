@@ -18,7 +18,7 @@
     <DkHint v-if="laedt" role="status">Einstellungen werden geladen …</DkHint>
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
     <DkErfolgsmeldung :text="erfolg" />
-    <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut laden</DkButton>
+    <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut versuchen</DkButton>
 
     <template v-if="geladen">
       <DkHint v-if="!eingerichtet" variant="warn" role="status">

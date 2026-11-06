@@ -3,7 +3,12 @@ import { apiAntwortPruefen } from './useApi.js'
 import { apiUrl, ressourceUrl } from '../../shared/basis.js'
 // ICAL-1b: Der Kalender zaehlt das Ende ganztags AUSSCHLIESSEND, Diakronos
 // speichert es EINSCHLIESSEND — vor dem Speichern genau einmal zurueckrechnen.
-import { speicherWerte } from './datumZeit.mjs'
+// FIX-8: `speicherWerte` steht in datumZeit.mjs, `alsServerZeit` (Datum →
+// „JJJJ-MM-TT HH:MM:SS“ der Server-Schreibweise) ebenso. Vorher rief
+// `createEvent` das nirgends gebundene `toLocalDateTimeString` auf — mit einem
+// Date-Argument (der Normalfall aus dem Kalender) warf das einen
+// ReferenceError. `alsServerZeit` ist die vorhandene, gleichartige Funktion.
+import { speicherWerte, alsServerZeit } from './datumZeit.mjs'
 
 function getCsrfToken() {
   return document.querySelector("meta[name=\"csrf-token\"]")?.content || ""
@@ -106,8 +111,8 @@ export function useEventsApi() {
       console.error("useEventsApi.createEvent: title, start, element_calendar erforderlich")
       return null
     }
-    const startStr = start instanceof Date ? toLocalDateTimeString(start) : start
-    const endStr   = end instanceof Date   ? toLocalDateTimeString(end)   : (end || startStr)
+    const startStr = start instanceof Date ? alsServerZeit(start) : start
+    const endStr   = end instanceof Date   ? alsServerZeit(end)   : (end || startStr)
     try {
       const res = await fetch(apiUrl('diakronos.kronos.api.event_crud.create_event'), {
         method: "POST",

@@ -157,7 +157,10 @@ test('updateEvent speichert die Werte aus speicherWerte (kein rohes event.end me
   assert.ok(!/element_end:\s+toLocalDateTimeString\(effectiveEnd\)/.test(quelle),
     'das angezeigte Ende darf nicht mehr unverändert gespeichert werden')
   // Genau EINE Rückrechnung — in endeAusKalender.
-  assert.match(quelle, /import \{ speicherWerte \} from '\.\/datumZeit\.mjs'/)
+  // FIX-8: der Import darf weitere Namen aus datumZeit.mjs mitbringen
+  // (`alsServerZeit` für die Datum→Server-Schreibweise); geprüft wird, dass
+  // `speicherWerte` aus datumZeit.mjs kommt — nicht, dass es der einzige ist.
+  assert.match(quelle, /import \{[^}]*\bspeicherWerte\b[^}]*\} from '\.\/datumZeit\.mjs'/)
   const dz = lies('src/diakonos/composables/datumZeit.mjs')
   assert.equal((dz.match(/endeAusKalender\(/g) || []).length, 2,
     'datumZeit.mjs: Definition + Aufruf in speicherWerte, nichts sonst')

@@ -38,7 +38,7 @@
         <DkSkelett v-if="laedt && !status" form="zeilen" :anzahl="4" text="Einrichtung wird geladen …" />
         <div v-else-if="!status" class="assistent-karte">
           <p class="assistent-fehler" role="alert">{{ fehler || 'Die Einrichtung konnte nicht geladen werden.' }}</p>
-          <DkButton variant="secondary" @click="ladeAssistent({ start: true })">Erneut laden</DkButton>
+          <DkButton variant="secondary" @click="ladeAssistent({ start: true })">Erneut versuchen</DkButton>
         </div>
         <div v-else class="assistent-karte">
           <p v-if="fehler" class="assistent-fehler" role="alert">{{ fehler }}</p>

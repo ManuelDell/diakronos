@@ -370,7 +370,17 @@ def boot_fuer_request() -> dict[str, Any]:
         "user_image": user_doc.get("user_image") or "",
         "csrf_token": _csrf_token(user),
         # KEIN Flag im Boot: die Admin-Rolle kommt aus `Has Role`.
-        "is_admin": any(r in permissions.ADMIN_ROLES for r in rollen),
+        # ON-6: der root besteht JEDE Pruefung — „root“ ist zusaetzlich im
+        # Boot, damit die Einstellungen den Uebertragungs-Dialog zeigen koennen.
+        # Die Entscheidung bleibt serverseitig (`api.root`), das Flag ist reine
+        # Anzeige wie `is_admin`.
+        # ON-6b: BEIDE Flags kommen aus den ROLLEN, nicht aus dem Eintrag
+        # allein — ein ausgeschlossener root hat () und meldet sich damit
+        # weder als root noch als Admin (Befund 2 des Sicherheits-Reviews;
+        # `get_roles` sortiert den Ausschluss bereits aus).
+        "is_admin": permissions.ROOT_ROLLE in rollen
+                    or any(r in permissions.ADMIN_ROLES for r in rollen),
+        "is_root": permissions.ROOT_ROLLE in rollen,
         # MAIL-1b (N3): Die Startseite haelt die DSGVO-Kachel fuer System
         # Manager sichtbar — wer den Mailversand einstellen darf, muss die
         # Warnung „Mailversand ist noch nicht eingerichtet“ sehen. Die Liste

@@ -143,7 +143,7 @@
         <label class="pr-te-label pr-te-eigener">Eigener Feiertags-Schlüssel
           <input v-model="eigenerFeiertag" type="text" class="dk-form-input" placeholder="osterdienstag" @keydown.enter.prevent="eigenerFeiertagHinzufuegen" />
         </label>
-        <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" :disabled="!eigenerFeiertag.trim()" @click="eigenerFeiertagHinzufuegen">Feiertag hinzufügen</button>
+        <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" :disabled="!eigenerFeiertag.trim()" @click="eigenerFeiertagHinzufuegen">Feiertag anlegen</button>
         <div v-for="k in eigeneFeiertage" :key="k" class="pr-te-zeile">
           <span>{{ k }}</span>
           <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" :aria-label="'Feiertag ' + k + ' entfernen'" @click="feiertagToggle(k, false)">Entfernen</button>
@@ -179,7 +179,7 @@
           <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Termin entfernen" @click="manuelleListe.splice(mi, 1)">✕</button>
           <PrPfadMeldungen :meldungen="meldungen" :pfad="pfadZu('manuell/' + mi)" />
         </div>
-        <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="manuellHinzufuegen">+ Termin hinzufügen</button>
+        <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="manuellHinzufuegen">+ Termin anlegen</button>
       </div>
     </template>
   </div>

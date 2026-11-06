@@ -205,12 +205,33 @@ def test_healthz_unter_praefix_und_nicht_ohne(client_praefix):
 
 
 def test_login_masken_route_unter_praefix_nur_dort(client_praefix):
+    """S2: die Maske liegt unter dem Praefix — und NUR dort.
+
+    LOGIN-1b: `client_praefix` ist als `Administrator` ANGEMELDET, und seit die
+    Anmeldeseite eine gueltige Sitzung auch ohne OIDC weiterleitet
+    (`_weiterleitung_angemeldet`), ist die Antwort hier 302 statt 200. S2 sagt
+    nur etwas ueber den PFAD (`/login` ohne Praefix = 404), das bleibt die
+    Aussage dieses Tests. Die Maske selbst prueft der naechste Test mit einem
+    sitzungslosen Client.
+    """
     assert client_praefix.get("/login").status_code == 404
-    r = client_praefix.get(f"{PRAEFIX}/login")
-    assert r.status_code == 200
-    # S3: das Formular postet an die PRAEFIGIERTE API, nicht an /api/method.
-    assert f'action="{PRAEFIX}/api/method/login"' in r.text
-    assert 'href="/login"' not in r.text
+    r = client_praefix.get(f"{PRAEFIX}/login", follow_redirects=False)
+    assert r.status_code == 302, r.text
+    assert r.headers["location"] == f"{PRAEFIX}/diakonos"
+
+
+def test_login_masken_formular_unter_praefix(app_mit_praefix):
+    """S3: das Formular postet an die PRAEFIGIERTE API, nicht an /api/method.
+
+    Sitzungsloser Client: nur so erscheint die Maske (LOGIN-1b).
+    """
+    from fastapi.testclient import TestClient
+
+    with TestClient(app_mit_praefix) as ohne_sitzung:
+        maske = ohne_sitzung.get(f"{PRAEFIX}/login", follow_redirects=False)
+    assert maske.status_code == 200, maske.text
+    assert f'action="{PRAEFIX}/api/method/login"' in maske.text
+    assert 'href="/login"' not in maske.text
 
 
 def test_api_method_unter_praefix(client_praefix, patched_db):

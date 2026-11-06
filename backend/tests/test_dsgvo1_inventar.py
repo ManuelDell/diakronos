@@ -87,6 +87,9 @@ STAMMDATEN_TABELLEN = frozenset({
     "datenschutz_text", "datenschutz_text_veroeffentlicht",
     "diakronos_einstellungen", "diakronos_modul_einstellung",
     "diakronos_modul_rolle", "gemeinde_einstellungen",
+    # ON-6: hält nur das root-Konto; anonymisiere() verweigert root
+    # (dsgvo_anonymisierung.py) — keine Löschperson kann hier stehen.
+    "gruppen_root_user",
     "google_kalender_einstellungen", "kronos_einstellungen",
     # MAIL-1: die SMTP-Einstellungen sind KONFIGURATION der Instanz, kein
     # Personenbezug einer Mitgliedszeile. `absender`/`benutzername` sind ein

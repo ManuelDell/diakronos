@@ -7,7 +7,7 @@
 
     <DkHint v-if="laedt" role="status">Einstellungen werden geladen …</DkHint>
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
-    <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut laden</DkButton>
+    <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut versuchen</DkButton>
 
     <form ref="formular" @submit.prevent="speichernMitFokus">
       <fieldset :disabled="!bedienbar" class="rg-felder">

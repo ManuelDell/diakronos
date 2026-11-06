@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **1829**
-* eindeutige Funktionen: **355**
-* lesend: **161**, schreibend: **194**
-* Rumpfbefund: schreibend 179, lesend 176, unbekannt 0
+* registrierte Pfade: **1835**
+* eindeutige Funktionen: **357**
+* lesend: **162**, schreibend: **195**
+* Rumpfbefund: schreibend 180, lesend 177, unbekannt 0
 
 ## Einstufung
 
@@ -58,6 +58,7 @@ Entschieden ohne Ausnahme (Quellen einig, die Grenze traegt die Deklaration — 
 | `diakronos_app.api.planrahmen.plan_entwurf` | ['POST'] | schreibend | lesend | Lesezugriff ueber den Schreib-Wrapper (`_endpunkt(True)`); POST ist die Grenze des Wrappers, der Name meint das Lesen des Entwurfs | nur_vorschau — Namensbefund/Weiterleitung ohne Wirkung: die Funktion schreibt nicht oder die Schreibung haengt an einem Schalter, der per Default aus ist | ja (rumpf, deklaration) |
 | `diakronos_app.api.planrahmen.undo_vorschau` | — | lesend | schreibend | Vorschau, schreibt nichts | name — Namensbefund ohne Rumpfbefund — geprueft, die Funktion liest nur | ja (name) |
 | `diakronos_app.api.profile.delete_my_data` | ['POST'] | lesend | schreibend | abgeschalteter Altpfad — wirft nur den Hinweis auf den Loeschantrag | nur_vorschau — Namensbefund/Weiterleitung ohne Wirkung: die Funktion schreibt nicht oder die Schreibung haengt an einem Schalter, der per Default aus ist | ja (name, deklaration) |
+| `diakronos_app.api.root.root_uebertragen` | ['POST'] | schreibend | lesend | Uebertragung der Root-Kennzeichnung; die POST-Grenze steht in der Deklaration, die Funktion schreibt nur Eintrag + Kennrolle (kein generischer Weg, nur root selbst, mit Passwort + Bestaetigung) | nur_vorschau — Namensbefund/Weiterleitung ohne Wirkung: die Funktion schreibt nicht oder die Schreibung haengt an einem Schalter, der per Default aus ist | ja (rumpf, deklaration) |
 | `diakronos_app.api.sicherung.sicherung_get` | — | schreibend | lesend | Leseansicht; legt fehlende Einstellungszeile an | konfig — Leseansicht, die beim ERSTEN Aufruf ihre Konfigurationszeile anlegt (idempotent, ohne Absicht des Nutzers) — der POST waere hier falsch | ja (rumpf) |
 | `diakronos_app.api.website.beitrag_auf_website` | ['POST'] | schreibend | lesend | Methode wird im Rumpf geprueft (`_nur_post` -> 405) | schranke — prüft die Methode selbst (`_nur_post`) und weist alles ausser POST mit 405 ab — die Grenze steht im Rumpf, nicht in der Deklaration | ja (rumpf, deklaration) |
 | `diakronos_app.api.website.freigaben_lesen` | — | lesend | schreibend | Leseansicht der Website-Freigaben | name — Namensbefund ohne Rumpfbefund — geprueft, die Funktion liest nur | ja (name) |
@@ -229,6 +230,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.ressourcen.delete_ressource` | ['POST'] | nein |
 | `diakronos_app.api.ressourcen.update_buchung` | ['POST'] | nein |
 | `diakronos_app.api.ressourcen.update_ressource` | ['POST'] | nein |
+| `diakronos_app.api.root.root_uebertragen` | ['POST'] | nein |
 | `diakronos_app.api.sicherung.sicherung_einstellungen_speichern` | ['POST'] | nein |
 | `diakronos_app.api.sicherung.sicherung_get` | — | nein |
 | `diakronos_app.api.sicherung.sicherung_jetzt` | ['POST'] | nein |
@@ -396,6 +398,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.ressourcen.get_ressource_buchungen` | — | nein |
 | `diakronos_app.api.ressourcen.get_ressourcen_liste` | — | nein |
 | `diakronos_app.api.ressourcen.get_ressourcen_verwaltung` | — | nein |
+| `diakronos_app.api.root.status` | — | nein |
 | `diakronos_app.api.session.check_permission` | — | nein |
 | `diakronos_app.api.session.get_current_user_context` | — | nein |
 | `diakronos_app.api.session.get_mitglied_permissions` | — | nein |

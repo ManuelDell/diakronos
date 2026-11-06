@@ -2,7 +2,7 @@
   <section aria-label="Datenschutz" class="ds-bereich">
     <p>Einwilligungen und Löschanträge der Gemeinde. Auskunft lädt die zugeordneten Daten als JSON-Datei herunter.</p>
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
-    <DkButton v-if="fehler" variant="secondary" @click="laden">Erneut laden</DkButton>
+    <DkButton v-if="fehler" variant="secondary" @click="laden">Erneut versuchen</DkButton>
     <DkSkelett v-if="laedt" form="zeilen" :anzahl="4" text="Datenschutz wird geladen …" />
     <template v-else-if="geladen">
       <!-- MAIL-1: ohne eingerichteten Mailversand lässt sich kein Löschantrag

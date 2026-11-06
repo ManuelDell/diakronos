@@ -158,6 +158,15 @@ def _claims_setzen(anbieter, **claims):
     anbieter.claims = claims
 
 
+def _freier_client():
+    """Client OHNE Sitzung auf derselben App (die Fixture `client` meldet an)."""
+    from fastapi.testclient import TestClient
+
+    from diakronos_app.main import erstelle_app
+
+    return TestClient(erstelle_app())
+
+
 def _login_vorbereiten(client, anbieter, *, email="neu@example.org",
                        email_verified=True, sub="sub-1", gruppen=None):
     """Startet den Flow: /login?sso=1, folgt dem Redirect, liefert (state, verifier).
@@ -167,7 +176,13 @@ def _login_vorbereiten(client, anbieter, *, email="neu@example.org",
     """
     from diakronos_app.anmeldung import transaktionen
 
-    r = client.get("/login", params={"sso": "1"}, follow_redirects=False)
+    # LOGIN-1 (Paket 2026-11-05): Ist die Anfrage schon angemeldet (der
+    # `client`-Fixture meldet als `Administrator` an), geht `/login` direkt auf
+    # das Ziel — kein Anbieter-Roundtrip. Hier will der Test aber den FLOW
+    # pruefen: deshalb OHNE Sitzung anfragen (frischer Client, dieselbe App).
+    # `noredirect=1` waere der falsche Weg — dabei wird IMMER die lokale Maske
+    # gezeigt und gar nicht zum Anbieter geleitet.
+    r = _freier_client().get("/login", params={"sso": "1"}, follow_redirects=False)
     assert r.status_code == 303
     from urllib.parse import parse_qs, urlsplit
 
@@ -270,7 +285,8 @@ def test_fehlendes_pkce_abgewiesen(client, oidc_aktiviert, patched_db, fake_redi
     from diakronos_app.anmeldung import transaktionen
     from urllib.parse import parse_qs, urlsplit
 
-    r = client.get("/login", params={"sso": "1"}, follow_redirects=False)
+    # LOGIN-1: ohne Sitzung anfragen (siehe `_login_vorbereiten`).
+    r = _freier_client().get("/login", params={"sso": "1"}, follow_redirects=False)
     q = parse_qs(urlsplit(r.headers["location"]).query)
     neuer_state = q["state"][0]
     transaktionen.ablegen(neuer_state, "n", "falscher-verifier")

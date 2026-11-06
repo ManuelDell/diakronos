@@ -127,7 +127,7 @@
                 >&times;</DkButton>
               </div>
               <DkButton class="row-hinzufuegen" variant="ghost" size="sm" block @click="addAdditionalResource">
-                + Ressource hinzufügen
+                + Ressource anlegen
               </DkButton>
             </div>
 
@@ -508,7 +508,7 @@ async function doSave() {
     if (antwort.aenderung_wartet) {
       // Operator-Regel: an einem festgelegten Termin wartet diese Aenderung
       // auf die Freigabe durch die Terminmoderation.
-      showToast('Änderung wartet auf Freigabe (Terminmoderation).', 'success')
+      showToast('Änderung wartet auf Freigabe (Zu prüfen).', 'success')
     } else {
       showToast('Termin gespeichert.', 'success')
     }

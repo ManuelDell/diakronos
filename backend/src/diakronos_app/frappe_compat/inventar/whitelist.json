@@ -13,6 +13,7 @@
   "diakronos_app.api.planrahmen.plan_entwurf": "Lesezugriff ueber den Schreib-Wrapper (`_endpunkt(True)`); POST ist die Grenze des Wrappers, der Name meint das Lesen des Entwurfs",
   "diakronos_app.api.planrahmen.undo_vorschau": "Vorschau, schreibt nichts",
   "diakronos_app.api.profile.delete_my_data": "abgeschalteter Altpfad — wirft nur den Hinweis auf den Loeschantrag",
+  "diakronos_app.api.root.root_uebertragen": "Uebertragung der Root-Kennzeichnung; die POST-Grenze steht in der Deklaration, die Funktion schreibt nur Eintrag + Kennrolle (kein generischer Weg, nur root selbst, mit Passwort + Bestaetigung)",
   "diakronos_app.api.sicherung.sicherung_get": "Leseansicht; legt fehlende Einstellungszeile an",
   "diakronos_app.api.website.beitrag_auf_website": "Methode wird im Rumpf geprueft (`_nur_post` -> 405)",
   "diakronos_app.api.website.freigaben_lesen": "Leseansicht der Website-Freigaben",
@@ -32,6 +33,7 @@
   "diakronos_app.api.planrahmen.plan_entwurf",
   "diakronos_app.api.planrahmen.undo_vorschau",
   "diakronos_app.api.profile.delete_my_data",
+  "diakronos_app.api.root.root_uebertragen",
   "diakronos_app.api.sicherung.sicherung_get",
   "diakronos_app.api.website.beitrag_auf_website",
   "diakronos_app.api.website.freigaben_lesen",
@@ -7516,6 +7518,55 @@
   },
   {
    "allow_guest": false,
+   "ausnahme": "Uebertragung der Root-Kennzeichnung; die POST-Grenze steht in der Deklaration, die Funktion schreibt nur Eintrag + Kennrolle (kein generischer Weg, nur root selbst, mit Passwort + Bestaetigung)",
+   "ausnahme_art": "nur_vorschau",
+   "ausnahme_greift": true,
+   "ausnahme_quelle": "rumpf, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.root.root_uebertragen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "Ausnahme greift (rumpf, deklaration)",
+   "modul": "diakronos_app.api.root",
+   "nach_name": "lesend",
+   "nach_rumpf": "schreibend",
+   "name": "root_uebertragen",
+   "offen": false,
+   "pfade": [
+    "api.root_uebertragen",
+    "diakronos_app.api.root.root_uebertragen",
+    "root.root_uebertragen",
+    "root_uebertragen"
+   ],
+   "rumpf_grund": "Aufruf sess.commit(); execute(…, Aufruf with_for_update()); Aufruf with_for_update()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.root.status",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.root",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "status",
+   "pfade": [
+    "diakronos_app.api.root.status",
+    "root.status"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
@@ -9393,12 +9444,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 355,
+ "funktionen": 357,
  "nur_test": [],
- "registrierte_pfade": 1829,
+ "registrierte_pfade": 1835,
  "rumpf_zaehlung": {
-  "lesend": 176,
-  "schreibend": 179
+  "lesend": 177,
+  "schreibend": 180
  },
  "widersprueche": [
   {
@@ -9927,6 +9978,33 @@
   },
   {
    "allow_guest": false,
+   "ausnahme": "Uebertragung der Root-Kennzeichnung; die POST-Grenze steht in der Deklaration, die Funktion schreibt nur Eintrag + Kennrolle (kein generischer Weg, nur root selbst, mit Passwort + Bestaetigung)",
+   "ausnahme_art": "nur_vorschau",
+   "ausnahme_greift": true,
+   "ausnahme_quelle": "rumpf, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.root.root_uebertragen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "Ausnahme greift (rumpf, deklaration)",
+   "modul": "diakronos_app.api.root",
+   "nach_name": "lesend",
+   "nach_rumpf": "schreibend",
+   "name": "root_uebertragen",
+   "offen": false,
+   "pfade": [
+    "api.root_uebertragen",
+    "diakronos_app.api.root.root_uebertragen",
+    "root.root_uebertragen",
+    "root_uebertragen"
+   ],
+   "rumpf_grund": "Aufruf sess.commit(); execute(…, Aufruf with_for_update()); Aufruf with_for_update()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
    "ausnahme": "Leseansicht; legt fehlende Einstellungszeile an",
    "ausnahme_art": "konfig",
    "ausnahme_greift": true,
@@ -10119,7 +10197,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 161,
-  "schreibend": 194
+  "lesend": 162,
+  "schreibend": 195
  }
 }

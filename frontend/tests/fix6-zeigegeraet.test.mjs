@@ -150,7 +150,7 @@ const LAYOUT_STELLEN = [
     ['pages/Home.vue', '.dk-widget-edit-fab', null, 'Bearbeiten-FAB der Startseite'],
     ['pages/Kalender.vue', '.kronos-page-content', 'padding-bottom', 'Fußabstand der Kalenderseite'],
     ['pages/planrahmen/MeineDienste.vue', '.pr-md-monat-zeile', null, 'Umbruch der Monatszeile'],
-    ['components/kronos/KronosTopbar.vue', '.moderation-btn-label', null, 'Beschriftung „Moderation“'],
+    ['components/kronos/KronosTopbar.vue', '.pruefen-knopf-label', null, 'Beschriftung „Zu prüfen“'],
     ['components/kronos/KronosTopbar.vue', '.date-year', null, 'Jahreszahl der Kopfzeile'],
     ['components/kronos/KronosTopbar.vue', '.resource-toggle-btn', null, 'Ressourcenplan-Knopf'],
     ['components/AppBottomNav.vue', '.dk-bottom-nav', null, 'untere Leiste'],

@@ -368,6 +368,13 @@ docker compose exec app python tools/demo/musterhausen.py --pruefen   # prüfen
 docker compose exec app python tools/demo/musterhausen.py --entfernen # entfernen
 ```
 
+Die zwei Demo-Konten melden sich mit demselben, absichtlich öffentlichen
+Passwort an: `admin@example.org` (Verwaltung) und `anna.beispiel@example.org`
+(Mitglied), Passwort `musterhausen-demo`. Beide Konten einer frisch befüllten
+Demo sind über `POST /api/method/login` anmeldbar — ist das nicht der Fall, ist
+der Seed unvollständig (Regressionsschutz:
+`backend/tests/test_demo1_passwort_hash.py`).
+
 Die Bilder in dieser README entstehen aus genau diesem Bestand (`tools/demo/screenshots.py`).
 
 **Migrationen** liegen in `backend/alembic`; manuell anwenden mit `make migrate` bzw. `docker compose exec app alembic -c /app/alembic.ini upgrade head`.

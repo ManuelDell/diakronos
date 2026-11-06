@@ -19,7 +19,7 @@
     </div>
 
     <nav class="dk-sb-nav">
-      <div class="dk-sb-section">Moderation</div>
+      <div class="dk-sb-section">Zu prüfen</div>
       <a href="#/kalender" class="dk-nav-item" @click.prevent="goToKalender">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
           <polyline points="15 18 9 12 15 6"/>

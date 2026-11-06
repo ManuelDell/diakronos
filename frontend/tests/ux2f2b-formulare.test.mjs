@@ -254,7 +254,7 @@ test('UX2f2b: keine `…Frei`-Hüllen mehr (Regeln lassen Leeres in Ruhe)', () =
 // ══════════════════════════════════════════════════════════════════════════
 // B · Gruppe anlegen
 // ══════════════════════════════════════════════════════════════════════════
-test('UX2f2b: Gruppe anlegen — Name tippen, Erstellen ruft die API mit dem Namen', async () => {
+test('UX2f2b: Gruppe anlegen — Name tippen, Anlegen ruft die API mit dem Namen', async () => {
   zuruecksetzen()
   // Zustand wie auf der Seite: `v-model` (Achtung: DkDialog nutzt
   // `modelValue`/`update:model-value`, das `v-model` der Seite bindet das
@@ -280,8 +280,8 @@ test('UX2f2b: Gruppe anlegen — Name tippen, Erstellen ruft die API mit dem Nam
   assert.equal(nameFeld.value, 'Chor', 'Feld zeigt das Getippte nicht')
 
   const knoepfe = [...document.querySelectorAll('.dk-ui-dialog-fuss button')]
-  const erstellen = knoepfe.find((b) => /Erstellen/.test(b.textContent))
-  assert.ok(erstellen, 'Knopf „Erstellen“ fehlt')
+  const erstellen = knoepfe.find((b) => /Anlegen/.test(b.textContent))
+  assert.ok(erstellen, 'Knopf „Anlegen“ fehlt')
   klicken(erstellen)
   await warte(4)
 
@@ -291,7 +291,7 @@ test('UX2f2b: Gruppe anlegen — Name tippen, Erstellen ruft die API mit dem Nam
   // Derselbe Knopf kann nach dem Re-Render abgehängt sein — neu holen und
   // sofort klicken (der Submit rechnet synchron, bevor Vue erneut rendert).
   const erstellenJetzt = [...document.querySelectorAll('.dk-ui-dialog-fuss button')]
-    .find((b) => /Erstellen/.test(b.textContent))
+    .find((b) => /Anlegen/.test(b.textContent))
   klicken(erstellenJetzt || erstellen)
   // `submit` ist async (apiCall → await) — das Emit kommt im Mikrotask danach.
   await warte(10)

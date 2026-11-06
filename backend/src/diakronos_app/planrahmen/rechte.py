@@ -77,6 +77,25 @@ class Rechte:
         ein Konto, das zufaellig wie eine Seite heisst, hier Plan-Administrator.
         """
         self.angemeldet()
+        # ON-6: der ERSTE Administrator (root) ist der Admin dieses Bereichs —
+        # sonst scheiterte z. B. ``plan_generieren`` bei jeder Neuinstallation
+        # an „Zugriff verweigert“. Dieselbe EINE Pruefung wie in
+        # ``frappe_compat.permissions``.
+        #
+        # ON-6c (Regression aus ON-6): ueber `root_benutzer.ist_root_in` in
+        # DIESER Transaktion statt ueber `get_roles`. `get_roles` oeffnet eine
+        # eigene Sitzung (Ausschluss-Abfrage) und reisst damit auf einer DB mit
+        # EINER Verbindung je Engine die offene Transaktion des Aufrufers mit —
+        # 6 Fehler in `test_plan_w1_warnungen_nur_planer.py` (auf main gruen).
+        # Die Ausschlusspruefung steht im fail-closed-Vorlauf `angemeldet()`
+        # (dieselbe Sitzung, `ausgeschlossen()`) und wird hier zusaetzlich
+        # ausdruecklich verlangt: ein AUSGESCHLOSSENER root ist kein Admin.
+        from diakronos_app import root_benutzer
+
+        if (root_benutzer.ist_root_in(self.session, self.benutzer)
+                and not self.ausgeschlossen()):
+            return True
+
         # Altdaten tragen `parenttype` NULL oder leer — beides zaehlt als
         # Benutzerzeile (dieselbe Regel wie `permissions.ist_user_zeile`).
         # Ohne IS NULL haetten genau die Altzeilen ihre Rechte verloren.

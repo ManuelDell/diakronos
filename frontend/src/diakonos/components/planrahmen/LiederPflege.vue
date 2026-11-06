@@ -89,7 +89,7 @@
         </ul>
         <div class="lp-einst-neu">
           <input v-model="neuerWert" class="dk-form-input" type="text" placeholder="Neuer Wert" @keyup.enter="wertHinzufuegen" />
-          <button type="button" class="dk-btn dk-btn-primary dk-btn-sm" :disabled="beschaeftigt || !neuerWert.trim()" @click="wertHinzufuegen">Hinzufügen</button>
+          <button type="button" class="dk-btn dk-btn-primary dk-btn-sm" :disabled="beschaeftigt || !neuerWert.trim()" @click="wertHinzufuegen">Übernehmen</button>
         </div>
         <p v-if="einstellungenHinweis" class="lp-einst-hinweis">{{ einstellungenHinweis }}</p>
       </div>

@@ -10,8 +10,8 @@
            können, ohne den Umweg über Verwaltung → Organigramm. Der Server
            entscheidet über can_create_*; der Knopf zeigt nur, was er erlaubt. -->
       <div v-if="perms.can_create_any" class="gr-kopf-aktionen">
-        <DkButton v-if="perms.can_create_gruppe" variant="primary" @click="openCreate('gruppe')">+ Neue Gruppe</DkButton>
-        <DkButton v-if="perms.can_create_untergruppe" variant="secondary" @click="openCreate('untergruppe')">+ Neue Untergruppe</DkButton>
+        <DkButton v-if="perms.can_create_gruppe" variant="primary" @click="openCreate('gruppe')">Gruppe anlegen</DkButton>
+        <DkButton v-if="perms.can_create_untergruppe" variant="secondary" @click="openCreate('untergruppe')">Untergruppe anlegen</DkButton>
       </div>
     </div>
 

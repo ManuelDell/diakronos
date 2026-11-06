@@ -221,7 +221,7 @@
               :meldungen="pruefMeldungen" :basis-pfad="'anlaesse/' + ai + '/wirkung/mit/'"
             />
             <div class="pr-pe-zeile">
-              <button v-if="!Array.isArray(a.wirkung?.mit)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="wirkungAnlegen(a); a.wirkung.mit = []">+ Zusatzfelder hinzufügen</button>
+              <button v-if="!Array.isArray(a.wirkung?.mit)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="wirkungAnlegen(a); a.wirkung.mit = []">+ Zusatzfelder anlegen</button>
               <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="a.wirkung.mit = undefined">Zusatzfelder entfernen</button>
             </div>
 
@@ -232,7 +232,7 @@
               :meldungen="pruefMeldungen" :basis-pfad="'anlaesse/' + ai + '/wirkung/regeln'"
             />
             <div class="pr-pe-zeile">
-              <button v-if="!Array.isArray(a.wirkung?.regeln)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="wirkungAnlegen(a); a.wirkung.regeln = []">+ Anlassregeln hinzufügen</button>
+              <button v-if="!Array.isArray(a.wirkung?.regeln)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="wirkungAnlegen(a); a.wirkung.regeln = []">+ Anlassregeln anlegen</button>
               <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="a.wirkung.regeln = undefined">Anlassregeln entfernen</button>
             </div>
 
@@ -240,11 +240,11 @@
             <PrKnotenEditor v-if="istKnoten(a.wirkung?.bedingung)" :knoten="a.wirkung.bedingung" modus="bedingung" :kontext="kontext" />
             <PrPfadMeldungen :meldungen="pruefMeldungen" :pfad="'anlaesse/' + ai + '/wirkung/bedingung'" />
             <div class="pr-pe-zeile">
-              <button v-if="!istKnoten(a.wirkung?.bedingung)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="wirkungAnlegen(a); a.wirkung.bedingung = { anlass: '' }">+ Bedingung hinzufügen</button>
+              <button v-if="!istKnoten(a.wirkung?.bedingung)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="wirkungAnlegen(a); a.wirkung.bedingung = { anlass: '' }">+ Bedingung anlegen</button>
               <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="a.wirkung.bedingung = undefined">Bedingung entfernen</button>
             </div>
           </div>
-          <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="anlaesse.push({ id: '', name: '' })">+ Anlass hinzufügen</button>
+          <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="anlaesse.push({ id: '', name: '' })">+ Anlass anlegen</button>
         </section>
 
         <section id="pr-pe-deklarationen" class="pr-pe-abschnitt">

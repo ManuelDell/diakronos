@@ -240,7 +240,7 @@ def _pruefe_svg(roh: bytes) -> None:
     if "}" in name:
         name = name.rsplit("}", 1)[1]
     if name.lower() != "svg":
-        raise ValidationError("Die SVG-Datei hat kein <svg>-Wurzelelement.")
+        raise ValidationError("Die SVG-Datei hat kein <svg>-Wurzel-Tag.")
 
 
 def _ist_svg(roh: bytes) -> bool:

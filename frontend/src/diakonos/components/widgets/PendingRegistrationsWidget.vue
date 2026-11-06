@@ -29,7 +29,7 @@
       +{{ rest }} weitere
     </button>
 
-    <button class="dk-btn" @click="zurModeration">→ Zur Terminmoderation</button>
+    <button class="dk-btn" @click="zurModeration">→ Zum Prüfen</button>
   </BaseWidgetCard>
 </template>
 <script setup>

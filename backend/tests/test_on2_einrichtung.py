@@ -268,7 +268,7 @@ def test_logo_route_mit_praefix(admin_umgebung):
     ("logo.svg", b"<svg xmlns='http://www.w3.org/2000/svg'><rect>",
      "image/svg+xml", "kein zulaessiges XML"),
     ("logo.svg", b'<?xml version="1.0"?><html><body/></html>',
-     "image/svg+xml", "<svg>-Wurzelelement"),
+     "image/svg+xml", "<svg>-Wurzel-Tag"),
     # Nicht-SVG mit .svg-Endung: der Inhalt entscheidet, nicht der Name.
     ("logo.svg", _png(), "image/svg+xml", "passt nicht"),
 ])

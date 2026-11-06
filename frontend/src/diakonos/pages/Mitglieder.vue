@@ -8,12 +8,12 @@
         <DkButton v-if="isAdmin" variant="secondary" :loading="exporting" @click="exportCsv">
           <IconDownload /> {{ exporting ? 'Exportiere…' : 'Export' }}
         </DkButton>
-        <!-- Uebergangsloesung: Die neue Maske „Mitglied hinzufügen“ entsteht in
+        <!-- Uebergangsloesung: Die neue Maske „Mitglied anlegen“ entsteht in
              Reiter N4 (Mitglieder -> Anfragen/Übersicht) auf Basis der in P1-9
              gehaerteten create_mitglied-Funktion. Bis dahin fuehrt der Knopf in
              die Anmeldungsverwaltung (dort bearbeitet der Admin Anmeldungen). -->
         <DkButton v-if="isAdmin" variant="primary" @click="navigate('#/personen/anfragen')">
-          <IconUserPlus /> Mitglied hinzufügen
+          <IconUserPlus /> Mitglied anlegen
         </DkButton>
       </template>
     </DkPageHeader>
@@ -194,7 +194,7 @@
          waeren wartende Gastkonten in der Oberflaeche nie freischaltbar. -->
     <WartendeKontenKarte v-if="isAdmin" class="mt-wartende" />
 
-    <!-- Anlegen läuft künftig in Reiter N4 („Mitglied hinzufügen“); hier keine
+    <!-- Anlegen läuft künftig in Reiter N4 („Mitglied anlegen“); hier keine
          eigene Maske, bis N4 sie in der neuen Reiterstruktur liefert. -->
   </div>
 </template>
@@ -210,7 +210,7 @@
  *            Server-Gesamtzahl; erneuter Klick wählt ab (DkSegment).
  *   UXD-R8   maxlength=140 an Namens-/Adressfeldern.
  *
- * Nicht hier: „Mitglied hinzufügen“ – die neue Maske entsteht im Paket N4 auf
+ * Nicht hier: „Mitglied anlegen“ – die neue Maske entsteht im Paket N4 auf
  * Basis der inzwischen gehaerteten `create_mitglied`.
  */
 import { ref, computed, onMounted, onBeforeUnmount, watch, h } from 'vue'
@@ -265,7 +265,7 @@ const leerzustand = computed(() => mitgliederLeerzustand({
 }))
 
 /**
- * „Mitglied anlegen“ aus dem Leerzustand: Der Dialog „Mitglied hinzufügen“
+ * „Mitglied anlegen“ aus dem Leerzustand: Der Dialog „Mitglied anlegen“
  * lebt im Rahmen (`pages/mitglieder/Bereich.vue`, ON-N4) — er wird NICHT
  * doppelt gebaut. Der Rahmen horcht auf dieses Ereignis (`@leer-anlegen`) und
  * öffnet seinen vorhandenen Dialog; ohne Rahmen (Standalone-Aufruf der Seite)
@@ -298,7 +298,7 @@ const {
 } = useMitglieder()
 
 /** Kopf-Aktionen (Export) und Neuladen fuer den einbettenden Rahmen.
- *  `reload` braucht der Dialog „Mitglied hinzufügen“ (N4): nach dem Anlegen
+ *  `reload` braucht der Dialog „Mitglied anlegen“ (N4): nach dem Anlegen
  *  soll die neue Person sofort in der Liste stehen, ohne Neuladen der Seite.
  *  WICHTIG: erst NACH dem Auspacken oben — vorher läge `reload` in der
  *  temporalen Totzone (ReferenceError beim Aufbau der Seite). */

@@ -28,7 +28,7 @@ export function bedarfHinweise(bedarf, definition = {}) {
 export function erststartSchritte({ hinweise = [], angelegt = false, veroeffentlicht = false } = {}) {
   return [
     { nummer: 1, erledigt: !hinweise.length, titel: 'Wer kann was?' },
-    { nummer: 2, erledigt: !!angelegt, titel: 'Plan erstellen' },
+    { nummer: 2, erledigt: !!angelegt, titel: 'Plan anlegen' },
     { nummer: 3, erledigt: !!veroeffentlicht, titel: 'Automatisch einteilen & prüfen' },
   ]
 }

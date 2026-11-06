@@ -96,6 +96,15 @@ def _kein_admin_melden(was: str) -> None:
     throw(f"Nur Administratoren dürfen {was}.", FrappePermissionError)
 
 
+#: ``grund``-Text -> Vorgangsart fuer die root-Meldung (ON-6b). Der Text selbst
+#: steht bei den Aufrufern („ausgetragen“, „reaktiviert“); hier wird nur die
+#: passende Formulierung gewaehlt — die Regel ist fuer jede dieselbe.
+_ROOT_ART = {
+    "ausgetragen": "austritt",
+    "reaktiviert": "reaktivierung",
+}
+
+
 def _konto_pruefen(mitglied_id: str, grund: str) -> str:
     """Konto-Schranken (Verwaltungskonto, letzter Administrator).
 
@@ -105,11 +114,16 @@ def _konto_pruefen(mitglied_id: str, grund: str) -> str:
         _verweigere_fremdes_admin_konto,
         _verweigere_letzten_admin_verlust,
         _verweigere_letzten_admin_verlust_alle,
+        _verweigere_root_ziel,
     )
 
     ziel_user = str(get_value("Mitglied", mitglied_id, "user") or "")
     if not ziel_user:
         return ""
+    # ON-6b: das root-Konto traegt niemand aus und reaktiviert es nicht —
+    # auch kein System Manager. (Die Wache in `_verweigere_fremdes_admin_konto`
+    # deckt dasselbe, hier steht der tatsaechliche Vorgang in der Meldung.)
+    _verweigere_root_ziel("", ziel_user, art=_ROOT_ART.get(grund, "konto"))
     # Ein Mitglied mit Verwaltungskonto darf nur ein System Manager anfassen.
     _verweigere_fremdes_admin_konto(ziel_user)
     # Und das letzte Netz darf nicht reissen — auch nicht durch sich selbst.
@@ -395,10 +409,16 @@ def mitglied_reaktivieren(mitglied_id: str) -> dict[str, Any]:
             ValidationError,
         )
 
-    from diakronos_app.api.zugang import _verweigere_fremdes_admin_konto
+    from diakronos_app.api.zugang import (
+        _verweigere_fremdes_admin_konto,
+        _verweigere_root_ziel,
+    )
 
     ziel_user = str(get_value("Mitglied", mitglied_id, "user") or "")
     if ziel_user:
+        # ON-6b: root wird nicht reaktiviert — auch nicht von einem anderen
+        # System Manager.
+        _verweigere_root_ziel("", ziel_user, art="reaktivierung")
         _verweigere_fremdes_admin_konto(ziel_user)
 
     vorher = str(zeile.get("status") or "")

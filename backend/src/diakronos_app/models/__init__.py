@@ -18,6 +18,7 @@ from diakronos_app.models.einrichtung import (
     EinrichtungToken,
 )
 from diakronos_app.models.passwortzugang import Passwortzugang
+from diakronos_app.models.root_benutzer import ROOT_ROLLE, RootUser
 from diakronos_app.models.gestaltung import GestaltungAbweichung
 from diakronos_app.models.sicherung import Sicherungseinstellungen, Sicherungslauf
 from diakronos_app.models.website import PrimoKonto
@@ -133,6 +134,8 @@ from diakronos_app.models.devmodus import (
 )
 
 __all__ = [
+    "ROOT_ROLLE",
+    "RootUser",
     "DATENSCHUTZ_TEXT_NAME",
     "DATENSCHUTZ_VEROEFFENTLICHT_NAME",
     "GEMEINDE_EINSTELLUNGEN_NAME",

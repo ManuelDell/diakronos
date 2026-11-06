@@ -64,15 +64,15 @@ export function zustandsText(status) {
                 zustand: 'verbunden',
                 titel: 'Verbunden',
                 ton: 'ok',
-                text: 'Diakronos erreicht die Website. Redakteure können von hier aus in Primo arbeiten.',
+                text: 'Diakronos erreicht die Website. Redakteure können von hier aus im Website-Baukasten arbeiten.',
             }
         case 'nicht_erreichbar':
             return {
                 zustand: 'nicht_erreichbar',
                 titel: 'Nicht erreichbar',
                 ton: 'err',
-                text: 'Die Website-Adresse ist eingetragen, aber Primo antwortet nicht. '
-                    + 'Läuft der Primo-Stack, und stimmt die Adresse?',
+                text: 'Die Website-Adresse ist eingetragen, aber der Website-Baukasten antwortet nicht. '
+                    + 'Läuft der Baukasten, und stimmt die Adresse?',
             }
         case 'nicht_konfiguriert':
             return {
@@ -98,13 +98,13 @@ export function zustandsText(status) {
  * Fehlende Werte werden ausgelassen, nie als 0 erfunden.
  *
  * @param {{status?: string, version?: string|null, site_count?: number|null}} daten
- * @returns {string}  z. B. „Primo v3.3.1 · 3 Seiten“ oder ''
+ * @returns {string}  z. B. „Website-Baukasten v3.3.1 · 3 Seiten“ oder ''
  */
 export function verbindungsDetails(daten) {
     const quelle = daten || {}
     if (String(quelle.status || '') !== 'verbunden') return ''
     const teile = []
-    if (quelle.version) teile.push(`Primo ${String(quelle.version).trim()}`)
+    if (quelle.version) teile.push(`Website-Baukasten ${String(quelle.version).trim()}`)
     const anzahl = Number(quelle.site_count)
     if (Number.isFinite(anzahl) && anzahl >= 0) {
         teile.push(anzahl === 1 ? '1 Seite' : `${anzahl} Seiten`)
@@ -132,7 +132,7 @@ export function uebergabeFehlertext(fehler) {
             return 'Du darfst die Website nicht öffnen. Dafür braucht es die Rolle '
                 + 'System Manager, Administrator oder Website-Moderator.'
         case 409:
-            return meldung || 'Für dieses Konto besteht in Primo bereits ein Zugang. '
+            return meldung || 'Für dieses Konto besteht im Website-Baukasten bereits ein Zugang. '
                 + 'Die Verknüpfung muss durch einen Admin eingerichtet werden.'
         case 417:
             return 'Die Sicherheitsprüfung des Browsers ist fehlgeschlagen. '
@@ -172,13 +172,13 @@ export function sichereUebergabeUrl(url) {
 export function sitzungsHinweis(sekunden) {
     const wert = Number(sekunden)
     if (!Number.isFinite(wert) || wert <= 0) {
-        return 'Die Sitzung in Primo läuft nach einiger Zeit ab. Danach erneut über Diakronos öffnen.'
+        return 'Die Sitzung im Website-Baukasten läuft nach einiger Zeit ab. Danach erneut über Diakronos öffnen.'
     }
     const stunden = wert / 3600
     const dauer = Number.isInteger(stunden)
         ? `${stunden} Stunden`
         : `${Math.max(1, Math.round(wert / 60))} Minuten`
-    return `Die Sitzung in Primo endet nach ${dauer} (das Token lässt sich nicht verlängern). `
+    return `Die Sitzung im Website-Baukasten endet nach ${dauer} (das Token lässt sich nicht verlängern). `
         + 'Danach erneut über Diakronos öffnen.'
 }
 
@@ -193,23 +193,23 @@ export function sitzungsHinweis(sekunden) {
  */
 export const ANSCHLUSS_SCHRITTE = [
     {
-        titel: 'Primo-Stack starten',
-        text: 'Im Repository liegt der fertige Primo-Stack unter deploy/primo. '
+        titel: 'Website-Baukasten starten',
+        text: 'Im Repository liegt der fertige Baukasten-Stack unter deploy/primo. '
             + 'Dort .env anlegen und den Stack hochfahren: '
             + 'cp .env.example .env, dann docker compose -p diakronos-primo --env-file .env up -d. '
             + 'Prüfen mit curl http://127.0.0.1:8095/api/primo/info.',
     },
     {
-        titel: 'Integrationskonto in Primo',
-        text: 'In Primo ein Konto mit der Server-Rolle „developer“ anlegen — nur damit darf '
+        titel: 'Integrationskonto im Baukasten',
+        text: 'Im Baukasten ein Konto mit der Server-Rolle „developer“ anlegen — nur damit darf '
             + 'Diakronos Konten und Seiten pflegen. Dessen Zugang wird als Superuser hinterlegt.',
     },
     {
         titel: 'Werte in Diakronos eintragen (settings/.env)',
-        text: 'PRIMO_URL = interne Adresse, wie der Server Primo erreicht '
-            + '(z. B. http://192.168.1.11:8095). '
-            + 'PRIMO_PUBLIC_URL = Adresse, die der Browser öffnet (z. B. https://website.example.org; '
-            + 'leer = PRIMO_URL). '
+        text: 'Die interne Adresse (PRIMO_URL) = Adresse, wie der Server den Baukasten '
+            + 'erreicht (z. B. http://192.168.1.11:8095). '
+            + 'Die öffentliche Adresse (PRIMO_PUBLIC_URL) = Adresse, die der Browser öffnet '
+            + '(z. B. https://website.example.org; leer = wie die interne Adresse). '
             + 'PRIMO_SUPERUSER_EMAIL und PRIMO_SUPERUSER_PASSWORD (oder PRIMO_SUPERUSER_PASSWORD_FILE) '
             + '= Zugang des Integrationskontos.',
     },
@@ -226,7 +226,7 @@ export const ANSCHLUSS_SCHRITTE = [
  * Browser (`docs/` liegt nicht im Image).
  */
 export const ANLEITUNG_ORT = 'Die vollständige Anleitung steht im Repository in '
-    + 'deploy/primo/ANLEITUNG.md und in docs/BETRIEBSANLEITUNG.md (Abschnitt Primo).'
+    + 'deploy/primo/ANLEITUNG.md und in docs/BETRIEBSANLEITUNG.md (Abschnitt Website-Baukasten).'
 
 /**
  * Die Interna, die Diakronos von Primo braucht — als Prüfliste für die

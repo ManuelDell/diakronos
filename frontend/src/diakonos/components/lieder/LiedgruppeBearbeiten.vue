@@ -63,7 +63,7 @@
     <!-- Lieder zuordnen -->
     <DkCard title="Lieder dieser Gruppe" :class="'lgb-lieder'">
       <p class="lgb-hinweis">
-        Lieder hinzufügen, mit den Pfeilen in die richtige Reihenfolge bringen und bei Bedarf wieder entfernen.
+        Lieder zuordnen, mit den Pfeilen in die richtige Reihenfolge bringen und bei Bedarf wieder entfernen.
       </p>
 
       <DkEmpty

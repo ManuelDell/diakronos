@@ -56,7 +56,7 @@ test('DEV-8: Kachel springt auf die Prüfseite', () => {
   // UX3a: „Zu prüfen“ ist der vierte Reiter des Kalenders (vorher
   // #/moderation); die Kachel führt dorthin.
   assert.match(WIDGET, /window\.location\.hash = '#\/kalender\/pruefen'/)
-  assert.match(WIDGET, /Zur Prüfseite|Zur Terminmoderation/)
+  assert.match(WIDGET, /Zum Prüfen/)
 })
 
 test('DEV-8: Badge-Zahl kommt von der Startseite, nicht aus der Kachel selbst', () => {

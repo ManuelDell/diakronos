@@ -26,7 +26,7 @@ export const BEGRIFFE = {
     },
     freigabe: {
         wort: 'Freigabe',
-        bedeutet: 'Der Schritt, nach dem alle sichtbaren Termine verbindlich sind. Im Moderationsbrett heißt die Ablage deshalb „Freigeben“ — vorher hieß sie „Festlegen“.',
+        bedeutet: 'Der Schritt, nach dem alle sichtbaren Termine verbindlich sind. In der Ablage „Zu prüfen“ heißt der Knopf deshalb „Freigeben“ — vorher hieß er „Festlegen“.',
         verboten: ['Festlegen', 'Festlegung'],
     },
     festgelegt: {
