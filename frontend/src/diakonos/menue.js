@@ -1,7 +1,7 @@
 /**
  * Zentrale Menüdefinition (Standard S12).
  *
- * EINE Quelle für Seitenleiste (Desktop), „Mehr“-Blatt (Handy) und
+ * EINE Quelle für Seitenleiste (Desktop), Menü-Schublade (Handy, UX3e) und
  * Kopfleiste. Wer einen Menüpunkt ändert, ändert ihn hier — nirgends sonst.
  *
  * Felder eines Eintrags:

@@ -18,7 +18,7 @@
  *   (a) Über die Oberfläche (✕/Esc/Überlappung): seine History-Marke muss
  *       verbraucht werden — sonst bliebe eine Leiche und „Zurück“ bräuchte
  *       zwei Tipps.
- *   (b) Über einen Link IM Fenster (z. B. Eintrag im „Mehr“-Blatt): dabei
+ *   (b) Über einen Link IM Fenster (z. B. Eintrag in der Menü-Schublade): dabei
  *       navigiert der Browser VORWÄRTS. Ein `history.back()` würde die
  *       Zielseite sofort wieder verlassen — der Nutzer landete wieder auf der
  *       Ausgangsseite. Hier darf NICHT zurückgegangen werden.
@@ -179,7 +179,7 @@ function hashZielVon(ereignis) {
  * Ohne diesen Eingriff entsteht der tote Eintrag (Befund R-P3-4b, W1). Der
  * Verlauf ist beim Klick
  *     #/vorher · #/start · [#/start = Fenster]
- * Der Link im „Mehr“-Blatt hängt mit dem href einen WEITEREN Eintrag an
+ * Der Link in der Menü-Schublade hängt mit dem href einen WEITEREN Eintrag an
  * (`#/ziel`). „Zurück“ landet dann erst auf dem Fenster-Eintrag, der genauso
  * aussieht wie `#/start` — ein Tipp ohne sichtbare Wirkung; erst der zweite
  * führt weiter.

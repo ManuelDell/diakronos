@@ -154,11 +154,17 @@ const read = (p) => readFileSync(new URL(p, root), 'utf8')
   assert.ok(!menue.includes('#/organigramm'), 'Menüdefinition: kein Organigramm-Eintrag mehr')
   assert.ok(!menue.includes("'Organigramm'"), 'Menüdefinition: keine Organigramm-Beschriftung mehr')
   assert.ok(menue.includes("href: '#/gruppen'"), 'Menüdefinition: Gruppen bleibt erreichbar')
-  for (const datei of ['components/AppSidebar.vue', 'components/AppBottomNav.vue']) {
+  // UX3e: Am Handy heißt der Menüzugang jetzt „Menü-Schublade“
+  // (AppMenueSchublade.vue) — sie speist sich aus derselben Definition.
+  for (const datei of ['components/AppSidebar.vue', 'components/AppMenueSchublade.vue']) {
     const nav = read(datei)
     assert.ok(!nav.includes('#/organigramm'), `${datei}: kein fest verdrahteter Organigramm-Eintrag`)
-    assert.ok(nav.includes('menue.js'), `${datei}: liest die zentrale Menüdefinition`)
-    assert.ok(nav.includes('MENUE'), `${datei}: nutzt die zentrale Menüliste`)
+    // UX3e: Die Schublade liest die Definition über `components/handyMenue.mjs`
+    // (dort steht, was drin ist und was aktiv ist) — menue.js bleibt die Quelle.
+    assert.ok(nav.includes('menue.js') || nav.includes('handyMenue.mjs'),
+      `${datei}: liest die zentrale Menüdefinition`)
+    assert.ok(nav.includes('MENUE') || nav.includes('schubladeMenue'),
+      `${datei}: nutzt die zentrale Menüliste`)
   }
   // Der aktive Zustand der Gruppe deckt auch die Organigramm-Adresse ab:
   // die Sonderregel sitzt in `istAktiv` (nicht mehr im Vorlagen-Ausdruck).

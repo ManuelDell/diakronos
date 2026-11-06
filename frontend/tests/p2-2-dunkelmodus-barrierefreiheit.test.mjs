@@ -28,7 +28,9 @@ const kronos = lies('kronos.css')
 const dkModal = lies('components/DkModal.vue')
 const dkWarning = lies('components/DkWarning.vue')
 const stammdaten = lies('components/planrahmen/PrStammdatenPanel.vue')
-const bottomNav = lies('components/AppBottomNav.vue')
+// UX3e: Das modale Fenster der Handy-Navigation ist die Menü-Schublade
+// (der frühere „Mehr“-Blatt-Kopf in AppBottomNav.vue ist entfallen).
+const schublade = lies('components/AppMenueSchublade.vue')
 const eventCreate = lies('components/kronos/KronosEventCreate.vue')
 const fokus = lies('composables/useDialogFokus.js')
 const prAnsicht = lies('components/planrahmen/PrAnsicht.vue')
@@ -87,7 +89,7 @@ assert.match(fokus, /e\.key === 'Escape'/, 'DES-R6: Esc schliesst nicht')
 assert.match(fokus, /e\.key !== 'Tab'/, 'DES-R6: keine Tab-Falle')
 for (const [name, quelle] of [
   ['DkModal.vue', dkModal], ['DkWarning.vue', dkWarning],
-  ['PrStammdatenPanel.vue', stammdaten], ['AppBottomNav.vue', bottomNav],
+  ['PrStammdatenPanel.vue', stammdaten], ['AppMenueSchublade.vue', schublade],
   ['KronosEventCreate.vue', eventCreate],
 ]) {
   assert.match(quelle, /useDialogFokus\(/, `DES-R6: ${name} fuehrt den Fokus nicht`)

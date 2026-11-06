@@ -2,7 +2,7 @@
  * useDialogFokus — Tastaturfuehrung fuer modale Fenster (DES-R6).
  *
  * Warum: Nur `components/ui/DkDialog.vue` fuehrte den Fokus korrekt. Die
- * Eigenbauten (DkModal, Stammdaten-Panel, „Mehr“-Blatt der Handy-Navigation,
+ * Eigenbauten (DkModal, Stammdaten-Panel, Menü-Schublade der Handy-Navigation,
  * Termin-Fenster des Kalenders) liessen den Fokus auf dem Auslöser hinter dem
  * Fenster stehen: 14 Tab-Sprünge wanderten durch die Seite dahinter, Esc
  * schloss nicht, Screenreader lasen das Fenster nicht vor.

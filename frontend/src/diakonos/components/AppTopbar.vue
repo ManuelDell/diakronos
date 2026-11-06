@@ -1,9 +1,22 @@
 <template>
   <header class="dk-topbar">
     <div class="dk-topbar-left">
-      <!-- Mobile menu toggle -->
-      <button class="dk-icon-btn" style="display:none" @click="$emit('toggle-collapse')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      <!-- UX3e (Entwurf A8): Menü-Symbol OBEN LINKS öffnet die Schublade mit
+           der vollständigen Navigation. Am Desktop ist es ausgeblendet (dort
+           gibt es die Seitenleiste) — die Sichtbarkeit regelt index.css. Der
+           Knopf liegt in der Kopfzeile, damit er auf JEDER Seite an derselben
+           Stelle steht (Prinzip S4/S5) und nicht je Bereich wandert. -->
+      <button
+        type="button"
+        class="dk-icon-btn dk-menue-knopf"
+        :aria-label="MENUE_KNOPF_TEXT"
+        :title="MENUE_KNOPF_TEXT"
+        :aria-expanded="menueOffen ? 'true' : 'false'"
+        aria-haspopup="dialog"
+        ref="menueKnopf"
+        @click="$emit('open-menu')"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
 
       <!-- Zurück (UX1f): ein Weg der Kopfzeile, kein Alt-Knopf — dieselbe
@@ -95,9 +108,15 @@ import DkSkelett from './ui/DkSkelett.vue'
 import DkEmpty from './ui/DkEmpty.vue'
 import { darfAlsGelesenMarkieren } from '../composables/glocke.mjs'
 import { krumenZuSeite } from '../menue.js'
+import { MENUE_KNOPF_TEXT } from './handyMenue.mjs'
 
-defineProps({ collapsed: Boolean })
-defineEmits(['toggle-collapse'])
+defineProps({
+  collapsed: Boolean,
+  // UX3e: Zustand des Menü-Knopfes (`aria-expanded`) — er muss sagen, ob die
+  // Schublade offen ist, sonst kündigt er sie falsch an (Prinzip N4/S4).
+  menueOffen: { type: Boolean, default: false },
+})
+defineEmits(['toggle-collapse', 'open-menu'])
 
 const { unreadCount, notifications, laden, fehler, ladeListe, markAsRead } = useNotifications()
 // UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).

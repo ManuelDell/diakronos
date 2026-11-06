@@ -27,7 +27,13 @@
            als einklappbares Feld IN der Seite (Kalender.vue). -->
       <AppSidebar v-if="!isVollbildMode" :collapsed="sidebarCollapsed" :theme="theme" @toggle-collapse="sidebarCollapsed = !sidebarCollapsed" @toggle-theme="toggleTheme" />
       <div class="dk-main-wrap">
-        <AppTopbar v-if="!isVollbildMode" :collapsed="sidebarCollapsed" @toggle-collapse="sidebarCollapsed = !sidebarCollapsed" />
+        <AppTopbar
+          v-if="!isVollbildMode"
+          :collapsed="sidebarCollapsed"
+          :menue-offen="menueOffen"
+          @toggle-collapse="sidebarCollapsed = !sidebarCollapsed"
+          @open-menu="menueOeffnen"
+        />
         <!-- OP-HANDY-24: Fortschrittsbalken während des Seitenwechsels. Bei
              langsamem Netz blieb sonst die alte Seite ohne jede Rückmeldung
              stehen; erst der fertig geladene Chunk wechselte das Bild. -->
@@ -82,7 +88,19 @@
     <!-- DM1: Einschalt-Knopf — nur wenn der Server den Dev-Modus erlaubt und
          der Nutzer berechtigt ist, aber noch keine Dev-Sitzung laeuft. -->
     <DevStart v-else-if="devmodusVerfuegbar" />
-    <AppBottomNav v-if="!isVollbildMode" :theme="theme" @toggle-theme="toggleTheme" @open-admin-dialog="handleOpenAdminDialog" />
+    <AppBottomNav v-if="!isVollbildMode" :seite="currentPageName" />
+    <!-- UX3e (Entwurf A9): Menü-Schublade — nur in der Mobil-Lage im DOM
+         (`istHandyLage`): am Desktop gibt es die Seitenleiste, ein zweiter
+         Navigationsweg im Tab-Ring wäre dort nur Ballast. -->
+    <AppMenueSchublade
+      v-if="!isVollbildMode && istHandyLage"
+      :offen="menueOffen"
+      :theme="theme"
+      :seite="currentPageName"
+      :hash="currentHash"
+      @schliessen="menueOffen = false"
+      @toggle-theme="toggleTheme"
+    />
     <!-- FIX-7: Die Detailansicht des eigenen abgelehnten Termins haengt seit
          OP-UI-11 (`4927b9e2`) an der Kalenderliste in `pages/Kalender.vue` —
          dort stehen `showAbgelehntView` und `abgelehnterTermin`. Hier stand
@@ -104,10 +122,14 @@ import DkSpinner from './components/ui/DkSpinner.vue'
 import AppTopbar from './components/AppTopbar.vue'
 import AuditConfirmModal from './components/AuditConfirmModal.vue'
 import AppBottomNav from './components/AppBottomNav.vue'
-import { currentComponent, currentHash, navigate, pageLadefehler, routeNeuLaden, seitenLadend } from './router.js'
+// UX3e: Menü-Schublade am Handy (Entwurf A9).
+import AppMenueSchublade from './components/AppMenueSchublade.vue'
+import { currentComponent, currentHash, currentPageName, navigate, pageLadefehler, routeNeuLaden, seitenLadend } from './router.js'
 import { useImpersonation } from './composables/useImpersonation.js'
 import { devmodusAn, devmodusAutostart, devmodusPruefen } from './composables/useDevmodus.js'
 import { useSession } from './composables/useSession.js'
+// UX3e: EINE Breitengrenze der App (FIX-6) — die Schublade hängt am Mobil-Layout.
+import { MOBIL_GRENZE_PX } from './composables/eingabeart.mjs'
 // FIX-7: `useKronosSidebar`, `showToast` und `getMeinTermin` standen hier
 // ohne jeden Nutzen — die Kalender-Seitenleiste und die Detailansicht des
 // abgelehnten Termins liegen seit OP-UI-11 in `pages/Kalender.vue`.
@@ -128,6 +150,34 @@ async function devmodusBeimStart() {
 }
 
 const sidebarCollapsed = ref(false)
+
+/**
+ * UX3e: Zustand der Menü-Schublade (nur Mobil-Lage). EIN offener Zustand in
+ * App.vue, weil sowohl der Menü-Knopf der Kopfzeile als auch die Schublade
+ * daran hängen — zwei Kopien liefen auseinander, sobald Esc oder Zurück
+ * schließt.
+ */
+const menueOffen = ref(false)
+function menueOeffnen() { menueOffen.value = true }
+
+/**
+ * Ist die App in der MOBIL-Lage? Dieselbe Grenze wie das Layout in index.css
+ * (`MOBIL_GRENZE_PX`, FIX-6: LAYOUT hängt nur an der BREITE). Sie entscheidet,
+ * ob die Schublade überhaupt im DOM liegt — am Desktop übernimmt die
+ * Seitenleiste. Beim Überqueren der Grenze wird der Zustand zurückgesetzt:
+ * sonst bliebe die Schublade „offen“ gemerkt, während sie verschwindet.
+ */
+const istHandyLage = ref(false)
+/* DIESELBEN Bedingungen wie der Menü-Knopf in index.css (`.dk-menue-knopf`):
+   Breite ≤ MOBIL_GRENZE_PX ODER flaches Querformat (Handy quer, 844×390 —
+   dort ist die Seitenleiste ausgeblendet, OP-HANDY-10). Ohne den zweiten
+   Teil zeigte das Querformat den Knopf, aber keine Schublade. */
+const HANDY_LAGE_ABFRAGE = `(max-width: ${MOBIL_GRENZE_PX}px), (max-height: 480px) and (orientation: landscape)`
+let lageAbfrage = null
+function lageNachziehen() {
+  istHandyLage.value = lageAbfrage ? lageAbfrage.matches : false
+  if (!istHandyLage.value) menueOffen.value = false
+}
 /**
  * DES-R22: Startwert aus composables/theme.mjs — erst die bewusste Wahl
  * (localStorage), sonst die Systemeinstellung, sonst hell.
@@ -141,7 +191,7 @@ function systemTheme() {
 const theme = ref(startTheme({ speicher: window.localStorage, system: systemTheme() }))
 
 // DES-R1: Das Theme muss am Wurzelelement stehen, nicht nur am App-Container.
-// Dialoge, das „Mehr“-Blatt der Handy-Navigation und die Toast-Meldungen
+// Dialoge, die Menü-Schublade der Handy-Navigation und die Toast-Meldungen
 // werden an <body> teleportiert und lagen damit AUSSERHALB von .dk-app — sie
 // behielten die hellen :root-Werte und standen als grellweisse Fenster in der
 // dunklen Ansicht. `document.documentElement` ist Vorfahre beider Bereiche.
@@ -189,10 +239,28 @@ onMounted(() => {
   // DM1: Dev-Modus-Zustand vom Server holen (bei Bedarf automatisch starten).
   devmodusBeimStart()
   window.addEventListener('dk-devmodus-start', devmodusPruefen)
+  // UX3e: Mobillage beobachten (Schublade nur dort im DOM).
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    lageAbfrage = window.matchMedia(HANDY_LAGE_ABFRAGE)
+    lageNachziehen()
+    if (typeof lageAbfrage.addEventListener === 'function') {
+      lageAbfrage.addEventListener('change', lageNachziehen)
+    } else if (typeof lageAbfrage.addListener === 'function') {
+      // Safari < 14 kennt nur addListener — sonst bliebe die Lage stehen.
+      lageAbfrage.addListener(lageNachziehen)
+    }
+  }
 })
 onUnmounted(() => {
   clearInterval(timer)
   window.removeEventListener('dk-devmodus-start', devmodusPruefen)
+  if (lageAbfrage) {
+    if (typeof lageAbfrage.removeEventListener === 'function') {
+      lageAbfrage.removeEventListener('change', lageNachziehen)
+    } else if (typeof lageAbfrage.removeListener === 'function') {
+      lageAbfrage.removeListener(lageNachziehen)
+    }
+  }
 })
 
 function stopImpersonation() {
@@ -200,8 +268,10 @@ function stopImpersonation() {
   navigate('#/')
 }
 
-const { enterAdminMode } = useSession()
-function handleOpenAdminDialog() { enterAdminMode() }
+// UX3e: Die untere Leiste meldet kein `open-admin-dialog` mehr (der „Mehr“-
+// Knopf ist entfallen) — der Admin-Dialog hängt am Rollenwechsel der Sitzung
+// (`AuditConfirmModal`), nicht an einer Navigation.
+
 /**
  * DES-R18: Fokus auf den Hauptbereich setzen. `scrollIntoView` waere hier
  * wirkungslos, weil der Hauptbereich selbst scrollt; der Fokus auf den

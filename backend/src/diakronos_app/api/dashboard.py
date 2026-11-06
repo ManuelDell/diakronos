@@ -867,7 +867,7 @@ def get_navigation_zaehler():
     """Kennzahlen fuer die Seitenleiste (UXD-R18).
 
     Eigener, kleiner Endpunkt statt des Widget-Endpunkts: die Seitenleiste
-    laeuft auf JEDER Seite (auch mobil im „Mehr“-Blatt) und braucht genau eine
+    laeuft auf JEDER Seite (auch mobil in der Menü-Schublade) und braucht genau eine
     Zahl — den Stand offener Anmeldeanfragen. `get_widget_badge_counts` bleibt
     unveraendert der Widget-Zaehler; beide lesen denselben Status-Vorrat
     (`admin_hub.OFFENE_ANMELDESTATI`), deshalb koennen sie nicht

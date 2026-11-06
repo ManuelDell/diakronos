@@ -613,6 +613,21 @@ h1, h2, h3, h4 {
   transition: background var(--dk-fast), color var(--dk-fast);
 }
 .dk-icon-btn:hover { background: var(--dk-surface-2); color: var(--dk-text); }
+/* UX3e (Entwurf A8): Das Menü-Symbol oben links gehört zur Mobil-Lage — am
+   Desktop führt die Seitenleiste die Navigation (Prinzip N5), ein zweiter
+   Knopf dort wäre ein totes Ziel. Bedingung: DIESELBE wie das Mobil-Layout
+   in diesem Stylesheet (nur die Breite). Das Querformat am Handy
+   (844×390) behält den Knopf, obwohl die Breite 720 px übersteigt — dort
+   ist die Seitenleiste ebenfalls ausgeblendet, der Weg zur Navigation muss
+   also offen bleiben. Trefferfläche 44 px: am Handy ist der Zeiger grob
+   (Prinzip K4); am Desktop ist der Knopf gar nicht sichtbar. */
+.dk-menue-knopf { display: none; width: 44px; height: 44px; margin-left: calc(var(--sp-1) * -1); }
+@media (max-width: 720px) {
+  .dk-menue-knopf { display: flex; }
+}
+@media (max-height: 480px) and (orientation: landscape) {
+  .dk-menue-knopf { display: flex; }
+}
 .dk-notify-dot { position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--dk-danger); }
 .dk-notify-badge { position: absolute; top: 5px; right: 5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--dk-danger); color: #fff; font-size: var(--fs-12); font-weight: var(--fw-fett); display: flex; align-items: center; justify-content: center; }
 /* OP-HANDY-6: Benachrichtigungs-Liste — Klick auf die Glocke zeigt sie an. */
