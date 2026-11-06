@@ -8,6 +8,8 @@ import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkButton from '../components/ui/DkButton.vue'
 import DkField from '../components/ui/DkField.vue'
 import DkTabs from '../components/ui/DkTabs.vue'
+// UX2d3b (Review UX2d3a/B): Laden zeigt den Umriss, keinen Satz.
+import DkSkelett from '../components/ui/DkSkelett.vue'
 
 const prefix = 'diakronos.kronos.api.google_import.'
 const tab = ref('google')
@@ -242,7 +244,7 @@ onBeforeUnmount(() => {
       @update:model-value="tab = $event"
     />
     <p v-if="error" class="dk-import-error" role="alert">{{ error }}</p>
-    <p v-if="loading" role="status">Status und Kalender werden geladen …</p>
+    <DkSkelett v-if="loading" kurz form="zeilen" :anzahl="3" text="Status und Kalender werden geladen" />
     <section v-show="tab === 'google'" id="google-panel" class="dk-import-card" role="tabpanel" aria-label="Google-Kalender">
       <p>Einmaliger Import, keine laufende Synchronisierung. Zugangsdaten gelten für diese Instanz.</p>
       <form v-if="step === 1" @submit.prevent="saveCredentials">

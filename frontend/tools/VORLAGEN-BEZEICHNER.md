@@ -30,6 +30,6 @@ docker build -f backend/Dockerfile --target frontend .  # Nachweis im Image
 
 Ein Befund zeigt `Datei: Name1, Name2`. Ausnahmen stehen ausschließlich in
 `ERLAUBT` (`tools/vorlagen-bezeichner.mjs`) und tragen dort ihren **Grund**
-(Sprache, Vue-Globals wie `$emit`/`$attrs`, vue-router-Globals `$router`/`$route`,
-global registrierte Komponenten wie `DkToast`). Der Test prüft, dass jeder
+(Sprache, Vue-Globals wie `$emit`/`$attrs`, vue-router-Globals `$router`/`$route`;
+global registrierte Komponenten gibt es nicht). Der Test prüft, dass jeder
 Eintrag eine Begründung hat — ein stiller Freibrief ist nicht möglich.

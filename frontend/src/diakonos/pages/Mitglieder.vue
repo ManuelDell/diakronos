@@ -79,7 +79,7 @@
            wirklich keine Person gibt. Greift dagegen Suche/Filter, bleibt der
            knappe Hinweis stehen (`mitgliederLeerzustand`, ein Test wacht). -->
       <MitgliederLeerzustand
-        v-if="mitglieder.length === 0"
+        v-if="!loading && mitglieder.length === 0"
         :zustand="leerzustand"
         @anlegen="anlegenOeffnen"
       />
@@ -123,12 +123,19 @@
 
     <!-- Tabellenansicht -->
     <template v-else>
+      <!-- UX2d3b (Review UX2d3a/C): Die Leerzustände hängen an `!loading` —
+           vorher stand in den ersten 300 ms „Noch keine Person erfasst" da,
+           während die Liste noch unterwegs war. -->
       <MitgliederLeerzustand
-        v-if="mitglieder.length === 0 && leerzustand.leer"
+        v-if="!loading && mitglieder.length === 0 && leerzustand.leer"
         :zustand="leerzustand"
         @anlegen="anlegenOeffnen"
       />
-      <DkTable v-else :spalten="spalten" :leer="mitglieder.length === 0"
+      <!-- UX2d3c (Review UX2d3b): `geladen` war im Skript nicht gebunden — die
+           Zeile lief beim Rendern auf einen ReferenceError. Der Zustand „die
+           erste Antwort ist da" ist `!loading`: erst dann darf die Tabelle
+           „nichts da" behaupten, nicht während des Ladens. -->
+      <DkTable v-else :spalten="spalten" :leer="!loading && mitglieder.length === 0"
                :leer-titel="leerzustand.titel" :leer-text="leerzustand.text">
         <tr v-for="m in mitglieder" :key="m.name">
           <td>
@@ -182,7 +189,7 @@
           :loading="loading"
           @click="loadMore"
         >
-          {{ 'Mehr laden' }}
+          Mehr laden
         </DkButton>
         <span v-else class="dk-text-subtle">Alle geladen</span>
       </div>

@@ -18,7 +18,7 @@
       Buchung und kein Termin mehr daran hängt.
     </DkHint>
 
-    <div v-if="laedt" class="rv-zustand">Räume und Gegenstände werden geladen …</div>
+    <DkSkelett v-if="laedt" form="zeilen" :anzahl="4" text="Räume und Gegenstände werden geladen" />
 
     <DkHint v-else-if="fehler" variant="err">{{ fehler }}</DkHint>
 
@@ -128,6 +128,8 @@ import DkCheckbox from '../components/ui/DkCheckbox.vue'
 import DkTable from '../components/ui/DkTable.vue'
 import DkBadge from '../components/ui/DkBadge.vue'
 import DkHint from '../components/ui/DkHint.vue'
+// UX2d3b (Review UX2d3a/B): Laden zeigt den Umriss, keinen Satz.
+import DkSkelett from '../components/ui/DkSkelett.vue'
 
 const IconPlus = () => h('svg', {
   width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',

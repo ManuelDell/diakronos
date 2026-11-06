@@ -20,22 +20,23 @@
             </div>
         </div>
 
-        <!-- Loading -->
-        <div v-if="loading" class="flex items-center justify-center h-full text-gray-400">
-            <DkSpinner text="Organigramm wird geladen" klein class="mr-2" />
-            Organigramm wird geladen…
+        <!-- UX2d3c (Review UX2d3b): Ladeprosa ersetzt der Platzhalter — und
+             wie in den Seiten des Hauptbereichs erst nach 300 ms
+             (`useLadeSkelett`), damit er bei schneller Antwort nicht blitzt. -->
+        <div v-if="skelettSichtbar" class="oc-laden">
+            <DkSkelett form="karten" :anzahl="4" text="Organigramm wird geladen" />
         </div>
 
         <!-- Fehler -->
-        <div v-else-if="fehler" class="flex items-center justify-center h-full">
-            <div class="text-center text-gray-500">
-                <div class="text-4xl mb-3">⚠️</div>
-                <p>{{ fehler }}</p>
-            </div>
+        <div v-else-if="fehler" class="oc-laden">
+            <DkEmpty icon="!" title="Organigramm nicht geladen" :text="fehler" :erneut-versuchen="laden" />
         </div>
 
         <!-- Chart-Container -->
+        <!-- UX2d3c: Der Chart-Bereich wird erst gezeichnet, wenn Daten da sind —
+             sonst läge eine leere Zeichenfläche unter Skelett/Fehlerfläche. -->
         <div
+            v-show="!skelettSichtbar && !fehler"
             id="org-chart-container"
             class="w-full h-full pt-14"
         ></div>
@@ -46,9 +47,10 @@
 import { ref, onMounted } from 'vue'
 // WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
 import { apiUrl } from '../shared/basis.js'
-// DEP-1: eigener Baustein statt Spinner aus frappe-ui; das Profilbild steht
-// direkt im Kopf (Bild oder Initialen, siehe .oc-kopf-*).
-import DkSpinner from '../diakonos/components/ui/DkSpinner.vue'
+// UX2d3c: Ladeprosa -> Skelett (erst nach 300 ms); Fehlerfläche mit Weg zurück.
+import DkSkelett from '../diakonos/components/ui/DkSkelett.vue'
+import DkEmpty from '../diakonos/components/ui/DkEmpty.vue'
+import { useLadeSkelett } from '../diakonos/composables/useLadeSkelett.js'
 import { OrgChart } from 'd3-org-chart'
 // UXD-R5: dieselben sicheren Ausgabe-Helfer wie in der Organigramm-Ansicht
 // (diakonos/components/gruppen/OrganigrammAnsicht.vue) — keine Kopie.
@@ -62,6 +64,8 @@ import { fehlertext } from '../shared/fehlertexte.js'
 
 const loading     = ref(true)
 const fehler      = ref('')
+// UX2d3c: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
+const { skelettSichtbar } = useLadeSkelett(loading)
 const userFullname = window.__diakronos?.userFullname || ''
 const userImage    = window.__diakronos?.userImage || ''
 
@@ -115,7 +119,9 @@ function nodeWidth(d) {
     return d.data.node_type === 'mitglied' ? 200 : 240
 }
 
-onMounted(async () => {
+async function laden() {
+    loading.value = true
+    fehler.value = ''
     try {
         // WEB-8b: derselbe Aufruf, damit eine CSRF-Ablehnung still geheilt
         // werden kann (Token neu + genau eine Wiederholung, sonst Neuladen).
@@ -130,7 +136,9 @@ onMounted(async () => {
         const { message: nodes } = await antwortPruefen(res, { anfrage })
 
         if (!nodes?.length) {
-            fehler.value = 'Keine Gruppen gefunden.'
+            // UX2d3c: Leerzustand, kein Fehler — aber mit nächstem Schritt
+            // (der Fehlerfläche fehlt der Weg; hier gibt es schlicht nichts).
+            fehler.value = 'Es sind noch keine Gruppen angelegt.'
             return
         }
 
@@ -169,7 +177,9 @@ onMounted(async () => {
     } finally {
         loading.value = false
     }
-})
+}
+
+onMounted(laden)
 </script>
 
 <style>
@@ -178,6 +188,12 @@ onMounted(async () => {
    einzige Quelle (Wächter-Test DS3). */
 
 .oc-node { font-family: inherit; }
+
+/* UX2d3c: Lade-/Fehlerfläche mittig im freien Bereich unter dem Kopf. */
+.oc-laden {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; padding: calc(var(--sp-8) + var(--sp-6)) var(--pad) var(--sp-6);
+}
 .oc-node--org {
     background: var(--primary); color: var(--primary-ink); border-radius: var(--radius);
     padding: 14px 20px; text-align: center;

@@ -12,7 +12,7 @@
       Ohne Mailversand können keine Einladungen und Passwort-Links verschickt werden.
     </DkHint>
 
-    <p v-if="laedt && !geladen" class="schritt-hinweis" role="status">Einstellungen werden geladen …</p>
+    <DkSkelett v-if="laedt && !geladen" kurz form="zeilen" :anzahl="3" text="Einstellungen werden geladen" />
 
     <template v-if="geladen">
       <div class="schritt-raster">
@@ -161,6 +161,8 @@ import { useMailversand, SICHERHEIT_ARTEN } from '../../composables/useMailversa
 import DkField from '../ui/DkField.vue'
 import DkButton from '../ui/DkButton.vue'
 import DkHint from '../ui/DkHint.vue'
+// UX2d3b (Review UX2d3a/B): Laden zeigt den Umriss, keinen Satz.
+import DkSkelett from '../ui/DkSkelett.vue'
 import AssistentSymbol from './AssistentSymbol.vue'
 
 const {

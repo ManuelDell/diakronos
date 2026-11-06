@@ -1,9 +1,10 @@
 <template>
   <!-- Loading state -->
   <div v-if="checking" class="dk-screen dk-screen-enter mod-zustand">
+    <!-- UX2d3b (Review UX2d3a/B): ruhiger Platzhalter statt des Satzes
+         „Berechtigung wird geprüft…“ — der Umriss zeigt, dass etwas kommt. -->
     <div class="mod-zustand-box">
-      <div class="mod-spinner"></div>
-      <p class="mod-zustand-text">Berechtigung wird geprüft…</p>
+      <DkSkelett form="zeilen" :anzahl="3" text="Berechtigung wird geprüft" />
     </div>
   </div>
 
@@ -66,6 +67,8 @@ import ModerationBoard from '../components/kronos/ModerationBoard.vue'
 import ModerationAenderungen from '../components/kronos/ModerationAenderungen.vue'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkButton from '../components/ui/DkButton.vue'
+// UX2d3b (Review UX2d3a/B): Laden/Prüfen zeigt den Umriss, keinen Satz.
+import DkSkelett from '../components/ui/DkSkelett.vue'
 import { apiCall } from '../composables/useApi.js'
 import { finalizeStagedEvents, getModerationCount } from '../api/kanbanApi.js'
 import { showToast } from '../composables/useToast.js'

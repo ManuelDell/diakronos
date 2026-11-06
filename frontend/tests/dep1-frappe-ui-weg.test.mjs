@@ -108,7 +108,10 @@ test('die vier Einstiege nutzen die eigenen Dk-Bausteine', () => {
     // noch der Rahmen — dort stecken keine frappe-ui-Bausteine mehr.
     'registrierung/components/DkAnmeldeformular.vue': ['DkButton', 'DkField', 'DkEingabe', 'DkFehlertext'],
     'registrierung/App.vue': [],
-    'organigramm/App.vue': ['DkSpinner'],
+    // UX2d3c: Der Ladezustand des Organigramms zeigt jetzt ein Skelett
+    // (`DkSkelett`) statt eines Spinners mit Ladeprosa — der frappe-ui-Ersatz
+    // bleibt damit derselbe eigne Bausteine-Satz, nur formauthaltiger.
+    'organigramm/App.vue': ['DkSkelett'],
     'diakonos/App.vue': [],
   }
   for (const [datei, bausteine] of Object.entries(erwartet)) {

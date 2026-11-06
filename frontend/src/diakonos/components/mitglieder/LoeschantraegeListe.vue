@@ -41,10 +41,14 @@
     />
 
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
-    <p v-if="laedt && !geladen" role="status">Löschanträge werden geladen…</p>
+    <DkSkelett v-if="skelettSichtbar" kurz form="zeilen" :anzahl="3" text="Löschanträge werden geladen" />
 
+    <!-- UX2d3c (Review UX2d3b): Beim Laden nach einem Filterwechsel bleibt
+         `geladen` wahr — der alte Leerzustand („Für diese Auswahl gibt es
+         keine Anträge") stand dann schon da, bevor die neue Auswahl
+         antwortete. Jetzt gilt: solange geladen wird, keine Leeraussage. -->
     <DkEmpty
-      v-else-if="geladen && !antraege.length"
+      v-else-if="geladen && !laedt && !antraege.length"
       title="Keine Löschanträge"
       :text="filter === 'offen'
         ? 'Zurzeit wartet kein Antrag auf Bearbeitung.'
@@ -52,7 +56,7 @@
       icon="✓"
     />
 
-    <ul v-else-if="geladen" class="la-liste">
+    <ul v-else-if="geladen && !laedt" class="la-liste">
       <li v-for="a in antraege" :key="a.mitglied" class="la-zeile">
         <div class="la-person">
           <span class="la-name">{{ nameFuerAntrag(a) }}</span>
@@ -107,11 +111,13 @@
 import {
   ANTRAG_FILTER, antragsStatusText, beantragtText, nameFuerAntrag, standText,
 } from './loeschantraege.mjs'
-import { computed } from 'vue'
+import { computed, toRef } from 'vue'
+import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 import DkCard from '../ui/DkCard.vue'
 import DkButton from '../ui/DkButton.vue'
 import DkHint from '../ui/DkHint.vue'
 import DkEmpty from '../ui/DkEmpty.vue'
+import DkSkelett from '../ui/DkSkelett.vue'
 import DkFilterChips from '../ui/DkFilterChips.vue'
 
 const props = defineProps({
@@ -125,6 +131,8 @@ const props = defineProps({
   embedded: { type: Boolean, default: false },
 })
 const emit = defineEmits(['freigeben', 'ablehnen', 'filter', 'laden'])
+// UX2d3b: Platzhalter erst nach 300 ms (kein Blitzen, keine Aussage vor der Antwort).
+const { skelettSichtbar } = useLadeSkelett(toRef(props, 'laedt'))
 
 /**
  * Zähler offener Anträge: die Liste unter „Offen“ IST die Arbeitsliste. Bei

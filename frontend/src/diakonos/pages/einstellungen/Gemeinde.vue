@@ -12,7 +12,7 @@
          (`hinweisFuer('gemeinde')`). -->
     <EinrichtungsLeiste seite="gemeinde" :rollen="rollen" />
 
-    <DkHint v-if="laedt" role="status">Gemeinde-Einstellungen werden geladen …</DkHint>
+    <DkSkelett v-if="laedt" form="zeilen" :anzahl="4" text="Gemeinde-Einstellungen werden geladen" />
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
     <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut versuchen</DkButton>
 
@@ -155,6 +155,8 @@ import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
 import DkField from '../../components/ui/DkField.vue'
 import DkErfolgsmeldung from '../../components/ui/DkErfolgsmeldung.vue'
+// UX2d3b (Review UX2d3a/B): Laden zeigt den Umriss, keinen Satz.
+import DkSkelett from '../../components/ui/DkSkelett.vue'
 import DkEingabe from '../../components/ui/DkEingabe.vue'
 // UX2f: Prüfregeln aus EINER Quelle (Feld, Assistent und Sammelprüfung).
 import { email as emailRegel, plz as plzRegel, url as urlRegel } from '../../composables/feldPruefung.mjs'

@@ -19,7 +19,10 @@
       :erneut-versuchen="fetchData"
     />
 
-    <template v-else>
+    <!-- UX2d3c (Review UX2d3b): `v-else` zeigte in den ersten 300 ms (vor dem
+         Skelett) schon die Leersätze („Keine anstehende Vorbereitung."). Jetzt
+         gilt der Rumpf erst, wenn wirklich nichts mehr lädt. -->
+    <template v-else-if="!loading">
       <div class="dp-grid">
         <!-- Nächste Vorbereitung -->
         <section class="dk-card dp-col">
@@ -60,7 +63,17 @@
             </div>
             <div v-else class="dp-no-ablauf">Kein Ablaufplan hinterlegt.</div>
           </template>
-          <div v-else class="dp-empty-inline">Keine anstehende Vorbereitung.</div>
+          <!-- UX2d3c: Der Leersatz sagt jetzt, warum nichts da ist und was
+               zu tun ist (Du-Form, ohne Jargon). Ein Knopf gehört nicht
+               hierher: die Einteilung macht die Gemeinde (fachliche
+               Entscheidung, nicht Teil dieser Karte). -->
+          <DkEmpty
+            v-else
+            class="dp-leer"
+            icon="🗓"
+            title="Keine anstehende Vorbereitung"
+            text="Dir ist zurzeit keine Vorbereitung zugeteilt. Sobald die Gemeinde dich einteilt, erscheint sie hier."
+          />
         </section>
 
         <!-- Nächster Einsatz -->
@@ -102,7 +115,13 @@
             </div>
             <div v-else class="dp-no-ablauf">Kein Ablaufplan hinterlegt.</div>
           </template>
-          <div v-else class="dp-empty-inline">Kein anstehender Einsatz.</div>
+          <DkEmpty
+            v-else
+            class="dp-leer"
+            icon="📋"
+            title="Kein anstehender Einsatz"
+            text="Dir ist zurzeit kein Einsatz zugeteilt. Sobald die Gemeinde dich einteilt, erscheint er hier."
+          />
         </section>
       </div>
 
@@ -248,7 +267,9 @@ onMounted(fetchData)
   background: var(--primary); color: var(--primary-ink);
 }
 .dp-no-ablauf { font-size: var(--fs-12); color: var(--dk-text-subtle); margin-top: var(--sp-1); }
-.dp-empty-inline { font-size: var(--fs-14); color: var(--dk-text-muted); padding: var(--sp-2) 0; }
+/* UX2d3c: Der Leerzustand einer Spalte ist eine ruhige Fläche, kein Satz —
+   Abstand nach oben, damit er nicht am Spaltentitel klebt. */
+.dp-leer { padding-top: var(--sp-3); }
 
 .dp-further { padding: var(--sp-4) var(--sp-4); margin-top: var(--sp-1); }
 .dp-further-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }

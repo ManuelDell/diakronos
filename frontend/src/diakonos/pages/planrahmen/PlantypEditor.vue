@@ -60,7 +60,8 @@
       </div>
 
       <!-- Prüfstand immer sichtbar -->
-      <div v-if="prueftLaeuft" class="pr-pe-pruefstatus" role="status">Eingaben werden geprüft …</div>
+      <!-- UX2d3b (Review UX2d3a/B): Prüfung zeigt den Umriss, keinen Satz. -->
+      <DkSkelett v-if="prueftLaeuft" kurz form="zeilen" :anzahl="2" text="Eingaben werden geprüft" />
       <PrMeldungen v-else-if="pruefMeldungen.length" :meldungen="pruefMeldungen" zusammenfassung />
       <div v-else-if="pruefStand === 'ok'" class="pr-pe-pruefstatus pr-pe-pruefstatus--ok" role="status">Keine Beanstandungen — die Definition ist gültig.</div>
 

@@ -7,7 +7,7 @@
       Anhängen und Kind-Einträgen.
     </p>
 
-    <DkSkelett v-if="laedt" form="tabelle" :anzahl="5" text="Papierkorb wird geladen …" />
+    <DkSkelett v-if="skelettSichtbar" form="tabelle" :anzahl="5" text="Papierkorb wird geladen" />
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
     <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut versuchen</DkButton>
 
@@ -53,6 +53,7 @@ import DkButton from '../../components/ui/DkButton.vue'
 import DkHint from '../../components/ui/DkHint.vue'
 import DkTable from '../../components/ui/DkTable.vue'
 import DkSkelett from '../../components/ui/DkSkelett.vue'
+import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 
 //: Bereich der Server-Liste -> Schlüssel von `WIEDERHERSTELLEN`.
 const BEREICH_ZU_SCHLUESSEL = {
@@ -74,6 +75,8 @@ const spalten = [
 ]
 
 const laedt = ref(true)
+// UX2d3b: Platzhalter erst nach 300 ms (kein Blitzen, keine Aussage vor der Antwort).
+const { skelettSichtbar } = useLadeSkelett(laedt)
 const geladen = ref(false)
 const fehler = ref('')
 const aufbewahrung = ref(7)

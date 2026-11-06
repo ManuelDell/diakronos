@@ -68,8 +68,6 @@ export const ERLAUBT = new Map([
   // vue-router haengt beide an JEDE Komponente (app.use(router)).
   ['$router', 'vue-router-Global (app.use(router))'],
   ['$route', 'vue-router-Global (app.use(router))'],
-  // Global registrierte Komponenten (app.component in main.js).
-  ['DkToast', 'global registrierte Komponente (main.js)'],
 ])
 
 /** Namen, die Vue in Ereignis- und Modellbindungen selbst bereitstellt. */
@@ -533,6 +531,117 @@ export function pruefeBaum(wurzel, sfc, babel, nurAbweichende = false) {
   const befunde = []
   for (const datei of vueDateien(wurzel)) {
     const befund = pruefeQuelle(readFileSync(datei, 'utf8'), datei, sfc, babel)
+    const eintrag = {
+      datei: relative(wurzel, datei),
+      fehlend: befund.fehlend,
+      fehler: befund.fehler,
+    }
+    if (nurAbweichende && !eintrag.fehlend.length && !eintrag.fehler) continue
+    befunde.push(eintrag)
+  }
+  return befunde
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// UX2d3c — Komponenten im Template muessen AUFGELOEST sein
+// ══════════════════════════════════════════════════════════════════════════
+/**
+ * BEFUND (Review UX2d3b): `LoeschantraegeListe.vue` und `Ressourcen.vue`
+ * benutzten `<DkSkelett …>` im Template, ohne die Komponente zu importieren.
+ * `pruefeQuelle` oben uebersieht das: ein PascalCase-TAG ist im AST ein
+ * Element, kein Ausdrucks-Bezeichner. Vue rendert es dann als unbekanntes
+ * HTML-Element — ohne Fehler, ohne Warnung im Betrieb: das Skelett fehlte
+ * einfach.
+ *
+ * Diese Pruefung sammelt jedes PascalCase-Tag des Templates und verlangt,
+ * dass der Name im Skript steht (Import, `const X = defineAsyncComponent(…)`,
+ * Options-`components: { … }`) oder in `KOMPONENTEN_ERLAUBT` (begruendet)
+ * steht. Ein Tag, das den DATEINAMEN der SFC selbst traegt, ist rekursiv und
+ * braucht keinen Import (Vue bindet den eigenen Namen automatisch).
+ */
+export const KOMPONENTEN_ERLAUBT = new Map([
+  ['Teleport', 'Vue-eingebauter Baustein (<Teleport to="body">)'],
+  ['Transition', 'Vue-eingebauter Baustein (<Transition name="…">)'],
+  ['TransitionGroup', 'Vue-eingebauter Baustein (<TransitionGroup>)'],
+  ['KeepAlive', 'Vue-eingebauter Baustein (<KeepAlive>)'],
+  ['Suspense', 'Vue-eingebauter Baustein (<Suspense>)'],
+  ['Component', 'Vue-eingebauter Baustein (<component :is="…">)'],
+])
+
+/** Ist der Name im Skript dieses SFC gebunden ODER in `components:` registriert? */
+function komponenteGebunden(name, descriptor, babel) {
+  const teile = []
+  if (descriptor.scriptSetup) teile.push(descriptor.scriptSetup.content)
+  if (descriptor.script) teile.push(descriptor.script.content)
+  const code = teile.join('\n')
+  if (!code) return false
+  // Schneller, belastbarer Weg: der Name kommt als Deklaration/Import vor.
+  const deklariert = new RegExp(
+    String.raw`(?:^|\n)\s*(?:import\s+[^;\n]*\b${name}\b[^;\n]*from|(?:const|let|var)\s+${name}\b|function\s+${name}\b|class\s+${name}\b)`,
+  )
+  if (deklariert.test(code)) return true
+  try {
+    const bindungen = sammleSkriptBindings(code, babel)
+    if (bindungen.has(name)) return true
+  } catch {
+    // Rueckfall oben reicht
+  }
+  // Options-API: `components: { DkSkelett }` / `components: { DkSkelett: X }`
+  const block = code.match(/components\s*:\s*\{([\s\S]*?)\}/)
+  if (block && new RegExp(String.raw`(?:^|[\s{,])${name}\s*(?::|,|\}|$)`, 'm').test(block[1])) return true
+  return false
+}
+
+/**
+ * Prueft eine SFC-Quelle auf nicht aufgeloeste Komponenten-Tags.
+ *
+ * Ergebnis: `{ fehlend: [{ name, zeile }], fehler: string|null }`
+ */
+export function pruefeKomponenten(quelle, datei, sfc, babel) {
+  const { descriptor, errors } = sfc.parse(quelle, { filename: datei })
+  if (errors && errors.length) {
+    return { fehlend: [], fehler: 'SFC-Fehler: ' + errors.map((e) => e.message || String(e)).join('; ') }
+  }
+  if (!descriptor.template || !descriptor.template.ast) return { fehlend: [], fehler: null }
+
+  const eigenname = String(datei).split(/[\\/]/).pop().replace(/\.vue$/, '')
+  const tags = new Map() // name -> kleinste Zeile
+  const sammle = (knoten) => {
+    if (!knoten || typeof knoten !== 'object') return
+    if (Array.isArray(knoten)) {
+      for (const k of knoten) sammle(k)
+      return
+    }
+    if (knoten.type === 1) {
+      const tag = knoten.tag || ''
+      // PascalCase ODER Namensraum-Punkt (z. B. `<Form.Input>`) — Vue loest
+      // beides gegen das Skript auf. Ausnahmen: reine Kleinschreibung (HTML)
+      // und eine Fuehrung mit `-` oder `:` (Attribut-Reste) gibt es nicht.
+      if (/^[A-Z]/.test(tag) && !tags.has(tag)) {
+        tags.set(tag, knoten.loc ? knoten.loc.start.line : 0)
+      }
+    }
+    for (const kind of knoten.children || []) sammle(kind)
+    for (const zweig of knoten.branches || []) for (const kind of zweig.children || []) sammle(kind)
+  }
+  sammle(descriptor.template.ast)
+
+  const fehlend = []
+  for (const [name, zeile] of tags) {
+    if (KOMPONENTEN_ERLAUBT.has(name)) continue
+    if (name === eigenname) continue // rekursive Komponente
+    if (komponenteGebunden(name, descriptor, babel)) continue
+    fehlend.push({ name, zeile })
+  }
+  fehlend.sort((a, b) => a.zeile - b.zeile || a.name.localeCompare(b.name))
+  return { fehlend, fehler: null }
+}
+
+/** Prueft alle `.vue` unter `wurzel` auf nicht aufgeloeste Komponenten. */
+export function pruefeKomponentenBaum(wurzel, sfc, babel, nurAbweichende = false) {
+  const befunde = []
+  for (const datei of vueDateien(wurzel)) {
+    const befund = pruefeKomponenten(readFileSync(datei, 'utf8'), datei, sfc, babel)
     const eintrag = {
       datei: relative(wurzel, datei),
       fehlend: befund.fehlend,

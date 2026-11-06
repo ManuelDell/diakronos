@@ -117,6 +117,9 @@ import {
   zugangLesen, passwortLinkErzeugen, rollenSetzen, kontoSperren, passwortSetzen,
 } from '../composables/usePflege.js'
 import { showToast } from '../composables/useToast.js'
+// UX2d3b (Review UX2d3a/A): Fehlertexte aus dem Katalog, nicht `e?.message`
+// (das zeigte „HTTP 500“).
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 
 const props = defineProps({
   mitgliedId: { type: String, required: true },
@@ -151,7 +154,7 @@ async function laden() {
       (r) => rollenWaehlbar.value.includes(r)
     )
   } catch (e) {
-    fehler.value = e?.message || 'Zugang konnte nicht geladen werden.'
+    fehler.value = aktionsfehler('laden', e)
   } finally {
     laedt.value = false
   }
@@ -165,7 +168,7 @@ async function _fuehreAktion(fn, erfolg) {
     showToast(erfolg, 'success')
     emit('geaendert')
   } catch (e) {
-    showToast(e?.message || 'Aktion fehlgeschlagen.', 'error')
+    showToast(aktionsfehler('aktion', e), 'error')
   } finally {
     arbeitet.value = false
   }

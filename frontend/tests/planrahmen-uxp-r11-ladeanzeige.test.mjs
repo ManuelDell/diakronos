@@ -43,7 +43,7 @@ assert.match(css, /@keyframes\s+dk-spin/, 'index.css: dk-spin-Animation fehlt')
 // und der Veröffentlichungs-Dialog hat eine feste Fusszeile.
 assert.match(plan, /veroeffentlichLaeuft\s*=\s*ref\(false\)/,
   'Plan.vue: veroeffentlichLaeuft-Zustand fehlt')
-assert.match(plan, /'Wird geladen …'/, 'Plan.vue: Knopftext „Wird geladen …“ für Neu laden fehlt')
+assert.match(plan, /'Neu laden läuft …'/, 'Plan.vue: Knopftext „Neu laden läuft …“ fehlt')
 const veroeffOeffnen = plan.slice(plan.indexOf('async function veroeffentlichungOeffnen'))
 assert.match(veroeffOeffnen, /veroeffentlichLaeuft\.value\s*=\s*true/,
   'veroeffentlichungOeffnen setzt veroeffentlichLaeuft nicht')

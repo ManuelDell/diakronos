@@ -27,7 +27,7 @@
         <template v-else>
           <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" data-test="pr-plan-stammdaten" @click="stammdatenPanelOeffnen">Stammdaten vorbereiten</button>
           <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" :disabled="beschaeftigt || laden" @click="neuLaden">
-            <span v-if="laden" class="dk-spinner" aria-hidden="true"></span>{{ laden ? 'Wird geladen …' : 'Neu laden' }}
+            <span v-if="laden" class="dk-spinner" aria-hidden="true"></span>{{ laden ? 'Neu laden läuft …' : 'Neu laden' }}
           </button>
           <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" :disabled="beschaeftigt"
                   :title="undoZiel?.moeglich ? ('Zurücknehmen: ' + undoZiel.beschreibung) : 'Nichts zurückzunehmen'"

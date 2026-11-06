@@ -4,7 +4,7 @@
     <p>Die Texte, die Mitglieder und Besucher zu sehen bekommen. Passe sie an die
       Verhältnisse deiner Gemeinde an. Sie ersetzen keine Rechtsberatung.</p>
 
-    <DkHint v-if="laedt" role="status">Texte werden geladen …</DkHint>
+    <DkSkelett v-if="laedt" form="zeilen" :anzahl="4" text="Texte werden geladen" />
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
     <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut versuchen</DkButton>
 
@@ -69,6 +69,8 @@ import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
 import DkField from '../../components/ui/DkField.vue'
 import DkErfolgsmeldung from '../../components/ui/DkErfolgsmeldung.vue'
+// UX2d3b (Review UX2d3a/B): Laden zeigt den Umriss, keinen Satz.
+import DkSkelett from '../../components/ui/DkSkelett.vue'
 
 const { laedt, speichert, geladen, fehler, erfolg, einwilligung,
   datenschutzerklaerung, aufbewahrung, veroeffentlicht, version, statusText,

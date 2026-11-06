@@ -8,12 +8,21 @@
         <span class="dk-mboard-count">{{ konflikte.length }}</span>
       </div>
       <div ref="sortKonflikte" class="dk-mboard-col-body">
-        <DkSkelett v-if="boardSichtbar" kurz form="karten" :anzahl="2" text="Termine werden geladen" />
         <DkEmpty
-          v-else-if="groupedKonflikte.length === 0"
+          v-if="fehler && !loading"
+          icon="!"
+          title="Termine nicht geladen"
+          :text="fehler"
+          :erneut-versuchen="reloadBoard"
+        />
+        <DkSkelett v-else-if="boardSichtbar" kurz form="karten" :anzahl="2" text="Termine werden geladen" />
+        <!-- UX2d3b (Review UX2d3a/C): Auch die SPALTE daneben behauptet
+             nichts, während das Brett noch lädt. -->
+        <DkEmpty
+          v-else-if="!fehler && !loading && groupedKonflikte.length === 0"
           icon="✓"
           title="Keine Konflikte"
-          text="Alle Terminvorschläge passen ohne Überschneidung."
+          text="Alle Terminvorschläge passen ohne Überschneidung — du musst hier nichts tun."
         />
         <ModerationCard
           v-for="item in groupedKonflikte"
@@ -37,10 +46,10 @@
       <div ref="sortVorschlaege" class="dk-mboard-col-body">
         <DkSkelett v-if="boardSichtbar" kurz form="karten" :anzahl="2" text="Termine werden geladen" />
         <DkEmpty
-          v-else-if="groupedVorschlaege.length === 0"
+          v-else-if="!fehler && !loading && groupedVorschlaege.length === 0"
           icon="🕒"
           title="Keine Vorschläge"
-          text="Es warten gerade keine neuen Terminvorschläge auf Freigabe."
+          text="Es warten gerade keine neuen Terminvorschläge. Neue Vorschläge erscheinen hier, sobald jemand einen Termin einträgt."
         />
         <ModerationCard
           v-for="item in groupedVorschlaege"
@@ -60,7 +69,9 @@
         <span class="dk-mboard-col-title">Freigeben</span>
         <span class="dk-mboard-count">{{ stagingIds.length }}</span>
       </div>
-      <div v-if="stagingGroups.length === 0" class="dk-mboard-drop-hint">
+      <!-- UX2d3b: Die Ablage-Hilfe ist ein Leerzustand — sie erscheint erst,
+           wenn das Brett geladen ist (nicht in den ersten 300 ms). -->
+      <div v-if="!fehler && !loading && stagingGroups.length === 0" class="dk-mboard-drop-hint">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
         Termine hierher ziehen
       </div>
@@ -114,6 +125,7 @@ import ModerationModals from './ModerationModals.vue'
 import DkEmpty from '../ui/DkEmpty.vue'
 import DkSkelett from '../ui/DkSkelett.vue'
 import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
+import { aktionsfehler } from '../../../shared/fehlertexte.js'
 import {
   getBoardData,
   saveStagingState,
@@ -125,6 +137,10 @@ const boardData = ref({ vorschlaege: [], konflikte: [], staging: [], notificatio
 const stagingIds = ref([])
 const ressources = ref([])
 const loading = ref(true)
+// UX2d3c: Ein Fehler darf nicht still bleiben (vorher nur `console.error`):
+// das Brett behauptete „Keine Vorschläge", als hätte der Server geantwortet.
+// `null` = kein Fehler; sonst der Katalogtext aus `aktionsfehler('laden', e)`.
+const fehler = ref(null)
 // UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
 const { skelettSichtbar: boardSichtbar } = useLadeSkelett(loading)
 
@@ -236,6 +252,7 @@ const abgelehnt = computed(() => boardData.value.abgelehnt || [])
 // ── Data loading ─────────────────────────────────────────────────────────────
 async function loadBoard() {
   loading.value = true
+  fehler.value = null
   try {
     const data = await getBoardData()
     boardData.value = data || { vorschlaege: [], konflikte: [], staging: [], notifications: {}, abgelehnt: [] }
@@ -247,6 +264,9 @@ async function loadBoard() {
   } catch (e) {
     console.error('Board-Daten konnten nicht geladen werden', e)
     boardData.value = { vorschlaege: [], konflikte: [], staging: [], notifications: {}, abgelehnt: [] }
+    // UX2d3c: Klartext aus dem Katalog — die Spalten zeigen dann den
+    // Fehlerzustand mit „Erneut versuchen", keine erfundene Leere.
+    fehler.value = aktionsfehler('laden', e)
   } finally {
     loading.value = false
   }

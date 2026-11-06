@@ -8,13 +8,24 @@
       </div>
     </div>
 
-    <DkHint v-if="error" variant="err">{{ error }}</DkHint>
+    <!-- UX2d3c (Review UX2d3b): Der Fehlerzustand war ein DkHint OHNE Weg
+         zurück — „Erneut versuchen" fehlte, die Kacheln zeigten darunter
+         weiter Nullen, als wäre alles in Ordnung. Jetzt EIN Zustand mit
+         Erklärung und Wiederholung; die Kennzahlen erscheinen erst, wenn
+         wirklich geladen wurde. -->
+    <DkEmpty
+      v-if="error && !loading"
+      icon="!"
+      title="Übersicht nicht geladen"
+      :text="error"
+      :erneut-versuchen="laden"
+    />
 
     <!-- Kennzahlen — jede Kachel führt in den passenden Reiter. -->
-    <div v-if="loading" class="ub-kacheln">
+    <div v-else-if="loading" class="ub-kacheln">
       <div v-for="n in 4" :key="n" class="dk-skeleton dk-skeleton-card" style="height:104px"></div>
     </div>
-    <div v-else class="ub-kacheln">
+    <div v-else-if="!error" class="ub-kacheln">
       <button
         v-for="k in kacheln"
         :key="k.id"
@@ -29,7 +40,7 @@
     </div>
 
     <!-- Zu erledigen: nur Punkte mit etwas zu tun (kein toter Eintrag). -->
-    <DkCard v-if="!loading && aufgaben.length" title="Zu erledigen" class="ub-block">
+    <DkCard v-if="!error && !loading && aufgaben.length" title="Zu erledigen" class="ub-block">
       <ul class="ub-aufgaben">
         <li v-for="a in aufgaben" :key="a.id">
           <span class="ub-aufgabe-text">{{ a.text }}</span>
@@ -39,7 +50,7 @@
     </DkCard>
 
     <!-- Verteilung nach Status (Personen, nicht Protokollzeilen). -->
-    <DkCard v-if="!loading" title="Verteilung nach Status" class="ub-block">
+    <DkCard v-if="!error && !loading" title="Verteilung nach Status" class="ub-block">
       <ul class="ub-verteilung">
         <li v-for="z in verteilung" :key="z.id">
           <span class="ub-verteilung-name">{{ z.label }}</span>
@@ -71,9 +82,10 @@ import { ref, computed, onMounted } from 'vue'
 import { apiCall } from '../../composables/useApi.js'
 import { offeneAntraegeZaehlen } from '../../composables/useLoeschantraege.js'
 import { navigate } from '../../router.js'
+import { aktionsfehler } from '../../../shared/fehlertexte.js'
 import DkCard from '../../components/ui/DkCard.vue'
 import DkButton from '../../components/ui/DkButton.vue'
-import DkHint from '../../components/ui/DkHint.vue'
+import DkEmpty from '../../components/ui/DkEmpty.vue'
 
 // Im Mitglieder-Bereich eingebettet: eigener Kopf entfällt.
 defineProps({ embedded: { type: Boolean, default: false } })
@@ -105,7 +117,8 @@ async function laden() {
   try {
     stats.value = await apiCall('diakronos.diakonos.api.admin_hub.get_statistik')
   } catch (e) {
-    error.value = e?.message || 'Die Kennzahlen konnten nicht geladen werden.'
+    // UX2d3c: Klartext aus dem Katalog statt roher `e.message` („HTTP 500").
+    error.value = aktionsfehler('laden', e)
   } finally {
     loading.value = false
   }

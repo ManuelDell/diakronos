@@ -97,7 +97,10 @@
     <!-- OP-UI-19: eine Ladeform für alle Seiten — das Skelett aus dem
          Baustein. Vorher stand hier ein von Hand gebautes Gerüst neben fünf
          weiteren Ladeformen (Spinner, „Lade…“, leerer Bildschirm …). -->
-    <DkSkelett v-if="loadingSkelett && lieder.length === 0" form="tabelle" :anzahl="6" text="Lieder werden geladen …" />
+    <!-- UX2d3b (Review UX2d3a/C): Der Platzhalter erscheint erst nach 300 ms
+         (`useLadeSkelett`) und der Leerzustand darunter fordert ausdrücklich
+         „fertig geladen" — in den ersten 300 ms ist der Bildschirm ruhig. -->
+    <DkSkelett v-if="loadingSkelett && lieder.length === 0" form="tabelle" :anzahl="6" text="Lieder werden geladen" />
 
     <!-- Error -->
     <div v-else-if="error" class="ld-error">
@@ -137,7 +140,10 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-if="lieder.length === 0">
+            <!-- UX2d3b (Review UX2d3a/C): Der Leerzustand steht NUR in dieser
+                 Zeile; sie darf erst erscheinen, wenn der Ladevorgang durch ist
+                 (sonst las man „Keine Lieder gefunden", bevor die Antwort kam). -->
+            <tr v-if="!loading && lieder.length === 0" data-leerzustand="lieder">
               <td colspan="5">
                 <DkEmpty
                   title="Keine Lieder gefunden"
@@ -188,7 +194,7 @@
           :disabled="loading"
           @click="loadMore"
         >
-          {{ 'Mehr laden' }}
+          Mehr laden
         </button>
         <span v-else class="dk-text-subtle">Alle geladen</span>
       </div>

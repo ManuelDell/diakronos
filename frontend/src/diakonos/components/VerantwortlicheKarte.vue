@@ -95,6 +95,8 @@ import DkSkelett from './ui/DkSkelett.vue'
 import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 import { verantwortlicheLesen, verantwortlicheSetzen, verantwortlicheAuswahl } from '../composables/usePflege.js'
 import { showToast } from '../composables/useToast.js'
+// UX2d3b (Review UX2d3a/A): Katalogtext statt rohem `e?.message` („HTTP 500“).
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 
 const props = defineProps({
   // 'Dienstbereich' | 'Gruppe' | 'Untergruppe'
@@ -127,7 +129,7 @@ async function laden() {
     ausgewaehlt.value = daten.verantwortliche || []
     darfPflegen.value = !!daten.darf_pflegen
   } catch (e) {
-    fehler.value = e?.message || 'Verantwortliche konnten nicht geladen werden.'
+    fehler.value = aktionsfehler('laden', e)
   } finally {
     laedt.value = false
   }
@@ -174,7 +176,7 @@ async function speichern() {
     showToast('Verantwortliche gespeichert.', 'success')
     emit('gespeichert')
   } catch (e) {
-    showToast(e?.message || 'Speichern fehlgeschlagen.', 'error')
+    showToast(aktionsfehler('speichern', e), 'error')
   } finally {
     speichert.value = false
   }

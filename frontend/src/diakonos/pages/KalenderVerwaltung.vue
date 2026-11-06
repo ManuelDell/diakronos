@@ -18,7 +18,10 @@
       Personen eingestellt. Die Änderungen wirken sofort — niemand muss sich neu anmelden.
     </DkHint>
 
-    <div v-if="laedt" class="kv-zustand">Kalender werden geladen …</div>
+    <!-- UX2d3b (Review UX2d3a/C): Der Platzhalter erscheint erst nach 300 ms
+         (`useLadeSkelett`); darunter ist der Bildschirm ruhig und der
+         Leerzustand kann nicht vor der Antwort aufblitzen. -->
+    <DkSkelett v-if="skelettSichtbar" form="karten" :anzahl="2" text="Kalender werden geladen" />
 
     <DkHint v-else-if="fehler" variant="err">{{ fehler }}</DkHint>
 
@@ -159,6 +162,9 @@ import DkField from '../components/ui/DkField.vue'
 import DkCheckbox from '../components/ui/DkCheckbox.vue'
 import DkHint from '../components/ui/DkHint.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
+// UX2d3b (Review UX2d3a/B): Laden zeigt den Umriss, keinen Satz.
+import DkSkelett from '../components/ui/DkSkelett.vue'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 
 const IconPlus = () => h('svg', {
   width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
@@ -171,6 +177,8 @@ import { STANDARD_FARBE } from '../../shared/sichere-ausgabe.js'
 const kalender = ref([])
 const rollen = ref([])
 const laedt = ref(true)
+// UX2d3b: Platzhalter erst nach 300 ms — kein Blitzen, keine Aussage vor der Antwort.
+const { skelettSichtbar } = useLadeSkelett(laedt)
 const fehler = ref('')
 const speichert = ref(false)
 const dialogOffen = ref(false)

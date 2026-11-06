@@ -15,8 +15,8 @@
  *
  * Werkzeug: `frontend/tools/vorlagen-bezeichner.mjs`
  *   ERLAUBT enthält Sprache, Vue-Globals (`$emit`, `$attrs`, …), die
- *   vue-router-Globals (`$router`, `$route`) und global registrierte
- *   Komponenten (`DkToast`). Jeder Eintrag trägt seinen Grund.
+ *   vue-router-Globals (`$router`, `$route`). Global registrierte Komponenten
+ *   gibt es nicht (kein app.component). Jeder Eintrag trägt seinen Grund.
  *
  * Belege (2026-11-05):
  *   - Vor dem Fix meldete das Werkzeug drei Stellen; nach dem Fix keine.
@@ -30,7 +30,10 @@ import * as sfc from '@vue/compiler-sfc'
 import * as babel from '@babel/parser'
 import {
   ERLAUBT,
+  KOMPONENTEN_ERLAUBT,
   pruefeBaum,
+  pruefeKomponenten,
+  pruefeKomponentenBaum,
   pruefeQuelle,
   vueDateien,
   freieNamen,
@@ -185,3 +188,95 @@ test('freieNamen: Member-Zugriffe und Schluesselwoerter sind keine freien Namen'
 function readUtf8(pfad) {
   return readFileSync(pfad, 'utf8')
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// UX2d3c — Komponenten im Template muessen aufgeloest sein (DkSkelett-Fall)
+// ══════════════════════════════════════════════════════════════════════════
+test('UX2d3c · jede im Template benutzte Komponente ist importiert/registriert', () => {
+  const dateien = vueDateien(QUELLEN)
+  assert.ok(dateien.length > 100, `zu wenige .vue gefunden (${dateien.length})`)
+
+  const befunde = pruefeKomponentenBaum(QUELLEN, sfc, babel, true)
+  const meldung = befunde
+    .map((b) => {
+      if (b.fehler) return `${b.datei}: ${b.fehler}`
+      return `${b.datei}: ${b.fehlend.map((f) => `${f.name} (Zeile ${f.zeile})`).join(', ')}`
+    })
+    .join('\n')
+  assert.equal(
+    befunde.length,
+    0,
+    'Komponente im Template benutzt, aber im Skript nicht aufgeloest ' +
+      '(Vue rendert sie dann still als unbekanntes Element):\n' + meldung,
+  )
+})
+
+test('UX2d3c · die Ausnahmen fuer Komponenten sind begruendet', () => {
+  assert.ok(KOMPONENTEN_ERLAUBT.size > 0, 'Ausnahmen-Liste ist leer')
+  for (const [name, grund] of KOMPONENTEN_ERLAUBT) {
+    assert.equal(typeof grund, 'string', `${name} ohne Begruendung`)
+    assert.ok(grund.trim().length > 5, `${name}: Begruendung zu kurz („${grund}“)`)
+  }
+  // Der Befund selbst darf keine Ausnahme sein — sonst waere der Waechter blind.
+  assert.ok(!KOMPONENTEN_ERLAUBT.has('DkSkelett'), 'DkSkelett darf keine Ausnahme sein')
+})
+
+test('UX2d3c · Gegenprobe: fehlender Import wird ERKANNT', () => {
+  // Genau der Befund aus LoeschantraegeListe.vue / Ressourcen.vue.
+  const quelle = `<template>
+  <DkCard title="Liste">
+    <DkSkelett v-if="laedt" form="zeilen" :anzahl="3" text="Laden" />
+    <DkEmpty v-else title="Nichts da" />
+    <DkButton @click="x">Los</DkButton>
+  </DkCard>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import DkCard from '../ui/DkCard.vue'
+import DkEmpty from '../ui/DkEmpty.vue'
+import DkButton from '../ui/DkButton.vue'
+const laedt = ref(true)
+function x() {}
+</script>
+`
+  const { fehlend, fehler } = pruefeKomponenten(quelle, 'gegenprobe.vue', sfc, babel)
+  assert.equal(fehler, null)
+  assert.deepEqual(fehlend.map((f) => f.name), ['DkSkelett'])
+})
+
+test('UX2d3c · Gegenprobe: Import, defineAsyncComponent und Selbstbezug gelten als aufgeloest', () => {
+  const quelle = `<template>
+  <div>
+    <DkSkelett />
+    <Spaeter />
+    <EigeneSache />
+    <Teleport to="body"><span>x</span></Teleport>
+  </div>
+</template>
+
+<script setup>
+import { defineAsyncComponent } from 'vue'
+import DkSkelett from '../ui/DkSkelett.vue'
+const Spaeter = defineAsyncComponent(() => import('./Spaeter.vue'))
+</script>
+`
+  // `EigeneSache` existiert nicht — der Selbstbezug wird ueber den Dateinamen geprueft.
+  const befund = pruefeKomponenten(quelle, 'EigeneSache.vue', sfc, babel)
+  assert.equal(befund.fehler, null)
+  assert.deepEqual(befund.fehlend.map((f) => f.name), [], 'erlaubte Wege wurden nicht erkannt')
+})
+
+test('UX2d3c · Gegenprobe: Options-API `components: { … }` zaehlt als Registrierung', () => {
+  const quelle = `<template>
+  <div><AlteKarte /></div>
+</template>
+
+<script>
+import AlteKarte from './AlteKarte.vue'
+export default { components: { AlteKarte } }
+</script>
+`
+  const befund = pruefeKomponenten(quelle, 'mit-options.vue', sfc, babel)
+  assert.deepEqual(befund.fehlend.map((f) => f.name), [])
+})

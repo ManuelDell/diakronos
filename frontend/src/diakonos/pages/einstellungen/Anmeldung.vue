@@ -3,7 +3,7 @@
     <h2>Anmeldung (Login)</h2>
     <p>Hier legst du fest, wer über Authentik Zugang zur Gemeinde bekommt.</p>
 
-    <DkHint v-if="laedt" role="status">Anmeldeeinstellungen werden geladen …</DkHint>
+    <DkSkelett v-if="ladeSichtbar" form="zeilen" :anzahl="4" text="Anmeldeeinstellungen werden geladen" />
     <DkHint v-else-if="geladen" :variant="oidcAktiv ? 'ok' : 'warn'" role="status">
       <strong>{{ oidcAktiv ? 'Authentik: eingerichtet' : 'Authentik: nicht eingerichtet' }}</strong>
       <p v-if="!oidcAktiv">Die Anmeldung erfolgt mit lokalem Passwort. Die Einstellungen darunter wirken erst,
@@ -65,7 +65,7 @@
         ob die Person zur Gemeinde gehört. Ablehnen lässt das Konto gesperrt; es wird nicht gelöscht
         und bleibt zur Kontrolle in dieser Liste.</p>
       <DkHint v-if="kontenFehler" variant="err" role="alert">{{ kontenFehler }}</DkHint>
-      <DkHint v-if="kontenLaden" role="status">Konten werden geladen …</DkHint>
+      <DkSkelett v-if="kontenSichtbar" kurz form="zeilen" :anzahl="3" text="Konten werden geladen" />
       <DkButton v-else-if="kontenFehler" variant="ghost" @click="ladeKonten">Erneut versuchen</DkButton>
       <p v-if="kontenGeladen && !konten.length">Keine wartenden oder gesperrten Konten.</p>
       <ul class="an-konten">
@@ -112,6 +112,9 @@ import DkHint from '../../components/ui/DkHint.vue'
 import DkField from '../../components/ui/DkField.vue'
 import DkDialog from '../../components/ui/DkDialog.vue'
 import DkErfolgsmeldung from '../../components/ui/DkErfolgsmeldung.vue'
+// UX2d3b (Review UX2d3a/B): Laden zeigt den Umriss, keinen Satz.
+import DkSkelett from '../../components/ui/DkSkelett.vue'
+import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 
 const { laedt, speichert, geladen, oidcAktiv, modus, adminUeberGruppen, rollen,
   zuordnungen, fehler, erfolg, zeilenFehler, bedienbar, laden, speichern } = useAnmeldeEinstellungen()
@@ -127,8 +130,11 @@ async function speichernMitFokus() {
     formular.value?.querySelector('[aria-invalid="true"]')?.focus()
   }
 }
+// UX2d3b: Platzhalter erst nach 300 ms (kein Blitzen, keine Aussage vor der Antwort).
+const { skelettSichtbar: ladeSichtbar } = useLadeSkelett(laedt)
 const konten = ref([])
 const kontenLaden = ref(false)
+const { skelettSichtbar: kontenSichtbar } = useLadeSkelett(kontenLaden)
 const kontenGeladen = ref(false)
 const kontenFehler = ref('')
 const kontoErfolg = ref('')

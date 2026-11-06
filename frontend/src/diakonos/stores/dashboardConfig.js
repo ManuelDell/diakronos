@@ -2,6 +2,8 @@ import { apiAntwortPruefen } from '../composables/useApi.js'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { mitBasis } from '../../shared/basis.js'
+// UX2g/UX2d3c: EINE Quelle fuer angezeigte Fehlertexte (kein „HTTP 500").
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 
 // WEB-5b: der Praefix kommt vom Server (DIAKRONOS_BASE_PATH), nicht aus dem Build.
 const API = mitBasis('/api/method/diakronos.diakonos.api.dashboard')
@@ -21,6 +23,11 @@ export const useDashboardConfig = defineStore('dashboardConfig', () => {
   const layout = ref([])         // Array<{ widget_id, label, category, widget_type, api_method, grid_size, position, visible, collapsed, ... }>
   const isEditing = ref(false)
   const loading = ref(false)
+  // UX2d3c: Ein gescheitertes Laden blieb vorher nur in der Konsole
+  // (`console.warn`) — die Startseite zeigte dann einen LEEREN Bildschirm, als
+  // gäbe es keine Kacheln. `fehler` ist `null` oder der Klartext aus dem
+  // Katalog (`aktionsfehler('laden', e)`).
+  const fehler = ref(null)
   const lastSyncedAt = ref(null)
   let saveTimer = null
 
@@ -37,12 +44,14 @@ export const useDashboardConfig = defineStore('dashboardConfig', () => {
 
   async function loadConfig() {
     loading.value = true
+    fehler.value = null
     try {
       const data = await apiFetch('get_user_config')
       layout.value = Array.isArray(data) ? data : []
       lastSyncedAt.value = Date.now()
     } catch (e) {
       console.warn('[DashboardConfig] Laden fehlgeschlagen:', e)
+      fehler.value = aktionsfehler('laden', e)
     } finally {
       loading.value = false
     }
@@ -99,7 +108,7 @@ export const useDashboardConfig = defineStore('dashboardConfig', () => {
   }
 
   return {
-    layout, isEditing, loading, lastSyncedAt,
+    layout, isEditing, loading, fehler, lastSyncedAt,
     visibleWidgets, allWidgets,
     loadConfig, saveConfig, scheduleSave, moveWidget, toggleWidget, resetToDefaults,
   }

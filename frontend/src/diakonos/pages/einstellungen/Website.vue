@@ -17,7 +17,8 @@
       </div>
       <p class="web-hilfe">{{ zustand().text }}</p>
 
-      <DkHint v-if="laedt" role="status">Verbindung wird geprüft …</DkHint>
+      <!-- UX2d3b (Review UX2d3a/B): Laden zeigt den Umriss, keinen Satz. -->
+      <DkSkelett v-if="laedt" kurz form="zeilen" :anzahl="2" text="Verbindung wird geprüft" />
       <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
 
       <!-- WEB-1b (H): http statt https — Hinweis, keine Sperre. -->
@@ -83,6 +84,8 @@ import DkBadge from '../../components/ui/DkBadge.vue'
 import DkButton from '../../components/ui/DkButton.vue'
 import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
+// UX2d3b (Review UX2d3a/B): Laden zeigt den Umriss, keinen Satz.
+import DkSkelett from '../../components/ui/DkSkelett.vue'
 
 defineProps({ embedded: Boolean })
 

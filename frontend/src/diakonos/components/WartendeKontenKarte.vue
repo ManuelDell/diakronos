@@ -80,6 +80,8 @@ import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 import DkBadge from './ui/DkBadge.vue'
 import { wartendeKonten, kontoFreischalten } from '../composables/usePflege.js'
 import { showToast } from '../composables/useToast.js'
+// UX2d3b (Review UX2d3a/A): Katalogtext statt rohem `e?.message` („HTTP 500“).
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 
 const laedt = ref(true)
 // UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
@@ -105,7 +107,7 @@ async function laden() {
     konten.value = daten.konten || []
     abgelehnt.value = daten.abgelehnt || []
   } catch (e) {
-    fehler.value = e?.message || 'Wartende Konten konnten nicht geladen werden.'
+    fehler.value = aktionsfehler('laden', e)
   } finally {
     laedt.value = false
   }
@@ -118,7 +120,7 @@ async function freischalten(konto) {
     await laden()
     showToast('Konto zugelassen.', 'success')
   } catch (e) {
-    showToast(e?.message || 'Zulassen fehlgeschlagen.', 'error')
+    showToast(aktionsfehler('aktion', e), 'error')
   } finally {
     arbeitet.value = ''
   }

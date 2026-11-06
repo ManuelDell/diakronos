@@ -20,9 +20,33 @@
       </div>
     </div>
 
+    <!-- UX2d3c: Fehlerzustand der Übersicht. Vorher blieb der Bildschirm bei
+         einem gescheiterten Laden LEER (das Widget-Layout kam nie an) — jetzt
+         sagt die Fläche, was passiert ist, und bietet „Erneut versuchen". -->
+    <DkEmpty
+      v-if="store.fehler"
+      icon="!"
+      title="Übersicht nicht geladen"
+      :text="store.fehler"
+      :erneut-versuchen="store.loadConfig"
+    />
+
+    <!-- UX2d3c: Leerzustand mit Erklärung und nächstem Schritt. Zwei Wege:
+         die Karten der Übersicht einblenden (Bearbeiten-Modus) oder die
+         Standardübersicht zurückholen. -->
+    <DkEmpty
+      v-else-if="!store.loading && sichtbareWidgets.length === 0"
+      icon="▦"
+      title="Keine Karten sichtbar"
+      text="Du hast alle Karten der Übersicht ausgeblendet. Blende sie wieder ein oder hole die Standardübersicht zurück."
+    >
+      <DkButton variant="primary" @click="store.isEditing = true">Karten einblenden</DkButton>
+      <DkButton variant="secondary" @click="resetLayout">Standardübersicht</DkButton>
+    </DkEmpty>
+
     <!-- Widget-Raster -->
     <WidgetGrid
-      v-if="!store.loading"
+      v-else-if="!store.loading"
       :widgets="sichtbareWidgets"
       :is-editing="isEditing"
       :badge-counts="badgeCounts"
@@ -80,6 +104,9 @@ import { useSession } from '../composables/useSession.js'
 import WidgetGrid from '../components/widgets/WidgetGrid.vue'
 // ON-4/H1: die Einrichtungs-Karte („Einrichtung abschließen“).
 import EinrichtungsKarte from '../components/einrichtung/EinrichtungsKarte.vue'
+// UX2d3c: Leer-/Fehlerzustand der Übersicht aus der UI-Bibliothek.
+import DkEmpty from '../components/ui/DkEmpty.vue'
+import DkButton from '../components/ui/DkButton.vue'
 
 const pinia = createPinia()
 setActivePinia(pinia)

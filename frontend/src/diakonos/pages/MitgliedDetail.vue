@@ -207,7 +207,7 @@
              Die Zuordnung kommt aus `get_gruppen_for_mitglied` (derselbe
              Endpunkt, den auch die Gruppenseite benutzt). -->
         <DkCard v-else-if="activeTab === 'gruppen' && !loading && !error" title="Gruppen">
-            <p v-if="gruppenLaedt" class="md-muted">Gruppen werden geladen …</p>
+            <DkSkelett v-if="gruppenLaedt" kurz form="zeilen" :anzahl="2" text="Gruppen werden geladen" />
             <DkHint v-else-if="gruppenFehler" variant="err">{{ gruppenFehler }}</DkHint>
             <p v-else-if="gruppen.length === 0" class="md-muted">
                 Diese Person ist in keiner Gruppe eingetragen.
@@ -297,6 +297,8 @@ import { getRouteParam } from '../router.js'
 import { apiCall, AuditConfirmationRequired } from '../composables/useApi.js'
 import { useAuditConfirm } from '../composables/useAuditConfirm.js'
 import { showToast } from '../composables/useToast.js'
+// UX2d3b (Review UX2d3a/A): Katalogtext statt rohem `e.message` („HTTP 500“).
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import { useVerlassenSchutz } from '../composables/useVerlassenSchutz.js'
 import { bestaetigen } from '../composables/useBestaetigen.js'
@@ -591,7 +593,7 @@ async function loadMitglied() {
         }
     } catch (e) {
         console.error('[MitgliedDetail] load error:', e)
-        error.value = e.message || 'Mitglied konnte nicht geladen werden'
+        error.value = aktionsfehler('laden', e)
     } finally {
         loading.value = false
     }

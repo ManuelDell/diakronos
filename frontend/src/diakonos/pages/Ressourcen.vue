@@ -162,8 +162,11 @@
         </div>
 
         <!-- OP-UI-19/S10: drei Leerfälle statt eines Satzes. -->
+        <!-- UX2d3b (Review UX2d3a/C): Gebunden an das SKELEtt, nicht an
+             `!loading` — vorher stand „Noch keine Ressource angelegt" schon in
+             den ersten 300 ms da, bevor die Antwort kam. -->
         <DkEmpty
-          v-if="!loading && filteredResources.length === 0"
+          v-if="!loadingSkelett && !loading && filteredResources.length === 0"
           :icon="filterAktiv ? '🔍' : '📦'"
           :title="filterAktiv ? 'Keine Ressource gefunden' : 'Noch keine Ressource angelegt'"
           :text="filterAktiv
@@ -188,7 +191,9 @@
             </button>
           </div>
 
-          <div v-if="anfragen.length === 0" class="rs-moderation-empty">
+          <!-- UX2d3b: „Keine offenen Anfragen" ist ein Leerzustand — er darf
+               erst stehen, wenn die Liste geladen ist. -->
+          <div v-if="!loadingAnfragen && anfragen.length === 0" class="rs-moderation-empty">
             Keine offenen Anfragen.
           </div>
 
@@ -458,6 +463,7 @@ import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkButton from '../components/ui/DkButton.vue'
 import DkField from '../components/ui/DkField.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
+import DkSkelett from '../components/ui/DkSkelett.vue'
 import DkFilterChips from '../components/ui/DkFilterChips.vue'
 import { chipsMitZahlen, istAlle } from '../composables/filterChips.mjs'
 

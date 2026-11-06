@@ -27,7 +27,7 @@
 
     <div class="sidebar-calenderlist-section">
       <h4 class="sidebar-title">Meine Kalender</h4>
-      <p v-if="store.loading.value" class="ksb-hinweis">Kalender werden geladen...</p>
+      <DkSkelett v-if="store.loading.value" kurz form="zeilen" :anzahl="3" text="Kalender werden geladen" />
       <!-- ON-4 (H3, dasselbe Muster wie die Mitgliederliste): Gibt es noch
            GAR KEINEN Kalender, wird der Einstieg angeboten; sind nur keine
            freigegeben, bleibt der knappe Hinweis (Rechte, nicht Einrichtung).
@@ -187,6 +187,8 @@
 import { ref, computed, watch, onMounted } from 'vue';
 // UX1e: EIN Knopf-System (verwalten/importieren/Hilfe).
 import DkButton from '../ui/DkButton.vue';
+// UX2d3b (Review UX2d3a/B): Laden zeigt den Umriss, keinen Satz.
+import DkSkelett from '../ui/DkSkelett.vue';
 import { navigate } from '../../router.js';
 import { apiCall } from '../../composables/useApi.js';
 import { useKronosStore } from '../../composables/useKronosStore.js';

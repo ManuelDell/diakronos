@@ -33,6 +33,10 @@ import { parse, compileScript } from 'vue/compiler-sfc'
 
 const HIER = dirname(fileURLToPath(import.meta.url))
 const SRC = join(HIER, '..', 'src', 'diakonos')
+// UX2d3c: Die eigenständigen Bündel (Gast-Anmeldung, Registrierung,
+// Organigramm) haben eigene Einträge unter `src/<app>/` und wurden vom
+// Wächter NIE geprüft — dort stand „Organigramm wird geladen…" als Satz im Bild.
+const SRC_WURZEL = join(HIER, '..', 'src')
 
 /**
  * ERLAUBT-Liste — Ladeprosatext, der BLEIBEN darf, mit Begründung.
@@ -43,17 +47,30 @@ const SRC = join(HIER, '..', 'src', 'diakonos')
  * kann keinen Knopf ersetzen.
  */
 const ERLAUBT = [
-  // Knopfbeschriftung während einer schon laufenden Aktion („mehr laden“).
-  { datei: 'pages/planrahmen/Plan.vue', grund: 'Knopf „Wird geladen …“ während „Neu laden“ läuft' },
   // Dateiauswahl: der Text steht IM Feld und sagt, dass die Datei hochgeladen wird.
   { datei: 'pages/einstellungen/Gemeinde.vue', grund: 'Dateifeld „Wird geladen …“ während des Uploads' },
   { datei: 'components/einrichtung/SchrittGemeinde.vue', grund: 'Dateifeld „Wird geladen …“ während des Uploads' },
 ]
 
-/** Muster, die einen Ladeprosatext in einer VORLAGE erkennen. */
-const LADETEXT = /(^|[^A-Za-zÄÖÜäöüß])(Lade|Lädt|lädt|Wird geladen|wird geladen)\b(?!\s+(?:die|der|das|den|dem)\b)/
+/**
+ * Muster, die einen Ladeprosatext in einer VORLAGE erkennen.
+ *
+ * UX2d3b (Review UX2d3a/B): Der erste Lauf erkannte nur „Lade…/Wird geladen“.
+ * „Kalender werden geladen …“, „Konten werden geladen …“ und „Laden“ als
+ * Substantiv blieben unsichtbar — rund 15 Stellen standen weiter als Satz im
+ * Bild. Das Muster deckt jetzt alle drei Familien ab:
+ *
+ *   Lade…/Lädt… · Wird geladen / werden geladen · Laden · wird/werden geprüft
+ *
+ * Die negative Vorschau verhindert Worttreffer wie „laden“ (Verb nach einem
+ * Substantiv, z. B. „… Daten laden“) — sie greift nur am Wortende.
+ */
+const LADETEXT =
+  /(^|[^A-Za-zÄÖÜäöüß])(?:Lade|Lädt|lädt|Laden|Wird geladen|wird geladen|werden geladen|wird geprüft|werden geprüft)\b(?!\s+(?:die|der|das|den|dem)\b)/
 
 const DATEIEN = [
+  // UX2d3c: eigenständiges Bündel — Ladeprosa ersetzt der Platzhalter.
+  'app:organigramm/App.vue',
   'App.vue',
   'components/AppTopbar.vue',
   'components/VerantwortlicheKarte.vue',
@@ -77,7 +94,12 @@ const DATEIEN = [
 ]
 
 function lies(relativ) {
-  return readFileSync(join(SRC, relativ), 'utf8')
+  // Pfad ab `src/diakonos/` (Standard) oder — mit `app:`-Präfix — ab `src/`,
+  // z. B. `app:organigramm/App.vue` für die eigenständigen Bündel.
+  const voll = relativ.startsWith('app:')
+    ? join(SRC_WURZEL, relativ.slice(4))
+    : join(SRC, relativ)
+  return readFileSync(voll, 'utf8')
 }
 
 /** Nur der Vorlagen-Abschnitt: Skript und Stil dürfen „Lade…“ zitieren. */
@@ -103,6 +125,23 @@ function sichtbarerText(text) {
     // fällt das ganze Tag. Ein echtes Textknoten-„Lade…“ fällt nicht.
     .replace(/<[^>]*>/g, ' ')
   return ohneTags.replace(/\s+/g, ' ').trim()
+}
+
+/** Eigenständige Bündel unter `src/` (eigene Einträge, eigener Rahmen). */
+const EIGENE_APPS = ['gast', 'registrierung', 'organigramm']
+
+/** Alle .vue-Dateien unter einem absoluten Ordner, Pfade relativ dazu. */
+function vueDateienIn(wurzel) {
+  const treffer = []
+  const gehe = (rel) => {
+    for (const name of readdirSync(join(wurzel, rel)).sort()) {
+      const kind = posix.join(rel, name)
+      if (statSync(join(wurzel, kind)).isDirectory()) gehe(kind)
+      else if (name.endsWith('.vue')) treffer.push(kind)
+    }
+  }
+  gehe('')
+  return treffer
 }
 
 /** Alle .vue-Dateien unter `ordner` (relativ zu src/diakonos). */
@@ -166,6 +205,20 @@ test('UX2d3a · keine „Lade…“-Texte mehr in Vorlagen (ausser Erlaubt-Liste
     ...['App.vue'].filter(() => LADETEXT.test(sichtbarerText(vorlage(lies('App.vue')))))
       .map(() => 'App.vue: Ladeprosatext im App-Rahmen'),
   )
+  // UX2d3c: Auch die eigenständigen Bündel. Sie laden ihre eigenen Einträge
+  // (`src/gast`, `src/registrierung`, `src/organigramm`) — dort stand der
+  // Ladeprosatext bisher ungeprüft.
+  for (const app of EIGENE_APPS) {
+    for (const datei of vueDateienIn(join(SRC_WURZEL, app))) {
+      const relativ = `app:${app}/${datei}`
+      if (ERLAUBT.some((e) => e.datei === relativ)) continue
+      const text = sichtbarerText(vorlage(readFileSync(join(SRC_WURZEL, app, datei), 'utf8')))
+      const stelle = text.match(LADETEXT)
+      if (!stelle) continue
+      const umfeld = text.slice(Math.max(0, stelle.index - 40), stelle.index + 60)
+      befunde.push(`${relativ}: … ${umfeld.trim()} …`)
+    }
+  }
   assert.deepEqual(
     befunde,
     [],
@@ -271,4 +324,42 @@ test('UX2d3a · jeder „Erneut versuchen“-Knopf hängt an einem erklärten Ha
     }
   }
   assert.deepEqual(befunde, [], 'tote Wiederhol-Knöpfe:\n  ' + befunde.join('\n  '))
+})
+
+// ── (6) UX2d3c: Auch die eigenständigen Bündel sind geprüft ────────────────
+test('UX2d3c · der Wächter sieht auch src/gast, src/registrierung und src/organigramm', () => {
+  // BEFUND (Review UX2d3b): Der Lauf oben deckte nur `src/diakonos/` ab. In
+  // `src/organigramm/App.vue` stand weiter „Organigramm wird geladen…" als Satz
+  // im Bild — und kein Test sagte etwas dazu.
+  const gefunden = []
+  for (const app of EIGENE_APPS) {
+    for (const datei of vueDateienIn(join(SRC_WURZEL, app))) gefunden.push(`app:${app}/${datei}`)
+  }
+  // Sicherung gegen einen stillen Leerlauf: die drei Apps haben zusammen
+  // mindestens vier Oberflächen-Dateien.
+  assert.ok(gefunden.length >= 4, `zu wenige Dateien der eigenständigen Bündel (${gefunden.length})`)
+
+  // Das Organigramm steht jetzt in der Liste der geprüften Flächen …
+  assert.ok(DATEIEN.includes('app:organigramm/App.vue'), 'Organigramm fehlt in der Prüfliste')
+
+  // … und seine Vorlage enthält keinen Ladeprosatext mehr, sondern das Skelett
+  // mit Vorlese-Hilfe.
+  const organigramm = lies('app:organigramm/App.vue')
+  assert.doesNotMatch(
+    sichtbarerText(vorlage(organigramm)),
+    LADETEXT,
+    'Ladeprosatext im Organigramm (Skelett statt Satz erwartet)',
+  )
+  assert.match(organigramm, /<DkSkelett\b/, 'Organigramm zeigt kein Skelett')
+  assert.match(organigramm, /useLadeSkelett\(/, 'Organigramm zeigt das Skelett ohne 300-ms-Verzögerung')
+})
+
+test('UX2d3c · Gegenprobe: ein Ladeprosatext in einem eigenen Bündel wird ERKANNT', () => {
+  // Dieselbe Erkennung, die der Wächter über die Bündel laufen lässt — an
+  // einer künstlichen Vorlage (der Befund selbst ist repariert).
+  const vorlagenText = sichtbarerText('<template><div class="oc-laden">Organigramm wird geladen…</div></template>')
+  assert.ok(LADETEXT.test(vorlagenText), 'Ladeprosatext „… wird geladen…" wurde nicht erkannt')
+  // Gegenprobe: die Fläche, die nur die Vorlese-Hilfe trägt, ist sauber.
+  const sauber = sichtbarerText('<template><DkSkelett text="Organigramm wird geladen" /></template>')
+  assert.ok(!LADETEXT.test(sauber), 'aria-label-Text gilt faelschlich als sichtbarer Ladetext')
 })

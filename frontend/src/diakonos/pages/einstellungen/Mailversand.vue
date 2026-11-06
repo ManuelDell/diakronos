@@ -15,7 +15,7 @@
          darunter bleibt vollständig bedienbar. -->
     <EinrichtungsLeiste seite="mailversand" :rollen="rollen" />
 
-    <DkHint v-if="laedt" role="status">Einstellungen werden geladen …</DkHint>
+    <DkSkelett v-if="laedt" form="zeilen" :anzahl="4" text="Einstellungen werden geladen" />
     <DkHint v-if="fehler" variant="err" role="alert">{{ fehler }}</DkHint>
     <DkErfolgsmeldung :text="erfolg" />
     <DkButton v-if="!geladen && !laedt" variant="secondary" @click="laden">Erneut versuchen</DkButton>
@@ -181,6 +181,8 @@ import DkHint from '../../components/ui/DkHint.vue'
 import DkField from '../../components/ui/DkField.vue'
 import DkDialog from '../../components/ui/DkDialog.vue'
 import DkErfolgsmeldung from '../../components/ui/DkErfolgsmeldung.vue'
+// UX2d3b (Review UX2d3a/B): Laden zeigt den Umriss, keinen Satz.
+import DkSkelett from '../../components/ui/DkSkelett.vue'
 // ON-4/H2: amber Leiste „… ist noch nicht eingerichtet.“
 import EinrichtungsLeiste from '../../components/einrichtung/EinrichtungsLeiste.vue'
 
