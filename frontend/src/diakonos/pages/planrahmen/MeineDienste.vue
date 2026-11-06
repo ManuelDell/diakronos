@@ -1,7 +1,7 @@
 <template>
   <div class="dk-screen dk-screen-enter">
-    <!-- UX3a: „Meine Dienste“ ist der erste Reiter des Bereichs „Dienste“. -->
-    <DiensteReiter :reiter="DIENSTE_REITER" :seite="currentPageName" aria-label="Bereiche von Dienste" />
+    <!-- UX3c: Die Reiterzeile zeichnet der Rahmen (pages/dienste/Bereich.vue) —
+         EINE Stelle für alle drei Reiter, damit sie beim Wechsel stehen bleibt. -->
     <div class="dk-screen-header">
       <div>
         <h1 class="dk-screen-title">Meine Dienste</h1>
@@ -190,9 +190,8 @@
 </template>
 
 <script setup>
-import DiensteReiter from '../../components/DiensteReiter.vue'
-import { DIENSTE_REITER } from '../../menue.js'
-import { currentPageName } from '../../router.js'
+// UX3c: Reiterzeile und aktiver Reiter kommen aus dem Rahmen
+// (pages/dienste/Bereich.vue) — die Seite selbst kennt nur ihren Inhalt.
 /**
  * Personensicht des Plan-Rahmens: eigene Zuordnungen aus den
  * veröffentlichten Snapshots (meine_dienste) mit Lied, Uhrzeit und

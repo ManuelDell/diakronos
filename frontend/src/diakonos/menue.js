@@ -311,20 +311,44 @@ export function sichtbareMitgliederReiter({ istAdmin = false } = {}) {
     return MITGLIEDER_REITER.filter(r => r.rolle !== 'admin' || istAdmin)
 }
 
-/** Sichtbare Reiter einer Bereichsliste (dieselbe Rollenregel wie das Menü). */
-export function sichtbareReiter(reiter, { istAdmin = false } = {}) {
-    return (reiter || []).filter(r => r.rolle !== 'admin' || istAdmin)
+/** Sichtbare Reiter einer Bereichsliste (dieselbe Rollenregel wie das Menü).
+ *
+ *  `darfPlanen` (UX3c) ist das Planungsrecht des Servers
+ *  (`plantypen_liste`/`einrichten_rechte` konnten gelesen werden = der Aufrufende
+ *  ist Admin, Bereichs- oder Gruppenverantwortlicher). Reiter mit
+ *  `rolle: 'planer'` erscheinen nur dann — ein reiner Admin ohne Planungsrecht
+ *  sieht keinen leeren Reiter „Dienstpläne“, ein Planer ohne Admin sieht ihn
+ *  (vorher war er für Nicht-Admins gesperrt). Fehlt der Wert (`undefined`),
+ *  gilt die Administration: die Rechte werden geladen, der Reiter bleibt
+ *  stehen (kein Aufblitzen beim ersten Anzeigen).
+ */
+export function sichtbareReiter(reiter, { istAdmin = false, darfPlanen } = {}) {
+    const planen = typeof darfPlanen === 'boolean' ? darfPlanen : istAdmin
+    return (reiter || []).filter(r => {
+        if (r.rolle === 'admin') return istAdmin
+        if (r.rolle === 'planer') return istAdmin || planen
+        return true
+    })
 }
 
 /**
  * Seitenname einer Bereichs-Adresse (`#/dienste/vorlagen` → `DiensteVorlagen`).
  * Der Abfrageteil (`?bereich=…`) und ein Schluss-Schrägstrich werden ignoriert.
+ * UX3c: Auch UNTERADRESSEN markieren ihren Reiter (`#/dienste/vorlagen/chorplan`
+ * → `DiensteVorlagen`, `#/dienste/dienstplaene/plan/abc` → `DiensteDienstplaene`),
+ * sonst stünde beim Bearbeiten einer Vorlage kein Reiter als „aktiv“.
  * → null, wenn die Adresse nicht zum Bereich gehört.
  */
 export function reiterAusHash(reiter, hash) {
     const roh = String(hash || '').split('?')[0].replace(/\/+$/, '')
     const treffer = (reiter || []).find(r => r.href === roh)
-    return treffer ? treffer.seite : null
+    if (treffer) return treffer.seite
+    // Unteradresse: längster passender Reiter gewinnt, damit
+    // `#/dienste/meine-dienste/…` nicht den Reiter „Dienstpläne“ erbt.
+    const unter = (reiter || [])
+        .filter(r => roh.startsWith(`${r.href}/`))
+        .sort((a, b) => b.href.length - a.href.length)[0]
+    return unter ? unter.seite : null
 }
 
 /** Menüeintrag zu einem Seitennamen finden (für die Kopfleiste).
@@ -363,10 +387,15 @@ export function krumenZuSeite(seitenName) {
  * Seitenleiste den Bereich „Dienste“ markiert — dort entsteht kein zweiter
  * Eintrag. Unterbereiche (einzelner Plan, Vorlagen-Editor, Stammdaten)
  * markieren weiter „Dienstpläne“ über ihre Seitennamen.
+ *
+ * UX3c (Kartentext): Start ist „Meine Dienste“ — für ALLE Rollen.
+ * „Dienstpläne“ ist Planungsarbeit und erscheint nur mit Planungsrecht
+ * (`rolle: 'planer'`, Recht kommt vom Server). „Vorlagen“ bleibt
+ * Verwaltungsarbeit (`rolle: 'admin'`).
  */
 export const DIENSTE_REITER = [
     { id: 'meine-dienste', label: 'Meine Dienste', href: '#/dienste/meine-dienste', seite: 'PlanrahmenDienste', rolle: 'alle' },
-    { id: 'dienstplaene', label: 'Dienstpläne', href: '#/dienste/dienstplaene', seite: 'DiensteDienstplaene', rolle: 'alle' },
+    { id: 'dienstplaene', label: 'Dienstpläne', href: '#/dienste/dienstplaene', seite: 'DiensteDienstplaene', rolle: 'planer' },
     { id: 'vorlagen', label: 'Vorlagen', href: '#/dienste/vorlagen', seite: 'DiensteVorlagen', rolle: 'admin' },
 ]
 

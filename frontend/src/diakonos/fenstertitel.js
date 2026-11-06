@@ -35,6 +35,11 @@ export const SEITENTITEL_NICHT_IM_MENUE = {
     KalenderVerwaltung: 'Kalender verwalten',
     RessourcenVerwaltung: 'Ressourcen verwalten',
     Dienstplan: 'Dienstplan',
+    // UX3c: Der Bereich „Dienste“ hat drei Seiten — jede nennt ihren Reiter,
+    // sonst stünde in jedem Tab derselbe Titel. „Planrahmen“ erscheint nicht.
+    Dienste: 'Dienste',
+    DiensteDienstplaene: 'Dienstpläne',
+    DiensteVorlagen: 'Vorlagen',
     Anmeldungen: 'Anmeldungen',
     Moderation: 'Moderation',
     PlanrahmenPlan: 'Plan',

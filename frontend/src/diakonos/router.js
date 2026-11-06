@@ -53,9 +53,9 @@ const pages = {
     // UX3a: der Bereich „Dienste“ besteht aus vorhandenen Seiten (kein neues
     // Bauteil): Meine Dienste, Dienstpläne (Planübersicht), Vorlagen
     // (Einrichtung). Der Rahmen setzt die Reiterleiste darüber.
-    Dienste:             () => import('./pages/planrahmen/MeineDienste.vue'),
-    DiensteDienstplaene: () => import('./pages/planrahmen/Uebersicht.vue'),
-    DiensteVorlagen:     () => import('./pages/planrahmen/Einrichten.vue'),
+    Dienste:             () => import('./pages/dienste/Bereich.vue'),
+    DiensteDienstplaene: () => import('./pages/dienste/Bereich.vue'),
+    DiensteVorlagen:     () => import('./pages/dienste/Bereich.vue'),
     Dienstplan:      () => import('./pages/Dienstplan.vue'),
     Einstellungen:   () => import('./pages/Einstellungen.vue'),
     EinstellungenGemeinde: () => import('./pages/Einstellungen.vue'),
@@ -86,7 +86,9 @@ const pages = {
     LiedgruppeDetail: () => import('./pages/LiedgruppeDetail.vue'),
     PlanrahmenUebersicht: () => import('./pages/planrahmen/Uebersicht.vue'),
     PlanrahmenPlan:       () => import('./pages/planrahmen/Plan.vue'),
-    PlanrahmenDienste:    () => import('./pages/planrahmen/MeineDienste.vue'),
+    // UX3c: „Meine Dienste“ ist ein Reiter von „Dienste“ — der Rahmen
+    // zeichnet die Reiterzeile und wählt die Seite nach `currentPageName`.
+    PlanrahmenDienste:    () => import('./pages/dienste/Bereich.vue'),
     PlanrahmenEinrichten: () => import('./pages/planrahmen/Einrichten.vue'),
     PlanrahmenPlantypEditor: () => import('./pages/planrahmen/PlantypEditor.vue'),
     PlanrahmenStammdaten: () => import('./pages/planrahmen/Stammdaten.vue'),
@@ -266,8 +268,27 @@ const WEITERLEITUNGEN = {
 // offenbarte damit, wie die alte Adresse gemeint war: `#/liedgruppen/‹id›`.
 // Solche Lesezeichen leiten DAUERHAFT auf den Reiter „Lieder → Liedgruppen“ um
 // (`location.replace`, Abfrageteil wird wie bei den festen Regeln mitgenommen).
+//
+// UX3c (Kartentext: „Begriff Planrahmen verschwindet aus Adresse und
+// Oberfläche“): dieselbe Regel für ALLE Dienstplan-Adressen mit Kennung.
+// Bisher fielen `#/planrahmen/plan/‹id›`, `…/vorbereiten/‹id›`,
+// `…/stammdaten/‹Plantyp›` und `…/einrichten/‹id›` in „Seite nicht gefunden“
+// — die alten festen Regeln deckten nur den Bereichseinstieg ab.
 const MUSTER_WEITERLEITUNGEN = [
+    // `/liedergruppen/…` (Tippfehler aus UX3a) UND `/liedgruppen/…` (die
+    // gemeinte Adresse) → Reiter „Lieder → Liedgruppen“. Beide Muster stehen
+    // einzeln: `ziel` bekommt IMMER die Kennung als erstes Argument.
+    { pattern: /^#\/liedergruppen\/(.+)$/, ziel: id => `#/lieder/gruppen/${id}` },
     { pattern: /^#\/liedgruppen\/(.+)$/, ziel: id => `#/lieder/gruppen/${id}` },
+    // Einzelner Plan → Reiter „Dienstpläne“.
+    { pattern: /^#\/planrahmen\/plan\/(.+)$/, ziel: id => `#/dienste/dienstplaene/plan/${id}` },
+    // Plan vorbereiten (Stammdaten im Plan-Kontext) → Reiter „Dienstpläne“.
+    { pattern: /^#\/planrahmen\/vorbereiten\/(.+)$/, ziel: plan => `#/dienste/dienstplaene/vorbereiten/${plan}` },
+    // Stammdaten einer Vorlage → Reiter „Vorlagen“. Der Plan-Kontext der alten
+    // Adresse ist die Vorlage selbst (Platzhalter „-“ wie in einrichten-flow).
+    { pattern: /^#\/planrahmen\/stammdaten\/(.+)$/, ziel: plantyp => `#/dienste/vorlagen/${plantyp}/stammdaten/-` },
+    // Vorlagen-Editor → Reiter „Vorlagen“.
+    { pattern: /^#\/planrahmen\/einrichten\/(.+)$/, ziel: id => `#/dienste/vorlagen/${id}` },
 ]
 
 // ── Fenstertitel (OP-UI-22, WCAG 2.4.2) ─────────────────────────────────────
@@ -562,6 +583,11 @@ const ADMIN_ONLY_PAGES = new Set([
     'MitgliederLoeschantraege',
     // UX3a: „Vorlagen“ (bisheriges Einrichten) ist Verwaltungsarbeit.
     'DiensteVorlagen', 'PlanrahmenEinrichten',
+    // UX3c: „Dienstpläne“ steht bewusst NICHT hier. Dieser Guard kennt nur
+    // `boot.is_admin`; Planer ohne Admin-Rolle (Bereichs-/Gruppenverantwort-
+    // liche) müssen die Planübersicht wie auf main erreichen. Das Planungs-
+    // recht prüft der Server (`einrichten_rechte`, sonst 403 → Leerzustand);
+    // die Reiterzeile blendet den Reiter nach derselben Antwort aus.
     'Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung',
     'EinstellungenRollen', 'EinstellungenDevModus',
     'EinstellungenRegistrierung', 'EinstellungenDatenschutz',

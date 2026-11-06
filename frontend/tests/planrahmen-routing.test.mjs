@@ -2,8 +2,12 @@ import assert from 'node:assert/strict'
 import { readFileSync, existsSync } from 'node:fs'
 const root = new URL('../src/diakonos/', import.meta.url)
 const router = readFileSync(new URL('router.js', root), 'utf8')
+// UX3c: „Meine Dienste“ hängt der Dienste-Rahmen ein (pages/dienste/Bereich.vue);
+// der Router lädt für die Reiter-Adressen den Rahmen.
+const rahmen = readFileSync(new URL('pages/dienste/Bereich.vue', root), 'utf8')
 for (const name of ['Uebersicht', 'Plan', 'MeineDienste', 'Einrichten', 'PlantypEditor', 'Stammdaten']) {
-  assert.ok(router.includes(`./pages/planrahmen/${name}.vue`), `Neue Seite ${name} registriert`)
+  assert.ok(router.includes(`./pages/planrahmen/${name}.vue`) || rahmen.includes(`../planrahmen/${name}.vue`),
+    `Neue Seite ${name} registriert`)
 }
 assert.ok(router.includes("'#/dienste'"))
 assert.ok(router.includes("'#/dienste/meine-dienste'"))

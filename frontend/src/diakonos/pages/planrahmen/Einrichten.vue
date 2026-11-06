@@ -1,8 +1,7 @@
 <template>
   <div class="dk-screen dk-screen-enter">
-    <!-- UX3a: Die Einrichtung ist der Reiter „Vorlagen“ im Bereich „Dienste“
-         (Entwurf A2: Meine Dienste · Dienstpläne · Vorlagen). -->
-    <DiensteReiter :reiter="DIENSTE_REITER" :seite="currentPageName" aria-label="Bereiche von Dienste" />
+    <!-- UX3c: Die Reiterzeile zeichnet der Rahmen (pages/dienste/Bereich.vue).
+         Diese Seite ist der Inhalt des Reiters „Vorlagen“. -->
     <div class="dk-screen-header">
       <div>
         <h1 class="dk-screen-title">Vorlagen</h1>
@@ -67,9 +66,8 @@
 </template>
 
 <script setup>
-import DiensteReiter from '../../components/DiensteReiter.vue'
-import { DIENSTE_REITER } from '../../menue.js'
-import { currentPageName } from '../../router.js'
+// UX3c: Reiterzeile und aktiver Reiter kommen aus dem Rahmen
+// (pages/dienste/Bereich.vue) — die Seite selbst kennt nur ihren Inhalt.
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { usePlanrahmen, fehlerMeldungen, datumText } from '../../composables/usePlanrahmen.js'
 import { stammdatenRoute } from '../../components/planrahmen/einrichten-flow.mjs'

@@ -128,10 +128,15 @@ function labels(gruppe) {
 
   // Fuß „Einstellungen“ ist Admin-only — der Server prüft zusätzlich.
   assert.equal(M.FUSS_EINTRAEGE[0].rolle, 'admin')
-  // Vorlagen (Dienste-Reiter) ebenfalls Admin-only, Meine Dienste für alle.
+  // Vorlagen (Dienste-Reiter) Admin-only, Meine Dienste für alle.
+  // UX3c: „Dienstpläne“ hängt am PLANUNGSRECHT (Administration oder
+  // Planer-Rolle), nicht an „alle“ — ohne Rechte bleibt der Start-Reiter.
   assert.deepEqual(liste(M.sichtbareReiter(M.DIENSTE_REITER, { istAdmin: false })).map(r => r.id),
-    ['meine-dienste', 'dienstplaene'])
-  assert.equal(M.sichtbareReiter(M.DIENSTE_REITER, { istAdmin: true }).length, 3)
+    ['meine-dienste'])
+  assert.deepEqual(liste(M.sichtbareReiter(M.DIENSTE_REITER, { istAdmin: false, darfPlanen: true })).map(r => r.id),
+    ['meine-dienste', 'dienstplaene'],
+    'Planer ohne Admin sieht den Planungs-Reiter')
+  assert.equal(M.sichtbareReiter(M.DIENSTE_REITER, { istAdmin: true, darfPlanen: true }).length, 3)
   // UX3b: für alle bleibt die Liste (sie zeigt die Adressbuch-Sicht);
   // Anfragen/Datenschutz/Import sind Admin-Reiter.
   assert.deepEqual(liste(M.sichtbareMitgliederReiter({ istAdmin: false })).map(r => r.id),
@@ -219,11 +224,14 @@ function routerAusfuehren(boot) {
     h.gehe(alt)
     assert.equal(h.window.location.hash, neu, `${alt} → ${neu}`)
   }
-  // `#/liedergruppen/‹id›` ist KEINE Weiterleitung, sondern ein eigenes
-  // Detailmuster in `dynamicRoutes` — es öffnet die Seite direkt.
+  // `#/liedergruppen/‹id›` (Tippfehler-Muster aus UX3a) ist eine Weiterleitung
+  // auf den Reiter „Lieder → Liedgruppen“ — dieselbe Kennung, saubere Adresse.
+  // (Bis UX3c öffnete die Adresse direkt das Detail; nach dem Zusammenlegen
+  // beider Muster auf EIN Ziel ist das Ziel selbst die gültige Adresse.)
   const alt = routerAusfuehren({ is_admin: true, hash: '#/liedergruppen/42' })
-  assert.equal(alt.window.location.hash, '#/liedergruppen/42', 'bleibt am Ort')
-  assert.equal(alt.router.currentPageName.value, 'LiedgruppeDetail')
+  assert.equal(alt.window.location.hash, '#/lieder/gruppen/42', 'Weiterleitung mit Kennung')
+  const ziel = routerAusfuehren({ is_admin: true, hash: '#/lieder/gruppen/42' })
+  assert.equal(ziel.router.currentPageName.value, 'LiedgruppeDetail')
 }
 
 // ── UX3a2 F1: `#/liedgruppen/‹id›` behält den Abfrageteil ───────────────────

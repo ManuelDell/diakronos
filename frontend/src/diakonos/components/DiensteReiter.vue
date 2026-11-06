@@ -26,8 +26,13 @@
  * DiensteReiter — Reiterzeile für zusammengelegte Bereiche (UX3a).
  *
  * Eigenschaften:
- *   reiter    Liste aus menue.js (DIENSTE_REITER / LIEDER_REITER)
- *   seite     Seitenname der aktuell geöffneten Seite (currentPageName)
+ *   reiter      Liste aus menue.js (DIENSTE_REITER / LIEDER_REITER)
+ *   seite       Seitenname der aktuell geöffneten Seite (currentPageName)
+ *   darfPlanen  Planungsrecht vom Server (UX3c). `undefined` = noch nicht
+ *               geantwortet → es gilt die Administration (kein Aufblitzen
+ *               eines falschen Reiters). Die Regel selbst steht in
+ *               menue.js::sichtbareReiter — eine Wahrheit für Oberfläche und
+ *               Tests.
  *
  * Nur Tokens (tokens.css), keine festen Farben; die Klickfläche folgt der
  * Vorgabe --control-h (bei Finger breiter über die Zeilenhöhe).
@@ -39,11 +44,15 @@ import { useSession } from '../composables/useSession.js'
 const props = defineProps({
   reiter: { type: Array, required: true },
   seite: { type: String, default: '' },
+  darfPlanen: { type: Boolean, default: undefined },
   ariaLabel: { type: String, default: 'Bereiche' },
 })
 
 const { isAdmin } = useSession()
-const eintraege = computed(() => sichtbareReiter(props.reiter, { istAdmin: isAdmin.value === true }))
+const eintraege = computed(() => sichtbareReiter(props.reiter, {
+  istAdmin: isAdmin.value === true,
+  darfPlanen: props.darfPlanen,
+}))
 const aktiveSeite = computed(() => props.seite)
 </script>
 
