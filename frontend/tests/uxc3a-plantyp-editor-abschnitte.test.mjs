@@ -374,8 +374,13 @@ test('UX-C3a: die Testdatei steht in der Node-Liste des Images', () => {
   // Im Image liegt nur frontend/ (/build) — die Dockerfile steht dort NICHT.
   // Im Repo wird der Eintrag geprüft; im Image ist der Nachweis, dass dieser
   // Test ÜBERHAUPT läuft (er steht in der Liste, sonst gäbe es ihn nicht).
+  // FE-TEST-1: die Muster stehen in frontend/tests/testliste.txt; die
+  // Dockerfile liest sie über ARG NODE_TESTLISTE.
   const dockerfile = new URL('../../backend/Dockerfile', import.meta.url)
   if (!existsSync(dockerfile)) return
-  assert.ok(readFileSync(dockerfile, 'utf8').includes('tests/uxc3a-*.test.mjs'),
-    'backend/Dockerfile: uxc3a fehlt in der Node-Testliste')
+  assert.match(readFileSync(dockerfile, 'utf8'), /^ARG NODE_TESTLISTE=tests\/testliste\.txt$/m,
+    'backend/Dockerfile liest die Muster nicht aus tests/testliste.txt')
+  assert.ok(readFileSync(new URL('./testliste.txt', import.meta.url), 'utf8')
+    .split('\n').map((z) => z.trim()).includes('tests/uxc3a-*.test.mjs'),
+    'frontend/tests/testliste.txt: uxc3a fehlt in der Node-Testliste')
 })

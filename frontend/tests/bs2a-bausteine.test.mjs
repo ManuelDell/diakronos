@@ -330,8 +330,15 @@ test('BS-2a: Dockerfile traegt Bausteine und die im Test gelesenen Dateien', () 
   ]) {
     assert.ok(dockerfile.includes(pfad), `Frontend-Stage: COPY fuer ${pfad} fehlt`);
   }
-  // Die Node-Testliste nennt den neuen Test.
-  assert.match(dockerfile, /tests\/bs2a-\*\.test\.mjs/, 'bs2a fehlt in der node --test-Liste');
+  // Die Node-Testliste nennt den neuen Test — seit FE-TEST-1 in
+  // `frontend/tests/testliste.txt` (die Dockerfile liest sie über
+  // `ARG NODE_TESTLISTE`); die Dockerfile selbst muss darauf zeigen.
+  assert.match(dockerfile, /^ARG NODE_TESTLISTE=tests\/testliste\.txt$/m,
+    'backend/Dockerfile liest die Muster nicht aus tests/testliste.txt');
+  // Liste über DIE TESTDATEI auflösen (nicht über REPO): im Image liegt sie
+  // neben diesem Test unter /build/tests, REPO wäre dort `/`.
+  const testliste = readFileSync(new URL('./testliste.txt', import.meta.url), 'utf8');
+  assert.match(testliste, /^tests\/bs2a-\*\.test\.mjs$/m, 'bs2a fehlt in der Frontend-Testliste');
 });
 
 test('BS-2a: pyproject fuehrt die Bausteine als Paketdaten', () => {

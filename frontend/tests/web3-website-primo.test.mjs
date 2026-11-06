@@ -497,17 +497,18 @@ test('WEB-3 (WEB-5a/5b): keine festen API-Pfade, Primo-URL kommt vom Server', ()
     assert.match(komposabel, /antwort\?\.url/)
 })
 
-test('WEB-3 (S4): dieser Test läuft NUR, weil er in der Dockerfile-Testliste steht', () => {
+test('WEB-3 (S4): dieser Test läuft NUR, weil er in der Frontend-Testliste steht', () => {
     // Die Karte (S4) verlangt: neue Testdatei UND Eintrag in der node-Testliste
     // des Dockerfiles. Der Eintrag lässt sich hier NICHT prüfen — der
     // Frontend-Stage des Images kopiert nur `frontend/`, `backend/Dockerfile`
     // liegt dort nicht (und gehört auch nicht dorthin). Der Beweis ist ein
-    // anderer und stärker: dieser Test läuft im Image, weil die Zeile
-    // `tests/web3-*.test.mjs` im RUN-Aufruf von backend/Dockerfile steht.
+    // anderer und stärker: dieser Test läuft im Image, weil das Muster
+    // `tests/web3-*.test.mjs` in `frontend/tests/testliste.txt` steht (die
+    // Dockerfile liest sie seit FE-TEST-1 über `ARG NODE_TESTLISTE`).
     // Fehlte der Eintrag, gäbe es diese Ausgabe nicht.
     //
     // Geprüft wird deshalb nur, was der Test selbst weiß: er heißt web3-*.
     const eigenerName = fileURLToPath(import.meta.url).split('/').pop()
     assert.match(eigenerName, /^web3-.+\.test\.mjs$/,
-        'Die Testdatei muss dem Muster web3-*.test.mjs folgen (Dockerfile-Eintrag)')
+        'Die Testdatei muss dem Muster web3-*.test.mjs folgen (Eintrag in tests/testliste.txt)')
 })

@@ -71,6 +71,21 @@ mitreisst.
 cd frontend && npm ci && npm test
 ```
 
+Welche Node-Tests laufen, steht in **`frontend/tests/testliste.txt`** (ein
+Glob-Muster pro Zeile, `#` = Kommentar). Neue Testdatei = eine Zeile
+anhängen; die `backend/Dockerfile` liest die Liste über
+`ARG NODE_TESTLISTE=tests/testliste.txt` (Vorgabe) und führt
+`node --test <Muster> --test && npm run build` aus. `.gitattributes` führt
+die Datei mit `merge=union` zusammen — neue Zeilen kollidieren also nicht
+mehr bei jedem Merge. Der Wächter `frontend/tests/fetest1-testliste.test.mjs`
+meldet sowohl Testdateien ohne Muster als auch Muster ohne Datei.
+
+Gezielt bauen (schneller Lauf, z. B. für eine Karte): eine eigene Datei
+`frontend/tests/.auswahl.txt` (in `.gitignore`) mit wenigen Mustern anlegen
+und `--build-arg NODE_TESTLISTE=tests/.auswahl.txt` übergeben. Eine leere
+Auswahl bricht ab — `node --test` ohne Argumente würde sonst selbst alle
+Tests suchen.
+
 **Migrationen** werden immer gegen eine frische Datenbank **und** gegen eine
 Kopie eines Betriebsdumps geprüft (`upgrade`, `downgrade`, `alembic check`).
 Leere Testdatenbanken verdecken Fehler, die erst an echten Zeilen auftreten.

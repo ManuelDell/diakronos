@@ -356,7 +356,11 @@ test('UX-C3b: jedes ⓘ-Feld hat einen Glossareintrag', () => {
 test('UX-C3b: die neue Testdatei steht in der Dockerfile-Testliste', () => {
   assert.ok(existsSync(datei('components/planrahmen/auswahl.mjs')))
   if (!DOCKERFILE) return   // Image: frontend/ allein, keine Dockerfile
-  assert.match(DOCKERFILE, /tests\/uxc3b-\*\.test\.mjs/)
+  // FE-TEST-1: die Muster stehen in frontend/tests/testliste.txt; die
+  // Dockerfile muss auf sie zeigen (eine Quelle).
+  assert.match(DOCKERFILE, /^ARG NODE_TESTLISTE=tests\/testliste\.txt$/m)
+  const testliste = readFileSync(new URL('./testliste.txt', import.meta.url), 'utf8')
+  assert.match(testliste, /^tests\/uxc3b-\*\.test\.mjs$/m)
 })
 
 // ── 7 · Review-Nacharbeit: „Anderer Wert …“ statt leerer Auswahl ─────────

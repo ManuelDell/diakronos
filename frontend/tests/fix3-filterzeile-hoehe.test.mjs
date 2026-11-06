@@ -180,7 +180,12 @@ test('FIX-3 · die Testdatei steht in der node-Testliste der backend/Dockerfile'
   const treffer = kandidaten.find((u) => existsSync(u))
   if (!treffer) return t.skip('backend/Dockerfile im Abbild nicht vorhanden')
   const dockerfile = readFileSync(treffer, 'utf8')
-  assert.match(dockerfile, /tests\/fix3-\*\.test\.mjs/, 'Glob tests/fix3-*.test.mjs eingetragen')
+  // FE-TEST-1: die Muster stehen in frontend/tests/testliste.txt (die
+  // Dockerfile liest sie über ARG NODE_TESTLISTE).
+  assert.match(dockerfile, /^ARG NODE_TESTLISTE=tests\/testliste\.txt$/m,
+    'backend/Dockerfile liest die Muster nicht aus tests/testliste.txt')
+  const testliste = readFileSync(new URL('./testliste.txt', import.meta.url), 'utf8')
+  assert.match(testliste, /^tests\/fix3-\*\.test\.mjs$/m, 'Glob tests/fix3-*.test.mjs eingetragen')
 })
 
 // Review FIX-3: Wiki benutzt 'all' als „Alle“-Wert — ohne alle-wert="all"

@@ -130,14 +130,19 @@ test('UX1i2 · die Gegenprobe steht bereit und prüft 44 px UND Kontrast', () =>
 
 test('UX1i2 · backend/Dockerfile kopiert die Gegenprobe in den Frontend-Stage', () => {
   let dockerfile
+  let testliste
   try {
     dockerfile = readFileSync(new URL('../../backend/Dockerfile', import.meta.url), 'utf8')
+    // FE-TEST-1: die Muster stehen in frontend/tests/testliste.txt.
+    testliste = readFileSync(new URL('./testliste.txt', import.meta.url), 'utf8')
   } catch {
     return // im Image-Build liegt die Dockerfile nicht im Stage (Regel 13: Nachweis per docker build)
   }
   assert.match(dockerfile, /COPY tools\/demo\/ux1i2-probe\.py \/tools\/demo\/ux1i2-probe\.py/,
     'Regel 13: Datei ausserhalb von frontend/ braucht eine COPY-Zeile')
-  assert.match(dockerfile, /tests\/ux1i2-\*\.test\.mjs/, 'Testdatei steht in der node-Testliste')
+  assert.match(dockerfile, /^ARG NODE_TESTLISTE=tests\/testliste\.txt$/m,
+    'backend/Dockerfile liest die Muster nicht aus tests/testliste.txt')
+  assert.match(testliste, /^tests\/ux1i2-\*\.test\.mjs$/m, 'Testdatei steht in der Frontend-Testliste')
 })
 
 // ── B · Messprobe im echten Browser (rot -> grün) ──────────────────────────

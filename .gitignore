@@ -38,3 +38,7 @@ frontend/.uxa2b-tmp/
 # WEB-8c: eigener Wegwerf-Stack (Compose-Projekt web8c) — Env und Daten bleiben lokal.
 compose/.web8c.env
 compose/.web8c/
+
+# FE-TEST-1: eigene Auswahl-Datei fuer gezielte Builds (nur lokal).
+# docker build -f backend/Dockerfile --build-arg NODE_TESTLISTE=tests/.auswahl.txt ..
+frontend/tests/.auswahl.txt

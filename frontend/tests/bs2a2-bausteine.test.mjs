@@ -302,7 +302,13 @@ test('BS-2a2: Dockerfile trägt den neuen Node-Test und den Backend-Test', () =>
   } catch {
     return; // im Frontend-Stage liegt die Dockerfile unter /backend/Dockerfile
   }
-  assert.match(text, /tests\/bs2a2-\*\.test\.mjs/,
+  // FE-TEST-1: die Muster stehen in `frontend/tests/testliste.txt`.
+  assert.match(text, /^ARG NODE_TESTLISTE=tests\/testliste\.txt$/m,
+    'backend/Dockerfile liest die Muster nicht aus tests/testliste.txt');
+  // Liste über DIE TESTDATEI auflösen (nicht über REPO): im Image liegt sie
+  // neben diesem Test unter /build/tests, REPO wäre dort `/`.
+  const testliste = readFileSync(new URL('./testliste.txt', import.meta.url), 'utf8');
+  assert.match(testliste, /^tests\/bs2a2-\*\.test\.mjs$/m,
     'der neue Node-Test steht nicht in der Testliste (Regel 13)');
 });
 

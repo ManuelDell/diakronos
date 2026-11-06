@@ -283,11 +283,16 @@ test('FIX-4 · die Testdatei steht in der node-Testliste der backend/Dockerfile'
   const treffer = kandidaten.find((u) => existsSync(u))
   if (!treffer) return t.skip('backend/Dockerfile im Abbild nicht vorhanden')
   const dockerfile = readFileSync(treffer, 'utf8')
-  assert.match(dockerfile, /tests\/fix4-\*\.test\.mjs/,
-    'backend/Dockerfile: tests/fix4-*.test.mjs fehlt in der node-Testliste')
+  // FE-TEST-1: die Muster stehen in frontend/tests/testliste.txt (die
+  // Dockerfile liest sie über ARG NODE_TESTLISTE).
+  assert.match(dockerfile, /^ARG NODE_TESTLISTE=tests\/testliste\.txt$/m,
+    'backend/Dockerfile liest die Muster nicht aus tests/testliste.txt')
+  const testliste = readFileSync(new URL('./testliste.txt', import.meta.url), 'utf8')
+  assert.match(testliste, /^tests\/fix4-\*\.test\.mjs$/m,
+    'frontend/tests/testliste.txt: tests/fix4-*.test.mjs fehlt')
   // Auflage 4: der Merge mit main hat die Listen vereinigt, nichts ging verloren.
   for (const datei of ['tests/fix2-*.test.mjs', 'tests/fix3-*.test.mjs', 'tests/fix1-*.test.mjs']) {
-    assert.match(dockerfile, new RegExp(datei.replace(/[.]/g, '\\.').replace(/\*/g, '\\*')),
-      `backend/Dockerfile: ${datei} fehlt nach dem Merge`)
+    assert.ok(testliste.split('\n').includes(datei),
+      `frontend/tests/testliste.txt: ${datei} fehlt nach dem Merge`)
   }
 })

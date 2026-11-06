@@ -336,5 +336,9 @@ test('UX3e · die Testdatei steht in der node-Testliste der backend/Dockerfile',
   const treffer = kandidaten.find((u) => existsSync(u))
   if (!treffer) return t.skip('backend/Dockerfile im Abbild nicht vorhanden')
   const dockerfile = readFileSync(treffer, 'utf8')
-  assert.match(dockerfile, /tests\/ux3e-\*\.test\.mjs/, 'Glob tests/ux3e-*.test.mjs eingetragen')
+  // FE-TEST-1: die Muster stehen in frontend/tests/testliste.txt.
+  assert.match(dockerfile, /^ARG NODE_TESTLISTE=tests\/testliste\.txt$/m,
+    'backend/Dockerfile liest die Muster nicht aus tests/testliste.txt')
+  const testliste = readFileSync(new URL('./testliste.txt', import.meta.url), 'utf8')
+  assert.match(testliste, /^tests\/ux3e-\*\.test\.mjs$/m, 'Glob tests/ux3e-*.test.mjs eingetragen')
 })

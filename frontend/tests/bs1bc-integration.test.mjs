@@ -123,15 +123,24 @@ test('BS-1bc/P: die Listenbremse prueft die Adresse vor der Gesamtgrenze', () =>
   assert.match(vorGesamt, /return False/)
 })
 
-test('BS-1bc/P: Postfach-Liste steht in der Dockerfile-Testliste (Regel 13)', () => {
+test('BS-1bc/P: Postfach-Liste steht in der Frontend-Testliste (Regel 13)', () => {
   // In diesem Stage liegt die Dockerfile NICHT (Build-Kontext ist frontend/),
   // der Nachweis laeuft ueber `docker build --target frontend` und ueber die
-  // Zeilenliste hier im Worktree. Ist die Datei da, wird sie geprueft.
-  if (!existsSync(DOCKERFILE)) return
+  // Testliste hier im Worktree. Ist die Datei da, wird sie geprueft.
+  //
+  // FE-TEST-1: Die Muster stehen seit dem Umbau NICHT mehr in
+  // `backend/Dockerfile`, sondern in `frontend/tests/testliste.txt` (die
+  // Dockerfile liest sie ueber `ARG NODE_TESTLISTE`). Geprueft wird daher die
+  // Testliste; die Dockerfile muss zusaetzlich auf sie zeigen (eine Quelle).
+  const TESTLISTE = join(REPO, 'frontend', 'tests', 'testliste.txt')
+  if (!existsSync(DOCKERFILE) || !existsSync(TESTLISTE)) return
+  const testliste = lies(TESTLISTE)
   const dockerfile = lies(DOCKERFILE)
-  assert.match(dockerfile, /tests\/bs1c-\*\.test\.mjs/)
-  assert.match(dockerfile, /tests\/bs1b2-\*\.test\.mjs/)
-  assert.match(dockerfile, /tests\/bs1bc-\*\.test\.mjs/)
+  assert.match(dockerfile, /^ARG NODE_TESTLISTE=tests\/testliste\.txt$/m,
+    'backend/Dockerfile liest die Muster nicht aus tests/testliste.txt')
+  assert.match(testliste, /^tests\/bs1c-\*\.test\.mjs$/m)
+  assert.match(testliste, /^tests\/bs1b2-\*\.test\.mjs$/m)
+  assert.match(testliste, /^tests\/bs1bc-\*\.test\.mjs$/m)
   // registry.py (BS-1b2 + BS-1c2 brauchen es beide) genau EINMAL.
   const treffer = dockerfile.match(
     /COPY backend\/src\/diakronos_app\/frappe_compat\/registry\.py /g,

@@ -344,9 +344,32 @@ make test                 # oder: docker compose exec app python -m pytest -q
 # Frontend
 cd frontend
 npm ci --no-audit --no-fund
-node --test src/diakonos/components/planrahmen/*.test.mjs tests/planrahmen-*.test.mjs
+# alle Node-Tests der Liste (dieselbe Datei, die der Image-Build liest)
+node --test $(grep -v '^#' tests/testliste.txt | grep -v '^$') --test
 npm run build
 ```
+
+**Welche Frontend-Tests laufen?** Die Liste steht in
+`frontend/tests/testliste.txt` — ein Glob-Muster pro Zeile, `#` ist
+Kommentar. Eine neue Testdatei braucht nur eine Zeile dort; die
+`backend/Dockerfile` liest die Datei über
+`ARG NODE_TESTLISTE=tests/testliste.txt` und führt
+`node --test <Muster> --test && npm run build` aus. `.gitattributes` führt die
+Datei mit `merge=union` zusammen, damit neue Zeilen nicht bei jedem Merge
+kollidieren. Der Wächter `frontend/tests/fetest1-testliste.test.mjs` meldet
+Testdateien, die in keinem Muster stehen, und Muster, die keine Datei treffen.
+
+Gezielte Auswahl (schneller Build, z. B. für eine Karte):
+
+```bash
+printf 'tests/<karte>-*.test.mjs\n' > frontend/tests/.auswahl.txt   # nicht committen
+docker build -f backend/Dockerfile \
+    --build-arg NODE_TESTLISTE=tests/.auswahl.txt -t diakronos-<karte>:test .
+```
+
+Eine **leere** Auswahl bricht den Build mit klarer Meldung ab: `node --test`
+ohne Argumente würde sonst selbst alle Tests im Verzeichnis suchen, und
+„nichts ausgewählt“ liefe als „alles“ weiter.
 
 `--legacy-peer-deps` ist **nicht** mehr nötig (DEP-1 hat `frappe-ui` entfernt,
 DEP-2 `@vitejs/plugin-vue` auf `^6` gehoben; der Peer-Bereich passt zu

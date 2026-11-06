@@ -116,30 +116,45 @@ def test_fix6_login_maske_nutzt_zeiger_kriterium(pfad: str) -> None:
 
 
 def test_fix6_node_tests_stehen_im_image() -> None:
-    """Der Dockerfile-Waechter braucht den Dockerfile — und wenn er fehlt, sagt
+    """Der Testlisten-Waechter braucht die Liste — und wenn sie fehlt, sagt
     der Test WARUM er uebersprungen wird (SEC-11c/R4).
 
     BEFUND (Image-Abnahme SEC-11c): `backend/Dockerfile` wird nicht ins Image
     kopiert; im Image gab es die Datei nie, der Test brach mit `AssertionError`
     ab. Richtig ist ein SKIP mit Begruendung: die eine Aussage („das Glob steht
-    in der node --test-Zeile") ist am gebauten Image nicht mehr zu treffen —
+    in der Node-Testliste") ist am gebauten Image nicht mehr zu treffen —
     sie ist bereits Teil des Baus. Im Repo/Worktree laeuft der Test wie bisher.
+
+    FE-TEST-1: Die Muster stehen NICHT mehr in der `node --test`-Zeile der
+    Dockerfile, sondern in `frontend/tests/testliste.txt`; die Dockerfile liest
+    sie ueber `ARG NODE_TESTLISTE=tests/testliste.txt`. Geprueft wird daher die
+    Testliste — und dass die Dockerfile auf sie zeigt.
     """
+    testliste = WURZEL / "frontend/tests/testliste.txt"
+    if not testliste.is_file():
+        pytest.skip(
+            "frontend/tests/testliste.txt liegt nicht vor — "
+            f"gesucht unter {testliste}; die Node-Testliste wird im "
+            "Repo/Worktree geprueft, nicht im gebauten Image"
+        )
+    muster = testliste.read_text(encoding="utf-8")
+    # Die Muster selbst (eine Zeile, kein Kommentar-Rest).
+    zeilen = [z.strip() for z in muster.splitlines()]
+    for name in ("tests/fix6-*.test.mjs",):
+        assert name in zeilen, (
+            f"frontend/tests/testliste.txt: {name} fehlt"
+        )
+    # Die Dockerfile darf die Liste nicht wieder einbetten (eine Quelle).
     dockerfile = ((BACKEND / "Dockerfile").read_text(encoding="utf-8")
                   if (BACKEND / "Dockerfile").is_file() else None)
     if dockerfile is None:
         pytest.skip(
             "backend/Dockerfile liegt nicht im Image (wird nicht kopiert) — "
-            f"gesucht unter {BACKEND / 'Dockerfile'}; die node --test-Liste "
+            f"gesucht unter {BACKEND / 'Dockerfile'}; die README-Zeile "
             "wird im Repo/Worktree geprueft, nicht im gebauten Image"
         )
-    # Die Zeile mit der node --test-Liste (sie endet auf `--test \`).
-    zeile = next(
-        (z for z in dockerfile.splitlines() if "node --test" in z),
-        "",
-    )
-    assert "tests/fix6-*.test.mjs" in zeile, (
-        "backend/Dockerfile: tests/fix6-*.test.mjs fehlt in der node --test-Liste"
+    assert "ARG NODE_TESTLISTE=tests/testliste.txt" in dockerfile, (
+        "backend/Dockerfile liest die Muster nicht aus tests/testliste.txt"
     )
     # Die Testdateien selbst müssen im Quellbaum existieren, sonst läuft das
     # Glob im Image ins Leere.
