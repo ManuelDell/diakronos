@@ -239,6 +239,11 @@ COPY backend/src/diakronos_app/spa.py /ux2h-backend/spa.py
 # ruft sie bei vorhandenem Browser auf. Regel 13: Datei ausserhalb von
 # frontend/ -> eigene COPY-Zeile.
 COPY tools/demo/uiux-pruefung.py /tools/demo/uiux-pruefung.py
+# DEMO-2: `tests/demo2-musterhausen-entfernen.test.mjs` haelt die Loesch-
+# reihenfolge von `--entfernen` und die Server-Kennung in Moderator-/Prediger-
+# Feldern fest. Er liest `tools/demo/musterhausen.py` (ausserhalb von
+# frontend/ -> Regel 13: eigene COPY-Zeile; derselbe Ort wie oben).
+COPY tools/demo/musterhausen.py /tools/demo/musterhausen.py
 # LOGIN-1 (Paket 2026-11-05): `tests/login1-angemeldet-weiter.test.mjs` haelt
 # fest, dass die /login-Route eine vorhandene Sitzung VOR der Anbieter-Weiche
 # in die App weiterleitet (und dass `noredirect=1` das nicht tut). Er liest

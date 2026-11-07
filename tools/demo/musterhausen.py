@@ -126,8 +126,57 @@ _KENNUNGEN: dict[str, str] = {}
 
 
 def person_kennung(name: str) -> str:
-    """Gespeicherte Mitglied-Kennung zu einem Anzeigenamen (ID-1d)."""
-    return _KENNUNGEN.get(name, name)
+    """Gespeicherte Mitglied-Kennung zu einem Anzeigenamen (ID-1d).
+
+    Ein Rueckfall auf den Anzeigenamen waere ein stiller Fehler: die App
+    erwartet in Personenfeldern und Verweisen die SERVER-Kennung und lehnt
+    „Anna Beispiel“ mit „Unbekannte Person“ ab. Genau so entstand der Befund
+    DEMO-2 (abgelehnte Moderator-/Prediger-Felder). Deshalb bricht die
+    Zuordnung hier laut ab, statt einen falschen Wert weiterzureichen.
+    """
+    kennung = _KENNUNGEN.get(name)
+    if not kennung:
+        raise DemoFehler(
+            f"Zu {name!r} ist keine Mitglied-Kennung bekannt — der Schritt laeuft "
+            "vor `mitglieder_anlegen` oder die Person fehlt in den Demo-Daten."
+        )
+    return kennung
+
+
+def kennungen_aus_datenbank(session) -> list[str]:
+    """Die Demo-Mitglieder aus der DATENBANK aufloesen (Vorname+Nachname -> name).
+
+    ``_KENNUNGEN`` fuellt nur ``mitglieder_anlegen``. ``entfernen`` laeuft in
+    einem EIGENEN Prozess (``--entfernen``) — dort ist die Zuordnung leer, und
+    jeder Aufruf von ``person_kennung`` brach mit ``DemoFehler`` ab. Das war der
+    Blocker aus der Re-Review: das Entfernen funktionierte nur, wenn Anlegen und
+    Entfernen in DEMSELBEN Prozess liefen (Tests, --pruefen).
+
+    Gesucht wird wie in ``mitglieder_anlegen`` ueber Vor- und Nachname; die
+    gefundene Kennung landet in ``_KENNUNGEN``. Personen, die es in dieser
+    Datenbank nicht (mehr) gibt, werden uebersprungen — eine halb entfernte
+    Demo soll sich weiterhin aufraeumen lassen.
+
+    Rueckgabe: die Kennungen aller gefundenen Demo-Mitglieder (Reihenfolge wie
+    in den Demo-Daten, ohne Doppelte).
+    """
+    from diakronos_app.models.diakonos import Mitglied
+
+    gefunden: list[str] = []
+    for person in list(daten.MITGLIEDER) + list(daten.MITGLIEDER_AUSGETRETEN):
+        anzeige = daten.person(person["vorname"], person["nachname"])
+        kennung = session.execute(
+            select(Mitglied.name).where(
+                Mitglied.vorname == person["vorname"],
+                Mitglied.nachname == person["nachname"],
+            ).limit(1)
+        ).scalar()
+        if kennung is None:
+            continue
+        _KENNUNGEN[anzeige] = kennung
+        if kennung not in gefunden:
+            gefunden.append(kennung)
+    return gefunden
 
 
 def _jetzt() -> datetime:
@@ -1138,6 +1187,8 @@ def merkmalwerte_anlegen(a: Anleger) -> None:
     def art_von(schluessel: str) -> str:
         return "auswahl" if schluessel in ("instrument", "familie") else "tag"
 
+    fehlend: list[str] = []
+
     for schluessel, mitglieder in daten.MERKMALE_PERSON.items():
         art = art_von(schluessel)
         merkmal_id = merkmal_person_anlegen(a, schluessel, anzeigen.get(schluessel, schluessel),
@@ -1146,6 +1197,15 @@ def merkmalwerte_anlegen(a: Anleger) -> None:
             # ID-1d: `ziel_id` ist die SERVER-Kennung der Person, nicht der
             # Anzeigename — sonst findet die Engine keinen Traeger fuer das
             # Merkmal (Befund: Plaene ohne Inhalt).
+            #
+            # `daten.MERKMALE_PERSON["familie"]` nennt teils Personen, die es in
+            # der Gemeinde nicht (mehr) gibt (Altbestand der Kochbuch-Werte).
+            # Ein Merkmalwert haengt an der Kennung; ohne Mitglied gaebe es
+            # nichts, woran er haengen koennte. Diese Eintraege werden
+            # uebersprungen und am Ende gemeldet — kein stiller Fehlwert.
+            if anzeige not in _KENNUNGEN:
+                fehlend.append(f"{schluessel}: {anzeige}")
+                continue
             mitglied = person_kennung(anzeige)
             wert = {"wert": True}
             if schluessel == "familie":
@@ -1168,6 +1228,10 @@ def merkmalwerte_anlegen(a: Anleger) -> None:
             ))
             a.s.flush()
             a.zaehle("Merkmalwert", True)
+
+    if fehlend:
+        _meldung(f"Warnung: {len(fehlend)} Merkmal-Traeger ohne Mitglied in der "
+                 "Gemeinde uebersprungen (" + "; ".join(fehlend[:5]) + ")")
 
 
 def plantypen_anlegen(a: Anleger, stichtag: date) -> dict[str, str]:
@@ -1601,9 +1665,12 @@ def plan_besetzen_und_veroeffentlichen(a: Anleger, plan_ids: dict[str, str]) -> 
                     wert = lieder[(nr * 2 + nr_lied) % len(lieder)]
                     nr_lied += 1
                 elif slot.feld_pfad.endswith(".moderator"):
-                    wert = moderatoren[nr % len(moderatoren)]
+                    # ID-1d: Personenfelder tragen die SERVER-Kennung, nicht
+                    # den Anzeigenamen — sonst lehnt `eintrag_setzen` jedes
+                    # dieser Felder mit „Unbekannte Person“ ab (DEMO-2).
+                    wert = person_kennung(moderatoren[nr % len(moderatoren)])
                 elif slot.feld_pfad.endswith(".prediger"):
-                    wert = prediger[nr % len(prediger)]
+                    wert = person_kennung(prediger[nr % len(prediger)])
                 elif slot.feld_pfad.endswith(".thema"):
                     # Die Predigtreihe ist eine PLAN-Sammlung (Kochbuch:
                     # ``umfang: plan``) mit genau einem Eintrag je Termin;
@@ -1644,7 +1711,8 @@ def plan_besetzen_und_veroeffentlichen(a: Anleger, plan_ids: dict[str, str]) -> 
                 if slot.feld_pfad.endswith(".lied"):
                     wert = lieder[(nr * 3 + len(offen)) % len(lieder)]
                 elif slot.feld_pfad.endswith(".verantwortlich"):
-                    wert = daten.MERKMALE_PERSON["dirigent"][0]
+                    # ID-1d: Personenfeld = Server-Kennung der Person.
+                    wert = person_kennung(daten.MERKMALE_PERSON["dirigent"][0])
                 elif slot.feld_pfad.endswith(".beginn"):
                     wert = f"{18 + len(offen)}:00"
                 elif slot.feld_pfad.endswith(".dauer"):
@@ -1965,6 +2033,73 @@ def anlegen(nur_pruefen: bool = False, stichtag: date | None = None) -> str:
         session.close()
 
 
+def _demo_merkmale_vorhanden(session) -> list[str]:
+    """Welche DEMO-Merkmale fehlen, obwohl die Datenbank Demo-Spuren zeigt.
+
+    Ein Konto allein ueber seine Adresse zu erkennen, waere zu wenig:
+    ``admin@example.org`` kann in einer gewachsenen Datenbank jemand anderes
+    sein. Geprueft wird deshalb, was ``anlegen`` selbst herstellt —
+    Organisationsname in den Einstellungen, das Mitglied „Anna Beispiel“ am
+    Mitglieder-Konto, „Miriam Sonnleitner“ am Verwaltungskonto.
+
+    Auf einer Datenbank OHNE jede Demo-Spur ist die Liste leer: ``--entfernen``
+    bleibt dort der harmlose No-op (zweiter Lauf, leere Wegwerf-DB).
+    """
+    from diakronos_app.models.diakronos import DiakronosEinstellungen
+    from diakronos_app.models.diakonos import Mitglied
+    from diakronos_app.models.core import User
+
+    einst = session.get(DiakronosEinstellungen, "Diakronos Einstellungen")
+    hat_einstellung = einst is not None and einst.organisationsname == daten.GEMEINDE
+    konto_da = {email: session.get(User, email) is not None for email in KONTEN}
+    # Ein Demo-Mitglied genuegt als Beweis, dass hier eine Demo steht.
+    namen = [f"{p['vorname']} {p['nachname']}"
+             for p in list(daten.MITGLIEDER) + list(daten.MITGLIEDER_AUSGETRETEN)]
+    vorhandene = session.scalars(select(Mitglied).where(
+        Mitglied.vorname.in_([n.split()[0] for n in namen]))).all()
+    hat_mitglied = any(f"{m.vorname} {m.nachname}" in namen for m in vorhandene)
+
+    if not (hat_einstellung or hat_mitglied or any(konto_da.values())):
+        # Keine Spur der Demo: nichts zu schuetzen, aber auch nichts zu tun.
+        return []
+
+    fehlt: list[str] = []
+    if not hat_einstellung:
+        fehlt.append(f"Einstellungen.organisationsname == {daten.GEMEINDE!r}")
+    for email, person in ((daten.MITGLIED_EMAIL, daten.MITGLIED_PERSON),
+                          (daten.ADMIN_EMAIL, daten.ADMIN_PERSON)):
+        if not konto_da.get(email):
+            fehlt.append(f"Konto {email} fehlt")
+            continue
+        # Die Demo legt genau EIN Mitglied mit dieser Verknuepfung an.
+        zeilen = session.scalars(select(Mitglied).where(
+            Mitglied.user == email)).all()
+        if len(zeilen) != 1:
+            fehlt.append(f"Konto {email} haengt an {len(zeilen)} Mitgliedern (Demo: 1)")
+            continue
+        if f"{zeilen[0].vorname} {zeilen[0].nachname}" != person:
+            fehlt.append(f"Konto {email} gehoert zu "
+                         f"{zeilen[0].vorname} {zeilen[0].nachname!r}, nicht zu {person!r}")
+    return fehlt
+
+
+def pruefe_demo_konten(session) -> None:
+    """Abbruch, wenn die Demo-Konten nicht (mehr) zur Demo gehoeren.
+
+    ``entfernen`` loest die Verweise auf ``admin@example.org`` und
+    ``anna.beispiel@example.org`` und loescht die Konten anschliessend. Traegt
+    ein Konto in dieser Datenbank aber gar nicht die Demo-Merkmale, gehoert es
+    jemand anderem — dann darf die Demo es nicht anfassen. Die Pruefung laeuft
+    VOR dem ersten DELETE; der Abbruch laesst alles unveraendert.
+    """
+    fehlt = _demo_merkmale_vorhanden(session)
+    if fehlt:
+        raise DemoFehler(
+            "Die Demo-Konten tragen nicht die Demo-Merkmale — Abbruch ohne "
+            "Aenderung (nichts geloescht): " + "; ".join(fehlt)
+        )
+
+
 def entfernen() -> str:
     """Entfernt die Demo-Datensaetze wieder (nur die eigenen Kennungen).
 
@@ -1978,10 +2113,20 @@ def entfernen() -> str:
         Abwesenheit, Eintrag as PlanEintrag, PlantypVersion, Sammlung,
         Termin as PlanTermin, Verlauf as PlanVerlauf,
     )
+    from diakronos_app.models.diakonos import AuditLog
 
     session = SessionLocal()
     geloescht: dict[str, int] = {}
     try:
+        # VOR dem ersten DELETE: gehoeren die Konten ueberhaupt zur Demo?
+        pruefe_demo_konten(session)
+
+        # Die Mitglied-Kennungen aus der DATENBANK holen. `--entfernen` ist ein
+        # eigener Prozess — `_KENNUNGEN` ist dort leer und jeder Aufruf von
+        # `person_kennung` brach ab (Blocker der Re-Review). Nicht gefundene
+        # Personen werden uebersprungen (halb entfernte Demo bleibt aufraeumbar).
+        demo_mitglieder = kennungen_aus_datenbank(session)
+
         def weg(art: str, instanz: Any) -> None:
             session.delete(instanz)
             geloescht[art] = geloescht.get(art, 0) + 1
@@ -2005,8 +2150,7 @@ def entfernen() -> str:
                 weg("Plansammlung", zeile)
             for zeile in session.scalars(select(Plan).where(Plan.id.in_(plan_ids))).all():
                 weg("Plan", zeile)
-        _alle_namen = [person_kennung(daten.person(p["vorname"], p["nachname"]))
-                       for p in list(daten.MITGLIEDER) + list(daten.MITGLIEDER_AUSGETRETEN)]
+        _alle_namen = demo_mitglieder
         for zeile in session.scalars(select(Abwesenheit).where(
                 Abwesenheit.mitglied.in_(_alle_namen))).all():
             weg("Abwesenheit", zeile)
@@ -2076,7 +2220,8 @@ def entfernen() -> str:
             geloescht["Termin"] = geloescht.get("Termin", 0) + _res.rowcount
         session.flush()
 
-        for name in ("buchung-gemeindefest", "buchung-jugendraum", "buchung-gemeindebus"):
+        for name in ("buchung-gemeindefest", "buchung-jugendraum", "buchung-gemeindebus",
+                     "buchung-technikraum"):
             zeile = session.get(RessourcenBuchung, name)
             if zeile is not None:
                 weg("Ressourcenbuchung", zeile)
@@ -2092,17 +2237,66 @@ def entfernen() -> str:
             if zeile is not None:
                 weg("Lied", zeile)
 
+        # Die Spuren der Demo-Konten loesen, BEVOR die Stammdaten fallen.
+        #
+        # 1) Protokoll (`audit_log.actor`) — genullt, NICHT geloescht: das
+        #    Protokoll bleibt stehen, nur der Urheber ist keiner mehr (der
+        #    Zaehler sagt das genauso). `audit_log` haengt nicht an der Demo;
+        #    die Zeilen entstehen unter anderem durch die angebotenen
+        #    Statusaenderungen (`_log_profil_aenderung`). Ein pauschales
+        #    `UPDATE ... WHERE actor IN (...)` uebersah sie: SQLAlchemy schreibt
+        #    sie erst beim Flush, das UPDATE lief in der Unit of Work davor —
+        #    erst die Konten-Loeschung brach dann am Fremdschluessel
+        #    `audit_log_actor_fkey` (Befund DEMO-2, Nacharbeit).
+        for zeile in session.scalars(select(AuditLog).where(
+                AuditLog.actor.in_(list(KONTEN)))).all():
+            zeile.actor = None
+            geloescht["Audit-Akteur genullt"] = geloescht.get("Audit-Akteur genullt", 0) + 1
+        session.flush()
+
+        # 2) In-App-Benachrichtigungen und Benachrichtigungs-Einstellungen der
+        #    Demo-Konten (`for_user`/`user` -> `user.name`). Sie entstehen durch
+        #    die Demo-Aktionen selbst und gehoeren damit zur Demo.
+        for tabelle, spalte in (("notification_log", "for_user"),
+                                ("user_notification_preference", '"user"')):
+            _res = session.execute(
+                text(f"DELETE FROM {tabelle} WHERE {spalte} IN :p")
+                .bindparams(bindparam("p", expanding=True)),
+                {"p": list(KONTEN)},
+            )
+            if _res.rowcount:
+                geloescht["Benachrichtigung"] = geloescht.get("Benachrichtigung", 0) + _res.rowcount
+        session.flush()
+
         # Musikteams: erst die Mitglieder/Untergruppen, dann die Obergruppe.
         _teams = [t["name"] for t in daten.MUSIKTEAMS]
+        _og = daten.MUSIKTEAMS_OBERGRUPPE
+        # Mitgliedschaften nur der Untergruppen, die WIRKLICH unter der
+        # Dachgruppe haengen (eine gleichnamige fremde „Gruppe 3“ bleibt).
         _res = session.execute(
-            text("DELETE FROM untergruppenmitgliedschaft WHERE parent IN :p")
-            .bindparams(bindparam("p", expanding=True)), {"p": _teams})
+            text("DELETE FROM untergruppenmitgliedschaft WHERE parent IN ("
+                 "SELECT name FROM untergruppe WHERE name IN :p AND gruppe = :og)")
+            .bindparams(bindparam("p", expanding=True)), {"p": _teams, "og": _og})
         if _res.rowcount:
             geloescht["Musikteam-Mitglied"] = geloescht.get("Musikteam-Mitglied", 0) + _res.rowcount
-        for team in daten.MUSIKTEAMS:
-            zeile = session.get(Untergruppe, team["name"])
-            if zeile is not None:
-                weg("Musikteam", zeile)
+        # Die Untergruppen zeigen mit `gruppe` auf die Dachgruppe — VOR ihr weg.
+        # Ueber ein Statement, nicht ueber ORM-Objekte: der Flush der Unit of
+        # Work sortiert die DELETEs neu und die Dachgruppe kaeme zuerst
+        # (`untergruppe_gruppe_fkey`, Befund DEMO-2 unter PostgreSQL).
+        # Eingeschraenkt auf `gruppe = MUSIKTEAMS_OBERGRUPPE`: „Gruppe 3“ ist
+        # ein so allgemeiner Name, dass eine gleichnamige ECHTE Untergruppe
+        # einer fremden Gruppe sonst mitgeloescht wuerde. Was nicht unter der
+        # Dachgruppe haengt, gehoert nicht zur Demo.
+        session.execute(
+            text("DELETE FROM untergruppe_verantwortlicher WHERE parent IN ("
+                 "SELECT name FROM untergruppe WHERE name IN :p AND gruppe = :og)")
+            .bindparams(bindparam("p", expanding=True)), {"p": _teams, "og": _og})
+        _res = session.execute(
+            text("DELETE FROM untergruppe WHERE name IN :p AND gruppe = :og")
+            .bindparams(bindparam("p", expanding=True)), {"p": _teams, "og": _og})
+        if _res.rowcount:
+            geloescht["Musikteam"] = geloescht.get("Musikteam", 0) + _res.rowcount
+        session.flush()
         zeile = session.get(Gruppe, daten.MUSIKTEAMS_OBERGRUPPE)
         if zeile is not None:
             weg("Musikteam-Obergruppe", zeile)
@@ -2146,16 +2340,23 @@ def entfernen() -> str:
         if _res.rowcount:
             geloescht["Mitglied-Konto"] = geloescht.get("Mitglied-Konto", 0) + _res.rowcount
 
-        _personen = [person_kennung(daten.person(p["vorname"], p["nachname"]))
-                     for p in list(daten.MITGLIEDER) + list(daten.MITGLIEDER_AUSGETRETEN)]
-        _res = session.execute(
-            text("DELETE FROM mitglied_beziehung WHERE parent IN :p").bindparams(bindparam("p", expanding=True)), {"p": _personen})
-        if _res.rowcount:
-            geloescht["Beziehung"] = geloescht.get("Beziehung", 0) + _res.rowcount
+        _personen = demo_mitglieder
+        # Leere Liste → kein `IN ()`: SQLAlchemy setzt dann `CAST(NULL AS INTEGER)`
+        # und PostgreSQL bricht mit „operator does not exist: character varying =
+        # integer“ ab (zweiter Lauf, Personen schon weg).
+        if _personen:
+            _res = session.execute(
+                text("DELETE FROM mitglied_beziehung WHERE parent IN :p")
+                .bindparams(bindparam("p", expanding=True)), {"p": _personen})
+            if _res.rowcount:
+                geloescht["Beziehung"] = geloescht.get("Beziehung", 0) + _res.rowcount
         # Auch die ueber den echten Austritts-Weg ausgetragenen Personen
         # (Befund PUB-2b/B1) gehoeren zur Demo und muessen weg.
         for person in list(daten.MITGLIEDER) + list(daten.MITGLIEDER_AUSGETRETEN):
             anzeige = daten.person(person["vorname"], person["nachname"])
+            if anzeige not in _KENNUNGEN:
+                # Fehlt in dieser Datenbank (bereits entfernt) — ueberspringen.
+                continue
             zeile = session.get(Mitglied, person_kennung(anzeige))
             if zeile is not None:
                 weg("Mitglied", zeile)
