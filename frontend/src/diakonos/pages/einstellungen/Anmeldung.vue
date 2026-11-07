@@ -16,7 +16,7 @@
 
     <form ref="formular" @submit.prevent="speichernMitFokus">
       <fieldset :disabled="!bedienbar" class="an-felder">
-        <DkCard title="Unbekannte Personen">
+        <DkCard title="Unbekannte Personen" anker="unbekannte-personen">
           <p>Was passiert, wenn eine Person noch kein Konto in Diakronos hat?</p>
           <div class="an-optionen">
             <label v-for="opt in modiOptionen" :key="opt.wert" class="an-option">
@@ -26,7 +26,7 @@
           </div>
         </DkCard>
 
-        <DkCard title="Authentik-Gruppen und Rollen">
+        <DkCard title="Authentik-Gruppen und Rollen" anker="authentik-gruppen">
           <p>Links steht der genaue Gruppenname in Authentik, nicht eine Gruppe dieser Gemeinde.
             Rechts wählst du die Rechte in Diakronos. Beim Anmelden werden Rollen ergänzt, nicht entzogen.
             Auch bestehende Konten erhalten passende Gruppenrollen.</p>

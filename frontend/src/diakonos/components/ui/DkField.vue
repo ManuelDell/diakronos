@@ -1,5 +1,6 @@
 <template>
-  <div class="dk-ui-field" :class="{ 'has-error': !!angezeigterFehler, 'is-disabled': disabled }">
+  <div class="dk-ui-field" :class="{ 'has-error': !!angezeigterFehler, 'is-disabled': disabled }"
+    :id="anker ? ankerId : undefined">
     <label v-if="label" :for="eingabeId" class="dk-ui-field-label">
       {{ label }}<span v-if="pflichtAktiv" class="dk-ui-field-pflicht" aria-hidden="true">*</span>
     </label>
@@ -66,6 +67,7 @@
  * Nur Tokens, keine festen Farben.
  */
 import { computed, ref, useId, watch } from 'vue'
+import { sprungId } from '../../pages/sprung.mjs'
 
 const props = defineProps({
   label: { type: String, default: '' },
@@ -95,6 +97,13 @@ const props = defineProps({
   /** Höchstens so viele Zeichen. */
   maxlength: { type: [String, Number], default: undefined },
   disabled: Boolean,
+  /**
+   * UX3h: Sprungmarke dieses Feldes (`dk-sprung-<anker>`). Die Suche der
+   * Einstellungen führt zu genau dieser Kennung; ein Feld ohne `anker` hat
+   * keine. Die Kennung kommt aus `pages/sprung.mjs` — EINE Wahrheit für
+   * Marke und Ziel, damit beide nicht auseinanderlaufen.
+   */
+  anker: { type: String, default: '' },
 })
 
 const emit = defineEmits(['update:wert', 'pruefung'])
@@ -113,6 +122,8 @@ const eingabeId = computed(() => 'dk-field-' + id)
  */
 const meldungId = computed(() => 'dk-field-desc-' + id)
 const hilfeId = computed(() => 'dk-field-hilfe-' + id)
+/** UX3h: Sprungmarke des Feldes (leer = keine). */
+const ankerId = computed(() => sprungId(props.anker))
 
 // ── Zustand der Eigenprüfung ───────────────────────────────────────────────
 // Das Feld wurde einmal verlassen — BEFUND der Abnahme: Fokussieren ist

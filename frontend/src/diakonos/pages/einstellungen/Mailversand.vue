@@ -34,7 +34,7 @@
       <form @submit.prevent="speichern">
         <fieldset class="mv-felder">
           <DkCard title="Server">
-            <DkField label="Name des Mailservers" required
+            <DkField label="Name des Mailservers" required anker="host"
               :regel="regelHost" :wert="form.host"
               help="Zum Beispiel mail.example.org — ohne http:// und ohne Schrägstrich."
               v-slot="feld"
@@ -42,7 +42,7 @@
               <input v-bind="feld.feldProps" type="text" inputmode="url" autocomplete="off" />
             </DkField>
 
-            <DkField label="Verschlüsselung" required :help="hilfeSicherheit">
+            <DkField label="Verschlüsselung" required anker="verschluesselung" :help="hilfeSicherheit">
               <select v-model="form.sicherheit" class="dk-ui-eingabe"
                 @change="sicherheitGeaendert">
                 <option v-for="a in SICHERHEIT_ARTEN" :key="a.wert" :value="a.wert">
@@ -57,7 +57,7 @@
               abgeschotteten Netz steht — und dann ohne Anmeldung.
             </DkHint>
 
-            <DkField label="Port" required
+            <DkField label="Port" required anker="port"
               help="STARTTLS meist 587, SSL/TLS meist 465. Manche Anbieter verlangen etwas anderes.">
               <input v-model.number="form.port" class="dk-ui-eingabe" type="number"
                 min="1" max="65535" step="1" inputmode="numeric" required />
@@ -71,13 +71,13 @@
           </DkCard>
 
           <DkCard title="Anmeldung">
-            <DkField label="Benutzername"
+            <DkField label="Benutzername" anker="benutzername"
               help="Meist die vollständige Adresse des Postfachs. Leer lassen, wenn der Server keine Anmeldung verlangt.">
               <input v-model.trim="form.benutzername" class="dk-ui-eingabe" type="text"
                 autocomplete="username" />
             </DkField>
 
-            <DkField label="Passwort" :help="hilfePasswort">
+            <DkField label="Passwort" anker="passwort" :help="hilfePasswort">
               <input v-model="passwort" class="dk-ui-eingabe" type="password"
                 autocomplete="new-password" :placeholder="platzhalterPasswort" />
             </DkField>
@@ -97,14 +97,14 @@
           <DkCard title="Absender">
             <!-- UX2f: Feld mit Prüfung — die Adresse wird beim Verlassen und
                  danach beim Tippen geprüft, die Meldung steht direkt am Feld. -->
-            <DkField label="Absenderadresse" required
+            <DkField label="Absenderadresse" required anker="absender"
               :regel="regelAbsender" :wert="form.absender"
               help="Diese Adresse sehen die Empfänger. Meist dieselbe wie der Benutzername."
               v-slot="feld"
               @update:wert="form.absender = $event">
               <input v-bind="feld.feldProps" type="email" autocomplete="off" />
             </DkField>
-            <DkField label="Absendername"
+            <DkField label="Absendername" anker="absendername"
               help="Zum Beispiel der Name deiner Gemeinde. Ohne Angabe steht dort „Diakronos“.">
               <input v-model.trim="form.absenderName" class="dk-ui-eingabe" type="text" />
             </DkField>
@@ -121,7 +121,7 @@
         </fieldset>
       </form>
 
-      <DkCard title="Testmail">
+      <DkCard title="Testmail" anker="testmail">
         <p class="mv-hilfe">
           Die Testmail geht an die Adresse deines eigenen Kontos
           <template v-if="meineAdresse">(<strong>{{ meineAdresse }}</strong>)</template>.

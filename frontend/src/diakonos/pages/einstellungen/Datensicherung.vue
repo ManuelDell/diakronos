@@ -14,12 +14,12 @@
       <!-- ── Einstellungen ─────────────────────────────────────────────── -->
       <form @submit.prevent="einstellungenSpeichern">
         <fieldset class="sk-felder">
-          <DkCard title="Automatisch sichern">
+          <DkCard title="Automatisch sichern" anker="automatisch">
             <label class="sk-schalter">
               <input v-model="automatisch" type="checkbox" />
               <span>Täglich automatisch sichern</span>
             </label>
-            <DkField label="Uhrzeit" help="Zu dieser Uhrzeit läuft die Sicherung (Ortszeit)."
+            <DkField label="Uhrzeit" anker="uhrzeit" help="Zu dieser Uhrzeit läuft die Sicherung (Ortszeit)."
               v-slot="feld">
               <input v-bind="feld.feldProps" v-model="uhrzeit" class="dk-ui-eingabe" type="time"
                 step="60" required />
@@ -31,7 +31,7 @@
           </DkCard>
 
           <DkCard title="Aufbewahrung">
-            <DkField label="Sicherungen aufbewahren für" required
+            <DkField label="Sicherungen aufbewahren für" required anker="aufbewahrungstage"
               help="Pflichtfeld. Mindestens 1 Tag, höchstens 3650 Tage."
               v-slot="feld">
               <span class="sk-einheit">

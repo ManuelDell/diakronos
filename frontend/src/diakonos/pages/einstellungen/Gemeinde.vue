@@ -19,21 +19,21 @@
     <form ref="formular" @submit.prevent="speichernMitFokus">
       <fieldset :disabled="!bedienbar" class="gem-felder">
         <DkCard title="Name und Kontakt">
-          <DkField label="Name der Gemeinde" required :error="feldFehler.gemeindename" v-slot="feld">
+          <DkField label="Name der Gemeinde" required anker="name" :error="feldFehler.gemeindename" v-slot="feld">
             <input v-bind="feld.feldProps" v-model="gemeindename" class="dk-ui-eingabe" maxlength="140"
               placeholder="z. B. Versöhnungskirche Heilbronn" />
           </DkField>
           <!-- ON-4 (Nachtrag Orchestrator 2026-11-03): Die Angaben aus dem
                Assistenten werden nach der Ersteinrichtung AUSSCHLIESSLICH hier
                gepflegt — Kurzname, Logo, Anschrift, Telefon, Website. -->
-          <DkField label="Kurzname" :error="feldFehler.kurzname"
+          <DkField label="Kurzname" anker="kurzname" :error="feldFehler.kurzname"
             help="Erscheint in Kopfzeile und Kalenderkürzeln." v-slot="feld">
             <input v-bind="feld.feldProps" v-model="kurzname" class="dk-ui-eingabe" maxlength="40"
               placeholder="z. B. Versöhnungskirche" />
           </DkField>
           <!-- UX2f: E-Mail mit Prüfung — die Meldung steht am Feld (beim
                Verlassen, danach beim Tippen), nicht erst nach dem Speichern. -->
-          <DkField label="Kontakt-E-Mail" help="An diese Adresse wenden sich Personen mit Fragen."
+          <DkField label="Kontakt-E-Mail" anker="kontakt-email" help="An diese Adresse wenden sich Personen mit Fragen."
             :error="feldFehler.kontakt_email" :regel="emailRegel()" :wert="kontaktEmail"
             maxlength="255" @update:wert="kontaktEmail = $event" v-slot="feld">
             <DkEingabe v-bind="feld.feldProps" type="email" placeholder="buero@gemeinde.example" />
@@ -42,7 +42,7 @@
 
         <!-- ON-4: Logo (ON-2) — Hochladen/Entfernen mit derselben Vorprüfung wie
              im Assistenten; eingebunden NUR per `<img>` (kein Markup). -->
-        <DkCard title="Logo">
+        <DkCard title="Logo" anker="logo">
           <p class="gem-hilfe">Erscheint in der Seitenleiste und auf der Anmeldeseite.
             Ohne Logo zeigt Diakronos ein Monogramm.</p>
           <div class="gem-logo">
@@ -68,26 +68,26 @@
         </DkCard>
 
         <DkCard title="Anschrift und Erreichbarkeit">
-          <DkField label="Straße und Hausnummer" :error="feldFehler.strasse" v-slot="feld">
+          <DkField label="Straße und Hausnummer" anker="strasse" :error="feldFehler.strasse" v-slot="feld">
             <input v-bind="feld.feldProps" v-model="strasse" class="dk-ui-eingabe" maxlength="120"
               autocomplete="street-address" placeholder="z. B. Kirchplatz 1" />
           </DkField>
           <div class="gem-paar">
-            <DkField label="PLZ" :error="feldFehler.plz" :regel="plzRegel()" :wert="plz"
+            <DkField label="PLZ" anker="plz" :error="feldFehler.plz" :regel="plzRegel()" :wert="plz"
               maxlength="10" @update:wert="plz = $event" v-slot="feld">
               <input v-bind="feld.feldProps" v-model="plz" class="dk-ui-eingabe" maxlength="10"
                 inputmode="numeric" autocomplete="postal-code" placeholder="z. B. 12345" />
             </DkField>
-            <DkField label="Ort" :error="feldFehler.ort" v-slot="feld">
+            <DkField label="Ort" anker="ort" :error="feldFehler.ort" v-slot="feld">
               <input v-bind="feld.feldProps" v-model="ort" class="dk-ui-eingabe" maxlength="120"
                 autocomplete="address-level2" placeholder="z. B. Musterstadt" />
             </DkField>
           </div>
-          <DkField label="Telefon" :error="feldFehler.telefon" v-slot="feld">
+          <DkField label="Telefon" anker="telefon" :error="feldFehler.telefon" v-slot="feld">
             <input v-bind="feld.feldProps" v-model="telefon" class="dk-ui-eingabe" type="tel"
               maxlength="40" placeholder="z. B. +49 7131 123456" />
           </DkField>
-          <DkField label="Website" :error="feldFehler.website" :regel="urlRegel()"
+          <DkField label="Website" anker="website" :error="feldFehler.website" :regel="urlRegel()"
             :wert="website" maxlength="255"
             help="Beginnt mit https:// — z. B. https://gemeinde.example.org."
             @update:wert="website = $event" v-slot="feld">
@@ -107,7 +107,7 @@
             Bleibt sie leer, nimmt die App die Adresse aus dem Browser.</p>
           <!-- UX2f: Die Adressform wird jetzt schon AM FELD geprüft (bisher
                erst beim Speichern); die Sammelprüfung beim Speichern bleibt. -->
-          <DkField label="Adresse" :error="feldFehler.adresse" :regel="urlRegel()"
+          <DkField label="Adresse" anker="oeffentliche-adresse" :error="feldFehler.adresse" :regel="urlRegel()"
             :wert="oeffentlicheAdresse" maxlength="255"
             help="Beginnt mit https:// — z. B. https://gemeinde.example.org."
             @update:wert="oeffentlicheAdresse = $event" v-slot="feld">
@@ -119,7 +119,7 @@
         <DkCard title="Willkommenstext">
           <p class="gem-hilfe">Erscheint auf der Registrierungs- und Gast-Anmeldeseite
             über dem Formular – ein kurzer Satz genügt.</p>
-          <DkField label="Text" v-slot="feld">
+          <DkField label="Text" anker="willkommenstext" v-slot="feld">
             <textarea v-bind="feld.feldProps" v-model="willkommenstext" class="dk-ui-eingabe" rows="3"
               maxlength="4000"></textarea>
           </DkField>

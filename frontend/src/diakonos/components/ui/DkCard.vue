@@ -1,5 +1,5 @@
 <template>
-  <section class="dk-ui-card">
+  <section class="dk-ui-card" :id="anker ? ankerId : undefined">
     <header v-if="title || $slots.header || $slots.actions" class="dk-ui-card-kopf">
       <slot name="header">
         <h2 v-if="title" class="dk-ui-card-titel">{{ title }}</h2>
@@ -34,11 +34,21 @@
  * wählt, bekommt ihn hier — ohne dass die Komponente einen eigenen Wert
  * kennt.
  */
-defineProps({
+const props = defineProps({
   title: { type: String, default: '' },
   // flach: kein Innenabstand (z. B. für Tabellen, die selbst randlos sind)
   flach: Boolean,
+  /**
+   * UX3h: Sprungmarke dieser Karte (`dk-sprung-<anker>`) — für Abschnitte, die
+   * kein einzelnes Feld, sondern eine ganze Karte meinen (z. B. „Rundungen“
+   * oder „Authentik-Gruppen und Rollen“). Kennung aus `pages/sprung.mjs`.
+   */
+  anker: { type: String, default: '' },
 })
+import { computed } from 'vue'
+import { sprungId } from '../../pages/sprung.mjs'
+
+const ankerId = computed(() => sprungId(props.anker))
 </script>
 
 <style scoped>

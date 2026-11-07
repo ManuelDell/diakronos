@@ -226,6 +226,14 @@
      (Zeilen einer Liste, deren Zeilen dicht stehen), und ohne Kästen-Kante:
      hell eine Mischung aus Fläche und Linie, dunkel entsprechend. */
   --rahmen-farbe-leise: color-mix(in srgb, var(--line) 45%, var(--surface));
+  /* UX3h (Review 06.11.): Breite eines Ringes, der eine Fläche umschließt,
+     ohne sie zu verschieben (Fokusring am Feld, Marke des Sprungziels).
+     Gehört zu den Rahmen: Komponenten schreiben `0 0 0 var(--ring-breite)`,
+     nie `2px`. */
+  --ring-breite: 2px;
+  /* UX3h (Review 06.11., A6/UX1d): Suchfelder sind Fläche + Schatten, kein
+     Rahmen (Ä2). Eigener Name, weil der Kartenschatten dafür zu weich ist. */
+  --schatten-eingabe: 0 1px 2px color-mix(in srgb, var(--text) 10%, transparent);
 
   /* ── Raum (UX1a: Skala des Konzepts 4·8·12·16·24·32·48·64 px) ──────────
      NUR diese acht Stufen. Vorher standen hier 4·8·12·16·20·24·32 (20 und 32

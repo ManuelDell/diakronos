@@ -43,7 +43,8 @@
              Rahmen, Rundungen). Abstand statt Trennlinien (Prinzip S3/Ä2). -->
         <div class="gs-felder">
           <section v-for="gruppe in gruppen" :key="gruppe.id" class="gs-gruppe"
-            :aria-labelledby="'gs-' + gruppe.id">
+            :aria-labelledby="'gs-' + gruppe.id"
+            :id="ankerDerGruppe(gruppe.id)">
             <h3 :id="'gs-' + gruppe.id" class="gs-gruppe-titel">{{ gruppe.titel }}</h3>
             <p class="gs-gruppe-hilfe">{{ gruppe.hilfe }}</p>
 
@@ -201,6 +202,7 @@ import DkBadge from '../../components/ui/DkBadge.vue'
 import DkSkelett from '../../components/ui/DkSkelett.vue'
 import { useGestaltung } from '../../composables/useGestaltung.js'
 import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
+import { sprungId } from '../sprung.mjs'
 
 defineProps({ embedded: Boolean })
 
@@ -213,6 +215,17 @@ const {
 } = useGestaltung()
 // UX2d3a: Platzhalter statt Ladeprosa (erscheint erst nach kurzer Verzögerung).
 const { skelettSichtbar } = useLadeSkelett(laedt)
+
+/**
+ * UX3h: Sprungmarke der Gruppen („Abstände“, „Rahmen“, „Rundungen“) — die
+ * Suche der Einstellungen führt zu diesen Überschriften, weil die einzelnen
+ * Maße hier dynamisch aus dem Server kommen und keine festen Namen haben.
+ */
+const GRUPPE_ANKER = { skala: 'abstaende', abstand: 'abstaende', rahmen: 'rahmen', radius: 'rundungen' }
+function ankerDerGruppe(id) {
+  const name = GRUPPE_ANKER[id]
+  return name ? sprungId(name) : undefined
+}
 
 /** Die Musterliste — drei Zeilen zeigen Abstand, Höhe und Klickfläche. */
 const MUSTER_LISTE = ['Erster Eintrag', 'Zweiter Eintrag', 'Dritter Eintrag']
@@ -320,6 +333,17 @@ onMounted(async () => {
   display: grid;
   gap: var(--abstand-innen, var(--sp-2));
   min-width: 0;
+}
+/* UX3h (Review 06.11., A6): Sprungziel der Einstellungen-Suche. Diese Seite
+   vergibt ihre Marken an GRUPPEN (`ankerDerGruppe`), nicht an Felder — ohne
+   diese Regel spränge die Suche hier ins Nichts: der Ring ist die sichtbare
+   Antwort auf „wo bin ich gelandet“, zusätzlich zum Fokus (Prinzip Ä4).
+   `box-shadow` statt `border`, damit der Ring keinen Platz verschiebt. */
+.gs-gruppe.is-sprungziel {
+  box-shadow: 0 0 0 var(--ring-breite) var(--focus-ring);
+  border-radius: var(--radius);
+  outline: none;
+  transition: box-shadow var(--med) var(--ease);
 }
 .gs-gruppe-titel { font-size: var(--fs-h3); font-weight: var(--fw-h); margin: 0; color: var(--text); }
 .gs-gruppe-hilfe { color: var(--muted); font-size: var(--fs-sm); margin: 0; }

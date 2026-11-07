@@ -228,5 +228,6 @@ tests/ux3d-*.test.mjs
 tests/ux3c-*.test.mjs
 tests/ux1f-*.test.mjs
 tests/ux3e-*.test.mjs
+tests/ux3h-*.test.mjs
 tests/ux3f-*.test.mjs
 tests/ux1g-*.test.mjs

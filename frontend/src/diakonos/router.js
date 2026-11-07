@@ -185,6 +185,12 @@ const routeMap = {
 
 // Dynamic routes: pattern regex → page name
 const dynamicRoutes = [
+    // UX3h: ein Feldtreffer der Einstellungen-Suche führt auf
+    // `#/einstellungen/<bereich>/<feld>` — dieselbe Seite, der Abschnitt
+    // springt dann zu seiner Marke `dk-sprung-<feld>` (pages/sprung.mjs).
+    // Das Muster steht VOR allen anderen Einstellungs-Mustern; ohne es landete
+    // der Treffer auf „Seite nicht gefunden“.
+    { pattern: /^#\/einstellungen\/([a-z0-9-]+)\/[a-z0-9-]+$/, page: 'Einstellungen', param: 'bereich' },
     { pattern: /^#\/mitglied\/(.+)$/, page: 'MitgliedDetail', param: 'id' },
     // UXD-R20: Wiki-Artikel sind teilbar („#/wiki/‹Kennung›“ öffnet den Artikel).
     { pattern: /^#\/wiki\/(.+)$/, page: 'Wiki', param: 'id' },

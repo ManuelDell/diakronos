@@ -1343,6 +1343,30 @@ select.dk-form-select { appearance: auto; }
   width: 100%;
 }
 
+/* UX3h — Sprungziel der Einstellungen-Suche (pages/sprung.mjs).
+   Ein Treffer in einem FELDNAMEN führt hierher. Die Marke ist ein Ring um das
+   ganze Feld (Label, Eingabe, Hilfe) — nicht nur um das Eingabeelement, damit
+   auch ohne Farbwahrnehmung klar ist, WOHIN die Suche geführt hat: der Ring
+   liegt zusätzlich zur Fläche, und das Feld bekommt den Fokus (Tastatur). */
+.dk-ui-field.is-sprungziel {
+  border-radius: var(--radius);
+  box-shadow: 0 0 0 var(--ring-breite) var(--focus-ring);
+  background: var(--accent-soft);
+  padding: var(--sp-2);
+  margin: calc(var(--sp-2) * -1);
+  transition: background var(--med) var(--ease), box-shadow var(--med) var(--ease);
+}
+
+/* Die Marke sitzt auch an einer GRUPPE statt an einem Feld: die Gestaltung
+   vergibt ihre Sprungmarken an die Gruppenüberschriften (`ankerDerGruppe`).
+   Die Gruppe bleibt eine Fläche ohne Rahmen; der Ring kommt hinzu, ohne den
+   Innenabstand zu verschieben (deshalb `box-shadow`, nicht `border`) —
+   siehe `pages/einstellungen/Gestaltung.vue`. */
+.dk-ui-card.is-sprungziel {
+  box-shadow: 0 0 0 var(--ring-breite) var(--focus-ring);
+  transition: box-shadow var(--med) var(--ease);
+}
+
 /* =====================================================================
    Data Grid
    ===================================================================== */

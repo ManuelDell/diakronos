@@ -292,7 +292,12 @@ test('UX1k: Gestaltung ist ein Einstellungs-Abschnitt mit eigener Adresse', () =
 
 test('UX1k: der Abschnitt steht unter „Erweitert“ und nur für System Manager', () => {
   const seite = lies('src/diakonos/pages/Einstellungen.vue')
-  assert.match(seite, /gruppe: 'Erweitert'/)
+  // UX3h: Die Gruppen heißen seit dem Entwurf A6 klein geschrieben im
+  // Quelltext (`gruppe: 'erweitert'`), der angezeigte Titel kommt aus
+  // `pages/einstellungen/suche.mjs`. Beides wird hier geprüft.
+  assert.match(seite, /gruppe: 'erweitert'/)
+  assert.match(lies('src/diakonos/pages/einstellungen/suche.mjs'),
+    /\{ id: 'erweitert', titel: 'Erweitert' \}/)
   // Sichtbarkeit über die Rollenliste — nicht über `is_admin`.
   assert.match(seite, /nurSystemManager: true/)
   assert.match(seite, /rollen\.includes\('System Manager'\)/)
