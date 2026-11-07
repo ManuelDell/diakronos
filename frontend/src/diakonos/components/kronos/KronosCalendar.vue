@@ -2,7 +2,7 @@
 import { apiAntwortPruefen } from '../../composables/useApi.js'
 // WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
 import { apiUrl } from '../../../shared/basis.js'
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, createApp, h } from 'vue'
 import * as _EC from '@event-calendar/build'
 import '@event-calendar/build/dist/event-calendar.min.css'
 import { useEventsApi } from '../../composables/useEventsApi.js'
@@ -11,6 +11,12 @@ import { endeFuerKalender } from '../../composables/datumZeit.mjs'
 import { useImpersonation } from '../../composables/useImpersonation.js'
 import { showToast } from '../../composables/useToast.js'
 import KronosSeriesDialog from './KronosSeriesDialog.vue'
+import DkAktionen from '../ui/DkAktionen.vue'
+import { MENUE_EINTRAEGE } from './terminAktionenMenue.mjs'
+import { erstelleTerminDaten } from './terminAktionenDaten.mjs'
+// UX2e5: „⋯" je Termin — der Knopf ist ein Geschwister der Bibliotheks-Zeile
+// und wird per Kennung zugeordnet (siehe ./terminAktionen.mjs).
+import { zuordnen } from './terminAktionen.mjs'
 // P3-4b/Restpunkt 1: Schriftfarbe je Terminkachel nach Helligkeit (AA).
 import { kachelSchrift } from '../../../shared/kachelfarbe.mjs'
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js'
@@ -30,11 +36,236 @@ const emit = defineEmits([
   'datesSet',
   'resourceViewChange',
   'viewChange',
+  // UX2e5: Eintrag aus dem „⋯"-Menü eines Termins (siehe MENUE_EINTRAEGE).
+  'terminAktion',
 ])
 
 const calendarEl = ref(null)
 const seriesDialog = ref(null)
 const calendar = ref(null)
+
+/* ── UX2e5 · „⋯" je Termin in der Terminliste ──────────────────────────
+ * Die Knöpfe stehen als GESCHWISTER direkt hinter ihrer Bibliotheks-Zeile
+ * (siehe ./terminAktionen.mjs). Jeder Knopf ist ein eigener Vue-Knoten mit
+ * seinem DkAktionen-Menü; der Halter wird im Abgleich gebaut und dort auch
+ * wieder abgebaut (Rahmen + Knoten) — sonst bliebe je Neuladen ein Rahmen
+ * samt offenem Menü im Speicher.
+ */
+const menueOffen = ref(false)
+let abgleichGeplant = false
+/** Kennung -> Halter-Element. NUR lebende Halter: was nicht mehr am Dokument
+ *  hängt (Ansichtswechsel, Neubau der Bibliothek), wird sofort abgebaut. */
+const KNOEPFE = new Map()
+
+function istListenAnsicht() {
+  const ansicht = calendar.value?.getOption('view') || ''
+  return String(ansicht).startsWith('list')
+}
+
+/** Der Rahmen (Vue-App) eines Halters — er hängt am Inhalt darunter. */
+function rahmenVon(el) {
+  return el?.querySelector?.('.kronos-liste-aktionen-halter-inhalt')?.__kronosRahmen || null
+}
+
+/**
+ * Ein Abgleich je Umlauf — `eventDidMount`/`eventWillUnmount` melden je Zeile;
+ * abgeglichen wird danach EINMAL, nicht je Termin.
+ */
+function abgleichPlanen() {
+  if (abgleichGeplant || !calendarEl.value) return
+  abgleichGeplant = true
+  nextTick(() => {
+    abgleichGeplant = false
+    if (!calendarEl.value || !istListenAnsicht()) {
+      // Ansichtswechsel (oder Kalender schon weg): es bleibt KEIN Knopf und
+      // kein Rahmen zurück — überall unter dem Kalender, nicht nur die
+      // selbst gemerkten.
+      alleKnoepfeAbbauen()
+      return
+    }
+    // Halter, die nicht mehr am Dokument hängen (die Bibliothek hat sie beim
+    // Neubau fortgeworfen), gehören keinem Termin mehr: erst abbauen, dann
+    // neu zuordnen. Sonst bliebe für jede weggeworfene Zeile ein Rahmen.
+    for (const [kennung, el] of Array.from(KNOEPFE)) {
+      if (el?.isConnected) continue
+      rahmenAbbauen(el)
+      KNOEPFE.delete(kennung)
+    }
+    // Der Abgleich hat die Zuordnung gerade festgelegt: alle übrigen
+    // Halter im Kalender (doppelte/Waisen) werden abgebaut. Erst bauen, dann
+    // weg — sonst stünde ein Knopf ohne Rahmen im Baum.
+    const behalten = new Set(zuordnen(calendarEl.value, knopfSicherstellen, entfernenErlaubt, vergessen))
+    for (const el of Array.from(calendarEl.value.querySelectorAll('.kronos-liste-aktionen-halter'))) {
+      if (behalten.has(el)) continue
+      rahmenAbbauen(el)
+    }
+    for (const [kennung, el] of Array.from(KNOEPFE)) {
+      if (behalten.has(el)) continue
+      rahmenAbbauen(el)
+      KNOEPFE.delete(kennung)
+    }
+  })
+}
+
+/** Meldung des Abgleichs: dieser Halter wird nicht behalten — Rahmen weg. */
+function vergessen(el) {
+  rahmenAbbauen(el)
+  for (const [kennung, bekannt] of Array.from(KNOEPFE)) {
+    if (bekannt === el) KNOEPFE.delete(kennung)
+  }
+}
+
+/** Baut ALLE „⋯" samt Rahmen ab (Ansichtswechsel, Verlassen der Seite). */
+function alleKnoepfeAbbauen() {
+  const gesehen = new Set()
+  for (const el of Array.from(calendarEl.value?.querySelectorAll?.('.kronos-liste-aktionen-halter') || [])) {
+    gesehen.add(el)
+    rahmenAbbauen(el)
+  }
+  for (const [kennung, el] of Array.from(KNOEPFE)) {
+    if (!gesehen.has(el)) rahmenAbbauen(el)
+    KNOEPFE.delete(kennung)
+  }
+  menueOffen.value = false
+}
+
+/**
+ * Darf der Abgleich DIESEN Knoten entfernen? Nur Knöpfe, die diese Ansicht
+ * gebaut hat — ein fremder Kalender ausserhalb dieser Wurzel bleibt unberührt
+ * (Karten über React/Vue mit mehreren Kalendern).
+ */
+function entfernenErlaubt(el) {
+  if (!el) return false
+  for (const knoten of KNOEPFE.values()) if (knoten === el) return true
+  return false
+}
+
+/** Baut den Vue-Rahmen eines „⋯"-Halters ab. */
+function rahmenAbbauen(el) {
+  const rahmen = rahmenVon(el)
+  if (rahmen) {
+    try { rahmen.unmount() } catch { /* schon abgebaut */ }
+    const inhalt = el?.querySelector?.('.kronos-liste-aktionen-halter-inhalt')
+    if (inhalt) inhalt.__kronosRahmen = null
+  }
+  // Der Halter selbst wird IMMER aus dem Baum genommen (die Bibliothek hat ihn
+  // nach einem Neubau schon herausgenommen — dann ist das folgenlos).
+  if (el?.remove) el.remove()
+}
+
+/**
+ * WARUM HIER GESTOPPT WIRD (Befund der Browser-Abnahme 07.11.):
+ * Der Halter steht als GESCHWISTER der Terminzeile im `.ec-day`-Container.
+ * Dieser Container ist in der Liste das Datumsfeld der Bibliothek — ein Klick
+ * darin zählt als Klick auf den Tag bzw. als Auswahl (Ziehen), und die
+ * Bibliothek meldet dafür `dateClick`/`select`. Folge: „Neuer Termin" ging auf,
+ * sobald man das „⋯" (oder die Halter-Fläche) anklickte.
+ * Ein Bedienelement IN der Zeile hätte dasselbe Problem gehabt — deshalb
+ * beendet sich hier jeder Zeiger-Klick am Halter: er gehört dem Menü, nicht
+ * dem Tag. (Die Zeile selbst bleibt unberührt; ihr Klick ist ein eigenes
+ * Element mit eigenem `article`-Verhalten.)
+ */
+function zeigerAmHalterBleibt(halter) {
+  for (const art of ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'dblclick']) {
+    halter.addEventListener(art, (ereignis) => {
+      ereignis.stopPropagation()
+      // Tastaturbedienung des Auslösers bleibt unberührt (kein preventDefault).
+    })
+  }
+}
+
+/** Baut den „⋯" samt Menü und merkt ihn sich zur Kennung. */
+function knopfAnlegen(kennung, zeile) {
+  const halter = document.createElement('span')
+  halter.className = 'kronos-liste-aktionen-halter'
+  halter.setAttribute('data-termin', kennung)
+  const unterbau = document.createElement('span')
+  unterbau.className = 'kronos-liste-aktionen-halter-inhalt'
+  halter.appendChild(unterbau)
+  const rahmen = knopfRahmenFuer(kennung, unterbau)
+  unterbau.__kronosRahmen = rahmen
+  zeigerAmHalterBleibt(halter)
+  KNOEPFE.set(kennung, halter)
+  return halter
+}
+
+/** Der Termin (Bibliotheks-Objekt) zu einem „⋯"-Knopf. */
+function terminZumKnopf(kennung, el) {
+  let zeile = el?.previousElementSibling?.matches?.('article.ec-event')
+    ? el.previousElementSibling
+    : null
+  // Der Knopf hängt evtl. schon nicht mehr an seiner Zeile (Neuordnung in
+  // Arbeit): dann die Zeile über ihre Kennung suchen.
+  if (!zeile && calendarEl.value) {
+    zeile = calendarEl.value.querySelector(`article.ec-event[data-event-id="${kennung}"]`)
+  }
+  const daten = erstelleTerminDaten(zeile)
+  if (daten) {
+    daten.id = kennung
+    return daten
+  }
+  return { id: kennung, title: '', extendedProps: {} }
+}
+
+/**
+ * Vue-App für EINEN „⋯"-Knopf samt seinem Menü.
+ *
+ * Der eigene Rahmen ist nötig, weil der Knopf kein Kind einer Seite, sondern
+ * ein Anhängsel der Bibliothek ist. Sein `render` liefert den Knopf als
+ * BAUTEIL-Knoten (nicht als gezeichnetes Element): `render: () => h(...)`.
+ * Damit gehören `eintraege`, `label` und die Zuhörer zur Komponente
+ * DkAktionen — so kommen `aktion` (Menüeintrag) und `offenGeaendert` an.
+ *
+ * REVIEW UX2e5/3: Im ANSEHEN-Modus bietet das Menü nur „Ansehen" an (das ist
+ * dort die einzige erlaubte Handlung — wie beim Klick auf die Zeile,
+ * `onEventClick` in Kalender.vue). Die Entscheidung fällt beim Öffnen des
+ * Rahmens: `viewMode` steht beim Bauen fest (Kalender wird beim Wechsel des
+ * Modus neu geholt).
+ */
+function knopfRahmenFuer(kennung, el) {
+  const nurAnsehen = props.viewMode === 'view'
+  const rahmen = createApp({
+    render: () => h(DkAktionen, {
+      label: 'Aktionen für diesen Termin',
+      menueLabel: 'Aktionen für diesen Termin',
+      kennung: `termin-${kennung}`,
+      // Gemeldet wird von der EIGENEN Uhr-Komponente, nicht vom Unterbau:
+      // `emit` von DkAktionen erreicht in einer eigenen App keinen Zuhörer
+      // — der Eintrag kommt dort mit `aktion` an, es gibt aber keinen
+      // Empfänger (im Browser und in jsdom gemessen).
+      eintraege: MENUE_EINTRAEGE
+        .filter((eintrag) => !nurAnsehen || eintrag.key === 'ansehen')
+        .map((eintrag) => ({
+          ...eintrag,
+          aktion: () => emit('terminAktion', {
+            key: eintrag.key,
+            terminId: kennung,
+            // Der Termin wird JETZT gelesen, nicht beim Bauen: nach einem
+            // Neubau der Bibliothek ist der Inhalt (mit seinen Daten) ein
+            // anderer Knoten.
+            termin: terminZumKnopf(kennung, el),
+          }),
+        })),
+      onOffenGeaendert: (offen) => { menueOffen.value = offen },
+    }),
+  })
+  rahmen.mount(el)
+  return rahmen
+}
+
+/** Baut (falls nötig) den „⋯" an einer Zeile und liefert ihn. */
+function knopfSicherstellen(zeile, kennung) {
+  const bekannt = KNOEPFE.get(kennung)
+  if (bekannt && bekannt.isConnected) return bekannt
+  // Ein Halter zu dieser Kennung, der nicht mehr am Dokument hängt, ist
+  // Müll: erst seinen Rahmen abbauen, dann einen frischen bauen. Sonst
+  // sammelt jedes Neuladen einen Vue-Rahmen samt Menü-Zuhörern an.
+  if (bekannt) {
+    rahmenAbbauen(bekannt)
+    KNOEPFE.delete(kennung)
+  }
+  return knopfAnlegen(kennung, zeile)
+}
 
 const _resourcesLoaded = ref(false)
 const _highlightEventId = ref(null)
@@ -270,6 +501,21 @@ onMounted(() => {
         const isMultiDay = !event.allDay && event.end &&
           new Date(event.start).toDateString() !== new Date(event.end).toDateString()
         const safe = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        // UX2e5: Der Termin-Datensatz für das „⋯"-Menü der LISTE. Die
+        // Bibliothek liefert keine Rückreferenz zum Datensatz, deshalb reist
+        // er als JSON an der Zeile mit (ausgelesen in ./terminAktionenDaten.mjs).
+        const daten = {
+          id: String(event.id ?? ''),
+          title: event.title || '',
+          start: event.start ? new Date(event.start).toISOString() : null,
+          end: event.end ? new Date(event.end).toISOString() : null,
+          allDay: !!event.allDay,
+          backgroundColor: event.backgroundColor || '',
+          extendedProps: event.extendedProps || {},
+        }
+        // Einfache Anführungszeichen: der Inhalt ist JSON mit doppelten —
+        // mit doppelten umschlossen endete das Merkmal mitten im JSON.
+        const datenAttr = " data-termin-daten='" + safe(JSON.stringify(daten)) + "'"
 
         if (!event.allDay && isMonthView && !isMobile && !isMultiDay) {
           const color = event.backgroundColor || 'var(--primary)'
@@ -294,11 +540,30 @@ onMounted(() => {
         // Dunkelmodus und im Druck greift damit das Theme (vorher stand hier
         // fest #12183a, wodurch --event-ink wirkungslos war).
         const schrift = kachelSchrift(sichereFarbe(event.backgroundColor))
+        // Am ÄUSSEREN Inhalt: den hängt die Bibliothek in `.ec-event-body` der
+        // Zeile — dort liest ./terminAktionenDaten.mjs ihn, auch nach einem
+        // Neubau (deshalb NICHT am inneren Körper duplizieren).
         return { html:
-          '<div class="ec-event-body" style="color:' + schrift + '">' + timeHtml +
+          '<div class="ec-event-inhalt"' + datenAttr + ' style="color:' + schrift + '">' + timeHtml +
           '<h4 class="ec-event-title">' + safe(event.title) + '</h4></div>'
         }
-      }
+      },
+
+      // UX2e5: Ein-/Ausbau und jeder Neubau der Bibliothek stoßen den
+      // Knopf-Abgleich an (idempotent, ein Lauf je Umlauf). KEIN gemessenes
+      // Nachführen je Knopf (kein ResizeObserver) — die Zuordnung hängt an
+      // der Kennung, nicht an Maßen.
+      // Die Kennung setzt KEIN Teil der Bibliothek ans `article` (sie führt
+      // sie nur intern); sie kommt hier an der Zeile mit, damit der Abgleich
+      // Knopf und Termin ohne Raten zusammenbringt.
+      eventDidMount: (info) => {
+        const el = info?.el
+        if (!el || el.tagName !== 'ARTICLE') return
+        const kennung = String(info?.event?.id ?? '')
+        if (kennung) el.setAttribute('data-event-id', kennung)
+        abgleichPlanen()
+      },
+      eventWillUnmount: () => { abgleichPlanen() },
     })
 
     // Mobile: Swipe-Navigation
@@ -337,6 +602,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('popstate', _onPopState)
+  // UX2e5: Alle „⋯"- Rahmen der Liste abbauen (kein hängender Knoten, kein
+  // offenes Menü nach dem Verlassen der Seite).
+  alleKnoepfeAbbauen()
+  menueOffen.value = false
   if (calendar.value && typeof calendar.value.destroy === 'function') {
     calendar.value.destroy()
   }
@@ -437,12 +706,85 @@ function prev() {
 
 function refetchEvents() {
   if (calendar.value) calendar.value.refetchEvents()
+  // UX2e5: Nach jedem Neuladen neu zuordnen — auch wenn die Bibliothek die
+  // Zeilen in derselben Lage weiterbenutzt (Rückgängig, Serien-Fragen).
+  abgleichPlanen()
 }
 
-defineExpose({ changeView, gotoDate, today, next, prev, refetchEvents })
+defineExpose({
+  changeView, gotoDate, today, next, prev, refetchEvents,
+  // REVIEW UX2e5/3: die „⋯"-Menüs neu bauen (nach einem Moduswechsel kennt
+  // das alte Menü den neuen Modus nicht).
+  neuZuordnen,
+  // UX2e5 (Review 07.11.): Anzahl der „⋯"-Rahmen im Kalender. Der Test hält
+  // damit fest, dass nach vielen Neuladen/Ansichtswechseln KEIN Rahmen übrig
+  // bleibt (jedem sichtbaren Termin genau einer).
+  anzahlRahmen,
+})
+
+/** Zahl der lebenden „⋯"-Rahmen — nur für Belege (Test), ohne Nebenwirkung. */
+function anzahlRahmen() {
+  return Array.from(calendarEl.value?.querySelectorAll?.('.kronos-liste-aktionen-halter-inhalt') || [])
+    .filter((inhalt) => !!inhalt.__kronosRahmen).length
+}
+
+/**
+ * REVIEW UX2e5/3: Alle „⋯" samt Menü verwerfen und frisch zuordnen.
+ *
+ * Das Menü eines Knopfes entsteht beim Zuordnen und kennt den ANSEHEN- bzw.
+ * BEARBEITEN-Modus von da. Nach einem Moduswechsel (oder wenn ein Test den
+ * Modus umstellt) wird deshalb neu gebaut — kein zweiter Menüpfad, keine
+ * Prüfung im Klickpfad.
+ */
+function neuZuordnen() {
+  for (const [kennung, el] of Array.from(KNOEPFE)) {
+    rahmenAbbauen(el)
+    KNOEPFE.delete(kennung)
+  }
+  abgleichGeplant = false
+  abgleichPlanen()
+}
+
 </script>
 
 <template>
   <div ref=calendarEl style=height:100%></div>
   <KronosSeriesDialog ref=seriesDialog />
 </template>
+
+<style scoped>
+/* UX2e5 — „⋯" je Termin in der Terminliste.
+   Die Zeilen der Bibliothek sind Geschwister im Tages-Container (keine
+   gemeinsame Hülle); der Halter ist das nächste Geschwister SEINER Zeile,
+   also in Zeilenhöhe unter seinem Termin.
+
+   TREFFERFLÄCHE (Befund aus der Browser-Abnahme 07.11.): Der Halter nimmt die
+   ganze Zeilenbreite ein — der AUSLÖSER darin aber nur eine quadratische
+   Fläche von --control-h (44 px bei pointer: coarse) am rechten Rand, oben
+   bündig zur Zeile. Vorher füllte der Auslöser die ganze Breite und lag über
+   dem Termin: ein Klick auf den Termin traf das „⋯" statt der Zeile (die
+   Bibliothek öffnete stattdessen „Neuer Termin"). Die Leerfläche LINKS bleibt
+   klickdurchlässig (Halter und Inhalt ohne Hintergrund). */
+:deep(.kronos-liste-aktionen-halter) {
+  display: block;
+  margin: 0 0 var(--sp-1) 0;
+  padding: 0;
+}
+:deep(.kronos-liste-aktionen-halter-inhalt) {
+  display: block;
+}
+/* Nur in der Liste: das Monatsraster behält seine Punkte-Zeilen. */
+:deep(.ec-list .kronos-liste-aktionen-halter .dk-ui-aktionen-ausloeser) {
+  display: flex;
+  width: var(--control-h);
+  height: var(--control-h);
+  margin-left: auto;
+  justify-content: center;
+}
+@media (pointer: coarse) {
+  :deep(.ec-list .kronos-liste-aktionen-halter .dk-ui-aktionen-ausloeser) {
+    width: 44px;
+    height: 44px;
+  }
+}
+</style>

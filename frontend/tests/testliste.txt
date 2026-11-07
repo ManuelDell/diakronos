@@ -232,6 +232,10 @@ tests/ux3e-*.test.mjs
 tests/ux3h-*.test.mjs
 tests/ux3f-*.test.mjs
 tests/ux1g-*.test.mjs
+# UX2e5 (Review 07.11.): „Löschen" im „⋯"-Menü — Kalender.vue schickt den
+# Einzeltermin in den Papierkorb (mit Rückgängig), Serien über die Rückfrage.
+# Liest nur Dateien INNERHALB von frontend/ (Regel 13 erfüllt).
+tests/ux2e5-*.test.mjs
 tests/ux3h3-*.test.mjs
 tests/ux1g2-*.test.mjs
 # UX2c: Rückfragen durch Rückgängig + Endgültig-Dialog (ux2c-endgueltig.test.mjs).

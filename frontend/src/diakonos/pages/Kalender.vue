@@ -31,6 +31,7 @@
         :selectedCalendars="store.selectedCalendars.value"
         :viewMode="store.viewMode.value"
         @eventClick="onEventClick"
+        @terminAktion="onTerminAktion"
         @dateClick="onDateClick"
         @select="onSelect"
         @datesSet="onDatesSet"
@@ -83,6 +84,13 @@ import { useKronosSidebar } from '../composables/useKronosSidebar.js'
 import { getMeinTermin } from '../composables/useEventsApi.js'
 import { getModerationCount } from '../api/kanbanApi.js'
 import { showToast } from '../composables/useToast.js'
+// UX2e5 (Review 07.11.): „Löschen" im „⋯"-Menü geht direkt in den Papierkorb —
+// Meldung und Zurückholen kommen aus dem gemeinsamen Baustein (wie in
+// Beitraege.vue/Lieder.vue), nicht aus einer zweiten Löschlogik.
+import { apiCall } from '../composables/useApi.js'
+import { papierkorbMeldung, wiederherstellen } from '../composables/papierkorb.mjs'
+import { useRueckgaengigAktion } from '../composables/useRueckgaengigAktion.js'
+import { aktionsfehler } from '../../shared/fehlertexte.js'
 import { vorschlagBeginn } from '../composables/datumZeit.mjs'
 import { endeAusKalender } from '../composables/datumZeit.mjs'
 import KronosTopbar from '../components/kronos/KronosTopbar.vue'
@@ -95,6 +103,7 @@ import KronosDayEventsDialog from '../components/kronos/KronosDayEventsDialog.vu
 import KronosSeriesDialog from '../components/kronos/KronosSeriesDialog.vue'
 
 const store = useKronosStore()
+const { mitRueckgaengig } = useRueckgaengigAktion()
 const kronosSidebar = useKronosSidebar()
 const calendarRef = ref(null)
 const seriesDialogRef = ref(null)
@@ -178,6 +187,90 @@ function onEventClick(event) {
       editEvent.value = props
       showEdit.value = true
     }
+  }
+}
+
+/**
+ * UX2e5 — Eintrag aus dem „⋯"-Menü eines Termins in der Terminliste.
+ * Das Widget kennt weder Adressen noch Rechte; hier wird entschieden, was
+ * passiert. Gelöscht wird über DENSELBEN Weg wie in der Einzelansicht
+ * (Papierkorb + Rückgängig, `papierkorbMeldung` / `wiederherstellen`) — keine
+ * zweite, ungefragte Löschlogik (I2: Rückfrage nur für Unumkehrbares).
+ *
+ * REVIEW UX2e5/3: Im ANSEHEN-Modus ist „Ansehen" die einzige Handlung — wie
+ * beim Klick auf die Zeile (`onEventClick`).
+ * REVIEW UX2e5/4: „Löschen" bei einem EINZELTERMIN geht direkt in den
+ * Papierkorb (mit Rückgängig-Meldung), es öffnet NICHT den Bearbeiten-Dialog.
+ * Serientermine behalten die Rückfrage nach dem Umfang (`showEditOptions`).
+ */
+async function onTerminAktion({ key, termin } = {}) {
+  if (!key || !termin) return
+  const daten = termin.extendedProps ? { ...termin, ...termin.extendedProps } : { ...termin }
+  if (store.isViewMode.value) {
+    viewEvent.value = daten
+    showView.value = true
+    return
+  }
+  if (key === 'ansehen') {
+    viewEvent.value = daten
+    showView.value = true
+    return
+  }
+  if (key === 'bearbeiten') {
+    if (daten.series_id) {
+      seriesDialogRef.value?.showEditOptions(daten).then(action => {
+        if (action === 'edit') {
+          editEvent.value = { ...daten, series_id: '' }
+          showEdit.value = true
+        } else if (action === 'deleted') {
+          calendarRef.value?.refetchEvents()
+        }
+      })
+    } else {
+      editEvent.value = daten
+      showEdit.value = true
+    }
+    return
+  }
+  if (key === 'loeschen') {
+    if (daten.series_id) {
+      // Umfang der Serie (nur dieser / diese und folgende / alle): der Dialog
+      // fragt und löscht; `deleted` löst das Neuladen aus.
+      seriesDialogRef.value?.showEditOptions(daten).then(action => {
+        if (action === 'deleted') calendarRef.value?.refetchEvents()
+      })
+      return
+    }
+    await terminInPapierkorb(daten)
+  }
+}
+
+/**
+ * Löscht einen EINZELTERMIN direkt in den Papierkorb (7 Tage wiederherstellbar)
+ * und bietet „Rückgängig" an — derselbe Weg wie im Bearbeiten-Dialog
+ * (KronosEventEdit.vue: `delete_event` → `papierkorbMeldung`), nur ohne dessen
+ * Fenster. Der Kalender holt danach neu (`refetchEvents`), damit die Zeile
+ * samt ihrem „⋯" verschwindet.
+ */
+async function terminInPapierkorb(daten) {
+  const name = daten.name || daten.extendedProps?.name || ''
+  if (!name) {
+    showToast('Dieser Termin lässt sich nicht löschen: seine Kennung fehlt. Bitte die Seite neu laden.', 'error')
+    return
+  }
+  const titel = daten.element_name || daten.title || 'Termin'
+  try {
+    const antwort = await apiCall('diakronos.kronos.api.event_crud.delete_event', { name })
+    calendarRef.value?.refetchEvents()
+    // UX2c-Mechanik (Review 07.11.): Meldung + Rückgängig-Stapel (Strg+Z) an EINER Stelle.
+    await mitRueckgaengig({
+      beschreibung: papierkorbMeldung(titel, antwort?.wiederherstellbar_bis),
+      zurueck: () => wiederherstellen('termin', name),
+      danach: () => calendarRef.value?.refetchEvents(),
+      erfolg: `„${titel}“ wiederhergestellt.`,
+    })
+  } catch (err) {
+    showToast(aktionsfehler('löschen', err), 'error')
   }
 }
 
@@ -341,11 +434,18 @@ function onResourceToggle() {
   }
 }
 
+/**
+ * REVIEW UX2e5/3 (Randfall): Das Menü je Knopf wird beim Zuordnen gebaut und
+ * kennt den Modus von da. Der Kalender wird beim Umschalten neu geholt (die
+ * Bibliothek setzt ihre Zeilen neu und `refetchEvents` stößt den Abgleich an),
+ * damit „Ansehen" im Bearbeitungsmodus wieder alle Einträge hat.
+ */
 function onViewModeChange(mode) {
   // UXK-R10: Ohne Schreibrecht gibt es keinen Bearbeitungsmodus.
   if (mode === 'edit' && !hasWriteRight.value) return
   store.setViewMode(mode === 'view')
   calendarRef.value?.refetchEvents()  // view_mode affects which statuses are shown
+  calendarRef.value?.neuZuordnen()
 }
 
 function onEventCreated() {
@@ -419,6 +519,16 @@ function anlegeWunschAusAdresse() {
   }
   versuch()
 }
+
+/**
+ * UX2e5: Der Eintrag aus dem „⋯"-Menü eines Termins ist eine Handlung der
+ * SEITE (das Widget kennt keine Adressen und keine Rechte). Öffentlich, damit
+ * der Node-Test genau diesen Weg prüfen kann (Löschen → Papierkorb, Serien →
+ * Rückfrage, Ansehen-Modus) — ohne eine zweite Fassung der Logik im Test.
+ * `onViewModeChange` steht daneben, weil der Test den Modus auf demselben Weg
+ * umstellt wie die Kopfzeile.
+ */
+defineExpose({ onTerminAktion, onViewModeChange })
 
 </script>
 

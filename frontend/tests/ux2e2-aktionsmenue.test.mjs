@@ -74,13 +74,15 @@ test('UX2e2 · Lied: Weg und Wortlaut stimmen mit Beiträgen überein (eine Meld
 
 /* ── 2 · Terminliste ───────────────────────────────────────────────────── */
 
-test('UX2e4 · Kalender: gar kein ⋯-Menü mehr (auch nicht ohne Auslöser)', () => {
+test('UX2e5 · Kalender: das ⋯-Menü der Terminliste ist wieder da (eigenes Ereignis)', () => {
   const quelle = lies('pages/Kalender.vue')
   // UX2e2 hatte das freistehende „⋯" mit `ohneAusloeser` versteckt; UX2e4 hat
   // die Terminliste ganz herausgenommen, weil das Menü an der Zeile bei jedem
-  // Neubau der Bibliothek kaputtging.
-  assert.doesNotMatch(quelle, /listenAktionen/, 'kein Menü-Zustand mehr in der Seite')
-  assert.doesNotMatch(quelle, /@terminAktionen/, 'kein Zeilen-Ereignis mehr')
+  // Neubau der Bibliothek kaputtging. UX2e5 bringt es zurück — aber als
+  // GESCHWISTER des Artikels, gesteuert vom Widget (`terminAktion`).
+  assert.doesNotMatch(quelle, /listenAktionen/, 'kein Menü-Zustand in der Seite')
+  assert.match(quelle, /@terminAktion="onTerminAktion"/, 'die Seite hört auf das Ereignis des Widgets')
+  assert.match(quelle, /function onTerminAktion/, 'und führt die Einträge aus')
 })
 
 test('UX2e2 · DkAktionen: ohneAusloeser blendet NUR den Knopf aus, das Menü bleibt', () => {
@@ -105,18 +107,25 @@ test('UX2e2 · DkAktionen: Anker wird gemerkt und wiederverwendet (Menü an der 
     'der alte Weg über den eigenen Auslöser ist entfernt')
 })
 
-test('UX2e4 · Terminzeile: KEIN „⋯" an der Zeile (Bibliothek setzt ihre Knoten neu ein)', () => {
+test('UX2e5 · Terminzeile: „⋯" als Geschwister hinter der Zeile (Bibliothek setzt ihre Knoten neu ein)', () => {
   const quelle = ohneKommentare(lies('components/kronos/KronosCalendar.vue'))
   // Befund UX2e3 mit echter @event-calendar/build 5.18.0: nach
   // `refetchEvents()` (auch nach Löschen) setzt die Bibliothek ihre Artikel
-  // neu ein; die Hüllen aus UX2e3 landeten dann bei den falschen Zeilen.
-  assert.doesNotMatch(quelle, /eventDidMount/, 'kein afterRender-Eingriff mehr in der Liste')
-  assert.doesNotMatch(quelle, /eventWillUnmount/, 'auch kein Abbau-Haken mehr')
-  assert.doesNotMatch(quelle, /kronos-liste-termin|kronos-liste-aktionen/,
-    'keine eigenen Hüllen/Knöpfe in den Bibliotheks-Knoten')
-  assert.doesNotMatch(quelle, /ResizeObserver/, 'kein Beobachter, der hängen bleiben kann')
-  assert.doesNotMatch(quelle, /'terminAktionen'/, 'das Ereignis an die Seite ist weg')
-  assert.doesNotMatch(quelle, /aktionenZustand/, 'die Zustandsführung der Zeile ist weg')
+  // neu ein — ein Knoten IN der Zeile (oder eine Hülle um sie) landete dann
+  // bei den falschen Zeilen. UX2e5 legt den „⋯" deshalb als GESCHWISTER
+  // direkt hinter die Zeile und ordnet ihn per Termin-Kennung neu zu.
+  assert.match(quelle, /eventDidMount/, 'der Einbau meldet jede neue Zeile')
+  assert.match(quelle, /eventWillUnmount/, 'auch der Abbau stößt den Abgleich an')
+  assert.match(quelle, /zuordnen\(calendarEl\.value/, 'der Abgleich läuft auf dem Kalender')
+  assert.doesNotMatch(quelle, /ResizeObserver/, 'kein Beobachter je Knopf')
+  for (const name of ['kronos-liste-aktionen', 'kronos-liste-termin']) {
+    // Kein <article>/<h4>/<span> IM Ereignisinhalt mit diesem Namen: der
+    // Halter existiert nur als eigenes Element NEBEN der Zeile (Klasse im
+    // Bauteil-Code, nicht im gelieferten HTML).
+    const inhalt = quelle.slice(quelle.indexOf('eventContent:'), quelle.indexOf('eventDidMount:'))
+    assert.doesNotMatch(inhalt, new RegExp(name),
+      `${name} steht nicht im gelieferten Ereignisinhalt (kein Knoten IN der Zeile)`)
+  }
   // Die Liste bleibt bedienbar wie auf main: Klick auf die Zeile kommt an.
   assert.match(quelle, /eventClick:\s*\(info\)\s*=>/, 'eventClick ist weiter gemeldet')
 })
@@ -163,17 +172,19 @@ test('UX2e2 · DkAktionen meldet seinen Zustand (offenGeaendert) — Seiten kön
     'defineExpose steht genau einmal (Vue erlaubt keinen zweiten Aufruf)')
 })
 
-test('UX2e4 · „Termin löschen" führt in der Terminliste nicht mehr über das Menü', () => {
-  // Der Weg über `terminLoeschen` war nur über das (entfernte) Listenmenü
-  // erreichbar. Gelöscht wird wieder wie auf main: Klick auf die Zeile →
-  // Bearbeiten-Fenster (dort auch „Löschen" mit Serien-Rückfrage).
+test('UX2e5 · „Termin löschen": Einzeltermin → Papierkorb + Rückgängig, Serie → Rückfrage', () => {
+  // Review 07.11.: Einzeltermine gehen direkt in den Papierkorb (umkehrbar,
+  // UX2c-Mechanik), Serien bleiben bei der Rückfrage (showEditOptions).
   const quelle = ohneKommentare(lies('pages/Kalender.vue'))
-  assert.equal(quelle.indexOf('async function terminLoeschen'), -1,
-    'die Menü-Löschfunktion ist mit dem Menü entfallen')
   assert.equal(quelle.indexOf('async function onTerminAktionen'), -1,
-    'und ihr Einstieg (⋯-Klick) ebenso')
-  const klick = quelle.slice(quelle.indexOf('function onEventClick'), quelle.indexOf('function onDateClick'))
-  assert.match(klick, /showEditOptions/, 'Serientermine werden weiter gefragt (wie auf main)')
+    'kein Sammel-Einstieg, der selbst löscht')
+  const aktion = quelle.slice(quelle.indexOf('function onTerminAktion'),
+    quelle.indexOf('function onDateClick'))
+  assert.match(aktion, /key === 'loeschen'/, 'der Eintrag „Löschen" wird behandelt')
+  assert.match(aktion, /showEditOptions/, 'Serientermine werden weiter gefragt')
+  assert.match(aktion, /delete_event/, 'Einzeltermin: delete_event (Papierkorb)')
+  assert.match(aktion, /mitRueckgaengig\(/, 'Rückgängig über die UX2c-Mechanik')
+  assert.doesNotMatch(aktion, /err\?\.message/, 'kein roher Fehlertext')
 })
 
 /* ── 3 · Enter/Space am Auslöser ───────────────────────────────────────── */

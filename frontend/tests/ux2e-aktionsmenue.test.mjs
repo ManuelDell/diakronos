@@ -203,12 +203,14 @@ test('UX2e · Jede genannte Liste trägt das Aktionsmenü und öffnet es per Rec
     assert.match(quelle, /@contextmenu\.prevent="zeilenKontextmenue/, `${datei}: Rechtsklick auf die Zeile`)
     assert.match(quelle, /oeffnenFuerZeile/, `${datei}: dieselbe Menüinstanz für die Zeile`)
   }
-  // UX2e4: Die Terminliste trägt KEIN Menü mehr und das Kalender-Widget
-  // fasst die Bibliothekszeilen nicht mehr an.
+  // UX2e4 hat die Terminliste aus dem Menü-Bauteil herausgenommen; UX2e5
+  // bringt das „⋯" am Termin zurück — aber IM Kalender-Widget (Geschwister der
+  // Bibliothekszeile, gesteuert über `terminAktion`), nicht in der Seite.
   const kalender = lies('pages/Kalender.vue')
-  assert.doesNotMatch(kalender, /DkAktionen/, 'UX2e4: Terminliste ohne ⋯-Menü')
+  assert.doesNotMatch(kalender, /DkAktionen/, 'die Seite selbst trägt kein Menü-Bauteil')
   const widget = lies('components/kronos/KronosCalendar.vue')
-  assert.doesNotMatch(widget, /eventDidMount|terminAktionen/, 'UX2e4: Widget hängt keinen Auslöser ein')
+  assert.match(widget, /eventDidMount/, 'UX2e5: das Widget hängt den Auslöser ein')
+  assert.match(widget, /terminAktion/, 'UX2e5: und meldet den Eintrag an die Seite')
 })
 
 test('UX2e · Die Zeilenknöpfe sind entfallen (Aktionen nur noch im ⋯)', () => {

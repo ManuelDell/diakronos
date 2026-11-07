@@ -121,7 +121,10 @@ test('Restpunkt 1: der Kalender waehlt die Schrift aus der Kachelfarbe', () => {
   const kalender = lies('src/diakonos/components/kronos/KronosCalendar.vue')
   assert.match(kalender, /kachelSchrift\(sichereFarbe\(event\.backgroundColor\)\)/,
     'die Schriftfarbe wird nicht aus der Kachelfarbe gewaehlt')
-  assert.match(kalender, /class="ec-event-body" style="color:/,
+  // UX2e5: Die Schriftfarbe steht am äußeren Inhaltsknoten (.ec-event-inhalt),
+  // den die Bibliothek in `.ec-event-body` der Zeile hängt — sie gilt damit
+  // weiterhin für den ganzen Inhalt des Termins.
+  assert.match(kalender, /style="color:' \+ schrift \+ '"/,
     'die gewaehlte Schriftfarbe landet nicht am Kachelelement')
 })
 
