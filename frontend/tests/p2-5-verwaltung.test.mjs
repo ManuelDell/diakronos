@@ -30,8 +30,10 @@ test('OP-ADMIN-10: Kalenderverwaltung ist als Seite, Route und Menuepunkt verdra
   // Rechte kommen vom Server; die Seite ruft die Verwaltungsendpunkte.
   assert.match(seite, /kalenderVerwaltungLaden/)
   assert.match(seite, /kalenderLoeschen/)
-  // Loeschen hat eine Rueckfrage (Befund: „Kalender nicht loeschbar“).
-  assert.match(seite, /bestaetigen\(/)
+  // UX2c: Loeschen ist umkehrbar (der Kalender wird mit denselben Angaben neu
+  // angelegt) — also KEINE Rueckfrage, sondern „Rueckgaengig“ am Stapel
+  // (Prinzip I2). Geprueft in `ux2c-endgueltig.test.mjs`.
+  assert.match(seite, /mitRueckgaengig\(/)
 })
 
 test('OP-ADMIN-10: das ✎ der Kalenderliste behauptet kein Bearbeiten mehr', () => {

@@ -88,6 +88,16 @@
         </DkTable>
       </DkCard>
     </template>
+
+    <!-- UX2c (C1): Sicherung löschen ist endgültig (die Datei ist danach weg,
+         ein Zurück gibt es nicht) — der EINE Endgültig-Dialog der App. -->
+    <DkEndgueltig
+      v-model="loeschenOffen"
+      titel="Sicherung endgültig löschen?"
+      :text="`Die Sicherung vom ${loeschensZielText} wird gelöscht. Der Stand ist danach dauerhaft weg — das lässt sich nicht rückgängig machen.`"
+      aktion="Sicherung endgültig löschen"
+      @bestaetigen="loeschenAusfuehren"
+    />
   </div>
 </template>
 
@@ -103,15 +113,18 @@
  * Sicherungen enthalten alle Personendaten, der Weg führt über die
  * Kommandozeile (Betriebsanleitung).
  *
- * Die Rückfrage läuft über `bestaetigen()` (DkBestaetigung im App-Rahmen), nicht
- * über `confirm()`: ein Browser-Dialog lässt sich nicht gestalten und ist am
- * Handy nicht verlässlich.
+ * Die Rückfrage läuft über `DkEndgueltig` (UX2c, der EINE Endgültig-Dialog im
+ * App-Rahmen), nicht über `confirm()`: ein Browser-Dialog lässt sich nicht
+ * gestalten und ist am Handy nicht verlässlich. Löschen ist hier wirklich
+ * endgültig (kein Papierkorb für Sicherungsdateien), darum Frage + Folge und
+ * der gefährliche Knopf am Ende.
  */
 import { ref, computed, onMounted } from 'vue'
 import {
   useSicherung, groesseText, zeitpunktText, statusText,
 } from '../../composables/useSicherung.js'
-import { bestaetigen } from '../../composables/useBestaetigen.js'
+// UX2c (C1): der EINE Endgültig-Dialog (Frage, Folge, gefährlicher Knopf).
+import DkEndgueltig from '../../components/ui/DkEndgueltig.vue'
 import DkButton from '../../components/ui/DkButton.vue'
 import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
@@ -149,18 +162,30 @@ const naechsterLauf = computed(() => {
   return `${tag} um ${treffer[1]}:${treffer[2]} Uhr`
 })
 
-async function frageLoeschen(zeile) {
-  const wann = zeitpunktText(zeile.zeitpunkt || zeile.name)
-  const ja = await bestaetigen({
-    titel: 'Sicherung löschen',
-    text: `Die Sicherung vom ${wann} wird endgültig gelöscht. Das lässt sich nicht `
-      + 'rückgängig machen.',
-    aktion: 'Löschen',
-    abbrechen: 'Abbrechen',
-    gefahr: true,
-  })
-  if (!ja) return
-  await loeschen(zeile.name)
+/**
+ * UX2c (C1): Eine Sicherung zu löschen ist endgültig — es gibt keinen
+ * Papierkorb dafür und die Datei ist danach weg. Deshalb der EINE
+ * Endgültig-Dialog (Frage, Folge, gefährlicher Knopf), nicht die
+ * Ein-Zeilen-Rückfrage.
+ */
+const loeschenOffen = ref(false)
+const loeschenZiel = ref(null)
+const loeschensZielText = computed(() => {
+  const z = loeschenZiel.value
+  if (!z) return ''
+  return zeitpunktText(z.zeitpunkt || z.name)
+})
+
+function frageLoeschen(zeile) {
+  loeschenZiel.value = zeile
+  loeschenOffen.value = true
+}
+
+async function loeschenAusfuehren() {
+  const z = loeschenZiel.value
+  if (!z) return
+  loeschenOffen.value = false
+  await loeschen(z.name)
 }
 
 onMounted(laden)

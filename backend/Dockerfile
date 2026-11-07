@@ -246,6 +246,18 @@ COPY tools/demo/uiux-pruefung.py /tools/demo/uiux-pruefung.py
 # also Regel 13: eigene COPY-Zeile. NACHWEIS im Image:
 # `docker build -f backend/Dockerfile --target frontend .` meldet "# fail 0".
 COPY backend/src/diakronos_app/anmeldung/routen.py /login1-backend/anmeldung/routen.py
+# UX2c (Regel 13): `tests/ux2c-endgueltig.test.mjs` haelt fest, dass jede
+# Gegenrichtung („Rückgängig“) auf einen ECHTEN Server-Endpunkt zeigt — es
+# liest die whitelist-Funktionen unter `backend/src/diakronos_app/api/`.
+# Im Frontend-Stage liegen die Backend-Quellen unter `/backend/src/...`
+# (siehe die COPY-Zeilen oben); die Datei, die der Test oeffnet, kommt also
+# mit einer EIGENEN COPY-Zeile mit — Pfad wie im Test erwartet
+# (`tests/../backend/...` = `/backend/...`).
+COPY backend/src/diakronos_app/api/gruppen.py /backend/api/gruppen.py
+COPY backend/src/diakronos_app/api/planrahmen.py /backend/api/planrahmen.py
+COPY backend/src/diakronos_app/api/ressourcen.py /backend/api/ressourcen.py
+COPY backend/src/diakronos_app/api/kronos/kalender_verwaltung.py /backend/api/kronos/kalender_verwaltung.py
+COPY backend/src/diakronos_app/api/website.py /backend/api/website.py
 # FIX-7: `tests/fix7-vorlagen-bezeichner.test.mjs` haelt fest, dass KEINE
 # `.vue` einen Template-Bezeichner benutzt, der im Skript nicht gebunden ist
 # (Befund `fmtDate` in ModerationCard.vue). Test und Werkzeug liegen IN
@@ -254,6 +266,7 @@ COPY backend/src/diakronos_app/anmeldung/routen.py /login1-backend/anmeldung/rou
 # Der Waechter braucht `@vue/compiler-sfc` und `@babel/parser`: beide kommen
 # ohne eigene Abhaengigkeit ueber `vue` bzw. `@vitejs/plugin-vue` mit.
 COPY tools/demo/ux1i2-probe.py /tools/demo/ux1i2-probe.py
+
 # UX2f2b: `tests/ux2f2b-formulare.test.mjs` MOUNTET die migrierten Formulare
 # (Gruppe, Termin, Person, Gemeinde, Gast-Anmeldung) im echten DOM und prueft
 # „tippen -> absenden -> API mit dem Getippten“. Liest nur Dateien INNERHALB
@@ -290,7 +303,6 @@ RUN muster=$(grep -v '^[[:space:]]*#' "$NODE_TESTLISTE" | grep -v '^[[:space:]]*
     echo "$muster"; \
     node --test $muster --test \
  && npm run build
-
 
 # ── Stage 2: Anwendung ────────────────────────────────────────────────────
 FROM python:3.12-slim

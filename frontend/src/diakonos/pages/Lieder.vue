@@ -239,11 +239,11 @@ import { aktionsfehler } from '../../shared/fehlertexte.js'
 import { navigate, currentPageName } from '../router.js'
 import { LIEDER_REITER } from '../menue.js'
 import DiensteReiter from '../components/DiensteReiter.vue'
-// UX2e: Rückfrage vor dem Papierkorb und Meldung danach.
-import { bestaetigen } from '../composables/useBestaetigen.js'
 import { showToast } from '../composables/useToast.js'
 // UX2e2: echter Papierkorb-Weg (Löschfrage, Meldung, Rückgängig).
-import { loeschFrage, papierkorbMeldung, wiederherstellen } from '../composables/papierkorb.mjs'
+import { papierkorbMeldung, wiederherstellen } from '../composables/papierkorb.mjs'
+// UX2c (C2): Papierkorb-Löschen ohne Rückfrage, dafür „Rückgängig“ (Strg+Z).
+import { useRueckgaengigAktion } from '../composables/useRueckgaengigAktion.js'
 import { istKopie } from '../components/planrahmen/lied-anzeige.mjs'
 import { listenArgs as liste_args, cacheArgs as liste_cache_args,
          cacheAktiv as liste_cache_aktiv, CACHE_NAME } from '../components/lieder/lieder-liste.mjs'
@@ -258,6 +258,8 @@ import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkAktionen from '../components/ui/DkAktionen.vue'
 
 const lieder = ref([])
+// UX2c (C2): Rückgängig-Weg dieser Seite (Stapel-Eintrag + Meldung).
+const { mitRueckgaengig } = useRueckgaengigAktion()
 const loading = ref(false)
 // UX2d2: Platzhalter erst nach 300 ms — schnelle Antworten flackern nicht.
 const { skelettSichtbar: loadingSkelett } = useLadeSkelett(loading)
@@ -569,28 +571,22 @@ async function bearbeiten(l) {
 
 /**
  * Punkt 1 (UX2e2) · „In den Papierkorb legen“ läuft über den ECHTEN
- * Papierkorb-Weg — genau wie Beiträge und Wiki:
- *   bestaetigen(loeschFrage(…)) → musik.delete_lied → papierkorbMeldung mit
- *   „Rückgängig“ (= musik.wiederherstellen_lied).
+ * Papierkorb-Weg: musik.delete_lied → papierkorbMeldung mit „Rückgängig“
+ * (= musik.wiederherstellen_lied).
+ * UX2c (C2): KEINE Rückfrage mehr — der Papierkorb ist umkehrbar (Prinzip
+ * I2), also sofort ausführen und „Rückgängig“ anbieten (8 s, Strg+Z).
  * Vorher lief hier `save_lied {aktiv: false}` — das nahm das Lied nur aus der
  * Auswahl, ohne Papierkorb und ohne Rückgängig.
  */
 async function inPapierkorb(l) {
-  if (!(await bestaetigen(loeschFrage(l.titel, 'Lied')))) return
   try {
     const antwort = await apiCall('diakronos.psalmos.api.musik.delete_lied', { lied: l.name })
     await reload()
-    await showToast(papierkorbMeldung(l.titel, antwort?.wiederherstellbar_bis), 'success', {
-      text: 'Rückgängig',
-      onClick: async () => {
-        const ergebnis = await wiederherstellen('lied', l.name)
-        if (ergebnis.ok) {
-          showToast(`„${l.titel}“ wiederhergestellt.`)
-          await reload()
-        } else {
-          showToast(ergebnis.fehler, 'error')
-        }
-      },
+    await mitRueckgaengig({
+      beschreibung: papierkorbMeldung(l.titel, antwort?.wiederherstellbar_bis),
+      zurueck: () => wiederherstellen('lied', l.name),
+      danach: reload,
+      erfolg: `„${l.titel}“ wiederhergestellt.`,
     })
   } catch (e) {
     showToast(aktionsfehler('löschen', e), 'error')

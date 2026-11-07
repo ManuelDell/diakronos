@@ -15,6 +15,7 @@
           role="dialog"
           aria-modal="true"
           :aria-label="title"
+          :aria-describedby="beschrieben || undefined"
           tabindex="-1"
           @keydown="tastenFaenger"
         >
@@ -61,6 +62,10 @@ const props = defineProps({
   dismissible: { type: Boolean, default: true },
   title: { type: String, default: '' },
   size: { type: String, default: 'md' },
+  // UX2c-N2: Kennung des Folgetextes. `aria-describedby` MUSS am Element mit
+  // `role="dialog"` hängen — an einem rollenlosen <div> im Körper gelesen es
+  // Sprachausgaben nicht (Befund DkEndgueltig.vue:28). Leer = kein Bezug.
+  beschrieben: { type: String, default: '' },
   // Formulare dürfen bei einem Fehlklick keine Eingaben verlieren.
   closeOnOverlay: { type: Boolean, default: false },
   // DM3b: markiert den GANZEN Dialog (Overlay/Rahmen/Kopf/Fuß) als Dev-Element.

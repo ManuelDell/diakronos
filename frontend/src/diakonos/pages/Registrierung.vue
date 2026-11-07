@@ -416,17 +416,17 @@
       </template>
     </DkDialog>
 
-    <!-- Konfliktfenster: Löschen bestätigen (N3, kein natives confirm) -->
-    <DkDialog :model-value="!!bestaetigenFrage" :title="bestaetigenFrage?.titel || 'Löschen bestätigen'"
-              :close-on-overlay="false" @update:model-value="bestaetigenAntwort(false)">
-      <p class="reg-dialog-text">{{ bestaetigenFrage?.text }}</p>
-      <template #footer>
-        <DkButton variant="secondary" @click="bestaetigenAntwort(false)">Abbrechen</DkButton>
-        <DkButton variant="danger" @click="bestaetigenAntwort(true)">
-          <IconTrash /> Link löschen
-        </DkButton>
-      </template>
-    </DkDialog>
+    <!-- UX2c: EIN Endgültig-Dialog für beide endgültigen Löschungen dieser
+         Seite (Link, Formular) — Titel als Frage, konkrete Folge,
+         gefährlicher Knopf am Ende. -->
+    <DkEndgueltig
+      :model-value="!!bestaetigenFrage"
+      :titel="bestaetigenFrage?.titel || 'Endgültig löschen?'"
+      :text="bestaetigenFrage?.text || ''"
+      :aktion="bestaetigenFrage?.aktion || 'Endgültig löschen'"
+      @update:model-value="(wert) => { if (!wert) bestaetigenAntwort(false) }"
+      @bestaetigen="bestaetigenAntwort(true)"
+    />
 
     <!-- Dialog: Anfrage-Details (OP-ADMIN-8: vollständig, Titel mit Name) -->
     <DkDialog :model-value="!!detailAnmeldung" size="md"
@@ -593,6 +593,8 @@ import DkDialog from '../components/ui/DkDialog.vue'
 import DkSegment from '../components/ui/DkSegment.vue'
 import DkFilterChips from '../components/ui/DkFilterChips.vue'
 import DkField from '../components/ui/DkField.vue'
+// UX2c (C1): der EINE Endgültig-Dialog (Frage, Folge, gefährlicher Knopf).
+import DkEndgueltig from '../components/ui/DkEndgueltig.vue'
 import DkSelect from '../components/ui/DkSelect.vue'
 import DkCheckbox from '../components/ui/DkCheckbox.vue'
 import DkTable from '../components/ui/DkTable.vue'
@@ -626,8 +628,8 @@ const processing = ref({})
 /** Bestätigung im App-Fenster (Ergebnis via Promise) — kein natives confirm(). */
 const bestaetigenFrage = ref(null)
 let bestaetigenLoesen = null
-function bestaetigen(titel, text) {
-  bestaetigenFrage.value = { titel, text }
+function bestaetigen(titel, text, aktion = 'Endgültig löschen') {
+  bestaetigenFrage.value = { titel, text, aktion }
   return new Promise((loesen) => { bestaetigenLoesen = loesen })
 }
 function bestaetigenAntwort(wert) {
@@ -1208,7 +1210,9 @@ async function deleteLink(l) {
   const folgen = anzahl > 0
     ? `Dabei werden ${anzahl} ${anzahl === 1 ? 'Anmeldung' : 'Anmeldungen'} dieses Links entfernt.`
     : 'Es hängen keine Anmeldungen daran.'
-  if (!await bestaetigen(`„${l.bezeichnung}“ löschen?`, `${folgen} Das lässt sich nicht rückgängig machen.`)) return
+  if (!await bestaetigen(`Registrierungslink „${l.bezeichnung}“ löschen?`,
+    `${folgen} Der Link und seine Adresse verschwinden dauerhaft — das lässt sich nicht rückgängig machen.`,
+    'Link endgültig löschen')) return
   try {
     const res = await apiCall('diakronos.diakonos.api.registrierungslink_api.delete_link', { link_id: l.name })
     if (res.success) {
@@ -1455,7 +1459,9 @@ async function formularBearbeiten(f) {
 async function formularEntfernen(f) {
   const ok = await bestaetigen(
     `Formular „${f.bezeichnung}“ löschen?`,
-    'Das Anmeldeformular wird entfernt. Das geht nur, wenn kein Registrierungslink mehr darauf verweist.',
+    'Das Anmeldeformular und seine Felder werden dauerhaft entfernt. Das lässt sich nicht '
+      + 'rückgängig machen; es geht nur, solange kein Registrierungslink mehr darauf verweist.',
+    'Formular endgültig löschen',
   )
   if (!ok) return
   try {

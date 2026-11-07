@@ -489,6 +489,8 @@ import {
   istTerminAnfrage,
 } from '../composables/ressourcenEntscheidung.js'
 import { showToast } from '../composables/useToast.js'
+// UX2c-Nacharbeit: Storno ist NICHT vollständig wiederherstellbar (die Liste
+// liefert Zeitraum/Status/Notizen nicht) → Rückfrage statt „Rückgängig“.
 import { bestaetigen } from '../composables/useBestaetigen.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import { buchungsFehler, erstesFehlerfeld } from '../composables/formularPruefung.mjs'
@@ -957,15 +959,36 @@ async function submitBooking() {
   }
 }
 
+/**
+ * Buchung stornieren — MIT Rückfrage (UX2c-Nacharbeit, Review 06.11.).
+ *
+ * Vorher stand hier „Rückgängig“; das war falsch: `get_meine_buchungen` liefert
+ * weder `datum_von`/`datum_bis` noch Status und Notizen der Zeile, eine neue
+ * Anfrage wäre also eine ANDERE Buchung (anderer Zeitraum, Status „Angefragt“
+ * statt „Bestätigt“, Notizen weg) — und der Platz kann zwischenzeitlich
+ * vergeben sein. Prinzip I2 der Karte: „falls wiederherstellbar — sonst bleibt
+ * Rückfrage“. Die Rückfrage nennt die Folge konkret.
+ */
 async function cancelBooking(id) {
-  if (!await bestaetigen({ titel: 'Buchung stornieren?', text: 'Eine Buchung wird storniert und die Ressource wieder freigegeben.', aktion: 'Stornieren', gefahr: true })) return
+  const zeile = myBookings.value.find(b => b.id === id) || null
+  const ok = await bestaetigen({
+    titel: 'Buchung stornieren?',
+    text: zeile?.purpose
+      ? `„${zeile.purpose}“ wird storniert. Der Platz wird danach wieder frei vergeben — `
+        + 'eine Stornierung lässt sich nicht zurücknehmen.'
+      : 'Die Buchung wird storniert. Der Platz wird danach wieder frei vergeben — '
+        + 'eine Stornierung lässt sich nicht zurücknehmen.',
+    aktion: 'Stornieren',
+    gefahr: true,
+  })
+  if (!ok) return
   try {
     await apiCall('diakronos.diakonos.api.ressourcen.delete_buchung', { buchung_id: id })
-    showToast('Buchung storniert')
     myBookings.value = myBookings.value.filter(b => b.id !== id)
     await loadResources()
+    showToast('Buchung storniert')
   } catch (err) {
-    showToast(err?.message || 'Fehler', 'error')
+    showToast(aktionsfehler('entfernen', err), 'error')
   }
 }
 

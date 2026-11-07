@@ -114,6 +114,10 @@
  */
 import { computed, reactive, ref, onMounted, h } from 'vue'
 import { showToast } from '../composables/useToast.js'
+// UX2c (C2): Löschen ist umkehrbar (neu anlegen) → sofort + „Rückgängig“.
+import { useRueckgaengigAktion } from '../composables/useRueckgaengigAktion.js'
+import { wiederherstellen as gegenrichtung, vollstaendig } from '../composables/rueckgaengigWeg.mjs'
+// UX2c-Nacharbeit: mit Bild ist das Löschen nicht umkehrbar → Rückfrage.
 import { bestaetigen } from '../composables/useBestaetigen.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import {
@@ -153,6 +157,8 @@ const spalten = [
 ]
 
 const zeilen = ref([])
+// UX2c (C2): Rückgängig-Weg dieser Seite (Stapel-Eintrag + Meldung).
+const { mitRueckgaengig } = useRueckgaengigAktion()
 const arten = ref(['Raum', 'Fahrzeug', 'Gegenstand'])
 const laedt = ref(true)
 const fehler = ref('')
@@ -259,18 +265,44 @@ async function speichern() {
   }
 }
 
+/**
+ * UX2c (C2 · Prinzip I2): Löschen ist UMKEHRBAR — aber nur, solange der
+ * Zustand VOLLSTÄNDIG zurückkommt (Review 06.11.).
+ *
+ * `get_ressourcen_verwaltung` liefert kein `bild`, und `create_ressource`
+ * kennt das Feld nicht: eine Ressource MIT Bild käme ohne Bild zurück. In dem
+ * Fall bleibt es bei der Rückfrage (`bestaetigen`) statt eines falschen
+ * „Rückgängig“; der Server verweigert das Löschen ohnehin, solange eine Buchung
+ * oder ein Termin daran hängt.
+ */
 async function entfernen(r) {
-  const ok = await bestaetigen({
-    titel: `„${r.name}“ löschen?`,
-    text: 'Die Ressource wird entfernt. Das geht nur, wenn keine Buchung und kein Termin daran hängt.',
-    aktion: 'Löschen',
-    gefahr: true,
-  })
-  if (!ok) return
+  if (!vollstaendig('ressource', r)) {
+    const ok = await bestaetigen({
+      titel: 'Ressource löschen?',
+      text: `„${r.name}“ wird dauerhaft gelöscht. Das hinterlegte Bild kann nicht `
+        + 'wiederhergestellt werden.',
+      aktion: 'Löschen',
+      gefahr: true,
+    })
+    if (!ok) return
+    try {
+      await ressourceLoeschen(r.id)
+      await laden()
+      showToast(`„${r.name}“ gelöscht`)
+    } catch (err) {
+      showToast(serverFehlerText(err, 'Die Ressource konnte nicht gelöscht werden.'), 'error')
+    }
+    return
+  }
   try {
     await ressourceLoeschen(r.id)
-    showToast('Ressource gelöscht')
     await laden()
+    await mitRueckgaengig({
+      beschreibung: `„${r.name}“ gelöscht`,
+      zurueck: () => gegenrichtung('ressource', r),
+      danach: laden,
+      erfolg: `„${r.name}“ ist wieder da.`,
+    })
   } catch (err) {
     showToast(serverFehlerText(err, 'Die Ressource konnte nicht gelöscht werden.'), 'error')
   }

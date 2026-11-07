@@ -223,12 +223,18 @@ def _zeilen_zu_namen(zeilen: list[dict[str, Any]], feld: str) -> list[str]:
 
 
 def _kalender_eintrag(doc) -> dict[str, Any]:
-    """Ein Kalender in der Form, die die Verwaltungsseite braucht."""
+    """Ein Kalender in der Form, die die Verwaltungsseite braucht.
+
+    UX2c-N2: `calender_details` kommt mit, damit die Seite erkennt, ob nach
+    dem Loeschen ein „Rueckgaengig“ den Zustand VOLLSTAENDIG herstellt —
+    `create_kalender` nimmt das Feld nicht an (es setzt nur der Google-Import).
+    """
     return {
         "name": doc.name,
         "titel": doc.get("calendar_name") or doc.name,
         "farbe": doc.get("calendar_color") or STANDARD_FARBE,
         "selbstverwaltet": bool(doc.get("selbstverwaltet")),
+        "calender_details": doc.get("calender_details") or "",
         "leserechte": _zeilen_zu_namen(
             _child_rows(ROLLE_TABELLE, doc.name, LESERECHT_FELD, ["role"]), "role"
         ),

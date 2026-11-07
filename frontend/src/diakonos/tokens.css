@@ -400,6 +400,10 @@
      einander stehen. Als Klasse `.dk-tabular` (index.css) und als Token für
      Stellen, die es direkt setzen. */
   --fs-tabular: tabular-nums;
+  /* Zeilenhöhe für Fließtext (UX2c-Nacharbeit: der Endgültig-Dialog hatte
+     `line-height: 1.55` als Literal im Stil). Absichtlich OHNE Einheit: ein
+     Faktor, keine Pixelzahl — er passt zu jeder Schriftstufe. */
+  --lh-text: 1.55;
   /* Fließtext-Container: höchstens ~65 Zeichen je Zeile (Prinzip Ä3).
      Gemessen in `ch` der aktuellen Schrift — deshalb kein px-Wert. */
   --lesebreite: 65ch;

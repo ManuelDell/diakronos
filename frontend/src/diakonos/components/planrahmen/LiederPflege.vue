@@ -133,6 +133,17 @@
         >Umbenennen</DkButton>
       </template>
     </DkModal>
+
+    <!-- UX2c (C1): Entfernen eines Werts ist endgültig (Zuordnungen der
+         Lieder gehen mit) — der EINE Endgültig-Dialog der App. -->
+    <DkEndgueltig
+      v-model="wertEntfernenOffen"
+      :titel="`Wert „${wertEntfernenZiel}“ entfernen?`"
+      text="Der Wert verschwindet endgültig aus der Auswahl. Bei jedem Lied, das ihn trägt, wird er ebenfalls entfernt — das lässt sich nicht rückgängig machen."
+      aktion="Wert endgültig entfernen"
+      :laeuft="beschaeftigt"
+      @bestaetigen="wertEntfernenAusfuehren"
+    />
   </section>
 </template>
 
@@ -152,8 +163,9 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { usePlanrahmen, fehlerMeldungen } from '../../composables/usePlanrahmen.js'
 import { showToast } from '../../composables/useToast.js'
-import { bestaetigen } from '../../composables/useBestaetigen.js'
 import DkModal from '../DkModal.vue'
+// UX2c (C1): der EINE Endgültig-Dialog (Frage, Folge, gefährlicher Knopf).
+import DkEndgueltig from '../ui/DkEndgueltig.vue'
 import LiedBearbeiten from '../lieder/LiedBearbeiten.vue'
 import PrMeldungen from './PrMeldungen.vue'
 import {
@@ -332,10 +344,30 @@ async function umbenennenSpeichern() {
   if (neu !== umbenennenAlt.value) await wertAktion('umbenennen', umbenennenAlt.value, neu)
   if (!fehler.value.length) umbenennenOffen.value = false
 }
-async function wertEntfernen(w) {
-  if (!await bestaetigen({ titel: 'Wert entfernen?', text: `Wert „${w}“ aus der Auswahl entfernen?`, aktion: 'Entfernen' })) return
-  return wertAktion('entfernen', w)
+/**
+ * UX2c (C1): Ein Wert aus der Auswahl zu entfernen ist ENDGÜLTIG — der Server
+ * löscht dabei die Zuordnungen der Lieder mit (`dienste.py`,
+ * „Der Wert wurde bei N Liedern verwendet und dort entfernt“) und baut den
+ * Wert nicht wieder auf. Deshalb bleibt hier eine Rückfrage, aber im
+ * Endgültig-Dialog: Frage, konkrete Folge (Zuordnungen!) und der gefährliche
+ * Knopf am Ende. Kein Abtippen — der Wert ist kein Personenname, und der
+ * Server meldet die Zahl der betroffenen Lieder in der Meldung.
+ */
+const wertEntfernenOffen = ref(false)
+const wertEntfernenZiel = ref('')
+
+function wertEntfernen(w) {
+  wertEntfernenZiel.value = w
+  wertEntfernenOffen.value = true
 }
+
+async function wertEntfernenAusfuehren() {
+  const w = wertEntfernenZiel.value
+  if (!w) return
+  wertEntfernenOffen.value = false
+  await wertAktion('entfernen', w)
+}
+
 </script>
 
 <style scoped>

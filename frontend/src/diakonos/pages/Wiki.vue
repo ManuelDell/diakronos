@@ -227,8 +227,9 @@ import { apiCall } from '../composables/useApi.js'
 import { suchNormal } from '../composables/bf1Anzeige.js'
 import { showToast } from '../composables/useToast.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
-import { bestaetigen } from '../composables/useBestaetigen.js'
-import { loeschFrage, papierkorbMeldung, wiederherstellen } from '../composables/papierkorb.mjs'
+import { papierkorbMeldung, wiederherstellen } from '../composables/papierkorb.mjs'
+// UX2c (C2): Löschen ohne Rückfrage, dafür „Rückgängig“ (Stapel + Strg+Z).
+import { useRueckgaengigAktion } from '../composables/useRueckgaengigAktion.js'
 import { useSession } from '../composables/useSession.js'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkButton from '../components/ui/DkButton.vue'
@@ -246,6 +247,8 @@ import { getRouteParam } from '../router.js'
 function sanitize(html) { return DOMPurify.sanitize(html || '') }
 
 const { isAdmin } = useSession()
+// UX2c (C2): Rückgängig-Weg dieser Seite (Stapel-Eintrag + Meldung).
+const { mitRueckgaengig } = useRueckgaengigAktion()
 
 /* ─── Categories ─── */
 const categories = [
@@ -481,22 +484,19 @@ async function saveArticle() {
 }
 
 async function deleteArticle(article) {
-  // UX2b: „Löschen“ heisst jetzt Papierkorb (7 Tage wiederherstellbar).
-  if (!(await bestaetigen(loeschFrage(article.title, 'Artikel')))) return
+  /* UX2c (C2): „Löschen“ heißt Papierkorb (7 Tage umkehrbar) — also KEINE
+     Rückfrage, sondern sofort ausführen und „Rückgängig“ anbieten. */
   try {
     const res = await apiCall('diakronos.diakonos.api.wiki.delete_wiki_artikel', { artikel_id: article.id })
     if (res?.success) {
       artikelSchliessen()
       await loadArticles()
-      showToast(papierkorbMeldung(article.title, res.wiederherstellbar_bis), 'success', { text: 'Rückgängig', onClick: async () => {
-        const ergebnis = await wiederherstellen('artikel', article.id)
-        if (ergebnis.ok) {
-          showToast(`„${article.title}“ wiederhergestellt.`)
-          await loadArticles()
-        } else {
-          showToast(ergebnis.fehler, 'error')
-        }
-      } })
+      await mitRueckgaengig({
+        beschreibung: papierkorbMeldung(article.title, res.wiederherstellbar_bis),
+        zurueck: () => wiederherstellen('artikel', article.id),
+        danach: loadArticles,
+        erfolg: `„${article.title}“ wiederhergestellt.`,
+      })
     }
   } catch (e) {
     showToast(e.message || 'Artikel konnte nicht gelöscht werden.', 'error')

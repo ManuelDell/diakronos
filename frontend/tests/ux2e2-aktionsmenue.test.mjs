@@ -34,34 +34,42 @@ const ohneKommentare = (quelle) => quelle
 
 /* ── 1 · Lieder laufen über den Papierkorb ─────────────────────────────── */
 
-test('UX2e2 · Lied löschen: Löschfrage → delete_lied → Meldung mit Rückgängig', () => {
+/*
+ * UX2c (C2): Der Weg ist derselbe (delete_lied → papierkorbMeldung →
+ * wiederherstellen_lied). Die RÜCKFRAGE ist entfallen: der Papierkorb ist
+ * umkehrbar, also wird sofort ausgeführt und „Rückgängig“ über den
+ * gemeinsamen Stapel angeboten (Prinzip I2; Wächter in
+ * `ux2c-endgueltig.test.mjs`).
+ */
+test('UX2e2 · Lied löschen: delete_lied → Meldung im Papierkorb, „Rückgängig“ über den Stapel', () => {
   const quelle = ohneKommentare(lies('pages/Lieder.vue'))
   const anfang = quelle.indexOf('async function inPapierkorb')
   assert.ok(anfang > -1, 'Lieder.vue hat inPapierkorb')
   const rumpf = quelle.slice(anfang, quelle.indexOf('\nfunction aktionenFuer', anfang))
-  assert.match(rumpf, /bestaetigen\(loeschFrage\(l\.titel, 'Lied'\)\)/,
-    'Rückfrage kommt aus der einen Quelle (loeschFrage), nicht handgeschrieben')
+  assert.doesNotMatch(rumpf, /bestaetigen\(/, 'keine Rückfrage mehr (umkehrbar)')
   assert.match(rumpf, /musik\.delete_lied['"]?\s*,\s*\{\s*lied:\s*l\.name\s*\}/,
     'der Server legt das Lied in den Papierkorb (delete_lied)')
   assert.doesNotMatch(rumpf, /save_lied/, 'save_lied {aktiv:false} ist der alte, falsche Weg')
   assert.doesNotMatch(rumpf, /aktiv:\s*false/, 'kein „aktiv: false" mehr')
   assert.match(rumpf, /papierkorbMeldung\(/, 'die Meldung sagt, was passiert ist')
-  assert.match(rumpf, /text:\s*'Rückgängig'/, 'die Meldung bietet „Rückgängig" an')
+  // Die Rücknahme läuft über den EINEN Helfer (Stapel-Eintrag + Meldung).
+  assert.match(rumpf, /mitRueckgaengig\(/, 'die Aktion wird am Rückgängig-Stapel angemeldet')
   assert.match(rumpf, /wiederherstellen\('lied',\s*l\.name\)/,
     '„Rückgängig" holt das Lied wirklich zurück (wiederherstellen_lied)')
   // Die Importe stehen wirklich in der Datei (keine erfundene Funktion).
-  assert.match(quelle, /import \{[^}]*loeschFrage[^}]*\} from '\.\.\/composables\/papierkorb\.mjs'/,
-    'loeschFrage/papierkorbMeldung/wiederherstellen sind eingebunden')
+  assert.match(quelle, /import \{[^}]*papierkorbMeldung[^}]*\} from '\.\.\/composables\/papierkorb\.mjs'/,
+    'papierkorbMeldung/wiederherstellen sind eingebunden')
+  assert.match(quelle, /import \{ useRueckgaengigAktion \}/)
 })
 
 test('UX2e2 · Lied: Weg und Wortlaut stimmen mit Beiträgen überein (eine Meldung)', () => {
-  // Prinzip S4: dieselbe Wirkung, derselbe Text — geprüft am Beitrag, dem
-  // Vorbild, das die Karte nennt.
-  const beitrag = ohneKommentare(lies('pages/Beitraege.vue'))
-  assert.match(beitrag, /bestaetigen\(loeschFrage\(post\.title, 'Beitrag'\)\)/)
-  assert.match(beitrag, /text:\s*'Rückgängig'/)
-  const lied = ohneKommentare(lies('pages/Lieder.vue'))
-  assert.match(lied, /text:\s*'Rückgängig'/)
+  // Prinzip S4: dieselbe Wirkung, derselbe Weg — geprüft am Beitrag, dem
+  // Vorbild, das die Karte nennt (beide ohne Rückfrage, beide über den Stapel).
+  for (const name of ['pages/Beitraege.vue', 'pages/Lieder.vue']) {
+    const text = ohneKommentare(lies(name))
+    assert.match(text, /papierkorbMeldung\(/, `${name}: Meldung fehlt`)
+    assert.match(text, /mitRueckgaengig\(/, `${name}: Stapel-Anmeldung fehlt`)
+  }
 })
 
 /* ── 2 · Terminliste ───────────────────────────────────────────────────── */

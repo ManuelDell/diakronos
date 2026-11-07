@@ -265,7 +265,9 @@ import { chipsAus } from '../composables/filterChips.mjs'
 import { showToast } from '../composables/useToast.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import { bestaetigen } from '../composables/useBestaetigen.js'
-import { loeschFrage, papierkorbMeldung, wiederherstellen } from '../composables/papierkorb.mjs'
+import { papierkorbMeldung, wiederherstellen } from '../composables/papierkorb.mjs'
+// UX2c (C2): Löschen ohne Rückfrage, dafür „Rückgängig“ (Stapel + Strg+Z).
+import { useRueckgaengigAktion } from '../composables/useRueckgaengigAktion.js'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkButton from '../components/ui/DkButton.vue'
 import DkBadge from '../components/ui/DkBadge.vue'
@@ -283,6 +285,8 @@ import DkAktionen from '../components/ui/DkAktionen.vue'
 function sanitize(html) { return DOMPurify.sanitize(html || '') }
 
 const { isAdmin, rollen } = useSession()
+// UX2c (C2): der Rückgängig-Weg dieser Seite (Stapel-Eintrag + Meldung).
+const { mitRueckgaengig } = useRueckgaengigAktion()
 // BS-1d: Website-Schalter nur für Website-Rollen (Server antwortet sonst 403).
 const darfWebsite = computed(() => darfFreigabenVerwalten({ rollen: rollen.value }))
 
@@ -505,26 +509,22 @@ async function savePost() {
   }
 }
 async function deletePost(post) {
-  // UX2b: kein „unwiderruflich“ mehr — der Beitrag landet im Papierkorb
-  // (7 Tage wiederherstellbar). Die Meldung nennt die Frist; „Rückgängig“
-  // holt ihn über `beitraege.wiederherstellen_beitrag` zurück.
-  if (!(await bestaetigen(loeschFrage(post.title, 'Beitrag')))) return
+  /* UX2c (C2 · Prinzip I2): Löschen ist UMKEHRBAR (Papierkorb, 7 Tage) —
+     also KEINE Rückfrage mehr, sondern sofort ausführen und „Rückgängig“
+     anbieten (8 s, Strg+Z, Meldung mit der Frist aus UX2b). */
   try {
     const antwort = await apiCall('diakronos.diakonos.api.beitraege.delete_beitrag', { beitrag_id: post.id })
     showPostDetail.value = false
     selectedPost.value = null
     await loadPosts()
-    await showToast(papierkorbMeldung(post.title, antwort?.wiederherstellbar_bis), 'success', { text: 'Rückgängig', onClick: async () => {
-      const ergebnis = await wiederherstellen('beitrag', post.id)
-      if (ergebnis.ok) {
-        showToast(`„${post.title}“ wiederhergestellt.`)
-        await loadPosts()
-      } else {
-        showToast(ergebnis.fehler, 'error')
-      }
-    } })
+    await mitRueckgaengig({
+      beschreibung: papierkorbMeldung(post.title, antwort?.wiederherstellbar_bis),
+      zurueck: () => wiederherstellen('beitrag', post.id),
+      danach: loadPosts,
+      erfolg: `„${post.title}“ wiederhergestellt.`,
+    })
   } catch (err) {
-    showToast(err?.message || 'Fehler', 'error')
+    showToast(aktionsfehler('löschen', err), 'error')
   }
 }
 /* ── UX2e · Aktionsmenü „⋯" an jedem Beitrag (Entwurf B1, N6/K4) ─────────

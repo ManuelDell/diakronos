@@ -144,6 +144,11 @@
  */
 import { computed, reactive, ref, onMounted, h } from 'vue'
 import { showToast } from '../composables/useToast.js'
+// UX2c (C2): Löschen ist umkehrbar (neu anlegen) → sofort + „Rückgängig“.
+import { useRueckgaengigAktion } from '../composables/useRueckgaengigAktion.js'
+import { wiederherstellen as gegenrichtung, vollstaendig } from '../composables/rueckgaengigWeg.mjs'
+// UX2c-Nacharbeit: Kalender aus dem Google-Import (calender_details) kommen
+// nicht vollständig zurück → Rückfrage.
 import { bestaetigen } from '../composables/useBestaetigen.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import {
@@ -175,6 +180,8 @@ const IconPlus = () => h('svg', {
 import { STANDARD_FARBE } from '../../shared/sichere-ausgabe.js'
 
 const kalender = ref([])
+// UX2c (C2): Rückgängig-Weg dieser Seite (Stapel-Eintrag + Meldung).
+const { mitRueckgaengig } = useRueckgaengigAktion()
 const rollen = ref([])
 const laedt = ref(true)
 // UX2d3b: Platzhalter erst nach 300 ms — kein Blitzen, keine Aussage vor der Antwort.
@@ -299,18 +306,45 @@ async function speichern() {
   }
 }
 
+/**
+ * UX2c (C2 · Prinzip I2): Löschen ist UMKEHRBAR — aber nur, solange der
+ * Zustand VOLLSTÄNDIG zurückkommt (Review 06.11.).
+ *
+ * Der Server lässt das Löschen nur zu, solange keine Termine darin stehen und
+ * nichts darauf zeigt; dieselben Angaben (Titel, Farbe, Rechte, Moderatoren)
+ * legen den Kalender wieder an. Was `create_kalender` NICHT annimmt, ist
+ * `calender_details` (Hinweis „Importiert aus Google Kalender“): bei einem
+ * Kalender aus dem Google-Import bliebe der Hinweis weg. Dort bleibt es bei
+ * der Rückfrage statt eines unvollständigen „Rückgängig“.
+ */
 async function kalenderEntfernen(k) {
-  const ok = await bestaetigen({
-    titel: `Kalender „${k.titel}“ löschen?`,
-    text: 'Der Kalender wird entfernt. Das geht nur, solange keine Termine darin stehen.',
-    aktion: 'Löschen',
-    gefahr: true,
-  })
-  if (!ok) return
+  if (!vollstaendig('kalender', k)) {
+    const ok = await bestaetigen({
+      titel: 'Kalender löschen?',
+      text: `„${k.titel}“ wird gelöscht. Der Vermerk „Importiert aus Google Kalender“ `
+        + 'geht dabei verloren und kommt nicht zurück.',
+      aktion: 'Löschen',
+      gefahr: true,
+    })
+    if (!ok) return
+    try {
+      await kalenderLoeschen(k.name)
+      await laden()
+      showToast(`Kalender „${k.titel}“ gelöscht`)
+    } catch (err) {
+      showToast(serverFehlerText(err, 'Der Kalender konnte nicht gelöscht werden.'), 'error')
+    }
+    return
+  }
   try {
     await kalenderLoeschen(k.name)
-    showToast('Kalender gelöscht')
     await laden()
+    await mitRueckgaengig({
+      beschreibung: `Kalender „${k.titel}“ gelöscht`,
+      zurueck: () => gegenrichtung('kalender', k),
+      danach: laden,
+      erfolg: `Kalender „${k.titel}“ ist wieder da.`,
+    })
   } catch (err) {
     showToast(serverFehlerText(err, 'Der Kalender konnte nicht gelöscht werden.'), 'error')
   }

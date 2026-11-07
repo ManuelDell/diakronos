@@ -1073,12 +1073,17 @@ def get_ressourcen_verwaltung():
     Echtzeit-Status) liefert das hier die PFLEGE-Sicht: Art, Kapazitaet,
     Beschreibung, Tags, Wartung — genau die Felder, die der Verwaltungsdialog
     bearbeitet.
+
+    UX2c-N2: `bild` gehoert mit in die Liste, obwohl der Verwaltungsdialog es
+    nicht bearbeitet. Ohne das Feld koennte die Seite nach dem Loeschen nicht
+    erkennen, dass ein Bild vorhanden war — `create_ressource` nimmt es nicht
+    an, ein „Rueckgaengig“ liesse das Bild also stillschweigend weg.
     """
     _require_ressourcen_verwalter()
 
     rows = get_all(
         "Ressource",
-        fields=["name", "ressource_name", "typ", "kapazitaet", "beschreibung", "tags", "wartung"],
+        fields=["name", "ressource_name", "typ", "kapazitaet", "beschreibung", "bild", "tags", "wartung"],
     ) or []
     rows = sorted(rows, key=lambda r: (r.get("typ") or "", r.get("ressource_name") or r.get("name") or ""))
 
@@ -1090,6 +1095,7 @@ def get_ressourcen_verwaltung():
                 "typ": r.get("typ") or "Gegenstand",
                 "kapazitaet": r.get("kapazitaet"),
                 "beschreibung": r.get("beschreibung") or "",
+                "bild": r.get("bild") or "",
                 "tags": r.get("tags") or "",
                 "wartung": 1 if r.get("wartung") else 0,
             }

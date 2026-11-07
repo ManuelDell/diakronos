@@ -109,7 +109,9 @@ const lies = (p) => readFileSync(new URL(p, root), 'utf8')
   assert.ok(!/(^|[^.\w])confirm\(/.test(ohneKommentare), 'natives confirm() in Registrierung.vue')
   assert.ok(!/(^|[^.\w])prompt\(/.test(ohneKommentare), 'natives prompt() in Registrierung.vue')
   assert.ok(reg.includes('function bestaetigen('), 'Bestaetigung im App-Fenster fehlt')
-  assert.ok(reg.includes('Link löschen'), 'genaues Verb im Konfliktfenster fehlt')
+  // UX2c (C1): Der Konflikt-Dialog ist der EINE Endgültig-Dialog; der Knopf
+  // nennt jetzt Aktion UND Endgültigkeit („Link endgültig löschen“).
+  assert.ok(/Link endgültig löschen|Link löschen/.test(reg), 'genaues Verb im Konfliktfenster fehlt')
 
   // Warnungen laufen ueber den globalen Toast (Warn-Stil vorhanden).
   assert.ok(reg.includes("from '../composables/useToast.js'"), 'useToast nicht eingebunden')

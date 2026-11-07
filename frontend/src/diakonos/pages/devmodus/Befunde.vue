@@ -77,6 +77,15 @@
     <div v-if="grossesBild" class="dk-dm-gross" @click="grossesBild = null">
       <img :src="grossesBild" alt="Befund-Bild groß" />
     </div>
+
+    <!-- UX2c (C1): endgültig — Frage, Folge, gefährlicher Knopf (EIN Baustein). -->
+    <DkEndgueltig
+      v-model="loeschenOffen"
+      titel="Befund endgültig löschen?"
+      :text="`Der Befund „${ersteZeile(loeschenZiel?.text) || loeschenZiel?.name || ''}“ wird mit Bild, Umfeld und Verlauf dauerhaft entfernt. Das lässt sich nicht rückgängig machen.`"
+      aktion="Befund endgültig löschen"
+      @bestaetigen="loeschenAusfuehren"
+    />
   </div>
 </template>
 
@@ -89,7 +98,8 @@ import DkPageHeader from '../../components/ui/DkPageHeader.vue'
 import { bildUrl as bildUrlRoh, devmodusApi, fehlerZeilen } from '../../composables/useDevmodus.js'
 import { useSession } from '../../composables/useSession.js'
 import { showToast } from '../../composables/useToast.js'
-import { bestaetigen } from '../../composables/useBestaetigen.js'
+// UX2c (C1): der EINE Endgültig-Dialog (Frage, Folge, gefährlicher Knopf).
+import DkEndgueltig from '../../components/ui/DkEndgueltig.vue'
 
 const { isAdmin: istAdmin } = useSession()
 
@@ -134,8 +144,25 @@ async function setzen(b, status) {
   }
 }
 
-async function loeschen(b) {
-  if (!await bestaetigen({ titel: 'Befund löschen?', text: 'Ein Befund wird dauerhaft gelöscht.', aktion: 'Löschen', gefahr: true })) return
+/**
+ * UX2c (C1): Ein Befund ist endgültig weg — Bild, Umfeld und Verlauf kommen
+ * nicht zurück, und ein neuer Befund bekäme eine neue Kennung. Deshalb die
+ * Rückfrage im EINEN Endgültig-Dialog der App: Frage, konkrete Folge,
+ * gefährlicher Knopf am Ende. Abgetippt wird nichts — es ist ein
+ * Entwicklerwerkzeug, kein Personenbezug.
+ */
+const loeschenOffen = ref(false)
+const loeschenZiel = ref(null)
+
+function loeschen(b) {
+  loeschenZiel.value = b
+  loeschenOffen.value = true
+}
+
+async function loeschenAusfuehren() {
+  const b = loeschenZiel.value
+  if (!b) return
+  loeschenOffen.value = false
   try {
     await devmodusApi.befundLoeschen(b.name)
     befunde.value = befunde.value.filter(x => x.name !== b.name)

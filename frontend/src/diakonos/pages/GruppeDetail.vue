@@ -263,6 +263,9 @@ import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 // "Fehler beim Laden" / "Fehler beim Speichern".
 import { aktionsfehler } from '../../shared/fehlertexte.js'
 import { showToast } from '../composables/useToast.js'
+// UX2c-Nacharbeit (Review 06.11.): Entfernen aus einer Gruppe ist NICHT
+// vollständig umkehrbar (Beitrittsdatum/Rolle/Notiz gehen verloren) →
+// Rückfrage statt „Rückgängig“.
 import { bestaetigen } from '../composables/useBestaetigen.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import { useVerlassenSchutz } from '../composables/useVerlassenSchutz.js'
@@ -748,7 +751,23 @@ export default {
             const id = gruppeId.value
             const mitglied_id = m.mitglied || m.name
             if (!id || !mitglied_id) return
-            if (!await bestaetigen({ titel: 'Mitglied entfernen?', text: 'Eine Person wird aus dieser Gruppe entfernt. Das Mitglied und seine anderen Gruppen bleiben erhalten.', aktion: 'Aus Gruppe entfernen', gefahr: true })) return
+            /* UX2c-Nacharbeit (Review 06.11.): Das Entfernen ist NICHT
+               vollständig umkehrbar. `add_mitglied_to_gruppe` legt die
+               Mitgliedschaft neu an und setzt dabei `beitrittsdatum` auf
+               heute, `status` auf „Aktiv" und die Notiz auf leer — ein
+               „Rückgängig" würde also einen anderen Zustand herstellen als
+               vorher. Prinzip I2 der Karte („falls wiederherstellbar — sonst
+               bleibt Rückfrage"): Rückfrage mit konkreter Folge, kein Undo. */
+            const name = m.vollstaendiger_name || m.mitglied || m.name
+            const ok = await bestaetigen({
+                titel: 'Aus der Gruppe entfernen?',
+                text: `${name} wird aus dieser Gruppe entfernt. Ein späteres `
+                    + 'Aufnehmen beginnt neu (Beitrittsdatum heute, Rolle und Notiz '
+                    + 'leer) — die bisherige Mitgliedschaft ist nicht wiederherstellbar.',
+                aktion: 'Entfernen',
+                gefahr: true,
+            })
+            if (!ok) return
             try {
                 const res = await apiCall('diakronos.diakonos.api.gruppen.remove_mitglied_from_gruppe', {
                     gruppe_id: id,
@@ -756,7 +775,7 @@ export default {
                     is_untergruppe: isUntergruppe.value,
                 })
                 if (res?.success) {
-                    showToast('Mitglied entfernt', 'success')
+                    showToast(`${name} aus der Gruppe entfernt`)
                     fetchGruppe()
                 } else {
                     showToast(aktionsfehler('entfernen', res), 'error')

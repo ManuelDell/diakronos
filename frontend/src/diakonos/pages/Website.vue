@@ -292,7 +292,13 @@ import { useWebsiteFreigaben } from '../composables/useWebsiteFreigaben.js'
 import { useWebsite, oeffneInNeuemTab } from '../composables/useWebsite.js'
 import { sitzungsHinweis } from '../composables/website.mjs'
 import { showToast } from '../composables/useToast.js'
+// UX2c (C2): Entfernen eines Postfachs ist umkehrbar (neu anlegen) →
+// sofort + „Rückgängig“.
+import { useRueckgaengigAktion } from '../composables/useRueckgaengigAktion.js'
+// UX2c bleibt: die Freigabe-Rueckfragen (Kalender/Gruppe zeigen?) brauchen
+// weiter die Ein-Zeilen-Bestaetigung im App-Rahmen.
 import { bestaetigen } from '../composables/useBestaetigen.js'
+import { wiederherstellen as gegenrichtung } from '../composables/rueckgaengigWeg.mjs'
 import {
   BEZEICHNUNG_MAX,
   EMAIL_MAX,
@@ -330,6 +336,8 @@ const SITZUNGS_HINWEIS = sitzungsHinweis(14400)
 
 const { rollen } = useSession()
 const darfVerwalten = computed(() => darfFreigabenVerwalten({ rollen: rollen.value }))
+// UX2c (C2): Rückgängig-Weg dieser Seite (Stapel-Eintrag + Meldung).
+const { mitRueckgaengig } = useRueckgaengigAktion()
 
 const {
   daten, laedt, fehler, laeuft, kalender, gruppen, postfaecher, kategorien,
@@ -535,22 +543,24 @@ async function postfachSpeichern() {
   showToast(formular.istNeu ? 'Postfach angelegt' : 'Postfach gespeichert')
 }
 
+/**
+ * UX2c (C2 · Prinzip I2): Ein Postfach zu entfernen ist UMKEHRBAR — derselbe
+ * Slug samt Bezeichnung, Adresse und Reihenfolge legt die Zeile wieder an
+ * (`postfach_speichern`). Also keine Rückfrage, sondern sofort entfernen und
+ * „Rückgängig“ anbieten (8 s, Strg+Z).
+ */
 async function postfachEntfernen(zeile) {
-  const ok = await bestaetigen({
-    titel: 'Postfach entfernen?',
-    text: `„${zeile.bezeichnung || zeile.slug}“ wird entfernt. Nachrichten des `
-      + 'Kontaktformulars gehen dann an ein anderes aktives Postfach — oder gar nicht mehr, '
-      + 'wenn keines übrig ist.',
-    aktion: 'Entfernen',
-    gefahr: true,
-  })
-  if (!ok) return
   const ergebnis = await postfachLoeschen(zeile.slug)
   if (!ergebnis.ok) {
     showToast(ergebnis.fehler, 'error')
     return
   }
-  showToast('Postfach entfernt')
+  await mitRueckgaengig({
+    beschreibung: `Postfach „${zeile.bezeichnung || zeile.slug}“ entfernt`,
+    zurueck: () => gegenrichtung('postfach', zeile),
+    danach: laden,
+    erfolg: 'Postfach ist wieder da.',
+  })
 }
 
 /* ── Primo öffnen (WEB-3, unverändert) ───────────────────────────────── */

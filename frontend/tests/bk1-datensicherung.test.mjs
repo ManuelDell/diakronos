@@ -79,13 +79,19 @@ test('BACKUP-1: kein Herunterladen und kein Wiederherstellen in der Oberflaeche'
 
 // ── 3./4./5. Loeschen mit Rueckfrage, Hinweise, Grenzen ───────────────────
 
-test('BACKUP-1: Loeschen fragt nach — ueber bestaetigen(), nicht confirm()', () => {
+// UX2c (C1): Die Rückfrage ist nicht entfallen — sie läuft jetzt über den
+// gemeinsamen Endgültig-Dialog (Frage, konkrete Folge, gefährlicher Knopf)
+// statt über die Ein-Zeilen-Rückfrage. Löschen einer Sicherung bleibt
+// endgültig (kein Papierkorb), darum weiterhin eine Rückfrage.
+test('BACKUP-1: Loeschen fragt nach — ueber DkEndgueltig, nicht confirm()', () => {
   const seite = lies('pages/einstellungen/Datensicherung.vue')
-  assert.ok(seite.includes("from '../../composables/useBestaetigen.js'"))
-  assert.ok(seite.includes('await bestaetigen('))
+  assert.ok(seite.includes("from '../../components/ui/DkEndgueltig.vue'"),
+    'der EINE Endgültig-Dialog wird benutzt')
+  assert.ok(seite.includes('<DkEndgueltig'))
+  assert.ok(seite.includes('titel="Sicherung endgültig löschen?"'), 'Titel ist die Frage')
+  assert.ok(/lässt sich nicht rückgängig machen/.test(seite), 'die Folge wird genannt')
   assert.ok(!/\bconfirm\s*\(/.test(liesCode('pages/einstellungen/Datensicherung.vue')),
     'kein Browser-confirm()')
-  assert.ok(seite.includes('gefahr: true'), 'Loeschen ist als gefaehrlich markiert')
 })
 
 test('BACKUP-1: Hinweis auf die DSGVO-Frist steht in der Oberflaeche', () => {
