@@ -45,7 +45,7 @@
     </template>
 
     <template #footer>
-      <DkButton variant="ghost" :disabled="laeuft" @click="schliessen(false)">Abbrechen</DkButton>
+      <DkButton variant="secondary" :disabled="laeuft" @click="schliessen(false)">Abbrechen</DkButton>
       <DkButton
         :variant="istAustritt ? 'danger' : 'primary'"
         :loading="laeuft"

@@ -128,7 +128,7 @@ test('FIX-3 · Lieder: der Filter-Knopf ist der gemeinsame Baustein, kein Alt-Kn
   const knopf = tpl.slice(start, tpl.indexOf('</DkButton>', start))
   assert.match(knopf, /ld-filter-knopf/)
   assert.match(knopf, /aria-expanded/)
-  assert.ok(!/dk-btn-sm/.test(knopf), 'die kleine Alt-Klasse ist weg')
+  assert.ok(!/dk-btn/.test(knopf), 'die Alt-Klasse ist weg (nur DkButton)')
 })
 
 test('FIX-3 · Lieder: das Suchfeld der Werkzeugleiste nutzt dieselbe Höhe', () => {

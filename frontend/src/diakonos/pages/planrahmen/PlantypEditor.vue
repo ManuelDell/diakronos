@@ -19,8 +19,17 @@
         </p>
       </div>
       <div class="dk-screen-actions">
-        <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/vorlagen">Zur Liste</a>
-        <button v-if="darfVorlageBearbeiten && !laden" type="button" class="dk-btn dk-btn-primary dk-btn-sm" :disabled="speichert || !!jsonFehler" @click="speichernOffen = true">Als neue Version speichern …</button>
+        <DkButton
+          variant="secondary"
+          size="md"
+          as="a"
+          href="#/dienste/vorlagen"
+        >Zur Liste</DkButton>
+        <DkButton
+          variant="primary"
+          size="md"
+          v-if="darfVorlageBearbeiten && !laden" :disabled="speichert || !!jsonFehler" @click="speichernOffen = true"
+        >Als neue Version speichern …</DkButton>
       </div>
     </div>
 
@@ -28,7 +37,12 @@
 
     <div v-else-if="seitenFehler.length" class="pr-pe-zustand pr-pe-zustand--fehler">
       <PrMeldungen :meldungen="seitenFehler" />
-      <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/vorlagen">Zurück zur Liste</a>
+      <DkButton
+        variant="secondary"
+        size="md"
+        as="a"
+        href="#/dienste/vorlagen"
+      >Zurück zur Liste</DkButton>
     </div>
 
     <template v-else>
@@ -44,8 +58,16 @@
       <div v-if="entwurfFrage" class="pr-pe-entwurf dk-card" data-test="pr-pe-entwurf-frage">
         <p class="pr-pe-entwurf-text">Es gibt einen gemerkten Entwurf dieser Planvorlage (lokale, ungespeicherte Änderungen). Entwurf wiederherstellen?</p>
         <div class="pr-pe-entwurf-aktionen">
-          <button type="button" class="dk-btn dk-btn-primary dk-btn-sm" data-test="pr-pe-entwurf-wiederherstellen" @click="entwurfFortsetzen">Entwurf wiederherstellen</button>
-          <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" data-test="pr-pe-entwurf-verwerfen" @click="entwurfVerwerfen">Verwerfen</button>
+          <DkButton
+            variant="primary"
+            size="md"
+            data-test="pr-pe-entwurf-wiederherstellen" @click="entwurfFortsetzen"
+          >Entwurf wiederherstellen</DkButton>
+          <DkButton
+            variant="ghost"
+            size="md"
+            data-test="pr-pe-entwurf-verwerfen" @click="entwurfVerwerfen"
+          >Verwerfen</DkButton>
         </div>
       </div>
 
@@ -159,7 +181,11 @@
               <ul class="pr-pe-unbekannte-liste">
                 <li v-for="k in unbekannteGruppen" :key="k">
                   <span class="pr-pe-unbekannte-kennung">{{ gruppenName(k) }}</span>
-                  <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="gruppeToggle(k, false)">entfernen</button>
+                  <DkButton
+                    variant="ghost"
+                    size="md"
+                    @click="gruppeToggle(k, false)"
+                  >entfernen</DkButton>
                 </li>
               </ul>
             </div>
@@ -203,7 +229,11 @@
                 <input v-model="a.name" type="text" class="dk-form-input" placeholder="Abendmahl" />
                 <PrPfadMeldungen :meldungen="pruefMeldungen" :pfad="'anlaesse/' + ai + '/name'" />
               </label>
-              <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Anlass entfernen" @click="anlaesse.splice(ai, 1)">✕</button>
+              <DkButton
+                variant="ghost"
+                size="md"
+                aria-label="Anlass entfernen" @click="anlaesse.splice(ai, 1)"
+              >✕</DkButton>
             </div>
 
             <h5 class="pr-pe-unter-titel">Welche Felder entfallen bei diesem Anlass? (ohne)</h5>
@@ -222,8 +252,16 @@
               :meldungen="pruefMeldungen" :basis-pfad="'anlaesse/' + ai + '/wirkung/mit/'"
             />
             <div class="pr-pe-zeile">
-              <button v-if="!Array.isArray(a.wirkung?.mit)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="wirkungAnlegen(a); a.wirkung.mit = []">+ Zusatzfelder anlegen</button>
-              <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="a.wirkung.mit = undefined">Zusatzfelder entfernen</button>
+              <DkButton
+                variant="ghost"
+                size="md"
+                v-if="!Array.isArray(a.wirkung?.mit)" @click="wirkungAnlegen(a); a.wirkung.mit = []"
+              >+ Zusatzfelder anlegen</DkButton>
+              <DkButton
+                variant="ghost"
+                size="md"
+                v-else @click="a.wirkung.mit = undefined"
+              >Zusatzfelder entfernen</DkButton>
             </div>
 
             <h5 class="pr-pe-unter-titel">Eigene Regeln nur bei diesem Anlass</h5>
@@ -233,19 +271,39 @@
               :meldungen="pruefMeldungen" :basis-pfad="'anlaesse/' + ai + '/wirkung/regeln'"
             />
             <div class="pr-pe-zeile">
-              <button v-if="!Array.isArray(a.wirkung?.regeln)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="wirkungAnlegen(a); a.wirkung.regeln = []">+ Anlassregeln anlegen</button>
-              <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="a.wirkung.regeln = undefined">Anlassregeln entfernen</button>
+              <DkButton
+                variant="ghost"
+                size="md"
+                v-if="!Array.isArray(a.wirkung?.regeln)" @click="wirkungAnlegen(a); a.wirkung.regeln = []"
+              >+ Anlassregeln anlegen</DkButton>
+              <DkButton
+                variant="ghost"
+                size="md"
+                v-else @click="a.wirkung.regeln = undefined"
+              >Anlassregeln entfernen</DkButton>
             </div>
 
             <h5 class="pr-pe-unter-titel">Wirkung nur unter Bedingung</h5>
             <PrKnotenEditor v-if="istKnoten(a.wirkung?.bedingung)" :knoten="a.wirkung.bedingung" modus="bedingung" :kontext="kontext" />
             <PrPfadMeldungen :meldungen="pruefMeldungen" :pfad="'anlaesse/' + ai + '/wirkung/bedingung'" />
             <div class="pr-pe-zeile">
-              <button v-if="!istKnoten(a.wirkung?.bedingung)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="wirkungAnlegen(a); a.wirkung.bedingung = { anlass: '' }">+ Bedingung anlegen</button>
-              <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="a.wirkung.bedingung = undefined">Bedingung entfernen</button>
+              <DkButton
+                variant="ghost"
+                size="md"
+                v-if="!istKnoten(a.wirkung?.bedingung)" @click="wirkungAnlegen(a); a.wirkung.bedingung = { anlass: '' }"
+              >+ Bedingung anlegen</DkButton>
+              <DkButton
+                variant="ghost"
+                size="md"
+                v-else @click="a.wirkung.bedingung = undefined"
+              >Bedingung entfernen</DkButton>
             </div>
           </div>
-          <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="anlaesse.push({ id: '', name: '' })">+ Anlass anlegen</button>
+          <DkButton
+            variant="secondary"
+            size="md"
+            @click="anlaesse.push({ id: '', name: '' })"
+          >+ Anlass anlegen</DkButton>
         </section>
 
         <section id="pr-pe-deklarationen" class="pr-pe-abschnitt">
@@ -352,12 +410,15 @@
         </label>
       </form>
       <template #footer>
-        <button type="button" class="dk-btn dk-btn-ghost" @click="speichernOffen = false">Abbrechen</button>
-        <button
-          type="button" class="dk-btn dk-btn-primary"
+        <DkButton
+          variant="secondary"
+          @click="speichernOffen = false"
+        >Abbrechen</DkButton>
+        <DkButton
+          variant="primary"
           :disabled="speichert"
           @click="speichern"
-        >{{ speichert ? 'Wird gespeichert …' : 'Version speichern' }}</button>
+        >{{ speichert ? 'Wird gespeichert …' : 'Version speichern' }}</DkButton>
       </template>
     </DkModal>
   </div>
@@ -406,6 +467,7 @@ import PrInfo from '../../components/planrahmen/PrInfo.vue'
 import { ABSCHNITTE, ERSTER_ABSCHNITT, aktiverAbschnitt, erklaerspalteZeigen, istMessbar, lesekanteFuer, zielId } from '../../components/planrahmen/abschnitte.mjs'
 import { leereDefinition, jsonText, jsonUebernehmen as jsonPruefen, feldPfadListe, feldKennungen } from '../../components/planrahmen/editor.mjs'
 import { plantypOptionen } from '../../components/planrahmen/auswahl.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const emit = defineEmits(['gespeichert'])
 

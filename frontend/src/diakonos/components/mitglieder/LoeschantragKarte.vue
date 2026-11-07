@@ -5,7 +5,7 @@
        Server — hier wird nichts über die Person angenommen. -->
   <DkCard title="Meine Daten löschen lassen">
     <template #actions>
-      <DkButton v-if="stand !== ANTRAG_STAND.AUSGEFUEHRT" variant="ghost" size="sm"
+      <DkButton v-if="stand !== ANTRAG_STAND.AUSGEFUEHRT" variant="ghost" size="md"
                 :disabled="laedt" @click="$emit('neu-laden')">
         Stand neu laden
       </DkButton>
@@ -27,7 +27,7 @@
           Deine Daten sind gespeichert. Ein Antrag ändert noch nichts.
         </DkHint>
         <div class="la-aktionen">
-          <DkButton variant="danger" size="sm" :disabled="laedt" @click="oeffneAntrag">
+          <DkButton variant="danger" size="md" :disabled="laedt" @click="oeffneAntrag">
             Löschung beantragen
           </DkButton>
         </div>
@@ -42,7 +42,7 @@
           du die E-Mail, danach werden deine Daten gelöscht.
         </DkHint>
         <div class="la-aktionen">
-          <DkButton variant="secondary" size="sm" :loading="laeuft" :disabled="laedt"
+          <DkButton variant="secondary" size="md" :loading="laeuft" :disabled="laedt"
                     @click="$emit('zurueckziehen')">
             Antrag zurückziehen
           </DkButton>
@@ -57,7 +57,7 @@
           Deine Daten bleiben gespeichert. Du kannst jederzeit neu beantragen.
         </DkHint>
         <div class="la-aktionen">
-          <DkButton variant="danger" size="sm" :disabled="laedt" @click="oeffneAntrag">
+          <DkButton variant="danger" size="md" :disabled="laedt" @click="oeffneAntrag">
             Löschung beantragen
           </DkButton>
         </div>
@@ -76,7 +76,7 @@
           der Datenschutz-Aufsichtsbehörde beschweren.
         </DkHint>
         <div class="la-aktionen">
-          <DkButton variant="danger" size="sm" :disabled="laedt" @click="oeffneAntrag">
+          <DkButton variant="danger" size="md" :disabled="laedt" @click="oeffneAntrag">
             Erneut beantragen
           </DkButton>
         </div>

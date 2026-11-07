@@ -3,7 +3,7 @@
     <DkHint variant="info">Gib diesen Link nur an die betreffende Person weiter. Er gilt 7 Tage und nur einmal. Es wird keine E-Mail versendet.</DkHint>
     <RegLinkTeilen :link="daten.link" bezeichnung="Persönlicher Passwort-Link" vertraulich />
     <p>Gültig bis {{ ablauf }}. Ein neu erzeugter Link macht den vorherigen ungültig.</p>
-    <DkButton variant="secondary" size="sm" @click="textKopieren">Textvorlage kopieren</DkButton>
+    <DkButton variant="secondary" size="md" @click="textKopieren">Textvorlage kopieren</DkButton>
   </div>
 </template>
 

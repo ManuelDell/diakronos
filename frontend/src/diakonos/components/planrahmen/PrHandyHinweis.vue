@@ -14,14 +14,15 @@
       </svg>
     </span>
     <p class="pr-hinweis-handy-text">{{ text }}</p>
-    <button
-      type="button"
-      class="dk-btn dk-btn-ghost dk-btn-sm pr-hinweis-handy-zu"
+    <DkButton
+      variant="ghost"
+      size="md"
+      class="pr-hinweis-handy-zu"
       data-test="pr-hinweis-handy-schliessen"
       aria-label="Hinweis schließen"
       title="Hinweis schließen"
       @click="schliessen"
-    >Schließen</button>
+    >Schließen</DkButton>
   </div>
 </template>
 
@@ -45,6 +46,7 @@
  */
 import { computed } from 'vue'
 import { HANDY_HINWEIS_TEXT, hinweisZeigen } from '../../composables/handyHinweis.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   /** Ergebnis der Bedingung im Aufrufer (schmal + Recht + nicht geschlossen). */

@@ -21,7 +21,7 @@
     <!-- Fehler -->
     <div v-else-if="error" class="ld-fehler">
       {{ error }}
-      <DkButton variant="secondary" size="sm" @click="loadDetail">Erneut versuchen</DkButton>
+      <DkButton variant="secondary" size="md" @click="loadDetail">Erneut versuchen</DkButton>
     </div>
 
     <!-- LI1: Bearbeiten — dieselbe Komponente wie „Neues Lied“ -->

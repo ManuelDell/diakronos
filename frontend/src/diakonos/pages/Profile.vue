@@ -36,10 +36,10 @@
             <div class="prof-avatar-name">{{ profile.vorname }} {{ profile.nachname }}</div>
             <div class="prof-avatar-email dk-text-muted">{{ profile.email }}</div>
             <div class="prof-avatar-aktionen">
-              <DkButton variant="secondary" size="sm" @click="openCropModal">
+              <DkButton variant="secondary" size="md" @click="openCropModal">
                 {{ profile.foto ? 'Foto ändern' : 'Foto auswählen' }}
               </DkButton>
-              <DkButton v-if="profile.foto" variant="ghost" size="sm" @click="fotoEntfernen">
+              <DkButton v-if="profile.foto" variant="ghost" size="md" @click="fotoEntfernen">
                 Foto entfernen
               </DkButton>
             </div>
@@ -50,13 +50,13 @@
       <!-- ── Persönliche Daten ── -->
       <DkCard title="Persönliche Daten">
         <template #actions>
-          <DkButton v-if="!editingData" variant="ghost" size="sm" @click="startEdit">
+          <DkButton v-if="!editingData" variant="ghost" size="md" @click="startEdit">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Bearbeiten
           </DkButton>
           <div v-else class="prof-aktionen">
-            <DkButton variant="ghost" size="sm" @click="cancelEdit">Abbrechen</DkButton>
-            <DkButton variant="primary" size="sm" :loading="saving" @click="saveData">Speichern</DkButton>
+            <DkButton variant="secondary" size="md" @click="cancelEdit">Abbrechen</DkButton>
+            <DkButton variant="primary" size="md" :loading="saving" @click="saveData">Speichern</DkButton>
           </div>
         </template>
 
@@ -191,7 +191,7 @@
             </div>
           </div>
           <DkButton
-            size="sm"
+            size="md"
             :variant="profile[e.key] ? 'ghost' : 'primary'"
             :disabled="savingConsent"
             @click="toggleEinwilligung(e.kurz, !profile[e.key])"
@@ -225,7 +225,7 @@
           <p class="prof-klein prof-konto-text">
             Angemeldet als <strong>{{ profile.email || 'Nutzer' }}</strong>.
           </p>
-          <DkButton variant="secondary" size="sm" @click="abmeldenMitMeldung">
+          <DkButton variant="secondary" size="md" @click="abmeldenMitMeldung">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             Abmelden
           </DkButton>
@@ -252,9 +252,9 @@
         </div>
       </div>
       <template #footer>
-        <DkButton v-if="cropSrc" variant="ghost" size="sm" @click="cropSrc = null">Anderes Bild</DkButton>
-        <DkButton variant="ghost" size="sm" @click="showCrop = false">Abbrechen</DkButton>
-        <DkButton v-if="cropSrc" variant="primary" size="sm" :loading="uploadingPhoto" @click="cropAndUpload">Speichern</DkButton>
+        <DkButton v-if="cropSrc" variant="secondary" size="md" @click="cropSrc = null">Anderes Bild</DkButton>
+        <DkButton variant="secondary" size="md" @click="showCrop = false">Abbrechen</DkButton>
+        <DkButton v-if="cropSrc" variant="primary" size="md" :loading="uploadingPhoto" @click="cropAndUpload">Speichern</DkButton>
       </template>
     </DkDialog>
 

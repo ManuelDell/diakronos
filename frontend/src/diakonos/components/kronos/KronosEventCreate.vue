@@ -133,13 +133,13 @@
                 <DkButton
                   class="row-entfernen"
                   variant="ghost"
-                  size="sm"
+                  size="md"
                   aria-label="Ressourcenzeile entfernen"
                   title="Ressourcenzeile entfernen"
                   @click="form.zusaetzliche_ressourcen.splice(idx, 1)"
                 >&times;</DkButton>
               </div>
-              <DkButton class="row-hinzufuegen" variant="ghost" size="sm" block @click="addAdditionalResource">
+              <DkButton class="row-hinzufuegen" variant="ghost" size="md" block @click="addAdditionalResource">
                 + Ressource anlegen
               </DkButton>
             </div>

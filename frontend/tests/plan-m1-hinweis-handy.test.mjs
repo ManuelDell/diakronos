@@ -227,5 +227,8 @@ test('PLAN-M1: der Baustein trägt keine festen Farben (Wächter-Regel)', () => 
   // Darstellung aus den vorhandenen Tokens, Knopf aus dem Bausteinsatz.
   assert.match(BAUSTEIN, /var\(--info-soft\)/)
   assert.match(BAUSTEIN, /var\(--text\)/)
-  assert.match(BAUSTEIN, /class="dk-btn dk-btn-ghost dk-btn-sm/)
+  // UX1g: Der Schliessen-Weg ist ein Knopf des Systems (DkButton), nicht
+  // mehr die Altklasse `dk-btn …`.
+  assert.match(BAUSTEIN, /<DkButton[\s\S]{0,120}variant="ghost"/,
+    'der Weg des Hinweises ist ein DkButton (ghost)')
 })

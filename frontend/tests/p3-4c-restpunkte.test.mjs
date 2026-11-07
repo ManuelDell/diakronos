@@ -57,7 +57,9 @@ test('OP-HANDY-26: kleine Knoepfe, Chips und Kaestchen sind am Handy mindestens 
   const block = groberZeigerBlock(lies(INDEX_CSS))
   assert.match(block, /min-height:\s*24px/,
     'im Grob-Zeiger-Block fehlt die Mindesthoehe 24 px (WCAG 2.5.8)')
-  for (const selektor of ['.dk-btn', '.dk-btn-sm', '.dk-btn-icon', '.dk-filter-chip',
+  // UX1g: Die Altklassen (.dk-btn, .dk-btn-sm, .dk-btn-icon) gibt es nicht
+  // mehr; die Mindesthoehe gilt fuer den Baustein (dk-ui-btn).
+  for (const selektor of ['.dk-ui-btn', '.dk-filter-chip',
                           'input[type="checkbox"]', 'input[type="radio"]']) {
     assert.ok(block.includes(selektor),
       `${selektor} fehlt bei den Mindesthoehen — das Tippziel bleibt zu klein`)
@@ -79,7 +81,7 @@ test('OP-HANDY-26: die Regel gilt NUR bei grobem Zeiger (Desktop bleibt dicht)',
   // Die 24-px-Regeln duerfen nicht ausserhalb des Grob-Zeiger-Blocks stehen.
   const aussen = css.replace(groberZeigerBlock(css), '')
   const treffer = aussen.match(/[^{}]*min-height:\s*24px[^}]*}/g) || []
-  const verdaechtig = treffer.filter(t => /\.dk-btn-sm|\.dk-filter-chip|dk-btn-icon/.test(t))
+  const verdaechtig = treffer.filter(t => /\.dk-ui-btn|\.dk-filter-chip/.test(t))
   assert.deepEqual(verdaechtig, [],
     'eine 24-px-Regel steht ausserhalb des Grob-Zeiger-Blocks — der Desktop wird mitgezogen')
 })

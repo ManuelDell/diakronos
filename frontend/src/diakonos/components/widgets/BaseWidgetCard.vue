@@ -18,32 +18,35 @@
              lädt selbst; wann sie zuletzt geladen hat, sagt jetzt der kleine
              Stand-Hinweis unten in Tertiärfarbe. Im Bearbeiten-Modus bleiben
              die Griffe (verschieben, ein-/ausklappen, ausblenden). -->
-        <button
+        <DkButton
+          variant="ghost"
+          class="dk-widget-griff dk-drag-handle"
           v-if="isEditing"
-          class="dk-widget-action-btn dk-drag-handle"
+          aria-label="Verschieben"
           title="Verschieben"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
-        </button>
-        <button
+        ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg></DkButton>
+        <DkButton
+          variant="ghost"
+          class="dk-widget-griff"
           v-if="isEditing"
-          class="dk-widget-action-btn"
+          :aria-label="collapsed ? 'Aufklappen' : 'Einklappen'"
           :title="collapsed ? 'Aufklappen' : 'Einklappen'"
           @click.stop="toggleCollapse"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline v-if="!collapsed" points="18 15 12 9 6 15"/>
-            <polyline v-else points="6 9 12 15 18 9"/>
+          <polyline v-if="!collapsed" points="18 15 12 9 6 15"/>
+          <polyline v-else points="6 9 12 15 18 9"/>
           </svg>
-        </button>
-        <button
+          
+        </DkButton>
+        <DkButton
+          variant="ghost"
+          class="dk-widget-griff dk-widget-hide"
           v-if="isEditing"
-          class="dk-widget-action-btn dk-widget-hide-btn"
+          aria-label="Ausblenden"
           title="Ausblenden"
           @click.stop="$emit('hide')"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-        </button>
+        ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></DkButton>
       </div>
     </div>
 
@@ -60,7 +63,10 @@
       <div v-else-if="error" class="dk-widget-error">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         <span>{{ fehlerText }}</span>
-        <button class="dk-btn dk-btn-xs" @click="$emit('refresh')">Erneut versuchen</button>
+        <DkButton
+          variant="secondary"
+          @click="$emit('refresh')"
+        >Erneut versuchen</DkButton>
       </div>
 
       <!-- Empty state -->
@@ -86,6 +92,7 @@
 import { computed, ref, watch } from 'vue'
 // UX2g: eine angezeigte Fehlermeldung statt der Floskel „Fehler beim Laden".
 import { fehlertext } from '../../../shared/fehlertexte.js'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   label:        { type: String, required: true },

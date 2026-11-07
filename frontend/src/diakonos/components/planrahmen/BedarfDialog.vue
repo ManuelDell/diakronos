@@ -24,8 +24,16 @@
               <span class="dk-badge" :class="einstufungKlasse(e.einstufung)">{{ einstufungText(e.einstufung) }}</span>
               <span v-if="uebersprungen.has(schluessel(e))" class="pr-bd-status">Übersprungen</span>
               <template v-else>
-                <button type="button" class="dk-btn dk-btn-primary dk-btn-sm" :disabled="beschaeftigt" @click="einrichten(e)">Jetzt einrichten</button>
-                <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" :disabled="beschaeftigt" @click="ueberspringen(e)">Überspringen</button>
+                <DkButton
+                  variant="primary"
+                  size="md"
+                  :disabled="beschaeftigt" @click="einrichten(e)"
+                >Jetzt einrichten</DkButton>
+                <DkButton
+                  variant="ghost"
+                  size="md"
+                  :disabled="beschaeftigt" @click="ueberspringen(e)"
+                >Überspringen</DkButton>
               </template>
             </span>
           </li>
@@ -46,8 +54,16 @@
               <span class="dk-badge" :class="einstufungKlasse(e.einstufung)">{{ einstufungText(e.einstufung) }}</span>
               <span v-if="uebersprungen.has(schluessel(e))" class="pr-bd-status">Übersprungen</span>
               <template v-else>
-                <button type="button" class="dk-btn dk-btn-primary dk-btn-sm" :disabled="beschaeftigt" @click="einrichten(e)">Jetzt einrichten</button>
-                <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" :disabled="beschaeftigt" @click="ueberspringen(e)">Überspringen</button>
+                <DkButton
+                  variant="primary"
+                  size="md"
+                  :disabled="beschaeftigt" @click="einrichten(e)"
+                >Jetzt einrichten</DkButton>
+                <DkButton
+                  variant="ghost"
+                  size="md"
+                  :disabled="beschaeftigt" @click="ueberspringen(e)"
+                >Überspringen</DkButton>
               </template>
             </span>
           </li>
@@ -75,19 +91,22 @@
     </div>
 
     <template #footer>
-      <button
+      <DkButton
+        variant="primary"
         v-if="fortsetzenText"
-        type="button" class="dk-btn dk-btn-primary"
         :disabled="beschaeftigt"
         @click="fortsetzen"
-      >{{ fortsetzenText }}</button>
-      <button
+      >{{ fortsetzenText }}</DkButton>
+      <DkButton
+        variant="ghost"
         v-if="offeneEintraege.length"
-        type="button" class="dk-btn dk-btn-ghost"
         :disabled="beschaeftigt"
         @click="alleUeberspringen"
-      >Alle überspringen ({{ offeneEintraege.length }})</button>
-      <button type="button" class="dk-btn dk-btn-secondary" :disabled="beschaeftigt" @click="schliessen">Schließen</button>
+      >Alle überspringen ({{ offeneEintraege.length }})</DkButton>
+      <DkButton
+        variant="secondary"
+        :disabled="beschaeftigt" @click="schliessen"
+      >Schließen</DkButton>
     </template>
   </DkModal>
 </template>
@@ -108,6 +127,7 @@
  */
 import { ref, computed, watch } from 'vue'
 import DkModal from '../DkModal.vue'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

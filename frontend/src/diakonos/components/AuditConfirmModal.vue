@@ -10,11 +10,18 @@
       />
     </div>
     <template #footer>
-      <button class="dk-btn dk-btn-secondary" :disabled="isSubmitting" @click="cancel">Abbrechen</button>
-      <button class="dk-btn dk-btn-primary" :disabled="!reason.trim() || isSubmitting" @click="confirm">
+      <DkButton
+        variant="secondary"
+        :disabled="isSubmitting" @click="cancel"
+      >Abbrechen</DkButton>
+      <DkButton
+        variant="primary"
+        :disabled="!reason.trim() || isSubmitting" @click="confirm"
+      >
         <span v-if="isSubmitting" class="dk-spinner dk-spinner-sm" />
         <template v-else>Mit Begründung speichern</template>
-      </button>
+        
+      </DkButton>
     </template>
   </DkModal>
 </template>
@@ -23,6 +30,7 @@
 import { computed, ref, watch } from 'vue'
 import { useAuditConfirm } from '../composables/useAuditConfirm.js'
 import DkModal from './DkModal.vue'
+import DkButton from '../components/ui/DkButton.vue'
 
 const { isOpen, isSubmitting, currentPolicy, submit, cancel } = useAuditConfirm()
 const visible = computed({

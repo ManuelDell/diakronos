@@ -28,7 +28,7 @@
             <span class="wk-konto">{{ k.email || k.user }}</span>
             <DkBadge v-if="!k.enabled" variant="err">Gesperrt</DkBadge>
           </div>
-          <DkButton variant="primary" size="sm" :loading="arbeitet === k.user"
+          <DkButton variant="primary" size="md" :loading="arbeitet === k.user"
                     @click="freischalten(k)">
             Zulassen
           </DkButton>

@@ -15,11 +15,18 @@
             Dialog/der Seite aufgeht. Ohne `panel` bleibt der Link erhalten
             (Rückwärtskompatibilität, z. B. Plan.vue in älteren Aufrufen).
           -->
-          <button
-            v-if="panel" type="button" class="dk-btn dk-btn-secondary dk-btn-sm"
+          <DkButton
+            variant="secondary"
+            size="md"
+            v-if="panel"
             data-test="pr-erststart-stammdaten-panel" @click="oeffnen"
-          >Stammdaten öffnen</button>
-          <a v-else class="dk-btn dk-btn-secondary dk-btn-sm" :href="stammdaten">Stammdaten öffnen</a>
+          >Stammdaten öffnen</DkButton>
+          <DkButton
+            variant="secondary"
+            size="md"
+            as="a"
+            v-else :href="stammdaten"
+          >Stammdaten öffnen</DkButton>
         </div>
       </li>
       <li :class="{ 'is-erledigt': angelegt }">
@@ -42,6 +49,7 @@
 <script setup>
 import { computed } from 'vue'
 import { bedarfHinweise, erststartSchritte } from './erststart.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 const props = defineProps({ bedarf: { type: Array, default: () => [] }, definition: { type: Object, default: () => ({}) }, stammdaten: { type: String, default: '' }, angelegt: Boolean, veroeffentlicht: Boolean, panel: Boolean })
 const emit = defineEmits(['stammdaten-oeffnen'])
 const hinweise = computed(() => bedarfHinweise(props.bedarf, props.definition))

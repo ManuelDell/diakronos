@@ -4,7 +4,10 @@
     <p>Prüfe acht Wochen mit den vorhandenen Stammdaten. Es werden keine Pläne oder Einträge gespeichert.</p>
     <label class="dk-form-group">Beginn<input v-model="ab" type="date" class="dk-form-input" /></label>
     <PrParameterForm v-if="definition.parameter?.length" :parameter="definition.parameter" v-model="parameter" />
-    <button type="button" class="dk-btn dk-btn-secondary" :disabled="busy || !ab" @click="ausfuehren">{{ busy ? 'Wird geprüft …' : 'Probelauf 8 Wochen' }}</button>
+    <DkButton
+      variant="secondary"
+      :disabled="busy || !ab" @click="ausfuehren"
+    >{{ busy ? 'Wird geprüft …' : 'Probelauf 8 Wochen' }}</DkButton>
     <PrMeldungen v-if="fehler.length" :meldungen="fehler" />
     <template v-if="ergebnis">
       <p v-if="veraltet" role="status" class="pr-probe-hinweis">Der Entwurf wurde geändert. Bitte den Probelauf wiederholen.</p>
@@ -24,6 +27,7 @@ import { usePlanrahmen, fehlerMeldungen, datumText, anzeigeUebernehmen } from '.
 import PrParameterForm from './PrParameterForm.vue'
 import PrMeldungen from './PrMeldungen.vue'
 import PrAnsicht from './PrAnsicht.vue'
+import DkButton from '../../components/ui/DkButton.vue'
 const props = defineProps({ definition: { type: Object, required: true } })
 const { trockenlauf } = usePlanrahmen()
 const ab = ref(((d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)(new Date()))

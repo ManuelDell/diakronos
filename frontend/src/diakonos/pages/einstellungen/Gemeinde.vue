@@ -56,7 +56,7 @@
                     accept="image/png,image/jpeg,image/webp,image/svg+xml"
                     :disabled="logoLaeuft || !bedienbar" @change="dateiGewaehlt" />
                 </label>
-                <DkButton v-if="logoUrl" variant="ghost" size="sm"
+                <DkButton v-if="logoUrl" variant="ghost" size="md"
                   :disabled="logoLaeuft || !bedienbar" @click="logoEntfernen">
                   Entfernen
                 </DkButton>

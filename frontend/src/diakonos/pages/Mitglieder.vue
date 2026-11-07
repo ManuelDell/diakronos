@@ -43,7 +43,7 @@
       <DkButton
         v-if="isAdmin"
         variant="secondary"
-        size="sm"
+        size="md"
         :aria-pressed="zeigePersoenlicheDaten ? 'true' : 'false'"
         @click="zeigePersoenlicheDaten = !zeigePersoenlicheDaten"
       >
@@ -53,7 +53,7 @@
         {{ zeigePersoenlicheDaten ? 'Persönliche Daten verbergen' : 'Persönliche Daten anzeigen' }}
       </DkButton>
 
-      <DkButton variant="ghost" size="sm" @click="toggleSortOrder" :title="sortOrder === 'asc' ? 'A–Z' : 'Z–A'">
+      <DkButton variant="ghost" size="md" @click="toggleSortOrder" :title="sortOrder === 'asc' ? 'A–Z' : 'Z–A'">
         <IconSort /> {{ sortOrder === 'asc' ? 'A–Z' : 'Z–A' }}
       </DkButton>
     </div>
@@ -211,7 +211,7 @@
         <DkButton
           v-if="hasMore"
           variant="secondary"
-          size="sm"
+          size="md"
           :loading="loading"
           @click="loadMore"
         >

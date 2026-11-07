@@ -100,20 +100,26 @@ test('K2: auch im Dunkelmodus bleibt ein eigener Ring gesetzt', () => {
     '--focus-ring-side fehlt im Dunkelmodus')
 })
 
-test('W3: die Kachel ist als Ganzes anwählbar (gedehnter Titelknopf, keine Knöpfe im Knopf)', () => {
-  const kachel = regelKorper('.rs-card-title--knopf::after', ressourcen)
+test('W3: die Kachel ist als Ganzes anwählbar (gedehnte Linkfläche, keine Knöpfe im Knopf)', () => {
+  // UX1g: Der Titel ist ein VERWEIS statt eines rohen <button> — die Kachel
+  // hat genau EINE Aktion („Buchen“), der Titel führt in die Detailansicht.
+  const kachel = regelKorper('.rs-card-titel-link::after', ressourcen)
   assert.ok(kachel, 'gedehnte Linkfläche der Kachel fehlt')
   assert.match(kachel, /position:\s*absolute/)
   assert.match(kachel, /inset:\s*0/)
   assert.match(regelKorper('.rs-card', ressourcen), /position:\s*relative/,
     'die Kachel muss Bezugsrahmen sein (sonst liegt die Fläche über der ganzen Seite)')
-  assert.match(regelKorper('.rs-btn-book', ressourcen),
+  // UX1g: Der Knopf heißt jetzt `rs-knopf-buchen` (deutsche Sprechweise der
+  // Klassennamen); „Buchen" ist die eine Aktion der Kachel und muss über der
+  // gedehnten Verweisfläche liegen.
+  assert.match(regelKorper('.rs-knopf-buchen', ressourcen),
     /z-index:\s*1/, 'der „Buchen"-Knopf muss über der Linkfläche liegen')
-  // Kein verschachtelter Knopf: der Titel ist ein <button>, aber ohne Knopf darin.
+  // Kein Knopf im Knopf: der Titel ist ein <a>, und im Kachelabschnitt steht
+  // kein rohes <button> mit Eigenoptik mehr.
   const abschnitt = ressourcen.slice(ressourcen.indexOf('class="dk-content-card rs-card"'),
     ressourcen.indexOf('<!-- List View -->'))
-  assert.match(abschnitt, /<button[\s\S]*?class="rs-card-title rs-card-title--knopf"[\s\S]*?<\/button>/,
-    'der Titelknopf fehlt')
+  assert.match(abschnitt, /<a[\s\S]*?class="rs-card-titel rs-card-titel-link"[\s\S]*?<\/a>/,
+    'der Titelverweis fehlt')
   assert.ok(!/<button[\s\S]*?<button/.test(abschnitt), 'Knopf im Knopf')
 })
 

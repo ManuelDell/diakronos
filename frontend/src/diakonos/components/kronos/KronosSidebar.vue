@@ -67,7 +67,7 @@
       as="a"
       class="sb-navigationsknopf"
       variant="ghost"
-      size="sm"
+      size="md"
       href="#/kalender/verwalten"
       @click.prevent="navigate('#/kalender/verwalten')"
     >
@@ -79,7 +79,7 @@
       as="a"
       class="sb-navigationsknopf"
       variant="ghost"
-      size="sm"
+      size="md"
       href="#/kalender/import"
       @click.prevent="navigate('#/kalender/import')"
     >
@@ -103,7 +103,7 @@
       </button>
     </div>
 
-    <DkButton class="sb-navigationsknopf" variant="ghost" size="sm" @click="showHelp = true">
+    <DkButton class="sb-navigationsknopf" variant="ghost" size="md" @click="showHelp = true">
       <span aria-hidden="true">?</span> Hilfe &amp; Infos
     </DkButton>
 

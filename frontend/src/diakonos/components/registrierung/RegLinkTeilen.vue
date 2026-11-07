@@ -12,16 +12,16 @@
     >{{ vollerLink }}</a>
 
     <div class="dk-link-aktionen">
-      <DkButton variant="secondary" size="sm" @click="kopieren">
+      <DkButton variant="secondary" size="md" @click="kopieren">
         <IconCopy /> Kopieren
       </DkButton>
-      <DkButton v-if="teilenMoeglich" variant="secondary" size="sm" @click="teilen">
+      <DkButton v-if="teilenMoeglich" variant="secondary" size="md" @click="teilen">
         <IconShare /> Teilen
       </DkButton>
-      <DkButton variant="secondary" size="sm" @click="oeffnen">
+      <DkButton variant="secondary" size="md" @click="oeffnen">
         <IconExternal /> Oeffnen
       </DkButton>
-      <DkButton variant="secondary" size="sm" @click="qrZeigen = !qrZeigen">
+      <DkButton variant="secondary" size="md" @click="qrZeigen = !qrZeigen">
         <IconQr /> {{ qrZeigen ? 'QR ausblenden' : 'QR-Code zeigen' }}
       </DkButton>
     </div>
@@ -30,10 +30,10 @@
     <div v-if="qrZeigen" class="dk-link-qr">
       <DkQrCode :text="vollerLink" :gross="qrGross" />
       <div class="dk-link-qr-aktionen">
-        <DkButton variant="secondary" size="sm" :disabled="qrBusy" @click="qrHerunterladen">
+        <DkButton variant="secondary" size="md" :disabled="qrBusy" @click="qrHerunterladen">
           {{ qrBusy ? 'Erstelle Bild …' : 'QR herunterladen (PNG)' }}
         </DkButton>
-        <DkButton variant="secondary" size="sm" :disabled="qrBusy" @click="qrDrucken">
+        <DkButton variant="secondary" size="md" :disabled="qrBusy" @click="qrDrucken">
           <IconPrint /> QR drucken
         </DkButton>
       </div>

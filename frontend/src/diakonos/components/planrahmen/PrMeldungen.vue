@@ -19,7 +19,13 @@
     <summary class="pr-meldungen-kopf">
       <span class="pr-meldungen-pfeil" aria-hidden="true">▸</span>
       <span class="pr-meldungen-titel">{{ titel }}: {{ gruppiert.anzahl.fehler }} Fehler · {{ gruppiert.anzahl.warnung }} {{ gruppiert.anzahl.warnung === 1 ? 'Warnung' : 'Warnungen' }} · {{ gruppiert.anzahl.hinweis }} {{ gruppiert.anzahl.hinweis === 1 ? 'Hinweis' : 'Hinweise' }}</span>
-      <span class="dk-btn dk-btn-secondary dk-btn-sm pr-meldungen-anzeigen">{{ offen ? 'Einklappen' : 'Anzeigen' }}</span>
+      <!-- UX1g: Das „Anzeigen/Einklappen“ war ein <span> mit Knopfklassen —
+           also ein Knopf, der keiner ist (nicht fokussierbar, nicht
+           bedienbar). In einem <summary> darf kein zweiter Knopf stehen
+           (verschachtelte Bedienelemente), deshalb ist es jetzt ein Text in
+           der Beschriftung des Aufklappers: das GANZE <summary> ist die
+           Klickfläche, die Beschriftung sagt weiterhin, was passiert. -->
+      <span class="pr-meldungen-anzeigen">{{ offen ? 'Einklappen' : 'Anzeigen' }}</span>
     </summary>
     <details v-for="g in gruppiert.gruppen" :key="g.key" class="pr-meldungen-gruppe">
       <summary><span class="pr-meldungen-pfeil" aria-hidden="true">▸</span>{{ regelTitel(g.regel, g.meldungen.length, ersteDefinition) }} · Anzeigen</summary>
@@ -131,7 +137,7 @@ function piktogramm(stufe) {
 .pr-meldungen-uebersicht summary { cursor: pointer; }
 .pr-meldungen-kopf { display: flex; align-items: center; gap: 8px; }
 .pr-meldungen-kopf .pr-meldungen-titel { flex: 1; min-width: 0; }
-.pr-meldungen-anzeigen { flex-shrink: 0; }
+.pr-meldungen-anzeigen { flex-shrink: 0; color: var(--muted); font-size: var(--fs-12); }
 .pr-meldungen-pfeil { display: inline-block; transition: transform 120ms ease; }
 details[open] > summary .pr-meldungen-pfeil { transform: rotate(90deg); }
 .pr-meldungen-gruppe { margin-top: 8px; }

@@ -88,7 +88,7 @@
           </select>
         </div>
 
-        <DkButton v-if="hasAnyFilter" variant="ghost" size="sm" class="ld-filter-reset" @click="resetFilters">
+        <DkButton v-if="hasAnyFilter" variant="ghost" size="md" class="ld-filter-reset" @click="resetFilters">
           Filter zurücksetzen
         </DkButton>
       </div>
@@ -105,7 +105,11 @@
     <!-- Error -->
     <div v-else-if="error" class="ld-error">
       {{ error }}
-      <button class="dk-btn dk-btn-secondary dk-btn-sm" @click="reload">Erneut versuchen</button>
+      <DkButton
+        variant="secondary"
+        size="md"
+        @click="reload"
+      >Erneut versuchen</DkButton>
     </div>
 
     <!-- Table -->
@@ -212,14 +216,13 @@
     <div class="dk-pagination">
       <div class="dk-text-muted">{{ lieder.length }} geladen</div>
       <div>
-        <button
+        <DkButton
+          variant="secondary"
+          size="md"
           v-if="hasMore"
-          class="dk-btn dk-btn-secondary dk-btn-sm"
           :disabled="loading"
           @click="loadMore"
-        >
-          Mehr laden
-        </button>
+        >Mehr laden</DkButton>
         <span v-else class="dk-text-subtle">Alle geladen</span>
       </div>
     </div>

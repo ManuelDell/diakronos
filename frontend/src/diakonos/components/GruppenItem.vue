@@ -41,9 +41,12 @@
             {{ gruppe.beschreibung }}
           </p>
         </div>
-        <button
+        <DkButton
           v-if="gruppe.untergruppen && gruppe.untergruppen.length > 0"
-          class="ml-3 p-1 rounded hover:bg-[var(--dk-surface-hover)] transition-colors"
+          variant="ghost"
+          class="gi-klapp-knopf"
+          :aria-label="expanded ? 'Untergruppen einklappen' : 'Untergruppen aufklappen'"
+          :aria-expanded="expanded ? 'true' : 'false'"
           @click.stop="toggle"
         >
           <svg
@@ -54,7 +57,7 @@
           >
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
           </svg>
-        </button>
+        </DkButton>
       </div>
     </div>
 
@@ -74,6 +77,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import DkButton from './ui/DkButton.vue'
 
 const props = defineProps({
   gruppe: {
@@ -112,4 +116,8 @@ const getStatusColor = (status) => {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* UX1g: Der Auf-/Zuklapp-Knopf stand als rohes <button> mit Tailwind-Klassen
+   da; jetzt DkButton (ghost) mit eigenem Abstand — Optik kommt aus dem
+   Knopf-System, hier nur der Ort. */
+.gi-klapp-knopf { margin-left: var(--sp-3); }
 </style>

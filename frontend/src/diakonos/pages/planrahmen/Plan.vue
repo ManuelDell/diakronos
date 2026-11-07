@@ -21,39 +21,68 @@
       </div>
       <div v-if="darfBearbeiten" class="dk-screen-actions">
         <template v-if="istArchiviert">
-          <button type="button" class="dk-btn dk-btn-primary dk-btn-sm" data-test="pr-plan-archiv-holen"
-                  :disabled="beschaeftigt" @click="archivUmschalten(false)">Aus dem Archiv holen</button>
+          <DkButton
+            variant="primary"
+            size="md"
+            data-test="pr-plan-archiv-holen"
+            :disabled="beschaeftigt" @click="archivUmschalten(false)"
+          >Aus dem Archiv holen</DkButton>
         </template>
         <template v-else>
-          <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" data-test="pr-plan-stammdaten" @click="stammdatenPanelOeffnen">Stammdaten vorbereiten</button>
-          <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" :disabled="beschaeftigt || laden" @click="neuLaden">
-            <span v-if="laden" class="dk-spinner" aria-hidden="true"></span>{{ laden ? 'Neu laden läuft …' : 'Neu laden' }}
-          </button>
-          <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" :disabled="beschaeftigt"
-                  :title="undoZiel?.moeglich ? ('Zurücknehmen: ' + undoZiel.beschreibung) : 'Nichts zurückzunehmen'"
-                  @click="rueckgaengig">Rückgängig</button>
-          <button
-            type="button"
-            class="dk-btn dk-btn-secondary dk-btn-sm"
+          <DkButton
+            variant="secondary"
+            size="md"
+            data-test="pr-plan-stammdaten" @click="stammdatenPanelOeffnen"
+          >Stammdaten vorbereiten</DkButton>
+          <DkButton
+            variant="secondary"
+            size="md"
+            :disabled="beschaeftigt || laden" @click="neuLaden"
+          ><span v-if="laden" class="dk-spinner" aria-hidden="true"></span>{{ laden ? 'Neu laden läuft …' : 'Neu laden' }}</DkButton>
+          <DkButton
+            variant="secondary"
+            size="md"
+            :disabled="beschaeftigt"
+            :title="undoZiel?.moeglich ? ('Zurücknehmen: ' + undoZiel.beschreibung) : 'Nichts zurückzunehmen'"
+            @click="rueckgaengig"
+          >Rückgängig</DkButton>
+          <DkButton
+            variant="secondary"
+            size="md"
             :disabled="beschaeftigt || generatorLaeuft"
             :title="'Nur leere Plätze und Regelverstöße beheben — bestehende Vorschläge bleiben stehen'"
             @click="generatorOeffnen(true)"
-          >
-            <span v-if="generatorLaeuft && generatorNurLuecken" class="dk-spinner" aria-hidden="true"></span>Lücken füllen
-          </button>
-          <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" :disabled="beschaeftigt || generatorLaeuft" @click="generatorOeffnen(false)">
-            <span v-if="generatorLaeuft && !generatorNurLuecken" class="dk-spinner" aria-hidden="true"></span>{{ generatorLaeuft && !generatorNurLuecken ? 'Wird berechnet …' : 'Automatisch einteilen' }}
-          </button>
-          <button type="button" class="dk-btn dk-btn-primary dk-btn-sm" :disabled="beschaeftigt" @click="veroeffentlichungOeffnen">
-            <span v-if="beschaeftigt && veroeffentlichLaeuft" class="dk-spinner" aria-hidden="true"></span>Veröffentlichen
-          </button>
+          ><span v-if="generatorLaeuft && generatorNurLuecken" class="dk-spinner" aria-hidden="true"></span>Lücken füllen</DkButton>
+          <DkButton
+            variant="secondary"
+            size="md"
+            :disabled="beschaeftigt || generatorLaeuft" @click="generatorOeffnen(false)"
+          ><span v-if="generatorLaeuft && !generatorNurLuecken" class="dk-spinner" aria-hidden="true"></span>{{ generatorLaeuft && !generatorNurLuecken ? 'Wird berechnet …' : 'Automatisch einteilen' }}</DkButton>
+          <DkButton
+            variant="primary"
+            size="md"
+            :disabled="beschaeftigt" @click="veroeffentlichungOeffnen"
+          ><span v-if="beschaeftigt && veroeffentlichLaeuft" class="dk-spinner" aria-hidden="true"></span>Veröffentlichen</DkButton>
         </template>
-        <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" data-test="pr-plan-kopieren"
-                :disabled="beschaeftigt" @click="kopieDialogOeffnen">Kopieren</button>
-        <button v-if="!istArchiviert" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" data-test="pr-plan-archivieren"
-                :disabled="beschaeftigt" @click="archivUmschalten(true)">Archivieren</button>
-        <button v-if="istLoeschbar" type="button" class="dk-btn dk-btn-ghost dk-btn-sm pr-plan-gefahr"
-                data-test="pr-plan-loeschen" :disabled="beschaeftigt" @click="loeschenDialogOffen = true">Löschen</button>
+        <DkButton
+          variant="ghost"
+          size="md"
+          data-test="pr-plan-kopieren"
+          :disabled="beschaeftigt" @click="kopieDialogOeffnen"
+        >Kopieren</DkButton>
+        <DkButton
+          variant="ghost"
+          size="md"
+          v-if="!istArchiviert" data-test="pr-plan-archivieren"
+          :disabled="beschaeftigt" @click="archivUmschalten(true)"
+        >Archivieren</DkButton>
+        <DkButton
+          variant="ghost"
+          size="md"
+          class="pr-plan-gefahr"
+          v-if="istLoeschbar"
+          data-test="pr-plan-loeschen" :disabled="beschaeftigt" @click="loeschenDialogOffen = true"
+        >Löschen</DkButton>
       </div>
     </div>
 
@@ -78,13 +107,22 @@
 
     <div v-else-if="seitenFehler.length" class="pr-plan-zustand pr-plan-zustand--fehler">
       <PrMeldungen :meldungen="seitenFehler" />
-      <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/dienstplaene">Zurück zur Übersicht</a>
+      <DkButton
+        variant="secondary"
+        size="md"
+        as="a"
+        href="#/dienste/dienstplaene"
+      >Zurück zur Übersicht</DkButton>
     </div>
 
     <template v-else>
       <div v-if="meldungenSeite.length" class="pr-plan-meldungen">
         <PrMeldungen :meldungen="meldungenSeite" zusammenfassung titel="Prüfung der letzten Aktion" />
-        <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Meldungen ausblenden" @click="meldungenSeite = []">Ausblenden</button>
+        <DkButton
+          variant="ghost"
+          size="md"
+          aria-label="Meldungen ausblenden" @click="meldungenSeite = []"
+        >Ausblenden</DkButton>
       </div>
 
       <PrErststart v-if="darfBearbeiten" :bedarf="bedarfListe" :definition="erstdefinition || {}" :stammdaten="'#/dienste/dienstplaene/vorbereiten/' + encodeURIComponent(planId)" panel angelegt :veroeffentlicht="plan?.status === 'veroeffentlicht'" @stammdaten-oeffnen="stammdatenPanelOeffnen" />
@@ -154,10 +192,14 @@
       <PrMeldungen v-if="generatorMeldungen.length" :meldungen="generatorMeldungen" zusammenfassung />
       <PrDiff vorschlag :diff="generatorDiff" :termine="termine" :definitionen="definitionen" :anzeige="diffAnzeige" />
       <template #footer>
-        <button type="button" class="dk-btn dk-btn-ghost" @click="generatorOffen = false">Abbrechen</button>
-        <button type="button" class="dk-btn dk-btn-primary" :disabled="beschaeftigt" @click="generatorAnwenden">
-          {{ beschaeftigt ? 'Wird angewendet …' : 'Übernehmen' }}
-        </button>
+        <DkButton
+          variant="secondary"
+          @click="generatorOffen = false"
+        >Abbrechen</DkButton>
+        <DkButton
+          variant="primary"
+          :disabled="beschaeftigt" @click="generatorAnwenden"
+        >{{ beschaeftigt ? 'Wird angewendet …' : 'Übernehmen' }}</DkButton>
       </template>
     </DkModal>
 
@@ -171,10 +213,14 @@
       <p v-else-if="plan?.veroeffentlichter_stand == null" class="pr-plan-modaltext">Dieser Plan wird zum ersten Mal sichtbar. Es sind noch keine Aufgaben eingeteilt.</p>
       <p v-else class="pr-plan-modaltext">Es gibt keine Wertänderungen gegenüber dem letzten veröffentlichten Stand.</p>
       <template #footer>
-        <button type="button" class="dk-btn dk-btn-ghost" @click="veroeffentlichOffen = false">Abbrechen</button>
-        <button type="button" class="dk-btn dk-btn-primary" :disabled="beschaeftigt" @click="veroeffentlichenDurchfuehren">
-          {{ beschaeftigt ? 'Wird veröffentlicht …' : 'Jetzt veröffentlichen' }}
-        </button>
+        <DkButton
+          variant="secondary"
+          @click="veroeffentlichOffen = false"
+        >Abbrechen</DkButton>
+        <DkButton
+          variant="primary"
+          :disabled="beschaeftigt" @click="veroeffentlichenDurchfuehren"
+        >{{ beschaeftigt ? 'Wird veröffentlicht …' : 'Jetzt veröffentlichen' }}</DkButton>
       </template>
     </DkModal>
 
@@ -210,14 +256,20 @@
       </p>
       <PrMeldungen v-if="loeschenFehler.length" :meldungen="loeschenFehler" />
       <template #footer>
-        <button type="button" class="dk-btn dk-btn-ghost" @click="loeschenDialogOffen = false">Abbrechen</button>
-        <button type="button" class="dk-btn dk-btn-secondary" :disabled="beschaeftigt" @click="archivUmschalten(true)">
-          Stattdessen archivieren
-        </button>
-        <button type="button" class="dk-btn dk-btn-primary pr-plan-gefahr" :disabled="beschaeftigt"
-                data-test="pr-plan-loeschen-bestaetigen" @click="loeschenDurchfuehren">
-          {{ beschaeftigt ? 'Wird gelöscht …' : 'Endgültig löschen' }}
-        </button>
+        <DkButton
+          variant="secondary"
+          @click="loeschenDialogOffen = false"
+        >Abbrechen</DkButton>
+        <DkButton
+          variant="secondary"
+          :disabled="beschaeftigt" @click="archivUmschalten(true)"
+        >Stattdessen archivieren</DkButton>
+        <DkButton
+          variant="primary"
+          class="pr-plan-gefahr"
+          :disabled="beschaeftigt"
+          data-test="pr-plan-loeschen-bestaetigen" @click="loeschenDurchfuehren"
+        >{{ beschaeftigt ? 'Wird gelöscht …' : 'Endgültig löschen' }}</DkButton>
       </template>
     </DkDialog>
 
@@ -230,11 +282,15 @@
       </div>
       <PrMeldungen v-if="kopieFehler.length" :meldungen="kopieFehler" />
       <template #footer>
-        <button type="button" class="dk-btn dk-btn-ghost" @click="kopieDialogOffen = false">Abbrechen</button>
-        <button type="button" class="dk-btn dk-btn-primary" :disabled="beschaeftigt || !kopieTitel.trim()"
-                data-test="pr-plan-kopie-speichern" @click="kopieDurchfuehren">
-          {{ beschaeftigt ? 'Wird kopiert …' : 'Kopie anlegen' }}
-        </button>
+        <DkButton
+          variant="secondary"
+          @click="kopieDialogOffen = false"
+        >Abbrechen</DkButton>
+        <DkButton
+          variant="primary"
+          :disabled="beschaeftigt || !kopieTitel.trim()"
+          data-test="pr-plan-kopie-speichern" @click="kopieDurchfuehren"
+        >{{ beschaeftigt ? 'Wird kopiert …' : 'Kopie anlegen' }}</DkButton>
       </template>
     </DkDialog>
   </div>
@@ -274,6 +330,7 @@ import { diffAnzeigeLaden, kandidatenZiel } from '../../components/planrahmen/kl
 import { statusSprache, statusBadgeKlasse } from '../../components/ui/statussprache.mjs'
 import { useWarnblock } from '../../composables/warnblock.mjs'
 import { useHandyHinweis, hinweisZeigen, istSchmal } from '../../composables/handyHinweis.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const { planHolen, planStandVersion, terminStruktur, terminStrukturen, planGenerieren, planEntwurf, undoPlan, undoVorschau, veroeffentlichen, ablaufAendern, feldKandidaten, terminAendern, bedarf,
         planArchivieren, planLoeschen, planKopieren } = usePlanrahmen()

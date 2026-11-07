@@ -27,7 +27,7 @@
             {{ email || 'des Mitglieds' }}.
           </DkHint>
         </div>
-        <DkButton v-else variant="primary" size="sm" :loading="arbeitet" @click="anlegen">
+        <DkButton v-else variant="primary" size="md" :loading="arbeitet" @click="anlegen">
           Zugang mit Einladungslink einrichten
         </DkButton>
       </template>
@@ -54,12 +54,12 @@
         </DkField>
 
         <div class="zug-aktionen">
-          <DkButton variant="primary" size="sm" :loading="arbeitet" @click="rollenSpeichern">
+          <DkButton variant="primary" size="md" :loading="arbeitet" @click="rollenSpeichern">
             Rollen speichern
           </DkButton>
           <DkButton
             :variant="konto.enabled ? 'ghost' : 'secondary'"
-            size="sm"
+            size="md"
             :loading="arbeitet"
             @click="sperrenUmschalten"
           >
@@ -77,12 +77,12 @@
             <input v-model="neuesPasswort" class="dk-ui-eingabe"
                    :type="passwortSichtbar ? 'text' : 'password'"
                    autocomplete="new-password" placeholder="…" />
-            <DkButton variant="secondary" size="sm" :loading="arbeitet"
+            <DkButton variant="secondary" size="md" :loading="arbeitet"
                       :aria-pressed="String(passwortSichtbar)"
                       @click="passwortSichtbar = !passwortSichtbar">
               {{ passwortSichtbar ? 'Verbergen' : 'Anzeigen' }}
             </DkButton>
-            <DkButton variant="secondary" size="sm" :loading="arbeitet"
+            <DkButton variant="secondary" size="md" :loading="arbeitet"
                       :disabled="neuesPasswort.length < 8" @click="passwortSpeichern">
               Setzen
             </DkButton>

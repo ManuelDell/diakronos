@@ -7,13 +7,21 @@
         <h1 class="dk-screen-title">Vorlagen</h1>
         <p class="dk-screen-sub">Planvorlagen und unveränderliche Versionen für deine Gemeindepläne.</p>
       </div>
-      <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/dienstplaene">Zu den Dienstplänen</a>
+      <DkButton
+        variant="secondary"
+        size="md"
+        as="a"
+        href="#/dienste/dienstplaene"
+      >Zu den Dienstplänen</DkButton>
     </div>
 
     <!-- UX2d3a: Laden zeigt den Umriss (Skelett, erst nach 300 ms), keinen Satz. -->
     <DkSkelett v-if="skelettSichtbar" form="zeilen" :anzahl="5" text="Planvorlagen werden geladen …" />
     <PrMeldungen :meldungen="fehler" />
-    <button v-if="fehler.length" class="dk-btn dk-btn-secondary" @click="neuLaden">Erneut versuchen</button>
+    <DkButton
+      variant="secondary"
+      v-if="fehler.length" @click="neuLaden"
+    >Erneut versuchen</DkButton>
     <!-- Leerzustand nur bei erfolgreich geladener, aber leerer Liste.
          Beim Laden erscheint weder dieser Hinweis noch die Liste: veraltete
          Rendererstände dürfen keine Planvorlagen behaupten, die es nicht gibt. -->
@@ -30,22 +38,38 @@
         Alle mitgelieferten Vorlagen sind bereits angelegt. Bearbeite eine bestehende
         Vorlage, um eine neue Version anzulegen.
       </p>
-      <button type="button" class="dk-btn dk-btn-primary" @click="anlegen">Planvorlage anlegen</button>
+      <DkButton
+        variant="primary"
+        @click="anlegen"
+      >Planvorlage anlegen</DkButton>
     </section>
     <template v-if="!laden && !fehler.length && typen.length">
       <section v-for="typ in typen" :key="typ.id" class="pr-ein-typ">
         <div class="pr-ein-kopf">
           <div><h2>{{ typ.name }}</h2><p>{{ typ.bereich || 'Gemeindeweit' }}</p></div>
-          <a v-if="typ.darf_plantyp_bearbeiten" class="dk-btn dk-btn-secondary" :href="editorRoute(typ.schluessel)">Planvorlage bearbeiten</a>
+          <DkButton
+            variant="secondary"
+            as="a"
+            v-if="typ.darf_plantyp_bearbeiten" :href="editorRoute(typ.schluessel)"
+          >Planvorlage bearbeiten</DkButton>
         </div>
         <p v-if="!typ.darf_plantyp_bearbeiten">Du kannst deine eigenen Pläne vorbereiten. Die Vorlage selbst pflegen die Bereichsverantwortlichen.</p>
         <template v-else>
-          <a class="dk-btn dk-btn-ghost dk-btn-sm" :href="stammdatenRoute(typ.schluessel)">Stammdaten einrichten</a>
+          <DkButton
+            variant="ghost"
+            size="md"
+            as="a"
+            :href="stammdatenRoute(typ.schluessel)"
+          >Stammdaten einrichten</DkButton>
           <details @toggle="versionenOeffnen(typ, $event.target.open)">
             <summary>Versionen ansehen · aktuell {{ typ.letzte_version?.versionsnummer || '—' }}</summary>
             <DkSkelett v-if="versionLaedt[typ.id]" kurz form="zeilen" :anzahl="2" text="Versionen werden geladen …" />
             <PrMeldungen :meldungen="versionFehler[typ.id] || []" />
-            <button v-if="versionFehler[typ.id]?.length" class="dk-btn dk-btn-secondary dk-btn-sm" @click="versionenOeffnen(typ, true)">Versionen neu laden</button>
+            <DkButton
+              variant="secondary"
+              size="md"
+              v-if="versionFehler[typ.id]?.length" @click="versionenOeffnen(typ, true)"
+            >Versionen neu laden</DkButton>
             <ul class="pr-ein-versionen">
               <li v-for="v in versionen[typ.id] || []" :key="v.id">
                 <strong>Version {{ v.versionsnummer }}</strong> · gilt ab {{ datumText(v.gueltig_ab) }}
@@ -74,6 +98,7 @@ import { stammdatenRoute } from '../../components/planrahmen/einrichten-flow.mjs
 import PrMeldungen from '../../components/planrahmen/PrMeldungen.vue'
 import DkSkelett from '../../components/ui/DkSkelett.vue'
 import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const { plantypenListe, einrichtenRechte, kochbuchListe, plantypVersionenListe } = usePlanrahmen()
 const typen = ref([])

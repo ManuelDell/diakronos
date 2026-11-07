@@ -21,13 +21,13 @@
             <!-- OP-EVENT-18: Variantenschalter je Termin (nur Planer). -->
             <div v-if="varianten.length && bearbeitbar" class="pr-raster-varianten" role="group"
                  :aria-label="'Geltende Variante am ' + datumText(t.datum)">
-              <button
-                v-for="v in varianten" :key="v.id" type="button"
-                class="dk-btn dk-btn-sm"
-                :class="geltendeVariante(t) === v.id ? 'dk-btn-primary' : 'dk-btn-secondary'"
+              <DkButton
+                size="md"
+                v-for="v in varianten" :key="v.id"
+                :variant="geltendeVariante(t) === v.id ? 'primary' : 'secondary'"
                 :aria-pressed="geltendeVariante(t) === v.id ? 'true' : 'false'"
                 @click="$emit('variante', t, v.id)"
-              >{{ v.name || v.id }}</button>
+              >{{ v.name || v.id }}</DkButton>
             </div>
             <span v-else-if="varianten.length" class="pr-raster-variante-aktiv">
               {{ variantenName(geltendeVariante(t)) }}
@@ -76,6 +76,7 @@ import { zellenInhalt } from './zellen.js'
 import PrMeldungen from './PrMeldungen.vue'
 import { terminMeldungen } from './meldungen.mjs'
 import { anlassName, sichtbareAnlaesse } from './anlaesse.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   plan: { type: Object, default: null },

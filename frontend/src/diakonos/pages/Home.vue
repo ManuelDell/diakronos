@@ -11,12 +11,16 @@
     <div v-if="isEditing" class="dk-widget-edit-bar">
       <span class="dk-widget-edit-label">Übersicht bearbeiten</span>
       <div class="hm-aktionen">
-        <button class="dk-btn dk-btn-ghost dk-btn-sm" @click="resetLayout">
-          Zurücksetzen
-        </button>
-        <button class="dk-btn dk-btn-primary dk-btn-sm" @click="store.isEditing = false">
-          Fertig
-        </button>
+        <DkButton
+          variant="ghost"
+          size="md"
+          @click="resetLayout"
+        >Zurücksetzen</DkButton>
+        <DkButton
+          variant="primary"
+          size="md"
+          @click="store.isEditing = false"
+        >Fertig</DkButton>
       </div>
     </div>
 

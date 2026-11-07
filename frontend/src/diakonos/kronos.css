@@ -459,18 +459,12 @@
   display: flex;
   gap: 2px;
 }
-.mini-prev,
-.mini-next {
-  background: none;
-  border: none;
-  font-size: var(--fs-14);
-  color: var(--dk-text-muted);
-  cursor: pointer;
-  padding: 0 6px;
-}
-.mini-prev:hover,
-.mini-next:hover {
-  color: var(--dk-text);
+/* UX1g: Die Monats-Pfeile sind DkButtons (ghost) — Fläche, Farbe und
+   Trefferfläche (--control-h, bei grobem Zeiger 44 px) kommen aus dem
+   Knopf-System. Hier bleibt nur, dass sie in der Kopfzeile eng stehen. */
+.mini-pfeil {
+  padding: 0 var(--sp-1);
+  min-width: var(--control-h);
 }
 .mini-cal-grid {
   display: grid;

@@ -26,11 +26,19 @@
             <input type="text" class="dk-form-input" :value="(p.werte || []).join(', ')" @change="listeSetzen(p, 'werte', $event.target.value)" />
           </label>
           <label v-if="p.art === 'auswahl'" class="pr-dek-schalter"><input v-model="p.mehrfach" type="checkbox" /> mehrfach</label>
-          <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Parameter entfernen" @click="parameter.splice(i, 1)">✕</button>
+          <DkButton
+            variant="ghost"
+            size="md"
+            aria-label="Parameter entfernen" @click="parameter.splice(i, 1)"
+          >✕</DkButton>
         </div>
         <PrPfadMeldungen :meldungen="meldungen" :pfad="'parameter/' + i" />
       </div>
-      <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="parameterHinzufuegen">+ Parameter anlegen</button>
+      <DkButton
+        variant="secondary"
+        size="md"
+        @click="parameterHinzufuegen"
+      >+ Parameter anlegen</DkButton>
     </section>
 
     <!-- Angaben -->
@@ -61,7 +69,11 @@
               <input type="text" class="dk-form-input" :value="(m.werte || []).join(', ')" @change="listeSetzen(m, 'werte', $event.target.value)" />
             </label>
             <label v-if="m.art === 'auswahl'" class="pr-dek-schalter"><input v-model="m.mehrfach" type="checkbox" /> mehrfach</label>
-            <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Eigenschaft entfernen" @click="merkmaleVon(ziel.wert)?.splice(i, 1)">✕</button>
+            <DkButton
+              variant="ghost"
+              size="md"
+              aria-label="Eigenschaft entfernen" @click="merkmaleVon(ziel.wert)?.splice(i, 1)"
+            >✕</DkButton>
           </div>
           <PrPfadMeldungen :meldungen="meldungen" :pfad="'merkmale/' + ziel.wert + '/' + i" />
           <template v-if="m.art === 'person'">
@@ -75,15 +87,27 @@
                   @update:model-value="merkmalsRolleSetzen(m, $event ? '@' + $event : '')"
                 />
               </label>
-              <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="delete m.rolle">Rollenreferenz lösen</button>
+              <DkButton
+                variant="ghost"
+                size="md"
+                @click="delete m.rolle"
+              >Rollenreferenz lösen</DkButton>
             </div>
             <PrKnotenEditor v-else-if="istKnoten(m.rolle)" :knoten="m.rolle" modus="rolle" :kontext="kontext" />
             <div v-else class="pr-dek-zeile">
-              <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="m.rolle = { merkmal: '' }">+ Welche Personen als Wert? (Rollenfilter)</button>
+              <DkButton
+                variant="ghost"
+                size="md"
+                @click="m.rolle = { merkmal: '' }"
+              >+ Welche Personen als Wert? (Rollenfilter)</DkButton>
             </div>
           </template>
         </div>
-        <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="merkmalHinzufuegen(ziel.wert)">+ Eigenschaft hinzufügen</button>
+        <DkButton
+          variant="secondary"
+          size="md"
+          @click="merkmalHinzufuegen(ziel.wert)"
+        >+ Eigenschaft hinzufügen</DkButton>
       </div>
     </section>
 
@@ -111,14 +135,22 @@
               <option value="plan">plan — gehört zum einzelnen Plan</option>
             </select>
           </label>
-          <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Liste entfernen" @click="sammlungen.splice(i, 1)">✕</button>
+          <DkButton
+            variant="ghost"
+            size="md"
+            aria-label="Liste entfernen" @click="sammlungen.splice(i, 1)"
+          >✕</DkButton>
         </div>
         <PrPfadMeldungen :meldungen="meldungen" :pfad="'sammlungen/' + i" />
         <label class="pr-dek-label">Beschreibung
           <input v-model="s.beschreibung" type="text" class="dk-form-input" placeholder="Was diese Liste enthält" />
         </label>
       </div>
-      <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="sammlungHinzufuegen">+ Liste hinzufügen</button>
+      <DkButton
+        variant="secondary"
+        size="md"
+        @click="sammlungHinzufuegen"
+      >+ Liste hinzufügen</DkButton>
     </section>
 
     <!-- Benannte Rollen -->
@@ -137,15 +169,27 @@
           <label class="pr-dek-label">Name
             <input v-model="r.name" type="text" class="dk-form-input" placeholder="Mitarbeiter" />
           </label>
-          <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Rolle entfernen" @click="rollen.splice(i, 1)">✕</button>
+          <DkButton
+            variant="ghost"
+            size="md"
+            aria-label="Rolle entfernen" @click="rollen.splice(i, 1)"
+          >✕</DkButton>
         </div>
         <PrPfadMeldungen :meldungen="meldungen" :pfad="'rollen/' + i" />
         <PrKnotenEditor v-if="istKnoten(r.filter)" :knoten="r.filter" modus="rolle" :kontext="kontext" />
         <div v-else class="pr-dek-zeile">
-          <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="r.filter = { merkmal: '' }">+ Filter hinzufügen</button>
+          <DkButton
+            variant="ghost"
+            size="md"
+            @click="r.filter = { merkmal: '' }"
+          >+ Filter hinzufügen</DkButton>
         </div>
       </div>
-      <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="rollenHinzufuegen">+ Rolle hinzufügen</button>
+      <DkButton
+        variant="secondary"
+        size="md"
+        @click="rollenHinzufuegen"
+      >+ Rolle hinzufügen</DkButton>
     </section>
   </div>
 </template>
@@ -163,6 +207,7 @@ import PrAuswahl from './PrAuswahl.vue'
 import PrPfadMeldungen from './PrPfadMeldungen.vue'
 import { PARAMETER_ARTEN, MERKMALS_ARTEN, merkmalsZiele } from './editor.mjs'
 import { option } from './auswahl.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   definition: { type: Object, required: true },

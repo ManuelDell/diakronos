@@ -8,14 +8,30 @@
         <p class="dk-screen-sub">Gemeinsam planen mit wiederverwendbaren Planvorlagen</p>
       </div>
       <div class="dk-screen-actions">
-        <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/meine-dienste">Meine Dienste</a>
-        <a v-if="kannEinrichten" class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/vorlagen">Vorlagen</a>
-        <button v-if="hatArchiv" type="button" class="dk-btn dk-btn-secondary dk-btn-sm"
-                data-test="pr-ue-archiv-filter" :aria-pressed="archivZeigen ? 'true' : 'false'"
-                @click="archivZeigen = !archivZeigen">
-          {{ archivZeigen ? 'Archiv ausblenden' : 'Archiv anzeigen' }}
-        </button>
-        <button v-if="kannAnlegen" type="button" class="dk-btn dk-btn-primary dk-btn-sm" @click="neuOffen = true">Neuer Plan</button>
+        <DkButton
+          variant="secondary"
+          size="md"
+          as="a"
+          href="#/dienste/meine-dienste"
+        >Meine Dienste</DkButton>
+        <DkButton
+          variant="secondary"
+          size="md"
+          as="a"
+          v-if="kannEinrichten" href="#/dienste/vorlagen"
+        >Vorlagen</DkButton>
+        <DkButton
+          variant="secondary"
+          size="md"
+          v-if="hatArchiv"
+          data-test="pr-ue-archiv-filter" :aria-pressed="archivZeigen ? 'true' : 'false'"
+          @click="archivZeigen = !archivZeigen"
+        >{{ archivZeigen ? 'Archiv ausblenden' : 'Archiv anzeigen' }}</DkButton>
+        <DkButton
+          variant="primary"
+          size="md"
+          v-if="kannAnlegen" @click="neuOffen = true"
+        >Neuer Plan</DkButton>
       </div>
     </div>
 
@@ -23,7 +39,11 @@
 
     <div v-else-if="seitenFehler.length" class="pr-ue-zustand pr-ue-zustand--fehler">
       <PrMeldungen :meldungen="seitenFehler" />
-      <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="ladenAlles">Erneut versuchen</button>
+      <DkButton
+        variant="secondary"
+        size="md"
+        @click="ladenAlles"
+      >Erneut versuchen</DkButton>
     </div>
 
     <template v-else>
@@ -34,7 +54,12 @@
           <template v-else-if="kannEinrichten">Richte zuerst eine Planvorlage unter „Vorlagen“ ein. Bereichsverantwortliche können danach einen Plan anlegen.</template>
           <template v-else>Bereichsverantwortliche legen die Pläne an und veröffentlichen sie. Für dich ist derzeit kein Plan freigegeben. Persönliche Dienste findest du unter „Meine Dienste“.</template>
         </p>
-        <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/meine-dienste">Meine Dienste öffnen</a>
+        <DkButton
+          variant="secondary"
+          size="md"
+          as="a"
+          href="#/dienste/meine-dienste"
+        >Meine Dienste öffnen</DkButton>
       </div>
 
       <section v-for="g in gruppen" :key="g.name" class="pr-ue-gruppe">
@@ -75,8 +100,16 @@
             Du hast einen angefangenen Plan<template v-if="entwurfTitel"> „{{ entwurfTitel }}“</template> — fortsetzen oder verwerfen?
           </p>
           <div class="pr-ue-entwurf-aktionen">
-            <button type="button" class="dk-btn dk-btn-primary dk-btn-sm" data-test="pr-ue-entwurf-fortsetzen" @click="entwurfFortsetzen">Fortsetzen</button>
-            <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" data-test="pr-ue-entwurf-verwerfen" @click="entwurfVerwerfen">Verwerfen</button>
+            <DkButton
+              variant="primary"
+              size="md"
+              data-test="pr-ue-entwurf-fortsetzen" @click="entwurfFortsetzen"
+            >Fortsetzen</DkButton>
+            <DkButton
+              variant="ghost"
+              size="md"
+              data-test="pr-ue-entwurf-verwerfen" @click="entwurfVerwerfen"
+            >Verwerfen</DkButton>
           </div>
         </div>
 
@@ -133,12 +166,15 @@
       </form>
 
       <template #footer>
-        <button type="button" class="dk-btn dk-btn-ghost" @click="neuOffen = false">Abbrechen</button>
-        <button
-          type="button" class="dk-btn dk-btn-primary"
+        <DkButton
+          variant="secondary"
+          @click="neuOffen = false"
+        >Abbrechen</DkButton>
+        <DkButton
+          variant="primary"
           :disabled="neuSpeichert"
           @click="planAnlegenDurchfuehren"
-        >{{ neuSpeichert ? 'Wird angelegt …' : 'Plan anlegen' }}</button>
+        >{{ neuSpeichert ? 'Wird angelegt …' : 'Plan anlegen' }}</DkButton>
       </template>
     </DkModal>
     <BedarfDialog v-model="bedarfOffen" :bedarf="bedarfListe" :busy="neuSpeichert" fortsetzen-text="Trotzdem Plan anlegen" @einrichten="bedarfEinrichten" @fortsetzen="planAnlegenOhneBedarf" />
@@ -177,6 +213,7 @@ import PrStammdatenPanel from '../../components/planrahmen/PrStammdatenPanel.vue
 import BedarfDialog from '../../components/planrahmen/BedarfDialog.vue'
 import { fehlenderBedarf, stammdatenRoute } from '../../components/planrahmen/einrichten-flow.mjs'
 import { statusSprache, statusBadgeKlasse } from '../../components/ui/statussprache.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const { plaeneListe, plantypenListe, planAnlegen, einrichtenRechte, bedarf, stammdatenHolen,
     katalogSichern } = usePlanrahmen()

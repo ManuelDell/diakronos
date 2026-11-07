@@ -7,7 +7,11 @@
            außen (Sprungziel „Felder“ des Plantyp-Editors) — hier nur der Halt. -->
       <h4 class="pr-re-titel" :id="felderAnker || undefined" :data-abschnitt="felderAnker || undefined">Felder pro Termin</h4>
       <PrFelderEditor :felder="sicherFelder()" :kontext="kontext" :meldungen="meldungen" basis-pfad="felder/" />
-      <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="zuReihenWechseln">+ Zweite Terminreihe (z. B. Probe am Freitag)</button>
+      <DkButton
+        variant="secondary"
+        size="md"
+        @click="zuReihenWechseln"
+      >+ Zweite Terminreihe (z. B. Probe am Freitag)</DkButton>
     </template>
 
     <!-- Mehrere Reihen: jede mit eigener Zeitachse und eigenen Feldern -->
@@ -25,10 +29,13 @@
           <span v-if="reihe.termine?.abgeleitet" class="dk-badge dk-badge-brand">abgeleitet</span>
           <PrPfadMeldungen :meldungen="meldungen" :pfad="'terminreihen/' + ri + '/id'" />
           <PrPfadMeldungen :meldungen="meldungen" :pfad="'terminreihen/' + ri + '/name'" />
-          <button
-            v-if="reihen.length > 1" type="button" class="dk-btn dk-btn-ghost dk-btn-sm"
-            aria-label="Terminreihe entfernen" @click="reiheLoeschen(ri)"
-          >✕</button>
+          <DkButton
+            v-if="reihen.length > 1"
+            variant="ghost"
+            size="md"
+            aria-label="Terminreihe entfernen"
+            @click="reiheLoeschen(ri)"
+          >✕</DkButton>
         </div>
         <PrTermineEditor :termine="sicherReihenTermine(reihe)" :reihen-ids="reihenIds" :kontext="kontext" :meldungen="meldungen" :basis-pfad="'terminreihen/' + ri + '/termine'" />
         <h5
@@ -42,9 +49,21 @@
         />
       </div>
       <div class="pr-re-knopfzeile">
-        <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="reiheHinzufuegen(false)">+ Eigene Terminreihe</button>
-        <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="reiheHinzufuegen(true)">+ Abgeleitete Terminreihe (z. B. Probe vor dem Gottesdienst)</button>
-        <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="zurKurzform">Zur einfachen Form zurück (nur eine Reihe)</button>
+        <DkButton
+          variant="secondary"
+          size="md"
+          @click="reiheHinzufuegen(false)"
+        >+ Eigene Terminreihe</DkButton>
+        <DkButton
+          variant="secondary"
+          size="md"
+          @click="reiheHinzufuegen(true)"
+        >+ Abgeleitete Terminreihe (z. B. Probe vor dem Gottesdienst)</DkButton>
+        <DkButton
+          variant="ghost"
+          size="md"
+          @click="zurKurzform"
+        >Zur einfachen Form zurück (nur eine Reihe)</DkButton>
       </div>
     </template>
   </div>
@@ -61,6 +80,7 @@ import { computed } from 'vue'
 import PrTermineEditor from './PrTermineEditor.vue'
 import PrFelderEditor from './PrFelderEditor.vue'
 import PrPfadMeldungen from './PrPfadMeldungen.vue'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   definition: { type: Object, required: true },

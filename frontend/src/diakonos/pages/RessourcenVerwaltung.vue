@@ -89,7 +89,7 @@
       </form>
 
       <template #footer>
-        <DkButton variant="ghost" :disabled="speichert" @click="schliessen">Abbrechen</DkButton>
+        <DkButton variant="secondary" :disabled="speichert" @click="schliessen">Abbrechen</DkButton>
         <DkButton variant="primary" type="submit" form="rv-form" :loading="speichert">
           {{ bearbeitet ? 'Speichern' : 'Anlegen' }}
         </DkButton>

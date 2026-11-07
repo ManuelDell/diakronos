@@ -174,7 +174,9 @@ test('FIX-6: Layout-Stellen hängen an der Breite (720 px), nicht am Zeiger', ()
 })
 
 const TOUCH_STELLEN = [
-    ['index.css', '.dk-btn-icon', 'min-width: 24px', 'Tippziel-Mindestgröße'],
+    // UX1g: `.dk-btn-icon` ist entfallen (Knopf-System = DkButton); die
+    // Mindestgröße der Tippziele hängt jetzt an `button > svg`.
+    ['index.css', 'button > svg', 'min-width: 24px', 'Tippziel-Mindestgröße'],
     ['components/ui/DkDatumZeit.vue', '.dk-ui-datumzeit-eingabe', 'min-height: 44px', 'Datums-/Zeitfeld'],
 ]
 // FIX-6b/K3: Die 16-px-Felder (`font-size: 16px`) hängen am groben Zeiger —

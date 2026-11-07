@@ -44,7 +44,7 @@
       <ul class="ub-aufgaben">
         <li v-for="a in aufgaben" :key="a.id">
           <span class="ub-aufgabe-text">{{ a.text }}</span>
-          <DkButton variant="ghost" size="sm" @click="navigate(a.href)">{{ a.aktion }}</DkButton>
+          <DkButton variant="ghost" size="md" @click="navigate(a.href)">{{ a.aktion }}</DkButton>
         </li>
       </ul>
     </DkCard>

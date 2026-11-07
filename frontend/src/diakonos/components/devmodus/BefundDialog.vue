@@ -17,11 +17,11 @@
       </label>
 
       <div class="dk-dm-aktionen">
-        <DkButton v-if="sttAn" variant="secondary" size="sm" type="button"
+        <DkButton v-if="sttAn" variant="secondary" size="md" type="button"
                   @click="aufnahmeUmschalten">
           {{ aufnahmeLaeuft ? 'Aufnahme stoppen' : 'Sprechen (Server)' }}
         </DkButton>
-        <DkButton v-else-if="webSpeechAn" variant="secondary" size="sm" type="button"
+        <DkButton v-else-if="webSpeechAn" variant="secondary" size="md" type="button"
                   @click="webSpeechUmschalten">
           {{ sprachLaeuft ? 'Erkennung stoppen' : 'Sprechen (Browser)' }}
         </DkButton>
@@ -48,10 +48,10 @@
         </p>
       </div>
       <div class="dk-dm-aktionen">
-        <DkButton variant="secondary" size="sm" type="button" :disabled="laeuft" @click="aufnehmen">
+        <DkButton variant="secondary" size="md" type="button" :disabled="laeuft" @click="aufnehmen">
           Aufnehmen (DOM)
         </DkButton>
-        <DkButton variant="secondary" size="sm" type="button" :disabled="laeuft" @click="bildschirmAufnehmen">
+        <DkButton variant="secondary" size="md" type="button" :disabled="laeuft" @click="bildschirmAufnehmen">
           Bildschirm aufnehmen
         </DkButton>
         <label class="dk-dm-datei">
@@ -94,7 +94,7 @@
     </div>
 
     <template #footer>
-      <DkButton variant="ghost" type="button" @click="schliessen">Abbrechen</DkButton>
+      <DkButton variant="secondary" type="button" @click="schliessen">Abbrechen</DkButton>
       <DkButton variant="primary" type="button" :disabled="laeuft" @click="speichern">
         {{ laeuft ? 'Speichern…' : 'Befund speichern' }}
       </DkButton>

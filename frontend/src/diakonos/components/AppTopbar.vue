@@ -6,9 +6,9 @@
            gibt es die Seitenleiste) — die Sichtbarkeit regelt index.css. Der
            Knopf liegt in der Kopfzeile, damit er auf JEDER Seite an derselben
            Stelle steht (Prinzip S4/S5) und nicht je Bereich wandert. -->
-      <button
-        type="button"
-        class="dk-icon-btn dk-menue-knopf"
+      <DkButton
+        variant="ghost"
+        class="dk-topbar-symbol dk-menue-knopf"
         :aria-label="MENUE_KNOPF_TEXT"
         :title="MENUE_KNOPF_TEXT"
         :aria-expanded="menueOffen ? 'true' : 'false'"
@@ -17,7 +17,7 @@
         @click="$emit('open-menu')"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      </button>
+      </DkButton>
 
       <!-- Zurück (UX1f): ein Weg der Kopfzeile, kein Alt-Knopf — dieselbe
            Gestaltung wie die übrigen ghost-Knöpfe (Symbol + Wort, N8), aber in
@@ -50,20 +50,30 @@
       <!-- Notifications (OP-HANDY-6): Klick OEFFNET die Liste. Markiert wird
            erst danach — vorher setzte der Klick ungesehen alles auf gelesen. -->
       <div class="dk-notify">
-        <button
-          class="dk-icon-btn"
+        <DkButton
+          variant="ghost"
+          class="dk-topbar-symbol"
+          :aria-label="unreadCount > 0 ? `${unreadCount} neue Benachrichtigungen` : 'Benachrichtigungen'"
           :title="unreadCount > 0 ? `${unreadCount} neue Benachrichtigungen` : 'Benachrichtigungen'"
           :aria-expanded="listeOffen ? 'true' : 'false'"
           @click="toggleListe"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span v-if="unreadCount > 0" class="dk-notify-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
-        </button>
+        </DkButton>
 
         <div v-if="listeOffen" class="dk-notify-panel" role="dialog" aria-label="Benachrichtigungen">
           <div class="dk-notify-kopf">
             <strong>Benachrichtigungen</strong>
-            <button type="button" class="dk-notify-schliessen" title="Schließen" @click="listeOffen = false">✕</button>
+            <!-- UX1g: Der Schliessen-Knopf des Panels ist ein Knopf des
+                 Systems (ghost, benannt) statt eines stummen „✕" in 28 px. -->
+            <DkButton
+              variant="ghost"
+              class="dk-notify-schliessen"
+              aria-label="Benachrichtigungen schliessen"
+              title="Schließen"
+              @click="listeOffen = false"
+            >✕</DkButton>
           </div>
           <!-- UX2d3a: ruhiger Platzhalter statt „Lade …“; bei Fehler die echte
                Meldung mit „Erneut versuchen“ am vorhandenen `ladeListe`. -->

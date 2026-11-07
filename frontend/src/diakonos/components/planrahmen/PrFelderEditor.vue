@@ -16,18 +16,34 @@
           {{ stufenFuer(i) === 'fehler' ? 'Fehler' : stufenFuer(i) === 'warnung' ? 'Warnung' : 'Hinweis' }}
         </span>
         <span class="pr-fb-aktionen">
-          <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Nach oben" :disabled="i === 0" @click="verschieben(i, -1)">↑</button>
-          <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Nach unten" :disabled="i === felder.length - 1" @click="verschieben(i, 1)">↓</button>
-          <button
+          <DkButton
+            variant="ghost"
+            size="md"
+            aria-label="Nach oben" :disabled="i === 0" @click="verschieben(i, -1)"
+          >↑</DkButton>
+          <DkButton
+            variant="ghost"
+            size="md"
+            aria-label="Nach unten" :disabled="i === felder.length - 1" @click="verschieben(i, 1)"
+          >↓</DkButton>
+          <DkButton
             v-if="i > 0 && ['gruppe', 'eintrag'].includes(felder[i - 1]?.art)"
-            type="button" class="dk-btn dk-btn-ghost dk-btn-sm" title="In das vorherige Feld einrücken"
+            variant="ghost"
+            size="md"
+            title="In das vorherige Feld einrücken"
             @click="einruecken(i)"
-          >→ einrücken</button>
-          <button
-            v-if="gruppenModus" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" title="Eine Ebene heraus"
+          >→ einrücken</DkButton>
+          <DkButton
+            variant="ghost"
+            size="md"
+            v-if="gruppenModus" title="Eine Ebene heraus"
             @click="$emit('ausruecken', { index: i, feld: f })"
-          >← ausrücken</button>
-          <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Feld entfernen" @click="felder.splice(i, 1)">✕</button>
+          >← ausrücken</DkButton>
+          <DkButton
+            variant="ghost"
+            size="md"
+            aria-label="Feld entfernen" @click="felder.splice(i, 1)"
+          >✕</DkButton>
         </span>
       </div>
       <PrMeldungen :meldungen="meldungenFuer(i)" kompakt />
@@ -61,7 +77,11 @@
         <template v-if="(f.art === 'person' || f.art === 'personen') && rollenModus(i) === 'inline'">
           <PrKnotenEditor v-if="istKnoten(f.rolle)" :knoten="f.rolle" modus="rolle" :kontext="kontext" />
           <div v-else class="pr-fb-zeile">
-            <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="f.rolle = { merkmal: '' }">+ Personenauswahl einschränken (Rollenfilter)</button>
+            <DkButton
+              variant="ghost"
+              size="md"
+              @click="f.rolle = { merkmal: '' }"
+            >+ Personenauswahl einschränken (Rollenfilter)</DkButton>
           </div>
         </template>
 
@@ -110,8 +130,16 @@
           <p class="pr-fb-hilfe">Optional: nur eine Teilmenge der Teammitglieder auswählen — z. B. nur die Sänger.</p>
           <PrKnotenEditor v-if="istKnoten(f.mitglieder)" :knoten="f.mitglieder" modus="rolle" :kontext="kontext" />
           <div class="pr-fb-zeile">
-            <button v-if="!istKnoten(f.mitglieder)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="f.mitglieder = { merkmal: '' }">+ Nur bestimmte Mitglieder auswählen</button>
-            <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="delete f.mitglieder">Alle Teammitglieder (Filter entfernen)</button>
+            <DkButton
+              variant="ghost"
+              size="md"
+              v-if="!istKnoten(f.mitglieder)" @click="f.mitglieder = { merkmal: '' }"
+            >+ Nur bestimmte Mitglieder auswählen</DkButton>
+            <DkButton
+              variant="ghost"
+              size="md"
+              v-else @click="delete f.mitglieder"
+            >Alle Teammitglieder (Filter entfernen)</DkButton>
           </div>
         </template>
 
@@ -139,8 +167,16 @@
         <!-- Bedingung: nur vorhandene Knoten rendern, Anlegen/Löschen per Knopf -->
         <PrKnotenEditor v-if="istKnoten(f.bedingung)" :knoten="f.bedingung" modus="bedingung" :kontext="kontext" />
         <div class="pr-fb-zeile">
-          <button v-if="!istKnoten(f.bedingung)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="f.bedingung = { anlass: '' }">+ Nur unter Bedingung erscheinen</button>
-          <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="delete f.bedingung">Bedingung entfernen (immer erscheinen)</button>
+          <DkButton
+            variant="ghost"
+            size="md"
+            v-if="!istKnoten(f.bedingung)" @click="f.bedingung = { anlass: '' }"
+          >+ Nur unter Bedingung erscheinen</DkButton>
+          <DkButton
+            variant="ghost"
+            size="md"
+            v-else @click="delete f.bedingung"
+          >Bedingung entfernen (immer erscheinen)</DkButton>
         </div>
 
         <!-- Unterfelder: Gruppe und Eintrag -->
@@ -153,8 +189,16 @@
             @ausruecken="ausrueckenAus(f, $event)"
           />
           <div class="pr-fb-zeile">
-            <button v-if="!Array.isArray(f.inhalt)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="f.inhalt = []">+ Unterfelder hinzufügen</button>
-            <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="delete f.inhalt">Unterfelder entfernen</button>
+            <DkButton
+              variant="ghost"
+              size="md"
+              v-if="!Array.isArray(f.inhalt)" @click="f.inhalt = []"
+            >+ Unterfelder hinzufügen</DkButton>
+            <DkButton
+              variant="ghost"
+              size="md"
+              v-else @click="delete f.inhalt"
+            >Unterfelder entfernen</DkButton>
           </div>
         </div>
 
@@ -166,12 +210,24 @@
               <input v-model="v.id" type="text" class="dk-form-input pr-fb-id" placeholder="kennung" aria-label="Variante" />
               <input v-model="v.name" type="text" class="dk-form-input pr-fb-name" placeholder="Anzeigename" aria-label="Anzeigename" />
               <label class="pr-fb-schalter"><input type="checkbox" :checked="Array.isArray(v.inhalt)" @change="zweigInhaltToggle(v, $event.target.checked)" /> eigene Felder</label>
-              <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Variante entfernen" @click="f.varianten.splice(vi, 1)">✕</button>
+              <DkButton
+                variant="ghost"
+                size="md"
+                aria-label="Variante entfernen" @click="f.varianten.splice(vi, 1)"
+              >✕</DkButton>
             </div>
             <PrKnotenEditor v-if="istKnoten(v.bedingung)" :knoten="v.bedingung" modus="bedingung" :kontext="kontext" />
             <div class="pr-fb-zeile">
-              <button v-if="!istKnoten(v.bedingung)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="v.bedingung = { anlass: '' }">+ Bedingung</button>
-              <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="delete v.bedingung">Bedingung entfernen</button>
+              <DkButton
+                variant="ghost"
+                size="md"
+                v-if="!istKnoten(v.bedingung)" @click="v.bedingung = { anlass: '' }"
+              >+ Bedingung</DkButton>
+              <DkButton
+                variant="ghost"
+                size="md"
+                v-else @click="delete v.bedingung"
+              >Bedingung entfernen</DkButton>
             </div>
             <PrFelderEditor
               v-if="Array.isArray(v.inhalt)"
@@ -180,8 +236,16 @@
               @ausruecken="zweigAusruecken(v, $event)"
             />
           </div>
-          <button v-if="!Array.isArray(f.varianten)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="f.varianten = []">+ Varianten hinzufügen (z. B. Sonne/Regen)</button>
-          <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="f.varianten.push({ id: '' })">+ Variante hinzufügen</button>
+          <DkButton
+            variant="ghost"
+            size="md"
+            v-if="!Array.isArray(f.varianten)" @click="f.varianten = []"
+          >+ Varianten hinzufügen (z. B. Sonne/Regen)</DkButton>
+          <DkButton
+            variant="ghost"
+            size="md"
+            v-else @click="f.varianten.push({ id: '' })"
+          >+ Variante hinzufügen</DkButton>
 
           <h5 class="pr-fb-unter-titel">Teile — laufen nacheinander ab</h5>
           <div v-for="(t, ti) in (f.teile || [])" :key="'t' + ti" class="pr-fb-zweig">
@@ -189,7 +253,11 @@
               <input v-model="t.id" type="text" class="dk-form-input pr-fb-id" placeholder="kennung" aria-label="Teil" />
               <input v-model="t.name" type="text" class="dk-form-input pr-fb-name" placeholder="Anzeigename" aria-label="Anzeigename" />
               <label class="pr-fb-schalter"><input type="checkbox" :checked="Array.isArray(t.inhalt)" @change="zweigInhaltToggle(t, $event.target.checked)" /> eigene Felder</label>
-              <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Teil entfernen" @click="f.teile.splice(ti, 1)">✕</button>
+              <DkButton
+                variant="ghost"
+                size="md"
+                aria-label="Teil entfernen" @click="f.teile.splice(ti, 1)"
+              >✕</DkButton>
             </div>
             <PrFelderEditor
               v-if="Array.isArray(t.inhalt)"
@@ -198,8 +266,16 @@
               @ausruecken="zweigAusruecken(t, $event)"
             />
           </div>
-          <button v-if="!Array.isArray(f.teile)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="f.teile = []">+ Teile hinzufügen (nacheinander)</button>
-          <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="f.teile.push({ id: '' })">+ Teil hinzufügen</button>
+          <DkButton
+            variant="ghost"
+            size="md"
+            v-if="!Array.isArray(f.teile)" @click="f.teile = []"
+          >+ Teile hinzufügen (nacheinander)</DkButton>
+          <DkButton
+            variant="ghost"
+            size="md"
+            v-else @click="f.teile.push({ id: '' })"
+          >+ Teil hinzufügen</DkButton>
         </div>
 
         <!-- Elementtypen: nur Ablauf -->
@@ -210,7 +286,11 @@
               <input v-model="e.typ" type="text" class="dk-form-input pr-fb-id" placeholder="lied" aria-label="Elementtyp" />
               <input v-model="e.name" type="text" class="dk-form-input pr-fb-name" placeholder="Anzeigename" aria-label="Anzeigename" />
               <label class="pr-fb-schalter"><input v-model="e.nummeriert" type="checkbox" /> laufende Nummer</label>
-              <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Elementtyp entfernen" @click="f.elemente.splice(ei, 1)">✕</button>
+              <DkButton
+                variant="ghost"
+                size="md"
+                aria-label="Elementtyp entfernen" @click="f.elemente.splice(ei, 1)"
+              >✕</DkButton>
             </div>
             <PrFelderEditor
               v-if="Array.isArray(e.inhalt)"
@@ -219,11 +299,23 @@
               @ausruecken="zweigAusruecken(e, $event)"
             />
             <div class="pr-fb-zeile">
-              <button v-if="!Array.isArray(e.inhalt)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="e.inhalt = []">+ Felder des Eintrags anlegen</button>
-              <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="delete e.inhalt">Felder entfernen</button>
+              <DkButton
+                variant="ghost"
+                size="md"
+                v-if="!Array.isArray(e.inhalt)" @click="e.inhalt = []"
+              >+ Felder des Eintrags anlegen</DkButton>
+              <DkButton
+                variant="ghost"
+                size="md"
+                v-else @click="delete e.inhalt"
+              >Felder entfernen</DkButton>
             </div>
           </div>
-          <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="f.elemente.push({ typ: '', inhalt: [] })">+ Art des Eintrags anlegen</button>
+          <DkButton
+            variant="ghost"
+            size="md"
+            @click="f.elemente.push({ typ: '', inhalt: [] })"
+          >+ Art des Eintrags anlegen</DkButton>
         </div>
       </div>
     </div>
@@ -232,7 +324,11 @@
       <select v-model="neueArt" class="dk-form-select pr-fb-neu-wahl" aria-label="Art des neuen Felds">
         <option v-for="a in FELD_ARTEN" :key="a.wert" :value="a.wert">{{ a.name }}</option>
       </select>
-      <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="feldHinzufuegen">+ Feld hinzufügen</button>
+      <DkButton
+        variant="secondary"
+        size="md"
+        @click="feldHinzufuegen"
+      >+ Feld hinzufügen</DkButton>
     </div>
   </div>
 </template>
@@ -253,6 +349,7 @@ import { FELD_ARTEN, FUELLSTRATEGIEN, leeresFeld, anzahlLesen, anzahlAus, feldVe
 import {
   bezugOptionen, gruppenOptionen, sammlungOptionen,
 } from './auswahl.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   felder: { type: Array, required: true },

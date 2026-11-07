@@ -98,12 +98,19 @@
               <div class="rs-card-badge" :class="r.status">{{ statusLabel(r.status) }}</div>
             </div>
             <div class="rs-card-body">
-              <button
-                type="button"
-                class="rs-card-title rs-card-title--knopf"
-                :aria-pressed="selectedResource?.id === r.id ? 'true' : 'false'"
-                @click="selectResource(r)"
-              >{{ r.name }}</button>
+              <!-- UX1g: Der Titel war ein roher <button> mit Eigenoptik. Die
+                   ganze Kachel wählt die Ressource (P3-4b/W3) — dafür ist ein
+                   VERWEIS das richtige Element, nicht ein zweiter Knopf neben
+                   „Buchen“ (S1: ein Knopf je Kachel). Der Verweis wird über
+                   die Kachel gedehnt (.rs-card-titel-link::after), „Buchen“
+                   und die Kartenmarke liegen darüber und bleiben einzeln
+                   treffbar. -->
+              <a
+                class="rs-card-titel rs-card-titel-link"
+                href="#/ressourcen"
+                :aria-current="selectedResource?.id === r.id ? 'true' : undefined"
+                @click.prevent="selectResource(r)"
+              >{{ r.name }}</a>
               <div class="rs-card-meta">
                 <span class="rs-card-type">{{ typeLabel(r.type) }}</span>
                 <span v-if="r.capacity" class="rs-card-capacity"><IconUsers class="dk-icon-xs" /> {{ r.capacity }}</span>
@@ -113,7 +120,7 @@
                 <span v-for="tag in r.tags" :key="tag" class="rs-tag">{{ tag }}</span>
               </div>
               <div class="rs-card-footer">
-                <DkButton variant="secondary" size="sm" class="rs-btn-book" @click="openBookingModal(r)">
+                <DkButton variant="secondary" size="md" class="rs-knopf-buchen" @click="openBookingModal(r)">
                   <IconCalendar class="dk-icon-xs" /> Buchen
                 </DkButton>
               </div>
@@ -154,7 +161,7 @@
               <span class="rs-status-dot" :class="r.status">{{ statusLabel(r.status) }}</span>
             </div>
             <div class="rs-spalte rs-spalte--aktionen">
-              <DkButton variant="secondary" size="sm" class="rs-btn-book-sm" @click.stop="openBookingModal(r)">
+              <DkButton variant="secondary" size="md" class="rs-knopf-buchen-klein" @click.stop="openBookingModal(r)">
                 <IconCalendar class="dk-icon-xs" /> Buchen
               </DkButton>
             </div>
@@ -174,7 +181,7 @@
             : 'Sobald Räume, Fahrzeuge oder Gegenstände erfasst sind, erscheinen sie hier.'"
           class="rs-leer"
         >
-          <DkButton v-if="filterAktiv" variant="ghost" size="sm" @click="filterZuruecksetzen">Filter zurücksetzen</DkButton>
+          <DkButton v-if="filterAktiv" variant="ghost" size="md" @click="filterZuruecksetzen">Filter zurücksetzen</DkButton>
         </DkEmpty>
 
         <!-- Offene Anfragen (Moderatoren) -->
@@ -185,10 +192,12 @@
               Offene Anfragen
               <span v-if="anfragen.length" class="rs-moderation-count">{{ anfragen.length }}</span>
             </h2>
-            <button class="dk-btn dk-btn-sm dk-btn-ghost" @click="loadAnfragen" :disabled="loadingAnfragen"
-              title="Offene Anfragen aktualisieren" aria-label="Offene Anfragen aktualisieren">
-              <IconRefresh class="dk-icon-sm" :class="{ 'spin': loadingAnfragen }" />
-            </button>
+            <DkButton
+              variant="ghost"
+              size="md"
+              @click="loadAnfragen" :disabled="loadingAnfragen"
+              title="Offene Anfragen aktualisieren" aria-label="Offene Anfragen aktualisieren"
+            ><IconRefresh class="dk-icon-sm" :class="{ 'spin': loadingAnfragen }" /></DkButton>
           </div>
 
           <!-- UX2d3b: „Keine offenen Anfragen" ist ein Leerzustand — er darf
@@ -230,7 +239,7 @@
               <DkButton
                 v-if="a.quelle === 'termin'"
                 variant="primary"
-                size="sm"
+                size="md"
                 @click="approveTerminRessource(a)"
               >
                 <IconCheck class="dk-icon-xs" /> Freigeben
@@ -238,12 +247,12 @@
               <DkButton
                 v-else
                 variant="primary"
-                size="sm"
+                size="md"
                 @click="approveBuchung(a.id)"
               >
                 <IconCheck class="dk-icon-xs" /> Freigeben
               </DkButton>
-              <DkButton variant="danger" size="sm" @click="openRejectModal(a)">
+              <DkButton variant="danger" size="md" @click="openRejectModal(a)">
                 <IconX class="dk-icon-xs" /> Ablehnen
               </DkButton>
             </div>
@@ -257,10 +266,17 @@
         <!-- Detail Panel -->
         <div v-if="selectedResource && !showMyBookings" class="rs-detail">
           <div class="rs-detail-header">
-            <button class="rs-detail-close" aria-label="Detailansicht schliessen"
-              title="Detailansicht schliessen" @click="selectedResource = null">
+            <!-- UX1g: Schließen des Detailfensters als DkButton (ghost) —
+                 Trefferfläche 40 px (bei grobem Zeiger 44 px) statt 28 px. -->
+            <DkButton
+              variant="ghost"
+              class="rs-detail-close"
+              aria-label="Detailansicht schliessen"
+              title="Detailansicht schliessen"
+              @click="selectedResource = null"
+            >
               <IconX class="dk-icon-md" />
-            </button>
+            </DkButton>
           </div>
 
           <div class="rs-detail-image" :class="`type-${selectedResource.type}`">
@@ -314,10 +330,16 @@
         <div v-if="showMyBookings" class="rs-my-bookings">
           <div class="rs-detail-header">
             <h3 class="rs-panel-titel">Meine Buchungen</h3>
-            <button class="rs-detail-close" aria-label="Meine Buchungen schliessen"
-              title="Meine Buchungen schliessen" @click="showMyBookings = false">
+            <!-- UX1g: siehe oben — DkButton statt rohem Knopf. -->
+            <DkButton
+              variant="ghost"
+              class="rs-detail-close"
+              aria-label="Meine Buchungen schliessen"
+              title="Meine Buchungen schliessen"
+              @click="showMyBookings = false"
+            >
               <IconX class="dk-icon-md" />
-            </button>
+            </DkButton>
           </div>
 
           <div v-if="myBookings.length === 0" class="dk-list-empty rs-panel-leer">
@@ -340,12 +362,24 @@
               <!-- OP-EVENT-14: „Verschieben“ — editBooking war nirgends
                    aufgerufen, eine Buchung liess sich nur stornieren und neu
                    anlegen (verlor dabei die Bestaetigung). -->
-              <button v-if="b.status === 'Angefragt'" class="rs-my-btn" title="Verschieben" @click="editBooking(b)">
-                <IconPencil class="dk-icon-sm" />
-              </button>
-              <button v-if="b.status === 'Angefragt' || b.status === 'Bestätigt'" class="rs-my-btn rs-my-btn--danger" title="Stornieren" @click="cancelBooking(b.id)">
-                <IconTrash class="dk-icon-sm" />
-              </button>
+              <!-- UX1g: Symbol-Knöpfe der eigenen Buchungen als DkButton
+                   (ghost, volle Trefferfläche) mit benanntem Ziel (N8). -->
+              <DkButton
+                variant="ghost"
+                class="rs-knopf-meine"
+                v-if="b.status === 'Angefragt'"
+                aria-label="Buchung verschieben"
+                title="Verschieben"
+                @click="editBooking(b)"
+              ><IconPencil class="dk-icon-sm" /></DkButton>
+              <DkButton
+                variant="ghost"
+                class="rs-knopf-meine rs-knopf-meine--danger"
+                v-if="b.status === 'Angefragt' || b.status === 'Bestätigt'"
+                aria-label="Buchung stornieren"
+                title="Stornieren"
+                @click="cancelBooking(b.id)"
+              ><IconTrash class="dk-icon-sm" /></DkButton>
             </div>
           </div>
         </div>
@@ -1077,29 +1111,23 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-card-body {
   padding: 14px 16px 16px;
 }
-.rs-card-title {
+.rs-card-titel {
   font-size: var(--fs-14);
   font-weight: var(--fw-fett);
   color: var(--dk-text);
   margin-bottom: 4px;
 }
-/* P3-4 (Restpunkt 2): Der Titel ist der Knopf, der die Kachel auswählt — er
-   muss wie Text aussehen, nicht wie ein Knopf. */
-.rs-card-title--knopf {
+/* P3-4 (Restpunkt 2) / UX1g: Der Titel ist der Weg in die Detailansicht — er
+   sieht wie Text aus, nicht wie ein Knopf. */
+.rs-card-titel-link {
   display: block;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+  text-decoration: none;
 }
-.rs-card-title--knopf:hover { color: var(--dk-brand-800); text-decoration: underline; }
-/* P3-4b/W3: Die ganze Kachel wählt aus — der Titelknopf wird über die Kachel
+.rs-card-titel-link:hover { color: var(--dk-brand-800); text-decoration: underline; }
+/* P3-4b/W3: Die ganze Kachel wählt aus — der Titelverweis wird über die Kachel
    gedehnt. Der ::after braucht die Kachel als Bezugsrahmen; „Buchen“ und die
    Kartenmarke liegen darüber und bleiben einzeln treffbar. */
-.rs-card-title--knopf::after {
+.rs-card-titel-link::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -1107,9 +1135,9 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 }
 /* R-P3-4b W2: das Abzeichen bleibt absolut positioniert, nur ueber die Kartenflaeche. */
 .rs-card-badge { z-index: 1; }
-.rs-btn-book,
-.rs-card .dk-btn { position: relative; z-index: 1; }
-.rs-card:has(.rs-card-title--knopf:focus-visible) {
+.rs-knopf-buchen,
+.rs-card .dk-ui-btn { position: relative; z-index: 1; }
+.rs-card:has(.rs-card-titel-link:focus-visible) {
   outline: 2px solid var(--dk-accent);
   outline-offset: 2px;
 }
@@ -1157,7 +1185,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   padding-top: 10px;
   border-top: 1px solid var(--dk-divider);
 }
-.rs-btn-book {
+.rs-knopf-buchen {
   font-weight: var(--fw-fett);
 }
 
@@ -1245,7 +1273,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-status-dot.booked::before { background: var(--dk-danger); }
 .rs-status-dot.maintenance::before { background: var(--dk-warning); }
 
-.rs-btn-book-sm {
+.rs-knopf-buchen-klein {
   font-weight: var(--fw-fett);
 }
 
@@ -1258,22 +1286,11 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   padding: 10px 14px;
   border-bottom: 1px solid var(--dk-divider);
 }
+/* UX1g: Optik, Hover und Klickfläche kommen aus DkButton (ghost, 40/44 px);
+   hier nur die quadratische Form für das Symbol. */
 .rs-detail-close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--dk-text-muted);
-  cursor: pointer;
-  transition: all var(--dk-fast);
-}
-.rs-detail-close:hover {
-  background: var(--dk-surface-hover);
-  color: var(--dk-text);
+  width: var(--control-h);
+  padding: 0;
 }
 
 .rs-detail-image {
@@ -1439,21 +1456,14 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   transition: opacity var(--dk-fast);
 }
 .rs-my-booking:hover .rs-my-booking-actions { opacity: 1; }
-.rs-my-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--dk-text-muted);
-  cursor: pointer;
-  transition: all var(--dk-fast);
+/* UX1g: Optik und Trefferfläche kommen aus DkButton (ghost); hier nur die
+   quadratische Form und die Gefahrenfarbe der Stornierung. */
+.rs-knopf-meine {
+  width: var(--control-h);
+  padding: 0;
 }
-.rs-my-btn:hover { background: var(--dk-surface-2); color: var(--dk-brand-500); }
-.rs-my-btn--danger:hover { background: color-mix(in oklch, var(--err) 10%, transparent); color: var(--err); }
+.rs-knopf-meine:hover { color: var(--dk-brand-500); }
+.rs-knopf-meine--danger:hover { color: var(--err); }
 
 .rs-form { display: flex; flex-direction: column; gap: var(--sp-3); }
 .rs-form-bis { color: var(--muted); }
@@ -1703,18 +1713,9 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   background: var(--dk-surface-2);
 }
 
-.dk-btn-danger {
-  background: var(--dk-danger);
-  color: var(--primary-ink);
-  border-color: var(--dk-danger);
-}
-.dk-btn-danger:hover {
-  background: color-mix(in oklch, var(--err) 85%, black);
-}
-.dk-btn-danger:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+/* UX1g: Die Kopie der Alt-Knopf-Optik (.dk-btn-danger …) ist entfallen —
+   der „Ablehnen“-Knopf ist `DkButton variant="danger"` (siehe oben), und
+   DkButton trägt seine Optik selbst. */
 
 .spin {
   animation: spin 0.8s linear infinite;

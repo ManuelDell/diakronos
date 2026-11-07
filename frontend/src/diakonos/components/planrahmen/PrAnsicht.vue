@@ -6,7 +6,11 @@
       <span class="pr-ansicht-druckhinweis">
         Drucken zeigt nur den Plan — Seitenleiste, Knöpfe und Hinweise bleiben weg.
       </span>
-      <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" data-test="pr-drucken" @click="drucken">Drucken</button>
+      <DkButton
+        variant="secondary"
+        size="md"
+        data-test="pr-drucken" @click="drucken"
+      >Drucken</DkButton>
     </div>
 
     <!-- Druck-Schaltfläche bei Druckansichten -->
@@ -14,7 +18,11 @@
       <span class="pr-ansicht-druckhinweis">
         Druckansicht ({{ orientierung === 'quer' ? 'A4 quer' : 'A4 hoch' }}) — bitte im Drucker „Hintergrundgrafiken“ aktivieren.
       </span>
-      <button class="dk-btn dk-btn-secondary dk-btn-sm" @click="drucken">Drucken</button>
+      <DkButton
+        variant="secondary"
+        size="md"
+        @click="drucken"
+      >Drucken</DkButton>
     </div>
 
     <!-- Nur auf dem Papier: sprechende Ueberschrift, damit ein Aushang ohne
@@ -58,13 +66,19 @@
     />
     <div v-else-if="art === 'meine_dienste'" class="pr-ansicht-hinweis">
       Diese Ansicht zeigt deine persönlichen Dienste.
-      <button class="dk-btn dk-btn-secondary dk-btn-sm" @click="$emit('navigation', '#/dienste/meine-dienste')">
-        Zu meinen Diensten
-      </button>
+      <DkButton
+        variant="secondary"
+        size="md"
+        @click="$emit('navigation', '#/dienste/meine-dienste')"
+      >Zu meinen Diensten</DkButton>
     </div>
     <div v-else-if="art === 'ical'" class="pr-ansicht-hinweis">
       Kalender-Export: alle Termine als Datei übernehmen.
-      <button class="dk-btn dk-btn-secondary dk-btn-sm" @click="icsLaden">Kalenderdatei herunterladen</button>
+      <DkButton
+        variant="secondary"
+        size="md"
+        @click="icsLaden"
+      >Kalenderdatei herunterladen</DkButton>
     </div>
     <div v-else class="pr-ansicht-hinweis">
       Diese Ansichtsart ({{ art }}) wird noch nicht dargestellt.
@@ -87,6 +101,7 @@ import { datumText } from '../../composables/usePlanrahmen.js'
 // UXP-R22/K6: Anlässe auch im iCal-Export als Anzeigename, nie als rohe
 // Kennung („1_weihnachtstag“); der Sammelanlass „feiertag“ bleibt draußen.
 import { anlassName, sichtbareAnlaesse } from './anlaesse.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   plan: { type: Object, default: null },

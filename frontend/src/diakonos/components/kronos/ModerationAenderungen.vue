@@ -47,19 +47,19 @@
         </div>
         <div class="dk-konflikt-frage">Trotzdem speichern?</div>
         <div class="dk-konflikt-aktionen">
-          <DkButton variant="primary" size="sm" :disabled="busy === e.name" @click="trotzdemFreigeben(e)">
+          <DkButton variant="primary" size="md" :disabled="busy === e.name" @click="trotzdemFreigeben(e)">
             Ja, trotzdem freigeben
           </DkButton>
-          <DkButton variant="secondary" size="sm" :disabled="busy === e.name" @click="konfliktVerwerfen(e)">
+          <DkButton variant="secondary" size="md" :disabled="busy === e.name" @click="konfliktVerwerfen(e)">
             Nein, zurück
           </DkButton>
         </div>
       </div>
       <div v-else class="dk-aenderung-aktionen">
-        <DkButton variant="primary" size="sm" :disabled="busy === e.name" @click="freigeben(e)">
+        <DkButton variant="primary" size="md" :disabled="busy === e.name" @click="freigeben(e)">
           Freigeben
         </DkButton>
-        <DkButton variant="secondary" size="sm" :disabled="busy === e.name" @click="ablehnen(e)">
+        <DkButton variant="secondary" size="md" :disabled="busy === e.name" @click="ablehnen(e)">
           Ablehnen
         </DkButton>
       </div>

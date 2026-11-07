@@ -30,7 +30,7 @@
       <DkHint v-if="rueckgaengig" variant="info" role="status" class="gs-rueckgaengig">
         <div class="gs-rueckgaengig-inhalt">
           <span>{{ rueckgaengig.text }}</span>
-          <DkButton variant="ghost" size="sm" @click="meldungSchliessen">Schließen</DkButton>
+          <DkButton variant="ghost" size="md" @click="meldungSchliessen">Schließen</DkButton>
         </div>
       </DkHint>
 
@@ -71,7 +71,7 @@
                   <span class="gs-einheit" aria-hidden="true">{{ mass.einheit }}</span>
                   <DkButton
                     variant="ghost"
-                    size="sm"
+                    size="md"
                     type="button"
                     :disabled="!mass.abweichend || speichert"
                     :title="'Auf Standard zurücksetzen (Standard ' + mass.standard + ' ' + mass.einheit + ')'"

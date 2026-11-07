@@ -3,8 +3,10 @@
     <div class="mini-cal-header">
       <span class="mini-title">{{ monthTitle }}</span>
       <div class="mini-nav">
-        <button class="mini-prev" aria-label="Vorheriger Monat" @click="prevMonth">‹</button>
-        <button class="mini-next" aria-label="Nächster Monat" @click="nextMonth">›</button>
+        <!-- UX1g: Die Monats-Pfeile waren rohe <button> in ~18 px Höhe.
+             Jetzt Knöpfe des Systems (ghost) mit voller Trefferfläche. -->
+        <DkButton variant="ghost" class="mini-pfeil" aria-label="Vorheriger Monat" @click="prevMonth">‹</DkButton>
+        <DkButton variant="ghost" class="mini-pfeil" aria-label="Nächster Monat" @click="nextMonth">›</DkButton>
       </div>
     </div>
     <div class="mini-cal-grid">
@@ -29,6 +31,7 @@
 </template>
 
 <script setup>
+import DkButton from '../ui/DkButton.vue'
 import { computed } from 'vue';
 
 const props = defineProps({

@@ -19,9 +19,9 @@
 #   frontend/src/shared/kachelfarbe.mjs: #12183a, #2563eb, #db2777, #78716c, #2d78f0, #ee2266
 #   frontend/src/diakonos/components/kronos/KronosCalendar.vue: #12183a
 #
-# Stand (ON-0b, eingefroren): 76 Fundstellen in 6 Dateien.
+# Stand (ON-0b, eingefroren): 73 Fundstellen in 6 Dateien.
 frontend/src/diakonos/components/registrierung/RegLinkTeilen.vue	1
-frontend/src/diakonos/index.css	42
+frontend/src/diakonos/index.css	39
 frontend/src/diakonos/kronos.css	28
 frontend/src/grundreset.css	1
 frontend/src/shared/kachelfarbe.mjs	3

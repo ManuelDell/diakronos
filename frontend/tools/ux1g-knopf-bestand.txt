@@ -1,0 +1,14 @@
+# UX1g — Alt-Knopf-Bestand im REST (Teil 3).
+#
+# Geprueft: alles unter frontend/src (ausser den Bereichen von UX1e/UX1f,
+#           die eigene Listen fuehren), ausser Kommentaren.
+# Format:   relativer/pfad<TAB>anzahl_fundstellen
+# Fundstelle = `dk-btn`/`dk-btn-*` | `btn`/`btn-*` | rohe Knopfelemente.
+#
+# ZIEL: 0. Dies ist KEINE eingefrorene Liste — der Waechter
+# (frontend/tests/ux1g-knopf-system.test.mjs) verlangt null Fundstellen in
+# frontend/src und null Vorkommen der CSS-Regeln `.dk-btn*`.
+# Erzeugt mit (aus frontend/ heraus): node tools/ux1g-knopf-bestand.mjs --schreiben
+#
+# Stand (UX1g): 0 Fundstellen in 0 Dateien.
+

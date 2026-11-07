@@ -93,7 +93,7 @@
                   variant="secondary" :disabled="processing[a.name]" @click="ablehnen(a)">
                   <IconX /> Ablehnen
                 </DkButton>
-                <DkButton variant="secondary" size="sm" @click="showDetail(a)">Details</DkButton>
+                <DkButton variant="secondary" size="md" @click="showDetail(a)">Details</DkButton>
               </div>
             </td>
           </tr>
@@ -295,7 +295,7 @@
                      class="reg-bild-datei"
                      :data-test="`reg-formular-${bild.rolle}-datei`"
                      @change="bildGewaehlt(bild.rolle, $event)" />
-              <DkButton v-if="bild.url" variant="danger" size="sm"
+              <DkButton v-if="bild.url" variant="danger" size="md"
                         :data-test="`reg-formular-${bild.rolle}-entfernen`"
                         @click="bildEntfernen(bild.rolle)">
                 Entfernen
@@ -309,7 +309,7 @@
         <div class="reg-feldbau">
           <div class="reg-feldbau-kopf">
             <span class="reg-feldbau-titel">Felder</span>
-            <DkButton variant="secondary" size="sm" @click="addFeld">+ Feld</DkButton>
+            <DkButton variant="secondary" size="md" @click="addFeld">+ Feld</DkButton>
           </div>
           <div v-for="(f, i) in formularFelder" :key="i" class="reg-feldzeile">
             <DkField v-slot="feld" label="Feldbezeichnung" required :error="formularFehler['reg-feld-' + i]">
@@ -317,7 +317,7 @@
             </DkField>
             <DkSelect v-model="f.feldtyp" :options="feldTypOptionen" aria-label="Feldtyp" />
             <DkCheckbox v-model="f.pflichtfeld" label="Pflicht" />
-            <DkButton variant="danger" size="sm" @click="formularFelder.splice(i,1)" aria-label="Feld entfernen">×</DkButton>
+            <DkButton variant="danger" size="md" @click="formularFelder.splice(i,1)" aria-label="Feld entfernen">×</DkButton>
           </div>
         </div>
        </fieldset>
@@ -345,7 +345,7 @@
              aria-label="Vorschau des Anmeldeformulars">
           <div class="reg-vorschau-kopf">
             <h3 class="reg-vorschau-titel">Vorschau — so sehen Besucher das Formular</h3>
-            <DkButton variant="secondary" size="sm" data-test="reg-vorschau-schliessen"
+            <DkButton variant="secondary" size="md" data-test="reg-vorschau-schliessen"
                       @click="vorschauSchliessen">Schließen</DkButton>
           </div>
           <!-- Dieselbe Komponente wie die öffentliche Registrierungsseite. -->

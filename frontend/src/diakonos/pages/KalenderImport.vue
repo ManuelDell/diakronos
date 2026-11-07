@@ -260,7 +260,7 @@ onBeforeUnmount(() => {
         </fieldset>
       </form>
       <template v-else>
-        <p>Zugangsdaten gespeichert. <DkButton size="sm" :disabled="disabled" @click="step = 1">Zugangsdaten ändern</DkButton></p>
+        <p>Zugangsdaten gespeichert. <DkButton size="md" :disabled="disabled" @click="step = 1">Zugangsdaten ändern</DkButton></p>
         <h2 v-if="step === 2">2. Mit Google anmelden</h2>
         <p v-if="step === 2">Melde dich mit dem Google-Konto an, dessen Kalender du importieren möchtest. Du wirst hierher zurückgeleitet.</p>
         <p class="dk-import-uri">{{ redirectUri }}</p>
@@ -277,8 +277,8 @@ onBeforeUnmount(() => {
             <label>Zeitraum<select v-model="cal.timeFilter"><option value="all">Alle Termine</option><option value="from_today">Ab heute</option><option value="last_year">Letztes Jahr</option><option value="last_3_years">Letzte 3 Jahre</option></select></label>
           </div>
           <div class="dk-import-actions">
-            <DkButton size="sm" @click="calendars.forEach(cal => cal.selected = true)">Alle auswählen</DkButton>
-            <DkButton size="sm" @click="calendars.forEach(cal => cal.selected = false)">Alle abwählen</DkButton>
+            <DkButton size="md" @click="calendars.forEach(cal => cal.selected = true)">Alle auswählen</DkButton>
+            <DkButton size="md" @click="calendars.forEach(cal => cal.selected = false)">Alle abwählen</DkButton>
             <DkButton variant="primary" :disabled="!calendars.length" @click="startGoogleImport">Ausgewählte importieren</DkButton>
           </div>
         </fieldset>

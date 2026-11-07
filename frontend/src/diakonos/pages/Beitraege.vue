@@ -52,7 +52,7 @@
           :title="leerZustand.title"
           :text="leerZustand.text"
         >
-          <DkButton v-if="filterAktiv" variant="ghost" size="sm" @click="filterZuruecksetzen">Filter zurücksetzen</DkButton>
+          <DkButton v-if="filterAktiv" variant="ghost" size="md" @click="filterZuruecksetzen">Filter zurücksetzen</DkButton>
         </DkEmpty>
 
         <article
@@ -180,13 +180,13 @@
             </div>
             <div class="bt-comment-form">
               <input v-model="newComment" type="text" placeholder="Kommentar schreiben…" @keyup.enter="addComment" />
-              <DkButton variant="primary" size="sm" :disabled="addingComment" :loading="addingComment" @click="addComment">Absenden</DkButton>
+              <DkButton variant="primary" size="md" :disabled="addingComment" :loading="addingComment" @click="addComment">Absenden</DkButton>
             </div>
           </div>
         </div>
       </div>
       <template #footer>
-        <DkButton v-if="isAdmin && selectedPost" variant="danger" size="sm" @click="deletePost(selectedPost)">Löschen</DkButton>
+        <DkButton v-if="isAdmin && selectedPost" variant="danger" size="md" @click="deletePost(selectedPost)">Löschen</DkButton>
         <DkButton variant="ghost" @click="showPostDetail = false">Schließen</DkButton>
       </template>
     </DkDialog>

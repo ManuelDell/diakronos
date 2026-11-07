@@ -128,7 +128,7 @@
                     <div class="dk-pub-kinder-col-1">
                         <DkButton v-if="kinder.length > 1"
                                   variant="ghost"
-                                  size="sm"
+                                  size="md"
                                   class="dk-pub-remove-btn"
                                   :aria-label="`Kind ${idx + 1} entfernen`"
                                   @click="kinder.splice(idx,1)">Entfernen</DkButton>
@@ -137,7 +137,7 @@
                 <!-- UX1f: Ein Weg, der etwas HINZUFÜGT, ist ein echter Knopf
                      (secondary, umrandet) — bis hierher war er nur blauer Text
                      ohne Klickfläche. Die Hauptaktion der Seite bleibt „Anmelden“. -->
-                <DkButton variant="secondary" size="sm"
+                <DkButton variant="secondary" size="md"
                           class="dk-pub-add-btn"
                           @click="kinder.push({vorname:'',nachname:'',geburtstag:''})">
                     + Kind hinzufügen

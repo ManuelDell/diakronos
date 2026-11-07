@@ -20,7 +20,7 @@
 #   * neue Datei mit festen Werten          -> rot (nicht in der Liste = 0 erlaubt)
 # Erzeugt mit (aus frontend/ heraus): node tools/abstand-bestand.mjs --schreiben
 #
-# Stand (UX1a2, F5): 1596 Fundstellen in 122 Dateien.
+# Stand (UX1a2, F5): 1578 Fundstellen in 122 Dateien.
 frontend/src/diakonos/App.vue	8
 frontend/src/diakonos/components/AppBottomNav.vue	3
 frontend/src/diakonos/components/MitgliedAuswahl.vue	15
@@ -102,9 +102,9 @@ frontend/src/diakonos/components/ui/DkTable.vue	4
 frontend/src/diakonos/components/ui/DkTabs.vue	3
 frontend/src/diakonos/components/website/FreigabeZeile.vue	2
 frontend/src/diakonos/components/widgets/MyServicesWidget.vue	7
-frontend/src/diakonos/components/widgets/PendingRegistrationsWidget.vue	13
-frontend/src/diakonos/index.css	285
-frontend/src/diakonos/kronos.css	180
+frontend/src/diakonos/components/widgets/PendingRegistrationsWidget.vue	9
+frontend/src/diakonos/index.css	274
+frontend/src/diakonos/kronos.css	179
 frontend/src/diakonos/pages/Adressbuch.vue	9
 frontend/src/diakonos/pages/Beitraege.vue	10
 frontend/src/diakonos/pages/GruppeDetail.vue	9
@@ -122,7 +122,7 @@ frontend/src/diakonos/pages/Mitglieder.vue	5
 frontend/src/diakonos/pages/Moderation.vue	2
 frontend/src/diakonos/pages/Profile.vue	8
 frontend/src/diakonos/pages/Registrierung.vue	8
-frontend/src/diakonos/pages/Ressourcen.vue	108
+frontend/src/diakonos/pages/Ressourcen.vue	106
 frontend/src/diakonos/pages/Wiki.vue	12
 frontend/src/diakonos/pages/devmodus/Befunde.vue	12
 frontend/src/diakonos/pages/einrichtung/Assistent.vue	3

@@ -50,7 +50,7 @@
 
     <div class="dk-moderation-inhalt">
       <div class="dk-moderation-aktionen">
-        <DkButton variant="ghost" size="sm" class="dk-moderation-mobile-back" aria-label="Zurück zum Kalender" @click="goToKalender">
+        <DkButton variant="ghost" size="md" class="dk-moderation-mobile-back" aria-label="Zurück zum Kalender" @click="goToKalender">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           Kalender
         </DkButton>

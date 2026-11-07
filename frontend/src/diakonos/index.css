@@ -3,7 +3,7 @@
    vier Einstiege). */
 /* DEP-2b: LAYER-REIHENFOLGE — die erste Deklaration legt sie fest.
    `reset` steht UNTEN: das Grundreset (src/grundreset.css) darf nie eine
-   Komponentenklasse (.dk-ui-chip, .dk-btn, …) oder ein Token ueberstimmen.
+   Komponentenklasse (.dk-ui-chip, .dk-ui-btn, …) oder ein Token ueberstimmen.
    Ohne diese Zeile entschiede die Stelle im Buendel — und Vite stellt die
    per @import eingesammelten Regeln HINTER die direkt geschriebenen, das
    Reset landete also nach den Komponenten (Befund: Filterchips ohne Rahmen,
@@ -71,7 +71,7 @@ h1, h2, h3, h4 {
 /* Der Fokusring bleibt auch auf Elementen sichtbar, die ueber die Tastatur
    statt per Klick angesteuert werden (Ansicht/Bearbeiten-Schalter, siehe
    DES-R20 — der Browser-Grundring war dort praktisch unsichtbar). */
-.dk-btn:focus-visible,
+.dk-ui-btn:focus-visible,
 .view-dropdown:focus-visible,
 .dk-page:focus-visible,
 .dk-tab:focus-visible,
@@ -86,7 +86,7 @@ h1, h2, h3, h4 {
    Tippen durch die Navigation unbemerkt. */
 .dk-sidebar :focus-visible,
 .dk-sb-user:focus-visible,
-.dk-sb-theme-btn:focus-visible,
+.dk-sb-theme-punkt:focus-visible,
 .dk-sb-nav a:focus-visible,
 .dk-sb-nav button:focus-visible {
   outline: 2px solid var(--focus-ring-side);
@@ -271,16 +271,13 @@ h1, h2, h3, h4 {
 .dk-sb-brand-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
 .dk-sb-brand-name { color: #fff; font-weight: var(--fw-fett); font-size: var(--fs-16); letter-spacing: -0.01em; }
 .dk-sb-brand-sub  { color: var(--dk-sb-text-muted); font-size: var(--fs-12); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* UX1g: Optik aus DkButton (ghost); hier nur Seitenleisten-Töne und die
+   quadratische Form der Kopfzeile. */
 .dk-sb-collapse {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: var(--control-h);
+  padding: 0;
   color: var(--dk-sb-text-muted);
   flex-shrink: 0;
-  transition: background var(--dk-fast), color var(--dk-fast);
 }
 .dk-sb-collapse:hover { background: var(--dk-sb-hover); color: #fff; }
 .is-collapsed .dk-sb-top { justify-content: center; padding: 14px 6px 10px; }
@@ -461,38 +458,29 @@ h1, h2, h3, h4 {
 .dk-sb-user-name { color: #fff; font-size: var(--fs-14); font-weight: var(--fw-mittel); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dk-sb-user-role { color: var(--dk-sb-text-muted); font-size: var(--fs-12); }
 .is-collapsed .dk-sb-user { justify-content: center; }
-.dk-sb-theme-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  color: var(--dk-sb-text-muted);
+.dk-sb-theme-punkt {
+  justify-content: flex-start;
   flex-shrink: 0;
-  transition: background var(--dk-fast), color var(--dk-fast);
+  color: var(--dk-sb-text-muted);
 }
-.dk-sb-theme-btn:hover { background: var(--dk-sb-hover); color: #fff; }
+.dk-sb-theme-punkt:hover { background: var(--dk-sb-hover); color: #fff; }
 
-/* BF1-L: Abmelden im Nutzerbereich (Sidebar unten). */
+/* BF1-L: Abmelden im Nutzerbereich (Sidebar unten).
+   UX1g: Der Knopf ist jetzt `DkButton variant="ghost"`; nur die Farben der
+   dunklen Leiste und die volle Breite bleiben hier (die hellen Töne von
+   --muted/--surface-hover wären auf der Leiste unlesbar). */
 .dk-sb-logout {
-  display: flex;
-  align-items: center;
   gap: 10px;
   width: 100%;
   margin-top: 6px;
   padding: 8px;
-  border: 0;
-  border-radius: 8px;
+  justify-content: flex-start;
   background: transparent;
   color: var(--dk-sb-text-muted);
-  font: inherit;
-  font-size: var(--fs-14);
   text-align: left;
-  cursor: pointer;
-  transition: background var(--dk-fast), color var(--dk-fast);
 }
-.dk-sb-logout:hover { background: var(--dk-sb-hover); color: #fff; }
+.dk-sb-logout:hover,
+.dk-sb-logout:not(:disabled):hover { background: var(--dk-sb-hover); color: #fff; }
 .dk-sb-logout:focus-visible { outline: 2px solid var(--focus-ring-side); outline-offset: 1px; }
 .dk-sb-logout svg { flex: none; }
 .dk-sb-logout.is-collapsed { justify-content: center; padding: 8px 0; }
@@ -598,21 +586,14 @@ h1, h2, h3, h4 {
 .dk-crumb  { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); color: var(--dk-text-muted); }
 .dk-crumb-sep { color: var(--dk-text-subtle); }
 .dk-crumb-current { color: var(--dk-text); font-weight: var(--fw-mittel); }
-.dk-icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  color: var(--dk-text-muted);
-  background: none;
-  border: none;
-  cursor: pointer;
+/* UX1g: Die Symbol-Knöpfe der Kopfzeile sind DkButtons (ghost). Hier steht
+   nur die quadratische Trefferfläche (--control-h, bei grobem Zeiger 44 px)
+   und der Bezugsrahmen für das Abzeichen. */
+.dk-topbar-symbol {
+  width: var(--control-h);
+  padding: 0;
   position: relative;
-  transition: background var(--dk-fast), color var(--dk-fast);
 }
-.dk-icon-btn:hover { background: var(--dk-surface-2); color: var(--dk-text); }
 /* UX3e (Entwurf A8): Das Menü-Symbol oben links gehört zur Mobil-Lage — am
    Desktop führt die Seitenleiste die Navigation (Prinzip N5), ein zweiter
    Knopf dort wäre ein totes Ziel. Bedingung: DIESELBE wie das Mobil-Layout
@@ -641,7 +622,8 @@ h1, h2, h3, h4 {
   overflow: hidden;
 }
 .dk-notify-kopf { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--dk-border); }
-.dk-notify-schliessen { background: none; border: 0; color: var(--dk-text-muted); cursor: pointer; font-size: var(--fs-14); line-height: 1; padding: 4px; }
+/* UX1g: Schliessen-Knopf des Panels — Optik aus DkButton, hier nur der Ort. */
+.dk-notify-schliessen { flex: none; }
 .dk-notify-zustand { padding: 14px 12px; color: var(--dk-text-muted); font-size: var(--fs-14); }
 .dk-notify-zustand--fehler { color: var(--dk-danger); }
 .dk-notify-liste { list-style: none; margin: 0; padding: 0; max-height: min(60vh, 420px); overflow: auto; }
@@ -836,31 +818,14 @@ h1, h2, h3, h4 {
 
 /* =====================================================================
    Buttons
+   ---------------------------------------------------------------------
+   UX1g: Die Alt-Knopfreihe (.dk-btn, .dk-btn-primary/secondary/ghost/
+   danger/success/warning, .dk-btn-sm/-xs/-icon) ist ENTFERNT. Es gibt genau
+   EIN Knopf-System: `components/ui/DkButton.vue` (Klassen `.dk-ui-btn…`,
+   Optik in der Komponente, Werte aus tokens.css). Kein Baustein der
+   Anwendung trägt noch eine `dk-btn`-Klasse — Wächter:
+   frontend/tests/ux1g-knopf-system.test.mjs (0 Fundstellen).
    ===================================================================== */
-.dk-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 13px;
-  border-radius: 8px;
-  font-size: var(--fs-14);
-  font-weight: var(--fw-mittel);
-  font-family: inherit;
-  border: none;
-  cursor: pointer;
-  transition: background var(--dk-fast), color var(--dk-fast), border-color var(--dk-fast), transform var(--dk-fast);
-  white-space: nowrap;
-  text-decoration: none;
-}
-.dk-btn:active { transform: translateY(1px); }
-.dk-btn-primary { background: var(--primary); color: var(--primary-ink); }
-.dk-btn-primary:hover { background: var(--primary-hover); }
-.dk-btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--line); }
-.dk-btn-secondary:hover { background: var(--surface-hover); border-color: var(--line-strong); }
-.dk-btn-ghost { background: transparent; color: var(--dk-text-muted); }
-.dk-btn-ghost:hover { background: var(--dk-surface-hover); color: var(--dk-text); }
-.dk-btn-sm { padding: 5px 10px; font-size: var(--fs-12); }
-.dk-btn-icon { padding: 6px; }
 
 /* Ladeanzeige (UXP-R11): kleine Dreh-Anzeige neben einem Knopftext, z. B.
    „Wird berechnet …“. Farbe erbt vom Text (currentColor), damit sie auf
@@ -1402,16 +1367,9 @@ select.dk-form-select { appearance: auto; }
 .dk-calendar-day { font-size: var(--fs-14); font-weight: var(--fw-mittel); margin-bottom: 4px; }
 .dk-calendar-event { font-size: var(--fs-12); padding: 2px 6px; border-radius: 4px; background: color-mix(in oklch, var(--dk-brand-800) 10%, var(--dk-surface)); color: var(--dk-brand-800); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* =====================================================================
-   Button Danger
-   ===================================================================== */
-.dk-btn-danger { background: var(--dk-danger); color: #fff; }
-.dk-btn-danger:hover { background: color-mix(in oklch, var(--dk-danger) 85%, black); }
-.dk-btn-success { background: var(--dk-success); color: #fff; }
-.dk-btn-success:hover { background: color-mix(in oklch, var(--dk-success) 85%, black); }
-.dk-btn-warning { background: var(--dk-warning); color: #fff; }
-.dk-btn-warning:hover { background: color-mix(in oklch, var(--dk-warning) 85%, black); }
-[data-theme="dark"] .dk-btn-warning { background: color-mix(in oklch, var(--dk-warning) 80%, white); }
+/* UX1g: Auch die Gefahren-/Erfolgs-/Warnfarben der Altknöpfe sind entfallen.
+   Gefahr zeigt `DkButton variant="danger"`; Erfolg und Warnung sind keine
+   Knopfarten mehr (die Warnung trägt der Text). */
 
 /* =====================================================================
    Grid Utilities
@@ -1648,19 +1606,16 @@ select.dk-form-select { appearance: auto; }
   align-items: center;
   gap: var(--sp-1);
 }
-.dk-widget-action-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--muted);
-  padding: var(--sp-1);
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  transition: background var(--fast), color var(--fast);
+/* UX1g: Die Griffe (verschieben, ein-/ausklappen, ausblenden) sind
+   DkButtons (ghost) — Rahmen, Farbe, Hover und Fokus kommen aus dem
+   Knopf-System. Hier steht nur noch die quadratische Trefferfläche des
+   Kopfes (--control-h, bei grobem Zeiger 44 px), damit drei Griffe in die
+   Kopfzeile passen. */
+.dk-widget-griff {
+  width: var(--control-h);
+  padding: 0;
 }
-.dk-widget-action-btn:hover { background: var(--dk-surface-2); color: var(--dk-text); }
-.dk-widget-hide-btn:hover   { color: var(--dk-danger); }
+.dk-widget-hide:hover { color: var(--dk-danger); }
 
 /* Body */
 .dk-widget-body {
@@ -1997,16 +1952,16 @@ input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
   input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
     font-size: var(--fs-16);
   }
-  .dk-btn,
-  .dk-btn-sm,
-  .dk-btn-icon,
+  /* UX1g: Die Alt-Klassen (.dk-btn, .dk-btn-sm, .dk-btn-icon) gibt es nicht
+     mehr — die Mindesthoehe gilt fuer den Baustein (dk-ui-btn) und die
+     Bausteine der Bibliothek. */
+  .dk-ui-btn,
   .dk-ui-chip,
   .dk-filter-chip,
   input[type="checkbox"],
   input[type="radio"] {
     min-height: 24px;
   }
-  .dk-btn-icon,
   button > svg,
   input[type="checkbox"],
   input[type="radio"] {

@@ -81,7 +81,7 @@
               <span v-if="s.meldung && s.status !== 'ok'" class="sk-meldung">{{ s.meldung }}</span>
             </td>
             <td class="sk-aktion">
-              <DkButton variant="ghost" size="sm" :disabled="sichert"
+              <DkButton variant="ghost" size="md" :disabled="sichert"
                 @click="frageLoeschen(s)">Löschen</DkButton>
             </td>
           </tr>

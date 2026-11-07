@@ -75,7 +75,7 @@
           <DkButton
             v-if="logoUrl"
             variant="ghost"
-            size="sm"
+            size="md"
             :disabled="logoLaeuft"
             @click="$emit('logo-entfernen')"
           >

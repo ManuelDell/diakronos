@@ -16,10 +16,16 @@
         </p>
       </div>
       <div class="dk-screen-actions">
-        <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" :disabled="!daten || laden || bedarfLaedt" @click="bedarfOeffnen">
-          {{ bedarfLaedt ? 'Prüfe Bedarf …' : 'Bedarf prüfen' }}
-        </button>
-        <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" :disabled="laden" @click="neuLaden">Neu laden</button>
+        <DkButton
+          variant="secondary"
+          size="md"
+          :disabled="!daten || laden || bedarfLaedt" @click="bedarfOeffnen"
+        >{{ bedarfLaedt ? 'Prüfe Bedarf …' : 'Bedarf prüfen' }}</DkButton>
+        <DkButton
+          variant="secondary"
+          size="md"
+          :disabled="laden" @click="neuLaden"
+        >Neu laden</DkButton>
       </div>
     </div>
 
@@ -28,7 +34,11 @@
 
     <div v-else-if="seitenFehler.length" class="pr-stamm-zustand pr-stamm-zustand--fehler">
       <PrMeldungen :meldungen="seitenFehler" />
-      <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="neuLaden">Erneut versuchen</button>
+      <DkButton
+        variant="secondary"
+        size="md"
+        @click="neuLaden"
+      >Erneut versuchen</DkButton>
     </div>
 
     <div v-else-if="!daten" class="dk-empty">
@@ -36,7 +46,12 @@
       <p class="dk-empty-desc">
         Die Stammdaten hängen an einer Planvorlage. Öffne sie aus der Planübersicht oder aus der Vorbereitung eines Plans.
       </p>
-      <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/dienstplaene">Zu den Dienstplänen</a>
+      <DkButton
+        variant="secondary"
+        size="md"
+        as="a"
+        href="#/dienste/dienstplaene"
+      >Zu den Dienstplänen</DkButton>
     </div>
 
     <template v-else>
@@ -115,12 +130,17 @@
                 v-model="massenWert" @update:model-value="massenBereit = true"
               />
             </div>
-            <button
-              type="button" class="dk-btn dk-btn-primary dk-btn-sm"
+            <DkButton
+              variant="primary"
+              size="md"
               :disabled="!massenMerkmal || !massenBereit || beschaeftigt"
               @click="massenAnwenden"
-            >Auf {{ auswahl.size }} {{ auswahl.size === 1 ? 'Person' : 'Personen' }} anwenden</button>
-            <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="auswahlLeeren">Auswahl aufheben</button>
+            >Auf {{ auswahl.size }} {{ auswahl.size === 1 ? 'Person' : 'Personen' }} anwenden</DkButton>
+            <DkButton
+              variant="ghost"
+              size="md"
+              @click="auswahlLeeren"
+            >Auswahl aufheben</DkButton>
           </div>
 
           <div class="pr-stamm-tabelle-wrap">
@@ -201,10 +221,12 @@
             </span>
             <span v-if="sam.eingebaut" class="dk-badge">Psalmos</span>
             <span class="pr-stamm-anzahl">{{ zeilen(sam.id).length }} {{ zeilen(sam.id).length === 1 ? 'Eintrag' : 'Einträge' }}</span>
-            <button
-              v-if="sammlungNeuErlaubt(sam)" type="button"
-              class="dk-btn dk-btn-secondary dk-btn-sm pr-stamm-neu" :disabled="beschaeftigt" @click="neuEingabeOeffnen(sam)"
-            >Neuer Eintrag</button>
+            <DkButton
+              variant="secondary"
+              size="md"
+              class="pr-stamm-neu"
+              v-if="sammlungNeuErlaubt(sam)" :disabled="beschaeftigt" @click="neuEingabeOeffnen(sam)"
+            >Neuer Eintrag</DkButton>
           </div>
           <p v-if="sam.beschreibung" class="pr-stamm-beschreibung">{{ sam.beschreibung }}</p>
           <p v-if="!sammlungEditierbar(sam) && !sam.eingebaut" class="pr-stamm-hinweis">{{ sammlungSperrGrund(sam) }}</p>
@@ -309,12 +331,17 @@
               />
             </div>
             <div class="pr-stamm-neu-aktionen">
-              <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="neuAbbrechen(sam)">Abbrechen</button>
-              <button
-                type="button" class="dk-btn dk-btn-primary dk-btn-sm"
+              <DkButton
+                variant="secondary"
+                size="md"
+                @click="neuAbbrechen(sam)"
+              >Abbrechen</DkButton>
+              <DkButton
+                variant="primary"
+                size="md"
                 :disabled="beschaeftigt || !(neuEingaben[sam.id]?.titel || '').trim()"
                 @click="eintragAnlegen(sam)"
-              >{{ beschaeftigt ? 'Wird gespeichert …' : 'Anlegen' }}</button>
+              >{{ beschaeftigt ? 'Wird gespeichert …' : 'Anlegen' }}</DkButton>
             </div>
           </div>
           </template>
@@ -362,6 +389,7 @@ import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 import LiederPflege from '../../components/planrahmen/LiederPflege.vue'
 import { useHandyHinweis, hinweisZeigen, istSchmal } from '../../composables/handyHinweis.mjs'
 import { VueDraggable } from 'vue-draggable-plus'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   plantyp: { type: String, default: '' },

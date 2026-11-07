@@ -45,10 +45,10 @@
     </div>
 
     <div v-if="slugGeaendert" class="wf-zeile-speichern">
-      <DkButton size="sm" variant="primary" :loading="laeuft" @click="slugSpeichern">
+      <DkButton size="md" variant="primary" :loading="laeuft" @click="slugSpeichern">
         Kürzel speichern
       </DkButton>
-      <DkButton size="sm" variant="ghost" :disabled="laeuft" @click="slugEingabe = slug">
+      <DkButton size="md" variant="ghost" :disabled="laeuft" @click="slugEingabe = slug">
         Verwerfen
       </DkButton>
     </div>

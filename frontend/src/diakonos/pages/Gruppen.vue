@@ -62,7 +62,7 @@
           title="Keine Gruppe in diesem Dienstbereich"
           text="Wähle oben „Alle“ oder einen anderen Dienstbereich."
         >
-          <DkButton variant="ghost" size="sm" @click="chipWaehlen('meine', 'alle')">Alle zeigen</DkButton>
+          <DkButton variant="ghost" size="md" @click="chipWaehlen('meine', 'alle')">Alle zeigen</DkButton>
         </DkEmpty>
         <div v-else class="gr-grid-scroll" data-raster="meine">
           <div v-for="g in gefilterteMeineGruppen" :key="g.name" class="gr-kachel-huelle">
@@ -119,7 +119,7 @@
           title="Keine Gruppe in diesem Dienstbereich"
           text="Wähle oben „Alle“ oder einen anderen Dienstbereich."
         >
-          <DkButton variant="ghost" size="sm" @click="chipWaehlen('alle', 'alle')">Alle zeigen</DkButton>
+          <DkButton variant="ghost" size="md" @click="chipWaehlen('alle', 'alle')">Alle zeigen</DkButton>
         </DkEmpty>
         <div v-else class="gr-grid-scroll" data-raster="alle">
           <div v-for="g in gefilterteAlleGruppen" :key="g.name" class="gr-kachel-huelle">

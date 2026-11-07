@@ -157,13 +157,13 @@
       <span v-if="knoepfe.sichtbar" class="pz-fuss-knoepfe">
         <DkButton
           variant="secondary"
-          size="sm"
+          size="md"
           :disabled="!knoepfe.zurueck"
           @click="$emit('blaettern', seite - 1)"
         >Zurück</DkButton>
         <DkButton
           variant="secondary"
-          size="sm"
+          size="md"
           :disabled="!knoepfe.weiter"
           @click="$emit('blaettern', seite + 1)"
         >Weiter</DkButton>

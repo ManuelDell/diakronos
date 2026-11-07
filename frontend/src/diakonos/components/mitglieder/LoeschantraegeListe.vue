@@ -5,7 +5,7 @@
        ohne Erklärung wissen, was zu tun ist. -->
   <DkCard title="Löschanträge">
     <template #actions>
-      <DkButton v-if="!embedded" variant="ghost" size="sm" :disabled="laedt" @click="emit('laden')">
+      <DkButton v-if="!embedded" variant="ghost" size="md" :disabled="laedt" @click="emit('laden')">
         Aktualisieren
       </DkButton>
     </template>

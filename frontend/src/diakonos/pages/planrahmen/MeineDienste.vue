@@ -8,7 +8,12 @@
         <p class="dk-screen-sub">Deine Zuordnungen aus den veröffentlichten Plänen</p>
       </div>
       <div class="dk-screen-actions">
-        <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/dienste/dienstplaene">Zu den Dienstplänen</a>
+        <DkButton
+          variant="secondary"
+          size="md"
+          as="a"
+          href="#/dienste/dienstplaene"
+        >Zu den Dienstplänen</DkButton>
       </div>
     </div>
 
@@ -17,7 +22,11 @@
 
     <div v-else-if="seitenFehler.length" class="pr-md-zustand pr-md-zustand--fehler">
       <PrMeldungen :meldungen="seitenFehler" />
-      <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="ladenAlles">Erneut versuchen</button>
+      <DkButton
+        variant="secondary"
+        size="md"
+        @click="ladenAlles"
+      >Erneut versuchen</DkButton>
     </div>
 
     <template v-else>
@@ -91,11 +100,12 @@
                     </p>
                   </div>
                   <div class="pr-md-monat-aktion">
-                    <button
-                      type="button" class="dk-btn dk-btn-ghost dk-btn-sm"
+                    <DkButton
+                      variant="ghost"
+                      size="md"
                       :disabled="absageLaeuft[d.feld_pfad]"
                       @click="absageAnfragen(d, g)"
-                    >{{ absageLaeuft[d.feld_pfad] ? 'Wird abgesagt …' : 'Absagen' }}</button>
+                    >{{ absageLaeuft[d.feld_pfad] ? 'Wird abgesagt …' : 'Absagen' }}</DkButton>
                   </div>
                 </li>
               </ul>
@@ -139,11 +149,12 @@
             <label for="pr-md-grund">Grund (freiwillig)</label>
             <input id="pr-md-grund" v-model="abwGrund" type="text" class="dk-form-input" placeholder="z. B. Urlaub" />
           </div>
-          <button
-            type="button" class="dk-btn dk-btn-primary dk-btn-sm"
+          <DkButton
+            variant="primary"
+            size="md"
             :disabled="abwSpeichert"
             @click="abwesenheitMeldenAktion"
-          >{{ abwSpeichert ? 'Wird gemeldet …' : 'Abwesenheit melden' }}</button>
+          >{{ abwSpeichert ? 'Wird gemeldet …' : 'Abwesenheit melden' }}</DkButton>
         </template>
 
         <DkSkelett v-if="abwSkelettSichtbar" kurz form="zeilen" :anzahl="2" text="Abwesenheiten werden geladen …" />
@@ -153,11 +164,12 @@
               {{ datumText(a.von, false) }} – {{ datumText(a.bis, false) }}
               <span v-if="a.grund"> · {{ a.grund }}</span>
             </span>
-            <button
-              type="button" class="dk-btn dk-btn-ghost dk-btn-sm"
+            <DkButton
+              variant="ghost"
+              size="md"
               :disabled="abwLoescht[a.id]"
               @click="abwesenheitLoeschenAktion(a)"
-            >{{ abwLoescht[a.id] ? 'Wird gelöscht …' : 'Löschen' }}</button>
+            >{{ abwLoescht[a.id] ? 'Wird gelöscht …' : 'Löschen' }}</DkButton>
           </li>
         </ul>
         <p v-else-if="eigeneKennung" class="pr-md-hinweis pr-md-keine-abw">
@@ -180,10 +192,14 @@
         <PrMeldungen :meldungen="absageFehler" />
       </div>
       <template #footer>
-        <button type="button" class="dk-btn dk-btn-ghost" @click="absageOffen = false">Zurück</button>
-        <button type="button" class="dk-btn dk-btn-primary" :disabled="absageSpeichert" @click="absageAusfuehren">
-          {{ absageSpeichert ? 'Wird abgesagt …' : 'Jetzt absagen' }}
-        </button>
+        <DkButton
+          variant="ghost"
+          @click="absageOffen = false"
+        >Zurück</DkButton>
+        <DkButton
+          variant="primary"
+          :disabled="absageSpeichert" @click="absageAusfuehren"
+        >{{ absageSpeichert ? 'Wird abgesagt …' : 'Jetzt absagen' }}</DkButton>
       </template>
     </DkModal>
   </div>
@@ -212,6 +228,7 @@ import { feldName, mitwirkendeText } from '../../components/planrahmen/meine-die
 import {
     monatsGruppen, rollenFarbe, rollenZeichen, legende, diensteText,
 } from '../../components/planrahmen/meine-dienste-monate.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const { meineDienste, abwesenheitMelden, abwesenheitenListe, abwesenheitLoeschen, dienstAbsagen } = usePlanrahmen()
 const { mitglied } = useSession()

@@ -44,14 +44,22 @@
             <span class="pr-ablauf-typ">{{ typName(f, e.typ) }}</span>
             <span v-for="(z, zi) in inhaltZellen(f, e)" :key="zi" class="pr-ablauf-wert">{{ z }}</span>
           </span>
-          <button class="dk-btn dk-btn-ghost dk-btn-sm" title="Eintrag entfernen" @click="loeschen(f, ei)">✕</button>
+          <DkButton
+            variant="ghost"
+            size="md"
+            title="Eintrag entfernen" @click="loeschen(f, ei)"
+          >✕</DkButton>
           <div class="pr-element-felder">
             <div v-for="inner in typDeklaration(f, e.typ)?.inhalt || []" :key="inner.id">
-              <button class="dk-btn dk-btn-secondary dk-btn-sm"
-                @click="$emit('bearbeiten', termin, `${f.pfad}/${e.id}.${inner.id}`)">
+              <DkButton
+                variant="secondary"
+                size="md"
+                @click="$emit('bearbeiten', termin, `${f.pfad}/${e.id}.${inner.id}`)"
+              >
                 {{ inner.name || inner.id }}: {{ innerWertText(f, e, inner) }}
                 <span v-if="findeEintrag(`${f.pfad}/${e.id}.${inner.id}`)?.fixiert" title="Von Hand festgelegt">📌</span>
-              </button>
+                
+              </DkButton>
             </div>
           </div>
         </li>
@@ -63,11 +71,12 @@
           <option value="" disabled>Art des Eintrags wählen …</option>
           <option v-for="t in typen(f)" :key="t.typ" :value="t.typ">{{ t.name || t.typ }}</option>
         </select>
-        <button
-          class="dk-btn dk-btn-secondary dk-btn-sm"
+        <DkButton
+          variant="secondary"
+          size="md"
           :disabled="!neuTyp[f.pfad]"
           @click="hinzufuegen(f)"
-        >Übernehmen</button>
+        >Übernehmen</DkButton>
       </div>
     </section>
 
@@ -98,6 +107,7 @@ import { zellenInhalt, feldWertText } from './zellen.js'
 import { wertAnzeige } from './auswahlwerte.mjs'
 import PrMeldungen from './PrMeldungen.vue'
 import { terminMeldungen } from './meldungen.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   plan: { type: Object, default: null },

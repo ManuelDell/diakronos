@@ -5,7 +5,11 @@
         <option v-for="o in optionen" :key="o.wert" :value="o.wert">{{ o.name }}</option>
       </select>
       <span v-if="anzeigeText && !istVerbinder && schluessel !== 'nicht'" class="pr-kn-text">{{ anzeigeText }}</span>
-      <button v-if="entfernbar" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Kriterium entfernen" @click="$emit('entfernen')">✕</button>
+      <DkButton
+        variant="ghost"
+        size="md"
+        v-if="entfernbar" aria-label="Kriterium entfernen" @click="$emit('entfernen')"
+      >✕</DkButton>
     </div>
 
     <!-- Verbinder: UND / ODER mit kindlichen Kriterien -->
@@ -15,7 +19,11 @@
         :modus="modus" :knoten="k" :kontext="kontext" :tiefe="tiefe + 1" :entfernbar="true"
         @update="kinder[i] = $event" @entfernen="kinder.splice(i, 1)"
       />
-      <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="kinder.push(leerenKnoten(modus))">+ Kriterium anlegen</button>
+      <DkButton
+        variant="ghost"
+        size="md"
+        @click="kinder.push(leerenKnoten(modus))"
+      >+ Kriterium anlegen</DkButton>
     </div>
 
     <!-- Negation mit genau einem Kriterium -->
@@ -103,6 +111,7 @@ import {
   anlassOptionen, feldPfadOptionen, gruppenOptionen, option,
   personenMerkmalOptionen, sammlungOptionen, varianteOptionen,
 } from './auswahl.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   knoten: { type: Object, required: true },

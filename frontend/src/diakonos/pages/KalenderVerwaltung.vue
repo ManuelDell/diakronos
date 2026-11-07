@@ -48,8 +48,8 @@
               </p>
             </div>
             <div class="kv-karte-aktionen">
-              <DkButton variant="secondary" size="sm" @click="bearbeiten(k)">Bearbeiten</DkButton>
-              <DkButton variant="danger" size="sm" @click="kalenderEntfernen(k)">Löschen</DkButton>
+              <DkButton variant="secondary" size="md" @click="bearbeiten(k)">Bearbeiten</DkButton>
+              <DkButton variant="danger" size="md" @click="kalenderEntfernen(k)">Löschen</DkButton>
             </div>
           </div>
 
@@ -120,7 +120,7 @@
       </form>
 
       <template #footer>
-        <DkButton variant="ghost" :disabled="speichert" @click="schliessen">Abbrechen</DkButton>
+        <DkButton variant="secondary" :disabled="speichert" @click="schliessen">Abbrechen</DkButton>
         <DkButton variant="primary" type="submit" form="kv-form" :loading="speichert">
           {{ bearbeitet ? 'Speichern' : 'Anlegen' }}
         </DkButton>

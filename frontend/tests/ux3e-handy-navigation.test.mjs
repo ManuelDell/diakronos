@@ -275,7 +275,9 @@ test('UX3e · Schublade beschriftet ihre Ziele (N8 „beschriften statt nur Symb
 test('UX3e · der Menü-Knopf steht links in der Kopfzeile und meldet seinen Zustand', () => {
   const { tpl } = teile(TOPBAR)
   const links = tpl.slice(tpl.indexOf('dk-topbar-left'), tpl.indexOf('dk-topbar-right'))
-  assert.match(links, /class="dk-icon-btn dk-menue-knopf"/, 'Knopf liegt im linken Bereich')
+  // UX1g: Die Kopfzeilen-Knöpfe sind DkButtons (ghost) mit
+  // `.dk-topbar-symbol` — die Altklasse `.dk-icon-btn` gibt es nicht mehr.
+  assert.match(links, /class="dk-topbar-symbol dk-menue-knopf"/, 'Knopf liegt im linken Bereich')
   assert.match(links, /:aria-label="MENUE_KNOPF_TEXT"/, 'beschriftet für Screenreader')
   assert.match(links, /:aria-expanded="menueOffen \? 'true' : 'false'"/, 'sagt, ob er offen ist')
   assert.match(links, /aria-haspopup="dialog"/, 'kündigt einen Dialog an')

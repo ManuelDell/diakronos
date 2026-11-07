@@ -172,7 +172,7 @@
         <div data-wf-abschnitt="postfaecher">
         <DkCard title="Kontakt-Postfächer">
           <template #actions>
-            <DkButton size="sm" variant="secondary" @click="postfachNeu">Postfach anlegen</DkButton>
+            <DkButton size="md" variant="secondary" @click="postfachNeu">Postfach anlegen</DkButton>
           </template>
           <p class="wf-hilfe">
             Empfänger der Nachrichten aus dem Kontaktformular der Website.
@@ -193,8 +193,8 @@
               <td class="wf-mail">{{ p.email }}</td>
               <td>{{ p.aktiv === true ? 'aktiv' : 'aus' }}</td>
               <td class="is-aktion">
-                <DkButton size="sm" variant="ghost" @click="postfachBearbeiten(p)">Bearbeiten</DkButton>
-                <DkButton size="sm" variant="danger" :loading="laeuft(`postfach:${p.slug}`)"
+                <DkButton size="md" variant="ghost" @click="postfachBearbeiten(p)">Bearbeiten</DkButton>
+                <DkButton size="md" variant="danger" :loading="laeuft(`postfach:${p.slug}`)"
                   @click="postfachEntfernen(p)">
                   Löschen
                 </DkButton>
@@ -251,7 +251,7 @@
         <DkHint v-if="postfachMeldung" variant="err" role="alert">{{ postfachMeldung }}</DkHint>
       </form>
       <template #footer>
-        <DkButton variant="ghost" @click="postfachDialog = false">Abbrechen</DkButton>
+        <DkButton variant="secondary" @click="postfachDialog = false">Abbrechen</DkButton>
         <DkButton variant="primary" :loading="postfachLaeuft" @click="postfachSpeichern">Speichern</DkButton>
       </template>
     </DkDialog>

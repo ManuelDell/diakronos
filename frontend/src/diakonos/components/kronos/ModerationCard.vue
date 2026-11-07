@@ -41,7 +41,7 @@
           v-if="inFestlegen"
           class="dk-mcard-remove"
           variant="ghost"
-          size="sm"
+          size="md"
           title="Zurück in die Vorschlags-Spalte"
           aria-label="Termin zurück in die Vorschlags-Spalte"
           @click.stop="$emit('remove', item)"
@@ -98,7 +98,7 @@
             <DkButton
               class="dk-mcard-aufloesen"
               variant="secondary"
-              size="sm"
+              size="md"
               @click.stop="$emit('resolve-conflict', ev)"
             >Auflösen</DkButton>
           </li>

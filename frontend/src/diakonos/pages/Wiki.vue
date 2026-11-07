@@ -147,8 +147,8 @@
         <div class="wk-detail-header">
           <DkBadge variant="neutral">{{ categoryName(selectedArticle.category) }}</DkBadge>
           <div class="wk-detail-aktionen">
-            <DkButton v-if="isAdmin" variant="ghost" size="sm" @click="openEditor(selectedArticle); artikelSchliessen()">Bearbeiten</DkButton>
-            <DkButton v-if="isAdmin" variant="danger" size="sm" @click="deleteArticle(selectedArticle)">Löschen</DkButton>
+            <DkButton v-if="isAdmin" variant="ghost" size="md" @click="openEditor(selectedArticle); artikelSchliessen()">Bearbeiten</DkButton>
+            <DkButton v-if="isAdmin" variant="danger" size="md" @click="deleteArticle(selectedArticle)">Löschen</DkButton>
           </div>
         </div>
 

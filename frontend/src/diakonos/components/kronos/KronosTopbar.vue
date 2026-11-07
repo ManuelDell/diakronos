@@ -12,14 +12,14 @@
       <DkButton
         class="sidebar-toggle-btn"
         variant="secondary"
-        size="sm"
+        size="md"
         aria-label="Meine Kalender und Hilfe anzeigen"
         title="Meine Kalender"
         @click="$emit('sidebarToggle')"
       >
         <span class="icon-menu" v-html="ICON_MENU"></span>
       </DkButton>
-      <DkButton class="todaybutton" variant="secondary" size="sm" aria-label="Zum heutigen Tag springen" title="Heute" @click="$emit('today')">
+      <DkButton class="todaybutton" variant="secondary" size="md" aria-label="Zum heutigen Tag springen" title="Heute" @click="$emit('today')">
         <span class="today-label">Heute</span>
         <span class="icon-calendar-today" v-html="ICON_CALENDAR_TODAY"></span>
       </DkButton>
@@ -28,10 +28,10 @@
 
     <div class="header-center">
       <template v-if="!pruefTafel">
-      <DkButton class="nav-btn prev-month" variant="secondary" size="sm" aria-label="Vorheriger Monat" @click="$emit('prev')">
+      <DkButton class="nav-btn prev-month" variant="secondary" size="md" aria-label="Vorheriger Monat" @click="$emit('prev')">
         <span class="icon-chevron" v-html="ICON_CHEVRON_LEFT"></span>
       </DkButton>
-      <DkButton class="nav-btn next-month" variant="secondary" size="sm" aria-label="Nächster Monat" @click="$emit('next')">
+      <DkButton class="nav-btn next-month" variant="secondary" size="md" aria-label="Nächster Monat" @click="$emit('next')">
         <span class="icon-chevron" v-html="ICON_CHEVRON_RIGHT"></span>
       </DkButton>
       </template>
@@ -45,7 +45,7 @@
         id="resource-toggle-btn"
         class="resource-toggle-btn"
         :variant="isResourceView ? 'primary' : 'secondary'"
-        size="sm"
+        size="md"
         :aria-pressed="isResourceView ? 'true' : 'false'"
         aria-label="Ressourcenplan anzeigen"
         title="Ressourcenplan"

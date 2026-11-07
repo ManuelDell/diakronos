@@ -23,10 +23,10 @@
           <option value="frage">Frage</option>
         </select>
       </label>
-      <DkButton variant="secondary" size="sm" type="button" :disabled="laeuft" @click="laden">
+      <DkButton variant="secondary" size="md" type="button" :disabled="laeuft" @click="laden">
         Aktualisieren
       </DkButton>
-      <DkButton variant="secondary" size="sm" type="button" :disabled="laeuft" @click="bericht">
+      <DkButton variant="secondary" size="md" type="button" :disabled="laeuft" @click="bericht">
         Bericht erzeugen
       </DkButton>
       <span v-if="meldung" class="dk-dm-hinweis">{{ meldung }}</span>
@@ -64,11 +64,11 @@
                  :alt="'Bild ' + (i + 2) + ' zu ' + (b.titel || b.name)" @click="gross(p)" />
           </div>
           <div class="dk-dm-aktionen">
-            <DkButton variant="secondary" size="sm" type="button" @click="setzen(b, 'offen')">offen</DkButton>
-            <DkButton variant="secondary" size="sm" type="button" @click="setzen(b, 'an_claude')">an Claude</DkButton>
-            <DkButton variant="secondary" size="sm" type="button" @click="setzen(b, 'behoben')">behoben</DkButton>
-            <DkButton variant="secondary" size="sm" type="button" @click="setzen(b, 'verworfen')">verworfen</DkButton>
-            <DkButton v-if="istAdmin" variant="danger" size="sm" type="button" @click="loeschen(b)">löschen</DkButton>
+            <DkButton variant="secondary" size="md" type="button" @click="setzen(b, 'offen')">offen</DkButton>
+            <DkButton variant="secondary" size="md" type="button" @click="setzen(b, 'an_claude')">an Claude</DkButton>
+            <DkButton variant="secondary" size="md" type="button" @click="setzen(b, 'behoben')">behoben</DkButton>
+            <DkButton variant="secondary" size="md" type="button" @click="setzen(b, 'verworfen')">verworfen</DkButton>
+            <DkButton v-if="istAdmin" variant="danger" size="md" type="button" @click="loeschen(b)">löschen</DkButton>
           </div>
         </div>
       </li>

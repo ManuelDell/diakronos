@@ -17,12 +17,13 @@
             <option value="">Alle</option>
             <option v-for="w in werteFuer(m.id)" :key="w" :value="w">{{ w }}</option>
           </select>
-          <button
+          <DkButton
+            variant="ghost"
+            size="md"
             v-if="darfEinstellungen"
-            type="button" class="dk-btn dk-btn-ghost dk-btn-xs"
             :title="'Werte für ' + (m.name || m.id) + ' pflegen'"
             @click="einstellungenOeffnen(m)"
-          >Einstellungen</button>
+          >Einstellungen</DkButton>
         </div>
       </div>
     </div>
@@ -51,9 +52,11 @@
           <span v-for="p in personChips(l)" :key="p.id + p.name" class="lp-chip lp-chip--person">{{ p.label }}</span>
         </div>
         <div class="lp-lied-aktionen">
-          <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="bearbeitenToggle(l)">
-            {{ bearbeiteId === l.id ? 'Schließen' : 'Bearbeiten' }}
-          </button>
+          <DkButton
+            variant="secondary"
+            size="md"
+            @click="bearbeitenToggle(l)"
+          >{{ bearbeiteId === l.id ? 'Schließen' : 'Bearbeiten' }}</DkButton>
         </div>
       </div>
 
@@ -82,19 +85,36 @@
           <li v-for="w in (einstellungenMerkmal?.werte || [])" :key="w" class="lp-einst-eintrag">
             <span>{{ w }}</span>
             <span class="lp-einst-aktionen">
-              <button type="button" class="dk-btn dk-btn-ghost dk-btn-xs" @click="wertUmbenennen(w)">Umbenennen</button>
-              <button type="button" class="dk-btn dk-btn-ghost dk-btn-xs lp-loeschen" @click="wertEntfernen(w)">Entfernen</button>
+              <DkButton
+                variant="ghost"
+                size="md"
+                @click="wertUmbenennen(w)"
+              >Umbenennen</DkButton>
+              <DkButton
+                variant="ghost"
+                size="md"
+                class="lp-loeschen"
+                @click="wertEntfernen(w)"
+              >Entfernen</DkButton>
             </span>
           </li>
         </ul>
         <div class="lp-einst-neu">
           <input v-model="neuerWert" class="dk-form-input" type="text" placeholder="Neuer Wert" @keyup.enter="wertHinzufuegen" />
-          <button type="button" class="dk-btn dk-btn-primary dk-btn-sm" :disabled="beschaeftigt || !neuerWert.trim()" @click="wertHinzufuegen">Übernehmen</button>
+          <DkButton
+            variant="primary"
+            size="md"
+            :disabled="beschaeftigt || !neuerWert.trim()" @click="wertHinzufuegen"
+          >Übernehmen</DkButton>
         </div>
         <p v-if="einstellungenHinweis" class="lp-einst-hinweis">{{ einstellungenHinweis }}</p>
       </div>
       <template #footer>
-        <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="einstellungenOffen = false">Fertig</button>
+        <DkButton
+          variant="secondary"
+          size="md"
+          @click="einstellungenOffen = false"
+        >Fertig</DkButton>
       </template>
     </DkModal>
     <DkModal v-model="umbenennenOffen" title="Wert umbenennen">
@@ -103,8 +123,14 @@
         <input id="lp-neuer-name" v-model="umbenennenWert" class="dk-form-input" maxlength="140" required />
       </form>
       <template #footer>
-        <button type="button" class="dk-btn dk-btn-secondary" @click="umbenennenOffen = false">Abbrechen</button>
-        <button type="submit" form="lp-umbenennen" class="dk-btn dk-btn-primary">Umbenennen</button>
+        <DkButton
+          variant="secondary"
+          @click="umbenennenOffen = false"
+        >Abbrechen</DkButton>
+        <DkButton
+          variant="primary"
+          type="submit" form="lp-umbenennen"
+        >Umbenennen</DkButton>
       </template>
     </DkModal>
   </section>
@@ -134,6 +160,7 @@ import {
   pflegbareWertMerkmale, personMerkmale, liederFiltern, asListe, tagWerte,
 } from './lieder-pflege.mjs'
 import { liedAnzeige, istKopie } from './lied-anzeige.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   plantyp: { type: String, default: '' },

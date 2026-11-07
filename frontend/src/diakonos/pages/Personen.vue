@@ -58,7 +58,7 @@
         <DkButton
           v-if="verwaltung"
           variant="secondary"
-          size="sm"
+          size="md"
           :aria-pressed="zeigePersoenlicheDatenWert ? 'true' : 'false'"
           :title="datenschalterTitel"
           @click="persoenlicheDatenUmschalten"
@@ -72,7 +72,7 @@
         <DkButton
           v-if="verwaltung"
           variant="ghost"
-          size="sm"
+          size="md"
           :title="'Sortierung: ' + sortierBeschriftung(sortOrder)"
           @click="sortierungUmschalten"
         >

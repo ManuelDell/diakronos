@@ -35,7 +35,7 @@
               <span v-for="r in k.rollen" :key="r" class="rr-chip">{{ r }}</span>
               <span v-if="!k.rollen.length" class="rr-unter">Keine Rolle</span>
             </div>
-            <DkButton variant="ghost" size="sm" :disabled="!k.mitglied"
+            <DkButton variant="ghost" size="md" :disabled="!k.mitglied"
               :title="k.hinweis || (k.mitglied ? '' : 'Ohne Mitglied kann keine Rolle zugewiesen werden')"
               @click="bearbeiten(k)">Rollen ändern</DkButton>
           </li>

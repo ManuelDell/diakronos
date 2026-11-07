@@ -29,15 +29,19 @@
           <span class="dk-sb-brand-sub">{{ churchName }}</span>
         </div>
       </a>
-      <button
+      <!-- UX1g: Ein-/Ausklappen der Leiste ist ein Knopf des Systems
+           (ghost, Seitenleisten-Töne über .dk-sb-collapse). -->
+      <DkButton
+        variant="ghost"
         class="dk-sb-collapse"
-        @click="$emit('toggle-collapse')"
+        :aria-label="collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'"
         :title="collapsed ? 'Ausklappen' : 'Einklappen'"
+        @click="$emit('toggle-collapse')"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/>
         </svg>
-      </button>
+      </DkButton>
     </div>
 
     <!-- UXD-R19: Der frühere Such-Knopf war reines Markup ohne Funktion und
@@ -120,18 +124,22 @@
             class="dk-sb-profil-punkt is-profilmenue"
             @click="profilOffen = false"
           >Dev-Befunde</a>
-          <button
-            type="button"
+            <!-- UX1g: Der Umschalter ist ein Menüpunkt der Leiste; seine
+                 Klickfläche (--control-h, bei grobem Zeiger 44 px) erbt er
+                 vom Knopf-System. Die Seitenleisten-Töne setzt
+                 .dk-sb-theme-punkt (index.css). -->
+          <DkButton
+            variant="ghost"
             role="menuitem"
-            class="dk-sb-profil-punkt is-profilmenue dk-sb-theme-btn"
+            class="dk-sb-profil-punkt is-profilmenue dk-sb-theme-punkt"
             @click="$emit('toggle-theme')"
-          >{{ theme === 'dark' ? 'Hell-Modus' : 'Dunkel-Modus' }}</button>
+          >{{ theme === 'dark' ? 'Hell-Modus' : 'Dunkel-Modus' }}</DkButton>
         </div>
       </div>
 
       <!-- BF1-L: Abmelden — im Nutzerbereich, unten in der Sidebar. -->
-      <button
-        type="button"
+      <DkButton
+        variant="ghost"
         class="dk-sb-logout"
         :class="{ 'is-collapsed': collapsed }"
         :title="collapsed ? 'Abmelden' : ''"
@@ -144,7 +152,7 @@
           <line x1="21" y1="12" x2="9" y2="12"/>
         </svg>
         <span v-if="!collapsed">Abmelden</span>
-      </button>
+      </DkButton>
     </div>
   </aside>
 
@@ -163,6 +171,7 @@ import { showToast } from '../composables/useToast.js'
 import { currentPageName, currentHash } from '../router.js'
 import { MENUE, ICON_PFADE, sichtbareEintraege, FUSS_EINTRAEGE } from '../menue.js'
 import { PRODUKTNAME } from './ui/begriffe.mjs'
+import DkButton from './ui/DkButton.vue'
 import { anfragenZaehler, anfragenZaehlerBeobachten } from '../composables/useVerwaltung.js'
 
 const props = defineProps({

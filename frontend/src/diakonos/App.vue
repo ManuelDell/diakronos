@@ -62,8 +62,17 @@
               <p style="font-size:var(--fs-16);font-weight:var(--fw-fett);color:var(--dk-text);margin:0 0 6px;">{{ pageLadefehler.meldung }}</p>
               <p style="font-size:var(--fs-14);color:var(--dk-text-muted);margin:0 0 16px;">{{ pageLadefehler.hinweis }}</p>
               <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-                <button type="button" class="dk-btn dk-btn-primary dk-btn-sm" @click="routeNeuLaden">Erneut versuchen</button>
-                <a class="dk-btn dk-btn-secondary dk-btn-sm" href="#/">Zur Übersicht</a>
+                <DkButton
+                  variant="primary"
+                  size="md"
+                  @click="routeNeuLaden"
+                >Erneut versuchen</DkButton>
+                <DkButton
+                  variant="secondary"
+                  size="md"
+                  as="a"
+                  href="#/"
+                >Zur Übersicht</DkButton>
               </div>
             </div>
           </div>
@@ -139,6 +148,7 @@ import { startTheme, naechstesTheme, umschalterText } from './composables/theme.
 // defineAsyncComponent sorgt dafuer, dass der Overlay-Code (inkl. der
 // Screenshot-Bibliothek) bei normalen Nutzern nie im Bundle landet.
 import { defineAsyncComponent } from 'vue'
+import DkButton from './components/ui/DkButton.vue'
 const DevRahmen = defineAsyncComponent(() => import('./components/devmodus/Rahmen.vue'))
 const DevStart = defineAsyncComponent(() => import('./components/devmodus/DevStart.vue'))
 

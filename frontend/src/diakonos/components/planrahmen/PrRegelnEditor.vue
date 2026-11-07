@@ -30,7 +30,11 @@
         <label class="pr-rg-label">Gewicht
           <input v-model.number="r.gewicht" type="number" step="0.5" min="0" class="dk-form-input pr-rg-zahl" placeholder="optional" />
         </label>
-        <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Regel entfernen" @click="regeln.splice(i, 1)">✕</button>
+        <DkButton
+          variant="ghost"
+          size="md"
+          aria-label="Regel entfernen" @click="regeln.splice(i, 1)"
+        >✕</DkButton>
       </div>
       <PrPfadMeldungen :meldungen="meldungen" :pfad="regelPfad(i) + '/baustein'" />
       <PrPfadMeldungen :meldungen="meldungen" :pfad="regelPfad(i) + '/stufe'" />
@@ -49,8 +53,16 @@
         <template v-if="feld.typ === 'filter'">
           <PrKnotenEditor v-if="istKnoten(r[feld.name])" :knoten="r[feld.name]" modus="rolle" :kontext="kontext" />
           <div class="pr-rg-zeile">
-            <button v-if="!istKnoten(r[feld.name])" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="r[feld.name] = { merkmal: '' }">+ Personen-Filter anlegen</button>
-            <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="delete r[feld.name]">Filter entfernen</button>
+            <DkButton
+              variant="ghost"
+              size="md"
+              v-if="!istKnoten(r[feld.name])" @click="r[feld.name] = { merkmal: '' }"
+            >+ Personen-Filter anlegen</DkButton>
+            <DkButton
+              variant="ghost"
+              size="md"
+              v-else @click="delete r[feld.name]"
+            >Filter entfernen</DkButton>
           </div>
         </template>
 
@@ -142,7 +154,11 @@
       </div>
     </div>
 
-    <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="regelnHinzufuegen">+ Regel hinzufügen</button>
+    <DkButton
+      variant="secondary"
+      size="md"
+      @click="regelnHinzufuegen"
+    >+ Regel hinzufügen</DkButton>
   </div>
 </template>
 
@@ -162,6 +178,7 @@ import {
   feldOptionen as feldOptionenAus, feldPfadOptionen,
   option, personenMerkmalOptionen, plantypOptionen, sammlungOptionen,
 } from './auswahl.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   regeln: { type: Array, required: true },

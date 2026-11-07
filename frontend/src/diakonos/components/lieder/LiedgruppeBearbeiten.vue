@@ -79,9 +79,9 @@
           <span class="lgb-titel">{{ z.titel || z.lied }}</span>
           <span v-if="z.nummer" class="lgb-num">{{ z.nummer }}</span>
           <span class="lgb-aktionen">
-            <DkButton variant="ghost" size="sm" :disabled="i === 0" @click="verschieben(i, -1)">Nach oben</DkButton>
-            <DkButton variant="ghost" size="sm" :disabled="i === form.lieder.length - 1" @click="verschieben(i, 1)">Nach unten</DkButton>
-            <DkButton variant="ghost" size="sm" @click="entfernen(i)">Entfernen</DkButton>
+            <DkButton variant="ghost" size="md" :disabled="i === 0" @click="verschieben(i, -1)">Nach oben</DkButton>
+            <DkButton variant="ghost" size="md" :disabled="i === form.lieder.length - 1" @click="verschieben(i, 1)">Nach unten</DkButton>
+            <DkButton variant="ghost" size="md" @click="entfernen(i)">Entfernen</DkButton>
           </span>
         </li>
       </ol>
@@ -97,9 +97,11 @@
         </div>
         <ul v-if="treffer.length" class="lgb-treffer">
           <li v-for="l in treffer" :key="l.name">
-            <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="hinzufuegen(l)">
-              + {{ l.titel }}<span v-if="l.anzeige"> ({{ l.anzeige }})</span>
-            </button>
+            <DkButton
+              variant="secondary"
+              size="md"
+              @click="hinzufuegen(l)"
+            >+ {{ l.titel }}<span v-if="l.anzeige"> ({{ l.anzeige }})</span></DkButton>
           </li>
         </ul>
         <span v-else-if="suche && !sucheLaeuft" class="lgb-leer">Keine Lieder gefunden.</span>
@@ -107,7 +109,7 @@
     </DkCard>
 
     <template #footer>
-      <DkButton variant="ghost" @click="$emit('update:modelValue', false)">Abbrechen</DkButton>
+      <DkButton variant="secondary" @click="$emit('update:modelValue', false)">Abbrechen</DkButton>
       <DkButton variant="primary" :loading="beschaeftigt" @click="speichern">
         {{ istNeuanlage ? 'Gruppe anlegen' : 'Änderungen speichern' }}
       </DkButton>

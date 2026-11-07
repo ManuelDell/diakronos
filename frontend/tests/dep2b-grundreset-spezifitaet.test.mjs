@@ -274,10 +274,17 @@ test('im Buendel liegt das Reset im Layer reset (nicht in der Byte-Reihenfolge)'
       + 'damit kann das Reset Komponenten wie .dk-ui-chip ueberstimmen')
 
     // Das box-sizing-Reset muss INNERHALB von `@layer reset { … }` stehen.
-    const start = css.indexOf('@layer reset')
-    assert.ok(start >= 0, `${datei}: kein @layer reset-Block im Buendel`)
-    const blockEnde = css.indexOf('@layer', start + 1)
-    const block = css.slice(start, blockEnde < 0 ? undefined : blockEnde)
+    // Mehrere `@layer reset { … }`-Bloecke sind zulaessig (das Reset ist ein
+    // eigener @import und wird als EIGENER Block gebuendelt); geprueft wird
+    // der Block, der die box-sizing-Regel traegt — genau das ist der Reset.
+    let block = null
+    for (let i = css.indexOf('@layer reset'); i >= 0; i = css.indexOf('@layer reset', i + 1)) {
+      const blockEnde = css.indexOf('@layer', i + 1)
+      const stueck = css.slice(i, blockEnde < 0 ? undefined : blockEnde)
+      if (/box-sizing:\s*border-box/.test(stueck)) { block = stueck; break }
+    }
+    assert.ok(block, `${datei}: kein @layer reset-Block mit box-sizing im Buendel`)
+    const start = css.indexOf(block)
     assert.match(block, /box-sizing:\s*border-box/,
       `${datei}: das box-sizing-Reset steht NICHT im Layer reset — es kann die Chips `
       + 'wieder ueberschreiben (genau der Befund)')

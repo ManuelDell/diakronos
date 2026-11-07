@@ -34,7 +34,7 @@
                     <!-- Details -->
                     <DkCard title="Details">
                         <template #actions>
-                            <DkButton v-if="canManage && !editingDesc" variant="ghost" size="sm" @click="startEditDesc" aria-label="Details bearbeiten">
+                            <DkButton v-if="canManage && !editingDesc" variant="ghost" size="md" @click="startEditDesc" aria-label="Details bearbeiten">
                                 <!-- UXD-R25: Stift statt „+“ (das Zeichen stand für Bearbeiten, sah aber wie Anlegen aus). -->
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                             </DkButton>
@@ -97,7 +97,7 @@
                     <!-- Ankündigungen -->
                     <DkCard title="Ankündigungen">
                         <template #actions>
-                            <DkButton v-if="canManage" variant="ghost" size="sm" @click="showAnkuendigungForm = !showAnkuendigungForm" aria-label="Ankündigung anlegen">
+                            <DkButton v-if="canManage" variant="ghost" size="md" @click="showAnkuendigungForm = !showAnkuendigungForm" aria-label="Ankündigung anlegen">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             </DkButton>
                         </template>
@@ -129,7 +129,7 @@
                     <!-- Aufgaben -->
                     <DkCard title="Aufgaben">
                         <template #actions>
-                            <DkButton v-if="canManage" variant="ghost" size="sm" @click="showAufgabeInput = !showAufgabeInput" aria-label="Aufgabe anlegen">
+                            <DkButton v-if="canManage" variant="ghost" size="md" @click="showAufgabeInput = !showAufgabeInput" aria-label="Aufgabe anlegen">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             </DkButton>
                         </template>
@@ -153,7 +153,7 @@
                     <!-- Wiki -->
                     <DkCard v-if="wikiArtikel.length > 0 || canManage" title="Wiki">
                         <template #actions>
-                            <DkButton v-if="canManage" variant="ghost" size="sm" aria-label="Wiki-Artikel anlegen" @click="navigate('#/wiki')">
+                            <DkButton v-if="canManage" variant="ghost" size="md" aria-label="Wiki-Artikel anlegen" @click="navigate('#/wiki')">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             </DkButton>
                         </template>

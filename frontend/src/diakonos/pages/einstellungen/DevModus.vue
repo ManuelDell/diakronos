@@ -43,7 +43,7 @@
 
       <DkCard title="Dev-Befunde">
         <p class="dm-hilfe">Die gesammelten Befunde liegen im Menüpunkt „Dev-Befunde“.</p>
-        <DkButton variant="secondary" size="sm" href="#/dev-befunde" @click.prevent="oeffneBefunde">
+        <DkButton variant="secondary" size="md" href="#/dev-befunde" @click.prevent="oeffneBefunde">
           Dev-Befunde öffnen
         </DkButton>
       </DkCard>

@@ -31,13 +31,14 @@
         <template v-else>
           <span id="pr-ed-wahl-label" class="pr-ed-label">Was möchtest du ändern?</span>
           <div class="pr-ed-reiter" role="tablist" aria-labelledby="pr-ed-wahl-label">
-            <button
-              v-for="u in unterZiele" :key="u.pfad" type="button" role="tab"
-              class="dk-btn dk-btn-secondary dk-btn-sm"
+            <DkButton
+              variant="secondary"
+              size="md"
+              v-for="u in unterZiele" :key="u.pfad" role="tab"
               :class="{ 'is-active': zielPfad === u.pfad }"
               :aria-selected="zielPfad === u.pfad ? 'true' : 'false'"
               @click="zielPfad = u.pfad"
-            >{{ u.name }}</button>
+            >{{ u.name }}</DkButton>
           </div>
         </template>
       </div>
@@ -45,10 +46,11 @@
       <div v-if="!slot && !unterZiele.length" class="pr-ed-leer">
         <template v-if="kannPlatzHinzufuegen">
           <p>Dieses Feld ist noch leer. Du kannst einen Platz anlegen und selbst besetzen.</p>
-          <button
-            type="button" class="dk-btn dk-btn-secondary dk-btn-sm"
+          <DkButton
+            variant="secondary"
+            size="md"
             :disabled="platzLaedt" @click="platzAnlegen"
-          >{{ platzLaedt ? 'Wird angelegt …' : platzLabel }}</button>
+          >{{ platzLaedt ? 'Wird angelegt …' : platzLabel }}</DkButton>
         </template>
         <template v-else>Dieses Feld kann hier nicht direkt bearbeitet werden.</template>
       </div>
@@ -78,10 +80,11 @@
                 <option v-for="w in tagFilterWerte[m.id] || []" :key="w" :value="w">{{ tagFilterAnzeige(m, w) }}</option>
               </select>
             </label>
-            <button
-              v-if="tagFilterAktiv" type="button"
-              class="dk-btn dk-btn-ghost dk-btn-xs" @click="tagFilterLeeren"
-            >Filter zurücksetzen</button>
+            <DkButton
+              variant="ghost"
+              size="md"
+              v-if="tagFilterAktiv" @click="tagFilterLeeren"
+            >Filter zurücksetzen</DkButton>
           </div>
         </div>
         <DkSkelett v-if="kandidatenSichtbar" kurz form="zeilen" :anzahl="3" text="Vorschläge werden geladen …" />
@@ -184,19 +187,22 @@
     </div>
 
     <template #footer>
-      <button type="button" class="dk-btn dk-btn-ghost" @click="schliessen">Abbrechen</button>
-      <button
+      <DkButton
+        variant="secondary"
+        @click="schliessen"
+      >Abbrechen</DkButton>
+      <DkButton
+        variant="secondary"
         v-if="eintragZiel?.fixiert"
-        type="button" class="dk-btn dk-btn-secondary"
         :disabled="speichert || kandidatenLaedt"
         aria-label="Von Hand festgelegten Wert freigeben"
         @click="loesen"
-      >Wieder vorschlagen lassen</button>
-      <button
-        type="button" class="dk-btn dk-btn-primary"
+      >Wieder vorschlagen lassen</DkButton>
+      <DkButton
+        variant="primary"
         :disabled="!slot || speichert || kandidatenLaedt || !gueltig"
         @click="uebernehmen"
-      >{{ speichert ? 'Wird gespeichert …' : 'Übernehmen' }}</button>
+      >{{ speichert ? 'Wird gespeichert …' : 'Übernehmen' }}</DkButton>
     </template>
   </DkModal>
 </template>
@@ -220,6 +226,7 @@ import PrMeldungen from './PrMeldungen.vue'
 import { usePlanrahmen, datumText, wertText, fehlerMeldungen, feldGehoertZu, anzahlBereich } from '../../composables/usePlanrahmen.js'
 import { feldInfo, meldungsKurz, kandidatenHinweise } from './klartext.mjs'
 import { wertAnzeige } from './auswahlwerte.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

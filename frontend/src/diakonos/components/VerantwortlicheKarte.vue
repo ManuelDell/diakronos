@@ -1,7 +1,7 @@
 <template>
   <DkCard title="Verantwortliche">
     <template #actions>
-      <DkButton v-if="darfPflegen && !bearbeiten" variant="ghost" size="sm" @click="startBearbeiten">
+      <DkButton v-if="darfPflegen && !bearbeiten" variant="ghost" size="md" @click="startBearbeiten">
         Bearbeiten
       </DkButton>
     </template>
@@ -63,8 +63,8 @@
         <p v-else-if="suche" class="verw-leer">Keine passende Person mit Zugang gefunden.</p>
 
         <div class="verw-aktionen">
-          <DkButton variant="primary" size="sm" :loading="speichert" @click="speichern">Speichern</DkButton>
-          <DkButton variant="ghost" size="sm" @click="abbrechen">Abbrechen</DkButton>
+          <DkButton variant="primary" size="md" :loading="speichert" @click="speichern">Speichern</DkButton>
+          <DkButton variant="secondary" size="md" @click="abbrechen">Abbrechen</DkButton>
         </div>
       </div>
     </template>

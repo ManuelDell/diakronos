@@ -91,8 +91,8 @@
         <DkField v-if="zugangsart === 'startpasswort'" v-slot="feld" label="Startpasswort" help="Mindestens 8 Zeichen. Gib es persönlich weiter.">
           <input :id="feld.id" v-model="startpasswort" class="dk-ui-eingabe" :type="passwortSichtbar ? 'text' : 'password'" autocomplete="new-password" minlength="8" maxlength="1024">
           <div class="mh-passwort-aktionen">
-            <DkButton variant="secondary" size="sm" @click="passwortVorschlagen">Passwort vorschlagen</DkButton>
-            <DkButton variant="secondary" size="sm" :aria-pressed="String(passwortSichtbar)" @click="passwortSichtbar = !passwortSichtbar">{{ passwortSichtbar ? 'Verbergen' : 'Anzeigen' }}</DkButton>
+            <DkButton variant="secondary" size="md" @click="passwortVorschlagen">Passwort vorschlagen</DkButton>
+            <DkButton variant="secondary" size="md" :aria-pressed="String(passwortSichtbar)" @click="passwortSichtbar = !passwortSichtbar">{{ passwortSichtbar ? 'Verbergen' : 'Anzeigen' }}</DkButton>
           </div>
         </DkField>
         <label><input v-model="zugangsart" type="radio" value="kein"> Kein Zugang — nur als Eintrag führen.</label>

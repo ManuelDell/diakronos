@@ -3,7 +3,11 @@
     <p>Deine Eingaben bleiben in diesem Tab erhalten. Melde dich in einem neuen Tab mit demselben Konto an und kehre dann hierher zurück.</p>
     <p v-if="sitzungsHinweis" role="alert">{{ sitzungsHinweis }}</p>
     <template #footer>
-      <a :href="anmeldeAdresse()" target="_blank" rel="noopener" class="dk-btn dk-btn-secondary">Neu anmelden</a>
+      <DkButton
+        variant="secondary"
+        as="a"
+        :href="anmeldeAdresse()" target="_blank" rel="noopener"
+      >Neu anmelden</DkButton>
       <DkButton :loading="prueft" @click="fortsetzen">Weiterarbeiten</DkButton>
     </template>
   </DkDialog>

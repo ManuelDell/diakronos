@@ -29,10 +29,11 @@
               <strong class="pr-panel-titel">{{ titel }}</strong>
               <span class="pr-panel-sub">{{ untertitel }}</span>
             </div>
-            <button
-              type="button" class="dk-btn dk-btn-secondary dk-btn-sm"
+            <DkButton
+              variant="secondary"
+              size="md"
               data-test="pr-stammdaten-panel-schliessen" @click="schliessen"
-            >Fertig — zurück</button>
+            >Fertig — zurück</DkButton>
           </header>
           <div class="pr-panel-koerper" data-test="pr-stammdaten-panel-koerper">
             <!-- Bestehende Stammdaten-Komponente, eingebettet über Props. -->
@@ -55,6 +56,7 @@ import Stammdaten from '../../pages/planrahmen/Stammdaten.vue'
 
 import { ref, computed } from 'vue'
 import { useDialogFokus } from '../../composables/useDialogFokus.js'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

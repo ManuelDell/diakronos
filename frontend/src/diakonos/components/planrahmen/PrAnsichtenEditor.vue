@@ -22,7 +22,11 @@
           <input v-model="a.name" type="text" class="dk-form-input" placeholder="Aushang" />
         </label>
         <PrPfadMeldungen :meldungen="meldungen" :pfad="'ansichten/' + i + '/name'" />
-        <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Ansicht entfernen" @click="ansichten.splice(i, 1)">✕</button>
+        <DkButton
+          variant="ghost"
+          size="md"
+          aria-label="Ansicht entfernen" @click="ansichten.splice(i, 1)"
+        >✕</DkButton>
       </div>
       <PrPfadMeldungen :meldungen="meldungen" :pfad="'ansichten/' + i" exakt />
 
@@ -100,15 +104,27 @@
             @update:model-value="formatSchluesselWechseln(a, schluessel, $event)"
           />
           <input v-model="a.format[schluessel]" type="text" class="dk-form-input" placeholder="{eintrag.buch} {eintrag.titel}" aria-label="Formatvorlage" />
-          <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Formatvorlage entfernen" @click="delete a.format[schluessel]">✕</button>
+          <DkButton
+            variant="ghost"
+            size="md"
+            aria-label="Formatvorlage entfernen" @click="delete a.format[schluessel]"
+          >✕</DkButton>
           <p class="pr-an-vorschau">Vorschau: {{ formatVorschau(a.format[schluessel]) }}</p>
           <div class="pr-an-formatfehler"><PrPfadMeldungen :meldungen="meldungen" :pfad="'ansichten/' + i + '/format/' + schluessel" /></div>
         </div>
-        <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="formatHinzufuegen(a)">+ Formatvorlage hinzufügen</button>
+        <DkButton
+          variant="ghost"
+          size="md"
+          @click="formatHinzufuegen(a)"
+        >+ Formatvorlage hinzufügen</DkButton>
       </div>
     </div>
 
-    <button type="button" class="dk-btn dk-btn-secondary dk-btn-sm" @click="ansichten.push({ art: 'tabelle', name: '' })">+ Ansicht hinzufügen</button>
+    <DkButton
+      variant="secondary"
+      size="md"
+      @click="ansichten.push({ art: 'tabelle', name: '' })"
+    >+ Ansicht hinzufügen</DkButton>
   </div>
 </template>
 
@@ -124,6 +140,7 @@ import PrPfadMeldungen from './PrPfadMeldungen.vue'
 import { ANSICHTS_ARTEN, DRUCK_FORMATE, feldPfadListe } from './editor.mjs'
 import { formatTemplate } from './format.mjs'
 import { feldPfadOptionen as feldPfadOptionenAus } from './auswahl.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   ansichten: { type: Array, required: true },

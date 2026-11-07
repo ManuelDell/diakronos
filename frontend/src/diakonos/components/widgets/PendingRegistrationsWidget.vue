@@ -25,11 +25,19 @@
       </li>
     </ul>
 
-    <button v-if="rest > 0" type="button" class="mod-termin-rest" @click="zurModeration">
-      +{{ rest }} weitere
-    </button>
+    <!-- UX1g: „+N weitere“ ist ein Weg im Fließtext (ghost), volle Breite. -->
+    <DkButton
+      v-if="rest > 0"
+      variant="ghost"
+      block
+      class="mod-termin-rest"
+      @click="zurModeration"
+    >+{{ rest }} weitere</DkButton>
 
-    <button class="dk-btn" @click="zurModeration">→ Zum Prüfen</button>
+    <DkButton
+      variant="secondary"
+      @click="zurModeration"
+    >→ Zum Prüfen</DkButton>
   </BaseWidgetCard>
 </template>
 <script setup>
@@ -37,6 +45,7 @@ import BaseWidgetCard from './BaseWidgetCard.vue'
 import { useWidgetData } from '../../composables/useWidgetData'
 import { computed } from 'vue'
 import { terminAnzeige } from '../../composables/bf1Anzeige.js'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({ isEditing: Boolean, refreshInterval: { type: Number, default: 60 } })
 const emit = defineEmits(['hide', 'collapse-change'])
@@ -118,17 +127,10 @@ function zurModeration() {
 .mod-termin-ort::before {
   content: '· ';
 }
+/* UX1g: nur noch der Ort und die volle Breite — Rahmen, Farbe und
+   Klickfläche kommen aus DkButton (variant="ghost"). */
 .mod-termin-rest {
-  width: 100%;
-  margin-bottom: 10px;
-  padding: 6px 10px;
-  background: none;
-  border: 1px dashed var(--dk-border, var(--line));
-  border-radius: 8px;
-  color: var(--dk-text-muted, var(--muted));
-  font: inherit;
-  font-size: var(--fs-xs, 11px);
-  cursor: pointer;
+  margin-bottom: var(--sp-3);
+  justify-content: flex-start;
 }
-.mod-termin-rest:hover { border-color: var(--dk-border-strong, var(--line-strong)); }
 </style>

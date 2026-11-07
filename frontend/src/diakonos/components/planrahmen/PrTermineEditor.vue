@@ -31,8 +31,16 @@
       <p class="pr-te-vorschau">{{ versatzText(termine.abgeleitet?.versatz) }}</p>
       <PrKnotenEditor v-if="istKnoten(abgeleitet.nur_wenn)" :knoten="abgeleitet.nur_wenn" modus="bedingung" :kontext="kontext" />
       <div class="pr-te-zeile">
-        <button v-if="!istKnoten(abgeleitet.nur_wenn)" type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="abgeleitet.nur_wenn = { anlass: '' }">+ Nur unter Bedingung ableiten (z. B. nicht an Feiertagen)</button>
-        <button v-else type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="delete abgeleitet.nur_wenn">Bedingung entfernen</button>
+        <DkButton
+          variant="ghost"
+          size="md"
+          v-if="!istKnoten(abgeleitet.nur_wenn)" @click="abgeleitet.nur_wenn = { anlass: '' }"
+        >+ Nur unter Bedingung ableiten (z. B. nicht an Feiertagen)</DkButton>
+        <DkButton
+          variant="ghost"
+          size="md"
+          v-else @click="delete abgeleitet.nur_wenn"
+        >Bedingung entfernen</DkButton>
       </div>
       <PrPfadMeldungen :meldungen="meldungen" :pfad="pfadZu('abgeleitet')" />
     </template>
@@ -143,10 +151,18 @@
         <label class="pr-te-label pr-te-eigener">Eigener Feiertags-Schlüssel
           <input v-model="eigenerFeiertag" type="text" class="dk-form-input" placeholder="osterdienstag" @keydown.enter.prevent="eigenerFeiertagHinzufuegen" />
         </label>
-        <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" :disabled="!eigenerFeiertag.trim()" @click="eigenerFeiertagHinzufuegen">Feiertag anlegen</button>
+        <DkButton
+          variant="ghost"
+          size="md"
+          :disabled="!eigenerFeiertag.trim()" @click="eigenerFeiertagHinzufuegen"
+        >Feiertag anlegen</DkButton>
         <div v-for="k in eigeneFeiertage" :key="k" class="pr-te-zeile">
           <span>{{ k }}</span>
-          <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" :aria-label="'Feiertag ' + k + ' entfernen'" @click="feiertagToggle(k, false)">Entfernen</button>
+          <DkButton
+            variant="ghost"
+            size="md"
+            :aria-label="'Feiertag ' + k + ' entfernen'" @click="feiertagToggle(k, false)"
+          >Entfernen</DkButton>
         </div>
       </div>
 
@@ -160,10 +176,18 @@
         <div v-for="(a, ai) in ausnahmenListe" :key="ai" class="pr-te-zeile">
           <input v-model="a.datum" type="date" class="dk-form-input" aria-label="Entfallendes Datum" />
           <input v-model="a.grund" type="text" class="dk-form-input" placeholder="Grund (optional)" aria-label="Grund" />
-          <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Ausnahme entfernen" @click="ausnahmenListe.splice(ai, 1)">✕</button>
+          <DkButton
+            variant="ghost"
+            size="md"
+            aria-label="Ausnahme entfernen" @click="ausnahmenListe.splice(ai, 1)"
+          >✕</DkButton>
           <PrPfadMeldungen :meldungen="meldungen" :pfad="pfadZu('ausnahmen/' + ai)" />
         </div>
-        <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="ausnahmeHinzufuegen">+ Einzelnen Termin entfallen lassen</button>
+        <DkButton
+          variant="ghost"
+          size="md"
+          @click="ausnahmeHinzufuegen"
+        >+ Einzelnen Termin entfallen lassen</DkButton>
       </div>
 
       <!-- Manuelle Termine -->
@@ -176,10 +200,18 @@
           <select v-model="m.anlaesse" multiple size="3" class="dk-form-select" aria-label="Anlässe">
             <option v-for="a in kontext.anlaesse || []" :key="a.id" :value="a.id">{{ a.name || a.id }}</option>
           </select>
-          <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" aria-label="Termin entfernen" @click="manuelleListe.splice(mi, 1)">✕</button>
+          <DkButton
+            variant="ghost"
+            size="md"
+            aria-label="Termin entfernen" @click="manuelleListe.splice(mi, 1)"
+          >✕</DkButton>
           <PrPfadMeldungen :meldungen="meldungen" :pfad="pfadZu('manuell/' + mi)" />
         </div>
-        <button type="button" class="dk-btn dk-btn-ghost dk-btn-sm" @click="manuellHinzufuegen">+ Termin anlegen</button>
+        <DkButton
+          variant="ghost"
+          size="md"
+          @click="manuellHinzufuegen"
+        >+ Termin anlegen</DkButton>
       </div>
     </template>
   </div>
@@ -197,6 +229,7 @@ import PrKnotenEditor from './PrKnotenEditor.vue'
 import PrPfadMeldungen from './PrPfadMeldungen.vue'
 import { WOCHENTAGE, FEIERTAGE, rruleAus, rruleLesen, wiederholungText, versatzLesen, versatzAus, versatzText, wertOderRefLesen, wertOderRefAus, feldPruefPfad, alsListe } from './editor.mjs'
 import { beiFeiertagskatalog } from './anlaesse.mjs'
+import DkButton from '../../components/ui/DkButton.vue'
 
 const props = defineProps({
   termine: { type: Object, required: true },

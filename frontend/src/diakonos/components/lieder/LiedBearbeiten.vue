@@ -113,9 +113,9 @@
     <!-- ── Strophen ───────────────────────────────────────────────────── -->
     <DkCard title="Strophen">
       <template #actions>
-        <DkButton variant="secondary" size="sm" @click="hinzufuegen('Strophe')">Strophe anlegen</DkButton>
-        <DkButton variant="ghost" size="sm" @click="hinzufuegen('Refrain')">Refrain</DkButton>
-        <DkButton variant="ghost" size="sm" @click="hinzufuegen('Bridge')">Bridge</DkButton>
+        <DkButton variant="secondary" size="md" @click="hinzufuegen('Strophe')">Strophe anlegen</DkButton>
+        <DkButton variant="ghost" size="md" @click="hinzufuegen('Refrain')">Refrain</DkButton>
+        <DkButton variant="ghost" size="md" @click="hinzufuegen('Bridge')">Bridge</DkButton>
       </template>
 
       <DkEmpty
@@ -139,9 +139,9 @@
             <span>nur Chor</span>
           </label>
           <span class="lb-strophe-aktionen">
-            <DkButton variant="ghost" size="sm" :disabled="i === 0" @click="verschieben(i, -1)">Nach oben</DkButton>
-            <DkButton variant="ghost" size="sm" :disabled="i === form.strophen.length - 1" @click="verschieben(i, 1)">Nach unten</DkButton>
-            <DkButton variant="ghost" size="sm" @click="entfernen(i)">Entfernen</DkButton>
+            <DkButton variant="ghost" size="md" :disabled="i === 0" @click="verschieben(i, -1)">Nach oben</DkButton>
+            <DkButton variant="ghost" size="md" :disabled="i === form.strophen.length - 1" @click="verschieben(i, 1)">Nach unten</DkButton>
+            <DkButton variant="ghost" size="md" @click="entfernen(i)">Entfernen</DkButton>
           </span>
         </div>
         <textarea
@@ -217,7 +217,7 @@
         <input ref="dateiInput" type="file" class="lb-datei" :accept="akzeptierteEndungen" @change="dateiGewaehlt" />
         <input v-model="upload.stimme" class="dk-form-input lb-upload-klein" type="text" maxlength="140" placeholder="Stimme (optional)" />
         <input v-model="upload.beschreibung" class="dk-form-input lb-upload-klein" type="text" maxlength="140" placeholder="Beschreibung (optional)" />
-        <DkButton variant="secondary" size="sm" :disabled="beschaeftigt || !upload.datei" @click="materialHochladen">
+        <DkButton variant="secondary" size="md" :disabled="beschaeftigt || !upload.datei" @click="materialHochladen">
           Hochladen
         </DkButton>
       </div>
@@ -225,7 +225,7 @@
 
     <!-- ── Fuß: Speichern / Abbrechen ─────────────────────────────────── -->
     <div class="lb-fuss">
-      <DkButton v-if="!neuanlage" variant="ghost" @click="anfragen('abbrechen')">Abbrechen</DkButton>
+      <DkButton v-if="!neuanlage" variant="secondary" @click="anfragen('abbrechen')">Abbrechen</DkButton>
       <DkButton variant="primary" :loading="beschaeftigt" @click="speichern">
         {{ neuanlage ? 'Lied anlegen' : 'Änderungen speichern' }}
       </DkButton>

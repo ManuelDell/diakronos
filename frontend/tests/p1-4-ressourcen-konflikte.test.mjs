@@ -128,7 +128,10 @@ test('P1-4: das Buchungsformular hat Von und Bis getrennt (Datum + Zeit)', () =>
 })
 
 test('P1-4: „Verschieben“ ruft editBooking auf', () => {
-  assert.match(RESSOURCEN, /title="Verschieben" @click="editBooking\(b\)"/)
+  // UX1g: Der Knopf ist ein DkButton; Titel und Ziel stehen als eigene
+  // Attribute darin (Reihenfolge egal, beide muessen im selben Element stehen).
+  const knopf = /<DkButton\b[\s\S]{0,400}?title="Verschieben"[\s\S]{0,200}?@click="editBooking\(b\)"[\s\S]{0,80}?>/g
+  assert.match(RESSOURCEN, knopf)
 })
 
 test('P1-4: das Verschieben schickt den neuen Zeitraum mit', () => {

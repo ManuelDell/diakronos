@@ -229,7 +229,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
-      start_period: 120s
+      start_period: 300s  # 07.11.: unter Build-Last dauerte der Start > 3 min (Ausfall UX1g-Deploy)
 
   worker:
     image: ${APP_IMAGE:-diakronos-standalone-app:latest}
