@@ -15,13 +15,17 @@
           <p class="rg-hilfe">Beim Anlegen eines Links sind diese Werte vorbelegt.
             Du kannst sie am einzelnen Link jederzeit ändern.</p>
           <DkField label="Gültigkeitsdauer (Tage)" anker="gueltigkeit" help="0 = kein Ablaufdatum."
-            :error="feldFehler.laufzeit" v-slot="feld">
-            <input v-bind="feld.feldProps" v-model.number="linkLaufzeitTage" class="dk-ui-eingabe"
+            :error="feldFehler.laufzeit" :wert="linkLaufzeitTage"
+            @update:wert="linkLaufzeitTage = $event" v-slot="feld">
+            <input v-bind="feld.feldProps"
+              class="dk-ui-eingabe"
               type="number" min="0" max="365" />
           </DkField>
           <DkField label="Höchstzahl Anmeldungen" anker="hoechstzahl" help="0 = unbegrenzt."
-            :error="feldFehler.maximum" v-slot="feld">
-            <input v-bind="feld.feldProps" v-model.number="linkMaxAnmeldungen" class="dk-ui-eingabe"
+            :error="feldFehler.maximum" :wert="linkMaxAnmeldungen"
+            @update:wert="linkMaxAnmeldungen = $event" v-slot="feld">
+            <input v-bind="feld.feldProps"
+              class="dk-ui-eingabe"
               type="number" min="0" max="100000" />
           </DkField>
           <DkButton type="submit" variant="primary" :loading="speichert"

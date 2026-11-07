@@ -45,7 +45,6 @@
           maxlength="140" @update:wert="form.nachname = $event">
           <input
             v-bind="feld.feldProps"
-            v-model="form.nachname"
             class="dk-ui-eingabe"
             autocomplete="off"
             @input="dubletteZuruecksetzen"
@@ -65,7 +64,6 @@
         >
           <input
             v-bind="feld.feldProps"
-            v-model="form.email"
             class="dk-ui-eingabe"
             type="email"
             autocomplete="off"

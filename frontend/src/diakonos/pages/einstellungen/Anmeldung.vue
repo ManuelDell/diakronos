@@ -34,11 +34,14 @@
             Die Zuordnungen gelten auch für bekannte Konten. Der Modus oben regelt nur neue Konten.
           </DkHint>
           <div v-for="(z, i) in zuordnungen" :key="i" class="an-zuordnung">
-            <DkField label="Gruppe in Authentik" :error="zeilenFehler[i]" v-slot="feld">
-              <input v-bind="feld.feldProps" v-model="z.gruppe" class="dk-ui-eingabe" maxlength="255" placeholder="z. B. musik-leitung" />
+            <DkField label="Gruppe in Authentik" :error="zeilenFehler[i]"
+              :wert="z.gruppe" @update:wert="z.gruppe = $event" v-slot="feld">
+              <input v-bind="feld.feldProps" class="dk-ui-eingabe" maxlength="255"
+                placeholder="z. B. musik-leitung" />
             </DkField>
-            <DkField label="Rolle in Diakronos" v-slot="feld">
-              <select v-bind="feld.feldProps" v-model="z.rolle" class="dk-ui-eingabe">
+            <DkField label="Rolle in Diakronos"
+              :wert="z.rolle" @update:wert="z.rolle = $event" v-slot="feld">
+              <select v-bind="feld.feldProps" class="dk-ui-eingabe">
                 <option value="">Bitte wählen</option>
                 <option v-if="z.rolle && !rollen.includes(z.rolle)" :value="z.rolle">{{ z.rolle }} (nicht mehr verfügbar)</option>
                 <option v-for="r in rollen" :key="r" :value="r">{{ r }}</option>

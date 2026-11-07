@@ -20,9 +20,8 @@
               <span>Täglich automatisch sichern</span>
             </label>
             <DkField label="Uhrzeit" anker="uhrzeit" help="Zu dieser Uhrzeit läuft die Sicherung (Ortszeit)."
-              v-slot="feld">
-              <input v-bind="feld.feldProps" v-model="uhrzeit" class="dk-ui-eingabe" type="time"
-                step="60" required />
+              :wert="uhrzeit" @update:wert="uhrzeit = $event" v-slot="feld">
+              <input v-bind="feld.feldProps" class="dk-ui-eingabe" type="time" step="60" required />
             </DkField>
             <p v-if="naechsterLauf" class="sk-hilfe">
               Der nächste automatische Lauf ist am {{ naechsterLauf }}.
@@ -33,9 +32,9 @@
           <DkCard title="Aufbewahrung">
             <DkField label="Sicherungen aufbewahren für" required anker="aufbewahrungstage"
               help="Pflichtfeld. Mindestens 1 Tag, höchstens 3650 Tage."
-              v-slot="feld">
+              :wert="aufbewahrungTage" @update:wert="aufbewahrungTage = $event" v-slot="feld">
               <span class="sk-einheit">
-                <input v-bind="feld.feldProps" v-model.number="aufbewahrungTage" class="dk-ui-eingabe"
+                <input v-bind="feld.feldProps" class="dk-ui-eingabe"
                   type="number" min="1" max="3650" step="1" inputmode="numeric" required />
                 <span>Tage</span>
               </span>

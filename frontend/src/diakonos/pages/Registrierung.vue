@@ -232,11 +232,14 @@
       <form id="reg-link-form" novalidate @submit.prevent="createLink">
        <fieldset class="reg-formular reg-eingaben" :disabled="linkSpeichert">
         <DkHint v-if="linkFehler.speichern" variant="err">{{ linkFehler.speichern }}</DkHint>
-        <DkField v-slot="feld" label="Bezeichnung" required :error="linkFehler.bezeichnung">
-          <input v-bind="feld.feldProps" v-model="newLink.bezeichnung" required class="dk-ui-eingabe" placeholder="z. B. Gemeindefest 2026" />
+        <DkField v-slot="feld" label="Bezeichnung" required :error="linkFehler.bezeichnung"
+          :wert="newLink.bezeichnung" @update:wert="newLink.bezeichnung = $event">
+          <input v-bind="feld.feldProps"
+            required class="dk-ui-eingabe" placeholder="z. B. Gemeindefest 2026" />
         </DkField>
-        <DkField v-slot="feld" label="Typ" required :error="linkFehler.typ">
-          <DkSelect v-bind="feld.feldProps" v-model="newLink.typ" :options="linkTypOptionen" />
+        <DkField v-slot="feld" label="Typ" required :error="linkFehler.typ"
+          :wert="newLink.typ" @update:wert="newLink.typ = $event">
+          <DkSelect v-bind="feld.feldProps" :options="linkTypOptionen" />
         </DkField>
         <!-- REG-1b: Start und Ende eines Links gehoeren zusammen — sie stehen
              deshalb nebeneinander (Zeitraum in Leserichtung). Am Handy bricht
@@ -279,8 +282,10 @@
       <form id="reg-formular-form" novalidate @submit.prevent="createFormular">
        <fieldset class="reg-formular reg-eingaben" :disabled="formularSpeichert">
         <DkHint v-if="formularFehler.speichern" variant="err">{{ formularFehler.speichern }}</DkHint>
-        <DkField v-slot="feld" label="Bezeichnung" required :error="formularFehler.bezeichnung">
-          <input v-bind="feld.feldProps" v-model="newFormular.bezeichnung" required class="dk-ui-eingabe" placeholder="z. B. Standard-Anmeldung" />
+        <DkField v-slot="feld" label="Bezeichnung" required :error="formularFehler.bezeichnung"
+          :wert="newFormular.bezeichnung" @update:wert="newFormular.bezeichnung = $event">
+          <input v-bind="feld.feldProps"
+            required class="dk-ui-eingabe" placeholder="z. B. Standard-Anmeldung" />
         </DkField>
         <div class="reg-kaestchen">
           <DkCheckbox v-model="newFormular.mit_gaesten" label="Mit Gästen" />
@@ -324,8 +329,10 @@
             <DkButton variant="secondary" size="md" @click="addFeld">+ Feld</DkButton>
           </div>
           <div v-for="(f, i) in formularFelder" :key="i" class="reg-feldzeile">
-            <DkField v-slot="feld" label="Feldbezeichnung" required :error="formularFehler['reg-feld-' + i]">
-              <input v-bind="feld.feldProps" v-model="f.label" required placeholder="Bezeichnung *" class="dk-ui-eingabe" />
+            <DkField v-slot="feld" label="Feldbezeichnung" required :error="formularFehler['reg-feld-' + i]"
+              :wert="f.label" @update:wert="f.label = $event">
+              <input v-bind="feld.feldProps"
+                required placeholder="Bezeichnung *" class="dk-ui-eingabe" />
             </DkField>
             <DkSelect v-model="f.feldtyp" :options="feldTypOptionen" aria-label="Feldtyp" />
             <DkCheckbox v-model="f.pflichtfeld" label="Pflicht" />

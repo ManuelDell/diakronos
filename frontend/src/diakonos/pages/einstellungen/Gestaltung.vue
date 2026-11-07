@@ -49,10 +49,15 @@
             <p class="gs-gruppe-hilfe">{{ gruppe.hilfe }}</p>
 
             <div class="gs-feld" v-for="mass in gruppe.felder" :key="mass.token">
+              <!-- UX3h4: Wert und Eingabe laufen über den Feldsatz. Vorher
+                   standen `:value` + `@input` am Element — zwei Schreiber auf
+                   `value` (derselbe Befund wie „Ort“ in den Einstellungen). -->
               <DkField
                 :label="mass.token"
                 :help="hilfeFuer(mass)"
                 :error="feldFehler[mass.token] || ''"
+                :wert="eingaben[mass.token]"
+                @update:wert="tippen(mass, $event)"
                 v-slot="feld"
               >
                 <div class="gs-feld-zeile">
@@ -65,9 +70,7 @@
                     :min="mass.min"
                     :max="mass.max"
                     :step="mass.schritt || 1"
-                    :value="eingaben[mass.token]"
                     :aria-label="mass.token + ' in Pixeln'"
-                    @input="tippen(mass, $event.target.value)"
                   />
                   <span class="gs-einheit" aria-hidden="true">{{ mass.einheit }}</span>
                   <DkButton

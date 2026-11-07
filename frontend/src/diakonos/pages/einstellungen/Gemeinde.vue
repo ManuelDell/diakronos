@@ -19,16 +19,18 @@
     <form ref="formular" @submit.prevent="speichernMitFokus">
       <fieldset :disabled="!bedienbar" class="gem-felder">
         <DkCard title="Name und Kontakt">
-          <DkField label="Name der Gemeinde" required anker="name" :error="feldFehler.gemeindename" v-slot="feld">
-            <input v-bind="feld.feldProps" v-model="gemeindename" class="dk-ui-eingabe" maxlength="140"
+          <DkField label="Name der Gemeinde" required anker="name" :error="feldFehler.gemeindename"
+            :wert="gemeindename" @update:wert="gemeindename = $event" v-slot="feld">
+            <input v-bind="feld.feldProps" class="dk-ui-eingabe" maxlength="140"
               placeholder="z. B. Versöhnungskirche Heilbronn" />
           </DkField>
           <!-- ON-4 (Nachtrag Orchestrator 2026-11-03): Die Angaben aus dem
                Assistenten werden nach der Ersteinrichtung AUSSCHLIESSLICH hier
                gepflegt — Kurzname, Logo, Anschrift, Telefon, Website. -->
           <DkField label="Kurzname" anker="kurzname" :error="feldFehler.kurzname"
-            help="Erscheint in Kopfzeile und Kalenderkürzeln." v-slot="feld">
-            <input v-bind="feld.feldProps" v-model="kurzname" class="dk-ui-eingabe" maxlength="40"
+            help="Erscheint in Kopfzeile und Kalenderkürzeln."
+            :wert="kurzname" @update:wert="kurzname = $event" v-slot="feld">
+            <input v-bind="feld.feldProps" class="dk-ui-eingabe" maxlength="40"
               placeholder="z. B. Versöhnungskirche" />
           </DkField>
           <!-- UX2f: E-Mail mit Prüfung — die Meldung steht am Feld (beim
@@ -68,30 +70,33 @@
         </DkCard>
 
         <DkCard title="Anschrift und Erreichbarkeit">
-          <DkField label="Straße und Hausnummer" anker="strasse" :error="feldFehler.strasse" v-slot="feld">
-            <input v-bind="feld.feldProps" v-model="strasse" class="dk-ui-eingabe" maxlength="120"
+          <DkField label="Straße und Hausnummer" anker="strasse" :error="feldFehler.strasse"
+            :wert="strasse" @update:wert="strasse = $event" v-slot="feld">
+            <input v-bind="feld.feldProps" class="dk-ui-eingabe" maxlength="120"
               autocomplete="street-address" placeholder="z. B. Kirchplatz 1" />
           </DkField>
           <div class="gem-paar">
             <DkField label="PLZ" anker="plz" :error="feldFehler.plz" :regel="plzRegel()" :wert="plz"
               maxlength="10" @update:wert="plz = $event" v-slot="feld">
-              <input v-bind="feld.feldProps" v-model="plz" class="dk-ui-eingabe" maxlength="10"
+              <input v-bind="feld.feldProps" class="dk-ui-eingabe" maxlength="10"
                 inputmode="numeric" autocomplete="postal-code" placeholder="z. B. 12345" />
             </DkField>
-            <DkField label="Ort" anker="ort" :error="feldFehler.ort" v-slot="feld">
-              <input v-bind="feld.feldProps" v-model="ort" class="dk-ui-eingabe" maxlength="120"
+            <DkField label="Ort" anker="ort" :error="feldFehler.ort"
+              :wert="ort" @update:wert="ort = $event" v-slot="feld">
+              <input v-bind="feld.feldProps" class="dk-ui-eingabe" maxlength="120"
                 autocomplete="address-level2" placeholder="z. B. Musterstadt" />
             </DkField>
           </div>
-          <DkField label="Telefon" anker="telefon" :error="feldFehler.telefon" v-slot="feld">
-            <input v-bind="feld.feldProps" v-model="telefon" class="dk-ui-eingabe" type="tel"
+          <DkField label="Telefon" anker="telefon" :error="feldFehler.telefon"
+            :wert="telefon" @update:wert="telefon = $event" v-slot="feld">
+            <input v-bind="feld.feldProps" class="dk-ui-eingabe" type="tel"
               maxlength="40" placeholder="z. B. +49 7131 123456" />
           </DkField>
           <DkField label="Website" anker="website" :error="feldFehler.website" :regel="urlRegel()"
             :wert="website" maxlength="255"
             help="Beginnt mit https:// — z. B. https://gemeinde.example.org."
             @update:wert="website = $event" v-slot="feld">
-            <input v-bind="feld.feldProps" v-model="website" class="dk-ui-eingabe" maxlength="255"
+            <input v-bind="feld.feldProps" class="dk-ui-eingabe" maxlength="255"
               inputmode="url" placeholder="https://gemeinde.example.org" />
           </DkField>
           <!-- Zeitzone: NUR ANZEIGE (Betriebseinstellung CALENDAR_TIMEZONE). -->
@@ -119,8 +124,9 @@
         <DkCard title="Willkommenstext">
           <p class="gem-hilfe">Erscheint auf der Registrierungs- und Gast-Anmeldeseite
             über dem Formular – ein kurzer Satz genügt.</p>
-          <DkField label="Text" anker="willkommenstext" v-slot="feld">
-            <textarea v-bind="feld.feldProps" v-model="willkommenstext" class="dk-ui-eingabe" rows="3"
+          <DkField label="Text" anker="willkommenstext"
+            :wert="willkommenstext" @update:wert="willkommenstext = $event" v-slot="feld">
+            <textarea v-bind="feld.feldProps" class="dk-ui-eingabe" rows="3"
               maxlength="4000"></textarea>
           </DkField>
         </DkCard>
