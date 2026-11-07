@@ -125,7 +125,12 @@
           </DkField>
         </DkCard>
 
-        <DkButton type="submit" variant="primary" :loading="speichert">Speichern</DkButton>
+        <!-- UX3h3: „Speichern“ ist gesperrt, solange nichts vom geladenen Stand
+             abweicht; nach erfolgreichem Speichern wieder gesperrt. Der Grund
+             steht als `title` am Knopf (bei gesperrtem Knopf sonst unsichtbar). -->
+        <DkButton type="submit" variant="primary" :loading="speichert"
+          :disabled="!kannSpeichern" :aria-disabled="kannSpeichern ? undefined : 'true'"
+          :title="kannSpeichern ? undefined : 'Keine Änderung zum Speichern'">Speichern</DkButton>
       </fieldset>
     </form>
     <DkErfolgsmeldung :text="erfolg" />
@@ -147,8 +152,10 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { useGemeinde } from '../../composables/useGemeinde.js'
+// UX3h3: „Speichern nur, wenn geändert“ — EINE Regel für alle Abschnitte.
+import { useGeaendertStand } from '../../composables/useGeaendert.js'
 import { monogramm as monogrammFuer } from '../../composables/einrichtung.mjs'
 import DkButton from '../../components/ui/DkButton.vue'
 import DkCard from '../../components/ui/DkCard.vue'
@@ -178,6 +185,33 @@ const rollen = window.__DIakonosBOOT || {}
 
 const formular = ref(null)
 const feldFehler = ref({})
+
+// ── UX3h3: „Speichern nur, wenn geändert“ ────────────────────────────────
+/**
+ * Der geladene Stand als EINE Momentaufnahme. `merken` läuft NACH dem Laden
+ * und NACH erfolgreichem Speichern (dann ist der neue Stand der gespeicherte)
+ * — nicht bei jedem Tippen. Der Vergleich selbst steht in
+ * `composables/geaendert.mjs`; hier wird nur der Feldsatz aufgezählt.
+ */
+const stand = useGeaendertStand()
+const feldsatz = () => ({
+  gemeindename: gemeindename.value,
+  kurzname: kurzname.value,
+  kontaktEmail: kontaktEmail.value,
+  strasse: strasse.value,
+  plz: plz.value,
+  ort: ort.value,
+  telefon: telefon.value,
+  website: website.value,
+  oeffentlicheAdresse: oeffentlicheAdresse.value,
+  willkommenstext: willkommenstext.value,
+})
+const geaendert = stand.geaendert(feldsatz)
+// Gesperrt, solange nichts geändert ist ODER die Seite nicht bedienbar ist
+// (nicht geladen / am Laden / am Speichern).
+const kannSpeichern = computed(() => bedienbar.value && geaendert.value)
+// Nach dem Laden (auch beim erneuten Laden): den neuen Stand aufnehmen.
+watch(geladen, (ist) => { if (ist) stand.merken(feldsatz) })
 
 // UX2f: Prüfregeln der Felder — direkt aus EINER Quelle. Alle Angaben sind
 // freiwillig; die Regeln lassen ein leeres Feld in Ruhe (UX2f2a), deshalb
@@ -219,7 +253,12 @@ async function speichernMitFokus() {
     // Fehlertext nennt das Feld; fokussiert wird das erste ungueltige.
     await nextTick()
     formular.value?.querySelector('[aria-invalid="true"]')?.focus()
+    return
   }
+  // UX3h3: Gespeichert = der neue Stand IST der gespeicherte → „Speichern“
+  // wieder gesperrt. Die Momentaufnahme kommt aus den Feldern selbst (der
+  // Server gibt die Werte nicht zurück), deshalb hier ausdrücklich.
+  stand.merken(feldsatz)
 }
 
 /** Dateiauswahl des Logos: sofort hochladen (Entwurf 04: „Datei auswählen“). */

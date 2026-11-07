@@ -13,7 +13,7 @@
       <span>{{ statusText }}</span>
     </p>
 
-    <form @submit.prevent="speichern">
+    <form @submit.prevent="speichernMitStand">
       <fieldset :disabled="!bedienbar" class="dt-felder">
         <DkCard title="Einwilligung">
           <p class="dt-hilfe">Dieser Text wird auf der Anmeldeseite angezeigt und muss
@@ -54,7 +54,9 @@
             Beleg gespeichert.</DkHint>
         </DkCard>
 
-        <DkButton type="submit" variant="primary" :loading="speichert">Speichern</DkButton>
+        <DkButton type="submit" variant="primary" :loading="speichert"
+          :disabled="!kannSpeichern" :aria-disabled="kannSpeichern ? undefined : 'true'"
+          :title="kannSpeichern ? undefined : 'Keine Änderung zum Speichern'">Speichern</DkButton>
       </fieldset>
     </form>
     <DkErfolgsmeldung :text="erfolg" />
@@ -62,8 +64,10 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useDatenschutzTexte } from '../../composables/useGemeinde.js'
+// UX3h3: „Speichern nur, wenn geändert“ — EINE Regel für alle Abschnitte.
+import { useGeaendertStand } from '../../composables/useGeaendert.js'
 import DkButton from '../../components/ui/DkButton.vue'
 import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
@@ -75,6 +79,34 @@ import DkSkelett from '../../components/ui/DkSkelett.vue'
 const { laedt, speichert, geladen, fehler, erfolg, einwilligung,
   datenschutzerklaerung, aufbewahrung, veroeffentlicht, version, statusText,
   bedienbar, laden, speichern } = useDatenschutzTexte()
+
+// ── UX3h3: „Speichern nur, wenn geändert“ ────────────────────────────────
+/**
+ * Der geladene Stand umfasst AUCH den Veröffentlichungs-Haken: „diesen Text
+ * neuen Anmeldungen zeigen“ ist eine Änderung, die gespeichert werden muss.
+ */
+const stand = useGeaendertStand()
+const feldsatz = () => ({
+  einwilligung: einwilligung.value,
+  datenschutzerklaerung: datenschutzerklaerung.value,
+  aufbewahrung: aufbewahrung.value,
+  veroeffentlicht: veroeffentlicht.value,
+})
+const geaendert = stand.geaendert(feldsatz)
+const kannSpeichern = computed(() => bedienbar.value && geaendert.value)
+watch(geladen, (ist) => { if (ist) stand.merken(feldsatz) })
+
+/**
+ * Absenden wie bisher (`@submit.prevent="speichern"`) — nur mit der
+ * UX3h3-Nachbereitung: nach erfolgreichem Speichern ist der neue Stand der
+ * gespeicherte, der Knopf also wieder gesperrt.
+ */
+async function speichernMitStand() {
+  const ok = await speichern()
+  if (ok === false) return false
+  stand.merken(feldsatz)
+  return true
+}
 
 onMounted(laden)
 </script>

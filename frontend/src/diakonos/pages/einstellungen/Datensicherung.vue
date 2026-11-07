@@ -12,7 +12,7 @@
 
     <template v-if="geladen">
       <!-- ── Einstellungen ─────────────────────────────────────────────── -->
-      <form @submit.prevent="einstellungenSpeichern">
+      <form @submit.prevent="speichernMitStand">
         <fieldset class="sk-felder">
           <DkCard title="Automatisch sichern" anker="automatisch">
             <label class="sk-schalter">
@@ -51,7 +51,9 @@
             </DkHint>
           </DkCard>
 
-          <DkButton type="submit" variant="primary" :loading="speichert">Speichern</DkButton>
+          <DkButton type="submit" variant="primary" :loading="speichert"
+            :disabled="!kannSpeichern" :aria-disabled="kannSpeichern ? undefined : 'true'"
+            :title="kannSpeichern ? undefined : 'Keine Änderung zum Speichern'">Speichern</DkButton>
         </fieldset>
       </form>
 
@@ -119,10 +121,12 @@
  * endgültig (kein Papierkorb für Sicherungsdateien), darum Frage + Folge und
  * der gefährliche Knopf am Ende.
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import {
   useSicherung, groesseText, zeitpunktText, statusText,
 } from '../../composables/useSicherung.js'
+// UX3h3: „Speichern nur, wenn geändert“ — EINE Regel für alle Abschnitte.
+import { useGeaendertStand } from '../../composables/useGeaendert.js'
 // UX2c (C1): der EINE Endgültig-Dialog (Frage, Folge, gefährlicher Knopf).
 import DkEndgueltig from '../../components/ui/DkEndgueltig.vue'
 import DkButton from '../../components/ui/DkButton.vue'
@@ -139,6 +143,32 @@ const {
   automatisch, uhrzeit, aufbewahrungTage, sicherungen, ablage,
   laden, einstellungenSpeichern, jetztSichern, loeschen,
 } = useSicherung()
+
+// ── UX3h3: „Speichern nur, wenn geändert“ ────────────────────────────────
+/**
+ * Automatisch an/aus, Uhrzeit und Aufbewahrung. Der Stand wird NACH jedem
+ * erfolgreichen Laden UND NACH erfolgreichem Speichern aufgenommen; „Jetzt
+ * sichern“ lädt die Liste neu (`laden`); `geladen` bleibt dabei true, der
+ * Stand wird also NICHT neu aufgenommen. Unschädlich: `laden` überschreibt
+ * die Felder mit den Serverwerten, die dem gemerkten Stand entsprechen.
+ */
+const stand = useGeaendertStand()
+const feldsatz = () => ({
+  automatisch: automatisch.value,
+  uhrzeit: uhrzeit.value,
+  aufbewahrungTage: aufbewahrungTage.value,
+})
+const geaendert = stand.geaendert(feldsatz)
+const kannSpeichern = computed(() => geladen.value && !speichert.value && geaendert.value)
+watch(geladen, (ist) => { if (ist) stand.merken(feldsatz) })
+
+/** Absenden wie bisher (`@submit.prevent="einstellungenSpeichern"`). */
+async function speichernMitStand() {
+  const ok = await einstellungenSpeichern()
+  if (ok === false) return false
+  stand.merken(feldsatz)
+  return true
+}
 
 const spalten = [
   { key: 'zeitpunkt', label: 'Zeitpunkt' },

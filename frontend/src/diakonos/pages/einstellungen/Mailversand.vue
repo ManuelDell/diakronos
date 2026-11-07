@@ -31,7 +31,7 @@
         <strong>{{ form.absender }}</strong> raus.
       </DkHint>
 
-      <form @submit.prevent="speichern">
+      <form @submit.prevent="speichernMitStand">
         <fieldset class="mv-felder">
           <DkCard title="Server">
             <DkField label="Name des Mailservers" required anker="host"
@@ -111,7 +111,12 @@
           </DkCard>
 
           <div class="mv-aktionen">
-            <DkButton type="submit" variant="primary" :loading="speichert">
+            <!-- UX3h3: „Speichern“ nur, wenn sich etwas geändert hat. Das
+                 Passwortfeld zählt mit (ein eingetipptes Passwort ist eine
+                 Änderung; leer = „behalten“ und damit keine). -->
+            <DkButton type="submit" variant="primary" :loading="speichert"
+              :disabled="!kannSpeichern" :aria-disabled="kannSpeichern ? undefined : 'true'"
+              :title="kannSpeichern ? undefined : 'Keine Änderung zum Speichern'">
               Speichern
             </DkButton>
             <DkButton variant="secondary" :loading="testet" @click="testmail">
@@ -130,7 +135,7 @@
         </p>
         <DkHint v-if="testFehler" variant="err" role="alert">{{ testFehler }}</DkHint>
         <DkHint v-if="testErfolg" variant="ok" role="status">{{ testErfolg }}</DkHint>
-        <p v-if="geaendert" class="mv-hilfe">Zuletzt geändert: {{ geaendertText }}</p>
+        <p v-if="standGeaendert" class="mv-hilfe">Zuletzt geändert: {{ geaendertText }}</p>
       </DkCard>
     </template>
 
@@ -171,10 +176,12 @@
  * Auch mit den FELDERN von Formular und Test kommt kein Vertraulichkeitsproblem
  * nach außen: der Server liefert ausschließlich „Passwort gesetzt: ja/nein“.
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 // UX2f: Absender- und Servernamen-Regel stehen bei den uebrigen Regeln dieses
 // Bereichs (useMailversand) — Feld, Speichern und Testmail nutzen dieselbe.
 import { useMailversand, SICHERHEIT_ARTEN, regelAbsender, regelHost } from '../../composables/useMailversand.js'
+// UX3h3: „Speichern nur, wenn geändert“ — EINE Regel für alle Abschnitte.
+import { useGeaendertStand } from '../../composables/useGeaendert.js'
 import DkButton from '../../components/ui/DkButton.vue'
 import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
@@ -194,12 +201,44 @@ const rollen = window.__DIakonosBOOT || {}
 
 const {
   laedt, speichert, testet, geladen, fehler, erfolg, testFehler, testErfolg,
-  form, passwort, passwortGesetzt, eingerichtet, geaendert, meineAdresse,
+  form, passwort, passwortGesetzt, eingerichtet,
+  geaendert: standGeaendert, meineAdresse,
   passwortEntfernen,
   laden, speichern, testmail,
   passwortEntfernenOeffnen, passwortEntfernenAbbrechen,
   passwortEntfernenBestaetigen,
 } = useMailversand()
+
+// ── UX3h3: „Speichern nur, wenn geändert“ ────────────────────────────────
+/**
+ * Der geladene Stand: alle Formularfelder, das Passwort (immer leer nach dem
+ * Laden — es kommt nie zurück) und ob eines hinterlegt ist. Ein eingetipptes
+ * Passwort ist damit eine Änderung; ein leeres Feld heißt „behalten“ und ist
+ * KEINE.
+ */
+const stand = useGeaendertStand()
+const feldsatz = () => ({
+  ...form.value,
+  passwort: passwort.value,
+  passwortGesetzt: passwortGesetzt.value,
+})
+const istGeaendert = stand.geaendert(feldsatz)
+const kannSpeichern = computed(() => geladen.value && !speichert.value && istGeaendert.value)
+// Nach jedem Laden (auch dem Neu-Laden nach „Jetzt sichern“/Speichern) den
+// Serverstand aufnehmen. `geladen` bleibt dabei `true` — Vue feuert den
+// Wächter nur bei echter Änderung, deshalb zusätzlich auf den Zeitstempel
+// `standGeaendert` (Server-Zeitstempel des letzten Speicherns) hören.
+watch([geladen, standGeaendert], ([ist, stempel], [war, vorher]) => {
+  if (ist && (!war || stempel !== vorher)) stand.merken(feldsatz)
+})
+
+/** Absenden wie bisher (`@submit.prevent="speichern"`) mit Stand-Nachbereitung. */
+async function speichernMitStand() {
+  const ok = await speichern()
+  if (ok === false) return false
+  stand.merken(feldsatz)
+  return true
+}
 
 /** Dialog schliessen (Abbrechen, Esc, Klick daneben) — ohne zu loeschen. */
 function dialogSchliessen(offen) {
@@ -230,7 +269,7 @@ function sicherheitGeaendert() {
 }
 
 const geaendertText = computed(() => {
-  const treffer = String(geaendert.value || '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  const treffer = String(standGeaendert.value || '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
   if (!treffer) return ''
   const [, jahr, monat, tag, stunde, minute] = treffer
   return `${tag}.${monat}.${jahr}, ${stunde}:${minute} Uhr`

@@ -55,7 +55,9 @@
             Wenn du diese Vergabe erlaubst, kann die Verwaltung der Authentik-Gruppen Zugriff auf die gesamte Gemeinde geben.
             Nutze dafür nur streng kontrollierte Gruppen.</DkHint>
         </DkCard>
-        <DkButton type="submit" variant="primary" :loading="speichert">Speichern</DkButton>
+        <DkButton type="submit" variant="primary" :loading="speichert"
+          :disabled="!kannSpeichern" :aria-disabled="kannSpeichern ? undefined : 'true'"
+          :title="kannSpeichern ? undefined : 'Keine Änderung zum Speichern'">Speichern</DkButton>
       </fieldset>
     </form>
     <DkErfolgsmeldung :text="erfolg" />
@@ -103,9 +105,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, computed, watch } from 'vue'
 import { apiCall } from '../../composables/useApi.js'
 import { useAnmeldeEinstellungen } from '../../composables/useAnmeldeEinstellungen.js'
+// UX3h3: „Speichern nur, wenn geändert“ — EINE Regel für alle Abschnitte.
+import { useGeaendertStand } from '../../composables/useGeaendert.js'
 import DkButton from '../../components/ui/DkButton.vue'
 import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
@@ -119,6 +123,23 @@ import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 const { laedt, speichert, geladen, oidcAktiv, modus, adminUeberGruppen, rollen,
   zuordnungen, fehler, erfolg, zeilenFehler, bedienbar, laden, speichern } = useAnmeldeEinstellungen()
 const formular = ref(null)
+
+// ── UX3h3: „Speichern nur, wenn geändert“ ────────────────────────────────
+/**
+ * Der geladene Stand: Modus, Haken „Verwaltungsrollen über Gruppen“ und die
+ * Zeilen der Authentik-Zuordnungen. Die Zeilen werden als LISTE verglichen —
+ * eine leere Zeile („Zuordnung ergänzen“) ist noch keine Änderung, ein
+ * eingetippter Wert schon (`composables/geaendert.mjs`).
+ */
+const stand = useGeaendertStand()
+const feldsatz = () => ({
+  modus: modus.value,
+  adminUeberGruppen: adminUeberGruppen.value,
+  zuordnungen: zuordnungen.value.map(z => ({ gruppe: z.gruppe, rolle: z.rolle })),
+})
+const geaendert = stand.geaendert(feldsatz)
+const kannSpeichern = computed(() => bedienbar.value && geaendert.value)
+watch(geladen, (ist) => { if (ist) stand.merken(feldsatz) })
 const modiOptionen = [
   { wert: 'abweisen', titel: 'Abweisen (sicherer Standard)', hinweis: 'Unbekannte Personen erhalten keinen Zugang und wenden sich an die Gemeindeleitung.' },
   { wert: 'als_gast_anlegen', titel: 'Konto anlegen und auf Freischaltung warten', hinweis: 'Kein Zugang bis zur Prüfung in der Kontenliste unten.' },
@@ -128,7 +149,11 @@ async function speichernMitFokus() {
   if (!await speichern()) {
     await nextTick()
     formular.value?.querySelector('[aria-invalid="true"]')?.focus()
+    return
   }
+  // UX3h3: Gespeichert = der eingetippte Satz IST jetzt der gespeicherte
+  // Stand → „Speichern“ wieder gesperrt (bis zur nächsten Änderung).
+  stand.merken(feldsatz)
 }
 // UX2d3b: Platzhalter erst nach 300 ms (kein Blitzen, keine Aussage vor der Antwort).
 const { skelettSichtbar: ladeSichtbar } = useLadeSkelett(laedt)

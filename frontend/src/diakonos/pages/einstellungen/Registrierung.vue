@@ -24,7 +24,9 @@
             <input v-bind="feld.feldProps" v-model.number="linkMaxAnmeldungen" class="dk-ui-eingabe"
               type="number" min="0" max="100000" />
           </DkField>
-          <DkButton type="submit" variant="primary" :loading="speichert">Speichern</DkButton>
+          <DkButton type="submit" variant="primary" :loading="speichert"
+            :disabled="!kannSpeichern" :aria-disabled="kannSpeichern ? undefined : 'true'"
+            :title="kannSpeichern ? undefined : 'Keine Änderung zum Speichern'">Speichern</DkButton>
         </DkCard>
       </fieldset>
     </form>
@@ -46,9 +48,11 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, onMounted, computed, watch } from 'vue'
 import { apiCall } from '../../composables/useApi.js'
 import { useGemeinde } from '../../composables/useGemeinde.js'
+// UX3h3: „Speichern nur, wenn geändert“ — EINE Regel für alle Abschnitte.
+import { useGeaendertStand } from '../../composables/useGeaendert.js'
 import DkButton from '../../components/ui/DkButton.vue'
 import DkCard from '../../components/ui/DkCard.vue'
 import DkHint from '../../components/ui/DkHint.vue'
@@ -65,6 +69,22 @@ const feldFehler = ref({})
 const formulare = ref([])
 const formulareFehler = ref('')
 
+// ── UX3h3: „Speichern nur, wenn geändert“ ────────────────────────────────
+/**
+ * Nur die Vorgaben für neue Links stehen im Formular. `v-model.number`
+ * liefert Zahlen, `useGemeinde` liefert nach dem Laden ebenfalls Zahlen —
+ * `composables/geaendert.mjs` vergleicht beides als gleich (`30` ≡ `"30"`).
+ * geladen-Gate wie auf Gemeinde.vue: nicht vor dem geladenen Stand.
+ */
+const stand = useGeaendertStand()
+const feldsatz = () => ({
+  linkLaufzeitTage: linkLaufzeitTage.value,
+  linkMaxAnmeldungen: linkMaxAnmeldungen.value,
+})
+const geaendert = stand.geaendert(feldsatz)
+const kannSpeichern = computed(() => bedienbar.value && geaendert.value)
+watch(geladen, (ist) => { if (ist) stand.merken(feldsatz) })
+
 async function speichernMitFokus() {
   feldFehler.value = {}
   if (linkLaufzeitTage.value < 0 || linkLaufzeitTage.value > 365)
@@ -76,7 +96,10 @@ async function speichernMitFokus() {
     formular.value?.querySelector('[aria-invalid="true"]')?.focus()
     return
   }
-  await linkvorgabenSpeichern()
+  const ok = await linkvorgabenSpeichern()
+  // UX3h3: Nur nach Erfolg ist der eingetippte Satz der gespeicherte Stand.
+  if (ok === false) return
+  stand.merken(feldsatz)
 }
 
 async function ladeFormulare() {

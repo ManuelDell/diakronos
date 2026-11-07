@@ -8,6 +8,7 @@
     :class="klassen"
     :aria-label="$attrs['aria-label']"
     :aria-busy="loading || undefined"
+    :aria-disabled="loading ? 'true' : $attrs['aria-disabled']"
     v-bind="$attrs"
   >
     <span v-if="loading" class="dk-ui-spinner" aria-hidden="true"></span>
@@ -19,7 +20,10 @@
     :type="htmlType"
     :class="klassen"
     :disabled="disabled || loading"
+    :aria-disabled="disabled ? 'true' : $attrs['aria-disabled']"
+    :title="gesperrtTitel"
     :aria-busy="loading || undefined"
+    v-bind="rest"
   >
     <span v-if="loading" class="dk-ui-spinner" aria-hidden="true"></span>
     <slot name="icon" />
@@ -37,7 +41,7 @@
  *
  * Nur Tokens, keine festen Farben (Wächter-Test).
  */
-import { computed } from 'vue'
+import { computed, useAttrs } from 'vue'
 
 const props = defineProps({
   variant: { type: String, default: 'secondary' },
@@ -50,6 +54,32 @@ const props = defineProps({
   as: { type: String, default: 'button' },
 })
 const htmlType = computed(() => props.type)
+
+/**
+ * UX3h3 — „Speichern nur, wenn geändert“: Ein Knopf, der gesperrt ist, WEIL
+ * nichts geändert wurde, soll sagen, warum. Ein echtes `disabled` verschluckt
+ * `title` in den meisten Browsern (kein Hover, kein Tooltip, keine Vorlesehilfe-
+ * Auskunft über den Grund). Deshalb:
+ *   - `aria-disabled` sagt die Sperre an, auch wenn `disabled` gesetzt ist;
+ *   - `title` steht am Knopf, damit der Grund erreichbar bleibt.
+ * `disabled` selbst bleibt: die Klick-Sperre darf NICHT von der Darstellung
+ * abhängen. Die Attribute kommen aus `useAttrs()` — `$attrs` im `setup` wäre
+ * ein Fehler „$attrs is not defined“, und der Knopf zeichnete sich gar nicht.
+ */
+const attrs = useAttrs()
+const gesperrtTitel = computed(() => (
+  props.loading ? 'Wird gespeichert …' : (attrs.title || undefined)
+))
+
+/**
+ * Die übrigen Attribute (`@click`, `aria-label`, `data-*`, …). `title` steht
+ * oben schon gebunden und wird hier NICHT ein zweites Mal durchgereicht.
+ */
+const rest = computed(() => {
+  const uebrige = { ...attrs }
+  delete uebrige.title
+  return uebrige
+})
 
 const klassen = computed(() => [
   'dk-ui-btn',
@@ -82,6 +112,15 @@ const klassen = computed(() => [
 .dk-ui-btn:active { transform: translateY(1px); }
 .dk-ui-btn:disabled,
 .dk-ui-btn.is-loading { opacity: .55; cursor: default; transform: none; }
+/* UX3h3: „Speichern nur, wenn geändert“ sperrt über `disabled` UND
+   `aria-disabled` (die Karte verlangt beides: die Sperre ist ein Zustand,
+   keine Strafe). Beide Wege sehen gleich aus — sonst sähe derselbe Zustand je
+   nach Knopf anders aus. Nur Tokens, keine festen Farben. */
+.dk-ui-btn[aria-disabled="true"]:not(.is-loading) { opacity: .55; cursor: default; }
+/* UX3h3: Ein gesperrter Knopf, der einen Grund nennt (`title`), zeigt den
+   Zeiger „Hilfe“ — sonst wirkt die Sperre wie ein Fehler. Nur da, wo ein
+   `title` am Element steht (ein gesperrter Knopf OHNE Grund bleibt neutral). */
+.dk-ui-btn:disabled[title] { cursor: help; }
 .dk-ui-btn:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;

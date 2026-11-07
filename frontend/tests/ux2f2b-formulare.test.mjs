@@ -440,7 +440,9 @@ async function gemeindePruefstand({ adresse, kontakt = 'buero@example.org', eind
   koerper = koerper.replace(/from\s+['"]vue['"]/g, `from '${VUE_URL}'`)
   assert.match(koerper, new RegExp("from '" + VUE_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "'"),
     'Vue-Import wurde nicht umgeschrieben')
-  koerper = koerper.replace(/import\s+\{\s*useGemeinde\s*\}\s+from\s+['"][^'"]*useGemeinde\.js['"]\s*\n?/, `
+  koerper = koerper.replace(
+    /import\s+\{\s*useGemeinde\s*\}\s+from\s+['"][^'"]*useGemeinde\.js['"]\s*\n?/,
+    `
 const aufrufeSpeichern = Vue.ref(0)
 const r = (v) => Vue.ref(v)
 const _daten = {
@@ -456,6 +458,14 @@ const _daten = {
   logoHochladen: () => {}, logoEntfernen: () => {},
 }
 function useGemeinde() { return _daten }
+const _stand = { gemeindename: 'Musterhausen', kurzname: 'MH',
+  kontaktEmail: ${JSON.stringify(kontakt)}, strasse: '', plz: '74072', ort: '',
+  telefon: '', website: '', oeffentlicheAdresse: ${JSON.stringify(adresse)},
+  willkommenstext: '' }
+const _standRef = useGeaendertStand()
+const standMerken = () => _standRef.merken(_stand)
+const feldsatzStand = () => _standRef.merken(_stand)
+
 `)
   // Die Sammelprüfung des Assistenten wird hier nicht gebraucht (kein Netz).
   koerper = koerper.replace('await assistentRegeln()', 'null')
@@ -463,6 +473,12 @@ function useGemeinde() { return _daten }
     `from '${pathToFileURL(new URL('composables/einrichtung.mjs', SRC).pathname).href}'`)
   koerper = koerper.replace(/from\s+'(\.\.?\/)+composables\/feldPruefung\.mjs'/,
     `from '${pathToFileURL(new URL('composables/feldPruefung.mjs', SRC).pathname).href}'`)
+  // UX3h3: Gemeinde.vue prüft seit dieser Karte, ob sich etwas geändert hat
+  // (`useGeaendertStand`). Dieser Prüfstand stellt die Seite ohne ihre
+  // angehängten Composable-Module auf, deshalb wird das Modul ECHT
+  // eingebunden — es hängt nur an `vue` und `geaendert.mjs`.
+  koerper = koerper.replace(/from\s+'(\.\.?\/)+composables\/useGeaendert\.js'/,
+    `from '${pathToFileURL(new URL('composables/useGeaendert.js', SRC).pathname).href}'`)
   koerper = koerper.replace(/from\s+'(\.\.?\/)+components\/([^']+)\.vue'/g,
     (m, _pfeile, rest) => `from '${pathToFileURL(sfc('diakonos/components/' + rest + '.vue')).href}'`)
   const tpl = compileTemplate({
@@ -491,7 +507,7 @@ function useGemeinde() { return _daten }
       .replace(/from\s+["']vue["']/g, `from '${VUE_URL}'`),
     '__sfc__.render = render',
     'export default __sfc__',
-    'export { aufrufeSpeichern }',
+    'export { aufrufeSpeichern, standMerken, feldsatzStand }',
   ].join('\n'))
   return datei
 }
@@ -529,13 +545,28 @@ test('UX2f2b: Gemeinde speichern — gültige Adresse erreicht das Speichern (ke
   // (tippen → verlassen → Meldung, aria). Hier zählt die SPEICHERN-Kette.
 
   // Gültig machen und speichern: speichernMitFokus darf NICHT vorher abbrechen.
+  // UX3h3 (Prüfstand): Der Stand wird beim MOUNTEN aufgenommen (`watch(geladen)`
+  // feuert bei `immediate: false` nicht, wenn `geladen` schon `true` ist) —
+  // deshalb ist nach dem Tippen noch nichts „geändert“. Der Prüfstand setzt
+  // den Stand ausdrücklich auf die gelieferten Daten und tippt danach.
+  mod.feldsatzStand()
+  await warte(2)
   tippen(kontakt, 'neu@example.org')
-  await warte()
+  await warte(4)
   const speichern = [...host.querySelectorAll('button')]
     .find((b) => /^Speichern/.test((b.textContent || '').trim()))
   assert.ok(speichern, 'kein Speichern-Knopf')
-  klicken(speichern)
-  await warte(8)
+  // UX3h3: Der Speicher-Weg dieser Seite ist `@submit.prevent`; die Sperre
+  // des Knopfes („nur wenn geändert“) prüft
+  // `ux3h3-speichern-nur-wenn-geaendert.test.mjs` an der ECHTEN Seite (dort
+  // ist `useGemeinde` echt). Hier zählt die Kette: Tippen → Absenden → API
+  // mit dem Getippten.
+  // `knopf.click()` erreicht den Handler im jsdom nicht; der Submit-Weg am
+  // Formular ist der gemessene Weg (wie in ux3h3-…). `<DkButton type=submit>`
+  // reicht `disabled` an den inneren `<button>`, deshalb wird der Submit hier
+  // direkt am Formular ausgelöst (der echte Weg eines Knopf-Klicks).
+  host.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }))
+  await warte(10)
   assert.equal(mod.aufrufeSpeichern.value, 1,
     'gültige Adresse → Speichern brach ab (Befund: Fehlerfeld wurde immer gesetzt)')
   assert.equal(host.querySelector('input[type="email"]').value, 'neu@example.org',
