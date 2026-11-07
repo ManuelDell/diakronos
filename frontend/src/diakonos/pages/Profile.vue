@@ -192,7 +192,7 @@
           </div>
           <DkButton
             size="md"
-            :variant="profile[e.key] ? 'ghost' : 'primary'"
+            variant="secondary"
             :disabled="savingConsent"
             @click="toggleEinwilligung(e.kurz, !profile[e.key])"
           >{{ profile[e.key] ? 'Widerrufen' : 'Erteilen' }}</DkButton>
@@ -263,6 +263,8 @@
       <pre class="prof-auskunft" tabindex="0">{{ JSON.stringify(auskunft, null, 2) }}</pre>
       <template #footer>
         <DkButton variant="ghost" @click="showAuskunft = false">Schließen</DkButton>
+        <!-- UX1h (S1): Je Dialog genau ein gefüllter Knopf — „Schließen“
+             ändert nichts und bleibt ghost (Wortliste). -->
         <DkButton variant="primary" @click="downloadAuskunft">Als Datei herunterladen</DkButton>
       </template>
     </DkDialog>

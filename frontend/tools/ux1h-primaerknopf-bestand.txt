@@ -1,0 +1,50 @@
+# UX1h — eingefrorener Bestand der Primärknöpfe je Ansicht (Prinzip S1).
+#
+# Gezählt: `variant="primary"` in pages/**/*.vue, NUR ausserhalb von
+#          Dialogen (DkDialog, DkModal, DkEndgueltig, DkWarning, …), ohne
+#          Kommentare. Gebundene Varianten (`:variant="a ? 'primary' : …"`)
+#          zaehlen nicht.
+# Format:  relativer/pfad<TAB>anzahl_primary
+#
+# REGEL: Die Zahlen dürfen NUR SINKEN. Zielzustand: keine Zeile mehr (oder
+# höchstens 1 je Datei). Erzeugt mit (aus frontend/ heraus):
+#   node tools/ux1h-primaerknopf-bestand.mjs --schreiben
+# Geprüft von frontend/tests/ux1h-primaerknopf.test.mjs.
+#
+# Stand (UX1h): 52 Primärknöpfe in 36 Dateien.
+frontend/src/diakonos/pages/Beitraege.vue	1
+frontend/src/diakonos/pages/GruppeDetail.vue	3
+frontend/src/diakonos/pages/Gruppen.vue	1
+frontend/src/diakonos/pages/Home.vue	2
+frontend/src/diakonos/pages/KalenderImport.vue	3
+frontend/src/diakonos/pages/KalenderVerwaltung.vue	1
+frontend/src/diakonos/pages/LiedDetail.vue	1
+frontend/src/diakonos/pages/Lieder.vue	2
+frontend/src/diakonos/pages/Liedgruppen.vue	1
+frontend/src/diakonos/pages/MitgliedDetail.vue	2
+frontend/src/diakonos/pages/Mitglieder.vue	1
+frontend/src/diakonos/pages/Moderation.vue	1
+frontend/src/diakonos/pages/NichtGefunden.vue	1
+frontend/src/diakonos/pages/Personen.vue	1
+frontend/src/diakonos/pages/Profile.vue	1
+frontend/src/diakonos/pages/Registrierung.vue	3
+frontend/src/diakonos/pages/Ressourcen.vue	1
+frontend/src/diakonos/pages/RessourcenVerwaltung.vue	1
+frontend/src/diakonos/pages/Website.vue	1
+frontend/src/diakonos/pages/Wiki.vue	1
+frontend/src/diakonos/pages/einrichtung/Assistent.vue	1
+frontend/src/diakonos/pages/einstellungen/Anmeldung.vue	2
+frontend/src/diakonos/pages/einstellungen/DatenschutzTexte.vue	1
+frontend/src/diakonos/pages/einstellungen/Datensicherung.vue	2
+frontend/src/diakonos/pages/einstellungen/Gemeinde.vue	1
+frontend/src/diakonos/pages/einstellungen/Mailversand.vue	1
+frontend/src/diakonos/pages/einstellungen/Registrierung.vue	1
+frontend/src/diakonos/pages/gruppen/Bereich.vue	1
+frontend/src/diakonos/pages/mitglieder/Datenschutz.vue	2
+frontend/src/diakonos/pages/mitglieder/Import.vue	2
+frontend/src/diakonos/pages/planrahmen/Einrichten.vue	1
+frontend/src/diakonos/pages/planrahmen/MeineDienste.vue	1
+frontend/src/diakonos/pages/planrahmen/Plan.vue	2
+frontend/src/diakonos/pages/planrahmen/PlantypEditor.vue	2
+frontend/src/diakonos/pages/planrahmen/Stammdaten.vue	2
+frontend/src/diakonos/pages/planrahmen/Uebersicht.vue	1

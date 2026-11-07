@@ -25,6 +25,12 @@
           </DkButton>
         </template>
         <template v-if="istAdmin">
+          <!-- UX1h (S1): In den Unterbereichen „Anfragen“ hat der Unterbereich
+               seine eigene Hauptaktion („Neuer Link“, „Neues Formular“) — der
+               Kopfknopf ist dort secondary. Auf der Liste bleibt „Person
+               anlegen“ der EINE gefüllte Knopf der Ansicht.
+               `anlegenIstHauptaktion` steht als REF (nicht ausgepackt) in der
+               Vorlage, deshalb hier das ref-Objekt direkt (`.value`). -->
           <DkButton :variant="anlegenIstHauptaktion ? 'primary' : 'secondary'" @click="mitgliedHinzufuegen">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
             Person anlegen
@@ -152,11 +158,12 @@ const anfragenZahl = anfragenZaehler
  *
  * Es bleibt EINE referenzierte Anlege-Tätigkeit; nur ihre Betonung wechselt
  * mit dem Eintrag. „Person anlegen“ steht weiterhin überall, wo Anlegen die
- * Hauptsache ist (Übersicht, Liste, Anfragen, Löschanträge) — sekundär auf den
+ * Hauptsache ist (Übersicht, Liste, Löschanträge) — sekundär auf den
  * Ansichten, deren Hauptaktion die Seite selbst trägt (Import: „Prüfen“,
- * Datenschutz: „Auskunft“).
+ * Datenschutz: „Auskunft“) und in den Unterbereichen von „Anfragen“
+ * (UX1h: „Neuer Link“ bzw. „Neues Formular“ ist dort die Hauptaktion).
  */
-const ANLEGEN_NEBENACHLICH = new Set(['import', 'datenschutz'])
+const ANLEGEN_NEBENACHLICH = new Set(['import', 'datenschutz', 'anfragen', 'links', 'formulare'])
 
 /** „Person anlegen“ ist auf dieser Ansicht die Hauptaktion? */
 const anlegenIstHauptaktion = computed(

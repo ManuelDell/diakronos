@@ -63,7 +63,10 @@
                                 </DkField>
                                 <!-- UX1f (S1): In der Bearbeitung ist „Speichern“ die
                                      eine Hauptaktion; „Abbrechen“ verwirft die Eingabe
-                                     (Wortliste) und steht als secondary daneben. -->
+                                     (Wortliste) und steht als secondary daneben.
+                                     UX1h (S1): Im Bearbeiten-Zustand ist „Speichern“ der
+                                     EINE gefüllte Knopf der Ansicht — die Kartenköpfe
+                                     (Ankündigung/Aufgabe/Wiki) tragen nur ghost-Knöpfe. -->
                                 <div class="grup-aktionen">
                                     <DkButton variant="primary" :loading="savingDesc" @click="saveDesc">Speichern</DkButton>
                                     <DkButton variant="secondary" @click="cancelEditDesc">Abbrechen</DkButton>
@@ -105,6 +108,8 @@
                             <input v-model="neueAnkuendigungTitel" type="text" placeholder="Titel" class="dk-ui-eingabe" />
                             <textarea v-model="neueAnkuendigungText" placeholder="Text (optional)" class="dk-ui-eingabe" rows="3" />
                             <div class="grup-aktionen">
+                                <!-- UX1h (S1): je Karte genau eine gefüllte Aktion —
+                                     „Veröffentlichen“ ist die Arbeit dieser Karte. -->
                                 <DkButton variant="primary" :disabled="!neueAnkuendigungTitel.trim() || sendingAnkuendigung" :loading="sendingAnkuendigung" @click="createAnkuendigung">Veröffentlichen</DkButton>
                                 <!-- UX1f: Hier wird eine Eingabe verworfen — das ist „Abbrechen“
                                      (Wortliste) und damit ein secondary der vollen Höhe. -->
@@ -135,6 +140,8 @@
                         </template>
                         <div v-if="showAufgabeInput" class="grup-zeile">
                             <input v-model="neueAufgabe" type="text" placeholder="Neue Aufgabe…" class="dk-ui-eingabe" @keyup.enter="createAufgabe" />
+                            <!-- UX1h (S1): je Karte genau eine gefüllte Aktion —
+                                 „Übernehmen“ ist die Arbeit dieser Karte. -->
                             <DkButton variant="primary" :disabled="!neueAufgabe.trim() || sendingAufgabe" :loading="sendingAufgabe" @click="createAufgabe">Übernehmen</DkButton>
                             <!-- UX1f (N8): „✕“ allein sagt nicht, was passiert (Eingabe
                                  verwerfen) — der sichtbare Name steht als „Abbrechen“ dran. -->

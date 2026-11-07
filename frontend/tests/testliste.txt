@@ -236,3 +236,6 @@ tests/ux3h3-*.test.mjs
 tests/ux1g2-*.test.mjs
 # UX2c: Rückfragen durch Rückgängig + Endgültig-Dialog (ux2c-endgueltig.test.mjs).
 tests/ux2c-*.test.mjs
+
+# UX1h: genau ein Primärknopf je Ansicht (ux1h-primaerknopf.test.mjs).
+tests/ux1h-*.test.mjs

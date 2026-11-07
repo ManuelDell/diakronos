@@ -104,6 +104,11 @@
     <!-- Unterbereich 2: Links & QR-Codes (N3: voller Link, Oeffnen, QR) -->
     <div v-if="unterbereich === 'links'">
       <div class="reg-aktion">
+        <!-- UX1h (S1): Die drei Unterbereiche (Anfragen · Links · Formulare)
+             sind eigene Ansichten derselben Seite — jeder hat seine eine
+             Hauptaktion: Links „Neuer Link“, Formulare „Neues Formular“;
+             im Unterbereich Anfragen gibt es keine Anlege-Aktion (die Arbeit
+             ist das Aufnehmen einer Anfrage, das je Zeile entschieden wird). -->
         <DkButton variant="primary" @click="linkOeffnen">
           <IconPlus /> Neuer Link
         </DkButton>
@@ -166,12 +171,16 @@
           </div>
 
           <div class="reg-link-aktionen">
-            <!-- UX1f (S1): „Verlängern“ ist die Hauptaktion eines
-                 abgelaufenen Links und damit der gefüllte Knopf der Zeile;
-                 „Pausieren/Aktivieren“ und „Löschen“ stehen daneben in voller
-                 Höhe. Vorher waren alle drei gleich klein (sm) — der gefüllte
-                 Knopf war der einzige Unterschied. -->
-            <DkButton v-if="istAus(l)" variant="primary" @click="verlaengernOeffnen(l)">
+            <!-- UX1f (S1): „Verlängern“ ist die Arbeit eines abgelaufenen
+                 Links; „Pausieren/Aktivieren“ und „Löschen“ stehen daneben in
+                 voller Höhe.
+                 UX1h (S1): Der gefüllte Knopf wird innerhalb der Ansicht
+                 gedreht — die Liste der Links hat genau einen Primärknopf
+                 („Neuer Link“ oben), ein zweiter je abgelaufener Zeile wäre
+                 eine zweite Hauptaktion auf derselben Fläche. Die Zeile sagt
+                 ihre Rangfolge über Reihenfolge und Schrift („Löschen“ trägt
+                 die Gefahrenfarbe als Text). -->
+            <DkButton v-if="istAus(l)" variant="secondary" @click="verlaengernOeffnen(l)">
               <IconRefresh /> Verlängern
             </DkButton>
             <DkButton variant="secondary" @click="toggleLink(l)">
@@ -203,11 +212,14 @@
             <!-- OP-ADMIN-19: Die Zahl kommt vom Server (`felder_anzahl`); vorher
                  stand hier fest „–“, weil die Kind-Zeilen unsichtbar waren. -->
             <td>{{ f.felder_anzahl }}</td>
-            <!-- UX1f (S1): „Bearbeiten“ ist die Arbeit dieser Zeile und damit
-                 der EINE gefüllte Knopf; „Löschen“ (dauerhaft) steht daneben,
-                 die Gefahr trägt die Schriftfarbe. -->
+            <!-- UX1f (S1): „Bearbeiten“ ist die Arbeit dieser Zeile;
+                 „Löschen“ (dauerhaft) steht daneben, die Gefahr trägt die
+                 Schriftfarbe.
+                 UX1h (S1): Der gefüllte Knopf der Ansicht ist „Neues
+                 Formular“ oben — ein gefüllter Knopf je Tabellenzeile wäre
+                 eine zweite Hauptaktion auf derselben Fläche. -->
             <td class="is-aktion">
-              <DkButton variant="primary" @click="formularBearbeiten(f)">Bearbeiten</DkButton>
+              <DkButton variant="secondary" @click="formularBearbeiten(f)">Bearbeiten</DkButton>
               <DkButton variant="secondary" class="reg-loeschen-schrift" @click="formularEntfernen(f)">Löschen</DkButton>
             </td>
           </tr>

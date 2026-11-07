@@ -180,6 +180,10 @@
             </div>
             <div class="bt-comment-form">
               <input v-model="newComment" type="text" placeholder="Kommentar schreiben…" @keyup.enter="addComment" />
+              <!-- UX1h (S1): Das Beitragsfenster wird über „Schließen“ verlassen;
+                   genau ein gefüllter Knopf: „Absenden“ (die Arbeit dieses
+                   Formulars). Vorher war „Absenden“ der zweite Primary im
+                   selben Dialog. -->
               <DkButton variant="primary" size="md" :disabled="addingComment" :loading="addingComment" @click="addComment">Absenden</DkButton>
             </div>
           </div>

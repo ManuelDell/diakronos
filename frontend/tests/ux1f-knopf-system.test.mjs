@@ -248,10 +248,14 @@ test('UX1f/F3: „Person anlegen“ ist nur dort der Primärknopf, wo Anlegen di
   // zweiten Tätigkeit: es gibt weiterhin GENAU EINEN Anlege-Knopf im Kopf.
   const anlegen = [...vorlage(text).matchAll(/<DkButton\b[^>]*>[\s\S]{0,600}?Person anlegen/gs)]
   assert.equal(anlegen.length, 1, 'genau ein „Person anlegen“ im Kopf erwartet')
+  // UX1h: `anlegenIstHauptaktion` ist ein ref und wird in der Vorlage NICHT
+  // ausgepackt — der Ausdruck lautet deshalb `… .value ? …`.
   assert.match(anlegen[0][0], /:variant="anlegenIstHauptaktion \? 'primary' : 'secondary'"/,
     'die Betonung folgt dem Eintrag (anlegenIstHauptaktion)')
-  assert.match(text, /const ANLEGEN_NEBENACHLICH = new Set\(\['import', 'datenschutz'\]\)/,
-    'Import und Datenschutz tragen ihre eigene Hauptaktion')
+  // UX1h: auch die Unterbereiche von „Anfragen“ tragen ihre eigene
+  // Hauptaktion („Neuer Link“ / „Neues Formular“).
+  assert.match(text, /const ANLEGEN_NEBENACHLICH = new Set\(\['import', 'datenschutz'(, 'anfragen', 'links', 'formulare')?\]\)/,
+    'Import und Datenschutz (und die Anfragen-Unterbereiche) tragen ihre eigene Hauptaktion')
 })
 
 test('UX1f/F3: Datenschutz und Löschanträge haben ihre eigene Hauptaktion', () => {

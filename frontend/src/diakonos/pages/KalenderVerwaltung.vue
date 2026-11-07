@@ -31,7 +31,7 @@
       text="Lege den ersten Kalender an — zum Beispiel „Gemeinde“ oder „Jugend“."
       icon="📅"
     >
-      <DkButton variant="primary" @click="neuerKalender">Neuer Kalender</DkButton>
+      <DkButton variant="ghost" size="md" @click="neuerKalender">Neuer Kalender</DkButton>
     </DkEmpty>
 
     <div v-else class="kv-karten">

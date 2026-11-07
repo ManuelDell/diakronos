@@ -245,7 +245,10 @@ onBeforeUnmount(() => {
     />
     <p v-if="error" class="dk-import-error" role="alert">{{ error }}</p>
     <DkSkelett v-if="loading" kurz form="zeilen" :anzahl="3" text="Status und Kalender werden geladen" />
-    <section v-show="tab === 'google'" id="google-panel" class="dk-import-card" role="tabpanel" aria-label="Google-Kalender">
+    <!-- UX1h (S1): `v-if` statt `v-show` — die zwei Reiter sind zwei Ansichten,
+         und je Ansicht ist genau EIN gefüllter Knopf erlaubt. Mit `v-show`
+         standen die Google- und die iCal-Hauptaktion gleichzeitig im DOM. -->
+    <section v-if="tab === 'google'" id="google-panel" class="dk-import-card" role="tabpanel" aria-label="Google-Kalender">
       <p>Einmaliger Import, keine laufende Synchronisierung. Zugangsdaten gelten für diese Instanz.</p>
       <form v-if="step === 1" @submit.prevent="saveCredentials">
         <h2>1. Google-API-Zugangsdaten</h2>
@@ -259,6 +262,12 @@ onBeforeUnmount(() => {
           <DkButton type="submit" variant="primary" :loading="busy">{{ busy ? 'Speichern …' : 'Speichern & weiter' }}</DkButton>
         </fieldset>
       </form>
+      <!-- UX1h (S1): Schritt 2 ist eine eigene Ansicht (der Schritt 1 ist
+           erledigt) und hat genau einen gefüllten Knopf: „Mit Google
+           anmelden“. Ebenso ist in Schritt 3 „Ausgewählte importieren“ der
+           eine gefüllte Knopf; „Speichern & weiter“ und „Kalender
+           importieren“ (iCal) sind die Hauptaktion ihrer jeweiligen
+           Ansicht. -->
       <template v-else>
         <p>Zugangsdaten gespeichert. <DkButton size="md" :disabled="disabled" @click="step = 1">Zugangsdaten ändern</DkButton></p>
         <h2 v-if="step === 2">2. Mit Google anmelden</h2>
@@ -279,6 +288,10 @@ onBeforeUnmount(() => {
           <div class="dk-import-actions">
             <DkButton size="md" @click="calendars.forEach(cal => cal.selected = true)">Alle auswählen</DkButton>
             <DkButton size="md" @click="calendars.forEach(cal => cal.selected = false)">Alle abwählen</DkButton>
+            <!-- UX1h (S1): Schritt 2 hat den gefüllten Knopf („Mit Google
+                 anmelden“); in Schritt 3 ist „Ausgewählte importieren“ die
+                 eine Hauptaktion dieses Schritts. Die beiden Knöpfe stehen in
+                 sich ausschliessenden Schritten, nie gleichzeitig sichtbar. -->
             <DkButton variant="primary" :disabled="!calendars.length" @click="startGoogleImport">Ausgewählte importieren</DkButton>
           </div>
         </fieldset>
@@ -288,7 +301,7 @@ onBeforeUnmount(() => {
       <div v-if="result" role="status"><h2>{{ result.error ? 'Import teilweise fehlgeschlagen' : 'Import abgeschlossen' }}</h2><p>{{ result.total_imported || 0 }} Termine importiert, {{ result.total_skipped || 0 }} übersprungen.</p><p v-for="(cal, index) in result.calendars" :key="index">{{ cal.google_name }} → {{ cal.frappe_kalender }}: {{ cal.imported }} importiert, {{ cal.skipped }} übersprungen.</p></div>
       <DkButton v-if="!loading" :disabled="disabled" @click="error = ''; loadStatus()">Status erneut laden</DkButton>
     </section>
-    <section v-show="tab === 'ical'" id="ical-panel" class="dk-import-card" role="tabpanel" aria-label="iCal-Datei (.ics)">
+    <section v-else id="ical-panel" class="dk-import-card" role="tabpanel" aria-label="iCal-Datei (.ics)">
       <h2>iCal-Datei importieren (.ics)</h2>
       <p>Exportiere einen Kalender aus Google, Outlook oder Apple Kalender als .ics-Datei.</p>
       <form @submit.prevent="importIcal"><fieldset :disabled="disabled">

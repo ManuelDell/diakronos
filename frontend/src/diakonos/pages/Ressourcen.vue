@@ -7,16 +7,27 @@
          die wie ein Ergebnis aussah. -->
     <DkPageHeader title="Ressourcen" :sub="kopfUntertitel">
       <template #actions>
+        <!-- UX1h (S1): EINE Hauptaktion je Ansicht. „Buchen“ ist die Arbeit
+             dieser Seite und der einzige gefüllte Knopf. Der Umschalter
+             „Meine Buchungen“ ist eine Sicht, keine Aktion — er sagt seinen
+             Zustand über `aria-pressed` an und bleibt secondary.
+             Die frühere Aktion „Buchung anlegen“ ist entfallen: sie öffnete
+             dasselbe Formular wie „Buchen“ (identische Kopfzeile „Ressource
+             buchen“) und war damit ein zweiter Weg zur selben Handlung.
+             „Buchen“ steht auch ohne Admin-Recht zur Verfügung — wer nichts
+             buchen darf, bekommt das „Buchen“-Formular nicht mehr zu sehen
+             (Knopf/Leerzustand gegated), die Rechte prüft ohnehin der Server. -->
         <DkButton
-          :variant="showMyBookings ? 'primary' : 'secondary'"
+          variant="secondary"
+          :aria-pressed="showMyBookings ? 'true' : 'false'"
           @click="toggleMyBookings"
         >
           <IconCalendarCheck class="dk-icon-sm" />
           Meine Buchungen
         </DkButton>
-        <DkButton v-if="isAdmin" variant="primary" @click="openBookingModal()">
-          <IconPlus class="dk-icon-sm" />
-          Buchung anlegen
+        <DkButton v-if="darfBuchen" variant="primary" @click="openBookingModal()">
+          <IconCalendar class="dk-icon-sm" />
+          Buchen
         </DkButton>
       </template>
     </DkPageHeader>
@@ -182,6 +193,12 @@
           class="rs-leer"
         >
           <DkButton v-if="filterAktiv" variant="ghost" size="md" @click="filterZuruecksetzen">Filter zurücksetzen</DkButton>
+          <!-- UX1h (S1): Der Leerzustand beschreibt eine Lage statt einer
+               Handlung — sein Knopf ist abgestuft (ghost) und damit kein
+               zweiter Primärknopf neben „Buchen“ im Seitenkopf. -->
+          <DkButton v-else-if="darfBuchen" variant="ghost" size="md" @click="openBookingModal()">
+            <IconCalendar class="dk-icon-sm" /> Buchen
+          </DkButton>
         </DkEmpty>
 
         <!-- Offene Anfragen (Moderatoren) -->
@@ -236,9 +253,12 @@
               <!-- P1-4b/B1: gespiegelte Termin-Ressourcen (quelle="termin") sind
                    Kind-Zeilen eines Termins — sie werden am Termin entschieden,
                    nicht ueber `decide_buchung` (das laedt `Ressourcen Buchung`). -->
+              <!-- UX1h (S1): „Entscheiden“ ist die Arbeit des Moderators, nicht
+                   die Hauptaktion der Seite (das ist „Buchen“ im Seitenkopf) —
+                   deshalb secondary; „Ablehnen“ steht unverändert daneben. -->
               <DkButton
                 v-if="a.quelle === 'termin'"
-                variant="primary"
+                variant="secondary"
                 size="md"
                 @click="approveTerminRessource(a)"
               >
@@ -246,7 +266,7 @@
               </DkButton>
               <DkButton
                 v-else
-                variant="primary"
+                variant="secondary"
                 size="md"
                 @click="approveBuchung(a.id)"
               >
@@ -320,7 +340,13 @@
               </div>
             </div>
 
-            <DkButton variant="primary" class="rs-detail-booken" @click="openBookingModal(selectedResource)">
+            <!-- UX1h (S1): Die Detailspalte ist KEINE eigene Ansicht — sie steht
+                 neben der Liste auf derselben Seite, deren eine Hauptaktion
+                 „Buchen“ im Seitenkopf ist. Ein zweiter gefüllter Knopf hier
+                 war der Verstoß (vorher 5 Primärknöpfe auf dieser Ansicht).
+                 „Jetzt buchen“ bleibt deshalb secondary; die Zeile ist das
+                 Ziel, die Handlung führt über den Kopfknopf. -->
+            <DkButton variant="secondary" class="rs-detail-booken" @click="openBookingModal(selectedResource)">
               <IconCalendar class="dk-icon-sm" /> Jetzt buchen
             </DkButton>
           </div>
@@ -503,8 +529,15 @@ import DkSkelett from '../components/ui/DkSkelett.vue'
 import DkFilterChips from '../components/ui/DkFilterChips.vue'
 import { chipsMitZahlen, istAlle } from '../composables/filterChips.mjs'
 
-const { isAdmin } = useSession()
+const { isAdmin, user } = useSession()
 const sidebarRef = ref(null)
+
+// UX1h (S1): „Buchen“ ist der eine gefüllte Knopf der Ansicht. Anlegen ist
+// grundsätzlich jedermanns Antrag (create_buchung prüft nur, dass ein Konto
+// angemeldet ist; der Moderator entscheidet danach) — die Nebenbedingung des
+// früheren Knopfes `v-if="isAdmin"` wäre neben „Buchen“ ein zweiter Primärknopf
+// für dieselbe Handlung gewesen. Fehlt das Anmeldekonto, entfällt der Knopf.
+const darfBuchen = computed(() => !!user.value)
 
 // ============================================================
 // STATE
@@ -1017,7 +1050,6 @@ const Icon = {
   }
 }
 
-const IconPlus         = () => h('svg', { width:14, height:14, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', 'stroke-width':2, 'stroke-linecap':'round', 'stroke-linejoin':'round' }, [h('line',{x1:12,y1:5,x2:12,y2:19}), h('line',{x1:5,y1:12,x2:19,y2:12})])
 const IconCalendar     = () => h('svg', { width:14, height:14, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', 'stroke-width':2, 'stroke-linecap':'round', 'stroke-linejoin':'round' }, [h('rect',{x:3,y:4,width:18,height:18,rx:2}), h('line',{x1:16,y1:2,x2:16,y2:6}), h('line',{x1:8,y1:2,x2:8,y2:6}), h('line',{x1:3,y1:10,x2:21,y2:10})])
 const IconCalendarCheck= () => h('svg', { width:14, height:14, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', 'stroke-width':2, 'stroke-linecap':'round', 'stroke-linejoin':'round' }, [h('rect',{x:3,y:4,width:18,height:18,rx:2}), h('line',{x1:16,y1:2,x2:16,y2:6}), h('line',{x1:8,y1:2,x2:8,y2:6}), h('line',{x1:3,y1:10,x2:21,y2:10}), h('polyline',{points:'9 15 12 17 16 11'})])
 const IconUsers        = () => h('svg', { width:14, height:14, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', 'stroke-width':2, 'stroke-linecap':'round', 'stroke-linejoin':'round' }, [h('path',{d:'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'}), h('circle',{cx:9,cy:7,r:4}), h('path',{d:'M23 21v-2a4 4 0 0 0-3-3.87'}), h('path',{d:'M16 3.13a4 4 0 0 1 0 7.75'})])
