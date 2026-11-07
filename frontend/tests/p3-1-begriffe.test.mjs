@@ -58,8 +58,20 @@ test('UXD-R19: der tote „Suchen ⌘K“-Knopf ist in beiden Rahmen entfernt', 
     const topbar = lies('components/AppTopbar.vue')
     for (const [name, text] of [['Seitenleiste', sidebar], ['Kopfzeile', topbar]]) {
         // Nur das Markup prüfen — Kommentare dürfen die Befund-ID nennen.
+        //
+        // UX3f: Die Kopfzeile trägt seit der Befehlspalette wieder ein
+        // Suchfeld (`.dk-topbar-suche`) — diesmal MIT Ziel: der Klick öffnet
+        // die Palette (Strg+K). Der Befund von UXD-R19 war nicht das Suchfeld
+        // an sich, sondern ein Knopf OHNE jede Wirkung. Geprüft wird deshalb
+        // weiter: kein <kbd> im Markup (das Kürzel ist Text, kein Bedienelement)
+        // und nicht das alte, tote Markup.
         assert.doesNotMatch(text, /<kbd>/, `${name}: Tastenkürzel-Anzeige steht noch`)
         assert.doesNotMatch(text, /class="dk-sb-search|class="dk-topbar-search/, `${name}: Such-Markup steht noch`)
+    }
+    // Wenn die Kopfzeile ein Suchfeld hat, muss es die Palette öffnen.
+    if (/class="dk-topbar-suche/.test(topbar)) {
+        assert.match(topbar, /\$emit\('suche'\)/,
+            'das Suchfeld der Kopfzeile meldet den Klick nicht (toter Knopf wie UXD-R19)')
     }
 })
 

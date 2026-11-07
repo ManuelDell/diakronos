@@ -298,8 +298,18 @@
      sie wie jeder andere Abstand/Laengenwert. 420px ist keine Skalenzahl
      (4er-Skala endet bei 64), sondern die gemessene Grenze, ab der ein
      Satz „Rueckgaengig“ plus zwei Zeilen Text noch gut lesbar bleibt. */
+  /* Melde-Fläche (UX2a2b — siehe oben) */
   --melde-w:    420px;
   --melde-min-h: 56px;
+
+  /* UX3f: Befehlspalette (Entwurf A5: 640 × 624 px). Die beiden Maße sind
+     KEINE Skalenzahlen (die 4er-Skala endet bei 64) — es sind die im Entwurf
+     festgelegten Maße des Fensters, wie --melde-w. Sie stehen hier, damit die
+     Komponente kein Literal trägt (Wächter ux1a). Die Höhe der Suchzeile ist
+     das doppelte Feldmaß (2 × --sp-6), die Höhe einer Zeile --control-h. */
+  --palette-w: 640px;
+  --palette-h: 624px;
+  --palette-suchzeile-h: calc(var(--sp-6) * 2);
 
   /* Symbolgrößen (DES-10): vorher standen 11/12/13/14/16 px als style-Attribut
      an einzelnen Symbolen — uneinheitlich und in Tests nicht prüfbar. */
@@ -326,6 +336,11 @@
   --z-drawer:  200;
   --z-sheet:   300;
   --z-modal:   400;
+  /* UX3f: die Befehlspalette (Strg+K) liegt über allem, was ein Dialog öffnet
+     — auch über dem Dev-Rahmen (5000) und den Toast-Meldungen. Sie ist eine
+     Tastatur-Ebene, kein Inhalt: „Strg+K öffnet überall“ muss auch dann
+     stimmen, wenn gerade ein Fenster offen ist. */
+  --z-palette: 6000;
   --z-toast:   1000;
 
   /* Typografie */

@@ -44,8 +44,23 @@
     </div>
 
     <div class="dk-topbar-right">
-      <!-- UXD-R19: Der frühere Such-Knopf war ohne Funktion (Kopfzeile wie
-           Seitenleiste) und wurde entfernt. -->
+      <!-- UX3f (Entwurf A5): Die Kopfzeile trägt wieder eine Suche — diesmal
+           MIT Funktion: der Klick öffnet die Befehlspalette (Strg+K / ⌘+K).
+           Der frühere tote „Suchen ⌘K“-Knopf (UXD-R19) war reines Markup ohne
+           Ziel; dieser hier ruft `oeffnen()` der Palette auf. Das Kürzel steht
+           als Text „Strg K“ daneben (nicht als Tastatur-Element), damit die
+           Anzeige nicht wie eine zweite Bedienfläche wirkt. -->
+      <button
+        type="button"
+        class="dk-topbar-suche"
+        title="Suchen (Strg K)"
+        aria-label="Suchen — Befehlspalette öffnen (Strg K)"
+        @click="$emit('suche')"
+      >
+        <DkSymbol name="suchen" :groesse="16" />
+        <span>Suchen …</span>
+        <span class="dk-topbar-suche-kuerzel" aria-hidden="true">Strg K</span>
+      </button>
 
       <!-- Notifications (OP-HANDY-6): Klick OEFFNET die Liste. Markiert wird
            erst danach — vorher setzte der Klick ungesehen alles auf gelesen. -->
@@ -116,6 +131,7 @@ import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 import DkButton from './ui/DkButton.vue'
 import DkSkelett from './ui/DkSkelett.vue'
 import DkEmpty from './ui/DkEmpty.vue'
+import DkSymbol from './ui/DkSymbol.vue'
 import { darfAlsGelesenMarkieren } from '../composables/glocke.mjs'
 import { krumenZuSeite } from '../menue.js'
 import { MENUE_KNOPF_TEXT } from './handyMenue.mjs'
@@ -126,7 +142,8 @@ defineProps({
   // Schublade offen ist, sonst kündigt er sie falsch an (Prinzip N4/S4).
   menueOffen: { type: Boolean, default: false },
 })
-defineEmits(['toggle-collapse', 'open-menu'])
+// UX3f: `suche` öffnet die Befehlspalette (der Klick auf das Suchfeld).
+defineEmits(['toggle-collapse', 'open-menu', 'suche'])
 
 const { unreadCount, notifications, laden, fehler, ladeListe, markAsRead } = useNotifications()
 // UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).

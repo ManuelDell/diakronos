@@ -45,6 +45,12 @@ export const SYMBOLE = {
   pruefen: { p: ['m21 21-4.35-4.35'], c: [[11, 11, 8]] },
   // Abbrechen (X)
   abbrechen: { p: ['M18 6 6 18', 'M6 6l12 12'] },
+  // UX3f — Suchen (Lupe) für die Suchzeile der Befehlspalette. Gleiche
+  // Strichfamilie wie alle übrigen Symbole (lucide, ISC).
+  suchen: { p: ['m21 21-4.35-4.35'], c: [[11, 11, 8]] },
+  // UX3f — Hinzufügen (Plus) für die Aktionen „Termin anlegen“ /
+  // „Person anlegen“.
+  hinzufuegen: { p: ['M12 5v14', 'M5 12h14'] },
 }
 
 /** Alle verfügbaren Symbolnamen — für die Node-Tests. */

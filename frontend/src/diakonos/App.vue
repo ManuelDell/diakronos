@@ -27,12 +27,16 @@
            als einklappbares Feld IN der Seite (Kalender.vue). -->
       <AppSidebar v-if="!isVollbildMode" :collapsed="sidebarCollapsed" :theme="theme" @toggle-collapse="sidebarCollapsed = !sidebarCollapsed" @toggle-theme="toggleTheme" />
       <div class="dk-main-wrap">
+        <!-- UX3f (@suche) und UX3e (@open-menu) stehen NEBENeinander: das
+             Suchfeld oeffnet die Befehlspalette, der Menue-Knopf (nur
+             Mobil-Lage) die Schublade. -->
         <AppTopbar
           v-if="!isVollbildMode"
           :collapsed="sidebarCollapsed"
           :menue-offen="menueOffen"
           @toggle-collapse="sidebarCollapsed = !sidebarCollapsed"
           @open-menu="menueOeffnen"
+          @suche="befehlspalette?.oeffnen()"
         />
         <!-- OP-HANDY-24: Fortschrittsbalken während des Seitenwechsels. Bei
              langsamem Netz blieb sonst die alte Seite ohne jede Rückmeldung
@@ -118,6 +122,7 @@
          during render but is not defined" ab, sobald die App neu aufgebaut
          wurde. Ebenso `KronosEventView`, das hier nicht mehr importiert ist.
          Waechter: frontend/tests/fix7-vorlagen-bezeichner.test.mjs. -->
+    <Befehlspalette ref="befehlspalette" />
     <SitzungsHinweis />
     <DkBestaetigung />
 </template>
@@ -131,7 +136,8 @@ import DkSpinner from './components/ui/DkSpinner.vue'
 import AppTopbar from './components/AppTopbar.vue'
 import AuditConfirmModal from './components/AuditConfirmModal.vue'
 import AppBottomNav from './components/AppBottomNav.vue'
-// UX3e: Menü-Schublade am Handy (Entwurf A9).
+// UX3f: Befehlspalette (Strg+K), UX3e: Menü-Schublade am Handy (Entwurf A9).
+import Befehlspalette from './components/Befehlspalette.vue'
 import AppMenueSchublade from './components/AppMenueSchublade.vue'
 import { currentComponent, currentHash, currentPageName, navigate, pageLadefehler, routeNeuLaden, seitenLadend } from './router.js'
 import { useImpersonation } from './composables/useImpersonation.js'
@@ -188,6 +194,11 @@ function lageNachziehen() {
   istHandyLage.value = lageAbfrage ? lageAbfrage.matches : false
   if (!istHandyLage.value) menueOffen.value = false
 }
+/**
+ * UX3f: Griff auf die Befehlspalette. Der Klick auf das Suchfeld der Kopfzeile
+ * ruft `oeffnen()`; das Tastenkürzel (Strg+K / ⌘+K) hört die Palette selbst.
+ */
+const befehlspalette = ref(null)
 /**
  * DES-R22: Startwert aus composables/theme.mjs — erst die bewusste Wahl
  * (localStorage), sonst die Systemeinstellung, sonst hell.

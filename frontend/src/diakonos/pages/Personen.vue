@@ -239,6 +239,9 @@ function reiterWechseln(wert) {
 function adresseGeaendert() {
   const wert = reiterAusAdresse()
   if (wert !== aktiverReiter.value) aktiverReiter.value = wert
+  // UX3f: „Person anlegen“ der Befehlspalette kommt als `#/personen?anlegen=1`
+  // — auch wenn der Bereich schon offen ist (dann wechselt keine Seite).
+  anlegeWunschAusAdresse()
 }
 // Die Rolle steht beim Aufbau fest; wechselt sie (z. B. Identitätswechsel im
 // Devmodus), wird ein Reiter ohne Recht zur Liste.
@@ -440,7 +443,33 @@ onMounted(() => {
     window.addEventListener('hashchange', adresseGeaendert)
   }
   laden()
+  anlegeWunschAusAdresse()
 })
+
+/**
+ * UX3f: Die Befehlspalette bietet „Person anlegen“ als `#/personen?anlegen=1`.
+ * Der Schalter wird EINMAL gelesen und aus der Adresse entfernt, sonst öffnete
+ * jedes Neuladen das Formular erneut. Ohne Recht bleibt es beim Seitenwechsel
+ * (der Knopf erscheint dann gar nicht erst).
+ */
+function anlegeWunschAusAdresse() {
+  let werte
+  try {
+    werte = new URLSearchParams(String(location.hash || '').split('?')[1] || '')
+  } catch (_) {
+    return
+  }
+  if (werte.get('anlegen') !== '1') return
+  const rest = String(location.hash || '').split('?')[0] || '#/personen'
+  try {
+    history.replaceState(null, '', rest)
+  } catch (_) {
+    // s. Kalender.vue — der Dialog öffnet trotzdem einmal.
+  }
+  if (!istAdmin.value) return
+  personAnlegen()
+}
+
 onBeforeUnmount(() => {
   clearTimeout(suchUhr)
   if (typeof window === 'undefined') return

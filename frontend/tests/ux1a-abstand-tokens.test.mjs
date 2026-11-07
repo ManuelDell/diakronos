@@ -288,7 +288,7 @@ const OBERGRENZE = {
   'frontend/src/diakonos/components/website/FreigabeZeile.vue': 2,
   'frontend/src/diakonos/components/widgets/MyServicesWidget.vue': 7,
   'frontend/src/diakonos/components/widgets/PendingRegistrationsWidget.vue': 13,
-  'frontend/src/diakonos/index.css': 293,
+  'frontend/src/diakonos/index.css': 285,
   'frontend/src/diakonos/kronos.css': 188,
   'frontend/src/diakonos/pages/Adressbuch.vue': 9,
   'frontend/src/diakonos/pages/Beitraege.vue': 10,

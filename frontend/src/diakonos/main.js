@@ -13,6 +13,10 @@ import App from './App.vue'
 // importieren. Wechselt die Nutzerkennung (Anmeldung als jemand anderes),
 // wird der Cache vollstaendig geleert, bevor irgendeine Seite ihn liest.
 import { cacheNutzerSetzen, cacheLeeren } from './composables/usePlanrahmenCache.js'
+// UX3f (Review, DSGVO): derselbe Grund fuer den Verlauf „Zuletzt verwendet“ —
+// er haengt am Nutzer und raeumt fremde Staende beim Start weg
+// (`verlaufFuerNutzerAufraeumen` in befehlspalette.mjs).
+import { verlaufFuerNutzerAufraeumen } from './composables/befehlspalette.mjs'
 
 const boot = window.__DIakonosBOOT || {}
 const kennung = boot.user_email || boot.user_fullname || ''
@@ -22,6 +26,9 @@ if (kennung) {
     cacheLeeren()                // kein Nutzer -> nichts darf liegenbleiben
     cacheNutzerSetzen('')
 }
+try {
+    verlaufFuerNutzerAufraeumen(window.localStorage, kennung)
+} catch { /* Speicher gesperrt -> nichts zu raeumen */ }
 
 const app = createApp(App)
 

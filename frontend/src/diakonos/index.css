@@ -565,6 +565,45 @@ h1, h2, h3, h4 {
 .dk-topbar-left  { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
 .dk-topbar-right { display: flex; align-items: center; gap: 6px; }
 .dk-topbar-divider { width: 1px; height: 20px; background: var(--dk-divider); margin: 0 4px; }
+/* UX3f — Suchfeld der Kopfzeile: öffnet die Befehlspalette (Strg+K).
+   Ersetzt das tote `.dk-topbar-search` (UXD-R19); Name neu, damit kein
+   Wächter-Test das alte Markup sucht. Nur Tokens. */
+.dk-topbar-suche {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  /* Breite wie das Filterfeld: --karte-innen-Fläche plus Feldmaß. Kein
+     Literal (Wächter ux1a). */
+  min-width: calc(var(--control-h) * 5 + var(--sp-3));
+  min-height: var(--control-h);
+  background: var(--dk-surface-2);
+  border: var(--rahmen-breite) solid var(--dk-border);
+  border-radius: var(--radius);
+  color: var(--dk-text-muted);
+  font-family: inherit;
+  font-size: var(--fs-14);
+  text-align: left;
+  transition: background var(--dk-fast), border-color var(--dk-fast);
+  cursor: pointer;
+}
+.dk-topbar-suche:hover { background: var(--dk-surface-hover); border-color: var(--dk-border-strong); color: var(--dk-text); }
+.dk-topbar-suche > span:first-of-type { flex: 1; }
+.dk-topbar-suche-kuerzel {
+  flex: none;
+  background: var(--dk-surface);
+  border: var(--rahmen-breite) solid var(--dk-border);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--sp-1);
+  font-size: var(--fs-12);
+  color: var(--dk-text-subtle);
+}
+/* Mobil (390 px) bleibt nur das Symbol: die Kopfzeile hat dort keinen Platz
+   für „Suchen … Strg K“, und eine Tastatur gibt es ohnehin selten. */
+@media (max-width: 720px) {
+  .dk-topbar-suche { min-width: 0; padding: var(--sp-2); }
+  .dk-topbar-suche > span { display: none; }
+}
 .dk-topbar-search {
   display: flex;
   align-items: center;

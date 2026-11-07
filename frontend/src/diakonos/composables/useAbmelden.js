@@ -24,6 +24,7 @@
  * (nutzerbezogene Staende duerfen nicht beim naechsten Nutzer auftauchen).
  */
 import { cacheLeeren } from './usePlanrahmenCache.js'
+import { verlaufFuerNutzerAufraeumen } from './befehlspalette.mjs'
 // WEB-5b: Abmelde- und Anmeldeadressen unter dem Betriebs-Praefix.
 import { anmeldeUrl, apiUrl, basisPfad, mitBasis } from '../../shared/basis.js'
 
@@ -82,6 +83,13 @@ export function alleBrowserStaendeLeeren() {
     // W4: auch die uebrigen nutzerbezogenen Staende im localStorage entfernen
     // (Entwuerfe und Impersonationszustand), damit nach dem Abmelden kein
     // naechster Nutzer Reste sieht.
+    // UX3f (Review, DSGVO): der Verlauf „Zuletzt verwendet“ der Befehlspalette
+    // gehoert dazu — er verraet, wonach dieser Nutzer gesucht hat. Ohne
+    // Nutzerkennung (hier: wir melden gerade ab) raeumt die Funktion ALLE
+    // Verlaufs-Schluessel weg.
+    try {
+        verlaufFuerNutzerAufraeumen(window.localStorage, '')
+    } catch { /* Speicher nicht verfuegbar -> egal */ }
     // PLAN-W1: Die Einklapp-Wahl des Warnblocks (`pr-warnblock:<benutzer>`)
     // bleibt BEWUSST stehen — sie haengt am Benutzer und soll beim naechsten
     // Anmelden wieder gelten.

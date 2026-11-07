@@ -77,7 +77,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useKronosStore } from '../composables/useKronosStore.js'
 import { useKronosSidebar } from '../composables/useKronosSidebar.js'
 import { getMeinTermin } from '../composables/useEventsApi.js'
@@ -371,7 +371,54 @@ function onDayEventClick(eventData) {
 onMounted(() => {
   store.fetchAccessibleCalendars()
   offeneZahlLaden()
+  anlegeWunschAusAdresse()
+  // UX3f (Review): „Termin anlegen“ wirkt auch, wenn der Kalender SCHON offen
+  // ist. Dann ändert die Palette nur den Abfrageteil des Hashes
+  // (`#/kalender` -> `#/kalender?neu=1`), der Router baut die Seite nicht neu,
+  // und `onMounted` liefe nie wieder. Ein `hashchange`-Zuhörer holt den Wunsch
+  // nach — dasselbe Muster wie `adresseGeaendert` in Personen.vue.
+  window.addEventListener('hashchange', anlegeWunschAusAdresse)
 })
+
+onUnmounted(() => {
+  window.removeEventListener('hashchange', anlegeWunschAusAdresse)
+})
+
+/**
+ * UX3f: Die Befehlspalette bietet „Termin anlegen“ als `#/kalender?neu=1`.
+ * Der Schalter wird EINMAL beim Öffnen gelesen und sofort aus der Adresse
+ * entfernt (`history.replaceState`) — sonst öffnete jedes Neuladen und jedes
+ * Zurück den Dialog erneut. Ohne Schreibrecht bleibt es beim reinen
+ * Seitenwechsel (der Knopf erscheint dann gar nicht erst).
+ */
+function anlegeWunschAusAdresse() {
+  let werte
+  try {
+    werte = new URLSearchParams(String(location.hash || '').split('?')[1] || '')
+  } catch (_) {
+    return
+  }
+  if (werte.get('neu') !== '1') return
+  const rest = String(location.hash || '').split('?')[0] || '#/kalender'
+  try {
+    history.replaceState(null, '', rest)
+  } catch (_) {
+    // Ohne history-Zugriff bleibt der Schalter stehen; der Dialog öffnet
+    // trotzdem einmal — kein Grund, die Seite zu verlassen.
+  }
+  // Rechte kommen asynchron (`fetchAccessibleCalendars`) — kurz warten, damit
+  // „Termin anlegen“ nicht an einem noch leeren Kalender-Speicher scheitert.
+  const start = Date.now()
+  const versuch = () => {
+    if (hasWriteRight.value) {
+      createInitialData.value = {}
+      showCreate.value = true
+      return
+    }
+    if (Date.now() - start < 4000) setTimeout(versuch, 100)
+  }
+  versuch()
+}
 
 </script>
 
