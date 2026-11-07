@@ -237,9 +237,13 @@
           <input v-bind="feld.feldProps"
             required class="dk-ui-eingabe" placeholder="z. B. Gemeindefest 2026" />
         </DkField>
-        <DkField v-slot="feld" label="Typ" required :error="linkFehler.typ"
-          :wert="newLink.typ" @update:wert="newLink.typ = $event">
-          <DkSelect v-bind="feld.feldProps" :options="linkTypOptionen" />
+        <!-- UX3h5: DkSelect nimmt `modelValue`; der Wert läuft über `v-model`,
+             die leere Auswahl als `emptyValue`. Kennungen, Pflicht und
+             Fehlerzustand kommen aus dem Feld-Slot. -->
+        <DkField v-slot="feld" label="Typ" required :error="linkFehler.typ">
+          <DkSelect :id="feld.id" :aria-describedby="feld['aria-describedby']"
+            required :aria-invalid="feld['aria-invalid'] ? 'true' : undefined"
+            v-model="newLink.typ" :options="linkTypOptionen" empty-value="" />
         </DkField>
         <!-- REG-1b: Start und Ende eines Links gehoeren zusammen — sie stehen
              deshalb nebeneinander (Zeitraum in Leserichtung). Am Handy bricht
@@ -265,8 +269,12 @@
           <input v-model="newLink.unbegrenzt" type="checkbox" />
           <span>Unbegrenzt (unabhängig von der Vorgabe)</span>
         </label>
-        <DkField label="Anmeldeformular">
-          <DkSelect v-model="newLink.anmeldeformular_id" :options="formularOptionen" />
+        <!-- UX3h5: Auswahlfeld wie alle übrigen (DkSelect) — Kennungen fürs
+             Label aus dem Feld-Slot, der Wert über `v-model`, die leere Auswahl
+             als `emptyValue`. -->
+        <DkField v-slot="feld" label="Anmeldeformular">
+          <DkSelect :id="feld.id" :aria-describedby="feld['aria-describedby']"
+            v-model="newLink.anmeldeformular_id" :options="formularOptionen" empty-value="" />
         </DkField>
        </fieldset>
       </form>
@@ -844,7 +852,7 @@ async function fetchData() {
 
   try {
     const fRes = await apiCall('diakronos.diakonos.api.admin_hub.get_anmeldeformulare')
-    formulare.value = fRes.formulare || []
+    formulare.value = (fRes.message || fRes).formulare || []
   } catch (err) {
     console.error(err)
   } finally {

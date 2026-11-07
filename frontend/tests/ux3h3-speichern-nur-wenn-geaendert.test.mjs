@@ -44,7 +44,9 @@ const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http:
 for (const schluessel of ['window', 'document', 'Node', 'Element', 'HTMLElement', 'Event',
   'MouseEvent', 'SVGElement', 'CSS', 'CustomEvent', 'FormData', 'HTMLInputElement',
   'HTMLSelectElement', 'HTMLTextAreaElement', 'requestAnimationFrame',
-  'getComputedStyle', 'MutationObserver', 'KeyboardEvent', 'FocusEvent']) {
+  'getComputedStyle', 'MutationObserver', 'KeyboardEvent', 'FocusEvent',
+  // UX3h5: `v-model` an einem Eingabefeld braucht `Document` (aktives Element).
+  'Document', 'ShadowRoot']) {
   globalThis[schluessel] = dom.window[schluessel]
 }
 globalThis.requestAnimationFrame = dom.window.requestAnimationFrame
@@ -311,26 +313,13 @@ test('UX3h3/B: Gemeinde — Speichern nur, wenn geändert', async () => {
     return label && /Ort$/.test(label.textContent.trim())
   })
   assert.ok(ort, 'Ort-Feld mit dem geladenen Wert fehlt')
-  // BEFUND (UX3h3, gemessen): Das ORT-Feld zeigt nach dem Laden einen LEEREN
-  // Wert, obwohl der Server „Heilbronn“ liefert — `<input v-bind="feld.feldProps"
-  // v-model="ort">`: `feldProps` bringt einen `value`-Schlüssel (aus `wert`),
-  // und Vue setzt beim Binden `value` NACH dem `v-model`. Bei allen anderen
-  // Feldern ist `wert` nicht gesetzt, deshalb fällt es nur hier auf. Das ist
-  // NICHT Gegenstand dieser Karte (sie ändert nur, WANN gespeichert werden
-  // darf) und gehört als eigene Karte in die Feld-Bausteine.
-  // Für diesen Test zählt das Feld, das den geladenen Wert WIRKLICH trägt:
-  // die PLZ (auch sie kommt vom Server, ohne Sonderfall im Markup).
-  const plzFeld = [...host.querySelectorAll('input')].find((i) => {
-    const label = host.querySelector(`label[for="${CSS.escape(i.id)}"]`)
-    return label && /^PLZ$/.test(label.textContent.trim())
-  })
-  assert.ok(plzFeld, 'PLZ-Feld fehlt')
-  assert.equal(plzFeld.value, '74072', 'PLZ zeigt den geladenen Wert nicht')
+  // UX3h5/UX3h4: direkt am Ort-Feld — Server liefert „Heilbronn“ → Feld zeigt es.
+  assert.equal(ort.value, 'Heilbronn', 'Ort zeigt den geladenen Wert nicht')
   await pruefeAblauf(host,
-    async () => { tippen(plzFeld, '74074') },
-    async () => { tippen(plzFeld, '74072') })
+    async () => { tippen(ort, 'Heilbronn-Neckar') },
+    async () => { tippen(ort, 'Heilbronn') })
   // Speichern: der Knopf ruft `speichern` — danach ist der Stand der neue.
-  tippen(plzFeld, '74074')
+  tippen(ort, 'Heilbronn-Neckar')
   await warte(4)
   const knopf = speichernKnopf(host)
   assert.equal(knopf.disabled, false)

@@ -231,7 +231,12 @@ test('UX2f2b: jede Feldsatz-Bindung (`feld.feldProps`) steht in einem DkField-Sl
       if (vorher < 0) return // DkField.vue selbst (Dokumentation)
       fundstellen += 1
       if (!/feld\.feldProps/.test(zeile)) alteSchreibweise.push(`${kurz}:${i + 1}`)
-      const stueck = zeilen.slice(vorher, i + 1).join('\n')
+      // UX3h5: Der Slot gilt bis zum SCHLIESSENDEN `</DkField>` — zwischen
+      // Feldern stehende Kommentare (z. B. die Begründung einer Bindung)
+      // dürfen die Prüfung nicht aushebeln. Deshalb endet das geprüfte Stück
+      // am ersten `</DkField>` nach der Öffnung.
+      const ende = zeilen.findIndex((z, k) => k > vorher && /<\/DkField>/.test(z))
+      const stueck = zeilen.slice(vorher, ende >= 0 ? Math.min(ende, i) + 1 : i + 1).join('\n')
       if (!/v-slot="feld"/.test(stueck)) ohneSlot.push(`${kurz}:${i + 1}`)
     })
   }

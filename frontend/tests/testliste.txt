@@ -247,3 +247,7 @@ tests/demo2-*.test.mjs
 
 # UX1h: genau ein Primärknopf je Ansicht (ux1h-primaerknopf.test.mjs).
 tests/ux1h-*.test.mjs
+
+# UX3h5: Lade- und Speicher-Tests der Einstellungen nachgereicht
+# (Server-Wert → Feld, Speichern → Knopf inaktiv, DkSelect-Bindung Registrierung).
+tests/ux3h5-*.test.mjs
