@@ -231,5 +231,6 @@ tests/ux3e-*.test.mjs
 tests/ux3h-*.test.mjs
 tests/ux3f-*.test.mjs
 tests/ux1g-*.test.mjs
+tests/ux1g2-*.test.mjs
 # UX2c: Rückfragen durch Rückgängig + Endgültig-Dialog (ux2c-endgueltig.test.mjs).
 tests/ux2c-*.test.mjs

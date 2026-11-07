@@ -44,8 +44,9 @@ import {
   dateienImBereich,
 } from './ux1e-knopf-bestand.mjs'
 import { imBereich as imBereichUx1f } from './ux1f-knopf-bestand.mjs'
+import { BAUSTEIN_KLASSEN, fundstellenJeElement } from './knopf-elemente.mjs'
 
-export { FRONTEND, SRC, fundstellen, ohneKommentare, relativ }
+export { FRONTEND, SRC, fundstellen, ohneKommentare, relativ, BAUSTEIN_KLASSEN }
 
 /** Bericht der letzten Auszaehlung (Karte, Stand). */
 export const LISTE = path.join(FRONTEND, 'tools', 'ux1g-knopf-bestand.txt')
@@ -60,23 +61,11 @@ export function imFremdenBereich(rel) {
 }
 
 /**
- * Bausteine, die ABSICHTLICH ein Knopfartiges Element mit dokumentierter
- * Klasse tragen und deshalb nicht gezaehlt werden:
- *
- *   `.dk-ui-chip`   Auswahl-Chip (Druckschalter), gebaut in `components/ui/`
- *                   und in den Seiten als Bedienelement benutzt — Teil der
- *                   Baustein-Bibliothek, nicht der Alt-Knopfreihe.
- *   `.dk-ui-aktionen-ausloeser` / `-eintrag`
- *                   Ausloeser und Eintraege des Aktionsmenues „⋯" (UX2e) —
- *                   ein Menue-Bedienelement mit eigener Tastaturbedienung,
- *                   kein Knopf der Reihe primary/secondary/ghost/danger.
- *
- * Beides sind KEINE Alt-Knoepfe (`dk-btn*`, `btn*`, `*-btn`); der Zaehler
- * ueberspringt sie, damit „0" die Alt-Knopfreihe misst und nicht die
- * Bausteine mitzaehlt.
+ * Die Bausteine mit knopfartigem Element (`BAUSTEIN_KLASSEN`) und die Regel
+ * JE ELEMENT liegen in `tools/knopf-elemente.mjs`. Sie sind KEINE Alt-Knoepfe
+ * (`dk-btn*`, `btn*`, `*-btn`); der Zaehler ueberspringt sie, damit „0" die
+ * Alt-Knopfreihe misst und nicht die Bausteine mitzaehlt.
  */
-export const BAUSTEIN_KLASSEN = new Set(['dk-ui-chip', 'dk-ui-aktionen-ausloeser',
-  'dk-ui-aktionen-eintrag'])
 
 /** Gehoert dieser Pfad (`frontend/…`) zum Rest, den UX1g umstellt? */
 export function imBereich(rel) {
@@ -91,18 +80,18 @@ export function imBereich(rel) {
 /**
  * Fundstellen einer Quelldatei OHNE die Bausteine der Bibliothek
  * (`BAUSTEIN_KLASSEN`) — die zaehlen nicht als Alt-Knopf.
+ *
+ * UX1g2-KORREKTUR: Die Baustein-Ausnahme gilt JE ELEMENT. Vorher prueften die
+ * Zeilen unten das `class` gegen die GANZE Datei — ein einziger Chip irgendwo
+ * stellte damit alle klassenlosen `<button>` derselben Datei frei (Schlupfloch
+ * aus dem Review: `pages/planrahmen/Plan.vue` mit `class="dk-tab"`). Die Regel
+ * liegt jetzt in `tools/knopf-elemente.mjs` (`fundstellenJeElement`).
+ *
  * @param {string} text
  * @returns {string[]}
  */
 export function fundstellenOhneBausteine(text) {
-  const quelle = ohneKommentare(text)
-  return fundstellen(text).filter((name) => {
-    if (name !== '<button>') return true
-    // Ein rohes `<button class="dk-ui-chip">` ist der Auswahl-Chip; steht im
-    // selben Element eine erlaubte Klasse, ist es kein Alt-Knopf.
-    return ![...BAUSTEIN_KLASSEN].some((k) => quelle.includes(`class="${k}`)
-      && new RegExp(`<button[^>]*class="[^"]*\\b${k}\\b[^"]*"[^>]*>`).test(quelle))
-  })
+  return fundstellenJeElement(text)
 }
 
 /** Gezaehlte Fundstellen je Datei (nur der Rest, nur > 0). */

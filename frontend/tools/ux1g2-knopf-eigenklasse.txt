@@ -1,0 +1,50 @@
+# UX1g2 — eingefrorener Bestand: rohe <button> MIT Eigenklasse.
+#
+# Geprueft: alles unter frontend/src (ausser den Bereichen von UX1e/UX1f),
+#           ausser Kommentaren — Regel JE ELEMENT.
+# Format:   relativer/pfad<TAB>anzahl
+# Fundstelle = rohes <button class="eigen"> ohne Alt-Knopfklasse und ohne
+#              Baustein-Klasse (dk-ui-chip, dk-ui-aktionen-*).
+#
+# REGEL: Diese Liste darf NUR SCHRUMPFEN. Neue rohe Knoepfe mit Eigenklasse
+# sind nicht zulaessig — neue Knoepfe kommen aus DkButton
+# (components/ui/DkButton.vue). Beheben: node tools/ux1g2-knopf-bestand.mjs --schreiben
+# Geprueft von frontend/tests/ux1g2-knopf-element.test.mjs.
+#
+# Stand (UX1g2): 49 rohe Knoepfe mit Eigenklasse in 36 Dateien.
+frontend/src/diakonos/App.vue	2
+frontend/src/diakonos/components/AppMenueSchublade.vue	3
+frontend/src/diakonos/components/AppSidebar.vue	1
+frontend/src/diakonos/components/AppTopbar.vue	1
+frontend/src/diakonos/components/Befehlspalette.vue	1
+frontend/src/diakonos/components/MitgliedAuswahl.vue	1
+frontend/src/diakonos/components/VerantwortlicheKarte.vue	1
+frontend/src/diakonos/components/devmodus/BefundDialog.vue	1
+frontend/src/diakonos/components/devmodus/DevStart.vue	1
+frontend/src/diakonos/components/devmodus/Rahmen.vue	2
+frontend/src/diakonos/components/einrichtung/AssistentSchritte.vue	2
+frontend/src/diakonos/components/einrichtung/EinrichtungsKarte.vue	2
+frontend/src/diakonos/components/einrichtung/MitgliederLeerzustand.vue	1
+frontend/src/diakonos/components/einrichtung/SchrittModule.vue	1
+frontend/src/diakonos/components/lieder/LiedBearbeiten.vue	3
+frontend/src/diakonos/components/planrahmen/PrFelderEditor.vue	1
+frontend/src/diakonos/components/planrahmen/PrInfo.vue	1
+frontend/src/diakonos/components/planrahmen/PrKalender.vue	1
+frontend/src/diakonos/components/planrahmen/PrRegelnEditor.vue	1
+frontend/src/diakonos/components/ui/DkButton.vue	1
+frontend/src/diakonos/components/ui/DkDatumZeit.vue	2
+frontend/src/diakonos/components/ui/DkDialog.vue	1
+frontend/src/diakonos/components/ui/DkSegment.vue	1
+frontend/src/diakonos/components/ui/DkTabs.vue	1
+frontend/src/diakonos/components/widgets/QuickLinksWidget.vue	1
+frontend/src/diakonos/pages/Einstellungen.vue	2
+frontend/src/diakonos/pages/Home.vue	1
+frontend/src/diakonos/pages/LiedDetail.vue	1
+frontend/src/diakonos/pages/LiedgruppeDetail.vue	2
+frontend/src/diakonos/pages/devmodus/Befunde.vue	1
+frontend/src/diakonos/pages/einrichtung/Assistent.vue	1
+frontend/src/diakonos/pages/einstellungen/Gestaltung.vue	1
+frontend/src/diakonos/pages/planrahmen/Plan.vue	1
+frontend/src/diakonos/pages/planrahmen/PlantypEditor.vue	2
+frontend/src/diakonos/pages/planrahmen/Stammdaten.vue	2
+frontend/src/diakonos/pages/planrahmen/Uebersicht.vue	1
