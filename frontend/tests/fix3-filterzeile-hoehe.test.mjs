@@ -45,6 +45,20 @@ function regelBlock(text, selektor) {
 
 const ohneKommentare = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '')
 
+/** Der `@media (pointer: coarse)`-Block — bis zur schließenden Klammer. */
+function groberZeigerBlock(text) {
+  const start = text.indexOf('@media (pointer: coarse)')
+  if (start < 0) return ''
+  const auf = text.indexOf('{', start)
+  if (auf < 0) return ''
+  let tiefe = 0
+  for (let i = auf; i < text.length; i++) {
+    if (text[i] === '{') tiefe++
+    else if (text[i] === '}' && --tiefe === 0) return text.slice(start, i + 1)
+  }
+  return text.slice(start)
+}
+
 // ── 1. Das gemeinsame Maß ──────────────────────────────────────────────────
 test('FIX-3 · es gibt ein Höhen-Token --filter-h, gebunden an --control-h', () => {
   const treffer = /--filter-h:\s*([^;]+);/.exec(ohneKommentare(TOKENS))
@@ -56,9 +70,16 @@ test('FIX-3 · es gibt ein Höhen-Token --filter-h, gebunden an --control-h', ()
 test('FIX-3 · --control-h bleibt die einzige Zahl für die Knopfhöhe', () => {
   const control = /--control-h:\s*(\d+)px;/.exec(ohneKommentare(TOKENS))
   assert.ok(control, '--control-h gefunden')
-  // Die Zahl steht genau einmal (auch im Dunkelmodus nicht überschrieben).
+  // Die Zahl steht im `:root`-Grundblock genau einmal (auch im Dunkelmodus
+  // nicht mit einem anderen Wert überschrieben). Seit UX1c (C1) gibt es
+  // GENAU EINE weitere Neusetzung — die 44 px im `(pointer: coarse)`-Block,
+  // dieselbe Stelle wie das Token selbst. Jede weitere wäre eine zweite
+  // Knopfhöhe und damit genau der FIX-3-Befund.
   const zahlen = ohneKommentare(TOKENS).match(/--control-h:/g) || []
-  assert.equal(zahlen.length, 1, '--control-h nur an einer Stelle definiert')
+  assert.equal(zahlen.length, 2,
+    '--control-h nur im Grundblock und (am groben Zeiger) einmal neu gesetzt')
+  const grob = groberZeigerBlock(ohneKommentare(TOKENS))
+  assert.match(grob, /--control-h:\s*44px/, 'die zweite Stelle muss die 44 px sein')
 })
 
 // ── 2. Die drei Bausteine der Filterzeile ──────────────────────────────────

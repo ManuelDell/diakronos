@@ -193,13 +193,23 @@ test('DEV-3 · .dk-ui-eingabe hat eine Gestalt aus Tokens (kein weißes Browserf
 // Spezifität und eigener font-size würde das still wieder aushebeln.
 const TOUCH_MINDESTGROESSE = 16
 
+/**
+ * Alle Feldklassen des Formularsystems. UX1c (Review 07.11., Punkt 2): Die
+ * Liste nannte `.dk-form-textarea` nicht, obwohl `.dk-form-input/-select/
+ * -textarea` in index.css als EINE Gruppe stehen — die Regel am Dateiende
+ * (`.dk-form-input, .dk-form-select, .dk-form-textarea { font-size: var(--fs-14) }`)
+ * überstimmte die 16-px-Regel, und der iOS-Zoom kam zurück (OP-HANDY-14).
+ */
+const FELD_SELEKTOREN = ['input', 'select', 'textarea', '.dk-ui-eingabe',
+  '.dk-ui-select', '.dk-form-input', '.dk-form-select', '.dk-form-textarea']
+
 test('DEV-3 · OP-HANDY-14 bleibt wirksam: am Touchgerät ≥16 px, keine spätere Überschreibung', () => {
   // Alle Regeln, die eine Schriftgröße für ein Feld setzen — in Quellreihenfolge.
   const feldSchrift = []
   for (const { selektor, rumpf, bedingungen } of regeln(read('index.css'))) {
     const treffer = rumpf.match(/(^|[;\s])font-size\s*:\s*([^;]+)/)
     if (!treffer) continue
-    const nenntFeld = /(^|[\s,>])(input|select|textarea|\.dk-ui-eingabe|\.dk-form-input|\.dk-form-select)\b/
+    const nenntFeld = /(^|[\s,>])(input|select|textarea|\.dk-ui-eingabe|\.dk-ui-select|\.dk-form-input|\.dk-form-select|\.dk-form-textarea)\b/
     if (!nenntFeld.test(selektor)) continue
     feldSchrift.push({
       selektor,
@@ -211,6 +221,14 @@ test('DEV-3 · OP-HANDY-14 bleibt wirksam: am Touchgerät ≥16 px, keine späte
     (r) => r.touch && r.selektor.split(',').map((s) => s.trim()).includes('.dk-ui-eingabe'),
   )
   assert.ok(touch.length > 0, 'index.css: Touch-Regel für Felder vorhanden')
+  // Review UX1c (07.11., Punkt 2): Die Touch-Regel muss ALLE Feldklassen
+  // decken, nicht nur `.dk-ui-eingabe` — sonst gewinnt für die übrigen die
+  // spätere Grundregel, und Safari zoomt beim Antippen hinein.
+  const gedeckt = new Set(touch[touch.length - 1].selektor.split(',').map((s) => s.trim()))
+  for (const feld of FELD_SELEKTOREN) {
+    assert.ok(gedeckt.has(feld),
+      `Touch-Regel deckt "${feld}" nicht — die 16 px (OP-HANDY-14) fehlen dort`)
+  }
   // UX1b: die Groesse steht als Token (`var(--fs-16)`); die Zahl kommt aus
   // tokens.css. Rohwert und Verweis auf eine Stufe werden beide gelesen.
   const groesse = touch[touch.length - 1].groesse
@@ -219,16 +237,30 @@ test('DEV-3 · OP-HANDY-14 bleibt wirksam: am Touchgerät ≥16 px, keine späte
   assert.equal(px, TOUCH_MINDESTGROESSE,
     `Touch-Regel setzt ${TOUCH_MINDESTGROESSE} px (gefunden: ${groesse})`)
 
-  // Nur die Touch-Regel darf `.dk-ui-eingabe` eine Schriftgröße geben —
-  // gleich an welcher Stelle des Stylesheets.
-  const konkurrenz = regeln(read('index.css')).filter((r) => {
-    if (!/font-size\s*:/.test(r.rumpf)) return false
-    if (r.bedingungen.some((b) => TOUCH_MEDIA.test(b))) return false
-    return r.selektor.split(',').map((s) => s.trim()).includes('.dk-ui-eingabe')
-  })
-  assert.deepEqual(konkurrenz.map((r) => `${r.selektor} → ${r.rumpf.match(/font-size\s*:[^;]*/)[0]}`), [],
-    'Nur die Touch-Regel (OP-HANDY-14) darf die Schriftgröße von `.dk-ui-eingabe` bestimmen:\n'
-      + konkurrenz.map((r) => r.selektor).join('\n'))
+  // Nur die Touch-Regel darf einem Feld eine Schriftgröße geben — gleich an
+  // welcher Stelle des Stylesheets. Review UX1c (07.11., Punkt 2): geprüft
+  // wurden nur `.dk-ui-eingabe`; `.dk-form-input/-select/-textarea` setzten
+  // die Schrift am Dateiende auf 14 px und hebelten die Regel aus. Entweder
+  // setzt die Touch-Regel die Schrift (dann darf keine spätere Feldregel sie
+  // überstimmen), oder das Feld steht gar nicht in einer Schriftregel.
+  const betroffeneFelder = new Set()
+  for (const r of regeln(read('index.css'))) {
+    if (!/font-size\s*:/.test(r.rumpf)) continue
+    for (const feld of FELD_SELEKTOREN) {
+      if (r.selektor.split(',').map((x) => x.trim()).includes(feld)) betroffeneFelder.add(feld)
+    }
+  }
+  for (const feld of FELD_SELEKTOREN) {
+    const vorher = regeln(read('index.css')).filter((r) => {
+      if (!/font-size\s*:/.test(r.rumpf)) return false
+      if (r.bedingungen.some((b) => TOUCH_MEDIA.test(b))) return false
+      return r.selektor.split(',').map((x) => x.trim()).includes(feld)
+    })
+    assert.deepEqual(vorher.map((r) => `${r.selektor} → ${r.rumpf.match(/font-size\s*:[^;]*/)[0]}`), [],
+      `Nur die Touch-Regel (OP-HANDY-14) darf die Schriftgröße von "${feld}" bestimmen:\n`
+        + vorher.map((r) => `${r.selektor} → ${r.rumpf.match(/font-size\s*:[^;]*/)[0]}`).join('\n'))
+  }
+  assert.ok(betroffeneFelder.size > 0, 'keine Feld-Schriftregel in index.css gefunden')
 })
 
 // Review DEV-3 (2): Die Farbregel sollte nicht die Form app-weiter Felder

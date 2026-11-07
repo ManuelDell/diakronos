@@ -146,6 +146,10 @@ select {
   textarea,
   select {
     font-size: var(--fs-in-zeiger);
+    /* UX1c (C1): Felder sind auch Ziele — am groben Zeiger mindestens
+       `--control-h` (44 px). Die Server-Seite hat kein index.css; das Maß
+       kommt wie überall aus dem Token. */
+    min-height: var(--control-h);
   }
 }
 

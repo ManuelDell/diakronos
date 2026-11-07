@@ -200,6 +200,7 @@ tests/ux2a-*.test.mjs
 tests/ux2a2-*.test.mjs
 tests/ux2a2b-*.test.mjs
 tests/ux1b-*.test.mjs
+tests/ux1c-*.test.mjs
 tests/fix7-*.test.mjs
 tests/ux1j2-*.test.mjs
 tests/ux2d3a-*.test.mjs

@@ -377,7 +377,11 @@ function onResourceToggle() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
+  /* UX1c/C3 (Nacharbeit 07.11.): Mindestbreite kommt aus dem Token
+     (Desktop 36 px ist zu schmal fuer ein 44-px-Tippziel; Konzept K4:
+     `--control-h`, am groben Zeiger 44 px). Vorher stand hier das Literal
+     36px, das am Handy jede Trefferflaeche auf 36 px festnagelte. */
+  min-width: var(--control-h);
   height: var(--control-h);
   background: var(--surface);
   border: none;

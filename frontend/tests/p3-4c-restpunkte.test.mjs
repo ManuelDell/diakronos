@@ -55,17 +55,21 @@ function blockAb(css, start) {
 
 test('OP-HANDY-26: kleine Knoepfe, Chips und Kaestchen sind am Handy mindestens 24 px hoch', () => {
   const block = groberZeigerBlock(lies(INDEX_CSS))
-  assert.match(block, /min-height:\s*24px/,
-    'im Grob-Zeiger-Block fehlt die Mindesthoehe 24 px (WCAG 2.5.8)')
-  // UX1g: Die Altklassen (.dk-btn, .dk-btn-sm, .dk-btn-icon) gibt es nicht
-  // mehr; die Mindesthoehe gilt fuer den Baustein (dk-ui-btn).
+  // UX1c (C1): Die Untergrenze ist nicht mehr 24 px, sondern das Token
+  // `--control-h` (44 px am groben Zeiger). Der Test heißt weiter nach der
+  // Karte, die die Fläche überhaupt erst eingeführt hat; er prüft jetzt die
+  // STRENGERE Zusage: Mindesthöhe aus dem Token, WCAG 2.5.8 ist damit sicher
+  // erfüllt. UX1g hat die Altklassen (.dk-btn, .dk-btn-sm, .dk-btn-icon)
+  // entfernt — geprüft wird der Baustein `DkButton` (`.dk-ui-btn`).
+  assert.match(block, /min-height:\s*var\(--control-h\)/,
+    'im Grob-Zeiger-Block fehlt die Mindesthoehe aus --control-h (WCAG 2.5.8)')
   for (const selektor of ['.dk-ui-btn', '.dk-filter-chip',
                           'input[type="checkbox"]', 'input[type="radio"]']) {
     assert.ok(block.includes(selektor),
       `${selektor} fehlt bei den Mindesthoehen — das Tippziel bleibt zu klein`)
   }
-  assert.match(block, /min-width:\s*24px/,
-    'Symbole/Kaestchen brauchen auch 24 px Breite')
+  assert.match(block, /min-width:\s*var\(--control-h\)/,
+    'Symbole/Kaestchen brauchen auch die Mindestbreite aus --control-h')
 })
 
 test('OP-HANDY-26: das Kaestchen ist ueber die ganze Beschriftung antippbar', () => {

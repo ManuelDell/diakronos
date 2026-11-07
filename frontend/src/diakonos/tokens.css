@@ -283,9 +283,9 @@
      unverändert — das Bild ist um 6 px höher, die Glieder bleiben auf einer
      Linie (der Rückfallwert `var(--control-h, 40px)` in MitgliedAuswahl.vue
      ist mitgezogen).
-     Die 44 px für den groben Zeiger stehen als blockweite Neusetzung im
-     `@media (pointer: coarse)`-Block am Ende von index.css — dort, wo die
-     übrigen Zeiger-Regeln der App stehen (FIX-6/OP-HANDY-14). */
+     Die 44 px für den groben Zeiger setzt `tokens.css` selbst unmittelbar
+     unter dem 40-px-Wert (`@media (pointer: coarse)`), damit sie an der-
+     selben Stelle stehen wie das Token, das sie überschreiben. */
   --control-h: 40px;
   /* UX2a: Die UX-Karten schreiben für Knöpfe, Menüpunkte und Listenzeilen
      40 px vor (bei pointer:coarse 44 px). `--control-h` ist der Bestandswert
@@ -297,6 +297,17 @@
      und liefen damit 4 px auseinander. Jetzt kommt die Höhe beider aus
      --control-h, die Innenabstände nur noch waagerecht. */
   --filter-h: var(--control-h);
+  /* UX1c (C1): Mindesthöhe des kleinen Knopfes auf feinem Zeiger — das
+     Konzept sagt „DkButton sm nicht unter 32 px“. Der Wert ist ein Token,
+     nicht ein Literal in der Komponente; am groben Zeiger kommt die
+     Trefferfläche aus `--control-h` (44 px). */
+  --filter-h-sm: 32px;
+  /* UX1c (C2): Höhe eines Seitenleisten-Eintrags auf dem Desktop. 36 ist
+     bewusst KEINE Skalenzahl: die Skala gilt Abständen, 36 px ist das
+     gemessene Mindestmaß einer Zielzeile (Prinzip K4 „große Ziele“) zwischen
+     der 32er-Dichte (zu klein zum Treffen) und 40 px (Menü passte nicht
+     mehr ohne Scrollen, DES-R17). */
+  --sb-item-h: 36px;
   --row-h:     44px;
   --topbar-h:  56px;
   --sidebar-w:   256px;
@@ -764,4 +775,21 @@
   --dk-brand-700: var(--dk-navy-100);
   --dk-brand-800: var(--dk-navy-100);
   --dk-brand-900: var(--dk-navy-50);
+}
+
+/* ── UX1c (C1): 44 px am groben Zeiger ───────────────────────────────────────
+   Die 44 px stehen HIER und nicht in `index.css`: die Kaskade entscheidet bei
+   gleicher Spezifität (`:root`) nach der STELLE im Bündel, und Vite stellt die
+   per `@import` eingesammelten Regeln (also diese Datei) HINTER die direkt
+   geschriebenen. Eine Neusetzung in `index.css` verlor deshalb immer gegen die
+   `--control-h: 40px`-Zeile oben — gemessen UX1c/C3: 40 px statt 44 px, obwohl
+   `@media (pointer: coarse)` zutraf. Gleiche Quelle wie das Token selbst.
+   `--filter-h`/`--control-h-lg` werden mitgezogen, weil sie EINMAL in `:root`
+   ausgewertet werden und beim Zeigerwechsel sonst auf 40 px stehen blieben. */
+@media (pointer: coarse) {
+  :root {
+    --control-h: 44px;
+    --control-h-lg: 44px;
+    --filter-h: var(--control-h);
+  }
 }

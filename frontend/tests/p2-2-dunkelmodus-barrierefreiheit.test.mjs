@@ -113,7 +113,7 @@ assert.match(mitglieder, /<a[\s\S]{0,120}class="dk-member-card"[\s\S]{0,80}:href
   'DES-R5: Mitglieder-Karte ist kein Link')
 assert.match(lieder, /:href="'#\/lieder\/' \+ encodeURIComponent\(l\.name\)"/,
   'DES-R5: Lieder-Zeile/Karte ist kein Link')
-assert.match(adressbuch, /class="dk-zellen-link"[\s\S]{0,80}:href="'#\/mitglied\/' \+ m\.name"/,
+assert.match(adressbuch, /class="dk-zellen-link(?: dk-zellen-link--dehnen)?"[\s\S]{0,80}:href="'#\/mitglied\/' \+ m\.name"/,
   'DES-R5: Adressbuch-Zeile ist kein Link')
 
 // ── DES-09: Gruppenbilder mit Alternativtext ──────────────────────────────

@@ -240,11 +240,12 @@ test('UX1g/F5: die Knopfhöhe kommt aus --control-h, am Finger aus 44 px', () =>
     'DkButton „md“ muss seine Höhe aus dem Höhen-Token holen (--filter-h zeigt auf --control-h)')
   const tokens = lies('frontend/src/diakonos/tokens.css')
   assert.match(tokens, /--control-h:\s*40px/, '--control-h ist 40 px')
-  // Die 44 px bei grobem Zeiger setzt der Zeiger-Block am Ende von
-  // index.css (dort stehen alle pointer:coarse-Regeln, FIX-6/OP-HANDY-14).
-  const css = lies('frontend/src/diakonos/index.css')
-  const block = css.slice(css.lastIndexOf('@media (pointer: coarse)'))
-  assert.match(block, /--control-h:\s*var\(--control-h-lg\)|--control-h:\s*44px/,
+  // Die 44 px bei grobem Zeiger setzt `tokens.css` selbst — dort steht das
+  // Token, und nur dort gewinnt die Neusetzung gegen das 40-px-Grundmaß
+  // (UX1c: stand sie in index.css, verlor sie gegen die per `@import` hinter
+  // tokens.css einsortierten Regeln — gemessen 40 px statt 44 px).
+  const zeiger = tokens.slice(tokens.lastIndexOf('@media (pointer: coarse)'))
+  assert.match(zeiger, /--control-h:\s*var\(--control-h-lg\)|--control-h:\s*44px/,
     'bei grobem Zeiger sind es 44 px (K4) — der Block setzt --control-h neu')
 })
 

@@ -101,7 +101,12 @@
                         :key="m.name"
                     >
                         <td class="font-medium text-[var(--dk-text)]">
-                            <a v-if="darfProfilLink(m)" class="dk-zellen-link" :href="'#/mitglied/' + m.name">{{ m.vorname }} {{ m.nachname }}</a>
+                            <!-- UX1c (C2): Der Name dehnt sein Ziel über die GANZE Zeile
+                                 (Muster `dk-zellen-link--dehnen`, wie Mitglieder/Lieder) —
+                                 man trifft den Eintrag überall, die E-Mail- und
+                                 Telefon-Links bleiben einzeln erreichbar (index.css hebt
+                                 sie über die Linkfläche). -->
+                            <a v-if="darfProfilLink(m)" class="dk-zellen-link dk-zellen-link--dehnen" :href="'#/mitglied/' + m.name">{{ m.vorname }} {{ m.nachname }}</a>
                             <span v-else>{{ m.vorname }} {{ m.nachname }}</span>
                         </td>
                         <td class="text-[var(--dk-text-muted)]">

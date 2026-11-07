@@ -198,8 +198,17 @@ test('grundreset.css liegt vollstaendig in @layer reset', () => {
 test('index.css legt die Layer-Reihenfolge mit reset zuerst fest', () => {
   const index = ohneKommentare(
     fs.readFileSync(path.join(frontend, 'src', 'diakonos', 'index.css'), 'utf8'))
+  // UX1c: index.css ist UNGESCHICHTET (die @layer-Reihenfolge ist entfallen —
+  // Vite bündelte die @importe in einen Sammel-Layer, dadurch lag jede Regel
+  // doppelt vor und die spätere gewann; Zeiger-Regeln waren wirkungslos).
+  // Der Zweck des alten Tests — das Reset darf die Komponenten nicht
+  // überschreiben — wird hier direkt geprüft.
   const m = index.match(/@layer\s+([\w\s,.-]+);/)
-  assert.ok(m, 'index.css deklariert keine Layer-Reihenfolge (`@layer reset, …;`)')
+  if (!m) {
+    assert.ok(!/^@layer/m.test(index),
+      'index.css deklariert keine Layer-Reihenfolge mehr — dann darf dort auch kein @layer-Block stehen')
+    return
+  }
   const reihenfolge = m[1].split(',').map(s => s.trim()).filter(Boolean)
   assert.equal(reihenfolge[0], 'reset',
     `reset muss der ERSTE (schwaechste) Layer sein, steht aber an ${reihenfolge.indexOf('reset') + 1}. `

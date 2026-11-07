@@ -94,9 +94,19 @@ test('UX3e · Leiste ohne „Mehr“-Knopf und ohne Blatt', () => {
 test('UX3e · jeder Leisten-Tab ist mindestens 44 px hoch (K4, Mobil)', () => {
   const regel = /\.dk-bn-tab\s*\{([^}]*)\}/.exec(ohneKommentare(teile(LEISTE).stil))
   assert.ok(regel, 'Regel .dk-bn-tab gefunden')
-  const hoehe = /min-height:\s*(\d+)px/.exec(regel[1])
-  assert.ok(hoehe, 'min-height am Tab')
-  assert.ok(Number(hoehe[1]) >= 44, `Tab ist nur ${hoehe[1]} px hoch`)
+  // UX1c (T6): das Maß darf auch aus dem Token kommen — dann muss das Token
+  // selbst die 44 px tragen (`--control-h` am groben Zeiger). Beides ist
+  // zulässig; entscheidend ist das Maß, nicht die Schreibweise.
+  const zahl = /min-height:\s*(\d+)px/.exec(regel[1])
+  const token = /min-height:\s*var\(--control-h(?:-lg)?\)/.test(regel[1])
+  assert.ok(zahl || token, 'min-height am Tab')
+  if (zahl) assert.ok(Number(zahl[1]) >= 44, `Tab ist nur ${zahl[1]} px hoch`)
+  else {
+    const tokens = readFileSync(new URL('../src/diakonos/tokens.css', import.meta.url), 'utf8')
+    const grob = tokens.slice(tokens.indexOf('@media (pointer: coarse)'))
+    assert.match(grob, /--control-h:\s*44px/,
+      'min-height kommt aus --control-h — das Token muss am groben Zeiger 44 px sein')
+  }
 })
 
 // ── 2. Die Schublade (Entwurf A9) ──────────────────────────────────────────

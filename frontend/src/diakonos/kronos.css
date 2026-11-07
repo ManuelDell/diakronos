@@ -388,9 +388,20 @@
 .calendar-item:hover {
   background: var(--dk-surface-2);
 }
+/* UX1c/C3 (Nacharbeit 07.11.): Am groben Zeiger ist die GANZE Zeile das
+   Tippziel (Kalender-Liste der Seitenleiste) — 44 px hoch, Beschriftung als
+   Flaeche. Das Kaestchen selbst bleibt 18 px (siehe unten). */
+@media (pointer: coarse) {
+  .calendar-item {
+    min-height: var(--control-h);
+  }
+}
 .calendar-item input[type=checkbox] {
   width: 18px;
   height: 18px;
+  /* UX1c/C3 (Nacharbeit 07.11.): Das Kaestchen selbst bleibt 18 px; das
+     TIPPZIEL ist die ganze Zeile `.calendar-item` (44 px am groben Zeiger,
+     Regel direkt unter `.calendar-item:hover`). */
   border: 2px solid var(--calendar-color);
   border-radius: 4px;
   appearance: none;

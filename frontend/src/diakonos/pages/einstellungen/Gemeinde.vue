@@ -279,8 +279,16 @@ onMounted(laden)
 .gem-felder:disabled { opacity: .65; }
 .gem-hilfe { display: block; color: var(--muted); font-size: var(--fs-sm); }
 .gem-module { list-style: none; padding: 0; margin: var(--sp-3) 0 0; display: grid; gap: var(--sp-2); }
-.gem-schalter { display: flex; align-items: flex-start; gap: var(--sp-2); }
-.gem-schalter input { margin-top: var(--sp-1); flex-shrink: 0; }
+/* UX1c/C3 (Nacharbeit 07.11.): Das Kaestchen ist selbst das Tippziel und war
+   am Handy nur 13x44 breit (native Kaestchen sind ~13 px). Die Trefferflaeche
+   bekommt darum das Mindestmass des Zeigers aus dem Token; die Zeile selbst
+   (`.gem-schalter`) ist schon Flaeche genug. */
+.gem-schalter { display: flex; align-items: flex-start; gap: var(--sp-2); min-height: var(--control-h); }
+.gem-schalter input {
+  flex-shrink: 0;
+  margin: 0;
+  align-self: center;
+}
 /* ON-4: Logo-Vorschau + Aktionen (wie im Assistenten, hier im Einstellungs-Satz). */
 .gem-logo { display: flex; gap: var(--sp-4); align-items: flex-start; flex-wrap: wrap; }
 .gem-logo-aktionen { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }

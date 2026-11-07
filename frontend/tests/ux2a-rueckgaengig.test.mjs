@@ -489,8 +489,10 @@ test('C1 Aussehen: Meldung dunkel mit Gold-Aktion, keine Rohfarben (tokens.css)'
   const token = lies('frontend/src/diakonos/tokens.css')
   assert.match(token, /--control-h-lg:\s*40px/, 'Konzept-Vorgabe 40 px als Token')
   assert.doesNotMatch(aktionRegel, /min-height:\s*\d+px/, 'keine nackte px-Zahl am Knopf')
-  const grob = css.slice(css.lastIndexOf('@media (pointer: coarse) {'))
-  assert.match(grob, /\.diakonos-toast-aktion,\s*\n\s*\.diakonos-toast-schliessen\s*\{\s*\n\s*min-height:\s*44px/)
+  // UX1c: Der Grob-Zeiger-Block steht ungeschichtet am Dateianfang (Layer-Falle);
+  // das Maß kommt aus `--control-h` (44 px am groben Zeiger) statt 44 als Zahl.
+  const grob = css.slice(css.indexOf('@media (pointer: coarse) {'))
+  assert.match(grob, /\.diakonos-toast-aktion,\s*\n\s*\.diakonos-toast-schliessen\s*\{\s*\n\s*min-height:\s*var\(--control-h\)/)
   assert.equal(
     (css.match(/@media \(pointer: coarse\)\s*\{/g) || []).length, 1,
     'genau ein Grob-Zeiger-Block (p3-4c)',

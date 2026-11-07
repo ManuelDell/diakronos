@@ -99,8 +99,10 @@ const istAktiv = (tab) => istTabAktiv(tab, { seite: props.seite })
   background: none; border: none; cursor: pointer;
   padding: 0;
   /* UX3e (Entwurf A8): Trefferfläche ≥ 44 px (Prinzip K4) — die Zeile füllt
-     die 64 px hohe Leiste, also deutlich mehr als das Mindestmaß. */
-  min-height: 44px;
+     die 64 px hohe Leiste, also deutlich mehr als das Mindestmaß.
+     UX1c (T6): das Maß steht als Token, nicht als Literal in der Komponente
+     (der Wächter UX1c/T6 lässt genau das nicht zu). */
+  min-height: var(--control-h);
   transition: color 0.15s;
   -webkit-tap-highlight-color: transparent;
 }

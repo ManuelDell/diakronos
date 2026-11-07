@@ -1,3 +1,4 @@
+
 /* DEP-1: kein `frappe-ui/style.css` mehr — die Schrift „Inter“ liegt lokal
    im Buendel und wird in `tokens.css` eingebunden (dort erreichen sie alle
    vier Einstiege). */
@@ -375,6 +376,10 @@ h1, h2, h3, h4 {
      bzw. mit sichtbarer Leiste (siehe .dk-sb-nav). */
   padding: 6px 10px;
   border-radius: 8px;
+  /* UX1c (C2): Desktop-Einträge der Seitenleiste sind Ziele und bleiben
+     nicht unter 36 px hoch (Konzept; früher 6+6+20 = 32 px). Die 36 stehen
+     als Token-Länge `--sb-item-h` in tokens.css — kein Literal hier. */
+  min-height: var(--sb-item-h);
   color: var(--dk-sb-text);
   font-size: var(--fs-14);
   font-weight: var(--fw-mittel);
@@ -601,7 +606,11 @@ h1, h2, h3, h4 {
 /* Mobil (390 px) bleibt nur das Symbol: die Kopfzeile hat dort keinen Platz
    für „Suchen … Strg K“, und eine Tastatur gibt es ohnehin selten. */
 @media (max-width: 720px) {
-  .dk-topbar-suche { min-width: 0; padding: var(--sp-2); }
+  /* UX1c/C3 (Nacharbeit 07.11.): `min-width: 0` hob hier auch die
+     Mindest-BREITE auf — gemessen war der Knopf am Handy 34x44 (Hoehe aus
+     --control-h, Breite aus dem Inhalt). Ein quadratisches Tippziel statt
+     eines schmalen Balkens. */
+  .dk-topbar-suche { min-width: var(--control-h); padding: var(--sp-2); }
   .dk-topbar-suche > span { display: none; }
 }
 .dk-topbar-search {
@@ -1292,7 +1301,12 @@ a.gr-kachel:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 .dk-form-group { display: flex; flex-direction: column; gap: 4px; }
 .dk-form-group { margin-bottom: 14px; }
 .dk-form-group label { font-size: var(--fs-14); font-weight: var(--fw-mittel); color: var(--dk-text-muted); }
-.dk-form-input, .dk-form-select, .dk-form-textarea { padding: 8px 12px; background: var(--dk-surface); border: 1px solid var(--dk-border); border-radius: 8px; font-size: var(--fs-14); font-family: inherit; color: var(--dk-text); transition: border-color var(--dk-fast), box-shadow var(--dk-fast); width: 100%; }
+/* UX1c (Review 07.11., Punkt 2): KEINE eigene Schriftgröße — die Felder
+   erben die Schrift (grunreset: `font: inherit`). Die feste 14-px-Zeile hier
+   überstimmte die 16-px-Regel am groben Zeiger und holte den iOS-Zoom zurück
+   (OP-HANDY-14). Damit es keinen zweiten Kandidaten gibt, den der Wächter
+   nicht sieht, steht in `:root` KEINE Feld-Schriftgröße mehr. */
+.dk-form-input, .dk-form-select, .dk-form-textarea { padding: 8px 12px; background: var(--dk-surface); border: 1px solid var(--dk-border); border-radius: 8px; font-family: inherit; color: var(--dk-text); transition: border-color var(--dk-fast), box-shadow var(--dk-fast); width: 100%; }
 .dk-form-input::placeholder, .dk-form-textarea::placeholder { color: var(--dk-text-subtle); }
 .dk-form-actions { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 8px; }
 select.dk-form-select { appearance: auto; }
@@ -1997,53 +2011,144 @@ input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
    `min-width: 0`, das seit FIX-6b/K3 unbedingt oben steht (keine
    Zeiger-Frage) und hier nicht mehr abhängig vom groben Zeiger hängt.
    ===================================================================== */
+
+/* =====================================================================
+   UX1c (C1) · Touch-Anpassungen — Tippziele am groben Zeiger
+   ---------------------------------------------------------------------
+   Review 07.11. (Punkt 1): Dieser Block stand vorübergehend am DATEIANFANG
+   — vor den `@import`-Anweisungen, was nach CSS-Spezifikation ungültig ist,
+   und bei gleicher Spezifität verlor er gegen die später geschriebenen
+   Komponenten-Regeln. Er steht deshalb wieder am DATEIENDE, nach allen
+   Grundregeln. Geschichtet ist er NICHT: eine Regel in `@layer components`
+   verlöre gegen jede ungeschichtete Komponenten-Regel, auch mit
+   `!important` (DEP-2b).
+
+   Das Token selbst (`--control-h: 44px` am groben Zeiger) setzt
+   `tokens.css` unter dem 40-px-Grundmaß. Hier steht, was ELEMENTE anhebt,
+   deren Höhe aus einer KOMPONENTE kommt (DkButton bringt
+   `height: var(--filter-h)` mit, inkl. `[data-v-…]`) — dort mit
+   `!important`, sonst bliebe es beim 40-px-Grundmaß.
+   Nur am groben Zeiger; der Desktop bleibt unberührt.
+   Vorher standen dort feste 24 px — halbe Tippziele (Prinzip K4).
+
+   Review-Punkte 3–6 (07.11.) sind hier eingearbeitet:
+     · KEIN `min-height` an `.ec-event` — im Monatsraster verschwanden die
+       Termin-Kacheln (Screenshot kalender-hell-mobil.png). Die Kachel
+       bleibt, wie die Bibliothek und `kronos.css` sie zeichnen, und steht
+       als begründete Ausnahme im Messbericht.
+     · KEIN `min-width` an `button > svg` — Symbole in Textknöpfen wurden
+       44 px breit und rissen sie auseinander. Die Mindestbreite gehört an
+       den Knopf (`.dk-ui-btn`), nicht an das Symbol darin.
+     · Kästchen/Radio selbst bleiben klein; die TREFFERFLÄCHE ist das
+       `<label>` (`label:has(…)`, Höhe und Breite ≥ --control-h).
+     · KEIN `min-height` an `tr`/`td` der Tabellen — auf Tabellenzellen ist
+       `min-height` wirkungslos; die Zeilenfläche entsteht über die
+       gedehnte Linkfläche `.dk-zellen-link--dehnen` (C2).
+   ===================================================================== */
 @media (pointer: coarse) {
-  /* UX1a2 (Konzept „Klickflächen“): auf dem groben Zeiger wird die Klick-
-     fläche EINE Stufe größer — 44 px statt 40 (Prinzip K4 „Touch ≥ 44 px“).
-     Die Neusetzung steht hier und nicht in tokens.css, weil die Maße dort
-     themenunabhängig gelten; hier hängt sie am Zeigegerät. Alles, was seine
-     Höhe aus `--control-h` holt, folgt mit. */
+  /* UX1e2: `--filter-h` zeigt in tokens.css auf `--control-h`, wird aber
+     EINMAL in `:root` ausgewertet — beim Zeigerwechsel bliebe der alte
+     Wert (40 px) stehen, und DkButton „md“ wäre am Handy zu niedrig. */
   :root {
-    --control-h: 44px;
-    /* UX1e2: `--filter-h` zeigt in tokens.css auf `--control-h`, wird aber
-       EINMAL in `:root` ausgewertet — beim Media-Query-Wechsel bleibt der
-       alte Wert (40 px) stehen, und alles, was seine Höhe aus `--filter-h`
-       holt (DkButton „md“), bliebe auf dem Handy zu niedrig. Deshalb hier
-       ausdrücklich mitziehen. */
     --filter-h: var(--control-h);
   }
-  input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
-    font-size: var(--fs-16);
+  /* OP-HANDY-14 (FIX-6): 16-px-Felder gegen den iOS-Zoom. Der Block steht
+     am Dateiende, also NACH den Feld-Grundregeln der Datei
+     (`.dk-form-input { font-size: var(--fs-14) }`) — und gewinnt damit.
+     Wächter: tests/dev3-dialog-ueberschriften.test.mjs. */
+  /* OP-HANDY-14: alle Felder, auch die Bausteine (DkEingabe/DkSelect) —
+     gemessen war `select.dk-ui-select` im Dialog „Gruppe anlegen“ 14 px. */
+  input,
+  select,
+  textarea,
+  .dk-ui-eingabe,
+  .dk-ui-select,
+  .dk-form-input,
+  .dk-form-select,
+  .dk-form-textarea {
+    font-size: var(--fs-16) !important;
   }
-  /* UX1g: Die Alt-Klassen (.dk-btn, .dk-btn-sm, .dk-btn-icon) gibt es nicht
-     mehr — die Mindesthoehe gilt fuer den Baustein (dk-ui-btn) und die
-     Bausteine der Bibliothek. */
+  /* Knöpfe (DkButton „md“ und die Bausteine der Bibliothek). `!important`
+     nur hier: die Höhe kommt aus der Komponenten-SFC. */
   .dk-ui-btn,
   .dk-ui-chip,
-  .dk-filter-chip,
-  input[type="checkbox"],
-  input[type="radio"] {
-    min-height: 24px;
+  .dk-filter-chip {
+    min-height: var(--control-h) !important;
   }
-  button > svg,
-  input[type="checkbox"],
-  input[type="radio"] {
-    min-width: 24px;
+  /* Knopf mit kurzem Inhalt („⚙“, „?“, „+2“): war 44 px HOCH, aber nur
+     22 px BREIT — die Breite kommt aus dem Inhalt (Messung C3). Symbols
+     allein trägt die Mindestbreite deshalb am KNOPF, nicht am `<svg>`. */
+  .dk-ui-btn,
+  .kronos-back-btn,
+  .dk-icon-btn {
+    min-width: var(--control-h);
   }
+  /* Das Kästchen selbst bleibt klein (ein 44-px-Kästchen sähe aus wie ein
+     Schalter), die TREFFERFLÄCHE wächst mit dem Label — auch die Fläche
+     rechts neben dem Text. */
   label:has(> input[type="checkbox"]),
   label:has(> input[type="radio"]) {
     display: inline-flex;
     align-items: center;
-    min-height: 24px;
+    gap: var(--sp-2);
+    min-height: var(--control-h);
+    min-width: var(--control-h);
+    cursor: pointer;
   }
-  /* UX2a: der Knopf IN einer Meldung („Rückgängig“) und das ✕ sind am Handy
-     44 px hoch (Konzept: --control-h, bei pointer:coarse 44 px) — der
+  /* Seitenleiste, Kopfleiste, Bereichsliste, Einstellungen-Liste, Reiter,
+     Umschalter und Felder. Die Liste stammt aus der Messung (C3): jedes
+     Element darin war kleiner als 44 px, bevor es hier stand. */
+  .dk-nav-item,
+  .dk-sb-profil-punkt,
+  .dk-sb-logout,
+  .dk-sb-brand,
+  .dk-sb-search-bar,
+  .dk-ui-bz,
+  .ei-eintrag,
+  .dk-ui-segment-item,
+  .dk-menu-item,
+  .dk-tab,
+  .dk-bn-tab,
+  .dk-ui-tab,
+  .toggle-btn,
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea,
+  .dk-ui-eingabe,
+  .dk-form-input,
+  .dk-form-select,
+  .dk-form-textarea,
+  .dk-toolbar-search {
+    min-height: var(--control-h) !important;
+  }
+  /* Quadratische Tippziele: Höhe UND Breite. */
+  .dk-sb-collapse,
+  .dk-sb-theme-btn,
+  .dk-icon-btn,
+  .kronos-sidebar-close,
+  .kronos-back-btn,
+  .mini-prev,
+  .mini-next {
+    min-height: var(--control-h) !important;
+    min-width: var(--control-h) !important;
+  }
+  /* UX2a: der Knopf IN einer Meldung („Rückgängig“) und das ✕ — der
      Rückgängig-Knopf ist eine der wichtigsten Flächen der Oberfläche. */
   .diakonos-toast-aktion,
   .diakonos-toast-schliessen {
-    min-height: 44px;
+    min-height: var(--control-h) !important;
   }
   .diakonos-toast-schliessen {
-    width: 44px;
+    width: var(--control-h);
+  }
+  /* Kästchen/Radio bleiben klein (Review 07.11.): das Tippziel ist die Zeile
+     bzw. das Label (label:has(> input) oben) — begründete Ausnahme. */
+  /* „+N weitere“ unter einem Tag: Textlink in der Zelle — Höhe anheben
+     (44 px), Breite folgt dem Inhalt. Kein 44×44, weil der Link in der
+     ~53 px breiten Tagesspalte steht (begründete Ausnahme im Messbericht). */
+  .ec-day-foot a {
+    /* keine Mindesthöhe: in der Zelle schnitt sie „+N weitere“ ab (Review 07.11.) */
+    display: inline-flex;
+    align-items: center;
   }
 }

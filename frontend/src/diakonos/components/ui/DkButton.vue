@@ -138,7 +138,13 @@ const klassen = computed(() => [
    --filter-h ist heute --control-h; eine Quelle bleibt es trotzdem. */
 .dk-ui-btn--md { height: var(--filter-h); padding: 0 14px; }
 /* sm */
-.dk-ui-btn--sm { height: 28px; padding: 0 10px; font-size: var(--fs-sm); }
+/* UX1c (C1): Das kleine Knopfmaß („sm“) bleibt auf feinem Zeiger klein
+   (Konzept: „DkButton sm nicht unter 32 px Desktop“), ist aber am groben
+   Zeiger kein Sonderfall — dort gilt die Trefferfläche aus `--control-h`
+   (44 px, Regel im `(pointer: coarse)`-Block am Dateiende). Eine eigene
+   `min-height` hier würde jene Regel überstimmen (gleiche Spezifität,
+   spätere Quelle gewinnt) und die 44 px wieder aufheben. */
+.dk-ui-btn--sm { height: max(32px, var(--filter-h-sm)); padding: 0 10px; font-size: var(--fs-sm); }
 
 /* primary */
 .dk-ui-btn--primary {

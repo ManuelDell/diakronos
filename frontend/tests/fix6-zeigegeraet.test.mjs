@@ -174,9 +174,12 @@ test('FIX-6: Layout-Stellen hängen an der Breite (720 px), nicht am Zeiger', ()
 })
 
 const TOUCH_STELLEN = [
-    // UX1g: `.dk-btn-icon` ist entfallen (Knopf-System = DkButton); die
-    // Mindestgröße der Tippziele hängt jetzt an `button > svg`.
-    ['index.css', 'button > svg', 'min-width: 24px', 'Tippziel-Mindestgröße'],
+    // UX1c: die Mindestgröße kommt aus dem Token `--control-h` (40 px, am
+    // groben Zeiger 44 px) statt aus einem Literal. UX1g hat die Altklassen
+    // (.dk-btn, .dk-btn-sm, .dk-btn-icon) entfernt — die Mindestbreite hängt
+    // jetzt an `.dk-ui-btn`/`.dk-icon-btn` (Knopf), NICHT an `button > svg`
+    // (Review UX1c 07.11., Punkt 4: Symbole in Textknöpfen wurden 44 px breit).
+    ['index.css', '.dk-ui-btn', 'min-width: var(--control-h)', 'Tippziel-Mindestgröße'],
     ['components/ui/DkDatumZeit.vue', '.dk-ui-datumzeit-eingabe', 'min-height: 44px', 'Datums-/Zeitfeld'],
 ]
 // FIX-6b/K3: Die 16-px-Felder (`font-size: 16px`) hängen am groben Zeiger —
@@ -198,6 +201,29 @@ test('FIX-6b/K3: `min-width: 0` der Felder steht NICHT im Zeiger-Block', () => {
 
 test('FIX-6: Touch-Stellen hängen am groben Zeiger, nicht an der Breite', () => {
     for (const [pfad, selektor, deklaration, was] of TOUCH_STELLEN) {
+        // „MINWIDTH-CONTROL-H“: Das Merkmal steht in einer Selektoren-LISTE
+        // (`.dk-btn-icon, button > svg, …`) — geprüft wird die Regel, die die
+        // Deklaration trägt, im Zeiger-Block (UX1c).
+        if (selektor === 'MINWIDTH-CONTROL-H') {
+            // UX1c: Eine DEKLARATION im Zeiger-Block prüfen (der Selektor steht
+            // dort in einer Komma-Liste). Gemessen wird am Rumpf des
+            // @media-Blocks, nicht über den Regel-Zerleger: der verschachtelte
+            // `:root`-Block der Tokens verwirrt ihn bei `{`/`}`-Zählung.
+            const quelle = ohneKommentare(lies(pfad))
+            const stelle = quelle.indexOf(`@media ${TOUCH_CSS}`)
+            assert.ok(stelle >= 0, `${pfad}: kein @media ${TOUCH_CSS}-Block`)
+            let tiefe = 0
+            let ende = stelle
+            for (; ende < quelle.length; ende += 1) {
+                if (quelle[ende] === '{') tiefe += 1
+                else if (quelle[ende] === '}') { tiefe -= 1; if (tiefe === 0) break }
+            }
+            const block = quelle.slice(stelle, ende + 1)
+            assert.ok(block.includes(deklaration), `${pfad}: ${selektor} (${was}) steht nicht im Zeiger-Block`)
+            assert.ok(!/max-width/.test(quelle.slice(stelle, stelle + 40)),
+                `${pfad}: der Zeiger-Block hängt an der Breite (iPad quer verlöre ihn)`)
+            continue
+        }
         const treffer = regeln(lies(pfad)).filter((r) => r.bedingung
             && (r.selektor || '').split(',').some((s) => s.trim() === selektor))
             .filter((r) => (r.rumpf || '').includes(deklaration))
@@ -257,4 +283,30 @@ test('FIX-6: index.css trennt Layout- und Touch-Block', () => {
     const bedingungen = mediaBedingungen(lies('index.css'))
     assert.ok(bedingungen.includes(LAYOUT_CSS), 'index.css: Layout-Block (720 px) fehlt')
     assert.ok(bedingungen.includes(TOUCH_CSS), 'index.css: Touch-Block (pointer: coarse) fehlt')
+})
+
+// ── UX1c: der Zeiger-Block steht (genau einmal) am Dateiende ───────────────
+test('UX1c: der Touch-Block steht am Dateiende, nach allen Grundregeln', () => {
+    // Regression UX1c/C3: Stand der Block hinter den Komponenten-Regeln bzw. in
+    // einem `@layer`, blieb es bei gemessenen 40/34/42 px statt 44 px. Es darf
+    // genau EINEN `(pointer: coarse)`-Block geben (p3-4c), und er muss vor den
+    // Grundregeln stehen.
+    const text = ohneKommentare(lies('index.css'))
+    const alle = [...text.matchAll(/@media\s*\(pointer:\s*coarse\)\s*\{/g)]
+    assert.equal(alle.length, 1, 'index.css: genau ein grobe-Zeiger-Block erwartet')
+    // Review UX1c 07.11., Punkt 1: Am Dateianfang (vor den `@import`s) ist der
+    // Block nach CSS-Spezifikation ungültig und verliert bei gleicher
+    // Spezifität gegen die späteren Grundregeln. Er muss HINTER den
+    // `@import`-Anweisungen und hinter den Komponenten-Regeln stehen.
+    const importEnde = Math.max(
+        ...[...text.matchAll(/@import\s+[^;]+;/g)].map((m) => m.index + m[0].length))
+    assert.ok(alle[0].index > importEnde,
+        'index.css: der Zeiger-Block steht vor den @import-Anweisungen (ungültig)')
+    const grundregel = text.indexOf('.dk-ui-btn {')
+    if (grundregel >= 0) {
+        assert.ok(alle[0].index > grundregel,
+            'index.css: der Zeiger-Block steht vor der Knopf-Grundregel (§ Kaskade)')
+    }
+    assert.ok(text.slice(alle[0].index).includes('min-height: var(--control-h) !important'),
+        'index.css: der Zeiger-Block setzt keine Tippziel-Mindestgröße aus dem Token')
 })
