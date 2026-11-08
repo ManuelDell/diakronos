@@ -1,0 +1,17 @@
+[
+  {"name": "ueberschrift", "label": "Überschrift", "type": "text", "default": "Termine abonnieren"},
+  {"name": "basisadresse", "label": "Diakronos-Adresse", "type": "text", "default": ""},
+  {"name": "kalender", "label": "Kalender-Kennung (leer = alle freigegebenen)", "type": "text", "default": ""},
+  {"name": "text", "label": "Einleitungstext", "type": "text", "default": "Diesen Kalender können Sie in Ihrem Kalenderprogramm abonnieren. Die Termine werden dann automatisch aktuell gehalten."},
+  {"name": "text_abo", "label": "Beschriftung des Abo-Links", "type": "text", "default": "Kalender abonnieren"},
+  {"name": "text_https", "label": "Beschriftung der zweiten Adresse (ohne Abo-Schema)", "type": "text", "default": "Adresse zum Eintragen"},
+  {"name": "text_kopieren", "label": "Beschriftung des Kopieren-Knopfes", "type": "text", "default": "Adresse kopieren"},
+  {"name": "text_kopiert", "label": "Text nach dem Kopieren", "type": "text", "default": "Adresse kopiert"},
+  {"name": "text_anleitung", "label": "Überschrift der Kurzanleitung", "type": "text", "default": "So geht es"},
+  {"name": "text_handy", "label": "Kurzanleitung: Handy", "type": "text", "default": "Am Handy: den Link antippen — das Kalenderprogramm fragt von selbst, ob es den Kalender hinzufügen soll."},
+  {"name": "text_outlook", "label": "Kurzanleitung: Outlook", "type": "text", "default": "In Outlook: „Kalender“ → „Kalender hinzufügen“ → „Aus dem Internet abonnieren“ und die Adresse einfügen."},
+  {"name": "text_google", "label": "Kurzanleitung: Google Kalender", "type": "text", "default": "In Google Kalender: neben „Weitere Kalender“ auf „+“ → „Per URL“ und die Adresse einfügen."},
+  {"name": "text_laedt", "label": "Text während des Ladens", "type": "text", "default": "Abo-Adresse wird geladen …"},
+  {"name": "leertext", "label": "Text, wenn kein Kalender freigegeben ist", "type": "text", "default": "Zurzeit steht kein Kalender zum Abonnieren bereit."},
+  {"name": "fehlertext", "label": "Text, wenn die Adresse nicht geladen werden kann", "type": "text", "default": "Die Abo-Adresse ist derzeit nicht abrufbar. Bitte später erneut versuchen."}
+]

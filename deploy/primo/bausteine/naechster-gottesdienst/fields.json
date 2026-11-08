@@ -1,0 +1,14 @@
+[
+  {"name": "ueberschrift", "label": "Überschrift", "type": "text", "default": "Nächster Gottesdienst"},
+  {"name": "basisadresse", "label": "Diakronos-Adresse", "type": "text", "default": ""},
+  {"name": "auswahl", "label": "Zeigt den nächsten Termin aus", "type": "select", "default": "kalender", "config": {"options": [{"value": "kalender", "label": "einem Kalender"}, {"value": "kategorie", "label": "einer Kategorie"}]}},
+  {"name": "kalender", "label": "Kalender-Kennung (leer = alle freigegebenen)", "type": "text", "default": ""},
+  {"name": "kategorie", "label": "Kategorie-Kennung (leer = alle freigegebenen)", "type": "text", "default": ""},
+  {"name": "zusatztext", "label": "Zusatztext unter dem Termin (leer = keiner)", "type": "text", "default": ""},
+  {"name": "link", "label": "Adresse des Zusatzlinks (leer = kein Link)", "type": "text", "default": ""},
+  {"name": "link_text", "label": "Beschriftung des Zusatzlinks", "type": "text", "default": "Livestream"},
+  {"name": "ort_anzeigen", "label": "Ort anzeigen", "type": "switch", "default": true},
+  {"name": "leertext", "label": "Text, wenn kein Termin ansteht", "type": "text", "default": "Zurzeit ist kein Termin angekündigt."},
+  {"name": "text_laedt", "label": "Text während des Ladens", "type": "text", "default": "Termin wird geladen …"},
+  {"name": "fehlertext", "label": "Text, wenn der Termin nicht geladen werden kann", "type": "text", "default": "Der Termin ist derzeit nicht abrufbar. Bitte später erneut versuchen."}
+]

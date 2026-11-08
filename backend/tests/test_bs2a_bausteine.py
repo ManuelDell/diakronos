@@ -43,11 +43,14 @@ QUELLE_PAKET = (
 
 #: Alle mitgelieferten Bausteine, in der Reihenfolge von `block.json:index`.
 #: BS-2c: um Gruppen-Übersicht, Gruppen-Steckbrief, Neuigkeiten und Anmeldung
-#: erweitert. Weitere BS-Karten erweitern NUR diese eine Liste — vorher stand
-#: der Satz an fuenf Stellen (und jede neue Karte musste alle fuenf finden).
+#: erweitert. BS-2b hat kalender, naechster-gottesdienst und kalender-abo
+#: ergaenzt (index 21/22/23). Weitere BS-Karten erweitern NUR diese eine Liste.
 BAUSTEINE = (
     "kontakt",
     "termine-liste",
+    "kalender",
+    "naechster-gottesdienst",
+    "kalender-abo",
     "gruppen",
     "gruppe-steckbrief",
     "neuigkeiten",

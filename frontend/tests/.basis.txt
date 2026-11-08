@@ -1,0 +1,6 @@
+tests/bs2a*.test.mjs
+tests/bs1a*.test.mjs
+tests/bs1b*.test.mjs
+tests/bs1c*.test.mjs
+tests/bs1bc*.test.mjs
+tests/bs1d*.test.mjs

@@ -64,7 +64,10 @@ const MITGELIEFERT = [
   'anmeldung',
   'gruppe-steckbrief',
   'gruppen',
+  'kalender',
+  'kalender-abo',
   'kontakt',
+  'naechster-gottesdienst',
   'neuigkeiten',
   'termine-liste'
 ];

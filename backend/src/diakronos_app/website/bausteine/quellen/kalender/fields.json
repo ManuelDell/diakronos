@@ -1,0 +1,152 @@
+[
+  {
+    "name": "ueberschrift",
+    "label": "Überschrift",
+    "type": "text",
+    "default": "Kalender"
+  },
+  {
+    "name": "basisadresse",
+    "label": "Diakronos-Adresse",
+    "type": "text",
+    "default": ""
+  },
+  {
+    "name": "startansicht",
+    "label": "Startansicht",
+    "type": "select",
+    "default": "monat",
+    "config": {
+      "options": [
+        {
+          "value": "monat",
+          "label": "Monatsansicht"
+        },
+        {
+          "value": "liste",
+          "label": "Listenansicht"
+        }
+      ]
+    }
+  },
+  {
+    "name": "ansicht_umschaltbar",
+    "label": "Zwischen Monat und Liste umschalten",
+    "type": "switch",
+    "default": true
+  },
+  {
+    "name": "kalender",
+    "label": "Kalender-Kennungen (kommagetrennt, leer = alle freigegebenen)",
+    "type": "text",
+    "default": ""
+  },
+  {
+    "name": "kategorie",
+    "label": "Kategorie-Kennung (leer = alle freigegebenen)",
+    "type": "text",
+    "default": ""
+  },
+  {
+    "name": "gruppe",
+    "label": "Gruppen-Kürzel (leer = alle)",
+    "type": "text",
+    "default": ""
+  },
+  {
+    "name": "wochenstart",
+    "label": "Wochenstart",
+    "type": "select",
+    "default": "montag",
+    "config": {
+      "options": [
+        {
+          "value": "montag",
+          "label": "Montag"
+        },
+        {
+          "value": "sonntag",
+          "label": "Sonntag"
+        }
+      ]
+    }
+  },
+  {
+    "name": "farben_kalender",
+    "label": "Farben aus den Kalendern übernehmen",
+    "type": "switch",
+    "default": true
+  },
+  {
+    "name": "text_heute",
+    "label": "Beschriftung des Knopfes „Heute“",
+    "type": "text",
+    "default": "Heute"
+  },
+  {
+    "name": "text_zurueck",
+    "label": "Beschriftung des Knopfes „Zurück“",
+    "type": "text",
+    "default": "Zurück"
+  },
+  {
+    "name": "text_weiter",
+    "label": "Beschriftung des Knopfes „Weiter“",
+    "type": "text",
+    "default": "Weiter"
+  },
+  {
+    "name": "text_monat",
+    "label": "Beschriftung der Monatsansicht",
+    "type": "text",
+    "default": "Monat"
+  },
+  {
+    "name": "text_liste",
+    "label": "Beschriftung der Listenansicht",
+    "type": "text",
+    "default": "Liste"
+  },
+  {
+    "name": "text_ganztaegig",
+    "label": "Text bei ganztägigen Terminen",
+    "type": "text",
+    "default": "ganztägig"
+  },
+  {
+    "name": "text_anmeldung",
+    "label": "Beschriftung des Anmeldelinks",
+    "type": "text",
+    "default": "Zur Anmeldung"
+  },
+  {
+    "name": "text_mehr",
+    "label": "Text, wenn an einem Tag weitere Termine anstehen",
+    "type": "text",
+    "default": "weitere"
+  },
+  {
+    "name": "text_laedt",
+    "label": "Text während des Ladens",
+    "type": "text",
+    "default": "Termine werden geladen …"
+  },
+  {
+    "name": "leertext",
+    "label": "Text, wenn im Zeitraum keine Termine anstehen",
+    "type": "text",
+    "default": "In diesem Zeitraum sind keine Termine angekündigt."
+  },
+  {
+    "name": "fehlertext",
+    "label": "Text, wenn die Termine nicht geladen werden können",
+    "type": "text",
+    "default": "Die Termine sind derzeit nicht abrufbar. Bitte später erneut versuchen."
+  },
+  {
+    "name": "text_schliessen",
+    "label": "Beschriftung des Knopfes „Schließen“",
+    "type": "text",
+    "default": "Schließen"
+  }
+]

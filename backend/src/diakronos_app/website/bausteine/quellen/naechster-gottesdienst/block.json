@@ -1,0 +1,6 @@
+{
+  "kennung": "naechster-gottesdienst",
+  "name": "Diakronos: Nächster Gottesdienst",
+  "index": 22,
+  "beschreibung": "Zeigt den nächsten freigegebenen Termin eines Kalenders oder einer Kategorie aus Diakronos groß: Wochentag, Datum, Uhrzeit, Ort — mit optionalem Zusatzlink (z. B. Livestream)."
+}

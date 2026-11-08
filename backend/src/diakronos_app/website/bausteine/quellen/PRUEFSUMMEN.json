@@ -3,9 +3,12 @@
     "anmeldung": "986179594dc74c5d7e90dbdb66054b53225c9d212a28f495c9029cbfd847736b",
     "gruppe-steckbrief": "e9d666162ce7a8ffe07710c41a910798459c1bc157a8872ee9d2079d9880420e",
     "gruppen": "1c0bdfba8b0cc5b5b2d313fc308e9ae3e0350d9a4cd856dc9fa6da8db317a466",
+    "kalender": "ea8f10aab27e3e736f518ff993dc9541b5dd435b5dc04bfa15258fa320362ba0",
+    "kalender-abo": "631927b10864064b63aecfc92874fdcaf7f11a7c0d75f52f1512ebe5c7348051",
     "kontakt": "b557ea4ba52b46c3a5d667c0771ea5706740063525740bb6a68fea82f03ac08a",
+    "naechster-gottesdienst": "7d209d6083b09deff3f7e3868a646753566979fdc093f1c1bc493cff0cde688f",
     "neuigkeiten": "ff62af8e7fad23bed0f019615eec1dcb838c3b6fd0e5ff4c642bcf2ef70ccdb4",
     "termine-liste": "8feebc6f396488aa43fc9fa2fcc830d0cefa1517473c0b0749cde03f95464d4c"
   },
-  "version": 6
+  "version": 7
 }

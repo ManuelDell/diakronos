@@ -35,6 +35,16 @@ import pytest
 
 from diakronos_app.website import bausteine as bibliothek
 
+#: Die mitgelieferten Bausteine (BS-2b: um die drei Kalender-Bausteine
+#: erweitert; Reihenfolge = ``block.json`` index).
+BESTAND = (
+    "kontakt",
+    "kalender",
+    "termine-liste",
+    "naechster-gottesdienst",
+    "kalender-abo",
+)
+
 # ── Hilfen ─────────────────────────────────────────────────────────────────
 
 
@@ -153,7 +163,7 @@ def test_f2_nachziehen_ohne_zweiten_export(monkeypatch):
             speicher = io.BytesIO()
             with zipfile.ZipFile(speicher, "w") as archiv:
                 archiv.writestr("library/groups.yaml", '- id: ""\n  name: "Diakronos"\n')
-                for kennung in ("kontakt", "termine-liste"):
+                for kennung in BESTAND:
                     archiv.writestr(
                         f"library/diakronos/{kennung}/config.yaml",
                         f'name: "diakronos/{kennung}@v{version}"\n',
@@ -318,7 +328,7 @@ def test_f5_wurzelelement_traegt_sprache():
     ``<html>`` erzeugen. Er setzt die Sprache deshalb am eigenen
     Wurzelelement — das ist gültiges HTML und vererbt an alle Kinder.
     """
-    for kennung in ("kontakt", "termine-liste"):
+    for kennung in BESTAND:
         text = quelle(kennung)
         erste_zeile = text.splitlines()[0]
         assert erste_zeile.startswith("<section"), f"{kennung}: Wurzel ist kein <section>"
@@ -434,7 +444,7 @@ def test_kein_onmount_im_baustein():
     Geprueft wird der CODE, nicht die Kommentare: der Befund steht als
     Kommentar im Baustein (mit Namen), ausgefuehrt werden darf er nie.
     """
-    for kennung in ("kontakt", "termine-liste"):
+    for kennung in BESTAND:
         text = quelle(kennung)
         # Nur der <script>-Teil zaehlt; Kommentarzeilen darin werden entfernt.
         skript = text.split("<script>", 1)[1].split("</script>", 1)[0]
@@ -548,7 +558,7 @@ def test_dunkel_keine_hexfarbe_als_textfarbe():
     Ausnahme: ``color`` INNERHALB des Knopf-Blocks. Dort traegt der Akzent die
     FLAECHE, und auf einer gefuellten Flaeche ist geerbte Schrift falsch.
     """
-    for kennung in ("kontakt", "termine-liste"):
+    for kennung in BESTAND:
         im_knopf = False
         for zeile in _css(kennung).splitlines():
             if zeile.rstrip().endswith("{"):
@@ -565,7 +575,7 @@ def test_dunkel_keine_hexfarbe_als_textfarbe():
 def test_dunkel_text_und_flaeche_erben():
     """Text erbt, Flaeche bleibt durchsichtig, gedaempft/Rahmen folgen der
     geerbten Farbe (``color-mix``) — so stimmt der Kontrast in beiden Modi."""
-    for kennung in ("kontakt", "termine-liste"):
+    for kennung in BESTAND:
         css = _css(kennung)
         assert re.search(r"color:\s*var\(--dk-farbe-text,\s*inherit\)", css), (
             f"{kennung}: Text muss erben (Fallback inherit)"
@@ -584,7 +594,7 @@ def test_dunkel_text_und_flaeche_erben():
 def test_dunkel_akzent_nur_als_flaeche_und_kontur():
     """Der Akzent darf Flaeche/Kontur/Rahmen sein, nie Textfarbe; Warnungen
     werden ueber den Rahmen gezeigt, nicht ueber eine Hex-Textfarbe."""
-    for kennung in ("kontakt", "termine-liste"):
+    for kennung in BESTAND:
         for zeile in _css(kennung).splitlines():
             if not re.match(r"^\s*color\s*:", zeile):
                 continue
