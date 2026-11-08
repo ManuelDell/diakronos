@@ -404,9 +404,71 @@ test('BS-2a2/Dunkel: Links sind unterstrichen (Auszeichnung nicht nur Farbe)', (
   assert.ok(mit_link.length > 0, 'kein Baustein mit Link gefunden — Prüfung liefe ins Leere');
   for (const kennung of mit_link) {
     const stil = STIL(kennung);
-    const linkBlock = stil.slice(stil.indexOf('__link'));
-    assert.ok(linkBlock.length > 0, `${kennung}: kein __link-Stil gefunden`);
-    const block = linkBlock.slice(0, linkBlock.indexOf('}'));
-    assert.match(block, /text-decoration:\s*underline/, `${kennung}: Link ohne Unterstreichung`);
+    // BS-3a: Link-Klassen heißen nicht zwingend `__link` — der
+    // Ansprechpartner-Baustein nennt seinen Kontakt-Link `__knopf`. Geprüft
+    // wird deshalb die Regel, die zu EINEM Link-Element gehört: die erste
+    // Selektorzeile nach der Markup-Klasse des Links.
+    // Geprüft wird JEDES <a> im Markup. Die Unterstreichung darf aus einer
+    // Regel des Elements selbst ODER aus einer Regel seiner Klassen kommen —
+    // `kalender-abo` schreibt sie z. B. als `a.dk-abo__knopf` (Elementteil),
+    // `anmeldung` über die zweite Klasse `__link`. Der Knopf-Rahmen allein
+    // trägt die Auszeichnung NICHT (Ä4: Farbe/Rahmen ist kein alleiniger
+    // Träger) — die Unterstreichung ist Pflicht.
+    //
+    // Die Regel wird als TEXTBLOCK gesucht (`klassenname … {` bis zur
+    // schliessenden Klammer), nicht per Regex über den ganzen Stil: ein
+    // Muster auf Zeilenanfang lief bei der zweiten `<a>` desselben Bausteins
+    // ins Leere. Der Name wird mit `endsWith` verglichen, damit
+    // `.dk-x__knopf` nicht auch `.dk-x__knopfzeile` trifft.
+    const links = [...lies(join(QUELLE, kennung, 'component.svelte'))
+      .matchAll(/<a\s[^>]*class="([^"]+)"/g)]
+      .map((m) => m[1].split(/\s+/).filter(Boolean));
+    assert.ok(links.length > 0, `${kennung}: Link ohne Klasse`);
+
+    /**
+     * Alle CSS-Regelblöcke, deren Selektor auf `klasse` endet.
+     *
+     * Gesucht wird der Selektorteil direkt VOR einer öffnenden Klammer
+     * (`…{`), Kommentare werden vorher entfernt, und der Block endet erst bei
+     * seiner schliessenden Klammer — ein Zeilen-Split würde an mehrzeiligen
+     * Kommentaren und verschachtelten Regeln scheitern.
+     */
+    function regeln_zu(klasse) {
+      const ohne_kommentar = stil.replace(/\/\*[\s\S]*?\*\//g, '');
+      const gefunden = [];
+      let i = 0;
+      while ((i = ohne_kommentar.indexOf('{', i)) !== -1) {
+        // Selektorteil: von der letzten schliessenden Klammer/Zeilenanfang an.
+        const ende = i;
+        let anfang = ende - 1;
+        while (anfang > 0 && !'}\n'.includes(ohne_kommentar[anfang - 1])) anfang -= 1;
+        const selektoren = ohne_kommentar.slice(anfang, ende).split(',').map((t) => t.trim());
+        // Auch `:global(.klasse)` und `p.klasse` zählen: die Klasse wird
+        // innerhalb des Selektors gesucht, nicht als ganzes Token.
+        const passt = selektoren.some((t) => t.includes(`.${klasse}`));
+        let tiefe = 0;
+        let j = i;
+        for (; j < ohne_kommentar.length; j += 1) {
+          if (ohne_kommentar[j] === '{') tiefe += 1;
+          if (ohne_kommentar[j] === '}') {
+            tiefe -= 1;
+            if (tiefe === 0) break;
+          }
+        }
+        if (passt) gefunden.push(ohne_kommentar.slice(anfang, j + 1));
+        i = j + 1;
+      }
+      return gefunden;
+    }
+
+    let geprueft = false;
+    for (const klassen of links) {
+      const regeln = klassen.flatMap((klasse) => regeln_zu(klasse));
+      assert.ok(regeln.length > 0, `${kennung}: kein Stil für ${klassen.join(' ')}`);
+      const unterstrich = regeln.some((r) => /text-decoration:\s*underline/.test(r));
+      assert.ok(unterstrich, `${kennung}: Link (${klassen.join(' ')}) ohne Unterstreichung`);
+      geprueft = true;
+    }
+    assert.ok(geprueft, `${kennung}: kein Link-Stil gefunden`);
   }
 });

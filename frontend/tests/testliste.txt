@@ -261,6 +261,9 @@ tests/bs2b-*.test.mjs
 # Neuigkeiten, Anmeldung) gegen die öffentliche Lese-API aus BS-1b.
 tests/bs2c-*.test.mjs
 tests/bs2c2-*.test.mjs
+# BS-3a: Baustein Ansprechpartner mit Einwilligung (Bethaus: nur Personen mit
+# eigener Zustimmung, Foto nur mit Foto-Zustimmung, Feld-Positivliste).
+tests/bs3a-*.test.mjs
 tests/bs2d-*.test.mjs
 # BS-2d2: Mount-Test „Seite öffnen → Liste + Knopf sichtbar“ — das echte
 # Bauteil BausteineBereich.vue in jsdom, ohne Klick (onMounted lädt).

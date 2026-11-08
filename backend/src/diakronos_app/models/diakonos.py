@@ -981,6 +981,24 @@ class Mitglied(Base):
     werbeeinwilligung: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     werbung_datum: Mapped[Any | None] = mapped_column(Date, nullable=True)
     adressbuch_sichtbarkeit: Mapped[Any | None] = mapped_column(Text, nullable=True)
+    # BS-3a (Migration `bs3a_website_einwilligung`): Einwilligung fuer die
+    # oeffentliche Ansprechpartner-Ausgabe der Website. Sie kommt von der
+    # PERSON selbst (`website.meine_einwilligung_setzen`), NICHT von der
+    # Verwaltung, und ist Default AUS (G1). Widerruf wirkt sofort, weil die
+    # oeffentliche Ausgabe diese Spalten bei jeder Anfrage liest.
+    # `website_einwilligung_am` ist der Zeitstempel der letzten Zustimmung
+    # (NULL = nie zugestimmt, Nachweis fuer Art. 7 Abs. 1 DSGVO).
+    # `website_einwilligung_foto` ist eine EIGENE Zustimmung zum Bild; das
+    # Verwaltungsfeld `foto_einwilligung` oben bleibt davon unberuehrt.
+    # `website_anzeigename` ist freiwillig (z. B. nur der Vorname).
+    website_einwilligung: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    website_einwilligung_am: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=False), nullable=True
+    )
+    website_einwilligung_foto: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    website_anzeigename: Mapped[Any | None] = mapped_column(String(140), nullable=True)
     notiz: Mapped[Any | None] = mapped_column(Text, nullable=True)
     bereiche: Mapped[list["MitgliedBereich"]] = relationship(
         primaryjoin="Mitglied.name == foreign(MitgliedBereich.parent) and MitgliedBereich.parentfield == 'bereiche'",

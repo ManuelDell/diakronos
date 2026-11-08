@@ -23,6 +23,8 @@ from diakronos_app.models.gestaltung import GestaltungAbweichung
 from diakronos_app.models.sicherung import Sicherungseinstellungen, Sicherungslauf
 from diakronos_app.models.website import PrimoKonto
 from diakronos_app.models.website_kontakt import WebsiteKontaktPostfach
+# BS-3a: Verwaltungsauswahl der Ansprechpartner-Bereiche (Handmodell).
+from diakronos_app.models.website_ansprechpartner import WebsiteAnsprechpartner
 from diakronos_app.models.smtp import SmtpEinstellungen
 from diakronos_app.models.auth_oidc import Anmeldeeinstellungen
 from diakronos_app.models.auth_oidc import GruppenRolleZuordnung
@@ -252,4 +254,5 @@ __all__ = [
     "Sicherungseinstellungen",
     "Sicherungslauf",
     "WebsiteKontaktPostfach",
+    "WebsiteAnsprechpartner",
 ]

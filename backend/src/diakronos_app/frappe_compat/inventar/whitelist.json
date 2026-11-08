@@ -7953,6 +7953,58 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.website.ansprechpartner_bereiche_lesen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.website",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "ansprechpartner_bereiche_lesen",
+   "pfade": [
+    "ansprechpartner_bereiche_lesen",
+    "api.ansprechpartner_bereiche_lesen",
+    "diakronos.diakronos.api.website.ansprechpartner_bereiche_lesen",
+    "diakronos_app.api.website.ansprechpartner_bereiche_lesen",
+    "website.ansprechpartner_bereiche_lesen"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.website.ansprechpartner_bereiche_setzen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.website",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "ansprechpartner_bereiche_setzen",
+   "pfade": [
+    "ansprechpartner_bereiche_setzen",
+    "api.ansprechpartner_bereiche_setzen",
+    "diakronos.diakronos.api.website.ansprechpartner_bereiche_setzen",
+    "diakronos_app.api.website.ansprechpartner_bereiche_setzen",
+    "website.ansprechpartner_bereiche_setzen"
+   ],
+   "rumpf_grund": "Aufruf sess.commit(); Aufruf sess.add()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
    "ausnahme_quelle": "deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
@@ -8136,6 +8188,58 @@
     "website.login_uebergabe"
    ],
    "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.website.meine_einwilligung_lesen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.website",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "meine_einwilligung_lesen",
+   "pfade": [
+    "api.meine_einwilligung_lesen",
+    "diakronos.diakronos.api.website.meine_einwilligung_lesen",
+    "diakronos_app.api.website.meine_einwilligung_lesen",
+    "meine_einwilligung_lesen",
+    "website.meine_einwilligung_lesen"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.website.meine_einwilligung_setzen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.website",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "meine_einwilligung_setzen",
+   "pfade": [
+    "api.meine_einwilligung_setzen",
+    "diakronos.diakronos.api.website.meine_einwilligung_setzen",
+    "diakronos_app.api.website.meine_einwilligung_setzen",
+    "meine_einwilligung_setzen",
+    "website.meine_einwilligung_setzen"
+   ],
+   "rumpf_grund": "Aufruf log_einwilligung(); Aufruf log_einwilligung(); Aufruf log_einwilligung()",
    "rumpf_ueber": null
   },
   {
@@ -9295,6 +9399,32 @@
    "ausnahme_quelle": null,
    "deklariert": "lesend",
    "einstufung": "lesend",
+   "funktion": "diakronos_app.website.oeffentlich_api.ansprechpartner",
+   "methoden": [
+    "GET"
+   ],
+   "methoden_pflicht": "GET/POST",
+   "modul": "diakronos_app.website.oeffentlich_api",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "ansprechpartner",
+   "pfade": [
+    "diakronos.diakronos.api.website.ansprechpartner",
+    "diakronos_app.website.oeffentlich_api.ansprechpartner",
+    "oeffentlich_api.ansprechpartner",
+    "website.oeffentlich.ansprechpartner"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": true,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": "lesend",
+   "einstufung": "lesend",
    "funktion": "diakronos_app.website.oeffentlich_api.beitraege",
    "methoden": [
     "GET"
@@ -9444,12 +9574,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 357,
+ "funktionen": 362,
  "nur_test": [],
- "registrierte_pfade": 1835,
+ "registrierte_pfade": 1859,
  "rumpf_zaehlung": {
-  "lesend": 177,
-  "schreibend": 180
+  "lesend": 180,
+  "schreibend": 182
  },
  "widersprueche": [
   {
@@ -10197,7 +10327,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 162,
-  "schreibend": 195
+  "lesend": 165,
+  "schreibend": 197
  }
 }

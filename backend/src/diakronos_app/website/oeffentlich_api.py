@@ -348,6 +348,42 @@ def beitraege(request=None, limit=None, kategorie=None):
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# BS-3a — Ansprechpartner (mit Einwilligung)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@whitelist(methods=["GET"], allow_guest=True)
+def ansprechpartner(request=None, bereich=None):
+    """Ansprechpartner mit Einwilligung: ``[{bereich, funktion, name,
+    foto_url, postfach}]`` (BS-3a, P3).
+
+    Zwei Bedingungen, beide Pflicht:
+
+      1. Die Verwaltung hat die Funktion ausgewaehlt
+         (``website.ansprechpartner_bereiche_setzen``),
+      2. die Person hat selbst zugestimmt (``website_einwilligung``).
+
+    Ohne Zustimmung erscheint NIEMAND — auch nicht als Platzhalter und auch
+    nicht mit Namen. Der Widerruf wirkt sofort (bei jeder Anfrage neu gelesen).
+
+    ``bereich`` filtert optional auf den Anzeigenamen. Es gehen NUR die Felder
+    aus ``oeffentlich_auswahl.FELDER_ANSPRECHPARTNER`` hinaus: keine E-Mail,
+    kein Telefon, keine Adresse, kein Geburtsdatum, keine interne Kennung der
+    Person und keine Einwilligungsdaten. ``foto_url`` ist nur gesetzt, wenn die
+    Person auch dem Bild zugestimmt hat; ``postfach`` ist ein Slug (BS-1a),
+    keine Adresse, und ``null``, wenn der Bereich kein Postfach hat.
+    """
+    from diakronos_app.website import oeffentlich_daten as daten
+    from diakronos_app.website import oeffentlich_http as http
+
+    abweisung = _liefert(request)
+    if abweisung is not None:
+        return abweisung
+    return _lesen(daten.ansprechpartner,
+                  bereich=(str(bereich).strip() if bereich else None))
+
+
 def _ical_inhalt(kalender_slug: str) -> tuple[str, str] | None:
     """``(dateiname_slug, ics_text)`` eines freigegebenen Kalenders — sonst ``None``."""
     from diakronos_app.website import oeffentlich_daten as daten
@@ -514,6 +550,36 @@ def _oeffentliches_bild(art: str, slug: str) -> tuple[str, bytes] | None:
             if treffer_gruppe is None:
                 return None
             wert = treffer_gruppe.get("bild")
+        elif art == "person":
+            # BS-3a: das Bild einer Person nur bei EIGENER Einwilligung UND
+            # eigener Foto-Zustimmung. Kennung ist die gesalzene
+            # oeffentliche Kennung, nicht ``mitglied.name`` — aus der Adresse
+            # laesst sich kein Personenname ableiten. Der Widerruf wirkt
+            # sofort: die Bedingungen werden je Aufruf neu geprueft.
+            #
+            # NACHTRAG 2 (MITTEL 2) — zwei Luecken geschlossen:
+            #   * bisher genuegte die Foto-Zustimmung; ein ausgetretener Mensch
+            #     behielt damit seinen Bildpfad. Jetzt entscheidet DIESELBE
+            #     Regel wie in der L4/L5-Ausgabe: `einwilligung.ist_oeffentlich`
+            #     (Einwilligung + Name + nicht ausgeschieden),
+            #   * ausserdem muss die Person AKTUELL als Ansprechpartner
+            #     ausgewaehlt sein (`daten.oeffentliche_ansprechpartner_personen`)
+            #     — sonst waere jedes freigegebene Mitgliederfoto ueber eine
+            #     geratene Kennung abrufbar. Dieselbe Funktion fuehrt den
+            #     Hash-Index: der Abgleich laeuft gegen die Handvoll
+            #     ausgewaehlter Personen, nicht gegen alle Mitglieder.
+            from diakronos_app.website import einwilligung as einwilligung_regel
+
+            if not daten.person_ist_oeffentlicher_ansprechpartner(sess, kennung):
+                return None
+            treffer_person = daten.mitglied_zu_oeffentlicher_kennung(sess, kennung)
+            if treffer_person is None:
+                return None
+            if not einwilligung_regel.ist_oeffentlich(treffer_person):
+                return None
+            if not einwilligung_regel.foto_erlaubt(treffer_person):
+                return None
+            wert = treffer_person.foto
         elif art == "beitrag":
             gesucht = kennung
             treffer = None
@@ -563,12 +629,21 @@ def bild_route(request):
     if treffer is None:
         return http.fehler("Nicht gefunden.", "DoesNotExistError", 404, request)
     typ, daten = treffer
+    person = art == "person"
+    if person:
+        # Review BS-3a: Punkt 6 — kein EXIF/GPS im ausgelieferten Foto
+        # (Original in `/files` bleibt unberuehrt); Punkt 5 — kein
+        # Zwischenspeicher, damit der Widerruf SOFORT wirkt.
+        from diakronos_app.gemeinde_logo import ohne_metadaten
+
+        daten = ohne_metadaten(daten, typ)
     antwort = Response(content=daten, status_code=200, media_type=typ)
     antwort.headers["X-Content-Type-Options"] = "nosniff"
     antwort.headers["Content-Disposition"] = 'inline'
-    antwort.headers["Cache-Control"] = f"public, max-age={http.CACHE_SEKUNDEN}"
-    # BS-1b2 (F6): Vary wie bei den JSON-Antworten (CORS-Kopf darf nicht an
-    # einen Aufrufer ohne Berechtigung ausgeliefert werden).
+    antwort.headers["Cache-Control"] = (
+        "no-store, private, max-age=0" if person
+        else f"public, max-age={http.CACHE_SEKUNDEN}"
+    )
     antwort.headers[http.ORIGIN_HEADER] = "Origin"
     return http.cors_kopf(antwort, request)
 
@@ -591,6 +666,8 @@ _PARAMETER = {
     # bekam 404 und zeigte die Auswahl nie an, obwohl `/api/method/…` sie
     # lieferte. Ohne Parameter.
     "postfaecher": (),
+    # BS-3a: Ansprechpartner (nur mit Einwilligung).
+    "ansprechpartner": ("bereich",),
 }
 
 _FUNKTIONEN = {}
@@ -610,6 +687,7 @@ def _funktionen() -> dict:
                 "gruppe": gruppe,
                 "beitraege": beitraege,
                 "postfaecher": postfaecher_oeffentlich,
+                "ansprechpartner": ansprechpartner,
             }
         )
     return _FUNKTIONEN

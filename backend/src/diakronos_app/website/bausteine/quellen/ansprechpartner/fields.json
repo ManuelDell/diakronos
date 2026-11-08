@@ -1,0 +1,24 @@
+[
+  {"name": "ueberschrift", "label": "Überschrift", "type": "text", "default": "Ansprechpartner"},
+  {"name": "einleitung", "label": "Einleitung (leer = keine)", "type": "text", "default": ""},
+  {"name": "basisadresse", "label": "Diakronos-Adresse", "type": "text", "default": ""},
+  {"name": "bereich", "label": "Nur dieser Bereich (leer = alle)", "type": "text", "default": ""},
+  {
+    "name": "darstellung",
+    "label": "Darstellung",
+    "type": "select",
+    "default": "karten",
+    "config": {
+      "options": [
+        {"value": "karten", "label": "Karten"},
+        {"value": "liste", "label": "Liste"}
+      ]
+    }
+  },
+  {"name": "mit_foto", "label": "Foto anzeigen, wenn vorhanden", "type": "switch", "default": true},
+  {"name": "kontakt_text", "label": "Beschriftung des Kontakt-Knopfs (leer = kein Knopf)", "type": "text", "default": "Kontakt aufnehmen"},
+  {"name": "kontakt_ziel", "label": "Adresse des Kontaktformulars (leer = Diakronos-Standardseite; {postfach} wird ersetzt)", "type": "text", "default": "/kontakt?postfach={postfach}"},
+  {"name": "text_laedt", "label": "Text während des Ladens", "type": "text", "default": "Ansprechpartner werden geladen …"},
+  {"name": "leertext", "label": "Text, wenn niemand veröffentlicht ist", "type": "text", "default": "Zurzeit sind keine Ansprechpartner veröffentlicht."},
+  {"name": "fehlertext", "label": "Text, wenn die Ansprechpartner nicht geladen werden können", "type": "text", "default": "Die Ansprechpartner sind derzeit nicht abrufbar. Bitte später erneut versuchen."}
+]

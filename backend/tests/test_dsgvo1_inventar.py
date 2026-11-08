@@ -136,6 +136,14 @@ STAMMDATEN_TABELLEN = frozenset({
     # das Kontaktformular nicht lahmlegen. `slug` ist eine Adresskennung,
     # keine Person.
     "website_kontakt_postfach",
+    # BS-3a: die AUSWAHL der Ansprechpartner-Bereiche ist eine Entscheidung
+    # der Gemeinde über FUNKTIONEN („Musik“, „Chor“), keine Angabe einer
+    # gelöschten Person — dieselbe Begründung wie `website_kontakt_postfach`.
+    # `art`/`funktion`/`bezeichnung` stehen in `STRUKTUR_SPALTEN`, `postfach`
+    # ist ein Postfach-Slug (`dsgvo_anonymisierung.SPALTEN`, Art „struktur“).
+    # Eine Mitgliedslöschung darf die Auswahl nicht verändern; die Person
+    # selbst verschwindet über ihre Einwilligung (Karte BS-3a, P1).
+    "website_ansprechpartner",
 })
 
 #: Namensbestandteile, die einen VERWEIS oder eine Klassifikation kennzeichnen

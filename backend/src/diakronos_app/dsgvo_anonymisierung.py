@@ -370,6 +370,21 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         "familienstand": ("mitglied_werte", "-> NULL"),
         "adressbuch_sichtbarkeit": ("mitglied_werte", "-> „{}“"),
         "status": ("mitglied_werte", "Endstatus „geloescht“"),
+        # BS-3a (Datenschutz-Review, KRITISCH 2): die Website-Einwilligung ist
+        # personenbezogen und darf eine Loeschung NICHT ueberleben. Vorher
+        # blieb `website_einwilligung=1` in der NEUEN Zeile stehen und die
+        # geloeschte Person konnte weiter als Ansprechpartner erscheinen.
+        # `_mitglied_werte()` setzt alle vier Felder zurueck; der Anzeigename
+        # ist ein Personenname und wird geleert, nicht „Gelöschte Person“.
+        #
+        # Von den vier Feldern ist NUR `website_anzeigename` eine Textspalte —
+        # und nur Textspalten verlangt `test_dsgvo1_inventar.py` hier. Die drei
+        # Schalter/Zeitstempel (Boolean/DateTime) gehoeren in `_mitglied_werte`
+        # (dort stehen sie, mit `False`/`None`), nicht ins Textspalten-Inventar:
+        # dort würden sie als „unbekannte Spalte“ gemeldet, weil der Test die
+        # Datenbank nach TEXT-Spalten fragt. Die Entscheidung ist trotzdem
+        # getroffen und im Code darunter vollzogen.
+        "website_anzeigename": ("mitglied_werte", "Anzeigename der Person -> NULL"),
         # Austritt (AUSTRITT-Merge, Folge B): der Grund ist Freitext der Person
         # („Umzug nach …“) und darf in der anonymisierten Zeile nicht stehen.
         # `_neue_zeile` übernimmt ohnehin nur technische Felder — der Eintrag
@@ -400,6 +415,16 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         "mitglied": ("mitglied", "Anhang mit Sichtbarkeitsstufe (Zeile wird gelöscht)"),
         "datei": ("eigene_datei", "Datei der Person: Zeile weg, Datei gelöscht"),
         "dateiname": ("protokoll", "Dateiname kann Namen enthalten (Zeile wird gelöscht)"),
+    },
+    # BS-3a: die Auswahl der Ansprechpartner-Bereiche (Art, Funktion,
+    # Anzeigename, Sortierung) beschreibt die ENTSCHEIDUNG der Gemeinde, nicht
+    # die Person. `postfach` ist ein Postfach-Slug aus BS-1a (Funktionspostfach,
+    # keine Adresse einer Person) — derselbe Fall wie
+    # `website_kontakt_postfach.slug`, das ebenfalls in `STAMMDATEN_TABELLEN`
+    # steht. Eine Mitgliedslöschung darf die Auswahl nicht verändern; sie
+    # betrifft die Person, und die Person verschwindet über ihre Einwilligung.
+    "website_ansprechpartner": {
+        "postfach": ("struktur", "Postfach-Slug der Gemeinde (BS-1a), keine Adresse einer Person"),
     },
     "sicherungseinstellungen": {
         # BACKUP-1: die eingestellte Uhrzeit beschreibt den LAUF, nicht eine
@@ -1061,6 +1086,16 @@ def _mitglied_werte() -> dict:
         "ausgeschlossen": True,
         "ausgeschlossen_seit": datetime.utcnow().date(),
         "status": "geloescht",
+        # BS-3a (Datenschutz-Review, KRITISCH 2): nach der Löschung gibt es
+        # keine Einwilligung mehr. Ohne diese vier Felder stünde die alte
+        # Zustimmung in der NEUEN Zeile (die Positivliste `_MITGLIED_TECHNISCH`
+        # kopiert sie nicht, aber jede Spalte ohne Eintrag hier bliebe NULL —
+        # und `NULL` wäre bei den NOT-NULL-Schaltern ein Constraint-Fehler auf
+        # PostgreSQL). Deshalb ausdrücklich: false, leer, kein Name.
+        "website_einwilligung": False,
+        "website_einwilligung_am": None,
+        "website_einwilligung_foto": False,
+        "website_anzeigename": None,
     }
 
 

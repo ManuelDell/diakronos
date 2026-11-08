@@ -193,6 +193,11 @@ class Document:
 					if getattr(self._obj, feld) is not wert:
 						object.__setattr__(self._obj, feld, wert)
 				payload = {k: v for k, v in payload.items() if k in ("email",)}
+			# BS-3a (Datenschutz-Review, KRITISCH 1): `doc.save()`/`doc.db_set()`
+			# ist derselbe generische Schreibweg — ein Einwilligungsfeld muss auch
+			# von hier aus mit 403 abgelehnt werden. Sonst waere die Schranke in
+			# `_pruefe_mitglied_schreibzugriff` ueber das Dokument umgehbar; der
+			# Payload wird deshalb NICHT auf `email` verkuerzt.
 			_pruefe_mitglied_schreibzugriff(payload, name)
 			return
 		# N12b (W1/P5): `doc.parent = ...; doc.save()` ist derselbe generische

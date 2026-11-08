@@ -1,6 +1,7 @@
 {
   "bausteine": {
     "anmeldung": "8cd1aca32d9cde348a33231b251639d9a425d2f1c09892c373bff07fb39e7ac9",
+    "ansprechpartner": "2d07f2e5ef8cda125e9c2e4acbf2a6cd1aeb4699c17c46d619a44a73eec036fa",
     "gruppe-steckbrief": "82a4eb6da31ac75526a9f0e02ee31235af4f8f0ea8e6a30905706529bbdf46eb",
     "gruppen": "1c0bdfba8b0cc5b5b2d313fc308e9ae3e0350d9a4cd856dc9fa6da8db317a466",
     "kalender": "ea8f10aab27e3e736f518ff993dc9541b5dd435b5dc04bfa15258fa320362ba0",
@@ -10,5 +11,5 @@
     "neuigkeiten": "721c328a75ba8b7fc4a58ff9b3b10ba589f6197f42a39b75be2fffd925d265d0",
     "termine-liste": "8feebc6f396488aa43fc9fa2fcc830d0cefa1517473c0b0749cde03f95464d4c"
   },
-  "version": 10
+  "version": 11
 }

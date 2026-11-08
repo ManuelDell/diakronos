@@ -3072,7 +3072,43 @@ Verfügbar sind u. a. `--dk-farbe-text`, `--dk-farbe-gedaempft`,
 * **Keine Ratenbremse-Teilung:** weil der Abruf im Browser des Besuchers
   läuft, zählt jeder Besucher für sich (Abschnitt 18.x, öffentliche API).
 
-### 19.8 Prüfen
+### 19.8 Ansprechpartner mit Einwilligung (BS-3a)
+
+Der Baustein „Diakronos: Ansprechpartner" zeigt Personen nur, wenn **beide**
+Bedingungen erfüllt sind:
+
+1. **Die Verwaltung** hat die Funktion/Position ausgewählt
+   (`website.ansprechpartner_bereiche_setzen`, Rollen wie Abschnitt 18:
+   System Manager, Administrator, Website-Moderator). Auswählbar sind die
+   Knoten des Organigramms — Dienstbereich oder Gruppe —, je Bereich optional
+   ein Kontakt-Postfach (Slug aus dem Kontaktformular).
+2. **Die Person selbst** hat zugestimmt (`website.meine_einwilligung_setzen`).
+   Das ist keine Verwaltungsentscheidung: es gibt **keinen** Endpunkt, mit dem
+   ein Administrator eine Einwilligung setzen kann. Ein Aufruf mit einem
+   Einwilligungsfeld endet mit 403, und es wird nichts geschrieben.
+
+Felder am Mitglied: `website_einwilligung` (Default **aus**),
+`website_einwilligung_am` (Zeitstempel), `website_einwilligung_foto` (eigene,
+zusätzliche Zustimmung zum Bild), `website_anzeigename` (freiwillig, z. B. nur
+der Vorname). **Der Widerruf wirkt sofort** — die öffentliche Ausgabe liest die
+Schalter bei jeder Anfrage; es gibt keinen Zwischenspeicher.
+
+Öffentlich (`GET …/website/oeffentlich/ansprechpartner?bereich=<optional>`)
+gehen ausschließlich fünf Felder hinaus: `bereich`, `funktion`, `name`,
+`foto_url`, `postfach`. Keine E-Mail, kein Telefon, keine Adresse, kein
+Geburtsdatum, keine interne Personenkennung und keine Einwilligungsdaten.
+`foto_url` ist nur gesetzt, wenn die Person auch dem Bild zugestimmt hat; die
+Bild-Route `/website/bild/person/<kennung>` antwortet sonst 404.
+
+DSGVO: Erteilen und Widerruf erzeugen je einen Eintrag in
+„DSGVO Einwilligung" (typ `website` bzw. `website_foto`). Der Eintrag nennt nur
+die technische Kennung und überlebt deshalb eine spätere Datenlöschung.
+
+Pflicht beim Einführen: die Zustimmung **vor** dem Auswählen der Bereiche
+einholen und den Satz im Profil zur Kenntnis nehmen lassen — der Baustein
+zeigt sonst schlicht niemanden an (das ist die richtige Antwort, kein Fehler).
+
+### 19.9 Prüfen
 
 ```
 # im app-Container (image-intern, ohne Netz gegen den Betrieb nicht möglich)
@@ -3089,8 +3125,10 @@ Wiederkehrende Fehlerbilder:
 | Baustein zeigt „nicht abrufbar" | Feld „Diakronos-Adresse" leer/falsch, oder CORS | Adresse absolut eintragen; `PRIMO_PUBLIC_URL` muss der Website-Herkunft entsprechen |
 | Baustein zeigt „keine Termine" | nichts freigegeben (Kalender/Terminart) | Abschnitt 18: Kalender freigeben, Termine im Status „Festgelegt" |
 | Doppelte Blöcke mit verschiedenen `@v` | Absicht: neue Version neben der alten | alte Fassung in Primo löschen, wenn nicht mehr gebraucht |
+| Ansprechpartner-Baustein zeigt „niemand veröffentlicht" | keine Einwilligung / keine Auswahl / kein Verantwortlicher | Einwilligung der Person prüfen, Bereiche auswählen, Organigramm prüfen (Abschnitt 19.8) |
+| Foto fehlt, Person erscheint | `website_einwilligung_foto` nicht gesetzt (oder kein Foto am Mitglied) | Person muss die Foto-Zustimmung selbst geben |
 
-### 19.9 Der Bereich „Bausteine" in Diakronos (BS-2d)
+### 19.10 Der Bereich „Bausteine" in Diakronos (BS-2d)
 
 Auf der Seite **Website** steht unter den Freigaben der Bereich **Bausteine**
 (nur für Systemmanager, Administratoren und Website-Moderatoren — dieselben

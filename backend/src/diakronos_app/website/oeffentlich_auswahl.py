@@ -40,10 +40,12 @@ from diakronos_app.settings import settings
 from diakronos_app.website import oeffentlich_inhalt as inhalt
 
 __all__ = [
+    "FELDER_ANSPRECHPARTNER",
     "FELDER_BEITRAG",
     "FELDER_GRUPPE",
     "FELDER_KALENDER",
     "FELDER_TERMIN",
+    "ansprechpartner_oeffentlich",
     "oeffentliche_kennung",
     "beitrag_oeffentlich",
     "gruppe_oeffentlich",
@@ -92,6 +94,19 @@ FELDER_BEITRAG = (
     "auszug",
     "inhalt",
     "bild_url",
+)
+
+#: Felder eines Ansprechpartners (BS-3a, P3). Die Liste ist ABSICHTLICH kurz —
+#: was hier nicht steht, geht nie hinaus: keine E-Mail, kein Telefon, keine
+#: Adresse, kein Geburtsdatum, keine interne Personenkennung, kein
+#: ``website_einwilligung`` (Einwilligungsdaten sind nichts für die
+#: Öffentlichkeit, Kartenvorgabe BS-3a).
+FELDER_ANSPRECHPARTNER = (
+    "bereich",
+    "funktion",
+    "name",
+    "foto_url",
+    "postfach",
 )
 
 
@@ -242,4 +257,30 @@ def beitrag_oeffentlich(zeile: dict, *, bild_url: str = "") -> dict:
         "auszug": inhalt.klartext(zeile.get("auszug")),
         "inhalt": inhalt.html_erlaubt(zeile.get("inhalt")),
         "bild_url": bild_url or "",
+    }
+
+
+def ansprechpartner_oeffentlich(zeile: dict) -> dict:
+    """Ein Ansprechpartner nach der Feld-Positivliste (BS-3a/P3).
+
+    ``zeile`` kommt aus :func:`oeffentlich_daten.ansprechpartner` und enthält
+    NUR ``bereich``, ``funktion``, ``name``, ``foto_url``, ``postfach``.
+    Es wird nichts ergänzt, nichts umbenannt: der Aufrufer (Datenfunktion) hat
+    die Felder schon ausgewählt, diese Funktion hält die Liste sichtbar an
+    EINER Stelle (und der Test prüft sie negativ).
+
+    ``postfach`` ist ``None``, wenn der Bereich kein Kontakt-Postfach hat —
+    dann gibt es auf der Website keinen Kontakt-Knopf für diesen Eintrag.
+    Eine E-Mail-Adresse kommt hier NIE an: ``postfach`` ist ein Slug.
+    """
+    return {
+        "bereich": inhalt.klartext(zeile.get("bereich")),
+        "funktion": inhalt.klartext(zeile.get("funktion")),
+        "name": inhalt.klartext(zeile.get("name")),
+        "foto_url": str(zeile.get("foto_url") or ""),
+        "postfach": (
+            str(zeile.get("postfach"))
+            if zeile.get("postfach")
+            else None
+        ),
     }

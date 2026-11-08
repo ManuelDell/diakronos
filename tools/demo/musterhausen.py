@@ -1808,6 +1808,126 @@ def austritte_erfassen(a: Anleger, stichtag: date) -> None:
 # ── Beitraege, Wiki, Uebersicht (PUB-2b/B3, B5) ────────────────────────────
 
 
+def website_ansprechpartner_anlegen(a: Anleger, stichtag: date) -> None:
+    """BS-3a: zwei Ansprechpartner-Bereiche MIT Einwilligung der Personen.
+
+    Zeigt den ganzen Weg der Karte: die Verwaltung waehlt die Funktionen
+    (Tabelle ``website_ansprechpartner``), und die PERSONEN haben selbst
+    zugestimmt (``website_einwilligung``). Ohne beide Bedingungen erscheint
+    niemand — deshalb setzt dieser Schritt beides, sonst bliebe der Baustein
+    in der Demo leer.
+
+    Bewusst NICHT ueber die Endpunkte: ``meine_einwilligung_setzen`` verlangt
+    eine Sitzung der Person selbst und schreibt einen DSGVO-Eintrag. Fuer eine
+    Demo waere das eine erfundene Zustimmung mit Nachweis — hier wird direkt
+    geschrieben (dieselben Felder, die die Migration anlegt), damit klar
+    bleibt: das sind DEMODATEN, keine echten Einwilligungen.
+    """
+    from diakronos_app.models.diakonos import (
+        DienstbereichVerantwortlicher,
+        GruppeVerantwortlicher,
+        Mitglied,
+    )
+    from diakronos_app.models.website_ansprechpartner import WebsiteAnsprechpartner
+    from diakronos_app.models.website_kontakt import WebsiteKontaktPostfach
+
+    def person(name: str):
+        """Mitglied ueber seine DEMO-Kennung (``person_kennung``).
+
+        Nacharbeit 2, Punkt 5: NICHT ueber Vor-/Nachname suchen. Eine
+        gleichnamige ECHTE Person im selben Bestand bekaeme dabei die
+        Demo-Einwilligung gesetzt — eine erfundene Zustimmung an einem
+        Menschen, die niemand mehr nachvollziehen kann. ``person_kennung``
+        liefert die Kennung, die ``mitglieder_anlegen`` fuer genau diese
+        Demo-Person vergeben hat (``_KENNUNGEN``), und bricht laut ab, wenn
+        die Person nicht aus den Demo-Daten stammt.
+        """
+        try:
+            kennung = person_kennung(name)
+        except DemoFehler:
+            return None
+        return a.s.get(Mitglied, kennung)
+
+    # 1. Einwilligung der Personen (DEMODATEN, siehe Docstring).
+    for eintrag in daten.WEBSITE_EINWILLIGUNG:
+        zeile = person(eintrag["person"])
+        if zeile is None:
+            continue
+        if zeile.website_einwilligung:
+            a.merke("Mitglied")
+            continue
+        zeile.website_einwilligung = True
+        zeile.website_einwilligung_am = datetime.combine(stichtag, time(9, 0))
+        # Foto bleibt AUS: die Bild-Route der Demo zeigt damit den Fall
+        # „Einwilligung ja, Foto nein" — der haeufigere Fall.
+        zeile.website_einwilligung_foto = False
+        zeile.website_anzeigename = eintrag.get("anzeigename") or None
+        a.merke("Mitglied")
+
+    # 2. Zustaendig fuer die Bereiche: DIESE Personen. Der Seed setzt die
+    #    Gruppen-Verantwortlichen sonst auf das Verwaltungskonto (die Leitung
+    #    ist im Demo-Bestand keine Person mit Konto) — dann haette niemand eine
+    #    Einwilligung und der Baustein bliebe leer. Das waere die richtige
+    #    Antwort des Endpunkts, fuer eine Vorfuehrung aber unbrauchbar.
+    for eintrag_z in daten.WEBSITE_ZUSTAENDIG:
+        art, kennung, person_name = eintrag_z["art"], eintrag_z["funktion"], eintrag_z["person"]
+        zeile = person(person_name)
+        if zeile is None or not zeile.user:
+            continue
+        modell = (
+            DienstbereichVerantwortlicher
+            if art == "dienstbereich"
+            else GruppeVerantwortlicher
+        )
+        vorhanden = a.s.scalars(
+            select(modell).where(modell.parent == kennung).order_by(modell.idx)
+        ).all()
+        if vorhanden:
+            # Die erste Zeile ist die Leitung (dieselbe Regel wie im
+            # Organigramm) — sie bekommt die Person mit Einwilligung.
+            vorhanden[0].user = zeile.user
+            a.merke("Gruppenverantwortung")
+        else:
+            a.kind("Gruppenverantwortung", modell(
+                name=f"{kennung}-verantwortlich-website",
+                parent=kennung,
+                parenttype="Dienstbereich" if art == "dienstbereich" else "Gruppe",
+                parentfield="verantwortliche",
+                user=zeile.user,
+                docstatus=0,
+                idx=1,
+            ))
+
+    # 3. Die Bereiche selbst (Verwaltungsauswahl) — „delete-and-replace" wie
+    #    der Endpunkt: was hier nicht steht, erscheint nicht.
+    for stelle, eintrag in enumerate(daten.WEBSITE_ANSPRECHPARTNER, start=1):
+        vorhanden = a.s.scalar(select(WebsiteAnsprechpartner).where(
+            WebsiteAnsprechpartner.art == eintrag["art"],
+            WebsiteAnsprechpartner.funktion == eintrag["funktion"],
+        ))
+        if vorhanden is not None:
+            a.merke("WebsiteAnsprechpartner")
+            continue
+        a.kind("WebsiteAnsprechpartner", WebsiteAnsprechpartner(
+            art=eintrag["art"],
+            funktion=eintrag["funktion"],
+            bezeichnung=eintrag.get("bezeichnung", ""),
+            postfach=eintrag.get("postfach") or None,
+            sortierung=stelle,
+        ))
+
+    # 4. Postfaecher fuer den Kontakt-Knopf (Slug aus BS-1a).
+    if a.s.scalar(select(WebsiteKontaktPostfach).limit(1)) is None:
+        for stelle, (slug, bezeichnung) in enumerate((
+            ("musik", "Musik"),
+            ("gemeinde", "Allgemeine Anfragen"),
+        ), start=1):
+            a.kind("WebsiteKontaktPostfach", WebsiteKontaktPostfach(
+                slug=slug, bezeichnung=bezeichnung,
+                email=f"{slug}@example.org", aktiv=True, sortierung=stelle,
+            ))
+
+
 def beitraege_anlegen(a: Anleger, stichtag: date) -> None:
     """Drei veroeffentlichte Beitraege ueber ``api/beitraege.create_beitrag``.
 
@@ -2019,6 +2139,7 @@ def anlegen(nur_pruefen: bool = False, stichtag: date | None = None) -> str:
         a.abschluss()
 
         beitraege_anlegen(a, tag)
+        website_ansprechpartner_anlegen(a, tag)
         wiki_anlegen(a)
         a.abschluss()
 

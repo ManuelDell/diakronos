@@ -810,6 +810,178 @@ def mit_lesesitzung(fn, *args, **kwargs):
         return fn(sess, *args, **kwargs)
 
 
+# ── Ansprechpartner (BS-3a) ────────────────────────────────────────────────
+#
+# Die Verwaltung waehlt die FUNKTIONEN (Tabelle ``website_ansprechpartner``),
+# die Person entscheidet ueber sich selbst (``website_einwilligung``). Beide
+# Bedingungen muessen erfuellt sein, sonst erscheint niemand — auch nicht als
+# Platzhalter (Kartenvorgabe P2).
+#
+# Wer eine Funktion ausfuellt, steht im Organigramm: der ERSTE Verantwortliche
+# in ``dienstbereich_verantwortlicher`` bzw. ``gruppe_verantwortlicher``
+# (Sortierung ueber ``idx`` — dieselbe Regel wie ``api/orgchart_api``:
+# „erste Person = Leiter-Anzeige"). Es wird bewusst NUR der erste genommen:
+# eine Liste aller Verantwortlichen waere eine Mitgliederliste, und die ist
+# nach G1 nie oeffentlich.
+
+#: Arten, die die Verwaltungsauswahl kennt (wie ``api/website.BEREICH_ARTEN``).
+ANSPRECHPARTNER_ARTEN = ("dienstbereich", "gruppe")
+
+#: Zeile je Person in der Verantwortlichen-Tabelle. Die Kennungen sind die
+#: DocType-Namen aus ``models/_mapping.json`` (per grep belegt: „Gruppe
+#: Verantwortlicher" / „Dienstbereich Verantwortlicher") — ``model_for``
+#: kennt nur diese Schreibweise, nicht den Klassennamen.
+_VERANTWORTLICHE_TABELLE = {
+    "dienstbereich": "Dienstbereich Verantwortlicher",
+    "gruppe": "Gruppe Verantwortlicher",
+}
+
+
+def ansprechpartner(sess, *, bereich: str | None = None) -> list[dict]:
+    """Oeffentliche Ansprechpartner (BS-3a, P3).
+
+    ``bereich`` filtert optional auf den Anzeigenamen des Bereichs
+    (Gross-/Kleinschreibung egal) — das ist der Wert, den die Verwaltung als
+    ``bezeichnung`` setzt bzw. der Anzeigename des Datensatzes.
+
+    Rueckgabe: ``[{bereich, funktion, name, foto_url, postfach}]`` in der von
+    der Verwaltung gewaehlten Reihenfolge (``sortierung``, dann ``funktion``).
+
+    Ein Eintrag faellt STILL heraus, wenn
+
+      * es die Funktion nicht mehr gibt (Datensatz geloescht) oder die Gruppe
+        im Papierkorb liegt,
+      * niemand mehr als Verantwortlicher eingetragen ist,
+      * die Person keine Website-Einwilligung (mehr) hat — der Widerruf wirkt
+        damit sofort, weil dieser Filter bei JEDER Anfrage laeuft,
+      * die Person ausgeschlossen, geloescht oder ausgetreten ist
+        (``einwilligung.NIE_OEFFENTLICH_STATUS``).
+
+    Kein Eintrag fuer „niemand da": eine leere Liste ist die richtige Antwort
+    (der Baustein zeigt dann seinen Leertext).
+
+    ``funktion`` und ``postfach`` gehen als GESALZENE Kennung hinaus
+    (``oeffentliche_kennung``), nie als interner Name: nach aussen soll man
+    die Position und das Postfach wiedererkennen, nicht die interne
+    Schluesselform lesen (Review BS-3a, Punkt 8).
+    """
+    from diakronos_app.models.website_ansprechpartner import WebsiteAnsprechpartner
+    from diakronos_app.website import einwilligung as einwilligung_regel
+
+    zeilen = sess.execute(
+        select(WebsiteAnsprechpartner).order_by(
+            WebsiteAnsprechpartner.sortierung, WebsiteAnsprechpartner.funktion
+        )
+    ).scalars().all()
+    if not zeilen:
+        return []
+
+    gesucht = str(bereich or "").strip().lower()
+    ergebnis: list[dict] = []
+    for zeile in zeilen:
+        art = str(zeile.art or "").strip().lower()
+        if art not in ANSPRECHPARTNER_ARTEN:
+            continue
+        kennung = str(zeile.funktion or "").strip()
+        if not kennung:
+            continue
+        datensatz = _funktion_zeile(sess, art, kennung)
+        if datensatz is None:
+            continue
+        anzeige = str(zeile.bezeichnung or "").strip() or _funktion_anzeige(art, datensatz)
+        if gesucht and anzeige.strip().lower() != gesucht:
+            continue
+        person = _erste_verantwortliche_person(sess, art, kennung)
+        if person is None or not einwilligung_regel.ist_oeffentlich(person):
+            continue
+        postfach = str(zeile.postfach or "").strip()
+        ergebnis.append(
+            auswahl.ansprechpartner_oeffentlich(
+                {
+                    "bereich": anzeige,
+                    # Review BS-3a (Punkt 8): EINE Kennung für die Funktion,
+                    # nach außen nur die gesalzene Form — die interne Kennung
+                    # (``musik``, ``chor``) bleibt im Haus. Die öffentlichen
+                    # Kennungen sind stabil, damit ein Aufrufer einen Eintrag
+                    # über Aufrufe hinweg wiedererkennt.
+                    "funktion": auswahl.oeffentliche_kennung(
+                        "funktion", f"{art}:{kennung}"
+                    ),
+                    "name": einwilligung_regel.oeffentlicher_name(person),
+                    "foto_url": (
+                        inhalt.bild_url(
+                            "person",
+                            auswahl.oeffentliche_kennung("person", person.name),
+                        )
+                        if einwilligung_regel.foto_erlaubt(person)
+                        and str(getattr(person, "foto", "") or "").strip()
+                        else ""
+                    ),
+                    # Punkt 8: ``postfach`` ist ein Slug (BS-1a) und war im
+                    # Bestand der interne Schlüssel. Nach außen geht nur die
+                    # gesalzene Kennung; die Zuordnung zum Slug ist stabil.
+                    "postfach": (
+                        auswahl.oeffentliche_kennung("postfach", postfach)
+                        if (postfach := str(zeile.postfach or "").strip())
+                        else None
+                    ),
+                }
+            )
+        )
+    return ergebnis
+
+
+def _funktion_zeile(sess, art: str, kennung: str):
+    """Den Datensatz einer Funktion (``dienstbereich``/``gruppe``) — oder ``None``."""
+    if art == "dienstbereich":
+        from diakronos_app.models.diakonos import Dienstbereich
+
+        return sess.get(Dienstbereich, kennung)
+    if art == "gruppe":
+        zeile = sess.get(Gruppe, kennung)
+        if zeile is None or zeile.geloescht_am is not None:
+            return None
+        if str(zeile.status or "") not in ("", "Aktiv"):
+            return None
+        return zeile
+    return None
+
+
+def _funktion_anzeige(art: str, datensatz) -> str:
+    """Anzeigename einer Funktion (``ministry`` bzw. ``gruppenname``)."""
+    if art == "dienstbereich":
+        return str(getattr(datensatz, "ministry", "") or datensatz.name or "")
+    return str(getattr(datensatz, "gruppenname", "") or datensatz.name or "")
+
+
+def _erste_verantwortliche_person(sess, art: str, kennung: str):
+    """Die ERSTE verantwortliche Person einer Funktion — oder ``None``.
+
+    Reihenfolge: ``idx`` (Kind-Tabellen-Sortierung), dann ``user``. Der
+    Benutzername fuehrt auf ``Mitglied.user``; ohne Zuordnung -> ``None``
+    (keine erfundene Person, kein Platzhalter).
+    """
+    from diakronos_app.models.diakonos import Mitglied
+    from diakronos_app.frappe_compat.registry_gen import model_for
+
+    modell = model_for(_VERANTWORTLICHE_TABELLE[art])
+    zeilen = sess.execute(
+        select(modell)
+        .where(modell.parent == kennung)
+        .order_by(modell.idx, modell.name)
+    ).scalars().all()
+    for zeile in zeilen:
+        user = str(getattr(zeile, "user", "") or "").strip()
+        if not user:
+            continue
+        person = sess.execute(
+            select(Mitglied).where(Mitglied.user == user)
+        ).scalars().first()
+        if person is not None:
+            return person
+    return None
+
+
 def als_beitrag(daten: dict, *, bild_url: str = "") -> dict:
     """Rohzeile -> oeffentliche Beitrags-Ausgabe (Feld-Positivliste)."""
     return auswahl.beitrag_oeffentlich(daten, bild_url=bild_url)
@@ -820,10 +992,80 @@ def als_gruppe(daten: dict, *, bild_url: str = "") -> dict:
     return auswahl.gruppe_oeffentlich(daten, bild_url=bild_url)
 
 
+def _ansprechpartner_personen_index(sess) -> dict[str, object]:
+    """Oeffentliche Person-Kennung -> ``Mitglied``-Zeile der ANSPRECHPARTNER.
+
+    Der Index enthaelt nur Personen, die HEUTE als Ansprechpartner erscheinen
+    koennten: die Funktion ist ausgewaehlt, die Person ist die erste
+    Verantwortliche, sie hat die Website-Einwilligung und ist nicht
+    ausgeschieden (``einwilligung.ist_oeffentlich``). Damit ist der Schluessel
+    genau die Menge der Personen, deren Bild-Route (L6, ``art=person``) etwas
+    ausliefern darf.
+
+    Warum ein Index und kein Suchlauf je Anfrage (Nachtrag 2, MITTEL 2): die
+    Kennung ist eine gesalzene Einwegfunktion — es gibt keinen Rueckweg auf
+    ``mitglied.name``, der Datenbankfilter kann also nicht auf ``name`` gehen.
+    Statt bei jeder Bild-Anfrage ALLE Mitglieder zu laden und durchzurechnen,
+    laufen hier einmal die (wenigen) ausgewaehlten Funktionen durch; danach
+    ist der Abgleich ein ``dict``-Zugriff. Der Index lebt nur in diesem Aufruf
+    (kein Zwischenspeicher — der Widerruf wirkt weiter sofort).
+
+    Fail closed: unbrauchbare Zeilen (kein Verantwortlicher, keine
+    Einwilligung, kein Name) landen gar nicht erst im Index.
+    """
+    from diakronos_app.models.website_ansprechpartner import WebsiteAnsprechpartner
+    from diakronos_app.website import einwilligung as einwilligung_regel
+
+    zeilen = sess.execute(select(WebsiteAnsprechpartner)).scalars().all()
+    index: dict[str, object] = {}
+    for zeile in zeilen:
+        art = str(zeile.art or "").strip().lower()
+        kennung = str(zeile.funktion or "").strip()
+        if art not in ANSPRECHPARTNER_ARTEN or not kennung:
+            continue
+        if _funktion_zeile(sess, art, kennung) is None:
+            continue
+        person = _erste_verantwortliche_person(sess, art, kennung)
+        if person is None or not einwilligung_regel.ist_oeffentlich(person):
+            continue
+        if not str(getattr(person, "foto", "") or "").strip():
+            # Ohne Bild gibt es nichts auszuliefern — und keinen Grund, die
+            # Person in den Index zu nehmen (kleiner halten als noetig).
+            continue
+        index[auswahl.oeffentliche_kennung("person", person.name)] = person
+    return index
+
+
+def person_ist_oeffentlicher_ansprechpartner(sess, kennung: str) -> bool:
+    """True, wenn ``kennung`` (Person-Kennung) zu einem Ansprechpartner gehoert.
+
+    Die halbe Antwort von :func:`mitglied_zu_oeffentlicher_kennung` fuer den
+    Bild-Endpunkt: die Route fragt zuerst „ist diese Person ueberhaupt
+    ausgewaehlt?“ und erst danach nach der Zeile.
+    """
+    return str(kennung or "").strip() in _ansprechpartner_personen_index(sess)
+
+
+def mitglied_zu_oeffentlicher_kennung(sess, kennung: str):
+    """``Mitglied``-Zeile zu einer Person-Kennung — nur ausgewaehlte Personen.
+
+    Rueckgabe ``None``, wenn die Kennung zu keiner heute oeffentlichen
+    Ansprechpartner-Person gehoert. Die Zeile ist der Rohdatensatz — der
+    Aufrufer prueft ``einwilligung.ist_oeffentlich``/``foto_erlaubt`` erneut
+    (doppelt, weil der Index in einem eigenen Schritt entsteht und zwischen
+    Aufbau und Ausgabe ein Widerruf eintreffen kann).
+    """
+    return _ansprechpartner_personen_index(sess).get(str(kennung or "").strip())
+
+
 __all__ += [
+    "ANSPRECHPARTNER_ARTEN",
     "als_beitrag",
     "als_gruppe",
+    "ansprechpartner",
     "kalender_gespeist",
     "ical_termine",
     "mit_lesesitzung",
+    "mitglied_zu_oeffentlicher_kennung",
+    "person_ist_oeffentlicher_ansprechpartner",
 ]

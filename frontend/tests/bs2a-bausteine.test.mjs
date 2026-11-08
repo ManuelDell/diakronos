@@ -62,6 +62,7 @@ const DATEIEN = ['block.json', 'component.svelte', 'fields.json', 'README.md'];
 //: erweitert. Weitere BS-Karten erweitern NUR diese Liste.
 const MITGELIEFERT = [
   'anmeldung',
+  'ansprechpartner',
   'gruppe-steckbrief',
   'gruppen',
   'kalender',

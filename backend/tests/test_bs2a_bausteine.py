@@ -55,6 +55,8 @@ BAUSTEINE = (
     "gruppe-steckbrief",
     "neuigkeiten",
     "anmeldung",
+    # BS-3a: Ansprechpartner mit Einwilligung.
+    "ansprechpartner",
 )
 
 

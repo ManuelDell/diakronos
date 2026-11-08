@@ -1,0 +1,7 @@
+{
+  "kennung": "ansprechpartner",
+  "name": "Diakronos: Ansprechpartner",
+  "index": 60,
+  "beschreibung": "Zeigt die in Diakronos freigegebenen Ansprechpartner mit Foto und Kontakt-Knopf. Es erscheinen nur Personen, die ihrer Nennung auf der Website selbst zugestimmt haben.",
+  "freigaben": []
+}

@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **1835**
-* eindeutige Funktionen: **357**
-* lesend: **162**, schreibend: **195**
-* Rumpfbefund: schreibend 180, lesend 177, unbekannt 0
+* registrierte Pfade: **1859**
+* eindeutige Funktionen: **362**
+* lesend: **165**, schreibend: **197**
+* Rumpfbefund: schreibend 182, lesend 180, unbekannt 0
 
 ## Einstufung
 
@@ -237,12 +237,14 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.sicherung.sicherung_loeschen` | ['POST'] | nein |
 | `diakronos_app.api.veranstaltungsanmeldung.register_mitglied` | ['POST'] | nein |
 | `diakronos_app.api.verantwortliche.set_verantwortliche` | ['POST'] | nein |
+| `diakronos_app.api.website.ansprechpartner_bereiche_setzen` | ['POST'] | nein |
 | `diakronos_app.api.website.bausteine_installieren` | ['POST'] | nein |
 | `diakronos_app.api.website.beitrag_auf_website` | ['POST'] | nein |
 | `diakronos_app.api.website.freigabe_setzen` | ['POST'] | nein |
 | `diakronos_app.api.website.freigaben_lesen` | — | nein |
 | `diakronos_app.api.website.kategorie_oeffentlich` | ['POST'] | nein |
 | `diakronos_app.api.website.login_uebergabe` | ['POST'] | nein |
+| `diakronos_app.api.website.meine_einwilligung_setzen` | ['POST'] | nein |
 | `diakronos_app.api.website.postfach_loeschen` | ['POST'] | nein |
 | `diakronos_app.api.website.postfach_speichern` | ['POST'] | nein |
 | `diakronos_app.api.wiki.create_wiki_artikel` | ['POST'] | nein |
@@ -408,7 +410,9 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.verantwortliche.get_verantwortliche` | — | nein |
 | `diakronos_app.api.verantwortliche.get_verantwortliche_auswahl` | — | nein |
 | `diakronos_app.api.verantwortliche.get_zugangs_rollen` | — | nein |
+| `diakronos_app.api.website.ansprechpartner_bereiche_lesen` | — | nein |
 | `diakronos_app.api.website.bausteine_status` | — | nein |
+| `diakronos_app.api.website.meine_einwilligung_lesen` | — | nein |
 | `diakronos_app.api.website.rollen` | — | nein |
 | `diakronos_app.api.website.status` | — | nein |
 | `diakronos_app.api.wiki.get_wiki_artikel_detail` | — | nein |
@@ -429,6 +433,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.devmodus.api.uebersicht` | — | nein |
 | `diakronos_app.gestaltung.api.gestaltung_lesen` | — | nein |
 | `diakronos_app.website.kontakt.postfaecher_oeffentlich` | ['GET'] | ja |
+| `diakronos_app.website.oeffentlich_api.ansprechpartner` | ['GET'] | ja |
 | `diakronos_app.website.oeffentlich_api.beitraege` | ['GET'] | ja |
 | `diakronos_app.website.oeffentlich_api.gruppe` | ['GET'] | ja |
 | `diakronos_app.website.oeffentlich_api.gruppen` | ['GET'] | ja |

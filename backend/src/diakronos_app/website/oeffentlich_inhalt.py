@@ -532,7 +532,9 @@ def kalender_ics(zeilen: list[dict], *, name: str = "", stand=None) -> str:
 # ── Bilder ─────────────────────────────────────────────────────────────────
 
 #: Arten der oeffentlichen Bild-Route (Kartenvorgabe L6).
-BILD_ARTEN = ("gruppe", "beitrag")
+#: BS-3a: ``person`` kommt hinzu — nur mit EIGENER Einwilligung UND eigener
+#: Foto-Zustimmung (``website/einwilligung.py``: ``foto_erlaubt``).
+BILD_ARTEN = ("gruppe", "beitrag", "person")
 
 
 def bild_url(art: str, slug: str) -> str:

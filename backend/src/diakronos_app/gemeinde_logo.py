@@ -66,6 +66,7 @@ __all__ = [
     "logo_url",
     "entferne_datei",
     "abmessungen",
+    "ohne_metadaten",
 ]
 
 #: Groesse, die der Assistent nennt („max. 2 MB“, Entwurf Frame 04).
@@ -293,6 +294,190 @@ def _pruefe_bildstruktur(roh: bytes, typ: str) -> None:
         if riff_laenge + 8 > len(roh):
             raise ValidationError("Die Bilddatei ist beschaedigt (unvollstaendig).")
         return
+
+
+#: Metadaten, die aus einem Personenfoto entfernt werden (Review BS-3a,
+#: Punkt 6). ``APPn`` enthält EXIF/IPTC/XMP (GPS-Koordinaten, Geraet,
+#: Aufnahmezeit), ``COM`` einen freien Kommentar. Alle vier Blöcke sind für
+#: die Anzeige ohne Wert — und der GPS-Satz verrät den Wohnort der Person.
+_JPEG_METADATEN = frozenset(
+    {
+        0xE1,  # APP1: EXIF (GPS!) und XMP
+        0xE2,  # APP2: ICC-Profil, teils mit Geräteangaben
+        0xED,  # APP13: IPTC/Photoshop-Ressourcen
+        0xEE,  # APP14: Adobe-Farbtransform
+        0xFE,  # COM: freier Kommentar
+    }
+)
+
+
+#: PNG-Chunks, die Metadaten tragen (Review BS-3a, Nacharbeit 2, Punkt 4).
+#: ``eXIf`` = EXIF (GPS/Gerät), ``tEXt``/``zTXt``/``iTXt`` = Text-Schlüssel-
+#: Werte (Software, Autor, Kommentar, teils XML/XMP in ``iTXt``). Anzeige-
+#: und Farbchunks (``IHDR``, ``PLTE``, ``IDAT``, ``tRNS``, ``gAMA``, ``iCCP``,
+#: ``sRGB``, ``cHRM``, ``pHYs``, ``bKGD``, ``sBIT``) bleiben — sie ändern das
+#: Bild, nicht die Herkunft des Bildes.
+_PNG_METADATEN = frozenset({b"eXIf", b"tEXt", b"zTXt", b"iTXt"})
+
+#: WebP-Chunks mit Metadaten: ``EXIF`` und ``XMP `` (jeweils am Dateiende
+#: hinter den Bilddaten). ``ICCP`` bleibt (Farbe), ``ANIM``/``ANMF`` bleiben
+#: (Bild), ``VP8``/``VP8L``/``VP8X`` bleiben (Bildkopfdaten).
+_WEBP_METADATEN = frozenset({b"EXIF", b"XMP "})
+
+
+def _ohne_metadaten_png(daten: bytes) -> bytes:
+    """PNG-Chunks mit Metadaten entfernen — Rest Byte für Byte unverändert.
+
+    Aufbau: 8-Byte-Signatur, dann je Chunk ``Länge(4, big) | Typ(4) |
+    Daten | CRC(4)``. Entfernt wird ein Chunk NUR komplett (Typ, Daten und
+    CRC), sonst wäre die Datei kaputt — der CRC deckt den Typ mit ab, ein
+    herausgeschnittener Typ wäre also ein Fehler.
+
+    ``IHDR`` ist immer der erste Chunk und trägt Breite/Höhe/Farbtiefe: fehlt
+    er oder ist die Struktur unlesbar, kommt die EINGABE zurück (ein Bild
+    ohne Reinigung ist besser als ein 500 auf der Bild-Route).
+    """
+    if len(daten) < 8 or not daten.startswith(b"\x89PNG\r\n\x1a\n"):
+        return daten
+    teile = [daten[:8]]
+    stelle = 8
+    laenge = len(daten)
+    while stelle + 8 <= laenge:
+        chunk_laenge = int.from_bytes(daten[stelle : stelle + 4], "big")
+        typ = daten[stelle + 4 : stelle + 8]
+        ende = stelle + 8 + chunk_laenge + 4  # Daten + CRC
+        if chunk_laenge > laenge or ende > laenge:
+            # Kaputte Länge: ab hier ist die Struktur verloren -> Rückgabe.
+            return daten
+        if typ == b"IHDR" and stelle != 8:
+            return daten
+        # tEXt/iTXt stehen je nach Werkzeug vor ODER hinter den Bilddaten —
+        # beide Stellen werden entfernt, deshalb keine Fallunterscheidung.
+        if typ not in _PNG_METADATEN:
+            teile.append(daten[stelle:ende])
+        if typ == b"IEND":
+            stelle = ende
+            break
+        stelle = ende
+    if stelle == 8:
+        # Nicht einmal IHDR gelesen: keine gültige PNG-Struktur.
+        return daten
+    if stelle != laenge:
+        # Bytes hinter IEND: anhängen, nicht verlieren (manche Werkzeuge
+        # hängen Kommentare dort an).
+        teile.append(daten[stelle:])
+    return b"".join(teile)
+
+
+def _ohne_metadaten_webp(daten: bytes) -> bytes:
+    """WebP: ``EXIF``- und ``XMP ``-Chunks entfernen, RIFF-Größe anpassen.
+
+    Aufbau: ``RIFF`` ``Größe(4, little)`` ``WEBP``, dann je Chunk
+    ``Typ(4) | Länge(4, little) | Daten | Füllbyte bei ungerader Länge``.
+    Anders als bei PNG MUSS die RIFF-Größe mitgeschrieben werden: sie ist die
+    Gesamtlänge ab ``WEBP``. Bleibt sie stehen, ist die Datei zu lang und der
+    Browser lehnt sie ab.
+
+    Unlesbare Struktur -> Eingabe zurück.
+    """
+    if len(daten) < 16 or daten[:4] != b"RIFF" or daten[8:12] != b"WEBP":
+        return daten
+    teile = [None, None, b"WEBP"]  # [RIFF, Größe, "WEBP"]
+    stelle = 12
+    laenge = len(daten)
+    while stelle + 8 <= laenge:
+        typ = daten[stelle : stelle + 4]
+        chunk_laenge = int.from_bytes(daten[stelle + 4 : stelle + 8], "little")
+        gepolstert = chunk_laenge + (chunk_laenge % 2)
+        ende = stelle + 8 + gepolstert
+        if chunk_laenge > laenge or ende > laenge:
+            return daten
+        if typ not in _WEBP_METADATEN:
+            teile.append(daten[stelle:ende])
+        stelle = ende
+    if stelle != laenge:
+        # Rest ohne vollständigen Kopf: nur anhängen, wenn er leer ist.
+        return daten
+    rumpf = b"".join(teile[2:])
+    if not rumpf:
+        return daten
+    # RIFF-Groesse = Laenge ab "WEBP" bis Dateiende. `teile[2]` IST das Wort
+    # "WEBP" und steht deshalb vorn im Rumpf — `len(rumpf)` ist die Groesse,
+    # ohne Zuschlag. Nachgerechnet im Test
+    # `test_webp_ohne_metadaten_bleibt_unveraendert`, der eine Datei ohne
+    # Metadaten Byte fuer Byte vergleicht.
+    return b"RIFF" + len(rumpf).to_bytes(4, "little") + rumpf
+
+
+def ohne_metadaten(daten: bytes, typ: str) -> bytes:
+    """Gibt das Bild ohne Metadatenblöcke zurück (Review BS-3a, Punkt 6).
+
+    WARUM HIER UND NICHT BEIM HOCHLADEN
+    -----------------------------------
+    Beim Hochladen liegen die Fotos bereits im Bestand (und ein Nachlauf über
+    alle Dateien wäre eine Migration, nicht diese Karte). Die öffentliche
+    Ausgabe ist die Stelle, an der die Daten das Haus verlassen — dort müssen
+    sie sauber sein. Das Original bleibt unverändert (kein Schreibzugriff auf
+    ``/files``), geliefert wird eine bereinigte Fassung.
+
+    WIE
+    ---
+    Bewusst OHNE Bildbibliothek: Pillow ist keine Abhängigkeit dieses Pakets,
+    und ein Dekodieren/Neukodieren würde die Qualität senken und Speicher
+    kosten. Je Format werden nur die METADATEN-Behälter herausgeschnitten,
+    alles andere bleibt Byte für Byte stehen:
+
+    * ``JPEG`` — Segmente (``APP1``/``APP2``/``APP13``/``APP14``/``COM``)
+      zwischen SOI und dem ersten Bildblock,
+    * ``PNG`` — Chunks ``eXIf``/``tEXt``/``zTXt``/``iTXt`` (Nachtrag 2,
+      Punkt 4: vorher verliess PNG unverpackt das Haus),
+    * ``WebP`` — Chunks ``EXIF``/``XMP `` samt angepasster RIFF-Größe
+      (Nachtrag 2, Punkt 4).
+
+    ``GIF`` kennt keine EXIF-Anhänge, die diese Route ausliefert; ein
+    unbekannter Typ kommt unverändert zurück.
+
+    Wirft nie: eine beschädigte Datei ergibt die Eingabe (ein Bild ohne
+    Reinigung ist besser als ein 500 auf der Bild-Route) — die Struktur hat
+    ``files.binary_content_type`` vorher schon als Bild erkannt.
+    """
+    try:
+        if typ == "image/png":
+            return _ohne_metadaten_png(daten)
+        if typ == "image/webp":
+            return _ohne_metadaten_webp(daten)
+    except (IndexError, ValueError):
+        return daten
+    if typ != "image/jpeg" or len(daten) < 4 or not daten.startswith(b"\xff\xd8"):
+        return daten
+    teile = [b"\xff\xd8"]
+    stelle = 2
+    laenge = len(daten)
+    while stelle + 4 <= laenge:
+        if daten[stelle] != 0xFF:
+            # Kein Segmentkopf mehr: ab hier ist es Bilddatenstrom (SOS).
+            teile.append(daten[stelle:])
+            return b"".join(teile)
+        marker = daten[stelle + 1]
+        if marker == 0xD9:  # EOI
+            teile.append(daten[stelle:])
+            return b"".join(teile)
+        if marker == 0xDA:  # SOS: danach folgen die Bilddaten bis EOI
+            teile.append(daten[stelle:])
+            return b"".join(teile)
+        if 0xD0 <= marker <= 0xD8 or marker == 0x01:
+            # Marker ohne Längenfeld.
+            teile.append(daten[stelle : stelle + 2])
+            stelle += 2
+            continue
+        block = int.from_bytes(daten[stelle + 2 : stelle + 4], "big")
+        if block < 2 or stelle + 2 + block > laenge:
+            teile.append(daten[stelle:])
+            return b"".join(teile)
+        if marker not in _JPEG_METADATEN:
+            teile.append(daten[stelle : stelle + 2 + block])
+        stelle += 2 + block
+    return daten
 
 
 def pruefe_und_lege_ab(datei: Any, deklarierter_typ: str | None = None) -> tuple[str, str]:

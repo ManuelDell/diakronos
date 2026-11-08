@@ -70,6 +70,7 @@ BAUSTEINE = (
     "gruppe-steckbrief",
     "neuigkeiten",
     "anmeldung",
+    "ansprechpartner",
 )
 
 #: Die Zuordnung, die die Karte verlangt: welche Freigabe-Gruppen ein Baustein
@@ -85,6 +86,8 @@ ERWARTETE_FREIGABEN = {
     "gruppe-steckbrief": ["gruppen", "termine"],
     "neuigkeiten": ["beitraege"],
     "anmeldung": ["termine"],
+    # BS-3a: eigene Auswahl + Einwilligung, keine Freigabegruppe.
+    "ansprechpartner": [],
 }
 
 #: Endpunkt im Baustein -> Freigabe-Gruppen, die er öffentlich macht.
@@ -98,6 +101,7 @@ ENDPUNKT_ZU_FREIGABE = {
     "/website/oeffentlich/gruppe": {"gruppen", "termine"},
     "/website/oeffentlich/beitraege": {"beitraege"},
     "/website/oeffentlich/postfaecher": {"kontaktpostfaecher"},
+    "/website/oeffentlich/ansprechpartner": set(),
 }
 
 
@@ -289,10 +293,10 @@ def test_freigaben_sind_eine_positivliste():
 
 
 @nur_im_repo
-def test_version_ist_zehn():
+def test_version_ist_elf():
     """BS-2d1 erhöht die Auslieferung: main stand auf 9."""
-    assert bibliothek.mitgelieferte_version() == 10
-    assert (QUELLE_REPO / "VERSION").read_text(encoding="utf-8").strip() == "10"
+    assert bibliothek.mitgelieferte_version() == 11
+    assert (QUELLE_REPO / "VERSION").read_text(encoding="utf-8").strip() == "11"
 
 
 # ── 2. Der Status-Endpunkt liefert „mitgeliefert“ ──────────────────────────
@@ -318,10 +322,10 @@ def test_status_endpunkt_hat_das_feld_mitgeliefert(als_benutzer, primo_nicht_err
     antwort = c.get(f"/api/method/{PFAD_STATUS}")
     assert antwort.status_code == 200, antwort.text
     daten = antwort.json()["message"]
-    assert len(daten["mitgeliefert"]) == 9
+    assert len(daten["mitgeliefert"]) == 10
     kennungen = [e["kennung"] for e in daten["mitgeliefert"]]
     assert kennungen == list(BAUSTEINE)
-    assert daten["mitgeliefert_version"] == 10
+    assert daten["mitgeliefert_version"] == 11
     # Je Eintrag genau die Felder der Karte — keine Personendaten, keine
     # internen Kennungen (G1).
     assert set(daten["mitgeliefert"][0]) == {

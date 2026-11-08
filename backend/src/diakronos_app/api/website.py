@@ -1073,3 +1073,542 @@ def bausteine_installieren(request=None):
             DienstNichtVerfuegbarError,
         )
     return ergebnis.als_dict()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BS-3a — Einwilligung der Person selbst + Auswahl der Ansprechpartner-Bereiche
+#
+# ZWEI verschiedene Zuständigkeiten, bewusst getrennt (Kartenvorgabe P1/P2):
+#
+#   website.meine_einwilligung_lesen   (GET)  — die PERSON selbst
+#   website.meine_einwilligung_setzen  (POST) — die PERSON selbst (CSRF)
+#   website.ansprechpartner_bereiche_lesen  (GET)  — Verwaltung (Rollen BS-1a)
+#   website.ansprechpartner_bereiche_setzen (POST) — Verwaltung (CSRF)
+#
+# WARUM DIE TRENNUNG SO HART IST
+# ------------------------------
+# Eine Einwilligung, die ein Administrator setzen kann, ist keine Einwilligung
+# (Art. 4 Nr. 11, Art. 7 DSGVO). Deshalb taucht KEIN Einwilligungsfeld in der
+# Parameterliste eines Verwaltungs-Endpunkts auf — auch nicht als Zusatz zu
+# `freigabe_setzen`. Die Verwaltung entscheidet nur, WELCHE Funktionen
+# erscheinen dürfen; ob eine Person erscheint, entscheidet sie selbst.
+#
+# Das Rollen-Gate der Einwilligungs-Endpunkte ist „angemeldet und ein eigenes
+# Mitglied" — NICHT `_require_website_rolle()`: die Website-Rolle darf man
+# nicht verlangen, sonst könnten normale Mitglieder nicht zustimmen.
+# ═══════════════════════════════════════════════════════════════════════════
+
+#: Frappe-üblich: Argumente, die ein Verwaltungs-Endpunkt NIE annimmt.
+EINWILLIGUNGS_FELDER = (
+    "website_einwilligung",
+    "website_einwilligung_am",
+    "website_einwilligung_foto",
+    "website_anzeigename",
+)
+
+
+def _eigenes_mitglied() -> str:
+    """Mitglied-Kennung des angemeldeten Benutzers — oder 417/403.
+
+    Es wird KEINE zweite Zuordnungslogik gebaut: `profile._get_my_mitglied`
+    ist die eine Stelle, an der „Benutzer -> Mitglied" entschieden wird
+    (zwei Stufen, Mehrdeutigkeit ist ein Fehler). Ein Gast bekommt 403, ein
+    angemeldetes Konto ohne Mitglied die deutsche Meldung aus `profile`
+    (417, wie das Profil selbst — die SPA zeigt sie unverändert an).
+    """
+    if session.user in ("", "Guest"):
+        throw("Nicht angemeldet", FrappePermissionError)
+    from diakronos_app.api.profile import _get_my_mitglied
+
+    return _get_my_mitglied()
+
+
+def _einwilligung_stand(mid: str) -> dict:
+    """Der Einwilligungsstand EINER Person (nur an sie selbst)."""
+    from diakronos_app.frappe_compat.api_helpers import get_doc
+    from diakronos_app.website import einwilligung as regel
+
+    doc = get_doc("Mitglied", mid)
+    return {
+        "website_einwilligung": bool(doc.get("website_einwilligung") or False),
+        "website_einwilligung_am": regel.zeitstempel(doc.get("website_einwilligung_am")),
+        # Die Foto-Zustimmung ist ohne die Einwilligung wirkungslos; sie wird
+        # trotzdem roh angezeigt (die Person sieht, was gespeichert ist) —
+        # die Anzeige der SPA darf daraus keinen „aktiv"-Eindruck ableiten,
+        # dafür steht `foto_erlaubt` daneben.
+        "website_einwilligung_foto": bool(doc.get("website_einwilligung_foto") or False),
+        "website_anzeigename": str(doc.get("website_anzeigename") or ""),
+        "foto_erlaubt": regel.foto_erlaubt(doc),
+        "oeffentlich": regel.ist_oeffentlich(doc),
+    }
+
+
+@whitelist(allow_guest=False)
+def meine_einwilligung_lesen():
+    """Stand der EIGENEN Website-Einwilligung (BS-3a, P1).
+
+    Rueckgabe::
+
+        {"website_einwilligung": bool,
+         "website_einwilligung_am": "2026-11-08 10:12:33" | null,
+         "website_einwilligung_foto": bool,
+         "website_anzeigename": str,
+         "foto_erlaubt": bool,      # Einwilligung UND Foto-Zustimmung
+         "oeffentlich": bool}       # erscheint gerade als Ansprechpartner
+
+    Keine fremden Daten: die Funktion liest ausschliesslich das Mitglied des
+    angemeldeten Benutzers. Ein Administrator bekommt hier SEINEN eigenen
+    Stand, nicht den eines anderen — es gibt keinen Parameter dafür.
+    """
+    return _einwilligung_stand(_eigenes_mitglied())
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def meine_einwilligung_setzen(request=None, einwilligung=None, foto=None,
+                            anzeigename=None):
+    """Setzt die EIGENE Website-Einwilligung (BS-3a, P1) — nur die Person selbst.
+
+    Argumente (jedes optional — nur was mitgeschickt wird, ändert sich):
+
+      ``einwilligung``  true/false; true setzt ``website_einwilligung`` UND den
+                        Zeitstempel, false ist der WIDERRUF und löscht den
+                        Zeitstempel (die Person erscheint sofort nicht mehr).
+      ``foto``          true/false — eigene Zustimmung zum Bild. Wird ohne
+                        bestehende Einwilligung abgelehnt (417): eine
+                        Foto-Zustimmung ohne Namens-Zustimmung wäre ein
+                        Schalter ohne Wirkung.
+      ``anzeigename``    z. B. nur der Vorname. Leerer Wert löscht ihn
+                        (dann gilt der volle Name). Höchstens 140 Zeichen.
+
+    Der Widerruf wirkt SOFORT: die öffentliche Ausgabe liest die Schalter bei
+    jeder Anfrage, es gibt keinen Zwischenspeicher.
+
+    DSGVO: jede Änderung erzeugt einen Eintrag in ``DSGVO Einwilligung``
+    (``log_einwilligung``, typ ``website``) — er überlebt eine spätere
+    Datenlöschung, weil er nur die technische Kennung nennt.
+
+    Fehler: andere Methode als POST -> 405; nicht angemeldet -> 403;
+    unbrauchbarer Anzeigename/kein Wahrheitswert -> 417 mit deutscher
+    Meldung; ohne eigenes Mitglied -> 417 (Meldung aus ``profile``).
+    """
+    abweisung = _nur_post(request)
+    if abweisung is not None:
+        return abweisung
+    mid = _eigenes_mitglied()
+
+    from diakronos_app.api.dsgvo_log import log_einwilligung
+    from diakronos_app.frappe_compat.api_helpers import get_doc
+    from diakronos_app.website import einwilligung as regel
+
+    doc = get_doc("Mitglied", mid)
+
+    def _wahr(wert) -> bool:
+        return _ist_wahr(wert)
+
+    werte: dict = {}
+    if _geliefert(einwilligung):
+        an = _wahr(einwilligung)
+        werte["website_einwilligung"] = an
+        if an:
+            from diakronos_app.frappe_compat.api_helpers import _now
+
+            werte["website_einwilligung_am"] = _now()
+        else:
+            # Widerruf: kein Datum stehen lassen (ein Datum ohne Einwilligung
+            # wäre ein Nachweis für etwas, das nicht mehr gilt). Wiederrufen
+            # wird auch die Foto-Zustimmung: sie war Teil derselben Sache.
+            werte["website_einwilligung_am"] = None
+            werte["website_einwilligung_foto"] = False
+    if _geliefert(foto):
+        an_foto = _wahr(foto)
+        if an_foto:
+            neu = werte.get("website_einwilligung", bool(doc.get("website_einwilligung")))
+            if not neu:
+                throw(
+                    "Ohne Einwilligung zur Nennung des Namens gibt es kein Foto."
+                    " Bitte zuerst der Nennung zustimmen.",
+                    ValidationError,
+                )
+        werte["website_einwilligung_foto"] = an_foto
+    if _geliefert(anzeigename):
+        try:
+            werte["website_anzeigename"] = regel.anzeigename_pruefen(anzeigename)
+        except ValueError as exc:
+            throw(str(exc), ValidationError)
+
+    if not werte:
+        throw(
+            "Es wurde nichts zum Ändern angegeben.",
+            ValidationError,
+        )
+
+    # `db_set` statt `save()`: derselbe Weg wie `profile.update_einwilligung`
+    # — kein zweiter Schreibpfad, der an einer Policy hängen bleibt.
+    #
+    # BS-3a (Datenschutz-Review, KRITISCH 1): `db_set` läuft seit der
+    # Nacharbeit durch `_pruefe_mitglied_schreibzugriff` — und die lehnt
+    # Einwilligungsfelder ab, ausser das Zeitfenster dieser Funktion steht
+    # offen. Genau das ist gewollt: DIESE Funktion ist der einzige Weg, auf
+    # dem eine Einwilligung entstehen oder enden kann. Das Fenster nennt
+    # ausdrücklich nur die Felder, die hier wirklich geschrieben werden.
+    with regel.zustimmungs_fenster(tuple(werte)):
+        for feld, wert in werte.items():
+            doc.db_set(feld, wert)
+
+    if "website_einwilligung" in werte:
+        log_einwilligung(
+            mid,
+            "website",
+            "erteilt" if werte["website_einwilligung"] else "widerrufen",
+        )
+    # Review BS-3a (Punkt 9) + NACHTRAG 2 (MITTEL 3): je geändertem Feld
+    # GENAU EIN Eintrag — keine `elif`-Kette. Die Kette protokollierte in
+    # „einwilligung=true, foto=false“ das Foto nicht, warf es im Widerruf
+    # aber mit hinein (der Widerruf setzt `website_einwilligung_foto` selbst
+    # auf False); und ein Aufruf mit allen drei Feldern erzeugte für den
+    # Anzeigenamen zwei Einträge. Jetzt steht jedes Feld für sich:
+    #
+    #   website_einwilligung   -> typ "website"            erteilt/widerrufen
+    #   website_einwilligung_foto -> typ "website_foto"    erteilt/widerrufen
+    #   website_anzeigename    -> typ "website_anzeigename" gesetzt/entfernt
+    #
+    # Der Widerruf der Namens-Einwilligung zählt bewusst als FOTO-Widerruf
+    # mit: er setzt die Foto-Zustimmung zurück, sonst bliebe im Protokoll
+    # eine Zustimmung stehen, die nicht mehr gilt (Art. 7 Abs. 1 DSGVO).
+    if werte.get("website_einwilligung_foto") is not None:
+        log_einwilligung(
+            mid,
+            "website_foto",
+            "erteilt" if werte["website_einwilligung_foto"] else "widerrufen",
+        )
+    if "website_anzeigename" in werte:
+        log_einwilligung(
+            mid,
+            "website_anzeigename",
+            "gesetzt" if werte["website_anzeigename"] else "entfernt",
+        )
+
+    return _einwilligung_stand(mid)
+
+
+#: Arten eines Ansprechpartner-Bereichs — die zwei Knotenarten des
+#: Organigramms (`api/orgchart_api`: Dienstbereich, Gruppe).
+BEREICH_ARTEN = ("dienstbereich", "gruppe")
+
+
+def _bereich_oeffentlich(zeile) -> dict:
+    """Eine gespeicherte Auswahlzeile für die Verwaltung (nur Verwaltungsfelder)."""
+    return {
+        "art": zeile.art,
+        "funktion": zeile.funktion,
+        "bezeichnung": zeile.bezeichnung or "",
+        "postfach": zeile.postfach or "",
+        "sortierung": int(zeile.sortierung or 0),
+    }
+
+
+def _bereiche_sitzung():
+    """DB-Sitzung für die Auswahl der Bereiche — ``(session, eigene)``.
+
+    Über das MODUL gelesen, nicht über eine frühere Bindung: ``patched_db``
+    (Tests) ersetzt ``SessionLocal`` — eine eingefrorene Bindung ginge daran
+    vorbei und fasste die echte ``database_url`` an.
+    """
+    from diakronos_app import db as dbmod
+
+    return dbmod.sitzung_fuer_lesen()
+
+
+def _auswahl_lesen() -> list[dict]:
+    from sqlalchemy import select
+
+    from diakronos_app.models.website_ansprechpartner import WebsiteAnsprechpartner
+
+    sess, eigene = _bereiche_sitzung()
+    try:
+        zeilen = sess.execute(
+            select(WebsiteAnsprechpartner).order_by(
+                WebsiteAnsprechpartner.sortierung, WebsiteAnsprechpartner.funktion
+            )
+        ).scalars().all()
+        return [_bereich_oeffentlich(z) for z in zeilen]
+    finally:
+        if eigene:
+            sess.close()
+
+
+def _funktionskatalog() -> dict[str, dict[str, dict]]:
+    """Alle auswählbaren Funktionen/Positionen je Art (aus dem Organigramm).
+
+    ``{"dienstbereich": {name: {bezeichnung}}, "gruppe": {name: {bezeichnung}}}``
+    — gelesen aus DENSELBEN Tabellen, die das Organigramm zeigt
+    (``api/orgchart_api``): ``dienstbereich`` und ``gruppe`` (nur aktive,
+    nicht gelöschte Gruppen — dieselbe Regel wie dort).
+    """
+    from diakronos_app.frappe_compat.query import get_all
+
+    bereiche: dict[str, dict[str, dict]] = {"dienstbereich": {}, "gruppe": {}}
+    for zeile in get_all(
+        "Dienstbereich",
+        fields=["name", "ministry", "sortierung"],
+        order_by="sortierung asc, ministry asc",
+    ) or []:
+        bereiche["dienstbereich"][str(zeile.get("name"))] = {
+            "bezeichnung": str(zeile.get("ministry") or zeile.get("name") or "")
+        }
+    for zeile in get_all(
+        "Gruppe",
+        filters={"status": "Aktiv", "geloescht_am": ["is", "not set"]},
+        fields=["name", "gruppenname"],
+        order_by="gruppenname asc",
+    ) or []:
+        bereiche["gruppe"][str(zeile.get("name"))] = {
+            "bezeichnung": str(zeile.get("gruppenname") or zeile.get("name") or "")
+        }
+    return bereiche
+
+
+@whitelist(allow_guest=False)
+def ansprechpartner_bereiche_lesen():
+    """Auswahl der Ansprechpartner-Bereiche (BS-3a, P2) — nur Verwaltung.
+
+    Rueckgabe::
+
+        {"bereiche": [{"art", "funktion", "bezeichnung", "postfach",
+                       "sortierung"}, …],
+         "auswahl": {"dienstbereich": [{"funktion", "bezeichnung"}, …],
+                     "gruppe": [{"funktion", "bezeichnung"}, …]},
+         "postfaecher": [{"slug", "bezeichnung"}, …]}
+
+    ``bereiche`` ist die gespeicherte Auswahl, ``auswahl`` der Katalog der
+    möglichen Funktionen (Organigramm), ``postfaecher`` die aktiven
+    Postfach-Slugs aus BS-1a (nur Slug und Bezeichnung — keine Adresse).
+
+    Enthält KEINE Einwilligung und KEINE Personendaten: wer eine Funktion
+    ausfüllt, steht in der Mitgliederverwaltung, und ob diese Person erscheint,
+    entscheidet allein ihre eigene Einwilligung.
+    """
+    _require_website_rolle()
+    from sqlalchemy import select
+
+    from diakronos_app.models.website_kontakt import WebsiteKontaktPostfach
+    from diakronos_app.settings import settings
+    from diakronos_app.website import freigaben as regeln
+
+    katalog = _funktionskatalog()
+    sess, eigene = _bereiche_sitzung()
+    try:
+        zeilen = sess.execute(
+            select(WebsiteKontaktPostfach)
+            .where(WebsiteKontaktPostfach.aktiv.is_(True))
+            .order_by(WebsiteKontaktPostfach.sortierung, WebsiteKontaktPostfach.slug)
+        ).scalars().all()
+        postfaecher = [
+            {"slug": z.slug, "bezeichnung": z.bezeichnung} for z in zeilen
+        ]
+        if not postfaecher:
+            # WEB-10-Rückfall wie im Kontaktformular: ohne Zeile gilt die
+            # Einstellung als Postfach „standard" (nur der Slug wird gezeigt).
+            postfaecher = [
+                {"slug": p.slug, "bezeichnung": p.bezeichnung}
+                for p in regeln.postfaecher_oeffentlich(
+                    sess, settings.website_kontakt_empfaenger
+                )
+            ]
+    finally:
+        if eigene:
+            sess.close()
+
+    return {
+        "bereiche": _auswahl_lesen(),
+        "auswahl": {
+            art: [
+                {"funktion": name, "bezeichnung": wert["bezeichnung"]}
+                for name, wert in sorted(eintraege.items(),
+                                        key=lambda e: (e[1]["bezeichnung"].lower(), e[0]))
+            ]
+            for art, eintraege in katalog.items()
+        },
+        "postfaecher": postfaecher,
+        "einwilligungen_verwaltbar": False,
+    }
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def ansprechpartner_bereiche_setzen(request=None, bereiche=None, **kwargs):
+    """Setzt die Auswahl der Ansprechpartner-Bereiche (BS-3a, P2) — Verwaltung.
+
+    ``bereiche`` ist die VOLLE Liste (JSON-String oder Liste), jeder Eintrag::
+
+        {"art": "dienstbereich"|"gruppe",
+         "funktion": "<Kennung aus dem Organigramm>",
+         "bezeichnung": "<optional, leer = Anzeigename des Datensatzes>",
+         "postfach": "<Slug aus BS-1a oder leer>",
+         "sortierung": <optional, Zahl; ohne Angabe die Listenposition>}
+
+    Ersetzt die Auswahl vollständig („delete-and-replace", dieselbe
+    Entscheidung wie bei den Kalender-Importen). Eine leere Liste schaltet
+    die Ausgabe ab.
+
+    **Eine Einwilligung nimmt dieser Endpunkt NICHT an.** Frappe reicht bei
+    einer Funktion mit ``**kwargs`` ALLE Request-Argumente durch — deshalb
+    gibt es den Sammler hier: er ist die Stelle, an der ein mitgeschicktes
+    Einwilligungsfeld ERKANNT und mit 403 abgelehnt wird, statt still
+    verworfen zu werden (Kartenvorgabe P1, Test „Admin kann Einwilligung
+    NICHT setzen"). Unbekannte andere Argumente werden ignoriert.
+
+    Fehler: andere Methode als POST -> 405; keine Website-Rolle -> 403;
+    Einwilligungsfeld im Aufruf -> 403; unbekannte Art/Funktion, doppelter
+    Eintrag, unbekanntes Postfach, unbrauchbare Liste -> 417 mit deutscher
+    Meldung. Es wird NICHTS geschrieben, wenn eine Prüfung scheitert (erst
+    prüfen, dann schreiben).
+    """
+    abweisung = _nur_post(request)
+    if abweisung is not None:
+        return abweisung
+    _require_website_rolle()
+    _weise_einwilligungsfelder_ab(kwargs)
+
+    from sqlalchemy import delete, select
+
+    from diakronos_app.models.website_ansprechpartner import WebsiteAnsprechpartner
+    from diakronos_app.models.website_kontakt import WebsiteKontaktPostfach
+
+    eintraege = _bereichsliste(bereiche)
+    katalog = _funktionskatalog()
+
+    sess, eigene = _bereiche_sitzung()
+    try:
+        bekannte_postfaecher = {
+            str(z.slug)
+            for z in sess.execute(select(WebsiteKontaktPostfach)).scalars().all()
+        }
+        geprueft: list[dict] = []
+        gesehen: set[tuple[str, str]] = set()
+        for stelle, eintrag in enumerate(eintraege):
+            art = str(eintrag.get("art") or "").strip().lower()
+            if art not in BEREICH_ARTEN:
+                throw(
+                    "Unbekannte Art. Erlaubt sind Dienstbereich und Gruppe.",
+                    ValidationError,
+                )
+            funktion = str(eintrag.get("funktion") or "").strip()
+            if not funktion:
+                throw("Bitte für jeden Bereich eine Funktion angeben.", ValidationError)
+            if funktion not in katalog[art]:
+                throw(
+                    "Diese Funktion gibt es im Organigramm nicht mehr. "
+                    "Bitte die Liste neu laden.",
+                    ValidationError,
+                )
+            if (art, funktion) in gesehen:
+                throw(
+                    "Jede Funktion darf nur einmal ausgewählt werden.",
+                    ValidationError,
+                )
+            gesehen.add((art, funktion))
+
+            bezeichnung = str(eintrag.get("bezeichnung") or "").strip()
+            if len(bezeichnung) > 140:
+                throw(
+                    "Die Bezeichnung darf höchstens 140 Zeichen lang sein.",
+                    ValidationError,
+                )
+            postfach = str(eintrag.get("postfach") or "").strip() or None
+            if postfach is not None and postfach not in bekannte_postfaecher:
+                throw(
+                    "Dieses Postfach gibt es nicht. Bitte eines aus der Liste wählen.",
+                    ValidationError,
+                )
+            try:
+                sortierung = int(eintrag.get("sortierung", stelle))
+            except (TypeError, ValueError):
+                sortierung = stelle
+            geprueft.append(
+                {
+                    "art": art,
+                    "funktion": funktion,
+                    "bezeichnung": bezeichnung or None,
+                    "postfach": postfach,
+                    "sortierung": sortierung,
+                }
+            )
+
+        # Ab hier wird geschrieben — alles geprüft.
+        sess.execute(delete(WebsiteAnsprechpartner))
+        for werte in geprueft:
+            sess.add(WebsiteAnsprechpartner(**werte))
+        sess.commit()
+    except Exception:
+        sess.rollback()
+        raise
+    finally:
+        if eigene:
+            sess.close()
+
+    logger.info("Ansprechpartner-Bereiche gesetzt (%s).", len(geprueft))
+    return {"bereiche": _auswahl_lesen()}
+
+
+def _weise_einwilligungsfelder_ab(argumente) -> None:
+    """403, wenn der Aufruf ein Einwilligungsfeld mitschickt (P1, fail closed).
+
+    Frappe reicht bei einer Funktion mit ``**kwargs`` ALLE Request-Argumente
+    durch (JSON-Body, Formular, Query-String). Dieser Endpunkt kennt keine
+    Einwilligungsfelder; sie still zu verwerfen wäre ein stiller Fehlschlag
+    genau dort, wo es um Datenschutz geht. Deshalb: klare Ablehnung.
+    """
+    vorhanden = {str(k) for k in (argumente or {})}
+    treffer = sorted(vorhanden.intersection(EINWILLIGUNGS_FELDER))
+    if treffer:
+        throw(
+            "Die Einwilligung kann nur die Person selbst erteilen oder widerrufen.",
+            FrappePermissionError,
+        )
+
+
+def _bereichsliste(wert) -> list[dict]:
+    """``bereiche`` als Liste von Dicts (JSON-String, Liste, ``None``)."""
+    import json
+
+    if wert is None or wert == "":
+        return []
+    daten = wert
+    if isinstance(wert, (str, bytes)):
+        try:
+            daten = json.loads(wert)
+        except (TypeError, ValueError):
+            throw("Die Liste der Bereiche ist unbrauchbar.", ValidationError)
+    if not isinstance(daten, (list, tuple)):
+        throw("Die Liste der Bereiche ist unbrauchbar.", ValidationError)
+    liste = []
+    for eintrag in daten:
+        if isinstance(eintrag, (str, bytes)):
+            try:
+                eintrag = json.loads(eintrag)
+            except (TypeError, ValueError):
+                throw("Die Liste der Bereiche ist unbrauchbar.", ValidationError)
+        if not isinstance(eintrag, dict):
+            throw("Die Liste der Bereiche ist unbrauchbar.", ValidationError)
+        liste.append(eintrag)
+    return liste
+
+
+# Kurzpfade, die die Karte so nennt (`website.meine_einwilligung_lesen|_setzen`,
+# `website.ansprechpartner_bereiche_setzen`) zusätzlich zur Frappe-Bahn. Die
+# abgeleiteten Kurzformen (`website.website_ansprechpartner_bereiche_setzen`)
+# sind unschön, aber harmlos — die Karte spricht die hier eingetragenen an.
+# DIESELBEN Funktionen: Optionen (`allow_guest`, `methods`) gehen mit.
+def _registriere_kurzpfade() -> None:
+    from diakronos_app.frappe_compat.registry import register_with_frappe_module
+
+    for kurz, fn in (
+        ("meine_einwilligung_lesen", meine_einwilligung_lesen),
+        ("meine_einwilligung_setzen", meine_einwilligung_setzen),
+        ("ansprechpartner_bereiche_lesen", ansprechpartner_bereiche_lesen),
+        ("ansprechpartner_bereiche_setzen", ansprechpartner_bereiche_setzen),
+    ):
+        register_with_frappe_module("website", kurz, fn)
+
+
+_registriere_kurzpfade()

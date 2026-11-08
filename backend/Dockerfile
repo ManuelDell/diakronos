@@ -118,6 +118,8 @@ COPY backend/src/diakronos_app/api/kronos/calendar_get.py /backend/src/diakronos
 COPY backend/src/diakronos_app/website/oeffentlich_api.py /backend/src/diakronos_app/website/oeffentlich_api.py
 COPY backend/src/diakronos_app/website/oeffentlich_auswahl.py /backend/src/diakronos_app/website/oeffentlich_auswahl.py
 COPY backend/src/diakronos_app/website/oeffentlich_daten.py /backend/src/diakronos_app/website/oeffentlich_daten.py
+COPY backend/src/diakronos_app/website/oeffentlich_api.py /backend/src/diakronos_app/website/oeffentlich_api.py
+COPY backend/src/diakronos_app/website/oeffentlich_daten.py /backend/src/diakronos_app/website/oeffentlich_daten.py
 COPY backend/src/diakronos_app/website/oeffentlich_http.py /backend/src/diakronos_app/website/oeffentlich_http.py
 COPY backend/src/diakronos_app/website/oeffentlich_bremse.py /backend/src/diakronos_app/website/oeffentlich_bremse.py
 COPY backend/src/diakronos_app/website/oeffentlich_inhalt.py /backend/src/diakronos_app/website/oeffentlich_inhalt.py
@@ -178,6 +180,20 @@ COPY backend/pyproject.toml /backend/pyproject.toml
 # prueft die Quellen, die Pruefsummendatei (F4) und die Nicht-Ziel-Dateien.
 # Er liest NUR deploy/primo/bausteine/ und das Paket — beide stehen oben schon.
 COPY backend/tests/test_bs2a2_bausteine.py /backend/tests/test_bs2a2_bausteine.py
+# BS-3a: die Quellen des Bausteins, das Einwilligungs-Modul, die Migration und
+# die beiden Backend-Tests liegen ausserhalb von frontend/ (Regel 13). Die
+# Quellen selbst stehen schon oben (`deploy/primo/bausteine/`, Paket).
+COPY backend/src/diakronos_app/website/einwilligung.py /backend/src/diakronos_app/website/einwilligung.py
+COPY backend/src/diakronos_app/website/oeffentlich_auswahl.py /backend/src/diakronos_app/website/oeffentlich_auswahl.py
+COPY backend/src/diakronos_app/website/oeffentlich_daten.py /backend/src/diakronos_app/website/oeffentlich_daten.py
+COPY backend/src/diakronos_app/website/oeffentlich_api.py /backend/src/diakronos_app/website/oeffentlich_api.py
+COPY backend/src/diakronos_app/models/website_ansprechpartner.py /backend/src/diakronos_app/models/website_ansprechpartner.py
+COPY backend/alembic/versions/bs3a_website_einwilligung.py /backend/alembic/versions/bs3a_website_einwilligung.py
+COPY backend/tests/test_bs3a_ansprechpartner.py /backend/tests/test_bs3a_ansprechpartner.py
+# BS-3a NACHTRAG 2 (Datenschutz-Nachreview 08.11.): die Tests zu Status-Sperre,
+# Foto-Route (Auswahl + Hash-Index) und Audit-je-Feld. Eigene Datei, damit die
+# Nacharbeit ohne Aenderung an der abgenommenen Basis-Datei pruefbar ist.
+COPY backend/tests/test_bs3a_nachtrag2.py /backend/tests/test_bs3a_nachtrag2.py
 # UX1j: `tests/ux1j-gestaltung-backend.test.mjs` haelt die Positivliste, die
 # Rollen-/Methoden-Sperre und die CSS-Ausgabe der Gestaltungs-Einstellungen
 # fest und liest dafuer das Backend-Paket `gestaltung/`, das Modell, die

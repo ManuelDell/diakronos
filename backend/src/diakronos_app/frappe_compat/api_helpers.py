@@ -731,6 +731,15 @@ def _pruefe_mitglied_schreibzugriff(
         _ausgeschlossene_konten, _kontozustand, wirksame_konten,
     )
 
+    # BS-3a (Datenschutz-Review, KRITISCH 1): die Einwilligung zur
+    # Veroeffentlichung schreibt NUR die Person selbst. Diese Schranke ist der
+    # eine Ort, den jeder generische Schreibweg passiert — deshalb steht die
+    # Pruefung genau hier und nicht in den Endpunkten (siehe
+    # `website.einwilligung.pruefe_generischen_schreibweg`).
+    from diakronos_app.website.einwilligung import pruefe_generischen_schreibweg
+
+    pruefe_generischen_schreibweg(values, name)
+
     # SEC-c: DIE Schranke ist der eine Ort, den jeder Schreibweg passiert.
     # Deshalb wird die E-Mail hier normalisiert — auch fuer Aufrufer, die die
     # Normalisierung vergessen (`Document.db_set`, `frappe.client.insert`,

@@ -637,6 +637,36 @@ def zeitraum_text(stichtag: date) -> tuple[str, str]:
 # Inhalt der Beispieltexte. Alle Namen sind erfunden, alle Links zeigen auf
 # example.org (RFC 2606) — die Texte sind fuer eine Vorfuehrung gedacht.
 
+# BS-3a: Ansprechpartner auf der Website. Die Verwaltung waehlt die Funktionen
+# — erscheinen duerfen sie nur, weil die Personen unten selbst zugestimmt
+# haben. Erfundene Beispielbereiche, keine echten Namen aus einer Gemeinde.
+WEBSITE_ANSPRECHPARTNER: list[dict[str, Any]] = [
+    {"art": "dienstbereich", "funktion": "musik", "bezeichnung": "Musik",
+     "postfach": "musik"},
+    {"art": "gruppe", "funktion": "Chor", "bezeichnung": "Chor",
+     "postfach": "musik"},
+]
+
+#: (Person, Anzeigename) — DEMODATEN: die Einwilligung wird vom Seed gesetzt,
+#: nicht von den Personen. Anzeigename = nur der Vorname, wie es eine echte
+#: Gemeinde oft will.
+WEBSITE_EINWILLIGUNG: list[dict[str, str]] = [
+    {"person": "Anna Beispiel", "anzeigename": "Anna"},
+    # Miriam traegt das Verwaltungskonto — der Verantwortliche einer Gruppe
+    # ist ein BENUTZER (`gruppe_verantwortlicher.user`), und “Chor” hat im
+    # Demo-Bestand die Verwaltung als Leitung. Ohne Konto gaebe es keine
+    # Person, die zustimmen koennte.
+    {"person": "Miriam Sonnleitner", "anzeigename": "Miriam"},
+]
+
+#: (Art, Kennung, Person) — wer den Bereich auf der Website vertritt. Die
+#: Person MUSS oben eingewilligt haben, sonst erscheint der Bereich nicht
+#: (genau das soll die Demo vorfuehren koennen).
+WEBSITE_ZUSTAENDIG: list[dict[str, str]] = [
+    {"art": "dienstbereich", "funktion": "musik", "person": "Anna Beispiel"},
+    {"art": "gruppe", "funktion": "Chor", "person": "Miriam Sonnleitner"},
+]
+
 BEITRAEGE: list[dict[str, str]] = [
     {
         "titel": "Gemeindefest am 1. Advent",
