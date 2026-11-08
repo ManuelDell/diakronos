@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url'
 
 import {
   BAUSTEIN_ROLLEN,
+  FREIGABEN_UNBEKANNT,
   WERKZEUG,
   bausteinFreigaben,
   bausteineAnleitung,
@@ -37,9 +38,15 @@ import {
   bausteineZustand,
   bausteinZeileStand,
   darfBausteineSehen,
+  freigabenHinweis,
   freigabenText,
   installationsMeldung,
 } from '../src/shared/website-bausteine.mjs'
+import {
+  ohneDialoge,
+  primaerzaehlung,
+  vorlage,
+} from '../tools/ux1h-primaerknopf-bestand.mjs'
 
 const HIER = path.dirname(fileURLToPath(import.meta.url))
 const FRONTEND = path.resolve(HIER, '..')
@@ -58,7 +65,7 @@ function ohneKommentare(text) {
     .replace(/^\s*\/\/.*$/gm, '')
 }
 
-/** Antwort von `bausteine_status` mit zwei Bausteinen (Form BS-2a). */
+/** Antwort von `bausteine_status` mit zwei Bausteinen (Form BS-2a/BS-2d1). */
 function statusAntwort(teil = {}) {
   return {
     erreichbar: true,
@@ -70,6 +77,14 @@ function statusAntwort(teil = {}) {
     bausteine: [
       { kennung: 'kontakt', name: 'diakronos/kontakt@v2', version: 2 },
       { kennung: 'termine-liste', name: 'diakronos/termine-liste@v2', version: 2 },
+    ],
+    mitgeliefert: [
+      { kennung: 'kontakt', name: 'Diakronos: Kontaktformular',
+        beschreibung: 'Kontaktformular, das die Nachricht als E-Mail über Diakronos sendet.',
+        freigaben: ['kontaktpostfaecher'], sha256: 'a', felder: ['postfach', 'titel'] },
+      { kennung: 'termine-liste', name: 'Diakronos: Nächste Termine',
+        beschreibung: 'Zeigt die freigegebenen Termine aus Diakronos.',
+        freigaben: ['termine'], sha256: 'b', felder: ['anzahl'] },
     ],
     ...teil,
   }
@@ -191,28 +206,38 @@ test('BS-2d: die Zeilen kommen AUS DER SERVERANTWORT — nichts ist erfunden', (
   const zeilen = bausteinZeilen(statusAntwort())
   assert.deepEqual(zeilen.map((z) => z.kennung), ['kontakt', 'termine-liste'])
   assert.ok(zeilen.every((z) => z.stand.installiert))
-  // Kein Name/Beschreibung im Serververtrag → leer, NICHT ausgedacht.
-  assert.equal(zeilen[0].name, '')
-  assert.equal(zeilen[0].beschreibung, '')
+  // Name und Beschreibung kommen aus `mitgeliefert[]` (BS-2d1), nicht aus dem
+  // Blocknamen des Werkzeugs.
+  assert.equal(zeilen[0].name, 'Diakronos: Kontaktformular')
+  assert.match(zeilen[0].beschreibung, /^Kontaktformular, das die Nachricht/)
 
-  // Das Werkzeug ist leer: die Liste ist LEER, nicht „alle mitgelieferten“.
-  assert.deepEqual(bausteinZeilen(statusAntwort({ installiert_version: 0, bausteine: [] })), [])
+  // Ohne `mitgeliefert[]` (älterer Server, Fehler in den Quellen) bleibt die
+  // Zeile karg: Kennung als Name, KEINE erfundene Beschreibung, aber der
+  // Stand des Werkzeugs wird weiterhin gezeigt.
+  const karg = bausteinZeilen(statusAntwort({ mitgeliefert: [] }))
+  assert.deepEqual(karg.map((z) => z.kennung), ['kontakt', 'termine-liste'])
+  assert.equal(karg[0].name, 'kontakt')
+  assert.equal(karg[0].beschreibung, '')
+  assert.equal(karg[0].stand.installiert, true)
+
+  // Das Werkzeug ist leer: die MITGELIEFERTEN Bausteine stehen trotzdem da —
+  // „noch nicht eingespielt“ ist genau der Zustand, den der Bereich erklären soll.
+  const nichts = bausteinZeilen(statusAntwort({ installiert_version: 0, bausteine: [] }))
+  assert.deepEqual(nichts.map((z) => z.kennung), ['kontakt', 'termine-liste'])
+  assert.ok(nichts.every((z) => z.stand.installiert === false))
+  assert.ok(nichts.every((z) => z.stand.text === 'mitgeliefert'))
+
+  // Nichts von beidem: keine Zeilen (und keine erfundene Liste).
+  assert.deepEqual(bausteinZeilen(statusAntwort({ bausteine: [], mitgeliefert: [] })), [])
   assert.deepEqual(bausteinZeilen(null), [])
 
-  // Ein künftiger Server darf Name und Beschreibung mitliefern (BS-2b):
-  // hat das Werkzeug den Eintrag noch nicht, stehen sie trotzdem da.
-  const mitText = bausteinZeilen(statusAntwort({
-    installiert_version: 0,
-    bausteine: [],
-    mitgeliefert: [
-      { kennung: 'kontakt', name: 'Diakronos: Kontaktformular', version: 2,
-        beschreibung: 'Kontaktformular für die Website.' },
-    ],
+  // Ein Baustein, der NUR im Werkzeug liegt (von Hand angelegt), bleibt sichtbar.
+  const nurWerkzeug = bausteinZeilen(statusAntwort({
+    bausteine: [{ kennung: 'handgemacht', name: 'diakronos/handgemacht@v1', version: 1 }],
+    mitgeliefert: [],
   }))
-  assert.equal(mitText.length, 1)
-  assert.equal(mitText[0].beschreibung, 'Kontaktformular für die Website.')
-  assert.equal(mitText[0].stand.installiert, false)
-  assert.equal(mitText[0].stand.text, 'mitgeliefert')
+  assert.deepEqual(nurWerkzeug.map((z) => z.kennung), ['handgemacht'])
+  assert.equal(nurWerkzeug[0].stand.installiert, true)
 })
 
 test('BS-2d: alte und neue Fassung derselben Kennung ergeben EINE Zeile (höchste zählt)', () => {
@@ -222,6 +247,11 @@ test('BS-2d: alte und neue Fassung derselben Kennung ergeben EINE Zeile (höchst
       { kennung: 'kontakt', name: 'diakronos/kontakt@v1', version: 1 },
       { kennung: 'kontakt', name: 'diakronos/kontakt@v3', version: 3 },
       { kennung: 'gruppen', name: 'diakronos/gruppen@v2', version: 2 },
+    ],
+    // Reihenfolge der Zeilen folgt der MITGELIEFERTEN Liste (block.json:index).
+    mitgeliefert: [
+      { kennung: 'kontakt', name: 'Diakronos: Kontaktformular', beschreibung: '', freigaben: ['kontaktpostfaecher'] },
+      { kennung: 'gruppen', name: 'Diakronos: Gruppen-Übersicht', beschreibung: '', freigaben: ['gruppen'] },
     ],
   }))
   assert.deepEqual(zeilen.map((z) => z.kennung), ['kontakt', 'gruppen'])
@@ -233,27 +263,72 @@ test('BS-2d: alte und neue Fassung derselben Kennung ergeben EINE Zeile (höchst
 test('BS-2d: Einträge ohne Kennung werden übergangen', () => {
   const zeilen = bausteinZeilen(statusAntwort({
     bausteine: [{ kennung: '', version: 2 }, { version: 2 }, { kennung: 'kontakt', version: 2 }],
+    mitgeliefert: [null, { kennung: '', name: 'x' }, { kennung: 'kontakt', name: 'Kontaktformular', freigaben: [] }],
   }))
   assert.deepEqual(zeilen.map((z) => z.kennung), ['kontakt'])
+  assert.equal(zeilen[0].name, 'Kontaktformular')
 })
 
 // ── 5. Freigaben ───────────────────────────────────────────────────────────
 
-test('BS-2d: jeder Baustein nennt die Freigaben, auf denen er aufsetzt', () => {
-  // Vorhandene Bausteine aus BS-2a/BS-2c — die Zuordnung folgt ihrem
-  // Datenabruf (`/website/oeffentlich/…`).
-  assert.deepEqual(bausteinFreigaben('kontakt'), ['Kontakt-Postfächer'])
-  assert.deepEqual(bausteinFreigaben('termine-liste'), ['Termine'])
-  assert.deepEqual(bausteinFreigaben('gruppen'), ['Gruppen'])
-  assert.deepEqual(bausteinFreigaben('neuigkeiten'), ['Beiträge'])
-  assert.ok(bausteinFreigaben('gruppe-steckbrief').includes('Gruppen'))
-  assert.ok(bausteinFreigaben('anmeldung').length >= 1)
-  // Unbekannte Kennung: leere Liste, keine erfundene Freigabe.
-  assert.deepEqual(bausteinFreigaben('gibt-es-nicht'), [])
+test('BS-2d2: die Freigaben kommen je Baustein aus der Serverantwort', () => {
+  // Die Namen stehen in der `block.json` der Quelle (BS-2d1) und kommen mit
+  // `mitgeliefert[]`. Diese Zuordnung ist die EINZIGE Quelle — die früher
+  // hier fest kodierte Kennungstabelle (website-bausteine.mjs:176-186) ist
+  // entfallen.
+  assert.deepEqual(bausteinFreigaben({ freigaben: ['kontaktpostfaecher'] }), ['Kontakt-Postfächer'])
+  assert.deepEqual(bausteinFreigaben({ freigaben: ['termine'] }), ['Termine'])
+  assert.deepEqual(bausteinFreigaben({ freigaben: ['gruppen', 'termine'] }), ['Gruppen', 'Termine'])
+  assert.deepEqual(bausteinFreigaben({ freigaben: ['beitraege', 'kalender'] }), ['Beiträge', 'Kalender'])
+  // Ausdrücklich leere Liste: der Baustein fragt keine Freigabe-Daten ab.
+  assert.deepEqual(bausteinFreigaben({ freigaben: [] }), [])
+  // Kein Eintrag, kein Feld, Unsinn: leere Liste — KEINE erfundene Freigabe.
   assert.deepEqual(bausteinFreigaben(null), [])
-  // Die Liste ist eine Kopie — niemand ändert die Zuordnung von aussen.
-  bausteinFreigaben('kontakt').push('Unsinn')
-  assert.deepEqual(bausteinFreigaben('kontakt'), ['Kontakt-Postfächer'])
+  assert.deepEqual(bausteinFreigaben({}), [])
+  assert.deepEqual(bausteinFreigaben({ freigaben: 'termine' }), [])
+  assert.deepEqual(bausteinFreigaben({ freigaben: [null, '', '  '] }), [])
+  // Ein unbekannter Name wird NICHT verschluckt und NICHT umgedeutet.
+  assert.deepEqual(bausteinFreigaben({ freigaben: ['neue_gruppe'] }), ['neue_gruppe'])
+  // Doppelte Namen ergeben einen Eintrag.
+  assert.deepEqual(bausteinFreigaben({ freigaben: ['termine', 'termine'] }), ['Termine'])
+})
+
+test('BS-2d2: freigabenHinweis unterscheidet „keine“, „unbekannt“ und „nutzt“', () => {
+  assert.equal(
+    freigabenHinweis({ freigaben: ['Gruppen', 'Termine'], freigabenBekannt: true }),
+    'Nutzt die Freigaben: Gruppen, Termine',
+  )
+  // Ausdrücklich leere Serverangabe → „braucht keine“.
+  assert.equal(
+    freigabenHinweis({ freigaben: [], freigabenBekannt: true }),
+    'Braucht keine Freigabe aus Diakronos.',
+  )
+  // Fehlende Angabe → „unbekannt“, NICHT „braucht keine“ (G1: Schweigen ist
+  // keine Freigabe-Aussage).
+  assert.equal(freigabenHinweis({ freigaben: [], freigabenBekannt: false }), `Freigaben: ${FREIGABEN_UNBEKANNT}`)
+  assert.equal(freigabenHinweis({ freigaben: [] }), `Freigaben: ${FREIGABEN_UNBEKANNT}`)
+  assert.equal(freigabenHinweis(null), `Freigaben: ${FREIGABEN_UNBEKANNT}`)
+  assert.equal(FREIGABEN_UNBEKANNT, 'unbekannt')
+  // … und die Zeilen tragen das Kennzeichen richtig: Feld da = bekannt.
+  const mit = bausteinZeilen(statusAntwort({ bausteine: [], mitgeliefert: [
+    { kennung: 'a', name: 'A', beschreibung: '', freigaben: ['termine'] },
+    { kennung: 'b', name: 'B', beschreibung: '', freigaben: [] },
+    { kennung: 'c', name: 'C', beschreibung: '' },
+  ] }))
+  assert.deepEqual(mit.map((z) => z.freigabenBekannt), [true, true, false])
+  assert.equal(freigabenHinweis(mit[2]), 'Freigaben: unbekannt')
+})
+
+test('BS-2d2: keine fest kodierte Kennungstabelle mehr in der Logik-Datei', () => {
+  const modul = ohneKommentare(lies('src/shared/website-bausteine.mjs'))
+  // Die alte Tabelle ordnete Kennungen Freigaben zu — genau das ist entfallen.
+  assert.doesNotMatch(modul, /'anmeldung'\s*:/, 'Kennungs-Zuordnung „anmeldung“ steht noch in der Logik')
+  assert.doesNotMatch(modul, /'gruppe-steckbrief'\s*:/, 'Kennungs-Zuordnung „gruppe-steckbrief“ steht noch in der Logik')
+  assert.doesNotMatch(modul, /'termine-liste'\s*:/, 'Kennungs-Zuordnung „termine-liste“ steht noch in der Logik')
+  // Die Anzeige-Namen der Server-Positivliste bleiben (Übersetzung, keine Zuordnung).
+  for (const name of ['termine', 'kalender', 'gruppen', 'beitraege', 'kontaktpostfaecher']) {
+    assert.match(modul, new RegExp(`\\b${name}:`), `Anzeigename ${name} fehlt`)
+  }
 })
 
 test('BS-2d: Freigaben als Satz, lange Listen werden gezählt', () => {
@@ -366,14 +441,62 @@ test('BS-2d: das Bauteil zeichnet nur — keine hartkodierte Bausteinliste', () 
   assert.match(vorlage, /zustand\.aktion/, 'die Knopf-Beschriftung ist fest statt aus dem Zustand')
 })
 
-test('BS-2d: Knöpfe nur über DkButton, genau EIN Primärknopf', () => {
+test('BS-2d2: Knöpfe nur über DkButton — hier KEIN Primärknopf', () => {
   const bauteil = lies('src/diakonos/components/website/BausteineBereich.vue')
   const vorlage = ohneKommentare(bauteil.split('<script')[0])
   assert.doesNotMatch(vorlage, /<button\b/, 'roher <button> (UX1g)')
-  const primaer = vorlage.match(/variant="primary"/g) || []
-  assert.equal(primaer.length, 1, 'genau ein gefüllter Knopf je Bereich (UX1h)')
-  // Das „Stand neu laden“ ist secondary.
-  assert.match(vorlage, /<DkButton variant="secondary"[\s\S]{0,200}Stand neu laden/, 'zweiter Knopf nicht secondary')
+  // BS-2d2 (Punkt 3): „In Website-Baukasten einspielen“ ist secondary; der
+  // EINE Primärknopf der Ansicht ist „Website-Baukasten öffnen“ (Website.vue).
+  assert.equal((vorlage.match(/variant="primary"/g) || []).length, 0, 'der Bereich hat einen eigenen Primärknopf')
+  assert.match(
+    vorlage,
+    /<DkButton[^>]*variant="secondary"[^>]*\n?\s*[^>]*>\s*\{\{\s*zustand\.aktion\s*\}\}/s,
+    'der Einspiel-Knopf ist nicht secondary',
+  )
+})
+
+test('BS-2d2: die Ansicht hat über Website.vue + BausteineBereich EINEN Primärknopf', () => {
+  // Punkt 3 der Karte: gezählt wird über BEIDE Dateien zusammen — der Bereich
+  // ist ein Teil der Seite „Website“, ein zweiter gefüllter Knopf darin würde
+  // die eine Hauptaktion der Ansicht verwässern (UX1h/S1).
+  const seite = ohneDialoge(ohneKommentare(vorlage(lies('src/diakonos/pages/Website.vue'))))
+  const bereich = ohneKommentare(vorlage(lies('src/diakonos/components/website/BausteineBereich.vue')))
+  const zusammen = primaerzaehlung(seite) + primaerzaehlung(bereich)
+  assert.equal(zusammen, 1, `die Ansicht hat ${zusammen} Primärknöpfe statt 1`)
+  // Er ist der Weg in den Website-Baukasten — nicht „einspielen“.
+  assert.match(seite, /<DkButton[^>]*variant="primary"[^>]*>[\s\S]{0,200}?Website-Baukasten öffnen/)
+  assert.doesNotMatch(bereich, /variant="primary"/)
+  // Der Bereich ist in der Seite eingebunden (sonst zählte er nicht mit).
+  assert.match(seite, /<BausteineBereich\s*\/>/)
+})
+
+test('BS-2d2: „Stand neu laden“ sitzt EINMAL auf der Seite, hier heißt der Knopf anders', () => {
+  const seite = ohneKommentare(lies('src/diakonos/pages/Website.vue'))
+  const bereich = ohneKommentare(lies('src/diakonos/components/website/BausteineBereich.vue'))
+  // Der Seitenkopf hat sein „Stand neu laden“ (alle Abschnitte).
+  assert.equal((seite.match(/>\s*Stand neu laden\s*</g) || []).length, 1, 'Seitenkopf ohne „Stand neu laden“')
+  // Der Bereich hat KEIN zweites „Stand neu laden“ — das war der Doppelgänger.
+  assert.doesNotMatch(bereich, /Stand neu laden/, 'zweites „Stand neu laden“ im Bereich')
+  // Der eigene Knopf heißt „Bausteine neu laden“ und ist eindeutig benannt
+  // (Beschriftung + aria-label, Prinzip B3/Barrierefreiheit).
+  assert.match(bereich, />\s*Bausteine neu laden\s*</, 'eigener Neulade-Knopf fehlt')
+  assert.match(bereich, /aria-label="Bausteine neu laden"/, 'aria-label am Neulade-Knopf fehlt')
+  assert.match(
+    bereich,
+    /aria-label="Mitgelieferte Bausteine in den Website-Baukasten einspielen"/,
+    'aria-label am Einspiel-Knopf fehlt',
+  )
+})
+
+test('BS-2d2: beim Öffnen der Seite wird der Stand geladen (onMounted)', () => {
+  const bauteil = lies('src/diakonos/components/website/BausteineBereich.vue')
+  const skript = bauteil.slice(bauteil.indexOf('<script'), bauteil.indexOf('</script>'))
+  assert.match(skript, /import\s*\{[^}]*\bonMounted\b[^}]*\}\s*from\s*'vue'/, 'onMounted nicht eingebunden')
+  assert.match(skript, /onMounted\(\s*laden\s*\)/, 'onMounted ruft laden nicht auf')
+  // … und das Komposabel liefert `laden` als GET auf den Status-Endpunkt.
+  const komposabel = ohneKommentare(lies('src/diakonos/composables/useWebsiteBausteine.js'))
+  assert.match(komposabel, /async function laden\(\)/, 'laden fehlt im Komposabel')
+  assert.match(komposabel, /return \{[^}]*\bladen\b/s, 'laden wird nicht herausgegeben')
 })
 
 test('BS-2d: keine festen Farben und Abstände im Bauteil (Tokens)', () => {

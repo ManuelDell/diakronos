@@ -262,6 +262,9 @@ tests/bs2b-*.test.mjs
 tests/bs2c-*.test.mjs
 tests/bs2c2-*.test.mjs
 tests/bs2d-*.test.mjs
+# BS-2d2: Mount-Test „Seite öffnen → Liste + Knopf sichtbar“ — das echte
+# Bauteil BausteineBereich.vue in jsdom, ohne Klick (onMounted lädt).
+tests/bs2d2-*.test.mjs
 
 # UX3i4: Woche/Zeitraster — Termine so hoch wie ihre Dauer (Block statt Pille),
 # Liste ohne Farbbalken und mit dem „⋯“ auf derselben Zeile, leere

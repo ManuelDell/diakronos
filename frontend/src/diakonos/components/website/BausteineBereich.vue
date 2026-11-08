@@ -1,7 +1,10 @@
 <template>
   <DkCard title="Bausteine" anker="bausteine">
-    <!-- Kopf: Stand und die EINE mögliche Aktion (Knopf nur, wenn es etwas
-         zu tun gibt — kein toter Knopf bei „aktuell“). -->
+    <!-- Kopf: Stand und die möglichen Aktionen. „Einspielen/aktualisieren“ ist
+         secondary — der EINE Primärknopf der Ansicht ist „Website-Baukasten
+         öffnen“ auf der Seite (UX1h). „Stand neu laden“ im Kopf der Seite lädt die
+         Freigaben, NICHT die Bausteine; deshalb hat dieser Bereich seinen
+         eigenen Knopf „Bausteine neu laden“ (BS-2d2). -->
     <div class="wb-kopf">
       <div class="wb-zustand">
         <DkBadge :variant="zustand.ton">{{ zustand.titel }}</DkBadge>
@@ -15,19 +18,23 @@
         {{ ergebnisMeldung.text }}
       </DkHint>
 
-      <div v-if="zustand.aktion" class="wb-aktionen">
-        <DkButton variant="primary" :loading="spieltEin" @click="einspielen">
+      <div v-if="zustand.aktion || daten || fehler" class="wb-aktionen">
+        <DkButton v-if="zustand.aktion" variant="secondary" :loading="spieltEin"
+          :disabled="laedt" aria-label="Mitgelieferte Bausteine in den Website-Baukasten einspielen"
+          @click="einspielen">
           {{ zustand.aktion }}
         </DkButton>
-        <DkButton variant="secondary" :loading="laedt" :disabled="spieltEin" @click="laden">
-          Stand neu laden
+        <DkButton variant="secondary" :loading="laedt" :disabled="spieltEin"
+          aria-label="Bausteine neu laden" @click="laden">
+          Bausteine neu laden
         </DkButton>
       </div>
     </div>
 
     <!-- Liste der mitgelieferten Bausteine. Quelle ist AUSSCHLIESSLICH die
-         Serverantwort (`bausteine_status`) — nichts ist hier fest verdrahtet. -->
-    <DkHint v-if="ladehinweis" variant="info" role="status">{{ ladehinweis }}</DkHint>
+         Serverantwort (`bausteine_status` mit `mitgeliefert[]`) — weder die
+         Namen noch die Freigaben sind hier fest verdrahtet. -->
+    <DkHint v-if="ladehinweis" :variant="fehler ? 'err' : 'info'" role="status">{{ ladehinweis }}</DkHint>
     <DkEmpty
       v-else-if="!zeilen.length"
       title="Keine Bausteine"
@@ -36,18 +43,11 @@
     <ul v-else class="wb-liste">
       <li v-for="z in zeilen" :key="z.kennung" class="wb-baustein">
         <div class="wb-baustein-haupt">
-          <h3 class="wb-baustein-name">{{ z.name || z.kennung }}</h3>
+          <h3 class="wb-baustein-name">{{ z.name }}</h3>
           <DkBadge :variant="z.stand.ton">{{ z.stand.text }}</DkBadge>
         </div>
         <p v-if="z.beschreibung" class="wb-baustein-text">{{ z.beschreibung }}</p>
-        <p class="wb-baustein-freigaben">
-          <template v-if="z.freigaben.length">
-            Nutzt die Freigaben: {{ freigabenText(z.freigaben) }}
-          </template>
-          <template v-else>
-            Braucht keine Freigabe aus Diakronos.
-          </template>
-        </p>
+        <p class="wb-baustein-freigaben">{{ freigabenHinweis(z) }}</p>
       </li>
     </ul>
 
@@ -68,29 +68,39 @@
 
 <script setup>
 /**
- * BS-2d — Bereich „Bausteine“ auf der Website-Seite.
+ * BS-2d/BS-2d2 — Bereich „Bausteine“ auf der Website-Seite.
  *
  * Neben den Freigaben zeigt der Bereich:
  *   - den Stand der Baustein-Bibliothek im Website-Baukasten
  *     (mitgeliefert / installiert / veraltet),
- *   - je mitgeliefertem Baustein Kurzbeschreibung und genutzte Freigaben,
- *   - den EINEN Knopf „In Website-Baukasten einspielen/aktualisieren“ samt
+ *   - je mitgeliefertem Baustein Name, Kurzbeschreibung und genutzte
+ *     Freigaben — alles aus `mitgeliefert[]` der Serverantwort,
+ *   - den Knopf „In Website-Baukasten einspielen/aktualisieren“ samt
  *     Ergebnis-Meldung,
  *   - die Kurzanleitung (Block hinzufügen → Bibliothek → Diakronos → Felder).
  *
+ * BS-2d2 (Nacharbeit):
+ *   1. `onMounted(laden)` — beim Öffnen der Seite steht der Stand sofort da;
+ *      der mount-Test „Seite öffnen → Liste + Knopf sichtbar“ belegt es.
+ *   2. Freigaben kommen aus der Serverantwort; die früher hier fest kodierte
+ *      Zuordnungstabelle ist entfallen (`shared/website-bausteine.mjs`).
+ *   3. Einspielen ist `secondary`; der EINE Primärknopf der Ansicht bleibt
+ *      „Website-Baukasten öffnen“ (Website.vue). Der zweite Knopf heißt
+ *      „Bausteine neu laden“ (nicht „Stand neu laden“ — das sitzt im Kopf der
+ *      Seite) und trägt ein eindeutiges `aria-label`.
+ *
  * Die Logik (Stand, Zustand, Zeilen, Meldungen) steht in
  * `shared/website-bausteine.mjs` und ist dort per Node-Test geprüft; dieses
- * Bauteil zeichnet nur. Der Server liefert die Bausteinliste (BS-2b) — hier
- * ist KEIN Baustein fest verdrahtet.
+ * Bauteil zeichnet nur.
  *
  * Sichtbarkeit prüft die Seite (`darfBausteineSehen`); der Server weist
  * zusätzlich mit 403 ab.
  */
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import {
   WERKZEUG,
   bausteineAnleitung,
-  freigabenText as freigabenAlsText,
+  freigabenHinweis,
   installationsMeldung,
 } from '../../../shared/website-bausteine.mjs'
 import { useWebsiteBausteine } from '../../composables/useWebsiteBausteine.js'
@@ -120,13 +130,14 @@ const ergebnisMeldung = computed(() => {
   return installationsMeldung(r.antwort)
 })
 
-function freigabenText(liste) {
-  return freigabenAlsText(liste)
-}
-
 async function einspielen() {
   await einspielenJetzt()
 }
+
+// BS-2d2 (Punkt 1): beim Öffnen der Seite den Stand holen. Das Bauteil wird
+// erst im geschützten Zweig der Seite eingehaengt (Rollenprüfung dort), ein
+// unberechtigter Aufruf entsteht so nicht.
+onMounted(laden)
 </script>
 
 <style scoped>

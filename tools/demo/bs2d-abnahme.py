@@ -140,14 +140,18 @@ def main() -> int:
                     {"kennung": "termine-liste", "name": "diakronos/termine-liste@v2", "version": 2},
                 ],
                 "mitgeliefert": [
+                    # BS-2d2: Freigaben kommen aus der Serverantwort
+                    # (`block.json` der Quelle, BS-2d1) — ein Baustein ohne
+                    # Angabe zeigt „unbekannt“.
                     {"kennung": "kontakt", "name": "Diakronos: Kontaktformular",
                      "beschreibung": "Kontaktformular, das die Nachricht als E-Mail über Diakronos sendet.",
-                     "version": 3},
+                     "freigaben": ["kontaktpostfaecher"], "version": 3},
                     {"kennung": "termine-liste", "name": "Diakronos: Nächste Termine",
-                     "beschreibung": "Zeigt die freigegebenen Termine aus Diakronos.", "version": 3},
+                     "beschreibung": "Zeigt die freigegebenen Termine aus Diakronos.",
+                     "freigaben": ["termine"], "version": 3},
                     {"kennung": "gruppen", "name": "Diakronos: Gruppen-Übersicht",
                      "beschreibung": "Zeigt die freigegebenen Gruppen als Kacheln oder Liste.",
-                     "version": 3},
+                     "freigaben": ["gruppen"], "version": 3},
                 ],
             }
         }
@@ -166,8 +170,16 @@ def main() -> int:
                abschnitt.locator("button:has-text('aktualisieren')").count(), 1)
         pruefe("A14 Zeile nennt Kurzbeschreibung",
                "Kontaktformular, das die Nachricht" in text)
-        pruefe("A15 Zeile nennt genutzte Freigaben",
-               "Kontakt-Postfächer" in text and "Termine" in text)
+        # BS-2d2: die Freigaben stehen aus der Serverantwort (`mitgeliefert[]`)
+        # und sind eingedeutscht — nicht mehr aus einer Tabelle im Frontend.
+        pruefe("A15 Zeile nennt genutzte Freigaben (aus der Serverantwort)",
+               "Nutzt die Freigaben: Kontakt-Postfächer" in text
+               and "Nutzt die Freigaben: Gruppen" in text)
+        # BS-2d2 (Punkt 3): kein zweites „Stand neu laden“ im Bereich.
+        pruefe("A15b kein zweites „Stand neu laden“ im Bereich",
+               abschnitt.locator("button:has-text('Stand neu laden')").count(), 0)
+        pruefe("A15c Knopf „Bausteine neu laden“ vorhanden",
+               abschnitt.locator("button:has-text('Bausteine neu laden')").count(), 1)
         pruefe("A16 Stand je Zeile: installiert vs. mitgeliefert",
                "installiert (2)" in text and "mitgeliefert" in text)
         schuss(page, "bs2d-a2-veraltet-hell-1440.png")

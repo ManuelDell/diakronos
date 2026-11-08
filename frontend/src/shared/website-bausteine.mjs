@@ -25,6 +25,13 @@
  * mitgelieferten; eine Zeile ohne Eintrag gilt NICHT als installiert
  * (Default AUS, G1).
  *
+ * BS-2d2 (Nacharbeit): Name, Beschreibung und Freigaben liefert der Server in
+ * `mitgeliefert[]` (BS-2d1 — gelesen aus `block.json` der Quelle). Die früher
+ * hier stehende feste Zuordnungstabelle Kennung → Freigaben ist ERSATZLOS
+ * entfernt: sie hätte jede neue Freigabe an zwei Stellen verlangt und bei
+ * einer Änderung still gelogen. Fehlt eine Angabe, sagt die Oberfläche das
+ * („unbekannt“), statt eine Freigabe zu erfinden.
+ *
  * Angebunden wird der Website-Baukasten in der Oberfläche „Website-Baukasten“
  * — der Bereich heißt deshalb nach der Konzept-Entscheidung UX3a so, „Primo“
  * ist nur der technische Anbieter (WEB-1).
@@ -161,29 +168,46 @@ export function bausteineZustand(daten) {
 }
 
 /**
- * Die Freigaben, auf denen ein Baustein aufsetzt (Feld-Positivliste, G1).
+ * Anzeige eines Freigabenamens. Der Server nennt die Freigaben mit ihrem
+ * technischen Namen (`termine`, `kontaktpostfaecher`, … — Positivliste
+ * `FREIGABEN` in `website/bausteine.py`); die Oberfläche spricht deutsch.
  *
- * Die Zuordnung ist bewusst HIER und nicht im Server: der Server liefert die
- * Bausteinliste (BS-2b) und die Freigaben (BS-1a) getrennt; welche
- * Freigabegruppe ein Baustein liest, ist eine Aussage der OBERFLÄCHE über den
- * Vertrag der Bausteine (`deploy/primo/bausteine/<kennung>/component.svelte`
- * → `/website/oeffentlich/…`). Unbekannte Kennungen bekommen eine leere Liste
- * — nie eine erfundene Freigabe.
- *
- * @param {string} kennung
- * @returns {string[]} Namen der Freigabegruppen in Anzeigereihenfolge
+ * Unbekannte Namen werden NICHT verschluckt und NICHT umgedeutet: sie
+ * erscheinen, wie der Server sie nennt. Ein Name, den diese Liste nicht kennt,
+ * ist eine Lücke der ANZEIGE (neue Freigabe im Server), keine erfundene
+ * Freigabe.
  */
-export function bausteinFreigaben(kennung) {
-  const karte = {
-    'anmeldung': ['Termine (Anmeldung)'],
-    'gruppe-steckbrief': ['Gruppen', 'Termine'],
-    'gruppen': ['Gruppen'],
-    'kontakt': ['Kontakt-Postfächer'],
-    'neuigkeiten': ['Beiträge'],
-    'termine-liste': ['Termine'],
+export const FREIGABE_NAMEN = {
+  termine: 'Termine',
+  kalender: 'Kalender',
+  gruppen: 'Gruppen',
+  beitraege: 'Beiträge',
+  kontaktpostfaecher: 'Kontakt-Postfächer',
+}
+
+/** Text, wenn der Server zu einem Baustein KEINE Freigabe-Angabe macht. */
+export const FREIGABEN_UNBEKANNT = 'unbekannt'
+
+/**
+ * Die Freigaben eines Bausteins — aus der Serverantwort (`mitgeliefert[]`).
+ *
+ * Quelle ist AUSSCHLIESSLICH der Eintrag aus `bausteine_status`: die
+ * Freigaben stehen in der `block.json` des Bausteins (BS-2d1) und kommen mit
+ * der Liste. Hier ist KEINE Zuordnung hinterlegt (BS-2d2: die feste Tabelle
+ * ist entfallen) — was der Server nicht nennt, wird nicht erfunden.
+ *
+ * @param {object|null|undefined} eintrag  Eintrag aus `mitgeliefert[]`
+ * @returns {string[]} deutsche Namen der Freigabegruppen, in Serverreihenfolge
+ */
+export function bausteinFreigaben(eintrag) {
+  const roh = Array.isArray(eintrag?.freigaben) ? eintrag.freigaben : []
+  const namen = []
+  for (const eintragName of roh) {
+    const kennung = String(eintragName ?? '').trim()
+    if (!kennung || namen.includes(FREIGABE_NAMEN[kennung] || kennung)) continue
+    namen.push(FREIGABE_NAMEN[kennung] || kennung)
   }
-  const treffer = karte[String(kennung ?? '').trim()]
-  return Array.isArray(treffer) ? [...treffer] : []
+  return namen
 }
 
 /**
@@ -212,13 +236,29 @@ export function bausteinZeileStand(eintrag, mitgeliefert) {
 /**
  * Die Zeilen des Bereichs: mitgelieferte Bausteine + installierte Fassung.
  *
- * Reihenfolge = Reihenfolge der Serverliste (der Installer sortiert nach
- * `block.json:index`, BS-2a). Mehrfacheinträge derselben Kennung (alte und
- * neue Fassung) werden zusammengefasst: die HÖCHSTE Fassung zählt.
+ * Reihenfolge = Reihenfolge der Serverliste (`mitgeliefert[]`, der Installer
+ * sortiert nach `block.json:index`, BS-2a). Mehrfacheinträge derselben Kennung
+ * (alte und neue Fassung im Werkzeug) werden zusammengefasst: die HÖCHSTE
+ * Fassung zählt.
+ *
+ * Je Zeile:
+ *   kennung       Kennung des Bausteins
+ *   name          `name` aus `mitgeliefert[]`; fehlt er, die Kennung
+ *   beschreibung  `beschreibung` aus `mitgeliefert[]`; fehlt sie, ''
+ *   freigaben     Freigaben aus `mitgeliefert[]` (deutsch); fehlt die Angabe,
+ *                 [] — die Anzeige sagt dann „unbekannt“ (`freigabenHinweis`)
+ *   fassung       höchste im Werkzeug liegende Fassung (0 = nicht dort)
+ *   stand         `bausteinZeileStand`: mitgeliefert / installiert / ältere
+ *
+ * Ein Baustein, der im Werkzeug liegt, aber NICHT mitgeliefert wird (von Hand
+ * angelegt, aus einer älteren Auslieferung), bleibt sichtbar — er ist Teil des
+ * Stands. Sein Name kommt dann aus dem Blocknamen des Werkzeugs, wenn der
+ * einen kennt.
  *
  * @param {object|null|undefined} daten
  * @returns {Array<{kennung: string, name: string, beschreibung: string,
- *                  freigaben: string[], fassung: number, stand: object}>}
+ *                  freigaben: string[], freigabenBekannt: boolean,
+ *                  fassung: number, stand: object}>}
  */
 export function bausteinZeilen(daten) {
   const stand = bausteineStand(daten)
@@ -231,17 +271,15 @@ export function bausteinZeilen(daten) {
       hoechste.set(kennung, { ...eintrag, kennung, version: fassung })
     }
   }
-  // Welche Bausteine BRINGT diese Installation mit? Der Server nennt in
-  // `bausteine` nur, was IM WERKZEUG liegt (BS-2a: `bibliothek_stand` liest
-  // den Export). Ein optionales Feld `mitgeliefert` (Lieferung BS-2b, noch
-  // nicht da) füllt Name und Beschreibung der noch nicht eingespielten
-  // Zeilen. Fehlt es, steht die Kennung als Name und es wird KEINE
-  // Beschreibung erfunden — lieber eine karge Zeile als eine falsche.
+  // Quelle für Name, Beschreibung und Freigaben ist `mitgeliefert[]` (BS-2d1:
+  // die block.json der Quelle). Ohne das Feld — ältere Server, Fehler in den
+  // Quellen — bleibt die Zeile karg, aber die Liste ist nicht leer: was im
+  // Werkzeug liegt, wird weiterhin gezeigt.
   const quelle = Array.isArray(daten?.mitgeliefert) ? daten.mitgeliefert : []
   const zeilen = []
   const gesehen = new Set()
   for (const eintrag of quelle) {
-    const kennung = String(eintrag?.kennung ?? eintrag ?? '').trim()
+    const kennung = String(eintrag?.kennung ?? '').trim()
     if (!kennung || gesehen.has(kennung)) continue
     gesehen.add(kennung)
     zeilen.push(zeileFuer(kennung, eintrag, hoechste.get(kennung), stand.mitgeliefert))
@@ -249,20 +287,50 @@ export function bausteinZeilen(daten) {
   for (const eintrag of hoechste.values()) {
     if (gesehen.has(eintrag.kennung)) continue
     gesehen.add(eintrag.kennung)
-    zeilen.push(zeileFuer(eintrag.kennung, {}, eintrag, stand.mitgeliefert))
+    zeilen.push(zeileFuer(eintrag.kennung, null, eintrag, stand.mitgeliefert))
   }
   return zeilen
 }
 
+/**
+ * EINE Zeile. `quelle` ist der Eintrag aus `mitgeliefert[]` (oder null, wenn
+ * der Baustein nur im Werkzeug liegt), `eintrag` der Stand im Werkzeug.
+ */
 function zeileFuer(kennung, quelle, eintrag, mitgeliefert) {
+  const freigaben = bausteinFreigaben(quelle)
   return {
     kennung,
-    name: String(quelle?.name ?? '').trim(),
+    name: String(quelle?.name ?? '').trim() || kennung,
     beschreibung: String(quelle?.beschreibung ?? '').trim(),
-    freigaben: bausteinFreigaben(kennung),
+    freigaben,
+    // „Bekannt“ heißt: der Server hat zu diesem Baustein ÜBERHAUPT eine
+    // Freigabe-Angabe gemacht — auch eine ausdrücklich LEERE. Ist das Feld
+    // vorhanden (auch als null oder mit unbekannten Namen), ist das eine
+    // Aussage; fehlt es ganz, weiß die Oberfläche nichts (→ „unbekannt“).
+    freigabenBekannt: quelle != null && Object.hasOwn(quelle, 'freigaben'),
     fassung: zahl(eintrag?.version),
     stand: bausteinZeileStand(eintrag, mitgeliefert),
   }
+}
+
+/**
+ * Der Satz unter einer Zeile: „Nutzt die Freigaben: …“ / „Braucht keine
+ * Freigabe aus Diakronos.“ / „Freigaben: unbekannt“.
+ *
+ * Die drei Fälle sind BEWUSST verschieden (G1): eine ausdrücklich leere Liste
+ * heißt „dieser Baustein fragt keine Freigabe-Daten ab“, eine fehlende Angabe
+ * heißt „weiß die Oberfläche nicht“ — daraus darf keine Freigabe und keine
+ * Unbedenklichkeit werden.
+ *
+ * @param {{freigaben?: string[], freigabenBekannt?: boolean}|null|undefined} zeile
+ * @returns {string}
+ */
+export function freigabenHinweis(zeile) {
+  const namen = Array.isArray(zeile?.freigaben) ? zeile.freigaben.filter(Boolean) : []
+  if (namen.length) return `Nutzt die Freigaben: ${freigabenText(namen)}`
+  // Bekannt-leer nur bei echter Serverangabe; sonst „unbekannt“.
+  if (zeile?.freigabenBekannt === true) return 'Braucht keine Freigabe aus Diakronos.'
+  return `Freigaben: ${FREIGABEN_UNBEKANNT}`
 }
 
 /**
