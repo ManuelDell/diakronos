@@ -41,6 +41,19 @@ QUELLE_PAKET = (
     REPO / "backend" / "src" / "diakronos_app" / "website" / "bausteine" / "quellen"
 )
 
+#: Alle mitgelieferten Bausteine, in der Reihenfolge von `block.json:index`.
+#: BS-2c: um Gruppen-Übersicht, Gruppen-Steckbrief, Neuigkeiten und Anmeldung
+#: erweitert. Weitere BS-Karten erweitern NUR diese eine Liste — vorher stand
+#: der Satz an fuenf Stellen (und jede neue Karte musste alle fuenf finden).
+BAUSTEINE = (
+    "kontakt",
+    "termine-liste",
+    "gruppen",
+    "gruppe-steckbrief",
+    "neuigkeiten",
+    "anmeldung",
+)
+
 
 # ── 1. Quellen und Spiegelung ───────────────────────────────────────────────
 
@@ -88,7 +101,7 @@ def test_version_ist_ganze_zahl():
 def test_beide_bausteine_sind_da_und_lesbar():
     liste = bibliothek.bausteine_lesen()
     kennungen = [b.kennung for b in liste]
-    assert kennungen == ["kontakt", "termine-liste"], kennungen
+    assert kennungen == list(BAUSTEINE), kennungen
     for baustein in liste:
         assert baustein.name.startswith("Diakronos:"), baustein.name
         assert len(baustein.felder) >= 5
@@ -191,7 +204,7 @@ def test_zip_hat_die_struktur_von_export_library():
     with zipfile.ZipFile(io.BytesIO(roh)) as archiv:
         namen = set(archiv.namelist())
         assert "library/groups.yaml" in namen
-        for kennung in ("kontakt", "termine-liste"):
+        for kennung in BAUSTEINE:
             for datei in ("component.svelte", "config.yaml", "fields.yaml", "content.yaml"):
                 assert f"library/diakronos/{kennung}/{datei}" in namen
         gruppen = archiv.read("library/groups.yaml").decode("utf-8")
@@ -302,8 +315,7 @@ class PrimoAttrappe:
             # BS-2a2 (F4): Primo legt die Bloecke mit der Version des Aufrufs an.
             version = bibliothek.mitgelieferte_version()
             self.bloecke = sorted(set(self.bloecke) | {
-                f"diakronos/kontakt@v{version}",
-                f"diakronos/termine-liste@v{version}",
+                *[f"diakronos/{kennung}@v{version}" for kennung in BAUSTEINE],
             })
             self.revision = "v1:neu"
             return httpx.Response(200, json={"success": True, "summary": {"groups": 1, "blocks": 2},
@@ -347,7 +359,7 @@ def test_installieren_spielt_das_zip_mit_revision_ein(primo):
     ergebnis = bibliothek.sync(basis="https://gem.example/diakronos")
     assert ergebnis.weg == "zip"
     assert ergebnis.version == bibliothek.mitgelieferte_version()
-    assert ergebnis.bausteine == ["kontakt", "termine-liste"]
+    assert ergebnis.bausteine == list(BAUSTEINE)
     assert len(primo.imports) == 1
     # Der Import ist multipart mit `file` (ZIP) und `expected_revision`.
     rumpf = primo.imports[0]["rumpf"]
@@ -446,7 +458,7 @@ def test_rueckfall_auf_einzelweg_ohne_import_endpunkt(primo, monkeypatch):
     assert any("library_symbol_fields/records" in a for a in aufrufe)
     assert any("library_symbol_entries/records" in a for a in aufrufe)
     # Die Vorgabe der Basisadresse steht im Eintrag (B2).
-    assert ergebnis.bausteine == ["kontakt", "termine-liste"]
+    assert ergebnis.bausteine == list(BAUSTEINE)
 
 
 def test_stand_liest_versionen_aus_der_bibliothek(primo):
@@ -464,7 +476,7 @@ def test_stand_liest_versionen_aus_der_bibliothek(primo):
     stand = bibliothek.bibliothek_stand()
     assert stand.installiert == bibliothek.mitgelieferte_version()
     assert stand.veraltet is False
-    assert {e["kennung"] for e in stand.bausteine} == {"kontakt", "termine-liste"}
+    assert {e["kennung"] for e in stand.bausteine} == set(BAUSTEINE)
 
 
 def test_stand_wirft_nie(monkeypatch):
@@ -640,4 +652,4 @@ def test_echter_primo_nimmt_die_bibliothek_an():  # pragma: no cover — Abnahme
     assert stand.erreichbar is True
     assert stand.installiert == bibliothek.mitgelieferte_version()
     assert stand.veraltet is False
-    assert {e["kennung"] for e in stand.bausteine} == {"kontakt", "termine-liste"}
+    assert {e["kennung"] for e in stand.bausteine} == set(BAUSTEINE)

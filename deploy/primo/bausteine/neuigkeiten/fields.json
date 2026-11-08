@@ -1,0 +1,25 @@
+[
+  {"name": "ueberschrift", "label": "Überschrift", "type": "text", "default": "Neuigkeiten"},
+  {"name": "basisadresse", "label": "Diakronos-Adresse", "type": "text", "default": ""},
+  {
+    "name": "darstellung",
+    "label": "Darstellung",
+    "type": "select",
+    "default": "karten",
+    "config": {
+      "options": [
+        {"value": "karten", "label": "Karten"},
+        {"value": "liste", "label": "Liste"}
+      ]
+    }
+  },
+  {"name": "anzahl", "label": "Anzahl der Beiträge", "type": "number", "default": 5},
+  {"name": "kategorie", "label": "Kategorie (leer = alle)", "type": "text", "default": ""},
+  {"name": "bilder_anzeigen", "label": "Bilder anzeigen (wenn der Beitrag eins hat)", "type": "switch", "default": true},
+  {"name": "weiterlesen", "label": "„Weiterlesen“ anbieten (Inhalt aufklappen)", "type": "switch", "default": true},
+  {"name": "text_weiterlesen", "label": "Beschriftung „Weiterlesen“", "type": "text", "default": "Weiterlesen"},
+  {"name": "text_zuklappen", "label": "Beschriftung beim Zuklappen", "type": "text", "default": "Zuklappen"},
+  {"name": "text_laedt", "label": "Text während des Ladens", "type": "text", "default": "Neuigkeiten werden geladen …"},
+  {"name": "leertext", "label": "Text, wenn keine Beiträge veröffentlicht sind", "type": "text", "default": "Zurzeit sind keine Neuigkeiten veröffentlicht."},
+  {"name": "fehlertext", "label": "Text, wenn die Beiträge nicht geladen werden können", "type": "text", "default": "Die Neuigkeiten sind derzeit nicht abrufbar. Bitte später erneut versuchen."}
+]

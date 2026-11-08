@@ -1,0 +1,6 @@
+{
+  "kennung": "anmeldung",
+  "name": "Diakronos: Veranstaltungs-Anmeldung",
+  "index": 50,
+  "beschreibung": "Zeigt die Termine mit offener Anmeldung und führt zum bestehenden Diakronos-Gast-Anmeldeformular. Filter nach Kalender oder Kennung."
+}

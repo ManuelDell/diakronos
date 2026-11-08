@@ -1,0 +1,12 @@
+[
+  {"name": "ueberschrift", "label": "Überschrift", "type": "text", "default": "Anmeldung"},
+  {"name": "basisadresse", "label": "Diakronos-Adresse", "type": "text", "default": ""},
+  {"name": "kalender", "label": "Kalender-Kennungen (kommagetrennt, leer = alle freigegebenen)", "type": "text", "default": ""},
+  {"name": "kennung", "label": "Kennung eines einzelnen Termins (leer = alle mit offener Anmeldung)", "type": "text", "default": ""},
+  {"name": "anzahl", "label": "Anzahl der Termine", "type": "number", "default": 10},
+  {"name": "neuer_tab", "label": "Anmeldung in neuem Tab öffnen", "type": "switch", "default": false},
+  {"name": "knopftext", "label": "Beschriftung des Anmeldeknopfs", "type": "text", "default": "Jetzt anmelden"},
+  {"name": "text_laedt", "label": "Text während des Ladens", "type": "text", "default": "Termine werden geladen …"},
+  {"name": "leertext", "label": "Text, wenn keine Anmeldung offen ist", "type": "text", "default": "Zurzeit ist keine Anmeldung möglich."},
+  {"name": "fehlertext", "label": "Text, wenn die Termine nicht geladen werden können", "type": "text", "default": "Die Termine sind derzeit nicht abrufbar. Bitte später erneut versuchen."}
+]

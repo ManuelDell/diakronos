@@ -1,0 +1,22 @@
+[
+  {"name": "ueberschrift", "label": "Überschrift", "type": "text", "default": "Gruppen"},
+  {"name": "basisadresse", "label": "Diakronos-Adresse", "type": "text", "default": ""},
+  {
+    "name": "darstellung",
+    "label": "Darstellung",
+    "type": "select",
+    "default": "kacheln",
+    "config": {
+      "options": [
+        {"value": "kacheln", "label": "Kacheln"},
+        {"value": "liste", "label": "Liste"}
+      ]
+    }
+  },
+  {"name": "gruppentyp", "label": "Gruppentyp (leer = alle)", "type": "text", "default": ""},
+  {"name": "detail_link", "label": "Link-Muster für die Detailseite (leer = kein Link; {slug} wird ersetzt, z. B. /gruppen/{slug})", "type": "text", "default": ""},
+  {"name": "text_mehr", "label": "Beschriftung des Detail-Links", "type": "text", "default": "Mehr erfahren"},
+  {"name": "text_laedt", "label": "Text während des Ladens", "type": "text", "default": "Gruppen werden geladen …"},
+  {"name": "leertext", "label": "Text, wenn keine Gruppe freigegeben ist", "type": "text", "default": "Zurzeit sind keine Gruppen veröffentlicht."},
+  {"name": "fehlertext", "label": "Text, wenn die Gruppen nicht geladen werden können", "type": "text", "default": "Die Gruppen sind derzeit nicht abrufbar. Bitte später erneut versuchen."}
+]

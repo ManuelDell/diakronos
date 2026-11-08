@@ -2936,9 +2936,9 @@ Drei Punkte, die beim Bau der Primo-Bausteine sonst zu Überraschungen führen:
   Formular, muss diese Stelle mit: `website/oeffentlich_inhalt.py`
   (`termin_ics`, `_ohne_eine_tagesspanne`).
 
-## 19. Baustein-Bibliothek für Primo (BS-2a)
+## 19. Baustein-Bibliothek für Primo (BS-2a, BS-2c)
 
-Diakronos bringt zwei fertige Website-Bausteine mit, die in der angebundenen
+Diakronos bringt sechs fertige Website-Bausteine mit, die in der angebundenen
 Primo-Instanz in der Bibliothek erscheinen (Gruppe **Diakronos**). Sie sind
 generisch (keine Gemeindetexte, -farben, -bilder), rufen ihre Daten **beim
 Besucher im Browser** aus der öffentlichen Lese-API (Abschnitt 18) ab und
@@ -2950,6 +2950,17 @@ lassen sich über Primo-Felder anpassen.
 |---|---|---|
 | `kontakt` | `diakronos/kontakt@v<n>` | Kontaktformular; die Nachricht geht als E-Mail über `website.kontakt_senden` an ein Postfach aus Abschnitt 18.5. Speichert nichts. |
 | `termine-liste` | `diakronos/termine-liste@v<n>` | Nächste Termine aus den freigegebenen Kalendern/Terminarten/Gruppen; Darstellung komfortabel, kompakt oder Karten. |
+| `gruppen` | `diakronos/gruppen@v<n>` | Gruppen-Übersicht der freigegebenen Gruppen als Kacheln oder Liste; Filter nach Gruppentyp, optionaler Link auf eine Detailseite (`{slug}` im Muster). Ohne Bild bleibt ein reiner Textblock — es entsteht **kein** leerer Bildplatz. |
+| `gruppe-steckbrief` | `diakronos/gruppe-steckbrief@v<n>` | Steckbrief **einer** Gruppe (Feld „Kennung der Gruppe" = `website_slug`): Bild, Beschreibung, Treffzeit, Treffpunkt, nächste Termine; Überschrift-Override, Anzahl der Termine, freier Kontakt-Hinweis. |
+| `neuigkeiten` | `diakronos/neuigkeiten@v<n>` | Veröffentlichte Beiträge als Liste oder Karten, mit Anzahl und Kategoriefilter; „Weiterlesen" klappt den Inhalt auf. Der Inhalt ist serverseitig bereinigt **und** wird im Browser ein zweites Mal gegen eine Whitelist geprüft (nie ungefiltert in `{@html}`). |
+| `anmeldung` | `diakronos/anmeldung@v<n>` | Termine mit **offener Anmeldung** und ein Knopf zur bestehenden Diakronos-Gast-Anmeldung (optional in neuem Tab); Filter nach Kalender oder Kennung, eigener Knopftext. |
+
+**Anmeldung:** Der Baustein `anmeldung` zeigt ausschließlich Termine, für die
+die Lese-API eine brauchbare `anmeldung_url` liefert — also `anmeldung_aktiv`
+am Termin **und** ein aktiver Gast-Registrierungslink im Gültigkeitsfenster
+(Regeln in Abschnitt 18.3, Punkt L2). Die Lese-API hat keinen Parameter „nur
+mit Anmeldung"; der Baustein filtert deshalb nach dem Abruf. Termine ohne
+Gast-Link erscheinen dort **nicht** — das ist gewollt und kein Fehler.
 
 Die `<n>` im Namen ist die **Version der Auslieferung**. Primo kennt keine
 Blockversion (Grundlage: `primo-bibliothek.md`, Abschnitt F2b); deshalb steht

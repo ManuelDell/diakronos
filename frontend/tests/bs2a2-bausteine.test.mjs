@@ -391,7 +391,18 @@ test('BS-2a2/Dunkel: Akzent nur als Flaeche/Kontur, nie als Textfarbe', () => {
 test('BS-2a2/Dunkel: Links sind unterstrichen (Auszeichnung nicht nur Farbe)', () => {
   // Ä4 „Farbe nie alleiniger Träger": die Links erben jetzt die Textfarbe,
   // also muss die Unterstreichung die Auszeichnung tragen.
-  for (const kennung of BAUSTEINE) {
+  //
+  // BS-2c: geprüft werden nur Bausteine, die überhaupt einen Link rendern.
+  // `gruppe-steckbrief` zeigt Bild, Beschreibung, Treffzeit/Treffpunkt und
+  // Termine — er hat keinen Link und damit auch keine Link-Regel; ein
+  // erzwungener `__link`-Block wäre toter CSS-Code. Die Prüfung selbst
+  // bleibt unverändert scharf: SOBALD ein <a> im Markup steht, MUSS die
+  // Unterstreichung da sein.
+  const mit_link = BAUSTEINE.filter((kennung) =>
+    /<a\s/.test(lies(join(QUELLE, kennung, 'component.svelte')))
+  );
+  assert.ok(mit_link.length > 0, 'kein Baustein mit Link gefunden — Prüfung liefe ins Leere');
+  for (const kennung of mit_link) {
     const stil = STIL(kennung);
     const linkBlock = stil.slice(stil.indexOf('__link'));
     assert.ok(linkBlock.length > 0, `${kennung}: kein __link-Stil gefunden`);

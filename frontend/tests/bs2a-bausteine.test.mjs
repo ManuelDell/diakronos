@@ -57,10 +57,22 @@ function kennungen(wurzel) {
 const BAUSTEINE = kennungen(QUELLE);
 const DATEIEN = ['block.json', 'component.svelte', 'fields.json', 'README.md'];
 
+//: Alle mitgelieferten Bausteine (Reihenfolge von `block.json:index`).
+//: BS-2c: um Gruppen-Übersicht, Gruppen-Steckbrief, Neuigkeiten und Anmeldung
+//: erweitert. Weitere BS-Karten erweitern NUR diese Liste.
+const MITGELIEFERT = [
+  'anmeldung',
+  'gruppe-steckbrief',
+  'gruppen',
+  'kontakt',
+  'neuigkeiten',
+  'termine-liste'
+];
+
 // ── 1. Quellen und Spiegelung ───────────────────────────────────────────────
 
-test('BS-2a: beide Bausteine liegen als Quelle und im Paket', () => {
-  assert.deepEqual(BAUSTEINE, ['kontakt', 'termine-liste']);
+test('BS-2a: alle Bausteine liegen als Quelle und im Paket', () => {
+  assert.deepEqual(BAUSTEINE, MITGELIEFERT);
   for (const kennung of BAUSTEINE) {
     for (const datei of DATEIEN) {
       const quelle = lies(join(QUELLE, kennung, datei));

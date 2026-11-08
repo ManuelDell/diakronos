@@ -1,0 +1,15 @@
+[
+  {"name": "ueberschrift", "label": "Überschrift (leer = Name der Gruppe)", "type": "text", "default": ""},
+  {"name": "basisadresse", "label": "Diakronos-Adresse", "type": "text", "default": ""},
+  {"name": "gruppe", "label": "Kennung der Gruppe (Slug, z. B. kinderkreis)", "type": "text", "default": ""},
+  {"name": "anzahl_termine", "label": "Anzahl der nächsten Termine (0 = keine)", "type": "number", "default": 3},
+  {"name": "kontakt_hinweis", "label": "Kontakt-Hinweistext (frei, leer = kein Hinweis)", "type": "text", "default": ""},
+  {"name": "text_treffzeit", "label": "Beschriftung Treffzeit", "type": "text", "default": "Treffzeit"},
+  {"name": "text_treffpunkt", "label": "Beschriftung Treffpunkt", "type": "text", "default": "Treffpunkt"},
+  {"name": "text_termine", "label": "Überschrift der Terminliste", "type": "text", "default": "Nächste Termine"},
+  {"name": "text_ganztaegig", "label": "Text bei ganztägigen Terminen", "type": "text", "default": "ganztägig"},
+  {"name": "text_laedt", "label": "Text während des Ladens", "type": "text", "default": "Steckbrief wird geladen …"},
+  {"name": "leertext", "label": "Text, wenn die Gruppe nicht veröffentlicht ist", "type": "text", "default": "Zu dieser Gruppe sind zurzeit keine Angaben veröffentlicht."},
+  {"name": "leertext_termine", "label": "Text, wenn keine Termine anstehen", "type": "text", "default": "Zurzeit sind keine Termine angekündigt."},
+  {"name": "fehlertext", "label": "Text, wenn der Steckbrief nicht geladen werden kann", "type": "text", "default": "Der Steckbrief ist derzeit nicht abrufbar. Bitte später erneut versuchen."}
+]

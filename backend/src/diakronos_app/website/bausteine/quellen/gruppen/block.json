@@ -1,0 +1,6 @@
+{
+  "kennung": "gruppen",
+  "name": "Diakronos: Gruppen-Übersicht",
+  "index": 30,
+  "beschreibung": "Zeigt die in Diakronos freigegebenen Gruppen als Kacheln oder Liste. Ohne Bild bleibt ein sauberer Textblock. Gruppentyp ist filterbar."
+}
