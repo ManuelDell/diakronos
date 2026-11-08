@@ -30,6 +30,7 @@ Netz (Kartenregel 11): ausschliesslich ``--network none``, DB = ``patched_db``
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -46,12 +47,21 @@ from diakronos_app.models.kronos import (
 MODUL = "diakronos_app.website.oeffentlich_api"
 PFAD = "website.oeffentlich"
 
-#: Ein Datum weit in der Zukunft, damit „heute .. +90 Tage“ es nicht trifft.
-HEUTE = datetime.now().date()
+#: Aus der Ortszeit (nicht UTC) — das Produktionsfenster rechnet ebenso.
+#: BS-2c2, Befund 1 (ursprueglicher Fehler): der alte Test baute seine Daten mit
+#: ``date.today()`` (UTC) „+400 Tage" und verlangte „draussen" — der Termin
+#: stand aber AUF der einschliessenden 400-Tage-Grenze. Der Tageswechsel
+#: UTC/Ortszeit machte das mal rot, mal gruen.
+try:
+    HEUTE = datetime.now(tz=ZoneInfo("Europe/Berlin")).date()
+except Exception:  # noqa: BLE001 — ohne tzdata gilt UTC
+    HEUTE = datetime.utcnow().date()
 MORGEN = HEUTE + timedelta(days=1)
 UEBERMORGEN = HEUTE + timedelta(days=2)
 SPAETER = HEUTE + timedelta(days=30)
 WEIT_WEG = HEUTE + timedelta(days=400)
+#: Ein Datum JENSEITS der Fenstergrenze (401 Tage) — nicht auf der Kante.
+WEIT_WEG_DAHINTER = HEUTE + timedelta(days=401)
 
 #: Diese Schluessel duerfen in KEINER Antwort auftauchen (G1).
 VERBOTEN = frozenset(
@@ -443,17 +453,54 @@ def test_l2_unbekannter_slug_ebenfalls_leer(gast, welt):
     assert daten == []
 
 
-def test_l2_zeitfenster_default_und_grenzen(gast, welt):
+def test_l2_zeitfenster_default_und_grenzen(gast, welt, monkeypatch):
+    """Fenstergrenzen: Standard 90 Tage, hoechstens 400 — und einschliesslich.
+
+    BS-2c2, Befund 1 — warum dieser Test zeitweise auf ``main`` rot war:
+    der ALTE Test legte seinen fernen Termin auf ``HEUTE + 400`` und verlangte
+    „draussen" — das Fenster schliesst Tag 400 aber EIN (``von .. von + 400``,
+    einschliesslich). Der Termin stand also AUF der Grenze, nicht dahinter.
+    Zuverlaessig rot wurde das durch den Tageswechsel zwischen Testmodul und
+    Produktionsmodul: ``HEUTE`` kam aus der Ortszeit (``Europe/Berlin``), ein
+    zur UTC-Mitternacht erzeugtes ``date.today() + 400`` liegt je nach
+    Uhrzeit/Zeitzone einen Tag daneben — dann rutschte die Kante mal nach
+    innen, mal nach aussen. Die Ursache lag allein im Test, nicht im
+    Produktionscode (``fristen()`` kuerzt korrekt einschliesslich auf
+    ``von + TAGE_MAX_BIS``). Deshalb: Uhr des Moduls festnageln, und die
+    Grenze an ``TAGE_MAX_BIS`` haengen statt eine Zahl zu wiederholen.
+    Beleg (messbar in diesem Test): Fenster = 400 Tage, Tag 400 im Fenster
+    (``t-grenze``), Tag 401 nicht (``t-fern``).
+    """
+    from diakronos_app.website import oeffentlich_daten as mod
+
+    monkeypatch.setattr(mod, "_heute", lambda: HEUTE)
+    grenze = HEUTE + timedelta(days=mod.TAGE_MAX_BIS)
     _termin(welt, "t-heute", start=datetime.combine(HEUTE, datetime.min.time()).replace(hour=9))
-    _termin(welt, "t-fern", start=datetime.combine(WEIT_WEG, datetime.min.time()).replace(hour=9))
-    # Default: heute .. +90 Tage -> der ferne Termin fehlt.
+    _termin(welt, "t-fern",
+            start=datetime.combine(WEIT_WEG_DAHINTER, datetime.min.time()).replace(hour=9))
+    # Default: heute .. +90 Tage -> beide fernen Termine fehlen.
     titel = {t["titel"] for t in _get(gast, "termine").json()["message"]}
     assert "Termin t-heute" in titel
     assert "Termin t-fern" not in titel
-    # Explizit weites Fenster: die Grenze von 400 Tagen greift.
+    # Explizit weites Fenster: die Grenze von 400 Tagen greift (Tag 401 fehlt).
     daten = _get(gast, "termine", von=HEUTE.isoformat(),
                  bis=(HEUTE + timedelta(days=900)).isoformat()).json()["message"]
     assert "Termin t-fern" not in daten, "Fenstergrenze 400 Tage nicht wirksam"
+    # Die Grenze selbst ist einschliesslich: Tag 400 kommt mit, Tag 401 nicht.
+    # (Weites ``bis`` noetig — OHNE ``bis`` gilt das Standardfenster von 90
+    # Tagen; genau daran war die erste Fassung dieses Tests gescheitert.)
+    _termin(welt, "t-grenze", start=datetime.combine(grenze, datetime.min.time()).replace(hour=9))
+    titel = {
+        t["titel"]
+        for t in _get(gast, "termine", von=HEUTE.isoformat(),
+                      bis=(HEUTE + timedelta(days=900)).isoformat(),
+                      limit=500).json()["message"]
+    }
+    assert "Termin t-grenze" in titel
+    assert "Termin t-fern" not in titel
+    # Und im Standardfenster ist auch der Grenztermin draussen.
+    titel = {t["titel"] for t in _get(gast, "termine").json()["message"]}
+    assert "Termin t-grenze" not in titel
 
 
 def test_l2_limit_grenzen(gast, welt):
@@ -514,6 +561,75 @@ def test_l2_anmeldung_url_leer_wenn_link_inaktiv(gast, welt):
     alle = _get(gast, "termine", von=HEUTE.isoformat()).json()["message"]
     ohne = next(t for t in alle if t["titel"] == "Termin t-keine-anmeldung")
     assert ohne["anmeldung_url"] == ""
+
+
+def test_l2_nur_anmeldung_filtert_vor_dem_limit(gast, welt, monkeypatch):
+    """BS-2c2 (4): ``nur_anmeldung`` filtert SERVERSEITIG.
+
+    Vorher holte der Baustein ``anmeldung`` das ganze Fenster (limit 500) und
+    behielt im Browser die Zeilen mit ``anmeldung_url``. Bei vielen Terminen
+    ohne Anmeldung fiel die Anzeige dadurch kuerzer aus als verlangt. Hier
+    steht die Anmeldung ERST hinter einer Reihe von Terminen ohne Anmeldung:
+    mit ``limit=1`` muss trotzdem genau der Anmeldetermin kommen.
+    """
+    from diakronos_app.website import oeffentlich_daten as mod
+
+    monkeypatch.setattr(mod, "_heute", lambda: HEUTE)
+    for i in range(3):
+        _termin(welt, f"t-ohne-{i}",
+                start=datetime.combine(MORGEN, datetime.min.time()).replace(hour=8 + i))
+    _termin(welt, "t-mit", start=datetime.combine(MORGEN, datetime.min.time()).replace(hour=20),
+            anmeldung_aktiv=True, link="link-gast")
+
+    daten = _get(gast, "termine", von=HEUTE.isoformat(),
+                 nur_anmeldung=1, limit=1).json()["message"]
+    assert [t["titel"] for t in daten] == ["Termin t-mit"]
+    assert "abc123token" in daten[0]["anmeldung_url"]
+
+    # Schalter-Varianten: 0/false/leer = wie ohne Parameter.
+    alle = _get(gast, "termine", von=HEUTE.isoformat(), nur_anmeldung=0).json()["message"]
+    assert len(alle) == 4
+    alle = _get(gast, "termine", von=HEUTE.isoformat(), nur_anmeldung="nein").json()["message"]
+    assert len(alle) == 4
+
+
+def test_l2_nur_anmeldung_ohne_tauglichen_link_zaehlt_nicht(gast, welt, monkeypatch):
+    """Ein Termin mit „Anmeldung aktiv", aber ohne Adresse, gehoert NICHT dazu.
+
+    Zwei Faelle: Link inaktiv (Zeitfenster/Typ) und gar kein Link gepflegt.
+    Beide haben ``anmeldung_url == ""`` — ein Knopf „Anmelden" ins Leere waere
+    genau der Fehler, den der Filter verhindert.
+    """
+    from diakronos_app.models.diakonos import Registrierungslink
+    from diakronos_app.website import oeffentlich_daten as mod
+
+    monkeypatch.setattr(mod, "_heute", lambda: HEUTE)
+    _termin(welt, "t-ok", start=datetime.combine(MORGEN, datetime.min.time()).replace(hour=9),
+            anmeldung_aktiv=True, link="link-gast")
+    _termin(welt, "t-ohne-link", start=datetime.combine(MORGEN, datetime.min.time()).replace(hour=10),
+            anmeldung_aktiv=True)
+    link = welt.get(Registrierungslink, "link-gast")
+    link.aktiv = False
+    welt.commit()
+    _termin(welt, "t-inaktiv", start=datetime.combine(MORGEN, datetime.min.time()).replace(hour=11),
+            anmeldung_aktiv=True, link="link-gast")
+    link.aktiv = True
+    welt.commit()
+
+    daten = _get(gast, "termine", von=HEUTE.isoformat(), nur_anmeldung="true").json()["message"]
+    assert {t["titel"] for t in daten} == {"Termin t-ok", "Termin t-inaktiv"}
+    assert all(t["anmeldung_url"] for t in daten)
+
+
+def test_l2_nur_anmeldung_und_gruppe(gast, welt):
+    """Die Filter lassen sich verbinden: ``nur_anmeldung`` + ``gruppe``."""
+    _termin(welt, "t-gruppe-mit", gruppe="gr-jugendkreis",
+            anmeldung_aktiv=True, link="link-gast")
+    _termin(welt, "t-gruppe-ohne", gruppe="gr-jugendkreis")
+    _termin(welt, "t-anders-mit", anmeldung_aktiv=True, link="link-gast")
+    daten = _get(gast, "termine", von=HEUTE.isoformat(),
+                 nur_anmeldung=1, gruppe="jugendkreis").json()["message"]
+    assert [t["titel"] for t in daten] == ["Termin t-gruppe-mit"]
 
 
 def test_l2_serienwerden_einzeln_ausgegeben(gast, welt):

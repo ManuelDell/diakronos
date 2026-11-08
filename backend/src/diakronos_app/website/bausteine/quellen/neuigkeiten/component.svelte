@@ -21,13 +21,19 @@
             </p>
             <h3 class="dk-neuigkeiten__name">{beitrag.titel}</h3>
             {#if beitrag.auszug && !offen[beitrag.id]}<p class="dk-neuigkeiten__auszug">{beitrag.auszug}</p>{/if}
-            {#if offen[beitrag.id] && beitrag.inhalt_teile.length > 0}
-              <div class="dk-neuigkeiten__inhalt" id={beitrag.inhalt_id}>
-                {#each beitrag.inhalt_teile as teil, nummer (nummer)}
-                  {@html teil.html}
-                {/each}
-              </div>
-            {/if}
+            <!-- BS-2c2: Der Inhalt-Container steht IMMER im DOM, sobald der
+                 Knopf ihn per `aria-controls` anspricht — ausgeblendet wird er
+                 mit `hidden`. Vorher entstand das `<div>` erst beim Aufklappen;
+                 zugeklappt zeigte `aria-controls` damit auf eine nicht
+                 existierende id (toter Verweis, auch fuer Screenreader). Ein
+                 `display:grid` der Karte wuerde `hidden` aushebeln — deshalb
+                 steht weiter unten `[hidden] { display: none !important; }`. -->
+            <div class="dk-neuigkeiten__inhalt" id={beitrag.inhalt_id}
+                 hidden={!offen[beitrag.id]}>
+              {#each beitrag.inhalt_teile as teil, nummer (nummer)}
+                {@html teil.html}
+              {/each}
+            </div>
             {#if beitrag.aufklappbar && weiterlesen}
               <p class="dk-neuigkeiten__mehr">
                 <button
@@ -111,13 +117,32 @@
     return nur_webadresse(basisadresse);
   }
 
-  /** Praefixbewusste, evtl. relative Bildadresse absolut machen. */
+  /**
+   * Praefixbewusste, moeglicherweise relative Bildadresse absolut machen.
+   *
+   * Die Lese-API liefert Bildadressen MIT Betriebspraefix
+   * (`/diakronos/website/bild/gruppe/chor`, gebaut aus DIAKRONOS_BASE_PATH).
+   * Die Basisadresse im Feld traegt dasselbe Praefix
+   * (`…/diakronos`) — blindes Anhaengen ergaebe `…/diakronos/diakronos/…`
+   * (404). Deshalb: steckt das Praefix der Basis schon am Anfang des Pfades,
+   * wird die Adresse unveraendert uebernommen (BS-2c2; derselbe Befund wie
+   * beim Anmelde-Knopf in BS-2c).
+   */
   function bild_adresse(wert) {
     const text = String(wert || '').trim();
     if (text === '') return '';
     if (/^https?:\/\//i.test(text)) return nur_webadresse(text);
     const basiswert = basis();
     if (basiswert === '' || !text.startsWith('/')) return '';
+    let praefix = '';
+    try {
+      praefix = new URL(basiswert).pathname.replace(/\/+$/, '');
+    } catch (fehler) {
+      praefix = '';
+    }
+    if (praefix !== '' && praefix !== '/' && text.startsWith(praefix + '/')) {
+      return basiswert.slice(0, basiswert.length - praefix.length) + text;
+    }
     return basiswert + text;
   }
 
@@ -416,6 +441,13 @@
   .dk-neuigkeiten__inhalt {
     margin: 0;
     overflow-wrap: anywhere;
+  }
+
+  /* BS-2c2: `hidden` MUSS gewinnen. Die Karte wird in der Listen-Darstellung
+     `display: grid` — eine Anzeige-Regel des Verfassers schlaegt sonst das
+     `display: none` des Browser-Standards fuer `[hidden]`. */
+  .dk-neuigkeiten__inhalt[hidden] {
+    display: none !important;
   }
 
   .dk-neuigkeiten__auszug {

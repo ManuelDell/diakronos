@@ -259,3 +259,4 @@ tests/bs2b-*.test.mjs
 # BS-2c: Vertrag der vier neuen Bausteine (Gruppen-Übersicht, Gruppen-Steckbrief,
 # Neuigkeiten, Anmeldung) gegen die öffentliche Lese-API aus BS-1b.
 tests/bs2c-*.test.mjs
+tests/bs2c2-*.test.mjs

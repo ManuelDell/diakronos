@@ -182,7 +182,15 @@ def _attribut(obj, name: str):
 
 
 def _heute() -> date:
-    """Heute in der Zeitzone der Gemeinde (Community-Zeit, nicht UTC)."""
+    """Heute in der Zeitzone der Gemeinde (Community-Zeit, nicht UTC).
+
+    EINE Naht fuer alle Zeitfenster dieses Moduls: Tests setzen die Uhr per
+    ``monkeypatch.setattr(oeffentlich_daten, "_heute", lambda: date(...))``.
+    Das ist noetig, weil das Standardfenster (heute .. +90 Tage) und die
+    Grenze von 400 Tagen sonst von der Wanduhr des Rechners abhaengen — ein
+    Test, der ein Datum „weit weg\" nur aus ``date.today() + 400`` ableitet,
+    rutscht beim Tageswechsel ueber die Grenze (BS-2c2, Befund 1).
+    """
     from zoneinfo import ZoneInfo
 
     try:
@@ -244,9 +252,13 @@ def _termin_zeilen(
     *,
     kategorie: str | None = None,
     gruppe_slug: str | None = None,
-    limit: int = LIMIT_STANDARD,
+    limit: int | None = LIMIT_STANDARD,
 ) -> list[dict]:
-    """Oeffentliche Termin-Zeilen im Fenster (nach Beginn sortiert)."""
+    """Oeffentliche Termin-Zeilen im Fenster (nach Beginn sortiert).
+
+    ``limit=None`` liefert ALLE Zeilen des Fensters (hoechstens 400 Tage) —
+    noetig, wenn erst nach der Abfrage gefiltert wird (``nur_anmeldung``).
+    """
     index = _kalender_index(sess)
     gewaehlt = [s for s in kalender_slugs if s in index]
     if not gewaehlt:
@@ -308,12 +320,14 @@ def _termin_zeilen(
             return []
         bedingungen.append(Element.gruppe == gruppe["name"])
 
-    zeilen = sess.execute(
+    abfrage = (
         select(Element)
         .where(and_(*bedingungen))
         .order_by(Element.element_start, Element.name)
-        .limit(max(1, int(limit)))
-    ).scalars().all()
+    )
+    if limit is not None:
+        abfrage = abfrage.limit(max(1, int(limit)))
+    zeilen = sess.execute(abfrage).scalars().all()
     return [_termin_aus_zeile(zeile) for zeile in zeilen]
 
 
@@ -468,6 +482,20 @@ def _anmeldung_links(sess, kennungen) -> dict[str, str]:
     return ergebnis
 
 
+def _hat_anmeldung(zeile: dict) -> bool:
+    """Bietet dieser Termin ueberhaupt eine Anmeldung an? (BS-2c2)
+
+    Dieselbe Bedingung, unter der :func:`termine` eine ``anmeldung_url``
+    setzt: ``anmeldung_aktiv`` UND eine gepflegte ``registrierungslink``-
+    Kennung. Ob der Link AKTIV ist (Zeitfenster, Typ Gast), entscheidet erst
+    ``_link_adresse`` — deshalb filtert der Endpunkt danach noch einmal auf
+    die fertige Adresse.
+    """
+    return bool(zeile.get("anmeldung_aktiv")) and bool(
+        str(zeile.get("registrierungslink") or "").strip()
+    )
+
+
 def _oeffentliche_basis(sess) -> str:
     """Gepflegte oeffentliche Adresse der Gemeinde (``""`` wenn leer)."""
     try:
@@ -563,6 +591,7 @@ def termine(
     bis=None,
     kategorie: str | None = None,
     gruppe: str | None = None,
+    nur_anmeldung: bool = False,
     limit: int = LIMIT_STANDARD,
 ) -> list[dict]:
     """Oeffentliche Termine (L2), fertig serialisiert.
@@ -584,8 +613,11 @@ def termine(
         ende,
         kategorie=kategorie,
         gruppe_slug=gruppe,
-        limit=anzahl,
+        # nur_anmeldung: erst filtern, dann begrenzen (siehe Docstring).
+        limit=None if nur_anmeldung else anzahl,
     )
+    if nur_anmeldung:
+        zeilen = [z for z in zeilen if _hat_anmeldung(z)][:anzahl]
     _anreichern(sess, zeilen)
     # BS-1b2 (F2): Gruppen und Anmeldelinks JE EINE Abfrage, nicht je Zeile.
     gruppen = _oeffentliche_gruppen(

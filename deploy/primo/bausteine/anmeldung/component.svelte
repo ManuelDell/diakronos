@@ -201,14 +201,18 @@
 
   // ── Daten holen ─────────────────────────────────────────────────────────
   /**
-   * Die Lese-API (L2) kennt KEINEN Filter "nur mit Anmeldung" — sie liefert
-   * Termine im Zeitfenster. Der Baustein holt deshalb so viele, wie er
-   * anzeigen will, und behaelt die mit `anmeldung_url`.
+   * Die Lese-API (L2) filtert seit BS-2c2 SELBST auf „nur mit Anmeldung“:
+   * ``nur_anmeldung=1`` liefert ausschliesslich Termine mit fertiger
+   * ``anmeldung_url``, und ``limit`` gilt fuer DIESE Liste (nicht fuer eine
+   * Vorauswahl). Vorher holte der Baustein das ganze Zeitfenster mit
+   * ``limit=500`` und filterte im Browser — bei vielen Terminen ohne
+   * Anmeldung kam dadurch weniger an, als „Anzahl“ versprach.
    *
-   * ``kennung``: ist eine Gruppe gemeint, wird ueber ``gruppe`` gefiltert
-   * (die API kennt ``gruppe``); ein einzelner Termin laesst sich ueber die
-   * oeffentliche Kennung NICHT adressieren (die Lese-API hat dafuer keinen
-   * Endpunkt) — dann filtert der Baustein clientseitig auf `id`.
+   * ``kennung``: ist eine Gruppe gemeint, wird serverseitig ueber ``gruppe``
+   * gefiltert; ein einzelner Termin laesst sich ueber die oeffentliche
+   * Kennung NICHT adressieren (die Lese-API hat dafuer keinen Endpunkt) — dann
+   * bleibt die Pruefung auf `id` als zweite Stufe im Ergebnis (der Filter
+   * ``nur_anmeldung`` und die Feld-Positivliste der API gelten weiter).
    */
   function abfrageadresse() {
     const basiswert = basis();
@@ -218,9 +222,17 @@
     const parameter = new URLSearchParams();
     parameter.set('von', isodatum(heute));
     parameter.set('bis', isodatum(bis));
-    parameter.set('limit', '500');
+    parameter.set('nur_anmeldung', '1');
+    // Etwas Luft ueber „Anzahl“: eine Kennung/ein Einzeltermin wird erst im
+    // Ergebnis geprueft, und die API deckelt ohnehin bei 500.
+    parameter.set('limit', String(Math.min(500, zahl(anzahl, 10, 1, 50) * 5)));
     const kalenderliste = kennungen(kalender);
     if (kalenderliste.length > 0) parameter.set('kalender', kalenderliste.join(','));
+    const kennungswert = String(kennung || '').trim();
+    // Gruppen-Kennung geht an den Server; alles andere wird unten auf `id` geprueft.
+    if (kennungswert !== '' && !/^[a-f0-9]{32}$/i.test(kennungswert)) {
+      parameter.set('gruppe', kennungswert);
+    }
     return basiswert + '/website/oeffentlich/termine?' + parameter.toString();
   }
 
@@ -237,7 +249,7 @@
       if (adresse === '') continue;
       const id = String(eintrag.id || '').trim();
       if (gewuenschte_kennung !== '' && id !== gewuenschte_kennung
-          && String(eintrag.gruppe || '').trim() !== gewuenschte_kennung) {
+          && String(eintrag.gruppe?.slug || '').trim() !== gewuenschte_kennung) {
         continue;
       }
       const beginn = als_datum(eintrag.beginn);

@@ -11,7 +11,13 @@
   {:else}
     <div class="dk-steckbrief__rumpf" aria-live="polite">
       {#if befund.bild_url}
-        <img class="dk-steckbrief__bild" src={befund.bild_url} alt={befund.name} loading="lazy" decoding="async" />
+        <!-- BS-2c2 (3): dekoratives Bild. Der Name der Gruppe steht direkt
+             daneben als Ueberschrift — ein Alt-Text mit demselben Wort liest
+             sich fuer Screenreader doppelt. `alt=""` nimmt das Bild aus dem
+             Namensbaum; ein KNOPF ist es nicht, es geht also kein Bedienelement
+             verloren. (Ein `<figure><figcaption>` waere fuer ein INHALTLICHES
+             Bild richtig — das Gruppenbild ist Schmuck.) -->
+        <img class="dk-steckbrief__bild" src={befund.bild_url} alt="" loading="lazy" decoding="async" />
       {/if}
       <div class="dk-steckbrief__inhalt">
         <h2 class="dk-steckbrief__titel">{titel_anzeige}</h2>
@@ -117,13 +123,32 @@
     return nur_webadresse(basisadresse);
   }
 
-  /** Praefixbewusste, moeglicherweise relative Bildadresse absolut machen. */
+  /**
+   * Praefixbewusste, moeglicherweise relative Bildadresse absolut machen.
+   *
+   * Die Lese-API liefert Bildadressen MIT Betriebspraefix
+   * (`/diakronos/website/bild/gruppe/chor`, gebaut aus DIAKRONOS_BASE_PATH).
+   * Die Basisadresse im Feld traegt dasselbe Praefix
+   * (`…/diakronos`) — blindes Anhaengen ergaebe `…/diakronos/diakronos/…`
+   * (404). Deshalb: steckt das Praefix der Basis schon am Anfang des Pfades,
+   * wird die Adresse unveraendert uebernommen (BS-2c2; derselbe Befund wie
+   * beim Anmelde-Knopf in BS-2c).
+   */
   function bild_adresse(wert) {
     const text = String(wert || '').trim();
     if (text === '') return '';
     if (/^https?:\/\//i.test(text)) return nur_webadresse(text);
     const basiswert = basis();
     if (basiswert === '' || !text.startsWith('/')) return '';
+    let praefix = '';
+    try {
+      praefix = new URL(basiswert).pathname.replace(/\/+$/, '');
+    } catch (fehler) {
+      praefix = '';
+    }
+    if (praefix !== '' && praefix !== '/' && text.startsWith(praefix + '/')) {
+      return basiswert.slice(0, basiswert.length - praefix.length) + text;
+    }
     return basiswert + text;
   }
 

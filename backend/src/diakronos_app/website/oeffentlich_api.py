@@ -121,6 +121,15 @@ def _liste(wert) -> list[str]:
     return [t.strip() for t in teile if str(t).strip()]
 
 
+def _wahr(wert) -> bool:
+    """Parameter als Schalter: ``1/true/ja/on`` (auch ``"0"`` = falsch)."""
+    if isinstance(wert, bool):
+        return wert
+    if wert is None:
+        return False
+    return str(wert).strip().lower() in {"1", "true", "ja", "on", "yes"}
+
+
 def _zahl(wert, vorgabe: int) -> int:
     """Parameter als Zahl; unbrauchbare Angaben fallen auf die Vorgabe zurueck."""
     try:
@@ -158,7 +167,7 @@ def kalender(request=None):
 
 @whitelist(methods=["GET"], allow_guest=True)
 def termine(request=None, kalender=None, von=None, bis=None, kategorie=None,
-            gruppe=None, limit=None):
+            gruppe=None, limit=None, nur_anmeldung=None):
     """Freigegebene Termine im Zeitfenster (Liste, nach Beginn sortiert).
 
     Parameter:
@@ -170,6 +179,12 @@ def termine(request=None, kalender=None, von=None, bis=None, kategorie=None,
                     Kategorien wirken (sonst leere Liste).
       ``gruppe``    Slug einer freigegebenen Gruppe.
       ``limit``     Vorgabe 50, hoechstens 500.
+      ``nur_anmeldung``  ``1``/``true``/``ja``/``on`` = nur Termine, fuer die
+                    die Website eine ANMELDUNG anbietet (``anmeldung_url``
+                    gesetzt). Ein Baustein „Termine mit offener Anmeldung"
+                    fragt damit, statt ein grosses Fenster zu holen und im
+                    Browser zu filtern (BS-2c2). ``limit`` gilt fuer das
+                    Ergebnis, nicht fuer die Vorauswahl.
 
     Antwort: Liste von Terminen nach der Feld-Positivliste
     (``website/oeffentlich_auswahl.FELDER_TERMIN``).
@@ -187,8 +202,13 @@ def termine(request=None, kalender=None, von=None, bis=None, kategorie=None,
         bis=bis,
         kategorie=(str(kategorie).strip() if kategorie else None),
         gruppe=(str(gruppe).strip() if gruppe else None),
+        nur_anmeldung=_wahr(nur_anmeldung),
         limit=_zahl(limit, daten.LIMIT_STANDARD),
     )
+    if _wahr(nur_anmeldung):
+        # Ein Termin mit „Anmeldung aktiv", aber ohne tauglichen Link, hat
+        # keine Adresse anzubieten — der gehoert NICHT in diese Liste.
+        ergebnis = [t for t in ergebnis if t.get("anmeldung_url")]
     return ergebnis
 
 
