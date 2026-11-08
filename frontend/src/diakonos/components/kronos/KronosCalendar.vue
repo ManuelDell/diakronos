@@ -984,14 +984,6 @@ function neuZuordnen() {
 </template>
 
 <style scoped>
-/* Review UX3i4 (08.11.): je Termin samt „⋯“ eine eigene Zeile in der Liste —
-   inline-flex stellte zwei Termine eines Tages nebeneinander. */
-:deep(.ec-list .ec-day:has(> [data-aktionen-zeile])) {
-  display: grid;
-  grid-template-columns: minmax(0, max-content) var(--control-h);
-  justify-content: start;
-  column-gap: var(--sp-1);
-}
 /* UX2e5 — „⋯" je Termin in der Terminliste.
    Die Zeilen der Bibliothek sind Geschwister im Tages-Container (keine
    gemeinsame Hülle); der Halter ist das nächste Geschwister SEINER Zeile,
