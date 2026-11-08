@@ -43,8 +43,14 @@ export function uhrzeit(wert) {
 }
 
 /**
- * Text eines Chips: „19:00 Titel“ — die Uhrzeit NUR, wenn der Termin an
- * diesem Tag eine echte Uhrzeit hat.
+ * Text eines Chips: „Titel 19:00“ — die Uhrzeit steht HINTEN und nur, wenn
+ * der Termin an diesem Tag eine echte Uhrzeit hat.
+ *
+ * UX3i3/Befund 4 (Manuel, 08.11.): Vorher stand die Uhrzeit VORN
+ * („10:00 Gottes…“). Im Monatsraster ist die Spalte so schmal, dass die
+ * Ellipse genau den TITEL abschnitt — der Termin war nicht mehr zu erkennen.
+ * A4 zeigt „Chor 19:00“: erst der Titel, dann die Uhrzeit. Durchgängig EINE
+ * Variante (Monat, Woche, Liste).
  *
  * Keine Uhrzeit bei:
  *   * ganztägigen Terminen (`allDay`),
@@ -86,7 +92,7 @@ export function chipText(termin, optionen = {}) {
 
   const zeit = uhrzeit(start)
   if (!zeit) return titel
-  return titel ? `${zeit} ${titel}` : zeit
+  return titel ? `${titel} ${zeit}` : zeit
 }
 
 /**
@@ -184,9 +190,11 @@ function kontrastverhaeltnis(a, b) {
  *   2. Davon wird der Ton für den Chip abgeleitet (22 % der sichtbaren Farbe
  *      über der Karte — die Mischung, die die Bibliothek als Chipfläche nutzt).
  *   3. Die Schriftfarbe kommt aus den Theme-Marken, die auf DIESEM Ton den
- *      höheren Kontrast erreicht. Reicht keine von beiden (sehr gesättigte
- *      Eigenfarbe), wird der Chip DUNKLER eingefärbt (55 %) und weiß
- *      beschriftet.
+ *      höheren Kontrast erreicht. Reicht keine von beiden, wird die Fläche
+ *      kräftiger eingefärbt (55 %) — die Schrift bleibt dieselbe
+ *      `light-dark()`-Marke, weil BEIDE Marken (navy-900 hell, warm-0 dunkel)
+ *      auf der kräftigeren Mischung mehr Kontrast haben als auf der
+ *      schwächeren (Farbe über der Karte bleibt zwischen den Marken).
  *
  * Review 07.11.: `--chip-flaeche` wurde in `kronos.css` gelesen, aber nie
  * gesetzt — der Chip fiel auf `--primary` zurück und zeigte nicht die
@@ -228,19 +236,33 @@ export function chipFarben(kalenderfarbe, { theme = 'hell' } = {}) {
   const schwach = ton(0.22)
   const kDunkelSchwach = kontrastverhaeltnis(schwach, schriftDunkel)
   const kHellSchwach = kontrastverhaeltnis(schwach, schriftHell)
-  if (kDunkelSchwach >= 4.5 || kHellSchwach >= 4.5) {
-    // Auf der 22-%-Mischung trägt die jeweilige Theme-Marke. Sie kommt als
-    // `light-dark()` (hell = --dk-navy-900, dunkel = --dk-warm-0), damit ein
-    // Theme-Wechsel die schon gezeichneten Chips mitnimmt (Nachtrag Punkt 1).
+  // UX3i3 (Befund 5 / Nacharbeit 6): Hier stand TOTER CODE — `markeStark`
+  // und `kWeissStark` wurden gerechnet, aber nie benutzt, und beide Zweige
+  // gaben dieselbe `light-dark()`-Marke zurück. Jetzt trägt die Rechnung die
+  // Entscheidung: reicht der Kontrast auf der 22-%-Fläche NICHT (`>= 4.5`
+  // heißt „mindestens 4,5:1“), wird die Fläche auf die kräftigere 55-%-Mischung
+  // gehoben (dann steht sie zusätzlich als `color-mix()` im Stil). Reicht
+  // schon die schwache Fläche, bleibt es bei `''` (= Standardfläche des
+  // Themes, gemischt in `kronos.css`). Die Schrift ist in BEIDEN Fällen
+  // `light-dark()` — sie wird beim Zeichnen je Theme aufgelöst.
+  //
+  // Nacharbeit 6 (Widerspruch im Messbericht): Der Kontrast wird nicht mehr
+  // nur hier gegen die MARKEN gerechnet. `tools/ux3i3-abnahme.mjs` misst die
+  // tatsächlich gerenderten Pixel (Fläche UND Schrift im Screenshot) — dort
+  // steht die Zahl, die im Bericht auftaucht. Eine hier gerechnete Zahl ist
+  // eine Vorhersage, kein Beleg.
+  const reicht = kDunkelSchwach >= 4.5 || kHellSchwach >= 4.5
+  if (reicht) {
     return { flaeche: '', schrift: lightDark() }
   }
   const stark = ton(0.55)
-  const kWeissStark = kontrastverhaeltnis(stark, schriftHell)
-  const kDunkelStark = kontrastverhaeltnis(stark, schriftDunkel)
-  // Die 55-%-Fläche ist gesättigt: es gilt die Marke mit dem höheren
-  // Kontrast — als `light-dark()` DERSELBEN Marke, damit ein Theme-Wechsel die
-  // schon gezeichneten Chips mitnimmt (Nachtrag Punkt 1).
-  const markeStark = kWeissStark >= kDunkelStark ? 'hell' : 'dunkel'
+  if (kontrastverhaeltnis(stark, schriftDunkel) < 4.5 &&
+      kontrastverhaeltnis(stark, schriftHell) < 4.5) {
+    // Auch die kräftigere Fläche trägt keine der beiden Marken (kann bei
+    // Fremdfarben vorkommen): dann die Standardfläche des Themes mit der
+    // sicheren Marke — nie eine Schrift, die den Kontrast nicht trägt.
+    return { flaeche: '', schrift: marken.dunkel }
+  }
   return {
     flaeche: `color-mix(in srgb, ${kalenderfarbe} 55%, var(--surface))`,
     schrift: lightDark(),

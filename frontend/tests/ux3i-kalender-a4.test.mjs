@@ -50,13 +50,15 @@ const termin = (start, ende, zusatz = {}) => ({
   allDay: zusatz.allDay ?? false,
 })
 
-test('UX3i: Chip zeigt „19:00 Titel“ — eine Variante, durchgängig', () => {
+test('UX3i: Chip zeigt „Titel 19:00“ — eine Variante, durchgängig', () => {
   const t = termin('2026-11-08T19:00:00', '2026-11-08T20:30:00')
-  assert.equal(chip.chipText(t), '19:00 Gottesdienst am 1. Advent',
-    'Uhrzeit steht VOR dem Titel (A4), nicht dahinter')
+  // UX3i3 (Befund 4, Manuel 08.11.): Die Uhrzeit steht HINTEN (A4 „Chor 19:00“)
+  // — vorn schnitt „10:00 Gottes…“ im Monatsraster den Titel ab.
+  assert.equal(chip.chipText(t), 'Gottesdienst am 1. Advent 19:00',
+    'Titel steht VOR der Uhrzeit (A4)')
   // Dieselbe Regel für jeden Tag — kein Sonderfall Montag/Sonntag.
   const montag = termin('2026-11-02T09:05:00', '2026-11-02T10:00:00', { title: 'Chorprobe' })
-  assert.equal(chip.chipText(montag), '09:05 Chorprobe')
+  assert.equal(chip.chipText(montag), 'Chorprobe 09:05')
 })
 
 test('UX3i: ganztägig und mehrtägig tragen KEINE Uhrzeit', () => {

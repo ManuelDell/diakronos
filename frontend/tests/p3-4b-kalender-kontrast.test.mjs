@@ -117,15 +117,21 @@ test('W3: die Marken-Schrift bleibt, wo sie AA erreicht', () => {
   assert.equal(kachelSchrift('#1c2850'), KACHEL_INK_HELL)
 })
 
-test('Restpunkt 1: der Kalender waehlt die Schrift aus der Kachelfarbe', () => {
+test('Restpunkt 1: der Kalender waehlt die Schrift aus der Termin- bzw. Chipfarbe', () => {
   const kalender = lies('src/diakonos/components/kronos/KronosCalendar.vue')
-  assert.match(kalender, /kachelSchrift\(sichereFarbe\(event\.backgroundColor\)\)/,
-    'die Schriftfarbe wird nicht aus der Kachelfarbe gewaehlt')
-  // UX2e5: Die Schriftfarbe steht am äußeren Inhaltsknoten (.ec-event-inhalt),
-  // den die Bibliothek in `.ec-event-body` der Zeile hängt — sie gilt damit
-  // weiterhin für den ganzen Inhalt des Termins.
-  assert.match(kalender, /style="color:' \+ schrift \+ '"/,
-    'die gewaehlte Schriftfarbe landet nicht am Kachelelement')
+  // UX3i3 (Befunde 1–3): Monat, Woche, Liste und Handy holen Fläche UND
+  // Schrift aus EINER Rechnung (`chipStil`/`chipFarben`) — die Schrift wird
+  // dort gegen die gemischte Chipfläche gewählt (AA, hell und dunkel), nicht
+  // mehr über `kachelSchrift` gegen die volle Kachelfarbe. Die alte
+  // Kachel-Schrift war die Ursache für „schwarze Schrift auf Lila“ in der
+  // Wochenansicht.
+  assert.match(kalender, /chipStil\(sichereFarbe\(event\.backgroundColor\)/,
+    'die Schriftfarbe wird nicht aus der Terminfarbe gewaehlt')
+  // Sie steht als Inline-Stil am Termin-Element (`.ec-chip`, im Handy am
+  // äußeren `.ec-event-inhalt`) — gesetzt aus `stil`, beide Variablen
+  // (`--chip-ink`, `--chip-flaeche`) kommen aus `chipStil`.
+  assert.match(kalender, /style="' \+ stil \+ '"/,
+    'die gewählte Schriftfarbe landet nicht am Termin-Element')
 })
 
 test('Restpunkt 9: die Wochenzahl wird unter 640 px per CSS ausgeblendet', () => {

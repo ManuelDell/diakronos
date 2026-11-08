@@ -1088,12 +1088,64 @@ html[data-theme] .ec,
   --ec-button-active-border-color: var(--line-strong);
   --ec-highlight-color: var(--accent-soft);
 }
-/* Monatskarte: Kartenfläche statt Seitenfarbe — sonst schien über der
-   Wochentagszeile ein graues Band durch (Review 08.11.). */
-html[data-theme] .ec:has(.ec-month-view),
-.ec-dark .ec:has(.ec-month-view),
-.ec-auto-dark .ec:has(.ec-month-view),
-.ec:has(.ec-month-view) {
+/* UX3i3 (Zusatz 7, Orchestrator 08.11.): Das BAND zwischen Kartenkopf
+   „November 2026“ und der ersten Terminwoche. Im Browser gemessen
+   (`luecke3.mjs`): `.ec` beginnt an der Unterkante des Kartenkopfs, die
+   erste Rasterzelle aber erst 49 px darunter. Die 49 px stammen aus zwei
+   Stellen der Bibliothek:
+     * `.ec-toolbar` — 14 px aus `margin-block-end: 1em` bei Höhe 0. Die
+       Werkzeugleiste der Bibliothek ist leer: die App hat ihre eigene
+       Kartenkopf-Zeile (A4, `headerToolbar: false`).
+     * `.ec-main` — `grid-template-rows: max-content …`: die erste Zeile
+       (34 px) trägt die Wochentage (`.ec-header`/`.ec-col-head`) auf der
+       Fläche `--ec-bg-color` (= `--dk-bg`, die Seitenfarbe). Genau die war
+       das graue Band.
+   Zurückgenommen werden die FLÄCHEN und der tote Abstand der Werkzeugleiste
+   — mit den Theme-Token, keine festen Farben. Die Wochentagszeile selbst
+   bleibt SICHTBAR: A4 zeigt „Mo Di Mi … So“. (UX3i3-Nacharbeit 1 und 4: sie
+   war zwischenzeitlich per `display: none` ausgeblendet — das war eine
+   Regression gegen A4 und ist hier zurückgenommen.)
+   WICHTIG (Befund im Browser geprüft): Der Selektor lautet NICHT
+   `.ec:has(.ec-month-view) …` — ein `:has()` auf der eigenen Klasse schlägt
+   in Chromium 131 nicht an (`document.querySelectorAll('.ec:has(
+   .ec-month-view)')` liefert 0, obwohl der Knoten die Klasse trägt).
+   `.ec.ec-month-view` ist derselbe Knoten (beide Klassen liegen auf einem
+   Element) und trifft zuverlässig. */
+.ec > .ec-toolbar {  /* headerToolbar: false gilt für alle Ansichten — Band auch in Woche/Liste weg (Review 08.11.) */
+  display: none;
+}
+.ec.ec-month-view > .ec-main {
+  border: 0;
+}
+.ec.ec-month-view .ec-header,
+.ec.ec-month-view .ec-grid,
+.ec.ec-month-view .ec-col-head {
+  background-color: transparent;
+  border-color: transparent;
+}
+/* Die Wochentagszeile der Bibliothek („Mo Di Mi …“) bleibt SICHTBAR (A4 zeigt sie).
+   Sie war nur deshalb Teil des grauen Bands, weil ihre Fläche
+   (`.ec-col-head` -> `--ec-bg-color` = `--dk-bg`, die Seitenfarbe) durchschien;
+   oben steht diese Fläche bereits auf `transparent` — hier zusätzlich
+   ausdrücklich auf der Kartenfläche. Nie `display: none`. */
+.ec.ec-month-view .ec-header {
+  background-color: var(--surface);
+}
+/* UX3i3 (Nacharbeit 4): Das graue Band über der WOCHE/LISTE kommt aus dem
+   Kopf der Bibliothek: `.ec-header`/`.ec-col-head` malen `--ec-bg-color`
+   (= `--dk-bg`, die Seitenfarbe) — dieselbe Ursache wie im Monat, nur greift
+   dort der `.ec-month-view`-Block nicht, weil der Wochentags-Kopf der Liste
+   eine eigene Zeile ist. Hier ausdrücklich auf die Kartenfläche. */
+.ec-list .ec-header,
+.ec-list .ec-col-head {
+  background-color: var(--surface) !important;
+  border-color: transparent;
+}
+/* Derselbe Streifen über der LISTE: dort ist `.ec-day-head` eine klebende
+   Leiste MIT Inhalt (Tag + Datum) und bleibt sichtbar — nur ihre helle
+   Grundfläche (`.ec-day-bg-color`) wird zur Kartenfläche, damit sie nicht als
+   graues Band über der Liste schwebt. */
+.ec-list .ec-day-head {
   background-color: var(--surface) !important;
 }
 /* DES-R15: Terminkacheln am Handy trugen weisse Schrift auf hellen
@@ -1216,6 +1268,14 @@ html[data-theme] .ec:has(.ec-month-view),
 /* List-View: Tag-Container NICHT clippen/hoehen-begrenzen (Month-Grid-Regeln greifen hier auch, da .ec-list zusaetzlich .ec-month-view traegt) */
 .ec-list .ec-day { overflow: visible !important; height: auto !important; min-height: 0 !important; max-height: none !important; }
 .ec-list .ec-main { display: block !important; grid-template-rows: none !important; }  /* List-View: kein fixes Month-Grid -> Tage wachsen mit Inhalt, keine Ueberlappung */
+/* UX3i3: Die Chip-Optik (unten) bringt ihre Form selbst mit. Hier wird nur
+   der Innenabstand der Listen-Zeile zurückgenommen, den die Bibliothek mit
+   `.ec-list .ec-event { padding: .5em 1.5em }` setzt — sonst stünde der Chip
+   eingerückt in einem farbigen Balken. (Das `padding: 0` der Chip-Gruppe
+   unten steht in der Datei NACH dieser Regel und gewinnt bei gleicher
+   Spezifität; diese Zeile hält es zusätzlich für den Fall, dass jemand die
+   Chip-Gruppe in der Datei verschiebt — Reihenfolge allein ist kein Vertrag.) */
+.ec-list .ec-event.ec-chip-event { padding: 0 !important; }
 .ec-event {
   border-radius: 4px;
   font-size: var(--fs-12);
@@ -1226,12 +1286,6 @@ html[data-theme] .ec:has(.ec-month-view),
   font-size: var(--fs-12);
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.ec-event-time {
-  font-size: var(--fs-12);
-  opacity: 0.85;
-  flex-shrink: 0;
   white-space: nowrap;
 }
 .ec-event.ec-event-dot-style {
@@ -1266,14 +1320,41 @@ html[data-theme] .ec:has(.ec-month-view),
    gemischten Ton gerechnet und erreicht AA — hier stehen deshalb KEINE
    Farben, nur Form. Kein `!important`: die Bibliothek setzt ihre eigene
    Kachelfarbe über `--ec-event-bg-color`, der Inline-Wert des Chips gewinnt
-   ohnehin. */
+
+   Ausnahme Liste: dort trifft `.ec-list .ec-event` der Bibliothek genauso
+   spezifisch (0-2-0) und steht FRÜHER in der Datei — die Chip-Gruppe gewinnt
+   durch die Reihenfolge; die Liste nimmt die Vorgaben trotzdem ausdrücklich
+   zurück (siehe `.ec-list .ec-event.ec-chip-event` unten).
+
+   UX3i3 (Befunde 1–3, 08.11.): Dieselbe Chip-Optik gilt jetzt auch in der
+   WOCHEN- und LISTEN-Ansicht — vorher war der Monat ein getönter Chip, die
+   Woche eine satte Kachel mit schwarzer Schrift und die Liste ein voller
+   Farbbalken mit hell daraufliegender Uhrzeit (≤ 2:1). Die Bibliothek malt
+   `.ec-list .ec-event` mit eigener Fläche (`background-color:
+   var(--ec-day-bg-color)`) und eigenem Innenabstand (`.5em 1.5em`); die
+   Chip-Regeln müssen diese Vorgaben deshalb auch in der Liste zurücknehmen.
+   Die Uhrzeit ist kein eigenes Element mehr, sondern steht im Chip-Text
+   („Titel 19:00“) — der 85-%-Deckkraft-Trick, der sie unlesbar machte,
+   entfällt. */
+/* `background-color` (nicht `background`): die Bibliothek malt die satte
+   Kachel über `background-color: var(--ec-event-bg-color)` in der Regel
+   `.ec-event` (Spezifität 0-1-0). Die Chip-Regel mit 0-2-0 gewinnt bei
+   gleicher Wichtigkeit — solange sie dieselbe EIGENSCHAFT setzt. Nacharbeit
+   2 (Review 08.11.): sie steht hier ausdrücklich als EIGENSCHAFT
+   `background-color` (`background` allein nimmt die Vorgabe der Bibliothek
+   nicht zurück) UND mit `!important`: in der WOCHEN-/Tagesansicht setzt die
+   Bibliothek die Kachelfarbe als INLINE-Stil am `article`
+   (`style="background-color: rgb(16,185,129)"`, im Browser gemessen) — gegen
+   Inline-Stile hilft nur `!important`. Vorher blieb der Termin in der Woche
+   eine satte Kachel, obwohl der Chip innen lag. */
 .ec-month-view .ec-event.ec-chip-event,
-.ec-event.ec-chip-event {
-  background: transparent;
+.ec-event.ec-chip-event,
+.ec-list .ec-event.ec-chip-event {
+  background-color: transparent !important;
   padding: 0;
   border: 0;
   box-shadow: none;
-  overflow: visible;
+  overflow: hidden;
 }
 .ec-chip {
   display: block;
@@ -1295,6 +1376,32 @@ html[data-theme] .ec:has(.ec-month-view),
   white-space: nowrap;
   cursor: pointer;
 }
+
+/* UX3i3 (Befund 1/3): Listen-Zeile. Die Bibliothek setzt `.ec-list .ec-event`
+   auf volle Fläche und `.5em 1.5em` Innenabstand — der Chip stünde sonst
+   eingerückt in einem farbigen Balken. `.ec-list .ec-event` ist genauso
+   spezifisch wie `.ec-event.ec-chip-event` (0-2-0) und steht FRÜHER in der
+   Datei; die Chip-Gruppe oben gewinnt also schon durch die Reihenfolge.
+   Diese Zeile hält die Rücknahme trotzdem ausdrücklich fest — Reihenfolge
+   allein ist kein Vertrag (wer die Gruppe verschiebt, bräche die Liste). */
+.ec-list .ec-event.ec-chip-event {
+  background-color: transparent !important;
+  padding: 0 !important;
+  border: 0;
+  box-shadow: none;
+  overflow: hidden;
+}
+/* UX3i3: Die Liste hatte je Tag eine Zeile mit `.5em 1.5em` Innenabstand und
+   1-rem-Titel (Bibliotheks-CSS). Der Chip bringt seine eigene Form mit; nur
+   die Klickfläche wächst auf die Mindesthöhe — `--control-h` ist der
+   Konzeptwert (40 px, bei `pointer: coarse` 44 px, gesetzt in `tokens.css`). */
+.ec-list .ec-chip {
+  min-height: var(--control-h);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sp-2);
+}
+.ec-list .ec-event.ec-chip-event { margin-block-end: var(--sp-1); }
 .ec-chip:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
@@ -1394,11 +1501,21 @@ html[data-theme] .ec:has(.ec-month-view),
   .resource-btn-label {
     display: none;
   }
-  .ec-event-time {
-    display: none !important;
-  }
   .mobile-month-display {
     display: inline;
+  }
+}
+/* UX3i3 (Befund 3, Manuel 08.11.): Am Handy waren die Termine satte, volle
+   Farbkacheln, am Desktop getönte Chips — zwei Optiken für dasselbe Objekt
+   (Prinzip S4). Jetzt baut `KronosCalendar.vue` den Chip in JEDER Breite
+   gleich (`chipStil` → `--chip-flaeche`/`--chip-ink`, Text „Titel 19:00“);
+   hier steht nur die engere Form für die schmalen Tagesspalten (390 px:
+   ~47 px breit). A10 (eigene Karte) gestaltet den Handy-Kalender später
+   ganz — UX3i3 berührt nur die Optik der Termine. */
+@media (max-width: 720px) {
+  .ec-chip {
+    padding: 0 var(--sp-2);
+    font-size: var(--fs-12);
   }
 }
 

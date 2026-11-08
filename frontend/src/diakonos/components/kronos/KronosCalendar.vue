@@ -18,7 +18,9 @@ import { erstelleTerminDaten } from './terminAktionenDaten.mjs'
 // und wird per Kennung zugeordnet (siehe ./terminAktionen.mjs).
 import { zuordnen } from './terminAktionen.mjs'
 // P3-4b/Restpunkt 1: Schriftfarbe je Terminkachel nach Helligkeit (AA).
-import { kachelSchrift } from '../../../shared/kachelfarbe.mjs'
+// UX3i3: die Termine in Woche/Liste nutzen jetzt dieselbe Chip-Logik wie der
+// Monat (`chipStil` in `./chipText.mjs`) — die Kachel-Schrift der Bibliothek
+// wird im Kalender nicht mehr gebraucht.
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js'
 // UX3i (Entwurf A4): Text, Kontrast und Zählung der Termin-Chips als reine
 // Funktionen — ausführbar geprüft in `tests/ux3i-kalender-a4.test.mjs`.
@@ -648,7 +650,12 @@ onMounted(() => {
         const isMultiDay = !info.event.allDay && info.event.end &&
           new Date(info.event.start).toDateString() !== new Date(info.event.end).toDateString()
         const useDot = !info.event.allDay && isMonthView && !isMobile && !isMultiDay
-        const classes = useDot ? ['ec-event-dot-style'] : []
+        // UX3i3 (Nacharbeit 2): `ec-chip-event` IMMER — daran hängen die
+        // Chip-Regeln in `kronos.css` (getönte Fläche statt satter Kachel).
+        // Vorher wurde die Klasse nur im Monat gesetzt: Woche und Liste trugen
+        // die Kachelfarbe der Bibliothek, am Handy zusätzlich den Farbring.
+        const classes = ['ec-chip-event']
+        if (useDot) classes.push('ec-event-dot-style')
         if (_highlightEventId.value && info.event.id === _highlightEventId.value)
           classes.push('kronos-event-highlight')
         return classes
@@ -656,10 +663,6 @@ onMounted(() => {
 
       eventContent: (info) => {
         const event = info.event
-        const isMonthView = calendar.value?.getOption('view') === 'dayGridMonth'
-        const isMobile   = istEngeBreite(window.innerWidth)
-        const isMultiDay = !event.allDay && event.end &&
-          new Date(event.start).toDateString() !== new Date(event.end).toDateString()
         const safe = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;')
         // UX2e5: Der Termin-Datensatz für das „⋯"-Menü der LISTE. Die
@@ -678,51 +681,36 @@ onMounted(() => {
         // mit doppelten umschlossen endete das Merkmal mitten im JSON.
         const datenAttr = " data-termin-daten='" + safe(JSON.stringify(daten)) + "'"
 
-        // UX3i (A4): Im Monatsraster ist JEDER Termin ein Chip mit Uhrzeit
-        // und Titel — vorher stand dort ein Punkt plus Text, der ab dem
-        // ersten Wort abgeschnitten war. Der VOLLE Titel steht in `title`
-        // und `aria-label`; gekürzt wird nur optisch (Textellipse).
-        // Das Handy behält die bisherige Form (A10 ist eine eigene Karte;
-        // Mobil darf durch UX3i nicht schlechter werden).
-        if (isMonthView && !isMobile) {
-          const tag = event.start
-            ? `${event.start.getFullYear()}-${String(event.start.getMonth() + 1).padStart(2, '0')}-${String(event.start.getDate()).padStart(2, '0')}`
-            : ''
-          const text = chipText({ title: event.title, start: event.start, end: event.end, allDay: event.allDay }, { tag })
-          const titel = chipTitel({ title: event.title, start: event.start, end: event.end, allDay: event.allDay })
-          const dunkel = typeof document !== 'undefined'
-            && document.documentElement.getAttribute('data-theme') === 'dark'
-          // Review 07.11. Punkt 4: Fläche UND Schrift (beide Variablen).
-          const stil = chipStil(sichereFarbe(event.backgroundColor), { theme: dunkel ? 'dunkel' : 'hell' })
-          // UX2e5: Der Datensatz reist auch am Chip mit (der äußere Inhalt
-          // ist im Monat der Chip selbst) — sonst fände das „⋯" der Liste im
-          // Monat keinen Termin mehr, sobald die Ansicht wechselt.
-          return { html:
-            '<div class="ec-chip" role="button" tabindex="0" title="' + safe(titel) +
-            '" aria-label="' + safe(titel) + '"' + datenAttr + ' style="' + stil + '">' +
-            '<span class="ec-chip-text">' + safe(text) + '</span>' +
-            '</div>'
-          }
-        }
-
-        const showTime = !event.allDay && !isMultiDay
-        const timeHtml = showTime && info.timeText
-          ? '<span class="ec-event-time">' + safe(info.timeText) + '</span>' : ''
-        // P3-4b/Restpunkt 1 + P3-4c/W3: Die Schriftfarbe kommt aus dem
-        // KONTRAST zur Kachelfarbe — dunkle Kacheln bekommen helle, helle
-        // Kacheln dunkle Schrift; reicht keine der beiden Marken-Schriften
-        // (Kalenderfarben sind frei waehlbar), wird auf Schwarz/Weiß
-        // ausgewichen, damit AA (4,5:1) IMMER erreicht wird.
-        // Ohne Farbangabe (CSS-Variable/Altbestand) wird KEIN fester Wert
-        // gesetzt, sondern der Theme-Wert `--event-ink` verwendet — im
-        // Dunkelmodus und im Druck greift damit das Theme.
-        const schrift = kachelSchrift(sichereFarbe(event.backgroundColor))
-        // Am ÄUSSEREN Inhalt: den hängt die Bibliothek in `.ec-event-body` der
-        // Zeile — dort liest ./terminAktionenDaten.mjs ihn, auch nach einem
-        // Neubau (deshalb NICHT am inneren Körper duplizieren).
+        // UX3i3 (Befunde 1/2/3/4): EINE Chip-Logik für Monat, Woche und Liste.
+        // Vorher hatten die drei Ansichten drei verschiedene Termin-Optiken:
+        //   Monat  — getönter Chip (A4), Woche — satte Kachel mit schwarzer
+        //   Schrift, Liste — voller Farbbalken mit heller Uhrzeit. Jetzt gilt
+        //   überall derselbe Chip (getönte Kalenderfarbe + `light-dark()`-
+        //   Schrift aus `chipStil`), der Text ist überall „Titel 19:00“.
+        // Der VOLLE Titel (mit Datum und Zeit) steht in `title`/`aria-label`;
+        // gekürzt wird nur optisch (Textellipse).
+        // Auch die enge Lage (Handy, 390 px) baut DIESEN Chip — kein eigener
+        // Handy-Sonderweg mehr (Befund 3). Wie breit der Chip dort ist und wie
+        // viel Text passt, regelt das Layout der Zelle; die Mobile-Gestaltung
+        // des Kalenders ist die eigene Karte A10.
+        const tag = event.start
+          ? `${event.start.getFullYear()}-${String(event.start.getMonth() + 1).padStart(2, '0')}-${String(event.start.getDate()).padStart(2, '0')}`
+          : ''
+        const chipDaten = { title: event.title, start: event.start, end: event.end, allDay: event.allDay }
+        const text = chipText(chipDaten, { tag })
+        const titel = chipTitel(chipDaten)
+        const dunkel = typeof document !== 'undefined'
+          && document.documentElement.getAttribute('data-theme') === 'dark'
+        // Fläche UND Schrift (beide Variablen), gerechnet gegen die echte
+        // Fläche — siehe `chipFarben`.
+        const stil = chipStil(sichereFarbe(event.backgroundColor), { theme: dunkel ? 'dunkel' : 'hell' })
+        // Der Datensatz reist am Chip mit (UX2e5: Klick und „⋯“-Menü finden
+        // den Termin in jeder Ansicht).
         return { html:
-          '<div class="ec-event-inhalt"' + datenAttr + ' style="color:' + schrift + '">' + timeHtml +
-          '<h4 class="ec-event-title">' + safe(event.title) + '</h4></div>'
+          '<div class="ec-chip" role="button" tabindex="0" title="' + safe(titel) +
+          '" aria-label="' + safe(titel) + '"' + datenAttr + ' style="' + stil + '">' +
+          '<span class="ec-chip-text">' + safe(text) + '</span>' +
+          '</div>'
         }
       },
 
