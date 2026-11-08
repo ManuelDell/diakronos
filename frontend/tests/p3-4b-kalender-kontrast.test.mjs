@@ -143,9 +143,11 @@ test('Restpunkt 9: die Wochenzahl wird unter 640 px per CSS ausgeblendet', () =>
     'die Wochenzahl kann in die Tageszahl laufen')
 })
 
-test('Restpunkt 9: die Nummer wird nicht mehr beim Aufbau per matchMedia abgeschaltet', () => {
+test('Restpunkt 9 / UX3i: keine Wochennummer in den Zellen, keine Breitenmessung', () => {
   const kalender = lies('src/diakonos/components/kronos/KronosCalendar.vue')
-  assert.match(kalender, /weekNumbers:\s*true/,
-    'weekNumbers haengt wieder an einer einmaligen Breitenmessung')
+  // UX3i (Entwurf A4): Die Wochennummer ist ganz aus der Zelle verschwunden
+  // (sie steht im Kartenkopf) — damit ist auch die Breitenmessung gegen den
+  // Ueberlauf „W4027“ gegenstandslos.
+  assert.match(kalender, /weekNumbers:\s*false/, 'die Zelle traegt wieder eine Wochennummer')
   assert.ok(!/istSchmal\(\)/.test(kalender), 'die alte Breitenmessung ist noch im Code')
 })

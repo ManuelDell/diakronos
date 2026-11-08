@@ -84,7 +84,7 @@ function goToKalender() {
 }
 
 /* Mobile: hide sidebar (same pattern as KronosSidebar / AppSidebar) */
-@media (max-width: 768px) {
+@media (max-width: 720px) {
   .dk-sidebar--moderation {
     display: none;
   }

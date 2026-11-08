@@ -912,7 +912,7 @@ export default {
 }
 .grup-spalte { display: flex; flex-direction: column; gap: var(--grid-gap); min-width: 0; }
 .grup-breit { margin-top: var(--grid-gap); }
-@media (max-width: 768px) {
+@media (max-width: 720px) {
     .grup-grid { grid-template-columns: minmax(0, 1fr); }
 }
 

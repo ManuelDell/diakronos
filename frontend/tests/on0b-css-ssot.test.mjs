@@ -201,7 +201,10 @@ function* dateien(dir) {
   // Die Dokumentation im Kopf von tools/css-ssot-bestand.txt nennt die
   // Ausnahmen namentlich; ein neuer Eintrag in AUSNAHMEN ohne diese Zusage
   // waere ein stiller Freibrief. Deshalb steht die Zahl hier fest.
-  const AUSNAHMEN_ANZAHL = 4
+  // UX3i: +1 — `components/kronos/chipText.mjs` (die Kontrastrechnung der
+  // Termin-Chips braucht die Helligkeit der beiden Marken-Schriftfarben;
+  // ausgegeben wird ein Token-Ausdruck). Der Eintrag ist dort dokumentiert.
+  const AUSNAHMEN_ANZAHL = 5
   assert.equal(
     Object.keys(AUSNAHMEN).length,
     AUSNAHMEN_ANZAHL,

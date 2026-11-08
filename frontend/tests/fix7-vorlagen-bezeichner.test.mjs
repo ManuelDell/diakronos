@@ -157,9 +157,19 @@ test('FIX-7 · Kalenderliste ist auf dem Desktop erreichbar (gemessener Befund)'
   // Seite klappt die Liste deshalb beim Betreten auf und bei einem Klick auf
   // einen abgelehnten Termin erneut (Sicherung).
   const kalender = readUtf8(QUELLEN + '/diakonos/pages/Kalender.vue')
-  assert.match(kalender, /onMounted\(\(\) => \{ if \(window\.matchMedia\('\(min-width: 769px\)'\)\.matches\) kronosSidebar\.auf\(\) \}\)/, 'nur am Desktop automatisch öffnen (am Handy Overlay)')
-  const teil = kalender.slice(kalender.indexOf('async function zeigeAbgelehntenTermin'))
-  assert.match(teil.slice(0, 900), /kronosSidebar\.auf\(\)/)
+  // UX3i: Am Desktop oeffnet die Liste sich NICHT mehr von selbst — „Meine
+  // Kalender“ ist dort ein Popover am Knopf „Kalender“ (Entwurf A4); die
+  // Leiste gehoert zum Handy-Betrieb und zu „Hilfe & Infos“. Die Seite
+  // schliesst sie beim Betreten ausdruecklich und oeffnet sie weiterhin fuer
+  // den eigenen abgelehnten Termin (Sicherung unten).
+  assert.match(kalender, /onMounted\(\(\) => \{ if \(window\.matchMedia\('\(min-width: 721px\)'\)\.matches\) kronosSidebar\.zu\(\) \}\)/, 'am Desktop bleibt die Liste zu (Auswahl im Popover)')
+  assert.match(kalender, /hilfeOeffnen/, '„Hilfe & Infos“ erreicht die Erklaerung der Leiste')
+  // UX3i (Review 07.11.): Die eigenen abgelehnten Termine sind am Desktop
+  // über das ⋯-Menü erreichbar; die Sicherung über die Leiste ist entfallen
+  // (sie öffnete die ausgeblendete Liste als Overlay über dem Raster).
+  assert.match(kalender, /abgelehnteListeOeffnen/, '„Abgelehnte Termine“ hängt am ⋯-Menü')
+  assert.match(kalender, /get_meine_abgelehnten_termine/, 'dieselbe Abfrage wie in der Leiste')
+  assert.match(kalender, /showAbgelehntView\.value = true/, 'die Detailansicht öffnet weiterhin')
 })
 
 test('Skript-Bindungen werden an der obersten Ebene gelesen (kein Freibrief)', () => {

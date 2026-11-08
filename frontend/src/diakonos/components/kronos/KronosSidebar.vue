@@ -22,7 +22,7 @@
       class="kronos-sidebar-close"
       aria-label="Kalenderliste schließen"
       @click="$emit('close')"
-    >✕</button>
+    ><DkSymbol name="abbrechen" :groesse="18" /></button>
     <div class="sidebar-divider"></div>
 
     <div class="sidebar-calenderlist-section">
@@ -54,7 +54,13 @@
             @change="onCalendarToggle"
           />
           <label :for="'cal-' + cal.name">{{ cal.title || cal.name }}</label>
-          <span v-if="cal.write" class="ksb-recht-hinweis" title="Du darfst hier Termine eintragen">Eintragen erlaubt</span>
+          <!-- UX3i (A4): „Eintragen erlaubt“ nur noch als dezentes Symbol mit
+               Tooltip. Vorher stand der Satz in JEDER Zeile und lief bei
+               „Gemeindeleben“ über den Rand der Leiste. -->
+          <span v-if="cal.write" class="ksb-recht-hinweis" title="Du darfst hier Termine eintragen"
+                aria-label="Eintragen erlaubt" role="img">
+            <DkSymbol name="stift" :groesse="14" />
+          </span>
         </div>
       </template>
     </div>
@@ -64,6 +70,7 @@
          gleiche Beschriftung, weiter echte Links). -->
     <DkButton
       v-if="zeigeVerwalten"
+      ref="verwaltenKnopf"
       as="a"
       class="sb-navigationsknopf"
       variant="ghost"
@@ -71,7 +78,8 @@
       href="#/kalender/verwalten"
       @click.prevent="navigate('#/kalender/verwalten')"
     >
-      <span aria-hidden="true">⚙</span> Kalender verwalten
+      <template #icon><DkSymbol name="bearbeiten" :groesse="14" /></template>
+      Kalender verwalten
     </DkButton>
 
     <DkButton
@@ -83,7 +91,8 @@
       href="#/kalender/import"
       @click.prevent="navigate('#/kalender/import')"
     >
-      <span aria-hidden="true">⬆</span> Kalender importieren
+      <template #icon><DkSymbol name="herunterladen" :groesse="14" /></template>
+      Kalender importieren
     </DkButton>
 
     <!-- K-A (R-P1-8): Die eigenen abgelehnten Termine. Abgelehnte Termine
@@ -103,8 +112,9 @@
       </button>
     </div>
 
-    <DkButton class="sb-navigationsknopf" variant="ghost" size="md" @click="showHelp = true">
-      <span aria-hidden="true">?</span> Hilfe &amp; Infos
+    <DkButton class="sb-navigationsknopf" variant="ghost" size="sm" @click="showHelp = true">
+      <template #icon><DkSymbol name="notiz" :groesse="14" /></template>
+      Hilfe &amp; Infos
     </DkButton>
 
     <div
@@ -187,11 +197,16 @@
 import { ref, computed, watch, onMounted } from 'vue';
 // UX1e: EIN Knopf-System (verwalten/importieren/Hilfe).
 import DkButton from '../ui/DkButton.vue';
+// UX3i (A4): dezentes Symbol für „Eintragen erlaubt“.
+import DkSymbol from '../ui/DkSymbol.vue';
 // UX2d3b (Review UX2d3a/B): Laden zeigt den Umriss, keinen Satz.
 import DkSkelett from '../ui/DkSkelett.vue';
 import { navigate } from '../../router.js';
 import { apiCall } from '../../composables/useApi.js';
 import { useKronosStore } from '../../composables/useKronosStore.js';
+// Nacharbeit 07.11. Punkt 7: Die Rolle wird an EINER Stelle geprüft
+// (`kalenderRechte.mjs`), nicht ein zweites Mal hier.
+import { istKalenderAdmin } from './kalenderRechte.mjs';
 // UXD-R28: Kalenderfarbe nur als gueltiger Hex-Wert in die CSS-Variable.
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js';
 // ON-4/H3: Leerzustand der Kalenderliste (dasselbe Muster wie die Mitglieder).
@@ -214,6 +229,20 @@ const emit = defineEmits(['calendarsChange', 'dateClick', 'monthChange', 'backCl
 const store = useKronosStore();
 const showHelp = ref(false);
 const showImport = ref(false);
+const verwaltenKnopf = ref(null);
+
+/**
+ * UX3i (A4): „Hilfe & Infos“ steht jetzt in der Kalender-Kopfzeile (⋯-Menü).
+ * Die Erklärung selbst bleibt hier, wo sie schon liegt — die Seite öffnet sie
+ * über diese Methode, statt den langen Text ein zweites Mal zu bauen.
+ */
+function hilfeOeffnen() {
+  showHelp.value = true;
+  // Den Weg dorthin sichtbar machen: die Leiste liegt am Handy ausserhalb
+  // des Bildes, dort wäre die Erklärung sonst nicht zu sehen.
+  emit('close');
+}
+defineExpose({ hilfeOeffnen, verwaltenKnopf });
 // OP-ADMIN-10: „Kalender verwalten“ — nur fuer Kalenderadministratoren
 // (derselbe Rollenpruef wie der Import; der Server prueft erneut).
 const zeigeVerwalten = ref(false);
@@ -273,7 +302,7 @@ function onDateClick(dateStr) { emit('dateClick', dateStr); }
 function onMonthChange(monthStr) { emit('monthChange', monthStr); }
 
 // K-A: die Liste laden, sobald die Seitenleiste sichtbar wird. Am Schreibtisch
-// (>768px) ist die Leiste IMMER sichtbar, `open` bleibt dort aber `false` — ein
+// (>720px) ist die Leiste IMMER sichtbar, `open` bleibt dort aber `false` — ein
 // Watch nur auf `props.open` liesse die Liste dort leer. Deshalb einmal beim
 // Aufbau laden und zusaetzlich, wenn mobil aufgeklappt wird.
 watch(() => props.open, (offen) => { if (offen) ladeAbgelehnteTermine(); });
@@ -295,15 +324,15 @@ onMounted(async () => {
   try {
     // Standalone does not inject the Desk-only _kronosUserRoles global.
     const context = await apiCall('diakronos.diakonos.api.session.get_current_user_context');
-    const userRoles = context.roles || [];
     // OP-ADMIN-10: beide Wege haengen an derselben Rolle. Der Eintrag
     // „Kalender verwalten“ fuehrt zur Verwaltungsseite (anlegen, Rechte,
     // Moderatoren, loeschen) — sie prueft dieselbe Rolle serverseitig erneut.
-    const istKalenderAdmin = context.user === 'Administrator'
-      || userRoles.includes('Administrator')
-      || userRoles.includes('Kalenderadministrator');
-    showImport.value = istKalenderAdmin;
-    zeigeVerwalten.value = istKalenderAdmin;
+    // Nacharbeit 07.11. Punkt 7: Die Prüfung stand hier ein ZWEITES Mal
+    // (gleiche drei Bedingungen wie `kalenderRechte.mjs`) und konnte
+    // auseinanderlaufen — jetzt EINE Stelle.
+    const darfVerwalten = istKalenderAdmin(context);
+    showImport.value = darfVerwalten;
+    zeigeVerwalten.value = darfVerwalten;
   } catch {
     showImport.value = false;
     zeigeVerwalten.value = false;
@@ -409,7 +438,7 @@ onMounted(async () => {
 
 /* UXK-R9: Schliessen-Knopf nur im mobilen Overlay zeigen. */
 .kronos-sidebar-close { display: none; }
-@media (max-width: 768px) {
+@media (max-width: 720px) {
   .kronos-sidebar-close {
     display: flex;
     align-items: center;

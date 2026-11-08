@@ -509,7 +509,7 @@ defineExpose({
 }
 
 /* Mobile: single column, horizontal scroll */
-@media (max-width: 768px) {
+@media (max-width: 720px) {
   .dk-mboard {
     flex-direction: column;
     overflow-x: auto;

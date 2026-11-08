@@ -435,12 +435,15 @@
    „du darfst schreiben“ bedeutete und nichts tat) ein ECHTER Text-Hinweis.
    Der Stift war die Ursache der Beschwerde: er sah wie ein Bearbeiten-Knopf
    aus. Rechte ändert man jetzt unter „Kalender verwalten“. */
+/* UX3i (A4): Der Hinweis ist jetzt ein SYMBOL (Stift) mit Tooltip statt
+   eines Satzes je Zeile — das Symbol steht exakt auf der Textlinie
+   (inline-flex + align-items:center, feste Größe 14). */
 .ksb-recht-hinweis {
-  font-size: var(--fs-12);
-  color: rgba(255,255,255,0.7);
+  display: inline-flex;
+  align-items: center;
   flex-shrink: 0;
+  color: rgba(255,255,255,0.7);
   line-height: 1;
-  white-space: nowrap;
 }
 /* UX1e2: Hier standen zwei parallele Regelsätze für die Eigenknöpfe
    `.sidebar-help-btn` / `.sidebar-import-btn` (Leisten-Knöpfe „Kalender
@@ -1044,13 +1047,23 @@
    weiss (heller Text auf weissem Papier). Deshalb heben diese Regeln die
    Spezifitaet ueber die Bibliothek: `html[data-theme] .ec` (0,2,1) steht
    immer zur Verfuegung, weil App.vue das Theme am <html> setzt. */
+/* UX3i-N2 (Nachtrag Punkt 1): Die Bibliothek setzt im Raster eigene
+   `color-scheme`-Werte (hell). `light-dark()` der Chip-Schrift richtet sich
+   nach dem NÄCHSTEN Element mit `color-scheme` — im Dunkelmodus löste sie
+   deshalb auf die helle Marke auf (dunkle Schrift auf dunklem Chip, gemessen
+   1,04:1). Hier wird die Lage des Themes durchgereicht. */
+html[data-theme="dark"] .ec,
+[data-theme="dark"] .ec,
+.ec-dark .ec,
+.ec-auto-dark .ec {
+  color-scheme: dark;
+}
 html[data-theme] .ec,
 .ec-dark .ec,
 .ec-auto-dark .ec {
   height: 100%;
   background-color: var(--dk-bg) !important;
   font-family: inherit;
-
   --ec-bg-color: var(--surface);
   --ec-border-color: var(--line);
   --ec-border-color-strong: var(--line-strong);
@@ -1075,6 +1088,14 @@ html[data-theme] .ec,
   --ec-button-active-border-color: var(--line-strong);
   --ec-highlight-color: var(--accent-soft);
 }
+/* Monatskarte: Kartenfläche statt Seitenfarbe — sonst schien über der
+   Wochentagszeile ein graues Band durch (Review 08.11.). */
+html[data-theme] .ec:has(.ec-month-view),
+.ec-dark .ec:has(.ec-month-view),
+.ec-auto-dark .ec:has(.ec-month-view),
+.ec:has(.ec-month-view) {
+  background-color: var(--surface) !important;
+}
 /* DES-R15: Terminkacheln am Handy trugen weisse Schrift auf hellen
    Kategoriefarben (1,59–2,42:1). */
 .ec-event:not(.ec-event-dot-style) {
@@ -1083,8 +1104,8 @@ html[data-theme] .ec,
 .ec * {
   font-family: inherit;
 }
-.ec-month-view .ec-day-grid .ec-main { --ec-row-height: minmax(0, 1fr); }
-.ec-month-view .ec-day-grid .ec-events { overflow: hidden; }
+.ec-month-view.ec-day-grid .ec-main { --ec-row-height: minmax(0, 1fr); }
+.ec-month-view.ec-day-grid .ec-events { overflow: hidden; }
 /* OP-HANDY-9: Im Querformat am Handy (844x390) ist das Fenster so flach, dass
    das Monatsraster in 36-px-Zeilen zusammenfaellt — Termine und „+n“ sind dann
    unsichtbar. Der Kalender bekommt eine Mindesthoehe und der umgebende
@@ -1098,8 +1119,8 @@ html[data-theme] .ec,
   .kronos-calendar-wrap .ec .ec-month-view {
     min-height: 520px;
   }
-  .ec-month-view .ec-day-grid .ec-main { --ec-row-height: minmax(72px, 1fr); }
-  .ec-month-view .ec-day-grid .ec-events { overflow: visible; }
+  .ec-month-view.ec-day-grid .ec-main { --ec-row-height: minmax(72px, 1fr); }
+  .ec-month-view.ec-day-grid .ec-events { overflow: visible; }
 }
 .ec-month-view .ec-main {
   flex-grow: 1;
@@ -1128,6 +1149,33 @@ html[data-theme] .ec,
   text-align: center !important;
   font-weight: var(--fw-mittel);
 }
+/* A4 (Review 07.11. Punkt 8): Die Tageszahl steht OBEN LINKS in der Zelle —
+   vorher war der Tag-Kopf zentriert (`text-align: center` + `margin: 0 auto`),
+   und ein graues Band (`.ec-day-head` mit eigener Fläche) lief über die
+   Wochentagszeile. Beides ist hier auf die Monatsansicht begrenzt.
+   ACHTUNG Aufbau der Bibliothek (5.4.2 geprüft): `ec-day-grid` UND
+   `ec-month-view` liegen auf DEMSELBEN Element (`theme:lt("ec-day-grid
+   ec-month-view")`); die Tag-Köpfe sind KINDER davon. Ein Nachfahren-Selektor
+   `.ec-month-view .ec-day-grid .ec-day-head` trifft deshalb NIE — die Regeln
+   standen bisher wirkungslos in der Datei. Sie hängen jetzt an
+   `.ec-month-view.ec-day-grid` (dasselbe Element, zwei Klassen). */
+.ec-month-view.ec-day-grid .ec-day-head {
+  /* Die Bibliothek setzt row-reverse — sonst landet flex-start rechts (Review 08.11.). */
+  flex-direction: row !important;
+  justify-content: flex-start;
+  background: transparent;
+  border-block-end: 0;
+  margin: 0;
+  padding: var(--sp-1) var(--sp-2) 0;
+  position: static;
+}
+.ec-month-view.ec-day-grid .ec-day-head a,
+.ec-month-view.ec-day-grid .ec-day-head span,
+.ec-month-view.ec-day-grid .ec-day-head time {
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: left !important;
+}
 /* UXK-R14 (P3-4b/Restpunkt 9): „W40“ lag am Handy (390 px) ueber der
    Tageszahl des Montags und las sich als „W4027“. Vorher wurde die
    Wochennummer beim Aufbau per matchMedia abgeschaltet — das greift bei
@@ -1155,6 +1203,16 @@ html[data-theme] .ec,
 }
 .ec-month-view .ec-day { overflow: hidden !important; }  /* nur Monats-Grid clippen, NICHT List-View */
 .ec-day-grid .ec-day { overflow: hidden !important; }
+/* Nacharbeit 07.11. Punkt 9: Am Handy (390 px) war die letzte Monatswoche
+   abgeschnitten — „30“ lag unter dem Rand. Ursache ist die Bibliothek selbst:
+   `.ec-day { min-block-size: 5em }` (≈ 71 px gemessen) bei einer Zeilenhöhe
+   von `1fr`. Sechs Zeilen à 71 px passen nicht in die Resthöhe, die sechste
+   wird unten abgeschnitten. In der schmalen Lage darf die Mindesthöhe fallen,
+   damit alle sechs Wochen in die Fläche passen; das Raster bleibt
+   `minmax(0, 1fr)` (kronos.css:1099) und teilt die Höhe gleichmäßig. */
+@media (max-width: 720px) {
+  .ec-month-view.ec-day-grid .ec-day { min-block-size: 0 !important; }
+}
 /* List-View: Tag-Container NICHT clippen/hoehen-begrenzen (Month-Grid-Regeln greifen hier auch, da .ec-list zusaetzlich .ec-month-view traegt) */
 .ec-list .ec-day { overflow: visible !important; height: auto !important; min-height: 0 !important; max-height: none !important; }
 .ec-list .ec-main { display: block !important; grid-template-rows: none !important; }  /* List-View: kein fixes Month-Grid -> Tage wachsen mit Inhalt, keine Ueberlappung */
@@ -1199,6 +1257,94 @@ html[data-theme] .ec,
   flex-shrink: 0;
 }
 
+/* ============================================================
+   UX3i — Termin-Chips im Monatsraster (Entwurf A4)
+   ============================================================
+   Der Chip ist eine abgetönte Fläche in der Kalenderfarbe mit Titel und
+   Uhrzeit. Fläche und Schriftfarbe kommen als Inline-Werte aus
+   `chipText.mjs` (`chipFarben`): die Schriftfarbe wird dort gegen den
+   gemischten Ton gerechnet und erreicht AA — hier stehen deshalb KEINE
+   Farben, nur Form. Kein `!important`: die Bibliothek setzt ihre eigene
+   Kachelfarbe über `--ec-event-bg-color`, der Inline-Wert des Chips gewinnt
+   ohnehin. */
+.ec-month-view .ec-event.ec-chip-event,
+.ec-event.ec-chip-event {
+  background: transparent;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+.ec-chip {
+  display: block;
+  padding: 0 var(--sp-1);
+  border-radius: var(--radius-sm);
+  /* A4 (Nacharbeit 07.11. Punkt 1): `--chip-flaeche` ist BEREITS die fertige
+     Chipfläche aus `chipStil`/`chipFarben` (Kalenderfarbe mit 22 % über der
+     Karte — der Ton, gegen den die Schriftfarbe gerechnet wurde). Ein zweites
+     `color-mix` hier mischte sie nochmals ein und traf eine ANDERE Fläche als
+     die gerechnete; die Schrift war dann zu dunkel. Der Rückfall (kein
+     `--chip-flaeche`, z. B. Fremdfarbe ohne CSS-Wert) ist die gedämpfte
+     Primärfläche des Themes. */
+  background: var(--chip-flaeche, color-mix(in srgb, var(--primary) 22%, var(--surface)));
+  color: var(--chip-ink, var(--text));
+  font-size: var(--fs-12);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ec-chip:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+.ec-chip-text {
+  /* Ellipse nur, wenn sie nötig ist (A4): der volle Titel steht im
+     `title`/`aria-label` des Chips. */
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* „+n weitere“ (A4): eine ruhige Zeile unter den Chips, kein zweiter Termin.
+   Sie ist per `moreLinkDidMount` ein Knopf geworden (Tastatur, kein `#`). */
+.ec-month-view .ec-more-link,
+.ec-more-link {
+  display: block;
+  padding: 0 var(--sp-1);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-mittel);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.ec-more-link:hover { color: var(--text); background: var(--surface-hover); }
+.ec-more-link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+/* A4 (Review 07.11. Punkt 7): Die Rest-Zeile der Bibliothek (`.ec-day-foot a`)
+   trägt jetzt den Text „+n weitere“ — sie sieht aus wie ein ruhiger Link,
+   nicht wie ein Chip, und ist per Tastatur erreichbar (role="button" setzt die
+   Bibliothek selbst). */
+.ec-month-view .ec-day-foot a[role="button"] {
+  display: inline-block;
+  padding: 0 var(--sp-1);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-mittel);
+  text-decoration: none;
+  cursor: pointer;
+}
+.ec-month-view .ec-day-foot a[role="button"]:hover { color: var(--text); background: var(--surface-hover); }
+.ec-month-view .ec-day-foot a[role="button"]:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
 /* Resource Timeline */
 .ec.ec-resource .ec-sidebar {
   min-width: 15%;
@@ -1232,7 +1378,7 @@ html[data-theme] .ec,
 /* ============================================================
    MOBILE
    ============================================================ */
-@media (max-width: 768px) {
+@media (max-width: 720px) {
   .kronos-sidebar {
     position: fixed;
     top: 0;
@@ -1310,11 +1456,11 @@ html[data-theme] .ec,
   flex: 1;
 }
 .kronos-sidebar .ksb-recht-hinweis {
-  font-size: var(--fs-12);
-  color: rgba(255,255,255,0.7);
+  display: inline-flex;
+  align-items: center;
   flex-shrink: 0;
+  color: rgba(255,255,255,0.7);
   line-height: 1;
-  white-space: nowrap;
 }
 /* UX1e2: Der zweite, konkurrierende Regelsatz für `.sidebar-help-btn` /
    `.sidebar-import-btn` („Footer buttons: same style as .dk-nav-item“) ist
@@ -1429,7 +1575,7 @@ html[data-theme] .ec,
 .kronos-sidebar-inpage .kronos-back-btn { cursor: pointer; }
 .kronos-calendar-wrap > .kronos-calendar-container,
 .kronos-calendar-wrap > *:not(.kronos-sidebar-inpage) { min-width: 0; flex: 1; }
-@media (max-width: 768px) {
+@media (max-width: 720px) {
   /* Am Handy ist die Liste ein Overlay (siehe unten) — dann nimmt sie im
      Fluss keinen Platz ein. */
   .kronos-sidebar-inpage {

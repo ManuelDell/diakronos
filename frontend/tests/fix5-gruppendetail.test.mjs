@@ -81,7 +81,7 @@ test('FIX-5 · die Detailseite setzt keinen eigenen Rasterabstand mehr', () => {
 test('FIX-5 · die Rasterspalten sind minmax(0, …) — Handy-Überlauf', () => {
   const raster = regelBlock(DETAIL, '.grup-grid {')
   assert.match(raster, /grid-template-columns:\s*minmax\(0,\s*2fr\)\s+minmax\(0,\s*1fr\)/)
-  const handy = /@media\s*\(max-width:\s*768px\)\s*\{\s*\.grup-grid\s*\{([^}]*)\}/.exec(ohneKommentare(DETAIL))
+  const handy = /@media\s*\(max-width:\s*720px\)\s*\{\s*\.grup-grid\s*\{([^}]*)\}/.exec(ohneKommentare(DETAIL))
   assert.ok(handy, 'Handy-Regel für .grup-grid gefunden')
   assert.match(handy[1], /grid-template-columns:\s*minmax\(0,\s*1fr\)/,
     'auch einspaltig mit minmax(0, 1fr)')

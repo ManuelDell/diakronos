@@ -41,8 +41,14 @@ test('UXK-R14: Wochennummern am Handy abgeschaltet', () => {
     // Blatt) — ein `.ec .ec-week-number` bliebe wirkungslos („W4028“ am Handy).
     assert.match(css, /@media \(max-width: 640px\)\s*\{[^}]*\.ec \.ec-day-head > \.ec-week-number\s*\{\s*display:\s*none/,
       'Wochennummer ist am Handy nicht ausgeblendet')
-    assert.match(kalender, /weekNumbers:\s*true/,
-      'die Nummer muss gerendert werden, damit CSS sie aus- und einschalten kann')
+    // UX3i (Entwurf A4): Wochennummern stehen NICHT mehr in den Zellen. Sie
+    // standen in der Montagszelle, drängten die Termine nach unten und lasen
+    // sich am Handy „W4027“. Die Kalenderwoche steht jetzt EINMAL im
+    // Kartenkopf („KW 44–49“, `chipText.kwBereich`).
+    assert.match(kalender, /weekNumbers:\s*false/,
+      'die Nummer darf nicht mehr in den Zellen gerendert werden')
+    assert.match(css, /@media \(max-width: 640px\)\s*\{[^}]*\.ec \.ec-day-head > \.ec-week-number\s*\{\s*display:\s*none/,
+      'die CSS-Regel für die Zellen bleibt als Sicherung stehen')
     assert.doesNotMatch(kalender, /weekNumbers:\s*!istSchmal\(\)/,
       'die einmalige Breitenmessung ist wieder da')
 })

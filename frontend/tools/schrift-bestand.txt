@@ -18,7 +18,7 @@
 # als Tokens in tokens.css; Komponenten schreiben `var(--fs-…)`/`var(--fw-…)`.
 # Erzeugt mit (aus frontend/ heraus): node tools/schrift-bestand.mjs --schreiben
 #
-# Stand (UX1b, eingefroren): 103 Fundstellen in 47 Dateien.
+# Stand (UX1b, eingefroren): 107 Fundstellen in 50 Dateien.
 frontend/src/diakonos/components/MitgliedAuswahl.vue	1
 frontend/src/diakonos/components/WartendeKontenKarte.vue	1
 frontend/src/diakonos/components/devmodus/BefundDialog.vue	1
@@ -33,7 +33,9 @@ frontend/src/diakonos/components/einrichtung/SchrittKontakt.vue	1
 frontend/src/diakonos/components/einrichtung/SchrittMailversand.vue	3
 frontend/src/diakonos/components/einrichtung/SchrittMitgliederKalender.vue	5
 frontend/src/diakonos/components/einrichtung/SchrittModule.vue	1
+frontend/src/diakonos/components/kronos/KalenderPruefPanel.vue	2
 frontend/src/diakonos/components/kronos/KronosSeriesDialog.vue	1
+frontend/src/diakonos/components/kronos/KronosTopbar.vue	1
 frontend/src/diakonos/components/kronos/ModerationAenderungen.vue	2
 frontend/src/diakonos/components/lieder/LiedgruppeBearbeiten.vue	2
 frontend/src/diakonos/components/mitglieder/LoeschantraegeListe.vue	3
@@ -53,6 +55,7 @@ frontend/src/diakonos/components/widgets/DsgvoComplianceWidget.vue	1
 frontend/src/diakonos/components/widgets/PendingRegistrationsWidget.vue	1
 frontend/src/diakonos/pages/Beitraege.vue	5
 frontend/src/diakonos/pages/GruppeDetail.vue	5
+frontend/src/diakonos/pages/Kalender.vue	1
 frontend/src/diakonos/pages/KalenderImport.vue	1
 frontend/src/diakonos/pages/LiedDetail.vue	4
 frontend/src/diakonos/pages/LiedgruppeDetail.vue	3

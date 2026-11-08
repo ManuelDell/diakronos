@@ -126,6 +126,9 @@ test('UX2e5 · Terminzeile: „⋯" als Geschwister hinter der Zeile (Bibliothek
     assert.doesNotMatch(inhalt, new RegExp(name),
       `${name} steht nicht im gelieferten Ereignisinhalt (kein Knoten IN der Zeile)`)
   }
+  // UX3i (A4): Derselbe Haken beschriftet zusätzlich die Rest-Zeile
+  // „+n weitere“ (`mehrZeilenHerrichten`) — kein zweiter Einbau-Haken.
+  assert.match(quelle, /mehrZeilenHerrichten/, 'die Rest-Zeile wird beschriftet')
   // Die Liste bleibt bedienbar wie auf main: Klick auf die Zeile kommt an.
   assert.match(quelle, /eventClick:\s*\(info\)\s*=>/, 'eventClick ist weiter gemeldet')
 })

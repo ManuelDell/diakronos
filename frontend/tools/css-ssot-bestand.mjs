@@ -86,6 +86,11 @@ export const AUSNAHMEN = {
   ],
   // Kalenderfarbe der Ereignis-Texte (Datenfeld).
   'frontend/src/diakonos/components/kronos/KronosCalendar.vue': ['#12183a'],
+  // UX3i: Die Kontrastrechnung der Termin-Chips (`chipFarben`) braucht die
+  // HELLIGKEIT der beiden Marken-Schriftfarben. Das sind die Rohwerte von
+  // --dk-warm-0 und --dk-navy-900, nicht neue Gestaltungswerte — ausgegeben
+  // wird ein Token-Ausdruck (var(--dk-…)).
+  'frontend/src/diakonos/components/kronos/chipText.mjs': ['#ffffff', '#00051f'],
 }
 
 // Kommentar im JS/CSS: `/* … */` und `// …`. Ein Farbwert in einem Kommentar

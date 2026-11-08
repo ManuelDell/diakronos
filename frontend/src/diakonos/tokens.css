@@ -440,6 +440,14 @@
   --karte-rand: var(--karte-rahmen, 0);
 }
 
+/* UX3i-N2 (Nachtrag Punkt 1): `color-scheme` an BEIDEN Theme-Wurzeln — die
+   Chip-Schrift wird über `light-dark()` aufgelöst (chipText.mjs). Ohne
+   `color-scheme` bliebe `light-dark()` wirkungslos und die Schrift eines schon
+   gezeichneten Chips nähme einen Theme-Wechsel nicht mit (gemessen: 1,04:1 im
+   Dunkelmodus). Nur diese zwei Zeilen — kein weiterer Gestaltungswert. */
+:root { color-scheme: light; }
+[data-theme="dark"], :root[data-theme="dark"] { color-scheme: dark; }
+
 /* =====================================================================
    3 · SEMANTISCHE TOKENS — DUNKEL (gleiche Namen)
    DES-R1: Der Waehler nennt zusaetzlich `:root[data-theme="dark"]`, weil das

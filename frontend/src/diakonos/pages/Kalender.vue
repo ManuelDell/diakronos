@@ -1,43 +1,97 @@
 <template>
+  <!-- UX3i (Entwurf A4): EIN Seitenraster.
+         Kopfzeile (Reiter links, Werkzeuge rechts) · darunter links das
+         Raster in einer Karte mit Kartenkopf „November 2026 / KW 44–49“ und
+         rechts — NUR für Moderatoren — die Spalte „Zu prüfen“.
+         Die frühere dunkle Kalenderliste links ist entfallen (Auswahl jetzt
+         als Popover am Knopf „Kalender“, Verwalten/Import/Hilfe im ⋯-Menü). -->
   <div class="kronos-page-content">
     <KronosTopbar
       :dateTitle="dateTitle"
       :currentView="currentView"
-      :viewMode="store.viewMode.value"
       :canWrite="hasWriteRight"
       :canModerate="darfPruefen"
       :offeneZahl="offeneZahl"
+      :eingeblendet="eingeblendetZahl"
+      :auswahlOffen="auswahlOffen"
+      :istKalenderAdmin="istKalenderAdmin"
+      :lesemodus="lesemodus"
       @prev="calendarRef?.prev()"
       @next="calendarRef?.next()"
       @today="calendarRef?.today()"
       @viewChange="onViewChange"
       @resourceToggle="onResourceToggle"
-      @viewModeChange="onViewModeChange"
       @sidebarToggle="kronosSidebar.umschalten()"
+      @kalenderAuswahlUmschalten="kalenderAuswahlUmschalten"
+      @terminAnlegen="terminAnlegen"
+      @hilfe="hilfeOeffnen"
+      @lesemodusWechsel="onLesemodusWechsel"
+      @abgelehnteTermine="abgelehnteListeOeffnen"
     />
+
     <div class="kronos-calendar-wrap">
-      <!-- OP-UI-11: Die Kalenderliste ist ein einklappbares Feld IN der Seite.
-           Das Hauptmenü links bleibt dadurch stehen; vorher ersetzte sie die
-           ganze Navigation und „Zur Hauptnavigation“ verließ den Kalender. -->
+      <!-- OP-UI-11: Die Kalenderliste ist am HANDY weiterhin ein einklappbares
+           Feld (Overlay) — dort ist das Popover zu klein für CalDAV-Anleitung
+           und Import. Am Desktop ist sie ausgeblendet; A10 (Mobil) ist eine
+           eigene, spätere Karte. -->
       <KronosSidebar
+        ref="sidebarRef"
         class="kronos-sidebar-inpage"
         :open="kronosSidebar.offen.value"
         @close="kronosSidebar.zu()"
         @ablehnungClick="zeigeAbgelehntenTermin"
         @calendarsChange="onCalendarsChange"
       />
-      <KronosCalendar
-        ref="calendarRef"
-        :selectedCalendars="store.selectedCalendars.value"
-        :viewMode="store.viewMode.value"
-        @eventClick="onEventClick"
-        @terminAktion="onTerminAktion"
-        @dateClick="onDateClick"
-        @select="onSelect"
-        @datesSet="onDatesSet"
-        @viewChange="onCalendarViewChange"
-      />
+
+      <!-- Die Kalenderfläche: Karte mit Kopf (Monat links, Kalenderwochen
+           rechts) und darin das Raster. -->
+      <div class="kal-flaeche">
+        <div class="kal-karte">
+          <div class="kal-karte-kopf">
+            <h2 class="kal-karte-titel">{{ monat }}</h2>
+            <span v-if="kwText" class="kal-karte-kw">{{ kwText }}</span>
+          </div>
+          <!-- Am Handy ist der Kartenkopf ausgeblendet (A10 gestaltet den
+               Mobil-Kalender); der Monat muss dort trotzdem dastehen. -->
+          <div v-if="monat" class="kal-monat-mobil">
+            <h2 class="kal-monat-mobil-titel">{{ monat }}</h2>
+            <span v-if="kwText" class="kal-monat-mobil-kw">{{ kwText }}</span>
+          </div>
+          <div class="kal-karte-raster">
+            <KronosCalendar
+              ref="calendarRef"
+              :selectedCalendars="store.selectedCalendars.value"
+              :viewMode="store.viewMode.value"
+              @eventClick="onEventClick"
+              @terminAktion="onTerminAktion"
+              @dateClick="onDateClick"
+              @select="onSelect"
+              @datesSet="onDatesSet"
+              @viewChange="onCalendarViewChange"
+            />
+          </div>
+        </div>
+        <!-- A4: rechte Spalte NUR für Moderatoren; sonst nimmt das Raster
+             die Breite (die Fläche ist dann allein im Raster). -->
+        <KalenderPruefPanel
+          v-if="darfPruefen && !istSchmal"
+          ref="pruefPanel"
+          class="kal-pruef-panel"
+          :zahl="panelZahl"
+        />
+      </div>
     </div>
+
+    <!-- A4: Kalenderauswahl als Popover am Knopf „Kalender“. -->
+    <KalenderAuswahl
+      :open="auswahlOffen"
+      :kalender="store.availableCalendars.value"
+      :ausgewaehlt="store.selectedCalendars.value"
+      :loading="store.loading.value"
+      :anker="auswahlAnker"
+      @schliessen="auswahlOffen = false"
+      @update:ausgewaehlt="uebernehmeAuswahl"
+    />
 
     <!-- Alle Modals -->
     <KronosEventCreate
@@ -74,11 +128,55 @@
       :event="abgelehnterTermin"
     />
 
+    <!-- Review 07.11. (R-P1-8/FIX-7): Liste der eigenen abgelehnten Termine —
+         am Desktop war sie über die (dort ausgeblendete) Kalenderliste hinaus
+         nicht erreichbar. Sie steht jetzt im ⋯-Menü der Kopfzeile; der Server
+         liefert nur die eigenen (`get_meine_abgelehnten_termine`). -->
+    <DkDialog
+      v-if="showAbgelehntListe"
+      :model-value="true"
+      title="Abgelehnte Termine"
+      size="sm"
+      @schliessen="showAbgelehntListe = false"
+    >
+      <p v-if="!abgelehnteListe.length" class="kal-abgelehnt-leer">
+        Keine abgelehnten Termine. Hier erscheint ein abgelehnter Vorschlag, bis er aus der Prüfliste verschwindet.
+      </p>
+      <ul v-else class="kal-abgelehnt-liste">
+        <li v-for="t in abgelehnteListe" :key="t.id" class="kal-abgelehnt-zeile">
+          <DkButton variant="ghost" class="kal-abgelehnt-knopf" @click="zeigeAbgelehntenTermin(t.id)">
+            <span class="kal-abgelehnt-titel">{{ t.title || 'Termin ohne Titel' }}</span>
+            <span class="kal-abgelehnt-datum">{{ kurzDatum(t.start) }}</span>
+          </DkButton>
+        </li>
+      </ul>
+    </DkDialog>
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+/**
+ * Kalender-Seite — Entwurf A4 (UX3i).
+ *
+ * Was diese Karte geändert hat (Begründungen im Kartenkommentar):
+ *  * EINE Kopfzeile; das Auswahlfeld „Monat“ und der Umschalter
+ *    Ansehen/Bearbeiten sind entfallen (beides doppelte Wege zum selben
+ *    Zustand, der Umschalter war ein zweiter gefüllter Knopf).
+ *  * Das Raster steht in einer Karte (Fläche + Schatten), der Monatstitel und
+ *    „KW a–b“ stehen im Kartenkopf — nicht mehr in der Kopfzeile, nicht mehr
+ *    in den Zellen.
+ *  * Die Kalenderauswahl ist ein Popover; „Verwalten/Import/Hilfe“ liegen im
+ *    ⋯-Menü.
+ *  * Rechts steht für Moderatoren die Spalte „Zu prüfen“.
+ *
+ * Ziehen/Ändern (ICAL-1b) bleibt erhalten: bei bestehendem Schreibrecht ist
+ * der Kalender IMMER bearbeitbar (vorher schaltete das der Umschalter frei).
+ * Die Moderationsregeln (P1-1b) und der Google-/iCal-Import hängen am
+ * Schreibrecht bzw. an der Kalenderverwaltung und sind unverändert
+ * erreichbar.
+ */
+import { ref, computed, onMounted, onBeforeUnmount, onUnmounted } from 'vue'
 import { useKronosStore } from '../composables/useKronosStore.js'
 import { useKronosSidebar } from '../composables/useKronosSidebar.js'
 import { getMeinTermin } from '../composables/useEventsApi.js'
@@ -96,21 +194,70 @@ import { endeAusKalender } from '../composables/datumZeit.mjs'
 import KronosTopbar from '../components/kronos/KronosTopbar.vue'
 import KronosSidebar from '../components/kronos/KronosSidebar.vue'
 import KronosCalendar from '../components/kronos/KronosCalendar.vue'
+import KalenderAuswahl from '../components/kronos/KalenderAuswahl.vue'
+import KalenderPruefPanel from '../components/kronos/KalenderPruefPanel.vue'
 import KronosEventCreate from '../components/kronos/KronosEventCreate.vue'
 import KronosEventEdit from '../components/kronos/KronosEventEdit.vue'
 import KronosEventView from '../components/kronos/KronosEventView.vue'
 import KronosDayEventsDialog from '../components/kronos/KronosDayEventsDialog.vue'
 import KronosSeriesDialog from '../components/kronos/KronosSeriesDialog.vue'
+import DkDialog from '../components/ui/DkDialog.vue'
+import DkButton from '../components/ui/DkButton.vue'
+// A4: „November 2026“ und „KW 44–49“ als reine Funktionen (geprüft in
+// tests/ux3i-kalender-a4.test.mjs).
+import {
+  kwBereich, monatstitel, weitereText,
+} from '../components/kronos/chipText.mjs'
+import {
+  istKalenderAdmin as kalenderAdmin,
+  startLesemodus,
+  lesemodusNachSchalter,
+} from '../components/kronos/kalenderRechte.mjs'
+import { eingeblendeteZahl } from '../components/kronos/kalenderKopf.mjs'
+// Review 07.11. Punkt 10: EINE Layout-Grenze (720 px) — auch im Skript.
+import { istHandyBreite } from '../components/kronos/breiten.mjs'
 
 const store = useKronosStore()
 const { mitRueckgaengig } = useRueckgaengigAktion()
 const kronosSidebar = useKronosSidebar()
+
+/**
+ * UX3i: Am Handy gibt es KEINE rechte Spalte und keine Karte um das Raster —
+ * A10 (Mobil-Kalender) ist eine eigene, spätere Karte, und UX3i darf Mobil
+ * nicht verschlechtern. Die Grenze ist dieselbe wie im CSS (720 px, reine
+ * BREITE — FIX-6); hier wird sie reaktiv gelesen, damit ein Drehen/Fenster-
+ * ziehen die Spalte sofort nimmt (ein `matchMedia` beim Aufbau griffe nicht).
+ */
+const istSchmal = ref(typeof window !== 'undefined' && istHandyBreite(window.innerWidth))
+function breitePruefen() {
+  if (typeof window !== 'undefined') istSchmal.value = istHandyBreite(window.innerWidth)
+}
+onMounted(() => {
+  window.addEventListener('resize', breitePruefen)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', breitePruefen)
+})
 const calendarRef = ref(null)
 const seriesDialogRef = ref(null)
+const sidebarRef = ref(null)
+const pruefPanel = ref(null)
 
 // State
 const dateTitle = ref('')
 const currentView = ref('dayGridMonth')
+const bereich = ref({ start: null, end: null })
+
+// A4: Kalenderauswahl (Popover)
+const auswahlOffen = ref(false)
+const auswahlAnker = ref(null)
+const eingeblendetZahl = computed(() =>
+  eingeblendeteZahl(store.availableCalendars.value, store.selectedCalendars.value))
+
+// A4: Kartenkopf. Der Monatstitel kommt aus der Ansicht (`datesSet`), die
+// Kalenderwochen aus dem gezeigten Bereich.
+const monat = computed(() => monatstitel(dateTitle.value))
+const kwText = computed(() => kwBereich(bereich.value.start, bereich.value.end))
 
 // Modal states
 const showCreate = ref(false)
@@ -122,23 +269,64 @@ const viewEvent = ref(null)
 const showDayEvents = ref(false)
 const dayEventsDate = ref('')
 
-// UXK-R10: Der Bearbeitungs-Umschalter und „Termin anlegen“ werden nur
-// angeboten, wenn der Nutzer auf MINDESTENS einen Kalender schreiben darf.
-// Die Rechte kommen vom Server (`get_accessible_calendars` -> `write`).
+// UXK-R10: „Termin anlegen“ und Ziehen/Ändern setzen voraus, dass der Nutzer
+// auf MINDESTENS einen Kalender schreiben darf (Rechte vom Server:
+// `get_accessible_calendars` -> `write`).
 const hasWriteRight = computed(() =>
   (store.availableCalendars.value || []).some(c => c.write)
 )
 
-// Calendar events
+/* ── Lesemodus (Review 07.11., Variante b der Karte) ────────────────────────
+ * Nacharbeit 07.11. Punkt 8: Der Modus lebt wie VOR UX3i nur im
+ * Arbeitsspeicher. `localStorage` ist hier bewusst NICHT im Spiel — ein
+ * gemerkter „Bearbeiten“-Zustand überlebte sonst jeden Neustart, obwohl der
+ * Lesemodus der Standard ist. `view` ist der Standard; ohne Schreibrecht
+ * bleibt es immer beim Lesen (UXK-R10) — der Server verweigert sonst ohnehin.
+ */
+
+/**
+ * Schalter im „⋯“-Menü: Zustand setzen und die Termine neu holen.
+ *
+ * Nacharbeit 07.11. Punkt 5: Der Modus entscheidet, welche Einträge das
+ * „⋯“-Menü je Termin anbietet („Ansehen“ vs. „Bearbeiten/Löschen“). Das alte
+ * Menü kennt den neuen Modus nicht — es wird deshalb neu gebaut
+ * (`neuZuordnen`), wie in `onViewModeChange`.
+ */
+function onLesemodusWechsel(bearbeiten) {
+  store.setViewMode(lesemodusNachSchalter(bearbeiten === true, hasWriteRight.value))
+  calendarRef.value?.refetchEvents()  // view_mode affects which statuses are shown
+  calendarRef.value?.neuZuordnen?.()
+  pruefPanel.value?.laden?.()
+}
+const lesemodus = computed(() => store.viewMode.value !== 'edit')
+
 // UX3d: Reiter „Zu prüfen“ nur für Moderatoren — das Recht steht im
 // Boot-Objekt (`can_moderate`), dieselbe Quelle wie `get_session_info` im
-// Server. Fehlt der Schlüssel (alte Seite, Test), gilt `false`: kein Reiter,
-// den der Server ohnehin verweigern würde.
+// Server. Fehlt der Schlüssel (alte Seite, Test), gilt `false`: kein Reiter
+// und keine rechte Spalte, die der Server ohnehin verweigern würde.
 const darfPruefen = computed(() => window.__DIakonosBOOT?.can_moderate === true)
-// Zahl offener Prüfungen für die Beschriftung „Zu prüfen (n)“. `null` heißt
-// unbekannt — dann steht keine Zahl (nie eine erfundene 0). Ein Fehler bleibt
-// still: eine Kennzahl darf den Kalender nicht stören.
+// OP-ADMIN-10 / Review 07.11.: „Kalender verwalten“ / „Kalender importieren“
+// im ⋯-Menü. Die Rolle wird EINMAL hier gelesen (dieselbe Prüfung wie bisher
+// in der Kalenderliste: Administrator ODER Kalenderadministrator) und an die
+// Kopfzeile gegeben. `is_admin` aus dem Boot-Objekt reichte nicht: damit
+// verlor die Rolle „Kalenderadministrator“ ihre Einträge, und Mitgliederadmins
+// sahen Einträge, die der Server ablehnt.
+const benutzerKontext = ref(null)
+const istKalenderAdmin = computed(() => kalenderAdmin(benutzerKontext.value))
+async function benutzerKontextLaden() {
+  try {
+    benutzerKontext.value = await apiCall('diakronos.diakonos.api.session.get_current_user_context')
+  } catch (_) {
+    // Ohne Kontext keine Verwaltungs-Einträge (fail closed) — der Kalender
+    // selbst bleibt benutzbar.
+    benutzerKontext.value = null
+  }
+}
+// Zahl offener Prüfungen für Reiter und Spalte. `null` heißt unbekannt —
+// dann steht keine Zahl (nie eine erfundene 0). Ein Fehler bleibt still:
+// eine Kennzahl darf den Kalender nicht stören.
 const offeneZahl = ref(null)
+const panelZahl = computed(() => (offeneZahl.value === null ? null : offeneZahl.value))
 
 async function offeneZahlLaden() {
   if (!darfPruefen.value) return
@@ -150,21 +338,61 @@ async function offeneZahlLaden() {
     offeneZahl.value = null
   }
 }
+
 // FIX-7: Die Kalenderliste (Meine Kalender, Abgelehnte Termine, Hilfe) ist ab
-// 769 px Breite ausgeblendet, weil nur der Handy-Umschalter (`display: none`
+// 721 px Breite ausgeblendet, weil nur der Handy-Umschalter (`display: none`
 // am Desktop) sie oeffnet. Ohne diesen Aufruf waren ihre Eintraege auf dem
 // Desktop unerreichbar (im Browser gemessen 2026-11-05: sichtbare Breite 0).
-// Nur am Desktop: am Handy (≤ 768 px) ist `.open` ein Overlay über dem Kalender.
-onMounted(() => { if (window.matchMedia('(min-width: 769px)').matches) kronosSidebar.auf() })
+// Nur am Handy (≤ 720 px) ist `.open` ein Overlay über dem Kalender.
+// UX3i: Am Desktop gehört die Auswahl jetzt in das Popover; die Leiste bleibt
+// für den Handy-Betrieb und für „Hilfe & Infos“ erreichbar.
+onMounted(() => { if (window.matchMedia('(min-width: 721px)').matches) kronosSidebar.zu() })
 
 function onDatesSet(info) {
-  dateTitle.value = info.view?.title || ''
+  dateTitle.value = info.title || info.view?.title || ''
+  bereich.value = { start: info.start || null, end: info.end || null }
   const start = info.start
   if (start) {
     store.setCurrentMonth(start)
   }
 }
 
+/* ── A4: Kalenderauswahl ─────────────────────────────────────────────────── */
+function kalenderAuswahlUmschalten() {
+  if (auswahlOffen.value) {
+    auswahlOffen.value = false
+    return
+  }
+  // Lage am Auslöser messen, bevor das Popover erscheint (sonst springt es).
+  const ausloeser = document.querySelector('[data-kalender-ausloeser="1"]')
+  auswahlAnker.value = ausloeser ? ausloeser.getBoundingClientRect() : null
+  auswahlOffen.value = true
+}
+
+/** Auswahl aus dem Popover: EINE Wahrheit (Store, wie bisher gespeichert). */
+function uebernehmeAuswahl(namen) {
+  store.setSelectedCalendars([...(namen || [])])
+}
+
+/** „+ Termin anlegen“: derselbe Dialog, vorbelegt mit dem Vorschlag (DEV-5). */
+function terminAnlegen() {
+  const jetzt = new Date()
+  const tag = `${jetzt.getFullYear()}-${String(jetzt.getMonth() + 1).padStart(2, '0')}-${String(jetzt.getDate()).padStart(2, '0')}`
+  const beginn = vorschlagBeginn()
+  const ende = defaultEndZeit(beginn)
+  createInitialData.value = {
+    element_start: `${tag}T${beginn}`,
+    element_end: `${endeTagAusZeit(tag, beginn, ende)}T${ende}`,
+  }
+  showCreate.value = true
+}
+
+/** „Hilfe & Infos“ aus dem ⋯-Menü: die vorhandene Erklärung der Leiste. */
+function hilfeOeffnen() {
+  sidebarRef.value?.hilfeOeffnen?.()
+}
+
+/* ── Termine ─────────────────────────────────────────────────────────────── */
 function onEventClick(event) {
   const props = event.extendedProps || {}
   if (store.isViewMode.value) {
@@ -178,9 +406,11 @@ function onEventClick(event) {
           showEdit.value = true
         } else if (action === 'deleted') {
           // UXK-R3: Nach dem Serien-Loeschen blieben die geloeschten Termine
-          // sichtbar, bis die Seite neu geladen wurde — der Kalender muss
-          // seine Termine neu holen.
-          calendarRef.value?.refetchEvents()
+          // sichtbar, bis die Seite neu geladen wurde. Nacharbeit 07.11.
+          // Punkt 6: derselbe Weg wie jede andere Änderung (`nachAenderung`) —
+          // der zieht Raster, die Kennzahl und die Spalte „Zu prüfen“ nach,
+          // statt nur die Termine neu zu holen.
+          nachAenderung()
         }
       })
     } else {
@@ -223,7 +453,9 @@ async function onTerminAktion({ key, termin } = {}) {
           editEvent.value = { ...daten, series_id: '' }
           showEdit.value = true
         } else if (action === 'deleted') {
-          calendarRef.value?.refetchEvents()
+          // Auflage Orchestrator (UX2e5): nach dem Löschen auch die Spalte
+          // „Zu prüfen“ nachziehen — sonst zeigt sie den alten Stand.
+          nachAenderung()
         }
       })
     } else {
@@ -237,7 +469,7 @@ async function onTerminAktion({ key, termin } = {}) {
       // Umfang der Serie (nur dieser / diese und folgende / alle): der Dialog
       // fragt und löscht; `deleted` löst das Neuladen aus.
       seriesDialogRef.value?.showEditOptions(daten).then(action => {
-        if (action === 'deleted') calendarRef.value?.refetchEvents()
+        if (action === 'deleted') nachAenderung()
       })
       return
     }
@@ -261,12 +493,12 @@ async function terminInPapierkorb(daten) {
   const titel = daten.element_name || daten.title || 'Termin'
   try {
     const antwort = await apiCall('diakronos.kronos.api.event_crud.delete_event', { name })
-    calendarRef.value?.refetchEvents()
+    nachAenderung()
     // UX2c-Mechanik (Review 07.11.): Meldung + Rückgängig-Stapel (Strg+Z) an EINER Stelle.
     await mitRueckgaengig({
       beschreibung: papierkorbMeldung(titel, antwort?.wiederherstellbar_bis),
       zurueck: () => wiederherstellen('termin', name),
-      danach: () => calendarRef.value?.refetchEvents(),
+      danach: () => nachAenderung(),
       erfolg: `„${titel}“ wiederhergestellt.`,
     })
   } catch (err) {
@@ -378,7 +610,34 @@ function onCalendarsChange(calendars) {
 const showAbgelehntView = ref(false)
 const abgelehnterTermin = ref(null)
 
+/* Review 07.11. (R-P1-8/FIX-7): Liste der eigenen abgelehnten Termine über
+ * das ⋯-Menü. Datenquelle ist derselbe Aufruf wie in der Kalenderliste
+ * (`get_meine_abgelehnten_termine`); der Server liefert nur die eigenen. */
+const showAbgelehntListe = ref(false)
+const abgelehnteListe = ref([])
+
+async function abgelehnteListeOeffnen() {
+  showAbgelehntListe.value = true
+  try {
+    const antwort = await apiCall('diakronos.kronos.api.calendar_get.get_meine_abgelehnten_termine')
+    abgelehnteListe.value = Array.isArray(antwort) ? antwort : (antwort?.message || [])
+  } catch (_) {
+    // Still leer: eine leere Liste ist ehrlicher als eine Fehlermeldung über
+    // einen Bereich, den man nur gelegentlich öffnet.
+    abgelehnteListe.value = []
+  }
+}
+
+/** Kurzes Datum („6. Nov.“) einer Terminangabe; leer, wenn unbrauchbar. */
+function kurzDatum(wert) {
+  if (!wert) return ''
+  const d = new Date(String(wert).replace(' ', 'T'))
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })
+}
+
 async function zeigeAbgelehntenTermin(elementId) {
+  showAbgelehntListe.value = false
   const daten = await getMeinTermin(elementId)
   if (!daten) {
     showToast('Termin konnte nicht geladen werden.', 'error')
@@ -386,14 +645,6 @@ async function zeigeAbgelehntenTermin(elementId) {
   }
   abgelehnterTermin.value = daten
   showAbgelehntView.value = true
-  // FIX-7: Ab 769 px Breite steht die Kalenderliste NICHT mehr im Fluss
-  // (`.kronos-sidebar-inpage` hat Breite 0, `open` kommt nur vom Umschalter,
-  // der dort `display: none` ist) — die Einträge „Abgelehnte Termine“ waren
-  // damit unsichtbar und unklickbar; im Browser gemessen (2026-11-05):
-  // sichtbare Breite 0. `auf()` steht beim Betreten der Seite (siehe oben);
-  // hier bleibt es als Sicherung fuer den Fall, dass jemand die Liste
-  // zugeklappt hat.
-  kronosSidebar.auf()
 }
 
 function onViewChange(viewName) {
@@ -402,21 +653,21 @@ function onViewChange(viewName) {
 }
 
 /** BF1-D: Das Kalender-Widget hat die Ansicht selbst gewechselt (z.B.
- *  Mobil-Klick im Monat -> Tagesansicht). `currentView` nachziehen, damit das
- *  Ansichts-Dropdown dieselbe Ansicht anzeigt (eine Wahrheit). Zurueck zum
- *  Monat geht dann wieder direkt ueber das Dropdown. */
+ *  Mobil-Klick im Monat -> Tagesansicht). `currentView` nachziehen, damit die
+ *  Reiter dieselbe Ansicht anzeigen (eine Wahrheit). */
 function onCalendarViewChange(viewType) {
-  if (viewType && viewType !== currentView.value) {
+  if (viewType && viewType !== currentView.value && !RESOURCE_VIEWS.has(viewType)) {
     currentView.value = viewType
   }
 }
 
 /** Resource-Timeline-Ansichten sind eine Untermenge der normalen Ansichten;
- *  das Dropdown fuehrt die Normalansicht. Bei Ressourcenansicht die zuletzt
- *  gewaehlte Normalansicht behalten — das erledigt `onCalendarViewChange`
- *  bereits, indem es Ressourcenansichten nicht uebernimmt. K4: die frueher
- *  hier gebundene, leere `onResourceViewChange`-Funktion ist entfernt.
- */
+ *  die Reiter führen die Normalansicht. Bei Ressourcenansicht bleibt die
+ *  zuletzt gewaehlte Normalansicht aktiv — das erledigt `onCalendarViewChange`
+ *  bereits, indem es Ressourcenansichten nicht uebernimmt. */
+const RESOURCE_VIEWS = new Set([
+  'resourceTimelineMonth', 'resourceTimelineWeek', 'resourceTimelineDay',
+])
 
 function onResourceToggle() {
   const RESOURCE_VIEW_MAP = {
@@ -425,13 +676,26 @@ function onResourceToggle() {
     'timeGridDay':  'resourceTimelineDay',
     'listMonth':    'resourceTimelineWeek',
   }
-  const RESOURCE_VIEWS = new Set(Object.values(RESOURCE_VIEW_MAP))
   const cur = currentView.value
   if (RESOURCE_VIEWS.has(cur)) {
     calendarRef.value?.changeView('dayGridMonth')
   } else {
     calendarRef.value?.changeView(RESOURCE_VIEW_MAP[cur] || 'resourceTimelineWeek')
   }
+}
+
+/**
+ * UX3i: Nach jeder Änderung an einem Termin werden Raster, Kennzahl und die
+ * Zeilen der Spalte „Zu prüfen“ nachgezogen — sonst zeigte die Spalte den
+ * alten Stand (ein Vorschlag bleibt stehen, obwohl er geprüft wurde).
+ */
+function nachAenderung() {
+  calendarRef.value?.refetchEvents()
+  offeneZahlLaden()
+  pruefPanel.value?.laden?.()
+  // UX2e5: Die „⋯"-Menüs neu bauen — nach einer Änderung ist der Inhalt der
+  // Zeilen ein anderer Knoten.
+  calendarRef.value?.neuZuordnen?.()
 }
 
 /**
@@ -450,17 +714,17 @@ function onViewModeChange(mode) {
 
 function onEventCreated() {
   showCreate.value = false
-  calendarRef.value?.refetchEvents()
+  nachAenderung()
 }
 
 function onEventUpdated() {
   showEdit.value = false
-  calendarRef.value?.refetchEvents()
+  nachAenderung()
 }
 
 function onEventDeleted() {
   showEdit.value = false
-  calendarRef.value?.refetchEvents()
+  nachAenderung()
 }
 
 function onDayEventClick(eventData) {
@@ -468,9 +732,18 @@ function onDayEventClick(eventData) {
   viewEvent.value = eventData
   showView.value = true
 }
-onMounted(() => {
-  store.fetchAccessibleCalendars()
+
+onMounted(async () => {
+  await store.fetchAccessibleCalendars()
   offeneZahlLaden()
+  benutzerKontextLaden()
+  // Review 07.11.: Der LESEMODUS ist der Standard (wie vor UX3i). Der Zustand
+  // lebt nur im Arbeitsspeicher (Nacharbeit Punkt 8: kein `localStorage` mehr —
+  // ein gemerkter „Bearbeiten“-Zustand hätte jeden Neustart überlebt).
+  // Bearbeiten schaltet der dezente Eintrag im ⋯-Menü ein
+  // (`onLesemodusWechsel`); ohne Schreibrecht bleibt es beim Lesen.
+  store.setViewMode(startLesemodus(null))
+  // UX3f: „Termin anlegen“ aus der Befehlspalette (`#/kalender?neu=1`).
   anlegeWunschAusAdresse()
   // UX3f (Review): „Termin anlegen“ wirkt auch, wenn der Kalender SCHON offen
   // ist. Dann ändert die Palette nur den Abfrageteil des Hashes
@@ -511,8 +784,9 @@ function anlegeWunschAusAdresse() {
   const start = Date.now()
   const versuch = () => {
     if (hasWriteRight.value) {
-      createInitialData.value = {}
-      showCreate.value = true
+      // UX3i: derselbe vorbelegte Dialog wie der Primärknopf „Termin
+      // anlegen“ — zwei Türen, ein Ziel (Begriff/Vorbelegung identisch).
+      terminAnlegen()
       return
     }
     if (Date.now() - start < 4000) setTimeout(versuch, 100)
@@ -539,15 +813,150 @@ defineExpose({ onTerminAktion, onViewModeChange })
   height: 100%;
   overflow: hidden;
 }
+/* UX3i (A4): Die Seite bekommt denselben Rahmen wie alle anderen Seiten
+   (.dk-screen: Rand und Luft) — vorher klebte das Raster am Fensterrand und
+   die Kalenderliste ragte über die Kante. NUR die DESKTOP-Lage: am Handy
+   bleibt der Rahmen wie bisher (A10 ist eine eigene Karte). */
+@media (min-width: 721px) {
+  .kronos-page-content {
+    padding: var(--sp-4) var(--sp-5) var(--sp-5);
+    gap: var(--sp-4);
+  }
+}
+.kronos-calendar-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-3);
+}
+/* WP8/OP-UI-11: Am Schreibtisch ist die Kalenderliste einklappbar — sie nimmt
+   nur Platz ein, wenn sie gebraucht wird (Handy-Overlay, Hilfe). Die Breite
+   regelt kronos.css. */
+
+/* Die Fläche links: Karte (Raster) plus — für Moderatoren — die Spalte
+   „Zu prüfen“. */
+.kal-flaeche {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-4);
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.kal-karte {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--karte-innen, var(--sp-4));
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--schatten-karte);
+  border: var(--karte-rand) solid var(--rahmen-farbe);
+}
+.kal-karte-kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 0 0 var(--sp-3);
+}
+/* Kartenkopf links: der Monat, normal gewichtet (A4: 16/600). */
+.kal-karte-titel {
+  margin: 0;
+  font-size: var(--fs);
+  font-weight: var(--fw-fett);
+  color: var(--text);
+}
+/* Kartenkopf rechts: „KW 44–49“ dezent — sie ist eine Orientierung, keine
+   Aktion (Prinzip S2: Hierarchie über Helligkeit). */
+.kal-karte-kw {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.kal-karte-raster {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+/* Review 07.11. (R-P1-8/FIX-7): Liste der eigenen abgelehnten Termine im
+   Dialog — je Zeile Titel und Datum, die ganze Zeile ist der Knopf (K4). */
+.kal-abgelehnt-liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.kal-abgelehnt-knopf {
+  display: flex;
+  width: 100%;
+  min-height: var(--control-h);
+  justify-content: space-between;
+  gap: var(--sp-2);
+  text-align: left;
+}
+.kal-abgelehnt-titel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kal-abgelehnt-datum { color: var(--muted); flex: none; }
+.kal-abgelehnt-leer { margin: 0; color: var(--muted); }
+
+/* Mobile Leiste (Review 07.11.): Der Monatstitel fehlte am Handy, weil der
+   Kartenkopf dort ausgeblendet ist — die Person sah nicht, welchen Monat sie
+   vor sich hat. Hier steht er als ruhige Zeile über dem Raster (A10 gestaltet
+   den Kalender später ganz; UX3i darf Mobil nicht verschlechtern). */
+.kal-monat-mobil {
+  display: none;
+}
+.kal-monat-mobil-titel {
+  margin: 0;
+  font-size: var(--fs);
+  font-weight: var(--fw-fett);
+  color: var(--text);
+}
+.kal-monat-mobil-kw {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+/* Rechte Spalte: feste Breite, sonst nähme sie dem Raster den Platz. Der Wert
+   kommt aus der Skala (--sp-8 = 64 px) — Review 07.11. hatte die festen
+   320 px beanstandet. */
+.kal-pruef-panel {
+  width: calc(var(--sp-8) * 5);
+  flex: 0 0 calc(var(--sp-8) * 5);
+  overflow: auto;
+}
 /* FIX-6: Der Fußabstand für die untere Leiste gilt in der Mobil-Lage —
-   LAYOUT, also nur die Breite (index.css «FIX-6 · Layout nur nach Breite»).
-   Vorher stand hier `(hover: none) and (pointer: coarse)`: auf einem
-   Touch-Notebook mit 1410 px entstand 80 px Leerraum unter dem Inhalt,
-   obwohl die untere Leiste dort gar nicht erscheint. */
+   LAYOUT, also nur die Breite (index.css «FIX-6 · Layout nur nach Breite»). */
 @media (max-width: 720px) {
   .kronos-page-content {
     padding-bottom: 80px;
   }
+  /* Mobil bleibt die bisherige Lage: KEINE Karte um das Raster, keine rechte
+     Spalte — A10 (Mobil-Kalender) ist eine eigene Karte, und UX3i darf Mobil
+     nicht verschlechtern. */
+  .kal-karte {
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .kal-karte-kopf { display: none; }
+  .kal-karte-titel { display: none; }
+  /* Der Monat steht am Handy in der eigenen Zeile (siehe `.kal-monat-mobil`). */
+  .kal-monat-mobil {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-2) 0;
+  }
+  .kronos-calendar-wrap { padding: var(--sp-2); }
 }
 /* OP-HANDY-9: Im Querformat darf der Inhalt scrollen, damit das Monatsraster
    seine Mindesthoehe behaelt und Termine sichtbar bleiben. */

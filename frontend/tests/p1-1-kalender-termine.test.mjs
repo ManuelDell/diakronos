@@ -107,13 +107,30 @@ test('UXK-009: beide Titel-Felder begrenzen auf 140 Zeichen', () => {
 test('UXK-R10: Kalender-Seite kennt hasWriteRight und gibt es an die Topbar', () => {
   assert.match(KALENDER, /const hasWriteRight = computed/)
   assert.match(KALENDER, /:canWrite="hasWriteRight"/)
-  assert.match(KALENDER, /if \(mode === 'edit' && !hasWriteRight\.value\) return/)
+  // UX3i: Der Bearbeitungs-Umschalter ist entfallen; die Schreibbarkeit
+  // haengt jetzt unmittelbar am Schreibrecht (kein zweiter Zustand, der
+  // auseinanderlaufen kann). UXK-R10 bleibt erfuellt: ohne Schreibrecht kein
+  // Schreiben.
+  // Review 07.11.: Der Lesemodus ist der Standard (wie vor UX3i), ohne
+  // Schreibrecht gibt es gar keinen Bearbeiten-Modus — und der Schalter im
+  // ⋯-Menü hängt am Schreibrecht (`hatSchreibrecht`).
+  // Nacharbeit UX3i-N2 Punkt 8: der Modus lebt nur im Arbeitsspeicher.
+  assert.match(KALENDER, /store\.setViewMode\(startLesemodus\(null\)\)/,
+    'die Seite startet im Lesemodus')
+  assert.match(KALENDER, /lesemodusNachSchalter\(bearbeiten === true, hasWriteRight\.value\)/,
+    'ohne Schreibrecht bleibt es beim Lesemodus')
+  assert.match(KALENDER, /:canWrite="hasWriteRight"/, 'die Kopfzeile kennt das Recht')
 })
 
-test('UXK-R10: Topbar blendet den Umschalter ohne Schreibrecht aus', () => {
-  assert.match(TOPBAR, /v-if="canWrite" class="toggle-container"/)
+test('UXK-R10: Topbar bietet ohne Schreibrecht keinen Schreibweg, sondern „Nur lesen“', () => {
+  // UX3i (Entwurf A4): Der Umschalter Ansehen/Bearbeiten ist fort — er war
+  // ein zweiter gefuellter Knopf neben der Hauptaktion. An seiner Stelle steht
+  // der EINE Primaerknopf „Termin anlegen“, und der haengt am Schreibrecht.
+  assert.match(TOPBAR, /v-if="canWrite"[\s\S]{0,300}data-primaer="1"/,
+    '„Termin anlegen“ gibt es nur mit Schreibrecht')
   assert.match(TOPBAR, /Nur lesen/)
   assert.match(TOPBAR, /canWrite: \{ type: Boolean/)
+  assert.ok(!/toggle-container/.test(TOPBAR), 'der Umschalter ist entfallen')
 })
 
 test('UXK-R10: Create-Dialog nennt den Grund statt falscher Pflichtfeldmeldung', () => {

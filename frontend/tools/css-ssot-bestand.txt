@@ -18,6 +18,7 @@
 #   frontend/src/diakonos/components/planrahmen/meine-dienste-monate.mjs: #e0b866, #e0b163, #5b6178, #9ba3c1, #8fb2ff
 #   frontend/src/shared/kachelfarbe.mjs: #12183a, #2563eb, #db2777, #78716c, #2d78f0, #ee2266
 #   frontend/src/diakonos/components/kronos/KronosCalendar.vue: #12183a
+#   frontend/src/diakonos/components/kronos/chipText.mjs: #ffffff, #00051f
 #
 # Stand (ON-0b, eingefroren): 73 Fundstellen in 6 Dateien.
 frontend/src/diakonos/components/registrierung/RegLinkTeilen.vue	1

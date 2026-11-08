@@ -4,7 +4,7 @@
  * Nutzt apiCall() aus composables/useApi.js (kein frappe.call).
  */
 
-import { apiCall } from '../composables/useApi.js'
+import { apiCall, mitAntwort } from '../composables/useApi.js'
 
 const PREFIX = 'diakronos.kronos.api.kanban_api'
 
@@ -13,7 +13,11 @@ const PREFIX = 'diakronos.kronos.api.kanban_api'
  * @returns {{ vorschlaege: Array, konflikte: Array, staging: Array, notifications: Object }}
  */
 export async function getBoardData() {
-  return apiCall(`${PREFIX}.get_kanban_board_data`)
+  // UX3i (Nacharbeit 07.11.): zurück auf den EINEN Weg `apiCall` — damit die
+  // Sitzungsablauf-Behandlung (WEB-8f) auch für das Prüf-Board greift.
+  // `mitAntwort` schlägt laut fehl, falls der Aufruf jemals ohne Antwort
+  // endet; dann bleibt die Spalte nicht still leer.
+  return mitAntwort(await apiCall(`${PREFIX}.get_kanban_board_data`), 'get_kanban_board_data')
 }
 
 /**

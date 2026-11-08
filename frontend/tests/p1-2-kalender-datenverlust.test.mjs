@@ -41,8 +41,16 @@ test('UXK-R3: Fall ohne bekannte Anzahl bleibt formulierungssicher', () => {
 test('UXK-R3: Kalender holt nach dem Serien-Loeschen die Termine neu', () => {
   // Frueher behandelte onEventClick nur 'edit'; nach 'deleted' blieben die
   // geloeschten Termine bis zum Neuladen sichtbar.
+  // Nacharbeit UX3i-N2 Punkt 6: der Zweig ruft `nachAenderung()` — derselbe
+  // Weg wie jede andere Aenderung; er holt die Termine neu (`refetchEvents`)
+  // UND zieht Kennzahl und Spalte „Zu pruefen“ nach.
   assert.match(
     KALENDER,
-    /action === 'deleted'[\s\S]{0,400}refetchEvents\(\)/
+    /action === 'deleted'[\s\S]{0,400}nachAenderung\(\)/
+  )
+  assert.match(
+    KALENDER,
+    /function nachAenderung\(\) \{\s*calendarRef\.value\?\.refetchEvents\(\)/,
+    'nachAenderung holt die Termine neu'
   )
 })

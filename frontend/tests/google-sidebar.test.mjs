@@ -5,6 +5,10 @@ import vm from 'node:vm'
 
 const source = fs.readFileSync(new URL('../src/diakonos/components/kronos/KronosSidebar.vue', import.meta.url), 'utf8')
 const mounted = source.match(/onMounted\(([\s\S]*?)\);\s*<\/script>/)[1]
+// Nacharbeit UX3i-N2 Punkt 7: Die Rollenprüfung kommt jetzt aus
+// `kalenderRechte.mjs` (EINE Stelle) und wird im VM-Kontext als Import
+// bereitgestellt — dieselbe Funktion, die die Komponente importiert.
+const { istKalenderAdmin } = await import('../src/diakonos/components/kronos/kalenderRechte.mjs')
 
 // OP-ADMIN-10: „Kalender verwalten“ haengt an DERSELBEN Rolle wie der Import.
 // Der Test prueft deshalb BEIDE Schalter je Rolle — vorher gab es nur
@@ -19,9 +23,11 @@ for (const [roles, visible] of [[['Kalenderadministrator'], true], [['Administra
       // darf davon nicht abhaengen. Der Rumpf ruft `ladeAbgelehnteTermine`.
       abgelehnteTermine: { value: [] },
       ladeAbgelehnteTermine: async () => {},
+      // Punkt 7: die gemeinsame Rollenprüfung (Import der Komponente).
+      istKalenderAdmin,
       apiCall: async method => {
         assert.equal(method, 'diakronos.diakonos.api.session.get_current_user_context')
-        return { roles }
+        return { roles, user: '' }
       },
     }
     vm.createContext(context)

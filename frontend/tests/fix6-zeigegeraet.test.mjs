@@ -150,12 +150,11 @@ const LAYOUT_STELLEN = [
     ['pages/Home.vue', '.dk-widget-edit-fab', null, 'Bearbeiten-FAB der Startseite'],
     ['pages/Kalender.vue', '.kronos-page-content', 'padding-bottom', 'Fußabstand der Kalenderseite'],
     ['pages/planrahmen/MeineDienste.vue', '.pr-md-monat-zeile', null, 'Umbruch der Monatszeile'],
-    // UX3d: Der Eintrag „Zu prüfen“ ist der vierte Reiter der Kalender-Leiste
-    // geworden. Das ist die Stelle, an der früher die Beschriftung des
-    // Kopfzeilen-Knopfes am Handy wich — sie hält weiter an der BREITE.
-    ['components/kronos/KronosTopbar.vue', '.kronos-reiter', null, 'Reiterleiste des Kalenders'],
-    ['components/kronos/KronosTopbar.vue', '.date-year', null, 'Jahreszahl der Kopfzeile'],
-    ['components/kronos/KronosTopbar.vue', '.resource-toggle-btn', null, 'Ressourcenplan-Knopf'],
+    // UX3i: Der Kalender hat EINE Kopfzeile; am Handy stehen die Werkzeuge in
+    // einer eigenen Zeile (`flex: 0 0 100%`) und der Monatstitel steht im
+    // Kartenkopf (`.kal-karte-titel`). Diese Stellen halten an der BREITE.
+    ['components/kronos/KronosTopbar.vue', '.header-right', null, 'Werkzeugzeile der Kalender-Kopfzeile'],
+    ['pages/Kalender.vue', '.kal-karte-titel', null, 'Monatstitel im Kartenkopf'],
     ['components/AppBottomNav.vue', '.dk-bottom-nav', null, 'untere Leiste'],
 ]
 
@@ -260,23 +259,24 @@ test('FIX-6: PrTabelle nutzt die eine Breitengrenze der App (720 px)', () => {
 })
 
 test('FIX-6: KronosTopbar blendet den Seitenleisten-Knopf nicht doppelt', () => {
-    // FIX-6b/K2: Der Knopf wird NUR in KronosTopbar.vue geschaltet (768 px,
+    // FIX-6b/K2: Der Knopf wird NUR in KronosTopbar.vue geschaltet (720 px,
     // dasselbe Fenster, in dem dort die Kalender-Seitenleiste ausgeblendet
     // wird). Die frühere zweite Regel in index.css (`.kronos-header
     // .sidebar-toggle-btn`, 720 px) war tot: der Selektor erreicht das
     // gescopte Kind-Element der Komponente nicht (scoped-Styles setzen das
     // data-Attribut am Kind, der Selektor verlangt .kronos-header als
-    // Vorfahr im SELBEN Element). Zwei Grenzen (720 und 768) waren zusätzlich
+    // Vorfahr im SELBEN Element). Zwei Grenzen (720 und 768; seit UX3i EINE:
+    // 720) waren zusätzlich
     // der Fehler, den dieser Test verhindern soll — jetzt gibt es EINE.
     const tief = ohneKommentare(lies('components/kronos/KronosTopbar.vue'))
     assert.ok(!tief.includes('.sidebar-toggle-btn { display: inline-flex; }\n\n'),
         'KronosTopbar: unerwartete Leerzeile im Umschalter-Block')
-    assert.ok(/@media \(max-width: 768px\)[\s\S]*?\.sidebar-toggle-btn \{ display: inline-flex; \}/.test(tief),
-        'KronosTopbar: Breiten-Regel (768 px) für den Seitenleisten-Knopf fehlt')
+    assert.ok(/@media \(max-width: 720px\)[\s\S]*?\.sidebar-toggle-btn \{ display: inline-flex; \}/.test(tief),
+        'KronosTopbar: Breiten-Regel (720 px) für den Seitenleisten-Knopf fehlt')
     const css = ohneKommentare(lies('index.css'))
     assert.ok(!css.includes('.kronos-header .sidebar-toggle-btn'),
         'index.css: die tote Regel `.kronos-header .sidebar-toggle-btn` ist wieder da — '
-        + 'den Knopf schaltet allein KronosTopbar.vue (eine Grenze, 768 px)')
+        + 'den Knopf schaltet allein KronosTopbar.vue (eine Grenze, 720 px)')
 })
 
 test('FIX-6: index.css trennt Layout- und Touch-Block', () => {

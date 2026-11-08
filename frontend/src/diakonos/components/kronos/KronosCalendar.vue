@@ -20,6 +20,11 @@ import { zuordnen } from './terminAktionen.mjs'
 // P3-4b/Restpunkt 1: Schriftfarbe je Terminkachel nach Helligkeit (AA).
 import { kachelSchrift } from '../../../shared/kachelfarbe.mjs'
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js'
+// UX3i (Entwurf A4): Text, Kontrast und Zählung der Termin-Chips als reine
+// Funktionen — ausführbar geprüft in `tests/ux3i-kalender-a4.test.mjs`.
+import { chipText, chipTitel, chipStil } from './chipText.mjs'
+// A4 (Review 07.11. Punkt 10): EINE Layout-Grenze des Kalenders (720 px).
+import { istHandyBreite, istEngeBreite } from './breiten.mjs'
 
 const EventCalendar = _EC.default?.create ? _EC.default : (_EC.create ? _EC : null)
 
@@ -287,6 +292,128 @@ const eventsApi = useEventsApi()
 const _imp = useImpersonation()
 
 /**
+ * A4: Die Rest-Zeile „+n weitere“ im Monatsraster.
+ *
+ * Die Bibliothek legt dafür einen `<a role="button" tabindex="0">` in den
+ * Tag-Fuß (`.ec-day-foot`) — ohne Beschriftung, denn die Zahl kennt sie nur
+ * im Tages-Popup (`moreLinkContent` mit `num`). Hier wird die Zeile deshalb
+ * nach dem Einbau einer Kachel:
+ *
+ *   * mit „+n weitere“ beschriftet (Zahl aus den Kacheln des Tages),
+ *   * mit `aria-label` versehen (der Tag gehört dazu),
+ *   * an den Tageswechsel gehängt (`mehrOeffnen`) — die Bibliothek würde das
+ *     Popup öffnen, A4 will die Tagesansicht.
+ *
+ * Nacharbeit 07.11. Punkt 3: Die Option `moreLinkClick` gibt es in
+ * @event-calendar 5.4 NICHT — der Hook war wirkungslos. Der Klick-Zuhörer
+ * sitzt deshalb hier: `stopPropagation` nimmt den Klick VOR dem Zuhörer der
+ * Bibliothek weg (er hängt am Container, hier wird am Link selbst gefangen),
+ * damit kein leeres Popup aufgeht; Tastatur (Enter/Leertaste) läuft über den
+ * `keydown`-Zweig, weil `<a role="button">` von sich aus nicht auslöst.
+ */
+function mehrZeilenHerrichten(info) {
+  const el = info?.el
+  if (!el) return
+  // Die Rest-Zeile kann am Tag-Fuß des Termins hängen — oder (Tage ohne
+  // Kacheln, z. B. am Handy) an einem Tag, den dieser Hook nie sieht. Deshalb
+  // wird hier über den UMSCHLIESSENDEN Tag gesucht und zusätzlich nach jedem
+  // Aufbau `mehrZeilenNachtragen` über den ganzen Kalender gefahren.
+  const fuss = el.closest?.('.ec-day-foot') || el.closest?.('.ec-day')?.querySelector?.('.ec-day-foot')
+  const link = fuss?.querySelector?.('a[role="button"]')
+  if (!link || link.dataset.dkMehr === '1') return
+  const tag = el.closest('.ec-day')
+  // Die ZAHL steht in der Zeile selbst („+2 weitere“ aus `moreLinkContent`) —
+  // sie ist die Wahrheit der Bibliothek. Zählen der sichtbaren Kacheln ergab
+  // „1“, weil im Monatsraster nur die GEZEIGTEN Termine als `article` im DOM
+  // stehen (die versteckten sind gar nicht gebaut).
+  const ausText = Number((/\+(\d+)/.exec(link.textContent || '') || [])[1])
+  const zahl = Number.isFinite(ausText) && ausText > 0
+    ? ausText
+    : Math.max(1, tag ? tag.querySelectorAll('article.ec-event').length : 0)
+  link.dataset.dkMehr = '1'
+  if (!link.textContent?.trim()) link.textContent = `+${zahl} weitere`
+  link.classList.add('ec-mehr-weitere')
+  // Der volle Titel für Vorlesehilfen: welcher Tag, wie viele Termine.
+  const zeit = fuss.querySelector('time')?.getAttribute('datetime')
+    || tag?.querySelector('.ec-day-head time')?.getAttribute('datetime') || ''
+  const wann = zeit ? ` am ${new Date(`${zeit}T12:00:00`).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}` : ''
+  link.setAttribute('aria-label', `${zahl} weitere ${zahl === 1 ? 'Termin' : 'Termine'}${wann}`)
+  // Der gezeigte Tag steht am Tag-Container (`data-date`) oder an der Uhrzeit.
+  const datum = tag?.getAttribute('data-date') || zeit
+  if (link.__dkOeffnen) return
+  const oeffnen = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    mehrOeffnen(datum)
+  }
+  link.__dkOeffnen = oeffnen
+  link.addEventListener('click', oeffnen)
+  link.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') oeffnen(e)
+  })
+}
+
+/**
+ * Nacharbeit 07.11. Punkt 3 (Nachtrag): Die Rest-Zeile entsteht NICHT über
+ * `eventDidMount` — die Bibliothek zeichnet sie selbst (kein Ereignis-Hook).
+ * Deshalb wird sie nach jedem Aufbau des Rasters einmal über den ganzen
+ * Kalender hergerichtet (idempotent über `data-dk-mehr`).
+ */
+function mehrZeilenNachtragen() {
+  const kal = calendarEl.value
+  if (!kal) return
+  for (const link of kal.querySelectorAll('.ec-day-foot a[role="button"]')) {
+    if (link.dataset.dkMehr === '1') continue
+    const tag = link.closest('.ec-day')
+    mehrZeilenHerrichten({ el: tag || link })
+  }
+}
+
+/**
+ * Die Bibliothek zeichnet Termine und Rest-Zeilen in mehreren Runden — ein
+ * Lauf im Microtask war ZU FRÜH: gemessen im Wegwerf-Stack fand er 0 Kandidaten,
+ * obwohl das Raster Sekundenbruchteile später vier „+n weitere“-Zeilen trug.
+ * Deshalb ein Lauf im NÄCHSTEN Bild (rAF) plus ein zweiter kurzer Nachlauf
+ * (die Bibliothek zeichnet die Rest-Zeilen nach den Kacheln). Beides
+ * idempotent über `data-dk-mehr`, also mehrfach aufrufbar.
+ */
+let _mehrGeplant = false
+function _mehrZeilenPlanen() {
+  if (_mehrGeplant) return
+  _mehrGeplant = true
+  const lauf = () => {
+    _mehrGeplant = false
+    mehrZeilenNachtragen()
+  }
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => {
+      lauf()
+      // Nachlauf: die Rest-Zeilen der zweiten Zeichenrunde.
+      setTimeout(() => mehrZeilenNachtragen(), 120)
+    })
+  } else {
+    Promise.resolve().then(lauf)
+  }
+}
+
+/** „+n weitere“: in die Tagesansicht des betroffenen Tages wechseln. */
+function mehrOeffnen(datum) {
+  // `datum` ist ein ISO-TAG aus dem Raster („2026-11-08“) oder ein Date.
+  // Achtung: `new Date('2026-11-08')` ist UTC-Mitternacht — lokale Zeitzone
+  // kann den Tag verschieben. Deshalb wird ein ISO-Tag als LOKALER Tag gebaut.
+  let d
+  if (typeof datum === 'string' && /^\d{4}-\d{2}-\d{2}/.test(datum)) {
+    const [j, m, t] = datum.slice(0, 10).split('-').map(Number)
+    d = new Date(j, m - 1, t)
+  } else {
+    d = datum instanceof Date && !Number.isNaN(datum.getTime()) ? datum : new Date()
+  }
+  calendar.value?.setOption('view', 'timeGridDay')
+  // KEIN Tagesversatz: der Tag aus dem Raster ist bereits der Zieltag.
+  calendar.value?.setOption('date', d)
+}
+
+/**
  * P1-1b: Verschieben/Groessenaenderung an einem FESTGELEGTEN Termin wirkt fuer
  * Nicht-Moderatoren nicht sofort — die Aenderung wartet als offener Vorschlag.
  * Ohne diese Meldung sah es so aus, als sei der Termin "zurueckgesprungen".
@@ -314,15 +441,24 @@ onMounted(() => {
       // OP-ADMIN-17: Die Kalenderwoche beginnt am Montag (wie der Mini-Kalender
       // und wie in Deutschland ueblich). Vorher fing das Raster am Sonntag an.
       firstDay: 1,
-      // UXK-R14 (P3-4b/Restpunkt 9): Am Handy ueberlagerte „W40“ die Tageszahl
-      // (las sich „W4027“). Die Nummer wird jetzt immer gerendert und per CSS
-      // unter 640 px ausgeblendet — ein matchMedia beim Aufbau griff beim
-      // Drehen/Fenstergroesse nicht und liess die Ueberlappung stehen.
-      weekNumbers: true,
+      // UX3i (Entwurf A4): KEINE Kalenderwoche in den Zellen mehr. Sie stand
+      // in der Montagszelle und drängte die Termine nach unten; die Woche
+      // steht jetzt EINMAL im Kartenkopf („KW 44–49“, siehe `kwBereich` in
+      // `chipText.mjs` und `cardTitle` der Seite).
+      weekNumbers: false,
+      // UX3i: so viele Chips je Tag, wie in A4 stehen. `true` heißt „so viele,
+      // wie Platz haben“ (die Zahl hatte die Bibliothek über den Rand laufen
+      // lassen); der Rest wird zu „+n weitere“ und öffnet die Tagesansicht.
       dayMaxEvents: true,
       // UXK-R13: englische Texte der Bibliothek übersetzen („all-day“, „+2 more“).
       allDayContent: { text: 'ganztägig' },
       moreLinkContent: (info) => `+${info.num} weitere`,
+      // A4: „+n weitere“ führt in die TAGESANSICHT (dort stehen alle Termine
+      // des Tages) — dafür hängt `mehrZeilenHerrichten` einen eigenen
+      // Klick-Zuhörer an die Rest-Zeile. Die Option `moreLinkClick` gibt es in
+      // @event-calendar 5.4 NICHT (geprüft im Bundle 5.4.2: unbekannte
+      // Optionen werden still verworfen, der Klick landete auf einem leeren
+      // Popup) und ist deshalb entfernt.
       height: '100%',
       resourceAreaWidth: 200,
       editable: isEditMode,
@@ -399,7 +535,7 @@ onMounted(() => {
 
       eventClick: (info) => {
         if (_suppressClick) return
-        const isMobile = window.innerWidth <= 768
+        const isMobile = istHandyBreite(window.innerWidth)
         const currentView = info.view.type
 
         // OP-HANDY-8: Am Handy fuehrte ein Tipp auf einen Monatstermin in die
@@ -456,8 +592,32 @@ onMounted(() => {
         emit('select', info)
       },
 
+      // A4 („+n weitere“) UND UX2e5 (Termin-Datensatz für das ⋯-Menü) — EIN
+      // Schlüssel. Vorher stand `eventDidMount` zweimal im Optionsobjekt (aus
+      // dem Merge von UX2e5); beim doppelten Schlüssel gewinnt der letzte,
+      // `mehrZeilenHerrichten` lief nie („+n weitere“ ohne Text/Ziel).
+      // Nacharbeit 07.11. Punkt 2: erst die Rest-Zeile herrichten, dann die
+      // Kennung der Kachel setzen und den Knopf-Abgleich anstoßen.
+      eventDidMount: (info) => {
+        mehrZeilenHerrichten(info)
+        const el = info?.el
+        if (!el || el.tagName !== 'ARTICLE') return
+        const kennung = String(info?.event?.id ?? '')
+        if (kennung) el.setAttribute('data-event-id', kennung)
+        abgleichPlanen()
+        // A4: Die Rest-Zeile des Tages kann erst jetzt (nach den Kacheln)
+        // entstanden sein.
+        _mehrZeilenPlanen()
+      },
+      eventWillUnmount: () => { abgleichPlanen() },
+
       datesSet: (info) => {
-        emit('datesSet', info)
+        // A4: Nach jedem Aufbau des Rasters (Monatswechsel, Ansichtswechsel,
+        // neu geholte Termine) die Rest-Zeile „+n weitere“ herrichten.
+        _mehrZeilenPlanen()
+        // UX3i (A4): Der Kartenkopf braucht den Titel OHNE Beschneidung
+        // („November 2026“) — `info.view.title` ist die eine Wahrheit.
+        emit('datesSet', { ...info, title: info.view?.title || '' })
         const vt = info.view.type
         // BF1-D: Die tatsaechliche Ansicht melden. Das Kalender-Widget wechselt
         // die Ansicht auch selbst (z.B. Mobil-Klick im Monat -> Tagesansicht);
@@ -484,7 +644,7 @@ onMounted(() => {
 
       eventClassNames: (info) => {
         const isMonthView = calendar.value?.getOption('view') === 'dayGridMonth'
-        const isMobile   = window.innerWidth <= 430
+        const isMobile   = istEngeBreite(window.innerWidth)
         const isMultiDay = !info.event.allDay && info.event.end &&
           new Date(info.event.start).toDateString() !== new Date(info.event.end).toDateString()
         const useDot = !info.event.allDay && isMonthView && !isMobile && !isMultiDay
@@ -497,10 +657,11 @@ onMounted(() => {
       eventContent: (info) => {
         const event = info.event
         const isMonthView = calendar.value?.getOption('view') === 'dayGridMonth'
-        const isMobile   = window.innerWidth <= 430
+        const isMobile   = istEngeBreite(window.innerWidth)
         const isMultiDay = !event.allDay && event.end &&
           new Date(event.start).toDateString() !== new Date(event.end).toDateString()
         const safe = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
         // UX2e5: Der Termin-Datensatz für das „⋯"-Menü der LISTE. Die
         // Bibliothek liefert keine Rückreferenz zum Datensatz, deshalb reist
         // er als JSON an der Zeile mit (ausgelesen in ./terminAktionenDaten.mjs).
@@ -517,12 +678,29 @@ onMounted(() => {
         // mit doppelten umschlossen endete das Merkmal mitten im JSON.
         const datenAttr = " data-termin-daten='" + safe(JSON.stringify(daten)) + "'"
 
-        if (!event.allDay && isMonthView && !isMobile && !isMultiDay) {
-          const color = event.backgroundColor || 'var(--primary)'
+        // UX3i (A4): Im Monatsraster ist JEDER Termin ein Chip mit Uhrzeit
+        // und Titel — vorher stand dort ein Punkt plus Text, der ab dem
+        // ersten Wort abgeschnitten war. Der VOLLE Titel steht in `title`
+        // und `aria-label`; gekürzt wird nur optisch (Textellipse).
+        // Das Handy behält die bisherige Form (A10 ist eine eigene Karte;
+        // Mobil darf durch UX3i nicht schlechter werden).
+        if (isMonthView && !isMobile) {
+          const tag = event.start
+            ? `${event.start.getFullYear()}-${String(event.start.getMonth() + 1).padStart(2, '0')}-${String(event.start.getDate()).padStart(2, '0')}`
+            : ''
+          const text = chipText({ title: event.title, start: event.start, end: event.end, allDay: event.allDay }, { tag })
+          const titel = chipTitel({ title: event.title, start: event.start, end: event.end, allDay: event.allDay })
+          const dunkel = typeof document !== 'undefined'
+            && document.documentElement.getAttribute('data-theme') === 'dark'
+          // Review 07.11. Punkt 4: Fläche UND Schrift (beide Variablen).
+          const stil = chipStil(sichereFarbe(event.backgroundColor), { theme: dunkel ? 'dunkel' : 'hell' })
+          // UX2e5: Der Datensatz reist auch am Chip mit (der äußere Inhalt
+          // ist im Monat der Chip selbst) — sonst fände das „⋯" der Liste im
+          // Monat keinen Termin mehr, sobald die Ansicht wechselt.
           return { html:
-            '<div class="ec-event-body ec-dot-body">' +
-            '<span class="ec-dot" style="background:' + safe(color) + '"></span>' +
-            '<h4 class="ec-event-title">' + safe(event.title) + '</h4>' +
+            '<div class="ec-chip" role="button" tabindex="0" title="' + safe(titel) +
+            '" aria-label="' + safe(titel) + '"' + datenAttr + ' style="' + stil + '">' +
+            '<span class="ec-chip-text">' + safe(text) + '</span>' +
             '</div>'
           }
         }
@@ -537,8 +715,7 @@ onMounted(() => {
         // ausgewichen, damit AA (4,5:1) IMMER erreicht wird.
         // Ohne Farbangabe (CSS-Variable/Altbestand) wird KEIN fester Wert
         // gesetzt, sondern der Theme-Wert `--event-ink` verwendet — im
-        // Dunkelmodus und im Druck greift damit das Theme (vorher stand hier
-        // fest #12183a, wodurch --event-ink wirkungslos war).
+        // Dunkelmodus und im Druck greift damit das Theme.
         const schrift = kachelSchrift(sichereFarbe(event.backgroundColor))
         // Am ÄUSSEREN Inhalt: den hängt die Bibliothek in `.ec-event-body` der
         // Zeile — dort liest ./terminAktionenDaten.mjs ihn, auch nach einem
@@ -554,16 +731,8 @@ onMounted(() => {
       // Nachführen je Knopf (kein ResizeObserver) — die Zuordnung hängt an
       // der Kennung, nicht an Maßen.
       // Die Kennung setzt KEIN Teil der Bibliothek ans `article` (sie führt
-      // sie nur intern); sie kommt hier an der Zeile mit, damit der Abgleich
-      // Knopf und Termin ohne Raten zusammenbringt.
-      eventDidMount: (info) => {
-        const el = info?.el
-        if (!el || el.tagName !== 'ARTICLE') return
-        const kennung = String(info?.event?.id ?? '')
-        if (kennung) el.setAttribute('data-event-id', kennung)
-        abgleichPlanen()
-      },
-      eventWillUnmount: () => { abgleichPlanen() },
+      // sie nur intern); sie kommt oben im gemeinsamen `eventDidMount` an die
+      // Zeile, damit der Abgleich Knopf und Termin ohne Raten zusammenbringt.
     })
 
     // Mobile: Swipe-Navigation

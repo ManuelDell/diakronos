@@ -373,7 +373,11 @@ test('UX3d: CSS-Kommentare in den berührten Bauteilen sind geschlossen', () => 
 
 test('UX3d: die mobile Bedienzeile der Kopfzeile bleibt am Fenster', () => {
   const quelle = lies('components/kronos/KronosTopbar.vue')
-  const block = quelle.slice(quelle.indexOf('@media (max-width: 768px)'))
+  // UX3i: Die Handy-Regeln der Kopfzeile stehen jetzt im 720er Block (die
+  // Layout-Grenze der App); der 768er Block schaltet nur noch den
+  // Umschalter der Kalenderliste. Gesucht wird die Regel dort, wo
+  // `.header-right` seine Breite bekommt — die Absicht ist dieselbe.
+  const block = quelle.slice(quelle.indexOf('@media (max-width: 720px)'))
   const regel = block.slice(block.indexOf('.header-right {'), block.indexOf('}', block.indexOf('.header-right {')))
   assert.match(regel, /flex:\s*0\s+0\s+100%/, 'die Zeile darf nicht über den Kopf hinauswachsen')
 })

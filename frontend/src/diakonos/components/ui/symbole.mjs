@@ -45,6 +45,12 @@ export const SYMBOLE = {
   pruefen: { p: ['m21 21-4.35-4.35'], c: [[11, 11, 8]] },
   // Abbrechen (X)
   abbrechen: { p: ['M18 6 6 18', 'M6 6l12 12'] },
+  // UX3i (A4): Schreibrecht in der Kalenderauswahl — „Eintragen erlaubt“ nur
+  // als dezentes Symbol mit Tooltip, nicht als Text in jeder Zeile.
+  stift: { p: ['M12 20h9', 'M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z'] },
+  // UX3i (A4): Pfeil „Prüfen ›“ in der rechten Spalte.
+  weiter: { p: ['M9 6l6 6-6 6'] },
+
   // UX3f — Suchen (Lupe) für die Suchzeile der Befehlspalette. Gleiche
   // Strichfamilie wie alle übrigen Symbole (lucide, ISC).
   suchen: { p: ['m21 21-4.35-4.35'], c: [[11, 11, 8]] },

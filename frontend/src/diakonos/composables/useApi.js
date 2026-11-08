@@ -282,6 +282,37 @@ async function apiCallRoh(method, args = {}, options = {}) {
     return message
 }
 
+/**
+ * UX3i (Nacharbeit 07.11.): Der frühere Sonderweg `apiCallDirekt` ist
+ * ENTFALLEN.
+ *
+ * Er entstand aus einem Messfehler: `apiCall` gab angeblich `undefined` statt
+ * der Antwort zurück. `mitSitzungsdialog` gibt den Wert von `arbeiten()`
+ * unverändert weiter (`return await arbeiten()`) — die eigentliche Ursache war
+ * `pruefZeile.datumWert` (Objekt-Datum der Bibliothek). Ein zweiter Weg hätte
+ * nur die Sitzungsablauf-Behandlung umgangen, die das Prüf-Board braucht.
+ *
+ * Damit die Klasse der Fehler nicht zurückkommt, prüft `mitAntwort` das
+ * Ergebnis: Ein Weg, der ohne Antwort endet, ist ein Fehler — nie ein stilles
+ * `undefined` beim Aufrufer.
+ */
+/**
+ * Prüft, dass ein API-Weg wirklich eine Antwort geliefert hat.
+ *
+ * `null` ist erlaubt (Server kann ausdrücklich „nichts“ melden), `undefined`
+ * nicht: das ist immer ein Fehler im Aufrufpfad und wurde früher als „leere
+ * Liste“ angezeigt (die Spalte „Zu prüfen“ blieb leer, obwohl der Server zwei
+ * Vorschläge lieferte).
+ */
+export function mitAntwort(wert, methode = '') {
+    if (wert === undefined) {
+        const fehler = new Error(`Der Server hat für „${methode || 'den Aufruf'}“ keine Antwort geliefert.`)
+        fehler.name = 'LeereAntwort'
+        throw fehler
+    }
+    return wert
+}
+
 export async function apiGet(method, args = {}) {
     return mitSitzungsdialog(() => apiGetRoh(method, args))
 }
