@@ -43,6 +43,29 @@ Secrets
 Das Superuser-Token wird nur im Aufruf benutzt, nie protokolliert und nie in
 einer Antwort ausgegeben. Fehlermeldungen nennen höchstens Statuscode und
 einen Kurzgrund (``website/primo.py::_fehlertext``).
+
+Freigaben je Baustein (BS-2d1)
+------------------------------
+Welche Freigabe-Gruppen ein Baustein liest (G1: „Daten nur, wo es auch gewollt
+ist"), steht als ``"freigaben": [...]`` in seiner ``block.json`` — bei der
+Quelle, nicht in der Oberfläche. Die Namen sind die WIRKLICH angesprochenen
+Endpunkte:
+
+  ``termine``          → ``website.oeffentlich.termine`` /
+                         ``naechster_termin`` (gesperrt über die Kalender- und
+                         Kategorie-Freigabe, BS-1b/BS-1c)
+  ``kalender``         → ``website.oeffentlich.kalender`` (Auswahl + Abo)
+  ``gruppen``          → ``website.oeffentlich.gruppen`` / ``gruppe``
+  ``beitraege``        → ``website.oeffentlich.beitraege``
+  ``kontaktpostfaecher`` → ``website.oeffentlich.postfaecher`` +
+                         ``website.kontakt_senden``
+
+Eine leere Liste heißt: der Baustein fragt KEINE Freigabe-Daten ab. :data:`FREIGABEN` ist die Positivliste der bekannten Namen — ein
+Tippfehler in ``block.json`` bricht das Lesen, statt still eine unbekannte
+Freigabe auszuliefern. ``bausteine_status`` liefert die Liste je Baustein mit
+(``mitgeliefert[].freigaben``); die Oberfläche zeigt sie an, statt sie zu
+erfinden (BS-2d Nacharbeit Punkt 3).
+
 """
 
 from __future__ import annotations
@@ -73,6 +96,7 @@ __all__ = [
     "bibliothek_stand",
     "build_zip",
     "bausteine_lesen",
+    "freigaben_lesen",
     "kennung_pruefen",
     "mitgelieferte_version",
     "primo_blockname",
@@ -164,6 +188,56 @@ def mitgelieferte_version() -> int:
     return wert
 
 
+#: Positivliste der Freigabe-Gruppen, auf denen ein Baustein aufsetzen darf
+#: (BS-2d1). Je Name: was er öffentlich sichtbar macht.
+FREIGABE_TERMINE = "termine"
+FREIGABE_KALENDER = "kalender"
+FREIGABE_GRUPPEN = "gruppen"
+FREIGABE_BEITRAEGE = "beitraege"
+FREIGABE_KONTAKTPOSTFAECHER = "kontaktpostfaecher"
+
+FREIGABEN: tuple[str, ...] = (
+    FREIGABE_TERMINE,
+    FREIGABE_KALENDER,
+    FREIGABE_GRUPPEN,
+    FREIGABE_BEITRAEGE,
+    FREIGABE_KONTAKTPOSTFAECHER,
+)
+
+#: Schlüssel in ``block.json``, der die Freigaben eines Bausteins trägt.
+FELD_FREIGABEN = "freigaben"
+
+
+def freigaben_lesen(daten: Any, kennung: str) -> tuple[str, ...]:
+    """Die ``freigaben`` aus einer ``block.json`` prüfen.
+
+    Der Schlüssel ist PFLICHT (auch wenn die Liste leer ist) — sonst wäre
+    „hat keine Freigaben" nicht von „niemand hat es hingeschrieben" zu
+    unterscheiden. Jeder Name muss in :data:`FREIGABEN` stehen und darf nur
+    einmal vorkommen; ein Tippfehler bricht die Auslieferung, statt still
+    eine Freigabe zu verschweigen.
+    """
+    if not isinstance(daten, dict):
+        raise BausteinQuelleFehler(f"{kennung}: block.json ist kein Objekt.")
+    if FELD_FREIGABEN not in daten:
+        raise BausteinQuelleFehler(f"{kennung}: block.json nennt keine freigaben.")
+    roh = daten[FELD_FREIGABEN]
+    if not isinstance(roh, list):
+        raise BausteinQuelleFehler(f"{kennung}: freigaben ist keine Liste.")
+    ergebnis: list[str] = []
+    for wert in roh:
+        name = str(wert or "").strip()
+        if name not in FREIGABEN:
+            raise BausteinQuelleFehler(
+                f"{kennung}: unbekannte Freigabe {name!r} "
+                f"(erlaubt: {', '.join(FREIGABEN)})."
+            )
+        if name in ergebnis:
+            raise BausteinQuelleFehler(f"{kennung}: Freigabe {name} doppelt.")
+        ergebnis.append(name)
+    return tuple(ergebnis)
+
+
 @dataclass(frozen=True)
 class Baustein:
     """Ein mitgelieferter Baustein, vollständig aus den Quellen gelesen."""
@@ -175,6 +249,7 @@ class Baustein:
     quelle: str
     felder: tuple[dict[str, Any], ...]
     sha256: str
+    freigaben: tuple[str, ...] = ()
 
     @property
     def blockname(self) -> str:
@@ -186,6 +261,7 @@ class Baustein:
             "kennung": self.kennung,
             "name": self.name,
             "beschreibung": self.beschreibung,
+            "freigaben": list(self.freigaben),
             "sha256": self.sha256,
             "felder": [str(f.get("name")) for f in self.felder],
         }
@@ -292,6 +368,12 @@ def bausteine_lesen() -> tuple[Baustein, ...]:
                 beschreibung=str(block.get("beschreibung") or ""),
                 quelle=quelle,
                 felder=felder,
+                # Freigaben: welche öffentlichen Daten der Baustein liest
+                # (BS-2d1). Bewusst NICHT im sha256 — die Summe deckt Code
+                # und Feldschema (was in Primo ankommt); die Freigaben sind
+                # eine Angabe über die Datenquelle für die Oberfläche und
+                # ändern den Baustein selbst nicht.
+                freigaben=freigaben_lesen(block, kennung),
                 # Der Hash deckt Code UND Feldschema ab: eine Feldänderung ist
                 # für eingesetzte Kopien genauso eine Änderung wie ein Codefix.
                 sha256=hashlib.sha256(
@@ -556,7 +638,36 @@ class Stand:
             "revision": self.revision,
             "hinweis": self.hinweis,
             "bausteine": self.bausteine,
+            "mitgeliefert": _mitgelieferte_liste(),
         }
+
+
+def _mitgelieferte_liste() -> list[dict[str, Any]]:
+    """Die mitgelieferten Bausteine für die Oberfläche (BS-2d1).
+
+    ``[{kennung, name, beschreibung, freigaben, sha256, felder}, …]`` — auch
+    dann, wenn in Primo NOCH NICHTS davon liegt: vor dem ersten Einspielen ist
+    ``bausteine`` (der Primo-Stand) leer, und die Oberfläche soll trotzdem
+    zeigen, was Diakronos mitbringt.
+
+    Ein Fehler in den Quellen ist hier KEIN Fehler des Abrufs: die Antwort
+    bleibt, ``mitgeliefert`` ist dann leer und ``hinweis`` sagt warum (dieselbe
+    Regel wie beim nicht erreichbaren Primo: die Anzeige darf nie 500 ergeben).
+    """
+    try:
+        return [b.als_dict() for b in bausteine_lesen()]
+    except BausteinQuelleFehler as exc:
+        logger.info("Bausteine: mitgelieferte Liste nicht lesbar (%s).", type(exc).__name__)
+        return []
+
+
+def _hinweis_fuer_quellen() -> str:
+    """Klartext-Hinweis, wenn die Quellen der Bausteine unbrauchbar sind."""
+    try:
+        bausteine_lesen()
+    except BausteinQuelleFehler:
+        return "Die mitgelieferten Bausteine sind unvollständig."
+    return ""
 
 
 @dataclass
@@ -966,9 +1077,13 @@ def bibliothek_stand() -> Stand:
         mitgeliefert = mitgelieferte_version()
     except BausteinQuelleFehler:
         mitgeliefert = 0
+    quellen_hinweis = _hinweis_fuer_quellen()
 
     if not primo_adapter.settings.primo_konfiguriert:
-        return Stand(mitgeliefert=mitgeliefert, hinweis="Der Website-Baukasten ist nicht eingerichtet.")
+        return Stand(
+            mitgeliefert=mitgeliefert,
+            hinweis=quellen_hinweis or "Der Website-Baukasten ist nicht eingerichtet.",
+        )
 
     try:
         token = _superuser_token()
@@ -978,7 +1093,7 @@ def bibliothek_stand() -> Stand:
         logger.info("Bausteine: Stand nicht lesbar (%s).", type(exc).__name__)
         return Stand(
             mitgeliefert=mitgeliefert,
-            hinweis="Die Bibliothek ist derzeit nicht abrufbar.",
+            hinweis=quellen_hinweis or "Die Bibliothek ist derzeit nicht abrufbar.",
         )
 
     # Keine Zeile in der Bibliothek (oder nur fremde Gruppen): es ist NICHTS
@@ -1006,6 +1121,7 @@ def bibliothek_stand() -> Stand:
         installiert=hoechste,
         bausteine=sorted(eintraege, key=lambda e: (e["kennung"], e["version"])),
         revision=revision,
+        hinweis=quellen_hinweis,
     )
 
 

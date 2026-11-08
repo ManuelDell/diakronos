@@ -203,6 +203,15 @@
           </DkTable>
         </DkCard>
         </div>
+
+        <!-- ── BS-2d · Bausteine (Bibliothek für den Website-Baukasten) ── -->
+        <!-- Steht NEBEN den Freigaben: die Freigaben bestimmen, WAS öffentlich
+             ist, die Bausteine, WIE es auf der Website erscheint. Eigenes
+             Bauteil (`components/website/BausteineBereich.vue`), das seinen
+             Stand selbst lädt — ein Fehler dort kippt die Freigaben nicht. -->
+        <div data-wf-abschnitt="bausteine">
+          <BausteineBereich />
+        </div>
       </template>
 
       <DkHint v-else variant="info">
@@ -278,6 +287,12 @@
  *   U4 Postfächer      Tabelle anlegen/bearbeiten/löschen + Hinweis auf die
  *                      Adresse aus der Konfiguration.
  *   U5 Kurzanleitung   vier Sätze + „Primo öffnen“.
+ *   BS-2d Bausteine    Stand der Baustein-Bibliothek im Website-Baukasten,
+ *                      Liste mit Kurzbeschreibung und genutzten Freigaben,
+ *                      „einspielen/aktualisieren“ + Kurzanleitung. Eigenes
+ *                      Bauteil `components/website/BausteineBereich.vue`;
+ *                      die Liste kommt aus `website.bausteine_status`
+ *                      (nichts ist hier fest verdrahtet).
  *
  * Sichtbarkeit: nur System Manager, Administrator, Website-Moderator
  * (`darfFreigabenVerwalten`); der Server weist zusätzlich mit 403 ab.
@@ -329,6 +344,9 @@ import DkSkelett from '../components/ui/DkSkelett.vue'
 import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 import DkTable from '../components/ui/DkTable.vue'
 import FreigabeZeile from '../components/website/FreigabeZeile.vue'
+// BS-2d: eigener Bereich „Bausteine“ neben den Freigaben (lädt seinen Stand
+// selbst; die Logik liegt in `shared/website-bausteine.mjs`).
+import BausteineBereich from '../components/website/BausteineBereich.vue'
 
 // WEB-1b (D): Default 14400 s = 4 h. Die Oberfläche nennt die Dauer, weil sie
 // sich nicht verlängert.

@@ -2,5 +2,8 @@
   "kennung": "kalender-abo",
   "name": "Diakronos: Kalender-Abo",
   "index": 23,
-  "beschreibung": "Bietet einen freigegebenen Kalender aus Diakronos zum Abonnieren an: Abo-Link, Adresse zum Kopieren und eine kurze Anleitung für Handy, Outlook und Google Kalender."
+  "beschreibung": "Bietet einen freigegebenen Kalender aus Diakronos zum Abonnieren an: Abo-Link, Adresse zum Kopieren und eine kurze Anleitung für Handy, Outlook und Google Kalender.",
+  "freigaben": [
+    "kalender"
+  ]
 }

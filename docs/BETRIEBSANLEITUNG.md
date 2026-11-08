@@ -3089,3 +3089,37 @@ Wiederkehrende Fehlerbilder:
 | Baustein zeigt „nicht abrufbar" | Feld „Diakronos-Adresse" leer/falsch, oder CORS | Adresse absolut eintragen; `PRIMO_PUBLIC_URL` muss der Website-Herkunft entsprechen |
 | Baustein zeigt „keine Termine" | nichts freigegeben (Kalender/Terminart) | Abschnitt 18: Kalender freigeben, Termine im Status „Festgelegt" |
 | Doppelte Blöcke mit verschiedenen `@v` | Absicht: neue Version neben der alten | alte Fassung in Primo löschen, wenn nicht mehr gebraucht |
+
+### 19.9 Der Bereich „Bausteine" in Diakronos (BS-2d)
+
+Auf der Seite **Website** steht unter den Freigaben der Bereich **Bausteine**
+(nur für Systemmanager, Administratoren und Website-Moderatoren — dieselben
+Rollen wie oben, der Server weist andere mit 403 ab).
+
+Er zeigt:
+
+* **den Stand** der Bibliothek im Website-Baukasten als Kennzeichen:
+  *„Nicht abrufbar"* (Anbindung fehlt oder antwortet nicht),
+  *„Nichts mitgeliefert"* (Auslieferungsfehler),
+  *„Noch nicht eingespielt"*, *„Aktualisierung verfügbar"* oder *„Aktuell"* —
+  dazu die Zahlen „eingespielt: Fassung n · mitgeliefert: Fassung m";
+* **die Liste der Bausteine**, die im Website-Baukasten liegen — mit
+  Kurzbeschreibung und den Freigaben, auf denen der Baustein aufsetzt
+  (z. B. „Nutzt die Freigaben: Gruppen, Termine"). Die Liste kommt
+  ausschließlich aus `website.bausteine_status`; Diakronos kodiert hier
+  keinen Baustein fest. Eine Zeile ohne Eintrag heißt **„mitgeliefert"**,
+  also noch nicht eingespielt — sie gilt nie als installiert;
+* **einen Knopf** — „In Website-Baukasten einspielen" bzw. „… aktualisieren"
+  (POST `website.bausteine_installieren`, Abschnitt 19.2). Bei aktuellem
+  Stand gibt es **keinen** Knopf: es gäbe nichts zu tun. Nach dem Lauf steht
+  das Ergebnis als Klartext da („3 Bausteine (Fassung 6) im Website-Baukasten
+  eingespielt."), bei einem Fehler die generische Meldung des Servers;
+* **die Kurzanleitung**: im Website-Baukasten einen Block hinzufügen →
+  Bibliothek → Gruppe „Diakronos" → Baustein einsetzen → Felder anpassen;
+  Farben, Schriften und Abstände über die Site-Stile (`--dk-*`, Abschnitt
+  19.6). Eine im Einsatz geänderte Kopie bleibt bei einer Aktualisierung
+  unangetastet (Abschnitt 19.2).
+
+Der Bereich lädt seinen Stand selbst; ein Fehler dort lässt die Freigaben
+darüber stehen.
+

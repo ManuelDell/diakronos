@@ -2,5 +2,8 @@
   "kennung": "termine-liste",
   "name": "Diakronos: Nächste Termine",
   "index": 20,
-  "beschreibung": "Zeigt die freigegebenen Termine aus Diakronos. Kategorien, Gruppen und Kalender sind über Kennungen filterbar."
+  "beschreibung": "Zeigt die freigegebenen Termine aus Diakronos. Kategorien, Gruppen und Kalender sind über Kennungen filterbar.",
+  "freigaben": [
+    "termine"
+  ]
 }

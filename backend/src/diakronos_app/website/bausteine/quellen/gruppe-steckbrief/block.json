@@ -2,5 +2,9 @@
   "kennung": "gruppe-steckbrief",
   "name": "Diakronos: Gruppen-Steckbrief",
   "index": 31,
-  "beschreibung": "Steckbrief EINER freigegebenen Gruppe: Bild, Beschreibung, Treffzeit, Treffpunkt und die nächsten Termine. Die Gruppe wird über ihre Kennung (Slug) gewählt."
+  "beschreibung": "Steckbrief EINER freigegebenen Gruppe: Bild, Beschreibung, Treffzeit, Treffpunkt und die nächsten Termine. Die Gruppe wird über ihre Kennung (Slug) gewählt.",
+  "freigaben": [
+    "gruppen",
+    "termine"
+  ]
 }

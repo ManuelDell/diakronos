@@ -2,5 +2,8 @@
   "kennung": "kalender",
   "name": "Diakronos: Kalender",
   "index": 21,
-  "beschreibung": "Monats- oder Listenansicht der freigegebenen Termine aus Diakronos. Kalender, Kategorien und Gruppen sind über Kennungen filterbar; ein Klick zeigt die Einzelheiten."
+  "beschreibung": "Monats- oder Listenansicht der freigegebenen Termine aus Diakronos. Kalender, Kategorien und Gruppen sind über Kennungen filterbar; ein Klick zeigt die Einzelheiten.",
+  "freigaben": [
+    "termine"
+  ]
 }
