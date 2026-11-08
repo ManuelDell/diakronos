@@ -113,6 +113,53 @@ export function chipTitel(termin) {
   return `${titel} · ${datum} bis ${endeDatum}`
 }
 
+/**
+ * UX3i4 — Text eines Termin-BLOCKS im Zeitraster (Woche/Tag).
+ *
+ * Im Zeitraster ist die Höhe die DAUER; der Block steht über so vielen Zeilen,
+ * wie die Dauer hergibt. Die Beschriftung braucht dort zwei Stücke, weil in
+ * einer schmalen Tagesspalte (~130 px) „Titel 10:00“ sonst schon nach wenigen
+ * Zeichen abgeschnitten wäre — und der TITEL ist die wichtigere Information
+ * (UX3i3/Befund 4: die Uhrzeit darf den Titel nicht verdrängen).
+ *
+ *   Titel  → ohne Uhrzeit, volle Breite der Zeile 1
+ *   Zeit   → „10:00–11:30“ in Zeile 2, nur wenn der Termin an DIESEM Tag eine
+ *            echte Uhrzeit hat (dieselben Regeln wie `chipText`: ganztägig,
+ *            mehrtägig und 00:00–00:00 tragen keine Uhrzeit; ein Folgetag
+ *            eines mehrtägigen Termins zeigt keinen falschen Startpunkt).
+ *
+ * @param {{ title?: string, start?: any, end?: any, allDay?: boolean }} termin
+ * @param {{ tag?: string }} [optionen] — `tag` (`YYYY-MM-DD`) der Spalte
+ * @returns {{ titel: string, zeit: string }}
+ */
+export function zeitBlockText(termin, optionen = {}) {
+  const t = termin || {}
+  const titel = String(t.title || '').trim()
+  const start = alsDatum(t.start)
+  if (!start) return { titel, zeit: '' }
+  if (t.allDay) return { titel, zeit: '' }
+
+  const ende = alsDatum(t.end)
+  const mehrtag = ende ? start.toDateString() !== ende.toDateString() : false
+  if (mehrtag) return { titel, zeit: '' }
+  if (start.getHours() === 0 && start.getMinutes() === 0 && ende
+      && ende.getHours() === 0 && ende.getMinutes() === 0) {
+    return { titel, zeit: '' }
+  }
+  if (optionen.tag) {
+    const zelle = String(optionen.tag).slice(0, 10)
+    const eigenerTag = `${start.getFullYear()}-${ZWEI(start.getMonth() + 1)}-${ZWEI(start.getDate())}`
+    if (zelle && zelle !== eigenerTag) return { titel, zeit: '' }
+  }
+
+  const beginn = uhrzeit(start)
+  if (!beginn) return { titel, zeit: '' }
+  const schluss = ende ? uhrzeit(ende) : ''
+  // Gleiche Uhrzeit = Dauer 0 bzw. Ende fehlt: dann nur der Start.
+  const zeit = schluss && schluss !== beginn ? `${beginn}–${schluss}` : beginn
+  return { titel: titel || zeit, zeit: titel ? zeit : '' }
+}
+
 /** Kein Code-Ausführungsrisiko in `style="…"` — nur echte Farbwerte. */
 function sichereCssFarbe(wert) {
   const s = String(wert || '').trim()

@@ -269,8 +269,11 @@ test('NACHTRAG 2: `ec-chip-event` wird in JEDER Ansicht vergeben', () => {
   const i = quelle.indexOf('eventClassNames:')
   assert.ok(i > 0, 'eventClassNames fehlt')
   const block = quelle.slice(i, quelle.indexOf('eventContent:', i))
-  assert.match(block, /const classes = \['ec-chip-event'\]/,
-    'ohne die Klasse greifen die Chip-Regeln in Woche/Liste/Mobil nicht (dicker Farbring)')
+  // UX3i4 (08.11.): NICHT mehr überall — im Zeitraster (Woche/Tag) ist der
+  // Termin ein Block über seine Dauer, die Chip-Optik gilt in Monat/Liste.
+  // Die Entscheidung hängt an `istZeitrasterAnsicht()` (eine Stelle).
+  assert.match(block, /if \(!istZeitraster\) classes\.push\('ec-chip-event'\)/,
+    'die Chip-Klasse wird für Monat/Liste vergeben, im Zeitraster nicht')
   // Der Punkt-Stil des Monats ist eine ZUSATZ-Klasse, kein Ersatz.
   assert.match(block, /classes\.push\('ec-event-dot-style'\)/,
     'der Monats-Punkt bleibt eine zusätzliche Klasse')
@@ -282,7 +285,13 @@ test('NACHTRAG 4: der tote `:has()`-Block ist entfernt, das Band in der Woche be
   // nicht umkommentiert — außerhalb von Kommentaren darf `:has(` nicht mehr
   // als Selektor auftauchen.
   const code = css.replace(/\/\*[\s\S]*?\*\//g, '')
-  assert.doesNotMatch(code, /:has\(/, 'der wirkungslose `:has()`-Selektor ist zu entfernen')
+  // UX3i4 (08.11.): `:has()` ist grundsätzlich wieder erlaubt — aber NUR auf
+  // sein EIGENES KIND (`:not(:has(article))`, Ganztags-Zeile, Befund 3).
+  // Verboten bleibt die Form, die damals wirkungslos war: `:has()` auf der
+  // eigenen Klasse (`:has(.ec-month-view)` an einem Knoten, der sie selbst
+  // trägt) — sie lieferte in Chromium 0 Treffer.
+  assert.doesNotMatch(code, /:has\(\s*\.ec-(month|list|time)-view\s*\)/,
+    'ein `:has()` auf der eigenen Klasse greift nicht (im Browser geprüft)')
   // Der Kopf von Woche/Liste malt die Seitenfarbe — hier steht die Karte.
   assert.match(css, /\.ec-list\s+\.ec-header[\s\S]{0,200}background-color:\s*var\(--surface\)/,
     'das graue Band über der Woche/Liste kommt aus dem Bibliotheks-Kopf')

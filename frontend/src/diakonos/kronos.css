@@ -1395,11 +1395,52 @@ html[data-theme] .ec,
    1-rem-Titel (Bibliotheks-CSS). Der Chip bringt seine eigene Form mit; nur
    die Klickfläche wächst auf die Mindesthöhe — `--control-h` ist der
    Konzeptwert (40 px, bei `pointer: coarse` 44 px, gesetzt in `tokens.css`). */
+/* UX3i4 (Befund 2, 08.11.): In der Liste stand links an jedem Chip ein
+   farbiger BALKEN. Er kommt nicht von einer eigenen Regel, sondern von der
+   Fläche, die die Bibliothek der Zeile gibt (`.ec-list .ec-event`:
+   `background-color: var(--ec-day-bg-color)` auf voller Breite) — der Chip
+   darin beginnt eingerückt, der Rest der Zeile blieb eingefärbt. Prinzip
+   „getönte Fläche statt Balken“: die ZEILE trägt keine eigene Fläche mehr,
+   die Einfärbung allein steckt im Chip. Zusätzlich wird die Breite der
+   Hülle auf ihren Inhalt begrenzt (`inline-size: fit-content`), damit rechts
+   keine eingefärbte Fläche über die Textbreite hinaussteht — die KLICKFLÄCHE
+   bleibt dabei mindestens `--control-h` hoch (Zeile darunter). */
 .ec-list .ec-chip {
   min-height: var(--control-h);
   display: flex;
   align-items: center;
   padding: 0 var(--sp-2);
+  inline-size: fit-content;
+  max-inline-size: 100%;
+}
+/* `.ec-day` der Liste trägt denselben Hintergrund wie die Zeile
+   (`--ec-day-bg-color`) — er ist in der Liste keine Tagesfläche, sondern nur
+   die Hülle. Ohne Rücknahme entstünde derselbe Balken eine Ebene höher. */
+.ec-list .ec-day,
+.ec-list .ec-day.ec-today {
+  --ec-day-bg-color: transparent;
+}
+/* UX3i4 (Befund 2, Nachmessung im Browser): Der sichtbare BALKEN links ist
+   das EIGENE Element der Bibliothek — `span.ec-event-tag` (4 px breit, volle
+   Kachelfarbe, in jeder Zeile) —, nicht die Zeilenfläche. Er stand schon vor
+   UX3i3 da (die Zeile war damals selbst voll eingefärbt, der Balken fiel nicht
+   auf); seit der Chip auf Inhaltsbreite steht, ist er der letzte Rest
+   „Farbbalken“. Gemessen: `{breite: 4, flaeche: rgb(16,185,129)}`.
+   Prinzip „getönte Fläche statt Balken“ (Ä2): in der LISTE entfällt der
+   Streifen — die Farbe des Termins trägt allein die Chipfläche aus
+   `chipStil`. Nur die Liste ist betroffen; Monat und Zeitraster sind
+   unberührt (Monat nutzt den Punkt `ec-dot`, das Zeitraster den Block).
+   `display: none` und nicht `width: 0`: das Element ist reine Dekoration und
+   trägt keinen Text (der volle Titel steht im `title`/`aria-label`). */
+.ec-list article.ec-event .ec-event-tag {
+  display: none;
+}
+/* Die Zeilenfläche ist ohnehin transparent (Regel oben) — hier nur die
+   Deklaration der Kachel-Variable, damit kein zweiter Weg entsteht, falls die
+   Bibliothek die Zeile künftig anders färbt als heute. */
+.ec-list article.ec-event.ec-chip-event {
+  --ec-event-bg-color: transparent;
+  border-radius: 0;
 }
 .ec-list .ec-event.ec-chip-event { margin-block-end: var(--sp-1); }
 .ec-chip:focus-visible {
@@ -1413,6 +1454,77 @@ html[data-theme] .ec,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ============================================================
+   UX3i4 — Termin-BLOCK im Zeitraster (Woche/Tag)
+   ============================================================
+   Befund (Manuel, live 08.11.): Seit UX3i3 trug JEDER Termin die Chip-Klasse.
+   Im Zeitraster setzt die Bibliothek die Kachelfläche als INLINE-Stil
+   (`background-color`) und die Höhe aus der DAUER (`block-size`); die
+   Chip-Regel nahm mit `!important` die Fläche zurück, `padding: 0` und eine
+   Textzeile ließen nur eine ~16 px hohe Pille an der Startzeit stehen — der
+   Termin war nicht mehr als Zeitraum ablesbar.
+   Jetzt gilt: Zeitraster = BLOCK über die Dauer, Chip (Pille) nur in
+   Monat/Liste. Die Klasse `ec-chip-event` wird dort gar nicht mehr vergeben
+   (`istZeitrasterAnsicht()` in `KronosCalendar.vue`), deshalb genügt hier
+   EINE Regelgruppe für den Block — keine Rücknahme der Chip-Regeln nötig.
+
+   Fläche und Schrift kommen aus `chipStil` (= dieselbe 22-%-Token-Mischung
+   und dieselbe Kontrastrechnung wie im Monat) — hier stehen deshalb KEINE
+   Farben, nur Form (Prinzip Ä4: Farbe nie alleiniger Träger, Dark Mode über
+   Variablen). Die HÖHE setzt weiterhin die Bibliothek (Inline-Stil aus der
+   Dauer); der Block füllt sie nur aus. */
+.ec-time-grid .ec-event {
+  /* Die Bibliothek gibt `.ec-event` 2 px Innenabstand und Flex-Zeile; der
+     Block bringt seinen eigenen Aufbau mit. */
+  padding: 0;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  /* Kein eigener Rahmen: getönte Fläche + sanfter Schatten (Prinzip Ä2). */
+  border: 0;
+  overflow: hidden;
+}
+.ec-block {
+  display: flex;
+  flex-direction: column;
+  /* Titel und Uhrzeit stehen OBEN im Block — der Rest der Fläche bleibt
+     getönt, damit die Dauer ablesbar ist (Befund: „Titel + Uhrzeit oben“). */
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 0;
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: 100%;
+  padding: var(--sp-1) var(--sp-2);
+  background: var(--chip-flaeche, color-mix(in srgb, var(--primary) 22%, var(--surface)));
+  color: var(--chip-ink, var(--text));
+  font-size: var(--fs-12);
+  line-height: 1.35;
+  overflow: hidden;
+  cursor: pointer;
+}
+.ec-block-titel {
+  display: block;
+  inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--fw-mittel);
+}
+.ec-block-zeit {
+  display: block;
+  inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Kleinste Schrift der Skala; die Zeile bleibt Teil desselben Blocks. */
+  font-size: var(--fs-12);
+  opacity: 0.9;
+}
+.ec-block:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 /* „+n weitere“ (A4): eine ruhige Zeile unter den Chips, kein zweiter Termin.
    Sie ist per `moreLinkDidMount` ein Knopf geworden (Tastatur, kein `#`). */
@@ -1450,6 +1562,33 @@ html[data-theme] .ec,
 .ec-month-view .ec-day-foot a[role="button"]:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
+}
+
+/* UX3i4 (Befund 3, 08.11.): Die Ganztags-Zeile (`AllDayRow` -> `.ec-all-day`)
+   steht im Zeitraster unter dem Wochentags-Kopf. Sie hat eine Mindesthöhe aus
+   dem Bibliothekswert (`.ec-all-day { min-block-size: var(--ec-slot-height) }`,
+   ⁠≈ 24 px) — eine LEERE Zeile war damit ein leerer Streifen über jeder
+   Woche.
+   Die Zeile entfällt, wenn weder ein Ganztagstermin noch ein Legenden-Band
+   darin liegt: `:not(:has(...))` prüft GENAU DAS im DOM (kein Skript, kein
+   zusätzlicher Zustand, der auseinanderlaufen könnte).
+   Die Bedingung ist bewusst weit gefasst: Termine, die die Bibliothek in die
+   Zeile legt, tragen `article.ec-event`; Legenden-Bänder `ec-bg-event`. So
+   bleibt die Zeile in dem Moment stehen, in dem ein Ganztagstermin erscheint
+   — und verschwindet mit ihm wieder.
+   Ersatz für Browser ohne `:has()` ist die Mindesthöhe: dort bleibt die Zeile
+   schmal statt ganz weg (immer noch besser als ein leerer 24-px-Block).
+   Der Test `ux3i4-woche-block-liste.test.mjs` hält ausdrücklich fest, dass
+   `:has()` hier ein NACHTEILIGER Selektor ist (der UX3i3-Test verbot `:has(`
+   als wirkungslosen Versuch am Container — dort griff es nicht; hier prüft es
+   ein KIND des Elements und ist erwiesen wirksam). */
+.ec-time-grid .ec-all-day:not(:has(article)),
+.ec-time-grid .ec-all-day:not(:has(.ec-bg-event)) {
+  min-block-size: 0;
+  block-size: auto;
+}
+.ec-time-grid .ec-all-day:not(:has(article)):not(:has(.ec-bg-event)) {
+  display: none;
 }
 
 /* Resource Timeline */

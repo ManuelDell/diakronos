@@ -24,7 +24,7 @@ import { zuordnen } from './terminAktionen.mjs'
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js'
 // UX3i (Entwurf A4): Text, Kontrast und Zählung der Termin-Chips als reine
 // Funktionen — ausführbar geprüft in `tests/ux3i-kalender-a4.test.mjs`.
-import { chipText, chipTitel, chipStil } from './chipText.mjs'
+import { chipText, chipTitel, chipStil, zeitBlockText } from './chipText.mjs'
 // A4 (Review 07.11. Punkt 10): EINE Layout-Grenze des Kalenders (720 px).
 import { istHandyBreite, istEngeBreite } from './breiten.mjs'
 
@@ -69,6 +69,24 @@ function istListenAnsicht() {
   return String(ansicht).startsWith('list')
 }
 
+/**
+ * UX3i4 — Ist die laufende Ansicht ein ZEITRASTER (Woche/Tag)?
+ *
+ * Im Zeitraster ist die Höhe eines Termins seine DAUER (die Bibliothek setzt
+ * `block-size` als Inline-Stil). Deshalb gilt dort die Block-Optik; Monat und
+ * Liste tragen den Chip (Pille). Die Prüfung liegt an EINER Stelle, weil sie
+ * an zwei Stellen gebraucht wird (`eventClassNames` UND `eventContent`) —
+ * zwei getrennte Prüfungen könnten auseinanderlaufen (Prinzip S4).
+ *
+ * `resourceTimelineWeek` ist KEIN Zeitraster im hier gemeinten Sinn: die
+ * Zeitleiste stapelt Termine je Ressource und ist ohne Dauer-Spalte; sie
+ * bleibt beim Chip (wie im Monat).
+ */
+function istZeitrasterAnsicht() {
+  const ansicht = String(calendar.value?.getOption('view') || '')
+  return ansicht === 'timeGridWeek' || ansicht === 'timeGridDay'
+}
+
 /** Der Rahmen (Vue-App) eines Halters — er hängt am Inhalt darunter. */
 function rahmenVon(el) {
   return el?.querySelector?.('.kronos-liste-aktionen-halter-inhalt')?.__kronosRahmen || null
@@ -98,6 +116,10 @@ function abgleichPlanen() {
       rahmenAbbauen(el)
       KNOEPFE.delete(kennung)
     }
+    // UX3i4: Die Listenzeile bekommt ihre Kennzeichnung, BEVOR die „⋯“-Halter
+    // gesetzt werden — die CSS-Regeln (Zeile und Halter nebeneinander) hängen
+    // daran.
+    zeilenHerrichten()
     // Der Abgleich hat die Zuordnung gerade festgelegt: alle übrigen
     // Halter im Kalender (doppelte/Waisen) werden abgebaut. Erst bauen, dann
     // weg — sonst stünde ein Knopf ohne Rahmen im Baum.
@@ -112,6 +134,32 @@ function abgleichPlanen() {
       KNOEPFE.delete(kennung)
     }
   })
+}
+
+/**
+ * UX3i4 — Das „⋯“ auf DIESELBE Zeile wie sein Chip bringen (nur Liste).
+ *
+ * Der Halter ist ein Geschwister der Bibliothekszeile im `.ec-day`-Container;
+ * zwei Blöcke untereinander ergaben je Termin eine zusätzliche 40-px-Zeile
+ * (Befund 2). Hier wird er auf `inline-flex` gestellt und die Zeile selbst
+ * auf Inhaltsbreite begrenzt — beide stehen dann nebeneinander. Die
+ * CSS-Regeln dazu hängen an `data-aktionen-zeile` (scoped CSS kann das DOM der
+ * Bibliothek nicht anders erreichen).
+ *
+ * Idempotent und ohne Maße: die Kennzeichnung wird NUR gesetzt, wenn sie
+ * fehlt (kein Schreibzugriff bei jedem Abgleich), und wieder entfernt, sobald
+ * die Ansicht keine Liste mehr ist.
+ */
+function zeilenHerrichten() {
+  if (!calendarEl.value) return
+  const liste = istListenAnsicht()
+  for (const zeile of Array.from(calendarEl.value.querySelectorAll('article.ec-event[data-aktionen-zeile]'))) {
+    if (!liste || !zeile.closest('.ec-list')) zeile.removeAttribute('data-aktionen-zeile')
+  }
+  if (!liste) return
+  for (const zeile of Array.from(calendarEl.value.querySelectorAll('.ec-list article.ec-event'))) {
+    if (!zeile.hasAttribute('data-aktionen-zeile')) zeile.setAttribute('data-aktionen-zeile', '')
+  }
 }
 
 /** Meldung des Abgleichs: dieser Halter wird nicht behalten — Rahmen weg. */
@@ -650,11 +698,16 @@ onMounted(() => {
         const isMultiDay = !info.event.allDay && info.event.end &&
           new Date(info.event.start).toDateString() !== new Date(info.event.end).toDateString()
         const useDot = !info.event.allDay && isMonthView && !isMobile && !isMultiDay
-        // UX3i3 (Nacharbeit 2): `ec-chip-event` IMMER — daran hängen die
-        // Chip-Regeln in `kronos.css` (getönte Fläche statt satter Kachel).
-        // Vorher wurde die Klasse nur im Monat gesetzt: Woche und Liste trugen
-        // die Kachelfarbe der Bibliothek, am Handy zusätzlich den Farbring.
-        const classes = ['ec-chip-event']
+        // UX3i4 (Befund 08.11.): Die Chip-Klasse hängt an der ANSICHT, nicht am
+        // Termin. Im ZEITRASTER (Woche/Tag) ist der Termin ein Block über seine
+        // DAUER — die Bibliothek setzt Höhe und Lage dort als Inline-Stil; die
+        // Chip-Optik (`ec-chip-event`, Pille) darf die Fläche nicht aufheben,
+        // sonst schrumpft der Termin auf eine Pille an der Startzeit.
+        // UX3i3 hatte die Klasse „überall“ vergeben — das war die Ursache des
+        // Live-Befunds. Chip-Optik gilt jetzt in Monat und Liste (Tag = Zeitraster).
+        const istZeitraster = istZeitrasterAnsicht()
+        const classes = []
+        if (!istZeitraster) classes.push('ec-chip-event')
         if (useDot) classes.push('ec-event-dot-style')
         if (_highlightEventId.value && info.event.id === _highlightEventId.value)
           classes.push('kronos-event-highlight')
@@ -697,13 +750,34 @@ onMounted(() => {
           ? `${event.start.getFullYear()}-${String(event.start.getMonth() + 1).padStart(2, '0')}-${String(event.start.getDate()).padStart(2, '0')}`
           : ''
         const chipDaten = { title: event.title, start: event.start, end: event.end, allDay: event.allDay }
-        const text = chipText(chipDaten, { tag })
         const titel = chipTitel(chipDaten)
         const dunkel = typeof document !== 'undefined'
           && document.documentElement.getAttribute('data-theme') === 'dark'
         // Fläche UND Schrift (beide Variablen), gerechnet gegen die echte
         // Fläche — siehe `chipFarben`.
         const stil = chipStil(sichereFarbe(event.backgroundColor), { theme: dunkel ? 'dunkel' : 'hell' })
+
+        // UX3i4 (Befund 1, 08.11.): Im ZEITRASTER (Woche/Tag) ist der Termin
+        // ein BLOCK über seine Dauer. Seit UX3i3 lag dort derselbe Chip wie im
+        // Monat — der Termin schrumpfte auf eine ~16 px hohe Pille an der
+        // Startzeit, weil die Chip-Regel den Innenabstand auf 0 nahm und der
+        // Inhalt nur eine Zeile war. Hier steht deshalb ein eigener Block:
+        // Titel ZEILE 1, Uhrzeit ZEILE 2, oben ausgerichtet; Fläche und Schrift
+        // kommen aus derselben Rechnung wie der Chip (`chipStil`).
+        // Die Höhe gibt die Bibliothek als Inline-Stil vor (`block-size` aus
+        // der Dauer) — der Block FÜLLT sie (`height: 100%`), er setzt sie nicht.
+        if (istZeitrasterAnsicht()) {
+          const zeilen = zeitBlockText(chipDaten, { tag })
+          return { html:
+            '<div class="ec-block" role="button" tabindex="0" title="' + safe(titel) +
+            '" aria-label="' + safe(titel) + '"' + datenAttr + ' style="' + stil + '">' +
+            '<span class="ec-block-titel">' + safe(zeilen.titel) + '</span>' +
+            (zeilen.zeit ? '<span class="ec-block-zeit">' + safe(zeilen.zeit) + '</span>' : '') +
+            '</div>'
+          }
+        }
+
+        const text = chipText(chipDaten, { tag })
         // Der Datensatz reist am Chip mit (UX2e5: Klick und „⋯“-Menü finden
         // den Termin in jeder Ansicht).
         return { html:
@@ -910,6 +984,14 @@ function neuZuordnen() {
 </template>
 
 <style scoped>
+/* Review UX3i4 (08.11.): je Termin samt „⋯“ eine eigene Zeile in der Liste —
+   inline-flex stellte zwei Termine eines Tages nebeneinander. */
+:deep(.ec-list .ec-day:has(> [data-aktionen-zeile])) {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) var(--control-h);
+  justify-content: start;
+  column-gap: var(--sp-1);
+}
 /* UX2e5 — „⋯" je Termin in der Terminliste.
    Die Zeilen der Bibliothek sind Geschwister im Tages-Container (keine
    gemeinsame Hülle); der Halter ist das nächste Geschwister SEINER Zeile,
@@ -930,7 +1012,25 @@ function neuZuordnen() {
 :deep(.kronos-liste-aktionen-halter-inhalt) {
   display: block;
 }
+/* UX3i4 (Befund 2, 08.11.): Das „⋯“ stand in der LISTE als eigener Knoten
+   UNTER dem Chip (der Halter ist ein Geschwister der Bibliothekszeile) — je
+   Termin eine zusätzliche 40-px-Zeile. Jetzt liegt es auf DERSELBEN Zeile
+   rechts neben dem Chip: die Zeile (article) und ihr Halter teilen sich einen
+   Flex-Container (`.ec-day`). Die Kennzeichnung `data-aktionen-zeile` setzt
+   `zeilenHerrichten()` (Skript) — nur so bleibt die Regel auf die Listenzeilen
+   beschränkt; das Monatsraster behält seine Punkte-Zeilen. */
+:deep(.ec-list .ec-day > article.ec-event[data-aktionen-zeile]) {
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: calc(100% - var(--control-h));
+}
 /* Nur in der Liste: das Monatsraster behält seine Punkte-Zeilen. */
+:deep(.ec-list .kronos-liste-aktionen-halter) {
+  display: inline-flex;
+  vertical-align: top;
+  margin: 0;
+  padding: 0;
+}
 :deep(.ec-list .kronos-liste-aktionen-halter .dk-ui-aktionen-ausloeser) {
   display: flex;
   width: var(--control-h);

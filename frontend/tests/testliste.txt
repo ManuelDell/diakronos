@@ -261,3 +261,8 @@ tests/bs2b-*.test.mjs
 # Neuigkeiten, Anmeldung) gegen die öffentliche Lese-API aus BS-1b.
 tests/bs2c-*.test.mjs
 tests/bs2c2-*.test.mjs
+
+# UX3i4: Woche/Zeitraster — Termine so hoch wie ihre Dauer (Block statt Pille),
+# Liste ohne Farbbalken und mit dem „⋯“ auf derselben Zeile, leere
+# Ganztags-Zeile nur bei Inhalt.
+tests/ux3i4-*.test.mjs
