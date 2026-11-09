@@ -284,6 +284,10 @@ tests/ux3i5-*.test.mjs
 # PR-G1: Stammdaten — nach Geschlecht filtern und sortieren (Filter, Spalte,
 # Hinweis, Massenauswahl).
 tests/pr-g1-*.test.mjs
+# PR-G2 (Review PR-G1): Massenauswahl am ECHTEN Mount von Stammdaten.vue
+# (jsdom + @vue/compiler-sfc) — Zähler/Knopf zeigen die sichtbare Auswahl,
+# Filterwechsel beschneidet sie, angewendet wird nur Sichtbares.
+tests/pr-g2-*.test.mjs
 # PR-G1 (Review): Route/Lebenszyklus der Stammdatenseite lädt das echte
 # script-setup; der mehrzeilige import in Stammdaten.vue brach den Lauf.
 tests/planrahmen-route-lifecycle.test.mjs
