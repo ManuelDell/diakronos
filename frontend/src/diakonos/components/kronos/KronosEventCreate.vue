@@ -31,8 +31,15 @@
           <div class="tab-content">
             <!-- UXK-R10: Kalenderauswahl ist leer, wenn der Nutzer nirgends
                  schreiben darf. Statt einer falschen Pflichtfeld-Meldung wird
-                 der Grund verstaendlich benannt. -->
-            <DkHint v-if="!calendars.length" variant="warn">
+                 der Grund verstaendlich benannt. DEV-B1: Konnten die Kalender
+                 gar nicht geladen werden, steht hier der LADE-Fehler — nicht
+                 die Behauptung „kein Schreibrecht“. -->
+            <DkHint v-if="kalenderFehler" variant="warn" data-dev-b1="kalender-fehler">
+              Die Kalenderliste konnte nicht geladen werden, deshalb ist offen,
+              ob du Termine anlegen darfst. Bitte schließe den Dialog und
+              versuche es erneut.
+            </DkHint>
+            <DkHint v-else-if="!calendars.length" variant="warn" data-dev-b1="kein-schreibrecht">
               Du kannst derzeit keine Termine anlegen: Für dich ist kein
               Kalender mit Schreibrecht freigegeben. Bitte wende dich an die
               Gemeindeleitung.
@@ -233,6 +240,9 @@ const saving = ref(false)
 const conflictDialog = ref(null)
 
 const calendars = ref([])
+// DEV-B1: Kalender konnten nicht geladen werden (Schreibrecht also UNBEKANNT
+// — nicht „kein Schreibrecht“). Text erscheint als Hinweis im Dialog.
+const kalenderFehler = ref('')
 const categories = ref([])
 const ressources = ref([]) // {types: [...], resources: [{id, title, typ, ...}]}
 const kronosSettings = ref({})
@@ -388,9 +398,14 @@ function onBackdropClick() {
 async function loadData() {
   try {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || ''
-    const [calRes, catRes, resRes, settingsRes, sessRes] = await Promise.all([
+    // DEV-B1: `Promise.allSettled` statt `Promise.all` — EIN gescheiterter
+    // Nebenzweig (Kategorien, Ressourcen, Einstellungen) hat bisher die
+    // Kalenderliste mitgerissen, und der Dialog behauptete dann faelschlich
+    // „kein Schreibrecht“. Jetzt entscheidet allein `get_writable_calendars`
+    // ueber das Schreibrecht; ein Fehler dort wird als Lade-Fehler benannt.
+    const [calRes, catRes, resRes, settingsRes, sessRes] = await Promise.allSettled([
       fetch(apiUrl('diakronos.kronos.api.permissions.get_writable_calendars'), { credentials: 'same-origin' }).then(apiAntwortPruefen),
-      fetch(ressourceUrl('Eventkategorie?fields=[\\"name\\",\\"event_category_name\\"]&limit_page_length=500'), { credentials: 'same-origin' }).then(apiAntwortPruefen),
+      fetch(ressourceUrl('Eventkategorie?fields=' + encodeURIComponent('["name","event_category_name"]') + '&limit_page_length=500'), { credentials: 'same-origin' }).then(apiAntwortPruefen),
       fetch(apiUrl('diakronos.kronos.api.ressource_api.get_ressources'), {
         method: 'POST',
         credentials: 'same-origin',
@@ -403,21 +418,39 @@ async function loadData() {
         headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf },
         body: JSON.stringify({})
       }).then(apiAntwortPruefen),
-      fetch(apiUrl('diakronos.kronos.api.permissions.get_session_info'), { credentials: 'same-origin' }).then(apiAntwortPruefen).catch(() => ({}))
+      fetch(apiUrl('diakronos.kronos.api.permissions.get_session_info'), { credentials: 'same-origin' }).then(apiAntwortPruefen)
     ])
 
-    calendars.value = calRes.message || []
-    categories.value = catRes.data || []
-    ressources.value = resRes.message || {}
-    kronosSettings.value = settingsRes.message || {}
+    if (calRes.status === 'fulfilled') {
+      calendars.value = calRes.value?.message || []
+      kalenderFehler.value = ''
+    } else {
+      // Schreibrecht UNBEKANNT ist nicht dasselbe wie „kein Schreibrecht“.
+      calendars.value = []
+      kalenderFehler.value = fehlerText(calRes.reason, 'Die Kalender konnten nicht geladen werden.')
+      console.error('Kalender konnten nicht geladen werden:', calRes.reason)
+    }
+    categories.value = catRes.status === 'fulfilled' ? (catRes.value?.data || []) : []
+    ressources.value = resRes.status === 'fulfilled' ? (resRes.value?.message || {}) : {}
+    kronosSettings.value = settingsRes.status === 'fulfilled' ? (settingsRes.value?.message || {}) : {}
     // OP-EVENT-10: Nur Ressourcenmoderatoren duerfen den Status-Chip klicken.
-    const rollen = sessRes?.message?.roles || []
+    const rollen = (sessRes.status === 'fulfilled' ? sessRes.value?.message?.roles : null) || []
     istRessourcenmoderator.value = rollen.includes('Ressourcenmoderator')
       || rollen.includes('Mitgliederadministrator')
       || rollen.includes('System Manager')
+    // Jeder aufgegebene Zweig wird benannt (kein stiller Ausfall).
+    for (const [name, r] of [['Kategorien', catRes], ['Ressourcen', resRes], ['Einstellungen', settingsRes]]) {
+      if (r.status === 'rejected') console.warn(`${name} konnten nicht geladen werden:`, r.reason)
+    }
   } catch (err) {
     console.error('Fehler beim Laden der Daten:', err)
   }
+}
+
+/** Kurzer, lesbarer Text aus einem abgelehnten Lade-Versuch. */
+function fehlerText(grund, ersatz) {
+  const text = String(grund?.message || grund?.fehler || '').trim()
+  return text && text.length <= 160 ? text : ersatz
 }
 
 async function checkConflict() {
@@ -484,6 +517,12 @@ function pruefeTerminZeit() {
 }
 
 async function save() {
+  // DEV-B1: „unbekannt“ ist kein „kein Schreibrecht“ — der Lade-Fehler bekommt
+  // seinen eigenen Satz, statt die Rechte-Lage zu behaupten.
+  if (kalenderFehler.value) {
+    showToast('Die Kalenderliste konnte nicht geladen werden. Bitte schließe den Dialog und versuche es erneut.', 'error')
+    return
+  }
   if (!calendars.value.length) {
     showToast('Du hast auf keinen Kalender Schreibrecht. Termine kann die Gemeindeleitung für dich anlegen.', 'error')
     return

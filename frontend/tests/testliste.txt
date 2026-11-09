@@ -294,3 +294,8 @@ tests/planrahmen-route-lifecycle.test.mjs
 
 # AUFR-1: Wächter — keine *-UEBERGABE.md in der Repo-Wurzel, Abnahme-Doku nur
 # unter docs/abnahmen/ und im Export ausgeschlossen (Regel 17).
+
+# DEV-B1: Kalender/Termin-Dialoge — keine Backslashes in der fields-Adresse,
+# Laden über Promise.allSettled, Mount-Test mit Schreibrecht (Befund
+# DMB-da438eb70703 + DMB-734e07deb09b).
+tests/dev-b1-*.test.mjs

@@ -134,7 +134,10 @@ test('UXK-R10: Topbar bietet ohne Schreibrecht keinen Schreibweg, sondern „Nur
 })
 
 test('UXK-R10: Create-Dialog nennt den Grund statt falscher Pflichtfeldmeldung', () => {
-  assert.match(CREATE, /DkHint v-if="!calendars\.length"/)
+  // DEV-B1: Seit dem Befund „meldet faelschlich kein Schreibrecht“ gibt es ZWEI
+  // getrennte Hinweise — der Rechte-Hinweis haengt weiter an einer LEEREN
+  // Kalenderliste (`v-else-if`, weil davor der Lade-Fehler steht).
+  assert.match(CREATE, /DkHint v-else-if="!calendars\.length"/)
   assert.match(CREATE, /kein\s+Kalender mit Schreibrecht/)
 })
 
