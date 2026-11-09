@@ -4,6 +4,7 @@
       type="checkbox"
       :checked="!!modelValue"
       :disabled="disabled"
+      :aria-describedby="ariaDescribedby || undefined"
       @change="$emit('update:modelValue', $event.target.checked)"
     />
     <span v-if="label || $slots.default" class="dk-ui-checkbox-label">
@@ -22,6 +23,12 @@ defineProps({
   modelValue: Boolean,
   label: { type: String, default: '' },
   disabled: Boolean,
+  /**
+   * BS-3b: Kennung(en) des Erklärtextes — `aria-describedby` gehört auf das
+   * Kästchen, nicht auf das umgebende `<label>` (dort liest es kein
+   * Vorleseprogramm zuverlässig vor). Leer = kein Attribut im DOM.
+   */
+  ariaDescribedby: { type: String, default: '' },
 })
 defineEmits(['update:modelValue'])
 </script>

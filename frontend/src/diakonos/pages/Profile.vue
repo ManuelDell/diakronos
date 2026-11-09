@@ -163,6 +163,16 @@
         </div>
       </DkCard>
 
+      <!-- ── BS-3b · Auf der Website als Ansprechpartner erscheinen ──── -->
+      <!-- Eigene Einwilligung, gepflegt NUR hier (der Server nimmt sie von
+           niemandem sonst an). Das Bauteil lädt seinen Stand selbst. -->
+      <MeineEinwilligung
+        v-if="profile.name"
+        :personen-foto="profile.foto || ''"
+        :vorname="profile.vorname || ''"
+        :nachname="profile.nachname || ''"
+      />
+
       <!-- ── Datenschutz (DSGVO) ── -->
       <DkCard title="Meine Daten &amp; Datenschutz">
         <h3>Meine Einwilligungen</h3>
@@ -291,6 +301,8 @@ import DkSelect from '../components/ui/DkSelect.vue'
 import DkCheckbox from '../components/ui/DkCheckbox.vue'
 import DkHint from '../components/ui/DkHint.vue'
 import LoeschantragKarte from '../components/mitglieder/LoeschantragKarte.vue'
+// BS-3b: eigener Abschnitt „Auf der Website als Ansprechpartner erscheinen“.
+import MeineEinwilligung from '../components/website/MeineEinwilligung.vue'
 import { useAbmelden } from '../composables/useAbmelden.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import { useVerlassenSchutz } from '../composables/useVerlassenSchutz.js'

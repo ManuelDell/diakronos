@@ -204,6 +204,15 @@
         </DkCard>
         </div>
 
+        <!-- ── BS-3b · Ansprechpartner (Website-Rolle) ──────────────────── -->
+        <!-- Neben Freigaben und Bausteinen: WELCHE Funktionen erscheinen
+             dürfen. Die Einwilligung setzt dieser Bereich NIE — nur die Person
+             im eigenen Profil (siehe Hinweis im Bauteil). Eigenes Bauteil, das
+             seinen Stand selbst lädt. -->
+        <div data-wf-abschnitt="ansprechpartner">
+          <AnsprechpartnerBereich />
+        </div>
+
         <!-- ── BS-2d · Bausteine (Bibliothek für den Website-Baukasten) ── -->
         <!-- Steht NEBEN den Freigaben: die Freigaben bestimmen, WAS öffentlich
              ist, die Bausteine, WIE es auf der Website erscheint. Eigenes
@@ -347,6 +356,8 @@ import FreigabeZeile from '../components/website/FreigabeZeile.vue'
 // BS-2d: eigener Bereich „Bausteine“ neben den Freigaben (lädt seinen Stand
 // selbst; die Logik liegt in `shared/website-bausteine.mjs`).
 import BausteineBereich from '../components/website/BausteineBereich.vue'
+// BS-3b: Bereich „Ansprechpartner“ (Verwaltungsauswahl der Funktionen).
+import AnsprechpartnerBereich from '../components/website/AnsprechpartnerBereich.vue'
 
 // WEB-1b (D): Default 14400 s = 4 h. Die Oberfläche nennt die Dauer, weil sie
 // sich nicht verlängert.
