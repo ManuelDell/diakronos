@@ -238,6 +238,11 @@ dabei zurück, und der Rest wird vor der Weitergabe auf Geheimnisse, interne
 Infrastruktur und Personendaten geprüft. Ein Treffer bricht ab; behoben wird
 der Fund, nicht der Ausschluss.
 
+Die Protokolle mit dauerhaftem Wert liegen gesammelt unter
+[`docs/abnahmen/`](abnahmen/README.md) (und sind im Export ausgeschlossen);
+Übergabe-Notizen (`*-UEBERGABE.md`) gehören gar nicht ins Repo — der Wächter
+`backend/tests/test_aufr1_uebergabe_waechter.py` verbietet sie in der Wurzel.
+
 ## 6. Dokumentationsindex
 
 Welche Dokumente es gibt, für wen sie gedacht sind und in welcher Reihenfolge

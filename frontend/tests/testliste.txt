@@ -291,3 +291,6 @@ tests/pr-g2-*.test.mjs
 # PR-G1 (Review): Route/Lebenszyklus der Stammdatenseite lädt das echte
 # script-setup; der mehrzeilige import in Stammdaten.vue brach den Lauf.
 tests/planrahmen-route-lifecycle.test.mjs
+
+# AUFR-1: Wächter — keine *-UEBERGABE.md in der Repo-Wurzel, Abnahme-Doku nur
+# unter docs/abnahmen/ und im Export ausgeschlossen (Regel 17).
