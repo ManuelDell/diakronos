@@ -35,14 +35,21 @@ import pytest
 
 from diakronos_app.website import bausteine as bibliothek
 
-#: Die mitgelieferten Bausteine (BS-2b: um die drei Kalender-Bausteine
-#: erweitert; Reihenfolge = ``block.json`` index).
+#: Die mitgelieferten Bausteine — dieselbe Reihenfolge wie ``BAUSTEINE`` in
+#: ``test_bs2a_bausteine.py`` (= ``block.json`` index, vollständig).
+#: BS-2e: die Liste stand noch auf dem Stand von BS-2b (fünf Einträge, dabei
+#: ``kalender`` vor ``termine-liste`` und ohne Gruppen/Neuigkeiten/Anmeldung).
 BESTAND = (
     "kontakt",
-    "kalender",
     "termine-liste",
+    "kalender",
     "naechster-gottesdienst",
     "kalender-abo",
+    "gruppen",
+    "gruppe-steckbrief",
+    "neuigkeiten",
+    "anmeldung",
+    "ansprechpartner",
 )
 
 # ── Hilfen ─────────────────────────────────────────────────────────────────
@@ -239,6 +246,11 @@ def test_f3_einzelweg_ist_upsert():
     assert "client.post(" in upsert
     assert "_finde_eintrag(" in upsert
     assert '"filter": filter_' in suche
+    # BS-2e: das `js`-Feld der Bibliothek bleibt LEER — der `<script>`-Inhalt
+    # einer Svelte-Quelle ist kein ausführbares JavaScript. Ein vorbefülltes
+    # Feld hat Primos Übersetzer übersprungen; der Publish lieferte dann einen
+    # Block ohne Verhalten (am Wegwerf-Primo belegt).
+    assert '"js": ""' in einzelweg, "js-Feld der Bibliothek muss leer bleiben"
     for sammlung in (
         "library_symbol_groups",
         "library_symbols",

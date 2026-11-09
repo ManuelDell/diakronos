@@ -466,6 +466,10 @@ def _yaml_wert(wert: Any) -> str:
     # json.dumps liefert für str/bool/int/float gültige YAML-Skalare; für
     # mehrzeilige Texte ist die Blockform nötig, sonst bricht YAML am
     # Zeilenumbruch.
+    if wert is None:
+        # `null` statt `""`: Primo legt für leere Werte gar keinen Eintrag an
+        # (siehe ``_content_yaml``).
+        return "~"
     if isinstance(wert, str) and ("\n" in wert or "\r" in wert):
         return "|\n" + "\n".join("  " + zeile for zeile in wert.splitlines())
     return json.dumps(wert, ensure_ascii=False)
@@ -589,16 +593,55 @@ def build_zip(
                 + "\n",
             )
             feld_zeilen: list[str] = []
-            inhalt: dict[str, Any] = {}
+            inhalt: list[dict[str, Any]] = []
             for feld in baustein.felder:
                 feld_zeilen.extend(_feld_yaml(feld))
                 vorgabe = feld.get("default")
                 if feld["name"] == FELD_BASISADRESSE and adresse:
                     vorgabe = adresse
-                inhalt[str(feld["name"])] = vorgabe
+                inhalt.append({"key": str(feld["name"]), "value": vorgabe})
             archiv.writestr(f"{basis}/fields.yaml", "\n".join(feld_zeilen) + "\n")
-            archiv.writestr(f"{basis}/content.yaml", "\n".join(_yaml_liste(inhalt)) + "\n")
+            archiv.writestr(f"{basis}/content.yaml", _content_yaml(inhalt))
     return puffer.getvalue()
+
+
+def _content_yaml(eintraege: list[dict[str, Any]]) -> str:
+    """``content.yaml`` eines Bausteins — Abbild wie bei ``export-library``.
+
+    Primo liest die Datei als **Map ``key -> Vorgabewert``**
+    (``importLibraryBlockContent``: ``yaml.Unmarshal(data, &contentMap)`` mit
+    ``map[string]interface{}``; ``export_library.go``/``buildSectionContent``
+    schreiben genau diese Form). Eine Liste — wie sie für ``fields.yaml``
+    richtig ist — scheitert dort am Typ; Primo meldet dann zwar keinen Fehler,
+    die Blöcke bekommen aber LEERE Vorgaben. Am Wegwerf-Primo belegt: mit einer
+    Liste (BS-2e, erster Lauf) kamen 93 von 128 Feldern leer im
+    veröffentlichten Build an, darunter alle Beschriftungen.
+
+    Geschrieben werden ALLE Felder in der Reihenfolge des Feldschemas (dieselbe
+    Reihenfolge wie ``fields.yaml``), damit ein Mensch beide Dateien
+    nebeneinander lesen kann.
+
+    Leere Vorgaben werden als YAML-``null`` (``key: ~``) geschrieben, NICHT als
+    ``""``: Primo überspringt beim Import Einträge, deren Wert leer ist, und
+    dann fehlt dem Block das Feld ganz — sein `$props`-Vertrag liest den
+    Vorgabewert aus dem Svelte-Quelltext, ein gesetzter Feldwert überschriebe
+    ihn aber mit ``undefined`` (im Wegwerf-Primo belegt, BS-2e Runde 3: 22 von
+    128 Feldern fehlten, u. a. ``kennung`` und ``gruppentyp``, die als
+    Vorgabe ``""`` haben). ``null`` schreibt Primo als leeren Wert aus.
+    """
+    return (
+        "\n".join(
+            _yaml_liste(
+                {
+                    str(e["key"]): (
+                        None if e["value"] == "" else e["value"]
+                    )
+                    for e in eintraege
+                }
+            )
+        )
+        + "\n"
+    )
 
 
 def _absolute_adresse(wert: object) -> str:
@@ -963,7 +1006,16 @@ def _import_einzeln(token: str, bausteine: Iterable[Baustein], version: int,
                         "group": gruppe_id,
                         "html": html,
                         "css": css,
-                        "js": js,
+                        # BS-2e: `js` bleibt LEER. Der `<script>`-Block einer
+                        # Svelte-Quelle ist KEIN ausführbares JavaScript (Props,
+                        # `$derived`, `$effect`); Primo übersetzt beim Import
+                        # selbst aus `raw_source` (Node mit `svelte/compiler`).
+                        # Ein vorbefülltes `js`-Feld hat den Übersetzer
+                        # übersprungen: die Bibliothek trug dann den Quelltext
+                        # im JS-Feld, der Publish lieferte einen Block ohne
+                        # Verhalten (am Wegwerf-Primo belegt: Hydration-Modul
+                        # 404, alle Blöcke blieben im Ladezustand).
+                        "js": "",
                         "raw_source": baustein.quelle,
                     },
                     token,
@@ -1018,6 +1070,10 @@ def _import_einzeln(token: str, bausteine: Iterable[Baustein], version: int,
 
 def _zerlegen(quelle: str) -> tuple[str, str, str]:
     """``(html, css, js)`` wie Primo es aus ``component.svelte`` gewinnt.
+
+    BS-2e: ``js`` wird vom Aufrufer (Rückfallweg) NICHT geschrieben — siehe
+    dort. Die Funktion liefert den Inhalt des ``<script>``-Blocks weiterhin
+    mit, weil ``_import_einzeln`` ihn für das Feld ``raw_source`` braucht.
 
     Primo selbst zerlegt beim Import mit regulären Ausdrücken
     (``internal/import.go::parseComponent``); hier dieselbe Zerlegung, damit

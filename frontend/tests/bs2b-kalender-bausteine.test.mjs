@@ -17,6 +17,9 @@
  *      (termine/naechster_termin/kalender + iCal-Adresse …ics).
  *   6. Kalender-Baustein: Startansicht, Vor/Heute/Weiter, Detail mit
  *      Anmelde-Link, Mobil-Fallback (Liste), Knöpfe ohne Absenden (type=button).
+ *   7. BS-2e (Abnahme am echten Primo): Vorlesezeile ohne doppelte Tageszahl,
+ *      Leiste mobil ausgeblendet statt wirkungslos, Liste zeigt den ganzen
+ *      Monat (vergangene Tage gedämpft).
  */
 
 import assert from 'node:assert/strict';
@@ -227,9 +230,10 @@ test('BS-2b/Raster: Termine sind Knöpfe (Klick und Tastatur öffnen das Detail)
 
 test('BS-2b: Leertext, Farben und veraltete Abrufe', () => {
   const text = quelle('kalender');
-  // mittel 6: Leertext aus den Terminen der GEZEIGTEN Ansicht (nicht aus
-  // `liste`, die nur künftige Termine führt).
-  assert.match(text, /let anzahl_ansicht = \$derived\(raster_sichtbar \? termine\.length : liste\.length\)/,
+  // mittel 6: Leertext aus den Terminen der GEZEIGTEN Ansicht (nicht aus dem
+  // Raster, wenn die Liste steht). BS-2e: die Liste führt jetzt den ganzen
+  // Monat (`liste_zeilen`).
+  assert.match(text, /let anzahl_ansicht = \$derived\(raster_sichtbar \? termine\.length : liste_zeilen\.length\)/,
     'Leertext zählt nicht die gezeigte Ansicht');
   assert.match(text, /#if anzahl_ansicht === 0/, 'Leertext hängt an der falschen Größe');
   assert.ok(!text.includes('{#if liste.length === 0}'), 'Leertext noch aus `liste`');
@@ -253,13 +257,20 @@ test('BS-2b: relative Anmeldeadressen bekommen die Diakronos-Basis', () => {
 // NACHARBEIT 08.11. (Review): Primo gibt Block-CSS in eigener Reihenfolge aus
 // (und schreibt Selektoren um) — ein CSS-Umschalter ist dort nicht verlässlich.
 // Deshalb schaltet der Block über das `hidden`-Attribut: Markup, kein CSS.
-test('BS-2b: mobil zeigt der Kalender die Liste (Raster über `hidden` ausgeblendet)', () => {
+// BS-2e (Abnahme 08.11., Befund B3): unter 40 em war die Umschaltung
+// wirkungslos (das Raster war dort ohnehin aus). Mobil gilt jetzt die Liste,
+// die Leiste entfällt — es gibt keinen Knopf ohne Wirkung.
+test('BS-2e: mobil zeigt der Kalender die Liste, die Umschaltung entfällt', () => {
   const text = quelle('kalender');
   // Beide Ansichten stehen IMMER im DOM und werden über `hidden` geschaltet.
-  assert.match(text, /let liste_sichtbar = \$derived\(ansicht === 'liste' \|\| ist_schmal\)/,
-    'Liste hängt nicht an Ansicht UND Breite');
-  assert.match(text, /let raster_sichtbar = \$derived\(ansicht === 'monat' && !ist_schmal\)/,
-    'Raster hängt nicht an Ansicht UND Breite');
+  assert.match(text, /let liste_sichtbar = \$derived\(ansicht === 'liste'\)/,
+    'Liste hängt nicht an der Ansicht');
+  assert.match(text, /let raster_sichtbar = \$derived\(ansicht === 'monat'\)/,
+    'Raster hängt nicht an der Ansicht');
+  assert.match(text, /let leiste_sichtbar = \$derived\(umschaltbar && !ist_schmal\)/,
+    'Leiste nicht an die Breite gebunden');
+  assert.match(text, /\{#if leiste_sichtbar\}/, 'Leiste ohne Sichtbarkeitsbedingung');
+  assert.match(text, /function schmal_umstellen\(schmal\)/, 'Breitenwechsel stellt die Ansicht nicht um');
   assert.match(text, /<ul class="dk-kalender__liste" hidden=\{!liste_sichtbar\}>/, 'Liste ohne hidden-Schaltung');
   assert.ok(!/#if ansicht === 'monat'/.test(text), 'Markup hängt noch an einer Ansichts-Bedingung');
   assert.match(text, /\{#if raster_sichtbar\}\s*\n\s*<table class="dk-kalender__raster">/, 'Raster ohne Sichtbarkeitsbedingung');
@@ -270,6 +281,31 @@ test('BS-2b: mobil zeigt der Kalender die Liste (Raster über `hidden` ausgeblen
   assert.match(text, /typeof window === 'undefined'/, 'SSR-Wächter fehlt');
   // Die Schaltung selbst muss `display:none` auch gegen Site-Stile halten.
   assert.match(text, /\[hidden\]\s*\{\s*display:\s*none !important/, 'hidden nicht abgesichert');
+});
+
+// BS-2e (Befund B1): Primo liefert das Block-CSS nur beim Publish aus — im
+// Editor steht das Markup ohne Stylesheet da und die Vorlesezeile
+// („10. November") wurde sichtbar: „10 10. November". Sie braucht deshalb ein
+// KLASSEN-Kennzeichen, das ohne Nachfahren-Selektor greift.
+test('BS-2e: die Vorlesezeile der Tageszelle trägt ein eigenes Klassen-Kennzeichen', () => {
+  const text = quelle('kalender');
+  assert.match(text, /<span class="dk-kalender__versteckt dk-versteckt">/, 'Kennzeichen fehlt am Span');
+  assert.match(text, /\.dk-kalender__versteckt,\s*\n\s*\.dk-versteckt\s*\{/, 'Regel für das Kennzeichen fehlt');
+  assert.match(text, /clip-path: inset\(50%\)/, 'clip-path (heutige Vorlese-Technik) fehlt');
+});
+
+// BS-2e (Befund B4): Die Liste zeigt den GANZEN gezeigten Monat — vorher
+// fielen vergangene Tage weg und der Monat wirkte leer. Der Leertext gilt
+// deshalb auch für die Liste.
+test('BS-2e: die Liste zeigt den ganzen Monat, vergangene Tage gedämpft', () => {
+  const text = quelle('kalender');
+  assert.match(text, /let liste_zeilen = \$derived\(\s*\n\s*termine/, 'Liste hängt noch an „ab heute"');
+  assert.ok(!/zeile\.iso >= heute_iso\)\s*\n\s*\.sort/.test(
+    text.slice(text.indexOf('let liste_zeilen'), text.indexOf('let liste_zeilen') + 500)),
+  'Liste filtert noch auf künftige Tage');
+  assert.match(text, /class:vergangen=\{termin\.iso < heute_iso\}/, 'vergangene Zeile nicht gekennzeichnet');
+  assert.match(text, /let anzahl_ansicht = \$derived\(raster_sichtbar \? termine\.length : liste_zeilen\.length\)/,
+    'Leertext rechnet mit der falschen Menge');
 });
 
 // ── 4. Monatsraster, Wochenstart, Zeitzonenwechsel ────────────────────────

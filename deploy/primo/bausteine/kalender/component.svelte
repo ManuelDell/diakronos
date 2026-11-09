@@ -1,7 +1,7 @@
 <section class="dk-kalender" lang="de">
   <h2 class="dk-kalender__titel">{ueberschrift}</h2>
 
-  {#if umschaltbar}
+  {#if leiste_sichtbar}
     <div class="dk-kalender__leiste" role="group" aria-label="Ansicht">
       <button
         type="button"
@@ -48,7 +48,7 @@
               {#each woche.tage as tag (tag.iso)}
                 <td class:heute={tag.heute} class:aussen={!tag.im_monat}>
                   <span class="dk-kalender__tagzahl" aria-hidden="true">{tag.tag}</span>
-                  <span class="dk-kalender__versteckt">{tag.tag}. {MONATSNAMEN[tag.monat - 1]}</span>
+                  <span class="dk-kalender__versteckt dk-versteckt">{tag.tag}. {MONATSNAMEN[tag.monat - 1]}</span>
                   {#if tag.termine.length > 0}
                     <ul class="dk-kalender__tagesliste">
                       {#each tag.termine as termin (termin.id)}
@@ -78,8 +78,8 @@
     {/if}
 
     <ul class="dk-kalender__liste" hidden={!liste_sichtbar}>
-      {#each liste as termin (termin.id)}
-        <li class="dk-kalender__listeneintrag">
+      {#each liste_zeilen as termin (termin.id)}
+        <li class="dk-kalender__listeneintrag" class:vergangen={termin.iso < heute_iso}>
           <p class="dk-kalender__wann">
             <span class="dk-kalender__dat">{termin.tag}</span>
             {#if termin.zeit}<span class="dk-kalender__zeit">{termin.zeit}</span>{/if}
@@ -182,11 +182,9 @@
     return String(wert || '').trim() === 'liste' ? 'liste' : 'monat';
   }
 
-  /**
-   * Startansicht: sie wird EINMAL ausgewertet (sie ist eine Vorgabe, kein
-   * Zustand) — danach führt die Umschaltung den Zustand.
-   */
-  let ansicht = $state(unterseite_ansicht(startansicht)); // Beabsichtigt: Startwert, danach führt der Zustand.
+  /** Startansicht: sie wird EINMAL ausgewertet (sie ist eine Vorgabe, kein
+   * Zustand) — danach führt die Umschaltung den Zustand. */
+  let ansicht = $state(unterseite_ansicht(startansicht)); // Absicht: Startwert, danach führt der Zustand.
   /** @type {'laedt' | 'fertig' | 'fehler'} */
   let ladezustand = $state('laedt');
   /** @type {Array<object>} */
@@ -213,22 +211,30 @@
   let umschaltbar = $derived(ansicht_umschaltbar !== false);
   let titel = $derived(MONATSNAMEN[zeige_monat - 1] + ' ' + zeige_jahr);
   let rasterkopf = $derived(raster_kopf(wochenstart));
-  /** Ein Termin als Anzeigezeile (Funktion, damit Markup UND Detail dieselbe Form nutzen). */
-  let alle_liste = $derived(
+  /**
+   * Zeilen der LISTE: der ganze gezeigte Monat, vergangene Tage eingeschlossen
+   * (Abnahme 08.11., Befund B4: vorher fielen sie weg, der Monat wirkte leer).
+   * Der Sprung nach „Heute" bleibt trotzdem erreichbar.
+   */
+  let liste_zeilen = $derived(
     termine
       .map((eintrag) => anzeige_zeile(eintrag))
-      .filter((zeile) => zeile.iso >= heute_iso)
+      .filter((zeile) => zeile.iso.slice(0, 7) === monat_schluessel)
       .sort((a, b) => (a.sortierung < b.sortierung ? -1 : a.sortierung > b.sortierung ? 1 : 0))
   );
-  let liste = $derived(alle_liste.filter((zeile) => zeile.iso.slice(0, 7) === monat_schluessel));
-
   // ── Ansichten ────────────────────────────────────────────────────────────
-  /** Im Raster sichtbar? Mobil nie (die Liste trägt dort die Termine). */
-  let raster_sichtbar = $derived(ansicht === 'monat' && !ist_schmal);
-  /** Als Liste sichtbar? Mobil immer — das 7-Spalten-Raster ist dort unlesbar. */
-  let liste_sichtbar = $derived(ansicht === 'liste' || ist_schmal);
+  /** Im Raster sichtbar? (nur in der Monatsansicht) */
+  let raster_sichtbar = $derived(ansicht === 'monat');
+  /** Als Liste sichtbar? (nur in der Listenansicht) */
+  let liste_sichtbar = $derived(ansicht === 'liste');
+  /**
+   * Ansichtsleiste zeigen? Unter 40 em ist die Umschaltung wirkungslos gewesen
+   * (Befund B3: das Raster war dort ohnehin aus, die Knöpfe änderten nichts) —
+   * dort steht die Liste, und die Leiste entfällt.
+   */
+  let leiste_sichtbar = $derived(umschaltbar && !ist_schmal);
   /** Leertext: die Termine der GEZEIGTEN Ansicht (nicht die der Zukunft). */
-  let anzahl_ansicht = $derived(raster_sichtbar ? termine.length : liste.length);
+  let anzahl_ansicht = $derived(raster_sichtbar ? termine.length : liste_zeilen.length);
   /** Das Raster, nach Wochen geteilt: eine <tr> je Woche, darin sieben <td>. */
   let rasterwochen = $derived(wochen(monatsraster(zeige_jahr, zeige_monat, wochenstart, heute_iso), termine));
 
@@ -506,6 +512,17 @@
     zeige_monat = naechster.monat;
   }
 
+  /**
+   * Mobil gibt es keine Umschaltung (die Leiste entfällt, Befund B3): dort
+   * gilt die Liste. Wechselt das Fenster die Breite, wandert auch die Ansicht
+   * — sonst bliebe nach dem Verkleinern ein Raster stehen, das niemand
+   * umschalten kann.
+   */
+  function schmal_umstellen(schmal) {
+    ist_schmal = schmal;
+    if (schmal) ansicht = 'liste';
+  }
+
   /** Monat um `richtung` verschoben (Jahr läuft mit; -1 zurück, +1 vor). */
   function monat_verschieben(jahr, monat, richtung) {
     const gesamt = jahr * 12 + (monat - 1) + Math.trunc(richtung);
@@ -658,7 +675,7 @@
   $effect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
     const abfrage = window.matchMedia('(min-width: ' + BREIT_AB + ')');
-    const uebernehmen = () => { ist_schmal = !abfrage.matches; };
+    const uebernehmen = () => { schmal_umstellen(!abfrage.matches); };
     uebernehmen();
     if (typeof abfrage.addEventListener === 'function') {
       abfrage.addEventListener('change', uebernehmen);
@@ -749,7 +766,13 @@
     font-weight: 600;
   }
 
-  .dk-kalender__versteckt {
+  /* Nur für Vorlesehilfen sichtbar. Primo liefert das CSS NUR beim Publish
+     aus (im Editor bleibt es aus), deshalb steht `dk-versteckt` als
+     KLASSEN-Kennzeichen an jedem Element, das so aussehen muss: ein
+     Nachfahren-Selektor (`.dk-kalender .dk-versteckt`) griffe nicht, wenn
+     das Stylesheet in einem anderen Rahmen ankommt als die Markup. */
+  .dk-kalender__versteckt,
+  .dk-versteckt {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -757,6 +780,7 @@
     padding: 0;
     overflow: hidden;
     clip: rect(0 0 0 0);
+    clip-path: inset(50%);
     white-space: nowrap;
     border: 0;
   }
@@ -865,6 +889,14 @@
   .dk-kalender__listeneintrag {
     padding: var(--dk-abstand-klein, 0.5rem) 0;
     border-bottom: var(--dk-rahmen-breite, 1px) solid var(--dk-farbe-rahmen, color-mix(in srgb, currentColor 25%, transparent));
+  }
+
+  /* Vergangener Tag im gezeigten Monat: lesbar, aber erkennbar vorbei
+     (Befund B4 — die Liste zeigt jetzt den ganzen Monat). Der Termin-Knopf
+     bleibt bedienbar, deshalb keine `opacity` unter 0.75. */
+  .dk-kalender__listeneintrag.vergangen .dk-kalender__dat,
+  .dk-kalender__listeneintrag.vergangen .dk-kalender__eintrag {
+    color: var(--dk-farbe-gedaempft, color-mix(in srgb, currentColor 70%, transparent));
   }
 
   .dk-kalender__wann,

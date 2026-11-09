@@ -116,6 +116,20 @@ def test_beide_bausteine_sind_da_und_lesbar():
             assert feld["name"] in baustein.quelle
 
 
+def test_bs2e_bestandsliste_ist_die_bausteinliste():
+    """BS-2e: die Liste der Vertragsprüfungen (``BESTAND``) muss die der
+    Bibliothek sein — gleiche Kennungen UND gleiche Reihenfolge.
+
+    Vorher stand sie auf dem Stand von BS-2b (fünf statt neun, ``kalender``
+    vor ``termine-liste``): die Prüfungen liefen grün, ohne die neuen
+    Bausteine je zu sehen.
+    """
+    from tests.test_bs2a2_bausteine import BESTAND
+
+    assert tuple(BESTAND) == tuple(BAUSTEINE), (BESTAND, BAUSTEINE)
+    assert len(BESTAND) == len(set(BESTAND)), "doppelte Kennung in BESTAND"
+
+
 def test_felder_haben_vorgabewerte_und_bekannte_typen():
     """Primo legt Vorgaben als Eintrag ab; ein Feld ohne Vorgabe bricht den Build."""
     for baustein in bibliothek.bausteine_lesen():
@@ -225,12 +239,61 @@ def test_zip_setzt_nur_eine_absolute_basisadresse_vor():
         roh = bibliothek.build_zip(version=1, basisadresse=adresse)
         with zipfile.ZipFile(io.BytesIO(roh)) as archiv:
             inhalt = archiv.read("library/diakronos/kontakt/content.yaml").decode("utf-8")
-            assert 'basisadresse: ""' in inhalt, adresse
+            # Leer = YAML-null (`~`), nicht `""` — Primo nimmt `""` aus der
+            # Prop-Liste heraus (siehe test_content_yaml_ist_eine_map_key_zu_vorgabe).
+            assert "basisadresse: ~" in inhalt, adresse
 
     roh = bibliothek.build_zip(version=1, basisadresse="https://gem.example/")
     with zipfile.ZipFile(io.BytesIO(roh)) as archiv:
         inhalt = archiv.read("library/diakronos/termine-liste/content.yaml").decode("utf-8")
         assert 'basisadresse: "https://gem.example"' in inhalt  # ohne Schluss-Schrägstrich
+
+
+def _yaml_parser():
+    """``yaml.safe_load`` — übersprungen, wenn PyYAML fehlt (Backend-Image)."""
+    yaml = pytest.importorskip("yaml")
+    return yaml.safe_load
+
+
+def test_content_yaml_ist_eine_map_key_zu_vorgabe():
+    """``content.yaml`` MUSS eine Map ``key: Vorgabe`` sein (BS-2e).
+
+    Primo liest sie mit ``yaml.Unmarshal(data, &contentMap)`` in
+    ``map[string]interface{}`` (``internal/import_library.go``,
+    ``importLibraryBlockContent``) und schreibt sie in
+    ``internal/export_library.go`` genauso. Eine Liste (``- key: …``) bricht
+    den Import mit HTTP 500 ab („cannot unmarshal !!seq into
+    map[string]interface{}", am Wegwerf-Primo wörtlich belegt).
+    """
+    pruefe_yaml = _yaml_parser()
+
+    roh = bibliothek.build_zip(version=1, basisadresse="https://gem.example")
+    with zipfile.ZipFile(io.BytesIO(roh)) as archiv:
+        for kennung in BAUSTEINE:
+            text = archiv.read(f"library/diakronos/{kennung}/content.yaml").decode("utf-8")
+            daten = pruefe_yaml(text)
+            assert isinstance(daten, dict), f"{kennung}: content.yaml ist keine Map"
+            felder = json.loads(
+                (QUELLE_REPO / kennung / "fields.json").read_text(encoding="utf-8")
+            )
+            # Jedes Feld steht drin — vollständig und in Feldreihenfolge.
+            assert list(daten) == [f["name"] for f in felder], kennung
+            for feld in felder:
+                vorgabe = feld["default"]
+                if feld["name"] == "basisadresse":
+                    vorgabe = "https://gem.example"
+                # Leere Vorgabe steht als `~` in der Datei und kommt als
+                # `None` zurück (YAML-null) — nicht als `""`.
+                soll = None if vorgabe == "" else vorgabe
+                assert daten[feld["name"]] == soll, (kennung, feld["name"])
+            # Leere Vorgabe = `~` (null), NICHT `""`: Primo legt für leere
+            # Werte zwar einen Eintrag an, nimmt das Feld danach aber aus der
+            # Prop-Liste des veröffentlichten Builds heraus — eine Vorgabe im
+            # Quelltext ginge verloren (BS-2e Runde 3, am Wegwerf-Primo
+            # gemessen; heute sind alle Vorgaben nicht-leer).
+            ohne_null = [f["name"] for f in felder if f["default"] == ""]
+            for name in ohne_null:
+                assert f'"{name}": ""' not in text, (kennung, name)
 
 
 def test_zip_yaml_ist_wohlgeformt():

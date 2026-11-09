@@ -293,10 +293,10 @@ def test_freigaben_sind_eine_positivliste():
 
 
 @nur_im_repo
-def test_version_ist_elf():
+def test_version_ist_zwoelf():
     """BS-2d1 erhöht die Auslieferung: main stand auf 9."""
-    assert bibliothek.mitgelieferte_version() == 11
-    assert (QUELLE_REPO / "VERSION").read_text(encoding="utf-8").strip() == "11"
+    assert bibliothek.mitgelieferte_version() == 12
+    assert (QUELLE_REPO / "VERSION").read_text(encoding="utf-8").strip() == "12"
 
 
 # ── 2. Der Status-Endpunkt liefert „mitgeliefert“ ──────────────────────────
@@ -325,7 +325,7 @@ def test_status_endpunkt_hat_das_feld_mitgeliefert(als_benutzer, primo_nicht_err
     assert len(daten["mitgeliefert"]) == 10
     kennungen = [e["kennung"] for e in daten["mitgeliefert"]]
     assert kennungen == list(BAUSTEINE)
-    assert daten["mitgeliefert_version"] == 11
+    assert daten["mitgeliefert_version"] == 12
     # Je Eintrag genau die Felder der Karte — keine Personendaten, keine
     # internen Kennungen (G1).
     assert set(daten["mitgeliefert"][0]) == {
