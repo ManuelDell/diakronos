@@ -42,3 +42,6 @@ compose/.web8c/
 # FE-TEST-1: eigene Auswahl-Datei fuer gezielte Builds (nur lokal).
 # docker build -f backend/Dockerfile --build-arg NODE_TESTLISTE=tests/.auswahl.txt ..
 frontend/tests/.auswahl.txt
+
+# DEV-B5: eigener Wegwerf-Stack — Env bleibt lokal (Regel 15).
+.env.devb5

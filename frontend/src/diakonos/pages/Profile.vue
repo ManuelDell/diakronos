@@ -369,11 +369,12 @@ const avatarStyle = computed(() => {
 })
 
 /* Bausteine beschicken */
+// DEV-B3 (Entscheidung Manuel 2026-10-29, DMB-e2a7f41994d7): nur männlich
+// oder weiblich; leer = nicht angegeben. Der Server nimmt nichts anderes an.
 const geschlechtOptionen = [
   { value: '', label: '—' },
   { value: 'Männlich', label: 'Männlich' },
   { value: 'Weiblich', label: 'Weiblich' },
-  { value: 'Divers', label: 'Divers' },
 ]
 const familienstandOptionen = [
   { value: '', label: '—' },

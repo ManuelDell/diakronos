@@ -1427,6 +1427,35 @@ def create_mitglied(vorname, nachname, email="", status="Gast", gruppe_id=None, 
 
 # ── Update ──────────────────────────────────────────────────────────────────
 
+# DEV-B3 (Entscheidung Manuel 2026-10-29, DMB-e2a7f41994d7): Geschlecht gibt
+# es nur als „Männlich"/„Weiblich"; leer = nicht angegeben. Der Wert bleibt
+# im Bestand Freitext (Altdaten „divers"/„inter" werden gelesen als
+# „keine Angabe", aber NICHT umgeschrieben) — NEUE/geänderte Werte nimmt der
+# Server nur noch in diesen beiden Schreibweisen an.
+GESCHLECHT_ERLAUBT = ("", "Männlich", "Weiblich")
+
+
+def _pruefe_geschlecht(werte: dict, alt: str | None = None) -> None:
+    """Geschlecht auf ''/„Männlich"/„Weiblich" begrenzen (nur bei Änderung).
+
+    Ein unverändert mitgesendetes Altdatum (z. B. „divers") bleibt zulässig,
+    damit das Speichern eines anderen Feldes nicht an Altdaten scheitert;
+    dabei wird der alte Wert unverändert zurückgeschrieben (keine stille
+    Datenänderung ohne Auftrag).
+    """
+    if "geschlecht" not in werte:
+        return
+    wert = werte["geschlecht"]
+    if wert is None:
+        wert = ""
+    if not isinstance(wert, str):
+        throw("Geschlecht: bitte „Männlich“ oder „Weiblich“ wählen.", ValidationError)
+    wert = wert.strip()
+    werte["geschlecht"] = wert
+    if wert == (alt or "") or wert in GESCHLECHT_ERLAUBT:
+        return
+    throw("Geschlecht: bitte „Männlich“ oder „Weiblich“ wählen.", ValidationError)
+
 
 def _validate_email_update(doc, werte):
     """Die E-Mail bindet Berechtigungen: nur Admin, keine fremde Belegung.
@@ -1522,6 +1551,7 @@ def update_mitglied(mitglied_id, data=None, **kwargs):
     _pruefe_textlaengen(werte)
     _pruefe_email(werte.get("email"))
 
+    _pruefe_geschlecht(werte, doc.get("geschlecht"))
     _validate_member_update(doc, werte)
     if werte:
         try:
@@ -1620,7 +1650,9 @@ def update_mitglied_with_confirmation(mitglied_id, data, audit_confirmation):
         _pruefe_textlaengen(werte)
         _pruefe_email(werte.get("email"))
 
-        _validate_member_update(get_doc("Mitglied", mitglied_id), werte)
+        _doc = get_doc("Mitglied", mitglied_id)
+        _pruefe_geschlecht(werte, _doc.get("geschlecht"))
+        _validate_member_update(_doc, werte)
         if werte:
             _update_doc(
                 "Mitglied", mitglied_id, werte,

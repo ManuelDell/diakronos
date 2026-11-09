@@ -239,7 +239,7 @@ def test_pool_antwort_ohne_pii(client, patched_db, session_factory):
         # Rohwert, keine weiteren Personendaten.
         assert set(p.keys()) <= {"kennung", "anzeige", "name", "vorname", "nachname",
                                  "kuerzel", "geschlecht", "gruppen", "merkmale"}
-        assert p["geschlecht"] in {"", "m", "w", "d"}
+        assert p["geschlecht"] in {"", "m", "w"}
 
 
 # --------------------------------------------------------------------------- #

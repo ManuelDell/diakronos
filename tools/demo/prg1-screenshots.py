@@ -3,7 +3,8 @@
 Läuft gegen den EIGENEN Wegwerf-Stack (Projekt `prg1`), nie gegen den
 Betrieb. Musterhausen bringt echte Geschlechter mit („weiblich"/„männlich"
 im Mitgliedsfeld); der Lauf setzt zusätzlich ein paar Personen OHNE Angabe
-und eine „Divers"-Person — NUR in dieser Wegwerf-Datenbank.
+und eine Person mit ALTdatum „Divers" (DEV-B3: zählt als „keine Angabe") —
+NUR in dieser Wegwerf-Datenbank.
 
     docker run --rm --network prg1_default \
         -v "<repo>/tools/demo:/w:ro" -v "<ziel>:/ausgabe" \

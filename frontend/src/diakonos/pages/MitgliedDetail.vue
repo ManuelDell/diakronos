@@ -256,12 +256,18 @@
             </div>
         </DkCard>
 
-        <!-- Reiter: Zugang (P1-8, OP-ADMIN-2) — nur für Administratoren -->
+        <!-- Reiter: Zugang (P1-8, OP-ADMIN-2) — nur für Administratoren.
+             DEV-B3 (DMB-2b8262b82c08): Rollen und Kontozustand werden nur im
+             Bearbeiten-Modus geändert; die Karte weiß den Zustand über
+             `bearbeitbar`. Der Passwort-Link bleibt bewusst IMMER erlaubt —
+             er erzeugt nur einen Link (Einladung/Erneut-senden) und ändert
+             am Mitglied nichts. -->
         <ZugangKarte
             v-else-if="activeTab === 'zugang' && canEdit && !loading && !error"
             :mitglied-id="mitgliedId"
             :email="mitglied?.email || ''"
             :oidc-aktiv="oidcAktiv"
+            :bearbeitbar="isEditing"
         />
 
         <!-- AUSTRITT (A1/A4): ein Dialog fuer beide Richtungen.
@@ -435,11 +441,12 @@ function formatDate(date) {
 }
 
 /* Bausteine beschicken */
+// DEV-B3 (Entscheidung Manuel 2026-10-29, DMB-e2a7f41994d7): nur männlich
+// oder weiblich; leer = nicht angegeben. Der Server nimmt nichts anderes an.
 const geschlechtOptionen = [
     { value: '', label: '– keine Angabe –' },
     { value: 'Männlich', label: 'Männlich' },
     { value: 'Weiblich', label: 'Weiblich' },
-    { value: 'Divers', label: 'Divers' },
 ]
 const familienstandOptionen = [
     { value: '', label: '– keine Angabe –' },

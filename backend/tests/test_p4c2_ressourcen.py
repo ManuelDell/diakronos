@@ -11,7 +11,8 @@ Abgedeckt:
   * `get_meine_buchungen`: nur eigene, ohne Stornierte, Konflikt-Hinweis.
   * `check_verfuegbarkeit`: Pflichtfelder, unbekannte Ressource, hart/weich.
   * `create_buchung`: Validierung, harter Konflikt blockt, weicher nicht.
-  * `decide_buchung`: Moderationspflicht (403), Self-Approval (403), Status-Guard.
+  * `decide_buchung`: Moderationspflicht (403), Selbstfreigabe mit Recht
+    (erlaubt seit DEV-B5), Status-Guard.
   * `get_anfragen`: Moderationspflicht (403), Antwortform `{"anfragen": [...]}`.
   * `update_buchung` / `delete_buchung`: Erstellerpflicht (403), Status-Guards.
 """
@@ -524,8 +525,15 @@ def test_decide_buchung_bestaetigen_ohne_konflikt(client, als_moderator):
         set_user("Administrator")
 
 
-def test_decide_buchung_self_approval_verboten(client, als_moderator):
-    """Ein Moderator darf seine EIGENE Anfrage nicht bestaetigen."""
+def test_decide_buchung_self_approval_mit_recht_erlaubt(client, als_moderator):
+    """ANGEPASST (DEV-B5, Manuel 2026-11-09): „Wenn man die Rechte hat, soll man
+    es freigeben können.“ Ein Moderator DARF seine eigene Anfrage bestaetigen;
+    die Entscheidung wird als „Selbstfreigabe“ protokolliert (Audit).
+
+    Vorher (bis DEV-B5) erwartete dieser Test 403 — die Sperre ist auf
+    ausdrueckliche Entscheidung aufgehoben. Vertieft:
+    `backend/tests/test_devb5_eigene_anfragen.py`.
+    """
     from diakronos_app.api import ressourcen as R
 
     set_user(MODERATOR)
@@ -537,8 +545,8 @@ def test_decide_buchung_self_approval_verboten(client, als_moderator):
         })
         r = client.post(f"/api/method/{MODUL}.decide_buchung", json={
             "buchung_id": buchung_id, "entscheidung": "bestaetigen"})
-        assert r.status_code == 403
-        assert "selbst moderiert" in r.json()["message"]
+        assert r.status_code == 200, r.text
+        assert r.json()["message"] == {"success": True, "status": "Bestätigt"}
     finally:
         set_user("Administrator")
 

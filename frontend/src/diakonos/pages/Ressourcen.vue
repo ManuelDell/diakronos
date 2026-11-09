@@ -201,6 +201,83 @@
           </DkButton>
         </DkEmpty>
 
+        <!-- DEC-B5: Ansicht „Eigene Anfragen“ — der letzte Bereich der Seite,
+             in dem die Anfragen stehen. Vorher lagen eigene Anfragen nur unter
+             „Meine Buchungen“ (rechte Spalte, hinter einem Knopf) und wurden
+             dort zusammen mit den entschiedenen Buchungen gezeigt.
+             Hier stehen die eigenen OFFENEN und entschiedenen Anfragen (bis
+             zum nächsten Ladetag). „Freigeben“/„Ablehnen“ erscheinen nur mit
+             dem Freigaberecht (`darf_entscheiden` je Eintrag, Manuel
+             2026-11-09); „Zurücknehmen“ nur bei offenen Anfragen. -->
+        <div v-if="eigeneAnfragen.length" class="rs-eigene-section rs-eigene">
+          <div class="rs-moderation-header">
+            <h2 class="rs-moderation-title">
+              <IconClipboard class="dk-icon-md" />
+              Eigene Anfragen
+              <span v-if="eigeneOffene.length" class="rs-moderation-count">{{ eigeneOffene.length }}</span>
+            </h2>
+            <DkButton
+              variant="ghost"
+              size="md"
+              @click="loadMyBookings" :disabled="loadingEigene"
+              title="Eigene Anfragen aktualisieren" aria-label="Eigene Anfragen aktualisieren"
+            ><IconRefresh class="dk-icon-sm" :class="{ 'spin': loadingEigene }" /></DkButton>
+          </div>
+
+          <div v-for="a in eigeneAnfragen" :key="`${a.quelle || 'buchung'}-${a.id}`" class="rs-anfrage-card rs-eigene-card">
+            <div v-if="konfliktHinweise(a).length" class="rs-anfrage-konflikt">
+              <IconInfo class="dk-icon-xs dk-schrumpf-nicht" />
+              <div>
+                <div v-for="(k, i) in konfliktHinweise(a)" :key="i" class="rs-konflikt-zeile">
+                  {{ konfliktText(k) }}
+                </div>
+              </div>
+            </div>
+
+            <div class="rs-anfrage-body">
+              <div class="rs-anfrage-ressource">
+                {{ a.resourceName }}
+                <span v-if="a.quelle === 'termin'" class="rs-anfrage-quelle">am Termin</span>
+                <span class="rs-status-badge rs-eigene-status" :class="statusClass(a.status)">{{ a.status }}</span>
+              </div>
+              <div class="rs-anfrage-zweck">{{ a.purpose }}</div>
+              <div class="rs-anfrage-meta">
+                <span>{{ a.date }} · {{ a.time }}</span>
+              </div>
+              <div v-if="a.notizen" class="rs-anfrage-notiz">{{ a.notizen }}</div>
+              <div v-if="a.status === 'Abgelehnt' && a.ablehnungs_grund" class="rs-reject-reason">
+                <IconInfo class="dk-icon-xs dk-schrumpf-nicht" /> {{ a.ablehnungs_grund }}
+              </div>
+            </div>
+
+            <div v-if="darfSelbstFreigeben(a) || brauchtZuruecknehmen(a)" class="rs-anfrage-actions">
+              <template v-if="darfSelbstFreigeben(a)">
+                <DkButton
+                  variant="secondary"
+                  size="md"
+                  :aria-label="`Eigene Anfrage ${a.purpose || a.resourceName} freigeben`"
+                  @click="approveEigene(a)"
+                >
+                  <IconCheck class="dk-icon-xs" /> Freigeben
+                </DkButton>
+                <DkButton variant="danger" size="md" @click="openRejectModal(a)">
+                  <IconX class="dk-icon-xs" /> Ablehnen
+                </DkButton>
+              </template>
+              <!-- UX2c: Zurücknehmen storniert (`delete_buchung`) und ist
+                   nicht wiederherstellbar — deshalb Rückfrage wie beim Storno. -->
+              <DkButton
+                v-else-if="brauchtZuruecknehmen(a)"
+                variant="secondary"
+                size="md"
+                @click="ruecknahme(a)"
+              >
+                <IconX class="dk-icon-xs" /> Zurücknehmen
+              </DkButton>
+            </div>
+          </div>
+        </div>
+
         <!-- Offene Anfragen (Moderatoren) -->
         <div v-if="isModerator" class="rs-moderation-section">
           <div class="rs-moderation-header">
@@ -219,11 +296,14 @@
 
           <!-- UX2d3b: „Keine offenen Anfragen" ist ein Leerzustand — er darf
                erst stehen, wenn die Liste geladen ist. -->
-          <div v-if="!loadingAnfragen && anfragen.length === 0" class="rs-moderation-empty">
+          <div v-if="!loadingAnfragen && anfragenAndererListe.length === 0" class="rs-moderation-empty">
             Keine offenen Anfragen.
           </div>
 
-          <div v-for="a in anfragen" :key="a.id" class="rs-anfrage-card">
+          <!-- DEC-B5: Eigene Anfragen stehen im eigenen Bereich oben und
+               werden hier nicht doppelt angeboten (dort mit
+               „Selbstfreigabe“-Kennzeichnung). -->
+          <div v-for="a in anfragenAndererListe" :key="a.id" class="rs-anfrage-card">
             <!-- Konflikt-Warnbanner (UXK-R8: eine Zeile je Eintrag, kein „[]“) -->
             <div v-if="konfliktHinweise(a).length" class="rs-anfrage-konflikt">
               <IconInfo class="dk-icon-xs dk-schrumpf-nicht" />
@@ -514,6 +594,13 @@ import {
   entscheidungsEndpunkt,
   istTerminAnfrage,
 } from '../composables/ressourcenEntscheidung.js'
+// DEC-B5: Regeln der Ansicht „Eigene Anfragen“ (verhaltensgetestet).
+import {
+  anfrageSchluessel,
+  anfragenAnderer,
+  brauchtZuruecknehmen,
+  darfSelbstFreigeben,
+} from '../composables/ressourcenEigeneAnfragen.mjs'
 import { showToast } from '../composables/useToast.js'
 // UX2c-Nacharbeit: Storno ist NICHT vollständig wiederherstellbar (die Liste
 // liefert Zeitraum/Status/Notizen nicht) → Rückfrage statt „Rückgängig“.
@@ -583,9 +670,23 @@ async function buchungSchliessen() {
 const isModerator = ref(false)
 const anfragen = ref([])
 const loadingAnfragen = ref(false)
+const loadingEigene = ref(false)
 const rejectModalOpen = ref(false)
 const rejecting = ref(null)
 const rejectGrund = ref('')
+
+// DEC-B5: Ansicht „Eigene Anfragen“ — offene UND entschiedene eigene Anfragen.
+// Der Server liefert beides über `get_meine_buchungen` (Buchungen und eigene
+// Termin-Ressourcen), je Eintrag mit `darf_entscheiden` (Freigaberecht +
+// offen). Nur dann zeigt die Oberfläche Freigeben/Ablehnen — ohne Recht
+// entstehen gar keine Knöpfe, statt eines Fehlers beim Klick.
+// Die Regeln selbst stehen in `ressourcenEigeneAnfragen.mjs` (verhaltensgetestet).
+const eigeneAnfragen = computed(() => (myBookings.value || []).filter(b => b && b.id))
+const eigeneOffene = computed(() => eigeneAnfragen.value.filter(b => b.status === 'Angefragt'))
+
+/** Die Moderatorenliste ohne die eigenen Anfragen — sie stehen oben im
+ *  Bereich „Eigene Anfragen“ (nicht doppelt, klar als Selbstfreigabe). */
+const anfragenAndererListe = computed(() => anfragenAnderer(anfragen.value, user.value))
 
 // ============================================================
 // DATA LOADING
@@ -602,10 +703,13 @@ async function loadResources() {
 }
 
 async function loadMyBookings() {
+  loadingEigene.value = true
   try {
     myBookings.value = await apiCall('diakronos.diakonos.api.ressourcen.get_meine_buchungen')
   } catch (err) {
     console.error('Meine Buchungen:', err)
+  } finally {
+    loadingEigene.value = false
   }
 }
 
@@ -699,14 +803,71 @@ async function submitReject() {
   if (!rejectGrund.value.trim()) return
   const eintrag = rejecting.value || {}
   const istTermin = istTerminAnfrage(eintrag)
+  const eigen = eigeneAnfragen.value.some(e => anfrageSchluessel(e) === anfrageSchluessel(eintrag))
   try {
     await entscheideAnfrage(eintrag, 'ablehnen', rejectGrund.value)
-    showToast(istTermin ? 'Zuordnung abgelehnt' : 'Buchung abgelehnt', 'info')
+    showToast(eigen
+      ? `Eigene Anfrage „${eintrag.purpose || eintrag.resourceName || eintrag.ressource_name || ''}“ abgelehnt`
+      : (istTermin ? 'Zuordnung abgelehnt' : 'Buchung abgelehnt'), 'info')
     rejectModalOpen.value = false
     anfragen.value = anfragen.value.filter(x => x.id !== eintrag.id)
     await loadMyBookings()
+    if (eigen) await loadAnfragen()
   } catch (err) {
     showToast(err?.message || 'Fehler bei Ablehnung', 'error')
+  }
+}
+
+// ── DEC-B5: eigene Anfrage freigeben / zurücknehmen ────────────────────────
+// Beides läuft über denselben Endpunkt wie bei fremden Anfragen (Buchung ->
+// `decide_buchung`, Termin-Zeile -> `decide_termin_ressource`); die
+// Selbstfreigabe prüft der Server nur noch auf das Freigaberecht und
+// kennzeichnet sie im Protokoll.
+
+async function approveEigene(a) {
+  try {
+    await entscheideAnfrage(a, 'bestaetigen')
+    showToast(`Eigene Anfrage „${a.purpose || a.resourceName || ''}“ freigegeben`, 'success')
+    await loadMyBookings()
+    if (isModerator.value) await loadAnfragen()
+    await loadResources()
+  } catch (err) {
+    showToast(err?.message || 'Freigabe nicht möglich', 'error')
+  }
+}
+
+/** „Zurücknehmen“ einer offenen eigenen Anfrage — MIT Rückfrage (UX2c-
+ *  Nacharbeit wie `cancelBooking`): `delete_buchung` setzt „Storniert“, das
+ *  lässt sich nicht wiederherstellen (eine neue Anfrage wäre eine andere).
+ *
+ *  Raumbuchung -> `delete_buchung` (Status „Storniert“).
+ *  Termin-Ressource -> die Zuordnung hängt am Termin; dafür gibt es keinen
+ *  eigenen Endpunkt, sie wird im Termin bearbeitet (Entfernen in
+ *  `KronosEventEdit`). Die Oberfläche bietet „Zurücknehmen“ dort deshalb
+ *  nicht an — lieber kein Knopf als einer, der nur einen Fehler erzeugt. */
+async function ruecknahme(a) {
+  if (istTerminAnfrage(a)) {
+    showToast('Diese Anfrage hängt an einem Termin — bitte dort entfernen.', 'info')
+    return
+  }
+  const ok = await bestaetigen({
+    titel: 'Anfrage zurücknehmen?',
+    text: `„${a.purpose || a.resourceName || 'Die Anfrage'}“ wird zurückgenommen. `
+      + 'Das lässt sich nicht rückgängig machen — bei Bedarf stellst du eine neue Anfrage.',
+    aktion: 'Zurücknehmen',
+    gefahr: true,
+  })
+  if (!ok) return
+  try {
+    await apiCall('diakronos.diakonos.api.ressourcen.delete_buchung', {
+      buchung_id: a.id,
+    })
+    myBookings.value = myBookings.value.filter(b => anfrageSchluessel(b) !== anfrageSchluessel(a))
+    showToast('Anfrage zurückgenommen')
+    await loadResources()
+    if (isModerator.value) await loadAnfragen()
+  } catch (err) {
+    showToast(err?.message || 'Anfrage konnte nicht zurückgenommen werden', 'error')
   }
 }
 
@@ -1655,6 +1816,12 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 /* ================================================================
    MODERATION SECTION
    ================================================================ */
+/* DEC-B5: „Eigene Anfragen“ — eigener Bereich über den offenen Anfragen.
+   Abstand statt Trennlinie (S3/Ä2). */
+.rs-eigene-card .rs-eigene-status {
+  margin-left: var(--sp-2);
+  margin-top: 0;
+}
 .rs-moderation-section {
   margin-top: 24px;
   padding-top: 24px;

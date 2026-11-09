@@ -303,3 +303,7 @@ tests/planrahmen-route-lifecycle.test.mjs
 # Laden über Promise.allSettled, Mount-Test mit Schreibrecht (Befund
 # DMB-da438eb70703 + DMB-734e07deb09b).
 tests/dev-b1-*.test.mjs
+# DEV-B3: Mitglied-Detail-Kleinfixe — Geschlecht nur m/w (Detail, Profil,
+# Stammdaten), Zugang nur im Bearbeiten (+ Passwort-Link immer), Schließen.
+tests/dev-b3-*.test.mjs
+tests/devb5-*.test.mjs

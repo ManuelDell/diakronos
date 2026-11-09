@@ -675,9 +675,10 @@ class Dienste:
             "personen": [{"kennung": x.kennung, "anzeige": x.name or x.kennung, "name": x.name,
                           "vorname": x.vorname, "nachname": x.nachname,
                           "kuerzel": x.kuerzel or x.merkmale.get("kuerzel") or "",
-                          # PR-G1: Geschlecht normalisiert ('m'/'w'/'d'/'') —
-                          # NUR hier in der Stammdaten-Antwort (Berechtigte wie
-                          # bisher), nie in oeffentlichen Antworten.
+                          # PR-G1/DEV-B3: Geschlecht normalisiert
+                          # ('m'/'w'/'') — NUR hier in der Stammdaten-Antwort
+                          # (Berechtigte wie bisher), nie in oeffentlichen
+                          # Antworten.
                           "geschlecht": x.geschlecht,
                           "gruppen": sorted(x.gruppen),
                           "merkmale": {k: w for k, w in x.merkmale.items()

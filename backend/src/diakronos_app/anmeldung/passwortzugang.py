@@ -78,7 +78,13 @@ def link_erzeugen(user, *, erstwechsel=False):
         row.token_hash = hashlib.sha256(kennung.encode()).hexdigest()
         row.gueltig_bis = bis
         sess.commit()
-    return {"link": f"/diakonos/passwort-setzen#token={kennung}",
+    # DEV-B3 (DMB-d78583647c3a): der Link muss unter dem Betriebs-Präfix
+    # liegen (wie `registrierungslink.link_anzeige`) — ohne `base_path.pfad`
+    # zeigt er im Betrieb auf `/diakonos/passwort-setzen` statt auf
+    # `/diakronos/diakonos/passwort-setzen` und läuft in eine 404.
+    from diakronos_app import base_path
+    pfad = base_path.pfad(f"/diakonos/passwort-setzen#token={kennung}")
+    return {"link": pfad,
             "gueltig_bis": bis.isoformat() + "Z"}
 
 

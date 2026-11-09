@@ -353,25 +353,26 @@ def kuerzel_aus_name(vorname: str, nachname: str) -> str:
     return nachname or vorname
 
 
-# PR-G1: Geschlecht normalisieren — 'm' | 'w' | 'd' oder '' (keine Angabe).
+# DEV-B3: Geschlecht normalisieren — 'm' | 'w' oder '' (keine Angabe).
 # Grundlage ist das Freitextfeld `mitglied.geschlecht` (Bestand: „Männlich“,
 # teils '' oder NULL). Verglichen wird ohne Groß/Klein und ohne Umlaut-
-# Schreibvarianten (ä/ae, ß/ss); nur die drei bekannten Werte werden
-# abgebildet, alles Unbekannte gilt als „keine Angabe“ (fail-closed, damit
-# niemand versehentlich als Mann gilt).
+# Schreibvarianten (ä/ae, ß/ss); nur die BEIDEN bekannten Werte werden
+# abgebildet, alles andere gilt als „keine Angabe“ (fail-closed, damit
+# niemand versehentlich als Mann gilt). Entscheidung Manuel 2026-10-29
+# (DMB-e2a7f41994d7): „Männlich“/„Weiblich“ — frühere „Divers“/„inter“-
+# Angaben werden zu '' (gelesen, NICHT in der Datenbank umgeschrieben).
 _GESCHLECHT_ALIASE = {
     "m": "m", "maennlich": "m", "mann": "m", "herr": "m", "male": "m", "man": "m",
     "w": "w", "weiblich": "w", "frau": "w", "female": "w", "woman": "w",
-    "d": "d", "divers": "d", "diverse": "d", "inter": "d", "intersexuell": "d",
 }
 
 
 def geschlecht_normalisieren(roh: Any) -> str:
-    """Geschlechtsangabe auf ``'m' | 'w' | 'd' | ''`` abbilden (PR-G1).
+    """Geschlechtsangabe auf ``'m' | 'w' | ''`` abbilden (PR-G1, DEV-B3).
 
     >>> geschlecht_normalisieren("Männlich"), geschlecht_normalisieren("W")
     ('m', 'w')
-    >>> geschlecht_normalisieren(None), geschlecht_normalisieren("egal")
+    >>> geschlecht_normalisieren(None), geschlecht_normalisieren("divers")
     ('', '')
     """
     text = _skalar(roh)
@@ -739,7 +740,7 @@ class DBDatenquelle:
                     {"status": m.status, "austritt_datum": m.austritt_datum}),
                 # DSGVO-2d: Endstatus „geloescht“ — eigener Anzeigetext.
                 geloescht=ist_geloescht({"name": m.name, "status": m.status}),
-                # PR-G1: Geschlecht normalisiert ('m'/'w'/'d'/''), siehe
+                # PR-G1/DEV-B3: Geschlecht normalisiert ('m'/'w'/''), siehe
                 # `geschlecht_normalisieren`.
                 geschlecht=geschlecht_normalisieren(m.geschlecht),
             ))

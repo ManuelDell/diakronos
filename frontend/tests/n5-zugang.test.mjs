@@ -65,7 +65,9 @@ test('Ergebnis und Zugangskarte benutzen denselben vertraulichen lokalen QR-Teil
   assert.match(ergebnis, /<RegLinkTeilen[^>]+vertraulich/)
   assert.match(ergebnis, /keine E-Mail versendet/)
   assert.match(karte, /Passwort-Link neu erzeugen/)
-  assert.match(karte, /v-if="!oidcAnmeldung" label="Startpasswort setzen"/)
+  // DEV-B3: das Startpasswort gibt es nur im Bearbeiten-Modus (davor nur
+  // `!oidcAnmeldung`), der Passwort-Link bleibt immer erlaubt.
+  assert.match(karte, /v-if="!oidcAnmeldung && bearbeitbar" label="Startpasswort setzen"/)
   assert.match(karte, /oidcAnmeldung.value = daten.oidc_aktiv === true/)
   assert.match(karte, /<PasswortLink/)
 })

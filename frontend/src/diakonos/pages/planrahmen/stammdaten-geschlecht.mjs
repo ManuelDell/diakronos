@@ -5,10 +5,15 @@
  * (tests/pr-g1-geschlecht.test.mjs) nutzen DIESELBE Rechnung — so kann die
  * Oberfläche nicht anders filtern als der Test prüft.
  *
- * Der Server liefert `geschlecht` bereits normalisiert als 'm' | 'w' | 'd';
+ * Der Server liefert `geschlecht` bereits normalisiert als 'm' | 'w';
  * '' heißt „keine Angabe". Diese Datei verlässt sich NICHT darauf: sie
- * normalisiert Rohwerte („Männlich", „W", „divers") genauso, damit alte
- * Antworten und Testdaten nicht zu falschen Filtern führen.
+ * normalisiert Rohwerte („Männlich", „W") genauso, damit alte Antworten und
+ * Testdaten nicht zu falschen Filtern führen.
+ *
+ * DEV-B3 (Entscheidung Manuel 2026-10-29, DMB-e2a7f41994d7): Geschlecht gibt
+ * es überall nur noch als „Männlich"/„Weiblich" (+ leer = nicht angegeben).
+ * Alte Angaben wie „Divers"/„inter" werden zu '' („Nicht angegeben") — die
+ * Datensätze selbst werden NICHT umgeschrieben.
  */
 
 /** Beschriftung und Schlüssel der Filterauswahl (Reihenfolge wie im Feld). */
@@ -16,24 +21,25 @@ export const GESCHLECHT_FILTER = [
     { value: '', label: 'Alle Geschlechter' },
     { value: 'm', label: 'Männlich' },
     { value: 'w', label: 'Weiblich' },
-    { value: 'd', label: 'Divers' },
     { value: 'ohne', label: 'Nicht angegeben' },
 ]
 
 /** Kurzanzeige je Person in der Tabelle (klein und ruhig). */
-const KURZ = { m: 'm', w: 'w', d: 'd' }
+const KURZ = { m: 'm', w: 'w' }
 
 /** Ausführliche Beschriftung für aria-label/title. */
-const LANG = { m: 'Männlich', w: 'Weiblich', d: 'Divers' }
+const LANG = { m: 'Männlich', w: 'Weiblich' }
 
+// DEV-B3: Nur männlich und weiblich. Alles andere (auch „divers"/„inter")
+// ergibt '' = „keine Angabe" — fail-closed, damit niemand in einer Auswahl
+// landet, die es nicht mehr gibt.
 const ALIASE = new Map([
     ['m', 'm'], ['maennlich', 'm'], ['mann', 'm'], ['male', 'm'], ['man', 'm'],
     ['w', 'w'], ['weiblich', 'w'], ['frau', 'w'], ['female', 'w'], ['woman', 'w'],
-    ['d', 'd'], ['divers', 'd'], ['diverse', 'd'], ['inter', 'd'], ['intersexuell', 'd'],
 ])
 
 /**
- * Rohangabe auf 'm' | 'w' | 'd' | '' abbilden.
+ * Rohangabe auf 'm' | 'w' | '' abbilden.
  *
  * Unbekanntes ergibt '' („keine Angabe") — fail-closed, damit niemand
  * versehentlich in der Männer-Auswahl landet. Gleiche Regeln wie im Backend
@@ -46,7 +52,7 @@ export function geschlechtNormalisieren(roh) {
     return ALIASE.get(key) || ''
 }
 
-/** Einbuchstabige Anzeige ('m' | 'w' | 'd') oder '–' für „keine Angabe". */
+/** Einbuchstabige Anzeige ('m' | 'w') oder '–' für „keine Angabe". */
 export function geschlechtKurz(roh) {
     return KURZ[geschlechtNormalisieren(roh)] || '–'
 }
@@ -56,7 +62,7 @@ export function geschlechtLang(roh) {
     return LANG[geschlechtNormalisieren(roh)] || 'Nicht angegeben'
 }
 
-/** Trifft die Person die Filterwahl? `wahl` ist '', 'm', 'w', 'd' oder 'ohne'. */
+/** Trifft die Person die Filterwahl? `wahl` ist '', 'm', 'w' oder 'ohne'. */
 export function passtGeschlecht(person, wahl) {
     if (!wahl) return true
     const g = geschlechtNormalisieren(person?.geschlecht)
@@ -83,10 +89,10 @@ export function personenFiltern(personen, { suche = '', gruppe = '', geschlecht 
         .filter((p) => passtGruppe(p, gruppe) && passtGeschlecht(p, geschlecht) && passtSuche(p, suche))
 }
 
-const ORDNUNG = { m: 0, w: 1, d: 2, '': 3 }
+const ORDNUNG = { m: 0, w: 1, '': 2 }
 
 /**
- * Sortierschlüssel einer Person: erst Geschlecht (m, w, d, ohne Angabe),
+ * Sortierschlüssel einer Person: erst Geschlecht (m, w, ohne Angabe),
  * dann Name (deutsche Sortierung, natürliche Zahlenfolge). Der Name ist der
  * zweite Schlüssel, damit die Reihenfolge innerhalb eines Geschlechts ruhig
  * und vorhersehbar bleibt.
@@ -97,7 +103,7 @@ export function sortSchluessel(person) {
 }
 
 /**
- * Nach Geschlecht sortieren. `richtung` ist 'auf' (m → w → d → ohne) oder
+ * Nach Geschlecht sortieren. `richtung` ist 'auf' (m → w → ohne) oder
  * 'ab' (umgekehrt); der Name läuft immer aufsteigend, damit die Liste beim
  * Umschalten nicht komplett durchgemischt wirkt.
  */

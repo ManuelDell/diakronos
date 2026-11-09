@@ -27,9 +27,17 @@
             {{ email || 'des Mitglieds' }}.
           </DkHint>
         </div>
-        <DkButton v-else variant="primary" size="md" :loading="arbeitet" @click="anlegen">
+        <!-- DEV-B3 (Review): Ohne Konto legt der Einladungslink serverseitig
+             ein Konto an (`zugang.einladungslink` → `konto_anlegen`) — das ist
+             eine Änderung am Zugang und deshalb nur im Bearbeiten-Modus. -->
+        <DkButton
+          v-else-if="bearbeitbar" variant="primary" size="md" :loading="arbeitet" @click="anlegen"
+        >
           Zugang mit Einladungslink einrichten
         </DkButton>
+        <p v-else class="zug-hinweis">
+          Ein Zugang wird über „Bearbeiten“ eingerichtet.
+        </p>
       </template>
 
       <!-- Konto vorhanden -->
@@ -44,7 +52,10 @@
           </dd>
         </dl>
 
-        <DkField label="Rollen">
+        <!-- DEV-B3 (DMB-2b8262b82c08): Rollen nur im Bearbeiten-Modus ändern.
+             Sonst zeigt die Karte die Rollen als Text — kein Kontrollkästchen,
+             das nichts bewirkt. -->
+        <DkField v-if="bearbeitbar" label="Rollen">
           <div class="zug-rollen">
             <label v-for="r in rollenWaehlbar" :key="r" class="zug-rolle">
               <input type="checkbox" :value="r" v-model="gewaehlteRollen" />
@@ -52,8 +63,14 @@
             </label>
           </div>
         </DkField>
+        <div v-else class="zug-feld">
+          <p class="zug-label">Rollen</p>
+          <p class="zug-muted">
+            {{ gewaehlteRollen.length ? gewaehlteRollen.join(', ') : 'Keine Rolle zugewiesen' }}
+          </p>
+        </div>
 
-        <div class="zug-aktionen">
+        <div v-if="bearbeitbar" class="zug-aktionen">
           <DkButton variant="primary" size="md" :loading="arbeitet" @click="rollenSpeichern">
             Rollen speichern
           </DkButton>
@@ -67,9 +84,10 @@
           </DkButton>
         </div>
 
+        <!-- Immer erlaubt: nur ein Link, keine Änderung am Mitglied. -->
         <DkButton v-if="!oidcAnmeldung" variant="secondary" :loading="arbeitet" @click="linkErzeugen">Passwort-Link neu erzeugen</DkButton>
         <DkHint v-else variant="info">Passwörter werden über Authentik verwaltet. Dieses Konto ist verknüpft.</DkHint>
-        <DkField v-if="!oidcAnmeldung" label="Startpasswort setzen" help="Mindestens 8 Zeichen. Beim ersten Anmelden muss die Person es ändern.">
+        <DkField v-if="!oidcAnmeldung && bearbeitbar" label="Startpasswort setzen" help="Mindestens 8 Zeichen. Beim ersten Anmelden muss die Person es ändern.">
           <div class="zug-passwort">
             <!-- K3 (R-P1-8): Das Startpasswort wird verdeckt eingegeben
                  (type=password); der Anzeigen-Schalter gibt es bei Bedarf frei.
@@ -88,6 +106,9 @@
             </DkButton>
           </div>
         </DkField>
+        <p v-if="!bearbeitbar && !oidcAnmeldung" class="zug-hinweis">
+          Rollen, Kontozustand und Startpasswort ändern sich über „Bearbeiten“.
+        </p>
       </template>
     </template>
     <PasswortLink v-if="passwortLink" :daten="passwortLink" />
@@ -126,6 +147,10 @@ const props = defineProps({
   email: { type: String, default: '' },
   // Ob Authentik aktiv ist, weiss der Server; die Seite reicht es durch.
   oidcAktiv: { type: Boolean, default: false },
+  // DEV-B3 (DMB-2b8262b82c08): Rollen, Kontozustand und Startpasswort nur
+  // im Bearbeiten-Modus der Detailseite. Der Passwort-Link ist davon
+  // ausgenommen (nur ein Link, keine Änderung am Mitglied).
+  bearbeitbar: { type: Boolean, default: false },
 })
 const emit = defineEmits(['geaendert'])
 
@@ -223,4 +248,8 @@ onMounted(laden)
 .zug-aktionen { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin: var(--sp-3) 0; }
 .zug-passwort { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
 .zug-oidc { margin-bottom: var(--sp-3); }
+/* DEV-B3: Rollen im Ansichtsmodus als Text (gleiche Anmutung wie DkField-Label). */
+.zug-feld { margin-bottom: var(--sp-3); }
+.zug-label { font-size: var(--fs-sm); font-weight: var(--fw-fett); color: var(--text); margin: 0 0 var(--sp-1); }
+.zug-feld .zug-muted { margin: 0; }
 </style>

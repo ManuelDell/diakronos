@@ -78,6 +78,7 @@ from diakronos_app.frappe_compat.api_helpers import (
 from diakronos_app.frappe_compat.exceptions import (
     DoesNotExistError,
     PermissionError as FrappePermissionError,
+    ValidationError,
 )
 from diakronos_app.frappe_compat import permissions
 from diakronos_app.frappe_compat.query import get_all
@@ -220,6 +221,27 @@ def _cint(value) -> int:
         return 0
 
 
+_GESCHLECHT_ERLAUBT = ("", "Männlich", "Weiblich")
+
+
+def _geschlecht_pruefen(neu, alt=None):
+    """DEV-B3: Geschlecht nur ''/„Männlich"/„Weiblich" — Altdatum bleibt gültig.
+
+    Nur eine ÄNDERUNG wird geprüft. Wer ein anderes Feld speichert und dabei
+    das unveränderte Altdatum (z. B. „divers") mitsendet, wird nicht
+    blockiert; die Datenbank wird dabei nicht umgeschrieben.
+    """
+    wert = "" if neu is None else neu
+    if not isinstance(wert, str):
+        raise ValidationError("Geschlecht: bitte „Männlich“ oder „Weiblich“ wählen.")
+    wert = wert.strip()
+    if wert == (alt or ""):
+        return wert
+    if wert not in _GESCHLECHT_ERLAUBT:
+        raise ValidationError("Geschlecht: bitte „Männlich“ oder „Weiblich“ wählen.")
+    return wert
+
+
 @whitelist(methods=["POST"], allow_guest=False)
 def update_my_profile(vorname=None, nachname=None, telefonnummer=None,
                       postleitzahl=None, wohnort=None, strasse=None,
@@ -268,7 +290,11 @@ def update_my_profile(vorname=None, nachname=None, telefonnummer=None,
     if geburtstag is not None:
         doc.geburtstag = geburtstag or None
     if geschlecht is not None:
-        doc.geschlecht = geschlecht
+        # DEV-B3 (Entscheidung Manuel 2026-10-29, DMB-e2a7f41994d7): nur
+        # „Männlich"/„Weiblich", leer = nicht angegeben. Ein unveraendert
+        # mitgesendetes Altdatum bleibt zulaessig (sonst scheitert das
+        # Speichern eines anderen Feldes an Bestandsdaten).
+        doc.geschlecht = _geschlecht_pruefen(geschlecht, doc.geschlecht)
     if familienstand is not None:
         doc.familienstand = familienstand
 

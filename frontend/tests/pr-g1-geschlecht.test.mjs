@@ -23,8 +23,11 @@ assert.equal(geschlechtNormalisieren('  MÄNNLICH '), 'm')
 assert.equal(geschlechtNormalisieren('maennlich'), 'm')
 assert.equal(geschlechtNormalisieren('W'), 'w')
 assert.equal(geschlechtNormalisieren('Weiblich'), 'w')
-assert.equal(geschlechtNormalisieren('Divers'), 'd')
-assert.equal(geschlechtNormalisieren('d'), 'd')
+// DEV-B3 (Entscheidung Manuel 2026-10-29): nur männlich/weiblich — frühere
+// „Divers"/„inter"-Angaben gelten als „keine Angabe" (Altdaten unangetastet).
+assert.equal(geschlechtNormalisieren('Divers'), '')
+assert.equal(geschlechtNormalisieren('d'), '')
+assert.equal(geschlechtNormalisieren('inter'), '')
 assert.equal(geschlechtNormalisieren(''), '')
 assert.equal(geschlechtNormalisieren(null), '')
 assert.equal(geschlechtNormalisieren(undefined), '')
@@ -35,10 +38,11 @@ assert.equal(geschlechtKurz(''), '–', 'Ohne Angabe zeigt einen Gedankenstrich'
 assert.equal(geschlechtLang('w'), 'Weiblich')
 assert.equal(geschlechtLang(''), 'Nicht angegeben')
 
-// Filteroptionen: Alle · Männlich · Weiblich · Divers · Nicht angegeben
+// Filteroptionen: Alle · Männlich · Weiblich · Nicht angegeben (DEV-B3)
 assert.deepEqual(GESCHLECHT_FILTER.map((o) => o.label),
-  ['Alle Geschlechter', 'Männlich', 'Weiblich', 'Divers', 'Nicht angegeben'])
-assert.deepEqual(GESCHLECHT_FILTER.map((o) => o.value), ['', 'm', 'w', 'd', 'ohne'])
+  ['Alle Geschlechter', 'Männlich', 'Weiblich', 'Nicht angegeben'])
+assert.deepEqual(GESCHLECHT_FILTER.map((o) => o.value), ['', 'm', 'w', 'ohne'])
+assert.ok(!GESCHLECHT_FILTER.some((o) => o.value === 'd'), 'kein „Divers" mehr im Filter')
 
 // ── 2. Personen der Stammdaten (mit leeren Werten, wie im Betrieb) ────────────
 const personen = [
@@ -46,13 +50,15 @@ const personen = [
   { id: 'p2', name: 'Bernd B', kuerzel: 'BB', gruppen: ['Chor', 'Technik'], geschlecht: 'm' },
   { id: 'p3', name: 'Chris C', kuerzel: 'CC', gruppen: ['Technik'], geschlecht: '' },
   { id: 'p4', name: 'Dieter D', kuerzel: 'DD', gruppen: ['Chor'], geschlecht: 'm' },
-  { id: 'p5', name: 'Eva E', kuerzel: 'EE', gruppen: ['Technik'], geschlecht: 'd' },
+  // Altdatum „divers" (vor DEV-B3 möglich): gilt als „keine Angabe".
+  { id: 'p5', name: 'Eva E', kuerzel: 'EE', gruppen: ['Technik'], geschlecht: 'divers' },
 ]
 
 assert.deepEqual(personenFiltern(personen, { geschlecht: 'm' }).map((p) => p.id), ['p2', 'p4'])
 assert.deepEqual(personenFiltern(personen, { geschlecht: 'w' }).map((p) => p.id), ['p1'])
-assert.deepEqual(personenFiltern(personen, { geschlecht: 'd' }).map((p) => p.id), ['p5'])
-assert.deepEqual(personenFiltern(personen, { geschlecht: 'ohne' }).map((p) => p.id), ['p3'])
+assert.deepEqual(personenFiltern(personen, { geschlecht: 'd' }).map((p) => p.id), [],
+  'Die Wahl „d" gibt es nicht mehr — sie trifft niemanden')
+assert.deepEqual(personenFiltern(personen, { geschlecht: 'ohne' }).map((p) => p.id), ['p3', 'p5'])
 assert.deepEqual(personenFiltern(personen, {}).map((p) => p.id), ['p1', 'p2', 'p3', 'p4', 'p5'],
   'Ohne Wahl bleiben alle Personen')
 
@@ -85,10 +91,10 @@ const unsortiert = [
   { id: 'q2', name: 'Anton', geschlecht: '' },
   { id: 'q3', name: 'Bernd', geschlecht: 'm' },
   { id: 'q4', name: 'Anna', geschlecht: 'm' },
-  { id: 'q5', name: 'Cem', geschlecht: 'd' },
+  { id: 'q5', name: 'Cem', geschlecht: 'divers' },
 ]
-assert.deepEqual(nachGeschlechtSortieren(unsortiert).map((p) => p.id), ['q4', 'q3', 'q1', 'q5', 'q2'],
-  'Auf: Männer (Name), Frauen, Divers, ohne Angabe zuletzt')
+assert.deepEqual(nachGeschlechtSortieren(unsortiert).map((p) => p.id), ['q4', 'q3', 'q1', 'q2', 'q5'],
+  'Auf: Männer (Name), Frauen, „ohne Angabe" zuletzt (auch Altdaten „divers")')
 assert.deepEqual(nachGeschlechtSortieren(unsortiert, 'ab').map((p) => p.id), ['q2', 'q5', 'q1', 'q4', 'q3'],
   'Ab: umgekehrte Geschlechtsfolge, Name bleibt aufsteigend')
 assert.deepEqual(unsortiert.map((p) => p.id), ['q1', 'q2', 'q3', 'q4', 'q5'],
@@ -101,7 +107,7 @@ assert.deepEqual(nachGeschlechtSortieren([
 // Ohne Sortierung: Server-Reihenfolge bleibt
 assert.deepEqual(personenAnzeigen(unsortiert, {}).map((p) => p.id), ['q1', 'q2', 'q3', 'q4', 'q5'])
 assert.deepEqual(personenAnzeigen(unsortiert, { sortierung: { spalte: 'geschlecht', richtung: 'auf' } })
-  .map((p) => p.id), ['q4', 'q3', 'q1', 'q5', 'q2'])
+  .map((p) => p.id), ['q4', 'q3', 'q1', 'q2', 'q5'])
 // Sortierung wirkt NACH dem Filter (nur die Auswahl wird sortiert)
 assert.deepEqual(personenAnzeigen(unsortiert, {
   geschlecht: 'm', sortierung: { spalte: 'geschlecht', richtung: 'auf' },
@@ -116,7 +122,7 @@ s = sortierungUmschalten(s, 'geschlecht')
 assert.deepEqual(s, { spalte: '', richtung: 'auf' }, 'Dritter Klick hebt die Sortierung auf')
 
 // ── 4. Hinweis bei fehlenden Angaben ─────────────────────────────────────────
-assert.equal(anzahlOhneAngabe(personen), 1)
+assert.equal(anzahlOhneAngabe(personen), 2, 'p3 ohne Angabe + p5 mit Altdatum „divers"')
 assert.equal(anzahlOhneAngabe(roh), 2)
 assert.equal(anzahlOhneAngabe([]), 0)
 assert.equal(anzahlOhneAngabe(null), 0)

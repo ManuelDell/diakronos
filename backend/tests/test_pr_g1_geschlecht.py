@@ -3,7 +3,7 @@
 Anlass (Manuel): In den Stammdaten muss man nach m/w filtern/sortieren
 koennen. Das Mitgliedsfeld ``geschlecht`` ist Freitext („Männlich“,
 teils ''/NULL). Die Stammdaten-Antwort (``stammdaten_holen``) liefert es
-deshalb NORMALISIERT als ``'m' | 'w' | 'd' | ''``.
+deshalb NORMALISIERT als ``'m' | 'w' | ''`` (DEV-B3: nur männlich/weiblich).
 
 Geprueft wird:
 
@@ -29,8 +29,11 @@ from test_planrahmen_ui2 import PFAD, anmelden, aufruf, stamm_setup
     ("maennlich", "m"), ("  Männlich  ", "m"), ("Mann", "m"), ("male", "m"),
     ("Weiblich", "w"), ("weiblich", "w"), ("WEIBLICH", "w"), ("W", "w"), ("w", "w"),
     ("weiblich ", "w"), ("Frau", "w"), ("female", "w"),
-    ("Divers", "d"), ("divers", "d"), ("DIVERS", "d"), ("D", "d"), ("d", "d"),
-    ("diverse", "d"), ("inter", "d"),
+    # DEV-B3 (Entscheidung Manuel 2026-10-29): nur männlich/weiblich. Frühere
+    # „Divers"/„inter"-Angaben gelten als „keine Angabe" (Altdaten bleiben
+    # in der Datenbank stehen, werden aber nicht mehr als d geliefert).
+    ("Divers", ""), ("divers", ""), ("DIVERS", ""), ("D", ""), ("d", ""),
+    ("diverse", ""), ("inter", ""), ("intersexuell", ""),
     # Unbekannt/leer -> '' (fail-closed: niemand gilt versehentlich als Mann).
     ("", ""), ("   ", ""), (None, ""), ("k. A.", ""), ("unbekannt", ""),
     ("m/w", ""), ("Herr", "m"),
@@ -124,6 +127,7 @@ def test_pool_planer_sieht_nur_pool_personen_mit_geschlecht(client, patched_db):
 
     _welt(patched_db)
     with patched_db.begin() as s:
+        # m3 trägt ein ALTdatum „Divers" (DEV-B3): es zählt als keine Angabe.
         for kennung, wert in (("m1", "Weiblich"), ("m2", "Männlich"), ("m3", "Divers")):
             m = s.scalar(select(Mitglied).where(Mitglied.name == kennung))
             assert m is not None, kennung

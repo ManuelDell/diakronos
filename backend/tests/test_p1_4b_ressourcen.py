@@ -148,8 +148,15 @@ def test_b1_termin_anfrage_ablehnen_entfernt_zeile(client, als_moderator, welt):
     assert welt.get(ElementRessource, "ER-2") is None
 
 
-def test_b1_termin_anfrage_nicht_selbst_entscheiden(client, welt):
-    """Wer den Termin angelegt hat, darf ihn nicht selbst bestaetigen."""
+def test_b1_termin_anfrage_selbst_entscheiden_mit_recht(client, welt):
+    """ANGEPASST (DEV-B5, Manuel 2026-11-09): Wer den Termin angelegt hat und
+    das Freigaberecht besitzt, DARF die Ressourcen-Anfrage bestaetigen —
+    protokolliert als „Selbstfreigabe“ (Audit).
+
+    Vorher (bis DEV-B5) erwartete dieser Test 403. Ohne Recht bleibt es bei
+    403 (siehe `test_b1_termin_anfrage_ohne_moderatorrolle_verweigert` und
+    `backend/tests/test_devb5_eigene_anfragen.py`).
+    """
     _termin(welt, "EL-3", "Eigener Termin", 14, owner=MODERATOR)
     welt.add(ElementRessource(
         name="ER-3", parent="EL-3", parenttype="Element",
@@ -162,7 +169,8 @@ def test_b1_termin_anfrage_nicht_selbst_entscheiden(client, welt):
     try:
         r = client.post(f"/api/method/{RES_MODUL}.decide_termin_ressource",
                         json={"zeile_id": "ER-3", "entscheidung": "bestaetigen"})
-        assert r.status_code == 403, r.text
+        assert r.status_code == 200, r.text
+        assert r.json()["message"]["status"] == "Bestätigt"
     finally:
         set_user("Administrator")
 

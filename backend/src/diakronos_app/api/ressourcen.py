@@ -446,17 +446,33 @@ def get_ressource_buchungen(ressource_id, date_from="", date_to=""):
 
 @whitelist(allow_guest=False)
 def get_meine_buchungen():
-    """Gibt Buchungen des aktuellen Nutzers zurück (alle eigenen, außer stornierte)."""
-    user = _get_user()
+    """Gibt Buchungen des aktuellen Nutzers zurück (alle eigenen, außer stornierte).
 
-    buchungen = get_all(
-        "Ressourcen Buchung",
-        filters={"gebucht_von": user, "status": ["!=", "Storniert"]},
-        fields=["name", "ressource", "zweck", "datum_von", "datum_bis",
-                "status", "ablehnungs_grund", "moderiert_von"],
-        order_by="datum_von asc",
-        limit_page_length=50,
-    )
+    DEC-B5 erweitert den Eintrag um die Angaben, welche die Ansicht „Eigene
+    Anfragen“ braucht:
+      * `darf_entscheiden` — liegt beim Aufrufer das Freigaberecht
+        (`_is_ressourcenmoderator` bzw. `Administrator`, also exakt die
+        Schranke von `decide_buchung`) UND ist die Anfrage offen? Nur dann
+        zeigt die Oberfläche „Freigeben“/„Ablehnen“ an der eigenen Anfrage —
+        nicht erst ein Fehler beim Klick.
+      * `zweck`/`notizen` stehen bereits als `purpose`/`notizen` dabei.
+      * entschiedene eigene Anfragen (Bestätigt/Abgelehnt) bleiben in der
+        Liste; „Zurücknehmen“ bietet die Oberfläche nur für `Angefragt` an.
+    """
+    user = _get_user()
+    darf_entscheiden = user == "Administrator" or _is_ressourcenmoderator()
+
+    buchungen = [
+        b for b in (get_all(
+            "Ressourcen Buchung",
+            filters={"gebucht_von": user, "status": ["!=", "Storniert"]},
+            fields=["name", "ressource", "zweck", "notizen", "datum_von", "datum_bis",
+                    "status", "ablehnungs_grund", "moderiert_von"],
+            order_by="datum_von asc",
+            limit_page_length=50,
+        ) or [])
+        if isinstance(b, dict)
+    ]
 
     result = []
     for b in buchungen:
@@ -467,13 +483,16 @@ def get_meine_buchungen():
 
         entry = {
             "id":           b["name"],
+            "quelle":       "buchung",
             "resourceId":   b["ressource"],
             "resourceName": ressource_name,
             "resourceType": _typ_key(ressource_typ),
             "date":         _datum_de(dv),
             "time":         f"{dv.strftime('%H:%M')} – {db_.strftime('%H:%M')}",
             "purpose":      b["zweck"],
+            "notizen":      b["notizen"] or "",
             "status":       b["status"],
+            "darf_entscheiden": bool(darf_entscheiden and b["status"] == "Angefragt"),
             "ablehnungs_grund": b["ablehnungs_grund"] or "",
             "moderiert_von":    b["moderiert_von"] or "",
         }
@@ -484,7 +503,68 @@ def get_meine_buchungen():
                 entry["konflikt_hinweis"] = konflikte["hinweise"]
         result.append(entry)
 
+    # DEC-B5: Auch eigene Ressourcen-Anfragen an einem Termin gehören in diese
+    # Ansicht (sonst sah der Eigentümer sie nur in der Moderatorenliste — und
+    # dort ohne eigenen Bereich).
+    result.extend(_eigene_termin_ressourcen_anfragen(user, darf_entscheiden))
+
     return result
+
+
+def _eigene_termin_ressourcen_anfragen(user: str, darf_entscheiden: bool) -> list[dict[str, Any]]:
+    """Eigene Termine mit Ressourcen-Zeile „Angefragt“ (DEC-B5).
+
+    Form wie die Buchungs-Einträge, aber `quelle="termin"`: die Entscheidung
+    läuft über `decide_termin_ressource` (Kind-Zeile), Zurücknehmen entfernt
+    die Zuordnung (`remove_termin_ressource`).
+    """
+    termine = [
+        el for el in (get_all(
+            "Element",
+            filters={"owner": user, "geloescht_am": ["is", "not set"]},
+            fields=["name", "element_name", "element_start", "element_end"],
+        ) or [])
+        if isinstance(el, dict)
+    ]
+    if not termine:
+        return []
+    el_ids = [el["name"] for el in termine]
+    zeilen = [
+        z for z in (get_all(
+            "Element Ressource",
+            filters={"parent": ["in", el_ids], "status": "Angefragt"},
+            fields=["name", "parent", "ressource", "freitext_ressource", "notiz"],
+        ) or [])
+        if isinstance(z, dict)
+    ]
+    if not zeilen:
+        return []
+    by_parent = {el["name"]: el for el in termine}
+    ergebnis: list[dict[str, Any]] = []
+    for z in zeilen:
+        el = by_parent.get(str(z.get("parent") or ""))
+        if not el:
+            continue
+        dv = compat_get_datetime(el.get("element_start"))
+        db_ = compat_get_datetime(el.get("element_end"))
+        ressource_id = z.get("ressource") or z.get("freitext_ressource") or ""
+        ressource_name = _ressource_anzeigename(str(z.get("ressource") or "")) or ressource_id
+        ergebnis.append({
+            "id":           z["name"],
+            "quelle":       "termin",
+            "resourceId":   ressource_id,
+            "resourceName": ressource_name,
+            "resourceType": "term" if not z.get("ressource") else "",
+            "date":         _datum_de(dv) if dv else "",
+            "time":         f"{dv.strftime('%H:%M')} – {db_.strftime('%H:%M')}" if dv and db_ else "",
+            "purpose":      el.get("element_name") or "",
+            "notizen":      z.get("notiz") or "",
+            "status":       "Angefragt",
+            "darf_entscheiden": bool(darf_entscheiden),
+            "ablehnungs_grund": "",
+            "moderiert_von":    "",
+        })
+    return ergebnis
 
 
 @whitelist(allow_guest=False)
@@ -558,11 +638,49 @@ def create_buchung(ressource_id, datum_von, datum_bis, zweck, notizen=""):
     return result
 
 
+def _audit_entscheidung(doc, entscheidung: str, user: str, *, doctype: str, name: str,
+                        selbst: bool) -> None:
+    """DEC-B5: Entscheidung protokollieren — Kennzeichnung „Selbstfreigabe“.
+
+    Seit Manuel 2026-11-09 („Wenn man die Rechte hat, soll man es freigeben
+    können.“) darf ein Ressourcenverwalter die EIGENE Anfrage entscheiden. Das
+    ist bewusst erlaubt, soll aber nachvollziehbar bleiben: der Eintrag nennt
+    den Vorgang, die Entscheidung und — bei eigener Anfrage — ausdrücklich
+    „Selbstfreigabe“.
+
+    Das Audit-Protokoll ist Beiwerk: ein Fehler hier darf eine bereits
+    gespeicherte Entscheidung nicht mit einem HTTP-Fehler quittieren.
+    """
+    from diakronos_app.api.audit import log as _audit_log
+    from diakronos_app.frappe_compat.api_helpers import log_error
+
+    art = "Selbstfreigabe" if selbst else "Freigabe"
+    wort = "bestätigt" if entscheidung == "bestaetigen" else "abgelehnt"
+    try:
+        _audit_log(
+            "Sonstiges",
+            doctype,
+            name,
+            (f"{art}: eigene Anfrage von {user} {wort}" if selbst
+             else f"{art}: Anfrage durch {user} {wort}")
+            + (f" ({doc.ressource})" if getattr(doc, "ressource", None) else ""),
+        )
+    except Exception as ex:  # noqa: BLE001 — Protokoll ist Beiwerk
+        log_error(str(ex), f"audit_entscheidung {name}")
+
+
 @whitelist(methods=["POST"], allow_guest=False)
 def decide_buchung(buchung_id, entscheidung, grund=""):
     """Moderator entscheidet über eine Anfrage: bestätigen oder ablehnen.
 
     Nur Rolle Ressourcenmoderator. Vor Bestätigung: erneuter HARTER Konfliktcheck.
+
+    DEC-B5 (Manuel 2026-11-09): Die frühere Sperre „Eigene Anfragen können nicht
+    selbst moderiert werden“ ist gelöst — wer das Freigaberecht hat, darf auch
+    die eigene Anfrage entscheiden (die Oberfläche zeigt die Knöpfe nur mit
+    Recht, `Ressourcen.vue`). Die Entscheidung wird im Audit-Protokoll als
+    „Selbstfreigabe“ gekennzeichnet; Konfliktprüfung und Benachrichtigung sind
+    unverändert dieselben wie bei fremden Anfragen.
     """
     user = _get_user()
 
@@ -577,9 +695,9 @@ def decide_buchung(buchung_id, entscheidung, grund=""):
     if doc.status != "Angefragt":
         throw(f"Nur Anfragen mit Status 'Angefragt' können entschieden werden (aktuell: {doc.status}).", ValidationError)
 
-    # Self-Approval verhindern
-    if doc.gebucht_von == user:
-        throw("Eigene Anfragen können nicht selbst moderiert werden.", FrappePermissionError)
+    # DEC-B5: Eigene Anfragen sind erlaubt, wenn das Freigaberecht vorliegt
+    # (oben geprueft). Sie werden nur im Protokoll gekennzeichnet.
+    selbstfreigabe = doc.gebucht_von == user
 
     if entscheidung == "bestaetigen":
         # Erneuter HARTER Konfliktcheck vor Bestätigung
@@ -601,9 +719,15 @@ def decide_buchung(buchung_id, entscheidung, grund=""):
 
     _update_doc("Ressourcen Buchung", buchung_id, updates)
 
-    # OP-HANDY-6: Die entschiedene Person erfaehrt das Ergebnis. `gebucht_von`
-    # ist der Benutzername des Antragstellers (Self-Approval ist oben verboten,
-    # der Empfaenger ist also nie der Moderator selbst).
+    # DEC-B5: Protokolleintrag (bei eigener Anfrage „Selbstfreigabe“).
+    _audit_entscheidung(doc, entscheidung, user,
+                        doctype="Ressourcen Buchung", name=buchung_id,
+                        selbst=selbstfreigabe)
+
+    # OP-HANDY-6: Die entschiedene Person erfaehrt das Ergebnis.
+    # `gebucht_von` ist der Benutzername des Antragstellers; bei einer
+    # Selbstfreigabe (DEC-B5) ist das der Moderator selbst — die
+    # Benachrichtigung entfaellt dann (`_benachrichtige_buchung` prueft das).
     _benachrichtige_buchung(
         doc, entscheidung, grund, user,
         document_type="Ressourcen Buchung", document_name=buchung_id,
@@ -644,9 +768,10 @@ def decide_termin_ressource(zeile_id, entscheidung, grund=""):
     daran. Dieser Endpunkt entscheidet sie am richtigen Ort.
 
     Rechte wie bei Buchungen: nur Ressourcenmoderator (bzw.
-    Mitgliederadministrator/System Manager). Kein Selbst-Entscheiden (wer den
-    Termin angelegt hat, darf ihn nicht selbst bestaetigen). Vor dem
-    Bestaetigen: harter Konfliktcheck ueber die Ressource im Terminzeitraum.
+    Mitgliederadministrator/System Manager). DEC-B5: Wer den Termin selbst
+    angelegt hat, darf ihn MIT Recht entscheiden — die Entscheidung wird im
+    Protokoll als „Selbstfreigabe“ gekennzeichnet. Vor dem Bestaetigen: harter
+    Konfliktcheck ueber die Ressource im Terminzeitraum.
 
     `ablehnen` LOESCHT die Zeile — eine Termin-Ressource hat keinen
     Ablehnungs-Status; eine abgelehnte Zuordnung darf nicht am Termin stehen
@@ -675,9 +800,9 @@ def decide_termin_ressource(zeile_id, entscheidung, grund=""):
 
     termin = get_doc("Element", parent)
 
-    # Kein Selbst-Entscheiden: wer den Termin angelegt hat, ist befangen.
-    if str(termin.get("owner") or "") == user:
-        throw("Eigene Termine können nicht selbst moderiert werden.", FrappePermissionError)
+    # DEC-B5: Eigene Termine sind erlaubt, wenn das Freigaberecht vorliegt
+    # (oben geprueft). Sie werden nur im Protokoll gekennzeichnet.
+    selbstfreigabe = str(termin.get("owner") or "") == user
 
     ressource = str(doc.ressource or "")
 
@@ -701,6 +826,8 @@ def decide_termin_ressource(zeile_id, entscheidung, grund=""):
                     ValidationError,
                 )
         _update_doc("Element Ressource", zeile_id, {"status": "Bestätigt"})
+        _audit_entscheidung(doc, "bestaetigen", user, doctype="Element Ressource",
+                            name=zeile_id, selbst=selbstfreigabe)
         # OP-HANDY-6: Der Termin-Eigentuemer erfaehrt die Entscheidung.
         # B-1: `doc` ist eine Element-Ressource-Zeile — sie fuehrt KEIN
         # `ressource_name` (AttributError). Der Anzeigename kommt aus dem
@@ -725,6 +852,8 @@ def decide_termin_ressource(zeile_id, entscheidung, grund=""):
     ) if ressource else "die Ressource"
     titel = str(termin.get("title") or termin.get("element_name") or "")
     _delete_doc("Element Ressource", zeile_id)
+    _audit_entscheidung(doc, "ablehnen", user, doctype="Element Ressource",
+                        name=zeile_id, selbst=selbstfreigabe)
     # OP-HANDY-6: auch eine Ablehnung erreicht den Termin-Eigentuemer.
     _benachrichtige_termin_ressource(
         termin, parent, ressource, "ablehnen", grund_text, user)

@@ -123,10 +123,10 @@
 
     <template #footer>
       <template v-if="erfolgOffen">
-        <DkButton variant="primary" @click="schliessen">Schließen</DkButton>
+        <DkButton variant="primary" @click="schliessen(false)">Schließen</DkButton>
       </template>
       <template v-else>
-        <DkButton variant="secondary" @click="schliessen">Abbrechen</DkButton>
+        <DkButton variant="secondary" @click="schliessen(false)">Abbrechen</DkButton>
         <DkButton
           variant="primary"
           :loading="laeuft"
@@ -358,6 +358,10 @@ async function anlegen() {
 
 function schliessen(offen) {
   // DkDialog meldet `update:modelValue` mit dem neuen Wert (false beim Schließen).
+  // DEV-B3 (DMB-c116927ead52): Die Knöpfe im Fuß riefen `schliessen` als
+  // KLICK-Handler auf und übergaben damit das Event-Objekt — das ist weder
+  // `false` noch `undefined`, der Dialog blieb offen. Sie rufen jetzt
+  // ausdrücklich `schliessen(false)`.
   if (offen === false || offen === undefined) {
     if (laeuft.value) return
     emit('update:modelValue', false)
