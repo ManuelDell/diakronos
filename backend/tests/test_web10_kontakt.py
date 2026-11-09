@@ -25,6 +25,7 @@ spricht einen echten Host an.
 from __future__ import annotations
 
 import logging
+import os
 import re
 from pathlib import Path
 
@@ -440,7 +441,7 @@ def test_log_nennt_bei_fehler_nur_den_typ(client, mail_fach, monkeypatch, caplog
 
 
 @pytest.fixture()
-def mit_praefix(monkeypatch):
+def mit_praefix(monkeypatch, fake_redis, patched_db):
     """Baut die Anwendung mit `/diakronos` und dessen EIGENEM Client.
 
     BS-1c: `patched_db` und die Bremse-Attrappe gelten AUCH hier — sonst
@@ -450,6 +451,21 @@ def mit_praefix(monkeypatch):
     `test_web5a_base_path.py::test_default_ist_leer_und_aendert_nichts`
     scheiterte in der Vollsuite (isoliert gruen) — ein Test, der eine globale
     Einstellung setzt, muss sie zurueckgeben.
+
+    TEST-ISO1 (08.11.): zwei Nachlaessigkeiten, die den Test von der
+    Reihenfolge abhaengig machten.
+
+    1. `fake_redis` und `patched_db` standen NICHT in der Signatur, obwohl
+       der Kommentar oben sie zusagt — der Client sprach die echte
+       Datenbank an.
+    2. `erstelle_app()` baut die Middleware mit `settings.redis_url`. Die
+       Einstellung zeigen die Test-Fixtures (`redis_testdb.py`) auf den
+       Sitzungs-Redis, aber der Wert in `settings` bleibt der des Betriebs.
+       Prozessweit ist das harmlos (jeder Aufruf holt ihn neu), hier wird er
+       fuer den Aufbau gebraucht: sonst haengt die Bremse des Formulars an
+       einer Adresse, die es in der Testumgebung nicht gibt (503), sobald
+       ein frueherer Test die Prioritaet der Redis-Wege verschoben hat.
+       Der Wert wird nach dem Aufbau zurueckgestellt.
     """
     from fastapi.testclient import TestClient
 
@@ -462,9 +478,14 @@ def mit_praefix(monkeypatch):
     # WEB-5a: der Praefix kommt aus der Einstellung — hier fuer die Dauer des
     # Tests gesetzt (der Prozess-Praefix wird danach zurueckgestellt).
     setze_setting("diakronos_base_path", "/diakronos")
+    alt_redis = settings.redis_url
+    setze_setting("redis_url", os.environ["REDIS_URL"])
     try:
         app = erstelle_app()
-        c = TestClient(app)
+    finally:
+        setze_setting("redis_url", alt_redis)
+    c = TestClient(app)
+    try:
         c.__enter__()
         c.headers["Origin"] = "http://testserver"
         yield c

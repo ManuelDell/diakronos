@@ -22,7 +22,20 @@ from diakronos_app.settings import settings
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # TEST-ISO1: `disable_existing_loggers` MUSS hier stehen, nicht in der
+    # `alembic.ini`. Alembic gibt nur die Schluessel weiter, die es kennt —
+    # `disable_existing_loggers` gehoert nicht dazu, also wertet `fileConfig`
+    # den ini-Eintrag nie aus und schaltet mit dem Standard `True` ALLE
+    # bereits vorhandenen Logger stumm: die der importierten App und die
+    # Log-Aufzeichnung der Testsuite (`caplog`). Folge (Befund 08.11.): wer
+    # innerhalb eines pytest-Laufs `command.upgrade` faehrt, macht jeden
+    # spaeteren Log-Test blind — `test_web10_kontakt.py::test_log_enthaelt_
+    # keine_inhalte` u.a. schlagen dann nur in der Suite fehl (isoliert gruen).
+    # Mit `False` bleiben bestehende Logger unangetastet; gesetzt werden nur
+    # die drei in der ini genannten. Fuer den CLI-Betrieb (`alembic upgrade
+    # head` im Entrypoint) aendert sich nichts — dort ist vorher kein
+    # App-Logger konfiguriert.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # DB-URL aus der Anwendungs-Konfiguration (die wiederum ENV / .env liest).
 config.set_main_option("sqlalchemy.url", settings.database_url)
