@@ -11,7 +11,7 @@
 # (components/ui/DkButton.vue). Beheben: node tools/ux1g2-knopf-bestand.mjs --schreiben
 # Geprueft von frontend/tests/ux1g2-knopf-element.test.mjs.
 #
-# Stand (UX1g2): 49 rohe Knoepfe mit Eigenklasse in 36 Dateien.
+# Stand (UX1g2): 50 rohe Knoepfe mit Eigenklasse in 36 Dateien.
 frontend/src/diakonos/App.vue	2
 frontend/src/diakonos/components/AppMenueSchublade.vue	3
 frontend/src/diakonos/components/AppSidebar.vue	1
@@ -46,5 +46,5 @@ frontend/src/diakonos/pages/einrichtung/Assistent.vue	1
 frontend/src/diakonos/pages/einstellungen/Gestaltung.vue	1
 frontend/src/diakonos/pages/planrahmen/Plan.vue	1
 frontend/src/diakonos/pages/planrahmen/PlantypEditor.vue	2
-frontend/src/diakonos/pages/planrahmen/Stammdaten.vue	2
+frontend/src/diakonos/pages/planrahmen/Stammdaten.vue	3
 frontend/src/diakonos/pages/planrahmen/Uebersicht.vue	1

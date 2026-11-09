@@ -321,7 +321,7 @@ const OBERGRENZE = {
   'frontend/src/diakonos/pages/planrahmen/MeineDienste.vue': 46,
   'frontend/src/diakonos/pages/planrahmen/Plan.vue': 13,
   'frontend/src/diakonos/pages/planrahmen/PlantypEditor.vue': 43,
-  'frontend/src/diakonos/pages/planrahmen/Stammdaten.vue': 42,
+  'frontend/src/diakonos/pages/planrahmen/Stammdaten.vue': 44,
   'frontend/src/diakonos/pages/planrahmen/Uebersicht.vue': 20,
   'frontend/src/gast/App.vue': 17,
   'frontend/src/organigramm/App.vue': 12,

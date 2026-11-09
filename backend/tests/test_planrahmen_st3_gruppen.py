@@ -234,8 +234,12 @@ def test_pool_antwort_ohne_pii(client, patched_db, session_factory):
     assert "@example.org" not in rohdaten  # keine E-Mail
     for p in stamm["personen"]:
         assert "email" not in p
+        # PR-G1: `geschlecht` ist NUR in dieser Stammdaten-Antwort neu
+        # hinzugekommen ('m'/'w'/'d'/''), bewusst als ein Buchstabe — kein
+        # Rohwert, keine weiteren Personendaten.
         assert set(p.keys()) <= {"kennung", "anzeige", "name", "vorname", "nachname",
-                                 "kuerzel", "gruppen", "merkmale"}
+                                 "kuerzel", "geschlecht", "gruppen", "merkmale"}
+        assert p["geschlecht"] in {"", "m", "w", "d"}
 
 
 # --------------------------------------------------------------------------- #

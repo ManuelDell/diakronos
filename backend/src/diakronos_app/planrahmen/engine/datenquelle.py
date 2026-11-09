@@ -44,6 +44,13 @@ class Person:
     # Person und nicht an der Rolle des Aufrufers, damit die Engine fuer alle
     # dieselbe Kandidatenmenge sieht.
     ausgeschieden: bool = False
+    # PR-G1: Geschlecht der Stammdaten-Person, NORMALISIERT auf 'm' | 'w' |
+    # 'd'; '' heisst „keine/Unbekannte Angabe". Der Rohwert im Mitglied kann
+    # „Männlich"/„Weiblich"/„Divers"/m/w/d in beliebiger Schreibweise sein —
+    # die Normalisierung passiert beim Laden (`geschlecht_normalisieren`), die
+    # Engine vergleicht nur noch einbuchstabig. NICHT in oeffentlichen
+    # Antworten ausliefern.
+    geschlecht: str = ""
 
     def hat_merkmal(self, schluessel: str) -> Any:
         """Wert des Merkmals oder None/False wenn nicht gesetzt."""

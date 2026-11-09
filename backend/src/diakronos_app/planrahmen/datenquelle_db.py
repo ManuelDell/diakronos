@@ -353,6 +353,34 @@ def kuerzel_aus_name(vorname: str, nachname: str) -> str:
     return nachname or vorname
 
 
+# PR-G1: Geschlecht normalisieren — 'm' | 'w' | 'd' oder '' (keine Angabe).
+# Grundlage ist das Freitextfeld `mitglied.geschlecht` (Bestand: „Männlich“,
+# teils '' oder NULL). Verglichen wird ohne Groß/Klein und ohne Umlaut-
+# Schreibvarianten (ä/ae, ß/ss); nur die drei bekannten Werte werden
+# abgebildet, alles Unbekannte gilt als „keine Angabe“ (fail-closed, damit
+# niemand versehentlich als Mann gilt).
+_GESCHLECHT_ALIASE = {
+    "m": "m", "maennlich": "m", "mann": "m", "herr": "m", "male": "m", "man": "m",
+    "w": "w", "weiblich": "w", "frau": "w", "female": "w", "woman": "w",
+    "d": "d", "divers": "d", "diverse": "d", "inter": "d", "intersexuell": "d",
+}
+
+
+def geschlecht_normalisieren(roh: Any) -> str:
+    """Geschlechtsangabe auf ``'m' | 'w' | 'd' | ''`` abbilden (PR-G1).
+
+    >>> geschlecht_normalisieren("Männlich"), geschlecht_normalisieren("W")
+    ('m', 'w')
+    >>> geschlecht_normalisieren(None), geschlecht_normalisieren("egal")
+    ('', '')
+    """
+    text = _skalar(roh)
+    if not isinstance(text, str):
+        return ""
+    schluessel = text.strip().casefold().replace("ä", "ae").replace("ß", "ss")
+    return _GESCHLECHT_ALIASE.get(schluessel, "")
+
+
 class DBDatenquelle:
     """Datenquelle des Plan-Rahmens aus der Datenbank (Protokoll-konform).
 
@@ -652,7 +680,8 @@ class DBDatenquelle:
         def _person(vorname: str, nachname: str, kennung: str, email: str,
                     ausgeschieden: bool = False,
                     ausgetreten: bool = False,
-                    geloescht: bool = False) -> Person:
+                    geloescht: bool = False,
+                    geschlecht: str = "") -> Person:
             """Eine Person aus der Mitgliedszeile.
 
             AUSTRITT-e (NR2): ZWEI Fragen, zwei Merkmale.
@@ -672,7 +701,7 @@ class DBDatenquelle:
                               email="",
                               merkmale=dict(merkmale_person.get(kennung, {})),
                               gruppen=frozenset(gruppen_je_person.get(kennung, [])),
-                              ausgeschieden=True)
+                              ausgeschieden=True, geschlecht=geschlecht)
             kuerzel = kuerzel_aus_name(vorname, nachname)
             if ausgetreten:
                 # Gekuerzter Name (Nicht-Admin); Gruppen bleiben stehen, das
@@ -692,13 +721,13 @@ class DBDatenquelle:
                               email=maskiere_email(email) or "",
                               merkmale=dict(merkmale_person.get(kennung, {})),
                               gruppen=frozenset(gruppen_je_person.get(kennung, [])),
-                              ausgeschieden=ausgeschieden)
+                              ausgeschieden=ausgeschieden, geschlecht=geschlecht)
             name = _anzeigename(vorname, nachname, kennung)
             return Person(kennung=kennung, name=name, vorname=vorname,
                           nachname=nachname, kuerzel=kuerzel, email=email,
                           merkmale=dict(merkmale_person.get(kennung, {})),
                           gruppen=frozenset(gruppen_je_person.get(kennung, [])),
-                          ausgeschieden=ausgeschieden)
+                          ausgeschieden=ausgeschieden, geschlecht=geschlecht)
 
         for m in mitglieder:
             personen.append(_person(
@@ -710,6 +739,9 @@ class DBDatenquelle:
                     {"status": m.status, "austritt_datum": m.austritt_datum}),
                 # DSGVO-2d: Endstatus „geloescht“ — eigener Anzeigetext.
                 geloescht=ist_geloescht({"name": m.name, "status": m.status}),
+                # PR-G1: Geschlecht normalisiert ('m'/'w'/'d'/''), siehe
+                # `geschlecht_normalisieren`.
+                geschlecht=geschlecht_normalisieren(m.geschlecht),
             ))
         return personen
 

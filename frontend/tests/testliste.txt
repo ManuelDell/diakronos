@@ -273,3 +273,9 @@ tests/bs2d2-*.test.mjs
 # Liste ohne Farbbalken und mit dem „⋯“ auf derselben Zeile, leere
 # Ganztags-Zeile nur bei Inhalt.
 tests/ux3i4-*.test.mjs
+# PR-G1: Stammdaten — nach Geschlecht filtern und sortieren (Filter, Spalte,
+# Hinweis, Massenauswahl).
+tests/pr-g1-*.test.mjs
+# PR-G1 (Review): Route/Lebenszyklus der Stammdatenseite lädt das echte
+# script-setup; der mehrzeilige import in Stammdaten.vue brach den Lauf.
+tests/planrahmen-route-lifecycle.test.mjs

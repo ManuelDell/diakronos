@@ -78,7 +78,7 @@ folie = {
 
 let code = readFileSync(new URL('../src/diakonos/pages/planrahmen/Stammdaten.vue', import.meta.url), 'utf8')
 code = code.split('<script setup>')[1].split('</script>')[0]
-code = code.replace(/import[^\n]+from[^\n]+\n/g, '')
+code = code.replace(/^import[\s\S]*?from[^\n]+\n/gm, '')
 code = `const { ref, reactive, computed, watch, onMounted, onUnmounted } = globalThis.__sdVue
 // UX2d3a: der Ladeplatzhalter kommt aus der gemeinsamen Verzoegerung; hier
 // wird der Zustand unveraendert durchgereicht (Laden ist nicht Testgegenstand).
@@ -91,9 +91,12 @@ const getRouteParam = globalThis.__sdRoute
 const showToast = globalThis.__sdToast
 const fehlerMeldungen = globalThis.__sdFehler
 const datumText = (x) => x
-` + code
+// PR-G1: Filter/Sortierung nach Geschlecht — die Seite importiert die
+// gemeinsame Rechnung; hier kommt derselbe echte Baustein herein (JS-Quelle,
+// damit der data:-Import keine Modulauflösung braucht).
+` + readFileSync(new URL('../src/diakonos/pages/planrahmen/stammdaten-geschlecht.mjs', import.meta.url), 'utf8') + code
 code += `\nexport { ladenStarten, daten, geladenerTyp, planIdGeladen, planTitel, reiter, suche, gruppeWahl,
-  gruppenListe, gefiltertePersonen, personenListe, personenMerkmale, auswahl, auswahlUmschalten, auswahlLeeren,
+  gruppenListe, gefiltertePersonen, personenListe, personenMerkmale, auswahl, auswahlSichtbar, auswahlUmschalten, auswahlLeeren,
   alleSichtbarGewaehlt, alleSichtbarenUmschalten, massenMerkmal, massenWert, massenBereit, massenMerkmalDef,
   massenAnwenden, wertAendern, sammlungenListe, sammlungMerkmale, zeilen, zeilenProSammlung, sammlungEditierbar,
   sammlungNeuErlaubt, sammlungReorderbar, sammlungSperrGrund, zeilenUmsortiert, titelAendern, aktivAendern,
@@ -148,6 +151,7 @@ m.alleSichtbarenUmschalten(true)
 assert.equal(m.alleSichtbarGewaehlt.value, true)
 m.auswahlLeeren()
 assert.equal(m.auswahl.value.size, 0)
+assert.equal(m.auswahlSichtbar.value.size, 0)
 
 // ── Sammlungen: Formen und Rechte ──────────────────────────────────────────
 const samKeys = m.sammlungenListe.value.map((s) => s.id)

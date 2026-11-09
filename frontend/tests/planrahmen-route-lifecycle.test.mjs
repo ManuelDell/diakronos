@@ -62,7 +62,9 @@ function harness(pageName = 'Plan', hash = '#/dienste/dienstplaene/plan/plan-a',
     .replace(/^export \{.*\}$/gm, '').replace(/^export /gm, '')
   vm.runInContext(router, context)
   const page = readFileSync(new URL(`../src/diakonos/pages/planrahmen/${pageName}.vue`, import.meta.url), 'utf8')
-  scope.run(() => vm.runInContext(page.split('<script setup>')[1].split('</script>')[0].replace(/^import .*\n/gm, ''), context))
+  // Mehrzeilige `import { … } from '…'` (z. B. in Stammdaten.vue) dürfen nicht
+  // als Code im Skript stehen bleiben: bis zum abschließenden `from '…'` lesen.
+  scope.run(() => vm.runInContext(page.split('<script setup>')[1].split('</script>')[0].replace(/^import[\s\S]*?from[^\n]+\n/gm, ''), context))
   const run = code => vm.runInContext(code, context)
   return { calls, pending, imports, run, stop: () => scope.stop(),
     async go(hash) { window.location.hash = hash; hashchange(); await nextTick() },

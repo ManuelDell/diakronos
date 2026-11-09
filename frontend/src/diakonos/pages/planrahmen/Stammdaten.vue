@@ -115,11 +115,18 @@
               <option value="">Alle Gruppen</option>
               <option v-for="g in gruppenListe" :key="g" :value="g">{{ g }}</option>
             </select>
+            <!-- PR-G1: nach Geschlecht filtern (wirkt mit Suche und Gruppe) -->
+            <select
+              v-model="geschlechtWahl" class="dk-form-select pr-stamm-geschlechtwahl"
+              aria-label="Nach Geschlecht filtern"
+            >
+              <option v-for="o in GESCHLECHT_FILTER" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
           </div>
 
           <!-- Massenaktion: nur explizit ausgewählte Personen -->
-          <div v-if="darfGlobaleBearbeiten && auswahl.size" class="pr-stamm-masse">
-            <span class="pr-stamm-masse-zahl">{{ auswahl.size }} {{ auswahl.size === 1 ? 'Person' : 'Personen' }} ausgewählt</span>
+          <div v-if="darfGlobaleBearbeiten && auswahlSichtbar.size" class="pr-stamm-masse">
+            <span class="pr-stamm-masse-zahl">{{ auswahlSichtbar.size }} {{ auswahlSichtbar.size === 1 ? 'Person' : 'Personen' }} ausgewählt</span>
             <select v-model="massenMerkmal" class="dk-form-select pr-stamm-masse-merkmal" aria-label="Eigenschaft für die Massenaktion">
               <option value="" disabled>Eigenschaft wählen …</option>
               <option v-for="m in personenMerkmale" :key="m.id" :value="m.id">{{ m.name || m.id }}</option>
@@ -135,7 +142,7 @@
               size="md"
               :disabled="!massenMerkmal || !massenBereit || beschaeftigt"
               @click="massenAnwenden"
-            >Auf {{ auswahl.size }} {{ auswahl.size === 1 ? 'Person' : 'Personen' }} anwenden</DkButton>
+            >Auf {{ auswahlSichtbar.size }} {{ auswahlSichtbar.size === 1 ? 'Person' : 'Personen' }} anwenden</DkButton>
             <DkButton
               variant="ghost"
               size="md"
@@ -157,6 +164,18 @@
                     />
                   </th>
                   <th class="pr-stamm-spalte-name">Person</th>
+                  <!-- PR-G1: Spaltenkopf Geschlecht — Klick sortiert (auf → ab → ohne) -->
+                  <th
+                    class="pr-stamm-spalte-geschlecht"
+                    :aria-sort="ariaSortGeschlecht"
+                  >
+                    <button
+                      type="button" class="pr-stamm-sortknopf"
+                      :title="sortierTitel" @click="geschlechtSortieren"
+                    >
+                      Geschlecht<span class="pr-stamm-sortpfeil" aria-hidden="true">{{ sortierPfeil }}</span>
+                    </button>
+                  </th>
                   <th
                     v-for="m in personenMerkmale" :id="'pr-stamm-mm-' + m.id" :key="m.id"
                     class="pr-stamm-spalte-merkmal"
@@ -185,6 +204,15 @@
                       <span v-for="g in p.gruppen || []" :key="g" class="pr-stamm-gruppen-chip">{{ g }}</span>
                     </span>
                   </td>
+                  <!-- PR-G1: Geschlecht klein und ruhig (m/w/d bzw. „–") -->
+                  <td class="pr-stamm-geschlecht">
+                    <span
+                      class="pr-stamm-geschlecht-wert"
+                      :class="{ 'pr-stamm-geschlecht--leer': !p.geschlecht }"
+                      :aria-label="geschlechtLang(p.geschlecht)"
+                      :title="geschlechtLang(p.geschlecht)"
+                    >{{ geschlechtKurz(p.geschlecht) }}</span>
+                  </td>
                   <td v-for="m in personenMerkmale" :key="m.id" class="pr-stamm-zelle">
                     <MerkmalWert
                       :merkmal="m" :personen="personenListe"
@@ -195,11 +223,17 @@
                   </td>
                 </tr>
                 <tr v-if="!gefiltertePersonen.length">
-                  <td :colspan="personenMerkmale.length + 2" class="pr-stamm-leer">Keine Personen gefunden.</td>
+                  <td :colspan="personenMerkmale.length + 3" class="pr-stamm-leer">Keine Personen gefunden.</td>
                 </tr>
               </tbody>
             </table>
           </div>
+          <!-- PR-G1: viele leere Angaben sichtbar machen (Link nur für Berechtigte) -->
+          <p v-if="ohneGeschlechtAnzahl" class="pr-stamm-hinweis pr-stamm-hinweis--geschlecht">
+            {{ ohneGeschlechtAnzahl }} {{ ohneGeschlechtAnzahl === 1 ? 'Person' : 'Personen' }} ohne Angabe zum Geschlecht —
+            <template v-if="darfGlobaleBearbeiten"><a href="#/personen">unter „Personen“ ergänzen</a>.</template>
+            <template v-else>bitte die Mitgliederverwaltung um Ergänzung.</template>
+          </p>
         </template>
       </section>
 
@@ -390,6 +424,11 @@ import LiederPflege from '../../components/planrahmen/LiederPflege.vue'
 import { useHandyHinweis, hinweisZeigen, istSchmal } from '../../composables/handyHinweis.mjs'
 import { VueDraggable } from 'vue-draggable-plus'
 import DkButton from '../../components/ui/DkButton.vue'
+// PR-G1: Filter/Sortierung nach Geschlecht — gemeinsame Rechnung mit dem Test.
+import {
+    GESCHLECHT_FILTER, geschlechtKurz, geschlechtLang, anzahlOhneAngabe,
+    personenAnzeigen, sortierungUmschalten,
+} from './stammdaten-geschlecht.mjs'
 
 const props = defineProps({
   plantyp: { type: String, default: '' },
@@ -581,19 +620,42 @@ const personenMerkmale = computed(() => merkmaleFuer('person'))
 
 const suche = ref('')
 const gruppeWahl = ref('')
+// PR-G1: Geschlechtsfilter — '' (alle), 'm', 'w', 'd' oder 'ohne' (keine Angabe).
+const geschlechtWahl = ref('')
 const gruppenListe = computed(() => {
     const menge = new Set()
     for (const p of personenListe.value) for (const g of p.gruppen || []) menge.add(g)
     return [...menge].sort((a, b) => String(a).localeCompare(String(b), 'de'))
 })
-const gefiltertePersonen = computed(() => {
-    const q = suche.value.trim().toLocaleLowerCase('de-DE')
-    return personenListe.value.filter((p) => {
-        if (gruppeWahl.value && !(p.gruppen || []).includes(gruppeWahl.value)) return false
-        if (!q) return true
-        return [p.name, p.kuerzel, p.id].some((t) => String(t || '').toLocaleLowerCase('de-DE').includes(q))
-    })
+// PR-G1: Suche + Gruppe + Geschlecht wirken zusammen; die Sortierung greift
+// auf die gefilterte Liste (siehe `stammdaten-geschlecht.mjs`).
+const sortierung = ref({ spalte: '', richtung: 'auf' })
+const gefiltertePersonen = computed(() => personenAnzeigen(personenListe.value, {
+    suche: suche.value,
+    gruppe: gruppeWahl.value,
+    geschlecht: geschlechtWahl.value,
+    sortierung: sortierung.value,
+}))
+// Anzahl der Personen OHNE Angabe (Hinweis unter der Tabelle).
+const ohneGeschlechtAnzahl = computed(() => anzahlOhneAngabe(personenListe.value))
+const geschlechtSortiert = computed(() => sortierung.value.spalte === 'geschlecht')
+const ariaSortGeschlecht = computed(() => {
+    if (!geschlechtSortiert.value) return 'none'
+    return sortierung.value.richtung === 'ab' ? 'descending' : 'ascending'
 })
+const sortierPfeil = computed(() => {
+    if (!geschlechtSortiert.value) return ''
+    return sortierung.value.richtung === 'ab' ? ' ▾' : ' ▴'
+})
+const sortierTitel = computed(() => {
+    if (!geschlechtSortiert.value) return 'Nach Geschlecht sortieren (Männer zuerst)'
+    return sortierung.value.richtung === 'ab'
+        ? 'Sortierung aufheben'
+        : 'Umgekehrt sortieren (ohne Angabe zuerst)'
+})
+function geschlechtSortieren() {
+    sortierung.value = sortierungUmschalten(sortierung.value, 'geschlecht')
+}
 
 const auswahl = ref(new Set())
 function auswahlUmschalten(id, an) {
@@ -613,6 +675,18 @@ function alleSichtbarenUmschalten(an) {
     }
     auswahl.value = neu
 }
+// PR-G1 (Review): Ein Filterwechsel darf keine unsichtbare Auswahl stehen
+// lassen — sonst bekäme „alle wählen → auf Männlich filtern → anwenden“ auch
+// Frauen die Eigenschaft. Die Auswahl wird auf die sichtbaren Personen
+// beschnitten; „N ausgewählt“ zählt danach genau das, was auch wirkt.
+const auswahlSichtbar = computed(() => {
+    const sichtbar = new Set(gefiltertePersonen.value.map((p) => p.id))
+    return new Set([...auswahl.value].filter((id) => sichtbar.has(id)))
+})
+function auswahlBeschneiden() {
+    if (auswahlSichtbar.value.size !== auswahl.value.size) auswahl.value = auswahlSichtbar.value
+}
+watch([suche, gruppeWahl, geschlechtWahl], auswahlBeschneiden)
 
 // ── Massenaktion (nur explizit ausgewählte Personen) ────────────────────────
 
@@ -631,7 +705,10 @@ watch(massenMerkmal, () => {
 async function massenAnwenden() {
     if (!darfGlobaleBearbeiten.value) return
     const m = massenMerkmalDef.value
-    const ids = [...auswahl.value]
+    // PR-G1 (Review): doppelt sicher — es wirken NUR Personen, die gerade
+    // sichtbar sind (Suche + Gruppe + Geschlecht), auch wenn die Auswahl
+    // außerhalb eines Filterwechsels veraltet wäre.
+    const ids = [...auswahlSichtbar.value]
     if (!m || !ids.length || !massenBereit.value) return
     const werte = ids.map((id) => ({ ziel: 'person', schluessel: m.id, ziel_id: id, wert: massenWert.value ?? null }))
     await merkmaleSchreiben(werte)
@@ -991,6 +1068,7 @@ function artText(merkmal) {
 .pr-stamm-filter { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
 .pr-stamm-suche { max-width: 320px; }
 .pr-stamm-gruppenwahl { max-width: 240px; }
+.pr-stamm-geschlechtwahl { max-width: 200px; }
 .pr-stamm-masse {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 9px 12px; margin-bottom: 12px;
@@ -1018,6 +1096,28 @@ function artText(merkmal) {
 .pr-stamm-spalte-wahl input { margin: 2px 0 0; cursor: pointer; }
 .pr-stamm-spalte-name { min-width: 180px; }
 .pr-stamm-spalte-merkmal { min-width: 120px; }
+/* PR-G1: Geschlechtsspalte — schmal, Sortierung über den Spaltenkopf. */
+.pr-stamm-spalte-geschlecht { min-width: 5rem; }
+.pr-stamm-sortknopf {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 0; border: 0; background: none; color: inherit;
+  font-size: inherit; font-weight: inherit; font-family: inherit;
+  text-transform: inherit; letter-spacing: inherit; cursor: pointer;
+}
+.pr-stamm-sortknopf:hover { color: var(--dk-text); }
+/* Tippziel am groben Zeiger (Prinzip K4): der Spaltenkopf ist auf dem Handy
+   die einzige Sortierfläche; 18 px Höhe wäre zu klein. */
+@media (pointer: coarse) { .pr-stamm-sortknopf { min-height: var(--control-h); } }
+.pr-stamm-sortknopf:focus-visible {
+  outline: 2px solid var(--dk-brand-400); outline-offset: 2px; border-radius: 4px;
+}
+.pr-stamm-sortpfeil { font-size: var(--fs-12); }
+.pr-stamm-geschlecht { min-width: 5rem; }
+.pr-stamm-geschlecht-wert {
+  display: inline-block; min-width: 18px; text-align: center;
+  font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted);
+}
+.pr-stamm-geschlecht--leer { color: var(--dk-text-subtle); font-weight: var(--fw-normal); }
 .pr-stamm-spalte--hervor {
   background: color-mix(in oklch, var(--dk-warning) 12%, var(--dk-surface-2));
   transition: background 400ms;
