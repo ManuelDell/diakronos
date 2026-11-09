@@ -181,6 +181,12 @@ def test_f2_nachziehen_ohne_zweiten_export(monkeypatch):
         return httpx.Client(transport=transport, timeout=5.0, trust_env=False)
 
     monkeypatch.setattr(bibliothek, "_client", client)
+    # BS-2d3-Nacharbeit: der Superuser-Merker steht im Adapter — der Login
+    # laeuft dortueber, also muss auch der Adapter die Attrappe sehen.
+    from diakronos_app.website import primo as prima_adapter
+
+    prima_adapter._token_merker_leeren()
+    monkeypatch.setattr(prima_adapter, "_client", client)
     # Settings sind pydantic-Properties (`primo_konfiguriert` ist abgeleitet) —
     # gesetzt werden die ROHWERTE, wie im BS-2a-Test.
     from diakronos_app.settings import settings
@@ -390,7 +396,7 @@ def test_f7_export_zip_gibt_tupel():
     quelle_text = inspect.getsource(bibliothek._export_zip)  # noqa: SLF001
     assert "return antwort.content or b\"\", revision" in quelle_text
     # Und der Aufrufer packt beide Werte aus.
-    assert "roh, revision = _export_zip(token)" in inspect.getsource(
+    assert "roh, revision = _mit_token(_export_zip)" in inspect.getsource(
         bibliothek.bibliothek_stand
     )
 

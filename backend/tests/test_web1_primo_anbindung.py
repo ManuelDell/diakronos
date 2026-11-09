@@ -223,7 +223,13 @@ def primo_attrappe(monkeypatch):
         return echter_client(*args, **kwargs)
 
     monkeypatch.setattr(primo.httpx, "Client", _client)
-    return attrappe
+    # BS-2d3-Nacharbeit: das Superuser-Token wird pro Prozess gemerkt. Ohne
+    # Rueckstellen saehe ein Test den Merker des vorigen (gleiche URL/Mail)
+    # und wuerde die Anmeldung gar nicht erst versuchen — hier muss jeder
+    # Test mit leerem Merker starten.
+    primo._token_merker_leeren()
+    yield attrappe
+    primo._token_merker_leeren()
 
 
 @pytest.fixture()

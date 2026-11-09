@@ -40,6 +40,8 @@ import base64
 import json
 import logging
 import secrets
+import threading
+import time
 from typing import Any
 
 import httpx
@@ -229,14 +231,85 @@ def instanz_info() -> dict[str, Any] | None:
 
 
 def superuser_token() -> str:
-    """Superuser-Token von PocketBase (`auth-with-password`).
+    """Superuser-Token von PocketBase (`auth-with-password`), fuer den Prozess gemerkt.
 
-    Das Token wird NICHT zwischengespeichert: es ist kurzlebig, und ein
-    Prozess-Cache wuerde es ueber Rotationen hinweg halten. Ein Aufruf
-    kostet einen lokalen HTTP-Roundtrip.
+    Warum ein Merker
+    ----------------
+    PocketBase bremst `auth-with-password`. Ohne Merker meldeten sich Stand-Lesen
+    und Import kurz hintereinander neu an; der zweite Aufruf bekam **429** und die
+    Oberflaeche meldete faelschlich "die Website hat den Zugriff abgelehnt"
+    (Befund BS-2d3). Der Merker lebt deshalb an DIESER einen Stelle und wird von
+    allen Wegen benutzt (`bausteine`, `login_uebergabe`, Nachziehen) -- so gibt
+    es genau eine Anmeldung pro Prozess und Token-Laufzeit.
+
+    Bindung
+    -------
+    Der Merker gilt nur fuer dasselbe Paar (URL, E-Mail). Wechselt die
+    Konfiguration, wird der alte Wert verworfen -- ein Token von Instanz A
+    darf nie gegen Instanz B laufen.
+
+    Laufzeit
+    --------
+    Gelesen wird `exp` aus dem JWT-Rumpf (base64, OHNE Signaturpruefung -- es
+    geht nur um die Ablaufzeit, nicht um Vertrauen). Gemerkt wird bis
+    `min(exp - 60 s, PRIMO_TOKEN_SEKUNDEN)`; fehlt `exp`, gilt
+    `PRIMO_TOKEN_SEKUNDEN` (Superuser-Token, NICHT die Impersonate-Dauer).
+    `exp` ist ein Unix-Zeitpunkt, der Merker rechnet mit `time.monotonic()`.
 
     Fehler: `PrimoNichtKonfiguriert`, `PrimoNichtErreichbar`, `PrimoAbgelehnt`.
     """
+    schluessel = _auth_schluessel()
+    token = _merker_gueltig(schluessel)
+    if token:
+        return token
+    token, gueltig_sekunden = _anmelden()
+    # `gueltig_sekunden` ist eine DAUER (aus exp - jetzt) -- der Merker laeuft
+    # deshalb auf der monotonen Uhr und wird von einer Uhrumstellung korrekt
+    # nicht verlaengert.
+    with _token_sperre:
+        _token_merker_schreiben(token, time.monotonic() + gueltig_sekunden, schluessel)
+    return token
+
+
+def _merker_gueltig(schluessel: tuple[str, str]) -> str:
+    """Das gemerkte Token, wenn es zu `schluessel` passt und noch gilt -- sonst ""."""
+    with _token_sperre:
+        token, bis, gemerkt = _token_merker_lesen()
+    if token and gemerkt == schluessel and time.monotonic() < bis:
+        return token
+    return ""
+
+
+def token_verwerfen(*, nur_wenn: str | None = None) -> None:
+    """Vergisst das gemerkte Superuser-Token (401/403, `merker_zuruecksetzen`).
+
+    `nur_wenn` schuetzt gegen Wettlauf: haben zwei Threads gleichzeitig ein 401
+    bekommen und der eine hat sich schon neu angemeldet, darf der andere das
+    FRISCHE Token nicht wieder loeschen. Angegeben wird das Token, das das 401
+    bekam -- nur wenn es noch der gemerkte Wert ist, wird verworfen.
+    """
+    with _token_sperre:
+        token, _bis, _schluessel = _token_merker_lesen()
+        if nur_wenn is not None and token != nur_wenn:
+            return
+        _token_merker_leeren()
+
+
+def anmeldung_zuruecksetzen() -> None:
+    """Kurzform fuer `token_verwerfen()` ohne Bedingung."""
+    token_verwerfen()
+
+
+def _auth_schluessel() -> tuple[str, str]:
+    """(URL, E-Mail) des Superuser-Zugangs -- die Bindung des Merkers."""
+    return (
+        str(settings.primo_url_effektiv or "").strip(),
+        str(settings.primo_superuser_email or "").strip().lower(),
+    )
+
+
+def _anmelden() -> tuple[str, float]:
+    """Ein echter `auth-with-password`-Aufruf: `(token, gueltige_sekunden)`."""
     if not _ist_konfiguriert():
         raise PrimoNichtKonfiguriert(
             "Primo ist nicht konfiguriert (PRIMO_URL/Superuser fehlen)."
@@ -258,7 +331,86 @@ def superuser_token() -> str:
     token = str(koerper.get("token") or "").strip()
     if not token:
         raise PrimoAbgelehnt(200, "Antwort ohne Token")
-    return token
+    return token, _gueltigkeit_sekunden(token)
+
+
+def _gueltigkeit_sekunden(token: str) -> float:
+    """Wie lange das Token laut `exp` gilt (mindestens 60 s), sonst Konfiguration.
+
+    `exp` wird aus dem JWT-Rumpf gelesen, OHNE Signaturpruefung: die Pruefung
+    ist Sache von Primo, hier wird nur eine Merkdauer bestimmt. Ein unlesbares
+    Token faellt auf `PRIMO_TOKEN_SEKUNDEN` zurueck -- nie auf 0, sonst waere
+    jeder Aufruf wieder eine Anmeldung (429).
+    """
+    standard = max(60.0, float(settings.primo_token_sekunden))
+    teile = str(token or "").split(".")
+    if len(teile) < 2:
+        return standard
+    try:
+        rumpf = teile[1] + "=" * (-len(teile[1]) % 4)
+        daten = json.loads(base64.urlsafe_b64decode(rumpf.encode("ascii")))
+        exp = float(daten["exp"])
+    except (ValueError, KeyError, TypeError):
+        return standard
+    rest = exp - time.time() - 60.0
+    if rest <= 0:
+        # Schon (fast) abgelaufen: nicht merken, aber den Standard als
+        # Untergrenze behalten, damit der Aufrufer kein Sonderfall wird.
+        return 60.0
+    return min(rest, standard)
+
+
+#: Merker-Sperre: `auth-with-password` ist gebremst, also darf ein zweiter
+#: Thread nicht parallel anmelden.
+_token_sperre = threading.Lock()
+_token_wert = ""
+_token_bis = 0.0
+_token_schluessel: tuple[str, str] | None = None
+
+
+def _token_merker_lesen() -> tuple[str, float, tuple[str, str] | None]:
+    return _token_wert, _token_bis, _token_schluessel
+
+
+def _token_merker_schreiben(
+    token: str, bis: float, schluessel: tuple[str, str]
+) -> None:
+    global _token_wert, _token_bis, _token_schluessel
+    _token_wert = token
+    _token_bis = bis
+    _token_schluessel = schluessel
+
+
+def _token_merker_leeren() -> None:
+    global _token_wert, _token_bis, _token_schluessel
+    _token_wert = ""
+    _token_bis = 0.0
+    _token_schluessel = None
+
+
+#: Status, bei denen ein Merker ungueltig ist (PocketBase: Token abgelaufen
+#: oder Superuser geloescht). Dann GENAU EINE neue Anmeldung -- nicht mehr.
+TOKEN_UNGUELTIG_STATUS = frozenset({401, 403})
+
+
+def _mit_token(aufruf):
+    """Fuehrt `aufruf(token)` aus; bei 401/403 einmal neu anmelden.
+
+    `aufruf` bekommt das Superuser-Token und gibt das Ergebnis zurueck. Wirft
+    er `PrimoAbgelehnt` mit 401/403, wird der Merker verworfen (nur wenn er
+    noch der benutzte ist -- siehe `token_verwerfen`) und der Aufruf mit einem
+    frischen Token wiederholt. Ein zweites 401/403 wird durchgereicht: dann
+    stimmen die Zugangsdaten nicht, und weiteres Anmelden waere nur Last.
+    """
+    token = superuser_token()
+    try:
+        return aufruf(token)
+    except PrimoAbgelehnt as fehler:
+        if fehler.status not in TOKEN_UNGUELTIG_STATUS:
+            raise
+        token_verwerfen(nur_wenn=token)
+        logger.info("Primo: Superuser-Token abgelehnt (HTTP %s), neue Anmeldung.", fehler.status)
+    return aufruf(superuser_token())
 
 
 # ── S4b: Konto sicherstellen ────────────────────────────────────────────────
@@ -594,10 +746,24 @@ def login_uebergabe(
     if settings.primo_ist_geschuetzt(adresse):
         raise PrimoKontoKonflikt(KONFLIKT_GESCHUETZT)
 
-    superuser = superuser_token()
-    konto = konto_sicherstellen(user, email, primo_rolle, superuser)
-    record_id = str(konto.get("id") or "").strip()
-    if not record_id:
-        raise PrimoAbgelehnt(502, "Konto ohne id")
-    token = uebergabe_token(record_id, superuser)
-    return uebergabe_url(token, konto)
+    # BS-2d3-Nacharbeit: der Merker steht an EINER Stelle (hier in
+    # `superuser_token`). Wer uebergibt, meldet sich damit nicht erneut an,
+    # wenn kurz vorher ein Import/Stand-Lesen dasselbe Token geholt hat.
+    for _versuch in range(2):
+        superuser = superuser_token()
+        try:
+            konto = konto_sicherstellen(user, email, primo_rolle, superuser)
+            record_id = str(konto.get("id") or "").strip()
+            if not record_id:
+                raise PrimoAbgelehnt(502, "Konto ohne id")
+            token = uebergabe_token(record_id, superuser)
+            return uebergabe_url(token, konto)
+        except PrimoAbgelehnt as fehler:
+            # Nur der Token-Fall wird wiederholt (401/403 aus einem der beiden
+            # Aufrufe): Merker verwerfen und GENAU EINMAL neu anmelden.
+            if fehler.status not in TOKEN_UNGUELTIG_STATUS or _versuch:
+                raise
+            token_verwerfen(nur_wenn=superuser)
+    # Unerreichbar: die Schleife wiederholt genau zweimal und kehrt oben zurueck
+    # oder reicht den Fehler durch.
+    raise PrimoAbgelehnt(502, "Anmeldung nicht abgeschlossen")

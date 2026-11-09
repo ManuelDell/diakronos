@@ -630,6 +630,20 @@ class Settings(BaseSettings):
             "PRIMO_TOKEN_SEKUNDEN", "primo_token_sekunden"
         ),
     )
+    # Budget NUR fuer den schreibenden Bibliotheks-Import der Bausteine
+    # (`POST /api/primo/import-library`), Sekunden. `primo_timeout_sekunden`
+    # ist ein Lesetimeout fuer kleine Abfragen; der Import schreibt die ganze
+    # Bibliothek und braucht fuer zehn Bausteine schon rund 5 s (Befund
+    # BS-2d3: Client-Abbruch, waehrend Primo fertig schrieb). 0 = Vorgabe aus
+    # dem Code (30 s). Untergrenze und Ableitung der Anfrage-Grenze stehen in
+    # `website.bausteine.import_timeout_sekunden()`.
+    bausteine_import_timeout_sekunden: float = Field(
+        0.0,
+        validation_alias=AliasChoices(
+            "BAUSTEINE_IMPORT_TIMEOUT_SEKUNDEN",
+            "bausteine_import_timeout_sekunden",
+        ),
+    )
     # Hart gesperrte E-Mail-Adressen (kommagetrennt): mit diesen Adressen wird
     # NIE ein Primo-Konto angelegt und nie eines benutzt — 409, und zwar VOR
     # jedem Aufruf nach Primo. Der Default schuetzt das Integrationskonto.

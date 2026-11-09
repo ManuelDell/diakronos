@@ -64,7 +64,7 @@ def _aktuelle_rollen() -> list[str]:
     return list(get_roles())
 
 
-def _im_thread(fn, *args):
+def _im_thread(fn, *args, limit: float | None = None):
     """Fuehrt einen blockierenden Aufruf in einem eigenen Thread aus.
 
     Der Methoden-Router ruft Endpunkte SYNCHRON auf (er laeuft im
@@ -72,17 +72,26 @@ def _im_thread(fn, *args):
     Weg. Ein eigener Thread mit hartem Zeitlimit haelt den Worker trotzdem
     frei: Primo ist ein Fremdsystem, und dessen Zeitlimit
     (`PRIMO_TIMEOUT_SEKUNDEN`) gilt je Aufruf, nicht fuer den ganzen Weg.
+
+    `limit` ueberschreibt die Vorgabe — der schreibende Bibliotheks-Import
+    braucht mehr als die vierfache Lesezeit (siehe
+    `bausteine.import_timeout_sekunden`). Nach Ablauf wird der Thread NICHT
+    abgewartet (`shutdown(wait=False)`): sonst haenge die Anfrage trotz
+    Zeitlimit, bis der Schreibvorgang von selbst endet (BS-2d3-Nacharbeit).
     """
     from concurrent.futures import ThreadPoolExecutor
 
     from diakronos_app.settings import settings
 
-    limit = max(
+    grenze = limit if limit is not None else max(
         5.0,
         float(settings.primo_timeout_sekunden or 5.0) * 4 + 5.0,
     )
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(fn, *args).result(timeout=limit)
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        return pool.submit(fn, *args).result(timeout=grenze)
+    finally:
+        pool.shutdown(wait=False)
 
 
 def _require_website_rolle() -> list[str]:
@@ -1040,11 +1049,29 @@ def bausteine_installieren(request=None):
     # alte Import scheiterte beim ERSTEN Fehlerfall mit ImportError und die
     # Antwort war ein 500 mit Interna statt der generischen Meldung.
     from diakronos_app.frappe_compat.exceptions import FrappeCompatError
+    from diakronos_app.settings import settings
     from diakronos_app.website import bausteine as bibliothek
     from diakronos_app.website import primo as primo_adapter
 
+    # Grenze der Anfrage aus dem Schreib-Budget ableiten (BS-2d3-Nacharbeit):
+    # die Vorgabe `primo_timeout * 4 + 5` (= 25 s) lag UNTER dem Budget des
+    # Imports (30 s+) und haette den Schreibvorgang abgeschnitten, obwohl er
+    # noch lief. Dazu je ein Lese-Timeout fuer Revision und Antwort.
+    grenze = (
+        bibliothek.import_timeout_sekunden()
+        + 2.0 * float(settings.primo_timeout_sekunden or 5.0)
+        + 5.0
+    )
     try:
-        ergebnis = _im_thread(bibliothek.sync)
+        ergebnis = _im_thread(bibliothek.sync, limit=grenze)
+    except TimeoutError:
+        # Die Zeit ist hier wirklich um: kein Internum, aber ehrlich.
+        logger.warning("Bausteine: Einspielen nach %.0f s abgebrochen (Zeitlimit).", grenze)
+        throw(
+            "Das Einspielen hat zu lange gedauert und wurde beendet. "
+            "Bitte erneut versuchen — die Bausteine können bereits übernommen sein.",
+            DienstNichtVerfuegbarError,
+        )
     except primo_adapter.PrimoNichtKonfiguriert:
         throw(
             "Die Anbindung an den Website-Baukasten ist auf dieser Installation "

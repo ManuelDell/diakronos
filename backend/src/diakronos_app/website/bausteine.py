@@ -124,6 +124,43 @@ FELD_BASISADRESSE = "basisadresse"
 #: Grossdokument; ein Revisionskopf ist kurz).
 MAX_KOPF_BYTES = 4096
 
+#: Schreibe-Timeout für ``POST /api/primo/import-library`` in Sekunden.
+#:
+#: ``PRIMO_TIMEOUT_SEKUNDEN`` (Default 5) ist ein LESETIMEOUT für kleine
+#: Abfragen wie ``/api/primo/info``. Der Bibliotheks-Import schreibt dagegen
+#: die ganze Bibliothek und braucht dafuer deutlich laenger: im Wegwerf-Stack
+#: (BS-2d3) rund 5,2 s fuer zehn Bausteine — knapp am alten Timeout und unter
+#: Docker-Last darueber. Folge im Betrieb: der Client bricht mit Status 0 ab,
+#: waehrend Primo den Import fertig schreibt; die Oberflaeche meldet einen
+#: Fehler, obwohl die Bausteine angekommen sind (Befund BS-2d3).
+#: Der Schreibweg bekommt deshalb ein eigenes, groesseres Budget. Der Wert ist
+#: die Vorgabe; ``import_timeout_sekunden()`` liest ihn aus den Einstellungen
+#: (``BAUSTEINE_IMPORT_TIMEOUT_SEKUNDEN``), damit ein langsamer Betrieb ihn
+#: ohne Codeaenderung anheben kann.
+IMPORT_TIMEOUT_SEKUNDEN = 30.0
+
+#: Untergrenze des Schreib-Budgets: darunter reicht die Zeit fuer eine
+#: Bibliothek mit zehn Bausteinen auch im Normalfall nicht.
+IMPORT_TIMEOUT_MINIMUM = 30.0
+
+
+def import_timeout_sekunden() -> float:
+    """Budget fuer den SCHREIBENDEN Bibliotheks-Import (Sekunden).
+
+    Reihenfolge: Einstellung ``BAUSTEINE_IMPORT_TIMEOUT_SEKUNDEN`` (wenn
+    gesetzt und > 0), sonst :data:`IMPORT_TIMEOUT_SEKUNDEN`. Nie unter
+    :data:`IMPORT_TIMEOUT_MINIMUM` und nie unter ``2 * PRIMO_TIMEOUT_SEKUNDEN``
+    -- sonst waere das Schreibbudget kleiner als zwei einfache Abfragen und
+    der Import braeche wieder ab, waehrend Primo noch schreibt.
+    """
+    eingestellt = float(getattr(settings, "bausteine_import_timeout_sekunden", 0.0) or 0.0)
+    wert = eingestellt if eingestellt > 0 else IMPORT_TIMEOUT_SEKUNDEN
+    return max(wert, IMPORT_TIMEOUT_MINIMUM, 2.0 * float(settings.primo_timeout_sekunden or 5.0))
+
+#: BS-2d3-Nacharbeit: der Superuser-Token-Merker lebt seit dem Sicherheits-
+#: Review an EINER Stelle im Adapter -- `primo.superuser_token()`. Hier gibt es
+#: bewusst keinen zweiten Merker mehr (sonst zwei Anmeldungen -> 429).
+
 
 class BausteinFehler(Exception):
     """Basisfehler dieses Moduls — nie mit Secret- oder Inhalts-Echo."""
@@ -688,11 +725,24 @@ class Installationsergebnis:
         }
 
 
-def _client() -> Any:
-    """HTTP-Client mit hartem Timeout (eigener Import: Zyklus vermeiden)."""
+def _client(timeout: float | None = None) -> Any:
+    """HTTP-Client mit hartem Timeout (eigener Import: Zyklus vermeiden).
+
+    ``timeout`` ueberschreibt den Lesetimeout aus den Einstellungen. Gebraucht
+    wird das fuer den SCHREIBENDEN Bibliotheks-Import, der laenger dauern darf
+    als eine kleine Abfrage (siehe :data:`IMPORT_TIMEOUT_SEKUNDEN`).
+    """
+    import httpx
+
     from diakronos_app.website import primo
 
-    return primo._client()  # noqa: SLF001 — bewusst derselbe Timeout/trust_env
+    if timeout is None:
+        return primo._client()  # noqa: SLF001 — bewusst derselbe Timeout/trust_env
+    return httpx.Client(
+        timeout=timeout,
+        follow_redirects=False,
+        trust_env=False,
+    )
 
 
 def _url(pfad: str) -> str:
@@ -714,37 +764,55 @@ def _auth_kopf(token: str) -> dict[str, str]:
 def _superuser_token() -> str:
     """Superuser-Token von PocketBase (``auth-with-password``).
 
-    Der Superuser-Zugang aus ``PRIMO_SUPERUSER_*`` ist der Weg, den Diakronos
-    schon für die Kontenverwaltung benutzt. Der Aufruf geht über DEN Client
-    dieses Moduls (``_client``), damit Timeout, ``trust_env`` und — in Tests —
-    der Transport dieselben sind wie beim Import selbst.
+    BS-2d3-Nacharbeit: der Merker steht an EINER Stelle -- in
+    :func:`diakronos_app.website.primo.superuser_token` (Bindung an URL/E-Mail,
+    Laufzeit aus dem ``exp`` des Tokens). Diese Funktion ist nur noch der
+    Einstiegspunkt dieses Moduls dorthin und uebersetzt Fehler in die eigenen
+    Ausnahmen; vorher gab es zwei Merker (hier und im Bericht), und die
+    Anmeldung konnte doppelt laufen -- PocketBase antwortet darauf mit **429**
+    (Befund BS-2d3).
+
+    Der Client des Adapters benutzt denselben Timeout und ``trust_env`` --
+    in Tests denselben Transport.
     """
     from diakronos_app.settings import settings
-    from diakronos_app.website.primo import PFAD_SUPERUSER_AUTH, PrimoNichtKonfiguriert
+    from diakronos_app.website import primo
 
     if not settings.primo_konfiguriert:
-        raise PrimoNichtKonfiguriert("Primo ist nicht konfiguriert (PRIMO_URL/Superuser fehlen).")
-    daten = {
-        "identity": str(settings.primo_superuser_email or "").strip(),
-        "password": settings.primo_superuser_password_effektiv,
-    }
+        from diakronos_app.website.primo import PrimoNichtKonfiguriert
+
+        raise PrimoNichtKonfiguriert(
+            "Primo ist nicht konfiguriert (PRIMO_URL/Superuser fehlen)."
+        )
     try:
-        with _client() as client:
-            antwort = client.post(_url(PFAD_SUPERUSER_AUTH), json=daten)
-    except httpx.HTTPError as exc:
+        return primo.superuser_token()
+    except primo.PrimoNichtErreichbar as exc:
         raise PrimoSyncAbgelehnt(0, "Primo nicht erreichbar") from exc
-    if antwort.status_code != 200:
-        # NIE Anfrage/Antwort protokollieren: die eine traegt das Passwort,
-        # die andere das Token.
-        raise PrimoSyncAbgelehnt(antwort.status_code, _fehlertext(antwort))
+    except primo.PrimoAbgelehnt as exc:
+        raise PrimoSyncAbgelehnt(exc.status, exc.grund) from exc
+
+
+def _mit_token(aufruf: Any) -> Any:
+    """``aufruf(token)`` mit EINER neuen Anmeldung bei 401/403.
+
+    Ein abgelaufenes oder zurueckgezogenes Superuser-Token kam bisher als
+    "Zugriff abgelehnt" beim Benutzer an, obwohl ein neuer Login gereicht
+    haette. Hier wird der Merker verworfen und der Aufruf genau einmal
+    wiederholt; ein zweites 401/403 geht durch (dann stimmen die Daten nicht).
+    """
+    from diakronos_app.website import primo
+
+    token = _superuser_token()
     try:
-        koerper = antwort.json()
-    except ValueError as exc:
-        raise PrimoSyncAbgelehnt(200, "Antwort ist kein JSON") from exc
-    token = str((koerper or {}).get("token") or "").strip() if isinstance(koerper, dict) else ""
-    if not token:
-        raise PrimoSyncAbgelehnt(200, "Antwort ohne Token")
-    return token
+        return aufruf(token)
+    except PrimoSyncAbgelehnt as fehler:
+        if fehler.status not in primo.TOKEN_UNGUELTIG_STATUS:
+            raise
+        primo.token_verwerfen(nur_wenn=token)
+        logger.info(
+            "Bausteine: Superuser-Token abgelehnt (HTTP %s), neue Anmeldung.", fehler.status
+        )
+    return aufruf(_superuser_token())
 
 
 def revision_holen(token: str) -> str:
@@ -776,13 +844,19 @@ def _import_zip(token: str, zip_bytes: bytes, expected_revision: str) -> dict[st
     dateien = {"file": ("diakronos-bausteine.zip", zip_bytes, "application/zip")}
     daten = {"expected_revision": expected_revision}
     try:
-        with _client() as client:
+        # EIGENER Timeout: dieser Aufruf SCHREIBT die ganze Bibliothek. Der
+        # Lesetimeout aus `PRIMO_TIMEOUT_SEKUNDEN` (Default 5 s) reicht dafuer
+        # nicht und brach den Import ab, waehrend Primo ihn fertig schrieb
+        # (BS-2d3-Befund; siehe `import_timeout_sekunden`).
+        with _client(import_timeout_sekunden()) as client:
             antwort = client.post(
                 _url("/api/primo/import-library"),
                 files=dateien,
                 data=daten,
                 headers=_auth_kopf(token),
             )
+    except httpx.TimeoutException as exc:
+        raise PrimoSyncAbgelehnt(0, "Zeitueberschreitung") from exc
     except httpx.HTTPError as exc:
         raise PrimoSyncAbgelehnt(0, "Primo nicht erreichbar") from exc
     if antwort.status_code != 200:
@@ -996,9 +1070,17 @@ def version_bestaetigen(version: object) -> None:
 
 
 def merker_zuruecksetzen() -> None:
-    """Merker vergessen (Tests, Betreiber-Eingriff über `bausteine_installieren`)."""
+    """Merker vergessen (Tests, Betreiber-Eingriff über `bausteine_installieren`).
+
+    BS-2d3-Nacharbeit: der Superuser-Token-Merker liegt im Adapter
+    (`primo`); er wird hier mit geleert. Das Prozess-Gedaechtnis "Bibliothek
+    bestaetigt" bleibt die Aufgabe dieses Moduls.
+    """
     global _bestaetigte_version
+    from diakronos_app.website import primo
+
     _bestaetigte_version = 0
+    primo.anmeldung_zuruecksetzen()
 
 
 def steht_bereit(version: int | None = None) -> bool:
@@ -1037,21 +1119,33 @@ def _sync_echt(*, basis: str | None = None) -> Installationsergebnis:
     adresse = _absolute_adresse(basis) if basis is not None else basisadresse()
     paket = build_zip(version=version, basisadresse=adresse, bausteine=bausteine)
 
-    token = _superuser_token()
-    revision = revision_holen(token)
-    try:
-        koerper = _import_zip(token, paket, revision)
-    except PrimoSyncAbgelehnt as fehler:
-        if fehler.status in (404, 405):
-            # Kein Import-Endpunkt in dieser Primo-Fassung: Einzelweg.
-            logger.info("Bausteine: Import-Endpunkt fehlt, benutze Einzelweg.")
-            weg = _import_einzeln(token, bausteine, version, adresse)
-            return Installationsergebnis(
-                version=version,
-                bausteine=[b.kennung for b in bausteine],
-                weg=weg,
-            )
-        raise
+    def einspielen(token: str) -> Installationsergebnis:
+        revision = revision_holen(token)
+        try:
+            koerper = _import_zip(token, paket, revision)
+        except PrimoSyncAbgelehnt as fehler:
+            if fehler.status in (404, 405):
+                # Kein Import-Endpunkt in dieser Primo-Fassung: Einzelweg.
+                logger.info("Bausteine: Import-Endpunkt fehlt, benutze Einzelweg.")
+                weg = _import_einzeln(token, bausteine, version, adresse)
+                return Installationsergebnis(
+                    version=version,
+                    bausteine=[b.kennung for b in bausteine],
+                    weg=weg,
+                )
+            raise
+        kennungen = [b.kennung for b in bausteine]
+        logger.info(
+            "Bausteine eingespielt (Version %s, %s Blöcke).", version, len(kennungen)
+        )
+        return Installationsergebnis(
+            version=version,
+            bausteine=kennungen,
+            revision=str(koerper.get("revision") or ""),
+        )
+
+    # BS-2d3-Nacharbeit: 401/403 -> Merker verwerfen, EINE neue Anmeldung.
+    return _mit_token(einspielen)
 
     kennungen = [b.kennung for b in bausteine]
     logger.info("Bausteine eingespielt (Version %s, %s Blöcke).", version, len(kennungen))
@@ -1086,8 +1180,7 @@ def bibliothek_stand() -> Stand:
         )
 
     try:
-        token = _superuser_token()
-        roh, revision = _export_zip(token)
+        roh, revision = _mit_token(_export_zip)
         namen = _bloecke_aus_zip(roh)
     except Exception as exc:  # noqa: BLE001 — Anzeige darf nie 500 ergeben
         logger.info("Bausteine: Stand nicht lesbar (%s).", type(exc).__name__)
