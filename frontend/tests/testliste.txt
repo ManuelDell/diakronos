@@ -273,6 +273,9 @@ tests/bs2d2-*.test.mjs
 # Liste ohne Farbbalken und mit dem „⋯“ auf derselben Zeile, leere
 # Ganztags-Zeile nur bei Inhalt.
 tests/ux3i4-*.test.mjs
+# UX3j: Personen — EINE Reiterzeile in allen Reitern (A3), EIN Filter-Baustein,
+# ein Suchfeld, „Person anlegen“ überall an derselben Stelle.
+tests/ux3j-*.test.mjs
 
 # UX3i5: Kalender-LISTE — je Termin eine eigene Zeile (Termin + „⋯“ auf
 # DERSELBEN Zeile, Termintext sichtbar), Tageskopf „Freitag, 6. November 2026“

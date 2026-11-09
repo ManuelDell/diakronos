@@ -22,6 +22,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
  * Vue und gefälschtem `apiCall`). Nur so fallen ein toter ARIA-Verweis und
  * zwei laufende Intervalle überhaupt auf — ein Textvergleich sieht beides
  * nicht.
+ *
+ * UX3j (Entwurf A3, 08.11.): Der Befund „aria-describedby läuft ins Leere“
+ * galt für die SEITLICHE Bereichsliste, die A3 abgeschafft hat (die
+ * Komponente `DkBereichsliste.vue` lebt unverändert, wird im Personen-Bereich
+ * aber nicht mehr benutzt). Die Prüfung läuft deshalb jetzt gegen die
+ * Reiterzeile (`DkReiter.vue`), die in JEDEM Reiter steht: EINE Leiste,
+ * eindeutige Werte, aktiver Eintrag barrierefrei markiert. Der Personen-Rahmen
+ * ist seit A3 `pages/Personen.vue` (Bereich.vue ist nur sein Adress-Ziel).
  */
 const root = new URL('../src/diakonos/', import.meta.url)
 const quellePfad = name => fileURLToPath(new URL(name, root))
@@ -77,7 +85,7 @@ const beiModulen = name => join(MODUL_DIR, name)
   const { createSSRApp, h } = await import('vue')
   const { renderToString } = await import('vue/server-renderer')
 
-  const datei = quellePfad('components/ui/DkBereichsliste.vue')
+  const datei = quellePfad('components/ui/DkReiter.vue')
   const { descriptor } = parse(readFileSync(datei, 'utf8'), { filename: datei })
   const sfcSkript = compileScript(descriptor, { id: 'uxa2a2' })
   const sfcVorlage = compileTemplate({
@@ -103,47 +111,58 @@ const beiModulen = name => join(MODUL_DIR, name)
   const { default: Komponente } = await import(pathToFileURL(ziel).href)
   rmSync(ziel, { force: true })
   const optionen = [
-    { value: 'MitgliederUebersicht', label: 'Übersicht', href: '#/mitglieder/uebersicht' },
-    {
-      value: 'MitgliederAnfragen', label: 'Anfragen', href: '#/mitglieder/anfragen', zahl: 3,
-      unterpunkte: [
-        { value: 'MitgliederAnfragen:links', label: 'Links & QR-Codes', href: '#/mitglieder/anfragen?bereich=links' },
-        { value: 'MitgliederAnfragen:formulare', label: 'Formulare', href: '#/mitglieder/anfragen?bereich=formulare' },
-      ],
-    },
-    { value: 'MitgliederImport', label: 'Import', href: '#/mitglieder/import' },
+    { value: 'liste', label: 'Liste', href: '#/personen/liste' },
+    { value: 'anfragen', label: 'Anfragen', href: '#/personen/anfragen', zahl: 3 },
+    { value: 'datenschutz', label: 'Datenschutz', href: '#/personen/datenschutz' },
+    { value: 'import', label: 'Import', href: '#/personen/import' },
   ]
   const html = await renderToString(createSSRApp({
-    render: () => h(Komponente, { modelValue: 'MitgliederAnfragen', options: optionen, ariaLabel: 'Bereiche von Mitglieder' }),
+    render: () => h(Komponente, { modelValue: 'anfragen', options: optionen, ariaLabel: 'Bereiche von Personen' }),
   }))
 
-  // GENAU EIN unsichtbarer Text — beim Eintrag mit Unterpunkten.
-  const srTexte = [...html.matchAll(/<span id="([^"]+)" class="dk-ui-bz-sr">([^<]*)<\/span>/g)]
-  assert.equal(srTexte.length, 1, `genau ein unsichtbarer Text für die Unterpunkte (gefunden: ${srTexte.length})`)
-  assert.equal(srTexte[0][2].trim(), 'Unterbereiche von Anfragen', 'er nennt den Eintrag mit Unterpunkten')
-
-  // Der Verweis der Unterpunkt-Liste zeigt auf DIESE Kennung.
-  const verweise = [...html.matchAll(/aria-describedby="([^"]+)"/g)].map(m => m[1])
-  assert.deepEqual(verweise, [srTexte[0][1]], 'aria-describedby nennt genau die Kennung des Textes')
-  assert.ok(html.includes(`id="${verweise[0]}"`), 'das Ziel des Verweises steht im DOM')
+  // GENAU EINE Reiterzeile mit Namen (kein zweiter Navigationsblock).
+  assert.equal((html.match(/<nav\b/g) || []).length, 1, 'genau eine Reiterzeile')
+  assert.ok(html.includes('aria-label="Bereiche von Personen"'), 'die Leiste hat einen Namen')
+  // Jeder Eintrag ist ein Link mit eigener Adresse; der aktive trägt
+  // `aria-current="page"` (Farbe ist nie der einzige Träger, Ä4).
+  const punkte = [...html.matchAll(/<a\b[^>]*>/g)].map(m => m[0])
+  assert.equal(punkte.length, 4, `vier Reiter (gefunden: ${punkte.length})`)
+  for (const [wert, href] of [['liste', '#/personen/liste'], ['anfragen', '#/personen/anfragen'],
+    ['datenschutz', '#/personen/datenschutz'], ['import', '#/personen/import']]) {
+    assert.ok(punkte.some(p => p.includes(`href="${href}"`) && p.includes(`data-reiter="${wert}"`)),
+      `Reiter „${wert}“ verlinkt ${href}`)
+  }
+  const aktiv = punkte.filter(p => p.includes('aria-current="page"'))
+  assert.equal(aktiv.length, 1, 'genau EIN aktiver Eintrag (kein doppeltes aria-current)')
+  assert.ok(aktiv[0].includes('data-reiter="anfragen"'), 'aktiv ist der offene Reiter')
+  assert.ok(aktiv[0].includes('class="dk-ui-reiter-punkt is-active"'), 'der aktive Eintrag ist markiert')
+  // Kennzahl nur als echte Zahl — und nur am Eintrag, der sie trägt.
+  const zahlen = [...html.matchAll(/<span class="dk-ui-reiter-zahl">([^<]*)<\/span>/g)].map(m => m[1])
+  assert.deepEqual(zahlen, ['3'], 'die Zahl steht genau einmal (an „Anfragen“)')
   // Keine Kennung doppelt (IDs müssen eindeutig sein).
   const alleIds = [...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1])
   assert.equal(new Set(alleIds).size, alleIds.length, 'keine doppelten IDs im DOM')
 }
 
-// ── 2. Bereich.vue: kein toter Wechsel mehr ───────────────────────────────
+// ── 2. Personen-Rahmen: EINE Reiterzeile, kein toter Wechsel ──────────────
 {
-  const bereich = lies('pages/mitglieder/Bereich.vue')
+  const bereich = lies('pages/Personen.vue')
   const t = vorlage(bereich)
   const s = skript(bereich)
 
   assert.ok(!t.includes('unterbereich-wechsel'), 'kein Empfänger für das tote Ereignis in der Vorlage')
   assert.ok(!t.includes('unterbereichWechseln'), 'keine Bindung an die entfallene Funktion')
   assert.ok(!/\bunterbereichWechseln\b/.test(bereich), 'die Funktion selbst ist entfernt')
-  assert.ok(!s.includes('navigate('), 'keine Adressführung mehr für den toten Wechsel')
-  assert.ok(!s.includes('ANFRAGEN_HAUPTBEREICH'), 'die dafür eingeführte Konstante ist mitgegangen')
-  // Der Unterbereich kommt weiter über die Eigenschaft aus der Bereichsliste.
-  assert.ok(t.includes(':unterbereich="unterbereich"'), 'Unterbereich kommt als Eigenschaft')
+  // UX3j: Der Unterbereich kommt über die Eigenschaft aus der Adresse.
+  assert.ok(t.includes(':unterbereich="aktiverUnterbereich"'), 'Unterbereich kommt als Eigenschaft')
+  // Genau EINE Hauptebene: die Reiterzeile als Baustein (DkReiter), keine
+  // seitliche Liste mehr daneben.
+  assert.ok(t.includes('<DkReiter'), 'Reiterzeile ist der EINE Baustein')
+  assert.ok(!/DkBereichsliste/.test(t), 'keine seitliche Bereichsliste (A3)')
+  assert.ok(!/class="mb-raster"/.test(t), 'kein Zwei-Spalten-Raster (A3)')
+  // Das Adress-Ziel der alten Seitennamen lädt denselben Rahmen.
+  const ziel = lies('pages/mitglieder/Bereich.vue')
+  assert.ok(vorlage(ziel).includes('<Personen'), 'Bereich.vue lädt den EINEN Personen-Rahmen')
 }
 
 // ── 3. EIN Takt: Seitenleiste + Bereich, eine Anfrage, nur für Admins ─────
@@ -243,7 +262,9 @@ const beiModulen = name => join(MODUL_DIR, name)
 // ── 4. Die Seitenleiste hält den Takt NICHT selbst ─────────────────────────
 {
   const sidebar = lies('components/AppSidebar.vue')
-  const bereich = lies('pages/mitglieder/Bereich.vue')
+  // UX3j: Der Personen-Rahmen ist `pages/Personen.vue` (Bereich.vue ist nur
+  // noch sein Adress-Ziel und hat gar kein Skript mehr).
+  const bereich = lies('pages/Personen.vue')
   // Kommentare zählen nicht (sie nennen die Wörter absichtlich).
   const ohneKommentare = q => q
     .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -257,7 +278,7 @@ const beiModulen = name => join(MODUL_DIR, name)
   assert.ok(!b.includes('anfragenZahlLaden'), 'der Bereich fragt nicht selbst')
   assert.ok(b.includes('anfragenZaehler'), 'der Bereich LIEST den gemeinsamen Stand')
   // Kein Nachladen bei jedem Wechsel (Review-Punkt 3): kein watch auf den Wert.
-  assert.ok(!/watch\(\s*aktiverEintragValue/.test(b), 'kein Nachladen bei jedem Bereichswechsel')
+  assert.ok(!/watch\(\s*aktiverEintragValue/.test(b), 'kein Nachladen bei jedem Reiterwechsel')
   // Die Anfragen-Seite zieht die Kennzahl nach einer Handlung nach.
   const reg = ohneKommentare(skript(lies('pages/Registrierung.vue')))
   assert.ok(reg.includes('anfragenZahlAuffrischen'), 'Aufnehmen/Ablehnen frischt die Kennzahl auf')

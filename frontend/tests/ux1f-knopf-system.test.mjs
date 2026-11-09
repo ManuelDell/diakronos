@@ -243,19 +243,28 @@ test('UX1f/F3: „Abbrechen“ und „Schließen“ sind secondary in voller Hö
 })
 
 test('UX1f/F3: „Person anlegen“ ist nur dort der Primärknopf, wo Anlegen die Hauptsache ist', () => {
-  const text = lies(`${P}pages/mitglieder/Bereich.vue`)
-  // Die Betonung kommt aus dem sichtbaren Eintrag (S1), nicht aus einer
-  // zweiten Tätigkeit: es gibt weiterhin GENAU EINEN Anlege-Knopf im Kopf.
+  // UX3j (Entwurf A3): Es gibt EINEN Personen-Rahmen — `pages/Personen.vue`.
+  // `pages/mitglieder/Bereich.vue` ist nur noch sein Adress-Ziel (die alten
+  // Reiter-Seitennamen), damit es keine zweite Kopfzeile gibt.
+  const text = lies(`${P}pages/Personen.vue`)
+  // Die Betonung kommt aus dem sichtbaren Reiter/Unterbereich (S1), nicht aus
+  // einer zweiten Tätigkeit: es gibt weiterhin GENAU EINEN Anlege-Knopf.
   const anlegen = [...vorlage(text).matchAll(/<DkButton\b[^>]*>[\s\S]{0,600}?Person anlegen/gs)]
   assert.equal(anlegen.length, 1, 'genau ein „Person anlegen“ im Kopf erwartet')
-  // UX1h: `anlegenIstHauptaktion` ist ein ref und wird in der Vorlage NICHT
-  // ausgepackt — der Ausdruck lautet deshalb `… .value ? …`.
   assert.match(anlegen[0][0], /:variant="anlegenIstHauptaktion \? 'primary' : 'secondary'"/,
-    'die Betonung folgt dem Eintrag (anlegenIstHauptaktion)')
-  // UX1h: auch die Unterbereiche von „Anfragen“ tragen ihre eigene
-  // Hauptaktion („Neuer Link“ / „Neues Formular“).
-  assert.match(text, /const ANLEGEN_NEBENACHLICH = new Set\(\['import', 'datenschutz'(, 'anfragen', 'links', 'formulare')?\]\)/,
-    'Import und Datenschutz (und die Anfragen-Unterbereiche) tragen ihre eigene Hauptaktion')
+    'die Betonung folgt dem Reiter/Unterbereich (anlegenIstHauptaktion)')
+  // UX3j: Die Unterbereiche von „Anfragen“ tragen ihre eigene Hauptaktion
+  // („Neuer Link“ / „Neues Formular“) — sie steht im SELBEN Kopf.
+  assert.match(text, /const UNTERBEREICH_HAUPTAKTIONEN = \{ links: 'link', formulare: 'formular' \}/,
+    'Links und Formulare tragen ihre eigene Hauptaktion')
+  assert.match(text, /<DkButton v-if="unterbereichHauptaktion === 'link'" variant="primary"/,
+    '„Neuer Link“ ist dort der gefüllte Knopf')
+  assert.match(text, /<DkButton v-else-if="unterbereichHauptaktion === 'formular'" variant="primary"/,
+    '„Neues Formular“ ist dort der gefüllte Knopf')
+  // Genau EIN gefüllter Knopf je Ansicht: „Person anlegen“ wird in diesen
+  // Unterbereichen secondary — die beiden Bedingungen schließen sich aus.
+  assert.match(text, /const anlegenIstHauptaktion = computed\(\(\) => !unterbereichHauptaktion\.value\)/,
+    '„Person anlegen“ ist sekundär, wo der Unterbereich seine eigene Aktion hat')
 })
 
 test('UX1f/F3: Datenschutz und Löschanträge haben ihre eigene Hauptaktion', () => {

@@ -223,6 +223,14 @@ const CRUMB_MAP = {
   // nicht „Anmeldungen“. Die alte Seite „Anmeldung“ ist mit N12 entfallen
   // (ihre Einstellungen liegen unter „Einstellungen → Anmeldung“).
   Registrierung: ['Mitglieder', 'Registrierung'],
+  // UX3j (A3, Punkt 4): Die Reiter von „Personen“ tragen oben „Personen“ —
+  // vorher stand dort der rohe Komponentenname („MitgliederAnfragen“).
+  // Die Seitennamen selbst bleiben (Anker für Rechte-Guard und Fenstertitel).
+  MitgliederAnfragen:    ['Personen'],
+  MitgliederDatenschutz: ['Personen'],
+  MitgliederImport:      ['Personen'],
+  MitgliederLoeschantraege: ['Personen', 'Löschanträge'],
+  MitgliederUebersicht:  ['Personen', 'Übersicht'],
   Wiki:          ['Wiki'],
   NichtGefunden: ['Seite nicht gefunden'],
 }

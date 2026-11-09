@@ -54,10 +54,14 @@ test('Import-Seite: keine Fachbegriffe in sichtbaren Texten', () => {
 })
 
 test('Mitglieder-Rahmen: Reiter Import mit eigener Adresse und Export', () => {
-  const bereich = lies('pages/mitglieder/Bereich.vue')
-  assert.match(bereich, /import\('\.\/Import\.vue'\)/, 'Rahmen bindet die Import-Seite')
-  assert.match(bereich, /case 'import':/, 'Reiter „import“ ist verdrahtet')
-  assert.match(bereich, /zeigeImportExportKnopf/, 'Export-Knopf im Import-Reiter')
+  // UX3j (A3): EIN Personen-Rahmen — `pages/Personen.vue` bindet die
+  // Import-Seite an den vierten Reiter. (Den Export-Knopf im Import-Träger
+  // gibt es nicht mehr: A3 hat genau einen Kopf mit EINEM Primärknopf;
+  // exportiert wird in der Liste, wo der Server die Liste liefert.)
+  const bereich = lies('pages/Personen.vue')
+  assert.match(bereich, /import\('\.\/mitglieder\/Import\.vue'\)/, 'Rahmen bindet die Import-Seite')
+  assert.match(bereich, /===\s*'import'/, 'Reiter „import“ ist verdrahtet')
+  assert.match(lies('pages/mitglieder/Bereich.vue'), /<Personen/, 'Bereich.vue ist nur Adress-Ziel')
 
   const menue = lies('menue.js')
   assert.match(menue, /id: 'import', label: 'Import', href: '#\/personen\/import'/, 'Reiter im Menue')

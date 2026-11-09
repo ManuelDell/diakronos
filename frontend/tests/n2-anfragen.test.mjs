@@ -21,7 +21,9 @@ import { readFileSync } from 'node:fs'
 const root = new URL('../src/diakonos/', import.meta.url)
 const lies = p => readFileSync(new URL(p, root), 'utf8')
 const reg = lies('pages/Registrierung.vue')
-const vorlage = reg.slice(0, reg.indexOf('<script setup>'))
+// Vorlage ohne Kommentare: die Erklärungen nennen dieselben Bausteine und
+// haben den Test schon einmal getäuscht (Vorbild uxa2a-bereichsliste).
+const vorlage = reg.slice(0, reg.indexOf('<script setup>')).replace(/<!--[\s\S]*?-->/g, '')
 const skript = reg.slice(reg.indexOf('<script setup>'))
 
 /** Quellblock einer `const <name> = …`-Deklaration bis zum Zeilenende des Aufrufs. */
@@ -32,41 +34,47 @@ function block(name) {
   return skript.slice(start, ende === -1 ? undefined : ende)
 }
 
-// ── Statusleiter als Chips über der Tabelle (UX-A2b) ───────────────────────
+// ── Statusleiter als Filter über der Tabelle (UX-A2b, UX3j-Nacharbeit) ─────
 // UX-A2b (Entwurf A2, Befunde DMB-09a956e8457d + DMB-d4f788c04158): Die
 // Status-Reiter „Offen · Aufgenommen · Abgelehnt“ standen ÜBER den
 // Unterbereichen und filterten deshalb auch bei „Links“ und „Formularen“ —
-// dort ohne Wirkung. Jetzt ist der Statusfilter eine Chip-Zeile MIT ZAHLEN
-// direkt über der Anfragen-Tabelle.
+// dort ohne Wirkung. Jetzt steht der Statusfilter MIT ZAHLEN direkt über der
+// Anfragen-Tabelle. UX3j-Nacharbeit (Punkt 1): derselbe Baustein wie Liste
+// und Datenschutz (DkSegment) mit derselben Zähler-Schreibweise — die
+// dunkel gefüllte Chip-Zeile (DkFilterChips) ist entfallen.
 {
   assert.ok(skript.includes("const statusFilter = ref('offen')"), 'Statusfilter beginnt bei „Offen“')
   const leiter = block('STATUS_LEITER')
-  assert.ok(leiter.includes("label: 'Offen'"), 'Chip Offen')
-  assert.ok(leiter.includes("label: 'Aufgenommen'"), 'Chip Aufgenommen')
-  assert.ok(leiter.includes("label: 'Abgelehnt'"), 'Chip Abgelehnt')
-  // Die Zahl je Chip kommt aus derselben Zählung wie der Filter.
-  assert.ok(block('statusChips').includes('anzahl: zaehle(s.wert)'), 'Chips tragen die Zahlen')
-  assert.ok(skript.includes('const statusChips = computed'), 'Chip-Zeile ist berechnet')
+  assert.ok(leiter.includes("label: 'Offen'"), 'Eintrag Offen')
+  assert.ok(leiter.includes("label: 'Aufgenommen'"), 'Eintrag Aufgenommen')
+  assert.ok(leiter.includes("label: 'Abgelehnt'"), 'Eintrag Abgelehnt')
+  // Die Zahl je Eintrag kommt aus derselben Zählung wie der Filter und steht
+  // in derselben Schreibweise wie in Liste und Datenschutz („Wort Zahl“).
+  assert.ok(block('statusFilterOptionen').includes('label: `${s.label} ${zaehle(s.wert)}`'),
+    'Filter trägt die Zahlen („Offen 3“)')
+  assert.ok(skript.includes('const statusFilterOptionen = computed'), 'Filterzeile ist berechnet')
   // Nur über der Tabelle: innerhalb des Anfragen-Unterbereichs, vor der Karte.
+  // UX3j: Der Kopf der Seite nennt die Unterbereiche (Links/Formulare als
+  // Primärknopf) — gesucht wird deshalb der INHALTS-Block mit `<div v-if>`.
   const anfragenBlock = vorlage.slice(
-    vorlage.indexOf("v-if=\"unterbereich === 'anfragen'\""),
-    vorlage.indexOf("v-if=\"unterbereich === 'links'\""),
+    vorlage.indexOf("<div v-if=\"unterbereich === 'anfragen'\""),
+    vorlage.indexOf("<div v-if=\"unterbereich === 'links'\""),
   )
-  assert.ok(anfragenBlock.includes('<DkFilterChips'), 'Chip-Zeile im Anfragen-Bereich')
-  assert.ok(anfragenBlock.indexOf('<DkFilterChips') < anfragenBlock.indexOf('<DkCard'),
-    'Chip-Zeile steht ÜBER der Tabelle')
+  assert.ok(anfragenBlock.includes('<DkSegment'), 'Filterzeile im Anfragen-Bereich')
+  assert.ok(anfragenBlock.indexOf('<DkSegment') < anfragenBlock.indexOf('<DkCard'),
+    'Filterzeile steht ÜBER der Tabelle')
   // Kein Statusfilter bei Links und Formularen (je eigener Block ohne Chips).
   for (const [von, bis] of [["'links'", "'formulare'"], ["'formulare'", null]]) {
-    const anfang = vorlage.indexOf(`v-if="unterbereich === ${von}"`)
+    const anfang = vorlage.indexOf(`<div v-if="unterbereich === ${von}"`)
     assert.ok(anfang > 0, `Unterbereich ${von} vorhanden`)
-    const ende = bis ? vorlage.indexOf(`v-if="unterbereich === ${bis}"`) : vorlage.length
-    assert.ok(!vorlage.slice(anfang, ende).includes('DkFilterChips'),
+    const ende = bis ? vorlage.indexOf(`<div v-if="unterbereich === ${bis}"`) : vorlage.length
+    assert.ok(!vorlage.slice(anfang, ende).includes('DkSegment'),
       `kein Statusfilter bei ${von}`)
   }
   // Die alte Reiterzeile ist fort: kein DkTabs mehr auf dieser Seite.
   assert.ok(!reg.includes('DkTabs'), 'die Status-Reiterzeile (DkTabs) ist entfallen')
-  assert.ok(reg.includes("import DkFilterChips from '../components/ui/DkFilterChips.vue'"),
-    'Chip-Baustein eingebunden')
+  assert.ok(reg.includes("import DkSegment from '../components/ui/DkSegment.vue'"),
+    'Filter-Baustein eingebunden (derselbe wie Liste/Datenschutz)')
   // Der Filter fährt die Liste.
   assert.ok(block('filteredAnmeldungen').includes('statusFilter.value'),
     'die Tabelle richtet sich nach dem Statusfilter')
@@ -97,24 +105,31 @@ function block(name) {
 }
 
 // ── Unterbereiche ──────────────────────────────────────────────────────────
-// UX-A2a: Die zweite Reiterzeile entfällt — die Unterbereiche sind Einträge
-// der Mitglieder-Bereichsliste (menue.js ANFRAGEN_UNTERBEREICHE) und kommen
-// über die Eigenschaft `unterbereich` herein. Ein Wechsel geht als Ereignis an
-// den Rahmen. Allein (ohne Rahmen) schaltet der eigene Umschalter weiter.
+// UX3j (Entwurf A3): Die Unterbereiche stehen als ZWEITE, kleinere Reiterzeile
+// direkt unter der Reiterzeile — gezeichnet vom Rahmen (`pages/Personen.vue`,
+// menue.js `personenAnfragenReiter`). Diese Seite bringt KEINEN eigenen
+// Umschalter mehr mit; der Unterbereich kommt über die Eigenschaft herein und
+// steht in der Adresse (`#/personen/anfragen[/<unter>]`).
 {
   const unter = block('UNTERBEREICHE')
-  assert.ok(skript.includes("const unterbereichLokal = ref('anfragen')"), 'Unterbereich beginnt bei Anfragen')
+  assert.ok(!skript.includes('unterbereichLokal'), 'kein eigener Umschalter mehr (A3)')
+  // Kein eigener UMSCHALTER für die Unterbereiche — der Statusfilter der
+  // Tabelle IST ein DkSegment (UX3j-Nacharbeit Punkt 1) und bleibt erlaubt.
+  assert.ok(!/:options="unterReiterOptionen"/.test(vorlage),
+    'keine zweite Reiterzeile in der Seite')
+  assert.ok(!/:options="UNTERBEREICHE"/.test(vorlage),
+    'kein Unterbereichs-Umschalter in der Seite')
   assert.ok(unter.includes("'anfragen'"), 'Unterbereich Anfragen')
   assert.ok(unter.includes('Links & QR-Codes'), 'Unterbereich Links & QR-Codes')
   assert.ok(unter.includes('Formulare'), 'Unterbereich Formulare')
   assert.ok(skript.includes("unterbereich: { type: String, default: '' }"),
     'Unterbereich kommt über die Eigenschaft herein')
-  // UX-A2a, Operator-Review Punkt 4: Im eingebetteten Betrieb gibt es keinen
-  // Umschalter mehr, also auch kein Wechsel-Ereignis an den Rahmen (die
-  // Bereichsliste links ist die Navigation).
+  // UX3j: Steht die Seite allein (embedded = false, z. B. alte Adresse
+  // #/registrierung), trägt sie ihren eigenen Kopf — die Unterbereichs-Wahl
+  // bleibt beim Rahmen, hier gibt es dafür keinen Umschalter.
   assert.ok(!skript.includes("emit('unterbereich-wechsel'"),
-    'kein toter Wechsel mehr an den Rahmen')
-  assert.match(vorlage, /v-if="!eingebettet"/, 'eigener Umschalter nur ohne Rahmen')
+    'kein Wechsel-Ereignis an den Rahmen')
+  assert.match(vorlage, /<DkPageHeader v-if="!embedded"/, 'eigener Kopf nur ohne Rahmen')
 }
 
 // ── Liste: Datum/Name/Typ/Hinweis/Status ───────────────────────────────────
@@ -154,7 +169,11 @@ assert.ok(vorlage.includes('Ablehnen'), 'Ablehnen-Knopf vorhanden')
 
 // ── Kopf und Reiter kommen weiter aus dem Design-System ────────────────────
 // UX-A2b: DkTabs ist entfallen (der Statusfilter ist eine Chip-Zeile).
-for (const bez of ['DkPageHeader', 'DkFilterChips', 'DkSegment', 'DkCard', 'DkTable', 'DkDialog']) {
+// UX3j: Die Unterbereichs-Wahl zeichnet der Rahmen (`DkReiter` in
+// pages/Personen.vue); diese Seite hat keinen Umschalter für die Unterbereiche
+// mehr. Der STATUSFILTER ist seit der UX3j-Nacharbeit (Punkt 1) ein DkSegment
+// — dieselbe Optik wie in Liste und Datenschutz, kein DkFilterChips mehr.
+for (const bez of ['DkPageHeader', 'DkSegment', 'DkCard', 'DkTable', 'DkDialog']) {
   assert.ok(reg.includes(bez), `Baustein ${bez} verwendet`)
 }
 // Eingebettet im Mitglieder-Rahmen: kein zweiter Kopf.

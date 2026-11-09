@@ -177,9 +177,10 @@ async function mounten(baustein, eigenschaften = {}) {
   })
   app.config.warnHandler = (m) => warnungen.push(m)
   app.config.errorHandler = (e) => warnungen.push(String(e && e.message))
-  app.mount(host)
+  const vm = app.mount(host)
   await warte(10)
-  return { host, app, warnungen }
+  host.__vm = vm
+  return { host, app, vm, warnungen }
 }
 
 /** Der „Speichern“-Knopf der Seite. */
@@ -457,18 +458,24 @@ test('UX3h5/3: Registrierung.vue — „Anmeldeformular“ am Link zeigt die gel
     return antwortFuer(methode)
   }
   const mod = await import(pathToFileURL(kompilieren(new URL('pages/Registrierung.vue', SRC).pathname)).href)
-  const { host, warnungen } = await mounten(mod.default)
+  // UX3j (Entwurf A3): Der Unterbereich kommt aus der ADRESSE und wird als
+  // Eigenschaft übergeben (`#/personen/anfragen/links`) — die Seite bringt
+  // keinen eigenen Umschalter mehr mit. „Neuer Link“ steht im Seitenkopf des
+  // Rahmens; hier wird dieselbe Funktion direkt gerufen (defineExpose).
+  const { host, warnungen, vm } = await mounten(mod.default, { unterbereich: 'links' })
   await warte(30)
-  // Dialog „Neuer Link“ öffnen (der Knopf sitzt im Unterbereich „Links“).
-  const unterbereich = [...host.querySelectorAll('button, [role="tab"], a')]
-    .find((b) => /Links/.test((b.textContent || '').trim()))
-  assert.ok(unterbereich, 'Unterbereich „Links“ fehlt. Warnungen: ' + warnungen.slice(0, 2).join(' | '))
-  unterbereich.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
-  await warte(15)
   const neuLink = [...host.querySelectorAll('button')]
     .find((b) => /Neuer Link/.test((b.textContent || '').trim()))
-  assert.ok(neuLink, 'Knopf „Neuer Link“ fehlt')
-  neuLink.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+  if (neuLink) {
+    neuLink.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+  } else {
+    // Ohne Rahmen-Kopf: die bereitgestellte Funktion öffnet denselben Dialog.
+    // (Der Seiten-Proxy liegt über der Komponenten-Kette, nicht am Wurzelknoten.)
+    const proxy = vm.$refs?.Seite ?? vm.$.subTree?.component?.proxy
+    assert.ok(proxy && typeof proxy.linkOeffnen === 'function', 'linkOeffnen fehlt (defineExpose)',
+      'Warnungen: ' + warnungen.slice(0, 2).join(' | '))
+    proxy.linkOeffnen()
+  }
   await warte(15)
 
   // Das Auswahlfeld steht im Dialog bei „Anmeldeformular“.

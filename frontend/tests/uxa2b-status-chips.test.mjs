@@ -58,36 +58,42 @@ export default __comp`
   return (await import(datei.href)).default
 }
 
-// ── 1. Die Chip-Zeile: Zahlen, Ruhelage, Stelle im DOM ─────────────────────
+// ── 1. Die Filterzeile: Zahlen, Ruhelage, Stelle im DOM ────────────────────
+// UX3j-Nacharbeit (Punkt 1): Aus der Chip-Zeile ist ein Segmentschalter
+// geworden (DkSegment) — dieselbe Optik wie in Liste und Datenschutz. Die
+// Zusagen von UX-A2b bleiben: Zahlen je Zustand, Ruhelage „Offen“, direkt
+// über der Tabelle, nur im Unterbereich „Anfragen“.
 {
   const seite = lies('pages/Registrierung.vue')
   const tpl = seite.slice(seite.indexOf('<template>'), seite.lastIndexOf('</template>'))
+  // UX3j: Der Kopf der Seite nennt die Unterbereiche (Primärknopf) — der
+  // Chip-Block steht im INHALTS-Bereich (`<div v-if="unterbereich === …">`).
   const anfragen = tpl.slice(
-    tpl.indexOf('v-if="unterbereich === \'anfragen\'"'),
-    tpl.indexOf('v-if="unterbereich === \'links\'"'),
+    tpl.indexOf('<div v-if="unterbereich === \'anfragen\'"'),
+    tpl.indexOf('<div v-if="unterbereich === \'links\'"'),
   )
-  assert.ok(anfragen.includes('<DkFilterChips'), 'Chip-Zeile im Anfragen-Bereich')
-  assert.ok(anfragen.indexOf('<DkFilterChips') < anfragen.indexOf('<DkCard'),
-    'Chip-Zeile steht ÜBER der Tabelle')
-  assert.ok(anfragen.includes(':chips="statusChips"'), 'Chips kommen aus der berechneten Liste')
+  assert.ok(anfragen.includes('<DkSegment'), 'Filterzeile im Anfragen-Bereich')
+  assert.ok(anfragen.indexOf('<DkSegment') < anfragen.indexOf('<DkCard'),
+    'Filterzeile steht ÜBER der Tabelle')
+  assert.ok(anfragen.includes(':options="statusFilterOptionen"'),
+    'Einträge kommen aus der berechneten Liste')
   assert.ok(anfragen.includes(':model-value="statusFilter"'), 'Ruhelage ist der Statusfilter')
-  assert.ok(anfragen.includes('@waehlen="statusFilter = $event"'), 'ein Klick setzt den Filter')
-  assert.ok(!anfragen.includes(':mit-zahl="false"'), 'die Zahlen sind ausdrücklich AN')
-  // Am Handy scrollt die Zeile über die EIGENSCHAFT von DkFilterChips; eine
-  // eigene Mobil-Regel in der Seite gab es (Befund Operator-Review).
-  assert.ok(/\sscrollbar(\s|>)/.test(anfragen), 'Chip-Zeile nutzt `scrollbar` von DkFilterChips')
+  assert.ok(anfragen.includes('@update:model-value="statusFilter = $event"'),
+    'ein Klick setzt den Filter')
+  // Kein DkFilterChips mehr (Punkt 1 der Nacharbeit).
+  assert.ok(!tpl.includes('<DkFilterChips'), 'keine dunkel gefüllte Chip-Zeile mehr')
   assert.ok(!/\.reg-statusfilter\s*\{[^}]*overflow-x/.test(seite),
     'keine eigene Mobil-Regel für den Statusfilter')
   assert.ok(!/\.reg-statusfilter[^{]*\{[^}]*flex-wrap/.test(seite),
     'kein eigenes Umbruch-Verhalten am Statusfilter')
 
   // NUR hier: Links und Formulare haben keinen Statusfilter.
-  const links = tpl.slice(tpl.indexOf('v-if="unterbereich === \'links\'"'),
-    tpl.indexOf('v-if="unterbereich === \'formulare\'"'))
-  const formulare = tpl.slice(tpl.indexOf('v-if="unterbereich === \'formulare\'"'),
+  const links = tpl.slice(tpl.indexOf('<div v-if="unterbereich === \'links\'"'),
+    tpl.indexOf('<div v-if="unterbereich === \'formulare\'"'))
+  const formulare = tpl.slice(tpl.indexOf('<div v-if="unterbereich === \'formulare\'"'),
     tpl.lastIndexOf('</template>'))
-  assert.ok(!links.includes('DkFilterChips'), 'kein Statusfilter bei Links & QR-Codes')
-  assert.ok(!formulare.includes('DkFilterChips'), 'kein Statusfilter bei Formularen')
+  assert.ok(!links.includes('DkSegment'), 'kein Statusfilter bei Links & QR-Codes')
+  assert.ok(!formulare.includes('DkSegment'), 'kein Statusfilter bei Formularen')
   assert.ok(!tpl.includes('<DkTabs'), 'die alte Status-Reiterzeile über den Unterbereichen ist fort')
 
   // Die alte Reiterliste und ihr Zustand sind aus dem Skript verschwunden.

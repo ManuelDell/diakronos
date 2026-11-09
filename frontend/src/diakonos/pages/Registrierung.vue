@@ -1,47 +1,56 @@
 <template>
-  <div class="dk-screen dk-screen-enter" :class="{ 'reg-screen--dialog': showCreateFormular }">
-    <DkPageHeader v-if="!embedded" title="Anfragen" sub="Anfragen, Links & Formulare verwalten" />
+  <div :class="[{ 'dk-screen dk-screen-enter': !eingebettet }, { 'reg-screen--dialog': showCreateFormular }]">
+    <!-- UX3j (Entwurf A3, Punkt 3): Die Reiterzeile von „Personen“ steht in
+         JEDEM Reiter oben (Rahmen pages/Personen.vue). Steht diese Seite
+         allein (embedded = false), trägt sie einen eigenen Kopf.
+         Die Hauptaktion des SICHTBAREN Unterbereichs liegt hier im Kopf —
+         genau EIN gefüllter Knopf je Ansicht: Links „Neuer Link“,
+         Formulare „Neues Formular“. Der Unterbereich „Anfragen“ hat keine
+         Anlege-Aktion (seine Arbeit ist das Aufnehmen, je Zeile) — dort ist
+         „Person anlegen“ der eine Primärknopf. -->
+    <DkPageHeader v-if="!embedded" title="Anfragen" sub="Anfragen, Links & Formulare verwalten">
+      <template #actions>
+        <DkButton v-if="unterbereich === 'links'" variant="primary" @click="linkOeffnen">
+          <IconPlus /> Neuer Link
+        </DkButton>
+        <DkButton v-else-if="unterbereich === 'formulare'" variant="primary" @click="formularOeffnen">
+          <IconPlus /> Neues Formular
+        </DkButton>
+      </template>
+    </DkPageHeader>
 
     <!-- N2 (Konzept Abschnitt 3, Reiter 3 „Anfragen“): der Zustand der
          Anfragen (Offen/Aufgenommen/Abgelehnt). Der Begriff „Anmeldung“
          bleibt dem Login vorbehalten.
-         UX-A2a: Die zweite Reiterzeile „Anfragen / Links & QR-Codes /
-         Formulare“ ist entfallen — die Unterbereiche sind jetzt eigene
-         Einträge der Mitglieder-Bereichsliste links (menue.js,
-         ANFRAGEN_UNTERBEREICHE). Der Unterbereich kommt über die Eigenschaft
-         `unterbereich` herein; steht die Seite allein (ohne Rahmen), bleibt
-         der eigene Umschalter — sonst wäre sie dort nicht bedienbar.
+         UX3j: Der Unterbereich kommt über die Eigenschaft `unterbereich`
+         herein und steht in der ADRESSE (#/personen/anfragen[/<unter>],
+         menue.js `personenAnfragenReiter`): Die zweite, kleinere Reiterzeile
+         zeichnet der Rahmen — diese Seite bringt KEINEN eigenen Umschalter
+         mehr mit (zwei Reiterzeilen für dieselbe Wahl waren der Befund).
          UX-A2b (Entwurf A2, Befunde DMB-09a956e8457d + DMB-d4f788c04158):
          Die Status-Reiter „Offen · Aufgenommen · Abgelehnt“ standen ÜBER den
          Unterbereichen und filterten deshalb auch dann, wenn man bei „Links“
          oder „Formularen“ war — dort ohne jede Wirkung. Jetzt steht der
-         Statusfilter als Chip-Zeile (DkFilterChips, mit Zahlen) DIREKT über
-         der Anfragen-Tabelle, also nur dort, wo er wirkt. -->
-
-    <div v-if="!eingebettet" class="reg-bereich">
-      <DkSegment
-        v-model="unterbereich"
-        :options="unterbereiche"
-        aria-label="Unterbereich"
-      />
-    </div>
+         Statusfilter DIREKT über der Anfragen-Tabelle, also nur dort, wo er
+         wirkt. UX3j-Nacharbeit: DERSELBE Baustein wie Liste und Datenschutz
+         (DkSegment) mit derselben Zähler-Schreibweise — unter „Personen“ gibt
+         es nur noch EIN Filter-Aussehen. -->
 
     <!-- Unterbereich 1: Anfragen -->
     <div v-if="unterbereich === 'anfragen'">
-      <!-- UX-A2b: Statusfilter als Chips MIT Zahlen, direkt über der Tabelle
-           (Entwurf A2). Nur hier — bei Links und Formularen gibt es keinen
+      <!-- UX-A2b + UX3j (Nacharbeit Punkt 1): Statusfilter MIT Zahlen, direkt
+           über der Tabelle. Nur hier — bei Links und Formularen gibt es keinen
            Statusfilter. „Offen“ ist die Arbeitsliste und deshalb der
-           Ruhezustand (nicht „Alle“); „Alle“ zeigt auch Warteliste-Anfragen.
-           Am Handy scrollt die Zeile seitlich (`scrollbar`), statt in eine
-           zweite Zeile umzubrechen. -->
-      <DkFilterChips
+           Ruhezustand; „Alle“ zeigt auch Warteliste-Anfragen. Derselbe
+           Baustein und dieselbe Zähler-Schreibweise wie Liste und Datenschutz
+           (DkSegment) — EIN Filter-Aussehen unter „Personen“. -->
+      <DkSegment
         v-if="!loading"
         class="reg-statusfilter"
-        :chips="statusChips"
         :model-value="statusFilter"
-        scrollbar
+        :options="statusFilterOptionen"
         aria-label="Anfragen nach Status filtern"
-        @waehlen="statusFilter = $event"
+        @update:model-value="statusFilter = $event"
       />
 
       <!-- OP-UI-19: gemeinsames Ladeskelett statt einer eigenen Form. -->
@@ -103,17 +112,6 @@
 
     <!-- Unterbereich 2: Links & QR-Codes (N3: voller Link, Oeffnen, QR) -->
     <div v-if="unterbereich === 'links'">
-      <div class="reg-aktion">
-        <!-- UX1h (S1): Die drei Unterbereiche (Anfragen · Links · Formulare)
-             sind eigene Ansichten derselben Seite — jeder hat seine eine
-             Hauptaktion: Links „Neuer Link“, Formulare „Neues Formular“;
-             im Unterbereich Anfragen gibt es keine Anlege-Aktion (die Arbeit
-             ist das Aufnehmen einer Anfrage, das je Zeile entschieden wird). -->
-        <DkButton variant="primary" @click="linkOeffnen">
-          <IconPlus /> Neuer Link
-        </DkButton>
-      </div>
-
       <DkSkelett v-if="loadingLinksSkelett" form="karten" :anzahl="3" text="Links werden geladen …" />
 
       <DkEmpty v-else-if="links.length === 0" title="Keine Registrierungslinks" text="Lege den ersten Link über „Neuer Link“ an." icon="🔗" />
@@ -194,12 +192,6 @@
 
     <!-- Unterbereich 3: Formulare -->
     <div v-if="unterbereich === 'formulare'">
-      <div class="reg-aktion">
-        <DkButton variant="primary" @click="formularOeffnen">
-          <IconPlus /> Neues Formular
-        </DkButton>
-      </div>
-
       <DkSkelett v-if="loadingFormulareSkelett" form="karten" :anzahl="3" text="Formulare werden geladen …" />
 
       <DkCard v-else flach>
@@ -567,12 +559,13 @@
 /**
  * Anfragen — Anfragen/Links/Formulare im Design-System (N2).
  *
- * Reiter „Anfragen“ des Mitglieder-Bereichs (Konzept Abschnitt 3, Reiter 3).
+ * Reiter „Anfragen“ des Personen-Bereichs (Konzept Abschnitt 3, Reiter 3).
  * Aufbau: oben der Unterbereich (Anfragen / Links & QR-Codes / Formulare),
- * darunter der Inhalt. UX-A2a: Die Unterbereiche Anfragen, Links & QR-Codes
- * und Formulare sind seit Entwurf A2 Einträge der Mitglieder-Bereichsliste
- * (menue.js ANFRAGEN_UNTERBEREICHE) — die zweite Reiterzeile in dieser Seite
- * ist entfallen. Das Wort „Anmeldung“ bleibt dem Login vorbehalten.
+ * darunter der Inhalt. UX3j (Entwurf A3): Die Unterbereiche stehen als
+ * ZWEITE, kleinere Reiterzeile direkt unter der Reiterzeile — gezeichnet vom
+ * Rahmen (`pages/Personen.vue`), die Wahl steht in der Adresse
+ * (`#/personen/anfragen[/<unter>]`, menue.js). Das Wort „Anmeldung“ bleibt
+ * dem Login vorbehalten.
  * UX-A2b: Der Status der Anfragen (Offen · Aufgenommen · Abgelehnt) ist kein
  * Reiter mehr über den Unterbereichen (dort filterte er auch „Links“ und
  * „Formulare“, wo er nichts bewirkte), sondern eine Chip-Zeile MIT ZAHLEN
@@ -602,11 +595,11 @@ import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import { pflichtFehler } from '../composables/formularPruefung.mjs'
 import { anfragenZahlAuffrischen } from '../composables/useVerwaltung.js'
 
-// Im Mitglieder-Bereich eingebettet: eigener Kopf entfällt, und der
-// Unterbereich kommt als EIGENSCHAFT aus der Bereichsliste des Rahmens
-// (UX-A2a). Die Seite schaltet dann nichts selbst um — die Navigation des
-// Bereichs liegt links neben dem Inhalt. Steht die Seite allein (ohne
-// Rahmen), bleibt der eigene Umschalter und schaltet lokal.
+// Im Personen-Bereich eingebettet: eigener Kopf entfällt, und der
+// Unterbereich kommt als EIGENSCHAFT aus dem Rahmen (UX-A2a/UX3j). Die Seite
+// schaltet NICHTS selbst um — die Reiterzeile (auch die zweite, kleinere mit
+// den Unterbereichen) zeichnet `pages/Personen.vue`; dort steht die Wahl auch
+// in der Adresse.
 const props = defineProps({
   embedded: { type: Boolean, default: false },
   unterbereich: { type: String, default: '' },
@@ -618,7 +611,6 @@ import DkBadge from '../components/ui/DkBadge.vue'
 import DkCard from '../components/ui/DkCard.vue'
 import DkDialog from '../components/ui/DkDialog.vue'
 import DkSegment from '../components/ui/DkSegment.vue'
-import DkFilterChips from '../components/ui/DkFilterChips.vue'
 import DkField from '../components/ui/DkField.vue'
 // UX2c (C1): der EINE Endgültig-Dialog (Frage, Folge, gefährlicher Knopf).
 import DkEndgueltig from '../components/ui/DkEndgueltig.vue'
@@ -670,30 +662,19 @@ function bestaetigenAntwort(wert) {
 const OFFENE_ANMELDESTATI = ['Anmeldeanfrage', 'Ausstehend']
 
 /** Unterbereich (Konzept-Reiter 3): Anfragen | Links & QR-Codes | Formulare.
- *  UX-A2a: Im Mitglieder-Rahmen ist der Unterbereich ein Eintrag der
- *  Bereichsliste — er kommt über die Eigenschaft herein und wird hier NICHT
- *  umgeschaltet (die Navigation liegt links, der Rahmen setzt die Adresse).
- *  Steht die Seite allein (embedded = false), schaltet der eigene Umschalter
- *  weiter lokal. */
+ *  UX3j: Der Unterbereich kommt IMMER über die Eigenschaft herein und steht
+ *  in der Adresse (`#/personen/anfragen[/<unter>]`) — auch wenn die Seite
+ *  allein steht, ist der Rahmen (`pages/Personen.vue`) der Ort der Wahl.
+ *  Ein eigener Umschalter hier wäre die zweite Reiterzeile für dieselbe
+ *  Entscheidung (Befund Manuel 08.11.). */
 const UNTERBEREICHE = [
   { value: 'anfragen', label: 'Anfragen' },
   { value: 'links',    label: 'Links & QR-Codes' },
   { value: 'formulare', label: 'Formulare' },
 ]
-const unterbereiche = UNTERBEREICHE
-const unterbereichLokal = ref('anfragen')
-const unterbereich = computed({
-  get() {
-    const vonAussen = props.unterbereich
-    if (eingebettet.value && UNTERBEREICHE.some(u => u.value === vonAussen)) return vonAussen
-    return unterbereichLokal.value
-  },
-  set(wert) {
-    // Im eingebetteten Betrieb ist der Unterbereich Navigation des Rahmens
-    // (Bereichsliste) — hier gibt es keinen Umschalter, also nichts zu setzen.
-    if (eingebettet.value) return
-    unterbereichLokal.value = wert
-  },
+const unterbereich = computed(() => {
+  const vonAussen = String(props.unterbereich || '')
+  return UNTERBEREICHE.some(u => u.value === vonAussen) ? vonAussen : 'anfragen'
 })
 
 /** Statusleiter der Anfragen (Konzept-Reiter 3).
@@ -709,19 +690,24 @@ const STATUS_LEITER = [
 ]
 
 /**
- * UX-A2b: Statusfilter als Chip-Zeile ÜBER der Anfragen-Tabelle.
+ * UX-A2b: Statusfilter ÜBER der Anfragen-Tabelle.
  *
  * Die frühere Reiterzeile stand über den Unterbereichen und filterte auch
  * dann, wenn „Links“ oder „Formulare“ gewählt war — dort ohne Wirkung
- * (DMB-09a956e8457d). Als Chips direkt über der Tabelle wirkt der Filter
- * genau dort, wo er hingehört; Zahlen machen den Bestand ohne Klick lesbar.
- * `DkFilterChips` liefert Aussehen, Abwählbarkeit und `aria-pressed`.
+ * (DMB-09a956e8457d). Als Filter direkt über der Tabelle wirkt er genau dort,
+ * wo er hingehört; Zahlen machen den Bestand ohne Klick lesbar.
+ *
+ * UX3j-Nacharbeit (Punkt 1, KERN der Beschwerde Manuels): Dieser Filter war
+ * die letzte Chip-Zeile mit dunkel gefülltem Aktiv-Zustand unter „Personen“.
+ * Jetzt DERSELBE Baustein wie Liste und Datenschutz (`DkSegment`) mit
+ * DERSELBEN Zähler-Schreibweise („Offen 3“). Das frühere Abwählen per zweitem
+ * Klick entfällt: „Alle“ ist der sichtbare Ruhezustand (erster Eintrag) —
+ * dieselbe Regel wie in der Liste.
  */
 const statusFilter = ref('offen')
-const statusChips = computed(() => STATUS_LEITER.map(s => ({
-  id: s.wert,
-  label: s.label,
-  anzahl: zaehle(s.wert),
+const statusFilterOptionen = computed(() => STATUS_LEITER.map(s => ({
+  value: s.wert,
+  label: `${s.label} ${zaehle(s.wert)}`,
 })))
 
 function zaehle(art) {
@@ -1652,6 +1638,14 @@ async function uploadBild(datei, formularId) {
 const detailAnmeldung = ref(null)
 function showDetail(a) { detailAnmeldung.value = a }
 
+/**
+ * UX3j: Die Hauptaktionen der Unterbereiche („Neuer Link“ / „Neues
+ * Formular“) stehen im EINEN Seitenkopf von `pages/Personen.vue`. Der Rahmen
+ * ruft dieselben Funktionen hier auf — ein Knopf, eine Umsetzung, kein
+ * zweiter Dialog.
+ */
+defineExpose({ linkOeffnen, formularOeffnen })
+
 /** OP-ADMIN-8: Titel des Detailfensters = „Anfrage von Vorname Nachname“
  *  statt der rohen ID. Nach `detailAnmeldung` definiert (sonst TDZ-Fehler). */
 const detailName = computed(() => {
@@ -1697,15 +1691,12 @@ onMounted(() => { fetchData(); ladeLinkVorgaben() })
 </script>
 
 <style scoped>
-.reg-bereich { margin-bottom: var(--sp-alt-20); }
 
 /* UX-A2b: Statusfilter (Chip-Zeile) direkt über der Anfragen-Tabelle. Abstand
    wie bei den übrigen Filterzeilen (DES-01: 8 px bis zur Liste). Das seitliche
-   Scrollen am Handy bringt `scrollbar` von `DkFilterChips` mit
-   (`.dk-ui-chips.is-scrollbar`) — hier bleibt nur der Abstand. */
+   Am Handy bricht der Segmentschalter um (DkSegment) — hier bleibt nur der
+   Abstand. */
 .reg-statusfilter { margin-bottom: var(--sp-3); }
-
-.reg-aktion { display: flex; margin-bottom: var(--sp-alt-20); }
 
 /* OP-UI-19: Die eigene Ladeform (reg-skelett) ist durch DkSkelett ersetzt. */
 

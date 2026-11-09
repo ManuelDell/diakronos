@@ -9,23 +9,66 @@
          UX3b2: Der Reiter steht in der ADRESSE (#/personen/<reiter>), nicht
          nur im Speicher — ein Lesezeichen öffnet denselben Reiter, und
          „zurück“ führt auf den vorigen. -->
-    <DkPageHeader title="Personen" :sub="unterzeile">
-      <template #actions>
+    <DkPageHeader title="Personen" :sub="unterzeile" />
+
+    <!-- UX3j (Entwurf A3, Review-Nacharbeit Punkt 4): EINE Kopfzeile — links
+         die Reiterzeile, rechts ihre Werkzeuge („Filter“, Hauptaktion). Die
+         Werkzeuge sitzen auf HÖHE der Reiterzeile, nicht in einem eigenen
+         Block darüber (A3). Die Einträge sind Links: der Reiter steht in der
+         Adresse (#/personen/<reiter>), Lesezeichen und „zurück“ wirken. -->
+    <div class="p3-reiterzeile">
+      <DkReiter
+        v-if="zeigeReiter"
+        class="p3-reiter"
+        :model-value="aktiverReiter"
+        :options="reiterOptionen"
+        aria-label="Bereiche von Personen"
+      />
+      <div v-if="zeigeAktionen" class="p3-aktionen">
+        <!-- UX1h/S1 + UX3j (A3, Punkt 3): EIN Ort, EINE Regel.
+             „Person anlegen“ steht in JEDEM Reiter an derselben Stelle und
+             ist dort der eine Primärknopf — AUSSER der Reiter hat eine eigene
+             Hauptaktion (Unterbereiche „Links & QR-Codes“ → „Neuer Link“,
+             „Formulare“ → „Neues Formular“): dann ist diese primär und
+             „Person anlegen“ sekundär. Pro Ansicht bleibt es bei genau einem
+             gefüllten Knopf. -->
+        <DkButton v-if="zeigeFilter" variant="secondary" @click="filterZeigen">
+          <template #icon><DkSymbol name="filter" :groesse="16" /></template>
+          Filter
+        </DkButton>
         <DkButton
           v-if="zeigeAnlegenKnopf"
-          variant="primary"
+          :variant="anlegenIstHauptaktion ? 'primary' : 'secondary'"
           @click="personAnlegen"
-        >Person anlegen</DkButton>
-      </template>
-    </DkPageHeader>
+        >
+          <template #icon><DkSymbol name="person-plus" :groesse="16" /></template>
+          Person anlegen
+        </DkButton>
+        <!-- Hauptaktion des sichtbaren Unterbereichs (nur mit eigenem
+             Bedarf): dieselbe Zeile, kein zweiter Kopf. -->
+        <DkButton v-if="unterbereichHauptaktion === 'link'" variant="primary" @click="linkAnlegen">
+          <template #icon><DkSymbol name="hinzufuegen" :groesse="16" /></template>
+          Neuer Link
+        </DkButton>
+        <DkButton v-else-if="unterbereichHauptaktion === 'formular'" variant="primary" @click="formularAnlegen">
+          <template #icon><DkSymbol name="hinzufuegen" :groesse="16" /></template>
+          Neues Formular
+        </DkButton>
+      </div>
+    </div>
 
-    <DkSegment
-      v-if="reiter.length > 1"
-      class="p3-reiter"
-      :model-value="aktiverReiter"
-      :options="reiter"
-      aria-label="Bereiche von Personen"
-      @update:model-value="reiterWechseln"
+    <!-- Zweite, kleinere Ebene: die Unterbereiche von „Anfragen“ — direkt
+         unter der Reiterzeile als kleiner Segmentschalter (Punkt 3 der
+         Nacharbeit), dieselbe Adresse wie bisher
+         (#/personen/anfragen[/<unter>]). -->
+    <DkReiter
+      v-if="zeigeUnterreiter"
+      class="p3-unterreiter"
+      klein
+      segment
+      :model-value="aktiverUnterbereich"
+      :options="unterReiterOptionen"
+      aria-label="Bereiche von Anfragen"
     />
 
     <!-- ── Liste (Admins: Mitgliederliste, alle anderen: Adressbuch-Sicht) ── -->
@@ -125,13 +168,23 @@
     </template>
 
     <!-- ── Anfragen (nur mit Recht) ──────────────────────────────────────── -->
-    <Registrierung v-else-if="aktiverReiter === 'anfragen'" embedded />
+    <!-- UX3j: Der Unterbereich kommt aus der ADRESSE (zweite Reiterzeile oben);
+         die Seite selbst bringt keinen zweiten Umschalter mit. Die Hauptaktion
+         des Unterbereichs („Neuer Link“ / „Neues Formular“) steht im
+         Seitenkopf und ruft die vorhandenen Dialoge hier an (Template-Ref). -->
+    <Registrierung
+      v-else-if="aktiverReiter === 'anfragen'"
+      ref="anfragenInhalt"
+      embedded
+      class="p3-inhalt"
+      :unterbereich="aktiverUnterbereich"
+    />
 
     <!-- ── Datenschutz (nur mit Recht) ───────────────────────────────────── -->
-    <Datenschutz v-else-if="aktiverReiter === 'datenschutz'" embedded />
+    <Datenschutz v-else-if="aktiverReiter === 'datenschutz'" embedded class="p3-inhalt" />
 
     <!-- ── Import (nur mit Recht) ────────────────────────────────────────── -->
-    <Import v-else-if="aktiverReiter === 'import'" embedded />
+    <Import v-else-if="aktiverReiter === 'import'" embedded class="p3-inhalt" />
     <!-- Anlegen: EIN Dialog für alle Rollen (derselbe wie im
          Mitglieder-Bereich) — keine zweite Maske. -->
     <MitgliedHinzufuegenDialog
@@ -184,9 +237,16 @@ import {
   persoenlicheDatenAnfordern, sortierBeschriftung, statusFilterOptionen,
   verwaltungSichtbar, zielSeite, statusAusAdresse, adresseMitStatus,
 } from '../composables/personenVerwaltung.mjs'
+import {
+  personenReiter, personenAnfragenReiter, personenReiterAusHash,
+  anfragenUnterbereichAusHash,
+} from '../menue.js'
+import { anfragenZaehler } from '../composables/useVerwaltung.js'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkButton from '../components/ui/DkButton.vue'
+import DkReiter from '../components/ui/DkReiter.vue'
 import DkSegment from '../components/ui/DkSegment.vue'
+import DkSymbol from '../components/ui/DkSymbol.vue'
 import PersonenListe from '../components/personen/PersonenListe.vue'
 import WartendeKontenKarte from '../components/WartendeKontenKarte.vue'
 // Das Anlege-Formular ist EIN Dialog für alle Rollen (Rahmen und Liste öffnen
@@ -204,41 +264,50 @@ const verwaltung = computed(() => verwaltungSichtbar(isAdmin.value === true))
 
 // ── Reiter ──────────────────────────────────────────────────────────────────
 // Reihenfolge des Entwurfs A3: Liste · Anfragen · Datenschutz · Import.
+// Die Einträge (Beschriftung, Adresse, Kennzahl, Recht) stehen EINMAL in
+// menue.js (`MITGLIEDER_REITER`, `personenReiter`) — die Reiterzeile, der
+// Rechte-Guard und die Tests lesen dieselbe Quelle.
 // Für Nicht-Admins bleibt EINE Ansicht übrig — dann steht keine Reiterleiste
 // (ein Reiter mit einem Eintrag ist keine Wahl).
-const REITER = [
-  { id: 'liste', label: 'Liste' },
-  { id: 'anfragen', label: 'Anfragen', rolle: 'admin' },
-  { id: 'datenschutz', label: 'Datenschutz', rolle: 'admin' },
-  { id: 'import', label: 'Import', rolle: 'admin' },
-]
-const reiter = computed(() => REITER
-  .filter(r => r.rolle !== 'admin' || istAdmin.value)
-  .map(r => ({ value: r.id, label: r.label })))
+const reiterOptionen = computed(() => personenReiter({
+  istAdmin: istAdmin.value === true,
+  anfragenZahl: anfragenZahl.value,
+}))
+const unterReiterOptionen = computed(() => personenAnfragenReiter({
+  istAdmin: istAdmin.value === true,
+}))
+/** Zeigt dieser Reiter die zweite Ebene? (fertiger Wahrheitswert — in der
+ *  Vorlage werden Refs in Ausdrücken nicht ausgepackt.) */
+const zeigeUnterreiter = computed(
+  () => aktiverReiter.value === 'anfragen' && unterReiterOptionen.value.length > 1,
+)
+/** Mehr als ein Reiter = es gibt eine Wahl (sonst keine Leiste). */
+const zeigeReiter = computed(() => reiterOptionen.value.length > 1)
 
 /** Reiter aus der Adresse (`#/personen/<reiter>`), sonst „liste“. */
 function reiterAusAdresse() {
   if (typeof window === 'undefined') return 'liste'
-  const hash = String(window.location.hash || '')
-  const pfad = hash.split('?')[0].replace(/\/+$/, '')
-  const treffer = /^#\/personen\/([^/]+)$/.exec(pfad)
-  const wert = treffer ? treffer[1] : ''
   // Unbekannte Werte (und Reiter ohne Recht) fallen auf die Liste zurück —
   // kein leerer Bildschirm über einer getippten Adresse.
-  return reiter.value.some(r => r.value === wert) ? wert : 'liste'
+  return personenReiterAusHash(window.location.hash, { istAdmin: istAdmin.value === true })
+    || 'liste'
+}
+
+/** Unterbereich aus der Adresse (`#/personen/anfragen[/<unter>]`). */
+function unterbereichAusAdresse() {
+  if (typeof window === 'undefined') return 'anfragen'
+  return anfragenUnterbereichAusHash(window.location.hash)
 }
 
 const aktiverReiter = ref(reiterAusAdresse())
-function reiterWechseln(wert) {
-  if (!wert || wert === aktiverReiter.value) return
-  if (!reiter.value.some(r => r.value === wert)) return
-  // Die Adresse trägt den Reiter (Befund 6): Lesezeichen und „zurück“ wirken.
-  navigate('#/personen/' + wert)
-}
-// Die Adresse ist die Wahrheit: jede Änderung (auch „zurück“) setzt den Reiter.
+const aktiverUnterbereich = ref(unterbereichAusAdresse())
+/** Die Adresse ist die Wahrheit: jeder Wechsel (auch „zurück“) setzt BEIDE
+ *  Ebenen — Reiter und Unterbereich kommen aus derselben Adresse. */
 function adresseGeaendert() {
-  const wert = reiterAusAdresse()
-  if (wert !== aktiverReiter.value) aktiverReiter.value = wert
+  const reiter = reiterAusAdresse()
+  const unter = unterbereichAusAdresse()
+  if (reiter !== aktiverReiter.value) aktiverReiter.value = reiter
+  if (unter !== aktiverUnterbereich.value) aktiverUnterbereich.value = unter
   // UX3f: „Person anlegen“ der Befehlspalette kommt als `#/personen?anlegen=1`
   // — auch wenn der Bereich schon offen ist (dann wechselt keine Seite).
   anlegeWunschAusAdresse()
@@ -246,17 +315,42 @@ function adresseGeaendert() {
 // Die Rolle steht beim Aufbau fest; wechselt sie (z. B. Identitätswechsel im
 // Devmodus), wird ein Reiter ohne Recht zur Liste.
 watch(istAdmin, () => {
-  if (!reiter.value.some(r => r.value === aktiverReiter.value)) aktiverReiter.value = 'liste'
+  if (!reiterOptionen.value.some(r => r.value === aktiverReiter.value)) aktiverReiter.value = 'liste'
 })
 
 const unterzeile = computed(() => {
-  if (aktiverReiter.value === 'anfragen') return 'Neue Anmeldungen prüfen und aufnehmen'
+  if (aktiverReiter.value === 'anfragen') {
+    if (aktiverUnterbereich.value === 'links') return 'Registrierungslinks und QR-Codes teilen'
+    if (aktiverUnterbereich.value === 'formulare') return 'Anmeldeformulare anlegen und pflegen'
+    return 'Neue Anmeldungen prüfen und aufnehmen'
+  }
   if (aktiverReiter.value === 'datenschutz') return 'Einwilligungen und Löschungen der Gemeinde'
   if (aktiverReiter.value === 'import') return 'Personen aus einer CSV-Datei einlesen'
   return istAdmin.value
     ? 'Alle Personen der Gemeinde'
     : 'Kontaktdaten der Gemeinde'
 })
+
+// ── Kopfzeile: Kennzahl und Hauptaktion ─────────────────────────────────────
+/** Kennzahl offener Anfragen — DERSELBE Stand wie in der Seitenleiste
+ *  (useVerwaltung.js, eine Abfrage; die Seitenleiste hält den Takt). */
+const anfragenZahl = anfragenZaehler
+
+/** Unterbereiche von „Anfragen“, die ihre EIGENE Hauptaktion haben. */
+const UNTERBEREICH_HAUPTAKTIONEN = { links: 'link', formulare: 'formular' }
+/** Welche Hauptaktion trägt der sichtbare Unterbereich? (`''` = keine) */
+const unterbereichHauptaktion = computed(() => (aktiverReiter.value === 'anfragen'
+  ? (UNTERBEREICH_HAUPTAKTIONEN[aktiverUnterbereich.value] || '')
+  : ''))
+
+/**
+ * UX1h/S1: Der Kopf trägt GENAU EINEN gefüllten Knopf. „Person anlegen“
+ * bleibt überall, wo Anlegen die Hauptsache ist (Liste, Anfragen, Datenschutz,
+ * Import — dort gibt es keine zweite Anlege-Tätigkeit); in den Unterbereichen
+ * „Links & QR-Codes“ und „Formulare“ ist deren eigene Aktion („Neuer Link“ /
+ * „Neues Formular“) primär, „Person anlegen“ daneben sekundär.
+ */
+const anlegenIstHauptaktion = computed(() => !unterbereichHauptaktion.value)
 
 // ── Liste ───────────────────────────────────────────────────────────────────
 const quelle = computed(() => personenQuelle(istAdmin.value))
@@ -480,7 +574,61 @@ onBeforeUnmount(() => {
 // ── Anlegen ─────────────────────────────────────────────────────────────────
 const hinzufuegenOffen = ref(false)
 const gruppenAuswahl = ref([])
-const zeigeAnlegenKnopf = computed(() => istAdmin.value && aktiverReiter.value === 'liste')
+/** UX3j: „Person anlegen“ steht in ALLEN Reitern an derselben Stelle (Punkt 3
+ *  der Karte) — nur für Mitgliederadministratoren (der Server prüft erneut). */
+const zeigeAnlegenKnopf = computed(() => istAdmin.value === true)
+
+/**
+ * UX3j-Nacharbeit (Punkt 4): „Filter“ erscheint nur dort, wo er wirkt —
+ * also in den Ansichten mit einem Filter (Liste mit Status, „Anfragen“ mit
+ * Status, „Datenschutz“ mit Stand). „Links & QR-Codes“, „Formulare“ und
+ * „Import“ haben keinen Filter; dort kein Knopf, der ins Leere greift.
+ */
+const REITER_MIT_FILTER = ['liste', 'anfragen', 'datenschutz']
+
+/** Wo der Filterknopf wirkt (Punkt 4): nur in „anfragen“, wenn nicht der
+ *  Unterbereich „Links“/„Formulare“ gewählt ist — dort gibt es keinen
+ *  Statusfilter. */
+const zeigeFilter = computed(() => {
+  if (!zeigeAktionen.value) return false
+  if (aktiverReiter.value === 'anfragen') return aktiverUnterbereich.value === 'anfragen'
+  return REITER_MIT_FILTER.includes(aktiverReiter.value)
+})
+
+/** Werkzeugzeile überhaupt zeigen (Aktionen rechts auf Höhe der Reiter). */
+const zeigeAktionen = computed(() => zeigeReiter.value || zeigeAnlegenKnopf.value)
+
+/** Hauptaktionen der Anfragen-Unterbereiche reicht der Rahmen in den Inhalt
+ *  durch: die Knöpfe stehen im EINEN Seitenkopf (kein zweiter Kopf) und
+ *  öffnen die vorhandenen Dialoge der Anfragen-Seite. */
+const anfragenInhalt = ref(null)
+function linkAnlegen() {
+  const ziel = anfragenInhalt.value
+  if (ziel && typeof ziel.linkOeffnen === 'function') ziel.linkOeffnen()
+}
+function formularAnlegen() {
+  const ziel = anfragenInhalt.value
+  if (ziel && typeof ziel.formularOeffnen === 'function') ziel.formularOeffnen()
+}
+
+/** Der Filterknopf der Kopfzeile führt zum Filter des Reiters: in der Liste
+ *  zum Statusfilter, in „Anfragen“ zum Statusfilter über der Tabelle, in
+ *  „Datenschutz“ zum Stand. Er wird nur gezeichnet, wo es ihn gibt
+ *  (`zeigeFilter`, Punkt 4). */
+function filterZeigen() {
+  if (typeof document === 'undefined') return
+  const ziele = aktiverReiter.value === 'liste'
+    ? ['.p3-werkzeuge [aria-label="Status-Filter"]', '.p3-werkzeuge input']
+    : aktiverReiter.value === 'datenschutz'
+      ? ['.ds-filter [role="tablist"]', '.ds-filter input']
+      : ['.reg-statusfilter [role="tablist"]']
+  const feld = ziele
+    .map(sel => document.querySelector(sel))
+    .find(el => el != null)
+  if (!feld) return
+  try { feld.focus({ preventScroll: true }) } catch (_) { feld.focus() }
+  feld.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+}
 
 async function gruppenLaden() {
   if (!istAdmin.value) return
@@ -541,15 +689,54 @@ function profilUrl(name) {
   return '#/mitglied/' + encodeURIComponent(String(name || ''))
 }
 defineExpose({
-  laden, profilUrl, navigate, reiterWechseln, fehlerHinweis,
+  laden, profilUrl, navigate, fehlerHinweis,
   ansichtWaehlen, sortierungUmschalten, statusFiltern,
-  persoenlicheDatenUmschalten, form,
+  persoenlicheDatenUmschalten, form, filterZeigen, zeigeFilter,
+  linkAnlegen, formularAnlegen,
 })
 </script>
 
 <style scoped>
-/* Reiterleiste über dem Inhalt; Abstand aus der Skala (Prinzip Ä1). */
-.p3-reiter { margin-bottom: var(--sp-4); }
+/* UX3j (A3 + Nacharbeit Punkt 4): EINE Kopfzeile — Reiterzeile links, ihre
+   Werkzeuge rechts auf DERSELBEN Höhe (Unterkante der Reiter = Unterkante der
+   Knöpfe). Am Handy rutschen die Werkzeuge unter die Reiter (die Reiter
+   scrollen dort waagerecht, Punkt 5). */
+.p3-reiterzeile {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--gap);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-3);
+}
+.p3-reiter,
+.p3-unterreiter { margin-bottom: 0; }
+/* Die zweite Ebene schließt die Kopfzone ab — der Inhalt folgt mit dem
+   normalen Abstand darunter, bündig links (Punkt 6). */
+.p3-unterreiter { margin-bottom: var(--sp-3); }
+/* Die Reiterzeile nimmt den freien Platz; `min-width: 0` + `align-self`
+   halten sie in der Zeile (ohne das dehnt der Scroll-Container die Zeile auf
+   die Höhe des Inhalts). */
+.p3-reiterzeile .p3-reiter {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: flex-end;
+  margin-bottom: 0;
+}
+.p3-aktionen {
+  display: flex;
+  align-items: center;
+  align-self: flex-end;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  /* Die Werkzeuge stehen auf der Unterkante der Reiterzeile (Punkt 4) und
+     sind genau einen Knopf hoch — kein Polster darüber oder darunter. */
+  padding-bottom: 0;
+}
+
+/* Punkt 6: Inhalt bündig mit der Reiterzeile — kein Einzug darüber (die
+   Inhaltsseiten bringten sonst ihren eigenen Oberabstand mit). */
+.p3-inhalt { margin-top: 0; }
 
 .p3-werkzeuge {
   display: flex;
@@ -561,4 +748,9 @@ defineExpose({
 .p3-werkzeuge .dk-toolbar-search { flex: 1 1 260px; min-width: 0; }
 .p3-spacer { flex: 1; }
 .p3-wartende { margin-top: var(--sp-4); }
+
+@media (max-width: 720px) {
+  /* Werkzeuge nehmen die zweite Zeile ein; die Reiterzeile bleibt die erste. */
+  .p3-aktionen { width: 100%; justify-content: flex-start; padding-bottom: 0; }
+}
 </style>

@@ -104,39 +104,35 @@ function routerAusfuehren(boot) {
   assert.ok(nichtGefunden.includes("'#/'"), 'Rückweg zum Dashboard')
 }
 
-// ── Mitglieder-Rahmen: echte Aktionen, keine toten Knöpfe ───────────────────
+// ── Personen-Rahmen: echte Aktionen, keine toten Knöpfe ─────────────────────
+// UX3j (Entwurf A3): Es gibt EINEN Rahmen — `pages/Personen.vue`. Die Datei
+// `pages/mitglieder/Bereich.vue` ist nur noch ihr Adress-Ziel (die alten
+// Reiter-Seitennamen, damit Rechte-Guard und Fenstertitel unverändert gelten);
+// die Prüfungen lesen deshalb den einen Rahmen.
 {
-  const bereich = lies('pages/mitglieder/Bereich.vue')
+  const bereich = lies('pages/Personen.vue')
   const liste = lies('pages/Mitglieder.vue')
   // H1: Export ist eine echte Funktion, kein Platzhalter-Toast. N1b: Der
   // Rahmen zeigt den Knopf nur im Reiter „Liste“ und ruft den Server-Export
   // der Liste (P1-9b) über ihre Template-Ref auf — der fruehere zweite,
   // clientseitige Export ist entfallen (Befund R-N1-code N1-3/N1-5).
-  assert.ok(bereich.includes('function exportieren()'), 'echte Export-Funktion')
-  assert.ok(/ref="liste"/.test(bereich), 'Rahmen greift auf die Liste zu')
-  assert.ok(liste.includes('defineExpose({ exportCsv'), 'Liste stellt den Export bereit')
-  assert.ok(liste.includes('exportiere_mitglieder_csv'), 'Export laeuft serverseitig')
-  // N11: Der Reiter „Import“ hat keine eingebettete Liste, deren Export
-  // gerufen werden koennte — dort holt der Rahmen den Server-Export selbst
-  // (`exportierenDirekt`) und speichert die Datei unveraendert. Einen
-  // zweiten, selbstgebauten CSV-Text gibt es weiterhin nicht.
-  assert.ok(bereich.includes('function exportierenDirekt()'), 'Export im Import-Reiter (N11)')
+  assert.ok(bereich.includes('async function exportieren()'), 'echte Export-Funktion')
+  assert.ok(bereich.includes('exportiere_mitglieder_csv'), 'Export laeuft serverseitig')
+  assert.ok(liste.includes('exportCsv'), 'Liste stellt den Export bereit')
   // Kein selbstgebauter CSV-Text: gespeichert wird genau `antwort.csv` vom
   // Server. Geprueft wird das Skript, nicht der erklaerende Kommentar.
   const bereichSkript = bereich.slice(bereich.indexOf('<script setup>'))
   assert.ok(!/split\(';'\)|_csvZelleSicher/.test(bereichSkript), 'kein selbstgebauter CSV-Text im Rahmen')
   assert.ok(!bereich.includes('diakonos:mitglieder-export'), 'keine Ereignisbruecke mehr')
-  // N1-4: „Importieren“ entfaellt bis zum Import-Reiter (N11); der Rahmen
-  // fuehrt „Mitglied hinzufügen“ echt aus. Geprueft wird der Vorlagenteil,
-  // damit der erklaerende Kommentar nicht als Knopf gilt.
+  // N1-4: Kein Knopf mit falscher Beschriftung. Geprueft wird der
+  // Vorlagenteil, damit der erklaerende Kommentar nicht als Knopf gilt.
   const vorlage = bereich.slice(0, bereich.indexOf('<script setup>'))
-  assert.ok(vorlage.includes('Mitglied hinzufügen'), 'Knopf „Mitglied hinzufügen“ vorhanden')
+  assert.ok(vorlage.includes('Person anlegen'), 'Knopf „Person anlegen“ vorhanden')
   assert.ok(!vorlage.includes('Importieren'), 'kein Knopf mit falscher Beschriftung (N1-4)')
-  // Die Übersicht ist die neue eigene Seite, nicht mehr Statistik.vue.
-  assert.ok(bereich.includes("import('./Uebersicht.vue')"), 'Rahmen bindet die neue Übersicht')
+  // Die Übersicht ist eine eigene Seite (Kachel-Ziele), keine Statistik.vue.
   assert.ok(!bereich.includes('Statistik.vue'), 'kein Verweis auf Statistik.vue')
   // N1-6: die Unterzeile nennt keine erfundene Gesamtzahl mehr.
-  assert.ok(!bereich.includes('totalCount'), 'kein totalCount mehr in der Liste')
+  assert.ok(!bereich.includes('totalCount'), 'kein totalCount in der Liste')
   // Kein Placeholder-Toast mehr in der Liste.
   assert.ok(!liste.includes('Export-Funktion folgt in Phase 3'),
     'Liste ohne Platzhalter-Export')
@@ -201,24 +197,28 @@ function routerAusfuehren(boot) {
 // immer falsch (der Kopf zeigte weder Export noch „Mitglied hinzufügen“),
 // waehrend `aktiverReiter.value.id` im Skript richtig ist. Die Vorlage darf
 // solche Ausdruecke nicht mehr enthalten.
+// UX3j: Es gibt EINEN Personen-Rahmen (`pages/Personen.vue`).
 {
-  const bereich = lies('pages/mitglieder/Bereich.vue')
+  const bereich = lies('pages/Personen.vue')
   const vorlage = bereich.slice(0, bereich.indexOf('<script setup>'))
   const skript = bereich.slice(bereich.indexOf('<script setup>'))
   // Betroffen sind Zugriffe auf Verweise (Reiter/Berechtigung), nicht auf
-  // Listenlaengen: `reiter.length` ist ein Array und damit unbedenklich.
+  // Listenlaengen: `reiterOptionen.length` ist ein Array und unbedenklich.
   assert.ok(!/v-if="[^"]*(istAdmin|aktiverReiter)\.[a-zA-Z_]+/.test(vorlage),
     'kein Eigenschaftszugriff auf Refs in v-if der Vorlage')
   assert.ok(!/v-if="[^"]*(istAdmin|aktiverReiter)[^"]*&&/.test(vorlage),
     'keine &&-Ausdruecke ueber Refs in v-if')
-  assert.ok(vorlage.includes('zeigeExportKnopf'), 'Export-Knopf ueber fertigen Wahrheitswert')
-  assert.ok(skript.includes('zeigeExportKnopf = computed'), 'Wahrheitswert im Skript gebildet')
-  // UX-A2a: der Reiterstreifen ist durch die Bereichsliste ersetzt; die
-  // Pruefung „welcher Eintrag ist offen“ steht weiter im SKRIPT (dort sind
-  // Refs ausgepackt) und vergleicht gegen den Zieldatensatz des Eintrags.
-  assert.match(skript, /aktiverEintrag\.value\?\.id === 'liste'/,
-    'Eintragspruefung im Skript ueber .value')
-  assert.ok(vorlage.includes('v-if="istAdmin"'), '„Mitglied hinzufügen“ ueber einfachen Namen')
+  // UX3j: Welche Knöpfe die Kopfzeile zeigt, entscheiden fertige
+  // Wahrheitswerte aus dem Skript (Reiter + Unterbereich + Rechte).
+  for (const wert of ['zeigeAnlegenKnopf', 'anlegenIstHauptaktion', 'unterbereichHauptaktion']) {
+    assert.ok(vorlage.includes(wert), `Kopfzeile über fertigen Wahrheitswert „${wert}“`)
+    assert.ok(skript.includes(`${wert} = computed`), `„${wert}“ im Skript gebildet`)
+  }
+  // Der Reiter wird im SKRIPT aus der Adresse bestimmt (dort sind Refs
+  // ausgepackt) — menue.js ist die eine Quelle der Einträge.
+  assert.match(skript, /personenReiterAusHash\(/, 'Reiter aus der Adresse (menue.js)')
+  assert.ok(vorlage.includes(':options="reiterOptionen"'), 'Reiterzeile aus menue.js-Einträgen')
+  assert.ok(!/class="mb-raster"/.test(vorlage), 'keine seitliche Bereichsliste mehr (A3)')
 }
 
 console.log('N1 Mitglieder mit Reitern und Übersicht: bestanden')

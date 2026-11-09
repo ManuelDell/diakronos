@@ -58,14 +58,27 @@
       </DkCard>
       <DkCard title="Einwilligungsstand">
         <p>Gezählt werden Personen, nicht einzelne Protokolleinträge.</p>
+        <!-- UX3j (Entwurf A3, Punkt 2): Der Stand war ein natives Auswahlfeld —
+             unter „Personen“ gab es damit drei verschiedene Filter-Optiken.
+             Jetzt derselbe Baustein wie Liste und Anfragen (DkSegment), mit
+             derselben Zähler-Darstellung („Wort Zahl“ als Beschriftung). -->
         <div class="ds-filter">
-          <label>Stand
-            <select v-model="stand" class="dk-form-select">
-              <option value="">Alle ({{ personen.length }})</option>
-              <option v-for="(text, wert) in DATENSCHUTZ_STAND" :key="wert" :value="wert">{{ text }} ({{ stats[wert] || 0 }})</option>
-            </select>
-          </label>
-          <label>Person suchen<input v-model="suche" type="search" class="dk-form-input" placeholder="Name oder E-Mail" /></label>
+          <DkSegment
+            :model-value="stand"
+            :options="standOptionen"
+            aria-label="Einwilligungsstand filtern"
+            @update:model-value="standWechseln"
+          />
+          <div class="dk-toolbar-search">
+            <svg class="dk-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input
+              v-model="suche"
+              type="search"
+              class="ds-suche"
+              aria-label="Personen nach Name oder E-Mail durchsuchen"
+              placeholder="Nach Name oder E-Mail suchen…"
+            />
+          </div>
         </div>
         <p v-if="gefiltert.length" role="status">{{ gefiltert.length }} von {{ personen.length }} Personen</p>
         <!-- UX2d3c (Review UX2d3b): Vorher standen hier ZWEI Sätze für denselben
@@ -139,6 +152,7 @@ import DkHint from '../../components/ui/DkHint.vue'
 import DkDialog from '../../components/ui/DkDialog.vue'
 import DkSkelett from '../../components/ui/DkSkelett.vue'
 import DkEmpty from '../../components/ui/DkEmpty.vue'
+import DkSegment from '../../components/ui/DkSegment.vue'
 import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 
 defineProps({ embedded: Boolean })
@@ -161,6 +175,24 @@ const datum = d => d ? new Date(String(d).slice(0, 10) + 'T12:00:00').toLocaleDa
 function auswahlZuruecksetzen() {
   suche.value = ''
   stand.value = ''
+}
+
+/**
+ * UX3j (A3, Punkt 2): Der Stand ist derselbe Filter-Baustein wie in den
+ * übrigen Reitern (DkSegment) und trägt die Zahl in DERSELBEN Schreibweise
+ * wie Liste („Alle 43“) und Anfragen („Offen 0“) — Wort, dann Zahl.
+ * „Alle“ ist der Ruhezustand (leerer Wert).
+ */
+const standOptionen = computed(() => [
+  { value: '', label: `Alle ${personen.value.length}` },
+  ...Object.entries(DATENSCHUTZ_STAND).map(([wert, text]) => ({
+    value: wert,
+    label: `${text} ${Number(stats.value?.[wert] || 0)}`,
+  })),
+])
+
+function standWechseln(wert) {
+  stand.value = String(wert ?? '')
 }
 
 async function laden() {
@@ -244,9 +276,13 @@ onMounted(laden)
    DMB-abb58354487b). Jetzt die vorhandene Feldklasse der Bibliothek
    (`.dk-form-input` / `.dk-form-select`). */
 .ds-bereich { display: grid; gap: var(--sp-4); }
-.ds-filter, .ds-aktionen { display: flex; gap: var(--sp-3); flex-wrap: wrap; }
-.ds-filter label, .ds-bestaetigung { display: grid; gap: var(--sp-2); }
-.ds-filter label { flex: 1; min-width: 0; }
+/* UX3j: Die Filterzeile trägt jetzt zwei Bausteine derselben Familie —
+   Umschalter (DkSegment) und Suchfeld (.dk-toolbar-search, dasselbe Feld wie
+   in der Liste). Umbruch auf schmalen Anzeigen, kein Abschneiden. */
+.ds-filter { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-3); }
+.ds-filter .dk-toolbar-search { flex: 1 1 240px; min-width: 0; }
+.ds-aktionen { display: flex; gap: var(--sp-3); flex-wrap: wrap; }
+.ds-bestaetigung { display: grid; gap: var(--sp-2); }
 .ds-liste { padding: 0; margin: 0; list-style: none; }
 /* UX1d (D2): nur eine LEISE Trennung, wo der Abstand allein die Zeilen
    nicht auseinanderhält (dichte Personenliste). */
@@ -257,5 +293,9 @@ onMounted(laden)
 .ds-anonymisieren-schrift:hover:not(:disabled) { color: var(--err); }
 .ds-identitaet { min-width: 0; overflow-wrap: anywhere; }
 .ds-person p { margin: var(--sp-1) 0; color: var(--dk-text-muted); }
-@media (max-width: 600px) { .ds-filter { flex-direction: column; } .ds-aktionen { width: 100%; } }
+@media (max-width: 600px) {
+  .ds-filter { flex-direction: column; align-items: stretch; }
+  .ds-filter .dk-toolbar-search { flex: 1 1 auto; }
+  .ds-aktionen { width: 100%; }
+}
 </style>

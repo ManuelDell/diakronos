@@ -129,26 +129,27 @@ export const MITGLIEDER_REITER = [
 ]
 
 /**
- * Unterbereiche von „Anfragen“ (UX-A2a). Bis hierher waren sie eine zweite
- * Reiterzeile IN der Anfragen-Seite; jetzt sind sie eigene Einträge der
- * Mitglieder-Bereichsliste, eingerückt UNTER „Anfragen“.
+ * Unterbereiche von „Anfragen“ (UX-A2a, UX3j).
+ *
+ * Bis UX-A2a waren sie eine zweite Reiterzeile IN der Anfragen-Seite, danach
+ * eingerückte Einträge der Mitglieder-Bereichsliste. UX3j (Entwurf A3, Manuel
+ * 08.11.) holt sie zurück in die Seite: sie stehen als ZWEITE, kleinere
+ * Reiterzeile direkt unter der Reiterzeile — kein Seitenbaum mehr.
  *
  * Entwurf A2 (Operator-Review, Punkt 3): „Anfragen“ selbst IST der erste
  * Unterbereich — der Hauptpunkt mit der Zahl führt auf die Anfragenliste.
- * Deshalb steht hier nur, was eingerückt DARUNTER gehört: „Links & QR-Codes“
- * und „Formulare“. Ein zweiter Eintrag „Anfragen“ wäre ein doppelter Punkt.
  *
- * Jeder Unterbereich hat eine EIGENE Adresse mit Abfrageteil
- * (`#/mitglieder/anfragen?bereich=links`). Der Abfrageteil ist bewusst
- * gewählt: die Seite bleibt dieselbe (Router, Rechte-Guard, Fenstertitel),
- * der Unterbereich ist teilbar und übersteht das Neuladen. Ohne Abfrageteil
- * ist es der erste Eintrag.
+ * Jeder Unterbereich hat eine EIGENE ADRESSE als PFADTEIL
+ * (`#/personen/anfragen/links`, Vorgabe der Karte UX3j: `#/personen/<reiter>[/<unter>]`).
+ * Lesezeichen funktionieren damit unverändert; die alten `?bereich=`-Adressen
+ * leiten im Router dauerhaft um (router.js, WEITERLEITUNGEN).
  *
  * `seite` gilt für alle drei Ansichten — die Seitenleiste markiert weiter
- * „Mitglieder“, der Rechte-Guard (`ADMIN_ONLY_PAGES`) prüft weiter
+ * „Personen“, der Rechte-Guard (`ADMIN_ONLY_PAGES`) prüft weiter
  * `MitgliederAnfragen`.
  */
 export const ANFRAGEN_UNTERBEREICHE = [
+    { id: 'anfragen', label: 'Anfragen', seite: 'MitgliederAnfragen', rolle: 'admin' },
     { id: 'links', label: 'Links & QR-Codes', seite: 'MitgliederAnfragen', rolle: 'admin' },
     { id: 'formulare', label: 'Formulare', seite: 'MitgliederAnfragen', rolle: 'admin' },
 ]
@@ -156,11 +157,34 @@ export const ANFRAGEN_UNTERBEREICHE = [
 /** Der Unterbereich, auf den der Hauptpunkt „Anfragen“ führt (die Liste). */
 export const ANFRAGEN_HAUPTBEREICH = 'anfragen'
 
+/** Adresse eines Anfragen-Unterbereichs (Pfadteil, UX3j). */
+export function anfragenUnterbereichHref(bereich) {
+    const id = bereich || ANFRAGEN_HAUPTBEREICH
+    return id === ANFRAGEN_HAUPTBEREICH
+        ? '#/personen/anfragen'
+        : `#/personen/anfragen/${id}`
+}
+
 /**
- * Werte der Einträge. Ober- und Unterpunkt teilen sich NICHT denselben Wert —
- * sonst wären alle gleichzeitig „gewählt“ (im Browser gefunden: drei
- * aria-current). `bereichsWertFuer`/`aktiverBereichsWert` bilden dasselbe Paar
- * im Rahmen (pages/mitglieder/Bereich.vue).
+ * Unterbereich aus einer Adresse lesen (`#/personen/anfragen[/<unter>]`).
+ * Unbekannte Werte fallen auf den Hauptbereich zurück — keine leere Seite
+ * über einer getippten Adresse. (Die alte Form `?bereich=…` wird im Router
+ * vorher umgeschrieben; hier steht nur die neue Adresse.)
+ */
+export function anfragenUnterbereichAusHash(hash) {
+    const roh = typeof hash === 'string' ? hash : ''
+    const pfad = roh.split('?')[0].replace(/\/+$/, '')
+    const treffer = /^#\/personen\/anfragen\/([^/]+)$/.exec(pfad)
+    const wert = treffer ? treffer[1] : ANFRAGEN_HAUPTBEREICH
+    return sichtbareAnfragenUnterbereiche({ istAdmin: true }).some(u => u.id === wert)
+        ? wert
+        : ANFRAGEN_HAUPTBEREICH
+}
+
+/**
+ * Werte der Einträge: EINE Reiterzeile, ein Wert je Reiter (die Seitenkennung
+ * — dieselbe Liste dient Reitern und Adressen). Ober- und Unterpunkt teilen
+ * sich NICHT denselben Wert — die Unterbereiche tragen `anfragen:<bereich>`.
  */
 export function bereichsWert(seite) {
     return seite || ''
@@ -172,50 +196,45 @@ export function unterbereichsWert(seite, bereich) {
 }
 
 /**
- * Die Einträge der Mitglieder-Bereichsliste in Anzeigereihenfolge — EINE
- * Quelle für Oberfläche, Tests und Adressen.
+ * Die Reiterzeile von „Personen“ — EINE Quelle für Oberfläche, Tests und
+ * Adressen (UX3j, Entwurf A3).
  *
- * `zahl: 'anfragen'` ist eine Kennzahl-QUELLE, kein Wert: die Zahl offener
- * Anfragen kommt vom Server (`get_navigation_zaehler`, dieselbe Abfrage und
- * derselbe Stand wie die Kennzahl an „Mitglieder“ in der Seitenleiste). Ohne
- * Zahl fehlt der Schlüssel — dann wird nichts angezeigt (nie eine erfundene
- * Null).
- *
- * Der Hauptpunkt „Anfragen“ führt auf die Anfragenliste (`?bereich=anfragen`
- * wäre derselbe Inhalt) und trägt die Zahl; darunter stehen eingerückt nur
- * „Links & QR-Codes“ und „Formulare“ (Entwurf A2).
+ * Vorher trug `mitgliederBereichEintraege` die linke Seitenliste (UX-A2a);
+ * die ist mit A3 entfallen. Die Reiterzeile steht jetzt oben in JEDEM Reiter,
+ * gleich aussehend — die Einträge hier beschreiben sie.
  *
  * @param {{istAdmin?: boolean, anfragenZahl?: number|null}} optionen
- * @returns {Array<{id, label, href, value, seite, rolle, zahl, unterpunkte}>}
+ * @returns {Array<{id, label, href, value, seite, rolle, zahl}>}
  */
-export function mitgliederBereichEintraege({ istAdmin = false, anfragenZahl = null } = {}) {
-    const sichtbar = sichtbareMitgliederReiter({ istAdmin })
-    const eintraege = sichtbar.map(r => ({
+export function personenReiter({ istAdmin = false, anfragenZahl = null } = {}) {
+    return sichtbareMitgliederReiter({ istAdmin }).map(r => ({
         id: r.id,
         label: r.label,
         href: r.href,
-        value: bereichsWert(r.seite),
+        value: r.id,
         seite: r.seite,
         rolle: r.rolle,
-        zahl: r.id === 'anfragen' ? anfragenZahl : null,
+        // Kennzahl offener Anfragen: ohne Serverzahl bleibt sie null — dann
+        // zeigt der Eintrag NICHTS an (nie eine erfundene 0).
+        zahl: r.id === 'anfragen' ? (anfragenZahl ?? null) : null,
     }))
-    const anfragen = eintraege.find(e => e.id === 'anfragen')
-    if (anfragen) {
-        const unter = sichtbareAnfragenUnterbereiche({ istAdmin })
-        if (unter.length) {
-            anfragen.unterpunkte = unter.map(u => ({
-                id: 'anfragen-' + u.id,
-                label: u.label,
-                href: `#/personen/anfragen?bereich=${u.id}`,
-                value: unterbereichsWert(u.seite, u.id),
-                seite: u.seite,
-                bereich: u.id,
-                rolle: u.rolle,
-                zahl: null,
-            }))
-        }
-    }
-    return eintraege
+}
+
+/**
+ * Die zweite, kleinere Reiterzeile der Unterbereiche von „Anfragen“.
+ * Null, wenn der Bereich „Anfragen“ nicht sichtbar ist (ohne Recht).
+ */
+export function personenAnfragenReiter({ istAdmin = false } = {}) {
+    if (!sichtbareMitgliederReiter({ istAdmin }).some(r => r.id === 'anfragen')) return []
+    return sichtbareAnfragenUnterbereiche({ istAdmin }).map(u => ({
+        id: u.id,
+        label: u.label,
+        href: anfragenUnterbereichHref(u.id),
+        value: u.id,
+        seite: u.seite,
+        rolle: u.rolle,
+        zahl: null,
+    }))
 }
 
 /** Sichtbare Unterbereiche von „Anfragen“ (ohne Recht: keine). */
@@ -224,29 +243,20 @@ export function sichtbareAnfragenUnterbereiche({ istAdmin = false } = {}) {
 }
 
 /**
- * Gewählter Eintrag der Bereichsliste aus der Adresse (Hash).
- * → { eintrag, unterbereich } oder null, wenn die Adresse nicht zum
- * Mitglieder-Bereich gehört.
- *
- * Die Anfragen-Adresse ohne Abfrageteil (oder mit `bereich=anfragen`) ist der
- * Hauptpunkt selbst — dann ist `unterbereich` null und der Hauptpunkt trägt
- * die Markierung. Ein unbekannter `bereich`-Wert fällt ebenfalls darauf
- * zurück, damit alte Lesezeichen gültig bleiben.
+ * Welcher Personen-Reiter gehört zu einer Adresse? (`#/personen/<reiter>`)
+ * → `id` aus `MITGLIEDER_REITER` oder null, wenn die Adresse nicht dazugehört.
+ * UX3j: Die Reiter stehen in der Adresse; die Zuordnung liegt hier, damit
+ * Oberfläche und Tests dieselbe Regel lesen.
  */
-export function bereichsEintragAusHash(hash, { istAdmin = false, anfragenZahl = null } = {}) {
-    const eintraege = mitgliederBereichEintraege({ istAdmin, anfragenZahl })
+export function personenReiterAusHash(hash, { istAdmin = false } = {}) {
     const roh = typeof hash === 'string' ? hash : ''
-    const [pfad, abfrage] = roh.split('?')
-    const eintrag = (eintraege.find(e =>
-        (e.unterpunkte || []).some(u => u.href.split('?')[0] === pfad))
-        || eintraege.find(e => e.href === pfad))
-    if (!eintrag) return null
-    let unterbereich = null
-    if (eintrag.unterpunkte) {
-        const werte = new URLSearchParams(abfrage || '')
-        unterbereich = eintrag.unterpunkte.find(u => u.bereich === werte.get('bereich')) || null
-    }
-    return { eintrag, unterbereich }
+    const pfad = roh.split('?')[0].replace(/\/+$/, '')
+    const treffer = sichtbareMitgliederReiter({ istAdmin }).find(r => r.href === pfad)
+        // Unteradresse des Reiters (`#/personen/anfragen/links`) gehört zum Reiter.
+        || sichtbareMitgliederReiter({ istAdmin })
+            .filter(r => pfad.startsWith(`${r.href}/`))
+            .sort((a, b) => b.href.length - a.href.length)[0]
+    return treffer ? treffer.id : null
 }
 
 /** Symbolvorrat: Pfade im 24×24-Raster. */

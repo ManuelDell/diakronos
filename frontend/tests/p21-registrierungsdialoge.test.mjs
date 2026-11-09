@@ -17,7 +17,11 @@ function seite(apiCall = async () => ({})) {
   // Aufbau hier führt das SFC-Skript ohne Importe aus — die Funktion muss
   // deshalb als Parameter herein (sonst „not defined").
   const useLadeSkelett = (laedt) => ({ skelettSichtbar: laedt })
-  return new Function('ref', 'computed', 'h', 'onMounted', 'defineProps', 'defineEmits', 'apiCall', 'showToast', 'useFormularSchutz', 'pflichtFehler', 'requestAnimationFrame', 'useLadeSkelett', `
+  // UX3j (A3): Das Skript stellt die Dialoge für den Seitenkopf des Rahmens
+  // bereit (`defineExpose({ linkOeffnen, formularOeffnen })`) — im Test ein
+  // leerer Stummel, die Funktionen werden direkt geprüft.
+  const defineExpose = () => {}
+  return new Function('ref', 'computed', 'h', 'onMounted', 'defineProps', 'defineEmits', 'defineExpose', 'apiCall', 'showToast', 'useFormularSchutz', 'pflichtFehler', 'requestAnimationFrame', 'useLadeSkelett', `
     ${skript}
     return { newLink, newFormular, formularFelder, showCreateLink, showCreateFormular,
       formularBearbeitet, formularBearbeiten, formularEntfernen,
@@ -30,7 +34,7 @@ function seite(apiCall = async () => ({})) {
       aufnehmenSchutz, aufnehmenSchliessen, aufnehmenBestaetigen, aufnehmenLaeuft,
       ablehnen, ablehnenFuer, ablehnGrund, ablehnenFehler, ablehnenLaeuft,
       ablehnenSchutz, ablehnenSchliessen, ablehnenBestaetigen }
-  `)(ref, computed, h, () => {}, () => {}, () => {}, apiCall, (...args) => meldungen.push(args), useFormularSchutz, pflichtFehler, () => {}, useLadeSkelett)
+  `)(ref, computed, h, () => {}, () => {}, () => {}, defineExpose, apiCall, (...args) => meldungen.push(args), useFormularSchutz, pflichtFehler, () => {}, useLadeSkelett)
 }
 
 for (const art of ['link', 'formular']) {

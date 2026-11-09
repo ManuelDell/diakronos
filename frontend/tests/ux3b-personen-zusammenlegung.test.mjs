@@ -139,13 +139,15 @@ const liste = readFileSync(
     'der Nicht-Admin-Weg ist die B2-Freigabe-Sicht')
   assert.ok(seite.includes('get_mitglieder_liste'),
     'der Admin-Weg ist die Mitgliederliste')
-  // Die Reiter des Entwurfs A3, drei davon nur mit Recht.
-  const reiterBlock = seite.slice(seite.indexOf('const REITER = ['),
-    seite.indexOf(']', seite.indexOf('const REITER = [')))
-  for (const label of ['Liste', 'Anfragen', 'Datenschutz', 'Import']) {
-    assert.ok(reiterBlock.includes(`label: '${label}'`), `Reiter ${label}`)
-  }
-  assert.equal((reiterBlock.match(/rolle: 'admin'/g) || []).length, 3,
+  // Die Reiter des Entwurfs A3, drei davon nur mit Recht. UX3j: Die Einträge
+  // stehen EINMAL in menue.js (`MITGLIEDER_REITER`) — die Seite liest sie über
+  // `personenReiter` statt einer zweiten Liste im Skript.
+  assert.ok(seite.includes('personenReiter('), 'Reiterzeile kommt aus menue.js')
+  const menue = (await import(new URL('../src/diakonos/menue.js', import.meta.url).href)).MITGLIEDER_REITER
+  assert.deepEqual(menue.map(r => r.id), ['liste', 'anfragen', 'datenschutz', 'import'],
+    'Reiter: Liste · Anfragen · Datenschutz · Import')
+  assert.deepEqual(menue.map(r => r.label), ['Liste', 'Anfragen', 'Datenschutz', 'Import'])
+  assert.equal(menue.filter(r => r.rolle === 'admin').length, 3,
     'Anfragen/Datenschutz/Import sind Admin-Reiter — die Liste ist für alle')
 
   // Kein erfundenes Feld: die Adressbuch-Quelle darf keinen Status fragen —

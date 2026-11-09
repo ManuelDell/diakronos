@@ -195,7 +195,7 @@ const ALT20 = {
   'frontend/src/diakonos/pages/LiedgruppeDetail.vue': 1,
   'frontend/src/diakonos/pages/Moderation.vue': 1,
   'frontend/src/diakonos/pages/Profile.vue': 1,
-  'frontend/src/diakonos/pages/Registrierung.vue': 2,
+  'frontend/src/diakonos/pages/Registrierung.vue': 0,
   'frontend/src/diakonos/pages/Website.vue': 1,
   'frontend/src/diakonos/pages/Wiki.vue': 4,
   'frontend/src/diakonos/pages/einrichtung/Assistent.vue': 5,

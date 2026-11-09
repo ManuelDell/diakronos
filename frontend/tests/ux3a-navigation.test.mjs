@@ -324,12 +324,23 @@ function routerAusfuehren(boot) {
 // ── Rechte-Guard: Reiter-Adressen bleiben geschützt ─────────────────────────
 {
   const ohneRecht = routerAusfuehren({ is_admin: false, mitglied: { status: 'Mitglied' }, hash: '#/' })
-  for (const hash of ['#/personen/uebersicht', '#/personen/anfragen', '#/personen/datenschutz']) {
+  // UX3j (A3): Die Reiter-Adressen bleiben geschützt. „Übersicht“ und
+  // „Löschanträge“ sind KEINE Reiter mehr — ihre Adressen tragen den
+  // Personen-Rahmen (Liste je Rolle), und der Server liefert die Felder.
+  for (const hash of ['#/personen/anfragen', '#/personen/datenschutz', '#/personen/import',
+    '#/personen/anfragen/links', '#/personen/anfragen/formulare']) {
     ohneRecht.gehe(hash)
     assert.equal(ohneRecht.window.location.hash, '#/', `${hash} ohne Recht → Dashboard`)
   }
-  // Die alte Adresse führt am Guard vorbei — NEIN: sie leitet auf die
-  // geschützte Seite, der Guard greift dort erneut.
+  // A3: „Übersicht“ ist kein Reiter mehr — die Adresse bleibt gültig und
+  // zeigt den Personen-Rahmen in der Sicht der Rolle (kein Abschieben auf
+  // das Dashboard). Geprüft wird der Seitenname, nicht die Adresse: der
+  // Router rollt `#/personen` auf `#/personen/liste` weiter.
+  ohneRecht.gehe('#/personen/uebersicht')
+  assert.notEqual(ohneRecht.window.location.hash, '#/personen/uebersicht',
+    'Übersicht ist kein Reiter mehr — die Adresse leitet (A3)')
+  // Die Adressbuch-Weiterleitung führt NICHT ins Dashboard: sie zeigt auf den
+  // Personen-Rahmen (die Liste ist für alle da).
   ohneRecht.gehe('#/adressbuch')
   assert.notEqual(ohneRecht.window.location.hash, '#/', 'Adressbuch (alle) bleibt offen')
 }

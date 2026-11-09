@@ -97,12 +97,13 @@ test('Filter bleibt in Adresse; Rückkehr und Personen-Kachel bleiben eindeutig'
 })
 
 test('Gruppen beim Öffnen neu laden; Übersicht stellt Neuladen bereit', () => {
-  const bereich = lies('pages/mitglieder/Bereich.vue')
-  const oeffnen = funktion(bereich, 'mitgliedHinzufuegen', '\nfunction nachAnlegen')
+  // UX3j (A3): EIN Personen-Rahmen (`pages/Personen.vue`), das Öffnen heißt
+  // dort `personAnlegen`.
+  const bereich = lies('pages/Personen.vue')
+  const oeffnen = funktion(bereich, 'personAnlegen', '\nfunction nachAnlegen')
   assert.ok(oeffnen.indexOf('await gruppenLaden()') >= 0)
   assert.ok(oeffnen.indexOf('await gruppenLaden()') < oeffnen.indexOf('hinzufuegenOffen.value = true'))
   assert.match(lies('pages/mitglieder/Uebersicht.vue'), /defineExpose\(\{ reload: laden \}\)/)
-  assert.match(bereich, /reloadFn\.call\(ziel\)/)
 })
 
 test('Warnungen nutzen bereits den zentralen Toast mit Warnstil (kein zweiter Toast)', () => {

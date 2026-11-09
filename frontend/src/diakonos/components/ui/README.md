@@ -34,7 +34,8 @@ ausschliesslich aus `../../tokens.css` — feste Farbwerte (`#hex`, `rgb()`,
 | `DkSelect`      | Auswahlfeld                                      |
 | `DkCheckbox`    | Ja/Nein-Kästchen                                 |
 | `DkSegment`     | Umschalter als Segmentleiste                     |
-| `DkTabs`        | Reiter mit Unterstrich-Aktivzustand              |
+| `DkTabs`        | Reiter mit Unterstrich-Aktivzustand, INNERHALB einer Seite (Panels per `v-if`) |
+| `DkReiter`      | Reiterzeile, an die ADRESSE gebunden (Links + `aria-current`), optional `klein`/`segment` für die zweite Ebene |
 | `DkTable`       | Tabelle mit Kopf, leerem Zustand, Scrollen       |
 | `DkHint`        | Hinweisfläche + Schrittfolge                     |
 | `DkEmpty`       | Leerzustand; `erneut-versuchen` baut einen echten „Erneut versuchen"-Knopf |
@@ -69,6 +70,34 @@ ausschliesslich aus `../../tokens.css` — feste Farbwerte (`#hex`, `rgb()`,
   </template>
 </DkPageHeader>
 ```
+
+### Reiter: DkReiter oder DkTabs?
+
+Zwei Bausteine, zwei Fälle — nicht beide in derselben Ansicht verwenden:
+
+| Frage | Antwort | Baustein |
+| --- | --- | --- |
+| Ändert der Klick die ADRESSE (Lesezeichen, Zurück-Taste)? | ja | **`DkReiter`** |
+| Schaltet der Klick nur Panels innerhalb derselben Seite um? | ja | **`DkTabs`** (oder `DkSegment`, wenn es ein Filter ist) |
+
+`DkReiter` ist der EINE Baustein für adressgebundene Reiter: jeder Eintrag ist
+ein Link (`href`), der aktive trägt `aria-current="page"`. Zweite Ebenen
+(Unterbereiche) bekommen `klein` + `segment` — dann sehen sie aus wie ein
+Segmentschalter (`DkSegment`-Optik), bleiben aber Links mit eigener Adresse.
+
+```vue
+<DkReiter
+  :model-value="aktiverReiter"
+  :options="[{ value: 'liste', label: 'Liste', href: '#/personen/liste' },
+             { value: 'anfragen', label: 'Anfragen', zahl: 3, href: '#/personen/anfragen' }]"
+  aria-label="Bereiche von Personen"
+/>
+```
+
+**Hinweis (UX3j):** Der Kalender führt seine Reiterzeile noch als eigene
+Komponente (`KalenderReiter`) — er wird mit der Karte A10 (UX3i/A10) auf
+`DkReiter` umgestellt. Bis dahin NICHT in dieser Karte ändern: zwei Karten
+dürfen dieselbe Datei nicht gleichzeitig anfassen.
 
 ### Formularfeld
 

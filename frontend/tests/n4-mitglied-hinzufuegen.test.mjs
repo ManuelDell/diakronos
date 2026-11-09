@@ -26,7 +26,9 @@ const lies = p => readFileSync(new URL(p, root), 'utf8')
 const dialog = lies('components/mitglieder/MitgliedHinzufuegenDialog.vue')
 const dVorlage = dialog.slice(0, dialog.indexOf('<script setup>'))
 const dSkript = dialog.slice(dialog.indexOf('<script setup>'))
-const bereich = lies('pages/mitglieder/Bereich.vue')
+// UX3j (A3): Der Personen-Rahmen ist `pages/Personen.vue` — `Bereich.vue`
+// ist nur noch sein Adress-Ziel (die alten Reiter-Seitennamen).
+const bereich = lies('pages/Personen.vue')
 const bSkript = bereich.slice(bereich.indexOf('<script setup>'))
 
 /** Quellblock einer `const <name> = …`-Deklaration bis zur Leerzeile. */
@@ -42,8 +44,11 @@ function block(text, name) {
   assert.ok(bereich.includes('MitgliedHinzufuegenDialog'), 'Bereich bindet den Dialog ein')
   assert.ok(bereich.includes('const hinzufuegenOffen = ref(false)'), 'Sichtbarkeit als Ref')
   assert.ok(bereich.includes('v-model="hinzufuegenOffen"'), 'Dialog wird über v-model gesteuert')
-  const fnStart = bSkript.indexOf('function mitgliedHinzufuegen')
-  assert.ok(fnStart >= 0, 'Funktion mitgliedHinzufuegen vorhanden')
+  // UX3j (A3): Der Personen-Rahmen ist `pages/Personen.vue`; „Person anlegen“
+  // heißt dort `personAnlegen` (Befehlspalette und Kopf nutzen dieselbe
+  // Funktion).
+  const fnStart = bSkript.indexOf('async function personAnlegen(')
+  assert.ok(fnStart >= 0, 'Funktion personAnlegen vorhanden')
   const fn = bSkript.slice(fnStart, bSkript.indexOf('\n}', fnStart) + 2)
   assert.ok(fn.includes('hinzufuegenOffen.value = true'), 'Knopf öffnet den Dialog')
   assert.ok(
@@ -104,7 +109,10 @@ function block(text, name) {
   assert.ok(dVorlage.includes('v-if="fehler.allgemein"'), 'Fehler wird angezeigt')
   assert.ok(dSkript.includes("emit('angelegt'"), 'Erfolg wird dem Rahmen gemeldet')
   assert.ok(bereich.includes('@angelegt="nachAnlegen"'), 'Rahmen lädt die Liste nach')
-  assert.ok(bereich.includes('typeof ziel.reload'), 'Nachladen nutzt die Listen-Ref')
+  // UX3j: Die Liste ist keine eingebettete Komponente mehr (der Reiter steht
+  // im selben Rahmen) — nach dem Anlegen lädt DIESELBE `laden()`-Funktion.
+  assert.ok(/function nachAnlegen\(\) \{\s*\n?\s*laden\(\)/.test(bereich),
+    'Nachladen ruft die Listen-Funktion des Rahmens')
 }
 
 // ── Backend: Endpunkt existiert (nur der Name, keine Dateiprüfung) ─────────

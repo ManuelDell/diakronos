@@ -117,6 +117,12 @@ const MEHRERE_ANSICHTEN = new Set([
   `${P}pages/Home.vue`,
   `${P}pages/Lieder.vue`,
   `${P}pages/MitgliedDetail.vue`,
+  // UX3j (A3): Der Personen-Rahmen trägt zwei SICH AUSSCHLIESSENDE
+  // Hauptaktionen — „Person anlegen“ (Liste · Anfragen · Datenschutz ·
+  // Import) und in den Unterbereichen „Links“/„Formulare“ deren eigene Aktion
+  // („Neuer Link“/„Neues Formular“). `anlegenIstHauptaktion` schaltet um; im
+  // Bild ist immer genau EIN gefüllter Knopf.
+  `${P}pages/Personen.vue`,
 ])
 
 test('UX1h/H1: keine Seite hat mehr als EINEN Primärknopf ausserhalb von Dialogen', () => {

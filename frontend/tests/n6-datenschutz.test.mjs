@@ -27,7 +27,10 @@ test('N6: zwei Schritte plus exakter Text, kein Durchklicken ohne Text', () => {
 
 test('N6: Verwaltungsreiter ersetzt die falsche eigene DSGVO-Seite', () => {
   assert.equal(existsSync(new URL('pages/Dsgvo.vue', root)), false)
-  assert.match(lies('pages/mitglieder/Bereich.vue'), /import\('\.\/Datenschutz.vue'\)/)
+  // UX3j (A3): Der einzige Personen-Rahmen ist `pages/Personen.vue`; die
+  // Datenschutz-Seite ist dort der dritte Reiter.
+  assert.match(lies('pages/Personen.vue'), /import\('\.\/mitglieder\/Datenschutz\.vue'\)/)
+  assert.match(lies('pages/mitglieder/Bereich.vue'), /<Personen/)
   assert.doesNotMatch(lies('router.js'), /Dsgvo:|import\('\.\/pages\/Dsgvo.vue'\)/)
   const page = lies('pages/mitglieder/Datenschutz.vue')
   assert.match(page, /get_loeschantraege/)

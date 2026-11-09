@@ -83,12 +83,15 @@ const mitglied = lies('pages/MitgliedDetail.vue')
   // Gastkonten liessen sich nicht freischalten. Der Test haelt die Bedingung
   // fest: die Karte haengt NUR an `isAdmin`.
   const liste = lies('pages/Mitglieder.vue')
-  const rahmen = lies('pages/mitglieder/Bereich.vue')
+  // UX3j (A3): Der Personen-Rahmen ist `pages/Personen.vue`; die Karte steht
+  // dort direkt im Liste-Reiter (kein zweites Einbetten mehr nötig).
+  const rahmen = lies('pages/Personen.vue')
   assert.ok(liste.includes('WartendeKontenKarte'), 'Liste bindet die Wartende-Karte ein')
   assert.ok(
     liste.includes('v-if="isAdmin"') && !liste.includes('isAdmin && !embedded'),
     'Wartende-Karte haengt nur an isAdmin (nicht an !embedded)',
   )
-  // Der Rahmen bettet die Liste ein -> `embedded` ist dort immer gesetzt.
-  assert.ok(rahmen.includes('embedded'), 'Rahmen rendert die Liste eingebettet')
+  // Der Rahmen zeigt die Karte im Reiter „Liste“ — nur für Mitgliederadmins.
+  assert.ok(rahmen.includes('<WartendeKontenKarte v-if="verwaltung"'),
+    'Rahmen zeigt die wartenden Konten in der Liste')
 }

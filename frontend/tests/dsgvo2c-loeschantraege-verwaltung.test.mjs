@@ -69,9 +69,14 @@ test('DSGVO-2c · eigene Adresse, Reiter und Admin-Guard', () => {
   assert.match(menue, /'PersonenLoeschantraege',\s*\n?\s*/)
   // Seitennamen führen zur Markierung „Personen“ in der Seitenleiste.
   assert.match(menue, /'MitgliederDatenschutz',\s*\n?\s*'PersonenLoeschantraege',\s*\n?\s*'MitgliederLoeschantraege'/)
-  // Der Mitglieder-Rahmen zeigt die Seite als Reiterinhalt.
-  assert.match(bereich, /import\('\.\/Loeschantraege\.vue'\)/)
-  assert.match(bereich, /case 'loeschantraege': return LOESCHANTRAEGE/)
+  // UX3j (A3): „Löschanträge“ ist kein Reiter der Personen-Reiterzeile mehr
+  // (A3: Liste · Anfragen · Datenschutz · Import). Die Adresse bleibt gültig
+  // und behält ihren Admin-Guard — der Rahmen lädt für ALLE Personenstämme
+  // denselben Personen-Rahmen (`pages/Personen.vue`), die Arbeitsliste hängt
+  // am Datenschutz-Reiter und an `#/personen/loeschantraege` (Router + Guard).
+  assert.match(bereich, /<Personen/)
+  assert.match(router, /'#\/personen\/loeschantraege': 'MitgliederLoeschantraege'/)
+  assert.match(router, /MitgliederLoeschantraege: \(\) => import\('\.\/pages\/mitglieder\/Bereich\.vue'\)/)
 })
 
 test('DSGVO-2c · die Daten-Schutz-Seite führt auf die neue Arbeitsliste', () => {

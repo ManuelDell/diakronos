@@ -195,8 +195,12 @@ test('DEV-4 · Datenschutz benutzt keine nicht existierende Feldklasse', () => {
   const seite = read('pages/mitglieder/Datenschutz.vue')
   const unbekannt = seite.match(/class="[^"]*\bdk-(input|select)\b[^"]*"/g) || []
   assert.deepEqual(unbekannt, [], 'Klassen .dk-input/.dk-select gibt es im Stylesheet nicht → weiße Browser-Felder')
-  assert.match(seite, /class="dk-form-select"/, 'Auswahl „Stand“ mit der Feldklasse der Bibliothek')
-  assert.match(seite, /class="dk-form-input"/, 'Suchfeld mit der Feldklasse der Bibliothek')
+  // UX3j (A3): Der Stand ist kein natives <select> mehr, sondern derselbe
+  // Umschalter wie in den übrigen Reitern (DkSegment, Stil aus dem System);
+  // das Suchfeld ist das gemeinsame der Liste (.dk-toolbar-search).
+  assert.match(seite, /<DkSegment/, 'Auswahl „Stand“ ist der Baustein des Systems (DkSegment)')
+  assert.doesNotMatch(seite, /<select\b/, 'kein natives Auswahlfeld mehr (weiße Browser-Optik)')
+  assert.match(seite, /class="dk-toolbar-search"/, 'Suchfeld ist das gemeinsame Feld der Liste')
 })
 
 // ── 6 · keine harten Farben in den Seiten dieser Karte ─────────────────────

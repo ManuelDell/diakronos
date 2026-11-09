@@ -110,11 +110,23 @@ const routeMap = {
     // Mitgliederliste oder Adressbuch-Sicht). Er zeigt auf dieselbe Seite wie
     // der Einstieg — keine zwei Umsetzungen derselben Liste.
     '#/personen/liste':      'Personen',
-    '#/personen/uebersicht': 'MitgliederUebersicht',
     '#/personen/anfragen':   'MitgliederAnfragen',
+    // UX3j (Entwurf A3): Die Unterbereiche von „Anfragen“ sind PFADTEILE
+    // (`#/personen/<reiter>/<unter>`). Alle drei bleiben derselbe Seitenname —
+    // Seitenleiste, Rechte-Guard und Fenstertitel gelten unverändert.
+    '#/personen/anfragen/anfragen': 'MitgliederAnfragen',
+    '#/personen/anfragen/links': 'MitgliederAnfragen',
+    '#/personen/anfragen/formulare': 'MitgliederAnfragen',
+    // UX3j (A3): „Übersicht“ und „Löschanträge“ sind KEINE Reiter der
+    // Personen-Reiterzeile mehr (A3: Liste · Anfragen · Datenschutz · Import).
+    // Die Reiter-Seitennamen bleiben trotzdem erhalten: `pages/mitglieder/
+    // Bereich.vue` ist nur noch das Adress-Ziel der Personen-Seite, und der
+    // Rechte-Guard (`ADMIN_ONLY_PAGES`) prüft weiterhin „Mitglieder…“ —
+    // sonst wären beide Adressen für Mitglieder ohne Verwaltungsrecht offen.
+    '#/personen/uebersicht': 'MitgliederUebersicht',
+    '#/personen/loeschantraege': 'MitgliederLoeschantraege',
     '#/personen/datenschutz':'MitgliederDatenschutz',
     '#/personen/import':     'MitgliederImport',
-    '#/personen/loeschantraege': 'MitgliederLoeschantraege',
     // UX3a: das Adressbuch ist ein Reiter von „Personen“ (vorher eigener Punkt).
     // UX3b2: die alte Adressbuch-Seite ist NICHT mehr erreichbar — beide
     // Adressen leiten DAUERHAFT auf die zusammengelegte Liste (deren Sicht
@@ -281,6 +293,21 @@ const WEITERLEITUNGEN = {
 // `…/stammdaten/‹Plantyp›` und `…/einrichten/‹id›` in „Seite nicht gefunden“
 // — die alten festen Regeln deckten nur den Bereichseinstieg ab.
 const MUSTER_WEITERLEITUNGEN = [
+    // UX3j (Entwurf A3): Die Unterbereiche von „Anfragen“ stehen seit dieser
+    // Karte als PFADTEIL in der Adresse (`#/personen/anfragen/links`). Die
+    // frühere Form mit Abfrageteil (`?bereich=links`, aus UX-A2a) leitet
+    // DAUERHAFT um — alte Lesezeichen bleiben gültig. `anfragen` selbst ist
+    // der Hauptbereich und verliert den Abfrageteil.
+    {
+        pattern: /^#\/personen\/anfragen\?bereich=(?:anfragen)?$/,
+        mitAbfrage: true,
+        ziel: () => '#/personen/anfragen',
+    },
+    {
+        pattern: /^#\/personen\/anfragen\?bereich=(links|formulare)$/,
+        mitAbfrage: true,
+        ziel: bereich => `#/personen/anfragen/${bereich}`,
+    },
     // `/liedergruppen/…` (Tippfehler aus UX3a) UND `/liedgruppen/…` (die
     // gemeinte Adresse) → Reiter „Lieder → Liedgruppen“. Beide Muster stehen
     // einzeln: `ziel` bekommt IMMER die Kennung als erstes Argument.
@@ -354,12 +381,24 @@ function rollenWeiterleitung(pfad) {
  * Ziel einer Weiterleitung (ohne Abfrageteil), oder null.
  * Ein Schluss-Schrägstrich wird ignoriert, damit "#/registrierung/" ebenso
  * greift wie "#/registrierung" (Befund R-N0-code 3).
+ *
+ * UX3j (Review-Nacharbeit Punkt 7): Die FESTEN Weiterleitungen haben Vorrang
+ * vor den Mustern — ein Muster darf eine vorhandene Adresse nicht
+ * überschreiben. Die Muster bekommen den Hash OHNE Abfrageteil; nur die
+ * Muster, die den Abfrageteil selbst brauchen (alte `?bereich=`-Formen),
+ * tragen das Flag `mitAbfrage` und sehen den vollen Hash. Vorher liefen die
+ * Muster zuerst und sahen den vollen Hash — dadurch konnte ein `?…` an einem
+ * Muster hängen bleiben und eine feste Regel verdecken.
+ * `ziel` bekommt den ersten Klammer-Treffer.
  */
-function weiterleitungsZiel(pfad) {
+function weiterleitungsZiel(pfad, vollerHash = pfad) {
     const fest = WEITERLEITUNGEN[pfad] || rollenWeiterleitung(pfad)
     if (fest) return fest
+    const [pfadTeil, abfrage] = zerlegeHash(String(vollerHash))
+    const suchTeil = ohneSchlussslash(pfadTeil) + abfrage
+    const pfadOhneAbfrage = ohneSchlussslash(pfadTeil)
     for (const regel of MUSTER_WEITERLEITUNGEN) {
-        const m = pfad.match(regel.pattern)
+        const m = String(regel.mitAbfrage ? suchTeil : pfadOhneAbfrage).match(regel.pattern)
         if (m) return regel.ziel(m[1])
     }
     return null
@@ -422,9 +461,15 @@ async function resolveRoute() {
         window.location.replace(leitung.EINRICHTUNG_ZIEL_NACH_ABSCHLUSS)
         return
     }
-    const ziel = weiterleitungsZiel(pfad)
+    const ziel = weiterleitungsZiel(pfad, vollerHash)
     if (ziel) {
-        const zielMitAbfrage = _mitAbfrage(ziel, abfrage)
+        // UX3j: Ein Abfrageteil wird nur mitgenommen, wenn er zur Adresse
+        // gehört (`?status=`, `?q=`) — die alten Anfragen-Unterbereiche trugen
+        // ihren Bereich unter `?bereich=` und leiten auf einen PFAD um; diese
+        // Abfrage darf am Ziel nicht hängen bleiben.
+        const zielMitAbfrage = (abfrage && !/^#\/personen\/anfragen\?bereich=/.test(vollerHash))
+            ? _mitAbfrage(ziel, abfrage)
+            : ziel
         if (zielMitAbfrage !== vollerHash) {
             window.location.replace(zielMitAbfrage)
             return

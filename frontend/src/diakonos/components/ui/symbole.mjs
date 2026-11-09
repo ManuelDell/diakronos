@@ -57,6 +57,19 @@ export const SYMBOLE = {
   // UX3f — Hinzufügen (Plus) für die Aktionen „Termin anlegen“ /
   // „Person anlegen“.
   hinzufuegen: { p: ['M12 5v14', 'M5 12h14'] },
+  // UX3j (Entwurf A3): „Filter“ in der Kopfzeile von „Personen“ — Trichter,
+  // dieselbe Strichfamilie (lucide, ISC).
+  filter: { p: ['M22 3H2l8 9.46V19l4 2v-8.54L22 3Z'] },
+  // UX3j (Entwurf A3): „Person anlegen“ — Person mit Plus (lucide
+  // „user-plus“), damit der Primärknopf in allen Reitern dasselbe Zeichen
+  // trägt.
+  'person-plus': {
+    p: ['M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2',
+      'M22 21v-2a4 4 0 0 0-3-3.87',
+      'M19 8v6',
+      'M22 11h-6'],
+    c: [[9, 7, 4]],
+  },
 }
 
 /** Alle verfügbaren Symbolnamen — für die Node-Tests. */

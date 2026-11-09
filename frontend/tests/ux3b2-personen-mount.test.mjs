@@ -181,7 +181,9 @@ const fussText = (host) => host.querySelector('.pz-fuss-text')?.textContent?.tri
   const { host, calls, warns } = ctx
   pruefe(warns.length === 0, `Admin: Vue-Warnungen ${JSON.stringify(warns)}`)
   // Reiter: alle vier.
-  const reiterText = [...host.querySelectorAll('.p3-reiter button')].map(b => b.textContent.trim())
+  // UX3j: Reiter sind LINKS (Adresse), keine Umschalter-Knöpfe.
+  const reiterText = [...host.querySelectorAll('.p3-reiter a, .p3-reiter button')]
+    .map(b => b.textContent.trim())
   for (const label of ['Liste', 'Anfragen', 'Datenschutz', 'Import']) {
     pruefe(reiterText.includes(label), `Admin: Reiter „${label}“ (war ${JSON.stringify(reiterText)})`)
   }
@@ -323,14 +325,24 @@ const fussText = (host) => host.querySelector('.pz-fuss-text')?.textContent?.tri
 }
 
 // ═══ 7. Reiter steht in der Adresse ══════════════════════════════════════
+// UX3j (Entwurf A3): Die Reiterzeile ist eine Leiste aus LINKS (der Reiter
+// steckt in der Adresse, menue.js `personenReiter`) — kein Umschalter, der
+// einen Zustand im Speicher ändert. Die Adresse bleibt die Wahrheit, „zurück“
+// und Lesezeichen wirken unverändert.
 {
   const ctx = await starte({ admin: true, total: 5 })
   const { host } = ctx
-  const anfragen = [...host.querySelectorAll('.p3-reiter button')]
-    .find(b => b.textContent.trim() === 'Anfragen')
-  anfragen.click(); await tick(40)
-  pruefe(globalThis.__nav === '#/personen/anfragen',
-    `Reiter ändert die ADRESSE (war ${globalThis.__nav})`)
+  const anfragen = [...host.querySelectorAll('.p3-reiter a')]
+    .find(a => a.textContent.trim().startsWith('Anfragen'))
+  pruefe(Boolean(anfragen), 'Reiter „Anfragen“ ist ein Link')
+  pruefe(anfragen?.getAttribute('href') === '#/personen/anfragen',
+    `Reiter-Link zeigt auf die Reiter-Adresse (war ${anfragen?.getAttribute('href')})`)
+  // Die beiden übrigen Reiter ebenso — EINE Zeile, echte Adressen.
+  for (const [label, href] of [['Liste', '#/personen/liste'], ['Datenschutz', '#/personen/datenschutz'],
+    ['Import', '#/personen/import']]) {
+    const a = [...host.querySelectorAll('.p3-reiter a')].find(x => x.textContent.trim() === label)
+    pruefe(a?.getAttribute('href') === href, `Reiter „${label}“ → ${href}`)
+  }
   aufraeumen(ctx)
 }
 
