@@ -273,6 +273,11 @@ tests/bs2d2-*.test.mjs
 # Liste ohne Farbbalken und mit dem „⋯“ auf derselben Zeile, leere
 # Ganztags-Zeile nur bei Inhalt.
 tests/ux3i4-*.test.mjs
+
+# UX3i5: Kalender-LISTE — je Termin eine eigene Zeile (Termin + „⋯“ auf
+# DERSELBEN Zeile, Termintext sichtbar), Tageskopf „Freitag, 6. November 2026“
+# mit Trenner und EINE Fläche über die volle Breite.
+tests/ux3i5-*.test.mjs
 # PR-G1: Stammdaten — nach Geschlecht filtern und sortieren (Filter, Spalte,
 # Hinweis, Massenauswahl).
 tests/pr-g1-*.test.mjs

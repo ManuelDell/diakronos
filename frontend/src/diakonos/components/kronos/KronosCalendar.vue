@@ -486,6 +486,18 @@ onMounted(() => {
     calendar.value = EventCalendar.create(calendarEl.value, {
       view: 'dayGridMonth',
       locale: 'de',
+      // UX3i5 (Befund 2, live 08.11.): Der Tageskopf der LISTE besteht aus
+      // ZWEI Stücken im SELBEN `h4`:
+      //   <time>Freitag</time> <time class="ec-day-side">6. November 2026</time>
+      // Im Browser stand „Freitag6. November 2026“ — die Bibliothek setzt
+      // keinen Trenner zwischen die beiden Stücke; die Lücke in der Vorlage
+      // ist ein Zeilenumbruch, der zu EINEM Leerzeichen zusammengefasst wird.
+      // Beide Formate werden deshalb ausdrücklich gesetzt (vorher waren die
+      // Vorgaben der Bibliothek in Gebrauch); der Trenner „, “ kommt aus dem
+      // CSS (`::after` am Wochentag) — dort bleibt er an EINER Stelle und
+      // folgt der Schrift des Kopfes.
+      listDayFormat: { weekday: 'long' },
+      listDaySideFormat: { day: 'numeric', month: 'long', year: 'numeric' },
       eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
       headerToolbar: false,
       // OP-ADMIN-17: Die Kalenderwoche beginnt am Montag (wie der Mini-Kalender

@@ -148,8 +148,13 @@ test('UX2e4 · Kalender-Seite: kein Termin-Menü mehr, Klick öffnet den Dialog'
 
 test('UX2e4 · kronos.css führt keine Regeln für Zeilen-Knöpfe mehr', () => {
   const css = lies('kronos.css')
-  assert.doesNotMatch(css, /kronos-liste-aktionen|kronos-liste-termin/,
-    'die Regeln der entfernten Zeilen-Knöpfe sind mitgegangen')
+  // UX3i5 (08.11.): Die Lage des „⋯“ in der LISTE steht seit dieser Karte in
+  // kronos.css (`.ec-list .ec-day > .kronos-liste-aktionen-halter`) — der
+  // Halter selbst bleibt ein GESCHWISTER der Zeile und wird im Bauteil
+  // gebaut (UX2e5). Verboten sind weiterhin die Regeln der ENTFERNTEN
+  // HÜLLE (`kronos-liste-termin`) und der gemessenen Knopfbreite.
+  assert.doesNotMatch(css, /kronos-liste-termin/,
+    'die Regeln der entfernten Hülle sind mitgegangen (UX2e3)')
   assert.doesNotMatch(css, /--kronos-aktionen-breite/, 'auch die gemessene Breite entfällt')
   // Was bleibt, ist die List-View-Lage selbst (Tages-Container nicht clippen).
   assert.match(css, /\.ec-list \.ec-day \{ overflow: visible !important;/,

@@ -1145,8 +1145,118 @@ html[data-theme] .ec,
    Leiste MIT Inhalt (Tag + Datum) und bleibt sichtbar — nur ihre helle
    Grundfläche (`.ec-day-bg-color`) wird zur Kartenfläche, damit sie nicht als
    graues Band über der Liste schwebt. */
+/* UX3i5 (Befund 3, live 08.11., im Browser gemessen): `.ec-day-head` ist die
+   ÜBERSCHRIFT des Tages, nicht ein Element in ihr (@event-calendar 5.4.2):
+
+     <h4 class="ec-day-head">
+       <time datetime="…">Freitag</time>
+       <time class="ec-day-side" datetime="…">6. November 2026</time>
+     </h4>
+
+   Die weiße Fläche lag damit nur auf der Kopfzeile (711 × 36 px gemessen),
+   der `.ec-day` darunter behielt seine graue Seitenfarbe — links und rechts
+   des Textes stand Grau. Jetzt trägt der Kopf eine Zeile über die volle
+   Breite in der Kartenfläche; Wochentag und Datum stehen ZUSAMMEN links
+   (Nacharbeit Review 09.11.: vorher `space-between`, dadurch auseinanderge-
+   zogen), getrennt durch den Trenner „, “ und den Skalenabstand --sp-1
+   (Prinzip S3, Ä2: keine Linie). */
 .ec-list .ec-day-head {
   background-color: var(--surface) !important;
+  border: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: baseline;
+  gap: var(--sp-1);
+  inline-size: 100%;
+  max-inline-size: 100%;
+  padding: var(--sp-2) var(--sp-3) var(--sp-1);
+  text-align: start !important;
+}
+/* Befund 2: Wochentag und Datum standen ohne Trenner nebeneinander
+   („Freitag6. November 2026“ gemessen). Der Trenner hängt am Wochentag und
+   wird von der Vorlesehilfe übersprungen (`/ ""`) — sie liest den Kopf
+   ohnehin als zusammenhängenden Text. */
+.ec-list .ec-day-head > time:first-child::after {
+  content: "," / "";
+  margin-inline-end: var(--sp-1);
+}
+/* Hierarchie über Gewicht und Helligkeit, nicht über eine zweite Farbe
+   (Prinzip S2/S4): Wochentag kräftig, Datum ruhig — eine Schriftstufe, und
+   zwar DIE STUFE DES KARTENKOPFS (Nacharbeit Review 09.11.: `--fs-16` stand
+   über dem Kartenkopf „November 2026“, der 14/600 trägt — der Tageskopf ist
+   Untertitel, keine Überschrift). */
+.ec-list .ec-day-head > time {
+  display: inline-block;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: var(--text);
+  font-size: var(--fs);
+  font-weight: var(--fw-mittel);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.ec-list .ec-day-head > time.ec-day-side {
+  color: var(--muted);
+  font-weight: var(--fw-normal);
+}
+
+/* UX3i5 (Befund 1, live 08.11., im Browser gemessen): Die Liste baut jeden Tag
+   als `.ec-day` mit drei Arten von Kindern NACHEINANDER:
+
+     h4.ec-day-head · article.ec-event (Chip) · span.kronos-liste-aktionen-halter („⋯“)
+
+   `.ec-day` ist `block`, Termin und Halter sind `inline-flex`; die Termine
+   EINES Tages standen deshalb waagerecht nebeneinander (Gottesdienst bei
+   x = 331, Jugendkreis bei x = 576, beide y = 332 — sichtbar, 205 × 40 px).
+   Gefordert: je Termin EINE eigene Zeile, der Chip links und sein „⋯“ rechts
+   auf DERSELBEN Zeile.
+
+   Die Bibliothek liefert keine Hülle um „Termin + ⋯“; beide sind flache
+   Geschwister im Tag. Der Tag wird deshalb zum umbrechenden Zeilen-Kasten:
+   Kopf und jeder Termin fordern eine ganze Zeile an; der Termin ist dabei um
+   die Breite seines „⋯“ kürzer (`max-inline-size`), und der Halter rückt um
+   genau diese Breite nach oben in dieselbe Zeile (`margin-block-start`
+   negativ). So steht das „⋯“ rechts auf der Zeile SEINES Termins — bei
+   einem wie bei fünf Terminen am Tag.
+   KEIN Grid: der UX3i4-Rückzieher (`display: grid` mit `:has(> …)`) nahm die
+   Kopfzeile in die Zeilenlogik und machte die Termine unsichtbar. */
+.ec-list .ec-day {
+  display: flex !important;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  gap: 0;
+}
+/* Kopf und jeder Termin beginnen eine neue Zeile. NUR der Termin lässt rechts
+   den Platz seines „⋯“ frei; die Kopfzeile bleibt durchgehend über die volle
+   Breite (Nacharbeit Review 09.11.: der Kopf stand vorher in dieser Regel und
+   ließ rechts einen grauen Streifen stehen). */
+.ec-list .ec-day > .ec-day-head {
+  flex: 0 0 100%;
+  box-sizing: border-box;
+}
+.ec-list .ec-day > article.ec-event {
+  flex: 0 0 100%;
+  box-sizing: border-box;
+  /* Der Termin lässt rechts genau den Platz des „⋯“ frei; der Rest der Zeile
+     bleibt frei (der Chip selbst bleibt auf Inhaltsbreite). */
+  max-inline-size: calc(100% - var(--control-h));
+}
+/* Das „⋯“ steht rechts in der Zeile SEINES Termins: fester Platz in
+   Klickfläche --control-h (bei pointer: coarse 44 px, aus den Tokens). */
+.ec-list .ec-day > .kronos-liste-aktionen-halter {
+  flex: 0 0 var(--control-h);
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  /* Eine Zeile zurück: der Halter gehört zur Zeile des Termins davor. */
+  margin-block-start: calc(-1 * var(--control-h));
+  margin-inline-start: auto;
+  padding: 0;
 }
 /* DES-R15: Terminkacheln am Handy trugen weisse Schrift auf hellen
    Kategoriefarben (1,59–2,42:1). */
