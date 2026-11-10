@@ -17,9 +17,9 @@ enthalten“ auch mit einem kaputten Filter gruen).
 
 from __future__ import annotations
 
-from datetime import datetime
-
 import pytest
+
+from zeitneutral import termin as ztermin
 
 ADMIN = "ux2b2f5-admin@example.org"
 KALENDER_SLUG = "gottesdienste"
@@ -37,18 +37,29 @@ def welt(patched_db, fake_redis):
     sess.add(Kalender(name="KAL-F5", calendar_name="Gottesdienste",
                       website_freigabe=1, website_slug=KALENDER_SLUG,
                       docstatus=0, idx=0))
+    # ZEIT-1: Termine relativ zu HEUTE statt fester Datumswerte. Die
+    # oeffentlichen Lesewege liefern nur Zukuenftiges; mit `datetime(2026,
+    # 11, 8, …)` war diese Datei ab dem 09.11.2026 rot (Zeitbombe, keine
+    # Regression). Siehe tests/zeitneutral.py.
+    start, ende = ztermin("f5-gottesdienst", 10, 0), ztermin("f5-gottesdienst", 11, 30)
+    start_b = ztermin("f5-jugend", 18, 0, plus_tage=3)
     sess.add(Element(
         name="ELE-F5", element_name="Gottesdienst", element_calendar="KAL-F5",
-        element_start=datetime(2026, 11, 8, 10, 0),
-        element_end=datetime(2026, 11, 8, 11, 30),
+        element_start=start,
+        element_end=ende,
         status="Festgelegt", docstatus=0, idx=0, description="Mit Abendmahl",
     ))
     sess.add(Element(
         name="ELE-F5B", element_name="Jugendgottesdienst", element_calendar="KAL-F5",
-        element_start=datetime(2026, 11, 15, 18, 0),
-        element_end=datetime(2026, 11, 15, 19, 30),
+        element_start=start_b,
+        element_end=ztermin("f5-jugend", 19, 30, plus_tage=3),
         status="Festgelegt", docstatus=0, idx=0,
     ))
+    # Reihenfolge der Rueckgabe ist Teil der Zusage unten (ELE-F5 vor
+    # ELE-F5B) — deshalb muss der erste Termin auch der fruehere sein.
+    # Geprueft wird an den WERTEN, die hier erzeugt werden (die Session
+    # attribut-abfragen wuerde stehen, die Zeilen noch nicht).
+    assert start < start_b, "Testaufbau: ELE-F5 muss vor ELE-F5B liegen"
     sess.commit()
     yield sess
     sess.close()

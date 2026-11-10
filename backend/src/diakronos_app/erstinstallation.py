@@ -334,8 +334,14 @@ if __name__ == "__main__":
     # ON-1: Ohne ADMIN_EMAIL/ADMIN_PASSWORD wird hier der Einrichtungs-Link
     # erzeugt und als Kasten ausgegeben (siehe `_startlink_ausgeben`). Der
     # Klartext-Token steht NUR in dieser Ausgabe — nicht im Log, nicht in der DB.
-    logging.disable(logging.CRITICAL)  # nur der Kasten, kein doppeltes Log
-    _praefix_setzen()
-    ergebnis = bootstrap_erstinstallation()
-    if ergebnis:
-        print(f"[erstinstallation] angelegt: {ergebnis}")
+    # nur der Kasten, kein doppeltes Log — ZEIT-1: `logging.disable()` gilt
+    # prozessweit; beim Verlassen wird der alte Zustand zurueckgesetzt.
+    alter_zustand = logging.root.manager.disable
+    logging.disable(logging.CRITICAL)
+    try:
+        _praefix_setzen()
+        ergebnis = bootstrap_erstinstallation()
+        if ergebnis:
+            print(f"[erstinstallation] angelegt: {ergebnis}")
+    finally:
+        logging.disable(alter_zustand)

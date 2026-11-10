@@ -53,6 +53,15 @@ class EnqueueError(RuntimeError):
 
 
 def _redis() -> Redis:
+	"""Verbindung fuer das Einreihen.
+
+	Eine Quelle wie ueberall sonst in der App: `settings.redis_url`. Der
+	Flake in `test_p6a_queue_realtime` kam NICHT von hier (Review ZEIT-1):
+	im Testlauf ueberschrieb die session-weite Fixture `privater_redis_url`
+	`settings.redis_url`, waehrend die Test-Fixture `redis_conn` die
+	Umgebung nahm — zwei Sichten auf denselben Store. Behoben ist das in
+	der Testumgebung (`conftest`), nicht im Produktionspfad.
+	"""
 	return Redis.from_url(settings.redis_url)
 
 

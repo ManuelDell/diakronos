@@ -477,22 +477,36 @@ def mit_praefix(monkeypatch, fake_redis, patched_db):
     alt_wert = settings.diakronos_base_path
     # WEB-5a: der Praefix kommt aus der Einstellung — hier fuer die Dauer des
     # Tests gesetzt (der Prozess-Praefix wird danach zurueckgestellt).
-    setze_setting("diakronos_base_path", "/diakronos")
+    #
+    # TEST-ISO1 (Review ZEIT-1): ALLE gesetzten Einstellungen stehen im
+    # aeusseren `try`, nicht nur `redis_url`. Vorher lag `setze_setting(
+    # "diakronos_base_path", …)` VOR dem `try`: brach `erstelle_app()` ab,
+    # blieb der Praefix `/diakronos` fuer jeden folgenden Test stehen und
+    # die Vollsuite war reihenfolgeabhaengig rot.
     alt_redis = settings.redis_url
-    setze_setting("redis_url", os.environ["REDIS_URL"])
     try:
-        app = erstelle_app()
-    finally:
-        setze_setting("redis_url", alt_redis)
-    c = TestClient(app)
-    try:
-        c.__enter__()
-        c.headers["Origin"] = "http://testserver"
-        yield c
-        c.__exit__(None, None, None)
-    finally:
-        setze_setting("diakronos_base_path", alt_wert)
-        base_path.setze_praefix(alt)
+        setze_setting("diakronos_base_path", "/diakronos")
+        setze_setting("redis_url", os.environ["REDIS_URL"])
+        try:
+            app = erstelle_app()
+        finally:
+            setze_setting("redis_url", alt_redis)
+        c = TestClient(app)
+        try:
+            c.__enter__()
+            c.headers["Origin"] = "http://testserver"
+            yield c
+            c.__exit__(None, None, None)
+        finally:
+            setze_setting("diakronos_base_path", alt_wert)
+            base_path.setze_praefix(alt)
+    except BaseException:
+        # Auch der Aufbau kann scheitern (dann steht oben kein `c` bereit):
+        # Einstellungen trotzdem zurueckgeben, bevor der Fehler weitergeht.
+        if settings.diakronos_base_path != alt_wert:
+            setze_setting("diakronos_base_path", alt_wert)
+            base_path.setze_praefix(alt)
+        raise
 
 
 def test_endpunkt_mit_praefix(mit_praefix, mail_fach, fake_redis, patched_db):

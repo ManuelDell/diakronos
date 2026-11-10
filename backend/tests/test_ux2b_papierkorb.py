@@ -27,7 +27,7 @@ und ``test_schreibende_endpunkte_nur_post`` (SEC-11: POST + Inventar).
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -35,6 +35,8 @@ from diakronos_app.frappe_compat.exceptions import DoesNotExistError
 from diakronos_app.frappe_compat.exceptions import PermissionError as FrappePermissionError
 from diakronos_app.frappe_compat.registry import lookup
 from diakronos_app.frappe_compat.session import set_user
+from zeitneutral import termin as ztermin
+from zeitneutral import termin_tag as ztag
 
 ADMIN = "pap-admin@example.org"
 MITGLIED = "pap-mitglied@example.org"
@@ -81,7 +83,9 @@ def welt(patched_db, fake_redis):
 
     sess.add(Beitrag(
         name="BEI-1", titel="Sommerfest", kategorie="gemeinde",
-        datum=date(2026, 7, 1), autor="Ada Admin", autor_email=ADMIN,
+        # ZEIT-1: Datum relativ zu heute (tests/zeitneutral.py), damit der
+        # oeffentliche Website-Pfad den Beitrag auch morgen noch liefert.
+        datum=ztag("ux2b-beitrag"), autor="Ada Admin", autor_email=ADMIN,
         veroeffentlicht=1, auf_website=1, auszug="Fest im Hof",
         inhalt="<p>Alle eingeladen.</p>", bild=None, docstatus=0, idx=0,
     ))
@@ -99,8 +103,10 @@ def welt(patched_db, fake_redis):
                       docstatus=0, idx=0))
     sess.add(Element(
         name="ELE-1", element_name="Gottesdienst", element_calendar="KAL-1",
-        element_start=datetime(2026, 11, 8, 10, 0),
-        element_end=datetime(2026, 11, 8, 11, 30),
+        # ZEIT-1: relativ zu heute — der oeffentliche Pfad unten
+        # (`daten.termine`) liefert nur Zukuenftiges.
+        element_start=ztermin("ux2b-gottesdienst", 10, 0),
+        element_end=ztermin("ux2b-gottesdienst", 11, 30),
         status="Festgelegt", docstatus=0, idx=0,
     ))
     sess.add(Lied(name="LIE-1", titel="Grosser Gott", aktiv=1, docstatus=0, idx=0,
@@ -214,16 +220,19 @@ def test_termin_loeschen_wirkt_wie_entfernt(client, als_admin, welt):
     # auf den richtigen Modulpfad, ohne Status-Schutz: ein Fehler rutscht nicht
     # mehr als „kein Ergebnis“ durch.
     set_user(ADMIN)
+    # ZEIT-1: Abfragefenster um den Testtermin (relativ zu heute), 29 Tage.
+    von = ztermin("ux2b-gottesdienst", 0, 0).date()
+    bis = von + timedelta(days=29)
+    fenster = {"start_date": von.isoformat(), "end_date": bis.isoformat(),
+               "calendar_filter": '["KAL-1"]'}
     liste = client.post(f"/api/method/{KALENDER_GET}.get_calendar_events",
-                        json={"start_date": "2026-11-01", "end_date": "2026-11-30",
-                              "calendar_filter": '["KAL-1"]'})
+                        json=fenster)
     assert liste.status_code == 200, liste.text
     assert liste.json()["message"] == []
 
     # Und im Bearbeitungsmodus (Moderator sieht alle Status) ebenso.
     bearbeiten = client.post(f"/api/method/{KALENDER_GET}.get_calendar_events",
-                             json={"start_date": "2026-11-01", "end_date": "2026-11-30",
-                                   "calendar_filter": '["KAL-1"]', "view_mode": False})
+                             json={**fenster, "view_mode": False})
     assert bearbeiten.status_code == 200, bearbeiten.text
     assert bearbeiten.json()["message"] == []
 
@@ -237,8 +246,7 @@ def test_termin_loeschen_wirkt_wie_entfernt(client, als_admin, welt):
 
     papierkorb.wiederherstellen("Element", "ELE-1")
     wieder = client.post(f"/api/method/{KALENDER_GET}.get_calendar_events",
-                         json={"start_date": "2026-11-01", "end_date": "2026-11-30",
-                               "calendar_filter": '["KAL-1"]'})
+                         json=fenster)
     assert wieder.status_code == 200, wieder.text
     assert [e["id"] for e in wieder.json()["message"]] == ["ELE-1"]
 

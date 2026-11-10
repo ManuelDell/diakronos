@@ -31,6 +31,8 @@ def pytest_configure(config):
 	stack = ExitStack()
 	config.add_cleanup(stack.close)
 	vorher = os.environ.get("REDIS_URL")
+	import redis_testdb
+	redis_testdb.BETRIEBS_REDIS_URL = vorher  # A1c11: Betriebs-URL vor dem Umbiegen
 
 	def wiederherstellen():
 		if vorher is None:
@@ -45,7 +47,16 @@ def pytest_configure(config):
 
 @pytest.fixture(scope="session")
 def privater_redis_url():
-	"""Eigener nicht persistierender Redis-Server fuer echte CLI-Tests."""
+	"""Eigener nicht persistierender Redis-Server fuer echte CLI-Tests.
+
+	ZEIT-1 (Review): Der Kontext setzt fuer seine Dauer `settings.redis_url`
+	UND `REDIS_URL` auf denselben Store und stellt beides beim Verlassen
+	wieder her — sessionweit gab es dadurch zwei Sichten auf denselben
+	Store (Einstellung zeigte auf diesen Server, `conftest.pytest_configure`
+	und Unterprozesse auf einen anderen), und der P6a-Job verschwand
+	(`NoSuchJobError`). Diese Fixture reicht die URL deshalb nur noch
+	weiter, sie haelt keinen eigenen Zustand offen.
+	"""
 	from redis_testdb import privates_redis
 
 	with privates_redis() as url:

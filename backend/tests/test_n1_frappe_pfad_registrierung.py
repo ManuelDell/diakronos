@@ -15,6 +15,14 @@ from __future__ import annotations
 import subprocess
 import sys
 
+import pytest
+
+#: ZEIT-1 (Review): der Unterprozess (Interpreterstart + `import diakronos_app`)
+#: laeuft unter Last ueber das globale Budget von 60 s hinaus — pytest brach
+#: ab, ohne dass der Test seine Meldung (stderr des Prozesses) zeigen konnte.
+#: Eigenes Budget nur fuer diese Datei, globaler Wert unveraendert.
+pytestmark = pytest.mark.timeout(120)
+
 
 def test_original_pfad_nach_untermodul_zuerst():
 	"""Erst `api.admin_hub` laden, dann muss der Original-Pfad aufloesen."""

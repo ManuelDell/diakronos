@@ -47,10 +47,19 @@ USER_ROOM_PREFIX = "user:"
 EVENT_GCAL_IMPORT_PROGRESS = "gcal_import_progress"
 
 def create_socket_server():
-	"""One server/Redis listener per ASGI lifecycle (never share closed loops)."""
+	"""One server/Redis listener per ASGI lifecycle (never share closed loops).
+
+	Die Manager-Optionen bleiben redis-py-Default (Review ZEIT-1): ein
+	`health_check_interval` wird hier NICHT gesetzt. Redis-py ist in diesem
+	Projekt auf <7 gepinnt (pyproject) und hat dort bereits 0 als Default —
+	`0` auszuschreiben aenderte nichts, die fruehere Begruendung („kappt alle
+	30 s") war falsch.
+	"""
 	server = socketio.AsyncServer(
 		async_mode="asgi",
-		client_manager=socketio.AsyncRedisManager(settings.redis_url, channel="diakronos-realtime"),
+		client_manager=socketio.AsyncRedisManager(
+			settings.redis_url, channel="diakronos-realtime",
+		),
 		cors_allowed_origins=None,
 		logger=False,
 		engineio_logger=False,

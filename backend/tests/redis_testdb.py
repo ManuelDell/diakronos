@@ -16,6 +16,7 @@ Betriebs-Wert kommt beim Verlassen zurueck.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -24,6 +25,19 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import redis
+
+#: Frist, bis ein frisch gestarteter Test-Redis auf `ping` antwortet (ZEIT-1).
+#: Unter Last (Load 15–18) braucht der Prozessstart deutlich laenger als die
+#: frueheren 10 s. Das ist KEINE Aufweichung der Pruefung: gemessen wird
+#: weiterhin ein echter `ping` am eigenen Unix-Socket.
+BEREITSCHAFT_SEKUNDEN = 45.0
+
+#: `REDIS_URL` des Betriebs, wie sie VOR `conftest.pytest_configure` stand
+#: (dort gesetzt, bevor die Umgebung auf den privaten Teststore umgebogen
+#: wird). `None` = keine Umgebungsvariable gesetzt. Nur fuer A1c11: ein
+#: Modul-Import in der Collection kommt dafuer zu spaet — pytest_configure
+#: laeuft VOR der Collection.
+BETRIEBS_REDIS_URL: str | None = None
 
 
 @contextmanager
@@ -46,7 +60,13 @@ def privates_redis():
         )
         client = redis.Redis.from_url(url, socket_timeout=1, socket_connect_timeout=1)
         try:
-            deadline = time.monotonic() + 10
+            # ZEIT-1 (Last-Flake): 10 s Bereitschaftsfrist war unter Last
+            # (Load 15–18, acht gleichzeitige pytest-Laeufe) zu knapp — der
+            # Serverprozess brauchte fuer `bind` + erstes `ping` laenger als
+            # die Frist, und der Fehler sagte "Test-Redis wird nicht bereit"
+            # statt der Wahrheit. Die Frist deckt jetzt das Anlaufen ab; die
+            # Pruefung selbst (echter `ping` am eigenen Unix-Socket) bleibt.
+            deadline = time.monotonic() + BEREITSCHAFT_SEKUNDEN
             while True:
                 if process.poll() is not None:
                     raise RuntimeError(f"Test-Redis beendet (Exitcode {process.returncode})")
@@ -56,7 +76,9 @@ def privates_redis():
                 except redis.ConnectionError:
                     pass
                 if time.monotonic() >= deadline:
-                    raise RuntimeError("Test-Redis wird nicht bereit (10 Sekunden)")
+                    raise RuntimeError(
+                        "Test-Redis wird nicht bereit "
+                        f"({BEREITSCHAFT_SEKUNDEN:.0f} Sekunden)")
                 time.sleep(0.02)
             # TEST-ISO1 (08.11.): `settings.redis_url` MUSS auf diesen Store
             # zeigen. Die Frueh-Fassung liess den Betriebswert stehen
@@ -69,21 +91,31 @@ def privates_redis():
             # Testumgebung nicht gibt — 503, abhaengig davon, ob ein
             # frueherer Test schon eine App gebaut hatte.
             #
+            # ZEIT-1 (Review): der Eintrag war ein LECK, weil
+            # `conftest.privater_redis_url` ihn SESSIONWEIT hielt: `settings`
+            # zeigte danach fuer den ganzen Lauf auf einen privaten Server,
+            # waehrend Zugriffe, die die Umgebung lesen (`REDIS_URL`), den
+            # anderen privaten Server sahen — zwei Sichten auf denselben
+            # Store, Job verloren (`NoSuchJobError`). Jetzt gilt EINE Sicht
+            # fuer die Dauer des Kontexts: Umgebung UND Einstellung zeigen auf
+            # diesen Store, und BEIDE werden beim Verlassen zurueckgesetzt.
+            #
             # `settings` ist pydantic: `object.__setattr__` schreibt ohne
             # Validierung, der alte Wert kommt beim Verlassen zurueck.
-            #
-            # A1c11 bleibt unberuehrt: der Betriebs-Store ist der Wert VOR
-            # diesem Kontext (in der Suite der des Betriebs), und genau den
-            # vergleicht `test_cli_store_ist_nicht_die_redis_instanz_des_betriebs`
-            # mit dem privaten Server — beide bleiben verschieden.
             from diakronos_app.settings import settings
 
-            vorher = settings.redis_url
+            vorher_url = settings.redis_url
+            vorher_env = os.environ.get("REDIS_URL")
             object.__setattr__(settings, "redis_url", url)
+            os.environ["REDIS_URL"] = url
             try:
                 yield url
             finally:
-                object.__setattr__(settings, "redis_url", vorher)
+                object.__setattr__(settings, "redis_url", vorher_url)
+                if vorher_env is None:
+                    os.environ.pop("REDIS_URL", None)
+                else:
+                    os.environ["REDIS_URL"] = vorher_env
         finally:
             # Auch bei fehlgeschlagenem Setup/Test beenden; nie SHUTDOWN gegen
             # eine URL aus der Umgebung senden, nur unseren eigenen Prozess.

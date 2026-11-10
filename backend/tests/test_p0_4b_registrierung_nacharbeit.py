@@ -26,8 +26,15 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 
 import pytest
+
+#: ZEIT-1: Wartegrenze fuer die 20 Nebenlaeufigkeits-Threads (Befund 2) und
+#: das Budget dieses EINEN Tests. Der globale `pytest-timeout` (60 s) reicht
+#: unter Last nicht — und er bricht die ganze Suite ab. 180 s: Wartegrenze +
+#: Reserve fuer Datei-`create_all` (gemessen 50 s bei Load 20).
+WARTEFRIST = 120.0
 
 import diakronos_app.api  # noqa: F401 — registriert alle portierten Endpunkte
 from diakronos_app.frappe_compat.session import set_user
@@ -267,6 +274,7 @@ def test_befund2_ohne_grenze_zaehlt_immer(patched_db):
     sess.close()
 
 
+@pytest.mark.timeout(180)
 def test_befund2_parallele_anfragen_ueberschreiten_das_maximum_nie(tmp_path, monkeypatch):
     """Nebenlaeufigkeit: viele gleichzeitige Reservierungen, nie mehr als max.
 
@@ -327,8 +335,22 @@ def test_befund2_parallele_anfragen_ueberschreiten_das_maximum_nie(tmp_path, mon
     threads = [threading.Thread(target=_lauf) for _ in range(20)]
     for t in threads:
         t.start()
+    # ZEIT-1 (Review): `t.join()` ohne Grenze liess den ganzen Lauf in den
+    # globalen `pytest-timeout` (60 s) laufen — und der bricht die GANZE Suite
+    # ab, nicht nur diesen Test. Unter Last (Load 15–20, `create_all` auf
+    # Datei-SQLite allein gemessen 50 s) ist die Wartezeit der 20 Threads
+    # nicht mehr in 60 s unterzubringen, obwohl die Zusicherung (genau 5
+    # Zusagen von 20) unveraendert gilt. Jetzt mit Grenze und sprechender
+    # Meldung; die Frist steht als eigener `timeout`-Marker an diesem Test
+    # (`WARTEFRIST` + Reserve), der globale Wert bleibt unangetastet.
+    ende = time.monotonic() + WARTEFRIST
     for t in threads:
-        t.join()
+        t.join(max(0.0, ende - time.monotonic()))
+    haengend = [t for t in threads if t.is_alive()]
+    assert not haengend, (
+        f"{len(haengend)} von {len(threads)} Threads nach {WARTEFRIST:.0f} s "
+        "noch nicht zurueck — die Datenbank ist unter Last blockiert "
+        "(kein Befund ueber die Atomaritaet)")
 
     assert sum(1 for e in erfolge if e) == 5, f"erwartet 5 Zusagen, waren {sum(erfolge)}"
     from diakronos_app.models.diakonos import Registrierungslink

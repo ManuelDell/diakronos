@@ -8,6 +8,13 @@ import socketio
 
 from diakronos_app.frappe_compat import realtime, sitzungen
 
+#: ZEIT-1 (Review): Der globale `pytest-timeout` aus `pyproject.toml` (60 s)
+#: haette den Test abgebrochen, BEVOR die eigenen Wartegrenzen greifen
+#: (Uvicorn-Start 30 s + Handshake 30 s + Nachricht 45 s). Der globale Wert
+#: bleibt die Haenger-Bremse der Suite; hier gilt ein eigenes Budget fuer
+#: genau diese Datei: laengste eigene Frist (45 s) + Reserve.
+pytestmark = pytest.mark.timeout(150)
+
 
 def test_socket_cannot_claim_another_user(client, monkeypatch):
     rooms = []
@@ -63,7 +70,7 @@ def test_worker_process_progress_arrives_over_socket(client):
         timeout_graceful_shutdown=2))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
-    receiver = socketio.Client()
+    receiver = socketio.Client(reconnection=False)
 
     @receiver.on("gcal_import_progress")
     def receive(data):
@@ -71,15 +78,18 @@ def test_worker_process_progress_arrives_over_socket(client):
         got.set()
 
     try:
-        for _ in range(200):
-            if server.started:
-                break
-            time.sleep(.02)
-        assert server.started
+        # ZEIT-1: dieselbe Frist wie in `_warten_bis_empfangsbereit` — 200 x
+        # 20 ms (4 s) war unter Last zu kurz, und der Fehlschlag sagte nichts
+        # ueber die Realtime-Zustellung aus.
+        _startbereit(server, frist=30)
+        # ZEIT-1: `socketio.Client.wait()` ist 1 s. Unter Last (Engine.IO-
+        # Handshake + Redis-Manager im ASGI-Thread) reisst das; die Aussage
+        # des Tests verlangt nur, dass verbunden wird — nicht in welcher
+        # Sekunde.
         receiver.connect(
             f"http://127.0.0.1:{port}",
             headers={"Cookie": "sid=" + client.cookies.get("sid")},
-            transports=["polling"])
+            transports=["polling"], wait_timeout=30)
         # (1) Der Raum muss stehen, BEVOR die eigentliche Nachricht kommt.
         _warten_bis_empfangsbereit(receiver)
 
@@ -95,7 +105,18 @@ def test_worker_process_progress_arrives_over_socket(client):
             f"{prozess.returncode}\n{prozess.stdout[-800:]}\n{prozess.stderr[-800:]}")
 
         # (2) Nachricht abwarten — unter Last braucht Redis/EngineIO Laengeres.
-        assert got.wait(15), "Worker-Emission nicht beim ASGI-Client angekommen"
+        # ZEIT-1: Kommt sie nicht an, wird NACHGEMESSEN statt geraten: die
+        # Sonde aus (1) ging denselben Weg und kam an — also ist nicht die
+        # Zustellung kaputt, sondern der Kanal (Ereignisname/Raum) der
+        # eigentlichen Nachricht. Beides steht dann im Fehlertext.
+        if not got.wait(45):
+            raise AssertionError(
+                "Worker-Emission nicht beim ASGI-Client angekommen "
+                "(Befund: die Sonde kam an, der Client ist im Raum "
+                "user:Administrator und empfaengt ueber Redis; fehlt nur "
+                "'gcal_import_progress' aus dem Unterprozess). Prozess: "
+                f"{prozess.returncode}, stdout={prozess.stdout[-300:]!r}, "
+                f"stderr={prozess.stderr[-300:]!r}")
         assert messages == [{"status": "done"}]
     finally:
         # SEC-11c (R4): TEARDOWN-REIHENFOLGE. `receiver.disconnect()` wartet
@@ -111,6 +132,23 @@ def test_worker_process_progress_arrives_over_socket(client):
             receiver.disconnect()
         except Exception:  # noqa: BLE001 — der Client ist danach ohnehin weg
             pass
+
+
+def _startbereit(server, frist: float = 30) -> None:
+    """Wartet mit Frist auf `server.started` (ZEIT-1: statt 200 x 20 ms = 4 s).
+
+    Gemessen wird weiterhin `server.started`; unter Last (Load 15–18) brauchte
+    der Uvicorn-Thread laenger als die alte Schleife erlaubte, und der Test
+    fiel aus einem Grund um, der nichts mit der Zustellung zu tun hat.
+    """
+    import time
+
+    ende = time.monotonic() + frist
+    while time.monotonic() < ende:
+        if server.started:
+            return
+        time.sleep(.02)
+    raise AssertionError(f"Uvicorn-Thread nach {frist} s nicht gestartet")
 
 
 def _warten_bis_empfangsbereit(receiver, grenze: float = 15) -> None:

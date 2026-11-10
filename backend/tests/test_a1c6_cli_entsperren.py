@@ -68,7 +68,19 @@ from sqlalchemy.orm import sessionmaker
 
 from diakronos_app.frappe_compat import loginversuche as lv
 
+#: ZEIT-1 (Review): das globale `pytest-timeout` (60 s) hat die erhoehte
+#: Unterprozess-Frist unten nie wirken lassen — pytest brach den Test ab,
+#: bevor `subprocess.run(timeout=UNTERPROZESS_FRIST)` seine sprechende
+#: Meldung abgeben konnte. Globaler Wert bleibt unveraendert; hier gilt ein
+#: eigenes Budget (Frist + Reserve fuer Fixture-Aufbau und Teardown).
+pytestmark = pytest.mark.timeout(240)
+
 SCHWELLE = 5
+#: Zeitgrenze fuer CLI-Unterprozesse (ZEIT-1, Last-Flake). 
+#: Unter Last (Load 15–18) brauchen Interpreterstart + `import diakronos_app`
+#: + Redis-Zugriff deutlich mehr als die frueheren 60 s. Der Inhalt der
+#: Pruefung (Rueckgabecode/Ausgabe des Notwegs) bleibt unveraendert streng.
+UNTERPROZESS_FRIST = 180
 # A1c10: die Adressschwelle ist eine eigene Zahl (Default 25). Die CLI-Tests
 # brauchen sie an drei Stellen — deshalb wird sie hier einmal aus dem Store
 # gelesen und nicht an vier Stellen ausgeschrieben. Sonst waere das die
@@ -422,13 +434,21 @@ def _cli(*args: str) -> subprocess.CompletedProcess:
     voellig andere Schluessel schreiben als der Testprozess — die Freigabe
     liefe ins Leere und der Test wuerde die falsche Sache messen.
     """
-    return subprocess.run(
-        [sys.executable, "-m", "diakronos_app.loginversuche", *args],
-        capture_output=True,
-        text=True,
-        timeout=60,
-        env=_unterprozess_umgebung(),
-    )
+    # ZEIT-1: 60 s waren unter Last zu knapp (Prozessstart + Import der App
+    # + Redis-Zugriff); ein Timeout sagte nichts ueber den Notweg aus.
+    try:
+        return subprocess.run(
+            [sys.executable, "-m", "diakronos_app.loginversuche", *args],
+            capture_output=True,
+            text=True,
+            timeout=UNTERPROZESS_FRIST,
+            env=_unterprozess_umgebung(),
+        )
+    except subprocess.TimeoutExpired:
+        raise AssertionError(
+            f"CLI-Unterprozess nach {UNTERPROZESS_FRIST} s nicht beendet "
+            f"(Argumente {args!r}) — Start unter Last haengen geblieben; "
+            "kein Befund ueber den Notweg") from None
 
 
 def _out(prozess: subprocess.CompletedProcess) -> str:
@@ -605,10 +625,17 @@ def _cli_fehlerfall(*args: str) -> subprocess.CompletedProcess:
     )
     umgebung = _unterprozess_umgebung(extra_pythonpath=quatsch)
     try:
-        return subprocess.run(
-            [sys.executable, "-m", "diakronos_app.loginversuche", *args],
-            capture_output=True, text=True, timeout=60, env=umgebung,
-        )
+        try:
+            return subprocess.run(
+                [sys.executable, "-m", "diakronos_app.loginversuche", *args],
+                capture_output=True, text=True, timeout=UNTERPROZESS_FRIST,
+                env=umgebung,
+            )
+        except subprocess.TimeoutExpired:
+            raise AssertionError(
+                f"CLI-Unterprozess nach {UNTERPROZESS_FRIST} s nicht beendet "
+                f"(Argumente {args!r}) — Start unter Last haengen geblieben; "
+                "kein Befund ueber den Notweg") from None
     finally:
         shutil.rmtree(quatsch, ignore_errors=True)
 
@@ -968,11 +995,12 @@ def test_der_einstieg_importiert_die_logik_nicht_beim_laden_des_stores():
     """
     import subprocess
 
+    # ZEIT-1: dieselbe erhoehte Frist wie oben (Prozessstart unter Last).
     prozess = subprocess.run(
         [sys.executable, "-c",
          "import diakronos_app.frappe_compat.loginversuche as m, sys; "
          "print('cli_entsperren' in sys.modules)"],
-        capture_output=True, text=True, timeout=60,
+        capture_output=True, text=True, timeout=UNTERPROZESS_FRIST,
         env={"PYTHONPATH": "/app/src", "PATH": "/usr/local/bin:/usr/bin:/bin"},
     )
 

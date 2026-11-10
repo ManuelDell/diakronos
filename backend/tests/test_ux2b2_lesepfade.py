@@ -16,11 +16,14 @@ dass der Filter den Papierkorb liest und nicht die ganze Abfrage leer laesst.
 
 from __future__ import annotations
 
-from datetime import date, datetime, time
+from datetime import time
 
 import pytest
 
 from diakronos_app.frappe_compat.session import set_user
+from zeitneutral import termin as ztermin
+from zeitneutral import termin_tag as ztag
+from zeitneutral import zeitfenster
 
 ADMIN = "ux2b2f3-admin@example.org"
 MITGLIED = "ux2b2f3-mitglied@example.org"
@@ -73,11 +76,14 @@ def welt(patched_db, fake_redis):
                                    status="Aktiv", docstatus=0, idx=0))
     sess.add(Element(name="ELE-F3", element_name="Jugendtreff",
                      element_calendar="KAL-F3", gruppe="GRU-F3",
-                     element_start=datetime(2026, 11, 8, 10, 0),
-                     element_end=datetime(2026, 11, 8, 11, 0),
+                     # ZEIT-1: relativ zu heute (tests/zeitneutral.py) — ein
+                     # fester Wert waere ab dem Folgetag in der Vergangenheit
+                     # und die oeffentlichen Wege lieferten ihn nicht mehr.
+                     element_start=ztermin("f3-jugendtreff", 10, 0),
+                     element_end=ztermin("f3-jugendtreff", 11, 0),
                      status="Festgelegt", docstatus=0, idx=0))
     sess.add(Beitrag(name="BEI-F3", titel="Sommerfest", kategorie="gemeinde",
-                     datum=date(2026, 7, 1), autor="Ada Admin", autor_email=ADMIN,
+                     datum=ztag("f3-sommerfest"), autor="Ada Admin", autor_email=ADMIN,
                      veroeffentlicht=1, auf_website=1, auszug="Fest im Hof",
                      inhalt="<p>Alle eingeladen.</p>", docstatus=0, idx=0))
     sess.add(WikiArtikel(name="WIK-F3", titel="Beamer", kategorie="technik",
@@ -258,6 +264,8 @@ def test_generiere_plan_zieht_kein_geloeschtes_lied(client, als_admin, welt):
 
     MODUL = "diakronos.diakonos.api.planung"
     sess = welt
+    # ZEIT-1: Planfenster relativ zu heute; Laenge wie zuvor (29 Tage).
+    fenster_start, fenster_ende = zeitfenster("f3-plan-lied", tage=29)
     sess.add_all([
         Dienstbereich(name="DB-GD", ministry="Gottesdienst", docstatus=0, idx=0),
         DienstplanVorlage(
@@ -269,8 +277,9 @@ def test_generiere_plan_zieht_kein_geloeschtes_lied(client, als_admin, welt):
         ),
         Dienstplan(
             name="DP-LIED", plantitel="Gottesdienst Liedtest", vorlage="DV-LIED",
-            dienstbereich="DB-GD", jahr=2026, status="Entwurf", ist_entwurf=1,
-            start_datum=date(2026, 11, 1), ende_datum=date(2026, 11, 30),
+            dienstbereich="DB-GD", jahr=fenster_start.year, status="Entwurf", ist_entwurf=1,
+            # ZEIT-1: Fenster in der Zukunft, Laenge bleibt 29 Tage.
+            start_datum=fenster_start, ende_datum=fenster_ende,
             # Entwurfsschranke: Ersteller = der Aufrufer (Fixture als_admin).
             owner=ADMIN, docstatus=0, idx=0,
         ),
@@ -284,8 +293,9 @@ def test_generiere_plan_zieht_kein_geloeschtes_lied(client, als_admin, welt):
 
     def _positionen_im_vorschlag() -> list[dict]:
         r = client.post(f"/api/method/{MODUL}.generiere_plan",
-                        data={"plan": "DP-LIED", "von": "2026-11-01",
-                              "bis": "2026-11-30", "dry_run": "true"})
+                        data={"plan": "DP-LIED",
+                              "von": fenster_start.isoformat(),
+                              "bis": fenster_ende.isoformat(), "dry_run": "true"})
         assert r.status_code == 200, r.text
         return r.json()["message"]["positionen"]
 
@@ -360,8 +370,9 @@ def test_kanban_meldet_keinen_konflikt_mit_geloeschtem_termin(client, als_admin,
     sess.add(Element(
         name="ELE-F3B", element_name="Anderer Termin", element_calendar="KAL-F3",
         ressource="RES-F3",
-        element_start=datetime(2026, 11, 8, 10, 30),
-        element_end=datetime(2026, 11, 8, 11, 30),
+        # ZEIT-1: gleicher Tag wie ELE-F3, aber um 30 Minuten versetzt.
+        element_start=ztermin("f3-jugendtreff", 10, 30),
+        element_end=ztermin("f3-jugendtreff", 11, 30),
         status="Festgelegt", docstatus=0, idx=0,
     ))
     sess.commit()

@@ -20,6 +20,11 @@ from pathlib import Path
 
 import pytest
 
+#: ZEIT-1 (Review): `_laufen` wartet bis 120 s auf `sh`; das globale Budget
+#: aus `pyproject.toml` (60 s) brach den Test vorher ab. Eigenes Budget fuer
+#: diese Datei, globaler Wert unveraendert.
+pytestmark = pytest.mark.timeout(160)
+
 ENTRYPOINT = Path(__file__).resolve().parents[1] / "docker-entrypoint.sh"
 #: Im Image installiert das Dockerfile das Skript als `/usr/local/bin/
 #: diakronos-entrypoint`; `/app/docker-entrypoint.sh` ist dort nicht vorhanden.
@@ -31,6 +36,25 @@ def _skript() -> Path:
 	return ENTRYPOINT if ENTRYPOINT.is_file() else ENTRYPOINT_INSTALLIERT
 
 
+def _laufen(argv: list[str], umgebung: dict, beschreibung: str, frist: int = 120):
+	"""`subprocess.run` mit sprechender Zeitgrenze (ZEIT-1).
+
+	Die Frist war 60 s. Unter Last (Load 15–18, parallel laufende Suite) ist
+	ein `sh`-Start mit Dateisystem-Zugriffen kein 50-ms-Ding, und ein
+	Timeout warf einen nackten `subprocess.TimeoutExpired` — ohne zu sagen,
+	WELCHER Aufruf haengen blieb. Das war ein Last-Flake, kein Befund ueber
+	den Entrypoint. Die Pruefung selbst (Exitcode/Text) bleibt unveraendert.
+	"""
+	try:
+		return subprocess.run(
+			argv, env=umgebung, capture_output=True, text=True, timeout=frist,
+		)
+	except subprocess.TimeoutExpired:
+		raise AssertionError(
+			f"{beschreibung}: nach {frist} s kein Ergebnis — Prozessstart unter "
+			"Last haengen geblieben (kein Befund des Entrypoints)") from None
+
+
 def _starte(**umgebung):
 	"""[1] Rennt der Entrypoint mit dieser Umgebung los?"""
 	basis = {
@@ -40,10 +64,7 @@ def _starte(**umgebung):
 		"SKIP_MIGRATIONS": "1",
 	}
 	basis.update(umgebung)
-	return subprocess.run(
-		["sh", str(_skript()), "true"],
-		env=basis, capture_output=True, text=True, timeout=60,
-	)
+	return _laufen(["sh", str(_skript()), "true"], basis, "Entrypoint-Pruefung")
 
 
 @pytest.mark.parametrize("ziel", ["/", "/data", "/app", "relativ/pfad"])
@@ -74,8 +95,19 @@ def test_ablage_gleich_dateiablage_wird_abgewiesen():
 
 def _pruefblock(pfad: Path) -> str:
 	skript = pfad.read_text(encoding="utf-8")
+	# ZEIT-1: Der N8-Block endet im Skript dort, wo die Verzeichnisse
+	# ANGELGT werden. Der Schnitt laeuft bis zur ersten `mkdir -p`-Zeile —
+	# im Entrypoint (`backend/docker-entrypoint.sh`, Z. 58) ist das
+	# `mkdir -p "$files_dir"`, direkt nach den beiden Praefix-Pruefungen.
+	# Die fruehere Fassung suchte GENAU diese Zeile als Textmarke; fehlt sie
+	# (Entrypoint umgebaut), lief der Schnitt bis zum Dateiende: der Test
+	# startete dann den GANZEN Entrypoint (inkl. Migrationen), wurde unter
+	# Last von der Zeitgrenze abgebrochen und die Pruefung `must not be inside
+	# FILES_DIR` lief gar nicht mehr. Der Schnitt vor der ersten
+	# `mkdir -p`-Zeile haengt nicht mehr an einem bestimmten Verzeichnisnamen.
 	nach_n8 = skript.split("    # N8 (BACKUP-1c)", 1)[1]
-	block = '    # N8 (BACKUP-1c)' + nach_n8.split('    mkdir -p "$files_dir"', 1)[0]
+	kopf = nach_n8.split("	mkdir -p", 1)[0].split("    mkdir -p", 1)[0]
+	block = "    # N8 (BACKUP-1c)" + kopf
 	files_dir = skript.split('    files_dir="', 1)[1].split("\n", 1)[0]
 	backup_dir = skript.split('    backup_dir="', 1)[1].split("\n", 1)[0]
 	return (
@@ -90,10 +122,8 @@ def _pruefblock(pfad: Path) -> str:
 def _starte_zur_pruefung(**umgebung):
 	basis = {"PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"), "HOME": "/tmp"}
 	basis.update(umgebung)
-	return subprocess.run(
-		["sh", "-c", _pruefblock(_skript())],
-		env=basis, capture_output=True, text=True, timeout=60,
-	)
+	return _laufen(["sh", "-c", _pruefblock(_skript())], basis,
+	               "Entrypoint-Pruefung (N8)")
 
 
 def test_ablage_unterhalb_der_dateiablage_wird_abgewiesen():

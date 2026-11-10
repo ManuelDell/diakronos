@@ -286,10 +286,19 @@ def _main(argv: list[str] | None = None) -> int:
         )
         return 2
     # Nur stdout traegt Inhalt (der Kasten); Log-Zeilen wuerden ihn zerstreuen.
+    # ZEIT-1: `logging.disable()` ist PROZESSWEIT — es schaltet nicht nur die
+    # eigene Ausgabe stumm, sondern jeden Logger danach (im Testlauf: die
+    # ganze Suite, `logging.root.manager.disable == CRITICAL`). Deshalb wird
+    # der alte Zustand gemerkt und im `finally` zurueckgesetzt; fuer die
+    # kurze Laufzeit des Kommandos wirkt es unveraendert.
+    alter_zustand = logging.root.manager.disable
     logging.disable(logging.CRITICAL)
-    from diakronos_app.erstinstallation import neuer_einrichtungslink
+    try:
+        from diakronos_app.erstinstallation import neuer_einrichtungslink
 
-    neuer_einrichtungslink(ausgeben=True)
+        neuer_einrichtungslink(ausgeben=True)
+    finally:
+        logging.disable(alter_zustand)
     return 0
 
 
