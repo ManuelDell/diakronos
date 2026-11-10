@@ -270,7 +270,15 @@ test('UX3d: ohne Moderationsrecht keine Reiterleiste mit „Zu prüfen“', asyn
     '„Woche“ ist aktiv, wenn der Kalender die Woche zeigt')
 })
 
-test('UX3d: im Vollbild der Prüf-Tafel bleiben die Ansichts-Umschalter weg', async () => {
+// GEÄNDERT für DEV-B2 (Karte t_360093a4, Befund DMB-8e166c0aacff): Vorher
+// prüfte dieser Test das GEGENTEIL — auf der Prüf-Tafel fehlten „Monat/Woche/
+// Liste“ (`pruefTafel` filterte sie weg). Das war der Befund: Moderation.vue
+// verspricht seit UX3d „Monat/Woche/Liste führen zurück“, im Wegwerf-Stack
+// standen dort aber nur „Zu prüfen“ und „‹ Kalender“. Die Karte DEV-B2 dreht
+// die Regel um: die Leiste ist auf der Tafel IDENTISCH zum Kalender, die drei
+// Ansichten sind LINKS zurück (`#/kalender?ansicht=…`). Begründung steht im
+// Kartenkommentar; die ausführliche Prüfung macht `dev-b2-prueftafel-reiter`.
+test('DEV-B2: im Vollbild der Prüf-Tafel stehen die Ansichts-Reiter als LINKS', async () => {
   const Reiter = (await import(pathToFileURL(kompilieren(join(SRC, 'components/kronos/KalenderReiter.vue'))).href)).default
   const { host } = await mounten(
     'components/kronos/KronosTopbar.vue',
@@ -279,11 +287,13 @@ test('UX3d: im Vollbild der Prüf-Tafel bleiben die Ansichts-Umschalter weg', as
   )
   assert.ok(host.textContent.includes('Zu prüfen'), 'der Titel steht in der Kopfzeile')
   const leiste = host.querySelector('.kal-reiter')
-  assert.ok(leiste, 'die Leiste bleibt (aktive Markierung), statt ganz zu verschwinden')
-  // Monat/Woche/Liste sind im Brett tote Schaltflächen — sie fehlen dort.
+  assert.ok(leiste, 'die Reiterleiste steht auf der Tafel')
+  // Monat/Woche/Liste sind LINKS in den Kalender — keine toten Schaltflächen.
   for (const id of ['monat', 'woche', 'liste']) {
-    assert.equal(host.querySelector(`[data-reiter="${id}"]`), null,
-      `„${id}“ ist im Vollbild der Tafel eine tote Schaltfläche`)
+    const punkt = host.querySelector(`[data-reiter="${id}"]`)
+    assert.ok(punkt, `„${id}“ fehlt auf der Prüf-Tafel`)
+    assert.equal(punkt.tagName, 'A', `„${id}“ ist ein Link in den Kalender`)
+    assert.equal(punkt.getAttribute('href'), `#/kalender?ansicht=${id}`)
   }
   const pruefen = leiste.querySelector('[data-reiter="pruefen"]')
   assert.ok(pruefen, '„Zu prüfen“ markiert die Stelle')
@@ -373,11 +383,14 @@ test('UX3d: CSS-Kommentare in den berührten Bauteilen sind geschlossen', () => 
 
 test('UX3d: die mobile Bedienzeile der Kopfzeile bleibt am Fenster', () => {
   const quelle = lies('components/kronos/KronosTopbar.vue')
-  // UX3i: Die Handy-Regeln der Kopfzeile stehen jetzt im 720er Block (die
-  // Layout-Grenze der App); der 768er Block schaltet nur noch den
-  // Umschalter der Kalenderliste. Gesucht wird die Regel dort, wo
-  // `.header-right` seine Breite bekommt — die Absicht ist dieselbe.
-  const block = quelle.slice(quelle.indexOf('@media (max-width: 720px)'))
+  // UX3i: Die Handy-Regeln der Kopfzeile stehen in einem eigenen Block (nicht
+  // mehr bei 768 px); der 768er Block schaltet nur noch den Umschalter der
+  // Kalenderliste. Gesucht wird die Regel dort, wo `.header-right` seine
+  // Breite bekommt — die Absicht ist dieselbe.
+  // DEV-B6 (Manuel 09.11.; Nacharbeit 10.11.): Der Block hängt an der EINEN
+  // Handy-Lage-Klasse `.dk-app--handy` (Quelle `composables/handyLage.mjs`),
+  // nicht mehr an einer eigenen Media-Zeichenkette.
+  const block = quelle.slice(quelle.indexOf('.dk-app--handy .kronos-header .header-right'))
   const regel = block.slice(block.indexOf('.header-right {'), block.indexOf('}', block.indexOf('.header-right {')))
   assert.match(regel, /flex:\s*0\s+0\s+100%/, 'die Zeile darf nicht über den Kopf hinauswachsen')
 })

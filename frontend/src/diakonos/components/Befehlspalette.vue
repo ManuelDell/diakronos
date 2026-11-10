@@ -693,31 +693,34 @@ watch(begriff, (wert) => {
 }
 
 /* Mobil (390 px): die Palette liegt oben, das Feld bleibt 16 px (iOS zoomt
-   sonst beim Fokussieren). Zeilen bleiben ≥ 44 px hoch. */
-@media (max-width: 720px) {
-  .dk-palette-huelle {
+   sonst beim Fokussieren). Zeilen bleiben ≥ 44 px hoch.
+   DEV-B6 (Review-Nacharbeit 10.11.): „mobil“ ist die Handy-Lage als KLASSE
+   `.dk-app--handy` (Quelle `composables/handyLage.mjs`) — eine ganzseitige
+   Overlay-Palette ist Touch-Bedienung, kein Inhaltsumbruch; ein Maus-Laptop
+   bei 702 px behält die schwebende Palette. */
+  .dk-app--handy .dk-palette-huelle {
     padding: var(--sp-4);
   }
-  .dk-palette {
+  .dk-app--handy .dk-palette {
     width: 100%;
     height: calc(100vh - var(--sp-7));
     border-radius: var(--radius);
   }
-  .dk-palette-suchzeile {
+  .dk-app--handy .dk-palette-suchzeile {
     padding: 0 var(--sp-4);
     min-height: var(--control-h);
   }
-  .dk-palette-zeile {
+  .dk-app--handy .dk-palette-zeile {
     min-height: var(--control-h);
   }
-  .dk-palette-ort {
+  .dk-app--handy .dk-palette-ort {
     max-width: 45%;
   }
-  .dk-palette-fuss {
+  .dk-app--handy .dk-palette-fuss {
     padding: var(--sp-2) var(--sp-4);
     gap: var(--sp-3);
   }
-}
+
 
 /* Der grobe Zeiger bekommt die 44 px NICHT hier, sondern über den
    blockweiten `--control-h: 44px` in index.css (@media pointer: coarse) —

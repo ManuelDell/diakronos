@@ -18,7 +18,7 @@
       <span class="impersonation-timer">{{ remainingTime }}</span>
       <button class="impersonation-stop" @click="stopImpersonation">✕ Beenden</button>
     </div>
-    <div class="dk-app" :class="{ 'is-collapsed': sidebarCollapsed, 'has-impersonation-banner': impersonation.isActive.value, 'dk-app--vollbild': isVollbildMode }" :data-theme="theme">
+    <div class="dk-app" :class="{ 'is-collapsed': sidebarCollapsed, 'has-impersonation-banner': impersonation.isActive.value, 'dk-app--vollbild': isVollbildMode, [HANDY_KLASSE]: istHandyLage }" :data-theme="theme">
       <!-- OP-UI-11: Das Hauptmenü bleibt in JEDER Ansicht dasselbe. Vorher
            tauschte der Kalender (und die Moderation) die Hauptnavigation
            gegen eine eigene Leiste; „Zur Hauptnavigation“ warf den Nutzer
@@ -103,11 +103,14 @@
          der Nutzer berechtigt ist, aber noch keine Dev-Sitzung laeuft. -->
     <DevStart v-else-if="devmodusVerfuegbar" />
     <AppBottomNav v-if="!isVollbildMode" :seite="currentPageName" />
-    <!-- UX3e (Entwurf A9): Menü-Schublade — nur in der Mobil-Lage im DOM
-         (`istHandyLage`): am Desktop gibt es die Seitenleiste, ein zweiter
-         Navigationsweg im Tab-Ring wäre dort nur Ballast. -->
+    <!-- UX3e (Entwurf A9): Menü-Schublade — nur wenn es einen Menü-Knopf gibt,
+         der sie öffnet: in der LEISTEN-Lage (`istHandyLage`) oder wenn die
+         Seitenleiste eingeklappt ist (`sidebarCollapsed`, DEV-B6: schmale
+         Fenster 721–1100 px und die vom Nutzer eingeklappte Leiste). Sonst
+         wäre sie ein zweiter Navigationsweg im Tab-Ring ohne sichtbaren
+         Einstieg. -->
     <AppMenueSchublade
-      v-if="!isVollbildMode && istHandyLage"
+      v-if="!isVollbildMode && (istHandyLage || sidebarCollapsed)"
       :offen="menueOffen"
       :theme="theme"
       :seite="currentPageName"
@@ -146,8 +149,12 @@ import { devmodusAn, devmodusAutostart, devmodusPruefen } from './composables/us
 import { useSession } from './composables/useSession.js'
 // A10: Abzeichen der Seite an der App-Kopfzeile (am Handy neben dem Titel).
 import { rollenMarke } from './composables/useBereichskopf.js'
-// UX3e: EINE Breitengrenze der App (FIX-6) — die Schublade hängt am Mobil-Layout.
-import { MOBIL_GRENZE_PX } from './composables/eingabeart.mjs'
+// UX3e/DEV-B6: EINE Quelle der Handy-Lage (grob + schmal bzw. grobes
+// Querformat) — dieselbe, die das CSS-Gerüst über die Klasse `.dk-app--handy`
+// steuert. Vorher stand hier eine eigene Kopie der Zeichenkette.
+import {
+  HANDY_KLASSE, SEITENLEISTE_SCHMAL_ABFRAGE, useHandyLage,
+} from './composables/handyLage.mjs'
 // FIX-7: `useKronosSidebar`, `showToast` und `getMeinTermin` standen hier
 // ohne jeden Nutzen — die Kalender-Seitenleiste und die Detailansicht des
 // abgelehnten Termins liegen seit OP-UI-11 in `pages/Kalender.vue`.
@@ -180,22 +187,43 @@ const menueOffen = ref(false)
 function menueOeffnen() { menueOffen.value = true }
 
 /**
- * Ist die App in der MOBIL-Lage? Dieselbe Grenze wie das Layout in index.css
- * (`MOBIL_GRENZE_PX`, FIX-6: LAYOUT hängt nur an der BREITE). Sie entscheidet,
- * ob die Schublade überhaupt im DOM liegt — am Desktop übernimmt die
- * Seitenleiste. Beim Überqueren der Grenze wird der Zustand zurückgesetzt:
- * sonst bliebe die Schublade „offen“ gemerkt, während sie verschwindet.
+ * Ist die App in der LEISTEN-Lage (untere Handy-Navigation, Kopfzeilen-Knopf,
+ * Schublade im DOM)?
+ *
+ * DEV-B6 (Manuel 09.11., Befund DMB-3a7d335074cc; Review-Nacharbeit 10.11.):
+ * „Auf einem Laptop darf nie die Handyleiste kommen.“ EINE Quelle —
+ * `composables/handyLage.mjs`:
+ *
+ *   (pointer: coarse) and (max-width: 720px),
+ *   (pointer: coarse) and (max-height: 480px) and (orientation: landscape)
+ *
+ * Dieselbe Zeichenkette steht als Token `--layout-mobil` in `tokens.css`;
+ * das CSS-Gerüst hängt an der hieraus gesetzten Klasse `.dk-app--handy`
+ * (`HANDY_KLASSE` im Template), NICHT an einer zweiten Media-Regel.
+ * Ausdrücklich ändert das die Layout-Hälfte von FIX-6 („Zeiger ist nie
+ * Layout-Kriterium“) — Begründung im Kartenkommentar DEV-B6.
+ *
+ * Beim Verlassen der Lage wird die Schublade geschlossen: sonst bliebe sie
+ * „offen“ gemerkt, während es sie nicht mehr gibt.
  */
-const istHandyLage = ref(false)
-/* DIESELBEN Bedingungen wie der Menü-Knopf in index.css (`.dk-menue-knopf`):
-   Breite ≤ MOBIL_GRENZE_PX ODER flaches Querformat (Handy quer, 844×390 —
-   dort ist die Seitenleiste ausgeblendet, OP-HANDY-10). Ohne den zweiten
-   Teil zeigte das Querformat den Knopf, aber keine Schublade. */
-const HANDY_LAGE_ABFRAGE = `(max-width: ${MOBIL_GRENZE_PX}px), (max-height: 480px) and (orientation: landscape)`
-let lageAbfrage = null
-function lageNachziehen() {
-  istHandyLage.value = lageAbfrage ? lageAbfrage.matches : false
-  if (!istHandyLage.value) menueOffen.value = false
+const { istHandyLage } = useHandyLage()
+watch(istHandyLage, (an) => { if (!an) menueOffen.value = false })
+/**
+ * Schmale Fenster: Seitenleiste einklappen. Am Laptop (702 px, Befund) fraß
+ * die offene Leiste 256 von 702 px — die Inhaltsfläche war schmaler als am
+ * Handy. Eingeklappt bleibt die Navigation über den Menü-Knopf oben links
+ * erreichbar (index.css, `.is-collapsed .dk-menue-knopf`).
+ *
+ * DEV-B6/Review-Punkt 6: Das Einklappen ist die VORGABE je Breitenlage
+ * (≤ 1100 px) und wird beim Wechsel der Lage nachgezogen — eine bewusste
+ * Wahl des Nutzers überlebt, solange die Lage dieselbe bleibt.
+ * `watch(isKronosMode)` klappt die Leiste NICHT mehr auf (das lief gegen
+ * diese Vorgabe und öffnete beim Wechsel in den Kalender 256 px).
+ */
+let flachAbfrage = null
+function breiteNachziehen() {
+  if (!flachAbfrage) return
+  sidebarCollapsed.value = flachAbfrage.matches
 }
 /**
  * UX3f: Griff auf die Befehlspalette. Der Klick auf das Suchfeld der Kopfzeile
@@ -222,6 +250,20 @@ const theme = ref(startTheme({ speicher: window.localStorage, system: systemThem
 watch(theme, (wert) => {
   document.documentElement.setAttribute('data-theme', wert)
 }, { immediate: true })
+
+/**
+ * DEV-B6 (Review-Nacharbeit 10.11.): Die Handy-Lage zusätzlich an den
+ * <body> — Leiste, Schublade, Befehlspalette und Meldungen werden NEBEN
+ * `.dk-app` gerendert (Geschwister im Wurzelknoten), nicht darin. Im
+ * Wegwerf-Stack gemessen: `nav.dk-bottom-nav` hing direkt an <body>, ein
+ * Nachfahren-Wähler `.dk-app--handy …` konnte es nie erreichen — die Leiste
+ * blieb auch am Touchgerät aus. Die Klasse steht deshalb an BEIDEN Stellen;
+ * die Regeln bleiben unverändert (`.dk-app--handy …`).
+ */
+watch(istHandyLage, (an) => {
+  if (typeof document === 'undefined' || !document.body) return
+  document.body.classList.toggle(HANDY_KLASSE, an === true)
+}, { immediate: true })
 // UX3a: „Zu prüfen“ ist der vierte Reiter des Kalenders — beide Adressen
 // zählen zum Kalender-Layout; die alte Adresse bleibt gültig (Weiterleitung).
 const isKronosMode = computed(() => currentHash.value.startsWith('#/kalender'))
@@ -241,10 +283,6 @@ const isVollbildMode = computed(() => currentHash.value === '#/einrichtung')
 const impersonation = useImpersonation()
 const now = ref(Date.now())
 
-watch(isKronosMode, (val) => {
-  if (val) sidebarCollapsed.value = false
-})
-
 const remainingTime = computed(() => {
   if (!impersonation.expiresAt.value) return ''
   const ms = impersonation.expiresAt.value - now.value
@@ -263,27 +301,27 @@ onMounted(() => {
   // DM1: Dev-Modus-Zustand vom Server holen (bei Bedarf automatisch starten).
   devmodusBeimStart()
   window.addEventListener('dk-devmodus-start', devmodusPruefen)
-  // UX3e: Mobillage beobachten (Schublade nur dort im DOM).
+  // UX3e/DEV-B6: Schmale Fenster klappen die Seitenleiste ein. Die
+  // LEISTEN-Lage beobachtet `useHandyLage()` selbst (matchMedia + resize).
   if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-    lageAbfrage = window.matchMedia(HANDY_LAGE_ABFRAGE)
-    lageNachziehen()
-    if (typeof lageAbfrage.addEventListener === 'function') {
-      lageAbfrage.addEventListener('change', lageNachziehen)
-    } else if (typeof lageAbfrage.addListener === 'function') {
+    flachAbfrage = window.matchMedia(SEITENLEISTE_SCHMAL_ABFRAGE)
+    breiteNachziehen()
+    if (typeof flachAbfrage.addEventListener === 'function') {
+      flachAbfrage.addEventListener('change', breiteNachziehen)
+    } else if (typeof flachAbfrage.addListener === 'function') {
       // Safari < 14 kennt nur addListener — sonst bliebe die Lage stehen.
-      lageAbfrage.addListener(lageNachziehen)
+      flachAbfrage.addListener(breiteNachziehen)
     }
   }
 })
 onUnmounted(() => {
   clearInterval(timer)
   window.removeEventListener('dk-devmodus-start', devmodusPruefen)
-  if (lageAbfrage) {
-    if (typeof lageAbfrage.removeEventListener === 'function') {
-      lageAbfrage.removeEventListener('change', lageNachziehen)
-    } else if (typeof lageAbfrage.removeListener === 'function') {
-      lageAbfrage.removeListener(lageNachziehen)
-    }
+  if (!flachAbfrage) return
+  if (typeof flachAbfrage.removeEventListener === 'function') {
+    flachAbfrage.removeEventListener('change', breiteNachziehen)
+  } else if (typeof flachAbfrage.removeListener === 'function') {
+    flachAbfrage.removeListener(breiteNachziehen)
   }
 })
 

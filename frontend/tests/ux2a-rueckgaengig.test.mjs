@@ -498,7 +498,10 @@ test('C1 Aussehen: Meldung dunkel mit Gold-Aktion, keine Rohfarben (tokens.css)'
     'genau ein Grob-Zeiger-Block (p3-4c)',
   )
   // Die Meldungsfläche selbst: am Handy volle Breite, Rückgängig unten links.
-  assert.match(block, /@media \(max-width: 720px\)[\s\S]*?\.diakonos-toast-container--undo/)
+  // DEV-B6 (Review-Nacharbeit 10.11.): „Handy“ ist die Handy-Lage-Klasse
+  // (`.dk-app--handy`, Quelle `composables/handyLage.mjs`), nicht die nackte
+  // Breite — ein 702-px-Mausfenster behält die Desktop-Meldung.
+  assert.match(block, /\.dk-app--handy \.diakonos-toast-container--undo/)
   // Am Desktop liegt sie IM Inhaltsbereich (hinter der Seitenleiste), nicht
   // auf der dunklen Seitenleiste — sonst dunkle Fläche auf dunklem Grund.
   const undoRegel = block.slice(

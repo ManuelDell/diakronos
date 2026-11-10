@@ -27,6 +27,7 @@
  */
 
 import { MOBIL_GRENZE_PX } from './eingabeart.mjs'
+import { HANDY_LAGE_ABFRAGE } from './handyLageAbfrage.mjs'
 
 /** Präfix aller Hinweis-Schlüssel dieser Karte. */
 export const HANDY_HINWEIS_PRAEFIX = 'pr-handy-hinweis:'
@@ -68,6 +69,78 @@ export function istSchmal(breite) {
     const n = Number(breite)
     if (!Number.isFinite(n) || n <= 0) return false
     return n <= HANDY_HINWEIS_PX
+}
+
+/**
+ * Sehr schmale Fenster: dort ist das Planraster auch mit Maus nicht sinnvoll
+ * bearbeitbar — dieselbe Zahl wie die enge Kalender-Lage (`KALENDER_ENGE_PX`,
+ * A10/`components/kronos/breiten.mjs`). DW: kein zweiter Literal-Ort, sondern
+ * dieselbe benannte Grenze (`KALENDER_ENGE_PX` = 430 px).
+ */
+export const SEHR_SCHMAL_PX = 430
+
+/**
+ * DEV-B6 (Manuel 09.11.): Ist die HANDY-Lage aktiv (Hinweis „am besten am
+ * Desktop bearbeiten“ sinnvoll)?
+ *
+ * Bis hierher entschied nur die Breite — ein Laptop mit 702 px bekam den
+ * Hinweis, obwohl er gar kein Handy ist (Befund DMB-3a7d335074cc). Jetzt
+ * dieselbe Bedingung wie das Handy-Gerüst (`--layout-mobil`, tokens.css):
+ * grober Zeiger UND schmal, oder flaches Querformat. Dazu die sehr schmalen
+ * Fenster (<= 430 px, `KALENDER_ENGE_PX` — dort ist das Planraster auch mit
+ * Maus nicht sinnvoll bedienbar).
+ *
+ * Der Zeiger wird hereingereicht (`grob`), damit diese Funktion ohne Browser
+ * prüfbar bleibt (kein `matchMedia` hier).
+ *
+ * @param {number} breite Fensterbreite in CSS-Pixeln
+ * @param {{grob?: boolean, hoehe?: number}} lage primärer Zeiger grob?, Fensterhöhe
+ */
+export function istHandyHinweisLage(breite, { grob = false, hoehe = 0, handyLage = null } = {}) {
+    const n = Number(breite)
+    if (!Number.isFinite(n) || n <= 0) return false
+    // DEV-B6 (Review-Nacharbeit 10.11.): Liegt die Handy-Lage bereits vor
+    // (aus `HANDY_LAGE_ABFRAGE`, EINE Quelle), entscheidet SIE — ein flaches
+    // Maus-Fenster (1280×450) bekommt den Hinweis dann nicht mehr.
+    if (typeof handyLage === 'boolean') {
+        if (handyLage) return true
+        return n <= SEHR_SCHMAL_PX
+    }
+    const h = Number(hoehe)
+    if (grob && istSchmal(n)) return true
+    if (grob && Number.isFinite(h) && h > 0 && h <= 480) return true
+    return n <= SEHR_SCHMAL_PX
+}
+
+/**
+ * Liest die Lage im Browser (matchMedia prüft den PRIMÄREN Zeiger).
+ * Ohne Browser/matchMedia (Node, jsdom) gilt die reine Breite — best effort,
+ * damit der Hinweis in Tests und ohne Zeigerauskunft nicht verschwindet.
+ *
+ * @param {{breite?: number, hoehe?: number, matchMedia?: Function}} [umgebung]
+ */
+export function handyHinweisLage(umgebung = {}) {
+    const fenster = umgebung.fenster || (typeof window !== 'undefined' ? window : null)
+    const mq = umgebung.matchMedia || (fenster && typeof fenster.matchMedia === 'function'
+        ? fenster.matchMedia.bind(fenster) : null)
+    if (!mq) return { grob: false, breite: Number(fenster?.innerWidth) || 0, hoehe: Number(fenster?.innerHeight) || 0 }
+    const lesen = (abfrage) => {
+        try {
+            const treffer = mq(abfrage)
+            return !!(treffer && treffer.matches)
+        } catch {
+            return false
+        }
+    }
+    return {
+        grob: lesen('(pointer: coarse)'),
+        breite: Number(fenster?.innerWidth) || 0,
+        hoehe: Number(fenster?.innerHeight) || 0,
+        // DEV-B6 (Review-Nacharbeit 10.11.): DIESELBE Abfrage wie App/CSS
+        // (`HANDY_LAGE_ABFRAGE`, composables/handyLage.mjs) — die Seiten
+        // lesen sie über `istHandyLage` in `handyHinweisLage` mit.
+        handyLage: lesen(HANDY_LAGE_ABFRAGE),
+    }
 }
 
 /**

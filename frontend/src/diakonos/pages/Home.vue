@@ -201,13 +201,14 @@ async function resetLayout() {
 .hm-skelett-mittel { width: 60%; }
 
 /* FIX-6: Der Bearbeiten-Knopf der Startseite wird in der Mobil-Lage zur
-   breiten Leiste unter den Kacheln — LAYOUT, also nur die Breite
-   (index.css «FIX-6 · Layout nur nach Breite», composables/eingabeart.mjs
-   `istMobilLayout`). Vorher stand hier `(hover: none) and (pointer: coarse)`:
-   ein Touch-Notebook mit 1410 px bekam die mobile Leiste, obwohl Maus und
-   Platz vorhanden sind. */
-@media (max-width: 720px) {
-  .dk-widget-edit-fab {
+   breiten Leiste unter den Kacheln — Gerüst, nicht Inhaltsumbruch.
+   DEV-B6 (Manuel 09.11.; Review-Nacharbeit 10.11.): Die Mobil-Lage ist seit
+   „auf einem Laptop darf nie die Handyleiste kommen“ die KLASSE
+   `.dk-app--handy` (Quelle `composables/handyLage.mjs`: grober Zeiger UND
+   Breite, bzw. grober Zeiger und flaches Querformat). Ein Maus-Laptop mit
+   702 px behält den schwebenden FAB. Vorher stand hier `(hover: none) and
+   (pointer: coarse)`, dann nur die Breite (FIX-6). */
+  .dk-app--handy .dk-widget-edit-fab {
     position: static !important;
     bottom: auto !important;
     right: auto !important;
@@ -222,7 +223,7 @@ async function resetLayout() {
     color: var(--dk-text-muted) !important;
     padding: 10px 16px !important;
     font-size: var(--fs-14) !important;
-    gap: 6px;
-  }
+  gap: 6px;
 }
+
 </style>

@@ -21,6 +21,18 @@
  *   Nie Kriterium: die bloße Touch-Fähigkeit (`any-pointer`, maxTouchPoints,
  *   ontouchstart) — und auch nicht `any-pointer: fine`.
  *
+ * DEV-B6 (Manuel 09.11., Befund DMB-3a7d335074cc): Der LAYOUT-Satz oben ist
+ * AUSDRÜCKLICH GEÄNDERT — „Auf einem Laptop darf nie die Handyleiste kommen.“
+ * Gerüst-Stellen hängen jetzt am Token `--layout-mobil` (tokens.css):
+ *
+ *   (pointer: coarse) and (max-width: 720px),
+ *   (max-height: 480px) and (orientation: landscape)
+ *
+ * Breiten-Regeln bleiben nur dort, wo sie dieselbe Ansicht verdichten statt
+ * ein anderes Gerüst zu bauen (Kachel-Raster, Monatszeile, Monatstitel) —
+ * siehe `INHALT_STELLEN`. Der Test wurde angepasst, nicht gelöscht
+ * (Regel 19); die Begründung steht im Kartenkommentar DEV-B6.
+ *
  * FIX-6c: Die Logiktests für `istMobilLayout` / `istTouch` / `lageImBrowser`
  * sind entfallen — diese Helfer waren toter Code (keine Komponente nutzte
  * sie) und sind entfernt; `tests/fix6c-toter-code.test.mjs` wacht darüber.
@@ -55,6 +67,14 @@ const lies = (p) => readFileSync(new URL(p, WURZEL), 'utf8')
 /** Erwartete CSS-Fassungen. */
 const LAYOUT_CSS = '(max-width: 720px)'
 const TOUCH_CSS = '(pointer: coarse)'
+// DEV-B6: Handy-GERÜST hängt an der Handy-Lage aus `--layout-mobil`
+// (tokens.css, maschinenlesbare Quelle), und zwar als KLASSE
+// `.dk-app--handy`, die `App.vue` aus `composables/handyLage.mjs` setzt
+// (Review-Nacharbeit 10.11., Punkt 3: „Gerüst-CSS hängt an der Klasse statt
+// an ~12 kopierten Media-Strings“). Die GERÜST-Prüfung unten sucht deshalb
+// den Klassenselektor; den Token/Zeichenketten-Abgleich prüft
+// `tests/dev-b6-*.test.mjs`.
+const LAYOUT_TOKEN = '.dk-app--handy'
 
 /** Kommentare entfernen, damit Kommentartext nicht als Regel zählt. */
 function ohneKommentare(text) {
@@ -142,32 +162,91 @@ function quellen(suffixe = ['.vue', '.css', '.mjs']) {
     return gefunden
 }
 
+/**
+ * Gerüst-Stellen mit eigener Ansicht: sie hängen seit DEV-B6 am Token
+ * `--layout-mobil` (Handy-Gerüst nur bei grobem Zeiger und Breite) — nie an
+ * einer nackten Breite.
+ */
 const LAYOUT_STELLEN = [
     ['index.css', '.dk-app', null, 'App-Gerüst (einspaltig)'],
     ['index.css', '.dk-sidebar', null, 'Seitenleiste'],
-    ['index.css', '.dk-grid-cols-2', null, 'Kachel-Raster'],
-    ['index.css', '.dk-widget-large', null, 'Widget-Raster'],
+    ['index.css', '.dk-content', 'padding', 'Fußabstand des Inhalts'],
     ['pages/Home.vue', '.dk-widget-edit-fab', null, 'Bearbeiten-FAB der Startseite'],
     ['pages/Kalender.vue', '.kronos-page-content', 'padding-bottom', 'Fußabstand der Kalenderseite'],
-    ['pages/planrahmen/MeineDienste.vue', '.pr-md-monat-zeile', null, 'Umbruch der Monatszeile'],
-    // UX3i: Der Kalender hat EINE Kopfzeile; am Handy stehen die Werkzeuge in
-    // einer eigenen Zeile (`flex: 0 0 100%`) und der Monatstitel steht im
-    // Kartenkopf (`.kal-karte-titel`). Diese Stellen halten an der BREITE.
     ['components/kronos/KronosTopbar.vue', '.header-right', null, 'Werkzeugzeile der Kalender-Kopfzeile'],
-    ['pages/Kalender.vue', '.kal-karte-titel', null, 'Monatstitel im Kartenkopf'],
     ['components/AppBottomNav.vue', '.dk-bottom-nav', null, 'untere Leiste'],
+    // DEV-B6: Selektor mit zwei Klassen — sonst verliert die Grundregel
+    // `display: none` gegen die eigene `display: inline-flex` des DkButton.
+    ['index.css', '.dk-topbar-symbol.dk-menue-knopf', null, 'Menü-Knopf im schmalen Fenster'],
+    ['pages/Kalender.vue', '.kal-karte-titel', null, 'Monatstitel im Kartenkopf (mit der Karte)'],
 ]
 
-test('FIX-6: Layout-Stellen hängen an der Breite (720 px), nicht am Zeiger', () => {
+/**
+ * INHALTS-Stellen: dieselbe Ansicht wird nur dichter (mehr/weniger Spalten,
+ * kürzere Beschriftung) — kein anderes Gerüst. Sie bleiben Breiten-Regeln,
+ * damit ein 702-px-Mausfenster eine sinnvolle Anordnung behält (DEV-B6).
+ */
+const INHALT_STELLEN = [
+    ['pages/planrahmen/MeineDienste.vue', '.pr-md-monat-zeile', 'Umbruch der Monatszeile'],
+]
+// DEV-B6b (Review-Nacharbeit 10.11., Punkt 4): `.dk-grid-cols-*` und
+// `.dk-widget-*` (und `.dk-stats-row`/`.dk-quick-row`, Toast-Position) sind
+// wieder INHALTS-Stellen: ein Einspalten-Umbruch ist Dichte, kein Gerüst.
+// Der Laptop bekommt keine untere Leiste (das ist das Gerüst), aber bei
+// 400 px Breite passen zwei Spalten schlicht nicht mehr nebeneinander. Sie
+// stehen deshalb wieder in DIESER Liste und hängen an der BREITE (≤ 720 px).
+// (`.kal-karte-titel` steht seit DEV-B6 bei den GERÜST-Stellen: der Kartenkopf
+// verschwindet mit der Karte — das ist der leistenlose Rahmen, nicht Dichte.)
+
+test('FIX-6/DEV-B6: Gerüst-Stellen hängen an der Handy-Lage (Klasse), nicht an der nackten Breite', () => {
+    // DEV-B6 (Review-Nacharbeit 10.11.): Das Gerüst steht NICHT mehr in
+    // kopierten `@media`-Blöcken, sondern in Regeln mit der Handy-Lage-Klasse
+    // `:global(.dk-app--handy) …` (Quelle: `composables/handyLage.mjs`).
+    // Geprüft wird deshalb: (a) keine Gerüst-Stelle hängt an einer
+    // Media-Breiten-Bedingung, (b) der Klassenselektor steht im Quelltext.
     for (const [pfad, selektor, deklaration, was] of LAYOUT_STELLEN) {
+        const text = ohneKommentare(stilTeil(lies(pfad)))
+        const kurz = selektor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        // (a) KEINE Gerüst-Regel dieses Selektors in einer Media-Breite
+        for (const r of regelnZu(lies(pfad), selektor)) {
+            assert.ok(!/max-width|max-height|pointer|hover/.test(r.bedingung || ''),
+                `${pfad}/${selektor} (${was}): Gerüst an "${r.bedingung}" — `
+                + 'das Gerüst gehört ausschließlich an die Handy-Lage-Klasse (DEV-B6: nie am Laptop)')
+        }
+        // (b) Der Selektor steht an der Klasse — in `.css` und in den
+        // Scoped-Komponenten identisch (`:global` fiel im Vue-Bündel heraus,
+        // im Wegwerf-Stack gemessen; die Hüllenklasse ist ein Vorfahre, der
+        // Scope-Anhang landet am letzten Selektor im eigenen Markup).
+        const praefix = '\\.dk-app--handy'
+        const anKlasse = new RegExp(`${praefix}[^{}]*${kurz}`)
+        assert.match(text, anKlasse,
+            `${pfad}: ${selektor} (${was}) hängt nicht an der Handy-Lage-Klasse`)
+        if (deklaration) {
+            const bloecke = text.match(new RegExp(`${praefix}[^{}]*\\{[\\s\\S]*?\\}`, 'g')) || []
+            assert.ok(bloecke.some((b) => b.includes(deklaration)),
+                `${pfad}: ${selektor} (${was}) — Deklaration "${deklaration}" fehlt im Klassen-Block`)
+        }
+    }
+})
+
+test('FIX-6/DEV-B6: Inhalts-Stellen bleiben an der Breite', () => {
+    // DEV-B6: Reine Verdichtung derselben Ansicht (Kachel-Raster,
+    // Monatszeile) ist KEIN Gerüst — nur dort darf weiter eine Breite
+    // entscheiden. `.dk-grid-cols-*` und `.dk-widget-*` sind seit der
+    // Nacharbeit Teile des Gerüsts (die App wird in der Handy-Lage
+    // einspaltig) und stehen deshalb NICHT mehr in dieser Liste.
+    for (const [pfad, selektor, was] of INHALT_STELLEN) {
         const treffer = regelnZu(lies(pfad), selektor)
-            .filter((r) => !deklaration || (r.rumpf || '').includes(deklaration))
         assert.ok(treffer.length > 0, `${pfad}: ${selektor} (${was}) steht in keiner @media-Regel`)
-        assert.ok(treffer.some((r) => r.bedingung === LAYOUT_CSS),
-            `${pfad}/${selektor} (${was}): erwartet "${LAYOUT_CSS}" (gefunden: ${treffer.map((r) => r.bedingung).join(' | ')})`)
+        // DEV-B6b: Inhalts-Stellen hängen an der BREITE (≤ 720 px, ohne
+        // Zeiger-Teil) — dieselbe Grenze wie das Gerüst, aber ohne Zeiger.
+        const engOderLayout = (b) => b === LAYOUT_CSS || /max-width:\s*720px/.test(b || '')
+        assert.ok(treffer.some((r) => engOderLayout(r.bedingung)),
+            `${pfad}/${selektor} (${was}): erwartet "${LAYOUT_CSS}" oder "(max-width: 720px)" `
+            + `(gefunden: ${treffer.map((r) => r.bedingung).join(' | ')})`)
         for (const r of treffer) {
             assert.ok(!/pointer|hover|maxTouchPoints/.test(r.bedingung),
-                `${pfad}/${selektor} (${was}): Layout-Regel "${r.bedingung}" prüft noch das Zeigegerät`)
+                `${pfad}/${selektor} (${was}): Inhalts-Regel "${r.bedingung}" prüft das Zeigegerät`)
         }
     }
 })
@@ -268,11 +347,17 @@ test('FIX-6: KronosTopbar blendet den Seitenleisten-Knopf nicht doppelt', () => 
     // Vorfahr im SELBEN Element). Zwei Grenzen (720 und 768; seit UX3i EINE:
     // 720) waren zusätzlich
     // der Fehler, den dieser Test verhindern soll — jetzt gibt es EINE.
+    // DEV-B6 (Nacharbeit 10.11.): Der Umschalter hing an einer nackten
+    // Breiten-Regel; er hängt jetzt an der Handy-Lage (Klasse) UND ist in der
+    // Vorlage abgeschaltet (`v-if="zeigeListenUmschalter"`, Standard false) —
+    // sonst gäbe es neben dem Menü-Knopf einen zweiten Navigationseinstieg.
     const tief = ohneKommentare(lies('components/kronos/KronosTopbar.vue'))
-    assert.ok(!tief.includes('.sidebar-toggle-btn { display: inline-flex; }\n\n'),
-        'KronosTopbar: unerwartete Leerzeile im Umschalter-Block')
-    assert.ok(/@media \(max-width: 720px\)[\s\S]*?\.sidebar-toggle-btn \{ display: inline-flex; \}/.test(tief),
-        'KronosTopbar: Breiten-Regel (720 px) für den Seitenleisten-Knopf fehlt')
+    assert.match(tief, /.dk-app--handy \.sidebar-toggle-btn \{ display: inline-flex; \}/,
+        'KronosTopbar: Sichtbarkeit des Seitenleisten-Knopfs hängt an der Handy-Lage')
+    assert.ok(!/@media \(max-width: 720px\)[\s\S]{0,200}\.sidebar-toggle-btn \{ display: inline-flex; \}/.test(tief),
+        'KronosTopbar: KEINE zweite Breiten-Regel für den Seitenleisten-Knopf')
+    assert.match(tief, /v-if="zeigeListenUmschalter"/,
+        'KronosTopbar: Listen-Umschalter ist abschaltbar (genau EIN Navigationseinstieg)')
     const css = ohneKommentare(lies('index.css'))
     assert.ok(!css.includes('.kronos-header .sidebar-toggle-btn'),
         'index.css: die tote Regel `.kronos-header .sidebar-toggle-btn` ist wieder da — '
@@ -281,8 +366,23 @@ test('FIX-6: KronosTopbar blendet den Seitenleisten-Knopf nicht doppelt', () => 
 
 test('FIX-6: index.css trennt Layout- und Touch-Block', () => {
     const bedingungen = mediaBedingungen(lies('index.css'))
-    assert.ok(bedingungen.includes(LAYOUT_CSS), 'index.css: Layout-Block (720 px) fehlt')
     assert.ok(bedingungen.includes(TOUCH_CSS), 'index.css: Touch-Block (pointer: coarse) fehlt')
+    // DEV-B6 (Nacharbeit 10.11.): Das Gerüst steht NICHT mehr als eigener
+    // `@media`-Block, sondern als Klassen-Regel (`:global(.dk-app--handy) …`,
+    // eine Quelle mit dem Skript). Der Test prüft deshalb: die Klasse ist da,
+    // und KEIN Gerüst-@media existiert mehr (keine zweite Entscheidung).
+    const text = ohneKommentare(lies('index.css'))
+    assert.ok(text.includes(LAYOUT_TOKEN), 'index.css: Handy-Lage-Klasse fehlt')
+    for (const g of ['.dk-app', '.dk-sidebar']) {
+        const kurz = g.replace('.', '\\.')
+        const imMedia = text.match(new RegExp(`@media[^{]*\\{[^{}]*${kurz}\\s*\\{[^}]*\\}`, 'g')) || []
+        const geruest = imMedia.filter((b) => /max-width|max-height|pointer/.test(b.split('{')[0]))
+        assert.equal(geruest.length, 0,
+            `index.css: ${g} steht noch in einer Gerüst-@media-Regel: ${geruest.join(' | ')}`)
+    }
+    // Ein nackter 720-px-Block bleibt nur für Inhalts-Stellen derselben
+    // Ansicht — die prüft der Test oben.
+    assert.ok(bedingungen.includes(LAYOUT_CSS), 'index.css: Inhalts-Block (720 px) fehlt')
 })
 
 // ── UX1c: der Zeiger-Block steht (genau einmal) am Dateiende ───────────────

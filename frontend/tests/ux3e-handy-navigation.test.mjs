@@ -299,17 +299,31 @@ test('UX3e · der Menü-Knopf steht links in der Kopfzeile und meldet seinen Zus
 
 test('UX3e · Menü-Knopf sichtbar in der Mobil-Lage, versteckt am Desktop', () => {
   const css = ohneKommentare(INDEX_CSS)
-  const grund = /\.dk-menue-knopf\s*\{([^}]*)\}/.exec(css)
+  // Nur die Regel am SELEKTORANFANG (`.dk-menue-knopf {`), nicht
+  // `.dk-topbar-symbol.dk-menue-knopf` im Template — und mehrzeilig, denn
+  // DEV-B6 schreibt eine Deklaration je Zeile.
+  const grund = /(?:^|\})\s*\.dk-topbar-symbol\.dk-menue-knopf\s*\{([^}]*?)\}/.exec(css)
   assert.ok(grund, 'Regel .dk-menue-knopf in index.css')
   assert.match(grund[1], /display:\s*none/, 'am Desktop ausgeblendet (dort führt die Seitenleiste)')
-  // DIESELBEN Bedingungen wie das Mobil-Layout (Breite bzw. flaches Querformat).
-  assert.match(css, /@media \(max-width: 720px\) \{[^}]*\.dk-menue-knopf\s*\{\s*display:\s*flex/,
-    'in der Mobil-Lage sichtbar (Breite)')
-  assert.match(css, /@media \(max-height: 480px\) and \(orientation: landscape\) \{[^}]*\.dk-menue-knopf\s*\{\s*display:\s*flex/,
-    'im flachen Querformat sichtbar (Seitenleiste ist dort ausgeblendet)')
-  const masse = /\.dk-menue-knopf\s*\{([^}]*)\}/.exec(css)[1]
-  assert.match(masse, /width:\s*44px/, 'Trefferfläche 44 px')
-  assert.match(masse, /height:\s*44px/)
+  // DEV-B6 (Manuel 09.11.; Nacharbeit 10.11.): DIESELBE Bedingung wie das
+  // Handy-Gerüst — jetzt als KLASSE `.dk-app--handy` (Quelle
+  // `composables/handyLage.mjs`, identisch mit Token `--layout-mobil`). Es
+  // gibt damit keinen eigenen 720-px-/Querformat-Block für den Knopf mehr.
+  assert.match(css, /\.dk-app--handy \.dk-topbar-symbol\.dk-menue-knopf\s*\{\s*display:\s*inline-flex/,
+    'in der Handy-Lage sichtbar (Klasse aus useHandyLage)')
+  // Bei eingeklappter Seitenleiste ist der Knopf der EINZIGE Weg zur
+  // Navigation — dort erscheint er unabhängig von der Breite.
+  assert.match(css, /\.dk-app\.is-collapsed \.dk-topbar-symbol\.dk-menue-knopf\s*\{\s*display:\s*inline-flex/,
+    'bei eingeklappter Seitenleiste sichtbar (DEV-B6)')
+  // Trefferfläche aus dem Token (UX1c: kein Literal in der Komponente):
+  // 40 px am Maus-Laptop, 44 px am Touchgerät (tokens.css).
+  const masse = grund[1]
+  assert.match(masse, /width:\s*var\(--dk-menue-knopf-h\)/, 'Breite aus dem Token')
+  assert.match(masse, /height:\s*var\(--dk-menue-knopf-h\)/, 'Höhe aus dem Token')
+  const tokens = readFileSync(new URL('../src/diakonos/tokens.css', import.meta.url), 'utf8')
+  assert.match(tokens, /--dk-menue-knopf-h:\s*var\(--control-h\)/, 'Maus: Knopfmaß 40 px')
+  assert.match(tokens.slice(tokens.indexOf('@media (pointer: coarse)')), /--dk-menue-knopf-h:\s*44px/,
+    'Touch: Trefferfläche 44 px')
 })
 
 test('UX3e · App.vue verdrahtet Knopf, Leiste und Schublade', () => {
@@ -322,15 +336,22 @@ test('UX3e · App.vue verdrahtet Knopf, Leiste und Schublade', () => {
   assert.match(t, /@schliessen="menueOffen = false"/, 'Schließen setzt den Zustand zurück')
   assert.match(t, /<AppBottomNav[^>]*:seite="currentPageName"/,
     'Leiste markiert nach der Route')
-  // Die Schublade liegt nur in der Mobil-Lage im DOM.
-  assert.match(t, /<AppMenueSchublade[\s\S]{0,120}v-if="!isVollbildMode && istHandyLage"/,
-    'Desktop behält die Seitenleiste (kein zweiter Navigationsweg)')
-  // Mobil-Lage = DIESELBEN Bedingungen wie der Menü-Knopf in index.css:
-  // Breite (eine Grenze, FIX-6) ODER flaches Querformat (Handy quer).
-  assert.match(s, /const HANDY_LAGE_ABFRAGE = `\(max-width: \$\{MOBIL_GRENZE_PX\}px\), \(max-height: 480px\) and \(orientation: landscape\)`/,
-    'Breite oder flaches Querformat')
-  assert.match(s, /lageAbfrage = window\.matchMedia\(HANDY_LAGE_ABFRAGE\)/, 'Abfrage wird verwendet')
-  assert.match(s, /removeEventListener\('change', lageNachziehen\)/, 'Listener wird beim Abbau entfernt')
+  // Die Schublade liegt nur dort im DOM, wo ein Menü-Knopf sie öffnet — in
+  // der Handy-Lage oder bei eingeklappter Seitenleiste (DEV-B6). Sonst stünde
+  // ein zweiter Navigationsweg ohne sichtbaren Einstieg im Tab-Ring.
+  assert.match(t, /<AppMenueSchublade[\s\S]{0,160}v-if="!isVollbildMode && \(istHandyLage \|\| sidebarCollapsed\)"/,
+    'Schublade nur bei sichtbarem Menü-Knopf')
+  // Handy-Lage = DIESELBEN Bedingungen wie das Token `--layout-mobil` in
+  // tokens.css (DEV-B6; Nacharbeit 10.11.): grober Zeiger UND 720 px, ODER
+  // grober Zeiger und flaches Querformat. Die Zeichenkette steht jetzt EINMAL
+  // im Composable (`composables/handyLage.mjs`), App.vue importiert sie.
+  assert.match(s, /HANDY_KLASSE, SEITENLEISTE_SCHMAL_ABFRAGE, useHandyLage,/,
+    'App.vue nutzt die eine Handy-Lage-Quelle')
+  assert.match(s, /const \{ istHandyLage \} = useHandyLage\(\)/, 'Lage aus dem Composable')
+  assert.ok(!/const HANDY_LAGE_ABFRAGE/.test(s), 'keine zweite Kopie der Zeichenkette in App.vue')
+  // Der Abbau meldet die Breiten-Abfrage ab (die Lage meldet sich selbst ab).
+  assert.match(s, /flachAbfrage = window\.matchMedia\(SEITENLEISTE_SCHMAL_ABFRAGE\)/, 'Breiten-Abfrage wird verwendet')
+  assert.match(s, /removeEventListener\('change', breiteNachziehen\)/, 'Listener wird beim Abbau entfernt')
   // Der entfallene „Mehr“-Knopf hinterlässt keinen toten Empfänger.
   assert.ok(!/open-admin-dialog/.test(t), 'kein toter Empfänger in der Vorlage')
 })

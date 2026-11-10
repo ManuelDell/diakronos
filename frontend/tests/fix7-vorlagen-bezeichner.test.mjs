@@ -162,7 +162,11 @@ test('FIX-7 · Kalenderliste ist auf dem Desktop erreichbar (gemessener Befund)'
   // Leiste gehoert zum Handy-Betrieb und zu „Hilfe & Infos“. Die Seite
   // schliesst sie beim Betreten ausdruecklich und oeffnet sie weiterhin fuer
   // den eigenen abgelehnten Termin (Sicherung unten).
-  assert.match(kalender, /onMounted\(\(\) => \{ if \(window\.matchMedia\('\(min-width: 721px\)'\)\.matches\) kronosSidebar\.zu\(\) \}\)/, 'am Desktop bleibt die Liste zu (Auswahl im Popover)')
+  // DEV-B6 (Nacharbeit 10.11.): „Desktop“ heißt jetzt die Handy-Lage der App
+  // (`useHandyLage()`), nicht mehr die nackte 721-px-Breite — ein 702-px-Laptop
+  // mit Maus ist Desktop und die Liste bleibt dort zu (Auswahl im Popover).
+  assert.match(kalender, /onMounted\(\(\) => \{ if \(!istHandyLage\.value\) kronosSidebar\.zu\(\) \}\)/,
+    'am Desktop bleibt die Liste zu (Auswahl im Popover)')
   assert.match(kalender, /hilfeOeffnen/, '„Hilfe & Infos“ erreicht die Erklaerung der Leiste')
   // UX3i (Review 07.11.): Die eigenen abgelehnten Termine sind am Desktop
   // über das ⋯-Menü erreichbar; die Sicherung über die Leiste ist entfallen

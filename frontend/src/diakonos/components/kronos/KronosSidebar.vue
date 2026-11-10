@@ -437,26 +437,32 @@ onMounted(async () => {
 .sidebar-ablehnung-titel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar-ablehnung-zeit { color: var(--dk-sb-text-muted); font-size: var(--fs-12); flex: none; }
 
-/* UXK-R9: Schliessen-Knopf nur im mobilen Overlay zeigen. */
+/* UXK-R9: Schliessen-Knopf. Am HANDY ist die Liste ein Overlay und braucht den
+   Knopf — auf dem Desktop steht er NICHT (die Spalte schließt über den
+   Umschalter der Kopfzeile).
+   DEV-B6 (Review-Nacharbeit 10.11.): Das Overlay gibt es nur in der
+   Handy-Lage — KLASSE `.dk-app--handy` (Quelle `composables/handyLage.mjs`),
+   kein eigener Media-String mehr.
+   DEV-B6b (Review 10.11., Punkt 2): Die beiden Regeln waren VERTAUSCHT — die
+   Grundregel trug den Handy-Präfix (Knopf am Desktop sichtbar, im Overlay
+   weg). Jetzt: Grund = aus, `.dk-app--handy` = an. */
 .kronos-sidebar-close { display: none; }
-@media (max-width: 720px) {
-  .kronos-sidebar-close {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    width: 32px;
-    height: 32px;
-    border: none;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--dk-sb-text-muted);
-    font-size: var(--fs-20);
-    line-height: 1;
-    cursor: pointer;
-  }
-  .kronos-sidebar-close:hover { background: var(--dk-sb-hover); color: var(--dk-sb-text); }
+.dk-app--handy .kronos-sidebar-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--dk-sb-text-muted);
+  font-size: var(--fs-20);
+  line-height: 1;
+  cursor: pointer;
 }
+.dk-app--handy .kronos-sidebar-close:hover { background: var(--dk-sb-hover); color: var(--dk-sb-text); }
 </style>

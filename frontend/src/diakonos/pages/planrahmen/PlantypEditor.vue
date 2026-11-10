@@ -445,7 +445,9 @@ import { usePlanrahmen, fehlerMeldungen, datumText } from '../../composables/use
 import { useEntwurf } from '../../composables/useEntwurf.js'
 import { showToast } from '../../composables/useToast.js'
 import { bestaetigen } from '../../composables/useBestaetigen.js'
-import { useHandyHinweis, hinweisZeigen, istSchmal } from '../../composables/handyHinweis.mjs'
+import { useHandyHinweis, hinweisZeigen, istHandyHinweisLage, handyHinweisLage } from '../../composables/handyHinweis.mjs'
+// DEV-B6: EINE Quelle der Handy-Lage (identisch mit dem Token und App.vue).
+import { HANDY_LAGE_ABFRAGE } from '../../composables/handyLageAbfrage.mjs'
 import DkModal from '../../components/DkModal.vue'
 import DkSkelett from '../../components/ui/DkSkelett.vue'
 import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
@@ -491,16 +493,25 @@ const darfVorlageBearbeiten = ref(false)
 // PLAN-M1: Hinweis am Handy — nur schmal + Bearbeitungsrecht + nicht
 // geschlossen (Kern in composables/handyHinweis.mjs). Sperrt nichts.
 const handyHinweis = useHandyHinweis()
+// DEV-B6: Breite UND primärer Zeiger — der Hinweis ist für die Handy-Lage
+// gedacht; ein Maus-Laptop mit 702 px bekam ihn fälschlich (Befund
+// DMB-3a7d335074cc). Kein `from` in diesen Zeilen: der Import-Filter
+// der Seiten-Tests (planrahmen-stammdaten, pr-g1-massenauswahl) sucht
+// das Wort und schnitte sonst bis zum nächsten Import.
 const breiteAmFenster = ref(typeof window !== 'undefined' ? window.innerWidth : 0)
+const lageAmFenster = ref(handyHinweisLage())
+// DEV-B6: dieselbe Handy-Lage-Abfrage wie App/CSS, auch für den Zeigerwechsel.
+let lageAbfrage = null
 const handyHinweisGeschlossen = ref(false)
 const handyHinweisZeigen = computed(() => !handyHinweisGeschlossen.value
   && hinweisZeigen({
-    schmal: istSchmal(breiteAmFenster.value),
+    schmal: istHandyHinweisLage(breiteAmFenster.value, lageAmFenster.value),
     darfBearbeiten: darfVorlageBearbeiten.value,
     geschlossen: false,
   }))
 function beiGroessenAenderung() {
   breiteAmFenster.value = typeof window !== 'undefined' ? window.innerWidth : 0
+  lageAmFenster.value = handyHinweisLage()
   aktivenAbschnittMessen()
 }
 
@@ -963,6 +974,12 @@ onMounted(() => {
   handyHinweisGeschlossen.value = handyHinweis.geschlossen()
   beiGroessenAenderung()
   window.addEventListener('resize', beiGroessenAenderung)
+  // DEV-B6 (Review-Nacharbeit 10.11., Punkt 3): Der ZEIGER kann sich
+  // ohne `resize` ändern (Maus abgezogen/angeschlossen) — die Handy-Lage
+  // wird deshalb auch am matchMedia-`change` neu gelesen.
+  lageAbfrage = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(HANDY_LAGE_ABFRAGE) : null
+  lageAbfrage?.addEventListener?.('change', beiGroessenAenderung)
   // UX-C3a: der scrollende Behälter der App meldet das Scrollen; zur Sicherheit
   // auch das Fenster (falls die Seite ohne .dk-content läuft). Der Behälter
   // wird gemerkt, damit der Abbau denselben Knoten abmeldet.
@@ -985,6 +1002,7 @@ onUnmounted(() => {
   if (messBild) cancelAnimationFrame(messBild)
   window.removeEventListener('beforeunload', vorDemVerlassen)
   window.removeEventListener('resize', beiGroessenAenderung)
+  lageAbfrage?.removeEventListener?.('change', beiGroessenAenderung)
   gemerkterBehaelter?.removeEventListener('scroll', beiScroll)
   gemerkterBehaelter = null
   window.removeEventListener('scroll', beiScroll)

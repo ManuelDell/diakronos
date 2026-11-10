@@ -25,6 +25,7 @@ import test from 'node:test'
 import {
   HANDY_HINWEIS_PRAEFIX, HANDY_HINWEIS_PX, HANDY_HINWEIS_TAGE, HANDY_HINWEIS_TEXT,
   handyHinweisKern, handyHinweisSchluessel, hinweisZeigen, istSchmal,
+  istHandyHinweisLage, handyHinweisLage, SEHR_SCHMAL_PX,
 } from '../src/diakonos/composables/handyHinweis.mjs'
 import { MOBIL_GRENZE_PX } from '../src/diakonos/composables/eingabeart.mjs'
 
@@ -84,11 +85,47 @@ test('PLAN-M1: schmal heißt höchstens 720 px — dieselbe Grenze wie die App',
   assert.equal(istSchmal('kaputt'), false)
   // Und die CSS-Grenze der App ist dieselbe (der Hinweis darf nicht bei einer
   // Breite auftauchen, bei der die Seitenleiste noch sichtbar ist).
-  // FIX-6: Die Umschaltung hängt NUR an der Breite (Layout-Kriterium der App,
-  // Operator-Entscheidung 27.10.) — die 720-px-Grenze bleibt unverändert.
+  // DEV-B6 (Manuel 09.11.): Die Umschaltung hängt NICHT mehr nur an der Breite
+  // — „auf einem Laptop darf nie die Handyleiste kommen“. Der Gerüst-Block
+  // ist die Handy-Lage (grob + 720 px, bzw. flaches Querformat; Quelle:
+  // `--layout-mobil` in tokens.css); die 720-px-Grenze bleibt darin unverändert.
+  // DEV-B6 (Review-Nacharbeit 10.11.): Das Gerüst hängt jetzt an der EINEN
+  // Klasse `.dk-app--handy` (Quelle `composables/handyLage.mjs`); die Bedingung
+  // steht dort als Zeichenkette und im Token `--layout-mobil`. Geprüft wird
+  // beides — die 720-px-Grenze bleibt darin unverändert.
   const css = lies('index.css')
-  assert.match(css,
-    /@media \(max-width: 720px\) \{\s*\.dk-app \{ grid-template-columns: 1fr; \}/)
+  assert.match(css, /\.dk-app\.dk-app--handy \{ grid-template-columns: 1fr; \}/,
+    'index.css: Gerüst hängt an der Handy-Lage-Klasse')
+  const tokens = lies('tokens.css')
+  assert.match(tokens,
+    /--layout-mobil:\s*\(pointer: coarse\) and \(max-width: .*720|--layout-mobil:[^;]*max-width: 720px/,
+    'tokens.css: die 720-px-Grenze steht in der Handy-Lage')
+})
+
+test('DEV-B6: der Hinweis erscheint nur in der HANDY-Lage (Zeiger + Breite)', () => {
+  // grober Zeiger + schmal -> Hinweis; Maus-Laptop bei 702/400 px -> nicht.
+  assert.equal(istHandyHinweisLage(390, { grob: true }), true, 'Handy')
+  assert.equal(istHandyHinweisLage(720, { grob: true }), true, 'Grenze gehört dazu')
+  assert.equal(istHandyHinweisLage(702, { grob: false }), false, 'Laptop 702 px mit Maus (Befund)')
+  assert.equal(istHandyHinweisLage(620, { grob: false }), false, 'schmales Mausfenster: Seitenleiste, kein Handy')
+  assert.equal(istHandyHinweisLage(1024, { grob: true }), false, 'Tablet quer: nicht schmal')
+  // flaches Querformat ist Handy-Lage (OP-HANDY-10)
+  assert.equal(istHandyHinweisLage(844, { grob: true, hoehe: 390 }), true, 'Handy quer')
+  // sehr schmale Fenster: Planraster auch mit Maus nicht sinnvoll bedienbar
+  assert.equal(istHandyHinweisLage(SEHR_SCHMAL_PX, { grob: false }), true, 'sehr schmal (430 px)')
+  assert.equal(istHandyHinweisLage(SEHR_SCHMAL_PX + 1, { grob: false }), false)
+  // ohne Messwert nie „Handy-Lage“
+  assert.equal(istHandyHinweisLage(0, { grob: true }), false)
+  assert.equal(istHandyHinweisLage(undefined, { grob: true }), false)
+  // Browser-Auskunft: ohne matchMedia (Node/jsdom) bleibt es bei der Breite.
+  assert.deepEqual(handyHinweisLage({ matchMedia: null }),
+    { grob: false, breite: 0, hoehe: 0 })
+  const grobAbfrage = (abfrage) => ({ matches: abfrage === '(pointer: coarse)' })
+  const lage = handyHinweisLage({ matchMedia: grobAbfrage, fenster: { innerWidth: 390, innerHeight: 844 } })
+  // DEV-B6 (Nacharbeit 10.11.): Die Lage trägt jetzt auch die EINE
+  // Handy-Lage-Abfrage der App (dieselbe Zeichenkette wie Token/App.vue) —
+  // hier ist sie false, weil die Attrappe nur `(pointer: coarse)` kennt.
+  assert.deepEqual(lage, { grob: true, breite: 390, hoehe: 844, handyLage: false })
 })
 
 test('PLAN-M1: Hinweis nur schmal UND mit Bearbeitungsrecht', () => {
@@ -194,7 +231,10 @@ test('PLAN-M1: alle drei Plan-Rahmen-Seiten zeigen den Baustein', () => {
   for (const [name, quelle] of SEITEN) {
     const block = quelle.slice(quelle.indexOf('const handyHinweisZeigen'), quelle.indexOf('const handyHinweisZeigen') + 400)
     assert.match(block, /handyHinweisGeschlossen\.value/, `${name}: Schließen-Zustand fehlt bei der Sichtbarkeit`)
-    assert.match(block, /schmal: istSchmal\(/, `${name}: Breite fehlt bei der Sichtbarkeit`)
+    // DEV-B6: die Handy-Lage liest Breite UND primären Zeiger.
+    assert.match(block,
+      /schmal: istHandyHinweisLage\([^)]*(?:breite|breiteAmFenster)\.value, lageAmFenster\.value\)/,
+      `${name}: Handy-Lage (Breite + Zeiger) fehlt bei der Sichtbarkeit`)
     assert.match(block, /darfBearbeiten: darf/, `${name}: Recht fehlt bei der Sichtbarkeit`)
   }
 })
@@ -231,4 +271,15 @@ test('PLAN-M1: der Baustein trägt keine festen Farben (Wächter-Regel)', () => 
   // mehr die Altklasse `dk-btn …`.
   assert.match(BAUSTEIN, /<DkButton[\s\S]{0,120}variant="ghost"/,
     'der Weg des Hinweises ist ein DkButton (ghost)')
+})
+
+test('DEV-B6: der Hinweis folgt der EINEN Handy-Lage (auch flaches Maus-Fenster)', () => {
+  // Review-Punkt 2/3: Die Querformat-Alternative prüft den Zeiger mit — ein
+  // flaches Maus-Fenster (1280×450) bekommt den Hinweis NICHT mehr.
+  assert.equal(istHandyHinweisLage(1280, { grob: false, hoehe: 450, handyLage: false }), false,
+    'flaches Maus-Fenster: kein Handy-Hinweis')
+  assert.equal(istHandyHinweisLage(1280, { grob: true, hoehe: 450, handyLage: true }), true,
+    'flaches Touchgerät: Handy-Hinweis')
+  // Sehr schmal bleibt auch mit Maus (dort ist nichts bearbeitbar).
+  assert.equal(istHandyHinweisLage(390, { grob: false, handyLage: false }), true)
 })

@@ -50,10 +50,19 @@
 
     <div class="dk-moderation-inhalt">
       <div class="dk-moderation-aktionen">
-        <DkButton variant="ghost" size="md" class="dk-moderation-mobile-back" aria-label="Zurück zum Kalender" @click="goToKalender">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          Kalender
-        </DkButton>
+        <!-- DEV-B2 (Befund DMB-8e166c0aacff): Der Rückweg „‹ Kalender“ steht
+             NUR am Handy hier. Am Desktop und am Tablet führen die Reiter der
+             Kopfzeile („Monat · Woche · Liste“) zurück — ein zweiter Weg
+             daneben war genau der Befund („‹ Kalender erscheint“). Bis hier
+             hatte die Klasse GAR KEIN CSS: der Knopf stand auf jeder Breite. -->
+        <a
+          class="dk-moderation-mobile-back"
+          href="#/kalender"
+          @click.prevent="goToKalender"
+        >
+          <DkSymbol name="zurueck" :groesse="16" />
+          <span>Kalender</span>
+        </a>
         <span class="dk-moderation-anzahl">{{ moderationCount > 0 ? zahlWort(moderationCount, 'Termin', 'Termine') + ' zu prüfen' : '' }}</span>
         <DkButton variant="primary" :disabled="!canFinalize" @click="finalizeAll">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10-10"/></svg>
@@ -86,6 +95,7 @@ import ModerationBoard from '../components/kronos/ModerationBoard.vue'
 import ModerationAenderungen from '../components/kronos/ModerationAenderungen.vue'
 import KronosTopbar from '../components/kronos/KronosTopbar.vue'
 import DkButton from '../components/ui/DkButton.vue'
+import DkSymbol from '../components/ui/DkSymbol.vue'
 // UX2d3b (Review UX2d3a/B): Laden/Prüfen zeigt den Umriss, keinen Satz.
 import DkSkelett from '../components/ui/DkSkelett.vue'
 import { apiCall } from '../composables/useApi.js'
@@ -232,6 +242,36 @@ onMounted(async () => {
   color: var(--dk-text-muted);
   font-variant-numeric: var(--fs-tabular);
 }
+
+/* DEV-B2: Der Rückweg „‹ Kalender“ ist ein HANDY-Weg, kein Desktop-Element.
+   Er trägt die Klasse seit UX3d, CSS hatte er nie — dadurch stand er auf
+   jeder Breite neben den Reitern und „Alle freigeben“. Am Desktop führen die
+   Reiter der Kopfzeile (Monat · Woche · Liste) zurück.
+   „Handy“ = die EINE Handy-Lage der App (Klasse `.dk-app--handy`, gesetzt in
+   App.vue aus `composables/handyLage.mjs`, DEV-B6) — KEINE eigene
+   Breitenabfrage: ein Maus-Laptop mit 702 px bekommt keine Handy-Wege. */
+.dk-moderation-mobile-back { display: none; }
+.dk-app--handy .dk-moderation-mobile-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  /* Klickfläche K4: am Handy mindestens 44 px hoch. */
+  min-height: 44px;
+  padding: 0 var(--sp-2);
+  color: var(--text);
+  font-size: var(--fs);
+  font-weight: var(--fw-mittel);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+.dk-app--handy .dk-moderation-mobile-back:hover { color: var(--accent); }
+.dk-app--handy .dk-moderation-mobile-back:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+/* Am Handy steht er allein links, die Zahl direkt dahinter — die Zeile
+   bleibt zwischen Rückweg und „Alle freigeben“ getrennt (S3). */
+.dk-app--handy .dk-moderation-anzahl { margin-right: auto; }
 
 /* OP-ADMIN-18: kurze Erklärung, was die beiden Ablagen bedeuten. */
 .dk-moderation-erklaerung {

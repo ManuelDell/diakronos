@@ -37,6 +37,10 @@ function harness(pageName = 'Plan', hash = '#/dienste/dienstplaene/plan/plan-a',
     // Router-Ablauf darf aber nicht an seinem Fehlen scheitern.
     useHandyHinweis: () => ({ geschlossen: () => false, schliessen() { return true }, setzen() {} }),
     hinweisZeigen: () => false, istSchmal: () => false,
+    // DEV-B6: die Seiten fragen die Handy-Lage ueber diese beiden
+    // Exporte ab (Desktop-Lage: nie Handy, Hinweis aus).
+    istHandyHinweisLage: () => false,
+    handyHinweisLage: () => ({ grob: false, breite: 1366, hoehe: 800 }),
     fehlerMeldungen: e => [e.message],
     usePlanrahmen: () => ({
       schemaHolen: async () => ({}), kochbuchListe: async () => [], bedarf: async () => [],

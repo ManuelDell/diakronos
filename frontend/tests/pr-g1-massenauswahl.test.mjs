@@ -66,6 +66,13 @@ const usePlanrahmen = () => globalThis.__g1Api
 const useHandyHinweis = () => ({ geschlossen: () => false, schliessen: () => true })
 const hinweisZeigen = () => false
 const istSchmal = () => false
+// DEV-B6: die Seiten fragen die Handy-Lage jetzt über handyHinweisLage /
+// istHandyHinweisLage ab — der Ersatz spiegelt die echten Exporte
+// (Desktop-Lage: nie Handy, Hinweis aus). Als FUNKTION, weil der Ersatz
+// mit dem Seitencode in EIN Skript geklebt wird (kein doppeltes const).
+// Kein Backtick hier: der Text steht IN einem Template-String.
+function istHandyHinweisLage() { return false }
+function handyHinweisLage() { return { grob: false, breite: 1366, hoehe: 800 } }
 const getRouteParam = (key) => globalThis.__g1Routen[key] || ''
 const showToast = () => {}
 const fehlerMeldungen = (e) => [e.message]

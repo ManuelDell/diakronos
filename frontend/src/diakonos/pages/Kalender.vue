@@ -153,6 +153,7 @@
       <KronosSidebar
         ref="sidebarRef"
         class="kronos-sidebar-inpage"
+        :class="{ open: kronosSidebar.offen.value }"
         :open="kronosSidebar.offen.value"
         @close="kronosSidebar.zu()"
         @ablehnungClick="zeigeAbgelehntenTermin"
@@ -351,7 +352,11 @@ import {
 } from '../components/kronos/kalenderRechte.mjs'
 import { eingeblendeteZahl } from '../components/kronos/kalenderKopf.mjs'
 // Review 07.11. Punkt 10: EINE Layout-Grenze (720 px) — auch im Skript.
-import { istHandyBreite } from '../components/kronos/breiten.mjs'
+// DEV-B6 (Review-Nacharbeit 10.11.): Das Handy-Gerüst der Seite hängt an der
+// EINEN Handy-Lage der App (`composables/handyLage.mjs`). `istHandyBreite`
+// (reine Breite) ist hier NICHT mehr im Spiel — ein Maus-Laptop bei 702 px
+// bekam damit das Handy-Gerüst samt unterer Leiste (Befund DMB-3a7d335074cc).
+import { useHandyLage, SEITENLEISTE_SCHMAL_ABFRAGE } from '../composables/handyLage.mjs'
 // A10 (Mobil-Kalender): Ansicht/Standard/Tagesliste und das Termin-Blatt.
 // Reine Funktionen — hier nur die Verbindung zur Seite.
 import {
@@ -379,22 +384,18 @@ const { mitRueckgaengig } = useRueckgaengigAktion()
 const kronosSidebar = useKronosSidebar()
 
 /**
- * UX3i: Am Handy gibt es KEINE rechte Spalte und keine Karte um das Raster —
- * A10 (Mobil-Kalender) ist eine eigene, spätere Karte, und UX3i darf Mobil
- * nicht verschlechtern. Die Grenze ist dieselbe wie im CSS (720 px, reine
- * BREITE — FIX-6); hier wird sie reaktiv gelesen, damit ein Drehen/Fenster-
- * ziehen die Spalte sofort nimmt (ein `matchMedia` beim Aufbau griffe nicht).
+ * UX3i/A10: Am Handy gibt es KEINE rechte Spalte und keine Karte um das
+ * Raster — dort steht der Mobil-Bau (Kopf, Liste, FAB).
+ *
+ * DEV-B6 (Review-Nacharbeit 10.11.): Die Lage kommt aus der EINEN Quelle
+ * (`composables/handyLage.mjs`, `useHandyLage()`) — dieselbe Abfrage wie das
+ * CSS (Klasse `.dk-app--handy`, gesetzt in `App.vue`) und wie `App.vue`
+ * selbst. Vorher las diese Seite ihre eigene Zeiger-Abfrage und war damit ein
+ * zweiter Ort; ein Maus-Laptop bei 702 px bekam das Handy-Gerüst (Befund
+ * DMB-3a7d335074cc). Reaktiv über `matchMedia`-`change` UND `resize`.
  */
-const istSchmal = ref(typeof window !== 'undefined' && istHandyBreite(window.innerWidth))
-function breitePruefen() {
-  if (typeof window !== 'undefined') istSchmal.value = istHandyBreite(window.innerWidth)
-}
-onMounted(() => {
-  window.addEventListener('resize', breitePruefen)
-})
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', breitePruefen)
-})
+const { istHandyLage } = useHandyLage()
+const istSchmal = istHandyLage
 const calendarRef = ref(null)
 const seriesDialogRef = ref(null)
 const sidebarRef = ref(null)
@@ -518,7 +519,7 @@ async function offeneZahlLaden() {
 // Nur am Handy (≤ 720 px) ist `.open` ein Overlay über dem Kalender.
 // UX3i: Am Desktop gehört die Auswahl jetzt in das Popover; die Leiste bleibt
 // für den Handy-Betrieb und für „Hilfe & Infos“ erreichbar.
-onMounted(() => { if (window.matchMedia('(min-width: 721px)').matches) kronosSidebar.zu() })
+onMounted(() => { if (!istHandyLage.value) kronosSidebar.zu() })
 
 function onDatesSet(info) {
   dateTitle.value = info.title || info.view?.title || ''
@@ -556,6 +557,20 @@ function onDatesSet(info) {
 
 /* ── A4: Kalenderauswahl ─────────────────────────────────────────────────── */
 function kalenderAuswahlUmschalten() {
+  // DEV-B6b (Review 10.11., Punkt 3 — Entscheidung Operator): EIN Weg zur
+  // Kalenderliste. Wo die Liste ein OVERLAY ist (Maus-Fenster ≤ 1100 px,
+  // kronos.css `@media (max-width: 1100px)`, dieselbe Abfrage wie die
+  // eingeklappte Seitenleiste: `SEITENLEISTE_SCHMAL_ABFRAGE`), öffnet der Knopf
+  // „Kalender“ dieses Overlay. In der HANDY-LAGE bleibt es beim Popover (A10),
+  // ebenso am breiten Desktop (A4).
+  const listeAlsOverlay = !istHandyLage.value && typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia(SEITENLEISTE_SCHMAL_ABFRAGE).matches
+  if (listeAlsOverlay) {
+    if (kronosSidebar.offen.value) kronosSidebar.zu()
+    else kronosSidebar.auf()
+    return
+  }
   if (auswahlOffen.value) {
     auswahlOffen.value = false
     return
@@ -1255,12 +1270,20 @@ onMounted(async () => {
   // A10: persönliche Standard-Ansicht (je Benutzer) lesen und anwenden —
   // am Handy beginnt die Seite damit (ohne eigene Wahl: „Liste“).
   standardLaden()
+  // DEV-B2: Ein Reiter der Prüf-Tafel bringt die gewünschte Ansicht in der
+  // Adresse mit (`#/kalender?ansicht=woche`). Sie gilt VOR dem persönlichen
+  // Standard — wer sie anklickt, will genau diese Ansicht sehen.
+  const wunsch = ansichtsWunschAusAdresse()
+  if (wunsch && istSchmal.value) mobilAnsichtId.value = wunsch
   if (istSchmal.value) {
     if (mobilAnsichtId.value !== 'liste') {
       // Die Bibliothek steht (noch) auf Monat; der Standard ist Woche/Monat.
       calendarRef.value?.changeView(bibliothekAnsicht(mobilAnsichtId.value))
     }
     mobilTermineLaden()
+  } else if (wunsch) {
+    currentView.value = bibliothekAnsicht(wunsch)
+    calendarRef.value?.changeView(currentView.value)
   }
   // Review 07.11.: Der LESEMODUS ist der Standard (wie vor UX3i). Der Zustand
   // lebt nur im Arbeitsspeicher (Nacharbeit Punkt 8: kein `localStorage` mehr —
@@ -1285,6 +1308,40 @@ onUnmounted(() => {
   // nur im Kalender).
   setzeRollenMarke('')
 })
+
+/**
+ * DEV-B2 (Befund DMB-8e166c0aacff): Die Reiter der Prüf-Tafel führen als
+ * LINKS zurück in den Kalender (`#/kalender?ansicht=woche`). Der Wunsch wird
+ * EINMAL beim Öffnen gelesen und sofort aus der Adresse entfernt
+ * (`history.replaceState`, dasselbe Muster wie `anlegeWunschAusAdresse`) —
+ * sonst setzte jedes Neuladen und jedes Zurück die Ansicht erneut, und ein
+ * späterer Wechsel per Reiter wäre nach einem Neuladen wieder überschrieben.
+ *
+ * Am Handy gilt dieselbe Wahl für die Segmentsteuerung (dort ist sie die
+ * Ansicht); am Desktop für das Raster. Eine unbekannte Angabe wird
+ * stillschweigend ignoriert (kein Fehler, keine geratene Ansicht).
+ */
+function ansichtsWunschAusAdresse() {
+  let werte
+  try {
+    werte = new URLSearchParams(String(location.hash || '').split('?')[1] || '')
+  } catch (_) {
+    return null
+  }
+  const gewuenscht = werte.get('ansicht')
+  if (!gewuenscht) return null
+  if (gewuenscht !== 'neu') {
+    // `neu` gehört `anlegeWunschAusAdresse` (unten) — es bleibt in der Adresse.
+    const rest = String(location.hash || '').split('?')[0] || '#/kalender'
+    try {
+      history.replaceState(null, '', rest)
+    } catch (_) {
+      // Ohne history-Zugriff bleibt der Abfrageteil stehen; die Ansicht ist
+      // bereits gesetzt — kein Grund, die Seite zu verlassen.
+    }
+  }
+  return istAnsicht(gewuenscht) ? gewuenscht : null
+}
 
 /**
  * UX3f: Die Befehlspalette bietet „Termin anlegen“ als `#/kalender?neu=1`.
@@ -1347,12 +1404,14 @@ defineExpose({
 /* UX3i (A4): Die Seite bekommt denselben Rahmen wie alle anderen Seiten
    (.dk-screen: Rand und Luft) — vorher klebte das Raster am Fensterrand und
    die Kalenderliste ragte über die Kante. NUR die DESKTOP-Lage: am Handy
-   bleibt der Rahmen wie bisher (A10 ist eine eigene Karte). */
-@media (min-width: 721px) {
-  .kronos-page-content {
-    padding: var(--sp-4) var(--sp-5) var(--sp-5);
-    gap: var(--sp-4);
-  }
+   bleibt der Rahmen wie bisher (A10 ist eine eigene Karte).
+   DEV-B6 (Review-Nacharbeit 10.11.): Die Desktop-Lage wird über die KLASSE
+   negiert (`:not(.dk-app--handy)`) statt über `min-width: 721px` — sonst bekam
+   ein Laptop mit 702 px (Maus, Desktop-Bau!) den Handy-Rahmen ohne Rand,
+   obwohl er die Desktop-Karte zeigt. */
+.dk-app:not(.dk-app--handy) .kronos-page-content {
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+  gap: var(--sp-4);
 }
 .kronos-calendar-wrap {
   flex: 1;
@@ -1364,7 +1423,15 @@ defineExpose({
 }
 /* WP8/OP-UI-11: Am Schreibtisch ist die Kalenderliste einklappbar — sie nimmt
    nur Platz ein, wenn sie gebraucht wird (Handy-Overlay, Hilfe). Die Breite
-   regelt kronos.css. */
+   regelt kronos.css.
+   DEV-B6 (Review-Nacharbeit 10.11., Punkt 5): Am Laptop (Maus, < 720 px) war
+   die Liste im FLUSS geöffnet und quetschte das Raster auf ~70 px (Belege
+   `laptop-702x894-fine-hell-kalender.png`, `fenster-400x800-fine-hell-*.png`).
+   Deshalb ist sie in der Handy-Lage ein OVERLAY und dort STANDARDMÄSSIG ZU
+   (`useKronosSidebar`, Start false); der Weg dorthin ist der Kalender-Knopf
+   der Kopfzeile (`kalenderAuswahlUmschalten` → `kronosSidebar.auf()`, siehe
+   `kalenderAuswahlUmschalten` im Skript). Ein zweites Navigationselement
+   braucht es daneben nicht — die App-Kopfzeile trägt den Menü-Knopf. */
 
 /* Die Fläche links: Karte (Raster) plus — für Moderatoren — die Spalte
    „Zu prüfen“. */
@@ -1375,6 +1442,21 @@ defineExpose({
   flex: 1;
   min-width: 0;
   min-height: 0;
+}
+/* DEV-B6b (Review 10.11., Punkt 4): Bei 400 px passen Raster und Prüf-Spalte
+   nicht mehr nebeneinander — die Spalte rutscht UNTER das Raster (Inhalts-
+   Umbruch, also BREITE, nicht Zeiger). Vorher quetschte die Spalte das Raster
+   auf einen schmalen Streifen und lief selbst rechts aus dem Bild (Beleg
+   `fenster-400x800-fine-hell-kalender.png`). */
+@media (max-width: 720px) {
+  .kal-flaeche {
+    flex-direction: column;
+  }
+  .kal-flaeche > .kal-pruef-panel {
+    flex: none;
+    width: 100%;
+    max-width: none;
+  }
 }
 .kal-karte {
   display: flex;
@@ -1473,52 +1555,39 @@ defineExpose({
   flex: 0 0 calc(var(--sp-8) * 5);
   overflow: auto;
 }
-/* FIX-6: Der Fußabstand für die untere Leiste gilt in der Mobil-Lage —
-   LAYOUT, also nur die Breite (index.css «FIX-6 · Layout nur nach Breite»).
-   A10-N2 (Review 09.11., Punkt 5): Hier steht NUR noch die Fläche (Radius,
-   Schatten, Innenabstand) — sie darf an der Breite hängen. Die REGELN, die
-   den Mobil-Bau tragen (Kopf, Raster, Punkte, Chips), hängen ALLE an den
-   Mobil-Klassen (`dk-mobilkopf`, `kal-mobil-raster`, `kal-a10-liste`, `dk-*`)
-   und damit allein an `istSchmal` im Skript. Die Media-Regel ist nur die
-   Rückfall-Ebene für die Fläche, damit ein schmales Fenster ohne Mobil-Bau
-   (falls er wegfällt) nicht die Desktop-Karte verliert. */
-/* A10-N2 (Review 09.11., Punkt 5): Die INHALTS-Regeln des Mobil-Baus hängen
-   NUR an den Mobil-Klassen (`dk-mobilkopf`, `kal-mobil-raster`,
-   `kal-a10-liste`, `kal-fab`) — die Klassen setzt allein das Skript
-   (`istSchmal`, EINE benannte Lage). So kann DEV-B6 („Laptop nie
-   Handy-Layout") die Entscheidung an EINER Stelle im Skript umstellen, ohne
-   diese Regeln anzufassen. Vorher stand hier `@media (max-width: 720px)` —
-   damit entschied ZWEIMAL, wer das Handy-Layout bekommt (Skript UND
-   Fensterbreite).
+/* FIX-6: Der Fußabstand für die untere Leiste gilt in der Handy-Lage —
+   Gerüst, nicht Inhalt. DEV-B6 (Manuel 09.11., Review-Nacharbeit 10.11.):
+   Handy-Lage = Klasse `.dk-app--handy` (Quelle `composables/handyLage.mjs`,
+   gesetzt in `App.vue`). Am Maus-Laptop mit 702 px wird KEIN Platz für die
+   Leiste reserviert. Bewusst keine zweite Media-Regel — sonst entschieden
+   wieder zwei Orte.
+   A10-N2 (Review 09.11., Punkt 5): Die INHALTS-Regeln des Mobil-Baus hängen
+   an den Mobil-Klassen (`dk-mobilkopf`, `kal-mobil-raster`,
+   `kal-a10-liste`, `kal-fab`), die allein `istSchmal` im Skript setzt — und
+   `istSchmal` IST seit DEV-B6 die Handy-Lage. So entscheidet genau EINE
+   Stelle, wer das Handy-Layout bekommt.
    Die Wähler IN die Bibliothek hinein brauchen `:deep()`: die Elemente
    `article.ec-event`, `.ec-day`, `.ec-col-head` gehören @event-calendar und
    tragen die Scoped-Kennung der Seite NICHT (im Browser geprüft: der
    `.ec`-Container hat kein `data-v-…`, der `article` also auch nicht) — ein
    `:deep()` von der Mobil-Klasse aus durchdringt den Teleport-Ziel-Container.
    Die Lage entscheidet trotzdem allein die Klasse: `:deep()` vererbt keinen
-   Scope, der Wähler beginnt bei `.kal-mobil-raster[data-v-…]`.
-   FIX-6 bleibt daneben gültig: der Fußabstand für die untere Leiste ist
-   LAYOUT (kein Inhalt) und hält weiterhin an der Breite (geprüft in
-   tests/fix6-zeigegeraet.test.mjs). */
-@media (max-width: 720px) {
-  .kronos-page-content {
-    padding-bottom: 80px;
-  }
+   Scope, der Wähler beginnt bei `.kal-mobil-raster[data-v-…]`. */
+.dk-app--handy .kronos-page-content {
+  padding-bottom: 80px;
 }
 /* A10-N2 (Re-Review 09.11.): Die frühere Rücksetzung von `.kal-karte`
    (padding/radius/schatten 0) entfällt — `.kal-karte` steht NUR im
    Desktop-Zweig (`v-if="!istSchmal"`); ohne Media-Regel traf sie den
    DESKTOP und machte die A4-Karte flach. */
-/* FIX-6 (LAYOUT, bleibt an der Breite): Die Desktop-Karte um das Raster
-   entfällt am Handy — sie ist Fläche, kein Inhalt; die Klasse steht
-   daneben nie (der Mobil-Bau ersetzt sie).
-   `.kal-karte-titel` fällt mit, ist im Mobil-Bau aber ohnehin ausgeblendet
-   und bleibt deshalb NICHT hier (er darf an den Mobil-Klassen hängen). */
-@media (max-width: 720px) {
-  .kal-karte-kopf { display: none; }
-  .kal-karte-titel { display: none; }
-  .kronos-calendar-wrap { padding: var(--sp-2); }
-}
+/* A10 (Review-Nacharbeit 10.11., Ergänzung a): Kartenkopf und Monatstitel
+   verschwinden NUR am Handy. Vorher stand hier `max-width: 720px` — am
+   Laptop mit 702 px (Maus) fehlten damit Monat und KW, obwohl dort der
+   Desktop-Bau läuft. Die Karte selbst steht im Desktop-Zweig und wird am
+   Handy ohnehin nicht gerendert. */
+.dk-app--handy .kal-karte-kopf { display: none; }
+.dk-app--handy .kal-karte-titel { display: none; }
+.dk-app--handy .kronos-calendar-wrap { padding: var(--sp-2); }
 /* A10, Punkt 4: KEINE abgeschnittenen Termin-Chips im Monatsraster. Am
    Handy zeigt jede Zelle nur die Tageszahl und einen Punkt (Kalenderfarbe
    bzw. gold für „zu prüfen“); ein Tipp auf den Tag öffnet die Tagesliste.
@@ -1582,9 +1651,19 @@ defineExpose({
 
 /* OP-HANDY-9: Im Querformat darf der Inhalt scrollen, damit das Monatsraster
    seine Mindesthoehe behaelt und Termine sichtbar bleiben. */
+/* DEV-B6b (Review 10.11., Punkt 4): Im Handy-Querformat darf der Inhalt
+   scrollen (OP-HANDY-9), damit das Monatsraster seine Mindesthöhe behält und
+   Termine sichtbar bleiben. Das ist Gerüst-Mechanik der Handy-Lage — ein
+   Desktop-Fenster (auch flach, 1280×450) behält `overflow: hidden` aus der
+   Grundregel oben. Vorher galt `overflow-y: auto` ÜBERALL und der
+   Desktop-Kalender bekam einen Scrollbalken, den er nicht braucht. */
 @media (orientation: landscape) and (max-height: 480px) {
-  .kronos-page-content {
+  .dk-app--handy .kronos-page-content {
     overflow-y: auto;
+    /* DEV-B6b-Kleinfix (Punkt 6): Den Fußabstand für die Leiste trägt schon
+       `.dk-app--handy .dk-content` (index.css) — doppelt (88 + 80 px) blieben
+       im Querformat ~80 px für Mini-Monat und Tagesliste. */
+    padding-bottom: 0;
   }
 }
 /* ── A10: Mobil-Ansicht ─────────────────────────────────────────────────────
@@ -1611,8 +1690,22 @@ defineExpose({
      der unteren Leiste, nicht über dem Inhalt). */
   padding-bottom: calc(var(--sp-8) + var(--sp-4));
 }
+/* DEV-B6 (Review 10.11., Punkt 4): Die A10-Fläche existiert NUR im Mobil-Bau
+   (Handy-Lage) — dort gelten die Querformat-Abstände.
+   DEV-B6b (Review 10.11., Punkt 6): Im Querformat (844×390) ist die untere
+   Leiste da (Handy-Lage) — die Höhe muss sie ABZIEHEN, sonst reicht die Liste
+   unter die Leiste (die letzten 64 px sind verdeckt). Gerundet wird sie
+   ausdrücklich NICHT: eine Liste darf scrollen, und `padding-bottom` mit
+   FAB-Platz (56 px) bleibt. */
 @media (max-height: 480px) and (orientation: landscape) {
-  .kal-a10-liste { height: calc(100vh - var(--topbar-h)); padding-bottom: var(--sp-8); }
+  /* DEV-B6b-Kleinfix: im Querformat rollt EINE Fläche (die Seite, s. o.) —
+     die Liste schrumpft nicht auf den Rest unter dem Kopf. */
+  .dk-app--handy .kal-a10-liste {
+    flex: none;
+    height: auto;
+    overflow: visible;
+    padding-bottom: calc(var(--sp-8) + var(--sp-4));
+  }
 }
 .kal-mobil-raster {
   flex: 1 1 auto;
@@ -1709,7 +1802,13 @@ defineExpose({
 }
 .kal-fab:hover { background: var(--marke-flaeche-hover); }
 .kal-fab:focus-visible { outline: var(--ring-breite) solid var(--focus-ring); outline-offset: var(--sp-1); }
+/* DEV-B6: Der FAB steht nur im Mobil-Bau (Handy-Lage).
+   DEV-B6b (Review 10.11., Punkt 6): Im Querformat lag er mit `bottom: 16px`
+   HINTER der unteren Leiste (64 px) — er ist jetzt genauso hoch gestellt wie
+   in der Hochkant-Lage: über der Leiste plus Sicherheitsabstand. */
 @media (max-height: 480px) and (orientation: landscape) {
-  .kal-fab { bottom: var(--sp-4); }
+  .dk-app--handy .kal-fab {
+    bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + var(--sp-3));
+  }
 }
 </style>

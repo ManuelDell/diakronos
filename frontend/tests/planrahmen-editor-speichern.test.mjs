@@ -22,6 +22,10 @@ function editor() {
     // PLAN-M1: Hinweis am Handy — hier nicht Gegenstand des Tests.
     useHandyHinweis: () => ({ geschlossen: () => false, schliessen() { return true }, setzen() {} }),
     hinweisZeigen: () => false, istSchmal: () => false,
+    // DEV-B6: die Seiten fragen die Handy-Lage ueber diese beiden
+    // Exporte ab (Desktop-Lage: nie Handy, Hinweis aus).
+    istHandyHinweisLage: () => false,
+    handyHinweisLage: () => ({ grob: false, breite: 1366, hoehe: 800 }),
   }
   vm.createContext(context)
   vm.runInContext(source.split('<script setup>')[1].split('</script>')[0].replace(/^import .*\n/gm, ''), context)

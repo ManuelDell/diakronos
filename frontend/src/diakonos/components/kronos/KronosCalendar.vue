@@ -26,9 +26,15 @@ import { sichereFarbe } from '../../../shared/sichere-ausgabe.js'
 // Funktionen — ausführbar geprüft in `tests/ux3i-kalender-a4.test.mjs`.
 import { chipText, chipTitel, chipStil, zeitBlockText } from './chipText.mjs'
 // A4 (Review 07.11. Punkt 10): EINE Layout-Grenze des Kalenders (720 px).
-import { istHandyBreite, istEngeBreite } from './breiten.mjs'
+// DEV-B6 (Review 10.11.): Die Handy-Lage kommt aus der EINEN Quelle der App.
+import { istEngeBreite } from './breiten.mjs'
+import { useHandyLage } from '../../composables/handyLage.mjs'
 
 const EventCalendar = _EC.default?.create ? _EC.default : (_EC.create ? _EC : null)
+
+// DEV-B6: Handy-Lage (grob + schmal bzw. grob + flaches Querformat) —
+// dieselbe Quelle wie App.vue und Kalender.vue.
+const { istHandyLage: handyLage } = useHandyLage()
 
 
 const props = defineProps({
@@ -748,7 +754,11 @@ onMounted(() => {
 
       eventClick: (info) => {
         if (_suppressClick) return
-        const isMobile = istHandyBreite(window.innerWidth)
+        // DEV-B6 (Review-Nacharbeit 10.11., Ergänzung b): OP-HANDY-8 gilt in
+        // der Handy-Lage der App — EINE Quelle (`composables/handyLage.mjs`),
+        // gelesen über `useHandyLage()`; ein Maus-Laptop mit 702 px verhält
+        // sich wie der Desktop (die Seite baut dort auch den Desktop-Bau).
+        const isMobile = handyLage.value
         const currentView = info.view.type
 
         // OP-HANDY-8: Am Handy fuehrte ein Tipp auf einen Monatstermin in die

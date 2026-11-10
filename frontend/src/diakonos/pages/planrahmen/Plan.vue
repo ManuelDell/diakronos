@@ -330,7 +330,9 @@ import { terminMeldungen } from '../../components/planrahmen/meldungen.mjs'
 import { diffAnzeigeLaden, kandidatenZiel } from '../../components/planrahmen/klartext.mjs'
 import { statusSprache, statusBadgeKlasse } from '../../components/ui/statussprache.mjs'
 import { useWarnblock } from '../../composables/warnblock.mjs'
-import { useHandyHinweis, hinweisZeigen, istSchmal } from '../../composables/handyHinweis.mjs'
+import { useHandyHinweis, hinweisZeigen, istHandyHinweisLage, handyHinweisLage } from '../../composables/handyHinweis.mjs'
+// DEV-B6: EINE Quelle der Handy-Lage (identisch mit dem Token und App.vue).
+import { HANDY_LAGE_ABFRAGE } from '../../composables/handyLageAbfrage.mjs'
 import DkButton from '../../components/ui/DkButton.vue'
 
 const { planHolen, planStandVersion, terminStruktur, terminStrukturen, planGenerieren, planEntwurf, undoPlan, undoVorschau, veroeffentlichen, ablaufAendern, feldKandidaten, terminAendern, bedarf,
@@ -404,19 +406,30 @@ function warnblockMerken(offen) {
 // ANSEHEN bleibt unberührt: das Band sperrt nichts, es schiebt nur Inhalt.
 const handyHinweis = useHandyHinweis()
 const breite = ref(typeof window !== 'undefined' ? window.innerWidth : 0)
+// DEV-B6: Handy-Hinweis nur in der Handy-Lage (Zeiger + Breite).
+const lageAmFenster = ref(handyHinweisLage())
+// DEV-B6: dieselbe Handy-Lage-Abfrage wie App/CSS, auch für den Zeigerwechsel.
+let lageAbfrage = null
 const handyHinweisGeschlossen = ref(false)
 const handyHinweisZeigen = computed(() => !handyHinweisGeschlossen.value
-    && hinweisZeigen({ schmal: istSchmal(breite.value), darfBearbeiten: darfBearbeiten.value, geschlossen: false }))
+    && hinweisZeigen({ schmal: istHandyHinweisLage(breite.value, lageAmFenster.value), darfBearbeiten: darfBearbeiten.value, geschlossen: false }))
 function handyHinweisSchliessen() {
     handyHinweis.schliessen()
     handyHinweisGeschlossen.value = true
 }
 function beiGroessenAenderung() {
     breite.value = typeof window !== 'undefined' ? window.innerWidth : 0
+    lageAmFenster.value = handyHinweisLage()
 }
 onMounted(() => {
     handyHinweisGeschlossen.value = handyHinweis.geschlossen()
     if (typeof window !== 'undefined') window.addEventListener('resize', beiGroessenAenderung)
+    // DEV-B6 (Review-Nacharbeit 10.11., Punkt 3): Der ZEIGER kann sich
+    // ohne `resize` ändern (Maus abgezogen/angeschlossen) — die Handy-Lage
+    // wird deshalb auch am matchMedia-`change` neu gelesen.
+    lageAbfrage = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+        ? window.matchMedia(HANDY_LAGE_ABFRAGE) : null
+    lageAbfrage?.addEventListener?.('change', beiGroessenAenderung)
 })
 
 // ── Plan-Daten ─────────────────────────────────────────────────────────────
@@ -636,6 +649,7 @@ watch(planId, () => {
 onUnmounted(() => {
     ladeNummer += 1
     if (typeof window !== 'undefined') window.removeEventListener('resize', beiGroessenAenderung)
+    lageAbfrage?.removeEventListener?.('change', beiGroessenAenderung)
 })
 
 watch(brauchtTermin, (braucht) => {

@@ -13,8 +13,19 @@
         <template v-if="!pruefTafel">
           <!-- UXK-R9: Am Handy liegt die Kalenderliste (Kalenderliste,
                CalDAV-Anleitung, Import) ausserhalb des Bildes. Dieser Knopf
-               oeffnet sie — nur auf schmalen Bildschirmen sichtbar. -->
+               oeffnet sie — nur auf schmalen Bildschirmen sichtbar.
+               DEV-B6 (Review-Nacharbeit 10.11.): KEIN zweiter
+               Navigationseinstieg neben dem Menü-Knopf der App-Kopfzeile.
+               In der Handy-Lage sitzt oben links bereits der Menü-Knopf
+               (Schublade mit der gesamten Navigation); die Kalenderliste
+               erreicht man über den Kalender-Knopf rechts. Der Umschalter
+               bleibt nur als Rückfall ohne Menü-Knopf verfügbar und ist
+               deshalb nicht mehr eingeblendet. Der Block bleibt im Markup,
+               weil A10/A4 ihn über `$emit('sidebarToggle')` kennt und die
+               Kalenderliste weiterhin einen Auslöser braucht, wenn die
+               Schublade fehlt (Vollbild der Prüf-Tafel). -->
           <DkButton
+            v-if="zeigeListenUmschalter"
             class="sidebar-toggle-btn"
             variant="secondary"
             aria-label="Meine Kalender und Hilfe anzeigen"
@@ -30,9 +41,14 @@
              `menue.kalenderReiter` — eine Quelle für Beschriftung,
              Reihenfolge und „nur für Moderatoren“. Gerendert wird IMMER
              (ein v-if an der Komponente ließ sie nach dem Wechsel auf
-             „Zu prüfen“ gar nicht erst entstehen, im Wegwerf-Stack gemessen);
-             im Vollbild der Prüf-Tafel liefert `reiter` nur den aktiven
-             Eintrag — dort wären „Monat/Woche/Liste“ tote Schaltflächen. -->
+             „Zu prüfen“ gar nicht erst entstehen, im Wegwerf-Stack gemessen).
+
+             DEV-B2 (Befund DMB-8e166c0aacff): Auf der Prüf-Tafel ist die
+             Leiste IDENTISCH zum Kalender — „Monat · Woche · Liste“ sind dort
+             LINKS zurück in den Kalender (`#/kalender?ansicht=…`, ausgewertet
+             von `pages/Kalender.vue`), keine toten Schaltflächen. Vorher
+             filterte diese Komponente sie weg; Moderation.vue verspricht seit
+             UX3d das Gegenteil. -->
         <KalenderReiter
           class="kronos-reiter"
           :class="{ 'kronos-reiter--tafel': pruefTafel }"
@@ -172,14 +188,26 @@ const props = defineProps({
    */
   lesemodus: { type: Boolean, default: true },
   /**
-   * Der Kalender steht im Vollbild der Prüf-Tafel. Dann ist das Brett die
-   * Ansicht: die Einträge „Monat/Woche/Liste“ sind ausgeblendet (tote
-   * Schaltfläche), „Zu prüfen“ bleibt als aktive Markierung stehen.
+   * Die Kopfzeile gehört zur Prüf-Tafel. Die Reiterleiste ist dort DIESELBE
+   * wie im Kalender — „Monat · Woche · Liste“ führen als Links zurück
+   * (`#/kalender?ansicht=…`), „Zu prüfen“ ist als aktuelle Seite markiert.
+   * Die Werkzeuge der Kalender-Ansicht (Heute, ‹ ›, „Termin anlegen“, „⋯“)
+   * stehen auf der Tafel nicht — dort gilt die Aktionszeile der Tafel
+   * (genau ein Primärknopf, S1).
    */
   pruefTafel: { type: Boolean, default: false },
   /** Aktiver Reiter: `kalender`, `pruefen` oder eine Kalender-Ansicht. */
   aktiverReiter: { type: String, default: 'kalender' },
+  /**
+   * DEV-B6 (Review-Nacharbeit 10.11.): Listen-Umschalter der Kalenderliste
+   * zeigen? Die App-Kopfzeile trägt in der Handy-Lage bereits den Menü-Knopf
+   * (Schublade) — ein zweiter Navigationseinstieg daneben war der Befund.
+   * Die Seite schaltet ihn deshalb standardmäßig AUS und nur dort ein, wo
+   * es keinen Menü-Knopf gibt. Der Emit `sidebarToggle` bleibt bestehen.
+   */
+  listenUmschalter: { type: Boolean, default: false },
 })
+const zeigeListenUmschalter = computed(() => props.listenUmschalter === true)
 
 const emit = defineEmits([
   'prev', 'next', 'today', 'viewChange', 'resourceToggle',
@@ -205,16 +233,32 @@ const lastNormalView = computed(() => {
 // UX3d: Reiterleiste — welche Einträge erscheinen, entscheidet
 // `menue.kalenderReiter`. Die Zahl bleibt `null`, solange sie unbekannt ist
 // (kein erfundenes „0“).
+//
+// DEV-B2: Auf der Prüf-Tafel ist die Leiste IDENTISCH zum Kalender. Die drei
+// Ansichten sind dort LINKS zurück in den Kalender (`#/kalender?ansicht=…`),
+// keine Umschalter dieser Seite — deshalb bekommen sie auf der Tafel ein
+// eigenes Ziel (`tafelZiel`), und `KalenderReiter` zeichnet sie als `<a>`.
 const reiter = computed(() => {
   const liste = kalenderReiter({
     can_moderate: props.canModerate === true,
     offeneZahl: props.offeneZahl,
   })
-  // Vollbild der Prüf-Tafel: keine Ansichts-Umschalter, nur der aktive Reiter
-  // (er ist ein Link auf sich selbst — sichtbar als „hier bist du“).
-  if (props.pruefTafel) return liste.filter(r => r.ansicht !== true)
-  return liste
+  if (!props.pruefTafel) return liste
+  return liste.map(r => (r.ansicht === true
+    ? { ...r, ansicht: false, href: tafelZiel(r) }
+    : r))
 })
+
+/**
+ * Ziel eines Ansichts-Reiters auf der Prüf-Tafel: zurück in den Kalender, mit
+ * der gewünschten Ansicht im Abfrageteil. Die Adresse ist lesbar und
+ * teilbar (Prinzip N4/„wiedererkennen statt erinnern“) — `pages/Kalender.vue`
+ * wertet `ansicht=monat|woche|liste` beim Öffnen aus.
+ */
+function tafelZiel(r) {
+  const werte = new URLSearchParams({ ansicht: String(r.id) })
+  return `#/kalender?${werte.toString()}`
+}
 
 // Welcher Eintrag ist aktiv? „Zu prüfen“ ist eine EIGENE Seite; im Kalender
 // entscheidet die Ansicht. Ressourcenansichten (Timeline) gehören zur
@@ -349,45 +393,72 @@ function onMenueAktion(ereignis) {
 /* ── Handy (≤ 720 px): die bisherige Anordnung bleibt ─────────────────────
    UX3i ändert nur den Desktop; A10 (Mobil-Kalender) ist eine eigene Karte.
    Reihenfolge und Erreichbarkeit bleiben erhalten, nichts wird kleiner als
-   44 px (K4). */
+   44 px (K4).
+   DEV-B6 (Manuel 09.11.): Beschriftungen werden weggelassen, Symbole ersetzt
+   — das ist die platzsparende LEISTEN-Lage (schmales Touchgerät bzw. flaches
+   Querformat), nicht bloß ein schmales Fenster. Ein Maus-Laptop bei 702 px
+   behält die vollständige Kopfzeile; seine Werkzeuge brechen bei 1100 px in
+   eine zweite Zeile.
+   DEV-B6 (Review-Nacharbeit 10.11.): Die Lage ist die KLASSE
+   `.dk-app--handy` (Quelle `composables/handyLage.mjs`) — kein eigener
+   Media-String mehr (Review-Punkt 5: „KronosTopbar-Block hängt noch an
+   nacktem max-width: 720“). Die Wähler stehen OHNE `:global` — der
+   Scope-Anhang landet am letzten Selektor, und der liegt im eigenen
+   Template. */
+.dk-app--handy .kronos-header .header-right {
+  order: 3;
+  /* `0 0 100%` hält die Zeile am Fenster (siehe UX3d: `1 0 100%` wuchs mit
+     dem Inhalt und ragte über den Kopf hinaus) — nur in der Leisten-Lage,
+     ohne untere Leiste bliebe der Kopf sonst unnötig zweizeilig.
+     UX3i (Review): KEIN `margin-left: auto` in dieser Zeile — der
+     automatische Rand verbraucht am Handy die ganze freie Breite und die
+     Werkzeuge rutschten aus dem Bild (gemessen 390 px: „Termin anlegen“
+     und „⋯“ hinter dem Rand). Am Desktop bleibt er (siehe oben). */
+  flex: 0 0 100%;
+  margin-left: 0;
+  min-width: 0;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  row-gap: var(--sp-2);
+}
+/* Am Handy hat die Reiterleiste ihre eigene Zeile: sie soll volle Breite
+   bekommen und nicht neben dem Menü-Knopf umbrechen. */
+.dk-app--handy .kronos-header .header-left { flex-wrap: wrap; }
+.dk-app--handy .kronos-header .today-label { display: none; }
+.dk-app--handy .kronos-header .todaybutton { width: var(--control-h); padding: 0; }
+/* Ohne Beschriftung muss das Symbol stehen — sonst wäre der Knopf leer. */
+.dk-app--handy .kronos-header .today-symbol { display: inline-flex; }
+/* Am Handy stehen die Werkzeuge platzsparend: Icon-Knöpfe behalten ihr
+   aria-label, „Termin anlegen“ bleibt der eine Primärknopf. */
+.dk-app--handy .kronos-header .termin-anlegen-btn { width: var(--control-h); padding: 0; }
+.dk-app--handy .kronos-header .termin-anlegen-btn :deep(.dk-ui-btn-label) { display: none; }
+.dk-app--handy .kronos-header .kalender-auswahl-label { display: none; }
+.dk-app--handy .kronos-header .kronos-reiter { flex: 1 1 auto; }
+
+/* DEV-B6: Laptop-Lage (<720 px MIT Maus): die Werkzeugzeile bekommt ihre
+   eigene Zeile und darf umbrechen, damit „Termin anlegen“, „⋯“ und
+   „Zu prüfen“ erreichbar bleiben (Review-Punkt 5: gemessen ragten sie in
+   400 px aus dem Bild). Das ist ANORDNUNG derselben Ansicht — eine
+   Breiten-Regel, kein Gerüst. */
 @media (max-width: 720px) {
-  .kronos-header { row-gap: var(--sp-2); }
-  .header-left { order: 1; flex: 1 1 auto; }
-  .header-right {
-    order: 3;
-    /* `0 0 100%` hält die Zeile am Fenster (siehe UX3d: `1 0 100%` wuchs mit
-       dem Inhalt und ragte über den Kopf hinaus). */
-    flex: 0 0 100%;
-    /* UX3i (Review): KEIN `margin-left: auto` in dieser Zeile — der
-       automatische Rand verbraucht am Handy die ganze freie Breite und die
-       Werkzeuge rutschten aus dem Bild (gemessen 390 px: „Termin anlegen“
-       und „⋯“ hinter dem Rand). Am Desktop bleibt er (siehe oben). */
-    margin-left: 0;
-    min-width: 0;
-    justify-content: flex-end;
+  .kronos-header .header-right { flex-wrap: wrap; }
+  .kronos-header .header-right {
     flex-wrap: wrap;
-    row-gap: var(--sp-2);
+    justify-content: flex-end;
+    min-width: 0;
   }
-  /* Am Handy hat die Reiterleiste ihre eigene Zeile: sie soll volle Breite
-     bekommen und nicht neben dem Menü-Knopf umbrechen. */
-  .header-left { flex-wrap: wrap; }
-  .today-label { display: none; }
-  .todaybutton { width: var(--control-h); padding: 0; }
-  /* Ohne Beschriftung muss das Symbol stehen — sonst wäre der Knopf leer. */
-  .today-symbol { display: inline-flex; }
-  /* Am Handy stehen die Werkzeuge platzsparend: Icon-Knöpfe behalten ihr
-     aria-label, „Termin anlegen“ bleibt der eine Primärknopf. */
-  .termin-anlegen-btn { width: var(--control-h); padding: 0; }
-  .termin-anlegen-btn :deep(.dk-ui-btn-label) { display: none; }
-  .kalender-auswahl-label { display: none; }
+  .kronos-header .header-left { flex-wrap: wrap; }
   .kronos-reiter { flex: 1 1 auto; }
 }
-/* Der Umschalter der Kalenderliste gehoert zur Handy-Lage der Seite
-   (dieselbe Grenze wie kronos.css: die Liste ist dort ein Overlay). Er wird
-   NUR hier geschaltet — eine Grenze, nicht zwei. */
-@media (max-width: 720px) {
-  .sidebar-toggle-btn { display: inline-flex; }
-}
+/* Der Umschalter der Kalenderliste gehört zur Handy-Lage (die Liste ist dort
+   ein Overlay). Seit DEV-B6 ist er AUS (v-if in der Vorlage) — die
+   Navigation führt der Menü-Knopf der App-Kopfzeile. Die Regel bleibt für
+   den Fall, dass die Seite ihn einschaltet (`listenUmschalter`). */
+.dk-app--handy .sidebar-toggle-btn { display: inline-flex; }
+/* DEV-B6: In der Leisten-Lage (schmales Touchgerät, flaches Querformat) steht
+   die Werkzeugzeile in einer eigenen Zeile unter der Reiterleiste — siehe
+   dem Handy-Lage-Block oben am Template. Ein Maus-Laptop ohne untere Leiste
+   behält die einzeilige Kopfzeile; sein Umbruch geschieht bei 1100 px. */
 @media (pointer: coarse) {
   .nav-btn,
   .todaybutton,

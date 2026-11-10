@@ -79,14 +79,12 @@ function goToKalender() {
 </script>
 
 <style scoped>
-.dk-sidebar--moderation {
-  /* Same base styles as dk-sidebar, inherited from global */
-}
-
-/* Mobile: hide sidebar (same pattern as KronosSidebar / AppSidebar) */
-@media (max-width: 720px) {
-  .dk-sidebar--moderation {
-    display: none;
-  }
+/* DEV-B6 (Review-Nacharbeit 10.11., Ergänzung c): Die Spalte verschwindet in
+   der HANDY-LAGE (Klasse `.dk-app--handy`, Quelle `composables/handyLage.mjs`)
+   — dieselbe wie Seitenleiste und untere Leiste. Vorher stand hier eine
+   nackte 720-px-Regel: am Maus-Laptop (702 px) fehlte die Spalte, obwohl
+   dort das Desktop-Gerüst läuft. */
+.dk-app--handy .dk-sidebar--moderation {
+  display: none;
 }
 </style>

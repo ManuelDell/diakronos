@@ -57,7 +57,9 @@ const istAktiv = (tab) => istTabAktiv(tab, { seite: props.seite })
   display: none;
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  height: calc(64px + env(safe-area-inset-bottom));
+  /* DEV-B6b (Punkt 6): Höhe aus EINEM Token (tokens.css, --bottom-nav-h) —
+     Kalender (FAB, Liste) rechnen mit demselben Wert. */
+  height: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
   background: var(--dk-surface);
   border-top: 1px solid var(--dk-border);
@@ -65,22 +67,20 @@ const istAktiv = (tab) => istTabAktiv(tab, { seite: props.seite })
   flex-direction: row;
   align-items: stretch;
 }
-/* FIX-6: Untere Leiste = Mobil-Layout, also nur die Breite (<= 720 px,
-   index.css «FIX-6 · Layout nur nach Breite»). Ein schmales Fenster MIT Maus
-   bekommt sie ebenfalls — sie ist dort die Navigation. Vorher genügte
-   `(hover: none) and (pointer: coarse)`: ein Touch-Notebook im Querformat
-   bekam sie über den Folgeblock. */
-@media (max-width: 720px) {
-  .dk-bottom-nav { display: flex; }
-}
-/* OP-HANDY-10: Im Querformat am Handy (844x390) waren Seitenleiste UND untere
-   Leiste gleichzeitig sichtbar — Kontobereich und „Hilfe & Infos“ der
-   Seitenleiste wurden von der unteren Leiste verdeckt. Eine Regel für beide:
-   In flachen Querformaten nur die untere Leiste. FIX-6: „flach“ ist eine
-   LAYOUT-Frage — nur Geräteform (Höhe/Orientierung), nicht der Zeiger. */
-@media (max-height: 480px) and (orientation: landscape) {
-  .dk-bottom-nav { display: flex; }
-}
+/* DEV-B6 (Manuel 09.11., Befund DMB-3a7d335074cc; Review-Nacharbeit 10.11.):
+   Die untere Leiste ist die Handy-Navigation — sie erscheint NUR in der
+   Handy-Lage der App: KLASSE `.dk-app--handy`, die `App.vue` aus
+   `composables/handyLage.mjs` setzt (grober Zeiger UND schmal, bzw. grober
+   Zeiger und flaches Querformat). Dieselbe Quelle wie Skript und Token
+   `--layout-mobil`. „Auf einem Laptop darf nie die Handyleiste kommen“: ein
+   Maus-/Trackpad-Fenster mit 702 px, 400 px oder 1280×450 behält die
+   Seitenleiste (mit Menü-Knopf) statt der Leiste. Das ändert die FIX-6-Regel
+   („Zeiger ist nie Layout-Kriterium“) bewusst — Begründung im Kartenkommentar
+   DEV-B6. Der Wähler steht OHNE `:global`: die Hüllenklasse ist ein
+   Vorfahre, der Scope-Anhang landet am letzten Selektor (`.dk-bottom-nav`),
+   und der liegt im eigenen Markup. Mit `:global(...)` fiel die Regel im
+   Bündel ganz heraus (im Wegwerf-Stack gemessen: Leiste blieb aus). */
+.dk-app--handy .dk-bottom-nav { display: flex; }
 
 /* Tabs */
 .dk-bn-tab {

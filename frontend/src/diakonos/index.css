@@ -125,7 +125,7 @@ h1, h2, h3, h4 {
 @media print { .dk-sprunglink { display: none !important; } }
 
 /* =====================================================================
-   FIX-6 · ZWEI Kriterien (Befund DMB-d446e449ba22; Operator 27.10.)
+   FIX-6 · ZWEI Kriterien — FIX-6-Regel von DEV-B6 GEÄNDERT (09.11.)
    ---------------------------------------------------------------------
    Bisher fragten die Mobil-Regeln nur `(hover: none) and (pointer: coarse)`.
    Ein Zeigegerät, das Touch KANN und dessen PRIMAERER Zeiger grob ist, gilt
@@ -133,36 +133,58 @@ h1, h2, h3, h4 {
    daneben vorhanden ist und die Fläche Desktop-Breite hat. Genau dort
    erschienen mobile Elemente (Befund: Viewport 1410×755).
 
-   Getrennt nach der Frage, die die Regel beantwortet:
+   FIX-6 hatte danach getrennt:
 
      LAYOUT  Nur die BREITE:      mobilLayout = Breite <= 720 px
-             (.dk-app einspaltig, Seitenleiste aus, untere Leiste an)
-             Ein schmales Fenster MIT Maus bekommt Mobil-Layout samt unterer
-             Leiste (Navigation); ein Touch-Laptop mit 1410 px bleibt Desktop.
+             Ein schmales Fenster MIT Maus bekam Mobil-Layout samt unterer
+             Leiste — sie galt dort als Navigation.
 
      TOUCH   Nur der ZEIGER:      groberZeiger = (pointer: coarse)
-             (16-px-Felder gegen den iOS-Zoom, Tippziel-Mindestgrößen) —
-             unabhängig von der Breite, damit das iPad im Querformat sie
-             behält und ein Desktop mit Maus sie nie bekommt.
+             (16-px-Felder gegen den iOS-Zoom, Tippziel-Mindestgrößen).
 
-   Nie Kriterium ist die bloße Touch-Fähigkeit (`(any-pointer: coarse)`,
-   `maxTouchPoints`, `ontouchstart`) — und auch nicht `(any-pointer: fine)`:
-   daraus folgte in der ersten Fassung, dass ein Handy mit Maus kein
-   Mobil-Layout mehr bekäme.
+   DEV-B6 (Manuel 09.11., Befund DMB-3a7d335074cc): „Auf einem Laptop darf
+   nie die Handyleiste kommen.“ Die Layout-Hälfte von FIX-6 ist damit
+   AUSDRÜCKLICH geändert — LAYOUT hängt jetzt an Breite UND Zeiger:
 
-   Definition an EINER Stelle: `composables/eingabeart.mjs`
-   (`istMobilLayout`, `istTouch`, `SCHMAL_ABFRAGE`, `GROBER_ZEIGER_ABFRAGE`).
-   Änderungen hier immer synchron — die Node-Tests
-   `tests/fix6-zeigegeraet.test.mjs` und `tests/fix6-keine-zeiger-syntax.test.mjs`
-   vergleichen beide Fassungen. Bewusst `(pointer: coarse)` und kein
-   `not (... or ...)` (Safari < 16.4 kennt Stufe 4 nicht).
+     layout == mobil  ⇔  (pointer: coarse) and (max-width: 720px)
+                     ∨  (pointer: coarse) and (max-height: 480px)
+                                                and (orientation: landscape)
+
+   EINE Quelle: `composables/handyLage.mjs` (`HANDY_LAGE_ABFRAGE`, identisch
+   mit dem Token `--layout-mobil` in `tokens.css`). `App.vue` setzt daraus die
+   Klasse `.dk-app--handy`; JEDE Gerüst-Regel hier hängt an dieser Klasse
+   (`.dk-app--handy …`), NICHT an einer eigenen Media-Zeichenkette —
+   vorher stand dieselbe Bedingung an einem Dutzend Stellen und lief
+   auseinander (Review-Punkt 3). Folge für alle Layout-Stellen (untere Leiste,
+   Menü-Knopf, Seitenleiste aus, einspaltig, Fußabstand, Overlay-Listen):
+   ein schmales Fenster MIT MAUS bekommt KEIN Mobil-Layout mehr, sondern die
+   (eingeklappte) Seitenleiste mit Menü-Knopf. Touch-Geräte bleiben wie
+   bisher; bei Hybridgeräten entscheidet der PRIMÄRE Zeiger.
+
+   Ausdrücklich KEIN Layout-Kriterium bleiben die bloße Touch-Fähigkeit
+   (`any-pointer`, `maxTouchPoints`, `ontouchstart`) und `(any-pointer: fine)`.
+   Die TOUCH-Hälfte von FIX-6 ist unverändert `(pointer: coarse)`.
+
+   Änderungen hier immer synchron mit `tokens.css` — die Node-Tests
+   `tests/fix6-zeigegeraet.test.mjs`, `tests/fix6-keine-zeiger-syntax.test.mjs`
+   und `tests/dev-b6-*.test.mjs` vergleichen die Fassungen. Bewusst
+   `(pointer: coarse)` und kein `not (... or ...)` (Safari < 16.4 kennt
+   Stufe 4 nicht).
+   GEREGELT (DEV-B6, Punkt 2-4 im Kartenkommentar): Breiten-Blöcke, die eine
+   EIGENE Ansicht mit eigenem Gerüst umschalten (untere Leiste, Menü-Knopf,
+   Seitenleiste, Fußabstand, Overlay-Listen, 100-%-Werkzeugzeile) hängen an
+   `--layout-mobil`. Reine INHALTS-Verdichtung für dieselbe Ansicht (schmale
+   Termin-Chips, Kachel-Raster der Übersicht, Kopfzeilen-Werkzeuge bei
+   1100 px) bleibt eine Breiten-Frage — ein 702-px-Laptop behält die
+   sinnvolle Anordnung, bekommt aber kein Handy-Gerüst.
    ===================================================================== */
 
-/* --- Layout: nur nach Breite ---------------------------------------- */
-/* Der wirksame 720-px-Block steht aus Kaskaden-Gründen am DATEIENDE (K2) —
-   siehe Kommentar «FIX-6 · Layout im Mobil-Layout» dort. Ein Block an dieser
-   Stelle landet im Bündel VOR den Grundregeln (Vite sammelt @import ein) und
-   wird von `.dk-quick-row` / `@media (max-width: 1100px)` überschrieben. */
+/* --- Layout: Handy-Gerüst nur bei grobem Zeiger und schmal ------------- */
+/* Die wirksamen Blöcke stehen aus Kaskaden-Gründen am DATEIENDE (K2) —
+   siehe Kommentar «FIX-6 · Layout-Gerüst im Mobil-Layout» dort. Ein Block an
+   dieser Stelle landet im Bündel VOR den Grundregeln (Vite sammelt @import
+   ein) und wird von `.dk-quick-row` / `@media (max-width: 1100px)`
+   überschrieben. */
 
 /* --- Touch: nur bei grobem Zeiger, unabhängig von der Breite -------- */
 /* Der Block steht aus Kaskaden-Gründen am DATEIENDE — siehe Kommentar
@@ -285,6 +307,12 @@ h1, h2, h3, h4 {
 .is-collapsed .dk-sb-brand { display: none; }
 .is-collapsed .dk-sb-nav { padding: 6px 0; }
 .is-collapsed .dk-sb-collapse { display: flex; }
+/* DEV-B6b (Review 10.11., Punkt 5): Hier stand ein @media-Block
+   `(min-width: 721px) and (max-width: 1100px)` mit
+   `.is-collapsed .dk-sb-top .dk-menue-knopf { display: flex; … }` — er war
+   TOT: der Menü-Knopf liegt in der Kopfzeile (`AppTopbar.vue`), nicht in
+   `.dk-sb-top`. Die Navigation schmaler Maus-Fenster regelt allein
+   `.dk-app.is-collapsed .dk-topbar-symbol.dk-menue-knopf` weiter oben. */
 
 /* Search */
 .dk-sb-search { padding: 10px 12px 6px; }
@@ -613,6 +641,10 @@ h1, h2, h3, h4 {
   .dk-topbar-suche { min-width: var(--control-h); padding: var(--sp-2); }
   .dk-topbar-suche > span { display: none; }
 }
+/* DEV-B6: In der LEISTEN-Lage (Klasse aus `useHandyLage()`) ist die Kopfzeile
+   eng — das Suchfeld wird zum Symbol (Touch: kein Strg+K). */
+.dk-app--handy .dk-topbar-suche { min-width: var(--control-h); padding: var(--sp-2); }
+.dk-app--handy .dk-topbar-suche > span { display: none; }
 .dk-topbar-search {
   display: flex;
   align-items: center;
@@ -641,19 +673,16 @@ h1, h2, h3, h4 {
    zwei übereinander (die Seite hat ihren eigenen Titel dafür abgegeben).
    Desktop unverändert (A4 führt keinen Titel in der Kopfzeile). Nur Breite —
    dieselbe Grenze wie das Mobil-Layout oben. */
-@media (max-width: 720px) {
-  .dk-crumbs { gap: var(--sp-1); flex: 1 1 auto; min-width: 0; }
-  .dk-crumb { font-size: var(--fs); font-weight: var(--fw-fett); color: var(--dk-text); }
-  .dk-crumb-sep, .dk-crumb-weg { display: none; }
-  .dk-crumb-current { font-weight: var(--fw-fett); }
-}
+.dk-app--handy .dk-crumbs { gap: var(--sp-1); flex: 1 1 auto; min-width: 0; }
+.dk-app--handy .dk-crumb { font-size: var(--fs); font-weight: var(--fw-fett); color: var(--dk-text); }
+.dk-app--handy .dk-crumb-sep,
+.dk-app--handy .dk-crumb-weg { display: none; }
+.dk-app--handy .dk-crumb-current { font-weight: var(--fw-fett); }
 /* A10: das Rollen-Abzeichen neben dem Titel („Moderator“). Nur am Handy —
    am Desktop gibt es den Titel in der Kopfzeile nicht, dort führt die
    Seitenleiste. Ohne gemeldete Rolle ist der Halter gar nicht im DOM. */
 .dk-topbar-rolle { display: none; flex: none; }
-@media (max-width: 720px) {
-  .dk-topbar-rolle { display: inline-flex; align-items: center; }
-}
+.dk-app--handy .dk-topbar-rolle { display: inline-flex; align-items: center; }
 /* UX1g: Die Symbol-Knöpfe der Kopfzeile sind DkButtons (ghost). Hier steht
    nur die quadratische Trefferfläche (--control-h, bei grobem Zeiger 44 px)
    und der Bezugsrahmen für das Abzeichen. */
@@ -662,21 +691,28 @@ h1, h2, h3, h4 {
   padding: 0;
   position: relative;
 }
-/* UX3e (Entwurf A8): Das Menü-Symbol oben links gehört zur Mobil-Lage — am
-   Desktop führt die Seitenleiste die Navigation (Prinzip N5), ein zweiter
-   Knopf dort wäre ein totes Ziel. Bedingung: DIESELBE wie das Mobil-Layout
-   in diesem Stylesheet (nur die Breite). Das Querformat am Handy
-   (844×390) behält den Knopf, obwohl die Breite 720 px übersteigt — dort
-   ist die Seitenleiste ebenfalls ausgeblendet, der Weg zur Navigation muss
-   also offen bleiben. Trefferfläche 44 px: am Handy ist der Zeiger grob
-   (Prinzip K4); am Desktop ist der Knopf gar nicht sichtbar. */
-.dk-menue-knopf { display: none; width: 44px; height: 44px; margin-left: calc(var(--sp-1) * -1); }
-@media (max-width: 720px) {
-  .dk-menue-knopf { display: flex; }
+/* UX3e (Entwurf A8): Das Menü-Symbol gehört zur Handy-Lage — sonst führt die
+   Seitenleiste die Navigation (Prinzip N5). DEV-B6: es ist der Weg zur
+   Navigation in JEDEM schmalen Fenster — auch mit Maus, denn dort gibt es die
+   untere Leiste nicht mehr (Manuel 09.11.). Am Desktop erscheint es nur dann,
+   wenn die Seitenleiste EINGEKLAPPT ist (`.is-collapsed .dk-menue-knopf`) —
+   sonst gäbe es keinen sichtbaren Weg zur Navigation. Bedingung der
+   Handy-Lage: die Bedingung aus `--layout-mobil` (tokens.css, eine Quelle).
+   Trefferfläche `--dk-menue-knopf-h`: 40 px am Maus-Laptop, 44 px am
+   Touchgerät (K4). */
+/* specificity of the base rule must BEAT DkButton's own `display: inline-flex`
+   on the same element (`.dk-topbar-symbol.dk-menue-knopf` = 2 classes, the
+   component's class rule = 1) — measured in the DEV-B6 throwaway stack: the
+   knob stayed visible at 1440 px. */
+.dk-topbar-symbol.dk-menue-knopf {
+  display: none;   /* Handy-Lage/Schublade: siehe die beiden Regeln darunter */
+  width: var(--dk-menue-knopf-h);
+  height: var(--dk-menue-knopf-h);
+  margin-left: calc(var(--sp-1) * -1);
 }
-@media (max-height: 480px) and (orientation: landscape) {
-  .dk-menue-knopf { display: flex; }
-}
+/* Handy-Lage (Klasse aus `useHandyLage()`) — EINE Quelle mit dem Skript. */
+.dk-app--handy .dk-topbar-symbol.dk-menue-knopf { display: inline-flex; }
+.dk-app.is-collapsed .dk-topbar-symbol.dk-menue-knopf { display: inline-flex; }
 .dk-notify-dot { position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--dk-danger); }
 .dk-notify-badge { position: absolute; top: 5px; right: 5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--dk-danger); color: #fff; font-size: var(--fs-12); font-weight: var(--fw-fett); display: flex; align-items: center; justify-content: center; }
 /* OP-HANDY-6: Benachrichtigungs-Liste — Klick auf die Glocke zeigt sie an. */
@@ -1477,10 +1513,16 @@ select.dk-form-select { appearance: auto; }
 .dk-grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
 .dk-grid-cols-7 { grid-template-columns: repeat(7, 1fr); }
 @media (max-width: 1100px) { .dk-grid-cols-4 { grid-template-columns: repeat(2, 1fr); } }
-/* FIX-6: Einspaltig wird in der Mobil-Lage (Breite <= 720 px) — dieselbe
-   Bedingung wie `.dk-app` oben (Layout richtet sich nur nach der Breite). */
+/* DEV-B6b (Review 10.11., Punkt 4): Einspaltig ist ein INHALTS-Umbruch und
+   hängt an der BREITE (≤ 720 px), nicht am Zeiger — dieselbe Grenze wie
+   `--layout-mobil`, aber ohne Zeiger-Teil: ein schmales Maus-Fenster (400 px)
+   hat schlicht keinen Platz für zwei Spalten. Vorher hing das an der
+   Handy-Lage-Klasse, und ein 702/400-px-Fenster mit Maus behielt sein Raster
+   (der Inhalt ragte über den Rand). */
 @media (max-width: 720px) {
-  .dk-grid-cols-2, .dk-grid-cols-3, .dk-grid-cols-4 { grid-template-columns: 1fr; }
+  .dk-grid-cols-2,
+  .dk-grid-cols-3,
+  .dk-grid-cols-4 { grid-template-columns: 1fr; }
 }
 
 /* =====================================================================
@@ -1609,6 +1651,10 @@ select.dk-form-select { appearance: auto; }
    der Knöpfe (44 px) stehen im einzigen Grob-Zeiger-Block am DATEIENDE —
    so gibt es weiterhin genau EINEN `@media (pointer: coarse)`-Block, wie es
    `tests/p3-4c-restpunkte.test.mjs` verlangt. */
+/* DEV-B6b (Review 10.11., Punkt 4): Die Melde-Position ist Anordnung des
+   Inhalts und hängt an der BREITE. Der Fußabstand für die untere Leiste
+   bleibt Sache des Gerüsts (`.dk-app--handy`): mit Maus gibt es keine Leiste,
+   also steht die Meldung unten mit dem normalen Abstand. */
 @media (max-width: 720px) {
   .diakonos-toast-container,
   .diakonos-toast-container--undo {
@@ -1623,6 +1669,9 @@ select.dk-form-select { appearance: auto; }
     bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
   }
 }
+.dk-app--handy .diakonos-toast-container--undo {
+  bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + var(--sp-4));
+}
 /* Auf Papier gibt es keine Meldungen. */
 @media print { .diakonos-toast-container { display: none !important; } }
 /* ============================================================
@@ -1631,7 +1680,10 @@ select.dk-form-select { appearance: auto; }
 
 .dk-widget-grid-wrapper {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  /* DEV-B6b-Kleinfix (Punkt 4): `min(…, 100%)` — bei 400 px (Maus) ist die
+     Inhaltsfläche schmaler als 320 px; die Karten liefen rechts ~32 px aus
+     dem Bild (von `overflow: hidden` verdeckt). */
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
   gap: 18px;
   padding: 0 0 80px;
 }
@@ -1642,7 +1694,8 @@ select.dk-form-select { appearance: auto; }
 .dk-widget-large  { grid-column: span 2; }
 .dk-widget-full   { grid-column: 1 / -1; }
 
-/* FIX-6: Widget-Raster — dieselbe Mobil-Bedingung wie `.dk-app` (Breite). */
+/* DEV-B6b (Review 10.11., Punkt 4): Widget-Größen sind Inhalt — unter der
+   Handy-Breite nimmt jede Karte die volle Zeile (BREITE, nicht Zeiger). */
 @media (max-width: 720px) {
   .dk-widget-large,
   .dk-widget-full { grid-column: 1 / -1; }
@@ -1950,7 +2003,7 @@ select.dk-form-select { appearance: auto; }
 .dk-schrumpf-nicht { flex-shrink: 0; }
 
 /* =====================================================================
-   FIX-6 · Layout-Gerüst im Mobil-Layout — NACH den Grundregeln
+   FIX-6 · Layout-Gerüst im Handy-Layout — NACH den Grundregeln
    ---------------------------------------------------------------------
    Diese Regeln stehen bewusst am DATEIENDE, nicht im Mobil-Block oben.
    Befund (Wegwerf-Stack t_fba1a868, Lage 390 px, gemessen mit
@@ -1961,27 +2014,39 @@ select.dk-form-select { appearance: auto; }
    Seitenleiste `flex`. Vite sammelt `@import`-Regeln hinter den direkt
    geschriebenen Regeln ein, deshalb wandert der obere Block nach vorn.
    Am Dateiende steht diese Regel nach allen Grundregeln der Datei; da sie
-   nur in der Mobil-Lage gilt, ändert sie am Desktop nichts.
-   Die Breite ist die EINE Grenze der App (composables/eingabeart.mjs,
-   MOBIL_GRENZE_PX = 720): Layout richtet sich nur nach der Breite.
+   nur in der Handy-Lage gilt, ändert sie am Desktop nichts.
+   DEV-B6 (Manuel 09.11.; Review-Nacharbeit 10.11.): Die Handy-Lage ist nicht
+   mehr „Breite <= 720 px“ und auch keine ausgeschriebene Media-Bedingung mehr,
+   sondern die KLASSE `.dk-app--handy`, die `App.vue` aus
+   `composables/handyLage.mjs` setzt (grob + Breite bzw. grob + flaches
+   Querformat). Ein 702-px-Fenster mit MAUS behält hier also Seitenleiste und
+   Desktop-Gerüst; es bekommt weder untere Leiste noch Fußabstand. Die Klasse
+   statt einer Media-Kopie: EINE Quelle, und die Seiten (Kalender, Kalender-
+   Blatt, Plan-Hinweis) lesen denselben Zustand.
    ===================================================================== */
+/* Die Hülle TRÄGT die Klasse selbst (App.vue setzt sie an `.dk-app` und an
+   `<body>`) — deshalb hier ohne Nachfahren-Teil. */
+.dk-app.dk-app--handy { grid-template-columns: 1fr; }
+.dk-app--handy .dk-sidebar { display: none; }
+/* FIX-6b/K2: Die einspaltigen Reihen stehen HIER, nicht im Block oben —
+   `.dk-quick-row` (repeat(3, 1fr)) und `@media (max-width: 1100px)`
+   (repeat(2, 1fr)) setzen sie sonst im Bündel zurück. Befund: die
+   QuickLinks waren bei 390 px zweispaltig. */
+/* DEV-B6b (Review 10.11., Punkt 4): dieselbe INHALTS-Grenze (Breite) für die
+   Reihen — unter 720 px ist für drei Kacheln nebeneinander kein Platz. */
 @media (max-width: 720px) {
-  .dk-app { grid-template-columns: 1fr; }
-  .dk-sidebar { display: none; }
-  /* FIX-6b/K2: Die einspaltigen Reihen stehen HIER, nicht im Block oben —
-     `.dk-quick-row` (repeat(3, 1fr)) und `@media (max-width: 1100px)`
-     (repeat(2, 1fr)) setzen sie sonst im Bündel zurück. Befund: die
-     QuickLinks waren bei 390 px zweispaltig. */
-  .dk-stats-row, .dk-quick-row { grid-template-columns: 1fr; }
-  .dk-content { padding-bottom: calc(56px + env(safe-area-inset-bottom) + 24px) !important; }
-  .dk-screen { padding-bottom: calc(56px + env(safe-area-inset-bottom) + 24px) !important; }
-  /* FIX-6b/K2: `.dk-topbar-search` und `.kronos-header .sidebar-toggle-btn`
-     standen hier, sind aber tot: `.dk-topbar-search` kommt in keinem Template
-     vor, und den Umschalter regelt `KronosTopbar.vue` selbst — scoped, aber
-     auf einem Kind-Element (`.sidebar-toggle-btn` mit eigenem data-Attribut),
-     deshalb genügt dort ein einfacher Klassenselektor (dieselbe Abschaltung
-     bei 768 px in der Komponente). */
+  .dk-stats-row,
+  .dk-quick-row { grid-template-columns: 1fr; }
 }
+/* DEV-B6b (Punkt 6): Fußabstand aus demselben Token wie die Leiste selbst. */
+.dk-app--handy .dk-content { padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + var(--sp-5)) !important; }
+.dk-app--handy .dk-screen { padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + var(--sp-5)) !important; }
+/* FIX-6b/K2: `.dk-topbar-search` und `.kronos-header .sidebar-toggle-btn`
+   standen hier, sind aber tot: `.dk-topbar-search` kommt in keinem Template
+   vor, und den Umschalter regelt `KronosTopbar.vue` selbst — scoped, aber
+   auf einem Kind-Element (`.sidebar-toggle-btn` mit eigenem data-Attribut),
+   deshalb genügt dort ein einfacher Klassenselektor (dieselbe Abschaltung
+   bei 768 px in der Komponente). */
 
 /* =====================================================================
    FIX-6 · OP-HANDY-10 — flaches Querformat (z. B. 844×390)
@@ -1989,18 +2054,16 @@ select.dk-form-select { appearance: auto; }
    Hier greift die 720-px-Regel nicht (Breite 844), aber eine 256-px-Seiten-
    leiste plus untere Leiste wären gleichzeitig sichtbar und verdeckten
    einander. Eine Regel für beide: Seitenleiste aus, untere Leiste bleibt.
-   Das ist eine LAYOUT-Frage → nur die Geräteform (Breite/Höhe), nicht der
-   Zeiger. Ein flaches Desktop-Fenster bekommt damit dasselbe Gerüst wie das
-   Handy im Querformat. (Operator-Auflage: dieser Block bleibt geometrisch.)
-   FIX-6b/K1: Er stand oben in der Datei und damit im Bündel VOR den
-   Grundregeln `.dk-app { display: grid }`, `.dk-sidebar { display: flex }`
+   Seit DEV-B6 ist das die zweite Alternative der Handy-Lage — und die prüft
+   den ZEIGER mit (`(pointer: coarse) and (max-height: 480px) and
+   (orientation: landscape)`): ein flaches Maus-Fenster (Laptop 1280×450)
+   bekommt Seitenleiste statt Leiste. Beide Regeln stehen oben im
+   Gerüst-Block (`.dk-app--handy`) — hier bleibt nichts doppelt.
+   FIX-6b/K1: Der Block stand früher oben in der Datei und damit im Bündel VOR
+   den Grundregeln `.dk-app { display: grid }`, `.dk-sidebar { display: flex }`
    — er wirkte deshalb nicht (Befund: Seitenleiste und
    untere Leiste gleichzeitig). Am Dateiende steht er nach allen Grundregeln.
    ===================================================================== */
-@media (max-height: 480px) and (orientation: landscape) {
-  .dk-app { grid-template-columns: 1fr; }
-  .dk-sidebar { display: none; }
-}
 
 /* =====================================================================
    FIX-6b/K3 · UXD-R9 — Formularfelder immer schrumpffähig

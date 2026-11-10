@@ -331,8 +331,17 @@ test('N2 · 5: Mobil-Bau hängt an den Mobil-Klassen, nicht an der Fensterbreite
     'die Raster-Regeln stehen nicht mehr in einer Breiten-Regel')
   // und die Klasse (`.kal-mobil-raster`) setzt allein der Mobil-Bau im Skript.
   assert.match(seite, /<div v-else class="kal-mobil-raster">/, 'Klasse am Mobil-Bau')
-  // `istSchmal` bleibt EINE benannte Lage (DEV-B6 stellt sie zentral um).
-  assert.match(seite, /const istSchmal = ref\(typeof window !== 'undefined' && istHandyBreite\(window\.innerWidth\)\)/,
-    'istSchmal ist ein benanntes ref')
+  // `istSchmal` bleibt EINE benannte Lage. DEV-B6 (Review-Nacharbeit 10.11.)
+  // hat sie von der reinen Breite (`istHandyBreite`) auf die Handy-Lage der
+  // App gestellt (`useHandyLage()`, dieselbe Quelle wie das CSS über die
+  // Klasse `.dk-app--handy`). Die Zusage dieses Tests — EINE benannte Lage,
+  // keine zweite Entscheidung — gilt unverändert; der Test wurde angepasst,
+  // nicht gelöscht (Regel 19).
+  assert.match(seite, /const \{ istHandyLage \} = useHandyLage\(\)/,
+    'istSchmal kommt aus der EINEN Handy-Lage der App')
+  assert.match(seite, /const istSchmal = istHandyLage/,
+    'istSchmal ist ein benanntes ref (kein zweiter Weg)')
+  assert.ok(!/istHandyBreite\(window\.innerWidth\)/.test(seite),
+    'keine reine Breiten-Entscheidung mehr')
   assert.match(seite, /mobilAnsichtId === 'liste'/, 'Liste = eigener Weg, Raster bleibt im DOM')
 })

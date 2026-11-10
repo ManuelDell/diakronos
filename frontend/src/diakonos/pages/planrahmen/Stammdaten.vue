@@ -421,7 +421,9 @@ import PrHandyHinweis from '../../components/planrahmen/PrHandyHinweis.vue'
 import DkSkelett from '../../components/ui/DkSkelett.vue'
 import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 import LiederPflege from '../../components/planrahmen/LiederPflege.vue'
-import { useHandyHinweis, hinweisZeigen, istSchmal } from '../../composables/handyHinweis.mjs'
+import { useHandyHinweis, hinweisZeigen, istHandyHinweisLage, handyHinweisLage } from '../../composables/handyHinweis.mjs'
+// DEV-B6: EINE Quelle der Handy-Lage (identisch mit dem Token und App.vue).
+import { HANDY_LAGE_ABFRAGE } from '../../composables/handyLageAbfrage.mjs'
 import { VueDraggable } from 'vue-draggable-plus'
 import DkButton from '../../components/ui/DkButton.vue'
 // PR-G1: Filter/Sortierung nach Geschlecht — gemeinsame Rechnung mit dem Test.
@@ -497,16 +499,25 @@ const darfBearbeiten = computed(() => !!daten.value?.darf_bearbeiten)
 // PLAN-M1: Hinweis am Handy — nur schmal + Bearbeitungsrecht + nicht
 // geschlossen. Rein Hinweis, nichts wird gesperrt.
 const handyHinweis = useHandyHinweis()
+// DEV-B6: Breite UND primärer Zeiger — der Hinweis ist für die Handy-Lage
+// gedacht; ein Maus-Laptop mit 702 px bekam ihn fälschlich (Befund
+// DMB-3a7d335074cc). Kein `from` in diesen Zeilen: der Import-Filter
+// der Seiten-Tests (planrahmen-stammdaten, pr-g1-massenauswahl) sucht
+// das Wort und schnitte sonst bis zum nächsten Import.
 const breiteAmFenster = ref(typeof window !== 'undefined' ? window.innerWidth : 0)
+const lageAmFenster = ref(handyHinweisLage())
+// DEV-B6: dieselbe Handy-Lage-Abfrage wie App/CSS, auch für den Zeigerwechsel.
+let lageAbfrage = null
 const handyHinweisGeschlossen = ref(false)
 const handyHinweisZeigen = computed(() => !handyHinweisGeschlossen.value
     && hinweisZeigen({
-        schmal: istSchmal(breiteAmFenster.value),
+        schmal: istHandyHinweisLage(breiteAmFenster.value, lageAmFenster.value),
         darfBearbeiten: darfBearbeiten.value,
         geschlossen: false,
     }))
 function beiGroessenAenderung() {
     breiteAmFenster.value = typeof window !== 'undefined' ? window.innerWidth : 0
+    lageAmFenster.value = handyHinweisLage()
 }
 function handyHinweisSchliessen() {
     handyHinweis.schliessen()
@@ -516,6 +527,12 @@ onMounted(() => {
     handyHinweisGeschlossen.value = handyHinweis.geschlossen()
     beiGroessenAenderung()
     if (typeof window !== 'undefined') window.addEventListener('resize', beiGroessenAenderung)
+    // DEV-B6 (Review-Nacharbeit 10.11., Punkt 3): Der ZEIGER kann sich
+    // ohne `resize` ändern (Maus abgezogen/angeschlossen) — die Handy-Lage
+    // wird deshalb auch am matchMedia-`change` neu gelesen.
+    lageAbfrage = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+        ? window.matchMedia(HANDY_LAGE_ABFRAGE) : null
+    lageAbfrage?.addEventListener?.('change', beiGroessenAenderung)
 })
 const titelZusatz = computed(() => definition.value?.name || geladenerTyp.value || '')
 const kopfText = computed(() => {
@@ -594,6 +611,7 @@ let ladeNummer = 0
 onUnmounted(() => {
     ladeNummer += 1
     if (typeof window !== 'undefined') window.removeEventListener('resize', beiGroessenAenderung)
+    lageAbfrage?.removeEventListener?.('change', beiGroessenAenderung)
 })
 
 /** Nach Schreibvorgängen neu laden, ohne die Seite neu aufzubauen. */

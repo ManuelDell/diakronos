@@ -341,6 +341,11 @@
   --sb-item-h: 36px;
   --row-h:     44px;
   --topbar-h:  56px;
+  /* DEV-B6b (Review 10.11., Punkt 6): Höhe der unteren Leiste (Handy-Lage) an
+     EINER Stelle. Vorher standen 64px (Leiste selbst) und 56px (Fußabstand,
+     Toast, Querformat-Blöcke des Kalenders) nebeneinander — im Querformat lag
+     der FAB damit hinter der Leiste. Wer die Leiste verschiebt, ändert hier. */
+  --bottom-nav-h: 64px;
   --sidebar-w:   256px;
   --sidebar-col: 64px;
   /* UX2a2b: Die eine Meldungsflaeche (Toast). Breite und Mindesthoehe waren
@@ -806,6 +811,43 @@
   --dk-sidebar-w:   var(--sidebar-w);
   --dk-sidebar-col: var(--sidebar-col);
   --dk-topbar-h:    var(--topbar-h);
+
+  /* ── DEV-B6 (Manuel 09.11.): DIE Bedingung fürs Handy-Layout ─────────────
+     Befund DMB-3a7d335074cc: Die untere Navigationsleiste erschien auf einem
+     Laptop (702×894, Maus) — „Auf einem Laptop darf nie die Handyleiste
+     kommen.“ Damit gilt für das LAYOUT nicht mehr nur die Breite (FIX-6),
+     sondern Breite UND grober Zeiger:
+
+       layout == mobil  ⇔  (pointer: coarse) and (max-width: 720px)
+                       ∨  (pointer: coarse) and (max-height: 480px)
+                                                  and (orientation: landscape)
+
+     * Maus/Trackpad als PRIMÄRER Zeiger (`pointer: fine`): nie die
+       Handy-Leiste, bei jeder Breite — stattdessen die Seitenleiste (bei
+       schmalen Fenstern eingeklappt, mit Menü-Knopf).
+     * Touch bleibt wie bisher: Leiste bis 720 px und im flachen Querformat.
+     * Auch die QUERFORMAT-Alternative prüft den Zeiger (Review 10.11.):
+       vorher fehlte dort `(pointer: coarse)`, ein Maus-Laptop 1280×450 bekam
+       die Leiste.
+     * Hybrid (Touch-Laptop): der PRIMÄRE Zeiger entscheidet, `any-pointer`
+       bleibt verboten (FIX-6).
+
+     DIESES TOKEN IST DIE MASCHINENLESBARE QUELLE der Bedingung — im CSS
+     selbst wird es NICHT benutzt (CSS-Variablen sind keine Custom Media und
+     werden in `@media` nicht aufgelöst; `@custom-media` wird von Chromium
+     ignoriert, im Browser gemessen). Das Gerüst hängt statt dessen an der
+     KLASSE `.dk-app--handy`, die `App.vue` aus dem Composable
+     `composables/handyLage.mjs` setzt — dort steht die Zeichenkette als
+     `HANDY_LAGE_ABFRAGE`. Die Node-Tests (`tests/dev-b6-*.test.mjs`,
+     `tests/fix6-zeigegeraet.test.mjs`) vergleichen Token und Zeichenkette
+     Wort für Wort. */
+  --layout-mobil: (pointer: coarse) and (max-width: 720px),
+                  (pointer: coarse) and (max-height: 480px) and (orientation: landscape);
+
+  /* DEV-B6: Trefferfläche des Menü-Knopfs im schmalen Fenster. Am Maus-Laptop
+     ein Mausziel (40 px, wie jeder andere Knopf), am Touchgerät 44 px — die
+     Bedingung dafür steht im `(pointer: coarse)`-Block am Dateiende. */
+  --dk-menue-knopf-h: var(--control-h);
 }
 
 /* DES-R4: Markenfarben-Aliase im Dunkelmodus. Die Skala --dk-navy-* ist das
@@ -842,5 +884,8 @@
     --control-h: 44px;
     --control-h-lg: 44px;
     --filter-h: var(--control-h);
+    /* DEV-B6: der Menü-Knopf im schmalen Fenster ist ein FINGERZIEL (K4) —
+       am Touchgerät 44 px, am Maus-Laptop bleibt es bei 40 px. */
+    --dk-menue-knopf-h: 44px;
   }
 }

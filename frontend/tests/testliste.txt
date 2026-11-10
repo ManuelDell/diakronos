@@ -314,6 +314,12 @@ tests/planrahmen-route-lifecycle.test.mjs
 # AUFR-1: Wächter — keine *-UEBERGABE.md in der Repo-Wurzel, Abnahme-Doku nur
 # unter docs/abnahmen/ und im Export ausgeschlossen (Regel 17).
 
+# DEV-B6 (Manuel 09.11., Befund DMB-3a7d335074cc): „Auf einem Laptop darf nie
+# die Handyleiste kommen.“ Mountet die echte App.vue mit matchMedia-Attrappe:
+# fine+hover → keine Leiste bei 702/700/400 px (Seitenleiste + Menü-Knopf statt
+# Leiste), coarse → Leiste bis 720 px und im flachen Querformat; dazu Kalender-
+# und Plan-Hinweis-Lage.
+tests/dev-b6-*.test.mjs
 # DEV-B1: Kalender/Termin-Dialoge — keine Backslashes in der fields-Adresse,
 # Laden über Promise.allSettled, Mount-Test mit Schreibrecht (Befund
 # DMB-da438eb70703 + DMB-734e07deb09b).
@@ -344,3 +350,9 @@ tests/dev-b4b-*.test.mjs
 # Rohanzeigen (OpenSignupsWidget, devmodus/Befunde) laufen ueber shared/zeit.mjs
 # (serverZeitText), inkl. 23:30-UTC-Fall; Datensicherung bleibt Ortszeit.
 tests/zeit3-*.test.mjs
+tests/dev-b6b-*.test.mjs
+# DEV-B2: Kalender „Zu prüfen“ — die Reiterzeile bleibt wie im Kalender
+# (Monat · Woche · Liste führen als Links `#/kalender?ansicht=…` zurück,
+# Kalender.vue wertet den Parameter aus), „‹ Kalender“ erscheint nur am Handy
+# (Befund DMB-8e166c0aacff).
+tests/dev-b2-*.test.mjs

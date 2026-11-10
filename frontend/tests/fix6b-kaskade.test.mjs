@@ -19,9 +19,15 @@
  * Geprüft werden die drei Befunde:
  *   K1  OP-HANDY-10 (`(max-height: 480px) and (orientation: landscape)`) steht
  *       nach `.dk-app {` (display:grid), `.dk-sidebar {` und `.kronos-sidebar`.
- *   K2  Der 720-px-Layoutblock mit `.dk-quick-row { grid-template-columns: 1fr }`
+ *       DEV-B6 (09.11.): Der Block steht jetzt als Handy-Lage-Block (Bedingung
+ *       aus `--layout-mobil`, tokens.css) am
+ *       Dateiende (Token aus tokens.css) — gesucht wird deshalb der Block, der
+ *       `.dk-app` einspaltig macht, samt seiner Bedingung.
+ *   K2  Der Handy-Gerüst-Block mit `.dk-quick-row { grid-template-columns: 1fr }`
  *       steht nach `.dk-quick-row {` (repeat(3, 1fr)) UND nach dem
  *       `@media (max-width: 1100px)`-Block, der es auf repeat(2, 1fr) zieht.
+ *       Bedingung seit DEV-B6: grober Zeiger + 720 px (bzw. flaches
+ *       Querformat) statt der nackten 720 px.
  *   K3  `min-width: 0` der Formularfelder steht AUSSERHALB jeder Media-Query
  *       (UXD-R9: gilt immer, nicht nur bei grobem Zeiger).
  */
@@ -119,60 +125,84 @@ function pruefeKaskade(quelle, name) {
     }
     assert.ok(b1100, 'Regel @media (max-width: 1100px) mit .dk-quick-row nicht gefunden')
 
-    // ---- K1: OP-HANDY-10 (flaches Querformat) ---------------------------
-    let k1 = null
-    const quer = /@media\s*\(max-height:\s*480px\)\s*and\s*\(orientation:\s*landscape\)\s*\{/g
-    for (let m = quer.exec(teil); m; m = quer.exec(teil)) {
-        const b = blockAb(teil, m.index)
-        if (/\.dk-app\s*\{[^}]*grid-template-columns:\s*1fr/.test(b.inhalt)) {
-            k1 = { ...b, start: anker + m.index }
-        }
+    // ---- K1/K2: Handy-Gerüst (OP-HANDY-10 + 720-px-Layout) -----------------
+    // DEV-B6 (Review-Nacharbeit 10.11.): Das Gerüst steht NICHT mehr als
+    // `@media`-Block, sondern als Klasse `:global(.dk-app--handy) …` (eine
+    // Quelle mit dem Skript, `composables/handyLage.mjs`). Die Kaskaden-Zusage
+    // dieses Tests gilt unverändert: die wirkende Regel muss HINTER den
+    // Grundregeln stehen, die sie überschreibt — und das FLACHE QUERFORMAT
+    // (OP-HANDY-10) muss darin enthalten sein. Der Test wurde angepasst, nicht
+    // gelöscht (Regel 19).
+    // Hinweis: index.css ist reines CSS — die Klasse steht dort ohne `:global`.
+    const geruestKlassen = []
+    const klassenRe = /([^{}@]*\.dk-app--handy[^{}]*)\{([^}]*)\}/g
+    for (let m = klassenRe.exec(text); m; m = klassenRe.exec(text)) {
+        geruestKlassen.push({ selektoren: m[1].trim(), selektoren: m[1].trim(), inhalt: m[2], start: anker + m.index })
     }
-    assert.ok(k1, 'K1: OP-HANDY-10-Block (max-height: 480px) and (orientation: landscape) fehlt')
-    // Er muss die Seitenleiste abschalten.
-    assert.match(k1.inhalt, /\.dk-sidebar[\s\S]*?display:\s*none/,
-        'K1: OP-HANDY-10 muss .dk-sidebar abschalten')
-    // .kronos-sidebar ist seit OP-UI-11 die einklappbare Kalenderliste — nicht abschalten.
-    assert.doesNotMatch(k1.inhalt, /\.kronos-sidebar/)
+    // `.dk-app` einspaltig
+    // Die Hülle trägt die Klasse selbst: `.dk-app.dk-app--handy` (App.vue
+    // setzt sie an `.dk-app` und an <body>; Leiste/Schublade liegen NEBEN der
+    // Hülle, im Wegwerf-Stack gemessen).
+    const k1 = geruestKlassen.find((r) => /\.dk-app(\.dk-app--handy)?\s*$/.test(r.selektoren.split(',')[0].trim())
+        && /grid-template-columns:\s*1fr/.test(r.inhalt))
+    assert.ok(k1, 'K1: Handy-Gerüst-Regel (`.dk-app` einspaltig an der Klasse) fehlt')
     assert.ok(k1.start > grundApp,
-        `K1 (${name}): OP-HANDY-10 (Zeichen ${k1.start}) steht VOR der Grundregel .dk-app `
-        + `(${grundApp}) — im Bündel gewinnt dann die Grundregel und die Querformat-Regel `
-        + 'wirkt nicht. Der Block gehört ans Dateiende.')
-    assert.ok(k1.start > grundSidebar,
-        `K1 (${name}): OP-HANDY-10 (${k1.start}) steht VOR der Grundregel .dk-sidebar (${grundSidebar})`)
-    // `.kronos-sidebar` wird von dieser Regel bewusst NICHT abgeschaltet (siehe
-    // `doesNotMatch` oben: seit OP-UI-11 ist sie die einklappbare Kalenderliste).
-    // Eine Reihenfolge-Bedingung gegen ihre Grundregel wäre deshalb sinnlos — sie
-    // hat FIX-6b im GEBAUTEN Bündel dauerhaft rot gemacht, obwohl die Regel wirkt
-    // (gemessen im Wegwerf-Stack 844×390: `.dk-sidebar` = none, untere Leiste =
-    // flex). Geprüft wird nur noch, dass die Grundregel in der QUELLE existiert;
-    // die Wirkung belegt der Bündel-Test über `.dk-app`/`.dk-sidebar`.
+        `K1 (${name}): die Gerüst-Regel (${k1.start}) steht VOR der Grundregel .dk-app `
+        + `(${grundApp}) — im Bündel gewinnt dann die Grundregel`)
+    // Die Seitenleiste wird in derselben Lage abgeschaltet (eigene Regel).
+    const seitenleiste = geruestKlassen.find((r) => /\.dk-sidebar\s*$/.test(r.selektoren.split(',')[0].trim())
+        && /display:\s*none/.test(r.inhalt))
+    assert.ok(seitenleiste, 'K1: Handy-Gerüst schaltet `.dk-sidebar` nicht ab')
+    assert.ok(seitenleiste.start > grundSidebar,
+        `K1 (${name}): die .dk-sidebar-Abschaltung (${seitenleiste.start}) steht VOR der Grundregel (${grundSidebar})`)
+    // `.kronos-sidebar` ist seit OP-UI-11 die einklappbare Kalenderliste —
+    // NICHT abschalten (gilt weiterhin für Gerüst-Regeln).
+    // DEV-B6b (Review 10.11., Punkt 3): Die Liste als Handy-Overlay
+    // (`.dk-app--handy .kronos-sidebar { position: fixed … }`) ist erlaubt; die
+    // Zusage dieses Tests bleibt „kein `display: none` an der Liste".
+    // Vorher prüfte er den Selektor pauschal und fiel um, sobald das
+    // Overlay der Handy-Lage dazukam (Regel 19: Test angepasst, nichts gelöscht).
+    assert.ok(!geruestKlassen.some((r) => /\.kronos-sidebar[^,]*$/.test(r.selektoren)
+        && /display:\s*none/.test(r.inhalt)),
+        'K1: die Kalenderliste (.kronos-sidebar) darf nicht abgeschaltet werden')
+    // OP-HANDY-10: das flache Querformat gehört zur Handy-Lage. Belegt über
+    // die EINE Quelle (Token + Zeichenkette), nicht über einen zweiten Block.
+    const tokens = ohneKommentare(readFileSync(CSS_QUELLE.replace('index.css', 'tokens.css'), 'utf8'))
+    assert.match(tokens, /--layout-mobil:[^;]*\(pointer: coarse\) and \(max-height: 480px\) and \(orientation: landscape\)/,
+        'K1: das flache Querformat gehört zur Handy-Lage (Zeiger geprüft)')
 
-    // ---- K2: 720-px-Layoutblock mit einspaltigem .dk-quick-row ---------
-    let k2 = null
-    const m720 = /@media\s*\(max-width:\s*720px\)\s*\{/g
-    for (let m = m720.exec(teil); m; m = m720.exec(teil)) {
-        const b = blockAb(teil, m.index)
-        // Der Layoutblock: er schaltet das Gerüst UND die Quick-Reihe einspaltig.
-        if (/\.dk-quick-row[^{]*\{[^}]*grid-template-columns:\s*1fr/.test(b.inhalt)
-            && /\.dk-app\s*\{[^}]*grid-template-columns:\s*1fr/.test(b.inhalt)) {
-            k2 = { ...b, start: anker + m.index }
-        }
+    // K2: die einspaltige Quick-Reihe.
+    // DEV-B6b (Review 10.11., Punkt 4): Die einspaltige Reihe ist ein
+    // INHALTS-Umbruch und hängt an der BREITE (≤ 720 px), nicht an der
+    // Handy-Lage — die Kaskaden-Zusage bleibt dieselbe: die wirkende Regel
+    // steht HINTER der Grundregel und HINTER dem 1100-px-Block.
+    const reihenBlaecke = []
+    const reihenRe = /@media\s*\(max-width:\s*720px\)\s*\{/g
+    for (let m = reihenRe.exec(text); m; m = reihenRe.exec(text)) {
+        const b = blockAb(text, m.index)
+        if (/\.dk-quick-row/.test(b.inhalt)) reihenBlaecke.push({ ...b, start: anker + m.index })
     }
-    assert.ok(k2, 'K2: 720-px-Layoutblock mit .dk-quick-row { grid-template-columns: 1fr } fehlt '
+    const k2 = reihenBlaecke.find((r) => /grid-template-columns:\s*1fr/.test(r.inhalt))
+    assert.ok(k2, 'K2: Regel (max-width: 720px) mit .dk-quick-row { grid-template-columns: 1fr } fehlt '
         + '(Befund: .dk-quick-row war bei 390 px zweispaltig)')
     assert.ok(k2.start > grundQuick,
-        `K2 (${name}): der 720-px-Layoutblock (${k2.start}) steht VOR der Grundregel `
+        `K2 (${name}): die .dk-quick-row-Regel (${k2.start}) steht VOR der Grundregel `
         + `.dk-quick-row (${grundQuick}) — sie gewinnt im Bündel`)
     assert.ok(k2.start > b1100.ende,
-        `K2 (${name}): der 720-px-Layoutblock (${k2.start}) steht VOR dem `
+        `K2 (${name}): die .dk-quick-row-Regel (${k2.start}) steht VOR dem `
         + `@media (max-width: 1100px)-Block mit .dk-quick-row (${b1100.start}) — `
         + 'bei 390 px gewinnt sonst repeat(2, 1fr)')
+    // Der Klasse-Block führt .dk-quick-row NICHT mehr (Punkt 4: Breite).
+    assert.ok(!geruestKlassen.some((r) => /\.dk-quick-row/.test(r.selektoren)),
+        'K2: .dk-quick-row ist ein Inhalts-Umbruch und gehört an die Breite, nicht an die Handy-Lage')
+
     // Tote Selektoren gehören nicht in den wirksamen Block.
-    assert.doesNotMatch(k2.inhalt, /\.dk-topbar-search/,
-        'K2: .dk-topbar-search steht in keinem Template — toter Selektor im wirksamen Block')
-    assert.doesNotMatch(k2.inhalt, /\.kronos-header\s+\.sidebar-toggle-btn/,
-        'K2: .kronos-header .sidebar-toggle-btn regelt KronosTopbar.vue scoped — toter Selektor hier')
+    for (const r of geruestKlassen) {
+        assert.doesNotMatch(r.inhalt, /\.dk-topbar-search/,
+            'K2: .dk-topbar-search steht in keinem Template — toter Selektor')
+        assert.doesNotMatch(r.selektoren, /\.kronos-header\s+\.sidebar-toggle-btn/,
+            'K2: .kronos-header .sidebar-toggle-btn regelt KronosTopbar.vue scoped — toter Selektor hier')
+    }
 
     // ---- K3: min-width: 0 der Formularfelder ausserhalb jeder Media-Query
     const feldRegel = /([^{}]*)\{[^}]*min-width:\s*0[^}]*\}/g

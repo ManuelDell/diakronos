@@ -68,6 +68,11 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  /* DEV-B6 (Review-Nacharbeit 10.11., Punkt 5): Die Reiterleiste darf
+     schrumpfen. Ohne `min-width: 0` behielt sie ihre Inhaltsbreite und schob
+     die Werkzeugzeile aus dem Kopf (gemessen 400 px). */
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .header-center {
@@ -1734,25 +1739,26 @@ html[data-theme] .ec,
 /* ============================================================
    MOBILE
    ============================================================ */
-@media (max-width: 720px) {
-  .kronos-sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    z-index: 500;
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-  }
-  .kronos-sidebar.open {
-    transform: translateX(0);
-  }
-  .resource-btn-label {
-    display: none;
-  }
-  .mobile-month-display {
-    display: inline;
-  }
+/* DEV-B6: Die Kalenderliste wird als Overlay geöffnet — das ist Mobil-MECHANIK
+   (gehört zur Leisten-Lage, `--layout-mobil`, tokens.css), keine
+   Breiten-Frage. Ein Maus-Laptop bei 702 px behält die Liste im Fluss. */
+.dk-app--handy .kronos-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 500;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+.dk-app--handy .kronos-sidebar.open {
+  transform: translateX(0);
+}
+.dk-app--handy .resource-btn-label {
+  display: none;
+}
+.dk-app--handy .mobile-month-display {
+  display: inline;
 }
 /* UX3i3 (Befund 3, Manuel 08.11.): Am Handy waren die Termine satte, volle
    Farbkacheln, am Desktop getönte Chips — zwei Optiken für dasselbe Objekt
@@ -1760,12 +1766,12 @@ html[data-theme] .ec,
    gleich (`chipStil` → `--chip-flaeche`/`--chip-ink`, Text „Titel 19:00“);
    hier steht nur die engere Form für die schmalen Tagesspalten (390 px:
    ~47 px breit). A10 (eigene Karte) gestaltet den Handy-Kalender später
-   ganz — UX3i3 berührt nur die Optik der Termine. */
-@media (max-width: 720px) {
-  .ec-chip {
-    padding: 0 var(--sp-2);
-    font-size: var(--fs-12);
-  }
+   ganz — UX3i3 berührt nur die Optik der Termine.
+   DEV-B6 (Review-Nacharbeit 10.11.): Diese Verdichtung sitzt in der
+   Handy-Lage (Klasse) — ein Maus-Laptop bei 702 px hat breitere Spalten. */
+.dk-app--handy .ec-chip {
+  padding: 0 var(--sp-2);
+  font-size: var(--fs-12);
 }
 
 
@@ -1934,22 +1940,62 @@ html[data-theme] .ec,
   overflow: hidden;
   transition: width 0.2s ease, padding 0.2s ease;
 }
+/* DEV-B6b (Review 10.11., Punkt 3): Die OFFENE Liste muss breiter sein als die
+   eingeklappte Leiste. `.kronos-sidebar-inpage.open` (2 Klassen) verlor sonst
+   gegen `.dk-app.is-collapsed .kronos-sidebar` (3 Klassen) aus kronos.css —
+   gemessen im Wegwerf-Stack bei 702/400 px: das Overlay kam herein, war aber
+   nur 64 px breit. Deshalb hier DREI Klassen. */
 .kronos-sidebar-inpage.open {
+  width: var(--dk-sidebar-w, 256px);
+  flex-shrink: 0;
+}
+.kronos-sidebar.kronos-sidebar-inpage.open {
   width: var(--dk-sidebar-w, 256px);
   flex-shrink: 0;
 }
 .kronos-sidebar-inpage .kronos-back-btn { cursor: pointer; }
 .kronos-calendar-wrap > .kronos-calendar-container,
 .kronos-calendar-wrap > *:not(.kronos-sidebar-inpage) { min-width: 0; flex: 1; }
-@media (max-width: 720px) {
-  /* Am Handy ist die Liste ein Overlay (siehe unten) — dann nimmt sie im
-     Fluss keinen Platz ein. */
+/* DEV-B6 (Review-Nacharbeit 10.11., Punkt 5): In der Handy-Lage — auch am
+   Laptop mit MAUS unter 720 px — ist die Kalenderliste ein OVERLAY und
+   standardmäßig ZU (Offen-Zustand startet false). Vorher stand sie dort im
+   Fluss und quetschte das Raster auf ~180 px (Belege
+   `laptop-702x894-fine-hell-kalender.png`). Am Desktop (> 720 px) bleibt die
+   einklappbare Spalte im Fluss. */
+.dk-app--handy .kronos-sidebar-inpage {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: auto;
+  z-index: 500;
+  width: var(--dk-sidebar-w, 256px);
+  flex: none;
+  transform: translateX(-100%);
+  transition: transform 0.2s ease;
+}
+.dk-app--handy .kronos-sidebar-inpage.open { transform: translateX(0); }
+/* Auf schmalen Maus-Fenstern (400–720 px) ist die Spalte ebenfalls zu eng für
+   den Fluss — dort gilt dieselbe Overlay-Form. Bewusst eine BREITEN-Regel:
+   es ist Anordnung derselben Ansicht, kein zweites Gerüst (und sie greift
+   nur unterhalb der Desktop-Breite). */
+@media (max-width: 1100px) {
   .kronos-sidebar-inpage {
     position: fixed;
+    top: 0;
+    bottom: 0;
+    /* DEV-B6b (Review 10.11., Punkt 3): `left: 0` fehlte. Ohne die Kante
+       erbte das Overlay seine statische Position und ragte halb über die
+       App-Seitenleiste („MEINE KALENDER“ abgeschnitten, belegt bei 702/400). */
+    left: 0;
+    right: auto;
+    z-index: 500;
     width: var(--dk-sidebar-w, 256px);
     flex: none;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
   }
-  .kronos-sidebar-inpage:not(.open) { width: 0; }
+  .kronos-sidebar-inpage.open { transform: translateX(0); }
 }
 
 /* ===== Shared Modal Styles (alle Kronos-Modals) ===== */
