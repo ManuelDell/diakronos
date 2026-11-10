@@ -1,5 +1,11 @@
 x-app-env: &app-env
-  DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://diakronos:${POSTGRES_PASSWORD:-diakronos}@db:5432/diakronos}
+  # SEC-DEF1: eigenes Passwort ist PFLICHT. Es gibt keinen einkompilierten
+  # Ersatzwert — der stuende oeffentlich im Repo, und jede frische Installation
+  # liefe mit demselben Datenbank-Passwort. Compose bricht ohne
+  # POSTGRES_PASSWORD mit Meldung ab (`:?`); die App prueft zusaetzlich beim
+  # Start, dass es nicht das alte Standard-Passwort ist
+  # (`diakronos_app/konfigurationsschutz.py`).
+  DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://diakronos:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss in .env gesetzt sein (openssl rand -base64 24)}@db:5432/diakronos}
   REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
   APP_ENV: ${APP_ENV:-development}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}

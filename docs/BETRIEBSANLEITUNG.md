@@ -84,6 +84,32 @@ von `openssl rand -hex 32` dahinter eintragen. Ein leerer Wert zählt wie ein
 fehlender — Compose meldet dann
 „`SECRET_KEY muss in .env gesetzt sein (openssl rand -hex 32)`" und startet nicht.
 
+### 2.2a Startprüfung: unsichere Standardwerte (SEC-DEF1)
+
+Zusätzlich zu Compose prüft die Anwendung selbst beim Start (vor der
+Migration) zwei Werte und **verweigert den Start** mit deutscher Meldung,
+wenn sie noch die einkompilierten Platzhalter tragen:
+
+| Prüfung | Bedingung | Meldung / Abhilfe |
+|---|---|---|
+| `SECRET_KEY` | Wert ist `insecure-dev-key` **oder** kürzer als 32 Zeichen | eigenen Schlüssel erzeugen: `openssl rand -hex 32` |
+| `DATABASE_URL` | Passwort ist das bekannte Standard-Passwort `diakronos` | eigenes Passwort in `POSTGRES_PASSWORD` setzen: `openssl rand -base64 24` |
+
+**Nicht** geprüft wird in `APP_ENV=development` und `APP_ENV=test`: dort sind
+die Platzhalter ausdrücklich erlaubt (lokale Entwicklung, Testsuite). Eine
+Installation mit den Vorlagenwerten läuft deshalb bereits mit
+`APP_ENV=development` — für den echten Betrieb `APP_ENV=production` setzen,
+damit diese Prüfung greift.
+
+Die Prüfung läuft an zwei Stellen: beim Aufbau der Konfiguration (jeder
+Prozess, auch Worker und Scheduler) und im Container-Entrypoint, der daraus
+eine lesbare Meldung macht:
+
+    [entrypoint] Anmeldekonfiguration pruefen ...
+    Konfiguration unsicher — Start verweigert: SECRET_KEY ist noch der
+    einkompilierte Platzhalter. Einen eigenen Schluessel erzeugen ...
+
+
 ### 2.3 Den ersten Administrator anlegen (nur bei Erstinstallation)
 
 Eine frische Installation hat **keine** Benutzer. Ohne Benutzer bleibt die

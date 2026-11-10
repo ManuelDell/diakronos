@@ -4,8 +4,12 @@ from functools import lru_cache
 
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from diakronos_app.konfigurationsschutz import (
+    unsichere_standardwerte as _unsichere_standardwerte,
+)
 
 
 class Settings(BaseSettings):
@@ -14,11 +18,20 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
+        # SEC-DEF1: pydantic haengt sonst die Eingabewerte (SECRET_KEY,
+        # DATABASE_URL mit Passwort) an jede Validierungsmeldung — die landet
+        # im Container-Protokoll.
+        hide_input_in_errors=True,
     )
 
     app_env: str = "development"
     log_level: str = "INFO"
 
+    # SEC-DEF1: Die Defaults unten sind ABSICHTLICH unsicher und nur fuer
+    # `APP_ENV=development`/`test` zugelassen. In jedem anderen APP_ENV
+    # bricht der Start beim Anlegen der Settings ab (Modellpruefung unten):
+    # Wer ohne .env startet, bekaeme sonst faelschbare Sitzungs-Tokens und
+    # eine Datenbank mit bekanntem Passwort.
     database_url: str = "postgresql+psycopg://diakronos:diakronos@db:5432/diakronos"
     redis_url: str = "redis://redis:6379/0"
 
@@ -36,6 +49,25 @@ class Settings(BaseSettings):
         except (ValueError, ZoneInfoNotFoundError):
             raise ValueError("CALENDAR_TIMEZONE must be a valid IANA timezone") from None
         return value
+
+    @model_validator(mode="after")
+    def keine_unsicheren_standardwerte(self) -> "Settings":
+        """SEC-DEF1: Platzhalter-Schluessel und Default-DB-Passwort im Betrieb verbieten.
+
+        Prueft GENAU die Werte, die diese Instanz tatsaechlich benutzt, und
+        nur ausserhalb von `development`/`test` — eine Pruefung der
+        Feld-Defaults waere unter Test falsch, weil Tests den Platzhalter
+        absichtlich benutzen.
+        """
+        probleme = _unsichere_standardwerte(
+            self.app_env, self.secret_key, self.database_url
+        )
+        if probleme:
+            raise ValueError(
+                "Unsichere Standardwerte im Betrieb (APP_ENV="
+                f"{self.app_env}) — Start verweigert. " + " ".join(probleme)
+            )
+        return self
 
     # Healthcheck-Zeitbudget in Sekunden fuer die einzelnen Verbindungstests.
     healthcheck_timeout: float = 5.0
