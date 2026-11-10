@@ -46,7 +46,7 @@
         <!-- A4: Kalenderauswahl als Popover, Zähler der eingeblendeten. -->
         <DkButton
           class="kalender-auswahl-btn"
-          data-kalender-ausloeser="1"
+          data-kalender-ausloeser="1" data-kalender-sichtbar="1"
           variant="secondary"
           :aria-expanded="auswahlOffen ? 'true' : 'false'"
           aria-haspopup="dialog"

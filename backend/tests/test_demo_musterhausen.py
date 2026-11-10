@@ -227,6 +227,44 @@ def test_demo_gottesdienste_ueber_zwei_monate(engine, session_factory, demo):
         else max(starts).date() >= date(2027, 1, 1)
 
 
+def test_demo_miglieder_duerfen_kalender_lesen(engine, session_factory, demo):
+    """A10-N2 (Review 09.11., Punkt 5): Mitglieder sehen die Demo-Kalender.
+
+    Befund: Das Demo-Konto „Anna Beispiel“ (Rolle „Mitglied“) bekam in der
+    Oberfläche „Kalender 0“ und einen leeren Tag. Ursache war NICHT ein
+    Rechtefehler der App, sondern eine Lücke dieses Seeds: er legte Kalender
+    und Moderatoren an, aber keine Zeile in `Kalender.leserechte`.
+    `permissions.get_accessible_calendars` liest genau diese Liste — ohne
+    Rollenzeile hat ein Mitglied keinen Kalender.
+
+    Geprüft wird deshalb: für JEDEN Kalender existiert eine Leserecht-Zeile
+    der Rolle „Mitglied“ in `User Role` (parenttype Kalender, parentfield
+    `leserechte`) — und KEIN Schreibrecht (Schreiben bleibt bei Moderatoren).
+    """
+    from diakronos_app.models.core import UserRole
+    from diakronos_app.models.kronos import Kalender
+
+    demo.anlegen(stichtag=STICHTAG)
+    with session_factory() as s:
+        kalender = set(s.scalars(select(Kalender.name)).all())
+        lese = {}
+        for zeile in s.scalars(select(UserRole).where(
+            UserRole.parenttype == "Kalender",
+            UserRole.parentfield == "leserechte",
+        )).all():
+            lese.setdefault(zeile.parent, set()).add(zeile.role)
+        schreib = s.scalar(select(UserRole.name).where(
+            UserRole.parenttype == "Kalender",
+            UserRole.parentfield == "schreibrechte",
+        ).limit(1))
+    assert kalender, "die Demo legt Kalender an"
+    for name in kalender:
+        assert "Mitglied" in lese.get(name, set()), (
+            f"Kalender {name}: Rolle „Mitglied“ fehlt in leserechte — die Demo "
+            f"zeigt Mitgliedern sonst „Kalender 0“ und einen leeren Tag")
+    assert schreib is None, "Mitglieder bekommen KEIN Schreibrecht über den Seed"
+
+
 def test_demo_plantypen_aus_dem_kochbuch(engine, session_factory, demo):
     """Die eingerichteten Plantypen stammen aus dem Kochbuch des Pakets."""
     from diakronos_app.models.planrahmen import Plan, Plantyp, PlantypVersion

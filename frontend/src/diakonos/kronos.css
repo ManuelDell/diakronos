@@ -1069,7 +1069,7 @@ html[data-theme] .ec,
   --ec-border-color-strong: var(--line-strong);
   --ec-color: var(--text);
   --ec-text-color: var(--text);
-  --ec-today-bg-color: var(--accent-soft);
+  --ec-today-bg-color: var(--heute-flaeche);
   --ec-more-bg-color: var(--surface-2);
   --ec-more-color: var(--text);
   --ec-popup-bg-color: var(--surface);

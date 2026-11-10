@@ -34,6 +34,7 @@
           v-if="!isVollbildMode"
           :collapsed="sidebarCollapsed"
           :menue-offen="menueOffen"
+          :rollen-marke="rollenMarke"
           @toggle-collapse="sidebarCollapsed = !sidebarCollapsed"
           @open-menu="menueOeffnen"
           @suche="befehlspalette?.oeffnen()"
@@ -143,6 +144,8 @@ import { currentComponent, currentHash, currentPageName, navigate, pageLadefehle
 import { useImpersonation } from './composables/useImpersonation.js'
 import { devmodusAn, devmodusAutostart, devmodusPruefen } from './composables/useDevmodus.js'
 import { useSession } from './composables/useSession.js'
+// A10: Abzeichen der Seite an der App-Kopfzeile (am Handy neben dem Titel).
+import { rollenMarke } from './composables/useBereichskopf.js'
 // UX3e: EINE Breitengrenze der App (FIX-6) — die Schublade hängt am Mobil-Layout.
 import { MOBIL_GRENZE_PX } from './composables/eingabeart.mjs'
 // FIX-7: `useKronosSidebar`, `showToast` und `getMeinTermin` standen hier

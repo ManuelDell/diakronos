@@ -34,13 +34,26 @@
         Zurück
       </DkButton>
 
-      <!-- Breadcrumbs -->
+      <!-- Breadcrumbs. A10 (Review 09.11., Punkt 4): Am Handy ist die letzte
+           Krume der SEITENTITEL („Kalender“) — die Gestaltung der Titelstufe
+           steht in index.css; die Seite gibt dafür ihren eigenen Titel ab,
+           damit „Kalender“ nur EINMAL im Kopf steht. Andere Krumen
+           („Personen / X“) stehen dort nicht mehr: der Titel des Bereichs
+           genügt, wie Entwurf A10 es zeigt. -->
       <nav class="dk-crumbs">
-        <span v-for="(crumb, i) in breadcrumbs" :key="i" class="dk-crumb">
-          <span class="dk-crumb-sep" v-if="i > 0">/</span>
-          <span :class="i === breadcrumbs.length - 1 ? 'dk-crumb-current' : ''">{{ crumb }}</span>
-        </span>
+        <template v-for="(crumb, i) in breadcrumbs" :key="i">
+          <span v-if="i === breadcrumbs.length - 1" class="dk-crumb dk-crumb-current">{{ crumb }}</span>
+          <span v-else-if="i === 0 && breadcrumbs.length > 1" class="dk-crumb dk-crumb-weg">{{ crumb }}</span>
+          <span v-else-if="i > 0" class="dk-crumb dk-crumb-sep">/</span>
+        </template>
       </nav>
+      <!-- A10: Abzeichen „Moderator“ am Handy neben dem Titel (Entwurf A10:
+           Menü · Kalender [Moderator] · Suche). Die SEITE setzt es, wenn sie
+           das Recht hat (eine Rechtequelle, `can_moderate`); ohne Recht ist
+           der Halter leer — kein Platz, kein Abzeichen. -->
+      <span v-if="rollenMarke" class="dk-topbar-rolle">
+        <DkBadge variant="info">{{ rollenMarke }}</DkBadge>
+      </span>
     </div>
 
     <div class="dk-topbar-right">
@@ -127,20 +140,26 @@
 import { computed, ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { currentPageName, navigate } from '../router.js'
 import { useNotifications } from '../composables/useNotifications.js'
+import { rollenMarke } from '../composables/useBereichskopf.js'
 import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 import DkButton from './ui/DkButton.vue'
 import DkSkelett from './ui/DkSkelett.vue'
 import DkEmpty from './ui/DkEmpty.vue'
 import DkSymbol from './ui/DkSymbol.vue'
+import DkBadge from './ui/DkBadge.vue'
 import { darfAlsGelesenMarkieren } from '../composables/glocke.mjs'
 import { krumenZuSeite } from '../menue.js'
 import { MENUE_KNOPF_TEXT } from './handyMenue.mjs'
 
-defineProps({
+const props = defineProps({
   collapsed: Boolean,
   // UX3e: Zustand des Menü-Knopfes (`aria-expanded`) — er muss sagen, ob die
   // Schublade offen ist, sonst kündigt er sie falsch an (Prinzip N4/S4).
   menueOffen: { type: Boolean, default: false },
+  // A10: Abzeichen neben dem Titel am Handy („Moderator“) — LEER, wenn die
+  // Seite kein Recht gemeldet hat (dann gibt es kein Abzeichen und keinen
+  // Platz dafür, Karte A10).
+  rollenMarke: { type: String, default: '' },
 })
 // UX3f: `suche` öffnet die Befehlspalette (der Klick auf das Suchfeld).
 defineEmits(['toggle-collapse', 'open-menu', 'suche'])

@@ -34,7 +34,7 @@ from typing import Any, Iterable, Iterator
 from sqlalchemy import bindparam, select
 
 from diakronos_app.db import als_aktuelle_sitzung
-from diakronos_app.models.core import HasRole, Role, User
+from diakronos_app.models.core import HasRole, Role, User, UserRole
 from diakronos_app.models.diakonos import (
     Beitrag,
     BeitragKommentar,
@@ -577,6 +577,24 @@ def kalender_anlegen(a: Anleger) -> None:
             ))
             a.s.flush()
             a.zaehle("Kalender", True)
+
+        # A10-N2 (Review 09.11., Punkt 5): LESERECHT für die Rolle „Mitglied“.
+        # Ohne Zeile in `Kalender.leserechte` hat ein Mitglied KEINEN Kalender
+        # (`permissions.get_accessible_calendars` verlangt eine Rollenzeile):
+        # die Demo zeigte „Kalender 0“ und einen leeren Tag — das sah wie ein
+        # Rechtefehler der App aus, war aber eine Lücke DIESES Seeds. Ein
+        # Gemeindekalender ist für Mitglieder lesbar; Schreibrecht bleibt bei
+        # den Moderatoren (keine Zeile in `schreibrechte`).
+        lesezeilenname = f"{kal['name']}-leserecht-mitglied"
+        if a.s.get(UserRole, lesezeilenname) is not None:
+            a.merke("Kalender-Leserecht")
+        elif not a.nur_pruefen:
+            a.kind("Kalender-Leserecht", UserRole(
+                name=lesezeilenname, parent=kal["name"], parenttype="Kalender",
+                parentfield="leserechte", role="Mitglied",
+                docstatus=0, idx=1, creation=a.zeitpunkt, modified=a.zeitpunkt,
+                owner="Administrator", modified_by="Administrator",
+            ))
 
         # Moderator: das Admin-Konto moderiert jeden Kalender (darf damit
         # Termine festlegen — sonst blieben alle Termine „Vorschlag“).

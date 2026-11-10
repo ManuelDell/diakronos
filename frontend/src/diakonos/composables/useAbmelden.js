@@ -25,6 +25,10 @@
  */
 import { cacheLeeren } from './usePlanrahmenCache.js'
 import { verlaufFuerNutzerAufraeumen } from './befehlspalette.mjs'
+// A10 (Review 09.11., Punkt 2): die persönliche Standard-Ansicht des Handy-
+// Kalenders ist nutzerbezogen und wird beim Abmelden entfernt. Die Regel
+// steht in `components/kronos/mobilAnsicht.mjs` (dort geprüft).
+import { abmeldenAufraeumen } from '../components/kronos/mobilAnsicht.mjs'
 // WEB-5b: Abmelde- und Anmeldeadressen unter dem Betriebs-Praefix.
 import { anmeldeUrl, apiUrl, basisPfad, mitBasis } from '../../shared/basis.js'
 
@@ -89,6 +93,13 @@ export function alleBrowserStaendeLeeren() {
     // Verlaufs-Schluessel weg.
     try {
         verlaufFuerNutzerAufraeumen(window.localStorage, '')
+    } catch { /* Speicher nicht verfuegbar -> egal */ }
+    // A10 (Review 09.11., Punkt 2): die persönliche Standard-Ansicht des
+    // Handy-Kalenders (`dk-kalender-standard-ansicht:<hash>`) hängt am
+    // Benutzer und wird hier ebenfalls entfernt — sonst sähe der nächste
+    // Nutzer desselben Geräts die Wahl des Vorgängers.
+    try {
+        abmeldenAufraeumen(window.localStorage)
     } catch { /* Speicher nicht verfuegbar -> egal */ }
     // PLAN-W1: Die Einklapp-Wahl des Warnblocks (`pr-warnblock:<benutzer>`)
     // bleibt BEWUSST stehen — sie haengt am Benutzer und soll beim naechsten

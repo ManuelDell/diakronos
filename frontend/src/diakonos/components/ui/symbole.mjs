@@ -43,6 +43,10 @@ export const SYMBOLE = {
   freigeben: { p: ['M21.8 10A10 10 0 1 1 17 3.34', 'm9 12 2 2 4-4'] },
   // Prüfen (Lupe)
   pruefen: { p: ['m21 21-4.35-4.35'], c: [[11, 11, 8]] },
+  // A10-N2 (Review 09.11., Punkt 4): Haken OHNE Kreis — für den Menüpunkt
+  // „… ist dein Standard“. Vorher stand dort die Lupe (`pruefen`), die in
+  // diesem Menü nach „Prüfen“ aussah. Dieselbe Strichfamilie (lucide „check“).
+  haekchen: { p: ['M20 6 9 17l-5-5'] },
   // Abbrechen (X)
   abbrechen: { p: ['M18 6 6 18', 'M6 6l12 12'] },
   // UX3i (A4): Schreibrecht in der Kalenderauswahl — „Eintragen erlaubt“ nur
@@ -50,6 +54,7 @@ export const SYMBOLE = {
   stift: { p: ['M12 20h9', 'M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z'] },
   // UX3i (A4): Pfeil „Prüfen ›“ in der rechten Spalte.
   weiter: { p: ['M9 6l6 6-6 6'] },
+  zurueck: { p: ['M15 6l-6 6 6 6'] },
 
   // UX3f — Suchen (Lupe) für die Suchzeile der Befehlspalette. Gleiche
   // Strichfamilie wie alle übrigen Symbole (lucide, ISC).

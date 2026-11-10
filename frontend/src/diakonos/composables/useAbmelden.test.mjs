@@ -174,3 +174,41 @@ test('alleBrowserStaendeLeeren: leert auch ohne vorherigen Plan-Seitenaufruf', (
     assert.ok(!rest.includes('dk-entwurf:x'), 'Entwurf blieb stehen.')
     assert.ok(rest.includes('fremd'), 'Fremde Schluessel duerfen NICHT geloescht werden.')
 })
+
+// ── A10 (Review 09.11., Punkt 2): Standard-Ansicht beim Abmelden loeschen ───
+
+test('abmelden: loescht die Standard-Ansicht des Handy-Kalenders (je Benutzer)', async () => {
+    frisch()
+    setzeOrt()
+    // Zwei Benutzer auf demselben Geraet — beide Schluessel muessen weg.
+    window.localStorage.setItem('dk-kalender-standard-ansicht:aaaaaaaa', 'monat')
+    window.localStorage.setItem('dk-kalender-standard-ansicht:bbbbbbbb', 'woche')
+    // Ein alter, nutzerloser Basisschluessel aus der Zeit vor Punkt 3 auch.
+    window.localStorage.setItem('dk-kalender-standard-ansicht', 'liste')
+    window.localStorage.setItem('fremd', 'bleibt')
+    globalThis.fetch = async () => antwort({ status: 200, body: { message: { redirect: '/login' } } })
+
+    const res = await mod.abmelden()
+
+    assert.equal(res.ok, true)
+    const rest = []
+    for (let i = 0; i < window.localStorage.length; i += 1) rest.push(window.localStorage.key(i))
+    assert.ok(
+        !rest.some((k) => k.startsWith('dk-kalender-standard-ansicht')),
+        `Standard-Ansicht blieb nach dem Abmelden stehen: ${rest.join(', ')}`,
+    )
+    assert.ok(rest.includes('fremd'), 'Fremde Schluessel duerfen NICHT geloescht werden.')
+})
+
+test('abmelden: bei FEHLGESCHLAGENEM Abmelden bleibt die Standard-Ansicht stehen', async () => {
+    frisch()
+    setzeOrt()
+    window.localStorage.setItem('dk-kalender-standard-ansicht:aaaaaaaa', 'monat')
+    globalThis.fetch = async () => antwort({ status: 403, body: {} })
+
+    const res = await mod.abmelden()
+
+    assert.equal(res.ok, false)
+    assert.equal(window.localStorage.getItem('dk-kalender-standard-ansicht:aaaaaaaa'), 'monat',
+        'Die Serversitzung lebt noch — lokale Staende duerfen nicht vorzeitig verschwinden (W3).')
+})

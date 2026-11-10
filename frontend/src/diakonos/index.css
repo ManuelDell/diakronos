@@ -634,6 +634,26 @@ h1, h2, h3, h4 {
 .dk-crumb  { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); color: var(--dk-text-muted); }
 .dk-crumb-sep { color: var(--dk-text-subtle); }
 .dk-crumb-current { color: var(--dk-text); font-weight: var(--fw-mittel); }
+/* A10 (Review 09.11., Punkt 4): Am Handy ist die Krumen-Zeile der App-Kopfzeile
+   der SEITENTITEL — sie trägt „Kalender“ bereits. Deshalb steht sie dort in
+   der Titelstufe (16/600, volle Textfarbe) statt als kleine graue Krume:
+   EIN Kopf „Kalender“ (Menü · Kalender · Moderator · Suche, wie A10), nicht
+   zwei übereinander (die Seite hat ihren eigenen Titel dafür abgegeben).
+   Desktop unverändert (A4 führt keinen Titel in der Kopfzeile). Nur Breite —
+   dieselbe Grenze wie das Mobil-Layout oben. */
+@media (max-width: 720px) {
+  .dk-crumbs { gap: var(--sp-1); flex: 1 1 auto; min-width: 0; }
+  .dk-crumb { font-size: var(--fs); font-weight: var(--fw-fett); color: var(--dk-text); }
+  .dk-crumb-sep, .dk-crumb-weg { display: none; }
+  .dk-crumb-current { font-weight: var(--fw-fett); }
+}
+/* A10: das Rollen-Abzeichen neben dem Titel („Moderator“). Nur am Handy —
+   am Desktop gibt es den Titel in der Kopfzeile nicht, dort führt die
+   Seitenleiste. Ohne gemeldete Rolle ist der Halter gar nicht im DOM. */
+.dk-topbar-rolle { display: none; flex: none; }
+@media (max-width: 720px) {
+  .dk-topbar-rolle { display: inline-flex; align-items: center; }
+}
 /* UX1g: Die Symbol-Knöpfe der Kopfzeile sind DkButtons (ghost). Hier steht
    nur die quadratische Trefferfläche (--control-h, bei grobem Zeiger 44 px)
    und der Bezugsrahmen für das Abzeichen. */

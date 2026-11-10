@@ -277,6 +277,15 @@ tests/bs2d2-*.test.mjs
 # Liste ohne Farbbalken und mit dem „⋯“ auf derselben Zeile, leere
 # Ganztags-Zeile nur bei Inhalt.
 tests/ux3i4-*.test.mjs
+
+# A10: Kalender auf dem Handy nach Entwurf A10 — Standardansicht je Benutzer
+# (Monat/Woche/Liste, ohne Wahl „Liste“), goldene Statuszeile nur für
+# Moderatoren, Listen-Ansicht mit Mini-Monat und Tagesliste, schwebender
+# Knopf nur mit Schreibrecht, A11-Blatt mit „Freigeben“ als Primäraktion.
+# A10-N2 (Review 09.11.): wirksamer Wähler `.ec-event` (kein erfundendes
+# Attribut), Punkte je Tag, Prüf-Zeile ohne 0, Ring im Dunkelmodus, Häkchen
+# am Standard-Menüpunkt, ⋯ in der Kartenzeile, Leserecht im Demo-Seed.
+tests/a10-*.test.mjs
 # UX3j: Personen — EINE Reiterzeile in allen Reitern (A3), EIN Filter-Baustein,
 # ein Suchfeld, „Person anlegen“ überall an derselben Stelle.
 tests/ux3j-*.test.mjs

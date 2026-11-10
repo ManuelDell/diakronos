@@ -45,6 +45,9 @@ const emit = defineEmits([
   'viewChange',
   // UX2e5: Eintrag aus dem „⋯"-Menü eines Termins (siehe MENUE_EINTRAEGE).
   'terminAktion',
+  // A10-N2: Das Raster steht (erster Aufbau) — die Seite zeigt bis dahin
+  // ihren Ladezustand statt eines leeren, „kaputt“ wirkenden Kastens.
+  'bereit',
 ])
 
 const calendarEl = ref(null)
@@ -428,6 +431,8 @@ function mehrZeilenNachtragen() {
  * idempotent über `data-dk-mehr`, also mehrfach aufrufbar.
  */
 let _mehrGeplant = false
+// A10-N2: „bereit" wird EINMAL gemeldet (erster Aufbau).
+let _bereitGemeldet = false
 function _mehrZeilenPlanen() {
   if (_mehrGeplant) return
   _mehrGeplant = true
@@ -440,6 +445,152 @@ function _mehrZeilenPlanen() {
       lauf()
       // Nachlauf: die Rest-Zeilen der zweiten Zeichenrunde.
       setTimeout(() => mehrZeilenNachtragen(), 120)
+    })
+  } else {
+    Promise.resolve().then(lauf)
+  }
+}
+
+/**
+ * A10-N2 (Review 09.11., Punkt 1) — Punkte je Tag im MONATSRASTER am Handy.
+ *
+ * Am Handy blendet die Seite die Termin-Chips im Raster aus (siehe
+ * `pages/Kalender.vue`: `.ec-event` unter 720 px). Ein Tag mit drei Terminen
+ * sähe dann aus wie ein leerer, und der Tipp-Ziel („Tipp auf Tag →
+ * Tagesliste“) wäre nicht erkennbar. Die Bibliothek zeichnet keine Punkte —
+ * sie kennt nur ihre eigenen (ausgeblendeten) Kacheln.
+ *
+ * Deshalb markiert dieser Lauf jeden Tag, der einen sichtbaren Termin hat:
+ *   * `data-dk-termin="n"`   Kennzahl für das Styling und für Prüfungen,
+ *   * `aria-label` am Tageskopf ergänzt um „, n Termine“ (Farbe ist nie
+ *     alleiniger Träger — die Vorlesehilfe sagt die Zahl).
+ * Der Punkt selbst ist reine Gestaltung (CSS in `pages/Kalender.vue`).
+ *
+ * Gezählt wird über die Termin-Artikel der Sicht (`article.ec-event`, in
+ * @event-calendar 5.18 die echte Struktur — geprüft im Browser). ACHTUNG: im
+ * MONATSRASTER liegen die Artikel NICHT in `.ec-day`, sondern in einer
+ * eigenen, absolut gesetzten Ebene daneben:
+ *
+ *   .ec-month-view > .ec-main > .ec-body > .ec-day (Kopf + Fuß)
+ *                                        > .ec-events > article.ec-event
+ *
+ * Die Artikel tragen `grid-area: <Zeile> / <Spalte> / …` (gesetzt von der
+ * Bibliothek) und sind am Handy per CSS ausgeblendet (`display: none` in
+ * `pages/Kalender.vue`) — ihre Rechtecke sind deshalb Null und NICHT
+ * messbar. Gelesen wird die Zuordnung deshalb aus dem Stil. Im Browser
+ * gemessen (390 px, November 2026): `termin-2026-11-06-00` hat `2 / 5` —
+ * der 6.11.2026 ist ein FREITAG, also Spalte 5, Zeile 2. Die Rasterzahlen
+ * sind also 1-basiert und OHNE Randleisten-Spalte; `tage[0]` (2026-10-26,
+ * Montag) ist Zeile 0 / Spalte 0. Einfacher und ohne diese Annahme:
+ * die Tageszellen in Dokumentreihenfolge (7 je Zeile) und die Terminzelle
+ * als `(zeile-1) * 7 + (spalte-1)`.
+ *
+ * Der Lauf ist idempotent über `data-dk-termin` und mehrfach aufrufbar.
+ */
+function tagesPunkteNachtragen() {
+  const kal = calendarEl.value
+  if (!kal) return
+  // Nur das Monatsraster; Zeitraster und Liste haben eigene Wege.
+  const raster = kal.querySelector('.ec-month-view')
+  if (!raster) return
+  const tage = [...raster.querySelectorAll('.ec-day')]
+  if (!tage.length) return
+  // Zeile/Spalte eines Termins aus dem Inline-Stil („grid-area: 2 / 5 / …“).
+  const gitter = (el) => {
+    const stil = el.getAttribute('style') || ''
+    const treffer = /grid-area:\s*(\d+)\s*\/\s*(\d+)/.exec(stil)
+    if (!treffer) return null
+    return { zeile: Number(treffer[1]) - 1, spalte: Number(treffer[2]) - 1 }
+  }
+  const termine = [...raster.querySelectorAll('article.ec-event')]
+    .map((el) => gitter(el))
+    .filter(Boolean)
+  const jeZeile = 7
+  const zaehler = new Map(tage.map((tag) => [tag, 0]))
+  for (const { zeile, spalte } of termine) {
+    if (zeile < 0 || spalte < 0 || spalte >= jeZeile) continue
+    const tag = tage[zeile * jeZeile + spalte]
+    if (tag) zaehler.set(tag, (zaehler.get(tag) || 0) + 1)
+  }
+  for (const tag of tage) {
+    const anzahl = zaehler.get(tag) || 0
+    const kopf = tag.querySelector('.ec-day-head')
+    if (!kopf) continue
+    const alt = kopf.dataset.dkTerminAlt || kopf.getAttribute('aria-label') || kopf.textContent.trim()
+    if (anzahl > 0) {
+      tag.dataset.dkTermin = String(anzahl)
+      kopf.dataset.dkTerminAlt = alt
+      kopf.setAttribute('aria-label', `${alt}, ${anzahl} ${anzahl === 1 ? 'Termin' : 'Termine'}`)
+    } else {
+      delete tag.dataset.dkTermin
+      if (kopf.dataset.dkTerminAlt) kopf.setAttribute('aria-label', kopf.dataset.dkTerminAlt)
+    }
+  }
+}
+
+/**
+ * A10-N2 — Punkte je Tag in der WOCHENANSICHT am Handy.
+ *
+ * Die Wochenansicht ist ein Zeitraster mit sieben schmalen Tagesspalten; die
+ * Terminblöcke sind dort per CSS ausgeblendet (siehe `pages/Kalender.vue`),
+ * weil in ~50 px nur „G… 1…“ stand. Ein Tag mit drei Terminen sähe dann aus
+ * wie ein leerer Tag. Deshalb bekommt der TAGESKOPF („Mo 9.11.“) einen Punkt
+ * mit der Zahl — dieselbe Sprache wie im Monat, nur an der Kopfzeile.
+ *
+ * Gezählt wird über die KOPF-`<time datetime>`: jede Tagesspalte trägt ihren
+ * Tag selbst; die Termine werden über ihren `data-event-id`-Tag zugeordnet
+ * (die Kennung beginnt bei den Diakronos-Terminen mit dem Datum, z. B.
+ * „termin-2026-11-08-04“ / „gottesdienst-2026-11-08“). Fehlt das Datum in
+ * der Kennung, bleibt der Tag unmarkiert — es wird NICHTS geraten.
+ */
+function wochenPunkteNachtragen() {
+  const kal = calendarEl.value
+  if (!kal) return
+  const raster = kal.querySelector('.ec-week-view')
+  if (!raster) return
+  // Im Browser gemessen (Zeitraster 5.18): je Tagesspalte steht
+  //   <header class="ec-header"><div class="ec-grid">
+  //     <div class="ec-col-head ec-mon|ec-tue|…"><time datetime="2026-11-09">…
+  // `ec-day-head` gibt es dort NICHT — das ist der Monatsname.
+  const spalten = [...raster.querySelectorAll('.ec-col-head')]
+    .map((kopf) => ({ kopf, tag: (kopf.querySelector('time[datetime]')?.getAttribute('datetime') || '').slice(0, 10) }))
+    .filter((s) => s.tag)
+  if (!spalten.length) return
+  const jeTag = new Map(spalten.map((s) => [s.tag, 0]))
+  for (const el of raster.querySelectorAll('.ec-event')) {
+    const kennung = el.getAttribute('data-event-id') || el.dataset.eventId || ''
+    const treffer = /(\d{4}-\d{2}-\d{2})/.exec(kennung)
+    if (!treffer) continue
+    if (jeTag.has(treffer[1])) jeTag.set(treffer[1], jeTag.get(treffer[1]) + 1)
+  }
+  for (const { kopf, tag } of spalten) {
+    const anzahl = jeTag.get(tag) || 0
+    const alt = kopf.dataset.dkTerminAlt || kopf.getAttribute('aria-label') || kopf.textContent.trim()
+    if (anzahl > 0) {
+      kopf.dataset.dkTermin = String(anzahl)
+      kopf.dataset.dkTerminAlt = alt
+      kopf.setAttribute('aria-label', `${alt}, ${anzahl} ${anzahl === 1 ? 'Termin' : 'Termine'}`)
+    } else {
+      delete kopf.dataset.dkTermin
+      if (kopf.dataset.dkTerminAlt) kopf.setAttribute('aria-label', kopf.dataset.dkTerminAlt)
+    }
+  }
+}
+
+/** Nach jedem Aufbau einplanen (rAF + kurzer Nachlauf, wie die „+n“-Zeilen). */
+let _punkteGeplant = false
+function _tagesPunktePlanen() {
+  if (_punkteGeplant) return
+  _punkteGeplant = true
+  const lauf = () => {
+    _punkteGeplant = false
+    tagesPunkteNachtragen()
+    wochenPunkteNachtragen()
+  }
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => {
+      lauf()
+      setTimeout(() => { tagesPunkteNachtragen(); wochenPunkteNachtragen() }, 120)
     })
   } else {
     Promise.resolve().then(lauf)
@@ -670,6 +821,8 @@ onMounted(() => {
         // A4: Die Rest-Zeile des Tages kann erst jetzt (nach den Kacheln)
         // entstanden sein.
         _mehrZeilenPlanen()
+        // A10-N2: Punkte je Tag im Monatsraster (Handy) nachziehen.
+        _tagesPunktePlanen()
       },
       eventWillUnmount: () => { abgleichPlanen() },
 
@@ -677,6 +830,8 @@ onMounted(() => {
         // A4: Nach jedem Aufbau des Rasters (Monatswechsel, Ansichtswechsel,
         // neu geholte Termine) die Rest-Zeile „+n weitere“ herrichten.
         _mehrZeilenPlanen()
+        // A10-N2: ebenso die Punkte je Tag (Handy-Monat).
+        _tagesPunktePlanen()
         // UX3i (A4): Der Kartenkopf braucht den Titel OHNE Beschneidung
         // („November 2026“) — `info.view.title` ist die eine Wahrheit.
         emit('datesSet', { ...info, title: info.view?.title || '' })
@@ -690,6 +845,11 @@ onMounted(() => {
           || vt === 'resourceTimelineMonth'
 
         emit('resourceViewChange', isResourceView)
+        // A10-N2: erste Meldung, dass das Raster steht (Ladezustand der Seite).
+        if (!_bereitGemeldet) {
+          _bereitGemeldet = true
+          emit('bereit')
+        }
 
         if (isResourceView && !_resourcesLoaded.value) {
           _loadResources()

@@ -198,6 +198,32 @@
   --radius-sm: 6px;
   --radius-lg: 12px;
   --badge-r:   999px;
+  /* UX1d/A10: Schrift auf der MARKENFARBE (Navy) — in beiden Themes weiß,
+     weil die Fläche in beiden Themes navy ist (der Akzent wechselt hell/dunkel,
+     die Markenfläche nicht). --primary-ink bleibt die Schrift auf der
+     AKZENTFARBE. */
+  --marke-ink: #ffffff;
+  /* A10 (Review 09.11., Punkt 1): FLÄCHE der Marke. `--primary` ist im
+     Dunkelmodus Weiß (dort ist Weiß der Akzent) — ein Knopf mit
+     `background: var(--primary)` und `color: --marke-ink` war deshalb im
+     Dunkeln eine weiße Pille mit weißer Schrift. Diese Fläche ist in BEIDEN
+     Themes das tiefe Navy #1c2850; mit --marke-ink (Weiß) ergibt das
+     14,7:1. Bewegt sich nicht mit dem Theme (anders als --primary und
+     --primary-hover, siehe unten). */
+  --marke-flaeche: var(--dk-navy-500);
+  --marke-flaeche-hover: var(--dk-navy-400);
+  /* A10-N2 (Review 09.11., Punkt 3): RING um die Markenfläche, wenn sie auf
+     DUNKLEM Grund liegt (gewählter Tag im Mini-Monat). `--marke-flaeche`
+     (#1c2850) steht auf der dunklen Fläche (--surface = #111631) bei 1,16:1
+     — als Fläche nicht erkennbar. Hell braucht es keinen Ring: dort trägt
+     die Fläche selbst (Navy auf Weiß = 14,7:1). Kontrast gegen die dunkle
+     Fläche: #aab5d2 auf #111631 = 8,6:1 (≥ 3:1 für Flächen/Umrandung). */
+  --marke-ring: transparent;
+  --marke-ring-breite: 0px;
+  /* A10-N2 (Review 09.11., Punkt 4): Fläche der HEUTIGEN Tagesspalte im
+     Zeitraster (`--ec-today-bg-color`). Hell ist es ein warmes Gold-Beige
+     (--accent-soft, #fdf8ec) — dezent neben den weißen Spalten. */
+  --heute-flaeche: var(--accent-soft);
 
   /* ── Rahmen (UX1a) ───────────────────────────────────────────────────────
      EINE Quelle für Rahmenbreite und -farben. Komponenten schreiben
@@ -292,6 +318,11 @@
      für Kompakt-Dichte; neue Flächen, die der Konzept-Vorgabe folgen, nehmen
      diesen Wert — kein Literal in der Komponente. */
   --control-h-lg: 40px;
+  /* A10 (Nacharbeit 09.11.): Trefferfläche der TAGESZELLE im Mini-Monat.
+     Sie gilt NUR in der Handy-Lage und muss dort IMMER 44 px sein (K4) —
+     `--control-h` wäre in einem 390-px-Fenster mit Maus nur 40 px. Deshalb
+     ein eigenes, benanntes Maß statt eines Literals in der Komponente. */
+  --treffer-handy: 44px;
   /* FIX-3: Höhe der Filterzeile (Suchfeld ↔ DkButton „md“ ↔ Filterchip).
      Suchfeld und Chip standen vorher auf 9 px Innenabstand bzw. 7 px/12 px
      und liefen damit 4 px auseinander. Jetzt kommt die Höhe beider aus
@@ -495,6 +526,18 @@
 
   /* DES-R15: Status-Schriften und Abzeichen im Dunkelmodus. */
   --badge-ink-warn:  var(--dk-gold-300);
+  /* A10-N2 (Punkt 3): Auf dunklem Grund bekommt die Markenfläche einen
+     hellen Ring — sonst verschwindet der gewählte Tag im Mini-Monat
+     (Navy auf Navy-grau). 1 px reicht als Umrandung nicht; 2 px sind die
+     übliche Mindeststärke für Flächen-Umrandungen. */
+  --marke-ring: var(--dk-navy-200);
+  --marke-ring-breite: 2px;
+  /* A10-N2 (Punkt 4): Die heutige Tagesspalte war im Dunkelmodus
+     `rgba(201,149,47,.16)` — ein GOLDENER Schimmer über die ganze Spalte,
+     der wie ein Band wirkte. Jetzt eine neutrale, sehr ruhige Aufhellung
+     (Weiß mit 5 % auf #111631): die Spalte ist erkennbar, aber nicht laut.
+     Der Tag steht weiterhin als Text im Kopf („Mo 9.11."). */
+  --heute-flaeche: rgba(255, 255, 255, .05);
   --badge-ink-ok:    #8fdcaa;
   --badge-ink-info:  var(--dk-navy-100);
   /* DES-R15 Terminkacheln: im Dunkelmodus bleibt die Kachelfarbe kraeftig,
