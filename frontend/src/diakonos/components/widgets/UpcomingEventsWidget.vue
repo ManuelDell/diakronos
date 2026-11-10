@@ -14,6 +14,7 @@
 <script setup>
 import BaseWidgetCard from './BaseWidgetCard.vue'
 import { useWidgetData } from '../../composables/useWidgetData'
+import { wandZeit } from '../../../shared/zeit.mjs'
 import { computed } from 'vue'
 // UXD-R28: Farbe nur als gueltiger Hex-Wert in den style-String.
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js'
@@ -21,10 +22,15 @@ const props = defineProps({ isEditing: Boolean, refreshInterval: { type: Number,
 const emit = defineEmits(['hide', 'collapse-change'])
 const { data, loading, error, refresh } = useWidgetData('upcoming-events', props.refreshInterval)
 const isEmpty = computed(() => !data.value || (Array.isArray(data.value) && !data.value.length))
+/**
+ * ZEIT-2: `start` ist eine LOKALE WANDZEIT des Termins (kein UTC-Zeitpunkt) —
+ * deshalb `wandZeit`; vorher stand hier ein `replace(' ', 'T')`, das wie
+ * `new Date(...)` ohne Zone ebenfalls Ortszeit liest (Ergebnis unveraendert,
+ * nur sichtbar benannt).
+ */
 function formatDate(s) {
-  if (!s) return ''
-  const d = new Date(s.replace(' ', 'T'))
-  if (isNaN(d)) return s
+  const d = wandZeit(s)
+  if (!d) return s || ''
   return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 </script>

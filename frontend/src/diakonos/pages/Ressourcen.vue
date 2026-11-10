@@ -588,6 +588,7 @@ import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 // UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
 // "Fehler beim Laden" / "Fehler beim Speichern".
 import { aktionsfehler } from '../../shared/fehlertexte.js'
+import { wandZeit } from '../../shared/zeit.mjs'
 import { suchNormal } from '../composables/bf1Anzeige.js'
 import {
   entscheidungsArgumente,
@@ -908,9 +909,9 @@ async function ladeBelegung(resourceId, datum) {
 
 // Überlappt ein Belegungs-Eintrag (Buchung oder Termin) mit [von, bis)?
 function ueberlappt(eintrag, von, bis) {
-  const a = new Date(String(eintrag?.datum_von ?? eintrag?.von ?? '').replace(' ', 'T'))
-  const b = new Date(String(eintrag?.datum_bis ?? eintrag?.bis ?? '').replace(' ', 'T'))
-  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return false
+  const a = wandZeit(String(eintrag?.datum_von ?? eintrag?.von ?? ''))
+  const b = wandZeit(String(eintrag?.datum_bis ?? eintrag?.bis ?? ''))
+  if (!a || !b) return false
   return a < bis && b > von
 }
 

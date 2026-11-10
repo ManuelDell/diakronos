@@ -291,6 +291,7 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 // WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
 import { apiUrl } from '../../shared/basis.js'
+import { serverDatum } from '../../shared/zeit.mjs'
 import { Cropper } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
@@ -405,9 +406,16 @@ const fullAddress = computed(() => {
   return [street, city].filter(Boolean).join(', ')
 })
 
+/**
+ * ZEIT-2: Datumsfeld (Geburtstag, Einwilligungsdatum) — das Datum steht so,
+ * wie es im Feld liegt. `serverDatum` rechnet NICHT um; früher las
+ * `new Date(...)` den Wert als Ortszeit und ein UTC-Zeitstempel konnte auf
+ * den Vor-/Folgetag rutschen.
+ */
 function formatDate(d) {
   if (!d) return ''
-  const dt = new Date(d.replace(' ', 'T'))
+  const dt = serverDatum(d)
+  if (!dt) return ''
   return dt.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 

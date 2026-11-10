@@ -125,7 +125,7 @@
             >
               <div class="dk-notify-betreff">{{ n.subject || 'Benachrichtigung' }}</div>
               <div class="dk-notify-text">{{ kurz(n.email_content) }}</div>
-              <div class="dk-notify-zeit">{{ zeitText(n.creation) }}</div>
+              <div class="dk-notify-zeit">{{ zeitText(n.creation) }}<template v-if="vorText(n.creation)"> · {{ vorText(n.creation) }}</template></div>
             </li>
           </ul>
         </div>
@@ -141,6 +141,7 @@ import { computed, ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { currentPageName, navigate } from '../router.js'
 import { useNotifications } from '../composables/useNotifications.js'
 import { rollenMarke } from '../composables/useBereichskopf.js'
+import { serverZeit, serverZeitText } from '../../shared/zeit.mjs'
 import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 import DkButton from './ui/DkButton.vue'
 import DkSkelett from './ui/DkSkelett.vue'
@@ -218,11 +219,31 @@ function kurz(text) {
   return s.length > 160 ? s.slice(0, 157) + '…' : s
 }
 
+/** ZEIT-2: `creation` einer Benachrichtigung ist ein SERVER-Zeitstempel (UTC). */
 function zeitText(iso) {
-  if (!iso) return ''
-  const d = new Date(String(iso).replace(' ', 'T'))
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return serverZeitText(iso)
+}
+
+/**
+ * ZEIT-2: „vor 3 Minuten“ fuer dieselbe Angabe. Der Vergleich laeuft auf
+ * echten Zeitpunkten, nicht auf Text: vorher entstand aus einem UTC-Wert
+ * minus Ortszeit eine Zeitspanne, die 1–2 h zu klein war („gerade eben“).
+ */
+function vorText(iso) {
+  const d = serverZeit(iso)
+  if (!d) return ''
+  return 'vor ' + kurzVor(Date.now() - d.getTime())
+}
+
+function kurzVor(ms) {
+  if (!(ms > 0)) return 'gerade eben'
+  const minuten = Math.floor(ms / 60000)
+  if (minuten < 1) return 'gerade eben'
+  if (minuten < 60) return `${minuten} ${minuten === 1 ? 'Minute' : 'Minuten'}`
+  const stunden = Math.floor(minuten / 60)
+  if (stunden < 24) return `${stunden} ${stunden === 1 ? 'Stunde' : 'Stunden'}`
+  const tage = Math.floor(stunden / 24)
+  return `${tage} ${tage === 1 ? 'Tag' : 'Tagen'}`
 }
 
 const CRUMB_MAP = {

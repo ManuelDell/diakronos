@@ -16,10 +16,11 @@
  *   * Mehrtägig: Tagesbereich, mit Uhrzeit wenn vorhanden, sonst „Ganztägig“.
  */
 
+import { wandZeit } from '../../../shared/zeit.mjs'
+
 function alsDatum(wert) {
   if (!wert) return null
-  const d = new Date(String(wert).replace(' ', 'T'))
-  return isNaN(d.getTime()) ? null : d
+  return wandZeit(wert)
 }
 
 /** True, wenn die Spanne als „ganztägig ohne Uhrzeit“ gilt. */

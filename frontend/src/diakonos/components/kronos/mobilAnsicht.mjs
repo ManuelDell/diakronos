@@ -22,6 +22,8 @@
  * (Reiterleiste Monat · Woche · Liste).
  */
 
+import { wandZeit } from '../../../shared/zeit.mjs'
+
 /** Basis-Schlüssel im Browserspeicher; je Nutzer kommt `:<hash>` dazu. */
 export const STANDARD_SCHLUESSEL = 'dk-kalender-standard-ansicht'
 
@@ -213,7 +215,8 @@ function alsDatum(wert) {
   const text = String(wert).trim()
   if (!text) return null
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return new Date(`${text}T12:00:00`)
-  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(text)) return new Date(text.replace(' ', 'T'))
+  // Termin-Zeiten sind Wandzeiten der Gemeinde (ZEIT-2: shared/zeit.mjs).
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(text)) return wandZeit(text)
   const d = new Date(text)
   return Number.isNaN(d.getTime()) ? null : d
 }

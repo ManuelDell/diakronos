@@ -314,6 +314,12 @@ COPY tools/demo/ux1i2-probe.py /tools/demo/ux1i2-probe.py
 # Grund: jede Karte musste frueher dieselbe lange Zeile aendern -> bei fast
 # jedem Merge ein Konflikt. Neue Tests brauchen jetzt nur noch eine Zeile in
 # der Testliste; `.gitattributes` fuehrt sie mit `merge=union` zusammen.
+#
+# ZEIT-2: Die Zeitzone Europe/Berlin ist fuer ALLE Testlaeufe fest und steht
+# deshalb hier: `node:22-alpine` laeuft in UTC, und Zeitstempel-Tests
+# (ZEIT-2: `tests/zeit2-*.test.mjs`) brauchen einen messbaren Versatz.
+# Der Betrieb ist davon nicht betroffen (eigener Stage), und jeder Test, der
+# Zeiten prueft, laeuft damit reproduzierbar in derselben Zone wie die Gemeinde.
 ARG NODE_TESTLISTE=tests/testliste.txt
 # Gezielte Auswahl (schneller Build): eine eigene Datei mit wenigen Mustern
 # uebergeben, z. B. die nicht committete `frontend/tests/.auswahl.txt`:
@@ -330,7 +336,7 @@ RUN muster=$(grep -v '^[[:space:]]*#' "$NODE_TESTLISTE" | grep -v '^[[:space:]]*
     fi; \
     echo "FE-TEST-1: NODE_TESTLISTE=$NODE_TESTLISTE"; \
     echo "$muster"; \
-    node --test $muster --test \
+    TZ=Europe/Berlin node --test $muster --test \
  && npm run build
 
 # ── Stage 2: Anwendung ────────────────────────────────────────────────────

@@ -7,6 +7,8 @@
  * werden kann (`tests/ux3i-kalender-a4.test.mjs`).
  */
 
+import { serverZeit, wandZeit } from '../../../shared/zeit.mjs'
+
 /** Wie viele Zeilen das Panel zeigt; der Rest steht als „+n weitere“ darunter. */
 export const PRUEF_ANZEIGE = 4
 
@@ -30,8 +32,7 @@ function datumWert(wert) {
     }
     return null
   }
-  const d = new Date(String(wert).trim().replace(' ', 'T'))
-  return Number.isNaN(d.getTime()) ? null : d
+  return wandZeit(String(wert).trim())
 }
 
 /** Fällt jemand aus (leerer Name), bleibt der Satz trotzdem lesbar. */
@@ -45,7 +46,9 @@ function herkunftText(wer) {
  * `null`, wenn der Zeitpunkt fehlt oder unbrauchbar ist (dann steht nichts).
  */
 export function vorText(wert, jetzt = new Date()) {
-  const d = datumWert(wert)
+  // ZEIT-2: `creation`/`modified` sind SERVER-Zeitstempel (UTC ohne Zone) —
+  // als Wandzeit gelesen war die Wartezeit 1–2 h zu kurz.
+  const d = typeof wert === 'string' ? serverZeit(wert) : datumWert(wert)
   if (!d) return null
   const bezug = datumWert(jetzt)
   if (!bezug) return null

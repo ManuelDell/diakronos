@@ -1,3 +1,5 @@
+import { wandZeit } from '../../shared/zeit.mjs'
+
 /**
  * BF1 — kleine, reine Anzeige-Helfer (testbar ohne Vue/DOM).
  *
@@ -34,10 +36,10 @@ export function passtZurSuche(mitglied, suche) {
  */
 export function terminZeitText(start, ende, allDay = false) {
   if (!start) return 'Zeit unbekannt'
-  const s = new Date(String(start).replace(' ', 'T'))
-  if (isNaN(s.getTime())) return String(start)
+  const s = wandZeit(String(start))
+  if (!s) return String(start)
   const tag = (d) => d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })
-  const e = ende ? new Date(String(ende).replace(' ', 'T')) : null
+  const e = ende ? wandZeit(String(ende)) : null
   const eGueltig = e && !isNaN(e.getTime())
   // K10: Das „ganztägig“-Kennzeichen kommt vom Server (`all_day`), nicht aus
   // einer Uhrzeit-Vermutung. Frueher galt jeder Termin um 00:00 als ganztägig

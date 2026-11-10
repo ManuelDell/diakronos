@@ -1,4 +1,5 @@
 <script setup>
+import { wandZeit } from '../../../shared/zeit.mjs'
 import { apiAntwortPruefen } from '../../composables/useApi.js'
 // WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
 import { apiUrl } from '../../../shared/basis.js'
@@ -52,9 +53,10 @@ async function loadDayEvents() {
     dayEvents.value = events.sort((a, b) => {
       // K2: beide Male den START vergleichen (vorher `a.start` gegen `b.end` —
       // bei mehrtägigen Terminen ergab das eine unsinnige Reihenfolge).
-      const ta = new Date((a.start || '').replace(' ', 'T')).getTime()
-      const tb = new Date((b.start || '').replace(' ', 'T')).getTime()
-      return (isNaN(ta) ? 0 : ta) - (isNaN(tb) ? 0 : tb)
+      const ta = wandZeit(a.start)?.getTime()
+      const tb = wandZeit(b.start)?.getTime()
+      return (ta === undefined || Number.isNaN(ta) ? 0 : ta)
+        - (tb === undefined || Number.isNaN(tb) ? 0 : tb)
     })
   } catch (e) {
     console.error('loadDayEvents failed', e)

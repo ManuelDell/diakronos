@@ -340,6 +340,7 @@ import { useAuditConfirm } from '../composables/useAuditConfirm.js'
 import { showToast } from '../composables/useToast.js'
 // UX2d3b (Review UX2d3a/A): Katalogtext statt rohem `e.message` („HTTP 500“).
 import { aktionsfehler } from '../../shared/fehlertexte.js'
+import { serverZeitText } from '../../shared/zeit.mjs'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import { useVerlassenSchutz } from '../composables/useVerlassenSchutz.js'
 import { bestaetigen } from '../composables/useBestaetigen.js'
@@ -558,16 +559,11 @@ const einwilligungFehler = ref('')
 /** ISO-Zeitpunkt → „09.11.2026, 14:05“; leer bleibt leer. */
 function formatZeitpunkt(wert) {
     if (!wert) return ''
-    const d = new Date(String(wert).replace(' ', 'T'))
-    if (Number.isNaN(d.getTime())) return String(wert)
-    try {
-        return d.toLocaleString('de-DE', {
-            day: '2-digit', month: '2-digit', year: 'numeric',
-            hour: '2-digit', minute: '2-digit',
-        })
-    } catch {
-        return String(wert)
-    }
+    // DSGVO-Protokoll liefert naive UTC-Zeitstempel (ZEIT-2) -> Ortszeit
+    return serverZeitText(wert, {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+    }) || String(wert)
 }
 
 /** Setzt/widerruft eine interne Einwilligung (nur Verwaltung, nur POST). */

@@ -68,6 +68,7 @@
 </template>
 
 <script setup>
+import { wandZeit } from '../../../shared/zeit.mjs'
 import { ref, onMounted } from 'vue'
 import DkBadge from '../ui/DkBadge.vue'
 import DkButton from '../ui/DkButton.vue'
@@ -191,8 +192,8 @@ function zeitraumText(o) {
 
 function formatiereZeit(wert) {
   if (!wert) return '–'
-  const d = new Date(String(wert).replace(' ', 'T'))
-  if (Number.isNaN(d.getTime())) return String(wert)
+  const d = wandZeit(wert)
+  if (!d) return String(wert)
   return d.toLocaleString('de-DE', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',

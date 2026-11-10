@@ -1,4 +1,5 @@
 <script setup>
+import { wandZeit } from '../../../shared/zeit.mjs'
 import { ref } from 'vue'
 import { useDialogFokus } from '../../composables/useDialogFokus.js'
 import DkButton from '../ui/DkButton.vue'
@@ -12,7 +13,8 @@ const fenster = ref(null)
 
 function formatTime(iso) {
   if (!iso) return '—'
-  const d = new Date(String(iso).replace(' ', 'T'))
+  const d = wandZeit(iso)
+  if (!d) return '—'
   return d.toLocaleString('de-DE', {
     weekday: 'short', day: 'numeric', month: 'short',
     hour: '2-digit', minute: '2-digit'

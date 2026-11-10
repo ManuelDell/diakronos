@@ -226,6 +226,7 @@ import DOMPurify from 'dompurify'
 import { apiCall } from '../composables/useApi.js'
 import { suchNormal } from '../composables/bf1Anzeige.js'
 import { showToast } from '../composables/useToast.js'
+import { serverDatum, GEMEINDE_ZONE } from '../../shared/zeit.mjs'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import { papierkorbMeldung, wiederherstellen } from '../composables/papierkorb.mjs'
 // UX2c (C2): Löschen ohne Rückfrage, dafür „Rückgängig“ (Stapel + Strg+Z).
@@ -562,15 +563,27 @@ const relatedArticles = computed(() => {
 function categoryName(id) {
   return categories.find(c => c.id === id)?.name || id
 }
+/**
+ * ZEIT-2: `updatedAt` kommt als Datum (`YYYY-MM-DD`) — bleibt der Tag.
+ * `serverDatum` rechnet nicht um (vorher: `new Date(d)` = UTC-Mitternacht,
+ * in Berlin also schon der richtige Tag, aber nur zufaellig).
+ */
 function formatDate(d) {
   if (!d) return ''
-  return new Date(d).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
+  const tag = serverDatum(d)
+  if (!tag) return ''
+  return new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit', month: 'short', year: 'numeric', timeZone: GEMEINDE_ZONE,
+  }).format(tag)
 }
 function timeAgo(d) {
-  const now = new Date()
-  const then = new Date(d)
-  const diff = Math.floor((now - then) / (1000 * 60 * 60 * 24))
-  if (diff === 0) return 'heute'
+  // ZEIT-2: Kalendertage vergleichen (beide Mittag UTC), nicht „jetzt“ gegen
+  // Mittag — sonst vormittags „vor -1 Tagen“ und am Folgetag „heute“.
+  const then = serverDatum(d)
+  if (!then) return ''
+  const heute = serverDatum(new Intl.DateTimeFormat('en-CA', { timeZone: GEMEINDE_ZONE }).format(new Date()))
+  const diff = Math.round((heute - then) / (1000 * 60 * 60 * 24))
+  if (diff <= 0) return 'heute'
   if (diff === 1) return 'gestern'
   if (diff < 7) return `vor ${diff} Tagen`
   if (diff < 30) return `vor ${Math.floor(diff / 7)} Wochen`

@@ -321,6 +321,10 @@ tests/devb5-*.test.mjs
 # Knopf durch _relatives_ziel geprüft, sichtbare Texte mit echten Umlauten.
 tests/login-sso1-*.test.mjs
 
+# ZEIT-2: Server-Zeitstempel (creation/modified/zeitstempel) werden als UTC
+# gelesen und in Europe/Berlin angezeigt; Termin-Wandzeiten bleiben. Wächter:
+# kein replace(' ', 'T') auf Zeitstempeln außerhalb von src/shared/zeit.mjs.
+tests/zeit2-*.test.mjs
 # DEV-B4b: Mitglied — Verwaltung setzt die internen Einwilligungen
 # (Datenschutz, Foto) ohne Begründung, aber mit Herkunft „vom Admin gesetzt
 # am … durch …“; die Website-Einwilligung bleibt bei der Person. Mount-Test

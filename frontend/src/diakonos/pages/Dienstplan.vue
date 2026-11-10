@@ -148,6 +148,7 @@
 </template>
 
 <script setup>
+import { wandZeit } from '../../shared/zeit.mjs'
 import { ref, computed, onMounted } from 'vue'
 import { apiCall } from '../composables/useApi.js'
 // UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
@@ -178,8 +179,8 @@ function pillClass(t) {
 
 function formatDateTime(s) {
   if (!s) return ''
-  const d = new Date(String(s).replace(' ', 'T'))
-  if (isNaN(d)) return s
+  const d = wandZeit(s)
+  if (!d) return s
   return (
     d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) +
     ', ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })

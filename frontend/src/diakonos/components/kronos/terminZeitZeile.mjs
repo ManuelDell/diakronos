@@ -13,6 +13,8 @@
  * liefert IMMER deutschen Text.
  */
 
+import { wandZeit } from '../../../shared/zeit.mjs'
+
 const OPTS_DATUM = { weekday: 'short', day: 'numeric', month: 'short' }
 const OPTS_ZEIT = { hour: '2-digit', minute: '2-digit' }
 
@@ -22,8 +24,7 @@ const de = (options) => new Intl.DateTimeFormat('de-DE', options)
 function alsDatum(wert) {
   if (!wert) return null
   if (wert instanceof Date) return Number.isNaN(wert.getTime()) ? null : wert
-  const d = new Date(String(wert).trim().replace(' ', 'T'))
-  return Number.isNaN(d.getTime()) ? null : d
+  return wandZeit(String(wert).trim())
 }
 
 /**

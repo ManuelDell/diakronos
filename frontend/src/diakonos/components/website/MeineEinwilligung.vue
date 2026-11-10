@@ -148,6 +148,7 @@ import {
   speichernMoeglich,
   speicherMeldung,
 } from '../../../shared/website-einwilligung.mjs'
+import { serverZeit, GEMEINDE_ZONE } from '../../../shared/zeit.mjs'
 import { useMeineWebsiteEinwilligung } from '../../composables/useMeineWebsiteEinwilligung.js'
 import DkBadge from '../ui/DkBadge.vue'
 import DkButton from '../ui/DkButton.vue'
@@ -259,12 +260,17 @@ async function widerrufZuruecknehmen() {
   }
 }
 
+/**
+ * ZEIT-2: `website_einwilligung_am` ist ein SERVER-Zeitstempel (UTC ohne
+ * Zone) — er wird ueber `serverZeit` gelesen und in der Zone der Gemeinde
+ * ausgegeben. Vorher las `new Date(...)` ihn als Ortszeit.
+ */
 function formatDatum(wert) {
-  const text = String(wert || '')
-  if (!text) return ''
-  const datum = new Date(text.replace(' ', 'T'))
-  if (Number.isNaN(datum.getTime())) return ''
-  return datum.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const datum = serverZeit(wert)
+  if (!datum) return ''
+  return new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit', month: '2-digit', year: 'numeric', timeZone: GEMEINDE_ZONE,
+  }).format(datum)
 }
 
 // Der geladene Stand ist der Ausgangspunkt der Felder.

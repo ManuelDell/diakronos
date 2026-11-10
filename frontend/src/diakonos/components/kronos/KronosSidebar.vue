@@ -209,6 +209,7 @@ import { useKronosStore } from '../../composables/useKronosStore.js';
 import { istKalenderAdmin } from './kalenderRechte.mjs';
 // UXD-R28: Kalenderfarbe nur als gueltiger Hex-Wert in die CSS-Variable.
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js';
+import { wandZeit } from '../../../shared/zeit.mjs';
 // ON-4/H3: Leerzustand der Kalenderliste (dasselbe Muster wie die Mitglieder).
 import { kalenderLeerzustand } from '../../composables/einrichtungsHinweise.mjs';
 
@@ -252,8 +253,8 @@ const davUrl = `${window.location.origin}/dav/`;
 /** K-A: Datum kurz und deutsch fuer die Liste der abgelehnten Termine. */
 function kurzDatum(wert) {
   if (!wert) return '';
-  const d = new Date(String(wert).replace(' ', 'T'));
-  if (Number.isNaN(d.getTime())) return '';
+  const d = wandZeit(String(wert));
+  if (!d) return '';
   return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
 }
 

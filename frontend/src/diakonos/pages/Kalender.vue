@@ -322,6 +322,7 @@ import { apiCall } from '../composables/useApi.js'
 import { papierkorbMeldung, wiederherstellen } from '../composables/papierkorb.mjs'
 import { useRueckgaengigAktion } from '../composables/useRueckgaengigAktion.js'
 import { aktionsfehler } from '../../shared/fehlertexte.js'
+import { wandZeit } from '../../shared/zeit.mjs'
 import { vorschlagBeginn } from '../composables/datumZeit.mjs'
 import { endeAusKalender } from '../composables/datumZeit.mjs'
 import KronosTopbar from '../components/kronos/KronosTopbar.vue'
@@ -857,8 +858,8 @@ async function abgelehnteListeOeffnen() {
 /** Kurzes Datum („6. Nov.“) einer Terminangabe; leer, wenn unbrauchbar. */
 function kurzDatum(wert) {
   if (!wert) return ''
-  const d = new Date(String(wert).replace(' ', 'T'))
-  if (Number.isNaN(d.getTime())) return ''
+  const d = wandZeit(String(wert))
+  if (!d) return ''
   return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })
 }
 

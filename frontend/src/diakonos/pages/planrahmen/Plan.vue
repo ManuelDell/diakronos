@@ -311,6 +311,7 @@
  */
 import { ref, computed, watch, onUnmounted, onMounted, provide, nextTick } from 'vue'
 import { getRouteParam } from '../../router.js'
+import { serverZeitText } from '../../../shared/zeit.mjs'
 import { usePlanrahmen, datumText, fehlerMeldungen } from '../../composables/usePlanrahmen.js'
 import { showToast } from '../../composables/useToast.js'
 import DkModal from '../../components/DkModal.vue'
@@ -446,11 +447,8 @@ const zeitraumText = computed(() => {
 
 /** OP-HANDY-6: „geändert am“-Marker aus `plan.modified` (Konzept B10). */
 const geaendertText = computed(() => {
-    const iso = plan.value?.modified
-    if (!iso) return ''
-    const d = new Date(String(iso).replace(' ', 'T'))
-    if (Number.isNaN(d.getTime())) return ''
-    return d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    // ZEIT-2: `modified` ist ein SERVER-Zeitstempel (UTC ohne Zone).
+    return serverZeitText(plan.value?.modified)
 })
 
 const erstdefinition = computed(() => {

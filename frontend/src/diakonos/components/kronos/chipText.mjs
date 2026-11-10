@@ -12,6 +12,8 @@
  *   ohne Uhrzeit:  „Titel“  (ganztägig, mehrtägig, ohne Uhrzeit)
  */
 
+import { wandZeit } from '../../../shared/zeit.mjs'
+
 /** Höchstzahl gleichzeitig sichtbarer Chips je Tag, wenn die Bibliothek kürzt. */
 export const CHIPS_JE_TAG = 3
 
@@ -31,8 +33,7 @@ const RGB_KARTE_DUNKEL = [26, 31, 46]
 function alsDatum(wert) {
   if (!wert) return null
   if (wert instanceof Date) return Number.isNaN(wert.getTime()) ? null : wert
-  const d = new Date(String(wert).trim().replace(' ', 'T'))
-  return Number.isNaN(d.getTime()) ? null : d
+  return wandZeit(String(wert).trim())
 }
 
 /** `HH:MM` einer Zeitangabe. */

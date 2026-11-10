@@ -217,6 +217,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { usePlanrahmen, datumText, uhrzeitText, wertText, fehlerMeldungen } from '../../composables/usePlanrahmen.js'
+import { serverZeitText } from '../../../shared/zeit.mjs'
 import { useSession } from '../../composables/useSession.js'
 import { showToast } from '../../composables/useToast.js'
 import { pflichtFehler, erstesFehlerfeld } from '../../composables/formularPruefung.mjs'
@@ -308,11 +309,10 @@ function planLink(g) {
  * verstaendliche Zeile. Ohne Angabe bleibt die Zeile aus.
  */
 function geaendertText(g) {
+    // ZEIT-2: `plan_geaendert` ist ein SERVER-Zeitstempel (UTC ohne Zone).
     const iso = g.dienste.find(d => d.plan_geaendert)?.plan_geaendert
-    if (!iso) return ''
-    const d = new Date(String(iso).replace(' ', 'T'))
-    if (Number.isNaN(d.getTime())) return ''
-    return 'zuletzt geändert am ' + d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const text = serverZeitText(iso, { day: '2-digit', month: '2-digit', year: 'numeric', hour: undefined, minute: undefined })
+    return text ? 'zuletzt geändert am ' + text : ''
 }
 
 // ── Absage (OP-HANDY-18) ───────────────────────────────────────────────────

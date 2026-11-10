@@ -236,6 +236,7 @@ import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 // UX2g: EINE Quelle fuer angezeigte Fehlertexte statt Floskeln wie
 // "Fehler beim Laden" / "Fehler beim Speichern".
 import { aktionsfehler } from '../../shared/fehlertexte.js'
+import { serverDatum, GEMEINDE_ZONE } from '../../shared/zeit.mjs'
 import { navigate, currentPageName } from '../router.js'
 import { LIEDER_REITER } from '../menue.js'
 import DiensteReiter from '../components/DiensteReiter.vue'
@@ -507,11 +508,14 @@ function rechtePill(s) {
   return 'dk-badge-danger'
 }
 
+/** ZEIT-2: `zuletzt_gesungen` ist ein DATUM (kein Zeitpunkt) — bleibt der Tag. */
 function formatDate(val) {
   if (!val) return ''
-  const d = new Date(String(val).replace(' ', 'T'))
-  if (isNaN(d)) return val
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
+  const d = serverDatum(val)
+  if (!d) return String(val)
+  return new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit', month: 'short', year: 'numeric', timeZone: GEMEINDE_ZONE,
+  }).format(d)
 }
 
 onMounted(() => {

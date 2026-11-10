@@ -29,6 +29,7 @@
   </BaseWidgetCard>
 </template>
 <script setup>
+import { wandZeit } from '../../../shared/zeit.mjs'
 import BaseWidgetCard from './BaseWidgetCard.vue'
 import { useWidgetData } from '../../composables/useWidgetData'
 import { apiCall } from '../../composables/useApi.js'
@@ -129,8 +130,8 @@ function datumZeit(datum, uhrzeit) {
 
 function formatDateTime(s) {
   if (!s) return ''
-  const d = new Date(String(s).replace(' ', 'T'))
-  if (isNaN(d)) return s
+  const d = wandZeit(s)
+  if (!d) return s
   return (
     d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short' }) +
     ', ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
