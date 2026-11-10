@@ -762,6 +762,14 @@ def get_mitglied_detail(mitglied_id):
             "werbung": bool(doc.get("werbeeinwilligung")),
             "werbung_datum": str(doc.get("werbung_datum")) if doc.get("werbung_datum") else None,
         }
+        # DEV-B4b: „vom Admin gesetzt am … durch …“ — nur fuer die VERWALTUNG.
+        # Die Marke nennt den handelnden Administrator; sie gehoert nicht in
+        # die Selbstauskunft der Person (die ihre Werte weiterhin sieht).
+        if perms.get("can_view_sensitive") and not eigenes:
+            for _typ in ("datenschutz", "foto"):
+                _eintrag = _admin_einwilligung_eintrag(mitglied_id, _typ)
+                if _eintrag:
+                    result["dsgvo"][f"{_typ}_von_admin"] = _eintrag
 
     # Gruppenmitgliedschaften explizit anreichern (falls nicht in as_dict)
     gruppenmitgliedschaften = get_all(
@@ -1789,6 +1797,155 @@ def widerruf_einwilligung(mitglied_id, **kwargs):
     return {
         "success": True,
         "message": "Einwilligung widerrufen.",
+    }
+
+
+# ── Einwilligung durch die Verwaltung setzen (DEV-B4b) ──────────────────────
+#
+# Befund DMB-623c6e586e03 (Dev, 29.10., Wunsch Manuel): Die Verwaltung muss
+# eine Einwilligung auch SETZEN koennen — bei der ersten Datenpflege oder auf
+# persoenliche Bitte hin. Bisher gab es nur `widerruf_einwilligung`; ein
+# gesetzter Schalter entstand ausschliesslich ueber die Person selbst.
+#
+# WAS HIER GILT
+#   * NUR die zwei INTERNEN Einwilligungen dieses Endpunkts
+#     (:data:`ADMIN_EINWILLIGUNGEN`): `datenschutz` und `foto`. Die
+#     WEBSITE-Einwilligung (BS-3a, `website_einwilligung`) bleibt
+#     ausschliesslich bei der Person selbst — sie steht hier NICHT zur Wahl,
+#     und die zentrale Schranke (`website/einwilligung.py`) ist unveraendert.
+#     Ein Versuch, sie ueber diesen Weg zu setzen, endet mit 417 und schreibt
+#     nichts (Test: `test_admin_setzt_nie_die_website_einwilligung`).
+#   * Rechte wie beim Widerruf: `permissions.mitglied_permissions(...)`
+#     -> `can_edit` (mitgliederadministrator/System Manager).
+#   * Keine Pflicht-Begruendung — aber ERSICHTLICH: jede Aenderung erzeugt
+#     einen `DSGVO Einwilligung`-Eintrag mit `quelle="admin"`, Zeitstempel
+#     und Admin-Kennung (`modified_by` der Zeile = `session.user`).
+#   * Schreiben ueber `Document.db_set()` — derselbe Weg wie Widerruf und
+#     `profile.update_einwilligung` (kein stiller Fehlschlag an einer
+#     Audit-Policy).
+
+#: Einwilligungen, die die Verwaltung setzen darf: Typ -> Spaltenpaar
+#: (Schalter, Datum). Bewusst KEIN `website`-Eintrag (s. Kommentar oben).
+ADMIN_EINWILLIGUNGEN: dict[str, tuple[str, str]] = {
+    "datenschutz": ("datenschutz_einwilligung", "datenschutz_datum"),
+    "foto": ("foto_einwilligung", "foto_datum"),
+}
+
+
+def _wahrheitswert(wert, feldname: str) -> bool:
+    """`true/false` aus JSON, `1/0` aus Formularen — alles andere ist ein Fehler.
+
+    Ein stilles „dann eben Nein“ waere hier besonders schlecht: bei einer
+    Einwilligung ist die Richtung Teil der Aussage.
+    """
+    if isinstance(wert, bool):
+        return wert
+    if isinstance(wert, (int, float)) and not isinstance(wert, bool):
+        if wert in (0, 1):
+            return bool(wert)
+    text = str(wert if wert is not None else "").strip().lower()
+    if text in {"1", "true", "ja", "yes", "on"}:
+        return True
+    if text in {"0", "false", "nein", "no", "off"}:
+        return False
+    throw(f"Ungültiger Wert für {feldname}: Bitte Ja oder Nein angeben.", ValidationError)
+    raise AssertionError("unreachable — throw() wirft immer")  # noqa: TRY301
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def admin_einwilligung_setzen(mitglied_id, typ, erteilt, request=None):
+    """Setzt eine interne Einwilligung eines Mitglieds (DEV-B4b, nur Verwaltung).
+
+    Args:
+        mitglied_id: technische Kennung des Mitglieds.
+        typ:         ``"datenschutz"`` oder ``"foto"`` — siehe
+                     :data:`ADMIN_EINWILLIGUNGEN`. Alles andere (auch
+                     ``"website"``) ist ein Fehler und schreibt nichts.
+        erteilt:     true/false (auch 1/0).
+
+    Rueckgabe: ``{"success": True, "typ": …, "erteilt": …,
+    "datum": …, "von_admin": True, "durch": <Admin-Kennung>, "am": <ISO>}``.
+    """
+    from diakronos_app.frappe_compat.query import get_doc as _get_doc
+
+    if request is not None and str(getattr(request, "method", "POST")).upper() != "POST":
+        throw("Diese Aktion ist nur per POST erlaubt.", ValidationError)
+
+    _typ = str(typ or "").strip()
+    schalter, datumsfeld = ADMIN_EINWILLIGUNGEN.get(_typ, ("", ""))
+    if not schalter:
+        if _typ.startswith("website"):
+            throw(
+                "Die Einwilligung zur Veröffentlichung kann nur die Person selbst "
+                "erteilen oder widerrufen. Die Verwaltung kann sie nicht setzen.",
+                ValidationError,
+            )
+        throw(
+            "Unbekannte Einwilligung. Möglich sind: Datenschutz, Foto.",
+            ValidationError,
+        )
+    an = _wahrheitswert(erteilt, "die Einwilligung")
+
+    perms = permissions.mitglied_permissions(mitglied_id)
+    if not perms.get("can_edit"):
+        throw("Kein Zugriff", PermissionError)
+
+    heute = _today() if an else None
+    doc = _get_doc("Mitglied", mitglied_id)
+    # Datum ZUERST, dann der Schalter: `db_set` prueft und schreibt je Feld.
+    doc.db_set(datumsfeld, heute)
+    doc.db_set(schalter, 1 if an else 0)
+
+    # Protokoll NACH dem Schreiben — ein Log-Eintrag fuer eine nicht
+    # stattgefundene Aenderung waere der schlimmere Fehler (wie im Widerruf).
+    log_einwilligung(mitglied_id, str(typ).strip(), "erteilt" if an else "widerrufen",
+                     quelle="admin")
+
+    stand = _get_doc("Mitglied", mitglied_id)
+    _datum = stand.get(datumsfeld) if datumsfeld else None
+    return {
+        "success": True,
+        "typ": str(typ).strip(),
+        "erteilt": an,
+        "datum": str(_datum) if _datum else None,
+        "von_admin": True,
+        "durch": stand.get("modified_by") or session.user,
+        "am": str(stand.get("modified") or "") or None,
+    }
+
+
+def _admin_einwilligung_eintrag(zeile, typ: str) -> dict | None:
+    """Herkunft „Verwaltung“, wenn der LETZTE Eintrag ein Admin-„erteilt“ ist.
+
+    Die Anzeige „vom Admin gesetzt am … durch …“ liest genau diesen Eintrag —
+    es wird KEINE zweite Herkunft gespeichert. Die Angaben kommen aus dem
+    `DSGVO Einwilligung`-Protokoll: Zeitpunkt des Protokolleintrags und der
+    Benutzer, der ihn erzeugt hat (``owner``/``modified_by``).
+    """
+    from diakronos_app.frappe_compat import get_all as _get_all
+
+    try:
+        eintraege = _get_all(
+            "DSGVO Einwilligung",
+            # Bewusst OHNE Filter auf `quelle`: massgeblich ist der LETZTE
+            # Eintrag ueberhaupt. Hat die Person danach selbst widerrufen oder
+            # erteilt, gilt die Verwaltungs-Marke nicht mehr (Review DEV-B4b).
+            filters={"mitglied": zeile, "typ": typ},
+            fields=["name", "aktion", "quelle", "zeitstempel", "owner", "modified_by",
+                    "creation"],
+            order_by="zeitstempel desc, creation desc",
+            limit_page_length=1,
+        )
+    except Exception:  # noqa: BLE001 — Anzeige darf die Detailseite nie sprengen
+        return None
+    if not eintraege:
+        return None
+    letzter = eintraege[0]
+    if str(letzter.get("aktion") or "") != "erteilt" or str(letzter.get("quelle") or "") != "admin":
+        return None
+    return {
+        "am": str(letzter.get("zeitstempel") or letzter.get("creation") or "") or None,
+        "durch": letzter.get("owner") or letzter.get("modified_by") or None,
     }
 
 

@@ -4210,6 +4210,33 @@
    "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.mitglieder.admin_einwilligung_setzen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "admin_einwilligung_setzen",
+   "pfade": [
+    "admin_einwilligung_setzen",
+    "api.admin_einwilligung_setzen",
+    "diakronos.diakonos.api.mitglieder.admin_einwilligung_setzen",
+    "diakronos_app.api.mitglieder.admin_einwilligung_setzen",
+    "mitglieder.admin_einwilligung_setzen"
+   ],
+   "rumpf_grund": "Aufruf log_einwilligung(); Aufruf doc.db_set(); Aufruf doc.db_set()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
    "funktion": "diakronos_app.api.mitglieder.create_mitglied",
    "methoden": [
     "POST"
@@ -9574,12 +9601,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 362,
+ "funktionen": 363,
  "nur_test": [],
- "registrierte_pfade": 1859,
+ "registrierte_pfade": 1864,
  "rumpf_zaehlung": {
   "lesend": 180,
-  "schreibend": 182
+  "schreibend": 183
  },
  "widersprueche": [
   {
@@ -10328,6 +10355,6 @@
  ],
  "zaehlung": {
   "lesend": 165,
-  "schreibend": 197
+  "schreibend": 198
  }
 }

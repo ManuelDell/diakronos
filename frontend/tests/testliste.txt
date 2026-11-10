@@ -320,3 +320,9 @@ tests/devb5-*.test.mjs
 # (keine Zwangsweiterleitung), Trenner „oder“ nur aus Tokens, redirect-to am
 # Knopf durch _relatives_ziel geprüft, sichtbare Texte mit echten Umlauten.
 tests/login-sso1-*.test.mjs
+
+# DEV-B4b: Mitglied — Verwaltung setzt die internen Einwilligungen
+# (Datenschutz, Foto) ohne Begründung, aber mit Herkunft „vom Admin gesetzt
+# am … durch …“; die Website-Einwilligung bleibt bei der Person. Mount-Test
+# am echten MitgliedDetail.vue (jsdom + vue/compiler-sfc).
+tests/dev-b4b-*.test.mjs

@@ -245,9 +245,44 @@
                     <div>
                         <p class="md-einwilligung-titel">{{ e.label }}</p>
                         <p class="md-muted">{{ e.wert ? formatDate(e.datum) : e.leerText }}</p>
+                        <!-- DEV-B4b: die Verwaltung sieht, wenn SIE den Schalter
+                             gesetzt hat — „vom Admin gesetzt am … durch …“. -->
+                        <p
+                            v-if="e.vonAdmin && e.wert"
+                            class="md-muted md-herkunft"
+                        >vom Admin gesetzt am {{ formatZeitpunkt(e.vonAdmin.am) }} durch {{ e.vonAdmin.durch }}</p>
                     </div>
                     <DkBadge :variant="e.wert ? 'ok' : 'err'">{{ e.wert ? 'Ja' : 'Nein' }}</DkBadge>
                 </div>
+
+                <!-- DEV-B4b: im Bearbeitungsmodus setzt die Verwaltung die zwei
+                     INTERNEN Einwilligungen. Die Website-Einwilligung bleibt
+                     ausschliesslich bei der Person (Server lehnt sie ab) und
+                     steht deshalb hier gar nicht zur Wahl. -->
+                <div v-if="isEditing && canEdit" class="md-einwilligung-setzen">
+                    <p class="md-einwilligung-titel">Einwilligungen setzen (Verwaltung)</p>
+                    <p class="md-muted">
+                        Jede Änderung wird im Datenschutz-Protokoll vermerkt
+                        (Zeitpunkt und bearbeitende Person). Die Einwilligung zur
+                        Veröffentlichung auf der Website kann nur die Person selbst
+                        erteilen.
+                    </p>
+                    <label
+                        v-for="s in adminSchalter"
+                        :key="s.typ"
+                        class="md-schalter"
+                    >
+                        <input
+                            type="checkbox"
+                            :checked="!!s.wert"
+                            :disabled="einwilligungLaeuft"
+                            @change="einwilligungSetzen(s.typ, $event.target.checked)"
+                        />
+                        <span>{{ s.label }}</span>
+                    </label>
+                    <DkHint v-if="einwilligungFehler" variant="err">{{ einwilligungFehler }}</DkHint>
+                </div>
+
                 <DkButton
                     v-if="dsgvo.datenschutz || dsgvo.foto || dsgvo.werbung"
                     variant="danger"
@@ -486,10 +521,82 @@ const detailZeilen = computed(() => {
 
 /** Zeilen der Reiter „DSGVO“. */
 const einwilligungen = computed(() => [
-    { label: 'Datenschutzerklärung akzeptiert', wert: dsgvo.datenschutz, datum: dsgvo.datenschutz_datum, leerText: 'Nicht akzeptiert' },
-    { label: 'Foto-Einwilligung', wert: dsgvo.foto, datum: dsgvo.foto_datum, leerText: 'Nicht erteilt' },
-    { label: 'Werbeeinwilligung', wert: dsgvo.werbung, datum: dsgvo.werbung_datum, leerText: 'Nicht erteilt' },
+    {
+        label: 'Datenschutzerklärung akzeptiert',
+        wert: dsgvo.datenschutz,
+        datum: dsgvo.datenschutz_datum,
+        leerText: 'Nicht akzeptiert',
+        vonAdmin: dsgvo.datenschutz_von_admin || null,
+    },
+    {
+        label: 'Foto-Einwilligung',
+        wert: dsgvo.foto,
+        datum: dsgvo.foto_datum,
+        leerText: 'Nicht erteilt',
+        vonAdmin: dsgvo.foto_von_admin || null,
+    },
+    {
+        label: 'Werbeeinwilligung',
+        wert: dsgvo.werbung,
+        datum: dsgvo.werbung_datum,
+        leerText: 'Nicht erteilt',
+        vonAdmin: null,
+    },
 ])
+
+/* DEV-B4b: die zwei INTERNEN Einwilligungen, die die Verwaltung setzen darf
+   (`mitglieder.admin_einwilligung_setzen`). Die Website-Einwilligung (BS-3a)
+   fehlt hier ABSICHTLICH — der Server lehnt sie ab, sie gehoert der Person. */
+const adminSchalter = computed(() => [
+    { typ: 'datenschutz', label: 'Datenschutzerklärung akzeptiert', wert: dsgvo.datenschutz },
+    { typ: 'foto', label: 'Foto-Einwilligung', wert: dsgvo.foto },
+])
+
+const einwilligungLaeuft = ref(false)
+const einwilligungFehler = ref('')
+
+/** ISO-Zeitpunkt → „09.11.2026, 14:05“; leer bleibt leer. */
+function formatZeitpunkt(wert) {
+    if (!wert) return ''
+    const d = new Date(String(wert).replace(' ', 'T'))
+    if (Number.isNaN(d.getTime())) return String(wert)
+    try {
+        return d.toLocaleString('de-DE', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+        })
+    } catch {
+        return String(wert)
+    }
+}
+
+/** Setzt/widerruft eine interne Einwilligung (nur Verwaltung, nur POST). */
+async function einwilligungSetzen(typ, erteilt) {
+    if (einwilligungLaeuft.value) return
+    einwilligungLaeuft.value = true
+    einwilligungFehler.value = ''
+    try {
+        const antwort = await apiCall('diakronos.diakonos.api.mitglieder.admin_einwilligung_setzen', {
+            mitglied_id: mitgliedId.value || getRouteParam('id'),
+            typ,
+            erteilt: !!erteilt,
+        })
+        const daten = antwort?.data ?? antwort
+        if (daten && daten.success === false) throw new Error(daten.message || 'Nicht gespeichert')
+        showToast(
+            erteilt ? 'Einwilligung gesetzt — im Datenschutz-Protokoll vermerkt.' : 'Einwilligung widerrufen.',
+            'success',
+        )
+        await loadMitglied()
+    } catch (err) {
+        console.error('[MitgliedDetail] Einwilligung setzen fehlgeschlagen:', err)
+        einwilligungFehler.value = err?.message || 'Die Einwilligung konnte nicht geändert werden.'
+        // Der Schalter zeigt wieder den gespeicherten Stand.
+        await loadMitglied()
+    } finally {
+        einwilligungLaeuft.value = false
+    }
+}
 
 /* UXD-R26: Gruppen erst laden, wenn der Reiter wirklich geöffnet wird — die
    Detailseite soll nicht bei jedem Aufruf eine zweite Anfrage stellen. Die
@@ -817,5 +924,34 @@ onMounted(loadMitglied)
 }
 .md-beziehung-name { font-weight: 500; color: var(--text); }
 .md-einwilligung-titel { margin: 0; font-weight: 500; color: var(--text); }
+/* DEV-B4b: Herkunft + Schalter der Verwaltung — Fläche statt Rahmen. */
+.md-herkunft { font-size: var(--fs-sm); }
+.md-einwilligung-setzen {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-4);
+    background: var(--surface-2);
+    border-radius: var(--radius);
+}
+.md-schalter {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-height: var(--control-h);
+    cursor: pointer;
+    font-size: var(--fs);
+    color: var(--text);
+}
+/* Das Kästchen ist ein Symbol auf der Textlinie: es darf NICHT mitschrumpfen,
+   und der Text bricht bei schmaler Breite um statt unter das Kästchen. */
+.md-schalter input {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--primary);
+    cursor: inherit;
+}
 .md-ausschluss-hinweis { margin-top: var(--sp-3); font-size: var(--fs-sm); }
 </style>
