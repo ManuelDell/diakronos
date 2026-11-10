@@ -286,6 +286,12 @@ tests/ux3i4-*.test.mjs
 # Attribut), Punkte je Tag, Prüf-Zeile ohne 0, Ring im Dunkelmodus, Häkchen
 # am Standard-Menüpunkt, ⋯ in der Kartenzeile, Leserecht im Demo-Seed.
 tests/a10-*.test.mjs
+# A11: Termin-Blatt auf dem Handy nach Entwurf A11 — Tipp auf einen Termin
+# öffnet ein Blatt von unten (Kalender 42 % abgedunkelt), Titel · Zeit · Ort ·
+# Kalender · Beschreibung · Status; „Freigeben“ als EINER Primärknopf,
+# Absagen/Löschen im ⋯ (K4), Mitglied nur Ansicht; Schließen per Wischen,
+# Escape und Fläche dahinter, Fokusfalle, Tippziele ≥ 44 px.
+tests/a11-*.test.mjs
 # UX3j: Personen — EINE Reiterzeile in allen Reitern (A3), EIN Filter-Baustein,
 # ein Suchfeld, „Person anlegen“ überall an derselben Stelle.
 tests/ux3j-*.test.mjs

@@ -75,7 +75,30 @@ export const SYMBOLE = {
       'M22 11h-6'],
     c: [[9, 7, 4]],
   },
+  // A11 (Entwurf „A11 Mobil Termin“): die Zeilen des Termin-Blatts tragen
+  // Symbole — Uhr (Zeit), Ort (Pin) und Gruppe (`gruppe`, schon oben).
+  // Auch diese beiden stammen aus lucide (ISC), 24er-Raster, Strichstärke 2.
+  uhr: { p: ['M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z', 'M12 6v6l4 2'] },
+  // Pin/Marker: Nadel mit AUSGESTANZTEM Kreis (siehe GEFUELLT), damit die
+  // Mitte leer bleibt wie in der übrigen Strichfamilie.
+  ort: {
+    p: ['M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0Z',
+      'M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z'],
+  },
+  // „Weitere Aktionen“ (drei Punkte) — Entwurf A11 setzt das ⋯ in die Kopfzeile
+  // des Blattes. Bisher kam es als Textzeichen; als Symbol sitzt es auf der
+  // Textlinie wie jedes andere Zeichen (Auflage Manuel 04.11.).
+  mehr: {
+    p: ['M5 12h.01', 'M12 12h.01', 'M19 12h.01'],
+  },
 }
+
+/**
+ * Symbole, deren Pfade AUSGESTANZT werden (`fill-rule: evenodd`): ein zweiter
+ * Pfad innerhalb des ersten bleibt leer, statt ihn zu füllen. Nur dort nötig,
+ * wo zwei geschlossene Formen zusammenspielen (z. B. `ort`).
+ */
+export const GEFUELLT = Object.freeze(['ort'])
 
 /** Alle verfügbaren Symbolnamen — für die Node-Tests. */
 export const SYMBOLNAMEN = Object.keys(SYMBOLE)

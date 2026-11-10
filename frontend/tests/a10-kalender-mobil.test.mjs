@@ -551,25 +551,16 @@ test('A10: Mini-Monat — gewählter Tag markiert, Punkte gesetzt, Tipp wählt d
 test('A10: A11-Blatt — genau EIN Primärknopf „Freigeben“ für Moderatoren', async () => {
   dom.window.__DIakonosBOOT = { can_moderate: true }
   globalThis.__DIakonosBOOT = dom.window.__DIakonosBOOT
-  // Das Blatt hängt an der HANDY-Lage (matchMedia-Breite 720 px). jsdom hat
-  // kein matchMedia — hier EINmal scharf gesetzt, damit die Handlungen des
-  // Blattes (der eigentliche Prüfgegenstand) wirklich gerendert werden.
-  dom.window.matchMedia = (frage) => ({
-    matches: true, media: frage, onchange: null,
-    addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {},
-    dispatchEvent: () => false,
-  })
-  globalThis.matchMedia = dom.window.matchMedia
+  // Das Blatt hängt an der HANDY-Lage, die die Seite durchreicht (A11-Review).
   const { host, gemeldet } = await mounten('components/kronos/KronosEventView.vue', {
     show: true,
+    handyLage: true,
     bearbeitenErlaubt: true,
     event: {
       element_name: 'Herbstfreizeit Jugend', status: 'Vorschlag', antragsteller: 'J. Rehberg',
       element_start: '2026-11-07 00:00:00', element_end: '2026-11-09 00:00:00', all_day: true,
     },
   })
-  // Die Blatt-Lage hängt an der Breite (matchMedia) — im jsdom ohne Treffer
-  // bleibt es beim Fenster; geprüft wird hier die HANDLUNG, nicht die Optik.
   // Das Blatt liegt im Teleport am <body> (wie im Betrieb), nicht im Halter.
   const knopf = (text) => [...document.body.querySelectorAll('button')]
     .find((b) => b.textContent.trim() === text)

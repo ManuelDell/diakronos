@@ -1,15 +1,17 @@
 <script setup>
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount } from 'vue'
 import DkBadge from '../ui/DkBadge.vue'
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js'
 import { useZurueckSchliesst } from '../../composables/useZurueckSchliesst.js'
 import { terminZeitZeile } from './terminZeitZeile.mjs'
 import DkButton from '../ui/DkButton.vue'
 import DkSkelett from '../ui/DkSkelett.vue'
-import DkAktionen from '../ui/DkAktionen.vue'
-// A10/A11: Handlungen und Status-Badge des Termin-Blatts (reine Funktionen,
-// geprüft in tests/a10-*).
-import { terminBlattAktionen, statusBadgeFuer, istPruefStatus } from './mobilTermin.mjs'
+// A11 (Karte t_3c23f0a5): Am Handy ist der Termin ein Blatt von unten
+// (`TerminBlatt.vue`, Entwurf „A11 Mobil Termin“). Die Handlungen des Blattes
+// stehen dort; hier bleibt das Fenster für den Desktop (A4) unverändert.
+import TerminBlatt from './TerminBlatt.vue'
+// A10/A11: Status-Badge des Termins (reine Funktion, geprüft in tests/a10-*).
+import { statusBadgeFuer } from './mobilTermin.mjs'
 
 const props = defineProps({
   show: { type: Boolean, required: true },
@@ -21,6 +23,12 @@ const props = defineProps({
    * einen anderen Termin kurz der alte Inhalt da.
    */
   laedt: { type: Boolean, default: false },
+  /**
+   * A11 (Review): Handy-Lage kommt von der SEITE (`Kalender.vue`, `istSchmal`)
+   * — EINE Stelle für die Lage, keine eigene Breitenabfrage hier (DEV-B6
+   * stellt die Lage zentral um).
+   */
+  handyLage: { type: Boolean, default: false },
   /**
    * A11: Darf der Betrachter diesen Termin bearbeiten? Die SEITE entscheidet
    * (Lesemodus/Rechte aus UX3i, `store.isViewMode`) und reicht das Ergebnis
@@ -68,61 +76,27 @@ const moderiertVon = computed(
   () => props.event?.moderiert_von || props.event?.extendedProps?.moderiert_von || ''
 )
 
-/* ── A10/A11: die Handlungen des Termin-Blatts am Handy ─────────────────────
- * Das Blatt ERSETZT am Handy die Terminliste der Kalender-Bibliothek (die es
- * dort nicht mehr gibt). Deshalb muss es alles anbieten, was die Liste
- * angeboten hat (Karte A10, Punkt 6 und 7): Freigeben (Moderator), Absagen
- * (Moderator), Bearbeiten und Löschen. Was erscheint, entscheidet EINE
- * Funktion in `mobilTermin.mjs`; die Seite führt die Handlung aus.
+/* ── A10/A11: Status des Termins und Rechte ─────────────────────────────────
+ * Am Handy zeigt das Blatt (`TerminBlatt.vue`) den Status als Abzeichen und
+ * bietet die Handlungen an; hier bleiben nur die Werte, die BEIDE Lagen
+ * brauchen. Die Seite entscheidet, was sie durchreicht (Lesemodus/Rechte aus
+ * UX3i) — dieses Fenster prüft keine Rollen selbst.
  */
 const darfPruefen = computed(() => {
   const boot = (typeof window !== 'undefined' && window.__DIakonosBOOT)
     || (typeof globalThis !== 'undefined' ? globalThis.__DIakonosBOOT : null)
   return boot?.can_moderate === true
 })
-/** Darf der Betrachter bearbeiten? Die Seite reicht ihr Ergebnis durch. */
-const darfBearbeiten = computed(() => props.bearbeitenErlaubt === true)
-/** Status des Termins für das Badge („Zu prüfen · eingetragen von …"). */
+/** Status des Termins für das Badge („Zu prüfen · eingetragen von …“). */
 const statusBadge = computed(() => statusBadgeFuer(props.event))
-/** „Freigeben“ ist der EINE Primärknopf — nur bei einem zu prüfenden Termin. */
-const primaerFreigeben = computed(() => istPruefStatus(props.event))
-
-const blattAktionen = computed(() => terminBlattAktionen({
-  darfPruefen: darfPruefen.value,
-  darfBearbeiten: darfBearbeiten.value,
-  status: props.event?.status || props.event?.extendedProps?.status || '',
-  primaerFreigeben: primaerFreigeben.value,
-}))
-
-function onBlattAktion(ereignis) {
-  const eintrag = ereignis && ereignis.eintrag ? ereignis.eintrag : ereignis
-  if (!eintrag || !eintrag.key) return
-  if (eintrag.key === 'bearbeiten') { emit('bearbeiten', props.event); return }
-  emit('freigeben', { termin: props.event, aktion: eintrag.key })
-}
 
 function onKeydown(e) {
   if (e.key === 'Escape') emit('update:show', false)
 }
 
-// A10 (Entwurf „A11 Mobil Termin“): Der Termin öffnet am Handy ein BLATT von
-// unten (Griffleiste, obere Ecken rund, dunkler Kalender dahinter) statt eines
-// Fensters in der Mitte. Der Inhalt ist DERSELBE — nur die Lage wechselt mit
-// der Breite. Genau eine Grenze (wie `breiten.mjs`): 720 px.
-const istHandyLage = ref(false)
-let breitenMedia = null
-function handyLagePruefen(e) {
-  istHandyLage.value = e.matches
-}
-onMounted(() => {
-  if (typeof window === 'undefined' || !window.matchMedia) return
-  breitenMedia = window.matchMedia('(max-width: 720px)')
-  istHandyLage.value = breitenMedia.matches
-  breitenMedia.addEventListener?.('change', handyLagePruefen)
-})
-onBeforeUnmount(() => {
-  breitenMedia?.removeEventListener?.('change', handyLagePruefen)
-})
+// A11: Blatt (Handy) oder Fenster (Desktop) — die Lage reicht die Seite
+// durch (`handyLage`), hier wird nichts gemessen.
+const istHandyLage = computed(() => props.handyLage === true)
 
 onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
@@ -133,31 +107,32 @@ useZurueckSchliesst(computed(() => props.show), () => emit('update:show', false)
 </script>
 
 <template>
-  <Teleport to="body">
+  <!-- A11 (Entwurf „A11 Mobil Termin“): Am HANDY ist der Termin ein Blatt von
+       unten (`TerminBlatt.vue`); am Desktop bleibt das Fenster wie bisher
+       (A4). Der Inhalt ist DERSELBE — nur die Lage wechselt mit der Breite
+       (die Lage bestimmt die Seite: Prop `handyLage`). -->
+  <TerminBlatt
+    v-if="istHandyLage"
+    :show="show"
+    :event="event"
+    :laedt="laedt"
+    :darf-pruefen="darfPruefen"
+    :bearbeiten-erlaubt="bearbeitenErlaubt"
+    @schliessen="emit('update:show', false)"
+    @bearbeiten="(t) => emit('bearbeiten', t)"
+    @freigeben="(e) => emit('freigeben', e)"
+  />
+
+  <Teleport v-else-if="show" to="body">
     <div
       v-if="show"
       class="diakronos-modal show"
-      :class="{ 'is-blatt': istHandyLage }"
       @click.self="emit('update:show', false)"
     >
       <div class="diakronos-modal-dialog modal-dialog-centered modal-md">
         <div class="diakronos-modal-content">
-          <!-- A11: Griffleiste des Blattes — nur in der Handy-Lage sichtbar. -->
-          <div v-if="istHandyLage" class="diakronos-blatt-griff" aria-hidden="true"></div>
           <div class="diakronos-topbar">
             <div class="diakronos-color-bar" :style="{ background: sichereFarbe(event?.element_color) || 'var(--primary)' }"></div>
-            <!-- A10/A11: „⋯" am Termin. Am Handy stehen hier die Handlungen,
-                 die das Blatt nicht als Knopf trägt (Abbrechen, Löschen);
-                 am Desktop bleibt die Lage wie bisher (kein ⋯). -->
-            <div v-if="istHandyLage" class="diakronos-modal-mehr">
-              <DkAktionen
-                kennung="termin-blatt"
-                :eintraege="blattAktionen"
-                label="Weitere Aktionen für diesen Termin"
-                menue-label="Weitere Aktionen für diesen Termin"
-                @aktion="onBlattAktion"
-              />
-            </div>
           </div>
           <div class="diakronos-modal-header">
             <h5 class="modal-title">{{ event?.element_name || 'Termin' }}</h5>
@@ -179,7 +154,7 @@ useZurueckSchliesst(computed(() => props.show), () => emit('update:show', false)
               <div class="event-ablehnung-grund">{{ ablehnungsGrund }}</div>
             </div>
             <!-- A11 (Entwurf): Status-Badge über den Zeilen — „Zu prüfen ·
-                 eingetragen von …". Die Werte kommen aus dem Termin (status,
+                 eingetragen von …“. Die Werte kommen aus dem Termin (status,
                  antragsteller); fehlen sie, bleibt das Badge aus. -->
             <div v-if="statusBadge" class="event-status">
               <DkBadge :variant="statusBadge.variant">{{ statusBadge.text }}</DkBadge>
@@ -212,27 +187,6 @@ useZurueckSchliesst(computed(() => props.show), () => emit('update:show', false)
                 </template>
               </dd>
             </dl>
-
-            <!-- A11: die Handlungsleiste des Blattes. Genau EIN Primärknopf
-                 je Ansicht: für Moderatoren bei einem zu prüfenden Termin
-                 „Freigeben“ (Entwurf A11), sonst „Bearbeiten“ sekundär. Das
-                 Blatt entscheidet NICHTS selbst — ohne Rechte (`darfBearbeiten`)
-                 gibt es keinen Knopf, und die Seite entscheidet, was passiert. -->
-            <div v-if="istHandyLage && (darfPruefen || darfBearbeiten)" class="diakronos-blatt-aktionen">
-              <DkButton
-                v-if="darfBearbeiten"
-                variant="secondary"
-                class="diakronos-blatt-knopf"
-                @click="emit('bearbeiten', event)"
-              >Bearbeiten</DkButton>
-              <DkButton
-                v-if="darfPruefen && primaerFreigeben"
-                variant="primary"
-                data-primaer="1"
-                class="diakronos-blatt-knopf"
-                @click="emit('freigeben', { termin: event, aktion: 'freigeben' })"
-              >Freigeben</DkButton>
-            </div>
             </template>
           </div>
         </div>
@@ -261,43 +215,17 @@ useZurueckSchliesst(computed(() => props.show), () => emit('update:show', false)
   opacity: 1;
   visibility: visible;
 }
-/* ── A11 (Entwurf „A11 Mobil Termin“): Blatt von unten ──────────────────────
-   Am Handy liegt der Kalender abgedunkelt dahinter, das Blatt schiebt sich von
-   unten darüber (obere Ecken rund, Griffleiste). Dieselbe Grenze wie das
-   Mobil-Layout der App: 720 px Breite — und die flache Handy-Lage (Querformat),
-   in der ebenfalls die untere Leiste regiert. */
-.diakronos-modal.is-blatt {
-  align-items: flex-end;
-  justify-content: stretch;
-}
-.diakronos-modal.is-blatt .diakronos-modal-dialog {
-  width: 100%;
-  max-width: none;
-  max-height: 92%;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  border-bottom: none;
-  padding-bottom: env(safe-area-inset-bottom);
-}
-.diakronos-modal.is-blatt .diakronos-modal-content {
-  max-height: 92vh;
-}
-.diakronos-blatt-griff {
-  flex: none;
-  width: var(--sp-6);
-  height: var(--sp-1);
-  margin: var(--sp-2) auto var(--sp-1);
-  border-radius: var(--badge-r);
-  background: var(--line-strong);
-}
-/* Farbstreifen und „⋯“ stehen in einer Zeile über dem Kopf: der Streifen
-   bleibt oben, das Menü sitzt am rechten Rand auf 44 px. */
+/* ── A11: Die Blatt-Regeln (innen liegender Schleier, Griff, Handlungsleiste)
+   stehen seit der Karte t_3c23f0a5 in `TerminBlatt.vue` — dieses Fenster gilt
+   nur noch am Desktop (A4). Entfernt: `.is-blatt`-Regeln, `.diakronos-blatt-griff`,
+   `.diakronos-modal-mehr`, `.diakronos-blatt-aktionen` (toter Bestand, sonst
+   stünden hier zwei Fassungen derselben Sache). */
 .diakronos-topbar {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
 }
 .diakronos-topbar .diakronos-color-bar { flex: 1; }
-.diakronos-modal-mehr { flex: none; margin-right: var(--sp-2); display: flex; }
 /* A10: Ladebalken oben im Blatt (Muster des Seitenbalkens) und der ruhige
    Platzhalter, solange die Detaildaten unterwegs sind (Prinzip I1/I5). */
 .diakronos-ladebalken {
@@ -311,18 +239,6 @@ useZurueckSchliesst(computed(() => props.show), () => emit('update:show', false)
 .diakronos-ladebalken.is-ladend { opacity: 1; background: var(--warn-soft); }
 .diakronos-laden { padding: var(--sp-2) 0; }
 .event-status { margin-bottom: var(--sp-3); }
-.diakronos-blatt-aktionen {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding-top: var(--sp-4);
-  margin-top: var(--sp-4);
-  border-top: var(--rahmen-breite) solid var(--rahmen-farbe-leise);
-}
-.diakronos-blatt-aktionen .diakronos-blatt-knopf {
-  flex: 1;
-  min-height: var(--sp-7);
-}
 .diakronos-modal-dialog {
   background: var(--surface);
   border: 1px solid var(--line);

@@ -235,6 +235,7 @@
       v-model:show="showView"
       :event="viewEvent"
       :laedt="ansichtLaedt"
+      :handy-lage="istSchmal"
       :bearbeiten-erlaubt="darfOeffnenBearbeiten"
       @bearbeiten="ausBlattBearbeiten"
       @freigeben="ausBlattFreigeben"
@@ -256,6 +257,7 @@
     <KronosEventView
       v-model:show="showAbgelehntView"
       :event="abgelehnterTermin"
+      :handy-lage="istSchmal"
       :bearbeiten-erlaubt="false"
     />
 
@@ -1154,12 +1156,12 @@ const darfOeffnenBearbeiten = computed(() => !store.isViewMode.value && hasWrite
  */
 async function terminOeffnenMobil(termin) {
   const daten = termin?.extendedProps ? { ...termin, ...termin.extendedProps } : { ...termin }
-  if (!store.isViewMode.value && hasWriteRight.value && !daten.series_id) {
-    // Bearbeiten-Modus: die Zeile führt direkt ins Formular (wie die Liste).
-    editEvent.value = daten
-    showEdit.value = true
-    return
-  }
+  // A11 (Karte t_3c23f0a5): Ein Tipp auf einen Termin öffnet zuerst das BLATT
+  // (Entwurf A11: „Tipp auf Termin am Handy öffnet ein Blatt von unten“) —
+  // auch im Bearbeiten-Modus. Ins Formular geht es von dort über den Knopf
+  // „Bearbeiten“ (`ausBlattBearbeiten`), der nur mit Recht erscheint. Vorher
+  // sprang die Zeile im Bearbeiten-Modus direkt ins Formular; das Blatt war
+  // damit für Schreibberechtigte am Handy gar nicht erreichbar.
   const kennung = daten.id || daten.name || daten.extendedProps?.name || ''
   viewEvent.value = daten
   showView.value = true
@@ -1226,6 +1228,15 @@ async function ausBlattFreigeben({ termin, aktion } = {}) {
     navigate('#/kalender/pruefen')
     return
   }
+  if (aktion === 'loeschen') {
+    // A11-Review: „Löschen“ aus dem ⋯ des Blattes ist der vorhandene
+    // Löschweg (Papierkorb + Rückgängig, Serie mit Rückfrage) — NIE Freigeben.
+    showView.value = false
+    await onTerminAktion({ key: 'loeschen', termin: { ...termin, name } })
+    return
+  }
+  // Nur „freigeben“ legt fest; jeder andere/unbekannte Schlüssel tut nichts.
+  if (aktion !== 'freigeben') return
   try {
     await resolveConflict(name, 'festlegen', {})
     showView.value = false
@@ -1320,7 +1331,9 @@ function anlegeWunschAusAdresse() {
  * `onViewModeChange` steht daneben, weil der Test den Modus auf demselben Weg
  * umstellt wie die Kopfzeile.
  */
-defineExpose({ onTerminAktion, onViewModeChange })
+defineExpose({
+  onTerminAktion, onViewModeChange, terminOeffnenMobil, ausBlattBearbeiten, ausBlattFreigeben,
+})
 
 </script>
 
