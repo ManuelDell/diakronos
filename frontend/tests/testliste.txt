@@ -336,3 +336,7 @@ tests/zeit2-*.test.mjs
 # am … durch …“; die Website-Einwilligung bleibt bei der Person. Mount-Test
 # am echten MitgliedDetail.vue (jsdom + vue/compiler-sfc).
 tests/dev-b4b-*.test.mjs
+# ZEIT-3: „Heute“ und Serverzeitpunkte in der Gemeinde-Zeitzone — die zwei
+# Rohanzeigen (OpenSignupsWidget, devmodus/Befunde) laufen ueber shared/zeit.mjs
+# (serverZeitText), inkl. 23:30-UTC-Fall; Datensicherung bleibt Ortszeit.
+tests/zeit3-*.test.mjs

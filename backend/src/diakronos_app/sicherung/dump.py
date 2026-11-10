@@ -140,6 +140,19 @@ def neue_kennung(jetzt: datetime) -> str:
 	return jetzt.strftime("%Y-%m-%d_%H%M%S")
 
 
+def jetzt_ortszeit() -> datetime:
+	"""Ortszeit der Gemeinde (naiv) — EINE Naht fuer den Sicherungszeitpunkt.
+
+	ZEIT-3: Vorher nahm ``sichere()`` ``datetime.now()`` des Containers (UTC),
+	waehrend der Scheduler Ortszeit schrieb. Der Anzeigename einer
+	automatischen Sicherung stand dadurch 1-2 Stunden neben der eingestellten
+	Uhrzeit. Manuelle und automatische Laeufe lesen jetzt dieselbe Uhr.
+	"""
+	from diakronos_app.zeit import jetzt_gemeinde
+
+	return jetzt_gemeinde().replace(tzinfo=None)
+
+
 #: Faktor auf die Groesse der letzten Sicherung, der frei sein muss. Der Dump
 #: wird geschrieben, waehrend die Pruefsummen ihn schon lesen; ein Restrisiko
 #: bleibt (Datenbank waechst), deshalb ist die Grenze bewusst grosszuegig.
@@ -409,7 +422,7 @@ def sichere(
 	Es wird NICHTS geschrieben, wenn der Zielort ungeeignet ist: die Pruefung
 	laeuft VOR dem temporaeren Verzeichnis.
 	"""
-	zeit = jetzt or datetime.now()
+	zeit = jetzt or jetzt_ortszeit()
 	basis = pruefe_ziel()
 	pruefe_platz(basis)
 	kennung = name or neue_kennung(zeit)

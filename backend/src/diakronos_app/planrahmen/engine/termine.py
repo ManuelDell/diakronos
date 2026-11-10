@@ -31,6 +31,17 @@ from . import feiertagsberechnung as ft
 from .datenquelle import Kalendertermin
 from .modell import Termin
 from ..rrule import rrule_problem
+from diakronos_app.zeit import heute_gemeinde
+
+
+def _heute_gemeinde() -> date:
+    """ZEIT-3: „heute“ ist der Kalendertag in ``CALENDAR_TIMEZONE``.
+
+    Plan-Vorgaben (Jahresauswahl, Trockenlauf, Historie) haengen sonst bis
+    1-2 Uhr Ortszeit am UTC-Vortag.
+    """
+    return heute_gemeinde()
+
 
 _VERSATZ_EINHEIT = {"T": "days", "W": "weeks", "h": "hours", "min": "minutes"}
 
@@ -640,7 +651,7 @@ def _jahre(von: date | None, bis: date | None) -> list[int]:
     """Die Jahre, ueber die Feiertage zu rechnen sind."""
     if von is None and bis is None:
         # Ohne Zeitbezug: aktuelles Jahr als sinnvoller Default.
-        return [date.today().year]
-    anfang = von.year if von else (bis.year if bis else date.today().year)
-    ende = bis.year if bis else (von.year if von else date.today().year)
+        return [_heute_gemeinde().year]
+    anfang = von.year if von else (bis.year if bis else _heute_gemeinde().year)
+    ende = bis.year if bis else (von.year if von else _heute_gemeinde().year)
     return list(range(anfang, ende + 1))

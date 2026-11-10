@@ -23,6 +23,16 @@ from .fuellen import Fuellzustand, fuellen
 from .modell import Eintrag, Slot, Termin, Vorschlag
 from .pfade import feld_deklaration, feld_bezug_passt
 from .struktur import aufloesen
+from diakronos_app.zeit import heute_gemeinde
+
+
+def _heute_gemeinde() -> date:
+    """ZEIT-3: „heute“ ist der Kalendertag in ``CALENDAR_TIMEZONE``.
+
+    Plan-Vorgaben (Jahresauswahl, Trockenlauf, Historie) haengen sonst bis
+    1-2 Uhr Ortszeit am UTC-Vortag.
+    """
+    return heute_gemeinde()
 
 
 def _quelle_deklariert(slot: Slot, sammlungsquellen: set[str]) -> bool:
@@ -351,4 +361,4 @@ def _historie_laden(
     """Laedt wertweise Historie ueber die gemeinsame Regel-Schnittstelle."""
     from ..regeln.auswertung import historie_laden
 
-    return historie_laden(plantyp, datenquelle, max((t.datum for t in termine), default=date.today()))
+    return historie_laden(plantyp, datenquelle, max((t.datum for t in termine), default=_heute_gemeinde()))

@@ -1086,6 +1086,13 @@ def test_datum_wird_in_der_zeitzone_der_gemeinde_bestimmt(monkeypatch, welt):
     assert link["name"] == LINK
 
 
+def inspectsource_zoneinfo(modul) -> str:
+    """Quelltext der zentralen Funktion ``zeitzone`` (ZEIT-3)."""
+    import inspect
+
+    return inspect.getsource(modul.zeitzone)
+
+
 def test_zeitzone_hat_eine_einzige_quelle():
     """REG-1c (2): Anzeige und Wirkung rechnen ueber DIESELBE Funktion.
 
@@ -1101,8 +1108,19 @@ def test_zeitzone_hat_eine_einzige_quelle():
     from diakronos_app.api import registrierung as reg_mod
 
     # Die Uhr steht nur an einer Stelle im Quelltext.
-    assert "now(zone)" in inspect.getsource(link_mod.jetzt_gemeinde)
-    assert "ZoneInfo(" in inspect.getsource(link_mod.jetzt_gemeinde)
+    #
+    # ZEIT-3 (Regel 19): Die Rechnung ist inzwischen eine Ebene weiter gewandert
+    # — alle fachlichen „heute“-Stellen der Anwendung lesen
+    # `diakronos_app.zeit`, nicht mehr dieses Modul. Die Zusage dieses Tests
+    # gilt unveraendert: EINE Quelle, und beide Wege laufen dorthin.
+    from diakronos_app import zeit as zeit_mod
+
+    quelle_zeit = inspect.getsource(zeit_mod.jetzt_gemeinde)
+    assert "now(" in quelle_zeit
+    assert "ZoneInfo(" in inspectsource_zoneinfo(zeit_mod)
+    # Der Link reicht nur noch durch (keine eigene Zonen-Rechnung mehr).
+    assert "from diakronos_app.zeit import jetzt_gemeinde" in inspect.getsource(
+        link_mod.jetzt_gemeinde)
     assert "ZoneInfo" not in inspect.getsource(reg_mod.heute_ortszeit)
     assert "datetime.now(" not in inspect.getsource(reg_mod.heute_ortszeit)
 

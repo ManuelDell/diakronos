@@ -35,6 +35,7 @@ from typing import Any
 
 from diakronos_app.api.audit import log as _audit_log
 from diakronos_app.anmeldung.registrierungslink import OFFENE_ANMELDESTATI
+from diakronos_app.zeit import zeit_text
 from diakronos_app.frappe_compat.api_helpers import (
     _child_delete,
     _child_replace,
@@ -77,9 +78,14 @@ def _require_admin() -> None:
 
 
 def _erster_des_monats() -> str:
-    """`get_first_day(nowdate())` als ISO-String (YYYY-MM-01)."""
-    heute = date.today()
-    return heute.replace(day=1).isoformat()
+    """`get_first_day(nowdate())` als ISO-String (YYYY-MM-01).
+
+    ZEIT-3: „heute“ ist der Kalendertag in ``CALENDAR_TIMEZONE`` — am 1. eines
+    Monats um 00:30 Ortszeit zaehlte der UTC-Vortag sonst noch zum Vormonat.
+    """
+    from diakronos_app.zeit import heute_gemeinde
+
+    return heute_gemeinde().replace(day=1).isoformat()
 
 
 @whitelist(allow_guest=False)
@@ -202,7 +208,9 @@ def get_dsgvo_uebersicht():
         )
         m["dsgvo_datum"] = (
             m.get("datenschutz_datum") if m["dsgvo_status"] == "ok"
-            else str(z["zeitstempel"])[:10] if z.get("zeitstempel") else None
+            # ZEIT-3: Zeitstempel sind UTC — der Tag des Widerrufs ist der
+            # Kalendertag in der Gemeinde (Anzeige, kein Speicherwert).
+            else zeit_text(z["zeitstempel"])[:10] if z.get("zeitstempel") else None
         )
 
     # DSGVO-2d: Eine gelöschte Person ist hier eine Zeile ohne Personendaten —
@@ -555,7 +563,8 @@ def _anmeldung_zu_mitglied(
         mitglied_name,
         {
             "datenschutz_einwilligung": 1,
-            "datenschutz_datum": str(dsgvo_zeitstempel)[:10],
+            # ZEIT-3: Einwilligungsdatum = Kalendertag in der Gemeinde.
+            "datenschutz_datum": zeit_text(dsgvo_zeitstempel)[:10],
         },
         skip_modified=True,  # Original: update_modified=False
     )

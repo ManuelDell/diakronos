@@ -216,4 +216,5 @@ def sicherung_loeschen(name: str | None = None) -> dict:
 
 
 def _jetzt() -> datetime:  # pragma: no cover — nur fuer Lesbarkeit der Tests
-	return datetime.now()
+	"""Jetzt in Ortszeit (ZEIT-3) — ``sicherung/dump.py:jetzt_ortszeit``."""
+	return dump.jetzt_ortszeit()

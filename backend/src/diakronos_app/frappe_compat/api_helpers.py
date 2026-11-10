@@ -336,8 +336,18 @@ def _now() -> datetime:
 
 
 def _today() -> str:
-    """`frappe.utils.today()` -> ISO-Datum."""
-    return date.today().isoformat()
+    """`frappe.utils.today()` -> ISO-Datum.
+
+    ZEIT-3: Kalendertag in ``CALENDAR_TIMEZONE``, nicht ``date.today()``.
+    Der Container laeuft in UTC und lieferte zwischen 0 und 2 Uhr Ortszeit
+    den Vortag — sichtbar in ``datenschutz_datum``/``foto_datum``/
+    ``werbung_datum``, ``ausgeschlossen_seit``, ``beitrittsdatum`` und
+    ``datum`` neuer Beitraege. Die eine Rechnung steht in
+    ``diakronos_app.zeit``.
+    """
+    from diakronos_app.zeit import heute_iso
+
+    return heute_iso()
 
 
 _HASH_ALPHABET = string.ascii_lowercase + string.digits

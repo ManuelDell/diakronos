@@ -2111,7 +2111,11 @@ def get_abgeleitete_positionen(plan):
     if "gruppe" not in elem_columns:
         return []
 
-    now = _now()
+    # ZEIT-3 (Review): `element_start` ist Wandzeit der Gemeinde; `_now()` ist
+    # UTC (technisch) — „kommend“ deshalb gegen die Wanduhr der Gemeinde.
+    from diakronos_app.zeit import jetzt_wanduhr
+
+    now = jetzt_wanduhr()
 
     elemente = (
         get_all(

@@ -191,12 +191,12 @@ def _heute() -> date:
     Test, der ein Datum „weit weg\" nur aus ``date.today() + 400`` ableitet,
     rutscht beim Tageswechsel ueber die Grenze (BS-2c2, Befund 1).
     """
-    from zoneinfo import ZoneInfo
+    # ZEIT-3: dieselbe Naht wie der Rest der Anwendung (``settings.
+    # calendar_timezone``, Default Europe/Berlin) statt einer zweiten, fest
+    # verdrahteten Zone — Anzeige und Wirkung duerfen nicht auseinanderlaufen.
+    from diakronos_app.zeit import heute_gemeinde
 
-    try:
-        return datetime.now(tz=ZoneInfo(inhalt.ZEITZONE)).date()
-    except Exception:  # noqa: BLE001 — ohne tzdata gilt UTC
-        return datetime.utcnow().date()
+    return heute_gemeinde()
 
 
 def _als_datum(wert) -> date | None:

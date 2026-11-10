@@ -194,16 +194,15 @@ def jetzt_gemeinde() -> datetime:
     Der Container laeuft in UTC; eine Gemeinde in Europe/Berlin liegt damit um
     Mitternacht zwei Stunden zurueck. Ist die Einstellung unbrauchbar, gilt
     UTC (nie eine Exception: eine kaputte Zeitzone darf keinen Link toeten).
+
+    ZEIT-3: Die Rechnung steht seit dieser Karte in ``diakronos_app.zeit`` —
+    Registrierungslinks, Einwilligungsdaten, Monatsanfang und die
+    Sicherungs-Uhr lesen alle dieselbe Naht. Der Name bleibt (Tests und
+    Aufrufer bleiben).
     """
-    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    from diakronos_app.zeit import jetzt_gemeinde as _jetzt
 
-    from diakronos_app.settings import settings
-
-    try:
-        zone = ZoneInfo(str(getattr(settings, "calendar_timezone", "") or "UTC"))
-    except (ValueError, ZoneInfoNotFoundError):
-        zone = ZoneInfo("UTC")
-    return datetime.now(zone)
+    return _jetzt()
 
 
 def heute_gemeinde(jetzt: datetime | None = None) -> date:

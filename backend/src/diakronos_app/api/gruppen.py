@@ -113,9 +113,22 @@ def _is_admin() -> bool:
     return any(r in get_roles() for r in ADMIN_ROLES)
 
 
+def _heute_gemeinde() -> date:
+    """ZEIT-3: HEUTE in der Zeitzone der Gemeinde (nicht die UTC des Containers).
+
+    Fuer Zeitfenster („Termine der naechsten N Tage“): ab 0 Uhr Ortszeit muss
+    der laufende Tag enthalten sein, nicht erst ab 01:00/02:00.
+    """
+    from diakronos_app.zeit import heute_gemeinde
+
+    return heute_gemeinde()
+
+
 def _today() -> str:
-    """`frappe.utils.today()` -> ISO-Datum."""
-    return date.today().isoformat()
+    """`frappe.utils.today()` -> ISO-Datum (ZEIT-3: Kalendertag der Gemeinde)."""
+    from diakronos_app.zeit import heute_iso
+
+    return heute_iso()
 
 
 def _now() -> datetime:
@@ -1407,7 +1420,9 @@ def get_gruppe_termine(gruppe_id, tage=60):
     except (TypeError, ValueError):
         tage_int = 60
 
-    start = date.today()
+    # ZEIT-3: das Zeitfenster beginnt heute in der Gemeinde — mit dem UTC-Tag
+    # fehlten zwischen 0 und 2 Uhr Ortszeit die Termine des laufenden Tages.
+    start = _heute_gemeinde()
     ende = start + timedelta(days=tage_int)
     fenster_start = f"{start.isoformat()} 00:00:00"
     fenster_ende = f"{ende.isoformat()} 23:59:59"

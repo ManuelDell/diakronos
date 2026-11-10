@@ -56,7 +56,8 @@
               <span v-if="(b.element || {}).komponenten?.length">
                 · {{ (b.element.komponenten).join(' &gt; ') }}</span></dd>
             <dt>Gerät</dt><dd>{{ b.viewport || '—' }} · {{ b.geraet || '—' }}</dd>
-            <dt>Zeit</dt><dd>{{ b.zeitpunkt || '—' }} · von {{ b.benutzer || '—' }}</dd>
+            <!-- ZEIT-3: `zeitpunkt` ist UTC — Anzeige in der Zeitzone der Gemeinde. -->
+            <dt>Zeit</dt><dd>{{ serverZeitText(b.zeitpunkt, { second: '2-digit' }) || '—' }} · von {{ b.benutzer || '—' }}</dd>
             <dt>Fehlerumfeld</dt><dd>{{ (b.fehlerumfeld || []).length }} Einträge (letzte 60 s)</dd>
           </dl>
           <div v-if="(b.bilder || []).length > 1" class="dk-dm-bilder">
@@ -98,6 +99,7 @@ import DkPageHeader from '../../components/ui/DkPageHeader.vue'
 import { bildUrl as bildUrlRoh, devmodusApi, fehlerZeilen } from '../../composables/useDevmodus.js'
 import { useSession } from '../../composables/useSession.js'
 import { showToast } from '../../composables/useToast.js'
+import { serverZeitText } from '../../../shared/zeit.mjs'
 // UX2c (C1): der EINE Endgültig-Dialog (Frage, Folge, gefährlicher Knopf).
 import DkEndgueltig from '../../components/ui/DkEndgueltig.vue'
 

@@ -17,6 +17,16 @@ from ..datum import datum_de, datum_de_lang
 from ..engine.pfade import feld_basis, passt_zu_feld
 from ..engine.rollen import kandidaten
 from .registry import registriere_logik
+from diakronos_app.zeit import heute_gemeinde
+
+
+def _heute_gemeinde() -> date:
+    """ZEIT-3: „heute“ ist der Kalendertag in ``CALENDAR_TIMEZONE``.
+
+    Plan-Vorgaben (Jahresauswahl, Trockenlauf, Historie) haengen sonst bis
+    1-2 Uhr Ortszeit am UTC-Vortag.
+    """
+    return heute_gemeinde()
 
 
 def stufe_der_regel(regel: dict[str, Any]) -> str:
@@ -475,10 +485,10 @@ def pruefe_plan(plantyp: dict[str, Any], termine: list[Termin], eintraege: list[
     """Bewertet den fertigen Plan ohne Selbstzaehlung, inklusive Mindestzahl/Fairness."""
     from ..engine.struktur import aufloesen_mit_eintraegen
 
-    historie = historie if historie is not None else historie_laden(plantyp, datenquelle, max((t.datum for t in termine), default=date.today()))
+    historie = historie if historie is not None else historie_laden(plantyp, datenquelle, max((t.datum for t in termine), default=_heute_gemeinde()))
     verstoesse: list[Verstoss] = []
     regeln = plantyp.get("regeln", [])
-    basis = Kontext(plantyp, termine[0] if termine else Termin(date.today(), "standard"), datenquelle, parameter or {}, eintraege, historie)
+    basis = Kontext(plantyp, termine[0] if termine else Termin(_heute_gemeinde(), "standard"), datenquelle, parameter or {}, eintraege, historie)
     index_aufbauen(basis)
     for termin in termine:
         slots = {s.feld_pfad: s for s in aufloesen_mit_eintraegen(

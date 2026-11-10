@@ -39,7 +39,7 @@ from __future__ import annotations
 FRAPPE_MODULE = "diakronos.diakonos.api.cleanup"
 
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from diakronos_app.frappe_compat.api_helpers import _delete_doc, log_error
 from diakronos_app.frappe_compat.query import get_all
@@ -60,8 +60,18 @@ _ANMELDUNG_KIND_TABELLEN: dict[str, str] = {
 
 
 def _cutoff_date() -> date:
-	"""`add_days(nowdate(), -14)` — heutiges Datum minus Aufbewahrungsfrist."""
-	return date.today() - timedelta(days=AUFBEWAHRUNG_TAGE)
+	"""`add_days(nowdate(), -14)` — heutiges Datum minus Aufbewahrungsfrist.
+
+	ZEIT-3 (Review): TECHNISCHE Frist. Verglichen wird gegen ``creation`` —
+	einen UTC-Zeitstempel (``_now()``). Deshalb bleibt „heute“ hier der
+	UTC-Tag; ein Ortszeit-Datum gegen UTC-Zeitstempel waere ein Mischvergleich.
+	"""
+	return _heute_utc() - timedelta(days=AUFBEWAHRUNG_TAGE)
+
+
+def _heute_utc() -> date:
+	"""Kalendertag in UTC — Basis fuer Fristen gegen UTC-Zeitstempel (ZEIT-3)."""
+	return datetime.now(timezone.utc).date()
 
 
 def _delete_anmeldung(name: str) -> None:
@@ -146,7 +156,8 @@ def delete_alte_zuordnung_ablehnungen() -> int:
 	tage = int(getattr(settings, "auth_zuordnung_ablehnung_tage", 90) or 0)
 	if tage <= 0:
 		return 0
-	cutoff = date.today() - timedelta(days=tage)
+	# ZEIT-3 (Review): `zuletzt`/`created` sind UTC-Zeitstempel -> UTC-Tag.
+	cutoff = _heute_utc() - timedelta(days=tage)
 
 	from diakronos_app.db import SessionLocal
 	from diakronos_app.models.auth_oidc import ZuordnungsAblehnung

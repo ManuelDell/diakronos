@@ -44,14 +44,21 @@ def jetzt_ortszeit() -> datetime:
 	automatische Läufe durften sonst um die Zeitzonen-Differenz auseinander-
 	liegen (im Teststack gefunden: manuelle Läufe in UTC, Scheduler-Laeufe in
 	Ortszeit).
-	"""
-	from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-	try:
-		zone = ZoneInfo(settings.calendar_timezone)
-	except (ValueError, ZoneInfoNotFoundError):
-		zone = ZoneInfo("UTC")
-	return datetime.now(zone).replace(tzinfo=None)
+	ZEIT-3: Die Rechnung steht in ``diakronos_app.zeit`` — Scheduler,
+	Sicherungslauf und Endpunkt lesen dieselbe Naht.
+
+	BEFUND-PRUEFUNG (ZEIT-3, Punkt 3): der Scheduler verglich die eingestellte
+	Uhrzeit NICHT gegen ``utcnow()``; ``sicherung_faellig`` bekam schon vorher
+	Ortszeit (``scheduler._jetzt_ortszeit``). Offen war der Rest des Weges:
+	``sicherung/dump.sichere()`` und ``api/sicherung._jetzt()`` nahmen
+	``datetime.now()`` des Containers (UTC) — der Name/Beginn einer Sicherung
+	stand dadurch 1-2 Stunden neben dem Merker-Tag. Beides laeuft jetzt hier
+	durch (``test_zeit3_gemeindezeit.py::test_sicherung_*``).
+	"""
+	from diakronos_app.zeit import jetzt_gemeinde
+
+	return jetzt_gemeinde().replace(tzinfo=None)
 
 
 def pruefe_uhrzeit(wert: str) -> str:
@@ -106,7 +113,7 @@ def holen_oder_anlegen(session: Session, *, jetzt: datetime | None = None,
 	if zeile is not None:
 		return zeile
 
-	zeit = jetzt or datetime.now()
+	zeit = jetzt or jetzt_ortszeit()
 	try:
 		tage = pruefe_aufbewahrung(settings.backup_aufbewahrung_tage)
 	except EinstellungFehler:
@@ -153,7 +160,7 @@ def speichern(session: Session, *, automatisch: object, uhrzeit: object,
 	zeile.automatisch = automatisch
 	zeile.uhrzeit = geprueft_uhrzeit
 	zeile.aufbewahrung_tage = gepruefte_tage
-	zeile.modified = jetzt or datetime.now()
+	zeile.modified = jetzt or jetzt_ortszeit()
 	zeile.modified_by = benutzer
 	session.commit()
 	return zeile

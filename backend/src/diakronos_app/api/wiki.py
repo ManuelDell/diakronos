@@ -65,6 +65,7 @@ from diakronos_app.frappe_compat.exceptions import (
 )
 from diakronos_app.frappe_compat.query import get_all, get_doc, get_value
 from diakronos_app.frappe_compat.session import session
+from diakronos_app.zeit import zeit_text
 
 # ── Berechtigungen (1:1 aus dem Original) ───────────────────────────────────
 
@@ -104,7 +105,11 @@ def _artikel_to_dict(a, with_content=False):
         "tags":         tags_list,
         "author":       a["autor"] or "",
         "authorAvatar": _avatar(a["autor"]),
-        "updatedAt":    str(a["modified"])[:10] if a["modified"] else "",
+        # ZEIT-3: ``modified`` ist ein UTC-Zeitstempel. ``str(...)[:10]`` lieferte
+        # zwischen 0 und 2 Uhr Ortszeit den Vortag; geliefert wird jetzt der
+        # Kalendertag in der Zeitzone der Gemeinde (gespeichert bleibt UTC).
+        # Vertrag bleibt `JJJJ-MM-TT` (Wiki.vue liest ein Datum, ZEIT-2).
+        "updatedAt":    (zeit_text(a["modified"]) or "")[:10],
         "isNew":        bool(a["ist_neu"]),
     }
     if with_content:

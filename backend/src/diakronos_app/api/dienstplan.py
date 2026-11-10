@@ -124,6 +124,25 @@ def _now_str() -> str:
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _jetzt_gemeinde_naiv() -> datetime.datetime:
+    """Jetzt in der Zeitzone der Gemeinde, ohne ``tzinfo`` (ZEIT-3).
+
+    Die Spalte ``Element.element_start`` traegt Wandzeit ohne Zeitzone; ein
+    bewusstes ``datetime`` mit ``tzinfo`` wuerde von Postgres als
+    ``timestamptz`` gebunden und mit der Container-UTC verglichen.
+    """
+    from diakronos_app.zeit import jetzt_gemeinde
+
+    return jetzt_gemeinde().replace(tzinfo=None)
+
+
+def _heute_gemeinde() -> datetime.date:
+    """HEUTE in der Zeitzone der Gemeinde (ZEIT-3)."""
+    from diakronos_app.zeit import heute_gemeinde
+
+    return heute_gemeinde()
+
+
 def _day_start(day) -> datetime.datetime:
     """Tagesbeginn als `datetime` (fuer `element_start >= ...`)."""
     if isinstance(day, datetime.datetime):
@@ -409,7 +428,9 @@ def get_dienstplan(start_date=None, end_date=None):
     _throw_if_guest()
 
     if not start_date or not end_date:
-        today = datetime.date.today()
+        # ZEIT-3: die Woche beginnt am Kalendertag der Gemeinde — mit
+        # `date.today()` (UTC) sprang der Dienstplan erst um 01:00/02:00 um.
+        today = _heute_gemeinde()
         monday = today - datetime.timedelta(days=today.weekday())
         sunday = monday + datetime.timedelta(days=6)
         start_date = str(monday)
@@ -483,7 +504,10 @@ def get_meine_dienste():
     if not current_mitglied:
         return {"vorbereitung": [], "einsatz": []}
 
-    now = datetime.datetime.now()
+    # ZEIT-3: „zukuenftig“ ab JETZT in der Zeitzone der Gemeinde (0:30 Uhr
+    # Ortszeit = 22:30 UTC des Vortags; mit `datetime.now()` fehlten die
+    # Dienste der ersten Stunden).
+    now = _jetzt_gemeinde_naiv()
 
     # Elemente, bei denen der User als Mitarbeiter eingetragen ist (zukuenftig)
     element_names = [

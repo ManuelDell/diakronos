@@ -17,6 +17,16 @@ from .datenquelle import Datenquelle
 from .generator import generiere
 from .modell import Termin, Vorschlag, Verstoss
 from .termine import erzeuge_termine
+from diakronos_app.zeit import heute_gemeinde
+
+
+def _heute_gemeinde() -> date:
+    """ZEIT-3: „heute“ ist der Kalendertag in ``CALENDAR_TIMEZONE``.
+
+    Plan-Vorgaben (Jahresauswahl, Trockenlauf, Historie) haengen sonst bis
+    1-2 Uhr Ortszeit am UTC-Vortag.
+    """
+    return heute_gemeinde()
 
 
 @dataclass
@@ -43,7 +53,7 @@ def trockenlauf(
     ``ab`` ist der Beginn des Zeitfensters (Vorgabe: heute); ``wochen`` die
     Laenge. Es werden KEINE Seiteneffekte ausgeloest (keine DB, keine Endpunkte).
     """
-    von = ab or date.today()
+    von = ab or _heute_gemeinde()
     bis = von + timedelta(weeks=wochen)
 
     termine_je_reihe = erzeuge_termine(plantyp, parameter, datenquelle, von=von, bis=bis)

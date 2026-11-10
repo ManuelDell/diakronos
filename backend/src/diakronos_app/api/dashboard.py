@@ -438,6 +438,17 @@ def get_widget_data(widget_id, extra_args=None):
 # ── Daten-Endpunkte (Phase 2) ───────────────────────────────────────────────
 
 
+def _heute_gemeinde():
+    """ZEIT-3: HEUTE in der Zeitzone der Gemeinde (nicht die UTC des Containers).
+
+    Mini-Kalender (Jahr/Monat) und „anstehende Buchungen“ (Tagesbeginn) haengen
+    sonst bis 1-2 Uhr Ortszeit am Vortag.
+    """
+    from diakronos_app.zeit import heute_gemeinde
+
+    return heute_gemeinde()
+
+
 def _sichtbare_kalender() -> list[str]:
     """Kalendernamen, auf die der aktuelle Nutzer Leserecht hat (OP-HANDY-R1).
 
@@ -465,7 +476,12 @@ def get_upcoming_events(limit=5):
     kalender = _sichtbare_kalender()
     if not kalender:
         return []
-    now = datetime.datetime.now()
+    # ZEIT-3 (Review): `element_start` ist Wandzeit der Gemeinde — „ab jetzt“
+    # ebenfalls in Ortszeit, sonst zeigte die Kachel bis zu 2 h lang Termine,
+    # die schon begonnen haben.
+    from diakronos_app.zeit import jetzt_wanduhr
+
+    now = jetzt_wanduhr()
     events = get_all(
         "Element",
         filters=[
@@ -519,10 +535,11 @@ def get_events_for_month(year=None, month=None):
     """
     kalender = _sichtbare_kalender()
     if not kalender:
-        return {"year": int(year or datetime.date.today().year),
-                "month": int(month or datetime.date.today().month),
+        heute = _heute_gemeinde()
+        return {"year": int(year or heute.year),
+                "month": int(month or heute.month),
                 "event_days": []}
-    today = datetime.date.today()
+    today = _heute_gemeinde()
     year = int(year or today.year)
     month = int(month or today.month)
     start = datetime.datetime(year, month, 1)
@@ -616,7 +633,10 @@ def get_meine_buchungen_widget(upcoming_only=1, limit=3):
     user = _get_effective_user()
     filters: dict[str, Any] = {"gebucht_von": user, "status": "Aktiv"}
     if int(upcoming_only):
-        filters["datum_von"] = [">=", datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)]
+        # ZEIT-3: Tagesbeginn in der Gemeinde, nicht 00:00 UTC (= 01:00/02:00
+        # Ortszeit). Buchungen des laufenden Tages fielen sonst morgens heraus.
+        filters["datum_von"] = [">=", datetime.datetime.combine(
+            _heute_gemeinde(), datetime.time.min)]
     rows = get_all(
         "Ressourcen Buchung",
         filters=_coerce_filters("Ressourcen Buchung", filters),

@@ -382,7 +382,16 @@ def _erinnerung_wirksam(zeile) -> datetime.date | None:
         return None
     if isinstance(wert, datetime.datetime):
         wert = wert.date()
-    return wert if wert > datetime.date.today() else None
+    # ZEIT-3: „in der Zukunft“ ist der Kalendertag der Gemeinde, nicht die UTC
+    # des Containers — sonst laeuft „Spaeter erinnern“ 1-2 Stunden zu lang.
+    return wert if wert > _heute_gemeinde() else None
+
+
+def _heute_gemeinde() -> datetime.date:
+    """ZEIT-3: HEUTE in der Zeitzone der Gemeinde (nicht die UTC des Containers)."""
+    from diakronos_app.zeit import heute_gemeinde
+
+    return heute_gemeinde()
 
 
 # ── Endpunkte ───────────────────────────────────────────────────────────────
@@ -499,7 +508,7 @@ def erinnern_spaeter(tage: Any = 7, request=None) -> dict[str, Any]:
             f"Die Zahl der Tage muss zwischen {MIN_ERINNERUNG_TAGE} und "
             f"{MAX_ERINNERUNG_TAGE} liegen."
         )
-    bis = datetime.date.today() + datetime.timedelta(days=anzahl)
+    bis = _heute_gemeinde() + datetime.timedelta(days=anzahl)
     with SessionLocal() as sess:
         zeile = _stand_zeile(sess)
         zeile.erinnerung_ab = bis
