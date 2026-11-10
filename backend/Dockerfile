@@ -287,6 +287,11 @@ COPY backend/src/diakronos_app/api/planrahmen.py /backend/api/planrahmen.py
 COPY backend/src/diakronos_app/api/ressourcen.py /backend/api/ressourcen.py
 COPY backend/src/diakronos_app/api/kronos/kalender_verwaltung.py /backend/api/kronos/kalender_verwaltung.py
 COPY backend/src/diakronos_app/api/website.py /backend/api/website.py
+# DEV-B4a (Regel 13): `tests/dev-b4a-beziehungen.test.mjs` vergleicht die
+# Beziehungsarten und die Gegenrichtung von Server (`api/beziehungen.py`) und
+# Oberflaeche (Baustein) — die Server-Datei kommt mit EINER eigenen COPY-Zeile
+# nach `/backend/api/` (derselbe Ort wie die Waechter-Zeilen oben).
+COPY backend/src/diakronos_app/api/beziehungen.py /backend/api/beziehungen.py
 # FIX-7: `tests/fix7-vorlagen-bezeichner.test.mjs` haelt fest, dass KEINE
 # `.vue` einen Template-Bezeichner benutzt, der im Skript nicht gebunden ist
 # (Befund `fmtDate` in ModerationCard.vue). Test und Werkzeug liegen IN

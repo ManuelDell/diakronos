@@ -225,18 +225,19 @@
             </div>
         </DkCard>
 
-        <!-- Reiter: Beziehungen -->
-        <DkCard v-else-if="activeTab === 'beziehungen' && !loading && !error" title="Beziehungen">
-            <p v-if="!mitglied?.beziehungen || mitglied.beziehungen.length === 0" class="md-muted">
-                Keine Beziehungen eingetragen.
-            </p>
-            <div v-else class="md-liste">
-                <div v-for="b in mitglied.beziehungen" :key="b.name" class="md-beziehung">
-                    <DkBadge variant="neutral">{{ b.beziehungstyp }}</DkBadge>
-                    <span class="md-beziehung-name">{{ b.beziehung_zu_name || b.beziehung_zu }}</span>
-                </div>
-            </div>
-        </DkCard>
+        <!-- Reiter: Beziehungen (DEV-B4a: Liste + Nachtrag im Bearbeiten-Modus) -->
+        <MitgliedBeziehungen
+            v-else-if="activeTab === 'beziehungen' && !loading && !error"
+            :mitglied-id="mitgliedId"
+            :beziehungen="mitglied?.beziehungen || []"
+            :bearbeitbar="isEditing && canEdit"
+            :laeuft="beziehungLaeuft"
+            :api="beziehungenApi"
+            :melden="showToast"
+            :fehlertext="aktionsfehler"
+            @entfernen="beziehungEntfernen"
+            @geaendert="loadMitglied"
+        />
 
         <!-- Reiter: DSGVO -->
         <DkCard v-else-if="activeTab === 'dsgvo' && !loading && !error" title="DSGVO & Einwilligungen">
@@ -360,6 +361,10 @@ import DkHint from '../components/ui/DkHint.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
 import ZugangKarte from '../components/ZugangKarte.vue'
+// DEV-B4a: Reiter „Beziehungen" als eigener Baustein (Liste + Nachtrag).
+import MitgliedBeziehungen from '../components/mitglieder/MitgliedBeziehungen.vue'
+// UX2c: Entfernen ist sofort wirksam — die Meldung bietet die Rücknahme an.
+import { useRueckgaengigAktion } from '../composables/useRueckgaengigAktion.js'
 
 const { isAdmin } = useSession()
 const { openConfirm, isSubmitting } = useAuditConfirm()
@@ -382,6 +387,28 @@ const austrittLaeuft = ref(false)
 const austrittLage = computed(() => austrittLageAus(mitglied.value?.austritt))
 const canEdit = computed(() => !error.value && mitglied.value && isAdmin.value)
 const isEditing = ref(false)
+/** DEV-B4a: „Entfernen" einer Beziehung laeuft (Knopf gesperrt, I1). */
+const beziehungLaeuft = ref(false)
+const { mitRueckgaengig } = useRueckgaengigAktion()
+// DEV-B4a: der Baustein bekommt die Server-Aufrufe herein (EINE Stelle je
+// Endpunkt, hier), damit er selbst keine Bezugswege hat und der Mount-Test
+// ihn allein laden kann.
+const beziehungenApi = (methode, argumente) => {
+    if (methode === 'get_beziehungen_auswahl') {
+        return apiCall('diakronos.diakonos.api.beziehungen.get_beziehungen_auswahl', {
+            mitglied_id: argumente?.mitglied_id,
+            suche: argumente?.suche || '',
+        })
+    }
+    if (methode === 'add_beziehung') {
+        return apiCall('diakronos.diakonos.api.beziehungen.add_beziehung', {
+            mitglied_id: argumente?.mitglied_id,
+            person_id: argumente?.person_id,
+            beziehungsart: argumente?.beziehungsart,
+        })
+    }
+    return Promise.reject(new Error(`Unbekannter Beziehungs-Aufruf: ${methode}`))
+}
 const activeTab = ref('details')
 
 /* UXD-R26: Beim Öffnen des Gruppen-Reiters die Zuordnung laden (einmalig).
@@ -395,7 +422,10 @@ const tabs = computed(() => {
     const liste = [
         { key: 'details', label: 'Details' },
         { key: 'gruppen', label: 'Gruppen' },
-        { key: 'beziehungen', label: 'Beziehungen' },
+        // DEV-B4a (Review 10.11.): Der Reiter zeigt die Auswahlliste aller
+        // Personen — die Endpunkte erlauben das nur der Verwaltung. Deshalb
+        // steht der Reiter auch nur dort (wie „Zugang").
+        ...(canEdit.value ? [{ key: 'beziehungen', label: 'Beziehungen' }] : []),
         { key: 'dsgvo', label: 'DSGVO' },
         // P1-8 (OP-ADMIN-2): Zugang nur fuer Administratoren sichtbar.
         ...(canEdit.value ? [{ key: 'zugang', label: 'Zugang' }] : []),
@@ -819,6 +849,46 @@ async function reaktivierenBestaetigen() {
         showToast(err?.message || 'Die Person konnte nicht reaktiviert werden.', 'error')
     } finally {
         austrittLaeuft.value = false
+    }
+}
+
+/* ── BEZIEHUNGEN (DEV-B4a, Befund DMB-72325633c6b5) ──────────────────────
+   Der Nachtrag (`Beziehung eintragen`) laeuft im Baustein `MitgliedBeziehungen` und
+   meldet Erfolg ueber `geaendert` -> `loadMitglied`. Entfernen passiert hier,
+   weil die Ruecknahme (UX2c) eine Seitenaufgabe ist: wegnehmen, Meldung mit
+   „Rückgängig" zeigen — kein Bestaetigungsdialog (I2: umkehrbar). Die
+   Ruecknahme traegt dieselbe Beziehung wieder ein; der Server legt die
+   Gegenrichtung von selbst. Die Zeile nennt die Person mit Namen, damit
+   niemand raten muss, was verschwindet. */
+async function beziehungEntfernen(b) {
+    if (beziehungLaeuft.value) return
+    const id = mitgliedId.value || getRouteParam('id')
+    const personName = b?.beziehung_zu_name || b?.beziehung_zu || 'die Person'
+    const art = b?.beziehungstyp || 'Beziehung'
+    beziehungLaeuft.value = true
+    try {
+        const antwort = await apiCall('diakronos.diakonos.api.beziehungen.remove_beziehung', {
+            mitglied_id: id,
+            beziehung_name: b?.name,
+        })
+        await loadMitglied()
+        const rueck = antwort?.wiederherstellbar || {}
+        await mitRueckgaengig({
+            beschreibung: `„${art}“ zu ${personName} entfernt`,
+            zurueck: () => apiCall('diakronos.diakonos.api.beziehungen.add_beziehung', {
+                mitglied_id: id,
+                person_id: rueck.beziehung_zu || b?.beziehung_zu,
+                beziehungsart: rueck.beziehungsart || art,
+            }),
+            danach: loadMitglied,
+            erfolg: `„${art}“ zu ${personName} wieder eingetragen.`,
+        })
+    } catch (err) {
+        console.error('[MitgliedDetail] Beziehung entfernen fehlgeschlagen:', err)
+        showToast(err?.message || 'Die Beziehung konnte nicht entfernt werden.', 'error')
+        await loadMitglied()
+    } finally {
+        beziehungLaeuft.value = false
     }
 }
 

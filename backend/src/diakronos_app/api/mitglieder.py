@@ -699,6 +699,17 @@ def get_mitglied_detail(mitglied_id):
 
     doc = get_doc("Mitglied", mitglied_id)
     result = doc.as_dict()
+    # DEV-B4a (Review 10.11.): `as_dict()` gibt nur die SPALTEN der Tabelle
+    # zurueck — die Kindtabelle `beziehungen` fehlte deshalb in der Antwort,
+    # und der Reiter war immer leer (der Lesepfad `get_beziehungen_for_mitglied`
+    # wurde nie benutzt). Wie im Altcode (`doc.as_dict()` mit Child-Tables)
+    # wird sie hier nachgetragen.
+    result["beziehungen"] = get_all(
+        "Mitglied Beziehung",
+        filters={"parent": mitglied_id, "parenttype": "Mitglied"},
+        fields=["name", "beziehung_zu", "beziehungstyp", "ist_spiegel", "idx"],
+        order_by="idx asc",
+    ) or []
 
     # Verwaltungsdaten nur fuer Admin und das eindeutig eigene Mitglied.
     vollstaendig = bool(perms.get("can_view_sensitive")) or eigenes

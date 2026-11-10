@@ -29,6 +29,7 @@ from diakronos_app.api import audit  # noqa: F401 — P4g: Audit/Notifications (
 from diakronos_app.api import auth  # noqa: F401 — A1b1: login/logout
 from diakronos_app.api import auswahl  # noqa: F401 — P4g: Suchdropdowns (4 Pfade)
 from diakronos_app.api import beitraege  # noqa: F401 — P4f: Beitraege (6 Pfade)
+from diakronos_app.api import beziehungen  # noqa: F401 — DEV-B4a: Beziehungen pflegen (3 Pfade)
 from diakronos_app.api import bugreport  # noqa: F401 — P4j: Dev-Bugmelder (4 Pfade)
 from diakronos_app.api import dashboard  # noqa: F401 — P4h: Dashboard (11 Pfade)
 from diakronos_app.api import datenschutz  # noqa: F401 — N6: Auskunft/Anträge/Anonymisierung

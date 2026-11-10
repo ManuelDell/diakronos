@@ -993,6 +993,85 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.beziehungen.add_beziehung",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.beziehungen",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "add_beziehung",
+   "pfade": [
+    "add_beziehung",
+    "api.add_beziehung",
+    "beziehungen.add_beziehung",
+    "diakronos.diakonos.api.beziehungen.add_beziehung",
+    "diakronos_app.api.beziehungen.add_beziehung"
+   ],
+   "rumpf_grund": "Aufruf _anlegen(); Aufruf _anlegen()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.beziehungen.get_beziehungen_auswahl",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.beziehungen",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "get_beziehungen_auswahl",
+   "pfade": [
+    "api.get_beziehungen_auswahl",
+    "beziehungen.get_beziehungen_auswahl",
+    "diakronos.diakonos.api.beziehungen.get_beziehungen_auswahl",
+    "diakronos_app.api.beziehungen.get_beziehungen_auswahl",
+    "get_beziehungen_auswahl"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.beziehungen.remove_beziehung",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.beziehungen",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "remove_beziehung",
+   "pfade": [
+    "api.remove_beziehung",
+    "beziehungen.remove_beziehung",
+    "diakronos.diakonos.api.beziehungen.remove_beziehung",
+    "diakronos_app.api.beziehungen.remove_beziehung",
+    "remove_beziehung"
+   ],
+   "rumpf_grund": "Aufruf _delete_doc()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
    "ausnahme_quelle": null,
    "deklariert": null,
    "einstufung": "lesend",
@@ -9601,12 +9680,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 363,
+ "funktionen": 366,
  "nur_test": [],
- "registrierte_pfade": 1864,
+ "registrierte_pfade": 1879,
  "rumpf_zaehlung": {
-  "lesend": 180,
-  "schreibend": 183
+  "lesend": 181,
+  "schreibend": 185
  },
  "widersprueche": [
   {
@@ -10354,7 +10433,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 165,
-  "schreibend": 198
+  "lesend": 166,
+  "schreibend": 200
  }
 }

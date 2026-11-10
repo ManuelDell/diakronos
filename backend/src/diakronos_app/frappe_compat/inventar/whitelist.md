@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **1864**
-* eindeutige Funktionen: **363**
-* lesend: **165**, schreibend: **198**
-* Rumpfbefund: schreibend 183, lesend 180, unbekannt 0
+* registrierte Pfade: **1879**
+* eindeutige Funktionen: **366**
+* lesend: **166**, schreibend: **200**
+* Rumpfbefund: schreibend 185, lesend 181, unbekannt 0
 
 ## Einstufung
 
@@ -93,6 +93,8 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.beitraege.delete_beitrag` | ['POST'] | nein |
 | `diakronos_app.api.beitraege.update_beitrag` | ['POST'] | nein |
 | `diakronos_app.api.beitraege.wiederherstellen_beitrag` | ['POST'] | nein |
+| `diakronos_app.api.beziehungen.add_beziehung` | ['POST'] | nein |
+| `diakronos_app.api.beziehungen.remove_beziehung` | ['POST'] | nein |
 | `diakronos_app.api.bugreport.melden` | ['POST'] | nein |
 | `diakronos_app.api.bugreport.set_status` | ['POST'] | nein |
 | `diakronos_app.api.dashboard.reset_user_config` | ['POST'] | nein |
@@ -292,6 +294,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.auswahl.get_sammlungen` | — | nein |
 | `diakronos_app.api.beitraege.get_beitraege_liste` | — | nein |
 | `diakronos_app.api.beitraege.get_beitrag_detail` | — | nein |
+| `diakronos_app.api.beziehungen.get_beziehungen_auswahl` | — | nein |
 | `diakronos_app.api.bugreport.detail` | — | nein |
 | `diakronos_app.api.bugreport.liste` | — | nein |
 | `diakronos_app.api.dashboard.get_available_widgets` | — | nein |

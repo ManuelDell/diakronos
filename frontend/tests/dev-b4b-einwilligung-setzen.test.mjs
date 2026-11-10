@@ -19,7 +19,7 @@
  * Läuft in der Node-Testliste (`tests/dev-b4b-*.test.mjs`), ohne Browser.
  */
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -83,6 +83,11 @@ function pfadUmschreiben(abs, pfad) {
   if (!/\.(vue|js|mjs)$/.test(pfad)) return null
   const zielAbs = path.resolve(path.dirname(abs), pfad)
   if (zielAbs.replace(/\\/g, '/').includes('/node_modules/')) return null
+  // Review DEV-B4a (10.11.): `from '…'` steht auch in Kommentaren
+  // (`useRueckgaengig.js:36` nennt den Import im Fließtext). Ein Kommentar
+  // ist kein Modul — ohne diese Pruefung schriebe der Umschreiber eine Datei
+  // an einen Pfad, den es nicht gibt, und der Test stürbe an ENOENT.
+  if (!existsSync(zielAbs)) return null
   if (pfad.endsWith('.vue')) {
     bauteilSchreiben(zielAbs)
     return pfad.replace(/\.vue$/, '.mjs')
