@@ -167,23 +167,37 @@ def _freier_client():
     return TestClient(erstelle_app())
 
 
+# LOGIN-SSO1 (09.11.): Der Test-Flow bleibt derselbe, aber der START ist neu:
+# Mit `AUTH_LOCAL_LOGIN=an` leitet `/login` nicht mehr weiter, sondern zeigt
+# Knopf + Formular. Der Anbieter-Weg wird deshalb dort angeklickt, wie ein
+# Mensch es täte: das `href` des Knopfs („Mit … anmelden“) wird aufgerufen.
 def _login_vorbereiten(client, anbieter, *, email="neu@example.org",
                        email_verified=True, sub="sub-1", gruppen=None):
-    """Startet den Flow: /login?sso=1, folgt dem Redirect, liefert (state, verifier).
+    """Startet den Flow über den SSO-Knopf, liefert (state, verifier).
 
     Der abgelegte Verifier wird aus dem Transaktionsspeicher gelesen, damit der
     Mock ihn wie ein echter Anbieter pruefen koennte.
     """
+    import re
+
     from diakronos_app.anmeldung import transaktionen
 
     # LOGIN-1 (Paket 2026-11-05): Ist die Anfrage schon angemeldet (der
     # `client`-Fixture meldet als `Administrator` an), geht `/login` direkt auf
     # das Ziel — kein Anbieter-Roundtrip. Hier will der Test aber den FLOW
     # pruefen: deshalb OHNE Sitzung anfragen (frischer Client, dieselbe App).
-    # `noredirect=1` waere der falsche Weg — dabei wird IMMER die lokale Maske
-    # gezeigt und gar nicht zum Anbieter geleitet.
-    r = _freier_client().get("/login", params={"sso": "1"}, follow_redirects=False)
-    assert r.status_code == 303
+    maske = _freier_client().get("/login", follow_redirects=False)
+    assert maske.status_code == 200, (
+        f"`an` muss die Maske zeigen (LOGIN-SSO1), war {maske.status_code}"
+    )
+    treffer = re.search(r'<a class="dk-knopf[^"]*" href="([^"]+)">Mit ', maske.text)
+    assert treffer, "SSO-Knopf fehlt auf der Anmeldeseite"
+    # LOGIN-SSO1: Der Knopf der Maske startet den Anbieter-Weg — sein `href`
+    # trägt `sso=1` selbst und wird UNVERÄNDERT aufgerufen (Review: vorher
+    # ergänzte der Test `sso=1` und verdeckte so einen wirkungslosen Knopf).
+    href = treffer.group(1).replace("&amp;", "&")
+    r = _freier_client().get(href, follow_redirects=False)
+    assert r.status_code == 303, f"Anbieter-Weg startet nicht ({r.status_code})"
     from urllib.parse import parse_qs, urlsplit
 
     q = parse_qs(urlsplit(r.headers["location"]).query)
@@ -285,8 +299,18 @@ def test_fehlendes_pkce_abgewiesen(client, oidc_aktiviert, patched_db, fake_redi
     from diakronos_app.anmeldung import transaktionen
     from urllib.parse import parse_qs, urlsplit
 
-    # LOGIN-1: ohne Sitzung anfragen (siehe `_login_vorbereiten`).
-    r = _freier_client().get("/login", params={"sso": "1"}, follow_redirects=False)
+    # LOGIN-SSO1: der Anbieter-Weg beginnt am Knopf der Maske (dort steht das
+    # Ziel als `redirect-to`), nicht mehr an einer Zwangsweiterleitung.
+    import re
+
+    maske = _freier_client().get("/login", follow_redirects=False)
+    treffer = re.search(
+        r'<a class="dk-knopf[^"]*" href="([^"]+)">Mit ', maske.text
+    )
+    assert treffer, "SSO-Knopf fehlt auf der Anmeldeseite"
+    href = treffer.group(1).replace("&amp;", "&")
+    r = _freier_client().get(href, follow_redirects=False)
+    assert r.status_code == 303, r.status_code
     q = parse_qs(urlsplit(r.headers["location"]).query)
     neuer_state = q["state"][0]
     transaktionen.ablegen(neuer_state, "n", "falscher-verifier")

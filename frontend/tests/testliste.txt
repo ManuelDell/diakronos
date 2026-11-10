@@ -307,3 +307,7 @@ tests/dev-b1-*.test.mjs
 # Stammdaten), Zugang nur im Bearbeiten (+ Passwort-Link immer), Schließen.
 tests/dev-b3-*.test.mjs
 tests/devb5-*.test.mjs
+# LOGIN-SSO1: /login zeigt bei AUTH_LOCAL_LOGIN=an Formular UND SSO-Knopf
+# (keine Zwangsweiterleitung), Trenner „oder“ nur aus Tokens, redirect-to am
+# Knopf durch _relatives_ziel geprüft, sichtbare Texte mit echten Umlauten.
+tests/login-sso1-*.test.mjs

@@ -96,7 +96,7 @@ def hole_metadaten(cfg: OidcKonfiguration, *, erzwinge: bool = False) -> OidcMet
     benoetigt = ("issuer", "authorization_endpoint", "token_endpoint", "jwks_uri")
     fehlend = [k for k in benoetigt if not daten.get(k)]
     if fehlend:
-        raise OidcFehler("Discovery unvollstaendig: " + ", ".join(fehlend))
+        raise OidcFehler("Discovery unvollständig: " + ", ".join(fehlend))
 
     # Der ``issuer`` aus den Metadaten MUSS dem konfigurierten entsprechen —
     # sonst koennte eine manipulierte Discovery auf einen fremden Issuer zeigen.
@@ -186,7 +186,7 @@ def hole_token(
     try:
         antwort = httpx.post(meta.token_endpoint, data=daten, timeout=10.0)
     except httpx.HTTPError as exc:
-        raise OidcFehler("Token-Abruf nicht moeglich.") from exc
+        raise OidcFehler("Token-Abruf nicht möglich.") from exc
     if antwort.status_code != 200:
         raise OidcFehler(f"Token-Abruf abgelehnt (HTTP {antwort.status_code}).")
     try:
@@ -207,7 +207,7 @@ def _hole_jwks(meta: OidcMetadaten) -> dict:
     except (httpx.HTTPError, ValueError) as exc:
         raise OidcFehler("JWKS nicht abrufbar.") from exc
     if not isinstance(daten, dict) or "keys" not in daten:
-        raise OidcFehler("JWKS besitzt keine Schluessel.")
+        raise OidcFehler("JWKS besitzt keine Schlüssel.")
     return daten
 
 
@@ -249,9 +249,9 @@ def pruefe_id_token(
         # Kleine Toleranz (Uhrenabweichung), nicht mehr.
         claims.validate(leeway=int(cfg.leeway))
     except JoseError as exc:
-        raise OidcFehler("ID-Token ungueltig.") from exc
+        raise OidcFehler("ID-Token ungültig.") from exc
     except Exception as exc:  # noqa: BLE001 — jede unerwartete Form ist eine Ablehnung
-        raise OidcFehler("ID-Token nicht pruefbar.") from exc
+        raise OidcFehler("ID-Token nicht prüfbar.") from exc
 
     daten = dict(claims)
     # `azp` (authorized party) explizit pruefen, wenn das Publikum eine Liste ist:

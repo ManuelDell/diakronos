@@ -1710,9 +1710,17 @@ Konfiguration: fehlt z. B. der Issuer, startet der Container **nicht** (mit
 klarer Meldung im Log) — eine halb eingeschaltete Anmeldung ist gefährlicher als
 eine ausgeschaltete.
 
-**`AUTH_LOCAL_LOGIN`:** `an` (Formular bleibt als Notweg), `aus` (nur Anbieter),
+**`AUTH_LOCAL_LOGIN`:** `an` (Formular **und** Anbieter-Knopf auf der
+Anmeldeseite — keine automatische Weiterleitung), `aus` (nur Anbieter),
 `nur-admin` (Default: Formular nur für bestehende Administratoren, um sich bei
-einem Konfigurationsfehler nicht auszusperren).
+einem Konfigurationsfehler nicht auszusperren; `/login` leitet sofort zum
+Anbieter, das Formular erscheint mit `?sso=0`).
+
+Mit `an` ist Diakronos auch **ohne** Authentik benutzbar: `/login` zeigt den
+Knopf „Mit \<Anbieter\> anmelden“ und darunter, durch einen Trenner „oder“
+getrennt, das Passwortformular. Ein geteilter Deeplink (`/login?redirect-to=…`)
+wird an den Knopf weitergereicht; nach dem Anbieter-Roundtrip landet man am
+Ziel. Fremde/absolute Ziele werden abgewiesen (kein Open Redirect).
 
 Die Einstellung gilt **serverseitig** (LOGIN-2): `an`/`nur-admin`/`aus` werden
 nicht nur auf der Anmeldeseite angezeigt, sondern beim Anmelden selbst geprüft

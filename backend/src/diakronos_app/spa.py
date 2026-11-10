@@ -931,7 +931,7 @@ def render_login(next_url: str = SPA_PREFIX, *, meldung: str = "", email: str = 
                    autocomplete="current-password" required{" autofocus" if meldung else ""}>
             <button class="dk-knopf dk-knopf-weit" type="submit">Anmelden</button>
         </form>
-        <p class="dk-hinweis">Anmeldelinks fuer Registrierung und Gastzugriff
+        <p class="dk-hinweis">Anmeldelinks für Registrierung und Gastzugriff
             findest du in der Nachricht der Gemeindeleitung.</p>
     </main>
     <script>

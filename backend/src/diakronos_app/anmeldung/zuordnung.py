@@ -351,7 +351,7 @@ def loese_konto_auf(sess, konto: ExternesKonto) -> ZuordnungsErgebnis:
         return ZuordnungsErgebnis(
             erlaubt=False,
             grund="unbekannt_abgewiesen",
-            meldung="Fuer dieses Konto gibt es keinen Zugang. Die Gemeindeleitung "
+            meldung="Für dieses Konto gibt es keinen Zugang. Die Gemeindeleitung "
             "kann dich freischalten.",
         )
 

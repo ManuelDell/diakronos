@@ -267,6 +267,14 @@ COPY tools/demo/musterhausen.py /tools/demo/musterhausen.py
 # also Regel 13: eigene COPY-Zeile. NACHWEIS im Image:
 # `docker build -f backend/Dockerfile --target frontend .` meldet "# fail 0".
 COPY backend/src/diakronos_app/anmeldung/routen.py /login1-backend/anmeldung/routen.py
+# LOGIN-SSO1: `tests/login-sso1-login.test.mjs` haelt fest, dass `/login` bei
+# `AUTH_LOCAL_LOGIN=an` Formular UND SSO-Knopf zeigt (keine Zwangsweiterleitung),
+# dass der Knopf das gepruefte Ziel mitgibt und der Trenner „oder“ nur Tokens
+# benutzt. Der Test liest die drei Quellen ausserhalb von frontend/ — Regel 13:
+# eigene COPY-Zeilen. `seiten.css` liegt INNERHALB von frontend/ und kommt mit
+# `COPY frontend/ ./` mit.
+COPY backend/src/diakronos_app/anmeldung/routen.py /sso1-backend/anmeldung/routen.py
+COPY backend/src/diakronos_app/spa.py /sso1-backend/spa.py
 # UX2c (Regel 13): `tests/ux2c-endgueltig.test.mjs` haelt fest, dass jede
 # Gegenrichtung („Rückgängig“) auf einen ECHTEN Server-Endpunkt zeigt — es
 # liest die whitelist-Funktionen unter `backend/src/diakronos_app/api/`.

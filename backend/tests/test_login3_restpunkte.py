@@ -94,7 +94,10 @@ def test_anmeldeseite_zeigt_bei_aktivem_oidc_weiter_den_anbieter_knopf():
     """Was der Block haette leisten sollen, leistet der Anbieter-Knopf."""
     quelle = _quelle("anmeldung/routen.py")
     assert "sso_block" in quelle
-    assert "_anbieter_knopf_html()" in quelle
+    # LOGIN-SSO1: Der Knopf bekommt das Weiterleitungsziel mit (Regel 19 —
+    # Test angepasst, nicht geloescht). Der Name der Hilfsfunktion bleibt; nur
+    # der Aufruf traegt jetzt das Argument.
+    assert "_anbieter_knopf_html(" in quelle, "der Anbieter-Knopf fehlt"
 
 
 @pytest.mark.parametrize("zustand", ["aus", "nur-admin", "an"])

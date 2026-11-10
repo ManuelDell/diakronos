@@ -4,8 +4,15 @@ Der EINE Login-Weg:
 
   * Ist OIDC aktiv, leitet ``/login`` automatisch zum Anbieter weiter
     (``/auth/oidc/start`` bzw. direkt). Das lokale Formular erscheint nur, wenn
-    ``AUTH_LOCAL_LOGIN`` es erlaubt — dann als NOTZUGANG, mit dem Anbieter als
-    Hauptweg.
+    ``AUTH_LOCAL_LOGIN`` es erlaubt.
+
+    LOGIN-SSO1 (Anordnung Manuel 09.11.): Bei ``AUTH_LOCAL_LOGIN=an`` leitet
+    ``/login`` NICHT mehr weiter. Die Seite zeigt BEIDES — den Knopf „Mit
+    <Anbieter> anmelden“ und das Formular mit Passwort, getrennt durch einen
+    Trenner „oder“. Diakronos muss ohne Authentik benutzbar sein; ist SSO
+    eingerichtet, ist es eine ZUSÄTZLICHE Möglichkeit. ``nur-admin``/``aus``
+    behalten das bisherige Verhalten (Weiterleitung; ``?sso=0`` ist der
+    Admin-Notzugang wie heute).
   * ``/auth/oidc/callback`` verarbeitet die Rueckkehr: ``state`` pruefen (aus dem
     Transaktionsspeicher, Einmalverwendung), Code einloesen, ID-Token pruefen
     (Signatur/iss/aud/exp/nonce/azp), Konto zuordnen, Sitzung anlegen.
@@ -174,15 +181,85 @@ def _lokales_login_erlaubt() -> bool:
 LOKALES_LOGIN_ERLAUBT = _lokales_login_erlaubt
 
 
-def _anbieter_knopf_html() -> str:
-    """HTML-Knopf „Mit <Anbietername> anmelden" (Hauptweg)."""
+# LOGIN-SSO1: `AUTH_LOCAL_LOGIN` in der Fassung, die für die ANMELDESEITE zählt.
+# Der Name steht hier, damit Seite und Route dieselbe Zeichenkette benutzen.
+LOKAL_AN = "an"
+
+
+def _lokal_login_an() -> bool:
+    """True, wenn der lokale Login für ALLE offen ist (`AUTH_LOCAL_LOGIN=an`).
+
+    Nur in diesem Modus zeigt `/login` beides — Formular UND Anbieter-Knopf —
+    ohne Zwangsweiterleitung (LOGIN-SSO1, Anordnung Manuel 09.11.). Bei
+    ``nur-admin`` ist der Anbieter weiterhin der Hauptweg (der lokale Login ist
+    dort ein Notzugang für Administratoren), bei ``aus`` gibt es ihn gar nicht;
+    beide behalten das bisherige Verhalten samt ``?sso=0``.
+
+    Ohne aktives OIDC gibt es keinen Anbieter — dann ist die Frage
+    gegenstandslos (das Formular ist immer der einzige Weg).
+    """
+    if not konf.oidc_aktiv():
+        return False
+    return konf.oidc_konfiguration().local_login == LOKAL_AN
+
+
+LOKAL_LOGIN_AN = _lokal_login_an
+
+
+def _sso_vorbelegung(ziel: str) -> str:
+    """Deeplink der Anmeldeadresse, wie ihn die Ziel-Seite selbst baut.
+
+    Der Hash erreicht den Server NIE (`location.hash` wird vom Browser nicht
+    mitgeschickt). Die Ziel-Seite schreibt deshalb `frag=<hash>` in die
+    Adresse; `login_route` hängt ihn wieder an das Ziel. Dieselbe Form baut
+    schon der noscript-Weg der Hash-Brücke (`_hash_bruecke_seite`), damit ein
+    geteilter Deeplink den Anmeldevorgang übersteht.
+    """
+    param = f"redirect-to={quote(ziel, safe='')}"
+    if "#" in ziel:
+        ohne_hash, _, frag = ziel.partition("#")
+        param = (
+            f"redirect-to={quote(ohne_hash, safe='')}&frag={quote(frag, safe='')}"
+        )
+    # Review LOGIN-SSO1: `sso=1` gehört in den Knopf — ohne ihn zeigt `/login`
+    # bei `AUTH_LOCAL_LOGIN=an` wieder nur die Maske (Knopf ohne Wirkung).
+    return f"{_login_adresse()}?sso=1&{param}"
+
+
+def _anbieter_knopf_html(ziel: str | None = None) -> str:
+    """HTML-Knopf „Mit <Anbietername> anmelden“ (Anbieter-Weg).
+
+    LOGIN-SSO1: Der Knopf trägt das Weiterleitungsziel als ``redirect-to`` mit
+    — nach dem Callback landet man dann am Ziel und nicht auf der Übersicht.
+    Zulässig sind ausschliesslich relative, eigene Ziele; die Prüfung ist
+    dieselbe wie überall in dieser Datei (`_relatives_ziel`, kein Open
+    Redirect). Ein fremdes Ziel fällt auf die Startseite zurück und wird NICHT
+    in die Adresse geschrieben.
+    """
     import html
 
     cfg = konf.oidc_konfiguration()
     name = html.escape(cfg.anbietername or "Anbieter", quote=True)
+    href = html.escape(_sso_vorbelegung(_relatives_ziel(ziel or SPA_ZIEL)), quote=True)
     return (
-        f'<a class="dk-knopf dk-knopf-weit dk-sso" href="{_login_adresse()}?sso=1">'
+        f'<a class="dk-knopf dk-knopf-weit" href="{href}">'
         f"Mit {name} anmelden</a>"
+    )
+
+
+def _oder_trenner_html() -> str:
+    """Trenner „oder“ zwischen Anbieter-Knopf und Formular (LOGIN-SSO1).
+
+    Reines Markup; Abstände, Linie und Schrift stehen als Tokens im
+    gemeinsamen Grund-Stylesheet (`frontend/src/ssot/seiten.css`, Klassen
+    ``dk-oder``/``dk-oder-linie``). ``aria-hidden``: der Text ist eine
+    Leseführung für das Auge, kein Inhalt — Screenreader springen vom Knopf
+    direkt ins Formular.
+    """
+    return (
+        '\n        <p class="dk-oder" aria-hidden="true">'
+        '<span class="dk-oder-linie"></span><span class="dk-oder-text">oder</span>'
+        '<span class="dk-oder-linie"></span></p>'
     )
 
 
@@ -341,7 +418,7 @@ def erstelle_anmeldeseite(
     lokal = _lokales_login_erlaubt()
     # LOGIN-1: Meldung/Email auch dann anzeigen, wenn das lokale Formular
     # gerade nicht erlaubt ist — sonst verschwaende der Grund des Fehlschlags
-    # still (der Nutzer saehe nur "Anmeldung nicht verfuegbar").
+    # still (der Nutzer saehe nur "Anmeldung nicht verfügbar").
     _flash_meldung = ""
     _flash_email = ""
     if lokal:
@@ -370,8 +447,14 @@ def erstelle_anmeldeseite(
     )
 
     sso_block = ""
+    trenner_block = ""
     if oidc_an:
-        sso_block = _anbieter_knopf_html()
+        sso_block = _anbieter_knopf_html(next_url)
+        # LOGIN-SSO1: Nur wenn BEIDE Wege offen sind, bekommt der Knopf einen
+        # Trenner. Bei `nur-admin`/`aus` ist der Anbieter der einzige bzw.
+        # Hauptweg — ein „oder“ ohne zweite Möglichkeit wäre eine Lüge.
+        if lokal and _lokal_login_an():
+            trenner_block = _oder_trenner_html()
 
     # ON-0b: Nach dem Abmelden (`/logout`) landet man HIER — und braucht einen
     # Weg zurueck auf die Startseite. Ohne diesen Verweis war die oeffentliche
@@ -441,9 +524,9 @@ def erstelle_anmeldeseite(
         </div>
         <h1>{gemeinde}</h1>
         <p class="dk-unterzeile">Bitte melde dich an, um fortzufahren.</p>{meldung_block}
-        {sso_block}
+        {sso_block}{trenner_block}
         {formular_block}
-        <p class="dk-hinweis">Anmeldelinks fuer Registrierung und Gastzugriff
+        <p class="dk-hinweis">Anmeldelinks für Registrierung und Gastzugriff
             findest du in der Nachricht der Gemeindeleitung.</p>{zurueck_knopf}
     </main>
     <script>
@@ -644,10 +727,10 @@ def _fehler_seite(meldung: str, status: int = 403) -> Response:
     seite = f"""<!DOCTYPE html>
 <html lang="de"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Anmeldung nicht moeglich</title>
+<title>Anmeldung nicht möglich</title>
 {seitenrahmen.head_block()}</head>
 <body class="dk-seite"><main class="dk-karte dk-karte--breit">
-<h1>Anmeldung nicht moeglich</h1>
+<h1>Anmeldung nicht möglich</h1>
 <p>{text}</p><p><a href="{login_adresse}">Erneut versuchen</a></p></main></body></html>"""
     return HTMLResponse(seite, status_code=status)
 
@@ -699,7 +782,23 @@ def registriere_routen(app: FastAPI) -> None:
         frag = unquote(str(request.query_params.get("frag") or "")).strip()
         if frag and not any(ord(c) < 0x20 for c in frag):
             ziel = f"{ziel}#{frag}" if "#" not in ziel else ziel
-        if konf.oidc_aktiv() and not no_redirect:
+        # LOGIN-SSO1 (Anordnung Manuel 09.11.): Steht `AUTH_LOCAL_LOGIN=an`, ist
+        # der Anbieter ZUSÄTZLICH da, nicht stattdessen — die Maske zeigt beide
+        # Wege (`sso_block` + Trenner + Formular). Also NICHT weiterleiten.
+        # `nur-admin`/`aus` behalten das bisherige Verhalten: der Anbieter ist
+        # der Hauptweg, `?sso=0` bleibt der Admin-Notzugang.
+        #
+        # Der ausdrückliche Anbieter-Start (`?sso=1`, das Ziel des Knopfs auf
+        # der Maske) bleibt in JEDEM Modus erreichbar — auch bei `aus`. Vorher
+        # lief dieser Aufruf in die 503-Auskunft „nicht verfügbar“; das wäre
+        # eine Seite, die einen Weg verlinkt, den sie selbst abweist.
+        if (
+            konf.oidc_aktiv()
+            and not no_redirect
+            and request.query_params.get("sso") == "1"
+        ):
+            return _start_weiterleitung(request, ziel)
+        if konf.oidc_aktiv() and not no_redirect and not _lokal_login_an():
             # Ist OIDC aktiv, ist der Anbieter der Hauptweg. Ohne ``sso=0`` wird
             # direkt weitergeleitet — der Nutzer merkt nur EINEN Login.
             # OP-CHOR-4: das Ziel (inkl. spaeter ergaenztem Hash) wird MIT
@@ -713,9 +812,7 @@ def registriere_routen(app: FastAPI) -> None:
             if request.query_params.get("sso") != "0" and not request.query_params.get(
                 "lokal"
             ):
-                if request.query_params.get("sso") != "1":
-                    return HTMLResponse(_hash_bruecke_seite(ziel))
-                return _start_weiterleitung(request, ziel)
+                return HTMLResponse(_hash_bruecke_seite(ziel))
         # LOGIN-1: Meldung der fehlgeschlagenen Anmeldung anzeigen und den
         # Flash dabei VERBRAUCHEN (Einmal-Gebrauch) — sonst stuende die alte
         # Meldung nach jedem Neuladen weiter da.
@@ -725,7 +822,7 @@ def registriere_routen(app: FastAPI) -> None:
             # Kein lokaler Login erlaubt -> Zugang nur ueber Anbieter (oder
             # gar nicht; dann ist das die einzige Auskunft, die noch bleibt).
             return _fehler_seite(
-                "Die Anmeldung ist derzeit nicht verfuegbar. Bitte wende dich an die "
+                "Die Anmeldung ist derzeit nicht verfügbar. Bitte wende dich an die "
                 "Gemeindeleitung.",
                 status=503,
             )
@@ -771,7 +868,7 @@ def registriere_routen(app: FastAPI) -> None:
         state = request.query_params.get("state")
         code = request.query_params.get("code")
         if not state or not code:
-            return _fehler_seite("Ungueltige Rueckkehr vom Anbieter.", status=400)
+            return _fehler_seite("Ungültige Rückkehr vom Anbieter.", status=400)
 
         tx = transaktionen.entnehmen(state)
         if tx is None:
@@ -791,7 +888,7 @@ def registriere_routen(app: FastAPI) -> None:
             )
         except oidc.OidcFehler as exc:
             logger.warning("OIDC-Anmeldung fehlgeschlagen: %s", exc)
-            return _fehler_seite("Die Anmeldung konnte nicht geprueft werden.")
+            return _fehler_seite("Die Anmeldung konnte nicht geprüft werden.")
 
         konto = _konto_aus_claims(meta.issuer, claims)
         return _schliesse_login_ab(request, konto, ziel=tx.get("ziel"))

@@ -451,6 +451,32 @@ select {
   border-top: 1px solid var(--line);
 }
 
+/* LOGIN-SSO1: Trenner „oder“ zwischen dem Anbieter-Knopf und dem Formular.
+   Linie links und rechts, der Text in der Mitte — kein Kasten, keine zweite
+   Fläche (Ä2: Abstand und eine leise Linie statt Rahmen). Abstände oben und
+   unten sind gleich (Zusammengehörigkeit: der Knopf gehört zum Formular, nicht
+   zur Überschrift); Schrift und Farbe kommen aus den Rollen-Tokens, damit der
+   Dunkelmodus ohne eigene Regel stimmt. */
+.dk-oder {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: var(--sp-4) 0;
+  font-size: var(--fs-meldung);
+  color: var(--muted);
+}
+
+.dk-oder-linie {
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--line);
+}
+
+.dk-oder-text {
+  flex: 0 0 auto;
+  padding: 0 var(--sp-1);
+}
+
 .dk-abschnitt {
   margin: 0 0 var(--sp-2);
   font-size: var(--fs-abschnitt);

@@ -313,7 +313,11 @@ def test_aus_maske_zeigt_anbieter_weg(patched_db, fake_redis, oidc_an):
     # Kein Passwortfeld — der lokale Weg ist aus.
     assert 'name="pwd"' not in r.text
     # Aber ein benannter Weg zum Anbieter, verstaendlich formuliert.
-    assert "/login?sso=1" in r.text
+    # LOGIN-SSO1: Der Knopf traegt jetzt das Ziel als `redirect-to` mit; die
+    # feste Adresse ist deshalb weg — geprueft wird der Knopf selbst.
+    assert ">Mit " in r.text and "anmelden</a>" in r.text
+    assert "/login?sso=1&amp;redirect-to=" in r.text
+    assert ">oder<" not in r.text, "ohne lokalen Weg kein Trenner"
     assert "anmelden" in r.text.lower()
 
 
