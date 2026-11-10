@@ -92,6 +92,9 @@ except ImportError:  # … oder direkt als Skript (``python tools/demo/musterhau
 
 #: Konten der Demo. Die Passwoerter sind ABSICHTLICH oeffentlich: es sind
 #: Demo-Konten einer erfundenen Gemeinde, keine Zugangsdaten einer Anlage.
+#: SEED-R1: die vier Leitungs-Konten (``daten.TESTKONTEN_LEITUNG``) kommen
+#: hinzu — ihre Adresse ist die des Mitglieds, das Passwort das des Admins
+#: (Hash-Uebernahme, siehe ``konten_anlegen``).
 KONTEN: dict[str, str] = {
     daten.ADMIN_EMAIL: daten.ADMIN_PASSWORT,
     daten.MITGLIED_EMAIL: daten.MITGLIED_PASSWORT,
@@ -182,6 +185,54 @@ def kennungen_aus_datenbank(session) -> list[str]:
 def _jetzt() -> datetime:
     """Erstellzeitpunkt der Demo-Datensaetze (naive Ortszeit, wie die App)."""
     return datetime.now().replace(microsecond=0)
+
+
+# ── Konten der Demo (SEED-R1) ───────────────────────────────────────────────
+# Bis SEED-R1 gab es genau ZWEI Konten: Verwaltung und ein Mitglied. Wer im
+# Demo-Bestand etwas verantwortete, war deshalb immer `admin@example.org` —
+# Gruppenverantwortung, Kalender-Moderation und Buchungsfreigabe fielen auf das
+# Verwaltungskonto zurueck (Befund Manuel 09.11.: „Du hast meinen Testaccount
+# ueberall als verantwortlich gesetzt."). SEED-R1 deckt die BESTEHENDEN
+# Leitungen mit eigenen Konten ab; der Admin bleibt Verwalter und ist NIRGENDS
+# verantwortlich, kann aber als System Manager weiterhin alles.
+
+
+def konto_email(person: str) -> str:
+    """Konto-Adresse einer Person: ihre Mitglied-E-Mail, sonst ``vorname.nachname``.
+
+    Die Sitzung ordnet ein Konto ueber ``Mitglied.email == User.email`` zu
+    (``api/session.py``); deshalb bekommt das Konto dieselbe Adresse wie das
+    Mitglied. ``person`` ist der Anzeigename („Vorname Nachname").
+    """
+    vorname, _, nachname = person.partition(" ")
+    return daten.email_von(vorname, nachname)
+
+
+def testkonten() -> dict[str, str]:
+    """Testkonten der bestehenden Leitungs-Personen: ``person -> Konto``.
+
+    KEINE neuen Personen, keine neuen Rollen (Manuel 09.11.): es sind genau die
+    Personen, die in ``musterhausen_daten`` bereits Gruppen bzw. Dienstplaene
+    leiten, mit der Rolle „Mitglied" (wie Anna). Das Konto ist die Adresse des
+    Mitglieds (``konto_email``) — die Sitzung ordnet darueber zu.
+    """
+    return {eintrag["person"]: konto_email(eintrag["person"])
+            for eintrag in daten.TESTKONTEN_LEITUNG}
+
+
+def _person_der_admin_email() -> str:
+    """Die Person, die das Verwaltungskonto traegt (``admin@example.org``)."""
+    return daten.ADMIN_PERSON
+
+
+def konto_von_person(person: str) -> str | None:
+    """Welches Konto diese Person fuehrt — ``None``, wenn sie keins hat.
+
+    Wird fuer Verantwortungszeilen gebraucht: die zeigen auf ein KONTO
+    (``*.user``). Personen ohne Konto (die meisten Demo-Mitglieder) bekommen
+    keine Zeile — aber NIE das Verwaltungskonto als Rueckfall.
+    """
+    return testkonten().get(person)
 
 
 def _uhr(wert: str) -> time:
@@ -280,7 +331,8 @@ def _rolle_anlegen(a: Anleger, name: str) -> None:
     a.zaehle("Rolle", True)
 
 
-def _benutzer_anlegen(a: Anleger, email: str, passwort: str, voller_name: str) -> None:
+def _benutzer_anlegen(a: Anleger, email: str, passwort: str, voller_name: str,
+                      hash_vorlage: str | None = None) -> None:
     """Ein Konto anlegen — ueber den regulaeren Schreibweg (``_create``).
 
     ``user.enabled`` ist die Schranke, an der die Plan-Rahmen-Rechte pruefen
@@ -297,6 +349,10 @@ def _benutzer_anlegen(a: Anleger, email: str, passwort: str, voller_name: str) -
     Stelle und wird nach dem Setzen geprueft. Ist er nicht pruefbar, bricht
     der Seed mit ``DemoFehler`` ab — ein still falscher Wert verlaesst die
     Demo damit nicht mehr unbemerkt.
+
+    SEED-R1: ``hash_vorlage`` uebernimmt den Passwort-Hash eines BESTEHENDEN
+    Kontos (die Verwaltung) — so haben alle Testkonten dasselbe Passwort, ohne
+    dass ein zweiter Klartext-Wert irgendwo stehen muss.
     """
     from diakronos_app.frappe_compat.passwoerter import neuer_hash
 
@@ -310,27 +366,63 @@ def _benutzer_anlegen(a: Anleger, email: str, passwort: str, voller_name: str) -
     konto = a.s.get(User, email)
     if konto is None:  # pragma: no cover — _create hat die Zeile eben angelegt
         raise DemoFehler(f"Konto {email!r} wurde nicht angelegt")
-    konto.password_hash = neuer_hash(passwort)
+    konto.password_hash = hash_vorlage or neuer_hash(passwort)
     a.s.flush()
     # DEMO-1: Das Passwort ist damit pruefbar — es sei denn, der Hash
     # widerspricht. Der Befund war „Hash laesst sich nicht verifizieren“;
     # ein still falscher Wert darf nicht wieder unbemerkt in die Demo laufen.
     from diakronos_app.frappe_compat.passwoerter import pruefe
 
-    if not pruefe(passwort, konto.password_hash):
+    # SEED-R1: Mit Hash-Vorlage ist der Klartext unbekannt (Manuel kann das
+    # Admin-Passwort geaendert haben) — dann gibt es nichts zu pruefen; der
+    # Hash ist der eines bestehenden, funktionierenden Kontos.
+    if hash_vorlage is None and not pruefe(passwort, konto.password_hash):
         raise DemoFehler(
             f"Passwort-Hash fuer {email!r} ist nicht pruefbar — Abbruch")
 
 
 def konten_anlegen(a: Anleger) -> None:
-    """Rollen und die beiden Demo-Konten (Admin + Mitglied)."""
+    """Rollen und die Demo-Konten: Verwaltung, Mitglied und 4 Leitungs-Konten.
+
+    SEED-R1: Neben ``admin@example.org`` (Verwaltung) und
+    ``anna.beispiel@example.org`` (reines Mitglied) tragen die vier BESTEHENDEN
+    Leitungs-Personen ein eigenes Konto (``daten.TESTKONTEN_LEITUNG``, Rolle
+    „Mitglied"). Damit gibt es fuer Gruppenverantwortung, Kalender-Moderation
+    und Buchungsfreigabe eigene Personen — der Admin ist nirgends
+    verantwortlich, kann als System Manager aber weiterhin alles.
+
+    PASSWORT (Manuel 09.11.): Alle Testkonten haben DASSELBE Passwort wie
+    ``admin@example.org``. Dafuer wird beim Anlegen der PASSWORT-HASH des
+    Admin-Kontos uebernommen (falls es schon existiert), sonst das
+    dokumentierte Demo-Passwort gesetzt. Ein zweiter Lauf ueberschreibt NIE
+    das Passwort eines bestehenden Kontos — auch das des Admins nicht
+    (Manuel kann es geaendert haben).
+    """
     for name in ROLLEN:
         _rolle_anlegen(a, name)
 
     from diakronos_app.models.core import HasRole
 
-    for email, passwort in KONTEN.items():
+    # Reihenfolge: die Verwaltung zuerst — ihr Hash ist die Vorlage fuer die
+    # neuen Konten.
+    konten: list[tuple[str, str, str]] = [
+        (daten.ADMIN_EMAIL, daten.ADMIN_PASSWORT, daten.ADMIN_PERSON),
+        (daten.MITGLIED_EMAIL, daten.MITGLIED_PASSWORT, daten.MITGLIED_PERSON),
+    ]
+    for person in testkonten():
+        konten.append((konto_email(person), daten.MITGLIED_PASSWORT, person))
+
+    for email, passwort, voller_name in konten:
         vorhanden = a.s.get(User, email)
+        # Textlicher Befund 09.11.: „Alle Testkonten sollen DASSELBE Passwort
+        # wie admin@example.org haben." Dafuer wird der Hash des Admin-Kontos
+        # ERST HIER gelesen (nach dem Anlegen des Admins im selben Lauf) und
+        # an die neuen Konten uebergeben; ein bestehendes Konto wird nie
+        # angefasst.
+        vorlage_hash = None
+        if email != daten.ADMIN_EMAIL:
+            admin_zeile = a.s.get(User, daten.ADMIN_EMAIL)
+            vorlage_hash = admin_zeile.password_hash if admin_zeile is not None else None
         if vorhanden is None:
             if a.nur_pruefen:
                 a.zaehle("Konto", True)
@@ -340,18 +432,18 @@ def konten_anlegen(a: Anleger) -> None:
                 # und ein Konto namens „Administrator“ neben einer verknuepften
                 # Gemeindeleitung sieht aus wie „kein Mitglied“ (Befund PUB-2b/B2).
                 _benutzer_anlegen(
-                    a, email, passwort,
-                    daten.ADMIN_PERSON if email == daten.ADMIN_EMAIL
-                    else daten.MITGLIED_PERSON,
+                    a, email, passwort, voller_name,
+                    hash_vorlage=vorlage_hash,
                 )
         else:
             a.merke("Konto")
 
-    # Rollen: Admin bekommt alle Verwaltungsrollen, das Mitglied nur „Mitglied“.
-    for email, rollen in (
-        (daten.ADMIN_EMAIL, ROLLEN_ADMIN),
-        (daten.MITGLIED_EMAIL, ROLLEN_MITGLIED),
-    ):
+    # Rollen: Admin bekommt alle Verwaltungsrollen, alle uebrigen Konten nur
+    # „Mitglied“ (Anna ist das Kontrollkonto, die vier Leitungs-Konten tragen
+    # ihre Verantwortung ueber die Verantwortungszeilen, nicht ueber Rollen).
+    rollen_je_konto = [(daten.ADMIN_EMAIL, ROLLEN_ADMIN)]
+    rollen_je_konto += [(email, ROLLEN_MITGLIED) for email, _, _ in konten[1:]]
+    for email, rollen in rollen_je_konto:
         for idx, rolle in enumerate(rollen, start=1):
             name = f"{email}-{rolle}"
             if a.s.get(HasRole, name) is not None:
@@ -426,8 +518,10 @@ def mitglieder_anlegen(a: Anleger, stichtag: date) -> None:
             continue
         strasse, nummer = daten.strasse_fuer(i)
         email = daten.email_von(person["vorname"], person["nachname"])
-        if person.get("konto"):
-            email = daten.MITGLIED_EMAIL
+        # SEED-R1: Die E-Mail des Mitglieds ist die des KONTOS (die Sitzung
+        # ordnet darueber zu, siehe `mitglied_konten_verknuepfen`) — fuer die
+        # Leitungs-Konten also `vorname.nachname@example.org`; die Zuordnung
+        # setzt derselbe Schritt spaeter fuer alle Konten.
         geburtstag = date(stichtag.year - (28 + (i * 7) % 45), *person["geb"])
         werte = {
             "vorname": person["vorname"],
@@ -477,7 +571,7 @@ def beziehungen_anlegen(a: Anleger) -> None:
 
 
 def mitglied_konten_verknuepfen(a: Anleger) -> None:
-    """Die beiden Demo-Konten mit ihren Mitgliedern verbinden.
+    """Alle Demo-Konten mit ihren Mitgliedern verbinden.
 
     Zwei Schritte, weil `mitglied.user` ein Fremdschluessel auf `user` ist:
     zuerst muss das Konto existieren (in der Demo bringt es der Entrypoint
@@ -486,17 +580,22 @@ def mitglied_konten_verknuepfen(a: Anleger) -> None:
     auch ohne Entrypoint vollstaendig sein.
 
     Ohne Zuordnung antwortet ``profile.get_my_profile`` mit 417 („Deinem Konto
-    ist noch kein Mitglied zugeordnet“) — die Profilseite bliebe leer. Beide
-    Konten (Verwaltung und Mitglied) brauchen deshalb ein Mitglied.
+    ist noch kein Mitglied zugeordnet“) — die Profilseite bliebe leer. Jedes
+    Konto (Verwaltung, Mitglied und seit SEED-R1 die vier Leitungs-Konten)
+    braucht deshalb ein Mitglied.
     """
-    for email in (daten.MITGLIED_EMAIL, daten.ADMIN_EMAIL):
+    emails = [daten.MITGLIED_EMAIL, daten.ADMIN_EMAIL]
+    emails += [konto_email(person) for person in testkonten()]
+    for email in emails:
         if a.s.get(User, email) is None:
             konten_anlegen(a)
             a.abschluss()
             break
 
-    for email, person in ((daten.MITGLIED_EMAIL, daten.MITGLIED_PERSON),
-                          (daten.ADMIN_EMAIL, daten.ADMIN_PERSON)):
+    zuordnung = [(daten.MITGLIED_EMAIL, daten.MITGLIED_PERSON),
+                 (daten.ADMIN_EMAIL, daten.ADMIN_PERSON)]
+    zuordnung += [(konto_email(person), person) for person in testkonten()]
+    for email, person in zuordnung:
         # ID-1d: die Kennung vergibt der Server — `person` ist der Anzeigename.
         mitglied = a.s.get(Mitglied, person_kennung(person))
         if mitglied is None:
@@ -598,6 +697,8 @@ def kalender_anlegen(a: Anleger) -> None:
 
         # Moderator: das Admin-Konto moderiert jeden Kalender (darf damit
         # Termine festlegen — sonst blieben alle Termine „Vorschlag“).
+        # SEED-R1: bleibt bewusst so (Manuel 09.11.: „Kalender-Moderatoren
+        # NICHT neu verteilen“).
         zeilenname = f"{kal['name']}-moderator-admin"
         if a.s.get(KalenderModerator, zeilenname) is not None:
             a.merke("Kalender-Moderator")
@@ -610,9 +711,51 @@ def kalender_anlegen(a: Anleger) -> None:
         ))
 
 
+def _gruppenverantwortung(a: Anleger, gruppe: dict[str, Any]) -> None:
+    """Verantwortungszeile ``<gruppe>-verantwortlich`` setzen bzw. korrigieren."""
+    name = gruppe["name"]
+    # SEED-R1 — DER BEFUND: die Verantwortungszeile suchte das Mitglied mit
+    # dem ANZEIGENAMEN (`a.s.get(Mitglied, gruppe["leitung"])`) — fand nichts
+    # und fiel auf `ADMIN_EMAIL` zurueck. Ergebnis: der Testaccount war in
+    # JEDER Gruppe verantwortlich.
+    #
+    # Jetzt: Leitung -> Konto DIESER Person. Ohne Konto gibt es KEINE Zeile
+    # (die Leitung steht dann nur im Feld `leiter`) — der Admin ist nie
+    # Rueckfall. Eine BESTEHENDE Zeile wird nur angefasst, wenn sie auf den
+    # Admin zeigt (= Admin-Rueckfall des alten Seeds); von Hand gesetzte
+    # Verantwortliche bleiben unberuehrt.
+    zeilenname = f"{name}-verantwortlich"
+    zeile = a.s.get(GruppeVerantwortlicher, zeilenname)
+    konto = konto_von_person(gruppe["leitung"])
+    alt_admin = zeile is not None and zeile.user == daten.ADMIN_EMAIL
+    if zeile is None and konto is not None:
+        a.kind("Gruppenverantwortung", GruppeVerantwortlicher(
+            name=zeilenname, parent=name, parenttype="Gruppe",
+            parentfield="verantwortliche",
+            user=konto,
+            docstatus=0, idx=1, creation=a.zeitpunkt, modified=a.zeitpunkt,
+            owner="Administrator", modified_by="Administrator",
+        ))
+    elif alt_admin and konto is None:
+        if not a.nur_pruefen:
+            a.s.delete(zeile)
+            a.s.flush()
+        a.zaehle("Gruppenverantwortung entfernt", True)
+    elif alt_admin:
+        if not a.nur_pruefen:
+            zeile.user = konto
+            a.s.flush()
+        a.zaehle("Gruppenverantwortung korrigiert", True)
+    else:
+        a.merke("Gruppenverantwortung")
+
+
 def gruppen_anlegen(a: Anleger) -> None:
     for gruppe in daten.GRUPPEN:
         name = gruppe["name"]
+        # `gruppe.leiter` ist ein FREITEXT-Name (kein Fremdschluessel, siehe
+        # `dsgvo_anonymisierung`: „Leiter als Freitextname“) — er bleibt der
+        # Anzeigename der Leitung.
         if a.s.get(Gruppe, name) is not None:
             a.merke("Gruppe")
         elif not a.nur_pruefen:
@@ -631,18 +774,7 @@ def gruppen_anlegen(a: Anleger) -> None:
             a.s.flush()
             a.zaehle("Gruppe", True)
 
-        zeilenname = f"{name}-verantwortlich"
-        if a.s.get(GruppeVerantwortlicher, zeilenname) is None:
-            leiter = a.s.get(Mitglied, gruppe["leitung"])
-            a.kind("Gruppenverantwortung", GruppeVerantwortlicher(
-                name=zeilenname, parent=name, parenttype="Gruppe",
-                parentfield="verantwortliche",
-                user=(leiter.user if leiter is not None and leiter.user else daten.ADMIN_EMAIL),
-                docstatus=0, idx=1, creation=a.zeitpunkt, modified=a.zeitpunkt,
-                owner="Administrator", modified_by="Administrator",
-            ))
-        else:
-            a.merke("Gruppenverantwortung")
+        _gruppenverantwortung(a, gruppe)
 
         for idx, anzeige in enumerate(gruppe["mitglieder"], start=1):
             zeilenname = f"{name}-mitglied-{idx}"
@@ -1074,7 +1206,8 @@ def dienstplaene_anlegen(a: Anleger, stichtag: date) -> None:
     """
     ende = stichtag + timedelta(days=62)
     # Gruppe = Kennung aus `daten.GRUPPEN` (die Anzeigenamen „Chor“/
-    # „Kinderdienstteam“ sind NICHT die docnames), Leitung = Mitgliedsname.
+    # „Kinderdienstteam“ sind NICHT die docnames), Leitung = SERVER-Kennung
+    # der Mitglied-Person (`daten.DIENSTPLAN_LEITUNGEN`, wie konfiguriert).
     plaene = [
         ("Dienstplan Gottesdienst", "gottesdienst", "Chor", "Predigt und Moderation"),
         ("Dienstplan Kinderdienst", "kinder", "kinderdienst", "Einteilung im Kindergottesdienst"),
@@ -1094,8 +1227,7 @@ def dienstplaene_anlegen(a: Anleger, stichtag: date) -> None:
             "ist_entwurf": 0,
             "start_datum": stichtag.isoformat(),
             "ende_datum": ende.isoformat(),
-            "leitung": (person_kennung("Anna Beispiel") if bereich == "gottesdienst"
-                        else person_kennung("Susanne Gerlach")),
+            "leitung": person_kennung(daten.DIENSTPLAN_LEITUNGEN[name]),
             "kalender": "gottesdienste",
             "plan_anzahl_positionen": 3,
         })
@@ -1519,6 +1651,10 @@ def dienste_der_gemeindeleitung(dienst, plan_ids: dict[str, str],
     sind fuer das Verwaltungskonto leer, wenn es nur EINEN Einsatz hat. Eine
     Gemeindeleitung moderiert und leitet das Einsingen — abwechselnd ueber die
     Termine, ueber denselben Schreibweg wie der Plan-Editor.
+
+    SEED-R1: Das sind EINTRAEGE in Plaenen („wer tut was"), keine
+    Verantwortlichkeit — der Admin bleibt damit ueberall „eingeteilt", aber
+    nirgends Leitung/Moderator/Ansprechpartner (Karte SEED-R1).
     """
     from diakronos_app.models.planrahmen import Termin
 
@@ -2077,6 +2213,53 @@ def pruefe_leere_datenbank(session) -> None:
         )
 
 
+def nachziehen(nur_pruefen: bool = False, stichtag: date | None = None) -> str:
+    """SEED-R1: Eine BESTEHENDE Demo auf den neuen Stand nachziehen.
+
+    ``anlegen`` fuellt nur eine LEERE Datenbank (Betriebsschutz). Eine Demo, die
+    vor SEED-R1 entstanden ist, traegt den alten Stand: zwei Konten und den
+    Admin als Gruppen-Verantwortlichen (Admin-Rueckfall). Nachziehen macht
+    GENAU DAS und nichts sonst:
+
+    * fehlende Testkonten anlegen (Hash von ``admin@example.org``, bestehende
+      Konten/Passwoerter unberuehrt) und mit ihrem Mitglied verknuepfen,
+    * Gruppen-Verantwortungszeilen, die auf den Admin zeigen, auf das Konto der
+      Leitung umstellen bzw. (Leitung ohne Konto) entfernen.
+
+    Bewusst NICHT: Kalender, Dienstplaene, Website-Ansprechpartner, Mitglieder
+    — die Demo-DB wird nicht „aufgefuellt“ (keine neuen Zuweisungen,
+    Manuel 09.11.). Nur auf einer Musterhausen-Demo (Einstellungen-Marker).
+    """
+    from diakronos_app.db import SessionLocal
+
+    del stichtag  # Signatur wie ``anlegen``; Nachziehen legt nichts Datiertes an.
+    session = SessionLocal()
+    a = None
+    try:
+        einst = session.get(DiakronosEinstellungen, "Diakronos Einstellungen")
+        if einst is None or einst.organisationsname != daten.GEMEINDE:
+            raise DemoFehler(
+                "Nachziehen nur auf einer Musterhausen-Demo "
+                f"(Einstellungen.organisationsname == {daten.GEMEINDE!r}).")
+        if not kennungen_aus_datenbank(session):
+            raise DemoFehler("Keine Demo-Mitglieder gefunden — erst `anlegen`.")
+        a = Anleger(session, nur_pruefen=nur_pruefen)
+        konten_anlegen(a)
+        a.abschluss()
+        mitglied_konten_verknuepfen(a)
+        for gruppe in daten.GRUPPEN:
+            if a.s.get(Gruppe, gruppe["name"]) is not None:
+                _gruppenverantwortung(a, gruppe)
+        a.abschluss()
+        bericht = a.bericht()
+        _meldung(bericht)
+        return bericht
+    finally:
+        if a is not None:
+            a.schliessen()
+        session.close()
+
+
 def anlegen(nur_pruefen: bool = False, stichtag: date | None = None) -> str:
     """Legt die Demo-Gemeinde an (idempotent) und liefert einen Kurzbericht."""
     from diakronos_app.db import SessionLocal
@@ -2190,13 +2373,19 @@ def _demo_merkmale_vorhanden(session) -> list[str]:
 
     einst = session.get(DiakronosEinstellungen, "Diakronos Einstellungen")
     hat_einstellung = einst is not None and einst.organisationsname == daten.GEMEINDE
-    konto_da = {email: session.get(User, email) is not None for email in KONTEN}
+    konto_emails = [daten.MITGLIED_EMAIL, daten.ADMIN_EMAIL]
+    konto_emails += [konto_email(person) for person in testkonten()]
+    konto_da = {email: session.get(User, email) is not None for email in konto_emails}
     # Ein Demo-Mitglied genuegt als Beweis, dass hier eine Demo steht.
     namen = [f"{p['vorname']} {p['nachname']}"
              for p in list(daten.MITGLIEDER) + list(daten.MITGLIEDER_AUSGETRETEN)]
     vorhandene = session.scalars(select(Mitglied).where(
         Mitglied.vorname.in_([n.split()[0] for n in namen]))).all()
     hat_mitglied = any(f"{m.vorname} {m.nachname}" in namen for m in vorhandene)
+    # SEED-R1: ALLE Demo-Konten zaehlen — auf einer Demo-DB von vor SEED-R1
+    # fehlen die vier Leitungs-Konten und muessen nachgezogen werden.
+    emails = [daten.MITGLIED_EMAIL, daten.ADMIN_EMAIL]
+    emails += [konto_email(person) for person in testkonten()]
 
     if not (hat_einstellung or hat_mitglied or any(konto_da.values())):
         # Keine Spur der Demo: nichts zu schuetzen, aber auch nichts zu tun.
@@ -2205,8 +2394,10 @@ def _demo_merkmale_vorhanden(session) -> list[str]:
     fehlt: list[str] = []
     if not hat_einstellung:
         fehlt.append(f"Einstellungen.organisationsname == {daten.GEMEINDE!r}")
-    for email, person in ((daten.MITGLIED_EMAIL, daten.MITGLIED_PERSON),
-                          (daten.ADMIN_EMAIL, daten.ADMIN_PERSON)):
+    zuordnung = [(daten.MITGLIED_EMAIL, daten.MITGLIED_PERSON),
+                 (daten.ADMIN_EMAIL, daten.ADMIN_PERSON)]
+    zuordnung += [(konto_email(person), person) for person in testkonten()]
+    for email, person in zuordnung:
         if not konto_da.get(email):
             fehlt.append(f"Konto {email} fehlt")
             continue
@@ -2265,6 +2456,10 @@ def entfernen() -> str:
         # `person_kennung` brach ab (Blocker der Re-Review). Nicht gefundene
         # Personen werden uebersprungen (halb entfernte Demo bleibt aufraeumbar).
         demo_mitglieder = kennungen_aus_datenbank(session)
+
+        # SEED-R1: ALLE Demo-Konten (Verwaltung, Mitglied, vier Leitungs-Konten).
+        emails = [daten.MITGLIED_EMAIL, daten.ADMIN_EMAIL]
+        emails += [konto_email(person) for person in testkonten()]
 
         def weg(art: str, instanz: Any) -> None:
             session.delete(instanz)
@@ -2388,7 +2583,7 @@ def entfernen() -> str:
         #    erst die Konten-Loeschung brach dann am Fremdschluessel
         #    `audit_log_actor_fkey` (Befund DEMO-2, Nacharbeit).
         for zeile in session.scalars(select(AuditLog).where(
-                AuditLog.actor.in_(list(KONTEN)))).all():
+                AuditLog.actor.in_(emails))).all():
             zeile.actor = None
             geloescht["Audit-Akteur genullt"] = geloescht.get("Audit-Akteur genullt", 0) + 1
         session.flush()
@@ -2401,7 +2596,7 @@ def entfernen() -> str:
             _res = session.execute(
                 text(f"DELETE FROM {tabelle} WHERE {spalte} IN :p")
                 .bindparams(bindparam("p", expanding=True)),
-                {"p": list(KONTEN)},
+                {"p": list(emails)},
             )
             if _res.rowcount:
                 geloescht["Benachrichtigung"] = geloescht.get("Benachrichtigung", 0) + _res.rowcount
@@ -2474,7 +2669,7 @@ def entfernen() -> str:
         _res = session.execute(
             text('UPDATE mitglied SET "user" = NULL WHERE "user" IN :p')
             .bindparams(bindparam("p", expanding=True)),
-            {"p": list(KONTEN)},
+            {"p": list(emails)},
         )
         if _res.rowcount:
             geloescht["Mitglied-Konto"] = geloescht.get("Mitglied-Konto", 0) + _res.rowcount
@@ -2553,7 +2748,7 @@ def entfernen() -> str:
             geloescht["Gruppenverantwortung"] = geloescht.get("Gruppenverantwortung", 0) + _res.rowcount
 
         # Konten zuletzt (Rollen haengen daran).
-        for email in KONTEN:
+        for email in emails:
             for zeile in session.scalars(select(HasRole).where(HasRole.parent == email)).all():
                 weg("Rollenzeile", zeile)
             zeile = session.get(User, email)
@@ -2584,6 +2779,23 @@ def entfernen() -> str:
         if einst is not None:
             weg("Einstellungen", einst)
 
+        # SEED-R1: Verantwortungszeilen, die der FRUEHERE Seed auf das
+        # Verwaltungskonto gesetzt hat, verschwinden mit ihrer Gruppe (die
+        # Zeilen haengen per `parent` daran). Bleiben koennen Zeilen, die auf
+        # ein DEMO-Konto zeigen, ohne dass ihre Gruppe zur Demo gehoert (von
+        # Hand angelegt) — die werden hier ueber den Benutzer entfernt, damit
+        # die Konten-Loeschung nicht am Fremdschluessel scheitert. Personen-
+        # zeilen (`parent` = Mitglied) raeumt die Mitglied-Loeschung.
+        for tabelle in ("gruppe_verantwortlicher", "untergruppe_verantwortlicher",
+                        "dienstbereich_verantwortlicher"):
+            _res = session.execute(
+                text(f"DELETE FROM {tabelle} WHERE \"user\" IN :p")
+                .bindparams(bindparam("p", expanding=True)), {"p": list(emails)})
+            if _res.rowcount:
+                geloescht["Verantwortung (Konto)"] = (
+                    geloescht.get("Verantwortung (Konto)", 0) + _res.rowcount)
+        session.flush()
+
         session.commit()
         bericht = ", ".join(f"{art}: {n}" for art, n in sorted(geloescht.items())) or "nichts gefunden"
         _meldung(f"entfernt — {bericht}")
@@ -2602,15 +2814,26 @@ def main(argv: list[str] | None = None) -> int:
                         help="nur pruefen, was fehlt — nichts schreiben")
     gruppe.add_argument("--entfernen", action="store_true",
                         help="Demo-Daten wieder entfernen")
+    parser.add_argument("--nachziehen", action="store_true",
+                        help="bestehende Demo auf den Stand SEED-R1 nachziehen "
+                             "(Testkonten, Verantwortung ohne Admin); mit "
+                             "--pruefen nur zaehlen, nichts schreiben")
     parser.add_argument("--stichtag", default=None,
                         help="Referenztag JJJJ-MM-TT (Vorgabe: %s)" % daten.STANDARD_STICHTAG)
     args = parser.parse_args(argv)
+    if args.nachziehen and args.entfernen:
+        parser.error("--nachziehen und --entfernen schliessen sich aus")
 
     try:
         if args.entfernen:
             entfernen()
             return 0
         tag = date.fromisoformat(args.stichtag) if args.stichtag else None
+        if args.nachziehen:
+            nachziehen(nur_pruefen=args.pruefen, stichtag=tag)
+            if args.pruefen:
+                _meldung("Prueflauf ohne Schreibzugriff (alles zurueckgerollt).")
+            return 0
         anlegen(nur_pruefen=args.pruefen, stichtag=tag)
         if args.pruefen:
             _meldung("Prueflauf ohne Schreibzugriff (alles zurueckgerollt).")

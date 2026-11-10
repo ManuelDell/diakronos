@@ -170,7 +170,7 @@ def test_demo2_entfernen_bricht_ab_wenn_konten_nicht_zur_demo_gehoeren(
         # Nichts geloescht, nichts genullt — der Abbruch kam vor dem DELETE.
         assert _zaehle(s, "mitglied") >= 40
         assert _zaehle(s, "gruppe") > 0
-        assert _zaehle(s, "user") == 2
+        assert _zaehle(s, "user") == 6   # SEED-R1: Verwaltung, Mitglied, 4 Leitungs-Konten
         assert _zaehle(s, "audit_log", "actor IS NULL") == 0
 
 

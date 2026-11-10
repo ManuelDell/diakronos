@@ -383,7 +383,7 @@ Reine Unit-Tests ohne laufenden Stack:
 docker run --rm --entrypoint bash <app-image> -c 'cd /app && python -m pytest -q -o timeout_method=signal'
 ```
 
-**Demo-Daten.** `tools/demo/musterhausen.py` füllt eine **leere** Datenbank mit einer vollständig erfundenen Gemeinde „Musterhausen“: Mitglieder, Familien, Gruppen, Räume, Kalender mit Terminen, Lieder, Dienst- und Ablaufpläne, zwei Konten (Administrator und Mitglied). Das Skript arbeitet über die echten Modelle und Dienste der Anwendung und verweigert eine Datenbank, die bereits Mitglieder enthält — es kann also nicht versehentlich in einen Betriebsbestand schreiben.
+**Demo-Daten.** `tools/demo/musterhausen.py` füllt eine **leere** Datenbank mit einer vollständig erfundenen Gemeinde „Musterhausen“: Mitglieder, Familien, Gruppen, Räume, Kalender mit Terminen, Lieder, Dienst- und Ablaufpläne, sechs Konten (Administrator, Mitglied und vier Gruppenleitungen — siehe `tools/demo/TESTKONTEN.md`). Das Skript arbeitet über die echten Modelle und Dienste der Anwendung und verweigert eine Datenbank, die bereits Mitglieder enthält — es kann also nicht versehentlich in einen Betriebsbestand schreiben.
 
 ```bash
 docker compose exec app python tools/demo/musterhausen.py             # anlegen (idempotent)

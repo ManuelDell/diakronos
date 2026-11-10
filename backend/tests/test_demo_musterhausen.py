@@ -207,10 +207,23 @@ def test_demo_adressen_und_konten(demo):
         strasse, nummer = demo.daten.strasse_fuer(i)
         assert strasse and nummer.isdigit()
         assert demo.daten.telefon_fuer(i).startswith("0123 456789-")
-    assert demo.KONTEN == {
+    # SEED-R1: Konten der BESTEHENDEN Leitungs-Personen kommen hinzu (Rolle
+    # „Mitglied", Adresse = Mitgliedsadresse). Die beiden Grundkonten bleiben
+    # mit dem dokumentierten Demo-Passwort.
+    erwartet = {
         "admin@example.org": demo.daten.ADMIN_PASSWORT,
         "anna.beispiel@example.org": demo.daten.MITGLIED_PASSWORT,
     }
+    for person, konto in demo.testkonten().items():
+        erwartet[konto] = demo.daten.MITGLIED_PASSWORT
+        assert konto == demo.konto_email(person)
+    assert set(erwartet) == {
+        "admin@example.org", "anna.beispiel@example.org",
+        "rebekka.fink@example.org", "samuel.fink@example.org",
+        "susanne.gerlach@example.org", "niklas.jaeger@example.org",
+    }
+    assert set(demo.testkonten()) == {"Rebekka Fink", "Samuel Fink",
+                                      "Susanne Gerlach", "Niklas Jäger"}
 
 
 def test_demo_gottesdienste_ueber_zwei_monate(engine, session_factory, demo):

@@ -48,6 +48,29 @@ ADMIN_PERSON = "Miriam Sonnleitner"
 MITGLIED_PERSON = "Anna Beispiel"
 MITGLIED_EMAIL = "anna.beispiel@example.org"
 MITGLIED_PASSWORT = "musterhausen-demo"  # noqa: S105 — Demo-Konto, oeffentlich, Testwert
+
+#: SEED-R1: Testkonten fuer BESTEHENDE Personen mit konfigurierter Leitung.
+#: Manuel (09.11.): „Nutze die bestehenden Rollenverteilungen, die bereits
+#: konfiguriert sind. Kreiere fuer den Test keine neuen." Es entstehen also
+#: KEINE neuen Personen und KEINE neuen Verantwortlichkeiten — die vier
+#: Personen unten leiten bereits (``GRUPPEN[..]["leitung"]`` bzw.
+#: ``DIENSTPLAN_LEITUNGEN``) und tragen musikalisch/kinderdienstlich
+#: vorhandene Merkmale; sie bekommen genau deshalb ein Konto.
+#: ``person`` ist der Anzeigename; die Adresse ist die des Mitglieds, sonst
+#: ``vorname.nachname@example.org``. Rolle: nur „Mitglied" (wie Anna).
+TESTKONTEN_LEITUNG: list[dict[str, str]] = [
+    {"person": "Rebekka Fink", "konto": "Mitglied"},
+    {"person": "Samuel Fink", "konto": "Mitglied"},
+    {"person": "Susanne Gerlach", "konto": "Mitglied"},
+    {"person": "Niklas Jäger", "konto": "Mitglied"},
+]
+
+#: Dienstplan-Leitungen (``dienstplan.leitung`` = Mitglied-Kennung) — so wie
+#: sie im Bestand konfiguriert sind (Manuel 09.11.: keine Neuverteilung).
+DIENSTPLAN_LEITUNGEN: dict[str, str] = {
+    "Dienstplan Gottesdienst": "Anna Beispiel",
+    "Dienstplan Kinderdienst": "Susanne Gerlach",
+}
 ORT = "Musterhausen"
 PLZ = "12345"
 TELEFON_VORWAHL = "0123 456789"
@@ -652,11 +675,10 @@ WEBSITE_ANSPRECHPARTNER: list[dict[str, Any]] = [
 #: Gemeinde oft will.
 WEBSITE_EINWILLIGUNG: list[dict[str, str]] = [
     {"person": "Anna Beispiel", "anzeigename": "Anna"},
-    # Miriam traegt das Verwaltungskonto — der Verantwortliche einer Gruppe
-    # ist ein BENUTZER (`gruppe_verantwortlicher.user`), und “Chor” hat im
-    # Demo-Bestand die Verwaltung als Leitung. Ohne Konto gaebe es keine
-    # Person, die zustimmen koennte.
-    {"person": "Miriam Sonnleitner", "anzeigename": "Miriam"},
+    # SEED-R1: „Chor" leitet Rebekka Fink und traegt seit SEED-R1 ein eigenes
+    # Konto — die Einwilligung gehoert der Person, die den Chor verantwortet
+    # (vorher stand hier das Verwaltungskonto: Folge des Admin-Rueckfalls).
+    {"person": "Rebekka Fink", "anzeigename": "Rebekka"},
 ]
 
 #: (Art, Kennung, Person) — wer den Bereich auf der Website vertritt. Die
@@ -664,7 +686,9 @@ WEBSITE_EINWILLIGUNG: list[dict[str, str]] = [
 #: (genau das soll die Demo vorfuehren koennen).
 WEBSITE_ZUSTAENDIG: list[dict[str, str]] = [
     {"art": "dienstbereich", "funktion": "musik", "person": "Anna Beispiel"},
-    {"art": "gruppe", "funktion": "Chor", "person": "Miriam Sonnleitner"},
+    # SEED-R1: Chor wird von Rebekka Fink geleitet (Rebekka traegt seit SEED-R1
+    # ein Konto) — der Bereich braucht eine Person, die zustimmen kann.
+    {"art": "gruppe", "funktion": "Chor", "person": "Rebekka Fink"},
 ]
 
 BEITRAEGE: list[dict[str, str]] = [
@@ -850,6 +874,7 @@ __all__ = [
     "BEITRAEGE", "GEMEINDE", "GRUPPEN", "GRUPPENTYPEN", "KALENDER", "LIEDER", "MERKMALE_PERSON",
     "MITGLIEDER", "MITGLIEDER_AUSGETRETEN", "MITGLIED_EMAIL", "MITGLIED_PASSWORT",
     "MITGLIED_PERSON", "MONATE", "ORT", "PLAN_TITEL",
+    "TESTKONTEN_LEITUNG", "DIENSTPLAN_LEITUNGEN",
     "PLANTYPEN", "PLAN_PARAMETER", "PLZ", "PREDIGTREIHE", "PROGRAMME", "RESSOURCEN",
     "STANDARD_STICHTAG", "VEROEFFENTLICHTE_PLAENE", "WIDGETS", "WIKI_ARTIKEL",
     "GRUPPE_HAUSKREIS", "MUSIKTEAMS", "MUSIKTEAMS_OBERGRUPPE",
