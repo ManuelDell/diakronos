@@ -151,14 +151,20 @@ test('A10: der schwebende Knopf hat in Hell UND Dunkel eine lesbare Fläche', ()
   const seite = lies('pages/Kalender.vue')
   // Die Fläche ist ein eigenes Token (Navy), NICHT `--primary`: das ist im
   // Dunkelmodus Weiß und ergab mit weißer Schrift eine leere weiße Pille.
-  assert.match(tokens, /--marke-flaeche:\s*var\(--dk-navy-500\)/, 'Fläche = Marken-Navy')
+  // A10-N3 (Punkt 3, 10.11.): Die Zusage gilt unverändert — nur heißt das
+  // Token des FAB jetzt `--fab-flaeche`. Es steht in BEIDEN Themes im Hell-
+  // bzw. Dunkelblock getrennt, weil im Dunkeln der 2-px-Dauerring entfallen
+  // ist (er wirkte fremd) und die Fläche selbst tragen muss.
+  assert.match(tokens, /--marke-flaeche:\s*var\(--dk-navy-500\)/, 'Markenfläche = Navy')
   assert.match(tokens, /--marke-ink:\s*#ffffff/, 'Schrift auf der Markenfläche weiß')
+  assert.match(tokens, /--fab-flaeche:\s*var\(--dk-navy-500\)/, 'FAB-Fläche hell = Navy')
+  assert.match(tokens, /--fab-ink:\s*#ffffff/, 'FAB-Schrift hell = weiß')
   const fab = seite.slice(seite.indexOf('.kal-fab {'))
-  assert.match(fab.slice(0, 900), /background:\s*var\(--marke-flaeche\)/,
-    'FAB nimmt die Markenfläche, nicht --primary')
-  assert.ok(!/background:\s*var\(--primary\)/.test(fab.slice(0, 900)),
+  assert.match(fab.slice(0, 1200), /background:\s*var\(--fab-flaeche\)/,
+    'FAB nimmt die FAB-Fläche (Marken-Navy), nicht --primary')
+  assert.ok(!/background:\s*var\(--primary\)/.test(fab.slice(0, 1200)),
     'FAB darf NICHT --primary tragen (im Dunkeln weiß)')
-  assert.ok(!/var\(--primary-hover\)/.test(fab.slice(0, 900)), 'auch der Hover bleibt bei der Marke')
+  assert.ok(!/var\(--primary-hover\)/.test(fab.slice(0, 1200)), 'auch der Hover bleibt bei der Marke')
 
   // Kontrast nachrechnen: #1c2850 gegen #ffffff.
   const kontrast = (a, b) => {

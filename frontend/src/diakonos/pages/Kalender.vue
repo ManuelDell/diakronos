@@ -1597,25 +1597,45 @@ defineExpose({
    Attribut, das @event-calendar 5.18 NICHT setzt (im Browser geprüft:
    `dataEcEvent: 0`). Die Regel lief damit ins Leere, und der Monat zeigte
    weiter 47×16-px-Chips mit „Ch…“. Das Element heißt `article.ec-event`
-   (Klassen `ec-event ec-chip-event ec-draggable`, `data-event-id`) — daran
-   hängen jetzt BEIDE Achsen (Monat und Zeitraster).
+   (Klassen `ec-event ec-chip-event ec-draggable`, `data-event-id`).
+   A10-N3 (Punkt 6, im Browser gemessen): Der Wähler gilt jetzt NUR für das
+   MONATSRASTER. Vorher traf `.ec-event` auch die Wochenblöcke — die Woche war
+   deshalb leer, obwohl Termine da sind (und der automatische Scroll lief ins
+   Nichts).
 
    `!important` ist nötig und begründet: `kronos.css` gibt
    `.ec-event.ec-chip-event` (0-2-0) eine `display`-Regel für die Chips des
    DESKTOPS (A4); diese Regel steht global und gewinnt sonst gegen den
-   `:deep`-Wähler der Seite. Sie gilt ausschließlich unterhalb der
-   Layout-Grenze (max-width 720px), der Desktop bleibt unberührt. */
-.kal-mobil-raster :deep(.ec-event) { display: none !important; }
+   `:deep`-Wähler der Seite. Der Monat bleibt unberührt, weil sein Punkt-/
+   Tages-Modell (A10) die Chips in den Zellen nicht braucht. */
+.kal-mobil-raster :deep(.ec-month-view .ec-event) { display: none !important; }
 /* A10 (Review 09.11., Punkt 4, Wochenansicht): Am Handy sind sieben
-   Tagesspalten à ~50 px — jeder Terminblock stand dort als „G… 1…“ da,
-   Titel und Uhrzeit also unlesbar. Der perfekte Titel-ANFANG ist in 50 px
-   nicht zu haben, und ein Ausschnitt „G…“ hilft niemandem: deshalb bleibt
-   im Zeitraster nur die TAGESSTRUKTUR (Wochentag + Datum, Stundenleiste)
-   sichtbar, und die Termine zeigt die Liste — dort stehen sie vollständig
-   und antippbar. Der Tipp auf den Tag führt über den vorhandenen
-   `dateClick` in die Tagesliste (Entwurf A10: „Tipp auf Tag → Tagesliste“).
+   Tagesspalten à ~50 px. A10-N3 (Punkt 6, 10.11.): Die Terminblöcke waren
+   dort komplett AUSGEBLENDET (`display: none`) — die Woche zeigte nur ein
+   leeres Raster, und der Befund „Termine liegen abends, man sieht nichts“
+   war in Wahrheit gar nicht scrollbar. Sie sind jetzt wieder sichtbar,
+   aber auf das Nötigste eingedampft: der Block trägt nur die ANFANGSZEIT
+   (`KronosCalendar` rendert für das Zeitraster Titel + Zeit; in der engen
+   Lage fällt der Titel weg, s. `.ec-block-titel` unten). Der VOLLE Titel
+   steht im `title`/`aria-label` und in der Tagesliste unter dem Mini-Monat.
    Desktop (Woche = A4) ist unberührt. */
-.kal-mobil-raster :deep(.ec-time-grid .ec-event) { display: none !important; }
+.kal-mobil-raster :deep(.ec-time-grid .ec-block-titel) { display: none; }
+/* In der engen Lage sitzt die Uhrzeit allein im Block, oben ausgerichtet —
+   der Block bleibt so hoch wie die DAUER (die Bibliothek setzt die Höhe).
+   A10-N3 (im Browser gemessen, 10.11.): In einer ~50-px-Spalte wurden aus
+   „19:30–21:30“ nur „19:…“ — die Zeit wird deshalb beim Aufbau des Rasters
+   gekürzt (siehe `wochenStart.engeZeit`: nur die Anfangszeit „19:30“).
+   Sie steht linksbündig in einer Zeile, ohne Ellipse. */
+.kal-mobil-raster :deep(.ec-time-grid .ec-block) {
+  padding: 0 var(--sp-1);
+  justify-content: flex-start;
+  font-size: var(--fs-sm);
+  line-height: 1.2;
+}
+.kal-mobil-raster :deep(.ec-time-grid .ec-block-zeit) {
+  font-size: var(--fs-sm);
+  text-overflow: clip;
+}
 /* Die Termine bleiben aber als PUNKTE je Tag sichtbar: sonst sähe ein Tag
    mit drei Terminen aus wie ein leerer. Die Punkte zeichnet die Bibliothek
    NICHT — `KronosCalendar.tagesPunkteNachtragen()` markiert jeden Tag mit
@@ -1647,6 +1667,25 @@ defineExpose({
   margin: var(--sp-1) auto 0;
   border-radius: var(--badge-r);
   background: var(--primary);
+}
+/* A10-N3 (Punkt 4): Die HEUTIGE Zelle im Monatsraster ist auch im Dunkeln
+   deutlich zu sehen. Vorher kam die Fläche aus `--ec-today-bg-color` =
+   `--heute-flaeche` — seit A10-N2 im Dunkeln Weiß 5 % auf #0a0e22 (1,15:1),
+   praktisch schwarz; hell dagegen ein warmes Beige. Die Zelle nimmt deshalb
+   das Themeneigene TOKEN `--heute-zelle` (hell: Gold-Beige, dunkel: ruhiges
+   Navy-Grau, an derselben Stelle gepflegt) — gleiche Logik in beiden Themes:
+   Fläche ruhig sichtbar, kein Rahmen, kein Muster. Nur die Monatszelle:
+   die Wochenspalte behält `--ec-today-bg-color` (`--heute-flaeche`). */
+.kal-mobil-raster :deep(.ec-month-view .ec-day.ec-today) {
+  --ec-day-bg-color: var(--heute-zelle);
+}
+/* Dazu trägt die ZAHL den Tag mit: fett (Farbe ist nie alleiniger Träger,
+   Prinzip Ä4). Gilt in beiden Themes.
+   A10-N3 (Review-Nacharbeit, Punkt 7): Der Kommentar sagte „fett +
+   unterstrichen“ — unterstrichen war nie umgesetzt. Es bleibt bei Fett
+   (die Zusage stimmt jetzt mit dem Code überein). */
+.kal-mobil-raster :deep(.ec-month-view .ec-day.ec-today .ec-day-head) {
+  font-weight: var(--fw-fett);
 }
 
 /* OP-HANDY-9: Im Querformat darf der Inhalt scrollen, damit das Monatsraster
@@ -1782,25 +1821,28 @@ defineExpose({
   border-radius: var(--badge-r);
   /* A10 (Review 09.11., Punkt 1): die FLÄCHE ist das Marken-Navy aus dem
      Token — NICHT `--primary`: das ist im Dunkelmodus Weiß, und mit der
-     weißen Schrift ergäbe das eine leere weiße Pille. `--marke-flaeche`
-     bleibt in beiden Themes navy (#1c2850) → 14,7:1 mit --marke-ink. */
-  background: var(--marke-flaeche);
-  /* A10: dunkles Navy mit weißer Schrift in BEIDEN Themes (der Akzent ist im
-     Dunkelmodus Gold; dort wäre Weiß auf Gold unlesbar, und der Entwurf zeigt
-     den Knopf als dunkle Pille). Die Schriftfarbe steht als Token. */
-  color: var(--marke-ink);
+     weißen Schrift ergäbe das eine leere weiße Pille.
+     A10-N3 (Punkt 3): Im Dunkelmodus lag um die Pille ein 2-px-Hellblau-Ring
+     (aus A10-N2), weil Navy auf der dunklen Fläche nur 1,16:1 hatte — der
+     Ring wirkte wie ein fremdes Bedienelement. Jetzt trägt sich die FLÄCHE
+     selbst: `--fab-flaeche` ist im Dunkeln ein aufgehelltes Navy
+     (#2b3a6b, 2,6:1 gegen die Karte / ≥ 3:1 gegen die Seitenfläche), hell
+     bleibt sie das Marken-Navy. KEIN Dauer-Ring mehr; Kontrast für die
+     Tastatur gibt es nur bei `:focus-visible` (Regel darunter). */
+  background: var(--fab-flaeche);
+  /* A10: dunkles Navy mit heller Schrift. Die Schriftfarbe steht als Token
+     (`--fab-ink`: hell weiß, dunkel das helle Navy-100 — Weiß auf dem
+     aufgehellten Navy ergäbe 6,0:1, Navy-100 8,1:1). */
+  color: var(--fab-ink);
   font: inherit;
   font-size: var(--fs);
   font-weight: var(--fw-fett);
   box-shadow: var(--shadow-md);
   cursor: pointer;
-  /* A10-N2 (Punkt 3): Im Dunkeln hebt sich Navy kaum von der Fläche ab
-     (1,16:1) — der Ring aus dem Token macht den EINEN Primärknopf sichtbar
-     (hell: 0 px, dunkel: 2 px hellblau = 8,6:1 gegen die Fläche). */
-  outline: var(--marke-ring-breite) solid var(--marke-ring);
-  outline-offset: var(--marke-ring-breite);
 }
-.kal-fab:hover { background: var(--marke-flaeche-hover); }
+.kal-fab:hover { background: var(--fab-flaeche-hover); }
+/* A10-N3 (Punkt 3): Fokusring NUR bei Tastaturbedienung — im Ruhezustand
+   trägt die Fläche (kein „fremder“ Ring mehr). */
 .kal-fab:focus-visible { outline: var(--ring-breite) solid var(--focus-ring); outline-offset: var(--sp-1); }
 /* DEV-B6: Der FAB steht nur im Mobil-Bau (Handy-Lage).
    DEV-B6b (Review 10.11., Punkt 6): Im Querformat lag er mit `bottom: 16px`

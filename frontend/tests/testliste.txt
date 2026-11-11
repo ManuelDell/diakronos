@@ -286,6 +286,18 @@ tests/ux3i4-*.test.mjs
 # Attribut), Punkte je Tag, Prüf-Zeile ohne 0, Ring im Dunkelmodus, Häkchen
 # am Standard-Menüpunkt, ⋯ in der Kartenzeile, Leserecht im Demo-Seed.
 tests/a10-*.test.mjs
+# A10-N3 (10.11.): Feinschliff nach Live-Sichtprüfung — Mini-Monat (Punkt dicht
+# unter der Zahl, Kartenrand unten mit Luft), Dev-Abzeichen verdeckt keine
+# Bedienelemente, Wochenansicht scrollt zum ersten Termin/Tageszeit mit Abstand
+# unter der Kopfzeile. Datei heißt `a10n3-*` (das Muster oben verlangt „a10-“).
+tests/a10n3-*.test.mjs
+# A10-N4 (11.11.): Review-Nacharbeit — Punkt am GEWÄHLTEN Mini-Monat-Tag
+# sichtbar (kein Weiß auf Weiß), Wochen-Sprung rechnet mit Stundenhöhe
+# (slot-height × Periodizität) bzw. Beschriftungs-Offset und der FRÜHESTEN
+# Uhrzeit der Woche, das Sprung-Flag wartet auf Termine/Quelle/Nutzer-Scroll
+# statt auf den ersten Frame, Dev-Abzeichen komplett auf main-Stand, und
+# --heute-flaeche/--heute-zelle sind in hell UND dunkel deckend.
+tests/a10n4-*.test.mjs
 # A11: Termin-Blatt auf dem Handy nach Entwurf A11 — Tipp auf einen Termin
 # öffnet ein Blatt von unten (Kalender 42 % abgedunkelt), Titel · Zeit · Ort ·
 # Kalender · Beschreibung · Status; „Freigeben“ als EINER Primärknopf,

@@ -29,6 +29,8 @@ import { chipText, chipTitel, chipStil, zeitBlockText } from './chipText.mjs'
 // DEV-B6 (Review 10.11.): Die Handy-Lage kommt aus der EINEN Quelle der App.
 import { istEngeBreite } from './breiten.mjs'
 import { useHandyLage } from '../../composables/handyLage.mjs'
+// A10-N3 (Punkt 6): Startstunde der Wochenansicht am Handy (reine Rechnung).
+import { startStunde, beschriftungsVersatz, stundenHoehe, scrollZiel, sprungEntscheidung, engeZeit } from './wochenStart.mjs'
 
 const EventCalendar = _EC.default?.create ? _EC.default : (_EC.create ? _EC : null)
 
@@ -583,6 +585,137 @@ function wochenPunkteNachtragen() {
   }
 }
 
+/**
+ * A10-N3 (Punkt 6) — Wochenansicht am Handy zum ERSTEN TERMIN scrollen.
+ *
+ * BEFUND: Die Woche startete bei 6:00, die Termine liegen abends — der
+ * Bildschirm war leer. Und „6:00“ klebte an der Kopfzeile.
+ *
+ * Die STARTSTUNDE rechnet `wochenStart.startStunde` (reine Funktion, im Test
+ * ausgeführt): erster Termin der Woche minus eine Stunde, sonst die aktuelle
+ * Uhrzeit minus eine Stunde. Hier wird nur auf das DOM angewendet — am
+ * Scroll-Container der Bibliothek (`.ec-slots`), weil die Stundenspalte und
+ * die Tagesspalten darin gemeinsam rollen.
+ *
+ * Gilt NUR in der Handy-Lage: am Desktop zeigt die Woche den ganzen Tag, dort
+ * wird nicht gescrollt. Und der Sprung passiert EINMAL je Aufbau (Flag aus
+ * `datesSet`) — nicht bei jedem gezeichneten Termin.
+ */
+function wochenStartHerrichten() {
+  const kal = calendarEl.value
+  if (!kal) return
+  const raster = kal.querySelector('.ec-week-view')
+  if (!raster) return
+  // A10-N3 (Review-Nacharbeit, Punkt 3): KEIN Innenabstand am Scroll-Container
+  // mehr. `paddingBlockStart` auf `.ec-main` schob den Inhalt unter der
+  // `position: sticky`-Kopfzeile durch — die Stundenzeilen liefen ÜBER die
+  // Tageskopfzeile (Desktop wie Handy). Der Versatz für die angeschnittene
+  // erste Beschriftung steckt jetzt im Scroll-Ziel (s. u.).
+  const scroller = raster.querySelector('.ec-main') || raster
+  // A10-N4 (Punkt B/C): Die Handy-Lage kommt aus DERSELBEN Quelle wie das CSS —
+  // der Klasse `.dk-app--handy` an der App-Hülle (`composables/handyLage.mjs`
+  // setzt sie, das Gerüst hängt daran). Der reaktive Wert allein genügte im
+  // Abnahmelauf nicht (der Sprung lief nie), die Klasse ist die Wahrheit, die
+  // auch die Darstellung benutzt. Zusätzlich bleibt die Rechnung geprüft.
+  if (!handyLage.value && !kal.closest('.dk-app--handy')) return
+  // A10-N3 (Review-Nacharbeit, Punkt 6-Nachfix): Die Stundenbeschriftungen der
+  // Bibliothek heißen `.ec-slot` und stehen im Seitenbereich der Zeitachse
+  // (`.ec-time-grid .ec-sidebar`, s. `@event-calendar/core`). Der frühere
+  // Wähler `.ec-time` existiert NICHT — die Stundenliste war leer, der Sprung
+  // fiel auf 0 zurück. Die Stunde kommt aus dem Text der Beschriftung.
+  const beschriftungen = [...raster.querySelectorAll('.ec-time-grid .ec-slot, .ec-sidebar .ec-slot')]
+  const stunden = beschriftungen
+    .map((el) => {
+      const treffer = /^(\d{1,2}):/.exec((el.textContent || '').trim())
+      return treffer ? Number(treffer[1]) : null
+    })
+    .filter((s) => s !== null)
+  // Doppelte Beschriftungen (die Bibliothek kann sie mehrfach rendern) auf
+  // ihre Reihenfolge reduzieren — `indexOf` braucht die STUNDENZAHL.
+  const uniqueStunden = stunden.filter((s, i) => stunden.indexOf(s) === i)
+  const termine = [...raster.querySelectorAll('article.ec-event')].map((el) => ({
+    start: el.getAttribute('data-dk-start') || '',
+    allDay: el.hasAttribute('data-dk-ganztag'),
+  }))
+  const stunde = startStunde({ termine, jetzt: new Date(), stunden: uniqueStunden })
+  // A10-N4 (Punkt B): Höhe einer STUNDE, nicht eines Slots. Die Bibliothek
+  // setzt `--ec-slot-height` je Slot (30 min) und beschriftet nur jeden
+  // zweiten (`--ec-slot-label-periodicity`). Beide Werte werden vom SELBEN
+  // Element gelesen.
+  const roh = scroller.style.getPropertyValue('--ec-slot-height')
+    || getComputedStyle(scroller).getPropertyValue('--ec-slot-height')
+  const periodizitaet = scroller.style.getPropertyValue('--ec-slot-label-periodicity')
+    || getComputedStyle(scroller).getPropertyValue('--ec-slot-label-periodicity')
+  const hoehe = stundenHoehe(roh, periodizitaet)
+  if (!uniqueStunden.length) return
+  const index = Math.max(0, uniqueStunden.indexOf(stunde))
+  // A10-N3 (Review-Nacharbeit, Punkt 3): Ein HALBER Zeilenversatz nach oben,
+  // damit die erste Beschriftung („19:00“) vollständig unter der Kopfzeile
+  // steht statt an ihr zu kleben — die Bibliothek setzt sie mit
+  // `inset-block-start: -.5lh` über ihre Stundenlinie.
+  const zeilenHoehe = Number.parseFloat(
+    getComputedStyle(raster).getPropertyValue('line-height'),
+  ) || Number.parseFloat(getComputedStyle(scroller).lineHeight) || 0
+  const versatz = beschriftungsVersatz(zeilenHoehe)
+  // A10-N4 (Punkt B): Vorrang hat der echte OFFSET der Ziel-Beschriftung —
+  // er ist die Wahrheit der Bibliothek, egal wie Slots/Kopfzeilen gerechnet
+  // werden. `offsetTop` wird NICHT um `offsetParent` korrigiert: im Browser
+  // gemessen (390×844) liefert `.ec-slot` mit `offsetTop` bereits den Abstand
+  // ab Inhaltsbeginn (9:00 → 422 bei 48-px-Stunden ab 0:00 = 8 × 48 + halbe
+  // Beschriftung), während `offsetParent` (`.ec-sidebar`) selbst schon
+  // verschoben ist — ein Abzug machte das Ziel zu klein (Befund: Woche stand
+  // bei 9:00 statt darüber). Ohne Beschriftung wird aus der Stundenhöhe
+  // gerechnet.
+  const zielEl = beschriftungen.find((el) => {
+    const treffer = /^(\d{1,2}):/.exec((el.textContent || '').trim())
+    return treffer ? Number(treffer[1]) === stunde : false
+  })
+  const ziel = scrollZiel({
+    offsetTop: zielEl ? zielEl.offsetTop : null,
+    index,
+    stundenHoehe: hoehe,
+    versatz,
+  })
+  if (zielEl || hoehe) _scrollSetzen(scroller, ziel)
+}
+
+/**
+ * A10-N4 (Punkt B/C) — Ziel setzen und nachziehen.
+ *
+ * Die Bibliothek setzt ihre EIGENE Scroll-Position („scrollTime“) im selben
+ * Aufbau NACH uns — im Abnahmelauf wurde unser Ziel (699 px) sofort wieder
+ * auf 276 px zurückgesetzt. Deshalb wird das Ziel in den nächsten Frames
+ * erneut gesetzt: der letzte Schreibvorgang gewinnt. Greift der Nutzer in
+ * dieser Zeit selbst ein (`_nutzerScroll`), wird NICHT mehr nachgezogen.
+ *
+ * Review A10-N4: Nutzer-Scroll wird NICHT mehr am `scroll`-Ereignis erkannt —
+ * das feuert auch beim Scroll der Bibliothek (scrollTime) und beim eigenen
+ * Setzen; während der Sprung auf die Quelle wartete, hätte der
+ * Bibliotheks-Scroll den Sprung als „Nutzer-Scroll“ geschlossen. Erkannt wird
+ * jetzt die EINGABE (s. `onMounted`: wheel/touchmove/Tasten/Scrollleiste).
+ */
+function _scrollSetzen(scroller, ziel) {
+  scroller.scrollTop = ziel
+  for (const ms of [0, 60, 160, 320]) {
+    setTimeout(() => {
+      if (!_nutzerScroll) scroller.scrollTop = ziel
+    }, ms)
+  }
+}
+
+/** Einmal je Aufbau: „darf als Nächstes gescrollt werden?“. */
+let _startScrollOffen = true
+/** A10-N4 (Punkt C): Ist die Quelle dieses Aufbaus fertig geladen? */
+let _quelleGeladen = false
+/** A10-N4 (Punkt C): Hat der Nutzer selbst gescrollt (dann kein Sprung mehr)? */
+let _nutzerScroll = false
+/** A10-N4 (Punkt C): Aufbau-Erkennung: Ansicht + Datum des letzten Aufbaus. */
+let _letzterAufbau = ''
+/** A10-N4 (Punkt C): Kennung des letzten Aufbaus (für späte Quellen-Meldungen). */
+let _aufbauNr = 0
+/** A10-N4 (Punkt C): Nachlauf-Zeitgeber des Sprungs (nicht mehrfach starten). */
+let _sprungLauf = false
+
 /** Nach jedem Aufbau einplanen (rAF + kurzer Nachlauf, wie die „+n“-Zeilen). */
 let _punkteGeplant = false
 function _tagesPunktePlanen() {
@@ -601,7 +734,59 @@ function _tagesPunktePlanen() {
   } else {
     Promise.resolve().then(lauf)
   }
+  // A10-N4 (Punkt C): Der Sprung läuft in EIGENEM Takt weiter, solange er
+  // offen ist — `_tagesPunktePlanen` wird nur bei `datesSet`/`eventDidMount`
+  // angestoßen, und beim Umschalten von Monat auf Woche fehlt genau dieser
+  // Anstoß (Befund im Abnahmelauf: der Sprung lief nie, es blieb beim
+  // Bibliotheks-Scroll von 276 px).
+  _sprungVersuchen()
 }
+
+const SPRUNG_NACHLAUF_MS = 120
+const SPRUNG_VERSUCHE = 25
+
+/**
+ * A10-N4 (Punkt C) — Einmaliger Sprung, der auf die Termine WARTET.
+ *
+ * Versuche bis `SPRUNG_VERSUCHE`: solange `sprungEntscheidung` „warten“
+ * meldet, wird es nach `SPRUNG_NACHLAUF_MS` erneut versucht. Ein
+ * Nutzer-Scroll oder ein abgeschlossenes Laden schließt den Sprung.
+ */
+function _sprungVersuchen(versuch = 0) {
+  if (!_startScrollOffen || _sprungLauf) return
+  // Handy-Lage: Klasse ODER Rechnung (s. `wochenStartHerrichten`).
+  if (!handyLage.value && !calendarEl.value?.closest('.dk-app--handy')) return
+  // Ohne Wochenraster gibt es nichts zu scrollen: Flag OFFEN lassen und später
+  // wiederkommen. Sonst verbraucht der Monat/Listen-Aufbau den einen Versuch
+  // und der Sprung beim Umschalten auf „Woche“ liefe nie (Befund).
+  if (!calendarEl.value?.querySelector('.ec-week-view')) return
+  const entscheidung = sprungEntscheidung({
+    offen: _startScrollOffen,
+    termine: !!calendarEl.value?.querySelector('.ec-week-view article.ec-event'),
+    geladen: _quelleGeladen,
+    nutzerScroll: _nutzerScroll,
+  })
+  if (entscheidung === 'warten' && versuch < SPRUNG_VERSUCHE) {
+    _sprungLauf = true
+    setTimeout(() => {
+      _sprungLauf = false
+      _sprungVersuchen(versuch + 1)
+    }, SPRUNG_NACHLAUF_MS)
+    return
+  }
+  if (entscheidung !== 'warten') {
+    // „springen“ ODER aufgegeben: der Sprung ist erledigt, das Flag zu.
+    wochenStartHerrichten()
+    _startScrollOffen = false
+  }
+}
+
+/** Nutzer-Scroll im Raster: sein Wille gewinnt, kein automatischer Sprung mehr. */
+function _nutzerScrollMerken() {
+  _nutzerScroll = true
+  _startScrollOffen = false
+}
+
 
 /** „+n weitere“: in die Tagesansicht des betroffenen Tages wechseln. */
 function mehrOeffnen(datum) {
@@ -699,11 +884,23 @@ onMounted(() => {
       eventSources: [
         {
           events: function(fetchInfo, successCallback, failureCallback) {
+            // @event-calendar 5.4 ruft eine Quelle als `events(fetchInfo,
+            // success, failure)` auf; ältere Fassungen gaben ein Promise
+            // zurück. Beide Wege werden bedient (kein Bibliotheksdetail im
+            // Sprung-Code).
             const startDate = fetchInfo.startStr ? fetchInfo.startStr.split('T')[0] : ''
             const endDate   = fetchInfo.endStr   ? fetchInfo.endStr.split('T')[0]   : ''
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || ''
             const activeCalendars = props.selectedCalendars
+            // A10-N4 (Punkt C): Gehört diese Antwort noch zum AKTUELLEN Aufbau?
+            // Wechselt der Nutzer die Woche, während die alte Anfrage läuft,
+            // darf die alte Antwort den Sprung der neuen Woche nicht schließen.
+            const aufbau = _aufbauNr
 
+            // A10-N4 (Punkt C): Kein `return` vor dem fetch — die Quelle meldet
+            // ihr Ende über `successCallback` (Vertrag der Bibliothek). Das
+            // Ende wird im Callback gemeldet (`_quelleGeladen`), also braucht
+            // der Sprung den Rückgabewert nicht.
             fetch(apiUrl('diakronos.kronos.api.calendar_get.get_calendar_events'), {
               method: 'POST',
               headers: {
@@ -738,10 +935,25 @@ onMounted(() => {
                 return ev
               })
               successCallback(processedEvents)
+              // A10-N4 (Punkt C): Die Quelle hat für diesen Aufbau fertig
+              // gemeldet (auch bei 0 Terminen). Erst jetzt darf der Sprung
+              // „jetzt − 1 h“ gelten — vorher war nur der ERSTE Frame
+              // abgewartet worden, bei langsamer Quelle stand die Woche
+              // deshalb falsch (Befund: ~7:15 statt beim Termin).
+              if (aufbau === _aufbauNr) {
+                _quelleGeladen = true
+                _sprungVersuchen()
+              }
             })
             .catch(err => {
               console.error('Events Fetch Fehler:', err)
               failureCallback(err)
+              // Fehler = fertig geladen (nichts mehr zu erwarten): der Sprung
+              // darf nicht ewig auf Termine warten.
+              if (aufbau === _aufbauNr) {
+                _quelleGeladen = true
+                _sprungVersuchen()
+              }
             })
           }
         }
@@ -828,6 +1040,15 @@ onMounted(() => {
         const kennung = String(info?.event?.id ?? '')
         if (kennung) el.setAttribute('data-event-id', kennung)
         abgleichPlanen()
+        // A10-N3 (Review-Nacharbeit, Punkt 6-Nachfix): Der Wochen-Sprung
+        // braucht die STARTZEIT. `time[datetime]` gibt es in dieser Fassung
+        // der Bibliothek NICHT (im Browser geprüft: alle Termine ohne
+        // `time`-Element) — deshalb steht die Startzeit hier am `article`.
+        const start = info?.event?.start
+        if (start instanceof Date && !Number.isNaN(start.getTime())) {
+          el.setAttribute('data-dk-start', start.toISOString())
+        }
+        if (info?.event?.allDay) el.setAttribute('data-dk-ganztag', '')
         // A4: Die Rest-Zeile des Tages kann erst jetzt (nach den Kacheln)
         // entstanden sein.
         _mehrZeilenPlanen()
@@ -837,6 +1058,21 @@ onMounted(() => {
       eventWillUnmount: () => { abgleichPlanen() },
 
       datesSet: (info) => {
+        // A10-N3 (Review-Nacharbeit, Punkt 4): Ein neuer AUFBAU (Ansichts-/
+        // Datumswechsel, erste Anzeige) öffnet den einmaligen Sprung zum
+        // ersten Termin der Woche. Hängt am Aufbau, nicht am Zeichnen der
+        // Termine.
+        const aufbau = `${info.view?.type || ''}|${info.startStr || ''}`
+        if (aufbau !== _letzterAufbau) {
+          _letzterAufbau = aufbau
+          _startScrollOffen = true
+          // A10-N4 (Punkt C): Ein NEUER Aufbau beginnt ungeladen und ohne
+          // Nutzer-Scroll. `_quelleGeladen` bleibt für die ALTE Anfrage
+          // stehen, bis die neue Quelle fertig meldet (Kennung `_aufbauNr`).
+          _aufbauNr += 1
+          _quelleGeladen = false
+          _nutzerScroll = false
+        }
         // A4: Nach jedem Aufbau des Rasters (Monatswechsel, Ansichtswechsel,
         // neu geholte Termine) die Rest-Zeile „+n weitere“ herrichten.
         _mehrZeilenPlanen()
@@ -950,11 +1186,16 @@ onMounted(() => {
         // der Dauer) — der Block FÜLLT sie (`height: 100%`), er setzt sie nicht.
         if (istZeitrasterAnsicht()) {
           const zeilen = zeitBlockText(chipDaten, { tag })
+          // A10-N3 (Punkt 6): In der ENGEN Lage (Handy) ist die Tagesspalte des
+          // Zeitrasters ~50 px breit — dort passt nur die Anfangszeit
+          // („19:30“), nicht „19:30–21:30“. Der volle Zeitraum samt Titel
+          // bleibt in `title`/`aria-label`; den Titel blendet die Seite aus.
+          const zeit = handyLage.value ? engeZeit(zeilen.zeit) : zeilen.zeit
           return { html:
             '<div class="ec-block" role="button" tabindex="0" title="' + safe(titel) +
             '" aria-label="' + safe(titel) + '"' + datenAttr + ' style="' + stil + '">' +
             '<span class="ec-block-titel">' + safe(zeilen.titel) + '</span>' +
-            (zeilen.zeit ? '<span class="ec-block-zeit">' + safe(zeilen.zeit) + '</span>' : '') +
+            (zeit ? '<span class="ec-block-zeit">' + safe(zeit) + '</span>' : '') +
             '</div>'
           }
         }
@@ -1006,6 +1247,25 @@ onMounted(() => {
     }, { passive: true })
 
     window.addEventListener('popstate', _onPopState)
+
+    // A10-N4 (Punkt C): Scrollt der Nutzer selbst im Wochenraster, ist der
+    // automatische Sprung erledigt — sein Wille gewinnt (vorher konnte ein
+    // noch offener Sprung seinen Scroll überschreiben). `passive`, weil nur
+    // gelesen wird; das Ziel ist der Scroll-Container der Bibliothek
+    // (`.ec-main`), der erst nach dem Aufbau existiert.
+    const SCROLL_TASTEN = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '])
+    const nutzerEingabe = (e) => {
+      const main = e.target?.closest?.('.ec-main')
+      if (!main) return
+      // Scrollleiste: pointerdown trifft den Scroller SELBST (ein Tipp auf
+      // einen Termin trifft dessen Kachel und zählt nicht).
+      if (e.type === 'pointerdown' && e.target !== main) return
+      if (e.type === 'keydown' && !SCROLL_TASTEN.has(e.key)) return
+      _nutzerScrollMerken()
+    }
+    for (const typ of ['wheel', 'touchmove', 'keydown', 'pointerdown']) {
+      calendarEl.value.addEventListener(typ, nutzerEingabe, { passive: true, capture: true })
+    }
 
   } catch (error) {
     console.error('Fehler beim Initialisieren:', error)

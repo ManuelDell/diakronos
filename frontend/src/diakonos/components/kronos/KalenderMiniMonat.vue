@@ -129,15 +129,25 @@ const raster = computed(() => {
    12 px, gewählter Tag ein 28-px-Kreis, Punkt 4 px. Vorher fraß der
    Mini-Monat 44 px je Zeile, sodass die Tagesliste erst nach dem Scrollen
    erschien — beim Moderator muss sie im ersten Bildschirm stehen.
-   Die Trefferfläche bleibt ≥ 44 px: die Zelle ist 30 px hoch und ragt über
-   ihren negativen Rand unsichtbar in die Nachbarzeile; die Spalte ist bei
-   390 px 47 px breit. */
+   Die Trefferfläche bleibt ≥ 44 px: die Zelle ist 48 px hoch (--zelle-hoehe)
+   und ragt über ihren negativen Rand unsichtbar in die Nachbarzeile; die
+   Spalte ist bei 390 px 47 px breit.
+   A10-N3 (Review-Nacharbeit, Punkt 2): 30 px je Zeile reichten nicht — Kreis
+   (32) + Lücke (4) + Punkt (4) = 40 px brauchen Platz IN der Zeile, sonst
+   sitzt der Punkt der eigenen Zeile optisch bei der nächsten. Deshalb 48 px
+   (--zelle-hoehe); der Monat bleibt trotzdem kompakt, weil der Punkt jetzt
+   unter der Ziffer sitzt statt in der Nachbarzeile. */
 .dk-minimonat {
   display: flex;
   flex-direction: column;
   flex: none;
   gap: var(--sp-2);
-  padding: var(--sp-3) var(--sp-3) var(--sp-2);
+  /* A10-N3 (Punkt 1): UNTEN mehr Luft als oben. Vorher war die Karte unten
+     8 px (--sp-2) und oben 12 px (--sp-3) gepolstert — die Punkte der
+     letzten Zeile standen dadurch am Kartenrand (ihr Zellenrand reicht über
+     den Rasterrand hinaus, s. negativer Rand der Zelle). Unten gilt jetzt
+     `--pad` (16 px), damit die letzte Punktreihe sichtbar Luft hat. */
+  padding: var(--sp-3) var(--sp-3) var(--pad);
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--schatten-karte);
@@ -198,28 +208,42 @@ const raster = computed(() => {
   color: var(--muted);
   padding-bottom: var(--sp-1);
 }
-/* Tageszelle: eine SPALTE, 30 px hoch (Rasterzeile A10) und 44 px hoch als
-   TREFFERFLÄCHE (K4): die Zelle ragt 7 px über die Zeile hinaus, sodass ihre
+/* Tageszelle: eine SPALTE, 48 px hoch (--zelle-hoehe) und 44 px hoch als
+   TREFFERFLÄCHE (K4): die Zelle ragt über die Zeile hinaus, sodass ihre
    Mitte zugleich die Mitte des 44-px-Bandes ist. Vorher wuchs die Fläche nur
    nach OBEN — dann lag die Mitte der oberen Zelle im unteren Nachbarn, und
    ein Tipp auf die Zahl traf die falsche Zeile (im Wegwerf-Stack gemessen:
    Playwright meldete „intercepts pointer events“). Die Zelle ist deshalb so
-   hoch wie das Tippziel (mindestens 44 px, s. u.); das Raster bleibt 30 px
-   je Zeile, weil der negative Rand die Zelle symmetrisch wieder herausnimmt. */
+   hoch wie das Tippziel (mindestens 44 px, s. u.); das Raster bleibt
+   `--zelle-hoehe` hoch, weil der negative Rand die Zelle symmetrisch wieder
+   herausnimmt. */
 .dk-minimonat-tag {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* A10-N3 (Review-Nacharbeit, Punkt 2): Die Zelle hat eine FESTE Höhe je
+     Zeile und trägt Zahl und Punkt an EINEM Anker. Vorher richtete
+     `justify-content: center` die Gruppe (Zahl + Lücke + Punkt) mittig aus:
+     war kein Punkt da, stand die Zahl 4 px tiefer als in Zellen MIT Punkt —
+     die Zeilen wirkten unruhig. Und der Punkt saß ~22 px unter der Ziffer,
+     also nur ~10 px über der nächsten Zeile; er gehörte optisch zur
+     NACHBARZEILE.
+     SOLL: die Ziffer steht in JEDER Zelle gleich hoch (an ihrem eigenen
+     Anker oben in der Zelle), der Punkt ist unabhängig davon ABSOLUT zur
+     Zelle darunter verankert (`.dk-minimonat-punkt`), und die Zeilenhöhe
+     ist groß genug für Kreis + Abstand + Punkt (s. `--zelle-hoehe`). */
+  justify-content: flex-start;
+  /* Abstand Zahl → Punkt ist im Punkt selbst verankert (nicht als `gap`):
+     so verschiebt das Vorhandensein eines Punktes nichts anderes. */
   gap: 0;
   /* 44-px-Trefferfläche (K4, Konzept: „bei pointer:coarse 44 px" — und A10
      verlangt am Handy IMMER 44 px, auch mit Maus in einem schmalen Fenster).
      44 px in JEDER Lage über das eigene Token `--treffer-handy` (ein
      390-px-Fenster mit Maus bekäme über `--control-h` sonst nur 40 px).
-     Das Raster selbst bleibt über den negativen Rand 30 px hoch. */
+     Das Raster selbst bleibt über den negativen Rand `--zelle-hoehe` hoch. */
   height: var(--treffer-handy);
-  margin: calc((var(--treffer-handy) - var(--sp-6)) / -2) 0;
+  margin: calc((var(--treffer-handy) - var(--zelle-hoehe)) / -2) 0;
   padding: 0;
   border: none;
   background: transparent;
@@ -265,26 +289,48 @@ const raster = computed(() => {
   outline: var(--ring-breite) solid var(--focus-ring);
   outline-offset: var(--sp-1);
 }
-/* Ein Punkt und der Kreis passen nicht BEIDE in 30 px: die Zahl sitzt im
-   Kreis, der Punkt steht direkt DARUNTER am unteren Zellenrand (absolut,
-   waagerecht zentriert über `inset-inline`). */
+/* A10-N3 (Review-Nacharbeit, Punkt 2): Der Punkt ist ABSOLUT zur ZELLE
+   verankert — unabhängig davon, ob der Tag gewählt ist oder nicht, und ohne
+   Einfluss auf die Lage der Ziffer. Vorher hing er im Fluss: mit Punkt stand
+   die Ziffer woanders als ohne, und der Punkt saß ~22 px unter der Ziffer
+   (nur ~10 px über der nächsten Zeile → optisch bei der falschen Zeile).
+   Jetzt: Kreis (32 px) oben an der Zelle, Punkt `--sp-1` (4 px) darunter →
+   Gesamthöhe 32 + 4 + 4 = 40 px, die Zelle ist 48 px hoch (--sp-7); damit
+   bleiben 8 px Luft bis zur Zellunterkante und der Punkt hat auf jeder Seite
+   ≥ 12 px Abstand zur Nachbarzeile. Der Auswahlring liegt AM Kreis (2 px
+   Box-Shadow) und endet 2 px über dem Punkt — keine Kollision.
+   `pointer-events: none`: der Punkt ist Dekoration, die Trefferfläche bleibt
+   die ganze Zelle. */
 .dk-minimonat-punkt {
   position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  margin-inline: auto;
+  /* Zellmitte minus halbe Punktbreite — der Punkt steht mittig unter dem
+     Kreis, egal wie breit er ist (`.ist-mehr` macht ihn zu einem Strich). */
+  left: 50%;
+  translate: -50% 0;
+  top: calc(var(--sp-6) + var(--sp-1));
+  display: block;
   width: var(--sp-1);
   height: var(--sp-1);
   border-radius: var(--badge-r);
   background: var(--tag-flaeche, var(--primary));
+  pointer-events: none;
 }
-.dk-minimonat-tag.is-gewaehlt .dk-minimonat-punkt { background: var(--marke-ink); }
 .dk-minimonat-punkt.ist-pruef { background: var(--warn); }
-/* Am gewählten Tag liegt der goldene Punkt auf Navy: dort nimmt er das helle
-   Gold (--dk-gold-300), sonst wäre ein dunkler Ton auf dunklem Kreis unsichtbar
-   (Farbe ist nie alleiniger Träger — die Vorlesehilfe nennt die Zahl, die
-   Prüf-Zeile darüber sagt „Zu prüfen“). */
-.dk-minimonat-tag.is-gewaehlt .dk-minimonat-punkt.ist-pruef { background: var(--dk-gold-300); }
-/* Mehrere Termine: der Punkt wird ein Strich (Anzahl trägt die Vorlesehilfe). */
+/* A10-N4 (Punkt A): KEINE Sonderfarben für den gewählten Tag. Der Punkt hat
+   `top: 32 + 4 = 36 px` — er liegt UNTER dem 32-px-Kreis, nicht darauf. Die
+   frühere Regel „gewählt → --marke-ink (Weiß)“ färbte ihn deshalb weiß auf
+   weißer Karte: im hellen Theme unsichtbar. Das galt auch für das goldene
+   Prüf-Gold (--dk-gold-300) — im hellen Theme ist der Punkt dann blass, aber
+   grundlos anders als an jedem anderen Tag. Der Punkt behält darum seine
+   NORMALE Farbe (Kalenderfarbe, bei `ist-pruef` die Warnfarbe) — in beiden
+   Themes sichtbar. Farbe ist nie alleiniger Träger: die Vorlesehilfe nennt
+   die Zahl, die Prüf-Zeile darüber sagt „Zu prüfen“. */
+/* Mehrere Termine: der Punkt wird ein Strich (Anzahl trägt die Vorlesehilfe).
+   A10-N3 (Review-Nacharbeit, Punkt 2): Der Strich war 8 px breit und
+   zentriert — am Sonntag traf er auf den Strich des Nachbartags (Zellbreite
+   47 px, Strich 8 px: 39,5 ± 4 → 35,5…43,5; Sonntag 43,5…51,5) und die
+   beiden verschmolzen zu einem Balken. Er bleibt 8 px breit, wird aber an
+   der ZELLMITTE (±4 px) verankert und nicht mehr an die Kante geschoben —
+   zwischen zwei Strichen liegen damit ≥ 8 px Luft. */
 .dk-minimonat-punkt.ist-mehr { width: var(--sp-2); }
 </style>

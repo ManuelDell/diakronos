@@ -50,10 +50,21 @@ test('A10-N2: Handy-Raster blendet `.ec-event` aus — nicht das erfundene [data
   // @event-calendar und tragen die Scoped-Kennung der Seite nicht (im
   // Browser geprüft: `.ec` hat kein `data-v-…`). Die Lage entscheidet
   // trotzdem die Klasse — `:deep()` sitzt HINTER `.kal-mobil-raster`.
-  assert.match(seite, /\.kal-mobil-raster :deep\(\.ec-event\)\s*\{\s*display:\s*none\s*!important/,
-    'Termine im Handy-Raster: .ec-event wird ausgeblendet')
-  assert.match(seite, /\.kal-mobil-raster :deep\(\.ec-time-grid \.ec-event\)\s*\{\s*display:\s*none\s*!important/,
-    'Wochen-Zeitraster ebenso')
+  // A10-N3: der Wähler gilt nur im MONATSRASTER (`.ec-month-view`) — im
+  // Wochen-Zeitraster sind die Blöcke sichtbar (Punkt 6).
+  assert.match(seite, /\.kal-mobil-raster :deep\(\.ec-month-view \.ec-event\)\s*\{\s*display:\s*none\s*!important/,
+    'Termine im Handy-Monatsraster: .ec-event wird ausgeblendet')
+  // A10-N3 (Punkt 6, 10.11.): Im WOCHEN-Zeitraster sind die Blöcke NICHT mehr
+  // ausgeblendet — die Woche zeigte dadurch ein leeres Raster (der Befund
+  // „Termine liegen abends“ war nicht scrollbar, es war nichts da). Sie sind
+  // sichtbar, aber auf die Uhrzeit eingedampft: in der engen Lage fällt der
+  // Titel weg (`.ec-block-titel`), der volle Titel steht in `title`/`aria-label`.
+  const engeLage = seite.slice(seite.indexOf('.kal-mobil-raster :deep(.ec-month-view .ec-event)'))
+  assert.ok(!/\.kal-mobil-raster :deep\(\.ec-time-grid \.ec-event\)\s*\{\s*display:\s*none/.test(seite),
+    'Wochen-Blöcke werden NICHT mehr ausgeblendet')
+  assert.match(seite, /\.kal-mobil-raster :deep\(\.ec-time-grid \.ec-block-titel\)\s*\{\s*display:\s*none/,
+    'Woche am Handy: nur die Uhrzeit, kein Titel im Block')
+  assert.ok(engeLage.length > 0, 'die enge Lage ist beschrieben')
   // JEDE Bibliotheks-Regel beginnt bei der Mobil-Klasse (kein freies `:deep`).
   // Nur die CSS-Seite (das Markup nennt `:deep` in Erklärungen).
   const cssTeil = seite.slice(seite.indexOf('<style')).replace(/\/\*[\s\S]*?\*\//g, '')
@@ -162,7 +173,8 @@ test('A10-N2: Ring-Token im Dunkelmodus — Kontrast ≥ 3:1 zur Fläche', () =>
   // Hell: kein Ring (die Navy-Fläche trägt selbst).
   assert.match(tokens, /--marke-ring:\s*transparent/, 'hell: kein Ring')
   assert.match(tokens, /--marke-ring-breite:\s*0px/, 'hell: Ringbreite 0')
-  // Dunkel: heller Ring aus der Navy-Skala.
+  // Dunkel: heller Ring aus der Navy-Skala (gilt für den GEWÄHLTEN TAG im
+  // Mini-Monat — dort liegt Navy auf Navy-grau).
   const dunkel = tokens.slice(tokens.indexOf('[data-theme="dark"]'))
   assert.match(dunkel, /--marke-ring:\s*var\(--dk-navy-200\)/, 'dunkel: heller Ring')
   assert.match(dunkel, /--marke-ring-breite:\s*2px/, 'dunkel: 2 px')
@@ -172,15 +184,26 @@ test('A10-N2: Ring-Token im Dunkelmodus — Kontrast ≥ 3:1 zur Fläche', () =>
   // Und der Beleg, warum das nötig war: Navy auf dunkler Fläche ist unsichtbar.
   assert.ok(kontrast('#1c2850', '#111631') < 1.5, 'Navy auf Navy-grau fiel unter jede Erkennbarkeit')
 
-  // Beide Stellen tragen den Ring aus dem Token (kein hartes Blau).
+  // Der gewählte Tag im Mini-Monat trägt den Ring aus dem Token (kein hartes Blau).
   const mini = lies('components/kronos/KalenderMiniMonat.vue')
   assert.match(mini, /\.is-gewaehlt \.dk-minimonat-zahl \{[^}]*var\(--marke-ring\)/s,
     'gewählter Tag im Mini-Monat: Ring aus dem Token')
+  // A10-N3 (Punkt 3, 10.11.): Am FAB ist der Ring ENTFALLEN — er war ein
+  // 2-px-Dauerrahmen um die ganze Pille und wirkte im Dunkelmodus wie ein
+  // fremdes Bedienelement. Die Fläche trägt sich jetzt selbst
+  // (`--fab-flaeche` im Dunkelblock: Navy-300 auf der Karte = ≥ 3:1), und
+  // Kontrast für die Tastatur gibt es nur bei `:focus-visible`.
   const seite = lies('pages/Kalender.vue')
   const fabStart = seite.indexOf('.kal-fab {')
   const fab = seite.slice(fabStart, seite.indexOf('.kal-fab:hover', fabStart))
-  assert.match(fab, /outline:\s*var\(--marke-ring-breite\) solid var\(--marke-ring\)/,
-    'FAB: Ring aus dem Token')
+  assert.ok(!/outline:\s*var\(--marke-ring-breite\)/.test(fab),
+    'FAB: KEIN Dauer-Ring mehr (er wirkte fremd)')
+  assert.match(fab, /background:\s*var\(--fab-flaeche\)/, 'FAB trägt seine Fläche')
+  assert.match(seite, /\.kal-fab:focus-visible \{ outline: var\(--ring-breite\) solid var\(--focus-ring\)/,
+    'FAB: Kontrast nur bei Tastaturbedienung')
+  // Nachgerechnet: Navy-300 mit 80 % auf der dunklen Karte gegen die Karte.
+  assert.ok(kontrast('#5b688f', '#111631') >= 3, 'FAB-Fläche dunkel ≥ 3:1 zur Karte')
+  assert.ok(kontrast('#ffffff', '#5b688f') >= 4.5, 'FAB-Schrift dunkel ≥ 4,5:1')
 })
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -309,8 +332,12 @@ test('N2 · 4: heutige Tagesspalte im Dunkeln ruhig statt gold schraffiert', () 
   const dunkelStart = tokens.indexOf('[data-theme="dark"],')
   const dunkel = tokens.slice(dunkelStart)
   const dunkelWert = (dunkel.match(/--heute-flaeche:([^;]*);/) || [])[1] || ''
-  assert.match(dunkelWert, /rgba\(255, 255, 255, \.0\d\)/, 'dunkel: neutrale Aufhellung (kein Gold)')
+  // A10-N3 (Punkt 5, 10.11.): Dieselbe RUHIGE Fläche, nur aus der Navy-Skala
+  // gemischt (Farbton wie hell) — kein Gold, kein Muster/Streifen mehr.
+  assert.match(dunkelWert, /color-mix\(in srgb, var\(--dk-navy-200\) 14%, var\(--dk-bg\)\)/,
+    'dunkel: ruhige Navy-Aufhellung (kein Muster)')
   assert.ok(!/201,\s*149,\s*47/.test(dunkelWert), 'kein gebündeltes Gold mehr (kein „Band“)')
+  assert.ok(!/repeating-/.test(dunkelWert), 'kein Streifenmuster („repeating-gradient“)')
   // Die Bibliothek nimmt den Wert als Fläche der heutigen Spalte.
   const kronos = readFileSync(join(SRC, 'kronos.css'), 'utf8')
   assert.match(kronos, /--ec-today-bg-color:\s*var\(--heute-flaeche\)/, 'Bibliothek nutzt das Token')
@@ -319,14 +346,14 @@ test('N2 · 4: heutige Tagesspalte im Dunkeln ruhig statt gold schraffiert', () 
 test('N2 · 5: Mobil-Bau hängt an den Mobil-Klassen, nicht an der Fensterbreite', () => {
   const seite = lies('pages/Kalender.vue')
   // Keine `:deep()`-Ausblendung der Termine mehr, sondern die Klasse.
-  assert.match(seite, /\.kal-mobil-raster :deep\(\.ec-event\)\s*\{\s*display:\s*none/, 'Chips: Mobil-Klasse + :deep')
+  assert.match(seite, /\.kal-mobil-raster :deep\(\.ec-month-view \.ec-event\)\s*\{\s*display:\s*none/, 'Chips: Mobil-Klasse + :deep')
   const letzteBreite = seite.lastIndexOf('@media (max-width: 720px)')
-  assert.ok(letzteBreite < seite.indexOf('.kal-mobil-raster :deep(.ec-event)'),
+  assert.ok(letzteBreite < seite.indexOf('.kal-mobil-raster :deep(.ec-month-view .ec-event)'),
     'die Bibliotheks-Regeln stehen NICHT mehr in einer Breiten-Regel')
   // Der Mobil-Block mit den Raster-Regeln steht AUSSERHALB jeder Breiten-Regel:
   // die letzte `@media (max-width: 720px)` steht VOR der Mobilanlage.
   const letzteMedia = seite.lastIndexOf('@media (max-width: 720px)')
-  const ersteMobilRegel = seite.indexOf('.kal-mobil-raster :deep(.ec-event)')
+  const ersteMobilRegel = seite.indexOf('.kal-mobil-raster :deep(.ec-month-view .ec-event)')
   assert.ok(letzteMedia < ersteMobilRegel,
     'die Raster-Regeln stehen nicht mehr in einer Breiten-Regel')
   // und die Klasse (`.kal-mobil-raster`) setzt allein der Mobil-Bau im Skript.
