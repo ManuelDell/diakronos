@@ -386,3 +386,6 @@ tests/dev-b2-*.test.mjs
 # gab `foto` praefixfrei aus (Router praefigiert nur `file_url`) -> Bild 404.
 # Der Waechter haelt Besitzpruefung, Adressmuster und Ausgabe-Praefix fest.
 tests/mt2-*.test.mjs
+# MT-6: Pläne drucken — genau EIN Druck-Einstieg je Plan (zwei Leisten in
+# PrAnsicht.vue zusammengeführt; Quelle + gerendertes DOM).
+tests/mt6-*.test.mjs

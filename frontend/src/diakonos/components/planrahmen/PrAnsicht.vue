@@ -1,27 +1,24 @@
 <template>
   <div class="pr-ansicht" :class="{ 'pr-ansicht--druck': druckModus }">
-    <!-- UXP-R7: Drucken-Knopf fuer JEDE Ansicht (der Chorplan deklariert keine
-         eigene Druckansicht, muss aber als Aushang druckbar sein). -->
-    <div v-if="druckKnopf" class="pr-druck-leiste">
+    <!-- MT-6: GENAU EIN Druck-Einstieg je Plan. Vorher standen hier zwei
+         Leisten nebeneinander — „Drucken“ fuer jede Ansicht (UXP-R7) und
+         „Druckansicht (A4 …)“ fuer deklarierte Druckansichten —, und bei
+         einem Plan MIT Druckansicht (z. B. Chorplan) erschienen beide mit
+         demselben Druckbild. Jetzt gibt es eine Leiste; der Text nennt bei
+         Druckansichten zusaetzlich das Papierformat und den Drucker-Hinweis. -->
+    <div v-if="zeigtDruckleiste" class="pr-druck-leiste">
       <span class="pr-ansicht-druckhinweis">
-        Drucken zeigt nur den Plan — Seitenleiste, Knöpfe und Hinweise bleiben weg.
+        <template v-if="druckModus">
+          Druckansicht ({{ orientierung === 'quer' ? 'A4 quer' : 'A4 hoch' }}) — bitte im Drucker „Hintergrundgrafiken“ aktivieren.
+        </template>
+        <template v-else>
+          Drucken zeigt nur den Plan — Seitenleiste, Knöpfe und Hinweise bleiben weg.
+        </template>
       </span>
       <DkButton
         variant="secondary"
         size="md"
         data-test="pr-drucken" @click="drucken"
-      >Drucken</DkButton>
-    </div>
-
-    <!-- Druck-Schaltfläche bei Druckansichten -->
-    <div v-if="druckModus" class="pr-ansicht-druckleiste">
-      <span class="pr-ansicht-druckhinweis">
-        Druckansicht ({{ orientierung === 'quer' ? 'A4 quer' : 'A4 hoch' }}) — bitte im Drucker „Hintergrundgrafiken“ aktivieren.
-      </span>
-      <DkButton
-        variant="secondary"
-        size="md"
-        @click="drucken"
       >Drucken</DkButton>
     </div>
 
@@ -114,6 +111,8 @@ const props = defineProps({
   // UXP-R7: „Drucken“ als Knopf der Plan-Kopfzeile. Der Chorplan deklariert
   // keine eigene Druckansicht; der Knopf setzt den Plan trotzdem sauber aufs
   // Papier (window.print() loest `beforeprint` aus, siehe unten).
+  // MT-6: Der Schalter bleibt, ist aber nur noch EINE Quelle fuer „Druckleiste
+  // zeigen“ — ohne ihn gab es bei Plaenen MIT Druckansicht zwei Druck-Knöpfe.
   druckKnopf: { type: Boolean, default: false },
 })
 defineEmits(['bearbeiten', 'operationen', 'geaendert', 'navigation', 'variante'])
@@ -137,6 +136,15 @@ const anlassKatalog = computed(() => {
 
 /** Drucklayout: entweder eigene 'druck'-Ansicht oder druck-Eigenschaft. */
 const druckModus = computed(() => art.value === 'druck' || !!props.ansicht?.druck)
+/**
+ * MT-6: Die Druckleiste erscheint genau EINMAL je Plan. Fruehere Fassung hatte
+ * zwei `v-if`-Leisten (`druckKnopf` und `druckModus`) — bei einem Plan, der
+ * eine Druckansicht deklariert, standen beide Knöpfe mit demselben Druckbild
+ * untereinander. Jetzt entscheidet dieser eine Ausdruck; `druckModus` schaltet
+ * ihn auch ohne `druckKnopf` (Direktaufruf/Vorschau), damit jede Planansicht
+ * druckbar bleibt.
+ */
+const zeigtDruckleiste = computed(() => props.druckKnopf || druckModus.value)
 const orientierung = computed(() => {
     const d = art.value === 'druck' ? (props.ansicht?.druck || 'A4-hoch') : props.ansicht?.druck
     return String(d || '').includes('quer') ? 'quer' : 'hoch'
@@ -179,7 +187,7 @@ const DRUCK_AUSBLENDEN = [
     '.dk-sidebar', '.dk-topbar', '.dk-bottom-nav', '.diakonos-toast-container',
     '.dk-screen-actions', '.dk-crumbs', '.dk-crumb', '.dk-crumb-sep',
     '.dk-screen-header', '.dk-screen-sub',
-    '.pr-druck-leiste', '.pr-ansicht-druckleiste', '.pr-plan-leiste',
+    '.pr-druck-leiste', '.pr-plan-leiste',
     '.pr-plan-meldungen', '.pr-erststart', '.pr-legende',
     '.dk-devmodus-rahmen', '.dk-dev-start', '.impersonation-banner',
     // FIX-2 (Befund DMB-a48b13606d12): „Drucken nimmt Hinweise und Fehler mit
@@ -379,7 +387,7 @@ function icsLaden() {
 </script>
 
 <style scoped>
-.pr-ansicht-druckleiste,
+/* MT-6: EINE Druckleiste (vorher zwei Klassen für zwei Knöpfe). */
 .pr-druck-leiste {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   margin-bottom: 12px; padding: 8px 12px; border-radius: 10px;
@@ -393,7 +401,7 @@ function icsLaden() {
    traegt die Plan-Kopfzeile bereits Titel und Zeitraum. */
 .pr-druck-kopf { display: none; }
 @media print {
-  .pr-ansicht-druckleiste, .pr-druck-leiste { display: none; }
+  .pr-druck-leiste { display: none; }
   /* Nachtrag R-P1-12: Auch im gescopten Block der Ansicht die hellen
      Papierwerte erzwingen — gescopte Regeln schlagen globale. */
   :global([data-theme="dark"]) .pr-ansicht--druck {

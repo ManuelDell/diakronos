@@ -35,8 +35,10 @@ assert.match(ansicht, /body\.pr-druck-aktiv\s+\.dk-main-wrap[^{]*\{[^}]*(height:
 
 // 2) Die Nicht-Plan-Bereiche verschwinden mitgedruckt nicht (UXP-R7: sonst
 //    stehen Erststart-Wegweiser und Regelpruefung im PDF).
+//    MT-6: '.pr-ansicht-druckleiste' entfaellt — die zweite Druck-Leiste wurde
+//    entfernt, es gibt nur noch '.pr-druck-leiste' (siehe Test 4c unten).
 for (const rest of ['.dk-sidebar', '.dk-topbar', '.pr-erststart', '.pr-plan-meldungen',
-  '.pr-legende', '.pr-ansicht-druckleiste', '.diakonos-toast-container']) {
+  '.pr-legende', '.pr-druck-leiste', '.diakonos-toast-container']) {
   assert.ok(ansicht.includes(rest), `PrAnsicht.vue: ${rest} fehlt in der Druck-Ausblendliste`)
 }
 
@@ -61,6 +63,23 @@ assert.match(ansicht, /function drucken\(\)\s*\{\s*window\.print\(\)\s*\}/,
   'PrAnsicht.vue: drucken() ruft window.print() nicht auf')
 assert.match(plan, /<PrAnsicht[\s\S]*?druck-knopf[\s\S]*?\/>/,
   'Plan.vue: der Drucken-Knopf wird nicht an PrAnsicht durchgereicht')
+
+// 4c) MT-6 — genau EIN Druck-Einstieg je Plan. Vorher standen in PrAnsicht zwei
+//     `v-if`-Leisten (druckKnopf + druckModus); bei einem Plan MIT Druckansicht
+//     (Chorplan) erschienen beide mit identischem Druckbild. Jetzt entscheidet
+//     genau EIN Ausdruck ueber die eine Leiste, und es gibt genau einen Knopf.
+const leisten = [...ansicht.matchAll(/<div\b[^>]*\bv-if=/g)]
+  .filter((m) => /druck/i.test(ansicht.slice(m.index, ansicht.indexOf('>', m.index))))
+assert.equal(leisten.length, 1,
+  'PrAnsicht.vue: es darf nur EINE Druckleiste mit v-if geben (MT-6)')
+assert.match(ansicht, /<div v-if="zeigtDruckleiste" class="pr-druck-leiste">/,
+  'PrAnsicht.vue: die Druckleiste haengt nicht an genau einem Ausdruck (zeigtDruckleiste)')
+assert.equal((ansicht.match(/data-test="pr-drucken"/g) || []).length, 1,
+  'PrAnsicht.vue: mehr als ein Drucken-Knopf (MT-6)')
+assert.ok(!ansicht.includes('pr-ansicht-druckleiste'),
+  'PrAnsicht.vue: die zweite Druckleiste (.pr-ansicht-druckleiste) ist zurueck (MT-6)')
+assert.match(ansicht, /const zeigtDruckleiste = computed\(\(\) => props\.druckKnopf \|\| druckModus\.value\)/,
+  'PrAnsicht.vue: zeigtDruckleiste muss druckKnopf UND druckModus abdecken')
 
 // 5) Strg+P (ohne Knopf) muss genauso sauber drucken: beforeprint/afterprint
 //    schalten die Druckregeln scharf und raeumen danach wieder auf.
