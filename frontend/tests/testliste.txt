@@ -304,6 +304,12 @@ tests/a10n4-*.test.mjs
 # Absagen/Löschen im ⋯ (K4), Mitglied nur Ansicht; Schließen per Wischen,
 # Escape und Fläche dahinter, Fokusfalle, Tippziele ≥ 44 px.
 tests/a11-*.test.mjs
+# A11-N2 (Review A11 + A10-N3): Kalender-Zeile im Blatt zeigt den Anzeigenamen
+# statt des internen Schlüssels („gruppen“), der Schleier dunkelt auch im
+# Dunkelmodus ab (`--overlay`), Abstände Titel→Abzeichen aus der Skala, alle
+# Zeilensymbole als Umriss, Tipp im Raster öffnet IMMER zuerst das Blatt,
+# Escape wird genau einmal behandelt (gemountet gezählt).
+tests/a11n2-*.test.mjs
 # UX3j: Personen — EINE Reiterzeile in allen Reitern (A3), EIN Filter-Baustein,
 # ein Suchfeld, „Person anlegen“ überall an derselben Stelle.
 tests/ux3j-*.test.mjs

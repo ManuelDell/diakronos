@@ -110,6 +110,15 @@ def _row_get(row: Any, key: str, default: Any = None) -> Any:
     return getattr(row, key, default)
 
 
+def _als_dict(wert: Any) -> dict[str, Any]:
+    """Treffer als `dict` lesen — `{}`, wenn es keiner ist (A11-N2).
+
+    `get_value(..., as_dict=True)` liefert je nach Adapter ein `dict`, `None`
+    oder eine Liste; hier wird daraus genau EIN Wörterbuch.
+    """
+    return wert if isinstance(wert, dict) else {}
+
+
 def _als_datetime(wert: Any):
     """Wert als `datetime` lesen (DB kann `datetime`, `date` oder String liefern).
 
@@ -330,8 +339,19 @@ def get_calendar_events(start_date, end_date, calendar_filter=None, view_mode=Tr
                     "ist_antwortsteller": str(_row_get(e, "owner") or "") == str(session.user or ""),
                 }
 
+            # A11-N2: Der ANZEIGENAME des Kalenders gehört mit in die Zeile.
+            # Vorher trug `extendedProps.element_calendar` nur den internen
+            # Schlüssel („gruppen“), und das Termin-Blatt zeigte genau den an.
+            cal_info = dict(_als_dict(get_value(
+                "Kalender",
+                element_calendar,
+                ["calendar_name", "calendar_color"],
+                as_dict=True,
+            ))) if element_calendar else {}
+
             color = (
-                get_value("Kalender", element_calendar, "calendar_color")
+                cal_info.get("calendar_color")
+                or get_value("Kalender", element_calendar, "calendar_color")
                 or element_color
                 or KALENDER_STANDARD_FARBE
             )
@@ -371,6 +391,9 @@ def get_calendar_events(start_date, end_date, calendar_filter=None, view_mode=Tr
                     "name": _row_get(e, "name"),
                     "element_name": _row_get(e, "title"),
                     "element_calendar": element_calendar,
+                    # A11-N2: Anzeigename des Kalenders für das Termin-Blatt
+                    # (der interne Schlüssel bleibt für Rechte/Filter daneben).
+                    "calendar_title": cal_info.get("calendar_name") or element_calendar,
                     "element_category": element_category,
                     "event_category_name": category_name,
                     "element_start": str(start),

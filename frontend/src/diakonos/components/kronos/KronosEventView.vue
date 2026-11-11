@@ -91,7 +91,11 @@ const darfPruefen = computed(() => {
 const statusBadge = computed(() => statusBadgeFuer(props.event))
 
 function onKeydown(e) {
-  if (e.key === 'Escape') emit('update:show', false)
+  // A11-N2 (Punkt 5): Escape GENAU EINMAL behandeln. Am Handy schließt das
+  // Blatt (`TerminBlatt.vue`) selbst — es hält sein Escape an, dieser Listener
+  // bekommt es also nicht mehr. Am Desktop gibt es kein Blatt, hier bleibt
+  // Escape der Schließweg des Fensters.
+  if (e.key === 'Escape' && !props.handyLage) emit('update:show', false)
 }
 
 // A11: Blatt (Handy) oder Fenster (Desktop) — die Lage reicht die Seite

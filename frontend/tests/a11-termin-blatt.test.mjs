@@ -251,8 +251,11 @@ test('A11: Blatt — Tippziele ≥ 44 px und Abstände aus der Skala', () => {
   const ohneKommentare = BLATT_QUELLE.replace(/\/\*[\s\S]*?\*\//g, '')
   assert.doesNotMatch(ohneKommentare, /#[0-9a-fA-F]{3,8}\b/, 'keine Hex-Farben')
   assert.doesNotMatch(ohneKommentare, /\brgba?\s*\(/, 'kein rgb()/rgba()')
-  // 42 %-Abdunklung dahinter steht als Zahl EINMAL hier (Entwurf A11).
-  assert.match(BLATT_QUELLE, /var\(--dk-navy-900\) 42%, transparent/)
+  // A11-N2 (Punkt 2): Die Abdunklung kommt aus dem EINEN Überlagerungs-Token
+  // (`--overlay`, hell wie dunkel deckend) — die frühere feste Navy-Mischung
+  // war über einer dunklen Seite praktisch unsichtbar. Geprüft in
+  // `tests/a11n2-termin-blatt-restpunkte.test.mjs`.
+  assert.match(BLATT_QUELLE, /background: var\(--overlay\)/)
 })
 
 test('A11: Blatt — Kopf mit Titel und ⋯, Handlungsleiste mit EINEM Primärknopf', () => {
@@ -516,8 +519,11 @@ test('A11: GEMOUNTET — Fokusfalle: Tab am letzten Knopf springt zum ersten', a
 
 test('A11: Seite — ein Tipp auf einen Termin öffnet das BLATT, nicht das Formular', () => {
   const seite = lies('pages/Kalender.vue')
-  const fn = seite.slice(seite.indexOf('async function terminOeffnenMobil'),
-    seite.indexOf('/** Klick auf einen Termin im Mobile-Raster'))
+  // A11-N2: Der Abschnitt endet an der Klammer von `terminOeffnenMobil` — die
+  // nächste Deklaration ist jetzt `onEventClickMobil` (Raster-Tipp), und der
+  // Weg ins Formular (`ausBlattBearbeiten`) steht weiter unten.
+  const start = seite.indexOf('async function terminOeffnenMobil')
+  const fn = seite.slice(start, seite.indexOf('/**', start))
   assert.ok(!/showEdit\.value = true/.test(fn),
     'die Zeile springt nicht mehr direkt ins Formular (Entwurf A11: Blatt zuerst)')
   assert.match(fn, /showView\.value = true/, 'das Blatt öffnet sich')

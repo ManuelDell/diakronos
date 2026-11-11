@@ -118,16 +118,45 @@ export function blattOrt(termin) {
 
 /**
  * Kalender-/Gruppenzuordnung (Entwurf A11: „Jugend · 12 Teilnehmer“).
- * Der Kalender ist die Zuordnung, die der Server mitliefert
- * (`element_calendar`); der Zusatz (Teilnehmerzahl) kommt aus den Daten,
- * wenn es ihn gibt — sonst nur der Kalender, nie eine erfundene Zahl.
+ * Der Kalender ist die Zuordnung, die der Server mitliefert; der Zusatz
+ * (Teilnehmerzahl) kommt aus den Daten, wenn es ihn gibt — sonst nur der
+ * Kalender, nie eine erfundene Zahl.
+ *
+ * A11-N2 (Review): Angezeigt wird der ANZEIGENAME (`calendar_title` /
+ * `calendar_name`), NIE der interne Schlüssel (`element_calendar`, z. B.
+ * „gruppen“). Der Schlüssel bleibt der letzte Rückfall — aber nur, solange es
+ * keinen Namen gibt (alte Antworten ohne `calendar_title`).
  */
 export function blattKalender(termin) {
   if (!termin) return ''
-  const kalender = String(termin.element_calendar || termin.calendar_name || '').trim()
+  const anzeige = String(termin.calendar_title || termin.calendar_name || '').trim()
+  const schluessel = String(termin.element_calendar || termin.calendar || '').trim()
+  // A10-N2-Muster: Aus dem Schlüssel wird nur dann ein Anzeigename, wenn der
+  // Server keinen mitliefert — „gruppen“ bleibt NICHT als Text stehen.
+  const kalender = anzeige || anzeigenameAusSchluessel(schluessel)
   const zahl = Number(termin.teilnehmer ?? termin.teilnehmerzahl ?? NaN)
   const zusatz = Number.isFinite(zahl) && zahl > 0 ? `${zahl} Teilnehmer` : ''
   return [kalender, zusatz].filter(Boolean).join(' · ')
+}
+
+/**
+ * Rückfall für alte Antworten ohne `calendar_title`: „gruppen“ → „Gruppen“,
+ * „jugend_2026“ → „Jugend 2026“. Enthält der Schlüssel einen Namen, wird nur
+ * das erste Wort groß geschrieben — eine reine Kennung (z. B. „cal-7f3a91“)
+ * bleibt, wie sie ist, statt einen erfundenen Namen vorzutäuschen.
+ */
+export function anzeigenameAusSchluessel(schluessel) {
+  const text = String(schluessel || '').trim()
+  if (!text) return ''
+  if (/\s/.test(text)) return text
+  // Kennungen („cal-7f3a91“) bleiben unverändert, damit kein erfundener Name
+  // vorgetäuscht wird: ein Teil aus Buchstaben UND Ziffern mit Ziffern-Block
+  // (ab zwei Stellen) ist eine Kennung; „jugend_2026“ (Wort + bloßes Jahr)
+  // bleibt ein Name.
+  const teile = text.split(/[_-]+/).filter(Boolean)
+  if (teile.some((t) => /\d{2,}/.test(t) && /[A-Za-zÄÖÜäöüß]/.test(t))) return text
+  const woerter = teile.join(' ')
+  return woerter.charAt(0).toUpperCase() + woerter.slice(1)
 }
 
 /** Beschreibung, Zeile für Zeile (leere Zeilen fallen weg). */
@@ -245,7 +274,8 @@ export function istGanztags(termin) {
 }
 
 export default {
-  alsDatum, letzterTag, blattZeile, blattOrt, blattKalender, blattBeschreibung,
+  alsDatum, letzterTag, blattZeile, blattOrt, blattKalender, anzeigenameAusSchluessel,
+  blattBeschreibung,
   blattZeilen, blattKnoepfe, blattHatAktionen, wischAuswerten, fokusIndex,
   FOKUS_SELEKTOR, WISCH_SCHLIESSEN, WISCH_TEMPO, istGanztags,
 }

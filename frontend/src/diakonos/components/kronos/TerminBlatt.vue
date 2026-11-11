@@ -100,11 +100,12 @@
 
             <!-- Zeit · Ort · Kalender: Symbol links auf der Textlinie
                  (Auflage Manuel 04.11.), ein Block je Angabe (Nähe = Zusammen-
-                 gehörigkeit, S3). -->
+                 gehörigkeit, S3). Alle Symbole als UMRISS — eine Strichfamilie
+                 (A11-N2, Punkt 3: der Pin war als einziger gefüllt). -->
             <ul v-if="zeilen.length" class="dk-blatt-zeilen">
               <li v-for="z in zeilen" :key="z.key" class="dk-blatt-zeile" :data-zeile="z.key">
                 <span class="dk-blatt-symbol" aria-hidden="true">
-                  <DkSymbol :name="z.symbol" :groesse="18" :gefuellt="z.symbol === 'ort'" />
+                  <DkSymbol :name="z.symbol" :groesse="18" />
                 </span>
                 <span class="dk-blatt-text">{{ z.text }}</span>
               </li>
@@ -314,8 +315,13 @@ function fokussierbare() {
 
 function amSchleier(ereignis) {
   // Escape schließt (S5) — auch wenn der Fokus auf dem Blatt selbst liegt.
+  // A11-N2 (Punkt 5): GENAU EINMAL behandeln. Das Ereignis läuft Blatt → Seite
+  // (`KronosEventView` hört zusätzlich am `document`); ohne den Verteiler
+  // schlossen beide Wege nacheinander (zweimal `update:show`). Der Verteiler
+  // hält das Ereignis an und meldet es EINMAL weiter.
   if (ereignis.key === 'Escape') {
     ereignis.preventDefault()
+    ereignis.stopPropagation()
     schliessen()
     return
   }
@@ -366,24 +372,47 @@ function oeffnen() {
   fokusHinein()
 }
 
+/**
+ * Escape, das NICHT am Blatt ankam (Fokus irgendwo in der Seite, z. B. im
+ * Kalender-Raster), liegt nur am `document` — dort gibt es keinen Weg über
+ * das Blatt. Der Verteiler reicht genau solche Ereignisse EINMAL ins Blatt,
+ * markiert sie als verteilt und hält sie an. Alles andere am `document`
+ * (Maus, Tab, Eingaben) bleibt unberührt.
+ */
+function amDokument(ereignis) {
+  if (ereignis.key !== 'Escape' || ereignis.__dkBlattVerteilt) return
+  const ziel = blatt.value
+  if (!ziel || !ziel.isConnected) return
+  if (ereignis.target instanceof Node && ziel.contains(ereignis.target)) return
+  ereignis.__dkBlattVerteilt = true
+  ereignis.stopPropagation()
+  amSchleier(ereignis)
+}
+
 onMounted(() => {
-  if (!props.show) return
-  oeffnen()
+  document.addEventListener('keydown', amDokument)
+  if (props.show) oeffnen()
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', amDokument)
+  zuletztFokus = null
 })
 
 watch(() => props.show, (offenJetzt) => {
   if (offenJetzt) oeffnen()
   else fokusZurueckgeben()
 })
-
-onBeforeUnmount(() => {
-  zuletztFokus = null
-})
 </script>
 
 <style scoped>
-/* Schleier: der Kalender bleibt sichtbar, aber abgedunkelt (Entwurf A11:
-   42 %). Liegt über der Seite, unter dem Blatt. */
+/* Schleier: der Kalender bleibt sichtbar, aber abgedunkelt (Entwurf A11).
+ *
+ * A11-N2 (Punkt 2): Die frühere Mischung `navy-900 42 %` war im Dunkelmodus
+ * praktisch unsichtbar — über einer dunklen Seite dunkelt navy nicht ab. Jetzt
+ * dieselbe Quelle wie bei jedem Fenster (`--overlay`, eine Definition in
+ * tokens.css, Prinzip Ä4 „Dark Mode über Variablen“); das Blatt hebt sich
+ * darüber zusätzlich durch Fläche und Schatten ab. */
 .dk-blatt-schleier {
   position: fixed;
   inset: 0;
@@ -391,7 +420,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: flex-end;
   justify-content: stretch;
-  background: color-mix(in oklch, var(--dk-navy-900) 42%, transparent);
+  background: var(--overlay);
   padding-top: var(--sp-6);
 }
 /* Das Blatt selbst: volle Breite, obere Ecken rund, kein Rahmen
@@ -432,10 +461,15 @@ onBeforeUnmount(() => {
 }
 .dk-blatt-kopf {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--sp-3);
   flex: none;
-  padding: 0 var(--pad) var(--sp-3);
+  /* A11-N2 (Punkt 3): das Abzeichen gehört zum Kopf (Nähe = Zusammen-
+     gehörigkeit, S3). Die Zeile ist 24 px hoch (44-px-Ziel des ✕/⋯ mit
+     negativem Rand), der Text 20-px-Schrift — deshalb wird die Titelzeile
+     auf die Mitte des Treffermaßes gezogen, sonst entsteht unter dem Titel
+     eine sichtbare Leerzeile. */
+  padding: 0 var(--pad) var(--sp-2);
 }
 .dk-blatt-titel {
   margin: 0;
@@ -443,10 +477,12 @@ onBeforeUnmount(() => {
   min-width: 0;
   font-size: var(--fs-h2);
   font-weight: var(--fw-fett);
+  line-height: 1.3;
   color: var(--text);
   overflow-wrap: anywhere;
 }
-/* „⋯“ und ✕: 44-px-Trefferfläche (K4), Symbol auf der Textlinie. */
+/* „⋯“ und ✕: 44-px-Trefferfläche (K4), Symbol auf der Textlinie. Der
+   negative Rand hält die Trefferfläche, ohne die Zeile höher zu machen. */
 .dk-blatt-mehr,
 .dk-blatt-schliessen {
   display: flex;
@@ -455,6 +491,11 @@ onBeforeUnmount(() => {
   flex: none;
   width: var(--treffer-handy);
   height: var(--treffer-handy);
+  /* A11-N2 (Punkt 3): die 44-px-Trefferfläche ragt über die Titelzeile hinaus
+     und gibt dabei ihre halbe Überhöhe als Luft frei. Der negative Rand oben
+     und unten holt nur DIESE Luft zurück (Trefferfläche bleibt 44 px) —
+     dadurch sitzt das Abzeichen direkt unter dem Titel. */
+  margin-block: calc((var(--fs-h2) * 1.3 - var(--treffer-handy)) / 2);
   margin-inline-end: calc(var(--sp-2) * -1);
 }
 .dk-blatt-schliessen {
@@ -474,7 +515,10 @@ onBeforeUnmount(() => {
 .dk-blatt-koerper {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
+  /* A11-N2 (Punkt 3): erst der Titel (Kopf), dann EIN dichter Block. Vorher
+     standen hier 12 px zwischen Abzeichen und erster Zeile UND das Abzeichen
+     hatte eigene Luft — zusammen eine sichtbare Lücke unter dem Titel. */
+  gap: var(--sp-2);
   flex: 1;
   min-height: 0;
   padding: 0 var(--pad) var(--sp-4);

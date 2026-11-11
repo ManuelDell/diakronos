@@ -1194,15 +1194,17 @@ async function terminOeffnenMobil(termin) {
   }
 }
 
-/** Klick auf einen Termin im Mobile-Raster (Monat/Woche): derselbe Weg. */
+/**
+ * Klick auf einen Termin im Mobile-Raster (Monat/Woche): derselbe Weg.
+ *
+ * A11-N2 (Punkt 4): IMMER zuerst das Blatt — auch im Bearbeiten-Modus. Vorher
+ * sprang ein Tipp im Raster für Schreibberechtigte direkt ins Formular,
+ * während eine Listenzeile das Blatt öffnete: zwei Verhalten für dieselbe
+ * Geste. Ins Formular geht es aus dem Blatt über „Bearbeiten“.
+ */
 function onEventClickMobil(event) {
   const props = event?.extendedProps || {}
   const daten = { ...props, id: event?.id || props.name, title: event?.title || props.element_name }
-  if (!store.isViewMode.value && hasWriteRight.value && !daten.series_id) {
-    editEvent.value = daten
-    showEdit.value = true
-    return
-  }
   terminOeffnenMobil(daten)
 }
 
