@@ -692,27 +692,32 @@ h1, h2, h3, h4 {
   position: relative;
 }
 /* UX3e (Entwurf A8): Das Menü-Symbol gehört zur Handy-Lage — sonst führt die
-   Seitenleiste die Navigation (Prinzip N5). DEV-B6: es ist der Weg zur
+   Seitenleiste die Navigation (Prinzip N5). DEV-B6: es ist dort der Weg zur
    Navigation in JEDEM schmalen Fenster — auch mit Maus, denn dort gibt es die
-   untere Leiste nicht mehr (Manuel 09.11.). Am Desktop erscheint es nur dann,
-   wenn die Seitenleiste EINGEKLAPPT ist (`.is-collapsed .dk-menue-knopf`) —
-   sonst gäbe es keinen sichtbaren Weg zur Navigation. Bedingung der
-   Handy-Lage: die Bedingung aus `--layout-mobil` (tokens.css, eine Quelle).
-   Trefferfläche `--dk-menue-knopf-h`: 40 px am Maus-Laptop, 44 px am
-   Touchgerät (K4). */
+   untere Leiste nicht.
+   MT-1 (Manuel 11.11.): Am Laptop/Desktop erscheint es GAR NICHT mehr. Vorher
+   blendete `.dk-app.is-collapsed` es zusätzlich ein — dann standen zwei
+   Einstiege nebeneinander: der Ausklapp-Knopf der eingeklappten Seitenleiste
+   UND der Hamburger der Kopfzeile (der zudem ein zweites, identisches Panel
+   öffnete und direkt neben der Überschrift lag). Jetzt gilt: EIN Panel, EIN
+   Einstieg je Lage. Eingeklappt öffnet der Knopf in der Leiste selbst
+   (`.dk-sb-collapse`) die Navigation; die Schublade wird dann nicht gerendert
+   (App.vue). Bedingung der Handy-Lage: die Bedingung aus `--layout-mobil`
+   (tokens.css, eine Quelle). Trefferfläche `--dk-menue-knopf-h`: 40 px am
+   Maus-Laptop, 44 px am Touchgerät (K4). */
 /* specificity of the base rule must BEAT DkButton's own `display: inline-flex`
    on the same element (`.dk-topbar-symbol.dk-menue-knopf` = 2 classes, the
    component's class rule = 1) — measured in the DEV-B6 throwaway stack: the
    knob stayed visible at 1440 px. */
 .dk-topbar-symbol.dk-menue-knopf {
-  display: none;   /* Handy-Lage/Schublade: siehe die beiden Regeln darunter */
+  display: none;   /* Handy-Lage/Schublade: siehe die Regel darunter */
   width: var(--dk-menue-knopf-h);
   height: var(--dk-menue-knopf-h);
   margin-left: calc(var(--sp-1) * -1);
 }
-/* Handy-Lage (Klasse aus `useHandyLage()`) — EINE Quelle mit dem Skript. */
+/* Handy-Lage (Klasse aus `useHandyLage()`) — EINE Quelle mit dem Skript.
+   MT-1: KEIN zweiter Sichtbar-Schalter (`.dk-app.is-collapsed`) mehr. */
 .dk-app--handy .dk-topbar-symbol.dk-menue-knopf { display: inline-flex; }
-.dk-app.is-collapsed .dk-topbar-symbol.dk-menue-knopf { display: inline-flex; }
 .dk-notify-dot { position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--dk-danger); }
 .dk-notify-badge { position: absolute; top: 5px; right: 5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--dk-danger); color: #fff; font-size: var(--fs-12); font-weight: var(--fw-fett); display: flex; align-items: center; justify-content: center; }
 /* OP-HANDY-6: Benachrichtigungs-Liste — Klick auf die Glocke zeigt sie an. */

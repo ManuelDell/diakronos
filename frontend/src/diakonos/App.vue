@@ -104,13 +104,17 @@
     <DevStart v-else-if="devmodusVerfuegbar" />
     <AppBottomNav v-if="!isVollbildMode" :seite="currentPageName" />
     <!-- UX3e (Entwurf A9): Menü-Schublade — nur wenn es einen Menü-Knopf gibt,
-         der sie öffnet: in der LEISTEN-Lage (`istHandyLage`) oder wenn die
-         Seitenleiste eingeklappt ist (`sidebarCollapsed`, DEV-B6: schmale
-         Fenster 721–1100 px und die vom Nutzer eingeklappte Leiste). Sonst
-         wäre sie ein zweiter Navigationsweg im Tab-Ring ohne sichtbaren
-         Einstieg. -->
+         der sie öffnet: in der LEISTEN-Lage (`istHandyLage`). MT-1 (Manuel
+         11.11., „nur EIN Seitenmenü“): am Laptop/Desktop gibt es sie NICHT
+         mehr. Vorher stand sie bei eingeklappter Seitenleiste im DOM, geöffnet
+         von einem zweiten Hamburger der Kopfzeile — daneben lag der
+         Ausklapp-Knopf der Leiste selbst, zwei Einstiege für dasselbe Panel.
+         Eingeklappt ist der Einstieg jetzt allein `.dk-sb-collapse` in der
+         Leiste (index.css blendet den Kopfzeilen-Knopf dort aus). Damit es
+         keinen Navigationsweg ohne sichtbaren Einstieg im Tab-Ring gibt,
+         hängt das `v-if` an GENAU der Bedingung des Knopfes. -->
     <AppMenueSchublade
-      v-if="!isVollbildMode && (istHandyLage || sidebarCollapsed)"
+      v-if="!isVollbildMode && istHandyLage"
       :offen="menueOffen"
       :theme="theme"
       :seite="currentPageName"
@@ -211,8 +215,13 @@ watch(istHandyLage, (an) => { if (!an) menueOffen.value = false })
 /**
  * Schmale Fenster: Seitenleiste einklappen. Am Laptop (702 px, Befund) fraß
  * die offene Leiste 256 von 702 px — die Inhaltsfläche war schmaler als am
- * Handy. Eingeklappt bleibt die Navigation über den Menü-Knopf oben links
- * erreichbar (index.css, `.is-collapsed .dk-menue-knopf`).
+ * Handy. Eingeklappt bleibt die Navigation über den Ausklapp-Knopf der Leiste
+ * selbst erreichbar (`.dk-sb-collapse` in AppSidebar.vue).
+ *
+ * MT-1 (Manuel 11.11.): Der frühere zweite Weg — ein Hamburger in der
+ * Kopfzeile, der bei eingeklappter Leiste eine Schublade öffnete — ist
+ * entfallen. Er stand neben der Überschrift und öffnete dasselbe Panel ein
+ * zweites Mal; die Regel „nur EIN Seitenmenü“ gilt auf allen Oberflächen.
  *
  * DEV-B6/Review-Punkt 6: Das Einklappen ist die VORGABE je Breitenlage
  * (≤ 1100 px) und wird beim Wechsel der Lage nachgezogen — eine bewusste

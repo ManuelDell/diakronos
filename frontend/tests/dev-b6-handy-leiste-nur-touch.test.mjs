@@ -331,11 +331,14 @@ test('DEV-B6: der Menü-Knopf ist am Desktop auch dann aus, wenn DkButton ihn an
     'die Ausblend-Regel muss zwei Klassen tragen (sonst gewinnt DkButton)')
   assert.ok(!/(?:^|\n)\.dk-menue-knopf\s*\{/.test(css.replace(/\.dk-topbar-symbol\.dk-menue-knopf/g, '')),
     'keine konkurrierende Regel mit nur einer Klasse')
-  // Und der Verweis auf den Zustand in App.vue: die Schublade hängt an
-  // `sidebarCollapsed` — genau der Zustand, in dem der Knopf erscheint.
+  // Und der Verweis auf den Zustand in App.vue: die Schublade hängt NUR an
+  // der Handy-Lage (MT-1, Manuel 11.11. „nur EIN Seitenmenü“) — nicht mehr an
+  // `sidebarCollapsed`; dort ist der Ausklapp-Knopf der Leiste der Einstieg.
   const app = readFileSync(resolve(SRC, 'diakonos/App.vue'), 'utf8')
-  assert.match(app, /v-if="!isVollbildMode && \(istHandyLage \|\| sidebarCollapsed\)"/,
-    'Schublade an Handy-Lage ODER eingeklappte Seitenleiste')
+  assert.match(app, /v-if="!isVollbildMode && istHandyLage"/,
+    'Schublade nur in der Handy-Lage')
+  assert.ok(!/<AppMenueSchublade[\s\S]{0,200}sidebarCollapsed/.test(app),
+    'keine Schublade bei eingeklappter Leiste (MT-1)')
 })
 
 test('DEV-B6: der Befund selbst — Laptop 702×894 mit Maus', () => {

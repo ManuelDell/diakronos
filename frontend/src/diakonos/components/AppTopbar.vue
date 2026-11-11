@@ -2,10 +2,15 @@
   <header class="dk-topbar">
     <div class="dk-topbar-left">
       <!-- UX3e (Entwurf A8): Menü-Symbol OBEN LINKS öffnet die Schublade mit
-           der vollständigen Navigation. Am Desktop ist es ausgeblendet (dort
-           gibt es die Seitenleiste) — die Sichtbarkeit regelt index.css. Der
-           Knopf liegt in der Kopfzeile, damit er auf JEDER Seite an derselben
-           Stelle steht (Prinzip S4/S5) und nicht je Bereich wandert. -->
+           der vollständigen Navigation. MT-1 (Manuel 11.11.): Es gehört
+           AUSSCHLIESSLICH zur Handy-Lage. Am Laptop/Desktop gibt es genau EINEN
+           Einstieg zur Navigation — die Seitenleiste selbst; eingeklappt ist
+           das ihr eigener Ausklapp-Knopf oben in der Leiste (S4/N5). Vorher
+           zeigte die Kopfzeile bei eingeklappter Leiste zusätzlich einen
+           Hamburger, der ein ZWEITES, identisches Panel öffnete; damit standen
+           beide Einstiege nebeneinander und der Hamburger lag direkt neben der
+           Überschrift. Die Sichtbarkeit regelt index.css: Grundregel `none`,
+           an nur noch `.dk-app--handy`. -->
       <DkButton
         variant="ghost"
         class="dk-topbar-symbol dk-menue-knopf"

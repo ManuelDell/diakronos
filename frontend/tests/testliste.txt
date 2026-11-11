@@ -369,6 +369,11 @@ tests/dev-b4b-*.test.mjs
 # (serverZeitText), inkl. 23:30-UTC-Fall; Datensicherung bleibt Ortszeit.
 tests/zeit3-*.test.mjs
 tests/dev-b6b-*.test.mjs
+# MT-1 (11.11.): Nur EIN Seitenmenü — der Hamburger der Kopfzeile erscheint nur
+# in der Handy-Lage; eingeklappt ist der Ausklapp-Knopf der Leiste der EINE
+# Einstieg, die Menü-Schublade liegt außerhalb der Handy-Lage nicht im DOM.
+# Prüft das auf allen Seiten der App (kein zweites Panel, kein zweiter Knopf).
+tests/mt1-*.test.mjs
 # DEV-B2: Kalender „Zu prüfen“ — die Reiterzeile bleibt wie im Kalender
 # (Monat · Woche · Liste führen als Links `#/kalender?ansicht=…` zurück,
 # Kalender.vue wertet den Parameter aus), „‹ Kalender“ erscheint nur am Handy

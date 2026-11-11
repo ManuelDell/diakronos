@@ -311,10 +311,24 @@ test('UX3e · Menü-Knopf sichtbar in der Mobil-Lage, versteckt am Desktop', () 
   // gibt damit keinen eigenen 720-px-/Querformat-Block für den Knopf mehr.
   assert.match(css, /\.dk-app--handy \.dk-topbar-symbol\.dk-menue-knopf\s*\{\s*display:\s*inline-flex/,
     'in der Handy-Lage sichtbar (Klasse aus useHandyLage)')
-  // Bei eingeklappter Seitenleiste ist der Knopf der EINZIGE Weg zur
-  // Navigation — dort erscheint er unabhängig von der Breite.
-  assert.match(css, /\.dk-app\.is-collapsed \.dk-topbar-symbol\.dk-menue-knopf\s*\{\s*display:\s*inline-flex/,
-    'bei eingeklappter Seitenleiste sichtbar (DEV-B6)')
+  // Bei eingeklappter Seitenleiste ist der Einstieg die LEISTE SELBST
+  // (`.dk-sb-collapse`) — MT-1 (Manuel 11.11., „nur EIN Seitenmenü“): der
+  // frühere zweite Sichtbar-Schalter `.dk-app.is-collapsed` für den
+  // Kopfzeilen-Knopf entfällt, sonst standen zwei Einstiege nebeneinander und
+  // der Hamburger lag neben der Überschrift.
+  assert.ok(!/\.dk-app\.is-collapsed \.dk-menue-knopf/.test(css.replace(/\.dk-app\.is-collapsed \.dk-topbar-symbol\.dk-menue-knopf/g, '')),
+    'kein zweiter Sichtbar-Schalter für den Kopfzeilen-Knopf (MT-1)')
+  assert.ok(!/is-collapsed[^{}]*\.dk-topbar-symbol\.dk-menue-knopf/.test(css),
+    'der Kopfzeilen-Knopf hängt NICHT an der eingeklappten Leiste (MT-1)')
+  const seite = lies('components/AppSidebar.vue')
+  assert.match(ohneKommentare(seite), /class="dk-sb-collapse"/,
+    'die eingeklappte Leiste hat ihren eigenen Ausklapp-Knopf')
+  assert.match(ohneKommentare(seite), /:aria-label="collapsed \? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'"/,
+    'der Ausklapp-Knopf ist beschriftet (N8)')
+  assert.match(ohneKommentare(seite), /@click="\$emit\('toggle-collapse'\)"/,
+    'der Ausklapp-Knopf öffnet die Leiste')
+  assert.match(css, /\.is-collapsed \.dk-sb-collapse\s*\{\s*display:\s*flex;\s*\}/,
+    'eingeklappt bleibt der Knopf der Leiste sichtbar')
   // Trefferfläche aus dem Token (UX1c: kein Literal in der Komponente):
   // 40 px am Maus-Laptop, 44 px am Touchgerät (tokens.css).
   const masse = grund[1]
@@ -337,10 +351,13 @@ test('UX3e · App.vue verdrahtet Knopf, Leiste und Schublade', () => {
   assert.match(t, /<AppBottomNav[^>]*:seite="currentPageName"/,
     'Leiste markiert nach der Route')
   // Die Schublade liegt nur dort im DOM, wo ein Menü-Knopf sie öffnet — in
-  // der Handy-Lage oder bei eingeklappter Seitenleiste (DEV-B6). Sonst stünde
-  // ein zweiter Navigationsweg ohne sichtbaren Einstieg im Tab-Ring.
-  assert.match(t, /<AppMenueSchublade[\s\S]{0,160}v-if="!isVollbildMode && \(istHandyLage \|\| sidebarCollapsed\)"/,
-    'Schublade nur bei sichtbarem Menü-Knopf')
+  // der Handy-Lage (MT-1: NICHT mehr bei eingeklappter Seitenleiste; dort ist
+  // der Ausklapp-Knopf der Leiste der einzige Einstieg). Sonst stünde ein
+  // zweiter Navigationsweg ohne sichtbaren Einstieg im Tab-Ring.
+  assert.match(t, /<AppMenueSchublade[\s\S]{0,200}v-if="!isVollbildMode && istHandyLage"/,
+    'Schublade nur in der Handy-Lage (MT-1: ein Seitenmenü)')
+  assert.ok(!/<AppMenueSchublade[\s\S]{0,200}sidebarCollapsed/.test(t),
+    'die Schublade hängt NICHT mehr an der eingeklappten Leiste (MT-1)')
   // Handy-Lage = DIESELBEN Bedingungen wie das Token `--layout-mobil` in
   // tokens.css (DEV-B6; Nacharbeit 10.11.): grober Zeiger UND 720 px, ODER
   // grober Zeiger und flaches Querformat. Die Zeichenkette steht jetzt EINMAL
