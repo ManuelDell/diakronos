@@ -379,3 +379,10 @@ tests/mt1-*.test.mjs
 # Kalender.vue wertet den Parameter aus), „‹ Kalender“ erscheint nur am Handy
 # (Befund DMB-8e166c0aacff).
 tests/dev-b2-*.test.mjs
+
+# MT-2: Profilbild speichern — Datei-Adressen unter dem Betriebs-Praefix.
+# `update_profile_picture` verglich die praefigierte Client-URL zeichengenau mit
+# der DB-Zeile (`/files/…`) und wies die EIGENE Datei mit 403 ab; `get_my_profile`
+# gab `foto` praefixfrei aus (Router praefigiert nur `file_url`) -> Bild 404.
+# Der Waechter haelt Besitzpruefung, Adressmuster und Ausgabe-Praefix fest.
+tests/mt2-*.test.mjs

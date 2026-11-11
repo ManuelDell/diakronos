@@ -26,6 +26,10 @@ COPY backend/src/diakronos_app/planrahmen/doku/kochbuch/ /backend/src/diakronos_
 # dafuer DREI Backend-Dateien AUSSERHALB von frontend/ (Regel 13) — ohne diese
 # Zeilen waere er im Image rot, im Worktree gruen (Vorfall SEC-10/WEB-2).
 COPY backend/src/diakronos_app/api/zugang.py /backend/src/diakronos_app/api/zugang.py
+# MT-2: `tests/mt2-profilbild-praefix.test.mjs` haelt die Besitzpruefung und die
+# Adressformen des Profilbilds am Quelltext fest und liest dafuer
+# `api/profile.py` — ausserhalb von frontend/ (Regel 13).
+COPY backend/src/diakronos_app/api/profile.py /backend/src/diakronos_app/api/profile.py
 COPY backend/src/diakronos_app/frappe_compat/api_helpers.py /backend/src/diakronos_app/frappe_compat/api_helpers.py
 COPY backend/src/diakronos_app/frappe_compat/router.py /backend/src/diakronos_app/frappe_compat/router.py
 # WEB-1/WEB-1b: die Vertragstests (tests/web1-*.test.mjs, tests/web1b-*.test.mjs)

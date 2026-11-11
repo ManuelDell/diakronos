@@ -66,6 +66,7 @@ from __future__ import annotations
 FRAPPE_MODULE = "diakronos.diakonos.api.profile"
 
 import json
+import re
 
 from diakronos_app.api.dsgvo_log import log_einwilligung
 from diakronos_app.frappe_compat.api_helpers import (
@@ -164,7 +165,7 @@ def get_my_profile():
         "wohnort": doc.wohnort or "",
         "strasse": doc.get("straße") or "",
         "nummer": doc.nummer or "",
-        "foto": doc.foto or "",
+        "foto": _datei_mit_praefix(doc.foto),
         "geschlecht": doc.geschlecht or "",
         "familienstand": doc.familienstand or "",
         "datenschutz_einwilligung": bool(doc.datenschutz_einwilligung),
@@ -396,6 +397,44 @@ def update_einwilligung(typ, erteilt):
     return {"ok": True}
 
 
+# ── Datei-Adressen ──────────────────────────────────────────────────────────
+
+
+#: Erlaubte Adressformen einer hochgeladenen Datei: ein einzelner Name unter
+#: `files/` bzw. `private/files/`, optional mit Betriebs-Praefix davor
+#: (`/diakronos/files/<name>`, siehe `base_path.datei_url`, WEB-5a).
+#: Praefix-Segmente verlangen mindestens ein Zeichen ausser `.`, damit `.`,
+#: `..` und `...` NIE als Pfadteil durchgehen (MT-2).
+_DATEI_URL = re.compile(r'^/(?:[A-Za-z0-9_~-][A-Za-z0-9._~-]*/)*(?:private/)?files/([A-Za-z0-9._-]+)$')
+
+
+def _dateiname_aus_file_url(file_url: str) -> str | None:
+    """Dateiname aus einer `file_url` — oder `None`, wenn die Form nicht passt.
+
+    MT-2: `upload_file` gibt die Adresse MIT Betriebs-Praefix aus
+    (`/diakronos/files/<name>`), die `File`-Zeile in der Datenbank traegt
+    weiter `/files/<name>`. Zeichengenau verglichen fand die Besitzpruefung
+    deshalb unter dem Praefix NIE eine Zeile — auch bei eigener Datei (403).
+    Verglichen wird jetzt der Dateiname; `stored_path` prueft ihn danach
+    erneut gegen das Ablageverzeichnis.
+    """
+    treffer = _DATEI_URL.match(str(file_url or ''))
+    return treffer.group(1) if treffer else None
+
+
+def _datei_mit_praefix(url: str | None) -> str:
+    """`foto`-Adresse fuer die Ausgabe mit Betriebs-Praefix (MT-2).
+
+    In der Datenbank steht `/files/…` (Frappe-Erbe, DB wird nicht migriert).
+    Der Router praefigiert nur Schluessel namens `file_url`; `foto` ist ein
+    anderer Name, das `<img :src="profile.foto">` liefe ohne diese Stelle unter
+    `/diakronos` in ein 404. Ohne Praefix unveraendert (Gegenprobe).
+    """
+    from diakronos_app.base_path import datei_url
+
+    return datei_url(url) if url else ""
+
+
 # ── Profilbild ──────────────────────────────────────────────────────────────
 
 
@@ -420,15 +459,30 @@ def update_profile_picture(file_url=None):
         from diakronos_app.models.core import FileModel
         from diakronos_app.files import stored_path
 
+        # MT-2: Unter dem Betriebs-Praefix liefert `upload_file` die Adresse
+        # `/diakronos/files/<name>` (WEB-5a), die DB-Zeile traegt weiter
+        # `/files/<name>`. Beide Formen muessen denselben Datensatz treffen,
+        # sonst schlaegt das Speichern des eigenen Bildes mit 403 fehl.
+        # Verglichen wird NIE der Client-String, sondern der Dateiname, und
+        # die DB-Zeile muss dem Aufrufer gehoeren — fremde Dateien bleiben 403.
+        filename = _dateiname_aus_file_url(file_url)
+        if not filename:
+            throw("Nur eigene hochgeladene Dateien sind erlaubt.", FrappePermissionError)
+            raise AssertionError("unreachable — throw() wirft immer")  # noqa: TRY301
         with SessionLocal() as db:
             file_doc = db.query(FileModel).filter(
-                FileModel.file_url == file_url, FileModel.owner == session.user,
+                FileModel.file_url.in_([
+                    '/files/' + filename, '/private/files/' + filename,
+                ]),
+                FileModel.owner == session.user,
             ).first()
-            filename = file_url.rsplit('/', 1)[-1] if isinstance(file_url, str) else ''
-            if (file_doc is None or
-                file_url not in ('/files/' + filename, '/private/files/' + filename) or
-                stored_path(filename) is None):
+            if file_doc is None or stored_path(filename) is None:
                 throw("Nur eigene hochgeladene Dateien sind erlaubt.", FrappePermissionError)
+                raise AssertionError("unreachable — throw() wirft immer")  # noqa: TRY301
+        # Gespeichert wird die DB-Form (praefixfrei) — die Ausgabe praefigiert
+        # `get_my_profile` ohnehin; eine praefigierte URL in der Spalte waere
+        # bei einem Praefix-Wechsel kaputt.
+        file_url = file_doc.file_url
     doc = get_doc("Mitglied", mid)
     doc.db_set("foto", file_url or None)
     return {"ok": True}
