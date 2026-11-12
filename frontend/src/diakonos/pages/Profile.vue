@@ -21,7 +21,7 @@
         <div class="prof-avatar-card">
           <div class="prof-avatar-wrap" @click="openCropModal">
             <div class="prof-avatar" :style="avatarStyle">
-              <img v-if="profile.foto" :src="profile.foto" alt="Foto" />
+              <img v-if="sichereBildUrl(profile.foto)" :src="sichereBildUrl(profile.foto)" alt="Foto" />
               <span v-else>{{ initials }}</span>
             </div>
             <!-- OP-HANDY-22: Am Handy gibt es kein „Überfahren" — das
@@ -291,6 +291,9 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 // WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
 import { apiUrl } from '../../shared/basis.js'
+// UXD-R5: Foto-URL nur als http(s)/relativer Pfad ausgeben (Review MT-2b) —
+// dieselbe Pruefung wie im Organigramm und in GruppeDetail.
+import { sichereBildUrl } from '../../shared/sichere-ausgabe.js'
 import { serverDatum } from '../../shared/zeit.mjs'
 import { Cropper } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'

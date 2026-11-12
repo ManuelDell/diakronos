@@ -339,6 +339,20 @@ def sid_aus_headers_from(cookie_header: str) -> str | None:
     return None
 
 
+def _bild_mit_praefix(url) -> str:
+    """Profilbild-Adresse (`user_image`) mit Betriebs-Praefix (MT-2b).
+
+    Der EINE Praefigierer der Anwendung ist `api/profile.foto_mit_praefix`
+    (prueft die Adressform und setzt `base_path.datei_url` vor) — hier wird
+    nur durchgereicht, keine zweite Praefix-Logik. `user_image` heisst nicht
+    `file_url`, deshalb praefigiert der Router es nicht; unter `/diakronos`
+    liefe das Kopf-Bild der SPA sonst in ein 404.
+    """
+    from diakronos_app.api.profile import foto_mit_praefix
+
+    return foto_mit_praefix(url)
+
+
 def boot_fuer_request() -> dict[str, Any]:
     """Baut das echte Boot-Objekt der SPA fuer den laufenden Request.
 
@@ -367,7 +381,11 @@ def boot_fuer_request() -> dict[str, Any]:
         "basePath": base_path.aktiver_praefix(),
         "user_fullname": user_doc.get("full_name") or ("" if user == GUEST else user),
         "user_email": email,
-        "user_image": user_doc.get("user_image") or "",
+        # MT-2b: das Profilbild ist eine Datei-Adresse und braucht wie `foto`
+        # den Betriebs-Praefix — `user_image` ist kein `file_url`, der Router
+        # fasst es nicht an. Derselbe Praefigierer wie bei den Mitglieder-Lesern
+        # (prueft die Adressform, unbekannte relative Werte -> "").
+        "user_image": _bild_mit_praefix(user_doc.get("user_image")),
         "csrf_token": _csrf_token(user),
         # KEIN Flag im Boot: die Admin-Rolle kommt aus `Has Role`.
         # ON-6: der root besteht JEDE Pruefung — „root“ ist zusaetzlich im

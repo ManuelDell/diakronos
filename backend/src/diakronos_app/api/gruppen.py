@@ -108,6 +108,19 @@ _VERANTWORTLICHER = {
 # ── Interne Helfer (ersetzt frappe-Komfort, den die Compat-Schicht nicht hat) ──
 
 
+def _foto_url(wert) -> str:
+    """MT-2b: Profilbild-Adresse mit Betriebs-Praefix — der EINE Praefigierer.
+
+    `foto` heisst nicht `file_url`, die Router-Praefigierung greift hier also
+    nicht; unter `/diakronos` liefen die Bilder der Gruppenmitglieder und
+    Verantwortlichen sonst in ein 404. `api/profile.py` haelt die Stelle
+    (`base_path.datei_url`, idempotent), hier wird nur durchgereicht.
+    """
+    from diakronos_app.api.profile import foto_mit_praefix
+
+    return foto_mit_praefix(wert)
+
+
 def _is_admin() -> bool:
     """Admin-Kurzschluss aus den Rollen (Original: `any(r in ADMIN_ROLES)`)."""
     return any(r in get_roles() for r in ADMIN_ROLES)
@@ -569,7 +582,9 @@ def _mitglieder_der_gruppe(doctype: str, docname: str) -> list[dict[str, Any]]:
             "mitglied": ziel,
             "name": anzeigename(m, sicht=sicht) or m.get("name"),
             "email": m.get("email"),
-            "foto": m.get("foto"),
+            # MT-2b: `foto` ist kein `file_url` — der Router praefigiert es
+            # nicht. Der eine Praefigierer steht in `api/profile.py`.
+            "foto": _foto_url(m.get("foto")),
             "rolle": row.get("rolle"),
             "status": row.get("status"),
             "beitrittsdatum": row.get("beitrittsdatum"),
@@ -657,7 +672,8 @@ def get_gruppe_detail(gruppe_id):
                 "verantwortlicher": row["user"] if v.get("email") is not None else None,
                 "name": anzeigename(v, sicht=sicht),
                 "email": v.get("email"),
-                "foto": v.get("foto"),
+                # MT-2b: wie oben — der eine Praefigierer, sonst 404 unter /diakronos.
+                "foto": _foto_url(v.get("foto")),
             })
 
     aufgaben = _get_gruppen_inhalte(

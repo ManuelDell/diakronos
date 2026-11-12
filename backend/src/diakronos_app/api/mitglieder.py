@@ -433,6 +433,15 @@ def get_mitglieder_liste(start=0, limit=20, suche="", status="", sort_by="name",
     for zeile in data:
         zeile.pop("_austritt_email_roh", None)
 
+    # MT-2b: `foto` heisst nicht `file_url` — der Router praefigiert es nicht.
+    # Praefigiert wird erst hier, nach der Kuerzung, damit die Maskierung und
+    # die „ausgetreten -> kein Bild“-Regel unberuehrt bleiben und nur die
+    # tatsaechlich ausgelieferte Adresse den Betriebs-Praefix bekommt.
+    from diakronos_app.frappe_compat.personen_anzeige import ist_geloescht
+
+    for zeile in data:
+        zeile["foto"] = _foto_url(zeile.get("foto")) if not ist_geloescht(zeile) else ""
+
     # Total-Count fuer Pagination — derselbe Filter wie die Datenabfrage.
     # N11b/K2: Der Export blaettert die Liste in 500er-Schritten ab und braucht
     # die Zaehlung nur einmal (erste Seite). `mit_zaehlung=False` ueberspringt
@@ -996,6 +1005,14 @@ def _log_profil_aenderung(mitglied_id, changed_fields):
 
 # ── Adressbuch ──────────────────────────────────────────────────────────────
 
+# MT-2b: `foto` ist kein `file_url` — die Router-Praefigierung greift hier
+# nicht. Der eine Praefigierer fuer Profilbilder steht in `api/profile.py`;
+# importiert wird er erst im Aufrufpfad (kein Zyklus beim Modulaufruf).
+def _foto_url(wert) -> str:
+    from diakronos_app.api.profile import foto_mit_praefix
+
+    return foto_mit_praefix(wert)
+
 
 @whitelist(allow_guest=False)
 def get_adressbuch(suche=""):
@@ -1120,7 +1137,8 @@ def get_adressbuch(suche=""):
             "nachname": "" if geloescht else (maskiert.get("nachname") or ""),
             # Kein Bild einer geloeschten Person: `dsgvo_anonymisierung`
             # entfernt die Datei, ein Rest im Feld waere ein toter Verweis.
-            "foto": "" if geloescht else (maskiert.get("foto") or ""),
+            # MT-2b: praefigiert (sonst 404 unter /diakronos).
+            "foto": "" if geloescht else _foto_url(maskiert.get("foto")),
             "email": maskiert.get("email"),
             "telefonnummer": maskiert.get("telefonnummer"),
             "postleitzahl": maskiert.get("postleitzahl"),
@@ -1537,8 +1555,16 @@ def update_mitglied(mitglied_id, data=None, **kwargs):
     allowed_fields = {
         "vorname", "nachname", "email", "telefonnummer", "geburtstag",
         "postleitzahl", "wohnort", "straße", "nummer", "geschlecht",
-        "familienstand", "foto", "datenschutz_einwilligung", "status",
+        "familienstand", "datenschutz_einwilligung", "status",
     }
+    # KEIN `foto` (Review MT-2b, HOCH): der Wert wurde hier ungeprueft
+    # geschrieben — jedes Mitglied darf sein EIGENES Mitglied bearbeiten,
+    # konnte damit `/private/files/<fremde Datei>` oder
+    # `/files/../../etc/passwd` in die Spalte legen, und die Leser lieferten
+    # die Adresse an alle Betrachter aus (deren Browser stellt die
+    # <img>-Anfrage). Profilbilder laufen ausschliesslich ueber
+    # `profile.update_profile_picture` (Besitzpruefung) — wie `status` und
+    # `datenschutz_einwilligung` bleibt das Feld hier bewusst draussen.
     field_aliases = {
         "telefon": "telefonnummer",
         "strasse": "straße",
@@ -1647,8 +1673,9 @@ def update_mitglied_with_confirmation(mitglied_id, data, audit_confirmation):
         allowed_fields = {
             "vorname", "nachname", "email", "telefonnummer", "geburtstag",
             "postleitzahl", "wohnort", "straße", "nummer", "geschlecht",
-            "familienstand", "foto", "datenschutz_einwilligung", "status",
+            "familienstand", "datenschutz_einwilligung", "status",
         }
+        # KEIN `foto` — siehe `update_mitglied` (Review MT-2b, HOCH).
         field_aliases = {
             "telefon": "telefonnummer",
             "strasse": "straße",

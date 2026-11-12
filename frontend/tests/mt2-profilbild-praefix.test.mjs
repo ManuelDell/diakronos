@@ -44,22 +44,28 @@ function funktion(text, name) {
 
 // ── 1. Adressmuster ─────────────────────────────────────────────────────────
 
-test('MT-2: das Adressmuster kennt Praefix-Formen und weist Pfade ab', () => {
+test('MT-2b: das Adressmuster kennt die erlaubten Formen und weist Pfade ab', () => {
   const text = quelle()
-  const erwartet = "_DATEI_URL = re.compile("
-    + String.raw`r'^/(?:[A-Za-z0-9_~-][A-Za-z0-9._~-]*/)*(?:private/)?files/([A-Za-z0-9._-]+)$')`
-  assert.ok(text.includes(erwartet),
-    'das Adressmuster in api/profile.py weicht ab — Praefix-Formen und Path-Traversal neu pruefen')
+  // MT-2b: aus `_DATEI_URL` (fest einkompiliert, `match` + `$`) wurde
+  // `_datei_url_muster()` — das Muster wird je Aufruf aus `aktiver_praefix()`
+  // gebaut, verglichen wird mit `fullmatch`. Ein beliebiges `/x/y/files/…`
+  // ist seither KEINE Adresse dieser Installation mehr.
+  assert.match(text, /def _datei_url_muster\(\)/,
+    'das Adressmuster muss aus dem aktiven Praefix gebaut werden (MT-2b)')
+  assert.match(text, /fullmatch\(str\(file_url or ''\)\)/,
+    '`match` + `$` schluckt in Python ein abschliessendes Zeilenende — `fullmatch` noetig')
+  assert.doesNotMatch(text, /_DATEI_URL\s*=\s*re\.compile\(/,
+    'die fest einkompilierte `_DATEI_URL` mit beliebigem Praefix-Segment ist ersetzt')
 
   // Dasselbe Muster wie im Backend, hier als JS-Literal — Verhalten statt Text.
-  const muster = /^\/(?:[A-Za-z0-9_~-][A-Za-z0-9._~-]*\/)*(?:private\/)?files\/([A-Za-z0-9._-]+)$/
+  // Erlaubt: praefixfrei oder mit dem AKTIVEN Praefix (`/diakronos`).
+  const muster = /^(?:\/diakronos)?\/(?:private\/)?files\/([A-Za-z0-9._-]+)$/
 
   for (const gut of [
     '/files/abc-anna.jpg',
     '/private/files/abc-anna.jpg',
     '/diakronos/files/abc-anna.jpg',
     '/diakronos/private/files/abc-anna.jpg',
-    '/gemeinde/unter/diakronos/files/abc-anna.jpg',
   ]) {
     assert.match(gut, muster, `gueltige Adresse abgelehnt: ${gut}`)
   }
@@ -72,6 +78,9 @@ test('MT-2: das Adressmuster kennt Praefix-Formen und weist Pfade ab', () => {
     'files/x.jpg',
     '/files/',
     '/files/a%2fb.jpg',
+    '/files/x.jpg\n',
+    '/x/y/files/x.jpg',
+    '/gemeinde/unter/diakronos/files/x.jpg',
     '',
   ]) {
     assert.doesNotMatch(boese, muster, `ungueltige Adresse akzeptiert: ${boese}`)

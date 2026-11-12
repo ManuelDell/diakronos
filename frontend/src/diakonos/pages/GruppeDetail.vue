@@ -13,7 +13,7 @@
         >
             <template #actions>
                 <div v-if="verantwortliche.length > 0" class="grup-avatar">
-                    <img v-if="verantwortliche[0].foto" :src="verantwortliche[0].foto" :alt="verantwortliche[0].name" />
+                    <img v-if="sichereBildUrl(verantwortliche[0].foto)" :src="sichereBildUrl(verantwortliche[0].foto)" :alt="verantwortliche[0].name" />
                     <span v-else>{{ initials(verantwortliche[0].name) }}</span>
                 </div>
             </template>
@@ -277,6 +277,10 @@ import { bestaetigen } from '../composables/useBestaetigen.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import { useVerlassenSchutz } from '../composables/useVerlassenSchutz.js'
 import { darfProfilLink } from '../composables/geloeschte-person.mjs'
+// UXD-R5: Foto-Adressen aus der Antwort gehen nur als relativer Pfad oder
+// http(s) in ein `src` — `javascript:`/`data:` werden verworfen (dieselbe
+// Schranke wie im Organigramm).
+import { sichereBildUrl } from '../../shared/sichere-ausgabe.js'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkButton from '../components/ui/DkButton.vue'
 import DkBadge from '../components/ui/DkBadge.vue'
@@ -830,6 +834,8 @@ export default {
             loadingSkelett,
             // DSGVO-2d: eine gelöschte Person hat kein Profil (kein Link).
             darfProfilLink,
+            // UXD-R5: Bild-Adressen nur als relativer Pfad oder http(s).
+            sichereBildUrl,
             // OP-CHOR-12/K2: Numerus-Helfer für „1 Mitglied“/„3 Mitglieder“.
             zahlWort,
             gruppe,

@@ -401,11 +401,28 @@ def update_einwilligung(typ, erteilt):
 
 
 #: Erlaubte Adressformen einer hochgeladenen Datei: ein einzelner Name unter
-#: `files/` bzw. `private/files/`, optional mit Betriebs-Praefix davor
-#: (`/diakronos/files/<name>`, siehe `base_path.datei_url`, WEB-5a).
-#: Praefix-Segmente verlangen mindestens ein Zeichen ausser `.`, damit `.`,
-#: `..` und `...` NIE als Pfadteil durchgehen (MT-2).
-_DATEI_URL = re.compile(r'^/(?:[A-Za-z0-9_~-][A-Za-z0-9._~-]*/)*(?:private/)?files/([A-Za-z0-9._-]+)$')
+#: `files/` bzw. `private/files/`, optional mit dem AKTIVEN Betriebs-Praefix
+#: davor (`/diakronos/files/<name>`, siehe `base_path.datei_url`, WEB-5a).
+#: MT-2b: nur noch `aktiver_praefix()` oder gar kein Praefix — ein beliebiges
+#: fremdes `/x/y/files/…` ist keine Adresse dieser Installation mehr.
+#: `fullmatch` statt `match` + `$`: `$` erlaubt in Python ein abschliessendes
+#: Zeilenende (`"…/a.jpg\n"`), `fullmatch` nicht.
+#: Die Zeichenklasse des Praefix-Segments verlangt mindestens ein Zeichen
+#: ausser `.`, damit `.`, `..` und `...` NIE als Pfadteil durchgehen (MT-2).
+def _datei_url_muster() -> re.Pattern[str]:
+    from diakronos_app.base_path import aktiver_praefix
+
+    # MT-2b: genau ZWEI Formen — praefixfrei (`/files/<name>`, die DB-Form)
+    # oder MIT dem aktiven Praefix (`/diakronos/files/<name>`, die Form aus
+    # `upload_file`). Ein beliebiges `/x/y/files/…` ist keine Adresse dieser
+    # Installation. Eine Pfad-Segment-Gruppe vor `files/` gibt es bewusst
+    # nicht mehr: sie haette jedes Praefix akzeptiert.
+    # `re.escape` behaelt den fuehrenden Schraegstrich (`/diakronos`) — er darf
+    # NICHT noch einmal davorgesetzt werden, sonst entstuende `//diakronos/…`.
+    praefix = re.escape(aktiver_praefix())
+    return re.compile(
+        rf'(?:{praefix})?/(?:private/)?files/([A-Za-z0-9._-]+)'
+    )
 
 
 def _dateiname_aus_file_url(file_url: str) -> str | None:
@@ -417,22 +434,70 @@ def _dateiname_aus_file_url(file_url: str) -> str | None:
     deshalb unter dem Praefix NIE eine Zeile — auch bei eigener Datei (403).
     Verglichen wird jetzt der Dateiname; `stored_path` prueft ihn danach
     erneut gegen das Ablageverzeichnis.
+
+    MT-2b: das Praefix-Segment ist genau der aktive Praefix (oder leer) und
+    der Vergleich ist ein `fullmatch`. Zusaetzlich muss der Dateiname im
+    Dateinamen-Teil exakt dem Muster entsprechen: `.`/`..` als Name fallen
+    durch (die Zeichenklasse `[A-Za-z0-9._-]+` liesse sie sonst zu und
+    `stored_path` wuerde erst spaeter ablehnen).
     """
-    treffer = _DATEI_URL.match(str(file_url or ''))
-    return treffer.group(1) if treffer else None
+    treffer = _datei_url_muster().fullmatch(str(file_url or ''))
+    if treffer and treffer.group(1) not in ('.', '..'):
+        return treffer.group(1)
+    return None
 
 
 def _datei_mit_praefix(url: str | None) -> str:
-    """`foto`-Adresse fuer die Ausgabe mit Betriebs-Praefix (MT-2).
+    """`foto`-Adresse fuer die Ausgabe mit Betriebs-Praefix (MT-2, MT-2b).
 
     In der Datenbank steht `/files/…` (Frappe-Erbe, DB wird nicht migriert).
     Der Router praefigiert nur Schluessel namens `file_url`; `foto` ist ein
     anderer Name, das `<img :src="profile.foto">` liefe ohne diese Stelle unter
     `/diakronos` in ein 404. Ohne Praefix unveraendert (Gegenprobe).
+
+    MT-2b: dieselbe Stelle bedient jetzt ALLE Leser von `foto` — Profil,
+    GruppeDetail, Organigramm und Adressbuch rufen `foto_mit_praefix` auf
+    (ein Praefigierer, `base_path.datei_url`, idempotent). Der Name
+    `_datei_mit_praefix` bleibt als Profil-internes Alias bestehen.
     """
     from diakronos_app.base_path import datei_url
 
     return datei_url(url) if url else ""
+
+
+def foto_mit_praefix(url: str | None) -> str:
+    """Ausgabe-Adresse eines Profilbilds (`foto`) — der EINE Praefigierer.
+
+    MT-2b: `foto` heisst nicht `file_url`, deshalb greift die
+    Router-Praefigierung (`frappe_compat.router._praefixierte_datei_urls`)
+    hier nicht. Jeder Leser von `api/*.py`, der `foto` ausgibt, ruft diese
+    Funktion — keine zweite Praefix-Logik. `base_path.datei_url` ist
+    idempotent (schon praefigierte Werte bleiben unveraendert), ein doppelter
+    Aufruf kann also nichts kaputt machen. `None` -> `""` (die SPA prueft
+    `v-if="foto"`).
+
+    Verteidigung in der Tiefe (Review MT-2b, MITTEL): absolute Adressen
+    (`http(s)://`, `//host`, ein Fremdschema wie `javascript:`) gehen
+    unveraendert durch — sie sind kein Pfad dieser Installation, werden aber
+    von `sichereBildUrl` im Frontend gefiltert und von Altbestand/CDN
+    gebraucht. ALLES andere muss dagegen eine Adresse nach
+    `_datei_url_muster()` sein (`[/praefix]/files/<name>` bzw.
+    `…/private/files/<name>`); fremde relative Werte (`/etc/passwd`,
+    `/files/../../…`, `/x/y/files/…`) werden NICHT ausgeliefert, sondern zu
+    `""`. Sonst wuerde ein Altbestand, der vor dem Schreibschutz
+    (`update_mitglied`) in die Spalte gelangt ist, weiter an alle Betrachter
+    gehen.
+    """
+    wert = str(url or "").strip()
+    if not wert:
+        return ""
+    # Absolute Adresse: kein Pfad dieser Installation — unangetastet (datei_url
+    # laesst sie ohnehin stehen, hier nur die Ausnahme von der Pruefung).
+    if "://" in wert or wert.startswith("//"):
+        return _datei_mit_praefix(wert)
+    if _datei_url_muster().fullmatch(wert) is None:
+        return ""
+    return _datei_mit_praefix(wert)
 
 
 # ── Profilbild ──────────────────────────────────────────────────────────────

@@ -257,6 +257,18 @@ def _can_access_desk(user: str) -> bool:
     return bool(DESK_ROLES & set(get_roles(user)))
 
 
+def _bild_mit_praefix(url) -> str:
+    """Profilbild-Adresse (`user_image`) mit Betriebs-Praefix (MT-2b).
+
+    Der EINE Praefigierer ist `api/profile.foto_mit_praefix`; hier nur
+    durchreichen. `user_image` heisst nicht `file_url`, der Router praefigiert
+    es deshalb nicht — unter `/diakronos` waere das Bild sonst ein 404.
+    """
+    from diakronos_app.api.profile import foto_mit_praefix
+
+    return foto_mit_praefix(url)
+
+
 # ── Endpunkte ───────────────────────────────────────────────────────────────
 
 
@@ -274,7 +286,11 @@ def get_session_info():
         "initial": str(full_name)[0].upper() if full_name else "?",
         "full_name": full_name,
         "name": user,
-        "user_image": (user_doc.get("user_image") if hasattr(user_doc, "get") else None) or None,
+        # MT-2b: Datei-Adresse -> derselbe Praefigierer wie Boot und `foto`
+        # (`profile.foto_mit_praefix`; der Router praefigiert nur `file_url`).
+        "user_image": _bild_mit_praefix(
+            (user_doc.get("user_image") if hasattr(user_doc, "get") else None) or None
+        ) or None,
         "roles": list(get_roles(user)),
         "can_access_desk": _can_access_desk(user),
         "can_moderate": can_moderate,

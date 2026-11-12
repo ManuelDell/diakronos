@@ -34,6 +34,19 @@ from diakronos_app.frappe_compat.query import get_value
 # UXD-R28/DES-04: die eine Farbreinigungsstelle (gemeinsam mit gruppen.py).
 from diakronos_app.api.farbe import _normalisiere_farbe
 
+
+def _foto_url(wert) -> str:
+    """MT-2b: Profilbild-Adresse mit Betriebs-Praefix — der EINE Praefigierer.
+
+    Das Organigramm setzt `foto` direkt in ein `<img src>` (ueber
+    `sichereBildUrl`, das relative Pfade durchlaesst). Ohne Praefix zeigte
+    jede Kachel unter `/diakronos` ein 404. Die Stelle selbst liegt in
+    `api/profile.py` (`base_path.datei_url`, idempotent).
+    """
+    from diakronos_app.api.profile import foto_mit_praefix
+
+    return foto_mit_praefix(wert)
+
 # Quelle: orgchart_api.py — der Altcode liest den Single "Diakronos Einstellungen".
 _EINSTELLUNGEN = "Diakronos Einstellungen"
 _DEFAULT_ORG_NAME = "Meine Gemeinde"
@@ -235,7 +248,7 @@ def get_orgchart_data():
             "name": m["full_name"],
             "node_type": "mitglied",
             "rolle": m.get("rolle") or "",
-            "foto": m.get("foto") or "",
+            "foto": _foto_url(m.get("foto")),
         })
 
     # Mitglieder je Untergruppe — Quelle: orgchart_api.py:153-163
@@ -246,7 +259,7 @@ def get_orgchart_data():
             "name": m["full_name"],
             "node_type": "mitglied",
             "rolle": m.get("rolle") or "",
-            "foto": m.get("foto") or "",
+            "foto": _foto_url(m.get("foto")),
         })
 
     return nodes
@@ -281,7 +294,7 @@ def _sorted_member_rows(rows: list[dict], parent_key: str) -> list[dict]:
             "gruppe": row.get("parent"),
             "untergruppe": row.get("parent"),
             "rolle": row.get("rolle"),
-            "foto": m.get("foto"),
+            "foto": _foto_url(m.get("foto")),
             "full_name": anzeigename(m, sicht=sicht),
             "_nachname": m.get("nachname") or "",
             "_vorname": m.get("vorname") or "",

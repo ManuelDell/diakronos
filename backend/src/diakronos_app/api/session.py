@@ -70,6 +70,18 @@ def sitzung_status(request=None):
     return {"user": session.user, "csrf_token": daten.get("csrf_token") or ""}
 
 
+def _bild_mit_praefix(url) -> str:
+    """Profilbild-Adresse (`user_image`) mit Betriebs-Praefix (MT-2b).
+
+    Der EINE Praefigierer ist `api/profile.foto_mit_praefix`; hier nur
+    durchreichen. `context_type`-Antworten der SPA tragen dasselbe
+    `user_image` wie das Boot-Objekt — beide muessen dieselbe Adresse liefern.
+    """
+    from diakronos_app.api.profile import foto_mit_praefix
+
+    return foto_mit_praefix(url)
+
+
 @whitelist(allow_guest=False)
 def get_current_user_context():
     """Vollstaendiger User-Context fuer die Diakonos Vue-SPA.
@@ -134,7 +146,10 @@ def get_current_user_context():
         "user": user,
         "user_fullname": user_doc.get("full_name") or user,
         "user_email": email,   # BOOT_VERTRAG.md
-        "user_image": user_doc.get("user_image") or "",
+        # MT-2b: `user_image` ist eine Datei-Adresse und braucht den
+        # Betriebs-Praefix (der Router fasst nur `file_url` an). Derselbe
+        # Praefigierer wie im Boot (`spa._bild_mit_praefix`).
+        "user_image": _bild_mit_praefix(user_doc.get("user_image")),
         "email": email,        # Original (session.py)
         "mitglied": mitglied,
         "is_admin": is_admin,

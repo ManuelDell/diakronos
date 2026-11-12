@@ -8,14 +8,13 @@
             <div class="flex items-center gap-2">
                 <!-- DEP-1: Bild oder Initialen — dasselbe Bild wie in den
                      Organigramm-Knoten (.oc-mitglied-foto / .oc-mitglied-avatar,
-                     Tokens aus tokens.css) statt Avatar aus frappe-ui. -->
-                <img
-                    v-if="userImage"
-                    :src="userImage"
-                    :alt="userFullname"
-                    class="oc-kopf-foto"
-                />
-                <span v-else-if="userFullname" class="oc-kopf-avatar" aria-hidden="true">{{ initials(userFullname) }}</span>
+                     Tokens aus tokens.css) statt Avatar aus frappe-ui.
+                     MT-2b: Das Bild kam aus `window.__diakronos.userImage` —
+                     dieses Objekt setzt nur die oeffentliche Datenansicht für
+                     `gast`, das Organigramm liest `__DIakonosBOOT` und hatte
+                     dort NIE einen Wert (toter Zweig). Entfernt; es bleiben
+                     die Initialen aus dem Anzeigenamen. -->
+                <span v-if="userFullname" class="oc-kopf-avatar" aria-hidden="true">{{ initials(userFullname) }}</span>
                 <span class="text-sm text-gray-600">{{ userFullname }}</span>
             </div>
         </div>
@@ -67,7 +66,6 @@ const fehler      = ref('')
 // UX2d3c: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
 const { skelettSichtbar } = useLadeSkelett(loading)
 const userFullname = window.__diakronos?.userFullname || ''
-const userImage    = window.__diakronos?.userImage || ''
 
 function initials(name) {
     return name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase()
