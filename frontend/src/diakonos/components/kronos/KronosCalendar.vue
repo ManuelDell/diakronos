@@ -31,6 +31,11 @@ import { istEngeBreite } from './breiten.mjs'
 import { useHandyLage } from '../../composables/handyLage.mjs'
 // A10-N3 (Punkt 6): Startstunde der Wochenansicht am Handy (reine Rechnung).
 import { startStunde, beschriftungsVersatz, stundenHoehe, scrollZiel, sprungEntscheidung, engeZeit } from './wochenStart.mjs'
+// MT-5: WAS im Leerzustand steht (die Bibliothek setzt sonst „No events“ —
+// englisch und ohne Gestaltung). Reine Daten in `./kalenderLeerzustand.mjs`,
+// gebaut wird er hier mit der echten Komponente DkEmpty.
+import { leerzustandInhalt } from './kalenderLeerzustand.mjs'
+import DkEmpty from '../ui/DkEmpty.vue'
 
 const EventCalendar = _EC.default?.create ? _EC.default : (_EC.create ? _EC : null)
 
@@ -171,6 +176,32 @@ function zeilenHerrichten() {
   for (const zeile of Array.from(calendarEl.value.querySelectorAll('.ec-list article.ec-event'))) {
     if (!zeile.hasAttribute('data-aktionen-zeile')) zeile.setAttribute('data-aktionen-zeile', '')
   }
+}
+
+/**
+ * MT-5 — Der Leerzustand als ECHTE Komponente.
+ *
+ * Die Bibliothek kennt genau eine Stelle für ihren Leertext
+ * (`noEventsContent`, Bundle 5.18.0: Vorgabe „No events“); gelesen wird sie
+ * nur vom Listen-Plugin, alle Listen-Ansichten zeigen denselben Satz.
+ * Deshalb wird sie EINMAL beim Aufbau gesetzt — kein Nachziehen je
+ * Ansichtswechsel.
+ *
+ * Der Inhalt ist ein DOM-Knoten mit dem gerenderten `DkEmpty`: Nur so gelten
+ * dessen `scoped`-Regeln (Kreisfäche, Schriftstufen, Tokens). Eine eigene
+ * HTML-Zeichenkette sähe wie eine Kopie aus, die die Gestaltung nicht erbt
+ * (Review 11.11.). Die Bibliothek nimmt `{ domNodes: [...] }` und hängt die
+ * Knoten selbst ein (`Si` im Bundle: `t.replaceChildren(...e.domNodes)`).
+ */
+function leerzustandKnoten() {
+  const halter = document.createElement('div')
+  halter.className = 'dk-kalender-leer'
+  // Eigene App-Instanz: die Bibliothek baut ihren Kasten außerhalb des
+  // Bauteils ab und ein (Vorbild: die „⋯“-Menüs weiter unten, `createApp`).
+  const app = createApp({ render: () => h(DkEmpty, leerzustandInhalt()) })
+  app.config.warnHandler = () => {}
+  app.mount(halter)
+  return { app, el: halter }
 }
 
 /** Meldung des Abgleichs: dieser Halter wird nicht behalten — Rahmen weg. */
@@ -857,6 +888,11 @@ onMounted(() => {
       // UXK-R13: englische Texte der Bibliothek übersetzen („all-day“, „+2 more“).
       allDayContent: { text: 'ganztägig' },
       moreLinkContent: (info) => `+${info.num} weitere`,
+      // MT-5: Auch der Leerzustand ist ein Text der Bibliothek (Vorgabe
+      // „No events“). Hier bekommt er die Gestalt der App: der gerenderte
+      // Baustein DkEmpty, deutsch. EINE Lage für alle Listen-Ansichten —
+      // gelesen wird die Option nur vom Listen-Plugin (Bundle 5.18.0).
+      noEventsContent: { domNodes: [leerzustandKnoten().el] },
       // A4: „+n weitere“ führt in die TAGESANSICHT (dort stehen alle Termine
       // des Tages) — dafür hängt `mehrZeilenHerrichten` einen eigenen
       // Klick-Zuhörer an die Rest-Zeile. Die Option `moreLinkClick` gibt es in
@@ -1477,5 +1513,30 @@ function neuZuordnen() {
     width: 44px;
     height: 44px;
   }
+}
+
+/* MT-5 — Leerzustand der Bibliothek („No events“ → Baustein DkEmpty).
+   Den Inhalt baut `leerzustandKnoten()`: das gerenderte `DkEmpty` samt seinen
+   eigenen (scoped) Regeln — hier wird NICHTS nachgebaut. Offen bleibt nur,
+   was der Fremd-Container (`.ec-no-events`) mitbringt: die Bibliothek setzt
+   `padding: 5em 0` und `text-align: center`, im Kasten ergibt das eine leere
+   Fläche mit Text irgendwo in der Mitte. Der Kasten richtet sich stattdessen
+   an der Fläche der Karte aus; kein Rahmen, keine eigene Farbe (Ä2/Ä4). */
+:deep(.ec-no-events) {
+  padding: var(--sp-4) var(--pad);
+  background: transparent;
+  text-align: initial;
+  /* Der Leerkasten liegt im leeren Feld (`.ec-main`, gemessen 621 px hoch).
+     Er richtet sich mittig darin aus — oben klebend wirkte die Fläche
+     „vergessen“ (Befund der Abnahme 11.11.). `.ec-main` ist ein BLOCK, also
+     trägt die Höhe der Kasten selbst; `100%` folgt dem Feld. */
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+:deep(.ec-no-events .dk-kalender-leer) {
+  inline-size: 100%;
 }
 </style>

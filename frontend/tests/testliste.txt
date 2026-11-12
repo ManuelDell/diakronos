@@ -396,3 +396,8 @@ tests/mt6-*.test.mjs
 # X, Escape, Hintergrund, Zurueck, Fokus zurueck; dazu ein Waechter ueber alle
 # DkDialog-Aufrufe (kein `@schliessen`, kein fester Modellwert ohne Rueckweg).
 tests/mt4-*.test.mjs
+# MT-5: Kalender-Liste — der englische Bibliothekstext „No events“ ist
+# ersetzt (noEventsContent, deutscher Leerzustand im DkEmpty-Gerüst);
+# Wächter: kein englischer Bibliothekstext (No events / all-day / +n more),
+# Gegenprobe im selben Test.
+tests/mt5-*.test.mjs
