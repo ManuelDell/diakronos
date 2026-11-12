@@ -389,3 +389,10 @@ tests/mt2-*.test.mjs
 # MT-6: Pläne drucken — genau EIN Druck-Einstieg je Plan (zwei Leisten in
 # PrAnsicht.vue zusammengeführt; Quelle + gerendertes DOM).
 tests/mt6-*.test.mjs
+# MT-4: Kalender-Fenster "Abgelehnte Termine" laesst sich schliessen. Die Seite
+# band es mit `v-if` + `:model-value="true"` + `@schliessen` — DkDialog meldet
+# aber nur `update:modelValue`/`close`, deshalb griff KEIN Schliessweg. Der Test
+# mountet die ECHTE Seite und oeffnet ueber das ...-Menue der Kopfzeile:
+# X, Escape, Hintergrund, Zurueck, Fokus zurueck; dazu ein Waechter ueber alle
+# DkDialog-Aufrufe (kein `@schliessen`, kein fester Modellwert ohne Rueckweg).
+tests/mt4-*.test.mjs

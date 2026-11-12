@@ -265,13 +265,19 @@
     <!-- Review 07.11. (R-P1-8/FIX-7): Liste der eigenen abgelehnten Termine —
          am Desktop war sie über die (dort ausgeblendete) Kalenderliste hinaus
          nicht erreichbar. Sie steht jetzt im ⋯-Menü der Kopfzeile; der Server
-         liefert nur die eigenen (`get_meine_abgelehnten_termine`). -->
+         liefert nur die eigenen (`get_meine_abgelehnten_termine`).
+
+         Bindung über `v-model` (MT-4, Befund Manuel 11.11.): Mit `v-if` +
+         `:model-value="true"` + `@schliessen` kam KEINER der vier Schließwege
+         an — `DkDialog` meldet nur `update:modelValue` und `close`, ein
+         Ereignis `schliessen` gibt es nicht. `v-model` führt den Zustand
+         zurück, `close-on-overlay` erlaubt den Klick auf den Hintergrund
+         (hier steht kein Formular, es geht keine Eingabe verloren). -->
     <DkDialog
-      v-if="showAbgelehntListe"
-      :model-value="true"
+      v-model="showAbgelehntListe"
       title="Abgelehnte Termine"
       size="sm"
-      @schliessen="showAbgelehntListe = false"
+      close-on-overlay
     >
       <p v-if="!abgelehnteListe.length" class="kal-abgelehnt-leer">
         Keine abgelehnten Termine. Hier erscheint ein abgelehnter Vorschlag, bis er aus der Prüfliste verschwindet.
@@ -860,6 +866,10 @@ const abgelehnterTermin = ref(null)
 const showAbgelehntListe = ref(false)
 const abgelehnteListe = ref([])
 
+/**
+ * Öffnen über das ⋯-Menü. `showAbgelehntListe` ist die eine Quelle des
+ * Fensterzustands (`v-model`).
+ */
 async function abgelehnteListeOeffnen() {
   showAbgelehntListe.value = true
   try {
