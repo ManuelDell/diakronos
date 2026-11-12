@@ -22,6 +22,8 @@ import io
 import struct
 import zlib
 
+import datetime as _dtmod
+
 import pytest
 
 import diakronos_app.api  # noqa: F401 — registriert alle portierten Endpunkte
@@ -60,6 +62,46 @@ def _png(breite: int = 4, hoehe: int = 4) -> bytes:
 def _sitzung(patched_db):
     """Eine Arbeits-Sitzung auf der Test-Datenbank (``patched_db`` ist eine Factory)."""
     return patched_db()
+
+
+# ── ZEIT-TESTS: „heute“ ist der Tag der Gemeinde, nicht die UTC des Containers ─
+
+
+class _FesteUhr(_dtmod.datetime):
+    """Ersatz fuer ``datetime.datetime`` in ``diakronos_app.zeit``.
+
+    Gefroren wird nur ``now()`` (wie ``freezegun``). Die Klasse ERBT dabei von
+    ``datetime.datetime``: ein Fremdobjekt an dieser Stelle bricht die
+    uebrigen Schichten (SQLAlchemy fragt ``isinstance`` gegen
+    ``datetime.datetime`` ab).
+    """
+
+    # Die Felder der Attrappe kommen aus ``datetime.__new__`` (es reicht die
+    # Argumente auch an ``__init__`` weiter) — deshalb steht der gefrorene
+    # Zeitpunkt NICHT in einer Instanzvariable, sondern in der Klasse.
+    def __init__(self, *args, **kwargs):
+        # Auf Instanzen wird nichts gefroren (``now()`` ist der Klassenweg).
+        raise TypeError("_FesteUhr ist nur als Klassen-Ersatz gedacht")
+
+    @classmethod
+    def now(cls, tz=None):
+        return cls.fest if tz is None else cls.fest.astimezone(tz)
+
+
+def _friere_zeit(monkeypatch, iso_utc: str) -> None:
+    """Friert die Gemeinde-Uhr auf den Zeitpunkt ``iso_utc`` ein.
+
+    Die Ersatzklasse erbt von ``datetime.datetime``: die uebrigen Schichten
+    (SQLAlchemy, ``dateutil``) fragen ``datetime.datetime`` direkt ab — ein
+    Fremdobjekt an dieser Stelle bricht sie mit „isinstance() arg 2 must be a
+    type“. Das Frieren gilt nur in ``diakronos_app.zeit``.
+    """
+    from datetime import datetime, timezone
+
+    from diakronos_app import zeit
+
+    fest = datetime.fromisoformat(iso_utc).replace(tzinfo=timezone.utc)
+    monkeypatch.setattr(zeit._dt, "datetime", type("FesteUhr", (_FesteUhr,), {"fest": fest}))
 
 
 def _nutzer(sess, name: str, rollen: tuple[str, ...] = ()) -> None:
@@ -638,8 +680,18 @@ def test_schritt_setzen_prueft_schluessel_und_zustand(admin_umgebung):
     assert r.status_code == 417, r.text
 
 
-def test_erinnern_spaeter_blendet_die_karte_aus(admin_umgebung):
+def test_erinnern_spaeter_blendet_die_karte_aus(admin_umgebung, monkeypatch):
+    """ZEIT-TESTS: „heute + 7“ rechnet im Gemeinde-Tag, nicht im UTC-Tag.
+
+    Geprueft um 23:30 UTC — in Berlin (MEZ) ist das schon der Folgetag. Wer
+    hier ``date.today()`` des Containers nimmt, erwartet den Vortag und wird
+    genau zwischen 0 und 1 Uhr Ortszeit rot.
+    """
     import datetime
+
+    from diakronos_app.zeit import heute_gemeinde
+
+    _friere_zeit(monkeypatch, "2026-11-11T23:30:00")
 
     r = _post(admin_umgebung, EINRICHTUNG + "erinnern_spaeter", tage=7)
     assert r.status_code == 200, r.text
@@ -648,17 +700,22 @@ def test_erinnern_spaeter_blendet_die_karte_aus(admin_umgebung):
     erinnerung = d["erinnerung_ab"]
     assert erinnerung
     tag = datetime.date.fromisoformat(str(erinnerung)[:10])
-    assert tag == datetime.date.today() + datetime.timedelta(days=7)
+    assert tag == heute_gemeinde() + datetime.timedelta(days=7)
+    # Der Kalendertag der Gemeinde ist hier der 12.11. (nicht der UTC-Tag 11.11.).
+    assert tag == datetime.date(2026, 11, 19)
 
     r = _post(admin_umgebung, EINRICHTUNG + "erinnern_spaeter", tage=0)
     assert r.status_code == 417, r.text
 
 
-def test_erinnern_ist_zeitgeber_nicht_einstellung(admin_umgebung):
+def test_erinnern_ist_zeitgeber_nicht_einstellung(admin_umgebung, monkeypatch):
     """Nach Ablauf der Frist erscheint die Karte wieder (Datum in der Vergangenheit)."""
     import datetime
 
     from diakronos_app.models.einrichtung import EinrichtungStand, EINRICHTUNG_STAND_NAME
+
+    _friere_zeit(monkeypatch, "2026-11-11T23:30:00")
+    from diakronos_app.zeit import heute_gemeinde
 
     set_user(ADMIN)
     try:
@@ -669,7 +726,7 @@ def test_erinnern_ist_zeitgeber_nicht_einstellung(admin_umgebung):
             if zeile is None:
                 zeile = EinrichtungStand(name=EINRICHTUNG_STAND_NAME)
                 s.add(zeile)
-            zeile.erinnerung_ab = datetime.date.today() - datetime.timedelta(days=1)
+            zeile.erinnerung_ab = heute_gemeinde() - datetime.timedelta(days=1)
             s.commit()
     finally:
         set_user(ADMIN)

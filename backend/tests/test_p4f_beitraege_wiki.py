@@ -28,6 +28,8 @@ from __future__ import annotations
 
 from datetime import date
 
+import datetime as _dtmod
+
 import pytest
 from sqlalchemy import text
 
@@ -61,6 +63,46 @@ SPA_PFADE_WIKI = [
 ANNA = "anna@example.org"
 BRUNO = "bruno@example.org"
 ADMIN = "admin@example.org"
+
+
+# ── ZEIT-TESTS: „heute“ ist der Tag der Gemeinde, nicht die UTC des Containers ─
+
+
+class _FesteUhr(_dtmod.datetime):
+    """Ersatz fuer ``datetime.datetime`` in ``diakronos_app.zeit``.
+
+    Gefroren wird nur ``now()`` (wie ``freezegun``). Die Klasse ERBT dabei von
+    ``datetime.datetime``: ein Fremdobjekt an dieser Stelle bricht die
+    uebrigen Schichten (SQLAlchemy fragt ``isinstance`` gegen
+    ``datetime.datetime`` ab).
+    """
+
+    # Die Felder der Attrappe kommen aus ``datetime.__new__`` (es reicht die
+    # Argumente auch an ``__init__`` weiter) — deshalb steht der gefrorene
+    # Zeitpunkt NICHT in einer Instanzvariable, sondern in der Klasse.
+    def __init__(self, *args, **kwargs):
+        # Auf Instanzen wird nichts gefroren (``now()`` ist der Klassenweg).
+        raise TypeError("_FesteUhr ist nur als Klassen-Ersatz gedacht")
+
+    @classmethod
+    def now(cls, tz=None):
+        return cls.fest if tz is None else cls.fest.astimezone(tz)
+
+
+def _friere_zeit(monkeypatch, iso_utc: str) -> None:
+    """Friert die Gemeinde-Uhr auf den Zeitpunkt ``iso_utc`` ein.
+
+    Die Ersatzklasse erbt von ``datetime.datetime``: die uebrigen Schichten
+    (SQLAlchemy, ``dateutil``) fragen ``datetime.datetime`` direkt ab — ein
+    Fremdobjekt an dieser Stelle bricht sie mit „isinstance() arg 2 must be a
+    type“. Das Frieren gilt nur in ``diakronos_app.zeit``.
+    """
+    from datetime import datetime, timezone
+
+    from diakronos_app import zeit
+
+    fest = datetime.fromisoformat(iso_utc).replace(tzinfo=timezone.utc)
+    monkeypatch.setattr(zeit._dt, "datetime", type("FesteUhr", (_FesteUhr,), {"fest": fest}))
 
 
 # ── Fixture ─────────────────────────────────────────────────────────────────
@@ -383,7 +425,17 @@ def test_delete_beitrag_entfernt_zeile(client, als_admin, welt):
 # ── create_kommentar ────────────────────────────────────────────────────────
 
 
-def test_create_kommentar_legt_kindzeile_an(client, als_anna, welt):
+def test_create_kommentar_legt_kindzeile_an(client, als_anna, welt, monkeypatch):
+    """ZEIT-TESTS: das Kommentar-Datum ist der Gemeinde-Tag, nicht der UTC-Tag.
+
+    Geprueft um 23:30 UTC — in Berlin ist das schon der Folgetag; die
+    Erwartung wird deshalb aus ``heute_gemeinde()`` gebildet (der einen Stelle
+    fuer „heute“), nicht aus ``date.today()`` des Containers.
+    """
+    from diakronos_app.zeit import heute_gemeinde
+
+    _friere_zeit(monkeypatch, "2026-11-11T23:30:00")
+
     r = client.post(f"/api/method/{BEITRAEGE}.create_kommentar",
                    data={"beitrag_id": "BEI-1", "text": "  Toll!  "})
     assert r.status_code == 200, r.text
@@ -392,7 +444,8 @@ def test_create_kommentar_legt_kindzeile_an(client, als_anna, welt):
     assert k["author"] == "Anna Beispiel"
     assert k["avatar"] == "AB"
     assert k["text"] == "Toll!"            # getrimmt
-    assert k["date"] == date.today().isoformat()
+    assert k["date"] == heute_gemeinde().isoformat()
+    assert k["date"] == "2026-11-12"       # Gemeinde-Tag, nicht der UTC-Tag 11.11.
 
     from diakronos_app.models.diakonos import BeitragKommentar
 
