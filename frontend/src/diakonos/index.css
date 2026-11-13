@@ -156,10 +156,15 @@ h1, h2, h3, h4 {
    (`.dk-app--handy …`), NICHT an einer eigenen Media-Zeichenkette —
    vorher stand dieselbe Bedingung an einem Dutzend Stellen und lief
    auseinander (Review-Punkt 3). Folge für alle Layout-Stellen (untere Leiste,
-   Menü-Knopf, Seitenleiste aus, einspaltig, Fußabstand, Overlay-Listen):
+   Menü-Knopf, Seitenleiste, einspaltig, Fußabstand, Overlay-Listen):
    ein schmales Fenster MIT MAUS bekommt KEIN Mobil-Layout mehr, sondern die
-   (eingeklappte) Seitenleiste mit Menü-Knopf. Touch-Geräte bleiben wie
-   bisher; bei Hybridgeräten entscheidet der PRIMÄRE Zeiger.
+   volle Seitenspalte `.kronos-sidebar` (Kalenderliste) und die Leiste, die
+   Manuel über ihren Ausklapp-Knopf ein- und ausklappt. MT-1b2: Es gibt dort
+   KEINEN Menü-Knopf der Kopfzeile mehr — den zeigt nur die Handy-Lage
+   (`.dk-app--handy`), und der einzige Einstieg in die Navigation ist der
+   Ausklapp-Knopf der Leiste selbst (`AppSidebar.vue`, `.dk-sb-collapse`).
+   Touch-Geräte bleiben wie bisher; bei Hybridgeräten entscheidet der
+   PRIMÄRE Zeiger.
 
    Ausdrücklich KEIN Layout-Kriterium bleiben die bloße Touch-Fähigkeit
    (`any-pointer`, `maxTouchPoints`, `ontouchstart`) und `(any-pointer: fine)`.
@@ -295,24 +300,59 @@ h1, h2, h3, h4 {
 .dk-sb-brand-name { color: #fff; font-weight: var(--fw-fett); font-size: var(--fs-16); letter-spacing: -0.01em; }
 .dk-sb-brand-sub  { color: var(--dk-sb-text-muted); font-size: var(--fs-12); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* UX1g: Optik aus DkButton (ghost); hier nur Seitenleisten-Töne und die
-   quadratische Form der Kopfzeile. */
-.dk-sb-collapse {
+   quadratische Form der Kopfzeile.
+   MT-1b: Am Desktop ist dieser Knopf der EINZIGE Einstieg in die volle Leiste.
+   Er stand in `--dk-sb-text-muted` mit einem 14-px-Symbol da und war kaum zu
+   finden. Jetzt trägt er die normale Textfarbe der Leiste, eine umrandete
+   Fläche in Zielgröße (`--control-h`, am Finger 44 px) und den deckenden
+   Fokusring der Leiste (Regel `.dk-sidebar :focus-visible` weiter oben).
+   MT-1b2 (Review-Punkt 1 + 2): Diese Ein-Klassen-Regeln GRIFFEN NICHT.
+   DkButton bringt seinen Stil `scoped` mit — `.dk-ui-btn[data-v-…]`,
+   `.dk-ui-btn--md[data-v-…]`, `.dk-ui-btn--ghost[data-v-…]` sind je ZWEI
+   Klassen und schlagen `.dk-sb-collapse` (eine). Gemessen (1440 hell,
+   eingeklappt) kam der Knopf deshalb mit `border: 1px solid transparent`,
+   `padding: 0 14px`, `border-radius: 8px` und `color: var(--muted)` heraus:
+   das 16-px-Symbol war auf ~10 px gequetscht (8×9 px) und die Beschriftungen
+   „Dunkel-Modus“ (2,4:1) und „Abmelden“ (2,8:1) waren im hellen Modus
+   unlesbar. Darum steht die FORM des Knopfes jetzt in EINER Regel mit drei
+   Klassen. Nur Tokens, keine Hartwerte. */
+.dk-sidebar .dk-sb-top .dk-sb-collapse {
   width: var(--control-h);
+  height: var(--control-h);
   padding: 0;
-  color: var(--dk-sb-text-muted);
+  border: var(--dk-sb-rahmen);
+  border-radius: var(--radius-sm);
+  color: var(--dk-sb-text);
+  gap: 0;
   flex-shrink: 0;
 }
-.dk-sb-collapse:hover { background: var(--dk-sb-hover); color: #fff; }
+.dk-sidebar .dk-sb-top .dk-sb-collapse:hover {
+  background: var(--dk-sb-hover);
+  color: #fff;
+  border-color: var(--dk-sb-text-muted);
+}
+/* UX1c/K4: Das Symbol bleibt bei seiner Größe — DkButtons `gap: 7px` und
+   `flex` hätten es ohne Text zusammengedrückt (gemessen 8×9 px). */
+.dk-sidebar .dk-sb-top .dk-sb-collapse svg { flex: none; }
 .is-collapsed .dk-sb-top { justify-content: center; padding: 14px 6px 10px; }
 .is-collapsed .dk-sb-brand { display: none; }
 .is-collapsed .dk-sb-nav { padding: 6px 0; }
-.is-collapsed .dk-sb-collapse { display: flex; }
+/* MT-1b2: Hier stand `.is-collapsed .dk-sb-collapse { display: flex; }`. Der
+   Selektor meint den Zustand des APP-Rahmens (`.dk-app.is-collapsed`), der
+   Knopf sitzt aber in `.dk-sidebar.is-collapsed` — die Regel griff nie
+   (DkButton ist ohnehin `inline-flex`, der Knopf war also immer zu sehen).
+   Der Knopf hängt in der Kopfzeile der Leiste und wird mit ihr geschoben;
+   nichts ein- oder auszublenden. */
 /* DEV-B6b (Review 10.11., Punkt 5): Hier stand ein @media-Block
    `(min-width: 721px) and (max-width: 1100px)` mit
    `.is-collapsed .dk-sb-top .dk-menue-knopf { display: flex; … }` — er war
    TOT: der Menü-Knopf liegt in der Kopfzeile (`AppTopbar.vue`), nicht in
-   `.dk-sb-top`. Die Navigation schmaler Maus-Fenster regelt allein
-   `.dk-app.is-collapsed .dk-topbar-symbol.dk-menue-knopf` weiter oben. */
+   `.dk-sb-top`.
+   MT-1 (Manuel 11.11.) hat den zweiten Einstieg ganz entfernt: am Laptop
+   gibt es KEINEN Menü-Knopf der Kopfzeile mehr (er hing an
+   `.dk-app.is-collapsed`), und damit auch keine zweite Navigation für
+   schmale Maus-Fenster. Der EINZIGE Einstieg in die Navigation ist der
+   Ausklapp-Knopf der Leiste selbst — `.dk-sb-collapse` (Regel darüber). */
 
 /* Search */
 .dk-sb-search { padding: 10px 12px 6px; }
@@ -446,7 +486,7 @@ h1, h2, h3, h4 {
 .is-collapsed .dk-nav-item.is-active::before { left: 0; top: 0; bottom: 0; width: 2px; border-radius: 0 2px 2px 0; }
 
 /* Footer */
-.dk-sb-foot { padding: 10px; border-top: 1px solid var(--dk-sb-border); display: flex; flex-direction: column; gap: 8px; }
+.dk-sb-foot { padding: var(--sp-2); border-top: 1px solid var(--dk-sb-border); display: flex; flex-direction: column; gap: 8px; }
 
 .dk-sb-upsell {
   background: rgba(255,255,255,.04);
@@ -496,12 +536,26 @@ h1, h2, h3, h4 {
   flex-shrink: 0;
   color: var(--dk-sb-text-muted);
 }
+/* MT-1b2 (Review-Punkt 2 — gleiche Ursache wie beim Ausklapp-Knopf): Der
+   Umschalter ist ein `DkButton variant="ghost"`, und dessen `color:
+   var(--muted)` (ZWEI Klassen, `scoped`) schlug `.dk-sb-theme-punkt` (eine).
+   Gemessen im HELLEN Modus: „Dunkel-Modus“ kam auf 2,4:1 — --muted ist die
+   Textfarbe für helle Flächen und auf der dunklen Leiste unlesbar. Hier steht
+   die Leisten-Textfarbe deshalb in einer Regel mit drei Klassen (hell
+   11,15:1, dunkel 7,35:1). Der Punkt bleibt in der Liste der Trefferflächen
+   (`.dk-sb-profil-punkt`) — die Form ändert sich nicht. */
+.dk-sidebar .dk-sb-profil-menu .dk-sb-theme-punkt { color: var(--dk-sb-text); }
 .dk-sb-theme-punkt:hover { background: var(--dk-sb-hover); color: #fff; }
 
 /* BF1-L: Abmelden im Nutzerbereich (Sidebar unten).
    UX1g: Der Knopf ist jetzt `DkButton variant="ghost"`; nur die Farben der
    dunklen Leiste und die volle Breite bleiben hier (die hellen Töne von
-   --muted/--surface-hover wären auf der Leiste unlesbar). */
+   --muted/--surface-hover wären auf der Leiste unlesbar).
+   MT-1b2 (Review-Punkt 2): Genau das passierte trotzdem — `.dk-sb-logout`
+   ist EINE Klasse, DkButtons `scoped` `.dk-ui-btn--ghost[data-v]` hat zwei,
+   also kam „Abmelden“ im hellen Modus mit `--muted` heraus (gemessen 2,8:1).
+   Die Farbe steht jetzt in einer Regel mit drei Klassen; die Form (Breite,
+   Ausrichtung, Innenabstand) bleibt, wo sie war. */
 .dk-sb-logout {
   gap: 10px;
   width: 100%;
@@ -512,6 +566,7 @@ h1, h2, h3, h4 {
   color: var(--dk-sb-text-muted);
   text-align: left;
 }
+.dk-sidebar .dk-sb-foot .dk-sb-logout { color: var(--dk-sb-text); }
 .dk-sb-logout:hover,
 .dk-sb-logout:not(:disabled):hover { background: var(--dk-sb-hover); color: #fff; }
 .dk-sb-logout:focus-visible { outline: 2px solid var(--focus-ring-side); outline-offset: 1px; }
@@ -522,8 +577,12 @@ h1, h2, h3, h4 {
    Der Profilknopf ist ein <button> (vorher ein <a> auf #/profile) — er öffnet
    ein kleines Menü mit Profil, Entwicklermodus, Dev-Befunde und dem
    Hell-/Dunkel-Umschalter. Alle Werte kommen aus Tokens — auch die
-   Hervorhebung der Punkte (Sidebar-Töne), keine Schrift-Farbe hart. */
-.dk-sb-profil { position: relative; }
+   Hervorhebung der Punkte (Sidebar-Töne), keine Schrift-Farbe hart.
+   MT-1b2 (Review-Punkt 3): `.dk-sb-profil` trägt KEINEN eigenen
+   Bezugsrahmen — das `position: relative` an diesem Kasten stammt aus UX3a
+   (der Profilknopf war dort einmal Anker seines Menüs) und hat mit dem
+   Popover aus MT-1b nichts zu tun. Das Popover ist zurückgenommen: das Menü
+   steht im Fluss der Leiste, nur in der ausgeklappten. */
 .dk-sb-user {
   width: 100%;
   border: 0;
@@ -534,6 +593,18 @@ h1, h2, h3, h4 {
   cursor: pointer;
 }
 .dk-sb-chevron { display: inline-flex; align-items: center; color: var(--dk-sb-text-muted); flex: none; }
+/* MT-1b2 (Review MT-1b, Punkt 1): Hier stand in MT-1b ein Popover: das Menü
+   wurde als absolut gesetzter Kasten `right: -9px`, `bottom: 0`,
+   `width: 256px` RECHTS NEBEN die Leiste gesetzt, mit `--z-drawer` und
+   `--dk-shadow-md`. Das war geometrisch falsch: gemessen lag es bei
+   x = 8…264, also AUF der Leiste (0…256) statt daneben — `.dk-sidebar`
+   schneidet mit `overflow: hidden` alles ab, was über die Leiste hinausgeht,
+   und `bottom: 0` verdeckte „Abmelden“ und den Avatar. Der Bezugsrahmen
+   (`.dk-sb-foot` mit `position: relative`, `.dk-sb-profil` mit
+   `position: static`) ist mit dem Popover entfallen.
+   ENTSCHEIDUNG (Operator): Eingeklappt klappt der Avatar-Klick die Leiste
+   AUS — das Menü gibt es nur noch im Fluss der ausgeklappten Leiste
+   (`v-if="profilOffen && !collapsed"`), wie in main. */
 .dk-sb-profil-menu {
   display: flex;
   flex-direction: column;
@@ -692,10 +763,8 @@ h1, h2, h3, h4 {
   position: relative;
 }
 /* UX3e (Entwurf A8): Das Menü-Symbol gehört zur Handy-Lage — sonst führt die
-   Seitenleiste die Navigation (Prinzip N5). DEV-B6: es ist dort der Weg zur
-   Navigation in JEDEM schmalen Fenster — auch mit Maus, denn dort gibt es die
-   untere Leiste nicht.
-   MT-1 (Manuel 11.11.): Am Laptop/Desktop erscheint es GAR NICHT mehr. Vorher
+   Seitenleiste die Navigation (Prinzip N5).
+   MT-1 (Manuel 11.11.): Am Laptop/Desktop erscheint es GAR NICHT. Vorher
    blendete `.dk-app.is-collapsed` es zusätzlich ein — dann standen zwei
    Einstiege nebeneinander: der Ausklapp-Knopf der eingeklappten Seitenleiste
    UND der Hamburger der Kopfzeile (der zudem ein zweites, identisches Panel
@@ -703,16 +772,20 @@ h1, h2, h3, h4 {
    Einstieg je Lage. Eingeklappt öffnet der Knopf in der Leiste selbst
    (`.dk-sb-collapse`) die Navigation; die Schublade wird dann nicht gerendert
    (App.vue). Bedingung der Handy-Lage: die Bedingung aus `--layout-mobil`
-   (tokens.css, eine Quelle). Trefferfläche `--dk-menue-knopf-h`: 40 px am
-   Maus-Laptop, 44 px am Touchgerät (K4). */
+   (tokens.css, eine Quelle).
+   MT-1b: Der Knopf existiert nur noch in der Handy-Lage, also nur am groben
+   Zeiger. Das eigene Token `--dk-menue-knopf-h` (früher „40 px am Maus-Laptop,
+   44 px am Finger“) hatte damit nur noch EINEN Zweig und ist entfallen: die
+   Fläche kommt aus `--control-h` — 40 px am feinen Zeiger, 44 px am Finger
+   (`@media (pointer: coarse)` in tokens.css). */
 /* specificity of the base rule must BEAT DkButton's own `display: inline-flex`
    on the same element (`.dk-topbar-symbol.dk-menue-knopf` = 2 classes, the
    component's class rule = 1) — measured in the DEV-B6 throwaway stack: the
    knob stayed visible at 1440 px. */
 .dk-topbar-symbol.dk-menue-knopf {
   display: none;   /* Handy-Lage/Schublade: siehe die Regel darunter */
-  width: var(--dk-menue-knopf-h);
-  height: var(--dk-menue-knopf-h);
+  width: var(--control-h);
+  height: var(--control-h);
   margin-left: calc(var(--sp-1) * -1);
 }
 /* Handy-Lage (Klasse aus `useHandyLage()`) — EINE Quelle mit dem Skript.

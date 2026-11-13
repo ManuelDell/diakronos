@@ -351,6 +351,27 @@
      unter dem 40-px-Wert (`@media (pointer: coarse)`), damit sie an der-
      selben Stelle stehen wie das Token, das sie überschreiben. */
   --control-h: 40px;
+  /* MT-1b: Der Ausklapp-Knopf der Seitenleiste trägt eine sichtbare Umrandung
+     (vorher war er nur ein Symbol in gedämpfter Farbe — am Desktop der einzige
+     Einstieg in die Navigation, also muss er zu finden sein). `border:` ist im
+     Bestandswächter (`tools/abstand-bestand.mjs`) ein fester Wert; eine NEUE
+     Fläche darf den Bestand nicht wachsen lassen. Deshalb steht die ganze
+     Kurzform hier in der Quelle — wie `--control-h` ein benanntes Maß, kein
+     Literal im CSS.
+     MT-1b2 (Review-Punkt 1): Das Token heißt `--dk-sb-rahmen` statt
+     `--control-line`. Es gehört NICHT dem Knopf-System, sondern allein der
+     Leiste: der Wert ist die Rahmenfarbe der Seitenleiste
+     (`--dk-sb-border`). Der alte Name verschwieg das — und weil die
+     Ein-Klassen-Regel `.dk-sb-collapse` (1 Klasse) gegen DkButtons scoped
+     `.dk-ui-btn[data-v]` / `.dk-ui-btn--md[data-v]` (2 Klassen) verliert,
+     muss das Maß ohnehin in einer Regel mit höherer Spezifität stehen
+     (`.dk-sidebar .dk-sb-top .dk-sb-collapse`, index.css). Nur so bleiben
+     Rahmen sichtbar, Innenabstand 0, Radius `--radius-sm` und das
+     16-px-Symbol 16 px breit.
+     Das mit dem Popover eingeführte Geschwister-Token `--control-line-rand`
+     ist entfallen (es versetzte ausschließlich das Profilmenü an die
+     Außenkante der Leiste; das Menü steht wieder im Fluss). */
+  --dk-sb-rahmen: 1px solid var(--dk-sb-border);
   /* UX2a: Die UX-Karten schreiben für Knöpfe, Menüpunkte und Listenzeilen
      40 px vor (bei pointer:coarse 44 px). `--control-h` ist der Bestandswert
      für Kompakt-Dichte; neue Flächen, die der Konzept-Vorgabe folgen, nehmen
@@ -890,8 +911,11 @@
                                                   and (orientation: landscape)
 
      * Maus/Trackpad als PRIMÄRER Zeiger (`pointer: fine`): nie die
-       Handy-Leiste, bei jeder Breite — stattdessen die Seitenleiste (bei
-       schmalen Fenstern eingeklappt, mit Menü-Knopf).
+       Handy-Leiste, bei jeder Breite — stattdessen die Seitenspalte und die
+       Leiste, die Manuel über ihren Ausklapp-Knopf ein-/ausklappt. Einen
+       Menü-Knopf der Kopfzeile gibt es dort NICHT (MT-1b2: er hängt an der
+       Handy-Lage; vorher stand hier „bei schmalen Fenstern eingeklappt, mit
+       Menü-Knopf“ — das beschrieb den Stand vor MT-1).
      * Touch bleibt wie bisher: Leiste bis 720 px und im flachen Querformat.
      * Auch die QUERFORMAT-Alternative prüft den Zeiger (Review 10.11.):
        vorher fehlte dort `(pointer: coarse)`, ein Maus-Laptop 1280×450 bekam
@@ -911,10 +935,14 @@
   --layout-mobil: (pointer: coarse) and (max-width: 720px),
                   (pointer: coarse) and (max-height: 480px) and (orientation: landscape);
 
-  /* DEV-B6: Trefferfläche des Menü-Knopfs im schmalen Fenster. Am Maus-Laptop
-     ein Mausziel (40 px, wie jeder andere Knopf), am Touchgerät 44 px — die
-     Bedingung dafür steht im `(pointer: coarse)`-Block am Dateiende. */
-  --dk-menue-knopf-h: var(--control-h);
+  /* DEV-B6: Hier stand `--dk-menue-knopf-h` — „am Maus-Laptop ein Mausziel
+     (40 px), am Touchgerät 44 px“. MT-1/MT-1b (Manuel 11.11.): der Menü-Knopf
+     der Kopfzeile erscheint NUR noch in der Handy-Lage (grober Zeiger,
+     `--layout-mobil`); am Laptop gibt es ihn nicht mehr, und der einzige
+     Einstieg ist der Ausklapp-Knopf der Leiste. Damit hatte das Token nur
+     noch EINEN Zweig — es ist entfallen. Der Knopf nimmt `--control-h`
+     (40 px am feinen Zeiger, 44 px am Finger, gesetzt unten in dieser Datei).
+     tests/mt1b-leiste-ausklappen.test.mjs hält das fest. */
 }
 
 /* DES-R4: Markenfarben-Aliase im Dunkelmodus. Die Skala --dk-navy-* ist das
@@ -951,8 +979,8 @@
     --control-h: 44px;
     --control-h-lg: 44px;
     --filter-h: var(--control-h);
-    /* DEV-B6: der Menü-Knopf im schmalen Fenster ist ein FINGERZIEL (K4) —
-       am Touchgerät 44 px, am Maus-Laptop bleibt es bei 40 px. */
-    --dk-menue-knopf-h: 44px;
+    /* MT-1b: `--dk-menue-knopf-h` ist entfallen (siehe `:root` oben). Der
+       Menü-Knopf nimmt `--control-h` und ist damit HIER 44 px — das ist
+       genau sein einziger Zustand (er existiert nur am groben Zeiger). */
   }
 }

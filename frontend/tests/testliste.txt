@@ -374,6 +374,15 @@ tests/dev-b6b-*.test.mjs
 # Einstieg, die Menü-Schublade liegt außerhalb der Handy-Lage nicht im DOM.
 # Prüft das auf allen Seiten der App (kein zweites Panel, kein zweiter Knopf).
 tests/mt1-*.test.mjs
+# MT-1b (11.11.): Eingeklappte Leiste — der Ausklapp-Knopf ist sichtbar
+# beschriftet (aria-expanded, aria-hidden-SVG), der Avatar klappt sie aus statt
+# ins Leere zu klicken, das Profilmenü steht IM FLUSS der ausgeklappten Leiste
+# (in der eingeklappten gibt es kein Menü; Klick daneben und Escape schließen,
+# Escape gibt den Fokus nur zurück, wenn er im Profilbereich war), und der
+# tote 40-px-Zweig von `--dk-menue-knopf-h` ist entfernt. MT-1b2 hält die
+# Maße des Knopfes gegen DkButtons scoped Stil fest (drei Klassen).
+# Mountet AppSidebar.vue in jsdom und klickt wirklich.
+tests/mt1b-*.test.mjs
 # DEV-B2: Kalender „Zu prüfen“ — die Reiterzeile bleibt wie im Kalender
 # (Monat · Woche · Liste führen als Links `#/kalender?ansicht=…` zurück,
 # Kalender.vue wertet den Parameter aus), „‹ Kalender“ erscheint nur am Handy

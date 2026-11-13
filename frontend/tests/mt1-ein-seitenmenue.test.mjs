@@ -84,9 +84,17 @@ test('MT-1 · eingeklappte Leiste zeigt KEINEN Hamburger mehr (Befund)', () => {
 test('MT-1 · der eine Einstieg am Laptop ist der Ausklapp-Knopf der Leiste', () => {
   // Sichtbar bleibt er in der eingeklappten Leiste, mit derselben Trefferfläche
   // wie die übrigen Kopfzeilen-Knöpfe (K4: 40 px, am Finger 44 px).
-  assert.ok(block(INDEX_CSS, '.is-collapsed .dk-sb-collapse'), 'die eingeklappte Leiste zeigt ihren Knopf')
-  const knopf = block(INDEX_CSS, '.dk-sb-collapse')
-  assert.ok(knopf, 'Grundregel `.dk-sb-collapse` fehlt')
+  // MT-1b2 (Review-Punkt: „Regel greift nicht“): Hier stand
+  // `.is-collapsed .dk-sb-collapse { display: flex; }` — dieser Selektor meint
+  // den APP-Rahmen (`.dk-app.is-collapsed`), der Knopf sitzt aber in
+  // `.dk-sidebar.is-collapsed`. Die Regel griff nie und ist entfernt; der
+  // Knopf ist als DkButton (`inline-flex`) ohnehin sichtbar.
+  assert.ok(!/\.is-collapsed \.dk-sb-collapse/.test(INDEX_CSS),
+    'die Regel `.is-collapsed .dk-sb-collapse` (die nie griff) ist weg')
+  assert.match(INDEX_CSS, /\.dk-sidebar \.dk-sb-top \.dk-sb-collapse\s*\{/,
+    'der Knopf hat seine Form in einer Regel mit drei Klassen (sonst gewinnt DkButton scoped)')
+  const knopf = block(INDEX_CSS, '.dk-sidebar .dk-sb-top .dk-sb-collapse')
+  assert.ok(knopf, 'Grundregel `.dk-sidebar .dk-sb-top .dk-sb-collapse` fehlt')
   assert.match(knopf, /width:\s*var\(--control-h\)/, 'Trefferfläche aus dem Token --control-h')
   assert.match(TOKENS, /--control-h:\s*40px/, 'Maus: 40 px')
   assert.match(TOKENS.slice(TOKENS.indexOf('@media (pointer: coarse)')), /--control-h:\s*44px/,
@@ -97,9 +105,11 @@ test('MT-1 · der eine Einstieg am Laptop ist der Ausklapp-Knopf der Leiste', ()
 test('MT-1 · der Ausklapp-Knopf der Leiste ist beschriftet und öffnet die Leiste', () => {
   const { tpl, skript } = teile(SIDEBAR)
   assert.match(tpl, /class="dk-sb-collapse"/, 'Ausklapp-Knopf steht in der Leiste')
-  assert.match(tpl, /:aria-label="collapsed \? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'"/,
-    'beschriftet statt nur Symbol (N8)')
-  assert.match(tpl, /:title="collapsed \? 'Ausklappen' : 'Einklappen'"/, 'Tooltip nennt die Aktion')
+  assert.match(tpl, /:aria-label="collapsed \? 'Menü ausklappen' : 'Menü einklappen'"/,
+    'beschriftet statt nur Symbol (N8) mit verständlichem Ziel')
+  assert.match(tpl, /:aria-expanded="collapsed \? 'false' : 'true'"/,
+    'sagt, ob die Leiste ausgeklappt ist (MT-1b)')
+  assert.match(tpl, /:title="collapsed \? 'Menü ausklappen' : 'Menü einklappen'"/, 'Tooltip nennt die Aktion')
   assert.match(tpl, /@click="\$emit\('toggle-collapse'\)"/, 'der Klick klappt die Leiste wieder aus')
   // AppSidebar gibt das Ereignis weiter, App.vue schaltet den Zustand.
   assert.match(ohneHtmlKommentare(skript), /defineEmits\(\['toggle-collapse'/, 'Ereignis deklariert')

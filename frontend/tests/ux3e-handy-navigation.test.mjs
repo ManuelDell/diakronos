@@ -323,20 +323,24 @@ test('UX3e · Menü-Knopf sichtbar in der Mobil-Lage, versteckt am Desktop', () 
   const seite = lies('components/AppSidebar.vue')
   assert.match(ohneKommentare(seite), /class="dk-sb-collapse"/,
     'die eingeklappte Leiste hat ihren eigenen Ausklapp-Knopf')
-  assert.match(ohneKommentare(seite), /:aria-label="collapsed \? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'"/,
-    'der Ausklapp-Knopf ist beschriftet (N8)')
+  assert.match(ohneKommentare(seite), /:aria-label="collapsed \? 'Menü ausklappen' : 'Menü einklappen'"/,
+    'der Ausklapp-Knopf ist beschriftet (N8) und nennt das Ziel')
+  assert.match(ohneKommentare(seite), /:aria-expanded="collapsed \? 'false' : 'true'"/,
+    'der Ausklapp-Knopf meldet, ob die Leiste offen ist (MT-1b)')
   assert.match(ohneKommentare(seite), /@click="\$emit\('toggle-collapse'\)"/,
     'der Ausklapp-Knopf öffnet die Leiste')
-  assert.match(css, /\.is-collapsed \.dk-sb-collapse\s*\{\s*display:\s*flex;\s*\}/,
-    'eingeklappt bleibt der Knopf der Leiste sichtbar')
+  assert.match(css, /\.dk-sidebar \.dk-sb-top \.dk-sb-collapse\s*\{/,
+    'der Ausklapp-Knopf ist als DkButton immer sichtbar; seine Form trägt eine Drei-Klassen-Regel (MT-1b2)')
   // Trefferfläche aus dem Token (UX1c: kein Literal in der Komponente):
-  // 40 px am Maus-Laptop, 44 px am Touchgerät (tokens.css).
+  // 40 px am feinen Zeiger, 44 px am Finger (tokens.css).
+  // MT-1b: Das eigene Token `--dk-menue-knopf-h` ist entfallen — der Knopf
+  // existiert nur noch in der Handy-Lage, also gibt es keinen zweiten Zweig.
   const masse = grund[1]
-  assert.match(masse, /width:\s*var\(--dk-menue-knopf-h\)/, 'Breite aus dem Token')
-  assert.match(masse, /height:\s*var\(--dk-menue-knopf-h\)/, 'Höhe aus dem Token')
+  assert.match(masse, /width:\s*var\(--control-h\)/, 'Breite aus --control-h')
+  assert.match(masse, /height:\s*var\(--control-h\)/, 'Höhe aus --control-h')
   const tokens = readFileSync(new URL('../src/diakonos/tokens.css', import.meta.url), 'utf8')
-  assert.match(tokens, /--dk-menue-knopf-h:\s*var\(--control-h\)/, 'Maus: Knopfmaß 40 px')
-  assert.match(tokens.slice(tokens.indexOf('@media (pointer: coarse)')), /--dk-menue-knopf-h:\s*44px/,
+  assert.match(tokens, /--control-h:\s*40px/, 'Maus: 40 px')
+  assert.match(tokens.slice(tokens.indexOf('@media (pointer: coarse)')), /--control-h:\s*44px/,
     'Touch: Trefferfläche 44 px')
 })
 

@@ -30,16 +30,29 @@
         </div>
       </a>
       <!-- UX1g: Ein-/Ausklappen der Leiste ist ein Knopf des Systems
-           (ghost, Seitenleisten-Töne über .dk-sb-collapse). -->
+           (ghost; Form und Seitenleisten-Töne setzt
+           `.dk-sidebar .dk-sb-top .dk-sb-collapse` in index.css — mit drei
+           Klassen, sonst gewinnt DkButtons scoped Stil).
+           MT-1b: Am Desktop ist dieser Knopf der EINZIGE Einstieg in die volle
+           Leiste (MT-1 hat den zweiten Hamburger der Kopfzeile entfernt). Das
+           14-px-Rahmensymbol sagte nicht, wohin der Klick führt und war in
+           gedämpfter Farbe kaum zu sehen. Jetzt: passendes Symbol je Zustand
+           (eingeklappt „aufklappen“, ausgeklappt „zuklappen“), Name und
+           Zustand angesagt (`aria-expanded`), Symbol selbst Zierrat. -->
       <DkButton
         variant="ghost"
         class="dk-sb-collapse"
-        :aria-label="collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'"
-        :title="collapsed ? 'Ausklappen' : 'Einklappen'"
+        :aria-expanded="collapsed ? 'false' : 'true'"
+        :aria-label="collapsed ? 'Menü ausklappen' : 'Menü einklappen'"
+        :title="collapsed ? 'Menü ausklappen' : 'Menü einklappen'"
         @click="$emit('toggle-collapse')"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <line x1="9" y1="3" x2="9" y2="21"/>
+          <!-- Pfeil zeigt die Richtung des nächsten Schritts (einklappen = nach links). -->
+          <polyline v-if="collapsed" points="13 8 17 12 13 16"/>
+          <polyline v-else points="17 8 13 12 17 16"/>
         </svg>
       </DkButton>
     </div>
@@ -89,13 +102,23 @@
            Die Werkzeuge erscheinen nur, wenn das Backend den Dev-Modus
            eingeschaltet hat UND der Nutzer Admin oder Tester ist (wie vorher
            der Menüpunkt „Dev-Befunde“) — der Server prüft dieselbe Rolle. -->
-      <div class="dk-sb-profil">
+      <div ref="profilWurzel" class="dk-sb-profil">
+        <!-- MT-1b: In der EINGEKLAPPTEN Leiste gibt es für das Menü keinen
+             Platz (`v-if="… && !collapsed"`): der Klick setzte vorher nur
+             `profilOffen` und aria-expanded="true" — ein Klick ins Leere.
+             Jetzt klappt der Avatar dort die Leiste AUS; das ist der einzige
+             sichtbare Weg zum Menü, und aria-expanded sagt nur dann etwas,
+             wenn wirklich ein Menü offen ist. MT-1b2: `aria-haspopup` folgt
+             derselben Regel — eingeklappt öffnet der Knopf KEIN Menü, also
+             kündigt er auch keins an. -->
         <button
           type="button"
           class="dk-sb-user"
-          :aria-expanded="profilOffen ? 'true' : 'false'"
-          aria-haspopup="menu"
-          @click="profilOffen = !profilOffen"
+          :aria-expanded="collapsed ? null : (profilOffen ? 'true' : 'false')"
+          :aria-haspopup="collapsed ? null : 'menu'"
+          :aria-label="collapsed ? 'Menü ausklappen' : null"
+          :title="collapsed ? 'Menü ausklappen' : null"
+          @click="avatarKlick"
         >
           <div class="dk-avatar dk-avatar-sm" :style="avatarStil(anzeigeName || user.fullname)">{{ initials }}</div>
           <div v-if="!collapsed" class="dk-sb-user-text">
@@ -160,7 +183,7 @@
 </template>
 
 <script setup>
-import { computed, h, onMounted, onUnmounted, ref } from 'vue'
+import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useSession } from '../composables/useSession.js'
 import { initialen } from '../composables/anzeigename.mjs'
 // ON-4/H4: Logo oder Monogramm der Gemeinde in der Seitenleiste.
@@ -216,10 +239,14 @@ let zaehlerAbmelden = null
 
 onMounted(() => {
   zaehlerAbmelden = anfragenZaehlerBeobachten()
+  document.addEventListener('click', beiDokumentKlick)
+  document.addEventListener('keydown', beiDokumentTaste)
 })
 onUnmounted(() => {
   if (zaehlerAbmelden) zaehlerAbmelden()
   zaehlerAbmelden = null
+  document.removeEventListener('click', beiDokumentKlick)
+  document.removeEventListener('keydown', beiDokumentTaste)
 })
 
 const sichtbaresMenue = computed(() =>
@@ -244,6 +271,55 @@ const sichtbareFussEintraege = computed(() =>
 
 /** Profilmenü offen? (Entwurf A1: Profil, Entwicklermodus, Dev-Befunde) */
 const profilOffen = ref(false)
+
+/* MT-1b: Der Avatar führt NUR dort in ein Menü, wo es das Menü gibt. In der
+   eingeklappten Leiste (nur das Avatar-Icon, kein Platz für Punkte) klappt er
+   die Leiste aus — der Weg zum Menü, kein Klick ins Leere. */
+const profilWurzel = ref(null)
+
+function avatarKlick() {
+  if (props.collapsed) {
+    profilOffen.value = false
+    emit('toggle-collapse')
+    return
+  }
+  profilOffen.value = !profilOffen.value
+}
+
+/* Offen heißt offen: Klick daneben und Escape schließen das Menü. Ohne das
+   blieb es nach einem Seitenwechsel oder einem Klick in den Inhalt stehen.
+   MT-1b2 (Review-Punkt 6): Escape gibt den Fokus an den Avatar zurück. Er
+   stand im Menü (der Punkt verliert beim Schließen sein Element), der Browser
+   setzte ihn sonst auf `body` — die Tastatur landete am Anfang der Seite.
+   Der Knopf trug früher einen EIGENEN `@keydown.esc`; den gibt es nicht mehr,
+   dieser Listener am Dokument reicht (ein Handler, ein Weg).
+   MT-1b2 (Review-Punkt 4): Der Fokus geht NUR zurück, wenn er auch hier war —
+   also im Profilbereich (Avatar oder Menü) oder gar nicht gesetzt (`body`).
+   Stand der Fokus per Tab schon im Inhalt oder in einem Dialog, bleibt er
+   dort: Escape schließt das Menü, es entführt aber niemanden. */
+function beiDokumentKlick(ereignis) {
+  if (!profilOffen.value) return
+  const wurzel = profilWurzel.value
+  if (wurzel && ereignis.target instanceof Node && wurzel.contains(ereignis.target)) return
+  profilOffen.value = false
+}
+function beiDokumentTaste(ereignis) {
+  if (ereignis.key !== 'Escape' || !profilOffen.value) return
+  profilOffen.value = false
+  fokusZurueckholen()
+}
+/** Fokus zurück auf den Avatar — nur, wenn er vorher hier (oder nirgends) war. */
+function fokusZurueckholen() {
+  const wurzel = profilWurzel.value
+  if (!wurzel) return
+  const aktiv = document.activeElement
+  const hier = !aktiv || aktiv === document.body || wurzel.contains(aktiv)
+  if (!hier) return
+  const knopf = wurzel.querySelector('.dk-sb-user')
+  if (knopf && typeof knopf.focus === 'function') knopf.focus()
+}
+/** Beim Einklappen ist kein Platz für das Menü — es schließt mit. */
+watch(() => props.collapsed, (zu) => { if (zu) profilOffen.value = false })
 
 /** Werkzeuge im Profilmenü nur bei eingeschaltetem Dev-Modus und Admin/Tester. */
 const darfDevWerkzeuge = computed(() => Boolean(
