@@ -609,7 +609,18 @@ test('A10: die Seite zeigt am Handy den Mobil-Kopf und KEINE Werkzeugzeilen', ()
   // A10 (Review 09.11., Punkt 4): EIN Kopf „Kalender“ — Titel und Abzeichen
   // meldet die Seite an die App-Kopfzeile, der Bereichskopf hat keinen.
   assert.match(seite, /setzeRollenMarke\(darf \? 'Moderator' : ''\)/, 'Abzeichen nur mit Recht gemeldet')
-  assert.match(seite, /onUnmounted\([\s\S]{0,300}setzeRollenMarke\(''\)/, 'beim Verlassen abgeräumt')
+  assert.match(seite, /onUnmounted\([^}]*\}?[\s\S]{0,600}setzeRollenMarke\(''\)/, 'beim Verlassen abgeräumt')
+  // Review 12.11., Punkt 5: Der Escape-Zuhörer entsteht VOR den `await`s in
+  // onMounted (sonst blieb die erste Ladezeit ohne Tastatur) — angebunden wird
+  // er dort und beim Verlassen wieder abgehängt (kein Doppel-Zuhörer).
+  const montiert = seite.slice(seite.indexOf('onMounted(async () => {'),
+    seite.indexOf('onUnmounted(', seite.indexOf('onMounted(async () => {')))
+  assert.ok(montiert.indexOf("window.addEventListener('keydown', listeTaste)") < montiert.indexOf('await '),
+    'keydown-Zuhörer steht in onMounted vor dem ersten await')
+  assert.equal(montiert.split("addEventListener('keydown', listeTaste)").length, 2,
+    'genau EINE Anbindung des Escape-Zuhörers')
+  assert.match(seite, /onUnmounted\([\s\S]{0,600}removeEventListener\('keydown', listeTaste\)/,
+    'der Zuhörer wird beim Verlassen abgehängt')
   const kopfMobil = lies('components/kronos/KalenderKopfMobil.vue')
   assert.ok(!/<h1/.test(kopfMobil.split('<script')[0]), 'kein zweiter Titel im Bereichskopf')
   assert.ok(!kopfMobil.includes('>Heute<'), '„Heute“ nur einmal (im Mini-Monat)')

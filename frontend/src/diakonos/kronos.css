@@ -1283,23 +1283,74 @@ html[data-theme] .ec,
 .ec * {
   font-family: inherit;
 }
-.ec-month-view.ec-day-grid .ec-main { --ec-row-height: minmax(0, 1fr); }
 .ec-month-view.ec-day-grid .ec-events { overflow: hidden; }
+/* B6-N3 (Review Runde 2, Punkt A): Die Zeilenhöhe bleibt hier bei der
+   BIBLIOTHEK (`dayMaxEvents: true` → `.ec-day-grid .ec-main.ec-uniform
+   { --ec-row-height: minmax(0, 1fr) }`), also gleichmäßig geteilt. Bis B6-N2
+   stand an dieser Stelle eine GLOBALE Mindesthöhe; sie war ein Fehlgriff: in
+   der Monatsansicht ist `.ec-main` ein Raster mit `overflow: hidden`
+   (unten), eine Zeile mit Untergrenze macht das Raster höher als seinen
+   Kasten — die überzähligen Wochen wurden ABGESCHNITTEN. Gemessen im
+   Wegwerf-Stack (1440×900): nur 4 von 6 Wochen sichtbar, main zeigte alle 6.
+   Auf dem Handy (A10-Monatsraster, Querformat OP-HANDY-9) überstimmte der
+   Wert ebenso die dortigen 72 px.
+   Die Untergrenze gibt es deshalb NUR noch dort, wo die Fläche scrollen
+   kann — schmales Maus-Fenster (≤ 720 px, `.kal-flaeche`), siehe eigener Block
+   weiter unten.
+   Die frühere Zurücksetzung `… .ec-main.ec-uniform { minmax(0, 1fr) }` ist
+   damit gegenstandslos (die Bibliothek setzt genau diesen Wert) und entfernt. */
 /* OP-HANDY-9: Im Querformat am Handy (844x390) ist das Fenster so flach, dass
    das Monatsraster in 36-px-Zeilen zusammenfaellt — Termine und „+n“ sind dann
    unsichtbar. Der Kalender bekommt eine Mindesthoehe und der umgebende
-   Container darf vertikal scrollen, statt weiter zu schrumpfen. */
+   Container darf vertikal scrollen, statt weiter zu schrumpfen.
+   B6-N3 (Review-Runde 3, Punkt 3): Die Bedingung fragt KEINEN Zeiger mehr,
+   sondern die HANDY-KLASSE `.dk-app--handy` (`composables/handyLage.mjs`) —
+   dieselbe Quelle wie das ganze Gerüst, keine zweite Zeiger-Zeichenkette im
+   CSS (FIX-6c). `:where()` hält die Spezifität auf der des blossen Elements
+   (0-1-0), damit der Mobil-Monat (A10, `pages/Kalender.vue`) seine 72 px wie
+   bisher überschreiben kann und ein flaches MAUS-Fenster (1280×450 am Laptop)
+   die Regel gar nicht erst sieht. */
 @media (orientation: landscape) and (max-height: 480px) {
-  .kronos-calendar-wrap {
+  :where(.dk-app--handy) .kronos-calendar-wrap {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .kronos-calendar-wrap .ec-month-view,
-  .kronos-calendar-wrap .ec .ec-month-view {
+  :where(.dk-app--handy) .kronos-calendar-wrap .ec-month-view,
+  :where(.dk-app--handy) .kronos-calendar-wrap .ec .ec-month-view {
     min-height: 520px;
   }
-  .ec-month-view.ec-day-grid .ec-main { --ec-row-height: minmax(72px, 1fr); }
-  .ec-month-view.ec-day-grid .ec-events { overflow: visible; }
+  :where(.dk-app--handy) .ec-month-view.ec-day-grid .ec-main { --ec-row-height: minmax(72px, 1fr); }
+  :where(.dk-app--handy) .ec-month-view.ec-day-grid .ec-events { overflow: visible; }
+}
+/* B6-N3 (Review Runde 2, Punkt A · Runde 3, Punkt 2): MINDESTHÖHE je
+   Monatszeile — nur im schmalen MAUS-Fenster (≤ 720 px, gleiche Grenze wie
+   der Spalten-Umbruch in pages/Kalender.vue und wie dort `overflow: auto` an
+   `.kal-flaeche`). Dort steht die Prüf-Spalte UNTER dem Raster, das Fenster
+   ist flach, und die Fläche darf scrollen — wächst das Raster über seinen
+   Kasten hinaus, sind die Zeilen trotzdem vollständig lesbar (man scrollt zur
+   letzten Woche).
+   Die Selektor-Kette beginnt deshalb mit `.kal-flaeche` (Spezifität 0-4-0
+   bzw. 0-5-0 mit `.ec-uniform` — schlägt die Bibliotheksregel
+   `.ec-day-grid .ec-main.ec-uniform` mit 0-3-0). `.kal-flaeche` gibt es NUR
+   ausserhalb der Handy-Lage
+   (`v-if="!istSchmal"`) — in der Handy-Lage fallen die Regeln damit von
+   selbst weg, ohne Rücksetzungen am Mobil-Bau. Eine Breitengrenze allein
+   hätte auch das 390-px-Handy getroffen und dort das A10-Raster überstimmt.
+   Warum NICHT global: in der Monatsansicht ist `.ec-main` ein Raster mit
+   `overflow: hidden` (unten). Eine Untergrenze macht es höher als seinen
+   Kasten, und die überzähligen Wochen werden abgeschnitten — Desktop
+   1440×900 zeigte nur 4 von 6 Wochen (Punkt A des Reviews). Am Desktop und
+   am Handy kommt die Höhe allein aus dem Platz (`minmax(0, 1fr)`): dort
+   zeigen alle Wochen. */
+@media (max-width: 720px) {
+  .kal-flaeche .ec-month-view.ec-day-grid .ec-main,
+  .kal-flaeche .ec-month-view.ec-day-grid .ec-main.ec-uniform {
+    --ec-row-height: minmax(var(--kal-zeile-min), 1fr);
+  }
+  /* Über der Untergrenze darf die Zelle selbst nicht mehr clippen — sonst
+     schnitte `.ec-events { overflow: hidden }` (oben) Termin und „+n“ weg,
+     obwohl die Zeile hoch genug wäre. Gleiche Bauart wie im Querformat. */
+  .kal-flaeche .ec-month-view.ec-day-grid .ec-events { overflow: visible; }
 }
 .ec-month-view .ec-main {
   flex-grow: 1;
@@ -1388,7 +1439,15 @@ html[data-theme] .ec,
    von `1fr`. Sechs Zeilen à 71 px passen nicht in die Resthöhe, die sechste
    wird unten abgeschnitten. In der schmalen Lage darf die Mindesthöhe fallen,
    damit alle sechs Wochen in die Fläche passen; das Raster bleibt
-   `minmax(0, 1fr)` (kronos.css:1099) und teilt die Höhe gleichmäßig. */
+   `minmax(0, 1fr)` (Bibliothek) und teilt die Höhe gleichmäßig.
+   B6-N3 (Review Runde 2, Punkt A): Die Grenze gilt wieder für ALLE Zeiger.
+   Sie war in DEV-B6 kurz auf `(pointer: coarse)` verengt — die Handy-Lage.
+   Der Handy-Bau ist es aber nicht allein: im schmalen MAUS-Fenster (≤ 720 px)
+   bekommt die Zeile seit B6-N3 eine Untergrenze (`--kal-zeile-min`) und die
+   Fläche scrollt; bliebe hier `.ec-day { min-block-size: 5em }` stehen, wäre
+   der Scrollweg wirkungslos — die Zelle wäre weiterhin nur 71 px hoch und
+   würde Termin und „+n“ abschneiden. Am Desktop (> 720 px) bleibt die
+   Bibliotheks-Mindesthöhe, damit die Wochen nicht zusammenfallen. */
 @media (max-width: 720px) {
   .ec-month-view.ec-day-grid .ec-day { min-block-size: 0 !important; }
 }
@@ -2007,6 +2066,29 @@ html[data-theme] .ec,
     transition: transform 0.2s ease;
   }
   .kronos-sidebar-inpage.open { transform: translateX(0); }
+}
+/* B6-N2 (Punkt 1), B6-N3 (Punkt D): Der abgedunkelte Schleier unter dem
+   Overlay — dieselbe Zutat wie bei den Dialogen (`--overlay`, tokens.css),
+   also HELL wie DUNKEL aus den Tokens. Er liegt direkt unter dem Overlay
+   (z-index 500) und über allem anderen der Seite. EINE Regel für den einen
+   Weg in die Overlay-Form (schmales MAUS-Fenster ≤ 1100 px): die Seite setzt
+   die Klasse `dk-kalenderliste-overlay` (vorher `dk-overlay-handy`) genau
+   dann, wenn sie die Liste als Overlay führt (Kalender.vue, `listeAlsOverlay`),
+   und rendert den Schleier nur dann. In der Handy-Lage (`.dk-app--handy`) ist
+   die Liste wieder ein Popover (A10, Review 12.11. Punkt 2) — dort gibt es
+   keinen Schleier.
+   Review 12.11., Punkt 6: Die frühere zweite, breitengleiche Kopie
+   (`@media (max-width: 1100px)`) war toter Ballast, ebenso die hier doppelt
+   stehende ✕-Regel (der ✕ steht scoped in KronosSidebar.vue). */
+.dk-kalenderliste-overlay.kronos-overlay-schleier {
+  position: fixed;
+  inset: 0;
+  z-index: 499;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: var(--overlay);
+  cursor: pointer;
 }
 
 /* ===== Shared Modal Styles (alle Kronos-Modals) ===== */

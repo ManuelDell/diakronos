@@ -409,16 +409,30 @@ test('DEV-B6: App.vue und tokens.css tragen DIESELBE Bedingung', () => {
 test('DEV-B6: Kalender und Plan-Hinweis nutzen die Handy-Lage (Zeiger + Breite)', async () => {
   const breiten = await import(pathToFileURL(resolve(SRC, 'diakonos/components/kronos/breiten.mjs')).href)
   const hinweis = await import(pathToFileURL(resolve(SRC, 'diakonos/composables/handyHinweis.mjs')).href)
-  // Kalender: Handy-Layout nur am Touchgerät (oder flach) — ein Maus-Laptop
-  // bei 702 px behält die rechte Spalte. Sehr schmale Fenster (<= 430 px)
-  // sind auch mit Maus Handy-Lage (dort ist die Spalte nicht darstellbar).
-  assert.equal(breiten.istKalenderHandyLage(390, { grob: true }), true, 'Handy')
-  assert.equal(breiten.istKalenderHandyLage(720, { grob: true }), true, 'Grenze gehört dazu')
-  assert.equal(breiten.istKalenderHandyLage(702, { grob: false }), false, 'Laptop 702 px mit Maus (Befund)')
-  assert.equal(breiten.istKalenderHandyLage(1024, { grob: true }), false, 'Tablet quer: nicht schmal')
-  assert.equal(breiten.istKalenderHandyLage(844, { grob: true, hoehe: 390 }), true, 'Handy quer')
-  assert.equal(breiten.istKalenderHandyLage(430, { grob: false }), true, 'sehr schmal (430 px)')
-  assert.equal(breiten.istKalenderHandyLage(431, { grob: false }), false)
+  // B6-N2 (Punkt 3, Regel 19): Die Prüfung der Kalender-Handy-Lage lag hier
+  // auf `breiten.istKalenderHandyLage` — einer Funktion OHNE Aufrufer, die
+  // jedes flache Fenster (auch mit Maus) als Handy wertete. Sie ist entfallen;
+  // die gültige Regel lebt allein in `composables/handyLage.mjs` (wird in
+  // diesem Test oben über die Abfrage-Zeichenkette geprüft). Die Aussagen zu
+  // Handy/Laptop/sehr schmal bleiben deshalb erhalten — nur gegen die EINE
+  // Quelle statt gegen die tote Kopie.
+  const { HANDY_LAGE_ABFRAGE, FLACH_QUER_PX } = await import(
+    pathToFileURL(resolve(SRC, 'diakonos/composables/handyLageAbfrage.mjs')).href)
+  assert.ok(FLACH_QUER_PX > 0, 'Querformat-Grenze ist eine benannte Zahl')
+  // Review 12.11., Punkt 9: Die Prüfungen laufen gegen den VORHANDENEN
+  // `passt()`-Helfer (löst eine Media-Query wie der Browser auf) statt gegen
+  // eine Lambda, die nur `grob && b <= MOBIL_GRENZE_PX` nachrechnete — damit
+  // prüften die Aussagen sich selbst und nicht die Zeichenkette.
+  assert.equal(passt(HANDY_LAGE_ABFRAGE, { breite: 390, hoehe: 844, grob: true }), true, 'Handy')
+  assert.equal(passt(HANDY_LAGE_ABFRAGE, { breite: 720, hoehe: 844, grob: true }), true,
+    'Grenze gehört dazu')
+  assert.equal(passt(HANDY_LAGE_ABFRAGE, { breite: 702, hoehe: 894, grob: false }), false,
+    'Laptop 702 px mit Maus (Befund)')
+  assert.equal(passt(HANDY_LAGE_ABFRAGE, { breite: 1024, hoehe: 768, grob: true }), false,
+    'Tablet quer: nicht schmal')
+  // Die tote Kopie darf nicht zurückkommen.
+  assert.ok(!('istKalenderHandyLage' in breiten),
+    'breiten.mjs: keine zweite (tote) Handy-Lage-Funktion neben composables/handyLage.mjs')
   // Plan-Hinweis: dieselbe Logik (schmal + grob, sehr schmal).
   assert.equal(hinweis.istHandyHinweisLage(390, { grob: true }), true, 'Handy')
   assert.equal(hinweis.istHandyHinweisLage(702, { grob: false }), false, 'Laptop 702 px (Befund)')

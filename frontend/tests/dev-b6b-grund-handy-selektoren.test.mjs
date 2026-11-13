@@ -40,11 +40,14 @@ function stil(rel) {
 }
 
 /**
- * Sucht die Regel, die GENAU diese Selektoren-Kette trägt (eine Zeile, mit
- * `{` am Zeilenende) und liefert ihren Deklarationsblock.
+ * Sucht die Regel, die GENAU diese Selektoren-Kette trägt (eine Zeile mit `{`
+ * am Zeilenende) und liefert ihren Deklarationsblock. B6-N3: CSS-Kommentare
+ * werden vorher entfernt — die Umbaute lag innerhalb eines Kommentarblocks
+ * (vorher ein Blockkommentar, jetzt eine gewöhnliche Regel) und die alte
+ * Suche hätte die Regel samt Kommentar verschluckt.
  */
 function blockMit(rel, selektoren) {
-  const css = stil(rel)
+  const css = stil(rel).replace(/\/\*[\s\S]*?\*\//g, '')
   const teile = Array.isArray(selektoren) ? selektoren : [selektoren]
   for (const s of teile) {
     const re = new RegExp(`(?:^|\\})\\s*${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`, 'm')
@@ -101,10 +104,42 @@ test('DEV-B6b: KronosSidebar — Schließen-Knopf nur im Handy-Overlay', () => {
   assert.ok(grund, 'Grundregel .kronos-sidebar-close fehlt')
   assert.match(grund, /display:\s*none/, 'Grundregel: der Knopf ist AUS (Desktop hat keinen)')
 
-  const handy = blockMit('components/kronos/KronosSidebar.vue', '.dk-app--handy .kronos-sidebar-close')
-  assert.ok(handy, 'Handy-Regel .dk-app--handy .kronos-sidebar-close fehlt')
-  assert.match(handy, /display:\s*flex/, 'im Handy-Overlay ist der Knopf AN')
-  assert.match(handy, /position:\s*absolute/, 'im Handy-Overlay sitzt der Knopf oben rechts')
+  const handy = blockMit('components/kronos/KronosSidebar.vue', '.dk-kalenderliste-overlay .kronos-sidebar-close')
+  // B6-N2 (Punkt 1, Regel 19): Die Klasse hieß hier `.dk-app--handy` — richtig
+  // ist sie am OVERLAY, weil die Liste seit DEV-B6b auch im schmalen
+  // MAUS-Fenster (≤ 1100 px) ein Overlay ist und dort denselben ✕ braucht.
+  // Die Seite setzt die Klasse, wenn sie das Overlay führt (NUR schmales
+  // Maus-Fenster — die Handy-Lage bleibt beim Popover).
+  // B6-N3 (Punkt D): Sie hieß irreführend `dk-overlay-handy` („Handy“ war
+  // genau das Gegenteil gemeint) und heißt jetzt `dk-kalenderliste-overlay`.
+  assert.ok(handy, 'Overlay-Regel .dk-kalenderliste-overlay .kronos-sidebar-close fehlt')
+  assert.match(handy, /display:\s*flex/, 'im Overlay ist der Knopf AN')
+  assert.match(handy, /position:\s*absolute/, 'im Overlay sitzt der Knopf oben rechts')
+  // Review 12.11., Punkt 7: Klickfläche und Abstand aus den Tokens — am
+  // groben Zeiger ist `--control-h` 44 px, feste 32 px waren zu klein.
+  assert.match(handy, /width:\s*var\(--control-h\)/, '✕-Breite kommt aus --control-h')
+  assert.match(handy, /height:\s*var\(--control-h\)/, '✕-Höhe kommt aus --control-h')
+  assert.match(handy, /top:\s*var\(--sp-\d\)/, 'Abstand oben aus der Abstandsskala')
+  assert.ok(!/(?:^|\s)(?:width|height):\s*\d+px/.test(handy),
+    'keine feste px-Größe mehr am ✕-Knopf')
+})
+
+test('B6-N3: der ✕ der Kalenderliste ist ein DkSymbol, kein Textzeichen', () => {
+  // Punkt C: `&times;` ist ein Textzeichen mit eigener Schriftmetrik und
+  // skaliert nicht mit den Symbolen; die Symbole kommen zentral aus
+  // `components/ui/symbole.mjs` (`abbrechen` = zwei gekreuzte Striche).
+  const text = lies('components/kronos/KronosSidebar.vue')
+  const knopf = /class="kronos-sidebar-close"[\s\S]*?<\/button>/.exec(text)
+  assert.ok(knopf, 'Schließen-Knopf fehlt')
+  assert.match(knopf[0], /<DkSymbol\s+name="abbrechen"/,
+    'der ✕ zeichnet das zentrale Symbol „abbrechen“')
+  assert.ok(!/&times;|&#215;|&#10005;|✕/.test(knopf[0]),
+    'kein Textzeichen als ✕ (Symbolfamilie bleibt einheitlich)')
+  // Das Symbol muss im Vorrat liegen, sonst zeichnet DkSymbol NICHTS.
+  const symbole = readFileSync(resolve(SRC, 'components/ui/symbole.mjs'), 'utf8')
+  assert.match(symbole, /^\s*abbrechen:\s*\{/m, 'Symbol „abbrechen“ fehlt im Vorrat')
+  // Und der Import steht in der Datei (sonst bliebe das Element leer).
+  assert.match(text, /import DkSymbol from '\.\.\/ui\/DkSymbol\.vue'/, 'DkSymbol wird importiert')
 })
 
 // ── ModerationSidebar ──────────────────────────────────────────────────────
@@ -149,13 +184,32 @@ test('DEV-B6b: Kalenderliste — Overlay hat left:0 und der Knopf öffnet es üb
   const { SEITENLEISTE_SCHMAL_ABFRAGE } = await import('../src/diakonos/composables/handyLage.mjs')
   assert.equal(SEITENLEISTE_SCHMAL_ABFRAGE, '(max-width: 1100px)', 'Abfrage und kronos.css-Grenze laufen auseinander')
   const seite = lies('pages/Kalender.vue')
+  // B6-N2 (Punkt 1, Regel 19): Die Prüfung suchte den `matchMedia`-Aufruf IN
+  // der Funktion. Die Lage wird jetzt EINMAL als reaktive Quelle gelesen
+  // (`leistenLageLesen` + `listeAlsOverlay`, damit ✕, Schleier und Escape
+  // dieselbe Antwort sehen) — die Aussage bleibt: Knopf-Zweig hängt an der
+  // schmalen Leiste (genau der 1100-px-Abfrage).
+  // Review 12.11., Punkt 2: Die HANDY-Lage ist AUSGENOMMEN — dort bleibt es
+  // beim freigegebenen A10-Popover. `listeAlsOverlay` lautet deshalb
+  // `!istHandyLage && schmaleLeiste`; ohne das `!` öffnete der Knopf in der
+  // Handy-Lage das Overlay statt des Popovers.
   const fn = /function kalenderAuswahlUmschalten\(\) \{([\s\S]*?)\n\}/.exec(seite)
   assert.ok(fn, 'kalenderAuswahlUmschalten fehlt')
-  assert.match(fn[1], /!istHandyLage\.value[\s\S]*matchMedia\(SEITENLEISTE_SCHMAL_ABFRAGE\)\.matches/,
-    'Overlay nur außerhalb der Handy-Lage und genau dort, wo kronos.css das Overlay setzt')
+  const lage = /const listeAlsOverlay = computed\(\(\) => !istHandyLage\.value && schmaleLeiste\.value\)/.exec(seite)
+  assert.ok(lage, 'listeAlsOverlay: Overlay NUR im schmalen Maus-Fenster, nicht in der Handy-Lage')
+  assert.match(seite, /leistenAbfrage = window\.matchMedia\(SEITENLEISTE_SCHMAL_ABFRAGE\)/,
+    'schmale Leiste kommt aus derselben 1100-px-Abfrage wie das Overlay-CSS')
+  assert.match(fn[1], /if \(listeAlsOverlay\.value\)/,
+    'der Knopf öffnet das Overlay genau dort, wo kronos.css es setzt')
   assert.ok(!/KALENDER_HANDY_PX/.test(fn[1]), 'keine zweite Grenze (720 px) im Knopf-Zweig')
   // Handy-Lage: Popover wie A10 — der Popover-Zweig folgt NACH dem Overlay-Zweig.
   assert.ok(fn[1].indexOf('auswahlOffen.value = true') > fn[1].indexOf('kronosSidebar.auf()'))
+  // Punkt 8: Beim Öffnen wandert der Fokus ins Overlay, und der Auslöser
+  // meldet den Overlay-Zustand (`aria-expanded`), nicht nur das Popover.
+  assert.match(fn[1], /nextTick\(fokusInsOverlay\)/,
+    'Öffnen setzt den Fokus ins Overlay')
+  assert.match(seite, /:auswahlOffen="auswahlOffen \|\| kronosSidebar\.offen\.value"/,
+    'aria-expanded des Kalender-Knopfs kennt den Overlay-Zustand')
 })
 
 // ── Inhaltsregeln hängen an der BREITE ─────────────────────────────────────

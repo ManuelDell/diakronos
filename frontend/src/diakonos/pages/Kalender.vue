@@ -127,7 +127,7 @@
       :canModerate="darfPruefen"
       :offeneZahl="offeneZahl"
       :eingeblendet="eingeblendetZahl"
-      :auswahlOffen="auswahlOffen"
+      :auswahlOffen="auswahlOffen || kronosSidebar.offen.value"
       :istKalenderAdmin="istKalenderAdmin"
       :lesemodus="lesemodus"
       @prev="calendarRef?.prev()"
@@ -152,12 +152,26 @@
       <KronosSidebar
         ref="sidebarRef"
         class="kronos-sidebar-inpage"
-        :class="{ open: kronosSidebar.offen.value }"
+        :class="{ open: kronosSidebar.offen.value, 'dk-kalenderliste-overlay': listeAlsOverlay }"
         :open="kronosSidebar.offen.value"
-        @close="kronosSidebar.zu()"
+        @close="kalenderListeSchliessen"
         @ablehnungClick="zeigeAbgelehntenTermin"
         @calendarsChange="onCalendarsChange"
       />
+      <!-- B6-N2 (Review DEV-B6b, Punkt 1): Der abgedunkelte Schleier unter dem
+           Overlay — wie beim Handy-Overlay und bei den Dialogen. Klick darauf
+           schließt (das übliche Muster: Klick daneben = abbrechen).
+           `tabindex="-1"` + `aria-hidden`: kein Tastatur-Ziel im Tab-Ring —
+           Escape und der ✕-Knopf sind die tastaturbedienbaren Wege. -->
+      <button
+        v-if="listeAlsOverlay && kronosSidebar.offen.value"
+        type="button"
+        class="kronos-overlay-schleier"
+        :class="{ 'dk-kalenderliste-overlay': listeAlsOverlay }"
+        tabindex="-1"
+        aria-hidden="true"
+        @click="kalenderListeSchliessen"
+      ></button>
 
       <!-- Die Kalenderfläche: Karte mit Kopf (Monat links, Kalenderwochen
            rechts) und darin das Raster. A10: nur am Desktop — am Handy steht
@@ -315,7 +329,7 @@
  * Schreibrecht bzw. an der Kalenderverwaltung und sind unverändert
  * erreichbar.
  */
-import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch, nextTick } from 'vue'
 import { useKronosStore } from '../composables/useKronosStore.js'
 import { useKronosSidebar } from '../composables/useKronosSidebar.js'
 import { getMeinTermin } from '../composables/useEventsApi.js'
@@ -402,6 +416,30 @@ const kronosSidebar = useKronosSidebar()
  */
 const { istHandyLage } = useHandyLage()
 const istSchmal = istHandyLage
+
+/* B6-N2 (Review DEV-B6b, Punkt 1): Wo ist die Kalenderliste ein OVERLAY?
+ * Zwei Orte führen dorthin, EINE Antwort für die Oberfläche:
+ *   * schmales MAUS-Fenster (≤ 1100 px) — dieselbe Grenze wie die
+ *     eingeklappte Seitenleiste und die Overlay-Regel in kronos.css;
+ *   * die Handy-LAGE bleibt beim Popover (A10/DEV-B6b, freigegebene
+ *     Entscheidung, Review 12.11. Punkt 2) — dort ist das Gerüst ohnehin
+ *     schmal, aber das Popover ist der beschlossene Weg.
+ * Die Klasse `dk-kalenderliste-overlay` sitzt am Overlay selbst und am
+ * Schleier (B6-N3, Punkt D: vorher irreführend `dk-overlay-handy` — sie
+ * bedeutet seit B6-N2 „schmales Maus-Fenster“, NICHT Handy);
+ * ✕-Knopf und Abdunkelung hängen daran (kronos.css, KronosSidebar.vue) —
+ * kein zweiter Media-String in den Komponenten. */
+const schmaleLeiste = ref(false)
+let leistenAbfrage = null
+function leistenLageLesen() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+  if (!leistenAbfrage) {
+    leistenAbfrage = window.matchMedia(SEITENLEISTE_SCHMAL_ABFRAGE)
+    leistenAbfrage.addEventListener?.('change', leistenLageLesen)
+  }
+  schmaleLeiste.value = leistenAbfrage.matches
+}
+const listeAlsOverlay = computed(() => !istHandyLage.value && schmaleLeiste.value)
 const calendarRef = ref(null)
 const seriesDialogRef = ref(null)
 const sidebarRef = ref(null)
@@ -562,19 +600,80 @@ function onDatesSet(info) {
 }
 
 /* ── A4: Kalenderauswahl ─────────────────────────────────────────────────── */
+/**
+ * B6-N2 (Review DEV-B6b, Punkt 1): Die Liste schließen und den Fokus dorthin
+ * zurückgeben, wo er herkam — auf den Kalender-Knopf (Prinzip S5/I4: Tastatur
+ * bleibt am Ort). Der Knopf wird über `data-kalender-ausloeser` gesucht (der
+ * sichtbare der beiden je Lage).
+ */
+function kalenderListeSchliessen() {
+  const warOffen = kronosSidebar.offen.value
+  kronosSidebar.zu()
+  if (!warOffen || typeof document === 'undefined') return
+  const ausloeser = document.querySelector('[data-kalender-ausloeser][data-kalender-sichtbar="1"]')
+    || document.querySelector('[data-kalender-ausloeser]')
+  if (ausloeser && typeof ausloeser.focus === 'function') ausloeser.focus()
+}
+
+/**
+ * B6-N2 (Review 12.11., Punkt 8): Beim Öffnen wandert der Fokus INS Overlay —
+ * auf den ✕-Knopf, den jede Overlay-Form hat (KronosSidebar.vue),
+ * ersatzweise auf das Overlay selbst. Ohne diesen Schritt blieb der Fokus
+ * beim Öffnen hinter der Abdunklung auf dem Kalender-Knopf stehen, und
+ * `aria-expanded` sagte „offen“, während die Tastatur noch draußen war.
+ */
+function fokusInsOverlay() {
+  if (typeof document === 'undefined') return
+  // Der Schliessen-Knopf ist das einzige Element, das NUR im Overlay
+  // existiert und dort immer sichtbar ist — er ist der sichere Einstieg.
+  const schliessen = document.querySelector('.kronos-sidebar-inpage .kronos-sidebar-close')
+  if (schliessen && typeof schliessen.focus === 'function') {
+    schliessen.focus()
+    return
+  }
+  const seite = document.querySelector('.kronos-sidebar-inpage')
+  if (seite && typeof seite.focus === 'function') seite.focus()
+}
+
+/**
+ * B6-N2 (Punkt 1): Escape schließt das Overlay — dasselbe Verhalten wie am
+ * Handy und wie bei jedem Dialog (Prinzip S5). Nur wenn das Overlay offen ist;
+ * Dialoge und Blätter fangen Escape selbst ab und sind dann modal im Weg
+ * (sie liegen über dem Overlay, `z-index` 1050 > 500).
+ *
+ * Review 12.11.: `stopPropagation()` auf `window` war wirkungslos (der
+ * Listener sitzt bereits am Ende der Kette) und ist entfallen.
+ * Punkt 4: Ausgenommen sind nur TEXTEINGABEN — die Checkboxen der
+ * Kalenderliste sind eigene Ziele; stand der Fokus darauf, schloss Escape
+ * vorher nicht. `preventDefault` nicht nötig: ein Textfeld hat Escape
+ * bereits verlassen, bevor die Prüfung greift.
+ */
+function listeTaste(event) {
+  if (!event || event.key !== 'Escape') return
+  if (!listeAlsOverlay.value || !kronosSidebar.offen.value) return
+  const ziel = event.target
+  if (ziel && typeof ziel.closest === 'function'
+    && ziel.closest('textarea, select, [contenteditable]:not([contenteditable="false"]),'
+      + ' input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"])')) return
+  kalenderListeSchliessen()
+}
+
 function kalenderAuswahlUmschalten() {
   // DEV-B6b (Review 10.11., Punkt 3 — Entscheidung Operator): EIN Weg zur
   // Kalenderliste. Wo die Liste ein OVERLAY ist (Maus-Fenster ≤ 1100 px,
   // kronos.css `@media (max-width: 1100px)`, dieselbe Abfrage wie die
   // eingeklappte Seitenleiste: `SEITENLEISTE_SCHMAL_ABFRAGE`), öffnet der Knopf
-  // „Kalender“ dieses Overlay. In der HANDY-LAGE bleibt es beim Popover (A10),
-  // ebenso am breiten Desktop (A4).
-  const listeAlsOverlay = !istHandyLage.value && typeof window !== 'undefined'
-    && typeof window.matchMedia === 'function'
-    && window.matchMedia(SEITENLEISTE_SCHMAL_ABFRAGE).matches
-  if (listeAlsOverlay) {
-    if (kronosSidebar.offen.value) kronosSidebar.zu()
-    else kronosSidebar.auf()
+  // „Kalender“ dieses Overlay. In der HANDY-LAGE bleibt es beim Popover (A10).
+  // Review 12.11., Punkt 2: Die Handy-Lage ist wieder AUSGENOMMEN — der
+  // Overlay-Zweig gilt nur noch außerhalb des Handy-Gerüsts.
+  if (listeAlsOverlay.value) {
+    if (kronosSidebar.offen.value) kalenderListeSchliessen()
+    else {
+      kronosSidebar.auf()
+      // Punkt 8: Fokus in den Overlay — nach dem Rendern (die Klasse `open`
+      // schaltet der Vue-Durchlauf, der Knopf entsteht erst dann sichtbar).
+      nextTick(fokusInsOverlay)
+    }
     return
   }
   if (auswahlOffen.value) {
@@ -1341,6 +1440,11 @@ async function ausBlattFreigeben({ termin, aktion } = {}) {
 }
 
 onMounted(async () => {
+  // Review 12.11., Punkt 5: Die Tastatur-Anbindung steht VOR den `await`s —
+  // ein Escape in der ersten Sekunde (Seite lädt noch Kalender) ging sonst
+  // ins Leere, weil der Zuhörer erst nach den Netzaufrufen entstand.
+  window.addEventListener('keydown', listeTaste)
+  leistenLageLesen()
   await store.fetchAccessibleCalendars()
   offeneZahlLaden()
   benutzerKontextLaden()
@@ -1380,6 +1484,11 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('hashchange', anlegeWunschAusAdresse)
+  window.removeEventListener('keydown', listeTaste)
+  if (leistenAbfrage) {
+    leistenAbfrage.removeEventListener?.('change', leistenLageLesen)
+    leistenAbfrage = null
+  }
   // A10: das Abzeichen gehört zu DIESER Seite — beim Verlassen abräumen,
   // sonst stünde „Moderator“ auch auf der Übersicht (Entwurf A10 zeigt es
   // nur im Kalender).
@@ -1546,6 +1655,30 @@ defineExpose({
   background: var(--surface);
   box-shadow: var(--schatten-karte);
   border: var(--karte-rand) solid var(--rahmen-farbe);
+}
+/* B6-N2 (Review DEV-B6b, Punkt 2), B6-N3 (Review Runde 2, Punkt A): Reicht der
+   Platz nicht für die Mindesthöhe der Monatszeilen (`--kal-zeile-min`,
+   tokens.css), bekommt die Karte ihre natürliche Höhe und die FLÄCHE scrollt —
+   statt die Zeilen weiter zu quetschen (dann war weder Termin noch „+n
+   weitere“ zu sehen).
+   Die Mindesthöhe selbst gilt NUR hier, weil nur hier gescrollt werden kann
+   (kronos.css, Block `@media (max-width: 720px)`): in der Spaltenlage
+   (≤ 720 px) steht die Prüf-Spalte UNTER dem Raster und genau dieser Platz
+   fehlt. Darüber — Desktop 1440/1280/900 und Handy (eigenes Raster) — bleibt
+   es bei der Bauart aus main: Raster füllt den Platz, alle Wochen sind
+   sichtbar. Ohne die Grenze verlor die Karte ab 721 px ihr Schrumpfen
+   (`flex: 0 0 auto`) und lief rechts aus dem Bild (bei 900 und 1440 px
+   fehlten Tage, KW-Spalte und Prüf-Spalte).
+   B6-N3, Punkt E: `overflow`, `flex` und `align-self` hängen hier an
+   DERSELBEN Grenze wie die Mindesthöhe (vorher: Scrollen ≤ 720 px,
+   Mindesthöhe global) — sonst entstünde ein Scrollkasten ohne Inhalt, der
+   scrollen könnte, oder ein abgeschnittenes Raster ohne Scrollweg. */
+@media (max-width: 720px) {
+  .kal-flaeche { overflow: auto; }
+  .kal-karte { flex: 0 0 auto; }
+  .kal-karte-raster { overflow: visible; }
+  /* Die Spalte „Zu prüfen“ bleibt oben stehen, wenn die Fläche scrollt. */
+  .kal-flaeche > .kal-pruef-panel { align-self: flex-start; }
 }
 .kal-karte-kopf {
   display: flex;

@@ -257,6 +257,33 @@
      Rand für die 44-px-Trefferfläche). */
   --zelle-hoehe: var(--sp-7);
 
+  /* B6-N2 (Review DEV-B6b, Punkt 2), B6-N3 (Review Runde 2, Punkte A und E):
+     MINDESTHÖHE einer Zeile im MONATSRASTER des Kalenders — gilt NUR im
+     schmalen MAUS-Fenster (≤ 720 px, kronos.css), also dort, wo die Fläche
+     (`.kal-flaeche`) scrollen darf. Am Desktop und am Handy NICHT: dort teilt
+     das Raster die vorhandene Höhe (`minmax(0, 1fr)`), eine Untergrenze
+     schnitt sonst ganze Wochen ab (gemessen 1440×900: 4 von 6).
+     TOKEN, weil dieselbe Zahl die Zelle und den Umbruch der Fläche bestimmt.
+     Rechnung — Tageskopf, zwei Termin-Chips und die „+n“-Zeile müssen lesbar
+     sein (die Karten des Reviews nennen 80–90 px als Mindestmaß):
+       Tageskopf    die Zeile „12“ im Raster — Schrift --fs-14 (Zeilenhöhe
+                    ≈ 20 px) + Innenabstand, gemessen ≈ 32 px (--sp-6)
+       Termin-Chip  --zeile-min-chip = --fs-12 (12 px) + --rahmen-breite (1 px,
+                    der Chip hat keine eigene Linie) + 2 × --sp-1 (Innenabstand
+                    oben/unten) = 12 + 1 + 8 = 21 px
+       2 Chips      2 × 21 = 42 px
+       „+n“-Zeile   1 × --zeile-min-chip = 21 px
+       Luft         --sp-1 = 4 px (Tageskopf → Chips) + --sp-4 = 16 px unten
+     zusammen 32 + 42 + 21 + 4 + 16 = 115 px. Bewusst über den 80–90 px der
+     Karte: die Zelle soll nicht schon beim zweiten Termin ins Scrollen
+     geraten, aber auch nicht die Zeile sprengen (die 140 px aus B6-N2
+     rechneten mit `--control-h` = 40 px je Chip — ein Chip ist kein Knopf).
+     Die Chip-Höhe ist selbst ein Token: EINE Stelle für die 21 px — und
+     OHNE nackte px, die Abstände kommen aus der Skala (Review-Runde 3,
+     Punkt 5: vorher standen „2 × 2px + 1px“ hier). */
+  --zeile-min-chip: calc(var(--fs-12) + 2 * var(--sp-1) + var(--rahmen-breite));
+  --kal-zeile-min: calc(var(--sp-6) + var(--sp-1) + 2 * var(--zeile-min-chip) + var(--zeile-min-chip) + var(--sp-4));
+
   /* ── Rahmen (UX1a) ───────────────────────────────────────────────────────
      EINE Quelle für Rahmenbreite und -farben. Komponenten schreiben
      `border: var(--rahmen-breite) solid var(--rahmen-farbe)` — nie 1px,

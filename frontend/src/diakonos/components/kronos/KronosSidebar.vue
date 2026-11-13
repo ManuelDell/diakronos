@@ -15,14 +15,15 @@
         <span class="kronos-back-sub">Liste ein-/ausklappen</span>
       </div>
     </button>
-    <!-- UXK-R9: Am Handy ist die Leiste ein Overlay; dieser Knopf schliesst
-         sie wieder, ohne dass man den Kalender verlassen muss. -->
+    <!-- UXK-R9: Ist die Leiste ein Overlay (schmales Maus-Fenster ≤ 1100 px),
+         schliesst dieser Knopf sie wieder, ohne dass man den Kalender
+         verlassen muss. Beschriftung wie bei DkDialog: das Zeichen selbst. -->
     <button
       type="button"
       class="kronos-sidebar-close"
       aria-label="Kalenderliste schließen"
       @click="$emit('close')"
-    ><DkSymbol name="abbrechen" :groesse="18" /></button>
+    ><DkSymbol name="abbrechen" :groesse="20" /></button>
     <div class="sidebar-divider"></div>
 
     <div class="sidebar-calenderlist-section">
@@ -437,25 +438,35 @@ onMounted(async () => {
 .sidebar-ablehnung-titel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar-ablehnung-zeit { color: var(--dk-sb-text-muted); font-size: var(--fs-12); flex: none; }
 
-/* UXK-R9: Schliessen-Knopf. Am HANDY ist die Liste ein Overlay und braucht den
-   Knopf — auf dem Desktop steht er NICHT (die Spalte schließt über den
-   Umschalter der Kopfzeile).
-   DEV-B6 (Review-Nacharbeit 10.11.): Das Overlay gibt es nur in der
-   Handy-Lage — KLASSE `.dk-app--handy` (Quelle `composables/handyLage.mjs`),
-   kein eigener Media-String mehr.
+/* UXK-R9: Schliessen-Knopf. Überall, wo die Liste ein OVERLAY ist (schmales
+   Maus-Fenster ≤ 1100 px), braucht sie den Knopf — auf dem Desktop steht er
+   NICHT (die Spalte schließt über den Umschalter der Kopfzeile).
+   DEV-B6 (Review-Nacharbeit 10.11.): Das Overlay hing an der Handy-Lage
+   (KLASSE `.dk-app--handy`, Quelle `composables/handyLage.mjs`).
    DEV-B6b (Review 10.11., Punkt 2): Die beiden Regeln waren VERTAUSCHT — die
    Grundregel trug den Handy-Präfix (Knopf am Desktop sichtbar, im Overlay
-   weg). Jetzt: Grund = aus, `.dk-app--handy` = an. */
+   weg). Jetzt: Grund = aus, die Overlay-Klasse = an.
+   B6-N2 (Punkt 1): Die Overlay-Form gibt es im schmalen MAUS-Fenster
+   (≤ 1100 px, kronos.css) — dort muss der Knopf ebenso da sein, sonst fehlt
+   der ✕-Ausgang. In der Handy-Lage ist die Liste ein POPOVER (A10) und hat
+   ihren eigenen ✕.
+   B6-N3 (Punkt D): Die Klasse hieß `dk-overlay-handy`, bedeutete aber seit
+   B6-N2 genau das GEGENTEIL („nicht Handy“, schmales Maus-Fenster). Sie heißt
+   jetzt `dk-kalenderliste-overlay` — gesetzt von der SEITE
+   (`pages/Kalender.vue`, `listeAlsOverlay`), hier kein zweiter Media-String. */
 .kronos-sidebar-close { display: none; }
-.dk-app--handy .kronos-sidebar-close {
+/* B6-N2 (Review 12.11., Punkt 7): Klickfläche und Abstand aus den Tokens statt
+   fester 32/12 px — `--control-h` ist am Zeiger grob 44 px (Konzept). */
+.dk-kalenderliste-overlay .kronos-sidebar-close {
   display: flex;
   align-items: center;
   justify-content: center;
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
+  top: var(--sp-2);
+  right: var(--sp-2);
+  width: var(--control-h);
+  height: var(--control-h);
+  padding: 0;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -464,5 +475,5 @@ onMounted(async () => {
   line-height: 1;
   cursor: pointer;
 }
-.dk-app--handy .kronos-sidebar-close:hover { background: var(--dk-sb-hover); color: var(--dk-sb-text); }
+.dk-kalenderliste-overlay .kronos-sidebar-close:hover { background: var(--dk-sb-hover); color: var(--dk-sb-text); }
 </style>

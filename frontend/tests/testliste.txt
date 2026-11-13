@@ -376,6 +376,22 @@ tests/dev-b4b-*.test.mjs
 # (serverZeitText), inkl. 23:30-UTC-Fall; Datensicherung bleibt Ortszeit.
 tests/zeit3-*.test.mjs
 tests/dev-b6b-*.test.mjs
+# B6-N3/B6-N3c: Zeilen-Mindesthöhe im Monatsraster NUR im schmalen MAUS-Fenster
+# (≤ 720 px) — global schnitt sie am Desktop ganze Wochen ab. MESSTEST im
+# Chromium (Muster MT-1c, kein Stack, kein vite build): echte CSS-Dateien der
+# Seite, gemessen bei 700×560 (Zeile ≥ 115 px, Chip ≈ 21 px — nicht
+# --control-h), 1440×900 und 390×844 in der Handy-Klasse `.dk-app--handy`
+# (beide: Bibliotheks-Höhe, keine Mindesthöhe, Raster ohne Überstand).
+# Übersprungen, wo kein Chromium da ist (node:22-alpine im Image).
+tests/b6n3-*.test.mjs
+# B6-N3d: dieselben Zusagen, soweit sie eine Struktur ÜBER ZWEI Dateien
+# betreffen — Quelltext-Ebene, läuft auch ohne Chromium: der Mobil-Halter
+# `.kal-mobil-raster-halter` steht wie main (`min-height: 100%`, Inhalt daran,
+# kein eigener Scrollkasten); `.kal-flaeche` scrollt und `.kal-karte` wächst
+# (flex: 0 0 auto) an DERSELBEN 720-px-Grenze, oberhalb davon keins von beidem;
+# die Seite setzt im Mobil-Monat keine eigene Zeilenhöhe (kein
+# `--ec-row-height` in Kalender.vue).
+tests/b6n3b-*.test.mjs
 # MT-1 (11.11.): Nur EIN Seitenmenü — der Hamburger der Kopfzeile erscheint nur
 # in der Handy-Lage; eingeklappt ist der Ausklapp-Knopf der Leiste der EINE
 # Einstieg, die Menü-Schublade liegt außerhalb der Handy-Lage nicht im DOM.

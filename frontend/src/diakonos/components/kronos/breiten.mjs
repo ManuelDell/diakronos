@@ -16,6 +16,15 @@
  *
  * Der Node-Test `tests/ux3i-kalender-a4.test.mjs` prüft, dass die
  * Kalender-Dateien keine eigene Layout-Zahl mehr enthalten.
+ *
+ * B6-N2 (09.11., Punkt 3): `istKalenderHandyLage` ist hier ENTFALLEN. Die
+ * Funktion war tot (kein Aufrufer) und irreführend: sie wertete jedes flache
+ * Fenster (`hoehe <= 480`) als Handy-Lage — also auch ein flaches MAUS-Fenster.
+ * Die gültige Regel steht seit DEV-B6 allein in `composables/handyLage.mjs`
+ * (grob + Breite, oder flach + Querformat + grob) und wird als KLASSE
+ * `.dk-app--handy` gesetzt; ein zweiter Ort für dieselbe Frage war die
+ * Ursache der Befunde. Siehe Regel 19 im Kartenkommentar: der zugehörige
+ * Testblock wurde mit derselben Begründung angepasst.
  */
 import { MOBIL_GRENZE_PX } from '../../composables/eingabeart.mjs'
 
@@ -29,33 +38,6 @@ export const KALENDER_ENGE_PX = 430
 export function istHandyBreite(breite) {
   const b = Number(breite)
   return Number.isFinite(b) && b > 0 && b <= KALENDER_HANDY_PX
-}
-
-/**
- * DEV-B6 (Manuel 09.11.): Ist die Handy-Lage des KALENDERS aktiv?
- *
- * Bis hierher entschied nur die Breite (`istHandyBreite`) — damit bekam ein
- * Laptop mit 702 px das Handy-Gerüst samt unterer Leiste (Befund
- * DMB-3a7d335074cc). Seit DEV-B6 gilt für das GERÜST dieselbe Bedingung wie
- * im CSS (`--layout-mobil`, tokens.css): grober Zeiger UND Breite, oder
- * flaches Querformat. Dazu kommen die sehr schmalen Fenster (<= 430 px,
- * `KALENDER_ENGE_PX`): dort ist die rechte Spalte nicht darstellbar, auch mit
- * Maus — ohne untere Leiste, ohne reservierte Abstänge.
- *
- * Die Zeiger-Abfrage wird hereingereicht (`grob`), damit diese Funktion ohne
- * Browser prüfbar bleibt (kein `matchMedia` hier).
- *
- * @param {number} breite Fensterbreite in CSS-Pixeln
- * @param {{grob?: boolean, hoehe?: number}} lage primärer Zeiger grob?, Fensterhöhe
- */
-export function istKalenderHandyLage(breite, { grob = false, hoehe = 0 } = {}) {
-  const b = Number(breite)
-  if (!Number.isFinite(b) || b <= 0) return false
-  const h = Number(hoehe)
-  const flachQuer = Number.isFinite(h) && h > 0 && h <= 480
-  if (grob && b <= KALENDER_HANDY_PX) return true
-  if (flachQuer) return true
-  return b <= KALENDER_ENGE_PX
 }
 
 /** Ist die Breite die enge Handy-Lage (sehr schmale Spalten)? */
