@@ -67,6 +67,8 @@ x-app-env: &app-env
   AUTH_OIDC_CLIENT_SECRET_FILE: ${AUTH_OIDC_CLIENT_SECRET_FILE:-}
   AUTH_OIDC_SCOPES: ${AUTH_OIDC_SCOPES:-openid email profile groups}
   AUTH_OIDC_REDIRECT_URL: ${AUTH_OIDC_REDIRECT_URL:-}
+  # MT-8: OHNE WIRKUNG — ein Abmelden fuehrt nie auf eine Anbieterseite.
+  # Bleibt nur, damit bestehende .env-Dateien unveraendert starten.
   AUTH_OIDC_LOGOUT: ${AUTH_OIDC_LOGOUT:-1}
   AUTH_OIDC_ANBIETERNAME: ${AUTH_OIDC_ANBIETERNAME:-Authentik}
   AUTH_OIDC_METADATA_TTL: ${AUTH_OIDC_METADATA_TTL:-3600}

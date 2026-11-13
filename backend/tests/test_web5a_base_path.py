@@ -345,9 +345,23 @@ def test_logout_loescht_cookie_auf_praefixpfad(client_praefix, patched_db):
     assert f"path={PRAEFIX}" in r.headers["set-cookie"].lower()
 
 
-def test_logout_route_unter_praefix(client_praefix):
+def test_logout_route_unter_praefix(client_praefix, monkeypatch):
+    """`/logout` liegt (nur) unter dem Praefix.
+
+    MT-8b: Der Abmelde-Endpunkt antwortet seit MT-8 mit einer 303 auf das
+    Abmeldeziel (oeffentliche Website aus `PRIMO_PUBLIC_URL`, sonst
+    `/login?sso=0`). Geprueft wird hier die ROUTE, nicht das Ziel — deshalb
+    ohne Folgen (`follow_redirects=False`). Mit Folgen haenge das Ergebnis an
+    der Umgebung des Testlaufs (in der Test-Container-Umgebung zeigt
+    `PRIMO_PUBLIC_URL` auf einen fremden Host, dessen Antwort hier nichts
+    aussagt).
+    """
+    monkeypatch.setattr(echte_settings, "primo_public_url", "")
     assert client_praefix.post("/logout").status_code == 404
-    assert client_praefix.post(f"{PRAEFIX}/logout").status_code in {200, 303}
+    r = client_praefix.post(f"{PRAEFIX}/logout", follow_redirects=False)
+    assert r.status_code in {200, 303}, (r.status_code, r.text[:300])
+    # Das Ziel ist ein relativer App-Pfad (MT-8: `/login?sso=0`).
+    assert r.headers["location"] == f"{PRAEFIX}/login?sso=0", r.headers["location"]
 
 
 def test_datei_upload_und_abruf_mit_praefix(client_praefix, patched_db, tmp_path, monkeypatch):

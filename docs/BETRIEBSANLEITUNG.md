@@ -1727,9 +1727,30 @@ AUTH_OIDC_CLIENT_SECRET=<Client-Secret>          # ODER:
 # AUTH_OIDC_CLIENT_SECRET_FILE=/run/secrets/diakronos_oidc_secret
 AUTH_OIDC_SCOPES=openid email profile groups
 AUTH_OIDC_REDIRECT_URL=https://dev.example.org/auth/oidc/callback
-AUTH_OIDC_LOGOUT=1
 AUTH_LOCAL_LOGIN=nur-admin
 ```
+
+> **Abmelden (MT-8).** Ein Abmelden in Diakronos beendet **nur die lokale
+> Sitzung** und führt danach auf die **veröffentlichte Hauptseite** — aber nur,
+> wenn deren Adresse ausdrücklich konfiguriert ist: `PRIMO_PUBLIC_URL` (die
+> Adresse, die der *Browser* öffnet; bei gemeinsamem Host ist das die
+> Domain-Wurzel mit der Website). Ohne diese Einstellung gibt es **kein
+> geratenes Ziel**: dann erscheint der **Login-Bildschirm** (`/login?sso=0`,
+> also **ohne** automatische Weiterleitung zum Anbieter; bei
+> `AUTH_LOCAL_LOGIN=aus` eine Seite „Du bist abgemeldet“ mit dem Knopf
+> „Mit Authentik anmelden“). Eine Seite des Anbieters (Authentik)
+> erscheint dabei **nie**. `AUTH_OIDC_LOGOUT` wird deshalb nicht mehr
+> ausgewertet und kann weggelassen werden (eine vorhandene Zeile stört nicht).
+>
+> Die interne `PRIMO_URL` zählt **nicht** als öffentliche Adresse (eine
+> Server-zu-Server-Adresse wie `http://192.168.1.11:8095` erreicht kein
+> Browser). Bei aufgeteiltem Betrieb (App und Website auf verschiedenen Hosts)
+> muss `PRIMO_PUBLIC_URL` gesetzt sein, sonst landet man auf dem Login.
+>
+> Folge: Die **Sitzung bei Authentik bleibt bestehen**. Meldet sich derselbe
+> Browser erneut an, kann Authentik ohne neue Passworteingabe durchwinken. Wer
+> das nicht will, beendet die Authentik-Sitzung dort selbst oder nutzt ein
+> privates Fenster.
 
 Danach `docker compose up -d --force-recreate app`. Der Start **prüft** die
 Konfiguration: fehlt z. B. der Issuer, startet der Container **nicht** (mit
@@ -1877,9 +1898,9 @@ von der Authentik-Regel **ausgenommen** werden:
   Diakronos-Zugangsdaten an (Basic). Über eine Adresse, die vollständig hinter
   Authentik liegt, kommen sie **nicht** durch — dafür ist ein eigener DNS-Eintrag
   bzw. eine Ausnahme im Proxy nötig.
-- Das **ID-Token wird nicht gespeichert**; der RP-initiated Logout beim Anbieter
-  läuft daher ohne `id_token_hint` (Authentik beendet die Sitzung anhand der
-  aktiven Sitzung).
+- Das **ID-Token wird nicht gespeichert**. Ein Abmelden in Diakronos beendet
+  **nur die lokale Sitzung** (MT-8, Abschnitt 11.7) — es gibt keinen
+  RP-initiated Logout beim Anbieter mehr; dessen Sitzung bleibt bestehen.
 - **Forward-Auth** liefert keine verifizierte E-Mail. Eine Erstzuordnung über
   die E-Mail findet dort deshalb **nicht** statt (nur über `(issuer, sub)` bzw.
   die Anbieter-Einstellung).

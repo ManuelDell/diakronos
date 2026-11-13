@@ -30,6 +30,11 @@ COPY backend/src/diakronos_app/api/zugang.py /backend/src/diakronos_app/api/zuga
 # Adressformen des Profilbilds am Quelltext fest und liest dafuer
 # `api/profile.py` — ausserhalb von frontend/ (Regel 13).
 COPY backend/src/diakronos_app/api/profile.py /backend/src/diakronos_app/api/profile.py
+# MT-8: `tests/mt8-logout-ziel.test.mjs` haelt fest, dass ein Abmelden NIE zum
+# Anbieter fuehrt (kein `end_session_endpoint`) und die Zielregel
+# (`_oeffentliche_startseite`) Hauptseite/Login waehlt. Er liest
+# `anmeldung/routen.py` — ausserhalb von frontend/ (Regel 13).
+COPY backend/src/diakronos_app/anmeldung/routen.py /backend/src/diakronos_app/anmeldung/routen.py
 COPY backend/src/diakronos_app/frappe_compat/api_helpers.py /backend/src/diakronos_app/frappe_compat/api_helpers.py
 COPY backend/src/diakronos_app/frappe_compat/router.py /backend/src/diakronos_app/frappe_compat/router.py
 # WEB-1/WEB-1b: die Vertragstests (tests/web1-*.test.mjs, tests/web1b-*.test.mjs)

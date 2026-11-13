@@ -254,6 +254,26 @@ def test_nur_admin_zeigt_die_maske_mit_sso_null(patched_db, fake_redis, oidc_an)
     assert 'class="dk-oder"' not in r.text
 
 
+def test_an_zeigt_die_maske_mit_sso_null(patched_db, fake_redis, oidc_an):
+    """MT-8b: `an` + OIDC + `sso=0` -> Maske MIT SSO-Knopf, KEINE Weiterleitung.
+
+    Das ist der Rueckweg nach dem Abmelden im Modus `an`: die Maske zeigt
+    beides, der Anbieter startet erst auf Klick (``sso=1``).
+    """
+    oidc_an.auth_local_login = "an"
+
+    with _client() as c:
+        r = c.get("/login", params={"sso": "0"}, follow_redirects=False)
+
+    assert r.status_code == 200, r.status_code
+    assert "location" not in r.headers, "keine automatische Weiterleitung zum Anbieter"
+    assert "Weiterleitung zur Anmeldung" not in r.text
+    assert 'name="pwd"' in r.text, "lokales Formular fehlt"
+    assert "Mit Authentik anmelden" in r.text, "SSO-Knopf fehlt"
+    # Der Knopf startet den Anbieter ausdruecklich (`sso=1`), nicht automatisch.
+    assert parse_qs(urlsplit(_knopf_href(r.text)).query).get("sso") == ["1"]
+
+
 def test_aus_leitet_weiter(patched_db, fake_redis, oidc_an):
     oidc_an.auth_local_login = "aus"
 
@@ -313,7 +333,28 @@ def test_fehlerseite_ohne_ascii_ersatz(patched_db, fake_redis, oidc_an):
 
 
 def test_aus_seite_ohne_ascii_ersatz(patched_db, fake_redis, oidc_an, monkeypatch):
-    """Modus `aus` ohne lokalen Weg: die 503-Seite nennt den Grund."""
+    """Modus `aus` ohne lokalen Weg: die 503-Seite nennt den Grund.
+
+    MT-8b: Mit ``?sso=0`` liefert die Route seit MT-8 GEWOLLT die
+    Abgemeldet-Seite (200) statt der Auskunft. Die 503-Auskunft bleibt fuer
+    den lokalen Weg OHNE ``sso=0`` (``?lokal=1``) — beide Seiten werden hier
+    auf echte Umlaute geprueft.
+    """
+    from diakronos_app.settings import settings
+
+    monkeypatch.setattr(settings, "auth_local_login", "aus")
+
+    with _client() as c:
+        r = c.get("/login", params={"lokal": "1"}, follow_redirects=False)
+
+    assert r.status_code == 503, r.status_code
+    assert "nicht verfügbar" in r.text
+    treffer = ERSATZ_MUSTER.findall(r.text)
+    assert not treffer, f"ASCII-Ersatz auf der Hinweisseite: {treffer}"
+
+
+def test_aus_abgemeldet_seite_ohne_ascii_ersatz(patched_db, fake_redis, oidc_an, monkeypatch):
+    """MT-8: Modus `aus` + ``sso=0`` -> Abgemeldet-Seite (200), echte Umlaute."""
     from diakronos_app.settings import settings
 
     monkeypatch.setattr(settings, "auth_local_login", "aus")
@@ -321,10 +362,10 @@ def test_aus_seite_ohne_ascii_ersatz(patched_db, fake_redis, oidc_an, monkeypatc
     with _client() as c:
         r = c.get("/login", params={"sso": "0"}, follow_redirects=False)
 
-    assert r.status_code == 503, r.status_code
-    assert "nicht verfügbar" in r.text
+    assert r.status_code == 200, r.status_code
+    assert "Du bist abgemeldet." in r.text
     treffer = ERSATZ_MUSTER.findall(r.text)
-    assert not treffer, f"ASCII-Ersatz auf der Hinweisseite: {treffer}"
+    assert not treffer, f"ASCII-Ersatz auf der Abgemeldet-Seite: {treffer}"
 
 
 def test_registrierungsseite_ohne_ascii_ersatz(patched_db, fake_redis):

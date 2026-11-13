@@ -6,8 +6,11 @@
  * Abmelden-Knopf — diese Datei bringt ihn an jede noetige Stelle.
  *
  * Zwei serverseitige Wege, beide POST + CSRF:
- *  - `POST /logout` (SEC1-Route): beendet die lokale Sitzung UND baut bei
- *    aktivem OIDC den RP-Logout beim Anbieter. W3: fuer JSON-Aufrufer liefert
+ *  - `POST /logout` (SEC1-Route): beendet die lokale Sitzung. MT-8: es geht
+ *    danach NIE zum Anbieter (kein RP-Logout, keine Authentik-Seite), sondern
+ *    auf die ausdruecklich konfigurierte oeffentliche Website — sonst auf den
+ *    Login-Bildschirm ohne automatische SSO-Weiterleitung (`/login?sso=0`).
+ *    W3: fuer JSON-Aufrufer liefert
  *    sie `{"redirect": <ziel>}` im Koerper (statt einer 303), weil der Browser
  *    einer Weiterleitung im `fetch` mit `redirect: 'manual'` NICHT folgen kann
  *    — er liefert eine undurchsichtige `opaqueredirect`-Antwort (`status 0`,
@@ -118,22 +121,66 @@ export function alleBrowserStaendeLeeren() {
     } catch { /* Speicher nicht verfuegbar -> egal */ }
 }
 
-/** Ziel nach dem Abmelden aus dem Server-Zielpfad bestimmen. */
+/**
+ * Ziel nach dem Abmelden aus dem Server-Zielpfad bestimmen (MT-8).
+ *
+ * SOLL (Manuel 11.11.): Nach dem Abmelden erscheint NIE eine Seite des
+ * Anbieters. Der Server nennt entweder die ausdruecklich konfigurierte
+ * oeffentliche Website (absolute http/https-Adresse) oder den Login-Bildschirm
+ * (`/login?sso=0` — ohne automatische SSO-Weiterleitung).
+ *
+ * POSITIVLISTE (MT-8b): uebernommen wird NUR, was ausdruecklich erlaubt ist —
+ *  - der Login-Bildschirm (`/login`, auch mit Abfrage) IMMER als `sso=0`: der
+ *    Server setzt es schon so; ein Rest ohne `sso=0` (aeltere Antwort,
+ *    Fallback-Route) bekommt es hier, sonst waere das Abmelden bei
+ *    `nur-admin`/`aus` sofort wieder eine Anbieter-Weiterleitung,
+ *  - absolute http/https-Adressen (die oeffentliche Website) — sie kommen AUS
+ *    DER SERVER-ANTWORT,
+ *  - relative Ziele nur, wenn sie mit genau einem `/` beginnen
+ *    (`^/(?![/\\])`) und KEINE Steuerzeichen (Tab/CR/LF/NUL) enthalten.
+ * Alles andere — leeres Ziel, `/`, SPA-Wurzel, `//host`, `/\host`, jedes
+ * fremde Schema (`javascript:`, `data:`) — faellt auf den Login zurueck.
+ * Damit kann ein manipuliertes Ziel nie auf eine fremde Herkunft fuehren,
+ * die der Server nicht selbst genannt hat.
+ */
 function zielOderLogin(pfad) {
+    // Der Login-Rueckfall traegt IMMER `sso=0`: nach dem Abmelden darf keine
+    // automatische SSO-Weiterleitung folgen (sonst waere sie wirkungslos).
+    const login = `${anmeldeUrl()}?sso=0`
     const ziel = String(pfad || '').trim()
-    // Ein SPA-Ziel ist kein Abmeldeziel: dann lokal auf /login.
-    if (!ziel || ziel === mitBasis('/diakonos') || ziel === '/' || ziel === '#/') return anmeldeUrl()
-    return ziel
+    // Leeres Ziel oder SPA-Wurzel ist kein Abmeldeziel: dann lokal auf /login.
+    // `/` ebenso wenig: Review-Befund 1 — das ist ohne Praefix die App-Wurzel
+    // (und mit Praefix 404), NICHT die Website. Die echte Website-Adresse ist
+    // absolut (http/https) und wird unten uebernommen.
+    if (!ziel || ziel === '/' || ziel === mitBasis('/diakonos') || ziel === '#/') return login
+    // Nur echte http/https-Adressen sind "absolute Ziele" — und die duerfen
+    // hier stehen, weil der Server sie aus seiner Konfiguration liefert.
+    if (/^https?:\/\//i.test(ziel)) return ziel
+    // Login-Ziel des Servers: `sso=0` beibehalten bzw. ergaenzen.
+    const anmeldePfad = anmeldeUrl()
+    if (ziel === anmeldePfad || ziel.startsWith(anmeldePfad + '?')) {
+        return /[?&]sso=0(&|$)/.test(ziel) ? ziel : login
+    }
+    // Positivliste fuer RELATIVE Ziele: genau ein fuehrender Slash (kein
+    // `//host`, kein `/\host` — Backslash zaehlt im Browser als Slash) und
+    // keine Steuerzeichen (Tab/CR/LF wuerden in Adressleisten zerlegt).
+    // eslint-disable-next-line no-control-regex
+    if (/^\/(?![/\\])/.test(ziel) && !/[\u0000-\u001f\u007f]/.test(ziel)) {
+        return ziel
+    }
+    return login
 }
 
 /**
- * Abmelden inkl. OIDC-RP-Logout, Cache-Leerung und Weiterleitung.
+ * Abmelden: lokale Sitzung beenden (KEIN OIDC-RP-Logout, die Sitzung beim
+ * Anbieter bleibt), Cache leeren und weiterleiten.
  * Kehrt normalerweise nicht zurueck — die Seite wird verlassen.
  * Liefert `{ok:false, fehler}` zurueck, wenn KEINE Route den Logout bestaetigt
  * hat — der Aufrufer zeigt dann eine Meldung, statt still zu wechseln.
  */
 export async function abmelden() {
-    // Bevorzugt die SEC1-Route: sie deckt lokalen UND OIDC-Logout ab.
+    // Bevorzugt die SEC1-Route: sie kennt die Zielregel (oeffentliche Website
+    // oder `/login?sso=0`). Sie meldet lokal ab; zum Anbieter geht es nie.
     let res = await post(mitBasis('/logout'))
     if (!res.ok && (res.status === 404 || res.status === 405 || res.status === 0)) {
         // Fallback: nur der Frappe-kompatible Pfad ist vorhanden.

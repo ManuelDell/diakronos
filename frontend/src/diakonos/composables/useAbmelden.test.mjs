@@ -60,13 +60,26 @@ function antwort({ status = 200, body = {}, headers = {} } = {}) {
 
 // ── Erfolgsfall: Server nennt ein Ziel, die SPA folgt ihm ───────────────────
 
-test('abmelden: folgt dem Server-Ziel aus dem JSON-Koerper', async () => {
+/**
+ * MT-8 (Manuel 11.11., Review 12.11.): Ein Abmelden führt NIE zu einer
+ * Anbieterseite. Dieser Test hiess „abmelden: folgt dem Server-Ziel aus dem
+ * JSON-Koerper“ und nagelte fest, dass die SPA einem
+ * `https://anbieter.example/end-session` des Servers folgt (W3, RP-Logout).
+ *
+ * Nach der Review-Entscheidung gilt: der Server nennt nur noch die
+ * AUSDRÜCKLICH konfigurierte öffentliche Website (http/https) oder
+ * `/login?sso=0`. Absolute http/https-Ziele werden deshalb übernommen (sie
+ * KOMMEN aus der Server-Konfiguration), Anbieter-Schemata nicht. Geprüft wird
+ * weiterhin, dass gefragt wird und die Übertragung (POST, CSRF) stimmt —
+ * und dass ein Anbieter-Ziel mit fremdem Schema auf den Login führt.
+ */
+test('abmelden: http/https-Ziel wird übernommen, fremdes Schema nicht (MT-8)', async () => {
     frisch()
     const ort = setzeOrt()
     let aufgerufen = null
     globalThis.fetch = async (url, opt) => {
         aufgerufen = { url, opt }
-        return antwort({ status: 200, body: { message: { redirect: 'https://anbieter.example/end-session' } } })
+        return antwort({ status: 200, body: { message: { redirect: 'https://gemeinde.example.org/' } } })
     }
     const res = await mod.abmelden()
     assert.equal(res.ok, true)
@@ -77,18 +90,45 @@ test('abmelden: folgt dem Server-Ziel aus dem JSON-Koerper', async () => {
         'CSRF-Token muss mitgeschickt werden können (POST ist seit PT1 Pflicht).',
     )
     assert.equal(
-        ort.href, 'https://anbieter.example/end-session',
-        'Die SPA muss dem vom Server genannten RP-Logout-Ziel folgen (W3).',
+        ort.href, 'https://gemeinde.example.org/',
+        'Die konfigurierte öffentliche Website ist das Abmeldeziel (MT-8).',
     )
 })
 
-test('abmelden: SPA-Ziel -> lokal auf /login', async () => {
+test('abmelden: Anbieter-Adresse mit fremdem Schema führt auf den Login (MT-8)', async () => {
+    frisch()
+    const ort = setzeOrt()
+    globalThis.fetch = async () => antwort({
+        status: 200,
+        body: { message: { redirect: 'javascript:alert(1)' } },
+    })
+    const res = await mod.abmelden()
+    assert.equal(res.ok, true)
+    assert.equal(
+        ort.href, '/login?sso=0',
+        'Kein fremdes Schema nach dem Abmelden — und ohne automatische SSO-Weiterleitung.',
+    )
+})
+
+test('abmelden: Wurzel der Domain ist NICHT mehr das Ziel (MT-8, Review)', async () => {
+    frisch()
+    const setzeOrtOhne = setzeOrt()
+    globalThis.fetch = async () => antwort({ status: 200, body: { message: { redirect: '/' } } })
+    const res = await mod.abmelden()
+    assert.equal(res.ok, true)
+    // Review-Befund 1: `/` ist ohne Präfix die App-Wurzel, nicht die Website —
+    // und mit Präfix antwortet sie 404. Der Server nennt sie deshalb nicht mehr;
+    // kommt sie trotzdem, ist der Login-Bildschirm das sichere Ziel.
+    assert.equal(setzeOrtOhne.href, '/login?sso=0')
+})
+
+test('abmelden: SPA-Ziel -> lokal auf /login (ohne SSO-Weiterleitung)', async () => {
     frisch()
     const ort = setzeOrt()
     globalThis.fetch = async () => antwort({ status: 200, body: { message: { redirect: '/diakonos' } } })
     const res = await mod.abmelden()
     assert.equal(res.ok, true)
-    assert.equal(ort.href, '/login')
+    assert.equal(ort.href, '/login?sso=0')
 })
 
 // ── Fehlerfall: NICHT als Erfolg werten ─────────────────────────────────────
@@ -136,7 +176,7 @@ test('abmelden: 404 der SEC1-Route nutzt den Fallback-Pfad', async () => {
     const res = await mod.abmelden()
     assert.equal(res.ok, true)
     assert.deepEqual(pfade, ['/logout', '/api/method/logout'])
-    assert.equal(ort.href, '/login')
+    assert.equal(ort.href, '/login?sso=0')
 })
 
 // ── Cache/Staende leeren (W4) ───────────────────────────────────────────────

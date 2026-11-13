@@ -11,8 +11,9 @@ Der EINE Login-Weg:
     <Anbieter> anmelden“ und das Formular mit Passwort, getrennt durch einen
     Trenner „oder“. Diakronos muss ohne Authentik benutzbar sein; ist SSO
     eingerichtet, ist es eine ZUSÄTZLICHE Möglichkeit. ``nur-admin``/``aus``
-    behalten das bisherige Verhalten (Weiterleitung; ``?sso=0`` ist der
-    Admin-Notzugang wie heute).
+    behalten das bisherige Verhalten (Weiterleitung); ``?sso=0`` ist dort
+    Admin-Notzugang UND der Rueckweg nach dem Abmelden (MT-8) — nie eine
+    automatische Weiterleitung.
   * ``/auth/oidc/callback`` verarbeitet die Rueckkehr: ``state`` pruefen (aus dem
     Transaktionsspeicher, Einmalverwendung), Code einloesen, ID-Token pruefen
     (Signatur/iss/aud/exp/nonce/azp), Konto zuordnen, Sitzung anlegen.
@@ -34,7 +35,7 @@ import re
 
 import json
 import logging
-from urllib.parse import quote, unquote, urlencode
+from urllib.parse import quote, unquote
 
 from fastapi import FastAPI, Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
@@ -552,6 +553,68 @@ def erstelle_anmeldeseite(
 """
 
 
+def _formular_token() -> str:
+    """SEC-4: signierter Token der Anmeldemaske — ``"`` wenn kein Schluessel da ist.
+
+    Ohne Schluessel bleibt die Maske bedienbar (das Feld entfaellt); ein
+    Fehlschlag darf den Login nie verhindern.
+    """
+    from diakronos_app.anmeldung.maske_token import erzeuge_token
+
+    try:
+        return erzeuge_token()
+    except Exception:  # noqa: BLE001 — ohne Schluessel bleibt die Maske bedienbar
+        logger.warning("Anmeldemaske ohne Token (SECRET_KEY fehlt?)")
+        return ""
+
+
+def _abgemeldet_seite() -> str:
+    """„Du bist abgemeldet“ — Seite fuer ``AUTH_LOCAL_LOGIN=aus`` (MT-8).
+
+    Warum es diese Seite gibt (Review 12.11., Befund 2): Bei ``aus`` gibt es
+    kein lokales Formular. Nach dem Abmelden landete der Browser deshalb auf
+    der 503-Auskunft „Anmeldung derzeit nicht verfügbar“ — oder, ohne ``sso=0``,
+    sofort wieder beim Anbieter. Beides ist fuer den Menschen falsch: er IST
+    abgemeldet, das ist kein Fehler.
+
+    Die Seite sagt genau das und bietet den EINEN Weg zurueck an — den
+    Anbieter-Knopf (``_anbieter_knopf_html``), bewusst NICHT automatisch.
+    Optik: dieselbe Karte/dieselben Klassen wie die Anmeldeseite
+    (`seitenrahmen`, `frontend/src/ssot/seiten.css`), kein eigener Stil.
+    """
+    import html
+
+    from diakronos_app.anmeldung import seitenrahmen
+    from diakronos_app.spa import DEFAULT_CHURCH_NAME, _marke_html, _settings_zeile
+
+    gemeinde_roh = _settings_zeile().get("organisationsname") or DEFAULT_CHURCH_NAME
+    gemeinde = html.escape(gemeinde_roh, quote=True)
+    sso_block = ""
+    if konf.oidc_aktiv():
+        sso_block = _anbieter_knopf_html(SPA_ZIEL)
+    return f"""<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abgemeldet — {gemeinde}</title>
+{seitenrahmen.head_block()}
+</head>
+<body class="dk-seite">
+    <main class="dk-karte">
+        <div class="dk-markenseite">
+            {_marke_html(gemeinde_roh)}
+            <p class="dk-marke">Diakronos</p>
+        </div>
+        <h1>{gemeinde}</h1>
+        <p class="dk-unterzeile">Du bist abgemeldet.</p>
+        {sso_block}
+    </main>
+</body>
+</html>
+"""
+
+
 def _angemeldete_sitzung(request: Request):
     """Das ``sid`` einer brauchbaren, angemeldeten Sitzung — oder ``None``.
 
@@ -786,7 +849,8 @@ def registriere_routen(app: FastAPI) -> None:
         # der Anbieter ZUSÄTZLICH da, nicht stattdessen — die Maske zeigt beide
         # Wege (`sso_block` + Trenner + Formular). Also NICHT weiterleiten.
         # `nur-admin`/`aus` behalten das bisherige Verhalten: der Anbieter ist
-        # der Hauptweg, `?sso=0` bleibt der Admin-Notzugang.
+        # der Hauptweg. `?sso=0` ist dort Admin-Notzugang UND der Rueckweg nach
+        # dem Abmelden (MT-8) — beides verlangt die Maske, keinen Sprung.
         #
         # Der ausdrückliche Anbieter-Start (`?sso=1`, das Ziel des Knopfs auf
         # der Maske) bleibt in JEDEM Modus erreichbar — auch bei `aus`. Vorher
@@ -809,6 +873,13 @@ def registriere_routen(app: FastAPI) -> None:
             # ausgeliefert, die ihn in `sessionStorage` merkt und erst dann
             # `/login?sso=1&redirect-to=…` aufruft. Erst dieser zweite Aufruf
             # leitet serverseitig zum Anbieter weiter.
+            #
+            # MT-8 (Review 12.11.): ``sso=0`` ist NICHT mehr nur der Admin-
+            # Notzugang, sondern der RUECKWEG nach dem Abmelden. Wer gerade
+            # abgemeldet hat, darf nicht im selben Atemzug wieder beim Anbieter
+            # landen (``nur-admin``/``aus``): dann waere das Abmelden wirkungs-
+            # los. Also die Maske zeigen — bei ``aus`` die Abgemeldet-Seite mit
+            # Anbieter-Knopf (unten), statt der 503-Auskunft.
             if request.query_params.get("sso") != "0" and not request.query_params.get(
                 "lokal"
             ):
@@ -818,22 +889,27 @@ def registriere_routen(app: FastAPI) -> None:
         # Meldung nach jedem Neuladen weiter da.
         from diakronos_app.anmeldung import flash
 
+        abgemeldet = request.query_params.get("sso") == "0"
         if not _lokales_login_erlaubt() and not no_redirect:
             # Kein lokaler Login erlaubt -> Zugang nur ueber Anbieter (oder
             # gar nicht; dann ist das die einzige Auskunft, die noch bleibt).
+            #
+            # MT-8 (Review): Kommt der Aufruf vom Abmelden (``sso=0``) und ist
+            # ein Anbieter eingerichtet, ist das KEIN Fehlerfall — der Mensch
+            # ist abgemeldet und bekommt die Abgemeldet-Seite mit dem Knopf
+            # „Mit <Anbieter> anmelden“ angeboten (keine 503, keine automatische
+            # Weiterleitung). Ohne Anbieter bleibt es bei der Auskunft.
+            if abgemeldet and konf.oidc_aktiv():
+                antwort = HTMLResponse(_abgemeldet_seite())
+                flash.loesche_flash(antwort)
+                return antwort
             return _fehler_seite(
                 "Die Anmeldung ist derzeit nicht verfügbar. Bitte wende dich an die "
                 "Gemeindeleitung.",
                 status=503,
             )
         # SEC-4: signierter Token fuer das Formular (kein Sitzungsbedarf).
-        from diakronos_app.anmeldung.maske_token import erzeuge_token
-
-        try:
-            csrf_token = erzeuge_token()
-        except Exception:  # noqa: BLE001 — ohne Schluessel bleibt die Maske bedienbar
-            logger.warning("Anmeldemaske ohne Token (SECRET_KEY fehlt?)")
-            csrf_token = ""
+        csrf_token = _formular_token()
         # WEB-8c (R4): Grund-Kennung (`?grund=csrf`) -> fester Hinweis. Der
         # Hinweis gewinnt NICHT gegen eine echte Flash-Meldung (die erklaert
         # einen Fehlschlag konkreter).
@@ -1015,35 +1091,74 @@ def beende_lokale_sitzung(request: Request) -> None:
         sitzungen.loeschen(sid)
 
 
-def _abmelden(request: Request, *, redirect: bool) -> Response:
-    """Diakronos-Sitzung beenden + optional RP-Logout beim Anbieter.
+def _oeffentliche_startseite() -> str | None:
+    """MT-8: Ziel NACH dem Abmelden — die konfigurierte oeffentliche Website oder ``None``.
 
-    Der RP-initiated Logout nutzt ``end_session_endpoint`` mit
-    ``id_token_hint``. Da wir das ID-Token nicht speichern, wird der Aufruf
-    OHNE ``id_token_hint`` gebaut — Authentik beendet die Sitzung dann anhand
-    der aktiven Sitzung; die ``post_logout_redirect_uri`` zeigt zurueck.
+    Fachentscheidung (Manuel, Karte MT-8, nachgezogen nach Review):
+
+      * Nur eine AUSDRUECKLICH konfigurierte, oeffentliche Adresse der Website
+        gilt (`PRIMO_PUBLIC_URL` — die Adresse, die der BROWSER oeffnet).
+        Sie wird unveraendert zurueckgegeben; der Browser laedt damit die
+        veroeffentlichte Hauptseite (bei gemeinsamem Host liegt die Website
+        dort auf `/`, alles von Diakronos unter dem Praefix).
+      * Die INTERNE Adresse `PRIMO_URL` zaehlt NICHT. Sie ist eine
+        Server-zu-Server-Adresse (z. B. ``http://192.168.1.11:8095``), die ein
+        Browser nicht erreicht; ein Abmelden darf niemanden dorthin schicken.
+        Ebenso faellt der Default von `primo_public_url_effektiv` (= `PRIMO_URL`)
+        aus — deshalb wird die Roh-Einstellung gelesen, nicht die effektive.
+      * Ohne eine solche Adresse gibt es KEIN geratenes Ziel: ``None``.
+        Insbesondere ist ``/`` NICHT die Website (ohne Praefix ist `/` die
+        App-Wurzel, und deren SPA-Route fuehrt ohne Sitzung wieder zur
+        Anmeldung). Der Aufrufer nimmt dann den Login-Bildschirm
+        (``_abmelde_startseite``).
+    """
+    from diakronos_app.settings import settings
+
+    try:
+        adresse = str(getattr(settings, "primo_public_url", "") or "").strip()
+    except Exception:  # noqa: BLE001 — Settings duerfen den Logout nie kippen
+        return None
+    if not adresse.lower().startswith(("http://", "https://")):
+        # Kein Schema = keine Adresse, die ein Browser oeffnen kann.
+        return None
+    return adresse.rstrip("/") + "/" if adresse else None
+
+
+def _abgemeldet_adresse() -> str:
+    """``/login?sso=0`` — Login-Bildschirm OHNE automatische SSO-Weiterleitung.
+
+    MT-8 nach Review: Wer gerade abgemeldet hat, darf nicht sofort wieder beim
+    Anbieter landen. ``nur-admin``/``aus`` leiten ``/login`` sonst automatisch
+    zum Anbieter weiter (`login_route`); mit ``sso=0`` zeigt die Route
+    stattdessen die Maske (bei ``aus``: die Abgemeldet-Seite mit SSO-Knopf).
+    """
+    return _login_adresse() + "?sso=0"
+
+
+def _abmelde_startseite() -> str:
+    """Ziel nach dem Abmelden ohne oeffentliche Website: ``/login?sso=0``."""
+    return _oeffentliche_startseite() or _abgemeldet_adresse()
+
+
+def _abmelden(request: Request, *, redirect: bool) -> Response:
+    """Diakronos-Sitzung beenden und auf die oeffentliche Seite (sonst Login).
+
+    MT-8 (Manuel 11.11.): Nach dem Abmelden erscheint NIE eine Seite des
+    Anbieters. Frueher wurde bei aktivem OIDC der RP-initiated Logout
+    (``end_session_endpoint``, ``AUTH_OIDC_LOGOUT``) angesteuert — der Browser
+    landete damit auf der Abmeldeseite von Authentik. Das ist abgeschaltet:
+    die lokale Sitzung wird beendet, danach geht es auf die veroeffentlichte
+    `_abmelde_startseite` ein (oeffentliche Website, sonst `/login?sso=0`).
+
+    Folge fuer den Betrieb (dokumentiert in ``.env.example``): die
+    Anbieter-Sitzung bleibt bestehen. Meldet sich derselbe Browser erneut an,
+    kann der Anbieter ohne neue Passworteingabe durchwinken. Ein Abmelden, das
+    auch die Anbieter-Sitzung beenden soll, muss der Betreiber im Anbieter
+    selbst anstossen (Authentik: ``/flows/-/default/invalidation/``).
     """
     beende_lokale_sitzung(request)
 
-    cfg = konf.oidc_konfiguration()
-    ziel = _spa_ziel()
-    if konf.oidc_aktiv() and cfg.logout:
-        try:
-            meta = oidc.hole_metadaten(cfg)
-            if meta.end_session_endpoint:
-                parameter = {"client_id": cfg.client_id}
-                if cfg.redirect_url:
-                    # Basis der Redirect-URL als Rueckkehr nach dem Logout.
-                    from urllib.parse import urlsplit
-
-                    teile = urlsplit(cfg.redirect_url)
-                    parameter["post_logout_redirect_uri"] = (
-                        f"{teile.scheme}://{teile.netloc}{_spa_ziel()}"
-                    )
-                trenner = "&" if "?" in meta.end_session_endpoint else "?"
-                ziel = meta.end_session_endpoint + trenner + urlencode(parameter)
-        except oidc.OidcFehler:
-            ziel = _spa_ziel()
+    ziel = _abmelde_startseite()
 
     if redirect:
         response: Response = RedirectResponse(ziel, status_code=303)
@@ -1051,8 +1166,8 @@ def _abmelden(request: Request, *, redirect: bool) -> Response:
         from starlette.responses import JSONResponse
 
         # W3: `redirect` ist der Zielpfad, den die SPA mit `window.location`
-        # ansteuert (`/login` lokal oder der RP-Logout des Anbieters). `ziel`
-        # heisst hier so, wie der Server seinen eigenen Rueckweg nennt.
+        # ansteuert (oeffentliche Startseite oder `/login`). `ziel` heisst hier
+        # so, wie der Server seinen eigenen Rueckweg nennt.
         response = JSONResponse({"message": "Logged Out", "redirect": ziel})
 
     from diakronos_app.api.auth import _loesche_cookie

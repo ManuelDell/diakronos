@@ -486,6 +486,12 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("APP_BASE_URL", "app_base_url"),
     )
     # RP-initiated Logout an den `end_session_endpoint` des Anbieters.
+    # MT-8 (Manuel 11.11.): NICHT MEHR AUSGEWERTET. Ein Abmelden in Diakronos
+    # beendet nur die lokale Sitzung und fuehrt auf die oeffentlich
+    # konfigurierte Website bzw. auf `/login?sso=0` — nie auf eine Seite des
+    # Anbieters.
+    # Die Einstellung bleibt bestehen, damit bestehende .env-Dateien mit
+    # `AUTH_OIDC_LOGOUT=…` unveraendert starten.
     auth_oidc_logout: bool = Field(
         True,
         validation_alias=AliasChoices("AUTH_OIDC_LOGOUT", "auth_oidc_logout"),
@@ -600,12 +606,16 @@ class Settings(BaseSettings):
     # ohne `PRIMO_URL` und Superuser-Zugang meldet der Status-Endpunkt
     # "nicht_konfiguriert" und es geht kein einziger Aufruf nach aussen.
     #
-    # `primo_url` ist die INTERNE Adresse (Server -> Primo, z. B.
-    # http://192.168.1.11:8095), `primo_public_url` die Adresse, die der
-    # BROWSER oeffnet (Default = `primo_url`, weil dann beide Wege gleich sind).
-    # Der Login-Uebergabe-Endpunkt gibt dem Browser ausschliesslich
-    # `primo_public_url` zurueck — eine interne Adresse waere fuer ihn
-    # unerreichbar.
+    # `primo_public_url` ist die Adresse, die der BROWSER oeffnet (Default =
+    # `primo_url`, weil dann beide Wege gleich sind). Der Login-Uebergabe-
+    # Endpunkt gibt dem Browser ausschliesslich `primo_public_url` zurueck —
+    # eine interne Adresse waere fuer ihn unerreichbar.
+    #
+    # MT-8 (Abmelden): `primo_public_url` ist zugleich die oeffentliche Adresse
+    # der Website, auf die ein Abmelden fuehrt (`anmeldung/routen.py::
+    # _oeffentliche_startseite`). Gelesen wird dort das ROH-Feld, nicht
+    # `primo_public_url_effektiv`: der Default (= interne `primo_url`) ist
+    # KEINE oeffentliche Adresse und darf kein Abmeldeziel werden.
     primo_url: str = Field(
         "",
         validation_alias=AliasChoices("PRIMO_URL", "primo_url"),

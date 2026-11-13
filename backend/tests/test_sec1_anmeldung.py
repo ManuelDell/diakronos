@@ -587,7 +587,16 @@ def test_local_login_aus_bei_oidc(guest_client, oidc_aktiviert, monkeypatch):
     # /login?lokal=1 zeigt trotzdem keine Maske, wenn lokal aus ist.
     r = guest_client.get("/login", params={"lokal": "1", "sso": "0"},
                          follow_redirects=False)
-    assert r.status_code == 503
+    # MT-8 (12.11.): Die Aussage dieses Tests ist „kein lokales Formular“ — die
+    # feste 503 war nur die damalige Verpackung. Nach dem Abmelden (`sso=0`) ist
+    # „Anmeldung nicht verfügbar“ aber die FALSCHE Auskunft: der Mensch IST
+    # abgemeldet und bekommt jetzt eine Seite mit dem Anbieter-Knopf
+    # (`_abgemeldet_seite`). Geprüft wird deshalb das, was gemeint war: keine
+    # Passwortfelder, kein Formular.
+    assert r.status_code == 200
+    assert "Passwort" not in r.text
+    assert 'name="pwd"' not in r.text
+    assert "abgemeldet" in r.text.lower()
 
 
 # ── Hilfsfunktionen ─────────────────────────────────────────────────────────

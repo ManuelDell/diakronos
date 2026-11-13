@@ -401,3 +401,10 @@ tests/mt4-*.test.mjs
 # Wächter: kein englischer Bibliothekstext (No events / all-day / +n more),
 # Gegenprobe im selben Test.
 tests/mt5-*.test.mjs
+
+# MT-8: Abmelden fuehrt NIE auf eine Anbieterseite (Authentik). Danach die
+# ausdruecklich konfigurierte oeffentliche Website (PRIMO_PUBLIC_URL, absolut)
+# bzw. der Login (`/login?sso=0`). Der Test haelt Serverseite (kein
+# end_session_endpoint mehr) und Client fest (`zielOderLogin` nimmt nur
+# http/https-Adressen aus der Server-Antwort und geprueft relative Pfade an).
+tests/mt8-*.test.mjs
