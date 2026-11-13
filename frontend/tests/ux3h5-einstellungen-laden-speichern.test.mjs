@@ -98,6 +98,73 @@ function aufgeloest(abs) {
   throw new Error('nicht gefunden: ' + abs)
 }
 
+/**
+ * Kommentare ausblenden (Inhalt wird durch Leerzeichen ersetzt, Zeichenzahl
+ * bleibt) — sonst hält der Umschreiber ein Import-BEISPIEL im Kommentar
+ * (`// import { x } from './selbst.mjs'`) für einen echten Import.
+ *
+ * Der Durchlauf ist ein kleiner Zustandsautomat, weil `/` im Quelltext drei
+ * Bedeutungen hat: Kommentar (`//`, `/*`), Division und Regex-Literal
+ * (`/\\/api/`). Ohne die Regex-Erkennung würde `//` INNERHALB eines Regex als
+ * Zeilenkommentar gelesen und die restliche Zeile gelöscht → der umgeschriebene
+ * Code wäre kaputt („Invalid regular expression: missing /“).
+ */
+function ohneKommentare(text) {
+  let ergebnis = ''
+  let i = 0
+  // Nach diesen Zeichen beginnt ein Regex-Literal, nach allen anderen eine
+  // Division. Grobe, für Quelltext ausreichende Heuristik.
+  const vorRegex = /[=(,:[!&|?{};+\-*%<>~^]$/
+  while (i < text.length) {
+    const z = text[i]
+    const naechstes = text[i + 1]
+    if (z === '/' && naechstes === '/') {
+      while (i < text.length && text[i] !== '\n') { ergebnis += ' '; i += 1 }
+      continue
+    }
+    if (z === '/' && naechstes === '*') {
+      ergebnis += '  '
+      i += 2
+      while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) {
+        ergebnis += text[i] === '\n' ? '\n' : ' '
+        i += 1
+      }
+      if (i < text.length) { ergebnis += '  '; i += 2 }
+      continue
+    }
+    if (z === "'" || z === '"' || z === '`') {
+      let j = i + 1
+      while (j < text.length && text[j] !== z) {
+        if (text[j] === '\\') j += 1
+        j += 1
+      }
+      const bis = Math.min(j + 1, text.length)
+      ergebnis += text.slice(i, bis)
+      i = bis
+      continue
+    }
+    if (z === '/' && vorRegex.test(ergebnis.replace(/\s+$/, '').slice(-1))) {
+      // Regex-Literal bis zum unescapten `/` außerhalb einer Zeichenklasse.
+      let j = i + 1
+      let inKlasse = false
+      while (j < text.length && text[j] !== '\n') {
+        const c = text[j]
+        if (c === '\\') { j += 2; continue }
+        if (c === '[') inKlasse = true
+        else if (c === ']') inKlasse = false
+        else if (c === '/' && !inKlasse) { j += 1; break }
+        j += 1
+      }
+      ergebnis += text.slice(i, j)
+      i = j
+      continue
+    }
+    ergebnis += z
+    i += 1
+  }
+  return ergebnis
+}
+
 function kompilieren(abs) {
   if (cache.has(abs)) return cache.get(abs)
   const quellDatei = aufgeloest(abs)
@@ -126,7 +193,13 @@ function kompilieren(abs) {
     quanten.push(readFileSync(quellDatei, 'utf8'))
   }
 
-  const code = quanten.join('\n').replace(
+  // Eintrag VOR dem Ersetzen setzen: der Umschreiber steigt rekursiv in die
+  // Importe ab — ohne Eintrag läuft ein Selbst-Import oder ein Zyklus
+  // (A → B → A) endlos in die Tiefe („Maximum call stack size exceeded“).
+  cache.set(abs, ziel)
+
+  // Nur im Code suchen, nicht in Kommentaren (Import-Beispiele in der Doku).
+  const code = ohneKommentare(quanten.join('\n')).replace(
     /from\s+['"]([^'"]+)['"]/g,
     (ganz, spec) => {
       if (spec === 'vue') return `from '${VUE_URL}'`
@@ -148,7 +221,6 @@ function kompilieren(abs) {
     },
   )
   writeFileSync(ziel, code)
-  cache.set(abs, ziel)
   return ziel
 }
 
@@ -523,3 +595,59 @@ test('UX3h5/4: jeder UX3h3-Speicherknopf hat einen Nachweis „nach Speichern ge
       `Lade-Test „Server liefert Wert → Feld zeigt Wert“ für ${seite} fehlt`)
   }
 })
+
+// ══════════════════════════════════════════════════════════════════════════
+// 5 · Werkzeug: Import-Umschreiber ohne Endlosrekursion
+// ══════════════════════════════════════════════════════════════════════════
+
+/**
+ * MT-3c: Der Umschreiber suchte die Modulangabe über den GANZEN Dateitext,
+ * also auch über Kommentare, und setzte den Cache-Eintrag erst NACH dem
+ * rekursiven Abstieg. Ein Import-Beispiel im Kommentar oder ein Zyklus
+ * (A → B → A) lief deshalb endlos in die Tiefe („Maximum call stack size
+ * exceeded“) — so brach MT-3 den Build.
+ *
+ * Geprüft: eine Hilfsdatei mit Import-Beispielen in Zeilen- und
+ * Blockkommentaren (auch auf sich selbst) und ein Zyklus A → B → A lassen
+ * sich laden und liefern ihre Werte.
+ */
+test('UX3h5/5: Import-Beispiele in Kommentaren und ein Zyklus A→B→A laden ohne Rekursion', async () => {
+  const huelle = join(SRC_ROOT.pathname, 'zyklusprobe-mt3c')
+  mkdirSync(huelle, { recursive: true })
+  const a = join(huelle, 'a.mjs')
+  const b = join(huelle, 'b.mjs')
+
+  writeFileSync(a, [
+    '// Beispiel: import { ay } from "./a.mjs"  (Selbst-Import im Kommentar)',
+    '/* Und als Block:',
+    "   import { ay } from './a.mjs'",
+    '   import { by } from "./b.mjs"',
+    ' */',
+    "const pfad = 'http://example.invalid/a' // „//“ in einer Zeichenkette",
+    "import { by } from './b.mjs'",
+    'export const ay = 1',
+    'export const text = pfad',
+  ].join('\n'))
+  writeFileSync(b, [
+    "// import { ay } from './a.mjs'",
+    "import { ay } from './a.mjs'",
+    'export const by = () => ay + 1',
+  ].join('\n'))
+
+  const zielA = kompilieren(a)
+  const modul = await import(pathToFileURL(zielA).href)
+  assert.equal(modul.ay, 1, 'A lädt')
+  assert.equal(modul.text, 'http://example.invalid/a',
+    'das „//“ in einer Zeichenkette wurde nicht als Kommentar behandelt')
+
+  const zielB = kompilieren(b)
+  const modulB = await import(pathToFileURL(zielB).href)
+  assert.equal(modulB.by(), 2, 'B lädt und sieht A (Zyklus A→B→A aufgelöst)')
+  assert.notEqual(zielA, zielB, 'B hat eine eigene Kopie')
+  assert.equal(cache.get(a), zielA, 'Cache-Eintrag zeigt auf die Ausgabe von A')
+  assert.equal(cache.get(b), zielB, 'Cache-Eintrag zeigt auf die Ausgabe von B')
+
+  // Nur für diesen Lauf angelegte Hilfsdateien wieder wegräumen.
+  rmSync(huelle, { recursive: true, force: true })
+})
+

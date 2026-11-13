@@ -2,7 +2,7 @@
  * UX2c — der Rückgängig-Weg je Aktion (eine Wahrheit für Oberfläche und Tests).
  *
  * Prinzip I2: Rückfrage nur für Unumkehrbares; alles andere wird sofort
- * ausgeführt und über „Rückgängig“ (8 s, Strg+Z) korrigierbar. Damit das
+ * ausgeführt und über „Rückgängig“ (10 s = `ANZEIGE_MS`, Strg+Z) korrigierbar. Damit das
  * nicht an jeder Stelle anders heißt und anders ruft, steht hier:
  *
  *  1. `RUECKGAENGIG_WEGE` — je Vorgang der Endpunkt der Gegenrichtung und
@@ -170,7 +170,7 @@ export function vollstaendig(vorgang, daten) {
 /**
  * Der Text der Rückgängig-Meldung je Vorgang (Prinzip I2/S4: ein Begriff).
  *
- * Kurz, weil die Meldung 8 s am unteren Rand steht. Der Name des Objekts
+ * Kurz, weil die Meldung 10 s (`ANZEIGE_MS`) am unteren Rand steht. Der Name des Objekts
  * gehört dazu, wenn die Seite ihn kennt — dann weiß man, WAS zurückkommt.
  */
 export const MELDUNGEN = {

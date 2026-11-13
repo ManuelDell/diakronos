@@ -244,7 +244,7 @@ test('UX2e5b · „Rückgängig" ruft wiederherstellen_event mit derselben Kennu
   await vm.onTerminAktion({ key: 'loeschen', termin: datenAus(terme, 't2') })
   await tick(120)
   // Die Meldungen der vorigen Fälle können noch stehen: den Rückgängig-Knopf
-  // der JÜNGSTEN Meldung nehmen (Rückgängig-Meldungen stehen 8 s).
+  // der JÜNGSTEN Meldung nehmen (Rückgängig-Meldungen stehen 10 s).
   const meldungen = Array.from(document.querySelectorAll('.diakonos-toast-container button'))
     .filter((b) => b.textContent.trim() === 'Rückgängig')
   const zurueck = meldungen[meldungen.length - 1]

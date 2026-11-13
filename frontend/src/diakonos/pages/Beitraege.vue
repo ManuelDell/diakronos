@@ -607,7 +607,7 @@ async function savePost() {
 async function deletePost(post) {
   /* UX2c (C2 · Prinzip I2): Löschen ist UMKEHRBAR (Papierkorb, 7 Tage) —
      also KEINE Rückfrage mehr, sondern sofort ausführen und „Rückgängig“
-     anbieten (8 s, Strg+Z, Meldung mit der Frist aus UX2b). */
+     anbieten (10 s = `ANZEIGE_MS`, Strg+Z, Meldung mit der Frist aus UX2b). */
   try {
     const antwort = await apiCall('diakronos.diakonos.api.beitraege.delete_beitrag', { beitrag_id: post.id })
     await loadPosts()

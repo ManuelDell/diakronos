@@ -576,7 +576,7 @@ async function postfachSpeichern() {
  * UX2c (C2 · Prinzip I2): Ein Postfach zu entfernen ist UMKEHRBAR — derselbe
  * Slug samt Bezeichnung, Adresse und Reihenfolge legt die Zeile wieder an
  * (`postfach_speichern`). Also keine Rückfrage, sondern sofort entfernen und
- * „Rückgängig“ anbieten (8 s, Strg+Z).
+ * „Rückgängig“ anbieten (10 s = `ANZEIGE_MS`, Strg+Z).
  */
 async function postfachEntfernen(zeile) {
   const ergebnis = await postfachLoeschen(zeile.slug)

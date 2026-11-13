@@ -578,7 +578,7 @@ async function bearbeiten(l) {
  * Papierkorb-Weg: musik.delete_lied → papierkorbMeldung mit „Rückgängig“
  * (= musik.wiederherstellen_lied).
  * UX2c (C2): KEINE Rückfrage mehr — der Papierkorb ist umkehrbar (Prinzip
- * I2), also sofort ausführen und „Rückgängig“ anbieten (8 s, Strg+Z).
+ * I2), also sofort ausführen und „Rückgängig“ anbieten (10 s = `ANZEIGE_MS`, Strg+Z).
  * Vorher lief hier `save_lied {aktiv: false}` — das nahm das Lied nur aus der
  * Auswahl, ohne Papierkorb und ohne Rückgängig.
  */

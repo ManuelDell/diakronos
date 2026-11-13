@@ -25,7 +25,7 @@
  *         { text: 'Ansehen', onClick: () => navigate('#/kalender') })
  *
  *  3. Rückgängig nach einer sofort ausgeführten Aktion — IMMER über
- *     `useRueckgaengig` (Stapel, 8 s Frist, Strg+Z):
+ *     `useRueckgaengig` (Stapel, 10 s Frist = `ANZEIGE_MS`, Strg+Z):
  *       import { useRueckgaengig } from '../../composables/useRueckgaengig.js'
  *       const { registrieren } = useRueckgaengig()
  *       registrieren('Aus Gruppe entfernt', async () => {

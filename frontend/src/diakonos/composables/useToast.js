@@ -61,13 +61,10 @@ import { ANZEIGE_MS } from './meldungszeit.mjs'
  * hereingeholt und weitergereicht, damit alle Aufrufer `ANZEIGE_MS` wie
  * gewohnt aus diesem Modul beziehen können.
  *
- * ACHTUNG beim Schreiben von Kommentaren in DIESER Datei: die Import-
- * Umschreiber einiger Tests suchen die Modulangabe per Muster über den
- * GANZEN Dateitext — auch über Kommentare. Steht hier ein Zitat der
- * Import-Zeile (Modulangabe in Anführungszeichen), hält der Umschreiber
- * das für einen echten Selbst-Import und läuft endlos in die Tiefe
- * („Maximum call stack size exceeded"). Kommentare nennen die Herkunft
- * deshalb ohne Anführungszeichen-Modulangabe.
+ * Historie: die Import-Umschreiber einiger Tests lasen früher auch
+ * Kommentare und liefen bei einer zitierten Import-Zeile endlos in die Tiefe;
+ * seit MT-3c blenden sie Kommentare aus und halten den Cache-Eintrag vor dem
+ * Abstieg.
  */
 export { ANZEIGE_MS }
 /**
