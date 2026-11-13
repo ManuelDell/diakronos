@@ -11,7 +11,11 @@ class Element {
   remove() { this.parentNode.children.splice(this.parentNode.children.indexOf(this), 1) }
 }
 
-test('OP-UI-10: Fehler bleiben schließbar, werden vorgelesen und laufen nicht ab', () => {
+// MT-3 (Manuel 11.11.): Fehler bleiben schließbar und werden vorgelesen —
+// die Anzeigedauer ist aber nicht mehr 0 („bis zum Schließen“): JEDE Meldung
+// blendet nach `ANZEIGE_MS` (10 s) aus. Die alte Erwartung „Fehler darf nicht
+// automatisch verschwinden“ wird durch die Kartenentscheidung ersetzt.
+test('OP-UI-10: Fehler sind schließbar, werden vorgelesen und blenden nach 10 s aus (MT-3)', () => {
   const container = new Element()
   globalThis.document = { querySelector: () => container, createElement: () => new Element() }
   globalThis.requestAnimationFrame = fn => fn()
@@ -22,11 +26,14 @@ test('OP-UI-10: Fehler bleiben schließbar, werden vorgelesen und laufen nicht a
     showToast('Speichern fehlgeschlagen', 'error')
     const toast = container.children[0]
     assert.equal(toast.attrs.role, 'alert')
-    assert.ok(toast.children.some(el => el.attrs['aria-label'] === 'Meldung schließen'))
-    assert.deepEqual(timer, [], 'Fehler darf nicht automatisch verschwinden')
+    // Review-Nacharbeit (A11y): Der Name nennt zusätzlich den schnellen Weg
+    // (Esc) — die Fläche steht am Ende von `<body>`.
+    assert.ok(toast.children.some(el => el.attrs['aria-label'] === 'Meldung schließen (Esc)'))
+    assert.ok(timer.includes(10000), `Fehler blendet nach 10 s aus; gefunden: ${timer.join(', ')}`)
+    timer.length = 0
     showToast('Gespeichert', 'success')
     assert.equal(container.children[1].attrs.role, 'status')
-    assert.ok(timer.includes(4000))
+    assert.ok(timer.includes(10000), 'Erfolg: dieselbe Anzeigedauer')
   } finally { globalThis.setTimeout = alt }
 })
 

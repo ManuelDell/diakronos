@@ -9,7 +9,8 @@
  *
  *  B  Das Verbundstück (`useRueckgaengig.js` + `useToast.js`) mit einer
  *     kleinen DOM-Attrappe:
- *     „Rückgängig“ steht als EIN Knopf in der Meldung, 8 s Frist,
+ *     „Rückgängig“ steht als EIN Knopf in der Meldung, Frist = Anzeige
+ *     (10 s, `ANZEIGE_MS`),
  *     aria-live/role, Esc schließt, Tastatur (Strg+Z / Cmd+Z) nimmt zurück —
  *     aber NICHT in Eingabefeldern, und nur solange etwas offen ist.
  *
@@ -31,6 +32,8 @@ import {
   ABlaufMS,
   GRENZE,
 } from '../src/diakonos/composables/rueckgaengigStapel.mjs'
+// MT-3: die zentrale ANZEIGEdauer (10 s) — sie ist ZUGLEICH die Aktionsfrist.
+import { ANZEIGE_MS } from '../src/diakonos/composables/useToast.js'
 
 const HIER = dirname(fileURLToPath(import.meta.url))
 
@@ -285,7 +288,7 @@ function weltZurueck(retten) {
   delete globalThis.window
 }
 
-test('B1 Meldung: „Rückgängig“ als EIN Knopf, 8 s, Frist aus EINER Quelle', async () => {
+test('B1 Meldung: „Rückgängig“ als EIN Knopf, Frist = Anzeige (10 s), aus EINER Quelle', async () => {
   const welt = weltVorbereiten()
   try {
     const mod = await ladeRueckgaengig()
@@ -310,12 +313,17 @@ test('B1 Meldung: „Rückgängig“ als EIN Knopf, 8 s, Frist aus EINER Quelle'
     assert.equal(meldung.getAttribute('aria-live'), 'polite')
     assert.equal(meldung.getAttribute('aria-atomic'), 'true')
 
+    // MT-3 Review-Nacharbeit: Die Meldung steht die zentrale Anzeigedauer
+    // (10 s) — und die Frist der Aktion ist DIESELBE Zeit (`ABlaufMS` leitet
+    // sich daraus ab). Vorher stand hier „das Rückgängig-Fenster bleibt 8 s“;
+    // das war die Trennung, die den Befund erzeugte (Aktion lief mitten in der
+    // sichtbaren Meldung ab).
     assert.ok(
-      welt.timer.some(t => t.ms === 8000),
-      `8 s Frist angemeldet (ABlaufMS = ${ABlaufMS}); gefunden: `
+      welt.timer.some(t => t.ms === ANZEIGE_MS),
+      `${ANZEIGE_MS} ms Anzeige angemeldet (MT-3); gefunden: `
       + welt.timer.map(t => t.ms).join(', '),
     )
-    assert.equal(ABlaufMS, 8000)
+    assert.equal(ABlaufMS, ANZEIGE_MS, 'Frist der Aktion = Anzeigedauer (10 s)')
   } finally {
     weltZurueck(welt)
   }
@@ -511,16 +519,27 @@ test('C1 Aussehen: Meldung dunkel mit Gold-Aktion, keine Rohfarben (tokens.css)'
   assert.match(undoRegel, /left:\s*calc\(var\(--sidebar-w\)\s*\+\s*var\(--sp-6\)\)/)
 })
 
-test('C2 Eine Frist: 8000 ms steht nur in rueckgaengigStapel.mjs', () => {
+test('C2 Eine Frist: ABlaufMS leitet sich aus ANZEIGE_MS ab (10 s)', () => {
+  // MT-3 Review-Nacharbeit (Operator 11.11.): Vorher stand hier „8000 ms steht
+  // nur in rueckgaengigStapel.mjs“ — Frist (8 s) und Anzeige (10 s) waren
+  // getrennte Zeiten, und die Aktion lief mitten in der sichtbaren Meldung ab.
+  // Entscheidung: Frist = Anzeige = EINE Konstante `ANZEIGE_MS`. Der Test
+  // prüft jetzt die KOPPLUNG (und dass die Zahl nur EINE Quelle hat); das
+  // Verhalten selbst prüft `tests/mt3b-rueckgaengig-kopplung.test.mjs`.
   const stapel = lies('frontend/src/diakonos/composables/rueckgaengigStapel.mjs')
   const toast = lies('frontend/src/diakonos/composables/useToast.js')
   const composable = lies('frontend/src/diakonos/composables/useRueckgaengig.js')
+  const zeit = lies('frontend/src/diakonos/composables/meldungszeit.mjs')
 
-  assert.match(stapel, /export const ABlaufMS = 8000/)
-  assert.match(toast, /mitAktion:\s*8000/, 'dieselbe Dauer für Aktionen in Meldungen')
-  // Der Verbund nennt die Zahl NICHT selbst — er holt sie aus ABlaufMS.
-  assert.doesNotMatch(composable, /\b8000\b/, 'useRueckgaengig kennt die Zahl nicht')
-  assert.match(composable, /dauer:\s*ABlaufMS/)
+  assert.match(stapel, /export const ABlaufMS = ANZEIGE_MS/,
+    'die Frist leitet sich aus der Anzeigedauer ab')
+  assert.doesNotMatch(stapel, /\b8000\b/, 'keine eigene 8-s-Zahl mehr')
+  assert.equal(ABlaufMS, ANZEIGE_MS, 'Frist der Aktion = Anzeigedauer')
+  assert.match(zeit, /export const ANZEIGE_MS = 10_?000/, 'die Zahl hat EINE Quelle')
+  // Der Verbund nennt die Zahl NICHT selbst — er holt sie aus ANZEIGE_MS.
+  assert.doesNotMatch(composable, /\b8000\b|\b10_?000\b/, 'useRueckgaengig kennt die Zahl nicht')
+  assert.match(composable, /dauer:\s*ANZEIGE_MS/)
+  assert.match(toast, /mitAktion:\s*ANZEIGE_MS/, 'Anzeige aus EINER Konstante')
 
   // Pflicht aus dem Konzept: „Rückgängig“ für einen einzelnen Eintrag geht
   // auch über die Meldung genau DIESER Aktion (id), nicht nur über Strg+Z.

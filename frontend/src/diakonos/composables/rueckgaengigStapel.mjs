@@ -22,6 +22,11 @@
  *     nicht mehr zurückholbar. Der Timer selbst lebt in `useRueckgaengig.js`
  *     (dort gibt es `setTimeout`); diese Datei rechnet nur mit Zeiten, die der
  *     Aufrufer übergibt — dadurch ist sie ohne Browser prüfbar.
+ *     MT-3 (Review-Nacharbeit): ABlaufMS ist KEINE eigene Zahl mehr, sondern
+ *     die Anzeigedauer `ANZEIGE_MS` (10 s) aus `meldungszeit.mjs` — Frist und
+ *     Anzeige einer Meldung sind dieselbe Zeit. Grund: eine Aktion, deren
+ *     Knopf noch sichtbar ist, muss auch noch gehen; und eine Meldung, die
+ *     noch steht, darf ihre Aktion nicht schon verloren haben.
  *  5. Eine Rücknahme wird nur EINMAL ausgeführt: danach ist der Eintrag weg.
  *     Ein liegengebliebener Meldungs-Knopf oder ein zweites Strg+Z darf keine
  *     zweite Gegenbuchung auslösen.
@@ -35,8 +40,17 @@
  *     hinaus — eine liegengebliebene Bremse hebt die Frist nie auf.
  */
 
-/** Standardfrist: die Meldung bietet 8 s lang „Rückgängig“ an. */
-export const ABlaufMS = 8000
+import { ANZEIGE_MS } from './meldungszeit.mjs'
+
+/**
+ * Standardfrist: die Meldung bietet `ANZEIGE_MS` lang „Rückgängig“ an.
+ *
+ * Review-Nacharbeit (Operator 11.11.): Die Frist ist an die ANZEIGEDAUER
+ * gebunden — vorher standen hier eigene 8 s, und die Aktion war weg, während
+ * ihre Meldung noch sichtbar stand. Die Zahl steht EINMAL in
+ * `meldungszeit.mjs`; hier wird sie nur weitergereicht.
+ */
+export const ABlaufMS = ANZEIGE_MS
 
 /**
  * UX2a2b: So lange darf Hover/Fokus die Frist höchstens anhalten (ms).

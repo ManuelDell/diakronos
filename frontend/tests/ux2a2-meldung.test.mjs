@@ -32,6 +32,8 @@ import {
   ABlaufMS,
   GRENZE,
 } from '../src/diakonos/composables/rueckgaengigStapel.mjs'
+// MT-3: die zentrale ANZEIGEdauer (10 s) — sie ist ZUGLEICH die Aktionsfrist.
+import { ANZEIGE_MS } from '../src/diakonos/composables/useToast.js'
 
 const HIER = dirname(fileURLToPath(import.meta.url))
 
@@ -208,6 +210,11 @@ async function ladeRueckgaengig() {
       "from '../../shared/fehlertexte.js'",
       `from '${dateiUrl('frontend/src/shared/fehlertexte.js')}'`,
     )
+    // MT-3: die eine Zeit steht in einer eigenen Datei (data:-URL).
+    .replace(
+      "from './meldungszeit.mjs'",
+      `from '${dateiUrl('frontend/src/diakonos/composables/meldungszeit.mjs')}'`,
+    )
     .replace(
       "from './rueckgaengigStapel.mjs'",
       `from '${dateiUrl('frontend/src/diakonos/composables/rueckgaengigStapel.mjs')}?t=${ladeZaehler}'`,
@@ -366,7 +373,9 @@ test('F3 Hover und Fokus halten die Meldung — die Frist bleibt stehen', async 
     welt.timer.length = 0
     meldung.dispatch('mouseenter', {})
     meldung.dispatch('mouseleave', {})
-    assert.ok(welt.timer.some(t => t.ms <= 8000 && t.ms > 0),
+    // MT-3: Die Anzeigedauer ist 10 s (vorher 8 s) — gemessen wird die
+    // RESTLICHE Zeit, nicht die Zahl selbst.
+    assert.ok(welt.timer.some(t => t.ms <= ANZEIGE_MS && t.ms > 0),
       'nach dem Verlassen läuft die RESTLICHE Frist weiter')
 
     // Fokus im Knopf: ebenso.
@@ -631,11 +640,17 @@ test('F6b Die Meldungsgrenze verdrängt keine Fehlermeldungen', async () => {
 
 // ── C · Quellen: eine Frist, eine Grenze, keine Rohfarben ─────────────────
 
-test('C1 Entscheidung der Karte: 8 s Frist und Grenze 5 bleiben', () => {
+test('C1 Entscheidung der Karte: Frist = Anzeigedauer (10 s), Grenze 5 bleibt', () => {
+  // MT-3 Review-Nacharbeit (Operator 11.11.): Hier stand „8 s Frist“. Seit der
+  // Nacharbeit ist die Frist der Aktion die ANZEIGEDAUER (`ANZEIGE_MS`, 10 s) —
+  // zwei Zeiten für eine Meldung waren der Befund. Die Grenze 5 bleibt.
   const stapel = lies('frontend/src/diakonos/composables/rueckgaengigStapel.mjs')
-  assert.match(stapel, /export const ABlaufMS = 8000/)
+  assert.match(stapel, /export const ABlaufMS = ANZEIGE_MS/,
+    'die Frist leitet sich aus der Anzeigedauer ab')
+  assert.equal(ABlaufMS, ANZEIGE_MS)
   assert.match(stapel, /export const GRENZE = 5/)
   const toast = lies('frontend/src/diakonos/composables/useToast.js')
-  assert.match(toast, /mitAktion: 8000/, 'dieselbe Dauer im Meldungsdienst')
+  // MT-3: Anzeige und Aktionsfrist sind DIESELBE Zeit (eine Konstante).
+  assert.match(toast, /mitAktion: ANZEIGE_MS/, 'Anzeige im Meldungsdienst aus EINER Konstante')
   assert.match(toast, /export const HOECHSTENS = STAPEL_GRENZE/, 'eine Grenze, importiert')
 })

@@ -229,6 +229,11 @@ async function ladeRueckgaengig() {
       "from '../../shared/fehlertexte.js'",
       `from '${dateiUrl('frontend/src/shared/fehlertexte.js')}'`,
     )
+    // MT-3: die eine Zeit steht in einer eigenen Datei (data:-URL).
+    .replace(
+      "from './meldungszeit.mjs'",
+      `from '${dateiUrl('frontend/src/diakonos/composables/meldungszeit.mjs')}'`,
+    )
     .replace(
       "from './rueckgaengigStapel.mjs'",
       `from '${dateiUrl('frontend/src/diakonos/composables/rueckgaengigStapel.mjs')}?t=${ladeZaehler}'`,
@@ -371,7 +376,8 @@ test('1d Takt raeumt NICHT ab, solange Hover/Fokus auf der Meldung liegt', async
     await tick()
     assert.equal(zurueck, 1, 'Ruecknahme nach 20 s Hover wirkt noch')
 
-    // Und OHNE Hover laeuft die Frist: nach 8 s raeumt der Takt ab.
+    // Und OHNE Hover laeuft die Frist: nach ABlaufMS raeumt der Takt ab.
+    // MT-3: ABlaufMS ist seit der Review-Nacharbeit die Anzeigedauer (10 s).
     mod.rueckgaengigZuruecksetzen()
     mod.registrieren('Zweite Aktion', async () => {})
     assert.equal(mod.getStapel().laenge, 1)
@@ -380,7 +386,7 @@ test('1d Takt raeumt NICHT ab, solange Hover/Fokus auf der Meldung liegt', async
       uhr += 1_000
       await warten(260)
     }
-    assert.equal(mod.getStapel().laenge, 0, 'ohne Hover laeuft die Aktion nach 8 s ab')
+    assert.equal(mod.getStapel().laenge, 0, 'ohne Hover laeuft die Aktion nach ABlaufMS ab')
   } finally {
     Date.now = echterJetzt
     weltZurueck()
@@ -399,7 +405,7 @@ test('1e Verlassen der Meldung laesst die RESTZEIT weiterlaufen (nicht neu start
     const eintrag = mod.getStapel().oberster()
     const ablaufVorher = eintrag.ablauf
 
-    // 5 s von 8 s vergehen, dann kommt der Zeiger (anhalten, 3 s stehen).
+    // 5 s von ABlaufMS vergehen, dann kommt der Zeiger (anhalten, 3 s stehen).
     for (let i = 0; i < 5; i += 1) { uhr += 1_000; await warten(120) }
     meldung.dispatch('mouseenter', {})
     await warten(60)
@@ -535,7 +541,9 @@ test('2c Fokus auf dem ✕ einer Fehlermeldung bleibt, wenn ein Rueckgaengig-Toa
     toast.showToast('Das hat nicht geklappt.', 'error')
     const fehler = behaelter.children.at(-1)
     const kreuz = knoepfe(fehler).at(-1)
-    assert.equal(kreuz.getAttribute('aria-label'), 'Meldung schließen',
+    // Review-Nacharbeit (A11y): Der Name nennt jetzt auch den schnellen Weg
+    // („Esc“) — geändert wird nur die Beschriftung, nicht das Verhalten.
+    assert.equal(kreuz.getAttribute('aria-label'), 'Meldung schließen (Esc)',
       'der letzte Knopf der Fehlermeldung ist das ✕')
     kreuz.focus()
     assert.equal(welt.document.activeElement, kreuz, 'Ausgangslage: Fokus auf dem ✕')

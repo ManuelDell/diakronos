@@ -408,3 +408,9 @@ tests/mt5-*.test.mjs
 # end_session_endpoint mehr) und Client fest (`zielOderLogin` nimmt nur
 # http/https-Adressen aus der Server-Antwort und geprueft relative Pfade an).
 tests/mt8-*.test.mjs
+# MT-3: Meldungen (Toasts) blenden nach 10 s automatisch aus — eine Zeit für
+# alle Typen (auch Fehler/Warnungen/Meldungen mit Handlung), Schließen-Knopf
+# bleibt, Hover/Fokus pausieren. Review-Nacharbeit: ABlaufMS (Rückgängig-Frist)
+# = ANZEIGE_MS (10 s), eine Zahl in composables/meldungszeit.mjs.
+tests/mt3-*.test.mjs
+tests/mt3b-rueckgaengig-kopplung.test.mjs

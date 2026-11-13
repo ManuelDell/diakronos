@@ -1,14 +1,15 @@
 /**
 /**
- * Ein Rückmeldedienst: Fehler bleiben bis zum Schließen, Erfolge vier
- * Sekunden.
+ * Ein Rückmeldedienst: JEDE Meldung blendet nach 10 s aus (`ANZEIGE_MS`),
+ * gleich welcher Art; der Schließen-Knopf bleibt.
  *
  * UX2g: Ein leerer Text oder eine der alten Floskeln („Fehler",
  * „Unbekannter Fehler", „API-Fehler") ist keine Auskunft. Statt eines
  * eigenen Ersatzsatzes fragt der Toast den Fehlerkatalog
  * (`shared/fehlertexte.js`): er nennt, was passiert ist und was jetzt hilft.
  *
- * UX2a: Erfolge vier Sekunden, Rückgängig-Meldungen acht Sekunden.
+ * UX2a: Erfolge liefen vier Sekunden, Rückgängig-Meldungen acht — beides
+ * heißt seit MT-3 `ANZEIGE_MS` (10 s, eine Zahl für alle Typen).
  *
  * UX2a2 (Review-Befunde):
  *  F4  Der Esc-Zuhörer wird beim Entfernen ABGEMELDET. Vorher blieb für jede
@@ -20,8 +21,11 @@
  *  F5  Beim Schließen einer Meldung fällt die Positionsklasse `--undo` am
  *      Behälter weg, wenn keine Rückgängig-Meldung mehr offen ist — sonst
  *      stünden Fehlermeldungen danach unten links statt an ihrem Ort.
- *  F6  Die Grenze verdrängt keine Fehlermeldungen: Fehler sagen „was jetzt"
- *      und bleiben, bis der Nutzer sie schließt (Prinzip I4).
+ *  F6  Die Grenze verdrängt keine Fehlermeldungen. Vorher hieß es hier
+ *      „Fehler bleiben, bis der Nutzer sie schließt“ — das ist seit MT-3
+ *      überholt: ALLE Meldungen blenden nach `ANZEIGE_MS` aus, auch Fehler.
+ *      Der Grund für F6 bleibt trotzdem richtig: eine Fehlermeldung wird
+ *      nicht als erste verdrängt, weil sie sagt, was jetzt zu tun ist.
  *
  * UX2a2b (Restbefunde aus dem Review):
  *  E1  Esc schließt die OBERSTE Meldung — gleich welcher Art (auch eine
@@ -33,15 +37,59 @@
  *      oberste offene Meldung schließt (siehe `escSchliessen`).
  */
 import { fehlertext, istFloskel } from '../../shared/fehlertexte.js'
+// MT-3: die eine Zeit für Anzeige UND Frist der Aktion (eigene Datei, damit
+// sie ohne Import-Zyklus auch im Rückgängig-Stapel steht).
+import { ANZEIGE_MS } from './meldungszeit.mjs'
 
 /**
- * Wie lange eine Meldung steht (ms). 0 = bis zum Schließen.
+ * MT-3 (Manuel 11.11.): EINE Zeit für ALLES, was mit einer Meldung zu tun hat
+ * (ms): 10 Sekunden.
  *
- * UX2a: Mit Aktion 8 s statt 4 s — der Knopf muss erreichbar sein, nicht nur
- * sichtbar. Fehler laufen nie ab (sie sagen „was jetzt“ und müssen lesbar
- * bleiben).
+ * Befund vorher: Meldungen oben rechts blieben dauerhaft stehen. Ursache war
+ * die Sonderregel `error: 0` („bis zum Schließen“) und die kurzen 4 s für
+ * Erfolge.
+ *
+ * Review-Nacharbeit (Operator, 11.11.): Sie ist außerdem die FRIST der
+ * Rückgängig-Aktion — vorher standen dort 8 s (`ABlaufMS` im Stapel), und die
+ * Aktion lief mitten in der noch sichtbaren Meldung ab. Zwei Zeiten für EINE
+ * Sache („wie lange habe ich für diese Meldung“) waren eine Falle: die
+ * Anzeige war schneller vorbei als die Frist oder umgekehrt, und der Bericht
+ * dazu war falsch. Jetzt: Anzeige = Frist = `ANZEIGE_MS`.
+ *
+ * Die Zahl selbst steht in `meldungszeit.mjs` (der Stapel braucht sie auch;
+ * eine Zahl in DIESER Datei schlösse einen Import-Zyklus). Hier wird sie
+ * hereingeholt und weitergereicht, damit alle Aufrufer `ANZEIGE_MS` wie
+ * gewohnt aus diesem Modul beziehen können.
+ *
+ * ACHTUNG beim Schreiben von Kommentaren in DIESER Datei: die Import-
+ * Umschreiber einiger Tests suchen die Modulangabe per Muster über den
+ * GANZEN Dateitext — auch über Kommentare. Steht hier ein Zitat der
+ * Import-Zeile (Modulangabe in Anführungszeichen), hält der Umschreiber
+ * das für einen echten Selbst-Import und läuft endlos in die Tiefe
+ * („Maximum call stack size exceeded"). Kommentare nennen die Herkunft
+ * deshalb ohne Anführungszeichen-Modulangabe.
  */
-export const DAUER_MS = { error: 0, mitAktion: 8000, normal: 4000 }
+export { ANZEIGE_MS }
+/**
+ * Wie lange eine Meldung steht (ms), je Typ.
+ *
+ * MT-3: EINE Zahl (`ANZEIGE_MS`) für alle Typen — abgeleitet, nicht
+ * abgeschrieben. `normal`, `error`, `warning` und `mitAktion` sind bewusst
+ * derselbe Wert; steht hier künftig etwas anderes, ist das eine bewusste
+ * Entscheidung an DIESER Stelle.
+ *
+ * Review-Nacharbeit: `warning` wird von `showToast` NICHT eigens gelesen —
+ * `showToast` fragt nur „Fehler?“, „Aktion?“ oder „sonst“. Der Eintrag bleibt
+ * als Auskunft für Aufrufer stehen, die die Typ-Dauer selbst nachschlagen
+ * (`DAUER_MS[typ]`), und weil ein fehlender Schlüssel hier eine Lücke wäre;
+ * der Test sagt jetzt genau das und keine Wirkung, die es nicht gibt.
+ */
+export const DAUER_MS = {
+    error: ANZEIGE_MS,
+    warning: ANZEIGE_MS,
+    mitAktion: ANZEIGE_MS,
+    normal: ANZEIGE_MS,
+}
 
 /**
  * UX2a2: So lange ÜBER die Anzeigedauer hinaus dürfen Zeiger/Fokus eine
@@ -201,9 +249,10 @@ export function schliesseAlle() {
 
 /**
  * F6: Bei Überzahl fällt die ÄLTESTE entbehrliche Meldung heraus. Fehler
- * gelten nie als entbehrlich — sie laufen nicht ab und sagen, was jetzt zu
- * tun ist (Prinzip I4); eine Rückgängig-Meldung bleibt nur so lange
- * nützlich, wie ihr Eintrag im Stapel steht.
+ * gelten nie als entbehrlich — eine Fehlermeldung sagt, was jetzt zu tun ist
+ * (Prinzip I4), und wird deshalb nicht als erste weggeschoben; sie blendet
+ * nach `ANZEIGE_MS` aus wie jede andere (MT-3). Eine Rückgängig-Meldung
+ * bleibt nur so lange nützlich, wie ihr Eintrag im Stapel steht.
  */
 function schliesseAelteste() {
     while (offeneMeldungen.length >= HOECHSTENS) {
@@ -285,8 +334,9 @@ export function showToast(message, type = 'info', aktion = null, optionen = {}) 
     function haltenAus() { maus = false; fokus = false }
     function deckeln() {
         clearTimeout(deckel)
-        // Fehler laufen NIE ab (dauer 0) — sie bekommen auch keinen Deckel;
-        // sie verschwinden nur, wenn der Nutzer sie schließt (Prinzip I4).
+        // MT-3: Jede Meldung läuft ab (`dauer` immer > 0). Der Deckel steht
+        // trotzdem als Schutz für `dauer: 0`: ein Aufrufer, der die Anzeige
+        // ausdrücklich abschaltet, bekommt auch keinen Halte-Deckel.
         if (!dauer) return
         deckel = setTimeout(() => {
             const hielt = maus || fokus
@@ -394,7 +444,12 @@ export function showToast(message, type = 'info', aktion = null, optionen = {}) 
         const schliessen = document.createElement('button')
         schliessen.type = 'button'
         schliessen.className = 'diakonos-toast-schliessen'
-        schliessen.setAttribute('aria-label', 'Meldung schließen')
+        // Review-Nacharbeit (A11y): Die Fläche steht am Ende von `<body>`;
+        // bis das ✕ per Tab erreicht ist, kann die Meldung längst weg sein.
+        // Esc schließt sie sofort — das steht deshalb im Namen mit (WCAG
+        // 3.3.2 „Beschriftung oder Anweisung“, Prinzip S5 „bekannte Muster“).
+        schliessen.setAttribute('aria-label', 'Meldung schließen (Esc)')
+        schliessen.title = 'Meldung schließen (Esc)'
         schliessen.textContent = '✕'
         schliessen.addEventListener('click', () => entfernen('x'))
         el.appendChild(schliessen)

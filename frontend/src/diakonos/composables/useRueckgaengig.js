@@ -5,7 +5,8 @@
  * liegt in `rueckgaengigStapel.mjs` und ist dort ohne Browser geprüft. Diese
  * Datei verbindet sie mit der Oberfläche:
  *
- *  * EINE Meldung je Aktion (unten links), 8 s lang mit „Rückgängig“;
+ *  * EINE Meldung je Aktion (unten links), `ANZEIGE_MS` lang (10 s, dieselbe
+ *    Zeit wie die Frist der Aktion) mit „Rückgängig“;
  *  * Strg+Z / Cmd+Z außerhalb von Eingabefeldern nimmt die letzte Aktion
  *    zurück (Prinzip S5 — „Bekannte Muster“);
  *  * die Tastenkombination ist ANGEKÜNDIGT: „Rückgängig (Strg+Z)“ steht in
@@ -17,8 +18,9 @@
  *  F1  Schlägt die Rücknahme fehl, wird das GEMELDET (showToast … 'error'),
  *      nicht verschluckt — `zuruecknehmen` fängt den Fehler selbst ab.
  *  F2  `zuruecknehmen(id)` übergibt IMMER die Uhrzeit ({ jetzt: Date.now() }).
- *      Damit gilt die 8-s-Frist auch für den Klick auf die Meldung: nach dem
- *      Tab-Schlaf ist eine zehn Minuten alte Aktion nicht mehr rückgängig.
+ *      Damit gilt die Frist (`ANZEIGE_MS`, seit MT-3 10 s) auch für den Klick
+ *      auf die Meldung: nach dem Tab-Schlaf ist eine zehn Minuten alte Aktion
+ *      nicht mehr rückgängig.
  *  F3  Nach dem Schließen fällt der Fokus auf ein sinnvolles Ziel (den Knopf
  *      der nächsten Meldung, sonst den Auslöser von vorher, sonst die
  *      Hauptfläche der Seite) — nie auf `<body>` (WCAG 2.2.1).
@@ -53,7 +55,7 @@ import {
 } from './rueckgaengigStapel.mjs'
 // UX2a2b: `istGespraechOffen` gehört dazu — der Meldungsdienst entscheidet
 // jetzt selbst über Esc, der Stapel fragt ihn nicht mehr.
-import { showToast, entferneToast, istGespraechOffen } from './useToast.js'
+import { showToast, entferneToast, istGespraechOffen, ANZEIGE_MS } from './useToast.js'
 // UX2a2c: Die Floskel-Erkennung kommt aus dem Fehlerkatalog (UX2g) — eine
 // Quelle für „das ist keine Auskunft“.
 import { istFloskel } from '../../shared/fehlertexte.js'
@@ -284,8 +286,8 @@ function fokusSichern(ausMeldung = fokusVorher) {
  * Die Meldung zu einer angemeldeten Aktion zeigen. Sie wird über `useToast`
  * gebaut (ein Aussehen, eine Stelle, Tokens aus tokens.css) und bekommt
  * genau EINEN Knopf: „Rückgängig“. Das Schließen-Kreuz entfällt, weil die
- * Meldung ihre Aktion selbst anbietet — zwei Knöpfe auf 8 s wären eine
- * Auswahl, die niemand braucht.
+ * Meldung ihre Aktion selbst anbietet — zwei Knöpfe auf derselben kurzen
+ * Fläche wären eine Auswahl, die niemand braucht.
  */
 function meldungZeigen(eintrag) {
   const id = `rueckgaengig-${eintrag.id}-${++meldungZaehler}`
@@ -316,7 +318,12 @@ function meldungZeigen(eintrag) {
   }, {
     schliessen: false,
     id,
-    dauer: ABlaufMS,
+    // MT-3 (Manuel 11.11.): Die Meldung steht `ANZEIGE_MS` — und ihre Aktion
+    // ist GENAU SO LANGE zurückholbar (`ABlaufMS` leitet sich seit der
+    // Review-Nacharbeit aus derselben Zahl ab). Vorher waren es zwei Zeiten
+    // (8 s Frist, 10 s Anzeige): die Aktion lief mitten in der sichtbaren
+    // Meldung ab. Eine Zeit für beides.
+    dauer: ANZEIGE_MS,
     onPause: anhalten,
     onWeiter: weiterlaufen,
     // UX2a2 (F3): Fokus im Blick behalten, damit er nach dem Schließen nicht
@@ -396,7 +403,7 @@ function positionSichern() {
 
 /**
  * F3/F4: Läuft eine Uhr? Ja, solange eine Aktion offen ist ODER eine Meldung
- * noch steht (nach dem Zurücknehmen läuft ihre 8-s-Uhr weiter, bis sie
+ * noch steht (nach dem Zurücknehmen läuft ihre Anzeige-Uhr weiter, bis sie
  * ausblendet). Sonst wird der Takt abgeräumt — die Seite bleibt ruhig.
  */
 function laeuftEineUhr() {
