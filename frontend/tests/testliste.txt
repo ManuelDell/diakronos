@@ -451,3 +451,11 @@ tests/mt8-*.test.mjs
 # = ANZEIGE_MS (10 s), eine Zahl in composables/meldungszeit.mjs.
 tests/mt3-*.test.mjs
 tests/mt3b-rueckgaengig-kopplung.test.mjs
+
+# WIKI-Q-1 (Nebenbefund MT-7c): Die Wiki-Liste übernimmt `?kategorie=` und
+# `?q=` beim Aufbau und schreibt den Ruhezustand nicht über die Adresse.
+# Mount-Test der ECHTEN pages/Wiki.vue in jsdom (API gestubbt, Darstellungs-
+# Bausteine aus components/ui/ als Attrappen): Suchfeld, aktiver Chip,
+# Adresse, `search=`/`kategorie=` am Server — plus Gegenprobe, dass eine
+# zurückgesetzte Übernahme ROT wird. Befund: auf main NICHT reproduzierbar.
+tests/wiki-q1-*.test.mjs
