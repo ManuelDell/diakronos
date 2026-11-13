@@ -288,9 +288,21 @@
   height: 100%;
 }
 
-.dk-app.is-collapsed .kronos-sidebar {
-  width: var(--dk-sidebar-col);
-}
+/* MT-1c (13.11.): Hier stand
+     `.dk-app.is-collapsed .kronos-sidebar { width: var(--dk-sidebar-col) }`
+   Sie meinte die Kalenderliste, war aber als Zustand des APP-Rahmens
+   formuliert. Seit OP-UI-11 ist die Liste eine EIGENE Spalte in der Seite
+   (`KronosSidebar` + `.kronos-sidebar-inpage`, `pages/Kalender.vue`); nur die
+   Hauptleiste (`.dk-sidebar`) darf sich beim Einklappen über das Raster in
+   `index.css` auf `--dk-sidebar-col` (64 px) zusammenziehen. Vorher quetschte
+   der Rahmenzustand die Liste mit: Beleg
+   `mt1/desktop-1440-hell-leiste-eingeklappt-kalender.png` (nur „Meine
+   Kalend…“, „Got…“, „Gru…“, „Ger…“).
+   Die Breite der Liste hängt jetzt allein an ihrem Offen-Zustand; offen und
+   geschlossen sind in beiden Rahmenzuständen gleich (Messlauf
+   `tests/mt1c-kalenderliste-breite.test.mjs`).
+   Abgrenzung B6-N2: das Overlay in schmalen Maus-Fenstern (≤ 1100 px) ist
+   ANORDNUNG derselben Ansicht und bleibt unberührt. */
 .kronos-sidebar ::-webkit-scrollbar { width: 6px; }
 .kronos-sidebar ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 3px; }
 
@@ -1941,15 +1953,14 @@ html[data-theme] .ec,
   transition: width 0.2s ease, padding 0.2s ease;
 }
 /* DEV-B6b (Review 10.11., Punkt 3): Die OFFENE Liste muss breiter sein als die
-   eingeklappte Leiste. `.kronos-sidebar-inpage.open` (2 Klassen) verlor sonst
-   gegen `.dk-app.is-collapsed .kronos-sidebar` (3 Klassen) aus kronos.css —
-   gemessen im Wegwerf-Stack bei 702/400 px: das Overlay kam herein, war aber
-   nur 64 px breit. Deshalb hier DREI Klassen. */
+   eingeklappte Hauptleiste. `.kronos-sidebar-inpage.open` (2 Klassen) verlor
+   seinerzeit gegen `.dk-app.is-collapsed .kronos-sidebar` (3 Klassen); die
+   Regel stand hier deshalb DREIFACH. MT-1c (13.11.): Der Grund ist mit dem
+   Entfernen jener Rahmenregel entfallen — die frühere Kopie
+   `.kronos-sidebar.kronos-sidebar-inpage.open` ist gestrichen, eine Regel
+   genügt. Belegt ist die Breite im Messlauf
+   `tests/mt1c-kalenderliste-breite.test.mjs`. */
 .kronos-sidebar-inpage.open {
-  width: var(--dk-sidebar-w, 256px);
-  flex-shrink: 0;
-}
-.kronos-sidebar.kronos-sidebar-inpage.open {
   width: var(--dk-sidebar-w, 256px);
   flex-shrink: 0;
 }

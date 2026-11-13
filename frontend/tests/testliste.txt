@@ -383,6 +383,11 @@ tests/mt1-*.test.mjs
 # Maße des Knopfes gegen DkButtons scoped Stil fest (drei Klassen).
 # Mountet AppSidebar.vue in jsdom und klickt wirklich.
 tests/mt1b-*.test.mjs
+# MT-1c: die eingeklappte HAUPTleiste quetscht die Kalenderliste nicht mehr —
+# Messprobe über die echte Kaskade (tokens/index/kronos.css) plus Quelltext-
+# Nachweis, dass der Rahmenzustand kein Breiten-Schalter der Liste ist.
+# Abgrenzung B6-N2 (Overlay ≤ 1100 px) unberührt.
+tests/mt1c-*.test.mjs
 # DEV-B2: Kalender „Zu prüfen“ — die Reiterzeile bleibt wie im Kalender
 # (Monat · Woche · Liste führen als Links `#/kalender?ansicht=…` zurück,
 # Kalender.vue wertet den Parameter aus), „‹ Kalender“ erscheint nur am Handy
