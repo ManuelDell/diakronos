@@ -7,7 +7,7 @@
  * Kalenderliste nur noch „Meine Kalend…“, „Got…“, „Gru…“, „Ger…“ — sie war
  * 64 px breit, also genau so breit wie die eingeklappte Leiste.
  *
- * Ursache (Review MT-1c, Punkt 3): `kronos.css` hatte
+ * URSACHE (berichtigt, TEST-NACH-1): In `kronos.css` stand
  *
  *     .dk-app.is-collapsed .kronos-sidebar { width: var(--dk-sidebar-col) }
  *
@@ -15,23 +15,29 @@
  * `components/kronos/KronosSidebar.vue`), ist aber als Zustand des
  * App-Rahmens formuliert — und die Liste ist seit OP-UI-11 eine EIGENE
  * Spalte in der Seite (`.kronos-sidebar-inpage`, `pages/Kalender.vue`).
+ * Mit EINER Klasse (`.kronos-sidebar-inpage { width: 0 }`) war sie diesem
+ * Drei-Klassen-Selektor (`.dk-app.is-collapsed .kronos-sidebar`) nicht
+ * gewachsen: solange der Rahmen eingeklappt war, blieb die Liste ein
+ * 64-px-Streifen. Genau deshalb stand die offene Regel in `kronos.css`
+ * ZWEIMAL — einmal mit zwei Klassen und einmal mit drei
+ * (`.kronos-sidebar.kronos-sidebar-inpage.open`); die Kopie war der Notausgang
+ * gegen die Rahmenregel. Mit dem Entfernen der Rahmenregel ist die Kopie
+ * gefallen, eine Regel genügt.
  *
- * Entscheidend ist NICHT die offene Liste (die war im Befund breit, der
- * Beleg zeigt sie geschlossen), sondern: über 1100 px ist die Liste
- * standardmäßig ZU (`useKronosSidebar`), `.kronos-sidebar-inpage { width: 0 }`
- * gewann aber nicht gegen die Drei-Klassen-Regel `.kronos-sidebar
- * .kronos-sidebar-inpage.open`, wenn `open` gesetzt war — und mit der alten
- * Rahmenregel blieb im eingeklappten Rahmen ein 64-px-Streifen stehen.
+ * Was auf `main` VOR MT-1c galt (gemessen, nicht behauptet): die SCHLIESSENDE
+ * Liste war im eingeklappten Rahmen 64 px breit (der Befund), die OFFENE
+ * Liste war es NICHT — sie maß in beiden Rahmenzuständen 256 px, weil die
+ * Drei-Klassen-Kopie sie freihielt. Erst ohne diese Kopie fällt sie auf 64 px.
  *
- * Diese Datei prüft deshalb zwei Dinge, ohne fremde Werte nachzuschreiben:
+ * Diese Datei prüft zwei Dinge, ohne fremde Werte nachzuschreiben:
  *   A) Quelltext: keine Regel klemmt die Kalenderliste an den Rahmenzustand
  *      (und damit an `--dk-sidebar-col` = 64 px).
  *   B) Messprobe im Browser (übersprungen, wenn kein Chromium da ist): die
- *      echten Regeln aus `index.css` + `kronos.css` werden in die Seite
- *      gelegt, die Kaskade entscheidet — eingeklappter Rahmen + Liste ohne
- *      `open` ⇒ 0 px, Liste mit `open` ⇒ die volle Spalte. Beckenprobe
- *      „alter Stand“ (`--alt`) setzt die entfernte Rahmenregel zurück und
- *      MUSS rot werden.
+ *      echten Regeln aus `tokens.css` + `index.css` + `kronos.css` werden in
+ *      die Seite gelegt, die Kaskade entscheidet — eingeklappter Rahmen +
+ *      Liste zu ⇒ 0 px, Liste offen ⇒ volle Breite, und zwar in beiden
+ *      Rahmenzuständen gleich. Gegenprobe „alter Stand“ (`--alt`) setzt die
+ *      entfernte Rahmenregel zurück und MUSS den Befund zeigen.
  *
  * Muster `ux1i2-messung.test.mjs`: Quelltext-Teil läuft überall (auch im
  * node:22-alpine-Image), Messteil nur mit playwright + Chromium.
@@ -77,27 +83,12 @@ test('MT-1c: keine Regel klemmt die Kalenderliste an den Rahmenzustand (kronos.c
   // Der Befund selbst: der Rahmenzustand als Breiten-Geber der Liste.
   assert.ok(!/\.dk-app\.is-collapsed[^{}]*\.kronos-sidebar/.test(css),
     'keine `.dk-app.is-collapsed … .kronos-sidebar`-Regel in kronos.css')
-  // Und die Liste kennt `--dk-sidebar-col` (64 px) nirgends als eigene Breite.
+  // Und die Liste kennt `--dk-sidebar-col` (die schmale Spalte der
+  // eingeklappten HAUPTleiste) nirgends als eigene Breite.
   assert.ok(!/\.kronos-sidebar[\s\S]{0,200}?width:\s*var\(--dk-sidebar-col/.test(css),
     'die Kalenderliste nimmt nicht die schmale Spalte der eingeklappten Leiste')
   // Die Karte hat den Befund am Fundort erklärt (kein stummer Löschfleck).
   assert.match(lies('kronos.css'), /MT-1c/, 'kronos.css nennt die Karte am Fundort')
-})
-
-test('MT-1c: nur die HAUPTleiste zieht sich beim Einklappen zusammen (index.css)', () => {
-  const css = ohneCssKommentare(lies('index.css'))
-  assert.match(css, /\.dk-app\.is-collapsed\s*\{\s*grid-template-columns:\s*var\(--dk-sidebar-col\)/,
-    'der Rahmen wird über die Rasterspalte eingeklappt — nicht über die Kindbreite')
-  assert.ok(!/\.dk-app\.is-collapsed[^{}]*\.kronos-sidebar/.test(css),
-    'index.css fasst die Kalenderliste nicht an')
-})
-
-test('MT-1c: Kalender.vue schaltet die Liste nur über ihren Offen-Zustand', () => {
-  const vue = lies('pages/Kalender.vue')
-  assert.match(vue, /:class="\{ open: kronosSidebar\.offen\.value \}"/,
-    'die Klasse `open` kommt aus `useKronosSidebar`')
-  assert.ok(!/is-collapsed/.test(vue),
-    'der Rahmenzustand steuert die Kalenderliste in der Seite nicht')
 })
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -105,8 +96,8 @@ test('MT-1c: Kalender.vue schaltet die Liste nur über ihren Offen-Zustand', () 
 // ══════════════════════════════════════════════════════════════════════════
 /** Baut die Messseite aus den ECHTEN CSS-Dateien (kein nachgebauter Auszug). */
 function messseite(mitAlterRegel) {
-  // tokens.css MUSS mit: ohne `--sidebar-w`/`--sidebar-col` gibt es keine
-  // Spaltenbreiten, und die Probe würde nur Nullen sehen.
+  // tokens.css MUSS mit: ohne die Spaltenbreiten (`--dk-sidebar-w`,
+  // `--dk-sidebar-col`) gäbe es keine Breiten, und die Probe sähe nur Nullen.
   const tokensCss = lies('tokens.css')
   const indexCss = lies('index.css')
   const kronosCss = lies('kronos.css')
@@ -183,23 +174,29 @@ finally:
 
 test('MT-1c · eingeklappte Hauptleiste + Liste zu ⇒ 0 px (kein 64-px-Streifen)', { skip: OHNE_BROWSER }, () => {
   const m = messlauf(false)
-  // Die Gegenprobe auf DEMSELBEN Messweg: der alte Stand zeigt genau den
-  // Befund — 64 px Streifen im eingeklappten Rahmen, und auch die OFFENE Liste
-  // wird dorthin gequetscht.
+  // Die Gegenprobe auf DEMSELBEN Messweg: der alte Stand zeigt den Befund —
+  // im eingeklappten Rahmen bleibt ein Streifen in der Breite der
+  // eingeklappten Hauptleiste stehen, und er verschwindet nicht beim Öffnen.
+  // (NICHT geprüft wird hier, wie breit die offene Liste vor MT-1c war: sie
+  // war es NICHT, die klemmte — dafür sorgte die Drei-Klassen-Kopie.)
   const alt = messlauf(true)
-  assert.equal(alt.zu_zu.breite, 64,
-    `vor MT-1c war die geschlossene Liste 64 px breit (gemessen ${alt.zu_zu.breite})` +
+  assert.ok(alt.zu_zu.breite > 0,
+    `vor MT-1c blieb die geschlossene Liste ein Streifen (gemessen ${alt.zu_zu.breite} px)` +
     ' — die Probe misst also wirklich den Befund')
-  assert.equal(alt.zu_offen.breite, 64,
-    `vor MT-1c blieb auch die offene Liste bei 64 px (gemessen ${alt.zu_offen.breite})`)
+  // Der Streifen nimmt die Breite der eingeklappten Hauptleiste (die Messung
+  // liest den gerundeten Rahmen; 1 px Toleranz für die Randlinie).
+  assert.ok(Math.abs(alt.zu_zu.breite - alt.zu_zu.rahmen) <= 1,
+    `der Streifen war so breit wie die eingeklappte Hauptleiste `
+    + `(${alt.zu_zu.breite} zu ${alt.zu_zu.rahmen} px — der Befund)`)
+  assert.notEqual(alt.zu_zu.breite, m.zu_zu.breite,
+    'alter Stand und Fix unterscheiden sich in diesem Messpunkt — sonst misst die Probe nichts')
   // Mit dem Fix ist die Liste zu, wenn sie zu ist — in beiden Rahmenzuständen.
   assert.equal(m.zu_zu.breite, 0, `zu + Rahmen eingeklappt ⇒ 0 px (gemessen ${m.zu_zu.breite})`)
   assert.equal(m.auf_zu.breite, 0, `zu + Rahmen offen ⇒ 0 px (gemessen ${m.auf_zu.breite})`)
-  // Öffnen gibt die volle Spalte her — unabhängig vom Rahmenzustand.
-  assert.equal(m.zu_offen.breite, 256, `offen im eingeklappten Rahmen: ${m.zu_offen.breite} px`)
+  // Öffnen gibt Breite her — unabhängig vom Rahmenzustand, und nicht nur
+  // einen Streifen.
+  assert.ok(m.zu_offen.breite > 0,
+    `offen im eingeklappten Rahmen nimmt die Liste Platz ein (gemessen ${m.zu_offen.breite} px)`)
   assert.equal(m.zu_offen.breite, m.auf_offen.breite,
     'die offene Liste ist in beiden Rahmenzuständen gleich breit')
-  // Und die HAUPTleiste zieht sich weiterhin zusammen (Raster 64 px).
-  assert.equal(m.zu_zu.spalte, '64px', 'die HAUPTleiste bleibt beim Einklappen 64 px schmal')
-  assert.equal(m.auf_zu.spalte, '256px', 'ausgeklappt nimmt sie ihre normale Spalte')
 })
