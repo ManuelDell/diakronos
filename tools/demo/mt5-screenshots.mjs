@@ -40,8 +40,10 @@ const ZIEL = process.env.ZIEL || '/ausgabe'
 const EMAIL = process.env.ADMIN_EMAIL || 'admin@example.org'
 const PASSWORT = process.env.ADMIN_PASS || 'musterhausen-demo'
 
-/** Zehn Jahre voraus, 2. Januar: dort hat der Seed nichts eingetragen, und der
- *  Tag liegt im Sechs-Wochen-Raster des Mini-Monats (26.12.–06.01.). */
+/** Zehn Jahre voraus, 3. Januar (die Adresse der Seite kennt kein Datum —
+ *  angesteuert per Monatsschritt, s. `zuLeeremZeitraum`): dort hat der Seed
+ *  nichts eingetragen, und der Tag liegt im Sechs-Wochen-Raster des
+ *  Mini-Monats. */
 const LEER_JAHR = Number(process.env.MT5_LEER_JAHR || (new Date().getFullYear() + 10))
 const LEER_TAG = `${LEER_JAHR}-01-03`
 

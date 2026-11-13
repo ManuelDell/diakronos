@@ -192,16 +192,31 @@ function zeilenHerrichten() {
  * HTML-Zeichenkette sähe wie eine Kopie aus, die die Gestaltung nicht erbt
  * (Review 11.11.). Die Bibliothek nimmt `{ domNodes: [...] }` und hängt die
  * Knoten selbst ein (`Si` im Bundle: `t.replaceChildren(...e.domNodes)`).
+ *
+ * MT-5b — Die App-Instanz wird gemerkt und beim Verlassen der Seite abgebaut
+ * (`onBeforeUnmount`): die Bibliothek baut ihren Kasten mit `destroy()` ab,
+ * eine laufende Vue-App bliebe sonst je Seitenbesuch zurück (kleines Leck).
  */
+let leerzustandApp = null
+
 function leerzustandKnoten() {
+  if (leerzustandApp) leerzustandAppAbbauen()
   const halter = document.createElement('div')
   halter.className = 'dk-kalender-leer'
   // Eigene App-Instanz: die Bibliothek baut ihren Kasten außerhalb des
   // Bauteils ab und ein (Vorbild: die „⋯“-Menüs weiter unten, `createApp`).
   const app = createApp({ render: () => h(DkEmpty, leerzustandInhalt()) })
-  app.config.warnHandler = () => {}
   app.mount(halter)
+  leerzustandApp = app
   return { app, el: halter }
+}
+
+/** Baut die Leerzustand-App ab (Verlassen der Seite, Neuaufbau). */
+function leerzustandAppAbbauen() {
+  const app = leerzustandApp
+  leerzustandApp = null
+  if (!app) return
+  try { app.unmount() } catch { /* schon abgebaut */ }
 }
 
 /** Meldung des Abgleichs: dieser Halter wird nicht behalten — Rahmen weg. */
@@ -1318,6 +1333,9 @@ onBeforeUnmount(() => {
   if (calendar.value && typeof calendar.value.destroy === 'function') {
     calendar.value.destroy()
   }
+  // MT-5b: Der Baum der Bibliothek ist mit `destroy()` weg — die Vue-App des
+  // Leerzustands wird hier abgebaut (sonst bliebe sie je Seitenbesuch zurück).
+  leerzustandAppAbbauen()
 })
 
 watch(() => props.selectedCalendars, () => {

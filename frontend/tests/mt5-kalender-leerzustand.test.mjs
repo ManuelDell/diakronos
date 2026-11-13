@@ -47,9 +47,11 @@ const L = await import(pathToFileURL(path.join(SRC, 'components/kronos/kalenderL
 
 // ── Wächter für englische Bibliothekstexte ────────────────────────────────
 // Eigene Kopie statt eines Exports aus dem Quellmodul (Review 11.11., Punkt 4):
-// die Prüfung wird im Betrieb nirgends gebraucht, nur für Belege. Dieselbe
-// Wortliste steht im Beleg-Skript `tools/demo/mt5-screenshots.mjs`; Test F
-// hält beide deckungsgleich.
+// die Prüfung wird im Betrieb nirgends gebraucht, nur für Belege.
+// ACHTUNG — keine Deckungsgleichheit mit dem Beleg-Skript: die Liste in
+// `tools/demo/mt5-screenshots.mjs` führt FÜNF Wörter (dazu „All Day“ und
+// „Today“), dieser Wächter prüft bewusst nur die DREI Wortfamilien, die die
+// Bibliothek hier selbst setzt. Test F belegt nur die eigene Liste.
 const ENGLISCHE_MUSTER = [
   { name: 'no-events', re: /\bNo events\b/i },
   { name: 'all-day', re: /\ball[- ]day\b/i },
@@ -301,20 +303,23 @@ test('MT-5 · F: Gegenprobe — englische Bibliothekstexte werden erkannt', () =
   assert.deepEqual(englischeBibliothekstexte('Today'), [],
     'ein Termin darf „Today“ heißen — der Wächter springt darauf nicht an')
   // Die Beleg-Wortliste im Skript `tools/demo/mt5-screenshots.mjs` liegt
-  // AUSSERHALB von frontend/ (Regel 13) — im Abbild nicht lesbar. Hier steht
-  // deshalb nur der Hinweis, welche Wörter beide Fassungen führen müssen.
+  // AUSSERHALB von frontend/ (Regel 13) — im Abbild nicht lesbar. Sie ist auch
+  // NICHT deckungsgleich: dort stehen fünf Wörter („All Day“ und „Today“
+  // zusätzlich, weil das Skript nur das Bibliotheks-Gerüst prüft). Hier zählt
+  // allein die eigene Liste.
   assert.deepEqual(ENGLISCHE_MUSTER.map((m) => m.name), ['no-events', 'all-day', 'more'],
-    'Beleg-Skript und Test führen dieselben drei Wortfamilien')
+    'der Wächter prüft die drei Wortfamilien der Bibliothek')
 })
 
 // ══════════════════════════════════════════════════════════════════════════
-// G · Beleg-Nachweis (Review 11.11., Punkt 6): ein ECHTER Zeitraum ohne Termine
+// G · Die Mobil-Liste (A10) bleibt deutsch — Fremdbausteine, NICHT das Beleg-Skript
 // ══════════════════════════════════════════════════════════════════════════
-test('MT-5 · G: Beleg-Skript misst einen echten terminlosen Zeitraum, keinen Filter-Trick', () => {
-  // Das Skript liegt unter tools/demo/ (ausserhalb frontend/, Regel 13) —
-  // geprüft wird hier nur die ANGABE FÜR DEN OPERATOR: es springt per
-  // Monatsschritt in einen leeren Zeitraum und lässt die Kalender-Häkchen an.
-  // Der Lauf selbst ist im Kartenkommentar belegt (Bilder + Bericht-JSON).
+test('MT-5 · G: Mini-Monat stellt den Monat weiter, Mobile-Liste bleibt deutsch', () => {
+  // Umbenannt (MT-5b): der frühere Name sprach vom Beleg-Skript, geprüft
+  // werden hier aber FREMDE Bausteine — das Skript selbst liegt unter
+  // tools/demo/ (ausserhalb frontend/, Regel 13) und ist hier nicht lesbar.
+  // Der Blätter-Weg der Oberfläche (Mini-Monat → Seite → Bibliothek) ist die
+  // Angabe für den Operator.
   const quelle = lies('components/kronos/KalenderMiniMonat.vue')
   assert.match(quelle, /\$emit\('vor'\)/, 'Mini-Monat kann den Monat weiterstellen')
   const seite = lies('pages/Kalender.vue')

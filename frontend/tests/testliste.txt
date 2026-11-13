@@ -401,6 +401,12 @@ tests/mt4-*.test.mjs
 # Wächter: kein englischer Bibliothekstext (No events / all-day / +n more),
 # Gegenprobe im selben Test.
 tests/mt5-*.test.mjs
+# MT-5b: Der Leerzustand wird beim Verlassen der Seite abgebaut (kein Leck je
+# Seitenbesuch, Verhaltenstest in jsdom mit Attrappe der Bibliothek) und der
+# verschluckende `config.warnHandler` ist weg. Muster `tests/mt5-*.test.mjs`
+# greift NICHT: die Hülle expandiert die Liste in /bin/sh, und dort ist
+# `mt5b-…` ein anderer Dateiname als `mt5-…` — deshalb eigene Zeile.
+tests/mt5b-*.test.mjs
 
 # MT-8: Abmelden fuehrt NIE auf eine Anbieterseite (Authentik). Danach die
 # ausdruecklich konfigurierte oeffentliche Website (PRIMO_PUBLIC_URL, absolut)
