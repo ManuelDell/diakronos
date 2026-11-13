@@ -298,6 +298,13 @@ tests/a10n3-*.test.mjs
 # statt auf den ersten Frame, Dev-Abzeichen komplett auf main-Stand, und
 # --heute-flaeche/--heute-zelle sind in hell UND dunkel deckend.
 tests/a10n4-*.test.mjs
+# MINIMONAT-1 (Nebenbefund MT-5): Die Pfeile ‹ › des Mini-Monats blätterten in
+# der Listenansicht nicht — die Seite reichte das Ereignis an den Raster-Halter
+# weiter, dessen Baustein dort aber gar nicht gemountet ist (`calendarRef`
+# null). Die Seite bewegt den Monat jetzt selbst (`schrittMitTag`: Monat plus
+# geklemmter Tag), die Terminquelle hat einen Laufzähler; der Desktop-
+# Mini-Monat bleibt unberührt.
+tests/minimonat1-blaettern.test.mjs
 # A11: Termin-Blatt auf dem Handy nach Entwurf A11 — Tipp auf einen Termin
 # öffnet ein Blatt von unten (Kalender 42 % abgedunkelt), Titel · Zeit · Ort ·
 # Kalender · Beschreibung · Status; „Freigeben“ als EINER Primärknopf,

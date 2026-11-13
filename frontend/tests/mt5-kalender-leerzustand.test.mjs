@@ -323,8 +323,12 @@ test('MT-5 · G: Mini-Monat stellt den Monat weiter, Mobile-Liste bleibt deutsch
   const quelle = lies('components/kronos/KalenderMiniMonat.vue')
   assert.match(quelle, /\$emit\('vor'\)/, 'Mini-Monat kann den Monat weiterstellen')
   const seite = lies('pages/Kalender.vue')
-  assert.match(seite, /@vor="calendarRef\?\.next\(\)"/,
-    'der Pfeil „nächster Monat“ stellt die Bibliothek weiter (derselbe Zustand)')
+  // MINIMONAT-1: Der Pfeil bewegt den HANDY-Monat selbst (`monatVor` →
+  // `monatBewegen`), nicht mehr die Bibliothek — in der Listenansicht ist der
+  // Raster gar nicht gemountet (`calendarRef` = null). Das Verhalten prüft
+  // `tests/minimonat1-blaettern.test.mjs`; hier bleibt nur der Anschluss.
+  assert.match(seite, /@vor="monatVor"/,
+    'der Pfeil „nächster Monat“ ist an den Monatsschritt der Seite angeschlossen')
   // Der Klartext der Mobil-Liste bleibt deutsch und ohne „Event“.
   assert.ok(!/\bNo events\b/.test(lies('components/kronos/KalenderTagesliste.vue')))
   assert.match(lies('components/kronos/KalenderTagesliste.vue'), /An diesem Tag ist nichts eingetragen\./)

@@ -52,8 +52,8 @@
         :lesemodus="lesemodus"
         @tagWechsel="tagWaehlen"
         @heute="aufHeute"
-        @zurueck="calendarRef?.prev()"
-        @vor="calendarRef?.next()"
+        @zurueck="monatZurueck"
+        @vor="monatVor"
         @terminOeffnen="terminOeffnenMobil"
         @terminAktion="onTerminAktion"
         @woche="aufMobilAnsicht('woche')"
@@ -67,11 +67,10 @@
            erst, wenn sie aufgebaut ist — ein Titel außerhalb des Rasters
            stünde für einen Moment (und bei einem Fehler dauerhaft) leer. -->
       <div v-else class="kal-mobil-raster">
-        <!-- Der Rasterhalter steht IMMER im DOM (nur im Monat/Woche-Fall
-             sichtbar): der Kalender-Baustein darf NICHT bei jeder Änderung
-             neu aufgebaut werden — `offscreen` blendet ihn nur aus, statt ihn
-             abzubauen (Vue hängt sonst die Bibliothek samt Zustand ab). -->
-        <div class="kal-mobil-raster-halter" :class="{ offscreen: mobilAnsichtId === 'liste' }">
+        <!-- `v-else` zur Liste: in der Listenansicht ist die Bibliothek NICHT
+             gemountet (deshalb ist `calendarRef` dort null — siehe
+             `monatBewegen`). Der Halter trägt nur noch das Layout. -->
+        <div class="kal-mobil-raster-halter">
           <div class="kal-monat-mobil">
             <h2 class="kal-monat-mobil-titel">{{ monat }}<span v-if="!monat" class="ist-ladend" aria-hidden="true">···</span></h2>
             <span class="kal-monat-mobil-bewegung">
@@ -106,7 +105,7 @@
             @select="onSelect"
             @datesSet="onDatesSet"
             @viewChange="onCalendarViewChange"
-            @bereit="rasterBereit = true"
+            @bereit="rasterSteht"
           />
           <!-- A10-N2 (Punkt 2): Bis die Bibliothek steht, liegt ein ruhiger
                Zustand über der Fläche — sonst wirkte der Monat beim Umschalten
@@ -373,6 +372,7 @@ import {
   heuteText,
   istAnsicht,
   monatsSchluessel,
+  schrittMitTag,
   standardLesen,
   standardSetzen,
 } from '../components/kronos/mobilAnsicht.mjs'
@@ -1030,6 +1030,12 @@ function standardLaden() {
  * benutzen; kein neuer Endpunkt.
  */
 async function mobilTermineLaden() {
+  // Laufzähler (MINIMONAT-1, Review): Blättern, Tageswechsel und „Heute“ lösen
+  // kurz hintereinander Läufe aus (Mini-Monat-Spanne, Tag, Ansicht). Ohne
+  // Zähler gewinnt die zuletzt EINTREFFENDE Antwort — im Wegwerf-Stack
+  // gemessen: ein Monat ohne Punkte trotz Termin, hell und dunkel verschieden
+  // viele Punkte bei gleichen Daten. Nur der JÜNGSTE Lauf darf schreiben.
+  const nr = ++ladeNr
   // Zeitraum: die sechs Wochen des Mini-Monats (er meldet sie über `spanne`);
   // ohne Meldung die Wochen des gezeigten Monats.
   let vonTag
@@ -1054,12 +1060,15 @@ async function mobilTermineLaden() {
       view_mode: store.isViewMode.value,
     })
     const liste = Array.isArray(antwort) ? antwort : (antwort?.message || [])
+    if (nr !== ladeNr) return   // ein jüngerer Lauf hat übernommen
     mobilTermine.value = liste.map((t) => ({ ...t, ...(t.extendedProps || {}) }))
   } catch (_) {
+    if (nr !== ladeNr) return
     // Still leer: der Mini-Monat ohne Punkte ist ehrlicher als eine Meldung
     // über einem Bereich, der sich durch Antippen von „Heute“ neu holt.
     mobilTermine.value = []
   }
+  if (nr !== ladeNr) return
   await pruefIdsLaden()
 }
 
@@ -1089,6 +1098,60 @@ function aufMobilAnsicht(id) {
     mobilMonat.value = String(gewaehlterTag.value).slice(0, 7)
     mobilTermineLaden()
   }
+}
+
+/**
+ * MINIMONAT-1: Der Mini-Monat blättert selbst (`schrittMitTag`), die
+ * Tagesliste zieht mit.
+ *
+ * Befund (am Code gemessen, vom Review bestätigt): Vorher reichte die Seite
+ * `@zurueck`/`@vor` an `calendarRef.prev()/next()` weiter — den Halter des
+ * RASTERS. Der Raster-Baustein hängt aber an `v-else` zur Liste: in der
+ * Listenansicht ist er NICHT gemountet, `calendarRef` ist dort `null`, und der
+ * Tipp tat lautlos nichts. (Eine frühere Notiz hier beschrieb eine Kette über
+ * das `datesSet` des Rasters — die tritt in der Listenansicht nicht auf, weil
+ * es den Raster dort nicht gibt.) Jetzt rechnet die Seite den Schritt selbst:
+ * Monat und gewählter Tag wandern gemeinsam (`schrittMitTag`), die Bibliothek
+ * bleibt unberührt und behält ihren Anker.
+ *
+ * Geladen wird NICHT hier: `mobilMonat` verschiebt die sechs Wochen des
+ * Mini-Monats, er meldet die neue Spanne über `spanne` → `spanneWechseln` →
+ * `mobilTermineLaden`. Ein zweiter Aufruf von hier liefe noch mit der ALTEN
+ * Spanne und überschriebe die richtige Antwort (im Wegwerf-Stack gemessen:
+ * Monat ohne Punkte trotz Termin, hell und dunkel verschieden viele Punkte).
+ */
+function monatBewegen(schritte) {
+  const neu = schrittMitTag(mobilMonat.value, gewaehlterTag.value, schritte)
+  if (!neu.monat || neu.monat === mobilMonat.value) return
+  mobilMonat.value = neu.monat
+  // Denselben Tag im neuen Monat wählen, geklemmt auf dessen Länge (31. →
+  // 30./28.): die Tagesliste zeigt sonst weiter einen Tag, der nicht im
+  // gezeigten Monat liegt.
+  gewaehlterTag.value = neu.tag
+}
+
+/** Mini-Monat: ‹ einen Monat zurück. */
+function monatZurueck() {
+  monatBewegen(-1)
+}
+
+/** Mini-Monat: › einen Monat vor. */
+function monatVor() {
+  monatBewegen(1)
+}
+
+/**
+ * Das Raster steht (`@bereit` der Bibliothek, einmal je Aufbau).
+ *
+ * A10-N2: bis dahin liegt der ruhige Ladezustand über der Fläche.
+ * MINIMONAT-1 (Review): Wer in der Liste bis Januar blättert und dann auf
+ * „Monat“ wechselt, bekommt das Raster OHNE Startdatum neu aufgebaut — es
+ * zeigte den heutigen Monat, nicht den geblätterten. Deshalb springt es hier
+ * auf den gewählten Tag; danach gilt wieder `datesSet` als Wahrheit.
+ */
+function rasterSteht() {
+  rasterBereit.value = true
+  if (gewaehlterTag.value) calendarRef.value?.gotoDate(gewaehlterTag.value)
 }
 
 /** Mini-Monat meldet seine sechs Wochen: Termine GENAU dafür holen. */
@@ -1144,6 +1207,8 @@ function zurPruefTafel() {
  * Mini-Monat braucht Punkte auch für die Randtage.
  */
 const listenSpanne = ref(null)
+/** Zähler der Termin-Läufe (nur der jüngste schreibt, siehe `mobilTermineLaden`). */
+let ladeNr = 0
 
 /** A10: Das Blatt lädt die vollständigen Daten des Termins nach. */
 const ansichtLaedt = ref(false)
@@ -1775,12 +1840,6 @@ defineExpose({
   flex: 1 1 auto;
   min-height: 100%;
   position: relative;
-}
-/* Die Listen-Ansicht steht an seiner Stelle: der Rasterhalter bleibt im DOM
-   (die Bibliothek sonst ab- und wieder aufbauen würde), ist aber ganz weg —
-   auch für Vorlesehilfe und Tastatur. */
-.kal-mobil-raster-halter.offscreen {
-  display: none;
 }
 /* Ladezustand: ruhiger Text unter der Monatszeile, keine leere Fläche. */
 /* Ruhiger Aufbau-Zustand (drei Balken, kein Text — UX2d3a): sieht aus wie ein

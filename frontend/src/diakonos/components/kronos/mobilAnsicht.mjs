@@ -257,6 +257,62 @@ export function monatsSchluessel(wert = new Date()) {
   return tagText(d).slice(0, 7)
 }
 
+/**
+ * Der Mini-Monat eine Monats-Bewegung weiter (`JJJJ-MM`).
+ *
+ * MINIMONAT-1 (gemessen): Der Empfänger der Pfeile ‹ › war
+ * `calendarRef.prev()/next()` — der Halter des RASTERS. In der Listenansicht
+ * ist der Raster-Baustein aber gar nicht gemountet (`v-else` zur Liste),
+ * `calendarRef` ist dort `null`: der Tipp tat lautlos nichts. Die Bewegung
+ * rechnet deshalb die Seite selbst, mit DIESER Funktion: reine
+ * Monatsarithmetik über die Jahresgrenze, ohne Tag und ohne Uhrzeit (der 31.
+ * eines Monats darf den Februar nicht überspringen — das macht
+ * `schrittMitTag`).
+ *
+ * @param {string} monat  `JJJJ-MM`
+ * @param {number} schritte  ganze Monate, positiv = vor, negativ = zurück
+ * @returns {string} `JJJJ-MM`; '' bei unbrauchbarem Ausgangswert
+ */
+export function monatsSchritt(monat, schritte = 1) {
+  const m = String(monat || '').match(/^(\d{4})-(\d{2})$/)
+  if (!m) return ''
+  const nummer = Number(m[2])
+  if (!(nummer >= 1 && nummer <= 12)) return ''
+  const n = Number(schritte)
+  if (!Number.isFinite(n)) return ''
+  const gesamt = (Number(m[1]) * 12 + (nummer - 1)) + Math.trunc(n)
+  const jahr = Math.floor(gesamt / 12)
+  const monatNr = gesamt - jahr * 12 + 1
+  return `${String(jahr).padStart(4, '0')}-${String(monatNr).padStart(2, '0')}`
+}
+
+/**
+ * Der Mini-Monat eine Monats-Bewegung weiter — Monat UND gewählter Tag.
+ *
+ * MINIMONAT-1: Die Seite braucht beides zusammen. Der gezeigte Monat wandert,
+ * der gewählte Tag soll derselbe bleiben (die Tagesliste zeigt sonst weiter
+ * einen Tag, der nicht im gezeigten Monat liegt), und er wird auf die Länge des
+ * Zielmonats geklemmt (31. Januar → 28. Februar). Reine Rechnung ohne Uhrzeit
+ * und ohne `Date`-Arithmetik über Mitternacht.
+ *
+ * @param {string} monat  `JJJJ-MM`
+ * @param {string} tag  `JJJJ-MM-TT` (der gewählte Tag; darf fehlen)
+ * @param {number} schritte  ganze Monate, positiv = vor, negativ = zurück
+ * @returns {{monat: string, tag: string}} neuer Monat und geklemmter Tag;
+ *   `{ monat: '', tag: '' }` bei unbrauchbarem Ausgangswert
+ */
+export function schrittMitTag(monat, tag, schritte = 1) {
+  const neuerMonat = monatsSchritt(monat, schritte)
+  if (!neuerMonat) return { monat: '', tag: '' }
+  const jahr = Number(neuerMonat.slice(0, 4))
+  const monatNr = Number(neuerMonat.slice(5, 7))
+  // Tag 0 des Folgemonats = letzter Tag des Zielmonats (Schaltjahr inklusive).
+  const tageImMonat = new Date(jahr, monatNr, 0, 12).getDate()
+  const gewuenscht = Number(String(tag || '').slice(8, 10)) || 1
+  const tagNr = Math.min(Math.max(gewuenscht, 1), tageImMonat)
+  return { monat: neuerMonat, tag: `${neuerMonat}-${String(tagNr).padStart(2, '0')}` }
+}
+
 const MONATE = [
   'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
   'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
@@ -539,6 +595,8 @@ export default {
   tagText,
   heuteText,
   monatsSchluessel,
+  monatsSchritt,
+  schrittMitTag,
   monatsTitel,
   tagTitel,
   tagKurz,
