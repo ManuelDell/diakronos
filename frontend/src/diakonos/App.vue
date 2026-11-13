@@ -18,7 +18,7 @@
       <span class="impersonation-timer">{{ remainingTime }}</span>
       <button class="impersonation-stop" @click="stopImpersonation">✕ Beenden</button>
     </div>
-    <div class="dk-app" :class="{ 'is-collapsed': sidebarCollapsed, 'has-impersonation-banner': impersonation.isActive.value, 'dk-app--vollbild': isVollbildMode, [HANDY_KLASSE]: istHandyLage }" :data-theme="theme">
+    <div class="dk-app" :class="{ 'is-collapsed': sidebarCollapsed, 'has-impersonation-banner': impersonation.isActive.value, 'dk-app--vollbild': isVollbildMode, 'dk-app--dev': devStartZeigen, [HANDY_KLASSE]: istHandyLage }" :data-theme="theme">
       <!-- OP-UI-11: Das Hauptmenü bleibt in JEDER Ansicht dasselbe. Vorher
            tauschte der Kalender (und die Moderation) die Hauptnavigation
            gegen eine eigene Leiste; „Zur Hauptnavigation“ warf den Nutzer
@@ -35,10 +35,20 @@
           :collapsed="sidebarCollapsed"
           :menue-offen="menueOffen"
           :rollen-marke="rollenMarke"
+          :dev-knopf="devStartZeigen && istHandyLage"
           @toggle-collapse="sidebarCollapsed = !sidebarCollapsed"
           @open-menu="menueOeffnen"
           @suche="befehlspalette?.oeffnen()"
-        />
+        >
+          <!-- DEVBADGE-1: der Dev-Einschaltknopf als EINTRAG DER KOPFZEILE in
+               der Handy-Lage (kein schwebendes Element, kein Verdecken).
+               `istHandyLage` ist dieselbe Quelle, an der die Gerüst-Klasse
+               `.dk-app--handy` hängt (DEV-B6) — der Knopf steht hier genau
+               dann, wenn auch die Handy-Regeln greifen. -->
+          <template #dev-knopf>
+            <DevStart :im-kopf="true" />
+          </template>
+        </AppTopbar>
         <!-- OP-HANDY-24: Fortschrittsbalken während des Seitenwechsels. Bei
              langsamem Netz blieb sonst die alte Seite ohne jede Rückmeldung
              stehen; erst der fertig geladene Chunk wechselte das Bild. -->
@@ -100,8 +110,17 @@
          Dev-Modus existiert hier nichts und es wird auch nichts nachgeladen. -->
     <DevRahmen v-if="devmodusAn" />
     <!-- DM1: Einschalt-Knopf — nur wenn der Server den Dev-Modus erlaubt und
-         der Nutzer berechtigt ist, aber noch keine Dev-Sitzung laeuft. -->
-    <DevStart v-else-if="devmodusVerfuegbar" />
+         der Nutzer berechtigt ist, aber noch keine Dev-Sitzung laeuft
+         (`devStartZeigen`; main hatte das als `v-else-if` zum Dev-Rahmen).
+         DEVBADGE-1: In der Handy-Lage MIT Kopfzeile gibt es KEIN schwebendes
+         Element — der Knopf steht dann als Eintrag in der Kopfzeile (Slot
+         `dev-knopf` an `AppTopbar`), wie die Karte es als zweite Form erlaubt.
+         Desktop bleibt unten rechts. DEVBADGE-1b: In der Einrichtung
+         (`#/einrichtung`, Vollbild ohne Kopfzeile) gibt es keinen Slot — dort
+         bleibt der Knopf die schwebende Form wie auf main, sonst waere er am
+         Handy gar nicht erreichbar. Dieselbe Bedingung (`devStartZeigen`)
+         schaltet die Geruest-Klasse `dk-app--dev` an der Wurzel. -->
+    <DevStart v-if="devStartZeigen && (!istHandyLage || isVollbildMode)" />
     <AppBottomNav v-if="!isVollbildMode" :seite="currentPageName" />
     <!-- UX3e (Entwurf A9): Menü-Schublade — nur wenn es einen Menü-Knopf gibt,
          der sie öffnet: in der LEISTEN-Lage (`istHandyLage`). MT-1 (Manuel
@@ -174,6 +193,29 @@ const DevStart = defineAsyncComponent(() => import('./components/devmodus/DevSta
 
 const { istTester: istTesterRef, devmodeAn: serverDevmodeRef } = useSession()
 const devmodusVerfuegbar = computed(() => Boolean(istTesterRef?.value && serverDevmodeRef?.value))
+/**
+ * DEVBADGE-1 (Review 11.11., Punkt 1): EINE Bedingung für BEIDE Orte des
+ * Einschaltknopfs (fester Rahmen unten rechts am Desktop, Eintrag der
+ * Kopfzeile am Handy). Ohne `!devmodusAn` stand der Knopf neben einem
+ * LAUFENDEN Dev-Rahmen und ein zweiter Klick rief `sitzungStarten` erneut auf.
+ * main hatte die Bedingung am `v-else-if` des Rahmens — hier ist sie ein
+ * computed, weil der Knopf zwei Stellen hat.
+ */
+const devStartZeigen = computed(() => devmodusVerfuegbar.value && !devmodusAn.value)
+/**
+ * DEVBADGE-1b (Review Opus, Punkt 2): Die Geruest-Klasse `dk-app--dev` haengt
+ * NUR am SICHTBAREN Dev-Eintrag — also am Einschaltknopf (`devStartZeigen`).
+ * index.css koppelt daran die Kopfzeilen- und FAB-Anpassungen, die es
+ * ausschliesslich fuer diesen Eintrag braucht; ohne Knopf bleibt die
+ * Oberflaeche exakt der main-Stand (Kartenziel: „Dev-Abzeichen verdeckt
+ * nichts“ gilt nur fuer Tester/Admins).
+ * Der LAUFENDE Dev-Rahmen (`devmodusAn`) setzt die Klasse ausdruecklich NICHT:
+ * dann gibt es weder einen Knopf in der Kopfzeile noch ein Abzeichen unten
+ * rechts, also auch nichts, dem der Kopf Platz machen muesste (Review-Messung:
+ * mit laufender Sitzung waren Handy-Rand 12 px, Plakette weg, Desktop-FAB
+ * 60 px — alles ohne sichtbaren Eintrag). Ebenso wenig `devmodusVerfuegbar`:
+ * das bleibt bei laufender Sitzung wahr, obwohl der Knopf unsichtbar ist.
+ */
 
 async function devmodusBeimStart() {
   await devmodusAutostart()

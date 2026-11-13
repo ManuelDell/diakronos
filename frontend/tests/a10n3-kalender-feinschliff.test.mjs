@@ -95,11 +95,17 @@ test('A10-N3 · 1: Punkt absolut zur Zelle unter dem Kreis, Ziffer in jeder Zell
 // ══════════════════════════════════════════════════════════════════════════
 // 2 · Dev-Abzeichen verdeckt keine Bedienelemente
 // ══════════════════════════════════════════════════════════════════════════
-test('A10-N3 · 2: Dev-Abzeichen steht wieder wie auf main (A10-N4 Punkt D)', () => {
+test('A10-N3 · 2: Dev-Abzeichen am Desktop wie auf main (Handy regelt DEVBADGE-1)', () => {
   // A10-N3 hatte das Abzeichen von „unten rechts“ nach „unten links, nur ein
   // Punkt“ verlegt. A10-N4 (Punkt D) nimmt das ZURÜCK: die Kollision mit dem
-  // FAB am Handy wird in einer EIGENEN Karte gelöst, nicht hier. Dieser Test
-  // hält deshalb den main-Stand fest — nicht den A10-N3-Zwischenstand.
+  // FAB am Handy wird in einer EIGENEN Karte gelöst, nicht hier.
+  // DEVBADGE-1 (11.11.) ist diese eigene Karte — sie verlegt das Abzeichen am
+  // Handy aus dem schwebenden Rahmen in die KOPFZEILE (Eintrag statt Overlay;
+  // ein schwebendes „oben rechts“ kollidierte im Wegwerf-Stack mit dem
+  // Mobil-Kopf des Kalenders) und lässt unten rechts als Desktop-Grundlage
+  // stehen. Der Test wurde deshalb ANGEPASST, nicht gelöscht (Regel 19): die
+  // main-Regeln unten rechts gelten weiter, die Handy-Form ist jetzt gewollt
+  // (eigener Wächter: `tests/devbadge1-devabzeichen.test.mjs`).
   const dev = lies('components/devmodus/DevStart.vue')
   const block = dev.slice(dev.indexOf('.dk-dev-start {'), dev.indexOf('.dk-dev-start-punkt {'))
   assert.match(block, /position:\s*fixed/, 'schwebend')
@@ -107,11 +113,21 @@ test('A10-N3 · 2: Dev-Abzeichen steht wieder wie auf main (A10-N4 Punkt D)', ()
   assert.match(block, /bottom:\s*10px/, 'unten rechts wie auf main')
   assert.match(block, /box-shadow:\s*var\(--dev-flaeche-schatten\)/, 'Plakette mit Schatten (main)')
   assert.ok(!/pointer-events:\s*none/.test(block), 'keine unsichtbare Trefferzone mehr (main)')
-  assert.ok(!/--treffer-handy/.test(block), 'kein 44-px-Sonderweg mehr (main)')
-  assert.ok(!/dk-app--handy/.test(dev), 'keine Handy-Sonderregel (Kollision folgt in eigener Karte)')
-  // Der Abstand zum FAB am Handy bleibt damit der main-Stand (64 px Leiste).
-  assert.match(dev, /@media \(max-width: 480px\) \{\s*\.dk-dev-start \{ bottom: calc\(64px \+ 8px\); \}/,
-    'Handy-Anker wie auf main')
+  // DEVBADGE-1: 44 px Treffer und die Handy-Form sind jetzt GEWOLLT — aber
+  // NICHT im Grundblock, sondern ausschließlich in der Kopfzeilen-Form
+  // (`.dk-dev-start--kopf`, vom Aufrufer gesetzt).
+  assert.ok(!/--treffer-handy/.test(block), 'kein 44-px-Sonderweg im Grundblock (main)')
+  assert.ok(!/dk-app--handy/.test(block), 'keine Handy-Regel im Grundblock (main)')
+  // DEVBADGE-1b (Review Opus, Punkt 6): Der frühere Handy-Abstand der festen
+  // Form war toter Code — in der Handy-Lage steht der Knopf in der Kopfzeile.
+  // Seit DEVBADGE-1b steht die feste Form am Handy zwar in der EINRICHTUNG
+  // wieder (Vollbild ohne Kopfzeile, Punkt 3), dort gibt es aber keine untere
+  // Leiste — der Abstand wäre also weiter falsch. Die Regel ist ENTFERNT; der
+  // main-Stand `bottom: 10px` oben gilt jetzt überall, wo die feste Form steht.
+  assert.ok(!/\.dk-dev-start:not\(\.dk-dev-start--kopf\)/.test(dev.replace(/\/\*[\s\S]*?\*\//g, '')),
+    'tote Handy-Regel der festen Form ist entfernt (DEVBADGE-1b Punkt 6)')
+  assert.ok(!/@media \(max-width: 480px\)/.test(dev),
+    'keine reine Breiten-Regel mehr (Review Punkt 7)')
 })
 
 // ══════════════════════════════════════════════════════════════════════════

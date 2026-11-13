@@ -754,6 +754,10 @@ h1, h2, h3, h4 {
 }
 .dk-topbar-left  { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
 .dk-topbar-right { display: flex; align-items: center; gap: 6px; }
+/* DEVBADGE-1: Platz des Dev-Einschaltknopfs am Ende der Kopfzeile (Handy-Lage,
+   Review 11.11. Punkt 2). Der Platz ist GENAU die 44-px-Trefferfläche des
+   Knopfs — kein Wort, das den Seitentitel verdraengt; er schrumpft nie. */
+.dk-topbar-dev { display: flex; align-items: center; flex: none; }
 .dk-topbar-divider { width: 1px; height: 20px; background: var(--dk-divider); margin: 0 4px; }
 /* UX3f — Suchfeld der Kopfzeile: öffnet die Befehlspalette (Strg+K).
    Ersetzt das tote `.dk-topbar-search` (UXD-R19); Name neu, damit kein
@@ -830,16 +834,84 @@ h1, h2, h3, h4 {
    zwei übereinander (die Seite hat ihren eigenen Titel dafür abgegeben).
    Desktop unverändert (A4 führt keinen Titel in der Kopfzeile). Nur Breite —
    dieselbe Grenze wie das Mobil-Layout oben. */
+/* DEVBADGE-1/1b — Platz für den Dev-Eintrag in der Handy-Kopfzeile.
+   Ausgangslage (Review 11.11., Punkt 2): Am Handy sind es 390 px, davon vier
+   44-px-Ziele rechts; der Dev-Eintrag (44 px, ganz rechts) nahm dem
+   Seitentitel die Endung („Kalende“). Mit Dev-Eintrag gilt deshalb in der
+   Handy-Lage: (1) der Kopf hat 12 px statt 20 px Rand, (2) das Rollen-Abzeichen
+   schrumpft zur knappen Form („Moderator“ braucht 78 px, der Titel 62 — beides
+   passt sonst nicht), (3) der Titel kürzt mit „…“ statt hart abzuschneiden.
+   Die 44-px-Trefferflächen sind davon NICHT betroffen.
+   Der Grund für (1)–(3) ist allein der Dev-Eintrag (Review Opus, Punkt 1) —
+   ohne ihn braucht der Kopf den Platz nicht. Alle diese Regeln tragen deshalb
+   `.dk-app--dev` und stehen UNTEN in einem Block; ohne Dev-Modus gilt exakt
+   der main-Stand: 20 px Rand, die volle Rollen-Plakette auch bei 360/375 px
+   (A10-Abzeichen bleibt), Krumen-Zeile `flex: 1 1 auto` ohne Beschnitt und
+   Titel in der Titelstufe (14/600) — die Plakette sitzt dabei HINTER DEM
+   TITEL, wie auf main (ohne Dev-Kopplung klebte sie an der Suche).
+   Die Basis-Regeln dazwischen (`.dk-app--handy .dk-crumbs` usw.) sind der
+   main-Stand und bleiben ohne Dev-Klasse. */
 .dk-app--handy .dk-crumbs { gap: var(--sp-1); flex: 1 1 auto; min-width: 0; }
 .dk-app--handy .dk-crumb { font-size: var(--fs); font-weight: var(--fw-fett); color: var(--dk-text); }
 .dk-app--handy .dk-crumb-sep,
 .dk-app--handy .dk-crumb-weg { display: none; }
+/* main-Stand (unverändert): der Titel steht in der Titelstufe (14/600) —
+   fett, ohne Beschnitt. Was NUR der Dev-Eintrag nötig macht (schrumpfender
+   Kasten, „…“-Kürzung), steht in den `.dk-app--dev`-Regeln darunter. */
 .dk-app--handy .dk-crumb-current { font-weight: var(--fw-fett); }
+/* Dev-Kopplung (Review Opus, 1. und 2. Runde): Kopf-Rand, Krumen-Kasten und
+   Titel-Beschnitt gelten NUR mit `.dk-app--dev`; die Begründung steht im
+   Blockkopf oben. Das gilt auch für `.dk-crumbs`/`.dk-crumb-current`: ohne
+   diese Klasse blieb die Plakette an der Suche kleben (statt hinter dem
+   Titel wie auf main) und der Titel bekam hart „…“. */
+.dk-app--dev.dk-app--handy .dk-topbar { padding: 0 var(--sp-3); }
+.dk-app--dev.dk-app--handy .dk-crumbs { flex: 0 1 auto; min-width: 0; overflow: hidden; }
+.dk-app--dev.dk-app--handy .dk-crumb-current {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* A10: das Rollen-Abzeichen neben dem Titel („Moderator“). Nur am Handy —
    am Desktop gibt es den Titel in der Kopfzeile nicht, dort führt die
    Seitenleiste. Ohne gemeldete Rolle ist der Halter gar nicht im DOM. */
 .dk-topbar-rolle { display: none; flex: none; }
 .dk-app--handy .dk-topbar-rolle { display: inline-flex; align-items: center; }
+/* DEVBADGE-1 (Review 11.11., Punkt 2): Reicht der Platz nicht, weicht das
+   Rollen-Abzeichen („Moderator“) — nicht der Seitentitel. Am 390-px-Handy
+   blieben dem Titel mit voller Plakette nur 43 px („Kalen…“), obwohl 60 nötig
+   sind. Deshalb MIT Dev-Eintrag in der Handy-Lage: kleinere Schrift und
+   knappes Polster — „Moderator“ wird 78 → 62 px, der Titel behält 70 px und
+   steht damit vollständig. Der Vorlesename bleibt „Moderator“ (nur die
+   Schrift ist kleiner), die Fläche wird nicht beschnitten. Ohne Dev-Eintrag
+   (`.dk-app--dev` fehlt) gilt wieder die volle Plakette wie auf main. */
+.dk-app--dev.dk-app--handy .dk-topbar-rolle .dk-ui-badge {
+  font-size: var(--fs-12);
+  padding: calc(var(--sp-1) / 2) var(--sp-1);
+}
+/* DEVBADGE-1b (Review Opus, 2. Runde — Punkt 1): Der Kasten `.dk-crumbs` ist
+   MIT Dev-Eintrag `flex: 0 1 auto` und darf schrumpfen. Damit die ROLLE
+   (nicht der Titel) den Platz abgibt, steht sie hier auf `flex: 0 1 auto`
+   statt `flex: 0 0 auto`; ohne diese Zeile blieb die Plakette in voller
+   Breite und der Titel wurde zusammengedrückt. Der Vorlesename bleibt
+   „Moderator“ — die Fläche schrumpft nur, sie verschwindet nicht (unter
+   390 px siehe nächste Regel). OHNE Dev-Eintrag gilt unverändert main
+   (`flex: none` und die Anker-Regel `.dk-app--handy .dk-topbar-rolle`). */
+.dk-app--dev.dk-app--handy .dk-topbar-rolle { flex: 0 1 auto; min-width: 0; }
+/* Schmale Handys (360 und 375 px, Review-Punkt 2 nennt beide): der
+   Seitentitel wiegt schwerer als das Rollen-Wort — ABER nur, wenn der
+   Dev-Eintrag den Platz zusätzlich verknappt (gemessen MIT Dev-Knopf: bei
+   360 fehlen 23 px, bei 375 noch 8 px; Kalender mit „Moderator“ braucht
+   62 px, hatte 39 bzw. 54). Beides passt dann nicht — die Plakette entfällt
+   GANZ (keine abgeschnittene Silbe, kein halbes Wort); ab 390 px steht sie
+   vollständig. Der Titel ist der Orientierungspunkt der Seite, die Rolle
+   nennt die Seite selbst (Bereichskopf) und die Seitenleiste.
+   DEVBADGE-1b (Review Opus, Punkt 1): OHNE Dev-Eintrag bleibt das
+   A10-Abzeichen auch bei 360/375 px stehen (main-Stand) — die Ausblendung
+   gilt nur für `.dk-app--dev`. */
+@media (max-width: 389.98px) {
+  .dk-app--dev.dk-app--handy .dk-topbar-rolle { display: none; }
+}
 /* UX1g: Die Symbol-Knöpfe der Kopfzeile sind DkButtons (ghost). Hier steht
    nur die quadratische Trefferfläche (--control-h, bei grobem Zeiger 44 px)
    und der Bezugsrahmen für das Abzeichen. */
@@ -2001,6 +2073,16 @@ select.dk-form-select { appearance: auto; }
 .dk-widget-edit-label { font-size: var(--fs-14); font-weight: var(--fw-fett); }
 
 /* FAB */
+/* DEVBADGE-1 (Review 11.11.): Der Bearbeiten-Knopf stand bei 24 px Rand genau
+   unter dem Dev-Abzeichen (118×26 bei 10/10 unten rechts, Überlappung
+   48 × 12 px — gemessen im Wegwerf-Stack, 1440 hell und dunkel). Er rückt
+   deshalb 40 px nach oben; das Dev-Abzeichen besetzt diesen Platz am Desktop
+   (main-Lage bleibt, Karte: „Desktop-Lage unten rechts wie heute auf main
+   bleibt“). Am Handy ist der Knopf ohnehin eine Leiste (`!important` unten).
+   DEVBADGE-1b (Review Opus, Punkt 2): Der Grund ist allein das Dev-Abzeichen.
+   OHNE Dev-Eintrag sitzt der Knopf wieder auf dem main-Stand (24 px Rand) —
+   die Verschiebung gilt nur für `.dk-app--dev` (App.vue setzt die Klasse nur
+   bei sichtbarem Dev-Eintrag). */
 .dk-widget-edit-fab {
   position: fixed;
   bottom: 24px;
@@ -2018,6 +2100,10 @@ select.dk-form-select { appearance: auto; }
   box-shadow: 0 4px 16px rgba(0,0,0,0.18);
   transition: transform 0.15s, box-shadow 0.15s;
   z-index: 100;
+}
+.dk-app--dev .dk-widget-edit-fab {
+  bottom: calc(var(--sp-5) + var(--control-h) - var(--sp-1));
+  right: var(--sp-5);
 }
 .dk-widget-edit-fab:hover {
   transform: scale(1.08);

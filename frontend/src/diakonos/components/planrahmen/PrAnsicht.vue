@@ -189,7 +189,9 @@ const DRUCK_AUSBLENDEN = [
     '.dk-screen-header', '.dk-screen-sub',
     '.pr-druck-leiste', '.pr-plan-leiste',
     '.pr-plan-meldungen', '.pr-erststart', '.pr-legende',
-    '.dk-devmodus-rahmen', '.dk-dev-start', '.impersonation-banner',
+    // DEVBADGE-1: In der Handy-Lage steht der Dev-Einschaltknopf in der
+    // Kopfzeile — `.dk-topbar-dev` blendet dort auch den leeren Platz aus.
+    '.dk-devmodus-rahmen', '.dk-dev-start', '.dk-topbar-dev', '.impersonation-banner',
     // FIX-2 (Befund DMB-a48b13606d12): „Drucken nimmt Hinweise und Fehler mit
     // in den Druck.“ Die Prüf-Meldungen stehen in der Plantabelle selbst
     // (PrMeldungen kompakt je Termin) und als Warnblock darüber; dazu kommen

@@ -400,6 +400,10 @@ tests/mt1c-*.test.mjs
 # Kalender.vue wertet den Parameter aus), „‹ Kalender“ erscheint nur am Handy
 # (Befund DMB-8e166c0aacff).
 tests/dev-b2-*.test.mjs
+tests/devbadge1-*.test.mjs
+# DEVBADGE-1b: Mount-Wächter — die Gerüst-Klasse `dk-app--dev` hängt am
+# SICHTBAREN Dev-Eintrag (mountet die echte App.vue, Punkt 3 des Reviews).
+tests/devbadge1b-*.test.mjs
 
 # MT-2: Profilbild speichern — Datei-Adressen unter dem Betriebs-Praefix.
 # `update_profile_picture` verglich die praefigierte Client-URL zeichengenau mit

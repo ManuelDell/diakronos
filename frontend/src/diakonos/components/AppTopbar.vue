@@ -137,6 +137,24 @@
       </div>
 
       <div class="dk-topbar-divider" />
+
+      <!-- DEVBADGE-1: Platz für einen Eintrag der Kopfzeile — dort setzt
+           `App.vue` den Dev-Einschaltknopf ein, solange die Handy-Lage gilt
+           (die Karte erlaubt ausdrücklich „Eintrag im Kopf statt schwebendes
+           Element“). Am Desktop trägt `App.vue` den Knopf gar nicht hier ein
+           (`:dev-knopf="devStartZeigen && istHandyLage"` bleibt dort falsch),
+           also wird dieser Platz dort auch nicht gerendert — kein leerer
+           Rest, keine 44-px-Lücke.
+           BEWUSST `v-if` MIT EIGENER EIGENSCHAFT (`devKnopf`, gesetzt in
+           `App.vue`) statt eines Slots, der sich selbst ein-/ausblendet: der
+           Platz in der Kopfzeile soll nur entstehen, wenn der Knopf wirklich
+           da ist (sonst stünde am Handy eine leere 44-px-Lücke), und die
+           Kopfzeile soll nicht am Dev-Zustand der App hängen. Die Bedingung
+           steht damit an EINER Stelle (`devStartZeigen && istHandyLage` in
+           App.vue) und ist im Quelltext nachprüfbar. -->
+      <div v-if="devKnopf" class="dk-topbar-dev">
+        <slot name="dev-knopf" />
+      </div>
     </div>
   </header>
 </template>
@@ -166,6 +184,10 @@ const props = defineProps({
   // Seite kein Recht gemeldet hat (dann gibt es kein Abzeichen und keinen
   // Platz dafür, Karte A10).
   rollenMarke: { type: String, default: '' },
+  // DEVBADGE-1: In der Handy-Lage trägt die Kopfzeile den Dev-Einschaltknopf
+  // (statt eines schwebenden Abzeichens). Der Platz entsteht nur, wenn der
+  // Knopf wirklich da ist — sonst stünde am Handy eine leere Lücke.
+  devKnopf: { type: Boolean, default: false },
 })
 // UX3f: `suche` öffnet die Befehlspalette (der Klick auf das Suchfeld).
 defineEmits(['toggle-collapse', 'open-menu', 'suche'])

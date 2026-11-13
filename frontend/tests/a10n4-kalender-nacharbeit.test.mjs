@@ -201,17 +201,28 @@ test('A10-N4 · C: Sprung-Flag bleibt offen, solange kein Wochenraster steht', (
 // ══════════════════════════════════════════════════════════════════════════
 // D · Dev-Abzeichen wieder wie auf main
 // ══════════════════════════════════════════════════════════════════════════
-test('A10-N4 · D: Dev-Start komplett auf main-Stand (unten rechts, keine Handy-Regel)', () => {
+test('A10-N4 · D: Dev-Start auf main-Stand (unten rechts, Handy regelt DEVBADGE-1)', () => {
+  // DEVBADGE-1 (11.11.) ist die eigene Karte, die A10-N4 hier angekündigt hat:
+  // in der Handy-Lage steht das Abzeichen als Eintrag in der KOPFZEILE (kein
+  // schwebendes Element), mit 44-px-Treffer; ein schwebendes „oben rechts“
+  // kollidierte im Wegwerf-Stack mit dem Mobil-Kopf des Kalenders. Der Test
+  // wurde ANGEREGELT (Regel 19): die Grundlage bleibt main (unten rechts, keine
+  // unsichtbare Zone), die Kopfzeilen-Form steht ausschließlich in
+  // `.dk-dev-start--kopf`.
   const dev = lies('components/devmodus/DevStart.vue')
   const block = dev.slice(dev.indexOf('.dk-dev-start {'), dev.indexOf('.dk-dev-start-punkt {'))
   assert.match(block, /position:\s*fixed/)
   assert.match(block, /right:\s*10px/, 'unten rechts (main)')
   assert.match(block, /bottom:\s*10px/, 'unten rechts (main)')
-  assert.ok(!/--treffer-handy/.test(dev), 'keine 44-px-Trefferzone mehr (main)')
+  assert.ok(!/--treffer-handy/.test(block), 'keine 44-px-Trefferzone im Grundblock (main)')
   assert.ok(!/pointer-events:\s*none/.test(block), 'kein Durchlassen mehr (main)')
-  assert.ok(!/dk-app--handy/.test(dev), 'keine Handy-Sonderregel (eigene Karte)')
-  assert.ok(!/dk-dev-start-text/.test(dev), 'kein getrennter Text-Knoten mehr (main)')
-  assert.match(dev, /@media \(max-width: 480px\)/, 'Handy-Abstand wie main')
+  assert.ok(!/dk-app--handy/.test(block), 'keine Handy-Regel im Grundblock')
+  // DEVBADGE-1b (Review Opus, Punkt 6): Der Handy-Abstand der festen Form war
+  // toter Code (die feste Form erscheint nie in der Handy-Lage; in der
+  // Einrichtung gibt es keine untere Leiste) und ist entfernt. Es bleibt der
+  // main-Stand `bottom: 10px` — geprüft oben.
+  assert.ok(!/\.dk-dev-start:not\(\.dk-dev-start--kopf\)/.test(dev.replace(/\/\*[\s\S]*?\*\//g, '')),
+    'tote Handy-Regel der festen Form ist entfernt (DEVBADGE-1b Punkt 6)')
   // Der Punkt ist wieder der schlichte main-Punkt (8 px, rund, ohne Ringe).
   const punkt = dev.slice(dev.indexOf('.dk-dev-start-punkt {'))
   const punktBlock = punkt.slice(0, punkt.indexOf('}'))
