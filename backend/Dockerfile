@@ -27,9 +27,19 @@ COPY backend/src/diakronos_app/planrahmen/doku/kochbuch/ /backend/src/diakronos_
 # Zeilen waere er im Image rot, im Worktree gruen (Vorfall SEC-10/WEB-2).
 COPY backend/src/diakronos_app/api/zugang.py /backend/src/diakronos_app/api/zugang.py
 # MT-2: `tests/mt2-profilbild-praefix.test.mjs` haelt die Besitzpruefung und die
-# Adressformen des Profilbilds am Quelltext fest und liest dafuer
-# `api/profile.py` — ausserhalb von frontend/ (Regel 13).
+# Adressformen des Profilbilds am Quelltext fest. Seit MT-2c/MT-2d liegen die
+# Pruefungen nicht mehr im Endpunkt, sondern bei den Helfern — der Test liest
+# deshalb VIER Dateien ausserhalb von frontend/ (Regel 13):
+#   * `api/profile.py`               — `_eigene_datei_url`, `foto_mit_praefix`,
+#                                      `update_profile_picture`
+#   * `website/einwilligung.py`      — `pruefe_foto_schreibweg` (generische Wege;
+#                                      steht ohnehin unten bei BS-3a im Stage)
+#   * `frappe_compat/api_helpers.py` — `_pruefe_mitglied_schreibzugriff`
+#   * `base_path.py`                 — `datei_url` + `_ABSOLUTE_ADRESSE`. Ohne
+#                                      diese Zeile ist der Test im Image rot
+#                                      (`Datei fehlt`), im Worktree gruen.
 COPY backend/src/diakronos_app/api/profile.py /backend/src/diakronos_app/api/profile.py
+COPY backend/src/diakronos_app/base_path.py /backend/src/diakronos_app/base_path.py
 # MT-8: `tests/mt8-logout-ziel.test.mjs` haelt fest, dass ein Abmelden NIE zum
 # Anbieter fuehrt (kein `end_session_endpoint`) und die Zielregel
 # (`_oeffentliche_startseite`) Hauptseite/Login waehlt. Er liest

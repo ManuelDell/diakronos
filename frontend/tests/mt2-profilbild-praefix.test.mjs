@@ -27,11 +27,35 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const HIER = fileURLToPath(new URL('.', import.meta.url))
-const PROFIL = join(HIER, '..', '..', 'backend', 'src', 'diakronos_app', 'api', 'profile.py')
+const BACKEND = join(HIER, '..', '..', 'backend', 'src', 'diakronos_app')
+
+function backend(datei) {
+  return readFileSync(join(BACKEND, datei), 'utf8')
+}
 
 function quelle() {
-  return readFileSync(PROFIL, 'utf8')
+  return backend(join('api', 'profile.py'))
 }
+
+/**
+ * MT-2c/MT-2d haben die Pruefungen an ihren neuen Ort verlagert. Gelesen wird
+ * deshalb nicht mehr nur `profile.py`:
+ *
+ *   api/profile.py                     — `_eigene_datei_url` (Besitz + Adresse),
+ *                                        `foto_mit_praefix` (Ausgabe-Praefix),
+ *                                        `update_profile_picture` (Aufrufer)
+ *   website/einwilligung.py            — `pruefe_foto_schreibweg` (die Schranke
+ *                                        fuer alle generischen Schreibwege)
+ *   frappe_compat/api_helpers.py       — `_pruefe_mitglied_schreibzugriff`
+ *                                        (ruft die Schranke auf)
+ *   base_path.py                       — `datei_url` + `_ABSOLUTE_ADRESSE`
+ *
+ * Alle vier muessen im Frontend-Stage des Images liegen (Regel 13,
+ * `backend/Dockerfile`) — sonst ist dieser Test im Image rot, im Worktree gruen.
+ */
+const EINWILLIGUNG = join('website', 'einwilligung.py')
+const HELFER = join('frappe_compat', 'api_helpers.py')
+const BASIS = 'base_path.py'
 
 /** Zeilenbereich einer Funktion `def <name>(` bis zum naechsten Top-Level-Def. */
 function funktion(text, name) {
@@ -90,41 +114,86 @@ test('MT-2b: das Adressmuster kennt die erlaubten Formen und weist Pfade ab', ()
 // ── 2. Speichern des Profilbilds ────────────────────────────────────────────
 
 test('MT-2: update_profile_picture vergleicht Dateinamen, nicht die Client-URL', () => {
+  // Der Endpunkt prueft nicht mehr selbst, sondern ruft `_eigene_datei_url`
+  // (MT-2c). Die Zusicherung „Dateiname statt Client-String“ gilt deshalb an
+  // ZWEI Stellen: der Aufruf hier und die Pruefung im Helfer.
   const koerper = funktion(quelle(), 'update_profile_picture')
+  const helfer = funktion(quelle(), '_eigene_datei_url')
 
-  assert.match(koerper, /_dateiname_aus_file_url\(file_url\)/,
+  assert.match(koerper, /file_url = _eigene_datei_url\(file_url\)/,
+    'der Endpunkt muss die Besitz-/Formatpruefung ueber den gemeinsamen Helfer fuehren (MT-2c)')
+  assert.match(helfer, /_dateiname_aus_file_url\(file_url\)/,
     'der Dateiname muss aus der Adresse gelesen werden (Praefix darf davorstehen)')
-  assert.match(koerper, /FileModel\.file_url\.in_\(/,
+  assert.match(helfer, /FileModel\.file_url\.in_\(/,
     'beide DB-Formen (/files/…, /private/files/…) muessen abgefragt werden')
-  assert.doesNotMatch(koerper, /FileModel\.file_url == file_url/,
+  assert.doesNotMatch(helfer, /FileModel\.file_url == file_url/,
     'ein zeichengenauer Vergleich mit der Client-URL ist genau der Fehler (unter /diakronos immer 403)')
-  assert.doesNotMatch(koerper, /file_url not in \('\/files\//,
+  assert.doesNotMatch(koerper + helfer, /file_url not in \('\/files\//,
     'die alte Positivliste verglich die Client-Adresse zeichengenau')
 })
 
 test('MT-2: die Besitzpruefung bleibt bestehen (fremde Datei = 403)', () => {
+  // DIE eine Besitzpruefung steht seit MT-2c in `_eigene_datei_url`
+  // (`profile.py`) — nicht mehr im Endpunkt. Der Endpunkt darf sie nicht
+  // umgehen, und `website/einwilligung.pruefe_foto_schreibweg` fuehrt die
+  // generischen Schreibwege auf dieselbe Pruefung.
   const koerper = funktion(quelle(), 'update_profile_picture')
+  const helfer = funktion(quelle(), '_eigene_datei_url')
+  const schranke = funktion(backend(EINWILLIGUNG), 'pruefe_foto_schreibweg')
+  const zugriff = funktion(backend(HELFER), '_pruefe_mitglied_schreibzugriff')
 
-  assert.match(koerper, /FileModel\.owner == session\.user/,
+  assert.match(helfer, /FileModel\.owner == session\.user/,
     'die Datei muss dem Aufrufer gehoeren — die Pruefung wird NICHT entfernt')
-  assert.match(koerper, /stored_path\(filename\) is None/,
+  assert.match(helfer, /stored_path\(filename\) is None/,
     'eine DB-Zeile ohne Datei auf dem Datentraeger ist kein Eigentumsnachweis')
-  assert.match(koerper, /Nur eigene hochgeladene Dateien sind erlaubt\./,
+  assert.match(helfer, /Nur eigene hochgeladene Dateien sind erlaubt\./,
     'die Meldung bleibt')
+  assert.match(koerper, /file_url = _eigene_datei_url\(file_url\)/,
+    'update_profile_picture muss durch dieselbe Pruefung (kein zweiter Weg)')
+
+  // Generic schreibwege (PUT /api/resource, frappe.client, doc.save/db_set):
+  // `pruefe_foto_schreibweg` ruft `_eigene_datei_url` auf und wird aus der
+  // zentralen Schranke heraus aufgerufen — ohne diese Kette waere `/foto`
+  // ueber die generischen Wege ungeprueft.
+  assert.match(schranke, /from diakronos_app\.api\.profile import _eigene_datei_url/,
+    'die Schranke benutzt DIESELBE Besitzpruefung, keine zweite Regel')
+  assert.match(schranke, /werte\["foto"\] = _eigene_datei_url\(wert\)/,
+    'die Schranke entscheidet ueber die Besitzpruefung und schreibt die DB-Form zurueck')
+  assert.match(zugriff, /pruefe_foto_schreibweg\(values, name\)/,
+    'jeder generische Schreibweg laeuft durch die zentrale Schranke')
 })
 
 test('MT-2: `foto` wird praefigiert ausgegeben, aber praefixfrei gespeichert', () => {
   const text = quelle()
   const lesen = funktion(text, 'get_my_profile')
   const schreiben = funktion(text, 'update_profile_picture')
+  const ausgabe = funktion(text, 'foto_mit_praefix')
+  const adresse = funktion(backend(BASIS), 'datei_url')
 
-  assert.match(lesen, /"foto": _datei_mit_praefix\(doc\.foto\)/,
-    'ohne Praefix an `foto` liefert das <img :src="profile.foto"> unter /diakronos ein 404 — '
-    + 'der Router praefigiert nur den Schluessel `file_url`')
-  assert.match(schreiben, /file_url = file_doc\.file_url/,
-    'gespeichert wird die praefixfreie DB-Form (DB wird nicht migriert)')
+  // MT-2c: `get_my_profile` ruft `foto_mit_praefix`; das ist der EINE
+  // Praefigierer und laeuft ueber `base_path.datei_url` (MT-2b/MT-2d).
+  // Ohne Praefix an `foto` liefert das <img :src="profile.foto"> unter
+  // /diakronos ein 404 — der Router praefigiert nur den Schluessel `file_url`.
+  assert.match(lesen, /"foto": foto_mit_praefix\(doc\.foto\)/,
+    'ohne Praefix an `foto` liefert das <img :src="profile.foto"> unter /diakronos ein 404')
+  assert.match(ausgabe, /_datei_mit_praefix\(wert\)/,
+    'der Ausgabe-Praefigierer muss `foto` wirklich praefigieren')
+  assert.match(text, /from diakronos_app\.base_path import datei_url/,
+    'die eine Praefix-Quelle ist base_path.datei_url (WEB-5a)')
+  // MT-2d: `datei_url` praefigiert direkt und erkennt absolute Adressen am
+  // ANFANG (`_ABSOLUTE_ADRESSE`); ein Teilstring-Test `"://" in wert` waere
+  // wieder der Fehler aus MT-2b.
+  assert.match(adresse, /_ABSOLUTE_ADRESSE\.match\(wert\)/,
+    'absolute Adressen werden am Anfang erkannt, nicht per Teilstring')
+  assert.match(adresse, /return _AKTIV \+ wert/,
+    '`datei_url` setzt den aktiven Praefix direkt davor')
+
+  assert.match(schreiben, /file_url = _eigene_datei_url\(file_url\)/,
+    'gespeichert wird nur, was die Besitzpruefung durchlaufen hat')
   assert.match(schreiben, /doc\.db_set\("foto", file_url or None\)/,
-    'die Ausgabe-Form darf nicht in die Spalte wandern')
+    'gespeichert wird die praefixfreie DB-Form (DB wird nicht migriert) — die Ausgabe-Form darf nicht in die Spalte wandern')
+  assert.match(funktion(text, '_eigene_datei_url'), /return str\(file_doc\.file_url\)/,
+    'zurueck kommt die DB-Form der File-Zeile (`/files/…`), nicht die praefigierte Client-Adresse')
 })
 
 test('MT-2: Praefixierung kommt aus base_path, nicht aus einer zweiten Regel', () => {

@@ -571,10 +571,14 @@ def test_foto_ist_ueber_die_mitglied_update_wege_nicht_schreibbar(
         client, zwei, set_user, dateien, praefix, endpoint, boese):
     """HOCH (Review MT-2b): `foto` steht in KEINER allowed_fields-Liste mehr.
 
-    Geprueft wird das Ergebnis, nicht die Liste: der Aufruf darf mit 200
-    durchlaufen (die SPA schickt das Feld nicht mehr), die Spalte muss aber
-    UNVERAENDERT bleiben. Annas Bild ist vorher gesetzt — so ist ein
-    "nichts geschrieben" von einem "auf NULL gesetzt" unterscheidbar.
+    MT-2c (Review, NIEDRIG 4): der Test liess vorher 403/417 als Erfolg gelten
+    — er bestuende auch, wenn der Endpunkt GAR NICHTS mehr schriebe. Jetzt ist
+    die Erwartung eindeutig:
+
+      * 200 (das Feld wird still verworfen; die SPA schickt es nicht mehr),
+      * ein ZWEITES Feld in derselben Anfrage AENDERT sich (der Aufruf wirkt),
+      * `foto` bleibt unveraendert (Annas Bild ist vorher gesetzt — so ist
+        "nichts geschrieben" von "auf NULL gesetzt" unterscheidbar).
     """
     from diakronos_app.models.diakonos import Mitglied
 
@@ -584,15 +588,18 @@ def test_foto_ist_ueber_die_mitglied_update_wege_nicht_schreibbar(
 
     res = client.post(f'/api/method/mitglieder.{endpoint}', json={
         'mitglied_id': 'M-0001',
-        'data': {'vorname': 'Anna', 'foto': boese},
+        'data': {'vorname': 'Anna', 'wohnort': 'Esslingen', 'foto': boese},
         'audit_confirmation': {},
     })
-    # 200 = Feld still verworfen; 403/417 = Aufruf abgelehnt. BEIDES ist
-    # zulaessig, ein gespeicherter Wert nicht.
-    assert res.status_code in (200, 403, 417), f'{endpoint}/{boese}: {res.text}'
+    # MT-2c: nur 200 ist Erfolg — 403/417 hiesse, der Weg schreibt nicht mehr
+    # (dann prueft der Test nichts). Siehe Review-Befund 4.
+    assert res.status_code == 200, f'{endpoint}/{boese}: {res.text}'
 
     zwei.expire_all()
-    assert zwei.get(Mitglied, 'M-0001').foto == eigenes, f'{endpoint}: {boese}'
+    anna = zwei.get(Mitglied, 'M-0001')
+    assert anna.foto == eigenes, f'{endpoint}: {boese}'
+    # Das zweite Feld belegt, dass der Aufruf tatsaechlich geschrieben hat.
+    assert anna.wohnort == 'Esslingen', f'{endpoint}: Aufruf ohne Wirkung'
 
 
 @pytest.mark.parametrize('endpoint', SCHREIBWEGE)
@@ -606,13 +613,16 @@ def test_foto_wird_auch_bei_leerem_altwert_nicht_gesetzt(
 
     res = client.post(f'/api/method/mitglieder.{endpoint}', json={
         'mitglied_id': 'M-0001',
-        'data': {'foto': '/private/files/bruno.jpg'},
+        'data': {'foto': '/private/files/bruno.jpg', 'wohnort': 'Esslingen'},
         'audit_confirmation': {},
     })
-    assert res.status_code in (200, 403, 417), res.text
+    # MT-2c (Befund 4): 200 erwartet, nicht "200 oder Fehler".
+    assert res.status_code == 200, res.text
 
     zwei.expire_all()
-    assert zwei.get(Mitglied, 'M-0001').foto is None
+    anna = zwei.get(Mitglied, 'M-0001')
+    assert anna.foto is None
+    assert anna.wohnort == 'Esslingen', 'Aufruf ohne Wirkung'
 
 
 def test_der_erlaubte_weg_bleibt_offen(client, zwei, set_user, dateien, praefix):
@@ -717,3 +727,522 @@ def test_boot_und_session_info_liefern_das_bild_mit_praefix(
 
     boot = boot_fuer_request()
     assert boot['user_image'] == '/diakronos/files/anna-u.jpg'
+
+
+# ── MT-2c (zweites Review) ──────────────────────────────────────────────────
+# Befund 1 MITTEL: absolute Adressen wurden per TEILSTRING erkannt
+# (`if "://" in wert`). `'/files/../../etc/passwd?a=://'` und
+# `'/x/y/z?u=http://a'` gingen damit ungeprueft durch — der Altbestand-Schutz
+# aus MT-2b war umgehbar. Geprueft wird jetzt nur der ANFANG.
+
+
+@pytest.mark.parametrize('boese', [
+    '/files/../../etc/passwd?a=://',      # Teilstring `://` im Query
+    '/x/y/z?u=http://a',                  # Teilstring `http://` im Query
+    '/files/../../etc/passwd?a=//',       # Teilstring `//` im Query
+    '/files/../../etc/passwd#http://a',   # Fragment statt Query
+    ' /files/../../etc/passwd?a=://',     # fuehrender Leerraum, dann kein //
+])
+def test_absolute_adresse_wird_nur_am_anfang_erkannt(boese):
+    """MITTEL (MT-2c): ein `://` irgendwo im Wert ist KEINE absolute Adresse."""
+    from diakronos_app.api.profile import foto_mit_praefix
+
+    assert foto_mit_praefix(boese) == '', boese
+
+
+@pytest.mark.parametrize('gut,erwartet', [
+    ('http://cdn.example.org/foto.jpg', 'http://cdn.example.org/foto.jpg'),
+    ('https://cdn.example.org/foto.jpg', 'https://cdn.example.org/foto.jpg'),
+    ('HTTPS://cdn.example.org/foto.jpg', 'HTTPS://cdn.example.org/foto.jpg'),
+    ('//cdn.example.org/foto.jpg', '//cdn.example.org/foto.jpg'),
+])
+def test_echte_absolute_adresse_bleibt_unangetastet(gut, erwartet, praefix):
+    """Gegenprobe: echte Adressen AM ANFANG gehen weiter unveraendert durch."""
+    from diakronos_app.api.profile import foto_mit_praefix
+
+    assert foto_mit_praefix(gut) == erwartet
+
+
+@pytest.mark.parametrize('praefix', ['', '/diakronos'], indirect=True)
+def test_eigenes_profil_prueft_das_format(
+        client, zwei, set_user, dateien, praefix):
+    """NIEDRIG (MT-2c, Befund 2): `get_my_profile` nutzt `foto_mit_praefix`.
+
+    Vorher lief die Ausgabe des EIGENEN Profils ueber den Alias
+    `_datei_mit_praefix` (ohne Formatpruefung) — ein Altbestand in der Spalte
+    ging dort weiter hinaus, waehrend alle anderen Leser ihn schon leerten.
+    """
+    for altlast in ('/etc/passwd', '/files/../../etc/passwd',
+                    '/files/../../etc/passwd?a=://'):
+        _foto_setzen(zwei, altlast)
+        set_user(ANNA)
+        assert _foto(client) == '', altlast
+
+    # Gegenprobe: die normale DB-Form kommt weiter (mit Praefix) an.
+    _foto_setzen(zwei, '/files/anna.jpg')
+    set_user(ANNA)
+    assert _foto(client) == praefix + '/files/anna.jpg'
+
+
+#: Die generischen Wege, die `foto` frueher UNGEPRUEFT setzten. Alle sechs
+#: laufen durch `frappe_compat.api_helpers._pruefe_mitglied_schreibzugriff`
+#: (die zentrale Schranke) — genau dort haengt `pruefe_foto_schreibweg`.
+GENERISCHE_WEGE = [
+    'resource_put_fremd',   # PUT auf ein FREMDES Mitglied
+    'resource_put_eigen',   # PUT auf das EIGENE Mitglied
+    'resource_post',        # POST (anlegen)
+    'client_insert',        # frappe.client.insert
+    'doc_save',             # doc.foto = ...; doc.save()
+    'update_doc',           # api_helpers._update_doc
+]
+
+
+def _sm(client, zwei, set_user, email: str = ANNA) -> None:
+    """Gibt dem Konto die Rolle System Manager (Schreibrecht auf /api/resource).
+
+    MT-2c (Review, Befund 3): OHNE diese Rolle scheitern die generischen Wege
+    schon an der allgemeinen Rechtepruefung — ein Test dagegen waere gruen,
+    egal was die `foto`-Schranke tut.
+    """
+    from diakronos_app.models.core import HasRole
+
+    zwei.add(HasRole(name=f'HR-mt2c-{email}', parent=email, parenttype='User',
+                     parentfield='roles', role='System Manager',
+                     docstatus=0, idx=1))
+    zwei.commit()
+    set_user(email)
+
+
+def _bruno_laedt_hoch(client, set_user) -> tuple[str, str]:
+    """Eine ECHTE `File`-Zeile, die BRUNO gehoert — (file_url, gespeicherte Form).
+
+    Nur so ist der Besitz pruefbar: `/private/files/bruno.jpg` als blosser
+    String waere auch ohne Schranke abgelehnt worden (keine Zeile).
+    """
+    from diakronos_app.models.core import FileModel
+
+    set_user(BRUNO)
+    antwort = _upload(client, 'bruno.jpg')
+    assert antwort.status_code == 200, antwort.text
+    url = antwort.json()['message']['file_url']
+    name = url.rsplit('/', 1)[-1]
+    # Die DB-Zeile liegt praefixfrei (`/files/<name>`), genau wie bei Anna.
+    return url, f'/files/{name}'
+
+
+def _generisch(client, zwei, weg: str, foto: str, dateiname: str):
+    """Fuehrt einen GENERISCHEN Schreibweg aus.
+
+    Gibt ``(status, geaendert)`` zurueck: ``status`` ist der HTTP-Code (oder
+    ``None`` ohne HTTP) und ``geaendert`` das Feld, das der Aufruf zusaetzlich
+    setzt — so ist „abgelehnt“ von „gar nichts geschrieben“ unterscheidbar.
+    Die Wege OHNE HTTP muessen werfen (``FrappeCompatError``).
+    """
+    from diakronos_app.api import frappe_core
+    from diakronos_app.frappe_compat.api_helpers import _update_doc
+    from diakronos_app.frappe_compat.exceptions import FrappeCompatError
+    from diakronos_app.frappe_compat.query import get_doc
+
+    if weg == 'resource_put_fremd':
+        antwort = client.put('/api/resource/Mitglied/M-0002',
+                             json={'foto': foto, 'wohnort': 'Esslingen'})
+        return antwort.status_code, antwort
+    if weg == 'resource_put_eigen':
+        antwort = client.put('/api/resource/Mitglied/M-0001',
+                             json={'foto': foto, 'wohnort': 'Esslingen'})
+        return antwort.status_code, antwort
+    if weg == 'resource_post':
+        antwort = client.post('/api/resource/Mitglied',
+                              json={'vorname': 'Neu', 'nachname': 'Person',
+                                    'foto': foto})
+        return antwort.status_code, antwort
+    if weg == 'client_insert':
+        with pytest.raises(FrappeCompatError):
+            frappe_core.insert({'doctype': 'Mitglied', 'vorname': 'Neu',
+                                'nachname': 'Person', 'foto': foto})
+        return None, None
+    if weg == 'doc_save':
+        doc = get_doc('Mitglied', 'M-0001')
+        doc.foto = foto
+        doc.wohnort = 'Esslingen'
+        with pytest.raises(FrappeCompatError):
+            doc.save()
+        return None, None
+    assert weg == 'update_doc', weg
+    with pytest.raises(FrappeCompatError):
+        _update_doc('Mitglied', 'M-0001',
+                    {'foto': foto, 'wohnort': 'Esslingen'})
+    return None, None
+
+
+@pytest.mark.parametrize('weg', GENERISCHE_WEGE)
+def test_generische_wege_setzen_fremdes_foto_nicht(
+        client, zwei, set_user, dateien, praefix, weg):
+    """MITTEL (MT-2c, Befund 3): eine ECHTE fremde `File`-Zeile bleibt gesperrt.
+
+    Aufbau (Review-Vorgabe): Bruno laedt wirklich hoch, Anna ist System
+    Managerin. Ohne die `foto`-Schranke nimmt JEDER dieser sechs Wege die
+    Adresse an — auf `85bafa2a` nachweislich mit 200 und gespeichertem Wert.
+    Mit Schranke: 403 (bzw. ``FrappeCompatError`` ohne HTTP), `foto` bleibt
+    auf beiden Mitgliedern leer und das zweite Feld kommt NICHT an (der
+    Aufruf wird als Ganzes abgelehnt, nicht halb geschrieben).
+    """
+    from diakronos_app.models.diakonos import Mitglied
+
+    url, _ = _bruno_laedt_hoch(client, set_user)
+    _sm(client, zwei, set_user, ANNA)
+
+    status, antwort = _generisch(client, zwei, weg, url, 'bruno.jpg')
+
+    if status is not None:
+        assert status == 403, f'{weg}: {antwort.text}'
+    zwei.expire_all()
+    assert zwei.get(Mitglied, 'M-0001').foto is None, f'{weg}: gespeichert'
+    assert zwei.get(Mitglied, 'M-0002').foto is None, f'{weg}: gespeichert'
+    # Der Aufruf wurde als Ganzes abgelehnt — kein halb geschriebener Datensatz.
+    assert zwei.get(Mitglied, 'M-0001').wohnort == 'Stuttgart', f'{weg}: halb geschrieben'
+    assert zwei.query(Mitglied).count() == 2, f'{weg}: Zeile angelegt'
+
+
+@pytest.mark.parametrize('weg', GENERISCHE_WEGE)
+@pytest.mark.parametrize('boese', [
+    '/private/files/bruno.jpg',       # fremde Adresse (keine eigene Zeile)
+    '/files/../../etc/passwd',        # Ausbruch
+    '/files/../../etc/passwd?a=://',  # MT-2c: Teilstring-Trick
+    'https://fremd.example.org/x.jpg',
+])
+def test_generische_wege_setzen_manipulierte_adressen_nicht(
+        client, zwei, set_user, dateien, praefix, weg, boese):
+    """Dieselben Wege mit Werten, die KEINE eigene Datei benennen — 403, nichts geschrieben."""
+    from diakronos_app.models.diakonos import Mitglied
+
+    _sm(client, zwei, set_user, ANNA)
+    status, antwort = _generisch(client, zwei, weg, boese, 'profilbild.jpg')
+    if status is not None:
+        assert status == 403, f'{weg}/{boese}: {antwort.text}'
+
+    zwei.expire_all()
+    assert zwei.get(Mitglied, 'M-0001').foto is None, f'{weg}: {boese}'
+    assert zwei.get(Mitglied, 'M-0002').foto is None, f'{weg}: {boese}'
+    assert zwei.query(Mitglied).count() == 2, f'{weg}: {boese}'
+
+
+@pytest.mark.parametrize('weg', ['resource_put_eigen', 'doc_save', 'update_doc'])
+def test_generischer_weg_speichert_das_eigene_bild_in_db_form(
+        client, zwei, set_user, dateien, praefix, weg):
+    """Gegenprobe: die EIGENE Datei bleibt erlaubt — und landet in der DB-Form.
+
+    Die Schranke prueft Besitz, sie sperrt `foto` nicht pauschal (sonst waere
+    jedes Verwaltungsformular mit Bild unbedienbar). Gespeichert wird
+    `/files/<name>` — die praefigierte Upload-Adresse (`/diakronos/files/…`)
+    gehoert NICHT in die Spalte (Befund 4: der `Document`-Weg schrieb bisher
+    den rohen Client-Wert).
+    """
+    from diakronos_app.frappe_compat.api_helpers import _update_doc
+    from diakronos_app.frappe_compat.query import get_doc
+    from diakronos_app.models.diakonos import Mitglied
+
+    _sm(client, zwei, set_user, ANNA)
+    url = _upload(client).json()['message']['file_url']
+    erwartet = _ohne_praefix(url, praefix)
+
+    if weg == 'resource_put_eigen':
+        antwort = client.put('/api/resource/Mitglied/M-0001', json={'foto': url})
+        assert antwort.status_code == 200, antwort.text
+    elif weg == 'doc_save':
+        doc = get_doc('Mitglied', 'M-0001')
+        doc.foto = url
+        doc.save()
+    else:
+        _update_doc('Mitglied', 'M-0001', {'foto': url})
+
+    zwei.expire_all()
+    gespeichert = zwei.get(Mitglied, 'M-0001').foto
+    assert gespeichert == erwartet, f'{weg}: {gespeichert!r} != {erwartet!r}'
+    assert gespeichert.startswith('/files/'), f'{weg}: praefigiert gespeichert'
+
+
+def test_generischer_weg_laesst_unveraendertes_foto_stehen(
+        client, zwei, set_user, dateien, praefix):
+    """Ein PUT mit der GANZEN Zeile (foto unveraendert) bleibt 200 und aendert nichts.
+
+    Das Frappe-Formular schickt alle Felder mit; ein unveraendertes `foto`
+    darf den Aufruf nicht mit 403 abbrechen.
+    """
+    from diakronos_app.models.diakonos import Mitglied
+
+    _foto_setzen(zwei, '/files/anna-eigen.jpg')
+    _sm(client, zwei, set_user)
+
+    antwort = client.put('/api/resource/Mitglied/M-0001',
+                         json={'foto': '/files/anna-eigen.jpg',
+                               'wohnort': 'Esslingen'})
+    assert antwort.status_code == 200, antwort.text
+
+    zwei.expire_all()
+    anna = zwei.get(Mitglied, 'M-0001')
+    assert anna.foto == '/files/anna-eigen.jpg'
+    assert anna.wohnort == 'Esslingen'
+
+
+@pytest.mark.parametrize('weg', GENERISCHE_WEGE)
+def test_generische_wege_ohne_foto_bleiben_offen(
+        client, zwei, set_user, dateien, praefix, weg):
+    """Die Schranke greift NUR bei `foto` — andere Felder bleiben schreibbar.
+
+    MT-2d (drittes Review, NIEDRIG 5): die sechs Wege sind hier wirklich
+    GETRENNT — frueher liefen vier davon in denselben
+    `frappe_core.insert`-Zweig (und `resource_put_fremd` schrieb auf die
+    EIGENE Zeile M-0001). Jetzt: PUT auf die FREMD-Zeile, PUT auf die eigene,
+    POST, `frappe.client.insert`, `doc.save()` und `_update_doc` — jeder Weg
+    mit Erfolgsbeweis an der Stelle, die er tatsaechlich schreibt.
+    """
+    from diakronos_app.models.diakonos import Mitglied
+
+    _sm(client, zwei, set_user)
+
+    if weg == 'resource_put_fremd':
+        antwort = client.put('/api/resource/Mitglied/M-0002',
+                             json={'wohnort': 'Stuttgart'})
+        assert antwort.status_code == 200, antwort.text
+        zwei.expire_all()
+        assert zwei.get(Mitglied, 'M-0002').wohnort == 'Stuttgart'
+        assert zwei.get(Mitglied, 'M-0001').wohnort == 'Stuttgart'
+        # Die FREMD-Zeile gehoert Bruno — hier beweist der Test zusaetzlich,
+        # dass die Schreibrechte (System Manager) greifen, nicht der Besitz.
+    elif weg == 'resource_put_eigen':
+        antwort = client.put('/api/resource/Mitglied/M-0001',
+                             json={'wohnort': 'Esslingen'})
+        assert antwort.status_code == 200, antwort.text
+        zwei.expire_all()
+        assert zwei.get(Mitglied, 'M-0001').wohnort == 'Esslingen'
+        assert zwei.get(Mitglied, 'M-0002').wohnort == 'Esslingen'
+    elif weg == 'resource_post':
+        antwort = client.post('/api/resource/Mitglied',
+                              json={'vorname': 'Neu', 'nachname': 'Person',
+                                    'wohnort': 'Esslingen'})
+        assert antwort.status_code in (200, 201), antwort.text
+        zwei.expire_all()
+        assert zwei.query(Mitglied).count() == 3
+        assert zwei.query(Mitglied).filter(
+            Mitglied.vorname == 'Neu').one().wohnort == 'Esslingen'
+    elif weg == 'client_insert':
+        from diakronos_app.api import frappe_core
+
+        antwort = frappe_core.insert({'doctype': 'Mitglied', 'vorname': 'Neu',
+                                      'nachname': 'Person',
+                                      'wohnort': 'Esslingen'})
+        assert antwort
+        neu = antwort.get('name') if isinstance(antwort, dict) else antwort
+        zwei.expire_all()
+        assert zwei.query(Mitglied).count() == 3
+        assert zwei.get(Mitglied, neu).wohnort == 'Esslingen', antwort
+    elif weg == 'doc_save':
+        from diakronos_app.frappe_compat.query import get_doc
+
+        doc = get_doc('Mitglied', 'M-0001')
+        doc.wohnort = 'Esslingen'
+        doc.save()
+        zwei.expire_all()
+        assert zwei.get(Mitglied, 'M-0001').wohnort == 'Esslingen'
+    else:
+        assert weg == 'update_doc', weg
+        from diakronos_app.frappe_compat.api_helpers import _update_doc
+
+        _update_doc('Mitglied', 'M-0001', {'wohnort': 'Esslingen'})
+        zwei.expire_all()
+        assert zwei.get(Mitglied, 'M-0001').wohnort == 'Esslingen'
+
+
+# ── MT-2d: `doc.save()` umging die Schranke bei gleichzeitiger E-Mail-Aenderung
+# DER BEFUND (drittes Review)
+# ---------------------------
+# `frappe_compat.doc._pruefe_mitglied` kuerzte den Payload nach der
+# E-Mail-Normalisierung auf `{"email"}`. Die Schranke
+# (`_pruefe_mitglied_schreibzugriff`) sah danach NUR noch `email` — ein
+# `doc.foto = <fremder Upload>` bzw. `doc.website_einwilligung = True` im
+# SELBEN `save()` kam ungeprueft durch und wurde roh gespeichert. Dieselbe
+# Luecke betraf in `main` die Einwilligung (BS-3a), obwohl der Kommentar
+# darunter das Gegenteil behauptet.
+#
+# GEPRUEFT WIRD: der ganze Weg mit System Manager (ohne die Rolle scheitert
+# der Aufruf schon an der Rechtepruefung, siehe `_sm`), je ein Feld
+# zusaetzlich zur E-Mail.
+
+
+@pytest.mark.parametrize('feld,wert', [
+    ('foto', 'fremd'),                    # echte fremde `File`-Zeile (Bruno)
+    ('website_einwilligung', True),       # BS-3a
+    ('website_einwilligung_foto', True),  # BS-3a: zweites Einwilligungsfeld
+])
+def test_doc_save_mit_email_umgeht_die_schranke_nicht(
+        client, zwei, set_user, dateien, praefix, feld, wert):
+    """MITTEL (MT-2d): E-Mail + gesperrtes Feld im selben `doc.save()` -> 403.
+
+    Beide Proben sind auf dem Stand VOR dem Fix gruen-durchgelaufen (kein
+    Fehler, fremde Datei bzw. `True` roh gespeichert). Nach dem Fix wirft der
+    Aufruf `FrappeCompatError`, und KEINES der beiden Felder ist geschrieben —
+    auch die E-Mail nicht (der Aufruf wird als Ganzes abgelehnt).
+    """
+    from diakronos_app.frappe_compat.exceptions import FrappeCompatError
+    from diakronos_app.frappe_compat.query import get_doc
+    from diakronos_app.models.diakonos import Mitglied
+
+    foto_url, _ = _bruno_laedt_hoch(client, set_user)
+    _sm(client, zwei, set_user, ANNA)
+    if wert == 'fremd':
+        wert = foto_url
+
+    doc = get_doc('Mitglied', 'M-0001')
+    doc.email = 'anna.neu@example.org'
+    setattr(doc, feld, wert)
+    with pytest.raises(FrappeCompatError):
+        doc.save()
+
+    zwei.expire_all()
+    anna = zwei.get(Mitglied, 'M-0001')
+    assert anna.email == ANNA, f'{feld}: E-Mail trotzdem geschrieben'
+    assert getattr(anna, feld) in (None, False, 0), \
+        f'{feld}: gesperrtes Feld trotzdem geschrieben ({getattr(anna, feld)!r})'
+
+
+def test_doc_save_ohne_gesperrtes_feld_bleibt_offen(
+        client, zwei, set_user, dateien, praefix):
+    """Gegenprobe: eine reine E-Mail-Aenderung per `doc.save()` bleibt erlaubt."""
+    from diakronos_app.frappe_compat.query import get_doc
+    from diakronos_app.models.diakonos import Mitglied
+
+    _sm(client, zwei, set_user, ANNA)
+
+    doc = get_doc('Mitglied', 'M-0001')
+    doc.email = 'anna.neu@example.org'
+    doc.save()
+
+    zwei.expire_all()
+    assert zwei.get(Mitglied, 'M-0001').email == 'anna.neu@example.org'
+
+
+# ── MT-2d (drittes Review, NIEDRIG 5): Operator-Entscheidung als Test ───────
+# Der LESER bleibt wie in `main`: `oeffentlich_api._bild_datei` prueft keinen
+# Besitz. Der Schreibweg ist die Verteidigung (siehe
+# `test_generische_wege_setzen_fremdes_foto_nicht`). KONSEQUENZ, bewusst
+# entschieden: setzt eine Verwaltung (System Manager) IHR EIGENES Upload als
+# Bild einer anderen Person, ist das erlaubt — und die Website liefert es aus
+# (200). Frueher stand hier die Gegenannahme („nur Dateien des Mitglieds“).
+
+
+def test_operator_entscheidung_fremd_gesetztes_admin_bild_wird_ausgeliefert(
+        client, zwei, set_user, dateien, praefix):
+    """Operator-Entscheidung: Admin-Bild bei einer Person -> `/website/bild/...` 200.
+
+    Aufbau: ANNA (System Managerin) laedt ein Bild hoch und setzt es per
+    `PUT /api/resource` auf das Mitglied M-0002 (nicht ihres). Danach ist
+    M-0002 oeffentlicher Ansprechpartner mit Einwilligung + Foto-Zustimmung.
+    Der Bild-Endpunkt liefert 200 — der Leser prueft keinen Besitz, und das
+    ist die Entscheidung des Operators (nicht der Befund).
+    """
+    from diakronos_app.models.diakonos import (
+        Dienstbereich, DienstbereichVerantwortlicher, Mitglied,
+    )
+    from diakronos_app.models.website_ansprechpartner import WebsiteAnsprechpartner
+    from diakronos_app.website import oeffentlich_auswahl as auswahl
+
+    _sm(client, zwei, set_user, ANNA)
+    antwort = _upload(client, 'admin.png')
+    assert antwort.status_code == 200, antwort.text
+    url = antwort.json()['message']['file_url']
+
+    put = client.put('/api/resource/Mitglied/M-0002', json={'foto': url})
+    assert put.status_code == 200, put.text
+
+    zwei.expire_all()
+    bruno = zwei.get(Mitglied, 'M-0002')
+    assert bruno.foto, 'Bild nicht gespeichert'
+    bruno.website_einwilligung = True
+    bruno.website_einwilligung_foto = True
+    zwei.add(WebsiteAnsprechpartner(art='dienstbereich', funktion='musik',
+                                    bezeichnung='', postfach=None, sortierung=1))
+    zwei.add(DienstbereichVerantwortlicher(name='dbv-mt2d', parent='musik',
+                                           parenttype='Dienstbereich',
+                                           parentfield='verantwortliche',
+                                           user=BRUNO, idx=1))
+    zwei.add(Dienstbereich(name='musik', ministry='Musik', sortierung=1))
+    zwei.commit()
+
+    kennung = auswahl.oeffentliche_kennung('person', 'M-0002')
+    bild = client.get(f'/website/bild/person/{kennung}')
+    assert bild.status_code == 200, bild.text
+
+
+# ── MT-2c (zweites Review, NIEDRIG 5) / MT-2d (drittes Review, NIEDRIG 3):
+# `base_path.datei_url` ─────────────────────────────────────────────────────
+# `datei_url` erkannte „absolut“ per TEILSTRING (`"://" in wert`) und
+# uebersprang damit die Praefigierung; geprueft wird jetzt nur der ANFANG.
+# MT-2d: `datei_url` praefigiert ausserdem DIREKT (nicht mehr ueber `pfad()`,
+# das den Teilstring-Test noch hat) — `'/files/a.jpg?u=http://x'` bekommt
+# damit den Praefix, wie der Docstring es sagt.
+
+
+@pytest.mark.parametrize('pfad_wert', [
+    '/files/a.jpg', '/private/files/a.jpg',
+])
+def test_datei_url_praefigiert_ueber_pfad(pfad_wert):
+    """Die normalen DB-Formen laufen weiter ueber `pfad` (Praefix davor).
+
+    Nur `/files/…` und `/private/files/…` sind Datei-Adressen; jeder andere
+    relative Pfad bleibt unangetastet (unveraendertes Bestandsverhalten).
+    """
+    from diakronos_app import base_path
+
+    alt = base_path.aktiver_praefix()
+    base_path.setze_praefix('/diakronos')
+    try:
+        assert base_path.datei_url(pfad_wert) == '/diakronos' + pfad_wert
+    finally:
+        base_path.setze_praefix(alt)
+
+
+@pytest.mark.parametrize('wert', [
+    '/files/a.jpg?u=http://x',      # Teilstring `://` im Query
+    '/private/files/a.jpg?a=://',
+    '/files/../../etc/passwd?a=://',
+])
+def test_datei_url_prueft_absolut_nur_am_anfang(wert):
+    """MITTEL (MT-2c) / NIEDRIG (MT-2d): der Teilstring im Query ist KEIN absoluter Wert.
+
+    Verhalten, nicht Muster: `datei_url` fragte frueher `"://" in wert` —
+    damit galten diese Pfade DIESER Installation als „absolut“ und blieben
+    unpraefigiert (toter Link). Geprueft wird der ANFANG; der Praefix kommt
+    davor (MT-2d: direkt, `pfad()` haette den Wert wieder durchgelassen).
+    """
+    from diakronos_app import base_path
+
+    alt = base_path.aktiver_praefix()
+    base_path.setze_praefix('/diakronos')
+    try:
+        assert base_path.datei_url(wert) == '/diakronos' + wert, wert
+    finally:
+        base_path.setze_praefix(alt)
+
+
+@pytest.mark.parametrize('wert', [
+    'http://cdn.example.org/a.jpg',
+    'https://cdn.example.org/a.jpg',
+    'HTTPS://cdn.example.org/a.jpg',
+    '//cdn.example.org/a.jpg',
+    'anders/relativ.jpg',
+])
+def test_datei_url_erkennt_absolut_nur_am_anfang(wert):
+    """Gegenprobe: echte absolute Adressen (am ANFANG) bleiben unangetastet.
+
+    Die Kartenentscheidung selbst („Teilstring im Query ist NICHT absolut“)
+    haelt `test_datei_url_prueft_absolut_nur_am_anfang` fest.
+    """
+    from diakronos_app import base_path
+
+    alt = base_path.aktiver_praefix()
+    base_path.setze_praefix('/diakronos')
+    try:
+        assert base_path.datei_url(wert) == wert, wert
+    finally:
+        base_path.setze_praefix(alt)

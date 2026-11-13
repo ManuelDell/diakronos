@@ -57,6 +57,7 @@ __all__ = [
     "foto_erlaubt",
     "ist_oeffentlich",
     "oeffentlicher_name",
+    "pruefe_foto_schreibweg",
     "pruefe_generischen_schreibweg",
     "status_ist_ausgeschieden",
     "zeitstempel",
@@ -311,6 +312,92 @@ def pruefe_generischen_schreibweg(werte, name: str | None = None) -> None:
     if versuch <= erlaubt:
         return
     raise PermissionError(_MELDUNG)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MT-2c — das Profilbild (`foto`) laeuft auch auf dem generischen Weg durch
+# DIESELBE Besitzpruefung wie der eigene Endpunkt
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# DER BEFUND (zweites Review MT-2c, NIEDRIG 3)
+# --------------------------------------------
+# `update_profile_picture` prueft die Adresse (Format + Besitz an der
+# `File`-Zeile), die GENERISCHEN Wege aber nicht:
+#
+#   PUT /api/resource/Mitglied/<x>   {"foto": "/private/files/<fremd>"}  -> 200
+#   POST /api/resource/Mitglied      {"foto": "/private/files/<fremd>"}  -> 200
+#   frappe.client.insert / doc.save()/db_set                             -> 200
+#
+# Danach las `website.oeffentlich_api._bild_datei` die Datei OHNE
+# Besitzpruefung ueber `files.stored_path` — eine PRIVATE Datei einer anderen
+# Person waere damit als Ansprechpartner-Bild oeffentlich geworden.
+#
+# DIE REGEL
+# ---------
+# `foto` ist kein Sonderfall mit eigener Logik, sondern laeuft ueber
+# `api.profile._eigene_datei_url` — dieselbe Funktion, die
+# `update_profile_picture` benutzt (Dateiname gegen `_datei_url_muster`,
+# `File`-Zeile mit `owner == session.user`, Datei im Ablageverzeichnis).
+# Gespeichert wird die DB-Form der Zeile; fremde, erfundene oder
+# manipulierende Werte (`/private/files/<fremd>`, `/files/../../etc/passwd`,
+# `https://…`) bleiben 403 und schreiben nichts.
+#
+# MT-2d (drittes Review): der frueher hier stehende Absatz „Bewusst NICHT die
+# einzige Verteidigung: am Leser abgefangen (`oeffentlich_api._bild_datei`
+# liefert nur Dateien des Mitglieds)“ ist gestrichen — nach der
+# Operator-Entscheidung bleibt der Leser wie in `main` (keine Besitzpruefung
+# dort). DIESE Schranke ist die Verteidigung des Schreibwegs.
+
+_MELDUNG_FOTO = "Nur eigene hochgeladene Dateien sind erlaubt."
+
+
+def pruefe_foto_schreibweg(werte, name: str | None = None) -> None:
+    """Prueft ``foto`` auf dem generischen Schreibweg — 403, wenn nicht eigen.
+
+    ``werte`` sind die zu schreibenden Felder (nach Spaltenfilter), ``name``
+    die Mitglied-Kennung (``None`` beim Anlegen). Wird ausschliesslich aus
+    ``frappe_compat.api_helpers._pruefe_mitglied_schreibzugriff`` aufgerufen —
+    dort laufen Anlegen und Aendern aller generischen Wege durch
+    (`/api/resource` PUT/POST, ``frappe.client.insert``/``save``, `_create`,
+    `_update_doc`, ``Document.save``/``db_set``/``set_value``).
+
+    Steht ``foto`` auf demselben Wert, der schon in der Zeile steht, ist das
+    keine Aenderung (das Original schickt beim PUT oft die ganze Zeile mit) —
+    dann wird nichts geprueft und nichts geschrieben. Ein LEERER Wert heisst
+    "kein Bild" (das ist der Loeschweg von `update_profile_picture`, das
+    Original erlaubt ihn ueberall) und geht ebenfalls durch. Jeder ANDERE Wert
+    muss die Besitzpruefung bestehen.
+
+    Der Wert wird auf die DB-Form der EIGENEN `File`-Zeile zurueckgeschrieben
+    (``werte`` wird an Ort und Stelle ersetzt), damit alle Wege denselben
+    gespeicherten Wert erzeugen — auch wenn der Client die praefigierte
+    Adresse aus `upload_file` geschickt hat.
+    """
+    from diakronos_app.frappe_compat.exceptions import PermissionError
+
+    if "foto" not in {str(k) for k in (werte or {})}:
+        return
+    from diakronos_app.api.profile import _eigene_datei_url
+    from diakronos_app.frappe_compat.query import get_value
+
+    wert = werte.get("foto")
+    if wert is None or (isinstance(wert, str) and not wert.strip()):
+        return  # kein Bild — dieselbe Semantik wie `update_profile_picture`
+    if name:
+        try:
+            bisher = get_value("Mitglied", name, "foto")
+        except Exception:  # noqa: BLE001 — keine Zeile/keine Spalte: fail closed
+            bisher = None
+        if isinstance(wert, str) and str(wert).strip() == str(bisher or "").strip():
+            return  # unveraendert mitgesendet — keine Aenderung
+    try:
+        # In-place, damit AUCH der Aufrufer (der payload weiterverwendet)
+        # den geprueften Wert sieht.
+        werte["foto"] = _eigene_datei_url(wert)
+    except PermissionError:
+        raise
+    except Exception as exc:  # noqa: BLE001 — jeder Zweifel ist ein Rechtefehler
+        raise PermissionError(_MELDUNG_FOTO) from exc
 
 
 @contextmanager

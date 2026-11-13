@@ -75,6 +75,13 @@ _AKTIV: str = ""
 # Links — ein Leerzeichen oder `?` waere dort eine stille Fehlerquelle.
 _VERBOTEN = re.compile(r"[\s?#\\\x00-\x1f\x7f\x85\u2028\u2029]")
 
+# MT-2c (zweites Review, NIEDRIG 5): „absolute Adresse“ nur AM ANFANG erkennen
+# (`http(s)://…` und protokollrelativ `//host/…`). Ein Teilstring-Test wie
+# `"://" in wert` hielt `/files/a.jpg?u=http://x` fuer absolut — die Adresse
+# blieb unpraefigiert (toter Link) — und `/files/../../etc/passwd?a=://` kam
+# damit an der Praefigierung vorbei.
+_ABSOLUTE_ADRESSE = re.compile(r"(?:https?:)?//", re.IGNORECASE)
+
 
 def normalisiere(wert) -> str:
     """Bringt `DIAKRONOS_BASE_PATH` in die Form "/pfad" (oder "").
@@ -142,15 +149,25 @@ def datei_url(url) -> str:
     `/private/files/…` (Frappe-Erbe, Karte: DB NICHT migrieren). Bei der
     AUSGABE werden sie praefigiert. Alles andere (leer, absolute Adresse,
     schon praefigiert) bleibt, wie es ist.
+
+    Absolute Adressen werden nur AM ANFANG erkannt (`http(s)://…`, `//host/…`).
+
+    MT-2d (drittes Review, NIEDRIG 3): praefigiert wird hier DIREKT, nicht
+    mehr ueber `pfad()`. `pfad()` prueft weiter `"://" in wert` — damit blieb
+    `/files/a.jpg?u=http://x` entgegen diesem Docstring unpraefigiert (toter
+    Link). `pfad()` gehoert nicht zu dieser Karte, die Ausgabe von
+    Datei-Adressen schon.
     """
     wert = str(url or "")
     if not wert:
         return wert
-    if "://" in wert or wert.startswith("//") or not wert.startswith("/"):
+    if _ABSOLUTE_ADRESSE.match(wert) or not wert.startswith("/"):
         return wert
-    if wert.startswith("/files/") or wert.startswith("/private/files/"):
-        return pfad(wert)
-    return wert
+    if not _AKTIV:
+        return wert
+    if wert == _AKTIV or wert.startswith(_AKTIV + "/"):
+        return wert
+    return _AKTIV + wert
 
 
 def praefigiere(app, praefix: str):

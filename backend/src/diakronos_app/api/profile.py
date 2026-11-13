@@ -148,6 +148,11 @@ def get_my_profile():
 
     `datenschutz_datum` / `foto_datum` / `werbung_datum` werden zu Strings
     (`str(...)` wie im Original), sonst kaeme ein `date` im JSON-Envelope an.
+
+    MT-2c: `foto` laeuft ueber `foto_mit_praefix` (nicht mehr ueber den
+    Alias `_datei_mit_praefix`). Damit gilt fuer das EIGENE Profil dieselbe
+    Formatpruefung wie fuer alle anderen Leser: ein Altbestand wie
+    `/etc/passwd` oder `/files/../../etc/passwd` kommt leer an.
     """
     mid = _get_my_mitglied()
     doc = get_doc("Mitglied", mid)
@@ -165,7 +170,7 @@ def get_my_profile():
         "wohnort": doc.wohnort or "",
         "strasse": doc.get("straße") or "",
         "nummer": doc.nummer or "",
-        "foto": _datei_mit_praefix(doc.foto),
+        "foto": foto_mit_praefix(doc.foto),
         "geschlecht": doc.geschlecht or "",
         "familienstand": doc.familienstand or "",
         "datenschutz_einwilligung": bool(doc.datenschutz_einwilligung),
@@ -447,6 +452,17 @@ def _dateiname_aus_file_url(file_url: str) -> str | None:
     return None
 
 
+def _ist_absolute_adresse(wert: str) -> bool:
+    """True nur fuer `http(s)://…` und `//…` — geprueft am ANFANG.
+
+    MT-2d (drittes Review, NIEDRIG 4): das Muster steht EINMAL in
+    `base_path._ABSOLUTE_ADRESSE`; hier wird es importiert, nicht kopiert.
+    """
+    from diakronos_app.base_path import _ABSOLUTE_ADRESSE
+
+    return _ABSOLUTE_ADRESSE.match(str(wert or "")) is not None
+
+
 def _datei_mit_praefix(url: str | None) -> str:
     """`foto`-Adresse fuer die Ausgabe mit Betriebs-Praefix (MT-2, MT-2b).
 
@@ -477,23 +493,28 @@ def foto_mit_praefix(url: str | None) -> str:
     `v-if="foto"`).
 
     Verteidigung in der Tiefe (Review MT-2b, MITTEL): absolute Adressen
-    (`http(s)://`, `//host`, ein Fremdschema wie `javascript:`) gehen
-    unveraendert durch — sie sind kein Pfad dieser Installation, werden aber
-    von `sichereBildUrl` im Frontend gefiltert und von Altbestand/CDN
-    gebraucht. ALLES andere muss dagegen eine Adresse nach
-    `_datei_url_muster()` sein (`[/praefix]/files/<name>` bzw.
-    `…/private/files/<name>`); fremde relative Werte (`/etc/passwd`,
+    (`http(s)://`, `//host`) gehen unveraendert durch — sie sind kein Pfad
+    dieser Installation, werden aber von `sichereBildUrl` im Frontend
+    gefiltert und von Altbestand/CDN gebraucht. ALLES andere muss dagegen
+    eine Adresse nach `_datei_url_muster()` sein (`[/praefix]/files/<name>`
+    bzw. `…/private/files/<name>`); fremde relative Werte (`/etc/passwd`,
     `/files/../../…`, `/x/y/files/…`) werden NICHT ausgeliefert, sondern zu
     `""`. Sonst wuerde ein Altbestand, der vor dem Schreibschutz
     (`update_mitglied`) in die Spalte gelangt ist, weiter an alle Betrachter
     gehen.
+
+    MT-2c: die Ausnahme gilt nur noch, wenn die Adresse AM ANFANG absolut
+    ist (`_ist_absolute_adresse`, `base_path._ABSOLUTE_ADRESSE`). Ein
+    Teilstring-Test (`"://" in wert`) liess `'/files/../../etc/passwd?a=://'`
+    und `'/x/y/z?u=http://a'` ungeprueft durch — der Altbestand-Schutz war
+    damit umgehbar.
     """
     wert = str(url or "").strip()
     if not wert:
         return ""
     # Absolute Adresse: kein Pfad dieser Installation — unangetastet (datei_url
     # laesst sie ohnehin stehen, hier nur die Ausnahme von der Pruefung).
-    if "://" in wert or wert.startswith("//"):
+    if _ist_absolute_adresse(wert):
         return _datei_mit_praefix(wert)
     if _datei_url_muster().fullmatch(wert) is None:
         return ""
@@ -501,6 +522,60 @@ def foto_mit_praefix(url: str | None) -> str:
 
 
 # ── Profilbild ──────────────────────────────────────────────────────────────
+
+
+def _eigene_datei_url(file_url) -> str:
+    """Prueft `file_url` als EIGENE Datei und gibt die DB-Form zurueck (403 sonst).
+
+    MT-2c: DIE eine Besitzpruefung fuer das Profilbild. Zwei Aufrufer:
+
+      * `update_profile_picture` (der erlaubte Schreibweg),
+      * `frappe_compat.api_helpers._pruefe_mitglied_schreibzugriff` ueber
+        `website.einwilligung.pruefe_foto_schreibweg` — dort laufen
+        `/api/resource` PUT/POST, `frappe.client.insert`/`save`,
+        `_create`/`_update_doc` und `Document.save`/`db_set` durch. Vorher
+        nahmen diese Wege jede Adresse an (auch `/private/files/<fremd>`);
+        der oeffentliche Leser prueft keinen Besitz und haette die fremde
+        PRIVATE Datei als Ansprechpartner-Bild ausgeliefert.
+
+    Geprueft wird NIE der Client-String, sondern der Dateiname: er muss dem
+    Muster aus `_dateiname_aus_file_url` entsprechen (Pfad, `..` und fremde
+    Praefixe fallen durch), es muss eine `File`-Zeile mit diesem Namen und
+    `owner == session.user` geben, und die Datei muss im Ablageverzeichnis
+    liegen (`files.stored_path`).
+
+    Zurueck kommt die DB-Form (`/files/<name>` bzw. `/private/files/<name>`)
+    — die Ausgabe praefigiert `foto_mit_praefix` ohnehin; eine praefigierte
+    Adresse in der Spalte waere bei einem Praefix-Wechsel kaputt.
+    """
+    if not isinstance(file_url, str):
+        throw("Nur eigene hochgeladene Dateien sind erlaubt.", FrappePermissionError)
+    # A client URL is not proof of ownership; only our own File row is.
+    from diakronos_app.db import SessionLocal
+    from diakronos_app.models.core import FileModel
+    from diakronos_app.files import stored_path
+
+    # MT-2: Unter dem Betriebs-Praefix liefert `upload_file` die Adresse
+    # `/diakronos/files/<name>` (WEB-5a), die DB-Zeile traegt weiter
+    # `/files/<name>`. Beide Formen muessen denselben Datensatz treffen,
+    # sonst schlaegt das Speichern des eigenen Bildes mit 403 fehl.
+    # Verglichen wird NIE der Client-String, sondern der Dateiname, und
+    # die DB-Zeile muss dem Aufrufer gehoeren — fremde Dateien bleiben 403.
+    filename = _dateiname_aus_file_url(file_url)
+    if not filename:
+        throw("Nur eigene hochgeladene Dateien sind erlaubt.", FrappePermissionError)
+        raise AssertionError("unreachable — throw() wirft immer")  # noqa: TRY301
+    with SessionLocal() as db:
+        file_doc = db.query(FileModel).filter(
+            FileModel.file_url.in_([
+                '/files/' + filename, '/private/files/' + filename,
+            ]),
+            FileModel.owner == session.user,
+        ).first()
+        if file_doc is None or stored_path(filename) is None:
+            throw("Nur eigene hochgeladene Dateien sind erlaubt.", FrappePermissionError)
+            raise AssertionError("unreachable — throw() wirft immer")  # noqa: TRY301
+        return str(file_doc.file_url)
 
 
 @whitelist(methods=["POST"], allow_guest=False)
@@ -512,42 +587,13 @@ def update_profile_picture(file_url=None):
     die zurueckgegebene `file_url` (`Profile.vue:465-474`).
 
     B3: Anders als das Original akzeptieren wir keine ungepruefte Client-URL.
-    Sie muss eine eigene File-Zeile und eine vorhandene lokale Datei benennen.
+    Sie muss eine eigene File-Zeile und eine vorhandene lokale Datei benennen
+    (`_eigene_datei_url`, dieselbe Pruefung wie die zentrale Schranke).
     Ein leerer Wert entfernt das Profilbild weiterhin.
     """
     mid = _get_my_mitglied()
     if file_url:
-        if not isinstance(file_url, str):
-            throw("Nur eigene hochgeladene Dateien sind erlaubt.", FrappePermissionError)
-        # A client URL is not proof of ownership; only our own File row is.
-        from diakronos_app.db import SessionLocal
-        from diakronos_app.models.core import FileModel
-        from diakronos_app.files import stored_path
-
-        # MT-2: Unter dem Betriebs-Praefix liefert `upload_file` die Adresse
-        # `/diakronos/files/<name>` (WEB-5a), die DB-Zeile traegt weiter
-        # `/files/<name>`. Beide Formen muessen denselben Datensatz treffen,
-        # sonst schlaegt das Speichern des eigenen Bildes mit 403 fehl.
-        # Verglichen wird NIE der Client-String, sondern der Dateiname, und
-        # die DB-Zeile muss dem Aufrufer gehoeren — fremde Dateien bleiben 403.
-        filename = _dateiname_aus_file_url(file_url)
-        if not filename:
-            throw("Nur eigene hochgeladene Dateien sind erlaubt.", FrappePermissionError)
-            raise AssertionError("unreachable — throw() wirft immer")  # noqa: TRY301
-        with SessionLocal() as db:
-            file_doc = db.query(FileModel).filter(
-                FileModel.file_url.in_([
-                    '/files/' + filename, '/private/files/' + filename,
-                ]),
-                FileModel.owner == session.user,
-            ).first()
-            if file_doc is None or stored_path(filename) is None:
-                throw("Nur eigene hochgeladene Dateien sind erlaubt.", FrappePermissionError)
-                raise AssertionError("unreachable — throw() wirft immer")  # noqa: TRY301
-        # Gespeichert wird die DB-Form (praefixfrei) — die Ausgabe praefigiert
-        # `get_my_profile` ohnehin; eine praefigierte URL in der Spalte waere
-        # bei einem Praefix-Wechsel kaputt.
-        file_url = file_doc.file_url
+        file_url = _eigene_datei_url(file_url)
     doc = get_doc("Mitglied", mid)
     doc.db_set("foto", file_url or None)
     return {"ok": True}

@@ -192,13 +192,27 @@ class Document:
 				for feld, wert in payload.items():
 					if getattr(self._obj, feld) is not wert:
 						object.__setattr__(self._obj, feld, wert)
-				payload = {k: v for k, v in payload.items() if k in ("email",)}
 			# BS-3a (Datenschutz-Review, KRITISCH 1): `doc.save()`/`doc.db_set()`
 			# ist derselbe generische Schreibweg — ein Einwilligungsfeld muss auch
 			# von hier aus mit 403 abgelehnt werden. Sonst waere die Schranke in
 			# `_pruefe_mitglied_schreibzugriff` ueber das Dokument umgehbar; der
 			# Payload wird deshalb NICHT auf `email` verkuerzt.
+			#
+			# MT-2d (drittes Review, MITTEL): hier stand bis eben genau diese
+			# Verkuerzung (`payload = {k: v for k, v in payload.items() if k in
+			# ("email",)}`). Die Schranke sah dann nur `email` — `doc.email = ...;
+			# doc.foto = <fremder Upload>; doc.save()` speicherte die fremde
+			# Datei, `doc.website_einwilligung = True` die Einwilligung. Geprueft
+			# wird der GANZE geaenderte Payload.
 			_pruefe_mitglied_schreibzugriff(payload, name)
+			# MT-2c (zweites Review, NIEDRIG 4): die Schranke ERSETZT `foto`
+			# durch die DB-Form der EIGENEN `File`-Zeile — nur in dieser Kopie.
+			# Die DB schrieb danach den rohen Client-Wert
+			# (`/diakronos/files/...` statt `/files/...`). Wie bei `email`
+			# wird der gepruefte Wert deshalb am Objekt nachgezogen.
+			for feld, wert in payload.items():
+				if getattr(self._obj, feld) is not wert:
+					object.__setattr__(self._obj, feld, wert)
 			return
 		# N12b (W1/P5): `doc.parent = ...; doc.save()` ist derselbe generische
 		# Weg wie `/api/resource` — der Platz einer bestehenden Zeile darf sich

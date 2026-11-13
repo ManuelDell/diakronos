@@ -750,6 +750,17 @@ def _pruefe_mitglied_schreibzugriff(
 
     pruefe_generischen_schreibweg(values, name)
 
+    # MT-2c (zweites Review, NIEDRIG 3): `foto` ebenso — ueber DIESELBE
+    # Besitzpruefung wie der eigene Endpunkt (`pruefe_foto_schreibweg`).
+    # `/api/resource` und `frappe.client` setzten bisher jede beliebige
+    # Adresse (auch `/private/files/<fremd>`) ungeprueft in die Spalte; der
+    # oeffentliche Leser `website.oeffentlich_api._bild_datei` prueft keinen
+    # Besitz und haette die fremde PRIVATE Datei als Ansprechpartner-Bild
+    # ausgeliefert.
+    from diakronos_app.website.einwilligung import pruefe_foto_schreibweg
+
+    pruefe_foto_schreibweg(values, name)
+
     # SEC-c: DIE Schranke ist der eine Ort, den jeder Schreibweg passiert.
     # Deshalb wird die E-Mail hier normalisiert — auch fuer Aufrufer, die die
     # Normalisierung vergessen (`Document.db_set`, `frappe.client.insert`,
