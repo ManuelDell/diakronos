@@ -1000,10 +1000,14 @@
    `@media print` zutrifft; deshalb stehen ihre Selektoren hier ausdrücklich
    mit im Selektor.
 
-   Geprüft wird das im Test (`frontend/tests/mt7b-lese-unterseiten.test.mjs`):
-   er nimmt JEDEN Namen aus den Dunkel-Blöcken und vergleicht seinen Wert im
-   Druck-Medium mit dem hellen Wert — ein neu hinzugekommenes Token, das hier
-   fehlt, fällt auf. Neue Tokens gehören deshalb GENAU HIER ergänzt.
+   Geprüft wird das im Test (`frontend/tests/mt7b-lese-unterseiten.test.mjs`,
+   MT-7c): er bestimmt je Name den WIRKSAMEN Wert im Druckmedium (Kaskade aus
+   Regeln ohne Medien und diesem Block, entschieden nach Spezifität und
+   Stelle; `var()` rekursiv aufgelöst, auch in `color-mix`) und vergleicht ihn
+   mit dem rekursiv aufgelösten HELLEN Wert — ohne Ausnahme, auch nicht für
+   `var(…)`-Werte. Ein neu hinzugekommenes Token, das hier fehlt oder vom
+   hellen Wert abweicht, fällt auf; die Gegenprobe spielt sechs Sabotagen
+   gegen dieselbe Prüfung. Neue Tokens gehören deshalb GENAU HIER ergänzt.
 
    Quellen der Werte: der helle Satz (§2 bzw. §3c) und — für Marke, Status und
    Abzeichen — die Rohskala (§1), weil die dunkle Fassung eigene Rohwerte

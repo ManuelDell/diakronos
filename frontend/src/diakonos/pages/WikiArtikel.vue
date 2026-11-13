@@ -18,7 +18,7 @@
       <!-- Kopf: Titel + „‹ zurück“ (MT-7: eigene Unterseite statt Fenster) -->
       <DkPageHeader ref="kopf" :title="artikel.title || 'Artikel'" :krumen="krumen">
         <template #actions>
-          <DkButton variant="secondary" size="md" as="a" :href="zurueckZiel" @click="zurueck($event)">
+          <DkButton class="wk-zurueck" variant="secondary" size="md" as="a" :href="zurueckZiel" @click="zurueck($event)">
             <span class="wk-pfeil" aria-hidden="true">‹</span> zurück
           </DkButton>
         </template>
@@ -385,6 +385,9 @@ watch(artikelId, () => { if (artikelId.value) ladenDaten() })
 
 /* Druck: nur der Artikel, ohne Gerüst — volle Breite, ohne Schatten. */
 @media print {
+  /* MT-7c: „‹ zurück“ sitzt im `#actions`-Slot des Seitenkopfs und wurde
+     mitgedruckt (ausgeblendet war nur die Objekt-Aktionen-Leiste). */
+  .wk-zurueck { display: none; }
   .wk-lese-aktionen { display: none; }
   .wk-lese { box-shadow: none; padding: 0; background: transparent; }
   .wk-lese-inhalt { max-width: none; }

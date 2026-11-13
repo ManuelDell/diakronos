@@ -15,7 +15,9 @@ import { fehlertext } from '../shared/fehlertexte.js'
 // Nutzer aus der Liste kam. Der Wechsel wird HIER geprüft (eine Stelle), weil
 // der Auslöser auch im Gerüst liegen kann (Menüpunkt in `AppSidebar.vue`) —
 // ein Klick-Wächter in der Seite sähe ihn nie.
-import { rueckwegBleibtGueltig, rueckwegMerken as rueckwegMerkenFuerRoute, rueckwegVergessen as rueckwegVergessenFuerRoute } from './composables/zurueckWege.mjs'
+// MT-7c (Review): `rueckwegMerken` wird hier NICHT gebraucht (die Listen rufen
+// es selbst) — nur die Prüfung und das Verwerfen.
+import { rueckwegBleibtGueltig, rueckwegVergessen as rueckwegVergessenFuerRoute } from './composables/zurueckWege.mjs'
 
 // Sicherheitsnetz: Läuft der Router ohne die Leitungsdatei (die VM-Tests
 // streichen Importe), darf die Seite NICHT brechen — dann wird nicht

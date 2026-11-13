@@ -20,7 +20,7 @@
       <!-- Kopf: Titel + „‹ zurück“ (MT-7: eigene Unterseite statt Fenster) -->
       <DkPageHeader ref="kopf" :title="beitrag.title || 'Beitrag'" :krumen="krumen" :badges="kopfBadges">
         <template #actions>
-          <DkButton variant="secondary" size="md" as="a" :href="zurueckZiel" @click="zurueck">
+          <DkButton class="bt-zurueck" variant="secondary" size="md" as="a" :href="zurueckZiel" @click="zurueck">
             <span class="bt-pfeil" aria-hidden="true">‹</span> zurück
           </DkButton>
         </template>
@@ -396,6 +396,9 @@ watch(beitragId, () => { if (beitragId.value) seiteAufbauen() })
 
 /* Druck: nur der Beitrag, ohne Gerüst — schwarz auf weiß, volle Breite. */
 @media print {
+  /* MT-7c: „‹ zurück“ sitzt im `#actions`-Slot des Seitenkopfs und wurde
+     mitgedruckt (ausgeblendet war nur die Objekt-Aktionen-Leiste). */
+  .bt-zurueck { display: none; }
   .bt-detail-aktionen { display: none; }
   .bt-lese { box-shadow: none; padding: 0; background: transparent; }
   .bt-lese-inhalt { max-width: none; }
