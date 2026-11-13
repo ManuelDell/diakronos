@@ -1,5 +1,5 @@
 <template>
-  <div class="dk-screen dk-screen-enter">
+  <div ref="rootEl" class="dk-screen dk-screen-enter">
 
     <!-- Seitenkopf -->
     <DkPageHeader
@@ -53,7 +53,13 @@
             v-for="article in filteredArticles"
             :key="article.id"
             class="dk-content-card wk-article-card"
+            role="link"
+            tabindex="0"
+            :data-id="article.id"
+            :aria-label="`Artikel lesen: ${article.title || 'ohne Titel'}`"
             @click="openArticle(article)"
+            @keydown.enter.self.prevent="openArticle(article)"
+            @keydown.space.self.prevent="openArticle(article)"
             @contextmenu.prevent="zeilenKontextmenue($event, article)"
           >
             <div class="wk-article-header">
@@ -140,53 +146,8 @@
       </aside>
     </div>
 
-    <!-- Artikel-Detail -->
-    <DkDialog :model-value="showArticleDetail" size="lg" :title="selectedArticle?.title || 'Artikel'"
-              @update:model-value="artikelDetailSichtbar($event)">
-      <div v-if="selectedArticle" class="wk-detail">
-        <div class="wk-detail-header">
-          <DkBadge variant="neutral">{{ categoryName(selectedArticle.category) }}</DkBadge>
-          <div class="wk-detail-aktionen">
-            <DkButton v-if="isAdmin" variant="ghost" size="md" @click="openEditor(selectedArticle); artikelSchliessen()">Bearbeiten</DkButton>
-            <DkButton v-if="isAdmin" variant="danger" size="md" @click="deleteArticle(selectedArticle)">Löschen</DkButton>
-          </div>
-        </div>
-
-        <div class="wk-detail-body">
-          <h2 class="wk-detail-title">{{ selectedArticle.title }}</h2>
-          <div class="wk-detail-meta">
-            <span class="wk-article-author">
-              <div class="dk-avatar dk-avatar-sm">{{ selectedArticle.authorAvatar }}</div>
-              {{ selectedArticle.author }}
-            </span>
-            <span>Zuletzt bearbeitet: {{ formatDate(selectedArticle.updatedAt) }}</span>
-            <div class="wk-detail-tags">
-              <DkBadge v-for="tag in selectedArticle.tags" :key="tag" variant="neutral">{{ tag }}</DkBadge>
-            </div>
-          </div>
-          <div class="wk-detail-content" v-html="sanitize(selectedArticle.content)" />
-
-          <!-- Ähnliche Artikel -->
-          <div v-if="relatedArticles.length > 0" class="wk-related">
-            <h4>Ähnliche Artikel</h4>
-            <div class="wk-related-list">
-              <div
-                v-for="ra in relatedArticles"
-                :key="ra.id"
-                class="wk-related-item"
-                @click="openArticle(ra)"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                <span>{{ ra.title }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <DkButton variant="ghost" @click="artikelSchliessen">Schließen</DkButton>
-      </template>
-    </DkDialog>
+    <!-- MT-7: Lesen ist eine eigene Unterseite (#/wiki/<Kennung>,
+         pages/WikiArtikel.vue) — kein Fenster mehr an dieser Stelle. -->
 
     <!-- Editor (Verwaltung) -->
     <DkDialog :model-value="showEditor" :before-close="editorSchutz.darfSchliessen" size="lg"
@@ -221,8 +182,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import DOMPurify from 'dompurify'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { apiCall } from '../composables/useApi.js'
 import { suchNormal } from '../composables/bf1Anzeige.js'
 import { showToast } from '../composables/useToast.js'
@@ -243,9 +203,11 @@ import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkFilterChips from '../components/ui/DkFilterChips.vue'
 // UX2e: EIN Aktionsmenü „⋯" für alle Listen (Entwurf B1).
 import DkAktionen from '../components/ui/DkAktionen.vue'
-import { getRouteParam } from '../router.js'
-
-function sanitize(html) { return DOMPurify.sanitize(html || '') }
+// MT-7: Lesen wechselt die Route (eigene Unterseite statt Fenster).
+import { navigate } from '../router.js'
+// MT-7b: Merker für den Rückweg — die Liste schreibt ihre volle Adresse hier
+// hinein, bevor sie einen Artikel öffnet.
+import { adresseImVerlaufSetzen, rueckwegKennung, rueckwegMerken } from '../composables/zurueckWege.mjs'
 
 const { isAdmin } = useSession()
 // UX2c (C2): Rückgängig-Weg dieser Seite (Stapel-Eintrag + Meldung).
@@ -262,11 +224,13 @@ const categories = [
 ]
 
 /* ─── State ─── */
+// MT-7: Weg zurück zur Liste — Ziel von „‹ zurück“ auf der Leseseite.
+const ZURUECK_ZIEL = '#/wiki'
+/** Wurzel der Seite — für den Fokus auf die zuletzt geöffnete Karte (MT-7b). */
+const rootEl = ref(null)
 const articles = ref([])
 const activeCategory = ref('all')
 const searchQuery = ref('')
-const showArticleDetail = ref(false)
-const selectedArticle = ref(null)
 const showEditor = ref(false)
 const editingArticle = ref(null)
 const saving = ref(false)
@@ -315,6 +279,50 @@ const kategorieChips = computed(() =>
   categories.map(c => ({ id: c.id, label: c.name, anzahl: articleCountByCategory.value[c.id] || 0 })))
 
 /* ─── API ─── */
+/**
+ * MT-7b: Die vollständige Adresse der Liste — Suche und Kategorie kommen aus
+ * dem Zustand der Seite (nicht aus der Adresse: nach `?bearbeiten=` steht dort
+ * weniger). Das Ergebnis ist die Adresse des Listen-Eintrags im Verlauf und das
+ * Ziel von „‹ zurück“ auf der Leseseite.
+ *
+ * RUHZUSTAND (Review-Punkt 2): `kategorie=all` und `q=` werden AUSGESCHRIEBEN
+ * (wie in `Beitraege.vue`) — sonst bliebe eine längst aufgehobene Suche in der
+ * Adresse stehen und „zurück“ brächte sie wieder mit.
+ */
+function listenAdresse() {
+  const teile = [`kategorie=${encodeURIComponent(activeCategory.value || 'all')}`]
+  const suche = String(searchQuery.value || '').trim()
+  if (suche) teile.push(`q=${encodeURIComponent(suche)}`)
+  else teile.push('q=')
+  return '#/wiki' + `?${teile.join('&')}`
+}
+
+/**
+ * MT-7b (Review-Punkt 2): Die Filter in den EIGENEN Verlaufs-Eintrag schreiben,
+ * während der Nutzer tippt/filtert (wie `Lieder.vue`) — dann liegt der
+ * Listen-Eintrag mit Suche im Verlauf, und Browser-„Zurück“ landet darauf.
+ */
+watch([activeCategory, searchQuery], () => { adresseImVerlaufSetzen(listenAdresse()) })
+
+/**
+ * Beim Aufbau der Liste: Suche und Kategorie aus der Adresse übernehmen.
+ * Review-Punkt 2: Zuerst auf den Ruhezustand zurück — sonst bliebe ein Wert
+ * stehen, der in der Adresse nicht (mehr) genannt ist.
+ */
+function listenZustandUebernehmen() {
+  activeCategory.value = 'all'
+  searchQuery.value = ''
+  const hash = String(window.location.hash || '')
+  const frage = hash.indexOf('?')
+  if (frage === -1) return
+  const teile = new URLSearchParams(hash.slice(frage + 1))
+  const kategorie = teile.get('kategorie')
+  if (kategorie === 'all') activeCategory.value = 'all'
+  else if (kategorie && categories.some(c => c.id === kategorie)) activeCategory.value = kategorie
+  const suche = teile.get('q')
+  if (suche) searchQuery.value = suche
+}
+
 async function loadArticles() {
   const params = {}
   if (activeCategory.value && activeCategory.value !== 'all') params.kategorie = activeCategory.value
@@ -323,35 +331,78 @@ async function loadArticles() {
   if (res) articles.value = res
 }
 
-async function openArticle(article) {
-  showArticleDetail.value = true
-  selectedArticle.value = { ...article, content: '' }
-  // UXD-R20: der geöffnete Artikel bekommt eine eigene, teilbare Adresse.
-  // P3-1b (W2): Die Adresse wird mit `history.replaceState` nachgeführt, NICHT
-  // per `navigate`. Ein Hashwechsel löste einen Routenwechsel aus, und weil
-  // App.vue die Seite mit `:key="currentHash"` rendert, wurde Wiki bei jedem
-  // Klick neu aufgebaut: Suche und Filter gingen verloren, Liste und Artikel
-  // wurden doppelt geladen. `replaceState` ändert die Adresse ohne Ereignis —
-  // teilbar und lesbar bleibt sie trotzdem.
-  artikelAdresseSetzen(article?.id)
-  const res = await apiCall('diakronos.diakonos.api.wiki.get_wiki_artikel_detail', { artikel_id: article.id })
-  if (res) selectedArticle.value = res
+/**
+ * MT-7: Lesen ist eine eigene Unterseite mit eigener Adresse
+ * (`#/wiki/<Kennung>` → pages/WikiArtikel.vue). Der Klick wechselt die Route;
+ * damit führt der Zurück-Knopf des Browsers zur Liste, und die Artikeladresse
+ * ist ein echter Verlaufseintrag (vorher: `replaceState` ohne Ereignis).
+ *
+ * MT-7b (Review-Punkt 2): Suche und Filter gehen auch beim BROWSER-Zurück nicht
+ * verloren. Vor dem Sprung wird die vollständige Listen-Adresse (mit
+ * `?q=`/`?kategorie=`) in den EIGENEN Verlaufs-Eintrag geschrieben
+ * (`adresseImVerlaufSetzen` → `replaceState`, kein neuer Eintrag, wie
+ * `Lieder.vue`); die Liste übernimmt sie beim Aufbau aus der Adresse. Zusätzlich
+ * liegt sie im Merker (`rueckwegMerken`, mit der Kennung für den Fokus) — Ziel
+ * von „‹ zurück“ auf der Leseseite.
+ */
+function openArticle(article) {
+  if (!article?.id) return
+  const adresse = listenAdresse()
+  adresseImVerlaufSetzen(adresse)
+  rueckwegMerken(adresse, ZURUECK_ZIEL, article.id)
+  navigate(`#/wiki/${encodeURIComponent(article.id)}`)
 }
 
-/** Artikel-Kennung in die Adresse schreiben (ohne Routenwechsel). */
-function artikelAdresseSetzen(id) {
-  const ziel = id ? `#/wiki/${encodeURIComponent(id)}` : '#/wiki'
-  if (window.location.hash === ziel) return
-  window.history.replaceState(null, '', ziel)
+
+/**
+ * MT-7b (Review-Punkt 4): Nach dem Aufbau den Fokus auf den Artikel legen, den
+ * der Nutzer zuletzt geöffnet hatte (Zurück von der Leseseite) und ihn in die
+ * Sicht bringen — sonst steht der Fokus auf `body` und die Seite oben.
+ */
+async function fokusWiederherstellen() {
+  const kennung = rueckwegKennung(ZURUECK_ZIEL)
+  if (!kennung) return
+  await nextTick()
+  const karte = [...(rootEl.value?.querySelectorAll?.('[data-id]') || [])]
+    .find((el) => el.getAttribute('data-id') === String(kennung))
+  if (!karte) return
+  karte.focus?.({ preventScroll: true })
+  karte.scrollIntoView?.({ block: 'center' })
 }
 
 /**
- * Artikel schließen: Adresse zurück auf „#/wiki“ (P3-1b, W2).
- *
- * Vorher blieb „#/wiki/<id>“ stehen — ein Neuladen öffnete den eben
- * geschlossenen Artikel wieder. Der Weg über `replaceState` vermeidet auch
- * hier den Neuaufbau der Seite.
+ * MT-7 (Review-Punkt 3, Regression): Die Leseseite springt zum Bearbeiten
+ * hierher (`#/wiki?bearbeiten=<Kennung>`) — der Editor ist ein Fenster dieser
+ * Liste. Vorher wertete die Liste den Teil nicht aus, „Bearbeiten“ im Menü der
+ * Leseseite öffnete also NICHTS (der alte Wiki-Dialog tat es). Die Kennung wird
+ * sofort wieder aus der Adresse genommen (`replaceState`, kein neuer
+ * Verlaufseintrag), damit Neuladen/„zurück“ das Fenster nicht erneut aufreißt.
  */
+async function bearbeitenAusAdresse() {
+  const hash = String(window.location.hash || '')
+  const frage = hash.indexOf('?')
+  if (frage === -1) return
+  const teile = new URLSearchParams(hash.slice(frage + 1))
+  const kennung = teile.get('bearbeiten')
+  if (!kennung) return
+  teile.delete('bearbeiten')
+  const rest = teile.toString()
+  try { window.history.replaceState(window.history.state, '', `#/wiki${rest ? `?${rest}` : ''}`) } catch { /* Verlauf nicht verfügbar */ }
+
+  let article = articles.value.find((a) => String(a.id) === String(kennung))
+  if (!article) {
+    // EIN Nachladen (die Liste kann aus dem Papierkorb-Stand kommen), dann
+    // gilt der Artikel als nicht vorhanden — und die Meldung sagt es.
+    await loadArticles()
+    article = articles.value.find((a) => String(a.id) === String(kennung))
+  }
+  if (!article) {
+    showToast('Der Artikel ist nicht mehr vorhanden. Lade die Liste neu.', 'error')
+    return
+  }
+  await bearbeitenArtikel(article)
+}
+
 /* ── UX2e · Aktionsmenü „⋯" an jedem Wiki-Artikel (Entwurf B1, N6/K4) ─────
    Die Karte trägt bisher nur „öffnen" (der ganze Block ist klickbar). Das
    Menü bringt die Aktionen des Artikels an den Artikel:
@@ -401,39 +452,6 @@ function aktionenFuerArtikel(article) {
 /** Rechtsklick auf die Artikelkarte öffnet dasselbe Menü. */
 function zeilenKontextmenue(ereignis, article) {
   aktionRefs.get(artikelSchluessel(article))?.oeffnenFuerZeile(ereignis, ereignis?.currentTarget)
-}
-
-function artikelSchliessen() {
-  showArticleDetail.value = false
-  selectedArticle.value = null
-  artikelAdresseSetzen(null)
-}
-
-/** Schließen über den Dialog selbst (Esc, Klick daneben, Kreuz). */
-function artikelDetailSichtbar(offen) {
-  if (offen) { showArticleDetail.value = true; return }
-  artikelSchliessen()
-}
-
-/**
- * UXD-R20: Beim Öffnen von „#/wiki/‹Kennung›“ (geteilter Link, Lesezeichen)
- * wird der Artikel direkt geladen. Unbekannte Kennung → verständlicher Hinweis,
- * kein stiller Wechsel auf das Dashboard.
- */
-async function artikelAusAdresse() {
-  const id = getRouteParam('id', 'Wiki')
-  if (!id) return
-  try {
-    const res = await apiCall('diakronos.diakonos.api.wiki.get_wiki_artikel_detail', { artikel_id: id })
-    if (res) {
-      selectedArticle.value = res
-      showArticleDetail.value = true
-    } else {
-      showToast('Dieser Wiki-Artikel wurde nicht gefunden.', 'error')
-    }
-  } catch {
-    showToast('Dieser Wiki-Artikel wurde nicht gefunden.', 'error')
-  }
 }
 
 async function saveArticle() {
@@ -490,7 +508,6 @@ async function deleteArticle(article) {
   try {
     const res = await apiCall('diakronos.diakonos.api.wiki.delete_wiki_artikel', { artikel_id: article.id })
     if (res?.success) {
-      artikelSchliessen()
       await loadArticles()
       await mitRueckgaengig({
         beschreibung: papierkorbMeldung(article.title, res.wiederherstellbar_bis),
@@ -505,9 +522,13 @@ async function deleteArticle(article) {
 }
 
 onMounted(async () => {
+  listenZustandUebernehmen()
   await loadArticles()
+  await fokusWiederherstellen()
   ladenHilfeKontakt()
-  await artikelAusAdresse()
+  // MT-7 (Review-Punkt 3): „Bearbeiten“ von der Leseseite kommt als
+  // `?bearbeiten=<Kennung>` hier an — erst NACH dem Laden der Liste auswerten.
+  await bearbeitenAusAdresse()
 })
 
 /* ─── Computed ─── */
@@ -551,13 +572,10 @@ const popularTags = computed(() => {
     .slice(0, 12)
 })
 
-const relatedArticles = computed(() => {
-  if (!selectedArticle.value) return []
-  return articles.value
-    .filter(a => a.id !== selectedArticle.value.id &&
-      (a.tags || []).some(t => (selectedArticle.value.tags || []).includes(t)))
-    .slice(0, 3)
-})
+/*
+ * MT-7: „Ähnliche Artikel“ stand im Artikel-Fenster. Es gehört zur Leseseite
+ * und steht jetzt dort (pages/WikiArtikel.vue) — die Liste braucht es nicht.
+ */
 
 /* ─── Helpers ─── */
 function categoryName(id) {
@@ -685,53 +703,8 @@ function openEditor(article = null) {
 .wk-help-text a { color: var(--primary); text-decoration: none; }
 .wk-help-text a:hover { text-decoration: underline; }
 
-/* Detail */
-.wk-detail { max-height: 70vh; overflow-y: auto; }
-.wk-detail-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: var(--sp-3); border-bottom: 1px solid var(--divider); }
-.wk-detail-aktionen { display: flex; gap: var(--sp-2); align-items: center; }
-.wk-detail-body { padding: var(--sp-4) 0 0; }
-.wk-detail-title { font-size: var(--fs-h2); font-weight: 700; color: var(--text); margin: 0 0 var(--sp-2); }
-.wk-detail-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-3);
-  font-size: var(--fs-sm);
-  color: var(--muted);
-  margin-bottom: var(--sp-4);
-  padding-bottom: var(--sp-4);
-  border-bottom: 1px solid var(--divider);
-}
-.wk-detail-tags { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
-.wk-detail-content { font-size: var(--fs); line-height: 1.7; color: var(--text); max-width: var(--lesebreite); }
-.wk-detail-content :deep(p) { margin: 0 0 var(--sp-3); }
-.wk-detail-content :deep(ul) { margin: 0 0 var(--sp-3) var(--sp-alt-20); padding: 0; }
-.wk-detail-content :deep(li) { margin-bottom: var(--sp-1); }
-.wk-detail-content :deep(h3) { font-size: var(--fs-h3); font-weight: var(--fw-h); color: var(--text); margin: var(--sp-alt-20) 0 var(--sp-2); }
-.wk-detail-content :deep(a) { color: var(--primary); text-decoration: none; }
-.wk-detail-content :deep(a:hover) { text-decoration: underline; }
-.wk-detail-content :deep(table) { width: 100%; border-collapse: collapse; }
-.wk-detail-content :deep(td) { padding: var(--sp-2); border-bottom: 1px solid var(--divider); }
-.wk-detail-content :deep(strong) { color: var(--text); }
-
-/* Ähnliche Artikel */
-.wk-related { margin-top: var(--sp-5); padding-top: var(--sp-alt-20); border-top: 1px solid var(--divider); }
-.wk-related h4 { font-size: var(--fs-h4); font-weight: var(--fw-h); color: var(--text); margin: 0 0 var(--sp-3); }
-.wk-related-list { display: flex; flex-direction: column; gap: 6px; }
-.wk-related-item {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-3);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: var(--fs-sm);
-  cursor: pointer;
-  transition: background var(--fast) var(--ease);
-}
-.wk-related-item:hover { background: var(--surface-hover); }
-.wk-related-item svg { color: var(--muted); flex-shrink: 0; }
+/* MT-7: Die Regeln des Artikel-Fensters (.wk-detail*, .wk-related*) sind mit
+   dem Fenster entfallen — Lesen ist die eigene Seite pages/WikiArtikel.vue. */
 
 /* Editor */
 .wk-editor { display: flex; flex-direction: column; gap: var(--sp-3); }

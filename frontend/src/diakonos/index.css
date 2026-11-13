@@ -903,6 +903,13 @@ h1, h2, h3, h4 {
   box-shadow: var(--dk-shadow-sm);
   transform: translateY(-2px);
 }
+/* MT-7 (Review-Punkt 8): Karten mit `role="link"` sind per Tab erreichbar —
+   der Fokus muss sichtbar sein (WCAG 2.4.7), sonst weiß niemand, wo man steht.
+   EIN Ring wie an jedem anderen Feld (--focus-ring, --ring-breite). */
+.dk-content-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--ring-breite) var(--focus-ring), var(--dk-shadow-md);
+}
 
 /* Feed (vertical list of cards) */
 .dk-feed { display: flex; flex-direction: column; gap: 16px; }
@@ -2311,5 +2318,65 @@ input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
     /* keine Mindesthöhe: in der Zelle schnitt sie „+N weitere“ ab (Review 07.11.) */
     display: inline-flex;
     align-items: center;
+  }
+}
+/* =====================================================================
+   MT-7 · DRUCKEN (Manuel, Designrichtlinien: „Lesebreite, Druckbar“)
+   ---------------------------------------------------------------------
+   Bis hierher gab es KEINE Druckregeln für die App: Seitenleiste, Kopfzeile
+   und untere Leiste liefen mit aufs Papier, getönte Flächen und Schatten
+   kosteten Tinte. Diese Regeln gelten für JEDE Seite (auch die Leseseiten
+   `#/beitraege/<id>` und `#/wiki/<id>`): Gerüst weg, Inhalt in voller Breite,
+   ohne Tönung und Schatten. Die Farben für Papier (hell, egal welches
+   Erscheinungsbild eingestellt ist) stehen in tokens.css — dort ist die EINE
+   Quelle für Farben.
+   ===================================================================== */
+@media print {
+  /* Gerüst: Navigation, Kopfzeile, Leisten und Fortschrittsbalken entfallen. */
+  .dk-sidebar,
+  .dk-topbar,
+  .dk-seitenbalken,
+  .dk-bottom-nav,
+  .dk-sprunglink,
+  .impersonation-banner,
+  .diakonos-toast-container {
+    display: none !important;
+  }
+
+  /* Der Inhalt nutzt die volle Papierbreite (kein festes Maß, kein Schatten). */
+  .dk-app,
+  .dk-main-wrap,
+  .dk-content {
+    display: block !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Flächen auf Papier: keine Tönung, keine Schatten. */
+  .dk-ui-card,
+  .dk-content-card,
+  .dk-lesetext {
+    background: transparent !important;
+    box-shadow: none !important;
+    max-width: none !important;
+  }
+
+  /* Lesbarkeit: Text in der Textfarbe des hellen Satzes, Fließtext in einer
+     Spalte (Befund der Sichtprüfung 11.11.: im Dunkelmodus stand helle
+     Schrift auf dunkler Fläche — auf Papier unlesbar). */
+  body,
+  .dk-app {
+    color: var(--text) !important;
+    background: var(--bg);
+  }
+  main,
+  article {
+    break-inside: auto;
+  }
+  h1, h2, h3 {
+    break-after: avoid;
   }
 }

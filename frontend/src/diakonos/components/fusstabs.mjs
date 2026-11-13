@@ -27,8 +27,8 @@ export const FUSSTAB_TABS = [
     { href: '#/kalender',  label: 'Kalender',   icon: 'calendar', seiten: ['Kalender', 'KalenderImport', 'KalenderVerwaltung', 'Pruefen', 'Moderation'] },
     { href: '#/dienste',   label: 'Dienste',    icon: 'clock', nurMitglied: true,
       seiten: ['Dienste', 'Dienstplan', 'DiensteDienstplaene', 'DiensteVorlagen', 'PlanrahmenUebersicht', 'PlanrahmenPlan', 'PlanrahmenEinrichten', 'PlanrahmenPlantypEditor', 'PlanrahmenStammdaten', 'PlanrahmenDienste'] },
-    { href: '#/beitraege', label: 'Beiträge',   icon: 'file-text', seiten: ['Beitraege'], nurMitglied: true },
-    { href: '#/wiki',      label: 'Wiki',       icon: 'help-circle', seiten: ['Wiki'], nurMitglied: true },
+    { href: '#/beitraege', label: 'Beiträge',   icon: 'file-text', seiten: ['Beitraege', 'BeitragDetail'], nurMitglied: true },
+    { href: '#/wiki',      label: 'Wiki',       icon: 'help-circle', seiten: ['Wiki', 'WikiArtikel'], nurMitglied: true },
 ]
 
 /**

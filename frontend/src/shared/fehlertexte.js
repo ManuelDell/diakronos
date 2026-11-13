@@ -193,8 +193,27 @@ export function istFloskel(text) {
   return SERVERALLGEMEIN.includes(ohnePunkt)
 }
 
-/** Darf dieser Servertext angezeigt werden? */
-export function servertextBrauchbar(text) {
+/**
+ * MT-7 (Nacharbeit 12.11., Review-Punkt 4): Meldungen, die eine von der
+ * EINGABE abhängige SUCHE beschreiben — „Artikel nicht gefunden.“,
+ * „Beitrag nicht gefunden.“. Sie sind fachlich richtig (der Server sagt, dass
+ * die Kennung nichts trifft), nennen aber in der Einzahl „Artikel“ nicht, was
+ * die Person falsch gemacht hat: die Kennung. Im Katalog steht dafür ein Satz
+ * mit nächstem Schritt („Der Eintrag ist nicht mehr vorhanden. Lade die Liste
+ * neu …“). Absichtlich eng gefasst: NUR „… nicht gefunden.“ mit höchstens drei
+ * Wörtern davor — Fachsätze wie „Datei nicht gefunden, weil der Ordner …“
+ * bleiben unberührt.
+ */
+const SUCHE_NICHT_GEFUNDEN = /^[\p{L}\s]{1,40}\bnicht gefunden\.?$/u
+
+/**
+ * Darf dieser Servertext angezeigt werden?
+ * @param {string} text
+ * @param {{zustand?: string}} [lage] übergibt der Aufrufer den Zustand, gilt
+ *   die Verschärfung oben nur für „weg“ (nicht gefunden) — bei anderen Lagen
+ *   ist der Servertext unverändert maßgeblich.
+ */
+export function servertextBrauchbar(text, lage = {}) {
   if (typeof text !== 'string') return false
   const wert = text.trim()
   if (!wert) return false
@@ -202,6 +221,7 @@ export function servertextBrauchbar(text) {
   if (wirktTechnisch(wert)) return false
   // Ein einzelnes Wort ist keine Auskunft („Fehler", „abgelehnt", „Error").
   if (!/\s/.test(wert) && wert.length < 24) return false
+  if (lage && lage.zustand === 'weg' && SUCHE_NICHT_GEFUNDEN.test(wert)) return false
   return true
 }
 
@@ -265,16 +285,19 @@ export function katalogText(zustand) {
  * @returns {string}
  */
 export function fehlertext(fehler, ersatz = {}) {
+  // MT-7: Bei „nicht gefunden“ ist der Fachsatz des Servers („Artikel nicht
+  // gefunden.“) keine Auskunft — der Katalog nennt den nächsten Schritt.
+  const lage = ersatz && ersatz.zustand ? { zustand: ersatz.zustand } : {}
   const kandidaten = []
   if (typeof fehler === 'string') kandidaten.push(fehler)
   if (fehler && typeof fehler === 'object') {
     kandidaten.push(fehler.message, fehler.fehler, fehler.meldung, fehler.exception)
   }
   for (const kandidat of kandidaten) {
-    if (servertextBrauchbar(kandidat)) return kandidat.trim()
+    if (servertextBrauchbar(kandidat, lage)) return kandidat.trim()
   }
 
-  if (ersatz && servertextBrauchbar(ersatz.text)) return ersatz.text.trim()
+  if (ersatz && servertextBrauchbar(ersatz.text, lage)) return ersatz.text.trim()
 
   return katalogText(lageZustand(fehler, ersatz))
 }

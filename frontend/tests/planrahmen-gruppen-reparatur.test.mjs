@@ -48,8 +48,12 @@ const read = (p) => readFileSync(new URL(p, root), 'utf8')
   const detail = read('pages/GruppeDetail.vue')
   assert.ok(detail.includes('if (sendingAufgabe.value) return'), 'GruppeDetail: createAufgabe sperrt doppelt')
   assert.ok(detail.includes('if (sendingAnkuendigung.value) return'), 'GruppeDetail: createAnkuendigung sperrt doppelt')
-  const beitraege = read('pages/Beitraege.vue')
-  assert.ok(beitraege.includes('if (addingComment.value) return'), 'Beitraege: addComment sperrt doppelt')
+  // MT-7 (11.11.): Das Kommentarfeld eines Beitrags steht seit dieser Karte
+  // auf der Leseseite `pages/BeitragDetail.vue` (vorher im Beitrags-Fenster).
+  // Der Doppelklick-Schutz (UXD-R11) gilt an derselben Stelle, nur auf der
+  // Seite, auf der kommentiert wird.
+  const beitragDetail = read('pages/BeitragDetail.vue')
+  assert.ok(beitragDetail.includes('if (addingComment.value) return'), 'BeitragDetail: addComment sperrt doppelt')
 }
 
 // ── UXD-R10: eigener Termine-Endpunkt statt get_events ──────────────────────

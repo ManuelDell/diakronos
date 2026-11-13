@@ -110,7 +110,14 @@ test('DEV-4b · im Dunkelmodus ist --primary-ink bereits dunkelblau (Begründung
     (r) => r.selektor.includes('[data-theme="dark"]') && /--primary-ink\s*:/.test(r.rumpf),
   )
   assert.ok(dunkel.length, 'tokens.css: --primary-ink im dunklen Theme')
-  assert.match(dunkel[dunkel.length - 1].rumpf, /--primary-ink:\s*var\(--dk-navy-900\)/,
+  // MT-7 (Nacharbeit 12.11., Review-Punkt 10): Der Druck-Block setzt fürs Papier
+  // ALLE Farben der hellen Fassung, auch `--primary-ink`. `regeln` ordnet keine
+  // At-Regeln zu — der Block trägt deshalb den Selektor `:root` wie der helle
+  // Satz. Erkannt wird er an seiner Marke `color-scheme: light`, die keine
+  // Bildschirm-Fassung der Dunkel-Tokens setzt.
+  const bildschirmDunkel = dunkel.filter((r) => !/color-scheme:\s*light/.test(r.rumpf))
+  assert.ok(bildschirmDunkel.length, 'tokens.css: --primary-ink im dunklen Theme (Bildschirm)')
+  assert.match(bildschirmDunkel[bildschirmDunkel.length - 1].rumpf, /--primary-ink:\s*var\(--dk-navy-900\)/,
     '--primary-ink zeigt im Dunkelmodus schon auf --dk-navy-900 → Extraregeln wirkungslos')
 })
 

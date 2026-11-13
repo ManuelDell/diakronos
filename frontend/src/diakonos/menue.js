@@ -79,8 +79,11 @@ export const MENUE = [
     {
         gruppe: 'Inhalte',
         eintraege: [
-            { id: 'beitraege', label: 'Beiträge', href: '#/beitraege', icon: 'file-text', seiten: ['Beitraege'], suche: true },
-            { id: 'wiki', label: 'Wiki', href: '#/wiki', icon: 'help-circle', seiten: ['Wiki'], suche: true },
+            // MT-7: Die Leseseite eines Beitrags gehört zum Menüpunkt „Beiträge“ —
+            // der Eintrag bleibt aktiv, die Seitenleiste zeigt den Ort (N4).
+            { id: 'beitraege', label: 'Beiträge', href: '#/beitraege', icon: 'file-text', seiten: ['Beitraege', 'BeitragDetail'], suche: true },
+            // MT-7: dito für einen Wiki-Eintrag (eigene Unterseite seit dieser Karte).
+            { id: 'wiki', label: 'Wiki', href: '#/wiki', icon: 'help-circle', seiten: ['Wiki', 'WikiArtikel'], suche: true },
             { id: 'lieder', label: 'Lieder', href: '#/lieder', icon: 'music', seiten: ['Lieder', 'LiedDetail', 'LiedNeu', 'Liedgruppen', 'LiedgruppeDetail'], suche: true },
             // WEB-3: „Website“ steht bei den Inhalten — die Redaktion der
             // Gemeinde-Seiten ist eine Inhaltsaufgabe (Entwurf A1). Sichtbar für

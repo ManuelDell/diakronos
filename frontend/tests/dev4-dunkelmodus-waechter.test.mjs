@@ -149,7 +149,15 @@ test('DEV-4 · --primary-ink trägt in beiden Themes auf der Knopffläche', () =
     (r) => r.selektor.includes('[data-theme="dark"]') && /--primary-ink\s*:/.test(r.rumpf),
   )
   assert.ok(dunkel.length, 'tokens.css: --primary-ink im dunklen Theme')
-  assert.match(dunkel[dunkel.length - 1].rumpf, /--primary-ink:\s*var\(--dk-navy-900\)/,
+  // MT-7 (Nacharbeit 12.11., Review-Punkt 10): Der Druck-Block in tokens.css
+  // setzt `--primary-ink` für Papier auf die Fläche der hellen Fassung. `regeln`
+  // kennt keine At-Regel-Zuordnung — deshalb trägt der Block den Selektor `:root`
+  // wie der helle Satz. Erkannt wird er an seiner eigenen Marke `color-scheme:
+  // light` (die Bildschirm-Fassung der Dunkel-Tokens setzt sie nicht).
+  const istDruck = (rumpf) => /color-scheme:\s*light/.test(rumpf)
+  const bildschirmDunkel = dunkel.filter((r) => !istDruck(r.rumpf))
+  assert.ok(bildschirmDunkel.length, 'tokens.css: --primary-ink im dunklen Theme (Bildschirm)')
+  assert.match(bildschirmDunkel[bildschirmDunkel.length - 1].rumpf, /--primary-ink:\s*var\(--dk-navy-900\)/,
     'dunkler Theme: ebenso dunkel — eine Extraregel mit demselben Wert ist wirkungslos')
 
   // Die Knöpfe selbst bleiben bei --primary-ink (kein Doppel).

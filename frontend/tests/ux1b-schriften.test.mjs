@@ -193,10 +193,16 @@ function blockVon(bisMarke) {
   const m = /^(\d+(?:\.\d+)?)ch$/.exec(lese || '')
   assert.ok(m, `--lesebreite ist kein ch-Wert: ${JSON.stringify(lese)}`)
   assert.ok(Number(m[1]) > 40 && Number(m[1]) <= 70, `--lesebreite unbrauchbar: ${lese}`)
-  for (const seite of ['pages/Beitraege.vue', 'pages/Wiki.vue']) {
+  // MT-7 (11.11.): Der lange Fließtext eines Beitrags/Artikels steht nicht mehr
+  // in den LISTEN, sondern auf den eigenen Leseseiten (`pages/BeitragDetail.vue`,
+  // `pages/WikiArtikel.vue`): dort begrenzt `.dk-lesetext` die Breite über
+  // `--lesebreite` (Abnahme 11.11.: 585 px = 65ch bei 1440 px). Die Prüfung
+  // bleibt an derselben Stelle, nur mit den Seiten, die den Text wirklich
+  // führen — die Liste hat keinen langen Fließtext mehr (nur Vorschauen).
+  for (const seite of ['pages/BeitragDetail.vue', 'pages/WikiArtikel.vue']) {
     const text = readFileSync(path.join(SRC, 'diakonos', seite), 'utf8')
     assert.ok(
-      text.includes('max-width: var(--lesebreite)'),
+      text.includes('dk-lesetext') || text.includes('max-width: var(--lesebreite)'),
       `${seite}: langer Fließtext ohne Lesebreite`,
     )
   }

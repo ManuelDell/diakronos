@@ -77,9 +77,13 @@ test('UXD-R19: der tote „Suchen ⌘K“-Knopf ist in beiden Rahmen entfernt', 
 
 test('UXD-R20: „#/wiki/<kennung>“ ist eine echte Route und öffnet den Artikel', () => {
     const router = lies('router.js')
-    assert.match(router, /\^#\\\/wiki\\\/\(\.\+\)\$[\s\S]{0,60}page: 'Wiki'/, 'dynamische Wiki-Route fehlt')
-    const wiki = lies('pages/Wiki.vue')
-    assert.match(wiki, /artikelAusAdresse/, 'Wiki.vue öffnet den Artikel aus der Adresse nicht')
+    // MT-7 (11.11.): Die Route öffnet seit dieser Karte die eigne Leseseite
+    // `WikiArtikel` statt der Liste mit Artikel-Fenster. Die Zusage der Karte
+    // UXD-R20 (teilbare Adresse öffnet den Artikel) gilt unverändert.
+    assert.match(router, /\^#\\\/wiki\\\/\(\.\+\)\$[\s\S]{0,80}page: 'WikiArtikel'/, 'dynamische Wiki-Route fehlt')
+    const wiki = lies('pages/WikiArtikel.vue')
+    assert.match(wiki, /getRouteParam\('id', 'WikiArtikel'\)/, 'WikiArtikel liest die Kennung nicht aus der Adresse')
+    assert.match(wiki, /#\\\/wiki\\\//, 'WikiArtikel kennt den Pfadteil der Adresse nicht (Rückfall beim Durchlaufen)')
 })
 
 test('UXD-R21: kein Platzhalter-Kontakt und kein erfundener Gemeinde-Chat', () => {

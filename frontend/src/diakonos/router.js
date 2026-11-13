@@ -11,6 +11,11 @@ import * as einrichtungLeitung from './einrichtungLeitung.mjs'
 // UX2g: der Ladefehler einer Seite erscheint als Katalogtext statt als
 // Floskel „Unbekannter Fehler".
 import { fehlertext } from '../shared/fehlertexte.js'
+// MT-7b (Review-Punkt 5): Der Rückweg-Merker der Listen gilt nur, solange der
+// Nutzer aus der Liste kam. Der Wechsel wird HIER geprüft (eine Stelle), weil
+// der Auslöser auch im Gerüst liegen kann (Menüpunkt in `AppSidebar.vue`) —
+// ein Klick-Wächter in der Seite sähe ihn nie.
+import { rueckwegBleibtGueltig, rueckwegMerken as rueckwegMerkenFuerRoute, rueckwegVergessen as rueckwegVergessenFuerRoute } from './composables/zurueckWege.mjs'
 
 // Sicherheitsnetz: Läuft der Router ohne die Leitungsdatei (die VM-Tests
 // streichen Importe), darf die Seite NICHT brechen — dann wird nicht
@@ -76,7 +81,12 @@ const pages = {
     Profile:         () => import('./pages/Profile.vue'),
     Ressourcen:      () => import('./pages/Ressourcen.vue'),
     Beitraege:       () => import('./pages/Beitraege.vue'),
+    // MT-7: EIN Beitrag als eigene Unterseite (`#/beitraege/<Kennung>`) —
+    // Lesen im Fenster war der Befund (keine Adresse, kein Zurück, kein Drucken).
+    BeitragDetail:   () => import('./pages/BeitragDetail.vue'),
     Wiki:            () => import('./pages/Wiki.vue'),
+    // MT-7: EIN Wiki-Eintrag als eigene Unterseite (`#/wiki/<Kennung>`).
+    WikiArtikel:     () => import('./pages/WikiArtikel.vue'),
     Registrierung:   () => import('./pages/Registrierung.vue'),
     Moderation:       () => import('./pages/Moderation.vue'),
     Lieder:           () => import('./pages/Lieder.vue'),
@@ -204,8 +214,11 @@ const dynamicRoutes = [
     // der Treffer auf „Seite nicht gefunden“.
     { pattern: /^#\/einstellungen\/([a-z0-9-]+)\/[a-z0-9-]+$/, page: 'Einstellungen', param: 'bereich' },
     { pattern: /^#\/mitglied\/(.+)$/, page: 'MitgliedDetail', param: 'id' },
+    // MT-7: EIN Beitrag ist eine eigene Unterseite (vorher nur ein Fenster).
+    { pattern: /^#\/beitraege\/(.+)$/, page: 'BeitragDetail', param: 'id' },
     // UXD-R20: Wiki-Artikel sind teilbar („#/wiki/‹Kennung›“ öffnet den Artikel).
-    { pattern: /^#\/wiki\/(.+)$/, page: 'Wiki', param: 'id' },
+    // MT-7: … jetzt als eigene Unterseite (pages/WikiArtikel.vue) statt Fenster.
+    { pattern: /^#\/wiki\/(.+)$/, page: 'WikiArtikel', param: 'id' },
     { pattern: /^#\/gruppe\/(.+)$/, page: 'GruppeDetail', param: 'id' },
     // UX3a: Liedgruppen sind ein Reiter von „Lieder“ (wörtlich VOR dem
     // Detailmuster, sonst schluckte `#/lieder/gruppen/…` den Reiter).
@@ -523,6 +536,19 @@ async function resolveRoute() {
             navigate(result)
             return
         }
+    }
+
+    // MT-7b (Review-Punkt 5): Gilt der gemerkte Rückweg noch? Nur der Weg
+    // Liste → Leseseite derselben Liste behält ihn; jeder andere Wechsel
+    // (Menüpunkt im Gerüst, Gruppen-Detail, …) verwirft ihn. Die Liste selbst
+    // setzt ihn beim Öffnen neu (`rueckwegMerken`).
+    for (const liste of ['#/beitraege', '#/wiki']) {
+        const vorher = acceptedRoute.value?.hash || ''
+        // Sicherheitsnetz wie oben (`einrichtungLeitung`): fehlt das Modul
+        // (Router-Tests streichen Importe), wird nichts verworfen und die
+        // Seite bricht nicht.
+        if (typeof rueckwegBleibtGueltig !== 'function') break
+        if (!rueckwegBleibtGueltig(vorher, vollerHash, liste)) rueckwegVergessenFuerRoute(liste)
     }
 
     acceptedRoute.value = { hash: vollerHash, pageName, params }

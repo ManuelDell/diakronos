@@ -1,5 +1,5 @@
 <template>
-  <div class="dk-screen dk-screen-enter">
+  <div ref="rootEl" class="dk-screen dk-screen-enter">
 
     <!-- Seitenkopf -->
     <DkPageHeader
@@ -59,7 +59,13 @@
           v-for="post in filteredPosts"
           :key="post.id"
           class="dk-content-card bt-post"
-          @click="openPost(post)"
+          role="link"
+          tabindex="0"
+          :data-id="post.id"
+          :aria-label="`Beitrag lesen: ${post.title || 'ohne Titel'}`"
+          @click="oeffnenPost(post)"
+          @keydown.enter.self.prevent="oeffnenPost(post)"
+          @keydown.space.self.prevent="oeffnenPost(post)"
           @contextmenu.prevent="zeilenKontextmenue($event, post)"
         >
           <div v-if="post.image" class="bt-post-image" :style="{ backgroundImage: `url(${post.image})` }">
@@ -104,7 +110,7 @@
             v-for="p in popularPosts"
             :key="p.id"
             class="dk-widget-item bt-popular"
-            @click="openPost(p)"
+            @click="oeffnenPost(p)"
           >
             <div class="bt-popular-num">{{ p.rank }}</div>
             <div class="bt-popular-body">
@@ -146,54 +152,9 @@
       </aside>
     </div>
 
-    <!-- Beitrags-Detail -->
-    <DkDialog :model-value="showPostDetail" size="lg" :title="selectedPost?.title || 'Beitrag'"
-              @update:model-value="showPostDetail = $event">
-      <div v-if="selectedPost" class="bt-detail">
-        <div v-if="selectedPost.image" class="bt-detail-image" :style="{ backgroundImage: `url(${selectedPost.image})` }" />
-        <div v-else class="bt-detail-image bt-detail-image--placeholder" :class="`cat-${selectedPost.category}`" />
+    <!-- MT-7: Lesen ist eine eigene Unterseite (#/beitraege/<Kennung>,
+         pages/BeitragDetail.vue) — kein Fenster mehr an dieser Stelle. -->
 
-        <div class="bt-detail-body">
-          <DkBadge class="bt-detail-cat" variant="akzent">{{ categoryName(selectedPost.category) }}</DkBadge>
-          <h2 class="bt-detail-title">{{ selectedPost.title }}</h2>
-          <div class="bt-detail-meta">
-            <div class="bt-post-author">
-              <div class="dk-avatar dk-avatar-sm">{{ selectedPost.authorAvatar }}</div>
-              <span>{{ selectedPost.author }}</span>
-            </div>
-            <span>{{ formatDate(selectedPost.date) }}</span>
-          </div>
-          <div class="bt-detail-content" v-html="sanitize(selectedPost.content)" />
-
-          <!-- Kommentare -->
-          <div class="bt-comments">
-            <h4>Kommentare ({{ selectedPost.comments }})</h4>
-            <div v-for="c in selectedPost.commentList" :key="c.id" class="bt-comment">
-              <div class="dk-avatar dk-avatar-md">{{ c.avatar }}</div>
-              <div class="bt-comment-body">
-                <div class="bt-comment-header">
-                  <strong>{{ c.author }}</strong>
-                  <span>{{ formatDate(c.date) }}</span>
-                </div>
-                <p>{{ c.text }}</p>
-              </div>
-            </div>
-            <div class="bt-comment-form">
-              <input v-model="newComment" type="text" placeholder="Kommentar schreiben…" @keyup.enter="addComment" />
-              <!-- UX1h (S1): Das Beitragsfenster wird über „Schließen“ verlassen;
-                   genau ein gefüllter Knopf: „Absenden“ (die Arbeit dieses
-                   Formulars). Vorher war „Absenden“ der zweite Primary im
-                   selben Dialog. -->
-              <DkButton variant="primary" size="md" :disabled="addingComment" :loading="addingComment" @click="addComment">Absenden</DkButton>
-            </div>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <DkButton v-if="isAdmin && selectedPost" variant="danger" size="md" @click="deletePost(selectedPost)">Löschen</DkButton>
-        <DkButton variant="ghost" @click="showPostDetail = false">Schließen</DkButton>
-      </template>
-    </DkDialog>
 
     <!-- Editor (Verwaltung) -->
     <DkDialog :model-value="showEditor" :before-close="editorSchutz.darfSchliessen" size="lg"
@@ -254,8 +215,7 @@
  * Reiner Darstellungsumbau: Kopf, Filter, Beitraege, Dialoge und Formulare
  * kommen aus components/ui; Farben nur aus tokens.css.
  */
-import { ref, computed, onMounted } from 'vue'
-import DOMPurify from 'dompurify'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useSession } from '../composables/useSession.js'
 import { apiCall } from '../composables/useApi.js'
 import { useLadeSkelett } from '../composables/useLadeSkelett.js'
@@ -265,6 +225,11 @@ import { aktionsfehler } from '../../shared/fehlertexte.js'
 import { useWebsiteFreigaben } from '../composables/useWebsiteFreigaben.js'
 import { darfFreigabenVerwalten } from '../../shared/website-freigaben.mjs'
 import { suchNormal } from '../composables/bf1Anzeige.js'
+// MT-7: Lesen wechselt die Route (eigene Unterseite statt Fenster).
+import { navigate } from '../router.js'
+// MT-7b: Merker für den Rückweg — die Liste schreibt ihre volle Adresse hier
+// hinein, bevor sie einen Beitrag öffnet.
+import { adresseImVerlaufSetzen, rueckwegKennung, rueckwegMerken } from '../composables/zurueckWege.mjs'
 import { chipsAus } from '../composables/filterChips.mjs'
 import { showToast } from '../composables/useToast.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
@@ -286,8 +251,6 @@ import DkCheckbox from '../components/ui/DkCheckbox.vue'
 // UX2e: EIN Aktionsmenü „⋯" für alle Listen (Entwurf B1).
 import DkAktionen from '../components/ui/DkAktionen.vue'
 
-function sanitize(html) { return DOMPurify.sanitize(html || '') }
-
 const { isAdmin, rollen } = useSession()
 // UX2c (C2): der Rückgängig-Weg dieser Seite (Stapel-Eintrag + Meldung).
 const { mitRueckgaengig } = useRueckgaengigAktion()
@@ -305,16 +268,18 @@ const categories = [
 ]
 
 /* ─── Zustand ─── */
+// MT-7: eigener Weg zurück zur Liste — das Ziel von „‹ zurück“ auf der
+// Leseseite. EINE Schreibweise, auch im Verlaufs-Merkmal (`zurueckWege.mjs`).
+const ZURUECK_ZIEL = '#/beitraege'
+/** Wurzel der Seite — für den Fokus auf die zuletzt geöffnete Karte (MT-7b). */
+const rootEl = ref(null)
 const posts = ref([])
 const activeCategory = ref('alle')
 const searchQuery = ref('')
-const showPostDetail = ref(false)
-const selectedPost = ref(null)
+// MT-7: kein Detail-Fenster mehr — der geöffnete Beitrag ist eine eigene Seite.
 const showEditor = ref(false)
 const editingPost = ref(null)
-const newComment = ref('')
 const savingPost = ref(false)
-const addingComment = ref(false)
 // UXD-R22: Fehler am Titel-Feld statt nur als Meldung.
 const editorFehler = ref({ titel: '' })
 
@@ -362,20 +327,147 @@ async function loadPosts() {
   }
 }
 
-async function openPost(post) {
-  try {
-    const detail = await apiCall('diakronos.diakonos.api.beitraege.get_beitrag_detail', { beitrag_id: post.id })
-    selectedPost.value = {
-      ...detail,
-      authorAvatar: (detail.author || '').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?',
-    }
-    showPostDetail.value = true
-  } catch (err) {
-    showToast('Beitrag konnte nicht geladen werden', 'error')
-  }
+/**
+ * MT-7b: Die vollständige Adresse der Liste — Suche und Kategorie kommen aus
+ * dem Zustand der Seite (nicht aus der Adresse: nach `?bearbeiten=` steht dort
+ * weniger). Das Ergebnis ist die Adresse des Listen-Eintrags im Verlauf und das
+ * Ziel von „‹ zurück“ auf der Leseseite.
+ *
+ * RUHZUSTAND (Review-Punkt 2): Sowohl `kategorie=alle` als auch `q=` werden
+ * AUSGESCHRIEBEN — sonst bliebe `?q=Beamer` stehen, wenn der Nutzer den Filter
+ * danach zurücksetzt, und „zurück“ brächte einen längst aufgehobenen Filter
+ * wieder mit. Eine leere Suche steht als `q=` da.
+ */
+function beitraegeListenAdresse() {
+  const teile = [`kategorie=${encodeURIComponent(activeCategory.value || 'alle')}`]
+  const suche = String(searchQuery.value || '').trim()
+  if (suche) teile.push(`q=${encodeURIComponent(suche)}`)
+  else teile.push('q=')
+  return '#/beitraege' + `?${teile.join('&')}`
 }
 
-onMounted(loadPosts)
+/**
+ * MT-7b (Review-Punkt 2): Die Filter in den EIGENEN Verlaufs-Eintrag
+ * schreiben, während der Nutzer tippt/filtert (wie `Lieder.vue`). Dann trägt
+ * der Listen-Eintrag die Suche schon, wenn ein Eintrag geöffnet wird —
+ * Browser-„Zurück“ landet auf der gefilterten Liste.
+ */
+watch([activeCategory, searchQuery], () => { adresseImVerlaufSetzen(beitraegeListenAdresse()) })
+
+/**
+ * MT-7: Lesen ist eine eigene Unterseite mit eigener Adresse
+ * (`#/beitraege/<Kennung>` → pages/BeitragDetail.vue). Die Liste lädt keinen
+ * Detailtext mehr und öffnet kein Fenster — ein Klick ist ein Routenwechsel,
+ * damit der Zurück-Knopf des Browsers zur Liste führt.
+ *
+ * MT-7b (Review-Punkt 2): Suche und Kategorie gehen auch beim BROWSER-Zurück
+ * nicht verloren. Vor dem Sprung wird die vollständige Listen-Adresse (mit
+ * `?q=`/`?kategorie=`) in den EIGENEN Verlaufs-Eintrag geschrieben
+ * (`adresseImVerlaufSetzen` → `replaceState`, kein neuer Eintrag, wie
+ * `Lieder.vue`); die Liste übernimmt sie beim Aufbau aus der Adresse. Zusätzlich
+ * liegt sie im Merker (`rueckwegMerken`, mit der Kennung für den Fokus) — Ziel
+ * von „‹ zurück“ auf der Leseseite.
+ */
+function oeffnenPost(post) {
+  if (!post?.id) return
+  const adresse = beitraegeListenAdresse()
+  adresseImVerlaufSetzen(adresse)
+  rueckwegMerken(adresse, ZURUECK_ZIEL, post.id)
+  navigate(`#/beitraege/${encodeURIComponent(post.id)}`)
+}
+
+
+/**
+ * MT-7b (Review-Punkt 4): Nach dem Aufbau den Fokus auf den Eintrag legen, den
+ * der Nutzer zuletzt geöffnet hatte (Zurück von der Leseseite). Ohne das steht
+ * der Fokus nach dem Neuaufbau auf `body` und die Seite oben — bei einer langen
+ * Liste ist die Stelle verloren. `scrollIntoView` bringt die Karte in Sicht.
+ */
+async function fokusWiederherstellen() {
+  const kennung = rueckwegKennung(ZURUECK_ZIEL)
+  if (!kennung) return
+  await nextTick()
+  const karte = [...(rootEl.value?.querySelectorAll?.('[data-id]') || [])]
+    .find((el) => el.getAttribute('data-id') === String(kennung))
+  if (!karte) return
+  karte.focus?.({ preventScroll: true })
+  karte.scrollIntoView?.({ block: 'center' })
+}
+
+/**
+ * MT-7 (Review-Punkt 3, Regression): Die Leseseite springt zum Bearbeiten
+ * hierher (`#/beitraege?bearbeiten=<Kennung>`) — der Editor ist ein Fenster
+ * dieser Liste. Vorher wertete die Liste den Teil nicht aus, „Bearbeiten“ im
+ * Menü der Leseseite öffnete also NICHTS. Die Kennung wird sofort wieder aus
+ * der Adresse genommen (`replaceState`, kein neuer Verlaufseintrag), damit ein
+ * Neuladen oder „zurück“ das Fenster nicht erneut aufreißt.
+ *
+ * Liegt der Beitrag nach dem Laden nicht in der Liste (Papierkorb, inzwischen
+ * gelöscht), sagt die Meldung das — sonst geschähe nach dem Klick gar nichts.
+ */
+async function bearbeitenAusAdresse() {
+  const hash = String(window.location.hash || '')
+  const frage = hash.indexOf('?')
+  if (frage === -1) return
+  const teile = new URLSearchParams(hash.slice(frage + 1))
+  const kennung = teile.get('bearbeiten')
+  if (!kennung) return
+  // Teil aus der Adresse nehmen — VOR dem Laden, damit kein zweiter Aufbau ihn
+  // erneut liest (`replaceState` erzeugt keinen Routenwechsel).
+  teile.delete('bearbeiten')
+  const rest = teile.toString()
+  try { window.history.replaceState(window.history.state, '', `#/beitraege${rest ? `?${rest}` : ''}`) } catch { /* Verlauf nicht verfügbar */ }
+
+  let post = posts.value.find((p) => String(p.id) === String(kennung))
+  if (!post) {
+    // Die Liste wurde ohne ausreichende Felder geladen? EIN Nachladen, dann
+    // erneut suchen — erst danach gilt der Beitrag als nicht vorhanden.
+    await loadPosts()
+    post = posts.value.find((p) => String(p.id) === String(kennung))
+  }
+  if (!post) {
+    showToast('Der Beitrag ist nicht mehr vorhanden. Lade die Liste neu.', 'error')
+    return
+  }
+  await bearbeitenPost(post)
+}
+
+/**
+ * MT-7b (Review-Punkt A): Beim Aufbau der Liste Suche und Kategorie aus ihrer
+ * Adresse übernehmen. Die Leseseite schickt den Nutzer mit der vollen
+ * Listen-Adresse zurück (`#/beitraege?kategorie=…&q=…`); die App baut die
+ * Seite dabei neu auf — ohne diesen Schritt stünden Filter und Suchbegriff
+ * wieder auf Anfang. Der Ruhezustand heißt in der Adresse `kategorie=alle`
+ * (so schreibt ihn `beitraegeListenAdresse`).
+ */
+function listenZustandUebernehmen() {
+  activeCategory.value = 'alle'
+  searchQuery.value = ''
+  const hash = String(window.location.hash || '')
+  const frage = hash.indexOf('?')
+  if (frage === -1) return
+  const teile = new URLSearchParams(hash.slice(frage + 1))
+  const kategorie = teile.get('kategorie')
+  if (kategorie === 'alle') activeCategory.value = 'alle'
+  else if (kategorie && categories.some(c => c.id === kategorie)) activeCategory.value = kategorie
+  const suche = teile.get('q')
+  if (suche) searchQuery.value = suche
+}
+
+/**
+ * MT-7b (Review-Punkt E): Vorher liefen `loadPosts()` und
+ * `bearbeitenAusAdresse()` GLEICHZEITIG — bei `?bearbeiten=` sah die Auswertung
+ * eine noch leere Liste, lud sie ein zweites Mal nach und die Seite holte die
+ * Liste überflüssig zweimal. Jetzt erst Filter aus der Adresse, dann EINMAL
+ * laden, danach auswerten; `bearbeitenAusAdresse()` lädt nur noch nach, wenn
+ * der Beitrag im Ergebnis fehlt.
+ */
+onMounted(async () => {
+  listenZustandUebernehmen()
+  await loadPosts()
+  await fokusWiederherstellen()
+  await bearbeitenAusAdresse()
+})
 
 /* ─── Computed ─── */
 const filteredPosts = computed(() => {
@@ -518,8 +610,6 @@ async function deletePost(post) {
      anbieten (8 s, Strg+Z, Meldung mit der Frist aus UX2b). */
   try {
     const antwort = await apiCall('diakronos.diakonos.api.beitraege.delete_beitrag', { beitrag_id: post.id })
-    showPostDetail.value = false
-    selectedPost.value = null
     await loadPosts()
     await mitRueckgaengig({
       beschreibung: papierkorbMeldung(post.title, antwort?.wiederherstellbar_bis),
@@ -559,16 +649,15 @@ async function bearbeitenPost(post) {
 }
 
 async function loeschenPost(post) {
-  // Dieselbe Rückfrage und derselbe Serveraufruf wie im Detail-Dialog.
-  // `selectedPost` NICHT vorher setzen: das Detail-Fenster hängt an dessen
-  // Inhalt (Titel/Teilnehmer) und würde beim Löschen kurz aufgehen.
+  // EIN Löschweg (S4): derselbe Aufruf wie auf der Leseseite
+  // (pages/BeitragDetail.vue) — Papierkorb, „Rückgängig“ statt Rückfrage.
   await deletePost(post)
 }
 
 function aktionenFuerPost(post) {
   const eintraege = [{
     key: 'oeffnen', label: 'Beitrag öffnen', icon: 'ansehen',
-    aktion: () => openPost(post),
+    aktion: () => oeffnenPost(post),
   }]
   if (isAdmin.value) {
     eintraege.push({
@@ -587,30 +676,6 @@ function aktionenFuerPost(post) {
 /** Rechtsklick auf die Beitragskarte öffnet dasselbe Menü. */
 function zeilenKontextmenue(ereignis, post) {
   aktionRefs.get(postSchluessel(post))?.oeffnenFuerZeile(ereignis, ereignis?.currentTarget)
-}
-
-async function addComment() {
-  // UXD-R11: Doppelklick erzeugte zwei Kommentare — `addingComment` wurde
-  // gesetzt, aber nie geprüft.
-  if (addingComment.value) return
-  if (!newComment.value.trim() || !selectedPost.value) return
-  addingComment.value = true
-  try {
-    const res = await apiCall('diakronos.diakonos.api.beitraege.create_kommentar', {
-      beitrag_id: selectedPost.value.id,
-      text: newComment.value.trim(),
-    })
-    if (res.success) {
-      selectedPost.value.commentList = selectedPost.value.commentList || []
-      selectedPost.value.commentList.push(res.kommentar)
-      selectedPost.value.comments = (selectedPost.value.comments || 0) + 1
-      newComment.value = ''
-    }
-  } catch (err) {
-    showToast(err?.message || 'Fehler', 'error')
-  } finally {
-    addingComment.value = false
-  }
 }
 </script>
 
@@ -794,68 +859,9 @@ async function addComment() {
 .bt-archive-item:hover { background: var(--surface-hover); }
 .bt-archive-count { color: var(--muted); font-weight: 500; }
 
-/* Detail */
-.bt-detail { max-height: 70vh; overflow-y: auto; }
-.bt-detail-image {
-  height: 220px;
-  background-size: cover;
-  background-position: center;
-  position: relative;
-}
-.bt-detail-image--placeholder.cat-ankuendigung  { background: color-mix(in oklch, var(--dk-cat-ankuendigung) 16%, var(--surface-2)); }
-.bt-detail-image--placeholder.cat-gottesdienst  { background: color-mix(in oklch, var(--dk-cat-gottesdienst) 16%, var(--surface-2)); }
-.bt-detail-image--placeholder.cat-jugend        { background: color-mix(in oklch, var(--dk-cat-jugend) 16%, var(--surface-2)); }
-.bt-detail-image--placeholder.cat-gemeindeleben { background: color-mix(in oklch, var(--dk-cat-gemeindeleben) 16%, var(--surface-2)); }
-.bt-detail-image--placeholder.cat-allgemein     { background: color-mix(in oklch, var(--dk-cat-allgemein) 16%, var(--surface-2)); }
-
-.bt-detail-body { padding: var(--sp-4) 0 0; }
-.bt-detail-cat { margin-bottom: var(--sp-2); }
-.bt-detail-title {
-  font-size: var(--fs-h2);
-  font-weight: 700;
-  color: var(--text);
-  margin: 0 0 var(--sp-2);
-  line-height: 1.3;
-}
-.bt-detail-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-4);
-  font-size: var(--fs-sm);
-  color: var(--muted);
-  margin-bottom: var(--sp-alt-20);
-  padding-bottom: var(--sp-4);
-  border-bottom: 1px solid var(--divider);
-}
-.bt-detail-content { font-size: var(--fs); line-height: 1.7; color: var(--text); max-width: var(--lesebreite); }
-.bt-detail-content :deep(p) { margin: 0 0 var(--sp-3); }
-.bt-detail-content :deep(ul) { margin: 0 0 var(--sp-3) var(--sp-alt-20); padding: 0; }
-.bt-detail-content :deep(li) { margin-bottom: var(--sp-1); }
-.bt-detail-content :deep(strong) { color: var(--text); }
-
-/* Kommentare */
-.bt-comments { margin-top: var(--sp-5); padding-top: var(--sp-alt-20); border-top: 1px solid var(--divider); }
-.bt-comments h4 { font-size: var(--fs-h4); font-weight: var(--fw-h); color: var(--text); margin: 0 0 var(--sp-3); }
-.bt-comment { display: flex; gap: var(--sp-3); padding: var(--sp-3) 0; border-bottom: 1px solid var(--divider); }
-.bt-comment:last-child { border-bottom: none; }
-.bt-comment-body { flex: 1; }
-.bt-comment-header { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-1); }
-.bt-comment-header strong { font-size: var(--fs-sm); color: var(--text); }
-.bt-comment-header span { font-size: var(--fs-xs); color: var(--muted); }
-.bt-comment-body p { font-size: var(--fs-sm); color: var(--muted); margin: 0; }
-
-.bt-comment-form { display: flex; gap: var(--sp-2); margin-top: var(--sp-3); }
-.bt-comment-form input {
-  flex: 1;
-  padding: 8px var(--sp-3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font-size: var(--fs-sm);
-  font-family: inherit;
-}
-.bt-comment-form input:focus { outline: none; border-color: var(--accent); }
+/* MT-7: Die Regeln des Beitrags-Fensters (.bt-detail*, .bt-comments,
+   .bt-comment*) sind mit dem Fenster entfallen — Lesen ist die eigene Seite
+   pages/BeitragDetail.vue. */
 
 /* Editor */
 .bt-editor { display: flex; flex-direction: column; gap: var(--sp-3); }

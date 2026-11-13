@@ -74,7 +74,8 @@ test('FIX-3 · --control-h bleibt die einzige Zahl für die Knopfhöhe', () => {
   // nicht mit einem anderen Wert überschrieben). Seit UX1c (C1) gibt es
   // GENAU EINE weitere Neusetzung — die 44 px im `(pointer: coarse)`-Block,
   // dieselbe Stelle wie das Token selbst. Jede weitere wäre eine zweite
-  // Knopfhöhe und damit genau der FIX-3-Befund.
+  // Knopfhöhe und damit genau der FIX-3-Befund (MT-7b lässt den Druck-Block
+  // deshalb bewusst bei den Farben — Maße gehören nicht aufs Papier).
   const zahlen = ohneKommentare(TOKENS).match(/--control-h:/g) || []
   assert.equal(zahlen.length, 2,
     '--control-h nur im Grundblock und (am groben Zeiger) einmal neu gesetzt')

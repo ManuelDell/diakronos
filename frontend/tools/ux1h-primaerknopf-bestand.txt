@@ -11,8 +11,9 @@
 #   node tools/ux1h-primaerknopf-bestand.mjs --schreiben
 # Geprüft von frontend/tests/ux1h-primaerknopf.test.mjs.
 #
-# Stand (UX1h): 53 Primärknöpfe in 36 Dateien.
+# Stand (UX1h): 54 Primärknöpfe in 37 Dateien.
 frontend/src/diakonos/pages/Beitraege.vue	1
+frontend/src/diakonos/pages/BeitragDetail.vue	1
 frontend/src/diakonos/pages/GruppeDetail.vue	3
 frontend/src/diakonos/pages/Gruppen.vue	1
 frontend/src/diakonos/pages/Home.vue	2

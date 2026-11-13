@@ -18,7 +18,7 @@
 # als Tokens in tokens.css; Komponenten schreiben `var(--fs-…)`/`var(--fw-…)`.
 # Erzeugt mit (aus frontend/ heraus): node tools/schrift-bestand.mjs --schreiben
 #
-# Stand (UX1b, eingefroren): 107 Fundstellen in 50 Dateien.
+# Stand (UX1b, eingefroren): 105 Fundstellen in 50 Dateien.
 frontend/src/diakonos/components/MitgliedAuswahl.vue	1
 frontend/src/diakonos/components/WartendeKontenKarte.vue	1
 frontend/src/diakonos/components/devmodus/BefundDialog.vue	1
@@ -53,7 +53,7 @@ frontend/src/diakonos/components/ui/DkTabs.vue	2
 frontend/src/diakonos/components/website/FreigabeZeile.vue	1
 frontend/src/diakonos/components/widgets/DsgvoComplianceWidget.vue	1
 frontend/src/diakonos/components/widgets/PendingRegistrationsWidget.vue	1
-frontend/src/diakonos/pages/Beitraege.vue	5
+frontend/src/diakonos/pages/Beitraege.vue	4
 frontend/src/diakonos/pages/GruppeDetail.vue	5
 frontend/src/diakonos/pages/Kalender.vue	1
 frontend/src/diakonos/pages/KalenderImport.vue	1
@@ -62,7 +62,7 @@ frontend/src/diakonos/pages/LiedgruppeDetail.vue	3
 frontend/src/diakonos/pages/MitgliedDetail.vue	3
 frontend/src/diakonos/pages/Profile.vue	6
 frontend/src/diakonos/pages/Registrierung.vue	2
-frontend/src/diakonos/pages/Wiki.vue	2
+frontend/src/diakonos/pages/Wiki.vue	1
 frontend/src/diakonos/pages/einrichtung/Assistent.vue	3
 frontend/src/diakonos/pages/einstellungen/DatenschutzTexte.vue	1
 frontend/src/diakonos/pages/einstellungen/Gemeinde.vue	2
