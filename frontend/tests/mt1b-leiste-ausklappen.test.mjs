@@ -361,9 +361,16 @@ test('MT-1b: der Knopf ist deutlich sichtbar (Textfarbe, Trefferfläche, Fokusri
   assert.match(fokus[1], /outline:\s*2px solid var\(--focus-ring-side\)/,
     'der Knopf erbt den deckenden Fokusring der Leiste')
   // Hover bleibt ein Token — keine harten Farbwerte.
-  const hover = /\.dk-sb-collapse:hover\s*\{([^}]*)\}/.exec(css)
-  assert.ok(hover, 'Hover-Regel `.dk-sb-collapse:hover` fehlt')
-  assert.match(hover[1], /var\(--dk-sb-hover\)/)
+  // MT-1b3 (Review-Punkt 1): Der Hover setzt sich gegen DkButtons `scoped`
+  // `.dk-ui-btn--ghost[data-v]:hover:not(:disabled)` (0,4,0) nur mit derselben
+  // Bauform durch — drei Klassen + `:not(:disabled)` + `:hover` (0,5,0),
+  // und ohne hartes `#fff` (Leisten-Token).
+  const hover = /\.dk-sidebar \.dk-sb-top \.dk-sb-collapse:not\(:disabled\):hover\s*\{([^}]*)\}/.exec(css)
+  assert.ok(hover, 'Hover-Regel `.dk-sidebar .dk-sb-top .dk-sb-collapse:not(:disabled):hover` fehlt')
+  assert.match(hover[1], /background:\s*var\(--dk-sb-hover\)/)
+  assert.match(hover[1], /color:\s*var\(--dk-sb-text\)/,
+    'Hover-Schrift aus dem Leisten-Token, kein hartes #fff')
+  assert.ok(!/#fff\b/i.test(hover[1]), 'kein harter Weißwert im Hover')
   // Das alte Ein-Klassen-Token ist umbenannt: `--control-line` gibt es nicht
   // mehr, `--dk-sb-rahmen` ist der Name (sonst bliebe ein Token ohne die
   // Leisten-Bedeutung im Bestand).
@@ -480,18 +487,109 @@ test('MT-1b2: „Dunkel-Modus“ und „Abmelden“ tragen die Textfarbe der Lei
   // HELLE Flächen) in einer `scoped` Zwei-Klassen-Regel und schlug die
   // Ein-Klassen-Regeln der Leiste — gemessen 2,4:1 („Dunkel-Modus“) und
   // 2,8:1 („Abmelden“) im hellen Modus. Beide Farben stehen jetzt in Regeln
-  // mit drei Klassen; --dk-sb-text ist die eigentliche Textfarbe der Leiste
-  // (hell 11,15:1, dunkel 7,35:1).
+  // mit drei Klassen; --dk-sb-text ist die eigentliche Textfarbe der Leiste.
+  // MT-1b3 (Review-Punkt 3): Die hier genannten Zahlen (hell 11,15:1, dunkel
+  // 7,35:1) waren falsch — sie stammten aus einer Näherung. Neu gemessen im
+  // Chromium-Nachbau auf dem jeweiligen Grund: „Dunkel-Modus“ auf dem
+  // Menügrund 9,34:1 (hell) / 10,83:1 (dunkel), „Abmelden“ 10,93:1 (hell) /
+  // 12,24:1 (dunkel) — alle über 4,5:1.
   const css = ohneCssKommentare(lies('index.css'))
-  assert.match(css, /\.dk-sidebar \.dk-sb-profil-menu \.dk-sb-theme-punkt\s*\{\s*color:\s*var\(--dk-sb-text\)/,
+  // MT-1b3b (Review, Punkt 3): Diese beiden Prüfungen waren auf `[^}]*`
+  // gelockert — damit konnten sie auch eine Regel treffen, in der `color`
+  // erst nach einem `}` einer ANDEREN Regel stand. Wieder geschärft: der
+  // Rumpf endet am ersten `}` (`[^}]*` bleibt nötig, weil die Regel mehrere
+  // Zeilen hat), und `color` muss darin vorkommen — nur eben ohne Schlupf
+  // über Regelgrenzen hinweg.
+  const umschalter = /\.dk-sidebar \.dk-sb-profil-menu \.dk-sb-theme-punkt\s*\{([^}]*)\}/.exec(css)
+  assert.ok(umschalter, 'Regel `.dk-sidebar .dk-sb-profil-menu .dk-sb-theme-punkt` fehlt')
+  assert.match(umschalter[1], /color:\s*var\(--dk-sb-text\)/,
     'der Umschalter nimmt die Leisten-Textfarbe (drei Klassen schlagen DkButton)')
-  assert.match(css, /\.dk-sidebar \.dk-sb-foot \.dk-sb-logout\s*\{\s*color:\s*var\(--dk-sb-text\)/,
-    '„Abmelden“ ebenso')
+  assert.ok(!/#(fff|ffffff)\b/i.test(umschalter[1]), 'und kein harter Weißwert im Rumpf')
+  const abmelden = /\.dk-sidebar \.dk-sb-foot \.dk-sb-logout\s*\{([^}]*)\}/.exec(css)
+  assert.ok(abmelden, 'Regel `.dk-sidebar .dk-sb-foot .dk-sb-logout` fehlt')
+  assert.match(abmelden[1], /color:\s*var\(--dk-sb-text\)/, '„Abmelden“ ebenso')
+  assert.ok(!/#(fff|ffffff)\b/i.test(abmelden[1]), 'und kein harter Weißwert im Rumpf')
   // Die Quelle der beiden Töne ist die Leiste, nicht eine helle Fläche.
   const tpl = ohneHtmlKommentare(lies('components/AppSidebar.vue'))
   assert.match(tpl, /class="[^"]*dk-sb-theme-punkt[^"]*"/,
     'der Umschalter trägt die Klasse, an der die Farbe hängt')
   assert.match(tpl, /class="dk-sb-logout"/)
+})
+
+// ══════════════════════════════════════════════════════════════════════════
+// 5b · MT-1b3b — Hover-Selektoren, Leistenform, eingeklappter Abmelde-Knopf
+// ══════════════════════════════════════════════════════════════════════════
+test('MT-1b3b: alle drei Leisten-Knöpfe haben Hover-Regeln mit 0,6,0', () => {
+  // Review-Punkt 3: Vorher wurde gegen main nur der Ausklapp-Knopf-Hover rot.
+  // DkButton bringt `.dk-ui-btn--ghost[data-v]:hover:not(:disabled)` (0,5,0)
+  // mit; die Leisten-Regel muss deshalb drei Klassen + `:not(:disabled)` +
+  // `:hover` haben (0,6,0) und den Hover-Grund aus dem Leisten-Token setzen.
+  const css = ohneCssKommentare(lies('index.css'))
+  const faelle = [
+    ['Ausklapp-Knopf', '.dk-sidebar .dk-sb-top .dk-sb-collapse:not(:disabled):hover'],
+    ['Dunkel-Modus', '.dk-sidebar .dk-sb-profil-menu .dk-sb-theme-punkt:not(:disabled):hover'],
+    ['Abmelden', '.dk-sidebar .dk-sb-foot .dk-sb-logout:not(:disabled):hover'],
+  ]
+  for (const [name, selektor] of faelle) {
+    const flucht = selektor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const regel = new RegExp(flucht + '\\s*\\{([^}]*)\\}').exec(css)
+    assert.ok(regel, `Hover-Regel für „${name}“ fehlt: ${selektor}`)
+    assert.match(regel[1], /background:\s*var\(--dk-sb-hover\)/,
+      `„${name}“: Hover-Grund aus dem Leisten-Token (kein --surface-hover)`)
+    assert.match(regel[1], /color:\s*var\(--dk-sb-text\)/,
+      `„${name}“: Hover-Schrift aus dem Leisten-Token`)
+    assert.ok(!/#(fff|ffffff)\b/i.test(regel[1]), `„${name}“: kein harter Weißwert`)
+  }
+  // Und die alte, zu schwache Form (0,4,0 ohne `:not(:disabled)`) ist für
+  // „Dunkel-Modus“ und „Abmelden“ nirgends mehr zu finden.
+  for (const alt of ['.dk-sidebar .dk-sb-profil-menu .dk-sb-theme-punkt:hover',
+    '.dk-sidebar .dk-sb-foot .dk-sb-logout:hover']) {
+    assert.ok(!css.includes(alt), `die schwache Hover-Regel ${alt} ist ersetzt`)
+  }
+})
+
+test('MT-1b3b: „Dunkel-Modus“ und „Abmelden“ stehen linksbündig in Leistenform', () => {
+  // Review-Punkt 3: Ohne diese Prüfung blieb die Form ungeschützt — DkButtons
+  // `.dk-ui-btn[data-v]` (0,2,0) setzte `justify-content: center`, `0 14px`
+  // Innenabstand, `--radius`, `font-weight: 550`. Die Formregeln der Leiste
+  // haben drei Klassen (0,3,0) und müssen linksbündig + Rand-frei sein.
+  const css = ohneCssKommentare(lies('index.css'))
+  const faelle = [
+    ['Dunkel-Modus', '.dk-sidebar .dk-sb-profil-menu .dk-sb-theme-punkt'],
+    ['Abmelden', '.dk-sidebar .dk-sb-foot .dk-sb-logout'],
+  ]
+  for (const [name, selektor] of faelle) {
+    const flucht = selektor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const regel = new RegExp(flucht + '\\s*\\{([^}]*)\\}').exec(css)
+    assert.ok(regel, `Formregel für „${name}“ fehlt: ${selektor}`)
+    assert.match(regel[1], /justify-content:\s*flex-start/, `„${name}“ steht linksbündig`)
+    assert.match(regel[1], /padding:\s*0 var\(--sp-3\)|padding:\s*var\(--sp-2\) var\(--sp-3\)/,
+      `„${name}“ nimmt den Innenabstand der Leiste`)
+    assert.match(regel[1], /border-radius:\s*var\(--radius-sm\)/, `„${name}“ nimmt den Leisten-Radius`)
+    assert.match(regel[1], /font-weight:\s*inherit/, `„${name}“ erbt die Leisten-Schriftstärke`)
+    assert.match(regel[1], /border-width:\s*0/,
+      `„${name}“ verliert den transparenten 1-px-Rand von DkButton (Text-x um 1 px verschoben)`)
+    assert.ok(!/font-weight:\s*550/.test(regel[1]), `„${name}“ nicht 550 fett`)
+  }
+})
+
+test('MT-1b3b: eingeklappt sitzt das Abmelde-Symbol wieder mittig', () => {
+  // Review-Punkt 1 (MITTEL): Die Formregel `.dk-sidebar .dk-sb-foot .dk-sb-logout`
+  // (0,3,0) schlug `.dk-sb-logout.is-collapsed` (0,2,0) — eingeklappt saß das
+  // Symbol links (13/19 px statt 16/16 px). Der Ersatz hat mehr Klassen (0,4,0)
+  // und steht NACH der Formregel.
+  const css = ohneCssKommentare(lies('index.css'))
+  const regel = /\.dk-sidebar \.dk-sb-foot \.dk-sb-logout\.is-collapsed\s*\{([^}]*)\}/.exec(css)
+  assert.ok(regel, 'eingeklappte Regel `.dk-sidebar .dk-sb-foot .dk-sb-logout.is-collapsed` fehlt')
+  assert.match(regel[1], /justify-content:\s*center/, 'Symbol wieder mittig')
+  assert.match(regel[1], /padding:\s*var\(--sp-2\) 0/, 'waagerechter Innenabstand 0, senkrecht Token')
+  // Die alte Zwei-Klassen-Regel daneben darf es nicht mehr geben (sonst
+  // entscheidet wieder die Reihenfolge im Bündel).
+  assert.ok(!/^\s*\.dk-sb-logout\.is-collapsed\s*\{/m.test(css),
+    'die schwache Regel `.dk-sb-logout.is-collapsed` ist ersetzt')
+  // Und die Klasse hängt im Bauteil weiter am Knopf (sonst greift nichts).
+  const tpl = ohneHtmlKommentare(lies('components/AppSidebar.vue'))
+  assert.match(tpl, /'is-collapsed':\s*collapsed/, 'der Knopf trägt `is-collapsed` im Zustand')
 })
 
 test('MT-1b2: Escape holt den Fokus nur zurück, wenn er im Profilbereich war', async () => {

@@ -21,8 +21,10 @@
 #   frontend/src/diakonos/components/kronos/chipText.mjs: #ffffff, #00051f
 #
 # Stand (ON-0b, eingefroren): 73 Fundstellen in 6 Dateien.
+# MT-1b3: index.css 39 → 36 (drei harte `#fff` in den Leisten-Hover-Regeln
+# durch `var(--dk-sb-text)` ersetzt). Summe jetzt 70.
 frontend/src/diakonos/components/registrierung/RegLinkTeilen.vue	1
-frontend/src/diakonos/index.css	39
+frontend/src/diakonos/index.css	36
 frontend/src/diakonos/kronos.css	28
 frontend/src/grundreset.css	1
 frontend/src/shared/kachelfarbe.mjs	3

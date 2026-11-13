@@ -326,9 +326,21 @@ h1, h2, h3, h4 {
   gap: 0;
   flex-shrink: 0;
 }
-.dk-sidebar .dk-sb-top .dk-sb-collapse:hover {
+/* MT-1b3 (Review-Punkt 1): Der Hover griff trotzdem nicht. DkButton bringt
+   `.dk-ui-btn--ghost[data-v]:hover:not(:disabled)` mit — zwei Klassen, ein
+   Attribut und zwei Pseudoklassen = (0,5,0). Die alte Regel
+   `.dk-sidebar .dk-sb-top .dk-sb-collapse:hover` hatte (0,4,0): sie war also
+   schon auf dem Papier schwächer und verlor zusätzlich gegen die spätere
+   Position des `scoped`-Stils im Bündel. Gemessen im hellen Modus: beim
+   Überfahren kam `--surface-hover` (#f1f1ec) mit `--text` heraus — helle
+   Fläche, dunkle Schrift auf der Navy-Leiste. Darum hier dieselbe Form wie
+   beim Gegner: drei Klassen + `:not(:disabled)` + `:hover` = (0,6,0) — eine
+   Stufe über DkButton, nicht Gleichstand, der von der Reihenfolge abhinge.
+   Die Schrift bleibt in der Textfarbe der Leiste (`--dk-sb-text`), kein
+   hartes `#fff` mehr — das war auf dem Hover-Ton ein reines Weiß ohne Token. */
+.dk-sidebar .dk-sb-top .dk-sb-collapse:not(:disabled):hover {
   background: var(--dk-sb-hover);
-  color: #fff;
+  color: var(--dk-sb-text);
   border-color: var(--dk-sb-text-muted);
 }
 /* UX1c/K4: Das Symbol bleibt bei seiner Größe — DkButtons `gap: 7px` und
@@ -337,12 +349,17 @@ h1, h2, h3, h4 {
 .is-collapsed .dk-sb-top { justify-content: center; padding: 14px 6px 10px; }
 .is-collapsed .dk-sb-brand { display: none; }
 .is-collapsed .dk-sb-nav { padding: 6px 0; }
-/* MT-1b2: Hier stand `.is-collapsed .dk-sb-collapse { display: flex; }`. Der
-   Selektor meint den Zustand des APP-Rahmens (`.dk-app.is-collapsed`), der
-   Knopf sitzt aber in `.dk-sidebar.is-collapsed` — die Regel griff nie
-   (DkButton ist ohnehin `inline-flex`, der Knopf war also immer zu sehen).
-   Der Knopf hängt in der Kopfzeile der Leiste und wird mit ihr geschoben;
-   nichts ein- oder auszublenden. */
+/* MT-1b2: Hier stand `.is-collapsed .dk-sb-collapse { display: flex; }`.
+   MT-1b3 (Review-Punkt 3): Der Kommentar hier behauptete, die Regel habe
+   „nie gegriffen“, weil sie den Zustand des App-Rahmens
+   (`.dk-app.is-collapsed`) meine, während der Knopf in
+   `.dk-sidebar.is-collapsed` sitzt. Das ist FALSCH: `.is-collapsed` ist ein
+   Nachfahren-Selektor ohne Elementbezug, er trifft in BEIDEN Fassungen —
+   die Regel griff also und verlor nur die Eigenschaft `display` gegen
+   DkButtons `scoped` `.dk-ui-btn[data-v] { display: inline-flex }` (0,2,0
+   schlägt 0,2,0 mit späterer Position im Bündel). Entfernt wurde sie
+   trotzdem zu Recht: der Knopf war ohnehin immer sichtbar, `inline-flex`
+   ist die richtige Anzeige, und es gibt nichts ein- oder auszublenden. */
 /* DEV-B6b (Review 10.11., Punkt 5): Hier stand ein @media-Block
    `(min-width: 721px) and (max-width: 1100px)` mit
    `.is-collapsed .dk-sb-top .dk-menue-knopf { display: flex; … }` — er war
@@ -543,9 +560,41 @@ h1, h2, h3, h4 {
    Textfarbe für helle Flächen und auf der dunklen Leiste unlesbar. Hier steht
    die Leisten-Textfarbe deshalb in einer Regel mit drei Klassen (hell
    11,15:1, dunkel 7,35:1). Der Punkt bleibt in der Liste der Trefferflächen
-   (`.dk-sb-profil-punkt`) — die Form ändert sich nicht. */
-.dk-sidebar .dk-sb-profil-menu .dk-sb-theme-punkt { color: var(--dk-sb-text); }
-.dk-sb-theme-punkt:hover { background: var(--dk-sb-hover); color: #fff; }
+   (`.dk-sb-profil-punkt`) — die Form ändert sich nicht.
+   MT-1b3 (Review-Punkt 3): Die Zahlen hier waren falsch gemessen (11,15:1
+   hell / 7,35:1 dunkel stammten aus einer Näherung). Gemessen im
+   Chromium-Nachbau mit echtem tokens.css/index.css/DkButton-CSS, „Dunkel-
+   Modus“ auf dem Menügrund (`.dk-sb-profil-menu`, `--dk-sb-hover` über
+   `--dk-sb-bg`): hell 9,34:1, dunkel 10,83:1. */
+/* MT-1b3 (Review-Punkt 1 + 2): Farbe UND Form in EINER Regel mit drei
+   Klassen. Die Farbe allein reichte nicht, und die Form ging an DkButton
+   verloren: `.dk-ui-btn[data-v]` (0,2,0) schlägt `.dk-sb-profil-punkt`
+   (0,1,0) und setzte `justify-content: center`, `padding: 0 14px`,
+   `border-radius: var(--radius)` und `font-weight: 550` — der Umschalter
+   stand mittig und breiter da als „Profil“ direkt darüber. Mit drei Klassen
+   (0,3,0) gilt die Leistenform: linksbündig wie „Profil“, Innenabstand und
+   Radius aus den Leisten-Tokens. */
+.dk-sidebar .dk-sb-profil-menu .dk-sb-theme-punkt {
+  justify-content: flex-start;
+  padding: 0 var(--sp-3);
+  border-width: 0;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: inherit;
+  text-align: left;
+  color: var(--dk-sb-text);
+}
+/* MT-1b3 (Review-Punkt 1): Der Hover setzte sich nicht durch — DkButtons
+   `.dk-ui-btn--ghost[data-v]:hover:not(:disabled)` (0,5,0) schlug
+   `.dk-sb-theme-punkt:hover` (0,2,0); gemessen im hellen Modus kam beim
+   Überfahren `--surface-hover` (#f1f1ec) mit `--text` heraus. Diese Regel
+   steht NACH der Form und hat 0,6,0 (drei Klassen + `:not(:disabled)` +
+   `:hover`, eine Stufe über DkButton): Hover-Grund `--dk-sb-hover`, Schrift
+   in der Textfarbe der Leiste (kein hartes `#fff`). */
+.dk-sidebar .dk-sb-profil-menu .dk-sb-theme-punkt:not(:disabled):hover {
+  background: var(--dk-sb-hover);
+  color: var(--dk-sb-text);
+}
 
 /* BF1-L: Abmelden im Nutzerbereich (Sidebar unten).
    UX1g: Der Knopf ist jetzt `DkButton variant="ghost"`; nur die Farben der
@@ -555,7 +604,21 @@ h1, h2, h3, h4 {
    ist EINE Klasse, DkButtons `scoped` `.dk-ui-btn--ghost[data-v]` hat zwei,
    also kam „Abmelden“ im hellen Modus mit `--muted` heraus (gemessen 2,8:1).
    Die Farbe steht jetzt in einer Regel mit drei Klassen; die Form (Breite,
-   Ausrichtung, Innenabstand) bleibt, wo sie war. */
+   Ausrichtung, Innenabstand) bleibt, wo sie war.
+   MT-1b3 (Review-Punkt 1 + 2): Beides griff weiter nicht — `.dk-sb-logout`
+   ist EINE Klasse, DkButtons `scoped` `.dk-ui-btn[data-v]` (0,2,0) gewinnt
+   und setzte `justify-content: center`, `padding: 0 14px`,
+   `border-radius: var(--radius)`, `font-weight: 550`; der Hover verlor gegen
+   `.dk-ui-btn--ghost[data-v]:hover:not(:disabled)` (0,5,0) und malte im
+   hellen Modus #f1f1ec mit dunkler Schrift auf die Navy-Leiste. Darum steht
+   die FORM jetzt in einer Regel mit drei Klassen (0,3,0) und der Hover in
+   einer mit drei Klassen + `:not(:disabled)` + `:hover` (0,6,0) —
+   Innenabstand und Radius aus den Leisten-Tokens, linksbündig wie „Profil“,
+   Hover-Grund `--dk-sb-hover`.
+   MT-1b3b (Review, Punkt 2): DkButton bringt `border: 1px solid transparent`
+   mit; der Rand verschob den Text der beiden Knöpfe um 1 px gegenüber
+   „Profil“ (Text-x 129 gegen 128). `border-width: 0` in der Formregel nimmt
+   ihn weg — der Innenabstand ist damit derselbe wie bei „Profil“. */
 .dk-sb-logout {
   gap: 10px;
   width: 100%;
@@ -566,12 +629,35 @@ h1, h2, h3, h4 {
   color: var(--dk-sb-text-muted);
   text-align: left;
 }
-.dk-sidebar .dk-sb-foot .dk-sb-logout { color: var(--dk-sb-text); }
-.dk-sb-logout:hover,
-.dk-sb-logout:not(:disabled):hover { background: var(--dk-sb-hover); color: #fff; }
+.dk-sidebar .dk-sb-foot .dk-sb-logout {
+  justify-content: flex-start;
+  padding: var(--sp-2) var(--sp-3);
+  border-width: 0;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: inherit;
+  text-align: left;
+  color: var(--dk-sb-text);
+}
+.dk-sidebar .dk-sb-foot .dk-sb-logout:not(:disabled):hover {
+  background: var(--dk-sb-hover);
+  color: var(--dk-sb-text);
+}
 .dk-sb-logout:focus-visible { outline: 2px solid var(--focus-ring-side); outline-offset: 1px; }
 .dk-sb-logout svg { flex: none; }
-.dk-sb-logout.is-collapsed { justify-content: center; padding: 8px 0; }
+/* MT-1b3b (Review, Punkt 1): Hier stand `.dk-sb-logout.is-collapsed` (zwei
+   Klassen, 0,2,0) VOR der Formregel `.dk-sidebar .dk-sb-foot .dk-sb-logout`
+   (drei Klassen, 0,3,0) — die Formregel gewann trotz gleicher Bauweise und
+   setzte `justify-content: flex-start` und `padding: var(--sp-2) var(--sp-3)`
+   auch im eingeklappten Zustand. Gemessen: das Abmelde-Symbol saß 13/19 px
+   statt 16/16 px, also links statt mittig (Beleg eingeklappt-702-hell.png).
+   Ersatz ist dieselbe Bauweise wie die Formregel (drei Klassen + Zustand =
+   0,4,0), unmittelbar dahinter — Symbol wieder mittig, Innenabstand oben/
+   unten aus dem Token. */
+.dk-sidebar .dk-sb-foot .dk-sb-logout.is-collapsed {
+  justify-content: center;
+  padding: var(--sp-2) 0;
+}
 
 /* UX3a (Entwurf A1): Profilmenü im Fußbereich der Seitenleiste.
    Der Profilknopf ist ein <button> (vorher ein <a> auf #/profile) — er öffnet
