@@ -526,6 +526,44 @@ tests/mt3b-rueckgaengig-kopplung.test.mjs
 # zurückgesetzte Übernahme ROT wird. Befund: auf main NICHT reproduzierbar.
 tests/wiki-q1-*.test.mjs
 # R-3: Menü zeigt Module nur mit Leserecht (das EINE Rechtesystem, Boot module_sichtbar).
+# UI-R2: Gruppen-Einstellungen, Teil 2 Kalender — Liste der Kalender dieser
+# Gruppe/Untergruppe (Felder gruppe/untergruppe), Freigaben-Matrix (Personen und
+# Gruppen, „Moderieren“ nur mit Serverrecht), Sichtbarkeit aus/beantragt/aktiv
+# („an die ganze Gruppe“ nur bei Untergruppen-Kalendern), Anlegen mit
+# Titel/Farbe/Ziel und der Ja/Nein-Antwort. Reine Regeln werden ausgeführt; der
+# Mount-Test misst am ECHTEN Bauteil (jsdom, API gestubbt), welche Endpunkte
+# gerufen werden — mit Gegenproben belegt (Zuordnung ohne Untergruppe bzw.
+# Freigaben aller Kalender beim Laden machen ihn rot). `uir2-seite-mount`
+# misst die ECHTE Gruppenseite: Namen und Moderationsrecht kommen an der
+# Kalenderkarte an, die Anlegen-Auswahl zeigt Namen statt Kennungen, und ein
+# Name klebt nie an einer fremden Kennung.
+tests/uir2-*.test.mjs
+# UI-R2b: Folgekarte zu UI-R2 (Opus-Review) an derselben Fläche. „Moderieren“
+# nur mit `darf_moderieren_vergeben` bedienbar (sonst Wert unverändert
+# mitschicken, Entfernen gesperrt), die Stufe gilt für Personen UND Gruppen,
+# EIN busy-Schlüssel (Doppelversand gesperrt), Anfragezähler je Kalender gegen
+# den Wettlauf beim Nachladen, Kopf und Zeilen der Matrix mit gleicher
+# Spaltenzahl, keine Karte in der Karte, Ja/Nein als Radiogruppe, Namen vom
+# Server (`name`), „wartet auf HV/MV der Gruppe“, Erfolgsmeldung nach Ziel,
+# `nurAnzeigen` sperrt alles, 403 aus `get_kalender_verwaltung` blendet aus.
+# Reine Regeln + Mount am ECHTEN Baustein; rot→grün belegt (alter Stand: 25
+# von 28 Regeln und 9 von 14 Mount-Fällen rot).
+tests/uir2b-*.test.mjs
+# UI-R2c: Folgekarte zu UI-R2b an derselben Fläche. (1) Spaltenzahl bei
+# GEMISCHTEN Zeilen: Kopf UND Zellen laufen über `gezeigteStufen`, je Stufe
+# entscheidet `stufeDerZeile` über Kästchen oder leeren Platzhalter (vorher 5
+# Kopfspalten über Zeilen mit 4 Zellen). (2) 403 aus `get_kalender_verwaltung`
+# erreicht die SEITE: die ganze Karte „Kalender der Gruppe“ ist weg, am echten
+# `GruppeDetail.vue` gemessen (ein 500 lässt sie mit Hinweis stehen). (3) Die
+# HANDY-Liste (`.kr-zeilen`) ist erstmals gemountet: Liste statt Tabelle in
+# `istHandyLage`, „Moderieren“ ohne Recht nur Anzeige/gesperrt, „Entfernen“
+# durch den Erklärsatz ersetzt, Sperre während `setze_freigabe`. Dazu die
+# SOLL-Punkte: „Lesen“ einer moderierenden Zeile ohne Vergaberecht gesperrt
+# (Server setzt Lesen bei Moderieren mit), echter Ladezustand an „Gruppe
+# freigeben“ (der alte Schlüssel traf nie), kein leeres Erklärfeld bei
+# `nurAnzeigen`, tote Reste (`darfModerieren`) entfernt.
+# Mount am ECHTEN Baustein und an der ECHTEN Seite; rot→grün je Punkt belegt.
+tests/uir2c-*.test.mjs
 # UI-R1: Gruppen-Einstellungen, Teil 1 Rollen (HV/MV/GL) — Ordnen, Knoepfe
 # nach Serverfeldern, Sicherheitsabfrage der HV-Uebertragung, Alter Pfad weg.
 tests/ui-r1-*.test.mjs

@@ -61,14 +61,35 @@
                  dieser Untergruppe — kein HV/MV (die stehen in der
                  Obergruppe), siehe RollenEinstellungen. -->
             <template v-if="aktiverReiter === 'einstellungen'">
-                <DkCard title="Rollen der Gruppe">
-                    <GruppenEinstellungen
-                        :gruppe="obergruppeId"
-                        :untergruppe="untergruppeId"
-                        :untergruppen="untergruppenFuerEinstellungen"
-                        @geaendert="nachladen"
-                    />
-                </DkCard>
+                <!-- UI-R2b: je Bereich EINE Karte — „Rollen der Gruppe“ und
+                     „Kalender der Gruppe“ stehen als GESCHWISTER nebeneinander,
+                     kein Titel doppelt. Die Karten gehören der Seite, die
+                     Bausteine darin bringen nur ihren Inhalt mit. -->
+                <div class="grup-einstellungen">
+                    <DkCard title="Rollen der Gruppe">
+                        <GruppenEinstellungen
+                            teil="rollen"
+                            :gruppe="obergruppeId"
+                            :untergruppe="untergruppeId"
+                            :untergruppen="untergruppenFuerEinstellungen"
+                            :gruppe-name="obergruppeName"
+                            :untergruppe-name="eigenerUntergruppenName"
+                            @geaendert="nachladen"
+                        />
+                    </DkCard>
+                    <DkCard v-if="kalenderKarteSichtbar" title="Kalender der Gruppe">
+                        <GruppenEinstellungen
+                            teil="kalender"
+                            :gruppe="obergruppeId"
+                            :untergruppe="untergruppeId"
+                            :untergruppen="untergruppenFuerEinstellungen"
+                            :gruppe-name="obergruppeName"
+                            :untergruppe-name="eigenerUntergruppenName"
+                            @geaendert="nachladen"
+                            @gesperrt="kalenderGesperrt = $event"
+                        />
+                    </DkCard>
+                </div>
             </template>
 
             <template v-else>
@@ -608,6 +629,31 @@ export default {
         })
         /** UI-R1: Kennung DIESER Untergruppe (nur dort gesetzt) — für GL. */
         const untergruppeId = computed(() => (untergruppe.value ? String(untergruppe.value.name || gruppeId.value) : ''))
+        /**
+         * UI-R2: Anzeigename der OBERGRUPPE (auf der Gruppenseite sie selbst) —
+         * die Kalenderkarte zeigt damit „Chor“ statt „G-Chor“. Nur ein Name,
+         * keine Kennung: die kommt aus `obergruppeId`.
+         */
+        const obergruppeName = computed(() => (untergruppe.value
+            ? anzeigeName(gruppe.value, String(untergruppe.value.gruppe || ''))
+            : displayName.value))
+        /** Der Anzeigename DIESER Untergruppe — leer auf einer Gruppenseite. */
+        const eigenerUntergruppenName = computed(() => (untergruppe.value ? displayName.value : ''))
+
+        /**
+         * UI-R2c: Darf die Karte „Kalender der Gruppe“ stehen?
+         *
+         * Antwortet `get_kalender_verwaltung` mit 403, hat diese Person keine
+         * verwaltbaren Kalender — dann gibt es hier nichts zu zeigen, und die
+         * Karte verschwindet GANZ (vorher stand eine leere Fläche mit Titel
+         * da, weil nur der Inhalt sich ausblendete). Der Baustein meldet den
+         * Zustand über `gesperrt`; jeder andere Fehler lässt die Karte stehen,
+         * damit der Hinweis „nicht geladen — erneut versuchen“ sichtbar bleibt.
+         * Beim Wechsel der (Unter-)Gruppe wird der Stand zurückgesetzt.
+         */
+        const kalenderGesperrt = ref(false)
+        const kalenderKarteSichtbar = computed(() => !kalenderGesperrt.value)
+        watch([obergruppeId, untergruppeId], () => { kalenderGesperrt.value = false })
 
         const reiterOptionen = computed(() => {
             const id = gruppeId.value
@@ -1458,6 +1504,13 @@ export default {
             // Untergruppen-Seite die Obergruppe) und an der Untergruppe selbst.
             obergruppeId,
             untergruppeId,
+            // UI-R2: Anzeigenamen für die Kalenderkarte (nur Namen, nie Kennungen).
+            obergruppeName,
+            eigenerUntergruppenName,
+            // UI-R2c: 403 aus get_kalender_verwaltung blendet die ganze Karte
+            // „Kalender der Gruppe“ aus (sie gehört der Seite).
+            kalenderKarteSichtbar,
+            kalenderGesperrt,
             // UI-R1: das Template braucht die Gruppenkennung selbst
             // (`:gruppe="gruppeId"` am Bereich „Einstellungen“) — ohne die
             // Rückgabe war sie `undefined`, der Serveraufruf fiel aus.
@@ -1593,6 +1646,9 @@ export default {
 /* UI-R1: die Reiterzeile sitzt zwischen Seitenkopf und Inhalt — gleicher
    Abstand wie die Karten zueinander (EIN Rastermaß, siehe .grup-grid). */
 .grup-reiter { margin-bottom: var(--grid-gap); }
+/* UI-R2b: die Karten des Reiters „Einstellungen“ stehen als Geschwister —
+   derselbe Abstand wie überall (EIN Rastermaß). */
+.grup-einstellungen { display: flex; flex-direction: column; gap: var(--grid-gap); }
 .grup-muted { color: var(--muted); font-size: var(--fs-sm); margin: 0; }
 /* OP-HANDY-19: Namensliste der Gruppenmitglieder für Nicht-Verwalter. */
 .grup-namensliste { list-style: none; margin: 0 0 var(--sp-3); padding: 0; display: flex; flex-direction: column; gap: 6px; }

@@ -423,3 +423,57 @@ def test_anlegen_nennt_offene_stufe_und_schreibbare_kalender_direkt(kal):
     set_user(ANNA)
     assert {c["name"]: c for c in get_writable_calendars()}["chorkal"]["direkt"] is False
     set_user("Administrator")
+
+
+def test_r12m_objekt_rechte_sagen_ob_moderieren_vergeben_werden_darf(kal):
+    """UI-R2: Die Freigaben-Matrix blendet „Moderieren“ nach demselben Recht ein,
+    mit dem ``setze_freigabe`` es prueft — GL verwaltet den Untergruppen-Kalender,
+    darf die Pruefung aber nicht besetzen; HV darf es."""
+    from diakronos_app.rechte import verwaltung as V
+
+    assert V.freigaben_des_objekts(GL, "kalender", "sopran-kal")["darf_moderieren_vergeben"] is False
+    assert V.freigaben_des_objekts(REBEKKA, "kalender", "chorkal")["darf_moderieren_vergeben"] is True
+
+
+def test_r12n_gl_entzieht_kein_moderationsrecht(kal):
+    """Review UI-R2: Bisher pruefte setze_freigabe das Moderationsrecht nur beim
+    Vergeben — eine GL konnte es still entziehen (Schreiben umschalten schickte
+    moderieren=False). Jede AENDERUNG am Moderationsrecht braucht das Recht;
+    unveraendert mitgeschickt darf die GL die Zeile weiter pflegen."""
+    from diakronos_app.rechte import verwaltung as V
+
+    V.setze_freigabe(REBEKKA, "kalender", "sopran-kal", benutzer=SOPRAN, lesen=True, moderieren=True)
+    with pytest.raises(PermErr):
+        V.setze_freigabe(GL, "kalender", "sopran-kal", benutzer=SOPRAN, lesen=True, schreiben=True)
+    with pytest.raises(PermErr):
+        V.setze_freigabe(GL, "kalender", "sopran-kal", benutzer=SOPRAN)   # Zeile entfernen
+    V.setze_freigabe(GL, "kalender", "sopran-kal", benutzer=SOPRAN, lesen=True, schreiben=True, moderieren=True)
+    zeile = [z for z in V.freigaben_des_objekts(GL, "kalender", "sopran-kal")["freigaben"] if z["benutzer"] == SOPRAN][0]
+    assert (zeile["schreiben"], zeile["moderieren"]) == (True, True)
+    V.setze_freigabe(REBEKKA, "kalender", "sopran-kal", benutzer=SOPRAN, lesen=True)   # HV darf entziehen
+
+
+def test_r12o_freigaben_tragen_namen(kal):
+    """Review UI-R2: Die Matrix zeigte Kontokennungen (E-Mail) und Gruppen-IDs —
+    der Server liefert je Zeile den Anzeigenamen."""
+    from diakronos_app.rechte import verwaltung as V
+
+    V.setze_freigabe(REBEKKA, "kalender", "chorkal", benutzer=ANNA, lesen=True)
+    V.setze_freigabe(REBEKKA, "kalender", "chorkal", gruppe="Chor", lesen=True)
+    zeilen = V.freigaben_des_objekts(REBEKKA, "kalender", "chorkal")["freigaben"]
+    anna = [z for z in zeilen if z["benutzer"] == ANNA][0]
+    chor = [z for z in zeilen if z["gruppe"] == "Chor"][0]
+    assert anna["name"] and "@" not in anna["name"]
+    assert chor["name"] and chor["name"] != ""
+
+
+def test_r12p_moderieren_schliesst_lesen_ein(kal):
+    """Review UI-R2b: Ohne Vergaberecht schickt die Matrix Moderieren unveraendert
+    mit — hakt die GL dabei „Lesen“ ab, entstand eine Zeile nur mit Moderieren.
+    Wer prueft, muss den Kalender sehen: moderieren=True setzt lesen immer mit."""
+    from diakronos_app.rechte import verwaltung as V
+
+    V.setze_freigabe(REBEKKA, "kalender", "sopran-kal", benutzer=SOPRAN, lesen=True, moderieren=True)
+    V.setze_freigabe(GL, "kalender", "sopran-kal", benutzer=SOPRAN, lesen=False, moderieren=True)
+    zeile = [z for z in V.freigaben_des_objekts(GL, "kalender", "sopran-kal")["freigaben"] if z["benutzer"] == SOPRAN][0]
+    assert (zeile["lesen"], zeile["moderieren"]) == (True, True)

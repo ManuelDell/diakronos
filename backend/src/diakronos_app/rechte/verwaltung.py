@@ -407,16 +407,24 @@ def setze_freigabe(
         throw("Bitte genau eine Person oder eine Gruppe angeben.", ValidationError)
     if moderieren and typ != "kalender":
         throw("Moderieren gibt es nur bei Kalendern.", ValidationError)
-    if moderieren:
-        # Moderationsrecht vergeben HV/MV (Gemeinde-Objekt: Admin/Fachverwaltung)
-        # — keine GL: sonst koennte die Untergruppe ihre eigene Pruefung besetzen.
-        with lesesitzung() as sess:
-            gruppe_des_objekts = _objekt_zeile(sess, typ, objekt).gruppe
-        stufe = kern.STUFE_GRUPPE if gruppe_des_objekts else kern.STUFE_GEMEINDE
-        if not kern.darf(ausfuehrender, kern.MODERIEREN, typ, objekt, stufe=stufe):
-            from diakronos_app.frappe_compat.exceptions import PermissionError
+    # Wer prueft, muss den Kalender sehen — keine Zeile „nur Moderieren“
+    # (Review UI-R2b: GL hakte Lesen ab, Moderieren ging unveraendert mit).
+    lesen = bool(lesen) or bool(moderieren)
+    # Jede AENDERUNG am Moderationsrecht (vergeben wie entziehen, auch durch
+    # Entfernen der ganzen Zeile) braucht das Recht — sonst entzoege eine GL es
+    # still, indem sie „Schreiben“ umschaltet (Review UI-R2). Unveraendert
+    # mitgeschickt darf die GL die Zeile weiter pflegen.
+    with lesesitzung() as sess:
+        gruppe_des_objekts = _objekt_zeile(sess, typ, objekt).gruppe
+        bisher = sess.execute(select(RechteFreigabe.moderieren).where(
+            RechteFreigabe.typ == typ, RechteFreigabe.objekt == objekt,
+            RechteFreigabe.benutzer == benutzer if benutzer else RechteFreigabe.gruppe == gruppe,
+        )).scalar_one_or_none()
+    if bool(moderieren) != bool(bisher) and not _darf_moderieren_vergeben(
+            ausfuehrender, typ, objekt, gruppe_des_objekts):
+        from diakronos_app.frappe_compat.exceptions import PermissionError
 
-            throw("Das Moderationsrecht vergeben nur HV und MV.", PermissionError)
+        throw("Das Moderationsrecht vergeben und entziehen nur HV und MV.", PermissionError)
     if benutzer:
         _pruefe_konto(benutzer)
     else:
@@ -441,6 +449,16 @@ def setze_freigabe(
     return {"success": True}
 
 
+def _darf_moderieren_vergeben(ausfuehrender: str, typ: str, objekt: str, gruppe_des_objekts) -> bool:
+    """Moderationsrecht vergeben HV/MV (Gemeinde-Objekt: Admin/Fachverwaltung)
+    — keine GL: sonst koennte die Untergruppe ihre eigene Pruefung besetzen.
+    EINE Regel fuer ``setze_freigabe`` und die Anzeige in ``freigaben_des_objekts``."""
+    if typ != "kalender":
+        return False
+    stufe = kern.STUFE_GRUPPE if gruppe_des_objekts else kern.STUFE_GEMEINDE
+    return bool(kern.darf(ausfuehrender, kern.MODERIEREN, typ, objekt, stufe=stufe))
+
+
 def freigaben_des_objekts(ausfuehrender: str, typ: str, objekt: str) -> dict:
     """Freigaben + Sichtbarkeit eines Objekts (fuer die Einstellungsseite; ``verwalten``)."""
     from diakronos_app.models.rechte import RechteFreigabe
@@ -455,8 +473,11 @@ def freigaben_des_objekts(ausfuehrender: str, typ: str, objekt: str) -> dict:
             "gruppe": eintrag.gruppe, "untergruppe": eintrag.untergruppe,
             "standard_gruppe_lesen": bool(eintrag.standard_gruppe_lesen),
             "gemeinde_status": eintrag.gemeinde_status, "gruppe_status": eintrag.gruppe_status,
+            "darf_moderieren_vergeben": _darf_moderieren_vergeben(ausfuehrender, typ, objekt, eintrag.gruppe),
             "freigaben": [
-                {"benutzer": z.benutzer, "gruppe": z.gruppe, "lesen": bool(z.lesen),
+                {"benutzer": z.benutzer, "gruppe": z.gruppe,
+                 "name": _anzeigename_konto(z.benutzer) if z.benutzer else _name("Gruppe", z.gruppe),
+                 "lesen": bool(z.lesen),
                  "schreiben": bool(z.schreiben), "moderieren": bool(z.moderieren)}
                 for z in zeilen
             ],
