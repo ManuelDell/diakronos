@@ -50,9 +50,10 @@ def test_rueckstufung_meldet_ohne_link(client, patched_db, status):
 def test_serien_absage_ohne_leserecht_still(client, patched_db):
     _kalender_moderator_welt(patched_db,mit_leserecht=False)
     # Schreibrecht gilt ebenfalls als Leserecht: Empfänger explizit abtrennen.
-    from diakronos_app.models.core import HasRole
+    # R-5: seine Rechte liegen als Einzelfreigabe vor (Uebernahme) -> entziehen.
+    from diakronos_app.models.rechte import RechteFreigabe
     with patched_db.begin() as s:
-        s.get(HasRole,'r-ein').role='OhneLeserecht'
+        s.query(RechteFreigabe).filter_by(benutzer='talente').delete()
     serie(patched_db)
     anmelden(client,'moderator')
     r=client.post('/api/method/diakronos.kronos.api.series.delete_series_batch_fast',json={'series_id':'p21-serie'})
@@ -106,6 +107,8 @@ def test_serien_absage_mit_gemischten_empfaengern_nennt_je_person_eigene_termine
                       parentfield='roles', role='Mitglied'))
         s.add(UserRole(name='ur-les', parent='K-GD', parenttype='Kalender',
                        parentfield='leserechte', role='Mitglied', docstatus=0, idx=3))
+    from rechte_hilfe import uebernehmen_mit
+    uebernehmen_mit(patched_db)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     serie(patched_db)  # E-2 „Chorprobe“ am 13.12.2026 mit M-TAL
     with patched_db.begin() as s:
         s.get(ElementMitarbeiter, 'EM-2').mitglied = 'M-LES'

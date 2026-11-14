@@ -25,6 +25,9 @@
  * Zustände (Prinzip I5): leer (nichts gefunden), ladend, Fehler mit „Erneut
  * versuchen“, Erfolg — die Palette behält dabei IMMER, was sie schon zeigt.
  */
+// UI-R10: die EINE Verwaltungsregel der Menüdefinition (Stufe `verwaltung`
+// gegen die Flags der Sitzung) — die Palette führt keine zweite Fassung.
+import { verwaltungZutreffend } from '../menue.js'
 
 /** Abschnittsüberschriften in Anzeigereihenfolge (Entwurf A5). */
 export const ABSCHNITTE = [
@@ -318,6 +321,9 @@ export function seitenEintraege({ menue = [], fuss = [], sichtbareEintraege, rec
   }
   for (const eintrag of fuss || []) {
     if (eintrag.suche !== true) continue
+    // UI-R10: Fuß-Einträge tragen ihre Verwaltungsstufe (`verwaltung`), nicht
+    // mehr eine feste Rolle — „Einstellungen“ gehört der Mitgliederverwaltung.
+    if (eintrag.verwaltung && !verwaltungZutreffend(eintrag.verwaltung, rechte)) continue
     if (eintrag.rolle === 'admin' && !rechte.istAdmin) continue
     if ((eintrag.rollen || []).length
       && !eintrag.rollen.some(r => (rechte.rollen || []).includes(r))) continue

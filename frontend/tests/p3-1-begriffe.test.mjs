@@ -97,7 +97,9 @@ test('UXD-R23: Gast-Schnellzugriffe führen nicht ins Leere', () => {
     const widget = lies('components/widgets/QuickLinksWidget.vue')
     assert.match(widget, /istGast/, 'Gast-Fall fehlt im Widget')
     // Im Gast-Zweig darf weder „#/mitglieder“ noch „#/gruppen“ stehen.
-    const gastZweig = widget.slice(widget.indexOf('if (istGast.value)'), widget.indexOf('if (isAdmin.value)'))
+    // UI-R10: Der Verwaltungs-Zweig heißt jetzt „Admin ODER Mitgliederverwaltung“.
+    const gastZweig = widget.slice(widget.indexOf('if (istGast.value)'),
+      widget.indexOf('if (isAdmin.value || istMitgliederverwaltung.value === true)'))
     assert.doesNotMatch(gastZweig, /#\/mitglieder/)
     assert.doesNotMatch(gastZweig, /#\/gruppen/)
     assert.match(gastZweig, /#\/kalender/)

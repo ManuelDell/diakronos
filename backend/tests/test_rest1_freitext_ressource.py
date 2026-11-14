@@ -72,6 +72,8 @@ def welt(patched_db):
     sess.add(UserRole(name="UR-GEM-SCHREIB", parent=KALENDER, parenttype="Kalender",
                       parentfield="schreibrechte", role="All", docstatus=0, idx=1))
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     yield sess
     sess.close()
 

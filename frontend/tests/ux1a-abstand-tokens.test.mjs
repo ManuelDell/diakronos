@@ -315,7 +315,6 @@ const OBERGRENZE = {
   'frontend/src/diakonos/pages/einstellungen/DatenschutzTexte.vue': 2,
   'frontend/src/diakonos/pages/einstellungen/Gemeinde.vue': 1,
   'frontend/src/diakonos/pages/einstellungen/Registrierung.vue': 1,
-  'frontend/src/diakonos/pages/einstellungen/RollenRechte.vue': 3,
   'frontend/src/diakonos/pages/mitglieder/Uebersicht.vue': 1,
   'frontend/src/diakonos/pages/planrahmen/Einrichten.vue': 14,
   'frontend/src/diakonos/pages/planrahmen/MeineDienste.vue': 46,

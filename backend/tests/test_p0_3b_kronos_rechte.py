@@ -127,6 +127,8 @@ def welt(patched_db):
                 series_id="", docstatus=0, idx=0),
     ])
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     yield sess
     sess.close()
 
@@ -159,14 +161,45 @@ def test_create_event_erzwingt_vorschlag_ohne_moderationsrecht(welt):
     assert welt.get(Element, res["id"]).status == "Vorschlag"
 
 
+def _moderator_auch_fuer_nur_schreib(sess):
+    """R-5: MODERATOR prueft zusaetzlich KAL-SCHREIB — einen Kalender, der NICHT
+    fuer die ganze Gemeinde lesbar ist (dort wirkt das Festlegen sofort)."""
+    from diakronos_app.models.rechte import RechteFreigabe
+
+    zeile = sess.query(RechteFreigabe).filter_by(
+        typ="kalender", objekt=KAL_NUR_SCHREIB, benutzer=MODERATOR).one_or_none()
+    if zeile is None:
+        sess.add(RechteFreigabe(typ="kalender", objekt=KAL_NUR_SCHREIB, benutzer=MODERATOR,
+                                lesen=True, moderieren=True))
+    else:
+        zeile.lesen = zeile.moderieren = True
+    sess.commit()
+
+
 def test_create_event_moderator_darf_festlegen(welt):
-    """Gegenprobe: der Moderator darf weiterhin freigeben."""
+    """Gegenprobe: der Moderator darf weiterhin freigeben.
+
+    R-5 (Manuel 11.11.): KAL ist fuer alle Mitglieder lesbar („oeffentlich“) —
+    dort geht auch sein NEUER Termin zuerst in die Pruefung (zweite
+    Freigabeschicht); er gibt ihn danach bewusst selbst frei. In einem nicht
+    oeffentlichen Kalender wirkt sein „Festgelegt“ sofort.
+    """
     from diakronos_app.api.kronos import event_crud
 
     _als(MODERATOR)
     res = event_crud.create_event(
         "Freigegeben", "2025-07-01 10:00:00", "2025-07-01 11:00:00",
         KAL, status="Festgelegt",
+    )
+    assert res["status"] == "Vorschlag"
+    event_crud.update_event(res["id"], status="Festgelegt")
+    assert welt.get(Element, res["id"]).status == "Festgelegt"
+
+    _moderator_auch_fuer_nur_schreib(welt)
+    _als(MODERATOR)
+    res = event_crud.create_event(
+        "Sofort", "2025-07-01 12:00:00", "2025-07-01 13:00:00",
+        KAL_NUR_SCHREIB, status="Festgelegt",
     )
     assert res["status"] == "Festgelegt"
 
@@ -210,12 +243,19 @@ def test_create_event_moderator_ohne_status_bleibt_vorschlag(welt):
     assert res["status"] == "Vorschlag"
     assert sess.get(Element, res["id"]).status == "Vorschlag"
 
-    # Gegenprobe: MIT ausdruecklicher Angabe darf er freigeben.
+    # Gegenprobe: MIT ausdruecklicher Angabe darf er freigeben — R-5: in
+    # einem nicht oeffentlichen Gemeinde-Kalender sofort, im oeffentlichen KAL
+    # erst im zweiten Schritt (zweite Freigabeschicht, auch fuer ihn).
     res2 = event_crud.create_event(
         "Moderator mit Status", "2025-07-04 10:00:00",
-        "2025-07-04 11:00:00", KAL, status="Festgelegt",
+        "2025-07-04 11:00:00", KAL_NUR_SCHREIB, status="Festgelegt",
     )
     assert res2["status"] == "Festgelegt"
+    res3 = event_crud.create_event(
+        "Moderator oeffentlich", "2025-07-05 10:00:00",
+        "2025-07-05 11:00:00", KAL, status="Festgelegt",
+    )
+    assert res3["status"] == "Vorschlag"
 
 
 def test_update_event_ohne_moderationsrecht_bleibt_vorschlag(welt):
@@ -351,10 +391,22 @@ def test_create_series_erzwingt_vorschlag_ohne_moderationsrecht(welt):
 def test_create_series_moderator_darf_festlegen(welt):
     from diakronos_app.api.kronos import event_crud
 
+    # R-5: im oeffentlichen KAL landet die Serie zuerst in der Pruefung — genau
+    # der Schutz vor versehentlich veroeffentlichten Serien (Manuel 11.11.).
     _als(MODERATOR)
     res = event_crud.create_series(
         "Serie", "2025-10-01 10:00:00", "2025-10-01 11:00:00",
         KAL, series_end="2025-10-08 11:00:00", status="Festgelegt",
+    )
+    for eid in res["created_ids"]:
+        assert welt.get(Element, eid).status == "Vorschlag"
+
+    # Nicht oeffentlicher Kalender, den er prueft: sofort festgelegt.
+    _moderator_auch_fuer_nur_schreib(welt)
+    _als(MODERATOR)
+    res = event_crud.create_series(
+        "Serie2", "2025-10-01 12:00:00", "2025-10-01 13:00:00",
+        KAL_NUR_SCHREIB, series_end="2025-10-08 13:00:00", status="Festgelegt",
     )
     for eid in res["created_ids"]:
         assert welt.get(Element, eid).status == "Festgelegt"

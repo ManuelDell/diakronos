@@ -50,7 +50,6 @@ from diakronos_app.frappe_compat.permissions import (
 )
 from diakronos_app.frappe_compat.registry import whitelist
 
-ADMIN_ROLES = ["System Manager", "Mitgliederadministrator"]
 
 
 @whitelist(allow_guest=False)
@@ -112,7 +111,7 @@ def get_current_user_context():
     mitglied = get_value(
         "Mitglied",
         {"email": user_doc.get("email") or user},
-        ["name", "vorname", "nachname", "status", "ancestor_path"],
+        ["name", "vorname", "nachname", "status"],
         as_dict=True,
     )
 
@@ -124,7 +123,12 @@ def get_current_user_context():
     # in `roles`, sobald das Konto root ist) — ein ausgeschlossener root hat ()
     # und erscheint damit nicht mehr als root/Admin.
     bin_root = "root" in roles
-    is_admin = bin_root or any(r in roles for r in ADMIN_ROLES)
+    # R-11a: Admin = der Administrator des EINEN Rechtesystems (Kern); die
+    # Mitgliederverwaltung ist eine Fachverwaltung und steht daneben.
+    from diakronos_app import rechte
+
+    is_admin = bin_root or rechte.ist_admin(user)
+    ist_mitgliederverwaltung = is_admin or rechte.hat_systemrolle(user, "mitgliederverwaltung")
 
     # Admin-Mode pruefen (nur relevant wenn is_admin).
     is_admin_mode = False
@@ -139,7 +143,8 @@ def get_current_user_context():
     except Exception:  # noqa: BLE001 — 1:1 wie im Original (try/except/pass)
         pass
 
-    perms = _compute_permissions(user, mitglied, roles, is_admin, is_admin_mode)
+    perms = _compute_permissions(user, mitglied, roles, is_admin, is_admin_mode,
+                                 ist_mitgliederverwaltung=ist_mitgliederverwaltung)
 
     email = user_doc.get("email") or user
     return {
@@ -153,6 +158,7 @@ def get_current_user_context():
         "email": email,        # Original (session.py)
         "mitglied": mitglied,
         "is_admin": is_admin,
+        "ist_mitgliederverwaltung": ist_mitgliederverwaltung,
         "is_root": bin_root,
         "is_admin_mode": is_admin_mode,
         "roles": roles,
@@ -208,7 +214,8 @@ def check_permission(doctype, docname, permission_type="read"):
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
-def _compute_permissions(user, mitglied, roles, is_admin, is_admin_mode):
+def _compute_permissions(user, mitglied, roles, is_admin, is_admin_mode, *,
+                         ist_mitgliederverwaltung=False):
     """Berechnet die feingranulare Permission-Map."""
     perms = {
         "can_view_mitglieder": False,
@@ -227,13 +234,20 @@ def _compute_permissions(user, mitglied, roles, is_admin, is_admin_mode):
         perms.update({k: True for k in perms})
         return perms
 
-    # Normale User.
+    # R-11a: die Mitgliederverwaltung hat den Personenbereich (nicht Gruppen).
+    if ist_mitgliederverwaltung:
+        perms.update({
+            "can_view_mitglieder": True, "can_edit_mitglieder": True,
+            "can_view_statistik": True, "can_view_dsgvo": True, "can_export_data": True,
+        })
+
+    # Normale User. R-11b: Gruppen (Organigramm) sieht jedes Gemeindemitglied;
+    # Dienstbereiche entfallen (nur Admin). Kein ancestor_path mehr.
     if mitglied:
         perms.update({
             "can_view_mitglieder": True,
             "can_edit_mitglieder": True,  # Eigenes Profil
-            "can_view_gruppen": bool(mitglied.get("ancestor_path")),
-            "can_view_bereiche": bool(mitglied.get("ancestor_path")),
+            "can_view_gruppen": True,
             "can_view_dienstplan": True,
         })
 

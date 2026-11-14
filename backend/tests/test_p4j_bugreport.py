@@ -48,7 +48,7 @@ PATHS = [
 
 ANNA = "anna@example.org"       # eingeloggt, KEIN Admin
 BRUNO = "bruno@example.org"     # eingeloggt, Mitglied verknuepft
-ADMIN = "admin@example.org"     # Mitgliederadministrator
+ADMIN = "admin@example.org"     # System Manager (R-11a: Fehlerberichte nur Admin)
 ROOT = "Administrator"          # Frappe-Admin-Sonderfall
 
 
@@ -85,7 +85,7 @@ def welt(patched_db, files_dir):
     # Nur ADMIN hat die Admin-Rolle.
     sess.add_all([
         HasRole(name="r1", parent=ADMIN, parenttype="User",
-                parentfield="roles", role="Mitgliederadministrator"),
+                parentfield="roles", role="System Manager"),
     ])
     # Bruno ist Mitglied (user-Verknuepfung) -> melden setzt `mitglied`.
     sess.add_all([

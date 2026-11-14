@@ -78,6 +78,8 @@ def welt(patched_db):
                  parentfield="leserechte", role="All", docstatus=0, idx=1),
     ])
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     yield sess
     sess.close()
 
@@ -311,6 +313,8 @@ def test_b2_kalendermoderator_speichern_laesst_status_stehen(client, welt, sessi
         parentfield="kalendermoderatoren", user=KALMODERATOR, docstatus=0, idx=1,
     ))
     welt.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(welt)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
 
     start = str(welt.get(Element, "EL-B2C").element_start)
     ende = str(welt.get(Element, "EL-B2C").element_end)

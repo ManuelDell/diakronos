@@ -115,6 +115,13 @@ def welt(patched_db, fake_redis):
                          parentfield="strophen", nummer="1", typ="Strophe",
                          text="Grosser Gott, wir loben dich", docstatus=0, idx=0))
     sess.commit()
+    # R-5/R-7: Bestand ins EINE Rechtesystem (Kalender, Beitraege, Wiki als
+    # Gemeinde-Objekte) und der Musikverantwortliche als HV einer Gruppe mit
+    # Modul „Lieder“ (vorher: Verantwortung im Bereich „Musik und Worship“).
+    from rechte_hilfe import planrahmen_rechte, uebernehmen
+
+    uebernehmen(sess)
+    planrahmen_rechte(sess, gruppe="GRU-MUSIK-PAP", hv=MUSIK, module=("lieder",))
     yield sess
     sess.close()
 
@@ -362,8 +369,10 @@ def test_gruppe_loeschen_nur_verwaltung(client, als_mitglied, welt):
     assert _geloescht_am(welt, "Gruppe", "GRU-1") is not None
 
 
-def test_gruppe_loeschen_mitgliederadministrator_darf(client, welt):
-    """UX2b2 (F6): `Mitgliederadministrator` ist Verwaltung — darf loeschen."""
+def test_gruppe_loeschen_mitgliederadministrator_darf_nicht(client, welt):
+    """R-4 (Manuel 11.11.): Gruppen anlegen/loeschen darf nur der
+    Administrator — die Mitgliederverwaltung pflegt Personen, keine Gruppen.
+    (Vorher UX2b2/F6: Mitgliederadministrator durfte loeschen.)"""
     from diakronos_app.models.core import HasRole
 
     sess = welt
@@ -373,8 +382,8 @@ def test_gruppe_loeschen_mitgliederadministrator_darf(client, welt):
     sess.commit()
     set_user(MITGLIED)
     r = client.post(f"/api/method/{GRUPPEN}.delete_gruppe", data={"name": "GRU-1"})
-    assert r.status_code == 200, r.text
-    assert _geloescht_am(welt, "Gruppe", "GRU-1") is not None
+    assert r.status_code == 403, r.text
+    assert _geloescht_am(welt, "Gruppe", "GRU-1") is None
 
 
 def test_lied_loeschen_wie_bisheriges_liedrecht(client, als_musik, welt):
@@ -773,8 +782,10 @@ def test_aufraeumen_entfernt_gruppe_mit_allen_verweisen(patched_db, welt):
     from diakronos_app.models.diakonos import Gruppe
 
     assert sess.get(Gruppe, "GRU-1") is None
-    for model, name in ((Untergruppe, "UG-1"), (GruppenAnkuendigung, "GA-1"),
-                        (GruppenAufgabe, "GAuf-1")):
+    for model, name in ((Untergruppe, "UG-1"), (GruppenAnkuendigung, "GA-1")):
         zeile = sess.get(model, name)
         assert zeile is not None, name
         assert zeile.gruppe is None, f"{name}.gruppe muss NULL sein"
+    # R-7b: eine Aufgabe ohne Gruppe waere eine EIGENE Aufgabe ihres
+    # Erstellers — Gruppenaufgaben gehen deshalb mit der Gruppe.
+    assert sess.get(GruppenAufgabe, "GAuf-1") is None

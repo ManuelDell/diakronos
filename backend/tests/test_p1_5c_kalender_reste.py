@@ -92,6 +92,8 @@ def welt(patched_db):
                           docstatus=0, idx=1),
     ])
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     yield sess
     sess.close()
 
@@ -136,6 +138,12 @@ def test_wechsel_quelle_moderator_ohne_zielmoderation_wartet(welt):
     sess.query(KalenderModerator).filter(
         KalenderModerator.name == "KM-3"
     ).delete()
+    # R-5: das Recht liegt im EINEN Rechtesystem — dort entziehen.
+    from diakronos_app.models.rechte import RechteFreigabe
+
+    sess.query(RechteFreigabe).filter_by(
+        typ="kalender", objekt=KAL_ZIEL, benutzer=MODERATOR,
+    ).update({"moderieren": False})
     sess.commit()
 
     res = event_crud.save_event(
@@ -171,6 +179,12 @@ def test_update_event_verlangt_ebenfalls_zielmoderation(welt):
     sess.query(KalenderModerator).filter(
         KalenderModerator.name == "KM-3"
     ).delete()
+    # R-5: das Recht liegt im EINEN Rechtesystem — dort entziehen.
+    from diakronos_app.models.rechte import RechteFreigabe
+
+    sess.query(RechteFreigabe).filter_by(
+        typ="kalender", objekt=KAL_ZIEL, benutzer=MODERATOR,
+    ).update({"moderieren": False})
     sess.commit()
 
     res = event_crud.update_event("EL-P15C-W3", element_calendar=KAL_ZIEL)

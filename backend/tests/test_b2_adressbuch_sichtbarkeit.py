@@ -618,6 +618,9 @@ def _verantwortlichen_zeile(sess, user: str) -> str:
         parentfield="verantwortliche", user=user, docstatus=0, idx=2,
     ))
     sess.commit()
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(sess)  # R-4: Verantwortliche/Pfade ins EINE Rechtesystem
     return mitglied_id
 
 

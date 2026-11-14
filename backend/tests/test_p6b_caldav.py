@@ -150,6 +150,8 @@ def kalenderwelt(patched_db):
                 docstatus=0, idx=0, creation=t, modified=t),
     ])
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
 
     yield sess
 

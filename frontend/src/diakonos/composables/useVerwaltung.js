@@ -222,17 +222,20 @@ export async function anfragenZahlAuffrischen() {
 
 /**
  * Darf dieser Nutzer die Zahl sehen? Dieselbe Rolle, die der Server verlangt
- * (`get_navigation_zaehler`: Mitgliederadministrator oder System Manager).
+ * (`get_navigation_zaehler`: Mitgliederadministrator oder System Manager) —
+ * also GENAU der Personenbereich (`istMitgliederverwaltung`, das den Admin
+ * einschließt). Der Administrator ist darin enthalten, weil der Server ihm die
+ * Zahl ohnehin liefert; ein Mitglied bekommt sie nicht (fail closed).
  * Eigene Funktion, damit sie ohne Vue pruefbar ist.
  */
-export function darfAnfragenZaehlerSehen({ isAdmin = false, istSystemManager = false } = {}) {
-  return isAdmin === true || istSystemManager === true
+export function darfAnfragenZaehlerSehen({ istMitgliederverwaltung = false } = {}) {
+  return istMitgliederverwaltung === true
 }
 
 /** Die Rechte des angemeldeten Nutzers (Laufzeit) — in Tests ersetzbar. */
 let rechteQuelle = () => {
-  const { isAdmin, istSystemManager } = useSession()
-  return { isAdmin: isAdmin.value === true, istSystemManager: istSystemManager.value === true }
+  const { istMitgliederverwaltung } = useSession()
+  return { istMitgliederverwaltung: istMitgliederverwaltung.value === true }
 }
 
 /** @returns {boolean} */
@@ -247,11 +250,11 @@ function istAnfragenAdmin() {
 /**
  * NUR FUER TESTS: Rechte-Quelle ersetzen (`null` = wieder die Anmeldung).
  * Der Takt selbst bleibt davon unberuehrt.
- * @param {null | (() => {istAdmin?: boolean, istSystemManager?: boolean})} quelle
+ * @param {null | (() => {istMitgliederverwaltung?: boolean})} quelle
  */
 export function __setzeAnfragenRechte(quelle) {
   rechteQuelle = quelle || (() => {
-    const { isAdmin, istSystemManager } = useSession()
-    return { isAdmin: isAdmin.value === true, istSystemManager: istSystemManager.value === true }
+    const { istMitgliederverwaltung } = useSession()
+    return { istMitgliederverwaltung: istMitgliederverwaltung.value === true }
   })
 }

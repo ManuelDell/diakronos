@@ -9,14 +9,18 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MENUE, FUSS_EINTRAEGE, sichtbareEintraege } from '../src/diakonos/menue.js'
+import { MENUE, FUSS_EINTRAEGE, sichtbareEintraege, verwaltungZutreffend } from '../src/diakonos/menue.js'
 import { fusstabs } from '../src/diakonos/components/fusstabs.mjs'
 
 /** Was die Seitenleiste zeigt — Gruppenliste UND Fußbereich (UX3a: seit
  *  Entwurf A1 steht „Einstellungen“ unten im Fuß der Seitenleiste). */
 function sidebar(rolle) {
   const gruppen = MENUE.flatMap(g => sichtbareEintraege(g, rolle)).map(e => e.href)
-  const fuss = FUSS_EINTRAEGE.filter(e => e.rolle !== 'admin' || rolle.istAdmin === true).map(e => e.href)
+  // UI-R10: Der Fuß („Einstellungen“) trägt eine Verwaltungsstufe
+  // (`verwaltung`), keine feste Rolle mehr — dieselbe Regel wie die Leiste.
+  const fuss = FUSS_EINTRAEGE
+    .filter(e => !e.verwaltung || verwaltungZutreffend(e.verwaltung, rolle))
+    .map(e => e.href)
   return [...gruppen, ...fuss]
 }
 

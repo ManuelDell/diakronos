@@ -153,6 +153,9 @@ def welt(patched_db):
                 role="Mitglied", docstatus=0, idx=1),
         HasRole(name="HR-ADM", parent=ADMIN, parenttype="User", parentfield="roles",
                 role="Mitgliederadministrator", docstatus=0, idx=1),
+        # R-11a: Admin = System Manager (die Mitgliederverwaltung ist kein Admin).
+        HasRole(name="HR-ADM3", parent=ADMIN, parenttype="User", parentfield="roles",
+                role="System Manager", docstatus=0, idx=3),
         HasRole(name="HR-ADM2", parent=ADMIN, parenttype="User", parentfield="roles",
                 role="Kalenderadministrator", docstatus=0, idx=2),
     ])
@@ -307,6 +310,8 @@ def welt(patched_db):
     ])
 
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     yield sess
     sess.close()
 
@@ -1205,6 +1210,8 @@ def test_kalender_mit_leserecht_all_fuer_mitglied_sichtbar(patched_db):
                  parentfield="leserechte", role="All", docstatus=0, idx=1),
     ])
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
 
     try:
         set_user("mitglied-x@example.org")

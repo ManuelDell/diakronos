@@ -134,7 +134,7 @@ import {
   verlaufLesen, verlaufSchreiben, verlaufNachWahl, gesuchteArten,
 } from '../composables/befehlspalette.mjs'
 
-const { isAdmin, istGast, istTester, rollen, user } = useSession()
+const { isAdmin, istMitgliederverwaltung, istGast, istTester, rollen, user } = useSession()
 
 /**
  * Nutzerkennung für den Verlauf „Zuletzt verwendet“ (DSGVO, Review UX3f):
@@ -162,6 +162,8 @@ const fehler = ref('')
 
 const rechte = computed(() => ({
   istAdmin: isAdmin.value === true,
+  // UI-R10: zweite Verwaltungsstufe — „Einstellungen“ und der Personenbereich.
+  istMitgliederverwaltung: istMitgliederverwaltung.value === true,
   istTester: istTester.value === true,
   istGast: istGast.value === true,
   rollen: Array.isArray(rollen.value) ? rollen.value : [],
@@ -180,7 +182,9 @@ const seiten = computed(() => seitenEintraege({
 const darfTerminAnlegen = ref(false)
 const aktionen = computed(() => aktionsEintraege({
   darfTermin: darfTerminAnlegen.value,
-  darfPerson: rechte.value.istAdmin && !rechte.value.istGast,
+  // UI-R10: „Person anlegen“ ist Personenbereich — Mitgliederverwaltung oder
+  // Administrator (der Server verweigert es anderen ohnehin).
+  darfPerson: rechte.value.istMitgliederverwaltung && !rechte.value.istGast,
 }))
 
 const verlauf = ref([])

@@ -58,7 +58,6 @@ from diakronos_app.frappe_compat.exceptions import (
     ValidationError,
     throw,
 )
-from diakronos_app.frappe_compat.permissions import get_roles
 from diakronos_app.frappe_compat.query import get_all, get_doc, get_value
 from diakronos_app.frappe_compat.session import session
 from diakronos_app.frappe_compat.api_helpers import _create, _update_doc
@@ -67,7 +66,6 @@ MAX_SCREENSHOT_BYTES = 4 * 1024 * 1024   # 4 MB
 MAX_LOG_ENTRIES = 50
 MAX_LOGS_CHARS = 256 * 1024              # 256 KB, beide Logs zusammen
 
-ADMIN_ROLES = ["System Manager", "Mitgliederadministrator"]
 
 # Kontextfelder, die gemeldet werden und 1:1 aus dem Payload übernommen werden
 _KONTEXT_FELDER = [
@@ -152,10 +150,12 @@ def _require_admin():
         throw("Zugriff verweigert.", FrappePermissionError)
     if user == "Administrator":
         return
-    roles = set(get_roles())
-    if not (ADMIN_ROLES[0] in roles or ADMIN_ROLES[1] in roles):
+    # R-11a: der Administrator des EINEN Rechtesystems.
+    from diakronos_app import rechte
+
+    if not rechte.ist_admin(session.user):
         throw(
-            "Nur für Mitgliederadministratoren.", FrappePermissionError
+            "Nur für Administratoren.", FrappePermissionError
         )
 
 

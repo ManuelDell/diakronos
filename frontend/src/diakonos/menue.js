@@ -15,6 +15,9 @@
  *            `rolle`; WEB-3: „Website“ für System Manager, Administrator und
  *            Website-Moderator). Nur Komfort — der Server prüft weiter.
  *   tester   true = nur mit Tester-Rolle sichtbar (Dev-Befunde)
+ *   modul    Modul des Rechtesystems (R-3): der Eintrag erscheint nur, wenn
+ *            das Modul in `window.__DIakonosBOOT.module_sichtbar` steht
+ *            (der Server rechnet es aus — ohne Recht kein Menüpunkt).
  *   badge    optionale Kennzahl-Quelle (siehe AppSidebar)
  *   suche    true = Ziel erscheint in der Befehlspalette (UX3f, noch nicht
  *            gebaut). Seiten ohne Menüeintrag (z. B. Profil) tragen es am
@@ -81,10 +84,11 @@ export const MENUE = [
         eintraege: [
             // MT-7: Die Leseseite eines Beitrags gehört zum Menüpunkt „Beiträge“ —
             // der Eintrag bleibt aktiv, die Seitenleiste zeigt den Ort (N4).
-            { id: 'beitraege', label: 'Beiträge', href: '#/beitraege', icon: 'file-text', seiten: ['Beitraege', 'BeitragDetail'], suche: true },
+            // `modul`: Rechte-/Modulschranke je Menüpunkt (bleibt erhalten).
+            { id: 'beitraege', label: 'Beiträge', href: '#/beitraege', icon: 'file-text', seiten: ['Beitraege', 'BeitragDetail'], modul: 'beitraege', suche: true },
             // MT-7: dito für einen Wiki-Eintrag (eigene Unterseite seit dieser Karte).
-            { id: 'wiki', label: 'Wiki', href: '#/wiki', icon: 'help-circle', seiten: ['Wiki', 'WikiArtikel'], suche: true },
-            { id: 'lieder', label: 'Lieder', href: '#/lieder', icon: 'music', seiten: ['Lieder', 'LiedDetail', 'LiedNeu', 'Liedgruppen', 'LiedgruppeDetail'], suche: true },
+            { id: 'wiki', label: 'Wiki', href: '#/wiki', icon: 'help-circle', seiten: ['Wiki', 'WikiArtikel'], modul: 'wiki', suche: true },
+            { id: 'lieder', label: 'Lieder', href: '#/lieder', icon: 'music', seiten: ['Lieder', 'LiedDetail', 'LiedNeu', 'Liedgruppen', 'LiedgruppeDetail'], modul: 'lieder', suche: true },
             // WEB-3: „Website“ steht bei den Inhalten — die Redaktion der
             // Gemeinde-Seiten ist eine Inhaltsaufgabe (Entwurf A1). Sichtbar für
             // die WEBSITE_ROLLEN (System Manager, Administrator,
@@ -103,7 +107,12 @@ export const MENUE = [
  * ON-3b: „Einrichtung“ bleibt KEIN Menüpunkt (Ersteinrichtung des Containers).
  */
 export const FUSS_EINTRAEGE = [
-    { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus', 'EinstellungenPapierkorb', 'EinstellungenWebsite', 'EinstellungenGestaltung', 'Einrichtung'], rolle: 'admin', suche: true },
+    // UI-R10: `verwaltung: 'personen'` statt `rolle: 'admin'` — wer verwalten
+    // darf, ist seit R-11a NICHT mehr nur der Administrator. Die Rolle steht
+    // als Kennung am Eintrag; ob sie zutrifft, entscheiden `sichtbareEintraege`
+    // und `sichtbarerFuss` aus den Flags der Sitzung (Boot: `is_admin`,
+    // `ist_mitgliederverwaltung`). Nur Komfort — der Server prüft jede Seite.
+    { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus', 'EinstellungenPapierkorb', 'EinstellungenWebsite', 'EinstellungenGestaltung', 'Einrichtung'], verwaltung: 'personen', suche: true },
 ]
 
 /**
@@ -126,9 +135,11 @@ export const MITGLIEDER_REITER = [
     // Löschanträge), stehen hier NICHT: sie haben weiter ihre Adresse, sind
     // aber kein Reiter des Bereichs mehr (Entwurf A3).
     { id: 'liste', label: 'Liste', href: '#/personen/liste', seite: 'MitgliederListe', rolle: 'alle' },
-    { id: 'anfragen', label: 'Anfragen', href: '#/personen/anfragen', seite: 'MitgliederAnfragen', rolle: 'admin' },
-    { id: 'datenschutz', label: 'Datenschutz', href: '#/personen/datenschutz', seite: 'MitgliederDatenschutz', rolle: 'admin' },
-    { id: 'import', label: 'Import', href: '#/personen/import', seite: 'MitgliederImport', rolle: 'admin' },
+    // UI-R10: der Personenbereich gehört der Mitgliederverwaltung (R-11a) —
+    // `verwaltung: 'personen'`, nicht mehr `rolle: 'admin'`.
+    { id: 'anfragen', label: 'Anfragen', href: '#/personen/anfragen', seite: 'MitgliederAnfragen', verwaltung: 'personen' },
+    { id: 'datenschutz', label: 'Datenschutz', href: '#/personen/datenschutz', seite: 'MitgliederDatenschutz', verwaltung: 'personen' },
+    { id: 'import', label: 'Import', href: '#/personen/import', seite: 'MitgliederImport', verwaltung: 'personen' },
 ]
 
 /**
@@ -152,9 +163,10 @@ export const MITGLIEDER_REITER = [
  * `MitgliederAnfragen`.
  */
 export const ANFRAGEN_UNTERBEREICHE = [
-    { id: 'anfragen', label: 'Anfragen', seite: 'MitgliederAnfragen', rolle: 'admin' },
-    { id: 'links', label: 'Links & QR-Codes', seite: 'MitgliederAnfragen', rolle: 'admin' },
-    { id: 'formulare', label: 'Formulare', seite: 'MitgliederAnfragen', rolle: 'admin' },
+    // UI-R10: Registrierungslinks und -formulare sind Personenbereich.
+    { id: 'anfragen', label: 'Anfragen', seite: 'MitgliederAnfragen', verwaltung: 'personen' },
+    { id: 'links', label: 'Links & QR-Codes', seite: 'MitgliederAnfragen', verwaltung: 'personen' },
+    { id: 'formulare', label: 'Formulare', seite: 'MitgliederAnfragen', verwaltung: 'personen' },
 ]
 
 /** Der Unterbereich, auf den der Hauptpunkt „Anfragen“ führt (die Liste). */
@@ -206,17 +218,18 @@ export function unterbereichsWert(seite, bereich) {
  * die ist mit A3 entfallen. Die Reiterzeile steht jetzt oben in JEDEM Reiter,
  * gleich aussehend — die Einträge hier beschreiben sie.
  *
- * @param {{istAdmin?: boolean, anfragenZahl?: number|null}} optionen
- * @returns {Array<{id, label, href, value, seite, rolle, zahl}>}
+ * @param {{istAdmin?: boolean, istMitgliederverwaltung?: boolean,
+ *          anfragenZahl?: number|null}} optionen
+ * @returns {Array<{id, label, href, value, seite, verwaltung, zahl}>}
  */
-export function personenReiter({ istAdmin = false, anfragenZahl = null } = {}) {
-    return sichtbareMitgliederReiter({ istAdmin }).map(r => ({
+export function personenReiter({ istAdmin = false, istMitgliederverwaltung = false, anfragenZahl = null } = {}) {
+    return sichtbareMitgliederReiter({ istAdmin, istMitgliederverwaltung }).map(r => ({
         id: r.id,
         label: r.label,
         href: r.href,
         value: r.id,
         seite: r.seite,
-        rolle: r.rolle,
+        verwaltung: r.verwaltung,
         // Kennzahl offener Anfragen: ohne Serverzahl bleibt sie null — dann
         // zeigt der Eintrag NICHTS an (nie eine erfundene 0).
         zahl: r.id === 'anfragen' ? (anfragenZahl ?? null) : null,
@@ -227,22 +240,24 @@ export function personenReiter({ istAdmin = false, anfragenZahl = null } = {}) {
  * Die zweite, kleinere Reiterzeile der Unterbereiche von „Anfragen“.
  * Null, wenn der Bereich „Anfragen“ nicht sichtbar ist (ohne Recht).
  */
-export function personenAnfragenReiter({ istAdmin = false } = {}) {
-    if (!sichtbareMitgliederReiter({ istAdmin }).some(r => r.id === 'anfragen')) return []
-    return sichtbareAnfragenUnterbereiche({ istAdmin }).map(u => ({
+export function personenAnfragenReiter({ istAdmin = false, istMitgliederverwaltung = false } = {}) {
+    const rechte = { istAdmin, istMitgliederverwaltung }
+    if (!sichtbareMitgliederReiter(rechte).some(r => r.id === 'anfragen')) return []
+    return sichtbareAnfragenUnterbereiche(rechte).map(u => ({
         id: u.id,
         label: u.label,
         href: anfragenUnterbereichHref(u.id),
         value: u.id,
         seite: u.seite,
-        rolle: u.rolle,
+        verwaltung: u.verwaltung,
         zahl: null,
     }))
 }
 
 /** Sichtbare Unterbereiche von „Anfragen“ (ohne Recht: keine). */
-export function sichtbareAnfragenUnterbereiche({ istAdmin = false } = {}) {
-    return ANFRAGEN_UNTERBEREICHE.filter(u => u.rolle !== 'admin' || istAdmin)
+export function sichtbareAnfragenUnterbereiche({ istAdmin = false, istMitgliederverwaltung = false } = {}) {
+    const rechte = { istAdmin, istMitgliederverwaltung }
+    return ANFRAGEN_UNTERBEREICHE.filter(u => !u.verwaltung || verwaltungZutreffend(u.verwaltung, rechte))
 }
 
 /**
@@ -251,12 +266,13 @@ export function sichtbareAnfragenUnterbereiche({ istAdmin = false } = {}) {
  * UX3j: Die Reiter stehen in der Adresse; die Zuordnung liegt hier, damit
  * Oberfläche und Tests dieselbe Regel lesen.
  */
-export function personenReiterAusHash(hash, { istAdmin = false } = {}) {
+export function personenReiterAusHash(hash, { istAdmin = false, istMitgliederverwaltung = false } = {}) {
     const roh = typeof hash === 'string' ? hash : ''
     const pfad = roh.split('?')[0].replace(/\/+$/, '')
-    const treffer = sichtbareMitgliederReiter({ istAdmin }).find(r => r.href === pfad)
+    const rechte = { istAdmin, istMitgliederverwaltung }
+    const treffer = sichtbareMitgliederReiter(rechte).find(r => r.href === pfad)
         // Unteradresse des Reiters (`#/personen/anfragen/links`) gehört zum Reiter.
-        || sichtbareMitgliederReiter({ istAdmin })
+        || sichtbareMitgliederReiter(rechte)
             .filter(r => pfad.startsWith(`${r.href}/`))
             .sort((a, b) => b.href.length - a.href.length)[0]
     return treffer ? treffer.id : null
@@ -296,12 +312,62 @@ export const ICON_PFADE = {
  * (`window.__DIakonosBOOT.roles`); ohne Angabe gilt sie als leer, also sieht
  * ein Nutzer ohne bekannte Rollen den Eintrag nicht (fail closed).
  */
-export function sichtbareEintraege(gruppe, { istAdmin = false, istTester = false, istGast = false, rollen = [] } = {}) {
+/**
+ * Module, die der Server für diese Sitzung freigibt (R-3, das EINE
+ * Rechtesystem). `null` = Boot kennt die Liste nicht (alter Stand) → keine
+ * Modul-Filterung.
+ */
+export function bootModule() {
+    const liste = globalThis.__DIakonosBOOT?.module_sichtbar
+    return Array.isArray(liste) ? liste : null
+}
+
+/**
+ * Die EINE Regel „welche Verwaltungsrolle trifft auf diese Sitzung zu?“.
+ *
+ * UI-R10 (Manuel 11.11.: „Der Admin ist ja der einzige der alles darf“): Seit
+ * R-11a gibt es ZWEI Verwaltungsstufen — den Administrator (`is_admin`, darf
+ * alles) und die Mitgliederverwaltung (`ist_mitgliederverwaltung`, der
+ * Personenbereich). Menüeinträge tragen deshalb NICHT mehr eine feste Rolle,
+ * sondern `verwaltung: 'admin' | 'personen'`:
+ *
+ *   'admin'     — nur Administration. Gemeinde-Einstellungen, Einrichtung,
+ *                 Papierkorb, Fehlerberichte, Gruppen anlegen, Rollen in
+ *                 Gruppen, Dienstbereiche.
+ *   'personen'  — Personenbereich. Mitglieder, Konten/Zugang, Registrierung,
+ *                 Anmeldeeinstellungen, Datenschutz, Statistik — also alles,
+ *                 was auch die Mitgliederverwaltung darf.
+ *
+ * Fail closed: nur ein echtes `true` zählt. `istMitgliederverwaltung` ist im
+ * Boot-Objekt des Servers `is_admin || Systemrolle Mitgliederadministrator`;
+ * fehlt das Feld (alter Server), gilt es als `false` — dann sieht nur der
+ * Administrator die Einträge (der Server prüft ohnehin erneut).
+ */
+export function verwaltungZutreffend(stufe, { istAdmin = false, istMitgliederverwaltung = false } = {}) {
+    if (istAdmin !== true) {
+        if (istMitgliederverwaltung !== true) return false
+    }
+    return stufe !== 'admin' || istAdmin === true
+}
+
+/** Trifft eine Rollenkennung (`rolle: 'admin' | 'alle'`) auf diese Sitzung zu? */
+function rollenKennungZutreffend(rolle, rechte) {
+    if (rolle === 'admin') return rechte.istAdmin === true
+    return true // 'alle' — und alles Unbekannte bleibt sichtbar (wie bisher)
+}
+
+export function sichtbareEintraege(gruppe, { istAdmin = false, istTester = false, istGast = false, rollen = [], module = bootModule(), istMitgliederverwaltung = false } = {}) {
     const meineRollen = new Set(
         (Array.isArray(rollen) ? rollen : []).map(r => String(r || '').trim()),
     )
+    const meineModule = Array.isArray(module) ? new Set(module) : null
+    const rechte = { istAdmin, istMitgliederverwaltung }
     return (gruppe.eintraege || []).filter(eintrag => {
-        if (eintrag.rolle === 'admin' && !istAdmin) return false
+        if (eintrag.verwaltung && !verwaltungZutreffend(eintrag.verwaltung, rechte)) return false
+        if (!rollenKennungZutreffend(eintrag.rolle, rechte)) return false
+        // R-3: ohne Leserecht im Modul kein Menüpunkt (Admin bekommt vom
+        // Server alle Module). Durchgesetzt wird serverseitig.
+        if (eintrag.modul && meineModule && !meineModule.has(eintrag.modul)) return false
         if (Array.isArray(eintrag.rollen) && eintrag.rollen.length
             && !eintrag.rollen.some(r => meineRollen.has(r))) return false
         if (eintrag.tester && !(istAdmin && istTester)) return false
@@ -319,9 +385,16 @@ export function sichtbareEintraege(gruppe, { istAdmin = false, istTester = false
 /** Menü-Einträge, deren Seiten ein Gast öffnen darf (N5, Entwurf A8). */
 export const GAST_SEITEN = ['Home', 'Kalender']
 
-/** Sichtbare Reiter des Mitglieder-Bereichs (ohne Rechte = nur Liste). */
-export function sichtbareMitgliederReiter({ istAdmin = false } = {}) {
-    return MITGLIEDER_REITER.filter(r => r.rolle !== 'admin' || istAdmin)
+/** Sichtbare Reiter des Mitglieder-Bereichs (ohne Rechte = nur Liste).
+ *
+ *  UI-R10: „Anfragen · Datenschutz · Import“ sind Personenbereich — sie
+ *  erscheinen für die Mitgliederverwaltung UND für den Administrator, nicht
+ *  mehr nur für Administratoren. Ohne `istMitgliederverwaltung` (alter Server)
+ *  bleibt die alte Regel: nur der Administrator sieht sie.
+ */
+export function sichtbareMitgliederReiter({ istAdmin = false, istMitgliederverwaltung = false } = {}) {
+    const rechte = { istAdmin, istMitgliederverwaltung }
+    return MITGLIEDER_REITER.filter(r => !r.verwaltung || verwaltungZutreffend(r.verwaltung, rechte))
 }
 
 /** Sichtbare Reiter einer Bereichsliste (dieselbe Rollenregel wie das Menü).
@@ -335,9 +408,13 @@ export function sichtbareMitgliederReiter({ istAdmin = false } = {}) {
  *  gilt die Administration: die Rechte werden geladen, der Reiter bleibt
  *  stehen (kein Aufblitzen beim ersten Anzeigen).
  */
-export function sichtbareReiter(reiter, { istAdmin = false, darfPlanen } = {}) {
+export function sichtbareReiter(reiter, { istAdmin = false, darfPlanen, istMitgliederverwaltung = false } = {}) {
     const planen = typeof darfPlanen === 'boolean' ? darfPlanen : istAdmin
+    const rechte = { istAdmin, istMitgliederverwaltung }
     return (reiter || []).filter(r => {
+        // UI-R10: Reiter mit `verwaltung` tragen ihre Stufe selbst (z. B.
+        // „Vorlagen“ = Administration, nicht Personenbereich).
+        if (r.verwaltung) return verwaltungZutreffend(r.verwaltung, rechte)
         if (r.rolle === 'admin') return istAdmin
         if (r.rolle === 'planer') return istAdmin || planen
         return true

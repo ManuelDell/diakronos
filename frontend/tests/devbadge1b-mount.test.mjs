@@ -122,7 +122,7 @@ const name = ref('Manuela Prüferin')
 export function useSession() {
   return { user: ref({ fullname: 'Manuela Prüferin', email: 'pruefer@example.org' }),
     mitglied: leer, isAdmin: ref(true), hasMitglied: ref(true), istGast: ref(false),
-    istTester: zustand.tester, devmodeAn: zustand.serverDev, istSystemManager: ref(true),
+    istTester: zustand.tester, istMitgliederverwaltung: ref(true), devmodeAn: zustand.serverDev, istSystemManager: ref(true),
     rollen: ref(['Administrator']), anzeigeName: name, modules: ref({}) }
 }
 `)

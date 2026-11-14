@@ -105,6 +105,10 @@ export function zeileAusAdressbuch(roh) {
     foto: z.foto ?? '',
     status: '',
     gruppen: [],
+    // R-9: Der Server sagt je Zeile, ob es etwas zu fragen gibt
+    // (`daten_anfragbar`: die Person hat NICHT alles freigegeben). Hier nur
+    // durchgereicht — die Entscheidung bleibt beim Server.
+    datenAnfragbar: z.daten_anfragbar === true,
     quelle: 'adressbuch',
     // Die Quelle liefert keinen Status — eine Marke „Unbekannt“ wäre eine
     // Behauptung. Die Ansicht lässt das Kennzeichen deshalb weg.

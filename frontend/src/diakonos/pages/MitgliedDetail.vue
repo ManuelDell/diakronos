@@ -366,7 +366,10 @@ import MitgliedBeziehungen from '../components/mitglieder/MitgliedBeziehungen.vu
 // UX2c: Entfernen ist sofort wirksam — die Meldung bietet die Rücknahme an.
 import { useRueckgaengigAktion } from '../composables/useRueckgaengigAktion.js'
 
-const { isAdmin } = useSession()
+// UI-R10: Die Personenseite ist Personenbereich — seit R-11a darf die
+// Mitgliederverwaltung bearbeiten (`ist_mitgliederverwaltung`), nicht mehr nur
+// der Administrator. Der Server prüft jedes Feld/ jeden Schreibweg erneut.
+const { istMitgliederverwaltung } = useSession()
 const { openConfirm, isSubmitting } = useAuditConfirm()
 
 // P1-8: die Mitglieds-ID aus der Adresse — auch fuer die Zugang-Karte.
@@ -385,7 +388,7 @@ const austrittDialog = ref(false)
 const austrittLaeuft = ref(false)
 /** Lage der Person: Austritt, Ausschluss oder nichts (kommt vom Server). */
 const austrittLage = computed(() => austrittLageAus(mitglied.value?.austritt))
-const canEdit = computed(() => !error.value && mitglied.value && isAdmin.value)
+const canEdit = computed(() => !error.value && mitglied.value && istMitgliederverwaltung.value === true)
 const isEditing = ref(false)
 /** DEV-B4a: „Entfernen" einer Beziehung laeuft (Knopf gesperrt, I1). */
 const beziehungLaeuft = ref(false)

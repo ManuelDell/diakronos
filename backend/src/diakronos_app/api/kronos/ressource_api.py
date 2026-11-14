@@ -508,29 +508,14 @@ def _is_moderator_von_irgendeiner_kalender(user: str) -> bool:
     `False` fuehren — ein Modrator saehe eine leere Karte und wuesste nicht
     warum.
     """
+    # R-5: die Moderationsrechte kommen aus dem EINEN Rechte-Kern (die Tabelle
+    # `Kalender Moderator` wird nicht mehr gelesen).
     from diakronos_app.api.kronos.permissions import _is_moderator_of
 
-    zeilen = [
-        z for z in (get_all(
-            "Kalender Moderator",
-            filters={"user": user},
-            fields=["parent", "name"],
-        ) or [])
-        if isinstance(z, dict)
-    ]
-    for zeile in zeilen:
-        kalender_name = zeile.get("parent")
-        if not kalender_name:
-            continue
-        try:
-            kalender = get_doc("Kalender", kalender_name)
-        except Exception:  # noqa: BLE001 — Kalender weg: Moderatorrolle nicht belegbar
-            continue
-        try:
-            if _is_moderator_of(user, kalender):
-                return True
-        except Exception:  # noqa: BLE001
-            continue
+    for zeile in get_all("Kalender", fields=["name"]) or []:
+        kalender_name = zeile.get("name") if isinstance(zeile, dict) else None
+        if kalender_name and _is_moderator_of(user, str(kalender_name)):
+            return True
     return False
 
 

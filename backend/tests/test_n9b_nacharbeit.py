@@ -52,6 +52,11 @@ def admin_client(client, patched_db):
     if not sess.query(HasRole).filter_by(parent=ADMIN, role="Mitgliederadministrator").first():
         sess.add(HasRole(name=f"{ADMIN}-MA", parent=ADMIN, parenttype="User",
                          parentfield="roles", idx=1, role="Mitgliederadministrator"))
+    # R-11a: die Gemeinde-Einstellungen (Datenschutz, Linkvorgaben) pflegt der
+    # Administrator — die Mitgliederverwaltung allein darf das nicht mehr.
+    if not sess.query(HasRole).filter_by(parent=ADMIN, role="System Manager").first():
+        sess.add(HasRole(name=f"{ADMIN}-SM", parent=ADMIN, parenttype="User",
+                         parentfield="roles", idx=2, role="System Manager"))
     sess.commit()
     sess.close()
 
@@ -567,3 +572,32 @@ def test_rn8_modus_anlegen_nur_system_manager(patched_db, set_user):
         einstellungen_api.anmeldung_setze_unbekannte_nutzer("anlegen_mit_rollen")
     # „abweisen“ bleibt erlaubt.
     assert einstellungen_api.anmeldung_setze_unbekannte_nutzer("abweisen")["unbekannte_nutzer"] == "abweisen"
+
+
+def test_r12f_linkvorgaben_lesbar_fuer_mitgliederverwaltung(patched_db, set_user):
+    """UI-R10: Wer Links anlegt, sieht die Vorgaben — ohne Gemeinde-Einstellungen."""
+    from diakronos_app.api import gemeinde, registrierungslink_api
+    from diakronos_app.frappe_compat.exceptions import PermissionError
+    from diakronos_app.models.core import HasRole, User
+
+    sess = patched_db()
+    for name, rolle in (("ma2@example.org", "Mitgliederadministrator"), ("m2@example.org", None)):
+        sess.add(User(name=name, email=name, full_name=name, enabled=True))
+        if rolle:
+            sess.add(HasRole(name=f"{name}-r", parent=name, parenttype="User",
+                             parentfield="roles", idx=1, role=rolle))
+    sess.commit()
+    sess.close()
+
+    set_user("Administrator")
+    gemeinde.gemeinde_setze_linkvorgaben(link_laufzeit_tage=7, link_max_anmeldungen=42)
+
+    set_user("ma2@example.org")
+    assert registrierungslink_api.get_link_vorgaben() == {
+        "link_laufzeit_tage": 7, "link_max_anmeldungen": 42}
+    with pytest.raises(PermissionError):
+        gemeinde.gemeinde_get_einstellungen()
+
+    set_user("m2@example.org")
+    with pytest.raises(PermissionError):
+        registrierungslink_api.get_link_vorgaben()

@@ -216,6 +216,14 @@ def get_my_notifications(start=0, limit=20):
         fields=[
             "name", "subject", "email_content", "document_type",
             "document_name", "creation", "read",
+            # R-9 (Manuel 11.11.): Die Oberflaeche muss eine Meldung vom Typ
+            # „Datenanfrage“ als WEG ins Profil zeichnen koennen (Freigabe-
+            # Schalter) — ohne `type` ist sie von einer gewoehnlichen
+            # Benachrichtigung nicht zu unterscheiden. Die Spalte gibt es im
+            # Modell laengst (`NotificationLog.type`), sie fehlte nur in
+            # dieser Feldliste. Keine neue Auskunft: es ist die eigene
+            # Meldung des angemeldeten Users (Filter `for_user` oben).
+            "type",
         ],
         order_by="creation desc",
         limit_start=int(start),

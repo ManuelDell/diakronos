@@ -77,28 +77,24 @@ def test_liste_nicht_admin_sieht_eigene_gruppe_und_bereich(client, hierarchie, s
 
 
 def test_liste_nicht_admin_sieht_fremde_gruppe_nicht(client, hierarchie, sess):  # noqa: F811
-    """Die Gegenrichtung (Stelle 1): fremde Bereiche bleiben unsichtbar."""
+    """R-9/R-11b (Manuel 11.11.): Vor- und Nachnamen ALLER Mitglieder sieht jedes
+    Gemeindemitglied — auch aus fremden Bereichen (vorher ancestor_path)."""
     _set_user("mitglied-a@example.org")
     r = client.get("/api/method/mitglieder.get_mitglieder_liste", params={"limit": 50})
     assert r.status_code == 200, r.text
+    assert {"M-gruppe-a1", "M-untergruppe-a1", "M-verantw-a", "M-eigen-b", "M-gruppe-b1"} <= _namen(r)
 
-    namen = _namen(r)
-    assert "M-eigen-b" not in namen, f"DB-B-Mitglied darf nicht sichtbar sein: {namen}"
-    assert "M-gruppe-b1" not in namen, f"DB-C-Mitglied darf nicht sichtbar sein: {namen}"
 
 
 def test_liste_nicht_admin_in_fremdem_bereich_sieht_seinen_bereich(client, hierarchie, sess):  # noqa: F811
-    """Kontrollprobe gegen die Fixture: B sieht seine eigene Welt (und nur die)."""
+    """Kontrollprobe: B sieht ebenfalls alle Namen (R-9) — Daten bleiben maskiert."""
     _set_user("mitglied-b@example.org")
     r = client.get("/api/method/mitglieder.get_mitglieder_liste", params={"limit": 50})
     assert r.status_code == 200, r.text
+    assert {"M-gruppe-a1", "M-untergruppe-a1", "M-verantw-a", "M-eigen-b", "M-gruppe-b1"} <= _namen(r)
+    for zeile in r.json()["message"]["data"]:
+        assert not zeile.get("telefonnummer"), zeile
 
-    namen = _namen(r)
-    assert "M-eigen-b" in namen, f"eigenes Mitglied fehlt: {namen}"
-    assert "M-gruppe-a1" not in namen, f"DB-A-Mitglied darf nicht sichtbar sein: {namen}"
-    assert "M-untergruppe-a1" not in namen
-    assert "M-verantw-a" not in namen
-    assert "M-gruppe-b1" not in namen, f"DB-C bleibt auch fuer B fremd: {namen}"
 
 
 def test_liste_admin_sieht_alles(client, hierarchie, sess):  # noqa: F811
@@ -115,19 +111,19 @@ def test_liste_total_zaehlt_nur_sichtbare_zeilen(client, hierarchie, sess):  # n
     """`total` speist sich aus DEMSELBEN Filter wie die Datenabfrage.
 
     Das Original benutzt fuer `count_query` denselben `permission_filter_sql`
-    (mitglieder.py:106-119). Laeuft der Zaehler ohne Filter, verraet die
-    Pagination die Existenz fremder Mitglieder.
+    (mitglieder.py:106-119). R-9: ein Gemeindemitglied sieht alle Namen —
+    Liste und Zaehler stimmen weiter ueberein.
     """
     _set_user("mitglied-a@example.org")
     r = client.get("/api/method/mitglieder.get_mitglieder_liste", params={"limit": 50})
     assert r.status_code == 200, r.text
     msg = r.json()["message"]
-    assert msg["total"] == 3, f"total={msg['total']} — erwartet 3 (eigene Gruppe/Bereich)"
-    assert len(msg["data"]) == 3, [e["name"] for e in msg["data"]]
+    assert msg["total"] == len(msg["data"]) >= 5, msg["total"]
 
     _set_user("admin@example.org")
     r = client.get("/api/method/mitglieder.get_mitglieder_liste", params={"limit": 50})
-    assert r.json()["message"]["total"] == 5, "Admin muss alle fuenf zaehlen"
+    assert r.json()["message"]["total"] == msg["total"]
+
 
 
 def test_liste_ohne_mitglied_faellt_auf_email_match_zurueck(client, hierarchie, sess):  # noqa: F811
@@ -229,13 +225,15 @@ def test_has_admin_role_ist_rollenpruefung_ohne_zweite_abfrage(client, hierarchi
 
 
 def test_liste_rollen_entscheiden_nicht_der_benutzername(client, hierarchie, sess):  # noqa: F811
-    """"Administrator" hat per Fixture KEINE Rolle -> kein Admin, kein Vollzugriff.
+    """"Administrator" hat per Fixture KEINE Rolle -> keine Verwaltungs-Sicht.
 
-    Das ist die zentrale Regel der Rechtepruefung: die Admin-Sicht darf nicht an
-    einem Default-Benutzernamen haengen. `is_admin()` kennt die Sonderbehandlung,
-    `mitglieder._is_admin()`/`_has_admin_role()` bewusst nicht (wie das Original).
+    Die volle Sicht (persoenliche Daten) haengt an der ROLLE, nicht an einem
+    Default-Benutzernamen. R-9: Namen sieht er wie jedes Gemeindemitglied.
     """
     _set_user("Administrator")
-    r = client.get("/api/method/mitglieder.get_mitglieder_liste", params={"limit": 50})
+    r = client.get("/api/method/mitglieder.get_mitglieder_liste",
+                   params={"limit": 50, "persoenliche_daten": True})
     assert r.status_code == 200, r.text
-    assert r.json()["message"]["data"] == [], r.text
+    for zeile in r.json()["message"]["data"]:
+        assert not zeile.get("telefonnummer"), zeile
+

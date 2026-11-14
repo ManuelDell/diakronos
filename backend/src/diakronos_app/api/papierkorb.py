@@ -24,7 +24,6 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from diakronos_app import papierkorb
-from diakronos_app.frappe_compat import permissions
 from diakronos_app.frappe_compat.exceptions import PermissionError as FrappePermissionError
 from diakronos_app.frappe_compat.exceptions import throw
 from diakronos_app.frappe_compat.query import get_all
@@ -61,8 +60,10 @@ def _require_admin() -> None:
     """Mitgliederadministrator oder System Manager (wie `_require_admin` der Bereiche)."""
     if session.user in ("", "Guest"):
         throw("Anmeldung erforderlich.", FrappePermissionError)
-    roles = permissions.get_roles()
-    if "Mitgliederadministrator" not in roles and "System Manager" not in roles:
+    # R-11a: der Administrator des EINEN Rechtesystems (nicht die Mitgliederverwaltung).
+    from diakronos_app import rechte
+
+    if not rechte.ist_admin(session.user):
         throw("Nur für Administratoren.", FrappePermissionError)
 
 

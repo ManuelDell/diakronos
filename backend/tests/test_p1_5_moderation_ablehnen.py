@@ -55,6 +55,8 @@ def welt(patched_db):
                 all_day=0, series_id="", docstatus=0, idx=0),
     ])
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     yield sess
     sess.close()
 

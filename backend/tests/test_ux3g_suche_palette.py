@@ -156,6 +156,8 @@ def bestand(patched_db):
     db.add(Beitrag(name="B-2", titel="Mitarbeiter intern (Entwurf)",
                    kategorie="Gemeinde", veroeffentlicht=False))
     db.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(db)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     db.close()
 
 
@@ -305,10 +307,11 @@ def test_bremse_faellt_bei_redis_aus_fail_closed(admin_client, monkeypatch):
 
 
 def test_personen_nur_im_eigenen_bereich(normale_client):
+    """R-9/R-11b (Manuel 11.11.): Namen ALLER Mitglieder sieht jedes
+    Gemeindemitglied — auch aus einem fremden Bereich (vorher ancestor_path)."""
     titel = _titel(normale_client, q="Mir")
     assert "Miriam Seifert" in titel
-    # Fremder Bereich (Technik): nicht sichtbar, obwohl der Name passt.
-    assert "Mirjam Fremd" not in titel
+    assert "Mirjam Fremd" in titel
 
 
 def test_personen_kein_email_seitenkanal(normale_client):

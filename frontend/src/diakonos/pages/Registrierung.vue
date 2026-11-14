@@ -244,11 +244,17 @@
           <DkField label="Gültig ab" help="Leer = sofort nutzbar.">
             <input v-model="newLink.gueltig_ab" type="date" class="dk-ui-eingabe" />
           </DkField>
-          <DkField label="Gültig bis">
+          <DkField label="Gültig bis" :help="ohneAblaufHinweis">
             <input v-model="newLink.gueltig_bis" type="date" class="dk-ui-eingabe"
               :disabled="newLink.ohne_ablauf" />
           </DkField>
         </div>
+        <!-- UI-R10b: die Laufzeit-Vorgabe wird NIE im Frontend gerechnet. Sie
+             kommt aus `registrierungslink_api.get_link_vorgaben`; fehlt sie,
+             sagt der Satz das ausdrücklich (das Feld bleibt dann leer). -->
+        <DkHint v-if="!newLink.ohne_ablauf" variant="info" data-test="reg-laufzeit-hinweis">
+          {{ laufzeitHinweis }}
+        </DkHint>
         <label class="reg-schalter">
           <input v-model="newLink.ohne_ablauf" type="checkbox" />
           <span>Ohne Ablauf (unbefristet, unabhängig von der Vorgabe)</span>
@@ -1010,19 +1016,30 @@ async function ablehnenBestaetigen() {
 // ── Links ─────────────────────────────────────────────────────────────────
 
 const showCreateLink = ref(false)
-/** M-1: die unter „Einstellungen → Registrierung“ gepflegten Vorgaben. */
-const linkVorgaben = ref({ laufzeitTage: 30, maxAnmeldungen: 0 })
+/**
+ * M-1: die unter „Einstellungen → Registrierung“ gepflegten Vorgaben.
+ *
+ * UI-R10b: `null` heißt „noch nicht bekannt / nicht lesbar“. Dann bleibt das
+ * Ablaufdatum LEER — leer ist die Vorgabe (der Server setzt sie beim Anlegen
+ * ein) — und das Formular sagt „Laufzeit: Vorgabe der Gemeinde“. Eine feste
+ * Zahl im Frontend (früher 30 Tage) ist verboten: sie wich still von der
+ * Gemeinde ab, sobald die Mitgliederverwaltung die Einstellungen nicht lesen
+ * durfte.
+ */
+const linkVorgaben = ref(null)
 const leererLink = () => {
   // M-1: neue Links werden mit den Gemeinde-Vorgaben vorbelegt, damit der
   // Hinweis im Einstellungsbereich stimmt. Der Server wendet dieselben
   // Vorgaben an, wenn hier nichts eingetragen wird.
+  // UI-R10b: ohne bekannte Vorgabe bleibt `gueltig_bis` LEER (= Vorgabe), es
+  // wird nie eine Zahl geraten.
   const v = linkVorgaben.value
-  const gueltig = v.laufzeitTage > 0
+  const gueltig = v && v.laufzeitTage > 0
     ? new Date(Date.now() + v.laufzeitTage * 86400000).toISOString().slice(0, 10)
     : ''
   return {
     bezeichnung: '', typ: 'Mitglied-Registrierung',
-    gueltig_bis: gueltig, max_anmeldungen: v.maxAnmeldungen || 0, anmeldeformular_id: '',
+    gueltig_bis: gueltig, max_anmeldungen: (v && v.maxAnmeldungen) || 0, anmeldeformular_id: '',
     // REG-1b: „gültig ab“ — leer heisst SOFORT nutzbar (Server: NULL).
     gueltig_ab: '',
     // M-1 (R-N9b): ausdruecklich unbefristet/unbegrenzt, unabhaengig von der
@@ -1041,19 +1058,48 @@ function linkOeffnen() {
   showCreateLink.value = true
 }
 
-/** M-1: Link-Vorgaben der Gemeinde laden (nur Admin; Fehler bleiben still). */
+/**
+ * UI-R10b: Link-Vorgaben laden — über den EIGENEN Lese-Endpunkt
+ * (`registrierungslink_api.get_link_vorgaben`), den auch die
+ * Mitgliederverwaltung darf (dieselbe Prüfung wie `create_link`, R-12f).
+ *
+ * Vorher stand hier `gemeinde_get_einstellungen` — das ist Kern-Admin
+ * (`gemeinde._angemeldeter_admin`), die Mitgliederverwaltung bekam 403, der
+ * Fehler blieb still und neue Links fielen auf fest eingebaute 30 Tage zurück.
+ *
+ * Schlägt der Abruf fehl, bleibt `linkVorgaben` `null`: das Datumsfeld bleibt
+ * LEER (= der Server wendet die Vorgabe an) und das Formular schreibt
+ * „Laufzeit: Vorgabe der Gemeinde“. Nie eine feste Zahl.
+ */
 async function ladeLinkVorgaben() {
   try {
-    const res = await apiCall('diakronos.diakonos.api.gemeinde.gemeinde_get_einstellungen', {})
-    const d = res.message || res
+    const res = await apiCall('diakronos.diakonos.api.registrierungslink_api.get_link_vorgaben', {})
+    const d = res?.message || res
+    if (!d || d.link_laufzeit_tage === undefined) throw new Error('keine Vorgaben')
     linkVorgaben.value = {
-      laufzeitTage: Number(d.link_laufzeit_tage ?? 30),
-      maxAnmeldungen: Number(d.link_max_anmeldungen ?? 0),
+      laufzeitTage: Number(d.link_laufzeit_tage) || 0,
+      maxAnmeldungen: Number(d.link_max_anmeldungen) || 0,
     }
   } catch {
-    // Ohne Vorgaben bleibt der Standard (30 Tage, unbegrenzt) — kein Fehler.
+    // Nicht lesbar: keine Zahl raten — leer heißt Vorgabe (Server entscheidet).
+    linkVorgaben.value = null
   }
 }
+/**
+ * UI-R10b: der Satz unter dem Zeitraum. Er nennt die Vorgabe NUR, wenn sie
+ * gelesen wurde; sonst steht dort ausdrücklich „Vorgabe der Gemeinde“ —
+ * dieselbe Aussage, die das leere Feld macht (der Server setzt sie ein).
+ */
+const laufzeitHinweis = computed(() => {
+  const v = linkVorgaben.value
+  if (!v || !(v.laufzeitTage > 0)) return 'Laufzeit: Vorgabe der Gemeinde.'
+  return `Laufzeit: ${v.laufzeitTage} Tage ab heute (Vorgabe der Gemeinde) — frei änderbar.`
+})
+/** Hilfe am Feld „Gültig bis“: leer heißt Vorgabe, nie eine geratene Zahl. */
+const ohneAblaufHinweis = computed(() => (linkVorgaben.value
+  ? 'Leer = Laufzeit der Gemeinde-Vorgabe.'
+  : 'Leer = Laufzeit: Vorgabe der Gemeinde.'))
+
 async function linkSchliessen() {
   if (await linkSchutz.darfSchliessen()) showCreateLink.value = false
 }

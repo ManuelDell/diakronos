@@ -110,16 +110,17 @@ def test_ausgeschlossenes_mitglied_hat_keine_rollen(welt) -> None:
 
 
 def test_ausgeschlossenes_mitglied_ist_kein_admin(welt) -> None:
-    assert permissions.is_admin(RAUS) is True, "Ausgangslage"
+    # R-11a: die Rolle Mitgliederadministrator ist Verwaltung, nicht Admin.
+    assert permissions.ist_mitgliederverwaltung(RAUS) is True, "Ausgangslage"
     _ausschliessen(welt, "M-raus")
-    assert permissions.is_admin(RAUS) is False
+    assert permissions.ist_mitgliederverwaltung(RAUS) is False
 
 
 def test_nicht_ausgeschlossenes_mitglied_behaelt_rollen(welt) -> None:
     """Gegenrichtung: ein anderer Benutzer bleibt unberuehrt."""
     _ausschliessen(welt, "M-raus")
     assert permissions.get_roles(DRIN) == ("Mitgliederadministrator",)
-    assert permissions.is_admin(DRIN) is True
+    assert permissions.ist_mitgliederverwaltung(DRIN) is True
 
 
 def test_benutzer_ohne_mitglied_ist_nie_ausgeschlossen(patched_db) -> None:
@@ -206,9 +207,17 @@ def _neues_mitglied_mit_konto(sess, name: str, email: str) -> None:
 
 
 def _planerin_rolle(sess, user: str, gruppe: str) -> bool:
-    """Greift die Gruppenverantwortung serverseitig (planrahmen/rechte.py)?"""
+    """Greift die Gruppenverantwortung serverseitig (planrahmen/rechte.py)?
+
+    R-6: Planer sind HV/MV einer Gruppe MIT Modul „Dienstplaene“ — das Modul
+    wird hier eingeschaltet (der Admin legt es je Gruppe fest).
+    """
+    from diakronos_app.models.rechte import RechteModul
     from diakronos_app.planrahmen.rechte import Rechte
 
+    if sess.query(RechteModul).filter_by(gruppe=gruppe, modul="dienstplaene").first() is None:
+        sess.add(RechteModul(gruppe=gruppe, modul="dienstplaene"))
+        sess.commit()
     return Rechte(sess, user).gruppen_verantwortlich({gruppe})
 
 
@@ -220,7 +229,10 @@ def test_verantwortliche_lesen_liefert_anzeigenamen(hierarchie) -> None:
     set_user("admin@example.org")
     daten = get_verantwortliche("Gruppe", "G-A1")
     assert daten["darf_pflegen"] is True
-    assert [v["user"] for v in daten["verantwortliche"]] == ["gruppenverantw@example.org"]
+    # R-4: Verantwortliche = Rollen; HV zuerst, dann MV (der fruehere
+    # Bereichsverantwortliche von DB-A ist nach der Uebernahme MV).
+    assert [(v["user"], v["rolle"]) for v in daten["verantwortliche"]] == [
+        ("gruppenverantw@example.org", "HV"), ("bereichsverantw@example.org", "MV")]
 
 
 def test_verantwortliche_setzen_macht_zur_planerin(hierarchie) -> None:
@@ -244,21 +256,38 @@ def test_verantwortliche_entziehen_wirkt(hierarchie) -> None:
     from diakronos_app.api.verantwortliche import set_verantwortliche
     from diakronos_app.frappe_compat.session import set_user
 
+    from diakronos_app.frappe_compat.exceptions import ValidationError
+
     set_user("admin@example.org")
     assert _planerin_rolle(hierarchie, "gruppenverantw@example.org", "G-A1") is True
-    set_verantwortliche("Gruppe", "G-A1", [])
+    # R-4 (Manuel 11.11.): jede Gruppe hat genau eine/n HV — leeren geht nicht;
+    # entzogen wird, indem der Admin das Amt an jemand anderen uebertraegt.
+    with pytest.raises(ValidationError):
+        set_verantwortliche("Gruppe", "G-A1", [])
+    set_verantwortliche("Gruppe", "G-A1", ["bereichsverantw@example.org"])
     hierarchie.expire_all()
     assert _planerin_rolle(hierarchie, "gruppenverantw@example.org", "G-A1") is False
 
 
 def test_verantwortliche_bereich_ueber_gruppe(hierarchie) -> None:
-    """Wer den Dienstbereich verantwortet, darf dessen Gruppen pflegen."""
+    """R-4 (Manuel 11.11.): HV/MV ernennt nur der HV. Der fruehere
+    Bereichsverantwortliche ist jetzt MV und darf es NICHT mehr; der HV
+    darf — und kann sich dabei nicht selbst entfernen (nur uebertragen)."""
     from diakronos_app.api.verantwortliche import set_verantwortliche
+    from diakronos_app.frappe_compat.exceptions import PermissionError as PErr
+    from diakronos_app.frappe_compat.exceptions import ValidationError
     from diakronos_app.frappe_compat.session import set_user
 
     set_user("bereichsverantw@example.org")
-    daten = set_verantwortliche("Gruppe", "G-A1", ["bereichsverantw@example.org"])
+    with pytest.raises(PErr):
+        set_verantwortliche("Gruppe", "G-A1", ["bereichsverantw@example.org"])
+
+    set_user("gruppenverantw@example.org")
+    daten = set_verantwortliche("Gruppe", "G-A1", ["gruppenverantw@example.org"])
     assert daten["success"] is True
+    assert [v["rolle"] for v in daten["verantwortliche"]] == ["HV"]
+    with pytest.raises(ValidationError, match="übertragen"):
+        set_verantwortliche("Gruppe", "G-A1", ["bereichsverantw@example.org"])
 
 
 def test_verantwortliche_fremde_gruppe_verweigert(hierarchie) -> None:
@@ -296,8 +325,11 @@ def test_verantwortliche_untergruppe_und_dienstbereich(hierarchie) -> None:
     set_verantwortliche("Dienstbereich", "DB-B", ["lea@example.org"])
 
     hierarchie.expire_all()
-    assert get_all("Untergruppe Verantwortlicher",
-                   filters={"parent": "UG-A1", "user": "lea@example.org"})
+    # R-11d: die Untergruppe fuehrt ihre Leitung im EINEN Rechtesystem (GL).
+    from diakronos_app.models.rechte import RechteGruppenrolle
+
+    assert hierarchie.query(RechteGruppenrolle).filter_by(
+        untergruppe="UG-A1", benutzer="lea@example.org", rolle="GL").count() == 1
     assert get_all("Dienstbereich Verantwortlicher",
                    filters={"parent": "DB-B", "user": "lea@example.org"})
 

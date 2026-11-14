@@ -233,8 +233,10 @@ def test_anderer_system_manager_ist_nicht_root_und_behaelt_grenzen(
         r = _post(client, "einrichtung.kalender_vorschlag_anlegen", namen=["NurSo"])
     finally:
         set_user("Administrator")
-    # Genau die Grenze von vorher: ohne Kalenderrolle verweigert.
-    assert r.status_code == 403, r.text
+    # R-1 (Manuel 11.11.): EIN Rechtesystem — „System Manager“ ist die
+    # Administratorrolle und darf alles (vorher brauchte sie zusaetzlich die
+    # Kalenderrolle). ON-6 wertet ihn trotzdem NICHT zum root auf (oben).
+    assert r.status_code == 200, r.text
 
 
 # ── Punkt 3: Schutz ────────────────────────────────────────────────────────

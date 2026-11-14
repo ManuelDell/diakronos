@@ -163,14 +163,17 @@ test('UX3e · Schublade hält sich an die Rollen (Gast sieht nur, was der Server
   const mitglied = labels(schubladeMenue({ ...MITGLIED, rollen: [], leistenZiele: [] }),
     sichtbarerFuss({ istAdmin: false }))
   assert.ok(!mitglied.includes('Einstellungen'), 'Mitglieder sehen keine Einstellungen')
-  assert.deepEqual(FUSS_EINTRAEGE.filter(e => e.rolle === 'admin').map(e => e.label), ['Einstellungen'])
+  // UI-R10: „Einstellungen“ hängt an der Verwaltungsstufe (Administrator ODER
+  // Mitgliederverwaltung) — nicht mehr an `rolle: 'admin'`.
+  assert.deepEqual(FUSS_EINTRAEGE.filter(e => e.verwaltung === 'personen').map(e => e.label),
+    ['Einstellungen'])
 })
 
 test('UX3e · Erreichbarkeit: jede Seitenleisten-Seite ist am Handy erreichbar', () => {
   for (const [name, rolle] of [['Admin', ADMIN], ['Mitglied', MITGLIED], ['Gast', GAST]]) {
     const desktop = [
       ...MENUE.flatMap(g => sichtbareEintraege(g, rolle)).map(e => e.href),
-      ...FUSS_EINTRAEGE.filter(e => e.rolle !== 'admin' || rolle.istAdmin).map(e => e.href),
+      ...sichtbarerFuss(rolle).map(e => e.href),
     ].sort()
     const handy = [
       ...fusstabs({ istGast: rolle.istGast }).map(t => t.href),

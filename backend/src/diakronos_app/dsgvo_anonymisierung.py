@@ -346,7 +346,10 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         "verantwortlicher": ("mitglied", "Positionsverantwortung im Ablaufplan"),
     },
     "gruppen_ankuendigung": {"erstellt_von": ("mitglied", "Autor einer Ankündigung")},
-    "gruppen_aufgabe": {"erstellt_von": ("mitglied", "Ersteller einer Aufgabe")},
+    "gruppen_aufgabe": {
+        "erstellt_von": ("mitglied", "Ersteller einer Aufgabe"),
+        "zugewiesen_an": ("mitglied", "Zuweisung einer Gruppenaufgabe (R-7b)"),
+    },
     "mitglied": {
         # Selbstbezüge: Zeigen sie auf die Person, werden sie geleert (ihre
         # Gegenrichtung zeigt nach der Umhängung auf die neue Kennung).
@@ -539,6 +542,36 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         "gebucht_von": ("mitglied_platzhalter", "Kennung des Buchers"),
         "gebucht_von_name": ("mitglied_platzhalter", "Anzeigename des Buchers"),
     },
+    # R-1/R-5: das EINE Rechtesystem. Rollen und Einzelfreigaben DER PERSON
+    # fallen ganz (ZEILEN_LOESCHEN, Spalte `benutzer`); wo sie nur als
+    # Erteilende steht, bleibt das Recht der anderen und das Konto wird
+    # genullt. Bewusst NICHT in KONTO_ZEILEN: sonst liefe das Nullen von
+    # `erteilt_von` an fremden Zeilen nicht.
+    "rechte_gruppenrolle": {
+        "erteilt_von": ("user_null", "wer die Rolle vergeben hat: Rolle bleibt, Konto weg"),
+    },
+    "rechte_freigabe": {
+        "erteilt_von": ("user_null", "wer freigegeben hat: Freigabe bleibt, Konto weg"),
+    },
+    "rechte_gastlink": {
+        "erstellt_von": ("user_null", "wer den Gast-Link angelegt hat: Link bleibt, Konto weg"),
+        "objekt": ("struktur", "Kennung des freigegebenen Elements"),
+        "token_hash": ("struktur", "Hash des Link-Tokens — kein Personenbezug"),
+        "passwort_hash": ("struktur", "Hash des Link-Passworts — kein Personenbezug"),
+    },
+    "rechte_modul": {
+        "modul": ("struktur", "Modulname einer Gruppe"),
+    },
+    "rechte_objekt": {
+        "objekt": ("struktur", "Kennung eines Elements (Kalender, Wiki …)"),
+        "eltern_objekt": ("struktur", "Kennung des Eltern-Elements"),
+    },
+    "element": {
+        "moderation_offen": ("struktur", "offene Moderationsstufen (gruppe/gemeinde)"),
+    },
+    "element_aenderung": {
+        "moderation_offen": ("struktur", "offene Moderationsstufen (gruppe/gemeinde)"),
+    },
 }
 
 #: UX2b — Papierkorb: „wer hat geloescht“. Die Spalte gibt es an fuenf
@@ -630,6 +663,10 @@ ZEILEN_LOESCHEN: tuple[tuple[str, str], ...] = (
     # selbst liegt in einem FREMDEN System und wird von Diakronos nicht
     # angefasst (dieselbe Grenze wie bei PocketBase-Passwörtern).
     ("website_primo_konto", "Zuordnung Konto <-> Website-Konto (Mail und fremde ID)"),
+    # R-1: Rollen (HV/MV/GL) und Einzelfreigaben des Kontos sind der Zugang
+    # selbst — sie fallen mit dem Konto (Spalte `benutzer`).
+    ("rechte_gruppenrolle", "Gruppenrollen des Kontos (HV/MV/GL)"),
+    ("rechte_freigabe", "Einzelfreigaben des Kontos"),
 )
 
 #: Tabellen mit Konto-Bezug, deren Zeilen gelöscht werden — dort wird VORHER
@@ -958,6 +995,9 @@ def anonymisiere(s, mitglied: str, konten, *, dateien: list[str] | None = None) 
 
     # 3) Verweise umhängen: FKs aus den Metadaten + Wert-Spalten (JSON/Namen).
     zaehler.update(_verweise_umhaengen(s, mitglied, kennung, bestand_=b))
+    # R-7b: eigene Aufgaben (ohne Gruppe) sind privat — sie fallen mit der
+    # Person, statt mit neutraler Kennung stehen zu bleiben.
+    zaehler.update(_eigene_aufgaben_loeschen(s, b, kennung))
 
     # 3c) Datei-Pfade der Person einsammeln, BEVOR Zeilen fallen (N-3: die
     #     `sicherer_anhang`-Zeile wird in Schritt 7 gelöscht, in Schritt 11 wäre
@@ -1365,6 +1405,20 @@ def _dateipfade_sammeln(s, b: Bestand, kennung: str) -> None:
         for wert in s.scalars(select(spalte).where(or_(*bedingungen))).all():
             if wert:
                 b.dateien.add(str(wert))
+
+
+def _eigene_aufgaben_loeschen(s, b: Bestand, kennung: str) -> dict:
+    """Eigene Aufgaben der Person (keine Gruppe): Besitzer-Konto oder Ersteller."""
+    zaehler: dict[str, int] = {}
+    tabelle = _tabelle("gruppen_aufgabe")
+    if tabelle is None:
+        return zaehler
+    wer = [tabelle.c["erstellt_von"].in_([b.mitglied, kennung])]
+    if b.konten:
+        wer.append(tabelle.c["owner"].in_(b.konten))
+    _zaehle(s, zaehler, "gruppen_aufgabe.eigene", delete(tabelle).where(
+        tabelle.c["gruppe"].is_(None), tabelle.c["untergruppe"].is_(None), or_(*wer)))
+    return zaehler
 
 
 def _zeilen_loeschen(s, b: Bestand, kennung: str) -> dict:

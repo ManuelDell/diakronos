@@ -57,10 +57,15 @@
              das nichts bewirkt. -->
         <DkField v-if="bearbeitbar" label="Rollen">
           <div class="zug-rollen">
-            <label v-for="r in rollenWaehlbar" :key="r" class="zug-rolle">
-              <input type="checkbox" :value="r" v-model="gewaehlteRollen" />
-              <span>{{ r }}</span>
-            </label>
+            <div v-for="r in rollenWaehlbar" :key="r" class="zug-rollen-zeile">
+              <label class="zug-rolle">
+                <input type="checkbox" :value="r" v-model="gewaehlteRollen" />
+                <span>{{ r }}</span>
+              </label>
+              <!-- UI-R8: hier ist die eigentliche Benutzerverwaltung — der ⓘ
+                   erklärt die Rolle (Text aus der EINEN Quelle). -->
+              <RrInfo :name="r" :erklaerung="erklaerungVon(r)" />
+            </div>
           </div>
         </DkField>
         <div v-else class="zug-feld">
@@ -126,6 +131,9 @@
  */
 import { ref, onMounted } from 'vue'
 import DkCard from './ui/DkCard.vue'
+import RrInfo from './ui/RrInfo.vue'
+import { erklaerungFuer } from '../composables/rollenErklaerung.mjs'
+import { rollenErklaerung } from '../composables/useRollenRechte.js'
 import DkButton from './ui/DkButton.vue'
 import DkField from './ui/DkField.vue'
 import DkHint from './ui/DkHint.vue'
@@ -166,6 +174,24 @@ const passwortSichtbar = ref(false)
 const arbeitet = ref(false)
 const oidcAnmeldung = ref(props.oidcAktiv)
 const passwortLink = ref(null)
+
+// UI-R8: Erklärungen der Rollen (die EINE Quelle). Fehlt sie, bleibt der ⓘ
+// weg — die Karte funktioniert unverändert weiter.
+const systemrollenQuelle = ref(null)
+
+/** Erklärung zu einem Rollennamen (null = kein ⓘ). */
+function erklaerungVon(name) {
+  return erklaerungFuer(systemrollenQuelle.value, name)
+}
+
+async function ladeErklaerung() {
+  try {
+    const daten = await rollenErklaerung()
+    systemrollenQuelle.value = daten?.systemrollen || null
+  } catch {
+    systemrollenQuelle.value = null
+  }
+}
 
 async function laden() {
   laedt.value = true
@@ -233,7 +259,7 @@ function passwortSpeichern() {
   ).then(() => { neuesPasswort.value = '' })
 }
 
-onMounted(laden)
+onMounted(() => { laden(); ladeErklaerung() })
 </script>
 
 <style scoped>
@@ -244,7 +270,19 @@ onMounted(laden)
 .zug-daten dt { font-size: var(--fs-sm); color: var(--muted); }
 .zug-daten dd { margin: 0 0 var(--sp-2); }
 .zug-rollen { display: flex; flex-direction: column; gap: var(--sp-2); }
-.zug-rolle { display: flex; align-items: center; gap: var(--sp-2); }
+/* UI-R8b: Checkbox + Rollenname + ⓘ in EINER Zeile (der ⓘ direkt hinter dem
+   Namen), das Erklärfeld als EIGENE volle Zeile darunter. Das Label wächst
+   nicht (`flex: 0 1 auto`) — sonst stünde der ⓘ am rechten Rand der Karte.
+   `flex-wrap` ist die Bedingung dafür, dass das Feld in die nächste Zeile
+   rutschen kann; `flex-shrink: 0` hält die Checkbox am Handy sichtbar. */
+.zug-rollen-zeile { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); min-width: 0; }
+/* RrInfo liefert ZWEI Geschwister (ⓘ und Erklärfeld) direkt in diese Zeile —
+   darum hängen ihre Platzregeln hier und nicht in RrInfo.vue: der ⓘ nimmt
+   keinen Raum, das Feld bekommt die eigene volle Zeile darunter. */
+.zug-rollen-zeile > .rr-info-knopf { flex: 0 0 auto; }
+.zug-rollen-zeile > .rr-info-panel { flex: 1 0 100%; }
+.zug-rolle { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; flex: 0 1 auto; }
+.zug-rolle input { flex-shrink: 0; }
 .zug-aktionen { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin: var(--sp-3) 0; }
 .zug-passwort { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
 .zug-oidc { margin-bottom: var(--sp-3); }

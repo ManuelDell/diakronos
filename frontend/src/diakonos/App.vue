@@ -152,6 +152,8 @@
     <Befehlspalette ref="befehlspalette" />
     <SitzungsHinweis />
     <DkBestaetigung />
+    <!-- UI-R9: die eine Person, die eine Aufgabe übernimmt (Zuweisung). -->
+    <PersonenWahlDialog />
 </template>
 
 <script setup>
@@ -159,6 +161,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import AppSidebar from './components/AppSidebar.vue'
 import SitzungsHinweis from './components/SitzungsHinweis.vue'
 import DkBestaetigung from './components/ui/DkBestaetigung.vue'
+import PersonenWahlDialog from './components/PersonenWahlDialog.vue'
 import DkSpinner from './components/ui/DkSpinner.vue'
 import AppTopbar from './components/AppTopbar.vue'
 import AuditConfirmModal from './components/AuditConfirmModal.vue'

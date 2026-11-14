@@ -121,11 +121,14 @@ def update_series_batch_fast(series_id, updates):
     from diakronos_app.api.kronos import moderation
 
     updates = dict(updates)
-    ist_mod = moderation.ist_moderator(str(first_calendar))
+    # R-5: „sofort“ = keine Moderationsstufe fuer den Aufrufer (Rechte-Kern).
+    ist_mod = moderation.schreibt_direkt(str(first_calendar), aenderung=True)
 
-    # Serien-Status ist wie der Einzel-Status eine Moderationsentscheidung.
+    # Serien-Status ist wie der Einzel-Status eine Moderationsentscheidung —
+    # R-5: je Termin stufenweise (`moderation.entscheide_status`). Wer weder
+    # direkt schreibt noch eine Stufe prueft, kann ihn gar nicht setzen.
     verworfen: list[str] = []
-    if "status" in updates and not ist_mod:
+    if "status" in updates and not (ist_mod or moderation.ist_moderator(str(first_calendar))):
         updates.pop("status")
         verworfen.append("status")
 
@@ -162,10 +165,19 @@ def update_series_batch_fast(series_id, updates):
                 doc = get_doc("Element", eid)
             except Exception:  # noqa: BLE001 — verschwundener Termin
                 continue
+            werte = dict(zeitfelder)
+            termin_mod = ist_mod
+            if "status" in werte:
+                try:
+                    entscheidung = moderation.entscheide_status(doc, werte.pop("status"), ist_mod)
+                except Exception:  # noqa: BLE001 — falsche Stufe: dieser Termin bleibt
+                    entscheidung = moderation.StatusEntscheidung()
+                entscheidung.in_werte(werte)
+                termin_mod = ist_mod or entscheidung.freigabe
             # Die sofort gueltigen Felder schreibt `wende_termin_aenderung_an`
             # selbst (bei einem Moderator also der ganze Feldsatz).
             ergebnis = moderation.wende_termin_aenderung_an(
-                doc, dict(zeitfelder), ist_mod,
+                doc, werte, termin_mod,
                 calendar_fuer_vorschlag=str(first_calendar),
                 sammler=sammler,
                 absage_sammler=absage_sammler,

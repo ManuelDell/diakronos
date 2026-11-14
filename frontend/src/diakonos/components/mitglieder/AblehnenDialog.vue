@@ -26,7 +26,8 @@
     <DkHint v-if="!mailEingerichtet" variant="err" role="alert">
       Mailversand ist nicht eingerichtet — ohne ihn kann der Antrag nicht
       abgelehnt werden.
-      <a href="#/einstellungen/mailversand">Mailversand einrichten</a>
+      <a v-if="darfMailEinrichten" href="#/einstellungen/mailversand">Mailversand einrichten</a>
+      <template v-else>Bitte den Administrator bitten, ihn einzurichten.</template>
     </DkHint>
 
     <DkField
@@ -88,6 +89,9 @@ const props = defineProps({
   laeuft: { type: Boolean, default: false },
   fehler: { type: String, default: '' },
   mailEingerichtet: { type: Boolean, default: true },
+  /** R10-Review (Punkt 4): System Manager (`mailversand_status.darf_aendern`) —
+   *  nur er kommt an `#/einstellungen/mailversand` vorbei (Admin-Wächter). */
+  darfMailEinrichten: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue', 'ablehnen'])
 

@@ -58,6 +58,10 @@ def _leserecht(kalender_name: str, role: str, idx: int) -> UserRole:
 def welt(patched_db):
     """Zwei Ressourcen, zwei Nutzer, ein Moderator, ein fremder Kalender."""
     sess = patched_db()
+    # R-5: der Rechte-Kern verlangt aktive Konten (fail closed).
+    from diakronos_app.models.core import User
+
+    sess.add_all([User(name=u, email=u, enabled=True) for u in (ANNA, MODERATOR)])
 
     sess.add_all([
         Ressource(name="RES-RAUM", ressource_name="Gemeindesaal", typ="Raum",
@@ -102,6 +106,9 @@ def welt(patched_db):
                 role="Ressourcenmoderator", docstatus=0, idx=1),
     ])
     sess.commit()
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     yield sess
     sess.close()
 

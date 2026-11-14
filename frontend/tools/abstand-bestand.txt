@@ -20,7 +20,7 @@
 #   * neue Datei mit festen Werten          -> rot (nicht in der Liste = 0 erlaubt)
 # Erzeugt mit (aus frontend/ heraus): node tools/abstand-bestand.mjs --schreiben
 #
-# Stand (UX1a2, F5): 1550 Fundstellen in 121 Dateien.
+# Stand (UX1a2, F5): 1546 Fundstellen in 120 Dateien.
 frontend/src/diakonos/App.vue	8
 frontend/src/diakonos/components/AppBottomNav.vue	3
 frontend/src/diakonos/components/MitgliedAuswahl.vue	15
@@ -106,7 +106,7 @@ frontend/src/diakonos/index.css	270
 frontend/src/diakonos/kronos.css	179
 frontend/src/diakonos/pages/Adressbuch.vue	9
 frontend/src/diakonos/pages/Beitraege.vue	5
-frontend/src/diakonos/pages/GruppeDetail.vue	9
+frontend/src/diakonos/pages/GruppeDetail.vue	8
 frontend/src/diakonos/pages/Gruppen.vue	17
 frontend/src/diakonos/pages/Home.vue	5
 frontend/src/diakonos/pages/Kalender.vue	1
@@ -129,7 +129,6 @@ frontend/src/diakonos/pages/einstellungen/Anmeldung.vue	1
 frontend/src/diakonos/pages/einstellungen/DatenschutzTexte.vue	2
 frontend/src/diakonos/pages/einstellungen/Gemeinde.vue	1
 frontend/src/diakonos/pages/einstellungen/Registrierung.vue	1
-frontend/src/diakonos/pages/einstellungen/RollenRechte.vue	3
 frontend/src/diakonos/pages/mitglieder/Uebersicht.vue	1
 frontend/src/diakonos/pages/planrahmen/Einrichten.vue	14
 frontend/src/diakonos/pages/planrahmen/MeineDienste.vue	46

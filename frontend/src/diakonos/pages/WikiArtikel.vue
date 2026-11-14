@@ -24,9 +24,15 @@
         </template>
       </DkPageHeader>
 
-      <!-- Objekt-Aktionen (N6): dieselben Einträge wie in der Liste. -->
-      <div v-if="aktionen.length" class="wk-lese-aktionen">
-        <DkAktionen :eintraege="aktionen" :label="`Aktionen für ${artikel.title || 'diesen Artikel'}`" />
+      <!-- UI-R6d: Die R6-Knöpfe des früheren Detail-Fensters stehen jetzt HIER.
+           Sichtbar nur mit `darf_bearbeiten` aus der Serverantwort
+           (`darfBearbeiten` in `composables/r6Detail.js`).
+           UI-R6e: Das alte „⋯“-Menü ist entfallen; Bearbeiten/Löschen stehen
+           NUR hier, an EINEM Recht (`darf_bearbeiten` des Details). -->
+      <div v-if="darfAendern" class="wk-lese-knoepfe">
+        <DkButton variant="secondary" size="md" @click="gastFreigeben()">Für Gäste freigeben</DkButton>
+        <DkButton variant="secondary" size="md" @click="bearbeiten()">Bearbeiten</DkButton>
+        <DkButton variant="danger" size="md" @click="loeschen()">Löschen</DkButton>
       </div>
 
       <article class="wk-lese">
@@ -61,6 +67,16 @@
         </section>
       </article>
     </template>
+
+    <!-- UI-R6d: Gast-Link für DIESEN Artikel; der Dialog öffnet nur über
+         „Für Gäste freigeben“ (sichtbar nur mit `darf_bearbeiten`). -->
+    <GastFreigabe
+      :model-value="gastOffen"
+      typ="wiki"
+      :objekt="artikel?.id || ''"
+      :titel="artikel?.title || ''"
+      @update:model-value="gastOffen = $event"
+    />
   </div>
 </template>
 
@@ -79,8 +95,20 @@
  * jetzt aber mit echtem Routenwechsel und Verlauf.
  *
  * Rechte unverändert (nur Darstellung): Lesen darf jeder Angemeldete
- * (`get_wiki_artikel_detail` prüft der Server), Bearbeiten/Löschen stehen im
- * Aktionsmenü nur Administratoren — dieselbe Bedingung wie in der Liste.
+ * (`get_wiki_artikel_detail` prüft der Server), Bearbeiten/Löschen hängen am
+ * `darf_bearbeiten` der Serverantwort.
+ *
+ * UI-R6d: „Für Gäste freigeben“, „Bearbeiten“ und „Löschen“ sind vom
+ * Detail-FENSTER der Liste hierher gezogen. Sie hängen AUSSCHLIESSLICH an
+ * `darf_bearbeiten` der Serverantwort (`darfBearbeiten` in
+ * `composables/r6Detail.js`), nicht an `isAdmin`.
+ *
+ * UI-R6e: `get_wiki_artikel_detail` liefert `darf_bearbeiten` selbst (R-12l) —
+ * das Recht kommt DIREKT aus der Detail-Antwort; der Hilfsweg über den
+ * Listeneintrag (`detailMitListe`) ist entfallen. Die Liste wird nur noch
+ * PARALLEL zum Detail für „Ähnliche Artikel“ geholt (wie vor UI-R6d auf main).
+ * Das alte „⋯“-Menü (`DkAktionen`, an `isAdmin`) ist gestrichen: ein Admin
+ * ohne Recht sah die Einträge, ein Admin mit Recht sah sie doppelt.
  *
  * Farben/Abstände ausschließlich aus tokens.css; Symbole stehen auf der
  * Textlinie (Flex `align-items: center`), keine eigenen Farbwerte.
@@ -90,7 +118,6 @@ import DOMPurify from 'dompurify'
 import { apiCall } from '../composables/useApi.js'
 import { showToast } from '../composables/useToast.js'
 import { serverDatum, GEMEINDE_ZONE } from '../../shared/zeit.mjs'
-import { useSession } from '../composables/useSession.js'
 import { papierkorbMeldung, wiederherstellen } from '../composables/papierkorb.mjs'
 import { useRueckgaengigAktion } from '../composables/useRueckgaengigAktion.js'
 import { aktionsfehler, fehlertext, zustandFuer } from '../../shared/fehlertexte.js'
@@ -100,11 +127,14 @@ import { getRouteParam, navigate } from '../router.js'
 // Verlaufs-Eintrag durch die gemerkte Listen-Adresse MIT Filtern — kein
 // `history.back()` (griff nie) und kein Push (Zurück-Falle).
 import { rueckwegErsetzen, rueckwegZiel } from '../composables/zurueckWege.mjs'
+// UI-R6d/R6e: Das Recht kommt aus `darf_bearbeiten` der DETAIL-Antwort (Server,
+// R-12l) — EINE Regel für Beiträge und Wiki (`r6Detail.js`).
+import { darfBearbeiten } from '../composables/r6Detail.js'
+import GastFreigabe from '../components/r6/GastFreigabe.vue'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkButton from '../components/ui/DkButton.vue'
 import DkBadge from '../components/ui/DkBadge.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
-import DkAktionen from '../components/ui/DkAktionen.vue'
 import DkSymbol from '../components/ui/DkSymbol.vue'
 
 function sanitize(html) { return DOMPurify.sanitize(html || '') }
@@ -118,8 +148,17 @@ const KATEGORIEN = {
 }
 function categoryName(id) { return KATEGORIEN[id] || id || '' }
 
-const { isAdmin } = useSession()
 const { mitRueckgaengig } = useRueckgaengigAktion()
+
+/** Darf der Server diesen Artikel ändern? (`darf_bearbeiten`, sonst nein.) */
+const darfAendern = computed(() => darfBearbeiten(artikel.value))
+
+/* Gast-Link-Dialog (nur für Artikel mit `darf_bearbeiten`). */
+const gastOffen = ref(false)
+function gastFreigeben() {
+  if (!darfAendern.value) return
+  gastOffen.value = true
+}
 
 /**
  * Die Kennung kommt aus der Adresse. `getRouteParam` liefert sie NUR, wenn die
@@ -216,13 +255,15 @@ async function ladenDaten() {
   laden.value = true
   fehler.value = ''
   try {
-    const res = await apiCall('diakronos.diakonos.api.wiki.get_wiki_artikel_detail', { artikel_id: id })
+    const res = await apiCall('wiki.get_wiki_artikel_detail', { artikel_id: id })
     if (!res) {
       artikel.value = null
       fehlerZustand.value = 'weg'
       fehler.value = fehlertext(null, { zustand: 'weg' })
       return
     }
+    // UI-R6e: `darf_bearbeiten` kommt aus dem DETAIL selbst (R-12l) — die
+    // Leseseite braucht dafür keine Liste mehr. Der Server entscheidet.
     artikel.value = res
   } catch (err) {
     // UX2g (Review-Punkt 4): „nicht gefunden“ (DoesNotExistError/404) und
@@ -243,14 +284,17 @@ async function ladenDaten() {
 
 async function listeLaden() {
   try {
-    const res = await apiCall('diakronos.diakonos.api.wiki.get_wiki_artikel_liste', {})
+    const res = await apiCall('wiki.get_wiki_artikel_liste', {})
     alleArtikel.value = Array.isArray(res) ? res : []
   } catch {
     alleArtikel.value = []
   }
 }
 
-/* ── Objekt-Aktionen (N6) — dieselben Einträge wie in der Liste ─────────── */
+/* ── Änderungs-Knöpfe (UI-R6d/R6e) — EINE Stelle, EIN Recht ───────────────
+   `darfAendern` (`darf_bearbeiten`) steht direkt am Artikel; `bearbeiten` und
+   `loeschen` werden NUR von den Knöpfen oben gerufen. Das frühere „⋯“-Menü
+   (`DkAktionen`, an `isAdmin`) ist gestrichen. */
 function bearbeiten() {
   navigate(`#/wiki?bearbeiten=${encodeURIComponent(artikel.value.id)}`)
 }
@@ -261,7 +305,7 @@ async function loeschen() {
   // VOR dem Sprung lesen, denn der Merker gehört der Liste.
   const rueckweg = zurueckZiel.value
   try {
-    const res = await apiCall('diakronos.diakonos.api.wiki.delete_wiki_artikel', { artikel_id: ziel.id })
+    const res = await apiCall('wiki.delete_wiki_artikel', { artikel_id: ziel.id })
     if (!res?.success) return
     navigate(rueckweg)
     await mitRueckgaengig({
@@ -273,13 +317,6 @@ async function loeschen() {
     showToast(aktionsfehler('löschen', e), 'error')
   }
 }
-const aktionen = computed(() => {
-  if (!isAdmin.value || !artikel.value) return []
-  return [
-    { key: 'bearbeiten', label: 'Bearbeiten', icon: 'bearbeiten', aktion: bearbeiten },
-    { key: 'loeschen', label: 'Löschen', icon: 'loeschen', gefahr: true, aktion: loeschen },
-  ]
-})
 
 /**
  * Fokus auf die Überschrift der Seite (Review-Punkt 7): nach dem Aufbau einer
@@ -305,6 +342,10 @@ function formatDate(d) {
 }
 
 onMounted(async () => {
+  // UI-R6e: Die Liste dient NUR noch „Ähnliche Artikel“ und läuft deshalb
+  // parallel zum Detail (wie vor UI-R6d auf main) — sie entscheidet kein
+  // Recht. Gewartet wird nur auf das Detail: der Seitenaufbau hängt nicht an
+  // der Liste.
   await ladenDaten()
   listeLaden()
 })
@@ -369,8 +410,9 @@ watch(artikelId, () => { if (artikelId.value) ladenDaten() })
    gleiche optische Mitte wie der Text daneben. */
 .wk-lese-aehnlich-symbol { display: inline-flex; align-items: center; color: var(--muted); }
 
-/* Kopf-Aktionen: „‹ zurück“ — Pfeil auf der Textlinie (gleiche optische Mitte). */
-.wk-lese-aktionen { display: flex; align-items: center; justify-content: flex-end; margin-bottom: var(--sp-3); }
+/* UI-R6d: die drei Änderungs-Knöpfe (Freigeben/Bearbeiten/Löschen) — seit
+   UI-R6e die EINZIGE Stelle für Bearbeiten/Löschen (kein „⋯“-Menü mehr). */
+.wk-lese-knoepfe { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-4); }
 .wk-pfeil { display: inline-flex; align-items: center; line-height: 1; font-size: var(--fs-h4); margin-right: var(--sp-1); }
 
 /* Fehlerzustand */
@@ -379,16 +421,17 @@ watch(artikelId, () => { if (artikelId.value) ladenDaten() })
 .wk-lese-fehlerknoepfe { display: flex; gap: var(--sp-3); flex-wrap: wrap; }
 
 @media (max-width: 700px) {
-  .wk-lese-aktionen { justify-content: flex-start; }
+  .wk-lese-knoepfe { justify-content: flex-start; }
   .wk-lese-aehnlich-link { min-height: var(--control-h); }
 }
 
 /* Druck: nur der Artikel, ohne Gerüst — volle Breite, ohne Schatten. */
 @media print {
   /* MT-7c: „‹ zurück“ sitzt im `#actions`-Slot des Seitenkopfs und wurde
-     mitgedruckt (ausgeblendet war nur die Objekt-Aktionen-Leiste). */
+     mitgedruckt (ausgeblendet war nur die Aktions-Leiste der Seite). */
   .wk-zurueck { display: none; }
-  .wk-lese-aktionen { display: none; }
+  /* UI-R6d: Änderungs-Knöpfe sind Arbeit am Artikel, nicht Inhalt (MT-7c). */
+  .wk-lese-knoepfe { display: none; }
   .wk-lese { box-shadow: none; padding: 0; background: transparent; }
   .wk-lese-inhalt { max-width: none; }
 }

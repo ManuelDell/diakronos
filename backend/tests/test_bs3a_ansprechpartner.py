@@ -159,6 +159,11 @@ def welt(patched_db):
             parentfield="verantwortliche", user=FREMD_MAIL, idx=1,
         )
     )
+    # R-11d: die Leitung der Gruppe steht im EINEN Rechtesystem (wie nach der
+    # Uebernahme r1 aus der Alt-Tabelle oben).
+    from diakronos_app.models.rechte import RechteGruppenrolle
+
+    sess.add(RechteGruppenrolle(gruppe="chor", benutzer=FREMD_MAIL, rolle="HV"))
     sess.add(
         WebsiteKontaktPostfach(
             slug="musik", bezeichnung="Musik", email="musik@example.org", aktiv=True
@@ -655,7 +660,10 @@ def test_migration_ist_ein_kopf_und_laesst_sich_auf_und_ab():
     cfg = Config(str(backend / "alembic.ini"))
     cfg.set_main_option("script_location", str(backend / "alembic"))
     skript = ScriptDirectory.from_config(cfg)
-    assert "bs3a_website_einwilligung" in skript.get_heads()
+    # R-1/R-5 bauen auf bs3a auf: genau EIN Kopf, bs3a liegt in seiner Kette.
+    koepfe = skript.get_heads()
+    assert len(koepfe) == 1
+    assert "bs3a_website_einwilligung" in {r.revision for r in skript.iterate_revisions(koepfe[0], "base")}
     rev = skript.get_revision("bs3a_website_einwilligung")
     assert rev is not None
     assert rev.down_revision == "on6_root_benutzer"

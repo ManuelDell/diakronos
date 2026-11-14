@@ -108,6 +108,7 @@ Wert kann nie einen 404 erzeugen, weil er das Dokument nie verlaesst.
 | `can_moderate` | boolean | `menue.js` (`kalenderReiter`) | Darf Termine prüfen (Moderator mindestens eines Kalenders). Steuert NUR die Sichtbarkeit des Kalender-Reiters „Zu prüfen“ (UX3d); jeder Vorgang wird serverseitig erneut geprüft (`get_session_info` → `can_moderate`, dieselbe Quelle `get_accessible_calendars[].is_moderator`). Fehlt der Schlüssel, gilt `false` (kein Reiter). |
 | `mitglied` | object\|null | `useSession.js:13`, `router.js:145,149` | `mitglied.status === 'Gast'` schränkt Routen ein |
 | `modules` | array | `useSession.js:14` | Freigeschaltete Sidebar-Module |
+| `module_sichtbar` | array (optional) | `menue.js` (`bootModule`, `sichtbareEintraege`) | **R-3 (das EINE Rechtesystem):** Module (`kalender`, `beitraege`, `wiki`, `aufgaben`, `lieder`, `dienstplaene`), in denen die Sitzung etwas lesen darf — vom Rechte-Kern (`rechte.sichtbare_module`). Menüeinträge mit Feld `modul` erscheinen nur, wenn ihr Modul darin steht. Fehlt der Schlüssel, filtert die SPA nicht (alter Stand). Reine Anzeige; jeder Endpunkt prüft serverseitig. |
 | `church_name` | string (optional) | `AppSidebar.vue:125`, `ModerationSidebar.vue:51` | Gemeindename; Fallback `'Meine Gemeinde'` |
 | `logo_url` | string\|null (optional) | `AppSidebar.vue:126`, `ModerationSidebar.vue:52` | Logo; Fallback `null` |
 

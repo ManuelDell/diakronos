@@ -126,11 +126,34 @@
               v-for="n in notifications"
               :key="n.name"
               class="dk-notify-eintrag"
-              :class="{ 'is-neu': !n.read }"
+              :class="{ 'is-neu': !n.read, 'is-datenanfrage': istDatenanfrage(n) }"
             >
-              <div class="dk-notify-betreff">{{ n.subject || 'Benachrichtigung' }}</div>
-              <div class="dk-notify-text">{{ kurz(n.email_content) }}</div>
-              <div class="dk-notify-zeit">{{ zeitText(n.creation) }}<template v-if="vorText(n.creation)"> · {{ vorText(n.creation) }}</template></div>
+              <!-- R-9 (Manuel 11.11.): Eine „Datenanfrage“ ist kein Lesetext,
+                   sondern ein Weg — der Klick führt ins EIGENE Profil zum
+                   Abschnitt „Sichtbarkeit“, wo die Freigabe-Schalter stehen.
+                   Welche Anfrage gemeint ist, geht als Kennung mit (der
+                   Profilseite sagt sie, wer gefragt hat). Alle anderen
+                   Meldungen bleiben Text wie bisher. -->
+              <DkButton
+                v-if="istDatenanfrage(n)"
+                variant="ghost"
+                size="md"
+                class="dk-notify-eintrag-knopf"
+                :aria-label="datenanfrageLabel(n)"
+                @click="zurSichtbarkeit(n)"
+              >
+                <span class="dk-notify-knopftext">
+                  <span class="dk-notify-betreff">{{ n.subject || 'Datenanfrage' }}</span>
+                  <span class="dk-notify-text">{{ kurz(n.email_content) }}</span>
+                  <span class="dk-notify-zeit">{{ zeitText(n.creation) }}<template v-if="vorText(n.creation)"> · {{ vorText(n.creation) }}</template></span>
+                  <span class="dk-notify-weg">Zur Sichtbarkeit im Profil ›</span>
+                </span>
+              </DkButton>
+              <template v-else>
+                <div class="dk-notify-betreff">{{ n.subject || 'Benachrichtigung' }}</div>
+                <div class="dk-notify-text">{{ kurz(n.email_content) }}</div>
+                <div class="dk-notify-zeit">{{ zeitText(n.creation) }}<template v-if="vorText(n.creation)"> · {{ vorText(n.creation) }}</template></div>
+              </template>
             </li>
           </ul>
         </div>
@@ -172,6 +195,7 @@ import DkEmpty from './ui/DkEmpty.vue'
 import DkSymbol from './ui/DkSymbol.vue'
 import DkBadge from './ui/DkBadge.vue'
 import { darfAlsGelesenMarkieren } from '../composables/glocke.mjs'
+import { istDatenanfrage, fragendePerson, profilAdresse } from '../composables/datenAnfrage.mjs'
 import { krumenZuSeite } from '../menue.js'
 import { MENUE_KNOPF_TEXT } from './handyMenue.mjs'
 
@@ -228,6 +252,32 @@ function schliesseBeiKlick(event) {
 
 function beiFlucht(event) {
   if (event.key === 'Escape') listeOffen.value = false
+}
+
+/** Vorlesehilfe-Text des Weges: wer gefragt hat, sonst allgemein. */
+function datenanfrageLabel(meldung) {
+  const wer = fragendePerson(meldung)
+  return wer
+    ? `Datenanfrage von ${wer} — zur Sichtbarkeit im Profil`
+    : 'Datenanfrage — zur Sichtbarkeit im Profil'
+}
+
+/**
+ * R-9: Der Klick auf eine „Datenanfrage“ führt ins Profil, Abschnitt
+ * „Sichtbarkeit“ — dort stehen die Freigabe-Schalter. Die Kennung der
+ * angefragten Meldung geht als `anfrage` mit, damit die Profilseite sagen
+ * kann, WER gefragt hat (der Betreff trägt den Namen). Das Panel schließt
+ * dabei: die Meldung ist gelesen, die Person ist unterwegs.
+ */
+function zurSichtbarkeit(meldung) {
+  const ziel = profilAdresse('sichtbarkeit')
+  const kennung = String(meldung?.name || '')
+  const adresse = kennung
+    ? `${ziel}&anfrage=${encodeURIComponent(kennung)}`
+    : ziel
+  listeOffen.value = false
+  if (unreadCount.value > 0) markAsRead([meldung].filter(Boolean))
+  navigate(adresse)
 }
 
 onMounted(() => {

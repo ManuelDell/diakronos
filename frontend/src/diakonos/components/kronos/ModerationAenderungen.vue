@@ -17,6 +17,11 @@
         <strong>{{ e.neu.element_name || e.alt.element_name }}</strong>
         <span class="dk-aenderung-antragsteller">von {{ e.antragsteller || '–' }}</span>
       </div>
+      <!-- UI-R4: WELCHE Stufe dran ist. Die Liste zeigt nur Änderungen, deren
+           Stufe der Aufrufer prüfen darf (der Server filtert) — der Satz sagt
+           trotzdem, WER als Nächstes zustimmt, falls nach dieser Stufe noch
+           eine offen ist. -->
+      <p v-if="warteSatz(e)" class="dk-aenderung-wartet">{{ warteSatz(e) }}</p>
       <table class="dk-aenderung-vergleich">
         <thead>
           <tr><th>Feld</th><th>Bisher</th><th>Neu</th></tr>
@@ -74,6 +79,13 @@ import DkBadge from '../ui/DkBadge.vue'
 import DkButton from '../ui/DkButton.vue'
 import { apiCall } from '../../composables/useApi.js'
 import { showToast } from '../../composables/useToast.js'
+// UI-R4: EINE Quelle für Stufennamen (Server-Titel) und die ehrliche
+// Freigabe-Meldung.
+import { freigabeMeldung } from './freigabeStufen.mjs'
+// Reativ: Titel zeichnen nach, sobald die Server-Antwort eintrifft.
+// UI-R4b (Punkt 7b): EIN gemeinsamer Lader je Seite (`stufenTitelEinmalLaden`)
+// statt einer Abfrage aus jedem Bauteil.
+import { stufenNameReaktiv, stufenTitelEinmalLaden } from './freigabeStufenReaktiv.mjs'
 
 const eintraege = ref([])
 const busy = ref(null)
@@ -103,7 +115,11 @@ function zeilen(e) {
 
 async function laden() {
   try {
-    const res = await apiCall('diakronos.kronos.api.event_crud.get_offene_aenderungen', {})
+    // Die Stufen-Titel kommen vom Server (`get_rollen_erklaerung`).
+    const [res] = await Promise.all([
+      apiCall('diakronos.kronos.api.event_crud.get_offene_aenderungen', {}),
+      stufenTitelEinmalLaden(apiCall),
+    ])
     eintraege.value = Array.isArray(res) ? res : []
   } catch (err) {
     console.error('Änderungen laden fehlgeschlagen:', err)
@@ -143,10 +159,28 @@ async function freigebenAusfuehren(e, bestaetigt = false) {
     showToast('Überschneidung gefunden — bitte erneut freigeben.', 'warning')
     return
   }
-  showToast('Änderung übernommen.', 'success')
+  // UI-R4: `wartet_weiter` heißt: die STUFE ist freigegeben, übernommen ist
+  // die Änderung noch NICHT. Das wird ehrlich gemeldet (und nachgeladen,
+  // damit die Karte die neue Stufe nennt) — kein „übernommen“.
+  const meldung = freigabeMeldung(res, { art: 'aenderung', stufe: e.stufe })
+  showToast(meldung.text, meldung.ton)
   e.belegung_konflikt = []
   e.belegung_konflikt_geprueft = false
   await laden()
+}
+
+/**
+ * UI-R4: „wartet auf Freigabe für: …“ für eine Änderung.
+ *
+ * Der Server liefert die NAECHSTE offene Stufe (`stufe`) und zeigt nur
+ * Vorschläge, deren Stufe der Aufrufer prüfen darf. Steht hier die Stufe
+ * `gruppe`, geht es nach der Freigabe an die Gemeinde-Moderation — das sagt
+ * der Freigabe-Toast, nicht diese Zeile.
+ */
+function warteSatz(e) {
+  const stufe = String(e?.stufe || '').trim()
+  if (!stufe) return ''
+  return `Nächste Stufe: ${stufenNameReaktiv(stufe)}`
 }
 
 async function trotzdemFreigeben(e) {
@@ -251,6 +285,13 @@ defineExpose({ laden })
 .dk-aenderung-antragsteller {
   color: var(--muted);
   font-size: var(--fs-sm);
+}
+/* UI-R4: welche Stufe als Nächstes zustimmt — ruhig, in der Statusfarbe. */
+.dk-aenderung-wartet {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-mittel);
+  color: var(--warn);
 }
 .dk-aenderung-vergleich {
   width: 100%;

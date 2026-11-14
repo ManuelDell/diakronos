@@ -826,7 +826,7 @@
     "diakronos.diakonos.api.beitraege.create_beitrag",
     "diakronos_app.api.beitraege.create_beitrag"
    ],
-   "rumpf_grund": "Aufruf _create()",
+   "rumpf_grund": "Aufruf _create(); Aufruf pruefe_inhalt_anlegen()",
    "rumpf_ueber": null
   },
   {
@@ -965,7 +965,7 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
-   "ausnahme_quelle": "deklaration",
+   "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
    "funktion": "diakronos_app.api.beitraege.wiederherstellen_beitrag",
@@ -974,10 +974,9 @@
    ],
    "methoden_pflicht": "POST",
    "modul": "diakronos_app.api.beitraege",
-   "nach_name": "lesend",
-   "nach_rumpf": "lesend",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
    "name": "wiederherstellen_beitrag",
-   "offen": false,
    "pfade": [
     "api.wiederherstellen_beitrag",
     "beitraege.wiederherstellen_beitrag",
@@ -985,7 +984,7 @@
     "diakronos_app.api.beitraege.wiederherstellen_beitrag",
     "wiederherstellen_beitrag"
    ],
-   "rumpf_grund": "",
+   "rumpf_grund": "Aufruf wiederherstellen()",
    "rumpf_ueber": null
   },
   {
@@ -1839,7 +1838,7 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
-   "ausnahme_quelle": "rumpf, deklaration",
+   "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
    "funktion": "diakronos_app.api.einrichtung.erinnern_spaeter",
@@ -1848,10 +1847,9 @@
    ],
    "methoden_pflicht": "POST",
    "modul": "diakronos_app.api.einrichtung",
-   "nach_name": "lesend",
+   "nach_name": "schreibend",
    "nach_rumpf": "schreibend",
    "name": "erinnern_spaeter",
-   "offen": true,
    "pfade": [
     "api.erinnern_spaeter",
     "diakronos_app.api.einrichtung.erinnern_spaeter",
@@ -1866,7 +1864,7 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
-   "ausnahme_quelle": "name, deklaration",
+   "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
    "funktion": "diakronos_app.api.einrichtung.kalender_vorschlag_anlegen",
@@ -1876,16 +1874,15 @@
    "methoden_pflicht": "POST",
    "modul": "diakronos_app.api.einrichtung",
    "nach_name": "schreibend",
-   "nach_rumpf": "lesend",
+   "nach_rumpf": "schreibend",
    "name": "kalender_vorschlag_anlegen",
-   "offen": true,
    "pfade": [
     "api.kalender_vorschlag_anlegen",
     "diakronos_app.api.einrichtung.kalender_vorschlag_anlegen",
     "einrichtung.kalender_vorschlag_anlegen",
     "kalender_vorschlag_anlegen"
    ],
-   "rumpf_grund": "",
+   "rumpf_grund": "Aufruf create_kalender()",
    "rumpf_ueber": null
   },
   {
@@ -2315,6 +2312,33 @@
    "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.aufgabe_zuweisen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "aufgabe_zuweisen",
+   "pfade": [
+    "api.aufgabe_zuweisen",
+    "aufgabe_zuweisen",
+    "diakronos.diakonos.api.gruppen.aufgabe_zuweisen",
+    "diakronos_app.api.gruppen.aufgabe_zuweisen",
+    "gruppen.aufgabe_zuweisen"
+   ],
+   "rumpf_grund": "Aufruf sess.commit()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
    "funktion": "diakronos_app.api.gruppen.create_ankuendigung",
    "methoden": [
     "POST"
@@ -2358,7 +2382,7 @@
     "diakronos_app.api.gruppen.create_aufgabe",
     "gruppen.create_aufgabe"
    ],
-   "rumpf_grund": "Aufruf _create()",
+   "rumpf_grund": "Aufruf _create(); Aufruf _create()",
    "rumpf_ueber": null
   },
   {
@@ -2440,6 +2464,33 @@
     "gruppen.create_untergruppe"
    ],
    "rumpf_grund": "Aufruf _create()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.gruppen.delete_aufgabe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "delete_aufgabe",
+   "pfade": [
+    "api.delete_aufgabe",
+    "delete_aufgabe",
+    "diakronos.diakonos.api.gruppen.delete_aufgabe",
+    "diakronos_app.api.gruppen.delete_aufgabe",
+    "gruppen.delete_aufgabe"
+   ],
+   "rumpf_grund": "Aufruf sess.commit(); Aufruf sess.delete()",
    "rumpf_ueber": null
   },
   {
@@ -2677,6 +2728,31 @@
    "ausnahme_quelle": null,
    "deklariert": null,
    "einstufung": "lesend",
+   "funktion": "diakronos_app.api.gruppen.get_meine_aufgaben",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.gruppen",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "get_meine_aufgaben",
+   "pfade": [
+    "api.get_meine_aufgaben",
+    "diakronos.diakonos.api.gruppen.get_meine_aufgaben",
+    "diakronos_app.api.gruppen.get_meine_aufgaben",
+    "get_meine_aufgaben",
+    "gruppen.get_meine_aufgaben"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
    "funktion": "diakronos_app.api.gruppen.get_untergruppe_detail",
    "methoden": null,
    "methoden_pflicht": null,
@@ -2887,7 +2963,7 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
-   "ausnahme_quelle": "deklaration",
+   "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
    "funktion": "diakronos_app.api.gruppen.wiederherstellen_gruppe",
@@ -2896,10 +2972,9 @@
    ],
    "methoden_pflicht": "POST",
    "modul": "diakronos_app.api.gruppen",
-   "nach_name": "lesend",
-   "nach_rumpf": "lesend",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
    "name": "wiederherstellen_gruppe",
-   "offen": false,
    "pfade": [
     "api.wiederherstellen_gruppe",
     "diakronos.diakonos.api.gruppen.wiederherstellen_gruppe",
@@ -2907,7 +2982,7 @@
     "gruppen.wiederherstellen_gruppe",
     "wiederherstellen_gruppe"
    ],
-   "rumpf_grund": "",
+   "rumpf_grund": "Aufruf wiederherstellen()",
    "rumpf_ueber": null
   },
   {
@@ -3129,7 +3204,7 @@
     "kronos.aenderung_freigeben",
     "kronos.event_crud.aenderung_freigeben"
    ],
-   "rumpf_grund": "Aufruf _delete_doc()",
+   "rumpf_grund": "Aufruf _delete_doc(); Aufruf _update_doc()",
    "rumpf_ueber": null
   },
   {
@@ -3309,7 +3384,7 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
-   "ausnahme_quelle": "deklaration",
+   "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
    "funktion": "diakronos_app.api.kronos.event_crud.wiederherstellen_event",
@@ -3318,10 +3393,9 @@
    ],
    "methoden_pflicht": "POST",
    "modul": "diakronos_app.api.kronos.event_crud",
-   "nach_name": "lesend",
-   "nach_rumpf": "lesend",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
    "name": "wiederherstellen_event",
-   "offen": false,
    "pfade": [
     "api.wiederherstellen_event",
     "diakronos.kronos.api.event_crud.wiederherstellen_event",
@@ -3331,7 +3405,7 @@
     "kronos.wiederherstellen_event",
     "wiederherstellen_event"
    ],
-   "rumpf_grund": "",
+   "rumpf_grund": "Aufruf wiederherstellen()",
    "rumpf_ueber": null
   },
   {
@@ -4333,6 +4407,33 @@
     "mitglieder.create_mitglied"
    ],
    "rumpf_grund": "Aufruf konto_anlegen(); Aufruf _create()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.mitglieder.daten_anfragen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.mitglieder",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "daten_anfragen",
+   "pfade": [
+    "api.daten_anfragen",
+    "daten_anfragen",
+    "diakronos.diakonos.api.mitglieder.daten_anfragen",
+    "diakronos_app.api.mitglieder.daten_anfragen",
+    "mitglieder.daten_anfragen"
+   ],
+   "rumpf_grund": "Aufruf schreibe_meldung() (Praefix)",
    "rumpf_ueber": null
   },
   {
@@ -6967,7 +7068,7 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
-   "ausnahme_quelle": "deklaration",
+   "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
    "funktion": "diakronos_app.api.psalmos.musik.wiederherstellen_lied",
@@ -6976,10 +7077,9 @@
    ],
    "methoden_pflicht": "POST",
    "modul": "diakronos_app.api.psalmos.musik",
-   "nach_name": "lesend",
-   "nach_rumpf": "lesend",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
    "name": "wiederherstellen_lied",
-   "offen": false,
    "pfade": [
     "api.wiederherstellen_lied",
     "diakronos.psalmos.api.musik.wiederherstellen_lied",
@@ -6989,8 +7089,589 @@
     "psalmos.wiederherstellen_lied",
     "wiederherstellen_lied"
    ],
+   "rumpf_grund": "Aufruf wiederherstellen()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.rechte.beantrage_sichtbarkeit",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "beantrage_sichtbarkeit",
+   "pfade": [
+    "api.beantrage_sichtbarkeit",
+    "beantrage_sichtbarkeit",
+    "diakronos_app.api.rechte.beantrage_sichtbarkeit",
+    "rechte.beantrage_sichtbarkeit"
+   ],
+   "rumpf_grund": "ueber verwaltung.beantrage_sichtbarkeit(): Aufruf _schreibsitzung()",
+   "rumpf_ueber": "diakronos_app.rechte.verwaltung.beantrage_sichtbarkeit"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.rechte.entferne_gl",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "entferne_gl",
+   "pfade": [
+    "api.entferne_gl",
+    "diakronos_app.api.rechte.entferne_gl",
+    "entferne_gl",
+    "rechte.entferne_gl"
+   ],
+   "rumpf_grund": "ueber verwaltung.entferne_gl(): Aufruf sess.delete()",
+   "rumpf_ueber": "diakronos_app.rechte.verwaltung.entferne_gl"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.rechte.entferne_mv",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "entferne_mv",
+   "pfade": [
+    "api.entferne_mv",
+    "diakronos_app.api.rechte.entferne_mv",
+    "entferne_mv",
+    "rechte.entferne_mv"
+   ],
+   "rumpf_grund": "ueber verwaltung.entferne_mv(): Aufruf sess.delete()",
+   "rumpf_ueber": "diakronos_app.rechte.verwaltung.entferne_mv"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.rechte.entscheide_sichtbarkeit",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "entscheide_sichtbarkeit",
+   "pfade": [
+    "api.entscheide_sichtbarkeit",
+    "diakronos_app.api.rechte.entscheide_sichtbarkeit",
+    "entscheide_sichtbarkeit",
+    "rechte.entscheide_sichtbarkeit"
+   ],
+   "rumpf_grund": "ueber verwaltung.entscheide_sichtbarkeit(): Aufruf _schreibsitzung()",
+   "rumpf_ueber": "diakronos_app.rechte.verwaltung.entscheide_sichtbarkeit"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.rechte.ernenne_gl",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "ernenne_gl",
+   "pfade": [
+    "api.ernenne_gl",
+    "diakronos_app.api.rechte.ernenne_gl",
+    "ernenne_gl",
+    "rechte.ernenne_gl"
+   ],
+   "rumpf_grund": "ueber verwaltung.ernenne_gl(): Aufruf sess.add()",
+   "rumpf_ueber": "diakronos_app.rechte.verwaltung.ernenne_gl"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.rechte.ernenne_mv",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "ernenne_mv",
+   "pfade": [
+    "api.ernenne_mv",
+    "diakronos_app.api.rechte.ernenne_mv",
+    "ernenne_mv",
+    "rechte.ernenne_mv"
+   ],
+   "rumpf_grund": "ueber verwaltung.ernenne_mv(): Aufruf sess.add()",
+   "rumpf_ueber": "diakronos_app.rechte.verwaltung.ernenne_mv"
+  },
+  {
+   "allow_guest": true,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.rechte.gast_inhalt",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "gast_inhalt",
+   "offen": false,
+   "pfade": [
+    "api.gast_inhalt",
+    "diakronos_app.api.rechte.gast_inhalt",
+    "gast_inhalt",
+    "rechte.gast_inhalt"
+   ],
    "rumpf_grund": "",
    "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.rechte.gastlink_erstellen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "gastlink_erstellen",
+   "pfade": [
+    "api.gastlink_erstellen",
+    "diakronos_app.api.rechte.gastlink_erstellen",
+    "gastlink_erstellen",
+    "rechte.gastlink_erstellen"
+   ],
+   "rumpf_grund": "ueber gastlinks.erstellen(): Aufruf sess.flush()",
+   "rumpf_ueber": "diakronos_app.rechte.gastlinks.erstellen"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.rechte.gastlink_widerrufen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "gastlink_widerrufen",
+   "pfade": [
+    "api.gastlink_widerrufen",
+    "diakronos_app.api.rechte.gastlink_widerrufen",
+    "gastlink_widerrufen",
+    "rechte.gastlink_widerrufen"
+   ],
+   "rumpf_grund": "ueber gastlinks.widerrufen(): Aufruf _schreibsitzung()",
+   "rumpf_ueber": "diakronos_app.rechte.gastlinks.widerrufen"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.rechte.get_anlegeorte",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "get_anlegeorte",
+   "pfade": [
+    "api.get_anlegeorte",
+    "diakronos_app.api.rechte.get_anlegeorte",
+    "get_anlegeorte",
+    "rechte.get_anlegeorte"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.rechte.get_gastlinks",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "get_gastlinks",
+   "pfade": [
+    "api.get_gastlinks",
+    "diakronos_app.api.rechte.get_gastlinks",
+    "get_gastlinks",
+    "rechte.get_gastlinks"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.rechte.get_gruppenrollen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "get_gruppenrollen",
+   "pfade": [
+    "api.get_gruppenrollen",
+    "diakronos_app.api.rechte.get_gruppenrollen",
+    "get_gruppenrollen",
+    "rechte.get_gruppenrollen"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.rechte.get_meine_rechte",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "get_meine_rechte",
+   "pfade": [
+    "api.get_meine_rechte",
+    "diakronos_app.api.rechte.get_meine_rechte",
+    "get_meine_rechte",
+    "rechte.get_meine_rechte"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.rechte.get_objekt_rechte",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "get_objekt_rechte",
+   "pfade": [
+    "api.get_objekt_rechte",
+    "diakronos_app.api.rechte.get_objekt_rechte",
+    "get_objekt_rechte",
+    "rechte.get_objekt_rechte"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.rechte.get_offene_sichtbarkeits_antraege",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "get_offene_sichtbarkeits_antraege",
+   "pfade": [
+    "api.get_offene_sichtbarkeits_antraege",
+    "diakronos_app.api.rechte.get_offene_sichtbarkeits_antraege",
+    "get_offene_sichtbarkeits_antraege",
+    "rechte.get_offene_sichtbarkeits_antraege"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.rechte.get_personen_auswahl",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "get_personen_auswahl",
+   "pfade": [
+    "api.get_personen_auswahl",
+    "diakronos_app.api.rechte.get_personen_auswahl",
+    "get_personen_auswahl",
+    "rechte.get_personen_auswahl"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.rechte.get_rollen_erklaerung",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "get_rollen_erklaerung",
+   "pfade": [
+    "api.get_rollen_erklaerung",
+    "diakronos_app.api.rechte.get_rollen_erklaerung",
+    "get_rollen_erklaerung",
+    "rechte.get_rollen_erklaerung"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.rechte.get_sichtbare_module",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "get_sichtbare_module",
+   "pfade": [
+    "api.get_sichtbare_module",
+    "diakronos_app.api.rechte.get_sichtbare_module",
+    "get_sichtbare_module",
+    "rechte.get_sichtbare_module"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.rechte.nimm_sichtbarkeit_zurueck",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "nimm_sichtbarkeit_zurueck",
+   "pfade": [
+    "api.nimm_sichtbarkeit_zurueck",
+    "diakronos_app.api.rechte.nimm_sichtbarkeit_zurueck",
+    "nimm_sichtbarkeit_zurueck",
+    "rechte.nimm_sichtbarkeit_zurueck"
+   ],
+   "rumpf_grund": "ueber verwaltung.nimm_sichtbarkeit_zurueck(): Aufruf _schreibsitzung()",
+   "rumpf_ueber": "diakronos_app.rechte.verwaltung.nimm_sichtbarkeit_zurueck"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.rechte.setze_freigabe",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "setze_freigabe",
+   "pfade": [
+    "api.setze_freigabe",
+    "diakronos_app.api.rechte.setze_freigabe",
+    "rechte.setze_freigabe",
+    "setze_freigabe"
+   ],
+   "rumpf_grund": "ueber verwaltung.setze_freigabe(): Aufruf sess.add()",
+   "rumpf_ueber": "diakronos_app.rechte.verwaltung.setze_freigabe"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.rechte.setze_module",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "setze_module",
+   "pfade": [
+    "api.setze_module",
+    "diakronos_app.api.rechte.setze_module",
+    "rechte.setze_module",
+    "setze_module"
+   ],
+   "rumpf_grund": "ueber verwaltung.setze_module(): Aufruf sess.add()",
+   "rumpf_ueber": "diakronos_app.rechte.verwaltung.setze_module"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.rechte.setze_standard_gruppe_lesen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "setze_standard_gruppe_lesen",
+   "pfade": [
+    "api.setze_standard_gruppe_lesen",
+    "diakronos_app.api.rechte.setze_standard_gruppe_lesen",
+    "rechte.setze_standard_gruppe_lesen",
+    "setze_standard_gruppe_lesen"
+   ],
+   "rumpf_grund": "ueber verwaltung.setze_standard_gruppe_lesen(): Aufruf _schreibsitzung()",
+   "rumpf_ueber": "diakronos_app.rechte.verwaltung.setze_standard_gruppe_lesen"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.rechte.uebertrage_hv",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.rechte",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "uebertrage_hv",
+   "pfade": [
+    "api.uebertrage_hv",
+    "diakronos_app.api.rechte.uebertrage_hv",
+    "rechte.uebertrage_hv",
+    "uebertrage_hv"
+   ],
+   "rumpf_grund": "ueber verwaltung.uebertrage_hv(): Aufruf sess.add()",
+   "rumpf_ueber": "diakronos_app.rechte.verwaltung.uebertrage_hv"
   },
   {
    "allow_guest": true,
@@ -7173,6 +7854,31 @@
     "registrierungslink_api.delete_link"
    ],
    "rumpf_grund": "Aufruf _delete_doc(); Aufruf _delete_doc()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.registrierungslink_api.get_link_vorgaben",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.registrierungslink_api",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "get_link_vorgaben",
+   "pfade": [
+    "api.get_link_vorgaben",
+    "diakronos.diakonos.api.registrierungslink_api.get_link_vorgaben",
+    "diakronos_app.api.registrierungslink_api.get_link_vorgaben",
+    "get_link_vorgaben",
+    "registrierungslink_api.get_link_vorgaben"
+   ],
+   "rumpf_grund": "",
    "rumpf_ueber": null
   },
   {
@@ -7627,19 +8333,18 @@
    "ausnahme": "Uebertragung der Root-Kennzeichnung; die POST-Grenze steht in der Deklaration, die Funktion schreibt nur Eintrag + Kennrolle (kein generischer Weg, nur root selbst, mit Passwort + Bestaetigung)",
    "ausnahme_art": "nur_vorschau",
    "ausnahme_greift": true,
-   "ausnahme_quelle": "rumpf, deklaration",
+   "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
    "funktion": "diakronos_app.api.root.root_uebertragen",
    "methoden": [
     "POST"
    ],
-   "methoden_pflicht": "Ausnahme greift (rumpf, deklaration)",
+   "methoden_pflicht": "Ausnahme greift (rumpf, name, deklaration)",
    "modul": "diakronos_app.api.root",
-   "nach_name": "lesend",
+   "nach_name": "schreibend",
    "nach_rumpf": "schreibend",
    "name": "root_uebertragen",
-   "offen": false,
    "pfade": [
     "api.root_uebertragen",
     "diakronos_app.api.root.root_uebertragen",
@@ -8051,8 +8756,8 @@
     "set_verantwortliche",
     "verantwortliche.set_verantwortliche"
    ],
-   "rumpf_grund": "ueber _ersetze_zeilen(): Aufruf sess.commit()",
-   "rumpf_ueber": "_ersetze_zeilen"
+   "rumpf_grund": "Aufruf _rollen_setzen()",
+   "rumpf_ueber": null
   },
   {
    "allow_guest": false,
@@ -8476,7 +9181,7 @@
     "diakronos_app.api.wiki.create_wiki_artikel",
     "wiki.create_wiki_artikel"
    ],
-   "rumpf_grund": "Aufruf _create()",
+   "rumpf_grund": "Aufruf _create(); Aufruf pruefe_inhalt_anlegen()",
    "rumpf_ueber": null
   },
   {
@@ -8638,7 +9343,7 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
-   "ausnahme_quelle": "deklaration",
+   "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
    "funktion": "diakronos_app.api.wiki.wiederherstellen_wiki_artikel",
@@ -8647,10 +9352,9 @@
    ],
    "methoden_pflicht": "POST",
    "modul": "diakronos_app.api.wiki",
-   "nach_name": "lesend",
-   "nach_rumpf": "lesend",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
    "name": "wiederherstellen_wiki_artikel",
-   "offen": false,
    "pfade": [
     "api.wiederherstellen_wiki_artikel",
     "diakronos.diakonos.api.wiki.wiederherstellen_wiki_artikel",
@@ -8658,7 +9362,7 @@
     "wiederherstellen_wiki_artikel",
     "wiki.wiederherstellen_wiki_artikel"
    ],
-   "rumpf_grund": "",
+   "rumpf_grund": "Aufruf wiederherstellen()",
    "rumpf_ueber": null
   },
   {
@@ -9680,12 +10384,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 366,
+ "funktionen": 394,
  "nur_test": [],
- "registrierte_pfade": 1879,
+ "registrierte_pfade": 1996,
  "rumpf_zaehlung": {
-  "lesend": 181,
-  "schreibend": 185
+  "lesend": 187,
+  "schreibend": 207
  },
  "widersprueche": [
   {
@@ -9711,88 +10415,6 @@
     "einstellungen_api.anmeldung_get_einstellungen"
    ],
    "rumpf_grund": "Aufruf _hole_oder_erzeuge()",
-   "rumpf_ueber": null
-  },
-  {
-   "allow_guest": false,
-   "ausnahme": null,
-   "ausnahme_art": null,
-   "ausnahme_greift": false,
-   "ausnahme_quelle": "deklaration",
-   "deklariert": "schreibend",
-   "einstufung": "schreibend",
-   "funktion": "diakronos_app.api.beitraege.wiederherstellen_beitrag",
-   "methoden": [
-    "POST"
-   ],
-   "methoden_pflicht": "POST",
-   "modul": "diakronos_app.api.beitraege",
-   "nach_name": "lesend",
-   "nach_rumpf": "lesend",
-   "name": "wiederherstellen_beitrag",
-   "offen": false,
-   "pfade": [
-    "api.wiederherstellen_beitrag",
-    "beitraege.wiederherstellen_beitrag",
-    "diakronos.diakonos.api.beitraege.wiederherstellen_beitrag",
-    "diakronos_app.api.beitraege.wiederherstellen_beitrag",
-    "wiederherstellen_beitrag"
-   ],
-   "rumpf_grund": "",
-   "rumpf_ueber": null
-  },
-  {
-   "allow_guest": false,
-   "ausnahme": null,
-   "ausnahme_art": null,
-   "ausnahme_greift": false,
-   "ausnahme_quelle": "rumpf, deklaration",
-   "deklariert": "schreibend",
-   "einstufung": "schreibend",
-   "funktion": "diakronos_app.api.einrichtung.erinnern_spaeter",
-   "methoden": [
-    "POST"
-   ],
-   "methoden_pflicht": "POST",
-   "modul": "diakronos_app.api.einrichtung",
-   "nach_name": "lesend",
-   "nach_rumpf": "schreibend",
-   "name": "erinnern_spaeter",
-   "offen": true,
-   "pfade": [
-    "api.erinnern_spaeter",
-    "diakronos_app.api.einrichtung.erinnern_spaeter",
-    "einrichtung.erinnern_spaeter",
-    "erinnern_spaeter"
-   ],
-   "rumpf_grund": "Aufruf sess.commit()",
-   "rumpf_ueber": null
-  },
-  {
-   "allow_guest": false,
-   "ausnahme": null,
-   "ausnahme_art": null,
-   "ausnahme_greift": false,
-   "ausnahme_quelle": "name, deklaration",
-   "deklariert": "schreibend",
-   "einstufung": "schreibend",
-   "funktion": "diakronos_app.api.einrichtung.kalender_vorschlag_anlegen",
-   "methoden": [
-    "POST"
-   ],
-   "methoden_pflicht": "POST",
-   "modul": "diakronos_app.api.einrichtung",
-   "nach_name": "schreibend",
-   "nach_rumpf": "lesend",
-   "name": "kalender_vorschlag_anlegen",
-   "offen": true,
-   "pfade": [
-    "api.kalender_vorschlag_anlegen",
-    "diakronos_app.api.einrichtung.kalender_vorschlag_anlegen",
-    "einrichtung.kalender_vorschlag_anlegen",
-    "kalender_vorschlag_anlegen"
-   ],
-   "rumpf_grund": "",
    "rumpf_ueber": null
   },
   {
@@ -9896,64 +10518,6 @@
     "diakronos_app.api.gruppen.get_user_create_permissions",
     "get_user_create_permissions",
     "gruppen.get_user_create_permissions"
-   ],
-   "rumpf_grund": "",
-   "rumpf_ueber": null
-  },
-  {
-   "allow_guest": false,
-   "ausnahme": null,
-   "ausnahme_art": null,
-   "ausnahme_greift": false,
-   "ausnahme_quelle": "deklaration",
-   "deklariert": "schreibend",
-   "einstufung": "schreibend",
-   "funktion": "diakronos_app.api.gruppen.wiederherstellen_gruppe",
-   "methoden": [
-    "POST"
-   ],
-   "methoden_pflicht": "POST",
-   "modul": "diakronos_app.api.gruppen",
-   "nach_name": "lesend",
-   "nach_rumpf": "lesend",
-   "name": "wiederherstellen_gruppe",
-   "offen": false,
-   "pfade": [
-    "api.wiederherstellen_gruppe",
-    "diakronos.diakonos.api.gruppen.wiederherstellen_gruppe",
-    "diakronos_app.api.gruppen.wiederherstellen_gruppe",
-    "gruppen.wiederherstellen_gruppe",
-    "wiederherstellen_gruppe"
-   ],
-   "rumpf_grund": "",
-   "rumpf_ueber": null
-  },
-  {
-   "allow_guest": false,
-   "ausnahme": null,
-   "ausnahme_art": null,
-   "ausnahme_greift": false,
-   "ausnahme_quelle": "deklaration",
-   "deklariert": "schreibend",
-   "einstufung": "schreibend",
-   "funktion": "diakronos_app.api.kronos.event_crud.wiederherstellen_event",
-   "methoden": [
-    "POST"
-   ],
-   "methoden_pflicht": "POST",
-   "modul": "diakronos_app.api.kronos.event_crud",
-   "nach_name": "lesend",
-   "nach_rumpf": "lesend",
-   "name": "wiederherstellen_event",
-   "offen": false,
-   "pfade": [
-    "api.wiederherstellen_event",
-    "diakronos.kronos.api.event_crud.wiederherstellen_event",
-    "diakronos_app.api.kronos.event_crud.wiederherstellen_event",
-    "event_crud.wiederherstellen_event",
-    "kronos.event_crud.wiederherstellen_event",
-    "kronos.wiederherstellen_event",
-    "wiederherstellen_event"
    ],
    "rumpf_grund": "",
    "rumpf_ueber": null
@@ -10183,60 +10747,30 @@
    "rumpf_ueber": null
   },
   {
-   "allow_guest": false,
+   "allow_guest": true,
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
    "ausnahme_quelle": "deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
-   "funktion": "diakronos_app.api.psalmos.musik.wiederherstellen_lied",
+   "funktion": "diakronos_app.api.rechte.gast_inhalt",
    "methoden": [
     "POST"
    ],
    "methoden_pflicht": "POST",
-   "modul": "diakronos_app.api.psalmos.musik",
+   "modul": "diakronos_app.api.rechte",
    "nach_name": "lesend",
    "nach_rumpf": "lesend",
-   "name": "wiederherstellen_lied",
+   "name": "gast_inhalt",
    "offen": false,
    "pfade": [
-    "api.wiederherstellen_lied",
-    "diakronos.psalmos.api.musik.wiederherstellen_lied",
-    "diakronos_app.api.psalmos.musik.wiederherstellen_lied",
-    "musik.wiederherstellen_lied",
-    "psalmos.musik.wiederherstellen_lied",
-    "psalmos.wiederherstellen_lied",
-    "wiederherstellen_lied"
+    "api.gast_inhalt",
+    "diakronos_app.api.rechte.gast_inhalt",
+    "gast_inhalt",
+    "rechte.gast_inhalt"
    ],
    "rumpf_grund": "",
-   "rumpf_ueber": null
-  },
-  {
-   "allow_guest": false,
-   "ausnahme": "Uebertragung der Root-Kennzeichnung; die POST-Grenze steht in der Deklaration, die Funktion schreibt nur Eintrag + Kennrolle (kein generischer Weg, nur root selbst, mit Passwort + Bestaetigung)",
-   "ausnahme_art": "nur_vorschau",
-   "ausnahme_greift": true,
-   "ausnahme_quelle": "rumpf, deklaration",
-   "deklariert": "schreibend",
-   "einstufung": "schreibend",
-   "funktion": "diakronos_app.api.root.root_uebertragen",
-   "methoden": [
-    "POST"
-   ],
-   "methoden_pflicht": "Ausnahme greift (rumpf, deklaration)",
-   "modul": "diakronos_app.api.root",
-   "nach_name": "lesend",
-   "nach_rumpf": "schreibend",
-   "name": "root_uebertragen",
-   "offen": false,
-   "pfade": [
-    "api.root_uebertragen",
-    "diakronos_app.api.root.root_uebertragen",
-    "root.root_uebertragen",
-    "root_uebertragen"
-   ],
-   "rumpf_grund": "Aufruf sess.commit(); execute(…, Aufruf with_for_update()); Aufruf with_for_update()",
    "rumpf_ueber": null
   },
   {
@@ -10402,38 +10936,10 @@
    ],
    "rumpf_grund": "",
    "rumpf_ueber": null
-  },
-  {
-   "allow_guest": false,
-   "ausnahme": null,
-   "ausnahme_art": null,
-   "ausnahme_greift": false,
-   "ausnahme_quelle": "deklaration",
-   "deklariert": "schreibend",
-   "einstufung": "schreibend",
-   "funktion": "diakronos_app.api.wiki.wiederherstellen_wiki_artikel",
-   "methoden": [
-    "POST"
-   ],
-   "methoden_pflicht": "POST",
-   "modul": "diakronos_app.api.wiki",
-   "nach_name": "lesend",
-   "nach_rumpf": "lesend",
-   "name": "wiederherstellen_wiki_artikel",
-   "offen": false,
-   "pfade": [
-    "api.wiederherstellen_wiki_artikel",
-    "diakronos.diakonos.api.wiki.wiederherstellen_wiki_artikel",
-    "diakronos_app.api.wiki.wiederherstellen_wiki_artikel",
-    "wiederherstellen_wiki_artikel",
-    "wiki.wiederherstellen_wiki_artikel"
-   ],
-   "rumpf_grund": "",
-   "rumpf_ueber": null
   }
  ],
  "zaehlung": {
-  "lesend": 166,
-  "schreibend": 200
+  "lesend": 177,
+  "schreibend": 217
  }
 }

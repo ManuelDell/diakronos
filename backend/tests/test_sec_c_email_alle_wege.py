@@ -196,7 +196,7 @@ def test_w1_indexfehler_wird_uebersetzt(patched_db, fake_redis, monkeypatch):
     zweiten Anfrage). `frappe.client.insert` reichte `str(exc)` durch:
     `(sqlite3.IntegrityError) UNIQUE constraint failed … [SQL: INSERT INTO …`.
     """
-    sess = _basis(patched_db)
+    sess = _basis(patched_db, wer="sm@x.org")  # R-11a: frappe.client.insert nur Admin
     from diakronos_app.api.frappe_core import insert
     from diakronos_app.frappe_compat import api_helpers
 
@@ -215,7 +215,7 @@ def test_w1_indexfehler_wird_uebersetzt(patched_db, fake_redis, monkeypatch):
 @pytest.mark.parametrize("weg", WEGE)
 def test_meldung_nennt_die_person(patched_db, fake_redis, weg):
     """Die Dubletten-Meldung nennt, WEM die Adresse schon gehoert."""
-    sess = _basis(patched_db)
+    sess = _basis(patched_db, wer="sm@x.org" if weg == "client_insert" else "ma@x.org")  # R-11a: frappe.client.insert nur Admin
     # `/api/resource` antwortet wie in Frappe mit Status + `message` im Body;
     # den Text holt der Test deshalb direkt vom Rückgabewert des Wegs.
     try:
@@ -229,7 +229,7 @@ def test_meldung_nennt_die_person(patched_db, fake_redis, weg):
 
 def test_leere_adressen_bleiben_erlaubt(patched_db, fake_redis):
     """Ohne Adresse darf mehrfach angelegt werden (Adresse ist optional)."""
-    _basis(patched_db)
+    _basis(patched_db, wer="sm@x.org")  # R-11a: frappe.client.insert nur Admin
     from diakronos_app.api.frappe_core import insert
 
     ausgaenge = [

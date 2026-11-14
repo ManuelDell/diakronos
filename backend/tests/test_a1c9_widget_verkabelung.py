@@ -364,6 +364,9 @@ def test_conflict_events_fuer_kalendermoderator_erlaubt(welt):
         "docstatus": 0,
         "idx": 1,
     })
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(welt)  # R-5: Kalender-Moderator -> Freigabe „moderieren“
 
     set_user(BRUNO)
     events = ressource_api.get_conflict_events()

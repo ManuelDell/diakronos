@@ -85,10 +85,14 @@ export function statusVariante(status) {
 /**
  * Darf diese Rolle die Verwaltungsfunktionen sehen? (Statusfilter, persönliche
  * Daten, Sortierung, Karten/Tabelle, wartende Konten.)
- * Dieselbe Regel wie überall: nur ein echtes `true` zählt (fail closed).
+ *
+ * UI-R10: Der Parameter ist seit R-11a das PERSONEN-Flag
+ * (`istMitgliederverwaltung` = Administrator ODER Mitgliederadministrator),
+ * nicht mehr `isAdmin` — die Mitgliederverwaltung pflegt diese Liste. Der Name
+ * bleibt, weil die Regel dieselbe ist (ein Wahrheitswert, fail closed).
  */
-export function verwaltungSichtbar(istAdmin) {
-  return istAdmin === true
+export function verwaltungSichtbar(istMitgliederverwaltung) {
+  return istMitgliederverwaltung === true
 }
 
 /**
@@ -96,8 +100,8 @@ export function verwaltungSichtbar(istAdmin) {
  * Nur Verwaltung UND nur nach ausdrücklichem Einschalten — der Server prüft
  * zusätzlich (`persoenliche_daten` ist dort ebenfalls fail closed).
  */
-export function persoenlicheDatenAnfordern(istAdmin, schalter) {
-  return istAdmin === true && schalter === true
+export function persoenlicheDatenAnfordern(istMitgliederverwaltung, schalter) {
+  return istMitgliederverwaltung === true && schalter === true
 }
 
 /**
@@ -219,13 +223,24 @@ export function zielSeite(jetzt, ziel, seiten) {
 }
 
 /**
- * Spalten der Verwaltungsliste (Reihenfolge wie bisher).
+ * Spalten der Personenliste (Reihenfolge = Reihenfolge der Zellen im Markup).
  *
- * Persönliche Spalten (Telefon, E-Mail, Adresse, Geburtstag) stehen NUR
- * darin, wenn sie auch angefragt werden — sonst behauptete die Überschrift
- * „E-Mail“, die Zeile zeige sie; sie zeigt dann „nicht angefordert“.
+ * Verwaltung (Quelle „Mitgliederliste“, Reihenfolge wie bisher): Name, Status,
+ * Gruppen, persönliche Spalten, „Dabei seit“. Persönliche Spalten (Telefon,
+ * E-Mail, Adresse, Geburtstag) stehen NUR darin, wenn sie auch angefragt
+ * werden — sonst behauptete die Überschrift „E-Mail“, die Zeile zeige sie; sie
+ * zeigt dann „nicht angefordert“.
  *
- * @param {{persoenlich?: boolean}} werte
+ * Freigabe-Sicht (Adressbuch, alle anderen): Name, E-Mail, Telefon, Ort und —
+ * wenn es etwas zu fragen gibt (`anfrage`) — die Aktionsspalte.
+ *
+ * WARUM DIE SPALTEN HIER STEHEN UND NICHT IM BAUSTEIN (Review zu UI-R7,
+ * Punkt 1): Kopf und Zeilen sind getrennte Stellen im Markup. Lagen sie
+ * getrennt, driftete der Kopf weg (4 Überschriften, 5 Zellen — „72070
+ * Tübingen“ stand unter „Telefon“, der Knopf hatte gar keine). Jetzt kommt
+ * beides aus DIESER Funktion, und ein Node-Test vergleicht Kopf und Zellen.
+ *
+ * @param {{persoenlich?: boolean, anfrage?: boolean}} werte
  */
 export function verwaltungSpalten({ persoenlich } = {}) {
   const spalten = [
@@ -242,6 +257,28 @@ export function verwaltungSpalten({ persoenlich } = {}) {
     )
   }
   spalten.push({ key: 'dabei', label: 'Dabei seit' })
+  return spalten
+}
+
+/** Überschrift der Aktionsspalte — für das Auge versteckt, für Vorlesehilfen da. */
+export const AKTIONEN_SPALTE = 'Aktionen'
+
+/**
+ * Spalten der Freigabe-Sicht (Adressbuch): Name, E-Mail, Telefon, Ort.
+ * `anfrage: true` hängt die Aktionsspalte an (R-9: es gibt Personen, die man
+ * fragen kann). Ohne Anfrage-Möglichkeit bleibt sie weg — eine leere
+ * Knopfspalte wäre eine Behauptung.
+ *
+ * @param {{anfrage?: boolean}} werte
+ */
+export function freigabeSpalten({ anfrage } = {}) {
+  const spalten = [
+    { key: 'name', label: 'Name' },
+    { key: 'email', label: 'E-Mail' },
+    { key: 'telefon', label: 'Telefon' },
+    { key: 'ort', label: 'Ort' },
+  ]
+  if (anfrage === true) spalten.push({ key: 'aktion', label: AKTIONEN_SPALTE, aktion: true })
   return spalten
 }
 

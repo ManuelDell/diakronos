@@ -168,14 +168,30 @@ def welt(patched_db):
                     docstatus=0, idx=0),
     ])
 
-    # Nur ADMIN hat Mitgliederadministrator; Anna/Bruno bewusst nicht.
+    # Nur ADMIN ist Administrator; Anna/Bruno bewusst nicht. R-7: Beitraege
+    # und Wiki fuer die ganze Gemeinde pflegt der Administrator (System
+    # Manager), nicht mehr die Mitgliederverwaltung (Manuel 11.11.).
     sess.add_all([
         HasRole(name="HR-1", parent=ADMIN, parenttype="User",
-                parentfield="roles", role="Mitgliederadministrator",
+                parentfield="roles", role="System Manager",
                 docstatus=0, idx=1),
+    ])
+    # R-7: gemeindeweite Inhalte lesen Mitglieder der Gemeinde (Datensatz).
+    from diakronos_app.models.diakonos import Mitglied
+
+    sess.add_all([
+        Mitglied(name="M-anna-p4f", vorname="Anna", nachname="Beispiel", email=ANNA, user=ANNA,
+                 status="Mitglied", docstatus=0, idx=0),
+        Mitglied(name="M-bruno-p4f", vorname="Bruno", nachname="Beispiel", email=BRUNO, user=BRUNO,
+                 status="Mitglied", docstatus=0, idx=0),
     ])
 
     sess.commit()
+    # R-7: Bestand ins EINE Rechtesystem (veroeffentlichte Beitraege und Wiki
+    # = Gemeinde-Inhalte fuer alle Mitglieder, wie Migration r1).
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(sess)
     yield sess
     sess.close()
 

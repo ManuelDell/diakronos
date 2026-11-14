@@ -179,7 +179,9 @@ test('beide Anlege-Aktionen haben ein Ziel, das den Dialog wirklich öffnet', ()
   assert.match(personenQuelle, /history\.replaceState/, 'Personen.vue räumt den Schalter nicht aus der Adresse')
   // Beide prüfen das Recht — ohne Recht bleibt es beim Seitenwechsel.
   assert.match(kalenderQuelle, /if \(hasWriteRight\.value\)/)
-  assert.match(personenQuelle, /if \(!istAdmin\.value\) return/)
+  // UI-R10: „Person anlegen“ hängt am PERSONEN-Recht (Mitgliederverwaltung
+  // ODER Administrator), nicht mehr am Kern-Admin.
+  assert.match(personenQuelle, /if \(!darfVerwalten\.value\) return/)
 })
 
 // ── 4. Zuletzt verwendet ─────────────────────────────────────────────────────

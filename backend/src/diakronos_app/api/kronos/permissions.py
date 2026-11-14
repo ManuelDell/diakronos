@@ -196,21 +196,30 @@ def _user_has_role(user: str, role_name: str | None) -> bool:
     return bool(role_name) and role_name in set(get_roles(user))
 
 
+# ── R-5: Adapter auf den EINEN Rechte-Kern ──────────────────────────────────
+# Alle Kalender-Lese-/Schreib-/Pruefwege laufen ueber die vier Funktionen
+# unten; die Entscheidung trifft ausschliesslich `diakronos_app.rechte`.
+# Die Alt-Felder `leserechte`/`schreibrechte`/`kalendermoderatoren` werden
+# nicht mehr gelesen (Bestand uebernimmt die Migration r1_rechte_kern).
+
+
 def _is_kalenderadministrator(user: str) -> bool:
-    """Globale Kalenderadministrator-Rolle (oder Administrator)."""
-    if user == "Administrator":
-        return True
-    return _user_has_role(user, "Kalenderadministrator")
+    """Admin oder Systemrolle Kalender-Moderation (Rolle „Kalenderadministrator“).
+
+    R-5: kein Vollzugriff mehr auf Gruppenkalender — die Rolle pflegt
+    Gemeinde-Kalender und prueft die Gemeinde-Stufe (Rechte-Kern).
+    """
+    from diakronos_app import rechte
+
+    return rechte.ist_admin(user) or rechte.hat_systemrolle(user, "kalender_moderation")
 
 
 def _is_moderator_of(user: str, calendar_doc: Any) -> bool:
-    """Ist der User Moderator dieses Kalenders (`Kalendermoderatoren`-Tabelle)?"""
-    if user == "Administrator":
-        return True
-    for row in _child_rows("Kalender Moderator", calendar_doc.name, "kalendermoderatoren", ["user"]):
-        if row.get("user") == user:
-            return True
-    return False
+    """Darf der User in diesem Kalender irgendeine Moderationsstufe pruefen?"""
+    from diakronos_app import rechte
+
+    name = calendar_doc if isinstance(calendar_doc, str) else getattr(calendar_doc, "name", None)
+    return bool(name) and bool(rechte.pruefstufen(user, "kalender", str(name)))
 
 
 def hat_leserecht(calendar: str | None) -> bool:
@@ -230,24 +239,16 @@ def hat_leserecht_fuer(user: str, calendar: str | None) -> bool:
 
     `hat_leserecht` prueft immer den Aufrufer — fuer eine Benachrichtigung an
     DRITTE (die eingeteilten Personen) braucht es dieselbe Pruefung, aber mit
-    deren Namen. Gleiche Regeln wie `get_accessible_calendars`:
-    Kalenderadministrator/Administrator, Leserecht-/Schreibrechts-Rolle,
-    Moderator. Gate-Auswertung erfolgt ueber `_user_has_role(user, ...)`, das
-    die Sonderrolle "All" richtig behandelt.
+    deren Namen. R-5: dieselbe Quelle wie `get_accessible_calendars` — der
+    Rechte-Kern (`rechte.darf(user, LESEN, "kalender", ...)`).
     """
     if not calendar or user == "Guest":
         return False
-    try:
-        doc = get_doc("Kalender", calendar)
-    except Exception:  # noqa: BLE001 — unbekannter Kalender = kein Leserecht
-        return False
-    if _is_kalenderadministrator(user):
-        return True
-    for feld in ("leserechte", "schreibrechte"):
-        for row in _child_rows("User Role", doc.name, feld, ["role"]):
-            if _user_has_role(user, row.get("role")):
-                return True
-    return _is_moderator_of(user, doc)
+    if not get_value("Kalender", calendar, "name"):
+        return False  # unbekannter Kalender = kein Leserecht (auch fuer den Admin)
+    from diakronos_app import rechte
+
+    return bool(rechte.darf(user, rechte.LESEN, "kalender", str(calendar)))
 
 
 def _can_access_desk(user: str) -> bool:
@@ -314,56 +315,57 @@ def get_accessible_calendars():
         return []
 
     try:
-        is_global_admin = _is_kalenderadministrator(user)
-        calendars = get_all("Kalender", fields=["name"]) or []
+        from diakronos_app import rechte
+
+        kalender_admin = _is_kalenderadministrator(user)
+        calendars = get_all(
+            "Kalender", fields=["name", "calendar_name", "calendar_color", "selbstverwaltet"],
+        ) or []
+
+        # Zuordnung Kalender -> (Unter-)Gruppe in EINER Abfrage (fuer „+ Termin“).
+        from sqlalchemy import select as _select
+
+        from diakronos_app.db import lesesitzung
+        from diakronos_app.models.rechte import RechteObjekt
+
+        with lesesitzung() as _sess:
+            zuordnung = {o: (g, u) for o, g, u in _sess.execute(
+                _select(RechteObjekt.objekt, RechteObjekt.gruppe, RechteObjekt.untergruppe)
+                .where(RechteObjekt.typ == "kalender")).all()}
 
         result = []
         for cal in calendars:
-            doc = get_doc("Kalender", cal["name"])  # type: ignore[index]
-            selbstverwaltet = bool(doc.get("selbstverwaltet"))
-
-            # Kalenderadministrator hat vollen Zugriff auf alle Kalender.
-            if is_global_admin:
-                result.append({
-                    "name": doc.name,
-                    "title": doc.get("calendar_name") or doc.name,
-                    "color": doc.get("calendar_color") or _STANDARD_FARBE,
-                    "write": True,
-                    "is_moderator": True,
-                    "selbstverwaltet": selbstverwaltet,
-                    # ON-4/H3: Gesamtzahl (nur fuer Kalenderadministratoren).
-                    "alle_anzahl": len(calendars),
-                })
+            name = str(cal["name"])  # type: ignore[index]
+            # R-5: EINE Entscheidungsstelle — der Rechte-Kern.
+            if not rechte.darf(user, rechte.LESEN, "kalender", name):
                 continue
-
-            can_read = False
-            can_write = False
-
-            # Leserechte pruefen.
-            for row in _child_rows("User Role", doc.name, "leserechte", ["role"]):
-                if _user_has_role(user, row.get("role")):
-                    can_read = True
-
-            # Schreibrechte pruefen (impliziert Leserecht).
-            for row in _child_rows("User Role", doc.name, "schreibrechte", ["role"]):
-                if _user_has_role(user, row.get("role")):
-                    can_write = True
-                    can_read = True
-
-            is_mod = _is_moderator_of(user, doc)
-            if is_mod:
-                can_read = True
-                can_write = True
-
-            if can_read:
-                result.append({
-                    "name": doc.name,
-                    "title": doc.get("calendar_name") or doc.name,
-                    "color": doc.get("calendar_color") or _STANDARD_FARBE,
-                    "write": can_write,
-                    "is_moderator": is_mod,
-                    "selbstverwaltet": selbstverwaltet,
-                })
+            pruef = rechte.pruefstufen(user, "kalender", name)
+            stufen = rechte.moderationsstufen(user, "kalender", name)
+            schreiben = bool(pruef) or bool(rechte.darf(user, rechte.SCHREIBEN, "kalender", name)) \
+                or bool(rechte.darf(user, rechte.VORSCHLAGEN, "kalender", name))
+            eintrag = {
+                "name": name,
+                "title": cal.get("calendar_name") or name,  # type: ignore[union-attr]
+                "color": cal.get("calendar_color") or _STANDARD_FARBE,  # type: ignore[union-attr]
+                "write": schreiben,
+                # prueft mindestens eine Stufe (sieht Vorschlaege, Pruefliste)
+                "is_moderator": bool(pruef),
+                "selbstverwaltet": bool(cal.get("selbstverwaltet")),  # type: ignore[union-attr]
+                # R-5: eigene NEUE Termine wirken sofort (keine Moderationsstufe)
+                "direkt": schreiben and not stufen,
+                # R-5: Aenderungen wirken sofort, wenn der Aufrufer jede seiner
+                # Stufen selbst prueft (die Pflicht-Moderation oeffentlicher
+                # Kalender gilt fuer NEUE Termine, Manuel 11.11.)
+                "aendert_direkt": schreiben and all(st in pruef for st in stufen),
+                "stufen": stufen,
+                "pruefstufen": pruef,
+                "gruppe": zuordnung.get(name, (None, None))[0],
+                "untergruppe": zuordnung.get(name, (None, None))[1],
+            }
+            if kalender_admin:
+                # ON-4/H3: Gesamtzahl (nur Admin/Kalender-Moderation).
+                eintrag["alle_anzahl"] = len(calendars)
+            result.append(eintrag)
 
         return result
 
@@ -388,6 +390,11 @@ def get_writable_calendars():
             "calendar_name": c["title"],
             "calendar_color": c["color"],
             "is_moderator": bool(c.get("is_moderator")),
+            # UI-R5: schreibt der Aufrufer hier DIREKT (sonst wird ein neuer
+            # Termin Vorschlag) — die Oberflaeche zeigt den Pruefhinweis danach.
+            "direkt": bool(c.get("direkt")),
+            "gruppe": c.get("gruppe"),
+            "untergruppe": c.get("untergruppe"),
         }
         for c in accessible
         if c.get("write")

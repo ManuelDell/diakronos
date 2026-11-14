@@ -37,7 +37,6 @@ from diakronos_app.frappe_compat.permissions import get_roles
 from diakronos_app.frappe_compat.registry import whitelist
 from diakronos_app.frappe_compat.session import session
 from diakronos_app.models.kronos import Element, GoogleKalenderEinstellungen, Kalender
-from diakronos_app.models.core import UserRole
 from diakronos_app.settings import settings as app_settings
 
 SETTINGS_NAME = "Google Kalender Einstellungen"
@@ -720,9 +719,14 @@ def _ensure_kalender(name: str, color: str, db=None) -> str:
         counter += 1
     db.add(Kalender(name=name, calendar_name=name, calendar_color=color,
                     owner=session.user, calender_details="Importiert aus Google Kalender"))
-    for idx, role in enumerate(("Administrator", "Kalenderadministrator"), 1):
-        db.add(UserRole(name=uuid.uuid4().hex, parent=name, parenttype="Kalender",
-                        parentfield="leserechte", idx=idx, role=role))
+    # R-11e: ein importierter Kalender ist ein Gemeinde-Kalender im EINEN
+    # Rechtesystem (Admin und Kalender-Moderation pflegen ihn). Vorher standen
+    # hier Alt-Zeilen „leserechte“, die niemand mehr auswertet — und ohne
+    # Anmeldung sah den Kalender ausser dem Admin niemand (fail closed).
+    # Dieselbe Sitzung wie der Kalender (kein zweiter Schreiber, SQLite).
+    from diakronos_app.models.rechte import RechteObjekt
+
+    db.add(RechteObjekt(typ="kalender", objekt=name))
     db.flush()
     return name
 

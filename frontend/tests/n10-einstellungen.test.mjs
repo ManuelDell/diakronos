@@ -42,8 +42,13 @@ test('N10: Router kennt die Adressen und schuetzt sie (Admin-Guard)', () => {
   assert.ok(router.includes("'#/einstellungen/dev-modus':     'EinstellungenDevModus'"))
   assert.ok(router.includes("EinstellungenRollen:    () => import('./pages/Einstellungen.vue')"))
   assert.ok(router.includes("EinstellungenDevModus:  () => import('./pages/Einstellungen.vue')"))
-  assert.ok(router.includes("'EinstellungenRollen', 'EinstellungenDevModus'"),
-    'beide Seiten stehen im Admin-Guard')
+  // UI-R10: Rollen & Rechte und der Entwicklermodus sind Administration — sie
+  // stehen in `ADMIN_ONLY_PAGES` (seit der Trennung von den Personen-Seiten).
+  const guard = router.slice(router.indexOf('const ADMIN_ONLY_PAGES'))
+  const liste = guard.slice(0, guard.indexOf('])'))
+  for (const seite of ['EinstellungenRollen', 'EinstellungenDevModus']) {
+    assert.ok(liste.includes(`'${seite}'`), `${seite} steht im Admin-Wächter`)
+  }
 })
 
 test('N10: Menue zaehlt die neuen Seiten zum Eintrag Einstellungen', () => {

@@ -66,15 +66,7 @@ def stammdaten(sf):
         s.flush()
         s.add_all([Mitglied(name=k, user=k, email=k, vorname=k, nachname="Test")
                    for k in ("planer_chor", "mitglied")])
-        s.add_all([
-            DienstbereichVerantwortlicher(name="bv-chor", parent="Chor",
-                                          parenttype="Dienstbereich",
-                                          parentfield="verantwortliche", user="planer_chor"),
-            DienstbereichVerantwortlicher(name="bv-musik", parent="Musik und Worship",
-                                          parenttype="Dienstbereich",
-                                          parentfield="verantwortliche", user="planer_chor"),
-        ])
-        s.add(Gruppe(name="Chor", gruppenname="Chor"))
+        s.add(Gruppe(name="Chor", gruppenname="Chor", dienstbereich="Chor"))
         s.flush()
         s.add(Gruppenmitgliedschaft(name="gm-mitglied", parent="Chor", parenttype="Gruppe",
                                     parentfield="mitglieder", mitglied="mitglied", status="Aktiv"))
@@ -83,6 +75,13 @@ def stammdaten(sf):
         # Katalog für Kategorien (Fremdschlüssel der Zuordnungstabelle).
         s.add_all([Liedkategorie(name="Lob", kategoriename="Lob"),
                    Liedkategorie(name="Abendmahl", kategoriename="Abendmahl")])
+    # R-6/R-7: planer_chor = HV der Chor-Gruppe mit den Modulen Dienstplaene
+    # und Lieder (vorher Bereichsverantwortung „Chor“ + „Musik und Worship“);
+    # „mitglied“ ist einfaches Chormitglied (liest Lieder, schreibt nicht).
+    from rechte_hilfe import planrahmen_rechte
+
+    planrahmen_rechte(sf, gruppe="Chor", hv="planer_chor",
+                      module=("dienstplaene", "kalender", "lieder"))
 
 
 @pytest.fixture()
@@ -277,6 +276,10 @@ def test_loeschen_eines_liedes_gibt_es_nur_als_papierkorb(client, patched_db, ch
     # Planrahmen-Pfad. Der Router prueft die Rechte VOR dem Pfad (ein
     # Nicht-Schreiber bekommt hier 403 statt 404) — entscheidend ist, dass der
     # Aufruf NICHTS loescht.
+    # R-7: als NICHT-Schreiber pruefen (der Admin darf Lieder loeschen; der
+    # Planrahmen-Pfad loest derzeit als Alias auf musik.delete_lied auf —
+    # eigene Karte ROUTER-ALIAS).
+    anmelden(client, "mitglied")
     r = client.post(PFAD + "delete_lied", json={"plantyp": "chorplan", "lied": "LIED-1"})
     assert r.status_code in (403, 404), r.text
     from diakronos_app.models.psalmos import Lied

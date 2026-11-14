@@ -2,6 +2,10 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
+// UI-R10b (Review, Punkt 2): der Router führt keine eigene Fassung der
+// Verwaltungsregel mehr — sein Rückfall ist `false` (fail closed). Dieser
+// Harness setzt deshalb die ECHTE Regel aus `menue.js` ein.
+import { echteVerwaltungsregel } from './helpers/verwaltungsregel.mjs'
 
 /**
  * UX-A2a — Personen-Navigation (seit UX3j: EINE Reiterzeile statt Seitenliste).
@@ -33,6 +37,10 @@ import vm from 'node:vm'
  */
 const root = new URL('../src/diakonos/', import.meta.url)
 const lies = p => readFileSync(new URL(p, root), 'utf8')
+
+// UI-R10b (Review, Punkt 2): die echte Regel für die Router-vm (fail closed
+// im Router ohne `menue.js` — die Harnesse wollen aber Seiten ÖFFNEN).
+globalThis.__regel = echteVerwaltungsregel()
 const menuePfad = fileURLToPath(new URL('menue.js', root))
 
 async function menue() {
@@ -231,6 +239,7 @@ function routerAusfuehren(boot) {
   }
   window.history = { replaceState(_s, _t, hash) { window.location.hash = hash } }
   const context = { window, console, setzeFenstertitel() {},
+    verwaltungZutreffend: globalThis.__regel,
     ref: value => ({ value }),
     shallowRef: value => ({ value }),
     computed: fn => ({ get value() { return fn() } }) }

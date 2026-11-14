@@ -1,4 +1,13 @@
-"""Fail-closed Objekt-Rechte innerhalb derselben Diensttransaktion."""
+"""Fail-closed Objekt-Rechte innerhalb derselben Diensttransaktion.
+
+R-6 (Manuel 11.11., Plan ``diakronos-rechte`` Abschnitt 5): EIN Rechtesystem.
+Vorlagen gehoeren Gruppen; HV und MV der Gruppe (Modul „Dienstplaene“) legen
+Plaene an, pflegen Vorlage und Plaene und delegieren (Planverantwortliche/r).
+Den ganzen Plan sieht nur, wer in einen Kalender dieser Gruppe(n) schreiben
+darf; alle anderen sehen ihre eigenen Dienste (``meine_dienste``).
+Dienstbereiche entfallen — was an ihnen hing, darf nur noch der Admin.
+Die Entscheidungen trifft ``diakronos_app.rechte`` (in DIESER Transaktion).
+"""
 from __future__ import annotations
 
 from sqlalchemy import or_, select
@@ -6,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from diakronos_app.frappe_compat.exceptions import PermissionError
 from diakronos_app.models.core import HasRole, User
-from diakronos_app.models.diakonos import DienstbereichVerantwortlicher, GruppeVerantwortlicher, Mitglied
+from diakronos_app.models.diakonos import Mitglied
 from diakronos_app.models.planrahmen import Plan, Plantyp, PlantypVersion
 
 
@@ -23,6 +32,36 @@ def _plantyp_gruppen(session: Session, plantyp_id: str) -> set[str]:
     if letzte is None or not isinstance(letzte.definition, dict):
         return set()
     return {g for g in (letzte.definition.get("gruppen") or []) if isinstance(g, str)}
+
+
+def _einzige_gruppe_im_bereich(session: Session, bereich: str | None) -> set[str]:
+    from diakronos_app.models.diakonos import Gruppe
+
+    if not bereich:
+        return set()
+    im_bereich = session.scalars(select(Gruppe.name).where(
+        Gruppe.dienstbereich == bereich, Gruppe.docstatus < 2,
+        Gruppe.geloescht_am.is_(None))).all()
+    return {im_bereich[0]} if len(im_bereich) == 1 else set()
+
+
+def gruppen_fuer_definition(session: Session, definition: dict) -> set[str]:
+    """Gruppen einer (neuen) Definition — gebundene Gruppen, sonst die EINE
+    Gruppe ihres Bereichs (dieselbe Regel wie ``plantyp_gruppen``)."""
+    gebunden = {g for g in (definition.get("gruppen") or []) if isinstance(g, str)}
+    return gebunden or _einzige_gruppe_im_bereich(session, definition.get("bereich"))
+
+
+def plantyp_gruppen(session: Session, plantyp: Plantyp) -> set[str]:
+    """Gruppen, denen eine Vorlage gehoert (R-6).
+
+    Die in der Definition gebundenen Gruppen. Fehlen sie (Bestand: Vorlagen
+    hingen am Dienstbereich), gilt die Gruppe des frueheren Bereichs — aber
+    NUR, wenn er genau eine aktive Gruppe hat; sonst ordnet der Admin zu
+    (fail closed, keine fremden Gruppen-HV mit Rechten an der Vorlage).
+    """
+    gebunden = _plantyp_gruppen(session, plantyp.id)
+    return gebunden or _einzige_gruppe_im_bereich(session, plantyp.bereich)
 
 
 class Rechte:
@@ -159,31 +198,35 @@ class Rechte:
             Mitglied.email == email, Mitglied.user.is_(None))).all()
         return treffer[0] if len(treffer) == 1 else None
 
+    def _kern(self, aktion: str, typ: str, objekt: str | None = None, **kw) -> bool:
+        """Frage an den EINEN Rechte-Kern — in DIESER Transaktion gelesen."""
+        from diakronos_app import rechte
+        from diakronos_app.db import als_aktuelle_sitzung
+
+        with als_aktuelle_sitzung(self.session):
+            return bool(rechte.darf(self.benutzer, aktion, typ, objekt, **kw))
+
     def bereich(self, bereich: str | None) -> bool:
-        """Verantwortung muss ausdrücklich dem Dienstbereich zugeordnet sein."""
-        if self.admin():
-            return True
-        return bool(bereich and self.session.scalar(select(DienstbereichVerantwortlicher.name).where(
-            DienstbereichVerantwortlicher.parent == bereich,
-            DienstbereichVerantwortlicher.parenttype == "Dienstbereich",
-            DienstbereichVerantwortlicher.parentfield == "verantwortliche",
-            DienstbereichVerantwortlicher.user == self.benutzer)))
+        """R-6: Dienstbereiche entfallen — Bereichs-/globale Pflege nur der Admin."""
+        return self.admin()
 
     def eigene_gruppen_verantwortung(self) -> set[str]:
-        """Kennungen der Gruppen, fuer die der Benutzer Gruppenverantwortlicher ist.
+        """Gruppen, in denen der Benutzer Dienstplaene anlegen darf (HV/MV,
+        Modul „Dienstplaene“ aktiv) — Entscheidung des Rechte-Kerns.
 
-        Grundlage ist ``gruppe_verantwortlicher`` (Child-Tabelle der Gruppe,
-        ``parentfield='verantwortliche'``, ``user`` = Benutzername). Admin
-        bekommt eine leere Menge — Admins sind ohnehin umfassend berechtigt.
+        Admin bekommt eine leere Menge — Admins sind ohnehin umfassend berechtigt.
         """
+        from diakronos_app import rechte
+        from diakronos_app.models.rechte import ROLLE_HV, ROLLE_MV, RechteGruppenrolle
+
         self.angemeldet()
         if self.admin():
             return set()
-        return set(self.session.scalars(select(GruppeVerantwortlicher.parent).where(
-            GruppeVerantwortlicher.user == self.benutzer,
-            GruppeVerantwortlicher.parenttype == "Gruppe",
-            GruppeVerantwortlicher.parentfield == "verantwortliche",
-            GruppeVerantwortlicher.docstatus < 2)).all())
+        kandidaten = set(self.session.scalars(select(RechteGruppenrolle.gruppe).where(
+            RechteGruppenrolle.benutzer == self.benutzer,
+            RechteGruppenrolle.untergruppe.is_(None),
+            RechteGruppenrolle.rolle.in_((ROLLE_HV, ROLLE_MV)))).all())
+        return {g for g in kandidaten if self._kern(rechte.ANLEGEN, "vorlage", gruppe=g)}
 
     def gruppen_verantwortlich(self, gruppen: set[str] | frozenset[str]) -> bool:
         """True, wenn der Benutzer Gruppenverantwortlicher einer der Gruppen ist.
@@ -199,38 +242,63 @@ class Rechte:
         return bool(self.eigene_gruppen_verantwortung() & set(gruppen))
 
     def plantyp(self, plantyp: Plantyp) -> None:
-        """Plantyp-/Stammdatenpflege nur Bereichsverantwortliche und Admins."""
-        if not self.bereich(plantyp.bereich):
+        """Vorlage pflegen: Admin oder HV/MV einer Gruppe der Vorlage (R-6)."""
+        if not self.darf_plantyp_bearbeiten(plantyp):
             raise PermissionError("Zugriff verweigert.")
 
     def darf_plan_bearbeiten(self, plan: Plan, plantyp: Plantyp) -> bool:
-        """Ein Planverantwortlicher darf ausschließlich seinen eigenen Plan ändern.
-
-        ST3: Zusaetzlich duerfen Gruppenverantwortliche der an die Vorlage
-        gebundenen Gruppe(n) den Plan bearbeiten.
-        """
-        if self.bereich(plantyp.bereich) or bool(
-                plan.verantwortlich and plan.verantwortlich == self.eigenes_mitglied()):
+        """HV/MV der Gruppe(n) der Vorlage, Admin — oder wem der Plan
+        delegiert ist (Planverantwortliche/r, nur dieser Plan)."""
+        if self.darf_plantyp_bearbeiten(plantyp):
             return True
-        return self.gruppen_verantwortlich(_plantyp_gruppen(self.session, plantyp.id))
+        return bool(plan.verantwortlich and plan.verantwortlich == self.eigenes_mitglied())
 
     def darf_plantyp_bearbeiten(self, plantyp: Plantyp) -> bool:
-        """Vorlage/globale Stammdaten aendern: Admin oder Bereichsverantwortung.
-
-        Gruppenverantwortliche duerfen die Vorlage NICHT aendern (ST3).
-        """
-        return self.bereich(plantyp.bereich)
+        """Vorlage aendern: Admin oder HV/MV einer Gruppe der Vorlage (R-6,
+        Manuel 11.11.: „Vorlagen gehoeren zu einer Gruppe. HV und MV der Gruppe
+        pflegen sie, der Admin alle.“)."""
+        return self.gruppen_verantwortlich(plantyp_gruppen(self.session, plantyp))
 
     def darf_plan_anlegen(self, plantyp: Plantyp) -> bool:
-        """Plan dieser Vorlage anlegen: Bereichs- ODER Gruppenverantwortung (ST3)."""
-        return self.bereich(plantyp.bereich) or self.gruppen_verantwortlich(
-            _plantyp_gruppen(self.session, plantyp.id))
+        """Plan dieser Vorlage anlegen (und delegieren): HV/MV, Admin (R-6)."""
+        return self.darf_plantyp_bearbeiten(plantyp)
+
+    def darf_vorlage_anlegen(self, gruppen: set[str]) -> bool:
+        """Neue Vorlage: Admin, oder HV/MV, die sie an EIGENE Gruppen binden."""
+        if self.admin():
+            return True
+        return bool(gruppen) and gruppen <= self.eigene_gruppen_verantwortung()
+
+    def vorlagen_gruppen_pruefen(self, bisher: set[str], neu: set[str]) -> None:
+        """Gruppenbindung aendern: keine FREMDE Gruppe hinzufuegen, keine
+        Vorlage ohne Gruppe hinterlassen (ausser Admin)."""
+        if self.admin():
+            return
+        eigene = self.eigene_gruppen_verantwortung()
+        if not neu or (neu - bisher) - eigene:
+            raise PermissionError("Eine Vorlage bindest du nur an Gruppen, die du verantwortest.")
+
+    def darf_plan_lesen(self, plantyp: Plantyp) -> bool:
+        """Den GANZEN Plan sieht nur, wer in einen Kalender der Gruppe(n)
+        schreiben darf (Manuel 11.11.); sonst nur eigene Dienste."""
+        from diakronos_app import rechte
+        from diakronos_app.models.rechte import RechteObjekt
+
+        if self.admin():
+            return True
+        gruppen = plantyp_gruppen(self.session, plantyp)
+        if not gruppen:
+            return False
+        kalender = self.session.scalars(select(RechteObjekt.objekt).where(
+            RechteObjekt.typ == "kalender", RechteObjekt.gruppe.in_(gruppen))).all()
+        return any(self._kern(rechte.SCHREIBEN, "kalender", k) for k in kalender)
 
     def plan(self, plan: Plan, plantyp: Plantyp, schreiben: bool = False) -> bool:
-        """Liefert Bearbeitungsrecht; Mitglieder lesen nur veröffentlichten Snapshot."""
+        """Liefert Bearbeitungsrecht; lesen (veroeffentlichter Stand) nur mit
+        Schreibrecht in einem Kalender der Gruppe(n) (R-6)."""
         bearbeiten = self.darf_plan_bearbeiten(plan, plantyp)
         if bearbeiten:
             return True
-        if not schreiben and plan.veroeffentlichter_stand is not None and self.eigenes_mitglied():
+        if not schreiben and plan.veroeffentlichter_stand is not None and self.darf_plan_lesen(plantyp):
             return False
         raise PermissionError("Zugriff verweigert.")

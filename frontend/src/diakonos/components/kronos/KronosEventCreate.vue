@@ -84,6 +84,14 @@
 
               <DkCheckbox v-model="form.all_day" label="Ganztägig" />
 
+              <!-- UI-R5b (Punkt 2): „N Kalender … bitte wählen“ stand auf der
+                   Gruppenseite HINTER dem Dialog (der Teleport hängt ihn ans
+                   <body>-Ende) und war dort nicht zu sehen. Der Satz steht
+                   jetzt dort, wo er gilt: im Formular ÜBER der Kalenderwahl. -->
+              <DkHint v-if="kalenderWahlHinweis" variant="info" data-ui-r5b="kalender-wahl">
+                {{ kalenderWahlHinweis }}
+              </DkHint>
+
               <DkField label="Kalender" required>
                 <DkSelect v-model="form.element_calendar" :options="calendarOptions" placeholder="Bitte wählen" empty-value="" />
               </DkField>
@@ -190,6 +198,17 @@
             </div>
           </div>
 
+          <!-- UI-R5: Der Prüfhinweis steht VOR dem Speichern — die Person soll
+               wissen, dass der Termin geprüft wird, nicht erst danach. Er
+               hängt am gewählten Kalender (`direkt === false` des Servers).
+               Bleibt ein Kind des Formulars: der Dialogfuß ist eine
+               Knopfreihe, der Hinweis bekommt eine eigene Zeile darüber.
+               Der Abstand liegt am WRAPPER: `.dk-pruefhinweis` hat vorher die
+               Polsterung und den Hintergrund von DkHint überschrieben (Text
+               klebte oben, Box bis an den Rand, Info-Farbe weg). -->
+          <div v-if="wirdGeprueft" class="dk-pruefhinweis">
+            <DkHint variant="info" data-ui-r5="pruefhinweis">{{ pruefHinweis }}</DkHint>
+          </div>
           <div class="diakronos-modal-footer">
             <DkButton variant="secondary" @click="close">Abbrechen</DkButton>
             <DkButton variant="primary" :loading="saving" :disabled="saving" @click="save">Speichern</DkButton>
@@ -223,6 +242,15 @@ import DkButton from '../ui/DkButton.vue'
 import DkHint from '../ui/DkHint.vue'
 import { showToast } from '../../composables/useToast.js'
 import { useDialogFokus } from '../../composables/useDialogFokus.js'
+// UI-R5b: „N Kalender stehen zur Auswahl“ (Punkt 2) — kein Klammerplural.
+import { zahlWort } from '../ui/begriffe.mjs'
+// UI-R5: Auswahlliste, Prüfhinweis und Erfolgsmeldung der Gruppenseite — eine
+// Quelle für Wortlaut („Der Termin wird vor der Veröffentlichung geprüft.“),
+// für die Prüfregel und für „wartet auf <Stufe>“.
+import {
+  PRUEFHINWEIS, kalenderOptionen, meldungNachSpeichern,
+  wirdGeprueft as wirdGeprueftRegel, statusFuerKalender,
+} from '../gruppen/gruppenTermin.mjs'
 import {
   zerlegeDatumZeit, baueDatumZeit, vorschlagZeitraum, istDatum,
   pruefeZeitraumMitDatum, datumNach,
@@ -230,7 +258,12 @@ import {
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  initialData: { type: Object, default: () => ({}) }
+  initialData: { type: Object, default: () => ({}) },
+  // UI-R5 („+ Termin“ auf der Gruppenseite): WELCHE Kalender dieses Formular
+  // anbietet — `[{name, title}]`, fertig gefiltert vom Aufrufer (die
+  // Rechtefrage beantwortet der Server). `null` = wie bisher alle
+  // beschreibbaren Kalender laden (Aufruf aus dem Kalender).
+  kalenderVorgabe: { type: Array, default: null },
 })
 
 const emit = defineEmits(['update:show', 'created'])
@@ -249,6 +282,11 @@ const kronosSettings = ref({})
 // OP-EVENT-10: Ressourcenmoderator? Nur er darf den Status-Chip der
 // Termin-Ressourcen umschalten.
 const istRessourcenmoderator = ref(false)
+// UI-R5 (Review 3): Titel der Prüfstufen („Untergruppe“, „Gruppe“, „Alle
+// Mitglieder der Gemeinde“) — EINE Quelle ist der Server
+// (`get_rollen_erklaerung().stufen_titel`), damit die Oberfläche keine zweite
+// Wortliste pflegt. Fehlt die Antwort, bleibt die Stufe selbst lesbar.
+const stufenTitel = ref({})
 
 
 const form = reactive({
@@ -273,15 +311,52 @@ const selectedCalendarColor = computed(() => {
   return cal?.color || 'var(--primary)'
 })
 
-const calendarOptions = computed(() => calendars.value.map(c => ({ value: c.name, label: c.calendar_name })))
+const calendarOptions = computed(() => {
+  // UI-R5/UI-R5b: Aufruf von einer Gruppen-/Untergruppenseite — die Kalender
+  // DIESER Seite, fertig gefiltert (beschreibbar) und in Serverreihenfolge.
+  // Ein zweites Argument gibt es nicht mehr; es war wirkungslos (Punkt 3).
+  if (hatVorgabe.value) return kalenderOptionen(props.kalenderVorgabe)
+  return calendars.value.map(c => ({ value: c.name, label: c.calendar_name }))
+})
 
-// K3: Ist der gewaehlte Kalender ein moderierter Kalender FUER diesen Nutzer?
-// Nur dann ist ein Vorschlag wirklich „Sichtbar unter Terminmoderation“.
-// Schreibberechtigte ohne Moderationsrecht sehen ihren Vorschlag dort NICHT;
-// ihnen den Hinweis trotzdem zu zeigen waere eine falsche Aussage.
-const istModeratorFuerAuswahl = computed(() => {
-  const cal = calendars.value.find(c => c.name === form.element_calendar)
-  return cal?.is_moderator === true
+/**
+ * UI-R5: Ist die Kalenderauswahl dieser Seite VORGEGEBEN?
+ *
+ * `null` = keine Vorgabe (Aufruf aus dem Kalender). Eine LEERE Liste ist
+ * ebenfalls keine brauchbare Vorgabe: sie entsteht, wenn die Seite ihre
+ * Kalenderliste noch nicht hat — dann lädt das Formular selbst, statt alle
+ * Kalender zu verschweigen.
+ */
+const hatVorgabe = computed(() => Array.isArray(props.kalenderVorgabe)
+  && props.kalenderVorgabe.length > 0)
+
+/**
+ * UI-R5: Wird der Termin des GEWÄHLTEN Kalenders vor der Veröffentlichung
+ * geprüft? Die Regel steht an EINER Stelle (`wirdGeprueft` in
+ * gruppenTermin.mjs, dort getestet) — hier wird sie nur gelesen.
+ *
+ * Review UI-R5 (HOCH) und (6): Vorher stand die Bedingung zweimal im Baum
+ * (`cal.direkt !== true`) und zeigte auf der Kalenderseite JEDER Person den
+ * Prüfhinweis, auch HV und Admin, weil `get_writable_calendars` dort kein
+ * `direkt` lieferte. Seit R-12e liefert der Server es; maßgeblich ist
+ * `direkt === false`.
+ */
+const gewaehlterKalender = computed(() => calendars.value.find(c => c.name === form.element_calendar) || null)
+const wirdGeprueft = computed(() => wirdGeprueftRegel(gewaehlterKalender.value))
+// Derselbe Satz steht im Modul (eine Quelle für Wortlaut und Regel).
+const pruefHinweis = PRUEFHINWEIS
+
+/**
+ * UI-R5b (Punkt 2): Hinweis ÜBER der Kalenderwahl, wenn es MEHRERE Kalender
+ * zur Auswahl gibt und noch keiner gewählt ist („Diakronos fragt, für
+ * welchen“). Nur mit `kalenderVorgabe` (Gruppen-/Untergruppenseite): im
+ * Kalender ist „Bitte wählen“ selbst erklärend, dort bleibt es ruhig.
+ */
+const kalenderWahlHinweis = computed(() => {
+  if (!hatVorgabe.value || form.element_calendar) return ''
+  const anzahl = calendarOptions.value.length
+  if (anzahl < 2) return ''
+  return `${zahlWort(anzahl, 'Kalender', 'Kalender')} stehen zur Auswahl — bitte den Kalender für diesen Termin wählen.`
 })
 
 // Ort-Dropdown: nur Räume, aber aktuellen Wert immer anbieten (Legacy)
@@ -403,8 +478,15 @@ async function loadData() {
     // Kalenderliste mitgerissen, und der Dialog behauptete dann faelschlich
     // „kein Schreibrecht“. Jetzt entscheidet allein `get_writable_calendars`
     // ueber das Schreibrecht; ein Fehler dort wird als Lade-Fehler benannt.
-    const [calRes, catRes, resRes, settingsRes, sessRes] = await Promise.allSettled([
-      fetch(apiUrl('diakronos.kronos.api.permissions.get_writable_calendars'), { credentials: 'same-origin' }).then(apiAntwortPruefen),
+    const [calRes, catRes, resRes, settingsRes, sessRes, erklaerungRes] = await Promise.allSettled([
+      // UI-R5: Von einer Gruppen-/Untergruppenseite kommt die Anfrage mit
+      // `kalenderVorgabe`. Dann liefert `get_accessible_calendars` die Felder
+      // `write`/`direkt`/`pruefstufen` je Kalender — nur so ist der Satz
+      // „wird vor der Veröffentlichung geprüft“ belegbar. Ohne Vorgabe bleibt
+      // der bisherige Weg (`get_writable_calendars`).
+      fetch(apiUrl(hatVorgabe.value
+        ? 'diakronos.kronos.api.permissions.get_accessible_calendars'
+        : 'diakronos.kronos.api.permissions.get_writable_calendars'), { credentials: 'same-origin' }).then(apiAntwortPruefen),
       fetch(ressourceUrl('Eventkategorie?fields=' + encodeURIComponent('["name","event_category_name"]') + '&limit_page_length=500'), { credentials: 'same-origin' }).then(apiAntwortPruefen),
       fetch(apiUrl('diakronos.kronos.api.ressource_api.get_ressources'), {
         method: 'POST',
@@ -418,11 +500,32 @@ async function loadData() {
         headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf },
         body: JSON.stringify({})
       }).then(apiAntwortPruefen),
-      fetch(apiUrl('diakronos.kronos.api.permissions.get_session_info'), { credentials: 'same-origin' }).then(apiAntwortPruefen)
+      fetch(apiUrl('diakronos.kronos.api.permissions.get_session_info'), { credentials: 'same-origin' }).then(apiAntwortPruefen),
+      // UI-R5 (Review 3): Titel der Prüfstufen aus der EINEN Quelle des Servers.
+      fetch(apiUrl('diakronos.diakonos.api.rechte.get_rollen_erklaerung'), { credentials: 'same-origin' }).then(apiAntwortPruefen)
     ])
 
     if (calRes.status === 'fulfilled') {
-      calendars.value = calRes.value?.message || []
+      const kalenderRoh = calRes.value?.message || []
+      const liste = Array.isArray(kalenderRoh) ? kalenderRoh : []
+      // UI-R5: Auf einer Gruppenseite bietet das Formular nur Kalender dieser
+      // Seite an (die Vorgabe kam fertig gefiltert vom Aufrufer). Die
+      // Rechtefelder (`direkt`, `pruefstufen`) bleiben am Eintrag — daraus
+      // kommt der Prüfhinweis. Ein Kalender, den der Server inzwischen NICHT
+      // mehr als beschreibbar führt, faellt hier heraus.
+      // Der Test-Aufbau alter Karten liefert hier `{message: {ok: true}}` —
+      // kein Array. Das bleibt ein Lade-Ergebnis ohne Kalender, keine Ausnahme.
+      calendars.value = hatVorgabe.value
+        ? liste.filter(c => c && c.write === true
+          && props.kalenderVorgabe.some(v => v && v.name === c.name))
+        : liste
+      // Eine Auswahl, die es in der neuen Liste nicht mehr gibt, wird
+      // verworfen (sonst zeigt das Pflichtfeld einen Wert, den der Server
+      // nicht kennt).
+      if (form.element_calendar
+          && !calendars.value.some(c => c.name === form.element_calendar)) {
+        form.element_calendar = ''
+      }
       kalenderFehler.value = ''
     } else {
       // Schreibrecht UNBEKANNT ist nicht dasselbe wie „kein Schreibrecht“.
@@ -438,8 +541,11 @@ async function loadData() {
     istRessourcenmoderator.value = rollen.includes('Ressourcenmoderator')
       || rollen.includes('Mitgliederadministrator')
       || rollen.includes('System Manager')
+    // UI-R5 (Review 3): Stufen-Titel für „wartet auf <Stufe>“.
+    const erklaerung = erklaerungRes.status === 'fulfilled' ? (erklaerungRes.value?.message || {}) : {}
+    stufenTitel.value = (erklaerung && typeof erklaerung.stufen_titel === 'object' && erklaerung.stufen_titel) || {}
     // Jeder aufgegebene Zweig wird benannt (kein stiller Ausfall).
-    for (const [name, r] of [['Kategorien', catRes], ['Ressourcen', resRes], ['Einstellungen', settingsRes]]) {
+    for (const [name, r] of [['Kategorien', catRes], ['Ressourcen', resRes], ['Einstellungen', settingsRes], ['Rollen-Erklärung', erklaerungRes]]) {
       if (r.status === 'rejected') console.warn(`${name} konnten nicht geladen werden:`, r.reason)
     }
   } catch (err) {
@@ -600,7 +706,17 @@ async function doSave() {
     zusaetzliche_ressourcen: JSON.stringify(validAdditional)
   }
   // UXK-R6: Ein ausdruecklicher Konflikt-Status muss mit (leer = Server-Default).
+  // UI-R5b: Bei einem DIREKTSCHREIBER-Kalender (`direkt === true`) bittet das
+  // Formular um "Festgelegt" — der Server legt ohne `status` immer nur einen
+  // Vorschlag an (BF1-A) und verweigert Nicht-Direktschreibern "Festgelegt".
+  // Ein ausdruecklicher Konflikt-Status (UXK-R6) geht vor; sonst bleibt
+  // `status` weg. Die Regel steht in gruppenTermin.mjs (getestet), sie gilt
+  // fuer create_event UND create_series (derselbe Payload).
   if (form.status) payload.status = form.status
+  else {
+    const direktStatus = statusFuerKalender(gewaehlterKalender.value)
+    if (direktStatus) payload.status = direktStatus
+  }
 
   saving.value = true
   try {
@@ -639,14 +755,13 @@ async function doSave() {
     }
 
     // Echter Erfolg: Termin benennen und ehrlich sagen, wo er landet.
+    // UI-R5 (Review 3): Bei einem Vorschlag nennt die Meldung die OFFENE STUFE
+    // aus `naechste_stufe` (R-12e) mit ihrem Titel aus `get_rollen_erklaerung()`
+    // — nicht nur „(Vorschlag)“. Für Serien gilt der `status` aus der Antwort
+    // (dieselbe Quelle), kein pauschaler Vorschlag.
     const angelegt = data.message
-    const status = angelegt?.status || 'Vorschlag'
-    const hinweis = (status === 'Festgelegt')
-      ? 'Termin gespeichert.'
-      : (istModeratorFuerAuswahl.value
-          ? `Termin gespeichert (${status}) — Sichtbar unter „Zu prüfen“.`
-          : `Termin gespeichert (${status}) — wird zum Prüfen vorgelegt.`)
-    showToast(hinweis, 'success')
+    const meldung = meldungNachSpeichern(angelegt, stufenTitel.value)
+    showToast(meldung.text, meldung.variante)
     emit('created', angelegt)
     emit('update:show', false)
     resetForm()
@@ -694,6 +809,10 @@ watch(() => props.show, (val) => {
     geoeffnet_am = Date.now()
     resetForm()
     formularSchutz.merken()
+    // UI-R5: Die Kalenderliste wird beim Öffnen NACHGELADEN — die Montage
+    // (App-Start) kann sie verfehlt haben (dann behauptete der Dialog
+    // faelschlich „kein Schreibrecht“, obwohl Kalender wählbar sind).
+    if (!calendars.value.length) loadData()
   }
 })
 
@@ -703,6 +822,13 @@ onMounted(() => {
     resetForm()
     formularSchutz.merken()
   }
+})
+
+// UI-R5: Die Kalenderlage dieser Seite kommt nach dem Seitenaufbau. Ohne
+// diesen Nachlauf bliebe ein früh geöffnetes Formular bei der Liste vom
+// Montagezeitpunkt stehen (im Messlauf: der Untergruppen-Kalender fehlte).
+watch(hatVorgabe, (jetzt) => {
+  if (jetzt) loadData()
 })
 </script>
 
@@ -848,6 +974,18 @@ onMounted(() => {
   gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-alt-20);
   border-top: 1px solid var(--line);
+  background: var(--surface-2);
+}
+/* UI-R5: Der Prüfhinweis bekommt eine eigene Zeile über der Knopfreihe. Der
+   Abstand liegt am WRAPPER — DkHint selbst behält seine Polsterung und seine
+   Info-Farbe (vorher überschrieb diese Regel beides: Text klebte oben, die Box
+   lief bis an den Rand). Der Abstand kommt aus der 4er-Leiter; kein
+   Handy-Zweig: die Regel hängt an keiner Breite, der Hinweis bricht selbst um.
+   Senkrecht dieselben 16px wie `--pad` (Innenabstand von DkHint), waagerecht
+   `--sp-4` — NICHT `--sp-alt-20`, dessen Bestand je Datei eingefroren ist und
+   nur schrumpfen darf (UX1a2/F4). */
+.dk-pruefhinweis {
+  padding: var(--sp-4);
   background: var(--surface-2);
 }
 </style>

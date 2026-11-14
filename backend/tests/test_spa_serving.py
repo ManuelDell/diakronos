@@ -293,3 +293,58 @@ def test_render_index_unbekannter_eintrag_meldet_kein_manifest() -> None:
         pytest.skip("Kein SPA-Build vorhanden")
     html = render_index("src/gibt-es-nicht/main.js")
     assert "FEHLER" in html or "type=\"module\"" not in html
+
+
+# ── R6 / UI-R6b: die oeffentliche Gastseite `gastinhalt` ────────────────────
+#
+# Die Seite eines Gast-Links liegt unter `/diakonos/gastinhalt#/gast/<token>`.
+# Sie MUSS ohne Sitzung erreichbar sein (die Gaeste haben kein Konto), darf
+# ihren Inhalt nicht zwischenspeichern und darf den Token nicht als `Referer`
+# an fremde Ressourcen weiterreichen. Der Altpfad `/gastinhalt` leitet mit
+# erhaltenem Abfrageteil auf den neuen Ort um.
+
+
+def test_gastinhalt_ohne_sitzung_ist_oeffentlich(gast_client: TestClient) -> None:
+    """`/diakonos/gastinhalt` liefert die Gast-SPA OHNE Sitzung (kein Anmeldegate)."""
+    resp = gast_client.get("/diakonos/gastinhalt")
+    assert resp.status_code == 200, "Gastseite ohne Sitzung nicht erreichbar"
+    assert "text/html" in resp.headers["content-type"]
+    # Der EIGENE Einstieg der Gastseite — nicht die App-Huelle.
+    #
+    # Im ausgelieferten HTML steht der GEHASHTE Dateiname; welcher Eintrag das
+    # ist, sagt das Vite-Manifest. Deshalb wird der Eintrag
+    # `src/gastinhalt/main.js` im Manifest nachgeschlagen und dessen Datei im
+    # HTML verlangt. (Ein Vergleich auf den blossen Eintragsnamen ginge ins
+    # Leere — der kommt im Build-Ergebnis nicht vor.)
+    if SPA_DIST is None:
+        pytest.skip("Kein SPA-Build vorhanden")
+    manifest = json.loads((SPA_DIST / ".vite" / "manifest.json").read_text(encoding="utf-8"))
+    eintrag = manifest.get("src/gastinhalt/main.js")
+    assert eintrag, "Eintrag src/gastinhalt/main.js fehlt im Manifest — Gastseite nicht gebaut"
+    datei = eintrag["file"]
+    assert f"/diakonos/assets/{datei}" in resp.text, (
+        f"Gastseite laedt nicht ihren Eintrag ({datei}): " + resp.text[:400]
+    )
+    # Und NICHT die App-Huelle.
+    haupt = manifest.get("src/diakonos/main.js", {}).get("file", "")
+    assert not haupt or haupt not in resp.text, "Gastseite laedt die Haupt-App"
+
+
+def test_gastinhalt_kopfzeilen_gegen_token_und_cache(gast_client: TestClient) -> None:
+    """`no-referrer` (Token steht in der Adresse) und `no-store` (Inhalt privat)."""
+    resp = gast_client.get("/diakonos/gastinhalt")
+    assert resp.headers.get("referrer-policy") == "no-referrer", (
+        "Ohne no-referrer wandert der Token im Referer zu fremden Ressourcen"
+    )
+    assert "no-store" in resp.headers.get("cache-control", ""), (
+        "Der Gast-Inhalt darf nicht zwischengespeichert werden"
+    )
+
+
+def test_altpfad_gastinhalt_leitet_mit_abfrageteil_um(gast_client: TestClient) -> None:
+    """`/gastinhalt?x=1` → 307 auf `/diakonos/gastinhalt?x=1` (Abfrage bleibt)."""
+    resp = gast_client.get("/gastinhalt?x=1", follow_redirects=False)
+    assert resp.status_code == 307, f"Altpfad antwortet {resp.status_code} statt 307"
+    assert resp.headers["location"].endswith("/diakonos/gastinhalt?x=1"), (
+        f"Ziel verliert den Abfrageteil: {resp.headers['location']}"
+    )

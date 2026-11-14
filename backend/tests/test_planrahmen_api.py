@@ -83,7 +83,7 @@ def stammdaten(sf):
         s.add_all([User(name=k, email=k, enabled=True) for k in ("a", "b", "fremd")])
         s.flush()
         s.add_all([Mitglied(name=k, user=k, email=k, vorname=k) for k in ("a", "b", "fremd")])
-        s.add(Gruppe(name="Chor", gruppenname="Chor"))
+        s.add(Gruppe(name="Chor", gruppenname="Chor", dienstbereich="Chor"))
         s.flush()
         s.add_all([Gruppenmitgliedschaft(name=k, parent="Chor", parenttype="Gruppe", parentfield="mitglieder", mitglied=k,
                                         status="Aktiv") for k in ("a", "b")])
@@ -192,7 +192,7 @@ def test_freizeit_durchstich(client, patched_db):
     aufruf(client, "veroeffentlichen", plan=p["id"])
 
 
-@pytest.mark.parametrize("rolle", ["System Manager", "bereich", "plan", "mitglied", "fremd"])
+@pytest.mark.parametrize("rolle", ["System Manager", "gruppe", "plan", "mitglied", "fremd"])
 def test_rechte_mit_echter_sitzung(client, patched_db, rolle):
     from diakronos_app import frappe_compat
     from diakronos_app.frappe_compat import sitzungen
@@ -209,30 +209,33 @@ def test_rechte_mit_echter_sitzung(client, patched_db, rolle):
     with patched_db.begin() as s:
         if rolle == "System Manager":
             s.add(HasRole(name="sm", parent=benutzer, role="System Manager"))
-        if rolle == "bereich":
-            s.add(DienstbereichVerantwortlicher(name="bv", parent="Chor", parenttype="Dienstbereich",
-                                                parentfield="verantwortliche", user=benutzer))
+    if rolle == "gruppe":
+        # R-6: frueher Bereichsverantwortung — jetzt MV der Gruppe der Vorlage.
+        from rechte_hilfe import planrahmen_rechte
+
+        planrahmen_rechte(patched_db, gruppe="Chor", mv=(benutzer,))
     def anmelden(user):
         frappe_compat.reset_user()
         sid, csrf = sitzungen.anlegen(user)
         client.cookies.set("sid", sid)
         client.headers["X-Frappe-CSRF-Token"] = csrf
     anmelden(benutzer)
-    berechtigt = rolle in ("System Manager", "bereich", "plan")
+    berechtigt = rolle in ("System Manager", "gruppe", "plan")
     assert client.get(PFAD + "plan_holen", params={"plan": p["id"]}).status_code == (200 if berechtigt else 403)
     r = client.post(PFAD + "eintrag_setzen", json={"plan": p["id"], "termin": t, "feld_pfad": "leitung", "wert": benutzer})
     assert r.status_code == (200 if berechtigt else 403)
     r = client.post(PFAD + "plantyp_speichern", json={"definition": definition, "gueltig_ab": "2026-02-01"})
-    assert r.status_code == (200 if rolle in ("System Manager", "bereich") else 403)
+    assert r.status_code == (200 if rolle in ("System Manager", "gruppe") else 403)
     assert client.post(PFAD + "abwesenheit_melden", json={"mitglied": benutzer, "von": "2026-03-01", "bis": "2026-03-02"}).status_code == 200
     r = client.post(PFAD + "abwesenheit_melden", json={"mitglied": "a" if benutzer != "a" else "b", "von": "2026-03-01", "bis": "2026-03-02", "plantyp": "rechte"})
-    assert r.status_code == (200 if rolle in ("System Manager", "bereich") else 403)
+    assert r.status_code == (200 if rolle in ("System Manager", "gruppe") else 403)
     anmelden("Administrator")
     aufruf(client, "eintrag_setzen", plan=p["id"], termin=t, feld_pfad="leitung", wert=benutzer)
     aufruf(client, "veroeffentlichen", plan=p["id"])
     aufruf(client, "eintrag_setzen", plan=p["id"], termin=t, feld_pfad="leitung", wert="a")
     anmelden(benutzer)
-    assert client.get(PFAD + "plan_holen", params={"plan": p["id"]}).status_code == 200
+    # R-6 (Manuel 11.11.): den ganzen Plan sieht nur, wer in einen Kalender der
+    # Gruppe schreiben darf — alle anderen sehen ihre eigenen Dienste.
+    assert client.get(PFAD + "plan_holen", params={"plan": p["id"]}).status_code == (
+        200 if berechtigt else 403)
     assert aufruf(client, "meine_dienste")
-    if not berechtigt:
-        assert aufruf(client, "plan_holen", plan=p["id"])["eintraege"][0]["wert"] == benutzer

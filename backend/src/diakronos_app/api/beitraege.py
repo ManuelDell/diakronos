@@ -66,7 +66,6 @@ from diakronos_app.frappe_compat.api_helpers import (
     _update_doc,
 )
 from diakronos_app.frappe_compat import db
-from diakronos_app.frappe_compat import permissions
 from diakronos_app.frappe_compat import whitelist
 from diakronos_app.frappe_compat.exceptions import (
     DoesNotExistError,
@@ -88,15 +87,19 @@ def _get_user():
     return user
 
 
-def _require_admin():
-    """Original: `_require_admin()` — Mitgliederadministrator ODER System Manager.
+# ── R-7: EIN Rechtesystem (Lesen/Anlegen/Verwalten ueber den Kern) ─────────
 
-    Die Rollenliste ist exakt die des Originals (`frappe.get_roles()`); die
-    Compat-Umsetzung ist `permissions.get_roles()` (`tabHas Role`).
-    """
-    roles = permissions.get_roles()
-    if "Mitgliederadministrator" not in roles and "System Manager" not in roles:
-        throw("Nur für Administratoren.", FrappePermissionError)
+
+def _darf(aktion: str, objekt: str | None = None, **kw) -> bool:
+    from diakronos_app import rechte
+
+    return bool(rechte.darf(session.user, aktion, "beitrag", objekt, **kw))
+
+
+def _pruefe_verwalten(objekt: str) -> None:
+    from diakronos_app import rechte
+
+    rechte.pruefe(session.user, rechte.VERWALTEN, "beitrag", objekt)
 
 
 def _avatar(name: str | None) -> str:
@@ -208,10 +211,16 @@ def get_beitraege_liste(kategorie="", search=""):
             or q in (b.get("autor") or "").lower()
         ]
 
+    # R-7: nur, was der Kern lesen laesst (Gruppe/Freigabe/Gemeinde).
+    from diakronos_app import rechte
+
     result = []
     for b in beitraege:
+        if not _darf(rechte.LESEN, b.get("name")):
+            continue
         d = _beitrag_to_dict(b)
         d["comments"] = db.count("Beitrag Kommentar", {"parent": b.get("name")})
+        d["darf_bearbeiten"] = _darf(rechte.VERWALTEN, b.get("name"))
         result.append(d)
 
     return result
@@ -221,11 +230,15 @@ def _require_beitrag_view(b, user):
     # Nicht vorhandene und verborgene Beitraege sind von aussen identisch.
     # UX2b: ein Beitrag im Papierkorb ist ebenfalls „nicht vorhanden“ —
     # sonst waere er ueber seine Kennung weiter lesbar.
-    if not b or b.get("geloescht_am") is not None or (
-        b.get("veroeffentlicht") != 1
-        and b.get("autor_email") != user
-        and not any(role in permissions.get_roles(user) for role in permissions.ADMIN_ROLES)
-    ):
+    # R-7: veroeffentlicht + Leserecht (Kern), sonst Autor oder Verwaltung.
+    from diakronos_app import rechte
+
+    if not b or b.get("geloescht_am") is not None:
+        throw("Beitrag nicht gefunden.", DoesNotExistError)
+    name = b.get("name")
+    sichtbar = (b.get("veroeffentlicht") == 1 and _darf(rechte.LESEN, name)) \
+        or b.get("autor_email") == user or _darf(rechte.VERWALTEN, name)
+    if not sichtbar:
         throw("Beitrag nicht gefunden.", DoesNotExistError)
 
 
@@ -242,18 +255,30 @@ def get_beitrag_detail(beitrag_id):
         as_dict=True,
     )
     _require_beitrag_view(b, user)
-    return _beitrag_to_dict(b, with_kommentare=True)
+    from diakronos_app import rechte
+
+    d = _beitrag_to_dict(b, with_kommentare=True)
+    # R-12l: dieselbe Pruefung wie in der Liste — die Leseseite zeigt
+    # „Bearbeiten/Löschen/Für Gäste freigeben“ nach diesem Feld.
+    d["darf_bearbeiten"] = _darf(rechte.VERWALTEN, beitrag_id)
+    return d
 
 
 @whitelist(methods=["POST"], allow_guest=False)
-def create_beitrag(titel, inhalt, kategorie="allgemein", auszug="", bild=""):
-    """Erstellt einen neuen Beitrag (nur Admin).
+def create_beitrag(titel, inhalt, kategorie="allgemein", auszug="", bild="",
+                   gruppe=None, untergruppe=None):
+    """Erstellt einen neuen Beitrag — R-7: HV/MV (bzw. GL) in ihrer Gruppe,
+    gemeindeweit nur der Admin.
 
     Das Original baut ein `frappe.get_doc({...})`-Dict; hier geht derselbe
     Wertsatz durch `_create()` (kein Dict-Insert am `Document`).
     """
     user = _get_user()
-    _require_admin()
+    from diakronos_app.rechte import verwaltung as _rv
+
+    gruppe = str(gruppe or "").strip() or None
+    untergruppe = str(untergruppe or "").strip() or None
+    _rv.pruefe_inhalt_anlegen(user, "beitrag", gruppe, untergruppe)
 
     user_doc = get_value("User", user, ["full_name"], as_dict=True) or {}
 
@@ -268,6 +293,7 @@ def create_beitrag(titel, inhalt, kategorie="allgemein", auszug="", bild=""):
         "datum":           _today(),
         "veroeffentlicht": 1,
     })
+    _rv.inhalt_anmelden(user, "beitrag", beitrag_id, gruppe, untergruppe)
 
     return {"success": True, "beitrag_id": beitrag_id}
 
@@ -281,7 +307,7 @@ def update_beitrag(beitrag_id, titel="", inhalt="", kategorie="", auszug="", bil
     `_update_doc` schreibt nur nicht-None-Werte — dieselbe Wirkung.
     """
     _get_user()
-    _require_admin()
+    _pruefe_verwalten(beitrag_id)  # R-7
 
     doc = get_doc("Beitrag", beitrag_id)
 
@@ -314,10 +340,10 @@ def delete_beitrag(beitrag_id):
 
     Auch das Original verbietet das Loeschen eines FREMDEN Beitrags nicht
     gesondert — die einzige Schranke ist `_require_admin()`. Genau so bleibt
-    es hier (keine Verschaerfung, keine Lockerung).
+    es hier (keine Verschaerfung, keine Lockerung). R-7: verwalten (Kern).
     """
     user = _get_user()
-    _require_admin()
+    _pruefe_verwalten(beitrag_id)
 
     try:
         zeitpunkt = papierkorb.loeschen("Beitrag", beitrag_id, von=user)
@@ -339,7 +365,7 @@ def wiederherstellen_beitrag(beitrag_id):
     etwas zurueckholen kann, das er nicht auch loeschen duerfte.
     """
     user = _get_user()
-    _require_admin()
+    _pruefe_verwalten(beitrag_id)  # R-7
 
     try:
         papierkorb.wiederherstellen("Beitrag", beitrag_id)

@@ -36,9 +36,12 @@ def stammdaten(sf):
         s.flush()
         s.add_all([Mitglied(name=k, user=k, email=k, vorname=k.capitalize(), nachname="Test")
                    for k in ("planer_chor", "planer_freizeit", "mitglied")])
-        s.add_all([DienstbereichVerantwortlicher(name="bv-" + b.lower(), parent=b, parenttype="Dienstbereich",
-                                                 parentfield="verantwortliche", user=u)
-                   for b, u in (("Chor", "planer_chor"), ("Freizeit", "planer_freizeit"))])
+    # R-6: Planer = HV der Gruppe ihres Bereichs (Dienstbereiche entfallen);
+    # „mitglied“ schreibt im Chor-Kalender und sieht damit Chor-Plaene.
+    from rechte_hilfe import planrahmen_rechte
+
+    planrahmen_rechte(sf, bereich="Chor", hv="planer_chor", leser=("mitglied",))
+    planrahmen_rechte(sf, bereich="Freizeit", hv="planer_freizeit")
 
 
 def definition(schluessel, name, bereich=None):
@@ -317,13 +320,14 @@ def test_plantypen_liste_darf_plantyp_bearbeiten(client, patched_db):
 
 def test_einrichten_rechte_auch_bei_leerer_liste(client, patched_db):
     stammdaten(patched_db)
-    # Bereichsverantwortliche(r) ohne jeden Plantyp: anlegbereit.
+    # HV einer Gruppe ohne jeden Plantyp: anlegbereit (R-6: Vorlagen gehoeren
+    # Gruppen; waehlbar sind die eigenen Gruppen und deren Bereiche).
     anmelden(client, "planer_chor")
     assert aufruf(client, "plantypen_liste") == []  # leer, aber keine 403
     rechte = aufruf(client, "einrichten_rechte")
     assert rechte == {"darf_anlegen": True, "bereiche": ["Chor"],
                       "bereich_liste": [{"kennung": "Chor", "name": "Chor"}],
-                      "gruppen": [], "admin": False}
+                      "gruppen": [{"kennung": "G-Chor", "name": "G-Chor"}], "admin": False}
     # Planverantwortung ohne Bereich: sehen ja, anlegen nein.
     anmelden(client, "Administrator")
     aufruf(client, "plantyp_speichern", definition=definition("fz-ui2", "Freizeit UI2", "Freizeit"),
@@ -342,7 +346,10 @@ def test_einrichten_rechte_auch_bei_leerer_liste(client, patched_db):
     assert admin == {"darf_anlegen": True, "bereiche": ["Chor", "Freizeit"],
                      "bereich_liste": [{"kennung": "Chor", "name": "Chor"},
                                        {"kennung": "Freizeit", "name": "Freizeit"}],
-                     "gruppen": [], "admin": True}
+                     # R-6: die Gruppen der Planer (Vorlagen gehoeren Gruppen)
+                     "gruppen": [{"kennung": "G-Chor", "name": "G-Chor"},
+                                 {"kennung": "G-Freizeit", "name": "G-Freizeit"}],
+                     "admin": True}
 
 
 # --------------------------------------------------------------------------- #

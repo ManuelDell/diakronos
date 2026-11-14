@@ -22,12 +22,15 @@
     <template v-else-if="geladen">
       <!-- MAIL-1: ohne eingerichteten Mailversand lässt sich kein Löschantrag
            freigeben (die Meldung muss vor der Anonymisierung raus). Der
-           Hinweis steht dort, wo freigegeben wird — nur System Manager können
-           ihn abstellen, deshalb sehen ihn nur sie. -->
-      <DkHint v-if="!mailversand.eingerichtet && mailversand.darf_aendern" variant="warn" role="status">
+           Hinweis steht dort, wo freigegeben wird. R10-Review (Punkt 4): den
+           Weg zu den Mail-Einstellungen bekommt nur, wer ihn gehen darf
+           (`darf_aendern` = System Manager) — der Link führt sonst über den
+           Admin-Wächter aufs Dashboard. Andere sehen den Hinweis ohne Link. -->
+      <DkHint v-if="!mailversand.eingerichtet" variant="warn" role="status">
         Mailversand ist noch nicht eingerichtet — ohne ihn können Löschanträge
         nicht freigegeben werden.
-        <a href="#/einstellungen/mailversand">Mailversand einrichten</a>
+        <a v-if="mailversand.darf_aendern" href="#/einstellungen/mailversand">Mailversand einrichten</a>
+        <template v-else>Bitte den Administrator bitten, ihn einzurichten.</template>
       </DkHint>
       <DkCard title="Offene Löschanträge">
         <!-- DSGVO-2c: Freigeben und Ablehnen stehen auf der eigenen Seite

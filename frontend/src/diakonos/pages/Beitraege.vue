@@ -8,7 +8,11 @@
       :actions-label="null"
     >
       <template #actions>
-        <DkButton v-if="isAdmin" variant="primary" @click="openEditor()">
+        <!-- R6: Anlegen darf, wer in mindestens einer (Unter-)Gruppe `anlegen`
+             hat. Das weiß allein der Server: die Einheiten werden beim Laden
+             der Seite EINMAL gefragt (`useAnlegenMitGruppe`), der Knopf
+             erscheint nur, wenn mindestens eine sie bejaht hat. -->
+        <DkButton v-if="darfAnlegen" variant="primary" :loading="anlegenLaeuft" @click="openEditor()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Neuer Beitrag
         </DkButton>
@@ -155,6 +159,9 @@
     <!-- MT-7: Lesen ist eine eigene Unterseite (#/beitraege/<Kennung>,
          pages/BeitragDetail.vue) — kein Fenster mehr an dieser Stelle. -->
 
+    <!-- UI-R6d: Die Detail-Knöpfe (Für Gäste freigeben / Bearbeiten / Löschen)
+         stehen seit MT-7 auf der Leseseite (pages/BeitragDetail.vue) — hier
+         gibt es kein Detail-Fenster mehr. -->
 
     <!-- Editor (Verwaltung) -->
     <DkDialog :model-value="showEditor" :before-close="editorSchutz.darfSchliessen" size="lg"
@@ -162,6 +169,13 @@
               @update:model-value="showEditor = $event">
       <!-- OP-UI-23: Enter im Feld speichert (wie der Knopf). -->
       <form class="bt-editor" @submit.prevent="savePost">
+        <!-- R6: gewählte Gruppe. Beim Anlegen fest (die Auswahl ist davor
+             gelaufen); beim Bearbeiten nur zur Information — die Zuordnung
+             eines bestehenden Beitrags ändert dieser Dialog nicht. -->
+        <div v-if="!editingPost && gewaehlteEinheit" class="bt-einheit">
+          <span class="bt-einheit-label">Für</span>
+          <strong class="bt-einheit-text">{{ einheitAnzeige }}</strong>
+        </div>
         <DkField label="Titel" required :error="editorFehler.titel">
           <input maxlength="140" v-model="editorForm.title" class="dk-ui-eingabe" type="text" placeholder="Titel des Beitrags" required />
         </DkField>
@@ -205,6 +219,28 @@
         <DkButton variant="primary" :disabled="savingPost" @click="savePost">Speichern</DkButton>
       </template>
     </DkDialog>
+
+    <!-- R6: Auswahl der Gruppe beim Anlegen (nur geprüfte Einheiten). Der
+         Dialog erklärt selbst, wenn es nichts zu wählen gibt. -->
+    <GruppeWaehlen
+      v-model="auswahlOffen"
+      :optionen="optionen"
+      :startwert="startwert"
+      :laden="auswahlLaden"
+      was="Beitrag"
+      label="Beitrag anlegen für"
+      hilfe="Sichtbar wird der Beitrag für die Mitglieder dieser Gruppe."
+      @waehlen="beitragAnlegen"
+    />
+
+    <!-- R6: Gast-Link für einen Beitrag. -->
+    <GastFreigabe
+      :model-value="gastOffen"
+      typ="beitrag"
+      :objekt="gastObjekt?.id || ''"
+      :titel="gastObjekt?.title || ''"
+      @update:model-value="gastOffen = $event"
+    />
 
   </div>
 </template>
@@ -250,8 +286,14 @@ import DkSkelett from '../components/ui/DkSkelett.vue'
 import DkCheckbox from '../components/ui/DkCheckbox.vue'
 // UX2e: EIN Aktionsmenü „⋯" für alle Listen (Entwurf B1).
 import DkAktionen from '../components/ui/DkAktionen.vue'
+// R6: Gruppe wählen + Gast-Links.
+import GruppeWaehlen from '../components/r6/GruppeWaehlen.vue'
+import GastFreigabe from '../components/r6/GastFreigabe.vue'
+import { useAnlegenMitGruppe } from '../composables/useAnlegenMitGruppe.js'
+import { einheitText } from '../composables/r6Gastzugang.mjs'
+import { darfBearbeiten as serverErlaubtBearbeiten } from '../composables/r6Detail.js'
 
-const { isAdmin, rollen } = useSession()
+const { rollen } = useSession()
 // UX2c (C2): der Rückgängig-Weg dieser Seite (Stapel-Eintrag + Meldung).
 const { mitRueckgaengig } = useRueckgaengigAktion()
 // BS-1d: Website-Schalter nur für Website-Rollen (Server antwortet sonst 403).
@@ -286,6 +328,56 @@ const editorFehler = ref({ titel: '' })
 const editorForm = ref({
   title: '', category: 'allgemein', image: '', excerpt: '', content: ''
 })
+
+/* ─── R6: Anlegen in einer (Unter-)Gruppe, Freigabe für Gäste ─────────────
+ * Die Seite entscheidet keine Rechte. Die Orte, an denen diese Person anlegen
+ * darf (samt Titel und Reihenfolge), kommen aus EINER Serverantwort:
+ * `api.rechte.get_anlegeorte` (über `useAnlegenOrte`, Pfad aus
+ * `whitelist.json`). `darf_bearbeiten` trägt der LISTENEintrag
+ * (`get_beitraege_liste`) — die Lese-Unterseite (`pages/BeitragDetail.vue`)
+ * bekommt es seit UI-R6e direkt aus ihrer Detail-Antwort (R-12l).
+ */
+const {
+  optionen, auswahlOffen, auswahlLaden, startwert, darfAnlegen,
+  rechteLaden, starten: anlegenStarten,
+} = useAnlegenMitGruppe('beitrag')
+// Einheit, für die der Editor gerade offen ist (beim Bearbeiten: leer).
+const gewaehlteEinheit = ref(null)
+const anlegenLaeuft = ref(false)
+/**
+ * Was im Editor unter „Für“ steht: der `titel` des Servers.
+ *
+ * UI-R6c: Nur der Titel — kein eigener Gemeinde-Text und keine zusammengesetzte
+ * Kennung mehr (`einheitText` in `r6Gastzugang.mjs` liefert nichts anderes).
+ */
+const einheitAnzeige = computed(() => einheitText(gewaehlteEinheit.value))
+
+// Der Auswahl-Dialog meldet die Wahl über `@waehlen` — erst dann steht die
+// Einheit fest und der Editor darf aufgehen.
+//
+// UI-R6c: Der Dialog gibt den GANZEN Ort zurück (`ortAusWert`, inklusive
+// Server-`titel`) — genau wie `anlegenStarten` bei genau einer Möglichkeit.
+// Hier wird deshalb nichts mehr nachgeschlagen oder zusammengesetzt: der Titel
+// im Editor ist der des Servers (oder leer, wenn der Server keinen nannte).
+function beitragAnlegen(ort) {
+  auswahlOffen.value = false
+  openEditor(null, ort)
+}
+
+/**
+ * Hat der Server Bearbeiten für diesen Beitrag erlaubt?
+ * Regel in `composables/r6Detail.js` (eine Wahrheit für Beiträge und Wiki).
+ */
+const darfBearbeiten = serverErlaubtBearbeiten
+
+/* Gast-Link-Dialog (nur für Einträge mit `darf_bearbeiten`). */
+const gastOffen = ref(false)
+const gastObjekt = ref(null)
+function gastFreigeben(post) {
+  if (!darfBearbeiten(post)) return
+  gastObjekt.value = post
+  gastOffen.value = true
+}
 
 /* ─── Bausteine beschicken ─── */
 // K4: Chip-Zeile aus dem gemeinsamen Baustein — dieselbe Form wie in Gruppen,
@@ -463,6 +555,10 @@ function listenZustandUebernehmen() {
  * der Beitrag im Ergebnis fehlt.
  */
 onMounted(async () => {
+  // UI-R6d: Beim Laden der Seite EINMAL fragen, wo diese Person anlegen darf —
+  // der Kopfknopf hängt daran (ohne Möglichkeit erscheint er nicht).
+  // `rechteLaden` öffnet NICHTS; der Auswahl-Dialog gehört zum Klick.
+  rechteLaden().catch(() => {})
   listenZustandUebernehmen()
   await loadPosts()
   await fokusWiederherstellen()
@@ -557,9 +653,32 @@ async function websiteUmschalten(wert) {
 async function editorSchliessen() {
   if (await editorSchutz.darfSchliessen()) showEditor.value = false
 }
-function openEditor(post = null) {
+/**
+ * Editor öffnen.
+ *
+ * R6: OHNE `post` UND ohne bereits gewählte Einheit ist das der Weg des
+ * Kopfknopfes „+ Neuer Beitrag“ — dann wird ZUERST die (Unter-)Gruppe geklärt
+ * (`anlegenStarten`), denn ein Beitrag ohne Gruppe ist gemeindeweit und damit
+ * dem Administrator vorbehalten. Gibt es genau eine Möglichkeit, steht sie
+ * sofort fest; bei mehreren öffnet sich die Auswahl und ruft diese Funktion
+ * mit `einheit` erneut auf.
+ */
+async function openEditor(post = null, einheit = null) {
+  if (!post && !einheit) {
+    if (anlegenLaeuft.value) return
+    anlegenLaeuft.value = true
+    try {
+      const sofort = await anlegenStarten()
+      if (sofort) await openEditor(null, sofort)
+    } finally {
+      anlegenLaeuft.value = false
+    }
+    return
+  }
   editingPost.value = post
   editorFehler.value = { titel: '' }
+  // R6: beim Anlegen die gewählte (Unter-)Gruppe; beim Bearbeiten keine.
+  gewaehlteEinheit.value = post ? null : einheit
   // BS-1d: Stand der Website-Freigabe aus der Liste (Default AUS) — der
   // Schalter ist NICHT Teil des Formulars und wird nicht mitgespeichert.
   aufWebsite.value = post?.auf_website === true
@@ -590,9 +709,13 @@ async function savePost() {
       })
       showToast('Beitrag aktualisiert')
     } else {
+      // R6: OHNE Gruppe legt nur der Administrator an — der Server antwortet
+      // sonst 403 mit genau dieser Erklärung (`aktionsfehler` zeigt sie).
       await apiCall('diakronos.diakonos.api.beitraege.create_beitrag', {
         titel: f.title, inhalt: f.content, kategorie: f.category,
         auszug: f.excerpt, bild: f.image || '',
+        gruppe: gewaehlteEinheit.value?.gruppe || null,
+        untergruppe: gewaehlteEinheit.value?.untergruppe || null,
       })
       showToast('Beitrag erstellt')
     }
@@ -625,9 +748,11 @@ async function deletePost(post) {
    Die Karte hat bisher KEINE Aktion getragen (Bearbeiten/Löschen lagen im
    Detail-Dialog). Jetzt stehen sie am Eintrag:
      · Beitrag öffnen        (immer)
-     · Bearbeiten            (Admin)
-     · Löschen               (Admin, gefährlich, abgesetzt am Ende)
-   Rechte: dieselben wie MF3 (isAdmin) — der Server prüft erneut. */
+     · Für Gäste freigeben   (`darf_bearbeiten`)
+     · Bearbeiten            (`darf_bearbeiten`)
+     · Löschen               (`darf_bearbeiten`, gefährlich, abgesetzt am Ende)
+   R6: Das Recht kommt aus der Serverantwort (`darf_bearbeiten` — HV/MV der
+   Gruppe bzw. GL), NICHT aus `isAdmin`. Der Server prüft jeden Aufruf erneut. */
 const aktionRefs = new Map()
 const postSchluessel = (p) => String(p?.id ?? '')
 function setzeAktion(el, p) {
@@ -659,7 +784,11 @@ function aktionenFuerPost(post) {
     key: 'oeffnen', label: 'Beitrag öffnen', icon: 'ansehen',
     aktion: () => oeffnenPost(post),
   }]
-  if (isAdmin.value) {
+  if (darfBearbeiten(post)) {
+    eintraege.push({
+      key: 'gast', label: 'Für Gäste freigeben', icon: 'freigeben',
+      aktion: () => gastFreigeben(post),
+    })
     eintraege.push({
       key: 'bearbeiten', label: 'Bearbeiten', icon: 'bearbeiten',
       aktion: () => bearbeitenPost(post),
@@ -865,6 +994,10 @@ function zeilenKontextmenue(ereignis, post) {
 
 /* Editor */
 .bt-editor { display: flex; flex-direction: column; gap: var(--sp-3); }
+/* R6: gewählte Gruppe beim Anlegen — eine Zeile, ruhig, ohne Rahmen. */
+.bt-einheit { display: flex; align-items: baseline; gap: var(--sp-2); font-size: var(--fs-sm); }
+.bt-einheit-label { color: var(--muted); }
+.bt-einheit-text { color: var(--text); }
 /* BS-1d (U3): Website-Freigabe im Editor — Schalter mit kurzer Erklärung. */
 .bt-website { display: grid; gap: var(--sp-1); }
 .bt-website-hilfe { margin: 0; color: var(--muted); font-size: var(--fs-sm); }

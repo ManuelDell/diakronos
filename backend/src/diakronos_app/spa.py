@@ -132,7 +132,14 @@ DEFAULT_CHURCH_NAME = "Meine Gemeinde"
 #   referenz/.../diakronos/www/diakonos/gast.py:5           allow_guest = True
 # `diakonos` selbst (index.py:16) und `organigramm` (organigramm.py:14)
 # leiten im Altcode ohne Sitzung zur Anmeldung weiter.
-OEFFENTLICHE_EINTRAEGE = ("registrierung", "gast")
+#
+# R6: `gastinhalt` ist neu — die öffentliche Seite eines Gast-Links für
+# Beiträge/Wiki (`#/gast/<token>`). Sie hat kein Frappe-Vorbild: das
+# Rechtesystem (claude/rechte5, `api.rechte.gast_inhalt`) ist neu, und die
+# Freigabe muss ohne Konto erreichbar sein. Eigener Einstieg
+# (`src/gastinhalt/main.js`), damit keine App-Hülle und kein Anmeldegate
+# greift. `gast` (Gast-ANMELDUNG eines Termins) bleibt unverändert.
+OEFFENTLICHE_EINTRAEGE = ("registrierung", "gast", "gastinhalt")
 
 # ── Altpfade der Frappe-www-Module (A1c5) ───────────────────────────────────
 # `boot.modules[].route` zeigte im Original auf echte www-Seiten (`/kronos`,
@@ -396,8 +403,12 @@ def boot_fuer_request() -> dict[str, Any]:
         # allein — ein ausgeschlossener root hat () und meldet sich damit
         # weder als root noch als Admin (Befund 2 des Sicherheits-Reviews;
         # `get_roles` sortiert den Ausschluss bereits aus).
-        "is_admin": permissions.ROOT_ROLLE in rollen
-                    or any(r in permissions.ADMIN_ROLES for r in rollen),
+        # R-11a: Admin = der Administrator des EINEN Rechtesystems (Kern);
+        # die Mitgliederverwaltung (Personen, Konten, Registrierung) hat ihr
+        # eigenes Flag — die Oberflaeche blendet damit ihren Bereich ein.
+        "is_admin": permissions.ROOT_ROLLE in rollen or permissions.is_admin(user),
+        "ist_mitgliederverwaltung": permissions.ROOT_ROLLE in rollen
+                                    or permissions.ist_mitgliederverwaltung(user),
         "is_root": permissions.ROOT_ROLLE in rollen,
         # UX3d: nur Moderatoren sehen den Kalender-Reiter „Zu prüfen“. Der
         # Wert ist derselbe wie `can_moderate` des Endpunkts; die Oberfläche
@@ -421,6 +432,10 @@ def boot_fuer_request() -> dict[str, Any]:
         "oidc_aktiv": _oidc_aktiv(),
         "mitglied": _mitglied_zeile(email) if user != GUEST else None,
         "modules": _module_liste() if user != GUEST else [],
+        # R-3: Module des EINEN Rechtesystems, in denen die Sitzung etwas
+        # lesen darf. Die Navigation blendet alle anderen aus (`menue.js`,
+        # Feld `modul`). Reine Anzeige — jeder Endpunkt prueft serverseitig.
+        "module_sichtbar": _module_sichtbar(user),
         "church_name": einstellungen.get("organisationsname") or DEFAULT_CHURCH_NAME,
         # ON-4 (H4): Das Logo kommt aus dem ON-2-Stand (`gemeinde_einstellungen`,
         # Upload in ON-2/ON-4) — FERTIG mit Betriebspraefix und `?v=` (Cache-
@@ -450,6 +465,19 @@ def boot_fuer_request() -> dict[str, Any]:
         # `is_admin`), die Leitungsregel steht in `router.js` — eine Wahrheit.
         "einrichtung_offen": _einrichtung_offen(),
     }
+
+
+def _module_sichtbar(user: str) -> list[str]:
+    """Sichtbare Module laut Rechte-Kern (R-3); Fehler -> leer (fail closed)."""
+    if not user or user == GUEST:
+        return []
+    try:
+        from diakronos_app.rechte import sichtbare_module
+
+        return sorted(sichtbare_module(user))
+    except Exception:  # noqa: BLE001 — Boot darf nicht scheitern; ohne Liste kein Menuepunkt
+        logging.getLogger(__name__).warning("module_sichtbar nicht ermittelbar", exc_info=True)
+        return []
 
 
 def _einrichtung_offen() -> bool:
@@ -1153,15 +1181,15 @@ def _ist_oeffentlich(full_path: str) -> bool:
     """True fuer Seiten, die im Altcode ohne Anmeldung erreichbar sind."""
     if not full_path:
         return False
-    m = re.match(r"^(registrierung|gast|organigramm)\b", full_path)
+    m = re.match(r"^(registrierung|gast|organigramm|gastinhalt)\b", full_path)
     return bool(m and m.group(1) in OEFFENTLICHE_EINTRAEGE)
 
 
 def _public_entry(full_path: str) -> str | None:
-    """Eintragsname (`registrierung`/`gast`) einer oeffentlichen Seite."""
+    """Eintragsname (`registrierung`/`gast`/`gastinhalt`) einer oeffentlichen Seite."""
     if not full_path:
         return None
-    m = re.match(r"^(registrierung|gast)\b", full_path)
+    m = re.match(r"^(registrierung|gast|gastinhalt)\b", full_path)
     return m.group(1) if m else None
 
 
@@ -1198,6 +1226,14 @@ def _oeffentliche_daten(seite: str, token: str) -> dict[str, Any]:
         # M-1: der gepflegte Willkommenstext erscheint ueber dem Formular.
         "willkommenstext": _willkommenstext(),
     }
+    if seite == "gastinhalt":
+        # R6: die Gastseite eines Beitrags/Wiki-Artikels ist KEIN
+        # Registrierungslink. Der Token steht im Hash (`#/gast/<token>`), den
+        # der Server nie sieht; das Passwort und die Pruefung liegen allein bei
+        # `api.rechte.gast_inhalt` (POST). Hier gibt es deshalb nichts
+        # vorab zu pruefen und nichts zu verraten — die Seite entscheidet
+        # selbst, was sie zeigt.
+        return daten
     if not token:
         # WEB-7 (U1): ohne `?token=` ist die Seite kein Link, sondern eine
         # Adresse ohne Ziel — die Person bekommt keine Rueckmeldung, sondern
@@ -1443,7 +1479,15 @@ def mount_spa(app: FastAPI) -> None:
     # lief deshalb in einen 404. Diese beiden Routen leiten den Altpfad auf die
     # oeffentliche SPA-Seite um und BEHALTEN die Abfrage (`?token=…`); kein
     # Anmeldegate, denn die Ziele sind selbst oeffentlich.
-    for _alt_oeff, _neu in (("/registrierung", "registrierung"), ("/gast", "gast")):
+    #
+    # R6: `gastinhalt` bekommt eine ebenso feste Adresse:
+    # `/diakonos/gastinhalt#/gast/<token>`. Bewusst NICHT `/diakonos/gast` —
+    # das ist die Gast-ANMELDUNG eines Termins (Lesezeichen, Mails aus dem
+    # Altbestand); beide Seiten prüfen `?token=` gegen unterschiedliche
+    # Gegenstände. Der Hinweis in `r6Gastzugang.gastLinkAdresse` meint
+    # „derselbe rationale Einstieg“, nicht dieselbe Adresse.
+    for _alt_oeff, _neu in (("/registrierung", "registrierung"), ("/gast", "gast"),
+                            ("/gastinhalt", "gastinhalt")):
         def _oeff_alt_view(
             request: Request,
             _neu: str = _neu,
@@ -1527,9 +1571,9 @@ def mount_spa(app: FastAPI) -> None:
 
         # 4. Sonst: index.html (SPA-Hash-Routing)
         entry = "src/diakonos/main.js"
-        # Unterseiten der SPA (registrierung/gast/organigramm) nutzen
+        # Unterseiten der SPA (registrierung/gast/gastinhalt/organigramm) nutzen
         # eigene Entry-Punkte.
-        m = re.match(r"^(registrierung|gast|organigramm)\b", full_path)
+        m = re.match(r"^(registrierung|gast|gastinhalt|organigramm)\b", full_path)
         if m:
             entry = f"src/{m.group(1)}/main.js"
 

@@ -14,7 +14,12 @@ def _erlaubt(doctype, name, aktion="read"):
 
 
 def test_mitglied_sieht_kein_mitglied_aus_fremdem_bereich(hierarchie):  # noqa: F811
+    """R-9/R-11b: den NAMEN sieht jedes Gemeindemitglied; aendern darf es ihn nie,
+    und ohne Mitglied-Datensatz gibt es gar nichts."""
     set_user("mitglied-a@example.org")
+    assert _erlaubt("Mitglied", "M-gruppe-b1", "read") is True
+    assert _erlaubt("Mitglied", "M-gruppe-b1", "write") is False
+    set_user("ohne-mitglied@example.org")
     assert _erlaubt("Mitglied", "M-gruppe-b1", "read") is False
 
 

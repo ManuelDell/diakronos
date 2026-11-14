@@ -152,13 +152,14 @@
         :gesamt="gesamt"
         :seite="seite"
         :seiten="seiten"
-        :darf-anlegen="istAdmin"
+        :darf-anlegen="darfVerwalten"
         :verwaltung="verwaltung"
         :quelle="quelle"
         :persoenlich="persoenlicheAngefordert"
         @anlegen="personAnlegen"
         @blaettern="blaettern"
         @erneut="laden"
+        @daten-anfrage="datenAnfragen"
       />
 
       <!-- UX3b2 (Befund 1): wartende Konten (Konto ohne Mitglied) — dieselbe
@@ -232,6 +233,7 @@ import { aktionsfehler, fehlertext } from '../../shared/fehlertexte.js'
 import {
   personenQuelle, zeileAusListe, zeileAusAdressbuch, seitenzahl,
 } from '../composables/personenZeilen.mjs'
+import { antwortText } from '../composables/datenAnfrage.mjs'
 import {
   ansichtOptionen, datenschalterText, listenFormFuer, naechsteSortierung,
   persoenlicheDatenAnfordern, sortierBeschriftung, statusFilterOptionen,
@@ -257,10 +259,16 @@ const Registrierung = defineAsyncComponent(() => import('./Registrierung.vue'))
 const Datenschutz = defineAsyncComponent(() => import('./mitglieder/Datenschutz.vue'))
 const Import = defineAsyncComponent(() => import('./mitglieder/Import.vue'))
 
-const { isAdmin } = useSession()
+// UI-R10: Der Personenbereich gehört der MITGLIEDERverwaltung (R-11a) — die
+// Rolle „Mitgliederadministrator“ ist seit R-11a kein Administrator mehr
+// (`is_admin` = nur der Kern-Admin). Deshalb liest die Seite hier
+// `istMitgliederverwaltung` (Admin ODER Mitgliederadministrator); `isAdmin`
+// bleibt für alles, was Vollzugriff braucht (Gruppen anlegen).
+const { isAdmin, istMitgliederverwaltung } = useSession()
 const istAdmin = computed(() => isAdmin.value === true)
-/** Verwaltungsfunktionen nur für Mitgliederadministratoren (fail closed). */
-const verwaltung = computed(() => verwaltungSichtbar(isAdmin.value === true))
+const darfVerwalten = computed(() => istMitgliederverwaltung.value === true)
+/** Verwaltungsfunktionen nur mit Verwaltungsrecht (fail closed). */
+const verwaltung = computed(() => verwaltungSichtbar(darfVerwalten.value))
 
 // ── Reiter ──────────────────────────────────────────────────────────────────
 // Reihenfolge des Entwurfs A3: Liste · Anfragen · Datenschutz · Import.
@@ -271,10 +279,12 @@ const verwaltung = computed(() => verwaltungSichtbar(isAdmin.value === true))
 // (ein Reiter mit einem Eintrag ist keine Wahl).
 const reiterOptionen = computed(() => personenReiter({
   istAdmin: istAdmin.value === true,
+  istMitgliederverwaltung: darfVerwalten.value,
   anfragenZahl: anfragenZahl.value,
 }))
 const unterReiterOptionen = computed(() => personenAnfragenReiter({
   istAdmin: istAdmin.value === true,
+  istMitgliederverwaltung: darfVerwalten.value,
 }))
 /** Zeigt dieser Reiter die zweite Ebene? (fertiger Wahrheitswert — in der
  *  Vorlage werden Refs in Ausdrücken nicht ausgepackt.) */
@@ -289,8 +299,10 @@ function reiterAusAdresse() {
   if (typeof window === 'undefined') return 'liste'
   // Unbekannte Werte (und Reiter ohne Recht) fallen auf die Liste zurück —
   // kein leerer Bildschirm über einer getippten Adresse.
-  return personenReiterAusHash(window.location.hash, { istAdmin: istAdmin.value === true })
-    || 'liste'
+  return personenReiterAusHash(window.location.hash, {
+    istAdmin: istAdmin.value === true,
+    istMitgliederverwaltung: darfVerwalten.value,
+  }) || 'liste'
 }
 
 /** Unterbereich aus der Adresse (`#/personen/anfragen[/<unter>]`). */
@@ -314,7 +326,7 @@ function adresseGeaendert() {
 }
 // Die Rolle steht beim Aufbau fest; wechselt sie (z. B. Identitätswechsel im
 // Devmodus), wird ein Reiter ohne Recht zur Liste.
-watch(istAdmin, () => {
+watch(darfVerwalten, () => {
   if (!reiterOptionen.value.some(r => r.value === aktiverReiter.value)) aktiverReiter.value = 'liste'
 })
 
@@ -326,7 +338,7 @@ const unterzeile = computed(() => {
   }
   if (aktiverReiter.value === 'datenschutz') return 'Einwilligungen und Löschungen der Gemeinde'
   if (aktiverReiter.value === 'import') return 'Personen aus einer CSV-Datei einlesen'
-  return istAdmin.value
+  return darfVerwalten.value
     ? 'Alle Personen der Gemeinde'
     : 'Kontaktdaten der Gemeinde'
 })
@@ -353,7 +365,7 @@ const unterbereichHauptaktion = computed(() => (aktiverReiter.value === 'anfrage
 const anlegenIstHauptaktion = computed(() => !unterbereichHauptaktion.value)
 
 // ── Liste ───────────────────────────────────────────────────────────────────
-const quelle = computed(() => personenQuelle(istAdmin.value))
+const quelle = computed(() => personenQuelle(darfVerwalten.value))
 const PRO_SEITE = 20
 
 const zeilen = ref([])
@@ -377,7 +389,7 @@ const gesamtAlle = ref(0)
 const ansicht = ref(null)
 
 const persoenlicheAngefordert = computed(
-  () => persoenlicheDatenAnfordern(istAdmin.value === true, zeigePersoenlicheDatenWert.value),
+  () => persoenlicheDatenAnfordern(darfVerwalten.value, zeigePersoenlicheDatenWert.value),
 )
 const seiten = computed(() => seitenzahl(gesamt.value, PRO_SEITE))
 const sucht = computed(() => Boolean(String(suchbegriff.value || '').trim()))
@@ -387,7 +399,7 @@ const form = computed(() => listenFormFuer({ gesamt: gesamt.value, wunsch: ansic
 /** Am Handy zeigen die Karten (dieselbe Grenze wie im Baustein: 720 px). */
 const schmal = ref(false)
 const ansichten = computed(() => ansichtOptionen({
-  istAdmin: istAdmin.value === true,
+  istAdmin: darfVerwalten.value,
   schmal: schmal.value,
 }))
 
@@ -515,6 +527,54 @@ function blaettern(ziel) {
   laden()
 }
 
+// ── R-9: „Daten anfragen“ (Manuel 11.11.) ──────────────────────────────────
+/**
+ * Bittet eine Person um Freigabe ihrer Kontaktdaten. Die Zeile meldet nur den
+ * Wunsch (`datenAnfrage` von PersonenListe); hier geht die Anfrage an den
+ * Server (`mitglieder.daten_anfragen`) und die Antwort wird in EINEN Satz
+ * übersetzt (composables/datenAnfrage.mjs).
+ *
+ * Der Server entscheidet: höchstens eine Anfrage je Person und Woche
+ * (`bereits: true`) und ob überhaupt jemand gefragt werden kann
+ * (`gesendet: false` ohne `bereits`). Die Oberfläche behauptet nichts darüber
+ * hinaus — sie sagt genau das, was in der Antwort steht.
+ *
+ * `fertig` gibt den Knopf/das Menü wieder frei. Es wird MIT dem Ergebnis
+ * aufgerufen (`true` = angenommen: zugestellt oder schon angefragt; `false` =
+ * Fehler ODER nicht zugestellt): die Liste merkt sich angenommene Anfragen und
+ * sperrt den Knopf dann dauerhaft („Angefragt“, Review zu UI-R7, Punkt 3) —
+ * sonst feuert jeder weitere Klick erneut auf den Server. Ein Zustellfehler
+ * (`gesendet: false` ohne `bereits`) sperrt NICHT (Review UI-R7b, Punkt 7).
+ */
+async function datenAnfragen(zeile, fertig) {
+  const ziel = zeile?.name
+  if (!ziel) { if (typeof fertig === 'function') fertig(false); return }
+  let angenommen = false
+  try {
+    const antwort = await apiCall('diakronos.diakonos.api.mitglieder.daten_anfragen', {
+      mitglied: ziel,
+    })
+    const { text, art } = antwortText(antwort)
+    // Review UI-R7b, Punkt 7: Gesperrt wird nur, was den Knopf zur Behauptung
+    // macht. `gesendet: false` (nicht zugestellt) meldet „Die Anfrage konnte
+    // nicht zugestellt werden. Bitte frage die Person direkt.“ — der Knopf
+    // danach als „Angefragt“ zu sperren widerspräche dem Toast. Gesperrt wird
+    // deshalb nur bei `gesendet: true` oder `bereits: true`; ein
+    // Zustellfehler gibt den Knopf wieder frei (kein Fehler, aber auch keine
+    // erledigte Anfrage).
+    angenommen = antwort?.gesendet === true || antwort?.bereits === true
+    showToast(text, art === 'gesendet' ? 'success' : 'info')
+  } catch (err) {
+    // 403/417 kommen als fachliche Meldung des Servers — der Katalog gibt sie
+    // weiter (I4: was passiert ist, warum, was jetzt hilft).
+    showToast(aktionsfehler('aktion', err, {
+      was: `Die Anfrage an ${zeile?.anzeigename || 'die Person'} hat nicht geklappt.`,
+    }), 'error')
+  } finally {
+    if (typeof fertig === 'function') fertig(angenommen)
+  }
+}
+
 // Die Rolle steht beim Aufbau fest; wechselt sie (z. B. Identitätswechsel im
 // Devmodus), wird die Quelle neu gewählt und die Liste neu geladen.
 watch(quelle, () => {
@@ -560,7 +620,7 @@ function anlegeWunschAusAdresse() {
   } catch (_) {
     // s. Kalender.vue — der Dialog öffnet trotzdem einmal.
   }
-  if (!istAdmin.value) return
+  if (!darfVerwalten.value) return
   personAnlegen()
 }
 
@@ -576,7 +636,7 @@ const hinzufuegenOffen = ref(false)
 const gruppenAuswahl = ref([])
 /** UX3j: „Person anlegen“ steht in ALLEN Reitern an derselben Stelle (Punkt 3
  *  der Karte) — nur für Mitgliederadministratoren (der Server prüft erneut). */
-const zeigeAnlegenKnopf = computed(() => istAdmin.value === true)
+const zeigeAnlegenKnopf = computed(() => darfVerwalten.value === true)
 
 /**
  * UX3j-Nacharbeit (Punkt 4): „Filter“ erscheint nur dort, wo er wirkt —
@@ -631,7 +691,7 @@ function filterZeigen() {
 }
 
 async function gruppenLaden() {
-  if (!istAdmin.value) return
+  if (!darfVerwalten.value) return
   try {
     const res = await apiCall('diakronos.diakonos.api.gruppen.get_gruppen_page_data')
     gruppenAuswahl.value = res?.gruppen_auswahl || []
@@ -644,7 +704,7 @@ async function gruppenLaden() {
 async function personAnlegen() {
   // Ohne Recht führt der Weg in die Anfragen (dort prüft die Verwaltung) —
   // kein zweites Formular, keine Halbwahrheit.
-  if (!istAdmin.value) return
+  if (!darfVerwalten.value) return
   await gruppenLaden()
   hinzufuegenOffen.value = true
 }

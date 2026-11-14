@@ -337,6 +337,10 @@ def test_musikrecht_aus_geloeschter_gruppe_entfaellt(client, als_mitglied, welt)
         parentfield="verantwortliche", user=MITGLIED, docstatus=0, idx=1,
     ))
     sess.commit()
+    # R-7: Musikrecht = HV einer Gruppe mit Modul „Lieder“ (Uebernahme wie r1).
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(sess)
 
     def _speichern(liedname: str):
         return client.post(f"/api/method/{MUSIK}.save_lied",

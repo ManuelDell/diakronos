@@ -73,7 +73,12 @@
       </div>
 
       <div class="ei-inhalt">
-        <component :is="inhalt" embedded />
+        <!-- UI-R10b: sieht diese Sitzung keinen Abschnitt, steht hier ein
+             Leerzustand — kein fremder Abschnitt (früher „Gemeinde“). -->
+        <DkEmpty v-if="keineAbschnitte" data-test="ei-keine-einstellungen"
+          title="Für dich gibt es hier keine Einstellungen."
+          text="Diese Seite führt nur Bereiche, für die dein Konto zuständig ist. Wende dich an die Gemeindeleitung, wenn du Zugang brauchst." />
+        <component :is="inhalt" v-else embedded />
       </div>
     </div>
   </div>
@@ -104,7 +109,12 @@
  */
 import { computed, defineAsyncComponent, nextTick, onMounted, ref, watch } from 'vue'
 import { currentPageName, getRouteParam } from '../router.js'
+import { useSession } from '../composables/useSession.js'
+// UI-R10: EINE Verwaltungsregel (`verwaltung: 'admin' | 'personen'`).
+import { verwaltungZutreffend } from '../menue.js'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
+// UI-R10b: Leerzustand, wenn diese Sitzung keinen Abschnitt sieht.
+import DkEmpty from '../components/ui/DkEmpty.vue'
 import { GRUPPEN, STICHWORTE, gruppiere, trefferBereiche, trefferFelder } from './einstellungen/suche.mjs'
 import { feldAusAdresse, SPRUNG_WARTE_MS, sprungZiel, springeZu } from './sprung.mjs'
 
@@ -137,10 +147,16 @@ const GESTALTUNG = defineAsyncComponent(() => import('./einstellungen/Gestaltung
  * · „Datenschutz“ (Texte, Datensicherung) · „Erweitert“ (Gestaltung,
  * Entwicklermodus). Papierkorb steht bei Datenschutz — er ist die Frist-Seite
  * der Datensicherung, keine eigene Kategorie.
+ *
+ * `verwaltung` (UI-R10, R-11a): `'personen'` = die Mitgliederverwaltung sieht
+ * den Abschnitt (Anmeldung — der Server lässt sie dort zu);
+ * `'admin'` = nur der Administrator. Maßgeblich ist NUR, was der Server
+ * erlaubt: jeder Abschnitt fragt seinen Endpunkt, und ein 403 würde hier einen
+ * Bereich zeigen, den niemand öffnen kann.
  */
 const abschnitte = [
   { id: 'gemeinde', label: 'Gemeinde', href: '#/einstellungen/gemeinde',
-    seite: 'EinstellungenGemeinde', inhalt: GEMEINDE, gruppe: 'gemeinde' },
+    seite: 'EinstellungenGemeinde', inhalt: GEMEINDE, gruppe: 'gemeinde', verwaltung: 'admin' },
   // ON-4 (Nachtrag Orchestrator 2026-11-03): KEIN eigener Bereich
   // „Einrichtung“. Nach der Ersteinrichtung werden alle Angaben AUSSCHLIESSLICH
   // in den Einstellungen gepflegt (Gemeinde, Mailversand, Module …); die
@@ -150,38 +166,52 @@ const abschnitte = [
   // nach Entwurf A6 bei „Gemeinde“ — er zeigt, unter welcher Adresse die
   // Gemeinde im Netz erscheint.
   { id: 'website', label: 'Website-Baukasten', href: '#/einstellungen/website',
-    seite: 'EinstellungenWebsite', inhalt: WEBSITE, gruppe: 'gemeinde' },
+    seite: 'EinstellungenWebsite', inhalt: WEBSITE, gruppe: 'gemeinde', verwaltung: 'admin' },
+  // R10-Review (Punkt 1, LIVE-Befund). Anmeldeeinstellungen gehören der
+  // Mitgliederverwaltung (R-11a, `anmeldung/einstellungen_api._require_admin`
+  // → `ist_mitgliederverwaltung`). Der Abschnitt „Registrierung“ dagegen
+  // liest `gemeinde_get_einstellungen` und speichert über
+  // `gemeinde_setze_linkvorgaben` — beide prüfen
+  // `gemeinde._angemeldeter_admin` (Kern-Admin) und antworten ihr mit 403.
+  // Er bleibt deshalb Administration. „Rollen & Rechte“ bleibt ebenfalls
+  // Administration (Rollen in Gruppen vergibt nur der Administrator).
   { id: 'anmeldung', label: 'Anmeldung', href: '#/einstellungen/anmeldung',
-    seite: 'EinstellungenAnmeldung', inhalt: ANMELDUNG, gruppe: 'zugang' },
+    seite: 'EinstellungenAnmeldung', inhalt: ANMELDUNG, gruppe: 'zugang', verwaltung: 'personen' },
   { id: 'registrierung', label: 'Registrierung', href: '#/einstellungen/registrierung',
-    seite: 'EinstellungenRegistrierung', inhalt: REGISTRIERUNG, gruppe: 'zugang' },
+    seite: 'EinstellungenRegistrierung', inhalt: REGISTRIERUNG, gruppe: 'zugang', verwaltung: 'admin' },
   { id: 'rollen', label: 'Rollen & Rechte', href: '#/einstellungen/rollen',
-    seite: 'EinstellungenRollen', inhalt: ROLLEN, gruppe: 'zugang' },
+    seite: 'EinstellungenRollen', inhalt: ROLLEN, gruppe: 'zugang', verwaltung: 'admin' },
   // MAIL-1: „Mailversand“ ist die einzige Stelle, an der die App selbst
   // schreibt — eigene Gruppe „Kommunikation“ (Entwurf A6).
   { id: 'mailversand', label: 'Mailversand', href: '#/einstellungen/mailversand',
-    seite: 'EinstellungenMailversand', inhalt: MAILVERSAND, gruppe: 'kommunikation' },
+    seite: 'EinstellungenMailversand', inhalt: MAILVERSAND, gruppe: 'kommunikation', verwaltung: 'admin' },
+  // R10-Review (Operator, Punkt 1): die Datenschutz-TEXTE bleiben
+  // Administration. Der Server prüft `datenschutz_get_texte` /
+  // `datenschutz_speichern` über `gemeinde._angemeldeter_admin`
+  // (`permissions.is_admin` = Kern-Admin) und verweigert der
+  // Mitgliederverwaltung mit 403. R-11a meint mit „Datenschutz“ die
+  // Auskunft/Löschung der Person (Personen-Reiter), nicht diese Redaktionstexte.
   { id: 'datenschutz', label: 'Datenschutz-Texte', href: '#/einstellungen/datenschutz',
-    seite: 'EinstellungenDatenschutz', inhalt: DATENSCHUTZ, gruppe: 'datenschutz' },
+    seite: 'EinstellungenDatenschutz', inhalt: DATENSCHUTZ, gruppe: 'datenschutz', verwaltung: 'admin' },
   // BACKUP-1: „Datensicherung“ steht neben den Datenschutz-Texten — beides
   // betrifft die Aufbewahrung von Personendaten.
   { id: 'datensicherung', label: 'Datensicherung', href: '#/einstellungen/datensicherung',
-    seite: 'EinstellungenDatensicherung', inhalt: DATENSICHERUNG, gruppe: 'datenschutz' },
+    seite: 'EinstellungenDatensicherung', inhalt: DATENSICHERUNG, gruppe: 'datenschutz', verwaltung: 'admin' },
   // UX2b: „Papierkorb“ steht neben der Datensicherung — beides betrifft
   // geloeschte Daten und ihre Frist.
   { id: 'papierkorb', label: 'Papierkorb', href: '#/einstellungen/papierkorb',
-    seite: 'EinstellungenPapierkorb', inhalt: PAPIERKORB, gruppe: 'datenschutz' },
+    seite: 'EinstellungenPapierkorb', inhalt: PAPIERKORB, gruppe: 'datenschutz', verwaltung: 'admin' },
   // UX1k: Gestaltung steht unter „Erweitert“ — sie ändert die Maße für ALLE
   // Nutzer und ist deshalb seltenes Handwerkszeug, keine Alltagseinstellung
   // (Prinzip K2/N3). Nur System Manager sehen sie; der Server verweigert
   // zusätzlich mit 403.
   { id: 'gestaltung', label: 'Gestaltung', href: '#/einstellungen/gestaltung',
     seite: 'EinstellungenGestaltung', inhalt: GESTALTUNG,
-    gruppe: 'erweitert', nurSystemManager: true },
+    gruppe: 'erweitert', nurSystemManager: true, verwaltung: 'admin' },
   // Entscheidung 10: Dev-Modus ist der letzte Abschnitt. Er ist nur sichtbar,
   // wenn die Instanz ihn zulaesst (Konzept §7) — der Server entscheidet.
   { id: 'dev-modus', label: 'Entwicklermodus', href: '#/einstellungen/dev-modus',
-    seite: 'EinstellungenDevModus', inhalt: DEVMODUS, gruppe: 'erweitert', nurDevmodus: true },
+    seite: 'EinstellungenDevModus', inhalt: DEVMODUS, gruppe: 'erweitert', nurDevmodus: true, verwaltung: 'admin' },
 ]
 
 // Der Dev-Modus-Eintrag erscheint nur, wenn die Instanz ihn eingeschaltet hat.
@@ -195,9 +225,23 @@ const istSystemManager = computed(() => {
   return Array.isArray(rollen) && rollen.includes('System Manager')
 })
 
+// UI-R10: WELCHE Bereiche diese Sitzung sieht, entscheidet die Stufe am
+// Abschnitt (`verwaltung: 'admin' | 'personen'`) gegen die zwei Flags der
+// Sitzung — dieselbe Regel wie Menü und Routen-Wächter (`menue.js`). Die
+// Mitgliederverwaltung pflegt NUR die Anmeldung; Gemeinde, Registrierung,
+// Rollen, Mailversand, Datenschutz-Texte, Datensicherung, Papierkorb,
+// Gestaltung und Entwicklermodus bleiben dem Administrator vorbehalten. Nur
+// Komfort — jeder Abschnitt fragt den Server, und der verweigert mit 403.
+const { isAdmin: istAdminRef, istMitgliederverwaltung: istVerwaltungRef } = useSession()
+const verwaltungsRechte = computed(() => ({
+  istAdmin: istAdminRef.value === true,
+  istMitgliederverwaltung: istVerwaltungRef.value === true,
+}))
+
 const sichtbareAbschnitte = computed(() =>
   abschnitte.filter(a => (!a.nurDevmodus || devmodeAn.value)
-    && (!a.nurSystemManager || istSystemManager.value)))
+    && (!a.nurSystemManager || istSystemManager.value)
+    && (!a.verwaltung || verwaltungZutreffend(a.verwaltung, verwaltungsRechte.value))))
 
 // ── Suche ────────────────────────────────────────────────────────────────
 /**
@@ -289,11 +333,26 @@ const aktiverAbschnitt = computed(() => {
     return gemerkterTreffer.value
   }
   const trefferAbschnitt = abschnitte.find(a => a.seite === currentPageName.value)
-  if (trefferAbschnitt) return trefferAbschnitt.id
+  // R10-Review (Punkt 1, LIVE-Befund): nur ein SICHTBARER Abschnitt darf aktiv
+  // werden. Vorher gewann die Adresse: die Mitgliederverwaltung rief
+  // `#/einstellungen/registrierung` auf — der Rahmen markierte nichts, lud
+  // aber `Registrierung.vue` und bekam 403 von `gemeinde_get_einstellungen`.
+  // Der Router fängt den Direktaufruf jetzt vorher ab; diese Prüfung ist der
+  // zweite Boden (Wechsel INNERHALB der Seite, alte Links, Suchtreffer).
+  if (trefferAbschnitt && sichtbareAbschnitte.value.some(a => a.id === trefferAbschnitt.id)) {
+    return trefferAbschnitt.id
+  }
   const ausAdresse = getRouteParam('bereich', 'Einstellungen')
   if (ausAdresse && sichtbareAbschnitte.value.some(a => a.id === ausAdresse)) return ausAdresse
-  return (sichtbareAbschnitte.value[0] || abschnitte[0]).id
+  // UI-R10b: sieht diese Sitzung KEINEN Abschnitt, ist hier auch keiner aktiv.
+  // Vorher fiel der Rahmen auf `abschnitte[0]` (= „Gemeinde“) zurück und lud
+  // damit einen Abschnitt, den die Sitzung gar nicht sehen darf.
+  if (!sichtbareAbschnitte.value.length) return null
+  return sichtbareAbschnitte.value[0].id
 })
+
+/** UI-R10b: kein sichtbarer Abschnitt → Leerzustand statt fremdem Inhalt. */
+const keineAbschnitte = computed(() => sichtbareAbschnitte.value.length === 0)
 
 /**
  * Gruppen der Liste. Ohne Suchbegriff: alle Gruppen in der Reihenfolge des
@@ -335,8 +394,13 @@ function trefferMerken(id) {
   gemerkterTreffer.value = id
 }
 
-const inhalt = computed(() =>
-  (abschnitte.find(a => a.id === aktiverAbschnitt.value) || abschnitte[0]).inhalt)
+const inhalt = computed(() => {
+  // UI-R10b: ohne sichtbaren Abschnitt gibt es KEINEN Inhalt. `abschnitte[0]`
+  // zeigte sonst „Gemeinde“ — einen Abschnitt, den diese Sitzung nicht sehen
+  // darf (`keineAbschnitte` rendert stattdessen den Leerzustand).
+  if (keineAbschnitte.value) return null
+  return (abschnitte.find(a => a.id === aktiverAbschnitt.value) || abschnitte[0]).inhalt
+})
 </script>
 
 <style scoped>

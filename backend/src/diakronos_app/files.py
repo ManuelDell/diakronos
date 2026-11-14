@@ -100,11 +100,21 @@ def attachment_allowed(doctype: str | None, name: str | None, permission: str = 
         if _ist_audio(dateiname) and _lied_audio_gesperrt(doctype, name):
             return False
         return True
+    # R-11a: Registrierungsformulare gehoeren der Mitgliederverwaltung (Fach
+    # Personen/Registrierung) — sie pflegt deren Bilder, ohne Admin zu sein.
+    if doctype in _VERWALTUNG_ANHANG_DOCTYPES:
+        from diakronos_app.frappe_compat.permissions import ist_mitgliederverwaltung
+
+        if ist_mitgliederverwaltung():
+            return True
     try:
         return check_permission(doctype, name, permission).get('allowed') is True
     except FrappeCompatError:
         return False
 
+
+#: R-11a: Anhaenge, die die Mitgliederverwaltung pflegt (Registrierung).
+_VERWALTUNG_ANHANG_DOCTYPES = frozenset({'Anmeldeformular'})
 
 #: DocTypes, deren Anhang fuer jede angemeldete Person lesbar ist (UXM-R5).
 #: Die Leseregel dieser Objekte ist „jedes eingeloggte Mitglied" (siehe

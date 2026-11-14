@@ -172,7 +172,7 @@ def test_guest_kann_nicht_verantwortlicher_werden(patched_db) -> None:
     from diakronos_app.api.verantwortliche import set_verantwortliche
 
     sess = patched_db()
-    _konto(sess, "ma@x.org", "Mitgliederadministrator")
+    _konto(sess, "ma@x.org", "System Manager")  # R-11a: Gruppenrollen vergibt der Admin
     sess.add(Gruppe(name="G1", docstatus=0, idx=0))
     sess.add(User(name="Guest", email="guest@x", full_name="Guest", enabled=True))
     sess.commit()
@@ -187,7 +187,7 @@ def test_gesperrtes_konto_kann_nicht_verantwortlicher_werden(patched_db) -> None
     from diakronos_app.api.verantwortliche import set_verantwortliche
 
     sess = patched_db()
-    _konto(sess, "ma@x.org", "Mitgliederadministrator")
+    _konto(sess, "ma@x.org", "System Manager")  # R-11a: Gruppenrollen vergibt der Admin
     _konto(sess, "off@x.org", "Mitglied", enabled=False)
     sess.add(Gruppe(name="G1", docstatus=0, idx=0))
     sess.commit()

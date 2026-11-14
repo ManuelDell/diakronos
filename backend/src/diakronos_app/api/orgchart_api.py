@@ -19,8 +19,10 @@ Die vier `frappe.db.sql`-Abfragen des Originals sind hier alle auf
     * Mitglieder je Gruppe/UG    -> get_all(...) + Mitglied-Aufloesung.
 
 Der Original-Endpunkt benutzt **keine** Permission-Pruefung (`@whitelist`
-mit Login, sonst nichts) — das ist hier unveraendert uebernommen, nicht
-"verbessert". Die SPA nutzt ihn als reine Struktur-/Organigramm-Datenquelle.
+mit Login, sonst nichts). R-4 (Manuel 11.11.) schliesst das ueber den EINEN
+Rechte-Kern: Gruppen und ihr HV sind fuer alle Gemeindemitglieder sichtbar,
+„Intern"/„Versteckt" nur fuer die, die drin sind; Mitglieder-Knoten sieht
+nur, wer die (Unter-)Gruppe verwaltet (HV/MV, GL, Admin).
 """
 
 from __future__ import annotations
@@ -109,7 +111,16 @@ def _id_untergruppe(name: str) -> str:
 @whitelist(allow_guest=False)
 def get_orgchart_data():
     """Flache Knotenliste fuer das d3-Organigramm (Quelle: orgchart_api.py:4)."""
+    from diakronos_app import rechte
+    from diakronos_app.api.gruppen import _im_baum_sichtbar
+    from diakronos_app.frappe_compat.session import session
+
     org_name = _org_name()
+    benutzer = session.user
+    if not rechte.ist_gemeindemitglied(benutzer):
+        # Fail closed: kein Gemeindemitglied (Gast, ohne Mitglied) -> nur die Wurzel.
+        return [{"id": "__root__", "parentId": "", "name": org_name,
+                 "node_type": "org", "member_count": 0}]
 
     # Dienstbereiche — Quelle: orgchart_api.py:8-13
     dienstbereiche = get_all(
@@ -123,31 +134,45 @@ def get_orgchart_data():
         "Gruppe",
         # UX2b2 (F3): Organigramm — eine geloeschte Gruppe ist kein Knoten.
         filters={"status": "Aktiv", "geloescht_am": ["is", "not set"]},
-        fields=["name", "gruppenname", "gruppentyp", "dienstbereich"],
+        fields=["name", "gruppenname", "gruppentyp", "dienstbereich", "sichtbarkeit"],
     )
+    gruppen = [g for g in gruppen if _im_baum_sichtbar("gruppe", g)]
+    gruppe_ids = {g["name"] for g in gruppen}
 
     # Untergruppen mit Gruppe-Link — Quelle: orgchart_api.py:22-27
-    untergruppen = get_all(
-        "Untergruppe",
-        filters={"status": "Aktiv"},
-        fields=["name", "untergruppenname", "gruppe"],
-    )
+    untergruppen = [
+        ug for ug in get_all(
+            "Untergruppe",
+            filters={"status": "Aktiv"},
+            fields=["name", "untergruppenname", "gruppe", "sichtbarkeit"],
+        )
+        if ug.get("gruppe") in gruppe_ids and _im_baum_sichtbar("untergruppe", ug)
+    ]
+    ug_ids = {ug["name"] for ug in untergruppen}
 
-    # Verantwortliche fuer Gruppen (erste Person = Leiter-Anzeige).
-    # Quelle: orgchart_api.py:29-45 — ORDER BY gv.idx ASC ist die Kind-
-    # Tabellen-Sortierung; der erste Treffer je parent gewinnt.
+    # R-4: Mitglieder-Knoten nur, wo der Benutzer verwalten darf.
+    gruppen_mit_liste = {g for g in gruppe_ids
+                         if rechte.darf(benutzer, rechte.VERWALTEN, "gruppe", g)}
+    ug_mit_liste = {u for u in ug_ids
+                    if rechte.darf(benutzer, rechte.VERWALTEN, "untergruppe", u)}
+
+    # Leiter-Anzeige = HV aus dem Rechtesystem (R-4; vorher erster
+    # „Gruppe Verantwortlicher" nach idx).
     verantwortliche_map: dict[str, str] = {}
     if gruppen:
-        rows = get_all(
-            "Gruppe Verantwortlicher",
-            filters={"parent": ["in", [g["name"] for g in gruppen]]},
-            fields=["parent", "user"],
-            order_by="idx asc",
-        )
-        for r in rows:
-            parent = r.get("parent")
-            if parent not in verantwortliche_map:
-                verantwortliche_map[parent] = _full_name_for_user(r.get("user")) or ""
+        from sqlalchemy import select
+
+        from diakronos_app.db import lesesitzung
+        from diakronos_app.models.rechte import ROLLE_HV, RechteGruppenrolle
+
+        with lesesitzung() as sess:
+            hv_zeilen = sess.execute(select(RechteGruppenrolle.gruppe, RechteGruppenrolle.benutzer).where(
+                RechteGruppenrolle.rolle == ROLLE_HV,
+                RechteGruppenrolle.untergruppe.is_(None),
+                RechteGruppenrolle.gruppe.in_(gruppe_ids),
+            )).all()
+        for gruppe, hv in hv_zeilen:
+            verantwortliche_map[gruppe] = _full_name_for_user(hv) or ""
 
     # Mitgliederzahlen: Gruppen — Quelle: orgchart_api.py:47-55 (GROUP BY).
     gruppe_counts: dict[str, int] = {}
@@ -157,7 +182,8 @@ def get_orgchart_data():
         fields=["parent"],
     ):
         parent = row.get("parent")
-        gruppe_counts[parent] = gruppe_counts.get(parent, 0) + 1
+        if parent in gruppe_ids:
+            gruppe_counts[parent] = gruppe_counts.get(parent, 0) + 1
 
     # Mitgliederzahlen: Untergruppen — Quelle: orgchart_api.py:57-65.
     untergruppe_counts: dict[str, int] = {}
@@ -167,24 +193,25 @@ def get_orgchart_data():
         fields=["parent"],
     ):
         parent = row.get("parent")
-        untergruppe_counts[parent] = untergruppe_counts.get(parent, 0) + 1
+        if parent in ug_ids:
+            untergruppe_counts[parent] = untergruppe_counts.get(parent, 0) + 1
 
     # Mitglieder je Gruppe (fuer Expand). Quelle: orgchart_api.py:67-78 —
     # ORDER BY m.nachname, m.vorname ueber den Mitglied-Join. Aufgeloest in
     # Python, weil get_all keine Join-Sortierung kennt.
     _rows = get_all(
         "Gruppenmitgliedschaft",
-        filters={"status": "Aktiv"},
+        filters={"status": "Aktiv", "parent": ["in", sorted(gruppen_mit_liste)]},
         fields=["parent", "mitglied", "rolle"],
-    )
+    ) if gruppen_mit_liste else []
     gruppe_members = _sorted_member_rows(_rows, "gruppe")
 
     # Mitglieder je Untergruppe (fuer Expand) — Quelle: orgchart_api.py:80-91.
     _rows = get_all(
         "Untergruppenmitgliedschaft",
-        filters={"status": "Aktiv"},
+        filters={"status": "Aktiv", "parent": ["in", sorted(ug_mit_liste)]},
         fields=["parent", "mitglied", "rolle"],
-    )
+    ) if ug_mit_liste else []
     ug_members = _sorted_member_rows(_rows, "untergruppe")
 
     nodes: list[dict] = []

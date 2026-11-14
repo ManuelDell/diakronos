@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **1879**
-* eindeutige Funktionen: **366**
-* lesend: **166**, schreibend: **200**
-* Rumpfbefund: schreibend 185, lesend 181, unbekannt 0
+* registrierte Pfade: **1996**
+* eindeutige Funktionen: **394**
+* lesend: **177**, schreibend: **217**
+* Rumpfbefund: schreibend 207, lesend 187, unbekannt 0
 
 ## Einstufung
 
@@ -29,18 +29,12 @@ mit Modulbezug, SEC-11c/R1). Der Name ist Hinweis, nicht Urteil.
 
 | Funktion | Methoden | Rumpf | Name | Deklariert | Grund |
 |---|---|---|---|---|---|
-| `diakronos_app.api.einrichtung.erinnern_spaeter` | ['POST'] | schreibend | lesend | schreibend | Aufruf sess.commit() |
-| `diakronos_app.api.einrichtung.kalender_vorschlag_anlegen` | ['POST'] | lesend | schreibend | schreibend |  |
 | `diakronos_app.api.kronos.google_import.get_oauth_url` | ['POST'] | schreibend | lesend | schreibend | Aufruf _state_store.set() |
 
 Entschieden ohne Ausnahme (Quellen einig, die Grenze traegt die Deklaration — keine offene Frage):
 
-* `diakronos_app.api.beitraege.wiederherstellen_beitrag` (Methoden ['POST'])
-* `diakronos_app.api.gruppen.wiederherstellen_gruppe` (Methoden ['POST'])
-* `diakronos_app.api.kronos.event_crud.wiederherstellen_event` (Methoden ['POST'])
-* `diakronos_app.api.psalmos.musik.wiederherstellen_lied` (Methoden ['POST'])
+* `diakronos_app.api.rechte.gast_inhalt` (Methoden ['POST'])
 * `diakronos_app.api.website.bausteine_installieren` (Methoden ['POST'])
-* `diakronos_app.api.wiki.wiederherstellen_wiki_artikel` (Methoden ['POST'])
 
 ## Ausnahmen (lesend trotz Widerspruch, mit Begruendung)
 
@@ -58,7 +52,6 @@ Entschieden ohne Ausnahme (Quellen einig, die Grenze traegt die Deklaration — 
 | `diakronos_app.api.planrahmen.plan_entwurf` | ['POST'] | schreibend | lesend | Lesezugriff ueber den Schreib-Wrapper (`_endpunkt(True)`); POST ist die Grenze des Wrappers, der Name meint das Lesen des Entwurfs | nur_vorschau — Namensbefund/Weiterleitung ohne Wirkung: die Funktion schreibt nicht oder die Schreibung haengt an einem Schalter, der per Default aus ist | ja (rumpf, deklaration) |
 | `diakronos_app.api.planrahmen.undo_vorschau` | — | lesend | schreibend | Vorschau, schreibt nichts | name — Namensbefund ohne Rumpfbefund — geprueft, die Funktion liest nur | ja (name) |
 | `diakronos_app.api.profile.delete_my_data` | ['POST'] | lesend | schreibend | abgeschalteter Altpfad — wirft nur den Hinweis auf den Loeschantrag | nur_vorschau — Namensbefund/Weiterleitung ohne Wirkung: die Funktion schreibt nicht oder die Schreibung haengt an einem Schalter, der per Default aus ist | ja (name, deklaration) |
-| `diakronos_app.api.root.root_uebertragen` | ['POST'] | schreibend | lesend | Uebertragung der Root-Kennzeichnung; die POST-Grenze steht in der Deklaration, die Funktion schreibt nur Eintrag + Kennrolle (kein generischer Weg, nur root selbst, mit Passwort + Bestaetigung) | nur_vorschau — Namensbefund/Weiterleitung ohne Wirkung: die Funktion schreibt nicht oder die Schreibung haengt an einem Schalter, der per Default aus ist | ja (rumpf, deklaration) |
 | `diakronos_app.api.sicherung.sicherung_get` | — | schreibend | lesend | Leseansicht; legt fehlende Einstellungszeile an | konfig — Leseansicht, die beim ERSTEN Aufruf ihre Konfigurationszeile anlegt (idempotent, ohne Absicht des Nutzers) — der POST waere hier falsch | ja (rumpf) |
 | `diakronos_app.api.website.beitrag_auf_website` | ['POST'] | schreibend | lesend | Methode wird im Rumpf geprueft (`_nur_post` -> 405) | schranke — prüft die Methode selbst (`_nur_post`) und weist alles ausser POST mit 405 ab — die Grenze steht im Rumpf, nicht in der Deklaration | ja (rumpf, deklaration) |
 | `diakronos_app.api.website.freigaben_lesen` | — | lesend | schreibend | Leseansicht der Website-Freigaben | name — Namensbefund ohne Rumpfbefund — geprueft, die Funktion liest nur | ja (name) |
@@ -121,11 +114,13 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.gemeinde.gemeinde_setze_modul` | ['POST'] | nein |
 | `diakronos_app.api.gemeinde.gemeinde_speichern` | ['POST'] | nein |
 | `diakronos_app.api.gruppen.add_mitglied_to_gruppe` | ['POST'] | nein |
+| `diakronos_app.api.gruppen.aufgabe_zuweisen` | ['POST'] | nein |
 | `diakronos_app.api.gruppen.create_ankuendigung` | ['POST'] | nein |
 | `diakronos_app.api.gruppen.create_aufgabe` | ['POST'] | nein |
 | `diakronos_app.api.gruppen.create_dienstbereich` | ['POST'] | nein |
 | `diakronos_app.api.gruppen.create_gruppe` | ['POST'] | nein |
 | `diakronos_app.api.gruppen.create_untergruppe` | ['POST'] | nein |
+| `diakronos_app.api.gruppen.delete_aufgabe` | ['POST'] | nein |
 | `diakronos_app.api.gruppen.delete_gruppe` | ['POST'] | nein |
 | `diakronos_app.api.gruppen.get_user_create_permissions` | — | nein |
 | `diakronos_app.api.gruppen.remove_mitglied_from_gruppe` | ['POST'] | nein |
@@ -165,6 +160,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.mailversand.mailversand_testmail` | ['POST'] | nein |
 | `diakronos_app.api.mitglieder.admin_einwilligung_setzen` | ['POST'] | nein |
 | `diakronos_app.api.mitglieder.create_mitglied` | ['POST'] | nein |
+| `diakronos_app.api.mitglieder.daten_anfragen` | ['POST'] | nein |
 | `diakronos_app.api.mitglieder.import_mitglieder_uebernehmen` | ['POST'] | nein |
 | `diakronos_app.api.mitglieder.import_mitglieder_vorschau` | ['POST'] | nein |
 | `diakronos_app.api.mitglieder.schliesse_mitglied_aus` | ['POST'] | nein |
@@ -218,6 +214,20 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.psalmos.musik.save_lied` | ['POST'] | nein |
 | `diakronos_app.api.psalmos.musik.save_liedgruppe` | ['POST'] | nein |
 | `diakronos_app.api.psalmos.musik.wiederherstellen_lied` | ['POST'] | nein |
+| `diakronos_app.api.rechte.beantrage_sichtbarkeit` | ['POST'] | nein |
+| `diakronos_app.api.rechte.entferne_gl` | ['POST'] | nein |
+| `diakronos_app.api.rechte.entferne_mv` | ['POST'] | nein |
+| `diakronos_app.api.rechte.entscheide_sichtbarkeit` | ['POST'] | nein |
+| `diakronos_app.api.rechte.ernenne_gl` | ['POST'] | nein |
+| `diakronos_app.api.rechte.ernenne_mv` | ['POST'] | nein |
+| `diakronos_app.api.rechte.gast_inhalt` | ['POST'] | ja |
+| `diakronos_app.api.rechte.gastlink_erstellen` | ['POST'] | nein |
+| `diakronos_app.api.rechte.gastlink_widerrufen` | ['POST'] | nein |
+| `diakronos_app.api.rechte.nimm_sichtbarkeit_zurueck` | ['POST'] | nein |
+| `diakronos_app.api.rechte.setze_freigabe` | ['POST'] | nein |
+| `diakronos_app.api.rechte.setze_module` | ['POST'] | nein |
+| `diakronos_app.api.rechte.setze_standard_gruppe_lesen` | ['POST'] | nein |
+| `diakronos_app.api.rechte.uebertrage_hv` | ['POST'] | nein |
 | `diakronos_app.api.registrierung.submit_gast` | ['POST'] | ja |
 | `diakronos_app.api.registrierung.submit_registrierung` | ['POST'] | ja |
 | `diakronos_app.api.registrierungslink_api.create_link` | ['POST'] | nein |
@@ -325,6 +335,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.gruppen.get_gruppen_for_orgchart` | — | nein |
 | `diakronos_app.api.gruppen.get_gruppen_hierarchie` | — | nein |
 | `diakronos_app.api.gruppen.get_gruppen_page_data` | — | nein |
+| `diakronos_app.api.gruppen.get_meine_aufgaben` | — | nein |
 | `diakronos_app.api.gruppen.get_untergruppe_detail` | — | nein |
 | `diakronos_app.api.kronos.ablaufplan_api.get_ablaufplan` | — | nein |
 | `diakronos_app.api.kronos.ablaufplan_api.get_termine_am_tag` | — | nein |
@@ -395,9 +406,19 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.psalmos.musik.get_lieder` | — | nein |
 | `diakronos_app.api.psalmos.musik.get_liedgruppe_detail` | — | nein |
 | `diakronos_app.api.psalmos.musik.get_liedgruppen` | — | nein |
+| `diakronos_app.api.rechte.get_anlegeorte` | — | nein |
+| `diakronos_app.api.rechte.get_gastlinks` | — | nein |
+| `diakronos_app.api.rechte.get_gruppenrollen` | — | nein |
+| `diakronos_app.api.rechte.get_meine_rechte` | — | nein |
+| `diakronos_app.api.rechte.get_objekt_rechte` | — | nein |
+| `diakronos_app.api.rechte.get_offene_sichtbarkeits_antraege` | — | nein |
+| `diakronos_app.api.rechte.get_personen_auswahl` | — | nein |
+| `diakronos_app.api.rechte.get_rollen_erklaerung` | — | nein |
+| `diakronos_app.api.rechte.get_sichtbare_module` | — | nein |
 | `diakronos_app.api.registrierung.get_oeffentliche_formular` | — | ja |
 | `diakronos_app.api.registrierung.validate_token` | — | ja |
 | `diakronos_app.api.registrierung_vorschau.get_formular_vorschau` | — | nein |
+| `diakronos_app.api.registrierungslink_api.get_link_vorgaben` | — | nein |
 | `diakronos_app.api.ressourcen.check_verfuegbarkeit` | — | nein |
 | `diakronos_app.api.ressourcen.get_anfragen` | — | nein |
 | `diakronos_app.api.ressourcen.get_meine_buchungen` | — | nein |

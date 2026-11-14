@@ -7,7 +7,11 @@
       sub="Gemeindewissen – Wissensdatenbank für alle Mitglieder"
     >
       <template #actions>
-        <DkButton v-if="isAdmin" variant="primary" @click="openEditor()">
+        <!-- R6: Anlegen darf, wer in mindestens einer (Unter-)Gruppe `anlegen`
+             hat. Das weiß allein der Server: die Einheiten werden beim Laden
+             der Seite EINMAL gefragt, der Knopf erscheint nur, wenn
+             mindestens eine sie bejaht hat. -->
+        <DkButton v-if="darfAnlegen" variant="primary" :loading="anlegenLaeuft" @click="openEditor()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Neuer Artikel
         </DkButton>
@@ -147,13 +151,22 @@
     </div>
 
     <!-- MT-7: Lesen ist eine eigene Unterseite (#/wiki/<Kennung>,
-         pages/WikiArtikel.vue) — kein Fenster mehr an dieser Stelle. -->
+         pages/WikiArtikel.vue) — kein Fenster mehr an dieser Stelle.
+         UI-R6d: Die Detail-Knöpfe (Für Gäste freigeben / Bearbeiten /
+         Löschen) stehen deshalb auf der Leseseite. -->
 
     <!-- Editor (Verwaltung) -->
     <DkDialog :model-value="showEditor" :before-close="editorSchutz.darfSchliessen" size="lg"
               :title="editingArticle ? 'Artikel bearbeiten' : 'Neuer Wiki-Artikel'"
               @update:model-value="showEditor = $event">
       <form class="wk-editor" @submit.prevent="saveArticle">
+        <!-- R6: beim Anlegen die gewählte (Unter-)Gruppe (die Auswahl lief
+             davor); beim Bearbeiten keine — die Zuordnung ändert dieser
+             Dialog nicht. -->
+        <div v-if="!editingArticle && gewaehlteEinheit" class="wk-einheit">
+          <span class="wk-einheit-label">Für</span>
+          <strong class="wk-einheit-text">{{ einheitAnzeige }}</strong>
+        </div>
         <DkField label="Titel" required :error="editorFehler.titel">
           <input ref="titelFeld" maxlength="140" v-model="editorForm.title" class="dk-ui-eingabe" type="text" placeholder="Titel des Artikels" required />
         </DkField>
@@ -177,6 +190,27 @@
         <DkButton variant="primary" :loading="saving" @click="saveArticle">Speichern</DkButton>
       </template>
     </DkDialog>
+
+    <!-- R6: Auswahl der Gruppe beim Anlegen (nur geprüfte Einheiten). -->
+    <GruppeWaehlen
+      v-model="auswahlOffen"
+      :optionen="optionen"
+      :startwert="startwert"
+      :laden="auswahlLaden"
+      was="Wiki-Artikel"
+      label="Artikel anlegen für"
+      hilfe="Sichtbar wird der Artikel für die Mitglieder dieser Gruppe."
+      @waehlen="artikelAnlegen"
+    />
+
+    <!-- R6: Gast-Link für einen Wiki-Artikel. -->
+    <GastFreigabe
+      :model-value="gastOffen"
+      typ="wiki"
+      :objekt="gastObjekt?.id || ''"
+      :titel="gastObjekt?.title || ''"
+      @update:model-value="gastOffen = $event"
+    />
 
   </div>
 </template>
@@ -203,6 +237,13 @@ import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkFilterChips from '../components/ui/DkFilterChips.vue'
 // UX2e: EIN Aktionsmenü „⋯" für alle Listen (Entwurf B1).
 import DkAktionen from '../components/ui/DkAktionen.vue'
+// R6: Gruppe wählen + Gast-Links.
+import GruppeWaehlen from '../components/r6/GruppeWaehlen.vue'
+import GastFreigabe from '../components/r6/GastFreigabe.vue'
+import { useAnlegenMitGruppe } from '../composables/useAnlegenMitGruppe.js'
+import { einheitText, einheitWert } from '../composables/r6Gastzugang.mjs'
+import { darfBearbeiten as serverErlaubtBearbeiten } from '../composables/r6Detail.js'
+import { gruppeAusAdresse, vorauswahlOrt } from '../composables/r6AnlegenSichtbar.mjs'
 // MT-7: Lesen wechselt die Route (eigene Unterseite statt Fenster).
 import { navigate } from '../router.js'
 // MT-7b: Merker für den Rückweg — die Liste schreibt ihre volle Adresse hier
@@ -241,6 +282,84 @@ const editorFehler = ref({ titel: '' })
 const editorForm = ref({
   title: '', category: 'technik', tags: '', excerpt: '', content: ''
 })
+
+/* ─── R6: Anlegen in einer (Unter-)Gruppe, Freigabe für Gäste ─────────────
+ * Die Seite entscheidet keine Rechte. Die Orte, an denen diese Person anlegen
+ * darf (samt Titel und Reihenfolge), kommen aus EINER Serverantwort:
+ * `api.rechte.get_anlegeorte` (über `useAnlegenOrte`, Pfad aus
+ * `whitelist.json`). `darf_bearbeiten` trägt der LISTENEintrag
+ * (`get_wiki_artikel_liste`) — die Lese-Unterseite (`pages/WikiArtikel.vue`)
+ * bekommt es seit UI-R6e direkt aus ihrer Detail-Antwort (R-12l).
+ */
+const {
+  optionen, auswahlOffen, auswahlLaden, startwert, darfAnlegen,
+  rechteLaden, starten: anlegenStarten,
+} = useAnlegenMitGruppe('wiki')
+const gewaehlteEinheit = ref(null)
+const anlegenLaeuft = ref(false)
+/**
+ * Was im Editor unter „Für“ steht: der `titel` des Servers.
+ *
+ * UI-R6c: Nur der Titel — kein eigener Gemeinde-Text und keine zusammengesetzte
+ * Kennung mehr (`einheitText` in `r6Gastzugang.mjs` liefert nichts anderes).
+ */
+const einheitAnzeige = computed(() => einheitText(gewaehlteEinheit.value))
+
+/**
+ * R6: Gruppe(nkennung), die beim Öffnen des Formulars vorausgewählt wird.
+ *
+ * Sie steht in der Adresse, wenn man von einer Gruppenseite kommt
+ * (`#/wiki?gruppe=…&untergruppe=…`) — **nur für diesen einen Sprung**: ist der
+ * Editor damit einmal geöffnet, wird die Einheit verbraucht (`null`) und die
+ * Adresse auf `#/wiki` zurückgesetzt. Beim nächsten Öffnen gilt wieder die
+ * normale Auswahl.
+ */
+const festeEinheit = ref(gruppeAusAdresse(window.location.hash))
+
+/**
+ * UI-R6b: Der Sprung wird ohne zweiten Klick eingelöst.
+ *
+ * Nach dem Laden der Orte: steht die Einheit der Gruppenseite unter den Orten,
+ * öffnet der Editor EINMAL damit und die Adresse fällt auf `#/wiki` zurück
+ * (`replaceState`, kein Routenwechsel — sonst würde die Seite neu aufgebaut).
+ * Kein Ort der Gruppenseite dabei: nur `#/wiki` aufräumen, kein Editor.
+ */
+async function vorauswahlEinloesen() {
+  const fest = festeEinheit.value
+  if (!fest) return
+  festeEinheit.value = null
+  if (window.location.hash.includes('?')) window.history.replaceState(null, '', '#/wiki')
+  const ort = vorauswahlOrt(fest, optionen.value, einheitWert)
+  if (!ort) return
+  // Den ganzen Ort übergeben (nicht nur Gruppe/Untergruppe): der Anzeigetext im
+  // Editor ist der `titel` des Servers.
+  await openEditor(null, ort)
+}
+
+/**
+ * Auswahl-Dialog „Für wen ist das?“ — er gibt den GANZEN Ort zurück
+ * (`ortAusWert`, inklusive Server-`titel`), genau wie `anlegenStarten` bei
+ * genau einer Möglichkeit. Der Titel wird hier nicht mehr nachgeschlagen.
+ */
+function artikelAnlegen(ort) {
+  auswahlOffen.value = false
+  openEditor(null, ort)
+}
+
+/**
+ * Hat der Server Bearbeiten für diesen Artikel erlaubt?
+ * Regel in `composables/r6Detail.js` (eine Wahrheit für Beiträge und Wiki).
+ */
+const darfBearbeiten = serverErlaubtBearbeiten
+
+/* Gast-Link-Dialog (nur für Artikel mit `darf_bearbeiten`). */
+const gastOffen = ref(false)
+const gastObjekt = ref(null)
+function gastFreigeben(artikel) {
+  if (!darfBearbeiten(artikel)) return
+  gastObjekt.value = artikel
+  gastOffen.value = true
+}
 
 // UXD-R21: Kontaktadresse der Gemeindeleitung aus den Gemeinde-Einstellungen.
 // Ohne hinterlegte Adresse bleibt der Hilfe-Hinweis ausgeblendet — kein
@@ -435,7 +554,11 @@ function aktionenFuerArtikel(article) {
     key: 'oeffnen', label: 'Artikel öffnen', icon: 'ansehen',
     aktion: () => openArticle(article),
   }]
-  if (isAdmin.value) {
+  if (darfBearbeiten(article)) {
+    eintraege.push({
+      key: 'gast', label: 'Für Gäste freigeben', icon: 'freigeben',
+      aktion: () => gastFreigeben(article),
+    })
     eintraege.push({
       key: 'bearbeiten', label: 'Bearbeiten', icon: 'bearbeiten',
       aktion: () => bearbeitenArtikel(article),
@@ -488,6 +611,10 @@ async function saveArticle() {
         kategorie: f.category,
         tags:      f.tags.trim(),
         auszug:    f.excerpt.trim(),
+        // R6: OHNE Gruppe legt nur der Administrator an — der Server antwortet
+        // sonst 403 mit genau dieser Erklärung (unten angezeigt).
+        gruppe:      gewaehlteEinheit.value?.gruppe || null,
+        untergruppe: gewaehlteEinheit.value?.untergruppe || null,
       })
       if (res?.artikel_id) {
         showToast('Artikel erstellt.', 'success')
@@ -526,6 +653,16 @@ onMounted(async () => {
   await loadArticles()
   await fokusWiederherstellen()
   ladenHilfeKontakt()
+  // UI-R6b: EINMAL fragen, wo diese Person anlegen darf — EIN Aufruf
+  // (`rechte.get_anlegeorte`); der Kopfknopf hängt an der Antwort. `rechteLaden`
+  // öffnet NICHTS; der Auswahl-Dialog gehört zum Klick — außer es steht eine
+  // Einheit aus der Adresse bereit (Sprung von der Gruppenseite, s. u.).
+  await rechteLaden().catch(() => {})
+  // Erst die Seite zeichnen, dann den Editor öffnen: ein Zustandswechsel
+  // noch im Mount-Durchlauf käme im selben Durchlauf und ginge unter.
+  await nextTick()
+  await new Promise((fertig) => setTimeout(fertig, 0))
+  await vorauswahlEinloesen()
   // MT-7 (Review-Punkt 3): „Bearbeiten“ von der Leseseite kommt als
   // `?bearbeiten=<Kennung>` hier an — erst NACH dem Laden der Liste auswerten.
   await bearbeitenAusAdresse()
@@ -607,9 +744,33 @@ function timeAgo(d) {
   if (diff < 30) return `vor ${Math.floor(diff / 7)} Wochen`
   return `vor ${Math.floor(diff / 30)} Monaten`
 }
-function openEditor(article = null) {
+/**
+ * Editor öffnen.
+ *
+ * R6: OHNE `article` UND ohne gewählte Einheit ist das der Weg des
+ * Kopfknopfes „+ Neuer Artikel“ — zuerst wird die (Unter-)Gruppe geklärt
+ * (ein Artikel ohne Gruppe wäre gemeindeweit = nur der Administrator).
+ * Genau eine Möglichkeit → sofort; mehrere → Auswahl, die mit `einheit`
+ * erneut hierher kommt. Der Sprung von einer Gruppenseite
+ * (`festeEinheit` aus der Adresse) kommt über `vorauswahlEinloesen` schon mit
+ * `einheit` an — dort ohne zweiten Klick und nur für diesen einen Sprung.
+ */
+async function openEditor(article = null, einheit = null) {
+  if (!article && !einheit) {
+    if (anlegenLaeuft.value) return
+    anlegenLaeuft.value = true
+    try {
+      const sofort = await anlegenStarten({ fest: festeEinheit.value })
+      if (sofort) await openEditor(null, sofort)
+    } finally {
+      anlegenLaeuft.value = false
+    }
+    return
+  }
   editingArticle.value = article
   editorFehler.value = { titel: '' }
+  // R6: beim Anlegen die gewählte (Unter-)Gruppe; beim Bearbeiten keine.
+  gewaehlteEinheit.value = article ? null : einheit
   editorForm.value = article
     ? { title: article.title, category: article.category, tags: (article.tags || []).join(', '), excerpt: article.excerpt || '', content: article.content || '' }
     : { title: '', category: 'technik', tags: '', excerpt: '', content: '' }
@@ -708,4 +869,8 @@ function openEditor(article = null) {
 
 /* Editor */
 .wk-editor { display: flex; flex-direction: column; gap: var(--sp-3); }
+/* R6: gewählte Gruppe beim Anlegen — eine Zeile, ruhig, ohne Rahmen. */
+.wk-einheit { display: flex; align-items: baseline; gap: var(--sp-2); font-size: var(--fs-sm); }
+.wk-einheit-label { color: var(--muted); }
+.wk-einheit-text { color: var(--text); }
 </style>

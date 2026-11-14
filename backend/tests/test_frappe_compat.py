@@ -285,11 +285,14 @@ def test_mitglieder_liste_felder(client, seed_mitglieder, rollen):
 
 
 def test_mitglieder_liste_ohne_rolle_ist_leer(client, seed_mitglieder, rollen):
-	# Fail closed: ohne Rolle keine Sichtbarkeit -> leere Liste, kein 500.
+	# Ohne Verwaltungsrolle keine persoenlichen Daten (fail closed, kein 500).
+	# R-9: Namen sieht jedes Gemeindemitglied — der Login "Administrator" ist
+	# im Rechte-Kern Admin, bekommt hier aber ohne ROLLE nur die Namen.
 	rollen["roles"] = []
 	body = client.get("/api/method/mitglieder.get_mitglieder_liste").json()["message"]
-	assert body["data"] == []
-	assert body["total"] == 0
+	assert body["total"] == len(body["data"])
+	for zeile in body["data"]:
+		assert not zeile.get("telefonnummer") and not zeile.get("geburtstag"), zeile
 
 
 def test_mitglieder_liste_suche(client, seed_mitglieder, rollen):

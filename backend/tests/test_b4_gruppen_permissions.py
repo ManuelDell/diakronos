@@ -35,7 +35,10 @@ def test_einfache_mitglieder_duerfen_nicht_anlegen(hierarchie, scope, endpoint):
         getattr(G, endpoint)(titel="Nicht erlaubt", **scope)
 
 
-@pytest.mark.parametrize("user", ["gruppenverantw@example.org", "bereichsverantw@example.org", "admin@example.org", "mitarbadmin@example.org"])
+# R-4 (Manuel 11.11.): Leitung = HV/MV (Bereichsverantwortliche sind per Migration
+# MV ihrer Gruppen) und Administrator. Die Mitgliederverwaltung ist ein Fach und
+# hat in Gruppen KEIN Schreibrecht mehr — eigener Test unten.
+@pytest.mark.parametrize("user", ["gruppenverantw@example.org", "bereichsverantw@example.org", "admin@example.org"])
 @pytest.mark.parametrize("scope", [{"gruppe_id": "G-A1"}, {"untergruppe_id": "UG-A1"}])
 def test_leitung_schreibt_mitglied_liest(hierarchie, user, scope):
     set_user(user)
@@ -73,47 +76,81 @@ def test_unpassende_oder_unbekannte_eltern_verweigert(hierarchie, endpoint, scop
         getattr(G, endpoint)(**args)
 
 
-@pytest.mark.parametrize("endpoint", ["create_aufgabe", "create_ankuendigung"])
-def test_inhalte_ohne_eltern_verweigert(hierarchie, endpoint):
+def test_inhalte_ohne_eltern_verweigert(hierarchie):
     set_user("admin@example.org")
     with pytest.raises(PermissionError):
-        getattr(G, endpoint)(titel="Ohne Eltern")
+        G.create_ankuendigung(titel="Ohne Eltern")
 
 
-def test_hierarchie_leerer_zielpfad_ist_fail_closed(hierarchie):
+def test_aufgabe_ohne_eltern_ist_eigene_aufgabe(hierarchie):
+    """R-7b (Manuel 11.11.): eine Aufgabe ohne Gruppe ist eine eigene Aufgabe —
+    sie landet nicht in einer Gruppe und wird nicht im Rechtesystem angemeldet."""
+    set_user("admin@example.org")
+    name = G.create_aufgabe(titel="Ohne Eltern")["name"]
+    zeile = hierarchie.get(GruppenAufgabe, name)
+    assert zeile.gruppe is None and zeile.untergruppe is None and zeile.owner == "admin@example.org"
+
+
+def test_mitgliederverwaltung_schreibt_nicht_in_gruppen(hierarchie):
+    """R-4: Mitgliederadministrator ist ein Fach, kein Gruppen-Admin."""
+    set_user("mitarbadmin@example.org")
+    for scope in ({"gruppe_id": "G-A1"}, {"untergruppe_id": "UG-A1"}):
+        with pytest.raises(PermissionError):
+            G.create_aufgabe("Nicht erlaubt", **scope)
+        with pytest.raises(PermissionError):
+            G.create_ankuendigung("Nicht erlaubt", **scope)
+
+
+def test_hierarchie_zeigt_alle_gruppen_detail_bleibt_geschlossen(hierarchie):
+    """R-4 (Manuel 11.11.): Organigramm/Baum zeigt ALLE Gruppen; der Inhalt einer
+    Gruppe (Detail) bleibt fuer Nicht-Mitglieder fail closed — auch ohne Pfad."""
     hierarchie.add(Gruppe(name="zz-b-leerer-pfad", gruppenname="Privat", status="Aktiv", ancestor_path="|"))
     hierarchie.commit()
     set_user("mitglied-a@example.org")
-    assert "zz-b-leerer-pfad" not in {g["name"] for g in G.get_gruppen_hierarchie()["gruppen"]}
+    assert "zz-b-leerer-pfad" in {g["name"] for g in G.get_gruppen_hierarchie()["gruppen"]}
+    with pytest.raises(PermissionError):
+        G.get_gruppe_detail("zz-b-leerer-pfad")
 
 
-def test_orgchart_fremde_bereiche_nicht_sichtbar(hierarchie):
+def test_orgchart_zeigt_alle_gruppen_mit_hv_aber_keine_mitglieder(hierarchie):
+    """R-4 (Manuel 11.11.): Organigramm mit Gruppen und HV fuer ALLE sichtbar;
+    die Mitglieder einer Gruppe stehen dort nicht (nur Zahlen)."""
     set_user("mitglied-a@example.org")
-    ids = {n["id"] for n in G.get_gruppen_for_orgchart()["nodes"]}
-    assert "db_DB-A" in ids
-    assert not {"db_DB-B", "db_DB-C", "g_G-B1", "ug_UG-B1"} & ids
+    nodes = {n["id"]: n for n in G.get_gruppen_for_orgchart()["nodes"]}
+    assert {"db_DB-A", "db_DB-B", "g_G-A1", "g_G-B1", "ug_UG-B1"} <= set(nodes)
+    assert nodes["g_G-A1"]["hv"]  # HV der Gruppe ist benannt
+    for n in nodes.values():
+        assert "mitglieder" not in n
 
 
-@pytest.mark.parametrize("endpoint", ["get_gruppen_hierarchie", "get_gruppen_for_orgchart", "get_gruppe_detail"])
-def test_sichtbare_eltern_oeffnen_keine_unlesbaren_untergruppen(hierarchie, endpoint):
-    ug = hierarchie.get(Untergruppe, "UG-A1")
-    ug.ancestor_path = "|"
-    hierarchie.commit()
-    # Sichtbarer Elternpfad, aber KEINE direkte UG-Mitgliedschaft.
+def test_hv_sieht_untergruppen_seiner_gruppe(hierarchie):
+    """R-4 (Manuel 11.11.): HV/MV sind in jeder Untergruppe ihrer Gruppe berechtigt."""
     set_user("gruppenverantw@example.org")
-    result = getattr(G, endpoint)(gruppe_id="G-A1") if endpoint == "get_gruppe_detail" else getattr(G, endpoint)()
-    if endpoint == "get_gruppen_hierarchie":
-        assert "UG-A1" not in {u["name"] for g in result["gruppen"] for u in g["untergruppen"]}
-    elif endpoint == "get_gruppe_detail":
-        assert "UG-A1" not in {u["name"] for u in result["untergruppen"]}
-    else:
-        assert "ug_UG-A1" not in {n["id"] for n in result["nodes"]}
+    assert "UG-A1" in {u["name"] for u in G.get_gruppe_detail("G-A1")["untergruppen"]}
+
+
+def test_gruppenmitglied_ohne_ug_mitgliedschaft_sieht_untergruppe_nicht(hierarchie):
+    """R-4: Inhalte einer Untergruppe sieht die uebrige Gruppe erst nach Freigabe."""
+    from diakronos_app.models.diakonos import Gruppenmitgliedschaft
+
+    hierarchie.add(Gruppenmitgliedschaft(name="zz-b-gm-b", parent="G-A1", parenttype="Gruppe",
+                                         parentfield="mitglieder", mitglied="M-eigen-b", status="Aktiv"))
+    hierarchie.commit()
+    set_user("mitglied-b@example.org")
+    assert "UG-A1" not in {u["name"] for u in G.get_gruppe_detail("G-A1")["untergruppen"]}
+    with pytest.raises(PermissionError):
+        G.get_untergruppe_detail("UG-A1")
 
 
 def test_untergruppenleitung_darf_nur_eigene_untergruppe_schreiben(hierarchie):
     hierarchie.add(UntergruppeVerantwortlicher(name="zz-b-ug-leitung", parent="UG-A1",
                       parenttype="Untergruppe", parentfield="verantwortliche", user="ohne-mitglied@example.org"))
     hierarchie.commit()
+    # R-4: Untergruppen-Verantwortliche werden Gruppenleiter (GL) — Uebernahme
+    # wie im Betrieb (Migration r1_rechte_kern).
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(hierarchie)
     set_user("ohne-mitglied@example.org")
     task = G.create_aufgabe("UG", untergruppe_id="UG-A1")
     assert G.toggle_aufgabe(task["name"])["erledigt"] == 1
@@ -174,6 +211,12 @@ def test_historische_widerspruechliche_links_nicht_ausliefern(hierarchie, endpoi
     ])
     hierarchie.commit()
     if endpoint == "get_untergruppe_detail":
+        # R-4: Untergruppen-Inhalte nur fuer ihre Mitglieder -> M-eigen-b in UG-B1.
+        from diakronos_app.models.diakonos import Untergruppenmitgliedschaft
+
+        hierarchie.add(Untergruppenmitgliedschaft(name="zz-b-ugm-b", parent="UG-B1", parenttype="Untergruppe",
+                                                  parentfield="mitglieder", mitglied="M-eigen-b", status="Aktiv"))
+        hierarchie.commit()
         set_user("mitglied-b@example.org")
         result = G.get_untergruppe_detail("UG-B1")
     else:

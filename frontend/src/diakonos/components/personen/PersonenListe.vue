@@ -76,34 +76,92 @@
               <span v-if="!gruppenAnzeige(z).length" class="pz-leer">–</span>
             </span>
           </td>
-          <!-- Reihenfolge wie der Spaltensatz (verwaltungSpalten): Telefon,
-               E-Mail, Adresse, Geburtstag — sonst stünde die E-Mail unter der
-               Überschrift „Telefon“. -->
-          <td v-if="verwaltung" class="pz-zelle-kontakt pz-zelle-telefon">
-            <a
-              v-if="z.telefonnummer"
-              class="pz-kontakt"
-              :href="'tel:' + telHref(z.telefonnummer)"
-              :title="'Anrufen: ' + z.anzeigename"
-            >{{ z.telefonnummer }}</a>
-            <!-- „E-Mail verborgen“ steht EINMAL je Zeile (an der E-Mail). Die
-                 Telefonzelle zeigt dann nur den Gedankenstrich — sonst stünde
-                 der Satz zweimal nebeneinander. -->
-            <span v-else :class="emailErsatzKlasse(z)">{{ telefonAnzeige(z.telefonnummer) }}</span>
-          </td>
-          <td class="pz-zelle-kontakt pz-zelle-email">
-            <a
-              v-if="z.email"
-              class="pz-kontakt"
-              :href="'mailto:' + z.email"
-              :title="'E-Mail schreiben: ' + z.anzeigename"
-            >{{ z.email }}</a>
-            <span v-else :class="emailErsatzKlasse(z)">{{ emailAnzeige(z.email, { angefordert: angefordert }).text }}</span>
-          </td>
+          <!-- Kontakt- und Ortsspalten (Review UI-R7b, Punkt 1 UND Punkt 3):
+               Die Zellen standen ZWEIMAL im Markup (Verwaltung und
+               Freigabe-Sicht) und ihre REIHENFOLGE war ein zweiter,
+               handgepflegter Satz neben dem Kopf. Beides ist jetzt weg: die
+               Zellen laufen über DIESELBE Spaltenliste wie der Kopf
+               (`spalten`, aus `personenVerwaltung.mjs`), und jede Zelle steht
+               im Quelltext GENAU EINMAL - ein `v-for` über die Schlüssel,
+               ein `v-if` je Art.
+
+               „Kontaktdaten nicht freigegeben“ deckt E-Mail UND Telefon mit
+               `colspan="2"` ab; der Ort bekommt dann seine eigene Zelle, damit
+               die Zeile ihre Zellenzahl behält. -->
+          <template v-for="(key, i) in kontaktSpalten" :key="key">
+            <!-- „Kontaktdaten nicht freigegeben“: EINE Zelle über E-Mail UND
+                 Telefon (`colspan="2"`), damit die Zellenzahl zum Kopf passt.
+                 Sie steht an der Stelle der ERSTEN der beiden Spalten; die
+                 zweite entfällt — sonst hätte die Zeile eine Zelle zuviel. -->
+            <td v-if="ohneKontaktdaten(z) && i === ersterKontaktIndex"
+                colspan="2"
+                class="pz-zelle-nicht-freigegeben"
+            ><span class="pz-verborgen">{{ NICHT_FREIGEGEBEN }}</span></td>
+            <template v-else-if="ohneKontaktdaten(z) && (key === 'email' || key === 'telefon')" />
+            <!-- UI-R7c, Punkt 1: Telefon VOR E-Mail (Reihenfolge des Kopfes).
+                 Beide Kontaktzellen schneiden ab (Stil unten), der volle Wert
+                 steht als `title`. -->
+            <td v-else-if="key === 'telefon'" class="pz-zelle-kontakt pz-zelle-telefon">
+              <a
+                v-if="z.telefonnummer"
+                class="pz-kontakt"
+                :href="'tel:' + telHref(z.telefonnummer)"
+                :title="z.telefonnummer"
+              >{{ z.telefonnummer }}</a>
+              <!-- Leer: stiller Gedankenstrich. In der Verwaltung erbt die
+                   Zelle den Zustand der E-Mail-Zelle („E-Mail verborgen“ steht
+                   EINMAL je Zeile, sonst stünde der Satz zweimal nebeneinander). -->
+              <span v-else :class="verwaltung ? emailErsatzKlasse(z) : 'pz-leer'">{{ telefonAnzeige(z.telefonnummer) }}</span>
+            </td>
+            <td v-else-if="key === 'email'" class="pz-zelle-kontakt pz-zelle-email">
+              <a
+                v-if="z.email"
+                class="pz-kontakt"
+                :href="'mailto:' + z.email"
+                :title="z.email"
+              >{{ z.email }}</a>
+              <span v-else :class="emailErsatzKlasse(z)">{{ emailAnzeige(z.email, { angefordert: angefordert }).text }}</span>
+            </td>
+            <td v-else class="pz-zelle-ort" :title="z.ort || ''">{{ z.ort || '–' }}</td>
+          </template>
           <td v-if="verwaltung" class="pz-zelle-adresse pz-mono">{{ adressZeile(z) }}</td>
           <td v-if="verwaltung" class="pz-zelle-geburtstag pz-mono">{{ z.geburtstag || '–' }}</td>
           <td v-if="verwaltung" class="pz-zelle-dabei pz-mono">{{ z.dabeiSeit || '–' }}</td>
-          <td v-else class="pz-zelle-ort">{{ z.ort || '–' }}</td>
+          <!-- R-9 (Manuel 11.11.): „Daten anfragen“ — NUR wenn der Server die
+               Zeile als anfragbar meldet (die Person hat nicht alles
+               freigegeben) und noch keine Anfrage läuft/erging.
+
+               Review UI-R7b, Punkt 3: Die Zelle hängt an DERSELBEN Bedingung
+               wie ihre Überschrift (`fragenMoeglich`, s. `spalten` oben). Vorher
+               stand der Kopf an `fragenMoeglich`, die Zelle aber an
+               `!zeilenMenue` — in einer Liste ohne anfragbare Person hatte der
+               Kopf vier Spalten und die Zeile fünf (eine leere Zelle zuviel).
+
+               Review UI-R7b, Punkt 4: In der Handy-Lage (> 720 px, Handy quer)
+               entfiel die Zelle ganz (`!zeilenMenue`) — die Tabelle stand dann
+               mit leerer Aktionsspalte da, während das ⋯-Menü nur in den
+               versteckten Karten lag: 0 sichtbare Knöpfe. Jetzt steht in der
+               Tabelle IMMER eine Aktionszelle, wenn es die Spalte gibt; ihren
+               Inhalt wählt die Lage (Knopf bzw. DkAktionen). -->
+          <td v-if="!verwaltung && fragenMoeglich" class="pz-zelle-anfrage">
+            <DkAktionen
+              v-if="zeilenMenue && istAnfragbar(z)"
+              :kennung="'person-anfrage-' + z.name"
+              :label="'Aktionen für ' + z.anzeigename"
+              :eintraege="anfrageEintraege(z)"
+              @aktion="anfragen(z)"
+            />
+            <DkButton
+              v-else-if="istAnfragbar(z)"
+              class="pz-anfrage"
+              variant="secondary"
+              size="sm"
+              :disabled="laeuft === z.name || istErgangen(z)"
+              :aria-label="knopfLabel(z)"
+              :title="istErgangen(z) ? 'Anfrage ist schon unterwegs' : ''"
+              @click.stop="anfragen(z)"
+            >{{ istErgangen(z) ? ANGEFRAGT_TEXT : KNOPF_TEXT }}</DkButton>
+          </td>
         </tr>
       </DkTable>
     </div>
@@ -126,15 +184,25 @@
         <span class="dk-avatar pz-avatar" :style="avatarStil(z.anzeigename)">{{ initialen(z.anzeigename) }}</span>
         <span class="pz-karte-text">
           <span class="pz-name">{{ z.anzeigename || 'Ohne Namen' }}</span>
-          <span class="pz-karte-zeile">
-            <a v-if="z.email" class="pz-kontakt" :href="'mailto:' + z.email">{{ z.email }}</a>
-            <span v-else :class="emailErsatzKlasse(z)">{{ emailAnzeige(z.email, { angefordert: angefordert }).text }}</span>
-          </span>
-          <span class="pz-karte-zeile">
-            <a v-if="z.telefonnummer" class="pz-kontakt" :href="'tel:' + telHref(z.telefonnummer)">{{ z.telefonnummer }}</a>
-            <span v-else :class="emailAnzeige(z.email, { angefordert: angefordert }).verborgen ? 'pz-verborgen' : 'pz-leer'">{{ telefonAnzeige(z.telefonnummer) }}</span>
-            <span v-if="z.ort" class="pz-ort">{{ z.ort }}</span>
-          </span>
+          <!-- R-9: Hat die Person nichts freigegeben, steht EINE Zeile statt
+               einer Reihe von Gedankenstrichen — und daneben der Weg zur
+               Anfrage. Die Datenfelder entfallen dann ganz. -->
+          <template v-if="ohneKontaktdaten(z)">
+            <span class="pz-karte-zeile">
+              <span class="pz-verborgen">{{ NICHT_FREIGEGEBEN }}</span>
+            </span>
+          </template>
+          <template v-else>
+            <span class="pz-karte-zeile">
+              <a v-if="z.email" class="pz-kontakt" :href="'mailto:' + z.email">{{ z.email }}</a>
+              <span v-else :class="emailErsatzKlasse(z)">{{ emailAnzeige(z.email, { angefordert: angefordert }).text }}</span>
+            </span>
+            <span class="pz-karte-zeile">
+              <a v-if="z.telefonnummer" class="pz-kontakt" :href="'tel:' + telHref(z.telefonnummer)">{{ z.telefonnummer }}</a>
+              <span v-else :class="emailAnzeige(z.email, { angefordert: angefordert }).verborgen ? 'pz-verborgen' : 'pz-leer'">{{ telefonAnzeige(z.telefonnummer) }}</span>
+              <span v-if="z.ort" class="pz-ort">{{ z.ort }}</span>
+            </span>
+          </template>
           <!-- UX3b2: Status und Gruppen auch in der Karte — auf dem Handy IST
                die Karte die Verwaltungszeile (dort gibt es keine Tabelle). -->
           <span v-if="verwaltung" class="pz-karte-zeile">
@@ -142,6 +210,45 @@
             <DkBadge v-for="g in gruppenAnzeige(z)" :key="g" variant="neutral">{{ g }}</DkBadge>
           </span>
         </span>
+        <!-- R-9: „Daten anfragen“ steht in JEDER Darstellung, in der die Karten
+             sichtbar sind (Review zu UI-R7, Punkt 2) — auch am Laptop unter 20
+             Personen. In der Handy-Lage steht hier das Zeilenmenü „⋯“ statt des
+             Knopfes (eine Aktion, ein Ort je Lage).
+
+             Review UI-R7b, Punkt 5: Der Knopf hing nur an `!zeilenMenue` und
+             war damit auch für NICHT anfragbare Zeilen da — gesperrt, mit dem
+             falschen Tooltip („hat ihre Kontaktdaten freigegeben“ stand auch an
+             der eigenen Zeile und an gelöschten Personen) und als sichtbarer,
+             aber `aria-hidden`-Knopf. Jetzt hängt er wie in der Tabelle an
+             `istAnfragbar(z)`: keine anfragbare Person, kein Knopf. -->
+        <DkButton
+          v-if="!zeilenMenue && istAnfragbar(z)"
+          class="pz-anfrage pz-karte-anfrage"
+          variant="secondary"
+          size="sm"
+          :disabled="laeuft === z.name || istErgangen(z)"
+          :aria-label="knopfLabel(z)"
+          :title="istErgangen(z) ? 'Anfrage ist schon unterwegs' : ''"
+          @click.stop="anfragen(z)"
+        >{{ istErgangen(z) ? ANGEFRAGT_TEXT : KNOPF_TEXT }}</DkButton>
+        <!-- R-9: Am Handy kein Überfahren — die Anfrage steht deshalb im
+             Zeilenmenü „⋯“ (DkAktionen), dieselbe Aktion wie der Knopf am
+             Laptop. Nur in der Handy-Lage: am Laptop gehörte „⋯“ nicht in die
+             Zeile (DEV-B6: nie die Handy-Bedienung am Schreibtisch). Den Knopf
+             der Karte gibt es dann nicht (siehe oben) — das Menü ist der EINE
+             Weg am Handy. -->
+        <!-- Kein `class` an DkAktionen: die Komponente rendert Knopf +
+             Teleport (Fragment) — ein Klassen-Attribut käme nirgends an
+             (Vue-Warnung „Extraneous non-props attributes“). Die Lage regelt
+             das CSS über den Auslöser selbst (`.pz-karte >
+             .dk-ui-aktionen-ausloeser`). -->
+        <DkAktionen
+          v-if="zeilenMenue && istAnfragbar(z)"
+          kennung="person-anfrage"
+          :label="'Aktionen für ' + z.anzeigename"
+          :eintraege="anfrageEintraege(z)"
+          @aktion="anfragen(z)"
+        />
         <DkSymbolChevron v-if="hatProfil(z)" class="pz-chevron" />
       </li>
     </ul>
@@ -200,14 +307,19 @@ import DkTable from '../ui/DkTable.vue'
 import DkEmpty from '../ui/DkEmpty.vue'
 import DkSkelett from '../ui/DkSkelett.vue'
 import DkBadge from '../ui/DkBadge.vue'
+import DkAktionen from '../ui/DkAktionen.vue'
 import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
+import { useHandyLage } from '../../composables/handyLage.mjs'
 import { telHref } from '../../composables/adressbuch.mjs'
 import { darfProfilLink } from '../../composables/geloeschte-person.mjs'
 import {
   emailAnzeige, telefonAnzeige, initialen,
 } from '../../composables/personenZeilen.mjs'
 import {
-  adressZeile, blaetterKnopfZustand, fusszeileFuer,
+  ANGEFRAGT_TEXT, KNOPF_TEXT, NICHT_FREIGEGEBEN, istAnfragbar, ohneKontaktdaten,
+} from '../../composables/datenAnfrage.mjs'
+import {
+  adressZeile, blaetterKnopfZustand, freigabeSpalten, fusszeileFuer,
   statusVariante, statusWort, verwaltungSpalten,
 } from '../../composables/personenVerwaltung.mjs'
 
@@ -229,11 +341,64 @@ const props = defineProps({
   /** Persönliche Daten sind angefordert (der Server liefert sie dann). */
   persoenlich: { type: Boolean, default: false },
 })
-const emit = defineEmits(['anlegen', 'blaettern', 'erneut'])
+const emit = defineEmits(['anlegen', 'blaettern', 'erneut', 'datenAnfrage'])
 
 /** „Erneut versuchen“ im Fehlerzustand: die Seite kennt die Quelle und lädt. */
 function erneutLaden() {
   emit('erneut')
+}
+
+/**
+ * R-9: Die Zeile bittet um Freigabe. Der KNOPF bzw. das Zeilenmenü meldet nur
+ * — die Anfrage selbst schickt die Seite (`mitglieder.daten_anfragen`), weil
+ * nur sie die Antwort in eine Meldung übersetzen kann.
+ *
+ * `laeuft` hält den Doppelklick ab, SOLANGE die Anfrage unterwegs ist.
+ * `ergangen` merkt sich die Person danach: der Knopf wird „Angefragt“ und
+ * bleibt gesperrt (Review zu UI-R7, Punkt 3) — sonst schickte jeder weitere
+ * Klick eine neue Anfrage an den Server. Gesperrt wird bei `gesendet: true`
+ * UND bei `bereits: true`; „nicht zugestellt“ (`gesendet: false` ohne
+ * `bereits`) gibt den Knopf frei, damit er dem Toast nicht widerspricht
+ * (Review UI-R7b, Punkt 7).
+ */
+const laeuft = ref('')
+const ergangen = ref(new Set())
+
+/** Ist die Anfrage für diese Zeile schon unterwegs gewesen? */
+function istErgangen(zeile) {
+  return Boolean(zeile?.name) && ergangen.value.has(zeile.name)
+}
+
+/** Beschriftung/Vorlesetext des Knopfes — Zustand statt Vermutung. */
+function knopfLabel(zeile) {
+  const name = zeile?.anzeigename || 'die Person'
+  return istErgangen(zeile) ? `${ANGEFRAGT_TEXT}: ${name}` : `${KNOPF_TEXT}: ${name}`
+}
+
+/** Der eine Menüeintrag des Zeilenmenüs (R-9) — dieselbe Beschriftung wie der
+ *  Knopf am Laptop, kein zweiter Text. */
+function anfrageEintraege(zeile) {
+  return [{
+    key: 'anfragen',
+    label: istErgangen(zeile) ? ANGEFRAGT_TEXT : KNOPF_TEXT,
+    icon: 'freigeben',
+    disabled: laeuft.value === zeile?.name || istErgangen(zeile),
+  }]
+}
+
+/**
+ * `fertig(ok)` — die Seite meldet zurück, ob die Anfrage angekommen ist
+ * (`true`/nichts = angenommen, auch „schon angefragt“; `false` = nicht
+ * zugestellt). Nur `true` sperrt den Knopf (Punkt 7); bei „nicht zugestellt“
+ * bleibt er bedienbar, passend zum Toast.
+ */
+function anfragen(zeile) {
+  if (!zeile?.name || laeuft.value || istErgangen(zeile)) return
+  laeuft.value = zeile.name
+  emit('datenAnfrage', { name: zeile.name, anzeigename: zeile.anzeigename }, (ok = true) => {
+    laeuft.value = ''
+    if (ok !== false) ergangen.value = new Set([...ergangen.value, zeile.name])
+  })
 }
 
 const { skelettSichtbar: laedtSkelett } = useLadeSkelett(computed(() => props.laedt))
@@ -245,6 +410,20 @@ function breiteMessen() {
   if (typeof window === 'undefined') return
   schmal.value = window.innerWidth <= 720
 }
+/**
+ * R-9: „Daten anfragen“ am Handy gehört ins Zeilenmenü „⋯“ — dort gibt es kein
+ * Überfahren. Die Handy-Lage kommt aus der EINEN Regel (`useHandyLage`, also
+ * Breite UND grober Zeiger), NICHT aus der Breite allein: ein schmal
+ * gezogenes Laptop-Fenster bekäme sonst die Handy-Bedienung (DEV-B6/MT-1).
+ */
+const { istHandyLage } = useHandyLage()
+/**
+ * Zeilenmenü NUR in der Handy-Lage und dort statt des Knopfes in der Zeile.
+ * Die Zeiger-ART wird nicht abgefragt (FIX-6c): außerhalb der Handy-Lage ist
+ * „Daten anfragen“ dauerhaft sichtbar (Nacharbeit zu UI-R7b, Punkt 2).
+ */
+const zeilenMenue = computed(() => istHandyLage.value === true)
+
 onMounted(() => {
   breiteMessen()
   window.addEventListener('resize', breiteMessen)
@@ -272,14 +451,37 @@ const verwaltung = computed(() => props.verwaltung === true && props.quelle === 
 // darin, sobald die Verwaltung sie sehen darf — der Schalter ändert nur, ob
 // der Server die WERTE liefert. Sonst stünde die E-Mail (die auch in den
 // anderen Fällen nicht fehlen darf) unter einer falschen Überschrift.
+//
+// Review zu UI-R7, Punkt 1: BEIDE Sätze kommen aus `personenVerwaltung.mjs`
+// (dieselbe Reihenfolge wie die Zellen im Markup). Eine eigene Liste hier im
+// Baustein driftete vom Markup weg — 4 Überschriften, 5 Zellen.
 const spalten = computed(() => (verwaltung.value
   ? verwaltungSpalten({ persoenlich: true })
-  : [
-    { key: 'name', label: 'Name' },
-    { key: 'email', label: 'E-Mail' },
-    { key: 'telefon', label: 'Telefon' },
-    { key: 'ort', label: 'Ort' },
-  ]))
+  : freigabeSpalten({ anfrage: fragenMoeglich.value })))
+
+/**
+ * Die Kontakt-/Ortsspalten in der Reihenfolge des KOPFS
+ * (Review UI-R7b, Punkt 1): Das Markup läuft über DIESE Liste statt über einen
+ * zweiten, handgepflegten Zellensatz — eine Reihenfolge, eine Quelle.
+ *
+ * Die Zeile entscheidet je Datensatz, ob E-Mail und Telefon zu EINER Zelle
+ * „Kontaktdaten nicht freigegeben“ (`colspan="2"`) verschmelzen; die
+ * SPALTENFORM bleibt dieselbe.
+ */
+const kontaktSpalten = computed(() => spalten.value
+  .filter((s) => ['email', 'telefon', 'ort'].includes(s.key))
+  .map((s) => s.key))
+
+/** Index der ersten Kontaktspalte — dort steht die verschmolzene Zelle. */
+const ersterKontaktIndex = computed(() => kontaktSpalten.value
+  .findIndex((k) => k === 'email' || k === 'telefon'))
+
+/**
+ * Gibt es in DIESER Liste überhaupt jemanden zu fragen? Nur dann hat die
+ * Aktionsspalte eine Überschrift („Aktionen“) — eine Spalte, die nie einen
+ * Knopf zeigt, wäre eine Behauptung.
+ */
+const fragenMoeglich = computed(() => props.zeilen.some((z) => istAnfragbar(z)))
 
 /** Fußzeile nach Quelle: Adressbuch nennt nur die Anzahl (kein Blättern). */
 const fuss = computed(() => fusszeileFuer({
@@ -306,9 +508,9 @@ function hatProfil(z) {
 
 /**
  * Wie eine leere Kontaktzelle aussieht:
- *  • „nicht angefordert“ → still (der Schalter ist aus, niemand hat etwas
- *    verborgen — kein Vorwurf an das Mitglied),
- *  • „E-Mail verborgen“ → gedämpft/kursiv wie bisher,
+ *  • „nicht angefordert“ → still: die Zelle zeigt „nicht angefordert“
+ *    (Schalter aus, niemand hat etwas verborgen),
+ *  • „E-Mail verborgen“ → gedämpft/kursiv,
  *  • leerer Wert → stiller Gedankenstrich.
  */
 function emailErsatzKlasse(z) {
@@ -434,6 +636,22 @@ defineExpose({ telHref })
   outline-offset: var(--sp-1);
   border-radius: var(--radius-sm);
 }
+/* UI-R7c, Punkt 1: KEIN Überlauf in die Nachbarspalte.
+   Mit Aktionsspalte steht die Tabelle auf `table-layout: fixed` (DkTable
+   `.has-aktion`) — dann bestimmt die Spaltenbreite die Zelle, nicht der
+   Inhalt. Eine lange Adresse schob sich trotzdem in die Telefon-Spalte
+   („rebekka@example.org07071 2345“), weil weder Zelle noch Link abschnitten.
+   Die Zelle schneidet ab, der Wert bekommt eine Ellipse; den vollen Wert
+   trägt `:title`. Gleiches gilt für Telefon; der Ort ist ein blanker Textknoten
+   in der Zelle und wird von deren `overflow` beschnitten. */
+.pz-zelle-kontakt { overflow: hidden; }
+.pz-zelle-kontakt .pz-kontakt {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pz-zelle-ort { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* „E-Mail verborgen“ ist Zustand, keine Aktion — gedämpft, nie ein Link. */
 .pz-verborgen { color: var(--subtle); font-style: italic; }
 /* Leerer Wert (nicht freigegeben/nicht hinterlegt): stiller Gedankenstrich. */
@@ -441,6 +659,27 @@ defineExpose({ telHref })
 /* Verwaltung, Schalter aus: die Zeile sagt es selbst („Persönliche Daten
    nicht angefordert“) — normal getönt, kein Vorwurf an das Mitglied. */
 .pz-nicht-angefordert { color: var(--muted); }
+
+/* ── R-9: „Daten anfragen“ ─────────────────────────────────────────────────
+   Der Knopf steht in einer eigenen Zelle (bzw. in der Karte) und ist
+   DAUERHAFT sichtbar — kein Überfahren nötig: ein Knopf, den man erst
+   überfahren muss, gäbe es am Tablet nicht, und die Zeigerart darf nirgends
+   abgefragt werden (FIX-6c). Die Handy-Lage zeigt hier das Zeilenmenü „⋯“. */
+.pz-zelle-anfrage { width: 1%; white-space: nowrap; text-align: right; }
+/* „Angefragt“ ist ZUSTAND, keine Aufforderung: der Knopf bleibt sichtbar und
+   antippbar, gesperrt wird er über `disabled` (nicht über `pointer-events`). */
+.pz-anfrage:disabled { opacity: 1; }
+
+/* Kontaktzelle ohne Freigabe: EIN Satz über beide Spalten (colspan=2 trägt
+   die Breite, hier nur die Tönung). */
+.pz-zelle-nicht-freigegeben { color: var(--subtle); }
+
+/* Zeilenmenü am Handy (R-9): der „⋯“-Knopf sitzt auf der Zeile wie der
+   Chevron; das Menü selbst liegt im Teleport (DkAktionen). */
+.pz-karte > .dk-ui-aktionen-ausloeser { flex: 0 0 auto; }
+/* Anfrage-Knopf der KARTE (Review zu UI-R7, Punkt 2): Grundform für Karten mit
+   Anfrage — dauerhaft sichtbar, nie überfahren. */
+.pz-karte-anfrage { flex: 0 0 auto; white-space: nowrap; align-self: center; }
 
 .pz-tabelle :deep(tbody tr.pz-zeile:hover td) { background: var(--surface-hover); }
 

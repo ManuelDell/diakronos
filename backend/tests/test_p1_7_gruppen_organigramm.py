@@ -106,6 +106,10 @@ def hierarchie(patched_db):
         ),
     ])
     sess.commit()
+    # R-4: Altmodell-Rechte ins EINE Rechtesystem uebernehmen (wie Migration r1).
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(sess)
     yield sess
     sess.close()
 
@@ -134,11 +138,13 @@ def test_can_edit_ids_enthaelt_admin_alles(hierarchie):
 def test_can_edit_ids_verantwortlicher_nur_seine_welt(hierarchie):
     from diakronos_app.api.gruppen import get_user_create_permissions
 
-    # Bereichsverantwortlicher DB-A: darf DB-A, die Gruppe darunter und deren
-    # Untergruppe ändern — nicht DB-B.
+    # Bereichsverantwortlicher DB-A ist nach der Uebernahme MV der Gruppe
+    # darunter: darf G-A1 und deren Untergruppe aendern — nicht DB-B.
+    # R-4 (Manuel 11.11.): Dienstbereiche entfallen, ihre Pflege bleibt dem
+    # Administrator — auch DB-A ist fuer ihn nicht mehr editierbar.
     set_user("bereichsverantw@example.org")
     res = get_user_create_permissions()
-    assert "DB-A" in res["can_edit_ids"]
+    assert "DB-A" not in res["can_edit_ids"]
     assert "G-A1" in res["can_edit_ids"]
     assert "UG-A1" in res["can_edit_ids"]
     assert "DB-B" not in res["can_edit_ids"]
@@ -321,7 +327,11 @@ def test_gruppen_page_data_liefert_anlegen_rechte(hierarchie):
     """OP-ADMIN-6: die Gruppenseite bekommt Rechte + Auswahllisten."""
     from diakronos_app.api.gruppen import get_gruppen_page_data
 
+    # R-4 (Manuel 11.11.): Gruppen legt nur der Administrator an.
     set_user("bereichsverantw@example.org")
+    assert get_gruppen_page_data()["create_permissions"]["can_create_gruppe"] is False
+
+    set_user("admin@example.org")
     res = get_gruppen_page_data()
     assert res["create_permissions"]["can_create_gruppe"] is True
     assert {"name": "DB-A", "ministry": "Gottesdienst"} in res["dienstbereich_auswahl"]
@@ -354,6 +364,8 @@ def _lesekalender(sess, kalender_name: str, rolle: str) -> None:
         parentfield="leserechte", role=rolle, docstatus=0, idx=1,
     ))
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
 
 
 def test_get_gruppe_termine_zeigt_nicht_festgelegte_nur_moderatoren(hierarchie):

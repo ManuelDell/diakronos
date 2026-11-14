@@ -11,6 +11,20 @@ import * as einrichtungLeitung from './einrichtungLeitung.mjs'
 // UX2g: der Ladefehler einer Seite erscheint als Katalogtext statt als
 // Floskel „Unbekannter Fehler".
 import { fehlertext } from '../shared/fehlertexte.js'
+// UI-R10b (Review, Punkt 2): die EINE Verwaltungsregel lebt in `menue.js`. Der
+// Import hat KEINE Kurzname-Zeile daneben (der Router-Test streicht alle
+// `import`-Zeilen und setzt Attrappen ein).
+import { verwaltungZutreffend } from './menue.js'
+
+// Rückfall: läuft der Router ohne `menue.js` (die VM-Tests streichen die
+// Importe), ist die Regel NICHT bekannt — dann gilt `false` (fail closed).
+// Früher stand hier eine ZWEITE Fassung der Regel; sie konnte von `menue.js`
+// abweichen, ohne dass es jemandem auffiel. Eine gesperrte Seite ist harmlos
+// (der Server prüft ohnehin erneut), eine offene nicht.
+const verwaltungRegel = typeof verwaltungZutreffend === 'function'
+    ? verwaltungZutreffend
+    : () => false
+
 // MT-7b (Review-Punkt 5): Der Rückweg-Merker der Listen gilt nur, solange der
 // Nutzer aus der Liste kam. Der Wechsel wird HIER geprüft (eine Stelle), weil
 // der Auslöser auch im Gerüst liegen kann (Menüpunkt in `AppSidebar.vue`) —
@@ -221,6 +235,10 @@ const dynamicRoutes = [
     // UXD-R20: Wiki-Artikel sind teilbar („#/wiki/‹Kennung›“ öffnet den Artikel).
     // MT-7: … jetzt als eigene Unterseite (pages/WikiArtikel.vue) statt Fenster.
     { pattern: /^#\/wiki\/(.+)$/, page: 'WikiArtikel', param: 'id' },
+    // UI-R1: die Gruppenseite hat zwei Reiter — Übersicht (#/gruppe/<id>)
+    // und Einstellungen (#/gruppe/<id>/einstellungen). Das Reiter-Muster steht
+    // wörtlich VOR dem Detailmuster, sonst schluckte `#/gruppe/<id>` den Reiter.
+    { pattern: /^#\/gruppe\/([^/]+)\/einstellungen$/, page: 'GruppeDetail', param: 'id' },
     { pattern: /^#\/gruppe\/(.+)$/, page: 'GruppeDetail', param: 'id' },
     // UX3a: Liedgruppen sind ein Reiter von „Lieder“ (wörtlich VOR dem
     // Detailmuster, sonst schluckte `#/lieder/gruppen/…` den Reiter).
@@ -369,10 +387,13 @@ function _mitAbfrage(ziel, abfrage) {
 // Rollenabhängige Weiterleitungen (nur wenn das Ziel für die Rolle passt).
 function rollenWeiterleitung(pfad) {
     const boot = window.__DIakonosBOOT || {}
-    const isAdmin = boot.is_admin || false
+    // UI-R10: Der Datenschutz-Reiter ist Personenbereich — die
+    // Mitgliederverwaltung darf ihn (R-11a), nicht nur der Administrator. Ein
+    // fehlendes Feld (alter Server) zählt als `false`: dann gilt `is_admin`.
+    const verwaltung = verwaltungErlaubt('personen', boot)
     if (pfad === '#/dsgvo') {
-        // Abschnitt 8: Admin → Datenschutz-Reiter, alle anderen → Profil.
-        return isAdmin ? '#/personen/datenschutz' : '#/profile'
+        // Abschnitt 8: Verwaltung → Datenschutz-Reiter, alle anderen → Profil.
+        return verwaltung ? '#/personen/datenschutz' : '#/profile'
     }
     if (pfad === '#/personen') {
         // UX3b (Entscheidung Manuel): „Personen“ ist EINE Ansicht je Rolle.
@@ -653,42 +674,114 @@ onBeforeEach(({ to, name }) => {
     return false
 })
 
-// ── Admin-Guard für Verwaltungs-Seiten ──────────────────────────────────────
+// ── Verwaltungs-Guards ──────────────────────────────────────────────────────
 // Ausblenden im Menü ist nur Komfort; direkte Aufrufe von Verwaltungsseiten
 // landen ohne Recht auf dem Dashboard (der Server verweigert ohnehin).
+//
+// UI-R10 (Manuel 11.11.: „Der Admin ist ja der einzige der alles darf“): Seit
+// R-11a gibt es ZWEI Stufen. Die Mitgliederverwaltung pflegt Personen, Konten,
+// Registrierung und Datenschutz — sie ist eine Fachverwaltung, kein
+// Vollzugriff. Deshalb stehen hier ZWEI Listen statt einer:
+//
+//   ADMIN_ONLY_PAGES       — nur der Administrator (`boot.is_admin`):
+//                            Gemeinde-Einstellungen, Einrichtung, Papierkorb,
+//                            Fehlerberichte, Rollen, Datensicherung,
+//                            Mailversand, Website-Baukasten, Gestaltung,
+//                            Entwicklermodus, Datenschutz-TEXTE, „Vorlagen“
+//                            der Dienste und das Planrahmen-Einrichten. Der
+//                            Server verweigert der Mitgliederverwaltung genau
+//                            diese Bereiche.
+//   PERSONEN_VERWALTUNG_PAGES — Personenbereich (`boot.ist_mitgliederverwaltung`,
+//                            also Administrator ODER Mitgliederadministrator):
+//                            Personen-Reiter (Übersicht, Anfragen, Datenschutz,
+//                            Löschanträge, Import), Registrierungs-Anfragen,
+//                            Anmeldeeinstellungen.
+//
+// „Dienstpläne“ bleibt bewusst in KEINER Liste: Planer ohne Verwaltungsrolle
+// (Bereichs-/Gruppenverantwortliche) müssen die Planübersicht wie auf main
+// erreichen. Das Planungsrecht prüft der Server (`einrichten_rechte`, sonst
+// 403 → Leerzustand); die Reiterzeile blendet den Reiter nach derselben
+// Antwort aus. Kalender-Verwaltung ist Sache von `kalenderRechte.mjs` (UI-R3).
 const ADMIN_ONLY_PAGES = new Set([
-    'MitgliederUebersicht', 'MitgliederAnfragen', 'MitgliederDatenschutz', 'MitgliederImport',
-    // DSGVO-2c: eigene Seite der Verwaltung (der Server verweigert sonst 403).
-    'MitgliederLoeschantraege',
-    // UX3a: „Vorlagen“ (bisheriges Einrichten) ist Verwaltungsarbeit.
-    'DiensteVorlagen', 'PlanrahmenEinrichten',
-    // UX3c: „Dienstpläne“ steht bewusst NICHT hier. Dieser Guard kennt nur
-    // `boot.is_admin`; Planer ohne Admin-Rolle (Bereichs-/Gruppenverantwort-
-    // liche) müssen die Planübersicht wie auf main erreichen. Das Planungs-
-    // recht prüft der Server (`einrichten_rechte`, sonst 403 → Leerzustand);
-    // die Reiterzeile blendet den Reiter nach derselben Antwort aus.
-    'Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung',
-    'EinstellungenRollen', 'EinstellungenDevModus',
-    'EinstellungenRegistrierung', 'EinstellungenDatenschutz',
-    // BACKUP-1: die Datensicherung ist serverseitig nur fuer System Manager;
-    // der Guard haelt alle anderen schon auf der Seite auf.
+    // Gemeinde-Einstellungen (der Server: nur der Kern-Admin, 403 sonst).
+    'EinstellungenGemeinde',
+    'EinstellungenRollen',
+    'EinstellungenDevModus',
     'EinstellungenDatensicherung',
-    // MAIL-1: Mailversand ebenso — der Server prueft zusaetzlich (403).
     'EinstellungenMailversand',
-    // WEB-3: „Website (Primo)“ ist ein Einstellungs-Abschnitt wie die anderen.
     'EinstellungenWebsite',
-    // UX1k: „Gestaltung“ ändert die Maße für alle — der Server verweigert
-    // Nicht-System-Managern ohnehin mit 403.
     'EinstellungenGestaltung',
-    'Registrierung',
+    // R10-Review (Punkt 1): Datenschutz-TEXTE — `gemeinde._angemeldeter_admin`
+    // (`permissions.is_admin`) nimmt nur den Kern-Admin an, 403 sonst.
+    'EinstellungenDatenschutz',
+    // UX2b: Papierkorb — der Server nimmt nur den Administrator an.
+    'EinstellungenPapierkorb',
     // ON-3: der Einrichtungs-Assistent ist Verwaltungsarbeit — der Server
     // weist Nicht-Admins ohnehin mit 403 ab.
     'Einrichtung',
+    // R10-Review (Punkt 2): „Vorlagen“ und das Planrahmen-Einrichten. Das Menü
+    // führt sie (`DIENSTE_REITER`) als `rolle: 'admin'`; der Server prüft die
+    // Einrichtung als Administration. Ein Personen-Wächter hätte sie per
+    // Direktaufruf geöffnet und dann 403 gezeigt.
+    'DiensteVorlagen', 'PlanrahmenEinrichten',
+    // R10-Review (Punkt 1, LIVE-Befund): der Abschnitt „Registrierung“ hängt
+    // VOLLSTÄNDIG am Kern-Admin. Er liest `gemeinde_get_einstellungen` und
+    // speichert über `gemeinde_setze_linkvorgaben` — beide gehen durch
+    // `gemeinde._angemeldeter_admin` (`permissions.is_admin`) und antworten
+    // der Mitgliederverwaltung mit 403. R-11a meint mit „Registrierungslinks/
+    // -formularen“ die Anfragen-Seite, nicht diese Vorgaben.
+    'EinstellungenRegistrierung',
 ])
+
+const PERSONEN_VERWALTUNG_PAGES = new Set([
+    'MitgliederUebersicht', 'MitgliederAnfragen', 'MitgliederDatenschutz', 'MitgliederImport',
+    // DSGVO-2c: eigene Seite der Verwaltung.
+    'MitgliederLoeschantraege',
+    // UI-R10: Der Einstellungs-Rahmen selbst und der Abschnitt „Anmeldung“
+    // sind Personenbereich (R-11a: „Anmeldungen, Anmeldeeinstellungen“).
+    // Die Administrations-Abschnitte INNERHALB der Seite filtert
+    // `pages/Einstellungen.vue` nach derselben Regel. „Registrierung“ steht
+    // bei der Administration (Server: Kern-Admin).
+    'Einstellungen', 'EinstellungenAnmeldung', 'Registrierung',
+])
+
+/**
+ * Die Flagge, die eine Seite verlangt — `null` = keine Verwaltungsschranke.
+ * EINE Zuordnung für beide Wächter und für Tests.
+ */
+export function verwaltungsStufeSeite(name) {
+    if (ADMIN_ONLY_PAGES.has(name)) return 'admin'
+    if (PERSONEN_VERWALTUNG_PAGES.has(name)) return 'personen'
+    return null
+}
+
+/**
+ * Die EINE Entscheidung, ob diese Sitzung eine Stufe darf.
+ *
+ * `stufe` kommt aus `verwaltungsStufeSeite` (oder aus demselben Text in
+ * `menue.js`): `'personen'` = Admin ODER Mitgliederverwaltung, `'admin'` = nur
+ * Admin.
+ *
+ * UI-R10b: die Regel selbst steht in `menue.js::verwaltungZutreffend` — hier
+ * wird NUR der Boot-Stand in die beiden Sitzungs-Flags übersetzt und delegiert.
+ * Zwei wortgleiche Fassungen (`verwaltungErlaubt` und `verwaltungZutreffend`)
+ * konnten auseinanderlaufen; jetzt gibt es genau EINE Regel im Baum.
+ *
+ * Fail closed: nur ein echtes `true` zählt (`is_admin: 1` aus einem alten
+ * Server ist KEIN Administrator). Fehlt `ist_mitgliederverwaltung` (alter
+ * Server), bleibt der Personenbereich für Nicht-Admins zu.
+ */
+export function verwaltungErlaubt(stufe, boot = window.__DIakonosBOOT || {}) {
+    if (stufe !== 'admin' && stufe !== 'personen') return true // keine Schranke
+    return verwaltungRegel(stufe, {
+        istAdmin: boot.is_admin === true,
+        istMitgliederverwaltung: boot.ist_mitgliederverwaltung === true,
+    })
+}
+
 onBeforeEach(({ name }) => {
-    if (!ADMIN_ONLY_PAGES.has(name)) return
-    const boot = window.__DIakonosBOOT || {}
-    if (boot.is_admin) return
+    const stufe = verwaltungsStufeSeite(name)
+    if (verwaltungErlaubt(stufe)) return
     navigate('#/')
     return false
 })

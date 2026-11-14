@@ -372,10 +372,12 @@ def test_boot_zeigt_echte_email_und_avatar(angemeldeter_http) -> None:
 
 
 def test_is_admin_entspricht_der_tatsaechlichen_rolle(angemeldeter_http) -> None:
-    """`is_admin` = Rolle `Mitgliederadministrator` ODER `System Manager`."""
+    """R-11a: `is_admin` = Administrator des Rechte-Kerns (System Manager/root);
+    die Rolle `Mitgliederadministrator` ergibt `ist_mitgliederverwaltung`."""
     c, _ = angemeldeter_http
     boot = _boot_aus(c.get("/diakonos").text)
-    assert boot["is_admin"] is True, "Hat die Rolle -> muss Admin sein"
+    assert boot["is_admin"] is False, "Mitgliederverwaltung ist kein Admin"
+    assert boot["ist_mitgliederverwaltung"] is True, "Hat die Rolle -> Verwaltung"
 
 
 def test_is_admin_ist_false_ohne_admin_rolle(angemeldeter_ohne_rolle) -> None:

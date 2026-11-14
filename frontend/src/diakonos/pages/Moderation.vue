@@ -43,7 +43,7 @@
       viewMode="view"
       :canWrite="false"
       :canModerate="true"
-      :offeneZahl="moderationCount > 0 ? moderationCount : null"
+      :offeneZahl="prüfZahl > 0 ? prüfZahl : null"
       aktiverReiter="pruefen"
       pruefTafel
     />
@@ -63,7 +63,7 @@
           <DkSymbol name="zurueck" :groesse="16" />
           <span>Kalender</span>
         </a>
-        <span class="dk-moderation-anzahl">{{ moderationCount > 0 ? zahlWort(moderationCount, 'Termin', 'Termine') + ' zu prüfen' : '' }}</span>
+        <span class="dk-moderation-anzahl">{{ prüfZahl > 0 ? zahlWort(prüfZahl, 'Termin', 'Termine') + ' zu prüfen' : '' }}</span>
         <DkButton variant="primary" :disabled="!canFinalize" @click="finalizeAll">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10-10"/></svg>
           {{ finalizing ? '…' : 'Alle freigeben' }}
@@ -72,19 +72,28 @@
 
       <!-- OP-ADMIN-18: Erklärsatz über der Moderationstafel. Wer die Seite
            zum ersten Mal öffnet, soll ohne Nachfrage wissen, was hier passiert
-           und was die beiden Ablagen bedeuten. -->
+           und was die beiden Ablagen bedeuten.
+           UI-R4: „wird verbindlich“ stimmt nur bei der LETZTEN Stufe — bis
+           dahin hakt jede Freigabe eine Stufe ab (das sagt die Warteline an
+           jeder Karte). Deshalb hier kein Versprechen mehr, das bei mehreren
+           Stufen falsch wäre. -->
       <p class="dk-moderation-erklaerung" data-test="moderation-erklaerung">
         Neue Terminvorschläge landen links unter „Vorschläge“. Ziehst du einen
         Vorschlag nach rechts in „Freigeben“ oder drückst „Alle freigeben“, wird
-        er verbindlich und erscheint im Kalender. Bis dahin sehen ihn nur die
-        Moderatorinnen und Moderatoren.
+        er geprüft. Jede Karte sagt, welche Stufe als Nächstes dran ist — erst
+        wenn keine mehr offen ist, erscheint der Termin im Kalender. Bis dahin
+        sehen ihn nur die Moderatorinnen und Moderatoren.
       </p>
+
+      <!-- UI-R4, Punkt 3: Freigabe-Anträge (Kalender/Inhalte für Gruppe oder
+           Gemeinde). Der Abschnitt erscheint nur, wenn es welche gibt. -->
+      <ModerationAntraege @entschieden="nachEntscheidung" />
 
       <!-- Änderungen an freigegebenen Terminen (Operator-Regel 16.10.) -->
       <ModerationAenderungen />
 
       <!-- Board -->
-      <ModerationBoard ref="board" />
+      <ModerationBoard ref="board" @entschieden="zaehlerLaden" />
     </div>
   </div>
 </template>
@@ -93,6 +102,7 @@
 import { ref, computed, onMounted } from 'vue'
 import ModerationBoard from '../components/kronos/ModerationBoard.vue'
 import ModerationAenderungen from '../components/kronos/ModerationAenderungen.vue'
+import ModerationAntraege from '../components/kronos/ModerationAntraege.vue'
 import KronosTopbar from '../components/kronos/KronosTopbar.vue'
 import DkButton from '../components/ui/DkButton.vue'
 import DkSymbol from '../components/ui/DkSymbol.vue'
@@ -103,6 +113,9 @@ import { finalizeStagedEvents, getModerationCount } from '../api/kanbanApi.js'
 import { showToast } from '../composables/useToast.js'
 import { navigate } from '../router.js'
 import { zahlWort } from '../components/ui/begriffe.mjs'
+// UI-R4/R4b: ehrliche Freigabe-Meldung. `sammelMeldung` wertet für
+// „Alle freigeben“ die Serverzahlen `festgelegt`/`weitergereicht` aus.
+import { sammelMeldung } from '../components/kronos/freigabeStufen.mjs'
 
 // ── Permission check ─────────────────────────────────────────────────────────
 const checking = ref(true)
@@ -113,11 +126,37 @@ const board = ref(null)
 const moderationCount = ref(0)
 const finalizing = ref(false)
 
+/**
+ * UI-R4/R-12: Die Zahl „Zu prüfen“ kommt aus `getModerationCount` — der
+ * Server zählt genau die Vorschläge, die der Aufrufer auf der OFFENEN Stufe
+ * prüfen darf (dieselbe Regel wie `darf_pruefen` auf dem Brett). Reiterzahl,
+ * Panelkopf und Liste laufen damit nicht mehr auseinander; die Seite führt
+ * keine zweite, eigene Zählung.
+ */
+const prüfZahl = computed(() => moderationCount.value)
+
 const canFinalize = computed(() => {
   if (!board.value) return false
   const ids = board.value.getStagingIds()
   return ids.length > 0 && !finalizing.value
 })
+
+/** Die Zahl neu holen (nach einem Entscheid auf dem Brett). */
+async function zaehlerLaden() {
+  try {
+    const cnt = await getModerationCount()
+    const n = Number(cnt?.count)
+    moderationCount.value = Number.isFinite(n) ? n : 0
+  } catch {
+    // Ein Fehler bleibt still: die Zahl ist eine Kennzahl, kein Inhalt.
+  }
+}
+
+/** Ein Freigabe-Antrag wurde entschieden — Tafel und Zahl nachziehen. */
+async function nachEntscheidung() {
+  await board.value?.reloadBoard?.()
+  await zaehlerLaden()
+}
 
 // ── Navigation ───────────────────────────────────────────────────────────────
 function goToKalender() {
@@ -125,6 +164,16 @@ function goToKalender() {
 }
 
 // ── Finalize all ─────────────────────────────────────────────────────────────
+/**
+ * „Alle freigeben“/Ziehen — ehrliche Meldung (UI-R4b, Punkt 3).
+ *
+ * Vorher stand hier `${ids.length} Termine freigegeben` + „Im Kalender
+ * ansehen“ — auch wenn nur EINE Stufe abgehakt war und die Termine noch auf
+ * die nächste warteten. Der Server (R-12d) sagt jetzt je Termin, was gilt:
+ * `festgelegt`, `weitergereicht` und `ergebnisse[id].naechste_stufe`.
+ * Gemeldet wird `freigabeMeldung` (EINE Quelle), und der Kalender-Link
+ * erscheint NUR, wenn wirklich Termine festgelegt sind.
+ */
 async function finalizeAll() {
   if (!board.value) return
   const ids = board.value.getStagingIds()
@@ -132,18 +181,20 @@ async function finalizeAll() {
 
   finalizing.value = true
   try {
-    await finalizeStagedEvents(ids)
+    const antwort = await finalizeStagedEvents(ids)
+    const meldung = sammelMeldung(antwort)
     // OP-UI-25: Nicht ungefragt in den Kalender springen — der Moderator
     // bleibt in der Moderation und bekommt die Moeglichkeit, den Kalender
-    // anzusehen. Sonst landete er mitten in der Arbeit in einer anderen
-    // Ansicht, ohne zu wissen warum.
+    // anzusehen. Das gilt aber nur für Termine, die WIRKLICH im Kalender
+    // stehen (festgelegt); wartende sind dort nicht zu sehen.
     showToast(
-      `${zahlWort(ids.length, 'Termin', 'Termine')} freigegeben`,
-      'success',
-      { text: 'Im Kalender ansehen', onClick: goToKalender },
+      meldung.text,
+      meldung.ton,
+      // „Im Kalender ansehen“ nur bei Terminen, die WIRKLICH dort stehen.
+      meldung.festgelegt > 0 ? { text: 'Im Kalender ansehen', onClick: goToKalender } : null,
     )
     await board.value.reloadBoard()
-    moderationCount.value = 0
+    await zaehlerLaden()
   } catch (e) {
     showToast(e.message || 'Freigabe fehlgeschlagen', 'error')
   } finally {
@@ -163,15 +214,8 @@ onMounted(async () => {
     checking.value = false
   }
 
-  // Load moderation count for badge
-  if (canModerate.value) {
-    try {
-      const cnt = await getModerationCount()
-      moderationCount.value = cnt?.count || 0
-    } catch {
-      // ignore
-    }
-  }
+  // Zahl „Zu prüfen“ (Reiter, Badge, Kopfzeile) — EINE Quelle: der Server.
+  if (canModerate.value) await zaehlerLaden()
 })
 </script>
 

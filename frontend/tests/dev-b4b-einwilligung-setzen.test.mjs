@@ -60,6 +60,8 @@ async function dokument() {
     basePath: '/diakonos',
     csrf_token: 'test-token',
     is_admin: true,
+    // UI-R10: dieselbe Verteilung wie im Server (Admin = beide Flags).
+    ist_mitgliederverwaltung: true,
     user_email: 'verwaltung@example.org',
     roles: ['Mitgliederadministrator'],
   }

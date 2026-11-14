@@ -193,7 +193,19 @@ def test_s1_generischer_ressourcenweg_vergibt_ebenfalls_einen_starken_slug(
     admin_client, patched_db
 ):
     """Auch `POST /api/resource/Registrierungslink` (Pentest-Weg) kann keinen
-    schwachen Slug setzen — die Regel haengt am Server, nicht am einen Endpunkt."""
+    schwachen Slug setzen — die Regel haengt am Server, nicht am einen Endpunkt.
+
+    R-11a: den generischen Weg darf nur noch der Administrator — die
+    Mitgliederverwaltung allein bekommt dort 403 (unten geprueft)."""
+    r = admin_client.post("/api/resource/Registrierungslink", json={"bezeichnung": "x"})
+    assert r.status_code == 403, r.text
+    from diakronos_app.models.core import HasRole
+
+    sess = patched_db()
+    sess.add(HasRole(name=f"{ADMIN}-SM", parent=ADMIN, parenttype="User",
+                     parentfield="roles", idx=2, role="System Manager"))
+    sess.commit()
+    sess.close()
     r = admin_client.post(
         "/api/resource/Registrierungslink",
         json={

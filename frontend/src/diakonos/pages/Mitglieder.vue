@@ -5,14 +5,14 @@
          eigenen Kopf mit; eingebettet entfaellt dieser hier. -->
     <DkPageHeader v-if="!embedded" title="Personen" :sub="`${mitglieder.length} von ${gesamt} Personen`">
       <template #actions>
-        <DkButton v-if="isAdmin" variant="secondary" :loading="exporting" @click="exportCsv">
+        <DkButton v-if="darfVerwalten" variant="secondary" :loading="exporting" @click="exportCsv">
           <IconDownload /> {{ exporting ? 'Exportiere…' : 'Export' }}
         </DkButton>
         <!-- Uebergangsloesung: Die neue Maske „Mitglied anlegen“ entsteht in
              Reiter N4 (Mitglieder -> Anfragen/Übersicht) auf Basis der in P1-9
              gehaerteten create_mitglied-Funktion. Bis dahin fuehrt der Knopf in
              die Anmeldungsverwaltung (dort bearbeitet der Admin Anmeldungen). -->
-        <DkButton v-if="isAdmin" variant="primary" @click="navigate('#/personen/anfragen')">
+        <DkButton v-if="darfVerwalten" variant="primary" @click="navigate('#/personen/anfragen')">
           <IconUserPlus /> Mitglied anlegen
         </DkButton>
       </template>
@@ -41,7 +41,7 @@
       <!-- BF1-F: Persoenliche Daten sind standardmaessig verborgen. Der
            Zustand wird bewusst nicht gespeichert (kein localStorage). -->
       <DkButton
-        v-if="isAdmin"
+        v-if="darfVerwalten"
         variant="secondary"
         size="md"
         :aria-pressed="zeigePersoenlicheDaten ? 'true' : 'false'"
@@ -187,10 +187,10 @@
               <DkBadge v-if="(m.gruppen || []).length > 2" variant="neutral">+{{ m.gruppen.length - 2 }}</DkBadge>
             </div>
           </td>
-          <td v-if="isAdmin && zeigePersoenlicheDaten" class="dk-text-muted">{{ m.telefonnummer || '–' }}</td>
-          <td v-if="isAdmin && zeigePersoenlicheDaten" class="dk-text-muted">{{ m.email || '–' }}</td>
-          <td v-if="isAdmin && zeigePersoenlicheDaten" class="dk-text-muted">{{ formatAddress(m) }}</td>
-          <td v-if="isAdmin && zeigePersoenlicheDaten" class="dk-text-muted">{{ m.geburtstag || '–' }}</td>
+          <td v-if="darfVerwalten && zeigePersoenlicheDaten" class="dk-text-muted">{{ m.telefonnummer || '–' }}</td>
+          <td v-if="darfVerwalten && zeigePersoenlicheDaten" class="dk-text-muted">{{ m.email || '–' }}</td>
+          <td v-if="darfVerwalten && zeigePersoenlicheDaten" class="dk-text-muted">{{ formatAddress(m) }}</td>
+          <td v-if="darfVerwalten && zeigePersoenlicheDaten" class="dk-text-muted">{{ m.geburtstag || '–' }}</td>
           <td class="dk-text-subtle">{{ m.creation ? new Date(m.creation).getFullYear() : '–' }}</td>
           <td class="dk-zeilen-aktion">
             <DkAktionen
@@ -225,7 +225,7 @@
          Die Karte darf NICHT an `embedded` haengen: die Liste wird immer
          eingebettet vom Rahmen (pages/mitglieder/Bereich.vue) gerendert, sonst
          waeren wartende Gastkonten in der Oberflaeche nie freischaltbar. -->
-    <WartendeKontenKarte v-if="isAdmin" class="mt-wartende" />
+    <WartendeKontenKarte v-if="darfVerwalten" class="mt-wartende" />
 
     <!-- Anlegen läuft künftig in Reiter N4 („Mitglied anlegen“); hier keine
          eigene Maske, bis N4 sie in der neuen Reiterstruktur liefert. -->
@@ -289,14 +289,18 @@ function ohneProfilZiel(m) {
   return darfProfilLink(m) ? {} : { href: '#' }
 }
 
-const { isAdmin } = useSession()
+// UI-R10: Die Personenliste ist Personenbereich — seit R-11a zählt die
+// Mitgliederverwaltung mit (`ist_mitgliederverwaltung`), nicht mehr nur der
+// Administrator. Der Server prüft jedes Feld erneut.
+const { istMitgliederverwaltung } = useSession()
+const darfVerwalten = computed(() => istMitgliederverwaltung.value === true)
 
 // ON-4 (H3): Der Leerzustand kommt aus dem Modul (eine Wahrheit für Liste,
 // Kalender und Karte). Die WIRKLICHE Leere entscheidet der Server: `gesamt_alle`
 // = 0 heißt „es gibt keine Person“; Suche/Filter zeigen den knappen Hinweis.
 const leerzustand = computed(() => mitgliederLeerzustand({
   gesamtAlle: gesamtAlle.value,
-  admin: isAdmin.value === true,
+  admin: darfVerwalten.value,
 }))
 
 /**
@@ -427,7 +431,7 @@ const spalten = computed(() => {
     { key: 'status', label: 'Status' },
     { key: 'gruppen', label: 'Gruppen' },
   ]
-  if (isAdmin.value && zeigePersoenlicheDaten.value) {
+  if (darfVerwalten.value && zeigePersoenlicheDaten.value) {
     liste.push(
       { key: 'telefon', label: 'Telefon' },
       { key: 'email', label: 'E-Mail' },
@@ -463,7 +467,7 @@ function aktionenFuer(m) {
       aktion: () => navigate('#/mitglied/' + m.name),
     })
   }
-  if (isAdmin.value) {
+  if (darfVerwalten.value) {
     eintraege.push({
       key: 'daten', label: 'Persönliche Daten ein-/ausblenden', icon: 'notiz',
       aktion: () => { zeigePersoenlicheDaten.value = !zeigePersoenlicheDaten.value },

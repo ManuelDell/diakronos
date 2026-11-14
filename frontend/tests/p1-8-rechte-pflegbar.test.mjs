@@ -53,11 +53,18 @@ const mitglied = lies('pages/MitgliedDetail.vue')
 
 // ── Einbindung in GruppeDetail ─────────────────────────────────────────────
 {
-  assert.ok(gruppe.includes('VerantwortlicheKarte'), 'GruppeDetail nutzt die Karte')
-  assert.ok(
-    gruppe.includes(':doctype="isUntergruppe ? \'Untergruppe\' : \'Gruppe\'"'),
-    'doctype folgt der Ebene',
-  )
+  // UI-R1 (Manuel 11.11.): Die P1-8-Karte „Verantwortliche“ ist von der
+  // Gruppenseite ENTFALLEN — sie schrieb über
+  // `verantwortliche.set_verantwortliche` am EINEN Rechtesystem vorbei. Ihre
+  // Aufgabe (wer führt die Gruppe) übernimmt der Reiter „Einstellungen“
+  // (Rollen HV/MV/GL). Die Karte selbst bleibt für den Dienstbereich
+  // bestehen; ihre Endpunkte prüft der Backend-Test.
+  assert.ok(!gruppe.includes('VerantwortlicheKarte'),
+    'GruppeDetail benutzt das alte Verantwortlichen-Board nicht mehr')
+  assert.ok(gruppe.includes('GruppenEinstellungen'),
+    'GruppeDetail bindet die Rollen-Einstellungen ein')
+  assert.ok(gruppe.includes('darfEinstellungenSehen'),
+    'Sichtbarkeit des Reiters aus den Serverrechten')
 }
 
 // ── Zugang-Reiter im Mitglied-Detail (OP-ADMIN-2) ──────────────────────────
@@ -87,10 +94,17 @@ const mitglied = lies('pages/MitgliedDetail.vue')
   // dort direkt im Liste-Reiter (kein zweites Einbetten mehr nötig).
   const rahmen = lies('pages/Personen.vue')
   assert.ok(liste.includes('WartendeKontenKarte'), 'Liste bindet die Wartende-Karte ein')
+  // UI-R10: die Karte hängt am Personen-Recht (`darfVerwalten` =
+  // `istMitgliederverwaltung`), nicht mehr am Kern-Admin — die
+  // Mitgliederverwaltung pflegt Konten (R-11a). Und nicht an `!embedded`.
   assert.ok(
-    liste.includes('v-if="isAdmin"') && !liste.includes('isAdmin && !embedded'),
-    'Wartende-Karte haengt nur an isAdmin (nicht an !embedded)',
+    liste.includes('v-if="darfVerwalten"'),
+    'Wartende-Karte haengt am Personen-Recht (UI-R10)',
   )
+  // … und NICHT an `embedded`/`!embedded`: die Karte gehoert zum Inhalt.
+  const karte = liste.slice(liste.indexOf('WartendeKontenKarte v-if'))
+  assert.ok(!/embedded/.test(karte.slice(0, karte.indexOf('>'))),
+    'Wartende-Karte haengt nicht an embedded')
   // Der Rahmen zeigt die Karte im Reiter „Liste“ — nur für Mitgliederadmins.
   assert.ok(rahmen.includes('<WartendeKontenKarte v-if="verwaltung"'),
     'Rahmen zeigt die wartenden Konten in der Liste')

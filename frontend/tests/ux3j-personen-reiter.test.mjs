@@ -2,6 +2,10 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
+// UI-R10b (Review, Punkt 2): der Router führt keine eigene Fassung der
+// Verwaltungsregel mehr — sein Rückfall ist `false` (fail closed). Dieser
+// Harness setzt deshalb die ECHTE Regel aus `menue.js` ein.
+import { echteVerwaltungsregel } from './helpers/verwaltungsregel.mjs'
 
 /**
  * UX3j — Personen: Reiter und Auswahlfelder in ALLEN Reitern einheitlich (A3).
@@ -35,6 +39,10 @@ import vm from 'node:vm'
  */
 const root = new URL('../src/diakonos/', import.meta.url)
 const lies = p => readFileSync(new URL(p, root), 'utf8')
+
+// UI-R10b (Review, Punkt 2): die echte Regel für die Router-vm (fail closed
+// im Router ohne `menue.js` — die Harnesse wollen aber Seiten ÖFFNEN).
+globalThis.__regel = echteVerwaltungsregel()
 const menuePfad = fileURLToPath(new URL('menue.js', root))
 
 async function menue() {
@@ -126,6 +134,7 @@ function skript(quelle) {
   }
   window.history = { replaceState(_s, _t, hash) { window.location.hash = hash } }
   const context = { window, console, setzeFenstertitel() {},
+    verwaltungZutreffend: globalThis.__regel,
     ref: value => ({ value }), shallowRef: value => ({ value }),
     computed: fn => ({ get value() { return fn() } }) }
   vm.createContext(context)
@@ -214,7 +223,10 @@ function skript(quelle) {
   assert.equal(anlegen.length, 1, 'genau EIN „Person anlegen“ im Kopf')
   assert.match(anlegen[0][0], /:variant="anlegenIstHauptaktion \? 'primary' : 'secondary'"/,
     'Betonung folgt der Regel (anlegenIstHauptaktion)')
-  assert.match(s, /const zeigeAnlegenKnopf = computed\(\(\) => istAdmin\.value === true\)/,
+  // UI-R10: „Person anlegen“ hängt am PERSONEN-Recht (Mitgliederverwaltung
+  // ODER Administrator), nicht mehr am Kern-Admin — seit R-11a ist die
+  // Mitgliederverwaltung kein Administrator, darf aber Personen anlegen.
+  assert.match(s, /const zeigeAnlegenKnopf = computed\(\(\) => darfVerwalten\.value === true\)/,
     '„Person anlegen“ erscheint in ALLEN Reitern (Punkt 3)')
   // Die Regel: eigene Hauptaktion des Unterbereichs → deren Knopf primär.
   assert.match(s, /const UNTERBEREICH_HAUPTAKTIONEN = \{ links: 'link', formulare: 'formular' \}/,
@@ -297,15 +309,18 @@ function skript(quelle) {
     'ohne Recht nur die Liste (wie heute)')
   assert.equal(m.personenAnfragenReiter({ istAdmin: false }).length, 0,
     'ohne Recht keine Anfragen-Unterbereiche')
-  // Verwaltungsfunktionen hängen weiter an derselben Prüfung.
+  // Verwaltungsfunktionen hängen an der EINEN Verwaltungsregel — seit UI-R10
+  // am PERSONEN-Flag (`istMitgliederverwaltung`, Administrator ODER
+  // Mitgliederadministrator), nicht mehr am Kern-Admin.
   const personen = lies('pages/Personen.vue')
-  assert.ok(skript(personen).includes('verwaltungSichtbar(isAdmin.value === true)'),
-    'Verwaltungsfunktionen nur für Mitgliederadministratoren')
-  // Der Reiter-Guard im Router kennt dieselben Seiten wie bisher.
+  assert.ok(skript(personen).includes('verwaltungSichtbar(darfVerwalten.value)'),
+    'Verwaltungsfunktionen nur mit Personen-Verwaltungsrecht')
+  // Der Reiter-Guard im Router schützt dieselben Seiten wie bisher — jetzt in
+  // der Liste des Personenbereichs (`PERSONEN_VERWALTUNG_PAGES`).
   const router = lies('router.js')
-  const guard = router.slice(router.indexOf('const ADMIN_ONLY_PAGES'))
+  const guard = router.slice(router.indexOf('const PERSONEN_VERWALTUNG_PAGES'))
   for (const seite of ['MitgliederAnfragen', 'MitgliederDatenschutz', 'MitgliederImport']) {
-    assert.ok(guard.includes(`'${seite}'`), `${seite} bleibt admin-only`)
+    assert.ok(guard.includes(`'${seite}'`), `${seite} bleibt geschützt`)
   }
 }
 

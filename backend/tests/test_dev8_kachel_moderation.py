@@ -105,6 +105,8 @@ def welt(patched_db):
                           docstatus=0, idx=2),
     ])
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
 
     # Offene Vorschlaege im moderierten Kalender: einer kuenftig, einer vorbei.
     _create("Element", {

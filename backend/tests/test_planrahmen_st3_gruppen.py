@@ -60,8 +60,7 @@ def _welt(sf, *, chor_mitglieder=("m1", "m2"), extra=("m3",)):
     """Bereich, Konten, Mitglieder, Gruppen und Verantwortlichkeiten."""
     from diakronos_app.models.core import User
     from diakronos_app.models.diakonos import (
-        Dienstbereich, DienstbereichVerantwortlicher, Gruppe, GruppeVerantwortlicher,
-        Gruppenmitgliedschaft, Mitglied,
+        Dienstbereich, Gruppe, Gruppenmitgliedschaft, Mitglied,
     )
     with sf.begin() as s:
         s.add(Dienstbereich(name="Chor"))
@@ -75,15 +74,9 @@ def _welt(sf, *, chor_mitglieder=("m1", "m2"), extra=("m3",)):
                            ("m3", "m3@example.org")):
             s.add(Mitglied(name=name, vorname=name, nachname="Chor", email=mail,
                            status="Mitglied"))
-        s.add(DienstbereichVerantwortlicher(name="bv-chor", parent="Chor",
-                                            parenttype="Dienstbereich",
-                                            parentfield="verantwortliche", user="chef"))
-        s.add(Gruppe(name="Chor", gruppenname="Chor"))
+        s.add(Gruppe(name="Chor", gruppenname="Chor", dienstbereich="Chor"))
         s.add(Gruppe(name="Jugendchor", gruppenname="Jugendchor", obergruppe="Chor"))
         s.flush()
-        # Gruppenverantwortlicher der Gruppe 'Chor' (KEIN Admin/Bereich).
-        s.add(GruppeVerantwortlicher(name="gv-1", parent="Chor", parenttype="Gruppe",
-                                     parentfield="verantwortliche", user="gv_chor"))
         for i, m in enumerate(chor_mitglieder):
             s.add(Gruppenmitgliedschaft(name=f"gm-chor-{i}", parent="Chor",
                                         parenttype="Gruppe", parentfield="mitglieder",
@@ -92,6 +85,11 @@ def _welt(sf, *, chor_mitglieder=("m1", "m2"), extra=("m3",)):
             s.add(Gruppenmitgliedschaft(name=f"gm-jugend-{i}", parent="Jugendchor",
                                         parenttype="Gruppe", parentfield="mitglieder",
                                         mitglied=m, status="Aktiv"))
+    # R-6 (Manuel 11.11.): gv_chor = HV der Gruppe 'Chor', chef (frueher
+    # Bereichsverantwortlicher) = MV — Dienstbereiche entfallen.
+    from rechte_hilfe import planrahmen_rechte
+
+    planrahmen_rechte(sf, gruppe="Chor", hv="gv_chor", mv=("chef",))
 
 
 # --------------------------------------------------------------------------- #
@@ -180,21 +178,32 @@ def test_pool_wirkt_ueber_stammdaten_und_kandidaten(client, patched_db, session_
 
 def test_gruppenverantwortlicher_sieht_nur_seine_vorlage(client, patched_db, session_factory):
     _welt(session_factory)
+    # R-6: die fremde Vorlage gehoert einer ANDEREN Gruppe (Jugendchor, HV normalo).
+    from rechte_hilfe import planrahmen_rechte
+
+    planrahmen_rechte(session_factory, gruppe="Jugendchor", hv="normalo")
+    fremd = {"schema": "diakronos/plantyp@1", "id": "fremd-st3", "name": "Fremd",
+             "bereich": "Chor", "gruppen": ["Jugendchor"],
+             "termine": {"manuell": [{"datum": "2026-01-04"}]},
+             "felder": [{"id": "x", "art": "text"}]}
     anmelden(client, "chef")
     aufruf(client, "plantyp_speichern", definition=_chorplan(["Chor"]), gueltig_ab="2026-01-01")
-    aufruf(client, "plantyp_speichern",
-           definition={"schema": "diakronos/plantyp@1", "id": "fremd-st3", "name": "Fremd",
-                       "bereich": "Chor", "termine": {"manuell": [{"datum": "2026-01-04"}]},
-                       "felder": [{"id": "x", "art": "text"}]},
-           gueltig_ab="2026-01-01")
-    # Gruppenverantwortlicher: sieht nur die gebundene Vorlage.
+    anmelden(client, "normalo")
+    aufruf(client, "plantyp_speichern", definition=fremd, gueltig_ab="2026-01-01")
+    # HV der Gruppe: sieht nur die Vorlage seiner Gruppe.
     anmelden(client, "gv_chor")
     liste = aufruf(client, "plantypen_liste")
     assert {t["schluessel"] for t in liste} == {"chorplan-st3"}
     assert liste[0]["darf_plan_anlegen"] is True
-    assert liste[0]["darf_plantyp_bearbeiten"] is False  # Vorlage bleibt tabu
-    # Vorlage aendern -> 403.
+    # R-6 (Manuel 11.11.): „Vorlagen gehoeren zu einer Gruppe. HV und MV der
+    # Gruppe pflegen sie“ — vorher (ST3) war die Vorlage fuer sie tabu.
+    assert liste[0]["darf_plantyp_bearbeiten"] is True
     assert pruefe(client, "plantyp_speichern", definition=_chorplan(["Chor"]),
+                  gueltig_ab="2026-01-01").status_code == 200
+    # ... aber keine fremde Vorlage und keine fremde Gruppe anbinden.
+    assert pruefe(client, "plantyp_speichern", definition=fremd,
+                  gueltig_ab="2026-01-01").status_code == 403
+    assert pruefe(client, "plantyp_speichern", definition=_chorplan(["Chor", "Jugendchor"]),
                   gueltig_ab="2026-01-01").status_code == 403
 
 

@@ -458,7 +458,9 @@ def test_g2_ma_insert_konto_mit_rolle_mitglied(patched_db, fake_redis):
     _konto(sess, "ma@x.org", MA)
     _konto(sess, "sm@x.org", SM)
     _konto(sess, "warte@x.org", "Mitglied", mitglied=False)
-    set_user("ma@x.org")
+    # R-11a: frappe.client.insert ist Admin-Weg (die Mitgliederverwaltung legt
+    # Personen ueber create_mitglied/Import an — G1 oben).
+    set_user("sm@x.org")
     from diakronos_app.api.frappe_core import insert
     r = _versuch(lambda: insert(doc={"doctype": "Mitglied", "vorname": "W", "nachname": "K",
                                      "email": "warte@x.org"}))

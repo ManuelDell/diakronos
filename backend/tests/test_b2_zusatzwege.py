@@ -36,7 +36,16 @@ def test_resource_detail_maskiert(client, hierarchie, sess):
 
 
 def test_resource_detail_fremder_bereich_verweigert(client, hierarchie):
+    """R-9/R-11b: den NAMEN sieht jedes Gemeindemitglied — private Felder bleiben
+    ohne Freigabe der Person verborgen (maskierter Sonderweg)."""
     _set_user("mitglied-a@example.org")
+    r = client.get("/api/resource/Mitglied/M-gruppe-b1")
+    assert r.status_code == 200, r.text
+    daten = r.json().get("data") or {}
+    assert daten.get("vorname")
+    for feld in ("geburtstag", "telefonnummer", "notiz"):
+        assert not daten.get(feld), (feld, daten.get(feld))
+    _set_user("ohne-mitglied@example.org")
     assert client.get("/api/resource/Mitglied/M-gruppe-b1").status_code == 403
 
 

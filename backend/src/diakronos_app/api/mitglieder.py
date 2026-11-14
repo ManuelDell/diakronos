@@ -252,35 +252,16 @@ def get_mitglieder_liste(start=0, limit=20, suche="", status="", sort_by="name",
         filters_sql += " AND m.status = %(status)s"
         params["status"] = status
 
-    # Permission-Filter — 1:1 aus dem Original (mitglieder.py:47-70).
-    # Die Hierarchie-Logik liegt NICHT hier: `_get_current_user_mitglied()` ->
-    # `permissions` und `_extract_path_segments()` -> `permissions._extract_segments`,
-    # damit es genau EINE Fassung der Pfad-Zerlegung gibt.
+    # R-11b (Manuel 11.11.): Vor- und Nachnamen ALLER Mitglieder sieht jedes
+    # Gemeindemitglied — dieselbe Regel wie `get_adressbuch`; alles Weitere
+    # nur nach Freigabe (Maskierung unten, `persoenliche_daten` nur Admin).
+    # Wer kein Gemeindemitglied ist, sieht nur das eigene Profil.
     permission_filter_sql = "1=1"
     if not is_admin:
-        # Normaler User: nur ueberlappende ancestor_paths
-        current_mitglied = _get_current_user_mitglied()
-        if not current_mitglied:
+        from diakronos_app import rechte
+
+        if not rechte.ist_gemeindemitglied(user):
             permission_filter_sql = "1=0"
-        elif current_mitglied.get("ancestor_path"):
-            segments = _extract_path_segments(current_mitglied["ancestor_path"])
-            if segments:
-                like_clauses = []
-                for idx, seg in enumerate(segments):
-                    key = f"seg_{idx}"
-                    like_clauses.append(
-                        f"CONCAT('/', COALESCE(m.ancestor_path, ''), '/') LIKE %({key})s"
-                    )
-                    params[key] = f"%/{seg}/%"
-                permission_filter_sql = "(" + " OR ".join(like_clauses) + ")"
-            else:
-                # User hat Pfad aber keine Segmente -> Fallback auf eigenes Profil
-                permission_filter_sql = "m.email = %(user_email)s"
-                params["user_email"] = _user_email()
-        else:
-            # User ohne ancestor_path: nur eigenes Profil via Email-Match
-            permission_filter_sql = "m.email = %(user_email)s"
-            params["user_email"] = _user_email()
 
     eigene_ids = _eigenes_mitglied_ids() if not is_admin else []
     if eigene_ids:
@@ -800,7 +781,11 @@ def get_mitglied_detail(mitglied_id):
     for g in gruppenmitgliedschaften:
         g["gruppenname"] = get_value("Gruppe", g.get("gruppe"), "gruppenname")
     # AUSTRITT A3: `gruppenname` ist kein Personenname; die Zeilen bleiben.
-    result["gruppenmitgliedschaften"] = gruppenmitgliedschaften
+    result["gruppenmitgliedschaften"] = _sichtbare_gruppenzeilen(gruppenmitgliedschaften, vollstaendig)
+    if not vollstaendig:
+        # R-11b: Beziehungen sind „weitere Daten“ — ohne Freigabe-Schalter nur
+        # fuer die Person selbst und die Verwaltung.
+        result["beziehungen"] = []
 
     # AUSTRITT A3/A4: Fuer Administratoren der Hinweis „ausgetreten seit …“,
     # fuer alle anderen nur die Auskunft, DASS jemand ausgetreten ist (sie
@@ -860,6 +845,19 @@ def get_mitglied_detail(mitglied_id):
         "data": result,
         "permissions": perms,
     }
+
+
+def _sichtbare_gruppenzeilen(zeilen: list[dict], vollstaendig: bool) -> list[dict]:
+    """R-11b: Gruppen einer ANDEREN Person nur, soweit der Aufrufer die
+    Mitgliederliste der Gruppe ohnehin sieht (Mitglied/Leitung, Admin)."""
+    if vollstaendig:
+        return zeilen
+    from diakronos_app import rechte
+
+    return [
+        z for z in zeilen
+        if z.get("gruppe") and rechte.darf(session.user, rechte.LESEN, "gruppe", z["gruppe"])
+    ]
 
 
 # ── Helpers (Quelle: mitglieder.py:514-534) ─────────────────────────────────
@@ -933,19 +931,6 @@ def _get_current_user_mitglied():
     von dort benutzt statt hier ein zweites Mal gebaut.
     """
     return permissions._get_current_user_mitglied()
-
-
-def _extract_path_segments(path):
-    """Extrahiert alle Gruppen- und Bereichs-Segmente aus einem ancestor_path.
-
-    Quelle: `mitglieder.py:527-534`. Es gibt bereits eine Fassung dieser
-    Zerlegung in `frappe_compat.permissions` (`_extract_segments`,
-    `session.py:235-240`) — dieselbe Regel fuer dieselben Pfade. Wir liefern
-    hier nur die Listenform zurueck, die das Original an dieser Stelle hat
-    (`_paths_overlap` braucht Mengen, der Sichtbarkeitsfilter eine Liste).
-    """
-    gruppen, bereiche = permissions._extract_segments(path)
-    return list(gruppen) + list(bereiche)
 
 
 def _full_name(mitglied_id: str) -> str | None:
@@ -1033,29 +1018,15 @@ def get_adressbuch(suche=""):
     params = {"suche": f"%{_suche_normalisieren(suche)}%" if suche else "%%"}
     where = "1=1"
     if not is_admin:
-        # Dieselbe Staffelung wie `get_mitglieder_liste`: eigenes Mitglied mit
-        # ancestor_path -> OR-LIKE ueber die Segmente, sonst E-Mail-Fallback.
-        # Die Zerlegung kommt aus `permissions._extract_segments` (eine Wahrheit).
-        current = _get_current_user_mitglied()
-        if not current:
+        # R-9 (Manuel 11.11.): Vor- und Nachnamen ALLER Gemeindemitglieder
+        # sieht jedes Mitglied; alles Weitere nur nach Freigabe der Person
+        # (`maskiere_datensatz` unten). Wer kein Gemeindemitglied ist (Gast,
+        # Konto ohne Mitglied-Datensatz), sieht niemanden — fail closed. Die
+        # fruehere Einschraenkung auf ueberlappende ancestor_path entfaellt.
+        from diakronos_app import rechte
+
+        if not rechte.ist_gemeindemitglied(session.user):
             where = "1=0"
-        elif current.get("ancestor_path"):
-            segs = _extract_path_segments(current["ancestor_path"])
-            if segs:
-                clauses = []
-                for i, seg in enumerate(segs):
-                    k = f"seg_{i}"
-                    clauses.append(
-                        "CONCAT('/', COALESCE(m.ancestor_path, ''), '/') LIKE %(" + k + ")s"
-                    )
-                    params[k] = f"%/{seg}/%"
-                where = "(" + " OR ".join(clauses) + ")"
-            else:
-                where = "m.email = %(ue)s"
-                params["ue"] = _user_email()
-        else:
-            where = "m.email = %(ue)s"
-            params["ue"] = _user_email()
 
     eigenes_name = eigenes_mitglied_id()
     if not is_admin and eigenes_name:
@@ -1131,7 +1102,16 @@ def get_adressbuch(suche=""):
 
         geloescht = ist_geloescht(m)
         geburtstag = maskiert.get("geburtstag")
+        # R-9: „Daten anfragen“ anbieten, wenn die Person nicht alles
+        # freigegeben hat (die Schalter, nicht die Werte: es wird nichts darueber
+        # verraten, ob ein Feld gefuellt ist).
+        from diakronos_app.frappe_compat.mitglied_sichtbarkeit import sichtbarkeit_lesen
+
+        eigen = bool(m.get("name")) and str(m.get("name")) == eigenes_name
+        anfragbar = (not eigen and not geloescht
+                     and not all(sichtbarkeit_lesen(m.get("adressbuch_sichtbarkeit")).values()))
         result.append({
+            "daten_anfragbar": anfragbar,
             "name": maskiert.get("name"),
             "vorname": GELOESCHT_ANZEIGE if geloescht else (maskiert.get("vorname") or ""),
             "nachname": "" if geloescht else (maskiert.get("nachname") or ""),
@@ -1733,22 +1713,18 @@ def get_gruppen_for_mitglied(mitglied_id):
     for g in gruppen:
         g["gruppenname"] = get_value("Gruppe", g.get("gruppe"), "gruppenname")
 
-    # Zusaetzlich aus ancestor_path parsen (ergaenzend)
-    mitglied = get_value("Mitglied", mitglied_id, ["ancestor_path"], as_dict=True)
-    if mitglied and mitglied.get("ancestor_path"):
-        parts = mitglied["ancestor_path"].split("|")
-        gruppen_segmente = [g for g in parts[0].split("/") if g] if parts else []
-        for seg in gruppen_segmente:
-            if not any(g.get("gruppe") == seg for g in gruppen):
-                gruppen.append(
-                    {
-                        "gruppe": seg,
-                        "rolle": None,
-                        "source": "ancestor_path",
-                    }
-                )
-
-    return {"success": True, "data": gruppen}
+    # R-11: der ancestor_path ist keine Quelle mehr — Obergruppen kommen aus
+    # der Untergruppen-Mitgliedschaft (die SPA zeigt sie als „Obergruppe“,
+    # `source` bleibt dafuer gleich). Fremde sehen nur Gruppen, deren
+    # Mitglieder sie ohnehin sehen.
+    for ug in get_all("Untergruppenmitgliedschaft", filters={"mitglied": mitglied_id},
+                      fields=["parent"]) or []:
+        oben = get_value("Untergruppe", ug.get("parent"), "gruppe") if ug.get("parent") else None
+        if oben and not any(g.get("gruppe") == oben for g in gruppen):
+            gruppen.append({"gruppe": oben, "rolle": None, "source": "ancestor_path",
+                            "gruppenname": get_value("Gruppe", oben, "gruppenname")})
+    vollstaendig = bool(perms.get("can_view_sensitive")) or ist_eigenes_mitglied(mitglied_id)
+    return {"success": True, "data": _sichtbare_gruppenzeilen(gruppen, vollstaendig)}
 
 
 # ── Beziehungen ─────────────────────────────────────────────────────────────
@@ -1758,7 +1734,8 @@ def get_gruppen_for_mitglied(mitglied_id):
 def get_beziehungen_for_mitglied(mitglied_id):
     """Alle Beziehungen eines Mitglieds (Quelle: mitglieder.py:450-467)."""
     perms = permissions.mitglied_permissions(mitglied_id)
-    if not perms.get("can_view"):
+    # R-11b: Beziehungen nur fuer die Person selbst und die Verwaltung.
+    if not (perms.get("can_view_sensitive") or ist_eigenes_mitglied(mitglied_id)):
         throw("Kein Zugriff", PermissionError)
 
     # Das Original nutzt `fields=["*"]`; die Compat-Schicht loest Felder
@@ -3128,3 +3105,65 @@ def _mitglied_felder() -> set[str]:
     if _MITGLIED_FELDER is None:
         _MITGLIED_FELDER = set(column_names("Mitglied"))
     return _MITGLIED_FELDER
+
+
+# ── R-9: „Daten anfragen“ (Manuel 11.11.) ──────────────────────────────────
+
+
+#: Je anfragender Person und Ziel hoechstens eine Anfrage in diesem Zeitraum.
+DATENANFRAGE_TAGE = 7
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def daten_anfragen(mitglied):
+    """Bittet eine Person, ihre Kontaktdaten freizugeben.
+
+    Manuel 11.11.: Personen sehen Vor- und Nachnamen aller Mitglieder; gibt
+    eine Person ihre Daten nicht frei, gibt es „Daten anfragen“ — sie bekommt
+    eine Meldung zum Freigeben. Die Freigabe selbst bleibt allein ihre
+    Entscheidung (Profil -> Sichtbarkeit). Anfragen darf jedes
+    Gemeindemitglied; je Person und Ziel hoechstens eine Anfrage in
+    ``DATENANFRAGE_TAGE`` Tagen. Die Antwort verraet nicht, ob die Person ein
+    Konto hat.
+    """
+    from datetime import datetime, timedelta
+
+    from diakronos_app import rechte
+    from diakronos_app.benachrichtigungen import schreibe_meldung
+    from diakronos_app.frappe_compat.exceptions import PermissionError as _PermErr
+    from diakronos_app.frappe_compat.exceptions import throw as _throw
+    from diakronos_app.frappe_compat.personen_anzeige import PersonenSicht, anzeigename
+    from diakronos_app.frappe_compat.query import get_value
+
+    user = session.user
+    if not rechte.ist_gemeindemitglied(user):
+        _throw("Daten anfragen können nur Mitglieder der Gemeinde.", _PermErr)
+    ziel = get_value("Mitglied", str(mitglied or ""),
+                     ["name", "user", "vorname", "nachname", "ausgeschlossen", "status", "austritt_datum"],
+                     as_dict=True)
+    eigenes = eigenes_mitglied_id()
+    if not ziel or (eigenes and ziel.get("name") == eigenes):
+        return {"success": True, "gesendet": False}
+    ziel_konto = ziel.get("user")
+    aktiv = bool(ziel_konto) and bool(get_value("User", ziel_konto, "enabled")) \
+        and not ziel.get("ausgeschlossen")
+    if not aktiv:
+        return {"success": True, "gesendet": False}
+    # Dieselbe Uhr wie `creation` der Meldung (`_create` -> `_now`, UTC).
+    seit = _now() - timedelta(days=DATENANFRAGE_TAGE)
+    schon = get_all("Notification Log", filters={
+        "for_user": ziel_konto, "type": "Datenanfrage", "document_name": eigenes or user,
+        "creation": [">=", seit],
+    }, fields=["name"], limit_page_length=1)
+    if schon:
+        return {"success": True, "gesendet": False, "bereits": True}
+    ich = get_value("Mitglied", eigenes, ["vorname", "nachname", "status", "austritt_datum"],
+                    as_dict=True) if eigenes else None
+    name = anzeigename(ich, sicht=PersonenSicht.aus()) if ich else str(user)
+    gesendet = schreibe_meldung(
+        for_user=ziel_konto, subject=f"{name} möchte deine Kontaktdaten sehen",
+        inhalt=(f"{name} bittet dich, deine Kontaktdaten (z. B. E-Mail oder Telefon) im "
+                "Adressbuch freizugeben. Das entscheidest du allein unter Profil → Sichtbarkeit."),
+        document_type="Mitglied", document_name=eigenes or user, typ="Datenanfrage",
+    )
+    return {"success": True, "gesendet": bool(gesendet)}

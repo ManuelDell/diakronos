@@ -230,14 +230,30 @@ def welt(patched_db):
                         beschreibung="erste Stimme", docstatus=0, idx=1),
     ])
 
-    # Nur ADMIN hat Mitgliederadministrator; Anna/Bruno bewusst nicht.
+    # Nur ADMIN ist Administrator; Anna/Bruno bewusst nicht. R-7: Lieder
+    # pflegt der Administrator (System Manager) — die Mitgliederverwaltung
+    # ist dafuer nicht mehr zustaendig (Manuel 11.11.).
     sess.add_all([
         HasRole(name="HR-1", parent=ADMIN, parenttype="User",
-                parentfield="roles", role="Mitgliederadministrator",
+                parentfield="roles", role="System Manager",
                 docstatus=0, idx=1),
     ])
+    # R-7: Lieder sieht nur, wer in einer Gruppe mit Modul „Lieder“ ist —
+    # Anna ist einfaches Mitglied der Worship-Band (lesen, nicht schreiben).
+    from diakronos_app.models.diakonos import Gruppenmitgliedschaft, Mitglied
+
+    sess.add(Mitglied(name="M-anna-p4i", vorname="Anna", nachname="Beispiel",
+                      email=ANNA, user=ANNA, status="Mitglied", docstatus=0, idx=0))
+    sess.add(Gruppenmitgliedschaft(name="GM-anna-p4i", parent="GRP-WORSHIP", parenttype="Gruppe",
+                                   parentfield="mitglieder", mitglied="M-anna-p4i", status="Aktiv",
+                                   docstatus=0, idx=1))
 
     sess.commit()
+    # R-7: Bruno (Verantwortlicher der Worship-Band) -> HV, Modul „Lieder“
+    # fuer die Gruppen des Bereichs „Musik und Worship“ (wie Migration r1).
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(sess)
     yield sess
     sess.close()
 
@@ -668,7 +684,14 @@ def test_filteroptionen_ohne_stammdaten_bleiben_leer(patched_db, client):
         sess.add(User(name=ANNA, email=ANNA, full_name="Anna", enabled=1))
         sess.commit()
     sess.close()
+    # R-7: ohne Gruppe mit Modul „Lieder“ gibt es gar keine Lieder (403) —
+    # die leere Antwort pruefen wir deshalb als Administrator.
     frappe_compat.set_user(ANNA)
+    try:
+        assert client.get(f"/api/method/{MUSIK}.get_lied_filteroptionen").status_code == 403
+    finally:
+        frappe_compat.reset_user()
+    frappe_compat.set_user("Administrator")
     try:
         r = client.get(f"/api/method/{MUSIK}.get_lied_filteroptionen")
         assert r.status_code == 200, r.text

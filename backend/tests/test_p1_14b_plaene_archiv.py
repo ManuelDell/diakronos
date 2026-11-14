@@ -59,9 +59,12 @@ def stammdaten(sf, *benutzer, bereich="Chor"):
         s.add_all([Mitglied(name=k, user=k, email=k, vorname=k.capitalize(),
                             nachname="Test", status="Mitglied", docstatus=0, idx=0)
                    for k in benutzer])
-        s.add(DienstbereichVerantwortlicher(
-            name="bv-" + bereich.lower(), parent=bereich, parenttype="Dienstbereich",
-            parentfield="verantwortliche", user="planer"))
+    # R-6: „planer“ = HV der Gruppe des Bereichs; alle anderen schreiben im
+    # Gruppenkalender und sehen damit den ganzen Plan (Manuel 11.11.).
+    from rechte_hilfe import planrahmen_rechte
+
+    planrahmen_rechte(sf, bereich=bereich, hv="planer" if "planer" in benutzer else None,
+                      leser=tuple(k for k in benutzer if k != "planer"))
 
 
 def _progdefinition(id_="prog-p114b", uhrzeit="17:00"):

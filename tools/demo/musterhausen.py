@@ -2169,6 +2169,27 @@ def widgets_anlegen(a: Anleger) -> None:
         a.neu("Dashboard Widget", werte)
 
 
+def rechte_uebernehmen(a: Anleger) -> None:
+    """R-12j: Die angelegten Gruppen, Kalender und Inhalte ins Rechtesystem holen.
+
+    Der Seed legt Verantwortliche (``gruppe_verantwortlicher``), Kalender-
+    Leserechte und Inhalte ueber die alten Felder an. Die Migration
+    ``r1_rechte_kern`` hat diese Abbildung nur fuer den Bestand beim Upgrade
+    gemacht — auf einer frisch migrierten, LEEREN Datenbank lief sie ins Leere.
+    Ohne diesen Schritt hat eine frische Demo keine HV/MV, niemand darf in einer
+    Gruppe anlegen, und Gruppenaufgaben sind unsichtbar.
+
+    Dieselbe Funktion wie die Migration (``rechte.bestand``), keine Kopie;
+    idempotent — ein zweiter Lauf ergaenzt nichts.
+    """
+    from diakronos_app.rechte import bestand
+
+    zaehler = bestand.uebernehmen(a.s)
+    for art, anzahl in zaehler.items():
+        if anzahl:
+            a.angelegt[f"Rechte: {art}"] = a.angelegt.get(f"Rechte: {art}", 0) + anzahl
+
+
 def platzhalter_pruefen(a: Anleger) -> None:
     """Meldet Stellen, an denen die Oberflaeche „undefined“/„null“ zeigte.
 
@@ -2342,6 +2363,10 @@ def anlegen(nur_pruefen: bool = False, stichtag: date | None = None) -> str:
         beitraege_anlegen(a, tag)
         website_ansprechpartner_anlegen(a, tag)
         wiki_anlegen(a)
+        a.abschluss()
+
+        # R-12j: ganz am Ende, wenn alle Gruppen, Kalender und Inhalte stehen.
+        rechte_uebernehmen(a)
         a.abschluss()
 
         platzhalter_pruefen(a)

@@ -145,14 +145,24 @@ def test_b1_gruppenhistorie_ohne_klarnamen(welt) -> None:
         parentfield="verantwortliche", user="ziel@x.org", docstatus=0, idx=1,
     ))
     sess.commit()
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(sess)  # R-4: Verantwortliche -> HV im EINEN Rechtesystem
     _austritt(begruendung="Krankheit: Depression")
 
     set_user(LESER)
     antwort = get_gruppe_detail("G-1")
     assert "Dorn" not in repr(antwort), "Klarname in der Gruppenansicht (Leser)"
-    assert "Elvira D." in {z["name"] for z in antwort["mitglieder"]}
+    # R-4 (Manuel 11.11.): die Mitgliederliste sieht nur die Leitung — der
+    # Leser sieht den Namen hier nur noch als HV, ebenfalls gekuerzt.
+    assert antwort["mitglieder"] == []
     assert [v["name"] for v in antwort["verantwortliche"]] == ["Elvira D."]
 
+    # Gegenprobe mit vollem Zugriff: Gruppen sind Sache des Administrators
+    # (die Mitgliederverwaltung ist kein Gruppen-Admin, R-4).
+    sess.add(HasRole(name="HR-b1-sm", parent=ADMIN, parenttype="User", parentfield="roles",
+                     role="System Manager", docstatus=0, idx=2))
+    sess.commit()
     set_user(ADMIN)
     assert "Elvira Dorn" in {z["name"] for z in get_gruppe_detail("G-1")["mitglieder"]}
 
@@ -229,6 +239,9 @@ def test_b1_verantwortliche_ohne_klarnamen(welt) -> None:
         parentfield="verantwortliche", user="ziel@x.org", docstatus=0, idx=1,
     ))
     sess.commit()
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(sess)  # R-4: Verantwortliche -> HV im EINEN Rechtesystem
     _austritt()
 
     set_user(LESER)

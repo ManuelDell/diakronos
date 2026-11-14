@@ -4,6 +4,7 @@
       type="checkbox"
       :checked="!!modelValue"
       :disabled="disabled"
+      :aria-label="ariaLabel || undefined"
       :aria-describedby="ariaDescribedby || undefined"
       @change="$emit('update:modelValue', $event.target.checked)"
     />
@@ -29,6 +30,13 @@ defineProps({
    * Vorleseprogramm zuverlässig vor). Leer = kein Attribut im DOM.
    */
   ariaDescribedby: { type: String, default: '' },
+  /**
+   * UI-R9b: zugänglicher Name des KÄSTCHENS. Ein `aria-label` am umgebenden
+   * `<label>` erreicht das `<input>` nicht — Vorleseprogramme lesen dann den
+   * Zeilentext statt der Handlung („erledigt“/„wieder öffnen“). Diese Angabe
+   * gehört deshalb auf das `<input>`; ohne Angabe steht kein Attribut im DOM.
+   */
+  ariaLabel: { type: String, default: '' },
 })
 defineEmits(['update:modelValue'])
 </script>

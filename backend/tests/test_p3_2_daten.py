@@ -126,7 +126,9 @@ def test_op_handy_27_beitrag_loeschen_nimmt_nur_eigene_kommentare_mit(client, pa
 
 def test_bld_06_hierarchie_braucht_nicht_eine_abfrage_je_gruppe(monkeypatch):
     from diakronos_app.api import gruppen as g
+    from diakronos_app.frappe_compat.session import set_user
     monkeypatch.setattr(g, '_is_admin', lambda: True)
+    set_user('Administrator')  # R-4: Baum nur fuer Gemeindemitglieder/Admin
     aufrufe = []
     def laden(typ, **kwargs):
         aufrufe.append(typ)

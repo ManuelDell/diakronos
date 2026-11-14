@@ -123,8 +123,14 @@ def test_real_ics_new_calendar_events_and_duplicate_import(client, patched_db):
         assert len({r.google_event_id for r in rows}) == 5
         assert all(r.status == "Festgelegt" and r.element_calendar == calendar for r in rows)
         assert db.get(Kalender, calendar).calendar_name == "Importprüfung"
-        roles = db.scalars(select(UserRole.role).where(UserRole.parent == calendar)).all()
-        assert set(roles) == {"Administrator", "Kalenderadministrator"}
+        # R-11e: kein Alt-„leserechte“ mehr — der Kalender ist im EINEN
+        # Rechtesystem als Gemeinde-Kalender angemeldet (Admin/Kalender-Moderation).
+        assert not db.scalars(select(UserRole.role).where(UserRole.parent == calendar)).all()
+        from diakronos_app.models.rechte import RechteObjekt
+
+        eintrag = db.scalars(select(RechteObjekt).where(
+            RechteObjekt.typ == "kalender", RechteObjekt.objekt == calendar)).one()
+        assert eintrag.gruppe is None and eintrag.gemeinde_status == "aus"
     again = upload(client, create_new="false", target_kalender=calendar)
     assert again.json()["message"] == {
         "success": True, "imported": 0, "skipped": 5, "kalender": calendar,

@@ -92,6 +92,8 @@ def _moderator_welt(sf, *, mitglied_user: str = "talente"):
         s.add(ElementMitarbeiter(name="EM-1", parent="E-1", parenttype="Element",
                                  parentfield="mitarbeiter", mitglied="M-TAL",
                                  bestaetigt=True, docstatus=0, idx=1))
+    from rechte_hilfe import uebernehmen_mit
+    uebernehmen_mit(sf)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
 
 
 def _speichere_termin(client, **felder):
@@ -175,6 +177,8 @@ def test_w2_wartende_aenderung_benachrichtigt_erst_bei_freigabe(client, patched_
         s.add(ElementMitarbeiter(name="EM-1", parent="E-1", parenttype="Element",
                                  parentfield="mitarbeiter", mitglied="M-TAL",
                                  bestaetigt=True, docstatus=0, idx=1))
+    from rechte_hilfe import uebernehmen_mit
+    uebernehmen_mit(patched_db)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
 
     anmelden(client, "schreiber")
     r = client.post("/api/method/diakronos.kronos.api.event_crud.save_event",
@@ -215,6 +219,8 @@ def test_w3_ohne_leserecht_keine_nachricht(client, patched_db):
         s.add(ElementMitarbeiter(name="EM-1", parent="E-1", parenttype="Element",
                                  parentfield="mitarbeiter", mitglied="M-FR",
                                  bestaetigt=True, docstatus=0, idx=1))
+    from rechte_hilfe import uebernehmen_mit
+    uebernehmen_mit(patched_db)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
 
     anmelden(client, "moderator")
     _speichere_termin(client, element_name="Geheime Sitzung",
@@ -262,6 +268,8 @@ def test_w2_serie_buendelt_zu_einer_nachricht(client, patched_db):
             s.add(ElementMitarbeiter(name=f"EM-{i}", parent=name, parenttype="Element",
                                      parentfield="mitarbeiter", mitglied="M-TAL",
                                      bestaetigt=True, docstatus=0, idx=1))
+    from rechte_hilfe import uebernehmen_mit
+    uebernehmen_mit(patched_db)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
 
     anmelden(client, "moderator")
     r = client.post("/api/method/diakronos.kronos.api.series.update_series_batch_fast",

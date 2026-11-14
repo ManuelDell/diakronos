@@ -144,6 +144,8 @@ def ressourcenwelt(patched_db):
                            aktiv=1, slug="gottesdienst-2025", docstatus=0, idx=0),
     ])
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     yield sess
     sess.close()
 

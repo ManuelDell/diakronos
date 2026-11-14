@@ -416,6 +416,8 @@ tests/mt1c-*.test.mjs
 # Kalender.vue wertet den Parameter aus), „‹ Kalender“ erscheint nur am Handy
 # (Befund DMB-8e166c0aacff).
 tests/dev-b2-*.test.mjs
+# R-3: Menü zeigt Module nur mit Leserecht (das EINE Rechtesystem, Boot module_sichtbar).
+tests/r3-*.test.mjs
 tests/devbadge1-*.test.mjs
 # DEVBADGE-1b: Mount-Wächter — die Gerüst-Klasse `dk-app--dev` hängt am
 # SICHTBAREN Dev-Eintrag (mountet die echte App.vue, Punkt 3 des Reviews).
@@ -448,6 +450,54 @@ tests/mt4-*.test.mjs
 # Wächter: kein englischer Bibliothekstext (No events / all-day / +n more),
 # Gegenprobe im selben Test.
 tests/mt5-*.test.mjs
+# R6: Beiträge/Wiki — Gruppenwahl beim Anlegen (nur was der Server mit `anlegen`
+# bejaht), Gast-Links (Passwort zweimal, 3 Tage Standard, Link einmalig) und die
+# öffentliche Gastseite `#/gast/<token>` (feste Fehlertexte aus dem HTTP-Status).
+# r6-nacharbeit: Review 12.11. — Detail behält `darf_bearbeiten` aus der Liste,
+# Vorauswahl von der Gruppenseite, „Neuer Beitrag“ nur mit Anlege-Recht.
+# r6-mount: dieselben Punkte am gerenderten DOM (Knöpfe sichtbar/nicht sichtbar,
+# Passwortfelder mit zugänglichem Namen).
+# UI-R6b: EINE Abfrage statt N (`rechte.get_anlegeorte` → `anlegeorteAusAntwort`,
+# Titel und Reihenfolge vom Server); Verhaltenstests an den ECHTEN Seiten
+# (Wiki-Detail mit/ohne `darf_bearbeiten`, `#/wiki?gruppe=…` öffnet den Editor
+# vorausgewählt, `wikiAnlegenZiel` für Haupt- und Untergruppe).
+# UI-R6c: Methodenpfade der R6-Dateien gegen whitelist.json (kein
+# `diakronos.`-Paketpräfix, das nur über den Rückfall lief), Server-Titel auch
+# bei GENAU EINEM Anlegeort (Gruppe, Untergruppe, Gemeinde), `GEMEINDE_TEXT`
+# entfallen, Fixtures nur mit Server-Feldern.
+# UI-R6d: claude/rechte5 (mit main) eingemergt — die Detail-Fenster sind weg
+# (MT-7), „Für Gäste freigeben“/„Bearbeiten“/„Löschen“ stehen jetzt auf den
+# LESE-UNTERSEITEN (`BeitragDetail.vue`, `WikiArtikel.vue`) und hängen nur an
+# `darf_bearbeiten` der Serverantwort (aus der Liste, `detailMitListe`);
+# r6-mount mountet dafür die echten Leseseiten, die Druckregeln blenden die
+# Knöpfe aus, r6-methodenpfade prüft auch deren Methodenpfade.
+# UI-R6e: Das Backend liefert `darf_bearbeiten` auch im DETAIL (R-12l) — die
+# Leseseiten nehmen es direkt von dort (Listenhilfe `detailMitListe` entfällt,
+# im Wiki lädt die Liste wieder parallel nur für „Ähnliche“). Das alte
+# `DkAktionen`-Menü (an `isAdmin`) ist gestrichen; der Beleg-Test hält beide
+# Quellen auseinander (Liste „ja“ + Detail „nein“ → keine Knöpfe), prüft den
+# Beitrag ohne Listen-Aufruf und „Admin ohne Recht sieht nichts“. Der
+# Wächter in r6-methodenpfade erwartet `get_beitraege_liste` nicht mehr.
+# r6e-* liegt VOR r6-*: eigene Zeile, damit das Muster tests/r6-*.test.mjs sie
+# nicht doppelt einzieht (der Dateiname beginnt mit `r6e`, nicht mit `r6-`).
+tests/r6e-*.test.mjs
+tests/r6-*.test.mjs
+# R-3: Menü zeigt Module nur mit Leserecht (das EINE Rechtesystem, Boot module_sichtbar).
+# UI-R10: Menü und Routen — Admin vs. Mitgliederverwaltung (seit R-11a zwei
+# Verwaltungsstufen: `is_admin` = nur Administrator, `ist_mitgliederverwaltung`
+# = Admin ODER Mitgliederadministrator). Prüft Menü, Fuß, Personen-Reiter,
+# Dienst-Reiter, Handy-Schublade und die zwei Routen-Wächter in einer vm.
+tests/r10-*.test.mjs
+# UI-R10b: Restpunkte aus dem zweiten Review zu UI-R10 — Link-Vorgaben für die
+# Mitgliederverwaltung (get_link_vorgaben statt gemeinde_get_einstellungen),
+# System-Manager-Stellen in „Anmeldung“ gesperrt mit Grund, EINE Verwaltungsregel
+# (Router delegiert an menue.js, Rückfall fail closed) und Leerzustand der
+# Einstellungen.
+tests/r10b-*.test.mjs
+# UI-R10b (Review): dieselben Zusagen GE MOUNTET (R-12i: nur die Admin-Teile
+# gesperrt, Mitglied-Zeilen bleiben bedienbar; Einstellungen ohne sichtbaren
+# Abschnitt → DkEmpty statt „Gemeinde“).
+tests/r10b2-*.test.mjs
 # MT-5b: Der Leerzustand wird beim Verlassen der Seite abgebaut (kein Leck je
 # Seitenbesuch, Verhaltenstest in jsdom mit Attrappe der Bibliothek) und der
 # verschluckende `config.warnHandler` ist weg. Muster `tests/mt5-*.test.mjs`
@@ -475,3 +525,54 @@ tests/mt3b-rueckgaengig-kopplung.test.mjs
 # Adresse, `search=`/`kategorie=` am Server — plus Gegenprobe, dass eine
 # zurückgesetzte Übernahme ROT wird. Befund: auf main NICHT reproduzierbar.
 tests/wiki-q1-*.test.mjs
+# R-3: Menü zeigt Module nur mit Leserecht (das EINE Rechtesystem, Boot module_sichtbar).
+# UI-R1: Gruppen-Einstellungen, Teil 1 Rollen (HV/MV/GL) — Ordnen, Knoepfe
+# nach Serverfeldern, Sicherheitsabfrage der HV-Uebertragung, Alter Pfad weg.
+tests/ui-r1-*.test.mjs
+# UI-R9: Aufgaben-Oberfläche (Zuweisen, Abhaken, „Meine Aufgaben“) — Regeln ohne Vue.
+tests/uir9-*.test.mjs
+tests/uir9b-*.test.mjs
+# UI-R5: „+ Termin“ auf der Gruppenseite — welche Kalender dieser (Unter-)Gruppe
+# gehören (Felder gruppe/untergruppe der Serverliste), Vorbelegung, Prüfhinweis
+# bei `direkt == false`, Ortszeit ohne Zeitzonen-Anhang; dazu der Einbau in
+# GruppeDetail.vue und KronosEventCreate.vue (Knopf an darfTermin, Formular mit
+# kalender-vorgabe, Hinweis VOR dem Speichern).
+tests/ui-r5-*.test.mjs
+# UI-R5b: Folgekarte zu UI-R5 — Direktschreiber legen direkt an (status
+# „Festgelegt“ nur bei `direkt === true`, für create_event UND create_series),
+# Kalenderhinweis IM Dialog über der Kalenderwahl; der Mount-Test liest den
+# gesendeten Rumpf am echten Dialog.
+tests/ui-r5b-*.test.mjs
+# UI-R4: Prüfliste zeigt Moderationsstufen („wartet auf Freigabe für: …“), Freigeben nur bei
+# server-seitigem `darf_pruefen`, ehrliche Meldung bei `wartet_weiter`, Zähler
+# „Zu prüfen“ nur für Erlaubtes und der Abschnitt „Freigabe-Anträge“ (Annehmen/
+# Ablehnen über die vorhandenen Endpunkte). Reine Regeln werden ausgeführt.
+tests/uir4-*.test.mjs
+# UI-R4b: Prüfliste — Konflikte NUR über den Dialog, Stufen-Kette vom Server
+# (`naechste_stufe`/`offen` aus R-12d statt eigener Folge), ehrliche Meldung bei
+# „Alle freigeben“ (`festgelegt`/`weitergereicht`), „die ganze Gruppe“ als Ziel,
+# ehrlicher Anträge-Toast, reaktive Stufe, EIN Titel-Lader je Seite.
+# Die prüfenden Fälle sind VERHALTENStests (jsdom-Mount): Freigabe lädt neu,
+# Konfliktspalte ohne Direkt-Freigabe, 403 zeigt Text + lädt neu — mit
+# Gegenproben belegt (Umbau auf `if (letzteMeldung.weiter)` macht sie rot).
+tests/uir4b-*.test.mjs
+# UI-R4d: Prüfliste — Nacharbeit der Review-Lücken von UI-R4c.
+# · Mount-Test: mehrere `ModerationCard` UND `ModerationAntraege` auf EINER
+#   Seite rufen `get_rollen_erklaerung` genau EINMAL (Rückbau auf den Lader je
+#   Karte macht ihn rot).
+# · „Stufe: …“ wird am ECHTEN `ModerationAntraege.vue` geprüft (kein
+#   nachgebautes computed).
+# · Konflikt-Schranke der Tafel im Weg `onFreigeben` (Rückbau auf
+#   `item?.column === 'konflikte'` macht ihn rot).
+# · Warteline liest die Stufe ALS STUFE („wartet auf Freigabe für: …“),
+#   „weitere Stufen“ nur bei mehreren wartenden Terminen, `has_konflikt` als
+#   Client-Feld.
+tests/uir4d-*.test.mjs
+# UI-R7: Personen — „Daten anfragen“ (R-9, Manuel 11.11.). Der Knopf erscheint
+# nur bei `daten_anfragbar` (Server), am Laptop bei Überfahren/Fokus, am Handy
+# im Zeilenmenü; „Kontaktdaten nicht freigegeben“ statt „—“-Wüste; die Meldung
+# „Datenanfrage“ führt zu Profil → Sichtbarkeit. Logik, Quelle und DOM.
+tests/uir7-*.test.mjs
+# UI-R8: ⓘ „Was bewirkt welche Rolle?“ + Seite „Rollen & Rechte“ (EINE Quelle).
+tests/r8-*.test.mjs
+tests/r8b-*.test.mjs

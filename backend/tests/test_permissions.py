@@ -2,13 +2,15 @@
 
 180 Faelle = 9 Benutzertypen x 5 DocTypes x 4 Aktionen, als parametrisierte
 Tabelle (nicht als 180 Funktionen). Erwartungswerte stammen aus der
-Rollen-/DocType-Matrix der Karte P3 — jede Zeile nennt eine Fundstelle im
-Altcode.
+Rollen-/DocType-Matrix der Karte P3, seit R-11 (Plan diakronos-rechte,
+Manuel 11.11.) aus dem EINEN Rechte-Kern: Personen-Namen sieht jedes
+Gemeindemitglied, Gruppen lesen ihre Mitglieder und Leitung, aendern nur
+HV/MV, Dienstbereiche nur der Administrator; die Mitgliederverwaltung ist ein
+Fach (Personen), kein Admin. Der ancestor_path ist keine Rechtequelle mehr.
 
 Zusaetzlich in diesem Modul (siehe unten):
   * die Kartensperre "mindestens diese Faelle MUESSEN verweigern"
   * die Hilfsfunktionen aus `_permissions.py` (Verantwortlichkeit, Entwurf)
-  * `_paths_overlap`-Randfaelle
   * die Patch-Hebel fuer den Negativtest (`PATCH_HEBEL`)
 """
 
@@ -95,70 +97,69 @@ FAELLE = _faelle()
 # bildet write/create/delete auf denselben Map-Schluessel ab).
 ERWARTUNG = {
     "Administrator": {
-        # Rolle "Administrator" ist NICHT in ADMIN_ROLES (nur die Funktion
-        # is_admin() kennt die Sonderbehandlung). Spec §2.1 / §3.1 M1.
+        # Personenbereich prueft die ROLLE (ohne Rolle keine Verwaltungssicht);
+        # alles andere entscheidet der Kern — dort ist "Administrator" Admin.
         "Mitglied": (False, "no_access", False, "no_access"),
-        "Gruppe": (False, "no_mitglied", False, "no_mitglied"),
-        "Untergruppe": (False, "no_mitglied", False, "no_mitglied"),
-        "Dienstbereich": (False, "no_mitglied", False, "no_mitglied"),
-        "Unbekannt": (False, "unsupported_doctype", False, "unsupported_doctype"),
+        "Gruppe": (True, "admin", True, "admin"),
+        "Untergruppe": (True, "admin", True, "admin"),
+        "Dienstbereich": (True, "admin", True, "admin"),
+        "Unbekannt": (True, "admin", True, "admin"),
     },
     "admin@example.org": {          # System Manager
         "Mitglied": (True, "admin_role", True, "admin_role"),
-        "Gruppe": (True, "admin_role", True, "admin_role"),
-        "Untergruppe": (True, "admin_role", True, "admin_role"),
-        "Dienstbereich": (True, "admin_role", True, "admin_role"),
-        # Admin-Kurzschluss steht VOR der DocType-Weiche (session.py:157-159)
-        "Unbekannt": (True, "admin_role", True, "admin_role"),
+        "Gruppe": (True, "admin", True, "admin"),
+        "Untergruppe": (True, "admin", True, "admin"),
+        "Dienstbereich": (True, "admin", True, "admin"),
+        "Unbekannt": (True, "admin", True, "admin"),
     },
-    "mitarbadmin@example.org": {    # Mitgliederadministrator
+    "mitarbadmin@example.org": {    # Mitgliederadministrator: Fach Personen
         "Mitglied": (True, "admin_role", True, "admin_role"),
-        "Gruppe": (True, "admin_role", True, "admin_role"),
-        "Untergruppe": (True, "admin_role", True, "admin_role"),
-        "Dienstbereich": (True, "admin_role", True, "admin_role"),
-        "Unbekannt": (True, "admin_role", True, "admin_role"),
-    },
-    "bereichsverantw@example.org": {   # OHNE Mitglied-Datensatz
-        "Mitglied": (False, "no_access", False, "no_access"),
-        "Gruppe": (False, "no_mitglied", False, "no_mitglied"),
-        "Untergruppe": (False, "no_mitglied", False, "no_mitglied"),
-        "Dienstbereich": (False, "no_mitglied", False, "no_mitglied"),
+        "Gruppe": (False, "kein_gruppenmitglied", False, "nicht_verantwortlich"),
+        "Untergruppe": (False, "kein_untergruppenmitglied", False, "nicht_verantwortlich"),
+        "Dienstbereich": (False, "nur_admin", False, "nur_admin"),
         "Unbekannt": (False, "unsupported_doctype", False, "unsupported_doctype"),
     },
-    "gruppenverantw@example.org": {    # OHNE Mitglied-Datensatz
+    "bereichsverantw@example.org": {   # Uebernahme r1: MV jeder Gruppe des Bereichs
         "Mitglied": (False, "no_access", False, "no_access"),
-        "Gruppe": (False, "no_mitglied", False, "no_mitglied"),
-        "Untergruppe": (False, "no_mitglied", False, "no_mitglied"),
-        "Dienstbereich": (False, "no_mitglied", False, "no_mitglied"),
+        "Gruppe": (True, "gruppe_mv", True, "gruppe_mv"),
+        "Untergruppe": (True, "untergruppe_mv", True, "untergruppe_mv"),
+        "Dienstbereich": (False, "nur_admin", False, "nur_admin"),
+        "Unbekannt": (False, "unsupported_doctype", False, "unsupported_doctype"),
+    },
+    "gruppenverantw@example.org": {    # HV von G-A1 (Uebernahme r1), OHNE Mitglied
+        "Mitglied": (False, "no_access", False, "no_access"),
+        "Gruppe": (True, "gruppe_hv", True, "gruppe_hv"),
+        "Untergruppe": (True, "untergruppe_hv", True, "untergruppe_hv"),
+        "Dienstbereich": (False, "nur_admin", False, "nur_admin"),
         "Unbekannt": (False, "unsupported_doctype", False, "unsupported_doctype"),
     },
     "mitglied-a@example.org": {     # Mitglied in G-A1, Ziel M-gruppe-b1 (fremd)
-        "Mitglied": (False, "no_overlap", False, "no_overlap"),
-        "Gruppe": (True, "ancestor_path", False, "no_overlap"),
-        "Untergruppe": (True, "ancestor_path", False, "no_overlap"),
-        "Dienstbereich": (True, "ancestor_path", False, "no_overlap"),
+        "Mitglied": (True, "gemeinde", False, "gemeinde"),
+        "Gruppe": (True, "gruppe_mitglied", False, "nicht_verantwortlich"),
+        "Untergruppe": (False, "kein_untergruppenmitglied", False, "nicht_verantwortlich"),
+        "Dienstbereich": (False, "nur_admin", False, "nur_admin"),
         "Unbekannt": (False, "unsupported_doctype", False, "unsupported_doctype"),
     },
     "mitglied-b@example.org": {     # Mitglied in G-B1, Ziel in DB-A -> fremd
-        "Mitglied": (False, "no_overlap", False, "no_overlap"),
-        "Gruppe": (False, "no_overlap", False, "no_overlap"),
-        "Untergruppe": (False, "no_overlap", False, "no_overlap"),
-        "Dienstbereich": (False, "no_overlap", False, "no_overlap"),
+        "Mitglied": (True, "gemeinde", False, "gemeinde"),
+        "Gruppe": (False, "kein_gruppenmitglied", False, "nicht_verantwortlich"),
+        "Untergruppe": (False, "kein_untergruppenmitglied", False, "nicht_verantwortlich"),
+        "Dienstbereich": (False, "nur_admin", False, "nur_admin"),
         "Unbekannt": (False, "unsupported_doctype", False, "unsupported_doctype"),
     },
     "ohne-mitglied@example.org": {  # kein Mitglied-Datensatz, kein E-Mail-Match
         "Mitglied": (False, "no_access", False, "no_access"),
-        "Gruppe": (False, "no_mitglied", False, "no_mitglied"),
-        "Untergruppe": (False, "no_mitglied", False, "no_mitglied"),
-        "Dienstbereich": (False, "no_mitglied", False, "no_mitglied"),
+        "Gruppe": (False, "kein_gruppenmitglied", False, "nicht_verantwortlich"),
+        "Untergruppe": (False, "kein_untergruppenmitglied", False, "nicht_verantwortlich"),
+        "Dienstbereich": (False, "nur_admin", False, "nur_admin"),
         "Unbekannt": (False, "unsupported_doctype", False, "unsupported_doctype"),
     },
     "Guest": {
-        # Guest hat keine Rollen und ist mitgliedslos -> alles verweigert.
+        # Guest hat keine Rollen und ist nicht angemeldet -> alles verweigert.
         "Mitglied": (False, "no_access", False, "no_access"),
-        "Gruppe": (False, "no_mitglied", False, "no_mitglied"),
-        "Untergruppe": (False, "no_mitglied", False, "no_mitglied"),
-        "Dienstbereich": (False, "no_mitglied", False, "no_mitglied"),
+        "Gruppe": (False, "nicht_angemeldet", False, "nicht_angemeldet"),
+        "Untergruppe": (False, "nicht_angemeldet", False, "nicht_angemeldet"),
+        "Dienstbereich": (False, "nur_admin", False, "nur_admin"),
         "Unbekannt": (False, "unsupported_doctype", False, "unsupported_doctype"),
     },
 }
@@ -270,6 +271,10 @@ def hierarchie(patched_db):
                  ancestor_path="/G-C1/|/DB-C/", docstatus=0, idx=0),
     ])
     sess.commit()
+    # R-4: dieselbe Welt im EINEN Rechtesystem (Abbildung der Migration r1).
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(sess)
 
     yield sess
 
@@ -332,34 +337,38 @@ def test_matrix_hat_180_faelle():
 
 MUSS_VERWEIGERN = [
     # (Beschreibung, User, DocType, docname, Aktion, erwarteter reason)
-    ("Mitglied liest Mitglied aus FREMDEM Dienstbereich",
-     "mitglied-b@example.org", "Mitglied", MITGLIED_ZIEL, "read", "no_overlap"),
+    ("Mitglied BEARBEITET fremdes Mitglied (Name sehen ja, aendern nie)",
+     "mitglied-b@example.org", "Mitglied", MITGLIED_ZIEL, "write", "gemeinde"),
     ("Mitglied(FREMDE Gruppe) liest Gruppe in DB-A",
-     "mitglied-b@example.org", "Gruppe", "G-A1", "read", "no_overlap"),
+     "mitglied-b@example.org", "Gruppe", "G-A1", "read", "kein_gruppenmitglied"),
     ("Mitglied schreibt Gruppe (die EIGENE!)",
-     "mitglied-a@example.org", "Gruppe", "G-A1", "write", "no_overlap"),
-    ("Mitglied schreibt Untergruppe (die eigene)",
-     "mitglied-a@example.org", "Untergruppe", "UG-A1", "write", "no_overlap"),
+     "mitglied-a@example.org", "Gruppe", "G-A1", "write", "nicht_verantwortlich"),
+    ("Mitglied schreibt Untergruppe",
+     "mitglied-a@example.org", "Untergruppe", "UG-A1", "write", "nicht_verantwortlich"),
     ("Mitglied schreibt Dienstbereich (den eigenen)",
-     "mitglied-a@example.org", "Dienstbereich", "DB-A", "write", "no_overlap"),
+     "mitglied-a@example.org", "Dienstbereich", "DB-A", "write", "nur_admin"),
     ("Mitglied loescht Gruppe (die eigene)",
-     "mitglied-a@example.org", "Gruppe", "G-A1", "delete", "no_overlap"),
+     "mitglied-a@example.org", "Gruppe", "G-A1", "delete", "nicht_verantwortlich"),
+    ("Mitgliederverwaltung aendert Gruppe (Fach, kein Admin)",
+     "mitarbadmin@example.org", "Gruppe", "G-A1", "write", "nicht_verantwortlich"),
+    ("Bereichsverantwortlicher liest Dienstbereich (Bereiche entfallen)",
+     "bereichsverantw@example.org", "Dienstbereich", "DB-A", "read", "nur_admin"),
     ("Benutzer ohne Mitglied-Datensatz liest Gruppe",
-     "ohne-mitglied@example.org", "Gruppe", "G-A1", "read", "no_mitglied"),
+     "ohne-mitglied@example.org", "Gruppe", "G-A1", "read", "kein_gruppenmitglied"),
     ("Benutzer ohne Mitglied-Datensatz liest Untergruppe",
-     "ohne-mitglied@example.org", "Untergruppe", "UG-A1", "read", "no_mitglied"),
+     "ohne-mitglied@example.org", "Untergruppe", "UG-A1", "read", "kein_untergruppenmitglied"),
     ("Benutzer ohne Mitglied-Datensatz liest Dienstbereich",
-     "ohne-mitglied@example.org", "Dienstbereich", "DB-A", "read", "no_mitglied"),
+     "ohne-mitglied@example.org", "Dienstbereich", "DB-A", "read", "nur_admin"),
     ("Guest liest Mitglied",
      "Guest", "Mitglied", MITGLIED_ZIEL, "read", "no_access"),
     ("Guest liest Gruppe",
-     "Guest", "Gruppe", "G-A1", "read", "no_mitglied"),
+     "Guest", "Gruppe", "G-A1", "read", "nicht_angemeldet"),
     ("Guest liest Untergruppe",
-     "Guest", "Untergruppe", "UG-A1", "read", "no_mitglied"),
+     "Guest", "Untergruppe", "UG-A1", "read", "nicht_angemeldet"),
     ("Guest liest Dienstbereich",
-     "Guest", "Dienstbereich", "DB-A", "read", "no_mitglied"),
+     "Guest", "Dienstbereich", "DB-A", "read", "nur_admin"),
     ("Guest schreibt Gruppe",
-     "Guest", "Gruppe", "G-A1", "write", "no_mitglied"),
+     "Guest", "Gruppe", "G-A1", "write", "nicht_angemeldet"),
     ("unbekannter DocType (Nicht-Admin)",
      "mitglied-a@example.org", UNBEKANNTER_DOCTYPE, "x", "read", "unsupported_doctype"),
     ("unbekannter DocType (Guest)",
@@ -406,27 +415,26 @@ def test_guest_hat_nie_rollen(hierarchie):
 
 
 def test_is_admin_kennt_administrator_sonderfall(hierarchie):
-    """Spec §2.1: `is_admin()` hat die "Administrator"-Sonderbehandlung."""
+    """Spec §2.1: `is_admin()` hat die "Administrator"-Sonderbehandlung.
+
+    R-11a: die Mitgliederverwaltung ist KEIN Admin mehr (eigenes Fach)."""
     assert P.is_admin("Administrator") is True
     assert P.is_admin("admin@example.org") is True
-    assert P.is_admin("mitarbadmin@example.org") is True
+    assert P.is_admin("mitarbadmin@example.org") is False
+    assert P.ist_mitgliederverwaltung("mitarbadmin@example.org") is True
     assert P.is_admin("mitglied-a@example.org") is False
     assert P.is_admin("Guest") is False
     assert P.is_admin("ohne-mitglied@example.org") is False
 
 
-def test_check_permission_kennt_administrator_sonderfall_NICHT(hierarchie):
-    """Spec §2.1 (Abweichung): check_permission prueft nur Rollen.
-
-    Genau der Fall, der im Altcode zwischen `_permissions.is_admin()` und
-    `session.check_permission()` auseinanderlaeuft.
-    """
+def test_check_permission_administrator_ist_kern_admin(hierarchie):
+    """R-11: Gruppen entscheidet der Kern — dort ist "Administrator" Admin.
+    Der Personenbereich bleibt an der ROLLE (ohne Rolle keine Verwaltungssicht)."""
     from diakronos_app.frappe_compat.session import set_user
 
     set_user("Administrator")
-    assert P.check_permission("Gruppe", "G-A1", "read") == {
-        "allowed": False, "reason": "no_mitglied",
-    }
+    assert P.check_permission("Gruppe", "G-A1", "read") == {"allowed": True, "reason": "admin"}
+    assert P.check_permission("Mitglied", MITGLIED_ZIEL, "read")["allowed"] is False
 
 
 def test_require_admin(hierarchie):
@@ -446,35 +454,6 @@ def test_require_admin(hierarchie):
     with pytest.raises(PermissionError) as err:
         P.require_admin()
     assert "Zugriff verweigert." in str(err.value)
-
-
-# ── _paths_overlap: Randfaelle ──────────────────────────────────────────────
-
-
-@pytest.mark.parametrize(
-    "user_path,target_path,erwartet",
-    [
-        # Spec §1.2 — exakt aus session.py:227-246
-        ("/G-A1/|/DB-A/", "/G-A1/|/DB-B/", True),      # Gruppe gemeinsam
-        ("/G-A1/|/DB-A/", "/G-B1/|/DB-A/", True),      # Bereich gemeinsam
-        ("/G-A1/|/DB-A/", "/G-B1/|/DB-B/", False),     # nichts gemeinsam
-        ("/UG-A1/G-A1/|/DB-A/", "/G-A1/|/DB-B/", True),
-        ("", "/G-A1/|/DB-A/", False),                  # leerer Nutzerpfad
-        ("/G-A1/|/DB-A/", "", False),                  # leerer Zielpfad
-        (None, None, False),
-        ("|", "|", False),
-        ("|", "/G-A1/|/DB-A/", False),
-        # Gruppen und Bereiche sind getrennte Mengen: "G-A1" als Bereich
-        # trifft nicht "G-A1" als Gruppe.
-        ("/|/G-A1/", "/G-A1/|/DB-A/", False),
-        # Gegenprobe: steht derselbe Name in beiden Mengen, ueberlappt er
-        # ueber die Bereichs-Seite (session.py:246 ist ein Mengen-Schnitt).
-        ("/DB-A/|/DB-A/", "/|/DB-A/", True),
-        ("/DB-A/|/DB-B/", "/|/DB-A/", False),
-    ],
-)
-def test_paths_overlap(user_path, target_path, erwartet):
-    assert P._paths_overlap(user_path, target_path) is erwartet
 
 
 # ── mitglied_permissions: die Map im Detail ─────────────────────────────────
@@ -517,7 +496,7 @@ def test_mitglied_permissions_eigenes_profil_ist_editierbar(hierarchie):
     perms = P.mitglied_permissions(MITGLIED_ZIEL_EIGEN)
     assert perms["can_view"] is True
     assert perms["can_edit"] is True
-    assert perms["reason"] == "ancestor_path"
+    assert perms["reason"] == "eigenes"
 
 
 def test_mitglied_permissions_fremdes_mitglied_nicht_editierbar(hierarchie):
@@ -525,8 +504,9 @@ def test_mitglied_permissions_fremdes_mitglied_nicht_editierbar(hierarchie):
 
     set_user("mitglied-a@example.org")
     perms = P.mitglied_permissions(MITGLIED_ZIEL)
-    assert perms["can_view"] is False and perms["can_edit"] is False
-    assert perms["reason"] == "no_overlap"
+    # R-9: den Namen sieht jedes Gemeindemitglied — bearbeiten nie.
+    assert perms["can_view"] is True and perms["can_edit"] is False
+    assert perms["reason"] == "gemeinde"
 
 
 def test_mitglied_permissions_email_fallback_ohne_mitglied(hierarchie):
@@ -555,7 +535,7 @@ def test_mitglied_permissions_email_fallback_ohne_mitglied(hierarchie):
     perms = P.mitglied_permissions("M-nur-email")
     assert perms["can_view"] is True
     assert perms["can_edit"] is True          # eigenes Profil
-    assert perms["reason"] == "ancestor_path"  # nicht "self"
+    assert perms["reason"] == "eigenes"
     assert perms["can_view_sensitive"] is False
 
 
@@ -571,9 +551,14 @@ def test_require_mitglied_view_und_edit(hierarchie):
     from diakronos_app.frappe_compat.session import set_user
 
     set_user("mitglied-a@example.org")
-    # Fremdes Mitglied (DB-C): weder lesbar noch editierbar.
+    # Fremdes Mitglied: lesbar (Name, R-9), aber nicht editierbar.
+    assert P.require_mitglied_view(MITGLIED_ZIEL)["can_view"] is True
+    with pytest.raises(PermissionError):
+        P.require_mitglied_edit(MITGLIED_ZIEL)
+    set_user("ohne-mitglied@example.org")
     with pytest.raises(PermissionError):
         P.require_mitglied_view(MITGLIED_ZIEL)
+    set_user("mitglied-a@example.org")
     # Eigenes Profil: lesbar UND editierbar (session.py:129-136).
     assert P.require_mitglied_view(MITGLIED_ZIEL_EIGEN)["can_view"] is True
     assert P.require_mitglied_edit(MITGLIED_ZIEL_EIGEN)["can_edit"] is True
@@ -589,12 +574,12 @@ def test_require_mitglied_view_und_edit(hierarchie):
 
 
 def test_ist_verantwortlich_fuer(hierarchie):
+    """R-11c: HV/MV der Gruppe (Kern); ein Dienstbereich verleiht nichts mehr."""
     from diakronos_app.frappe_compat.session import set_user
 
     set_user("bereichsverantw@example.org")
-    assert P.ist_verantwortlich_fuer("DB-A", None) is True
-    assert P.ist_verantwortlich_fuer(None, "G-A1") is False   # nur Bereich
-    assert P.ist_verantwortlich_fuer("DB-B", None) is False
+    assert P.ist_verantwortlich_fuer("DB-A", None) is False   # Bereich allein: nichts
+    assert P.ist_verantwortlich_fuer(None, "G-A1") is True    # r1: MV der Gruppen
 
     set_user("gruppenverantw@example.org")
     assert P.ist_verantwortlich_fuer(None, "G-A1") is True
@@ -616,39 +601,40 @@ def test_ist_verantwortlich_fuer_leere_argumente_werfen_nicht(hierarchie):
 
 
 def test_verantwortlichkeit_haengt_nicht_am_ancestor_path(hierarchie):
-    """Wer einen Bereich verantwortet, ist dort oft in keiner Gruppe."""
+    """Die Leitung einer Gruppe braucht keinen Mitglied-Datensatz (Rolle im Kern)."""
     from diakronos_app.frappe_compat.session import set_user
 
-    set_user("bereichsverantw@example.org")
-    # Hat keinen Mitglied-Datensatz -> kein Overlap-Pfad, aber Verantwortlicher
+    set_user("gruppenverantw@example.org")
     assert P._get_current_user_mitglied() is None
-    assert P.ist_verantwortlich_fuer("DB-A", None) is True
-    assert P.has_bereichs_zugriff("DB-A") is True
+    assert P.ist_verantwortlich_fuer(None, "G-A1") is True
+    assert P.has_bereichs_zugriff("DB-A", "G-A1") is True
 
 
 def test_has_bereichs_zugriff(hierarchie):
+    """R-11c: Admin immer; sonst nur ueber die GRUPPE (Mitglied/Leitung)."""
     from diakronos_app.frappe_compat.session import set_user
 
     set_user("admin@example.org")
     assert P.has_bereichs_zugriff("DB-A") is True
 
     set_user("bereichsverantw@example.org")
-    assert P.has_bereichs_zugriff("DB-A") is True
+    assert P.has_bereichs_zugriff("DB-A") is False
 
-    set_user("mitglied-a@example.org")          # ueber ancestor_path
-    assert P.has_bereichs_zugriff("DB-A") is True
-    assert P.has_bereichs_zugriff("DB-B") is False
+    set_user("mitglied-a@example.org")
+    assert P.has_bereichs_zugriff("DB-A", "G-A1") is True
+    assert P.has_bereichs_zugriff("DB-A") is False         # Bereich allein: nein
+    assert P.has_bereichs_zugriff("DB-B", "G-B1") is False
 
     set_user("mitglied-b@example.org")
-    assert P.has_bereichs_zugriff("DB-A") is False
-    assert P.has_bereichs_zugriff("DB-B") is True
+    assert P.has_bereichs_zugriff("DB-A", "G-A1") is False
+    assert P.has_bereichs_zugriff("DB-B", "G-B1") is True
 
     set_user("Guest")
-    assert P.has_bereichs_zugriff("DB-A") is False
+    assert P.has_bereichs_zugriff("DB-A", "G-A1") is False
 
 
 def test_has_bereichs_zugriff_ohne_bereich_ist_verweigert(hierarchie):
-    """Spec §2.4 — Abweichung: der unbelegte has_permission-Fallback -> False."""
+    """Spec §2.4 — ohne Bereich und ohne Gruppe -> False (fail closed)."""
     from diakronos_app.frappe_compat.session import set_user
 
     set_user("mitglied-a@example.org")
@@ -666,24 +652,22 @@ def test_darf_entwurf_sehen(hierarchie):
     assert P.darf_entwurf_sehen("jemand@example.org", "DB-A", "G-A1") is False
     assert P.darf_entwurf_sehen("jemand@example.org", "DB-B", "G-B1") is False
 
-    # Verantwortliche sehen Entwuerfe ihres Bereichs / ihrer Gruppe
+    # R-11c: die Leitung der GRUPPE sieht Entwuerfe; ein Bereich allein nicht.
     set_user("bereichsverantw@example.org")
-    assert P.darf_entwurf_sehen("x@example.org", "DB-A", None) is True
-    assert P.darf_entwurf_sehen("x@example.org", "DB-B", None) is False
+    assert P.darf_entwurf_sehen("x@example.org", "DB-A", None) is False
 
     set_user("gruppenverantw@example.org")
     assert P.darf_entwurf_sehen("x@example.org", None, "G-A1") is True
     assert P.darf_entwurf_sehen("x@example.org", None, "G-B1") is False
 
-    # "Administrator" sieht alles (session.py:_permissions.py:101-102)
+    # Der Administrator sieht alles (Kern-Admin: Login und System Manager).
     set_user("Administrator")
     assert P.darf_entwurf_sehen("x@example.org", None, None) is True
-
-    # Admin-ROLLE ohne den Literal-Namen sieht nur ueber Verantwortlichkeit:
-    # is_admin() wird im Original nicht ausgewertet (toter Code, Spec §2.5).
     set_user("admin@example.org")
-    assert P.darf_entwurf_sehen("x@example.org", None, None) is False
-    assert P.darf_entwurf_sehen("x@example.org", "DB-A", None) is False
+    assert P.darf_entwurf_sehen("x@example.org", None, None) is True
+    # Die Mitgliederverwaltung ist kein Admin.
+    set_user("mitarbadmin@example.org")
+    assert P.darf_entwurf_sehen("x@example.org", None, "G-A1") is False
 
 
 def test_darf_entwurf_sehen_owner_leer(hierarchie):
@@ -714,10 +698,10 @@ def patch_hebel(monkeypatch):
     """Aktiviert den per PERM_PATCH gewaehlten Hebel (nur fuer den Negativtest).
 
     Die Hebel drehen je EINE verbindliche Regel um:
-      * ``read_gate``  — entfernt ``permission_type == "read"`` bei den drei
-        Pfad-DocTypes. Dadurch darf ein Mitglied seine eigene Gruppe schreiben.
-      * ``no_mitglied`` — laesst Nutzer ohne Mitglied-Datensatz bei den drei
-        Pfad-DocTypes lesen, statt zu verweigern.
+      * ``read_gate``  — Aendern einer Gruppe/Untergruppe prueft nur LESEN.
+        Dadurch darf ein Mitglied seine eigene Gruppe schreiben.
+      * ``no_mitglied`` — Gruppe/Untergruppe/Dienstbereich sind ohne jede
+        Pruefung lesbar (auch ohne Mitgliedschaft, auch fuer Gaeste).
     """
     import os
 
@@ -731,45 +715,21 @@ def patch_hebel(monkeypatch):
 
     if hebel == "read_gate":
         def check_ohne_read_gate(doctype, docname, permission_type="read"):
-            user = P.session.user
-            if P._has_admin_role(user):
-                return {"allowed": True, "reason": "admin_role"}
-            if doctype == "Mitglied":
-                perms = P.mitglied_permissions(docname)
-                key = ("can_edit" if permission_type in ("write", "create", "delete")
-                       else "can_view")
-                return {"allowed": bool(perms.get(key, False)),
-                        "reason": perms.get("reason")}
-            if doctype in P._PATH_DOCTYPES:
-                current = P._get_current_user_mitglied()
-                if not current:
-                    return {"allowed": False, "reason": "no_mitglied"}
-                user_path = current.get("ancestor_path") or "|"
-                _ziel = P.get_value(doctype, docname, "ancestor_path")
-                target_path = _ziel if isinstance(_ziel, str) else "|"
-                # MUTATION: die read-Einschraenkung fehlt absichtlich.
-                allowed = P._paths_overlap(user_path, target_path)
-                return {"allowed": allowed,
-                        "reason": "ancestor_path" if allowed else "no_overlap"}
-            return {"allowed": False, "reason": "unsupported_doctype"}
+            if doctype in ("Gruppe", "Untergruppe"):
+                from diakronos_app import rechte
+
+                # MUTATION: schreiben wie lesen.
+                e = rechte.darf(P.session.user, rechte.LESEN, doctype.lower(), docname)
+                return {"allowed": bool(e), "reason": e.grund}
+            return echte_check(doctype, docname, permission_type)
 
         monkeypatch.setattr(P, "check_permission", check_ohne_read_gate)
         yield hebel
     else:
-        # MUTATION: kein Mitglied-Datensatz -> trotzdem lesen erlauben.
         def check_ohne_mitglied(doctype, docname, permission_type="read"):
-            user = P.session.user
-            if P._has_admin_role(user):
-                return {"allowed": True, "reason": "admin_role"}
-            if doctype == "Mitglied":
-                perms = P.mitglied_permissions(docname)
-                key = ("can_edit" if permission_type in ("write", "create", "delete")
-                       else "can_view")
-                return {"allowed": bool(perms.get(key, False)),
-                        "reason": perms.get("reason")}
-            if doctype in P._PATH_DOCTYPES:
-                return {"allowed": True, "reason": "ancestor_path"}
-            return {"allowed": False, "reason": "unsupported_doctype"}
+            if doctype in ("Gruppe", "Untergruppe", "Dienstbereich") and permission_type == "read":
+                return {"allowed": True, "reason": "mutation"}  # MUTATION
+            return echte_check(doctype, docname, permission_type)
 
         monkeypatch.setattr(P, "check_permission", check_ohne_mitglied)
         yield hebel
@@ -808,31 +768,30 @@ def test_negativtest_hebel_ist_wirksam(hierarchie, patch_hebel):
 
 # Die eigentliche Matrix unter dem Hebel: jeder dieser Faelle MUSS rot werden.
 MAXIMUM_FAELLE = [
-    # (User, DocType, docname, Aktion) — laut Karte zwingend zu verweigern.
-    ("mitglied-a@example.org", "Gruppe", "G-A1", "write"),
-    ("mitglied-a@example.org", "Untergruppe", "UG-A1", "write"),
-    ("mitglied-a@example.org", "Dienstbereich", "DB-A", "write"),
-    ("mitglied-a@example.org", "Gruppe", "G-A1", "delete"),
-    ("mitglied-b@example.org", "Mitglied", MITGLIED_ZIEL, "read"),
-    ("mitglied-b@example.org", "Gruppe", "G-A1", "read"),
-    ("ohne-mitglied@example.org", "Gruppe", "G-A1", "read"),
-    ("Guest", "Gruppe", "G-A1", "read"),
-    ("Guest", "Mitglied", MITGLIED_ZIEL, "read"),
+    # (Hebel, User, DocType, docname, Aktion) — ohne Hebel zwingend verweigert.
+    ("read_gate", "mitglied-a@example.org", "Gruppe", "G-A1", "write"),
+    ("read_gate", "mitglied-a@example.org", "Gruppe", "G-A1", "delete"),
+    ("no_mitglied", "mitglied-b@example.org", "Gruppe", "G-A1", "read"),
+    ("no_mitglied", "ohne-mitglied@example.org", "Gruppe", "G-A1", "read"),
+    ("no_mitglied", "Guest", "Gruppe", "G-A1", "read"),
+    ("no_mitglied", "mitglied-a@example.org", "Dienstbereich", "DB-A", "read"),
 ]
 
 
 @pytest.mark.parametrize(
-    "user,doctype,docname,aktion", MAXIMUM_FAELLE,
+    "fall_hebel,user,doctype,docname,aktion", MAXIMUM_FAELLE,
     ids=lambda v: str(v).replace("@example.org", "").replace("/", "-"),
 )
-def test_negativtest_muss_rot_werden(hierarchie, patch_hebel, user, doctype, docname, aktion):
-    """Die verbotenen Faelle MUESSEN unter dem Hebel scheitern.
+def test_negativtest_muss_rot_werden(hierarchie, patch_hebel, fall_hebel, user, doctype, docname, aktion):
+    """Die verbotenen Faelle MUESSEN unter ihrem Hebel kippen.
 
     Dies ist der Beweis, dass die Matrix diese Faelle wirklich prueft: waeren
     die Faelle nicht in der Matrix, bliebe dieser Test gruen.
     """
     from diakronos_app.frappe_compat.session import set_user
 
+    if fall_hebel != patch_hebel:
+        pytest.skip("Fall gehoert zum anderen Hebel")
     set_user(user)
     result = P.check_permission(doctype, docname, aktion)
     assert result["allowed"] is True, (

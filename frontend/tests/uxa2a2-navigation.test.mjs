@@ -186,11 +186,13 @@ const beiModulen = name => join(MODUL_DIR, name)
   const fakeSession = pathToFileURL(beiModulen(`.tmp-uxa2a2-session-${process.pid}-${Date.now()}.mjs`)).href
   writeFileSync(fileURLToPath(fakeSession), [
     'import { ref, computed } from "vue"',
-    'export const rechte = { istAdmin: false, istSystemManager: false }',
+    // UI-R10: der Anfragen-Zaehler haengt an `istMitgliederverwaltung` (die
+    // Rolle, die der Server fuer `get_navigation_zaehler` verlangt) — die
+    // Attrappe liefert deshalb genau dieses Feld.
+    'export const rechte = { istMitgliederverwaltung: false }',
     'export function useSession() {',
     '  return {',
-    '    isAdmin: computed(() => rechte.istAdmin),',
-    '    istSystemManager: computed(() => rechte.istSystemManager),',
+    '    istMitgliederverwaltung: computed(() => rechte.istMitgliederverwaltung),',
     '  }',
     '}',
   ].join('\n'))
@@ -218,8 +220,7 @@ const beiModulen = name => join(MODUL_DIR, name)
 
   try {
     // Ohne Administrator: zwei Anzeigen beobachten, es wird NICHT gefragt.
-    session.rechte.istAdmin = false
-    session.rechte.istSystemManager = false
+    session.rechte.istMitgliederverwaltung = false
     const abmeldenA = modul.anfragenZaehlerBeobachten()
     const abmeldenB = modul.anfragenZaehlerBeobachten()
     await nextTick()
@@ -228,9 +229,9 @@ const beiModulen = name => join(MODUL_DIR, name)
     assert.equal(modul.anfragenZaehler.value, null, 'ohne Recht bleibt die Zahl leer (keine erfundene 0)')
 
     // Speichern/Schalten simulieren: jetzt Administrator.
-    session.rechte.istAdmin = true
+    session.rechte.istMitgliederverwaltung = true
     await modul.anfragenZahlAuffrischen()
-    assert.equal(api.aufrufe.anzahl, 1, 'als Administrator genau eine Anfrage')
+    assert.equal(api.aufrufe.anzahl, 1, 'als Mitgliederverwaltung genau eine Anfrage')
     assert.equal(modul.anfragenZaehler.value, 7, 'der Stand kommt aus der Antwort')
 
     // Kein zweites Intervall für die zweite Anzeige (Bereich neben Leiste).

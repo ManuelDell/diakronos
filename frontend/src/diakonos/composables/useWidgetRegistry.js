@@ -7,6 +7,8 @@ const registry = {
   'quick-links':           defineAsyncComponent(() => import('../components/widgets/QuickLinksWidget.vue')),
   'upcoming-events':       defineAsyncComponent(() => import('../components/widgets/UpcomingEventsWidget.vue')),
   'my-services':           defineAsyncComponent(() => import('../components/widgets/MyServicesWidget.vue')),
+  // UI-R9: eigene Aufgaben und mir zugewiesene Gruppenaufgaben.
+  'my-tasks':              defineAsyncComponent(() => import('../components/widgets/MeineAufgabenWidget.vue')),
   'announcements':         defineAsyncComponent(() => import('../components/widgets/AnnouncementsWidget.vue')),
   'wiki-recent':           defineAsyncComponent(() => import('../components/widgets/WikiRecentWidget.vue')),
   'mini-calendar':         defineAsyncComponent(() => import('../components/widgets/MiniCalendarWidget.vue')),

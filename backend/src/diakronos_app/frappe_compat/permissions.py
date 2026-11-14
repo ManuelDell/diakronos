@@ -1,8 +1,14 @@
 """Permissions der Compat-Schicht — **fail closed**.
 
 Portierung von `diakronos.diakonos.api.session` (check_permission,
-get_mitglied_permissions, _paths_overlap) und `api/_permissions.py`
+get_mitglied_permissions) und `api/_permissions.py`
 (is_admin, ist_verantwortlich_fuer, has_bereichs_zugriff, darf_entwurf_sehen).
+
+R-11 (Plan diakronos-rechte, Manuel 11.11.): Diese Funktionen sind nur noch
+ADAPTER auf den EINEN Rechte-Kern (``diakronos_app.rechte``). Der
+``ancestor_path`` ist keine Rechtequelle mehr, ``is_admin`` ist der
+Administrator des Kerns, die Mitgliederverwaltung steht in
+``ist_mitgliederverwaltung`` bzw. ``ADMIN_ROLES`` (Personenbereich).
 
 Die Spezifikation mit Fundstelle fuer jede Zeile steht in den Docstrings
 unten und in der Testmatrix (`backend/tests/test_permissions.py`). Wer eine
@@ -39,7 +45,8 @@ from .exceptions import DoesNotExistError, PermissionError, throw
 from .query import get_all, get_value
 from .session import session
 
-# Rollen, die im Altcode Vollzugriff auf Mitgliederdaten haben.
+# Rollen mit Vollzugriff auf MITGLIEDERDATEN (Personenbereich: Admin und
+# Fachverwaltung Mitglieder). Kein allgemeiner Admin-Begriff — siehe is_admin.
 # Quelle: referenz/diakronos-frappe/diakronos/diakonos/api/_permissions.py:21
 #         referenz/diakronos-frappe/diakronos/diakonos/api/session.py:7
 ADMIN_ROLES = ("System Manager", "Mitgliederadministrator")
@@ -48,9 +55,6 @@ ADMIN_ROLES = ("System Manager", "Mitgliederadministrator")
 # api/session.py:155 ("kein separater Admin-Mode mehr noetig").
 GUEST = "Guest"
 
-# DocTypes mit ancestor_path-basierter Sichtbarkeit
-# Quelle: api/session.py:167
-_PATH_DOCTYPES = ("Gruppe", "Untergruppe", "Dienstbereich")
 
 
 def mitglied_ausgeschlossen(user: str | None = None) -> bool:
@@ -247,26 +251,25 @@ def is_guest(user: str | None = None) -> bool:
 
 
 def is_admin(user: str | None = None) -> bool:
-    """True wenn der Benutzer Vollzugriff hat.
+    """Vollzugriff — der Administrator des EINEN Rechtesystems (R-11a).
 
-    Quelle: `_permissions.is_admin()` (api/_permissions.py:24-29).
-    Enthaelt die `"Administrator"`-Sonderbehandlung des Originals **1:1**.
-
-    ACHTUNG — nicht verwechseln: `check_permission()` und
-    `mitglied_permissions()` benutzen im Original **nur** die Rollenpruefung
-    (api/session.py:153, 99) und NICHT diese Funktion.
+    Manuel 11.11.: „Der Admin ist ja der einzige der alles darf“; die
+    Fachverwaltungen sind eine eigene Ebene. Deshalb fragt diese Funktion den
+    Rechte-Kern (``Administrator``, root, ``System Manager``) und zaehlt den
+    ``Mitgliederadministrator`` NICHT mehr mit. Wo die Mitgliederverwaltung
+    fachlich zustaendig ist (Personen, Konten, Registrierung, Datenschutz),
+    steht :func:`ist_mitgliederverwaltung`.
     """
-    name = user if user is not None else session.user
-    if name == "Administrator":
-        return True
-    # ON-6: root ist Admin, ohne dass diese Liste um eine Rolle erweitert wird
-    # (die Rollenliste ADMIN_ROLES bleibt die fachliche Liste der Verwaltung).
-    # ON-6b: ueber `get_roles` statt ueber `_ist_root` — ein AUSGESCHLOSSENER
-    # root hat keine Rollen und ist damit auch kein Admin mehr.
-    rollen = get_roles(name)
-    if ROOT_ROLLE in rollen:
-        return True
-    return any(r in rollen for r in ADMIN_ROLES)
+    from diakronos_app.rechte import ist_admin
+
+    return ist_admin(user if user is not None else session.user)
+
+
+def ist_mitgliederverwaltung(user: str | None = None) -> bool:
+    """Fachverwaltung Personen: Admin oder Systemrolle Mitgliederverwaltung (R-11a)."""
+    from diakronos_app.rechte import hat_systemrolle
+
+    return hat_systemrolle(user if user is not None else session.user, "mitgliederverwaltung")
 
 
 def _has_admin_role(user: str | None = None) -> bool:
@@ -289,40 +292,6 @@ def require_admin() -> None:
         throw("Zugriff verweigert.", PermissionError)
     if not _has_admin_role(user):
         throw("Nur für Mitgliederadministratoren.", PermissionError)
-
-
-# ── Pfad-Ueberlappung ───────────────────────────────────────────────────────
-
-
-def _extract_segments(path: str | None) -> tuple[set[str], set[str]]:
-    """Zerlegt einen ancestor_path in (Gruppen, Bereiche).
-
-    Format: `/Gruppe1/Gruppe2/|/BereichA/`
-    Quelle: `_paths_overlap._extract_segments` (api/session.py:235-240).
-    """
-    if not path:
-        return set(), set()
-    parts = path.split("|")
-    gruppen = {g for g in parts[0].split("/") if g}
-    bereiche = {b for b in parts[1].split("/") if b} if len(parts) > 1 else set()
-    return gruppen, bereiche
-
-
-def _paths_overlap(user_path: str | None, target_path: str | None) -> bool:
-    """Prueft, ob zwei ancestor_paths ueberlappen.
-
-    Quelle: api/session.py:227-246 — **exakt uebernommen**.
-
-    Gruppen und Bereiche sind getrennte Mengen: eine Gruppe ueberlappt nie mit
-    einem Bereich. Leerer Pfad -> False (fail closed).
-    """
-    if not user_path or not target_path:
-        return False
-
-    user_gruppen, user_bereiche = _extract_segments(user_path)
-    target_gruppen, target_bereiche = _extract_segments(target_path)
-
-    return bool(user_gruppen & target_gruppen or user_bereiche & target_bereiche)
 
 
 # ── Mitglied-Datensatz des aktuellen Users ──────────────────────────────────
@@ -413,24 +382,31 @@ def mitglied_permissions(mitglied_id: str, target: dict[str, Any] | None = None)
     if not current_mitglied:
         return {**_DENIED_MITGLIED, "reason": "no_access"}
 
-    # User hat ancestor_path: Gruppen-/Bereichs-basierte Pruefung.
-    # Quelle: session.py:124-141.
-    user_path = current_mitglied.get("ancestor_path") or "|"
-    target_path = target.get("ancestor_path") or "|"
+    # Eigenes Profil: lesen und bearbeiten. Quelle: session.py:131-133.
+    if target.get("name") == current_mitglied.get("name") or (
+        target.get("email") and target.get("email") == current_mitglied.get("email")
+    ):
+        return {
+            "can_view": True,
+            "can_edit": target.get("name") == current_mitglied.get("name"),
+            "can_delete": False,
+            "can_view_sensitive": False,
+            "reason": "eigenes",
+        }
 
-    can_view = _paths_overlap(user_path, target_path)
+    # R-11b (Manuel 11.11.): Vor- und Nachnamen ALLER Mitglieder sieht jedes
+    # Gemeindemitglied; alles Weitere nur nach Freigabe der Person — die
+    # Maskierung (`mitglied_sichtbarkeit.maskiere_datensatz`) liegt bei den
+    # Auslieferungswegen. Die fruehere ancestor_path-Ueberlappung entfaellt.
+    from diakronos_app import rechte
 
-    # Fallback: eigenes Profil immer erlaubt (auch wenn Pfade leer sind).
-    # Quelle: session.py:131-133.
-    if not can_view and target.get("email") == current_mitglied.get("email"):
-        can_view = True
-
+    can_view = rechte.ist_gemeindemitglied(user)
     return {
         "can_view": can_view,
-        "can_edit": can_view and target.get("name") == current_mitglied.get("name"),
+        "can_edit": False,
         "can_delete": False,
         "can_view_sensitive": False,
-        "reason": "ancestor_path" if can_view else "no_overlap",
+        "reason": "gemeinde" if can_view else "no_access",
     }
 
 
@@ -471,94 +447,60 @@ def check_permission(
     """
     user = session.user
 
-    # Admin-Kurzschluss (nur Rollen, ohne "Administrator"-Sonderfall).
-    # Quelle: session.py:152-159.
-    if _has_admin_role(user):
-        return {"allowed": True, "reason": "admin_role"}
-
     if doctype == "Mitglied":
+        # Personenbereich: Admin und Fachverwaltung Mitglieder sehen alles.
+        if _has_admin_role(user):
+            return {"allowed": True, "reason": "admin_role"}
         perms = mitglied_permissions(docname)
         key = "can_edit" if permission_type in ("write", "create", "delete") else "can_view"
         return {"allowed": bool(perms.get(key, False)), "reason": perms.get("reason")}
 
-    if doctype in _PATH_DOCTYPES:
-        current_mitglied = _get_current_user_mitglied()
-        if not current_mitglied:
-            return {"allowed": False, "reason": "no_mitglied"}
+    # R-11b: Gruppen und Untergruppen fragen den EINEN Rechte-Kern (lesen =
+    # Mitglied/Leitung/Admin; aendern = HV/MV bzw. GL/Admin). Dienstbereiche
+    # entfallen (Manuel 11.11.) — sie pflegt und liest nur der Administrator.
+    from diakronos_app import rechte
 
-        user_path = current_mitglied.get("ancestor_path") or "|"
-        target = get_value(doctype, docname, "ancestor_path")
-        target_path = target or "|"
-
-        # Die `permission_type == "read"`-Einschraenkung IST die Fachlogik:
-        # ohne sie koennte ein Mitglied seine eigene Gruppe schreiben.
-        # Quelle: session.py:176.
-        allowed = _paths_overlap(user_path, target_path) and permission_type == "read"
-        return {"allowed": allowed, "reason": "ancestor_path" if allowed else "no_overlap"}
-
+    if rechte.ist_admin(user):
+        return {"allowed": True, "reason": "admin"}
+    if doctype in ("Gruppe", "Untergruppe"):
+        aktion = rechte.LESEN if permission_type == "read" else rechte.VERWALTEN
+        entscheidung = rechte.darf(user, aktion, doctype.lower(), docname or None)
+        return {"allowed": bool(entscheidung), "reason": entscheidung.grund}
+    if doctype == "Dienstbereich":
+        return {"allowed": False, "reason": "nur_admin"}
     return {"allowed": False, "reason": "unsupported_doctype"}
 
 
 # ── Verantwortlichkeit ──────────────────────────────────────────────────────
 
 
-def _is_verantwortlicher_in(child_doctype: str, parent: str | None) -> bool:
-    """Eine Zeile in einer *Verantwortlicher-Child-Tabelle fuer diesen User?"""
-    if not parent:
-        return False
-    return bool(
-        get_all(
-            child_doctype,
-            filters={"user": session.user, "parent": parent},
-            fields=["name"],
-            limit_page_length=1,
-        )
-    )
-
-
 def ist_verantwortlich_fuer(dienstbereich: str | None, gruppe: str | None) -> bool:
-    """Verantwortlichkeit anhand von Bereich und Gruppe pruefen.
+    """Leitung (HV/MV) der Gruppe — ueber den EINEN Rechte-Kern (R-11c).
 
-    Quelle: `_permissions.ist_verantwortlich_fuer()` (api/_permissions.py:32-56).
-
-    Verantwortlichkeit haengt an `Dienstbereich Verantwortlicher` bzw.
-    `Gruppe Verantwortlicher` (Feld `user`) — NICHT am ancestor_path, der
-    Mitgliedschaft abbildet. Wer einen Bereich verantwortet, ist dort oft
-    selbst in keiner Gruppe und haette sonst gar keine Sicht.
-
-    Leere Argumente (None/"") werden uebersprungen, NICHT als Fehler gewertet.
+    Dienstbereiche haben keine eigenen Verantwortlichen mehr (Manuel 11.11.:
+    „Dienstbereich braucht man dann nicht“); ``dienstbereich`` bleibt nur
+    fuer die Signatur. Leere Argumente -> ``False``.
     """
-    if _is_verantwortlicher_in("Dienstbereich Verantwortlicher", dienstbereich):
-        return True
-    if _is_verantwortlicher_in("Gruppe Verantwortlicher", gruppe):
-        return True
-    return False
+    if not gruppe:
+        return False
+    from diakronos_app import rechte
+
+    return rechte.gruppenrolle(session.user, gruppe) in ("HV", "MV")
 
 
 def has_bereichs_zugriff(dienstbereich: str | None, gruppe: str | None = None) -> bool:
-    """Lese-Zugriff auf einen Dienstbereich — Mitgliedschaft ODER Leitung.
+    """Lesezugriff auf Inhalte einer Gruppe des Bereichs (R-11c).
 
-    Quelle: `_permissions.has_bereichs_zugriff()` (api/_permissions.py:59-74).
-
-    Ein User darf den Bereich sehen, wenn er (a) Admin ist, (b) eine Gruppe
-    im Bereich verantwortet (Verantwortliche sind oft in keiner eigenen
-    Gruppe) oder (c) per ancestor_path Mitglied einer Gruppe des Bereichs ist.
-
-    ABWEICHUNG (fail closed): ohne
-    `dienstbereich`-Argument greift im Original ein generischer
-    `frappe.has_permission("Dienstbereich", "read")`-Fallback. Diese Funktion
-    existiert in der Compat-Schicht nicht und ist im Altcode nicht weiter
-    belegt -> hier `False`.
+    Admin immer; sonst nur ueber die Gruppe (Mitglied, GL, HV/MV) — ein
+    Bereich allein verleiht kein Recht mehr (fail closed).
     """
     if is_admin():
         return True
-    if not dienstbereich:
-        # UNGEKLAERT -> verweigert (Spec §2.4). Nicht "vereinfachen".
+    if not gruppe:
         return False
-    if ist_verantwortlich_fuer(dienstbereich, gruppe):
-        return True
-    perm = check_permission("Dienstbereich", dienstbereich, "read")
-    return bool(perm.get("allowed"))
+    from diakronos_app import rechte
+
+    return rechte.gruppenrolle(session.user, gruppe) is not None
 
 
 def darf_entwurf_sehen(
@@ -566,37 +508,14 @@ def darf_entwurf_sehen(
     dienstbereich: str | None,
     gruppe: str | None,
 ) -> bool:
-    """Schranke fuer Entwuerfe (ist_entwurf=1) — EINE Wahrheit fuer alle APIs.
-
-    Quelle: `_permissions.darf_entwurf_sehen()` (api/_permissions.py:77-106).
-
-    Ein Plan im Entwurf ist sichtbar NUR fuer:
-      - den Ersteller (`owner`, der Frappe-User-Login des Plans), und
-      - Verantwortliche des Dienstbereichs bzw. der Gruppe (`gruppe`), und
-      - `"Administrator"` selbst.
-
-    Hinweis: das Original deklariert `admin = is_admin()` (P:95), wertet die
-    Variable aber nie aus — toter Code. Wirksam sind genau die drei obigen
-    Bedingungen. Das wird hier nicht "repariert": eine Auswertung von
-    `is_admin()` waere eine Erweiterung der Sicht und damit genau die zu
-    lockere Regel, vor der diese Karte warnt.
-    """
+    """Schranke fuer Entwuerfe (ist_entwurf=1): Ersteller, Admin und die
+    Leitung (HV/MV) der Gruppe — ueber den EINEN Rechte-Kern (R-11c)."""
     current = session.user
-
-    # Ersteller (owner ist der User-Login, nicht eine Mitglied-Referenz)
     if owner and owner == current:
         return True
-
-    # Administrator wird bereits von is_admin() erfasst; owner == "Administrator"
-    # ebenso — hier rein zur Eindeutigkeit der Logik.
-    if current == "Administrator":
+    if is_admin(current):
         return True
-
-    # Verantwortliche des Dienstbereichs bzw. der Gruppe
-    if ist_verantwortlich_fuer(dienstbereich, gruppe):
-        return True
-
-    return False
+    return ist_verantwortlich_fuer(dienstbereich, gruppe)
 
 
 __all__ = [
@@ -609,6 +528,7 @@ __all__ = [
     "has_bereichs_zugriff",
     "is_admin",
     "is_guest",
+    "ist_mitgliederverwaltung",
     "ist_root",
     "ist_verantwortlich_fuer",
     "mitglied_permissions",

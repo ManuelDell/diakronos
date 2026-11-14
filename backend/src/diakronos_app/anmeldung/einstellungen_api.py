@@ -108,7 +108,7 @@ def _require_admin() -> str:
     user = session.user
     if not user or user == "Guest":
         raise PermissionError("Anmeldung verweigert.")
-    if not permissions.is_admin(user):
+    if not permissions.ist_mitgliederverwaltung(user):  # R-11a: Verwaltung; Admin-Rollen schuetzt _require_system_manager
         raise PermissionError("Nur Administratoren duerfen die Anmeldung einstellen.")
     return user
 
@@ -185,28 +185,44 @@ def anmeldung_get_rollen() -> dict[str, Any]:
 def _pruefe_admin_gruppen(sess, schalter, zuordnungen, modus=None):
     """Gruppen duerfen kein Umweg um die Konten-/Rollenrechte sein.
 
-    R-N8 (Punkt 3): der Modus „unbekannte Nutzer anlegen“ legen Konten mit den
-    Rollen aus den Gruppen an — das ist ein Zugangsweg wie „Admin ueber
-    Gruppen“ und deshalb ebenfalls nur fuer System Manager. Ebenso darf ein
-    Mitgliederadministrator einen bereits gespeicherten „anlegen“-Modus nicht
-    stillschweigend umstellen.
+    System Manager braucht es, sobald sich ein ADMIN-RELEVANTER Teil aendert:
+    der Schalter „Verwaltungsrollen ueber Gruppen“, die Zuordnungen auf
+    Verwaltungsrollen (ADMIN_ROLES) oder der Modus „unbekannte Nutzer
+    anlegen“ (R-N8: ein Zugangsweg wie „Admin ueber Gruppen“) — hinein wie
+    heraus, damit ihn niemand heimlich oeffnet oder abschaltet.
+
+    ``None`` heisst: dieser Teil wird mit dem Aufruf nicht geaendert.
+    R-12i (UI-R10b): Vorher reichte schon ein GESPEICHERTER Admin-Teil, um
+    der Mitgliederverwaltung jedes Speichern zu verwehren — auch reine
+    Mitglied-/Kalender-Zuordnungen, die sie pflegen darf.
     """
     from diakronos_app.api.zugang import _require_system_manager
     from diakronos_app.models.auth_oidc import UNBEKANNT_ANLEGEN
 
-    if schalter or any(z.get("rolle") in _admin_rollen() for z in zuordnungen):
-        _require_system_manager()
-    if modus == UNBEKANNT_ANLEGEN:
-        _require_system_manager()
-    bestand = sess.query(GruppenRolleZuordnung).filter(
-        GruppenRolleZuordnung.parent == ANMELDEEINSTELLUNGEN_NAME).all()
+    admin = set(_admin_rollen())
     zeile = sess.get(Anmeldeeinstellungen, ANMELDEEINSTELLUNGEN_NAME)
-    if (zeile and zeile.admin_ueber_gruppen) or any(z.rolle in _admin_rollen() for z in bestand):
+    schalter_alt = bool(zeile and zeile.admin_ueber_gruppen)
+    modus_alt = zeile.unbekannte_nutzer if zeile is not None else None
+
+    def _admin_paare(zeilen) -> set[tuple[str, str]]:
+        return {(str(z.get("gruppe") or "").strip(), str(z.get("rolle") or "").strip())
+                for z in zeilen if str(z.get("rolle") or "").strip() in admin}
+
+    if schalter is not None and bool(schalter) != schalter_alt:
         _require_system_manager()
-    # R-N8 (Punkt 3): ist der „anlegen“-Modus gespeichert, darf ihn nur ein
-    # System Manager aendern (sonst koennte ein Mitgliederadministrator den
-    # Zugangsweg heimlich abschalten oder weiter oeffnen).
-    if zeile is not None and zeile.unbekannte_nutzer == UNBEKANNT_ANLEGEN:
+    if zuordnungen is not None:
+        bestand = sess.query(GruppenRolleZuordnung).filter(
+            GruppenRolleZuordnung.parent == ANMELDEEINSTELLUNGEN_NAME).all()
+        alt = [{"gruppe": z.gruppe, "rolle": z.rolle} for z in bestand]
+        if _admin_paare(zuordnungen) != _admin_paare(alt):
+            _require_system_manager()
+        # Im Modus „anlegen“ entscheiden die Zuordnungen, wer automatisch ein
+        # Konto bekommt (Zugangsweg, R-N8) — dort bleibt JEDE Aenderung beim SM.
+        if UNBEKANNT_ANLEGEN in (modus if modus is not None else modus_alt, modus_alt):
+            paare = lambda zz: {(str(z.get("gruppe") or "").strip(), str(z.get("rolle") or "").strip()) for z in zz}  # noqa: E731
+            if paare(zuordnungen) != paare(alt):
+                _require_system_manager()
+    if modus is not None and modus != modus_alt and UNBEKANNT_ANLEGEN in (modus, modus_alt):
         _require_system_manager()
 
 
@@ -284,7 +300,7 @@ def anmeldung_setze_unbekannte_nutzer(modus: str, admin_ueber_gruppen: bool = Fa
 
     sess = SessionLocal()
     try:
-        _pruefe_admin_gruppen(sess, bool(admin_schalter), [], wert)
+        _pruefe_admin_gruppen(sess, bool(admin_schalter), None, wert)
         zeile = _hole_oder_erzeuge(sess)
         zeile.unbekannte_nutzer = wert
         zeile.admin_ueber_gruppen = bool(admin_schalter)
@@ -327,7 +343,7 @@ def anmeldung_setze_rollen_zuordnung(zuordnungen: Any = None) -> dict:
 
     sess = SessionLocal()
     try:
-        _pruefe_admin_gruppen(sess, False, [z for z in zuordnungen if isinstance(z, dict)])
+        _pruefe_admin_gruppen(sess, None, [z for z in zuordnungen if isinstance(z, dict)])
         _hole_oder_erzeuge(sess)
         sess.query(GruppenRolleZuordnung).filter(
             GruppenRolleZuordnung.parent == ANMELDEEINSTELLUNGEN_NAME

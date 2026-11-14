@@ -162,10 +162,30 @@ _MAX_TITEL_LAENGE = 140
 # Review-Befund zu B1/B2) hat sie dorthin gezogen, weil verstreute Einzelpruefungen
 # genau die Luecken erzeugt haben, die das Review gefunden hat.
 def _ist_moderator(calendar_name) -> bool:
-    """Moderiert der aktuelle Nutzer diesen Kalender? (Delegation, s. moderation)."""
+    """Prueft der aktuelle Nutzer in diesem Kalender mindestens eine Stufe?
+
+    R-5: fuer die SICHT (Vorschlaege sehen). Ob eigene Aenderungen sofort
+    wirken, sagt `_schreibt_direkt`.
+    """
     from diakronos_app.api.kronos.moderation import ist_moderator
 
     return ist_moderator(calendar_name)
+
+
+def _schreibt_direkt(calendar_name, *, aenderung: bool = False) -> bool:
+    """R-5: Wirken eigene neue Termine (bzw. Aenderungen) hier ohne Moderation?"""
+    from diakronos_app.api.kronos.moderation import schreibt_direkt
+
+    return schreibt_direkt(calendar_name, aenderung=aenderung)
+
+
+def _neue_stufen(calendar_name, gesetzt: str) -> str:
+    """Offene Moderationsstufen eines NEUEN Termins (leer, wenn er sofort gilt)."""
+    if gesetzt != "Vorschlag":
+        return ""
+    from diakronos_app import rechte
+
+    return ",".join(rechte.moderationsstufen(session.user, "kalender", str(calendar_name)))
 
 
 def _normalisiere_datum(wert) -> str | None:
@@ -395,6 +415,15 @@ def _apply_mitarbeiter(name: str, mitarbeiter) -> None:
 # ── Endpunkte ───────────────────────────────────────────────────────────────
 
 
+def _stufen_antwort(status, moderation_offen) -> dict:
+    """UI-R5: offene Moderationsstufen eines neu angelegten Termins/Serie —
+    die Oberflaeche meldet damit ehrlich, worauf ein Vorschlag wartet."""
+    from diakronos_app.api.kronos.moderation import offene_stufen
+
+    offen = offene_stufen(moderation_offen) if status == "Vorschlag" else []
+    return {"offen": offen, "naechste_stufe": offen[0] if offen else None}
+
+
 @whitelist(methods=["POST"], allow_guest=False)
 def create_event(
     element_name,
@@ -422,7 +451,7 @@ def create_event(
         start_dt = parse_iso_datetime_raw(element_start)
         end_dt = parse_iso_datetime_raw(element_end) if element_end else start_dt
 
-        gesetzt = _erzwungener_status(status, _ist_moderator(element_calendar))
+        gesetzt = _erzwungener_status(status, _schreibt_direkt(element_calendar))
 
         name = _create("Element", {
             "element_name": element_name,
@@ -431,6 +460,7 @@ def create_event(
             "element_end": end_dt,
             "all_day": int(all_day) if all_day else 0,
             "status": gesetzt,
+            "moderation_offen": _neue_stufen(element_calendar, gesetzt),
             "description": description or "",
             "element_category": element_category or "",
             "ressource": ressource or "",
@@ -444,7 +474,8 @@ def create_event(
         # ist „Vorschlag“ und damit im Lesemodus unsichtbar — die SPA muss das
         # ehrlich melden und auf die Terminmoderation verweisen koennen, statt
         # einen Erfolg ohne sichtbare Wirkung zu zeigen.
-        return {"success": True, "id": name, "status": gesetzt}
+        return {"success": True, "id": name, "status": gesetzt,
+                **_stufen_antwort(gesetzt, _neue_stufen(element_calendar, gesetzt))}
 
     except Exception as e:  # noqa: BLE001 — Original faengt alles und wirft weiter
         _rethrow(e, "create_event ERROR")
@@ -512,9 +543,11 @@ def update_event(
         if ressource is not None:
             values["ressource"] = ressource or ""
 
-        ist_mod = _ist_moderator(current_calendar)
-        # P1-5c (7): Kalenderwechsel nur mit Moderationsrecht am Zielkalender
-        # (wie die Freigabe) — sonst wartet er als Vorschlag.
+        # R-5: „sofort“ = der Rechte-Kern sieht fuer den Aufrufer in diesem
+        # Kalender keine Moderationsstufe vor.
+        ist_mod = _schreibt_direkt(current_calendar, aenderung=True)
+        # P1-5c (7): Kalenderwechsel nur, wenn auch der Zielkalender sofort
+        # wirkt — sonst wartet er als Vorschlag.
         from diakronos_app.api.kronos import moderation
 
         if not moderation.kalenderwechsel_wirkt_sofort(
@@ -529,9 +562,12 @@ def update_event(
 
         # Statuswechsel ist Moderationssache (P0-3 Befund 1): ohne
         # Moderationsrecht wird er verworfen — auch "Vorschlag", das waere die
-        # Rueckstufung (Befund B1).
-        if status is not None and ist_mod:
-            values["status"] = status
+        # Rueckstufung (Befund B1). R-5: die Freigabe laeuft stufenweise ueber
+        # den Rechte-Kern (`moderation.entscheide_status`).
+        entscheidung = moderation.entscheide_status(doc, status, ist_mod)
+        entscheidung.in_werte(values)
+        if entscheidung.freigabe:
+            ist_mod = True
 
         from diakronos_app.api.kronos import moderation
 
@@ -674,7 +710,8 @@ def save_event(
         # ein Nur-Schreiber im Quellkalender einen festgelegten Termin durch
         # einen Kalenderwechsel sofort in einen Kalender verschieben, den er
         # moderiert — der Vorgang umging die Moderation des Quellkalenders.
-        ist_moderator = _ist_moderator(current_calendar)
+        # R-5: „sofort“ = keine Moderationsstufe fuer den Aufrufer (Rechte-Kern).
+        ist_moderator = _schreibt_direkt(current_calendar, aenderung=True)
         # P1-5c (7): Ein Kalenderwechsel ist eine Freigabehandlung und verlangt
         # deshalb — wie die Freigabe eines Vorschlags — das Moderationsrecht am
         # ZIELKALENDER. Fehlt es, wirkt der Wechsel nicht sofort, sondern wird
@@ -686,17 +723,15 @@ def save_event(
             current_calendar, element_calendar, ist_moderator
         ):
             ist_moderator = False
-        if status is None:
-            # Reines Bearbeiten ist keine Statusentscheidung: der bisherige
-            # Status bleibt — auch fuer Nicht-Moderatoren (der Termin bleibt
-            # "Festgelegt", die Aenderung wartet ggf. als Vorschlag).
-            status = bisheriger
-        elif status == "Festgelegt" and not ist_moderator:
-            # Ein ausdrueckliches "Festgelegt" darf nur ein Moderator setzen;
-            # ohne Moderationsrecht faellt der Termin auf seinen bisherigen
-            # Status zurueck (nicht auf "Vorschlag" — das waere die
-            # Rueckstufung, die den Termin aus dem Kalender entfernt).
-            status = bisheriger
+        # Reines Bearbeiten (kein Status) ist keine Statusentscheidung: der
+        # bisherige Status bleibt. Ein ausdrueckliches "Festgelegt" ist eine
+        # Freigabe — R-5: stufenweise nach dem Rechte-Kern; ohne Recht faellt
+        # der Termin auf seinen bisherigen Status zurueck (nicht auf
+        # "Vorschlag" — das waere die Rueckstufung).
+        entscheidung = moderation.entscheide_status(doc, status, ist_moderator)
+        status = entscheidung.status or bisheriger
+        if entscheidung.freigabe:
+            ist_moderator = True
 
         values: dict[str, object] = {
             "element_name": element_name,
@@ -709,6 +744,8 @@ def save_event(
             "element_category": element_category or "",
             "series_id": series_id or "",
         }
+        if entscheidung.offen is not None:
+            values["moderation_offen"] = entscheidung.offen
         if ressource is not None:
             values["ressource"] = ressource or ""
         if ignore_conflict is not None:
@@ -789,7 +826,8 @@ def create_series(
     try:
         _assert_write_access(element_calendar)
         element_name = _pruefe_titel(element_name)
-        gesetzt = _erzwungener_status(status, _ist_moderator(element_calendar))
+        gesetzt = _erzwungener_status(status, _schreibt_direkt(element_calendar))
+        offen = _neue_stufen(element_calendar, gesetzt)
 
         start_str = parse_iso_datetime_raw(element_start)
         end_str = parse_iso_datetime_raw(element_end) if element_end else start_str
@@ -837,6 +875,7 @@ def create_series(
                 "element_end": (current + duration).strftime(_DATETIME_FORMAT),
                 "all_day": int(all_day) if all_day else 0,
                 "status": gesetzt,
+                "moderation_offen": offen,
                 "description": description or "",
                 "element_category": element_category or "",
                 "ressource": ressource or "",
@@ -858,6 +897,9 @@ def create_series(
             "series_id": series_id,
             "created_count": created,
             "created_ids": created_ids,
+            # UI-R5: wie bei create_event — Status und offene Stufe der Serie.
+            "status": gesetzt,
+            **_stufen_antwort(gesetzt, offen),
         }
 
     except Exception as e:  # noqa: BLE001
@@ -877,16 +919,24 @@ def _lade_offene_aenderungen(calendar_names: list[str]) -> list[dict[str, object
     """
     if not calendar_names:
         return []
+    from diakronos_app import rechte
+    from diakronos_app.api.kronos import moderation as _moderation
+
     rows = get_all(
         "Element Aenderung",
         filters={"element_calendar": ["in", calendar_names]},
-        fields=["name", "element", "element_calendar", "antragsteller", "vorschlag"],
+        fields=["name", "element", "element_calendar", "antragsteller", "vorschlag",
+                "moderation_offen"],
         order_by="creation asc",
     ) or []
     ergebnis: list[dict[str, object]] = []
     for row in rows:
         element_name = row.get("element") if isinstance(row, dict) else None
         if not element_name:
+            continue
+        # R-5: nur Vorschlaege, deren NAECHSTE Stufe der Nutzer pruefen darf.
+        if not rechte.darf_stufe(session.user, "kalender", str(row.get("element_calendar") or ""),
+                                 _moderation.aenderung_naechste_stufe(row)):
             continue
         try:
             doc = get_doc("Element", str(element_name))
@@ -912,6 +962,8 @@ def _lade_offene_aenderungen(calendar_names: list[str]) -> list[dict[str, object
             "element_calendar": row.get("element_calendar"),
             "antragsteller": row.get("antragsteller"),
             "geaenderte_felder": geaendert,
+            # R-5: naechste offene Stufe (gruppe/gemeinde)
+            "stufe": _moderation.aenderung_naechste_stufe(row),
             "alt": {
                 "element_name": doc.get("element_name"),
                 "element_start": _wert_fuer_vergleich("element_start", doc.get("element_start")),
@@ -983,6 +1035,16 @@ def aenderung_freigeben(name, nur_pruefen=0):
                     "anderen Belegung."
                 )
             return antwort
+
+        # R-5: Sind nach dieser Stufe noch Stufen offen, wird nur die Stufe
+        # abgehakt — angewandt wird erst nach der letzten.
+        offen = moderation.offene_stufen(doc.get("moderation_offen"))
+        if len(offen) > 1:
+            _update_doc("Element Aenderung", name, {"moderation_offen": ",".join(offen[1:])})
+            return {
+                "success": True, "id": element_name, "wartet_weiter": True,
+                "meldung": f"Stufe freigegeben — die Änderung geht jetzt an {moderation.wartet_auf(offen[1])}.",
+            }
 
         moderation.vorschlag_anwenden(name, element_name, neu)
         _delete_doc("Element Aenderung", name)

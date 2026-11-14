@@ -34,6 +34,8 @@ compose/.fix6b/
 # WEB-8c (R6): versehentlich committete Zwischenablage (Hilfsdatei) — nie wieder.
 .uxa2b-tmp/
 frontend/.uxa2b-tmp/
+# UI-R4b: Zwischenablage des Verhaltenstests (uebersetzte SFC, nur lokal).
+frontend/.uir4b-tmp-*/
 
 # WEB-8c: eigener Wegwerf-Stack (Compose-Projekt web8c) — Env und Daten bleiben lokal.
 compose/.web8c.env

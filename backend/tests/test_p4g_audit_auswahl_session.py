@@ -528,7 +528,8 @@ def test_mitglied_permissions_selbst(client, welt):
 
 
 def test_mitglied_permissions_fremd_ohne_ueberlappung(client, welt):
-    """DSGVO: Bob und Alice liegen in verschiedenen Gruppen -> kein Zugriff."""
+    """R-9/R-11b (Manuel 11.11.): Bob sieht Alice (Name) auch aus einer anderen
+    Gruppe — weitere Daten nur nach Freigabe (Maskierung), bearbeiten nie."""
     from diakronos_app.frappe_compat.session import set_user
 
     set_user(E_BOB)
@@ -537,8 +538,9 @@ def test_mitglied_permissions_fremd_ohne_ueberlappung(client, welt):
         json={"mitglied_id": "M-ALICE"},
     )
     perms = resp.json()["message"]
-    assert perms["can_view"] is False
+    assert perms["can_view"] is True
     assert perms["can_edit"] is False
+    assert perms["can_view_sensitive"] is False
 
 
 def test_mitglied_permissions_admin_sieht_alles(client, welt):
@@ -598,6 +600,12 @@ def test_check_permission_normaler_user_fremd(client, welt):
     resp = client.post(
         "/api/method/diakronos.diakonos.api.session.check_permission",
         json={"doctype": "Mitglied", "docname": "M-ALICE", "permission_type": "read"},
+    )
+    # R-11b: lesen (Name) ja, schreiben nein.
+    assert resp.json()["message"]["allowed"] is True
+    resp = client.post(
+        "/api/method/diakronos.diakonos.api.session.check_permission",
+        json={"doctype": "Mitglied", "docname": "M-ALICE", "permission_type": "write"},
     )
     assert resp.json()["message"]["allowed"] is False
 

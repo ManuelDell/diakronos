@@ -50,15 +50,16 @@ def stammdaten(sf):
         s.flush()
         s.add_all([Mitglied(name=k, user=k, email=k, vorname=k, nachname="Test")
                    for k in ("a", "b", "c", "planer_chor", "musikchef", "mitglied")])
-        s.add(DienstbereichVerantwortlicher(name="bv-chor", parent="Chor",
-                                            parenttype="Dienstbereich",
-                                            parentfield="verantwortliche", user="planer_chor"))
-        s.add(Gruppe(name="Chor", gruppenname="Chor"))
+        s.add(Gruppe(name="Chor", gruppenname="Chor", dienstbereich="Chor"))
         s.flush()
         s.add_all([Gruppenmitgliedschaft(name="gm-" + k, parent="Chor", parenttype="Gruppe",
                                          parentfield="mitglieder", mitglied=k, status="Aktiv")
                    for k in ("a", "b", "c")])
         s.add_all([Lied(name=f"LIED-{i}", titel=f"Lied {i}", aktiv=True) for i in range(1, 5)])
+    # R-6: planer_chor (frueher Bereichsverantwortung) = HV der Chor-Gruppe.
+    from rechte_hilfe import planrahmen_rechte
+
+    planrahmen_rechte(sf, gruppe="Chor", hv="planer_chor")
 
 
 @pytest.fixture()
@@ -152,18 +153,17 @@ def test_lied_speichern_leerer_titel_und_rechte(client, patched_db, chor_def):
 
 
 def test_lied_speichern_musikverantwortlicher_ohne_bereich(client, patched_db, chor_def):
-    """Psalmos-Recht reicht: wer im Dienstbereich 'Musik und Worship' verantwortlich ist."""
-    from diakronos_app.models.diakonos import Dienstbereich, DienstbereichVerantwortlicher
+    """Psalmos-Recht reicht: R-7 — HV einer (anderen) Gruppe mit Modul „Lieder“
+    (vorher: Verantwortung im Dienstbereich 'Musik und Worship')."""
     from diakronos_app.models.core import User
     from diakronos_app.models.diakonos import Mitglied
     stammdaten(patched_db)
     with patched_db.begin() as s:
-        s.add(Dienstbereich(name="Musik und Worship"))
         s.add(User(name="musikchef2", email="musikchef2", enabled=True))
         s.add(Mitglied(name="musikchef2", user="musikchef2", email="musikchef2", vorname="M"))
-        s.add(DienstbereichVerantwortlicher(name="bv-musik", parent="Musik und Worship",
-                                            parenttype="Dienstbereich", parentfield="verantwortliche",
-                                            user="musikchef2"))
+    from rechte_hilfe import planrahmen_rechte
+
+    planrahmen_rechte(patched_db, gruppe="Lobpreis", hv="musikchef2", module=("lieder",))
     aufruf(client, "plantyp_speichern", definition=chor_def, gueltig_ab="2026-01-01")
     anmelden(client, "musikchef2")
     erg = aufruf(client, "lied_speichern", plantyp="chorplan", lied="LIED-2",

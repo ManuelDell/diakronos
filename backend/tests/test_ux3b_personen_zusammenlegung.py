@@ -35,6 +35,8 @@ SICHTBAR = "M-verantw-a"
 ADRESSBUCH_SCHLUESSEL = {
     "name", "vorname", "nachname", "foto",
     "email", "telefonnummer", "postleitzahl", "wohnort", "geburtstag",
+    # R-9: „Daten anfragen“ moeglich (Schalter der Person, keine Werte)
+    "daten_anfragbar",
 }
 
 

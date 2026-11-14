@@ -16,6 +16,7 @@
       :fehler="fehler"
       :filter="filter"
       :mail-eingerichtet="mailEingerichtet"
+      :darf-mail-einrichten="darfMailEinrichten"
       :embedded="embedded"
       @freigeben="freigabeOeffnen"
       @ablehnen="ablehnenOeffnen"
@@ -30,6 +31,7 @@
       :laeuft="sendet"
       :fehler="dialogFehler"
       :mail-eingerichtet="mailEingerichtet"
+      :darf-mail-einrichten="darfMailEinrichten"
       @freigeben="freigeben"
     />
 
@@ -40,6 +42,7 @@
       :laeuft="sendet"
       :fehler="dialogFehler"
       :mail-eingerichtet="mailEingerichtet"
+      :darf-mail-einrichten="darfMailEinrichten"
       @ablehnen="ablehnen"
     />
   </div>
@@ -83,6 +86,9 @@ const geladen = ref(false)
 const fehler = ref('')
 /** Mailversand „ja/nein“ — ohne Auskunft (Fehler) wird nichts gesperrt. */
 const mailEingerichtet = ref(true)
+// R10-Review (Punkt 4): nur wer den Mailversand ändern darf (System Manager),
+// bekommt den Weg dorthin — der Link führt am Admin-Wächter vorbei ins Leere.
+const darfMailEinrichten = ref(false)
 
 const ziel = ref(null)
 const freigabeOffen = ref(false)
@@ -110,7 +116,9 @@ async function standLaden() {
   // Eine fehlende Auskunft darf die Seite nicht kippen: dann bleibt alles
   // bedienbar, und der Server entscheidet (er verweigert ohne Mail ohnehin).
   const stand = await mailversandStand()
-  if (stand) mailEingerichtet.value = stand.eingerichtet
+  if (!stand) return
+  mailEingerichtet.value = stand.eingerichtet
+  darfMailEinrichten.value = stand.darf_aendern === true
 }
 
 function filterWechseln(wert) {

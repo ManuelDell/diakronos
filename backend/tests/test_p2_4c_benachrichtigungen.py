@@ -50,6 +50,10 @@ def test_vorschlag_freigabe_benachrichtigt_einmal(client, patched_db):
         s.add(User(name="schreiber", email="schreiber", enabled=True))
         s.add(HasRole(name="r-sch", parent="schreiber", parenttype="User",
                       parentfield="roles", role="Mitglied"))
+    # R-5: Rollen-Rechte am Kalender werden zu Einzelfreigaben (Uebernahme).
+    from rechte_hilfe import uebernehmen_mit
+
+    uebernehmen_mit(patched_db)
     anmelden(client, "schreiber")
     _speichere_termin(client, element_name="Gottesdienst", element_start="2026-12-06 14:00:00",
                       element_end="2026-12-06 15:00:00")

@@ -42,6 +42,8 @@
           <span class="dk-pruef-panel-datum">{{ e.datum }}</span>
           <span class="dk-pruef-panel-titel-zeile">{{ e.titel }}</span>
           <span v-if="e.herkunft" class="dk-pruef-panel-herkunft">{{ e.herkunft }}</span>
+          <!-- UI-R4: WELCHE Stufe dran ist — dieselbe Zeile wie auf der Karte. -->
+          <span v-if="e.wartet" class="dk-pruef-panel-wartet">{{ e.wartet }}</span>
           <span class="dk-pruef-panel-aktion">
             Prüfen
             <span class="dk-pruef-panel-pfeil" aria-hidden="true"><DkSymbol name="weiter" :groesse="14" /></span>
@@ -54,9 +56,11 @@
       {{ weitereText(eintraege.length - sichtbar) }} in „Zu prüfen“
     </p>
 
-    <!-- A4: der Fußtext erklärt den Bereich — einmal, ruhig, am Ende. -->
+    <!-- A4: der Fußtext erklärt den Bereich — einmal, ruhig, am Ende.
+         UI-R4: „bis ein Administrator sie freigibt“ stimmt bei Stufen nicht
+         (es prüft die zuständige Stufe, nicht immer der Administrator). -->
     <p class="dk-pruef-panel-fuss">
-      Termine aus Gruppen erscheinen hier, bis ein Administrator sie freigibt.
+      Termine aus Gruppen erscheinen hier, bis die zuständige Stufe sie freigegeben hat.
     </p>
   </aside>
 </template>
@@ -80,11 +84,17 @@ import { getBoardData } from '../../api/kanbanApi.js'
 import { navigate } from '../../router.js'
 import { weitereText } from './chipText.mjs'
 import { pruefZeile, PRUEF_ANZEIGE } from './pruefZeile.mjs'
-
-const emit = defineEmits(['bereit'])
+// UI-R4b (Punkt 7b): EIN gemeinsamer Lader je Seite.
+import { stufenTitelEinmalLaden } from './freigabeStufenReaktiv.mjs'
+import { apiCall } from '../../composables/useApi.js'
 
 const props = defineProps({
-  /** Zahl offener Prüfungen von der Seite (`null` = unbekannt). */
+  /**
+   * Zahl „Zu prüfen“ von der Seite (`null` = unbekannt). Sie kommt aus
+   * `getModerationCount` — der Server zählt dieselbe Menge, die dieses Panel
+   * zeigt (offene Stufe, die der Aufrufer prüfen darf). Das Panel führt
+   * deshalb KEINE eigene Zahl mehr (R-12).
+   */
   zahl: { type: Number, default: null },
   /** Wie viele Zeilen im Panel stehen (Rest als „+n weitere“). */
   sichtbar: { type: Number, default: PRUEF_ANZEIGE },
@@ -104,7 +114,14 @@ async function laden() {
   try {
     const daten = await getBoardData()
     const liste = Array.isArray(daten?.vorschlaege) ? daten.vorschlaege : []
-    rohdaten.value = liste.map(pruefZeile).filter(Boolean)
+    // UI-R4: Je Zeile die Warteline („wartet auf Freigabe für: …“). Gezeigt wird nur, was
+    // der Aufrufer auf der offenen Stufe prüfen darf (`darf_pruefen`) — die
+    // Zahl dazu liefert der Server (`getModerationCount`, R-12), nicht das
+    // Panel: zwei eigene Zählungen liefen sonst auseinander.
+    rohdaten.value = liste
+      .filter(e => e?.darf_pruefen === true)
+      .map(pruefZeile)
+      .filter(Boolean)
   } catch {
     // Ein Fehler bleibt still (I5: kein Lärm in einer Kennzahl) — der
     // Leerzustand sagt dann, dass nichts zu prüfen ist.
@@ -113,12 +130,9 @@ async function laden() {
 }
 
 onMounted(async () => {
-  await laden()
+  // Die Stufen-Titel kommen vom Server (`get_rollen_erklaerung`).
+  await Promise.all([laden(), stufenTitelEinmalLaden(apiCall)])
   loading.value = false
-  // Die Seite meldet über `neuLaden`, wenn ein Termin angelegt, geändert oder
-  // gelöscht wurde — sonst zeigte das Panel weiter den alten Stand (im
-  // Wegwerf-Stack gemessen: nach dem Freigeben blieb die Zeile stehen).
-  emit('bereit', { laden })
 })
 
 defineExpose({ rohdaten, laden })
@@ -203,6 +217,13 @@ defineExpose({ rohdaten, laden })
   color: var(--muted);
   /* Review 07.11. Punkt 8: „von … · vor …“ steht VOLLSTÄNDIG — umbrechen
      statt abschneiden (die Zeile ist die Begründung, warum etwas wartet). */
+  overflow-wrap: anywhere;
+}
+/* UI-R4: „wartet auf Freigabe für: …“ — gleiche Zeile wie auf der Karte. */
+.dk-pruef-panel-wartet {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-mittel);
+  color: var(--warn);
   overflow-wrap: anywhere;
 }
 .dk-pruef-panel-untertitel {

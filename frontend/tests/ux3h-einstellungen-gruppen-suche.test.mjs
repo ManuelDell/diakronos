@@ -373,7 +373,13 @@ function seiteMitLeeremInhalt() {
 }
 
 test('UX3h: die Seite zeigt Suchfeld, fünf Gruppen und filtert beim Tippen', async () => {
-  globalThis.window.__DIakonosBOOT = { roles: ['System Manager'], devmode: false }
+  // UI-R10: Die Abschnitte tragen ihre Verwaltungsstufe (`verwaltung`); der
+  // System Manager ist Administrator, also sind BEIDE Flags im Boot `true`
+  // (genau so liefert es der Server: `ist_mitgliederverwaltung` = admin || …).
+  globalThis.window.__DIakonosBOOT = {
+    roles: ['System Manager'], devmode: false,
+    is_admin: true, ist_mitgliederverwaltung: true,
+  }
   const pfad = seiteMitLeeremInhalt()
   globalThis.Vue = Vue
   const Seite = (await import(pathToFileURL(pfad).href)).default

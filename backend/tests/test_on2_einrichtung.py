@@ -117,11 +117,12 @@ def _nutzer(sess, name: str, rollen: tuple[str, ...] = ()) -> None:
 
 @pytest.fixture()
 def admin_umgebung(client, patched_db):
-    """Echter Admin (Rolle ``Mitgliederadministrator``) + ein Nur-Mitglied."""
+    """Echter Admin (``System Manager`` — R-11a: die Mitgliederverwaltung ist
+    kein Admin mehr) + ein Nur-Mitglied."""
     sess = _sitzung(patched_db)
     # Kalenderadministrator: der Kalender-Vorschlag laeuft ueber
     # ``create_kalender``, dessen Rechtepruefung diese Rolle verlangt.
-    _nutzer(sess, ADMIN, ("Mitgliederadministrator", "Kalenderadministrator"))
+    _nutzer(sess, ADMIN, ("System Manager", "Kalenderadministrator"))
     _nutzer(sess, NUR_MITGLIED)
     sess.commit()
 
@@ -916,11 +917,13 @@ def test_on5_kalender_vorschlag_durch_den_router_legt_beide_an(admin_umgebung):
 
 
 def test_on5_kalender_vorschlag_ohne_kalenderrolle_meldet_sich(admin_umgebung, patched_db):
-    """Der Befund selbst: Admin-Rolle ja, Kalenderrolle NEIN.
+    """Der Befund selbst: Verwaltungsrolle ja, Kalenderrolle NEIN.
 
     Vorher antwortete der Endpunkt 200 mit ``uebersprungen: [beide]`` und legte
     NICHTS an — die Oberflaeche konnte das nicht bemerken. Jetzt kommt ein
-    Rechtefehler (417 mit Klartext), und es bleibt nichts Halbes zurueck.
+    Rechtefehler, und es bleibt nichts Halbes zurueck. R-11a: die
+    Mitgliederverwaltung ist kein Admin — sie kommt gar nicht in die
+    Einrichtung (403 schon an der Tuer).
     """
     admin = "on5-admin@example.org"
     sess = _sitzung(patched_db)
@@ -939,7 +942,6 @@ def test_on5_kalender_vorschlag_ohne_kalenderrolle_meldet_sich(admin_umgebung, p
         set_user(ADMIN)
 
     assert r.status_code == 403, r.text
-    assert "Kalenderadministrator" in r.text, r.text
 
     from diakronos_app.db import SessionLocal
     from diakronos_app.models.kronos import Kalender

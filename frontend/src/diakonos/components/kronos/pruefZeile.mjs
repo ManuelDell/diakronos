@@ -8,6 +8,7 @@
  */
 
 import { serverZeit, wandZeit } from '../../../shared/zeit.mjs'
+import { wartetAufText } from './freigabeStufen.mjs'
 
 /** Wie viele Zeilen das Panel zeigt; der Rest steht als „+n weitere“ darunter. */
 export const PRUEF_ANZEIGE = 4
@@ -82,7 +83,11 @@ export function kurzDatum(wert) {
  * Fehlt die Herkunft (alte Vorschläge ohne Antragsteller), steht nur die
  * Zeit — nie ein leerer Punkt.
  *
- * @returns {{ id: string, titel: string, datum: string, herkunft: string }|null}
+ * UI-R4: `wartet` nennt die Stufe, die dran ist („wartet auf Freigabe für: …“), sofern
+ * der Server eine nennt (`stufe`). Ohne Stufe bleibt die Zeile weg.
+ *
+ * @returns {{ id: string, titel: string, datum: string, herkunft: string,
+ *            wartet: string|null }|null}
  */
 export function pruefZeile(eintrag, jetzt = new Date()) {
   if (!eintrag || typeof eintrag !== 'object') return null
@@ -99,5 +104,5 @@ export function pruefZeile(eintrag, jetzt = new Date()) {
   const vor = vorText(eintrag.creation || eintrag.erstellt_am || eintrag.created_at
     || eintrag.modified || null, jetzt)
   const herkunft = [herkunftText(wer), vor].filter(Boolean).join(' · ')
-  return { id, titel, datum: kurzDatum(start), herkunft }
+  return { id, titel, datum: kurzDatum(start), herkunft, wartet: wartetAufText(eintrag) }
 }

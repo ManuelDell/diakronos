@@ -4,6 +4,15 @@ from sqlalchemy import select
 
 from diakronos_app.models.core import HasRole, User
 from diakronos_app.models.kronos import Element, ElementAenderung, ElementRessource
+def _leserecht_entziehen(s, benutzer):
+    """R-5: Leserecht liegt im EINEN Rechtesystem — Einzelfreigaben der Person
+    entziehen und den Kalender nicht mehr fuer die ganze Gemeinde freigeben."""
+    from diakronos_app.models.rechte import RechteFreigabe, RechteObjekt
+
+    s.query(RechteFreigabe).filter_by(benutzer=benutzer).delete()
+    s.query(RechteObjekt).filter_by(typ="kalender", objekt="K-GD").update({"gemeinde_status": "aus"})
+
+
 from test_p2_4b_benachrichtigungen import (
     _moderator_welt, _notifications, _speichere_termin, anmelden,
 )
@@ -38,6 +47,10 @@ def test_zusatzressource_wartend_erst_freigabe(client, patched_db):
         s.add(User(name="schreiber", email="schreiber", enabled=True))
         s.add(HasRole(name="r-sch", parent="schreiber", parenttype="User",
                       parentfield="roles", role="Mitglied"))
+    # R-5: Rollen-Rechte am Kalender werden zu Einzelfreigaben (Uebernahme).
+    from rechte_hilfe import uebernehmen_mit
+
+    uebernehmen_mit(patched_db)
     anmelden(client, "schreiber")
     speichern(client, [{"freitext_ressource": "Neuer Ort"}])
     with patched_db() as s:
@@ -63,6 +76,7 @@ def test_absage_beim_loeschen(client, patched_db, monkeypatch, fall, anzahl):
             # Schreibrecht beinhaltet Lesen; nur den Leserollen-Eintrag zu
             # entfernen reicht in dieser Welt (Mitglied darf schreiben) nicht.
             s.delete(s.get(HasRole, "r-tal"))
+            _leserecht_entziehen(s, "talente")
     anmelden(client, "moderator")
     if fall == "fehler":
         # UX2b: Loeschen legt in den Papierkorb — der Fehlerfall wird an der
@@ -125,6 +139,7 @@ def test_zusatzressource_ohne_leserecht_still(client, patched_db):
     _moderator_welt(patched_db)
     with patched_db.begin() as s:
         s.delete(s.get(HasRole, "r-tal"))
+        _leserecht_entziehen(s, "talente")
     anmelden(client, "moderator")
     speichern(client, [{"freitext_ressource": "Geheimer Ort"}])
     assert _notifications(patched_db, "talente") == []

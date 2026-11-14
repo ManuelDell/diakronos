@@ -252,6 +252,10 @@ def gruppenwelt(patched_db, seed_mitglieder):
                                docstatus=0, idx=1),
     ])
     sess.commit()
+    # R-4: Verantwortliche -> HV/MV im EINEN Rechtesystem (wie Migration r1).
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(sess)
     return sess
 
 
@@ -345,7 +349,9 @@ def test_e_liste_schneidet_nicht_bei_50_ab(client, patched_db):
         for i in range(1, 74)
     ])
     sess.commit()
+    from rechte_hilfe import uebernehmen
 
+    uebernehmen(sess)  # R-4: Verantwortliche -> HV/MV
     set_user("leiter50@example.org")
     liste = gruppen_aufruf(client, "get_gruppe_mitglieder_auswahl", gruppe_id="GRP-50")
     assert len(liste) == 73, f"Nicht alle Mitglieder geliefert: {len(liste)}"
@@ -377,7 +383,9 @@ def test_e_suche_filtert_serverseitig_und_umlautunabhaengig(client, patched_db):
                  email="andrea@example.org", status="Mitglied", docstatus=0, idx=2),
     ])
     sess.commit()
+    from rechte_hilfe import uebernehmen
 
+    uebernehmen(sess)  # R-4: Verantwortliche -> HV/MV
     set_user("ls@example.org")
     for begriff in ("zacharias", "ZACHARIAS", "mueller", "MÜLLER", "müller"):
         treffer = gruppen_aufruf(client, "get_gruppe_mitglieder_auswahl",

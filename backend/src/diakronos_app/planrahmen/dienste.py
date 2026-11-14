@@ -18,7 +18,7 @@ from uuid import uuid4
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from diakronos_app.models.diakonos import Dienstbereich, DienstbereichVerantwortlicher, Mitglied
+from diakronos_app.models.diakonos import Dienstbereich, Mitglied
 from diakronos_app.models.psalmos import Lied, Liedfassung, LiedMaterial
 from diakronos_app.models.planrahmen import (
     Abwesenheit, Eintrag, Merkmal, MerkmalWert, Plan, Plantyp, PlantypVersion,
@@ -32,7 +32,7 @@ from .engine.struktur import aufloesen_mit_eintraegen
 from .engine.termine import TerminLimitUeberschritten, erzeuge_termine
 from .engine.trockenlauf import trockenlauf as engine_trockenlauf
 from .pruefung import pruefe_plantyp
-from .rechte import Rechte, _plantyp_gruppen
+from .rechte import Rechte, _plantyp_gruppen, gruppen_fuer_definition, plantyp_gruppen
 from .regeln.auswertung import pruefe_plan
 
 # PLAN-W1: Felder einer Eintragszeile, die Pruef-Meldungen tragen. Nur wer den
@@ -307,12 +307,15 @@ class Dienste:
                    "Wähle eine andere Kennung oder öffne die bestehende Vorlage unter "
                    "„Einrichten“, um dort eine neue Version anzulegen.")
         bereich = definition.get("bereich")
+        # R-6: Vorlagen gehoeren Gruppen (HV/MV pflegen, Admin alle).
+        neue_gruppen = gruppen_fuer_definition(self.s, definition)
         if typ:
             self.rechte.plantyp(typ)
             if typ.bereich != bereich and not self.rechte.admin():
                 from diakronos_app.frappe_compat.exceptions import PermissionError
                 raise PermissionError("Bereichswechsel erfordert Administratorrechte.")
-        elif not self.rechte.bereich(bereich):
+            self.rechte.vorlagen_gruppen_pruefen(plantyp_gruppen(self.s, typ), neue_gruppen)
+        elif not self.rechte.darf_vorlage_anlegen(neue_gruppen):
             from diakronos_app.frappe_compat.exceptions import PermissionError
             raise PermissionError("Zugriff verweigert.")
         if bereich and self.s.get(Dienstbereich, bereich) is None:
@@ -403,10 +406,8 @@ class Dienste:
         eigene_bereiche: set[str] = set()
         eigene_plantypen: set[str] = set()
         if not admin:
-            eigene_bereiche = set(self.s.scalars(select(DienstbereichVerantwortlicher.parent).where(
-                DienstbereichVerantwortlicher.user == self.benutzer,
-                DienstbereichVerantwortlicher.parenttype == "Dienstbereich",
-                DienstbereichVerantwortlicher.parentfield == "verantwortliche").distinct()).all())
+            # R-6: Dienstbereiche entfallen — keine Bereichsverantwortung mehr.
+            eigene_bereiche = set()
             eigene_mitglied = self.rechte.eigenes_mitglied()
             if eigene_mitglied:
                 eigene_plantypen |= set(self.s.scalars(select(Plan.plantyp).where(
@@ -424,9 +425,9 @@ class Dienste:
         if not meine:
             return set()
         treffer: set[str] = set()
-        for typ_id in self.s.scalars(select(Plantyp.id)).all():
-            if _plantyp_gruppen(self.s, typ_id) & meine:
-                treffer.add(typ_id)
+        for typ in self.s.scalars(select(Plantyp)).all():
+            if plantyp_gruppen(self.s, typ) & meine:
+                treffer.add(typ.id)
         return treffer
 
     def _bereichsnamen(self) -> dict[str, str]:
@@ -454,7 +455,9 @@ class Dienste:
         Plantyp-Auskunft (403).
         """
         admin, eigene_bereiche, eigene_plantypen = self._verantwortungen()
-        if not admin and not eigene_bereiche and not eigene_plantypen:
+        # R-6: auch HV/MV einer Gruppe mit Modul „Dienstplaene“ ohne Vorlage.
+        if (not admin and not eigene_bereiche and not eigene_plantypen
+                and not self.rechte.eigene_gruppen_verantwortung()):
             from diakronos_app.frappe_compat.exceptions import PermissionError
             raise PermissionError("Zugriff verweigert.")
         if admin:
@@ -493,10 +496,14 @@ class Dienste:
         die UI ihre lesenden Bereiche zeigen kann.
         """
         admin, eigene_bereiche, eigene_plantypen = self._verantwortungen()
-        if not admin and not eigene_bereiche and not eigene_plantypen:
+        # R-6: auch HV/MV einer Gruppe mit Modul „Dienstplaene“ ohne Vorlage.
+        if (not admin and not eigene_bereiche and not eigene_plantypen
+                and not self.rechte.eigene_gruppen_verantwortung()):
             from diakronos_app.frappe_compat.exceptions import PermissionError
             raise PermissionError("Zugriff verweigert.")
-        darf_vorlage_anlegen = admin or bool(eigene_bereiche)
+        # R-6: Vorlagen legen Admin sowie HV/MV fuer ihre Gruppen an.
+        eigene_gruppen = self.rechte.eigene_gruppen_verantwortung()
+        darf_vorlage_anlegen = admin or bool(eigene_gruppen)
         # UXP-R9: Bereiche mit Anzeigename statt interner Kennung — der Editor
         # bietet sie als Auswahlliste an (kein Freitext, keine Jargon-Meldung).
         # UXP-R13: neue Bereiche tragen die ID als name, den Text in ministry.
@@ -505,7 +512,12 @@ class Dienste:
             kennungen = [b for b in self.s.scalars(
                 select(Dienstbereich.name).order_by(Dienstbereich.name)).all()]
         else:
-            kennungen = sorted(eigene_bereiche)
+            # R-6: Dienstbereiche entfallen — als Beschriftung bleiben die
+            # Bereiche der EIGENEN Gruppen waehlbar (Admin: alle).
+            from diakronos_app.models.diakonos import Gruppe as _Gruppe
+
+            kennungen = sorted({b for b in self.s.scalars(select(_Gruppe.dienstbereich).where(
+                _Gruppe.name.in_(eigene_gruppen))).all() if b})
         # `bereiche` bleibt die reine Kennungsliste (Bestand), `bereich_liste`
         # nennt Kennung UND Anzeigename für die Auswahlliste (UXP-R9/R13).
         bereiche = kennungen
@@ -514,7 +526,8 @@ class Dienste:
         from diakronos_app.models.diakonos import Gruppe
         gruppen = [{"kennung": g.name, "name": g.gruppenname or g.name}
                    for g in self.s.scalars(select(Gruppe).where(
-                       Gruppe.docstatus < 2).order_by(Gruppe.name)).all()]
+                       Gruppe.docstatus < 2).order_by(Gruppe.name)).all()
+                   if admin or g.name in eigene_gruppen]
         return {"darf_anlegen": darf_vorlage_anlegen,
                 "bereiche": bereiche,
                 "bereich_liste": bereich_liste,
@@ -533,7 +546,7 @@ class Dienste:
             return True
         if p is not None and self.rechte.darf_plan_bearbeiten(p, typ):
             return True
-        return self.rechte.gruppen_verantwortlich(_plantyp_gruppen(self.s, typ.id))
+        return self.rechte.gruppen_verantwortlich(plantyp_gruppen(self.s, typ))
 
     def stammdaten_holen(self, plantyp: str, plan: str | None = None) -> dict[str, Any]:
         """Stammdaten des Plantyps für den UI2-Editor — ohne PII (UI2).
@@ -909,7 +922,8 @@ class Dienste:
         if p is not None:
             if self.rechte.darf_plan_bearbeiten(p, typ):
                 return
-        elif self.rechte.bereich(typ.bereich):
+        elif self.rechte.darf_plantyp_bearbeiten(typ):
+            # R-6: HV/MV der Gruppe der Vorlage (frueher Bereichsverantwortung)
             return
         fehler("/lied", "Keine Berechtigung zur Liedpflege.",
                code="rechte.lied")
@@ -2567,7 +2581,8 @@ class Dienste:
                 from diakronos_app.frappe_compat.exceptions import PermissionError
                 raise PermissionError("Bereichswechsel erfordert Administratorrechte.")
         else:
-            if not self.rechte.bereich(bereich):
+            # R-6: neue Vorlage — Admin oder HV/MV fuer eigene Gruppen.
+            if not self.rechte.darf_vorlage_anlegen(gruppen_fuer_definition(self.s, definition)):
                 from diakronos_app.frappe_compat.exceptions import PermissionError
                 raise PermissionError("Zugriff verweigert.")
             if bereich and self.s.get(Dienstbereich, bereich) is None:
@@ -2617,7 +2632,7 @@ class Dienste:
         # nicht die gemeindeweiten Faehigkeiten).
         vorlage_recht = self.rechte.darf_plantyp_bearbeiten(typ)
         personen_recht = vorlage_recht or self.rechte.gruppen_verantwortlich(
-            _plantyp_gruppen(self.s, typ.id))
+            plantyp_gruppen(self.s, typ))
         if not personen_recht:
             from diakronos_app.frappe_compat.exceptions import PermissionError
             raise PermissionError("Zugriff verweigert.")

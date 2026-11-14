@@ -847,6 +847,10 @@ class GruppenAufgabe(Base):
     untergruppe: Mapped[str | None] = mapped_column(String(140), ForeignKey("untergruppe.name"), nullable=True)
     faellig: Mapped[Any | None] = mapped_column(Date, nullable=True)
     erstellt_von: Mapped[str | None] = mapped_column(String(140), ForeignKey("mitglied.name"), nullable=True)
+    # R-7b (Manuel 11.11.): HV/MV weisen Gruppenaufgaben zu; abhaken darf, wem
+    # sie zugewiesen ist. Ohne Gruppe ist es eine eigene (persoenliche) Aufgabe
+    # von ``owner``.
+    zugewiesen_an: Mapped[str | None] = mapped_column(String(140), ForeignKey("mitglied.name"), nullable=True, index=True)
 
 class Gruppenmitgliedschaft(Base):
     """Frappe Child-Tabelle (istable=1) — Sortierung immer ueber `idx`."""

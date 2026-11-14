@@ -62,9 +62,12 @@ def stammdaten(sf, *benutzer):
         s.add_all([Mitglied(name=k, user=k, email=k, vorname=k.capitalize(),
                             nachname="Test", status="Mitglied", docstatus=0, idx=0)
                    for k in benutzer])
-        s.add(DienstbereichVerantwortlicher(
-            name="bv-chor", parent="Chor", parenttype="Dienstbereich",
-            parentfield="verantwortliche", user="planer"))
+    # R-6: „planer“ = HV der Chor-Gruppe; die anderen schreiben im
+    # Gruppenkalender (sehen den ganzen Plan, Manuel 11.11.).
+    from rechte_hilfe import planrahmen_rechte
+
+    planrahmen_rechte(sf, bereich="Chor", hv="planer" if "planer" in benutzer else None,
+                      leser=tuple(k for k in benutzer if k != "planer"))
 
 
 @pytest.fixture()
@@ -186,12 +189,13 @@ def test_uxp_r9_bereich_als_auswahlliste(planer):
 
 def test_uxp_r13_bereichsname_statt_interner_kennung(planer, patched_db):
     """Neu angelegte Bereiche tragen die ID als name, den Text in ministry."""
-    from diakronos_app.models.diakonos import Dienstbereich, DienstbereichVerantwortlicher
+    from diakronos_app.models.diakonos import Dienstbereich
     with patched_db.begin() as s:
         s.add(Dienstbereich(name="b3f1a2c4-9", ministry="Technik", sortierung=1))
-        s.add(DienstbereichVerantwortlicher(
-            name="bv-technik", parent="b3f1a2c4-9", parenttype="Dienstbereich",
-            parentfield="verantwortliche", user="planer"))
+    # R-6: der Planer ist HV der (einzigen) Gruppe dieses Bereichs.
+    from rechte_hilfe import planrahmen_rechte
+
+    planrahmen_rechte(patched_db, bereich="b3f1a2c4-9", hv="planer")
     aufruf(planer, "plantyp_speichern",
            definition={**_progdefinition("prog-p114c"), "bereich": "b3f1a2c4-9"},
            gueltig_ab="2026-01-01")

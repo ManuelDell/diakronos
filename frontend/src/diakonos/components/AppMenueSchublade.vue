@@ -179,7 +179,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['schliessen', 'toggle-theme'])
 
-const { user, mitglied, isAdmin, istTester: istTesterRef, devmodeAn: devmodeAnRef, anzeigeName, rollen: rollenRef } = useSession()
+const { user, mitglied, isAdmin, istMitgliederverwaltung: istVerwaltungRef, istTester: istTesterRef, devmodeAn: devmodeAnRef, anzeigeName, rollen: rollenRef } = useSession()
 const { abmelden } = useAbmelden()
 
 const istTester = computed(() => Boolean(istTesterRef?.value && devmodeAnRef?.value))
@@ -187,13 +187,18 @@ const isGast = computed(() => !isAdmin.value && mitglied.value?.status === 'Gast
 
 const gruppen = computed(() => schubladeMenue({
   istAdmin: isAdmin.value,
+  // UI-R10: dieselbe zweite Verwaltungsstufe wie in der Seitenleiste.
+  istMitgliederverwaltung: istVerwaltungRef?.value === true,
   istTester: istTester.value,
   istGast: isGast.value,
   rollen: rollenRef?.value || [],
 }))
 
 // Fuß der Seitenleiste („Einstellungen“) — dieselbe Rollenregel wie dort.
-const fussEintraege = computed(() => sichtbarerFuss({ istAdmin: isAdmin.value }))
+const fussEintraege = computed(() => sichtbarerFuss({
+  istAdmin: isAdmin.value === true,
+  istMitgliederverwaltung: istVerwaltungRef?.value === true,
+}))
 
 const istAktiv = (e) => istEintragAktiv(e, { seite: props.seite, hash: props.hash })
 

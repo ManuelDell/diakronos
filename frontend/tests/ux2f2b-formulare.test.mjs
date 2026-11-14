@@ -381,6 +381,10 @@ test('UX2f2b: Person bearbeiten — Vorname tippen, Speichern schickt den Getipp
   const sitzungsZustand = Sitzung.__zustand || Sitzung.state
   assert.ok(sitzungsZustand, 'useSession gibt seinen Zustand nicht her')
   sitzungsZustand.value.user.isAdmin = true
+  // UI-R10: „Bearbeiten“ hängt am Personen-Recht (`istMitgliederverwaltung`),
+  // nicht mehr am Kern-Admin — beide Flags setzen (der Server liefert sie für
+  // den Administrator gemeinsam).
+  sitzungsZustand.value.user.istMitgliederverwaltung = true
   antwort = (methode) => {
     if (/get_mitglied_detail/i.test(methode)) {
       return {

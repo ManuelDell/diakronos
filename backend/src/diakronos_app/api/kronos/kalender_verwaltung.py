@@ -40,8 +40,6 @@ from typing import Any
 
 from diakronos_app.frappe_compat.api_helpers import (
     _child_delete,
-    _child_replace,
-    _child_rows,
     _create,
     _delete_doc,
     _update_doc,
@@ -222,6 +220,56 @@ def _zeilen_zu_namen(zeilen: list[dict[str, Any]], feld: str) -> list[str]:
     return namen
 
 
+# ── R-5: Kalender im EINEN Rechtesystem ───────────────────────────────────
+
+
+def _require_angemeldet() -> str:
+    user = session.user
+    if not user or user == "Guest":
+        throw("Anmeldung erforderlich.", FrappePermissionError)
+    return str(user)
+
+
+def _require_kalender_verwalten(name: str) -> str:
+    """R-5: Kalender aendern/loeschen darf, wer ihn im Kern ``verwalten`` darf
+    (HV/MV der Gruppe, GL der Untergruppe; Gemeinde-Kalender: Admin und
+    Kalender-Moderation)."""
+    from diakronos_app import rechte
+
+    user = _require_angemeldet()
+    if not rechte.darf(user, rechte.VERWALTEN, "kalender", name):
+        throw("Diesen Kalender darfst du nicht verwalten.", FrappePermissionError)
+    return user
+
+
+_GEMEINDE_ROLLEN = {"Mitglied", "All"}
+
+
+def _rechte_aus_alteingaben(name: str, user: str, lese: list[str] | None,
+                            mods: list[str] | None) -> None:
+    """Uebergang bis die Oberflaeche umgestellt ist (R-5c): die alten Felder
+    in das EINE Rechtesystem uebertragen — dieselbe Abbildung wie die
+    Migration r1_rechte_kern. Leserecht „Mitglied“/„All“ = fuer die Gemeinde
+    freigeben (mit Moderation, ausser Admin); Moderatoren = Einzelfreigabe
+    „moderieren“."""
+    from diakronos_app.rechte import verwaltung as rv
+
+    if lese is not None:
+        ziel = rv.freigaben_des_objekts(user, "kalender", name)["gemeinde_status"]
+        if _GEMEINDE_ROLLEN & set(lese):
+            if ziel == "aus":
+                rv.beantrage_sichtbarkeit(user, "kalender", name, "gemeinde")
+        elif ziel != "aus":
+            rv.nimm_sichtbarkeit_zurueck(user, "kalender", name, "gemeinde")
+    if mods is not None:
+        bisher = {f["benutzer"] for f in rv.freigaben_des_objekts(user, "kalender", name)["freigaben"]
+                  if f["benutzer"] and f["moderieren"]}
+        for person in sorted(set(mods) - bisher):
+            rv.setze_freigabe(user, "kalender", name, benutzer=person, lesen=True, moderieren=True)
+        for person in sorted(bisher - set(mods)):
+            rv.setze_freigabe(user, "kalender", name, benutzer=person)
+
+
 def _kalender_eintrag(doc) -> dict[str, Any]:
     """Ein Kalender in der Form, die die Verwaltungsseite braucht.
 
@@ -235,31 +283,47 @@ def _kalender_eintrag(doc) -> dict[str, Any]:
         "farbe": doc.get("calendar_color") or STANDARD_FARBE,
         "selbstverwaltet": bool(doc.get("selbstverwaltet")),
         "calender_details": doc.get("calender_details") or "",
-        "leserechte": _zeilen_zu_namen(
-            _child_rows(ROLLE_TABELLE, doc.name, LESERECHT_FELD, ["role"]), "role"
-        ),
-        "schreibrechte": _zeilen_zu_namen(
-            _child_rows(ROLLE_TABELLE, doc.name, SCHREIBRECHT_FELD, ["role"]), "role"
-        ),
-        "moderatoren": _zeilen_zu_namen(
-            _child_rows(MODERATOR_TABELLE, doc.name, MODERATOR_FELD, ["user"]), "user"
-        ),
+        **_alte_felder_aus_rechten(doc.name),
+        **_rechte_felder(doc.name),
     }
 
 
-def _setze_rechte(name: str, leserechte: list[str] | None,
-                  schreibrechte: list[str] | None,
-                  moderatoren: list[str] | None) -> None:
-    """Kind-Zeilen setzen. `None` = unveraendert, leere Liste = niemand."""
-    if leserechte is not None:
-        _child_replace(ROLLE_TABELLE, name, LESERECHT_FELD,
-                       [{"role": r} for r in leserechte])
-    if schreibrechte is not None:
-        _child_replace(ROLLE_TABELLE, name, SCHREIBRECHT_FELD,
-                       [{"role": r} for r in schreibrechte])
-    if moderatoren is not None:
-        _child_replace(MODERATOR_TABELLE, name, MODERATOR_FELD,
-                       [{"user": u} for u in moderatoren])
+def _alte_felder_aus_rechten(name: str) -> dict[str, list[str]]:
+    """R-11e: die Felder der alten Verwaltungsseite — abgeleitet aus dem EINEN
+    Rechtesystem statt aus den Alt-Tabellen (die nicht mehr geschrieben
+    werden). Entfaellt mit UI-R3: „Mitglied“ = fuer die Gemeinde freigegeben,
+    Moderatoren = Einzelfreigaben „moderieren“."""
+    from sqlalchemy import select
+
+    from diakronos_app.db import lesesitzung
+    from diakronos_app.models.rechte import RechteFreigabe, RechteObjekt
+
+    with lesesitzung() as sess:
+        status = sess.execute(select(RechteObjekt.gemeinde_status).where(
+            RechteObjekt.typ == "kalender", RechteObjekt.objekt == name)).scalar_one_or_none()
+        mods = sorted(sess.execute(select(RechteFreigabe.benutzer).where(
+            RechteFreigabe.typ == "kalender", RechteFreigabe.objekt == name,
+            RechteFreigabe.moderieren.is_(True), RechteFreigabe.benutzer.is_not(None))).scalars())
+    return {"leserechte": ["Mitglied"] if status and status != "aus" else [],
+            "schreibrechte": [], "moderatoren": mods}
+
+
+def _rechte_felder(name: str) -> dict[str, Any]:
+    """R-5: Zuordnung und Sichtbarkeit aus dem Rechtesystem."""
+    from sqlalchemy import select
+
+    from diakronos_app.db import lesesitzung
+    from diakronos_app.models.rechte import RechteObjekt
+
+    with lesesitzung() as sess:
+        e = sess.execute(select(RechteObjekt).where(
+            RechteObjekt.typ == "kalender", RechteObjekt.objekt == name)).scalar_one_or_none()
+        if e is None:
+            return {"gruppe": None, "untergruppe": None, "standard_gruppe_lesen": True,
+                    "gemeinde_status": "aus", "gruppe_status": "aus"}
+        return {"gruppe": e.gruppe, "untergruppe": e.untergruppe,
+                "standard_gruppe_lesen": bool(e.standard_gruppe_lesen),
+                "gemeinde_status": e.gemeinde_status, "gruppe_status": e.gruppe_status}
 
 
 @whitelist(allow_guest=False)
@@ -270,38 +334,74 @@ def get_kalender_verwaltung():
     verwalten darf, sieht alles zu Verwaltende — sonst koennte er einen
     Kalender anlegen, aber nicht mehr bearbeiten.
     """
-    _require_kalender_admin()
+    # R-5: jeder sieht die Kalender, die er im Rechte-Kern verwalten darf;
+    # anlegen in den Gruppen mit ``anlegen`` (HV/MV, GL) — Gemeinde-Kalender
+    # nur Admin/Kalender-Moderation.
+    from diakronos_app import rechte
+    from diakronos_app.api.kronos.permissions import _is_kalenderadministrator
 
+    user = _require_angemeldet()
     namen = get_all("Kalender", fields=["name"], order_by="name asc") or []
     kalender = []
     for eintrag in namen:
+        if not rechte.darf(user, rechte.VERWALTEN, "kalender", eintrag["name"]):
+            continue
         try:
             kalender.append(_kalender_eintrag(get_doc("Kalender", eintrag["name"])))
         except Exception:  # noqa: BLE001 — eine kaputte Zeile darf die Liste nicht kippen
             continue
 
+    gemeinde = _is_kalenderadministrator(user)
+    anlegen = [g["name"] for g in get_all("Gruppe", fields=["name"]) or []
+               if rechte.darf(user, rechte.ANLEGEN, "kalender", gruppe=g["name"])]
+    anlegen_ug = [u["name"] for u in get_all("Untergruppe", fields=["name"]) or []
+                  if rechte.darf(user, rechte.ANLEGEN, "kalender", untergruppe=u["name"])]
+    if not (kalender or gemeinde or anlegen or anlegen_ug):
+        throw("Nur Kalenderverantwortliche dürfen Kalender verwalten.", FrappePermissionError)
+
     return {
         "kalender": kalender,
         "rollen": list(_bekannte_rollen()),
         "farbe_standard": STANDARD_FARBE,
+        # R-5: wo der Aufrufer neue Kalender anlegen darf
+        "darf_gemeinde_kalender": gemeinde,
+        "anlegen_gruppen": anlegen,
+        "anlegen_untergruppen": anlegen_ug,
     }
 
 
 @whitelist(methods=["POST"], allow_guest=False)
 def create_kalender(titel, farbe="", selbstverwaltet=0, leserechte=None,
-                    schreibrechte=None, moderatoren=None):
+                    schreibrechte=None, moderatoren=None, gruppe=None,
+                    untergruppe=None, standard_gruppe_lesen=1):
     """Neuen Kalender anlegen.
 
     Der Name ist frei waehlbar (Frappe-Namenskonvention): Termine zeigen mit
     `element_calendar` als Klartext auf den Namen, ein sprechender Name ist
     also genau richtig. Doppelte Anzeigenamen werden abgelehnt — zwei Kalender
     mit demselben Namen waeren in jeder Auswahlliste nicht unterscheidbar.
+
+    R-5 (Manuel 11.11.): Mit ``gruppe``/``untergruppe`` legt die Leitung
+    (HV/MV bzw. GL, Modul Kalender aktiv) einen Gruppenkalender an;
+    ``standard_gruppe_lesen`` beantwortet die Frage „Duerfen alle
+    Gruppenmitglieder standardmaessig lesen?“. Ohne Gruppe entsteht ein
+    Gemeinde-Kalender (Admin/Kalender-Moderation).
     """
-    _require_kalender_admin()
+    from diakronos_app import rechte
+    from diakronos_app.api.kronos.permissions import _is_kalenderadministrator
+    from diakronos_app.rechte import verwaltung as rv
+
+    user = _require_angemeldet()
+    gruppe = str(gruppe or "").strip() or None
+    untergruppe = str(untergruppe or "").strip() or None
+    if gruppe or untergruppe:
+        rechte.pruefe(user, rechte.ANLEGEN, "kalender", gruppe=gruppe, untergruppe=untergruppe)
+    elif not _is_kalenderadministrator(user):
+        throw("Gemeinde-Kalender legen Admin und Kalender-Moderation an.", FrappePermissionError)
 
     name = _pruefe_titel(titel)
     gelesen = _pruefe_rollen(leserechte, "Leserechte")
-    geschrieben = _pruefe_rollen(schreibrechte, "Schreibrechte")
+    _pruefe_rollen(schreibrechte, "Schreibrechte")  # R-11e: nur noch geprueft (Alt-Feld, UI-R3)
     mods = _pruefe_moderatoren(moderatoren)
 
     from diakronos_app.frappe_compat import db
@@ -323,7 +423,12 @@ def create_kalender(titel, farbe="", selbstverwaltet=0, leserechte=None,
             "selbstverwaltet": 1 if selbstverwaltet else 0,
         },
     )
-    _setze_rechte(name, gelesen, geschrieben, mods)
+    # R-5: ohne Anmeldung im Rechtesystem saehe den Kalender niemand (fail closed).
+    rv.registriere_objekt(
+        "kalender", name, gruppe=gruppe, untergruppe=untergruppe,
+        standard_gruppe_lesen=str(standard_gruppe_lesen).strip().lower() not in ("0", "false", "nein", ""),
+    )
+    _rechte_aus_alteingaben(name, user, gelesen, mods)
     return {"success": True, "name": name}
 
 
@@ -340,7 +445,7 @@ def update_kalender(name, titel=None, farbe=None, selbstverwaltet=None,
     `name` bleibt: auf ihn zeigen die Termine (`element_calendar`), ein
     Umbenennen wuerde jeden Termin vom Kalender trennen.
     """
-    _require_kalender_admin()
+    user = _require_kalender_verwalten(str(name or "").strip())
 
     doc = get_doc("Kalender", str(name or "").strip())
     if doc is None:
@@ -367,13 +472,13 @@ def update_kalender(name, titel=None, farbe=None, selbstverwaltet=None,
     # zurueckgerollt, aber die Reihenfolge erzeugte unnoetige Schreibversuche
     # und liess Fehler in falscher Reihenfolge auflaufen.
     lese = _pruefe_rollen(leserechte, "Leserechte")
-    schreib = _pruefe_rollen(schreibrechte, "Schreibrechte")
+    _pruefe_rollen(schreibrechte, "Schreibrechte")  # R-11e: nur noch geprueft (Alt-Feld, UI-R3)
     mods = _pruefe_moderatoren(moderatoren)
 
     if werte:
         _update_doc("Kalender", doc.name, werte)
 
-    _setze_rechte(doc.name, lese, schreib, mods)
+    _rechte_aus_alteingaben(doc.name, user, lese, mods)
     return {"success": True, "name": doc.name}
 
 
@@ -396,7 +501,7 @@ def delete_kalender(name, bestaetigt=0):
     Die Antwort nennt die Zahl, damit die Oberflaeche sagen kann, was im Weg
     steht — statt eines technischen Fremdschluessel-Textes.
     """
-    _require_kalender_admin()
+    _require_kalender_verwalten(str(name or "").strip())
 
     doc = get_doc("Kalender", str(name or "").strip())
     if doc is None:
@@ -427,6 +532,9 @@ def delete_kalender(name, bestaetigt=0):
     _child_delete(ROLLE_TABELLE, doc.name, SCHREIBRECHT_FELD)
     _child_delete(MODERATOR_TABELLE, doc.name, MODERATOR_FELD)
     _delete_doc("Kalender", doc.name)
+    from diakronos_app.rechte import verwaltung as rv
+
+    rv.entferne_objekt("kalender", doc.name)
     return {"success": True, "name": doc.name}
 
 

@@ -192,7 +192,10 @@ import { monogramm } from '../composables/einrichtung.mjs'
 import { useAbmelden } from '../composables/useAbmelden.js'
 import { showToast } from '../composables/useToast.js'
 import { currentPageName, currentHash } from '../router.js'
-import { MENUE, ICON_PFADE, sichtbareEintraege, FUSS_EINTRAEGE } from '../menue.js'
+import { MENUE, ICON_PFADE, sichtbareEintraege } from '../menue.js'
+// UI-R10: EINE Regel für den Fußbereich („Einstellungen“) — dieselbe, die auch
+// die Handy-Schublade liest (Administrator ODER Mitgliederverwaltung).
+import { sichtbarerFuss } from './handyMenue.mjs'
 import { PRODUKTNAME } from './ui/begriffe.mjs'
 import DkButton from './ui/DkButton.vue'
 import { anfragenZaehler, anfragenZaehlerBeobachten } from '../composables/useVerwaltung.js'
@@ -203,7 +206,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['toggle-collapse', 'toggle-theme', 'close-mobile'])
 
-const { user, mitglied, isAdmin, istTester: istTesterRef, devmodeAn: devmodeAnRef, anzeigeName, rollen: rollenRef } = useSession()
+const { user, mitglied, isAdmin, istMitgliederverwaltung: istVerwaltungRef, istTester: istTesterRef, devmodeAn: devmodeAnRef, anzeigeName, rollen: rollenRef } = useSession()
 const { abmelden } = useAbmelden()
 
 /** W3: Bei einem Fehler bleibt der Nutzer hier und bekommt eine Meldung —
@@ -255,6 +258,9 @@ const sichtbaresMenue = computed(() =>
       gruppe: gruppe.gruppe,
       eintraege: sichtbareEintraege(gruppe, {
         istAdmin: isAdmin.value,
+        // UI-R10: zweite Verwaltungsstufe (Personenbereich) — dieselbe Quelle
+        // wie `isAdmin`, aus `useSession`.
+        istMitgliederverwaltung: istVerwaltungRef?.value === true,
         istTester: istTester.value,
         istGast: isGast.value,
         // WEB-3: Rollenliste der Sitzung für Einträge mit eigener Rollenliste.
@@ -264,10 +270,11 @@ const sichtbaresMenue = computed(() =>
     .filter(gruppe => gruppe.eintraege.length > 0),
 )
 
-/** Fußbereich: „Einstellungen“ (nur Administration). Dieselbe Rollenregel. */
-const sichtbareFussEintraege = computed(() =>
-  FUSS_EINTRAEGE.filter(e => e.rolle !== 'admin' || isAdmin.value === true),
-)
+/** Fußbereich: „Einstellungen“ (Verwaltung). Dieselbe Rollenregel wie das Menü. */
+const sichtbareFussEintraege = computed(() => sichtbarerFuss({
+  istAdmin: isAdmin.value === true,
+  istMitgliederverwaltung: istVerwaltungRef?.value === true,
+}))
 
 /** Profilmenü offen? (Entwurf A1: Profil, Entwicklermodus, Dev-Befunde) */
 const profilOffen = ref(false)

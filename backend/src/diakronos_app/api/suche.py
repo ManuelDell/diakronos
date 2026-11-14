@@ -22,7 +22,7 @@ RECHTE (die eine Regel: jede Quelle benutzt IHRE vorhandene Pruefung, keine
 zweite Fassung in dieser Datei)
 
   Personen  `get_adressbuch`-Sichtbarkeit (B2): Admins alles, sonst
-            ancestor_path-Overlap bzw. eigenes Profil; zusaetzlich `status`.
+            alle Namen fuer Gemeindemitglieder (R-9), sonst nur das eigene Profil.
             Ausgetretene Namen kommen gekuerzt („Mirko A.“) — je Zeile nach
             `PersonenSicht` (personen_anzeige, ID-1-Regel).
   Gruppen   `status = 'Aktiv'`; `sichtbarkeit = 'Versteckt'` NIE,
@@ -221,33 +221,20 @@ def _personen(begriff: str, limit: int, user: str) -> list[dict[str, str]]:
         ist_geloescht,
     )
 
-    is_admin = permissions.is_admin(user)
     params: dict[str, Any] = {}
     where = ["m.docstatus <> 2"]
-    if not is_admin:
-        aktuell = permissions._get_current_user_mitglied()
-        if not aktuell:
-            where.append("1=0")
-        elif aktuell.get("ancestor_path"):
-            segmente, _ = permissions._extract_segments(aktuell["ancestor_path"])
-            if segmente:
-                glieder = []
-                for i, seg in enumerate(sorted(segmente)):
-                    key = f"seg_{i}"
-                    params[key] = f"%/{seg}/%"
-                    glieder.append(
-                        f"CONCAT('/', COALESCE(m.ancestor_path, ''), '/') LIKE :{key}"
-                    )
-                where.append("(" + " OR ".join(glieder) + ")")
-            else:
-                where.append("1=0")
-        else:
-            where.append("1=0")
-        # Das eigene Profil ist immer sichtbar (wie im Adressbuch).
+    # R-9/R-11b (Manuel 11.11.): Vor- und Nachnamen ALLER Mitglieder sieht
+    # jedes Gemeindemitglied — dieselbe Regel wie `get_adressbuch`. Wer kein
+    # Gemeindemitglied ist (Gast, Konto ohne Mitglied-Datensatz), findet
+    # niemanden; das eigene Profil bleibt findbar.
+    from diakronos_app import rechte
+
+    if not (permissions.ist_mitgliederverwaltung(user) or rechte.ist_gemeindemitglied(user)):
+        where.append("1=0")
         eigene_id = _eigenes_mitglied(user)
         if eigene_id:
             params["own_mid"] = eigene_id
-            where[-1] = f"({where[-1]} OR m.name = :own_mid)"
+            where[-1] = "(1=0 OR m.name = :own_mid)"
 
     params["limit"] = limit
     sql = (
@@ -578,26 +565,12 @@ def suche_global(q: str = "", limit: int = STANDARD_LIMIT) -> dict[str, Any]:
 
 
 def _eigene_gruppen(user: str) -> set[str]:
-    """Gruppen, in denen der Aufrufer Mitglied/Verantwortlicher ist (sonst leer)."""
-    from diakronos_app.frappe_compat.query import get_all, get_value
+    """Gruppen, in denen der Aufrufer Mitglied oder HV/MV/GL ist (R-11d: der
+    EINE Rechte-Kern statt der Alt-Tabelle „Gruppe Verantwortlicher“)."""
+    from diakronos_app import rechte
 
     try:
-        namen: set[str] = set()
-        for zeile in get_all(
-            "Gruppe Verantwortlicher", filters={"user": user}, fields=["parent"]
-        ) or []:
-            if zeile.get("parent"):
-                namen.add(zeile["parent"])
-        mitglied_name = get_value("Mitglied", {"user": user}, "name")
-        if mitglied_name:
-            for zeile in get_all(
-                "Gruppenmitgliedschaft",
-                filters={"mitglied": mitglied_name, "status": "Aktiv"},
-                fields=["parent"],
-            ) or []:
-                if zeile.get("parent"):
-                    namen.add(zeile["parent"])
-        return namen
+        return rechte.eigene_gruppen(user)
     except Exception:  # noqa: BLE001 — fail closed: keine „Intern“-Gruppen
         logger.warning("suche: eigene Gruppen nicht ermittelbar", exc_info=True)
         return set()

@@ -26,9 +26,16 @@
         </template>
       </DkPageHeader>
 
-      <!-- Objekt-Aktionen (N6): dieselben Einträge wie in der Liste. -->
-      <div v-if="aktionen.length" class="bt-detail-aktionen">
-        <DkAktionen :eintraege="aktionen" :label="`Aktionen für ${beitrag.title || 'diesen Beitrag'}`" />
+      <!-- UI-R6d: Die R6-Knöpfe des früheren Detail-Fensters stehen jetzt
+           HIER auf der Leseseite. Sichtbar nur, wenn der Server für diesen
+           Beitrag `darf_bearbeiten` gemeldet hat (`darfBearbeiten`) — Regel in
+           `composables/r6Detail.js`, der Server entscheidet.
+           UI-R6e: Das alte „⋯"-Menü ist entfallen; Bearbeiten/Löschen stehen
+           NUR hier, an EINEM Recht (`darf_bearbeiten` des Details). -->
+      <div v-if="darfAendern" class="bt-detail-knoepfe">
+        <DkButton variant="secondary" size="md" @click="gastFreigeben()">Für Gäste freigeben</DkButton>
+        <DkButton variant="secondary" size="md" @click="bearbeiten()">Bearbeiten</DkButton>
+        <DkButton variant="danger" size="md" @click="loeschen()">Löschen</DkButton>
       </div>
 
       <article class="bt-lese">
@@ -81,6 +88,16 @@
         </section>
       </article>
     </template>
+
+    <!-- UI-R6d: Gast-Link für DIESEN Beitrag. Der Dialog öffnet nur über
+         „Für Gäste freigeben“, und der erscheint nur mit `darf_bearbeiten`. -->
+    <GastFreigabe
+      :model-value="gastOffen"
+      typ="beitrag"
+      :objekt="beitrag?.id || ''"
+      :titel="beitrag?.title || ''"
+      @update:model-value="gastOffen = $event"
+    />
   </div>
 </template>
 
@@ -97,15 +114,25 @@
  * (`Beitraege.vue`) bleibt unverändert in ihrer Aufgabe und verlinkt je Karte
  * auf diese Adresse. Rechte sind unverändert — es ist nur Darstellung:
  * Lesen darf jeder Angemeldete (`get_beitrag_detail`), der Server prüft
- * weiterhin. Das Aktionsmenü zeigt Löschen/Bearbeiten nur Administratoren
- * (gleiche Bedingung wie in der Liste).
+ * weiterhin.
+ *
+ * UI-R6d: „Für Gäste freigeben“, „Bearbeiten“ und „Löschen“ sind von den
+ * Detail-FENSTERN der Listen hierher gezogen. Sie hängen AUSSCHLIESSLICH an
+ * `darf_bearbeiten` aus der Serverantwort (`darfBearbeiten` in
+ * `composables/r6Detail.js`) — nicht an `isAdmin`.
+ *
+ * UI-R6e: `get_beitrag_detail` liefert `darf_bearbeiten` selbst (R-12l) — das
+ * Recht kommt DIREKT aus der Detail-Antwort, die Seite holt dafür keine Liste
+ * mehr (`detailMitListe` ist hier entfallen). Das alte „⋯“-Menü (`DkAktionen`,
+ * an `isAdmin`) ist gestrichen: Bearbeiten/Löschen hatten damit zwei Quellen
+ * (ein Admin ohne Recht sah sie, ein Admin mit Recht doppelt). Die Knöpfe sind
+ * jetzt die EINE Stelle.
  *
  * Farben/Abstände ausschließlich aus tokens.css; Icons stehen auf der
  * Textlinie (Flex `align-items: center`), keine eigenen Farbwerte.
  */
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import DOMPurify from 'dompurify'
-import { useSession } from '../composables/useSession.js'
 import { apiCall } from '../composables/useApi.js'
 import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 import { aktionsfehler, fehlertext, zustandFuer } from '../../shared/fehlertexte.js'
@@ -118,11 +145,13 @@ import { getRouteParam, navigate } from '../router.js'
 // ihren eigenen Verlaufs-Eintrag, das Merkmal der Liste galt dort nie) und
 // kein Push (der Zurück-Knopf des Browsers führte sonst im Kreis).
 import { rueckwegErsetzen, rueckwegZiel } from '../composables/zurueckWege.mjs'
+// UI-R6d/R6e: Das Recht kommt aus `darf_bearbeiten` der DETAIL-Antwort
+// (Server, R-12l) — EINE Regel für Beiträge und Wiki (`r6Detail.js`).
+import { darfBearbeiten } from '../composables/r6Detail.js'
+import GastFreigabe from '../components/r6/GastFreigabe.vue'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkButton from '../components/ui/DkButton.vue'
-import DkBadge from '../components/ui/DkBadge.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
-import DkAktionen from '../components/ui/DkAktionen.vue'
 
 function sanitize(html) { return DOMPurify.sanitize(html || '') }
 
@@ -135,8 +164,17 @@ const KATEGORIEN = {
 }
 function categoryName(id) { return KATEGORIEN[id] || id || '' }
 
-const { isAdmin } = useSession()
 const { mitRueckgaengig } = useRueckgaengigAktion()
+
+/** Darf der Server für diesen Beitrag ändern? (`darf_bearbeiten`, sonst nein.) */
+const darfAendern = computed(() => darfBearbeiten(beitrag.value))
+
+/* Gast-Link-Dialog (nur für Beiträge mit `darf_bearbeiten`). */
+const gastOffen = ref(false)
+function gastFreigeben() {
+  if (!darfAendern.value) return
+  gastOffen.value = true
+}
 
 /**
  * Die Kennung kommt aus der Adresse. `getRouteParam` liefert sie NUR, wenn die
@@ -206,13 +244,15 @@ async function ladenDaten() {
   laden.value = true
   fehler.value = ''
   try {
-    const detail = await apiCall('diakronos.diakonos.api.beitraege.get_beitrag_detail', { beitrag_id: id })
+    const detail = await apiCall('beitraege.get_beitrag_detail', { beitrag_id: id })
     if (!detail) {
       fehlerZustand.value = 'weg'
       fehler.value = fehlertext(null, { zustand: 'weg' })
       beitrag.value = null
       return
     }
+    // UI-R6e: `darf_bearbeiten` kommt aus dem DETAIL selbst (R-12l) — die
+    // Leseseite braucht dafür keine Liste mehr. Der Server entscheidet.
     beitrag.value = {
       ...detail,
       commentList: detail.commentList || [],
@@ -241,7 +281,7 @@ async function addComment() {
   if (!newComment.value.trim() || !beitrag.value) return
   addingComment.value = true
   try {
-    const res = await apiCall('diakronos.diakonos.api.beitraege.create_kommentar', {
+    const res = await apiCall('beitraege.create_kommentar', {
       beitrag_id: beitrag.value.id,
       text: newComment.value.trim(),
     })
@@ -257,7 +297,11 @@ async function addComment() {
   }
 }
 
-/* ── Objekt-Aktionen (N6) — dieselben Einträge wie in der Liste ─────────── */
+/* ── Änderungs-Knöpfe (UI-R6d/R6e) — EINE Stelle, EIN Recht ───────────────
+   `darfAendern` (`darf_bearbeiten`) steht direkt am Beitrag; `bearbeiten`
+   und `loeschen` werden NUR von den Knöpfen oben gerufen. Das frühere
+   „⋯“-Menü (`DkAktionen`, an `isAdmin`) ist gestrichen: ein Admin ohne Recht
+   sah die Einträge, ein Admin mit Recht sah sie doppelt. */
 async function bearbeiten() {
   navigate(`#/beitraege?bearbeiten=${encodeURIComponent(beitrag.value.id)}`)
 }
@@ -268,7 +312,7 @@ async function loeschen() {
   // VOR dem Sprung lesen, denn der Merker gehört der Liste.
   const rueckweg = zurueckZiel.value
   try {
-    const antwort = await apiCall('diakronos.diakonos.api.beitraege.delete_beitrag', { beitrag_id: ziel.id })
+    const antwort = await apiCall('beitraege.delete_beitrag', { beitrag_id: ziel.id })
     navigate(rueckweg)
     await mitRueckgaengig({
       beschreibung: papierkorbMeldung(ziel.title, antwort?.wiederherstellbar_bis),
@@ -279,13 +323,6 @@ async function loeschen() {
     showToast(aktionsfehler('löschen', err), 'error')
   }
 }
-const aktionen = computed(() => {
-  if (!isAdmin.value || !beitrag.value) return []
-  return [
-    { key: 'bearbeiten', label: 'Bearbeiten', icon: 'bearbeiten', aktion: bearbeiten },
-    { key: 'loeschen', label: 'Löschen', icon: 'loeschen', gefahr: true, aktion: loeschen },
-  ]
-})
 
 /* ── Anzeige ─────────────────────────────────────────────────────────────── */
 function formatDate(d) {
@@ -379,8 +416,10 @@ watch(beitragId, () => { if (beitragId.value) seiteAufbauen() })
 .bt-kommentar-form { display: flex; gap: var(--sp-2); margin-top: var(--sp-4); align-items: center; }
 .bt-kommentar-form input { flex: 1; min-width: 0; }
 
-/* Kopf-Aktionen: „‹ zurück“ — Pfeil auf der Textlinie, gleiche optische Mitte. */
-.bt-detail-aktionen { display: flex; align-items: center; justify-content: flex-end; margin-bottom: var(--sp-3); }
+/* UI-R6d: die drei Änderungs-Knöpfe (Freigeben/Bearbeiten/Löschen) — eigene
+   Zeile unter dem Kopf, rechtsbündig. Seit UI-R6e die EINZIGE Stelle für
+   Bearbeiten/Löschen (das „⋯“-Menü der Seite ist entfallen). */
+.bt-detail-knoepfe { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-4); }
 .bt-pfeil { display: inline-flex; align-items: center; line-height: 1; font-size: var(--fs-h4); margin-right: var(--sp-1); }
 
 /* Fehlerzustand */
@@ -391,15 +430,17 @@ watch(beitragId, () => { if (beitragId.value) seiteAufbauen() })
 /* Am Handy: Kopf-Aktionen unter dem Titel, Formular untereinander (K4: 44 px). */
 @media (max-width: 700px) {
   .bt-kommentar-form { flex-direction: column; align-items: stretch; }
-  .bt-detail-aktionen { justify-content: flex-start; }
+  .bt-detail-knoepfe { justify-content: flex-start; }
 }
 
 /* Druck: nur der Beitrag, ohne Gerüst — schwarz auf weiß, volle Breite. */
 @media print {
   /* MT-7c: „‹ zurück“ sitzt im `#actions`-Slot des Seitenkopfs und wurde
-     mitgedruckt (ausgeblendet war nur die Objekt-Aktionen-Leiste). */
+     mitgedruckt (ausgeblendet war nur die Aktions-Leiste der Seite). */
   .bt-zurueck { display: none; }
-  .bt-detail-aktionen { display: none; }
+  /* UI-R6d: Die Änderungs-Knöpfe sind Arbeit am Beitrag, nicht Inhalt —
+     im Druck haben sie nichts zu suchen (wie „‹ zurück“, MT-7c). */
+  .bt-detail-knoepfe { display: none; }
   .bt-lese { box-shadow: none; padding: 0; background: transparent; }
   .bt-lese-inhalt { max-width: none; }
   .bt-kommentar-form { display: none; }

@@ -58,6 +58,8 @@ def welt(patched_db):
                  parentfield="leserechte", role="All", docstatus=0, idx=1),
     ])
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     yield sess
     sess.close()
 

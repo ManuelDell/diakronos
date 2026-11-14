@@ -21,7 +21,9 @@
 import { computed } from 'vue'
 import { useSession } from '../../composables/useSession'
 
-const { isAdmin, istGast } = useSession()
+// UI-R10: Die Kacheln führen in Bereiche. „Personen“ ist Personenbereich —
+// dafür zählt die Mitgliederverwaltung mit (`istMitgliederverwaltung`).
+const { isAdmin, istMitgliederverwaltung, istGast } = useSession()
 
 /* SEC-9 (Stored-XSS, Defense-in-Depth): Die Symbole sind FEST einprogrammierte
    SVG-Konstanten. Die frühere Fassung legte den SVG-String ins
@@ -59,7 +61,7 @@ const links = computed(() => {
       { href: '#/profile', symbol: 'profil', title: 'Mein Profil', desc: 'Deine Angaben und Einstellungen.' },
     ]
   }
-  if (isAdmin.value) {
+  if (isAdmin.value || istMitgliederverwaltung.value === true) {
     return [
       { href: '#/personen', symbol: 'mitglieder', title: 'Personen', desc: 'Alle Personen suchen und verwalten.' },
       { href: '#/gruppen', symbol: 'gruppen', title: 'Gruppen & Dienste', desc: 'Mitarbeitende zu Bereichen zuordnen.' },

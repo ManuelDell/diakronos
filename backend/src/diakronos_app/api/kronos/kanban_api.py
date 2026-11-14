@@ -88,6 +88,8 @@ _EVENT_FIELDS = [
     # P1-5b (W-1): Ablehnungsgrund/-wer liegen in eigenen Feldern (Migration
     # p15b_ablehnungsgrund) — sie gehoeren NICHT in die Beschreibung.
     "ablehnungs_grund", "moderiert_von",
+    # R-5: offene Moderationsstufen (Pruefliste zeigt „wartet auf …“).
+    "moderation_offen",
 ]
 
 
@@ -117,7 +119,31 @@ def _fmt_event(e, cal_info):
         # (dieses Board ist Moderatoren vorbehalten) und den Antragsteller.
         "ablehnungs_grund": e.get("ablehnungs_grund") or "",
         "moderiert_von":    e.get("moderiert_von") or "",
+        # R-5: welche Stufe ist dran, und darf der Aufrufer sie pruefen?
+        **_stufen_info(e, cal),
     }
+
+
+def _stufen_info(e, cal: dict) -> dict:
+    """Naechste offene Stufe eines wartenden Termins (Rechte-Kern).
+
+    ``cal`` ist der Eintrag aus ``get_accessible_calendars`` (enthaelt
+    ``pruefstufen``); die letzte Stufe des Kalenders wird je Anfrage einmal
+    ermittelt und dort zwischengespeichert.
+    """
+    if (e.get("status") or "") not in ("Vorschlag", "Konflikt"):
+        return {"stufe": None, "darf_pruefen": False}
+    offen = [t for t in str(e.get("moderation_offen") or "").split(",") if t]
+    if offen:
+        stufe = offen[0]
+    else:
+        if "_letzte_stufe" not in cal:
+            from diakronos_app import rechte
+
+            cal["_letzte_stufe"] = rechte.erforderliche_stufen(
+                "kalender", str(e.get("element_calendar") or ""))[0]
+        stufe = cal["_letzte_stufe"]
+    return {"stufe": stufe, "darf_pruefen": stufe in (cal.get("pruefstufen") or [])}
 
 
 def _anzeigename(kennung: str | None) -> str:
@@ -229,12 +255,16 @@ def get_kanban_board_data():
                 "abgelehnt": []}
 
     # Calendar info cache
+    # R-5/UI-R4: `pruefstufen` aus `get_accessible_calendars` mitnehmen — ohne
+    # sie war `darf_pruefen` auf dem Brett immer false.
+    stufen_je_kalender = {c["name"]: c.get("pruefstufen") or [] for c in allowed}
     cal_info = {}
     for cn in mod_cals:
         row = get_value("Kalender", cn, ["calendar_name", "calendar_color"], as_dict=True) or {}
         cal_info[cn] = {
             "title": row["calendar_name"] or cn,  # type: ignore[index]
             "color": row["calendar_color"] or KALENDER_STANDARD_FARBE,  # type: ignore[index]
+            "pruefstufen": stufen_je_kalender.get(cn, []),
         }
 
     raw_v = get_all("Element",
@@ -337,6 +367,37 @@ def save_staging_state(staging_ids):
     return {"ok": True}
 
 
+def _status_nach_kern(doc, gewuenscht, werte: dict) -> "object":
+    """R-5: Status nur stufenweise nach dem EINEN Rechte-Kern setzen.
+
+    Freigabe = naechste offene Stufe (gruppe vor gemeinde); bleibt danach eine
+    Stufe offen, bleibt der Termin „Vorschlag“. Ein Moderator der falschen
+    Stufe bekommt 403 (``moderation.entscheide_status``).
+    """
+    from diakronos_app.api.kronos import moderation
+
+    entscheidung = moderation.entscheide_status(
+        doc, gewuenscht, moderation.schreibt_direkt(doc.get("element_calendar"), aenderung=True),
+    )
+    werte.pop("status", None)
+    entscheidung.in_werte(werte)
+    return entscheidung
+
+
+def _stufen_ergebnis(doc, werte: dict) -> dict:
+    """UI-R4: was nach dem Entscheid gilt — Status, offene Stufen, naechste Stufe.
+
+    Die Oberflaeche rechnet die naechste Stufe NICHT selbst (die Kette kann
+    z. B. untergruppe → gemeinde sein); sie liest sie hier.
+    """
+    from diakronos_app.api.kronos.moderation import offene_stufen
+
+    status = werte.get("status", doc.get("status"))
+    roh = werte["moderation_offen"] if "moderation_offen" in werte else doc.get("moderation_offen")
+    offen = offene_stufen(roh) if status == "Vorschlag" else []
+    return {"status": status, "offen": offen, "naechste_stufe": offen[0] if offen else None}
+
+
 @whitelist(methods=["POST"], allow_guest=False)
 def finalize_staged_events(event_ids):
     user = session.user
@@ -351,13 +412,23 @@ def finalize_staged_events(event_ids):
     # try/except uebersprungen). Jetzt gilt: ein Rechteverstoss verweigert den
     # ganzen Batch, verwaiste IDs fallen still heraus.
     erlaubte_ids = []
+    freigaben: dict[str, dict] = {}
+    ergebnisse: dict[str, dict] = {}
     for eid in ids_list:
         try:
-            _require_moderator(eid)
+            doc = _require_moderator(eid)
         except ValidationError:
             # Termin geloescht/unbekannt -> ueberspringen, nicht abbrechen.
             continue
+        # R-5: Stufe VOR dem Schreiben pruefen (falsche Stufe -> ganzer Batch 403).
+        werte: dict = {}
+        _status_nach_kern(doc, "Festgelegt", werte)
+        if not werte:
+            continue  # schon festgelegt
+        werte["moderiert_von"] = user
+        freigaben[eid] = werte
         erlaubte_ids.append(eid)
+        ergebnisse[eid] = _stufen_ergebnis(doc, werte)
 
     count = 0
     for eid in erlaubte_ids:
@@ -368,7 +439,8 @@ def finalize_staged_events(event_ids):
             # Selbstfreigabe eines Moderators an seinem EIGENEN Termin: die
             # Schranke ist das Moderationsrecht am Kalender (`_require_moderator`
             # oben), es gibt bewusst keinen Vergleich `owner == user`.
-            _update_doc("Element", eid, {"status": "Festgelegt", "moderiert_von": user})
+            # R-5: Status/offene Stufen kommen aus `_status_nach_kern` (oben).
+            _update_doc("Element", eid, freigaben[eid])
             count += 1
         except Exception as ex:  # noqa: BLE001 — Original loggt und macht weiter
             log_error(str(ex), f"finalize_event {eid}")
@@ -383,7 +455,11 @@ def finalize_staged_events(event_ids):
             })
     except Exception:  # noqa: BLE001 — Original schluckt hier alles
         pass
-    return {"finalized": count}
+    # UI-R4: je Termin, ob er festgelegt ist oder auf die naechste Stufe wartet
+    # (ehrliche Meldung „N freigegeben, M warten auf …“).
+    festgelegt = sum(1 for e in ergebnisse.values() if e["status"] == "Festgelegt")
+    return {"finalized": count, "festgelegt": festgelegt,
+            "weitergereicht": len(ergebnisse) - festgelegt, "ergebnisse": ergebnisse}
 
 
 @whitelist(allow_guest=False)
@@ -501,8 +577,13 @@ def resolve_conflict(element_id, action, title=None, element_start=None,
         # Teil des Nutzertextes und fuer jeden Leser sichtbar. Er liegt jetzt in
         # den eigenen Feldern (Migration p15b_ablehnungsgrund); beide werden nur
         # fuer Moderatoren und den Antragsteller ausgeliefert.
+        ablehnung: dict = {}
+        # R-5: ablehnen darf, wer die aktuelle Stufe prueft.
+        _status_nach_kern(doc, "Abgelehnt", ablehnung)
+        if ablehnung.get("status") != "Abgelehnt":
+            throw("Dafür fehlt dir die Berechtigung.", FrappePermissionError)
         _update_doc("Element", element_id, {
-            "status": "Abgelehnt",
+            **ablehnung,
             "ablehnungs_grund": grund_text,
             "moderiert_von": user,
         })
@@ -550,12 +631,20 @@ def resolve_conflict(element_id, action, title=None, element_start=None,
         if _wahr(ueberschneidung):
             werte["ignore_conflict"] = 1
 
+    # R-5: der Status folgt den Moderationsstufen des Rechte-Kerns.
+    if "status" in werte:
+        entscheidung = _status_nach_kern(doc, werte["status"], werte)
+        if not getattr(entscheidung, "freigabe", False):
+            werte.pop("moderiert_von", None)
+
     # Original: doc.save(ignore_permissions=True) — Felder UND Status zusammen.
     if werte:
         _update_doc("Element", element_id, werte)
 
     new_status = werte.get("status", doc.status)
-    return {"id": element_id, "new_status": new_status, "action": action}
+    ergebnis = _stufen_ergebnis(doc, werte)
+    return {"id": element_id, "new_status": new_status, "action": action,
+            "offen": ergebnis["offen"], "naechste_stufe": ergebnis["naechste_stufe"]}
 
 
 def _benachrichtige_owner(doc, element_id, grund):

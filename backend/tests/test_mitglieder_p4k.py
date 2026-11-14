@@ -119,8 +119,10 @@ def test_adressbuch_maskiert_nicht_freigegebene_felder(client, seed_mitglieder, 
     assert not e.get("adresse"), f"adresse muss maskiert sein: {e}"
 
 
-def test_adressbuch_nicht_admin_sieht_fremde_nicht(client, seed_mitglieder, rollen, monkeypatch):
-    """Sichtbarkeitsregel: Nicht-Admin sieht nicht die ganze Gemeinde."""
+def test_adressbuch_nicht_admin_sieht_namen_aber_keine_daten(client, seed_mitglieder, rollen, monkeypatch):
+    """R-9 (Manuel 11.11.): jedes Gemeindemitglied sieht Vor- und Nachnamen
+    ALLER Mitglieder (vorher: nur ueberlappende Gruppen) — die Kontaktdaten
+    aber nur nach Freigabe der Person; sonst „Daten anfragen“."""
     from diakronos_app.api import mitglieder
 
     rollen["roles"] = ["Mitglied"]
@@ -129,9 +131,12 @@ def test_adressbuch_nicht_admin_sieht_fremde_nicht(client, seed_mitglieder, roll
 
     r = client.get("/api/method/mitglieder.get_adressbuch")
     assert r.status_code == 200, r.text
-    namen = {e.get("name") for e in r.json()["message"]["data"]}
-    assert "M-0001" not in namen, f"Anna darf fuer Clara nicht sichtbar sein: {namen}"
-    assert "M-0002" not in namen, f"Bruno darf fuer Clara nicht sichtbar sein: {namen}"
+    zeilen = {e.get("name"): e for e in r.json()["message"]["data"]}
+    assert {"M-0001", "M-0002"} <= set(zeilen), zeilen.keys()
+    for kennung in ("M-0001", "M-0002"):
+        assert zeilen[kennung]["email"] is None, "Daten nur nach Freigabe"
+        assert zeilen[kennung]["telefonnummer"] is None
+        assert zeilen[kennung]["daten_anfragbar"] is True
 
 
 # ── create_mitglied ─────────────────────────────────────────────────────────

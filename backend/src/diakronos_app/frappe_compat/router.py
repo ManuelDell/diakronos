@@ -850,15 +850,18 @@ _RESOURCE_AKTIONEN = frozenset({"list", "read", "write", "delete"})
 
 
 def _ist_resource_admin() -> bool:
-	"""Admin-Kurzschluss (dieselben Rollen wie `permissions.ADMIN_ROLES`)."""
-	from diakronos_app.frappe_compat.permissions import ADMIN_ROLES, get_roles
+	"""Admin-Kurzschluss der generischen REST-Schnittstelle.
+
+	R-11a: NUR der Administrator des EINEN Rechtesystems. Vorher zaehlte jede
+	Rolle aus `ADMIN_ROLES` — damit hatte die Mitgliederverwaltung Lese- und
+	Schreibzugriff auf jede Tabelle an allen fachlichen Pruefungen vorbei.
+	"""
+	from diakronos_app import rechte
 
 	user = frappe_session.user
 	if not user or user == "Guest":
 		return False
-	if user == "Administrator":
-		return True
-	return bool(set(ADMIN_ROLES) & set(get_roles(user)))
+	return rechte.ist_admin(user)
 
 
 def _ist_benutzer_admin() -> bool:

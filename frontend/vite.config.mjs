@@ -283,6 +283,10 @@ export default defineConfig({
                 diakonos: path.resolve(__dirname, 'src/diakonos/main.js'),
                 registrierung: path.resolve(__dirname, 'src/registrierung/main.js'),
                 gast: path.resolve(__dirname, 'src/gast/main.js'),
+                // R6: öffentliche Gastseite für freigegebene Beiträge/Wiki
+                // (`#/gast/<token>`) — eigener Einstieg, damit keine
+                // App-Hülle und kein Login-Gate greift.
+                gastinhalt: path.resolve(__dirname, 'src/gastinhalt/main.js'),
                 organigramm: path.resolve(__dirname, 'src/organigramm/main.js'),
             },
             output: {

@@ -5,7 +5,14 @@
       <div class="dk-mboard-col-header dk-mboard-col-header--konflikte">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         <span class="dk-mboard-col-title">Konflikte</span>
+        <!-- UI-R4: Die Zahl IST der Inhalt der Spalte (nie 0 bei sichtbaren
+             Karten). Darunter steht, wie viele davon der Aufrufer prüfen darf
+             (Serverfeld `darf_pruefen`) — Arbeit, die andere erledigen, wird
+             nicht als eigene gezählt. -->
         <span class="dk-mboard-count">{{ konflikte.length }}</span>
+        <span v-if="fremdKonflikte" class="dk-mboard-fremd" :title="'Wartet auf andere Stufen'">
+          {{ fremdKonflikte }} für andere
+        </span>
       </div>
       <div ref="sortKonflikte" class="dk-mboard-col-body">
         <DkEmpty
@@ -30,6 +37,8 @@
           :item="item"
           column="konflikte"
           :notification="boardData.notifications?.[item.id]"
+          :busy="busyId !== null && busyId === item.id"
+          :verweigerung="verweigerungFuer(item)"
           @click="onCardClick(item, 'konflikte')"
           @resolve-conflict="onResolveConflict"
         />
@@ -42,6 +51,9 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span class="dk-mboard-col-title">Vorschläge</span>
         <span class="dk-mboard-count">{{ vorschlaege.length }}</span>
+        <span v-if="fremdVorschlaege" class="dk-mboard-fremd" :title="'Wartet auf andere Stufen'">
+          {{ fremdVorschlaege }} für andere
+        </span>
       </div>
       <div ref="sortVorschlaege" class="dk-mboard-col-body">
         <DkSkelett v-if="boardSichtbar" kurz form="karten" :anzahl="2" text="Termine werden geladen" />
@@ -57,7 +69,10 @@
           :item="item"
           column="vorschlaege"
           :notification="boardData.notifications?.[item.id]"
+          :busy="busyId !== null && busyId === item.id"
+          :verweigerung="verweigerungFuer(item)"
           @click="onCardClick(item, 'vorschlaege')"
+          @freigeben="onFreigeben"
         />
       </div>
     </div>
@@ -126,10 +141,19 @@ import DkEmpty from '../ui/DkEmpty.vue'
 import DkSkelett from '../ui/DkSkelett.vue'
 import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 import { aktionsfehler } from '../../../shared/fehlertexte.js'
+import { showToast } from '../../composables/useToast.js'
+// UI-R4: Zählung nur des Erlaubten und ehrliche Freigabe-Meldung.
+import {
+  freigabeMeldung,
+  istKonfliktEintrag,
+  verweigerungText,
+  zaehleZuPruefen,
+} from './freigabeStufen.mjs'
 import {
   getBoardData,
   saveStagingState,
   getRessources,
+  resolveConflict,
 } from '../../api/kanbanApi.js'
 
 // ── State ────────────────────────────────────────────────────────────────────
@@ -137,6 +161,10 @@ const boardData = ref({ vorschlaege: [], konflikte: [], staging: [], notificatio
 const stagingIds = ref([])
 const ressources = ref([])
 const loading = ref(true)
+// UI-R4: Welcher Vorschlag wird gerade freigegeben (Knopf zeigt „…“), und
+// welche Verweigerung (403/417) gehört zu welcher Karte.
+const busyId = ref(null)
+const verweigerungen = ref({})
 // UX2d3c: Ein Fehler darf nicht still bleiben (vorher nur `console.error`):
 // das Brett behauptete „Keine Vorschläge", als hätte der Server geantwortet.
 // `null` = kein Fehler; sonst der Katalogtext aus `aktionsfehler('laden', e)`.
@@ -149,6 +177,10 @@ const sortVorschlaege = ref(null)
 const sortKonflikte = ref(null)
 const sortFestlegen = ref(null)
 const modals = ref(null)
+
+// UI-R4: nach jedem Entscheid meldet die Tafel der Seite „bitte Zahl
+// nachziehen“ (`getModerationCount`). Die Zahl kommt NICHT aus der Tafel.
+const emit = defineEmits(['entschieden'])
 
 // ── Sortable instances ──────────────────────────────────────────────────────
 let sortableV = null
@@ -246,8 +278,133 @@ const groupedVorschlaege = computed(() => groupItems(boardData.value.vorschlaege
 const groupedKonflikte = computed(() => groupItems(boardData.value.konflikte))
 const vorschlaege = computed(() => boardData.value.vorschlaege)
 const konflikte = computed(() => boardData.value.konflikte)
+// UI-R4: Spaltenzahl = Inhalt der Spalte; getrennt davon steht, wie viele
+// davon der Aufrufer prüfen darf (`darf_pruefen`) und wie viele auf andere
+// Stufen warten. So zählt die Kachel „Zu prüfen“ nur eigene Arbeit, ohne dass
+// die Spalte ihre Karten verschweigt.
+const zahlVorschlaege = computed(() => zaehleZuPruefen(boardData.value.vorschlaege))
+const zahlKonflikte = computed(() => zaehleZuPruefen(boardData.value.konflikte))
+const fremdVorschlaege = computed(() => vorschlaege.value.length - zahlVorschlaege.value)
+const fremdKonflikte = computed(() => konflikte.value.length - zahlKonflikte.value)
 // P1-5b (W-1): Moderations-Historie der abgelehnten Termine.
 const abgelehnt = computed(() => boardData.value.abgelehnt || [])
+
+// ── UI-R4: Freigeben je Karte ────────────────────────────────────────────────
+/**
+ * UI-R4c (Punkt 3): Gehört die Karte in die Konflikt-Spalte?
+ *
+ * Die Regel steht EINMAL in `freigabeStufen.mjs` (`istKonfliktEintrag`) und
+ * wird von der Karte (Knopf) und hier (Schranke) gemeinsam benutzt: Status
+ * „Konflikt“/`has_konflikt` bzw. die ID im geladenen `konflikte`-Feld.
+ *
+ * `column` gibt es am Item NICHT (das ist eine Eigenschaft der Spalte in der
+ * Vorlage) — die frühere Prüfung darauf war nie wahr.
+ */
+function istKonfliktItem(item) {
+  const konfliktIds = (Array.isArray(boardData.value?.konflikte) ? boardData.value.konflikte : [])
+    .filter(eintrag => String(eintrag?.status || '') === 'Konflikt')
+    .map(eintrag => String(eintrag?.id || ''))
+  return istKonfliktEintrag(item, konfliktIds)
+}
+
+/**
+ * Eine einzelne Karte freigeben (ohne Dialog, ohne Ablage).
+ *
+ * `resolveConflict(..., 'festlegen')` ist der bestehende Weg: er setzt den
+ * Status und hakt nach dem Rechte-Kern genau EINE Stufe ab.
+ *
+ * UI-R4b (Punkt 1): Aufgerufen wird das NUR aus der Vorschlags-Spalte. In der
+ * Konflikt-Spalte gibt es keinen direkten Freigeben-Knopf — dort ginge die
+ * Freigabe ohne `ueberschneidung: 1` durch und der Termin käme als Konflikt
+ * zurück (DEV-7b). Ein Aufruf aus der Konflikt-Spalte wird hier zusätzlich
+ * abgewiesen, damit kein künftiger zweiter Weg die Regel umgeht.
+ *
+ * UI-R4c (Punkt 3): Die Schranke prüft jetzt, was es WIRKLICH gibt. Vorher
+ * stand hier `item?.column === 'konflikte'` — das Feld `column` trägt keine
+ * Karte (das ist die Spalte der Vorlage), die Bedingung war also nie wahr.
+ * (Rückbau-Probe: `tests/uir4d-pruefliste-mount.test.mjs` löst `onFreigeben`
+ * mit einer Konfliktkarte aus und wird dann rot.)
+ * Geprüft wird stattdessen der Status UND die Herkunft im geladenen Brett:
+ * Karten der Konflikt-Spalte (`boardData.konflikte`) bzw. Status „Konflikt“
+ * dürfen hier nicht direkt freigegeben werden. Ein Aufruf aus der
+ * Konflikt-Spalte wird abgewiesen, damit kein künftiger zweiter Weg die Regel
+ * umgeht (in der Vorlage ist der `@freigeben`-Anschluss der Konfliktspalte
+ * gestrichen).
+ *
+ * UI-R4b (Punkt 8): Nach JEDEM Entscheid wird neu geladen (auch nach einer
+ * Zwischenstufe), und zwar unabhängig vom Ergebnis — der Aufruf steht
+ * ausdrücklich NICHT unter `if (letzteMeldung.weiter)`.
+ */
+async function onFreigeben({ item, stufe }) {
+  // UI-R4c (Punkt 3): Freigeben ohne Konflikt-Dialog gibt es NUR für
+  // Vorschläge. Die Karte in der Vorschlags-Spalte zeigt den Knopf schon nur
+  // dort; diese Schranke hält die Regel auch für jeden künftigen Aufrufer fest.
+  // UI-R4d (Punkt 3): Die Abweisung ist NICHT stumm — sie nennt den Weg, der
+  // gilt (der Konflikt-Dialog setzt `ueberschneidung: 1`). Ohne den Hinweis
+  // hätte ein Aufrufer dieses Weges gar keine Rückmeldung bekommen.
+  if (istKonfliktItem(item)) {
+    showToast(
+      'Konflikte werden im Konflikt-Dialog freigegeben — dort wird die Überschneidung geprüft.',
+      'warning',
+    )
+    return
+  }
+  const ids = item?.type === 'serie'
+    ? (item.event_ids || (item.events || []).map(e => e.id))
+    : [item?.id]
+  if (!ids.length || busyId.value !== null) return
+  busyId.value = item.id
+  let letzteMeldung = null
+  let fehlerText = null
+  let teilErfolg = false
+  try {
+    for (const id of ids) {
+      const antwort = await resolveConflict(id, 'festlegen')
+      letzteMeldung = freigabeMeldung(antwort, { art: 'termin', stufe })
+      teilErfolg = true
+    }
+    clearVerweigerung(item)
+  } catch (e) {
+    // UI-R4b (Punkt 7): Verweigerung an der Karte zeigen UND das Brett neu
+    // laden — mit dem Serverstand verschwindet der Knopf (darf_pruefen ist
+    // false) und die Karte nennt die zuständige Stufe. Ohne das Neuladen
+    // blieb die Karte mit Knopf stehen, und der Text war nie zu sehen.
+    fehlerText = verweigerungText(e, stufe)
+    verweigerungen.value = { ...verweigerungen.value, [item.id]: fehlerText }
+    showToast(fehlerText, 'error')
+  } finally {
+    busyId.value = null
+  }
+  if (fehlerText) {
+    // Bei einer Serie kann der Fehler mitten in der Serie auftreten: die
+    // bereits entschiedenen Termine sind serverseitig festgelegt, das Brett
+    // ist damit veraltet — also auch dann neu laden.
+    await loadBoard()
+    if (teilErfolg) emit('entschieden')
+    return
+  }
+  showToast(letzteMeldung.text, letzteMeldung.ton)
+  // Nach JEDEM Entscheid neu laden: nach der letzten Stufe verschwindet die
+  // Karte (und ihr Freigeben-Knopf), nach einer Zwischenstufe nennt die
+  // Warteline die nächste Stufe. Vorher blieb die Karte mit Knopf stehen.
+  await loadBoard()
+  // … und die Seite zieht Kopfzahl/Badge nach (EINE Quelle: der Server).
+  emit('entschieden')
+}
+
+function verweigerungFuer(item) {
+  if (!item?.id) return ''
+  // Serien-Karten tragen die Kennung der Serie — die Verweigerung gilt für
+  // den gedrückten Knopf dieser Karte.
+  return verweigerungen.value[item.id] || ''
+}
+
+function clearVerweigerung(item) {
+  if (!item?.id || !(item.id in verweigerungen.value)) return
+  const rest = { ...verweigerungen.value }
+  delete rest[item.id]
+  verweigerungen.value = rest
+}
 
 // ── Data loading ─────────────────────────────────────────────────────────────
 async function loadBoard() {
@@ -417,6 +574,10 @@ onUnmounted(() => {
 defineExpose({
   getStagingIds: () => stagingIds.value,
   reloadBoard,
+  // Nur für Tests: der Freigeben-Weg lässt sich damit OHNE Klick auslösen —
+  // die Konflikt-Schranke ist sonst nicht prüfbar (eine Konfliktkarte hat
+  // bewusst keinen Knopf).
+  onFreigeben,
 })
 </script>
 
@@ -467,6 +628,15 @@ defineExpose({
   border-radius: 999px;
   background: var(--dk-surface-2);
   color: var(--dk-text-muted);
+}
+
+/* UI-R4: „2 für andere“ — ruhige Nebenangabe: so viele Karten warten auf eine
+   Stufe, die der Aufrufer nicht prüft. Gold wie die Warteline der Karte. */
+.dk-mboard-fremd {
+  font-size: var(--fs-12);
+  font-weight: var(--fw-mittel);
+  color: var(--warn);
+  white-space: nowrap;
 }
 
 .dk-mboard-col-body {

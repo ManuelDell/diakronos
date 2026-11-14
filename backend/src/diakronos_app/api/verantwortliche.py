@@ -35,7 +35,6 @@ from diakronos_app.frappe_compat.exceptions import (
     throw,
 )
 from diakronos_app.frappe_compat.permissions import (
-    _is_verantwortlicher_in,
     check_permission,
     get_roles,
     mitglied_ausgeschlossen as _mitglied_ausgeschlossen,
@@ -77,7 +76,11 @@ def _require_admin() -> str:
 
 
 def _is_admin() -> bool:
-    return any(r in get_roles() for r in ADMIN_ROLES)
+    """R-11a: Rollen in Gruppen vergibt nur der Administrator (Kern) — nicht
+    die Mitgliederverwaltung (Erklaerung „darf nicht: Rollen in Gruppen vergeben“)."""
+    from diakronos_app import rechte
+
+    return rechte.ist_admin(session.user)
 
 
 def _dienstbereich_von(doctype: str, name: str) -> str | None:
@@ -112,12 +115,16 @@ def _darf_verantwortliche_pflegen(doctype: str, name: str) -> bool:
     """
     if _is_admin():
         return True
-    if check_permission(doctype, name, "write").get("allowed"):
-        return True
-    if _is_verantwortlicher_in(_TABELLE[doctype], name):
-        return True
-    bereich = _dienstbereich_von(doctype, name)
-    return bool(bereich and _is_verantwortlicher_in("Dienstbereich Verantwortlicher", bereich))
+    # R-4 (Manuel 11.11.): EIN Rechtesystem. HV/MV ernennt nur der HV,
+    # GL einer Untergruppe ernennen HV und MV; Dienstbereiche entfallen
+    # (nur noch der Administrator).
+    from diakronos_app import rechte
+
+    if doctype == "Gruppe":
+        return bool(rechte.darf(session.user, rechte.ROLLEN, "gruppe", name))
+    if doctype == "Untergruppe":
+        return bool(rechte.darf(session.user, rechte.ROLLEN, "untergruppe", name))
+    return False
 
 
 def _zeilen(doctype: str, name: str) -> list[dict[str, Any]]:
@@ -130,6 +137,8 @@ def _zeilen(doctype: str, name: str) -> list[dict[str, Any]]:
     leakte die Liste Kontonamen (= E-Mail) an jeden mit Leserecht.
     """
     tabelle = _TABELLE[doctype]
+    if doctype in ("Gruppe", "Untergruppe"):
+        return _rollen_zeilen(doctype, name)
     # AUSTRITT-b (B1): Anzeigenamen ueber die eine Regel (`personen_anzeige`).
     # AUSTRITT-d (NM1): EINE Sicht fuer die ganze Liste — vorher entstand sie
     # (samt `get_roles`) je Name.
@@ -174,6 +183,91 @@ def _zeilen(doctype: str, name: str) -> list[dict[str, Any]]:
             zeile["email"] = str(get_value("User", user, "email") or "") or None
         ergebnis.append(zeile)
     return ergebnis
+
+
+def _rollen_konten(doctype: str, name: str) -> list[tuple[str, str]]:
+    """(Konto, Rolle) aus dem EINEN Rechtesystem: Gruppe HV vor MV, Untergruppe GL."""
+    from sqlalchemy import select
+
+    from diakronos_app.db import lesesitzung
+    from diakronos_app.models.rechte import RechteGruppenrolle
+
+    with lesesitzung() as sess:
+        if doctype == "Gruppe":
+            bedingung = [RechteGruppenrolle.gruppe == name, RechteGruppenrolle.untergruppe.is_(None)]
+        else:
+            bedingung = [RechteGruppenrolle.untergruppe == name, RechteGruppenrolle.rolle == "GL"]
+        zeilen = [(z.benutzer, z.rolle) for z in sess.execute(
+            select(RechteGruppenrolle).where(*bedingung)).scalars()]
+    rang = {"HV": 0, "MV": 1, "GL": 2}
+    return sorted(zeilen, key=lambda z: (rang.get(z[1], 9), z[0]))
+
+
+def _rollen_zeilen(doctype: str, name: str) -> list[dict[str, Any]]:
+    """R-4: Verantwortliche = Rollen (HV/MV bzw. GL) — gleiche Form wie bisher,
+    plus ``rolle``; Kontodaten nur fuer die, die pflegen duerfen (W4)."""
+    from diakronos_app.frappe_compat.personen_anzeige import PersonenSicht, anzeigename
+
+    sicht = PersonenSicht.aus()
+    voll = _darf_verantwortliche_pflegen(doctype, name)
+    ergebnis: list[dict[str, Any]] = []
+    for user, rolle in _rollen_konten(doctype, name):
+        m = get_value("Mitglied", {"user": user},
+                      ["name", "vorname", "nachname", "user", "ausgeschlossen", "status",
+                       "austritt_datum"], as_dict=True)
+        if isinstance(m, list):
+            m = m[0] if m else None
+        m = m or {}
+        anzeige = (anzeigename(m, sicht=sicht) if m else "") or str(
+            get_value("User", user, "full_name") or user)
+        zeile: dict[str, Any] = {"name": f"{rolle}-{user}", "anzeige": anzeige, "rolle": rolle}
+        if voll:
+            zeile["user"] = user
+            zeile["mitglied"] = m.get("name")
+            zeile["email"] = str(get_value("User", user, "email") or "") or None
+        ergebnis.append(zeile)
+    return ergebnis
+
+
+def _rollen_setzen(doctype: str, name: str, konten: list[str]) -> None:
+    """R-4: die Liste der Oberflaeche auf die Rollen abbilden (ueber
+    ``rechte.verwaltung`` — dieselben Regeln, dasselbe Protokoll).
+
+    Gruppe: der HV bleibt HV (wird nur UEBERTRAGEN, nie entfernt); fehlt
+    noch einer, setzt der Administrator den ersten Eintrag als HV. Alle
+    weiteren sind MV. Untergruppe: die Liste ist die Gruppenleitung (GL).
+    """
+    from diakronos_app.rechte import verwaltung as rv
+
+    aufrufer = str(session.user or "")
+    bisher = _rollen_konten(doctype, name)
+    if doctype == "Untergruppe":
+        alt = {u for u, _r in bisher}
+        for u in konten:
+            if u not in alt:
+                rv.ernenne_gl(aufrufer, name, u)
+        for u in sorted(alt - set(konten)):
+            rv.entferne_gl(aufrufer, name, u)
+        return
+    hv = next((u for u, r in bisher if r == "HV"), None)
+    if hv is not None and hv not in konten:
+        if not _is_admin():
+            throw("Das HV-Amt wird übertragen, nicht entfernt.", ValidationError)
+        if not konten:
+            throw("Eine Gruppe braucht eine Hauptverantwortliche bzw. einen Hauptverantwortlichen.",
+                  ValidationError)
+        rv.uebertrage_hv(aufrufer, name, konten[0], bestaetigt=True, alter_hv_wird_mv=False)
+        hv = konten[0]
+    elif hv is None and konten:
+        rv.uebertrage_hv(aufrufer, name, konten[0], bestaetigt=True)
+        hv = konten[0]
+    mv_alt = {u for u, r in _rollen_konten(doctype, name) if r == "MV"}
+    mv_neu = {u for u in konten if u != hv}
+    for u in konten:
+        if u in mv_neu and u not in mv_alt:
+            rv.ernenne_mv(aufrufer, name, u)
+    for u in sorted(mv_alt - mv_neu):
+        rv.entferne_mv(aufrufer, name, u)
 
 
 def _konto_pruefen(user: str) -> str:
@@ -285,21 +379,16 @@ def set_verantwortliche(doctype: str, name: str, user: list[str] | None = None) 
         if konto not in konten:
             konten.append(konto)
 
-    # R-P1-8/W5: Wer NUR als bestehender Verantwortlicher pflegen darf (kein
-    # Admin, kein Schreibrecht), darf sich nicht selbst entfernen — sonst
-    # verliert er mit dem Speichern sein eigenes Pflegerecht. Ein Admin bzw.
-    # Objektschreiber darf die Liste frei setzen.
-    aufrufer = str(session.user or "")
-    if not _is_admin() and not check_permission(doctype, name, "write").get("allowed"):
-        if _is_verantwortlicher_in(_TABELLE[doctype], name) and aufrufer not in konten:
-            throw(
-                "Sie können sich nicht selbst als Verantwortliche(n) entfernen. "
-                "Bitte eine andere Person mit der Pflege beauftragen.",
-                ValidationError,
-            )
-
-    tabelle = _TABELLE[doctype]
-    _ersetze_zeilen(tabelle, name, konten)
+    # R-4: Gruppe/Untergruppe -> Rollen im EINEN Rechtesystem (HV/MV/GL).
+    # Der HV kann sich nicht entfernen (nur uebertragen) — das ersetzt die
+    # fruehere Regel R-P1-8/W5 „nicht selbst entfernen“.
+    if doctype in ("Gruppe", "Untergruppe"):
+        _rollen_setzen(doctype, name, konten)
+    else:
+        # R-11d: nur Dienstbereiche fuehren noch die Alt-Tabelle (Anzeige der
+        # Website-Ansprechpartner; Rechte verleiht sie keine mehr). Gruppen und
+        # Untergruppen stehen allein im EINEN Rechtesystem.
+        _ersetze_zeilen(_TABELLE[doctype], name, konten)
     return {"success": True, "verantwortliche": _zeilen(doctype, name)}
 
 

@@ -73,16 +73,7 @@ from diakronos_app.frappe_compat.mitglied_sichtbarkeit import (
     ist_eigenes_mitglied,
     maskiere_datensatz,
 )
-from diakronos_app.frappe_compat.permissions import (
-    _extract_segments,
-    _get_current_user_mitglied,
-    _is_verantwortlicher_in,
-    _paths_overlap,
-    check_permission,
-    get_roles,
-    ist_verantwortlich_fuer,
-    mitglied_permissions,
-)
+from diakronos_app.frappe_compat.permissions import mitglied_permissions
 from diakronos_app.frappe_compat.query import get_all, get_doc, get_value
 from diakronos_app.frappe_compat.registry_gen import column_names, is_known, model_for
 from diakronos_app.frappe_compat.session import session
@@ -91,17 +82,24 @@ from diakronos_app.frappe_compat.session import session
 from diakronos_app.api.farbe import _normalisiere_farbe  # noqa: F401  (Re-Export fuer Tests)
 from diakronos_app.api.farbe import STANDARD_FARBE
 
-ADMIN_ROLES = ["System Manager", "Mitgliederadministrator"]
+
+# R-4: Gruppen fragen NUR noch das EINE Rechtesystem (``diakronos_app.rechte``).
+from diakronos_app import rechte as _rechte  # noqa: E402
+from diakronos_app.rechte import verwaltung as _rechteverwaltung  # noqa: E402
+
+
+def _darf(aktion: str, typ: str, objekt: str | None = None, **kw) -> bool:
+    """Kurzform: entscheidet der Rechte-Kern fuer den angemeldeten Benutzer."""
+    return bool(_rechte.darf(session.user, aktion, typ, objekt, **kw))
+
+
+def _einheit(doctype: str) -> str:
+    return "untergruppe" if doctype == "Untergruppe" else "gruppe"
 
 # Doctypes, die eine Kind-Tabelle "mitglieder" bzw. "verantwortliche" tragen.
 _MITGLIEDSCHAFT = {
     "Gruppe": "Gruppenmitgliedschaft",
     "Untergruppe": "Untergruppenmitgliedschaft",
-}
-_VERANTWORTLICHER = {
-    "Gruppe": "Gruppe Verantwortlicher",
-    "Untergruppe": "Untergruppe Verantwortlicher",
-    "Dienstbereich": "Dienstbereich Verantwortlicher",
 }
 
 
@@ -122,8 +120,12 @@ def _foto_url(wert) -> str:
 
 
 def _is_admin() -> bool:
-    """Admin-Kurzschluss aus den Rollen (Original: `any(r in ADMIN_ROLES)`)."""
-    return any(r in get_roles() for r in ADMIN_ROLES)
+    """Administrator laut Rechte-Kern (R-4).
+
+    NICHT mehr ``Mitgliederadministrator``: die Mitgliederverwaltung ist ein
+    Fach, kein Vollzugriff (Plan diakronos-rechte, Ebene 1).
+    """
+    return _rechte.ist_admin(session.user)
 
 
 def _heute_gemeinde() -> date:
@@ -406,6 +408,14 @@ def _parenttype_for(child_doctype: str) -> str:
 # ── Hierarchie ──────────────────────────────────────────────────────────────
 
 
+def _im_baum_sichtbar(einheit: str, eintrag: dict) -> bool:
+    """Oeffentliche (Unter-)Gruppe: jedes Gemeindemitglied; sonst nur mit
+    LESEN aus dem Rechte-Kern (Mitglied, HV/MV, GL, Admin)."""
+    if (eintrag.get("sichtbarkeit") or "Öffentlich") == "Öffentlich":
+        return True
+    return _darf(_rechte.LESEN, einheit, eintrag["name"])
+
+
 @whitelist(allow_guest=False)
 def get_gruppen_hierarchie():
     """
@@ -435,12 +445,15 @@ def get_gruppen_hierarchie():
         order_by="untergruppenname asc",
     )
 
-    # Permission-Filter für normale User
-    if not is_admin:
-        current_mitglied = _get_current_user_mitglied()
-        user_path = current_mitglied.get("ancestor_path", "|") if current_mitglied else "|"
-        gruppen = [g for g in gruppen if _has_group_access(g, user_path)]
-        untergruppen = [u for u in untergruppen if _has_group_access(u, user_path)]
+    # R-4 (Manuel 11.11.): Gruppen und Untergruppen sind fuer ALLE
+    # Gemeindemitglieder sichtbar (Organigramm). Was IN einer Gruppe steht
+    # (Mitglieder, Inhalte), entscheidet der Rechte-Kern an der Detailseite.
+    # „Intern"/„Versteckt" bleibt bei denen, die drin sind (und dem Admin).
+    del is_admin
+    if not _rechte.ist_gemeindemitglied(session.user):
+        return {"success": True, "gruppen": []}
+    gruppen = [g for g in gruppen if _im_baum_sichtbar("gruppe", g)]
+    untergruppen = [u for u in untergruppen if _im_baum_sichtbar("untergruppe", u)]
 
     # Zwei Abfragen statt einer pro (Unter-)Gruppe, nur sichtbare Eltern.
     from collections import Counter
@@ -483,25 +496,6 @@ def get_gruppen_hierarchie():
     return {"success": True, "gruppen": result}
 
 
-def _hat_dienstbereich_verantwortung(dienstbereich: str | None) -> bool:
-    """`frappe.db.exists("Dienstbereich Verantwortlicher", {"parent": .., "user": ..})`."""
-    if not dienstbereich:
-        return False
-    return bool(_db.exists(
-        "Dienstbereich Verantwortlicher",
-        {"parent": dienstbereich, "user": session.user},
-    ))
-
-
-def _hat_gruppen_verantwortung(gruppe: str | None) -> bool:
-    """`frappe.db.exists("Gruppe Verantwortlicher", {"parent": .., "user": ..})`."""
-    if not gruppe:
-        return False
-    return bool(_db.exists(
-        "Gruppe Verantwortlicher", {"parent": gruppe, "user": session.user}
-    ))
-
-
 def _mitglied_id_des_users() -> str | None:
     """Mitglied des aktuellen Users — via `user`-Feld, sonst via E-Mail.
 
@@ -518,13 +512,12 @@ def _mitglied_id_des_users() -> str | None:
 
 
 def _hat_gruppen_lesezugriff(doctype: str, docname: str, child_doctype: str) -> bool:
-    """Dasselbe Lese-Gate fuer Details und Inhalte (B4)."""
-    if check_permission(doctype, docname, "read").get("allowed"):
-        return True
-    current_mitglied = _mitglied_id_des_users()
-    return bool(current_mitglied and _db.exists(
-        child_doctype, {"parent": docname, "mitglied": current_mitglied}
-    ))
+    """Dasselbe Lese-Gate fuer Details und Inhalte (B4) — R-4: Rechte-Kern.
+
+    Lesen darf, wer Mitglied (auch ueber eine Untergruppe), GL, HV oder MV
+    ist, sowie der Administrator. ``child_doctype`` bleibt fuer die Aufrufer.
+    """
+    return _darf(_rechte.LESEN, _einheit(doctype), docname)
 
 
 def _require_gruppen_lesezugriff(doctype: str, docname: str, kind: str, child_doctype: str) -> None:
@@ -534,6 +527,67 @@ def _require_gruppen_lesezugriff(doctype: str, docname: str, kind: str, child_do
     zugelassen, wenn er direktes Mitglied ist. Alles andere -> PermissionError.
     """
     _require(_hat_gruppen_lesezugriff(doctype, docname, child_doctype), f"Kein Zugriff auf diese {kind}.")
+
+
+def _verantwortliche_anzeige(gruppe: str, untergruppe: str | None = None) -> list[dict[str, Any]]:
+    """HV/MV (Gruppe) bzw. GL (Untergruppe) aus dem Rechtesystem fuer die Anzeige.
+
+    Felder wie bisher (`verantwortlicher`, `name`, `email`, `foto`) plus
+    `rolle` (HV/MV/GL). E-Mail laeuft durch dieselbe Sichtbarkeitsregel wie
+    die Mitgliederliste (B2).
+    """
+    from diakronos_app.frappe_compat.personen_anzeige import PersonenSicht, anzeigename
+    from diakronos_app.models.rechte import RechteGruppenrolle
+    from diakronos_app.db import lesesitzung
+    from sqlalchemy import select as _select
+
+    sicht = PersonenSicht.aus()
+    with lesesitzung() as sess:
+        bedingung = [RechteGruppenrolle.gruppe == gruppe]
+        bedingung.append(RechteGruppenrolle.untergruppe == untergruppe if untergruppe
+                         else RechteGruppenrolle.untergruppe.is_(None))
+        zeilen = [(z.benutzer, z.rolle) for z in sess.execute(
+            _select(RechteGruppenrolle).where(*bedingung)).scalars()]
+    rang = {"HV": 0, "MV": 1, "GL": 2}
+    out: list[dict[str, Any]] = []
+    for benutzer, rolle in sorted(zeilen, key=lambda z: (rang.get(z[1], 9), z[0])):
+        v = get_value(
+            "Mitglied", {"user": benutzer},
+            ["name", "vorname", "nachname", "email", "foto",
+             "adressbuch_sichtbarkeit", "ausgeschlossen", "status", "austritt_datum"],
+            as_dict=True,
+        )
+        if isinstance(v, list):
+            v = v[0] if v else None
+        if not v:
+            out.append({"verantwortlicher": None, "name": benutzer, "email": None, "foto": None, "rolle": rolle})
+            continue
+        v_name = str(v.get("name") or "")
+        v = maskiere_datensatz(
+            dict(v), mitglied_id=v_name,
+            vollstaendig=bool(mitglied_permissions(v_name).get("can_view_sensitive")) or ist_eigenes_mitglied(v_name),
+        ) or {}
+        out.append({
+            "verantwortlicher": benutzer if v.get("email") is not None else None,
+            "name": anzeigename(v, sicht=sicht),
+            "email": v.get("email"),
+            "foto": v.get("foto"),
+            "rolle": rolle,
+        })
+    return out
+
+
+def _rechte_der_einheit(doctype: str, name: str, gruppe: str) -> dict[str, bool]:
+    """Was der Aufrufer an dieser (Unter-)Gruppe darf — fuer die Knoepfe der SPA."""
+    einheit = _einheit(doctype)
+    return {
+        "verwalten": _darf(_rechte.VERWALTEN, einheit, name),
+        "rollen": _darf(_rechte.ROLLEN, einheit, name),
+        "ankuendigung_anlegen": _darf(_rechte.ANLEGEN, "ankuendigung", gruppe=gruppe,
+                                      untergruppe=name if doctype == "Untergruppe" else None),
+        "aufgabe_anlegen": _darf(_rechte.ANLEGEN, "aufgabe", gruppe=gruppe,
+                                 untergruppe=name if doctype == "Untergruppe" else None),
+    }
 
 
 def _mitglieder_der_gruppe(doctype: str, docname: str) -> list[dict[str, Any]]:
@@ -634,11 +688,15 @@ def get_gruppe_detail(gruppe_id):
         if _hat_gruppen_lesezugriff("Untergruppe", u["name"], "Untergruppenmitgliedschaft")
     ]
 
-    mitglieder = _mitglieder_der_gruppe("Gruppe", gruppe_id)
+    # R-4 (Manuel 11.11.): die Mitgliederliste sehen nur HV/MV und Admin —
+    # sie ist die Verwaltungsflaeche der Gruppe.
+    mitglieder = (_mitglieder_der_gruppe("Gruppe", gruppe_id)
+                  if _darf_gruppe_verwalten("Gruppe", gruppe_id) else [])
 
-    # Verantwortliche aufloesen
-    verantwortliche = []
-    for row in _child_rows("Gruppe Verantwortlicher", gruppe_id, "verantwortliche"):
+    # R-4: Verantwortliche = HV/MV aus dem Rechtesystem (Leiter/Verantwortliche
+    # sind darin aufgegangen).
+    verantwortliche = _verantwortliche_anzeige(gruppe_id)
+    for row in ():  # Altpfad (Gruppe Verantwortlicher) entfaellt
         if not row.get("user"):
             continue
         v = get_value(
@@ -676,12 +734,13 @@ def get_gruppe_detail(gruppe_id):
                 "foto": _foto_url(v.get("foto")),
             })
 
-    aufgaben = _get_gruppen_inhalte(
+    # UI-R9: dieselben Felder wie get_aufgaben (Zuweisung, darf_abhaken/-bearbeiten).
+    aufgaben = _aufgaben_ausliefern(_get_gruppen_inhalte(
         "Gruppen Aufgabe",
         filters={"gruppe": gruppe_id},
-        fields=["name", "titel", "erledigt", "faellig"],
+        fields=_AUFGABEN_FELDER,
         order_by="erledigt asc, creation asc",
-    )
+    ))
     ankuendigungen = _get_gruppen_inhalte(
         "Gruppen Ankuendigung",
         filters={"gruppe": gruppe_id},
@@ -721,6 +780,7 @@ def get_gruppe_detail(gruppe_id):
         "untergruppen": untergruppen,
         "mitglieder": mitglieder,
         "verantwortliche": verantwortliche,
+        "rechte": _rechte_der_einheit("Gruppe", gruppe_id, gruppe_id),
         "aufgaben": aufgaben,
         "ankuendigungen": ankuendigungen,
         "wiki_artikel": wiki_artikel,
@@ -738,14 +798,15 @@ def get_untergruppe_detail(untergruppe_id):
     if not ug:
         throw("Untergruppe nicht gefunden.", DoesNotExistError)
 
-    mitglieder = _mitglieder_der_gruppe("Untergruppe", untergruppe_id)
+    mitglieder = (_mitglieder_der_gruppe("Untergruppe", untergruppe_id)
+                  if _darf_gruppe_verwalten("Untergruppe", untergruppe_id) else [])
 
-    aufgaben_ug = _get_gruppen_inhalte(
+    aufgaben_ug = _aufgaben_ausliefern(_get_gruppen_inhalte(
         "Gruppen Aufgabe",
         filters={"untergruppe": untergruppe_id},
-        fields=["name", "titel", "erledigt", "faellig"],
+        fields=_AUFGABEN_FELDER,
         order_by="erledigt asc, creation asc",
-    )
+    ))
     ankuendigungen_ug = _get_gruppen_inhalte(
         "Gruppen Ankuendigung",
         filters={"untergruppe": untergruppe_id},
@@ -779,6 +840,10 @@ def get_untergruppe_detail(untergruppe_id):
             "bild": ug.bild,
         },
         "mitglieder": mitglieder,
+        # R-4: Gruppenleiter (GL) der Untergruppe; HV/MV der Hauptgruppe sind
+        # mitberechtigt und stehen in der Hauptgruppe.
+        "verantwortliche": _verantwortliche_anzeige(ug.gruppe, untergruppe_id) if ug.gruppe else [],
+        "rechte": _rechte_der_einheit("Untergruppe", untergruppe_id, ug.gruppe or ""),
         "aufgaben": aufgaben_ug,
         "ankuendigungen": ankuendigungen_ug,
     }
@@ -809,16 +874,9 @@ def _darf_gruppe_verwalten(doctype: str, gruppe_id: str) -> bool:
     die Personen, die in der SPA `canManage` sehen — die Pruefung kommt aber
     vom Server, nicht aus der Anzeige.
     """
-    if check_permission(doctype, gruppe_id, "write").get("allowed"):
-        return True
-    if _is_verantwortlicher_in(f"Untergruppe Verantwortlicher" if doctype == "Untergruppe"
-                               else "Gruppe Verantwortlicher", gruppe_id):
-        return True
-    # Ein Dienstbereich oberhalb kann die Gruppe verantworten.
-    dienstbereich = _dienstbereich_der_gruppe(doctype, gruppe_id)
-    return bool(
-        dienstbereich and _is_verantwortlicher_in("Dienstbereich Verantwortlicher", dienstbereich)
-    )
+    # R-4: HV/MV der Gruppe (in Untergruppen zusaetzlich GL) und der
+    # Administrator — entschieden im Rechte-Kern.
+    return _darf(_rechte.VERWALTEN, _einheit(doctype), gruppe_id)
 
 
 @whitelist(allow_guest=False)
@@ -980,17 +1038,6 @@ def update_mitglied_rolle(gruppe_id, mitglied_id, rolle, is_untergruppe=False):
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
 
-def _has_group_access(group_doc, user_path):
-    """Prüft, ob User Zugriff auf eine Gruppe/Untergruppe hat."""
-    if not user_path or user_path == "|":
-        return False
-    group_path = group_doc.get("ancestor_path", "|")
-    if not group_path or group_path == "|":
-        # Leerer Zielpfad begruendet keinen Zugriff (fail closed).
-        return False
-    return _paths_overlap(user_path, group_path)
-
-
 # ── Orgchart ────────────────────────────────────────────────────────────────
 
 
@@ -1006,26 +1053,30 @@ def get_gruppen_for_orgchart():
         order_by="sortierung asc, ministry asc",
     )
 
-    untergruppen = get_all(
+    # Nur die Untergruppen, die der Baum fuer diesen Benutzer zeigt.
+    sichtbare_ug = {u["name"] for g in gruppen_list for u in g.get("untergruppen", [])}
+    untergruppen = [u for u in get_all(
         "Untergruppe",
         fields=["name", "untergruppenname", "gruppe", "status", "beschreibung"],
         filters={"status": ["!=", "Archiviert"]},
         order_by="untergruppenname asc",
-    )
+    ) if u["name"] in sichtbare_ug]
 
-    if not _is_admin():
-        dienstbereiche = [
-            d for d in dienstbereiche
-            if check_permission("Dienstbereich", d["name"], "read").get("allowed")
-        ]
-        allowed_untergruppen = {u["name"] for g in gruppen_list for u in g["untergruppen"]}
-        untergruppen = [u for u in untergruppen if u["name"] in allowed_untergruppen]
+    # R-4 (Manuel 11.11.): Organigramm mit Gruppen und HV fuer ALLE sichtbar;
+    # Mitglieder einer Gruppe stehen hier nicht (nur Zahlen).
+    hv_name: dict[str, str] = {}
+    for g in gruppen_list:
+        hv = [v for v in _verantwortliche_anzeige(g["name"]) if v.get("rolle") == "HV"]
+        if hv:
+            hv_name[g["name"]] = hv[0].get("name") or ""
 
     ug_counts = {
         u["name"]: _count("Untergruppenmitgliedschaft", u["name"]) for u in untergruppen
     }
 
     nodes = [{"id": "virtual-root", "parentId": None, "name": "", "type": "root"}]
+    if not _rechte.ist_gemeindemitglied(session.user):
+        return {"success": True, "nodes": nodes}
 
     db_names = {d["name"] for d in dienstbereiche}
     for d in dienstbereiche:
@@ -1051,16 +1102,18 @@ def get_gruppen_for_orgchart():
 
     gruppe_names = set()
     for g in gruppen_list:
-        if not g.get("dienstbereich") or g["dienstbereich"] not in db_names:
-            continue
+        # R-4: Dienstbereiche entfallen — eine Gruppe ohne (gueltigen)
+        # Dienstbereich haengt direkt an der Wurzel statt zu verschwinden.
+        eltern = f"db_{g['dienstbereich']}" if g.get("dienstbereich") in db_names else "virtual-root"
         gruppe_names.add(g["name"])
         extra = gruppe_extra.get(g["name"], {})
         nodes.append({
             "id": f"g_{g['name']}",
-            "parentId": f"db_{g['dienstbereich']}",
+            "parentId": eltern,
             "name": g["gruppenname"],
             "type": "gruppe",
             "raw_name": g["name"],
+            "hv": hv_name.get(g["name"], ""),
             "mitglieder_count": g.get("mitglieder_count", 0),
             "beschreibung": g.get("beschreibung") or "",
             "treffpunkt": extra.get("treffpunkt") or "",
@@ -1096,57 +1149,30 @@ def get_gruppen_for_orgchart():
 
 @whitelist(allow_guest=False)
 def get_user_create_permissions():
-    """Gibt zurück, welche Strukturen der aktuelle User erstellen darf."""
-    roles = get_roles()
-    is_admin = any(r in roles for r in ADMIN_ROLES)
+    """Was der aktuelle User anlegen/aendern darf (R-4: Rechte-Kern).
 
+    Gruppen legt nur der Administrator an (Manuel 11.11.); Untergruppen HV/MV
+    ihrer Gruppe. Dienstbereiche entfallen — nur noch der Administrator.
+    """
+    is_admin = _is_admin()
+    gruppen = get_all("Gruppe", fields=["name", "status"],
+                      filters=papierkorb.nur_aktive_filter("Gruppe"))
+    # Archivierte Gruppen bekommen keine neuen Untergruppen.
+    erlaubte_gruppen = sorted(g["name"] for g in gruppen if g.get("status") != "Archiviert"
+                              and _darf(_rechte.ANLEGEN, "gruppe", g["name"]))
     result = {
-        "can_create_dienstbereich": False,
-        "can_create_gruppe": False,
-        "can_create_untergruppe": False,
-        "allowed_dienstbereiche": [],
-        "allowed_gruppen": [],
+        "can_create_dienstbereich": is_admin,
+        "can_create_gruppe": is_admin,
+        "can_create_untergruppe": bool(erlaubte_gruppen),
+        "allowed_dienstbereiche": sorted(d["name"] for d in get_all("Dienstbereich", fields=["name"])) if is_admin else [],
+        "allowed_gruppen": erlaubte_gruppen,
     }
-
-    if is_admin or "Gemeindeverantwortlicher" in roles:
-        result["can_create_dienstbereich"] = True
-
-    # Original: SELECT DISTINCT parent ... WHERE user = <user>
-    db_verantwortlich = {
-        r["parent"]
-        for r in get_all(
-            "Dienstbereich Verantwortlicher",
-            filters={"user": session.user},
-            fields=["parent"],
-        )
-    }
-    if db_verantwortlich or is_admin:
-        result["can_create_gruppe"] = True
-        result["allowed_dienstbereiche"] = sorted(db_verantwortlich)
-
-    g_verantwortlich = {
-        r["parent"]
-        for r in get_all(
-            "Gruppe Verantwortlicher",
-            filters={"user": session.user},
-            fields=["parent"],
-        )
-    }
-    if g_verantwortlich or is_admin:
-        result["can_create_untergruppe"] = True
-        result["allowed_gruppen"] = sorted(g_verantwortlich)
-
     result["can_create_any"] = any([
         result["can_create_dienstbereich"],
         result["can_create_gruppe"],
         result["can_create_untergruppe"],
     ])
-
-    # OP-ADMIN-5/UXD-R4: welche Objekte darf der Aufruf umbenennen? Die SPA
-    # blendet danach die Stifte ein; die eigentliche Pruefung bleibt im Server
-    # (update_gruppe/update_untergruppe/update_dienstbereich). Ausgeliefert
-    # werden ROHE Namen (ohne Orgchart-Praefix db_/g_/ug_), damit die SPA sie
-    # direkt als Parameter weitergeben kann.
+    # Ausgeliefert werden ROHE Namen (ohne Orgchart-Praefix db_/g_/ug_).
     result["can_edit_ids"] = _editierbare_ids(is_admin)
     return result
 
@@ -1154,10 +1180,9 @@ def get_user_create_permissions():
 def _editierbare_ids(is_admin: bool) -> list[str]:
     """Namen aller Dienstbereiche/Gruppen/Untergruppen, die der User aendern darf.
 
-    Admin: alle. Sonst: die Dienstbereiche, die er verantwortet (samt deren
-    Gruppen und Untergruppen) und die Gruppen/Untergruppen, die er direkt
-    verantwortet. Genau die Personen, die `_darf_gruppe_verwalten` bzw. die
-    Update-Pfade durchlassen — die Liste ist nur die Anzeige, nicht die Freigabe.
+    R-4: Admin alles; sonst Gruppen mit ``verwalten`` (HV/MV) und Untergruppen
+    mit ``verwalten`` (HV/MV der Hauptgruppe, GL). Nur Anzeige — die Pruefung
+    bleibt in update_gruppe/update_untergruppe.
     """
     if is_admin:
         ids: list[str] = []
@@ -1166,47 +1191,12 @@ def _editierbare_ids(is_admin: bool) -> list[str]:
                                             filters=papierkorb.nur_aktive_filter("Gruppe"))]
         ids += [u["name"] for u in get_all("Untergruppe", fields=["name"])]
         return sorted(set(ids))
-
-    db_verantwortlich = {
-        r["parent"]
-        for r in get_all(
-            "Dienstbereich Verantwortlicher",
-            filters={"user": session.user},
-            fields=["parent"],
-        )
-    }
-    g_verantwortlich = {
-        r["parent"]
-        for r in get_all(
-            "Gruppe Verantwortlicher",
-            filters={"user": session.user},
-            fields=["parent"],
-        )
-    }
-    ug_verantwortlich = {
-        r["parent"]
-        for r in get_all(
-            "Untergruppe Verantwortlicher",
-            filters={"user": session.user},
-            fields=["parent"],
-        )
-    }
-    # Gruppen/Untergruppen unterhalb eines verantworteten Dienstbereichs sind
-    # ebenfalls aenderbar (dieselbe Regel wie `_darf_gruppe_verwalten`).
-    gruppen_unter_db = {
-        g["name"]
-        for g in get_all("Gruppe", fields=["name", "dienstbereich"],
-                         filters=papierkorb.nur_aktive_filter("Gruppe"))
-        if g.get("dienstbereich") in db_verantwortlich
-    }
-    untergruppen_unter_db = {
-        u["name"]
-        for u in get_all("Untergruppe", fields=["name", "gruppe"])
-        if u.get("gruppe") in (g_verantwortlich | gruppen_unter_db)
-    }
+    gruppen = [g["name"] for g in get_all("Gruppe", fields=["name"],
+                                          filters=papierkorb.nur_aktive_filter("Gruppe"))]
+    untergruppen = [u["name"] for u in get_all("Untergruppe", fields=["name"])]
     return sorted(
-        db_verantwortlich | g_verantwortlich | ug_verantwortlich
-        | gruppen_unter_db | untergruppen_unter_db
+        {g for g in gruppen if _darf(_rechte.VERWALTEN, "gruppe", g)}
+        | {u for u in untergruppen if _darf(_rechte.VERWALTEN, "untergruppe", u)}
     )
 
 
@@ -1216,11 +1206,8 @@ def _editierbare_ids(is_admin: bool) -> list[str]:
 @whitelist(methods=["POST"], allow_guest=False)
 def create_dienstbereich(name, beschreibung=None, farbe=None):
     """Erstellt einen neuen Dienstbereich. Nur für Gemeindeverantwortliche."""
-    roles = get_roles()
-    _require(
-        any(r in roles for r in ["System Manager", "Mitgliederadministrator", "Gemeindeverantwortlicher"]),
-        "Nur Gemeindeverantwortliche können Dienstbereiche erstellen.",
-    )
+    # R-4: Dienstbereiche entfallen; bis zum Ausbau nur der Administrator.
+    _require(_is_admin(), "Dienstbereiche verwaltet nur der Administrator.")
     new_name = _create("Dienstbereich", {
         "ministry": name,
         "beschreibung": beschreibung or "",
@@ -1233,16 +1220,15 @@ def create_dienstbereich(name, beschreibung=None, farbe=None):
 
 @whitelist(methods=["POST"], allow_guest=False)
 def create_gruppe(name, dienstbereich, gruppentyp=None, beschreibung=None, treffpunkt=None, treffzeit=None):
-    """Erstellt eine neue Gruppe. Nur für Dienstbereichsverantwortliche."""
-    is_admin = _is_admin()
-    if not is_admin:
-        _require(
-            _hat_dienstbereich_verantwortung(dienstbereich),
-            "Du bist kein Verantwortlicher dieses Dienstbereichs.",
-        )
+    """Erstellt eine neue Gruppe — nur der Administrator (R-4, Manuel 11.11.).
+
+    Danach setzt der Administrator den ersten HV und die Module
+    (``api.rechte.uebertrage_hv`` / ``api.rechte.setze_module``).
+    """
+    _require(_is_admin(), "Gruppen legt der Administrator an.")
     new_name = _create("Gruppe", {
         "gruppenname": name,
-        "dienstbereich": dienstbereich,
+        "dienstbereich": dienstbereich or None,
         "gruppentyp": gruppentyp or None,
         "beschreibung": beschreibung or "",
         "treffpunkt": treffpunkt or "",
@@ -1254,14 +1240,8 @@ def create_gruppe(name, dienstbereich, gruppentyp=None, beschreibung=None, treff
 
 @whitelist(methods=["POST"], allow_guest=False)
 def create_untergruppe(name, gruppe, beschreibung=None, treffpunkt=None, treffzeit=None):
-    """Erstellt eine neue Untergruppe. Nur für Gruppenverantwortliche."""
-    is_admin = _is_admin()
-    if not is_admin:
-        mitglied = _get_current_user_mitglied()
-        _require(
-            bool(mitglied) and _hat_gruppen_verantwortung(gruppe),
-            "Du bist kein Verantwortlicher dieser Gruppe.",
-        )
+    """Erstellt eine neue Untergruppe — HV/MV der Gruppe und Administrator (R-4)."""
+    _require(_darf(_rechte.ANLEGEN, "gruppe", gruppe), "Untergruppen legen die Verantwortlichen der Gruppe an.")
     new_name = _create("Untergruppe", {
         "untergruppenname": name,
         "gruppe": gruppe,
@@ -1275,16 +1255,8 @@ def create_untergruppe(name, gruppe, beschreibung=None, treffpunkt=None, treffze
 
 @whitelist(methods=["POST"], allow_guest=False)
 def update_gruppe(name, gruppenname=None, beschreibung=None, treffpunkt=None, treffzeit=None):
-    """Aktualisiert eine Gruppe. Verantwortliche oder uebergeordnete Admins."""
-    is_admin = _is_admin()
-    if not is_admin:
-        gruppe = get_doc("Gruppe", name)
-        is_db_verantwortlich = _hat_dienstbereich_verantwortung(gruppe.dienstbereich)
-        is_g_verantwortlich = _hat_gruppen_verantwortung(name)
-        _require(
-            is_db_verantwortlich or is_g_verantwortlich,
-            "Keine Berechtigung zum Bearbeiten dieser Gruppe.",
-        )
+    """Aktualisiert eine Gruppe — HV/MV und Administrator (R-4)."""
+    _require(_darf(_rechte.VERWALTEN, "gruppe", name), "Keine Berechtigung zum Bearbeiten dieser Gruppe.")
     _update_doc("Gruppe", name, {
         "gruppenname": gruppenname,
         "beschreibung": beschreibung,
@@ -1316,8 +1288,7 @@ def delete_gruppe(name):
     """
     _require(
         _is_admin(),
-        "Nur die Verwaltung (System Manager oder Mitgliederadministrator) "
-        "darf eine Gruppe löschen.",
+        "Nur der Administrator darf eine Gruppe löschen.",
     )
 
     try:
@@ -1343,8 +1314,7 @@ def wiederherstellen_gruppe(name):
     """
     _require(
         _is_admin(),
-        "Nur die Verwaltung (System Manager oder Mitgliederadministrator) "
-        "darf eine Gruppe wiederherstellen.",
+        "Nur der Administrator darf eine Gruppe wiederherstellen.",
     )
 
     try:
@@ -1356,18 +1326,9 @@ def wiederherstellen_gruppe(name):
 
 @whitelist(methods=["POST"], allow_guest=False)
 def update_untergruppe(name, untergruppenname=None, beschreibung=None, treffpunkt=None, treffzeit=None):
-    """Aktualisiert eine Untergruppe."""
-    is_admin = _is_admin()
-    if not is_admin:
-        ug = get_doc("Untergruppe", name)
-        is_g_verantwortlich = _hat_gruppen_verantwortung(ug.gruppe)
-        is_ug_verantwortlich = bool(_db.exists(
-            "Untergruppe Verantwortlicher", {"parent": name, "user": session.user}
-        ))
-        _require(
-            is_g_verantwortlich or is_ug_verantwortlich,
-            "Keine Berechtigung zum Bearbeiten dieser Untergruppe.",
-        )
+    """Aktualisiert eine Untergruppe — HV/MV der Gruppe, GL, Administrator (R-4)."""
+    _require(_darf(_rechte.VERWALTEN, "untergruppe", name),
+             "Keine Berechtigung zum Bearbeiten dieser Untergruppe.")
     _update_doc("Untergruppe", name, {
         "untergruppenname": untergruppenname,
         "beschreibung": beschreibung,
@@ -1387,12 +1348,8 @@ def update_dienstbereich(name, ministry=None, beschreibung=None, farbe=None):
     werden können. Rechte wie `create_dienstbereich`; zusätzlich darf der
     verantwortete Dienstbereich geändert werden.
     """
-    roles = get_roles()
-    _require(
-        any(r in roles for r in ["System Manager", "Mitgliederadministrator", "Gemeindeverantwortlicher"])
-        or _hat_dienstbereich_verantwortung(name),
-        "Keine Berechtigung zum Bearbeiten dieses Dienstbereichs.",
-    )
+    # R-4: Dienstbereiche entfallen; bis zum Ausbau nur der Administrator.
+    _require(_is_admin(), "Dienstbereiche verwaltet nur der Administrator.")
     if get_value("Dienstbereich", name, "name") is None:
         throw("Dienstbereich nicht gefunden.", DoesNotExistError)
     werte: dict[str, Any] = {"ministry": ministry, "beschreibung": beschreibung}
@@ -1527,24 +1484,13 @@ def get_gruppe_termine(gruppe_id, tage=60):
 
 @whitelist(allow_guest=False)
 def get_gruppen_page_data():
-    roles = get_roles()
-    is_admin = any(r in roles for r in ADMIN_ROLES)
-    mitglied_name = get_value("Mitglied", {"user": session.user}, "name")
-    verantwortlich = get_all(
-        "Gruppe Verantwortlicher",
-        filters={"user": session.user},
-        fields=["parent"],
-    )
-    verantwortlich_names = {r["parent"] for r in verantwortlich}
-    member_names = set()
-    if mitglied_name:
-        rows = get_all(
-            "Gruppenmitgliedschaft",
-            filters={"mitglied": mitglied_name, "status": "Aktiv"},
-            fields=["parent"],
-        )
-        member_names = {r["parent"] for r in rows}
-    my_groups = verantwortlich_names | member_names
+    # R-11a/d: Admin und „meine Gruppen“ aus dem EINEN Rechte-Kern (vorher
+    # Alt-Tabelle „Gruppe Verantwortlicher“; Mitgliederverwaltung zaehlte als Admin).
+    is_admin = _is_admin()
+    my_groups = _rechte.eigene_gruppen(session.user)
+    verantwortlich_names = {
+        g for g in my_groups if _rechte.gruppenrolle(session.user, g) in ("HV", "MV")
+    }
 
     def g_dict(g, ist_verantwortlich=False, ist_meins=False):
         db_name, db_farbe = "", STANDARD_FARBE
@@ -1682,7 +1628,7 @@ def get_gruppen_page_data():
 # ── Aufgaben ────────────────────────────────────────────────────────────────
 
 
-def _require_inhalte_zugriff(gruppe_id=None, untergruppe_id=None, *, write=False):
+def _require_inhalte_zugriff(gruppe_id=None, untergruppe_id=None, *, write=False, typ="ankuendigung"):
     """Elternrechte statt ungeschuetzter Aufgaben-/Ankuendigungs-IDs (B4).
 
     Lesen wie die Detail-API; Schreiben wie update_gruppe/update_untergruppe,
@@ -1704,29 +1650,117 @@ def _require_inhalte_zugriff(gruppe_id=None, untergruppe_id=None, *, write=False
     gruppe = get_value("Gruppe", parent_gruppe, ["name", "dienstbereich"], as_dict=True)
     _require(bool(gruppe), message)
     if write:
-        allowed = check_permission(doctype, name, "write").get("allowed")
-        allowed = allowed or ist_verantwortlich_fuer(gruppe.get("dienstbereich"), parent_gruppe)
-        if untergruppe_id:
-            allowed = allowed or _is_verantwortlicher_in("Untergruppe Verantwortlicher", untergruppe_id)
-        _require(bool(allowed), message)
+        # R-4: Anlegen im Modul der (Unter-)Gruppe — HV/MV bzw. GL, Modul an.
+        _require(_darf(_rechte.ANLEGEN, typ, gruppe=parent_gruppe, untergruppe=untergruppe_id or None), message)
     else:
         _require_gruppen_lesezugriff(doctype, name, doctype, child)
 
 
+_INHALT_TYP = {"Gruppen Aufgabe": "aufgabe", "Gruppen Ankuendigung": "ankuendigung"}
+
+
+def _links_konsistent(gruppe: str | None, untergruppe: str | None) -> bool:
+    """Verweise eines Inhalts passen zusammen und existieren (B4, fail closed).
+
+    Gilt fuer JEDEN — auch den Administrator: ein Inhalt mit verwaister oder
+    widerspruechlicher Gruppe/Untergruppe wird weder ausgeliefert noch
+    veraendert (historische Daten aus SQLite ohne Fremdschluessel).
+    """
+    if untergruppe:
+        eltern = get_value("Untergruppe", untergruppe, "gruppe")
+        if not eltern or (gruppe and gruppe != eltern):
+            return False
+        gruppe = eltern
+    return bool(gruppe) and get_value("Gruppe", gruppe, "name") is not None
+
+
 def _get_gruppen_inhalte(doctype, *, filters, fields, order_by):
-    """Auch historische Doppel-/Fremdlinks vor der Auslieferung pruefen.
+    """Jede Zeile einzeln ueber den Rechte-Kern (R-4).
 
     Die Zusatzfelder bleiben intern; SPA-Felder und Sortierung bleiben gleich.
+    Nicht registrierte Zeilen verweigert der Kern (fail closed).
     """
-    rows = get_all(doctype, filters=filters, fields=[*fields, "gruppe", "untergruppe"], order_by=order_by)
-    result = []
-    for row in rows:
-        try:
-            _require_inhalte_zugriff(row.get("gruppe"), row.get("untergruppe"))
-        except FrappePermissionError:
-            continue
-        result.append({field: row.get(field) for field in fields})
-    return result
+    typ = _INHALT_TYP[doctype]
+    rows = get_all(doctype, filters=filters, fields=list(dict.fromkeys([*fields, "gruppe", "untergruppe"])),
+                   order_by=order_by)
+    return [
+        {field: row.get(field) for field in fields}
+        for row in rows
+        if _links_konsistent(row.get("gruppe"), row.get("untergruppe"))
+        and _darf(_rechte.LESEN, typ, row.get("name"))
+    ]
+
+
+def _aufgabe(aufgabe_id) -> dict:
+    """Zeile einer Aufgabe; unbekannt und fremd liefern dieselbe 403."""
+    doc = get_value("Gruppen Aufgabe", aufgabe_id,
+                    ["name", "gruppe", "untergruppe", "owner", "zugewiesen_an", "erledigt"], as_dict=True)
+    _require(bool(doc), "Keine Berechtigung zum Zugriff auf Gruppeninhalte.")
+    if doc.get("gruppe") or doc.get("untergruppe"):
+        _require(_links_konsistent(doc.get("gruppe"), doc.get("untergruppe")),
+                 "Keine Berechtigung zum Zugriff auf Gruppeninhalte.")
+    return doc
+
+
+def _darf_aufgabe(aktion: str, doc: dict) -> bool:
+    """R-7b: eine Aufgabe fragt den Kern — eigene Aufgabe (ohne Gruppe) ueber
+    den Besitzer, Gruppenaufgabe ueber die Zuweisung (Konto der Person)."""
+    if not doc.get("gruppe") and not doc.get("untergruppe"):
+        # ohne Besitzer gehoert sie niemandem (Altbestand) — fail closed, auch fuer den Admin
+        return bool(doc.get("owner")) and _darf(aktion, "aufgabe", besitzer=doc["owner"])
+    konto = get_value("Mitglied", doc["zugewiesen_an"], "user") if doc.get("zugewiesen_an") else None
+    return _darf(aktion, "aufgabe", doc.get("name"), zugewiesen=[konto] if konto else [])
+
+
+def _personenname(mitglied_id, sicht) -> str | None:
+    if not mitglied_id:
+        return None
+    from diakronos_app.frappe_compat.personen_anzeige import anzeigename
+
+    zeile = get_value("Mitglied", mitglied_id,
+                      ["name", "vorname", "nachname", "ausgeschlossen", "status", "austritt_datum"],
+                      as_dict=True)
+    return anzeigename(zeile, sicht=sicht) if zeile else None
+
+
+#: Felder, die _aufgaben_ausliefern und _darf_aufgabe brauchen.
+_AUFGABEN_FELDER = ["name", "titel", "erledigt", "faellig", "erstellt_von", "zugewiesen_an",
+                    "gruppe", "untergruppe", "owner"]
+
+
+def _aufgaben_ausliefern(zeilen: list[dict], *, mit_gruppe: bool = False) -> list[dict]:
+    """Zuweisung als Name + was der Aufrufer an der Aufgabe darf (Knoepfe)."""
+    from diakronos_app.frappe_compat.personen_anzeige import PersonenSicht
+
+    sicht = PersonenSicht.aus()
+    namen: dict[tuple[str, str], str | None] = {}
+
+    def einheitsname(doctype: str, kennung: str) -> str | None:
+        # R-12k: Anzeigename statt Kennung (Kachel „Meine Aufgaben“) — je Einheit einmal nachschlagen.
+        if (doctype, kennung) not in namen:
+            namen[(doctype, kennung)] = _rechteverwaltung._name(doctype, kennung)
+        return namen[(doctype, kennung)]
+
+    out = []
+    for z in zeilen:
+        eintrag = {f: z.get(f) for f in ("name", "titel", "erledigt", "faellig", "erstellt_von", "zugewiesen_an")}
+        eintrag["zugewiesen_name"] = _personenname(z.get("zugewiesen_an"), sicht)
+        eintrag["darf_abhaken"] = _darf_aufgabe(_rechte.ERLEDIGEN, z)
+        eintrag["darf_bearbeiten"] = _darf_aufgabe(_rechte.VERWALTEN, z)
+        if mit_gruppe:
+            eintrag["gruppe"] = z.get("gruppe")
+            eintrag["untergruppe"] = z.get("untergruppe")
+            eintrag["eigene"] = not z.get("gruppe") and not z.get("untergruppe")
+            eintrag["gruppe_name"] = (einheitsname("Untergruppe", z["untergruppe"]) if z.get("untergruppe")
+                                      else einheitsname("Gruppe", z["gruppe"]) if z.get("gruppe") else None)
+        out.append(eintrag)
+    return out
+
+
+def _pruefe_zuweisbar(mitglied_id, gruppe_id, untergruppe_id) -> None:
+    """Zuweisen nur an Personen der (Unter-)Gruppe — sonst sieht sie die Aufgabe nicht."""
+    if not _rechte.person_in_einheit(mitglied_id, gruppe=gruppe_id or None, untergruppe=untergruppe_id or None):
+        throw("Die Person gehört nicht zu dieser Gruppe.", ValidationError)
 
 
 @whitelist(allow_guest=False)
@@ -1742,37 +1776,123 @@ def get_aufgaben(gruppe_id=None, untergruppe_id=None):
     items = _get_gruppen_inhalte(
         "Gruppen Aufgabe",
         filters=filters,
-        fields=["name", "titel", "erledigt", "faellig", "erstellt_von"],
+        fields=_AUFGABEN_FELDER,
         order_by="erledigt asc, creation asc",
     )
-    return {"success": True, "data": items}
+    return {"success": True, "data": _aufgaben_ausliefern(items)}
+
+
+@whitelist(allow_guest=False)
+def get_meine_aufgaben():
+    """R-7b: eigene Aufgaben + Gruppenaufgaben, die mir zugewiesen sind."""
+    eigene = get_all("Gruppen Aufgabe",
+                     filters={"owner": session.user, "gruppe": ["is", "not set"],
+                              "untergruppe": ["is", "not set"]},
+                     fields=["name", "titel", "erledigt", "faellig", "erstellt_von", "zugewiesen_an",
+                             "gruppe", "untergruppe", "owner"],
+                     order_by="erledigt asc, creation asc")
+    mid = _mitglied_id_des_users()
+    zugewiesen = get_all("Gruppen Aufgabe", filters={"zugewiesen_an": mid},
+                         fields=["name", "titel", "erledigt", "faellig", "erstellt_von", "zugewiesen_an",
+                                 "gruppe", "untergruppe", "owner"],
+                         order_by="erledigt asc, creation asc") if mid else []
+    sichtbar = [
+        z for z in zugewiesen
+        if (z.get("gruppe") or z.get("untergruppe"))
+        and _links_konsistent(z.get("gruppe"), z.get("untergruppe"))
+        and _darf_aufgabe(_rechte.LESEN, z)
+    ]
+    eigene = [z for z in eigene if _darf_aufgabe(_rechte.LESEN, z)]
+    return {"success": True, "data": _aufgaben_ausliefern([*eigene, *sichtbar], mit_gruppe=True),
+            # UI-R9: dieselbe Pruefung wie create_aufgabe ohne Gruppe.
+            "darf_anlegen": bool(_darf(_rechte.ANLEGEN, "aufgabe", besitzer=session.user))}
 
 
 @whitelist(methods=["POST"], allow_guest=False)
-def create_aufgabe(titel, gruppe_id=None, untergruppe_id=None, faellig=None):
-    _require_inhalte_zugriff(gruppe_id, untergruppe_id, write=True)
+def create_aufgabe(titel, gruppe_id=None, untergruppe_id=None, faellig=None, zugewiesen_an=None):
+    """Ohne Gruppe: eigene Aufgabe. Mit Gruppe: HV/MV bzw. GL, optional zugewiesen."""
+    titel = str(titel or "").strip()
+    if not titel:
+        throw("Bitte einen Titel angeben.", ValidationError)
     mid = _mitglied_id_des_users()
+    if not gruppe_id and not untergruppe_id:
+        if zugewiesen_an:
+            throw("Eigene Aufgaben werden nicht zugewiesen.", ValidationError)
+        _require(_darf(_rechte.ANLEGEN, "aufgabe", besitzer=session.user),
+                 "Keine Berechtigung zum Zugriff auf Gruppeninhalte.")
+        new_name = _create("Gruppen Aufgabe", {
+            "titel": titel, "faellig": faellig or None, "erstellt_von": mid, "erledigt": False,
+        })
+        return {"success": True, "name": new_name}
+    _require_inhalte_zugriff(gruppe_id, untergruppe_id, write=True, typ="aufgabe")
+    if zugewiesen_an:
+        _pruefe_zuweisbar(zugewiesen_an, gruppe_id, untergruppe_id)
     new_name = _create("Gruppen Aufgabe", {
         "titel": titel,
         "gruppe": gruppe_id or None,
         "untergruppe": untergruppe_id or None,
         "faellig": faellig or None,
         "erstellt_von": mid,
+        "zugewiesen_an": zugewiesen_an or None,
         "erledigt": False,
     })
+    _rechteverwaltung.registriere_objekt(
+        "aufgabe", new_name, gruppe=gruppe_id or None, untergruppe=untergruppe_id or None)
     return {"success": True, "name": new_name}
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def aufgabe_zuweisen(aufgabe_id, mitglied=None):
+    """R-7b: HV/MV bzw. GL weisen eine Gruppenaufgabe zu (leer = Zuweisung aufheben)."""
+    doc = _aufgabe(aufgabe_id)
+    _require(bool(doc.get("gruppe") or doc.get("untergruppe")) and _darf_aufgabe(_rechte.VERWALTEN, doc),
+             "Keine Berechtigung zum Zugriff auf Gruppeninhalte.")
+    if mitglied:
+        _pruefe_zuweisbar(mitglied, doc.get("gruppe"), doc.get("untergruppe"))
+    from diakronos_app.db import SessionLocal
+
+    sess = SessionLocal()
+    try:
+        zeile = sess.get(model_for("Gruppen Aufgabe"), aufgabe_id)
+        zeile.zugewiesen_an = mitglied or None
+        zeile.modified = _now()
+        zeile.modified_by = session.user
+        sess.commit()
+    finally:
+        sess.close()
+    return {"success": True, "zugewiesen_an": mitglied or None}
 
 
 @whitelist(methods=["POST"], allow_guest=False)
 def toggle_aufgabe(aufgabe_id):
     # Unbekannte und fremde IDs liefern dieselbe 403, auch im Fehlerbody.
-    doc = get_value("Gruppen Aufgabe", aufgabe_id,
-                    ["gruppe", "untergruppe", "erledigt"], as_dict=True)
-    _require(bool(doc), "Keine Berechtigung zum Zugriff auf Gruppeninhalte.")
-    _require_inhalte_zugriff(doc.get("gruppe"), doc.get("untergruppe"), write=True)
+    doc = _aufgabe(aufgabe_id)
+    # R-7b: abhaken darf, wem die Aufgabe zugewiesen ist, sonst die Leitung;
+    # eine eigene Aufgabe nur ihr Besitzer.
+    _require(_darf_aufgabe(_rechte.ERLEDIGEN, doc), "Keine Berechtigung zum Zugriff auf Gruppeninhalte.")
     neuer_wert = 0 if doc.get("erledigt") else 1
     _update_doc("Gruppen Aufgabe", aufgabe_id, {"erledigt": bool(neuer_wert)})
     return {"success": True, "erledigt": neuer_wert}
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def delete_aufgabe(aufgabe_id):
+    """Eigene Aufgabe: der Besitzer. Gruppenaufgabe: HV/MV bzw. GL."""
+    doc = _aufgabe(aufgabe_id)
+    _require(_darf_aufgabe(_rechte.VERWALTEN, doc), "Keine Berechtigung zum Zugriff auf Gruppeninhalte.")
+    from diakronos_app.db import SessionLocal
+
+    sess = SessionLocal()
+    try:
+        zeile = sess.get(model_for("Gruppen Aufgabe"), aufgabe_id)
+        if zeile is not None:
+            sess.delete(zeile)
+            sess.commit()
+    finally:
+        sess.close()
+    if doc.get("gruppe") or doc.get("untergruppe"):
+        _rechteverwaltung.entferne_objekt("aufgabe", aufgabe_id)
+    return {"success": True}
 
 
 # ── Ankündigungen ───────────────────────────────────────────────────────────
@@ -1799,7 +1919,7 @@ def get_ankuendigungen(gruppe_id=None, untergruppe_id=None):
 
 @whitelist(methods=["POST"], allow_guest=False)
 def create_ankuendigung(titel, text="", gruppe_id=None, untergruppe_id=None):
-    _require_inhalte_zugriff(gruppe_id, untergruppe_id, write=True)
+    _require_inhalte_zugriff(gruppe_id, untergruppe_id, write=True, typ="ankuendigung")
     mid = _mitglied_id_des_users()
     new_name = _create("Gruppen Ankuendigung", {
         "titel": titel,
@@ -1808,6 +1928,8 @@ def create_ankuendigung(titel, text="", gruppe_id=None, untergruppe_id=None):
         "untergruppe": untergruppe_id or None,
         "erstellt_von": mid,
     })
+    _rechteverwaltung.registriere_objekt(
+        "ankuendigung", new_name, gruppe=gruppe_id or None, untergruppe=untergruppe_id or None)
     return {"success": True, "name": new_name}
 
 
@@ -1831,8 +1953,11 @@ _ENDPUNKTE = (
     update_untergruppe,
     get_gruppen_page_data,
     get_aufgaben,
+    get_meine_aufgaben,
     create_aufgabe,
+    aufgabe_zuweisen,
     toggle_aufgabe,
+    delete_aufgabe,
     get_ankuendigungen,
     create_ankuendigung,
 )

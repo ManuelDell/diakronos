@@ -48,47 +48,35 @@ def _require_login() -> str:
 
 
 def _is_admin(user: str) -> bool:
-	from diakronos_app.frappe_compat.permissions import get_roles
+	"""R-7: der Administrator des EINEN Rechtesystems (nicht mehr die
+	Mitgliederverwaltung)."""
+	from diakronos_app import rechte
 
-	return any(r in ADMIN_ROLES for r in get_roles(user))
+	return rechte.ist_admin(user)
+
+
+def _require_read() -> str:
+	"""R-7 (Manuel 11.11.): Lieder sieht nur, wer in mindestens einer Gruppe
+	mit Modul „Lieder“ ist (Rechte-Kern, Bibliothek)."""
+	from diakronos_app import rechte
+
+	user = _require_login()
+	if not rechte.darf(user, rechte.LESEN, "lied"):
+		throw("Lieder gibt es nur in Gruppen mit dem Modul „Lieder“.", PermissionError)
+	return user
 
 
 def _is_musikverantwortlicher(user: str) -> bool:
-	"""Schreibrecht auf die Musikdatenbank.
+	"""Schreibrecht auf die Musikdatenbank — R-7: der EINE Rechte-Kern.
 
-	Eine globale User->Dienstrolle-Zuordnung gibt es in Diakronos nicht.
-	Massgeblich ist deshalb die bestehende Hierarchie: wer Verantwortlicher
-	des Dienstbereichs "Musik und Worship" oder einer seiner Gruppen ist,
-	pflegt auch das Repertoire.
-
-	Bewusst NICHT ueber "Dienstplan Mitwirkender": eine Mitwirkung in einem
-	einzelnen Plan darf kein globales Schreibrecht auf alle Lieder ergeben.
+	HV und MV der Gruppen mit Modul „Lieder“ (Manuel 11.11.: „Bearbeiten
+	duerfen HV und MV der Gruppen mit Modul Lieder, z. B. Chor, Lobpreis“).
+	Der fruehere Weg ueber den Dienstbereich „Musik und Worship“ entfaellt;
+	die Migration gibt dessen Gruppen das Modul.
 	"""
-	if _sh._count(
-		"Dienstbereich Verantwortlicher",
-		{"user": user, "parent": MUSIK_DIENSTBEREICH},
-	):
-		return True
+	from diakronos_app import rechte
 
-	# Original: JOIN `tabGruppe` g ON g.name = gv.parent WHERE g.dienstbereich = %s.
-	# Portierung: erst die Gruppen des Bereichs holen, dann die Verantwortlichen
-	# dieser Gruppen pruefen — kein rohes SQL.
-	gruppen = get_all(
-		"Gruppe",
-		# UX2b2 (F3): eine geloeschte Gruppe verleiht kein Musikrecht mehr.
-		filters={"dienstbereich": MUSIK_DIENSTBEREICH,
-		         "geloescht_am": ["is", "not set"]},
-		fields=["name"],
-		pluck="name",
-	) or []
-	if not gruppen:
-		return False
-	return bool(
-		_sh._count(
-			"Gruppe Verantwortlicher",
-			{"user": user, "parent": ["in", list(gruppen)]},
-		)
-	)
+	return bool(rechte.darf(user, rechte.SCHREIBEN, "lied"))
 
 
 def _require_write() -> None:
@@ -99,9 +87,8 @@ def _require_write() -> None:
 	if _is_musikverantwortlicher(user):
 		return
 	throw(
-		"Keine Berechtigung zum Schreiben. Erforderlich: Verantwortlicher "
-		"im Dienstbereich 'Musik und Worship' oder Rolle "
-		"Mitgliederadministrator / System Manager.",
+		"Keine Berechtigung zum Schreiben. Lieder pflegen HV und MV der "
+		"Gruppen mit dem Modul „Lieder“.",
 		PermissionError,
 	)
 
@@ -352,7 +339,7 @@ def get_lieder(gruppe: str | None = None, kategorie: str | None = None,
 	suche durchsucht Titel, Alternativtitel, Nummer, Buch/Heft, CCLI-Nummer UND
 	Strophentext (tabLiedstrophe.text) — siehe :func:`_suche_liednamen`.
 	"""
-	_require_login()
+	_require_read()  # R-7
 	limit = min(int(limit) or 50, 200)
 	start = max(int(start) or 0, 0)
 
@@ -440,7 +427,7 @@ def get_lieder(gruppe: str | None = None, kategorie: str | None = None,
 @whitelist(allow_guest=False)
 def get_lied_detail(lied: str) -> dict[str, Any]:
 	"""Kopf + Strophen + Fassungen (je mit Material) + zugehoerige Liedgruppen."""
-	_require_login()
+	_require_read()  # R-7
 	if papierkorb.ist_geloescht("Lied", lied):
 		throw("Lied nicht gefunden.", DoesNotExistError)
 	doc = get_doc("Lied", lied)
@@ -507,7 +494,7 @@ def get_lied_detail(lied: str) -> dict[str, Any]:
 @whitelist(allow_guest=False)
 def get_fassungen(lied: str, gruppe: str | None = None) -> list[dict[str, Any]]:
 	"""Alle Fassungen eines Liedes, optional auf eine Gruppe gefiltert."""
-	_require_login()
+	_require_read()  # R-7
 	if papierkorb.ist_geloescht("Lied", lied):
 		throw("Lied nicht gefunden.", DoesNotExistError)
 	filters: dict[str, Any] = {"lied": lied}
@@ -783,7 +770,7 @@ def get_lied_historie(lied: str) -> list[dict[str, Any]]:
 	Defensiv: falls die Felder referenz_doctype/referenz_name an den Positionen
 	noch fehlen (Karte 1a-1), leere Liste statt Crash zurueckgeben.
 	"""
-	_require_login()
+	_require_read()  # R-7
 
 	# Original prueft `frappe.db.get_table_columns`; hier gegen die echte
 	# Schema-Inventur (Spaltenabzug der Betriebs-DB). `Ablaufplan` hat KEIN
@@ -842,7 +829,7 @@ def get_lied_historie(lied: str) -> list[dict[str, Any]]:
 @whitelist(allow_guest=False)
 def get_liedgruppen(typ: str | None = None, gruppe: str | None = None) -> list[dict[str, Any]]:
 	"""Liste aller Liedgruppen, optional nach typ / gruppe gefiltert."""
-	_require_login()
+	_require_read()  # R-7
 	filters: dict[str, Any] = {}
 	if typ:
 		filters["typ"] = typ
@@ -874,7 +861,7 @@ def get_liedgruppen(typ: str | None = None, gruppe: str | None = None) -> list[d
 @whitelist(allow_guest=False)
 def get_liedgruppe_detail(liedgruppe: str) -> dict[str, Any]:
 	"""Detail einer Liedgruppe inkl. Lieder und Rollen."""
-	_require_login()
+	_require_read()  # R-7
 	doc = get_doc("Liedgruppe", liedgruppe)
 
 	lieder = []
@@ -1149,7 +1136,7 @@ def get_lied_filteroptionen() -> dict[str, list[str]]:
 
     Rueckgabe: {"gruppen": [...], "kategorien": [...], "anlaesse": [...]}
     """
-	_require_login()
+	_require_read()  # R-7
 
 	# Liedgruppen: Klartextname (gruppenname) aus dem Katalog, Fallback `name`.
 	gruppen = get_all("Liedgruppe", fields=["name", "gruppenname"]) or []

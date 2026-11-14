@@ -763,11 +763,26 @@ def offene_moderations_vorschlaege(limit=None) -> list[dict[str, Any]]:
             "geloescht_am": ["is", "not set"],
         },
         fields=["name", "element_name", "element_start", "element_end",
-                "all_day", "ressource", "element_calendar", "status"],
+                "all_day", "ressource", "element_calendar", "status", "moderation_offen"],
         order_by="element_start asc",
-        limit_page_length=grenze,
     ) or []
-    return [r for r in rows if isinstance(r, dict)]
+    # R-5/UI-R4: gezaehlt wird, was der Aufrufer auf der OFFENEN Stufe selbst
+    # pruefen darf (dieselbe Regel wie `darf_pruefen` auf dem Brett) — ein
+    # Vorschlag, der nach der Gruppenstufe auf die Gemeinde wartet, ist fuer
+    # die Gruppenleitung nicht mehr „zu pruefen“.
+    from diakronos_app.api.kronos.kanban_api import _stufen_info
+    from diakronos_app.api.kronos.permissions import get_accessible_calendars
+
+    stufen = {c["name"]: {"pruefstufen": c.get("pruefstufen") or []}
+              for c in get_accessible_calendars() if c.get("is_moderator")}
+    offen = [
+        r for r in rows
+        if isinstance(r, dict)
+        and _stufen_info(r, stufen.setdefault(r.get("element_calendar"), {"pruefstufen": []}))["darf_pruefen"]
+    ]
+    for r in offen:
+        r.pop("moderation_offen", None)
+    return offen if grenze is None else offen[:grenze]
 
 
 # Rueckwaerts-Kompatibilitaet: Der Name wird von `kanban_api` und Tests benutzt.

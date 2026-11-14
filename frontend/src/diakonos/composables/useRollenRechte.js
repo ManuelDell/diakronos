@@ -18,6 +18,9 @@ import { fehlertext } from '../../shared/fehlertexte.js'
 const ZUGANG = 'diakronos.diakonos.api.zugang'
 const VERANTWORTLICHE = 'diakronos.diakonos.api.verantwortliche'
 const DEVMODUS = 'diakronos.devmodus.api'
+// UI-R8: die EINE Quelle für „Was bewirkt welche Rolle?“ (Backend
+// `rechte/erklaerung.py`). Kein Rollenwissen im Frontend.
+const RECHTE = 'diakronos_app.api.rechte'
 
 /** Wer hat welche Rolle — Lese-Tabelle des Abschnitts. */
 export function rollenUebersicht() {
@@ -35,6 +38,17 @@ export function rollenSetzen(mitgliedId, rollen) {
 /** Die waehlbare Rollenliste (feste Diakronos-Liste). */
 export function zugangsRollen() {
     return apiCall(`${VERANTWORTLICHE}.get_zugangs_rollen`, {})
+}
+
+/**
+ * UI-R8: „Was bewirkt welche Rolle?“ — die EINE Quelle der Erklärungen.
+ *
+ * Antwort: `{systemrollen, gast, gruppenrollen, module, stufen}`. Das Frontend
+ * kopiert KEINEN dieser Texte; es zeigt sie nur (siehe
+ * `composables/rollenErklaerung.mjs`).
+ */
+export function rollenErklaerung() {
+    return apiCall(`${RECHTE}.get_rollen_erklaerung`, {})
 }
 
 /** Verantwortliche eines Dienstbereichs/einer Gruppe/einer Untergruppe lesen. */

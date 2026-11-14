@@ -126,8 +126,10 @@ function labels(gruppe) {
   const websiteMod = M.sichtbareEintraege(inhalte, { istAdmin: false, rollen: ['Website-Moderator'] })
   assert.ok(websiteMod.some(e => e.id === 'website'), 'Website-Moderator sieht Website')
 
-  // Fuß „Einstellungen“ ist Admin-only — der Server prüft zusätzlich.
-  assert.equal(M.FUSS_EINTRAEGE[0].rolle, 'admin')
+  // Fuß „Einstellungen“ ist Verwaltungsarbeit — UI-R10: Stufe
+  // `verwaltung: 'personen'` (Administrator ODER Mitgliederverwaltung),
+  // seit R-11a nicht mehr „nur Admin“. Der Server prüft zusätzlich.
+  assert.equal(M.FUSS_EINTRAEGE[0].verwaltung, 'personen')
   // Vorlagen (Dienste-Reiter) Admin-only, Meine Dienste für alle.
   // UX3c: „Dienstpläne“ hängt am PLANUNGSRECHT (Administration oder
   // Planer-Rolle), nicht an „alle“ — ohne Rechte bleibt der Start-Reiter.

@@ -957,21 +957,36 @@ def _funktion_anzeige(art: str, datensatz) -> str:
 def _erste_verantwortliche_person(sess, art: str, kennung: str):
     """Die ERSTE verantwortliche Person einer Funktion — oder ``None``.
 
-    Reihenfolge: ``idx`` (Kind-Tabellen-Sortierung), dann ``user``. Der
+    Gruppe: HV, dann MV (R-11d). Dienstbereich: ``idx``, dann ``user``. Der
     Benutzername fuehrt auf ``Mitglied.user``; ohne Zuordnung -> ``None``
     (keine erfundene Person, kein Platzhalter).
     """
     from diakronos_app.models.diakonos import Mitglied
     from diakronos_app.frappe_compat.registry_gen import model_for
 
-    modell = model_for(_VERANTWORTLICHE_TABELLE[art])
-    zeilen = sess.execute(
-        select(modell)
-        .where(modell.parent == kennung)
-        .order_by(modell.idx, modell.name)
-    ).scalars().all()
-    for zeile in zeilen:
-        user = str(getattr(zeile, "user", "") or "").strip()
+    if art == "gruppe":
+        # R-11d: Gruppen fuehren ihre Leitung im EINEN Rechtesystem (HV, dann
+        # MV); die Alt-Tabelle „Gruppe Verantwortlicher“ wird nicht mehr gepflegt.
+        from diakronos_app.models.rechte import RechteGruppenrolle
+
+        rang = {"HV": 0, "MV": 1}
+        rollen = sess.execute(
+            select(RechteGruppenrolle.benutzer, RechteGruppenrolle.rolle).where(
+                RechteGruppenrolle.gruppe == kennung,
+                RechteGruppenrolle.untergruppe.is_(None),
+                RechteGruppenrolle.rolle.in_(tuple(rang)),
+            )
+        ).all()
+        konten = [b for b, _r in sorted(rollen, key=lambda z: (rang[z[1]], z[0]))]
+    else:
+        # Dienstbereiche haben keine Leitung im Rechtesystem (Manuel 11.11.);
+        # die Website zeigt dort weiter den gepflegten Altbestand.
+        modell = model_for(_VERANTWORTLICHE_TABELLE[art])
+        konten = [getattr(z, "user", "") for z in sess.execute(
+            select(modell).where(modell.parent == kennung).order_by(modell.idx, modell.name)
+        ).scalars().all()]
+    for konto in konten:
+        user = str(konto or "").strip()
         if not user:
             continue
         person = sess.execute(

@@ -105,11 +105,27 @@ def welt(patched_db):
                        notiz="Auftakt", docstatus=0, idx=1),
     ])
     sess.add_all([
+        # R-7: Administrator = System Manager (nicht Mitgliederverwaltung).
         HasRole(name="HR-1", parent=ADMIN, parenttype="User",
-                parentfield="roles", role="Mitgliederadministrator",
+                parentfield="roles", role="System Manager",
                 docstatus=0, idx=1),
     ])
     sess.commit()
+    # R-7: Lieder sieht/pflegt nur, wer in einer Gruppe mit Modul „Lieder“ ist
+    # (Uebernahme wie Migration r1: Gruppen von „Musik und Worship“ bekommen
+    # das Modul, ihre Verantwortlichen werden HV/MV). Anna ist einfaches
+    # Mitglied der Worship-Band.
+    from diakronos_app.models.diakonos import Gruppenmitgliedschaft, Mitglied
+    from rechte_hilfe import uebernehmen
+
+    if sess.get(Mitglied, "M-anna-r7") is None:
+        sess.add(Mitglied(name="M-anna-r7", vorname="Anna", nachname="Beispiel",
+                          email=ANNA, user=ANNA, status="Mitglied", docstatus=0, idx=0))
+        sess.add(Gruppenmitgliedschaft(name="GM-anna-r7", parent="GRP-WORSHIP", parenttype="Gruppe",
+                                       parentfield="mitglieder", mitglied="M-anna-r7", status="Aktiv",
+                                       docstatus=0, idx=1))
+        sess.commit()
+    uebernehmen(sess)
     yield sess
     sess.close()
 

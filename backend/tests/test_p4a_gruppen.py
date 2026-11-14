@@ -141,7 +141,9 @@ def hierarchie(patched_db):
         Mitglied(name="M-neu-d", vorname="Nina", nachname="Neu",
                  email="neu-d@example.org", status="Mitglied",
                  user="neu-d@example.org",
-                 ancestor_path="/G-A1/|/DB-A/", docstatus=0, idx=0),
+                 # R-4: noch NICHT in G-A1 — ein Pfad /G-A1/ wird bei der
+                 # Uebernahme ins Rechtesystem zur Mitgliedschaft.
+                 ancestor_path="/|/DB-A/", docstatus=0, idx=0),
         # Der Gruppenverantwortliche braucht laut Referenz einen Mitglieds-
         # Datensatz (create_untergruppe prueft `mitglied` UND Verantwortung).
         Mitglied(name="M-grv", vorname="Gustav", nachname="Verantw",
@@ -172,6 +174,11 @@ def hierarchie(patched_db):
                                    status="Aktiv", docstatus=0, idx=1),
     ])
     sess.commit()
+    # R-4: Altmodell-Rechte dieser Welt ins EINE Rechtesystem uebernehmen —
+    # dieselbe Abbildung wie die Migration r1_rechte_kern im Betrieb.
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(sess)
     yield sess
     sess.close()
 
@@ -245,23 +252,27 @@ def test_hierarchie_admin_sieht_aktive_ohne_archivierte(hierarchie):
     assert "Alte Gruppe" not in namen          # Archiviert ist immer raus
 
     nord = next(g for g in res["gruppen"] if g["gruppenname"] == "Kleingruppe Nord")
-    # GM-1 + GM-2 sind Aktiv, GM-3 ist Inaktiv -> 2, nicht 3.
-    assert nord["mitglieder_count"] == 2
+    # GM-1 + GM-2 sind Aktiv, GM-3 ist Inaktiv. R-4: M-grv steht per
+    # ancestor_path in G-A1 — die Uebernahme macht daraus eine Mitgliedschaft.
+    # -> 3, nicht 4 (die Inaktive zaehlt weiter nicht).
+    assert nord["mitglieder_count"] == 3
     assert [u["untergruppenname"] for u in nord["untergruppen"]] == ["Nord-Team"]
 
 
-def test_hierarchie_nicht_admin_sieht_nur_eigene_welt(hierarchie):
+def test_hierarchie_mitglied_sieht_oeffentliche_gruppen_nicht_versteckte(hierarchie):
+    """R-4 (Manuel 11.11.): Organigramm — Gruppen fuer alle Gemeindemitglieder
+    sichtbar (vorher nur die eigene ancestor_path-Welt). „Versteckt" bleibt
+    bei denen, die drin sind; Archiviertes ist immer raus."""
     from diakronos_app.api.gruppen import get_gruppen_hierarchie
 
     set_user("mitglied-a@example.org")
     res = get_gruppen_hierarchie()
 
     namen = {g["gruppenname"] for g in res["gruppen"]}
-    assert "Kleingruppe Nord" in namen     # ancestor_path ueberlappt G-A1
-    assert "Kleingruppe Süd" not in namen  # DB-B, fremde Welt
-    # Referenz filtert NICHT nach `sichtbarkeit` — Zugang haengt allein an der
-    # ancestor_path-Ueberlappung (siehe referenz/.../api/gruppen.py:36-40).
-    assert "Geheime Gruppe" in namen       # Pfad ueberlappt ebenfalls
+    assert "Kleingruppe Nord" in namen
+    assert "Kleingruppe Süd" in namen       # fremde, aber oeffentliche Gruppe
+    assert "Geheime Gruppe" not in namen    # versteckt, kein Mitglied
+    assert "Alte Gruppe" not in namen
 
 
 def test_hierarchie_ohne_mitglied_sieht_nichts_ausser_admin(hierarchie):
@@ -336,6 +347,11 @@ def test_untergruppe_detail_erlaubt_eigene(hierarchie):
     res = get_untergruppe_detail("UG-A1")
     assert res["success"] is True
     assert res["untergruppe"]["untergruppenname"] == "Nord-Team"
+    # R-4 (Manuel 11.11.): die Mitgliederliste sieht nur die Leitung.
+    assert res["mitglieder"] == []
+
+    set_user("gruppenverantw@example.org")   # HV von G-A1, gilt auch in UG-A1
+    res = get_untergruppe_detail("UG-A1")
     assert {m["mitglied"] for m in res["mitglieder"]} == {"M-gruppe-a1"}
 
 
@@ -493,10 +509,17 @@ def test_orgchart_knoten_farbe_ist_bereinigt(hierarchie):
     assert nodes["db_DB-A"]["farbe"] == "#667eea"
 
 
-def test_create_gruppe_verantwortlicher_darf(hierarchie):
+def test_create_gruppe_nur_admin(hierarchie):
+    """R-4 (Manuel 11.11.): Gruppen legt nur der Administrator an — auch ein
+    (frueherer) Bereichsverantwortlicher nicht mehr."""
     from diakronos_app.api.gruppen import create_gruppe
+    from diakronos_app.frappe_compat.exceptions import PermissionError
 
     set_user("bereichsverantw@example.org")
+    with pytest.raises(PermissionError):
+        create_gruppe("Neue Gruppe", "DB-A")
+
+    set_user("admin@example.org")
     res = create_gruppe("Neue Gruppe", "DB-A")
     assert res["success"] is True
 
@@ -517,8 +540,9 @@ def test_create_untergruppe_braucht_gruppenverantwortung(hierarchie):
     from diakronos_app.api.gruppen import create_untergruppe
     from diakronos_app.frappe_compat.exceptions import PermissionError
 
-    # bereichsverantw ist nicht Gruppenverantwortlicher von G-A1.
-    set_user("bereichsverantw@example.org")
+    # R-4: Untergruppen legen HV/MV der Gruppe an — ein Gruppenmitglied ohne
+    # Leitung nicht (bereichsverantw ist nach der Uebernahme MV von G-A1).
+    set_user("mitglied-a@example.org")
     with pytest.raises(PermissionError):
         create_untergruppe("Sub", "G-A1")
 
@@ -573,11 +597,15 @@ def test_get_user_create_permissions_admin(hierarchie):
 def test_get_user_create_permissions_verantwortliche(hierarchie):
     from diakronos_app.api.gruppen import get_user_create_permissions
 
+    # R-4 (Manuel 11.11.): Gruppen/Dienstbereiche nur Admin; der fruehere
+    # Bereichsverantwortliche ist MV von G-A1 und darf dort Untergruppen anlegen.
     set_user("bereichsverantw@example.org")
     res = get_user_create_permissions()
     assert res["can_create_dienstbereich"] is False
-    assert res["can_create_gruppe"] is True
-    assert res["allowed_dienstbereiche"] == ["DB-A"]
+    assert res["can_create_gruppe"] is False
+    assert res["allowed_dienstbereiche"] == []
+    # MV aller Gruppen seines frueheren Bereichs DB-A — ohne die archivierte.
+    assert res["allowed_gruppen"] == ["G-A1", "G-HIDE"]
 
     set_user("gruppenverantw@example.org")
     res = get_user_create_permissions()
@@ -677,8 +705,9 @@ def test_gruppen_for_orgchart_knoten_und_kanten(hierarchie):
     assert nodes["ug_UG-A1"]["parentId"] == "g_G-A1"
     # Archivierte Gruppe erzeugt keinen Knoten.
     assert "g_G-ARCH" not in nodes
-    # Mitgliederzahl der Gruppe ist an der Knoten-Form.
-    assert nodes["g_G-A1"]["mitglieder_count"] == 2
+    # Mitgliederzahl der Gruppe ist an der Knoten-Form (R-4: inkl. M-grv,
+    # siehe test_hierarchie_admin_sieht_aktive_ohne_archivierte).
+    assert nodes["g_G-A1"]["mitglieder_count"] == 3
 
 
 # ── Orgchart (orgchart_api) ─────────────────────────────────────────────────
@@ -701,7 +730,7 @@ def test_orgchart_data_root_und_kinder(hierarchie):
     assert by_id["g_G-A1"]["node_type"] == "gruppe"
     assert by_id["g_G-A1"]["raw_name"] == "G-A1"
     assert by_id["g_G-A1"]["leiter"] == "Gruppenverantw"   # aus User.full_name
-    assert by_id["g_G-A1"]["member_count"] == 2            # nur Aktive
+    assert by_id["g_G-A1"]["member_count"] == 3            # nur Aktive (R-4: + M-grv)
     assert by_id["ug_UG-A1"]["parentId"] == "g_G-A1"
     assert by_id["ug_UG-A1"]["raw_name"] == "UG-A1"
     assert by_id["ug_UG-A1"]["member_count"] == 1
@@ -710,8 +739,33 @@ def test_orgchart_data_root_und_kinder(hierarchie):
     assert {n["id"] for n in mitglied_knoten} == {
         "m__M-gruppe-a1__G-A1",
         "m__M-fremd-c__G-A1",
+        "m__M-grv__G-A1",          # R-4: ancestor_path -> Mitgliedschaft
+        "m__M-eigen-b__G-B1",      # R-4: ancestor_path -> Mitgliedschaft
         "m__M-gruppe-a1__UG-A1",
     }
+
+
+def test_orgchart_data_rechte_r4(hierarchie):
+    """R-4 (Manuel 11.11.): Gruppen + HV fuer alle Gemeindemitglieder;
+    Mitglieder-Knoten nur fuer HV/MV/GL der Einheit und den Admin; „Versteckt"
+    nur fuer die, die drin sind; ohne Mitglied-Datensatz nur die Wurzel.
+    Vorher lieferte der Endpunkt jedem Login alle Mitglieder aller Gruppen."""
+    from diakronos_app.api.orgchart_api import get_orgchart_data
+
+    set_user("mitglied-a@example.org")
+    nodes = get_orgchart_data()
+    by_id = {n["id"]: n for n in nodes}
+    assert "g_G-B1" in by_id                         # fremde, oeffentliche Gruppe
+    assert by_id["g_G-A1"]["leiter"] == "Gruppenverantw"   # HV fuer alle
+    assert "g_G-HIDE" not in by_id                   # versteckt, kein Mitglied
+    assert [n for n in nodes if n["node_type"] == "mitglied"] == []
+
+    set_user("gruppenverantw@example.org")           # HV von G-A1
+    eltern = {n["parentId"] for n in get_orgchart_data() if n["node_type"] == "mitglied"}
+    assert eltern == {"g_G-A1", "ug_UG-A1"}          # nur die eigene Gruppe (+ UG)
+
+    set_user("ohne-mitglied@example.org")
+    assert [n["id"] for n in get_orgchart_data()] == ["__root__"]
 
 
 def test_orgchart_data_archivierte_gruppe_fehlt(hierarchie):

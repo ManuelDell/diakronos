@@ -34,7 +34,10 @@ const STUBS = {
 writeFileSync(STUBS[resolve(SRC, 'diakonos/composables/useApi.js')],
   `export async function apiCall(m, a){ return globalThis.__api(m, a) }\nexport default { apiCall }\n`)
 writeFileSync(STUBS[resolve(SRC, 'diakonos/composables/useSession.js')],
-  `import { computed } from '${VUE_URL}'\nexport function useSession(){ return { isAdmin: computed(() => globalThis.__isAdmin === true) } }\n`)
+  // UI-R10: die Seite liest `istMitgliederverwaltung` (Personenbereich). Im
+  // Test ist der Admin beides — der Server liefert `ist_mitgliederverwaltung`
+  // ebenfalls `true` für den Administrator.
+  `import { computed } from '${VUE_URL}'\nexport function useSession(){ return { isAdmin: computed(() => globalThis.__isAdmin === true), istMitgliederverwaltung: computed(() => globalThis.__isAdmin === true) } }\n`)
 writeFileSync(STUBS[resolve(SRC, 'diakonos/router.js')],
   `export function navigate(h){ globalThis.__nav = h; try { globalThis.window.location.hash = h } catch {} }\n`)
 writeFileSync(STUBS[resolve(SRC, 'diakonos/composables/useToast.js')],

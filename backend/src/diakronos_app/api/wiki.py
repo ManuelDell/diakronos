@@ -56,7 +56,6 @@ from diakronos_app.frappe_compat.api_helpers import (
     _delete_doc,
     _update_doc,
 )
-from diakronos_app.frappe_compat import permissions
 from diakronos_app.frappe_compat import whitelist
 from diakronos_app.frappe_compat.exceptions import (
     DoesNotExistError,
@@ -78,11 +77,19 @@ def _get_user():
     return user
 
 
-def _require_admin():
-    """Original: `_require_admin()` — Mitgliederadministrator ODER System Manager."""
-    roles = permissions.get_roles()
-    if "Mitgliederadministrator" not in roles and "System Manager" not in roles:
-        throw("Nur für Administratoren.", FrappePermissionError)
+# ── R-7: EIN Rechtesystem (Lesen/Anlegen/Verwalten ueber den Kern) ─────────
+
+
+def _darf(aktion: str, objekt: str | None = None, **kw) -> bool:
+    from diakronos_app import rechte
+
+    return bool(rechte.darf(session.user, aktion, "wiki", objekt, **kw))
+
+
+def _pruefe_verwalten(objekt: str) -> None:
+    from diakronos_app import rechte
+
+    rechte.pruefe(session.user, rechte.VERWALTEN, "wiki", objekt)
 
 
 def _avatar(name: str | None) -> str:
@@ -167,7 +174,17 @@ def get_wiki_artikel_liste(kategorie="", search=""):
             or q in (a.get("tags") or "").lower()
         ]
 
-    return [_artikel_to_dict(a) for a in artikel]
+    # R-7: nur, was der Kern lesen laesst (Gruppe/Freigabe/Gemeinde).
+    from diakronos_app import rechte
+
+    ergebnis = []
+    for a in artikel:
+        if not _darf(rechte.LESEN, a.get("name")):
+            continue
+        d = _artikel_to_dict(a)
+        d["darf_bearbeiten"] = _darf(rechte.VERWALTEN, a.get("name"))
+        ergebnis.append(d)
+    return ergebnis
 
 
 @whitelist(allow_guest=False)
@@ -184,18 +201,32 @@ def get_wiki_artikel_detail(artikel_id):
     )
     if not a or a.get("geloescht_am") is not None:
         throw("Artikel nicht gefunden.", DoesNotExistError)
+    # R-7: Leserecht ueber den Kern (Gruppe/Freigabe/Gemeinde).
+    from diakronos_app import rechte
 
-    return _artikel_to_dict(a, with_content=True)
+    if not (_darf(rechte.LESEN, artikel_id) or _darf(rechte.VERWALTEN, artikel_id)):
+        throw("Artikel nicht gefunden.", DoesNotExistError)
+
+    d = _artikel_to_dict(a, with_content=True)
+    # R-12l: dieselbe Pruefung wie in der Liste (Leseseite: Aendern-Knoepfe).
+    d["darf_bearbeiten"] = _darf(rechte.VERWALTEN, artikel_id)
+    return d
 
 
 @whitelist(methods=["POST"], allow_guest=False)
-def create_wiki_artikel(titel, inhalt, kategorie="allgemein", tags="", auszug=""):
-    """Erstellt einen neuen Wiki-Artikel (nur Admin).
+def create_wiki_artikel(titel, inhalt, kategorie="allgemein", tags="", auszug="",
+                        gruppe=None, untergruppe=None):
+    """Erstellt einen neuen Wiki-Artikel — R-7: HV/MV (bzw. GL) in ihrer
+    Gruppe, gemeindeweit nur der Admin.
 
     `ist_neu` ist im Original `1` (Check-Feld) — hier derselbe Wert.
     """
     user = _get_user()
-    _require_admin()
+    from diakronos_app.rechte import verwaltung as _rv
+
+    gruppe = str(gruppe or "").strip() or None
+    untergruppe = str(untergruppe or "").strip() or None
+    _rv.pruefe_inhalt_anlegen(user, "wiki", gruppe, untergruppe)
 
     user_doc = get_value("User", user, ["full_name"], as_dict=True) or {}
 
@@ -209,6 +240,7 @@ def create_wiki_artikel(titel, inhalt, kategorie="allgemein", tags="", auszug=""
         "autor_email": user,
         "ist_neu":     1,
     })
+    _rv.inhalt_anmelden(user, "wiki", artikel_id, gruppe, untergruppe)
 
     return {"success": True, "artikel_id": artikel_id}
 
@@ -223,7 +255,7 @@ def update_wiki_artikel(artikel_id, titel="", inhalt="", kategorie="", tags="", 
     auf Wahrheitswert.
     """
     _get_user()
-    _require_admin()
+    _pruefe_verwalten(artikel_id)  # R-7
 
     doc = get_doc("Wiki Artikel", artikel_id)
 
@@ -256,7 +288,7 @@ def delete_wiki_artikel(artikel_id):
     „Rueckgaengig“ (``wiederherstellbar_bis``).
     """
     user = _get_user()
-    _require_admin()
+    _pruefe_verwalten(artikel_id)  # R-7
 
     try:
         zeitpunkt = papierkorb.loeschen("Wiki Artikel", artikel_id, von=user)
@@ -274,7 +306,7 @@ def delete_wiki_artikel(artikel_id):
 def wiederherstellen_wiki_artikel(artikel_id):
     """Holt einen Wiki-Artikel aus dem Papierkorb (nur Admin) — UX2b P2."""
     _get_user()
-    _require_admin()
+    _pruefe_verwalten(artikel_id)  # R-7
 
     try:
         papierkorb.wiederherstellen("Wiki Artikel", artikel_id)

@@ -113,6 +113,19 @@ def job_papierkorb_aufraeumen() -> None:
 	logger.info("Job papierkorb_aufraeumen fertig (%s endgueltig entfernt).", count)
 
 
+def job_gastlinks_aufraeumen() -> None:
+	"""Taeglicher Job (R-11f): abgelaufene/widerrufene Gast-Links nach 30 Tagen
+	entfernen (``rechte.gastlinks.AUFBEWAHRUNG_TAGE``). Idempotent."""
+	from diakronos_app.rechte import gastlinks
+
+	try:
+		count = gastlinks.aufraeumen()
+	except Exception:  # noqa: BLE001 — ein Fehler darf den Scheduler nicht toeten
+		logger.exception("Job gastlinks_aufraeumen fehlgeschlagen")
+		return
+	logger.info("Job gastlinks_aufraeumen fertig (%s entfernt).", count)
+
+
 # (Job-Funktion, Job-Id) — die Registrierung ist damit an EINER Stelle und
 # fuer Tests pruefbar, ohne den BlockingScheduler zu starten.
 DAILY_JOBS: list[tuple] = [
@@ -120,6 +133,7 @@ DAILY_JOBS: list[tuple] = [
 	(job_delete_alte_anmeldeanfragen, "delete_alte_anmeldeanfragen"),
 	(job_delete_alte_zuordnung_ablehnungen, "delete_alte_zuordnung_ablehnungen"),
 	(job_papierkorb_aufraeumen, "papierkorb_aufraeumen"),
+	(job_gastlinks_aufraeumen, "gastlinks_aufraeumen"),
 ]
 
 

@@ -41,7 +41,7 @@ from diakronos_app.frappe_compat.exceptions import (
 	ValidationError,
 	throw,
 )
-from diakronos_app.frappe_compat.permissions import get_roles, is_admin
+from diakronos_app.frappe_compat.permissions import get_roles, ist_mitgliederverwaltung
 from diakronos_app.frappe_compat.session import session
 from diakronos_app.models.smtp import STANDARD_TIMEOUT
 from diakronos_app import smtp_einstellungen as einstellungen_modul
@@ -74,7 +74,8 @@ def _angemeldeter_admin() -> str:
 	user = str(session.user or "").strip()
 	if not user or user == "Guest":
 		throw("Anmeldung verweigert.", FrappePermissionError)
-	if not is_admin(user):
+	# R-11a: auch die Mitgliederverwaltung sieht „eingerichtet: ja/nein“.
+	if not ist_mitgliederverwaltung(user):
 		throw("Anmeldung verweigert.", FrappePermissionError)
 	return user
 

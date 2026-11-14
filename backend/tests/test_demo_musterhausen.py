@@ -702,3 +702,48 @@ def test_pub4g_genannte_lieder_nicht_gemeinfrei(engine, session_factory, demo):
             assert lied is not None, f"Lied fehlt: {titel}"
             assert lied.rechte_status != "Gemeinfrei", (
                 f"{titel!r} steht auf „Gemeinfrei“ — das ist nicht belegt")
+
+
+def test_r12j_frische_demo_hat_rechte(engine, session_factory, demo):
+    """R-12j (Befund UI-R9b): Eine frische Demo steht im Rechtesystem.
+
+    Befund: Der Seed legt Verantwortliche, Kalender-Leserechte und Inhalte
+    ueber die alten Felder an. Die Migration ``r1_rechte_kern`` uebernimmt
+    diese nur beim Upgrade — auf der frisch migrierten, LEEREN Datenbank
+    lief sie ins Leere. Ergebnis: keine HV/MV, niemand durfte in einer Gruppe
+    anlegen, Gruppenaufgaben waren unsichtbar.
+
+    Geprueft: jede Gruppe mit verantwortlichem Konto hat genau EINEN HV aus
+    dieser Liste, jeder Kalender ist Objekt im Rechtesystem, und der HV darf
+    in seiner Gruppe Aufgaben anlegen (``anlegeorte`` — dieselbe Regel wie
+    das Anlegen selbst).
+    """
+    from diakronos_app.rechte import verwaltung
+
+    demo.anlegen(stichtag=STICHTAG)
+    with session_factory() as s:
+        verantwortliche: dict[str, set[str]] = {}
+        for parent, user in s.execute(text(
+            'SELECT parent, "user" FROM gruppe_verantwortlicher WHERE "user" IS NOT NULL'
+        )).all():
+            verantwortliche.setdefault(parent, set()).add(user)
+        hv: dict[str, list[str]] = {}
+        for gruppe, benutzer in s.execute(text(
+            "SELECT gruppe, benutzer FROM rechte_gruppenrolle "
+            "WHERE rolle = 'HV' AND untergruppe IS NULL"
+        )).all():
+            hv.setdefault(gruppe, []).append(benutzer)
+        kalender = set(s.scalars(text("SELECT name FROM kalender")).all())
+        kalender_objekte = set(s.scalars(text(
+            "SELECT objekt FROM rechte_objekt WHERE typ = 'kalender'")).all())
+
+    assert verantwortliche, "die Demo setzt Gruppenverantwortliche"
+    for gruppe, konten in verantwortliche.items():
+        assert len(hv.get(gruppe, [])) == 1, f"Gruppe {gruppe}: kein bzw. mehr als ein HV"
+        assert hv[gruppe][0] in konten, f"Gruppe {gruppe}: HV ist kein Verantwortlicher"
+    assert kalender and kalender <= kalender_objekte, (
+        f"Kalender ohne Rechte-Objekt: {sorted(kalender - kalender_objekte)}")
+
+    gruppe, (konto,) = next(iter(sorted(hv.items())))
+    orte = {o["gruppe"] for o in verwaltung.anlegeorte(konto, "aufgabe") if not o.get("untergruppe")}
+    assert gruppe in orte, f"HV {konto} darf in {gruppe} keine Aufgabe anlegen"

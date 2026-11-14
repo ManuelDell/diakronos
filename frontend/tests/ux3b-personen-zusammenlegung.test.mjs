@@ -147,8 +147,12 @@ const liste = readFileSync(
   assert.deepEqual(menue.map(r => r.id), ['liste', 'anfragen', 'datenschutz', 'import'],
     'Reiter: Liste · Anfragen · Datenschutz · Import')
   assert.deepEqual(menue.map(r => r.label), ['Liste', 'Anfragen', 'Datenschutz', 'Import'])
-  assert.equal(menue.filter(r => r.rolle === 'admin').length, 3,
-    'Anfragen/Datenschutz/Import sind Admin-Reiter — die Liste ist für alle')
+  // UI-R10: Anfragen/Datenschutz/Import sind PERSONEN-Verwaltungsreiter
+  // (Administrator ODER Mitgliederverwaltung) — die Liste ist für alle.
+  assert.equal(menue.filter(r => r.verwaltung === 'personen').length, 3,
+    'Anfragen/Datenschutz/Import tragen die Stufe „personen“')
+  assert.equal(menue.filter(r => r.rolle === 'admin').length, 0,
+    'kein Personen-Reiter hängt mehr am Kern-Admin')
 
   // Kein erfundenes Feld: die Adressbuch-Quelle darf keinen Status fragen —
   // sie fragt nur, was der Server liefert.

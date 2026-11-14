@@ -150,9 +150,12 @@ def stammdaten(sf):
         s.flush()
         s.add_all([Mitglied(name=k, user=k, email=k, vorname=k.capitalize(), nachname="Test")
                    for k in ("planer_chor", "planer_freizeit", "mitglied")])
-        s.add_all([DienstbereichVerantwortlicher(name="bv-" + b.lower(), parent=b, parenttype="Dienstbereich",
-                                                 parentfield="verantwortliche", user=u)
-                   for b, u in (("Chor", "planer_chor"), ("Freizeit", "planer_freizeit"))])
+    # R-6: Planer = HV der Gruppe ihres Bereichs (Dienstbereiche entfallen);
+    # „mitglied“ schreibt im Chor-Kalender und sieht damit Chor-Plaene.
+    from rechte_hilfe import planrahmen_rechte
+
+    planrahmen_rechte(sf, bereich="Chor", hv="planer_chor", leser=("mitglied",))
+    planrahmen_rechte(sf, bereich="Freizeit", hv="planer_freizeit")
 
 
 def definition(schluessel, name, bereich=None):

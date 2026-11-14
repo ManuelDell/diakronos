@@ -129,6 +129,124 @@ def ist_moderator(calendar_name) -> bool:
     )
 
 
+def schreibt_direkt(calendar_name, *, aenderung: bool = False) -> bool:
+    """Wirken eigene Termine (bzw. ``aenderung=True``: Aenderungen an
+    bestehenden Terminen) des Aufrufers in diesem Kalender sofort?
+
+    R-5: NEUE Termine genau dann, wenn der Rechte-Kern KEINE Stufe vorsieht
+    (``rechte.moderationsstufen``) — in gemeindeweit freigegebenen Kalendern
+    fuer niemanden, auch nicht fuer den Admin (zweite Freigabeschicht,
+    Manuel 11.11.: „alle Termine, die ... erstellt werden“). AENDERUNGEN, wenn
+    der Aufrufer jede seiner Stufen selbst prueft.
+    """
+    if not calendar_name:
+        return False
+    from diakronos_app.api.kronos.permissions import get_accessible_calendars
+
+    feld = "aendert_direkt" if aenderung else "direkt"
+    return any(
+        c["name"] == calendar_name and c.get(feld)
+        for c in get_accessible_calendars()
+    )
+
+
+def offene_stufen(wert) -> list[str]:
+    """``moderation_offen`` („gruppe,gemeinde“) als Liste."""
+    return [t for t in str(wert or "").replace(" ", "").split(",") if t]
+
+
+def _stufen_text(stufen: list[str]) -> str:
+    return ",".join(stufen)
+
+
+_STUFEN_NAME = {
+    "untergruppe": "die Leitung der Untergruppe",
+    "gruppe": "die Gruppenleitung",
+    "gemeinde": "die Gemeinde-Moderation",
+}
+
+
+def wartet_auf(stufe: str) -> str:
+    """Meldung „wartet noch auf …“ fuer eine offene Stufe."""
+    return _STUFEN_NAME.get(stufe, "die Moderation")
+
+
+@dataclass
+class StatusEntscheidung:
+    """Was aus einem gewuenschten Statuswechsel wird (R-5, Rechte-Kern)."""
+
+    #: zu schreibender Status (``None`` = Status bleibt)
+    status: str | None = None
+    #: neuer Wert fuer ``moderation_offen`` (``None`` = unveraendert)
+    offen: str | None = None
+    #: eine Stufe wurde freigegeben — der Aufrufer schreibt wie ein Moderator
+    freigabe: bool = False
+
+    def in_werte(self, werte: dict[str, object]) -> None:
+        if self.status is not None:
+            werte["status"] = self.status
+        if self.offen is not None:
+            werte["moderation_offen"] = self.offen
+
+
+def entscheide_status(doc, gewuenscht, direkt: bool) -> StatusEntscheidung:
+    """Statuswechsel eines Termins nach dem EINEN Rechte-Kern.
+
+    * Vorschlag -> Festgelegt ist eine FREIGABE: geprueft wird die naechste
+      offene Stufe (``moderation_offen``; leer = Bestand/Entwurf: die letzte
+      Stufe des Kalenders, ausser der Aufrufer schreibt dort direkt). Sind
+      danach noch Stufen offen, bleibt der Termin „Vorschlag“.
+    * Ablehnen/Zurueckstufen: wer die aktuelle Stufe pruefen darf bzw. wer
+      direkt schreibt.
+    Ohne Recht bleibt der Status unveraendert (wie bisher: kein Fehler fuer
+    Nicht-Moderatoren). Ein Moderator der falschen Stufe bekommt eine
+    klare Meldung.
+    """
+    from diakronos_app import rechte
+
+    if gewuenscht is None:
+        return StatusEntscheidung()
+    bisheriger = str(doc.get("status") or "Vorschlag")
+    if str(gewuenscht) == bisheriger:
+        return StatusEntscheidung()
+    kalender = str(doc.get("element_calendar") or "")
+    nutzer = session.user
+    offen = offene_stufen(doc.get("moderation_offen"))
+
+    # „Konflikt“ ist ein Vorschlag mit Belegungs-Ueberschneidung: dieselben Stufen.
+    wartet = bisheriger in ("Vorschlag", "Konflikt")
+    if wartet and (offen or not direkt):
+        stufen = offen or rechte.erforderliche_stufen("kalender", kalender)
+        naechste = stufen[0]
+        if not rechte.darf_stufe(nutzer, "kalender", kalender, naechste):
+            if rechte.pruefstufen(nutzer, "kalender", kalender):
+                throw(
+                    f"Dieser Termin wartet noch auf die Freigabe durch {wartet_auf(naechste)}.",
+                    FrappePermissionError,
+                )
+            return StatusEntscheidung()
+        if str(gewuenscht) == "Festgelegt":
+            rest = stufen[1:]
+            return StatusEntscheidung(
+                status="Festgelegt" if not rest else "Vorschlag",
+                offen=_stufen_text(rest), freigabe=True,
+            )
+        # Ablehnen (oder anderer Status) durch den Pruefer der aktuellen Stufe
+        return StatusEntscheidung(status=str(gewuenscht), offen="", freigabe=True)
+
+    if direkt:
+        return StatusEntscheidung(
+            status=str(gewuenscht), offen="" if wartet else None,
+            freigabe=str(gewuenscht) == "Festgelegt",
+        )
+    # Festgelegter Termin, kein Direktschreiber: zurueckstufen/absagen darf,
+    # wer die letzte Stufe des Kalenders prueft.
+    letzte = rechte.erforderliche_stufen("kalender", kalender)[-1]
+    if rechte.darf_stufe(nutzer, "kalender", kalender, letzte):
+        return StatusEntscheidung(status=str(gewuenscht), offen="", freigabe=True)
+    return StatusEntscheidung()
+
+
 def kalenderwechsel_wirkt_sofort(
     alter_kalender,
     neuer_kalender,
@@ -148,7 +266,8 @@ def kalenderwechsel_wirkt_sofort(
     """
     if not neuer_kalender or str(neuer_kalender) == str(alter_kalender or ""):
         return ist_mod_quelle
-    return ist_mod_quelle and ist_moderator(neuer_kalender)
+    # R-5: „sofort“ heisst im Zielkalender ohne Moderationsstufe schreiben.
+    return ist_mod_quelle and schreibt_direkt(neuer_kalender)
 
 
 def _normalisiere_datum(wert) -> str | None:
@@ -295,6 +414,11 @@ def speichere_aenderungsvorschlag(
 
     neuer_name = f"ELEMAEND-{_generate_hash(12)}"
     model = model_for("Element Aenderung")
+    # R-5: die Stufen, die diese Aenderung durchlaufen muss (Rechte-Kern).
+    from diakronos_app import rechte
+
+    stufen = rechte.moderationsstufen(antragsteller, "kalender", element_calendar) \
+        or rechte.erforderliche_stufen("kalender", element_calendar)
     bestehende = get_all(
         "Element Aenderung",
         filters={"element": element_name},
@@ -309,6 +433,7 @@ def speichere_aenderungsvorschlag(
             element_calendar=element_calendar,
             antragsteller=antragsteller,
             vorschlag=_json.dumps(nutzlast, ensure_ascii=False),
+            moderation_offen=_stufen_text(stufen),
             docstatus=0,
             idx=0,
         ))
@@ -694,12 +819,29 @@ def pruefe_moderationsrecht(name: str):
         throw(f"Invalid ID: {name}")
     doc = get_doc("Element Aenderung", name)
     calendar = doc.get("element_calendar")
-    if not ist_moderator(calendar):
+    # R-5: geprueft wird die NAECHSTE offene Stufe dieses Vorschlags.
+    from diakronos_app import rechte
+
+    stufe = aenderung_naechste_stufe(doc)
+    if not rechte.darf_stufe(session.user, "kalender", str(calendar or ""), stufe):
+        if ist_moderator(calendar):
+            throw(
+                f"Diese Änderung wartet noch auf die Freigabe durch {wartet_auf(stufe)}.",
+                FrappePermissionError,
+            )
         throw(
             f"Für den Kalender {calendar} fehlt dir das Recht, Termine zu prüfen.",
             FrappePermissionError,
         )
     return doc
+
+
+def aenderung_naechste_stufe(doc) -> str:
+    """Naechste offene Stufe eines Aenderungsvorschlags (Bestand: letzte Stufe)."""
+    from diakronos_app import rechte
+
+    offen = offene_stufen(doc.get("moderation_offen"))
+    return (offen or rechte.erforderliche_stufen("kalender", str(doc.get("element_calendar") or "")))[0]
 
 
 __all__ = [
@@ -708,10 +850,16 @@ __all__ = [
     "SOFORT_KIND_TABELLEN",
     "VORSCHLAG_KIND_TABELLEN",
     "TerminAenderung",
+    "StatusEntscheidung",
+    "wartet_auf",
+    "aenderung_naechste_stufe",
+    "entscheide_status",
     "ist_moderator",
     "kind_tabelle_schreiben",
+    "offene_stufen",
     "pruefe_belegungskonflikt",
     "pruefe_moderationsrecht",
+    "schreibt_direkt",
     "speichere_aenderungsvorschlag",
     "trenne_aenderung",
     "vorschlag_anwenden",

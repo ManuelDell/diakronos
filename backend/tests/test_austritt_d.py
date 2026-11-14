@@ -468,7 +468,9 @@ def test_nr4_besetzungsmatrix_kein_n_plus_eins(welt) -> None:
     def _zaehle(conn, cursor, statement, parameters, context, executemany):
         zaehler.append(statement)
 
-    set_user(ADMIN)
+    # R-11a/c: Plaene liest der Administrator (bzw. die Gruppenleitung) —
+    # die Mitgliederverwaltung ist dafuer nicht zustaendig.
+    set_user("Administrator")
     try:
         ergebnis = planung.get_besetzungsmatrix(plan_name)
     finally:

@@ -69,6 +69,8 @@ def sandwelt(patched_db):
                 creation=t, modified=t),
     ])
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     yield sess
     sess.close()
 
@@ -308,6 +310,8 @@ def test_steuerzeichen_im_titel_machen_den_report_nicht_unlesbar(client, patched
     sess.add(UserRole(name="ur-steuer", parent=SANDKALENDER, parenttype="Kalender",
                       parentfield="leserechte", role="Mitglied", docstatus=0, idx=1))
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
 
     # Titel mit Vertikal-Tab und Nullbyte (typisch fuer Einfuegen aus PDF/Word).
     titel = "Chorprobe\x0b mit \x00 Steuerzeichen"
@@ -350,6 +354,8 @@ def test_steuerzeichen_im_displayname_des_kalenders(client, patched_db):
                       parenttype="Kalender", parentfield="leserechte",
                       role="Mitglied", docstatus=0, idx=1))
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
 
     body = _propfind_home(client)
     ET.fromstring(body)  # rot vor der Behebung
@@ -456,13 +462,17 @@ def test_umlaute_und_anfuehrungszeichen_im_namen(client, patched_db, sandwelt):
                          element_end=t.replace(hour=11), all_day=False,
                          status="Festgelegt", docstatus=0, idx=0, creation=t, modified=t))
         sess.commit()
+        from rechte_hilfe import uebernehmen
+        uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     finally:
         sess.close()
 
     body = _propfind_home(client)
     ET.fromstring(body)
     hrefs = _hrefs(body)
-    ziel = next(h for h in hrefs if "Chor" in h)
+    # Den Sonderkalender gezielt waehlen (nicht den ersten „Chor“-Treffer —
+    # die Reihenfolge der Kalenderliste ist keine Zusage).
+    ziel = next(h for h in hrefs if "%22" in h or "100" in h)
     # `"` und `%` sind prozentkodiert, der Rest bleibt lesbar genug.
     assert "%22" in ziel and "%25" in ziel and "%20" in ziel
 

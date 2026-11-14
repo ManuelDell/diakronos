@@ -81,6 +81,11 @@ def welt(patched_db):
                  selbstverwaltet=0, docstatus=0, idx=0),
     ])
 
+    # R-5: der Rechte-Kern verlangt aktive Konten (fail closed).
+    from diakronos_app.models.core import User
+
+    sess.add_all([User(name=u, email=u, enabled=True) for u in (MODERATOR, ANNA)])
+
     # Moderatorin sein -> lesen+schreiben+moderieren in KALENDER.
     sess.add_all([
         KalenderModerator(name="KM-1", parent=KALENDER, parenttype="Kalender",
@@ -131,6 +136,8 @@ def welt(patched_db):
     ])
 
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     yield sess
     sess.close()
 
@@ -395,7 +402,7 @@ def test_finalize_staged_events_setzt_status_festgelegt(client, als_moderator):
     r = client.post(f"/api/method/{KANBAN_MODUL}.finalize_staged_events",
                     data={"event_ids": json.dumps(["ELE-3"])})
     assert r.status_code == 200, r.text
-    assert r.json()["message"] == {"finalized": 1}
+    assert r.json()["message"]["finalized"] == 1  # UI-R4: dazu festgelegt/weitergereicht/ergebnisse
 
     from diakronos_app.frappe_compat.query import get_value
     assert get_value("Element", "ELE-3", "status") == "Festgelegt"

@@ -85,7 +85,6 @@ from diakronos_app.api.kronos.permissions import get_accessible_calendars
 __all__ = ["get_dienstplan", "get_dienstrollen", "get_meine_dienste"]
 
 
-ADMIN_ROLES = ["System Manager", "Mitgliederadministrator"]
 
 
 # ── Compat-Helfer ───────────────────────────────────────────────────────────
@@ -172,10 +171,10 @@ def _is_admin() -> bool:
     Quelle: dienstplan.py:15-20. Nutzt die Rollen des angemeldeten Users
     (inkl. `Administrator`-Sonderfall vor der Rollenpruefung).
     """
-    user = session.user
-    if user == "Administrator":
-        return True
-    return any(r in permissions.get_roles(user) for r in ADMIN_ROLES)
+    # R-11a: der Administrator des EINEN Rechtesystems (Kern).
+    from diakronos_app import rechte
+
+    return rechte.ist_admin(session.user)
 
 
 def _current_user_mitglied_name():

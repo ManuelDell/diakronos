@@ -395,7 +395,10 @@ test('UX1h/H2 ModerationModals: je Sicht des Seriendialogs ein gefüllter Knopf'
 
 test('UX1h/H2 Beitraege: „Neuer Beitrag“ bleibt die Hauptaktion der Ansicht', () => {
   const text = lies(`${P}pages/Beitraege.vue`)
-  assert.match(text, /variant="primary" @click="openEditor\(\)"/,
+  // R6 (Review 12.11., Punkt 4): Der Knopf trägt zusätzlich `v-if` (nur mit
+  // Anlege-Recht) und `:loading` — die Hauptaktion bleibt dieselbe, nur die
+  // Attribute drumherum sind mehr geworden.
+  assert.match(text, /variant="primary"[^>]*@click="openEditor\(\)"/,
     '„Neuer Beitrag“ ist die eine Hauptaktion der Seite')
   assert.match(text, /Neuer Beitrag\s*<\/DkButton>/,
     'die Beschriftung des Kopfknopfes ist „Neuer Beitrag“')

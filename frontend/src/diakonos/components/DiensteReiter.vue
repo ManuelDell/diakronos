@@ -48,9 +48,12 @@ const props = defineProps({
   ariaLabel: { type: String, default: 'Bereiche' },
 })
 
-const { isAdmin } = useSession()
+const { isAdmin, istMitgliederverwaltung } = useSession()
 const eintraege = computed(() => sichtbareReiter(props.reiter, {
   istAdmin: isAdmin.value === true,
+  // UI-R10: Reiter mit `verwaltung` (z. B. „Vorlagen“ = Administration,
+  // Personenbereich wo zutreffend) prüfen gegen beide Stufen.
+  istMitgliederverwaltung: istMitgliederverwaltung.value === true,
   darfPlanen: props.darfPlanen,
 }))
 const aktiveSeite = computed(() => props.seite)

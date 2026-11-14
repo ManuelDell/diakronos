@@ -226,3 +226,46 @@ def test_passwortbremse_zaehlt_auch_wechselnde_tokens(client, monkeypatch):
     codes = [client.post('/api/method/zugang.passwort_uebernehmen', json={
         'token': str(i) * 43, 'passwort': 'lang-genug-123'}).status_code for i in range(3)]
     assert codes == [200, 200, 429]
+
+
+def test_r12i_verwaltung_speichert_trotz_gespeicherter_admin_zuordnung(client, set_user, patched_db):
+    """R-12i (UI-R10b): Eine gespeicherte Admin-Zuordnung sperrt die
+    Mitgliederverwaltung nicht mehr ganz aus — nur Aenderungen an den
+    admin-relevanten Teilen (Schalter, Verwaltungsrollen, Modus „anlegen“)
+    bleiben beim System Manager."""
+    from diakronos_app.models.core import User, HasRole
+    with patched_db() as sess:
+        sess.add(User(name='r12i-ma', enabled=True))
+        sess.add(HasRole(name='r12i-rolle', parent='r12i-ma', parenttype='User',
+                         parentfield='roles', role='Mitgliederadministrator', idx=1))
+        # Die Rolle, nicht der Administrator-Sonderfall, ist die Schranke.
+        sess.add(HasRole(name='r12i-sm', parent='Administrator', parenttype='User',
+                         parentfield='roles', role='System Manager', idx=1))
+        sess.commit()
+    leitung = {'gruppe': 'leitung', 'rolle': 'Mitgliederadministrator'}
+    chor = {'gruppe': 'chor', 'rolle': 'Mitglied'}
+
+    set_user('Administrator')
+    assert client.post(API + 'anmeldung_speichern', json={
+        'modus': 'abweisen', 'admin_ueber_gruppen': True, 'zuordnungen': [leitung]}).status_code == 200
+
+    set_user('r12i-ma')
+    def speichern(**kw):
+        daten = {'modus': 'abweisen', 'admin_ueber_gruppen': True, 'zuordnungen': [leitung, chor]}
+        daten.update(kw)
+        return client.post(API + 'anmeldung_speichern', json=daten).status_code
+    assert speichern() == 200                                   # nur Mitglied-Zuordnung ergaenzt
+    assert speichern(zuordnungen=[chor]) == 403                 # Admin-Zuordnung entfernt
+    assert speichern(admin_ueber_gruppen=False) == 403          # Schalter umgelegt
+    assert speichern(modus='anlegen_mit_rollen') == 403         # Zugangsweg geoeffnet
+    assert client.post(API + 'anmeldung_setze_rollen_zuordnung', json={
+        'zuordnungen': [leitung]}).status_code == 200           # Mitglied-Zuordnung wieder weg
+
+    # Im Modus „anlegen“ bleibt jede Zuordnungs-Aenderung beim System Manager.
+    set_user('Administrator')
+    assert client.post(API + 'anmeldung_speichern', json={
+        'modus': 'anlegen_mit_rollen', 'admin_ueber_gruppen': True,
+        'zuordnungen': [leitung]}).status_code == 200
+    set_user('r12i-ma')
+    assert speichern(modus='anlegen_mit_rollen') == 403
+    set_user('Administrator')

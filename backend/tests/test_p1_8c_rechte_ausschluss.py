@@ -66,6 +66,11 @@ def _kalender(sess, name: str = "K1") -> None:
     """Minimaler Kalender-Datensatz (Element.element_calendar ist ein Link)."""
     sess.add(Kalender(name=name, calendar_name=name, docstatus=0, idx=0))
     sess.commit()
+    # R-5: jeder Kalender ist im Rechtesystem angemeldet (sonst sieht ihn nur
+    # der Admin) — hier als Gemeinde-Kalender wie nach der Migration.
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(sess)
 
 
 def _element(sess, name: str, *, owner: str, status: str = "Abgelehnt",

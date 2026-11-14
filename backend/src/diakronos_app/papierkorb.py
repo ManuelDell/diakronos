@@ -256,7 +256,6 @@ _GRUPPE_VERWEISE_NULL: tuple[str, ...] = (
     "Element",                   # element.gruppe (Termin ohne Gruppe)
     "Gruppe",                    # gruppe.obergruppe (Untergruppe ohne Eltern)
     "Gruppen Ankuendigung",      # gruppen_ankuendigung.gruppe
-    "Gruppen Aufgabe",           # gruppen_aufgabe.gruppe
     "Untergruppe",               # untergruppe.gruppe
     "Ablaufplan Position",       # ablaufplan_position.gruppe
     "Lied Gruppenzuordnung",     # lied_gruppenzuordnung.gruppe
@@ -270,6 +269,9 @@ _GRUPPE_VERWEISE_NULL: tuple[str, ...] = (
 #: aus, deshalb raeumt ``_endgueltig_gruppe`` die ``liedgruppe_lied``-Zeilen).
 _GRUPPE_VERWEISE_LOESCHEN: tuple[str, ...] = (
     "Liedgruppe",                # liedgruppe.gruppe
+    # R-7b: eine Aufgabe ohne Gruppe ist eine EIGENE Aufgabe ihres Erstellers —
+    # Gruppenaufgaben gehen deshalb mit der Gruppe, statt privat zu werden.
+    "Gruppen Aufgabe",           # gruppen_aufgabe.gruppe
 )
 
 
@@ -319,6 +321,24 @@ def _endgueltig_gruppe(name: str) -> None:
             for doctype in ("Gruppenmitgliedschaft", "Gruppe Verantwortlicher"):
                 kind = model_for(doctype)
                 sess.execute(delete(kind).where(kind.parent == name))
+            # R-11d: das EINE Rechtesystem — Rollen, Module und Gruppen-
+            # Freigaben gehen mit; Objekte der Gruppe werden zu Gemeinde-
+            # Objekten (nur Admin/Fachverwaltung, fail closed), Aufgaben-
+            # Objekte verschwinden mit ihren Aufgaben.
+            from diakronos_app.models.rechte import (
+                RechteFreigabe, RechteGastlink, RechteGruppenrolle, RechteModul, RechteObjekt,
+            )
+
+            for modell in (RechteGruppenrolle, RechteModul, RechteFreigabe):
+                sess.execute(delete(modell).where(modell.gruppe == name))
+            aufgaben = select(RechteObjekt.objekt).where(
+                RechteObjekt.gruppe == name, RechteObjekt.typ == "aufgabe")
+            for modell in (RechteFreigabe, RechteGastlink):
+                sess.execute(delete(modell).where(
+                    modell.typ == "aufgabe", modell.objekt.in_(aufgaben)))
+            sess.execute(delete(RechteObjekt).where(
+                RechteObjekt.gruppe == name, RechteObjekt.typ == "aufgabe"))
+            sess.execute(update(RechteObjekt).where(RechteObjekt.gruppe == name).values(gruppe=None))
             sess.execute(model_for("Gruppe").__table__.delete().where(
                 model_for("Gruppe").name == name
             ))

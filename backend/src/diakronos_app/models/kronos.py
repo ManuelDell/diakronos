@@ -110,6 +110,8 @@ class Element(Base):
     )
     ignore_conflict: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     status: Mapped[Any | None] = mapped_column(String(140), nullable=True)
+    # R-5: offene Moderationsstufen eines Vorschlags („gruppe,gemeinde“).
+    moderation_offen: Mapped[str | None] = mapped_column(String(40), nullable=True)
     all_day: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     repeat_till: Mapped[Any | None] = mapped_column(Date, nullable=True)
     monday: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -366,6 +368,8 @@ class ElementAenderung(Base):
     )
     antragsteller: Mapped[str | None] = mapped_column(String(140), nullable=True)
     vorschlag: Mapped[Any | None] = mapped_column(Text, nullable=True)
+    # R-5: offene Moderationsstufen dieses Aenderungsvorschlags.
+    moderation_offen: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
 
 class Ressource(Base):

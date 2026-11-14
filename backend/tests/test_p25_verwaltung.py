@@ -112,10 +112,13 @@ def test_op_admin_10_kalender_anlegen_mit_rechten(db, kalender_admin):
 	assert doc.calendar_name == "Jugend"
 	assert doc.calendar_color == "#ff8800"
 
-	zeilen = db.query(UserRole).filter(UserRole.parent == "Jugend").all()
-	lesen = {(z.role, z.parentfield) for z in zeilen}
-	assert ("All", "leserechte") in lesen
-	assert ("Mitglied", "schreibrechte") in lesen
+	# R-11e: keine Alt-Zeilen mehr — „All/Mitglied lesen“ wird zur Gemeinde-
+	# Freigabe im EINEN Rechtesystem (Schreibrechte setzt UI-R3 als Freigaben).
+	assert db.query(UserRole).filter(UserRole.parent == "Jugend").count() == 0
+	from diakronos_app.models.rechte import RechteObjekt
+
+	eintrag = db.query(RechteObjekt).filter_by(typ="kalender", objekt="Jugend").one()
+	assert eintrag.gemeinde_status != "aus"
 
 
 def test_op_admin_10_doppelter_name_wird_abgelehnt(db, kalender_admin):
@@ -143,7 +146,8 @@ def test_op_admin_10_rechte_sind_aenderbar(db, kalender_admin):
 	verwaltung = kalender_verwaltung.get_kalender_verwaltung()
 	eintrag = next(k for k in verwaltung["kalender"] if k["name"] == "Chor")
 	assert eintrag["titel"] == "Chor & Band"
-	assert eintrag["schreibrechte"] == ["Mitglied"]
+	# R-11e: Alt-Feld wird angenommen, aber nicht mehr gespeichert (UI-R3).
+	assert eintrag["schreibrechte"] == []
 
 
 def test_op_admin_10_loeschen_ohne_termine_und_mit_rueckfrage(db, kalender_admin):

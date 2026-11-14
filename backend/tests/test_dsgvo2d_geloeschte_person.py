@@ -226,6 +226,10 @@ def test_weg_gruppe_zeigt_geloeschte_person_neutral(welt, client) -> None:
                                    parenttype="Gruppe", parentfield="mitglieder",
                                    mitglied=LESER, rolle="Mitglied", status="Aktiv",
                                    docstatus=0, idx=2))
+    # R-4: Gruppen-Mitgliederlisten sieht nur Leitung/Admin; die Mitglieder-
+    # verwaltung ist kein Gruppen-Admin (Manuel 11.11.).
+    sess.add(HasRole(name="HR-2d-sm", parent=ADMIN, parenttype="User", parentfield="roles",
+                     role="System Manager", docstatus=0, idx=2))
     sess.commit()
 
     set_user(ADMIN)
@@ -291,6 +295,10 @@ def test_weg_beitrag_autor_ist_neutral(welt, client) -> None:
                      autor_email=TOT_KONTO, inhalt="Text", veroeffentlicht=1,
                      docstatus=0, idx=0))
     sess.commit()
+    # R-7: Beitrag als Gemeinde-Inhalt im Rechtesystem (Uebernahme wie r1).
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(sess)
 
     set_user(LESER)
     from diakronos_app.api.beitraege import get_beitraege_liste

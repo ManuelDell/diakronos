@@ -52,6 +52,10 @@ def welt(patched_db):
              rechte_status="gemeinfrei", docstatus=0, idx=0),
     ])
     sess.commit()
+    # R-7: Bruno -> HV der Worship-Band, Modul „Lieder“ (Uebernahme wie r1).
+    from rechte_hilfe import uebernehmen
+
+    uebernehmen(sess)
     yield sess
     sess.close()
 

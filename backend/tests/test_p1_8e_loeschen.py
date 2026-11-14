@@ -58,6 +58,9 @@ def test_loeschen_prueft_email_nachzustand(
     sess.commit()
     assert _aktiv("sm@x.org") is False
     set_user(akteur)
+    # R-11a: die generische REST-Schnittstelle schreibt nur der Admin — die
+    # Mitgliederverwaltung loescht ueber ihren Fachweg (`delete_doc`).
+    verweigert = verweigert or (weg == "resource_delete" and akteur == "ma@x.org")
 
     _loeschen(weg, "M-duplicate", verweigert=verweigert)
 
@@ -79,7 +82,8 @@ def test_normales_mitglied_loeschen_bleibt_erlaubt(
     _konto(sess, "ma@x.org", "Mitgliederadministrator")
     sess.add(Mitglied(name="M-normal", email="normal@x.org", ausgeschlossen=ausgeschlossen))
     sess.commit()
-    set_user("ma@x.org")
+    # R-11a: REST-Loeschen nur Admin; der Fachweg bleibt der Mitgliederverwaltung.
+    set_user("sm@x.org" if weg == "resource_delete" else "ma@x.org")
 
     _loeschen(weg, "M-normal")
 

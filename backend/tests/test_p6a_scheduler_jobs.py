@@ -420,6 +420,8 @@ def test_scheduler_registriert_beide_daily_jobs():
 		"delete_alte_zuordnung_ablehnungen",
 		# UX2b: Papierkorb nach 7 Tagen endgueltig leeren.
 		"papierkorb_aufraeumen",
+		# R-11f: abgelaufene Gast-Links nach 30 Tagen entfernen.
+		"gastlinks_aufraeumen",
 	}
 
 

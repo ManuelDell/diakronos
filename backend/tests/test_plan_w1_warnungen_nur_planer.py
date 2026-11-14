@@ -56,9 +56,11 @@ def stammdaten(sf):
         s.add_all([Mitglied(name=k, user=k, email=k, vorname=k.capitalize(),
                             nachname="Test", status="Mitglied", docstatus=0, idx=0)
                    for k in ("planer_chor", "mitglied")])
-        s.add(DienstbereichVerantwortlicher(
-            name="bv-chor", parent="Chor", parenttype="Dienstbereich",
-            parentfield="verantwortliche", user="planer_chor"))
+    # R-6: Planer = HV der Chor-Gruppe; die Betrachter schreiben im
+    # Gruppenkalender (nur dann sehen sie den ganzen Plan, Manuel 11.11.).
+    from rechte_hilfe import planrahmen_rechte
+
+    planrahmen_rechte(sf, bereich="Chor", hv="planer_chor", leser=('mitglied',))
 
 
 def warnplan_definition():

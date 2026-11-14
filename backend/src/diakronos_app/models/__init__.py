@@ -25,6 +25,14 @@ from diakronos_app.models.website import PrimoKonto
 from diakronos_app.models.website_kontakt import WebsiteKontaktPostfach
 # BS-3a: Verwaltungsauswahl der Ansprechpartner-Bereiche (Handmodell).
 from diakronos_app.models.website_ansprechpartner import WebsiteAnsprechpartner
+# R-1: Tabellen des EINEN Rechtesystems (Handmodell).
+from diakronos_app.models.rechte import (
+    RechteFreigabe,
+    RechteGastlink,
+    RechteGruppenrolle,
+    RechteModul,
+    RechteObjekt,
+)
 from diakronos_app.models.smtp import SmtpEinstellungen
 from diakronos_app.models.auth_oidc import Anmeldeeinstellungen
 from diakronos_app.models.auth_oidc import GruppenRolleZuordnung
@@ -255,4 +263,9 @@ __all__ = [
     "Sicherungslauf",
     "WebsiteKontaktPostfach",
     "WebsiteAnsprechpartner",
+    "RechteFreigabe",
+    "RechteGastlink",
+    "RechteGruppenrolle",
+    "RechteModul",
+    "RechteObjekt",
 ]

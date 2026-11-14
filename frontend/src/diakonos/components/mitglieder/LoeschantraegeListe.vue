@@ -21,11 +21,18 @@
     </div>
 
     <!-- Ohne eingerichteten Mailversand geht weder Freigeben noch Ablehnen:
-         die Person MUSS vorher informiert werden (Server: fail closed). -->
+         die Person MUSS vorher informiert werden (Server: fail closed).
+         R10-Review (Punkt 4): Der Weg dorthin steht NUR bei denen, die ihn
+         gehen dürfen (`serverseite.darf_aendern` — System Manager, wie
+         `mitglieder/Datenschutz.vue`). Die Mitgliederverwaltung bekäme sonst
+         einen Link, der sie über den Admin-Wächter aufs Dashboard wirft. -->
     <DkHint v-if="!mailEingerichtet" variant="warn" role="status">
       Mailversand ist noch nicht eingerichtet — ohne ihn können Löschanträge
       weder freigegeben noch abgelehnt werden.
-      <a href="#/einstellungen/mailversand">Mailversand einrichten</a>
+      <template v-if="darfMailEinrichten">
+        <a href="#/einstellungen/mailversand">Mailversand einrichten</a>
+      </template>
+      <template v-else>Bitte den Administrator bitten, ihn einzurichten.</template>
     </DkHint>
 
     <!-- DES-01/S9: EINE Filterzeile für alle (DkFilterChips), keine
@@ -129,6 +136,9 @@ const props = defineProps({
   fehler: { type: String, default: '' },
   filter: { type: String, default: 'offen' },
   mailEingerichtet: { type: Boolean, default: true },
+  /** R10-Review (Punkt 4): System Manager (`mailversand_status.darf_aendern`) —
+   *  nur er kommt an `#/einstellungen/mailversand` vorbei (Admin-Wächter). */
+  darfMailEinrichten: { type: Boolean, default: false },
   /** Eingebettet im Mitglieder-Bereich: kein eigener „Aktualisieren“-Knopf nötig. */
   embedded: { type: Boolean, default: false },
 })

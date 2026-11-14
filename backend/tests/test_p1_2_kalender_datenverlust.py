@@ -88,6 +88,8 @@ def welt(patched_db):
                           docstatus=0, idx=1),
     ])
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     yield sess
     sess.close()
 
@@ -255,6 +257,8 @@ def test_quellmoderator_wechselt_sofort(welt):
                                parentfield="kalendermoderatoren",
                                user=MODERATOR, docstatus=0, idx=1))
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
     res2 = event_crud.save_event(
         "EL-P12-N1-MOD", "Chorprobe", "2026-03-02 10:00:00", "2026-03-02 12:00:00",
         KAL_ZIEL,

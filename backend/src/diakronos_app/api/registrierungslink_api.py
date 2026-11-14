@@ -133,6 +133,42 @@ def _link_anzeige(typ: Any, slug: str) -> str:
     return link_anzeige(typ, slug)
 
 
+def _link_vorgaben() -> tuple[int, int] | None:
+    """(Laufzeit in Tagen, Hoechstzahl) aus „Einstellungen → Registrierung“.
+
+    Die EINE Quelle fuer `create_link` und `get_link_vorgaben`; 0 heisst
+    „ohne Vorgabe“. ``None``, wenn die Einstellung nicht lesbar ist.
+    """
+    try:
+        from diakronos_app.db import SessionLocal
+        from diakronos_app.models.gemeinde import (
+            GEMEINDE_EINSTELLUNGEN_NAME,
+            STANDARD_MAX_ANMELDUNGEN,
+            STANDARD_LAUFZEIT_TAGE,
+            GemeindeEinstellungen,
+        )
+
+        with SessionLocal() as sess:
+            zeile = sess.get(GemeindeEinstellungen, GEMEINDE_EINSTELLUNGEN_NAME)
+            tage = int(zeile.link_laufzeit_tage) if zeile else STANDARD_LAUFZEIT_TAGE
+            maximum = int(zeile.link_max_anmeldungen) if zeile else STANDARD_MAX_ANMELDUNGEN
+    except Exception:  # noqa: BLE001 — Vorgaben sind optional
+        return None
+    return tage, maximum
+
+
+@whitelist(allow_guest=False)
+def get_link_vorgaben() -> dict[str, int]:
+    """Link-Vorgaben fuer das Anlegen-Formular (Mitgliederverwaltung).
+
+    Die Gemeinde-Einstellungen selbst bleiben beim Admin; wer Links anlegen
+    darf, muss aber sehen, welche Laufzeit/Platzzahl ein leeres Feld bekommt.
+    """
+    require_admin()
+    tage, maximum = _link_vorgaben() or (0, 0)
+    return {"link_laufzeit_tage": tage, "link_max_anmeldungen": maximum}
+
+
 def _mit_vorgaben(gueltig_bis, max_anmeldungen, *, ohne_ablauf=False, unbegrenzt=False):
     """Setzt leere Linkfelder auf die gepflegten Vorgaben (M-1).
 
@@ -156,21 +192,10 @@ def _mit_vorgaben(gueltig_bis, max_anmeldungen, *, ohne_ablauf=False, unbegrenzt
     if not (vorgabe_gebunden or vorgabe_plätze):
         return gueltig_bis, max_anmeldungen
 
-    try:
-        from diakronos_app.db import SessionLocal
-        from diakronos_app.models.gemeinde import (
-            GEMEINDE_EINSTELLUNGEN_NAME,
-            STANDARD_MAX_ANMELDUNGEN,
-            STANDARD_LAUFZEIT_TAGE,
-            GemeindeEinstellungen,
-        )
-
-        with SessionLocal() as sess:
-            zeile = sess.get(GemeindeEinstellungen, GEMEINDE_EINSTELLUNGEN_NAME)
-            tage = int(zeile.link_laufzeit_tage) if zeile else STANDARD_LAUFZEIT_TAGE
-            maximum = int(zeile.link_max_anmeldungen) if zeile else STANDARD_MAX_ANMELDUNGEN
-    except Exception:  # noqa: BLE001 — Vorgaben sind optional
+    vorgaben = _link_vorgaben()
+    if vorgaben is None:
         return gueltig_bis, max_anmeldungen
+    tage, maximum = vorgaben
 
     if vorgabe_gebunden and tage > 0:
         gueltig_bis = (_dt.date.fromisoformat(_today()) + _dt.timedelta(days=tage)).isoformat()

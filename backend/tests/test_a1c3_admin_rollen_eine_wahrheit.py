@@ -169,6 +169,9 @@ def test_rollenliste_wirkt_ueber_die_spa_in_den_boot(patched_db, monkeypatch, ro
 
     try:
         session.user = "chef@example.org"
-        assert boot_fuer_request()["is_admin"] is True
+        boot = boot_fuer_request()
+        # R-11a: Admin ist nur der System Manager; Mitgliederadministrator = Verwaltung.
+        assert boot["is_admin"] is (rolle == "System Manager")
+        assert boot["ist_mitgliederverwaltung"] is True
     finally:
         session.user = permissions.GUEST

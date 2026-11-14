@@ -74,7 +74,6 @@ from diakronos_app.frappe_compat.exceptions import (
 from diakronos_app.frappe_compat.permissions import (
     check_permission,
     darf_entwurf_sehen,
-    get_roles,
     is_admin,
 )
 from diakronos_app.frappe_compat.permissions import (
@@ -103,7 +102,6 @@ from diakronos_app.frappe_compat.api_helpers import (
 from diakronos_app.api.kronos.permissions import get_accessible_calendars
 
 
-ADMIN_ROLES = ["System Manager", "Mitgliederadministrator"]
 
 # ── Whitelist der Inhalts-DocTypes (Quelle: auswahl.py, noch nicht portiert) ──
 # Nur diese DocTypes darf eine Position referenzieren. Ein nicht gelisteter
@@ -300,9 +298,7 @@ def _require_plan_write(plan_doc) -> None:
         return
     throw(
         "Keine Schreibberechtigung fuer diesen Plan. Erforderlich: "
-        "Plan-Leitung, Verantwortlicher des Dienstbereichs bzw. der "
-        "Gruppe, oder Rolle Mitgliederadministrator / "
-        "System Manager.",
+        "Plan-Leitung, HV/MV der Gruppe oder der Administrator.",
         FrappePermissionError,
     )
 
@@ -317,22 +313,14 @@ def _require_plan_create(dienstbereich, gruppe) -> None:
     _require_login()
     if _is_admin():
         return
-    user = session.user
-    if dienstbereich and _exists(
-        "Dienstbereich Verantwortlicher",
-        {"user": user, "parent": dienstbereich},
-    ):
-        return
-    if gruppe and _exists(
-        "Gruppe Verantwortlicher",
-        {"user": user, "parent": gruppe},
-    ):
+    # R-11c: HV/MV der Gruppe (EIN Rechte-Kern); ein Dienstbereich allein
+    # verleiht kein Recht mehr (Manuel 11.11.: Dienstbereiche entfallen).
+    if _ist_verantwortlich_fuer(dienstbereich, gruppe):
         return
     throw(
         "Keine Berechtigung zum Anlegen eines Dienstplans. "
-        "Erforderlich: Verantwortlicher des Dienstbereichs bzw. der "
-        "Gruppe, oder Rolle Mitgliederadministrator / System "
-        "Manager.",
+        "Erforderlich: Hauptverantwortliche/r bzw. Mitverantwortliche/r der "
+        "Gruppe oder der Administrator.",
         FrappePermissionError,
     )
 

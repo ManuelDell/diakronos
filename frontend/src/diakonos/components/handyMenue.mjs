@@ -21,7 +21,7 @@
  * Beiträge, Wiki). So zeigt es der freigegebene Entwurf A9: die Schublade ist
  * die Seitenleiste in Handy-Form, die Leiste nur eine Abkürzung.
  */
-import { MENUE, FUSS_EINTRAEGE, sichtbareEintraege } from '../menue.js'
+import { MENUE, FUSS_EINTRAEGE, sichtbareEintraege, verwaltungZutreffend } from '../menue.js'
 
 /**
  * Einträge der Schublade in Anzeigereihenfolge — EINE Quelle für Oberfläche
@@ -37,13 +37,14 @@ import { MENUE, FUSS_EINTRAEGE, sichtbareEintraege } from '../menue.js'
  */
 export function schubladeMenue({
     istAdmin = false,
+    istMitgliederverwaltung = false,
     istTester = false,
     istGast = false,
     rollen = [],
 } = {}) {
     return MENUE.map(gruppe => ({
         gruppe: gruppe.gruppe,
-        eintraege: sichtbareEintraege(gruppe, { istAdmin, istTester, istGast, rollen }),
+        eintraege: sichtbareEintraege(gruppe, { istAdmin, istMitgliederverwaltung, istTester, istGast, rollen }),
     })).filter(gruppe => gruppe.eintraege.length > 0)
 }
 
@@ -53,8 +54,13 @@ export function schubladeMenue({
  * unter dem Strich, genau wie „Einstellungen“ am Desktop unten in der
  * Seitenleiste steht (Entwurf A1/A9).
  */
-export function sichtbarerFuss({ istAdmin = false } = {}) {
-    return FUSS_EINTRAEGE.filter(e => e.rolle !== 'admin' || istAdmin)
+export function sichtbarerFuss({ istAdmin = false, istMitgliederverwaltung = false } = {}) {
+    // UI-R10: „Einstellungen“ ist Personenbereich — die Mitgliederverwaltung
+    // pflegt dort Anmeldung, Registrierung und Datenschutz (R-11a). Innerhalb
+    // der Seite sind die Administrations-Abschnitte weiterhin nur für den
+    // Administrator (der Server verweigert sie ohnehin mit 403).
+    const rechte = { istAdmin, istMitgliederverwaltung }
+    return FUSS_EINTRAEGE.filter((e) => !e.verwaltung || verwaltungZutreffend(e.verwaltung, rechte))
 }
 
 /**

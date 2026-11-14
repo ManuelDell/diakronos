@@ -973,6 +973,13 @@ h1, h2, h3, h4 {
 .dk-notify-betreff { font-size: var(--fs-14); font-weight: var(--fw-fett); }
 .dk-notify-text { font-size: var(--fs-12); color: var(--dk-text-muted); margin-top: 2px; }
 .dk-notify-zeit { font-size: var(--fs-12); color: var(--dk-text-muted); margin-top: 4px; }
+/* R-9: Eine „Datenanfrage“ ist ein Weg, kein Lesetext — der ganze Eintrag ist
+   die Fläche (Prinzip K4). Die Gestalt bringt DkButton (variant="ghost"):
+   hier steht kein eigener Rahmen und kein eigener Fokusring. */
+.dk-notify-eintrag-knopf { display: block; width: 100%; text-align: left; }
+.dk-notify-eintrag-knopf:hover .dk-notify-betreff { text-decoration: underline; }
+.dk-notify-eintrag.is-datenanfrage .dk-notify-weg { color: var(--dk-primary); font-weight: var(--fw-mittel); }
+.dk-notify-weg { font-size: var(--fs-12); margin-top: var(--sp-1); }
 @media (max-width: 600px) {
   .dk-notify-panel {
     position: fixed; top: calc(var(--dk-topbar-h) + 4px); right: 12px;

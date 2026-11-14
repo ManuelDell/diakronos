@@ -246,16 +246,25 @@ test('UX2e · Gefährliches steht in jedem Menü einzeln am Ende (K4)', () => {
   for (const datei of SEITEN) {
     const quelle = lies(datei)
     if (!quelle.includes('gefahr: true')) continue
-    const from = 'function aktionenFuer'
-    const anfang = quelle.indexOf(from)
-    assert.notEqual(anfang, -1, `${datei}: Eintrags-Funktion gefunden`)
-    const block = quelle.slice(anfang, quelle.indexOf('</script>', anfang))
-    const pos = block.indexOf('gefahr: true')
-    assert.notEqual(pos, -1, `${datei}: gefährlicher Eintrag vorhanden`)
-    const danach = block.slice(pos + 'gefahr: true'.length)
-    // Nach dem gefahr-Eintrag darf KEIN weiterer Eintrag (`{ key: '…'`)
-    // folgen — Gefährliches bleibt der letzte Punkt (K4).
-    assert.equal(danach.match(/\{\s*key:\s*'/g), null,
-      `${datei}: nach „gefahr: true" folgt kein weiterer Eintrag`)
+    // UI-R9: Eine Seite kann MEHRERE Eintrags-Funktionen haben (GruppeDetail:
+    // Mitglieder und Aufgaben). Geprüft wird JEDE Menü-Funktion einzeln —
+    // vorher nur die erste, und deren Block lief über die spätere hinaus.
+    const anfaenge = [...quelle.matchAll(/function aktionenFuer[A-Za-z]*\(/g)]
+    assert.ok(anfaenge.length > 0, `${datei}: Eintrags-Funktion gefunden`)
+    for (const treffer of anfaenge) {
+      const anfang = treffer.index
+      // Block bis zur NÄCHSTEN Eintrags-Funktion bzw. bis `</script>` — sonst
+      // läuft die Prüfung in die folgende Funktion hinein.
+      const spaeter = anfaenge.filter(t => t.index > anfang).map(t => t.index)
+      const ende = Math.min(...[...spaeter, quelle.indexOf('</script>', anfang)])
+      const block = quelle.slice(anfang, ende)
+      const pos = block.indexOf('gefahr: true')
+      if (pos === -1) continue // diese Funktion hat nichts Gefährliches
+      const danach = block.slice(pos + 'gefahr: true'.length)
+      // Nach dem gefahr-Eintrag darf KEIN weiterer Eintrag (`{ key: '…'`)
+      // folgen — Gefährliches bleibt der letzte Punkt (K4).
+      assert.equal(danach.match(/\{\s*key:\s*'/g), null,
+        `${datei}: nach „gefahr: true" folgt kein weiterer Eintrag`)
+    }
   }
 })

@@ -118,7 +118,7 @@ def test_client_insert_normales_mitglied_erlaubt(patched_db, fake_redis) -> None
     from diakronos_app.api.frappe_core import insert
 
     sess = patched_db()
-    _konto(sess, "ma@x.org", "Mitgliederadministrator")
+    _konto(sess, "ma@x.org", "System Manager")  # R-11a: generisches insert nur Admin
     set_user("ma@x.org")
 
     doc = insert(doc={"doctype": "Mitglied", "vorname": "Nora", "nachname": "Neu",
@@ -280,6 +280,8 @@ def _leser_kalender(sess, kalender: str = "K1") -> None:
     sess.add(UserRole(name=f"ur-{kalender}", parent=kalender, parenttype="Kalender",
                       parentfield="leserechte", role="Mitglied", docstatus=0, idx=1))
     sess.commit()
+    from rechte_hilfe import uebernehmen
+    uebernehmen(sess)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
 
 
 def test_get_mein_termin_verweigert_fremden_termin_trotz_leserecht(

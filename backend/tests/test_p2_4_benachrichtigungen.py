@@ -53,9 +53,12 @@ def stammdaten(sf, *benutzer):
         s.add_all([Mitglied(name=k, user=k, email=k, vorname=k.capitalize(),
                             nachname="Test", status="Mitglied", docstatus=0, idx=0)
                    for k in benutzer])
-        s.add(DienstbereichVerantwortlicher(
-            name="bv-chor", parent="Chor", parenttype="Dienstbereich",
-            parentfield="verantwortliche", user="planer"))
+    # R-6: „planer“ = HV der Chor-Gruppe; die anderen schreiben im
+    # Gruppenkalender (sehen den ganzen Plan, Manuel 11.11.).
+    from rechte_hilfe import planrahmen_rechte
+
+    planrahmen_rechte(sf, bereich="Chor", hv="planer" if "planer" in benutzer else None,
+                      leser=tuple(k for k in benutzer if k != "planer"))
 
 
 def chorplan_definition():
@@ -239,6 +242,8 @@ def _kalender_moderator_welt(sf, *,
         s.add(ElementMitarbeiter(name="EM-1", parent="E-1", parenttype="Element",
                                  parentfield="mitarbeiter", mitglied="M-TAL",
                                  bestaetigt=True, docstatus=0, idx=1))
+    from rechte_hilfe import uebernehmen_mit
+    uebernehmen_mit(sf)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
 
 
 def test_terminaenderung_benachrichtigt_eingeteilte(client, patched_db):
@@ -294,6 +299,8 @@ def test_terminaenderung_ohne_mitarbeiter_schreibt_nichts(client, patched_db):
         s.add(Element(name="E-2", element_name="Andacht", element_calendar="K-GD",
                       element_start=datetime(2026, 12, 6, 10, 0), element_end=datetime(2026, 12, 6, 11, 0),
                       status="Festgelegt", all_day=False, docstatus=0, idx=0, owner="moderator"))
+    from rechte_hilfe import uebernehmen_mit
+    uebernehmen_mit(patched_db)  # R-5: Altmodell-Rechte ins EINE Rechtesystem
 
     anmelden(client, "moderator")
     r = client.post("/api/method/diakronos.kronos.api.event_crud.save_event",

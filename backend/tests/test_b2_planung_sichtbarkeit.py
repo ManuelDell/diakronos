@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 from sqlalchemy import delete
 
-from tests.test_p4d1_planung_teil1 import welt, PLAN, ANNA
+from tests.test_p4d1_planung_teil1 import welt, PLAN, ANNA, GRUPPE
 from diakronos_app.frappe_compat.session import set_user
 from diakronos_app.models.diakonos import (
     Mitglied, DienstplanTeilnehmer, Dienstplan, Dienstbereich, GruppeVerantwortlicher,
@@ -34,6 +34,12 @@ def teilnehmer_welt(welt):
     member.adressbuch_sichtbarkeit = '{}'
     welt.add(DienstplanTeilnehmer(name='zz-b-participant', parent=PLAN,
         parenttype='Dienstplan', parentfield='teilnehmer', mitglied=member.name))
+    # R-11c: Plaene lesen Admin, Plan-Leitung und HV/MV der Gruppe (ein Bereich
+    # verleiht nichts mehr) — Anna liest als MV; auch die Leitung bekommt kein
+    # verborgenes Geburtsdatum.
+    from diakronos_app.models.rechte import RechteGruppenrolle
+
+    welt.add(RechteGruppenrolle(gruppe=GRUPPE, benutzer=ANNA, rolle='MV'))
     welt.commit()
     return welt
 
@@ -63,7 +69,6 @@ def test_hidden_birthday_not_exposed_as_age(client, teilnehmer_welt, policy):
     (ANNA, '{"geburtstag": true}'),
     ('bruno@example.org', '{}'),
     ('zz-b-System Manager@example.invalid', '{}'),
-    ('zz-b-Mitgliederadministrator@example.invalid', '{}'),
 ])
 def test_explicit_own_and_admin_birthday_visible(client, teilnehmer_welt, user, policy):
     teilnehmer_welt.get(Mitglied, 'M-0002').adressbuch_sichtbarkeit = policy
@@ -78,3 +83,10 @@ def test_group_leader_has_no_birthday_exception(client, teilnehmer_welt):
         parenttype='Gruppe', parentfield='verantwortliche', user=ANNA))
     teilnehmer_welt.commit()
     assert age_response(client) is None
+
+
+def test_mitgliederverwaltung_liest_keine_plaene(client, teilnehmer_welt):
+    """R-11a: die Mitgliederverwaltung ist Fach Personen, kein Admin."""
+    set_user('zz-b-Mitgliederadministrator@example.invalid')
+    response = client.get('/api/method/planung.get_teilnehmer', params={'plan': PLAN})
+    assert response.status_code == 403, response.text

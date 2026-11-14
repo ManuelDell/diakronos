@@ -59,8 +59,10 @@ test('DSGVO-2c · eigene Adresse, Reiter und Admin-Guard', () => {
   // UX3a: der Personen-Bereich hat eine neue Adresse; die alte leitet weiter.
   assert.match(router, /'#\/personen\/loeschantraege': 'MitgliederLoeschantraege'/)
   assert.match(router, /MitgliederLoeschantraege: \(\) => import\('\.\/pages\/mitglieder\/Bereich\.vue'\)/)
-  // Direktaufruf ohne Administrator landet auf dem Dashboard.
-  const guard = router.slice(router.indexOf('const ADMIN_ONLY_PAGES'))
+  // Direktaufruf ohne Verwaltungsrecht landet auf dem Dashboard. UI-R10: die
+  // Löschanträge sind Personenbereich — sie stehen in
+  // `PERSONEN_VERWALTUNG_PAGES` (Administrator ODER Mitgliederverwaltung).
+  const guard = router.slice(router.indexOf('const PERSONEN_VERWALTUNG_PAGES'))
   assert.match(guard.slice(0, guard.indexOf('])')), /'MitgliederLoeschantraege'/)
   // Menü (Seitenleiste bleibt bei „Personen“ markiert). UX3b: „Löschanträge“
   // ist kein eigener Reiter des Bereichs mehr (Entwurf A3: vier Reiter), die
@@ -200,10 +202,13 @@ test('DSGVO-2c · Fehler werden verständlich – Mail fehlt führt zur Mailvers
   const text = freigabeFehlerText(mailfehlt)
   assert.match(text, /Mailversand ist nicht eingerichtet/)
   assert.match(text, /Mailversand einrichten/)
-  // Die Seite verlinkt die Mailversand-Seite in BEIDEN Dialogen.
+  // R10-Review (Punkt 4): der Weg zur Mailversand-Seite steht in BEIDEN
+  // Dialogen, aber nur für den, der ihn gehen darf (`darfMailEinrichten` =
+  // System Manager, `mailversand_status.darf_aendern`). Andere sehen ihn nicht.
   for (const dialog of [freigabe, ablehnen]) {
-    assert.match(dialog, /href="#\/einstellungen\/mailversand"/)
+    assert.match(dialog, /v-if="darfMailEinrichten" href="#\/einstellungen\/mailversand"/)
     assert.match(dialog, /Mailversand einrichten/)
+    assert.match(dialog, /darfMailEinrichten: \{ type: Boolean, default: false \}/)
   }
   // Gescheiterter Versand: der Server sagt schon, dass nichts passiert ist.
   const versand = { status: 417, message: 'Der Mailserver hat die Nachricht abgelehnt. Es wurde NICHTS gelöscht — der Antrag bleibt offen, bitte erneut versuchen.' }

@@ -14,6 +14,11 @@ const state = ref({
         email:    boot.user_email || '',
         image:    boot.user_image || '',
         isAdmin:  boot.is_admin || false,
+        // UI-R10: eigene Fachverwaltung (R-11a) — der Server liefert sie im
+        // Boot-Objekt (`is_admin || Systemrolle Mitgliederadministrator`).
+        // Fehlt das Feld (alter Server), gilt `false`; dann bleibt `isAdmin`
+        // die einzige Verwaltungsstufe (fail closed).
+        istMitgliederverwaltung: boot.ist_mitgliederverwaltung || false,
     },
     mitglied: boot.mitglied || null,
     modules:  boot.modules || [],
@@ -37,7 +42,7 @@ const imp = useImpersonation()
 
 const user = computed(() => {
     if (imp.isActive.value) {
-        return { ...state.value.user, fullname: imp.fullName.value, isAdmin: false }
+        return { ...state.value.user, fullname: imp.fullName.value, isAdmin: false, istMitgliederverwaltung: false }
     }
     return state.value.user
 })
@@ -56,6 +61,18 @@ const mitglied = computed(() => {
 })
 
 const isAdmin = computed(() => imp.isActive.value ? false : state.value.user.isAdmin)
+/**
+ * UI-R10: Mitgliederverwaltung (Personen, Konten, Registrierung, Datenschutz).
+ *
+ * EINE Quelle für Menüpunkt, Reiterzeile, Routen-Wächter und Knöpfe. Der Wert
+ * kommt aus dem Boot-Objekt des Servers (`ist_mitgliederverwaltung`) und ist
+ * dort `is_admin || Systemrolle Mitgliederadministrator`. Der Administrator
+ * darf also alles (er ist in beiden Flags `true`), die Mitgliederverwaltung
+ * nur den Personenbereich. Während einer Identitätsübernahme gilt das Konto
+ * (fail closed), wie bei `isAdmin`.
+ */
+const istMitgliederverwaltung = computed(() =>
+    imp.isActive.value ? false : state.value.user.istMitgliederverwaltung === true)
 const hasMitglied = computed(() => !!mitglied.value)
 // UXD-R23: „Gast“ ist der Mitgliedsstatus ohne Konto-Rechte. Die Regel stand
 // dreimal wortgleich in AppSidebar, AppBottomNav und würde sonst in
@@ -87,6 +104,8 @@ export function useSession() {
         mitglied,
         modules: computed(() => state.value.modules),
         isAdmin,
+        // UI-R10: die zweite Verwaltungsstufe (Personenbereich).
+        istMitgliederverwaltung,
         hasMitglied,
         istGast,
         istTester,

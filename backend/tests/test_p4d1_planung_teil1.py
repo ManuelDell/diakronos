@@ -111,6 +111,11 @@ def welt(patched_db):
             name="GV-1", parent=GRUPPE, parenttype="Gruppe",
             parentfield="verantwortliche", user=ANNA, docstatus=0, idx=1),
     ])
+    # R-11c: Rechte kommen aus dem EINEN Rechtesystem — ein Dienstbereich
+    # verleiht keine mehr; der Verantwortliche ist HV der Plan-Gruppe.
+    from diakronos_app.models.rechte import RechteGruppenrolle
+
+    sess.add(RechteGruppenrolle(gruppe=GRUPPE, benutzer=VERANTWORTLICHER, rolle="HV"))
 
     sess.add_all([
         Dienstrolle(name="DR-KL", rollenname="Klavier", docstatus=0, idx=0),

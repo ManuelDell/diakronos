@@ -663,7 +663,9 @@ test('UX3i: EINE Layout-Grenze im Kalender (720 px, wie die App)', () => {
 test('UX3i: Panel „Zu prüfen“ trägt Untertitel und Fußtext aus A4', () => {
   const quelle = lies('components/kronos/KalenderPruefPanel.vue')
   assert.match(quelle, /Von Gruppen eingetragen/, 'Untertitel fehlt')
-  assert.match(quelle, /bis ein Administrator sie freigibt/, 'Fußtext aus A4 fehlt')
+  // UI-R4: der Fußtext nennt die ZUSTÄNDIGE STUFE, nicht immer den
+  // Administrator (bei mehreren Moderationsstufen wäre das falsch).
+  assert.match(quelle, /bis die zuständige Stufe sie freigegeben hat/, 'Fußtext fehlt')
   assert.match(quelle, /dk-pruef-panel-herkunft/, 'die Zeile „von … · vor …“ fehlt')
   // Die Herkunft wird NICHT abgeschnitten (overflow hidden/ellipsis verboten).
   const stil = quelle.slice(quelle.indexOf('.dk-pruef-panel-herkunft'))

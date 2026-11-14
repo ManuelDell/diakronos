@@ -123,6 +123,8 @@ const name = ref('Manuela Prüferin')
 export function useSession() {
   return { user: ref({ fullname: 'Manuela Prüferin', email: 'pruefer@example.org' }),
     mitglied: leer, isAdmin: ref(true), hasMitglied: ref(true), istGast: ref(false),
+    // UI-R10: die App liest die zweite Verwaltungsstufe (Administrator = true).
+    istMitgliederverwaltung: ref(true),
     istTester: ref(false), devmodeAn: ref(false), istSystemManager: ref(true),
     rollen: ref(['Administrator']), anzeigeName: name, modules: ref({}) }
 }

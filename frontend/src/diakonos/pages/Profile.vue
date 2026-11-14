@@ -135,10 +135,19 @@
       </DkCard>
 
       <!-- ── Adressbuch-Sichtbarkeit ── -->
-      <DkCard title="Adressbuch-Sichtbarkeit">
+      <!-- R-9 (Manuel 11.11.): Hier landen die Menschen, die über eine
+           „Datenanfrage“ kommen — der Abschnitt trägt deshalb eine Sprungmarke
+           (`anker="profil-sichtbarkeit"` → `#dk-sprung-profil-sichtbarkeit`)
+           und, wenn die Seite mit `?bereich=sichtbarkeit` geöffnet wurde,
+           einen kurzen Hinweis darüber. Der Server prüft dieselbe Freigabe
+           erneut (fail closed). -->
+      <DkCard anker="profil-sichtbarkeit" title="Sichtbarkeit">
         <template #actions>
           <span class="prof-klein">Was andere eingeloggte Mitglieder sehen dürfen</span>
         </template>
+        <DkHint v-if="anfrageHinweisWert" variant="info" class="prof-anfrage-hinweis" role="status">
+          {{ anfrageHinweisWert }}
+        </DkHint>
         <div class="prof-toggles">
           <!-- OP-HANDY-21: Das Kästchen war nur 16 px groß — am Handy kaum zu
                treffen. Die ganze Zeile ist jetzt die Schalterfläche
@@ -288,7 +297,7 @@
  * Reiner Darstellungsumbau: Kopf, Karten, Dialoge, Felder und Kästchen
  * kommen aus components/ui; Farben nur aus tokens.css.
  */
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive, nextTick, onMounted, onBeforeUnmount } from 'vue'
 // WEB-5b: Adressen unter dem Betriebs-Praefix (DIAKRONOS_BASE_PATH) bauen.
 import { apiUrl } from '../../shared/basis.js'
 // UXD-R5: Foto-URL nur als http(s)/relativer Pfad ausgeben (Review MT-2b) —
@@ -313,6 +322,9 @@ import { useVerlassenSchutz } from '../composables/useVerlassenSchutz.js'
 import { showToast } from '../composables/useToast.js'
 import { apiCall } from '../composables/useApi.js'
 import { apiAntwortPruefen } from '../composables/useApi.js'
+import { apiGet } from '../composables/useApi.js'
+// R-9: Datenanfrage → Sichtbarkeit (Adresse, Hinweis, wer gefragt hat).
+import { anfrageHinweis, bereichAusAdresse } from '../composables/datenAnfrage.mjs'
 import {
   antragsstandLaden, loeschungBeantragen, antragZurueckziehen as antragZurueckziehenApi,
   antragFehlerText,
@@ -620,9 +632,98 @@ async function toggleEinwilligung(typ, erteilt) {
   }
 }
 
+// ── R-9: Datenanfrage → Sichtbarkeit (Manuel 11.11.) ───────────────────────
+/**
+ * Der Hinweis über den Freigabe-Schaltern, wenn die Seite über eine
+ * „Datenanfrage“ (Glocke der Kopfzeile) geöffnet wurde. Quelle ist die
+ * Meldung selbst — `useNotifications` lädt sie mit; ist sie nicht (mehr) da
+ * (z. B. ein Lesezeichen auf die Adresse), bleibt der Hinweis leer statt einen
+ * Namen zu erfinden.
+ */
+const anfrageHinweisWert = ref('')
+
+/** Sprungmarke des Abschnitts „Sichtbarkeit“ (Präfix aus `pages/sprung.mjs`). */
+const SICHTBARKEIT_ANKER = 'dk-sprung-profil-sichtbarkeit'
+
+/** Kennung der Meldung aus der Adresse (`?anfrage=‹name›`). */
+function anfrageKennungAusAdresse() {
+  const frage = String(globalThis.location?.hash || '').split('?')[1] || ''
+  if (!frage) return ''
+  try {
+    return new URLSearchParams(frage).get('anfrage') || ''
+  } catch (_) {
+    return ''
+  }
+}
+
+/**
+ * Adresse auswerten: `?bereich=sichtbarkeit` springt zum Abschnitt mit den
+ * Freigabe-Schaltern (Sprungmarke `#dk-sprung-profil-sichtbarkeit`), `?anfrage=
+ * ‹name›` setzt den Hinweis mit dem Namen, wer gefragt hat.
+ *
+ * Warum der Bereich als Abfrageteil und nicht als `#…`-Fragment: die App hat
+ * einen Hash-Router — ein zweites `#` würde die Route zerlegen (siehe
+ * `pages/sprung.mjs`).
+ */
+async function anfrageAusAdresse() {
+  const hash = String(globalThis.location?.hash || '')
+  if (bereichAusAdresse(hash) !== 'sichtbarkeit') {
+    anfrageHinweisWert.value = ''
+    return
+  }
+  const kennung = anfrageKennungAusAdresse()
+  // Ohne Kennung bleibt es beim allgemeinen Satz: die Seite weiß, dass jemand
+  // gefragt hat, aber nicht wer — einen Namen erfindet sie nicht.
+  anfrageHinweisWert.value = kennung ? '' : anfrageHinweis(null)
+  if (kennung) {
+    try {
+      const antwort = await apiGet('diakronos.diakonos.api.audit.get_my_notifications',
+        { limit: 50 })
+      const liste = Array.isArray(antwort?.data) ? antwort.data : []
+      const meldung = liste.find(m => String(m?.name || '') === kennung) || null
+      anfrageHinweisWert.value = anfrageHinweis(meldung)
+    } catch (_) {
+      // Die Meldung ist Beiwerk des Hinweises — ohne sie bleibt der
+      // allgemeine Satz stehen (keine Fehlermeldung auf der Profilseite).
+      anfrageHinweisWert.value = anfrageHinweis(null)
+    }
+  }
+  await nextTick()
+  if (typeof document === 'undefined') return
+  const ziel = document.getElementById(SICHTBARKEIT_ANKER)
+  if (!ziel) return
+  try { ziel.scrollIntoView({ block: 'start', behavior: 'smooth' }) } catch (_) { /* ohne Animation */ }
+  // Fokus auf die erste Schalterzeile: Tastatur und Vorlesehilfe landen dort,
+  // wo die Entscheidung fällt.
+  const schalter = ziel.querySelector('input, button')
+  try { schalter?.focus({ preventScroll: true }) } catch (_) { /* egal */ }
+}
+
+/**
+ * R-9: Der Sprung zu den Freigabe-Schaltern hängt am `hashchange` — er wird
+ * beim Aufbau angemeldet und in `onBeforeUnmount` wieder abgemeldet (Review zu
+ * UI-R7, Punkt 6): vorher sammelte jede Seite im Verlauf einen Listener an,
+ * der nie losgelassen wurde. Die Funktion ist EINE benannte Referenz, sonst
+ * greift `removeEventListener` nicht.
+ */
+function amHashchange() { anfrageAusAdresse() }
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('hashchange', amHashchange)
+}
+
 onMounted(async () => {
   await loadProfile()
   if (!error.value) await ladeAntragsstand()
+  // R-9: Kam der Aufruf über eine „Datenanfrage“ (Glocke), steht danach der
+  // Hinweis über den Freigabe-Schaltern — und die Seite steht dort.
+  await anfrageAusAdresse()
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('hashchange', amHashchange)
+  }
 })
 </script>
 
