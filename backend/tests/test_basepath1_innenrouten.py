@@ -166,3 +166,55 @@ def test_praefigierte_pfade_ohne_praefix_404(app_ohne, patched_db, fake_redis):
         assert c.get("/betrieb/healthz").status_code == 404
         assert c.get("/betrieb/diakonos").status_code == 404
         assert c.get("/betrieb/gestaltung.css").status_code == 404
+
+
+# ── BASEPATH-2: die Wurzel des Praefixes MIT Schraegstrich ──────────────────
+
+def test_praefix_mit_schraegstrich_leitet_auf_app(app_praefix, patched_db, fake_redis):
+    """``/{praefix}/`` -> 302 auf ``/{praefix}/diakonos`` (BASEPATH-2).
+
+    Befund (main 3a98218d, DIAKRONOS_BASE_PATH=/diakonos): ``/diakonos``
+    leitete richtig um, ``/diakonos/`` antwortete 404 — wer die Adresse mit
+    Schraegstrich eintippt oder verlinkt, landet im Leeren. Beide
+    Schreibweisen muessen dasselbe Ziel liefern.
+    """
+    with TestClient(app_praefix) as c:
+        ohne = c.get(PRAEFIX, follow_redirects=False)
+        mit = c.get(f"{PRAEFIX}/", follow_redirects=False)
+    assert ohne.status_code == 302, (ohne.status_code, ohne.text[:200])
+    assert mit.status_code == 302, (mit.status_code, mit.text[:200])
+    assert mit.headers["location"] == f"{PRAEFIX}/diakonos", mit.headers["location"]
+    # Beide Schreibweisen zeigen auf dasselbe Ziel (kein Umweg ueber den Alias).
+    assert mit.headers["location"] == ohne.headers["location"]
+
+
+def test_praefix_mit_schraegstrich_landet_bei_der_spa(app_praefix, patched_db, fake_redis):
+    """Den Folgen nach: ``/{praefix}/`` kommt bei der App an, nicht im Leeren.
+
+    302 auf ``/{praefix}/diakonos`` — mit Folgen gelandet ist das Ziel, das
+    auch ``/{praefix}`` ohne Schraegstrich erreicht (200, kein 404). Was die
+    Route dann ausliefert (SPA oder Anmeldemaske), haengt am Build und an der
+    Sitzung und ist hier nicht die Frage.
+    """
+    sid, csrf = _benutzer_und_sitzung(patched_db)
+    with TestClient(app_praefix) as c:
+        r = c.get(f"{PRAEFIX}/", cookies={"sid": sid},
+                  headers={"X-Frappe-CSRF-Token": csrf})
+        ohne = c.get(PRAEFIX, cookies={"sid": sid},
+                     headers={"X-Frappe-CSRF-Token": csrf})
+    assert r.status_code == 200, (r.status_code, r.text[:300])
+    assert r.status_code == ohne.status_code
+    assert r.url.path == f"{PRAEFIX}/diakonos", str(r.url)
+
+
+def test_praefix_mit_schraegstrich_ohne_praefix_unveraendert(app_ohne, patched_db, fake_redis):
+    """Gegenprobe ohne Praefix: ``/`` leitet wie bisher auf ``/diakonos``.
+
+    Ohne Praefix gibt es die Schraegstrich-Variante des Praefixes nicht —
+    ``//`` ist kein zweiter Fall, sondern derselbe Wurzelpfad.
+    """
+    with TestClient(app_ohne) as c:
+        r = c.get("/", follow_redirects=False)
+    assert r.status_code == 302, (r.status_code, r.text[:200])
+    assert r.headers["location"] == "/diakonos", r.headers["location"]
+

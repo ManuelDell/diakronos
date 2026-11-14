@@ -33,8 +33,10 @@ Folgen des Mounts, die bewusst so sind:
   * Die Wurzel `/` gehoert dann dem Eingang. Die App antwortet auf `/` mit
     404, damit sie nichts ueberschreibt. Der Alias `/diakronos` (ohne
     Schraegstrich) leitet auf `/diakronos/diakonos` (die App) um; Starlette
-    wuerde dafuer sonst einen 307 auf `/diakronos/` schicken, und `/diakronos/`
-    ist die Wurzel des Mounts — kein sinnvolles Ziel.
+    wuerde dafuer sonst einen 307 auf `/diakronos/` schicken. BASEPATH-2:
+    `/diakronos/` (MIT Schraegstrich) leitet genauso um — wer die Adresse
+    abtippt oder verlinkt, landet nicht im Leeren. Vorher antwortete die
+    Wurzel des Mounts mit 404.
 
 Normalisierung (`normalisiere`)
 -------------------------------
@@ -188,16 +190,19 @@ def praefigiere(app, praefix: str):
     async def _alias(request):  # noqa: ANN001 — Starlette-Endpunkt
         """`/diakronos` -> `/diakronos/diakonos` (Karte WEB-5a, S4).
 
-        Ohne diese Route schickt der Mount einen 307 auf `/diakronos/`, und
-        das ist die Wurzel des Mounts — sie wuerde wieder hier landen.
+        Ohne diese Route schickt der Mount einen 307 auf `/diakronos/`.
         """
         return RedirectResponse(app_ziel, status_code=302)
 
     async def _mount_wurzel(request):  # noqa: ANN001
-        """`/diakronos/` gehoert dem Eingang, nicht der App."""
-        from starlette.responses import JSONResponse
+        """`/diakronos/` -> `/diakronos/diakonos` (BASEPATH-2).
 
-        return JSONResponse({"detail": "Not Found"}, status_code=404)
+        Diese Route steht VOR dem Mount; ohne sie beantwortete der Mount
+        seine eigene Wurzel mit 404 — wer die Adresse mit Schraegstrich
+        eintippt oder verlinkt, landete im Leeren. Ziel ist dasselbe wie
+        beim Alias ohne Schraegstrich, damit beide Schreibweisen ankommen.
+        """
+        return RedirectResponse(app_ziel, status_code=302)
 
     # Reihenfolge = Prioritaet: die beiden genauen Pfade VOR dem Mount.
     return Starlette(
