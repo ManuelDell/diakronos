@@ -69,17 +69,24 @@ export const RUECKGAENGIG_WEGE = {
    *
    * Was `create_kalender` NICHT annimmt, kann nicht wiederhergestellt werden:
    * `calender_details` (nur vom Google-Import gesetzt, kein Parameter der
-   * Anlage) und `creation`/`owner`. Ein Kalender aus einem Google-Import
-   * bekommt diesen Hinweis also nicht zurück — er ist der EINZIGE Fall, in dem
-   * etwas fehlt; deshalb bietet die Seite das Rückgängig nur an, solange
-   * `calender_details` leer ist (siehe `vollstaendig()` unten).
+   * Anlage) und `creation`/`owner`. Freigaben und Sichtbarkeit nimmt es
+   * ebenfalls nicht an — deshalb bietet die Seite das Rückgängig nur an,
+   * solange der Kalender keine Freigaben hat und seine Sichtbarkeit `aus` ist
+   * (siehe `vollstaendig()` unten).
+   *
+   * UI-R3d: `gruppe`, `untergruppe` und `standard_gruppe_lesen` GEHÖREN dazu.
+   * Ohne sie entsteht ein Gemeinde-Kalender — HV/MV/GL bekommt dann eine 403
+   * („Gemeinde-Kalender legen Admin und Kalender-Moderation an.“) und der
+   * Kalender wäre endgültig weg; ein Admin bekäme ihn ohne Zuordnung,
+   * Freigaben und Sichtbarkeit zurück. Der Server nimmt alle drei Parameter an
+   * (`kalender_verwaltung.create_kalender`).
    */
   kalender: {
     aufruf: 'diakronos.kronos.api.kalender_verwaltung.create_kalender',
     args: (kalender) => {
       const titel = String(kalender?.titel || '').trim()
       if (!titel) return null
-      return {
+      const anfrage = {
         titel,
         farbe: kalender.farbe || '',
         selbstverwaltet: kalender.selbstverwaltet === true,
@@ -87,6 +94,19 @@ export const RUECKGAENGIG_WEGE = {
         schreibrechte: Array.isArray(kalender.schreibrechte) ? kalender.schreibrechte : [],
         moderatoren: Array.isArray(kalender.moderatoren) ? kalender.moderatoren : [],
       }
+      // Die Zuordnung: nur setzen, was die Zeile wirklich trägt. Ein leerer
+      // Wert hieße „Gemeinde-Kalender“ — das ist eine Aussage, keine Lücke.
+      const gruppe = String(kalender?.gruppe || '').trim()
+      const untergruppe = String(kalender?.untergruppe || '').trim()
+      if (gruppe) anfrage.gruppe = gruppe
+      if (untergruppe) anfrage.untergruppe = untergruppe
+      // Die Antwort auf „Sollen alle Gruppenmitglieder standardmäßig lesen
+      // dürfen?“ — nur bei Gruppen-Kalendern; ein Gemeinde-Kalender hat keine
+      // Gruppe, an der sie hinge, und der Server wertet sie dort nicht aus.
+      if (gruppe || untergruppe) {
+        anfrage.standard_gruppe_lesen = kalender?.standard_gruppe_lesen !== false
+      }
+      return anfrage
     },
   },
   /**
@@ -151,7 +171,23 @@ export const RUECKGAENGIG_WEGE = {
  */
 export const VOLLSTAENDIG = {
   auswahlwert: () => true,
-  kalender: (kalender) => !String(kalender?.calender_details || '').trim(),
+  /**
+   * Ein Kalender kommt nur vollständig zurück, wenn die Anlage ALLES
+   * mitbringen kann: kein Google-Import-Vermerk (`calender_details`), keine
+   * Freigabe (lesen/schreiben/moderieren) und keine Sichtbarkeit außer `aus`.
+   * Freigaben und Sichtbarkeit setzt `create_kalender` nicht — sie gingen
+   * still verloren (UI-R3d). Fehlt eine Angabe, gilt sie als „nicht da“.
+   */
+  kalender: (kalender) => {
+    if (String(kalender?.calender_details || '').trim()) return false
+    // UI-R3d: der Server meldet JEDE Freigabe/jeden Gastlink (auch Gruppen und nur lesen/schreiben)
+    if (kalender?.hat_freigaben) return false
+    for (const feld of ['leserechte', 'schreibrechte', 'moderatoren']) {
+      if (Array.isArray(kalender?.[feld]) ? kalender[feld].length > 0 : Boolean(kalender?.[feld])) return false
+    }
+    const sichtbar = (wert) => String(wert ?? '').trim() !== '' && String(wert).trim() !== 'aus'
+    return !sichtbar(kalender?.gemeinde_status) && !sichtbar(kalender?.gruppe_status)
+  },
   postfach: ({ slug, email } = {}) => !!String(slug || '').trim() && !!String(email || '').trim(),
   ressource: (ressource) => !String(ressource?.image || ressource?.bild || '').trim(),
 }

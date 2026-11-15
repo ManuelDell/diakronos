@@ -517,11 +517,15 @@ export function punkteJeTag(termine, pruefIds = [], tagSpanne = null) {
  *
  * Die Einträge sind reine Daten; was ein Klick tut, entscheidet die Seite
  * (`pages/Kalender.vue`) — dieselbe Trennung wie bei `kalenderMenue` (UX3i).
+ *
+ * UI-R3: „Kalender verwalten“ hängt an `darfVerwalten` (Serverrecht, HV/MV/GL),
+ * „Kalender importieren“ weiter an der Admin-Rolle.
  */
 export function mobilMenue({
   ansicht = STANDARD_VORGABE,
   standard = STANDARD_VORGABE,
   istKalenderAdmin = false,
+  darfVerwalten = istKalenderAdmin === true,
   hatSchreibrecht = false,
   lesemodus = true,
 } = {}) {
@@ -545,8 +549,10 @@ export function mobilMenue({
     disabled: String(standard) === aktuelle.id,
   })
   eintraege.push({ key: 'ressourcenplan', label: 'Ressourcenplan', icon: 'kalender', aktion: 'ressourcenplan' })
-  if (istKalenderAdmin === true) {
+  if (darfVerwalten === true) {
     eintraege.push({ key: 'verwalten', label: 'Kalender verwalten', icon: 'bearbeiten', href: '#/kalender/verwalten' })
+  }
+  if (istKalenderAdmin === true) {
     eintraege.push({ key: 'importieren', label: 'Kalender importieren', icon: 'herunterladen', href: '#/kalender/import' })
   }
   if (hatSchreibrecht === true) {

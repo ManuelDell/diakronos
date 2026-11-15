@@ -207,7 +207,7 @@ import { apiCall } from '../../composables/useApi.js';
 import { useKronosStore } from '../../composables/useKronosStore.js';
 // Nacharbeit 07.11. Punkt 7: Die Rolle wird an EINER Stelle geprüft
 // (`kalenderRechte.mjs`), nicht ein zweites Mal hier.
-import { istKalenderAdmin } from './kalenderRechte.mjs';
+import { istKalenderAdmin, kalenderVerwaltungSichtbar } from './kalenderRechte.mjs';
 // UXD-R28: Kalenderfarbe nur als gueltiger Hex-Wert in die CSS-Variable.
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js';
 import { wandZeit } from '../../../shared/zeit.mjs';
@@ -247,6 +247,8 @@ function hilfeOeffnen() {
 defineExpose({ hilfeOeffnen, verwaltenKnopf });
 // OP-ADMIN-10: „Kalender verwalten“ — nur fuer Kalenderadministratoren
 // (derselbe Rollenpruef wie der Import; der Server prueft erneut).
+// UI-R3: „Verwalten“ gilt seit dem EINEN Rechtesystem auch für HV/MV/GL —
+// die Lage kommt aus dem SERVER (`get_kalender_verwaltung`), nicht aus Rollen.
 const zeigeVerwalten = ref(false);
 const abgelehnteTermine = ref([]);
 const davUrl = `${window.location.origin}/dav/`;
@@ -334,7 +336,19 @@ onMounted(async () => {
     // auseinanderlaufen — jetzt EINE Stelle.
     const darfVerwalten = istKalenderAdmin(context);
     showImport.value = darfVerwalten;
-    zeigeVerwalten.value = darfVerwalten;
+    // UI-R3: „Kalender verwalten“ hängt am SERVER — wer Kalender pflegen oder
+    // anlegen darf (HV/MV, GL, Admin), sieht den Eintrag; alle anderen
+    // bekommen 403. Ein Fehler beim Abfragen lässt den Eintrag weg (fail closed):
+    // ein Eintrag, der ins Leere führt, ist schlimmer als keiner.
+    try {
+      const verwaltung = await apiCall('diakronos.kronos.api.kalender_verwaltung.get_kalender_verwaltung');
+      zeigeVerwalten.value = kalenderVerwaltungSichtbar(verwaltung, darfVerwalten) === true;
+    } catch {
+      // 403 heißt „nichts zu verwalten“; ein Netzfehler sagt nichts über das
+      // Recht. Der Admin sieht den Eintrag in beiden Fällen — der Server
+      // verweigert ihm nichts, und ein flackernder Eintrag wäre schlimmer.
+      zeigeVerwalten.value = darfVerwalten === true;
+    }
   } catch {
     showImport.value = false;
     zeigeVerwalten.value = false;

@@ -374,11 +374,15 @@ test('UX1h/H2 Registrierung: „Neuer Link“ ist der Primärknopf, Zeilen sind 
     'im Unterbereich Formulare ist „Neues Formular“ die Hauptaktion')
 })
 
-test('UX1h/H2 KalenderVerwaltung: der Leerzustand wiederholt den Kopfknopf abgestuft', () => {
+test('UX1h/H2 KalenderVerwaltung: der Leerzustand wiederholt den Kopfknopf NICHT', () => {
   const text = lies(`${P}pages/KalenderVerwaltung.vue`)
-  const leer = text.slice(text.indexOf('<DkEmpty'), text.indexOf('<div v-else class="kv-karten"'))
-  assert.match(leer, /variant="ghost"[^>]*@click="neuerKalender"/,
-    '„Neuer Kalender“ im Leerzustand ist ghost (der Kopf trägt den Primary)')
+  // UI-R3b (Punkt 3, A4): es gibt genau EINE Primäraktion — „Neuer Kalender“
+  // im Kopf. Der frühere Ghost-Knopf im Leerzustand ist entfallen; dort steht
+  // jetzt die gemeinsame Fläche mit ihrem eigenen Satz.
+  assert.equal([...text.matchAll(/@click="neuerKalender"/g)].length, 1,
+    'die Seite hat mehr als einen „Neuer Kalender“-Knopf (A4: genau einer)')
+  assert.doesNotMatch(text, /variant="ghost" size="md" @click="neuerKalender"/,
+    'der Leerzustand wiederholt den Kopfknopf')
 })
 
 test('UX1h/H2 ModerationModals: je Sicht des Seriendialogs ein gefüllter Knopf', () => {

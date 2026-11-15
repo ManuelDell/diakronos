@@ -798,7 +798,9 @@ test('N2-5/N2-6: Moduswechsel baut die Menüs neu, Serien-Löschung zieht alles 
 
 test('N2-7: die Rolle kommt aus kalenderRechte.mjs (EINE Stelle)', () => {
   const quelle = lies('components/kronos/KronosSidebar.vue')
-  assert.match(quelle, /import \{ istKalenderAdmin \} from '\.\/kalenderRechte\.mjs'/,
+  // UI-R3: der Import darf weitere Funktionen DESSELBEN Moduls mitbringen
+  // (`kalenderVerwaltungSichtbar`) — die Rollenprüfung bleibt EINE Stelle.
+  assert.match(quelle, /import \{[^}]*\bistKalenderAdmin\b[^}]*\} from '\.\/kalenderRechte\.mjs'/,
     'die gemeinsame Prüfung wird importiert')
   assert.match(quelle, /const darfVerwalten = istKalenderAdmin\(context\)/)
   assert.doesNotMatch(quelle, /userRoles\.includes\('Kalenderadministrator'\)/,

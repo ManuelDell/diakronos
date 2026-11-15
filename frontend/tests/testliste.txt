@@ -564,6 +564,22 @@ tests/uir2b-*.test.mjs
 # `nurAnzeigen`, tote Reste (`darfModerieren`) entfernt.
 # Mount am ECHTEN Baustein und an der ECHTEN Seite; rot→grün je Punkt belegt.
 tests/uir2c-*.test.mjs
+# UI-R3b: Folgekarte zu UI-R3 (nur frontend/). Bearbeiten (Titel, Farbe,
+# `selbstverwaltet` → `update_kalender`) und Löschen (`delete_kalender`, sofort
+# + „Rückgängig“, nur bei einem Google-Import mit Rückfrage) stehen wieder — je
+# Kalender in der GEMEINSAMEN Fläche, also auch unter „Kalender der Gruppe“.
+# Die Fläche ist AUCH ohne Kalender gemountet (der Anlege-Dialog gehört ihr),
+# EIN Anlege-Knopf und EIN Hinweis auf der Seite, Texte im Modus `alleKalender`
+# ohne „diese Gruppe“, kein Rollen-Rückfall im Client (`hatVerwaltbares` weg,
+# `istKalenderAdmin` weg, doppelter JSDoc weg). Mount am ECHTEN Bauteil und an
+# der ECHTEN Seite (jsdom, API gestubbt); rot→grün belegt (am UI-R3-Stand sind
+# 12 von 15 Fällen rot).
+tests/uir3b-*.test.mjs
+# UI-R3: Kalenderverwaltung auf dem EINEN Rechtesystem — Rollen-Auswahlen weg,
+# je Kalender Zuordnung + Freigaben über die gemeinsame Fläche aus UI-R2,
+# Anlegeorte aus dem Server (Gemeinde nur mit `darf_gemeinde_kalender`),
+# Menüpunkt am Serverrecht statt an der Admin-Rolle.
+tests/uir3-*.test.mjs
 # UI-R2d: Abstand Kästchen↔Wort in der Handy-Stufe. Regeltest ohne Vue — er
 # hält fest, dass `.kr-stufe-feld` die von `label:has(> input[type=checkbox])`
 # (index.css, pointer: coarse) geerbte 44-px-Mindestbreite zurücknimmt; sonst
@@ -633,3 +649,4 @@ tests/uir7-*.test.mjs
 # UI-R8: ⓘ „Was bewirkt welche Rolle?“ + Seite „Rollen & Rechte“ (EINE Quelle).
 tests/r8-*.test.mjs
 tests/r8b-*.test.mjs
+tests/uir3d-*.test.mjs

@@ -182,6 +182,14 @@ const props = defineProps({
    */
   istKalenderAdmin: { type: Boolean, default: false },
   /**
+   * UI-R3: Darf die Person die Seite „Kalender verwalten“ öffnen? Sie hängt
+   * seit dem EINEN Rechtesystem nicht mehr an der Admin-Rolle allein (HV/MV/GL
+   * dürfen ihre Kalender pflegen). Die Seite entscheidet das aus der Antwort
+   * von `get_kalender_verwaltung` (`kalenderVerwaltungSichtbar`) — die
+   * Kopfzeile prüft keine Rechte selbst.
+   */
+  darfVerwalten: { type: Boolean, default: null },
+  /**
    * Lesemodus (`true`, Standard wie vor UX3i) oder Bearbeiten. Der Umschalter
    * steht dezent im „⋯“-Menü; gefüllte Knöpfe bleiben der Hauptaktion
    * vorbehalten (Regel UX1h).
@@ -291,6 +299,10 @@ function onReiterWaehlen(r) {
 // alle (die Daten liefert der Server, er liefert nur die eigenen).
 const menue = computed(() => kalenderMenue({
   istKalenderAdmin: props.istKalenderAdmin === true,
+  // UI-R3: ohne eigene Angabe entscheidet die Rolle (wie vorher).
+  darfVerwalten: props.darfVerwalten === null
+    ? props.istKalenderAdmin === true
+    : props.darfVerwalten === true,
   hatSchreibrecht: props.canWrite === true,
   lesemodus: props.lesemodus !== false,
 }))

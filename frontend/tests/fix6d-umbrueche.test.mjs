@@ -169,7 +169,6 @@ test('die 640px-Stellen sind die der Entscheidungstabelle', () => {
     'diakonos/index.css',
     'diakonos/kronos.css',
     'diakonos/pages/KalenderImport.vue',
-    'diakonos/pages/KalenderVerwaltung.vue',
     'diakonos/pages/Ressourcen.vue',
     'diakonos/pages/Registrierung.vue',
     'diakonos/pages/planrahmen/PlantypEditor.vue',

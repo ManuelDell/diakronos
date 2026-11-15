@@ -34,6 +34,45 @@ export function istKalenderAdmin(kontext) {
 }
 
 /**
+ * UI-R3 — Darf diese Person die Seite „Kalender verwalten“ öffnen?
+ *
+ * Bis UI-R3 hing der Eintrag allein an `istKalenderAdmin` (Rolle). Seit dem
+ * EINEN Rechtesystem darf JEDE Person Kalender verwalten oder anlegen, der der
+ * Server es gibt (HV/MV einer Gruppe, GL einer Untergruppe) — der Server
+ * antwortet allen anderen mit 403. Deshalb fragt `kalenderVerwaltungSichtbar`
+ * den SERVER, statt die Rollen zu raten:
+ *
+ *   true   — `get_kalender_verwaltung` lieferte etwas zu verwalten/anulegen
+ *   false  — 403, „nichts zu verwalten“ oder (noch) kein Recht dieser Person
+ *   Für den Administrator ist der Eintrag sichtbar, solange keine Antwort da
+ *   ist — er darf die Seite ohnehin immer öffnen, und sein Eintrag verschwände
+ *   sonst für einen Moment (die Leiste lädt den Kontext vor der Antwort).
+ *
+ * @param {{kalender?: Array, darf_gemeinde_kalender?: boolean,
+ *          anlegen_gruppen?: string[], anlegen_untergruppen?: string[]}|null} verwaltung
+ *   Antwort von `get_kalender_verwaltung` (null = gesperrt oder unbekannt)
+ * @param {boolean} istAdmin  Ergebnis von `istKalenderAdmin`
+ * @returns {boolean|null}
+ */
+export function kalenderVerwaltungSichtbar(verwaltung, istAdmin = false) {
+  const v = verwaltung
+  const hatInhalt = Boolean(v && typeof v === 'object') && (
+    (Array.isArray(v.kalender) && v.kalender.length > 0)
+    || v.darf_gemeinde_kalender === true
+    || (Array.isArray(v.anlegen_gruppen) && v.anlegen_gruppen.length > 0)
+    || (Array.isArray(v.anlegen_untergruppen) && v.anlegen_untergruppen.length > 0)
+  )
+  if (hatInhalt) return true
+  // Ohne Antwort und mit Admin-Rolle: der Admin darf die Seite immer öffnen,
+  // der Eintrag verschwindet sonst für einen Moment (die Leiste lädt den
+  // Kontext vor der Antwort). Ohne Recht und ohne Antwort: fail closed.
+  if (!v && istAdmin === true) return true
+  // Antwort da (Objekt) und nichts zu verwalten → nein. Bei einem Admin wäre
+  // die Antwort nie leer (der Server liefert ihm alles) — dann gilt sie.
+  return false
+}
+
+/**
  * Lesemodus (`true`) oder Bearbeiten (`false`) als Startzustand.
  *
  * Der Kalender startet im LESEMODUS — wie vor UX3i. Das ist keine
@@ -89,11 +128,12 @@ export function klickAufTag(lesemodus) {
  * Symbolnamen sind solche aus `components/ui/symbole.mjs` (DkSymbol zeichnet
  * nur bekannte Namen; ein Tippfehler ergäbe ein leeres Feld).
  *
- * @param {{ istKalenderAdmin?: boolean, hatSchreibrecht?: boolean, lesemodus?: boolean }} lage
+ * @param {{ istKalenderAdmin?: boolean, darfVerwalten?: boolean, hatSchreibrecht?: boolean, lesemodus?: boolean }} lage
  * @returns {Array<{key: string, label: string, icon: string, href?: string, aktion?: string}>}
  */
 export function kalenderMenue({
   istKalenderAdmin: admin = false,
+  darfVerwalten = admin === true,
   hatSchreibrecht = false,
   lesemodus = true,
 } = {}) {
@@ -102,10 +142,14 @@ export function kalenderMenue({
   // Blick) — sie steht hier, damit sie keine zweite Hauptaktion neben
   // „Termin anlegen“ ist (A4: genau ein Primärknopf).
   eintraege.push({ key: 'ressourcenplan', label: 'Ressourcenplan', icon: 'kalender', aktion: 'ressourcenplan' })
-  // OP-ADMIN-10: Verwalten und Importieren hängen an derselben Rolle — der
-  // Server prüft sie erneut.
-  if (admin === true) {
+  // UI-R3: „Kalender verwalten“ steht für ALLE, die der Server es lässt
+  // (HV/MV, GL — `darfVerwalten` aus `kalenderVerwaltungSichtbar`). Der Import
+  // bleibt bei der Admin-Rolle (er gehört nicht zum EINEN Rechtesystem, Punkt
+  // 4 der Karte betrifft nur die Verwaltung). Beide hängen am Serverrecht.
+  if (darfVerwalten === true) {
     eintraege.push({ key: 'verwalten', label: 'Kalender verwalten', icon: 'bearbeiten', href: '#/kalender/verwalten' })
+  }
+  if (admin === true) {
     eintraege.push({ key: 'importieren', label: 'Kalender importieren', icon: 'herunterladen', href: '#/kalender/import' })
   }
   // Lesemodus ist der Standard; der Schalter heißt nach der HANDLUNG, die er

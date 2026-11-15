@@ -325,7 +325,11 @@ test('Kalender aus dem Google-Import aus der Liste → Rückfrage, nicht Rückg�
   assert.equal(vollstaendig('kalender', importiert), false,
     'der Vermerk käme nicht zurück → die Seite muss die Rückfrage wählen')
   // Ein selbst angelegter Kalender trägt das Feld leer und ist umkehrbar.
-  assert.equal(vollstaendig('kalender', { ...importiert, calender_details: '' }), true)
+  // UI-R3d: OHNE Freigaben und mit Sichtbarkeit `aus` — Freigaben kämen über
+  // `create_kalender` nicht zurück (eigener Fall, siehe `uir3b-verwaltung`).
+  assert.equal(vollstaendig('kalender', {
+    ...importiert, calender_details: '', leserechte: [], schreibrechte: [], moderatoren: [],
+  }), true)
 })
 
 test('Kalender: Rechte und Moderatoren kommen mit, Google-Import nicht', () => {
@@ -348,7 +352,13 @@ test('Kalender: Rechte und Moderatoren kommen mit, Google-Import nicht', () => {
     schreibrechte: ['Pfarrer'],
     moderatoren: ['maria@example.org'],
   })
-  assert.equal(vollstaendig('kalender', zeile), true)
+  // UI-R3d: Mit Freigaben ist der Zustand NICHT vollständig wiederherstellbar
+  // (`create_kalender` setzt sie nicht) — dann bleibt die Rückfrage.
+  assert.equal(vollstaendig('kalender', zeile), false,
+    'Freigaben kämen nicht zurück → die Seite muss die Rückfrage wählen')
+  assert.equal(vollstaendig('kalender', {
+    ...zeile, leserechte: [], schreibrechte: [], moderatoren: [],
+  }), true, 'ohne Freigaben ist der Kalender umkehrbar')
   // Ein Kalender aus dem Google-Import trägt `calender_details`; die Anlage
   // nimmt das Feld nicht an → kein vollständiges Zurück.
   const importiert = { ...zeile, calender_details: 'Importiert aus Google Kalender' }
@@ -481,8 +491,10 @@ const ERLAUBTE_RUECKFRAGEN = {
   // (`create_ressource` nimmt `bild` nicht an) — dann Rückfrage.
   'pages/RessourcenVerwaltung.vue': ['Ressource löschen?'],
   // Review 06.11.: Kalender aus dem Google-Import (`calender_details`) kommt
-  // nicht vollständig zurück — dann Rückfrage.
-  'pages/KalenderVerwaltung.vue': ['Kalender löschen?'],
+  // nicht vollständig zurück — dann Rückfrage. UI-R3b: der Weg liegt in der
+  // gemeinsamen Fläche (`components/gruppen/KalenderEinstellungen.vue`); die
+  // Rückfrage steht dort NUR im nicht-umkehrbaren Fall, deshalb hier erlaubt.
+  'components/gruppen/KalenderEinstellungen.vue': ['Kalender löschen?'],
 }
 
 /**
@@ -494,9 +506,16 @@ const UMKEHRBAR = [
   { datei: 'pages/Beitraege.vue', was: 'Beitrag löschen' },
   { datei: 'pages/Wiki.vue', was: 'Artikel löschen' },
   { datei: 'pages/Lieder.vue', was: 'Lied in den Papierkorb' },
-  { datei: 'pages/KalenderVerwaltung.vue', was: 'Kalender löschen (ohne Google-Import)' },
+  // UI-R3: das Löschen eines Kalenders liegt in der gemeinsamen Fläche
+  // (`components/gruppen/KalenderEinstellungen.vue`), also auch unter
+  // „Kalender der Gruppe“ — geprüft in `uir3b-verwaltung.test.mjs`.
   { datei: 'pages/RessourcenVerwaltung.vue', was: 'Ressource löschen (ohne Bild)' },
   { datei: 'pages/Website.vue', was: 'Postfach entfernen' },
+  // UI-R3b: der Kalender-Weg STEHT wieder — in der gemeinsamen Fläche
+  // (`components/gruppen/KalenderEinstellungen.vue`): erst löschen, dann
+  // `mitRueckgaengig` anmelden (nur ein Kalender aus dem Google-Import fragt
+  // nach). Gemessen in `uir3b-verwaltung.test.mjs`.
+  { datei: 'components/gruppen/KalenderEinstellungen.vue', was: 'Kalender löschen' },
 ]
 
 test('umkehrbare Aktionen: sofort ausgeführt, am Stapel angemeldet, keine Rückfrage', () => {
@@ -527,7 +546,7 @@ test('Seiten mit Bedingung fragen nur im nicht-umkehrbaren Fall nach', () => {
   // sonst bleibt der Weg über den Stapel.
   for (const { datei, vorgang } of [
     { datei: 'pages/RessourcenVerwaltung.vue', vorgang: 'ressource' },
-    { datei: 'pages/KalenderVerwaltung.vue', vorgang: 'kalender' },
+    { datei: 'components/gruppen/KalenderEinstellungen.vue', vorgang: 'kalender' },
   ]) {
     const code = ohneKommentare(lies(datei))
     assert.match(code, new RegExp(`if \\(!vollstaendig\\('${vorgang}'`),

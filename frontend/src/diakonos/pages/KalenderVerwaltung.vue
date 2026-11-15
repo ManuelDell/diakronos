@@ -2,20 +2,20 @@
   <div class="kv-seite">
     <DkPageHeader
       title="Kalender verwalten"
-      sub="Anlegen, umbenennen, Rechte vergeben, Moderatoren bestimmen und löschen."
+      sub="Anlegen, Freigaben vergeben und Sichtbarkeit bestimmen."
       :krumen="[{ text: 'Kalender', href: '#/kalender' }, { text: 'Verwalten' }]"
     >
       <template #actions>
-        <DkButton variant="primary" @click="neuerKalender">
+        <DkButton v-if="darfAnlegen" variant="primary" @click="neuerKalender">
           <IconPlus /> Neuer Kalender
         </DkButton>
       </template>
     </DkPageHeader>
 
-    <DkHint variant="info">
-      Wer einen Kalender <strong>sehen</strong>, <strong>Termine eintragen</strong> oder
-      <strong>Termine freigeben</strong> (moderieren) darf, wird hier über Rollen und
-      Personen eingestellt. Die Änderungen wirken sofort — niemand muss sich neu anmelden.
+    <DkHint v-if="darfAnlegen" variant="info">
+      Je Kalender steht hier, <strong>wozu er gehört</strong> (Gemeinde, Gruppe oder
+      Untergruppe) und <strong>wer ihn sehen, Termine eintragen oder prüfen</strong> darf.
+      Die Änderungen wirken sofort — niemand muss sich neu anmelden.
     </DkHint>
 
     <!-- UX2d3b (Review UX2d3a/C): Der Platzhalter erscheint erst nach 300 ms
@@ -25,362 +25,256 @@
 
     <DkHint v-else-if="fehler" variant="err">{{ fehler }}</DkHint>
 
+    <!-- UI-R3, Punkt 4: Wer nichts verwalten darf, bekommt vom Server 403 —
+         die Seite ist dann KEINE Baustelle, sondern eine kurze Auskunft mit
+         einem Weg (die eigenen Kalender stehen in der Gruppe). -->
     <DkEmpty
-      v-else-if="kalender.length === 0"
-      title="Noch keine Kalender"
-      text="Lege den ersten Kalender an — zum Beispiel „Gemeinde“ oder „Jugend“."
+      v-else-if="gesperrt"
+      title="Kein Kalender zu verwalten"
+      text="Hier erscheinen Kalender, die du selbst pflegst. Kalender deiner Gruppe findest du unter „Gruppen“."
       icon="📅"
-    >
-      <DkButton variant="ghost" size="md" @click="neuerKalender">Neuer Kalender</DkButton>
-    </DkEmpty>
+    />
 
-    <div v-else class="kv-karten">
-      <DkCard v-for="k in kalender" :key="k.name" flach>
-        <div class="kv-karte">
-          <div class="kv-karte-kopf">
-            <span class="kv-farbe" :style="{ background: k.farbe }" aria-hidden="true"></span>
-            <div class="kv-karte-titel">
-              <h2 class="kv-name">{{ k.titel }}</h2>
-              <p class="kv-meta">
-                <span v-if="k.selbstverwaltet">Selbstverwaltet</span>
-                <span v-if="k.selbstverwaltet">·</span>
-                <span>{{ k.leserechte.length ? 'Lesbar: ' + k.leserechte.join(', ') : 'Niemand darf lesen' }}</span>
-              </p>
-            </div>
-            <div class="kv-karte-aktionen">
-              <DkButton variant="secondary" size="md" @click="bearbeiten(k)">Bearbeiten</DkButton>
-              <DkButton variant="danger" size="md" @click="kalenderEntfernen(k)">Löschen</DkButton>
-            </div>
-          </div>
+    <DkEmpty
+      v-else-if="!kalender.length && !darfAnlegen"
+      title="Kein Kalender zu verwalten"
+      text="Hier erscheinen Kalender, die du selbst pflegst. Kalender deiner Gruppe findest du unter „Gruppen“."
+      icon="📅"
+    />
 
-          <dl class="kv-listen">
-            <div class="kv-liste">
-              <dt>Termine eintragen</dt>
-              <dd>{{ k.schreibrechte.length ? k.schreibrechte.join(', ') : 'niemand' }}</dd>
-            </div>
-            <div class="kv-liste">
-              <dt>Termine freigeben</dt>
-              <dd>{{ k.moderatoren.length ? k.moderatoren.join(', ') : 'niemand' }}</dd>
-            </div>
-          </dl>
-        </div>
-      </DkCard>
-    </div>
-
-    <!-- Anlegen / Bearbeiten -->
-    <DkDialog
-      v-model="dialogOffen"
-      :title="bearbeitet ? `Kalender „${form.titel}“ bearbeiten` : 'Neuer Kalender'"
-      size="md"
-      :before-close="schutz.darfSchliessen"
-    >
-      <form id="kv-form" novalidate class="kv-formular" @submit.prevent="speichern">
-        <DkHint v-if="formFehler.allgemein" variant="err">{{ formFehler.allgemein }}</DkHint>
-
-        <DkField v-slot="feld" label="Name" required :error="formFehler.titel"
-                 help="So heißt der Kalender in allen Listen und Auswahlfeldern.">
-          <input :id="feld.id" v-model="form.titel" class="dk-ui-eingabe" maxlength="140" />
-        </DkField>
-
-        <DkField v-slot="feld" label="Farbe"
-                 help="Die Farbe der Termine in der Kalenderansicht.">
-          <div class="kv-farbe-zeile">
-            <input :id="feld.id" v-model="form.farbe" type="color" class="kv-farbe-feld" />
-            <span class="kv-farbe-wert">{{ form.farbe }}</span>
-          </div>
-        </DkField>
-
-        <DkCheckbox v-model="form.selbstverwaltet">
-          Selbstverwaltet (eine Gruppe pflegt diesen Kalender selbst)
-        </DkCheckbox>
-
-        <DkField label="Wer darf sehen" help="Mehrfachauswahl mit Strg/Cmd.">
-          <select v-model="form.leserechte" class="dk-ui-eingabe" multiple size="6">
-            <option v-for="r in rollen" :key="r" :value="r">{{ r }}</option>
-          </select>
-        </DkField>
-
-        <DkField label="Wer darf Termine eintragen" help="Mehrfachauswahl mit Strg/Cmd.">
-          <select v-model="form.schreibrechte" class="dk-ui-eingabe" multiple size="6">
-            <option v-for="r in rollen" :key="r" :value="r">{{ r }}</option>
-          </select>
-        </DkField>
-
-        <DkField
-          label="Wer darf Termine freigeben"
-          help="Personen (Konten), nicht Rollen. Freigeben heißt: Vorschläge als Termin bestätigen."
-        >
-          <select v-model="form.moderatoren" class="dk-ui-eingabe" multiple size="6">
-            <option v-for="u in personen" :key="u.wert" :value="u.wert">{{ u.text }}</option>
-          </select>
-        </DkField>
-        <p v-if="personen.length === 0" class="kv-hinweis">
-          Es wurden keine Konten gefunden, die hier eingetragen werden könnten.
-        </p>
-      </form>
-
-      <template #footer>
-        <DkButton variant="secondary" :disabled="speichert" @click="schliessen">Abbrechen</DkButton>
-        <DkButton variant="primary" type="submit" form="kv-form" :loading="speichert">
-          {{ bearbeitet ? 'Speichern' : 'Anlegen' }}
-        </DkButton>
-      </template>
-    </DkDialog>
+    <!-- UI-R3b, Punkt 2: Die Fläche wird AUCH ohne Kalender gemountet — der
+         Anlege-Dialog gehört ihr (`anlegenOeffnen`), und mit `!kalender.length`
+         wäre `flaeche` null: „Neuer Kalender“ tat dann nichts. Den einzigen
+         Anlege-Knopf und den einzigen Hinweis führt diese Seite (Punkt 3). -->
+    <KalenderEinstellungen
+      v-else
+      ref="flaeche"
+      alle-kalender
+      :gruppe="gruppe"
+      :ziele="zieleFuerFlaeche"
+      :untergruppen="gruppenliste"
+      @geaendert="nachladen"
+      @gesperrt="aufGesperrt"
+    />
   </div>
 </template>
 
 <script setup>
 /**
- * KalenderVerwaltung — Kalender anlegen, umbenennen, Rechte und Moderatoren
- * setzen, löschen (Nachtbefund OP-ADMIN-10).
+ * KalenderVerwaltung — Kalender anlegen, umbenennen, Farbe und
+ * „selbstverwaltet“ ändern, löschen, Freigaben vergeben (Nachtbefund
+ * OP-ADMIN-10; seit UI-R3 auf dem EINEN Rechtesystem).
  *
- * Vorher gab es diese Seite nicht: Kalender entstanden nur über den iCal-
- * Import, Rechte waren nirgends einstellbar, und das ✎ in der Kalenderliste
- * sah klickbar aus, tat aber nichts (es bedeutet „du hast Schreibrecht“).
+ * Was UI-R3 geändert hat
+ * ----------------------
+ *  * Die Rollen-Auswahlen (Leserechte / Schreibrechte / Moderatoren) sind
+ *    ENTFERNT. Der Server führt sie nur noch übergangsweise mit
+ *    (`kalender_verwaltung._rechte_aus_alteingaben`); in der Fläche bewirkten
+ *    sie nichts mehr.
+ *  * Je Kalender: Zuordnung (Gemeinde / Gruppe X / Untergruppe Y), Freigaben
+ *    und Sichtbarkeit — alles über die gemeinsame Fläche aus UI-R2
+ *    (`rechte.get_objekt_rechte`, `setze_freigabe`, `beantrage_sichtbarkeit`, …).
+ *  * Anlegen: „Gemeinde-Kalender“ nur mit `darf_gemeinde_kalender`, sonst die
+ *    Auswahl aus `anlegen_gruppen` / `anlegen_untergruppen` des Servers, dazu
+ *    die Frage „Sollen alle Gruppenmitglieder standardmäßig lesen dürfen?“.
+ *  * Die Seite ist für JEDE Person da, die mindestens einen Kalender verwalten
+ *    oder anlegen darf. Wer nichts verwalten darf, bekommt vom Server 403 —
+ *    dann steht hier ein Satz statt Aktionen.
  *
- * Rechte: alles serverseitig (`kalender_verwaltung`). Die Seite ist nur für
- * Kalenderadministratoren erreichbar; wer sie ohne Recht aufruft, bekommt
- * eine verständliche Meldung statt einer leeren Liste.
+ * Was UI-R3b geändert hat
+ * -----------------------
+ *  * Bearbeiten (Titel, Farbe, `selbstverwaltet` → `update_kalender`) und
+ *    Löschen (`delete_kalender`; sofort + „Rückgängig“, nur bei einem
+ *    Google-Import mit Rückfrage) stehen wieder — je Kalender in der
+ *    gemeinsamen Fläche, also auch unter „Kalender der Gruppe“.
+ *  * Die Fläche ist AUCH ohne Kalender gemountet: der Anlege-Dialog gehört ihr,
+ *    sonst täte „Neuer Kalender“ beim ersten Kalender nichts.
+ *  * EIN Anlege-Knopf und EIN Hinweis auf dieser Seite; die Fläche bringt im
+ *    Modus `alleKalender` keinen eigenen mehr mit (A4).
+ *  * Kein Rollen-Rückfall: `darfAnlegen` und die Anlegeorte kommen
+ *    ausschließlich aus der Serverantwort (`get_kalender_verwaltung` liefert
+ *    `darf_gemeinde_kalender` immer).
+ *
+ * Die Oberfläche entscheidet NIE über Rechte: sie blendet nur aus, was der
+ * Server ohnehin verweigert, und zeigt Serverfehler (403/417) als Satz.
  */
-import { computed, reactive, ref, onMounted, h } from 'vue'
-import { showToast } from '../composables/useToast.js'
-// UX2c (C2): Löschen ist umkehrbar (neu anlegen) → sofort + „Rückgängig“.
-import { useRueckgaengigAktion } from '../composables/useRueckgaengigAktion.js'
-import { wiederherstellen as gegenrichtung, vollstaendig } from '../composables/rueckgaengigWeg.mjs'
-// UX2c-Nacharbeit: Kalender aus dem Google-Import (calender_details) kommen
-// nicht vollständig zurück → Rückfrage.
-import { bestaetigen } from '../composables/useBestaetigen.js'
-import { useFormularSchutz } from '../composables/useFormularSchutz.js'
+import { computed, onMounted, ref, h } from 'vue'
+import { apiCall } from '../composables/useApi.js'
+import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 import {
-  kalenderVerwaltungLaden,
-  kalenderAnlegen,
-  kalenderAendern,
-  kalenderLoeschen,
-  kontenListe,
-  serverFehlerText,
-} from '../composables/useVerwaltung.js'
+  alleKalenderZeilen,
+  ausGruppenbaum,
+  sichererFehlertext,
+  verwaltungAnlegeZiele,
+} from '../components/gruppen/kalenderRechte.mjs'
+import KalenderEinstellungen from '../components/gruppen/KalenderEinstellungen.vue'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkButton from '../components/ui/DkButton.vue'
-import DkCard from '../components/ui/DkCard.vue'
-import DkDialog from '../components/ui/DkDialog.vue'
-import DkField from '../components/ui/DkField.vue'
-import DkCheckbox from '../components/ui/DkCheckbox.vue'
-import DkHint from '../components/ui/DkHint.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
-// UX2d3b (Review UX2d3a/B): Laden zeigt den Umriss, keinen Satz.
+import DkHint from '../components/ui/DkHint.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
-import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 
+const VERWALTUNG = 'diakronos.kronos.api.kalender_verwaltung.get_kalender_verwaltung'
+
+// „Neuer Kalender“ — dasselbe Plus wie in der Kalenderliste (kein Emoji).
 const IconPlus = () => h('svg', {
   width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
   'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
 }, [h('line', { x1: 12, y1: 5, x2: 12, y2: 19 }), h('line', { x1: 5, y1: 12, x2: 19, y2: 12 })])
-// ON-0b: Standardfarbe neuer Kalender (eine Wahrheit, shared/sichere-ausgabe.js).
 
-import { STANDARD_FARBE } from '../../shared/sichere-ausgabe.js'
+// UI-R3b: KEIN Rollen-Rückfall. Ob angelegt werden darf, sagt ausschließlich
+// die Serverantwort — `get_kalender_verwaltung` liefert `darf_gemeinde_kalender`
+// und die Anlegeorte für JEDEN Aufrufer, der die Liste bekommt (wer nichts
+// darf, bekommt 403 und sieht diese Seite gar nicht erst mit Knopf).
 
-const kalender = ref([])
-// UX2c (C2): Rückgängig-Weg dieser Seite (Stapel-Eintrag + Meldung).
-const { mitRueckgaengig } = useRueckgaengigAktion()
-const rollen = ref([])
+const verwaltung = ref(null)
 const laedt = ref(true)
 // UX2d3b: Platzhalter erst nach 300 ms — kein Blitzen, keine Aussage vor der Antwort.
 const { skelettSichtbar } = useLadeSkelett(laedt)
 const fehler = ref('')
-const speichert = ref(false)
-const dialogOffen = ref(false)
-const bearbeitet = ref(null)
-const personen = ref([])
+/** 403 des Servers: diese Person verwaltet nichts (kein Fehler, eine Lage). */
+const gesperrt = ref(false)
+/** Die gemeinsame Fläche — ihr Anlege-Dialog ist der EINE Anlegeweg. */
+const flaeche = ref(null)
 
-const formFehler = reactive({ titel: '', allgemein: '' })
+/**
+ * Anzeigenamen der (Unter-)Gruppen. Die Verwaltungsliste nennt je Kalender
+ * nur Kennungen; `zuordnung` ist bereits der Anzeigename aus dem Server
+ * (`verwaltung._name`). Fehlt er, bleibt die Kennung stehen — erfunden wird
+ * kein Name.
+ *
+ * UI-R3: Zusätzlich die Namen aus dem Gruppenbaum
+ * (`get_gruppen_hierarchie`) — dort steht `gruppenname`/`untergruppenname`
+ * für ALLE Gruppen, während `get_kalender_verwaltung` die Anlegeorte nur als
+ * Kennung liefert. Reine Anzeige, kein Rechtebezug: wer den Baum nicht lesen
+ * darf, bekommt eine leere Liste und sieht wie bisher die Kennung.
+ */
+const baumNamen = ref({})
 
-function leeresFormular() {
-  return {
-    titel: '',
-    farbe: STANDARD_FARBE,
-    selbstverwaltet: false,
-    leserechte: [],
-    schreibrechte: [],
-    moderatoren: [],
+const namen = computed(() => {
+  const karte = { ...baumNamen.value }
+  for (const k of (verwaltung.value?.kalender || [])) {
+    if (!k || !k.zuordnung) continue
+    if (k.untergruppe) karte[k.untergruppe] = String(k.zuordnung)
+    else if (k.gruppe) karte[k.gruppe] = String(k.zuordnung)
+  }
+  return karte
+})
+
+/** Den Gruppenbaum holen — Namen für die Anlegeorte. Nie ein Fehler für die Seite. */
+async function ladeBaumNamen() {
+  try {
+    const antwort = await apiCall('diakronos.diakonos.api.gruppen.get_gruppen_hierarchie', {})
+    baumNamen.value = ausGruppenbaum(antwort)
+  } catch {
+    // Kein Baum (403/Netzfehler): die Kennung bleibt stehen — die Seite
+    // funktioniert weiter, nur ohne Klarnamen.
   }
 }
-const form = reactive(leeresFormular())
 
-// Eingaben bei Fehlklick nicht verlieren (gleiche Mechanik wie die übrigen
-// Verwaltungsseiten).
-const schutz = useFormularSchutz(
-  () => [form], () => speichert.value,
-)
+/** Die Kalender dieser Person, mit Zuordnung (Gemeinde / Gruppe / Untergruppe). */
+const kalender = computed(() => alleKalenderZeilen(verwaltung.value?.kalender, namen.value))
 
-async function laden() {
-  laedt.value = true
-  fehler.value = ''
+/** Anlegeorte aus der Serverantwort: Gemeinde nur mit `darf_gemeinde_kalender`. */
+const anlegeziele = computed(() => verwaltungAnlegeZiele(verwaltung.value || {}, namen.value))
+
+/**
+ * Anlegen nur mit einem Ort — ohne Ort verweigert der Server (403). Die Orte
+ * kommen AUSSCHLIESSLICH aus der Serverantwort (`darf_gemeinde_kalender`,
+ * `anlegen_gruppen`, `anlegen_untergruppen`); die Seite prüft keine Rolle.
+ */
+const darfAnlegen = computed(() => anlegeziele.value.length > 0)
+
+/** Anlegeorte für die gemeinsame Fläche — genau die des Servers. */
+const zieleFuerFlaeche = computed(() => anlegeziele.value)
+
+/**
+ * Kennung der (Unter-)Gruppen für die Freigabe-Auswahl: die Orte, an denen
+ * der Server ein Anlegen erlaubt. `anzeigename` ist der REINE Name
+ * (`Jugendchor`) — die gemeinsame Fläche setzt „Gruppe“/„Untergruppe“ selbst
+ * davor (`zuordnungsText`). Mit der fertigen Beschriftung stünde dort
+ * „Untergruppe: Untergruppe Kinderchor“. Fehlt der Name, gilt die Kennung.
+ */
+const gruppenliste = computed(() => zieleFuerFlaeche.value
+  .filter((z) => z.art === 'gruppe' || z.art === 'untergruppe')
+  .map((z) => ({ name: String(z.wert || ''), anzeigename: namen.value[z.wert] || '' }))
+  .filter((g) => g.name))
+
+/**
+ * Die gemeinsame Fläche (UI-R2) kennt eine Gruppen-Kennung für den Kopf
+ * ihres Anlege-Dialogs. Die Kalenderverwaltung ist keine Gruppenseite:
+ * `alleKalender` hebt den Filter auf, `ziele` nennt die Orte. Deshalb bleibt
+ * die Kennung leer — eine erfundene Gruppe benennt fremde Kalender falsch.
+ */
+const gruppe = computed(() => '')
+
+
+async function laden({ still = false } = {}) {
+  if (!still) {
+    laedt.value = true
+    fehler.value = ''
+  }
   try {
-    const antwort = await kalenderVerwaltungLaden()
-    kalender.value = Array.isArray(antwort?.kalender) ? antwort.kalender : []
-    rollen.value = Array.isArray(antwort?.rollen) ? antwort.rollen : []
+    verwaltung.value = (await apiCall(VERWALTUNG, {})) || null
+    fehler.value = ''
+    gesperrt.value = false
   } catch (err) {
-    fehler.value = serverFehlerText(err, 'Die Kalender konnten nicht geladen werden.')
+    // 403 = der Server gibt dieser Person keine verwaltbaren Kalender. Das ist
+    // keine Panne, sondern eine Lage: eine kurze Auskunft, keine Aktionen (der
+    // Menüpunkt bleibt für sie weg — `kalenderVerwaltungSichtbar`).
+    if (Number(err?.status) === 403) {
+      verwaltung.value = null
+      gesperrt.value = true
+      fehler.value = ''
+      return
+    }
+    gesperrt.value = false
+    fehler.value = sichererFehlertext(err, { text: 'Die Kalender konnten nicht geladen werden.' })
   } finally {
     laedt.value = false
   }
 }
 
-/** Konten für die Moderatorenauswahl — nur wenn die Liste gebraucht wird. */
-async function personenLaden() {
-  if (personen.value.length) return
-  try {
-    const konten = await kontenListe()
-    personen.value = konten
-      .map(k => ({ wert: k.user, text: k.email ? `${k.name} (${k.email})` : k.name }))
-      .filter(p => p.wert)
-      .sort((a, b) => a.text.localeCompare(b.text, 'de'))
-  } catch {
-    personen.value = []
-  }
+/**
+ * Nach einer Änderung in der gemeinsamen Fläche: still nachladen.
+ *
+ * Die Fläche lädt ihre eigenen Daten selbst; hier wird nur die Zuordnung der
+ * Seite frisch geholt. `still` heißt: kein Skelett, die Fläche bleibt stehen.
+ *
+ * Sie meldet auch, wenn der Server die VERWALTUNG sperrt (403) — dann gilt
+ * diese Lage auch für die Seite.
+ */
+function nachladen() {
+  laden({ still: true })
 }
 
-function neuerKalender() {
-  bearbeitet.value = null
-  Object.assign(form, leeresFormular())
-  formFehler.titel = ''
-  formFehler.allgemein = ''
-  schutz.merken()
-  dialogOffen.value = true
-  personenLaden()
-}
-
-function bearbeiten(k) {
-  bearbeitet.value = k
-  Object.assign(form, {
-    titel: k.titel,
-    farbe: /^#[0-9a-f]{6}$/i.test(k.farbe || '') ? k.farbe : STANDARD_FARBE,
-    selbstverwaltet: !!k.selbstverwaltet,
-    leserechte: [...k.leserechte],
-    schreibrechte: [...k.schreibrechte],
-    moderatoren: [...k.moderatoren],
-  })
-  formFehler.titel = ''
-  formFehler.allgemein = ''
-  schutz.merken()
-  dialogOffen.value = true
-  personenLaden()
-}
-
-async function schliessen() {
-  if (await schutz.darfSchliessen()) dialogOffen.value = false
-}
-
-async function speichern() {
-  if (speichert.value) return
-  formFehler.titel = ''
-  formFehler.allgemein = ''
-  if (!form.titel.trim()) {
-    formFehler.titel = 'Bitte einen Namen angeben.'
-    return
-  }
-  speichert.value = true
-  try {
-    const daten = {
-      titel: form.titel.trim(),
-      farbe: form.farbe,
-      selbstverwaltet: form.selbstverwaltet ? 1 : 0,
-      leserechte: form.leserechte,
-      schreibrechte: form.schreibrechte,
-      moderatoren: form.moderatoren,
-    }
-    if (bearbeitet.value) {
-      await kalenderAendern(bearbeitet.value.name, daten)
-      showToast('Kalender gespeichert')
-    } else {
-      await kalenderAnlegen(daten)
-      showToast('Kalender angelegt')
-    }
-    schutz.merken()
-    dialogOffen.value = false
-    await laden()
-  } catch (err) {
-    formFehler.allgemein = serverFehlerText(err, 'Der Kalender konnte nicht gespeichert werden.')
-  } finally {
-    speichert.value = false
+/** 403 der gemeinsamen Fläche: hier gibt es nichts zu verwalten. */
+function aufGesperrt(gesperrt2) {
+  if (gesperrt2 === true) {
+    verwaltung.value = null
+    gesperrt.value = true
+    fehler.value = ''
   }
 }
 
 /**
- * UX2c (C2 · Prinzip I2): Löschen ist UMKEHRBAR — aber nur, solange der
- * Zustand VOLLSTÄNDIG zurückkommt (Review 06.11.).
- *
- * Der Server lässt das Löschen nur zu, solange keine Termine darin stehen und
- * nichts darauf zeigt; dieselben Angaben (Titel, Farbe, Rechte, Moderatoren)
- * legen den Kalender wieder an. Was `create_kalender` NICHT annimmt, ist
- * `calender_details` (Hinweis „Importiert aus Google Kalender“): bei einem
- * Kalender aus dem Google-Import bliebe der Hinweis weg. Dort bleibt es bei
- * der Rückfrage statt eines unvollständigen „Rückgängig“.
+ * „Neuer Kalender“: derselbe Weg wie in der gemeinsamen Fläche — sie führt den
+ * Anlege-Dialog samt Ortsauswahl und der Frage „Gruppe liest standardmäßig?“.
+ * Ein zweiter Dialog hier wäre ein zweiter Weg zu denselben Daten. Die Fläche
+ * gibt `anlegenOeffnen` dafür frei (`defineExpose`).
  */
-async function kalenderEntfernen(k) {
-  if (!vollstaendig('kalender', k)) {
-    const ok = await bestaetigen({
-      titel: 'Kalender löschen?',
-      text: `„${k.titel}“ wird gelöscht. Der Vermerk „Importiert aus Google Kalender“ `
-        + 'geht dabei verloren und kommt nicht zurück.',
-      aktion: 'Löschen',
-      gefahr: true,
-    })
-    if (!ok) return
-    try {
-      await kalenderLoeschen(k.name)
-      await laden()
-      showToast(`Kalender „${k.titel}“ gelöscht`)
-    } catch (err) {
-      showToast(serverFehlerText(err, 'Der Kalender konnte nicht gelöscht werden.'), 'error')
-    }
-    return
-  }
-  try {
-    await kalenderLoeschen(k.name)
-    await laden()
-    await mitRueckgaengig({
-      beschreibung: `Kalender „${k.titel}“ gelöscht`,
-      zurueck: () => gegenrichtung('kalender', k),
-      danach: laden,
-      erfolg: `Kalender „${k.titel}“ ist wieder da.`,
-    })
-  } catch (err) {
-    showToast(serverFehlerText(err, 'Der Kalender konnte nicht gelöscht werden.'), 'error')
-  }
+function neuerKalender() {
+  flaeche.value?.anlegenOeffnen?.()
 }
 
-onMounted(laden)
+onMounted(() => {
+  // Namen und Verwaltungsliste unabhängig laden: fehlt der Baum, steht die
+  // Kennung; fehlt die Liste, entscheidet das 403 (siehe `laden`).
+  ladeBaumNamen()
+  laden()
+})
 </script>
 
 <style scoped>
 .kv-seite { display: flex; flex-direction: column; gap: var(--sp-4); }
-
-.kv-zustand { color: var(--muted); padding: var(--sp-4) 0; }
-
-.kv-karten { display: grid; gap: var(--sp-3); grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
-.kv-karte { display: flex; flex-direction: column; gap: var(--sp-3); padding: calc(var(--pad) * 1.2); }
-.kv-karte-kopf { display: flex; align-items: flex-start; gap: var(--sp-3); flex-wrap: wrap; }
-.kv-farbe { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; margin-top: 6px; }
-.kv-karte-titel { flex: 1 1 160px; min-width: 0; }
-.kv-name { font-size: var(--fs-h3); font-weight: var(--fw-h); margin: 0; }
-.kv-meta { font-size: var(--fs-sm); color: var(--muted); margin: 2px 0 0; display: flex; gap: 4px; flex-wrap: wrap; }
-.kv-karte-aktionen { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
-
-.kv-listen { margin: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
-.kv-liste { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
-.kv-liste dt { font-size: var(--fs-sm); color: var(--muted); }
-.kv-liste dd { margin: 0; color: var(--text); word-break: break-word; }
-
-.kv-formular { display: flex; flex-direction: column; gap: var(--sp-3); }
-.kv-farbe-zeile { display: flex; align-items: center; gap: var(--sp-2); }
-.kv-farbe-feld { width: 56px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
-.kv-farbe-wert { font-size: var(--fs-sm); color: var(--muted); }
-.kv-hinweis { font-size: var(--fs-sm); color: var(--muted); margin: 0; }
-
-/* Inhaltsumbruch, kein Layout: die Knopfleiste der Karte nimmt die volle
-   Kartenbreite (die Karte bleibt eine Karte). */
-@media (max-width: 640px) {
-  .kv-karte-aktionen { width: 100%; }
-}
 </style>

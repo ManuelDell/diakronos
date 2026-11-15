@@ -111,7 +111,6 @@ frontend/src/diakonos/pages/Gruppen.vue	17
 frontend/src/diakonos/pages/Home.vue	5
 frontend/src/diakonos/pages/Kalender.vue	1
 frontend/src/diakonos/pages/KalenderImport.vue	5
-frontend/src/diakonos/pages/KalenderVerwaltung.vue	6
 frontend/src/diakonos/pages/LiedDetail.vue	13
 frontend/src/diakonos/pages/Lieder.vue	14
 frontend/src/diakonos/pages/LiedgruppeDetail.vue	8

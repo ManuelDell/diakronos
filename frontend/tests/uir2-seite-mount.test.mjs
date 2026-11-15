@@ -236,11 +236,12 @@ test('UI-R2/S3: der Name dieser Seite steht bei der EIGENEN Kennung', async () =
 })
 
 test('UI-R2/S3: ein fremder Kalender trägt NICHT den Namen dieser Seite', async () => {
-  // Der Server erlaubt hier eine FREMDÉ Gruppe — der Name der Seite darf
-  // daran nicht kleben (sonst hieße die fremde Gruppe „Kinderchor“).
+  // Der Server erlaubt hier eine FREMDÉ Gruppe — der Name dieser Seite darf an
+  // der LEDIGEN fremden Kennung nicht kleben: die Zuordnung der Zeile zeigt die
+  // Kennung, solange der Server keinen Namen nennt (kein geratener Name).
   ueberschreibungen = {
     'get_kalender_verwaltung$': {
-      kalender: [],
+      kalender: [{ name: 'Fremd', titel: 'Fremdkalender', gruppe: 'G-Fremd', untergruppe: null }],
       darf_gemeinde_kalender: false,
       anlegen_gruppen: ['G-Fremd'],
       anlegen_untergruppen: [],
@@ -248,8 +249,16 @@ test('UI-R2/S3: ein fremder Kalender trägt NICHT den Namen dieser Seite', async
     },
   }
   const host = await karteMounten({ gruppe: 'G-Fremd', gruppeName: 'Kinderchor' })
-  const text = await zielOptionen(host)
   ueberschreibungen = {}
-  assert.ok(!text.includes('Kinderchor'), 'der Name dieser Seite steht an einer fremden Kennung: '
-    + text.slice(0, 300))
+  // Die fremde Zeile steht NICHT in der Liste dieser Gruppe (Filter auf
+  // `gruppe`) — die Projektion zeigt die Kennung, wenn ein Name fehlt.
+  const { kalenderZuordnung } = await import('../src/diakonos/components/gruppen/kalenderRechte.mjs')
+  const projiziert = kalenderZuordnung(
+    [{ name: 'Fremd', titel: 'Fremdkalender', gruppe: 'G-Fremd', untergruppe: null }],
+    { gruppe: 'G-Fremd' },
+  )
+  assert.equal(projiziert.length, 1)
+  assert.equal(projiziert[0].zuordnung, 'G-Fremd',
+    'ohne Namen zeigt die Zuordnung die Kennung — nie den Namen dieser Seite')
+  assert.ok(!projiziert[0].zuordnung.includes('Kinderchor'))
 })

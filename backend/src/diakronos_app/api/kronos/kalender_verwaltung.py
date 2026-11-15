@@ -288,7 +288,7 @@ def _kalender_eintrag(doc) -> dict[str, Any]:
     }
 
 
-def _alte_felder_aus_rechten(name: str) -> dict[str, list[str]]:
+def _alte_felder_aus_rechten(name: str) -> dict[str, Any]:
     """R-11e: die Felder der alten Verwaltungsseite — abgeleitet aus dem EINEN
     Rechtesystem statt aus den Alt-Tabellen (die nicht mehr geschrieben
     werden). Entfaellt mit UI-R3: „Mitglied“ = fuer die Gemeinde freigegeben,
@@ -296,16 +296,21 @@ def _alte_felder_aus_rechten(name: str) -> dict[str, list[str]]:
     from sqlalchemy import select
 
     from diakronos_app.db import lesesitzung
-    from diakronos_app.models.rechte import RechteFreigabe, RechteObjekt
+    from diakronos_app.models.rechte import RechteFreigabe, RechteGastlink, RechteObjekt
 
     with lesesitzung() as sess:
+        # UI-R3d: delete_kalender entfernt JEDE Freigabe und jeden Gastlink —
+        # die Seite bietet „Rueckgaengig“ nur an, wenn nichts davon verloren geht.
+        hat_freigaben = any(sess.execute(select(modell.id).where(
+            modell.typ == "kalender", modell.objekt == name).limit(1)).first()
+            for modell in (RechteFreigabe, RechteGastlink))
         status = sess.execute(select(RechteObjekt.gemeinde_status).where(
             RechteObjekt.typ == "kalender", RechteObjekt.objekt == name)).scalar_one_or_none()
         mods = sorted(sess.execute(select(RechteFreigabe.benutzer).where(
             RechteFreigabe.typ == "kalender", RechteFreigabe.objekt == name,
             RechteFreigabe.moderieren.is_(True), RechteFreigabe.benutzer.is_not(None))).scalars())
     return {"leserechte": ["Mitglied"] if status and status != "aus" else [],
-            "schreibrechte": [], "moderatoren": mods}
+            "schreibrechte": [], "moderatoren": mods, "hat_freigaben": hat_freigaben}
 
 
 def _rechte_felder(name: str) -> dict[str, Any]:

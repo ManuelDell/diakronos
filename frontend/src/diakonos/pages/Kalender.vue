@@ -24,6 +24,7 @@
         :auswahl-offen="auswahlOffen"
         :hat-schreibrecht="hasWriteRight"
         :ist-kalender-admin="istKalenderAdmin"
+        :darf-verwalten="darfKalenderVerwalten"
         :lesemodus="lesemodus"
         @ansichtWechsel="aufMobilAnsicht"
         @kalenderauswahl="kalenderAuswahlUmschalten"
@@ -129,6 +130,7 @@
       :eingeblendet="eingeblendetZahl"
       :auswahlOffen="auswahlOffen || kronosSidebar.offen.value"
       :istKalenderAdmin="istKalenderAdmin"
+      :darf-verwalten="darfKalenderVerwalten"
       :lesemodus="lesemodus"
       @prev="calendarRef?.prev()"
       @next="calendarRef?.next()"
@@ -366,6 +368,7 @@ import {
 } from '../components/kronos/chipText.mjs'
 import {
   istKalenderAdmin as kalenderAdmin,
+  kalenderVerwaltungSichtbar,
   startLesemodus,
   lesemodusNachSchalter,
 } from '../components/kronos/kalenderRechte.mjs'
@@ -530,6 +533,28 @@ watch(darfPruefen, (darf) => setzeRollenMarke(darf ? 'Moderator' : ''), { immedi
 // sahen Einträge, die der Server ablehnt.
 const benutzerKontext = ref(null)
 const istKalenderAdmin = computed(() => kalenderAdmin(benutzerKontext.value))
+/**
+ * UI-R3: „Kalender verwalten“ gilt seit dem EINEN Rechtesystem für ALLE, denen
+ * der Server Kalender zum Verwalten oder Anlegen gibt (HV/MV, GL, Admin) — nicht
+ * mehr nur für die Admin-Rolle. Die Antwort kommt vom SERVER
+ * (`get_kalender_verwaltung`); die Oberfläche rät nichts. `null` bleibt
+ * `false`: solange nichts belegt ist, steht kein Eintrag, der ins Leere führt.
+ */
+const kalenderVerwaltung = ref(null)
+const darfKalenderVerwalten = computed(() => kalenderVerwaltungSichtbar(
+  kalenderVerwaltung.value, istKalenderAdmin.value,
+) === true)
+
+async function kalenderVerwaltungLaden() {
+  try {
+    kalenderVerwaltung.value = await apiCall(
+      'diakronos.kronos.api.kalender_verwaltung.get_kalender_verwaltung',
+    ) || null
+  } catch (_) {
+    // 403 oder Netzfehler: nichts zu verwalten → kein Eintrag (fail closed).
+    kalenderVerwaltung.value = null
+  }
+}
 async function benutzerKontextLaden() {
   try {
     benutzerKontext.value = await apiCall('diakronos.diakonos.api.session.get_current_user_context')
@@ -1448,6 +1473,7 @@ onMounted(async () => {
   await store.fetchAccessibleCalendars()
   offeneZahlLaden()
   benutzerKontextLaden()
+  kalenderVerwaltungLaden()
   // A10: persönliche Standard-Ansicht (je Benutzer) lesen und anwenden —
   // am Handy beginnt die Seite damit (ohne eigene Wahl: „Liste“).
   standardLaden()

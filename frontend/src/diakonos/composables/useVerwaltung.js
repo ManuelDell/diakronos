@@ -57,15 +57,10 @@ export async function kalenderAnlegen(daten) {
   return apiCall(`${KALENDER}.create_kalender`, daten)
 }
 
-/** Kalender aendern (nur mitgeschickte Felder). */
-export async function kalenderAendern(name, daten) {
-  return apiCall(`${KALENDER}.update_kalender`, { name, ...daten })
-}
-
-/** Kalender loeschen — der Server verweigert es, solange Termine daran haengen. */
-export async function kalenderLoeschen(name) {
-  return apiCall(`${KALENDER}.delete_kalender`, { name, bestaetigt: 1 })
-}
+// UI-R3d: `kalenderAendern`/`kalenderLoeschen` sind ENTFERNT — die
+// Kalenderverwaltung ändert und löscht über die gemeinsame Fläche
+// (`KalenderEinstellungen.vue`, `update_kalender`/`delete_kalender` samt
+// Rückgängig-Weg). Zwei Wege zu denselben Daten wären zwei Wahrheiten.
 
 // ── Ressourcen (OP-ADMIN-11) ────────────────────────────────────────────────
 

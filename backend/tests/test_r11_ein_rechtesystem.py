@@ -167,5 +167,6 @@ def test_kalenderverwaltung_alte_felder_aus_dem_rechtesystem(r11):
     r11.add(RechteFreigabe(typ="kalender", objekt="jugendkal", benutzer=MIRA, lesen=True, moderieren=True))
     r11.commit()
     assert _alte_felder_aus_rechten("jugendkal") == {
-        "leserechte": ["Mitglied"], "schreibrechte": [], "moderatoren": [MIRA]}
+        "leserechte": ["Mitglied"], "schreibrechte": [], "moderatoren": [MIRA],
+        "hat_freigaben": True}
     assert _alte_felder_aus_rechten("chorkal")["leserechte"] == []

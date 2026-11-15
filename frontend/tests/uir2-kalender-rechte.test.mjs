@@ -357,10 +357,19 @@ test('UI-R2 · nur die Endpunkte des EINEN Rechtesystems', () => {
     'beantrage_sichtbarkeit', 'nimm_sichtbarkeit_zurueck']) {
     assert.ok(quelle.includes(name), `Endpunkt ${name} wird benutzt`)
   }
-  // Der alte Verwaltungs-Endpunkt schreibt Alt-Tabellen — hier nicht mehr.
-  assert.ok(!/kalender_verwaltung\.update_kalender/.test(quelle))
+  // Der alte Verwaltungs-Endpunkt schreibt Alt-Tabellen — für RECHTE gilt das
+  // weiter. UI-R3b: `update_kalender` ist wieder da, aber ausschließlich für
+  // Titel, Farbe und `selbstverwaltet` (die Rechte laufen über
+  // `rechte.setze_freigabe`); die Alt-Felder schickt die Fläche nicht mit.
+  const aendert = quelle.match(/update_kalender[\s\S]{0,400}?\)/)?.[0] || ''
+  assert.doesNotMatch(aendert, /leserechte|schreibrechte|moderatoren/,
+    'update_kalender wird mit Alt-Rechten gerufen — die überschreiben die Freigaben')
   assert.match(quelle, /kalender_verwaltung\.get_kalender_verwaltung/)
   assert.match(quelle, /kalender_verwaltung\.create_kalender/)
+  // UI-R3b: Löschen steht wieder in der Fläche — mit Bestätigung.
+  assert.match(quelle, /kalender_verwaltung\.delete_kalender/)
+  assert.match(quelle, /delete_kalender`|delete_kalender'/,
+    'der Lösch-Endpunkt wird nicht über die gemeinsame Konstante gerufen')
 })
 
 test('UI-R2 · „gilt sofort“ steht als Hinweis an der Matrix', () => {

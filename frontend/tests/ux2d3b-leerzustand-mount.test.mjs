@@ -126,8 +126,12 @@ const lage = { modus: 'leer', aufrufe: 0 }
 // useApi.js: `apiCall(...)` liefert je Endpunkt die passende leere Antwort.
 attrappe('useApi.js', `
 export class AuditConfirmationRequired extends Error {}
-export async function apiCall(endpunkt) {
+export async function apiCall(endpunkt, argumente) {
   globalThis.__ux2d3bAufruf(endpunkt)
+  if (String(endpunkt).includes('kalender_verwaltung.get_kalender_verwaltung')) {
+    // UI-R3: die Kalenderverwaltung holt diese eine Liste selbst.
+    return globalThis.__ux2d3bAntwort(globalThis.__ux2d3bLeer(endpunkt))
+  }
   const leer = globalThis.__ux2d3bLeer(endpunkt)
   return globalThis.__ux2d3bAntwort(leer)
 }
@@ -136,6 +140,9 @@ export const navigate = () => {}
 `)
 
 // useVerwaltung.js: Kalender-Verwaltung und Kontenliste.
+// UI-R3d: `kalenderAendern`/`kalenderLoeschen` gibt es nicht mehr (Löschen und
+// Ändern laufen über die gemeinsame Fläche `KalenderEinstellungen.vue`) —
+// die Attrappe führt nur noch, was die Seiten wirklich importieren.
 attrappe('useVerwaltung.js', `
 export async function kalenderVerwaltungLaden() {
   globalThis.__ux2d3bAufruf('kalenderVerwaltungLaden')
@@ -143,8 +150,6 @@ export async function kalenderVerwaltungLaden() {
 }
 export async function kontenListe() { return [] }
 export async function kalenderAnlegen() { return {} }
-export async function kalenderAendern() { return {} }
-export async function kalenderLoeschen() { return {} }
 export function serverFehlerText(e, ersatz) {
   // Wie im Betrieb: der Katalogtext des Fehlers, sonst der Ersatzsatz.
   return e && e.status === 500 ? 'Der Server antwortet gerade nicht. Versuche es in ein paar Minuten noch einmal.' : ersatz
@@ -156,8 +161,18 @@ attrappe('useLoeschantraege.js', `
 export async function offeneAntraegeZaehlen() { return 0 }
 `)
 
+globalThis.__ux2d3bVerwaltung = null
 globalThis.__ux2d3bAufruf = () => { lage.aufrufe += 1 }
 globalThis.__ux2d3bLeer = (endpunkt) => {
+  if (String(endpunkt).includes('kalender_verwaltung.get_kalender_verwaltung')) {
+    if (globalThis.__ux2d3bVerwaltung) return globalThis.__ux2d3bVerwaltung
+    // UI-R3 (Punkt 4): leer = Ergebnis eines Servers, der dieser Person nichts
+    // zu verwalten gibt — KEIN Recht auf Gemeinde-Kalender. Der Anlegeknopf
+    // bleibt dann weg (sonst fragte er bei einem Konto ohne Recht an).
+    return {
+      kalender: [], darf_gemeinde_kalender: false, anlegen_gruppen: [], anlegen_untergruppen: [],
+    }
+  }
   if (String(endpunkt).includes('dienstplan')) return { vorbereitung: [], einsatz: [] }
   if (String(endpunkt).includes('admin_hub')) {
     return {
@@ -217,8 +232,30 @@ test('UX2d3b · Dienstplan: leere Antwort zeigt den ruhigen Zustand, kein Fehler
 })
 
 // Kalender-Verwaltung — leer → Erklärung + Primärknopf „Neuer Kalender"
-test('UX2d3b · KalenderVerwaltung: leerer Bestand erklärt den nächsten Schritt', async () => {
+// UI-R3 (Punkt 4): ohne Serverrecht gibt es KEINEN Anlegeknopf und keinen
+// „nächsten Schritt“ — die Seite nennt die Lage und den Weg in die Gruppe.
+test('UX2d3b · KalenderVerwaltung: leerer Bestand ohne Anlegerecht nennt den Weg', async () => {
   lage.modus = 'leer'
+  globalThis.__ux2d3bVerwaltung = {
+    kalender: [], darf_gemeinde_kalender: false, anlegen_gruppen: [], anlegen_untergruppen: [],
+  }
+  const Komponente = await seite('pages/KalenderVerwaltung.vue')
+  const { host, app } = await mounten(Komponente)
+  await warte(20)
+  const sichtbar = text(host)
+  assert.match(sichtbar, /Kein Kalender zu verwalten/, 'die Lage fehlt')
+  assert.match(sichtbar, /unter „Gruppen“/, 'der Weg fehlt')
+  assert.equal(knopfMitText(host, 'Neuer Kalender'), undefined,
+    'ohne Serverrecht darf kein Anlegeknopf stehen')
+  app.unmount()
+})
+
+test('UX2d3b · KalenderVerwaltung: mit Anlegerecht erklärt der Leerzustand den Schritt', async () => {
+  lage.modus = 'leer'
+  // Ein Konto, das Gemeinde-Kalender anlegen darf, aber noch keinen hat.
+  globalThis.__ux2d3bVerwaltung = {
+    kalender: [], darf_gemeinde_kalender: true, anlegen_gruppen: [], anlegen_untergruppen: [],
+  }
   const Komponente = await seite('pages/KalenderVerwaltung.vue')
   const { host, app } = await mounten(Komponente)
   await warte(20)
@@ -229,13 +266,26 @@ test('UX2d3b · KalenderVerwaltung: leerer Bestand erklärt den nächsten Schrit
   app.unmount()
 })
 
+test('UX2d3b · KalenderVerwaltung: ohne Recht zeigt die Seite KEINE Aktion (Punkt 4)', async () => {
+  lage.modus = 'leer'
+  globalThis.__ux2d3bVerwaltung = null
+  const Komponente = await seite('pages/KalenderVerwaltung.vue')
+  const { host, app } = await mounten(Komponente)
+  await warte(20)
+  const sichtbar = text(host)
+  assert.match(sichtbar, /Kein Kalender zu verwalten/, 'die Lage fehlt')
+  assert.equal(knopfMitText(host, 'Neuer Kalender'), undefined,
+    'ohne Serverrecht darf kein Anlegeknopf stehen')
+  app.unmount()
+})
+
 test('UX2d3b · KalenderVerwaltung: Fehler nennt eine Meldung statt einer leeren Liste', async () => {
   lage.modus = 'fehler'
   const Komponente = await seite('pages/KalenderVerwaltung.vue')
   const { host, app } = await mounten(Komponente)
   await warte(20)
   const sichtbar = text(host)
-  assert.match(sichtbar, /Der Server antwortet gerade nicht/, 'Fehlermeldung fehlt')
+  assert.match(sichtbar, /konnten nicht geladen werden/, 'Fehlermeldung fehlt')
   assert.doesNotMatch(sichtbar, /Noch keine Kalender/, 'Fehler wird als Leerzustand gezeigt')
   app.unmount()
 })

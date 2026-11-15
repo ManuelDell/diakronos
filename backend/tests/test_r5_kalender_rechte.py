@@ -477,3 +477,23 @@ def test_r12p_moderieren_schliesst_lesen_ein(kal):
     V.setze_freigabe(GL, "kalender", "sopran-kal", benutzer=SOPRAN, lesen=False, moderieren=True)
     zeile = [z for z in V.freigaben_des_objekts(GL, "kalender", "sopran-kal")["freigaben"] if z["benutzer"] == SOPRAN][0]
     assert (zeile["lesen"], zeile["moderieren"]) == (True, True)
+
+
+def test_r12q_verwaltungszeile_meldet_jede_freigabe(kal):
+    """Review UI-R3d: Die Seite bot nach dem Loeschen „Rueckgaengig“ an, obwohl
+    eine Lesen/Schreiben- oder Gruppen-Freigabe bestand — `delete_kalender`
+    entfernt ALLE Freigaben und Gastlinks, `create_kalender` bringt sie nicht
+    zurueck. Die Zeile meldet deshalb `hat_freigaben` fuer jede Art."""
+    from diakronos_app.api.kronos import kalender_verwaltung as kv
+    from diakronos_app.rechte import verwaltung as V
+
+    set_user(REBEKKA)
+    kv.create_kalender("Leer", gruppe="Chor")
+    kv.create_kalender("MitPerson", gruppe="Chor")
+    kv.create_kalender("MitGruppe", gruppe="Chor")
+    V.setze_freigabe(REBEKKA, "kalender", "MitPerson", benutzer=ANNA, lesen=True, schreiben=True)
+    V.setze_freigabe(REBEKKA, "kalender", "MitGruppe", gruppe="Chor", lesen=True)
+    zeilen = {k["name"]: k for k in kv.get_kalender_verwaltung()["kalender"]}
+    assert zeilen["Leer"]["hat_freigaben"] is False
+    assert zeilen["MitPerson"]["hat_freigaben"] is True
+    assert zeilen["MitGruppe"]["hat_freigaben"] is True

@@ -15,14 +15,20 @@
     />
 
     <template v-else-if="!gesperrt">
-      <p class="ke-hinweis">
+      <!-- UI-R3b: der Hinweis gehört dem ORT. In der Kalenderverwaltung
+           (`alleKalender`) stehen hier nicht „die Kalender dieser Gruppe“, und
+           es gibt keinen Grund für einen zweiten Hinweis neben dem der Seite
+           (A4: eine Primäraktion, ein Hinweis). -->
+      <p v-if="!alleKalender" class="ke-hinweis">
         Hier stehen die Kalender dieser Gruppe<span v-if="istUntergruppe"> und dieser
         Untergruppe</span>. Wer einen Kalender sieht, einträgt oder prüft, steht je
         Kalender unter „Freigaben“.
       </p>
 
       <!-- ── Anlegen ──────────────────────────────────────────────────── -->
-      <div v-if="ziele.length" class="ke-anlegen">
+      <!-- UI-R3b: im Modus `alleKalender` führt die SEITE den einen
+           Anlege-Knopf (A4) — die Fläche bringt dann keinen eigenen mit. -->
+      <div v-if="ziele.length && !alleKalender" class="ke-anlegen">
         <DkButton class="ke-anlegen-knopf" variant="secondary" size="md" @click="dialogOeffnen">
           Kalender anlegen
         </DkButton>
@@ -32,9 +38,7 @@
         v-if="!zeilen.length"
         icon="📅"
         title="Noch keine Kalender"
-        :text="ziele.length
-          ? 'Lege den ersten Kalender dieser Gruppe an — zum Beispiel „Proben“ oder „Auftritte“.'
-          : 'Diese Gruppe hat noch keine Kalender.'"
+        :text="leerText"
       />
 
       <div v-else class="ke-liste">
@@ -45,11 +49,37 @@
               <div class="ke-titel">
                 <h3 class="ke-name">{{ k.titel }}</h3>
                 <p class="ke-meta">
-                  {{ k.untergruppe ? 'Untergruppe: ' + k.zuordnung : 'Gruppe: ' + k.zuordnung }}
-                  ·
-                  {{ k.standard_gruppe_lesen ? 'alle Gruppenmitglieder lesen' : 'Lesen nur bei Freigabe' }}
+                  {{ zuordnungsText(k) }}
+                  <!-- UI-R3d: Bei einem Gemeinde-Kalender gibt es keine Gruppe,
+                       an der „alle Gruppenmitglieder lesen“ hängen könnte —
+                       der Satz nennt dann nur „Gemeinde“. -->
+                  <template v-if="k.gruppe || k.untergruppe">
+                    ·
+                    {{ k.standard_gruppe_lesen ? 'alle Gruppenmitglieder lesen' : 'Lesen nur bei Freigabe' }}
+                  </template>
+                  <template v-if="k.selbstverwaltet"> · selbstverwaltet</template>
                 </p>
               </div>
+            </div>
+
+            <!-- UI-R3b: Bearbeiten und Löschen stehen je Kalender wieder hier
+                 (UI-R3 hatte sie ersatzlos entfernt). Es gibt EINE Fläche für
+                 alle Orte, also bekommt auch „Kalender der Gruppe“ beides. -->
+            <div class="ke-aktionen">
+              <DkButton
+                class="ke-bearbeiten"
+                variant="secondary"
+                size="md"
+                :disabled="Boolean(busy)"
+                @click="bearbeiten(k)"
+              >Bearbeiten</DkButton>
+              <DkButton
+                class="ke-loeschen"
+                variant="ghost"
+                size="md"
+                :disabled="Boolean(busy)"
+                @click="entfernen(k)"
+              >Löschen</DkButton>
               <DkButton class="ke-aufklappen" variant="ghost" size="md" @click="umschalten(k.name)">
                 {{ offen === k.name ? 'Schließen' : 'Freigaben & Sichtbarkeit' }}
               </DkButton>
@@ -104,8 +134,10 @@
           </div>
         </DkField>
 
-        <DkField v-if="ziele.length > 1" label="Wohin gehört der Kalender?"
-                 help="Der Kalender erscheint bei allen, die diese Gruppe sehen.">
+        <p v-if="nurEinZiel && einzigerOrtText" class="ke-ort">{{ einzigerOrtText }}</p>
+
+        <DkField v-if="ziele.length && !nurEinZiel" label="Wohin gehört der Kalender?"
+                 :help="zielHilfe">
           <DkSelect
             :model-value="zielWahl"
             :options="ziele.map((z) => ({ value: z.wert, label: z.anzeige }))"
@@ -114,7 +146,7 @@
           />
         </DkField>
 
-        <fieldset class="ke-frage" role="radiogroup" :aria-labelledby="'ke-frage-titel'">
+        <fieldset v-if="!istGemeindeZiel" class="ke-frage" role="radiogroup" :aria-labelledby="'ke-frage-titel'">
           <legend id="ke-frage-titel" class="ke-frage-titel">{{ KALENDER_ANLEGEN_FRAGE }}</legend>
           <div class="ke-frage-auswahl">
             <label v-for="opt in FRAGE_OPTIONEN" :key="String(opt.wert)" class="ke-frage-option">
@@ -137,17 +169,55 @@
         </DkButton>
       </template>
     </DkDialog>
+    <!-- ── Kalender bearbeiten (UI-R3b) ─────────────────────────────── -->
+    <DkDialog
+      v-model="bearbeitenOffen"
+      :title="bearbeitet ? `Kalender „${bearbeitet.titel}“ bearbeiten` : 'Kalender bearbeiten'"
+      size="md"
+      :before-close="schutzBearbeiten.darfSchliessen"
+    >
+      <form id="ke-form-bearbeiten" novalidate class="ke-formular" @submit.prevent="bearbeitenSpeichern">
+        <DkHint v-if="bearbeitenFehler.allgemein" variant="err">{{ bearbeitenFehler.allgemein }}</DkHint>
+
+        <DkField v-slot="feld" label="Name" required :error="bearbeitenFehler.titel"
+                 help="So heißt der Kalender in allen Listen und Auswahlfeldern.">
+          <input :id="feld.id" v-model="bearbeitenForm.titel" class="dk-ui-eingabe" :maxlength="TITEL_MAX" />
+        </DkField>
+
+        <DkField v-slot="feld" label="Farbe" :error="bearbeitenFehler.farbe"
+                 help="Farbe der Termine in der Kalenderansicht.">
+          <div class="ke-farbe-zeile">
+            <input :id="feld.id" v-model="bearbeitenForm.farbe" type="color" class="ke-farbe-feld" />
+            <span class="ke-farbe-wert">{{ bearbeitenForm.farbe }}</span>
+          </div>
+        </DkField>
+
+        <DkCheckbox v-model="bearbeitenForm.selbstverwaltet">
+          Selbstverwaltet (eine Gruppe pflegt diesen Kalender selbst)
+        </DkCheckbox>
+      </form>
+
+      <template #footer>
+        <DkButton variant="secondary" size="md" :disabled="bearbeitenSpeichert" @click="bearbeitenSchliessen">Abbrechen</DkButton>
+        <DkButton variant="primary" size="md" type="submit" form="ke-form-bearbeiten" :loading="bearbeitenSpeichert">
+          Speichern
+        </DkButton>
+      </template>
+    </DkDialog>
   </div>
 </template>
 
 <script setup>
 /**
- * KalenderEinstellungen — Kalender der Gruppe: Liste, Anlegen, Freigaben und
- * Sichtbarkeit je Kalender (UI-R2, Teil 2 der Gruppen-Einstellungen).
+ * KalenderEinstellungen — Kalender der Gruppe: Liste, Anlegen, Bearbeiten,
+ * Löschen, Freigaben und Sichtbarkeit je Kalender (UI-R2, Teil 2 der
+ * Gruppen-Einstellungen; UI-R3b hat Bearbeiten/Löschen zurückgebracht).
  *
  * Endpunkte (alle aus dem EINEN Rechtesystem):
  *   kalender_verwaltung.get_kalender_verwaltung      Liste + Anlegeorte
  *   kalender_verwaltung.create_kalender              Anlegen
+ *   kalender_verwaltung.update_kalender              Titel, Farbe, selbstverwaltet
+ *   kalender_verwaltung.delete_kalender              Löschen (mit `bestaetigt`)
  *   rechte.get_objekt_rechte                         Freigaben/Sichtbarkeit eines Kalenders
  *   rechte.setze_freigabe                            Freigabe setzen/entfernen (sofort)
  *   rechte.setze_standard_gruppe_lesen               Antwort der Anlege-Frage ändern
@@ -155,11 +225,13 @@
  *   rechte.get_personen_auswahl                      Personensuche (nur Namen)
  *
  * Die Oberfläche entscheidet NICHTS über Rechte; sie blendet nur aus, was der
- * Server ohnehin verweigert (403/417), und zeigt dessen Satz.
+ * Server ohnehin verweigert (403/417), und zeigt dessen Satz. Aendern und
+ * Löschen prüft der Server selbst (`_require_kalender_verwalten`).
  */
 import { computed, reactive, ref, onMounted, watch } from 'vue'
 import DkButton from '../ui/DkButton.vue'
 import DkCard from '../ui/DkCard.vue'
+import DkCheckbox from '../ui/DkCheckbox.vue'
 import DkDialog from '../ui/DkDialog.vue'
 import DkEmpty from '../ui/DkEmpty.vue'
 import DkField from '../ui/DkField.vue'
@@ -171,24 +243,38 @@ import { apiCall } from '../../composables/useApi.js'
 import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 import { showToast } from '../../composables/useToast.js'
 import { useFormularSchutz } from '../../composables/useFormularSchutz.js'
+// UX2c (C2 · Prinzip I2): Löschen ist umkehrbar (neu anlegen) → sofort +
+// „Rückgängig“; nur bei einem Google-Import bleibt die Rückfrage.
+import { useRueckgaengigAktion } from '../../composables/useRueckgaengigAktion.js'
+import { wiederherstellen as gegenrichtung, vollstaendig } from '../../composables/rueckgaengigWeg.mjs'
+import { bestaetigen } from '../../composables/useBestaetigen.js'
+// ON-0b: die EINE Standardfarbe (`shared/sichere-ausgabe.js`) — kein Literal
+// im Farbfeld, wenn der Server einmal keine Farbe mitliefert.
+import { STANDARD_FARBE } from '../../../shared/sichere-ausgabe.js'
 import {
   KALENDER_ANLEGEN_FRAGE,
   TITEL_MAX,
+  aenderungsAnfrage,
+  alleKalenderZeilen,
   anfrageZaehler,
   anlegeAnfrage,
   anlegeZiele,
   busySchluessel,
   freigabeAnfrage,
   kalenderZuordnung,
+  loeschAnfrage,
   personenAuswahlOhne,
   pruefeNeuenKalender,
   sichererFehlertext,
   sichtbarkeitMeldung,
+  verweigerungsText,
 } from './kalenderRechte.mjs'
 
 const RECHTS = 'diakronos_app.api.rechte'
 const VERWALTUNG = 'kronos.kalender_verwaltung.get_kalender_verwaltung'
 const ANLEGEN = 'kronos.kalender_verwaltung.create_kalender'
+const AENDERN = 'kronos.kalender_verwaltung.update_kalender'
+const LOESCHEN = 'kronos.kalender_verwaltung.delete_kalender'
 
 /**
  * Die zwei Antworten der Anlege-Frage — EINE Radiogruppe, nie „nichts
@@ -212,6 +298,20 @@ const props = defineProps({
   untergruppeName: { type: String, default: '' },
   /** Untergruppen der Gruppe: [{ name, anzeigename }]. */
   untergruppen: { type: Array, default: () => [] },
+  /**
+   * UI-R3: Alles anzeigen, was der Server dieser Person freigibt — nicht nur
+   * die Kalender DIESER Gruppe. Die Kalenderverwaltung (`#/kalender/verwalten`)
+   * ist keine Gruppenseite: sie zeigt alle verwaltbaren Kalender samt
+   * Zuordnung und bringt die Anlegeorte in `ziele`. Vorgabe `false` — die
+   * Gruppen-Seite (UI-R2) bleibt unverändert auf ihre Gruppe beschränkt.
+   */
+  alleKalender: { type: Boolean, default: false },
+  /**
+   * Anlegeziele von außen (`anlegeZiele(...)` aus `kalenderRechte.mjs`).
+   * Nur wirksam mit `alleKalender`; fehlt die Liste, gilt die Vorgabe des
+   * Servers aus `get_kalender_verwaltung`.
+   */
+  ziele: { type: Array, default: null },
 })
 
 /**
@@ -247,12 +347,24 @@ const gesperrt = ref(false)
 const zaehler = anfrageZaehler()
 
 /** „Wohin gehört der Kalender?“ — der vom Server erlaubte Ort. */
-const ziele = computed(() => anlegeZiele(verwaltung.value || {}, {
-  gruppe: props.gruppe,
-  untergruppe: props.untergruppe,
-  gruppeName: namensSicher(props.gruppe, props.gruppeName),
-  untergruppeName: namensSicher(props.untergruppe, props.untergruppeName),
-}))
+const ziele = computed(() => {
+  if (props.alleKalender) {
+    // UI-R3: die Kalenderverwaltung bringt ihre Anlegeorte selbst mit
+    // (`anlegeZiele` über alle Gruppen/Untergruppen). Fehlt die Liste, gilt
+    // die Vorgabe des Servers für DIESE Gruppe — nie eine erfundene Auswahl.
+    if (Array.isArray(props.ziele)) return props.ziele.filter((z) => z && typeof z.art === 'string')
+    return anlegeZiele(verwaltung.value || {}, {
+      gruppe: props.gruppe,
+      gruppeName: namensSicher(props.gruppe, props.gruppeName),
+    })
+  }
+  return anlegeZiele(verwaltung.value || {}, {
+    gruppe: props.gruppe,
+    untergruppe: props.untergruppe,
+    gruppeName: namensSicher(props.gruppe, props.gruppeName),
+    untergruppeName: namensSicher(props.untergruppe, props.untergruppeName),
+  })
+})
 
 /**
  * Ein Anzeigename gilt NUR für seine eigene Kennung an dieser Stelle.
@@ -269,23 +381,53 @@ function namensSicher(kennung, name) {
 
 /** Anzeigenamen der (Unter-)Gruppen — die Liste liefert nur Kennungen. */
 const namen = computed(() => {
+  // UI-R3: NICHT mit `alleKalender` vermischen. Auf einer Gruppenseite gehören
+  // `gruppe`/`untergruppe`/`gruppeName` ZUSAMMEN; in der Kalenderverwaltung
+  // gibt es keine Gruppenseite (`gruppe` ist leer), dort kommen die Namen aus
+  // dem Prop `untergruppen` (Kennung + Anzeigename) — und nur für Kennungen,
+  // die wirklich dort stehen.
   const karte = {}
-  if (props.gruppe) karte[props.gruppe] = namensSicher(props.gruppe, props.gruppeName) || props.gruppe
+  if (!props.alleKalender) {
+    if (props.gruppe) karte[props.gruppe] = namensSicher(props.gruppe, props.gruppeName) || props.gruppe
+    if (props.untergruppe) {
+      karte[props.untergruppe] = namensSicher(props.untergruppe, props.untergruppeName) || props.untergruppe
+    }
+  }
   for (const u of (Array.isArray(props.untergruppen) ? props.untergruppen : [])) {
     if (u && u.name) karte[u.name] = u.anzeigename || u.untergruppenname || String(u.name)
-  }
-  if (props.untergruppe) {
-    karte[props.untergruppe] = namensSicher(props.untergruppe, props.untergruppeName) || props.untergruppe
   }
   return karte
 })
 
 /** Die Kalender dieser Gruppe (und ihrer Untergruppen). */
-const zeilen = computed(() => kalenderZuordnung(verwaltung.value?.kalender, {
-  gruppe: props.gruppe,
-  untergruppe: props.untergruppe,
-  namen: namen.value,
-}))
+const zeilen = computed(() => {
+  if (props.alleKalender) {
+    // UI-R3: ALLE Kalender, die der Server dieser Person zum Verwalten gibt —
+    // je Zeile mit ihrer Zuordnung (Gemeinde / Gruppe / Untergruppe).
+    return alleKalenderZeilen(verwaltung.value?.kalender, namen.value)
+  }
+  return kalenderZuordnung(verwaltung.value?.kalender, {
+    gruppe: props.gruppe,
+    untergruppe: props.untergruppe,
+    namen: namen.value,
+  })
+})
+
+/**
+ * Text des Leerzustands. In der Kalenderverwaltung (`alleKalender`) gibt es
+ * keine „diese Gruppe“, für die etwas angelegt würde — dort sagt der Satz nur,
+ * was der Stand ist und was der Knopf der SEITE tut (UI-R3b, Punkt 4).
+ */
+const leerText = computed(() => {
+  if (props.alleKalender) {
+    return ziele.value.length
+      ? 'Lege den ersten Kalender an — er erscheint danach mit seiner Zuordnung hier.'
+      : 'Hier ist noch kein Kalender zu verwalten.'
+  }
+  return ziele.value.length
+    ? 'Lege den ersten Kalender dieser Gruppe an — zum Beispiel „Proben“ oder „Auftritte“.'
+    : 'Diese Gruppe hat noch keine Kalender.'
+})
 
 /** Gruppen für die Freigaben-Matrix: die eigene Gruppe und ihre Untergruppen. */
 const gruppenAuswahl = computed(() => {
@@ -307,7 +449,7 @@ const rechte = reactive({})
 const offen = ref('')
 
 async function verwaltungLaden({ still = false } = {}) {
-  if (!props.gruppe) { laedt.value = false; return }
+  if (!props.gruppe && !props.alleKalender) { laedt.value = false; return }
   if (!still) {
     laedt.value = true
     fehler.value = ''
@@ -383,6 +525,44 @@ function umschalten(name) {
   offen.value = name
   rechteLaden(name)
 }
+
+/**
+ * Zuordnung aus den KENNUNGEN der Zeile, ohne Namen zu raten: nur ein Name aus
+ * `namen` zählt, der zur eigenen Kennung gehört (`G-Chor` → „Chor“). Eine
+ * fremde Kennung zeigt sich selbst — sonst trüge sie den Namen dieser Seite.
+ * (Die Kalenderverwaltung übergibt gefüllte `namen`; die Gruppenseite lässt es
+ * leer, dort gilt `kalenderZeile` mit den Namen der Seite.)
+ *
+ * Die Vorsilbe („Gemeinde“ / „Gruppe: …“ / „Untergruppe: …“) setzt diese
+ * Funktion — die Anlegeorte der Seite nennen ebenfalls nur den reinen Namen.
+ */
+function zuordnungsText(k) {
+  const zeile = k || {}
+  if (zeile.untergruppe) return 'Untergruppe: ' + (namen.value[zeile.untergruppe] || zeile.untergruppe)
+  if (zeile.gruppe) return 'Gruppe: ' + (namen.value[zeile.gruppe] || zeile.gruppe)
+  return 'Gemeinde'
+}
+
+/** Hilfesatz der Orts-Auswahl (Gemeinde-Kalender erscheint bei allen). */
+const zielHilfe = computed(() => (istGemeindeZiel.value
+  ? 'Ein Gemeinde-Kalender gehört keiner Gruppe — er erscheint bei allen, die ihn sehen dürfen.'
+  : 'Der Kalender erscheint bei allen, die diese Gruppe sehen.'))
+
+/** Ist der gewählte Ort der Gemeinde-Kalender (dann gibt es die Frage nicht)? */
+const istGemeindeZiel = computed(() => gewaehltesZiel()?.art === 'gemeinde')
+
+/**
+ * Die Ortsauswahl steht NUR dort, wo es mehr als einen Ort gibt. Sonst nennt
+ * der Dialog den einen Ort als Satz — ein Auswahlfeld mit einer Zeile ist
+ * eine Frage ohne Wahl (Prinzip: keine Scheinentscheidung), und in der
+ * Kalenderverwaltung gibt es oft nur den einen Gemeinde-Kalender.
+ */
+const nurEinZiel = computed(() => ziele.value.length <= 1)
+
+/** Der eine Ort als Satz, wenn es nichts zu wählen gibt (sonst leer). */
+const einzigerOrtText = computed(() => (nurEinZiel.value
+  ? `Der Kalender gehört zu: ${ziele.value[0]?.anzeige || ''}`
+  : ''))
 
 /**
  * Nach einer Änderung: Freigaben DIESES Kalenders still nachladen.
@@ -530,6 +710,12 @@ async function anlegenJetzt() {
     formFehler.allgemein = 'Für diese Gruppe darfst du keinen Kalender anlegen.'
     return
   }
+  // Die Frage gibt es nur bei Gruppen-/Untergruppen-Kalendern (`anlegeAnfrage`
+  // setzt `standard_gruppe_lesen` immer aus dem Formular). Ein Gemeinde-Kalender
+  // hat keine Gruppe, an der „alle Mitglieder“ hängen könnte — die Antwort wird
+  // deshalb auf `Ja` zurückgesetzt und mitgeschickt; der Server wertet das Feld
+  // ohne Gruppe/Untergruppe nicht aus.
+  if (ziel.art === 'gemeinde') form.standardGruppeLesen = true
 
   speichert.value = true
   try {
@@ -553,6 +739,141 @@ async function anlegenJetzt() {
   }
 }
 
+/** „Kalender anlegen“ für Aufrufer (die Kalenderverwaltung öffnet denselben Dialog). */
+defineExpose({ anlegenOeffnen: dialogOeffnen })
+
+// ── Bearbeiten (UI-R3b) ───────────────────────────────────────────────────
+const bearbeitenOffen = ref(false)
+const bearbeitenSpeichert = ref(false)
+/** Die Zeile, die gerade bearbeitet wird (Name = Schlüssel des Kalenders). */
+const bearbeitet = ref(null)
+const bearbeitenForm = reactive({ titel: '', farbe: '', selbstverwaltet: false })
+const bearbeitenFehler = reactive({ allgemein: '', titel: '', farbe: '' })
+const schutzBearbeiten = useFormularSchutz(() => (bearbeitenOffen.value
+  ? JSON.stringify({
+    titel: bearbeitenForm.titel,
+    farbe: bearbeitenForm.farbe,
+    selbstverwaltet: bearbeitenForm.selbstverwaltet,
+  })
+  : null))
+
+/** Bearbeiten-Dialog mit dem Stand DIESES Kalenders füllen. */
+function bearbeiten(k) {
+  if (!k || !k.name) return
+  bearbeitet.value = k
+  bearbeitenForm.titel = k.titel
+  // Der Server liefert eine gültige Farbe (`_kalender_eintrag` setzt sonst die
+  // Standardfarbe); `farbe_standard` steht zusätzlich in der Liste. Ein LEERER
+  // Wert würde das Farbfeld schwarz öffnen — deshalb nie ein Literal hier.
+  bearbeitenForm.farbe = k.farbe || verwaltung.value?.farbe_standard || STANDARD_FARBE
+  bearbeitenForm.selbstverwaltet = k.selbstverwaltet === true
+  bearbeitenFehler.allgemein = ''
+  bearbeitenFehler.titel = ''
+  bearbeitenFehler.farbe = ''
+  bearbeitenOffen.value = true
+  schutzBearbeiten.merken()
+}
+
+function bearbeitenSchliessen() {
+  if (!schutzBearbeiten.darfSchliessen()) return
+  bearbeitenOffen.value = false
+}
+
+/** Titel, Farbe und „selbstverwaltet“ per `update_kalender` speichern. */
+async function bearbeitenSpeichern() {
+  if (bearbeitenSpeichert.value || !bearbeitet.value) return
+  const pruefung = pruefeNeuenKalender({ titel: bearbeitenForm.titel, farbe: bearbeitenForm.farbe })
+  bearbeitenFehler.titel = pruefung.titel
+  bearbeitenFehler.farbe = pruefung.farbe
+  bearbeitenFehler.allgemein = ''
+  if (!pruefung.ok) return
+  bearbeitenSpeichert.value = true
+  try {
+    const anfrage = aenderungsAnfrage({
+      name: bearbeitet.value.name,
+      titel: bearbeitenForm.titel,
+      farbe: bearbeitenForm.farbe,
+      selbstverwaltet: bearbeitenForm.selbstverwaltet,
+    })
+    await apiCall(AENDERN, anfrage)
+    bearbeitenOffen.value = false
+    showToast(`Kalender „${anfrage.titel}“ gespeichert.`, 'success')
+    await verwaltungLaden({ still: true })
+    emit('geaendert')
+  } catch (e) {
+    // 403 = der Server lässt diese Person nicht ändern (`_require_kalender_verwalten`);
+    // 417/„gibt es schon“ = Fachfehler. Beides steht IM Dialog, nichts wird geleert.
+    bearbeitenFehler.allgemein = verweigerungsText(e, 'bearbeiten')
+  } finally {
+    bearbeitenSpeichert.value = false
+  }
+}
+
+// ── Löschen (UI-R3b) ──────────────────────────────────────────────────────
+// UX2c (C2 · Prinzip I2): Löschen ist UMKEHRBAR, solange der Zustand VOLLSTÄNDIG
+// zurückkommt — also sofort ausführen und „Rückgängig“ anbieten. Ein Kalender
+// aus dem Google-Import (`calender_details`) käme ohne diesen Vermerk zurück;
+// dann bleibt die Rückfrage (Review 06.11.).
+const { mitRueckgaengig } = useRueckgaengigAktion()
+
+async function entfernen(k) {
+  if (!k || !k.name || busy.value) return
+  if (!vollstaendig('kalender', k)) {
+    // UI-R3d: Es gibt ZWEI Gründe für die Rückfrage — der Google-Import
+    // (`calender_details`) und Freigaben/Sichtbarkeit. Der Satz nennt den
+    // Grund, der hier wirklich gilt; ein pauschaler Satz behauptete etwas
+    // Falsches.
+    const importiert = Boolean(String(k.calender_details || '').trim())
+    const ok = await bestaetigen({
+      titel: 'Kalender löschen?',
+      text: importiert
+        ? `„${k.titel}“ wird gelöscht. Der Vermerk „Importiert aus Google Kalender“ `
+          + 'geht dabei verloren und kommt nicht zurück.'
+        : `„${k.titel}“ wird gelöscht. Seine Freigaben und seine Sichtbarkeit `
+          + 'kommen dabei nicht zurück.',
+      aktion: 'Löschen',
+      gefahr: true,
+    })
+    if (!ok) return
+    busy.value = busySchluessel('loeschen', k.name)
+    try {
+      await apiCall(LOESCHEN, loeschAnfrage(k.name))
+      await verwaltungLaden({ still: true })
+      showToast(`Kalender „${k.titel}“ gelöscht.`, 'success')
+      emit('geaendert')
+    } catch (e) {
+      // 417 „enthält noch Termine“ / „wird noch verwendet“ kommt als Fachsatz.
+      showToast(verweigerungsText(e, 'loeschen'), 'error')
+    } finally {
+      busy.value = ''
+    }
+    return
+  }
+  busy.value = busySchluessel('loeschen', k.name)
+  try {
+    await apiCall(LOESCHEN, loeschAnfrage(k.name))
+    await verwaltungLaden({ still: true })
+    emit('geaendert')
+    await mitRueckgaengig({
+      beschreibung: `Kalender „${k.titel}“ gelöscht`,
+      zurueck: () => gegenrichtung('kalender', k),
+      // UI-R3d (Punkt 2): Nach dem Rückgängig lädt die FLÄCHE ihre Liste — und
+      // `geaendert` holt zusätzlich die Daten der SEITE (`verwaltung` in
+      // KalenderVerwaltung.vue) neu. Ohne diesen Ruf stünde dort weiterhin der
+      // gelöschte Stand.
+      danach: async () => {
+        await verwaltungLaden({ still: true })
+        emit('geaendert')
+      },
+      erfolg: `Kalender „${k.titel}“ ist wieder da.`,
+    })
+  } catch (e) {
+    showToast(verweigerungsText(e, 'loeschen'), 'error')
+  } finally {
+    busy.value = ''
+  }
+}
+
 onMounted(() => verwaltungLaden())
 watch(() => [props.gruppe, props.untergruppe], () => {
   offen.value = ''
@@ -568,6 +889,9 @@ watch(() => [props.gruppe, props.untergruppe], () => {
 .ke-liste { display: flex; flex-direction: column; gap: var(--sp-3); }
 .ke-karte { display: flex; flex-direction: column; gap: var(--sp-3); }
 .ke-kopf { display: flex; align-items: flex-start; gap: var(--sp-3); flex-wrap: wrap; }
+/* UI-R3b: Bearbeiten · Löschen · Freigaben — eine Zeile je Kalender, die am
+   Handy in die volle Kartenbreite umbricht (Inhaltsumbruch, kein Layout). */
+.ke-aktionen { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; }
 .ke-farbe {
   width: var(--sp-3);
   height: var(--sp-3);
@@ -595,4 +919,6 @@ watch(() => [props.gruppe, props.untergruppe], () => {
 /* Echte Radiogruppe: ein Punkt, zwei Antworten — nie „nichts gewählt“. */
 .ke-frage-option { display: flex; align-items: flex-start; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--text); }
 .ke-frage-option input { margin: 0; flex-shrink: 0; accent-color: var(--primary); }
+/* UI-R3: der EINE Anlegeort als Satz (statt Auswahlfeld mit einer Zeile). */
+.ke-ort { margin: 0; font-size: var(--fs-sm); color: var(--muted); }
 </style>

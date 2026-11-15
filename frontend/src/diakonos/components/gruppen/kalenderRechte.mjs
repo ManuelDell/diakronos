@@ -70,6 +70,10 @@ function text(wert) {
  *
  * `zuordnung` nennt die Untergruppe, sonst die Gruppe — damit an der Zeile
  * steht, WOHIN der Kalender gehört (die Liste zeigt auch Untergruppen).
+ *
+ * UI-R3b: `selbstverwaltet` und `calender_details` kommen mit, weil das
+ * Bearbeiten genau diese Angaben braucht (Häkchen vorbelegen, „Rückgängig“
+ * nur bei vollständig wiederherstellbaren Kalendern anbieten).
  */
 function kalenderZeile(eintrag, namen = {}) {
   return {
@@ -78,6 +82,15 @@ function kalenderZeile(eintrag, namen = {}) {
     farbe: text(eintrag.farbe),
     gruppe: text(eintrag.gruppe) || null,
     untergruppe: text(eintrag.untergruppe) || null,
+    selbstverwaltet: eintrag.selbstverwaltet === true,
+    // Leer = kein Google-Import; dann ist ein Löschen vollständig umkehrbar.
+    calender_details: text(eintrag.calender_details),
+    // UI-R3d: Freigaben gehören zur Zeile. Das „Rückgängig“ schickt sie mit,
+    // und `vollstaendig('kalender', …)` erkennt daran, dass ein Kalender MIT
+    // Freigaben NICHT vollständig zurückkommt (dann Rückfrage).
+    leserechte: Array.isArray(eintrag.leserechte) ? eintrag.leserechte : [],
+    schreibrechte: Array.isArray(eintrag.schreibrechte) ? eintrag.schreibrechte : [],
+    moderatoren: Array.isArray(eintrag.moderatoren) ? eintrag.moderatoren : [],
     standard_gruppe_lesen: eintrag.standard_gruppe_lesen !== false,
     gemeinde_status: SICHTBARKEIT_WORT[eintrag.gemeinde_status] ? eintrag.gemeinde_status : 'aus',
     gruppe_status: SICHTBARKEIT_WORT[eintrag.gruppe_status] ? eintrag.gruppe_status : 'aus',
@@ -110,6 +123,100 @@ export function kalenderZuordnung(kalender, optionen = {}) {
       ? k.untergruppe === untergruppe
       : k.gruppe === gruppe))
     .sort((a, b) => a.titel.localeCompare(b.titel, 'de'))
+}
+
+/**
+ * UI-R3 — ALLE Kalender, die der Server zum Verwalten liefert (Kalender-
+ * verwaltung `#/kalender/verwalten`), je Zeile mit ihrer Zuordnung.
+ *
+ * Die Liste ist bereits die Antwort auf „was darf diese Person verwalten“
+ * (`get_kalender_verwaltung` filtert über den Rechte-Kern) — hier wird NICHTS
+ * zusätzlich gefiltert und keine Gruppe angenommen. Sortiert wird nach
+ * Zuordnung (Gemeinde zuletzt) und dann nach Titel, damit die Seite eine
+ * ruhige, wiederholbare Reihenfolge hat.
+ *
+ * @param {Array<object>} kalender  `kalender[]` aus `get_kalender_verwaltung`
+ * @param {Record<string,string>} namen  Anzeigenamen der Gruppen/Untergruppen
+ */
+export function alleKalenderZeilen(kalender, namen = {}) {
+  return (Array.isArray(kalender) ? kalender : [])
+    .filter((k) => k && text(k.name))
+    .map((k) => kalenderZeile(k, namen))
+    .sort((a, b) => {
+      const rang = (k) => (k.untergruppe ? 0 : (k.gruppe ? 1 : 2))
+      const unterschied = rang(a) - rang(b)
+      if (unterschied) return unterschied
+      return a.titel.localeCompare(b.titel, 'de')
+    })
+}
+
+/**
+ * UI-R3 — Kennung → Anzeigename aus dem Gruppenbaum des Servers
+ * (`get_gruppen_hierarchie`: `{gruppen: [{name, gruppenname, untergruppen:[…]}]}`).
+ *
+ * `get_kalender_verwaltung` nennt die Anlegeorte nur als Kennung
+ * (`anlegen_gruppen`/`anlegen_untergruppen`); der Gruppenbaum bringt die
+ * Klarnamen dazu. Reine Anzeige, kein Rechtebezug: eine fehlende oder leere
+ * Bezeichnung bleibt Weg — dann steht die Kennung, statt einen Namen zu
+ * erfinden.
+ *
+ * @param {{gruppen?: Array}|null} antwort
+ * @returns {Record<string,string>}
+ */
+export function ausGruppenbaum(antwort) {
+  const karte = {}
+  // Sowohl die volle Antwort (`{gruppen: […]}`) als auch schon die Liste.
+  const liste = Array.isArray(antwort) ? antwort : (antwort?.gruppen || [])
+  for (const g of liste) {
+    if (!g || !g.name) continue
+    const name = text(g.gruppenname)
+    if (name) karte[String(g.name)] = name
+    for (const u of (g.untergruppen || [])) {
+      const uname = text(u?.untergruppenname)
+      if (u && u.name && uname) karte[String(u.name)] = uname
+    }
+  }
+  return karte
+}
+
+/**
+ * UI-R3 — Anlegeziele der Kalenderverwaltung aus der Serverantwort.
+ *
+ * Anders als `anlegeZiele` (Gruppen-Seite: EINE Gruppe, ihre Untergruppen)
+ * nennt die Verwaltung ALLE Einheiten, in denen der Aufrufer anlegen darf:
+ * `anlegen_gruppen` und `anlegen_untergruppen`. Der Gemeinde-Kalender kommt
+ * nur mit `darf_gemeinde_kalender` und steht am Ende.
+ *
+ * Anzeigenamen: der Server liefert nur Kennungen. Bekannte Namen aus `namen`
+ * (z. B. aus den Kalenderzeilen) werden benutzt, sonst steht die Kennung —
+ * erfunden wird kein Name.
+ *
+ * @param {{darf_gemeinde_kalender?: boolean, anlegen_gruppen?: string[],
+ *          anlegen_untergruppen?: string[]}} verwaltung
+ * @param {Record<string,string>} namen
+ * @returns {Array<{wert: string, art: 'gemeinde'|'gruppe'|'untergruppe', anzeige: string}>}
+ */
+export function verwaltungAnlegeZiele(verwaltung = {}, namen = {}) {
+  const karte = namen || {}
+  const anzeige = (kennung, art) => {
+    const name = text(karte[kennung])
+    if (!name) return kennung
+    return art === 'untergruppe' ? `Untergruppe ${name}` : `Gruppe ${name}`
+  }
+  const ziele = []
+  for (const ug of (verwaltung?.anlegen_untergruppen || []).map(text).filter(Boolean)) {
+    ziele.push({ wert: ug, art: 'untergruppe', anzeige: anzeige(ug, 'untergruppe') })
+  }
+  for (const g of (verwaltung?.anlegen_gruppen || []).map(text).filter(Boolean)) {
+    ziele.push({ wert: g, art: 'gruppe', anzeige: anzeige(g, 'gruppe') })
+  }
+  // Sortiert nach Anzeige, damit die Auswahl nicht von der Serverreihenfolge
+  // abhängt; der Gemeinde-Kalender steht immer am Ende.
+  ziele.sort((a, b) => a.anzeige.localeCompare(b.anzeige, 'de'))
+  if (verwaltung?.darf_gemeinde_kalender) {
+    ziele.push({ wert: '', art: 'gemeinde', anzeige: GEMEINDE_TITEL })
+  }
+  return ziele
 }
 
 /**
@@ -375,6 +482,41 @@ export function anlegeAnfrage({ titel, farbe = '', ziel = null, standardGruppeLe
 }
 
 /**
+ * UI-R3b — Die Anfrage an `kalender_verwaltung.update_kalender`.
+ *
+ * Bearbeiten heißt: Titel, Farbe und „selbstverwaltet“. Genau diese drei
+ * Felder gehen mit — die Rechte laufen seit UI-R3 über `rechte.setze_freigabe`
+ * und die Alt-Felder (`leserechte`/`moderatoren`) führt der Server nur noch
+ * übergangsweise mit; sie hier mitzuschicken würde sie still überschreiben
+ * (eine LEERE Liste heißt serverseitig ausdrücklich „niemand“).
+ *
+ * `name` ist der SCHLÜSSEL des Kalenders und bleibt beim Umbenennen gleich
+ * (auf ihn zeigen die Termine) — nur `titel` ändert den Anzeigenamen.
+ *
+ * @param {{name: string, titel: string, farbe?: string, selbstverwaltet?: boolean}} eingabe
+ */
+export function aenderungsAnfrage({ name, titel, farbe = '', selbstverwaltet = false } = {}) {
+  return {
+    name: text(name),
+    titel: text(titel),
+    farbe: text(farbe),
+    selbstverwaltet: selbstverwaltet === true ? 1 : 0,
+  }
+}
+
+/**
+ * Die Anfrage an `kalender_verwaltung.delete_kalender` (mit Bestätigung).
+ *
+ * `bestaetigt: 1` ist Pflicht: der Server verweigert das Löschen ohne die
+ * ausdrückliche Bestätigung („Zum Löschen bitte bestätigen.“).
+ *
+ * @param {string} name
+ */
+export function loeschAnfrage(name) {
+  return { name: text(name), bestaetigt: 1 }
+}
+
+/**
  * Der Stand einer Zeile auf dem Handy — was steht NEBEN welchem Kästchen?
  *
  * Zwei Dinge hängen hier zusammen, und beide lassen sich ohne Browser prüfen:
@@ -542,4 +684,24 @@ export function sichererFehlertext(fehler, ersatz = {}) {
     || /^(fehler|error|internal server error|ungueltige anfrage|ungültige anfrage)$/i.test(roh)
   if (technisch) return text(ersatz?.text) || 'Das hat gerade nicht geklappt. Versuche es noch einmal.'
   return roh
+}
+
+/**
+ * UI-R3b — Der Satz zu einer VERWEIGERTEN Änderung (Server: 403).
+ *
+ * Der Server prüft das Verwalten selbst (`_require_kalender_verwalten`) — die
+ * Oberfläche prüft keine Rolle. Sie sagt nur, dass es an der Berechtigung lag,
+ * und nennt den Weg. Alles andere (417 „enthält noch Termine“,
+ * „Fremdschlüssel“) kommt als Fachsatz des Servers durch.
+ *
+ * @param {unknown} fehler
+ * @param {'bearbeiten'|'loeschen'|'anlegen'} vorgang
+ */
+export function verweigerungsText(fehler, vorgang = 'bearbeiten') {
+  if (Number(fehler?.status) === 403) {
+    const was = vorgang === 'loeschen' ? 'löschen' : (vorgang === 'anlegen' ? 'anlegen' : 'ändern')
+    return `Diesen Kalender darfst du nicht ${was} — das Recht dafür liegt bei HV/MV der Gruppe `
+      + 'bzw. der Gemeinde-Verwaltung.'
+  }
+  return sichererFehlertext(fehler, { text: 'Das hat gerade nicht geklappt.' })
 }
