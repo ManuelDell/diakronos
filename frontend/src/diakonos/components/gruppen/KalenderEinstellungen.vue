@@ -4,6 +4,10 @@
          und Sichtbarkeit. Geladen wird EINE Quelle: die Verwaltungsliste
          (`get_kalender_verwaltung`). Sie liefert auch, wo der Aufrufer
          anlegen darf — die Oberfläche rät nichts. -->
+    <!-- UI-R3c (SOLL 4): Bis zur ersten Antwort steht hier NICHTS — kein
+         Leerzustand („Noch keine Kalender“ blitzte vorher kurz auf, weil
+         `zeilen` ohne Antwort ebenfalls leer ist), und das Skelett erst nach
+         300 ms (`useLadeSkelett`). `antwortDa` ist der eine Schalter dafür. -->
     <DkSkelett v-if="skelettSichtbar" form="zeilen" :anzahl="3" text="Kalender werden geladen …" />
 
     <DkEmpty
@@ -14,7 +18,7 @@
       :erneut-versuchen="() => laden()"
     />
 
-    <template v-else-if="!gesperrt">
+    <template v-else-if="!gesperrt && antwortDa">
       <!-- UI-R3b: der Hinweis gehört dem ORT. In der Kalenderverwaltung
            (`alleKalender`) stehen hier nicht „die Kalender dieser Gruppe“, und
            es gibt keinen Grund für einen zweiten Hinweis neben dem der Seite
@@ -98,7 +102,7 @@
               :fehler="rechte[k.name]?.fehler || ''"
               :busy="busy"
               :freigabe-geklappt="freigabeGeklappt"
-              :gruppen="gruppenAuswahl"
+              :gruppen="gruppenAuswahlFuer(k)"
               :personen-laden="personenLaden"
               :erneut-laden="() => rechteLaden(k.name)"
               @freigabe-setzen="freigabeSetzen"
@@ -263,6 +267,7 @@ import {
   freigabeAnfrage,
   kalenderZuordnung,
   loeschAnfrage,
+  loeschRueckfrageText,
   personenAuswahlOhne,
   pruefeNeuenKalender,
   sichererFehlertext,
@@ -312,6 +317,27 @@ const props = defineProps({
    * Servers aus `get_kalender_verwaltung`.
    */
   ziele: { type: Array, default: null },
+  /**
+   * UI-R3c: Die Verwaltungsliste, wenn der AUFRUFER sie schon geholt hat.
+   *
+   * `KalenderVerwaltung.vue` und diese Fläche fragten beide
+   * `get_kalender_verwaltung` — zwei Anfragen für dieselbe Antwort, und die
+   * Seite zeigte ihren Stand aus einer anderen Antwort als die Liste hier.
+   * Jetzt holt die Seite sie einmal und reicht sie hier herein; nur ohne
+   * diesen Prop lädt die Fläche selbst (Gruppenseite, Einzel-Mount im Test).
+   * `null` heisst ausdrücklich „keine Antwort“ — dann wird geladen.
+   */
+  verwaltung: { type: Object, default: undefined },
+  /**
+   * UI-R3e (SOLL 4): Das Nachladen der SEITE, wenn sie die Liste besitzt.
+   *
+   * Mit `:verwaltung` ist `verwaltungLaden({still:true})` hier ein No-op — die
+   * Fläche wartete also NICHT auf die frischen Daten, und Toast, „Rückgängig“
+   * und `busy`-Ende erschienen, während die gelöschte Zeile noch dastand. Der
+   * Aufrufer gibt seine Lade-Funktion (eine Promise) hier herein; fehlt sie,
+   * lädt die Fläche wie bisher selbst.
+   */
+  nachladen: { type: Function, default: null },
 })
 
 /**
@@ -334,6 +360,12 @@ const laedt = ref(true)
 const { skelettSichtbar } = useLadeSkelett(laedt)
 const fehler = ref('')
 const verwaltung = ref(null)
+/**
+ * UI-R3c: Hat der AUFRUFER die Liste schon geholt (`:verwaltung`)? Dann ist
+ * sie die EINE Quelle — diese Fläche fragt nicht ein zweites Mal. `null` als
+ * Prop heisst „keine Antwort“ und lädt hier (siehe `verwaltungLaden`).
+ */
+const verwaltungVonAussen = computed(() => props.verwaltung !== undefined && props.verwaltung !== null)
 const busy = ref('')
 /**
  * UI-R2e: Ausgang der letzten Freigabe — `null` solange keine Aussage da ist.
@@ -343,6 +375,15 @@ const busy = ref('')
 const freigabeGeklappt = ref(null)
 /** 403 aus `get_kalender_verwaltung`: diese Person verwaltet keine Kalender. */
 const gesperrt = ref(false)
+/**
+ * UI-R3c (SOLL 4): Ist die erste Antwort da? Vorher stand der Leerzustand
+ * („Noch keine Kalender“) schon, weil `zeilen` ohne Antwort ebenfalls leer
+ * ist — er blitzte für die Dauer der Anfrage auf. Bis zur Antwort zeigt die
+ * Fläche NICHTS (das Skelett erst nach 300 ms).
+ *
+ * Gesetzt wird es in JEDEM Ausgang: Antwort, 403, Fehler, „kein Kontext“.
+ */
+const antwortDa = ref(false)
 /** Anfragezähler je Kalender (nur die jüngste Antwort schreibt). */
 const zaehler = anfrageZaehler()
 
@@ -379,7 +420,64 @@ function namensSicher(kennung, name) {
   return n && n !== k ? n : ''
 }
 
-/** Anzeigenamen der (Unter-)Gruppen — die Liste liefert nur Kennungen. */
+/**
+ * Der Gruppenbaum für die Freigabe-Auswahl: Gruppe → ihre Untergruppen.
+ *
+ * Quelle ist AUSSCHLIESSLICH `untergruppen` — der Gruppenbaum
+ * (`get_gruppen_hierarchie`, auf der Gruppenseite der Baum der Seite, in der
+ * Kalenderverwaltung der ganze Baum). Ein Eintrag `{ name, gruppe }` nennt
+ * seine Obergruppe ausdrücklich; fehlt sie, hängt er an `props.gruppe` (auf
+ * der Gruppenseite ist das der Kontext) — sonst bleibt er ohne Obergruppe und
+ * liefert keine Freigabe-Auswahl („kein Kontext“ ist ehrlicher als ein
+ * geratener).
+ *
+ * UI-R3e (MUSS 3): Früher hieß es hier, in der Verwaltung seien `untergruppen`
+ * die Gruppen der ANLEGEZIELE. Das war der Fehler: die Freigabe-Auswahl zeigte
+ * damit, wo jemand anlegen darf — ein reiner Moderator ohne Anlegeziele sah
+ * eine leere Auswahl, und ein Anlegerecht nur in der Gruppe G ließ ihre
+ * Untergruppen fehlen. Der Baum ist unabhängig vom Anlegerecht; was der Server
+ * bei `setze_freigabe` zulässt, prüft er selbst.
+ */
+const mitglieder = computed(() => {
+  const baum = {}
+  const eintragen = (name, obergruppe) => {
+    const n = String(name || '')
+    if (!n) return
+    if (!baum[n]) baum[n] = { untergruppen: [] }
+    if (obergruppe && !baum[n].gruppe) baum[n].gruppe = String(obergruppe)
+  }
+  for (const u of (Array.isArray(props.untergruppen) ? props.untergruppen : [])) {
+    if (!u || !u.name) continue
+    const obergruppe = u.gruppe || (props.alleKalender ? '' : props.gruppe)
+    eintragen(u.name, obergruppe)
+    if (obergruppe) {
+      eintragen(obergruppe)
+      const liste = baum[String(obergruppe)].untergruppen
+      if (!liste.includes(String(u.name))) liste.push(String(u.name))
+    }
+  }
+  // Die eigene Gruppe der Seite steht immer im Baum — auch ohne Untergruppen.
+  if (props.gruppe) eintragen(props.gruppe)
+  return baum
+})
+
+/** Alle Gruppen des Baums (Gruppen und Untergruppen in EINER Liste). */
+const alleBaumGruppen = computed(() => {
+  const liste = []
+  for (const [name, eintrag] of Object.entries(mitglieder.value)) {
+    liste.push({ name: String(name), gruppe: String(eintrag.gruppe || '') })
+  }
+  for (const eintrag of Object.values(mitglieder.value)) {
+    for (const u of (eintrag.untergruppen || [])) {
+      if (!liste.some((e) => e.name === String(u))) liste.push({ name: String(u), gruppe: '' })
+    }
+  }
+  return liste
+})
+
+/**
+ * Anzeigenamen der (Unter-)Gruppen — die Liste liefert nur Kennungen.
+ */
 const namen = computed(() => {
   // UI-R3: NICHT mit `alleKalender` vermischen. Auf einer Gruppenseite gehören
   // `gruppe`/`untergruppe`/`gruppeName` ZUSAMMEN; in der Kalenderverwaltung
@@ -442,6 +540,74 @@ const gruppenAuswahl = computed(() => {
 })
 
 /**
+ * Kennungen der Freigabe-Auswahl EINES Kalenders — aus dem GANZEN Gruppenbaum.
+ *
+ * REGEL (UI-R3c, verschärft in UI-R3e/MUSS 3):
+ *   Gruppenkalender: seine Gruppe + ALLE ihre Untergruppen laut Baum
+ *                    (`mitglieder`) — unabhängig davon, wo jemand anlegen darf.
+ *   Gemeinde-Kalender (`gruppe` leer): ALLE Gruppen des Baums (wie vor UI-R3c).
+ *                    Die Rechtmäßigkeit prüft der Server (`setze_freigabe`).
+ *
+ * @param {{gruppe?: string|null, untergruppe?: string|null}} zeile
+ * @returns {string[]}
+ */
+function kennungenFuer(zeile) {
+  const gruppe = gruppeDerZeile(zeile)
+  // Ohne Gruppe (Gemeinde-Kalender): der GANZE Baum. Die Rechtmäßigkeit prüft
+  // der Server (`setze_freigabe`) — die Auswahl entscheidet nichts.
+  if (!gruppe) return alleBaumGruppen.value.map((g) => g.name)
+  return [gruppe, ...untergruppenVon(gruppe)]
+}
+
+/** Die Gruppe eines Kalenders — eine Untergruppe zählt zu ihrer Obergruppe. */
+function gruppeDerZeile(zeile) {
+  const k = zeile || {}
+  return k.untergruppe
+    ? String(mitglieder.value[k.untergruppe]?.gruppe || k.gruppe || '')
+    : String(k.gruppe || '')
+}
+
+/** Die Untergruppen einer Gruppe laut Baum (`mitglieder`). */
+function untergruppenVon(gruppe) {
+  const liste = mitglieder.value[gruppe]?.untergruppen
+  return (Array.isArray(liste) ? liste : []).map(String).filter(Boolean)
+}
+
+/** Die Auswahl als `[{name, anzeigename}]` — Namen aus `namen`, sonst Kennung. */
+function auswahlAus(kennungen) {
+  return kennungen.map((k) => ({ name: String(k), anzeigename: namensSicher(String(k), namen.value[k]) || String(k) }))
+}
+
+/**
+ * Die Gruppen aus dem Gruppenbaum, die zu EINEM Kalender gehören: seine Gruppe
+ * samt ihrer Untergruppen (aus `mitglieder`), unabhängig davon, wo jemand
+ * anlegen darf.
+ */
+function kontextAuswahl(zeile) {
+  const gruppe = gruppeDerZeile(zeile)
+  if (!gruppe) return []
+  return auswahlAus([gruppe, ...untergruppenVon(gruppe)])
+}
+
+/**
+ * Auf einer Gruppenseite IST die Seite der Kontext (`gruppenAuswahl`); ein
+ * Kalender einer FREMDEN Gruppe behält seinen eigenen (etwa ein
+ * Gemeinde-Kalender, der über die Gruppenliste sichtbar wird), und ein
+ * Kalender OHNE Gruppe (Gemeinde) bekommt den ganzen Baum.
+ *
+ * @param {{name?: string, gruppe?: string|null, untergruppe?: string|null}} zeile
+ * @returns {Array<{name: string, anzeigename: string}>}
+ */
+function gruppenAuswahlFuer(zeile) {
+  if (props.alleKalender) return auswahlAus(kennungenFuer(zeile || {}))
+  const k = zeile || {}
+  const gruppe = gruppeDerZeile(k)
+  if (!gruppe) return auswahlAus(alleBaumGruppen.value.map((g) => g.name))
+  if (gruppe !== String(props.gruppe || '')) return kontextAuswahl(k)
+  return gruppenAuswahl.value
+}
+
+/**
  * Freigaben je Kalender — NUR was aufgeklappt war wird geladen (`offen`).
  * Der Zustand je Kalender: { daten, laedt, fehler }.
  */
@@ -449,7 +615,34 @@ const rechte = reactive({})
 const offen = ref('')
 
 async function verwaltungLaden({ still = false } = {}) {
-  if (!props.gruppe && !props.alleKalender) { laedt.value = false; return }
+  // UI-R3c: Liegt die Liste vom Aufrufer vor, ist SIE die eine Quelle — kein
+  // zweiter Aufruf desselben Endpunkts. Die Fläche meldet trotzdem „Antwort
+  // da“ (die Karte der Seite erscheint) und zeigt den Inhalt.
+  if (verwaltungVonAussen.value) {
+    verwaltung.value = props.verwaltung
+    fehler.value = ''
+    gesperrt.value = false
+    antwortDa.value = true
+    laedt.value = false
+    emit('gesperrt', false, true)
+    return
+  }
+  // Kein Kontext (weder Gruppe noch `alleKalender`): hier gibt es nichts zu
+  // laden — die Fläche bleibt leer, ohne je etwas zu behaupten.
+  //
+  // UI-R3c (Randfall): Früher kehrte dieser Zweig STUMM zurück. Auf einer
+  // Seite, die die Karte erst mit „Antwort da“ einblendet (`GruppeDetail.vue`),
+  // blieb sie damit für immer versteckt — es kam nie ein `gesperrt`-Signal.
+  // Jetzt gilt „keine Kalender, Antwort da, nicht gesperrt“ und wird gemeldet.
+  if (!props.gruppe && !props.alleKalender) {
+    verwaltung.value = null
+    gesperrt.value = false
+    fehler.value = ''
+    antwortDa.value = true
+    laedt.value = false
+    emit('gesperrt', false, true)
+    return
+  }
   if (!still) {
     laedt.value = true
     fehler.value = ''
@@ -459,6 +652,7 @@ async function verwaltungLaden({ still = false } = {}) {
     verwaltung.value = antwort || null
     fehler.value = ''
     gesperrt.value = false
+    antwortDa.value = true
     // UI-R2d: „Antwort da“ melden, BEVOR `laedt` fällt — die Seite zeigt die
     // Karte erst mit einer Antwort und blendet sie nie vorher ein (kein
     // Aufblitzen bei 403).
@@ -468,10 +662,13 @@ async function verwaltungLaden({ still = false } = {}) {
     // kein Fehler, sondern eine Lage: die Karte hat hier nichts zu zeigen und
     // blendet sich aus (Review UI-R2b, Punkt 16). Jeder andere Fehler bleibt
     // sichtbar — mit „Erneut versuchen“.
+    // UI-R3c: Das 403 steht als ERSTE Zeile dieses Zweigs — der Quelltext-Test
+    // (UI-R2b/P16) prüft genau diese Nachbarschaft (Statusprüfung → `gesperrt`).
     if (Number(e?.status) === 403) {
       gesperrt.value = true
       verwaltung.value = null
       fehler.value = ''
+      antwortDa.value = true
       // UI-R2c: der 403 ist eine LAGE der ganzen Karte — nicht nur des Inhalts.
       // Die Karte „Kalender der Gruppe“ gehört der Seite (GruppeDetail.vue);
       // ohne diesen Ruf bliebe dort eine leere Fläche mit Titel stehen.
@@ -485,6 +682,7 @@ async function verwaltungLaden({ still = false } = {}) {
     // Seite den Inhalt versteckt und der Hinweis „Kalender nicht geladen“
     // wäre nie zu sehen. Ein Fehler ist ein Ergebnis, kein Schweigen.
     fehler.value = sichererFehlertext(e, { text: 'Die Kalender konnten nicht geladen werden.' })
+    antwortDa.value = true
     emit('gesperrt', false, true)
   } finally {
     laedt.value = false
@@ -572,8 +770,25 @@ const einzigerOrtText = computed(() => (nurEinZiel.value
  */
 async function rechteNachladen(name, meldung) {
   await rechteLaden(name)
-  await verwaltungLaden({ still: true })
+  await kontextNachladen()
   if (meldung) showToast(meldung, 'success')
+}
+
+/**
+ * UI-R3e (SOLL 4): die Liste nach einer Änderung wirklich auffrischen und
+ * WARTEN, bis der neue Stand da ist.
+ *
+ * Besitzt die SEITE die Liste (`:verwaltung`), lädt sie — die Fläche kann den
+ * Endpunkt nicht selbst fragen, ohne den geteilten Stand zu umgehen. Sie gibt
+ * ihre Lade-Funktion als `nachladen` herein; darauf wird gewartet. Ohne diesen
+ * Prop lädt die Fläche wie bisher selbst (`verwaltungLaden({still:true})`,
+ * ohne `:verwaltung` ein echter Aufruf).
+ *
+ * `geaendert` bleibt für Aufrufer, die selbst nachladen (Gruppenseiten).
+ */
+async function kontextNachladen() {
+  if (typeof props.nachladen === 'function') await props.nachladen()
+  else await verwaltungLaden({ still: true })
   emit('geaendert')
 }
 
@@ -728,8 +943,7 @@ async function anlegenJetzt() {
     await apiCall(ANLEGEN, anfrage)
     dialogOffen.value = false
     showToast(`Kalender „${anfrage.titel}“ angelegt.`, 'success')
-    await verwaltungLaden({ still: true })
-    emit('geaendert')
+    await kontextNachladen()
   } catch (e) {
     // Fachfehler des Servers („Ein Kalender mit dem Namen … gibt es schon.“)
     // stehen im Dialog — der Text bleibt erhalten, nichts wird geleert.
@@ -798,8 +1012,7 @@ async function bearbeitenSpeichern() {
     await apiCall(AENDERN, anfrage)
     bearbeitenOffen.value = false
     showToast(`Kalender „${anfrage.titel}“ gespeichert.`, 'success')
-    await verwaltungLaden({ still: true })
-    emit('geaendert')
+    await kontextNachladen()
   } catch (e) {
     // 403 = der Server lässt diese Person nicht ändern (`_require_kalender_verwalten`);
     // 417/„gibt es schon“ = Fachfehler. Beides steht IM Dialog, nichts wird geleert.
@@ -819,18 +1032,14 @@ const { mitRueckgaengig } = useRueckgaengigAktion()
 async function entfernen(k) {
   if (!k || !k.name || busy.value) return
   if (!vollstaendig('kalender', k)) {
-    // UI-R3d: Es gibt ZWEI Gründe für die Rückfrage — der Google-Import
-    // (`calender_details`) und Freigaben/Sichtbarkeit. Der Satz nennt den
-    // Grund, der hier wirklich gilt; ein pauschaler Satz behauptete etwas
-    // Falsches.
-    const importiert = Boolean(String(k.calender_details || '').trim())
+    // UI-R3d/UI-R3c: Es gibt ZWEI Gründe für die Rückfrage — der Google-Import
+    // (`calender_details`) und Freigaben/Sichtbarkeit. Der Satz nennt JEDEN
+    // Grund, der hier gilt (`loeschRueckfrageText`): vorher nannte er bei
+    // beidem nur den Google-Grund, und der Verlust der Freigaben blieb
+    // unerwähnt.
     const ok = await bestaetigen({
       titel: 'Kalender löschen?',
-      text: importiert
-        ? `„${k.titel}“ wird gelöscht. Der Vermerk „Importiert aus Google Kalender“ `
-          + 'geht dabei verloren und kommt nicht zurück.'
-        : `„${k.titel}“ wird gelöscht. Seine Freigaben und seine Sichtbarkeit `
-          + 'kommen dabei nicht zurück.',
+      text: loeschRueckfrageText(k),
       aktion: 'Löschen',
       gefahr: true,
     })
@@ -838,9 +1047,11 @@ async function entfernen(k) {
     busy.value = busySchluessel('loeschen', k.name)
     try {
       await apiCall(LOESCHEN, loeschAnfrage(k.name))
-      await verwaltungLaden({ still: true })
+      // UI-R3f (SOLL 3): erst die frischen Daten, DANN die Meldung — wie im
+      // Rückgängig-Zweig. Vorher meldete der Toast das Löschen, während die
+      // Zeile mit aktivem Löschen-Knopf noch dastand.
+      await kontextNachladen()
       showToast(`Kalender „${k.titel}“ gelöscht.`, 'success')
-      emit('geaendert')
     } catch (e) {
       // 417 „enthält noch Termine“ / „wird noch verwendet“ kommt als Fachsatz.
       showToast(verweigerungsText(e, 'loeschen'), 'error')
@@ -852,8 +1063,7 @@ async function entfernen(k) {
   busy.value = busySchluessel('loeschen', k.name)
   try {
     await apiCall(LOESCHEN, loeschAnfrage(k.name))
-    await verwaltungLaden({ still: true })
-    emit('geaendert')
+    await kontextNachladen()
     await mitRueckgaengig({
       beschreibung: `Kalender „${k.titel}“ gelöscht`,
       zurueck: () => gegenrichtung('kalender', k),
@@ -861,10 +1071,7 @@ async function entfernen(k) {
       // `geaendert` holt zusätzlich die Daten der SEITE (`verwaltung` in
       // KalenderVerwaltung.vue) neu. Ohne diesen Ruf stünde dort weiterhin der
       // gelöschte Stand.
-      danach: async () => {
-        await verwaltungLaden({ still: true })
-        emit('geaendert')
-      },
+      danach: kontextNachladen,
       erfolg: `Kalender „${k.titel}“ ist wieder da.`,
     })
   } catch (e) {
@@ -879,6 +1086,21 @@ watch(() => [props.gruppe, props.untergruppe], () => {
   offen.value = ''
   for (const schluessel of Object.keys(rechte)) delete rechte[schluessel]
   verwaltungLaden()
+})
+/**
+ * UI-R3c: Der Aufrufer hat die Liste (neu) geholt — hier NUR übernehmen, kein
+ * zweiter Aufruf. Die neue Antwort nach einer Änderung bringt die Fläche also
+ * ebenfalls ohne eigene Anfrage auf den Stand (die Seite lädt bei `geaendert`
+ * ohnehin nach).
+ */
+watch(() => props.verwaltung, (neu) => {
+  if (neu === undefined || neu === null) return
+  verwaltung.value = neu
+  fehler.value = ''
+  gesperrt.value = false
+  antwortDa.value = true
+  laedt.value = false
+  emit('gesperrt', false, true)
 })
 </script>
 

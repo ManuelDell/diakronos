@@ -43,33 +43,30 @@ export function istKalenderAdmin(kontext) {
  * den SERVER, statt die Rollen zu raten:
  *
  *   true   — `get_kalender_verwaltung` lieferte etwas zu verwalten/anulegen
- *   false  — 403, „nichts zu verwalten“ oder (noch) kein Recht dieser Person
- *   Für den Administrator ist der Eintrag sichtbar, solange keine Antwort da
- *   ist — er darf die Seite ohnehin immer öffnen, und sein Eintrag verschwände
- *   sonst für einen Moment (die Leiste lädt den Kontext vor der Antwort).
+ *   false  — 403, „nichts zu verwalten“, kein Recht dieser Person ODER noch
+ *            keine Antwort (`null`)
+ *
+ * UI-R3c: Der frühere Rollen-Rückfall („ohne Antwort und mit Admin-Rolle
+ * sichtbar“) ist ENTFERNT. Er widersprach dem EINEN Rechtesystem (dort zählt
+ * allein die Serverantwort) und war der Grund für das Flackern: der Eintrag
+ * stand für einen Moment da, weil die Rolle bekannt war, und verschwand, sobald
+ * die Antwort eintraf. Jetzt gilt bis zur Antwort EINE Regel für alle:
+ * verborgen. Wer die Seite wirklich öffnen darf, sieht den Eintrag, sobald die
+ * Antwort da ist — nicht vorher.
  *
  * @param {{kalender?: Array, darf_gemeinde_kalender?: boolean,
  *          anlegen_gruppen?: string[], anlegen_untergruppen?: string[]}|null} verwaltung
- *   Antwort von `get_kalender_verwaltung` (null = gesperrt oder unbekannt)
- * @param {boolean} istAdmin  Ergebnis von `istKalenderAdmin`
- * @returns {boolean|null}
+ *   Antwort von `get_kalender_verwaltung` (null = gesperrt, unbekannt oder
+ *   noch nicht geladen)
+ * @returns {boolean}
  */
-export function kalenderVerwaltungSichtbar(verwaltung, istAdmin = false) {
+export function kalenderVerwaltungSichtbar(verwaltung) {
   const v = verwaltung
-  const hatInhalt = Boolean(v && typeof v === 'object') && (
-    (Array.isArray(v.kalender) && v.kalender.length > 0)
+  if (!v || typeof v !== 'object') return false
+  return (Array.isArray(v.kalender) && v.kalender.length > 0)
     || v.darf_gemeinde_kalender === true
     || (Array.isArray(v.anlegen_gruppen) && v.anlegen_gruppen.length > 0)
     || (Array.isArray(v.anlegen_untergruppen) && v.anlegen_untergruppen.length > 0)
-  )
-  if (hatInhalt) return true
-  // Ohne Antwort und mit Admin-Rolle: der Admin darf die Seite immer öffnen,
-  // der Eintrag verschwindet sonst für einen Moment (die Leiste lädt den
-  // Kontext vor der Antwort). Ohne Recht und ohne Antwort: fail closed.
-  if (!v && istAdmin === true) return true
-  // Antwort da (Objekt) und nichts zu verwalten → nein. Bei einem Admin wäre
-  // die Antwort nie leer (der Server liefert ihm alles) — dann gilt sie.
-  return false
 }
 
 /**
@@ -129,11 +126,15 @@ export function klickAufTag(lesemodus) {
  * nur bekannte Namen; ein Tippfehler ergäbe ein leeres Feld).
  *
  * @param {{ istKalenderAdmin?: boolean, darfVerwalten?: boolean, hatSchreibrecht?: boolean, lesemodus?: boolean }} lage
+ *   `darfVerwalten` kommt AUSSCHLIESSLICH aus `kalenderVerwaltungSichtbar`
+ *   (Serverantwort). Fehlt es, gilt `false` — UI-R3c hat den Rückfall auf die
+ *   Admin-Rolle entfernt: die Rolle sagt nichts über das EINE Rechtesystem,
+ *   und bis die Antwort da ist, bleibt der Eintrag verborgen (kein Flackern).
  * @returns {Array<{key: string, label: string, icon: string, href?: string, aktion?: string}>}
  */
 export function kalenderMenue({
   istKalenderAdmin: admin = false,
-  darfVerwalten = admin === true,
+  darfVerwalten = false,
   hatSchreibrecht = false,
   lesemodus = true,
 } = {}) {
@@ -143,12 +144,15 @@ export function kalenderMenue({
   // „Termin anlegen“ ist (A4: genau ein Primärknopf).
   eintraege.push({ key: 'ressourcenplan', label: 'Ressourcenplan', icon: 'kalender', aktion: 'ressourcenplan' })
   // UI-R3: „Kalender verwalten“ steht für ALLE, die der Server es lässt
-  // (HV/MV, GL — `darfVerwalten` aus `kalenderVerwaltungSichtbar`). Der Import
-  // bleibt bei der Admin-Rolle (er gehört nicht zum EINEN Rechtesystem, Punkt
-  // 4 der Karte betrifft nur die Verwaltung). Beide hängen am Serverrecht.
+  // (HV/MV, GL — `darfVerwalten` aus `kalenderVerwaltungSichtbar`). Es gibt
+  // KEINEN Rückfall auf die Admin-Rolle: solange die Serverantwort fehlt, ist
+  // der Eintrag verborgen (kein Flackern).
   if (darfVerwalten === true) {
     eintraege.push({ key: 'verwalten', label: 'Kalender verwalten', icon: 'bearbeiten', href: '#/kalender/verwalten' })
   }
+  // Der Import hängt an der Admin-ROLLE (`get_current_user_context`), nicht am
+  // EINEN Rechtesystem — er braucht die Verwaltungsantwort nicht und steht
+  // deshalb sofort (er flackert nicht).
   if (admin === true) {
     eintraege.push({ key: 'importieren', label: 'Kalender importieren', icon: 'herunterladen', href: '#/kalender/import' })
   }

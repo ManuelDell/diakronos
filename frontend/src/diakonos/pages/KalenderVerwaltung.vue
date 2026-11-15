@@ -25,6 +25,13 @@
 
     <DkHint v-else-if="fehler" variant="err">{{ fehler }}</DkHint>
 
+    <!-- UI-R3e (MUSS 1): Bis die SEITE ihre Antwort hat, steht NICHTS. Vorher
+         hing die Bedingung am geteilten `antwortDa` — beim Wechsel von der
+         Kalenderseite ist das schon true, das eigene `verwaltung` aber noch
+         leer, und „Kein Kalender zu verwalten“ blitzte auf. Jetzt entscheidet
+         `!laedt` (eigener Ladestand). -->
+    <template v-else-if="!antwortDa || laedt" />
+
     <!-- UI-R3, Punkt 4: Wer nichts verwalten darf, bekommt vom Server 403 —
          die Seite ist dann KEINE Baustelle, sondern eine kurze Auskunft mit
          einem Weg (die eigenen Kalender stehen in der Gruppe). -->
@@ -53,7 +60,8 @@
       :gruppe="gruppe"
       :ziele="zieleFuerFlaeche"
       :untergruppen="gruppenliste"
-      @geaendert="nachladen"
+      :verwaltung="verwaltung"
+      :nachladen="nachladen"
       @gesperrt="aufGesperrt"
     />
   </div>
@@ -101,9 +109,15 @@
 import { computed, onMounted, ref, h } from 'vue'
 import { apiCall } from '../composables/useApi.js'
 import { useLadeSkelett } from '../composables/useLadeSkelett.js'
+// UI-R3c: EIN Ladevorgang für `get_kalender_verwaltung` je Seite.
+import { useKalenderVerwaltung } from '../composables/useKalenderVerwaltung.js'
+// (Der geteilte Stand importiert `useApi` über DENSELBEN Pfad,
+// `./useApi.js` → hier `../composables/useApi.js` — die Test-Übersetzer
+// ersetzen damit dieselbe Attrappe für Seite und Stand.)
 import {
   alleKalenderZeilen,
   ausGruppenbaum,
+  elternAusGruppenbaum,
   sichererFehlertext,
   verwaltungAnlegeZiele,
 } from '../components/gruppen/kalenderRechte.mjs'
@@ -115,6 +129,27 @@ import DkHint from '../components/ui/DkHint.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
 
 const VERWALTUNG = 'diakronos.kronos.api.kalender_verwaltung.get_kalender_verwaltung'
+
+// UI-R3c: EIN Ladevorgang für die Verwaltungsliste je Seite. Diese Seite holt
+// sie und gibt die Antwort an die gemeinsame Fläche weiter (`:verwaltung`);
+// die Fläche fragt nicht ein zweites Mal.
+const {
+  laden: ladenKalenderVerwaltung,
+  sperrt: sperrtKalenderVerwaltung,
+  fehler: fehlerKalenderVerwaltung,
+} = useKalenderVerwaltung()
+
+/**
+ * UI-R3e (MUSS 1): Ist die Antwort DIESER Seite da? `false` = der Bildschirm
+ * bleibt leer (kein Leerzustand vor der Antwort — der blitzte vorher auf).
+ *
+ * Quelle ist der EIGENE geladene Stand, nicht der geteilte `antwortDa`: beim
+ * normalen Weg (Kalenderseite → ⋯ → „Kalender verwalten“) ist der geteilte
+ * Stand schon gefüllt, das lokale `verwaltung` aber noch leer. Bestimmt wird
+ * es in `laden()` — `laedt` und `antwortDaEigene` sind dieselbe Aussage.
+ */
+const antwortDaEigene = ref(false)
+const antwortDa = computed(() => antwortDaEigene.value === true)
 
 // „Neuer Kalender“ — dasselbe Plus wie in der Kalenderliste (kein Emoji).
 const IconPlus = () => h('svg', {
@@ -150,6 +185,12 @@ const flaeche = ref(null)
  * darf, bekommt eine leere Liste und sieht wie bisher die Kennung.
  */
 const baumNamen = ref({})
+/**
+ * UI-R3c: Untergruppe → Obergruppe aus demselben Gruppenbaum. Die
+ * Freigabe-Auswahl je Kalender braucht den Kontext („welche Gruppen gehören zu
+ * diesem Kalender“) — der Baum ist die eine Quelle dafür.
+ */
+const baumEltern = ref({})
 
 const namen = computed(() => {
   const karte = { ...baumNamen.value }
@@ -166,6 +207,8 @@ async function ladeBaumNamen() {
   try {
     const antwort = await apiCall('diakronos.diakonos.api.gruppen.get_gruppen_hierarchie', {})
     baumNamen.value = ausGruppenbaum(antwort)
+    // UI-R3c: aus DERSELBEN Antwort die Obergruppen (siehe `baumEltern`).
+    baumEltern.value = elternAusGruppenbaum(antwort)
   } catch {
     // Kein Baum (403/Netzfehler): die Kennung bleibt stehen — die Seite
     // funktioniert weiter, nur ohne Klarnamen.
@@ -189,16 +232,59 @@ const darfAnlegen = computed(() => anlegeziele.value.length > 0)
 const zieleFuerFlaeche = computed(() => anlegeziele.value)
 
 /**
- * Kennung der (Unter-)Gruppen für die Freigabe-Auswahl: die Orte, an denen
- * der Server ein Anlegen erlaubt. `anzeigename` ist der REINE Name
- * (`Jugendchor`) — die gemeinsame Fläche setzt „Gruppe“/„Untergruppe“ selbst
- * davor (`zuordnungsText`). Mit der fertigen Beschriftung stünde dort
- * „Untergruppe: Untergruppe Kinderchor“. Fehlt der Name, gilt die Kennung.
+ * Der GRUPPENBAUM für die Freigabe-Auswahl — aus `get_gruppen_hierarchie`.
+ *
+ * UI-R3e (MUSS 3): Die Freigabe-Auswahl je Kalender kommt aus dem GANZEN Baum,
+ * nicht aus den Anlegezielen. Ein reiner Moderator hat keine Anlegeziele und
+ * sah vorher eine leere Auswahl; ein Anlegerecht nur in der Gruppe G ließ
+ * ihre Untergruppen fehlen. Kennung → `{ anzeigename, gruppe }` (`gruppe` ist
+ * die Obergruppe einer Untergruppe, leer bei einer Gruppe).
  */
-const gruppenliste = computed(() => zieleFuerFlaeche.value
-  .filter((z) => z.art === 'gruppe' || z.art === 'untergruppe')
-  .map((z) => ({ name: String(z.wert || ''), anzeigename: namen.value[z.wert] || '' }))
-  .filter((g) => g.name))
+const gruppenbaum = computed(() => {
+  const karte = {}
+  for (const [name, anzeigename] of Object.entries(baumNamen.value || {})) {
+    karte[String(name)] = { anzeigename: anzeigename || '', gruppe: stringOderLeer(baumEltern.value?.[name]) }
+  }
+  return karte
+})
+
+/** Kennung als Text (nie `null`/`undefined`). */
+function stringOderLeer(wert) {
+  return wert === null || wert === undefined ? '' : String(wert)
+}
+
+/**
+ * Gruppen für die Freigabe-Auswahl, in der Form, die die gemeinsame Fläche
+ * erwartet: `[{ name, anzeigename, gruppe }]` — `gruppe` ist die Obergruppe
+ * (leer bei einer Gruppe), `anzeigename` der REINE Name.
+ *
+ * Der Baum ist der ganze Gruppenbaum (siehe `gruppenbaum`). Was für EINEN
+ * Kalender daraus angeboten wird, entscheidet `gruppenAuswahlFuer` in der
+ * Fläche: seine Gruppe samt Untergruppen, bei einem Gemeinde-Kalender alle.
+ */
+const gruppenliste = computed(() => {
+  // Der BAUM ist die Grundlage (jede Gruppe samt Untergruppen, unabhängig vom
+  // Anlegerecht); die Anlegeziele ergänzen ihn um Orte ohne Baumeintrag.
+  const eintraege = new Map()
+  for (const z of zieleFuerFlaeche.value) {
+    if (z.art !== 'gruppe' && z.art !== 'untergruppe') continue
+    const name = String(z.wert || '')
+    if (!name || eintraege.has(name)) continue
+    // Der REINE Name kommt aus `namen` (Kennung → Name des Gruppenbaums). Ein
+    // leerer Name ist erlaubt: die Fläche zeigt dann die Kennung.
+    eintraege.set(name, { name, anzeigename: namen.value[z.wert] || '', gruppe: '' })
+  }
+  for (const [name, eintrag] of Object.entries(gruppenbaum.value)) {
+    if (eintraege.has(name)) {
+      // Die Obergruppe aus dem BAUM hat Vorrang (ein Anlegeziel kennt seinen
+      // Kontext nicht) — die Freigabe-Auswahl der Fläche hängt daran.
+      if (eintrag.gruppe) eintraege.get(name).gruppe = String(eintrag.gruppe)
+      continue
+    }
+    eintraege.set(name, { name, anzeigename: eintrag.anzeigename || '', gruppe: eintrag.gruppe || '' })
+  }
+  return [...eintraege.values()]
+})
 
 /**
  * Die gemeinsame Fläche (UI-R2) kennt eine Gruppen-Kennung für den Kopf
@@ -208,44 +294,81 @@ const gruppenliste = computed(() => zieleFuerFlaeche.value
  */
 const gruppe = computed(() => '')
 
+/**
+ * Die Verwaltungsliste holen — EIN Ladevorgang für die Seite (der geteilte
+ * Stand). Liefert die Antwort (`null` = keine) und schreibt `verwaltung`.
+ *
+ * UI-R3e: Die eigene Antwort wird über `teilen` der jüngste Stand des
+ * geteilten Laders — eine ältere, noch laufende Anfrage (z. B. der
+ * Kalenderseite) überschreibt sie danach nicht mehr.
+ *
+ * UI-R3f (SOLL 2): Die Antwort von `laden()` wird NICHT erneut über `teilen()`
+ * geschickt, sondern DIREKT übernommen. Zwei Gründe:
+ *  * bei 403 gibt `laden()` `null` zurück und setzt `sperrt`; `teilen(null)`
+ *    setzte `sperrt` wieder auf false — der Zweig `gesperrt` war tot;
+ *  * `teilen()` erhöht `juengste` und bricht damit eine neuere laufende
+ *    Anfrage ab.
+ */
+async function listeHolen({ frisch = false } = {}) {
+  const antwort = await ladenKalenderVerwaltung({ frisch })
+  verwaltung.value = antwort || null
+  return verwaltung.value
+}
 
 async function laden({ still = false } = {}) {
   if (!still) {
     laedt.value = true
+    antwortDaEigene.value = false
     fehler.value = ''
   }
-  try {
-    verwaltung.value = (await apiCall(VERWALTUNG, {})) || null
-    fehler.value = ''
-    gesperrt.value = false
-  } catch (err) {
-    // 403 = der Server gibt dieser Person keine verwaltbaren Kalender. Das ist
-    // keine Panne, sondern eine Lage: eine kurze Auskunft, keine Aktionen (der
-    // Menüpunkt bleibt für sie weg — `kalenderVerwaltungSichtbar`).
-    if (Number(err?.status) === 403) {
-      verwaltung.value = null
-      gesperrt.value = true
-      fehler.value = ''
-      return
-    }
-    gesperrt.value = false
-    fehler.value = sichererFehlertext(err, { text: 'Die Kalender konnten nicht geladen werden.' })
-  } finally {
-    laedt.value = false
-  }
+  // UI-R3c: EIN Ladevorgang. Die gemeinsame Fläche fragt denselben Endpunkt für
+  // die Kalenderliste; sie bekommt die Antwort HIER über `:verwaltung` — sie
+  // stellt keine eigene Anfrage mehr. `null` heißt „keine Antwort“ und wird
+  // ausdrücklich übergeben (dann lädt die Fläche selbst, z. B. solo in einem
+  // Test oder auf einer fremden Seite).
+  //
+  // UI-R3f (MUSS 1): JEDER Aufruf dieser Seite lädt FRISCH. Beim Aufbau hielt
+  // der geteilte Lader sonst die Antwort der Kalenderseite fest (gelöschte
+  // Kalender mit aktivem Löschen-Knopf); nach einer Änderung (`nachladen`) ist
+  // der Stand ohnehin veraltet. Die Leiste liest weiter nur den reaktiven
+  // Stand — je Seitenbesuch bleibt es bei EINER Anfrage.
+  await listeHolen({ frisch: true })
+  // 403 = der Server gibt dieser Person keine verwaltbaren Kalender. Das ist
+  // keine Panne, sondern eine Lage: eine kurze Auskunft, keine Aktionen (der
+  // Menüpunkt bleibt für sie weg — `kalenderVerwaltungSichtbar`).
+  gesperrt.value = sperrtKalenderVerwaltung.value === true && !fehlerKalenderVerwaltung.value
+  // UI-R3e (SOLL 7): auch der stille Weg räumt einen alten Fehler ab — sonst
+  // bliebe die Meldung nach einem geglückten Nachladen stehen.
+  //
+  // Der Grund des Servers steht VORNE, der allgemeine Satz dahinter — so bleibt
+  // „Die Kalender konnten nicht geladen werden.“ immer lesbar (auch wenn der
+  // Grund nur „HTTP 500“ heißt) und der konkrete Text geht nicht verloren.
+  { const grund = String(fehlerKalenderVerwaltung.value || '').trim()
+    fehler.value = grund
+      ? `${sichererFehlertext(new Error(grund), { text: 'Die Kalender konnten nicht geladen werden.' })}`
+      : '' }
+  // UI-R3e (MUSS 1): ab hier entscheidet die EIGENE Antwort über den Inhalt —
+  // vorher hing das am geteilten `antwortDa`, das beim Wechsel von der
+  // Kalenderseite schon true war.
+  antwortDaEigene.value = true
+  laedt.value = false
 }
 
 /**
  * Nach einer Änderung in der gemeinsamen Fläche: still nachladen.
  *
- * Die Fläche lädt ihre eigenen Daten selbst; hier wird nur die Zuordnung der
- * Seite frisch geholt. `still` heißt: kein Skelett, die Fläche bleibt stehen.
+ * `still` heißt: kein Skelett, die Fläche bleibt stehen.
+ *
+ * UI-R3e (SOLL 4): Die Fläche WARTET auf diese Promise. Vorher war der Aufruf
+ * folgenlos für sie (`verwaltungLaden({still:true})` war mit `:verwaltung`
+ * ein No-op) — Toast und „Rückgängig“ erschienen, während die gelöschte Zeile
+ * mit aktivem Löschen-Knopf noch dastand.
  *
  * Sie meldet auch, wenn der Server die VERWALTUNG sperrt (403) — dann gilt
  * diese Lage auch für die Seite.
  */
 function nachladen() {
-  laden({ still: true })
+  return laden({ still: true })
 }
 
 /** 403 der gemeinsamen Fläche: hier gibt es nichts zu verwalten. */
@@ -270,6 +393,10 @@ function neuerKalender() {
 onMounted(() => {
   // Namen und Verwaltungsliste unabhängig laden: fehlt der Baum, steht die
   // Kennung; fehlt die Liste, entscheidet das 403 (siehe `laden`).
+  //
+  // UI-R3e (MUSS 3): Die Freigabe-Auswahl je Kalender braucht den BAUM. Die
+  // Fläche wird erst mit der Liste gemountet — sie bekommt den fertigen Baum
+  // deshalb über `:untergruppen`; hier wird er geholt, bevor die Liste da ist.
   ladeBaumNamen()
   laden()
 })

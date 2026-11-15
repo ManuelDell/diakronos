@@ -373,6 +373,9 @@ import {
   lesemodusNachSchalter,
 } from '../components/kronos/kalenderRechte.mjs'
 import { eingeblendeteZahl } from '../components/kronos/kalenderKopf.mjs'
+// UI-R3c: EIN Ladevorgang für `get_kalender_verwaltung` je Seite — diese Seite
+// (⋯-Menü) und die Kalenderliste (`KronosSidebar.vue`) lesen denselben Stand.
+import { laden as ladenKalenderVerwaltung, useKalenderVerwaltung } from '../composables/useKalenderVerwaltung.js'
 // Review 07.11. Punkt 10: EINE Layout-Grenze (720 px) — auch im Skript.
 // DEV-B6 (Review-Nacharbeit 10.11.): Das Handy-Gerüst der Seite hängt an der
 // EINEN Handy-Lage der App (`composables/handyLage.mjs`). `istHandyBreite`
@@ -537,23 +540,31 @@ const istKalenderAdmin = computed(() => kalenderAdmin(benutzerKontext.value))
  * UI-R3: „Kalender verwalten“ gilt seit dem EINEN Rechtesystem für ALLE, denen
  * der Server Kalender zum Verwalten oder Anlegen gibt (HV/MV, GL, Admin) — nicht
  * mehr nur für die Admin-Rolle. Die Antwort kommt vom SERVER
- * (`get_kalender_verwaltung`); die Oberfläche rät nichts. `null` bleibt
- * `false`: solange nichts belegt ist, steht kein Eintrag, der ins Leere führt.
+ * (`get_kalender_verwaltung`); die Oberfläche rät nichts.
+ *
+ * UI-R3c: Der Endpunkt wird EINMAL je Seite geladen — hier und in der
+ * Kalenderliste (`KronosSidebar.vue`) über DENSELBEN geteilten Stand
+ * (`composables/useKalenderVerwaltung.js`). Vorher fragten beide, und zwei
+ * Antworten konnten auseinander fallen. `null` bleibt `false`: solange keine
+ * Antwort da ist, steht kein Eintrag (kein Flackern), auch nicht für Admins.
  */
-const kalenderVerwaltung = ref(null)
+// UI-R3e (MUSS 2): Diese Seite ist der EINE Besitzer des Endpunkts — Seite
+// (⋯-Menü), Kalenderliste (`KronosSidebar.vue`, liest denselben Stand) und die
+// Verwaltungsseite danach hängen daran. Vorher fragten Seite und Leiste je
+// einmal; war die eine Antwort schon da, ging die zweite trotzdem raus.
+const { verwaltung: kalenderVerwaltung } = useKalenderVerwaltung()
 const darfKalenderVerwalten = computed(() => kalenderVerwaltungSichtbar(
-  kalenderVerwaltung.value, istKalenderAdmin.value,
+  kalenderVerwaltung.value,
 ) === true)
 
 async function kalenderVerwaltungLaden() {
-  try {
-    kalenderVerwaltung.value = await apiCall(
-      'diakronos.kronos.api.kalender_verwaltung.get_kalender_verwaltung',
-    ) || null
-  } catch (_) {
-    // 403 oder Netzfehler: nichts zu verwalten → kein Eintrag (fail closed).
-    kalenderVerwaltung.value = null
-  }
+  // UI-R3f (MUSS 1): Diese Seite ist der BESITZER des Endpunkts und lädt beim
+  // Aufbau FRISCH. Ohne `frisch` gäbe der geteilte Lader bei vorhandener
+  // Antwort sofort den ALTEN Stand zurück (SPA-Wechsel ohne Neuladen) — ein
+  // während der Sitzung gegebenes oder genommenes Recht änderte „Verwalten“
+  // dann erst nach einem vollen Neuladen. Die Leiste liest weiter nur den
+  // reaktiven Stand, also bleibt es bei EINER Anfrage je Seitenbesuch.
+  await ladenKalenderVerwaltung({ frisch: true })
 }
 async function benutzerKontextLaden() {
   try {

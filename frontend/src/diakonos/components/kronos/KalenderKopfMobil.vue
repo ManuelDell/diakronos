@@ -96,8 +96,8 @@ const props = defineProps({
   auswahlOffen: { type: Boolean, default: false },
   hatSchreibrecht: { type: Boolean, default: false },
   istKalenderAdmin: { type: Boolean, default: false },
-  /** UI-R3: Serverrecht für „Kalender verwalten“ (HV/MV/GL); ohne Angabe gilt die Admin-Rolle. */
-  darfVerwalten: { type: Boolean, default: null },
+  /** UI-R3: Serverrecht für „Kalender verwalten“ (HV/MV/GL aus `get_kalender_verwaltung`). */
+  darfVerwalten: { type: Boolean, default: false },
   lesemodus: { type: Boolean, default: true },
 })
 
@@ -117,9 +117,8 @@ const menue = computed(() => mobilMenue({
   ansicht: props.ansicht,
   standard: props.standard,
   istKalenderAdmin: props.istKalenderAdmin === true,
-  darfVerwalten: props.darfVerwalten === null
-    ? props.istKalenderAdmin === true
-    : props.darfVerwalten === true,
+  // UI-R3c: nur die Serverantwort zählt — kein Rückfall auf die Admin-Rolle.
+  darfVerwalten: props.darfVerwalten === true,
   hatSchreibrecht: props.hatSchreibrecht === true,
   lesemodus: props.lesemodus !== false,
 }))

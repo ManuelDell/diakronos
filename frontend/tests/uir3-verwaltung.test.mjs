@@ -120,10 +120,11 @@ test('UI-R3/L6: Menüpunkt „Kalender verwalten“ hängt am Serverrecht, Impor
   assert.equal(kalenderVerwaltungSichtbar({ kalender: [], anlegen_gruppen: ['G'] }), true)
   assert.equal(kalenderVerwaltungSichtbar({ kalender: [], anlegen_untergruppen: ['UG'] }), true)
   // 403 / leere Antwort: der Eintrag bleibt weg — auch für einen Admin.
-  assert.equal(kalenderVerwaltungSichtbar({ kalender: [] }, true), false)
-  assert.equal(kalenderVerwaltungSichtbar(null, false), false)
-  // Ohne Antwort (Leiste lädt vor dem Server) darf der Admin den Eintrag sehen.
-  assert.equal(kalenderVerwaltungSichtbar(null, true), true)
+  assert.equal(kalenderVerwaltungSichtbar({ kalender: [] }), false)
+  assert.equal(kalenderVerwaltungSichtbar(null), false)
+  // UI-R3c: Ohne Antwort bleibt der Eintrag auch für einen Admin weg (der
+  // Rollen-Rückfall ist entfernt — kein Flackern).
+  assert.equal(kalenderVerwaltungSichtbar(null, true), false)
 
   // Menü: HV/MV/GL (kein Admin) sieht „Verwalten“ — aber NICHT den Import.
   const hv = kalenderMenue({ istKalenderAdmin: false, darfVerwalten: true, hatSchreibrecht: true })
@@ -133,10 +134,14 @@ test('UI-R3/L6: Menüpunkt „Kalender verwalten“ hängt am Serverrecht, Impor
   // Ohne Serverrecht: kein „Verwalten“, auch nicht als Admin-Zufall.
   const ohne = kalenderMenue({ istKalenderAdmin: false, darfVerwalten: false })
   assert.equal(ohne.some((e) => e.key === 'verwalten'), false, 'ohne Recht kein Eintrag')
-  // Admin sieht beides.
-  const admin = kalenderMenue({ istKalenderAdmin: true })
+  // Admin sieht beides — aber „Verwalten“ NUR mit der Serverantwort (UI-R3c:
+  // kein Rückfall auf die Rolle).
+  const admin = kalenderMenue({ istKalenderAdmin: true, darfVerwalten: true })
   assert.equal(admin.some((e) => e.key === 'verwalten'), true)
   assert.equal(admin.some((e) => e.key === 'importieren'), true)
+  const adminOhneAntwort = kalenderMenue({ istKalenderAdmin: true })
+  assert.equal(adminOhneAntwort.some((e) => e.key === 'verwalten'), false,
+    'der Admin-Eintrag „verwalten“ hängt am Serverrecht, nicht an seiner Rolle')
 })
 
 test('UI-R3/L7: Anlegeorte zeigen Klarnamen aus dem Gruppenbaum, sonst die Kennung', () => {
@@ -165,7 +170,10 @@ test('UI-R3/L7: Anlegeorte zeigen Klarnamen aus dem Gruppenbaum, sonst die Kennu
   // „Untergruppe: Untergruppe Kinderchor“.
   assert.doesNotMatch(seite, /anzeigename:\s*z\.anzeige/,
     'keine doppelte Vorsilbe an die gemeinsame Fläche')
-  assert.match(seite, /anzeigename:\s*namen\.value\[z\.wert\]/,
+  // UI-R3e (MUSS 3): Der Baum ist jetzt die Grundlage der Gruppenliste
+  // (`get_gruppen_hierarchie` → `gruppenbaum`); die Zeile trägt den REINEN
+  // Namen aus `namen` (Kennung → Name), nie die fertige Beschriftung.
+  assert.match(seite, /anzeigename:\s*namen\.value\[z\.wert\]\s*\|\|\s*''/,
     'reiner Name aus dem Baum')
 })
 

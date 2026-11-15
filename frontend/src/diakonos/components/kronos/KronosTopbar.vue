@@ -187,8 +187,13 @@ const props = defineProps({
    * dürfen ihre Kalender pflegen). Die Seite entscheidet das aus der Antwort
    * von `get_kalender_verwaltung` (`kalenderVerwaltungSichtbar`) — die
    * Kopfzeile prüft keine Rechte selbst.
+   *
+   * UI-R3c: Vorgabe `false` statt `null`. Den null-Rückfall auf die
+   * Admin-Rolle gibt es nicht mehr (er ließ den Eintrag vor der Antwort
+   * erscheinen und danach verschwinden): fehlt die Angabe, steht der Eintrag
+   * nicht — bis die Serverantwort da ist.
    */
-  darfVerwalten: { type: Boolean, default: null },
+  darfVerwalten: { type: Boolean, default: false },
   /**
    * Lesemodus (`true`, Standard wie vor UX3i) oder Bearbeiten. Der Umschalter
    * steht dezent im „⋯“-Menü; gefüllte Knöpfe bleiben der Hauptaktion
@@ -299,10 +304,11 @@ function onReiterWaehlen(r) {
 // alle (die Daten liefert der Server, er liefert nur die eigenen).
 const menue = computed(() => kalenderMenue({
   istKalenderAdmin: props.istKalenderAdmin === true,
-  // UI-R3: ohne eigene Angabe entscheidet die Rolle (wie vorher).
-  darfVerwalten: props.darfVerwalten === null
-    ? props.istKalenderAdmin === true
-    : props.darfVerwalten === true,
+  // UI-R3c: NUR die Serverantwort zählt (`darfVerwalten` aus
+  // `kalenderVerwaltungSichtbar`). Der Rückfall auf die Admin-Rolle bei
+  // fehlender Angabe ist entfernt — bis die Antwort da ist, steht der Eintrag
+  // nicht (kein Flackern).
+  darfVerwalten: props.darfVerwalten === true,
   hatSchreibrecht: props.canWrite === true,
   lesemodus: props.lesemodus !== false,
 }))

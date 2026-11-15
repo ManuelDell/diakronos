@@ -1559,8 +1559,9 @@ export default {
             // Fehlerantwort. `kalenderStand` nimmt (gesperrt, antwortDa).
             kalenderKarteSichtbar,
             kalenderStand,
-            // (`:gruppe="gruppeId"` am Bereich „Einstellungen“) — ohne die
-            // Rückgabe war sie `undefined`, der Serveraufruf fiel aus.
+            // UI-R1: Der Bereich „Einstellungen“ bekommt die Gruppenkennung
+            // (`:gruppe="gruppeId"`). Ohne die Rückgabe war sie `undefined`,
+            // der Serveraufruf fiel aus.
             gruppeId,
             // UI-R1b: `@geaendert="nachladen"` des Bereichs „Einstellungen“ —
             // STILLES Nachladen, der Inhalt bleibt stehen.

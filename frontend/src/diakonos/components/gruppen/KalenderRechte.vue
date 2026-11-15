@@ -264,6 +264,7 @@ import {
   freigabeZeilenLage,
   handyStufen as handyStufenBauen,
   sichtbarkeitKnoepfe,
+  zeileTraegtStufe,
 } from './kalenderRechte.mjs'
 
 const props = defineProps({
@@ -382,9 +383,13 @@ function lageDerZeile(z) {
  * (auch ohne Vergaberecht: sonst sähe niemand, wer prüfen darf). Mit
  * Vergaberecht ist es in JEDER Zeile bedienbar (man kann es ja vergeben).
  * Alle anderen Stufen stehen in jeder Zeile.
+ *
+ * UI-R3c: Die Regel steht EINMAL in `kalenderRechte.mjs`
+ * (`zeileTraegtStufe`) — Tabelle (`stufeDerZeile`) und Handy-Liste
+ * (`handyStufen.traegt`) lasen vorher zwei Kopien derselben Bedingung.
  */
 function stufeDerZeile(z, stufe) {
-  return stufe !== 'moderieren' || Boolean(z.moderieren) || lageDerZeile(z).modus
+  return zeileTraegtStufe(z, stufe, { darf_moderieren_vergeben: darfModerierenVergeben.value })
 }
 
 /**

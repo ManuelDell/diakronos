@@ -194,9 +194,14 @@ test('UX3i: ⋯-Menü — Verwalten/Import nur für Kalenderadministratoren (Rol
   // Review 07.11.: Der Lesemodus-Schalter erscheint nur mit Schreibrecht.
   assert.deepEqual(rechte.kalenderMenue({ hatSchreibrecht: true }).map((e) => e.key),
     ['ressourcenplan', 'bearbeiten', 'abgelehnte', 'hilfe'])
-  const admin = rechte.kalenderMenue({ istKalenderAdmin: true, hatSchreibrecht: true, lesemodus: false })
+  const admin = rechte.kalenderMenue({ istKalenderAdmin: true, darfVerwalten: true, hatSchreibrecht: true, lesemodus: false })
   assert.deepEqual(admin.map((e) => e.key),
     ['ressourcenplan', 'verwalten', 'importieren', 'bearbeiten', 'abgelehnte', 'hilfe'])
+  // UI-R3c: KEIN Rollen-Rückfall — ohne `darfVerwalten` steht „Kalender
+  // verwalten“ auch für einen Admin nicht (bis die Serverantwort da ist).
+  assert.deepEqual(rechte.kalenderMenue({ istKalenderAdmin: true }).map((e) => e.key),
+    ['ressourcenplan', 'importieren', 'abgelehnte', 'hilfe'],
+    'der Admin-Eintrag „verwalten“ hängt am Serverrecht, nicht an der Rolle')
   // Ziele bleiben dieselben wie bisher (kein neuer Weg, keine neue Adresse).
   const ziel = (k) => admin.find((e) => e.key === k)
   assert.equal(ziel('verwalten').href, '#/kalender/verwalten')
@@ -430,7 +435,7 @@ test('UX3i: Klick auf einen Reiter wechselt die Ansicht (kein zweiter Weg)', asy
 test('UX3i: ⋯-Menü öffnet und meldet Ressourcenplan/Hilfe (ohne neue Adresse)', async () => {
   const { host, gemeldet } = await mounten(
     'components/kronos/KronosTopbar.vue',
-    { istKalenderAdmin: true },
+    { istKalenderAdmin: true, darfVerwalten: true },
     { KalenderReiter },
   )
   const ausloeser = host.querySelector('.dk-ui-aktionen-ausloeser')

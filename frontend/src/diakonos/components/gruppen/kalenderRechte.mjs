@@ -85,9 +85,13 @@ function kalenderZeile(eintrag, namen = {}) {
     selbstverwaltet: eintrag.selbstverwaltet === true,
     // Leer = kein Google-Import; dann ist ein Löschen vollständig umkehrbar.
     calender_details: text(eintrag.calender_details),
-    // UI-R3d: Freigaben gehören zur Zeile. Das „Rückgängig“ schickt sie mit,
-    // und `vollstaendig('kalender', …)` erkennt daran, dass ein Kalender MIT
-    // Freigaben NICHT vollständig zurückkommt (dann Rückfrage).
+    // UI-R3d: Freigaben gehören zur Zeile. `vollstaendig('kalender', …)`
+    // erkennt daran, dass ein Kalender MIT Freigaben/Sichtbarkeit NICHT
+    // vollständig zurückkommt — die Fläche bietet dann „Löschen? (Rückfrage)“
+    // statt „Rückgängig“. Mitgeschickt werden sie NICHT: `create_kalender`
+    // legt Freigaben und Sichtbarkeit nicht an, das Rückgängig gibt es also
+    // nur bei Kalendern OHNE Freigaben (UI-R3c: der alte Satz „das Rückgängig
+    // schickt sie mit“ war irreführend).
     leserechte: Array.isArray(eintrag.leserechte) ? eintrag.leserechte : [],
     schreibrechte: Array.isArray(eintrag.schreibrechte) ? eintrag.schreibrechte : [],
     moderatoren: Array.isArray(eintrag.moderatoren) ? eintrag.moderatoren : [],
@@ -174,6 +178,30 @@ export function ausGruppenbaum(antwort) {
     for (const u of (g.untergruppen || [])) {
       const uname = text(u?.untergruppenname)
       if (u && u.name && uname) karte[String(u.name)] = uname
+    }
+  }
+  return karte
+}
+
+/**
+ * UI-R3c — Untergruppe → Obergruppe aus demselben Gruppenbaum.
+ *
+ * Die Freigabe-Auswahl je Kalender zeigt nur die Gruppen im KONTEXT des
+ * Kalenders (seine Gruppe und deren Untergruppen). Dafür genügt die Kennung
+ * der Untergruppe nicht — es fehlt ihr die Obergruppe. Sie steht im Baum
+ * (`get_gruppen_hierarchie` → `gruppen[].untergruppen[]`), derselben Antwort,
+ * aus der `ausGruppenbaum` die Namen liest.
+ *
+ * @param {{gruppen?: Array}|null} antwort
+ * @returns {Record<string,string>} Untergruppe → Obergruppe
+ */
+export function elternAusGruppenbaum(antwort) {
+  const karte = {}
+  const liste = Array.isArray(antwort) ? antwort : (antwort?.gruppen || [])
+  for (const g of liste) {
+    if (!g || !g.name) continue
+    for (const u of (g.untergruppen || [])) {
+      if (u && u.name) karte[String(u.name)] = String(g.name)
     }
   }
   return karte
@@ -517,6 +545,27 @@ export function loeschAnfrage(name) {
 }
 
 /**
+ * Trägt diese Zeile die Stufe — oder nur den Platzhalter?
+ *
+ * UI-R3c: DIE EINE Quelle für „Zeile trägt Moderieren“ (vorher stand die
+ * Bedingung zweimal: in `handyStufen` und im Baustein `stufeDerZeile`).
+ *
+ *   „Moderieren“ erscheint bei einer Zeile, die es TATSÄCHLICH trägt
+ *   (auch ohne Vergaberecht — sonst sähe niemand, wer prüfen darf), und in
+ *   JEDER Zeile, wenn es vergeben werden darf.
+ *   Alle anderen Stufen stehen in jeder Zeile.
+ *
+ * @param {{moderieren?: boolean}} zeile
+ * @param {string} stufe
+ * @param {{darf_moderieren_vergeben?: boolean}} [lage]
+ * @returns {boolean}
+ */
+export function zeileTraegtStufe(zeile, stufe, lage = {}) {
+  if (stufe !== 'moderieren') return true
+  return Boolean(zeile?.moderieren) || Boolean(lage?.darf_moderieren_vergeben)
+}
+
+/**
  * Der Stand einer Zeile auf dem Handy — was steht NEBEN welchem Kästchen?
  *
  * Zwei Dinge hängen hier zusammen, und beide lassen sich ohne Browser prüfen:
@@ -544,10 +593,12 @@ export function handyStufen(zeile = {}, stufen = [], lage = {}, gesperrt = () =>
     darf_moderieren_vergeben: lage?.darf_moderieren_vergeben,
     art: zeile?.art,
   })
-  // Dieselbe Regel wie im Baustein (`stufeDerZeile`): „Moderieren“ steht nur,
-  // wenn die Zeile es trägt oder vergeben werden darf.
-  const traegt = (stufe) => stufe !== 'moderieren'
-    || Boolean(zeile?.moderieren) || knoepfe.modus
+  // UI-R3c: EINE Quelle für „trägt die Zeile diese Stufe?“ — dieselbe Funktion,
+  // die die Tabelle benutzt (`zeileTraegtStufe`). Vorher stand die Bedingung
+  // hier ein zweites Mal („Moderieren“ zeigt, wer es trägt oder vergeben darf).
+  const traegt = (stufe) => zeileTraegtStufe(zeile, stufe, {
+    darf_moderieren_vergeben: lage?.darf_moderieren_vergeben,
+  })
   const felder = (Array.isArray(stufen) ? stufen : []).map((stufe) => {
     if (!traegt(stufe)) return null
     return {
@@ -559,6 +610,45 @@ export function handyStufen(zeile = {}, stufen = [], lage = {}, gesperrt = () =>
   // UI-R2e: die Rückgabe trägt NUR die Felder — das frühere `gesperrt` auf
   // oberster Ebene las niemand (die Zeilensperre entscheidet der Baustein).
   return { felder }
+}
+
+/**
+ * UI-R3c — Der Satz der Lösch-Rückfrage, wenn das Löschen NICHT vollständig
+ * umkehrbar ist.
+ *
+ * Quelle der Gründe ist `vollstaendig('kalender', …)` (dieselbe Prüfung, die
+ * die Rückfrage überhaupt auslöst) plus der Google-Vermerk. Beide Gründe
+ * werden GENANNT, wenn beide gelten — vorher nannte der Satz bei einem
+ * Google-Kalender MIT Freigaben nur den Google-Grund, und der Verlust der
+ * Freigaben/Sichtbarkeit blieb unerwähnt.
+ *
+ * WHY HERE: reine Zeichenkette ohne Vue — im Node-Test prüfbar, und der
+ * Baustein hat nur EINE Stelle, an der der Text entsteht.
+ *
+ * @param {{titel?: string, calender_details?: string, hat_freigaben?: boolean,
+ *          leserechte?: Array, schreibrechte?: Array, moderatoren?: Array,
+ *          gemeinde_status?: string, gruppe_status?: string}} kalender
+ * @returns {string}
+ */
+export function loeschRueckfrageText(kalender) {
+  const k = kalender || {}
+  const titel = String(k.titel || k.name || 'Der Kalender')
+  const gruende = []
+  if (String(k.calender_details || '').trim()) {
+    gruende.push('Der Vermerk „Importiert aus Google Kalender“ geht verloren')
+  }
+  const hatFreigaben = k.hat_freigaben === true
+    || ['leserechte', 'schreibrechte', 'moderatoren']
+      .some((feld) => (Array.isArray(k[feld]) ? k[feld].length > 0 : Boolean(k[feld])))
+  const sichtbarkeit = ['gemeinde_status', 'gruppe_status']
+    .some((feld) => String(k[feld] ?? '').trim() !== '' && String(k[feld]).trim() !== 'aus')
+  if (hatFreigaben || sichtbarkeit) {
+    gruende.push('Seine Freigaben und seine Sichtbarkeit kommen nicht zurück')
+  }
+  if (!gruende.length) gruende.push('Er lässt sich nicht vollständig wiederherstellen')
+  // Jeder Grund ist ein eigener Satz — so bleibt der Text lesbar, auch wenn
+  // BEIDE Gründe gelten (Google-Import UND Freigaben).
+  return `„${titel}“ wird gelöscht. ${gruende.join('. ')}.`
 }
 
 /**

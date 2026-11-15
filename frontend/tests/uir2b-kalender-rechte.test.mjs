@@ -247,9 +247,12 @@ test('UI-R2b/P5: gezeigteStufen und stufeDerZeile lesen dieselbe Moderieren-Sich
   const quelle = ohneKommentare(RECHTE)
   // Der Kopf fragt: Recht ODER irgendeine Zeile trägt es.
   assert.match(quelle, /const gezeigteStufen = computed[\s\S]{0,320}darfModerierenVergeben\.value \|\| zeilen\.value\.some/)
-  // Die Zeile fragt dieselbe Lage (`lageDerZeile`) — sonst driften Kopf und
-  // Zelle auseinander (UI-R2c-Befund).
-  assert.match(quelle, /function stufeDerZeile\(z, stufe\)[\s\S]{0,220}lageDerZeile\(z\)/)
+  // Die Zeile fragt dieselbe Lage — sonst driften Kopf und Zelle auseinander
+  // (UI-R2c-Befund). UI-R3c: die Regel selbst steht EINMAL in
+  // `kalenderRechte.mjs` (`zeileTraegtStufe`, mit `darf_moderieren_vergeben`);
+  // Tabelle und Handy-Liste rufen sie mit DERSELBEN Lage auf.
+  assert.match(quelle, /function stufeDerZeile\(z, stufe\)[\s\S]{0,260}zeileTraegtStufe\(z, stufe, \{ darf_moderieren_vergeben: darfModerierenVergeben\.value \}\)/)
+  assert.match(quelle, /zeileTraegtStufe as |zeileTraegtStufe,/, 'die gemeinsame Regel wird importiert')
 })
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -439,7 +442,8 @@ test('UI-R2b/P16: 403 aus get_kalender_verwaltung blendet die Karte aus', () => 
   assert.match(quelle, /const gesperrt = ref\(false\)/, 'es gibt keinen Ausblende-Zustand')
   assert.match(quelle, /Number\(e\?\.status\) === 403[\s\S]{0,220}gesperrt\.value = true/,
     'ein 403 gilt weiter als Fehler')
-  assert.match(quelle, /v-else-if="!gesperrt"/, 'die Karte wird bei 403 nicht ausgeblendet')
+  assert.match(quelle, /v-else-if="!gesperrt && antwortDa"/,
+    'die Karte wird bei 403 nicht ausgeblendet (und nicht vor der Antwort gezeigt)')
 })
 
 test('UI-R2b/Tokens: die neuen Stellen bleiben bei Tokens', () => {

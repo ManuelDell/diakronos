@@ -580,6 +580,12 @@ tests/uir3b-*.test.mjs
 # Anlegeorte aus dem Server (Gemeinde nur mit `darf_gemeinde_kalender`),
 # Menüpunkt am Serverrecht statt an der Admin-Rolle.
 tests/uir3-*.test.mjs
+# UI-R3e: geteiltes Laden robust (ein Besitzer, Reihenfolge, fail closed) und
+# die Gruppenauswahl der Freigaben aus dem GANZEN Gruppenbaum.
+tests/uir3e-*.test.mjs
+# UI-R3c: einmal laden, Freigaben-Gruppen im Kalender-Kontext (Vorgänger von
+# UI-R3e, eigene Datei mit eigenem Namen).
+tests/uir3c-*.test.mjs
 # UI-R2d: Abstand Kästchen↔Wort in der Handy-Stufe. Regeltest ohne Vue — er
 # hält fest, dass `.kr-stufe-feld` die von `label:has(> input[type=checkbox])`
 # (index.css, pointer: coarse) geerbte 44-px-Mindestbreite zurücknimmt; sonst
@@ -650,3 +656,6 @@ tests/uir7-*.test.mjs
 tests/r8-*.test.mjs
 tests/r8b-*.test.mjs
 tests/uir3d-*.test.mjs
+
+# UI-R3f: Kalenderverwaltung — Besitzer laden frisch, kein Dauer-Cache.
+tests/uir3f-*.test.mjs

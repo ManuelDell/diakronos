@@ -230,10 +230,16 @@ async function flaecheMounten({
   return { host, meldungen, ereignisse }
 }
 
-/** Mountet die ECHTE Seite `KalenderVerwaltung.vue`. */
+/** Montet die ECHTE Seite `KalenderVerwaltung.vue`. */
 async function seiteMounten({ verwaltung = { kalender: [kalender()], anlegen_gruppen: ['G-Chor'] } } = {}) {
   aufrufe.length = 0
   ueberschreibungen = { 'get_kalender_verwaltung$': verwaltung }
+  // UI-R3c: Der geteilte Ladestand (`useKalenderVerwaltung.js`) wird von
+  // diesem Übersetzer nicht übersetzt — sein `useApi`-Import zeigte sonst auf
+  // das echte Modul. Sein Aufruf geht deshalb über DIESELBE Attrappe.
+  const { __setzeApiAufruf, __leeren } = await import('../src/diakonos/composables/useKalenderVerwaltung.js')
+  __setzeApiAufruf((methode, args) => globalThis.__uiR3bMock(methode, args))
+  __leeren()
   const pfad = uebersetze(resolve(SRC_DIR, 'diakonos', 'pages', 'KalenderVerwaltung.vue'))
   const Seite = (await import('file://' + pfad + '?t=' + Date.now())).default
   const host = document.createElement('div')
@@ -539,9 +545,17 @@ test('UI-R3d/M11: nach dem Rückgängig holt auch die Seite ihre Daten neu', asy
     'Vorbedingung: der Kalender wurde nicht neu angelegt')
   // Das `geaendert` der FLÄCHE holt die Seite nach — sonst stünde in der
   // Zuordnung der Seite weiterhin der gelöschte Stand.
+  //
+  // UI-R3c: Die Seite fragt den Endpunkt nicht mehr selbst, sie liest den
+  // geteilten Stand (`useKalenderVerwaltung.js`). „Neu holen“ heißt jetzt:
+  // nach dem Rückgängig geht GENAU EINE neue Anfrage an den Server (die
+  // Fläche meldet `geaendert`, die Seite lädt frisch) — und die Seite zeigt
+  // danach den Stand mit dem wiederhergestellten Kalender.
   const seite = mit('get_kalender_verwaltung$')
-  assert.ok(seite.length >= nachLoeschen + 2,
+  assert.ok(seite.length >= nachLoeschen + 1,
     'die Seite lädt ihr `verwaltung` nach dem Rückgängig nicht neu (nur die Fläche lädt)')
+  assert.ok(host.textContent.includes('Proben'),
+    'die Seite zeigt nach dem Rückgängig nicht den wiederhergestellten Kalender')
 })
 
 test('UI-R3b/M4: ein Google-Import-Kalender fragt VOR dem Löschen nach', async () => {

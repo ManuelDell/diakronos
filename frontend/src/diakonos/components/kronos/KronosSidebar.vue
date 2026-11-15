@@ -208,6 +208,9 @@ import { useKronosStore } from '../../composables/useKronosStore.js';
 // Nacharbeit 07.11. Punkt 7: Die Rolle wird an EINER Stelle geprüft
 // (`kalenderRechte.mjs`), nicht ein zweites Mal hier.
 import { istKalenderAdmin, kalenderVerwaltungSichtbar } from './kalenderRechte.mjs';
+// UI-R3c/UI-R3e: EIN Ladevorgang für `get_kalender_verwaltung` je Seite
+// (geteilter Stand mit `pages/Kalender.vue`).
+import { useKalenderVerwaltung } from '../../composables/useKalenderVerwaltung.js';
 // UXD-R28: Kalenderfarbe nur als gueltiger Hex-Wert in die CSS-Variable.
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js';
 import { wandZeit } from '../../../shared/zeit.mjs';
@@ -249,7 +252,17 @@ defineExpose({ hilfeOeffnen, verwaltenKnopf });
 // (derselbe Rollenpruef wie der Import; der Server prueft erneut).
 // UI-R3: „Verwalten“ gilt seit dem EINEN Rechtesystem auch für HV/MV/GL —
 // die Lage kommt aus dem SERVER (`get_kalender_verwaltung`), nicht aus Rollen.
-const zeigeVerwalten = ref(false);
+//
+// UI-R3e (MUSS 2): Diese Leiste lädt NICHT mehr. Sie liest den geteilten
+// Stand (`useKalenderVerwaltung().verwaltung`) und leitet den Eintrag daraus
+// ab — `zeigeVerwalten` ist ein computed, kein einmal gesetzter Wert. Vorher
+// hing „einmal laden“ am Timing: die Leiste fragte nach
+// `get_current_user_context`, die Seite (`Kalender.vue`) nach
+// `store.fetchAccessibleCalendars` — war die erste Anfrage fertig, ging die
+// zweite trotzdem raus. Ein `ref` hätte den Stand der Seite außerdem nie
+// gesehen, wenn die Leiste vor der Antwort aufgebaut wurde.
+const { verwaltung: geteilteVerwaltung } = useKalenderVerwaltung();
+const zeigeVerwalten = computed(() => kalenderVerwaltungSichtbar(geteilteVerwaltung.value));
 const abgelehnteTermine = ref([]);
 const davUrl = `${window.location.origin}/dav/`;
 
@@ -338,20 +351,22 @@ onMounted(async () => {
     showImport.value = darfVerwalten;
     // UI-R3: „Kalender verwalten“ hängt am SERVER — wer Kalender pflegen oder
     // anlegen darf (HV/MV, GL, Admin), sieht den Eintrag; alle anderen
-    // bekommen 403. Ein Fehler beim Abfragen lässt den Eintrag weg (fail closed):
-    // ein Eintrag, der ins Leere führt, ist schlimmer als keiner.
-    try {
-      const verwaltung = await apiCall('diakronos.kronos.api.kalender_verwaltung.get_kalender_verwaltung');
-      zeigeVerwalten.value = kalenderVerwaltungSichtbar(verwaltung, darfVerwalten) === true;
-    } catch {
-      // 403 heißt „nichts zu verwalten“; ein Netzfehler sagt nichts über das
-      // Recht. Der Admin sieht den Eintrag in beiden Fällen — der Server
-      // verweigert ihm nichts, und ein flackernder Eintrag wäre schlimmer.
-      zeigeVerwalten.value = darfVerwalten === true;
-    }
+    // bekommen 403.
+    // UI-R3c: KEIN Rollen-Rückfall mehr. Vorher setzte der catch den Eintrag
+    // für Admins wieder — die Seite und die Leiste zeigten ihn damit vor der
+    // Antwort und nahmen ihn danach zurück (Flackern), und der Admin sah einen
+    // Weg, den der Server ihm zwar öffnet, den die Karte aber nicht belegen
+    // kann. Jetzt gilt für ALLE bis zur Antwort: verborgen. Ein 403 oder ein
+    // Netzfehler lassen ihn weg (fail closed) — ein Eintrag, der ins Leere
+    // führt, ist schlimmer als keiner.
+    // UI-R3e (MUSS 2): Der Endpunkt wird hier NICHT mehr gefragt — EIN
+    // Besitzer lädt (`Kalender.vue` bzw. die Verwaltungsseite), die Leiste
+    // liest den reaktiven Stand und blendet den Eintrag danach ein. Vorher
+    // ging hier nach dem Await eine ZWEITE Anfrage raus, wenn die Seite ihre
+    // Antwort schon hatte („eine Anfrage zur Zeit“ griff nur bei
+    // gleichzeitigen Aufrufen). `null`/Fehler = kein Eintrag (fail closed).
   } catch {
     showImport.value = false;
-    zeigeVerwalten.value = false;
   }
   // K-A: am Schreibtisch ist die Leiste sofort sichtbar (ohne Aufklappen).
   // Nie den Aufbau der Leiste daran scheitern lassen, wenn die Liste nicht

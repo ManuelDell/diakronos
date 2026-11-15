@@ -444,11 +444,29 @@ test('UI-R2c/C3: am LAPTOP (keine Handy-Lage) bleibt es bei der Tabelle', async 
 // UI-R2e (Befund im Image-Build v2.0.0 / main bb47ca6b): Alle Fälle teilen sich
 // EIN jsdom-Dokument; `document.body.innerHTML = ''` nimmt keinen Vue-Baum mit.
 // C4 lief dort ROT („der Knopf zeigt während der Anfrage keinen Ladezustand“),
-// einzeln GRÜN: der Schalter im Elternteil (`busy`) gehörte noch dem Objekt des
-// vorigen Falls, `data()` wird bei einem zweiten Mount desselben Bausteins im
-// selben Dokument nur EINMAL ausgewertet. Deshalb: vor jedem Mount ein EIGENER
-// Elternteil (Schlüssel = Zeitstempel), damit `busy` frisch ist.
+// einzeln GRÜN.
+//
+// UI-R3c: Die frühere Begründung war falsch. Gemessen nachgelesen ergibt sich:
+//   * `?t=` am Import ändert bei `file://`-Modulen die Modulkennung NICHT —
+//     das ist kein ESM-Cache-Problem, sondern ein Nicht-Effekt.
+//   * `data()` wird bei einem zweiten Mount im selben Dokument SEHR WOHL neu
+//     ausgewertet; ein frischer Elternteil ist nicht deshalb nötig.
+//   * Ein eigener Prozess je Datei ist ebenfalls keine Erklärung — `node --test`
+//     führt die Fälle EINER Datei im selben Prozess aus.
+// Die wirkliche Ursache war das TIMING: der Test klickte und maß im nächsten
+// `setTimeout(0)`-Tick, während Vue seine Aktualisierung erst im übernächsten
+// durchführt. Deshalb wird jetzt robust gewartet (`wartenAuf`) statt eine feste
+// Zahl Ticks zu zählen — das gilt unabhängig von Modul- und Datenherkunft.
 let elternNummer = 0
+
+/** Wartet, bis `bedingung()` wahr ist (höchstens `versuche` Ticks). */
+async function wartenAuf(bedingung, versuche = 40) {
+  for (let i = 0; i < versuche; i += 1) {
+    if (bedingung()) return true
+    await new Promise((l) => setTimeout(l, 0))
+  }
+  return Boolean(bedingung())
+}
 
 const gruppeFreigebenKnopf = (host) => [...host.querySelectorAll('button')]
   .find((b) => /^Gruppe freigeben$/.test(b.textContent.trim()))
@@ -464,11 +482,10 @@ test('UI-R2d/C4: echter Klick — Knopf sperrt und zeigt „lädt“, solange di
   // Klick durch ist („Server-Antwort wird zurückgehalten“); gemessen wird in
   // drei Zuständen: vor dem Klick, während der Anfrage, nach der Antwort.
   const pfad = uebersetze(resolve(SRC_DIR, 'diakonos', 'components', 'gruppen', 'KalenderRechte.vue'))
-  // UI-R2e: der Baustein hängt unter seinem PFAD im Modul-Cache. `?t=…` ändert
-  // bei `file://`-Modulen die Kennung NICHT (gemessen im Image-Build v2.0.0:
-  // C4 rot, einzeln grün) — der zweite Lauf bekam den ERSTEN Baum samt alter
-  // `props` zurück. Deshalb je Mount eine eigene Datei: gleicher Quelltext,
-  // frisches Modul.
+  // UI-R3c: Eine eigene Datei je Mount ist NICHT die Lösung des Timing-
+  // Problems (siehe den Hinweis über `elternNummer`) — sie bleibt nur, damit
+  // jeder Fall einen frischen Baum bekommt, ohne auf den ESM-Cache zu bauen
+  // (`?t=` wirkt bei `file://` nicht). Entschieden wird das Warten.
   const frisch = pfad.replace(/\.mjs$/, '') + '-' + (elternNummer + 1) + '.mjs'
   writeFileSync(frisch, readFileSync(pfad))
   const Baustein = (await import('file://' + frisch)).default
@@ -478,10 +495,9 @@ test('UI-R2d/C4: echter Klick — Knopf sperrt und zeigt „lädt“, solange di
   const meldungen = []
   const app = Vue.createApp({
     components: { Baustein },
-    // UI-R2e: eigener Schlüssel je Mount — sonst wertet Vue `data()` beim
-    // zweiten Mount desselben Bausteins im selben Dokument nicht neu aus und
-    // `busy` gehört noch dem Objekt des vorigen Falls (C4 war im Image-Build
-    // rot, einzeln grün). Siehe Hinweis über `elternNummer`.
+    // Eigener Name je Mount — reine Lesbarkeit in Vue-Warnungen. (Die frühere
+    // Begründung „`data()` wird nur einmal ausgewertet“ war falsch, siehe den
+    // Hinweis über `elternNummer`.)
     name: 'C4Eltern' + (elternNummer += 1),
     data: () => ({
       antwort: objekt({ darf: true, freigaben: [] }),
@@ -517,14 +533,16 @@ test('UI-R2d/C4: echter Klick — Knopf sperrt und zeigt „lädt“, solange di
 
   select.value = 'G-Chor'
   select.dispatchEvent(new Event('change'))
-  await warte(4)
+  // UI-R3c: robust warten statt eine feste Tick-Zahl raten (Vue aktualisiert
+  // im nächsten Tick, gemessen wird im übernächsten).
+  await wartenAuf(() => gruppeFreigebenKnopf(host)?.disabled === false)
   const knopfBereit = gruppeFreigebenKnopf(host)
   assert.equal(knopfBereit.disabled, false, 'der Knopf bleibt trotz gewählter Gruppe gesperrt')
   assert.notEqual(knopfBereit.getAttribute('aria-busy'), 'true', 'der Knopf zeigt ohne Aktion „lädt“')
 
   // ── KLICK: die Anfrage läuft ──────────────────────────────────────────
   knopfBereit.click()
-  await warte(4)
+  await wartenAuf(() => vm.ereignisse.length === 1)
   assert.equal(vm.ereignisse.length, 1, 'der Klick sendet keine Freigabe')
   const gesendet = vm.ereignisse[0]
   assert.deepEqual({
@@ -534,6 +552,7 @@ test('UI-R2d/C4: echter Klick — Knopf sperrt und zeigt „lädt“, solange di
     objekt: 'Proben', art: 'gruppe', kennung: 'G-Chor', lesen: true, schreiben: false, moderieren: false,
   }, 'die Anfrage ist nicht die erwartete Freigabe')
 
+  await wartenAuf(() => gruppeFreigebenKnopf(host)?.getAttribute('aria-busy') === 'true')
   const knopfLaeuft = gruppeFreigebenKnopf(host)
   assert.equal(knopfLaeuft.disabled, true,
     'der Knopf ist während der Anfrage bedienbar — ein zweiter Klick sendet doppelt')
@@ -550,7 +569,7 @@ test('UI-R2d/C4: echter Klick — Knopf sperrt und zeigt „lädt“, solange di
 
   // ── ANTWORT da (`busy` fällt) ─────────────────────────────────────────
   vm.busy = ''
-  await warte(6)
+  await wartenAuf(() => gruppeFreigebenKnopf(host)?.getAttribute('aria-busy') !== 'true')
   const knopfDanach = gruppeFreigebenKnopf(host)
   assert.notEqual(knopfDanach.getAttribute('aria-busy'), 'true',
     'der Ladezustand bleibt nach der Antwort stehen')

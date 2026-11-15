@@ -75,9 +75,22 @@ function kompilieren(abs) {
   code += '\n' + tpl.code.replace(/^export function render/m, 'function render')
   code += '\n__sfc__.render = render\nexport default __sfc__\n'
   code = code.replace(/from\s+['"]vue['"]/g, `from '${VUE_URL}'`)
-  code = code.replace(/from\s+['"](\.[^'"]+)['"]/g, (voll, spec) => {
+  code = code.replace(/from\s+['"]([^'"]+)['"]/g, (voll, spec) => {
+    // `vue` bleibt das echte Vue (eigene URL). Der umschließende Test hat
+    // seine Vue-Importe schon vorher umgeschrieben — diese Adresse darf hier
+    // NICHT als Pfad aufgelöst werden (`pages/file:/…`).
+    if (spec === 'vue' || /^vue\//.test(spec) || /^file:/.test(spec)) {
+      return /^file:/.test(spec) ? voll : `from '${VUE_URL}'`
+    }
+    // UI-R3c: NUR relative Pfade werden aufgelöst. Ein nackter Modulname
+    // (`vue`, `d3`, …) bleibt, wie er ist — sonst entstünde ein Pfad im
+    // Quellbaum, den Node nicht findet.
+    if (!/^\.{1,2}\//.test(spec)) return voll
     const name = basename(spec)
     const ziel = resolve(dirname(abs), spec)
+    // UI-R3c: der geteilte Ladestand (`useKalenderVerwaltung.js`) importiert
+    // selbst `useApi` — er muss auf DIESELBE Attrappe zeigen wie die Seiten,
+    // sonst fragt er den echten Endpunkt (`/api/method/...` ohne Host).
     if (attrappen.has(name)) return `from '${attrappen.get(name)}'`
     return `from '${pathToFileURL(spec.endsWith('.vue') ? kompilieren(ziel) : ziel).href}'`
   })
@@ -88,6 +101,13 @@ function kompilieren(abs) {
 }
 
 async function seite(relativ) {
+  // UI-R3c: Der geteilte Ladestand (`useKalenderVerwaltung.js`) wird von
+  // diesem Übersetzer NICHT übersetzt — sein `useApi`-Import zeigte sonst auf
+  // das echte Modul (`/api/method/...` ohne Host). Deshalb wird sein
+  // Endpunkt-Aufruf auf DIESELBE Attrappe gelegt, die die Seiten benutzen.
+  const { __setzeApiAufruf, __leeren } = await import('../src/diakonos/composables/useKalenderVerwaltung.js')
+  __setzeApiAufruf((methode, args) => globalThis.__ux2d3bApi(methode, args))
+  __leeren()
   const ziel = kompilieren(join(SRC.pathname, relativ))
   // Zwischenspeicher je Durchlauf: jede Seite frisch mounten.
   cache.delete(join(SRC.pathname, relativ))
@@ -127,17 +147,18 @@ const lage = { modus: 'leer', aufrufe: 0 }
 attrappe('useApi.js', `
 export class AuditConfirmationRequired extends Error {}
 export async function apiCall(endpunkt, argumente) {
-  globalThis.__ux2d3bAufruf(endpunkt)
-  if (String(endpunkt).includes('kalender_verwaltung.get_kalender_verwaltung')) {
-    // UI-R3: die Kalenderverwaltung holt diese eine Liste selbst.
-    return globalThis.__ux2d3bAntwort(globalThis.__ux2d3bLeer(endpunkt))
-  }
-  const leer = globalThis.__ux2d3bLeer(endpunkt)
-  return globalThis.__ux2d3bAntwort(leer)
+  return globalThis.__ux2d3bApi(endpunkt, argumente)
 }
 export async function apiAntwortPruefen(r) { return r }
 export const navigate = () => {}
 `)
+
+// UI-R3c: DIESELBE Attrappe für den geteilten Ladestand
+// (`useKalenderVerwaltung.js`, siehe `seite()`) — eine Antwort, ein Zähler.
+globalThis.__ux2d3bApi = (endpunkt, argumente) => {
+  globalThis.__ux2d3bAufruf(endpunkt)
+  return globalThis.__ux2d3bAntwort(globalThis.__ux2d3bLeer(endpunkt))
+}
 
 // useVerwaltung.js: Kalender-Verwaltung und Kontenliste.
 // UI-R3d: `kalenderAendern`/`kalenderLoeschen` gibt es nicht mehr (Löschen und
