@@ -77,17 +77,30 @@
                             @geaendert="nachladen"
                         />
                     </DkCard>
-                    <DkCard v-if="kalenderKarteSichtbar" title="Kalender der Gruppe">
-                        <GruppenEinstellungen
-                            teil="kalender"
-                            :gruppe="obergruppeId"
-                            :untergruppe="untergruppeId"
-                            :untergruppen="untergruppenFuerEinstellungen"
-                            :gruppe-name="obergruppeName"
-                            :untergruppe-name="eigenerUntergruppenName"
-                            @geaendert="nachladen"
-                            @gesperrt="kalenderGesperrt = $event"
-                        />
+                    <!-- UI-R2d: Karte und Baustein stehen SOFORT im Baum —
+                         sonst lädt niemand und das 403-Signal käme nie an.
+                         UI-R2e: unsichtbar ist jetzt die GANZE Karte (Titel
+                         UND Inhalt), nicht nur die Fläche darunter: sonst
+                         blitzte der Titel „Kalender der Gruppe“ kurz auf und
+                         verschwand bei 403 wieder. Versteckt wird sie mit
+                         `display:none` (kein `v-if`) — das Kind bleibt
+                         montiert und meldet seine Antwort. -->
+                    <DkCard
+                        title="Kalender der Gruppe"
+                        :style="{ display: kalenderKarteSichtbar ? null : 'none' }"
+                    >
+                        <div data-kalender-flaeche>
+                            <GruppenEinstellungen
+                                teil="kalender"
+                                :gruppe="obergruppeId"
+                                :untergruppe="untergruppeId"
+                                :untergruppen="untergruppenFuerEinstellungen"
+                                :gruppe-name="obergruppeName"
+                                :untergruppe-name="eigenerUntergruppenName"
+                                @geaendert="nachladen"
+                                @gesperrt="kalenderStand"
+                            />
+                        </div>
                     </DkCard>
                 </div>
             </template>
@@ -641,19 +654,52 @@ export default {
         const eigenerUntergruppenName = computed(() => (untergruppe.value ? displayName.value : ''))
 
         /**
-         * UI-R2c: Darf die Karte „Kalender der Gruppe“ stehen?
+         * UI-R2c/UI-R2e: Darf die Karte „Kalender der Gruppe“ stehen?
          *
          * Antwortet `get_kalender_verwaltung` mit 403, hat diese Person keine
          * verwaltbaren Kalender — dann gibt es hier nichts zu zeigen, und die
          * Karte verschwindet GANZ (vorher stand eine leere Fläche mit Titel
-         * da, weil nur der Inhalt sich ausblendete). Der Baustein meldet den
-         * Zustand über `gesperrt`; jeder andere Fehler lässt die Karte stehen,
-         * damit der Hinweis „nicht geladen — erneut versuchen“ sichtbar bleibt.
-         * Beim Wechsel der (Unter-)Gruppe wird der Stand zurückgesetzt.
+         * da, weil nur der Inhalt sich ausblendete). Jeder andere Fehler lässt
+         * die Karte stehen, damit der Hinweis „nicht geladen — erneut
+         * versuchen“ sichtbar bleibt.
+         *
+         * UI-R2d/UI-R2e: UND die Karte erscheint erst, wenn die erste Antwort
+         * da ist. Vorher stand sie sofort mit ihrem Skelett im Bild und
+         * verschwand einen Wimpernschlag später wieder, wenn der Server mit
+         * 403 antwortete — ein Aufblitzen, das wie ein Fehler aussah.
+         *
+         * UI-R2e: unsichtbar ist die GANZE Karte (Titel inklusive), nicht nur
+         * ihr Inhalt. Das ist `display:none` an der Karte, KEIN `v-if`: der
+         * Baustein darin muss montiert bleiben, sonst lädt niemand und die
+         * Antwort käme nie an. Beim Wechsel der (Unter-)Gruppe wird der Stand
+         * zurückgesetzt (neue Gruppe = neue Frage).
          */
         const kalenderGesperrt = ref(false)
-        const kalenderKarteSichtbar = computed(() => !kalenderGesperrt.value)
-        watch([obergruppeId, untergruppeId], () => { kalenderGesperrt.value = false })
+        /** Hat der Baustein für DIESE (Unter-)Gruppe schon geantwortet? */
+        const kalenderAntwortDa = ref(false)
+        /**
+         * Die Karte steht im Bild, sobald eine Antwort da ist — und nicht,
+         * wenn diese Antwort ein 403 war.
+         */
+        const kalenderKarteSichtbar = computed(() => kalenderAntwortDa.value && !kalenderGesperrt.value)
+        watch([obergruppeId, untergruppeId], () => {
+            kalenderGesperrt.value = false
+            kalenderAntwortDa.value = false
+        })
+        /**
+         * `gesperrt` (403) und `antwortDa` vom Baustein.
+         *
+         * UI-R2e: JEDE Antwort setzt `antwortDa` — auch eine Fehlerantwort.
+         * Vorher trug der Fehlerzweig `false`, der Inhalt blieb versteckt und
+         * der Hinweis „Kalender nicht geladen / Erneut versuchen“ war nie zu
+         * sehen. `gesperrt` allein heißt ebenfalls „Antwort da“ (ein 403 ist
+         * ein Ergebnis).
+         */
+        function kalenderStand(gesperrt, antwortDa) {
+            kalenderGesperrt.value = Boolean(gesperrt)
+            if (antwortDa !== undefined) kalenderAntwortDa.value = Boolean(antwortDa)
+            else kalenderAntwortDa.value = true
+        }
 
         const reiterOptionen = computed(() => {
             const id = gruppeId.value
@@ -1507,11 +1553,12 @@ export default {
             // UI-R2: Anzeigenamen für die Kalenderkarte (nur Namen, nie Kennungen).
             obergruppeName,
             eigenerUntergruppenName,
-            // UI-R2c: 403 aus get_kalender_verwaltung blendet die ganze Karte
-            // „Kalender der Gruppe“ aus (sie gehört der Seite).
+            // UI-R2c/UI-R2e: 403 aus get_kalender_verwaltung blendet die ganze
+            // Karte „Kalender der Gruppe“ aus (sie gehört der Seite), und sie
+            // erscheint überhaupt erst mit der ersten Antwort — auch einer
+            // Fehlerantwort. `kalenderStand` nimmt (gesperrt, antwortDa).
             kalenderKarteSichtbar,
-            kalenderGesperrt,
-            // UI-R1: das Template braucht die Gruppenkennung selbst
+            kalenderStand,
             // (`:gruppe="gruppeId"` am Bereich „Einstellungen“) — ohne die
             // Rückgabe war sie `undefined`, der Serveraufruf fiel aus.
             gruppeId,

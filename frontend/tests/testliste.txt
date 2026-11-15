@@ -564,6 +564,25 @@ tests/uir2b-*.test.mjs
 # `nurAnzeigen`, tote Reste (`darfModerieren`) entfernt.
 # Mount am ECHTEN Baustein und an der ECHTEN Seite; rot→grün je Punkt belegt.
 tests/uir2c-*.test.mjs
+# UI-R2d: Abstand Kästchen↔Wort in der Handy-Stufe. Regeltest ohne Vue — er
+# hält fest, dass `.kr-stufe-feld` die von `label:has(> input[type=checkbox])`
+# (index.css, pointer: coarse) geerbte 44-px-Mindestbreite zurücknimmt; sonst
+# verteilte sie sich als gap zwischen Kästchen und Wort (gemessen 36 px).
+tests/uir2d-*.test.mjs
+# UI-R2e: 500-Fehler und Aufblitzen bei 403 an der Karte „Kalender der Gruppe“.
+# (1) Jede Antwort — auch eine Fehlerantwort — gilt als Antwort: bei 500 sind
+# „Kalender nicht geladen“ und „Erneut versuchen“ WIRKLICH sichtbar
+# (Vorfahrenkette, nicht `textContent` — der enthält auch versteckten Text).
+# (2) Die GANZE Karte (Titel inkl.) bleibt unsichtbar, bis die erste Antwort da
+# ist — bei 403 für immer, bei 200 und 500 erscheint sie; das Kind bleibt
+# dabei montiert (`display:none`, kein `v-if`), damit es lädt und meldet.
+# (3) Derselbe Reset beim Gruppenwechsel an DERSELBEN Instanz. (4) „Gruppe
+# freigeben“ ist gesperrt, solange irgendeine Aktion der Fläche läuft.
+# (5) Nach einem Fehlschlag bleibt die Gruppenauswahl stehen, nach Erfolg wird
+# sie geleert. Dazu die Reste (doppelter Kommentar, `handyStufen.gesperrt`).
+# Mount am ECHTEN Baustein, an der ECHTEN Seite und an der Karte; rot→grün
+# je Punkt belegt (Basisstand ff3df002: 10 von 11 Fällen rot).
+tests/uir2e-*.test.mjs
 # UI-R1: Gruppen-Einstellungen, Teil 1 Rollen (HV/MV/GL) — Ordnen, Knoepfe
 # nach Serverfeldern, Sicherheitsabfrage der HV-Uebertragung, Alter Pfad weg.
 tests/ui-r1-*.test.mjs

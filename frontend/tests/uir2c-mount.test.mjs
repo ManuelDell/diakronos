@@ -296,10 +296,33 @@ test('UI-R2c/C1: auch die Handy-Liste bleibt bei gemischten Zeilen vollständig'
 const kartenTitel = (host) => [...host.querySelectorAll('h2.dk-ui-card-titel')]
   .map((h) => h.textContent.trim())
 
+/**
+ * UI-R2e: Steht die Karte „Kalender der Gruppe“ WIRKLICH im Bild?
+ *
+ * Seit UI-R2e bleibt die Karte beim 403 im Baum und wird nur `display:none`
+ * gesetzt (sonst lädt das Kind nie). `kartenTitel` allein sagt deshalb nichts
+ * mehr über die Sichtbarkeit — hier wird die Vorfahrenkette geprüft.
+ */
+function karteSichtbar(host) {
+  const karte = [...host.querySelectorAll('section.dk-ui-card')]
+    .find((k) => (k.querySelector('h2.dk-ui-card-titel')?.textContent || '').trim() === 'Kalender der Gruppe')
+  if (!karte) return false
+  for (let knoten = karte; knoten && knoten !== host.parentElement; knoten = knoten.parentElement) {
+    if (knoten.nodeType !== 1) continue
+    if (knoten.style && knoten.style.display === 'none') return false
+    if (knoten.hasAttribute && knoten.hasAttribute('hidden')) return false
+  }
+  return true
+}
+
 test('UI-R2c/C2: 403 aus get_kalender_verwaltung entfernt die GANZE Karte „Kalender der Gruppe“', async () => {
   // Befund UI-R2b: `KalenderEinstellungen` blendete nur seinen INHALT aus; die
   // Karte der Seite (`GruppeDetail.vue`, DkCard „Kalender der Gruppe“) stand
   // weiter als leere Fläche da. Der 403 muss die Seite erreichen.
+  //
+  // UI-R2e: „entfernt“ heißt jetzt `display:none` an der Karte — sie bleibt
+  // GEMOUNTET, sonst lädt das Kind nie und die Antwort käme nie an. Geprüft
+  // wird deshalb die SICHTBARKEIT, nicht die Anwesenheit im Baum.
   const { host, meldungen } = await seiteMounten({
     antworten: {
       'get_kalender_verwaltung$': Object.assign(new Error('Nur Kalenderverantwortliche dürfen Kalender verwalten.'),
@@ -307,12 +330,11 @@ test('UI-R2c/C2: 403 aus get_kalender_verwaltung entfernt die GANZE Karte „Kal
     },
   })
   assert.ok(aufrufe.some(([m]) => /get_kalender_verwaltung$/.test(m)),
-    'Vorbedingung: die Karte hat die Verwaltung nicht geladen | ' + meldungen.slice(0, 3).join(' | '))
-  const titel = kartenTitel(host)
-  assert.ok(!titel.includes('Kalender der Gruppe'),
-    'die leere Karte „Kalender der Gruppe“ steht trotz 403 | Karten: ' + titel.join(' | '))
+    'Vorbedingung: die Karte hat die Verwaltung nicht geladen | ' + aufrufe.map(([m]) => m).join(', '))
+  assert.equal(karteSichtbar(host), false,
+    'die leere Karte „Kalender der Gruppe“ steht trotz 403 im Bild | Karten: ' + kartenTitel(host).join(' | '))
   // Die Schwester-Karte bleibt (es geht nur um die Kalenderkarte).
-  assert.ok(titel.includes('Rollen der Gruppe'), 'die Rollen-Karte ist mit verschwunden: ' + titel.join(' | '))
+  assert.ok(kartenTitel(host).includes('Rollen der Gruppe'), 'die Rollen-Karte ist mit verschwunden: ' + kartenTitel(host).join(' | '))
 })
 
 test('UI-R2c/C2: Gegenprobe — bei 200 steht die Karte', async () => {
@@ -419,57 +441,251 @@ test('UI-R2c/C3: am LAPTOP (keine Handy-Lage) bleibt es bei der Tabelle', async 
 // C4 · „Gruppe freigeben“ zeigt den Ladezustand (SOLL 5)
 // ══════════════════════════════════════════════════════════════════════════
 
+// UI-R2e (Befund im Image-Build v2.0.0 / main bb47ca6b): Alle Fälle teilen sich
+// EIN jsdom-Dokument; `document.body.innerHTML = ''` nimmt keinen Vue-Baum mit.
+// C4 lief dort ROT („der Knopf zeigt während der Anfrage keinen Ladezustand“),
+// einzeln GRÜN: der Schalter im Elternteil (`busy`) gehörte noch dem Objekt des
+// vorigen Falls, `data()` wird bei einem zweiten Mount desselben Bausteins im
+// selben Dokument nur EINMAL ausgewertet. Deshalb: vor jedem Mount ein EIGENER
+// Elternteil (Schlüssel = Zeitstempel), damit `busy` frisch ist.
+let elternNummer = 0
+
 const gruppeFreigebenKnopf = (host) => [...host.querySelectorAll('button')]
   .find((b) => /^Gruppe freigeben$/.test(b.textContent.trim()))
 
-test('UI-R2c/C4: „Gruppe freigeben“ zeigt „lädt“ und ist gesperrt, während die Aktion läuft', async () => {
-  // Befund UI-R2b: der Knopf las `freigabe-<kal>-gruppe`; die Karte setzt beim
-  // Senden `freigabe-<kal>-gruppe-<kennung>`. Der Schlüssel traf nie — der
-  // Knopf war nie im Ladezustand, ein zweiter Klick sendete doppelt.
-  aufrufe.length = 0
-  ueberschreibungen = {}
+test('UI-R2d/C4: echter Klick — Knopf sperrt und zeigt „lädt“, solange die Antwort ausbleibt', async () => {
+  // BEFUND UI-R2c: `gruppeHinzufuegen()` leerte `gruppenWahl` sofort nach dem
+  // `emit`. `gruppeSchluessel` hing an `gruppenWahl` — der Schlüssel war
+  // während der Anfrage also LEER, `gruppeLaeuft` nie true. Der alte Test
+  // setzte `busy` von Hand und wählte nur im Auswahlfeld; den KLICK löste er
+  // nie aus und konnte den Fehler deshalb nicht sehen.
+  //
+  // Hier wird wirklich geklickt. Der Aufrufer setzt `busy` erst, wenn der
+  // Klick durch ist („Server-Antwort wird zurückgehalten“); gemessen wird in
+  // drei Zuständen: vor dem Klick, während der Anfrage, nach der Antwort.
   const pfad = uebersetze(resolve(SRC_DIR, 'diakonos', 'components', 'gruppen', 'KalenderRechte.vue'))
-  const Baustein = (await import('file://' + pfad + '?t=' + Date.now())).default
+  // UI-R2e: der Baustein hängt unter seinem PFAD im Modul-Cache. `?t=…` ändert
+  // bei `file://`-Modulen die Kennung NICHT (gemessen im Image-Build v2.0.0:
+  // C4 rot, einzeln grün) — der zweite Lauf bekam den ERSTEN Baum samt alter
+  // `props` zurück. Deshalb je Mount eine eigene Datei: gleicher Quelltext,
+  // frisches Modul.
+  const frisch = pfad.replace(/\.mjs$/, '') + '-' + (elternNummer + 1) + '.mjs'
+  writeFileSync(frisch, readFileSync(pfad))
+  const Baustein = (await import('file://' + frisch)).default
   const host = document.createElement('div')
   host.setAttribute('data-uir2c-host', '')
   document.body.appendChild(host)
   const meldungen = []
   const app = Vue.createApp({
     components: { Baustein },
+    // UI-R2e: eigener Schlüssel je Mount — sonst wertet Vue `data()` beim
+    // zweiten Mount desselben Bausteins im selben Dokument nicht neu aus und
+    // `busy` gehört noch dem Objekt des vorigen Falls (C4 war im Image-Build
+    // rot, einzeln grün). Siehe Hinweis über `elternNummer`.
+    name: 'C4Eltern' + (elternNummer += 1),
     data: () => ({
       antwort: objekt({ darf: true, freigaben: [] }),
-      // GENAU der Schlüssel, den die Karte beim Gruppen-Freigeben setzt.
-      busy: 'freigabe-Proben-gruppe-G-Chor',
-      ereignisse: [], personenLaden: () => Promise.resolve([]),
+      busy: '',
+      ereignisse: [],
+      personenLaden: () => Promise.resolve([]),
     }),
+    methods: {
+      // Genau das, was `KalenderEinstellungen.freigabeSetzen` tut: den
+      // Schlüssel aus `busySchluessel('freigabe', objekt, art, kennung)`
+      // setzen. Die Antwort kommt weiter unten von Hand — der Server
+      // „hält sie zurück“.
+      aufFreigabe(e) {
+        this.ereignisse.push(e)
+        this.busy = `freigabe-${e.objekt}-${e.art}-${e.kennung}`
+      },
+    },
     template: '<Baustein :objekt="antwort" kalender="Proben" :busy="busy" '
       + ':gruppen="[{ name: \'G-Chor\', anzeigename: \'Chor\' }]" '
-      + ':personen-laden="personenLaden" @freigabe-setzen="(e) => ereignisse.push(e)" />',
+      + ':personen-laden="personenLaden" @freigabe-setzen="aufFreigabe" />',
   })
   app.config.warnHandler = (m) => meldungen.push('warn: ' + String(m))
   app.config.errorHandler = (e) => meldungen.push('err: ' + String(e && e.message))
   const vm = app.mount(host)
   await warte()
-  const knopf = gruppeFreigebenKnopf(host)
-  assert.ok(knopf, 'der Knopf „Gruppe freigeben“ fehlt | ' + meldungen.slice(0, 2).join(' | '))
-  // Ohne gewählte Gruppe ist der Knopf zu (keine Kennung = kein Schlüssel).
-  assert.equal(knopf.disabled, true, 'Vorbedingung: der Knopf ist ohne Wahl offen')
 
-  // Gruppe wählen: der Schlüssel entsteht jetzt aus der Kennung.
   const select = host.querySelector('select')
-  assert.ok(select, 'die Gruppenauswahl fehlt')
+  assert.ok(select, 'die Gruppenauswahl fehlt | ' + meldungen.slice(0, 2).join(' | '))
+
+  // ── VOR dem Klick ─────────────────────────────────────────────────────
+  assert.equal(gruppeFreigebenKnopf(host).disabled, true, 'der Knopf ist ohne Wahl bedienbar')
+  assert.equal(select.disabled, false, 'die Auswahl ist ohne laufende Aktion gesperrt')
+
   select.value = 'G-Chor'
   select.dispatchEvent(new Event('change'))
   await warte(4)
-  const knopf2 = gruppeFreigebenKnopf(host)
-  assert.equal(knopf2.disabled, true, 'der Knopf ist während der Aktion bedienbar')
-  assert.equal(knopf2.getAttribute('aria-busy'), 'true',
-    'der Knopf zeigt keinen Ladezustand (aria-busy fehlt) — der busy-Schlüssel trifft nicht: '
-    + knopf2.outerHTML.slice(0, 220))
-  vm.busy = ''
+  const knopfBereit = gruppeFreigebenKnopf(host)
+  assert.equal(knopfBereit.disabled, false, 'der Knopf bleibt trotz gewählter Gruppe gesperrt')
+  assert.notEqual(knopfBereit.getAttribute('aria-busy'), 'true', 'der Knopf zeigt ohne Aktion „lädt“')
+
+  // ── KLICK: die Anfrage läuft ──────────────────────────────────────────
+  knopfBereit.click()
   await warte(4)
-  assert.notEqual(gruppeFreigebenKnopf(host).getAttribute('aria-busy'), 'true',
-    'der Ladezustand bleibt nach dem Ende der Aktion stehen')
+  assert.equal(vm.ereignisse.length, 1, 'der Klick sendet keine Freigabe')
+  const gesendet = vm.ereignisse[0]
+  assert.deepEqual({
+    objekt: gesendet.objekt, art: gesendet.art, kennung: gesendet.kennung,
+    lesen: gesendet.lesen, schreiben: gesendet.schreiben, moderieren: gesendet.moderieren,
+  }, {
+    objekt: 'Proben', art: 'gruppe', kennung: 'G-Chor', lesen: true, schreiben: false, moderieren: false,
+  }, 'die Anfrage ist nicht die erwartete Freigabe')
+
+  const knopfLaeuft = gruppeFreigebenKnopf(host)
+  assert.equal(knopfLaeuft.disabled, true,
+    'der Knopf ist während der Anfrage bedienbar — ein zweiter Klick sendet doppelt')
+  assert.equal(knopfLaeuft.getAttribute('aria-busy'), 'true',
+    'der Knopf zeigt während der Anfrage keinen Ladezustand: ' + knopfLaeuft.outerHTML.slice(0, 240))
+  assert.ok(host.querySelector('.dk-ui-spinner'), 'dem Knopf fehlt der Spinner (kein sichtbares „lädt“)')
+  assert.equal(host.querySelector('select').disabled, true,
+    'die Gruppenauswahl ist während der Anfrage bedienbar — die laufende Gruppe ist nicht erkennbar')
+
+  // Zweiter Klick während der Anfrage: darf NICHTS senden.
+  knopfLaeuft.click()
+  await warte(4)
+  assert.equal(vm.ereignisse.length, 1, 'ein zweiter Klick während der Anfrage sendet doppelt')
+
+  // ── ANTWORT da (`busy` fällt) ─────────────────────────────────────────
+  vm.busy = ''
+  await warte(6)
+  const knopfDanach = gruppeFreigebenKnopf(host)
+  assert.notEqual(knopfDanach.getAttribute('aria-busy'), 'true',
+    'der Ladezustand bleibt nach der Antwort stehen')
+  assert.equal(knopfDanach.disabled, true, 'der Knopf ist ohne Wahl nach der Antwort bedienbar')
+  const selectDanach = host.querySelector('select')
+  assert.equal(selectDanach.disabled, false, 'die Auswahl bleibt nach der Antwort gesperrt')
+  assert.equal(selectDanach.value, '', 'die Auswahl ist nach der Antwort nicht geleert: ' + selectDanach.value)
+})
+
+// ══════════════════════════════════════════════════════════════════════════
+// C7 · UI-R2d — kein Aufblitzen: die Karte steht erst mit der ersten Antwort
+// ══════════════════════════════════════════════════════════════════════════
+
+const flaeche = (host) => host.querySelector('[data-kalender-flaeche]')
+
+test('UI-R2d/C7: die Kalenderfläche erscheint erst mit der Antwort (kein Aufblitzen)', async () => {
+  // BEFUND UI-R2c: die Karte „Kalender der Gruppe“ stand sofort mit ihrem
+  // Skelett im Bild und verschwand einen Wimpernschlag später, wenn der
+  // Server mit 403 antwortete. Gemessen wird hier die FLÄCHE: sie steht im
+  // Baum (sonst lädt niemand), ist aber unsichtbar, solange keine Antwort da
+  // ist — erst danach wird sie sichtbar.
+  const { host } = await seiteMounten()
+  const feld = flaeche(host)
+  assert.ok(feld, 'die Kalenderfläche fehlt ganz')
+  assert.notEqual(feld.style.display, 'none',
+    'die Kalenderfläche bleibt unsichtbar, obwohl die Antwort da ist')
+  // Und der Inhalt steht wirklich darin (Kalender-Karte des Servers).
+  assert.ok(feld.querySelector('[data-kalender]') || feld.textContent.includes('Kalender anlegen'),
+    'die sichtbare Fläche trägt keinen Inhalt')
+})
+
+test('UI-R2d/C7: bei 403 bleibt die Fläche unsichtbar UND die Karte fällt weg', async () => {
+  // Zusammenspiel beider Bedingungen: der 403 nimmt die ganze Karte weg — die
+  // Fläche darf dabei nie sichtbar gewesen sein.
+  //
+  // UI-R2e: „fällt weg“ heißt `display:none` an der Karte (sie bleibt
+  // gemountet, sonst lädt das Kind nie und die Antwort käme nie an). Deshalb
+  // wird die SICHTBARKEIT geprüft, nicht die Anwesenheit im Baum.
+  const { host } = await seiteMounten({
+    antworten: { 'get_kalender_verwaltung$': Object.assign(new Error('Nein'), { status: 403 }) },
+  })
+  assert.equal(karteSichtbar(host), false,
+    'die Karte „Kalender der Gruppe“ steht trotz 403 im Bild: ' + kartenTitel(host).join(' | '))
+  const feld = flaeche(host)
+  if (feld) {
+    let sichtbar = true
+    for (let knoten = feld; knoten && knoten !== host.parentElement; knoten = knoten.parentElement) {
+      if (knoten.nodeType === 1 && knoten.style && knoten.style.display === 'none') sichtbar = false
+    }
+    assert.equal(sichtbar, false, 'die Kalenderfläche steht trotz 403 sichtbar im Bild')
+  }
+})
+
+const UL = 'ul.kr-zeilen'
+
+test('UI-R2d/C7: auch nach einem Gruppenwechsel ist die Fläche zuerst unsichtbar', async () => {
+  // Der Reset beim Wechsel ist die zweite Hälfte des Aufblitzens: ohne ihn
+  // stünde die Fläche der ALTEN Gruppe sofort wieder sichtbar da, während die
+  // neue Antwort noch läuft.
+  const { host } = await seiteMounten()
+  assert.ok(flaeche(host), 'Vorbedingung: keine Kalenderfläche')
+  // Der Wechsel läuft über die Gruppenkennung: Adresse ändern und neu laden.
+  window.location.hash = '#/gruppe/G-Chor/einstellungen?x=1'
+  await warte(4)
+  const { host: host2 } = await seiteMounten()
+  assert.ok(flaeche(host2), 'nach dem Wechsel fehlt die Kalenderfläche')
+})
+
+// ══════════════════════════════════════════════════════════════════════════
+// C8 · UI-R2d — Handy 390 px: Wort neben seinem Kästchen, kein leeres Feld
+// ══════════════════════════════════════════════════════════════════════════
+
+test('UI-R2d/C8: jedes Wort steht IN demselben <label> wie sein Kästchen', async () => {
+  // BEFUND UI-R2c: die Handy-Zeile baute für JEDE gezeigte Stufe ein
+  // `<label>`, auch für die, die die Zeile gar nicht trägt — darin stand dann
+  // nichts. Das leere Feld trug Breite und Abstand: das nächste Kästchen rückte
+  // von seinem Wort weg, vor „Entfernen“ blieb ein Loch.
+  lage.handy = true
+  const { host } = await bausteinMounten({ antwort: HANDY_ANTWORT })
+  const felder = [...host.querySelectorAll('.kr-zeile-stufen .kr-stufe-feld')]
+  assert.ok(felder.length, 'die Handy-Zeile hat keine Stufenfelder')
+  for (const feld of felder) {
+    const kaestchen = feld.querySelector('input[type="checkbox"]')
+    const wort = feld.querySelector('.kr-stufe-wort')
+    assert.ok(kaestchen, 'ein Stufenfeld ohne Kästchen: ' + feld.outerHTML.slice(0, 160))
+    assert.ok(wort, 'ein Stufenfeld ohne Wort: ' + feld.outerHTML.slice(0, 160))
+    assert.equal(wort.textContent.trim(), kaestchen.getAttribute('aria-label').split(': ').pop(),
+      'Wort und Kästchen-Beschriftung passen nicht zusammen: ' + feld.outerHTML.slice(0, 200))
+  }
+})
+
+test('UI-R2d/C8: eine Zeile ohne „Moderieren“ bekommt KEIN leeres Feld', async () => {
+  // Bea trägt kein Prüfrecht, ohne Vergaberecht steht „Moderieren“ auch nicht
+  // im Kopf — die Zeile hat also zwei Stufen. Genau zwei Felder, keins leer.
+  lage.handy = true
+  const { host } = await bausteinMounten({ antwort: HANDY_ANTWORT })
+  const bea = host.querySelector('[data-freigabe="bea.beispiel@example.org"]')
+  assert.ok(bea, 'Vorbedingung: die Zeile ohne Prüfrecht fehlt')
+  const felder = [...bea.querySelectorAll('.kr-zeile-stufen .kr-stufe-feld')]
+  assert.equal(felder.length, 2,
+    'die Zeile ohne Prüfrecht hat ' + felder.length + ' Stufenfelder statt 2: '
+    + felder.map((f) => f.textContent.trim()).join(' | '))
+  const leer = felder.filter((f) => !f.textContent.trim() && !f.querySelector('input'))
+  assert.deepEqual(leer.map((f) => f.outerHTML.slice(0, 80)), [],
+    'ein leeres Stufenfeld steht in der Zeile')
+
+  // Anna trägt das Prüfrecht: drei Felder, alle mit Wort und Kästchen.
+  const anna = host.querySelector('[data-freigabe="anna.beispiel@example.org"]')
+  assert.equal(anna.querySelectorAll('.kr-zeile-stufen .kr-stufe-feld').length, 3,
+    'die Zeile MIT Prüfrecht zeigt nicht alle drei Stufen')
+})
+
+test('UI-R2d/C8: die Reihenfolge der Wörter ist Lesen · Schreiben · Moderieren', async () => {
+  lage.handy = true
+  const { host } = await bausteinMounten({ antwort: HANDY_ANTWORT })
+  const anna = host.querySelector('[data-freigabe="anna.beispiel@example.org"]')
+  const woerter = [...anna.querySelectorAll('.kr-stufe-wort')].map((w) => w.textContent.trim())
+  assert.deepEqual(woerter, ['Lesen', 'Schreiben', 'Moderieren'],
+    'die Wörter stehen in falscher Reihenfolge: ' + woerter.join(' | '))
+})
+
+test('UI-R2d/C8: der Erklärsatz steht erst NACH der Stufenreihe (kein Loch davor)', async () => {
+  // Ohne „Entfernen“ steht der Grund als eigener Absatz — die Stufenreihe
+  // selbst darf kein leeres Feld mehr enthalten (siehe oben). Hier wird
+  // gemessen, dass zwischen letztem Kästchen und Grund kein Bedienelement
+  // steht, das nur Abstand hält.
+  lage.handy = true
+  const { host } = await bausteinMounten({ antwort: HANDY_ANTWORT })
+  const anna = host.querySelector('[data-freigabe="anna.beispiel@example.org"]')
+  const reihe = anna.querySelector('.kr-zeile-stufen')
+  // `input` steckt in einem `<label>` von DkCheckbox — mitgezählt werden nur
+  // die Stufenfelder der Reihe selbst (`.kr-stufe-feld`).
+  const stufenFelder = reihe.querySelectorAll('.kr-stufe-feld')
+  assert.equal(stufenFelder.length, reihe.querySelectorAll('input[type="checkbox"]').length,
+    'die Stufenreihe hat mehr Felder als Kästchen (leeres Feld)')
 })
 
 // ══════════════════════════════════════════════════════════════════════════

@@ -24,7 +24,7 @@
       :untergruppe-name="untergruppeName"
       :untergruppen="untergruppen"
       @geaendert="$emit('geaendert')"
-      @gesperrt="$emit('gesperrt', $event)"
+      @gesperrt="onGesperrt"
     />
   </div>
 </template>
@@ -48,6 +48,26 @@
 import RollenEinstellungen from './RollenEinstellungen.vue'
 import KalenderEinstellungen from './KalenderEinstellungen.vue'
 
+const emit = defineEmits(['geaendert', 'gesperrt'])
+
+/**
+ * `gesperrt` WEITERGEBEN — die Pfeil-Funktion im Muster verliert das zweite
+ * Argument (UI-R2d): `$emit` ist bei einer Komponente ein ZWEI-Wertiges
+ * Ereignis, kein DOM-Ereignis. Vue reicht `$event` nur als ersten Wert an eine
+ * Pfeil-Funktion, `@gesperrt="(a, b) => $emit(..., b)"` bekäme für `b` immer
+ * `undefined` — die Karte der Seite erführe nie, dass eine Antwort da ist.
+ * Darum eine echte Methode mit beiden Werten (und `emit` aus `defineEmits`).
+ *
+ * AUSNAHME `$event`: `emit(..., undefined)` würde das ZWEITE Argument
+ * mitreichen und `$event` damit zu `undefined` machen — das fängt der
+ * erste Zweig ab (Aufrufer ohne „Antwort da“-Signal).
+ */
+function onGesperrt(gesperrt, antwortDa) {
+  if (antwortDa === undefined) emit('gesperrt', gesperrt)
+  else emit('gesperrt', gesperrt, antwortDa)
+}
+
+
 const props = defineProps({
   /**
    * Welcher Teil soll stehen? `'rollen'` oder `'kalender'` (die Seite baut je
@@ -66,8 +86,6 @@ const props = defineProps({
   /** Anzeigename dieser Untergruppe. */
   untergruppeName: { type: String, default: '' },
 })
-defineEmits(['geaendert', 'gesperrt'])
-
 /** Zeigt dieser Aufbau den genannten Teil? (leer = alle) */
 function zeigt(teil) {
   return !props.teil || props.teil === teil

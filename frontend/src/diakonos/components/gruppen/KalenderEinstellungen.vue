@@ -67,6 +67,7 @@
               :laedt="Boolean(rechte[k.name]?.laedt)"
               :fehler="rechte[k.name]?.fehler || ''"
               :busy="busy"
+              :freigabe-geklappt="freigabeGeklappt"
               :gruppen="gruppenAuswahl"
               :personen-laden="personenLaden"
               :erneut-laden="() => rechteLaden(k.name)"
@@ -217,6 +218,12 @@ const props = defineProps({
  * `geaendert` — etwas hat sich geändert (die Seite lädt nach).
  * `gesperrt`  — UI-R2c: 403 aus `get_kalender_verwaltung`; die ganze Karte
  *               hat nichts zu zeigen und wird von der Seite ausgeblendet.
+ *               UI-R2d: zweites Argument `antwortDa` — die Karte der Seite
+ *               erscheint erst mit einer Antwort (kein Aufblitzen).
+ *               UI-R2e: JEDE Antwort zählt, auch eine Fehlerantwort. Vorher
+ *               meldete der Fehlerzweig `false` — die Seite hielt den Inhalt
+ *               versteckt, und „Kalender nicht geladen / Erneut versuchen“ war
+ *               nie zu sehen.
  */
 const emit = defineEmits(['geaendert', 'gesperrt'])
 
@@ -228,6 +235,12 @@ const { skelettSichtbar } = useLadeSkelett(laedt)
 const fehler = ref('')
 const verwaltung = ref(null)
 const busy = ref('')
+/**
+ * UI-R2e: Ausgang der letzten Freigabe — `null` solange keine Aussage da ist.
+ * Der Rechte-Baustein leert seine Gruppenauswahl nur, wenn die Freigabe auch
+ * durchging; nach einem 403/417 bleibt sie stehen.
+ */
+const freigabeGeklappt = ref(null)
 /** 403 aus `get_kalender_verwaltung`: diese Person verwaltet keine Kalender. */
 const gesperrt = ref(false)
 /** Anfragezähler je Kalender (nur die jüngste Antwort schreibt). */
@@ -304,6 +317,10 @@ async function verwaltungLaden({ still = false } = {}) {
     verwaltung.value = antwort || null
     fehler.value = ''
     gesperrt.value = false
+    // UI-R2d: „Antwort da“ melden, BEVOR `laedt` fällt — die Seite zeigt die
+    // Karte erst mit einer Antwort und blendet sie nie vorher ein (kein
+    // Aufblitzen bei 403).
+    emit('gesperrt', false, true)
   } catch (e) {
     // 403 = der Server gibt dieser Person keine verwaltbaren Kalender. Das ist
     // kein Fehler, sondern eine Lage: die Karte hat hier nichts zu zeigen und
@@ -316,12 +333,17 @@ async function verwaltungLaden({ still = false } = {}) {
       // UI-R2c: der 403 ist eine LAGE der ganzen Karte — nicht nur des Inhalts.
       // Die Karte „Kalender der Gruppe“ gehört der Seite (GruppeDetail.vue);
       // ohne diesen Ruf bliebe dort eine leere Fläche mit Titel stehen.
-      emit('gesperrt', true)
+      // UI-R2d: der Ruf trägt jetzt mit, OB schon eine Antwort da ist (`false`)
+      // — die Seite zeigt die Karte erst dann (kein Aufblitzen).
+      emit('gesperrt', true, false)
       return
     }
     // Jeder andere Fehler: die Karte bleibt stehen (sie zeigt ihren Hinweis).
+    // UI-R2e: und die Antwort GILT als Antwort (`true`) — sonst hielte die
+    // Seite den Inhalt versteckt und der Hinweis „Kalender nicht geladen“
+    // wäre nie zu sehen. Ein Fehler ist ein Ergebnis, kein Schweigen.
     fehler.value = sichererFehlertext(e, { text: 'Die Kalender konnten nicht geladen werden.' })
-    emit('gesperrt', false)
+    emit('gesperrt', false, true)
   } finally {
     laedt.value = false
   }
@@ -383,13 +405,18 @@ async function freigabeSetzen({ objekt, art, kennung, lesen, schreiben, moderier
   const schluessel = busySchluessel('freigabe', objekt, art, kennung)
   if (busy.value) return
   busy.value = schluessel
+  // UI-R2e: `null` = noch keine Aussage. Erst das Ergebnis sagt, ob die
+  // Gruppenauswahl im Rechte-Baustein geleert werden darf.
+  freigabeGeklappt.value = null
   try {
     await apiCall(`${RECHTS}.setze_freigabe`, freigabeAnfrage({ objekt, art, kennung, lesen, schreiben, moderieren }))
+    freigabeGeklappt.value = true
     const entfernt = !lesen && !schreiben && !moderieren
     await rechteNachladen(objekt, entfernt ? 'Freigabe entfernt — gilt sofort.' : 'Freigabe gespeichert — gilt sofort.')
   } catch (e) {
     // 403 beim „Moderieren“ (nur HV/MV) und 417 bei unzulässigen Werten
     // kommen als Fachsatz des Servers — zeigen, nichts lokal entscheiden.
+    freigabeGeklappt.value = false
     showToast(sichererFehlertext(e, { text: 'Das Speichern hat nicht geklappt.' }), 'error')
     await rechteLaden(objekt)
   } finally {

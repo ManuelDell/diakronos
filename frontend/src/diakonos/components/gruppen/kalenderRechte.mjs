@@ -375,6 +375,51 @@ export function anlegeAnfrage({ titel, farbe = '', ziel = null, standardGruppeLe
 }
 
 /**
+ * Der Stand einer Zeile auf dem Handy — was steht NEBEN welchem Kästchen?
+ *
+ * Zwei Dinge hängen hier zusammen, und beide lassen sich ohne Browser prüfen:
+ *
+ *   `felder`  je gezeigter Stufe ein Eintrag. Eine Stufe, die die Zeile NICHT
+ *             trägt, bekommt `null` — kein unsichtbares Feld. Vorher stand für
+ *             sie ein leeres `<label>` in der Reihe: es trug Breite und
+ *             Abstand, das nächste Kästchen rückte weg von seinem Wort, und
+ *             vor „Entfernen“ blieb ein Loch (UI-R2d, Punkt 4).
+ *
+ *             `wort` ist die Beschriftung NEBEN dem Kästchen — das Wort steht
+ *             damit IN demselben `<label>` wie sein Kästchen, nicht am
+ *             Reihenende.
+ *
+ *   `gesperrt` ist die Stufe bedienbar (siehe `zeileGesperrt` des Bausteins)?
+ *
+ * @param {{moderieren?: boolean}} zeile
+ * @param {string[]} stufen  gezeigte Stufen in Anzeige-Reihenfolge
+ * @param {{darf_moderieren_vergeben?: boolean, nurAnzeigen?: boolean}} lage
+ * @param {(stufe: string) => boolean} [gesperrt]  Sperre je Stufe (vom Baustein)
+ * @returns {{felder: Array<null|{stufe: string, wort: string, gesperrt: boolean}>, gesperrt: boolean}}
+ */
+export function handyStufen(zeile = {}, stufen = [], lage = {}, gesperrt = () => false) {
+  const knoepfe = freigabeKnoepfe({
+    darf_moderieren_vergeben: lage?.darf_moderieren_vergeben,
+    art: zeile?.art,
+  })
+  // Dieselbe Regel wie im Baustein (`stufeDerZeile`): „Moderieren“ steht nur,
+  // wenn die Zeile es trägt oder vergeben werden darf.
+  const traegt = (stufe) => stufe !== 'moderieren'
+    || Boolean(zeile?.moderieren) || knoepfe.modus
+  const felder = (Array.isArray(stufen) ? stufen : []).map((stufe) => {
+    if (!traegt(stufe)) return null
+    return {
+      stufe,
+      wort: stufe === 'lesen' ? 'Lesen' : (stufe === 'schreiben' ? 'Schreiben' : 'Moderieren'),
+      gesperrt: Boolean(lage?.nurAnzeigen) || Boolean(gesperrt(stufe)),
+    }
+  })
+  // UI-R2e: die Rückgabe trägt NUR die Felder — das frühere `gesperrt` auf
+  // oberster Ebene las niemand (die Zeilensperre entscheidet der Baustein).
+  return { felder }
+}
+
+/**
  * Die Anfrage an `rechte.setze_freigabe` — genau eine Kennung.
  *
  * Alles `false` entfernt die Freigabe (Serverregel). „Moderieren“ wird IMMER

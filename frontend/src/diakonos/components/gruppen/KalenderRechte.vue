@@ -44,20 +44,24 @@
               <DkBadge variant="neutral">{{ z.art === 'gruppe' ? 'Gruppe' : 'Person' }}</DkBadge>
             </div>
             <div class="kr-zeile-stufen">
-              <label v-for="stufe in gezeigteStufen" :key="stufe" class="kr-stufe-feld">
-                <template v-if="stufeDerZeile(z, stufe)">
+              <!-- UI-R2d: je Stufe ein `<label>`, das sein Kästchen UND sein
+                   Wort umschließt (Wort direkt daneben). Eine Stufe, die die
+                   Zeile nicht trägt, bekommt KEIN Feld — kein leerer Platz in
+                   der Reihe (`handyStufen`). -->
+              <template v-for="(feld, i) in stufenFelderDerZeile(z, gezeigteStufen)" :key="i">
+                <label v-if="feld" class="kr-stufe-feld">
                   <DkCheckbox
-                    :model-value="Boolean(z[stufe])"
-                    :aria-label="`${z.anzeige}: ${stufeLabel(stufe)}`"
-                    :disabled="zeileGesperrt(z, stufe)"
-                    @update:model-value="(wert) => stufeSetzen(z, stufe, wert)"
+                    :model-value="Boolean(z[feld.stufe])"
+                    :aria-label="`${z.anzeige}: ${feld.wort}`"
+                    :disabled="feld.gesperrt"
+                    @update:model-value="(wert) => stufeSetzen(z, feld.stufe, wert)"
                   />
-                  <span class="kr-stufe-wort">{{ stufeLabel(stufe) }}</span>
-                </template>
+                  <span class="kr-stufe-wort">{{ feld.wort }}</span>
+                </label>
                 <!-- UI-R2c: die Zeile trägt die Stufe nicht — dann steht auch in
                      der Liste KEIN Kästchen (kein „Moderieren“ zum Ankreuzen,
                      das die Zeile gar nicht hat). -->
-              </label>
+              </template>
             </div>
             <button
               v-if="!nurAnzeigen && lageDerZeile(z).entfernen"
@@ -157,11 +161,12 @@
               aria-label="Gruppe für eine Freigabe wählen"
               :options="gruppenOptionen"
               placeholder="Gruppe wählen …"
+              :disabled="!gruppenWahlOffen"
             />
             <DkButton
               variant="secondary"
               size="md"
-              :disabled="!gruppenWahl || gruppeLaeuft"
+              :disabled="!gruppenWahl || gruppeLaeuft || irgendwasLaeuft"
               :loading="gruppeLaeuft"
               @click="gruppeHinzufuegen"
             >Gruppe freigeben</DkButton>
@@ -237,7 +242,7 @@
  * `false` — einen Rückfall aus den Rollen der Seite gibt es nicht mehr
  * (UI-R2c: die Prop `darfModerieren` war ein solcher Rückfall und ist tot).
  */
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import DkBadge from '../ui/DkBadge.vue'
 import DkButton from '../ui/DkButton.vue'
 import DkCheckbox from '../ui/DkCheckbox.vue'
@@ -257,6 +262,7 @@ import {
   freigabeKnoepfe,
   freigabeZeilen,
   freigabeZeilenLage,
+  handyStufen as handyStufenBauen,
   sichtbarkeitKnoepfe,
 } from './kalenderRechte.mjs'
 
@@ -275,6 +281,14 @@ const props = defineProps({
   fehler: { type: String, default: '' },
   /** Laufende Aktion (Schlüssel aus `busySchluessel`) — sperrt genau diese Zeile. */
   busy: { type: String, default: '' },
+  /**
+   * UI-R2e: Ist die letzte Aktion DURCHGEGANGEN? `null` = noch keine Aussage
+   * (oder gerade keine). Bezogen auf die Gruppenfreigabe: bei `false` bleibt
+   * die gewählte Gruppe nach dem Fehlschlag stehen, bei `true`/`null` wird
+   * sie geleert. Ohne dieses Feld müsste die Person die Gruppe nach jedem
+   * 403/417 neu heraussuchen.
+   */
+  freigabeGeklappt: { type: Boolean, default: null },
   /** Auswahlliste der (Unter-)Gruppen: [{ name, anzeigename }]. */
   gruppen: { type: Array, default: () => [] },
   /** Personen für die Suche: (suche) => Promise<[{ benutzer, name }]>. */
@@ -373,23 +387,80 @@ function stufeDerZeile(z, stufe) {
   return stufe !== 'moderieren' || Boolean(z.moderieren) || lageDerZeile(z).modus
 }
 
+/**
+ * Die Felder einer Handy-Zeile — je gezeigter Stufe eines oder `null`.
+ *
+ * (Eigener Name: `handyStufen` ist bereits der Import — ein gleichnamiger
+ * lokaler Name wird in der Vorlage NICHT aufgelöst, die Schleife bliebe leer.)
+ *
+ * Die Sperre kommt aus DIESEM Baustein (`zeileGesperrt`), die Reihenfolge aus
+ * `gezeigteStufen`; die Anordnung (Wort neben seinem Kästchen, kein leeres
+ * Feld) steht in `handyStufen` (kalenderRechte.mjs) und ist dort ohne Browser
+ * prüfbar.
+ */
+function stufenFelderDerZeile(z, stufen) {
+  return handyStufenBauen(z, stufen, {
+    darf_moderieren_vergeben: darfModerierenVergeben.value,
+    nurAnzeigen: props.nurAnzeigen,
+  }, (stufe) => zeileGesperrt(z, stufe)).felder
+}
+
 /** Die EINEN Schlüssel der laufenden Aktion (gleiches Format wie die Karte). */
 function freigabeSchluessel(z) {
   return busySchluessel('freigabe', props.kalender, z.art, z.kennung)
 }
 const standardSchluessel = computed(() => busySchluessel('standard', props.kalender))
 /**
- * „Gruppe freigeben“ läuft als ganz normale Freigabe-Anfrage der gewählten
- * Gruppe (`freigabeSetzen` in der Karte setzt `busySchluessel('freigabe',
- * objekt, 'gruppe', kennung)`). UI-R2c: der Knopf las vorher
- * `freigabe-<kal>-gruppe` — dieser Wert wird NIE gesetzt, der Ladezustand
- * erschien also nie. Jetzt derselbe Bauplan wie beim Senden.
+ * Die gewählte Gruppe, deren Freigabe gerade LÄUFT.
+ *
+ * UI-R2c: der Knopf las den Schlüssel aus `gruppenWahl` — `gruppeHinzufuegen()`
+ * leerte die Wahl aber sofort nach dem `emit`, also war der Schlüssel während
+ * der Anfrage leer und der Ladezustand erschien nie (Review UI-R2c, MUSS 1).
+ * UI-R2d: darum ein eigenes `ref` — es merkt sich die abgeschickte Gruppe und
+ * wird erst geleert, wenn `busy` wieder frei ist (der Knopf bleibt so lange
+ * gesperrt). Der Schlüssel ist derselbe Bauplan wie beim Senden:
+ * `busySchluessel('freigabe', objekt, 'gruppe', kennung)`.
  */
-const gruppeSchluessel = computed(() => (gruppenWahl.value
-  ? busySchluessel('freigabe', props.kalender, 'gruppe', gruppenWahl.value)
+const gesendeteGruppe = ref('')
+const gruppeSchluessel = computed(() => (gesendeteGruppe.value
+  ? busySchluessel('freigabe', props.kalender, 'gruppe', gesendeteGruppe.value)
   : ''))
 /** Läuft gerade DIE Gruppen-Freigabe (Knopf sperrt/zeigt „lädt“)? */
-const gruppeLaeuft = computed(() => Boolean(gruppeSchluessel.value && props.busy === gruppeSchluessel.value))
+const gruppeLaeuft = computed(() => Boolean(gruppeSchluessel.value
+  && (props.busy === gruppeSchluessel.value
+    // Zwischen Klick und erster Antwort trägt die Karte noch keinen Schlüssel
+    // (`busy` setzt sie im selben Zug). Ohne diese Bedingung wäre der Knopf
+    // für einen Wimpernschlag bedienbar — genau das Fenster des Doppelklicks.
+    || !props.busy)))
+/**
+ * Die Auswahl lässt sich ändern, solange keine Freigabe läuft.
+ *
+ * UI-R2e: auch NICHT, während eine FREMDE Aktion läuft (`busy` gesetzt, aber
+ * nicht der Gruppen-Schlüssel). Sonst ließe sich eine Gruppe wählen, deren
+ * Freigabe `freigabeSetzen` mit `if (busy.value) return` still verwarf.
+ *
+ * `props.busy` ausdrücklich über `props` (nicht über den nackten Namen): im
+ * Template würde `busy` sonst die gleichnamige `ref` des Bausteins treffen.
+ */
+const gruppenWahlOffen = computed(() => !gruppeLaeuft.value && !props.busy)
+/** Läuft irgendeine Aktion dieser Fläche (auch eine fremde)? */
+const irgendwasLaeuft = computed(() => Boolean(props.busy))
+
+watch(() => props.busy, (wert, vorher) => {
+  // Die Antwort ist da (oder die Aktion abgebrochen): Platz für die nächste
+  // Gruppe. Ein Fehlschlag räumt `busy` in der Karte ebenfalls ab.
+  //
+  // UI-R2e: Geleert wird die Auswahl NUR, wenn die Gruppenfreigabe
+  // durchging. Scheiterte sie (403/417/Netz), bleibt die gewählte Gruppe
+  // stehen — sonst müsste die Person sie nach jedem Fehlschlag neu suchen,
+  // obwohl sie dasselbe noch einmal versuchen will.
+  if (!wert && gesendeteGruppe.value) {
+    const geklappt = props.freigabeGeklappt !== false
+    gesendeteGruppe.value = ''
+    if (geklappt) gruppenWahl.value = ''
+  }
+  void vorher
+})
 function sichtbarkeitSchluessel(ziel) {
   return busySchluessel('sichtbarkeit', props.kalender, ziel)
 }
@@ -404,6 +475,8 @@ function sichtbarkeitSchluessel(ziel) {
  */
 function zeileGesperrt(z, stufe = '') {
   if (props.nurAnzeigen) return true
+  // UI-R2d: die Sperre der ABGESCHICKTEN Gruppe hängt nicht mehr an der Auswahl
+  // (`gruppeSchluessel` bleibt während der Anfrage gesetzt, s. o.).
   if (props.busy && (props.busy === freigabeSchluessel(z) || props.busy === gruppeSchluessel.value)) return true
   if (stufe === 'moderieren') return !lageDerZeile(z).modus
   // UI-R2c: „Lesen“ einer Zeile MIT Prüfrecht ist ohne Vergaberecht gesperrt.
@@ -481,9 +554,13 @@ function stufeSetzen(zeile, stufe, wert) {
   // aber nur, wenn es nicht ohnehin gesperrt ist: ohne Vergaberecht ist das
   // Lesen-Häkchen einer moderierenden Zeile nicht bedienbar (`zeileGesperrt`),
   // weil der SERVER bei `moderieren=True` immer `lesen=True` mitsetzt (R-12p):
-  // ein Lesen=false käme dort nie an. MIT Vergaberecht bleibt der Wert beim
-  // bisherigen Stand — entziehen ist eine eigene Handlung (der Server prüft
-  // sie), und das Lesen einer moderierenden Zeile lässt die Zeile stehen.
+  // ein Lesen=false käme dort nie an. MIT Vergaberecht bleibt `nachher` beim
+  // bisherigen Stand von „Moderieren“ — und `freigabeFelder`
+  // (kalenderRechte.mjs) sendet `moderieren = neu.moderieren && lesen`.
+  // Folge: „Lesen“ abhaken auf einer moderierenden Zeile entfernt die GANZE
+  // Zeile (lesen=false UND moderieren=false) — kein liegen bleibendes
+  // Prüfrecht ohne Lesen. Wer nur das Prüfrecht wegnehmen will, hakt
+  // „Moderieren“ ab, nicht „Lesen“.
   if (stufe === 'lesen' && !wert) {
     nachher.schreiben = false
     if (!darfModerierenVergeben.value) nachher.moderieren = false
@@ -510,9 +587,20 @@ function personHinzufuegen(person) {
   })
 }
 
-/** Gruppe aus der Liste hinzufügen. */
+/**
+ * Gruppe aus der Liste hinzufügen.
+ *
+ * UI-R2d: die Wahl wird NICHT mehr sofort geleert. Der Ladezustand des Knopfes
+ * hängt an der abgeschickten Gruppe (`gesendeteGruppe`), und die Auswahl bleibt
+ * während der Anfrage stehen (gesperrt) — so sieht man, WELCHE Gruppe gerade
+ * freigegeben wird. Geleert wird sie erst, wenn `busy` wieder frei ist (watch
+ * oben). Vorher war `gruppenWahl` direkt nach dem `emit` leer: der Schlüssel
+ * fiel weg, der Knopf zeigte nie „lädt“ und ein zweiter Klick sendete doppelt.
+ */
 function gruppeHinzufuegen() {
+  if (gruppeLaeuft.value) return
   if (!gruppenWahl.value || props.nurAnzeigen) return
+  gesendeteGruppe.value = String(gruppenWahl.value)
   emit('freigabe-setzen', {
     objekt: props.kalender,
     art: 'gruppe',
@@ -521,7 +609,6 @@ function gruppeHinzufuegen() {
     schreiben: false,
     moderieren: false,
   })
-  gruppenWahl.value = ''
 }
 
 /** Ja/Nein der Anlege-Frage umschalten. */
@@ -588,6 +675,13 @@ function standardUmschalten() {
 .kr-zeile-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
 .kr-zeile-stufen { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
 .kr-stufe-feld { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--muted); }
+/* UI-R2d: Das ÄUSSERE Label trägt kein Kästchen als direktes Kind (das sitzt
+   im DkCheckbox-Label) — die Regel `label:has(> input[type=checkbox])` in
+   index.css (Trefferfläche ≥ 44 px, Handy) greift für die INNERE Reihe des
+   DkCheckbox und verteilt deren 44 px Mindestbreite als gap zwischen Kästchen
+   und Wort (gemessen: 36 px statt 8 px). Die Trefferfläche bleibt: das äußere
+   Label umschließt Kästchen und Wort. */
+.kr-stufe-feld .dk-ui-checkbox { gap: 0; min-width: 0; }
 .kr-leer {
   display: flex;
   flex-wrap: wrap;

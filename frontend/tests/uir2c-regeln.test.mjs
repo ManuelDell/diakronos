@@ -25,6 +25,7 @@ const WURZEL = new URL('../src/diakonos/', import.meta.url)
 const lies = (p) => readFileSync(new URL(p, WURZEL), 'utf8')
 const RECHTE = lies('components/gruppen/KalenderRechte.vue')
 const KALENDERDATEI = lies('components/gruppen/KalenderEinstellungen.vue')
+const REGELN = lies('components/gruppen/kalenderRechte.mjs')
 const skriptVon = (text) => text.slice(text.indexOf('<script'), text.indexOf('</script>'))
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -109,4 +110,32 @@ test('UI-R2c/P7: die Rückfall-Prop `darfModerieren` ist samt Doku entfernt', ()
   assert.ok(!/Rückfall für „Moderieren“/.test(skript), 'die Doku zur Prop steht noch da')
   // Und die Karte reicht sie nicht mehr durch.
   assert.ok(!/darf-moderieren=/.test(KALENDERDATEI), 'die Karte reicht die Prop noch durch')
+})
+
+// ══════════════════════════════════════════════════════════════════════════
+// P8 (UI-R2d) · der Kommentar zu „Lesen abhaken“ sagt die Wahrheit
+// ══════════════════════════════════════════════════════════════════════════
+
+test('UI-R2d/P8: der Kommentar zum Lesen-Häkchen beschreibt die Folge richtig', () => {
+  // MUSS 2: der alte Kommentar behauptete, das Lesen einer moderierenden Zeile
+  // lasse die Zeile STEHEN. Das ist falsch: `freigabeFelder` (kalenderRechte.mjs)
+  // sendet `moderieren = neu.moderieren && lesen` — mit lesen=false fällt
+  // „Moderieren“ mit, und alles-false ENTFERNT die Zeile (Serverregel).
+  const quelle = RECHTE
+  // Der Kommentar steht ÜBER der Funktion — also ab dem Doc-Block davor.
+  const skript = quelle.slice(quelle.indexOf('/** Ein Kästchen umschalten'), quelle.indexOf('function freigabeEntfernen'))
+  assert.ok(!/lässt die Zeile stehen/.test(skript),
+    'der falsche Satz („lässt die Zeile stehen“) steht noch im Kommentar')
+  assert.ok(!/entziehen ist eine eigene Handlung/.test(skript),
+    'die alte, irreführende Begründung steht noch im Kommentar')
+  assert.match(skript, /moderieren = neu\.moderieren && lesen/,
+    'der Kommentar nennt die Regel aus `freigabeFelder` nicht')
+  // Der Satz bricht im Quelltext um — „// “ steht zwischen den Wörtern.
+  assert.match(skript, /GANZE[\s/]+Zeile/,
+    'der Kommentar sagt nicht, dass die Zeile dabei ganz wegfällt')
+
+  // Gegenprobe an der QUELLE der Regel: `freigabeFelder` hängt „Moderieren“ an
+  // „Lesen“. Bleibt das so, stimmt der Kommentar.
+  assert.match(ohneKommentare(REGELN), /moderieren = Boolean\(lage\?\.darf_moderieren_vergeben\)[\s\S]{0,80}&& felder\.lesen/,
+    'die Regel `moderieren = neu.moderieren && lesen` ist nicht mehr da — der Kommentar wäre wieder falsch')
 })
