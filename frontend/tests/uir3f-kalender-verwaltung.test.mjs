@@ -167,6 +167,20 @@ async function stand() {
   return modul
 }
 
+/**
+ * Der Weg des BESITZERS: einen Seitenbesuch beginnen und EINE Antwort holen —
+ * die Antwort der Attrappe (`__uiR3fMock`) landet damit im geteilten Stand.
+ * Ersetzt das frühere `teilen()`, das es seit UI-R3g nicht mehr gibt.
+ */
+async function besitzerLadung(geteilt, antwort) {
+  const vorher = ueberschreibungen
+  ueberschreibungen = { 'get_kalender_verwaltung$': antwort }
+  geteilt.aktuellerSatz()
+  const stand = await geteilt.laden()
+  ueberschreibungen = vorher
+  return stand
+}
+
 test.after(() => rmSync(TMP, { recursive: true, force: true }))
 test.afterEach(async () => {
   const { bestaetigungAntwort } = await import('../src/diakonos/composables/useBestaetigen.js')
@@ -238,13 +252,16 @@ test('UI-R3f/R1: geteilter Stand „Alt“, Server „Neu“ — die Verwaltungs
   // auf diesem Seitenbesuch gar nicht gefragt.
   const geteilt = await stand()
   geteilt.__leeren()
-  geteilt.teilen({
+  // Vorbedingung „geteilter Stand steht auf Alt“: über den EINEN Weg des
+  // Besitzers (Satz + Ladung) — `teilen()` gibt es seit UI-R3g nicht mehr.
+  await besitzerLadung(geteilt, {
     kalender: [kalender({ name: 'Alt', titel: 'Alte Liste' })],
     anlegen_gruppen: ['G-Chor'], anlegen_untergruppen: [], darf_gemeinde_kalender: false,
   })
   assert.equal(geteilt.useKalenderVerwaltung().antwortDa.value, true, 'Vorbedingung: geteilter Stand gefüllt')
 
   const tor = schleuse()
+  aufrufe.length = 0
   ueberschreibungen = {
     'get_kalender_verwaltung$': () => tor.versprechen,
   }
@@ -291,7 +308,7 @@ test('UI-R3f/R2: Kalenderseite lädt frisch, die Leiste liest — EIN Aufruf, �
   // frisch, die Leiste mountet dazu und liest nur.
   const geteilt = await stand()
   geteilt.__leeren()
-  geteilt.teilen({
+  await besitzerLadung(geteilt, {
     kalender: [kalender({ name: 'Alt', titel: 'Alte Liste' })],
     anlegen_gruppen: ['G-Chor'], anlegen_untergruppen: [], darf_gemeinde_kalender: false,
   })
@@ -344,18 +361,22 @@ test('UI-R3f/R2b: Kalender.vue verlangt beim Aufbau eine FRISCHE Antwort (nicht 
   const quelle = lies('pages/Kalender.vue')
   const aufruf = quelle.match(/async function kalenderVerwaltungLaden\(\)[\s\S]*?\n\}/)
   assert.ok(aufruf, '`kalenderVerwaltungLaden` fehlt in pages/Kalender.vue')
-  assert.match(aufruf[0], /ladenKalenderVerwaltung\(\{\s*frisch:\s*true\s*\}\)/,
-    'pages/Kalender.vue lädt beim Aufbau nicht frisch: ' + aufruf[0].replace(/\s+/g, ' ').slice(0, 300))
+  // UI-R3g: `laden()` holt immer NEU (den Weg „nimm den alten Stand“ gibt es
+  // nicht mehr); `frisch` darf hier nicht mehr verlangt werden.
+  assert.match(aufruf[0], /ladenKalenderVerwaltung\(\s*\)/,
+    'pages/Kalender.vue lädt beim Aufbau nicht über den einen (frischen) Weg: '
+      + aufruf[0].replace(/\s+/g, ' ').slice(0, 300))
 
   // Und gemessen: derselbe Aufruf (frisch) holt bei vorhandener Antwort NEU —
   // genau eine Anfrage, der Stand ist danach der frische.
   const geteilt = await stand()
   geteilt.__leeren()
-  geteilt.teilen({ kalender: [kalender({ name: 'Alt', titel: 'Alte Liste' })] })
+  await besitzerLadung(geteilt, { kalender: [kalender({ name: 'Alt', titel: 'Alte Liste' })] })
   ueberschreibungen = {
     'get_kalender_verwaltung$': { kalender: [kalender({ name: 'Neu', titel: 'Neue Liste' })] },
   }
-  const stand2 = await geteilt.laden({ frisch: true })
+  aufrufe.length = 0
+  const stand2 = await geteilt.laden()
   assert.equal(mit('get_kalender_verwaltung$').length, 1, 'die frische Ladung löste keine Anfrage aus')
   assert.deepEqual(stand2?.kalender?.map((k) => k.name), ['Neu'], 'die frische Ladung lieferte den alten Stand')
 })

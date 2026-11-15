@@ -230,7 +230,14 @@ test('UI-R3e/R1: „Kein Kalender zu verwalten“ erscheint nicht, wenn der gete
   // eigene Antwort eintraf. Genau dieser Weg (geteilter Stand gefüllt, dann
   // Seite mounten) wird hier nachgestellt — OHNE `__leeren()`.
   const geteilt = await stand()
-  geteilt.teilen({ kalender: [kalender({ name: 'X', titel: 'X' })], anlegen_gruppen: [], anlegen_untergruppen: [], darf_gemeinde_kalender: false })
+  // Vorbedingung über den EINEN Weg des Besitzers (Satz + Ladung) — das
+  // frühere `teilen()` gibt es seit UI-R3g nicht mehr.
+  ueberschreibungen = {
+    'get_kalender_verwaltung$': { kalender: [kalender({ name: 'X', titel: 'X' })], anlegen_gruppen: [], anlegen_untergruppen: [], darf_gemeinde_kalender: false },
+  }
+  geteilt.aktuellerSatz()
+  await geteilt.laden()
+  ueberschreibungen = {}
   assert.equal(geteilt.useKalenderVerwaltung().antwortDa.value, true, 'Vorbedingung: geteilter Stand gefüllt')
 
   // UI-R3f: Hier geht SEHR WOHL eine Anfrage raus — die Verwaltungsseite lädt

@@ -153,6 +153,7 @@
            dieses Feld; „Hilfe & Infos“ steht im „⋯“-Menü. -->
       <KronosSidebar
         ref="sidebarRef"
+        :darf-verwalten="darfKalenderVerwalten"
         class="kronos-sidebar-inpage"
         :class="{ open: kronosSidebar.offen.value, 'dk-kalenderliste-overlay': listeAlsOverlay }"
         :open="kronosSidebar.offen.value"
@@ -375,7 +376,18 @@ import {
 import { eingeblendeteZahl } from '../components/kronos/kalenderKopf.mjs'
 // UI-R3c: EIN Ladevorgang für `get_kalender_verwaltung` je Seite — diese Seite
 // (⋯-Menü) und die Kalenderliste (`KronosSidebar.vue`) lesen denselben Stand.
-import { laden as ladenKalenderVerwaltung, useKalenderVerwaltung } from '../composables/useKalenderVerwaltung.js'
+//
+// UI-R3g (MUSS 1): Zusätzlich der SATZ des Seitenbesuchs. Der geteilte Stand
+// trägt beim erneuten Besuch noch die Antwort des vorigen — „Kalender
+// verwalten“ stand daraus in Leiste und ⋯-Menü, bis die frische Antwort da
+// war. Jetzt gehört der Eintrag zum Satz: ohne Antwort DIESES Besuchs steht er
+// nicht (weder hier noch in der Leiste).
+import {
+  aktuellerSatz,
+  laden as ladenKalenderVerwaltung,
+  ueberholt,
+  useKalenderVerwaltung,
+} from '../composables/useKalenderVerwaltung.js'
 // Review 07.11. Punkt 10: EINE Layout-Grenze (720 px) — auch im Skript.
 // DEV-B6 (Review-Nacharbeit 10.11.): Das Handy-Gerüst der Seite hängt an der
 // EINEN Handy-Lage der App (`composables/handyLage.mjs`). `istHandyBreite`
@@ -552,19 +564,50 @@ const istKalenderAdmin = computed(() => kalenderAdmin(benutzerKontext.value))
 // (⋯-Menü), Kalenderliste (`KronosSidebar.vue`, liest denselben Stand) und die
 // Verwaltungsseite danach hängen daran. Vorher fragten Seite und Leiste je
 // einmal; war die eine Antwort schon da, ging die zweite trotzdem raus.
-const { verwaltung: kalenderVerwaltung } = useKalenderVerwaltung()
-const darfKalenderVerwalten = computed(() => kalenderVerwaltungSichtbar(
-  kalenderVerwaltung.value,
-) === true)
+//
+// UI-R3g (MUSS 1a+b): Der Satz des Besuchs steigt HIER im Aufbau, nicht erst in
+// `onMounted`: Leiste und ⋯-Menü werten den geteilten Stand schon beim Aufbau
+// aus — stiege der Satz später, stünden sie für einen Moment mit der Antwort
+// des vorigen Besuchs da. Die Anfrage selbst startet in `onMounted` (parallel
+// zu `fetchAccessibleCalendars`); der Satz wird EINMAL vergeben.
+const verwaltungSatzEigene = aktuellerSatz()
+const {
+  verwaltung: kalenderVerwaltung,
+  saet: kalenderVerwaltungSatz,
+} = useKalenderVerwaltung()
+/** Ist die Antwort DIESES Besuchs übernommen? */
+const verwaltungEigeneAntwortDa = ref(false)
+/**
+ * Der Eintrag zeigt nur die Antwort, die zu DIESEM Besuch gehört — die eigene,
+ * unter unserem Satz geschrieben. Vor UI-R3g las die Seite (und mit ihr das
+ * ⋯-Menü) den geteilten Stand ohne diese Bedingung: beim erneuten Besuch
+ * stand „Kalender verwalten“ daraus, bis die frische Antwort eintraf — auch
+ * wenn das Recht inzwischen entzogen war.
+ */
+const verwaltungAntwortGehoertZuDiesemBesuch = computed(() => (
+  kalenderVerwaltungSatz.value === verwaltungSatzEigene
+  && verwaltungEigeneAntwortDa.value === true
+))
+const darfKalenderVerwalten = computed(() => verwaltungAntwortGehoertZuDiesemBesuch.value
+  && kalenderVerwaltungSichtbar(kalenderVerwaltung.value) === true)
 
 async function kalenderVerwaltungLaden() {
   // UI-R3f (MUSS 1): Diese Seite ist der BESITZER des Endpunkts und lädt beim
-  // Aufbau FRISCH. Ohne `frisch` gäbe der geteilte Lader bei vorhandener
-  // Antwort sofort den ALTEN Stand zurück (SPA-Wechsel ohne Neuladen) — ein
-  // während der Sitzung gegebenes oder genommenes Recht änderte „Verwalten“
-  // dann erst nach einem vollen Neuladen. Die Leiste liest weiter nur den
-  // reaktiven Stand, also bleibt es bei EINER Anfrage je Seitenbesuch.
-  await ladenKalenderVerwaltung({ frisch: true })
+  // Aufbau. Seit UI-R3g holt `laden()` immer FRISCH (den Weg „nimm den alten
+  // Stand“ gibt es nicht mehr) — ein während der Sitzung gegebenes oder
+  // genommenes Recht wirkt damit auf jedem Seitenbesuch. Die Leiste liest
+  // weiter nur den reaktiven Stand, also bleibt es bei EINER Anfrage.
+  //
+  // UI-R3g (MUSS 1a): Der Satz entsteht VOR der Anfrage — ab dem ersten Bild
+  // dieses Besuchs ist der Eintrag damit aus (er gehört zur Antwort des
+  // vorigen Besuchs). Die Anfrage startet in `onMounted` PARALLEL zu
+  // `store.fetchAccessibleCalendars`; es bleibt EINE Anfrage je Besuch.
+  verwaltungEigeneAntwortDa.value = false
+  const stand = await ladenKalenderVerwaltung()
+  // UI-R3g (SOLL 4): eine ÜBERHOLTE Ladung übernimmt nichts — sie könnte
+  // älter sein als der geteilte Stand.
+  if (ueberholt(stand)) return
+  verwaltungEigeneAntwortDa.value = true
 }
 async function benutzerKontextLaden() {
   try {
@@ -1481,10 +1524,14 @@ onMounted(async () => {
   // ins Leere, weil der Zuhörer erst nach den Netzaufrufen entstand.
   window.addEventListener('keydown', listeTaste)
   leistenLageLesen()
+  // UI-R3g (MUSS 1a): Die Verwaltung startet VOR dem Await auf die
+  // Kalenderliste und läuft PARALLEL dazu. Vorher begann sie erst danach —
+  // bis dahin stand „Kalender verwalten“ aus dem Stand des vorigen Besuchs in
+  // Leiste und ⋯-Menü. Es bleibt EINE Anfrage je Seitenbesuch.
+  kalenderVerwaltungLaden()
   await store.fetchAccessibleCalendars()
   offeneZahlLaden()
   benutzerKontextLaden()
-  kalenderVerwaltungLaden()
   // A10: persönliche Standard-Ansicht (je Benutzer) lesen und anwenden —
   // am Handy beginnt die Seite damit (ohne eigene Wahl: „Liste“).
   standardLaden()

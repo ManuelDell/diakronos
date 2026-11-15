@@ -1,22 +1,26 @@
 /**
- * UI-R3c — EIN Ladevorgang für `get_kalender_verwaltung`.
+ * UI-R3c/UI-R3g — EIN Ladevorgang für `get_kalender_verwaltung`.
  *
- * BEFUND (Karte UI-R3c, MUSS 2): Auf der Kalenderseite fragten `Kalender.vue`
+ * WARUM ES DIESE DATEI GIBT: Auf der Kalenderseite fragten `Kalender.vue`
  * (für das ⋯-Menü) und `KronosSidebar.vue` (für ihren Menüpunkt) denselben
- * Endpunkt — zwei Anfragen mit derselben Antwort je Seitenaufbau; auf der
- * Verwaltungsseite fragten `KalenderVerwaltung.vue` und die gemeinsame Fläche
- * `KalenderEinstellungen.vue`. Zwei Antworten können ausserdem auseinander
- * fallen (die eine ist älter), und die zweite Anfrage kostet Zeit, in der die
- * Menüpunkte noch fehlen.
+ * Endpunkt; auf der Verwaltungsseite taten es `KalenderVerwaltung.vue` und die
+ * gemeinsame Fläche `KalenderEinstellungen.vue` (UI-R3c, MUSS 2). Zwei
+ * Antworten können auseinander fallen, und die zweite Anfrage kostet Zeit, in
+ * der die Menüpunkte noch fehlen.
  *
- * REGEL: Diese Datei ist die EINE Stelle, die den Endpunkt ruft. Alle Anzeigen
- * lesen denselben Stand und dieselbe laufende Anfrage:
+ * REGEL: Diese Datei ist die EINE Stelle, die den Endpunkt ruft. Je
+ * Seitenbesuch fragt genau EIN Besitzer — `pages/Kalender.vue` bzw.
+ * `pages/KalenderVerwaltung.vue` — mit `laden()`; alle Anzeigen lesen nur den
+ * reaktiven Stand:
  *
- *   const { verwaltung, antwortDa, sperrt, laden, teilen } = useKalenderVerwaltung()
- *   laden()          holt (oder nimmt die laufende Anfrage) und setzt den Stand
- *   teilen(antwort)  übernimmt eine Antwort, die der Aufrufer selbst geholt
- *                    hat (die Verwaltungsseite braucht sie auch für die
- *                    Anlegeorte) — ohne zweite Anfrage
+ *   const { verwaltung, antwortDa, sperrt, fehler, saet } = useKalenderVerwaltung()
+ *   laden()                   holt eine frische Antwort und schreibt den Stand
+ *
+ * Es gibt KEINEN zweiten Weg mehr (UI-R3g, SOLL 3): `teilen()` (eine vom
+ * Aufrufer geholte Antwort einspeisen) und der nicht-frische Zweig von
+ * `laden()` („nimm die laufende Anfrage, oder die Antwort ist schon da“)
+ * hatten keinen Betriebsaufruf. Jeder Aufruf holt NEU — der Stand trägt immer
+ * die Antwort eines Besitzers.
  *
  * `verwaltung` ist `null`, solange keine Antwort da ist — die Oberfläche zeigt
  * bis dahin NICHTS (kein Aufblitzen, kein „nichts zu verwalten“).
@@ -26,24 +30,14 @@
  *
  * UI-R3e (fail closed): Jeder andere Fehler setzt `fehler`, LEERT den Stand
  * und setzt `sperrt` zurück. Der alte Stand war einmal wahr — ist er es nicht
- * mehr, darf ihn keine Anzeige weiter zeigen (sonst stünde „Verwalten“ und
- * „Neuer Kalender“ für eine Lage, die niemandem mehr gehört). `laden()` gibt
- * dann `null` zurück.
+ * mehr, darf ihn keine Anzeige weiter zeigen. `laden()` gibt dann `null`
+ * zurück.
  *
- * Zum Nachladen (`auffrischen`): eine Änderung an einem Kalender macht den
- * Stand veraltet. `laden({ frisch: true })` holt deshalb NEU, statt eine
- * laufende Anfrage zu teilen; ohne `frisch` gilt „eine Anfrage zur Zeit“ —
- * gleichzeitige Anzeigen starten keine zweite, und EINE ANTWORT IST SCHON DA:
- * dann wird gar nicht gefragt.
- *
- * UI-R3f (MUSS 1): Der BESITZER eines Seitenaufbaus (`pages/Kalender.vue`,
- * `pages/KalenderVerwaltung.vue`) lädt FRISCH; alle anderen Anzeigen (die
- * Leiste) lesen nur den reaktiven Stand. Damit gibt es genau EINE Anfrage je
- * Seitenbesuch — aber keine Antwort, die die ganze SPA-Sitzung überlebt.
- *
- * UI-R3e (Reihenfolge): jede Anfrage bekommt eine Nummer. Nur die jüngste
- * Antwort schreibt den Stand — eine ältere, die zuletzt eintrifft, wird
- * verworfen (sonst überschrieb sie nach einem Nachladen den neuen Stand).
+ * UI-R3g (MUSS 1b): `aktuellerSatz()` beginnt einen Seitenbesuch. Ab da trägt
+ * der geteilte Stand die Antwort des VORIGEN Besuchs — `gehoertZu(satz)` sagt
+ * Anzeigen, ob die Antwort zu ihrem Besuch gehört. Nur so ist der Eintrag
+ * „Kalender verwalten“ weg, sobald jemand die Seite neu betritt, statt bis zur
+ * frischen Antwort aus dem alten Recht zu stehen.
  */
 import { readonly, ref } from 'vue'
 
@@ -65,6 +59,19 @@ export function __setzeApiAufruf(ersatz) {
   api = ersatz || apiAufruf
 }
 
+/**
+ * UI-R3g (SOLL 4): Kennung für eine ÜBERHOLTE Ladung. `laden()` gibt sie
+ * zurück, wenn eine jüngere Anfrage inzwischen läuft bzw. den Stand
+ * geschrieben hat — die Antwort der älteren darf dann weder den Stand noch
+ * eine Seite verändern (sie könnte älter sein als der geteilte Stand).
+ */
+export const UEBERHOLT = Symbol.for('diakonos.kalenderVerwaltung.ueberholt')
+
+/** Ist das Ergebnis von `laden()` ein „überholt“ (nichts übernehmen)? */
+export function ueberholt(ergebnis) {
+  return ergebnis === UEBERHOLT
+}
+
 /** Der Endpunkt (eine Schreibweise für alle Aufrufer). */
 export const VERWALTUNG_METHODE = 'diakronos.kronos.api.kalender_verwaltung.get_kalender_verwaltung'
 
@@ -72,21 +79,17 @@ export const VERWALTUNG_METHODE = 'diakronos.kronos.api.kalender_verwaltung.get_
 const verwaltung = ref(null)
 /** Ist schon EINE Antwort eingetroffen (auch eine Fehler- oder 403-Antwort)? */
 const antwortDa = ref(false)
+/**
+ * UI-R3g (MUSS 1b): der SATZ des laufenden Seitenbesuchs. Jeder Besitzer ruft
+ * `aktuellerSatz()` VOR seiner Anfrage; die Anzeigen zeigen „Verwalten“ nur,
+ * wenn die Antwort zu diesem Satz gehört — der geteilte Stand trägt bis dahin
+ * die Antwort des vorigen Besuchs.
+ */
+const saet = ref(0)
 /** 403 des Servers: diese Person verwaltet keine Kalender. */
 const sperrt = ref(false)
 /** Fehlertext des letzten Fehlschlags (leer = keiner). */
 const fehler = ref('')
-/**
- * Wann der letzte Fehlschlag (403/Netzfehler) eintraf — `null`, solange keine
- * Antwort da ist. Ein Fehlschlag ist KEIN Stand: nach `FEHLSCHLAG_GEDULD_MS`
- * fragen die Anzeigen wieder (siehe `laden`), sonst könnte ein einzelner
- * Aussetzer das Verwalten bis zum nächsten Seitenaufbau verbergen.
- */
-let fehlschlagAm = null
-
-/** Wie lange ein Fehlschlag als „Antwort“ gilt, bevor neu gefragt wird. */
-export const FEHLSCHLAG_GEDULD_MS = 5000
-
 /** Die laufende Anfrage (geteilt) und ein Zähler, der sie identifiziert. */
 let laufende = null
 /**
@@ -104,77 +107,74 @@ function setzeStand(daten) {
   verwaltung.value = daten || null
   sperrt.value = false
   fehler.value = ''
-  fehlschlagAm = null
   antwortDa.value = true
 }
 
 /**
- * Antwort übernehmen, die der Aufrufer selbst geholt hat (Verwaltungsseite).
- * Das ist KEIN zweiter Aufruf — die Seite hat ohnehin gefragt.
+ * UI-R3g (MUSS 1b): einen neuen Seitenbesuch beginnen — NUR der Besitzer
+ * (`pages/Kalender.vue`, `pages/KalenderVerwaltung.vue`) ruft das, unmittelbar
+ * bevor er seine (frische) Anfrage startet. Ab hier gilt der geteilte Stand
+ * als „Antwort eines FRÜHEREN Besuchs“: Anzeigen blenden den Eintrag aus, bis
+ * die Antwort zu DIESEM Satz da ist. Es ist kein Netzaufruf — die eine
+ * Anfrage je Besuch bleibt die eine.
+ *
+ * @returns {number} der Satz, den der Aufrufer an `gehoertZu()` gibt
  */
-export function teilen(antwort) {
-  // Eine geteilte Antwort ist der jüngste Stand: eine noch laufende Anfrage
-  // darf ihn danach nicht überschreiben.
-  juengste += 1
-  if (!antwort) {
-    // Keine Antwort (Netzfehler) ist KEIN Stand: der Stand bleibt leer, `sperrt`
-    // wird zurückgesetzt, `fehler` bleibt für die Anzeige stehen (fail closed —
-    // die Seite zeigt „nicht geladen“, ohne „Neuer Kalender“).
-    verwaltung.value = null
-    sperrt.value = false
-    antwortDa.value = true
-    fehlschlagAm = Date.now()
-    return null
-  }
-  setzeStand(antwort)
-  return verwaltung.value
+export function aktuellerSatz() {
+  // Der neue Besuch entwertet die Antwort des vorigen SOFORT — für alle, die
+  // den geteilten Stand lesen (`gehoertZu`): „Antwort da“ und „Satz“ gehören
+  // zusammen, sonst gälte der alte Stand noch als Antwort.
+  antwortDa.value = false
+  saet.value += 1
+  return saet.value
 }
 
 /**
- * Den Stand holen. Ohne `frisch` wird eine LAUFENDE Anfrage geteilt (eine
- * Anfrage zur Zeit) — ist die Antwort schon da, wird nicht gefragt.
+ * Gehört die Antwort im geteilten Stand zu diesem Satz? Nur dann darf eine
+ * Anzeige „Verwalten“ zeigen. Eine Antwort ist nur ein STAND, wenn sie Daten
+ * trägt: ein 403 oder ein Fehlschlag hinterlässt `null` — der Eintrag war aus
+ * und bleibt es (`kalenderVerwaltungSichtbar(null)` ist ebenfalls `false`).
  *
- * UI-R3f (MUSS 1): Ein Besitzer (die Seite, die gerade aufgebaut wird) ruft
- * `laden({ frisch: true })`. Sonst hielte der geteilte Stand eine Antwort für
- * die GANZE SPA-Sitzung: nach Anlegen/Löschen über „Gruppe → Einstellungen“
- * zeigte „Kalender verwalten“ die alte Liste, und ein während der Sitzung
- * gegebenes oder genommenes Recht änderte den Eintrag erst nach einem vollen
- * Neuladen.
+ * @param {number} satz — Ergebnis von `aktuellerSatz()`
+ * @returns {boolean}
+ */
+export function gehoertZu(satz) {
+  return Number.isFinite(Number(satz))
+    && antwortDa.value
+    && verwaltung.value !== null
+    && saet.value === Number(satz)
+}
+
+/**
+ * Den Stand FRISCH holen — der EINE Weg (UI-R3g, SOLL 3).
+ *
+ * Ein Besitzer (`pages/Kalender.vue`, `pages/KalenderVerwaltung.vue`) beginnt
+ * seinen Besuch mit `aktuellerSatz()` und ruft dann `laden()`.
+ * Jede Ladung bekommt eine Nummer; nur die JÜNGSTE schreibt den Stand. Eine
+ * überholte Ladung gibt `UEBERHOLT` zurück (`ueberholt(ergebnis)`) — sie sagt
+ * damit „nichts übernehmen“ statt einen fremden (womöglich älteren) Stand
+ * zurückzugeben (SOLL 4).
  *
  * Fehler werden NICHT geworfen — der Stand trägt sie (`sperrt` bei 403,
- * `fehler` sonst), damit jede Anzeige dieselbe Lage sieht und niemand einen
- * unbehandelten Fehler weiterreicht. Der Rückgabewert ist der neue Stand.
+ * `fehler` sonst), damit jede Anzeige dieselbe Lage sieht. Rückgabewert ist
+ * der neue Stand, `null` (gesperrt/Fehler) oder `UEBERHOLT`.
  *
- * @param {{frisch?: boolean}} [optionen]
- * @returns {Promise<object|null>}
+ * @returns {Promise<object|null|symbol>}
  */
-export async function laden({ frisch = false } = {}) {
-  if (!frisch) {
-    if (laufende) return laufende
-    // UI-R3e: IST DIE ANTWORT SCHON DA, wird nicht noch einmal gefragt. Vorher
-    // hing „einmal laden“ am Timing: die Kalenderliste (`KronosSidebar.vue`)
-    // fragte erst nach `get_current_user_context`, die Seite
-    // (`Kalender.vue`) erst nach `store.fetchAccessibleCalendars` — war die
-    // erste Anfrage schon fertig, ging die zweite trotzdem raus.
-    //
-    // Nur ein FEHLSCHLAG (403 oder Netzfehler) ist keine Auskunft, auf die man
-    // sich verlässt: nach `FEHLSCHLAG_GEDULD_MS` wird neu gefragt.
-    if (antwortDa.value) {
-      const alt = fehlschlagAm !== null && (Date.now() - fehlschlagAm) >= FEHLSCHLAG_GEDULD_MS
-      if (!alt) return verwaltung.value
-    }
-  }
+export async function laden() {
   // UI-R3e: diese Anfrage ist die jüngste — eine noch laufende ältere Antwort
   // schreibt danach nichts mehr.
   const nummer = (juengste += 1)
   const anfrage = (async () => {
     try {
       const antwort = await api(VERWALTUNG_METHODE)
-      if (nummer !== juengste) return verwaltung.value
+      // UI-R3g (SOLL 4): eine ÜBERHOLTE Ladung gibt nicht den geteilten Stand
+      // zurück — der könnte älter sein als ihre eigene Antwort.
+      if (nummer !== juengste) return UEBERHOLT
       setzeStand(antwort)
       return verwaltung.value
     } catch (err) {
-      if (nummer !== juengste) return verwaltung.value
+      if (nummer !== juengste) return UEBERHOLT
       // 403 = der Server gibt dieser Person nichts zu verwalten. Eine Lage,
       // kein Fehler: keine Meldung, nur ein leerer Stand.
       if (Number(err?.status) === 403) {
@@ -182,7 +182,6 @@ export async function laden({ frisch = false } = {}) {
         sperrt.value = true
         fehler.value = ''
         antwortDa.value = true
-        fehlschlagAm = Date.now()
         return null
       }
       // UI-R3e (fail closed): der alte Stand wird GELEERT, nicht behalten —
@@ -192,7 +191,6 @@ export async function laden({ frisch = false } = {}) {
       sperrt.value = false
       fehler.value = String(err?.message || '').trim() || 'Die Kalender konnten nicht geladen werden.'
       antwortDa.value = true
-      fehlschlagAm = Date.now()
       return null
     } finally {
       if (laufende === anfrage) laufende = null
@@ -211,14 +209,20 @@ export function __leeren() {
   antwortDa.value = false
   sperrt.value = false
   fehler.value = ''
-  fehlschlagAm = null
   laufende = null
   juengste = 0
+  saet.value = 0
 }
 
 /**
- * Die Anzeige-Sicht (schreibgeschützt) — `laden`/`teilen` sind die Wege, den
- * Stand zu ändern.
+ * Die Anzeige-Sicht (schreibgeschützt) — `laden` ist der Weg, den Stand zu
+ * ändern.
+ *
+ * `saet` (UI-R3: `set`, „Satz“) steigt bei JEDEM Besuch des Besitzers, bevor
+ * er fragt. Anzeigen, die den Eintrag „Kalender verwalten“ aus dem geteilten
+ * Stand ableiten, merken sich den Satz, zu dem ihr eigenes Bild gehört: sie
+ * zeigen den Eintrag nur, wenn die Antwort zu DIESEM Satz gehört — der Stand
+ * ist bis dahin der des vorigen Besuchs.
  */
 export function useKalenderVerwaltung() {
   return {
@@ -226,7 +230,12 @@ export function useKalenderVerwaltung() {
     antwortDa: readonly(antwortDa),
     sperrt: readonly(sperrt),
     fehler: readonly(fehler),
+    saet: readonly(saet),
     laden,
-    teilen,
   }
+}
+
+/** Die Anzeige-Sicht plus dem Besuch des Besitzers (siehe `saet`). */
+export function useKalenderVerwaltungSicht() {
+  return { ...useKalenderVerwaltung(), aktuellerSatz }
 }

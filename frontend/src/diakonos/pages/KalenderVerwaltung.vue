@@ -110,7 +110,7 @@ import { computed, onMounted, ref, h } from 'vue'
 import { apiCall } from '../composables/useApi.js'
 import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 // UI-R3c: EIN Ladevorgang für `get_kalender_verwaltung` je Seite.
-import { useKalenderVerwaltung } from '../composables/useKalenderVerwaltung.js'
+import { aktuellerSatz, ueberholt, useKalenderVerwaltung } from '../composables/useKalenderVerwaltung.js'
 // (Der geteilte Stand importiert `useApi` über DENSELBEN Pfad,
 // `./useApi.js` → hier `../composables/useApi.js` — die Test-Übersetzer
 // ersetzen damit dieselbe Attrappe für Seite und Stand.)
@@ -298,19 +298,23 @@ const gruppe = computed(() => '')
  * Die Verwaltungsliste holen — EIN Ladevorgang für die Seite (der geteilte
  * Stand). Liefert die Antwort (`null` = keine) und schreibt `verwaltung`.
  *
- * UI-R3e: Die eigene Antwort wird über `teilen` der jüngste Stand des
- * geteilten Laders — eine ältere, noch laufende Anfrage (z. B. der
- * Kalenderseite) überschreibt sie danach nicht mehr.
- *
- * UI-R3f (SOLL 2): Die Antwort von `laden()` wird NICHT erneut über `teilen()`
- * geschickt, sondern DIREKT übernommen. Zwei Gründe:
- *  * bei 403 gibt `laden()` `null` zurück und setzt `sperrt`; `teilen(null)`
- *    setzte `sperrt` wieder auf false — der Zweig `gesperrt` war tot;
- *  * `teilen()` erhöht `juengste` und bricht damit eine neuere laufende
- *    Anfrage ab.
+ * Die Antwort wird DIREKT übernommen (UI-R3f, SOLL 2): bei 403 gibt `laden()`
+ * `null` zurück und setzt `sperrt` — ein zweiter Weg, der die Antwort erneut
+ * einspeiste, setzte `sperrt` zurück und machte den Zweig `gesperrt` tot.
+ * Diesen zweiten Weg (eine Antwort nachträglich einzuspeisen) gibt es seit
+ * UI-R3g nicht mehr (SOLL 3).
  */
-async function listeHolen({ frisch = false } = {}) {
-  const antwort = await ladenKalenderVerwaltung({ frisch })
+async function listeHolen() {
+  // UI-R3g (MUSS 1): Diese Seite ist ein BESITZER des Endpunkts — sie steigt
+  // den Satz des Seitenbesuchs, bevor sie fragt. Damit gilt der geteilte Stand
+  // bis zur eigenen Antwort als Antwort des VORIGEN Besuchs: Leiste und
+  // ⋯-Menü der Kalenderseite zeigen daraus keinen Eintrag (siehe
+  // `gehoertZu` in `KronosSidebar.vue`).
+  aktuellerSatz()
+  const antwort = await ladenKalenderVerwaltung()
+  // UI-R3g (SOLL 4): überholte Ladung — nichts übernehmen (sie könnte älter
+  // sein als der geteilte Stand). Die Seite behält ihr Bild.
+  if (ueberholt(antwort)) return verwaltung.value
   verwaltung.value = antwort || null
   return verwaltung.value
 }
@@ -332,7 +336,7 @@ async function laden({ still = false } = {}) {
   // Kalender mit aktivem Löschen-Knopf); nach einer Änderung (`nachladen`) ist
   // der Stand ohnehin veraltet. Die Leiste liest weiter nur den reaktiven
   // Stand — je Seitenbesuch bleibt es bei EINER Anfrage.
-  await listeHolen({ frisch: true })
+  await listeHolen()
   // 403 = der Server gibt dieser Person keine verwaltbaren Kalender. Das ist
   // keine Panne, sondern eine Lage: eine kurze Auskunft, keine Aktionen (der
   // Menüpunkt bleibt für sie weg — `kalenderVerwaltungSichtbar`).

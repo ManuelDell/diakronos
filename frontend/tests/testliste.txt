@@ -659,3 +659,4 @@ tests/uir3d-*.test.mjs
 
 # UI-R3f: Kalenderverwaltung — Besitzer laden frisch, kein Dauer-Cache.
 tests/uir3f-*.test.mjs
+tests/uir3g-*.test.mjs

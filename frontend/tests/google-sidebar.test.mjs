@@ -127,13 +127,25 @@ function uebersetze(abs) {
 
 test.after(() => rmSync(TMP, { recursive: true, force: true }))
 
+const satzJetzt = () => globalThis.__letzterSatz
 const warte = async (n = 30) => { for (let i = 0; i < n; i += 1) await new Promise((l) => setTimeout(l, 0)) }
 
 /** Die ECHTE Leiste mit dem ECHTEN geteilten Stand mounten. */
+/** Den geteilten Stand MIT Antwort füllen — der Weg des Besitzers (Satz + Ladung). */
+async function standFuellen(geteilt) {
+  if (!standFehler && !standAntwort) return
+  globalThis.__letzterSatz = geteilt.aktuellerSatz()
+  await geteilt.laden()
+  await new Promise((l) => setTimeout(l, 0))
+}
+
 async function leisteMounten() {
   const geteilt = await import('../src/diakonos/composables/useKalenderVerwaltung.js')
   geteilt.__leeren()
   geteilt.__setzeApiAufruf(() => globalThis.__googleSidebarStand())
+  // UI-R3g: Die Leiste zeigt „Verwalten“ nur mit der Antwort DIESES Besuchs —
+  // die Antwort entsteht deshalb VOR dem Aufbau, wie auf der Kalenderseite.
+  await standFuellen(geteilt)
   const Leiste = (await import('file://' + uebersetze(join(SRC, 'components', 'kronos', 'KronosSidebar.vue')) + '?t=' + Date.now())).default
   const host = document.createElement('div')
   document.body.appendChild(host)
@@ -166,6 +178,10 @@ for (const [roles, serverAntwort, sichtbar, warum] of [
     .some((r) => roles.includes(r))
   test(`sidebar: ${roles.join(',')} — ${warum}`, async () => {
     aufrufe.length = 0
+    // Der geteilte Lader lebt zwischen den Fällen weiter — erst den Zustand
+    // dieses Falls setzen (sonst trägt der nächste Fall die Antwort des vorigen).
+    standAntwort = null
+    standFehler = null
     // UI-R3e: Der GETROFFENE geteilte Stand — die Leiste liest `verwaltung`
     // (readonly-Ref), sie fragt nicht.
     const stand = { verwaltung: serverAntwort }
@@ -205,7 +221,6 @@ for (const [roles, serverAntwort, sichtbar, warum] of [
     const { host, meldungen, geteilt } = await leisteMounten()
     assert.deepEqual(meldungen.filter((m) => /^err:/.test(m)), [], 'Fehler: ' + meldungen.join(' | '))
     if (serverAntwort) {
-      geteilt.teilen(serverAntwort)
       await warte(10)
     }
     const knopf = verwaltenKnopf(host)
@@ -231,13 +246,22 @@ test('sidebar: 403 für ein einfaches Mitglied — „Kalender verwalten“ fehl
   const { host, meldungen, geteilt } = await leisteMounten()
   assert.deepEqual(meldungen.filter((m) => /^err:/.test(m)), [], 'Fehler: ' + meldungen.join(' | '))
 
-  // Vorbedingung: mit Recht steht der Eintrag.
-  geteilt.teilen({ kalender: [{ name: 'Gemeinde' }] })
+
+  // Vorbedingung: mit Recht steht der Eintrag (der Stand kommt aus einer
+  // gewöhnlichen Ladung des Besitzers; `standFehler` gilt erst danach).
+  standFehler = null
+  standAntwort = { kalender: [{ name: 'Gemeinde' }] }
+  await standFuellen(geteilt)
+  await new Promise((l) => setTimeout(l, 20))
   await warte(10)
   assert.ok(verwaltenKnopf(host), 'Vorbedingung: der Eintrag fehlt trotz Recht')
 
   // Jetzt der 403 des Servers über den ECHTEN geteilten Lader.
-  const ergebnis = await geteilt.laden({ frisch: true })
+  aufrufe.length = 0
+  standAntwort = null
+  standFehler = Object.assign(new Error('Nur Kalenderverantwortliche dürfen Kalender verwalten.'), { status: 403 })
+  geteilt.aktuellerSatz()
+  const ergebnis = await geteilt.laden()
   await warte(20)
   assert.equal(ergebnis, null, '403: laden() gibt keinen Stand')
   assert.equal(geteilt.useKalenderVerwaltung().sperrt.value, true, 'der Lader kennt die Sperre nicht')

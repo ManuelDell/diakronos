@@ -285,13 +285,15 @@ test('UI-R3c/R2a: Kalenderseite — Seite und Kalenderliste laden die Verwaltung
     darf_gemeinde_kalender: false,
   }
   ueberschreibungen = { 'get_kalender_verwaltung$': antwort }
-  // Beide Anzeigen wie im Betrieb: sie mounten GLEICHZEITIG (Seite und Leiste
-  // sind Nachbarn im selben Aufbau) und teilen deshalb die LAUFENDE Anfrage.
-  const [eins, zwei] = await Promise.all([stand.laden(), stand.laden()])
+  // UI-R3g: `laden()` holt IMMER neu (den Weg „teile die laufende Anfrage“
+  // gibt es nicht mehr — er hatte keinen Betriebsaufruf). Der Betrieb fragt
+  // deshalb über den EINEN Besitzer; zwei gleichzeitige Aufrufe desselben
+  // Besitzers sind zwei Besuche, keine zwei Anzeigen. Geprüft wird hier der
+  // eine Weg und sein Ergebnis.
+  const eins = await stand.laden()
   assert.equal(mit('get_kalender_verwaltung$').length, 1,
-    'zwei gleichzeitige Anzeigen lösten zwei Anfragen aus')
+    'die eine Ladung löste keine (oder mehr als eine) Anfrage aus')
   assert.deepEqual(eins, antwort)
-  assert.deepEqual(zwei, antwort)
   // Der geteilte Stand LESEN ist kostenlos: beide Anzeigen bekommen dieselbe
   // Antwort, ohne den Server zu fragen (`verwaltung`/`antwortDa`).
   assert.deepEqual(stand.verwaltung.value, antwort, 'der Stand trägt die Antwort nicht')

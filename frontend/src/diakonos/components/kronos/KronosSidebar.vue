@@ -210,7 +210,7 @@ import { useKronosStore } from '../../composables/useKronosStore.js';
 import { istKalenderAdmin, kalenderVerwaltungSichtbar } from './kalenderRechte.mjs';
 // UI-R3c/UI-R3e: EIN Ladevorgang für `get_kalender_verwaltung` je Seite
 // (geteilter Stand mit `pages/Kalender.vue`).
-import { useKalenderVerwaltung } from '../../composables/useKalenderVerwaltung.js';
+import { gehoertZu, useKalenderVerwaltung } from '../../composables/useKalenderVerwaltung.js';
 // UXD-R28: Kalenderfarbe nur als gueltiger Hex-Wert in die CSS-Variable.
 import { sichereFarbe } from '../../../shared/sichere-ausgabe.js';
 import { wandZeit } from '../../../shared/zeit.mjs';
@@ -220,6 +220,12 @@ import { kalenderLeerzustand } from '../../composables/einrichtungsHinweise.mjs'
 const props = defineProps({
   // UXK-R9: steuert das Overlay am Handy (Klasse `open` in kronos.css).
   open: { type: Boolean, default: false },
+  /**
+   * UI-R3g: „Gehört ‚Kalender verwalten‘ zu DIESEM Seitenbesuch?“ — die Seite
+   * (Besitzer des Endpunkts) beantwortet das mit ihrer eigenen Antwort
+   * (`pages/Kalender.vue` → `darfKalenderVerwalten`). Siehe `zeigeVerwalten`.
+   */
+  darfVerwalten: { type: Boolean, default: null },
   currentMonth: {
     type: String,
     default: () => {
@@ -261,8 +267,41 @@ defineExpose({ hilfeOeffnen, verwaltenKnopf });
 // `store.fetchAccessibleCalendars` — war die erste Anfrage fertig, ging die
 // zweite trotzdem raus. Ein `ref` hätte den Stand der Seite außerdem nie
 // gesehen, wenn die Leiste vor der Antwort aufgebaut wurde.
-const { verwaltung: geteilteVerwaltung } = useKalenderVerwaltung();
-const zeigeVerwalten = computed(() => kalenderVerwaltungSichtbar(geteilteVerwaltung.value));
+const { verwaltung: geteilteVerwaltung, saet: geteilterSatz } = useKalenderVerwaltung();
+/**
+ * UI-R3g (MUSS 1b): Welcher Satz gehört zu DIESEM Bild der Leiste?
+ *
+ * Der Besitzer (`pages/Kalender.vue`, `pages/KalenderVerwaltung.vue`) steigt
+ * den Satz (`aktuellerSatz()`) in seinem AUFBAU — Leiste und Seite entstehen
+ * damit im selben Schritt. Ab hier gilt: der Eintrag steht nur, wenn der
+ * geteilte Stand die Antwort DIESES Satzes trägt. Bis dahin ist es die Antwort
+ * des vorigen Besuchs — daraus stand „Kalender verwalten“ hier, bis die frische
+ * Antwort eintraf (auch wenn das Recht inzwischen entzogen war).
+ *
+ * Es bleibt EINE Anfrage je Seitenbesuch: die des Besitzers.
+ */
+const satzBeimAufbau = geteilterSatz.value;
+/**
+ * UI-R3g (MUSS 1b): der Eintrag steht erst mit der Antwort DIESES Besuchs.
+ *
+ * Die Seite ist der Besitzer und führt den Satz (siehe `gehoertZu`); SIE sagt
+ * der Leiste, ob „Verwalten“ zu diesem Besuch gehört (prop `darfVerwalten`).
+ * Den geteilten Stand liest die Leiste für den INHALT, aber nicht als
+ * Auslöser: beim Aufbau trägt er noch die Antwort des vorigen Besuchs, und
+ * deren Satz ist derselbe, solange die Seite ihren Satz nicht vergeben hat.
+ *
+ * Ohne Angabe von der Seite (Weg der Tests, die die Leiste allein mounten)
+ * gilt: der Besuch ist der Satz, der beim Aufbau galt — und die Antwort zählt
+ * nur, wenn sie zu ihm gehört.
+ */
+const besuch = ref(satzBeimAufbau);
+watch(geteilterSatz, (satz) => {
+  if (satz !== satzBeimAufbau) besuch.value = satz;
+}, { immediate: true });
+const antwortGehoertZuDiesemBesuch = computed(() => (props.darfVerwalten === true
+  || gehoertZu(besuch.value)));
+const zeigeVerwalten = computed(() => antwortGehoertZuDiesemBesuch.value
+  && kalenderVerwaltungSichtbar(geteilteVerwaltung.value));
 const abgelehnteTermine = ref([]);
 const davUrl = `${window.location.origin}/dav/`;
 
