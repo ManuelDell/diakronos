@@ -660,3 +660,22 @@ tests/uir3d-*.test.mjs
 # UI-R3f: Kalenderverwaltung — Besitzer laden frisch, kein Dauer-Cache.
 tests/uir3f-*.test.mjs
 tests/uir3g-*.test.mjs
+# UI-R3h: EINE Quelle für „Kalender verwalten“ in der Leiste (Prop schlägt
+# geteilten Stand), überholte Ladung ändert nichts auf der Verwaltungsseite
+# (die ältere Antwort nimmt die Fläche nicht aus dem Wartezustand), tote
+# Reste weg (`useKalenderVerwaltungSicht`, `laufende`, `saet`), das ⋯-Menü
+# von KronosTopbar/KalenderKopfMobil samt Handybreite 390, und ein Recht, das
+# nach einem 403 im vorigen Besuch neu vergeben wird.
+tests/uir3h-*.test.mjs
+# UI-R3i: das `nachladen`-Promise der Verwaltungsseite wartet auf die JÜNGSTE
+# Antwort (überholte Ladungen lösen nicht mehr vorher auf, auch nicht in einer
+# Kette; ein Fehlschlag der jüngsten löst alle auf), das Verhalten von Toast
+# und „Rückgängig“ an der echten Fläche, das ⋯-Menü der Seite bei 390 px und
+# ein Recht, das nach einem 403 im vorigen Besuch neu vergeben wird.
+tests/uir3i-*.test.mjs
+# UI-R3j: das `nachladen`-Promise der Verwaltungsseite wartet NIE auf sich
+# selbst — überholt ein fremder Besitzer des geteilten Laders die jüngste
+# Ladung (`pages/Kalender.vue` mit `aktuellerSatz()`), löst sie trotzdem auf
+# (stiller und nicht-stiller Weg, am Verhalten gemessen). Dazu die tote
+# `ende`-Mechanik raus.
+tests/uir3j-*.test.mjs

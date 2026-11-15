@@ -135,8 +135,10 @@ const VERWALTUNG = 'diakronos.kronos.api.kalender_verwaltung.get_kalender_verwal
 // die Fläche fragt nicht ein zweites Mal.
 const {
   laden: ladenKalenderVerwaltung,
+  verwaltung: kalenderVerwaltung,
   sperrt: sperrtKalenderVerwaltung,
   fehler: fehlerKalenderVerwaltung,
+  besuchszaehler,
 } = useKalenderVerwaltung()
 
 /**
@@ -162,7 +164,15 @@ const IconPlus = () => h('svg', {
 // und die Anlegeorte für JEDEN Aufrufer, der die Liste bekommt (wer nichts
 // darf, bekommt 403 und sieht diese Seite gar nicht erst mit Knopf).
 
-const verwaltung = ref(null)
+/**
+ * UI-R3h (MUSS 2): Die Kalenderliste dieser Seite — EINMAL geschrieben (vom
+ * geteilten Lader, der fremde Antworten abweist), hier nur gelesen. Vorher war
+ * es ein `ref`, in das `listeHolen()` die Antwort zusätzlich hineinschrieb; der
+ * Lader und die Seite hielten damit zwei Kopien desselben Standes, und eine
+ * überholte Ladung konnte die zweite beschreiben. Der geteilte Lader bleibt die
+ * einzige Schreibstelle (UI-R3c „EIN Ladevorgang“).
+ */
+const verwaltung = computed(() => kalenderVerwaltung.value)
 const laedt = ref(true)
 // UX2d3b: Platzhalter erst nach 300 ms — kein Blitzen, keine Aussage vor der Antwort.
 const { skelettSichtbar } = useLadeSkelett(laedt)
@@ -296,7 +306,9 @@ const gruppe = computed(() => '')
 
 /**
  * Die Verwaltungsliste holen — EIN Ladevorgang für die Seite (der geteilte
- * Stand). Liefert die Antwort (`null` = keine) und schreibt `verwaltung`.
+ * Stand). Liefert `{ satz, antwort }` (UI-R3h: der Besuchs-Satz dieser Ladung
+ * und die Antwort, `UEBERHOLT` bei einer überholten; `null` = keine Antwort).
+ * Den Stand selbst führt der Lader (`verwaltung` ist ein computed darauf).
  *
  * Die Antwort wird DIREKT übernommen (UI-R3f, SOLL 2): bei 403 gibt `laden()`
  * `null` zurück und setzt `sperrt` — ein zweiter Weg, der die Antwort erneut
@@ -310,16 +322,38 @@ async function listeHolen() {
   // bis zur eigenen Antwort als Antwort des VORIGEN Besuchs: Leiste und
   // ⋯-Menü der Kalenderseite zeigen daraus keinen Eintrag (siehe
   // `gehoertZu` in `KronosSidebar.vue`).
-  aktuellerSatz()
+  const satz = aktuellerSatz()
   const antwort = await ladenKalenderVerwaltung()
   // UI-R3g (SOLL 4): überholte Ladung — nichts übernehmen (sie könnte älter
   // sein als der geteilte Stand). Die Seite behält ihr Bild.
-  if (ueberholt(antwort)) return verwaltung.value
-  verwaltung.value = antwort || null
-  return verwaltung.value
+  //
+  // UI-R3h (MUSS 2): Die Antwort wird als `{ satz, antwort }` durchgereicht —
+  // `laden()` braucht BEIDES, um „überholt“ zu erkennen (die Kennung allein
+  // sagt nicht, ob inzwischen eine jüngere Ladung lief). Der geteilte Stand
+  // selbst bleibt hier unberührt: `laden()` liest `verwaltung` als computed.
+  return { satz, antwort }
 }
 
-async function laden({ still = false } = {}) {
+/**
+ * UI-R3i (MUSS 1) / UI-R3j (MUSS 2): Die JÜNGSTE Ladung dieser Seite — an
+ * ihrem Promise.
+ *
+ * `nachladen()` ist der Vertrag der Fläche „warte, bis der neue Stand da ist“;
+ * eine überholte Ladung darf ihn nicht erfüllen, sonst meldet die Fläche Toast
+ * und „Rückgängig“, während die jüngste Antwort noch unterwegs ist und die
+ * gelöschte Zeile im Bild steht. Vorher gab der Überholt-Zweig schlicht
+ * `undefined` zurück — das Promise löste sofort auf.
+ *
+ * `null` = in diesem Aufbau lief noch keine Ladung (dann gibt es nichts, worauf
+ * gewartet werden könnte).
+ */
+let juengsteLadung = null
+
+/**
+ * Die Verwaltung laden — der Weg der Seite (`onMounted`) und der Weg der
+ * Fläche nach einer Änderung (`nachladen`).
+ */
+function laden({ still = false } = {}) {
   if (!still) {
     laedt.value = true
     antwortDaEigene.value = false
@@ -336,7 +370,56 @@ async function laden({ still = false } = {}) {
   // Kalender mit aktivem Löschen-Knopf); nach einer Änderung (`nachladen`) ist
   // der Stand ohnehin veraltet. Die Leiste liest weiter nur den reaktiven
   // Stand — je Seitenbesuch bleibt es bei EINER Anfrage.
-  await listeHolen()
+  //
+  // UI-R3j (MUSS 1): Diese Ladung ist ihr EIGENES Promise (`eigene`) und meldet
+  // sich als jüngste. `abschliessen` bekommt es übergeben und wartet auf die
+  // jüngste NUR, wenn das nicht es selbst ist — vorher stand hier
+  // `juengsteLadung.ende`, das auf die Ladung selbst zeigte: wurde die Seite
+  // von einem fremden Besitzer (`pages/Kalender.vue` mit `aktuellerSatz()`)
+  // überholt, wartete der Überholt-Zweig auf sich selbst und löste nie auf.
+  let eigene = null
+  eigene = listeHolen()
+    .then((paket) => abschliessen(paket.satz, paket.antwort, eigene))
+  juengsteLadung = eigene
+  return eigene
+}
+
+/**
+ * Das Ergebnis einer Ladung anwenden — oder feststellen, dass sie überholt ist.
+ *
+ * UI-R3h (MUSS 2): Eine ÜBERHOLTE Ladung ändert NICHTS auf dieser Seite —
+ * weder `gesperrt`/`fehler` noch `antwortDaEigene`/`laedt`. Vorher lief der Rest
+ * von `laden()` auch für die alte Antwort weiter: nach zwei schnellen
+ * Änderungen setzte sie `antwortDaEigene`/`laedt` und die Fläche meldete Toast
+ * und „Rückgängig“, obwohl die jüngste Liste noch unterwegs war (die alte
+ * Zeile stand dann noch).
+ *
+ * Der Lader hat den fremden Stand bereits abgewiesen (`UEBERHOLT`, siehe
+ * `listeHolen`); hier weist die SEITE ihr eigenes Bild ab.
+ *
+ * UI-R3i (SOLL 3): Auch das nicht-stille Laden setzt beim Überholtsein nichts
+ * mehr — es wartet auf die jüngste Ladung, statt `laedt`/`antwortDaEigene`
+ * anhand einer alten Antwort zu setzen.
+ *
+ * UI-R3j (MUSS 1/SOLL 2): Die Kette entsteht durch VERSCHACHTELTE AWAITS — jede
+ * überholte Ladung wartet auf das Promise der jüngsten, und die wartet
+ * ihrerseits, wenn sie inzwischen überholt wurde. Die eigene Ladung wartet
+ * dabei NIE auf sich selbst (`eigene`): ist `juengsteLadung` bereits das
+ * eigene Promise, ist nichts zu warten. Das frühere `ende`-Feld war tot — es
+ * zeigte auf die Ladung selbst (`juengsteLadung.ende === juengsteLadung`).
+ *
+ * @param {number} satzDerLadung — Besuchs-Satz aus `listeHolen()`
+ * @param {object|null|symbol} antwort — Antwort des geteilten Laders
+ * @param {Promise<any>} eigene — das Promise DIESER Ladung
+ */
+async function abschliessen(satzDerLadung, antwort, eigene) {
+  if (istUeberholtDerSeite(satzDerLadung, besuchszaehler.value, antwort)) {
+    // Auf die JÜNGERE warten — aber nie auf sich selbst. Das Promise dieser
+    // Ladung löst damit erst auf, wenn der Stand da ist, den die Fläche sehen
+    // soll; eine Kette überholter Ladungen läuft dabei auf die jüngste zu.
+    if (juengsteLadung !== eigene) await juengsteLadung
+    return
+  }
   // 403 = der Server gibt dieser Person keine verwaltbaren Kalender. Das ist
   // keine Panne, sondern eine Lage: eine kurze Auskunft, keine Aktionen (der
   // Menüpunkt bleibt für sie weg — `kalenderVerwaltungSichtbar`).
@@ -368,6 +451,14 @@ async function laden({ still = false } = {}) {
  * ein No-op) — Toast und „Rückgängig“ erschienen, während die gelöschte Zeile
  * mit aktivem Löschen-Knopf noch dastand.
  *
+ * UI-R3i (MUSS 1): Das Promise löst erst auf, wenn die JÜNGSTE Ladung dieser
+ * Seite fertig ist — eine überholte Ladung wartet im Überholt-Zweig auf deren
+ * Promise und löst nicht mehr sofort mit der alten Antwort auf.
+ *
+ * UI-R3j (MUSS 1): Ist die jüngste Ladung sie SELBST (ein fremder Besitzer hat
+ * den Satz erhöht, z. B. `pages/Kalender.vue`), wartet sie auf niemanden — sonst
+ * wartete sie auf sich selbst und löste nie auf.
+ *
  * Sie meldet auch, wenn der Server die VERWALTUNG sperrt (403) — dann gilt
  * diese Lage auch für die Seite.
  */
@@ -375,10 +466,33 @@ function nachladen() {
   return laden({ still: true })
 }
 
-/** 403 der gemeinsamen Fläche: hier gibt es nichts zu verwalten. */
+/**
+ * UI-R3h (MUSS 2): Ist die Ladung mit DIESEM Besuchs-Satz überholt?
+ *
+ * Zwei Kennzeichen: Es gibt einen jüngeren Besuchs-Satz (`satzDerLadung` ist
+ * nicht mehr der jüngste — eine andere Ladung hat ihren Besuch begonnen),
+ * oder der geteilte Lader weist diese Antwort selbst als `UEBERHOLT` ab (sie
+ * ist älter als der jüngste Stand). Die eigene Ladung gilt also nur, solange
+ * ihr Satz der jüngste ist und ihre Antwort angenommen wurde.
+ *
+ * Der Satz DIESER Ladung stammt aus `listeHolen()` (dort wird er vergeben);
+ * verglichen wird er mit dem JÜNGSTEN (`besuchszaehler`) zum Zeitpunkt der
+ * Antwort. Den Satz vorher zu merken wäre falsch: die Seite vergibt ihn erst
+ * IN der Ladung.
+ */
+function istUeberholtDerSeite(satzDerLadung, juengsterSatz, antwort) {
+  return ueberholt(antwort) || satzDerLadung !== juengsterSatz
+}
+
+/**
+ * 403 der gemeinsamen Fläche: hier gibt es nichts zu verwalten.
+ *
+ * UI-R3h: Die Liste selbst setzt diese Seite nicht mehr (der geteilte Lader ist
+ * die einzige Schreibstelle, `verwaltung` ist ein computed darauf) — die LAGE
+ * „gesperrt“ gehört der Seite und wird hier gesetzt.
+ */
 function aufGesperrt(gesperrt2) {
   if (gesperrt2 === true) {
-    verwaltung.value = null
     gesperrt.value = true
     fehler.value = ''
   }

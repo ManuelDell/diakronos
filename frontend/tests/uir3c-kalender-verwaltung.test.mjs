@@ -9,9 +9,14 @@
  *   R1  Freigaben auf der Verwaltungsseite: die Gruppenauswahl steht im KONTEXT
  *       des Kalenders (seine Gruppe und deren Untergruppen) — nicht die
  *       Anlegeziele ALLER Gruppen.              (MUSS 1)
- *   R2a Kalenderseite: Seite und Kalenderliste laden `get_kalender_verwaltung`
- *       zusammen EINMAL.                        (MUSS 2)
  *   R2b Verwaltungsseite: Seite und Fläche laden zusammen EINMAL. (MUSS 2)
+ *
+ * (Der frühere Fall „R2a Kalenderseite“ ist ENTFALLEN — UI-R3h, SOLL 4: er
+ * prüfte seit UI-R3g nichts Eigenes mehr, weil er nur noch denselben einen
+ * Weg ein zweites Mal aufrief. Die echte Zusage „EIN Aufruf je Seitenbesuch,
+ * kein veralteter Eintrag“ steht in `tests/uir3g-*.test.mjs` (R1) und wird am
+ * gerenderten Bild gemessen. `tests/uir3h-restpunkte.test.mjs` (S2) hält
+ * fest, dass es hier keinen leeren Platzhalter-Fall mehr gibt.)
  *   R3  Menü-Sichtbarkeit ohne Rollen-Rückfall: Admin ohne Serverantwort sieht
  *       „Kalender verwalten“ nicht; `kalenderVerwaltungSichtbar(null, true)`
  *       ist false.                              (MUSS 3)
@@ -272,49 +277,6 @@ test('UI-R3c/R1: die Gruppenauswahl eines Kalenders zeigt nur seine Gruppe und d
 // ══════════════════════════════════════════════════════════════════════════
 // R2 · EIN Ladevorgang je Seite (MUSS 2)
 // ══════════════════════════════════════════════════════════════════════════
-
-test('UI-R3c/R2a: Kalenderseite — Seite und Kalenderliste laden die Verwaltung zusammen EINMAL', async () => {
-  // BEFUND (main): `Kalender.vue` (⋯-Menü) und `KronosSidebar.vue` (ihr
-  // Menüpunkt) riefen `get_kalender_verwaltung` je einmal — zwei Anfragen für
-  // dieselbe Antwort. Gemessen wird die Zahl der Aufrufe am echten Baum.
-  const stand = await standAufAttrappe()
-  const antwort = {
-    kalender: [kalender()],
-    anlegen_gruppen: ['G-Chor'],
-    anlegen_untergruppen: [],
-    darf_gemeinde_kalender: false,
-  }
-  ueberschreibungen = { 'get_kalender_verwaltung$': antwort }
-  // UI-R3g: `laden()` holt IMMER neu (den Weg „teile die laufende Anfrage“
-  // gibt es nicht mehr — er hatte keinen Betriebsaufruf). Der Betrieb fragt
-  // deshalb über den EINEN Besitzer; zwei gleichzeitige Aufrufe desselben
-  // Besitzers sind zwei Besuche, keine zwei Anzeigen. Geprüft wird hier der
-  // eine Weg und sein Ergebnis.
-  const eins = await stand.laden()
-  assert.equal(mit('get_kalender_verwaltung$').length, 1,
-    'die eine Ladung löste keine (oder mehr als eine) Anfrage aus')
-  assert.deepEqual(eins, antwort)
-  // Der geteilte Stand LESEN ist kostenlos: beide Anzeigen bekommen dieselbe
-  // Antwort, ohne den Server zu fragen (`verwaltung`/`antwortDa`).
-  assert.deepEqual(stand.verwaltung.value, antwort, 'der Stand trägt die Antwort nicht')
-  assert.equal(stand.antwortDa.value, true, 'der Stand meldet keine Antwort')
-  assert.equal(mit('get_kalender_verwaltung$').length, 1,
-    'das LESEN des Stands löste eine Anfrage aus')
-
-  // Und der Quelltext führt keinen zweiten Aufruf mehr ein: die Kalenderliste
-  // geht über den geteilten Stand, nicht über `apiCall`.
-  const seite = lies('pages/Kalender.vue')
-  const leiste = lies('components/kronos/KronosSidebar.vue')
-  assert.match(seite, /ladenKalenderVerwaltung/, 'die Seite nutzt den geteilten Stand nicht')
-  // UI-R3e (MUSS 2): EIN Besitzer lädt — die Leiste LIEST den geteilten Stand
-  // (`useKalenderVerwaltung`) und fragt den Endpunkt nicht mehr selbst. Der
-  // Literal `ladenKalenderVerwaltung` darf in ihr deshalb nicht mehr stehen.
-  assert.match(leiste, /useKalenderVerwaltung/, 'die Kalenderliste liest den geteilten Stand nicht')
-  for (const [name, quelle] of [['Kalender.vue', seite], ['KronosSidebar.vue', leiste]]) {
-    assert.doesNotMatch(quelle, /apiCall\(\s*['"][^'"]*get_kalender_verwaltung/,
-      `${name}: eigener Aufruf des Endpunkts statt des geteilten Stands`)
-  }
-})
 
 test('UI-R3c/R2b: Verwaltungsseite — Seite und Fläche laden die Verwaltung zusammen EINMAL', async () => {
   // BEFUND (main): `KalenderVerwaltung.vue` und die gemeinsame Fläche

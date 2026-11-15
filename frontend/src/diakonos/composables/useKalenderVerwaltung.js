@@ -13,7 +13,7 @@
  * `pages/KalenderVerwaltung.vue` — mit `laden()`; alle Anzeigen lesen nur den
  * reaktiven Stand:
  *
- *   const { verwaltung, antwortDa, sperrt, fehler, saet } = useKalenderVerwaltung()
+ *   const { verwaltung, antwortDa, sperrt, fehler, besuchszaehler } = useKalenderVerwaltung()
  *   laden()                   holt eine frische Antwort und schreibt den Stand
  *
  * Es gibt KEINEN zweiten Weg mehr (UI-R3g, SOLL 3): `teilen()` (eine vom
@@ -85,13 +85,11 @@ const antwortDa = ref(false)
  * wenn die Antwort zu diesem Satz gehört — der geteilte Stand trägt bis dahin
  * die Antwort des vorigen Besuchs.
  */
-const saet = ref(0)
+const besuchszaehler = ref(0)
 /** 403 des Servers: diese Person verwaltet keine Kalender. */
 const sperrt = ref(false)
 /** Fehlertext des letzten Fehlschlags (leer = keiner). */
 const fehler = ref('')
-/** Die laufende Anfrage (geteilt) und ein Zähler, der sie identifiziert. */
-let laufende = null
 /**
  * UI-R3e: die Nummer der jüngsten gestarteten Anfrage. Nur ihre Antwort
  * schreibt den Stand; jede ältere gilt als überholt (auch wenn sie zuletzt
@@ -125,8 +123,8 @@ export function aktuellerSatz() {
   // den geteilten Stand lesen (`gehoertZu`): „Antwort da“ und „Satz“ gehören
   // zusammen, sonst gälte der alte Stand noch als Antwort.
   antwortDa.value = false
-  saet.value += 1
-  return saet.value
+  besuchszaehler.value += 1
+  return besuchszaehler.value
 }
 
 /**
@@ -142,7 +140,7 @@ export function gehoertZu(satz) {
   return Number.isFinite(Number(satz))
     && antwortDa.value
     && verwaltung.value !== null
-    && saet.value === Number(satz)
+    && besuchszaehler.value === Number(satz)
 }
 
 /**
@@ -165,39 +163,33 @@ export async function laden() {
   // UI-R3e: diese Anfrage ist die jüngste — eine noch laufende ältere Antwort
   // schreibt danach nichts mehr.
   const nummer = (juengste += 1)
-  const anfrage = (async () => {
-    try {
-      const antwort = await api(VERWALTUNG_METHODE)
-      // UI-R3g (SOLL 4): eine ÜBERHOLTE Ladung gibt nicht den geteilten Stand
-      // zurück — der könnte älter sein als ihre eigene Antwort.
-      if (nummer !== juengste) return UEBERHOLT
-      setzeStand(antwort)
-      return verwaltung.value
-    } catch (err) {
-      if (nummer !== juengste) return UEBERHOLT
-      // 403 = der Server gibt dieser Person nichts zu verwalten. Eine Lage,
-      // kein Fehler: keine Meldung, nur ein leerer Stand.
-      if (Number(err?.status) === 403) {
-        verwaltung.value = null
-        sperrt.value = true
-        fehler.value = ''
-        antwortDa.value = true
-        return null
-      }
-      // UI-R3e (fail closed): der alte Stand wird GELEERT, nicht behalten —
-      // er war einmal wahr, ist es nach diesem Fehlschlag nicht mehr belegt.
-      // `sperrt` wird zurückgesetzt (dieser Ausgang ist kein 403).
+  try {
+    const antwort = await api(VERWALTUNG_METHODE)
+    // UI-R3g (SOLL 4): eine ÜBERHOLTE Ladung gibt nicht den geteilten Stand
+    // zurück — der könnte älter sein als ihre eigene Antwort.
+    if (nummer !== juengste) return UEBERHOLT
+    setzeStand(antwort)
+    return verwaltung.value
+  } catch (err) {
+    if (nummer !== juengste) return UEBERHOLT
+    // 403 = der Server gibt dieser Person nichts zu verwalten. Eine Lage,
+    // kein Fehler: keine Meldung, nur ein leerer Stand.
+    if (Number(err?.status) === 403) {
       verwaltung.value = null
-      sperrt.value = false
-      fehler.value = String(err?.message || '').trim() || 'Die Kalender konnten nicht geladen werden.'
+      sperrt.value = true
+      fehler.value = ''
       antwortDa.value = true
       return null
-    } finally {
-      if (laufende === anfrage) laufende = null
     }
-  })()
-  laufende = anfrage
-  return anfrage
+    // UI-R3e (fail closed): der alte Stand wird GELEERT, nicht behalten —
+    // er war einmal wahr, ist es nach diesem Fehlschlag nicht mehr belegt.
+    // `sperrt` wird zurückgesetzt (dieser Ausgang ist kein 403).
+    verwaltung.value = null
+    sperrt.value = false
+    fehler.value = String(err?.message || '').trim() || 'Die Kalender konnten nicht geladen werden.'
+    antwortDa.value = true
+    return null
+  }
 }
 
 /**
@@ -209,20 +201,22 @@ export function __leeren() {
   antwortDa.value = false
   sperrt.value = false
   fehler.value = ''
-  laufende = null
   juengste = 0
-  saet.value = 0
+  besuchszaehler.value = 0
 }
 
 /**
  * Die Anzeige-Sicht (schreibgeschützt) — `laden` ist der Weg, den Stand zu
  * ändern.
  *
- * `saet` (UI-R3: `set`, „Satz“) steigt bei JEDEM Besuch des Besitzers, bevor
- * er fragt. Anzeigen, die den Eintrag „Kalender verwalten“ aus dem geteilten
- * Stand ableiten, merken sich den Satz, zu dem ihr eigenes Bild gehört: sie
- * zeigen den Eintrag nur, wenn die Antwort zu DIESEM Satz gehört — der Stand
- * ist bis dahin der des vorigen Besuchs.
+ * `besuchszaehler` (UI-R3h; vorher stand hier ein Ein-Buchstaben-Name) steigt
+ * bei JEDEM Besuch des
+ * Besitzers, bevor er fragt. Anzeigen, die den Eintrag „Kalender verwalten“
+ * aus dem geteilten Stand ableiten, merken sich den Satz, zu dem ihr eigenes
+ * Bild gehört: sie zeigen den Eintrag nur, wenn die Antwort zu DIESEM Satz
+ * gehört — der Stand ist bis dahin der des vorigen Besuchs. `aktuellerSatz()`
+ * (den Besuch beginnen) gibt es NICHT über diese Sicht: sie ist für Anzeigen,
+ * die nur lesen.
  */
 export function useKalenderVerwaltung() {
   return {
@@ -230,12 +224,7 @@ export function useKalenderVerwaltung() {
     antwortDa: readonly(antwortDa),
     sperrt: readonly(sperrt),
     fehler: readonly(fehler),
-    saet: readonly(saet),
+    besuchszaehler: readonly(besuchszaehler),
     laden,
   }
-}
-
-/** Die Anzeige-Sicht plus dem Besuch des Besitzers (siehe `saet`). */
-export function useKalenderVerwaltungSicht() {
-  return { ...useKalenderVerwaltung(), aktuellerSatz }
 }

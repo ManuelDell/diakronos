@@ -573,7 +573,7 @@ const istKalenderAdmin = computed(() => kalenderAdmin(benutzerKontext.value))
 const verwaltungSatzEigene = aktuellerSatz()
 const {
   verwaltung: kalenderVerwaltung,
-  saet: kalenderVerwaltungSatz,
+  besuchszaehler: kalenderVerwaltungBesuchszaehler,
 } = useKalenderVerwaltung()
 /** Ist die Antwort DIESES Besuchs übernommen? */
 const verwaltungEigeneAntwortDa = ref(false)
@@ -585,7 +585,7 @@ const verwaltungEigeneAntwortDa = ref(false)
  * wenn das Recht inzwischen entzogen war.
  */
 const verwaltungAntwortGehoertZuDiesemBesuch = computed(() => (
-  kalenderVerwaltungSatz.value === verwaltungSatzEigene
+  kalenderVerwaltungBesuchszaehler.value === verwaltungSatzEigene
   && verwaltungEigeneAntwortDa.value === true
 ))
 const darfKalenderVerwalten = computed(() => verwaltungAntwortGehoertZuDiesemBesuch.value

@@ -267,7 +267,7 @@ defineExpose({ hilfeOeffnen, verwaltenKnopf });
 // `store.fetchAccessibleCalendars` — war die erste Anfrage fertig, ging die
 // zweite trotzdem raus. Ein `ref` hätte den Stand der Seite außerdem nie
 // gesehen, wenn die Leiste vor der Antwort aufgebaut wurde.
-const { verwaltung: geteilteVerwaltung, saet: geteilterSatz } = useKalenderVerwaltung();
+const { verwaltung: geteilteVerwaltung, besuchszaehler: geteilterSatz } = useKalenderVerwaltung();
 /**
  * UI-R3g (MUSS 1b): Welcher Satz gehört zu DIESEM Bild der Leiste?
  *
@@ -298,8 +298,22 @@ const besuch = ref(satzBeimAufbau);
 watch(geteilterSatz, (satz) => {
   if (satz !== satzBeimAufbau) besuch.value = satz;
 }, { immediate: true });
-const antwortGehoertZuDiesemBesuch = computed(() => (props.darfVerwalten === true
-  || gehoertZu(besuch.value)));
+/**
+ * UI-R3h (MUSS 1): EINE Quelle, nicht zwei.
+ *
+ * Ist die Prop GESETZT (`!== null`), zählt NUR sie — die Seite ist der
+ * Besitzer des Endpunkts und beantwortet die Frage aus ihrer eigenen Antwort.
+ * Ein `false` von dort heißt „nein“, auch wenn der geteilte Stand noch `true`
+ * sagt (etwa das Recht des vorigen Besuchs). Die ODER-Verknüpfung mit
+ * `gehoertZu` ließ den Eintrag in genau diesem Fall stehen.
+ *
+ * `gehoertZu` gilt nur, wenn die Leiste OHNE Seite gemountet ist (Weg der
+ * Tests, die die Leiste allein aufbauen): dann gibt es keine Prop, und der
+ * geteilte Stand ist die einzige Auskunft — auch er nur für den eigenen Satz.
+ */
+const antwortGehoertZuDiesemBesuch = computed(() => (props.darfVerwalten !== null
+  ? props.darfVerwalten === true
+  : gehoertZu(besuch.value)));
 const zeigeVerwalten = computed(() => antwortGehoertZuDiesemBesuch.value
   && kalenderVerwaltungSichtbar(geteilteVerwaltung.value));
 const abgelehnteTermine = ref([]);
