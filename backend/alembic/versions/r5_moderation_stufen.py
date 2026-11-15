@@ -26,20 +26,25 @@ depends_on = None
 _TABELLEN = ("element", "element_aenderung")
 
 
-def _spalten(bind, tabelle: str) -> set[str]:
-    return {s["name"] for s in sa.inspect(bind).get_columns(tabelle)}
+def _spalten(bind, tabelle: str) -> set[str] | None:
+    """Spalten der Tabelle; ``None``, wenn es die Tabelle nicht gibt (knappes Schema)."""
+    insp = sa.inspect(bind)
+    if not insp.has_table(tabelle):
+        return None
+    return {s["name"] for s in insp.get_columns(tabelle)}
 
 
 def upgrade() -> None:
     bind = op.get_bind()
     for tabelle in _TABELLEN:
-        if "moderation_offen" not in _spalten(bind, tabelle):
+        spalten = _spalten(bind, tabelle)
+        if spalten is not None and "moderation_offen" not in spalten:
             op.add_column(tabelle, sa.Column("moderation_offen", sa.String(length=40), nullable=True))
 
 
 def downgrade() -> None:
     bind = op.get_bind()
     for tabelle in _TABELLEN:
-        if "moderation_offen" in _spalten(bind, tabelle):
+        if "moderation_offen" in (_spalten(bind, tabelle) or set()):
             with op.batch_alter_table(tabelle) as batch:
                 batch.drop_column("moderation_offen")

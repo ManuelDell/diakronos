@@ -31,6 +31,8 @@ _FK = "fk_gruppen_aufgabe_zugewiesen_an"
 def upgrade() -> None:
     bind = op.get_bind()
     ins = sa.inspect(bind)
+    if not ins.has_table(_TABELLE):  # knappes Schema ohne Aufgaben-Tabelle
+        return
     if _SPALTE not in {s["name"] for s in ins.get_columns(_TABELLE)}:
         op.add_column(_TABELLE, sa.Column(_SPALTE, sa.String(length=140), nullable=True))
     if _INDEX not in {i["name"] for i in ins.get_indexes(_TABELLE)}:
@@ -44,6 +46,8 @@ def upgrade() -> None:
 def downgrade() -> None:
     bind = op.get_bind()
     ins = sa.inspect(bind)
+    if not ins.has_table(_TABELLE):
+        return
     if bind.dialect.name != "sqlite" and any(fk.get("name") == _FK for fk in ins.get_foreign_keys(_TABELLE)):
         op.drop_constraint(_FK, _TABELLE, type_="foreignkey")
     if _INDEX in {i["name"] for i in ins.get_indexes(_TABELLE)}:

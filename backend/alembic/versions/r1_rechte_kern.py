@@ -51,6 +51,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Sequence, Union
 
+import logging
+
 import sqlalchemy as sa
 from alembic import op
 
@@ -156,7 +158,21 @@ def _anlegen(bind) -> None:
 
 
 def _zeilen(bind, sql: str, **param) -> list:
-    return list(bind.execute(sa.text(sql), param).fetchall())
+    """Bestand lesen. Fehlt eine gelesene SPALTE (knappes/altes Schema), gilt
+    das wie eine fehlende Tabelle: kein Bestand. Der Savepoint haelt die
+    Transaktion auf PostgreSQL dabei benutzbar."""
+    sp = bind.begin_nested()
+    try:
+        zeilen = list(bind.execute(sa.text(sql), param).fetchall())
+    except sa.exc.DBAPIError as fehler:
+        sp.rollback()
+        text = str(fehler.orig).lower()
+        if "no such column" in text or ("column" in text and "does not exist" in text):
+            logging.getLogger("alembic.r1_rechte_kern").warning("R-1: Spalte fehlt, Bestand leer: %s", sql)
+            return []
+        raise
+    sp.commit()
+    return zeilen
 
 
 def _gibt(bind, tabelle: str) -> bool:
