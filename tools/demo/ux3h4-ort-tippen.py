@@ -45,7 +45,7 @@ with sync_playwright() as p:
     api = page.evaluate(
         """async () => {
             const t = window.__DIakonosBOOT && window.__DIakonosBOOT.csrf_token
-            const r = await fetch('/api/method/diakronos.diakronos.api.gemeinde.gemeinde_get_einstellungen',
+            const r = await fetch('/api/method/diakronos.diakonos.api.gemeinde.gemeinde_get_einstellungen',
               { method: 'POST', headers: { 'Content-Type': 'application/json',
                 'X-Frappe-CSRF-Token': t || '' }, body: '{}' })
             const j = JSON.parse(await r.text())

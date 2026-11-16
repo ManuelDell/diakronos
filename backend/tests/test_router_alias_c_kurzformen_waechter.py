@@ -53,6 +53,84 @@ _MUSTER = re.compile(
 )
 #: `const PRAEFIX = 'diakronos.x.api.'` — Bahnen fuer `ruf('<fn>')`.
 _PRAEFIX = re.compile(r"const\s+PRAEFIX\s*=\s*[`'\"]([A-Za-z0-9_.]+)[`'\"]")
+#: `/api/method/<pfad>` — auch ein NACKTER Name (`/api/method/ping`) ist ein
+#: Methodenpfad; genau diese Form hat der alte Test nie gesehen, weil der
+#: SPA-Scanner nur Literale MIT Punkt sammelt.
+_API_METHOD = re.compile(r"api/method/([A-Za-z0-9_]+(?:[./][A-Za-z0-9_]+)*)")
+#: Erste Segmente, die ein MODUL benennen — `/api/method/<modul>` bzw.
+#: `<modul>.<fn>` sind keine Kurzform-Aufrufe.
+_MODULNAMEN = frozenset(
+	{
+		"api", "auth", "mitglieder", "gruppen", "kalender", "website", "wiki",
+		"zugang", "session", "profile", "planung", "dashboard", "gemeinde",
+		"rechte", "user", "sicherung", "mailversand", "registrierung",
+		"admin_hub", "austritt", "datenschutz", "einrichtung", "gestaltung",
+		"oeffentlich", "planrahmen", "verantwortliche", "dienstplan",
+		"kalender_verwaltung", "kanban_api", "event_crud", "calendar_get",
+		"permissions", "series", "ablaufplan_api", "diakronos", "diakonos",
+		"frappe", "x", "pfad", "dotted",
+	}
+)
+#: Bahn einer Datei fuer die Bauform `apiCall(API + '<fn>')` / `ruf(P + '<fn>')`:
+#: der Name muss nicht `PRAEFIX` heissen (`const API = 'diakronos.…api.x.'`).
+_Q = "[\"'`]"
+_BAHN = re.compile(
+	r"(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*" + _Q + r"([A-Za-z0-9_.]+\.)" + _Q
+)
+#: Bauform `apiCall(API + '<fn>')` / `ruf(PRAEFIX + '<fn>')`.
+_BAU = re.compile(
+	r"(?:apiCall|apiGet|ruf)\(\s*([A-Za-z_$][\w$]*)\s*\+\s*" + _Q + r"([A-Za-z0-9_.]+)" + _Q
+)
+#: Kurznamen, die als KURZFORM zugesagt sind: Frappe-Kernpfade (der Router
+#: fuehrt sie ueber `_KERNPFADE`) und `ping`. Nur mit Kommentar erweitern.
+_ERLAUBTE_KURZNAMEN = frozenset({"ping", "logout", "upload_file", "login", "insert"})
+
+
+def _register_vollstaendig() -> None:
+	from diakronos_app.main import app  # noqa: F401
+
+	try:
+		from diakronos_app.devmodus import api as devmodus_api
+
+		devmodus_api.registriere()
+	except Exception:  # noqa: BLE001 — ohne Dev-Modus gibt es diese Module nicht
+		pass
+
+
+def _kurzformen_in(wurzeln) -> list[tuple[str, int, str]]:
+	"""Nur ECHTE Kurzform-Aufrufe (ohne Modulbahn).
+
+	Rueckgabe: `(datei, zeile, name)`. Gesucht wird ausschliesslich
+	`/api/method/<name>` mit einem NACKTEN Namen (kein Punkt). GENAU diese
+	Form hat der alte Test nie gesehen.
+
+	Die Bauform `apiCall(API + '<name>')` ist hier BEWUSST NICHT dabei: der
+	Name ist ein SUFFIX einer Bahn (`…api.einrichtung.` + `status`), kein
+	Kurzform-Aufruf. Er ist immer erreichbar, wenn die Bahn zugesagt ist —
+	das prueft `test_router_alias_waechter` und der tools/-Waechter.
+	"""
+	funde: list[tuple[str, int, str]] = []
+	for datei in _dateien(tuple(wurzeln)):
+		with open(datei, encoding="utf-8", errors="replace") as fh:
+			text = fh.read()
+		for nr, zeile in enumerate(text.splitlines(), 1):
+			# Doku-Beispiele in Kommentaren (`mitBasis('/api/method/x')`) sind
+			# keine Aufrufe und wuerden den Test nur mit Rauschen fuellen.
+			nackt = zeile.strip()
+			if nackt.startswith(("//", "#", "*", "/*", "<!--")):
+				continue
+			for treffer in _API_METHOD.finditer(zeile):
+				name = treffer.group(1).rstrip("/")
+				# Ein MODUL (`mitglieder`, `api`, `x` in Doku-Prosa) ist keine
+				# Kurzform — es beschreibt keinen Aufruf.
+				if "." not in name and name not in _MODULNAMEN:
+					funde.append((datei, nr, name))
+	return funde
+
+
+def _kurzformen_im_quelltext() -> list[tuple[str, int, str]]:
+	"""Kurzformen aus `frontend/src` und `tools/` (die zwei Aufrufer)."""
+	return _kurzformen_in((_frontend_wurzel(),) + _TOOLS)
 
 
 def _dateien(wurzeln: tuple[str, ...]) -> list[str]:
@@ -103,9 +181,63 @@ def test_keine_gestrichene_kurzform_im_quelltext(bereich):
 
 
 def test_frontend_pfade_nutzen_keine_kurzform():
-    """Gegenprobe am Scanner des SPA-Waechters: nur volle Modulbahnen."""
+    """Gegenprobe am Scanner des SPA-Waechters: nur volle Modulbahnen.
+
+    ROUTER-ALIAS-d (Befund): Dieser Test konnte NIE fehlschlagen. Er las
+    `W._frontend_pfade()` und filterte alles ohne Punkt heraus — und der
+    Scanner liefert per Konstruktion nur Literale MIT Punkt. Damit war
+    „keine Kurzform" eine Tautologie.
+
+    Geprueft wird jetzt, was wirklich zaehlt:
+
+      * Es gibt ueberhaupt Kurzform-Aufrufe im Quelltext (sonst sieht der
+        Test nichts — und ist blind, nicht gruen).
+      * Keine der gestrichenen Kurzformen (`_VERBOTEN`) wird aufgerufen.
+      * Jeder gefundene Kurzname gehoert zur ZUGESAGTEN Menge
+        (`_ERLAUBTE_KURZNAMEN`, dokumentierte Frappe-Kernpfade und `ping`) —
+        ein neuer, unbemerkter Kurzname faellt hier auf.
+      * Fuer jeden dieser Namen gilt: er loest am Router wirklich auf.
+
+    Der fruehere 8er-Katalog (Z. 31-43) war eine gepflegte Kopie; die Menge
+    kommt jetzt aus dem Quelltext von `frontend/src` UND `tools/`.
+    """
     import test_router_alias_waechter as W
 
-    kurz = [p for p in W._frontend_pfade() if "." not in p and p != "diakronos.x.y"]
-    kurz = [p for p in kurz if p not in {"upload_file"}]
-    assert kurz == [], f"SPA ruft Kurzformen ohne Modulbahn: {kurz}"
+    _register_vollstaendig()
+    kurz = _kurzformen_im_quelltext()
+    assert len(kurz) >= 3, f"zu wenige Kurzform-Aufrufe gefunden ({len(kurz)}): {kurz}"
+    verboten = [f"{datei}:{nr}: {name}" for datei, nr, name in kurz if name in _VERBOTEN]
+    assert verboten == [], "gestrichene Kurzform im Quelltext:\n" + "\n".join(verboten[:20])
+    # Zugesagt ist eine Kurzform nur, wenn sie im REGISTER steht oder ein
+    # Kernpfad ist (`_ERLAUBTE_KURZNAMEN`) — die Erlaubnis kommt damit aus
+    # dem Code, nicht aus einer gepflegten Kopie in diesem Test.
+    from diakronos_app.frappe_compat import registry
+
+    zugesagt = set(_ERLAUBTE_KURZNAMEN)
+    zugesagt |= {p for p in registry.registered() if "." not in p}
+    unbekannt = sorted({name for _d, _n, name in kurz} - zugesagt)
+    assert unbekannt == [], f"nicht zugesagte Kurzform(en): {unbekannt}"
+    # ... und jede benutzte Kurzform muss am Router wirklich loesen.
+    tot = sorted({name for _d, _n, name in kurz if not W._loest_auf(name)})
+    assert tot == [], f"Kurzform(en) ohne Funktion am Router: {tot}"
+
+
+def test_kurzform_waechter_kann_rot_werden(monkeypatch, tmp_path):
+    """Mutationsbeleg: derselbe Test wird mit einer gestrichenen Kurzform ROT.
+
+    Ohne diesen Nachweis waere nicht belegt, dass der Waechter ueberhaupt
+    etwas sieht — genau der Befund dieser Karte. Die Mutation ist eine
+    ECHTE Datei im gleichen Baum (und derselbe Scanner), kein Mock.
+    """
+    ziel = os.path.join(str(tmp_path), "mutant.mjs")
+    with open(ziel, "w", encoding="utf-8") as fh:
+        fh.write(
+            "export async function a() { return fetch('/api/method/liste') }\n"
+            "export async function b() { return fetch('/api/method/status') }\n"
+        )
+    pfade = _kurzformen_in([str(tmp_path)])
+    namen = [n for _d, _n, n in pfade]
+    assert "liste" in namen, pfade
+    assert "status" in namen, pfade
+    # Beides sind GESTRICHENE Kurzformen — der Waechter sieht sie also.
+    assert [n for n in namen if n in _VERBOTEN], "der Waechter sieht die Mutation nicht"

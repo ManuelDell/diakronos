@@ -84,7 +84,7 @@ def plan_ids_holen(page) -> None:
     """Die Plan-Kennungen der Demo per API holen (sie sind je Seed neu)."""
     global PLAN_ABLAUF, PLAN_CHOR
     daten = page.evaluate(
-        "async () => (await (await fetch('/api/method/diakronos_app.api.planrahmen.plaene_liste'))"
+        "async () => (await (await fetch('/api/method/diakronos.planrahmen.api.plaene_liste'))"
         ".json()).message")
     for plan in daten:
         if plan.get("plantyp_name") == "Gottesdienst-Ablauf":

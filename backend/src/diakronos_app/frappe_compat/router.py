@@ -561,7 +561,7 @@ _PREFLIGHT_SELBST = "self"
 # ── ROUTER-ALIAS-c: die VORBEDINGUNG jeder Methodenpfad-Anfrage ────────────
 #
 # Befund (Review): `call_method` verzweigte OPTIONS VOR jeder Pruefung in
-# `_preflight`, und `_preflight` rief fuer unbekannte Pfade `_maybe_import`
+# `_preflight`, und `_preflight` rief fuer unbekannte Pfade einen Importweg
 # auf. Damit war der Endpunkt ohne Anmeldung ein CPU-Verstaerker:
 #
 #   * `nachregistrieren()` lief ueber das GANZE Register (jeder Fehlgriff),
@@ -572,64 +572,12 @@ _PREFLIGHT_SELBST = "self"
 # Deshalb gibt es jetzt EINE Funktion, die beide Wege zuerst durchlaufen:
 # Syntax (SEC-7/S2), Eigentum (ROUTER-ALIAS) und — fuer Kernpfade — die
 # Umleitung aus der Registry-Tabelle (`frappe.sessions.get_csrf_token`).
-# Sie importiert NICHTS: kein `nachregistrieren`, kein `_maybe_import`, kein
-# Modulname aus der Anfrage.
-
-#: Module des EIGENEN Pakets, die beim ersten Fehlgriff eines Namens
-#: hereingeladen werden duerfen (`_module_aus_anfrage`). Gebaut beim ersten
-#: Zugriff aus dem Paket-Scan (`pkgutil.walk_packages`) — eine Allowlist,
-#: keine Ableitung aus dem angefragten Pfad: aus `x.y.z` wird NIE ein
-#: Importname. Bewusst konservativ: nur Module, deren letzter Pfadteil GENAU
-#: der Teil vor dem Funktionsnamen ist (`<prefix>.api.<modul>.<fn>` ->
-#: `diakronos_app.api.<modul>`) — damit kommt kein `…api` selbst, kein
-#: Unterpaket und kein Name aus einem fremden Praefix in die Liste.
-_MODUL_ALLOWLIST: frozenset[str] | None = None
-
-
-def _modul_allowlist() -> frozenset[str]:
-	global _MODUL_ALLOWLIST
-	if _MODUL_ALLOWLIST is None:
-		import pkgutil
-
-		_paket = "diakronos_app.api"
-		namen: set[str] = set()
-		try:
-			import importlib
-
-			paket = importlib.import_module(_paket)
-			for info in pkgutil.walk_packages(getattr(paket, "__path__", []), _paket + "."):
-				if not info.ispkg:
-					namen.add(info.name)
-		except Exception:  # noqa: BLE001 — ohne Paket gibt es nichts zu importieren
-			namen = set()
-		_MODUL_ALLOWLIST = frozenset(namen)
-	return _MODUL_ALLOWLIST
-
-
-def _module_aus_anfrage(path: str) -> list[str]:
-	"""Module der ALLOWLIST, die zu diesem Methodenpfad passen (hoechstens eins).
-
-	`diakronos.diakonos.api.gruppen.get_gruppe_detail` ->
-	`diakronos_app.api.gruppen`; `diakronos_app.api.gruppen.get_gruppe_detail`
-	-> dasselbe. Alles andere (Kernpfade, fremde Praefixe, erfundene Namen)
-	ergibt `[]` — es wird nichts geraten.
-	"""
-	module = _modul_allowlist()
-	if not module:
-		return []
-	teile = path.split(".")
-	if len(teile) < 2:
-		return []
-	kandidaten: list[str] = []
-	kern = ".".join(teile[:-1])
-	if kern.startswith("diakronos_app.") and kern in module:
-		kandidaten.append(kern)
-	letzter = teile[-2]
-	for name in (f"diakronos_app.api.{letzter}", f"diakronos_app.api.klassisch.{letzter}"):
-		if name in module and name not in kandidaten:
-			kandidaten.append(name)
-	return kandidaten[:1]
-
+#
+# ROUTER-ALIAS-d: Der Router importiert NICHTS mehr. Der letzte Rest des
+# frueheren Importwegs (`_maybe_import`, die Modul-Allowlist und der
+# Nachlade-Zweig in `_aufloesen`) ist entfernt — er war praktisch
+# unerreichbar und der einzige Ort, an dem ein Modulname noch mit einer
+# Anfrage zu tun hatte.
 
 def _kandidat(path: str) -> Any:
 	"""Die Funktion, die der Pfad BEANSPRUCHT — ohne Register-Eintrag zu verlangen.
@@ -673,10 +621,10 @@ def _vorbedingung(path: str) -> tuple[str, Any]:
 	    wird befragt.
 	  * `("fremd", None)` — der Pfad gehoert keiner registrierten Funktion
 	    (`_ist_eigener_pfad`) -> 404. **Hier wird NICHTS importiert.**
-	  * `("ok", None)` — der Pfad darf existieren, die Funktion ist aber nicht
-	    geladen. Der Aufrufer darf EIN Modul aus der Allowlist importieren und
-	    danach erneut fragen (das ist der einzige Importweg, den es gibt).
-	  * `("ok", fn)` — fertig aufgeloest.
+	  * `("ok", fn)` — fertig aufgeloest. `fn` ist NIE `None`: ohne Funktion
+	    ist der Pfad `fremd` (ROUTER-ALIAS-d; den frueheren Zustand
+	    `("ok", None)` fuer einen nachzuladenden Import gibt es nicht mehr —
+	    `diakronos_app.api` registriert beim Start alle Endpunkte).
 
 	Kernpfade werden hier ueber die Registry-Tabelle aufgeloest
 	(`_KERNPFAD_ZIEL`) — die Frappe-Adresse `frappe.sessions.get_csrf_token`
@@ -697,23 +645,16 @@ def _vorbedingung(path: str) -> tuple[str, Any]:
 
 
 def _aufloesen(path: str) -> Any:
-	"""`_vorbedingung` + hoechstens EIN Import aus der Allowlist. `None` = 404."""
-	zustand, fn = _vorbedingung(path)
-	if zustand != "ok":
-		return None
-	if fn is not None:
-		return fn
-	for modul in _module_aus_anfrage(path):
-		import importlib
-		import importlib.util
+	"""`_vorbedingung` ohne jeden Import. `None` = 404.
 
-		if importlib.util.find_spec(modul) is None:
-			continue
-		try:
-			importlib.import_module(modul)
-		except ImportError:
-			continue
-		break
+	ROUTER-ALIAS-d: Hier stand ein Importweg — bei `("ok", None)` wurde EIN
+	Modul aus der Allowlist (`_module_aus_anfrage`) nachgeladen und erneut
+	gefragt. Er war **praktisch unerreichbar** (gemessen: kein einziger
+	Registerpfad und kein Kernpfad liefert `("ok", None)` — `_ist_eigener_pfad`
+	ist bereits `False`, sobald `_kandidat` nichts findet) und er war der
+	LETZTE Ort, an dem ein Modulname mit einer Anfrage zu tun hatte. Er ist
+	entfernt: der Router importiert nichts mehr.
+	"""
 	zustand, fn = _vorbedingung(path)
 	return fn if zustand == "ok" else None
 
@@ -783,9 +724,10 @@ async def call_method(path: str, request: Request):
 		return await _preflight(path, request)
 	# SEC-7/S2 (N5) + ROUTER-ALIAS + ROUTER-ALIAS-c: Syntax, Eigentum und
 	# Kernpfad-Umleitung in EINER Pruefung, VOR jedem Import. Frueher lief
-	# `..%2F..%2Fetc%2Fpasswd` bis in `_maybe_import` (unbehandelter 500,
-	# Verzeichnisstruktur sondierbar), und jeder Fehlgriff importierte ueber
-	# `importlib` einen Modulnamen aus der Anfrage. Beides ist hier zu Ende.
+	# `..%2F..%2Fetc%2Fpasswd` bis in den damaligen Importweg (unbehandelter
+	# 500, Verzeichnisstruktur sondierbar), und jeder Fehlgriff importierte
+	# ueber `importlib` einen Modulnamen aus der Anfrage. Beides ist hier zu
+	# Ende — seit ROUTER-ALIAS-d importiert der Router ueberhaupt nichts mehr.
 	if _vorbedingung(path)[0] != "ok":
 		return _nicht_gefunden(request)
 	fn = _aufloesen(path)
@@ -993,30 +935,6 @@ def _guest_denied(fn) -> bool:
 	if options_for(fn).get("allow_guest", False) is True:
 		return False
 	return frappe_session.user == "Guest"
-
-
-def _maybe_import(path: str) -> None:
-	"""Laedt EIN Modul der Allowlist, das zu diesem Pfad passt (Start-Nachtrag).
-
-	ROUTER-ALIAS-c: Diese Funktion ist KEIN Anfrageweg mehr. Frueher rief der
-	Router sie je Fehlgriff auf; sie liess `nachregistrieren()` ueber das ganze
-	Register laufen und importierte `importlib.import_module(<Teile des
-	Anfragepfads>)` — `OPTIONS /api/method/this.zz` importierte `this`.
-
-	Jetzt gilt: hoechstens EIN Modul, und nur aus der Allowlist des eigenen
-	Pakets (`_module_aus_anfrage`). Der Aufruf steht hinter einem Flag
-	(`nachregistrieren(frei=True)`/`_module_allowlist()`), nicht im Router.
-	Fuer den Normalbetrieb ist der Import unnoetig: `diakronos_app.api`
-	registriert beim Start alle Endpunkte.
-	"""
-	import importlib
-
-	for module_name in _module_aus_anfrage(path):
-		try:
-			importlib.import_module(module_name)
-		except ImportError:  # pragma: no cover — Allowlist enthaelt nur echte Module
-			continue
-		return
 
 
 def _praefixierte_datei_urls(wert: Any) -> Any:

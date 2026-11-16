@@ -92,7 +92,7 @@ with sync_playwright() as p:
     ergebnis["_api"] = page.evaluate(
         """async () => {
             const antwort = await fetch(
-              '/api/method/diakronos.diakronos.api.gemeinde.gemeinde_get_einstellungen',
+              '/api/method/diakronos.diakonos.api.gemeinde.gemeinde_get_einstellungen',
               { method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({}) })
             const text = await antwort.text()

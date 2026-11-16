@@ -111,9 +111,9 @@ async function datenAnlegen(page) {
   // Gelesen wird über dieselben Schnittstellen wie die Seite:
   // `get_anmeldeformulare` liefert die Formulare ({"formulare": [...]}),
   // `get_anmeldungen_hub` die Links.
-  const liste = await ruf('diakronos.diakronos.api.admin_hub.get_anmeldeformulare', {})
+  const liste = await ruf('diakronos.diakonos.api.admin_hub.get_anmeldeformulare', {})
   if (!liste.ok) throw new Error(`get_anmeldeformulare: HTTP ${liste.status} ${liste.text.slice(0, 200)}`)
-  const hub = await ruf('diakronos.diakronos.api.admin_hub.get_anmeldungen_hub', {})
+  const hub = await ruf('diakronos.diakonos.api.admin_hub.get_anmeldungen_hub', {})
   if (!hub.ok) throw new Error(`get_anmeldungen_hub: HTTP ${hub.status} ${hub.text.slice(0, 200)}`)
   let vorhanden = []
   let linkVorhanden = false
@@ -131,7 +131,7 @@ async function datenAnlegen(page) {
   ]
   for (const f of formulare) {
     if (vorhanden.includes(f.bezeichnung)) continue
-    const r = await ruf('diakronos.diakronos.api.admin_hub.create_anmeldeformular', f)
+    const r = await ruf('diakronos.diakonos.api.admin_hub.create_anmeldeformular', f)
     if (!r.ok) throw new Error(`create_anmeldeformular „${f.bezeichnung}“: HTTP ${r.status} ${r.text.slice(0, 200)}`)
   }
   if (!linkVorhanden) {
@@ -141,7 +141,7 @@ async function datenAnlegen(page) {
     if (!link.ok) throw new Error(`create_link: HTTP ${link.status} ${link.text.slice(0, 200)}`)
   }
   // Datenstand festhalten — gleiche Zahl vorher/nachher = vergleichbar.
-  const kontrolle = await ruf('diakronos.diakronos.api.admin_hub.get_anmeldeformulare', {})
+  const kontrolle = await ruf('diakronos.diakonos.api.admin_hub.get_anmeldeformulare', {})
   let stand = null
   try {
     stand = { formulare: (JSON.parse(kontrolle.text).message?.formulare || []).length }

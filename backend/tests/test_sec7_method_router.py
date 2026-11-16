@@ -181,24 +181,56 @@ def test_traversal_wird_vor_der_aufloesung_abgewiesen(client, pfad, monkeypatch)
     """Der Pfad erreicht Register und Import NIE — keine Sonde moeglich.
 
     Ohne diese Zusage waere die Whitelist nur Kosmetik: ein Traversal-Pfad,
-    der bis in `importlib` laeuft, verraet ueber Ja/Nein-Antworten wieder die
-    Verzeichnisstruktur.
+    der bis in die Aufloesung laeuft, verraet ueber Ja/Nein-Antworten wieder
+    die Verzeichnisstruktur.
+
+    ROUTER-ALIAS-d (Befund): Der Test patchte `registry.lookup` und
+    `router._maybe_import`. Beides griff NICHT: der Router importiert `lookup`
+    per Namen (`from …registry import … lookup …`), ein Patch am
+    registry-MODUL erreicht ihn nicht — und `_maybe_import` ist entfernt.
+    Gepatcht wird jetzt die Stelle, die der Router WIRKLICH ruft:
+    `router.lookup` und `router._kandidat` (die Aufloesung samt
+    Ordnungs-Zusage). Ein Traversal-Pfad darf keine davon erreichen.
     """
-    from diakronos_app.frappe_compat import registry, router
+    from diakronos_app.frappe_compat import router
 
     gerufen: list[str] = []
 
-    def _kein_import(name, *args, **kwargs):  # pragma: no cover — darf nicht greifen
+    def _spion(name, *args, **kwargs):
         gerufen.append(str(name))
-        raise AssertionError(f"Importversuch fuer {name!r}")
+        raise AssertionError(f"Aufloesung fuer {name!r} wurde befragt")
 
-    monkeypatch.setattr(registry, "lookup", lambda p: gerufen.append(p) or None)
-    monkeypatch.setattr(router, "_maybe_import", _kein_import)
+    monkeypatch.setattr(router, "lookup", _spion)
+    monkeypatch.setattr(router, "_kandidat", _spion)
 
     r = client.post(f"/api/method/{pfad}")
 
     assert r.status_code in (400, 404), r.text
     assert gerufen == [], f"Pfad wurde aufgeloest: {gerufen}"
+
+
+def test_traversal_spion_greift_ueberhaupt(client, monkeypatch):
+    """Mutationsbeleg: mit einem GUELTIGEN Pfad werden die Spione gerufen.
+
+    Ohne diesen Nachweis waere der Test oben blind — dieselbe Falle wie beim
+    alten Patch an `registry.lookup`, der nie etwas abfing.
+    """
+    from diakronos_app.frappe_compat import router
+
+    gerufen: list[str] = []
+    echt = router.lookup
+
+    def _spion(path):
+        gerufen.append(path)
+        return echt(path)
+
+    monkeypatch.setattr(router, "lookup", _spion)
+    r = client.get("/api/method/ping")
+
+    assert r.status_code == 200, r.text
+    # Mindestens einmal — die Aufloesung fragt `lookup` an zwei Stellen
+    # (`_ist_eigener_pfad` und `_kandidat`), das ist beabsichtigt.
+    assert gerufen and set(gerufen) == {"ping"}, gerufen
 
 
 def test_traversal_antwort_ist_die_generische_404(client):
