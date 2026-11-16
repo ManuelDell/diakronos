@@ -648,7 +648,12 @@ test('Kachel gefüllt: eigene + zugewiesene Aufgabe, Gruppen-Link mit NAMEN, erl
 
 test('Kachel: ohne `gruppe_name` (alter Server) steht kein leerer Link da', async () => {
   // Fail-closed-Leertext: `null` bei eigenen Aufgaben heißt „nichts anzeigen“ —
-  // die Kennung ist KEIN Ersatz mehr (sie war der Fehler).
+  // die GRUPPEN-Kennung ist KEIN Ersatz mehr (sie war der Fehler).
+  //
+  // UI-R9d: ein Link mit LEEREM Text ist aber ebenso falsch — unsichtbar und
+  // ohne zugänglichen Namen. Der Link nennt deshalb einen festen, lesbaren Text
+  // („Gruppe öffnen“: er führt zur GRUPPE); die Kennung der Aufgabe steht nur
+  // im `title`, nicht als sichtbarer Text.
   const { host, weg } = await kachel({
     success: true, darf_anlegen: true,
     data: [aufgabe({ name: 'A-1', titel: 'Für den Chor', gruppe: 'GRU-1', untergruppe: 'UG-2',
@@ -656,9 +661,12 @@ test('Kachel: ohne `gruppe_name` (alter Server) steht kein leerer Link da', asyn
   })
   const link = host.querySelector('.ma-link')
   assert.ok(link, 'der Link zur Gruppe fehlt ganz')
-  assert.equal(txt(link), '')
+  assert.equal(txt(link), 'Gruppe öffnen', 'der Link hat wieder keinen lesbaren Text')
+  assert.equal(link.getAttribute('aria-label'), 'Gruppe öffnen')
+  assert.equal(link.getAttribute('title'), 'Aufgabe A-1', 'der Link nennt die Aufgabe nicht im Titel')
   assert.equal(link.getAttribute('href'), '#/gruppe/UG-2')
-  assert.ok(!txt(host).includes('UG-2'), 'die Kennung steht als Text in der Kachel')
+  assert.ok(!txt(host).includes('UG-2'), 'die GRUPPEN-Kennung steht als Text in der Kachel')
+  assert.ok(!txt(link).includes('A-1'), 'die Kennung der Aufgabe steht als sichtbarer Text da')
   weg()
 })
 

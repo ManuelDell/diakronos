@@ -679,3 +679,11 @@ tests/uir3i-*.test.mjs
 # (stiller und nicht-stiller Weg, am Verhalten gemessen). Dazu die tote
 # `ende`-Mechanik raus.
 tests/uir3j-*.test.mjs
+# UI-R9d: Aufgaben — „Aufgabe anlegen“/„Ankündigung“ hängen an den
+# SERVER-Flags (`aufgabe_anlegen`/`ankuendigung_anlegen`), nicht an der
+# Client-Regel `canManage`; der Fokus nach Abhaken/Wiederöffnen sucht nur in
+# der EIGENEN Liste und trifft die Zeile über ihre Kennung (`data-aufgabe`,
+# zwei gleiche Titel sind unterscheidbar); der Gruppen-Link ohne
+# `gruppe_name` hat wieder einen lesbaren Text. Mount-Tests am echten
+# Bauteil (jsdom + vue/compiler-sfc), kein Quelltext-Muster.
+tests/uir9d-*.test.mjs

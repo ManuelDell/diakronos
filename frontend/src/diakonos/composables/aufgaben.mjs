@@ -168,6 +168,40 @@ export function gruppenName(aufgabe) {
 }
 
 /**
+ * Beschriftung des Gruppen-Links in der Kachel „Meine Aufgaben“.
+ *
+ * UI-R9d: Der Link hing allein an `gruppe_name`. Fehlt der Name (alter Server),
+ * stand dort ein Link mit LEEREM Text — unsichtbar für das Auge und ohne
+ * zugänglichen Namen für Vorleseprogramme (das frühere `aria-label="Gruppe"`
+ * war geraten). Jetzt steht dort ein fester, lesbarer Text („Gruppe öffnen“):
+ * der Link führt zur GRUPPE, also nennt er die Gruppe. Die Kennung der Aufgabe
+ * steht bewusst NICHT im Text (rohe Kennungen liest niemand); als Titel des
+ * Links dient sie trotzdem, damit gleich benannte Links unterscheidbar bleiben.
+ * Das Ziel bleibt die Gruppe — kaputt ist der Link nicht.
+ */
+export const GRUPPEN_LINK_ERSATZ = 'Gruppe öffnen'
+
+export function gruppenLinkText(aufgabe) {
+    const name = gruppenName(aufgabe)
+    if (name) return name
+    return GRUPPEN_LINK_ERSATZ
+}
+
+/**
+ * Titel (Tooltip) des Gruppen-Links: der sichtbare Text sagt bei fehlendem
+ * `gruppe_name` für jede Aufgabe gleich („Gruppe öffnen“). Damit zwei solche
+ * Links unterscheidbar bleiben — für das Auge und für Vorleseprogramme, die
+ * `title` mitlesen —, nennt der Titel die Aufgabe („Aufgabe AUF-1“).
+ * Unsichtbarer Text ja, sichtbare rohe Kennung nein.
+ */
+export function gruppenLinkTitel(aufgabe) {
+    const name = gruppenName(aufgabe)
+    if (name) return name
+    const kennung = String(aufgabe?.name || '').trim()
+    return kennung ? `Aufgabe ${kennung}` : GRUPPEN_LINK_ERSATZ
+}
+
+/**
  * Anzeigename einer Gruppe OHNE rohe Kennung: der Name aus der Antwort
  * (`untergruppenname`/`gruppenname`), sonst der für Menschen gedachte
  * Ersatztext (`*_name`, `titel`), zuletzt die Kennung selbst. UI-R9b: der Link

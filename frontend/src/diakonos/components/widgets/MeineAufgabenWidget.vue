@@ -61,8 +61,8 @@
         ? 'Keine Aufgaben. Eigene Aufgaben legst du hier an; Gruppenaufgaben erscheinen, sobald sie dir zugewiesen sind.'
         : 'Keine Aufgaben. Gruppenaufgaben erscheinen hier, sobald sie dir zugewiesen sind.' }}
     </p>
-    <ul v-if="offen.length" class="ma-liste">
-      <li v-for="a in offen" :key="a.name" class="ma-zeile">
+    <ul v-if="offen.length" ref="offeneListe" class="ma-liste">
+      <li v-for="a in offen" :key="a.name" class="ma-zeile" :data-aufgabe="a.name">
         <DkCheckbox
           :model-value="!!a.erledigt"
           :disabled="!darfAbhaken(a) || busy === a.name"
@@ -73,7 +73,11 @@
           <span class="ma-titel">{{ a.titel }}</span>
           <span class="ma-meta">
             <span v-if="a.eigene" class="ma-herkunft">Eigene Aufgabe</span>
-            <a v-else-if="gruppenHref(a)" :href="gruppenHref(a)" class="ma-link" :aria-label="gruppenName(a) || 'Gruppe'">{{ gruppenName(a) }}</a>
+            <!-- UI-R9d: ohne `gruppe_name` (alter Server) stand hier ein Link
+                 mit leerem Text — unsichtbar und ohne zugänglichen Namen. Dann
+                 nennt der Link die AUFGABE (ihre Kennung), das Ziel bleibt die
+                 Gruppe. -->
+            <a v-else-if="gruppenHref(a)" :href="gruppenHref(a)" class="ma-link" :aria-label="gruppenLinkText(a)" :title="gruppenLinkTitel(a)">{{ gruppenLinkText(a) }}</a>
             <span v-if="zuweisungsText(a)" class="ma-zuweisung">{{ zuweisungsText(a) }}</span>
             <span v-if="faelligkeit(a).text" :class="['ma-frist', { 'is-ueberfaellig': faelligkeit(a).ueberfaellig }]">
               {{ faelligkeit(a).text }}
@@ -98,7 +102,7 @@
         {{ zeigeErledigte ? 'ausblenden' : 'anzeigen' }}
       </DkButton>
       <ul v-if="zeigeErledigte" class="ma-liste ma-liste-erledigt">
-        <li v-for="a in erledigt" :key="a.name" class="ma-zeile">
+        <li v-for="a in erledigt" :key="a.name" class="ma-zeile" :data-aufgabe="a.name">
           <DkCheckbox
             :model-value="true"
             :disabled="!darfAbhaken(a) || busy === a.name"
@@ -109,7 +113,11 @@
             <span class="ma-titel is-erledigt">{{ a.titel }}</span>
             <span class="ma-meta">
               <span v-if="a.eigene" class="ma-herkunft">Eigene Aufgabe</span>
-              <a v-else-if="gruppenHref(a)" :href="gruppenHref(a)" class="ma-link" :aria-label="gruppenName(a) || 'Gruppe'">{{ gruppenName(a) }}</a>
+              <!-- UI-R9d: ohne `gruppe_name` (alter Server) stand hier ein Link
+                 mit leerem Text — unsichtbar und ohne zugänglichen Namen. Dann
+                 nennt der Link die AUFGABE (ihre Kennung), das Ziel bleibt die
+                 Gruppe. -->
+            <a v-else-if="gruppenHref(a)" :href="gruppenHref(a)" class="ma-link" :aria-label="gruppenLinkText(a)" :title="gruppenLinkTitel(a)">{{ gruppenLinkText(a) }}</a>
             </span>
           </div>
           <DkAktionen
@@ -137,7 +145,7 @@ import { aktionsfehler } from '../../../shared/fehlertexte.js'
 import { bestaetigen } from '../../composables/useBestaetigen.js'
 import {
   darfAbhaken, darfBearbeiten, teileNachErledigt, zuweisungsText, faelligkeit,
-  gruppenHref, gruppenName, darfEigeneAnlegen,
+  gruppenHref, gruppenLinkText, gruppenLinkTitel, darfEigeneAnlegen,
 } from '../../composables/aufgaben.mjs'
 
 const props = defineProps({
@@ -163,6 +171,13 @@ const sendet = ref(false)
 const titelFeld = ref(null)
 // UI-R9c: Ziel des Fokus, wenn keine offene Zeile mehr da ist.
 const erledigtKnopf = ref(null)
+// UI-R9d: Kennung der Zeile, die gerade (wieder) aufgeht — der Fokus geht
+// dorthin, auch wenn sie nicht die erste offene Aufgabe ist.
+let openZiel = ''
+// UI-R9d: die offene Liste DIESER Kachel — der Fokus sucht nur hier (per
+// Kennung `data-aufgabe`), nicht im ganzen Dokument und nicht über den Titel
+// (zwei Aufgaben dürfen gleich heißen).
+const offeneListe = ref(null)
 
 const geteilt = computed(() => teileNachErledigt(aufgaben.value))
 const offen = computed(() => geteilt.value.offen)
@@ -206,10 +221,21 @@ async function abhaken(a) {
       // Sofort umschalten (die Liste teilt sich über `erledigt` selbst neu)
       // und STILL nachladen — kein Skelett, kein Sprung.
       a.erledigt = !!res.erledigt
+      // UI-R9d: beim WIEDERÖFFNEN schon hier den Zielmerker setzen und den
+      // Render abwarten, BEVOR nachgeladen wird — sonst steht die Zeile im
+      // Moment des Fokus noch als „gesperrt“ im Baum (der Klick geht im
+      // Betrieb erst NACH `busy.value = ''`).
+      openZiel = res.erledigt ? '' : String(a.name)
+      await nextTick()
       await laden({ still: true })
       // UI-R9c: die abgehakte Zeile verschwindet — ohne Ziel fiele der Fokus
       // auf <body>. Erst NACH dem Nachladen setzen: `laden` schreibt die Zeilen
       // neu, ein Fokus auf das alte Element wäre sofort wieder weg.
+      await nextTick()
+      // UI-R9d: beim WIEDERÖFFNEN ist die Zeile noch gesperrt (`busy` gilt bis
+      // zum `finally`) — ein gesperrtes Kästchen nimmt keinen Fokus an. Die
+      // Sperre gehört zur Aktion, nicht zum Ergebnis: sie endet hier.
+      if (openZiel) busy.value = ''
       await nextTick()
       fokusNachAbhaken(a)
     } else {
@@ -225,29 +251,41 @@ async function abhaken(a) {
 }
 
 /**
- * Fokus nach dem Abhaken (UI-R9c).
+ * Fokus nach dem Abhaken (UI-R9c, UI-R9d).
  *
  * Die abgehakte Zeile wandert aus der offenen Liste, ihr Kästchen ist weg.
- * Ziel ist deshalb die nächste offene Zeile, sonst der Knopf „Erledigte
- * anzeigen“ — ein definierter Platz statt des `<body>`, an dem Tastatur und
+ * Ziel ist ein definierter Platz statt des `<body>`, an dem Tastatur und
  * Vorleseprogramm die Stelle verlieren.
+ *
+ * UI-R9d:
+ *  · Gesucht wird in der Liste DIESER Kachel (Template-Ref), nicht im ganzen
+ *    Dokument — sonst konnte eine fremde `.ma-zeile` das Ziel liefern.
+ *  · Angesteuert wird die Zeile über ihre KENNUNG (`data-aufgabe`), nicht über
+ *    Titel oder `aria-label`: zwei Aufgaben dürfen gleich heißen.
+ *  · `openZiel` merkt sich die Zeile, die (wieder) aufgeht. Beim WIEDERÖFFNEN
+ *    ist das NICHT `offen.value[0]` — der frühe Ausstieg ließ den Fokus auf
+ *    `<body>`.
+ *  · Ein noch gesperrtes Kästchen (`busy === a.name`) nimmt keinen Fokus an —
+ *    dann geht der Fokus an den Einklapp-Knopf statt ins Leere.
+ *  · Der Einklapp-Knopf ist ein `DkButton` (Bauteil-Instanz): die trägt kein
+ *    `focus()`, erst ihr Element (`$el`). Ohne das landete der Fokus bei
+ *    „letzte offene Aufgabe abgehakt“ auf `<body>`.
  */
 function fokusNachAbhaken(a) {
-  const inOffen = offen.value.some((x) => x.name === a?.name && !x.erledigt)
-  if (inOffen) return // aufgeklappt (wieder geöffnet): die Zeile steht noch da
-  const naechste = offen.value[0]
-  const zeilen = document.querySelectorAll('.ma-liste .ma-zeile')
+  const kennung = String(a?.name || '')
+  const wiederOffen = offen.value.some((x) => x.name === a?.name && !x.erledigt)
+  // Beim Wiederöffnen ist DIESE Zeile das Ziel, sonst die erste offene.
+  const gesucht = wiederOffen || openZiel ? (openZiel || kennung) : String(offen.value[0]?.name || '')
   let ziel = null
-  if (naechste) {
-    for (const zeile of zeilen) {
-      const input = zeile.querySelector('input[type="checkbox"]')
-      if (input?.getAttribute('aria-label') === `„${naechste.titel}“ erledigt`) {
-        ziel = input
-        break
-      }
+  for (const zeile of (offeneListe.value?.querySelectorAll('.ma-zeile[data-aufgabe]') || [])) {
+    const kaestchen = zeile.querySelector('input[type="checkbox"]')
+    if (zeile.getAttribute('data-aufgabe') === gesucht && kaestchen && !kaestchen.disabled) {
+      ziel = kaestchen
+      break
     }
   }
-  if (!ziel) ziel = erledigtKnopf.value
+  openZiel = ''
+  if (!ziel) ziel = erledigtKnopf.value?.$el ?? erledigtKnopf.value?.el ?? erledigtKnopf.value
   if (ziel && typeof ziel.focus === 'function') ziel.focus()
 }
 

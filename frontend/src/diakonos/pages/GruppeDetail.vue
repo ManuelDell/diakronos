@@ -114,7 +114,7 @@
                     <!-- Details -->
                     <DkCard title="Details">
                         <template #actions>
-                            <DkButton v-if="canManage && !editingDesc" variant="ghost" size="md" @click="startEditDesc" aria-label="Details bearbeiten">
+                            <DkButton v-if="darfVerwalten && !editingDesc" variant="ghost" size="md" @click="startEditDesc" aria-label="Details bearbeiten">
                                 <!-- UXD-R25: Stift statt „+“ (das Zeichen stand für Bearbeiten, sah aber wie Anlegen aus). -->
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                             </DkButton>
@@ -190,7 +190,7 @@
                     <!-- Ankündigungen -->
                     <DkCard title="Ankündigungen">
                         <template #actions>
-                            <DkButton v-if="canManage" variant="ghost" size="md" @click="showAnkuendigungForm = !showAnkuendigungForm" aria-label="Ankündigung anlegen">
+                            <DkButton v-if="darfAnkuendigungAnlegen" variant="ghost" size="md" @click="showAnkuendigungForm = !showAnkuendigungForm" aria-label="Ankündigung anlegen">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             </DkButton>
                         </template>
@@ -224,7 +224,7 @@
                     <!-- Aufgaben -->
                     <DkCard title="Aufgaben">
                         <template #actions>
-                            <DkButton v-if="canManage" variant="ghost" size="md" @click="showAufgabeInput = !showAufgabeInput" aria-label="Aufgabe anlegen">
+                            <DkButton v-if="darfAufgabeAnlegen" variant="ghost" size="md" @click="showAufgabeInput = !showAufgabeInput" aria-label="Aufgabe anlegen">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             </DkButton>
                         </template>
@@ -256,8 +256,8 @@
                         </div>
                         <DkEmpty v-if="aufgaben.length === 0" title="Noch keine Aufgaben" text="Hier sammelt die Gruppe, was zu tun ist. Wer verwalten darf, legt Aufgaben an und weist sie zu." icon="📋" />
                         <template v-else>
-                            <p class="grup-zahl grup-aufgaben-zahl">{{ offenZahlText(aufgaben) }}</p>
-                            <ul class="grup-liste">
+                            <p ref="aufgabenUeberschrift" class="grup-zahl grup-aufgaben-zahl" tabindex="-1">{{ offenZahlText(aufgaben) }}</p>
+                            <ul ref="aufgabenOffenListe" class="grup-liste">
                                 <li v-for="a in aufgabenOffen" :key="a.name" class="grup-aufgabe" :data-aufgabe="a.name">
                                     <!-- Abhaken darf nur, wem die Aufgabe zugewiesen ist oder
                                          wer die Leitung hat — der Server sagt es je Zeile. -->
@@ -356,7 +356,7 @@
             </DkCard>
 
             <!-- Mitglieder (Verwaltung) -->
-            <DkCard v-if="canManage" title="Mitglieder" class="grup-breit">
+            <DkCard v-if="darfVerwalten" title="Mitglieder" class="grup-breit">
                 <template #actions>
                     <span class="grup-zahl">{{ zahlWort(mitglieder.length, 'Mitglied', 'Mitglieder') }}</span>
                 </template>
@@ -408,7 +408,7 @@
             </DkCard>
 
             <!-- Mitglieder (Übersicht) -->
-            <DkCard v-if="!canManage && mitglieder.length > 0" title="Mitglieder" class="grup-breit">
+            <DkCard v-if="!darfVerwalten && mitglieder.length > 0" title="Mitglieder" class="grup-breit">
                 <!-- OP-HANDY-19: Vorher stand hier nur „N Mitglieder in dieser
                      Gruppe“ — die Namen waren unsichtbar und niemand
                      auffindbar. Die Liste nennt jetzt die Namen; welche Felder
@@ -597,6 +597,12 @@ export default {
         const gruppeId = computed(() => String(getRouteParam('id', 'GruppeDetail') || ''))
         // UI-R9b: Ziele für den Fokus nach dem Abhaken (siehe `fokusNachAbhaken`).
         const einklappKnopf = ref(null)
+        // UI-R9d: die OFFENE Aufgabenliste DIESER Seite — der Fokus sucht nur
+        // noch hier, nicht im ganzen Dokument. Die Liste „erledigt“ ist kein
+        // Ziel mehr (dort steht die abgehakte Zeile, nicht die nächste offene).
+        const aufgabenOffenListe = ref(null)
+        // Rückfall ohne Ziel: die Aufgaben-Überschrift der Karte (immer da).
+        const aufgabenUeberschrift = ref(null)
 
         /** UI-R1: Serverrechte dieser (Unter-)Gruppe — nur zum Ausblenden. */
         const rechte = ref({ verwalten: false, rollen: false })
@@ -826,6 +832,26 @@ export default {
             return false
         })
 
+        /**
+         * UI-R9d: die Rechte-Flags der Serverantwort (`get_gruppe_detail.rechte`
+         * bzw. `get_untergruppe_detail.rechte`) — `_rechte_der_einheit` im
+         * Backend. Die Oberfläche entscheidet NICHT selbst, wer was darf: sie
+         * blendet nur aus, was der Server ohnehin verweigert.
+         */
+        const darfAufgabeAnlegen = computed(() => rechte.value?.aufgabe_anlegen === true)
+        const darfAnkuendigungAnlegen = computed(() => rechte.value?.ankuendigung_anlegen === true)
+
+        /**
+         * UI-R9d: „Verwalten“ dieser (Unter-)Gruppe — GENAU das Recht, das der
+         * Server für Beschreibung ändern (`update_gruppe`/`update_untergruppe`)
+         * und für die Mitgliederpflege (`add/remove/update_mitglied_*`) prüft:
+         * `_darf(VERWALTEN, …)` = `rechte.verwalten`. Die frühere Client-Regel
+         * `canManage` ist auf Untergruppen ZU ENG: HV/MV der Hauptgruppe
+         * stehen nicht in `verantwortliche` der Untergruppe, dürfen sie aber
+         * verwalten — ihr Knopf fehlte. Fail closed: ohne `rechte` kein Knopf.
+         */
+        const darfVerwalten = computed(() => rechte.value?.verwalten === true)
+
         // canView: User darf Gruppe-Dashboard sehen (Mitglied ODER canManage)
         const canView = computed(() => isMember.value || canManage.value)
 
@@ -937,12 +963,15 @@ export default {
                 wikiArtikel.value = data?.wiki_artikel || []
                 isMember.value = data?.is_member || false
                 // UI-R1: was der Server an dieser (Unter-)Gruppe erlaubt —
-                // Grundlage für den Reiter „Einstellungen“. Keine lokale
-                // Rechte-Regel: fehlt die Antwort, bleibt der Reiter zu.
+                // Grundlage für den Reiter „Einstellungen“ und die Knöpfe
+                // (UI-R9d: Aufgabe/Ankündigung). Keine lokale Rechte-Regel:
+                // fehlt die Antwort, bleibt alles zu.
                 const r = data?.rechte || {}
                 rechte.value = {
                     verwalten: Boolean(r.verwalten),
                     rollen: Boolean(r.rollen),
+                    aufgabe_anlegen: Boolean(r.aufgabe_anlegen),
+                    ankuendigung_anlegen: Boolean(r.ankuendigung_anlegen),
                 }
                 // Nächste Termine laden (UXD-R10: eigener Endpunkt; der alte
                 // kalender.get_events-Aufruf scheiterte bei jedem Laden).
@@ -1091,6 +1120,13 @@ export default {
                     a.erledigt = !!res.erledigt
                     await nachladenStill()
                     await nextTick()
+                    // UI-R9d: beim WIEDERÖFFNEN steht die Zeile wieder in der
+                    // offenen Liste, ihr Kästchen ist aber bis zum `finally`
+                    // noch gesperrt (`aufgabeLaeuft`) — ein gesperrtes Kästchen
+                    // nimmt keinen Fokus an. Die Sperre gehört zur Aktion,
+                    // nicht zum Ergebnis: sie endet hier.
+                    if (!a.erledigt) aufgabeLaeuft.value = ''
+                    await nextTick()
                     fokusNachAbhaken(a)
                 } else {
                     a.erledigt = vorher
@@ -1126,24 +1162,42 @@ export default {
          * Ziel ist die nächste offene Zeile (ihr Kästchen), sonst der
          * Einklapp-Knopf der erledigten Aufgaben — ein definierter Platz statt
          * des `<body>`.
+         *
+         * UI-R9d: gesucht wird NUR in DIESEM Bauteil — genauer in der Liste, in
+         * der die Zielzeile stehen muss (offen bzw. erledigt). Vorher lief
+         * `document.querySelectorAll` über das ganze Dokument: eine aufgeklappte
+         * Liste „erledigt“ oder ein zweites Aufgaben-Bauteil auf derselben Seite
+         * konnte die Zeile liefern, und der Fokus landete in der falschen Liste.
+         *
+         * UI-R9d (Review): Bleibt das Ziel leer — die Zeile ist nicht (mehr) da,
+         * ihr Kästchen ist gesperrt, oder das Wiederöffnen traf keine offene
+         * Zeile —, geht der Fokus an den Einklapp-Knopf, nicht an `<body>`.
+         * Beim WIEDERÖFFNEN ohne erledigte Reste gibt es diesen Knopf nicht
+         * mehr; dann steht der Fokus auf der Aufgaben-Überschrift der Karte.
          */
         function fokusNachAbhaken(a) {
             const weg = !!a?.erledigt
-            const naechste = weg
-                ? aufgabenOffen.value[0]
-                : aufgabenErledigt.value[0]
-            const zeilen = document.querySelectorAll('.grup-aufgabe[data-aufgabe]')
+            // Beim ABHAKEN wandert die Zeile aus der offenen Liste — Ziel ist
+            // die nächste offene Zeile. Beim WIEDERÖFFNEN steht sie wieder in
+            // der offenen Liste: Ziel ist genau DIESE Zeile (nicht
+            // `aufgabenErledigt[0]`, das ist eine andere Aufgabe).
+            const naechste = weg ? aufgabenOffen.value[0] : a
+            const liste = aufgabenOffenListe.value
             let ziel = null
-            if (naechste) {
-                for (const zeile of zeilen) {
-                    if (zeile.getAttribute('data-aufgabe') === naechste.name) {
-                        ziel = zeile.querySelector('input[type="checkbox"]')
+            if (naechste && liste) {
+                for (const zeile of liste.querySelectorAll('.grup-aufgabe[data-aufgabe]')) {
+                    const kaestchen = zeile.querySelector('input[type="checkbox"]')
+                    if (zeile.getAttribute('data-aufgabe') === String(naechste.name)
+                        && kaestchen && !kaestchen.disabled) {
+                        ziel = kaestchen
                         break
                     }
                 }
             }
+            // Rückfall 1: der Einklapp-Knopf (Bauteil-Instanz → ihr Element).
             if (!ziel) ziel = einklappKnopf.value?.$el || einklappKnopf.value?.el || null
-            if (!ziel) ziel = zeilen.length ? zeilen[0].querySelector('input[type="checkbox"]') : null
+            // Rückfall 2: die Aufgaben-Überschrift der Karte (immer da).
+            if (!ziel) ziel = aufgabenUeberschrift.value
             if (ziel && typeof ziel.focus === 'function') ziel.focus()
         }
 
@@ -1406,7 +1460,7 @@ export default {
              · Aus Gruppe entfernen (gefährlich, abgesetzt am Ende; derselbe
                                    Dialog wie bisher und dieselbe Serverfunktion)
            Rolle ändern gilt nur für Verwalter (dieselbe Bedingung wie das
-           Rollen-Auswahlfeld daneben: `canManage`). */
+           Rollen-Auswahlfeld daneben: `darfVerwalten`). */
         const aktionRefs = new Map()
         const mitgliedSchluessel = (m) => String(m.mitglied || m.name || '')
         function setzeAktion(el, m) {
@@ -1424,7 +1478,7 @@ export default {
                     aktion: () => navigate('#/mitglied/' + m.mitglied),
                 })
             }
-            if (canManage.value) {
+            if (darfVerwalten.value) {
                 for (const r of rollenOptionen) {
                     if (r.value === (m.rolle || '')) continue
                     eintraege.push({
@@ -1580,6 +1634,13 @@ export default {
             isAdmin,
             canManage,
             canView,
+            // UI-R9d: Server-Flags für die zwei Anlege-Knöpfe (Aufgabe,
+            // Ankündigung) und für „Verwalten“ (Beschreibung ändern,
+            // Mitgliederpflege). Der Rest der Seite hängt weiter an `canManage`
+            // bzw. an Bausteinen, die ihre Rechte selbst vom Server holen.
+            darfAufgabeAnlegen,
+            darfAnkuendigungAnlegen,
+            darfVerwalten,
             displayName,
             currentStatus,
             currentDesc,
@@ -1606,6 +1667,8 @@ export default {
             aufgabenErledigt,
             erledigtKnopfText,
             einklappKnopf,
+            aufgabenOffenListe,
+            aufgabenUeberschrift,
             darfAbhaken,
             darfBearbeiten,
             zuweisungsText,
@@ -1631,6 +1694,9 @@ export default {
             saveDesc,
             createAufgabe,
             toggleAufgabe,
+            // UI-R9d: der Rückfall beim Fokus ist nur über diese Funktion
+            // erreichbar — sie steht deshalb im Rückgabe-Objekt (prüfbar).
+            fokusNachAbhaken,
             createAnkuendigung,
             // UI-R5: „+ Termin“ — Kalender dieser Seite, Formular, Nachziehen.
             terminKalender,
