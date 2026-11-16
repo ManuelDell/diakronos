@@ -587,6 +587,9 @@ def _rechte_der_einheit(doctype: str, name: str, gruppe: str) -> dict[str, bool]
                                       untergruppe=name if doctype == "Untergruppe" else None),
         "aufgabe_anlegen": _darf(_rechte.ANLEGEN, "aufgabe", gruppe=gruppe,
                                  untergruppe=name if doctype == "Untergruppe" else None),
+        # Dieselbe Pruefung wie `api.wiki` -> `pruefe_inhalt_anlegen(.., "wiki", ..)`.
+        "wiki_anlegen": _darf(_rechte.ANLEGEN, "wiki", gruppe=gruppe,
+                              untergruppe=name if doctype == "Untergruppe" else None),
     }
 
 

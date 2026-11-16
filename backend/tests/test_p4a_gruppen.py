@@ -893,3 +893,43 @@ def test_orgchart_api_farbe_bereinigt(hierarchie):
     by_id2 = {n["id"]: n for n in get_orgchart_data()}
     assert by_id2["db_DB-B"]["farbe"] == "#3b82f6"
 
+
+
+# ── Knopf-Flag wiki_anlegen (UI-R9d-Folge) ──────────────────────────────────
+
+
+@pytest.mark.parametrize("user", [
+    "admin@example.org", "mitarbadmin@example.org", "bereichsverantw@example.org",
+    "gruppenverantw@example.org", "mitglied-a@example.org", "mitglied-b@example.org",
+    "ohne-mitglied@example.org",
+])
+def test_wiki_anlegen_flag_entspricht_serverpruefung(hierarchie, user):
+    """`rechte.wiki_anlegen` sagt fuer jede Einheit genau das, was das Anlegen
+    eines Wiki-Artikels (`pruefe_inhalt_anlegen(.., "wiki", ..)`) entscheidet —
+    sonst zeigt die SPA einen Knopf, den der Server ablehnt (oder umgekehrt)."""
+    from diakronos_app.api.gruppen import _rechte_der_einheit
+    from diakronos_app.frappe_compat.exceptions import PermissionError as PE
+    from diakronos_app.rechte import verwaltung as rv
+
+    set_user(user)
+    for doctype, name, gruppe in (("Gruppe", "G-A1", "G-A1"), ("Gruppe", "G-B1", "G-B1"),
+                                  ("Untergruppe", "UG-A1", "G-A1"),
+                                  ("Untergruppe", "UG-B1", "G-B1")):
+        rechte = _rechte_der_einheit(doctype, name, gruppe)
+        assert "wiki_anlegen" in rechte
+        try:
+            rv.pruefe_inhalt_anlegen(user, "wiki", gruppe,
+                                     name if doctype == "Untergruppe" else None)
+            erlaubt = True
+        except PE:
+            erlaubt = False
+        assert rechte["wiki_anlegen"] is erlaubt, (user, doctype, name)
+
+
+def test_wiki_anlegen_flag_admin_ja_fremder_nein(hierarchie):
+    from diakronos_app.api.gruppen import _rechte_der_einheit
+
+    set_user("admin@example.org")
+    assert _rechte_der_einheit("Untergruppe", "UG-A1", "G-A1")["wiki_anlegen"] is True
+    set_user("ohne-mitglied@example.org")
+    assert _rechte_der_einheit("Gruppe", "G-A1", "G-A1")["wiki_anlegen"] is False
