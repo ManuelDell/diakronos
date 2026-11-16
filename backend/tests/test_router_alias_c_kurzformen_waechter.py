@@ -119,6 +119,11 @@ _RUFE = re.compile(r"\bruf\(\s*" + _Q + r"([A-Za-z0-9_]+)" + _Q)
 #: Durchreicher deklariert `(...argumente)` ohne Namen. Ein `method`-Kopf
 #: allein genuegt NICHT: der Rumpf muss zusammenbauen (`_ZUSAMMENBAU`) —
 #: sonst waere `useApi.js`/`rueckgaengigWeg.mjs` wieder ausgenommen.
+#:
+#: ROUTER-ALIAS-g: Diese Ausnahme gilt je DEFINITION, nicht je Datei —
+#: in `_kurzformen_in` ueber `_in_lokalem_ruf` (Zeilenspanne). Datei-Weite
+#: bleibt nur dort richtig, wo kein Pfad verloren gehen kann
+#: (`_nackte_namen`: `ruf('<name>')` ist auch dort kein nackter Methodenpfad).
 _LOKALES_RUF = re.compile(
 	r"(?:async\s+)?function\s+"
 	r"(?:ruf|apiCall|apiFetch|apiGet|apiPost)\s*\(\s*"
@@ -131,6 +136,14 @@ _LOKALES_RUF = re.compile(
 _ZUSAMMENBAU = re.compile(
 	r"`[^`\n]*\$\{[^}`\n]+\}[^`\n]*\.\$\{[^}`\n]+\}[^`\n]*`"
 	r"|\b[A-Za-z_$][\w$]*\s*\+\s*(?:method|methode|fn|name)\b"
+)
+#: Anfang einer Definition auf SPALTENEBENE (`function …`, `const x = … =>`).
+#: Grenze fuer die Spanne einer selbstgebauten `ruf`-Definition (ROUTER-ALIAS-g,
+#: `_lokale_ruf_definitionen`). `	` zaehlt hier bewusst NICHT als Einrueckung:
+#: `frontend/src` ist mit Leerzeichen eingerueckt, `tools/` mit Tabs — was auf
+#: Spaltenebene beginnt, beendet die vorige Definition.
+_DEFINITION_ANFANG = re.compile(
+	r"(?:export\s+)?(?:async\s+)?(?:function\b|(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=)"
 )
 #: Kurznamen, die in `frontend/src` und `tools/` als KURZFORM zugesagt sind.
 #:
@@ -254,11 +267,14 @@ def _kurzformen_in(wurzeln) -> list[tuple[str, int, str]]:
 		# Baut die Datei ihre Aufrufe selbst zusammen (`async function ruf(fn) {
 		# … apiCall(`${RECHTS}.${fn}`) }`, RollenEinstellungen.vue:426), ist
 		# jedes `ruf('<name>')` ein Funktionsargument einer Bahn, kein Pfad.
-		# ROUTER-ALIAS-f: Ein Durchreicher baut nichts — er wird gescannt
-		# (der Waechter hat `papierkorb.mjs` vorher komplett uebersprungen).
-		# `_baut_pfad` prueft Kopf UND Zusammenbau im Rumpf.
-		lokales_ruf = _baut_pfad(text)
-		for nr, zeile in enumerate(text.splitlines(), 1):
+		# ROUTER-ALIAS-f + g: Ein Durchreicher baut nichts — er wird gescannt
+		# (`papierkorb.mjs` war vorher komplett uebersprungen). Die Ausnahme
+		# gilt je DEFINITION (`_lokale_ruf_definitionen`), nicht je Datei:
+		# frueher (`lokales_ruf`) fiel mit der Bauform `ruf('<name>')` auch
+		# jedes `apiUrl('<name>')` derselben Datei aus der Pruefung.
+		lokale_rufe = _lokale_ruf_definitionen(text)
+		zeilen = text.splitlines()
+		for nr, zeile in enumerate(zeilen, 1):
 			# Doku-Beispiele in Kommentaren (`mitBasis('/api/method/x')`) sind
 			# keine Aufrufe und wuerden den Test nur mit Rauschen fuellen.
 			nackt = zeile.strip()
@@ -286,11 +302,12 @@ def _kurzformen_in(wurzeln) -> list[tuple[str, int, str]]:
 					continue
 				funde.append((datei, nr, name))
 			# `ruf('<name>')` in einer Datei mit Bahn: nur eine Kurzform, wenn
-			# die Bahn den Pfad nicht selbst deckt. ROUTER-ALIAS-f: Hier steht
-			# KEIN `continue` mehr — der Zweig prueft die Bahn ohnehin gegen
-			# `ist_originalpfad`, und ein toter `ruf('gibtsnicht_xyz')` faellt
-			# genau dort auf. Frueher wurde die ganze Datei uebersprungen,
-			# sobald ein Wrapper den Pfad zusammenbaute (X3 blieb gruen).
+			# die Bahn den Pfad nicht selbst deckt (ROUTER-ALIAS-f: hier steht
+			# KEIN dateiweites `continue` — der Zweig prueft die Bahn ohnehin
+			# gegen `ist_originalpfad`). ROUTER-ALIAS-g: Ausgenommen ist nur die
+			# DEFINITION selbst, die den Namen als Argument baut.
+			if _in_lokalem_ruf(zeilen, nr, lokale_rufe):
+				continue
 			for treffer in _RUFE.finditer(zeile):
 				name = treffer.group(1)
 				if name in _MODULNAMEN or name in _NACKT_AUSGENOMMEN or not praefix:
@@ -300,6 +317,33 @@ def _kurzformen_in(wurzeln) -> list[tuple[str, int, str]]:
 					continue
 				funde.append((datei, nr, name))
 	return funde
+
+
+def _lokale_ruf_definitionen(text: str) -> list[tuple[int, int]]:
+	"""Zeilenspannen `(anfang, ende)` der `ruf`/`apiCall`-Definitionen einer Datei.
+
+	Spanne bis zur naechsten Definition auf Spaltenebene (`function`, `const x
+	= … =>`) oder bis zum Dateiende — bewusst grob: lieber eine Zeile zu weit
+	als eine Definition zu frueh beenden. Die Definition selbst bleibt drin
+	(sie ist eine Funktion, kein Aufruf).
+	"""
+	zeilen = text.splitlines()
+	definiert = [
+		nr for nr, zeile in enumerate(zeilen, 1) if _LOKALES_RUF.search(zeile)
+	]
+	grenzen = [
+		nr for nr, zeile in enumerate(zeilen, 1) if _DEFINITION_ANFANG.match(zeile)
+	]
+	spannen: list[tuple[int, int]] = []
+	for anfang in definiert:
+		naechste = [g for g in grenzen if g > anfang]
+		spannen.append((anfang, (naechste[0] - 1) if naechste else len(zeilen)))
+	return spannen
+
+
+def _in_lokalem_ruf(zeilen: list[str], nr: int, spannen: list[tuple[int, int]]) -> bool:
+	"""True, wenn Zeile `nr` in einer selbstgebauten `ruf`-Definition steht."""
+	return any(anfang <= nr <= ende for anfang, ende in spannen)
 
 
 def _kurzformen_im_quelltext() -> list[tuple[str, int, str]]:
@@ -439,6 +483,45 @@ def test_frontend_pfade_nutzen_keine_kurzform():
     # ... und jede benutzte Kurzform muss am Router wirklich loesen.
     tot = sorted({name for _d, _n, name in kurz if not W._loest_auf(name)})
     assert tot == [], f"Kurzform(en) ohne Funktion am Router: {tot}"
+
+def test_lokales_ruf_schaltet_nur_seine_definition_ab(tmp_path):
+	"""ROUTER-ALIAS-g: die `ruf`-Ausnahme gilt je DEFINITION, nicht je Datei.
+
+	Befund: `lokales_ruf` war dateiweit und schaltete die Bauform
+	`ruf('<name>')` in der GANZEN Datei ab. Belegt wird hier die Grenze:
+	`ruf('<name>')` INNERHALB der selbstgebauten Definition ist ein Argument
+	(kein Pfad), `ruf('<name>')` AUSSERHALB ist ein Pfad und wird gesehen;
+	`apiUrl('<name>')` daneben faellt nie unter die Ausnahme.
+	"""
+	datei = os.path.join(str(tmp_path), "lokal.mjs")
+	with open(datei, "w", encoding="utf-8") as fh:
+		fh.write(
+			"const PRAEFIX = 'diakronos.x.api.'\n"
+			"const RECHTS = 'diakronos_app.api.rechte'\n"
+			"export async function laden() { return 1 }\n"
+			"async function ruf(fn, params) {\n"
+			"  return apiCall(`${RECHTS}.${fn}`, params)\n"
+			"}\n"
+			"export async function weg() {\n"
+			"  return ruf('gibtsnicht_aussen')\n"
+			"}\n"
+			"export async function weg2() {\n"
+			"  return ruf('auch_weg')\n"
+			"}\n"
+			"export async function weg3() {\n"
+			"  return apiUrl('direkt_nackt')\n"
+			"}\n"
+		)
+	namen = [name for _d, _n, name in _kurzformen_in([str(tmp_path)])]
+	# Der innere Aufbau der Definition ist ein Argument, kein Pfad.
+	assert "fn" not in namen, namen
+	# Ausserhalb der Definition wird gesucht — Bahn der Datei ist fremd
+	# (`diakronos.x.api.` deckt `gibtsnicht_aussen` nicht), also Befund:
+	assert "gibtsnicht_aussen" in namen, namen
+	assert "auch_weg" in namen, namen
+	# Und der NACKTE Aufruf daneben: mit der alten dateiweiten Ausnahme
+	# (`lokales_ruf`) fiel auch er weg — genau der Befund dieser Karte.
+	assert "direkt_nackt" in namen, namen
 
 def test_kurzform_waechter_kann_rot_werden(monkeypatch, tmp_path):
 	"""Mutationsbeleg: derselbe Test wird mit einer gestrichenen Kurzform ROT.

@@ -316,38 +316,42 @@ def _original_pfade(fn: Callable) -> set[str]:
 	return zulaessig
 
 
-def _kernfunktion_unter_kernpfad(fn: Callable | None) -> bool:
-	"""True, wenn die Funktion, die `path` bedient, unter `_KERNPFADE` steht.
+def _kernfunktion_unter_kernpfad(fn: Callable | None, path: str) -> bool:
+	"""True, wenn `path` die Kernfunktion `fn` bedient — PFADGEBUNDEN.
 
 	ROUTER-ALIAS-f: Das ist die EINE Regel, die beide Fragen beantwortet —
 	„gehoert `path` dieser Funktion?“ (`ist_originalpfad`) und „loest `path`
-	danach auf?“ (`registriere_originalpfad`). Frueher stand hier ein
-	Namensvergleich (`getattr(fn, "__name__") == letztes Segment`), und
-	`registriere_originalpfad` kannte die Kernpfade ueberhaupt nicht: `logout`
-	war dort `False`, obwohl der Router ihn bedient (die Funktion steht in
-	`_REGISTRY["logout"]`, aber nicht im Modul `frappe_core` — sie wird aus
-	`api/auth` hereingereicht, `frappe_core.logout` ist nur der Kernpfad-Eintrag).
+	danach auf?“ (`registriere_originalpfad`). Frueher stand in
+	`registriere_originalpfad` ein Namensvergleich, und die Kernpfade waren
+	dort ueberhaupt nicht bekannt: `logout` war `False`, obwohl der Router ihn
+	bedient (die Funktion steht in `_REGISTRY["logout"]`, aber nicht im Modul
+	`frappe_core` — `frappe_core.logout` ist nur der Kernpfad-Eintrag).
+
+	ROUTER-ALIAS-g (MUSS 1): Die Funktion bekam KEINEN `path` und prueft nur,
+	ob IRGENDEIN Kernpfad `fn` bedient — das versprach der Kommentar an der
+	Aufrufstelle nicht (`_ist_kernfunktion(fn) and _KERNPFAD_ZIEL(path) is fn`).
+	Folge: `ist_originalpfad("upload_file", logout)` war `True`, jede
+	Kernfunktion bekam JEDE Kernpfad-Schreibweise. Jetzt entscheidet `path`:
+
+	  * `path` muss in `_KERNPFADE` stehen — die Liste ist die Autoritaet,
+	    NICHT `_KERNPFAD_ZIEL`. Das Ziel liest am Ende `_REGISTRY` und liefert
+	    darum auch fuer die Kurzformen `api.logout`/`insert`/`upload_file` ein
+	    Ziel (deren nackte Namen legt `_register` an); diese bleiben 404.
+	  * `_KERNPFAD_ZIEL(path)` muss GENAU `fn` liefern.
 
 	KEINE neue Freigabe: `_KERNPFAD_ZIEL` liest nur eigene Tabellen, die
 	Funktion ist also eine Frappe-Kernfunktion, und `path` ist eine
 	ausdruecklich zugesagte Schreibweise aus `_KERNPFADE`.
+
+	Die frueher oeffentliche `path_in_kernpfaden(fn)` (Parameter war `fn`,
+	nicht `path` — irreführend) ist hierin aufgegangen.
 	"""
 	return (
 		fn is not None
+		and path in _KERNPFADE
 		and _ist_kernfunktion(fn)
-		and path_in_kernpfaden(fn)
+		and _KERNPFAD_ZIEL(path) is fn
 	)
-
-
-def path_in_kernpfaden(fn: Callable | None) -> bool:
-	"""True, wenn `fn` die Funktion EINER Schreibweise aus `_KERNPFADE` ist."""
-	if fn is None:
-		return False
-	for pfad in _KERNPFADE:
-		ziel = _KERNPFAD_ZIEL(pfad)
-		if ziel is not None and ziel is fn:
-			return True
-	return False
 
 
 def ist_originalpfad(path: str, fn: Callable) -> bool:
@@ -403,13 +407,13 @@ def ist_originalpfad(path: str, fn: Callable) -> bool:
 	if _ist_login(fn) and path.rsplit(".", 1)[-1] == "login":
 		return True
 	if _ist_kernfunktion(fn):
-		# ROUTER-ALIAS-f: Die Regel ist EINE — dieselbe, die
-		# `registriere_originalpfad` fuer Kernpfade benutzt. Sie verlangt
-		# `path in _KERNPFADE` UND, dass der Pfad wirklich DIESE Funktion
-		# bedient (`_KERNPFAD_ZIEL(path) is fn`). Vorher genuegte allein die
-		# Eigenschaft „ist eine Kernfunktion“: `logout` bekam damit auch
-		# Schreibweisen, hinter denen eine andere Kernfunktion steht.
-		return path in _KERNPFADE and _kernfunktion_unter_kernpfad(fn)
+		# ROUTER-ALIAS-f + g: EINE Regel fuer beide Fragen — „gehoert `path`
+		# dieser Funktion?“ (`ist_originalpfad`) und „loest `path` danach auf?“
+		# (`registriere_originalpfad`). Sie verlangt BEIDES: `path` steht in
+		# `_KERNPFADE` UND `_KERNPFAD_ZIEL(path)` liefert GENAU `fn`. Allein
+		# „ist eine Kernfunktion“ genuegt fuer keinen zweiten Pfad
+		# (`ist_originalpfad("upload_file", logout)` war frueher True).
+		return _kernfunktion_unter_kernpfad(fn, path)
 	return False
 
 
@@ -428,7 +432,12 @@ def lookup(path: str) -> Callable | None:
 
 
 def registriere_originalpfad(path: str) -> bool:
-	"""Sagt, ob der angefragte Pfad danach aufloest — und traegt NICHTS ein.
+	"""Sagt, ob `path` einer registrierten Funktion GEHOERT — traegt NICHTS ein.
+
+	Beantwortet dieselbe Frage wie `ist_originalpfad(path, fn)`, nur ohne `fn`
+	als Argument: die Funktion wird zum Pfad gesucht (Register, sonst der
+	Name). Der Name ist historisch („registriere“) — frueher trug sie den Pfad
+	ein, heute LIEST sie nur.
 
 	ROUTER-ALIAS (Befund R-7): Frueher wurde das VORLETZTE Pfadsegment als
 	Kurzmodul genommen (`…planrahmen.api.delete_lied` -> Modul `api`, Funktion
@@ -440,8 +449,50 @@ def registriere_originalpfad(path: str) -> bool:
 	`FRAPPE_MODULE`-Pfad, ihr voller Python-Pfad, ihre Altcode-Modulbahn
 	(`diakronos.diakonos.api.<modul>.<fn>`), eine ausdrueckliche
 	Re-Export-Zusage (`register_with_frappe_module`) oder (nur fuer
-	Frappe-Kernfunktionen) eine Schreibweise aus `_KERNPFADE`. Alles andere:
-	`False` (404).
+	Frappe-Kernfunktionen) GENAU der Pfad aus `_KERNPFADE`, dessen Ziel sie
+	ist. Alles andere: `False` (404).
+
+	ABGRENZUNG (ROUTER-ALIAS-g, MUSS 2): „Gehoert der Pfad dieser Funktion“
+	ist NICHT „fuehrt der Router den Pfad aus“. Der frueher hier stehende Satz
+	(„True, wenn der Router den Pfad ausfuehren WUERDE, dieselbe Antwort wie
+	`ist_originalpfad`/`_ist_eigener_pfad`“) war fuer die Faelle unten falsch.
+
+	ROUTER-ALIAS-f hat die Kernpfade VOR die Punkt-Pruefung gezogen: `login`,
+	`logout`, `upload_file`, `frappe.login`, `frappe.login.login`,
+	`frappe.client.insert`, `frappe.sessions.get_csrf_token` geben hier jetzt
+	`True` — wie der Router. Gemessen im Container (Stand wt/t_c3a9b937)
+	bleiben genau zwei Abweichungen:
+
+	  * `auth.logout` und `frappe_core.logout` — hier `False`, der Router
+	    liefert `logout`. Beides ist die EIGENE Modulbahn der Logout-Funktion
+	    (`diakronos_app.api.auth.logout` -> `auth.logout`). Beide stehen schon
+	    nach dem Import in `_REGISTRY`, `ist_originalpfad` verneint sie aber
+	    (keine Kernpfade); der Router nimmt sie wie `ping` ueber `_eindeutig`
+	    im Register-Zweig an.
+
+	Ausserhalb der Kernpfade gibt es eine dritte: `ping` — hier `False`, der
+	Router bedient ihn. `ping` steht NICHT in `_KERNPFADE` und ist keine
+	Kernfunktion (`_ist_kernfunktion` ist `False`); der Router nimmt ihn ueber
+	`_eindeutig` (der nackte Name trifft genau EINE Funktion).
+
+	KEINE Abweichung, obwohl `_KERNPFAD_ZIEL` dort ein Ziel liefert: die
+	Kurzformen `insert`/`api.insert`/`api.upload_file`/`api.logout` sind hier
+	`False` UND beim Router `False`. `_kernfunktion_unter_kernpfad` verlangt
+	`path in _KERNPFADE` (MUSS 1), und keines davon steht in der Liste — das
+	Ziel aus `_REGISTRY` allein macht also keinen Pfad auf.
+
+	Die Aussage des Rueckgabewerts ist damit genau: „der Pfad steht als
+	EIGENTUM im Register, oder er ist eine zugesagte Schreibweise, die dieses
+	Register selbst beantworten kann“ — NICHT „erreichbar“. Die Erreichbarkeit
+	entscheidet allein der Router (`router._vorbedingung`; HTTP-Belege
+	`test_kernpfade_bleiben_offen`, `test_kernfunktion_nur_unter_ihrem_eigenen_
+	kernpfad`, `test_registriere_originalpfad_gleicht_router_und_docstring`).
+
+	Nicht angeglichen, bewusst: eine Angleichung dieser Faelle braeuchte
+	entweder `_eindeutig`/`ist_login` in dieser Funktion oder einen Zugriff auf
+	die Bahn von `nachregistrieren` — beides in einer Registry-Funktion, die
+	der Router nur als Vorfrage nutzt, und ohne Router-Aenderung nicht zu
+	haben. Der Text beschreibt deshalb, was gemessen ist.
 
 	Wichtig seit der Nachbesserung: Die Funktion LIEST nur noch. Frueher
 	trug jeder angenommene Pfad sich selbst ins Register ein (`_REGISTRY[path]
@@ -468,8 +519,11 @@ def registriere_originalpfad(path: str) -> bool:
 	Verhalten folgt EINER Regel (`_kernfunktion_unter_kernpfad`) fuer
 	`ist_originalpfad` und `registriere_originalpfad`.
 
-	Rueckgabe: True, wenn der Router den Pfad ausfuehren WUERDE (dieselbe
-	Antwort wie `ist_originalpfad`/`_ist_eigener_pfad`) — sonst False.
+	Rueckgabe: True, wenn `path` einer registrierten Funktion GEHOERT (bzw.
+	eine Kernpfad-Schreibweise ist, deren Ziel diese Funktion ist) — sonst
+	False. Das ist die Frage „Eigentum“, nicht „erreichbar“ (siehe
+	ABGRENZUNG oben); fuer Pfade ohne Kernpfad-Eintrag ist die Antwort
+	allerdings genau `ist_originalpfad(path, fn)`.
 	"""
 	if not path:
 		return False

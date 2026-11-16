@@ -114,13 +114,20 @@ def test_registriere_originalpfad_gleicht_router_und_docstring():
 	#     fuer keinen zweiten Pfad.
 	from diakronos_app.api.frappe_core import logout as kern_logout
 
-	assert registry._kernfunktion_unter_kernpfad(kern_logout) is True  # noqa: SLF001
-	assert registry.path_in_kernpfaden(kern_logout) is True
+	# ROUTER-ALIAS-g: Die Regel ist PFADGEBUNDEN — `path` ist Argument. Sie
+	# prueft `path in _KERNPFADE` UND `_KERNPFAD_ZIEL(path) is fn`; die frueher
+	# zusaetzlich oeffentliche `path_in_kernpfaden(fn)` (Parameter war `fn`,
+	# kein Pfad) ist darin aufgegangen.
+	assert registry._kernfunktion_unter_kernpfad(kern_logout, "logout") is True  # noqa: SLF001
+	# ... aber NUR unter seinem eigenen Kernpfad (`upload_file` bedient eine
+	# andere Funktion).
+	assert registry._kernfunktion_unter_kernpfad(kern_logout, "upload_file") is False  # noqa: SLF001
+	assert registry._kernfunktion_unter_kernpfad(kern_logout, "api.logout") is False  # noqa: SLF001
 	# Eine App-Funktion (der Login) ist ueber diese Regel NICHT zugesagt —
 	# ihre Schreibweisen kommen aus der LOGIN-Ausnahme.
 	from diakronos_app.api.auth import login
 
-	assert registry._kernfunktion_unter_kernpfad(login) is False  # noqa: SLF001
+	assert registry._kernfunktion_unter_kernpfad(login, "login") is False  # noqa: SLF001
 
 
 def test_ist_kernfunktion_docstring_sagt_was_der_code_tut():

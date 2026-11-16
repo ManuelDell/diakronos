@@ -344,6 +344,89 @@ def test_kernpfade_bleiben_offen(client, patched_db):
 		assert antwort.json().get("exc_type") != "NotFound", (pfad, antwort.text)
 
 
+def test_kernfunktion_nur_unter_ihrem_eigenen_kernpfad():
+	"""ROUTER-ALIAS-g: eine Kernfunktion gehoert GENAU ihre Kernpfad-Schreibweise.
+
+	Befund: `_kernfunktion_unter_kernpfad(fn)` bekam keinen Pfad und prueft nur,
+	ob IRGENDEIN Kernpfad `fn` bedient — eine Kernfunktion bekam damit JEDE
+	Schreibweise aus `_KERNPFADE`. Folge: `ist_originalpfad("upload_file",
+	logout)` war `True`, obwohl `_KERNPFAD_ZIEL("upload_file")` nicht `logout`
+	ist. Die Regel lautet `_ist_kernfunktion(fn) and _KERNPFAD_ZIEL(path) is fn`.
+	"""
+	_register_vollstaendig()
+	from diakronos_app.frappe_compat import registry
+
+	logout = registry.lookup("logout")
+	assert logout is not None
+	upload_file = registry.lookup("upload_file")
+	assert upload_file is not None
+
+	# Der Befund: die beiden Funktionen sind VERSCHIEDEN — `upload_file` gehoert
+	# nicht `logout`.
+	assert registry.ist_originalpfad("upload_file", logout) is False
+	assert registry.ist_originalpfad("logout", upload_file) is False
+	assert registry.ist_originalpfad("login", logout) is False
+	# Und die eigene Schreibweise bleibt offen.
+	assert registry.ist_originalpfad("logout", logout) is True
+	assert registry.ist_originalpfad("upload_file", upload_file) is True
+
+	# Fuer JEDE Kernfunktion gilt: zugesagt sind genau die Kernpfade, deren
+	# Ziel sie ist — und NUR Pfade aus `_KERNPFADE`. `_KERNPFAD_ZIEL` allein
+	# taugt dafuer nicht: es liest am Ende die `_REGISTRY` und liefert auch
+	# fuer `api.logout`/`insert` (nackte Registernamen) ein Ziel.
+	for pfad in sorted(registry._KERNPFADE):  # noqa: SLF001 — Kernpfad-Tabelle
+		ziel = registry._KERNPFAD_ZIEL(pfad)  # noqa: SLF001
+		if ziel is None:
+			continue
+		for fremd in sorted(registry._KERNPFADE):  # noqa: SLF001
+			if fremd == pfad:
+				continue
+			# Gleiches Ziel (z. B. `frappe.login` und `frappe.login.login`)
+			# bleibt erlaubt; ein anderes Ziel ist Pfadverwirrung.
+			gleich = registry._KERNPFAD_ZIEL(fremd) is ziel  # noqa: SLF001
+			assert registry.ist_originalpfad(fremd, ziel) is gleich, (fremd, pfad)
+	# Kurzformen bleiben 404, auch wenn `_KERNPFAD_ZIEL` sie (ueber das
+	# Register) aufloest: zugesagt ist nur `_KERNPFADE`. Belegt am Router.
+	from diakronos_app.frappe_compat.router import _ist_eigener_pfad
+
+	for kurz in ("api.logout", "api.insert", "api.upload_file", "insert"):
+		assert kurz not in registry._KERNPFADE, kurz  # noqa: SLF001
+		assert _ist_eigener_pfad(kurz) is False, kurz
+
+
+
+def test_docstring_abgrenzung_nennt_die_echten_abweichungen():
+	"""ROUTER-ALIAS-g (MUSS 2): der Docstring nennt die gemessenen Abweichungen.
+
+	`registriere_originalpfad` sagte frueher „True, wenn der Router den Pfad
+	ausfuehren WUERDE (dieselbe Antwort wie `ist_originalpfad`/
+	`_ist_eigener_pfad`)". Nach ROUTER-ALIAS-f stimmt das fuer die Kernpfade;
+	uebrig bleiben `auth.logout`/`frappe_core.logout` (Register `False`, Router
+	`True`) und `ping` (ebenso). Der Docstring nennt GENAU diese Faelle —
+	dieser Test haelt ihn beim Wort, damit die Aussage nicht wieder abrutscht.
+	"""
+	_register_vollstaendig()
+	from diakronos_app.frappe_compat import registry, router
+
+	# (a) Die im Docstring genannten Abweichungen existieren und laufen in die
+	#     genannte Richtung: Register False, Router True.
+	for pfad in ("auth.logout", "frappe_core.logout", "ping"):
+		assert registry.registriere_originalpfad(pfad) is False, pfad
+		assert router._ist_eigener_pfad(pfad) is True, pfad
+	# (b) Die Kernpfade laufen NICHT auseinander (das war der f-Befund).
+	for pfad in sorted(registry._KERNPFADE):  # noqa: SLF001 — Kernpfad-Tabelle
+		assert registry.registriere_originalpfad(pfad) is True, pfad
+		assert router._ist_eigener_pfad(pfad) is True, pfad
+	# (c) Die im Docstring als „keine Abweichung“ genannten Kurzformen: beide
+	#     sagen False. `_KERNPFAD_ZIEL` liefert dort trotzdem ein Ziel (aus der
+	#     `_REGISTRY`) — die Pfadbindung aus MUSS 1 haelt sie zu.
+	for kurz in ("insert", "api.insert", "api.upload_file", "api.logout"):
+		assert registry._KERNPFAD_ZIEL(kurz) is not None, kurz  # noqa: SLF001
+		assert kurz not in registry._KERNPFADE, kurz  # noqa: SLF001
+		assert registry.registriere_originalpfad(kurz) is False, kurz
+		assert router._ist_eigener_pfad(kurz) is False, kurz
+
+
 # ── (3) Nachtrag R-7 (2026-11): Zusagen, die der Vorlauf nicht kannte ─────
 #
 # Zwei Wege sind SEIT dem Merge mit main dazugekommen und standen unter einer
