@@ -62,18 +62,86 @@ def test_umleitungsziel_loest_nur_unter_seinem_pfad_auf():
 			assert router._ist_eigener_pfad(fremd) is False, fremd
 			assert registry.registriere_originalpfad(fremd) is False, fremd
 
-	# BEKANNTER BEFUND (hier nur festgehalten, nicht geheilt — diese Karte
-	# aendert keinen Produktivcode): bei den Kernpfad-Schreibweisen laufen die
-	# zwei Wege auseinander. `registriere_originalpfad` weist ALLES ohne Punkt
-	# pauschal ab (`"." not in path -> False`), obwohl der Router `logout`,
-	# `login`, `upload_file` ueber `_KERNPFAD_ZIEL` bedient — HTTP-Beleg:
-	# `test_kernpfade_bleiben_offen` (POST /api/method/logout -> kein NotFound).
-	# `frappe.login` ist der zweite Fall: der Router loest auf, das Register
-	# findet keinen Eintrag. Beides gehoert in eine eigene Karte.
-	assert router._ist_eigener_pfad("logout") is True
-	assert registry.registriere_originalpfad("logout") is False  # <- Befund
-	assert router._ist_eigener_pfad("frappe.login") is True
-	assert registry.registriere_originalpfad("frappe.login") is False  # <- Befund
+	# ROUTER-ALIAS-f (Befund geschlossen): Die Kernpfad-Schreibweisen laufen
+	# NICHT mehr auseinander. `registriere_originalpfad` fragt die Kernpfade
+	# VOR der Punkt-Pruefung und antwortet mit derselben Regel wie der Router
+	# (`_kernfunktion_unter_kernpfad`): der Pfad muss in `_KERNPFADE` stehen
+	# UND diese Funktion bedienen — also nicht nur "ist eine Kernfunktion".
+	# Vorher standen hier die zwei Befund-Zeilen
+	# (`registriere_originalpfad("logout") is False`,
+	# `registriere_originalpfad("frappe.login") is False`), obwohl der Router
+	# beide bediente.
+	for kernpfad in ("logout", "login", "frappe.login", "upload_file", "frappe.client.insert"):
+		assert router._ist_eigener_pfad(kernpfad) is True, kernpfad
+		assert registry.registriere_originalpfad(kernpfad) is True, kernpfad
+		ziel_kern = registry._KERNPFAD_ZIEL(kernpfad)  # noqa: SLF001 — Kernpfad-Tabelle
+		assert ziel_kern is not None, kernpfad
+		# Und das Umleitungsziel bleibt unter KEINER dieser Schreibweisen.
+		assert ziel_kern is not sitzung_status, kernpfad
+
+
+def test_registriere_originalpfad_gleicht_router_und_docstring():
+	"""ROUTER-ALIAS-f: Register-Antwort == Router-Antwort, auch ohne Punkt.
+
+	Der Docstring von `registriere_originalpfad` sagt "loest der Pfad danach
+	auf". Vorher war `registriere_originalpfad("logout")` `False`, obwohl
+	`POST /api/method/logout` bedient wird — die Punkt-Pruefung stand vor der
+	Kernpfad-Tabelle. Geprueft wird die Uebereinstimmung an beiden Enden:
+	"""
+	_register_vollstaendig()
+	# (a) Kernpfade: Register sagt True, der Router bedient sie.
+	for pfad in (
+		"logout",
+		"login",
+		"frappe.login",
+		"frappe.login.login",
+		"upload_file",
+		"frappe.client.insert",
+		UMLEITUNG,
+	):
+		assert registry.registriere_originalpfad(pfad) is True, pfad
+		assert router._aufloesen(pfad) is not None, pfad
+	# (b) Fremd/erfunden: beide sagen False — die Kernpfad-Tabelle ist kein
+	#     Freibrief (`api.logout`, `x.auth.login` ist die LOGIN-Ausnahme,
+	#     nicht diese Regel).
+	for pfad in ("gibtsnicht", "api.logout", "frappe.client.gibtsnicht", "x.y.z"):
+		assert registry.registriere_originalpfad(pfad) is False, pfad
+		assert router._ist_eigener_pfad(pfad) is False, pfad
+	# (c) Die Regel, die BEIDE Funktionen benutzen, ist EINE:
+	#     `_kernfunktion_unter_kernpfad` verlangt, dass der Pfad im Register
+	#     steht UND in `_KERNPFADE`, UND dass `_KERNPFAD_ZIEL(path)` GENAU
+	#     diese Funktion liefert — „ist eine Kernfunktion" allein genuegt
+	#     fuer keinen zweiten Pfad.
+	from diakronos_app.api.frappe_core import logout as kern_logout
+
+	assert registry._kernfunktion_unter_kernpfad(kern_logout) is True  # noqa: SLF001
+	assert registry.path_in_kernpfaden(kern_logout) is True
+	# Eine App-Funktion (der Login) ist ueber diese Regel NICHT zugesagt —
+	# ihre Schreibweisen kommen aus der LOGIN-Ausnahme.
+	from diakronos_app.api.auth import login
+
+	assert registry._kernfunktion_unter_kernpfad(login) is False  # noqa: SLF001
+
+
+def test_ist_kernfunktion_docstring_sagt_was_der_code_tut():
+	"""ROUTER-ALIAS-f: `_ist_kernfunktion(login)` ist False — wie im Docstring.
+
+	Der alte Docstring fuehrte `diakronos_app.api.auth.login` als
+	Kernfunktion; der Code weist sie ab (`_original_modul` ist gesetzt). Der
+	Login bekommt seine Schreibweisen ueber die LOGIN-Ausnahme
+	(`ist_originalpfad`), nicht ueber diese Eigenschaft.
+	"""
+	_register_vollstaendig()
+	from diakronos_app.api.auth import login
+
+	from diakronos_app.api.frappe_core import logout as kern_logout
+
+	assert registry._ist_kernfunktion(login) is False  # noqa: SLF001
+	assert registry._ist_kernfunktion(kern_logout) is True  # noqa: SLF001
+	# Trotzdem zugesagt: `login` und `frappe.login` bedient der Login.
+	for pfad in ("login", "frappe.login"):
+		assert registry.ist_originalpfad(pfad, login) is True, pfad
+		assert registry.registriere_originalpfad(pfad) is True, pfad
 
 
 def test_umleitungsziel_ist_keine_kernfunktion():

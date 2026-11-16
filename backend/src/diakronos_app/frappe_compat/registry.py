@@ -213,13 +213,22 @@ def _original_modul(fn: Callable) -> str | None:
 
 
 def _ist_kernfunktion(fn: Callable) -> bool:
-	"""True, wenn `fn` zu den Frappe-KERNPFADEN gehoert (login, logout, …).
+	"""True, wenn `fn` zu den Frappe-KERNPFADEN gehoert (logout, insert, …).
 
-	Erkannt wird das am MODUL, nicht am Namen: `diakronos_app.api.auth.login`
-	und `diakronos_app.api.frappe_core.logout`/`insert`/`upload_file` tragen
-	keine App-Modulbahn. Gleichnamige Fachfunktionen (`root.status`,
-	`verantwortliche.setze_rollen`) sind KEINE Kernfunktionen — sonst haetten
-	sie wieder einen Freibrief unter jedem Praefix.
+	Erkannt wird das am MODUL, nicht am Namen: `diakronos_app.api.frappe_core.
+	logout`/`insert`/`upload_file` tragen keine App-Modulbahn. Gleichnamige
+	Fachfunktionen (`root.status`, `verantwortliche.setze_rollen`) sind KEINE
+	Kernfunktionen — sonst haetten sie wieder einen Freibrief unter jedem
+	Praefix.
+
+	ROUTER-ALIAS-f (Befund): Hier stand, `diakronos_app.api.auth.login` werde
+	„am Modul“ als Kernfunktion erkannt — das war falsch. `_KERN_MODULE` ist
+	`{diakronos_app.api.auth}`, aber `_original_modul(login)` ist gesetzt
+	(das Modul traegt `FRAPPE_MODULE`), und das erste `if` weist genau diesen
+	Fall ab: `_ist_kernfunktion(login)` ist **False**. Der Login ist eine
+	App-Funktion, die ihre Kernpfad-Schreibweisen (`login`, `frappe.login`)
+	ueber die ausdrueckliche LOGIN-Ausnahme in `ist_originalpfad` bekommt —
+	nicht ueber diese Eigenschaft.
 
 	ROUTER-ALIAS-d: Ein UMLEITUNGSZIEL ist hier NICHT dabei. Frueher zaehlte
 	`_KERNPFAD_UMLEITUNG`-Ziele (`frappe.sessions.get_csrf_token` ->
@@ -307,6 +316,40 @@ def _original_pfade(fn: Callable) -> set[str]:
 	return zulaessig
 
 
+def _kernfunktion_unter_kernpfad(fn: Callable | None) -> bool:
+	"""True, wenn die Funktion, die `path` bedient, unter `_KERNPFADE` steht.
+
+	ROUTER-ALIAS-f: Das ist die EINE Regel, die beide Fragen beantwortet —
+	„gehoert `path` dieser Funktion?“ (`ist_originalpfad`) und „loest `path`
+	danach auf?“ (`registriere_originalpfad`). Frueher stand hier ein
+	Namensvergleich (`getattr(fn, "__name__") == letztes Segment`), und
+	`registriere_originalpfad` kannte die Kernpfade ueberhaupt nicht: `logout`
+	war dort `False`, obwohl der Router ihn bedient (die Funktion steht in
+	`_REGISTRY["logout"]`, aber nicht im Modul `frappe_core` — sie wird aus
+	`api/auth` hereingereicht, `frappe_core.logout` ist nur der Kernpfad-Eintrag).
+
+	KEINE neue Freigabe: `_KERNPFAD_ZIEL` liest nur eigene Tabellen, die
+	Funktion ist also eine Frappe-Kernfunktion, und `path` ist eine
+	ausdruecklich zugesagte Schreibweise aus `_KERNPFADE`.
+	"""
+	return (
+		fn is not None
+		and _ist_kernfunktion(fn)
+		and path_in_kernpfaden(fn)
+	)
+
+
+def path_in_kernpfaden(fn: Callable | None) -> bool:
+	"""True, wenn `fn` die Funktion EINER Schreibweise aus `_KERNPFADE` ist."""
+	if fn is None:
+		return False
+	for pfad in _KERNPFADE:
+		ziel = _KERNPFAD_ZIEL(pfad)
+		if ziel is not None and ziel is fn:
+			return True
+	return False
+
+
 def ist_originalpfad(path: str, fn: Callable) -> bool:
 	"""True, wenn `path` ein Pfad ist, der `fn` WIRKLICH gehoert.
 
@@ -360,7 +403,13 @@ def ist_originalpfad(path: str, fn: Callable) -> bool:
 	if _ist_login(fn) and path.rsplit(".", 1)[-1] == "login":
 		return True
 	if _ist_kernfunktion(fn):
-		return path in _KERNPFADE
+		# ROUTER-ALIAS-f: Die Regel ist EINE — dieselbe, die
+		# `registriere_originalpfad` fuer Kernpfade benutzt. Sie verlangt
+		# `path in _KERNPFADE` UND, dass der Pfad wirklich DIESE Funktion
+		# bedient (`_KERNPFAD_ZIEL(path) is fn`). Vorher genuegte allein die
+		# Eigenschaft „ist eine Kernfunktion“: `logout` bekam damit auch
+		# Schreibweisen, hinter denen eine andere Kernfunktion steht.
+		return path in _KERNPFADE and _kernfunktion_unter_kernpfad(fn)
 	return False
 
 
@@ -406,12 +455,35 @@ def registriere_originalpfad(path: str) -> bool:
 	Funktion ihn (`_REGISTRY[path] = fn`): 300 Anfragen `z<i>.login` = 300
 	Registereintraege, und jeder Eintrag war danach ein Pfad, der auch ohne
 	diese Funktion aufloeste. Der Alias wird jetzt nur noch BEANTWORTET.
+
+	ROUTER-ALIAS-f (Befund): Die frueheren Fassungen dieses Textes sagten
+	zwei Dinge, die der Code nicht tat. (1) Die Punkt-Pruefung stand VOR der
+	Kernpfad-Tabelle, also war `logout` — ein Pfad OHNE Punkt — immer
+	`False`, obwohl der Router ihn ueber `_KERNPFAD_ZIEL` bedient. (2) Der
+	Docstring von `_ist_kernfunktion` nennt `auth.login` als Kernfunktion;
+	tatsaechlich ist `_ist_kernfunktion(login)` `False` (der Login ist eine
+	App-Funktion mit `FRAPPE_MODULE`) und `login`/`frappe.login` sind
+	ausschliesslich ueber die LOGIN-Ausnahme in `ist_originalpfad`
+	zugesagt. Beide Aussagen sind jetzt im Text richtig gestellt; das
+	Verhalten folgt EINER Regel (`_kernfunktion_unter_kernpfad`) fuer
+	`ist_originalpfad` und `registriere_originalpfad`.
+
+	Rueckgabe: True, wenn der Router den Pfad ausfuehren WUERDE (dieselbe
+	Antwort wie `ist_originalpfad`/`_ist_eigener_pfad`) — sonst False.
 	"""
-	if not path or "." not in path:
+	if not path:
 		return False
+	# ROUTER-ALIAS-f: Kernpfade ZUERST — vor der Punkt-Pruefung. `logout`,
+	# `upload_file`, `login`, `frappe.login` haben kein Modulsegment; eine
+	# Punkt-Bedingung davor macht sie zu 404, obwohl der Router sie bedient.
 	if path in _KERNPFADE:
 		fn = _KERNPFAD_ZIEL(path)
-		return fn is not None and _ist_kernfunktion(fn)
+		# `frappe.sessions.get_csrf_token` (Umleitung) und `frappe.login`
+		# (LOGIN-Ausnahme) sind keine Kernfunktionen im Sinne von
+		# `_ist_kernfunktion`; ihre Zusage ist `ist_originalpfad`.
+		return fn is not None and ist_originalpfad(path, fn)
+	if "." not in path:
+		return False
 	fn = _REGISTRY.get(path)
 	if fn is not None:
 		return ist_originalpfad(path, fn)

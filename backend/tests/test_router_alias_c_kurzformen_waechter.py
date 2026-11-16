@@ -74,6 +74,10 @@ _MODULNAMEN = frozenset(
 #: Bahn einer Datei fuer die Bauform `apiCall(API + '<fn>')` / `ruf(P + '<fn>')`:
 #: der Name muss nicht `PRAEFIX` heissen (`const API = 'diakronos.…api.x.'`).
 _Q = "[\"'`]"
+#: `const NAME = 'ein.pfad'` (beliebiger Wert, fuer `_bahn_der_datei`).
+_KONSTANTE = re.compile(
+	r"(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*" + _Q + r"([A-Za-z0-9_.]+)" + _Q
+)
 _BAHN = re.compile(
 	r"(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*" + _Q + r"([A-Za-z0-9_.]+\.)" + _Q
 )
@@ -99,12 +103,34 @@ _NACKT_AUSGENOMMEN = frozenset(
 #: Die Bauform mit Bahn der Datei: `ruf('<name>')` neben
 #: `const PRAEFIX = 'diakronos.x.api.'` (siehe `_kurzformen_in`).
 _RUFE = re.compile(r"\bruf\(\s*" + _Q + r"([A-Za-z0-9_]+)" + _Q)
-#: Eine Datei, die `ruf`/`apiCall` SELBST definiert und darin zusammenbaut
-#: (`async function ruf(fn, p) { … apiCall(`${RECHTS}.${fn}`, p) }`,
+#: Eine Datei, die `ruf`/`apiCall` SELBST definiert UND darin den Pfad
+#: zusammenbaut (`async function ruf(fn, p) { … apiCall(`${RECHTS}.${fn}`, p) }`,
 #: RollenEinstellungen.vue:426) — dort ist jedes `ruf('<name>')` ein
-#: Funktionsargument einer Bahn, kein Methodenpfad.
+#: Funktionsargument einer Bahn, kein fertiger Methodenpfad.
+#:
+#: ROUTER-ALIAS-f: Der Ausdruck war zu breit. Er traf JEDE Datei mit einer
+#: eigenen Funktionsdeklaration dieses Namens — auch die reinen DURCHREICHER
+#: (`async function apiCall(...argumente) { return modul.apiCall(...argumente) }`
+#: in `papierkorb.mjs:21` und `rueckgaengigWeg.mjs:260`, `useApi.js:169`,
+#: `useDevmodus.js:50`). Deren `apiCall('<name>')`/`ruf('<name>')` ist der
+#: Pfad-Name selbst (die Bahn steckt in `useApi.js`/`shared/basis.js`), kein
+#: Suffix — die Dateien wurden komplett uebersprungen (Mutation X1/X6 blieben
+#: gruen). Gesucht wird jetzt ein Wrapper mit benanntem Pfad-Parameter; ein
+#: Durchreicher deklariert `(...argumente)` ohne Namen. Ein `method`-Kopf
+#: allein genuegt NICHT: der Rumpf muss zusammenbauen (`_ZUSAMMENBAU`) —
+#: sonst waere `useApi.js`/`rueckgaengigWeg.mjs` wieder ausgenommen.
 _LOKALES_RUF = re.compile(
-	r"(?:async\s+)?function\s+(?:ruf|apiCall|apiFetch|apiGet|apiPost)\s*\("
+	r"(?:async\s+)?function\s+"
+	r"(?:ruf|apiCall|apiFetch|apiGet|apiPost)\s*\(\s*"
+	r"(?:method|methode|fn|name|pfad|path)\b"
+)
+#: Die Bauformen, an denen ein Wrapper den Pfad zusammensetzt:
+#: `` `${RECHTS}.${fn}` `` (RollenEinstellungen.vue:428),
+#: `` `${API}.${method}` `` (dashboardConfig.js:13),
+#: `` PRAEFIX + methode `` (useDevmodus.js:51).
+_ZUSAMMENBAU = re.compile(
+	r"`[^`\n]*\$\{[^}`\n]+\}[^`\n]*\.\$\{[^}`\n]+\}[^`\n]*`"
+	r"|\b[A-Za-z_$][\w$]*\s*\+\s*(?:method|methode|fn|name)\b"
 )
 #: Kurznamen, die in `frontend/src` und `tools/` als KURZFORM zugesagt sind.
 #:
@@ -135,6 +161,62 @@ def _register_vollstaendig() -> None:
 	from diakronos_app.main import app
 
 	devmodus_api.registriere(app)
+
+
+def _baut_pfad(text: str) -> bool:
+	"""True, wenn ein Wrapper in `text` den Methodenpfad SELBST zusammensetzt.
+
+	ROUTER-ALIAS-f: Die Ausnahme `_LOKALES_RUF` galt vorher fuer jede Datei mit
+	eigener Deklaration — auch fuer die Durchreicher (`papierkorb.mjs`,
+	`rueckgaengigWeg.mjs`, `useApi.js`, `useDevmodus.js`). Ein Durchreicher
+	baut nichts: er ruft die echte Funktion auf. Geprueft wird deshalb BEIDES —
+	ein Wrapper-Kopf mit benanntem Pfad-Parameter (`_LOKALES_RUF`) UND eine
+	Zusammenbau-Bauform im Rumpf (`_ZUSAMMENBAU`).
+
+	`RollenEinstellungen.vue` (`apiCall(`${RECHTS}.${fn}`, …)`) und
+	`dashboardConfig.js` (`fetch(`${API}.${method}`)`) sind solche Bauer —
+	dort ist `ruf('<name>')`/`apiFetch('<name>')` ein Suffix, kein Pfad.
+	"""
+	# Kommentare fliegen raus: ein Beispiel in einer Doc-Zeile ist kein Wrapper.
+	ohne_kommentar = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.S)
+	if _LOKALES_RUF.search(ohne_kommentar) is None:
+		return False
+	return _ZUSAMMENBAU.search(ohne_kommentar) is not None
+
+
+def _bahn_der_datei(text: str) -> str:
+	"""Die Bahn, gegen die `ruf('<name>')` geprueft wird.
+
+	ROUTER-ALIAS-f (SOLL 3): Zwei Formen, beide real im Baum:
+
+	  * `const PRAEFIX = 'diakronos.devmodus.api.'` (useDevmodus.js:23) —
+	    direkt die Bahn.
+	  * `const RECHTS = 'diakronos_app.api.rechte'` + `ruf`, das
+	    `${RECHTS}.${fn}` baut (RollenEinstellungen.vue:278/429). Hier NENNT
+	    die Konstante den PFAD DER FUNKTION; gemeint ist das Modul davor.
+	    Frueher las der Waechter nur `PRAEFIX`, fand in dieser Datei also
+	    gar keine Bahn und meldete `ruf('…')` deshalb nie — Mutation X3
+	    blieb gruen.
+
+	Die zweite Form gilt NUR, wenn ein `ruf`-Wrapper die Konstante wirklich
+	verwendet (`${KONST}.`); eine Konstante ohne Wrapper ist keine Bahn.
+	"""
+	bahn = _PRAEFIX.search(text)
+	if bahn:
+		return bahn.group(1)
+	# Wrapper, der `<konstante>.${fn}` baut? Dann ist `<konstante>` der Pfad
+	# EINER Funktion, das Modul ist alles davor.
+	ruf_treffer = _LOKALES_RUF.search(text)
+	if ruf_treffer is None:
+		return ""
+	# Die Konstante braucht KEINEN Punkt: `_BAHN` verlangt einen
+	# (Bahnen enden dort auf `.`), hier ist der Wert der Pfad EINER Funktion.
+	for treffer in _KONSTANTE.finditer(text):
+		name, wert = treffer.group(1), treffer.group(2).rstrip(".")
+		if f"${{{name}}}." in text and "." in wert:
+			# `wert` ist `modul.funktion` — die Bahn ist das Modul.
+			return wert.rsplit(".", 1)[0] + "."
+	return ""
 
 
 def _kurzformen_in(wurzeln) -> list[tuple[str, int, str]]:
@@ -168,12 +250,14 @@ def _kurzformen_in(wurzeln) -> list[tuple[str, int, str]]:
 	for datei in _dateien(tuple(wurzeln)):
 		with open(datei, encoding="utf-8", errors="replace") as fh:
 			text = fh.read()
-		bahn = _PRAEFIX.search(text)
-		praefix = bahn.group(1) if bahn else ""
-		# Baut die Datei ihr `ruf` selbst zusammen (`async function ruf(fn) {
+		praefix = _bahn_der_datei(text)
+		# Baut die Datei ihre Aufrufe selbst zusammen (`async function ruf(fn) {
 		# … apiCall(`${RECHTS}.${fn}`) }`, RollenEinstellungen.vue:426), ist
 		# jedes `ruf('<name>')` ein Funktionsargument einer Bahn, kein Pfad.
-		lokales_ruf = _LOKALES_RUF.search(text) is not None
+		# ROUTER-ALIAS-f: Ein Durchreicher baut nichts — er wird gescannt
+		# (der Waechter hat `papierkorb.mjs` vorher komplett uebersprungen).
+		# `_baut_pfad` prueft Kopf UND Zusammenbau im Rumpf.
+		lokales_ruf = _baut_pfad(text)
 		for nr, zeile in enumerate(text.splitlines(), 1):
 			# Doku-Beispiele in Kommentaren (`mitBasis('/api/method/x')`) sind
 			# keine Aufrufe und wuerden den Test nur mit Rauschen fuellen.
@@ -202,10 +286,11 @@ def _kurzformen_in(wurzeln) -> list[tuple[str, int, str]]:
 					continue
 				funde.append((datei, nr, name))
 			# `ruf('<name>')` in einer Datei mit Bahn: nur eine Kurzform, wenn
-			# die Bahn den Pfad nicht selbst deckt. Baut die Datei ihr `ruf`
-			# selbst zusammen, ist der Name ein Argument, kein Pfad.
-			if lokales_ruf:
-				continue
+			# die Bahn den Pfad nicht selbst deckt. ROUTER-ALIAS-f: Hier steht
+			# KEIN `continue` mehr — der Zweig prueft die Bahn ohnehin gegen
+			# `ist_originalpfad`, und ein toter `ruf('gibtsnicht_xyz')` faellt
+			# genau dort auf. Frueher wurde die ganze Datei uebersprungen,
+			# sobald ein Wrapper den Pfad zusammenbaute (X3 blieb gruen).
 			for treffer in _RUFE.finditer(zeile):
 				name = treffer.group(1)
 				if name in _MODULNAMEN or name in _NACKT_AUSGENOMMEN or not praefix:
@@ -233,10 +318,12 @@ def _nackte_namen() -> set[str]:
 	for datei in _dateien((_frontend_wurzel(),) + _TOOLS):
 		with open(datei, encoding="utf-8", errors="replace") as fh:
 			text = fh.read()
-		if _LOKALES_RUF.search(text):
+		if _baut_pfad(text):
 			# Die Datei baut ihren Aufruf selbst zusammen (`apiFetch` in
 			# dashboardConfig.js:11 -> `${API}.${method}`); der Name ist dann
 			# ein Argument einer Bahn, kein nackter Methodenpfad.
+			# ROUTER-ALIAS-f: Ein Durchreicher (`papierkorb.mjs`,
+			# `rueckgaengigWeg.mjs`) baut nichts und wird gescannt.
 			continue
 		for zeile in text.splitlines():
 			nackt = zeile.strip()
@@ -394,3 +481,77 @@ def test_kurzform_waechter_kann_rot_werden(monkeypatch, tmp_path):
 		"liste",
 		"status",
 	], namen
+
+
+def test_durchreicher_und_bauer_werden_unterschieden(tmp_path):
+	"""ROUTER-ALIAS-f: `_LOKALES_RUF` nimmt nur noch WIRKLICHE Bauer aus.
+
+	Befund der Karte: Die Ausnahme traf jede Datei mit eigener Deklaration
+	gleichen Namens. `papierkorb.mjs:21` und `rueckgaengigWeg.mjs:260`
+	(`async function apiCall(...argumente) { return modul.apiCall(...argumente) }`)
+	geben den Namen unveraendert weiter — ihr `apiCall('delete_lied')` ist ein
+	fertiger Kurzname, wurde aber nie gescannt (Mutation X1/X6 blieben gruen).
+	"""
+	# (a) Durchreicher: kein Pfad wird gebaut -> wird gescannt.
+	durchreicher = (
+		"async function apiCall(...argumente) {\n"
+		"\tconst modul = await import('./useApi.js')\n"
+		"\treturn modul.apiCall(...argumente)\n"
+		"}\n"
+	)
+	assert _baut_pfad(durchreicher) is False
+	# (b) Baeuer ueber Template-Literal (RollenEinstellungen.vue:426/428) und
+	#     ueber `PRAEFIX +` (useDevmodus.js:51) -> Ausnahme gilt.
+	assert _baut_pfad(
+		"async function ruf(fn, params) {\n"
+		"\tconst antwort = await apiCall(`${RECHTS}.${fn}`, params)\n"
+		"}\n"
+	) is True
+	assert _baut_pfad(
+		"function ruf(methode, args = {}) {\n"
+		"\treturn apiCall(PRAEFIX + methode, args)\n"
+		"}\n"
+	) is True
+	# (c) `fetch(`${API}.${method}`)` (dashboardConfig.js:13) ebenso.
+	assert _baut_pfad(
+		"async function apiFetch(method, body = {}) {\n"
+		"\tconst res = await fetch(`${API}.${method}`, { method: 'POST' })\n"
+		"}\n"
+	) is True
+	# (d) Ein Kopf mit `method` ohne Zusammenbau im Rumpf ist ein Durchreicher
+	#     (`useApi.js:169`: `return mitSitzungsdialog(() => apiCallRoh(...))`).
+	assert _baut_pfad(
+		"export async function apiCall(method, args = {}, options = {}) {\n"
+		"\treturn mitSitzungsdialog(() => apiCallRoh(method, args, options))\n"
+		"}\n"
+	) is False
+	# (e) Der Durchreicher wird jetzt gescannt (vorher war die Datei blind).
+	with open(os.path.join(str(tmp_path), "durchreicher.mjs"), "w", encoding="utf-8") as fh:
+		fh.write(durchreicher + "export const m = () => apiCall('delete_lied')\n")
+	namen = [n for _d, _n, n in _kurzformen_in([str(tmp_path)])]
+	assert namen == ["delete_lied"], namen
+	tote = [n for _d, _n, n in _kurzformen_in([str(tmp_path)]) if n == "gibtsnicht_xyz"]
+	assert tote == [], tote
+
+
+def test_bauer_mit_bahn_meldet_toten_ruf(tmp_path):
+	"""ROUTER-ALIAS-f (SOLL 3): `ruf('<name>')` in einem Baeuer wird geprueft.
+
+	`RollenEinstellungen.vue:448` ruft `ruf('ernenne_mv')`; `ruf` baut daraus
+	`${RECHTS}.${fn}` (Z. 428). Der Waechter muss einen toten Namen dort sehen
+	(Mutation X3), ohne die legitimen Namen der Datei zu melden.
+	"""
+	# Bahn wie in der echten Datei (`api/rechte.py` sagt sie ueber
+	# `praefix_zusagen` zu): `diakronos.api.rechte`. Der Waechter liest sie
+	# als `_PRAEFIX` (`const PRAEFIX = 'diakronos.api.rechte.'`).
+	with open(os.path.join(str(tmp_path), "bauer.vue"), "w", encoding="utf-8") as fh:
+		fh.write(
+			"const PRAEFIX = 'diakronos.api.rechte.'\n"
+			"async function ruf(fn, params) {\n"
+			"\treturn apiCall(`${PRAEFIX}${fn}`, params)\n"
+			"}\n"
+			"async function a() { return ruf('ernenne_mv', {}) }\n"
+			"async function b() { return ruf('gibtsnicht_xyz', {}) }\n"
+		)
+	namen = [n for _d, _n, n in _kurzformen_in([str(tmp_path)])]
+	assert "gibtsnicht_xyz" in namen, namen
