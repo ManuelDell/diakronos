@@ -49,6 +49,22 @@ _PRAEFIX = re.compile(
 	r"(?:const|let|var)\s+(PRAEFIX|[A-Z][A-Z0-9_]*)\s*=\s*[`'\"]([A-Za-z0-9_.]+\.)[`'\"]"
 )
 _PRAEFIX_BAU = re.compile(r"ruf\(\s*(PRAEFIX|[A-Z][A-Z0-9_]*)\s*\+\s*[`'\"]([A-Za-z0-9_]+)[`'\"]")
+#: ROUTER-ALIAS-e: dieselbe Bauform in PYTHON — die Abnahme-Skripte bauen den
+#: Pfad aus einer Konstante zusammen:
+#:
+#:   METHOD = "/api/method/diakronos.diakonos.api.gruppen."
+#:   client.post(METHOD + "toggle_aufgabe", …)      (b4_live_abnahme.py:135)
+#:
+#:   METHOD = "/api/method/diakronos.kronos.api.event_crud"
+#:   client.post(f"{METHOD}.create_event", …)       (dev7-vorschlaege.py:59)
+#:
+#: Ohne diese zwei Muster sieht der Waechter diese Pfade nicht — ein toter
+#: `METHOD + "gibtsnicht"` blieb gruen (Mutation T3).
+_PY_PRAEFIX = re.compile(
+	r"^\s*([A-Z][A-Z0-9_]*)\s*=\s*[`'\"](/api/method/[A-Za-z0-9_.]+)[`'\"]"
+)
+_PY_BAU_PLUS = re.compile(r"([A-Z][A-Z0-9_]*)\s*\+\s*[`'\"]([A-Za-z0-9_]+)[`'\"]")
+_PY_BAU_F = re.compile(r"f[`'\"][`'\"]?\{([A-Z][A-Z0-9_]*)\}[`'\"]?\.([A-Za-z0-9_]+)")
 
 #: HTTP-Verben — ein `method:` mit diesem Wert beschreibt die Methode, nicht
 #: den Pfad.
@@ -158,6 +174,24 @@ def tool_pfade() -> list[str]:
 				bahn = bahnen.get(treffer.group(1))
 				if bahn:
 					gefunden.add(f"{bahn}{treffer.group(2)}")
+			# ROUTER-ALIAS-e: die PYTHON-Bauformen (`METHOD + "name"` und
+			# `f"{METHOD}.name"`). Der Pfad in `_PY_PRAEFIX` ist schon ein
+			# voller Methodenpfad (`/api/method/<bahn>`), kein Bahnfragment.
+			py_bahnen = {
+				m.group(1): m.group(2).removeprefix("/api/method/")
+				for m in (
+					_PY_PRAEFIX.match(zeile) for zeile in text.splitlines()
+				)
+				if m
+			}
+			for treffer in _PY_BAU_PLUS.finditer(text):
+				bahn = py_bahnen.get(treffer.group(1))
+				if bahn:
+					gefunden.add(f"{bahn}{treffer.group(2)}")
+			for treffer in _PY_BAU_F.finditer(text):
+				bahn = py_bahnen.get(treffer.group(1))
+				if bahn:
+					gefunden.add(f"{bahn}.{treffer.group(2)}")
 	return sorted(gefunden)
 
 def _register_vollstaendig() -> None:

@@ -21,14 +21,22 @@ UMLEITUNG = "frappe.sessions.get_csrf_token"
 
 
 def _register_vollstaendig() -> None:
-	from diakronos_app.main import app  # noqa: F401
+	"""Laedt die App — und den Dev-Modus, wenn er EINGESCHALTET ist.
 
-	try:
-		from diakronos_app.devmodus import api as devmodus_api
+	ROUTER-ALIAS-e: Hier stand `devmodus_api.registriere()` OHNE `app`. Die
+	Funktion verlangt `app` (TypeError), der von einem stillen
+	`except Exception: pass` verschluckt wurde — die Dev-Modus-Bahn wurde
+	also nie registriert. Jetzt gilt die Regel des Betriebs
+	(`main.py:241`): `registriere(app)` MIT der App, ohne stilles `except`.
 
-		devmodus_api.registriere()
-	except Exception:  # noqa: BLE001 — ohne Dev-Modus gibt es diese Module nicht
-		pass
+	Der Dev-Modus ist im Testlauf AUS (`DEVMODE_ENABLED` nicht gesetzt,
+	siehe `devmodus/einstellungen.py`); `registriere` meldet das ueber
+	`False` und importiert nichts — genau wie im Betrieb.
+	"""
+	from diakronos_app.devmodus import api as devmodus_api
+	from diakronos_app.main import app
+
+	devmodus_api.registriere(app)
 
 
 def test_umleitungsziel_loest_nur_unter_seinem_pfad_auf():
@@ -37,10 +45,35 @@ def test_umleitungsziel_loest_nur_unter_seinem_pfad_auf():
 	from diakronos_app.api.session import sitzung_status
 
 	assert registry.ist_originalpfad(UMLEITUNG, sitzung_status) is True
-	# Der Befund dieser Karte: diese vier waren vorher ALLE True.
+	# Der Befund dieser Karte: diese fuenf waren vorher ALLE True.
 	for fremd in ("logout", "login", "frappe.login", "upload_file", "frappe.client.insert"):
 		assert registry.ist_originalpfad(fremd, sitzung_status) is False, fremd
-		assert registry.registriere_originalpfad(fremd) is False or fremd != "logout", fremd
+		# ROUTER-ALIAS-e: Hier stand
+		# `assert registriere_originalpfad(fremd) is False or fremd != "logout"` —
+		# fuer `logout` eine Tautologie (`X or False` == `X`), fuer die anderen
+		# vier durch das `or` abgeschwaecht. Die echte Aussage ist: unter KEINER
+		# dieser Schreibweisen kommt das UMLEITUNGSZIEL.
+		ziel = registry._KERNPFAD_ZIEL(fremd)  # noqa: SLF001 — Kernpfad-Tabelle
+		assert ziel is not sitzung_status, (fremd, getattr(ziel, "__name__", None))
+		# Und der Router sieht dieselbe Antwort wie das Register — die zwei
+		# Wege duerfen nicht auseinanderlaufen. Fuer Pfade FREMDE Schreibweisen
+		# gilt das ausnahmslos: beide sagen `False`.
+		if fremd not in registry._KERNPFADE:  # noqa: SLF001 — Kernpfad-Tabelle
+			assert router._ist_eigener_pfad(fremd) is False, fremd
+			assert registry.registriere_originalpfad(fremd) is False, fremd
+
+	# BEKANNTER BEFUND (hier nur festgehalten, nicht geheilt — diese Karte
+	# aendert keinen Produktivcode): bei den Kernpfad-Schreibweisen laufen die
+	# zwei Wege auseinander. `registriere_originalpfad` weist ALLES ohne Punkt
+	# pauschal ab (`"." not in path -> False`), obwohl der Router `logout`,
+	# `login`, `upload_file` ueber `_KERNPFAD_ZIEL` bedient — HTTP-Beleg:
+	# `test_kernpfade_bleiben_offen` (POST /api/method/logout -> kein NotFound).
+	# `frappe.login` ist der zweite Fall: der Router loest auf, das Register
+	# findet keinen Eintrag. Beides gehoert in eine eigene Karte.
+	assert router._ist_eigener_pfad("logout") is True
+	assert registry.registriere_originalpfad("logout") is False  # <- Befund
+	assert router._ist_eigener_pfad("frappe.login") is True
+	assert registry.registriere_originalpfad("frappe.login") is False  # <- Befund
 
 
 def test_umleitungsziel_ist_keine_kernfunktion():

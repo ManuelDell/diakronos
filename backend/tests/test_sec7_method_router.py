@@ -188,25 +188,77 @@ def test_traversal_wird_vor_der_aufloesung_abgewiesen(client, pfad, monkeypatch)
     `router._maybe_import`. Beides griff NICHT: der Router importiert `lookup`
     per Namen (`from …registry import … lookup …`), ein Patch am
     registry-MODUL erreicht ihn nicht — und `_maybe_import` ist entfernt.
-    Gepatcht wird jetzt die Stelle, die der Router WIRKLICH ruft:
-    `router.lookup` und `router._kandidat` (die Aufloesung samt
-    Ordnungs-Zusage). Ein Traversal-Pfad darf keine davon erreichen.
+
+    ROUTER-ALIAS-e (Befund): Danach waren nur `router.lookup` und
+    `router._kandidat` bespitzelt. Mutation S1 (`_gueltiger_methodenpfad`
+    gibt immer `True`) liess sec7 trotzdem gruen (49 passed), weil der ERSTE
+    Aufloesungsschritt `_ist_eigener_pfad` `registry._REGISTRY` direkt liest
+    und die beiden Spione nie erreicht werden.
+
+    Gespickt wird jetzt JEDER Schritt der Aufloesung, der ein Traversal-Pfad
+    nicht erreichen darf: Syntax (`_gueltiger_methodenpfad`), Eigentum
+    (`_ist_eigener_pfad`, `registry.registriere_originalpfad`), Register
+    (`lookup`) und Kandidat (`_kandidat`). Die Zusage ist damit: der Pfad
+    wird an der ERSTEN Pruefung abgewiesen — er kommt nicht weiter.
     """
-    from diakronos_app.frappe_compat import router
+    from diakronos_app.frappe_compat import registry, router
 
     gerufen: list[str] = []
 
     def _spion(name, *args, **kwargs):
-        gerufen.append(str(name))
-        raise AssertionError(f"Aufloesung fuer {name!r} wurde befragt")
+        gerufen.append(str(args[0]) if args else str(name))
+        raise AssertionError(f"Aufloesung fuer {args[0] if args else name!r} wurde befragt")
 
-    monkeypatch.setattr(router, "lookup", _spion)
-    monkeypatch.setattr(router, "_kandidat", _spion)
+    # `_vorbedingung`/`_aufloesen` stehen NICHT auf der Liste: sie sind die
+    # Einstiegspunkte dieses Wegs. Sie auf einen Wurf-Spion zu setzen macht
+    # den Test bei JEDEM Pfad rot — und damit blind fuer die Frage, ob der
+    # Pfad WEITER kommt (genau die Falle dieser Karte).
+    for _name in (
+        "lookup",
+        "_kandidat",
+        "_ist_eigener_pfad",
+    ):
+        monkeypatch.setattr(router, _name, _spion)
+    monkeypatch.setattr(registry, "registriere_originalpfad", _spion)
 
     r = client.post(f"/api/method/{pfad}")
 
     assert r.status_code in (400, 404), r.text
     assert gerufen == [], f"Pfad wurde aufgeloest: {gerufen}"
+
+
+# `..` und `%00` sind hier NICHT dabei: sie sind fuer den HTTP-Client keine
+# Pfade (`..` wird als Punkt-Segment aufgeloest, `%00` als leeres Segment) und
+# erreichen den Router nie. Geprueft wird, was ankommt und die Whitelist
+# passieren muesste.
+@pytest.mark.parametrize(
+    "pfad", ["admin_hub..get_statistik", "admin_hub.get_statistik.", "admin_hub get_statistik"]
+)
+def test_syntaxpruefung_ist_die_erste_schranke(client, pfad, monkeypatch):
+    """ROUTER-ALIAS-e: `_gueltiger_methodenpfad` selbst ist bespitzelt.
+
+    Mutation S1 (die Funktion gibt immer `True`) muss hier rot werden. Der
+    Spion steht auf der Funktion, die der Router WIRKLICH ruft, und belegt
+    zweierlei: sie wird gefragt (sonst waere der Test blind) und ihre
+    Antwort ist fuer einen Traversal-Pfad `False` (sonst liefe der Pfad
+    weiter in `_ist_eigener_pfad`).
+    """
+    from diakronos_app.frappe_compat import router
+
+    gefragt: list[str] = []
+    echt = router._gueltiger_methodenpfad  # noqa: SLF001
+
+    def _spion(path):
+        gefragt.append(path)
+        return echt(path)
+
+    monkeypatch.setattr(router, "_gueltiger_methodenpfad", _spion)
+
+    r = client.post(f"/api/method/{pfad}")
+
+    assert r.status_code in (400, 404), r.text
+    assert gefragt, "die Syntaxpruefung wurde gar nicht gefragt"
+    assert all(echt(p) is False for p in gefragt), gefragt
 
 
 def test_traversal_spion_greift_ueberhaupt(client, monkeypatch):

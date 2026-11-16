@@ -140,17 +140,22 @@ def _ist_modulebene(path: str) -> bool:
 
 
 def _register_vollstaendig() -> None:
-	from diakronos_app.main import app  # noqa: F401
+	"""Laedt die App — und den Dev-Modus, wenn er EINGESCHALTET ist.
 
-	# Der Dev-Modus registriert seine Endpunkte erst auf Anforderung
-	# (`registriere()`), wie im Betrieb auch.
-	try:
-		from diakronos_app.devmodus import api as devmodus_api
+	ROUTER-ALIAS-e: Hier stand `devmodus_api.registriere()` OHNE `app`. Die
+	Funktion verlangt `app` (TypeError), der von einem stillen
+	`except Exception: pass` verschluckt wurde — die Dev-Modus-Bahn wurde
+	also nie registriert. Jetzt gilt die Regel des Betriebs
+	(`main.py:241`): `registriere(app)` MIT der App, ohne stilles `except`.
 
-		devmodus_api.registriere()
-	except Exception:  # noqa: BLE001 — ohne Dev-Modus gibt es diese Module nicht
-		pass
+	Der Dev-Modus ist im Testlauf AUS (`DEVMODE_ENABLED` nicht gesetzt,
+	siehe `devmodus/einstellungen.py`); `registriere` meldet das ueber
+	`False` und importiert nichts — genau wie im Betrieb.
+	"""
+	from diakronos_app.devmodus import api as devmodus_api
+	from diakronos_app.main import app
 
+	devmodus_api.registriere(app)
 
 def _loest_auf(path: str) -> bool:
 	from diakronos_app.frappe_compat.registry import lookup, registriere_originalpfad
