@@ -12,6 +12,18 @@ from __future__ import annotations
 from typing import Any
 
 from diakronos_app.frappe_compat import whitelist
+from diakronos_app.frappe_compat.registry import praefix_zusagen
+
+# ROUTER-ALIAS (R-7-Nachzug 2026-11): Das Frontend ruft diese Endpunkte unter
+# `diakronos.api.rechte.*` auf — `ModerationAntraege.vue` (Antraege lesen und
+# entscheiden) und `freigabeStufen.mjs` (Rollen-Erklaerung, ⓘ). Diese Bahn ist
+# weder aus dem Python-Paketpfad ableitbar (der ergaebe
+# `diakronos.diakonos.api.rechte`) noch aus `FRAPPE_MODULE`; sie wird deshalb
+# hier AUSDRUECKLICH zugesagt, statt den Router raten zu lassen, was ein
+# `api`-Segment bedeuten koennte. Rechte-Logik aendert das nicht — die
+# Pruefungen laufen unveraendert im Rechte-Kern (`diakronos_app.rechte`).
+praefix_zusagen(__name__, "diakronos.api.rechte")
+
 from diakronos_app.frappe_compat.session import session
 from diakronos_app.rechte import kern, verwaltung
 

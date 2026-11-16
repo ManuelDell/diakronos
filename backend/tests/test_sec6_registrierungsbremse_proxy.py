@@ -36,7 +36,10 @@ import pytest
 
 import diakronos_app.api  # noqa: F401 — registriert alle portierten Endpunkte
 
-MODUL = "diakronos.diakronos.api.registrierung"
+# ROUTER-ALIAS: Frappe-Bahn laut `FRAPPE_MODULE` von `api/registrierung.py`.
+# Das frueher hier stehende `diakronos.diakronos.api.registrierung` (Doppel-
+# `diakronos`) loeste nur ueber die Pfadverwechslung aus R-7 auf.
+MODUL = "diakronos.diakonos.api.registrierung"
 
 SLUG = "abc123slug"
 LINK = "RL-1"

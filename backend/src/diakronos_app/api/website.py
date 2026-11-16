@@ -1639,3 +1639,38 @@ def _registriere_kurzpfade() -> None:
 
 
 _registriere_kurzpfade()
+
+
+# ── ROUTER-ALIAS: Aliase aus dem Altcode ────────────────────────────────────
+# `FRAPPE_MODULE` deckt absichtlich nur die dokumentierte Bahn dieses Moduls
+# ab (`diakronos.diakronos.api.website`, Web-Praefix). Die SPA ruft daneben
+# `diakronos.diakronos.api.website.<fn>` fuer die `diakronos_app.website.*`-
+# Endpunkte — diese Bahn ist ein Altcode-Alias und wird hier AUSDRUECKLICH
+# zugesagt, statt dass der Router sie per Namensverwechslung bedient.
+def _registriere_altcode_aliase() -> None:
+    from diakronos_app.frappe_compat.registry import register_with_frappe_module
+    from diakronos_app.website import oeffentlich_api
+
+    for fn in (
+        meine_einwilligung_lesen,
+        meine_einwilligung_setzen,
+        ansprechpartner_bereiche_lesen,
+        ansprechpartner_bereiche_setzen,
+        freigaben_lesen,
+        freigabe_setzen,
+        beitrag_auf_website,
+        postfach_speichern,
+        postfach_loeschen,
+        kategorie_oeffentlich,
+        bausteine_status,
+        bausteine_installieren,
+        status,
+        login_uebergabe,
+        oeffentlich_api.kalender,
+    ):
+        name = getattr(fn, "__name__", None)
+        if name:
+            register_with_frappe_module(FRAPPE_MODULE, name, fn)
+
+
+_registriere_altcode_aliase()

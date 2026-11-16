@@ -382,6 +382,7 @@
     "admin_hub.get_dsgvo_uebersicht",
     "api.get_dsgvo_uebersicht",
     "diakronos.diakonos.api.admin_hub.get_dsgvo_uebersicht",
+    "diakronos.diakronos.api.admin_hub.get_dsgvo_uebersicht",
     "diakronos_app.api.admin_hub.get_dsgvo_uebersicht",
     "get_dsgvo_uebersicht"
    ],
@@ -770,6 +771,7 @@
    "pfade": [
     "api.login",
     "auth.login",
+    "diakronos.diakonos.api.auth.login",
     "diakronos_app.api.auth.login",
     "frappe.login.login",
     "login"
@@ -796,6 +798,7 @@
    "name": "logout",
    "pfade": [
     "auth.logout",
+    "diakronos.diakonos.api.auth.logout",
     "diakronos_app.api.auth.logout",
     "frappe.login.logout"
    ],
@@ -1827,6 +1830,7 @@
    "pfade": [
     "abschliessen",
     "api.abschliessen",
+    "diakronos.diakonos.api.einrichtung.abschliessen",
     "diakronos_app.api.einrichtung.abschliessen",
     "einrichtung.abschliessen"
    ],
@@ -1852,6 +1856,7 @@
    "name": "erinnern_spaeter",
    "pfade": [
     "api.erinnern_spaeter",
+    "diakronos.diakonos.api.einrichtung.erinnern_spaeter",
     "diakronos_app.api.einrichtung.erinnern_spaeter",
     "einrichtung.erinnern_spaeter",
     "erinnern_spaeter"
@@ -1878,6 +1883,7 @@
    "name": "kalender_vorschlag_anlegen",
    "pfade": [
     "api.kalender_vorschlag_anlegen",
+    "diakronos.diakonos.api.einrichtung.kalender_vorschlag_anlegen",
     "diakronos_app.api.einrichtung.kalender_vorschlag_anlegen",
     "einrichtung.kalender_vorschlag_anlegen",
     "kalender_vorschlag_anlegen"
@@ -1904,6 +1910,7 @@
    "name": "schritt_setzen",
    "pfade": [
     "api.schritt_setzen",
+    "diakronos.diakonos.api.einrichtung.schritt_setzen",
     "diakronos_app.api.einrichtung.schritt_setzen",
     "einrichtung.schritt_setzen",
     "schritt_setzen"
@@ -1927,6 +1934,7 @@
    "nach_rumpf": "lesend",
    "name": "status",
    "pfade": [
+    "diakronos.diakonos.api.einrichtung.status",
     "diakronos_app.api.einrichtung.status",
     "einrichtung.status"
    ],
@@ -2002,6 +2010,7 @@
    "name": "insert",
    "pfade": [
     "api.insert",
+    "diakronos.diakonos.api.frappe_core.insert",
     "diakronos_app.api.frappe_core.insert",
     "frappe.client.insert",
     "frappe_core.insert",
@@ -2030,6 +2039,7 @@
    "offen": false,
    "pfade": [
     "api.logout",
+    "diakronos.diakonos.api.frappe_core.logout",
     "diakronos_app.api.frappe_core.logout",
     "frappe_core.logout",
     "logout"
@@ -2056,6 +2066,7 @@
    "name": "upload_file",
    "pfade": [
     "api.upload_file",
+    "diakronos.diakonos.api.frappe_core.upload_file",
     "diakronos_app.api.frappe_core.upload_file",
     "frappe_core.upload_file",
     "upload_file"
@@ -3003,6 +3014,7 @@
    "pfade": [
     "ablaufplan_api.get_ablaufplan",
     "api.get_ablaufplan",
+    "diakronos.diakonos.api.kronos.ablaufplan_api.get_ablaufplan",
     "diakronos.kronos.api.ablaufplan_api.get_ablaufplan",
     "diakronos_app.api.kronos.ablaufplan_api.get_ablaufplan",
     "get_ablaufplan",
@@ -3030,6 +3042,7 @@
    "pfade": [
     "ablaufplan_api.get_termine_am_tag",
     "api.get_termine_am_tag",
+    "diakronos.diakonos.api.kronos.ablaufplan_api.get_termine_am_tag",
     "diakronos.kronos.api.ablaufplan_api.get_termine_am_tag",
     "diakronos_app.api.kronos.ablaufplan_api.get_termine_am_tag",
     "get_termine_am_tag",
@@ -3059,6 +3072,7 @@
    "pfade": [
     "ablaufplan_api.save_ablaufplan",
     "api.save_ablaufplan",
+    "diakronos.diakonos.api.kronos.ablaufplan_api.save_ablaufplan",
     "diakronos.kronos.api.ablaufplan_api.save_ablaufplan",
     "diakronos_app.api.kronos.ablaufplan_api.save_ablaufplan",
     "kronos.ablaufplan_api.save_ablaufplan",
@@ -3086,6 +3100,7 @@
    "pfade": [
     "api.get_calendar_events",
     "calendar_get.get_calendar_events",
+    "diakronos.diakonos.api.kronos.calendar_get.get_calendar_events",
     "diakronos.kronos.api.calendar_get.get_calendar_events",
     "diakronos_app.api.kronos.calendar_get.get_calendar_events",
     "get_calendar_events",
@@ -3113,6 +3128,7 @@
    "pfade": [
     "api.get_mein_termin",
     "calendar_get.get_mein_termin",
+    "diakronos.diakonos.api.kronos.calendar_get.get_mein_termin",
     "diakronos.kronos.api.calendar_get.get_mein_termin",
     "diakronos_app.api.kronos.calendar_get.get_mein_termin",
     "get_mein_termin",
@@ -3140,6 +3156,7 @@
    "pfade": [
     "api.get_meine_abgelehnten_termine",
     "calendar_get.get_meine_abgelehnten_termine",
+    "diakronos.diakonos.api.kronos.calendar_get.get_meine_abgelehnten_termine",
     "diakronos.kronos.api.calendar_get.get_meine_abgelehnten_termine",
     "diakronos_app.api.kronos.calendar_get.get_meine_abgelehnten_termine",
     "get_meine_abgelehnten_termine",
@@ -3169,6 +3186,7 @@
    "pfade": [
     "aenderung_ablehnen",
     "api.aenderung_ablehnen",
+    "diakronos.diakonos.api.kronos.event_crud.aenderung_ablehnen",
     "diakronos.kronos.api.event_crud.aenderung_ablehnen",
     "diakronos_app.api.kronos.event_crud.aenderung_ablehnen",
     "event_crud.aenderung_ablehnen",
@@ -3198,6 +3216,7 @@
    "pfade": [
     "aenderung_freigeben",
     "api.aenderung_freigeben",
+    "diakronos.diakonos.api.kronos.event_crud.aenderung_freigeben",
     "diakronos.kronos.api.event_crud.aenderung_freigeben",
     "diakronos_app.api.kronos.event_crud.aenderung_freigeben",
     "event_crud.aenderung_freigeben",
@@ -3227,6 +3246,7 @@
    "pfade": [
     "api.create_event",
     "create_event",
+    "diakronos.diakonos.api.kronos.event_crud.create_event",
     "diakronos.kronos.api.event_crud.create_event",
     "diakronos_app.api.kronos.event_crud.create_event",
     "event_crud.create_event",
@@ -3256,6 +3276,7 @@
    "pfade": [
     "api.create_series",
     "create_series",
+    "diakronos.diakonos.api.kronos.event_crud.create_series",
     "diakronos.kronos.api.event_crud.create_series",
     "diakronos_app.api.kronos.event_crud.create_series",
     "event_crud.create_series",
@@ -3285,6 +3306,7 @@
    "pfade": [
     "api.delete_event",
     "delete_event",
+    "diakronos.diakonos.api.kronos.event_crud.delete_event",
     "diakronos.kronos.api.event_crud.delete_event",
     "diakronos_app.api.kronos.event_crud.delete_event",
     "event_crud.delete_event",
@@ -3311,6 +3333,7 @@
    "name": "get_offene_aenderungen",
    "pfade": [
     "api.get_offene_aenderungen",
+    "diakronos.diakonos.api.kronos.event_crud.get_offene_aenderungen",
     "diakronos.kronos.api.event_crud.get_offene_aenderungen",
     "diakronos_app.api.kronos.event_crud.get_offene_aenderungen",
     "event_crud.get_offene_aenderungen",
@@ -3340,6 +3363,7 @@
    "name": "save_event",
    "pfade": [
     "api.save_event",
+    "diakronos.diakonos.api.kronos.event_crud.save_event",
     "diakronos.kronos.api.event_crud.save_event",
     "diakronos_app.api.kronos.event_crud.save_event",
     "event_crud.save_event",
@@ -3369,6 +3393,7 @@
    "name": "update_event",
    "pfade": [
     "api.update_event",
+    "diakronos.diakonos.api.kronos.event_crud.update_event",
     "diakronos.kronos.api.event_crud.update_event",
     "diakronos_app.api.kronos.event_crud.update_event",
     "event_crud.update_event",
@@ -3398,6 +3423,7 @@
    "name": "wiederherstellen_event",
    "pfade": [
     "api.wiederherstellen_event",
+    "diakronos.diakonos.api.kronos.event_crud.wiederherstellen_event",
     "diakronos.kronos.api.event_crud.wiederherstellen_event",
     "diakronos_app.api.kronos.event_crud.wiederherstellen_event",
     "event_crud.wiederherstellen_event",
@@ -3427,6 +3453,7 @@
    "name": "exchange_code",
    "pfade": [
     "api.exchange_code",
+    "diakronos.diakonos.api.kronos.google_import.exchange_code",
     "diakronos.kronos.api.google_import.exchange_code",
     "diakronos_app.api.kronos.google_import.exchange_code",
     "exchange_code",
@@ -3455,6 +3482,7 @@
    "offen": false,
    "pfade": [
     "api.get_credentials_status",
+    "diakronos.diakonos.api.kronos.google_import.get_credentials_status",
     "diakronos.kronos.api.google_import.get_credentials_status",
     "diakronos_app.api.kronos.google_import.get_credentials_status",
     "get_credentials_status",
@@ -3483,6 +3511,7 @@
    "offen": false,
    "pfade": [
     "api.get_google_calendars",
+    "diakronos.diakonos.api.kronos.google_import.get_google_calendars",
     "diakronos.kronos.api.google_import.get_google_calendars",
     "diakronos_app.api.kronos.google_import.get_google_calendars",
     "get_google_calendars",
@@ -3511,6 +3540,7 @@
    "offen": false,
    "pfade": [
     "api.get_import_progress",
+    "diakronos.diakonos.api.kronos.google_import.get_import_progress",
     "diakronos.kronos.api.google_import.get_import_progress",
     "diakronos_app.api.kronos.google_import.get_import_progress",
     "get_import_progress",
@@ -3541,6 +3571,7 @@
    "offen": true,
    "pfade": [
     "api.get_oauth_url",
+    "diakronos.diakonos.api.kronos.google_import.get_oauth_url",
     "diakronos.kronos.api.google_import.get_oauth_url",
     "diakronos_app.api.kronos.google_import.get_oauth_url",
     "get_oauth_url",
@@ -3570,6 +3601,7 @@
    "name": "save_credentials",
    "pfade": [
     "api.save_credentials",
+    "diakronos.diakonos.api.kronos.google_import.save_credentials",
     "diakronos.kronos.api.google_import.save_credentials",
     "diakronos_app.api.kronos.google_import.save_credentials",
     "google_import.save_credentials",
@@ -3599,6 +3631,7 @@
    "name": "start_import",
    "pfade": [
     "api.start_import",
+    "diakronos.diakonos.api.kronos.google_import.start_import",
     "diakronos.kronos.api.google_import.start_import",
     "diakronos_app.api.kronos.google_import.start_import",
     "google_import.start_import",
@@ -3628,6 +3661,7 @@
    "name": "upload_ical",
    "pfade": [
     "api.upload_ical",
+    "diakronos.diakonos.api.kronos.google_import.upload_ical",
     "diakronos.kronos.api.google_import.upload_ical",
     "diakronos_app.api.kronos.google_import.upload_ical",
     "google_import.upload_ical",
@@ -3656,6 +3690,7 @@
    "pfade": [
     "api.get_events",
     "diakronos.diakonos.api.kalender.get_events",
+    "diakronos.diakonos.api.kronos.kalender.get_events",
     "diakronos_app.api.kronos.kalender.get_events",
     "get_events",
     "kalender.get_events",
@@ -3685,6 +3720,7 @@
    "pfade": [
     "api.create_kalender",
     "create_kalender",
+    "diakronos.diakonos.api.kronos.kalender_verwaltung.create_kalender",
     "diakronos.kronos.api.kalender_verwaltung.create_kalender",
     "diakronos_app.api.kronos.kalender_verwaltung.create_kalender",
     "kalender_verwaltung.create_kalender",
@@ -3714,6 +3750,7 @@
    "pfade": [
     "api.delete_kalender",
     "delete_kalender",
+    "diakronos.diakonos.api.kronos.kalender_verwaltung.delete_kalender",
     "diakronos.kronos.api.kalender_verwaltung.delete_kalender",
     "diakronos_app.api.kronos.kalender_verwaltung.delete_kalender",
     "kalender_verwaltung.delete_kalender",
@@ -3740,6 +3777,7 @@
    "name": "get_kalender_verwaltung",
    "pfade": [
     "api.get_kalender_verwaltung",
+    "diakronos.diakonos.api.kronos.kalender_verwaltung.get_kalender_verwaltung",
     "diakronos.kronos.api.kalender_verwaltung.get_kalender_verwaltung",
     "diakronos_app.api.kronos.kalender_verwaltung.get_kalender_verwaltung",
     "get_kalender_verwaltung",
@@ -3769,6 +3807,7 @@
    "name": "update_kalender",
    "pfade": [
     "api.update_kalender",
+    "diakronos.diakonos.api.kronos.kalender_verwaltung.update_kalender",
     "diakronos.kronos.api.kalender_verwaltung.update_kalender",
     "diakronos_app.api.kronos.kalender_verwaltung.update_kalender",
     "kalender_verwaltung.update_kalender",
@@ -3798,6 +3837,7 @@
    "name": "finalize_staged_events",
    "pfade": [
     "api.finalize_staged_events",
+    "diakronos.diakonos.api.kronos.kanban_api.finalize_staged_events",
     "diakronos.kronos.api.kanban_api.finalize_staged_events",
     "diakronos_app.api.kronos.kanban_api.finalize_staged_events",
     "finalize_staged_events",
@@ -3825,6 +3865,7 @@
    "name": "get_conflict_partner",
    "pfade": [
     "api.get_conflict_partner",
+    "diakronos.diakonos.api.kronos.kanban_api.get_conflict_partner",
     "diakronos.kronos.api.kanban_api.get_conflict_partner",
     "diakronos_app.api.kronos.kanban_api.get_conflict_partner",
     "get_conflict_partner",
@@ -3852,6 +3893,7 @@
    "name": "get_kanban_board_data",
    "pfade": [
     "api.get_kanban_board_data",
+    "diakronos.diakonos.api.kronos.kanban_api.get_kanban_board_data",
     "diakronos.kronos.api.kanban_api.get_kanban_board_data",
     "diakronos_app.api.kronos.kanban_api.get_kanban_board_data",
     "get_kanban_board_data",
@@ -3879,6 +3921,7 @@
    "name": "get_moderation_count",
    "pfade": [
     "api.get_moderation_count",
+    "diakronos.diakonos.api.kronos.kanban_api.get_moderation_count",
     "diakronos.kronos.api.kanban_api.get_moderation_count",
     "diakronos_app.api.kronos.kanban_api.get_moderation_count",
     "get_moderation_count",
@@ -3908,6 +3951,7 @@
    "name": "resolve_conflict",
    "pfade": [
     "api.resolve_conflict",
+    "diakronos.diakonos.api.kronos.kanban_api.resolve_conflict",
     "diakronos.kronos.api.kanban_api.resolve_conflict",
     "diakronos_app.api.kronos.kanban_api.resolve_conflict",
     "kanban_api.resolve_conflict",
@@ -3937,6 +3981,7 @@
    "name": "save_staging_state",
    "pfade": [
     "api.save_staging_state",
+    "diakronos.diakonos.api.kronos.kanban_api.save_staging_state",
     "diakronos.kronos.api.kanban_api.save_staging_state",
     "diakronos_app.api.kronos.kanban_api.save_staging_state",
     "kanban_api.save_staging_state",
@@ -3964,6 +4009,7 @@
    "name": "get_accessible_calendars",
    "pfade": [
     "api.get_accessible_calendars",
+    "diakronos.diakonos.api.kronos.permissions.get_accessible_calendars",
     "diakronos.kronos.api.calendar_get.get_accessible_calendars",
     "diakronos.kronos.api.permissions.get_accessible_calendars",
     "diakronos_app.api.kronos.permissions.get_accessible_calendars",
@@ -3992,6 +4038,7 @@
    "name": "get_accessible_modules",
    "pfade": [
     "api.get_accessible_modules",
+    "diakronos.diakonos.api.kronos.permissions.get_accessible_modules",
     "diakronos.kronos.api.permissions.get_accessible_modules",
     "diakronos_app.api.kronos.permissions.get_accessible_modules",
     "get_accessible_modules",
@@ -4019,6 +4066,7 @@
    "name": "get_session_info",
    "pfade": [
     "api.get_session_info",
+    "diakronos.diakonos.api.kronos.permissions.get_session_info",
     "diakronos.kronos.api.permissions.get_session_info",
     "diakronos_app.api.kronos.permissions.get_session_info",
     "get_session_info",
@@ -4046,6 +4094,7 @@
    "name": "get_writable_calendars",
    "pfade": [
     "api.get_writable_calendars",
+    "diakronos.diakonos.api.kronos.permissions.get_writable_calendars",
     "diakronos.kronos.api.permissions.get_writable_calendars",
     "diakronos_app.api.kronos.permissions.get_writable_calendars",
     "get_writable_calendars",
@@ -4074,6 +4123,7 @@
    "pfade": [
     "api.check_resource_conflict",
     "check_resource_conflict",
+    "diakronos.diakonos.api.kronos.ressource_api.check_resource_conflict",
     "diakronos.kronos.api.ressource_api.check_resource_conflict",
     "diakronos_app.api.kronos.ressource_api.check_resource_conflict",
     "kronos.check_resource_conflict",
@@ -4100,6 +4150,7 @@
    "name": "get_conflict_events",
    "pfade": [
     "api.get_conflict_events",
+    "diakronos.diakonos.api.kronos.ressource_api.get_conflict_events",
     "diakronos.kronos.api.ressource_api.get_conflict_events",
     "diakronos_app.api.kronos.ressource_api.get_conflict_events",
     "get_conflict_events",
@@ -4127,6 +4178,7 @@
    "name": "get_kronos_settings",
    "pfade": [
     "api.get_kronos_settings",
+    "diakronos.diakonos.api.kronos.ressource_api.get_kronos_settings",
     "diakronos.kronos.api.ressource_api.get_kronos_settings",
     "diakronos_app.api.kronos.ressource_api.get_kronos_settings",
     "get_kronos_settings",
@@ -4154,6 +4206,7 @@
    "name": "get_ressources",
    "pfade": [
     "api.get_ressources",
+    "diakronos.diakonos.api.kronos.ressource_api.get_ressources",
     "diakronos.kronos.api.ressource_api.get_ressources",
     "diakronos_app.api.kronos.ressource_api.get_ressources",
     "get_ressources",
@@ -4184,6 +4237,7 @@
    "pfade": [
     "api.delete_future_series_events",
     "delete_future_series_events",
+    "diakronos.diakonos.api.kronos.series.delete_future_series_events",
     "diakronos.kronos.api.series.delete_future_series_events",
     "diakronos_app.api.kronos.series.delete_future_series_events",
     "kronos.delete_future_series_events",
@@ -4213,6 +4267,7 @@
    "pfade": [
     "api.delete_series_batch_fast",
     "delete_series_batch_fast",
+    "diakronos.diakonos.api.kronos.series.delete_series_batch_fast",
     "diakronos.kronos.api.series.delete_series_batch_fast",
     "diakronos_app.api.kronos.series.delete_series_batch_fast",
     "kronos.delete_series_batch_fast",
@@ -4241,6 +4296,7 @@
    "name": "update_series_batch_fast",
    "pfade": [
     "api.update_series_batch_fast",
+    "diakronos.diakonos.api.kronos.series.update_series_batch_fast",
     "diakronos.kronos.api.series.update_series_batch_fast",
     "diakronos_app.api.kronos.series.update_series_batch_fast",
     "kronos.series.update_series_batch_fast",
@@ -4269,6 +4325,7 @@
    "pfade": [
     "api.mailversand_get",
     "diakronos.diakonos.api.mailversand.mailversand_get",
+    "diakronos.diakronos.api.mailversand.mailversand_get",
     "diakronos_app.api.mailversand.mailversand_get",
     "mailversand.mailversand_get",
     "mailversand_get"
@@ -4296,6 +4353,7 @@
    "pfade": [
     "api.mailversand_speichern",
     "diakronos.diakonos.api.mailversand.mailversand_speichern",
+    "diakronos.diakronos.api.mailversand.mailversand_speichern",
     "diakronos_app.api.mailversand.mailversand_speichern",
     "mailversand.mailversand_speichern",
     "mailversand_speichern"
@@ -4321,6 +4379,7 @@
    "pfade": [
     "api.mailversand_status",
     "diakronos.diakonos.api.mailversand.mailversand_status",
+    "diakronos.diakronos.api.mailversand.mailversand_status",
     "diakronos_app.api.mailversand.mailversand_status",
     "mailversand.mailversand_status",
     "mailversand_status"
@@ -4348,6 +4407,7 @@
    "pfade": [
     "api.mailversand_testmail",
     "diakronos.diakonos.api.mailversand.mailversand_testmail",
+    "diakronos.diakronos.api.mailversand.mailversand_testmail",
     "diakronos_app.api.mailversand.mailversand_testmail",
     "mailversand.mailversand_testmail",
     "mailversand_testmail"
@@ -4843,6 +4903,7 @@
    "name": "liste",
    "pfade": [
     "api.liste",
+    "diakronos.diakonos.api.papierkorb.liste",
     "diakronos_app.api.papierkorb.liste",
     "liste",
     "papierkorb.liste"
@@ -4893,6 +4954,7 @@
    "pfade": [
     "ablauf_aendern",
     "api.ablauf_aendern",
+    "diakronos.diakonos.api.planrahmen.ablauf_aendern",
     "diakronos.planrahmen.api.ablauf_aendern",
     "diakronos_app.api.planrahmen.ablauf_aendern",
     "planrahmen.ablauf_aendern"
@@ -4920,6 +4982,7 @@
    "pfade": [
     "abwesenheit_loeschen",
     "api.abwesenheit_loeschen",
+    "diakronos.diakonos.api.planrahmen.abwesenheit_loeschen",
     "diakronos.planrahmen.api.abwesenheit_loeschen",
     "diakronos_app.api.planrahmen.abwesenheit_loeschen",
     "planrahmen.abwesenheit_loeschen"
@@ -4947,6 +5010,7 @@
    "pfade": [
     "abwesenheit_melden",
     "api.abwesenheit_melden",
+    "diakronos.diakonos.api.planrahmen.abwesenheit_melden",
     "diakronos.planrahmen.api.abwesenheit_melden",
     "diakronos_app.api.planrahmen.abwesenheit_melden",
     "planrahmen.abwesenheit_melden"
@@ -4972,6 +5036,7 @@
    "pfade": [
     "abwesenheiten_liste",
     "api.abwesenheiten_liste",
+    "diakronos.diakonos.api.planrahmen.abwesenheiten_liste",
     "diakronos.planrahmen.api.abwesenheiten_liste",
     "diakronos_app.api.planrahmen.abwesenheiten_liste",
     "planrahmen.abwesenheiten_liste"
@@ -4997,6 +5062,7 @@
    "pfade": [
     "api.bedarf",
     "bedarf",
+    "diakronos.diakonos.api.planrahmen.bedarf",
     "diakronos.planrahmen.api.bedarf",
     "diakronos_app.api.planrahmen.bedarf",
     "planrahmen.bedarf"
@@ -5023,6 +5089,7 @@
    "name": "dienst_absagen",
    "pfade": [
     "api.dienst_absagen",
+    "diakronos.diakonos.api.planrahmen.dienst_absagen",
     "diakronos.planrahmen.api.dienst_absagen",
     "diakronos_app.api.planrahmen.dienst_absagen",
     "dienst_absagen",
@@ -5048,6 +5115,7 @@
    "name": "doku_holen",
    "pfade": [
     "api.doku_holen",
+    "diakronos.diakonos.api.planrahmen.doku_holen",
     "diakronos.planrahmen.api.doku_holen",
     "diakronos_app.api.planrahmen.doku_holen",
     "doku_holen",
@@ -5073,6 +5141,7 @@
    "name": "einrichten_rechte",
    "pfade": [
     "api.einrichten_rechte",
+    "diakronos.diakonos.api.planrahmen.einrichten_rechte",
     "diakronos.planrahmen.api.einrichten_rechte",
     "diakronos_app.api.planrahmen.einrichten_rechte",
     "einrichten_rechte",
@@ -5100,6 +5169,7 @@
    "name": "eintrag_loesen",
    "pfade": [
     "api.eintrag_loesen",
+    "diakronos.diakonos.api.planrahmen.eintrag_loesen",
     "diakronos.planrahmen.api.eintrag_loesen",
     "diakronos_app.api.planrahmen.eintrag_loesen",
     "eintrag_loesen",
@@ -5127,6 +5197,7 @@
    "name": "eintrag_setzen",
    "pfade": [
     "api.eintrag_setzen",
+    "diakronos.diakonos.api.planrahmen.eintrag_setzen",
     "diakronos.planrahmen.api.eintrag_setzen",
     "diakronos_app.api.planrahmen.eintrag_setzen",
     "eintrag_setzen",
@@ -5152,6 +5223,7 @@
    "name": "feiertage_holen",
    "pfade": [
     "api.feiertage_holen",
+    "diakronos.diakonos.api.planrahmen.feiertage_holen",
     "diakronos.planrahmen.api.feiertage_holen",
     "diakronos_app.api.planrahmen.feiertage_holen",
     "feiertage_holen",
@@ -5177,6 +5249,7 @@
    "name": "feld_kandidaten",
    "pfade": [
     "api.feld_kandidaten",
+    "diakronos.diakonos.api.planrahmen.feld_kandidaten",
     "diakronos.planrahmen.api.feld_kandidaten",
     "diakronos_app.api.planrahmen.feld_kandidaten",
     "feld_kandidaten",
@@ -5202,6 +5275,7 @@
    "name": "kochbuch_holen",
    "pfade": [
     "api.kochbuch_holen",
+    "diakronos.diakonos.api.planrahmen.kochbuch_holen",
     "diakronos.planrahmen.api.kochbuch_holen",
     "diakronos_app.api.planrahmen.kochbuch_holen",
     "kochbuch_holen",
@@ -5227,6 +5301,7 @@
    "name": "kochbuch_liste",
    "pfade": [
     "api.kochbuch_liste",
+    "diakronos.diakonos.api.planrahmen.kochbuch_liste",
     "diakronos.planrahmen.api.kochbuch_liste",
     "diakronos_app.api.planrahmen.kochbuch_liste",
     "kochbuch_liste",
@@ -5254,6 +5329,7 @@
    "name": "lied_material_hinzufuegen",
    "pfade": [
     "api.lied_material_hinzufuegen",
+    "diakronos.diakonos.api.planrahmen.lied_material_hinzufuegen",
     "diakronos.planrahmen.api.lied_material_hinzufuegen",
     "diakronos_app.api.planrahmen.lied_material_hinzufuegen",
     "lied_material_hinzufuegen",
@@ -5281,6 +5357,7 @@
    "name": "lied_material_loeschen",
    "pfade": [
     "api.lied_material_loeschen",
+    "diakronos.diakonos.api.planrahmen.lied_material_loeschen",
     "diakronos.planrahmen.api.lied_material_loeschen",
     "diakronos_app.api.planrahmen.lied_material_loeschen",
     "lied_material_loeschen",
@@ -5306,6 +5383,7 @@
    "name": "lied_rechte",
    "pfade": [
     "api.lied_rechte",
+    "diakronos.diakonos.api.planrahmen.lied_rechte",
     "diakronos.planrahmen.api.lied_rechte",
     "diakronos_app.api.planrahmen.lied_rechte",
     "lied_rechte",
@@ -5333,6 +5411,7 @@
    "name": "lied_speichern",
    "pfade": [
     "api.lied_speichern",
+    "diakronos.diakonos.api.planrahmen.lied_speichern",
     "diakronos.planrahmen.api.lied_speichern",
     "diakronos_app.api.planrahmen.lied_speichern",
     "lied_speichern",
@@ -5358,6 +5437,7 @@
    "name": "meine_dienste",
    "pfade": [
     "api.meine_dienste",
+    "diakronos.diakonos.api.planrahmen.meine_dienste",
     "diakronos.planrahmen.api.meine_dienste",
     "diakronos_app.api.planrahmen.meine_dienste",
     "meine_dienste",
@@ -5383,6 +5463,7 @@
    "name": "merkmal_kandidaten",
    "pfade": [
     "api.merkmal_kandidaten",
+    "diakronos.diakonos.api.planrahmen.merkmal_kandidaten",
     "diakronos.planrahmen.api.merkmal_kandidaten",
     "diakronos_app.api.planrahmen.merkmal_kandidaten",
     "merkmal_kandidaten",
@@ -5410,6 +5491,7 @@
    "name": "merkmale_pflegen",
    "pfade": [
     "api.merkmale_pflegen",
+    "diakronos.diakonos.api.planrahmen.merkmale_pflegen",
     "diakronos.planrahmen.api.merkmale_pflegen",
     "diakronos_app.api.planrahmen.merkmale_pflegen",
     "merkmale_pflegen",
@@ -5435,6 +5517,7 @@
    "name": "plaene_liste",
    "pfade": [
     "api.plaene_liste",
+    "diakronos.diakonos.api.planrahmen.plaene_liste",
     "diakronos.planrahmen.api.plaene_liste",
     "diakronos_app.api.planrahmen.plaene_liste",
     "plaene_liste",
@@ -5462,6 +5545,7 @@
    "name": "plan_aendern",
    "pfade": [
     "api.plan_aendern",
+    "diakronos.diakonos.api.planrahmen.plan_aendern",
     "diakronos.planrahmen.api.plan_aendern",
     "diakronos_app.api.planrahmen.plan_aendern",
     "plan_aendern",
@@ -5489,6 +5573,7 @@
    "name": "plan_anlegen",
    "pfade": [
     "api.plan_anlegen",
+    "diakronos.diakonos.api.planrahmen.plan_anlegen",
     "diakronos.planrahmen.api.plan_anlegen",
     "diakronos_app.api.planrahmen.plan_anlegen",
     "plan_anlegen",
@@ -5516,6 +5601,7 @@
    "name": "plan_archivieren",
    "pfade": [
     "api.plan_archivieren",
+    "diakronos.diakonos.api.planrahmen.plan_archivieren",
     "diakronos.planrahmen.api.plan_archivieren",
     "diakronos_app.api.planrahmen.plan_archivieren",
     "plan_archivieren",
@@ -5544,6 +5630,7 @@
    "offen": false,
    "pfade": [
     "api.plan_entwurf",
+    "diakronos.diakonos.api.planrahmen.plan_entwurf",
     "diakronos.planrahmen.api.plan_entwurf",
     "diakronos_app.api.planrahmen.plan_entwurf",
     "plan_entwurf",
@@ -5571,6 +5658,7 @@
    "name": "plan_generieren",
    "pfade": [
     "api.plan_generieren",
+    "diakronos.diakonos.api.planrahmen.plan_generieren",
     "diakronos.planrahmen.api.plan_generieren",
     "diakronos_app.api.planrahmen.plan_generieren",
     "plan_generieren",
@@ -5596,6 +5684,7 @@
    "name": "plan_holen",
    "pfade": [
     "api.plan_holen",
+    "diakronos.diakonos.api.planrahmen.plan_holen",
     "diakronos.planrahmen.api.plan_holen",
     "diakronos_app.api.planrahmen.plan_holen",
     "plan_holen",
@@ -5623,6 +5712,7 @@
    "name": "plan_kopieren",
    "pfade": [
     "api.plan_kopieren",
+    "diakronos.diakonos.api.planrahmen.plan_kopieren",
     "diakronos.planrahmen.api.plan_kopieren",
     "diakronos_app.api.planrahmen.plan_kopieren",
     "plan_kopieren",
@@ -5650,6 +5740,7 @@
    "name": "plan_loeschen",
    "pfade": [
     "api.plan_loeschen",
+    "diakronos.diakonos.api.planrahmen.plan_loeschen",
     "diakronos.planrahmen.api.plan_loeschen",
     "diakronos_app.api.planrahmen.plan_loeschen",
     "plan_loeschen",
@@ -5675,6 +5766,7 @@
    "name": "plan_stand_version",
    "pfade": [
     "api.plan_stand_version",
+    "diakronos.diakonos.api.planrahmen.plan_stand_version",
     "diakronos.planrahmen.api.plan_stand_version",
     "diakronos_app.api.planrahmen.plan_stand_version",
     "plan_stand_version",
@@ -5700,6 +5792,7 @@
    "name": "plantyp_auswirkung",
    "pfade": [
     "api.plantyp_auswirkung",
+    "diakronos.diakonos.api.planrahmen.plantyp_auswirkung",
     "diakronos.planrahmen.api.plantyp_auswirkung",
     "diakronos_app.api.planrahmen.plantyp_auswirkung",
     "planrahmen.plantyp_auswirkung",
@@ -5725,6 +5818,7 @@
    "name": "plantyp_pruefen",
    "pfade": [
     "api.plantyp_pruefen",
+    "diakronos.diakonos.api.planrahmen.plantyp_pruefen",
     "diakronos.planrahmen.api.plantyp_pruefen",
     "diakronos_app.api.planrahmen.plantyp_pruefen",
     "planrahmen.plantyp_pruefen",
@@ -5752,6 +5846,7 @@
    "name": "plantyp_speichern",
    "pfade": [
     "api.plantyp_speichern",
+    "diakronos.diakonos.api.planrahmen.plantyp_speichern",
     "diakronos.planrahmen.api.plantyp_speichern",
     "diakronos_app.api.planrahmen.plantyp_speichern",
     "planrahmen.plantyp_speichern",
@@ -5777,6 +5872,7 @@
    "name": "plantyp_versionen_liste",
    "pfade": [
     "api.plantyp_versionen_liste",
+    "diakronos.diakonos.api.planrahmen.plantyp_versionen_liste",
     "diakronos.planrahmen.api.plantyp_versionen_liste",
     "diakronos_app.api.planrahmen.plantyp_versionen_liste",
     "planrahmen.plantyp_versionen_liste",
@@ -5802,6 +5898,7 @@
    "name": "plantypen_liste",
    "pfade": [
     "api.plantypen_liste",
+    "diakronos.diakonos.api.planrahmen.plantypen_liste",
     "diakronos.planrahmen.api.plantypen_liste",
     "diakronos_app.api.planrahmen.plantypen_liste",
     "planrahmen.plantypen_liste",
@@ -5829,6 +5926,7 @@
    "name": "platz_hinzufuegen",
    "pfade": [
     "api.platz_hinzufuegen",
+    "diakronos.diakonos.api.planrahmen.platz_hinzufuegen",
     "diakronos.planrahmen.api.platz_hinzufuegen",
     "diakronos_app.api.planrahmen.platz_hinzufuegen",
     "planrahmen.platz_hinzufuegen",
@@ -5856,6 +5954,7 @@
    "name": "sammlung_pflegen",
    "pfade": [
     "api.sammlung_pflegen",
+    "diakronos.diakonos.api.planrahmen.sammlung_pflegen",
     "diakronos.planrahmen.api.sammlung_pflegen",
     "diakronos_app.api.planrahmen.sammlung_pflegen",
     "planrahmen.sammlung_pflegen",
@@ -5883,6 +5982,7 @@
    "name": "sammlungsmerkmal_werte_pflegen",
    "pfade": [
     "api.sammlungsmerkmal_werte_pflegen",
+    "diakronos.diakonos.api.planrahmen.sammlungsmerkmal_werte_pflegen",
     "diakronos.planrahmen.api.sammlungsmerkmal_werte_pflegen",
     "diakronos_app.api.planrahmen.sammlungsmerkmal_werte_pflegen",
     "planrahmen.sammlungsmerkmal_werte_pflegen",
@@ -5908,6 +6008,7 @@
    "name": "schema_holen",
    "pfade": [
     "api.schema_holen",
+    "diakronos.diakonos.api.planrahmen.schema_holen",
     "diakronos.planrahmen.api.schema_holen",
     "diakronos_app.api.planrahmen.schema_holen",
     "planrahmen.schema_holen",
@@ -5933,6 +6034,7 @@
    "name": "stammdaten_holen",
    "pfade": [
     "api.stammdaten_holen",
+    "diakronos.diakonos.api.planrahmen.stammdaten_holen",
     "diakronos.planrahmen.api.stammdaten_holen",
     "diakronos_app.api.planrahmen.stammdaten_holen",
     "planrahmen.stammdaten_holen",
@@ -5960,6 +6062,7 @@
    "name": "termin_aendern",
    "pfade": [
     "api.termin_aendern",
+    "diakronos.diakonos.api.planrahmen.termin_aendern",
     "diakronos.planrahmen.api.termin_aendern",
     "diakronos_app.api.planrahmen.termin_aendern",
     "planrahmen.termin_aendern",
@@ -5987,6 +6090,7 @@
    "name": "termin_entfernen",
    "pfade": [
     "api.termin_entfernen",
+    "diakronos.diakonos.api.planrahmen.termin_entfernen",
     "diakronos.planrahmen.api.termin_entfernen",
     "diakronos_app.api.planrahmen.termin_entfernen",
     "planrahmen.termin_entfernen",
@@ -6014,6 +6118,7 @@
    "name": "termin_hinzufuegen",
    "pfade": [
     "api.termin_hinzufuegen",
+    "diakronos.diakonos.api.planrahmen.termin_hinzufuegen",
     "diakronos.planrahmen.api.termin_hinzufuegen",
     "diakronos_app.api.planrahmen.termin_hinzufuegen",
     "planrahmen.termin_hinzufuegen",
@@ -6039,6 +6144,7 @@
    "name": "termin_struktur",
    "pfade": [
     "api.termin_struktur",
+    "diakronos.diakonos.api.planrahmen.termin_struktur",
     "diakronos.planrahmen.api.termin_struktur",
     "diakronos_app.api.planrahmen.termin_struktur",
     "planrahmen.termin_struktur",
@@ -6064,6 +6170,7 @@
    "name": "termin_strukturen",
    "pfade": [
     "api.termin_strukturen",
+    "diakronos.diakonos.api.planrahmen.termin_strukturen",
     "diakronos.planrahmen.api.termin_strukturen",
     "diakronos_app.api.planrahmen.termin_strukturen",
     "planrahmen.termin_strukturen",
@@ -6089,6 +6196,7 @@
    "name": "trockenlauf",
    "pfade": [
     "api.trockenlauf",
+    "diakronos.diakonos.api.planrahmen.trockenlauf",
     "diakronos.planrahmen.api.trockenlauf",
     "diakronos_app.api.planrahmen.trockenlauf",
     "planrahmen.trockenlauf",
@@ -6116,6 +6224,7 @@
    "name": "undo",
    "pfade": [
     "api.undo",
+    "diakronos.diakonos.api.planrahmen.undo",
     "diakronos.planrahmen.api.undo",
     "diakronos_app.api.planrahmen.undo",
     "planrahmen.undo",
@@ -6142,6 +6251,7 @@
    "offen": false,
    "pfade": [
     "api.undo_vorschau",
+    "diakronos.diakonos.api.planrahmen.undo_vorschau",
     "diakronos.planrahmen.api.undo_vorschau",
     "diakronos_app.api.planrahmen.undo_vorschau",
     "planrahmen.undo_vorschau",
@@ -6169,6 +6279,7 @@
    "name": "veroeffentlichen",
    "pfade": [
     "api.veroeffentlichen",
+    "diakronos.diakonos.api.planrahmen.veroeffentlichen",
     "diakronos.planrahmen.api.veroeffentlichen",
     "diakronos_app.api.planrahmen.veroeffentlichen",
     "planrahmen.veroeffentlichen",
@@ -6749,6 +6860,7 @@
    "pfade": [
     "api.delete_lied",
     "delete_lied",
+    "diakronos.diakonos.api.psalmos.musik.delete_lied",
     "diakronos.psalmos.api.musik.delete_lied",
     "diakronos_app.api.psalmos.musik.delete_lied",
     "musik.delete_lied",
@@ -6778,6 +6890,7 @@
    "pfade": [
     "api.delete_liedgruppe",
     "delete_liedgruppe",
+    "diakronos.diakonos.api.psalmos.musik.delete_liedgruppe",
     "diakronos.psalmos.api.musik.delete_liedgruppe",
     "diakronos_app.api.psalmos.musik.delete_liedgruppe",
     "musik.delete_liedgruppe",
@@ -6804,6 +6917,7 @@
    "name": "get_fassungen",
    "pfade": [
     "api.get_fassungen",
+    "diakronos.diakonos.api.psalmos.musik.get_fassungen",
     "diakronos.psalmos.api.musik.get_fassungen",
     "diakronos_app.api.psalmos.musik.get_fassungen",
     "get_fassungen",
@@ -6831,6 +6945,7 @@
    "name": "get_lied_detail",
    "pfade": [
     "api.get_lied_detail",
+    "diakronos.diakonos.api.psalmos.musik.get_lied_detail",
     "diakronos.psalmos.api.musik.get_lied_detail",
     "diakronos_app.api.psalmos.musik.get_lied_detail",
     "get_lied_detail",
@@ -6858,6 +6973,7 @@
    "name": "get_lied_filteroptionen",
    "pfade": [
     "api.get_lied_filteroptionen",
+    "diakronos.diakonos.api.psalmos.musik.get_lied_filteroptionen",
     "diakronos.psalmos.api.musik.get_lied_filteroptionen",
     "diakronos_app.api.psalmos.musik.get_lied_filteroptionen",
     "get_lied_filteroptionen",
@@ -6885,6 +7001,7 @@
    "name": "get_lied_historie",
    "pfade": [
     "api.get_lied_historie",
+    "diakronos.diakonos.api.psalmos.musik.get_lied_historie",
     "diakronos.psalmos.api.musik.get_lied_historie",
     "diakronos_app.api.psalmos.musik.get_lied_historie",
     "get_lied_historie",
@@ -6912,6 +7029,7 @@
    "name": "get_lieder",
    "pfade": [
     "api.get_lieder",
+    "diakronos.diakonos.api.psalmos.musik.get_lieder",
     "diakronos.psalmos.api.musik.get_lieder",
     "diakronos_app.api.psalmos.musik.get_lieder",
     "get_lieder",
@@ -6939,6 +7057,7 @@
    "name": "get_liedgruppe_detail",
    "pfade": [
     "api.get_liedgruppe_detail",
+    "diakronos.diakonos.api.psalmos.musik.get_liedgruppe_detail",
     "diakronos.psalmos.api.musik.get_liedgruppe_detail",
     "diakronos_app.api.psalmos.musik.get_liedgruppe_detail",
     "get_liedgruppe_detail",
@@ -6966,6 +7085,7 @@
    "name": "get_liedgruppen",
    "pfade": [
     "api.get_liedgruppen",
+    "diakronos.diakonos.api.psalmos.musik.get_liedgruppen",
     "diakronos.psalmos.api.musik.get_liedgruppen",
     "diakronos_app.api.psalmos.musik.get_liedgruppen",
     "get_liedgruppen",
@@ -6995,6 +7115,7 @@
    "name": "save_fassung",
    "pfade": [
     "api.save_fassung",
+    "diakronos.diakonos.api.psalmos.musik.save_fassung",
     "diakronos.psalmos.api.musik.save_fassung",
     "diakronos_app.api.psalmos.musik.save_fassung",
     "musik.save_fassung",
@@ -7024,6 +7145,7 @@
    "name": "save_lied",
    "pfade": [
     "api.save_lied",
+    "diakronos.diakonos.api.psalmos.musik.save_lied",
     "diakronos.psalmos.api.musik.save_lied",
     "diakronos_app.api.psalmos.musik.save_lied",
     "musik.save_lied",
@@ -7053,6 +7175,7 @@
    "name": "save_liedgruppe",
    "pfade": [
     "api.save_liedgruppe",
+    "diakronos.diakonos.api.psalmos.musik.save_liedgruppe",
     "diakronos.psalmos.api.musik.save_liedgruppe",
     "diakronos_app.api.psalmos.musik.save_liedgruppe",
     "musik.save_liedgruppe",
@@ -7082,6 +7205,7 @@
    "name": "wiederherstellen_lied",
    "pfade": [
     "api.wiederherstellen_lied",
+    "diakronos.diakonos.api.psalmos.musik.wiederherstellen_lied",
     "diakronos.psalmos.api.musik.wiederherstellen_lied",
     "diakronos_app.api.psalmos.musik.wiederherstellen_lied",
     "musik.wiederherstellen_lied",
@@ -7112,6 +7236,8 @@
    "pfade": [
     "api.beantrage_sichtbarkeit",
     "beantrage_sichtbarkeit",
+    "diakronos.api.rechte.beantrage_sichtbarkeit",
+    "diakronos.diakonos.api.rechte.beantrage_sichtbarkeit",
     "diakronos_app.api.rechte.beantrage_sichtbarkeit",
     "rechte.beantrage_sichtbarkeit"
    ],
@@ -7137,6 +7263,8 @@
    "name": "entferne_gl",
    "pfade": [
     "api.entferne_gl",
+    "diakronos.api.rechte.entferne_gl",
+    "diakronos.diakonos.api.rechte.entferne_gl",
     "diakronos_app.api.rechte.entferne_gl",
     "entferne_gl",
     "rechte.entferne_gl"
@@ -7163,6 +7291,8 @@
    "name": "entferne_mv",
    "pfade": [
     "api.entferne_mv",
+    "diakronos.api.rechte.entferne_mv",
+    "diakronos.diakonos.api.rechte.entferne_mv",
     "diakronos_app.api.rechte.entferne_mv",
     "entferne_mv",
     "rechte.entferne_mv"
@@ -7189,6 +7319,8 @@
    "name": "entscheide_sichtbarkeit",
    "pfade": [
     "api.entscheide_sichtbarkeit",
+    "diakronos.api.rechte.entscheide_sichtbarkeit",
+    "diakronos.diakonos.api.rechte.entscheide_sichtbarkeit",
     "diakronos_app.api.rechte.entscheide_sichtbarkeit",
     "entscheide_sichtbarkeit",
     "rechte.entscheide_sichtbarkeit"
@@ -7215,6 +7347,8 @@
    "name": "ernenne_gl",
    "pfade": [
     "api.ernenne_gl",
+    "diakronos.api.rechte.ernenne_gl",
+    "diakronos.diakonos.api.rechte.ernenne_gl",
     "diakronos_app.api.rechte.ernenne_gl",
     "ernenne_gl",
     "rechte.ernenne_gl"
@@ -7241,6 +7375,8 @@
    "name": "ernenne_mv",
    "pfade": [
     "api.ernenne_mv",
+    "diakronos.api.rechte.ernenne_mv",
+    "diakronos.diakonos.api.rechte.ernenne_mv",
     "diakronos_app.api.rechte.ernenne_mv",
     "ernenne_mv",
     "rechte.ernenne_mv"
@@ -7268,6 +7404,8 @@
    "offen": false,
    "pfade": [
     "api.gast_inhalt",
+    "diakronos.api.rechte.gast_inhalt",
+    "diakronos.diakonos.api.rechte.gast_inhalt",
     "diakronos_app.api.rechte.gast_inhalt",
     "gast_inhalt",
     "rechte.gast_inhalt"
@@ -7294,6 +7432,8 @@
    "name": "gastlink_erstellen",
    "pfade": [
     "api.gastlink_erstellen",
+    "diakronos.api.rechte.gastlink_erstellen",
+    "diakronos.diakonos.api.rechte.gastlink_erstellen",
     "diakronos_app.api.rechte.gastlink_erstellen",
     "gastlink_erstellen",
     "rechte.gastlink_erstellen"
@@ -7320,6 +7460,8 @@
    "name": "gastlink_widerrufen",
    "pfade": [
     "api.gastlink_widerrufen",
+    "diakronos.api.rechte.gastlink_widerrufen",
+    "diakronos.diakonos.api.rechte.gastlink_widerrufen",
     "diakronos_app.api.rechte.gastlink_widerrufen",
     "gastlink_widerrufen",
     "rechte.gastlink_widerrufen"
@@ -7344,6 +7486,8 @@
    "name": "get_anlegeorte",
    "pfade": [
     "api.get_anlegeorte",
+    "diakronos.api.rechte.get_anlegeorte",
+    "diakronos.diakonos.api.rechte.get_anlegeorte",
     "diakronos_app.api.rechte.get_anlegeorte",
     "get_anlegeorte",
     "rechte.get_anlegeorte"
@@ -7368,6 +7512,8 @@
    "name": "get_gastlinks",
    "pfade": [
     "api.get_gastlinks",
+    "diakronos.api.rechte.get_gastlinks",
+    "diakronos.diakonos.api.rechte.get_gastlinks",
     "diakronos_app.api.rechte.get_gastlinks",
     "get_gastlinks",
     "rechte.get_gastlinks"
@@ -7392,6 +7538,8 @@
    "name": "get_gruppenrollen",
    "pfade": [
     "api.get_gruppenrollen",
+    "diakronos.api.rechte.get_gruppenrollen",
+    "diakronos.diakonos.api.rechte.get_gruppenrollen",
     "diakronos_app.api.rechte.get_gruppenrollen",
     "get_gruppenrollen",
     "rechte.get_gruppenrollen"
@@ -7416,6 +7564,8 @@
    "name": "get_meine_rechte",
    "pfade": [
     "api.get_meine_rechte",
+    "diakronos.api.rechte.get_meine_rechte",
+    "diakronos.diakonos.api.rechte.get_meine_rechte",
     "diakronos_app.api.rechte.get_meine_rechte",
     "get_meine_rechte",
     "rechte.get_meine_rechte"
@@ -7440,6 +7590,8 @@
    "name": "get_objekt_rechte",
    "pfade": [
     "api.get_objekt_rechte",
+    "diakronos.api.rechte.get_objekt_rechte",
+    "diakronos.diakonos.api.rechte.get_objekt_rechte",
     "diakronos_app.api.rechte.get_objekt_rechte",
     "get_objekt_rechte",
     "rechte.get_objekt_rechte"
@@ -7464,6 +7616,8 @@
    "name": "get_offene_sichtbarkeits_antraege",
    "pfade": [
     "api.get_offene_sichtbarkeits_antraege",
+    "diakronos.api.rechte.get_offene_sichtbarkeits_antraege",
+    "diakronos.diakonos.api.rechte.get_offene_sichtbarkeits_antraege",
     "diakronos_app.api.rechte.get_offene_sichtbarkeits_antraege",
     "get_offene_sichtbarkeits_antraege",
     "rechte.get_offene_sichtbarkeits_antraege"
@@ -7488,6 +7642,8 @@
    "name": "get_personen_auswahl",
    "pfade": [
     "api.get_personen_auswahl",
+    "diakronos.api.rechte.get_personen_auswahl",
+    "diakronos.diakonos.api.rechte.get_personen_auswahl",
     "diakronos_app.api.rechte.get_personen_auswahl",
     "get_personen_auswahl",
     "rechte.get_personen_auswahl"
@@ -7512,6 +7668,8 @@
    "name": "get_rollen_erklaerung",
    "pfade": [
     "api.get_rollen_erklaerung",
+    "diakronos.api.rechte.get_rollen_erklaerung",
+    "diakronos.diakonos.api.rechte.get_rollen_erklaerung",
     "diakronos_app.api.rechte.get_rollen_erklaerung",
     "get_rollen_erklaerung",
     "rechte.get_rollen_erklaerung"
@@ -7536,6 +7694,8 @@
    "name": "get_sichtbare_module",
    "pfade": [
     "api.get_sichtbare_module",
+    "diakronos.api.rechte.get_sichtbare_module",
+    "diakronos.diakonos.api.rechte.get_sichtbare_module",
     "diakronos_app.api.rechte.get_sichtbare_module",
     "get_sichtbare_module",
     "rechte.get_sichtbare_module"
@@ -7562,6 +7722,8 @@
    "name": "nimm_sichtbarkeit_zurueck",
    "pfade": [
     "api.nimm_sichtbarkeit_zurueck",
+    "diakronos.api.rechte.nimm_sichtbarkeit_zurueck",
+    "diakronos.diakonos.api.rechte.nimm_sichtbarkeit_zurueck",
     "diakronos_app.api.rechte.nimm_sichtbarkeit_zurueck",
     "nimm_sichtbarkeit_zurueck",
     "rechte.nimm_sichtbarkeit_zurueck"
@@ -7588,6 +7750,8 @@
    "name": "setze_freigabe",
    "pfade": [
     "api.setze_freigabe",
+    "diakronos.api.rechte.setze_freigabe",
+    "diakronos.diakonos.api.rechte.setze_freigabe",
     "diakronos_app.api.rechte.setze_freigabe",
     "rechte.setze_freigabe",
     "setze_freigabe"
@@ -7614,6 +7778,8 @@
    "name": "setze_module",
    "pfade": [
     "api.setze_module",
+    "diakronos.api.rechte.setze_module",
+    "diakronos.diakonos.api.rechte.setze_module",
     "diakronos_app.api.rechte.setze_module",
     "rechte.setze_module",
     "setze_module"
@@ -7640,6 +7806,8 @@
    "name": "setze_standard_gruppe_lesen",
    "pfade": [
     "api.setze_standard_gruppe_lesen",
+    "diakronos.api.rechte.setze_standard_gruppe_lesen",
+    "diakronos.diakonos.api.rechte.setze_standard_gruppe_lesen",
     "diakronos_app.api.rechte.setze_standard_gruppe_lesen",
     "rechte.setze_standard_gruppe_lesen",
     "setze_standard_gruppe_lesen"
@@ -7666,6 +7834,8 @@
    "name": "uebertrage_hv",
    "pfade": [
     "api.uebertrage_hv",
+    "diakronos.api.rechte.uebertrage_hv",
+    "diakronos.diakonos.api.rechte.uebertrage_hv",
     "diakronos_app.api.rechte.uebertrage_hv",
     "rechte.uebertrage_hv",
     "uebertrage_hv"
@@ -8347,6 +8517,7 @@
    "name": "root_uebertragen",
    "pfade": [
     "api.root_uebertragen",
+    "diakronos.diakonos.api.root.root_uebertragen",
     "diakronos_app.api.root.root_uebertragen",
     "root.root_uebertragen",
     "root_uebertragen"
@@ -8370,6 +8541,7 @@
    "nach_rumpf": "lesend",
    "name": "status",
    "pfade": [
+    "diakronos.diakonos.api.root.status",
     "diakronos_app.api.root.status",
     "root.status"
    ],
@@ -8678,6 +8850,7 @@
    "name": "get_verantwortliche",
    "pfade": [
     "api.get_verantwortliche",
+    "diakronos.diakonos.api.verantwortliche.get_verantwortliche",
     "diakronos_app.api.verantwortliche.get_verantwortliche",
     "get_verantwortliche",
     "verantwortliche.get_verantwortliche"
@@ -8702,6 +8875,7 @@
    "name": "get_verantwortliche_auswahl",
    "pfade": [
     "api.get_verantwortliche_auswahl",
+    "diakronos.diakonos.api.verantwortliche.get_verantwortliche_auswahl",
     "diakronos_app.api.verantwortliche.get_verantwortliche_auswahl",
     "get_verantwortliche_auswahl",
     "verantwortliche.get_verantwortliche_auswahl"
@@ -8726,6 +8900,7 @@
    "name": "get_zugangs_rollen",
    "pfade": [
     "api.get_zugangs_rollen",
+    "diakronos.diakonos.api.verantwortliche.get_zugangs_rollen",
     "diakronos_app.api.verantwortliche.get_zugangs_rollen",
     "get_zugangs_rollen",
     "verantwortliche.get_zugangs_rollen"
@@ -8752,6 +8927,7 @@
    "name": "set_verantwortliche",
    "pfade": [
     "api.set_verantwortliche",
+    "diakronos.diakonos.api.verantwortliche.set_verantwortliche",
     "diakronos_app.api.verantwortliche.set_verantwortliche",
     "set_verantwortliche",
     "verantwortliche.set_verantwortliche"
@@ -8777,6 +8953,7 @@
    "pfade": [
     "ansprechpartner_bereiche_lesen",
     "api.ansprechpartner_bereiche_lesen",
+    "diakronos.diakonos.api.website.ansprechpartner_bereiche_lesen",
     "diakronos.diakronos.api.website.ansprechpartner_bereiche_lesen",
     "diakronos_app.api.website.ansprechpartner_bereiche_lesen",
     "website.ansprechpartner_bereiche_lesen"
@@ -8804,6 +8981,7 @@
    "pfade": [
     "ansprechpartner_bereiche_setzen",
     "api.ansprechpartner_bereiche_setzen",
+    "diakronos.diakonos.api.website.ansprechpartner_bereiche_setzen",
     "diakronos.diakronos.api.website.ansprechpartner_bereiche_setzen",
     "diakronos_app.api.website.ansprechpartner_bereiche_setzen",
     "website.ansprechpartner_bereiche_setzen"
@@ -8832,6 +9010,7 @@
    "pfade": [
     "api.bausteine_installieren",
     "bausteine_installieren",
+    "diakronos.diakonos.api.website.bausteine_installieren",
     "diakronos.diakronos.api.website.bausteine_installieren",
     "diakronos_app.api.website.bausteine_installieren",
     "website.bausteine_installieren"
@@ -8857,6 +9036,7 @@
    "pfade": [
     "api.bausteine_status",
     "bausteine_status",
+    "diakronos.diakonos.api.website.bausteine_status",
     "diakronos.diakronos.api.website.bausteine_status",
     "diakronos_app.api.website.bausteine_status",
     "website.bausteine_status"
@@ -8885,6 +9065,7 @@
    "pfade": [
     "api.beitrag_auf_website",
     "beitrag_auf_website",
+    "diakronos.diakonos.api.website.beitrag_auf_website",
     "diakronos.diakronos.api.website.beitrag_auf_website",
     "diakronos_app.api.website.beitrag_auf_website",
     "website.beitrag_auf_website"
@@ -8911,6 +9092,7 @@
    "name": "freigabe_setzen",
    "pfade": [
     "api.freigabe_setzen",
+    "diakronos.diakonos.api.website.freigabe_setzen",
     "diakronos.diakronos.api.website.freigabe_setzen",
     "diakronos_app.api.website.freigabe_setzen",
     "freigabe_setzen",
@@ -8937,6 +9119,7 @@
    "offen": false,
    "pfade": [
     "api.freigaben_lesen",
+    "diakronos.diakonos.api.website.freigaben_lesen",
     "diakronos.diakronos.api.website.freigaben_lesen",
     "diakronos_app.api.website.freigaben_lesen",
     "freigaben_lesen",
@@ -8965,6 +9148,7 @@
    "offen": false,
    "pfade": [
     "api.kategorie_oeffentlich",
+    "diakronos.diakonos.api.website.kategorie_oeffentlich",
     "diakronos.diakronos.api.website.kategorie_oeffentlich",
     "diakronos_app.api.website.kategorie_oeffentlich",
     "kategorie_oeffentlich",
@@ -8993,6 +9177,7 @@
    "offen": false,
    "pfade": [
     "api.login_uebergabe",
+    "diakronos.diakonos.api.website.login_uebergabe",
     "diakronos.diakronos.api.website.login_uebergabe",
     "diakronos_app.api.website.login_uebergabe",
     "login_uebergabe",
@@ -9018,6 +9203,7 @@
    "name": "meine_einwilligung_lesen",
    "pfade": [
     "api.meine_einwilligung_lesen",
+    "diakronos.diakonos.api.website.meine_einwilligung_lesen",
     "diakronos.diakronos.api.website.meine_einwilligung_lesen",
     "diakronos_app.api.website.meine_einwilligung_lesen",
     "meine_einwilligung_lesen",
@@ -9045,6 +9231,7 @@
    "name": "meine_einwilligung_setzen",
    "pfade": [
     "api.meine_einwilligung_setzen",
+    "diakronos.diakonos.api.website.meine_einwilligung_setzen",
     "diakronos.diakronos.api.website.meine_einwilligung_setzen",
     "diakronos_app.api.website.meine_einwilligung_setzen",
     "meine_einwilligung_setzen",
@@ -9072,6 +9259,7 @@
    "name": "postfach_loeschen",
    "pfade": [
     "api.postfach_loeschen",
+    "diakronos.diakonos.api.website.postfach_loeschen",
     "diakronos.diakronos.api.website.postfach_loeschen",
     "diakronos_app.api.website.postfach_loeschen",
     "postfach_loeschen",
@@ -9099,6 +9287,7 @@
    "name": "postfach_speichern",
    "pfade": [
     "api.postfach_speichern",
+    "diakronos.diakonos.api.website.postfach_speichern",
     "diakronos.diakronos.api.website.postfach_speichern",
     "diakronos_app.api.website.postfach_speichern",
     "postfach_speichern",
@@ -9124,6 +9313,7 @@
    "name": "rollen",
    "pfade": [
     "api.rollen",
+    "diakronos.diakonos.api.website.rollen",
     "diakronos.diakronos.api.website.rollen",
     "diakronos_app.api.website.rollen",
     "rollen",
@@ -9149,6 +9339,7 @@
    "name": "status",
    "pfade": [
     "api.status",
+    "diakronos.diakonos.api.website.status",
     "diakronos.diakronos.api.website.status",
     "diakronos_app.api.website.status",
     "status",
@@ -9384,6 +9575,7 @@
    "name": "einladungslink",
    "pfade": [
     "api.einladungslink",
+    "diakronos.diakonos.api.zugang.einladungslink",
     "diakronos_app.api.zugang.einladungslink",
     "einladungslink",
     "zugang.einladungslink"
@@ -9408,6 +9600,7 @@
    "name": "get_konten_liste",
    "pfade": [
     "api.get_konten_liste",
+    "diakronos.diakonos.api.zugang.get_konten_liste",
     "diakronos_app.api.zugang.get_konten_liste",
     "get_konten_liste",
     "zugang.get_konten_liste"
@@ -9432,6 +9625,7 @@
    "name": "get_moderator_auswahl",
    "pfade": [
     "api.get_moderator_auswahl",
+    "diakronos.diakonos.api.zugang.get_moderator_auswahl",
     "diakronos_app.api.zugang.get_moderator_auswahl",
     "get_moderator_auswahl",
     "zugang.get_moderator_auswahl"
@@ -9456,6 +9650,7 @@
    "name": "get_rollen_uebersicht",
    "pfade": [
     "api.get_rollen_uebersicht",
+    "diakronos.diakonos.api.zugang.get_rollen_uebersicht",
     "diakronos_app.api.zugang.get_rollen_uebersicht",
     "get_rollen_uebersicht",
     "zugang.get_rollen_uebersicht"
@@ -9480,6 +9675,7 @@
    "name": "get_wartende_konten",
    "pfade": [
     "api.get_wartende_konten",
+    "diakronos.diakonos.api.zugang.get_wartende_konten",
     "diakronos_app.api.zugang.get_wartende_konten",
     "get_wartende_konten",
     "zugang.get_wartende_konten"
@@ -9504,6 +9700,7 @@
    "name": "get_zugang",
    "pfade": [
     "api.get_zugang",
+    "diakronos.diakonos.api.zugang.get_zugang",
     "diakronos_app.api.zugang.get_zugang",
     "get_zugang",
     "zugang.get_zugang"
@@ -9528,6 +9725,7 @@
    "name": "get_zugangsmodus",
    "pfade": [
     "api.get_zugangsmodus",
+    "diakronos.diakonos.api.zugang.get_zugangsmodus",
     "diakronos_app.api.zugang.get_zugangsmodus",
     "get_zugangsmodus",
     "zugang.get_zugangsmodus"
@@ -9554,6 +9752,7 @@
    "name": "konto_anlegen",
    "pfade": [
     "api.konto_anlegen",
+    "diakronos.diakonos.api.zugang.konto_anlegen",
     "diakronos_app.api.zugang.konto_anlegen",
     "konto_anlegen",
     "zugang.konto_anlegen"
@@ -9580,6 +9779,7 @@
    "name": "konto_freischalten",
    "pfade": [
     "api.konto_freischalten",
+    "diakronos.diakonos.api.zugang.konto_freischalten",
     "diakronos_app.api.zugang.konto_freischalten",
     "konto_freischalten",
     "zugang.konto_freischalten"
@@ -9606,6 +9806,7 @@
    "name": "konto_sperren",
    "pfade": [
     "api.konto_sperren",
+    "diakronos.diakonos.api.zugang.konto_sperren",
     "diakronos_app.api.zugang.konto_sperren",
     "konto_sperren",
     "zugang.konto_sperren"
@@ -9632,6 +9833,7 @@
    "name": "passwort_uebernehmen",
    "pfade": [
     "api.passwort_uebernehmen",
+    "diakronos.diakonos.api.zugang.passwort_uebernehmen",
     "diakronos_app.api.zugang.passwort_uebernehmen",
     "passwort_uebernehmen",
     "zugang.passwort_uebernehmen"
@@ -9658,6 +9860,7 @@
    "name": "setze_passwort",
    "pfade": [
     "api.setze_passwort",
+    "diakronos.diakonos.api.zugang.setze_passwort",
     "diakronos_app.api.zugang.setze_passwort",
     "setze_passwort",
     "zugang.setze_passwort"
@@ -9684,6 +9887,7 @@
    "name": "setze_rollen",
    "pfade": [
     "api.setze_rollen",
+    "diakronos.diakonos.api.zugang.setze_rollen",
     "diakronos_app.api.zugang.setze_rollen",
     "setze_rollen",
     "zugang.setze_rollen"
@@ -10087,6 +10291,7 @@
    "pfade": [
     "api.gestaltung_lesen",
     "diakronos.diakonos.api.gestaltung.gestaltung_lesen",
+    "diakronos.diakronos.api.gestaltung.lesen",
     "diakronos_app.gestaltung.api.gestaltung_lesen",
     "gestaltung.lesen",
     "gestaltung_lesen"
@@ -10114,6 +10319,7 @@
    "pfade": [
     "api.gestaltung_speichern",
     "diakronos.diakonos.api.gestaltung.gestaltung_speichern",
+    "diakronos.diakronos.api.gestaltung.speichern",
     "diakronos_app.gestaltung.api.gestaltung_speichern",
     "gestaltung.speichern",
     "gestaltung_speichern"
@@ -10141,6 +10347,7 @@
    "pfade": [
     "api.gestaltung_zuruecksetzen",
     "diakronos.diakonos.api.gestaltung.gestaltung_zuruecksetzen",
+    "diakronos.diakronos.api.gestaltung.zuruecksetzen",
     "diakronos_app.gestaltung.api.gestaltung_zuruecksetzen",
     "gestaltung.zuruecksetzen",
     "gestaltung_zuruecksetzen"
@@ -10386,7 +10593,7 @@
  ],
  "funktionen": 394,
  "nur_test": [],
- "registrierte_pfade": 1996,
+ "registrierte_pfade": 2203,
  "rumpf_zaehlung": {
   "lesend": 187,
   "schreibend": 207
@@ -10437,6 +10644,7 @@
    "offen": false,
    "pfade": [
     "api.logout",
+    "diakronos.diakonos.api.frappe_core.logout",
     "diakronos_app.api.frappe_core.logout",
     "frappe_core.logout",
     "logout"
@@ -10540,6 +10748,7 @@
    "offen": false,
    "pfade": [
     "api.get_credentials_status",
+    "diakronos.diakonos.api.kronos.google_import.get_credentials_status",
     "diakronos.kronos.api.google_import.get_credentials_status",
     "diakronos_app.api.kronos.google_import.get_credentials_status",
     "get_credentials_status",
@@ -10568,6 +10777,7 @@
    "offen": false,
    "pfade": [
     "api.get_google_calendars",
+    "diakronos.diakonos.api.kronos.google_import.get_google_calendars",
     "diakronos.kronos.api.google_import.get_google_calendars",
     "diakronos_app.api.kronos.google_import.get_google_calendars",
     "get_google_calendars",
@@ -10596,6 +10806,7 @@
    "offen": false,
    "pfade": [
     "api.get_import_progress",
+    "diakronos.diakonos.api.kronos.google_import.get_import_progress",
     "diakronos.kronos.api.google_import.get_import_progress",
     "diakronos_app.api.kronos.google_import.get_import_progress",
     "get_import_progress",
@@ -10626,6 +10837,7 @@
    "offen": true,
    "pfade": [
     "api.get_oauth_url",
+    "diakronos.diakonos.api.kronos.google_import.get_oauth_url",
     "diakronos.kronos.api.google_import.get_oauth_url",
     "diakronos_app.api.kronos.google_import.get_oauth_url",
     "get_oauth_url",
@@ -10684,6 +10896,7 @@
    "offen": false,
    "pfade": [
     "api.plan_entwurf",
+    "diakronos.diakonos.api.planrahmen.plan_entwurf",
     "diakronos.planrahmen.api.plan_entwurf",
     "diakronos_app.api.planrahmen.plan_entwurf",
     "plan_entwurf",
@@ -10710,6 +10923,7 @@
    "offen": false,
    "pfade": [
     "api.undo_vorschau",
+    "diakronos.diakonos.api.planrahmen.undo_vorschau",
     "diakronos.planrahmen.api.undo_vorschau",
     "diakronos_app.api.planrahmen.undo_vorschau",
     "planrahmen.undo_vorschau",
@@ -10766,6 +10980,8 @@
    "offen": false,
    "pfade": [
     "api.gast_inhalt",
+    "diakronos.api.rechte.gast_inhalt",
+    "diakronos.diakonos.api.rechte.gast_inhalt",
     "diakronos_app.api.rechte.gast_inhalt",
     "gast_inhalt",
     "rechte.gast_inhalt"
@@ -10820,6 +11036,7 @@
    "pfade": [
     "api.bausteine_installieren",
     "bausteine_installieren",
+    "diakronos.diakonos.api.website.bausteine_installieren",
     "diakronos.diakronos.api.website.bausteine_installieren",
     "diakronos_app.api.website.bausteine_installieren",
     "website.bausteine_installieren"
@@ -10848,6 +11065,7 @@
    "pfade": [
     "api.beitrag_auf_website",
     "beitrag_auf_website",
+    "diakronos.diakonos.api.website.beitrag_auf_website",
     "diakronos.diakronos.api.website.beitrag_auf_website",
     "diakronos_app.api.website.beitrag_auf_website",
     "website.beitrag_auf_website"
@@ -10873,6 +11091,7 @@
    "offen": false,
    "pfade": [
     "api.freigaben_lesen",
+    "diakronos.diakonos.api.website.freigaben_lesen",
     "diakronos.diakronos.api.website.freigaben_lesen",
     "diakronos_app.api.website.freigaben_lesen",
     "freigaben_lesen",
@@ -10901,6 +11120,7 @@
    "offen": false,
    "pfade": [
     "api.kategorie_oeffentlich",
+    "diakronos.diakonos.api.website.kategorie_oeffentlich",
     "diakronos.diakronos.api.website.kategorie_oeffentlich",
     "diakronos_app.api.website.kategorie_oeffentlich",
     "kategorie_oeffentlich",
@@ -10929,6 +11149,7 @@
    "offen": false,
    "pfade": [
     "api.login_uebergabe",
+    "diakronos.diakonos.api.website.login_uebergabe",
     "diakronos.diakronos.api.website.login_uebergabe",
     "diakronos_app.api.website.login_uebergabe",
     "login_uebergabe",

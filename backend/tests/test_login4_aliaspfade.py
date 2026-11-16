@@ -93,10 +93,15 @@ _ALIASE = [
     "diakronos_app.api.auth.login",
 ]
 
-#: Pfade, die der Router erst im Fallback (`_maybe_import` ->
-#: `registriere_originalpfad`) setzt: aus `<modul>.login` wird ueber das
-#: bekannte Kurzmodul `auth` der Original-Pfad. `<x>.auth.login` funktioniert
-#: fuer JEDES Praefix gleich.
+#: Pfade, die der Router erst im Fallback aufloest: aus `<modul>.login` wird
+#: ueber das bekannte Kurzmodul `auth` der Original-Pfad. `<x>.auth.login`
+#: funktioniert fuer JEDES Praefix gleich.
+#:
+#: ROUTER-ALIAS-c: Diese Pfade werden ANGENOMMEN, aber NICHT mehr ins Register
+#: geschrieben (`registriere_originalpfad` beantwortet die Frage nur noch) —
+#: sonst wuchs das Register mit jeder Anfrage, und jeder einmal gesehene Alias
+#: war danach dauerhaft ein Registerpfad. Der Alias traegt dieselben Sperren,
+#: weil der Router ihn am FUNKTIONSOBJEKT erkennt (`router.is_login`).
 _ORIGINALPFAEDE = [
     "diakronos.diakronos.api.auth.login",
     "x.auth.login",
@@ -134,6 +139,7 @@ def _register_gefuellt():
 
 def test_register_kennt_die_aliaspfade(_register_gefuellt):
     """Vorbedingung: die behaupteten Aliaspfade loesen wirklich auf `login`."""
+    from diakronos_app.frappe_compat import registry
     from diakronos_app.frappe_compat.registry import lookup, registriere_originalpfad
 
     fn = _login_funktion()
@@ -142,9 +148,21 @@ def test_register_kennt_die_aliaspfade(_register_gefuellt):
         assert ziel is not None, f"{pfad!r} loest nicht auf"
         assert ziel is fn, f"{pfad!r} zeigt nicht auf api.auth.login"
     for pfad in _ORIGINALPFAEDE:
-        # Genau der Weg, den der Router bei 404 nimmt (`_maybe_import`).
+        # Genau der Weg, den der Router bei 404 nimmt (`router._kandidat`):
+        # die Frage wird BEANTWORTET, das Register bleibt unveraendert
+        # (ROUTER-ALIAS-c — 300 Alias-Anfragen = 300 Eintraege war der Befund).
+        vorher = len(registry.registered())
         assert registriere_originalpfad(pfad) is True, pfad
-        assert lookup(pfad) is fn, pfad
+        assert len(registry.registered()) == vorher, f"{pfad} hat das Register vergroessert"
+        assert registry.ist_originalpfad(pfad, fn) is True, pfad
+        assert router_kandidat(pfad) is fn, pfad
+
+
+def router_kandidat(pfad):
+    """Die Funktion, die der Router fuer diesen Pfad ausfuehrt."""
+    from diakronos_app.frappe_compat import router
+
+    return router._kandidat(pfad)
 
 
 #: Alle geprueften Wege (Register-Treffer + Original-Pfade).

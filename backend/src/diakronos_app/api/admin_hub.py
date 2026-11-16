@@ -47,6 +47,7 @@ from diakronos_app.frappe_compat.api_helpers import (
     log_error,
 )
 from diakronos_app.frappe_compat import db, get_all, whitelist
+from diakronos_app.frappe_compat.registry import register_with_frappe_module
 from diakronos_app.frappe_compat.exceptions import (
     DoesNotExistError,
     PermissionError,
@@ -1085,3 +1086,12 @@ __all__ = [
     "update_anmeldeformular",
     "update_anmeldeformular_felder",
 ]
+
+
+# ── ROUTER-ALIAS: Alias aus dem Altcode ─────────────────────────────────────
+# `pages/mitglieder/Datenschutz.vue` ruft die DSGVO-Uebersicht unter
+# `diakronos.diakronos.api.admin_hub.get_dsgvo_uebersicht` auf (Altcode-Bahn
+# `diakronos.diakronos.*` statt der dokumentierten
+# `diakronos.diakonos.api.admin_hub`). Der Alias wird hier AUSDRUECKLICH
+# zugesagt, damit er nicht ueber eine Namensverwechslung erreichbar ist.
+register_with_frappe_module("diakronos.diakronos.api.admin_hub", "get_dsgvo_uebersicht", get_dsgvo_uebersicht)

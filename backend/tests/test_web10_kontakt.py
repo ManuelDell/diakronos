@@ -37,7 +37,12 @@ from diakronos_app.settings import settings
 from diakronos_app.website import kontakt
 
 PFAD = "/api/method/website.kontakt_senden"
-PFAD_VOLL = "/api/method/diakronos_app.api.website.kontakt_senden"
+# ROUTER-ALIAS: Der volle Python-Pfad ist `diakronos_app.website.kontakt`
+# (dort ist die Funktion definiert); `api/website.py` importiert sie NICHT.
+# Der frueher hier stehende Pfad `diakronos_app.api.website.kontakt_senden`
+# loeste nur ueber die Pfadverwechslung aus R-7 auf (Modul `website`, Name
+# `kontakt_senden`) — ein echt zugewiesener Pfad war er nie.
+PFAD_VOLL = "/api/method/diakronos_app.website.kontakt.kontakt_senden"
 PFAD_DIAKRONOS = "/api/method/diakronos.diakronos.api.website.kontakt_senden"
 
 EMPFAENGER = "kontakt@gemeinde.example.org"

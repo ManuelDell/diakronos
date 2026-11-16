@@ -111,7 +111,10 @@ def test_abgelehnter_termin_verschwindet_aus_dem_kalender(client, als_moderator)
     """W-1: Ein abgelehnter Termin erscheint fuer niemanden mehr im Kalender —
     auch nicht im Bearbeitungsmodus der Moderatoren."""
     tag = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
-    modul = "diakronos.kronos.calendar_get"
+    # ROUTER-ALIAS: Die Frappe-Bahn von `calendar_get` ist
+    # `diakronos.kronos.api.calendar_get` (`FRAPPE_MODULE` des Moduls);
+    # `diakronos.kronos.calendar_get` loeste nur ueber die Verwechslung aus R-7 auf.
+    modul = "diakronos.kronos.api.calendar_get"
 
     r = client.post(f"/api/method/{KANBAN_MODUL}.resolve_conflict",
                     data={"element_id": "ELE-VS", "action": "ablehnen", "grund": "Doppelbuchung"})

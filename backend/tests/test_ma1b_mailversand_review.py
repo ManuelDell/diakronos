@@ -284,7 +284,7 @@ def test_kaputter_absendername_legt_loeschung_nicht_lahm(client, konto, patched_
 
     fake = FakeSMTP()
     monkeypatch.setattr(mailversand, "VERBINDUNG", fake)
-    r = client.post("/api/method/diakronos.diakronos.api.datenschutz.loeschung_bestaetigen",
+    r = client.post("/api/method/diakronos.diakonos.api.datenschutz.loeschung_bestaetigen",
                     json={"mitglied_id": "M1", "bestaetigt": True})
     assert r.status_code == 417, r.text
     assert "NICHTS gelöscht" in r.text
@@ -372,7 +372,7 @@ def test_loeschbestaetigung_meldet_abgelehnt_verstaendlich(client, konto, patche
         sess.close()
     fake = FakeSMTP(fehler=smtplib.SMTPSenderRefused(550, b"5.7.1 rejected", "x@y"))
     monkeypatch.setattr(mailversand, "VERBINDUNG", fake)
-    r = client.post("/api/method/diakronos.diakronos.api.datenschutz.loeschung_bestaetigen",
+    r = client.post("/api/method/diakronos.diakonos.api.datenschutz.loeschung_bestaetigen",
                     json={"mitglied_id": "M2", "bestaetigt": True})
     assert r.status_code == 417, r.text
     assert "NICHTS gelöscht" in r.text

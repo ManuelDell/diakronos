@@ -196,3 +196,16 @@ for _kurz, _fn in (
     ("zuruecksetzen", gestaltung_zuruecksetzen),
 ):
     register_with_frappe_module("gestaltung", _kurz, _fn)
+
+
+# ── ROUTER-ALIAS: Aliase aus dem Altcode ────────────────────────────────────
+# `useGestaltung.js` ruft `diakronos.diakronos.api.gestaltung.*` auf — die
+# Altcode-Bahn `diakronos/diakronos/api/gestaltung.py`, hier mit dem
+# Doppel-`diakronos` geschrieben. Sie wird ausdruecklich zugesagt, damit sie
+# nicht ueber eine Namensverwechslung erreichbar ist.
+_ALIAS_MODUL = "diakronos.diakronos.api.gestaltung"
+for _kurz, _fn in (("lesen", gestaltung_lesen),
+                   ("speichern", gestaltung_speichern),
+                   ("zuruecksetzen", gestaltung_zuruecksetzen)):
+    register_with_frappe_module(_ALIAS_MODUL, _kurz, _fn)
+del _kurz, _fn

@@ -683,7 +683,18 @@ def test_stichprobe_mailversand_und_sicherung_sind_post_only(client):
         "/api/method/diakronos.diakonos.api.zugang.konto_anlegen",
         "/api/method/diakronos.diakonos.api.registrierungslink_api.create_link",
         "/api/method/diakronos.diakonos.api.gruppen.update_gruppe",
-        "/api/method/diakronos.diakonos.api.kronos.event_crud.delete_event",
+        # ROUTER-ALIAS: Die Frappe-Bahn von `event_crud` ist
+        # `diakronos.kronos.api.event_crud` (`FRAPPE_MODULE` seines Moduls);
+        # `diakronos.diakonos.api.kronos.…` war die Verwechslung aus R-7
+        # und antwortet jetzt 404 statt 405.
+        #
+        # ROUTER-ALIAS-c: `delete_event` loest AUSSCHLIESSLICH unter seiner
+        # Frappe-Bahn auf (`FRAPPE_MODULE` = `diakronos.kronos.api.event_crud`);
+        # gemessen: `diakronos.diakronos.api.kronos.event_crud.delete_event` und
+        # `diakronos.diakonos.api.kronos.event_crud.delete_event` sind 404.
+        # Der alte Kommentar („loest weiter ueber den Altcode-Pfad auf“) war
+        # falsch; geprueft wird hier nur die Methode (405), nicht der Pfad.
+        "/api/method/diakronos.kronos.api.event_crud.delete_event",
         "/api/method/diakronos.diakonos.api.auth.logout",
         "/api/method/logout",
     ):

@@ -34,6 +34,9 @@ Rollen: angemeldet; Admin-Rollen sehen alles, jede andere Person bekommt 403
 
 from __future__ import annotations
 
+# ROUTER-ALIAS: eigener Frappe-Pfad statt eines erfundenen `…planrahmen.api.status`.
+FRAPPE_MODULE = "diakronos.diakonos.api.einrichtung"
+
 import datetime
 import logging
 from typing import Any

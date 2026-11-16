@@ -531,7 +531,7 @@ def test_loeschbestaetigung_nutzt_die_db_einstellungen(client, konto, patched_db
         sess.close()
 
     # Ohne Einstellungen lehnt die Bestätigung ab, OHNE zu löschen (D4).
-    r = client.post("/api/method/diakronos.diakronos.api.datenschutz.loeschung_bestaetigen",
+    r = client.post("/api/method/diakronos.diakonos.api.datenschutz.loeschung_bestaetigen",
                     json={"mitglied_id": "M1", "bestaetigt": True})
     assert r.status_code == 417, r.text
     assert "nicht eingerichtet" in r.text
@@ -555,7 +555,7 @@ def test_loeschbestaetigung_nutzt_die_db_einstellungen(client, konto, patched_db
 
     monkeypatch.setattr(dsgvo, "anonymisiere", _merken)
     monkeypatch.setattr(dsgvo, "dateien_entfernen", lambda dateien: 0)
-    r = client.post("/api/method/diakronos.diakronos.api.datenschutz.loeschung_bestaetigen",
+    r = client.post("/api/method/diakronos.diakonos.api.datenschutz.loeschung_bestaetigen",
                     json={"mitglied_id": "M1", "bestaetigt": True})
     assert fake.nachrichten, r.text
     assert fake.nachrichten[0]["To"] == "anna@example.org"

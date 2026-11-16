@@ -33,6 +33,8 @@ die Hintertuer.
 
 from __future__ import annotations
 
+FRAPPE_MODULE = "diakronos.diakonos.api.root"
+
 from typing import Any
 
 from diakronos_app.frappe_compat import whitelist

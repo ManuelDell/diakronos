@@ -5,7 +5,7 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **1996**
+* registrierte Pfade: **2203**
 * eindeutige Funktionen: **394**
 * lesend: **177**, schreibend: **217**
 * Rumpfbefund: schreibend 207, lesend 187, unbekannt 0

@@ -15,6 +15,11 @@ import { apiUrl } from '../../shared/basis.js'
 // UX2g: EINE Quelle für angezeigte Fehlertexte (kein „Unbekannter Fehler").
 import { fehlertext } from '../../shared/fehlertexte.js'
 
+// ROUTER-ALIAS-c: Der Dev-Modus gehoert zur SPA; `diakronos.devmodus.api` ist
+// die Bahn, unter der seine Endpunkte registriert sind (das Modul traegt kein
+// `FRAPPE_MODULE`, deshalb ergibt sie sich aus dem Python-Paket). Die nackte
+// Kurzform (`sitzung_status`) ist seit ROUTER-ALIAS-c ein 404 — mehrdeutig im
+// Register.
 const PRAEFIX = 'diakronos.devmodus.api.'
 const SCHLUESSEL = 'dk-devmodus-an'
 

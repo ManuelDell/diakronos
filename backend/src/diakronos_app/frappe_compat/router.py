@@ -22,7 +22,7 @@ from starlette.responses import Response
 
 from diakronos_app.frappe_compat import registry
 from diakronos_app.frappe_compat.exceptions import FrappeCompatError
-from diakronos_app.frappe_compat.registry import lookup, options_for
+from diakronos_app.frappe_compat.registry import ist_originalpfad, lookup, options_for
 from diakronos_app.frappe_compat.session import session as frappe_session
 from diakronos_app.frappe_compat.registry_gen import column_names, is_known, model_for
 
@@ -247,6 +247,184 @@ def _gueltiger_methodenpfad(path: str) -> bool:
 	return _METHODENPFAD.match(path) is not None
 
 
+def _ist_eigener_pfad(path: str) -> bool:
+	"""True, wenn es den Pfad geben DARF — sonst ist es ein 404 (ROUTER-ALIAS).
+
+	Befund R-7: `…/api/method/diakronos.planrahmen.api.delete_lied` fuehrte
+	`diakronos_app.api.psalmos.musik.delete_lied` aus, weil der Fallback das
+	vorletzte Segment (`api`) als Kurzmodul nahm. Der Endpunkt erschien damit
+	unter einem fremden Modul (Audit, Inventar, Methoden-/CSRF-Regeln je Pfad).
+
+	Eine Frage, zwei Quellen — gehoert der Name dort hin?
+
+	  * Der Pfad steht im Register -> er stammt aus einer Registrierung im Code
+	    (`_register`, Kurzform, `FRAPPE_MODULE`, `register_with_frappe_module`).
+	  * SONST nur, wenn die Funktion, die das Register fuer den Namen kennt,
+	    den Pfad als EIGENEN beansprucht (`ist_originalpfad`): fremdes
+	    Modulpraefix, beliebiger Vorlauf (`x.y.api.<name>`) und Kernnamen
+	    unter fremder Bahn (`<beliebig>.login`) sind damit 404.
+
+	Es wird NICHTS eingetragen — die Frage wird nur beantwortet.
+
+	ROUTER-ALIAS-c, zwei Nachbesserungen:
+
+	  * `path in _REGISTRY` wird ZUERST gefragt; frueher wurde je Anfrage eine
+	    Kopie des ganzen Registers gezogen (`dict(_REGISTRY)`), nur um ein
+	    `in` zu beantworten.
+	  * Die Breiten-Registrierung `api.<name>` (`teile[-2] == "api"`) ist
+	    entfernt: sie war der zweite Weg, auf dem ein beliebiges Praefix auf
+	    `api.<name>` zeigte — also genau die Verwechslung, die diese Karte
+	    schliesst. `api.<name>` selbst bleibt als Registerschluessel erlaubt.
+	"""
+	if path in registry._REGISTRY:  # noqa: SLF001 — Lesen ohne Kopie (ROUTER-ALIAS-c)
+		fn = registry._REGISTRY[path]  # noqa: SLF001
+		# ROUTER-ALIAS-c: Ein eingetragener Pfad ist nur erlaubt, wenn er dort
+		# auch hingehoert — ODER wenn der Name eindeutig EINER registrierten
+		# Funktion gehoert (`kern`, z. B. der nackte Name `ping`). Frueher
+		# folgte `True` allein aus dem Eintrag; damit loeste jede Kurzform
+		# (`insert`, `api.insert`, `delete_lied`) auf die zuletzt registrierte
+		# gleichnamige Funktion auf — einschliesslich Namenskollisionen
+		# (`sitzung_status` aus dem Dev-Modus gegen `…api.session`).
+		if ist_originalpfad(path, fn) or _eindeutig(path):
+			return True
+		# Sonst weiter unten: der Name kann auch einer ANDEREN Funktion gehoeren.
+	teile = path.split(".")
+	if len(teile) < 2:
+		return False
+	name = teile[-1]
+	# Alle Funktionen, die unter diesem NAMEN bekannt sind, kommen als Quelle
+	# infrage — der Pfad muss zu genau einer davon gehoeren. Nur die eigene
+	# Modulbahn des Pfades (`<modul>.<name>`) waere zu eng: Module ohne
+	# `FRAPPE_MODULE` stehen unter ihrer Altcode-Bahn (`diakronos.diakonos.api.…`).
+	gelesen = set()
+	ziel = None
+	mehrdeutig = False
+	funktionen: set[int] = set()
+	for kurzpfad, fn in list(registry._REGISTRY.items()):  # noqa: SLF001
+		if kurzpfad.rsplit(".", 1)[-1] != name or id(fn) in gelesen:
+			continue
+		gelesen.add(id(fn))
+		if id(fn) in registry._OPTIONS:  # noqa: SLF001 — nur Endpunkte zaehlen
+			funktionen.add(id(fn))
+		ziel = fn
+		if ist_originalpfad(path, fn):
+			return True
+	mehrdeutig = len(funktionen) > 1
+	# KERNPFADE, die ueber eine Frappe-Adresse auf eine App-Funktion zeigen
+	# (`frappe.sessions.get_csrf_token` -> `api.session.sitzung_status`): Sie
+	# stehen unter einem Namen im Register, der nicht dem Funktionsnamen
+	# entspricht — deshalb findet die Schleife oben sie nicht. Die Zuordnung
+	# steht als Tabelle in der Registry, nicht als Namensregel hier.
+	#
+	# ROUTER-ALIAS-c: Der Zweig stand zwar hier, war aber TOT — das Ziel kam
+	# nie aus dem Register (`_KERNPFAD_ZIEL` lieferte None), und
+	# `POST /api/method/frappe.sessions.get_csrf_token` bekam 404.
+	#
+	# Und: der NAME eines Kernpfads (`insert`, `delete_lied`) ist damit NICHT
+	# automatisch ein eigener Pfad — Kernfunktionen gilt nur `_KERNPFADE`
+	# (`insert` allein ist keine zugesagte Schreibweise, `frappe.client.insert`
+	# ist es).
+	if path in registry._KERNPFADE:  # noqa: SLF001 — Kernpfad-Tabelle
+		ziel = registry._KERNPFAD_ZIEL(path)  # noqa: SLF001
+		if ziel is not None and ist_originalpfad(path, ziel):
+			return True
+	# ROUTER-ALIAS-c: Der Name gehoert genau EINER whitelisted Funktion, und
+	# der Pfad benennt weder ein fremdes Modul noch einen fremden Vorlauf
+	# (`_eindeutig`). Nur dann ist eine Kurzform erlaubt.
+	return not mehrdeutig and ziel is not None and _eindeutig(path)
+
+
+def _eindeutig(path: str) -> bool:
+	"""True, wenn `path` eine zugesagte Kurzform EINER whitelisted Funktion ist.
+
+	Kurzformen (`ping`, `submit_registrierung`, `musik.delete_lied`) sind
+	erlaubt — SOLANGE sie eindeutig sind: unter dem Namen steht im Register
+	GENAU eine Funktion, sie ist als Endpunkt bekannt (`@whitelist`), und der
+	Pfad hat hoechstens ein Modulsegment (`<modul>.<name>`).
+
+	Mehrdeutige Namen sind damit 404 (ROUTER-ALIAS-c: `sitzung_status`,
+	`status`, `liste` zeigt das Register je auf die zuletzt registrierte
+	Fassung — eine Anfrage darf nicht raten), und ein VORLAUF (`api.insert`,
+	`x.y.insert`) ist keine Kurzform mehr.
+
+	Fuer Frappe-KERNFUNKTIONEN (`insert`, `delete_lied` steht nicht hier, wohl
+	aber `login`/`logout`/`upload_file`/`insert`) gilt zusaetzlich: nur die
+	in `_KERNPFADE` ausdruecklich zugesagten Schreibweisen. Ihr blosser Name
+	ist KEINE Kurzform — der Autor des Altcodes hat sie nie so aufgerufen, und
+	`frappe.client.insert` sagt, wo sie hingehoert.
+	"""
+	from typing import Callable as _Callable
+
+	teile = path.split(".")
+	if not path:
+		return False
+	name = teile[-1]
+	# Eindeutig heisst: GENAU EINE FUNKTION — nicht genau ein Registereintrag.
+	# Dieselbe Funktion steht oft unter mehreren Namen (`check_permission`,
+	# `api.check_permission`, `session.check_permission`, …).
+	kandidaten: dict[int, _Callable] = {}
+	for kurzpfad, fn in list(registry._REGISTRY.items()):  # noqa: SLF001
+		if kurzpfad.rsplit(".", 1)[-1] == name and id(fn) in registry._OPTIONS:  # noqa: SLF001
+			kandidaten[id(fn)] = fn
+	if not kandidaten:
+		return False
+	fn = registry._REGISTRY.get(path) or registry._REGISTRY.get(name)  # noqa: SLF001
+	if fn is not None and registry.ist_originalpfad(path, fn):
+		return True
+	if fn is None or id(fn) not in kandidaten:
+		return False
+	# ROUTER-ALIAS-c: `api.<name>` (paketweiter Vorlauf) ist KEINE Kurzform
+	# mehr. Sie zeigte fuer jede portierte Funktion auf `diakronos_app.api.*`
+	# und war damit eine zweite Bahn neben dem Original — die Karte nennt
+	# `api.insert`, `api.logout`, `api.upload_file`, `api.root_uebertragen`
+	# ausdruecklich als Befund.
+	if teile[0] == "api":
+		return False
+	# Frappe-KERNFUNKTION: keine Kurzform, nur die zugesagten Schreibweisen.
+	# Vorher: `<modul>.<name>` mit dem Modul DIESER Funktion (Register;
+	# `lookup` hat oben schon genau diese Funktion geliefert).
+	if registry._ist_kernfunktion(fn):  # noqa: SLF001
+		module = getattr(fn, "__module__", "") or ""
+		if module:
+			return module.split(".")[-1] == teile[-2] if len(teile) == 2 else False
+		return False
+	# Der Pfad muss die MODULBAHN der Funktion sein, nicht irgendein Vorlauf.
+	# Bahnen sind `session.sitzung_status` (letztes Modulsegment) und die
+	# `_register`-Kurzmodule (`permissions.get_session_info`,
+	# `kronos.get_session_info` fuer `diakronos_app.api.kronos.permissions`) —
+	# so ruft der Altcode und die SPA (`KronosEventEdit.vue` ruft die volle
+	# Frappe-Bahn, `test_mt2_profilbild_praefix` die Kurzform
+	# `kronos.permissions.get_session_info`). Ein Vorlauf (`x.y.<name>`) ist
+	# KEINE Kurzform; bei mehreren gleichnamigen Funktionen entscheidet das
+	# Modul (Mehrdeutigkeit allein macht den nackten Namen 404, oben schon
+	# ueber `kandidaten`).
+	module = getattr(fn, "__module__", "") or ""
+	if not module:
+		return False
+	modulbahn = module[len("diakronos_app.api."):] if module.startswith("diakronos_app.api.") else ""
+	if not modulbahn:
+		# NICHT `diakronos_app.api.*`: das Paket selbst (`diakronos_app.api.ping`)
+		# oder ein Nachbarpaket (`diakronos_app.devmodus.api`). Eine Kurzform
+		# ist dann nur der nackte Name — und nur, wenn er EINDEUTIG ist; sonst
+		# bleibt die volle Bahn (`diakronos.devmodus.api.<name>`).
+		if len(teile) != 1:
+			return False
+		return len(kandidaten) == 1
+	erlaubt = {
+		name,                                              # `insert`-Form
+		f"{modulbahn.split('.')[-1]}.{name}",              # `permissions.<fn>`
+		f"{modulbahn}.{name}",                             # `kronos.permissions.<fn>`
+		f"{modulbahn.split('.')[0]}.{name}",               # `kronos.<fn>`
+	}
+	if len(kandidaten) > 1:
+		# Mehrere gleichnamige Funktionen (z. B. `sitzung_status` in
+		# `api.session` und im Dev-Modus): der nackte Name und die kurzen
+		# Formen sind mehrdeutig — eine Anfrage darf nicht raten. Es entscheidet
+		# nur die VOLLE Modulbahn DIESER Funktion.
+		return path == f"{modulbahn}.{name}"
+	return path in erlaubt
+
+
 
 def _json(payload: Any, status: int = 200) -> JSONResponse:
 	return JSONResponse(status_code=status, content=payload)
@@ -380,6 +558,166 @@ def _ist_browser_navigation(request: Request) -> bool:
 _PREFLIGHT_SELBST = "self"
 
 
+# ── ROUTER-ALIAS-c: die VORBEDINGUNG jeder Methodenpfad-Anfrage ────────────
+#
+# Befund (Review): `call_method` verzweigte OPTIONS VOR jeder Pruefung in
+# `_preflight`, und `_preflight` rief fuer unbekannte Pfade `_maybe_import`
+# auf. Damit war der Endpunkt ohne Anmeldung ein CPU-Verstaerker:
+#
+#   * `nachregistrieren()` lief ueber das GANZE Register (jeder Fehlgriff),
+#   * `registriere_originalpfad` wurde befragt,
+#   * `importlib.import_module(<Modulname aus der Anfrage>)` — `OPTIONS
+#     /api/method/this.zz` importierte `this` (gemessen: 26 ms statt 7 ms).
+#
+# Deshalb gibt es jetzt EINE Funktion, die beide Wege zuerst durchlaufen:
+# Syntax (SEC-7/S2), Eigentum (ROUTER-ALIAS) und — fuer Kernpfade — die
+# Umleitung aus der Registry-Tabelle (`frappe.sessions.get_csrf_token`).
+# Sie importiert NICHTS: kein `nachregistrieren`, kein `_maybe_import`, kein
+# Modulname aus der Anfrage.
+
+#: Module des EIGENEN Pakets, die beim ersten Fehlgriff eines Namens
+#: hereingeladen werden duerfen (`_module_aus_anfrage`). Gebaut beim ersten
+#: Zugriff aus dem Paket-Scan (`pkgutil.walk_packages`) — eine Allowlist,
+#: keine Ableitung aus dem angefragten Pfad: aus `x.y.z` wird NIE ein
+#: Importname. Bewusst konservativ: nur Module, deren letzter Pfadteil GENAU
+#: der Teil vor dem Funktionsnamen ist (`<prefix>.api.<modul>.<fn>` ->
+#: `diakronos_app.api.<modul>`) — damit kommt kein `…api` selbst, kein
+#: Unterpaket und kein Name aus einem fremden Praefix in die Liste.
+_MODUL_ALLOWLIST: frozenset[str] | None = None
+
+
+def _modul_allowlist() -> frozenset[str]:
+	global _MODUL_ALLOWLIST
+	if _MODUL_ALLOWLIST is None:
+		import pkgutil
+
+		_paket = "diakronos_app.api"
+		namen: set[str] = set()
+		try:
+			import importlib
+
+			paket = importlib.import_module(_paket)
+			for info in pkgutil.walk_packages(getattr(paket, "__path__", []), _paket + "."):
+				if not info.ispkg:
+					namen.add(info.name)
+		except Exception:  # noqa: BLE001 — ohne Paket gibt es nichts zu importieren
+			namen = set()
+		_MODUL_ALLOWLIST = frozenset(namen)
+	return _MODUL_ALLOWLIST
+
+
+def _module_aus_anfrage(path: str) -> list[str]:
+	"""Module der ALLOWLIST, die zu diesem Methodenpfad passen (hoechstens eins).
+
+	`diakronos.diakonos.api.gruppen.get_gruppe_detail` ->
+	`diakronos_app.api.gruppen`; `diakronos_app.api.gruppen.get_gruppe_detail`
+	-> dasselbe. Alles andere (Kernpfade, fremde Praefixe, erfundene Namen)
+	ergibt `[]` — es wird nichts geraten.
+	"""
+	module = _modul_allowlist()
+	if not module:
+		return []
+	teile = path.split(".")
+	if len(teile) < 2:
+		return []
+	kandidaten: list[str] = []
+	kern = ".".join(teile[:-1])
+	if kern.startswith("diakronos_app.") and kern in module:
+		kandidaten.append(kern)
+	letzter = teile[-2]
+	for name in (f"diakronos_app.api.{letzter}", f"diakronos_app.api.klassisch.{letzter}"):
+		if name in module and name not in kandidaten:
+			kandidaten.append(name)
+	return kandidaten[:1]
+
+
+def _kandidat(path: str) -> Any:
+	"""Die Funktion, die der Pfad BEANSPRUCHT — ohne Register-Eintrag zu verlangen.
+
+	Neben `lookup` und der Kernpfad-Tabelle (ROUTER-ALIAS-c) zaehlt die
+	Eigentums-Zusage: der LOGIN-Alias (`x.auth.login`) wird von
+	`registriere_originalpfad` ANGENOMMEN, aber nicht ins Register geschrieben
+	(sonst waechst es mit jeder Anfrage). Frueher legte gerade diese Funktion
+	den Eintrag an — dann fand ihn `lookup`. Jetzt wird die Funktion dort
+	gesucht, wo sie steht: unter ihren eigenen Registerpfaden.
+	"""
+	fn = lookup(path)
+	if fn is not None:
+		return fn
+	if path in registry._KERNPFADE:  # noqa: SLF001 — Kernpfad-Tabelle
+		fn = registry._KERNPFAD_ZIEL(path)  # noqa: SLF001
+		if fn is not None:
+			return fn
+	if not registry.registriere_originalpfad(path):
+		return None
+	name = path.rsplit(".", 1)[-1]
+	gesehen: set[int] = set()
+	for _kurzpfad, fn in list(registry._REGISTRY.items()):  # noqa: SLF001
+		if id(fn) in gesehen:
+			continue
+		gesehen.add(id(fn))
+		# Der LOGIN heisst nicht immer wie der Pfad (`x.auth.login` -> `login`
+		# steht im Register unter `auth.login`) — verglichen wird deshalb ueber
+		# die Eigentums-Zusage, nicht ueber den Namen.
+		if ist_originalpfad(path, fn):
+			return fn
+	return None
+
+
+def _vorbedingung(path: str) -> tuple[str, Any]:
+	"""`(zustand, fn)` — darf dieser Methodenpfad ueberhaupt ausgefuehrt werden?
+
+	Zustaende:
+
+	  * `("ungueltig", None)` — kein dotted name (SEC-7/S2) -> 404, nichts
+	    wird befragt.
+	  * `("fremd", None)` — der Pfad gehoert keiner registrierten Funktion
+	    (`_ist_eigener_pfad`) -> 404. **Hier wird NICHTS importiert.**
+	  * `("ok", None)` — der Pfad darf existieren, die Funktion ist aber nicht
+	    geladen. Der Aufrufer darf EIN Modul aus der Allowlist importieren und
+	    danach erneut fragen (das ist der einzige Importweg, den es gibt).
+	  * `("ok", fn)` — fertig aufgeloest.
+
+	Kernpfade werden hier ueber die Registry-Tabelle aufgeloest
+	(`_KERNPFAD_ZIEL`) — die Frappe-Adresse `frappe.sessions.get_csrf_token`
+	zeigt auf `sitzung_status`, und `lookup()` kennt sie nicht.
+	"""
+	if not _gueltiger_methodenpfad(path):
+		return "ungueltig", None
+	if not _ist_eigener_pfad(path):
+		return "fremd", None
+	fn = _kandidat(path)
+	if fn is None:
+		return "ok", None
+	# `_kandidat` liefert nur, was `ist_originalpfad` ODER `_eindeutig` zugesagt
+	# haben (registereigener Pfad, Kernpfad, eindeutige Kurzform, Login-Alias).
+	# Eine zweite Eigentumspruefung hier wuerde die zugesagte Kurzform (`ping`)
+	# wieder verwerfen.
+	return "ok", fn
+
+
+def _aufloesen(path: str) -> Any:
+	"""`_vorbedingung` + hoechstens EIN Import aus der Allowlist. `None` = 404."""
+	zustand, fn = _vorbedingung(path)
+	if zustand != "ok":
+		return None
+	if fn is not None:
+		return fn
+	for modul in _module_aus_anfrage(path):
+		import importlib
+		import importlib.util
+
+		if importlib.util.find_spec(modul) is None:
+			continue
+		try:
+			importlib.import_module(modul)
+		except ImportError:
+			continue
+		break
+	zustand, fn = _vorbedingung(path)
+	return fn if zustand == "ok" else None
+
+
 async def _preflight(path: str, request: Request):
 	"""BS-1c/K4, praezisiert in BS-1c2 (F3): OPTIONS auf `/api/method/…`.
 
@@ -398,13 +736,21 @@ async def _preflight(path: str, request: Request):
 	`@whitelist(methods=[...])` bleibt unberuehrt: OPTIONS steht in keiner
 	Deklaration, und ein Endpunkt ohne CORS-Bedarf wird durch den Preflight
 	auch nicht erreichbar — der Browser bricht ohne Freigabe ab.
+
+	ROUTER-ALIAS-c: Der Pfad laeuft ZUERST durch dieselbe Vorbedingung wie ein
+	echter Aufruf (`_vorbedingung`). Ein unbekannter Pfad wird damit
+	abgewiesen, OHNE Register, ohne `nachregistrieren`, ohne Import — frueher
+	importierte `OPTIONS /api/method/this.zz` das Modul `this`.
 	"""
 	from starlette.responses import Response
 
-	fn = lookup(path)
-	if fn is None:
-		_maybe_import(path)
-		fn = lookup(path)
+	zustand, fn = _vorbedingung(path)
+	if zustand == "fremd":
+		# Kein Register-Orakel fuer fremde Pfade: derselbe leere 204 wie fuer
+		# einen bekannten Endpunkt, aber KEIN Import und keine Ueberleitung.
+		fn = None
+	elif fn is None:
+		fn = _aufloesen(path)
 	if fn is not None and _beantwortet_preflight_selbst(fn):
 		ergebnis = fn(request=request)
 		if inspect.iscoroutine(ergebnis):
@@ -428,21 +774,21 @@ async def call_method(path: str, request: Request):
 	# bekannten (kein Orakel ueber das Register). Ein Endpunkt, der CORS
 	# braucht (das Kontaktformular von der Primo-Herkunft), antwortet selbst;
 	# er bekommt VOR jeder anderen Pruefung den Request. SEC-11/C1 („nur die
-	# deklarierten Methoden") bleibt unberuehrt: OPTIONS fuehrt nie etwas aus.
+	# deklarierten Methoden“) bleibt unberuehrt: OPTIONS fuehrt nie etwas aus.
+	#
+	# ROUTER-ALIAS-c: Die Vorverzweigung ist geblieben, sie ist aber keine
+	# Umgehung mehr — `_preflight` stellt dieselbe Vorbedingung (Syntax,
+	# Eigentum, Kernpfad-Umleitung) und importiert nichts.
 	if str(getattr(request, "method", "") or "").upper() == "OPTIONS":
 		return await _preflight(path, request)
-	# SEC-7/S2 (N5): Der Pfad wird VOR jeder Aufloesung geprueft. Vorher lief
-	# `..%2F..%2Fetc%2Fpasswd` bis in `_maybe_import` und endete in einem
-	# unbehandelten 500 (TypeError aus dem relativen Import) — ein Fehlerbild,
-	# das einen Programmfehler vortaeuschte und die Verzeichnisstruktur
-	# sondierbar machte (Ja/Nein je Pfad).
-	if not _gueltiger_methodenpfad(path):
+	# SEC-7/S2 (N5) + ROUTER-ALIAS + ROUTER-ALIAS-c: Syntax, Eigentum und
+	# Kernpfad-Umleitung in EINER Pruefung, VOR jedem Import. Frueher lief
+	# `..%2F..%2Fetc%2Fpasswd` bis in `_maybe_import` (unbehandelter 500,
+	# Verzeichnisstruktur sondierbar), und jeder Fehlgriff importierte ueber
+	# `importlib` einen Modulnamen aus der Anfrage. Beides ist hier zu Ende.
+	if _vorbedingung(path)[0] != "ok":
 		return _nicht_gefunden(request)
-	fn = lookup(path)
-	if fn is None:
-		# Fallback: Modul importieren (registriert die Funktionen).
-		_maybe_import(path)
-		fn = lookup(path)
+	fn = _aufloesen(path)
 	if fn is None:
 		return _nicht_gefunden(request)
 
@@ -650,43 +996,27 @@ def _guest_denied(fn) -> bool:
 
 
 def _maybe_import(path: str) -> None:
-	"""Importiert das Modul einer dotted path, um `whitelist`-Eintraege zu laden."""
+	"""Laedt EIN Modul der Allowlist, das zu diesem Pfad passt (Start-Nachtrag).
+
+	ROUTER-ALIAS-c: Diese Funktion ist KEIN Anfrageweg mehr. Frueher rief der
+	Router sie je Fehlgriff auf; sie liess `nachregistrieren()` ueber das ganze
+	Register laufen und importierte `importlib.import_module(<Teile des
+	Anfragepfads>)` — `OPTIONS /api/method/this.zz` importierte `this`.
+
+	Jetzt gilt: hoechstens EIN Modul, und nur aus der Allowlist des eigenen
+	Pakets (`_module_aus_anfrage`). Der Aufruf steht hinter einem Flag
+	(`nachregistrieren(frei=True)`/`_module_allowlist()`), nicht im Router.
+	Fuer den Normalbetrieb ist der Import unnoetig: `diakronos_app.api`
+	registriert beim Start alle Endpunkte.
+	"""
 	import importlib
 
-	# Basis-Paket immer laden: registriert alle Funktionen der Portierungen.
-	try:
-		importlib.import_module("diakronos_app.api")
-	except ImportError:  # pragma: no cover — Paket fehlt nur vor P2b
-		pass
-
-	# Original-Pfade nachtragen (idempotent): deckt den Fall ab, dass das
-	# Paket beim Serverstart nur halb geladen wurde und die SPA deshalb
-	# 404 auf `diakronos.diakonos.api.<modul>.<funktion>` sieht.
-	from diakronos_app.frappe_compat.registry import (
-		nachregistrieren,
-		registriere_originalpfad,
-	)
-
-	# (1) Direkt fuer den angefragten Pfad: aus `diakronos.diakonos.api.mod.fn`
-	#     wird das Kurzmodul `mod`; ist dessen Funktion bekannt, wird der
-	#     Original-Pfad gesetzt. Das greift unabhaengig von Importreihenfolge
-	#     und Register-Rennen.
-	registriere_originalpfad(path)
-	# (2) Flaechendeckend fuer alles, was bereits registriert ist.
-	nachregistrieren()
-
-	parts = path.split(".")
-	for cut in range(len(parts) - 1, 0, -1):
-		candidates = [
-			".".join(["diakronos_app", "api", *parts[:cut]]),
-			".".join([*parts[:cut]]),
-		]
-		for module_name in candidates:
-			try:
-				importlib.import_module(module_name)
-				return
-			except ImportError:
-				continue
+	for module_name in _module_aus_anfrage(path):
+		try:
+			importlib.import_module(module_name)
+		except ImportError:  # pragma: no cover — Allowlist enthaelt nur echte Module
+			continue
+		return
 
 
 def _praefixierte_datei_urls(wert: Any) -> Any:

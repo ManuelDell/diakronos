@@ -135,7 +135,7 @@ async function datenAnlegen(page) {
     if (!r.ok) throw new Error(`create_anmeldeformular „${f.bezeichnung}“: HTTP ${r.status} ${r.text.slice(0, 200)}`)
   }
   if (!linkVorhanden) {
-    const link = await ruf('diakronos.diakronos.api.registrierungslink_api.create_link', {
+    const link = await ruf('diakronos.diakonos.api.registrierungslink_api.create_link', {
       bezeichnung: 'Gemeindefest 2026', typ: 'Mitglied-Registrierung', ohne_ablauf: true,
     })
     if (!link.ok) throw new Error(`create_link: HTTP ${link.status} ${link.text.slice(0, 200)}`)

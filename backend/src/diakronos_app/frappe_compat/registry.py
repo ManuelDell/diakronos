@@ -12,6 +12,7 @@ in Frappe (Keyword-Argumente aus dem Request).
 
 from __future__ import annotations
 
+import importlib
 import sys
 from typing import Callable
 
@@ -19,6 +20,94 @@ _REGISTRY: dict[str, Callable] = {}
 # Optionen je Registrierung (z. B. `allow_guest=False`). Der Router wertet sie
 # aus; der Wrapper selbst ist ein No-op, damit die Signatur unveraendert bleibt.
 _OPTIONS: dict[int, dict] = {}
+# ROUTER-ALIAS: ausdrueckliche Re-Export-/Alias-Zusagen
+# (`register_with_frappe_module`) als `(modul, name)` -> Funktion. Nur diese
+# duerfen einen Pfad beanspruchen, der NICHT der Original-Pfad der Funktion ist
+# (Altcode-Alias wie `diakronos.diakronos.api.website.…`).
+_REEXPORTE: dict[tuple[str, str], Callable] = {}
+#: Ausdrueckliche PRAEFIX-Zusagen eines Moduls: `modul` -> Praefixe, unter
+#: denen JEDE seiner registrierten Funktionen stehen darf. Dieselbe Zusage wie
+#: `register_with_frappe_module`, nur fuer eine ganze Modulbahn statt einen
+#: Namen — fuer Bahnen, die der Altcode/das Frontend benutzt und die aus dem
+#: Python-Paketpfad NICHT ableitbar sind (`diakronos.api.rechte` fuer
+#: `diakronos_app.api.rechte`, R-7-Nachzug 2026-11). Ein FREMDES Praefix bleibt
+#: 404: zugesagt wird genau die genannte Bahn, nicht „irgendein Praefix“.
+_PRAEFIXE: dict[str, tuple[str, ...]] = {}
+
+
+def praefix_zusagen(modul: str, praefixe: str | tuple[str, ...]) -> None:
+	"""Sagt zu: Funktionen aus `modul` duerfen unter diesen Praefixen stehen.
+
+	Aufruf im API-Modul selbst (Importzeit), neben `FRAPPE_MODULE`:
+
+	    praefix_zusagen(__name__, "diakronos.api.rechte")
+	    -> `diakronos.api.rechte.get_rollen_erklaerung` loest auf
+	    -> `diakronos.planrahmen.api.get_rollen_erklaerung` NICHT (fremd)
+
+	Idempotent; mehrfaches Zusagen ist harmlos.
+	"""
+	if isinstance(praefixe, str):
+		praefixe = (praefixe,)
+	neu = [p.strip(".") for p in praefixe if str(p).strip(".")]
+	alt = set(_PRAEFIXE.get(modul, ()))
+	_PRAEFIXE[modul] = tuple(sorted(alt | set(neu)))
+
+#: Frappe-Kernpfade ohne Modulbahn: der Altcode hat sie als `login`, `logout`,
+#: `frappe.login`, `frappe.client.insert`, `upload_file` aufgerufen. Diese
+#: Schreibweisen bleiben — jede ANDERE Bahn auf einen Kernnamen waere
+#: Pfadverwirrung (ROUTER-ALIAS, Punkt 3 der Nachbesserung).
+#:
+#: `frappe.sessions.get_csrf_token` (R-7-Nachzug 2026-11) gehoert dazu: die
+#: Gastseite (`frontend/src/gastinhalt/App.vue`) holt den Token unter genau
+#: dieser Adresse nach, und `auth_middleware._WEITERE_AUSNAHMEN` nimmt sie vom
+#: CSRF-Zwang aus. Die Funktion ist `api/session.sitzung_status`; ihre eigene
+#: Bahn bleibt daneben (`…api.session.sitzung_status`).
+#:
+#: AUSNAHME `login`: LOGIN-4/A verlangt ausdruecklich, dass der Login unter
+#: JEDEM Praefix (`x.auth.login`, `a.b.c.login`) DIESELBEN Sperren traegt —
+#: ein beliebiger Vorlauf darf eine Login-Anmeldung nicht an CSRF-Methoden-
+#: und Body-Regeln vorbeifuehren. `is_login` erkennt ihn am Funktionsobjekt,
+#: damit ist jeder Alias so streng wie `login` selbst. Diese eine Ausnahme ist
+#: gewollt und getestet (`test_login4_aliaspfade.py`).
+_KERNPFADE = frozenset(
+	{
+		"login",
+		"logout",
+		"frappe.login",
+		"frappe.login.login",
+		"frappe.client.insert",
+		"frappe.sessions.get_csrf_token",
+		"upload_file",
+	}
+)
+
+#: Kernpfad-Schreibweisen, die auf ein ANDERES Ziel zeigen als ihr Name sagt:
+#: `pfad` -> `(python_modul, funktion)`. Die Zuordnung steht als Tabelle hier,
+#: weil sie NICHT aus dem Namen folgt (siehe `_KERNPFAD_ZIEL`).
+#:
+#: ROUTER-ALIAS-c: Frueher las `_KERNPFAD_ZIEL` das Ziel IM REGISTER. Es steht
+#: dort aber nicht — `_register` legt nur die Bahn
+#: `diakronos.diakonos.api.session.sitzung_status` an, und ein Eintrag unter
+#: dem Frappe-Pfad entsteht nie. Ergebnis: `frappe.sessions.get_csrf_token` war
+#: im Router ein 404, waehrend der Waechter „loest auf“ meldete, weil er
+#: `_ist_eigener_pfad` ODER `lookup` fragte. Deshalb steht das Ziel jetzt als
+#: (Modul, Funktion) hier — KEIN Register-Schreibzugriff, keine zweite Wahrheit
+#: ueber die Funktion selbst.
+_KERNPFAD_UMLEITUNG: dict[str, tuple[str, str]] = {
+	"frappe.sessions.get_csrf_token": ("diakronos_app.api.session", "sitzung_status"),
+}
+
+#: Python-Paket der portierten API und das Altcode-Praefix davor. Aus
+#: `diakronos_app.api.zugang.setze_rollen` wird so
+#: `diakronos.diakonos.api.zugang.setze_rollen` (die Bahn des Altcodes
+#: `diakronos/diakonos/api/zugang.py`) — Modulbahnen, die der Altcode benutzt
+#: hat, gehen damit NICHT verloren, ohne dass ein fremdes Praefix auf einen
+#: beliebigen Namen aufloesen darf.
+_API_PAKET = "diakronos_app.api."
+_ALTCODE_PRAEFIX = "diakronos.diakonos.api"
+
+#: Module, deren Funktionen Frappe-KERNPFADE sind (keine App-Modulbahn).
+_KERN_MODULE = frozenset({"diakronos_app.api.auth"})
 
 
 def options_for(fn: Callable) -> dict:
@@ -116,46 +205,262 @@ def _register(fn: Callable, options: dict | None = None) -> Callable:
 	return fn
 
 
+def _original_modul(fn: Callable) -> str | None:
+	"""`FRAPPE_MODULE` des Moduls, in dem `fn` definiert ist (sonst `None`)."""
+	module = getattr(fn, "__module__", None)
+	frappe_module = getattr(sys.modules.get(module or ""), "FRAPPE_MODULE", None)
+	return frappe_module if frappe_module else None
+
+
+def _ist_kernfunktion(fn: Callable) -> bool:
+	"""True, wenn `fn` zu den Frappe-KERNPFADEN gehoert (login, logout, …).
+
+	Erkannt wird das am MODUL, nicht am Namen: `diakronos_app.api.auth.login`
+	und `diakronos_app.api.frappe_core.logout`/`insert`/`upload_file` tragen
+	keine App-Modulbahn. Gleichnamige Fachfunktionen (`root.status`,
+	`verantwortliche.setze_rollen`) sind KEINE Kernfunktionen — sonst haetten
+	sie wieder einen Freibrief unter jedem Praefix.
+
+	Ausserdem gehoeren die in `_KERNPFAD_UMLEITUNG` genannten Funktionen dazu:
+	sie sind ueber eine Frappe-Adresse erreichbar, die nicht ihre eigene Bahn
+	ist (`frappe.sessions.get_csrf_token` -> `sitzung_status`). Die Zuordnung
+	ist EINE Tabelle, keine Namensregel.
+	"""
+	if any(fn is ziel for ziel in _kernpfad_ziele().values()):
+		return True
+	if _original_modul(fn) is not None:
+		return False
+	module = getattr(fn, "__module__", "") or ""
+	if module in _KERN_MODULE:
+		return True
+	return getattr(sys.modules.get(module or ""), "__name__", "").endswith(".frappe_core")
+
+
+def _kernpfad_ziele() -> dict[str, Callable]:
+	"""Aufgeloeste `_KERNPFAD_UMLEITUNG` (Pfad -> Funktion), ohne zu importieren."""
+	ziele: dict[str, Callable] = {}
+	for pfad, (modul, name) in _KERNPFAD_UMLEITUNG.items():
+		geladen = sys.modules.get(modul)
+		ziel = getattr(geladen, name, None) if geladen is not None else None
+		if callable(ziel):
+			ziele[pfad] = ziel
+	return ziele
+
+
+def _ist_login(fn: Callable) -> bool:
+	"""True, wenn `fn` DAS Login-Funktionsobjekt der App ist (`api.auth.login`)."""
+	try:
+		from diakronos_app.api.auth import login as _login_fn
+	except Exception:  # noqa: BLE001 — ohne api-Modul gibt es keinen Login
+		return False
+	return fn is _login_fn
+
+
+def _ist_eigene_definition(fn: Callable) -> bool:
+	"""True, wenn `fn` in seinem `__module__` definiert ist (nicht nur importiert).
+
+	`__module__` traegt bei einer importierten Funktion den Ursprungsort, das
+	Modulobjekt kennt sie aber als fremden Namen — genau daran unterscheiden
+	wir „gehoert hier hin“ von „wird hier nur weitergereicht“.
+	"""
+	module = getattr(fn, "__module__", None)
+	modulobjekt = sys.modules.get(module or "")
+	if modulobjekt is None:
+		return False
+	return getattr(modulobjekt, getattr(fn, "__name__", ""), None) is fn
+
+
+def _original_pfade(fn: Callable) -> set[str]:
+	"""Alle Pfade, unter denen `fn` von RECHTS wegen steht.
+
+	Das ist ihr `FRAPPE_MODULE`-Pfad (so ruft der Altcode und die SPA sie auf),
+	ihr voller Python-Pfad und jede ausdrueckliche Re-Export-/Alias-Zusage
+	(`register_with_frappe_module`).
+
+	`FRAPPE_MODULE` zaehlt NUR, wenn die Funktion in genau diesem Modul steht
+	(`_ist_eigene_definition`): sonst wuerde die Konstante eines
+	Weiterreich-Moduls fuer jede mitgenommene fremde Funktion gelten — genau
+	die Pfadverwirrung aus dem Befund. Fuer Funktionen aus einem Modul OHNE
+	Konstante gilt der volle Python-Pfad: `diakronos_app.api.zugang.setze_rollen`
+	-> `diakronos.diakonos.api.zugang.setze_rollen` (Altcode-Bahn `api/zugang.py`).
+	"""
+	zulaessig: set[str] = set()
+	name = getattr(fn, "__name__", None)
+	module = getattr(fn, "__module__", None)
+	if name and module:
+		zulaessig.add(f"{module}.{name}")
+	frappe_module = _original_modul(fn)
+	if name and frappe_module and _ist_eigene_definition(fn):
+		zulaessig.add(f"{frappe_module}.{name}")
+	# Modulbahnen mit Altcode-Praefix (`diakronos_app.api.<pfad>` ->
+	# `diakronos.diakonos.api.<pfad>`), fuer Module ohne `FRAPPE_MODULE`.
+	if name and module and module.startswith(_API_PAKET):
+		zulaessig.add(f"{_ALTCODE_PRAEFIX}.{module[len(_API_PAKET):]}.{name}")
+	for (modul, kurzname), ziel in _REEXPORTE.items():
+		if ziel is fn:
+			zulaessig.add(f"{modul}.{kurzname}")
+	# Praefix-Zusagen des EIGENEN Moduls (`praefix_zusagen`): genau diese
+	# Bahnen, nicht „irgendein Praefix“.
+	if name and module:
+		for praefix in _PRAEFIXE.get(module, ()):
+			zulaessig.add(f"{praefix}.{name}")
+	return zulaessig
+
+
+def ist_originalpfad(path: str, fn: Callable) -> bool:
+	"""True, wenn `path` ein Pfad ist, der `fn` WIRKLICH gehoert.
+
+	ROUTER-ALIAS: Der Router darf unter einem Pfad nur ausfuehren, was dort
+	auch hingehoert — der `FRAPPE_MODULE`-Pfad der Funktion, ihr voller
+	Python-Pfad, ein ausdruecklich ueber `register_with_frappe_module`
+	eingetragener Re-Export oder (nur fuer Frappe-Kernfunktionen) eine der
+	Schreibweisen aus `_KERNPFADE`.
+
+	EINE Ausnahme, sicherheitsbegruendet (LOGIN-4/A): der LOGIN loest unter
+	jedem Praefix auf, solange der Name `login` stimmt. Das ist keine
+	Pfadverwirrung, sondern die Abwehr einer Umgehung: alle Login-Sperren
+	(Nur-POST, `usr`/`pwd` nur aus dem Body, Herkunft) haengen am
+	FUNKTIONSOBJEKT (`router.is_login`), sodass ein Alias wie `x.auth.login`
+	genauso streng behandelt wird wie `login`. Wuerde der Alias 404en, waere
+	das Verhalten nur schwerer nachvollziehbar — die Sperre bliebe gleich.
+	`logout`, `insert`, `upload_file` haben diese Ausnahme NICHT.
+
+	Alles andere ist Pfadverwirrung (ein Endpunkt erscheint unter einem fremden
+	Modul) und endet mit 404. Es gibt KEINEN Freibrief fuer Module ohne
+	`FRAPPE_MODULE`: auch der Kernname `root_uebertragen` ist unter
+	`diakronos.planrahmen.api.root_uebertragen` nicht erreichbar.
+	"""
+	if not path or fn is None:
+		return False
+	if path in _original_pfade(fn):
+		return True
+	# LOGIN-4/A (SICHERHEITS-Ausnahme, ausdruecklich): der Login loest unter
+	# jedem Praefix auf, solange der Name `login` stimmt — ohne Bedingung an
+	# den Vorlauf, wie `test_login4_aliaspfade` und der Waechter es verlangen.
+	# Alle Login-Sperren (Nur-POST, `usr`/`pwd` nur aus dem Body, Herkunft)
+	# haengen am FUNKTIONSOBJEKT (`router.is_login`), ein Alias wie
+	# `x.auth.login` ist damit genauso streng wie `login` selbst.
+	if _ist_login(fn) and path.rsplit(".", 1)[-1] == "login":
+		return True
+	if _ist_kernfunktion(fn):
+		if path in _KERNPFADE:
+			return True
+		# ROUTER-ALIAS-c: Die UMLEITUNG ist die Frappe-Adresse einer Funktion,
+		# deren Name nicht aus dem Pfad folgt (`frappe.sessions.get_csrf_token`
+		# -> `sitzung_status`). Sie gehoert dem Ziel, aber nicht JEDER Pfad
+		# dieses Ziels — genau diese eine Schreibweise ist zugesagt.
+		return _KERNPFAD_UMLEITUNG.get(path) is not None
+	return False
+
+
 def lookup(path: str) -> Callable | None:
 	"""Findet die Funktion zu einem dotted path (z. B. `mitglieder.get_...`)."""
 	return _REGISTRY.get(path)
 
 
 def registriere_originalpfad(path: str) -> bool:
-	"""Setzt den Original-Frappe-Pfad `diakronos.diakonos.api.<modul>.<fn>`.
+	"""Sagt, ob der angefragte Pfad danach aufloest — und traegt NICHTS ein.
 
-	Deterministische Alternative zu `nachregistrieren()` fuer den konkreten
-	angefragten Pfad: aus `diakronos.diakonos.api.admin_hub.get_statistik`
-	wird ueber das bereits bekannte Kurzmodul (`admin_hub.get_statistik`) die
-	Funktion gefunden und unter ihrem Original-Pfad eingetragen. Greift
-	unabhaengig von Importreihenfolge und ohne das Register zu durchlaufen.
+	ROUTER-ALIAS (Befund R-7): Frueher wurde das VORLETZTE Pfadsegment als
+	Kurzmodul genommen (`…planrahmen.api.delete_lied` -> Modul `api`, Funktion
+	`delete_lied`) — damit loeste ein beliebiges Praefix auf eine fremde
+	Funktion auf und der Endpunkt erschien unter einem Modul, zu dem er nicht
+	gehoert.
 
-	Rueckgabe: True, wenn der Pfad danach aufloest.
+	Jetzt gilt: nur was der Funktion WIRKLICH gehoert, loest auf — ihr
+	`FRAPPE_MODULE`-Pfad, ihr voller Python-Pfad, ihre Altcode-Modulbahn
+	(`diakronos.diakonos.api.<modul>.<fn>`), eine ausdrueckliche
+	Re-Export-Zusage (`register_with_frappe_module`) oder (nur fuer
+	Frappe-Kernfunktionen) eine Schreibweise aus `_KERNPFADE`. Alles andere:
+	`False` (404).
+
+	Wichtig seit der Nachbesserung: Die Funktion LIEST nur noch. Frueher
+	trug jeder angenommene Pfad sich selbst ins Register ein (`_REGISTRY[path]
+	= fn`) — damit wuchs das Register mit jeder Anfrage, und ein Kernname
+	(`login`) war unter jedem Praefix dauerhaft erreichbar. Solche Pfade legt
+	ausschliesslich `register_with_frappe_module` an, und zwar im Code.
+
+	ROUTER-ALIAS-c: Das gilt auch fuer den LOGIN-Alias. LOGIN-4/A verlangt
+	nur, dass ein Alias WIE der Login behandelt wird (erkannt am
+	Funktionsobjekt), nicht dass er im Register steht. Frueher setzte diese
+	Funktion ihn (`_REGISTRY[path] = fn`): 300 Anfragen `z<i>.login` = 300
+	Registereintraege, und jeder Eintrag war danach ein Pfad, der auch ohne
+	diese Funktion aufloeste. Der Alias wird jetzt nur noch BEANTWORTET.
 	"""
-	if path in _REGISTRY:
+	if not path or "." not in path:
+		return False
+	if path in _KERNPFADE:
+		fn = _KERNPFAD_ZIEL(path)
+		return fn is not None and _ist_kernfunktion(fn)
+	fn = _REGISTRY.get(path)
+	if fn is not None:
+		return ist_originalpfad(path, fn)
+	# Kein Eintrag: Die Frage „gehoert der Pfad einer registrierten Funktion?“
+	# wird direkt beantwortet — gesucht werden ALLE Funktionen, die unter
+	# diesem Namen bekannt sind (Kurzpfade, volle Python-Pfade, Kernnamen).
+	# Frueher wurde das vorletzte Segment als Modul interpretiert und die
+	# Funktion von dort gezogen; das war die Verwechslung aus R-7
+	# (`…planrahmen.api.delete_lied` -> Modul `api` -> `musik.delete_lied`).
+	name = path.rsplit(".", 1)[-1]
+	gesehen: set[int] = set()
+	for kurzpfad, fn in list(_REGISTRY.items()):
+		if kurzpfad.rsplit(".", 1)[-1] != name or id(fn) in gesehen:
+			continue
+		gesehen.add(id(fn))
+		if id(fn) not in _OPTIONS:
+			# Nicht als Endpunkt (whitelist) bekannt -> nicht erfinden.
+			continue
+		if not ist_originalpfad(path, fn):
+			continue
+		# LOGIN-4/A: Der Login-Alias wird ANGENOMMEN (die Sperren gelten fuer
+		# ihn, weil der Router `ist_login(fn)` fragt) — aber NICHT ins Register
+		# geschrieben (ROUTER-ALIAS-c: sonst waechst es mit jeder Anfrage).
 		return True
-	parts = path.split(".")
-	if len(parts) < 2:
-		return False
-	name = parts[-1]
-	module = parts[-2]  # z. B. "admin_hub" aus "...api.admin_hub.get_statistik"
-	fn = _REGISTRY.get(f"{module}.{name}")
-	if fn is None:
-		# Modul direkt importieren und die Funktion von dort ziehen.
-		try:
-			import importlib
+	return False
 
-			mod = importlib.import_module(f"diakronos_app.api.{module}")
-			fn = getattr(mod, name, None)
+
+def _KERNPFAD_ZIEL(path: str) -> Callable | None:  # noqa: N802 — Kernpfad-Tabelle
+	"""Funktion hinter einer Kernpfad-Schreibweise (`login`, `frappe.client.insert`).
+
+	Die Umleitung (`frappe.sessions.get_csrf_token`) zeigt auf ein PYTHON-Modul
+	und wird ueber `importlib` geladen — das Ziel registriert sich beim Import
+	selbst, ein Eingriff ins Register ist dafuer nicht noetig und nicht
+	gewuenscht (`registered()` bleibt die Liste der Registrierungen, nicht der
+	Anfragen). Der Name der Funktion ist der letzte Pfadteil.
+
+	Der Import ist idempotent und harmlos: er laedt ein Modul des EIGENEN
+	Pakets, nie einen Namen aus der Anfrage (siehe `router._vorbedingung`).
+	"""
+	umleitung = _KERNPFAD_UMLEITUNG.get(path)
+	if umleitung is not None:
+		modul_name, funktion = umleitung
+		try:
+			modul = sys.modules.get(modul_name) or importlib.import_module(modul_name)
 		except ImportError:
-			fn = None
-	if fn is None or not callable(fn):
-		return False
-	if id(fn) not in _OPTIONS:
-		# Nicht als Endpunkt (whitelist) bekannt -> nicht erfinden.
-		return False
-	_REGISTRY[path] = fn
-	return True
+			return None
+		ziel = getattr(modul, funktion, None)
+		return ziel if callable(ziel) else None
+	# Registry-Eintrag, sonst `frappe.login` -> `frappe.login.login`.
+	# (`login`, `logout`, `upload_file` liegen NICHT im Register: sie sind
+	# Kernpfade, keine App-Endpunkte — ein leerer Rueckgabewert ist dort richtig.)
+	return _REGISTRY.get(path) or _REGISTRY.get(f"{path}.{path.rsplit('.', 1)[-1]}")
+
+
+def _registry_kennt(pfad: str) -> bool:
+	return pfad in _REGISTRY
+
+
+def _python_modul(frappe_pfad: str) -> str | None:
+	"""Python-Modulname zu einem Frappe-Pfad (`a.b.api.mod.fn` -> `diakronos_app.api.mod`).
+
+	Nur die Bahn, die das Paket wirklich hat: `diakronos.diakonos.api.…` ->
+	`diakronos_app.api.…`. Alles andere (Kernpfade, Altcode-Praefixe) hat kein
+	Python-Modul — dann `None` und KEIN Importversuch.
+	"""
+	if frappe_pfad.startswith(_ALTCODE_PRAEFIX + "."):
+		rest = frappe_pfad[len(_ALTCODE_PRAEFIX) + 1:].rsplit(".", 1)[0]
+		return _API_PAKET + rest
+	return None
 
 
 def register_with_frappe_module(frappe_module: str, name: str, fn: Callable) -> Callable:
@@ -169,9 +474,15 @@ def register_with_frappe_module(frappe_module: str, name: str, fn: Callable) -> 
 	Original-Pfad deshalb explizit, ueber DENSELBEN Mechanismus (nur mit dem
 	Modul als Parameter). Idempotent: mehrfaches Registrieren ist harmlos.
 
+	ROUTER-ALIAS: Das ist die EINZIGE Stelle, an der ein Pfad entstehen darf,
+	der nicht der Original-Pfad der Funktion ist (Altcode-Alias wie
+	`gestaltung.lesen` oder `website.oeffentlich.kalender`). Der Pfad wird
+	deshalb als Zusage in `_REEXPORTE` vermerkt; `ist_originalpfad` liest sie.
+
 	Die Optionen (`allow_guest`) bleiben an der Funktion selbst haengen, es
 	ist dieselbe Funktion — der Router wertet sie ueber `options_for` aus.
 	"""
+	_REEXPORTE[(frappe_module, name)] = fn
 	_REGISTRY[f"{frappe_module}.{name}"] = fn
 	return fn
 
@@ -186,18 +497,37 @@ def nachregistrieren() -> int:
 	Original-Pfad `diakronos.diakonos.api.<modul>.<funktion>` — die SPA
 	erreicht den Endpunkt dann mit 404, obwohl die Kurzform aufloest.
 
-	Diese Nachregistrierung laeuft am Ende von `diakronos_app.api` und traegt
-	den Original-Pfad fuer ALLE bereits bekannten Funktionen nach. Idempotent.
+	ROUTER-ALIAS-c: Diese Nachregistrierung laeuft EINMAL beim Start (Ende von
+	`diakronos_app.api`) — und nur dort bzw. hinter `router.nachregistrieren()`
+	mit Flag. Frueher lief sie zusaetzlich bei JEDEM Fehlgriff einer Anfrage
+	ueber das ganze Register (CPU-Verstaerker ohne Anmeldung). Idempotent:
+	laeuft sie erneut, findet sie jeden Bahn-Eintrag bereits und setzt nichts.
+
 	Rueckgabe: Zahl der (neu) gesetzten Eintraege.
 	"""
 	gesetzt = 0
-	for fn in list(_REGISTRY.values()):
-		module = getattr(fn, "__module__", None)
-		frappe_module = getattr(sys.modules.get(module or ""), "FRAPPE_MODULE", None)
-		if not frappe_module or not getattr(fn, "__name__", None):
+	for kurzpfad, fn in list(_REGISTRY.items()):
+		# Nur die EIGENE Definition zaehlt: eine Konstante eines
+		# Weiterreich-Moduls (`api/auth.py` traegt `FRAPPE_MODULE` fuer `login`,
+		# nicht fuer das mitgenommene `logout`) darf keine fremden Funktionen
+		# in die Bahn ziehen. Fuer Module OHNE Konstante (`api/zugang.py`, …)
+		# traegt `_original_pfade` die Altcode-Bahn nach — dort muesste sonst
+		# eine Konstante erfunden werden, nur damit die SPA-Bahn existiert.
+		#
+		# ROUTER-ALIAS-c: Iteriert wird ueber `list(_REGISTRY.items())`, weil
+		# der Schleifenkoerper das Register erweitert (`_REGISTRY[key] = fn`) —
+		# ueber die lebende Sicht war das ein `RuntimeError: dictionary changed
+		# size` genau dann, wenn wirklich etwas fehlte.
+		if getattr(fn, "__name__", None) is None:
 			continue
-		key = f"{frappe_module}.{fn.__name__}"
-		if key not in _REGISTRY:
+		for key in sorted(_original_pfade(fn)):
+			if key in _REGISTRY:
+				continue
+			# Nur Bahnen, die der Router auch als Methodenpfad annimmt:
+			# `diakronos.diakonos.api.…`/`FRAPPE_MODULE`, nicht der volle
+			# Python-Pfad `diakronos_app.…` (der ist im Register schon gesetzt).
+			if key.startswith("diakronos_app."):
+				continue
 			_REGISTRY[key] = fn
 			gesetzt += 1
 	return gesetzt

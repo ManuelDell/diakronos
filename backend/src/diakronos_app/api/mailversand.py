@@ -35,6 +35,7 @@ import logging
 from diakronos_app import db
 from diakronos_app.api.audit import log as _audit_log
 from diakronos_app.frappe_compat import whitelist
+from diakronos_app.frappe_compat.registry import register_with_frappe_module
 from diakronos_app.frappe_compat.exceptions import (
 	FrappeCompatError,
 	PermissionError as FrappePermissionError,
@@ -340,3 +341,14 @@ def _testmail_meldung(fehler: "Exception") -> str:
 			"des Postfachs. Bitte Absenderadresse und Empfänger prüfen."
 		)
 	return f"Der Versand der Testmail ist fehlgeschlagen: {fehler}"
+
+
+# ── ROUTER-ALIAS: Aliase aus dem Altcode ────────────────────────────────────
+# Die SPA ruft die Mailserver-Einstellungen unter `diakronos.diakronos.api.
+# mailversand.*` auf (`useMailversand.js`, `DsgvoComplianceWidget.vue`,
+# `Datenschutz.vue`). Das ist ein Altcode-Alias neben der dokumentierten Bahn
+# `diakronos.diakonos.api.mailversand`; er wird hier AUSDRUECKLICH zugesagt,
+# damit er nicht ueber eine Namensverwechslung erreichbar ist.
+for _fn in (mailversand_get, mailversand_speichern, mailversand_testmail, mailversand_status):
+    register_with_frappe_module("diakronos.diakronos.api.mailversand", _fn.__name__, _fn)
+del _fn
