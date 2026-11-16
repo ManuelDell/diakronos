@@ -687,3 +687,8 @@ tests/uir3j-*.test.mjs
 # `gruppe_name` hat wieder einen lesbaren Text. Mount-Tests am echten
 # Bauteil (jsdom + vue/compiler-sfc), kein Quelltext-Muster.
 tests/uir9d-*.test.mjs
+# UI-R9e: Wiki — Karte und Knopf „Wiki-Artikel anlegen" hängen am SERVER-Flag
+# `rechte.wiki_anlegen` (nicht mehr an der Client-Regel `canManage`), fail
+# closed; vorhandene Artikel bleiben ohne Anlege-Recht sichtbar. Mount-Tests
+# am echten Bauteil (jsdom + vue/compiler-sfc), kein Quelltext-Muster.
+tests/uir9e-*.test.mjs

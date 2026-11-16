@@ -325,14 +325,14 @@
                     </DkCard>
 
                     <!-- Wiki -->
-                    <DkCard v-if="wikiArtikel.length > 0 || canManage" title="Wiki">
+                    <DkCard v-if="wikiArtikel.length > 0 || darfWikiAnlegen" title="Wiki">
                         <template #actions>
                             <!-- R6: Der Sprung nimmt die GRUPPE mit, damit der
                                  Editor sie vorbelegt (`?gruppe=`). Ohne das
                                  wäre „auf der Gruppenseite vorbelegt“ nur ein
                                  leerer Satz gewesen. Bei einer Untergruppe
                                  stehen beide Kennungen in der Adresse. -->
-                            <DkButton v-if="canManage" variant="ghost" size="md" aria-label="Wiki-Artikel anlegen" @click="navigate(wikiAnlegenZiel)">
+                            <DkButton v-if="darfWikiAnlegen" variant="ghost" size="md" aria-label="Wiki-Artikel anlegen" @click="navigate(wikiAnlegenZiel)">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             </DkButton>
                         </template>
@@ -842,6 +842,16 @@ export default {
         const darfAnkuendigungAnlegen = computed(() => rechte.value?.ankuendigung_anlegen === true)
 
         /**
+         * UI-R9e: „Wiki-Artikel anlegen“ — GENAU das Recht, das der Server beim
+         * Anlegen eines Wiki-Artikels prüft (`pruefe_inhalt_anlegen(.., "wiki", ..)`,
+         * geliefert als `rechte.wiki_anlegen`). Die frühere Client-Regel
+         * `canManage` (isAdmin oder in `verantwortliche`) entsprach nicht der
+         * Serverregel — sie entschied ohne den Server. Fail closed: ohne
+         * `rechte` kein Knopf und keine leere Wiki-Karte.
+         */
+        const darfWikiAnlegen = computed(() => rechte.value?.wiki_anlegen === true)
+
+        /**
          * UI-R9d: „Verwalten“ dieser (Unter-)Gruppe — GENAU das Recht, das der
          * Server für Beschreibung ändern (`update_gruppe`/`update_untergruppe`)
          * und für die Mitgliederpflege (`add/remove/update_mitglied_*`) prüft:
@@ -972,6 +982,8 @@ export default {
                     rollen: Boolean(r.rollen),
                     aufgabe_anlegen: Boolean(r.aufgabe_anlegen),
                     ankuendigung_anlegen: Boolean(r.ankuendigung_anlegen),
+                    // UI-R9e: Flag für die Wiki-Karte/-Knopf
+                    wiki_anlegen: Boolean(r.wiki_anlegen),
                 }
                 // Nächste Termine laden (UXD-R10: eigener Endpunkt; der alte
                 // kalender.get_events-Aufruf scheiterte bei jedem Laden).
@@ -1641,6 +1653,8 @@ export default {
             darfAufgabeAnlegen,
             darfAnkuendigungAnlegen,
             darfVerwalten,
+            // UI-R9e: Wiki-Karte und „Wiki-Artikel anlegen“ nach `rechte.wiki_anlegen`.
+            darfWikiAnlegen,
             displayName,
             currentStatus,
             currentDesc,

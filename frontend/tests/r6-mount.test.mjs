@@ -828,6 +828,8 @@ test('UI-R6b: GruppeDetail — Hauptgruppe springt auf `#/wiki?gruppe=GR-Chor`',
             gruppe: { name: 'GR-Chor', gruppenname: 'Chor', status: 'Aktiv' },
             mitglieder: [], verantwortliche: [], untergruppen: [], aufgaben: [],
             ankuendigungen: [], wiki_artikel: [], is_member: true,
+            // UI-R9e: der Knopf hängt am Server-Flag, nicht mehr an isAdmin.
+            rechte: { wiki_anlegen: true },
         })
         assert.equal(hash, '#/wiki?gruppe=GR-Chor')
     } finally {
@@ -844,6 +846,8 @@ test('UI-R6b: GruppeDetail — Untergruppe nimmt Gruppe UND Untergruppe mit', as
             untergruppe: { name: 'UG-Blas', untergruppenname: 'Bläsergruppe', gruppe: 'GR-Chor', status: 'Aktiv' },
             mitglieder: [], verantwortliche: [], untergruppen: [], aufgaben: [],
             ankuendigungen: [], wiki_artikel: [], is_member: true,
+            // UI-R9e: der Knopf hängt am Server-Flag, nicht mehr an isAdmin.
+            rechte: { wiki_anlegen: true },
         })
         assert.equal(hash, '#/wiki?gruppe=GR-Chor&untergruppe=UG-Blas')
     } finally {
