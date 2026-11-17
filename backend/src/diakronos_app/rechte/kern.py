@@ -62,7 +62,7 @@ from diakronos_app.models.rechte import (
 # ── Begriffe ────────────────────────────────────────────────────────────────
 
 #: Module, die eine Gruppe haben kann.
-MODULE: tuple[str, ...] = ("kalender", "beitraege", "wiki", "aufgaben", "lieder", "dienstplaene")
+MODULE: tuple[str, ...] = ("kalender", "beitraege", "wiki", "aufgaben", "lieder", "dienstplaene", "chat")
 
 #: Objekt-Typ -> Modul.
 TYP_MODUL: dict[str, str] = {
@@ -75,7 +75,15 @@ TYP_MODUL: dict[str, str] = {
     "lied": "lieder",
     "dienstplan": "dienstplaene",
     "vorlage": "dienstplaene",
+    # Chat (Konzept docs/konzepte/CHAT-KONZEPT.md, Entscheidungen 17.11.2026):
+    # Gruppen-/Untergruppenchat; Direktnachrichten fragen `darf_direktnachricht`.
+    "chat_gespraech": "chat",
+    "chat_nachricht": "chat",
+    "chat_umfrage": "chat",
 }
+
+#: Chat-Typen — eigene Regel in `darf` (Mitglieder schreiben ohne Einzelfreigabe).
+CHAT_TYPEN: frozenset[str] = frozenset({"chat_gespraech", "chat_nachricht", "chat_umfrage"})
 
 #: Typen ohne Gruppenbesitz (gemeinsame Bibliothek eines Moduls).
 BIBLIOTHEK_TYPEN: frozenset[str] = frozenset({"lied"})
@@ -547,6 +555,10 @@ def darf(
 
     zugewiesen_set = set(zugewiesen)
 
+    if typ in CHAT_TYPEN:
+        return _darf_chat(benutzer, aktion, gruppe=gruppe, untergruppe=untergruppe,
+                          besitzer=besitzer)
+
     # Eigene (persoenliche) Aufgabe: keine Gruppe, gehoert dem Besitzer.
     if typ == "aufgabe" and not gruppe and not untergruppe and besitzer:
         if benutzer == besitzer:
@@ -943,6 +955,109 @@ def darf_beziehung(benutzer: str | None, aktion: str, mitglied: str | None,
     return JA("eigenes_profil")
 
 
+# ── Chat (Manuel 17.11.2026, Konzept CHAT-KONZEPT.md Abschnitt 2/9/10) ──────
+#
+# Gruppen-/Untergruppenchat: lesen, schreiben und Umfragen starten (ANLEGEN)
+# darf jedes Mitglied der Einheit; die Untergruppe ist ein eigener Raum (nur
+# ihre Mitglieder, ihre GL und HV/MV der Hauptgruppe). Fremde Nachrichten
+# entfernen / Meldungen bearbeiten (MODERIEREN) und Einstellungen (VERWALTEN):
+# HV/MV, in der Untergruppe auch GL. Eigene Nachricht/Umfrage: SCHREIBEN mit
+# ``besitzer`` = Benutzer. Modul ``chat`` muss in der Gruppe an sein.
+# Direktnachrichten: ``darf_person_finden`` / ``darf_direktnachricht``;
+# Meldestelle fuer Direktnachrichten ist nur der Administrator (F7).
+
+
+def _darf_chat(benutzer: str, aktion: str, *, gruppe: str | None,
+               untergruppe: str | None, besitzer: str | None) -> Entscheidung:
+    with lesesitzung() as sess:
+        zgruppe = gruppe or _hauptgruppe(sess, untergruppe)
+    if not zgruppe:
+        return NEIN("keine_gruppe")
+    if not modul_aktiv(zgruppe, "chat"):
+        return NEIN("modul_aus")
+    if untergruppe:
+        rolle = untergruppenrolle(benutzer, untergruppe)
+        leitung = rolle in (ROLLE_HV, ROLLE_MV, ROLLE_GL)
+    else:
+        rolle = gruppenrolle(benutzer, zgruppe)
+        leitung = rolle in _LEITUNG
+    if not rolle:
+        return NEIN("kein_mitglied")
+    if aktion in (LESEN, VORSCHLAGEN, ANLEGEN):
+        return JA(f"chat_{rolle.lower()}")
+    if aktion == SCHREIBEN:
+        if besitzer is None or besitzer == benutzer:
+            return JA("chat_eigenes")
+        return JA(f"chat_leitung_{rolle.lower()}") if leitung else NEIN("fremde_nachricht")
+    if aktion in (MODERIEREN, VERWALTEN):
+        return JA(f"chat_leitung_{rolle.lower()}") if leitung else NEIN("nicht_verantwortlich")
+    return NEIN("aktion_nicht_fuer_chat")
+
+
+#: Status, mit denen eine Person nicht mehr auffindbar ist (wie die
+#: Personenauswahl `api.gruppen_auswahl.AUSGESCHIEDEN`).
+_NICHT_AUFFINDBAR = frozenset({"ausgetreten", "verstorben", "verstorben/ausgetreten", "geloescht"})
+
+
+def _auffindbar(sess, mitglied: str) -> tuple[bool, bool]:
+    """(auffindbar, hat_konto) der Person ``mitglied`` — fail closed."""
+    from diakronos_app.models.core import User
+    from diakronos_app.models.diakonos import Mitglied
+
+    zeile = sess.execute(
+        select(Mitglied.status, Mitglied.ausgeschlossen, Mitglied.austritt_datum, Mitglied.user)
+        .where(Mitglied.name == mitglied)
+    ).one_or_none()
+    if zeile is None:
+        return False, False
+    status, ausgeschlossen, austritt, konto = zeile
+    if str(mitglied).startswith("geloescht-"):
+        return False, False
+    if str(status or "").strip().casefold() in _NICHT_AUFFINDBAR or austritt or ausgeschlossen:
+        return False, False
+    hat_konto = False
+    if konto:
+        hat_konto = bool(sess.execute(
+            select(User.enabled).where(User.name == konto)).scalar_one_or_none())
+    return True, hat_konto
+
+
+def darf_person_finden(benutzer: str | None, ziel: str | None) -> Entscheidung:
+    """Darf ``benutzer`` die Person ``ziel`` unter „Nachrichten“ finden?
+
+    Entscheidung Manuel 17.11.2026: alle aktiven Gemeindemitglieder sind fuer
+    jedes Gemeindemitglied auffindbar (Name + Bild; Kontaktdaten weiter nach
+    der Sichtbarkeitseinstellung der Person). Nie Gaeste, nie Ausgetretene,
+    Ausgeschlossene, Verstorbene oder Geloeschte. Personen ohne Konto sind
+    auffindbar (die Oberflaeche graut sie aus) — siehe ``darf_direktnachricht``.
+    """
+    if not ziel or not ist_gemeindemitglied(benutzer):
+        return NEIN("nicht_angemeldet")
+    with lesesitzung() as sess:
+        auffindbar, _konto = _auffindbar(sess, ziel)
+    return JA("gemeinde") if auffindbar else NEIN("nicht_auffindbar")
+
+
+def darf_direktnachricht(benutzer: str | None, ziel: str | None) -> Entscheidung:
+    """Darf ``benutzer`` der Person ``ziel`` eine Direktnachricht schreiben?
+
+    Nur an auffindbare Personen MIT aktivem Konto, nicht an sich selbst.
+    """
+    gefunden = darf_person_finden(benutzer, ziel)
+    if not gefunden:
+        return gefunden
+    with lesesitzung() as sess:
+        if benutzer != "Administrator" and _mitglied_von(sess, str(benutzer)) == ziel:
+            return NEIN("selbst")
+        _auffindbar_ja, konto = _auffindbar(sess, str(ziel))
+    return JA("gemeinde") if konto else NEIN("kein_konto")
+
+
+def ist_meldestelle(benutzer: str | None) -> bool:
+    """Meldestelle fuer Direktnachrichten/Runden: nur der Administrator (F7)."""
+    return ist_admin(benutzer)
+
+
 __all__ = [
     "AKTIONEN",
     "ANLEGEN",
@@ -979,6 +1094,10 @@ __all__ = [
     "pruefstufen",
     "sichtbare_module",
     "darf_beziehung",
+    "CHAT_TYPEN",
+    "darf_person_finden",
+    "darf_direktnachricht",
+    "ist_meldestelle",
     "eigenes_mitglied",
     "gleicher_haushalt",
     "untergruppenrolle",

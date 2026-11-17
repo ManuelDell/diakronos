@@ -110,6 +110,7 @@ MODULE: dict[str, str] = {
     "aufgaben": "Aufgaben der Gruppe: HV/MV weisen zu; abhaken darf, wem die Aufgabe zugewiesen ist.",
     "lieder": "Lieder: HV/MV pflegen die Liedersammlung; wer das Modul in keiner Gruppe hat, sieht keine Lieder.",
     "dienstplaene": "Dienstpläne und Vorlagen: HV/MV erstellen und delegieren; den ganzen Plan sieht, wer im Kalender schreibt.",
+    "chat": "Chat der Gruppe: alle Mitglieder lesen, schreiben und starten Umfragen; HV/MV (in der Untergruppe auch GL) entfernen fremde Nachrichten und bearbeiten Meldungen. Untergruppen haben einen eigenen Chat.",
 }
 
 STUFEN: dict[str, str] = {
@@ -127,6 +128,7 @@ MODUL_TITEL: dict[str, str] = {
     "aufgaben": "Aufgaben",
     "lieder": "Lieder",
     "dienstplaene": "Dienstpläne",
+    "chat": "Chat",
 }
 
 STUFEN_TITEL: dict[str, str] = {
