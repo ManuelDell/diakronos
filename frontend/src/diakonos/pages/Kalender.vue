@@ -160,6 +160,7 @@
         @close="kalenderListeSchliessen"
         @ablehnungClick="zeigeAbgelehntenTermin"
         @calendarsChange="onCalendarsChange"
+        :benutzer-kontext="benutzerKontext"
       />
       <!-- B6-N2 (Review DEV-B6b, Punkt 1): Der abgedunkelte Schleier unter dem
            Overlay — wie beim Handy-Overlay und bei den Dialogen. Klick darauf
@@ -201,11 +202,15 @@
         </div>
         <!-- A4: rechte Spalte NUR für Moderatoren; sonst nimmt das Raster
              die Breite (die Fläche ist dann allein im Raster). -->
+        <!-- PERF-K1: Die Zeilen kommen von DIESER Seite (`pruefIdsLaden` holt
+             `get_kanban_board_data` bereits fuer die goldenen Punkte am Handy)
+             — das Panel fragte denselben Endpunkt beim Aufbau ein zweites Mal. -->
         <KalenderPruefPanel
           v-if="darfPruefen && !istSchmal"
-          ref="pruefPanel"
           class="kal-pruef-panel"
           :zahl="panelZahl"
+          :zeilen="pruefZeilen"
+          :fehler="pruefFehler"
         />
       </div>
     </div>
@@ -461,7 +466,6 @@ const listeAlsOverlay = computed(() => !istHandyLage.value && schmaleLeiste.valu
 const calendarRef = ref(null)
 const seriesDialogRef = ref(null)
 const sidebarRef = ref(null)
-const pruefPanel = ref(null)
 
 // State
 const dateTitle = ref('')
@@ -519,7 +523,11 @@ function onLesemodusWechsel(bearbeiten) {
   store.setViewMode(lesemodusNachSchalter(bearbeiten === true, hasWriteRight.value))
   calendarRef.value?.refetchEvents()  // view_mode affects which statuses are shown
   calendarRef.value?.neuZuordnen?.()
-  pruefPanel.value?.laden?.()
+  // PERF-K1 (Review): EINE Quelle. Die Prüf-Zeilen gehören der Seite
+  // (`pruefIdsLaden` -> `get_kanban_board_data`); das Panel fragt den Endpunkt
+  // beim Umschalten NICHT mehr selbst — sonst gäbe es wieder zwei Antworten
+  // für dieselbe Spalte.
+  if (darfPruefen.value) pruefIdsLaden()
   // A10 (Nacharbeit 09.11.): Die MOBILE Tagesliste lädt selbst und merkt vom
   // `refetchEvents` des Rasters nichts — ohne diesen Aufruf blieb sie nach dem
   // Umschalten auf dem alten Stand (im Wegwerf-Stack: nach „Bearbeiten
@@ -1124,10 +1132,20 @@ function onResourceToggle() {
 function nachAenderung() {
   calendarRef.value?.refetchEvents()
   offeneZahlLaden()
-  pruefPanel.value?.laden?.()
+  // PERF-K1: EINE Quelle. Die Seite holt die Prüf-Zeilen
+  // (`pruefIdsLaden` -> `get_kanban_board_data`) und reicht sie an die Spalte
+  // weiter — vorher liefen hier ZWEI Aufrufe desselben Endpunkts (Panel
+  // selbst + goldene Punkte). Am Handy ist die Prüf-Spalte nicht gemountet,
+  // dort bleiben die Punkte der einzige Leser.
+  if (darfPruefen.value) pruefZeilenLaden()
   // UX2e5: Die „⋯"-Menüs neu bauen — nach einer Änderung ist der Inhalt der
   // Zeilen ein anderer Knoten.
   calendarRef.value?.neuZuordnen?.()
+}
+
+/** Prüf-Zeilen nachladen — DERSELBE Weg wie `pruefIdsLaden`, ein Endpunkt. */
+function pruefZeilenLaden() {
+  return pruefIdsLaden()
 }
 
 /**
@@ -1250,18 +1268,45 @@ async function mobilTermineLaden() {
   await pruefIdsLaden()
 }
 
-/** Zu prüfende Termine (goldene Punkte) — dieselbe Quelle wie das Panel. */
+/**
+ * Die Antwort von `get_kanban_board_data` dieses Seitenbesuchs — EINE Quelle
+ * für die goldenen Punkte (Handy) und die Spalte „Zu prüfen“ (`:zeilen`).
+ * PERF-K1: Vorher fragte das Panel denselben Endpunkt beim Aufbau ein
+ * zweites Mal; jetzt liefert die Seite ihre Antwort weiter. `null` = noch
+ * keine Antwort (das Panel zeigt dann nichts).
+ */
+const pruefZeilen = ref(null)
+
+/**
+ * PERF-K1 (Review): Ist der Prüf-Abruf dieser Seite GESCHEITERT? Vorher setzte
+ * `catch` still `pruefZeilen = null` — und `null` heisst im Panel „noch keine
+ * Antwort“, die Spalte behielt also ihren alten Stand. Jetzt sagt die Seite
+ * den Fehler an (`:fehler`), das Panel leert die Zeilen (wie vorher `laden()`).
+ */
+const pruefFehler = ref(false)
+// Review: nur die JÜNGSTE Anfrage darf den Stand setzen (überholte Antworten verwerfen).
+let pruefLadeNr = 0
+
+/** Zu prüfende Termine (goldene Punkte) — und die Zeilen für das Panel. */
 async function pruefIdsLaden() {
-  if (!darfPruefen.value) { pruefIds.value = []; return }
+  const nr = ++pruefLadeNr
+  if (!darfPruefen.value) { pruefIds.value = []; pruefZeilen.value = null; pruefFehler.value = false; return }
   try {
     const daten = await getBoardData()
-    const liste = [
-      ...(Array.isArray(daten?.vorschlaege) ? daten.vorschlaege : []),
-      ...(Array.isArray(daten?.konflikte) ? daten.konflikte : []),
-    ]
-    pruefIds.value = liste.map((e) => String(e?.id || e?.name || '')).filter(Boolean)
+    if (nr !== pruefLadeNr) return
+    const vorschlaege = Array.isArray(daten?.vorschlaege) ? daten.vorschlaege : []
+    const konflikte = Array.isArray(daten?.konflikte) ? daten.konflikte : []
+    pruefIds.value = [...vorschlaege, ...konflikte]
+      .map((e) => String(e?.id || e?.name || '')).filter(Boolean)
+    // Dieselbe Antwort traegt die Zeilen der Spalte (Vorschlaege).
+    pruefZeilen.value = vorschlaege
+    pruefFehler.value = false
   } catch (_) {
+    if (nr !== pruefLadeNr) return
     pruefIds.value = []
+    pruefZeilen.value = null
+    // Die Spalte erfaehrt davon und raeumt ihre Zeilen ab (kein alter Stand).
+    pruefFehler.value = true
   }
 }
 
@@ -1531,6 +1576,13 @@ onMounted(async () => {
   kalenderVerwaltungLaden()
   await store.fetchAccessibleCalendars()
   offeneZahlLaden()
+  // PERF-K1 (Review-Blocker): Die Spalte „Zu prüfen“ hängt am Desktop an
+  // `pruefZeilen`, und die füllt NUR `pruefIdsLaden` (dieselbe Antwort wie die
+  // goldenen Punkte am Handy). Vorher lief sie nur in `mobilTermineLaden` und
+  // `nachAenderung` — am Desktop blieb die Spalte nach dem Laden leer. Jetzt
+  // steht sie im Start, PARALLEL zu den übrigen Aufrufen (nicht dahinter).
+  // Am Handy lädt `mobilTermineLaden` sie mit — dort nicht doppelt.
+  if (darfPruefen.value && !istSchmal.value) pruefIdsLaden()
   benutzerKontextLaden()
   // A10: persönliche Standard-Ansicht (je Benutzer) lesen und anwenden —
   // am Handy beginnt die Seite damit (ohne eigene Wahl: „Liste“).

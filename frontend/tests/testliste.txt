@@ -727,6 +727,9 @@ tests/aufr1-*.test.mjs
 # Ladevorgang unverändert. Mount-Tests am echten Bauteil (jsdom +
 # vue/compiler-sfc), kein Quelltext-Muster.
 tests/aufr2-*.test.mjs
+# PERF-K1: EIN Abgleich der Kalender-Startaufrufe (kein doppelter Kontext-,
+# kein doppelter Board-Aufruf beim Aufbau der Kalender-Seite). Quelltext-Waechter.
+tests/perf-k1-*.test.mjs
 # DES-1 (Befund Manuel 17.11., hoch): Kartentitel brachen unnötig um. Ursache
 # war der gemeinsame Kartenkopf (`justify-content: space-between` + nackter
 # Titel als Flex-Kind + `flex-wrap`, dazu eine seitenlokale Kopfhöhe auf der

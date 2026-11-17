@@ -38,7 +38,16 @@ import { parse, compileScript, compileTemplate } from 'vue/compiler-sfc'
 const hier = dirname(fileURLToPath(import.meta.url))
 const SRC = resolve(hier, '..', 'src', 'diakonos')
 const source = fs.readFileSync(join(SRC, 'components', 'kronos', 'KronosSidebar.vue'), 'utf8')
-const mounted = source.match(/onMounted\(([\s\S]*?)\);\s*<\/script>/)[1]
+// PERF-K1: Der Eintrags-Aufbau der Leiste steht in `ausKontextSetzen` — er
+// reagiert jetzt auf `props.benutzerKontext` der SEITE (`watch` unten) statt
+// den Endpunkt `get_current_user_context` selbst zu fragen. Geprüft wird
+// deshalb dieser Block (derselbe Prüfgegenstand, eine Ebene tiefer).
+// `mounted` war immer der AUFBAU-Block der Leiste: er setzte „Import“ aus dem
+// Server-Kontext und durfte den Verwaltungs-Endpunkt nicht selbst laden.
+// PERF-K1 hat genau diesen Teil aus `onMounted` nach `ausKontextSetzen`
+// gezogen (der Aufbau laeuft jetzt im `watch` auf `props.benutzerKontext`) —
+// geprüft wird deshalb dieser Block, mit dem Rumpf als Prüfgegenstand.
+const mounted = source.match(/function ausKontextSetzen\(context\) \{\n([\s\S]*?)\n\}/)[1]
 const { istKalenderAdmin, kalenderVerwaltungSichtbar } = await import('../src/diakonos/components/kronos/kalenderRechte.mjs')
 
 /** Zählt die Aufrufe des Endpunkts (die Leiste selbst darf keinen auslösen). */
@@ -205,7 +214,15 @@ for (const [roles, serverAntwort, sichtbar, warum] of [
       },
     }
     vm.createContext(context)
-    await vm.runInContext(`(${mounted})()`, context)
+    // PERF-K1: Geprüft wird `ausKontextSetzen(context)` — der Block, der die
+    // Einträge der Leiste aus dem Kontext der SEITE setzt (vorher: eigener
+    // `get_current_user_context`-Aufruf in `onMounted`). `mounted` ist der
+    // Rumpf; der Kontext dieses Falls kommt als Parameter herein.
+    // Der Kontext kommt als FUNKTIONSPARAMETER herein: der Rumpf ist
+    // `ausKontextSetzen(context)` (der Block, der frueher in `onMounted` stand).
+    context.kontext = { roles, user: '' }
+    await vm.runInContext(`(function (context) {${mounted}
+})(kontext)`, context)
     assert.deepEqual(aufrufe, [], 'der Aufbau der Leiste fragt den Endpunkt selbst (kein zweiter Besitzer)')
     assert.doesNotMatch(mounted, /ladenKalenderVerwaltung/,
       'die Leiste lädt die Verwaltung noch selbst statt sie zu lesen')

@@ -42,6 +42,8 @@ Moderation (zwei Stufen)
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Iterable
 
@@ -145,10 +147,14 @@ def NEIN(grund: str) -> Entscheidung:  # noqa: N802
 
 
 def _rollen(benutzer: str) -> tuple[str, ...]:
-    """Rollen ueber die bestehende, fail-closed Quelle (Ausschluss, root, Guest)."""
+    """Rollen ueber die bestehende, fail-closed Quelle (Ausschluss, root, Guest).
+
+    PERF-K1: je Aufruf EINMAL gefragt — `get_roles` liest den Ausschluss ueber
+    `_kontozustand` (ganz `Mitglied` + ganz `User`).
+    """
     from diakronos_app.frappe_compat.permissions import get_roles
 
-    return tuple(get_roles(benutzer))
+    return _gemerkt(("rollen", benutzer), lambda: tuple(get_roles(benutzer)))
 
 
 def ist_admin(benutzer: str | None) -> bool:
@@ -197,7 +203,16 @@ def _ist_angemeldetes_mitglied(benutzer: str | None) -> bool:
 
 
 def _mitglied_von(sess, benutzer: str) -> str | None:
-    """Mitglied-Kennung eines Logins (``mitglied.user``, sonst E-Mail normalisiert)."""
+    """Mitglied-Kennung eines Logins (``mitglied.user``, sonst E-Mail normalisiert).
+
+    PERF-K1: gemerkt (je Aufruf und Login EINMAL). Die Antwort haengt nur an
+    `benutzer`, nicht an der Sitzung; der Merker wird nach jedem Schreibvorgang
+    geleert.
+    """
+    return _gemerkt(("mitglied_von", benutzer), lambda: _mitglied_von_roh(sess, benutzer))
+
+
+def _mitglied_von_roh(sess, benutzer: str) -> str | None:
     from diakronos_app.email_belegung import normalisiere
     from diakronos_app.models.core import User
     from diakronos_app.models.diakonos import Mitglied
@@ -214,6 +229,62 @@ def _mitglied_von(sess, benutzer: str) -> str | None:
     zeilen = sess.execute(select(Mitglied.name, Mitglied.email)).all()
     passend = [n for n, e in zeilen if normalisiere(e) == gesucht]
     return str(passend[0]) if len(passend) == 1 else None
+
+
+# ── Merker je Aufruf (PERF-K1) ──────────────────────────────────────────────
+#
+# BEFUND (PERF-K1, im Vorbau-Image gemessen: 10 Kalender, 50 Nutzer, 312
+# Termine, Monatsansicht): `get_calendar_events` lief durch 110 803
+# SQL-Abfragen (~60 s). Ursache war KEINE Rechte-REGEL, sondern die Zahl der
+# Aufrufe: der Rechte-Kern wurde JE TERMIN erneut befragt (`_ist_moderator` ->
+# `ist_moderator` -> `get_accessible_calendars` -> je Kalender 3x `rechte.*`),
+# und jede Frage liest `Mitglied` + `User` VOLLSTAENDIG (`benutzer_status`).
+#
+# Der Merker aendert KEINE Entscheidung: er haelt nur das Ergebnis DERSELBEN
+# Frage fuer DIESELBEN Eingaben innerhalb EINES Aufrufs fest. Er ist bewusst
+# nicht dauerhaft (kein Prozess-Cache, kein Redis) — ein waehrend der Anfrage
+# gegebenes oder genommenes Recht muss sofort wirken. Deshalb leert
+# `merker_leeren()` ihn nach jedem Schreibvorgang (siehe `db.lesesitzung`).
+_MERKER: ContextVar[dict | None] = ContextVar("diakronos_rechte_merker", default=None)
+
+
+@contextmanager
+def merkungsrahmen():
+    """Einen Merker fuer die Dauer dieses Aufrufs fuehren (idempotent)."""
+    vorhanden = _MERKER.get()
+    if vorhanden is not None:
+        yield vorhanden
+        return
+    token = _MERKER.set({})
+    try:
+        yield _MERKER.get()
+    finally:
+        _MERKER.reset(token)
+
+
+def merker_leeren() -> None:
+    """Alle gemerkten Antworten verwerfen (nach jedem Schreibvorgang).
+
+    Geleert wird das VORHANDENE Woerterbuch (`clear()`), nicht ersetzt: der
+    Rahmen (`merkungsrahmen`) haelt dieselbe Instanz, und ein Ersetzen liesse
+    ihn auf einem veralteten Stand zurueck (im Test belegt).
+    """
+    merker = _MERKER.get()
+    if merker is not None:
+        merker.clear()
+
+
+def _gemerkt(schluessel, frage):
+    """`frage()` einmal je Aufruf; danach dieselbe Antwort (ohne Rahmen: nie)."""
+    merker = _MERKER.get()
+    if merker is None:
+        return frage()
+    if schluessel not in merker:
+        merker[schluessel] = frage()
+    wert = merker[schluessel]
+    # Listen nie geteilt herausgeben: ein Aufrufer, der die Antwort veraendert,
+    # wuerde sonst den Merker veraendern.
+    return list(wert) if isinstance(wert, list) else wert
 
 
 def ist_gemeindemitglied(benutzer: str | None) -> bool:
@@ -318,6 +389,11 @@ def gruppenrolle(benutzer: str | None, gruppe: str | None) -> str | None:
     """
     if not benutzer or not gruppe or benutzer == GAST:
         return None
+    return _gemerkt(("gruppenrolle", benutzer, gruppe),
+                    lambda: _gruppenrolle_roh(benutzer, gruppe))
+
+
+def _gruppenrolle_roh(benutzer: str, gruppe: str) -> str | None:
     with lesesitzung() as sess:
         if not _gruppe_lebt(sess, gruppe):
             return None
@@ -333,6 +409,11 @@ def untergruppenrolle(benutzer: str | None, untergruppe: str | None) -> str | No
     """Rolle in einer UNTERgruppe: ``HV``/``MV`` (geerbt) / ``GL`` / ``Mitglied`` / ``None``."""
     if not benutzer or not untergruppe or benutzer == GAST:
         return None
+    return _gemerkt(("untergruppenrolle", benutzer, untergruppe),
+                    lambda: _untergruppenrolle_roh(benutzer, untergruppe))
+
+
+def _untergruppenrolle_roh(benutzer: str, untergruppe: str) -> str | None:
     with lesesitzung() as sess:
         gruppe = _hauptgruppe(sess, untergruppe)
         if not gruppe or not _gruppe_lebt(sess, gruppe):
@@ -467,6 +548,12 @@ def _objekt(sess, typ: str, objekt: str) -> RechteObjekt | None:
 
 
 def _freigaben(sess, typ: str, objekt: str, benutzer: str) -> tuple[bool, bool, bool, bool]:
+    """(lesen, schreiben, moderieren, vorschlagen) — gemerkt (PERF-K1)."""
+    return _gemerkt(("freigaben", typ, objekt, benutzer),
+                    lambda: _freigaben_roh(sess, typ, objekt, benutzer))
+
+
+def _freigaben_roh(sess, typ: str, objekt: str, benutzer: str) -> tuple[bool, bool, bool, bool]:
     """(lesen, schreiben, moderieren, vorschlagen) aus Personen- UND Gruppen-Freigaben.
 
     Gruppen-Freigabe: ``lesen`` gilt fuer jedes Gruppenmitglied (inkl. GL,
@@ -517,7 +604,7 @@ def _gemeinde_moderation(benutzer: str, typ: str, freigabe_moderieren: bool) -> 
     return JA("freigabe_moderieren") if freigabe_moderieren else NEIN("kein_moderationsrecht")
 
 
-def darf(
+def _darf_roh(
     benutzer: str | None,
     aktion: str,
     typ: str,
@@ -686,7 +773,24 @@ def _stufen_kontext(sess, benutzer: str, typ: str, eintrag) -> dict:
     }
 
 
-def pruefstufen(benutzer: str | None, typ: str, objekt: str | None) -> list[str]:
+def _objekt_und_kontext(typ: str, objekt: str, benutzer: str):
+    """`(eintrag, stufen-kontext)` eines Objekts — gemerkt (PERF-K1).
+
+    `pruefstufen` und `moderationsstufen` lesen dieselbe Zeile und rechnen
+    denselben Kontext; im Kalender-Endpunkt wurde das je Termin wiederholt.
+    """
+
+    def frage():
+        with lesesitzung() as sess:
+            eintrag = _objekt(sess, typ, objekt)
+            if eintrag is None:
+                return None
+            return eintrag, _stufen_kontext(sess, benutzer, typ, eintrag)
+
+    return _gemerkt(("objekt_kontext", typ, objekt, benutzer), frage)
+
+
+def _pruefstufen_roh(benutzer: str | None, typ: str, objekt: str | None) -> list[str]:
     """Moderationsstufen, die ``benutzer`` an ``objekt`` PRUEFEN darf.
 
     Reihenfolge ``untergruppe`` -> ``gruppe`` -> ``gemeinde`` (Manuel 11.11.):
@@ -702,11 +806,10 @@ def pruefstufen(benutzer: str | None, typ: str, objekt: str | None) -> list[str]
     if not objekt or not _ist_angemeldetes_mitglied(benutzer):
         return []
     assert benutzer is not None
-    with lesesitzung() as sess:
-        eintrag = _objekt(sess, typ, objekt)
-        if eintrag is None:
-            return [STUFE_GEMEINDE] if ist_admin(benutzer) else []
-        k = _stufen_kontext(sess, benutzer, typ, eintrag)
+    ausgang = _objekt_und_kontext(typ, objekt, benutzer)
+    if ausgang is None:
+        return [STUFE_GEMEINDE] if ist_admin(benutzer) else []
+    eintrag, k = ausgang
     if not k["modul_an"] and not k["admin"]:
         return []
     stufen: list[str] = []
@@ -722,7 +825,7 @@ def pruefstufen(benutzer: str | None, typ: str, objekt: str | None) -> list[str]
     return stufen
 
 
-def moderationsstufen(benutzer: str | None, typ: str, objekt: str) -> list[str]:
+def _moderationsstufen_roh(benutzer: str | None, typ: str, objekt: str) -> list[str]:
     """Welche Stufen ein Beitrag von ``benutzer`` in ``objekt`` durchlaeuft.
 
     Grundsatz (P0-3, bestaetigt im Konzept 11.11.): Freigeben ist eine
@@ -742,11 +845,10 @@ def moderationsstufen(benutzer: str | None, typ: str, objekt: str) -> list[str]:
     pruef = pruefstufen(benutzer, typ, objekt)
     if not (pruef or darf(benutzer, SCHREIBEN, typ, objekt) or darf(benutzer, VORSCHLAGEN, typ, objekt)):
         return []
-    with lesesitzung() as sess:
-        eintrag = _objekt(sess, typ, objekt)
-        if eintrag is None:
-            return []
-        k = _stufen_kontext(sess, benutzer or "", typ, eintrag)
+    ausgang = _objekt_und_kontext(typ, objekt, benutzer or "")
+    if ausgang is None:
+        return []
+    eintrag, k = ausgang
     stufen: list[str] = []
     if eintrag.gruppe:
         eigene = STUFE_UNTERGRUPPE if eintrag.untergruppe else STUFE_GRUPPE
@@ -955,6 +1057,48 @@ def darf_beziehung(benutzer: str | None, aktion: str, mitglied: str | None,
     return JA("eigenes_profil")
 
 
+def darf(  # noqa: F811 — Merker VOR der Rechnung (PERF-K1)
+    benutzer: str | None,
+    aktion: str,
+    typ: str,
+    objekt: str | None = None,
+    *,
+    gruppe: str | None = None,
+    untergruppe: str | None = None,
+    besitzer: str | None = None,
+    zugewiesen: Iterable[str] = (),
+    stufe: str = STUFE_GEMEINDE,
+) -> Entscheidung:
+    """Die EINE Rechtefrage — je Aufruf aber nur EINMAL gerechnet (PERF-K1).
+
+    Die Entscheidung selbst trifft unveraendert `_darf_roh`; gemerkt wird nur
+    das Ergebnis fuer dieselben Eingaben innerhalb EINES Aufrufs (`_gemerkt`).
+    Ohne Merkungsrahmen (`merkungsrahmen`) wird wie zuvor jedes Mal gerechnet.
+    """
+    return _gemerkt(
+        ("darf", benutzer, aktion, typ, objekt, gruppe, untergruppe, besitzer,
+         tuple(zugewiesen or ()), stufe),
+        lambda: _darf_roh(benutzer, aktion, typ, objekt, gruppe=gruppe,
+                          untergruppe=untergruppe, besitzer=besitzer,
+                          zugewiesen=zugewiesen or (), stufe=stufe))
+
+
+def pruefstufen(  # noqa: F811 — Merker (PERF-K1)
+    benutzer: str | None, typ: str, objekt: str | None,
+) -> list[str]:
+    """Moderationsstufen, die `benutzer` pruefen darf — gemerkt (PERF-K1)."""
+    return _gemerkt(("pruefstufen", benutzer, typ, objekt),
+                    lambda: _pruefstufen_roh(benutzer, typ, objekt))
+
+
+def moderationsstufen(  # noqa: F811 — Merker (PERF-K1)
+    benutzer: str | None, typ: str, objekt: str,
+) -> list[str]:
+    """Stufen, die ein Beitrag durchlaeuft — gemerkt (PERF-K1)."""
+    return _gemerkt(("moderationsstufen", benutzer, typ, objekt),
+                    lambda: _moderationsstufen_roh(benutzer, typ, objekt))
+
+
 # ── Chat (Manuel 17.11.2026, Konzept CHAT-KONZEPT.md Abschnitt 2/9/10) ──────
 #
 # Gruppen-/Untergruppenchat: lesen, schreiben und Umfragen starten (ANLEGEN)
@@ -1088,6 +1232,8 @@ __all__ = [
     "eigene_gruppen",
     "ist_gl_in_gruppe",
     "person_in_einheit",
+    "merkungsrahmen",
+    "merker_leeren",
     "moderationsstufen",
     "modul_aktiv",
     "pruefe",

@@ -114,7 +114,16 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 
 	async def dispatch(self, request: Request, call_next):
 		set_request(request)
+		# PERF-K1: EIN Rechte-Merker je Aufruf (`rechte.kern.merkungsrahmen`).
+		# Er haelt Antworten des Rechte-Kerns fuer DIESELBEN Eingaben fest —
+		# vorher fragte der Kalender-Endpunkt ihn je Termin erneut (110 803
+		# SQL-Abfragen fuer eine Monatsansicht, gemessen im Vorbau-Image).
+		# Geleert wird er nach jeder beendeten Transaktion
+		# (`db.lesesitzung`), eine Rechte-Aenderung wirkt also sofort.
+		from diakronos_app.rechte.kern import merkungsrahmen
+
 		try:
-			return await call_next(request)
+			with merkungsrahmen():
+				return await call_next(request)
 		finally:
 			clear_request()

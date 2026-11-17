@@ -28,6 +28,40 @@ engine = create_engine(
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
+
+# PERF-K1 (Operator-Review): JEDER Schreibvorgang leert den Rechte-Merker des
+# Aufrufs — auch ein blosses `flush()` in der Aufruf-Sitzung, das noch nicht
+# committet ist (z. B. `rechte.verwaltung._schreibsitzung` im Request-Rahmen).
+# Sonst saehe eine Rechtefrage spaeter im selben Aufruf den alten Stand.
+from sqlalchemy import event as _sa_event  # noqa: E402
+
+
+@_sa_event.listens_for(Session, "after_flush")
+def _rechte_merker_nach_flush(_session, _flush_context) -> None:
+    from diakronos_app.rechte.kern import merker_leeren
+
+    merker_leeren()
+
+
+def _merker_leeren_bei(*_args) -> None:
+    from diakronos_app.rechte.kern import merker_leeren
+
+    merker_leeren()
+
+
+# Operator-Review PERF-K1: auch Massen-Schreibbefehle (`sess.execute(update(..))`
+# / `delete(..)` / `insert(..)`, z. B. rechte.verwaltung, papierkorb) laufen an
+# `after_flush` vorbei — sie leeren den Merker hier. Ein Rollback verwirft
+# geflushte Aenderungen, auf denen gemerkte Antworten beruhen koennten.
+@_sa_event.listens_for(Session, "do_orm_execute")
+def _rechte_merker_bei_dml(state) -> None:
+    if state.is_update or state.is_delete or state.is_insert:
+        _merker_leeren_bei()
+
+
+_sa_event.listen(Session, "after_rollback", _merker_leeren_bei)
+_sa_event.listen(Session, "after_soft_rollback", _merker_leeren_bei)
+
 # Die Sitzung, die der aktuelle Aufruf bereits geoeffnet hat (Request-Rahmen
 # `_endpunkt`: `with SessionLocal.begin() as s`). Kurzlebige LESE-Helfer
 # (`frappe_compat.db.count`, `query.get_all`, `get_value`) benutzen sie statt
@@ -73,6 +107,16 @@ def lesesitzung() -> Iterator[Session]:
         yield sess
     finally:
         if eigene:
+            # PERF-K1 (Review 17.11.): Hier wird der Rechte-Merker NICHT mehr
+            # geleert. Das war zu grob: `lesesitzung()` umschliesst JEDE
+            # Rechte-Lesefrage, also leerte sich der Merker nach jeder Frage —
+            # er traf nie (im Messlauf 28 116 Leerungen fuer EINEN
+            # Kalender-Aufruf, 64 973 statt 20 723 SQL-Abfragen).
+            #
+            # Richtig bleibt es trotzdem, weil zwei Stellen den Merker nach
+            # einem SCHREIBVORGANG leeren: der `after_flush`-Zuhörer unten
+            # (jeder Flush, auch ohne Commit) und
+            # `api_helpers._abschluss()` (eigener Commit).
             sess.close()
 
 

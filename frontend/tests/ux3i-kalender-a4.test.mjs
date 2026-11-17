@@ -577,9 +577,20 @@ test('UX3i: die Seite baut den Kartenkopf „Monat / KW a–b“ und die rechte 
 
 test('UX3i: die rechte Spalte zieht nach jeder Termin-Änderung nach', () => {
   const quelle = lies('pages/Kalender.vue')
-  const teil = quelle.slice(quelle.indexOf('function nachAenderung'), quelle.indexOf('function nachAenderung') + 600)
+  const teil = quelle.slice(quelle.indexOf('function nachAenderung'), quelle.indexOf('function nachAenderung') + 900)
   assert.match(teil, /offeneZahlLaden\(\)/, 'die Kennzahl wird neu geholt')
-  assert.match(teil, /pruefPanel\.value\?\.laden\?\.\(\)/, 'die Zeilen der Spalte werden neu geladen')
+  // PERF-K1: Die Zeilen der Spalte lädt die SEITE (`pruefIdsLaden` ->
+  // `get_kanban_board_data`, vorher rief das Panel über `ref` sein eigenes
+  // `laden()`) — dann gäbe es ZWEI Antworten für dieselbe Spalte. Der
+  // Prüfgegenstand bleibt: nach einer Termin-Änderung werden die Zeilen neu
+  // geholt, und sie landen über `:zeilen` in der Spalte.
+  assert.match(teil, /pruefZeilenLaden\(\)/,
+    'die Zeilen der Spalte werden neu geladen (pruefIdsLaden der Seite)')
+  const laden = quelle.slice(quelle.indexOf('async function pruefIdsLaden'),
+    quelle.indexOf('async function pruefIdsLaden') + 900)
+  assert.match(laden, /getBoardData\(\)/, 'pruefZeilenLaden holt die Zeilen (get_kanban_board_data)')
+  assert.match(laden, /pruefZeilen\.value = vorschlaege/, 'die Antwort füllt die Zeilen der Spalte')
+  assert.match(quelle, /:zeilen="pruefZeilen"/, 'die Spalte hängt an den Zeilen der Seite')
   for (const fn of ['onEventCreated', 'onEventUpdated', 'onEventDeleted']) {
     assert.match(quelle, new RegExp(`function ${fn}\\(\\) \\{[\\s\\S]{0,80}nachAenderung\\(\\)`),
       `${fn} ruft nachAenderung()`)
@@ -807,7 +818,12 @@ test('N2-7: die Rolle kommt aus kalenderRechte.mjs (EINE Stelle)', () => {
   // (`kalenderVerwaltungSichtbar`) — die Rollenprüfung bleibt EINE Stelle.
   assert.match(quelle, /import \{[^}]*\bistKalenderAdmin\b[^}]*\} from '\.\/kalenderRechte\.mjs'/,
     'die gemeinsame Prüfung wird importiert')
-  assert.match(quelle, /const darfVerwalten = istKalenderAdmin\(context\)/)
+  // PERF-K1: Die Leiste holt den Benutzer-Kontext nicht mehr selbst; der
+  // Aufbau (und damit die Rollenprüfung) sitzt jetzt in `ausKontextSetzen`,
+  // das der `watch` auf `:benutzer-kontext` füllt. Geprüft wird dieselbe
+  // Zusage: `darfVerwalten`/`showImport` kommt aus `istKalenderAdmin`, nicht
+  // aus einer zweiten Rollenliste.
+  assert.match(quelle, /showImport\.value = istKalenderAdmin\(context\)/)
   assert.doesNotMatch(quelle, /userRoles\.includes\('Kalenderadministrator'\)/,
     'kein zweites Exemplar der Rollenprüfung (Punkt 7)')
 })

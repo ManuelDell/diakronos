@@ -77,7 +77,7 @@
  * (die Seite prüft `can_moderate`). Die Komponente selbst zeigt nichts, wenn
  * sie keine Daten bekommt.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import DkSkelett from '../ui/DkSkelett.vue'
 import DkSymbol from '../ui/DkSymbol.vue'
 import { getBoardData } from '../../api/kanbanApi.js'
@@ -89,6 +89,20 @@ import { stufenTitelEinmalLaden } from './freigabeStufenReaktiv.mjs'
 import { apiCall } from '../../composables/useApi.js'
 
 const props = defineProps({
+  /**
+   * PERF-K1: das Panel fragte `get_kanban_board_data` beim Aufbau ein ZWEITES
+   * Mal (die Seite holt dieselbe Antwort bereits für die goldenen Punkte).
+   * Die Vorschlaege kommen deshalb jetzt von der Seite; `null` = noch keine
+   * Antwort.
+   */
+  zeilen: { type: Array, default: null },
+  /**
+   * PERF-K1 (Review): Die Seite ist der EINE Besitzer. Schlaegt ihr Abruf
+   * fehl, meldet sie das hier — das Panel leert dann seine Zeilen (wie
+   * `laden()` es zuvor mit `[]` tat), statt den Stand von vorher stehen zu
+   * lassen (`null` waere „noch keine Antwort“ und wuerde ihn endlos zeigen).
+   */
+  fehler: { type: Boolean, default: false },
   /**
    * Zahl „Zu prüfen“ von der Seite (`null` = unbekannt). Sie kommt aus
    * `getModerationCount` — der Server zählt dieselbe Menge, die dieses Panel
@@ -110,6 +124,13 @@ function zurTafel() {
 }
 
 /** Vorschläge laden und in Panel-Zeilen übersetzen. */
+/**
+ * Nachladen NACH einer Aenderung (die Seite ruft `laden()` ueber `ref`).
+ *
+ * PERF-K1: Beim AUFBAU laeuft dieser Weg nicht mehr — dann liefert die Seite
+ * ihre Zeilen (`:zeilen`). Nach einer Aenderung holt das Panel selbst, weil
+ * es danach genau EINE Antwort braucht (kein zweiter Aufrufer in Sicht).
+ */
 async function laden() {
   try {
     const daten = await getBoardData()
@@ -129,13 +150,35 @@ async function laden() {
   }
 }
 
+// PERF-K1: Der Aufbau lädt NICHT mehr selbst — die SEITE ist der EINE
+// Besitzer von `get_kanban_board_data` (`pruefIdsLaden` fuer die goldenen
+// Punkte am Handy und dieses Panel brauchten DIESELBE Antwort, sie ging
+// zweimal raus). Die Seite reicht ihre Zeilen über `:zeilen` herein; das
+// Panel filtert nur noch (`uebernehmen`).
+/** Antwort der Seite uebernehmen — dieselbe Auswahl wie zuvor in `laden()`. */
+function uebernehmen(liste) {
+  rohdaten.value = (Array.isArray(liste) ? liste : [])
+    .filter(e => e?.darf_pruefen === true)
+    .map(pruefZeile)
+    .filter(Boolean)
+}
+
+watch(() => props.zeilen, (liste) => { if (liste !== null) uebernehmen(liste) },
+  { immediate: true })
+
+// PERF-K1 (Review): Ein GESCHEITERTER Abruf der Seite leert die Spalte (wie
+// vorher `laden()` mit `[]`). Ohne das bliebe der alte Stand stehen, denn die
+// Seite meldet dann `zeilen = null` — und `null` heisst „noch keine Antwort“.
+watch(() => props.fehler, (fehler) => { if (fehler) rohdaten.value = [] })
+
 onMounted(async () => {
-  // Die Stufen-Titel kommen vom Server (`get_rollen_erklaerung`).
-  await Promise.all([laden(), stufenTitelEinmalLaden(apiCall)])
+  // Die Stufen-Titel kommen vom Server (`get_rollen_erklaerung`) — ein eigener,
+  // einmaliger Aufruf (geteilter Stand `stufenTitelEinmalLaden`).
+  await stufenTitelEinmalLaden(apiCall)
   loading.value = false
 })
 
-defineExpose({ rohdaten, laden })
+defineExpose({ rohdaten, laden, uebernehmen })
 </script>
 
 <style scoped>

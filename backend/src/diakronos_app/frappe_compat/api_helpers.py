@@ -504,6 +504,11 @@ def _abschluss(sess: Any, eigene: bool) -> None:
     """
     if eigene:
         sess.commit()
+        # PERF-K1: Nach einem eigenen Commit koennen Rechte anders sein — der
+        # Rechte-Merker des Aufrufs (`rechte.kern`) wird deshalb geleert.
+        from diakronos_app.rechte.kern import merker_leeren
+
+        merker_leeren()
     else:
         sess.flush()
 

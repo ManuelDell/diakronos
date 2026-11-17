@@ -49,6 +49,9 @@ from diakronos_app.frappe_compat.api_helpers import (
     throw,
 )
 from diakronos_app.api.kronos.permissions import get_accessible_calendars
+# PERF-K1: `_gemerkt` (Rechte-Kern) wird hier EINMAL gebunden — der Merker
+# selbst bleibt der des laufenden Aufrufs (`rechte.kern.merkungsrahmen`).
+from diakronos_app.rechte.kern import _gemerkt as merker_gemerkt
 from diakronos_app.api.farbe import (
     KALENDER_STANDARD_FARBE,
     KALENDER_STANDARD_FARBE_KONFLIKT,
@@ -441,9 +444,17 @@ def _darf_ablehnung_sehen(owner: str, kalender: str) -> bool:
         return False
     if owner and owner == aktuell:
         return True
-    from diakronos_app.api.kronos.event_crud import _ist_moderator
+    if not kalender:
+        return False
 
-    return bool(kalender) and _ist_moderator(kalender)
+    # PERF-K1: Die Moderator-Frage wird JE TERMIN gestellt; sie haengt nur am
+    # Kalender und am Aufrufer — deshalb EINMAL je Aufruf und Kalender.
+    def frage() -> bool:
+        from diakronos_app.api.kronos.event_crud import _ist_moderator
+
+        return bool(_ist_moderator(kalender))
+
+    return merker_gemerkt(("ist_moderator", str(kalender)), frage)
 
 
 @whitelist(allow_guest=False)

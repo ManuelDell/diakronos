@@ -220,6 +220,8 @@ import { kalenderLeerzustand } from '../../composables/einrichtungsHinweise.mjs'
 const props = defineProps({
   // UXK-R9: steuert das Overlay am Handy (Klasse `open` in kronos.css).
   open: { type: Boolean, default: false },
+  /** Benutzer-Kontext der Seite (`Kalender.vue: benutzerKontextLaden`). */
+  benutzerKontext: { type: Object, default: null },
   /**
    * UI-R3g: „Gehört ‚Kalender verwalten‘ zu DIESEM Seitenbesuch?“ — die Seite
    * (Besitzer des Endpunkts) beantwortet das mit ihrer eigenen Antwort
@@ -390,46 +392,75 @@ async function ladeAbgelehnteTermine() {
   }
 }
 
-onMounted(async () => {
+/**
+ * Von der SEITE gesetzter Benutzer-Kontext (PERF-K1) — EIN Aufruf je Seite.
+ * Die Seite ist der Besitzer (`Kalender.vue: benutzerKontextLaden`); sie reicht
+ * ihren Stand über `:benutzer-kontext` herein. Bis dahin ist es `null` und es
+ * gibt keine Einträge (fail closed).
+ */
+const kontextVonAussen = computed(() => props.benutzerKontext)
+/**
+ * PERF-K1: `get_current_user_context` NICHT mehr selbst holen.
+ *
+ * Befund: `Kalender.vue` lädt ihn beim Seitenaufbau bereits
+ * (`benutzerKontextLaden`) — die Leiste fragte DENSELBEN Endpunkt ein
+ * zweites Mal, und beide Antworten konnten auseinanderfallen. Der Ablauf ist
+ * außerdem seriell: die Leiste wartete auf ihre eigene Antwort, bevor sie ihre
+ * Einträge setzte.
+ *
+ * Die Seite reicht ihren Stand über `:benutzer-kontext` herein
+ * (`watch` unten); ohne ihn gilt fail closed (kein Eintrag), wie bisher für
+ * „nicht Administrator“.
+ */
+/**
+ * Einträge der Leiste aus dem Kontext setzen (PERF-K1): EINE Antwort, zwei
+ * Leser. Wird vom `watch` unten gerufen — beim Aufbau (noch `null`: alles
+ * verborgen, fail closed) und sobald die Seite ihre Antwort hereinreicht.
+ */
+function ausKontextSetzen(context) {
   try {
-    // Standalone does not inject the Desk-only _kronosUserRoles global.
-    const context = await apiCall('diakronos.diakonos.api.session.get_current_user_context');
-    // OP-ADMIN-10: beide Wege haengen an derselben Rolle. Der Eintrag
-    // „Kalender verwalten“ fuehrt zur Verwaltungsseite (anlegen, Rechte,
-    // Moderatoren, loeschen) — sie prueft dieselbe Rolle serverseitig erneut.
+    // OP-ADMIN-10: beide Wege hängen an derselben Rolle. Der Eintrag
+    // „Kalender verwalten“ führt zur Verwaltungsseite (anlegen, Rechte,
+    // Moderatoren, löschen) — sie prüft dieselbe Rolle serverseitig erneut.
     // Nacharbeit 07.11. Punkt 7: Die Prüfung stand hier ein ZWEITES Mal
     // (gleiche drei Bedingungen wie `kalenderRechte.mjs`) und konnte
     // auseinanderlaufen — jetzt EINE Stelle.
-    const darfVerwalten = istKalenderAdmin(context);
-    showImport.value = darfVerwalten;
+    showImport.value = istKalenderAdmin(context)
     // UI-R3: „Kalender verwalten“ hängt am SERVER — wer Kalender pflegen oder
     // anlegen darf (HV/MV, GL, Admin), sieht den Eintrag; alle anderen
     // bekommen 403.
-    // UI-R3c: KEIN Rollen-Rückfall mehr. Vorher setzte der catch den Eintrag
-    // für Admins wieder — die Seite und die Leiste zeigten ihn damit vor der
-    // Antwort und nahmen ihn danach zurück (Flackern), und der Admin sah einen
-    // Weg, den der Server ihm zwar öffnet, den die Karte aber nicht belegen
-    // kann. Jetzt gilt für ALLE bis zur Antwort: verborgen. Ein 403 oder ein
-    // Netzfehler lassen ihn weg (fail closed) — ein Eintrag, der ins Leere
-    // führt, ist schlimmer als keiner.
-    // UI-R3e (MUSS 2): Der Endpunkt wird hier NICHT mehr gefragt — EIN
+    // UI-R3c: KEIN Rollen-Rückfall. Ein 403 oder ein Netzfehler lassen ihn
+    // weg (fail closed) — ein Eintrag, der ins Leere führt, ist schlimmer als
+    // keiner.
+    // UI-R3e (MUSS 2): Der Verwaltungs-Endpunkt wird hier NICHT gefragt — EIN
     // Besitzer lädt (`Kalender.vue` bzw. die Verwaltungsseite), die Leiste
-    // liest den reaktiven Stand und blendet den Eintrag danach ein. Vorher
-    // ging hier nach dem Await eine ZWEITE Anfrage raus, wenn die Seite ihre
-    // Antwort schon hatte („eine Anfrage zur Zeit“ griff nur bei
-    // gleichzeitigen Aufrufen). `null`/Fehler = kein Eintrag (fail closed).
+    // liest den reaktiven Stand.
   } catch {
-    showImport.value = false;
+    showImport.value = false
   }
+}
+
+watch(kontextVonAussen, (kontext) => ausKontextSetzen(kontext), { immediate: true })
+
+onMounted(async () => {
+  // PERF-K1: KEIN eigener `get_current_user_context`-Aufruf mehr — die Seite
+  // ist der EINE Besitzer und reicht ihren Stand über `:benutzer-kontext`
+  // herein (Befund: derselbe Endpunkt ging doppelt raus, seriell, mit zwei
+  // möglichen Antworten). Bis die Antwort da ist: fail closed (kein Eintrag).
+  //
+  // Der Eintrags-Aufbau selbst laeuft im `watch` oben (`ausKontextSetzen`).
+  // Hier bleibt nur der Weg der eigenen abgelehnten Termine.
+  //
   // K-A: am Schreibtisch ist die Leiste sofort sichtbar (ohne Aufklappen).
   // Nie den Aufbau der Leiste daran scheitern lassen, wenn die Liste nicht
   // geladen werden kann.
   try {
-    await ladeAbgelehnteTermine();
+    await ladeAbgelehnteTermine()
   } catch {
-    abgelehnteTermine.value = [];
+    abgelehnteTermine.value = []
   }
-});
+})
+
 </script>
 
 <style scoped>
