@@ -221,7 +221,9 @@ async function flaecheMounten({
       + '<Baustein :gruppe="props.gruppe || \'\'" :untergruppe="props.untergruppe || \'\'" '
       + ':gruppe-name="props.gruppeName || \'\'" :untergruppe-name="props.untergruppeName || \'\'" '
       + ':alle-kalender="props.alleKalender !== false" :ziele="ziele" :untergruppen="[]" '
-      + '@geaendert="ereignisse.push(\'geaendert\')" @gesperrt="ereignisse.push(\'gesperrt\')" />',
+      + '@geaendert="ereignisse.push(\'geaendert\')" @gesperrt="ereignisse.push(\'gesperrt\')" '
+      // DES-1: die Beschreibung der Fläche geht als Unterzeile an die Seite.
+      + '@hinweis="(t) => ereignisse.push([\'hinweis\', t])" />',
   })
   app.config.warnHandler = (m) => meldungen.push('warn: ' + String(m))
   app.config.errorHandler = (e) => meldungen.push('err: ' + String(e && e.message))
@@ -669,12 +671,15 @@ test('UI-R3b/M7: im Modus alleKalender gibt es genau EINEN Anlege-Knopf und EINE
 })
 
 test('UI-R3b/M7: die Gruppenseite behält ihren eigenen Anlege-Knopf', async () => {
-  const { host } = await flaecheMounten({
+  const { host, ereignisse } = await flaecheMounten({
     verwaltung: { kalender: [kalender()], anlegen_gruppen: ['G-Chor'] },
     props: { alleKalender: false, gruppe: 'G-Chor', gruppeName: 'Chor' },
   })
   assert.ok(knopf(host, 'Kalender anlegen'), 'auf der Gruppenseite fehlt der Anlege-Knopf')
-  assert.match(host.textContent, /Hier stehen die Kalender dieser Gruppe/,
+  // DES-1: die Beschreibung der Fläche steht nicht mehr als Absatz im Körper,
+  // sondern wird als Unterzeile des Kartenkopfs gemeldet (`hinweis`) — die
+  // Gruppenseite setzt sie als `DkCard sub` ein.
+  assert.ok(ereignisse.some((e) => e[0] === 'hinweis' && /Hier stehen die Kalender dieser Gruppe/.test(String(e[1]))),
     'auf der Gruppenseite fehlt der Hinweis der Fläche')
   // … und Bearbeiten/Löschen bekommt sie durch dieselbe Fläche.
   assert.ok(knopf(host, '^Bearbeiten$'), 'die Gruppenseite bekommt kein „Bearbeiten“')

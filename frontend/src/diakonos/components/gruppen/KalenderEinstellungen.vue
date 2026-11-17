@@ -19,15 +19,12 @@
     />
 
     <template v-else-if="!gesperrt && antwortDa">
-      <!-- UI-R3b: der Hinweis gehört dem ORT. In der Kalenderverwaltung
-           (`alleKalender`) stehen hier nicht „die Kalender dieser Gruppe“, und
-           es gibt keinen Grund für einen zweiten Hinweis neben dem der Seite
-           (A4: eine Primäraktion, ein Hinweis). -->
-      <p v-if="!alleKalender" class="ke-hinweis">
-        Hier stehen die Kalender dieser Gruppe<span v-if="istUntergruppe"> und dieser
-        Untergruppe</span>. Wer einen Kalender sieht, einträgt oder prüft, steht je
-        Kalender unter „Freigaben“.
-      </p>
+      <!-- DES-1: der Hinweis gehört dem ORT — seit DES-1 steht er strukturell
+           im KARTENKOPF (`DkCard sub`, über `@hinweis` an die Seite), nicht
+           mehr als erster Absatz im Körper: dort quetschte er den Kartentitel.
+           In der Kalenderverwaltung (`alleKalender`) gibt es ihn nicht — dort
+           stehen nicht „die Kalender dieser Gruppe“, und ein zweiter Hinweis
+           neben dem der Seite wäre einer zu viel (A4). -->
 
       <!-- ── Anlegen ──────────────────────────────────────────────────── -->
       <!-- UI-R3b: im Modus `alleKalender` führt die SEITE den einen
@@ -46,49 +43,71 @@
       />
 
       <div v-else class="ke-liste">
-        <DkCard v-for="k in zeilen" :key="k.name" flach>
-          <div class="ke-karte" :data-kalender="k.name">
-            <div class="ke-kopf">
-              <span class="ke-farbe" :style="{ background: k.farbe || 'var(--primary)' }" aria-hidden="true"></span>
-              <div class="ke-titel">
-                <h3 class="ke-name">{{ k.titel }}</h3>
-                <p class="ke-meta">
-                  {{ zuordnungsText(k) }}
-                  <!-- UI-R3d: Bei einem Gemeinde-Kalender gibt es keine Gruppe,
-                       an der „alle Gruppenmitglieder lesen“ hängen könnte —
-                       der Satz nennt dann nur „Gemeinde“. -->
-                  <template v-if="k.gruppe || k.untergruppe">
-                    ·
-                    {{ k.standard_gruppe_lesen ? 'alle Gruppenmitglieder lesen' : 'Lesen nur bei Freigabe' }}
-                  </template>
-                  <template v-if="k.selbstverwaltet"> · selbstverwaltet</template>
-                </p>
-              </div>
-            </div>
-
-            <!-- UI-R3b: Bearbeiten und Löschen stehen je Kalender wieder hier
-                 (UI-R3 hatte sie ersatzlos entfernt). Es gibt EINE Fläche für
-                 alle Orte, also bekommt auch „Kalender der Gruppe“ beides. -->
-            <div class="ke-aktionen">
-              <DkButton
-                class="ke-bearbeiten"
-                variant="secondary"
-                size="md"
-                :disabled="Boolean(busy)"
-                @click="bearbeiten(k)"
-              >Bearbeiten</DkButton>
-              <DkButton
-                class="ke-loeschen"
-                variant="ghost"
-                size="md"
-                :disabled="Boolean(busy)"
-                @click="entfernen(k)"
-              >Löschen</DkButton>
-              <DkButton class="ke-aufklappen" variant="ghost" size="md" @click="umschalten(k.name)">
-                {{ offen === k.name ? 'Schließen' : 'Freigaben & Sichtbarkeit' }}
-              </DkButton>
-            </div>
-
+        <!-- DES-1: je Kalender EINE FLACHE Zeile im Kopf der Karte — kein
+             Karte-in-Karte mit eigenem Schatten/Polster (Review 2: die Zeilen
+             sind Gliederungen INNERHALB der Karte „Kalender der Gruppe“, nicht
+             Karten für sich). Titel und Zuordnung trägt der Kartenkopf
+             (`title`/`sub`), die Überschrift steht eine Ebene tiefer (`ebene=3`
+             → h3 unter dem h2 der Karte), und der Farbpunkt des Kalenders
+             gehört als Kennzeichen VOR den Titel (`#vor-titel`, Review 3).
+             DES-1b: der Kopf ist KEIN Eigenbau mehr — der Baustein schreibt
+             Überschrift, Unterzeile, Ellipse und Handy-Umbruch; die Zeile
+             liefert nur noch `title`/`sub`/`ebene` und den Punkt.
+             `zeile`: der Baustein gibt seine Kopf-Polsterung ab (DES-1b,
+             Review 4) — die Zeile polstert selbst, Titel und Freigaben-Feld
+             stehen bündig; `flach` nimmt den Innenabstand des Körpers. -->
+        <DkCard
+          v-for="k in zeilen"
+          :key="k.name"
+          class="ke-zeile"
+          flach
+          zeile
+          :data-kalender="k.name"
+          :ebene="3"
+          :title="k.titel"
+          :sub="kalenderZeileText(k)"
+        >
+          <template #vor-titel>
+            <span
+              class="ke-farbe"
+              :style="{ background: k.farbe || 'var(--primary)' }"
+              aria-hidden="true"
+            ></span>
+          </template>
+          <template #actions>
+            <DkButton
+              class="ke-bearbeiten"
+              variant="ghost"
+              size="md"
+              :disabled="Boolean(busy)"
+              @click="bearbeiten(k)"
+            >Bearbeiten</DkButton>
+            <DkButton
+              class="ke-loeschen"
+              variant="ghost"
+              size="md"
+              :disabled="Boolean(busy)"
+              @click="entfernen(k)"
+            >Löschen</DkButton>
+            <!-- DES-1 (Review 1): EIN Weg zum Aufklappen — der Knopf im Kopf
+                 hängt am selben Handler wie vorher der Körperknopf
+                 (`umschalten`). Der zweite Knopf im Körper ist entfallen.
+                 DES-1b (Review 5): `aria-controls` zeigt auf das Feld, das er
+                 aufklappt (id `ke-freigaben-<name>`). -->
+            <DkButton
+              class="ke-aufklappen"
+              variant="ghost"
+              size="md"
+              :disabled="Boolean(busy)"
+              :aria-expanded="offen === k.name ? 'true' : 'false'"
+              :aria-controls="freigabenFeldId(k.name)"
+              @click="umschalten(k.name)"
+            >{{ offen === k.name ? 'Freigaben schließen' : 'Freigaben' }}</DkButton>
+          </template>
+          <div
+            :id="freigabenFeldId(k.name)"
+            class="ke-koerper"
+          >
             <!-- Die Freigaben werden ERST beim Aufklappen geladen: die
                  Gruppenliste kann lang sein, und die Rechte eines fremden
                  Kalenders braucht niemand, der ihn nur sieht. -->
@@ -351,7 +370,7 @@ const props = defineProps({
  *               versteckt, und „Kalender nicht geladen / Erneut versuchen“ war
  *               nie zu sehen.
  */
-const emit = defineEmits(['geaendert', 'gesperrt'])
+const emit = defineEmits(['geaendert', 'gesperrt', 'hinweis'])
 
 const istUntergruppe = computed(() => Boolean(props.untergruppe))
 
@@ -386,6 +405,25 @@ const gesperrt = ref(false)
 const antwortDa = ref(false)
 /** Anfragezähler je Kalender (nur die jüngste Antwort schreibt). */
 const zaehler = anfrageZaehler()
+
+/**
+ * DES-1: die Beschreibung dieser Karte — EINE Quelle für den Kartenkopf.
+ * Sie stand früher als erster Absatz im Körper; jetzt liest die Gruppenseite
+ * sie über `@hinweis` ab und setzt sie als `sub` in den Kopf (über die volle
+ * Textbreite). Leer, solange keine Antwort da ist (dann gibt es auch nichts
+ * zu beschreiben), und leer im Modus `alleKalender` (dort beschreibt der
+ * Hinweis der Seite den Ort, nicht diese Karte).
+ */
+const kalenderHinweis = computed(() => {
+  if (props.alleKalender || !antwortDa.value || gesperrt.value || fehler.value) return ''
+  // Wortlaut wie bisher (UI-R3b), nur an EINER Stelle statt im Markup.
+  const wo = istUntergruppe.value ? 'dieser Gruppe und dieser Untergruppe' : 'dieser Gruppe'
+  return `Hier stehen die Kalender ${wo}. Wer einen Kalender sieht, einträgt oder prüft, `
+    + 'steht je Kalender unter „Freigaben“.'
+})
+
+// DES-1: der Text geht an die SEITE (Kartenkopf der Gruppenseite).
+watch(kalenderHinweis, (text) => emit('hinweis', text), { immediate: true })
 
 /** „Wohin gehört der Kalender?“ — der vom Server erlaubte Ort. */
 const ziele = computed(() => {
@@ -725,6 +763,17 @@ function umschalten(name) {
 }
 
 /**
+ * DES-1b (Review 5): `aria-controls` des Aufklapp-Knopfs braucht die id des
+ * Feldes, das er aufklappt. Die id leitet sich aus dem Kalendernamen ab
+ * (`op2`, `team-2027`, …) — Doppelpunkte und Leerzeichen würden in einem
+ * CSS-Selektor bzw. manchen Vorlesehilfen stören, deshalb werden sie ersetzt.
+ */
+function freigabenFeldId(name) {
+  const sicher = String(name || '').replace(/[^A-Za-z0-9_-]/g, '-')
+  return `ke-freigaben-${sicher}`
+}
+
+/**
  * Zuordnung aus den KENNUNGEN der Zeile, ohne Namen zu raten: nur ein Name aus
  * `namen` zählt, der zur eigenen Kennung gehört (`G-Chor` → „Chor“). Eine
  * fremde Kennung zeigt sich selbst — sonst trüge sie den Namen dieser Seite.
@@ -739,6 +788,22 @@ function zuordnungsText(k) {
   if (zeile.untergruppe) return 'Untergruppe: ' + (namen.value[zeile.untergruppe] || zeile.untergruppe)
   if (zeile.gruppe) return 'Gruppe: ' + (namen.value[zeile.gruppe] || zeile.gruppe)
   return 'Gemeinde'
+}
+
+/**
+ * DES-1: die Unterzeile EINER Kalenderzeile — Zuordnung, Leseregel und
+ * „selbstverwaltet“ in einem Satz. Sie stand vorher im nachgebauten Kopf im
+ * Kartenkörper; jetzt ist sie die Unterzeile des Kartenkopfs (`DkCard sub`),
+ * also derselbe Baustein wie überall.
+ */
+function kalenderZeileText(k) {
+  const zeile = k || {}
+  let text = zuordnungsText(zeile)
+  if (zeile.gruppe || zeile.untergruppe) {
+    text += ' · ' + (zeile.standard_gruppe_lesen ? 'alle Gruppenmitglieder lesen' : 'Lesen nur bei Freigabe')
+  }
+  if (zeile.selbstverwaltet) text += ' · selbstverwaltet'
+  return text
 }
 
 /** Hilfesatz der Orts-Auswahl (Gemeinde-Kalender erscheint bei allen). */
@@ -954,7 +1019,7 @@ async function anlegenJetzt() {
 }
 
 /** „Kalender anlegen“ für Aufrufer (die Kalenderverwaltung öffnet denselben Dialog). */
-defineExpose({ anlegenOeffnen: dialogOeffnen })
+defineExpose({ anlegenOeffnen: dialogOeffnen, freigabenFeldId })
 
 // ── Bearbeiten (UI-R3b) ───────────────────────────────────────────────────
 const bearbeitenOffen = ref(false)
@@ -1106,24 +1171,37 @@ watch(() => props.verwaltung, (neu) => {
 
 <style scoped>
 .ke-wurzel { display: flex; flex-direction: column; gap: var(--sp-4); }
-.ke-hinweis { margin: 0; color: var(--muted); font-size: var(--fs-sm); }
 .ke-anlegen { display: flex; justify-content: flex-start; }
-.ke-liste { display: flex; flex-direction: column; gap: var(--sp-3); }
-.ke-karte { display: flex; flex-direction: column; gap: var(--sp-3); }
-.ke-kopf { display: flex; align-items: flex-start; gap: var(--sp-3); flex-wrap: wrap; }
-/* UI-R3b: Bearbeiten · Löschen · Freigaben — eine Zeile je Kalender, die am
-   Handy in die volle Kartenbreite umbricht (Inhaltsumbruch, kein Layout). */
-.ke-aktionen { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; }
+.ke-liste { display: flex; flex-direction: column; gap: var(--sp-2); }
+/* DES-1 (Review 2): eine Kalenderzeile ist eine FLACHE Gliederung in der Karte
+   „Kalender der Gruppe“ — keine Karte in der Karte: kein eigener Schatten,
+   keine eigene Rundung, keine getönte Fläche. Sie trennt sich über Abstand,
+   wie die SSOT es für Zeilen vorsieht; nur eine Haarlinie hält lange Listen
+   lesbar. Farbpunkt und Titel stehen im Kartenkopf des Bausteins (`#vor-titel`
+   + `title`/`sub`): der Punkt als Kennzeichen VOR dem Titel.
+   DES-1b (Review 2): der Innenabstand kommt AUSSCHLIESSLICH von hier — `flach`
+   nimmt Kopf und Körper des Bausteins ihre Karteninnen-Polsterung, die Zeile
+   polstert EINMAL (oben/unten), damit Titel und aufgeklapptes Freigaben-Feld
+   bündig stehen und in der äußeren Karte nichts doppelt gepolstert wird. */
+.ke-zeile {
+  box-shadow: none;
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+  padding: var(--sp-2) 0;
+}
+.ke-zeile + .ke-zeile { border-top: var(--rahmen-breite) solid var(--line); }
+/* DES-1b (Review 3): KEIN eigener Titelbau mehr — `.ke-titel` (h3 von Hand),
+   `.ke-titel-text` (eigene Ellipse + nowrap) sind entfallen. Überschrift,
+   Unterzeile, Ellipse und der Handy-Umbruch kommen aus DkCard. */
 .ke-farbe {
   width: var(--sp-3);
   height: var(--sp-3);
   border-radius: var(--radius-sm);
-  margin-top: var(--sp-1);
   flex: none;
 }
-.ke-titel { display: flex; flex-direction: column; gap: var(--sp-1); flex: 1; min-width: 0; }
-.ke-name { margin: 0; font-size: var(--fs); font-weight: var(--fw-medium); color: var(--text); overflow-wrap: anywhere; }
-.ke-meta { margin: 0; color: var(--muted); font-size: var(--fs-xs); }
+.ke-zeile > .dk-ui-card-koerper,
+.ke-zeile :deep(.dk-ui-card-koerper) { padding-top: var(--sp-2); }
 .ke-formular { display: flex; flex-direction: column; gap: var(--sp-3); }
 .ke-farbe-zeile { display: flex; align-items: center; gap: var(--sp-2); }
 .ke-farbe-feld {

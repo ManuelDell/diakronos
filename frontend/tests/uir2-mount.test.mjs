@@ -220,8 +220,12 @@ test('UI-R2/M1: eine Untergruppen-Seite zeigt nur Kalender DIESER Untergruppe', 
 // ══════════════════════════════════════════════════════════════════════════
 
 async function aufklappen(host, name) {
-  const knopf = [...host.querySelectorAll('button')]
-    .find((b) => b.closest(`[data-kalender="${name}"]`) && /Freigaben & Sichtbarkeit/.test(b.textContent))
+  // DES-1: EIN Aufklapp-Knopf im Kartenkopf (der Körperknopf ist entfallen) —
+  // gesucht wird ab der umgebenden Karte, denn der Kopf gehört der Karte.
+  const koerper = host.querySelector(`[data-kalender="${name}"]`)
+  const karte = koerper?.closest('.dk-ui-card') || koerper
+  const knopf = [...(karte ? karte.querySelectorAll('button') : [])]
+    .find((b) => /^Freigaben/.test((b.textContent || '').trim()))
   assert.ok(knopf, `Aufklapp-Knopf für ${name} fehlt`)
   knopf.click()
   await warte()

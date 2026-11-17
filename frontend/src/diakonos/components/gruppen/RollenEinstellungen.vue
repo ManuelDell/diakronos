@@ -14,17 +14,11 @@
     />
 
     <template v-else>
-      <p class="gr-rollen-hinweis">
-        <template v-if="istUntergruppe">
-          Die Gruppenleitung führt diese Untergruppe. Auswählbar sind nur
-          Personen mit einem Zugang (Konto).
-        </template>
-        <template v-else>
-          Wer hier steht, darf diese Gruppe führen: HV/MV die ganze Gruppe,
-          GL die jeweilige Untergruppe. Auswählbar sind nur Personen mit einem
-          Zugang (Konto).
-        </template>
-      </p>
+      <!-- DES-1: die Beschreibung dieser Karte steht im KARTENKOPF
+           (`DkCard sub`), nicht als erster Absatz im Körper — sie gehört
+           strukturell zum Titel und läuft dort über die volle Textbreite.
+           Der Text bleibt EINE Quelle (`rollenHinweis`), die Gruppenseite
+           reicht ihn durch. -->
 
       <!-- HV — gehört zur Hauptgruppe, auf einer Untergruppen-Seite nicht. -->
       <section v-if="!istUntergruppe" class="gr-rollen-block" data-rolle="HV">
@@ -99,7 +93,7 @@
         </ul>
 
         <div v-if="darfMv" class="gr-rollen-aktionen">
-          <DkField label="Mitverantwortliche/n hinzufügen">
+          <DkField label="Mitverantwortliche/n eintragen">
             <MitgliedAuswahl
               aria-label="Person für Mitverantwortung suchen"
               platzhalter="Name eingeben …"
@@ -160,7 +154,7 @@
                und ist keine Beschriftung). Der Platzhalter bleibt als Beispiel. -->
           <DkField
             v-if="darfGl"
-            :label="istUntergruppe ? 'Gruppenleitung hinzufügen' : `Gruppenleitung für ${u.anzeige} hinzufügen`"
+            :label="istUntergruppe ? 'Gruppenleitung eintragen' : `Gruppenleitung für ${u.anzeige} eintragen`"
           >
             <!-- GL-BESCHRIFTUNG, UI-R1c: `DkField` setzt
                  `<label for="dk-field-…">`, gibt die Kennung aber nur über den
@@ -171,7 +165,7 @@
                  Beschriftung SELBST als `aria-label` (wie das MV-Feld oben) —
                  Beide Ausdrücke nennen denselben Text; der Test hält sie zusammen. -->
             <MitgliedAuswahl
-              :aria-label="istUntergruppe ? 'Gruppenleitung hinzufügen' : `Gruppenleitung für ${u.anzeige} hinzufügen`"
+              :aria-label="istUntergruppe ? 'Gruppenleitung eintragen' : `Gruppenleitung für ${u.anzeige} eintragen`"
               platzhalter="Name eingeben …"
               :lade-optionen="personenLaden"
               @ausgewaehlt="(p) => glHinzufuegen(u.name, p)"
@@ -315,7 +309,7 @@ const props = defineProps({
   untergruppen: { type: Array, default: () => [] },
 })
 
-const emit = defineEmits(['geaendert'])
+const emit = defineEmits(['geaendert', 'hinweis'])
 
 /** Ist diese Seite die Seite einer Untergruppe? */
 const istUntergruppe = computed(() => Boolean(props.untergruppe))
@@ -326,6 +320,25 @@ const fehler = ref('')
 const daten = ref({ rollen: [], darf_hv_mv_ernennen: false, darf_verwalten: false })
 /** Laufende Aktion (sperrt genau den einen Knopf, keine Doppelklicks). */
 const busy = ref('')
+
+/**
+ * DES-1: die Beschreibung dieser Karte — EINE Quelle. Sie stand früher als
+ * erster Absatz im Kartenkörper und quetschte dort den Titel daneben; jetzt
+ * liest die Gruppenseite den Text über `@hinweis` ab und setzt ihn als
+ * `sub` in den Kartenkopf (über die volle Textbreite). `null`, solange die
+ * Rollen nicht geladen sind — dann gibt es auch keine passende Unterzeile.
+ */
+const rollenHinweis = computed(() => {
+  if (laedt.value || fehler.value) return ''
+  return istUntergruppe.value
+    ? 'Die Gruppenleitung führt diese Untergruppe. Auswählbar sind nur Personen mit einem Zugang (Konto).'
+    : 'Wer hier steht, darf diese Gruppe führen: HV/MV die ganze Gruppe, GL die jeweilige Untergruppe. '
+      + 'Auswählbar sind nur Personen mit einem Zugang (Konto).'
+})
+// Gemeldet wird der Wert an die SEITE (Kartenkopf); `immediate`, weil die
+// Unterzeile schon steht, wenn die Karte zum ersten Mal gezeichnet wird.
+watch(rollenHinweis, (text) => emit('hinweis', text), { immediate: true })
+
 
 /**
  * R-12c: Name und Untergruppenname kommen vom Server (`name`,
@@ -576,7 +589,6 @@ watch(() => [props.gruppe, props.untergruppe], () => laden())
 
 <style scoped>
 .gr-rollen { display: flex; flex-direction: column; gap: var(--sp-4); }
-.gr-rollen-hinweis { margin: 0; color: var(--muted); font-size: var(--fs-sm); }
 .gr-rollen-block { display: flex; flex-direction: column; gap: var(--sp-3); }
 /* UI-R8c — der ⓘ steht an der BLOCK-ÜBERSCHRIFT (`.gr-rollen-kopf`: Titel, ⓘ,
    Zahl), nicht in der Personenzeile. `RrInfo` liefert ZWEI Geschwister (ⓘ und

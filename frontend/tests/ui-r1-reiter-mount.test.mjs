@@ -761,8 +761,8 @@ test('UI-R1b: auf der Untergruppen-Seite nennt die Meldung den Namen der Untergr
     await zumReiter(host)
 
     // Die sichtbare Beschriftung des Suchfelds (nicht nur ein Platzhalter).
-    assert.ok(host.textContent.includes('Gruppenleitung hinzufügen'),
-      'die sichtbare Beschriftung „Gruppenleitung hinzufügen“ fehlt | '
+    assert.ok(host.textContent.includes('Gruppenleitung eintragen'),
+      'die sichtbare Beschriftung „Gruppenleitung eintragen“ fehlt | '
       + meldungen.slice(0, 4).join(' | '))
     // UI-R1c: derselbe Text ist der ZUGÄNGLICHE NAME des Eingabefelds.
     // `MitgliedAuswahl` nimmt die Kennung aus dem Feld-Slot nicht an, das
@@ -770,12 +770,12 @@ test('UI-R1b: auf der Untergruppen-Seite nennt die Meldung den Namen der Untergr
     // wäre der Name nur der Platzhalter („Name eingeben …“).
     const glFeld = host.querySelector('.dk-ma-input')
     assert.ok(glFeld, 'Suchfeld der Gruppenleitung fehlt | ' + meldungen.slice(0, 4).join(' | '))
-    assert.equal(glFeld.getAttribute('aria-label'), 'Gruppenleitung hinzufügen',
+    assert.equal(glFeld.getAttribute('aria-label'), 'Gruppenleitung eintragen',
       'der zugängliche Name des GL-Suchfelds ist nicht die sichtbare Beschriftung')
     // Die sichtbare Beschriftung hängt an einem <label>, das auf KEIN Element
     // zeigt (`for` ohne Ziel) — darum trägt das Feld den Namen selbst.
     const beschriftung = [...host.querySelectorAll('label')]
-      .find((l) => l.textContent.trim() === 'Gruppenleitung hinzufügen')
+      .find((l) => l.textContent.trim() === 'Gruppenleitung eintragen')
     assert.ok(beschriftung, 'die sichtbare Beschriftung ist kein <label>')
     assert.equal(host.querySelector(`#${CSS.escape(beschriftung.getAttribute('for') || '')}`), null,
       'das <label for> zeigt inzwischen auf ein Element — dann wäre das aria-label überflüssig')

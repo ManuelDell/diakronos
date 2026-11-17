@@ -259,7 +259,8 @@ test('UI-R3c/R1: die Gruppenauswahl eines Kalenders zeigt nur seine Gruppe und d
   assert.deepEqual(mit('get_kalender_verwaltung$').length, 1, 'die Fläche lädt die Liste selbst genau einmal')
 
   // Aufklappen → die Gruppenauswahl dieses Kalenders steht im Bild.
-  const aufklappen = [...host.querySelectorAll('button')].find((b) => /Freigaben & Sichtbarkeit/.test(b.textContent))
+  // DES-1: der Aufklapp-Knopf heißt im Kartenkopf „Freigaben“.
+  const aufklappen = [...host.querySelectorAll('button')].find((b) => /^Freigaben/.test((b.textContent || '').trim()))
   assert.ok(aufklappen, 'der Aufklapp-Knopf fehlt')
   aufklappen.click()
   await warte(20)

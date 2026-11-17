@@ -220,9 +220,18 @@ async function mounten(datei, eigenschaften = {}) {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const warnungen = []
+  // DES-1: die Gruppenseite liest die Karten-Unterzeile über `@hinweis` ab —
+  // hier wird alles mitgeschrieben, was das Bauteil meldet.
+  const ereignisse = []
   const app = Vue.createApp({
     setup: () => ({ p: eigenschaften }),
-    render: () => Vue.h(bauteil, eigenschaften),
+    render: () => Vue.h(bauteil, {
+      ...eigenschaften,
+      onHinweis: (text) => ereignisse.push(['hinweis', text]),
+      ...Object.fromEntries(Object.entries(eigenschaften)
+        .filter(([k]) => k.startsWith('on'))
+        .map(([k, v]) => [k, v])),
+    }),
   })
   app.config.warnHandler = (meldung) => warnungen.push(meldung)
   app.config.errorHandler = (fehler) => warnungen.push(String(fehler && fehler.stack ? fehler.stack : fehler))
@@ -231,6 +240,7 @@ async function mounten(datei, eigenschaften = {}) {
   return {
     host,
     app,
+    ereignisse,
     warnungen,
     weg: () => { try { app.unmount() } catch (_) { /* weg */ } host.remove() },
   }
@@ -497,13 +507,17 @@ test('UI-R8c · Ladefehler der Quelle → kein ⓘ, kein Fehlerbanner, Rollenlis
 // 5 · Untergruppen-Seite → nur das GL-ⓘ
 // ══════════════════════════════════════════════════════════════════════════
 test('UI-R8c · Untergruppen-Seite zeigt nur das GL-ⓘ', async () => {
-  const { host, weg } = await rollenBauteil({ antwort: ROLLEN_UNTER, untergruppe: 'UG-K' })
+  const { host, ereignisse, weg } = await rollenBauteil({ antwort: ROLLEN_UNTER, untergruppe: 'UG-K' })
   assert.equal(infosImBlock(host, 'HV').length, 0, 'HV gehört zur Hauptgruppe — hier kein ⓘ')
   assert.equal(infosImBlock(host, 'MV').length, 0, 'MV gehört zur Hauptgruppe — hier kein ⓘ')
   assert.equal(infosImBlock(host, 'GL').length, 1, 'das GL-ⓘ fehlt auf der Untergruppen-Seite')
   assert.equal(alleInfos(host).length, 1, 'auf der Untergruppen-Seite steht genau ein ⓘ')
-  // Gegenprobe: die Seite ist wirklich die Untergruppen-Seite.
-  assert.ok(txt(host).includes('Die Gruppenleitung führt diese Untergruppe'),
-    'die Seite zeigt nicht den Untergruppen-Text')
+  // Gegenprobe: die Seite ist wirklich die Untergruppen-Seite — der Baustein
+  // MELDET den Untergruppen-Text (DES-1: er steht seit DES-1 nicht mehr als
+  // Absatz im Körper, sondern geht als Unterzeile in den Kartenkopf; das
+  // Bauteil allein zeigt ihn deshalb nicht mehr an, `hinweis` trägt ihn).
+  const gemeldet = ereignisse.filter((e) => e[0] === 'hinweis').map((e) => e[1])
+  assert.ok(gemeldet.some((t) => String(t).includes('Die Gruppenleitung führt diese Untergruppe')),
+    'der Untergruppen-Text wird nicht als Karten-Unterzeile gemeldet')
   weg()
 })

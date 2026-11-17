@@ -354,9 +354,12 @@ async function verwaltungSeite(verwaltung) {
 
 /** Aufklappen und die Gruppenwerte der Freigabe-Auswahl DIESES Kalenders lesen. */
 async function auswahlWerte(host, name) {
-  const karte = host.querySelector(`[data-kalender="${name}"]`)
-  assert.ok(karte, 'die Karte ' + name + ' fehlt')
-  const auf = [...karte.querySelectorAll('button')].find((b) => /Freigaben & Sichtbarkeit/.test(b.textContent || ''))
+  // DES-1: der Kopf gehört der Karte (`dk-ui-card`), der Marker `data-kalender`
+  // sitzt am Kartenkörper — gesucht wird deshalb ab der umgebenden Karte.
+  const koerper = host.querySelector(`[data-kalender="${name}"]`)
+  assert.ok(koerper, 'die Karte ' + name + ' fehlt')
+  const karte = koerper.closest('.dk-ui-card') || koerper
+  const auf = [...karte.querySelectorAll('button')].find((b) => /^Freigaben/.test((b.textContent || '').trim()))
   assert.ok(auf, 'der Aufklapp-Knopf fehlt an ' + name)
   auf.click()
   await warte(20)
@@ -453,7 +456,10 @@ test('UI-R3e/R4: nach dem Löschen ist die Zeile weg, BEVOR der Toast erscheint'
   assert.deepEqual(meldungen.filter((m) => /^err:/.test(m)), [], 'Fehler: ' + meldungen.join(' | '))
   assert.ok(host.querySelector('[data-kalender="Proben"]'), 'Vorbedingung: die Zeile „Proben“ fehlt')
 
-  const karte = host.querySelector('[data-kalender="Proben"]')
+  // DES-1: der Löschen-Knopf steht im KARTENKOPF (DkCard `#actions`), die
+  // Marke `data-kalender` am Kartenkörper — gesucht wird in der ganzen Karte
+  // (`.dk-ui-card`), nicht mehr im Körper allein.
+  const karte = host.querySelector('[data-kalender="Proben"]').closest('.dk-ui-card')
   const loeschen = [...karte.querySelectorAll('button')].find((b) => /^Löschen$/.test(b.textContent || ''))
   assert.ok(loeschen, 'Vorbedingung: der Löschen-Knopf fehlt')
   loeschen.click()
@@ -465,7 +471,7 @@ test('UI-R3e/R4: nach dem Löschen ist die Zeile weg, BEVOR der Toast erscheint'
   assert.equal(toast(), undefined,
     'der Toast meldet das Löschen, während die Liste noch den alten Stand zeigt')
   assert.ok(host.querySelector('[data-kalender="Proben"]'), 'Vorbedingung: die Zeile sollte noch dastehen')
-  const knopfJetzt = [...host.querySelector('[data-kalender="Proben"]').querySelectorAll('button')]
+  const knopfJetzt = [...host.querySelector('[data-kalender="Proben"]').closest('.dk-ui-card').querySelectorAll('button')]
     .find((b) => /^Löschen$/.test(b.textContent || ''))
   assert.equal(knopfJetzt.disabled, true,
     'der Löschen-Knopf der gelöschten Zeile bleibt aktiv, während auf die frischen Daten gewartet wird')
@@ -600,4 +606,41 @@ test('UI-R3e/R7: `knownString` ist aufgelöst (keine Platzhalter-Funktion mehr)'
   // `knownString`, der nur `String(wert)` war.
   const quelle = lies('pages/KalenderVerwaltung.vue')
   assert.doesNotMatch(quelle, /knownString/, 'der Helfer `knownString` lebt noch')
+})
+
+test('DES-1: der Kopfknopf „Freigaben“ klappt die Freigaben wirklich auf (Klick-Test)', async () => {
+  // BEFUND (DES-1-Stand, Review 1): der Knopf im Kartenkopf rief
+  // `freigabenOeffnen(k)` — eine Funktion, die es im Bauteil nicht gibt. Der
+  // Klick warf einen TypeError, die Freigaben blieben zu; daneben stand ein
+  // ZWEITER Knopf im Kartenkörper („Freigaben & Sichtbarkeit“), der als
+  // einziger funktionierte. Jetzt gibt es EINEN Weg: der Kopfknopf hängt an
+  // `umschalten`. Geprüft wird der echte Klick und das Auf-/Zuklappen.
+  hierarchie()
+  const host = await verwaltungSeite({
+    kalender: [kalender({ name: 'Proben', titel: 'Proben', gruppe: 'G-Chor' })],
+    anlegen_gruppen: ['G-Chor'],
+    anlegen_untergruppen: [],
+    darf_gemeinde_kalender: false,
+  })
+  const koerper = host.querySelector('[data-kalender="Proben"]')
+  assert.ok(koerper, 'die Kalenderzeile fehlt')
+  const zeile = koerper.closest('.dk-ui-card') || koerper
+  const knoepfe = [...zeile.querySelectorAll('button')]
+  const aufklappen = knoepfe.filter((b) => /^Freigaben/.test((b.textContent || '').trim()))
+  assert.equal(aufklappen.length, 1,
+    `es gibt ${aufklappen.length} Freigaben-Knöpfe an der Zeile — EIN Weg ist verlangt`)
+  const knopf = aufklappen[0]
+  assert.equal(knopf.getAttribute('aria-expanded'), 'false', 'der Knopf meldet den Zustand nicht')
+  knopf.click()
+  await warte(30)
+  assert.ok(knopf.getAttribute('aria-expanded') === 'true', 'der Klick klappt die Freigaben nicht auf')
+  assert.ok(zeile.querySelector('select'),
+    'nach dem Klick fehlt die Freigabe-Auswahl (der Knopf hängt an keiner Funktion)')
+  assert.ok(aufrufe.some(([m]) => /get_objekt_rechte$/.test(m)),
+    'die Freigaben wurden beim Aufklappen nicht geladen')
+  // Zweiter Klick schließt wieder.
+  knopf.click()
+  await warte(30)
+  assert.equal(knopf.getAttribute('aria-expanded'), 'false', 'der zweite Klick schließt nicht')
+  assert.equal(zeile.querySelector('select'), null, 'die Freigaben bleiben nach dem Schließen stehen')
 })

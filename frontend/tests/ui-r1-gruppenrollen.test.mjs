@@ -228,9 +228,9 @@ test('UI-R1 · eigene Abstände/Rahmen nur als Token', () => {
 // ── UI-R1b · Kleinigkeiten des zweiten Reviews ────────────────────────────
 test('UI-R1b · GL-Suchfeld hat eine sichtbare Beschriftung UND denselben zugänglichen Namen', () => {
   const quelle = ohneKommentare(ROLLEN)
-  // `DkField :label="istUntergruppe ? 'Gruppenleitung hinzufügen' : …` — die
+  // `DkField :label="istUntergruppe ? 'Gruppenleitung eintragen' : …` — die
   // Beschriftung steht im Markup (nicht nur als `placeholder`/`aria-label`).
-  assert.match(quelle, /<DkField[\s\S]{0,200}:label="istUntergruppe \? 'Gruppenleitung hinzufügen'/,
+  assert.match(quelle, /<DkField[\s\S]{0,200}:label="istUntergruppe \? 'Gruppenleitung eintragen'/,
     'die sichtbare Beschriftung des GL-Suchfelds fehlt')
   assert.match(quelle, /<DkField[\s\S]{0,200}<MitgliedAuswahl/,
     'das Suchfeld steht nicht in einem Feld mit Beschriftung')
@@ -240,10 +240,10 @@ test('UI-R1b · GL-Suchfeld hat eine sichtbare Beschriftung UND denselben zugän
   // darum denselben Text selbst als `aria-label`.
   // Gesucht wird am GL-Feld (Beschriftung „Gruppenleitung“), nicht am MV-Feld:
   // das MV-Feld hat eine feste `aria-label` und steht weiter oben.
-  const glFeld = quelle.slice(quelle.indexOf('Gruppenleitung hinzufügen'))
+  const glFeld = quelle.slice(quelle.indexOf('Gruppenleitung eintragen'))
   const feld = glFeld.match(/<MitgliedAuswahl[\s\S]{0,400}?\/>/)
   assert.ok(feld, 'MitgliedAuswahl im GL-Feld nicht gefunden')
-  assert.match(feld[0], /:aria-label="istUntergruppe \? 'Gruppenleitung hinzufügen'/,
+  assert.match(feld[0], /:aria-label="istUntergruppe \? 'Gruppenleitung eintragen'/,
     'das GL-Suchfeld hat keinen zugänglichen Namen aus der sichtbaren Beschriftung')
 })
 

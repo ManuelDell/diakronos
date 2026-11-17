@@ -839,9 +839,26 @@ test('Gruppenseite: fokusNachAbhaken ohne offene Zielzeile → Rückfall Einklap
   document.activeElement.blur()
   document.body.focus?.()
   intern.fokusNachAbhaken({ name: 'A-AUCH-WEG', erledigt: false })
-  const ueberschrift = host.querySelector('.grup-aufgaben-zahl')
+  // DES-1: die Zahl „3 offen“ steht als Unterzeile im Kartenkopf — der
+  // Fokusanker ist das leere `span.grup-fokusanker` an ihrer Stelle.
+  const ueberschrift = host.querySelector('.grup-fokusanker')
   assert.ok(ueberschrift, 'die Aufgaben-Überschrift fehlt')
   assert.ok(ueberschrift.hasAttribute('tabindex'),
     'die Aufgaben-Überschrift ist nicht fokussierbar (kein `tabindex`) — der Rückfall kann nicht greifen')
+  // DES-1b (Review 4): WEDER `aria-label` am rollenlosen span (unzulässig,
+  // Review 6) NOCH `role="status"` (falsche Rolle: der Anker meldet nichts,
+  // Review 4). Der Name kommt aus einem sichtbar-versteckten Text INNEN —
+  // derselbe Zahltext wie die Unterzeile („3 offen“).
+  assert.equal(ueberschrift.getAttribute('aria-label'), null,
+    'der Fokusanker trägt noch ein `aria-label` (an einem rollenlosen span unzulässig)')
+  assert.equal(ueberschrift.getAttribute('role'), null,
+    'der Fokusanker trägt noch eine Rolle (`role="status"` ist hier falsch)')
+  const versteckt = ueberschrift.querySelector('.dk-nur-vorlesen')
+  assert.ok(versteckt, 'der Fokusanker hat keinen sichtbar-versteckten Text als Namen')
+  const name = txt(versteckt)
+  assert.match(name, /offen|Aufgaben/,
+    `der Fokusanker hat keinen sprechenden Namen (versteckter Text: „${name}“)`)
+  // Der Name ist derselbe Zahltext wie die Karten-Unterzeile (eine Quelle).
+  assert.equal(name, txt(host.querySelector('.grup-fokusanker .dk-nur-vorlesen')))
   weg()
 })

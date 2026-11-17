@@ -66,7 +66,11 @@
                      kein Titel doppelt. Die Karten gehören der Seite, die
                      Bausteine darin bringen nur ihren Inhalt mit. -->
                 <div class="grup-einstellungen">
-                    <DkCard title="Rollen der Gruppe">
+                    <!-- DES-1: die Beschreibung der Karte steht im KOPF
+                         (`sub`), nicht als erster Absatz im Körper — der Text
+                         kommt aus dem Baustein (`@hinweis`), damit es EINE
+                         Quelle bleibt. -->
+                    <DkCard title="Rollen der Gruppe" :sub="rollenHinweis">
                         <GruppenEinstellungen
                             teil="rollen"
                             :gruppe="obergruppeId"
@@ -75,6 +79,7 @@
                             :gruppe-name="obergruppeName"
                             :untergruppe-name="eigenerUntergruppenName"
                             @geaendert="nachladen"
+                            @hinweis="rollenHinweis = $event"
                         />
                     </DkCard>
                     <!-- UI-R2d: Karte und Baustein stehen SOFORT im Baum —
@@ -85,8 +90,11 @@
                          verschwand bei 403 wieder. Versteckt wird sie mit
                          `display:none` (kein `v-if`) — das Kind bleibt
                          montiert und meldet seine Antwort. -->
+                    <!-- DES-1: auch hier steht die Beschreibung im Kopf
+                         (`sub`) — Text aus dem Baustein (`@hinweis`). -->
                     <DkCard
                         title="Kalender der Gruppe"
+                        :sub="kalenderHinweis"
                         :style="{ display: kalenderKarteSichtbar ? null : 'none' }"
                     >
                         <div data-kalender-flaeche>
@@ -99,6 +107,7 @@
                                 :untergruppe-name="eigenerUntergruppenName"
                                 @geaendert="nachladen"
                                 @gesperrt="kalenderStand"
+                                @hinweis="kalenderHinweis = $event"
                             />
                         </div>
                     </DkCard>
@@ -222,7 +231,7 @@
                 <!-- RECHTE SPALTE -->
                 <div class="grup-spalte">
                     <!-- Aufgaben -->
-                    <DkCard title="Aufgaben">
+                    <DkCard title="Aufgaben" :sub="aufgabenSub">
                         <template #actions>
                             <DkButton v-if="darfAufgabeAnlegen" variant="ghost" size="md" @click="showAufgabeInput = !showAufgabeInput" aria-label="Aufgabe anlegen">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -256,7 +265,24 @@
                         </div>
                         <DkEmpty v-if="aufgaben.length === 0" title="Noch keine Aufgaben" text="Hier sammelt die Gruppe, was zu tun ist. Wer verwalten darf, legt Aufgaben an und weist sie zu." icon="📋" />
                         <template v-else>
-                            <p ref="aufgabenUeberschrift" class="grup-zahl grup-aufgaben-zahl" tabindex="-1">{{ offenZahlText(aufgaben) }}</p>
+                            <!-- DES-1: die Zahl der OFFENEN Aufgaben steht als
+                                 Unterzeile im Kartenkopf (EINE Quelle,
+                                 `offenZahlText`). Für die Tastatur bleibt sie
+                                 ansprungbar (`grup-fokusanker` + tabindex), nur
+                                 ohne eigene Zeile im Körper.
+                                 DES-1b (Review 4): WEDER `role` NOCH
+                                 `aria-label` — ein Anker ist keine Live-Region,
+                                 und `aria-label` an einem rollenlosen `span`
+                                 war unzulässig. Der Name kommt aus einem
+                                 sichtbar-versteckten Text INNEN (`.dk-nur-vorlesen`,
+                                 dieselbe Quelle `aufgabenSub`): ein Ziel ohne
+                                 Namen gibt es damit nicht, und Arbeitsmittel-
+                                 meldungen entstehen nicht (kein `role="status"`). -->
+                            <span
+                                ref="aufgabenUeberschrift"
+                                class="grup-fokusanker"
+                                tabindex="-1"
+                            ><span class="dk-nur-vorlesen">{{ aufgabenSub || 'Aufgaben' }}</span></span>
                             <ul ref="aufgabenOffenListe" class="grup-liste">
                                 <li v-for="a in aufgabenOffen" :key="a.name" class="grup-aufgabe" :data-aufgabe="a.name">
                                     <!-- Abhaken darf nur, wem die Aufgabe zugewiesen ist oder
@@ -356,10 +382,15 @@
             </DkCard>
 
             <!-- Mitglieder (Verwaltung) -->
-            <DkCard v-if="darfVerwalten" title="Mitglieder" class="grup-breit">
-                <template #actions>
-                    <span class="grup-zahl">{{ zahlWort(mitglieder.length, 'Mitglied', 'Mitglieder') }}</span>
-                </template>
+            <!-- DES-1: die Zahl der Mitglieder ist die Unterzeile der Karte
+                 (`sub`, über die volle Textbreite) — im Aktionsbereich stand
+                 eine Aussage, wo eine Handlung hingehört. -->
+            <DkCard
+                v-if="darfVerwalten"
+                title="Mitglieder"
+                :sub="zahlWort(mitglieder.length, 'Mitglied', 'Mitglieder')"
+                class="grup-breit"
+            >
                 <div class="grup-zeile grup-zeile-abstand">
                     <MitgliedAuswahl
                         ref="mitgliedAuswahl"
@@ -408,7 +439,14 @@
             </DkCard>
 
             <!-- Mitglieder (Übersicht) -->
-            <DkCard v-if="!darfVerwalten && mitglieder.length > 0" title="Mitglieder" class="grup-breit">
+            <!-- DES-1: die Zahl steht (wie in der Verwaltungsansicht) als
+                 Unterzeile im Kartenkopf, nicht als Absatz am Ende. -->
+            <DkCard
+                v-if="!darfVerwalten && mitglieder.length > 0"
+                title="Mitglieder"
+                :sub="`${zahlWort(mitglieder.length, 'Mitglied', 'Mitglieder')} in dieser Gruppe`"
+                class="grup-breit"
+            >
                 <!-- OP-HANDY-19: Vorher stand hier nur „N Mitglieder in dieser
                      Gruppe“ — die Namen waren unsichtbar und niemand
                      auffindbar. Die Liste nennt jetzt die Namen; welche Felder
@@ -426,7 +464,6 @@
                         <span v-if="m.rolle" class="grup-rolle">{{ m.rolle }}</span>
                     </li>
                 </ul>
-                <p class="grup-muted">{{ zahlWort(mitglieder.length, 'Mitglied', 'Mitglieder') }} in dieser Gruppe</p>
             </DkCard>
             </template>
         </template>
@@ -525,6 +562,14 @@ export default {
         const verantwortliche = ref([])
         const untergruppen = ref([])
         const aufgaben = ref([])
+        /**
+         * DES-1: die Unterzeile der Karte „Aufgaben“ — „3 offen“ (EINE Quelle:
+         * `offenZahlText`). Sie stand als eigener Absatz über der Liste und
+         * drückte den Kartentitel zusammen; im Kartenkopf steht sie über die
+         * volle Textbreite. Ohne Aufgaben gibt es keine Zahl (der Leerzustand
+         * sagt alles).
+         */
+        const aufgabenSub = computed(() => (aufgaben.value.length ? offenZahlText(aufgaben.value) : ''))
         const ankuendigungen = ref([])
         const wikiArtikel = ref([])
         const termine = ref([])
@@ -688,6 +733,21 @@ export default {
          * wenn diese Antwort ein 403 war.
          */
         const kalenderKarteSichtbar = computed(() => kalenderAntwortDa.value && !kalenderGesperrt.value)
+        /**
+         * DES-1: die Unterzeilen der beiden Einstellungs-Karten. Sie stehen im
+         * KARTENKOPF (`DkCard sub`) und kommen aus dem jeweiligen Baustein
+         * (`@hinweis`) — die Seite schreibt den Text nicht ein zweites Mal.
+         *
+         * Beim Wechsel der (Unter-)Gruppe fallen sie NICHT hier auf leer: der
+         * Baustein meldet seinen neuen Text selbst (`@hinweis` mit `immediate`),
+         * und beide Bausteine werden beim Gruppenwechsel mit neuem Kontext
+         * gemountet. Ein Leer-Watch an dieser Stelle lief beim Mounten gegen
+         * das erste `immediate`-Ereignis (Review: toten Leer-Watch entfernt);
+         * `rollenHinweis` wird deshalb nur noch gelesen, gesetzt wird er
+         * ausschließlich vom Baustein.
+         */
+        const rollenHinweis = ref('')
+        const kalenderHinweis = ref('')
         watch([obergruppeId, untergruppeId], () => {
             kalenderGesperrt.value = false
             kalenderAntwortDa.value = false
@@ -1717,6 +1777,8 @@ export default {
             // erscheint überhaupt erst mit der ersten Antwort — auch einer
             // Fehlerantwort. `kalenderStand` nimmt (gesperrt, antwortDa).
             kalenderKarteSichtbar,
+            rollenHinweis,
+            kalenderHinweis,
             kalenderStand,
             // UI-R1: Der Bereich „Einstellungen“ bekommt die Gruppenkennung
             // (`:gruppe="gruppeId"`). Ohne die Rückgabe war sie `undefined`,
@@ -1776,6 +1838,7 @@ export default {
             einklappKnopf,
             aufgabenOffenListe,
             aufgabenUeberschrift,
+            aufgabenSub,
             darfAbhaken,
             darfBearbeiten,
             zuweisungsText,
@@ -1856,11 +1919,19 @@ export default {
    solche ohne (Kopf mit Knopf 57 px, ohne 53 px): der Knopf (DkButton „sm“)
    ist höher als eine Zeile Titeltext. Der Ausgleich gilt NUR für die Karten
    dieser Seite — nicht in DkCard, damit nicht ~30 andere Stellen app-weit
-   ihre Kopfhöhe ändern. Nebeneinander („Details“ mit Stift, „Nächste Termine“
-   ohne) stehen dadurch beide auf derselben Höhe.
+   ihre Kopfhöhe ändern.
+   DES-1 (Befund Manuel 17.11.): Der Ausgleich gilt NUR ab Desktop-Breite und
+   nur für den KOPF, nicht für die Titelzeile (Review 4: `line-height:
+   var(--topbar-h)` auf dem Titel machte am Handy JEDE Titelzeile 56 px hoch —
+   auch in den Kalenderzeilen). Erzwungen wird weiterhin keine Titelhöhe: die
+   Mindesthöhe des Kopfs ist die Höhe eines Aktionsknopfs, damit Karten mit und
+   ohne Knopf nebeneinander auf einer Höhe stehen. Am Handy (eine Spalte,
+   Aktionsbereich in eigener Zeile) bringt das keinen Gewinn und ist aus.
    :deep, weil der Kopf in DkCard (scoped) liegt. */
-.dk-screen :deep(.dk-ui-card-kopf) {
-    min-height: calc(var(--row-h) + 2 * var(--sp-2));
+@media (min-width: 721px) {
+    .dk-screen :deep(.dk-ui-card-kopf) {
+        min-height: calc(var(--control-h) + 2 * var(--sp-2));
+    }
 }
 
 .grup-zustand { padding: var(--sp-6); text-align: center; color: var(--muted); }
@@ -1875,7 +1946,16 @@ export default {
 .grup-namensliste { list-style: none; margin: 0 0 var(--sp-3); padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .grup-namenszeile { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: var(--fs); }
 .grup-rolle { color: var(--muted); font-size: var(--fs-sm); }
-.grup-zahl { font-size: var(--fs-sm); color: var(--muted); }
+/* DES-1: „3 offen“ steht als Unterzeile im Kartenkopf (`DkCard sub`) — die
+   Klasse ist nur noch ein Fokusanker für die Tastatur (nach Abhaken springt
+   der Fokus auf die Zahl). Das flexible `inline`-Maß verhindert, dass der
+   Anker eine eigene Zeile belegt. Review 5/6/4: der Name des Ankers kommt aus
+   einem sichtbar-versteckten Text INNEN (`.dk-nur-vorlesen`, derselbe
+   `aufgabenSub`-Wert) — zuerst `aria-label` am rollenlosen `span` (unzulässig),
+   dann `role="status"` (falsche Rolle: der Anker meldet nichts), jetzt ohne
+   Rolle. Der versteckte Text ist `position: absolute` und nimmt keinen Platz;
+   der Anker bleibt damit auch ohne Zahl (Karte ausgeblendet) leer und schmal. */
+.grup-fokusanker { display: inline; }
 
 .grup-datenzeile {
     display: flex;
@@ -1946,7 +2026,6 @@ export default {
 .grup-aufgabe-meta { display: flex; flex-wrap: wrap; gap: var(--sp-2); font-size: var(--fs-xs); color: var(--muted); }
 .grup-aufgabe-zuweisung { font-weight: var(--fw-fett); }
 .grup-aufgabe-frist.is-ueberfaellig { color: var(--err); font-weight: var(--fw-fett); }
-.grup-aufgaben-zahl { margin: 0 0 var(--sp-2); }
 .grup-aufgaben-erledigt { margin-top: var(--sp-3); border-top: var(--rahmen-breite) solid var(--rahmen-farbe); padding-top: var(--sp-2); }
 /* UI-R9b: der Einklapp-Knopf ist ein `DkButton` (ghost) — eigener Fokusring
    kommt aus der Bibliothek; hier steht nur, wie ruhig er aussieht. */

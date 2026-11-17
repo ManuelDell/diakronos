@@ -427,9 +427,10 @@ async function karteMounten({ antworten: gesetzt = {} } = {}) {
 
 /** Klappt den ersten Kalender auf und wartet auf die Freigaben. */
 async function aufklappen(host) {
+  // DES-1: der Aufklapp-Knopf heißt im Kartenkopf „Freigaben“ (EIN Weg).
   const knopf = [...host.querySelectorAll('button')]
-    .find((b) => /Freigaben & Sichtbarkeit/.test(b.textContent.trim()))
-  assert.ok(knopf, 'der Knopf „Freigaben & Sichtbarkeit“ fehlt')
+    .find((b) => /^Freigaben/.test(b.textContent.trim()))
+  assert.ok(knopf, 'der Kopfknopf „Freigaben“ fehlt')
   knopf.click()
   await warte(20)
 }

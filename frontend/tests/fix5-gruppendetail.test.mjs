@@ -101,15 +101,24 @@ test('FIX-5 · DkCard bleibt unverändert (Kopfhöhe NICHT app-weit)', () => {
 })
 
 test('FIX-5 · die Detailseite gleicht die Kartenköpfe LOKAL aus', () => {
+  // DES-1 (Befund Manuel 17.11., Review 4): Der Ausgleich bleibt seitenlokal,
+  // sitzt jetzt aber am KOPF und nur ab Desktop-Breite. Die Mindesthöhe der
+  // TITELZEILE (`min-height`/`line-height: var(--topbar-h)`) ist entfallen: am
+  // Handy machte sie jede Titelzeile 56 px hoch, auch in den Kalenderzeilen.
   const t = ohneKommentare(DETAIL)
+  assert.ok(!/\.dk-screen\s*:deep\(\.dk-ui-card-titel\)\s*\{[^}]*min-height/.test(t),
+    'die Seite setzt noch eine Mindesthöhe auf der Titelzeile')
+  assert.ok(!/\.dk-screen\s*:deep\(\.dk-ui-card-titel\)\s*\{[^}]*line-height/.test(t),
+    'die Seite setzt noch eine line-height auf der Titelzeile')
   const regel = /\.dk-screen\s*:deep\(\.dk-ui-card-kopf\)\s*\{([^}]*)\}/.exec(t)
-  assert.ok(regel, 'lokale Regel .dk-screen :deep(.dk-ui-card-kopf) vorhanden')
-  const min = /min-height:\s*([^;]+);/.exec(regel[1])
-  assert.ok(min, 'min-height gesetzt (Karten mit/ohne Knopf gleich hoch)')
-  assert.match(min[1].trim(), /^calc\(var\(--row-h\)\s*\+\s*2\s*\*\s*var\(--sp-2\)\)$/,
-    'Höhe aus Tokens (--row-h + 2 × --sp-2), keine harte Zahl')
+  assert.ok(regel, 'lokale Regel .dk-screen :deep(.dk-ui-card-kopf) vorhanden (Kopf-Ausgleich)')
+  assert.match(regel[1], /min-height:\s*calc\(/, 'Mindesthöhe des Kopfs fehlt oder ist keine Rechnung')
   assert.ok(!/(^|[^-])height:\s*[^;]+;/.test(regel[1]),
-    'feste Höhe würde mehrzeilige Köpfe abschneiden — gewollt ist min-height')
+    'feste Höhe würde mehrzeilige Titel abschneiden — gewollt ist min-height')
+  // Nur ab Desktop-Breite (am Handy bringt der Ausgleich nichts und schadet).
+  const vor = t.slice(Math.max(0, t.indexOf(':deep(.dk-ui-card-kopf)') - 400), t.indexOf(':deep(.dk-ui-card-kopf)'))
+  assert.match(vor, /@media\s*\(min-width:/,
+    'der Kopf-Ausgleich gilt nicht nur ab Desktop-Breite')
 })
 
 test('FIX-5 · alle Karten der Detailseite gehen durch DkCard (eine Kopfhöhe)', () => {

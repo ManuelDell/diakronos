@@ -2559,3 +2559,18 @@ input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
     break-after: avoid;
   }
 }
+
+/* Nur für Vorleseprogramme sichtbar — GLOBAL (DES-1b-Review: die Regel stand
+   nur scoped in ModerationCard.vue, auf anderen Seiten war der Text sichtbar).
+   Kein `display: none` — sonst lesen Screenreader den Text nicht. */
+.dk-nur-vorlesen,
+.dk-sr-only {
+  position: absolute;
+  width: var(--rahmen-breite);
+  height: var(--rahmen-breite);
+  margin: calc(-1 * var(--rahmen-breite));
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}

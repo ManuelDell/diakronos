@@ -24,7 +24,7 @@ ausschliesslich aus `../../tokens.css` — feste Farbwerte (`#hex`, `rgb()`,
 | --------------- | ------------------------------------------------ |
 | `DkButton`      | Aktion: `primary`/`secondary`/`ghost`/`danger`, `sm`/`md` |
 | `DkBadge`       | Kennzeichen: `neutral`/`ok`/`warn`/`err`/`info`/`akzent` |
-| `DkCard`        | Fläche mit Kopf, Aktionen, Fuss                  |
+| `DkCard`        | Fläche mit Kopf (`title`, `sub`-Unterzeile, `ebene` für h3 in Karten), Aktionen, Fuss |
 | `DkDialog`      | Modaler Dialog mit Fokusfalle, Esc, aria; `beforeClose` prüft Verwerfen |
 | `DkBestaetigung` | Globales Fenster für `bestaetigen({titel,text,aktion,gefahr})`; Abbrechen ist Standard |
 | `DkField`       | Hülle für Eingabe: Label, Hilfe, Fehler          |

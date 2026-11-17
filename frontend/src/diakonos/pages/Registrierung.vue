@@ -117,10 +117,17 @@
       <DkEmpty v-else-if="links.length === 0" title="Keine Registrierungslinks" text="Lege den ersten Link über „Neuer Link“ an." icon="🔗" />
 
       <div v-else class="reg-grid">
-        <DkCard v-for="l in links" :key="l.name" :class="{ 'reg-karte-grau': istAus(l) }">
-          <template #header>
-            <h2 class="reg-link-titel">{{ l.bezeichnung }}</h2>
-          </template>
+        <!-- DES-1 (Review 7): Titel und Abzeichen laufen über den Kartenkopf der
+             SSOT (`title` + `#actions`) statt über einen eigenen `#header`-Slot —
+             der Kopf darf jetzt umbrechen, wenn der Platz fehlt, statt den
+             Titel zu quetschen (Karten hier sind 300 px breit). Die eigene
+             Titel-Regel `.reg-link-titel` entfällt mit. -->
+        <DkCard
+          v-for="l in links"
+          :key="l.name"
+          :title="l.bezeichnung"
+          :class="{ 'reg-karte-grau': istAus(l) }"
+        >
           <template #actions>
             <DkBadge :variant="zustandVariante(l)">{{ zustandText(l) }}</DkBadge>
             <DkBadge variant="neutral">{{ typKurz(l.typ) }}</DkBadge>
@@ -1758,7 +1765,6 @@ onMounted(() => { fetchData(); ladeLinkVorgaben() })
 .reg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--sp-4); }
 /* N3: abgelaufene/volle/ausgeschaltete Links treten zurück (Konzept: „Karte grau“). */
 .reg-karte-grau { opacity: .75; }
-.reg-link-titel { font-size: var(--fs-h3); font-weight: var(--fw-h); color: var(--text); margin: 0; }
 .reg-link-meta { display: flex; gap: var(--sp-3); font-size: var(--fs-sm); color: var(--muted); margin-bottom: var(--sp-2); }
 .reg-link-hinweis { font-size: var(--fs-sm); color: var(--muted); margin: 0 0 var(--sp-2); }
 .reg-link-plaetze { font-size: var(--fs-sm); color: var(--text); margin: var(--sp-3) 0 var(--sp-1); }

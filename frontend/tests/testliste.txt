@@ -727,6 +727,17 @@ tests/aufr1-*.test.mjs
 # Ladevorgang unverändert. Mount-Tests am echten Bauteil (jsdom +
 # vue/compiler-sfc), kein Quelltext-Muster.
 tests/aufr2-*.test.mjs
+# DES-1 (Befund Manuel 17.11., hoch): Kartentitel brachen unnötig um. Ursache
+# war der gemeinsame Kartenkopf (`justify-content: space-between` + nackter
+# Titel als Flex-Kind + `flex-wrap`, dazu eine seitenlokale Kopfhöhe auf der
+# Gruppenseite). Jetzt SSOT: `DkCard` hat ein eigenes Textfeld
+# (`flex:1 1 auto; min-width:0`), Titel einzeilig mit Ellipse, Beschreibung
+# als neue Eigenschaft `sub` darunter über die volle Breite, Aktionen daneben,
+# Handy (390 px) bricht sauber. Die Beschreibungen der Einstellungs-Karten
+# melden die Bausteine über `@hinweis` (EINE Quelle), der Absatz im
+# Kartenkörper ist weg. Mount-Tests am echten DkCard (jsdom), kein
+# Quelltext-Muster.
+tests/des1-*.test.mjs
 # BUG-S1: Dienste → Stammdaten luden nicht (Skelett blieb stehen, Befund
 # Manuel 12.11.). ZWEI Reihenfolgen derselben Adresse — der Router las die
 # Marke „-“ als Plantyp (`stammdaten_holen('-')`), die Weiterleitung baute

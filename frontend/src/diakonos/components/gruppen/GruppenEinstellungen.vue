@@ -14,6 +14,7 @@
       :untergruppe="untergruppe"
       :untergruppen="untergruppen"
       @geaendert="$emit('geaendert')"
+      @hinweis="$emit('hinweis', $event)"
     />
 
     <KalenderEinstellungen
@@ -25,6 +26,7 @@
       :untergruppen="untergruppen"
       @geaendert="$emit('geaendert')"
       @gesperrt="onGesperrt"
+      @hinweis="$emit('hinweis', $event)"
     />
   </div>
 </template>
@@ -48,7 +50,11 @@
 import RollenEinstellungen from './RollenEinstellungen.vue'
 import KalenderEinstellungen from './KalenderEinstellungen.vue'
 
-const emit = defineEmits(['geaendert', 'gesperrt'])
+/* DES-1: `hinweis` ist der Beschreibungstext, den die Bausteine für den
+   Kartenkopf melden (Rollen/Kalender) — er muss WEITERGEBEN werden, sonst
+   bliebe die Unterzeile der Karte auf der Seite für immer leer (Fund im
+   Review-Durchgang: hier fehlte die Brücke). */
+const emit = defineEmits(['geaendert', 'gesperrt', 'hinweis'])
 
 /**
  * `gesperrt` WEITERGEBEN — die Pfeil-Funktion im Muster verliert das zweite
