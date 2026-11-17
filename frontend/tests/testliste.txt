@@ -692,3 +692,12 @@ tests/uir9d-*.test.mjs
 # closed; vorhandene Artikel bleiben ohne Anlege-Recht sichtbar. Mount-Tests
 # am echten Bauteil (jsdom + vue/compiler-sfc), kein Quelltext-Muster.
 tests/uir9e-*.test.mjs
+# UI-R8c: ⓘ an den Gruppenrollen HV, MV und GL in den Gruppeneinstellungen
+# (Reiter Rollen) — je Block EINES an der ÜBERSCHRIFT (nicht je Personenzeile:
+# dort bekäme das Erklärfeld nur die Breite des Badge-Spans), mit der Erklärung
+# aus der EINEN Quelle (`api.rechte.get_rollen_erklaerung` → `gruppenrollen`),
+# einmal je Bauteil geladen; Ladefehler → kein ⓘ, kein Fehlerbanner, keine
+# leeren Reste; Leerzustand und mehrere MV → weiter genau drei ⓘ; Untergruppen-
+# Seite → nur das GL-ⓘ. Mount-Tests am echten Bauteil (jsdom +
+# vue/compiler-sfc), kein Quelltext-Muster.
+tests/uir8c-*.test.mjs

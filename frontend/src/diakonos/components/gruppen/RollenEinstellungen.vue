@@ -30,6 +30,15 @@
       <section v-if="!istUntergruppe" class="gr-rollen-block" data-rolle="HV">
         <div class="gr-rollen-kopf">
           <h4 class="gr-rollen-titel">Hauptverantwortliche/r</h4>
+          <!-- UI-R8c (Review-Nachbesserung): EIN ⓘ an der BLOCK-ÜBERSCHRIFT,
+               nicht hinter dem Badge in der Personenzeile. Hinter dem Badge
+               bekam das Erklärfeld nur die Breite des Badge-Spans (164 px
+               mitten in der Zeile, Name auf 66 px gequetscht) und es gäbe bei
+               n HV n gleiche Knöpfe. Am Kopf gibt es genau einen Platz je
+               Rolle — unabhängig von der Personenzahl und auch im Leerzustand.
+               Der Text kommt AUS DER QUELLE (`gruppenrollen.HV`); `name` ist
+               nur der kurze Rollenname fürs aria-label. -->
+          <RrInfo name="HV" :erklaerung="erklaerungVon('HV')" />
           <span class="gr-rollen-zahl">{{ geordnet.hv.length }}</span>
         </div>
         <DkEmpty
@@ -61,6 +70,9 @@
       <section v-if="!istUntergruppe" class="gr-rollen-block" data-rolle="MV">
         <div class="gr-rollen-kopf">
           <h4 class="gr-rollen-titel">Mitverantwortliche/r</h4>
+          <!-- UI-R8c: EIN ⓘ an der Überschrift (wie HV/GL) — bei mehreren MV
+               bleibt es genau einer. -->
+          <RrInfo name="MV" :erklaerung="erklaerungVon('MV')" />
           <span class="gr-rollen-zahl">{{ geordnet.mv.length }}</span>
         </div>
         <DkEmpty
@@ -102,6 +114,14 @@
       <section class="gr-rollen-block" data-rolle="GL">
         <div class="gr-rollen-kopf">
           <h4 class="gr-rollen-titel">{{ istUntergruppe ? 'Gruppenleitung' : 'Gruppenleitung je Untergruppe' }}</h4>
+          <!-- UI-R8c: EIN ⓘ an der GL-Überschrift, nicht einer je Untergruppe.
+               Die Erklärung gilt für die Rolle GL insgesamt; n gleiche Knöpfe
+               in n Blöcken wären nur Rauschen und am Handy n Zeilen mehr.
+               Den Platz an der Block-Überschrift gibt es dagegen nur EINMAL —
+               ein Badge „GL“ steht je Untergruppe, teils mehrfach. Darum sind
+               es an einer Hauptgruppe mit n Untergruppen genau drei ⓘ
+               (HV, MV, GL) — dieselbe Bauform wie HV/MV. -->
+          <RrInfo name="GL" :erklaerung="erklaerungVon('GL')" />
           <span class="gr-rollen-zahl">{{ geordnet.gl.length }}</span>
         </div>
 
@@ -260,11 +280,16 @@ import DkDialog from '../ui/DkDialog.vue'
 import DkEmpty from '../ui/DkEmpty.vue'
 import DkHint from '../ui/DkHint.vue'
 import DkSkelett from '../ui/DkSkelett.vue'
+import RrInfo from '../ui/RrInfo.vue'
 import MitgliedAuswahl from '../MitgliedAuswahl.vue'
 import { apiCall } from '../../composables/useApi.js'
 import { useLadeSkelett } from '../../composables/useLadeSkelett.js'
 import { showToast } from '../../composables/useToast.js'
 import { aktionsfehler, fehlertext } from '../../../shared/fehlertexte.js'
+// UI-R8c: die EINE Quelle der Erklärungen (`api.rechte.get_rollen_erklaerung`
+// → `gruppenrollen`) und ihre Normalform. Hier steht KEIN Rollenwissen.
+import { erklaerungFuer } from '../../composables/rollenErklaerung.mjs'
+import { rollenErklaerung } from '../../composables/useRollenRechte.js'
 import {
   HV_HINWEIS,
   darfGlPflegen,
@@ -312,6 +337,28 @@ const geordnet = computed(() => rollenOrdnen(daten.value.rollen,
 const darfMv = computed(() => !istUntergruppe.value && darfMvPflegen(daten.value))
 const darfGl = computed(() => darfGlPflegen(daten.value))
 const darfHv = computed(() => !istUntergruppe.value && darfHvUebertragen(daten.value))
+
+/**
+ * UI-R8c: die Erklärung der Gruppenrollen (HV/MV/GL) — EINMAL je Bauteil
+ * geladen, wie `ZugangKarte.vue` es macht. Fehlt sie (Ladefehler), bleibt
+ * `null`; dann zeigt `RrInfo` nichts (es zeigt ohne Erklärung keinen Knopf)
+ * und die Seite arbeitet unverändert weiter — KEIN Fehlerbanner dafür.
+ */
+const erklaerungQuelle = ref(null)
+
+/** Erklärung zu „HV“/„MV“/„GL“ (null = kein ⓘ). */
+function erklaerungVon(schluessel) {
+  return erklaerungFuer(erklaerungQuelle.value, schluessel)
+}
+
+async function ladeErklaerung() {
+  try {
+    const antwort = await rollenErklaerung()
+    erklaerungQuelle.value = antwort?.gruppenrollen || null
+  } catch {
+    erklaerungQuelle.value = null
+  }
+}
 
 /** Untergruppen in Anzeigeform — Kennung bleibt für den Server. */
 const untergruppen = computed(() => (Array.isArray(props.untergruppen) ? props.untergruppen : [])
@@ -521,7 +568,7 @@ async function hvUebertragenJetzt() {
   }
 }
 
-onMounted(() => laden())
+onMounted(() => { laden(); ladeErklaerung() })
 watch(() => [props.gruppe, props.untergruppe], () => laden())
 // Neue Untergruppen erscheinen ohne eigenes Zutun: `untergruppenMitLeitung`
 // liest `props.untergruppen` direkt, ein eigener Beobachter ist nicht nötig.
@@ -531,7 +578,17 @@ watch(() => [props.gruppe, props.untergruppe], () => laden())
 .gr-rollen { display: flex; flex-direction: column; gap: var(--sp-4); }
 .gr-rollen-hinweis { margin: 0; color: var(--muted); font-size: var(--fs-sm); }
 .gr-rollen-block { display: flex; flex-direction: column; gap: var(--sp-3); }
-.gr-rollen-kopf { display: flex; align-items: baseline; gap: var(--sp-2); }
+/* UI-R8c — der ⓘ steht an der BLOCK-ÜBERSCHRIFT (`.gr-rollen-kopf`: Titel, ⓘ,
+   Zahl), nicht in der Personenzeile. `RrInfo` liefert ZWEI Geschwister (ⓘ und
+   Erklärfeld); der Kopf ist `flex-wrap: wrap`, der ⓘ nimmt keinen Raum
+   (`flex: 0 0 auto`), das Feld bekommt mit `flex-basis: 100%` die eigene volle
+   Zeile unter der Überschrift. Kein absolut gesetztes Feld — in der
+   Personenzeile bekam das Feld sonst nur die Breite des Badge-Spans und
+   quetschte den Namen. Platzregeln wie in RollenRechte.vue (~424–432) und
+   ZugangKarte.vue: sie stehen hier, weil der ⓘ in DIESEM Kopf hängt. */
+.gr-rollen-kopf { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2); }
+.gr-rollen-kopf > .rr-info-knopf { flex: 0 0 auto; }
+.gr-rollen-kopf > .rr-info-panel { flex: 1 0 100%; }
 .gr-rollen-titel { margin: 0; font-size: var(--fs-h3); font-weight: var(--fw-h); color: var(--text); }
 .gr-rollen-zahl { color: var(--muted); font-size: var(--fs-sm); }
 .gr-rollen-untergruppe { display: flex; flex-direction: column; gap: var(--sp-2); }
