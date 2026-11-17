@@ -51,33 +51,47 @@ const lies = (abs) => readFileSync(abs, 'utf8')
 
 // ═══ 1. Detailseite: Reiter, Bearbeiten-Zustand, Rückgängig ═══════════════
 
-test('DEV-B4a: der Reiter „Beziehungen" nutzt den Baustein und reicht den Bearbeiten-Modus', () => {
+test('BEZH-UI: die Beziehungen stehen IM Hauptreiter „Details“ (kein eigener Reiter)', () => {
   const quelle = lies(DETAIL)
   assert.match(quelle,
     /import MitgliedBeziehungen from '\.\.\/components\/mitglieder\/MitgliedBeziehungen\.vue'/)
   const stelle = quelle.match(/<MitgliedBeziehungen[\s\S]*?\/>/)
-  assert.ok(stelle, 'Baustein im Reiter „Beziehungen"')
-  assert.match(stelle[0], /activeTab === 'beziehungen'/, 'haengt am Reiter')
-  assert.match(stelle[0], /:bearbeitbar="isEditing && canEdit"/, 'Nachtrag nur im Bearbeiten-Modus')
-  assert.match(stelle[0], /:beziehungen="mitglied\?\.beziehungen \|\| \[\]"/, 'Liste aus der Detailantwort')
+  assert.ok(stelle, 'Baustein im Hauptreiter')
+  // BEZH-UI (Manuel, 17.11.2026): kein Reiter mehr — der Baustein haengt am
+  // Hauptreiter „Details“ und wird dort aufgeklappt.
+  assert.match(stelle[0], /:beziehungen="beziehungenListe"/, 'Liste aus der Detailantwort')
+  assert.ok(!/activeTab === 'beziehungen'/.test(quelle), 'kein eigener Beziehungen-Reiter')
+  // Die Knoepfe haengen am SERVER-Flag, nicht an einer im Frontend geratenen Rolle.
+  assert.match(stelle[0], /:bearbeitbar="beziehungenPflegen"/,
+    'Eintragen/Entfernen nur nach permissions.beziehungen_pflegen')
+  assert.match(stelle[0], /:alle="beziehungenAlle"/, 'Haushalts-Flag der Detailantwort')
   assert.match(stelle[0], /@entfernen="beziehungEntfernen"/)
   assert.match(stelle[0], /@geaendert="loadMitglied"/, 'nach dem Eintragen neu laden')
+  // BEZH-UI (Review waveton, 17.11.2026): KEIN Aufklappen, KEINE
+  // Zusammenfassung — der Baustein steht IMMER als eigene Karte im Reiter
+  // „Details“ (er bringt seine `DkCard` selbst mit).
+  assert.ok(!/beziehungenAuf/.test(quelle), 'kein Aufklapp-Zustand')
+  assert.ok(!/md-abschnitt/.test(quelle), 'keine Zusammenfassung „N Beziehungen“')
+  assert.ok(!/Zurück zu den persönlichen Daten/.test(quelle), 'kein Zurück-Weg')
+  // Die Karte haengt am Hauptreiter und darf die Daten-Karte nicht verdraengen.
+  const detailsKarte = quelle.match(/<DkCard\s+v-if="[^"]*activeTab === 'details'[^"]*"\s+title="Persönliche Daten"/)
+  assert.ok(detailsKarte, '„Persönliche Daten“ haengt allein am Hauptreiter (kein Blenden)')
   // Die alte, nur lesende Fassung ist weg (kein zweiter Beziehungs-Block).
   assert.ok(!/<div v-for="b in mitglied\.beziehungen"/.test(quelle),
     'die alte Nur-Anzeige ist ersetzt, nicht verdoppelt')
 })
 
-test('DEV-B4a: der Reiter „Beziehungen" ist nur für die Verwaltung sichtbar', () => {
-  // Review 10.11.: Die Endpunkte verlangen Verwaltungsrecht — die Auswahl
-  // zählt alle Personen auf. Also darf der Reiter nicht bei jedem stehen
-  // (wie „Zugang", P1-8/OP-ADMIN-2).
+test('BEZH-UI: ein Reiter „Beziehungen“ existiert nicht mehr (alter Wert zeigt „Details“)', () => {
   const quelle = lies(DETAIL)
   const stelle = quelle.match(/const tabs = computed\(\(\) => \{[\s\S]*?\n\}\)/)
   assert.ok(stelle, 'Reiterliste vorhanden')
-  assert.match(stelle[0], /\.\.\.\(canEdit\.value \? \[\{ key: 'beziehungen'/,
-    '„Beziehungen" nur mit Verwaltungsrecht')
-  assert.ok(!/^\s*\{ key: 'beziehungen'/m.test(stelle[0]),
-    'kein unbedingter Beziehungen-Reiter')
+  assert.ok(!/key: 'beziehungen'/.test(stelle[0]), 'kein Beziehungen-Reiter in der Liste')
+  // Ein alter/unbekannter Reiterwert kann keinen leeren Schirm erzeugen: die
+  // Reiterleiste kennt nur die vier verbliebenen Schluessel, der aktive Reiter
+  // startet auf „details“ und wird nirgends aus der Adresse gelesen.
+  assert.match(quelle, /const activeTab = ref\('details'\)/,
+    'der aktive Reiter startet auf „Details“')
+  assert.ok(!/activeTab\.value = /.test(quelle), 'kein Umschalten aus fremden Quellen')
 })
 
 test('DEV-B4a: Entfernen ist sofort wirksam mit „Rückgängig" (UX2c) — keine Rückfrage', () => {

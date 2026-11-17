@@ -1,9 +1,9 @@
 <template>
   <!-- DEV-B4a (Befund DMB-72325633c6b5): Der Reiter „Beziehungen" war nur
-       lesend. Hier steht die Liste; im Bearbeiten-Modus kommt „Beziehung eintragen"
-       (Person suchen + Beziehungsart) und an jeder Zeile „Entfernen" mit
-       Rückgängig (UX2c — entfernt wird sofort, die Meldung bietet die
-       Rücknahme an). -->
+       lesend. Hier steht die Liste; wer Beziehungen pflegen darf, bekommt
+       „Beziehung eintragen" (Person suchen + Beziehungsart) und an jeder
+       Zeile „Entfernen" mit Rückgängig (UX2c — entfernt wird sofort, die
+       Meldung bietet die Rücknahme an). -->
   <DkCard title="Beziehungen">
     <template #actions>
       <span v-if="beziehungen.length" class="mdb-zahl">
@@ -36,7 +36,7 @@
       </li>
     </ul>
 
-    <!-- Nachtrag nur im Bearbeiten-Modus. -->
+    <!-- Nachtrag nur, wenn der Server das Pflegen erlaubt (permissions.beziehungen_pflegen). -->
     <div v-if="bearbeitbar" class="mdb-nachtrag">
       <div v-if="!offen" class="mdb-knopfzeile">
         <DkButton variant="secondary" size="sm" @click="oeffnen">Beziehung eintragen</DkButton>
@@ -46,6 +46,13 @@
       </div>
 
       <div v-else class="mdb-formular">
+        <!-- BEZH-UI: ohne `beziehungen_alle` liefert der Server nur den
+             eigenen Haushalt (gleiche Anschrift). Der Hinweis steht über der
+             Auswahl UND ersetzt eine leere Liste — nie ein leerer Kasten. -->
+        <DkHint v-if="!alle" variant="info" class="mdb-haushalt">
+          Du kannst Personen aus deinem Haushalt (gleiche Anschrift) eintragen.
+          Andere Beziehungen trägt die Mitgliederverwaltung ein.
+        </DkHint>
         <DkField label="Person">
           <MitgliedAuswahl
             ref="auswahl"
@@ -129,12 +136,20 @@ import DkCard from '../ui/DkCard.vue'
 import DkButton from '../ui/DkButton.vue'
 import DkField from '../ui/DkField.vue'
 import DkSelect from '../ui/DkSelect.vue'
+import DkHint from '../ui/DkHint.vue'
 
 const props = defineProps({
   mitgliedId: { type: String, required: true },
   beziehungen: { type: Array, default: () => [] },
-  /** Nur im Bearbeiten-Modus: Nachtrag und Entfernen erscheinen. */
+  /** Eintragen/Entfernen zeigen — kommt aus `permissions.beziehungen_pflegen`. */
   bearbeitbar: Boolean,
+  /**
+   * BEZH-UI: `permissions.beziehungen_alle` der Detailantwort — die Verwaltung
+   * darf alle Personen wählen. Ohne dieses Flag (eigenes Profil, Mitglied)
+   * liefert der Server nur den eigenen Haushalt; dann steht über der Auswahl
+   * der Haushalts-Hinweis. Die Regel selbst prüft der Server.
+   */
+  alle: { type: Boolean, default: false },
   laeuft: Boolean,
   /**
    * Server-Zugang von AUSSEN: `(methode, argumente) => Promise<any>`.
@@ -287,6 +302,9 @@ a.mdb-name:hover { text-decoration: underline; }
   align-items: center;
   gap: var(--sp-3);
 }
+/* BEZH-UI: der Haushalts-Hinweis (ohne `beziehungen_alle`) steht über der
+   Personenauswahl und braucht Abstand zum Formular darunter. */
+.mdb-haushalt { margin: 0; }
 .mdb-formular {
   display: flex;
   flex-direction: column;

@@ -89,8 +89,13 @@
             </DkHint>
         </template>
 
-        <!-- Reiter: Details -->
-        <DkCard v-if="!loading && !error && activeTab === 'details'" title="Persönliche Daten">
+        <!-- Reiter: Details (BEZH-UI: die Beziehungen stehen als EIGENE Karte
+             direkt unter „Persönliche Daten“ — kein eigener Reiter, kein
+             Aufklappen, im Bearbeiten-Modus beides gleichzeitig sichtbar.) -->
+        <DkCard
+            v-if="!loading && !error && activeTab === 'details'"
+            title="Persönliche Daten"
+        >
             <!-- Ansicht -->
             <div v-if="!isEditing">
                 <div v-for="z in detailZeilen" :key="z.label" class="md-zeile">
@@ -197,6 +202,32 @@
             </div>
         </DkCard>
 
+        <!-- BEZH-UI (Befund Manuel, 17.11.2026 / Review waveton): Beziehungen
+             hatten einen eigenen Reiter — der ist weg. Der vorhandene Baustein
+             (Liste, Eintragen, Entfernen, Zurücknehmen; DEV-B4a/UX2c) steht
+             jetzt IMMER als eigene Karte direkt unter „Persönliche Daten“ im
+             Hauptreiter „Details“ — kein Aufklappen, keine Zusammenfassung,
+             und im Bearbeiten-Modus bleibt das Formular daneben sichtbar.
+             Sichtbar für alle, die das Profil sehen (der Server kürzt
+             ausgetretene Personen in der Liste).
+             Bearbeitet wird nach dem Server-Flag `permissions.beziehungen_pflegen`;
+             die Haushalts-Regel (gleiche Anschrift) prüft der Server.
+             `v-if` (nicht `v-else-if`): die Reiter-Kette darunter bleibt an
+             „Details“/„Gruppen“ gebunden und darf keinen Zwischenschritt haben. -->
+        <MitgliedBeziehungen
+            v-if="activeTab === 'details' && !loading && !error"
+            :mitglied-id="mitgliedId"
+            :beziehungen="beziehungenListe"
+            :bearbeitbar="beziehungenPflegen"
+            :alle="beziehungenAlle"
+            :laeuft="beziehungLaeuft"
+            :api="beziehungenApi"
+            :melden="showToast"
+            :fehlertext="aktionsfehler"
+            @entfernen="beziehungEntfernen"
+            @geaendert="loadMitglied"
+        />
+
         <!-- UXD-R26: Der frühere Reiter „Dienste“ ist ENTFERNT. Er zeigte nur
              einen Platzhaltertext — einen Hinweis, der eine Funktion
              behauptete, die es nicht gibt. Wer Dienst-Übersichten
@@ -225,19 +256,9 @@
             </div>
         </DkCard>
 
-        <!-- Reiter: Beziehungen (DEV-B4a: Liste + Nachtrag im Bearbeiten-Modus) -->
-        <MitgliedBeziehungen
-            v-else-if="activeTab === 'beziehungen' && !loading && !error"
-            :mitglied-id="mitgliedId"
-            :beziehungen="mitglied?.beziehungen || []"
-            :bearbeitbar="isEditing && canEdit"
-            :laeuft="beziehungLaeuft"
-            :api="beziehungenApi"
-            :melden="showToast"
-            :fehlertext="aktionsfehler"
-            @entfernen="beziehungEntfernen"
-            @geaendert="loadMitglied"
-        />
+        <!-- BEZH-UI: Beziehungen haben KEINEN eigenen Reiter mehr (Befund
+             Manuel, 17.11.2026) — der Baustein steht als eigene Karte im
+             Hauptreiter „Details“, direkt unter „Persönliche Daten“. -->
 
         <!-- Reiter: DSGVO -->
         <DkCard v-else-if="activeTab === 'dsgvo' && !loading && !error" title="DSGVO & Einwilligungen">
@@ -414,6 +435,27 @@ const beziehungenApi = (methode, argumente) => {
 }
 const activeTab = ref('details')
 
+/* BEZH-UI (Befund Manuel, 17.11.2026): Beziehungen sind kein Reiter mehr.
+   Die Detailantwort nennt in `permissions` zwei Server-Flags (NICHT im
+   Frontend raten, welche Rolle was darf):
+     beziehungen_pflegen — Eintragen/Entfernen zeigen (Verwaltung oder eigenes
+                           Profil; `rechte.darf_beziehung`)
+     beziehungen_alle    — Verwaltung: alle Personen wählbar. Ohne dieses Flag
+                           liefert der Server nur den eigenen Haushalt; dann
+                           steht über der Auswahl der Haushalts-Hinweis.
+   Die Karte steht immer; die Flags steuern nur Knöpfe und Hinweis und
+   wandern mit der Serverantwort nach (`setzeBeziehungsRechte`). */
+const beziehungenPflegen = ref(false)
+const beziehungenAlle = ref(false)
+/** Beziehungen der Person aus der Detailantwort (Server kürzt ausgetretene). */
+const beziehungenListe = computed(() => mitglied.value?.beziehungen || [])
+
+/** Flag aus der Detailantwort in die Anzeige-Lage bringen. */
+function setzeBeziehungsRechte(perms) {
+    beziehungenPflegen.value = perms?.beziehungen_pflegen === true
+    beziehungenAlle.value = perms?.beziehungen_alle === true
+}
+
 /* UXD-R26: Beim Öffnen des Gruppen-Reiters die Zuordnung laden (einmalig).
    Ein `watch` statt „immer laden“: die Detailseite soll nicht bei jedem
    Aufruf eine zweite Anfrage stellen, die kaum jemand braucht. */
@@ -425,10 +467,8 @@ const tabs = computed(() => {
     const liste = [
         { key: 'details', label: 'Details' },
         { key: 'gruppen', label: 'Gruppen' },
-        // DEV-B4a (Review 10.11.): Der Reiter zeigt die Auswahlliste aller
-        // Personen — die Endpunkte erlauben das nur der Verwaltung. Deshalb
-        // steht der Reiter auch nur dort (wie „Zugang").
-        ...(canEdit.value ? [{ key: 'beziehungen', label: 'Beziehungen' }] : []),
+        // BEZH-UI (Befund Manuel, 17.11.2026): Kein Reiter „Beziehungen“ mehr
+        // — die Beziehungen stehen als Abschnitt im Hauptreiter „Details“.
         { key: 'dsgvo', label: 'DSGVO' },
         // P1-8 (OP-ADMIN-2): Zugang nur fuer Administratoren sichtbar.
         ...(canEdit.value ? [{ key: 'zugang', label: 'Zugang' }] : []),
@@ -730,6 +770,8 @@ async function loadMitglied() {
 
         mitglied.value = payload
         _fillEditForm(payload)
+        // BEZH-UI: die Knopf-Flags kommen aus der Serverantwort.
+        setzeBeziehungsRechte(response?.permissions)
 
         if (payload.dsgvo) {
             Object.assign(dsgvo, payload.dsgvo)
@@ -982,6 +1024,7 @@ onMounted(loadMitglied)
 }
 
 .md-liste { display: flex; flex-direction: column; gap: var(--sp-3); }
+
 .md-beziehung {
     display: flex;
     align-items: center;

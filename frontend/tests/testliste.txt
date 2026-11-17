@@ -353,6 +353,10 @@ tests/dev-b1-*.test.mjs
 # Stammdaten), Zugang nur im Bearbeiten (+ Passwort-Link immer), Schließen.
 tests/dev-b3-*.test.mjs
 tests/devb5-*.test.mjs
+# BEZH-UI (Befund Manuel 17.11.2026): Beziehungen ohne eigenen Reiter — als
+# Abschnitt im Hauptreiter „Details“, Knöpfe nach permissions.beziehungen_pflegen,
+# Haushalts-Hinweis ohne beziehungen_alle (Mount-Test an MitgliedDetail.vue).
+tests/bezhui-*.test.mjs
 # DEV-B4a: Mitglied-Detail — Beziehungen im Bearbeiten-Modus eintragen
 # („Beziehung eintragen", Person suchen + Art), Entfernen mit Rückgängig (UX2c),
 # Mount-Test am echten Bauteil (Befund DMB-72325633c6b5).
