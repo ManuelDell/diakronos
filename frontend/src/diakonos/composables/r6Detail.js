@@ -1,5 +1,5 @@
 /**
- * R6 — Welcher Eintrag steht im Detail-Dialog?
+ * R6 — Darf der Aufrufer bearbeiten?
  *
  * EINE Regel für Beiträge und Wiki-Artikel (Review-Befund 12.11., Punkt 1):
  *
@@ -9,33 +9,12 @@
  * freigeben“/„Bearbeiten“/„Löschen“.
  *
  * Seit R-12l (UI-R6e) liefern BEIDE Detail-Aufrufe `darf_bearbeiten` selbst;
- * die Leseseiten nehmen es direkt aus dem Detail. `detailMitListe` bleibt für
- * Aufrufer, die Detail- und Listenwerte zusammenlegen müssen.
+ * die Leseseiten nehmen es direkt aus dem Detail. Die frühere Zusammenlegung
+ * von Listen- und Detailwerten (`detailMitListe`) hatte damit keinen Aufrufer
+ * mehr und ist in AUFR-1 entfallen.
  *
- * Deshalb: Detailwerte ÜBER den Listeneintrag legen (der Listeneintrag bleibt
- * der Grundstand). Was das Detail NEU mitbringt (Inhalt, Kommentare), gewinnt;
- * was es NICHT liefert (`darf_bearbeiten`, `image`, `excerpt`), bleibt erhalten.
- *
- * Der Server entscheidet weiter allein: hier wird nichts bejaht oder verneint,
- * nur zusammengelegt.
+ * Der Server entscheidet allein: hier wird nichts bejaht oder verneint.
  */
-
-/**
- * @param {object|null} eintrag  Listeneintrag (trägt `darf_bearbeiten`)
- * @param {object|null} detail   Antwort des Detailaufrufs
- * @returns {object|null} Grundstand aus der Liste, überschrieben vom Detail
- */
-export function detailMitListe(eintrag, detail) {
-    const liste = eintrag && typeof eintrag === 'object' ? eintrag : {}
-    const fein = detail && typeof detail === 'object' ? detail : {}
-    const zusammen = { ...liste, ...fein }
-    // `undefined` im Detail darf einen guten Listenwert nicht wegwerfen:
-    // sonst stünde `image: undefined` über `image: '…'` und die Gestalt kippte.
-    for (const [schluessel, wert] of Object.entries(fein)) {
-        if (wert === undefined && schluessel in liste) zusammen[schluessel] = liste[schluessel]
-    }
-    return zusammen
-}
 
 /** Hat der Server Bearbeiten erlaubt? (`darf_bearbeiten`, sonst nein.) */
 export function darfBearbeiten(eintrag) {

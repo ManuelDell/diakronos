@@ -15,7 +15,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { darfBearbeiten, detailMitListe } from '../src/diakonos/composables/r6Detail.js'
+import { darfBearbeiten } from '../src/diakonos/composables/r6Detail.js'
 import {
     darfIrgendwoAnlegen, gruppeAusAdresse, vorauswahlOrt,
 } from '../src/diakonos/composables/r6AnlegenSichtbar.mjs'
@@ -38,37 +38,10 @@ const ORTE_HV = {
     ],
 }
 
-// ── Punkt 1: Detail überschreibt das Recht aus der Liste nicht ──────────────
-
-test('detailMitListe: `darf_bearbeiten` aus der Liste bleibt im Detail stehen', () => {
-    // So antwortet der Server wirklich: Liste MIT Recht, Detail OHNE.
-    const liste = { id: 'B-1', title: 'Chorprobe', darf_bearbeiten: true, image: '/f/bild.jpg' }
-    const detail = { id: 'B-1', title: 'Chorprobe', content: '<p>Text</p>', commentList: [] }
-
-    const zusammen = detailMitListe(liste, detail)
-    assert.equal(zusammen.darf_bearbeiten, true, 'Recht darf nicht verschwinden')
-    assert.equal(zusammen.content, '<p>Text</p>', 'Inhalt kommt aus dem Detail')
-    assert.equal(zusammen.image, '/f/bild.jpg', 'Bild bleibt aus der Liste')
-    assert.equal(zusammen.title, 'Chorprobe')
-})
-
-test('detailMitListe: Detailwerte gewinnen, `undefined` wirft gute Werte nicht weg', () => {
-    const liste = { id: 'W-1', excerpt: 'Kurz', tags: ['Beamer'], darf_bearbeiten: false }
-    const detail = { id: 'W-1', excerpt: 'Länger', tags: undefined }
-
-    const zusammen = detailMitListe(liste, detail)
-    assert.equal(zusammen.excerpt, 'Länger')
-    assert.deepEqual(zusammen.tags, ['Beamer'], 'undefined im Detail überschreibt nichts')
-    assert.equal(zusammen.darf_bearbeiten, false, 'ein „nein“ des Servers bleibt „nein“')
-})
-
-test('detailMitListe: ohne Listeneintrag bleibt das Detail, kein erfundenes Recht', () => {
-    const detail = { id: 'X-9', title: 'Aus der Adresse' }
-    const zusammen = detailMitListe(null, detail)
-    assert.equal(zusammen.title, 'Aus der Adresse')
-    assert.equal(darfBearbeiten(zusammen), false, 'ohne Listeneintrag KEIN Recht')
-    assert.deepEqual(detailMitListe(null, null), {})
-})
+// ── Punkt 1: Das Recht kommt aus dem Detail (Server entscheidet) ────────────
+// AUFR-1: Die drei Prüfungen der Zusammenlegung `detailMitListe` (Liste + Detail)
+// sind entfallen — seit UI-R6e tragen BEIDE Detail-Aufrufe `darf_bearbeiten`,
+// die Hilfsfunktion hatte keinen Aufrufer mehr.
 
 test('darfBearbeiten: nur echtes `true` zählt', () => {
     assert.equal(darfBearbeiten({ darf_bearbeiten: true }), true)

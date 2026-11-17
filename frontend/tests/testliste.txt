@@ -701,3 +701,14 @@ tests/uir9e-*.test.mjs
 # Seite → nur das GL-ⓘ. Mount-Tests am echten Bauteil (jsdom +
 # vue/compiler-sfc), kein Quelltext-Muster.
 tests/uir8c-*.test.mjs
+# AUFR-1: Aufräumen ohne Verhaltenswechsel — nach dem Abhaken einer Aufgabe
+# holt die Gruppenseite `get_gruppe_detail` GENAU EINMAL (der frühere zweite
+# Abruf in `nachladenStill` ist entfallen, `fetchGruppe({nachladen:true,
+# stumm, termine:false, kalender:false})` trägt ihn jetzt), keine
+# Termin-/Kalender-Abfrage, kein Skelett, keine Meldung bei Fehlschlag
+# (Liste bleibt stehen), `rechte` aus der Nachlade-Antwort wird übernommen
+# (entzogenes `aufgabe_anlegen` blendet den Knopf aus), offene
+# Detail-Bearbeitung bleibt offen. Dazu: der tote `detailMitListe` samt drei
+# Tests ist raus. Mount-Tests am echten Bauteil (jsdom + vue/compiler-sfc),
+# kein Quelltext-Muster.
+tests/aufr1-*.test.mjs

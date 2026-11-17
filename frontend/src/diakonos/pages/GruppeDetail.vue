@@ -837,7 +837,20 @@ export default {
          * bzw. `get_untergruppe_detail.rechte`) — `_rechte_der_einheit` im
          * Backend. Die Oberfläche entscheidet NICHT selbst, wer was darf: sie
          * blendet nur aus, was der Server ohnehin verweigert.
+         *
+         * AUFR-1: EINE Normalisierung für JEDES Laden dieser Seite (Erstaufbau,
+         * stilles Nachladen, Aktions-Nachladen). Vorher setzte nur
+         * `fetchGruppe` die Flags; das stille Nachladen nach dem Abhaken holte
+         * `rechte` zwar mit, übernahm sie aber nicht.
          */
+        const RECHTE_FELDER = ['verwalten', 'rollen', 'aufgabe_anlegen', 'ankuendigung_anlegen', 'wiki_anlegen']
+        function rechteAusAntwort(r) {
+            const quelle = r && typeof r === 'object' ? r : {}
+            const stand = {}
+            for (const feld of RECHTE_FELDER) stand[feld] = Boolean(quelle[feld])
+            return stand
+        }
+
         const darfAufgabeAnlegen = computed(() => rechte.value?.aufgabe_anlegen === true)
         const darfAnkuendigungAnlegen = computed(() => rechte.value?.ankuendigung_anlegen === true)
 
@@ -941,8 +954,42 @@ export default {
          * aus dem DOM: die Seite fiel zusammen, sprang nach oben und der Fokus
          * war weg. Skelett und Leerzustand hängen jetzt an `erstLadend`
          * (erster Aufbau) und `geladen`.
+         *
+         * AUFR-1 — DREI Ergänzungen, damit dieser EINE Weg auch das stille
+         * Nachladen nach dem Abhaken tragen kann (vorher ein zweiter Abruf in
+         * `nachladenStill`, der nur `aufgaben`/`mitglieder` übernahm):
+         *
+         *   - `stumm` (nur mit `nachladen`): auch im Fehlerfall KEINE Meldung.
+         *     Scheitert es, bleibt die gezeigte Liste stehen — wie beim Abhaken
+         *     gewünscht (die Aktion selbst war erfolgreich).
+         *   - `termine: false`: die Termin-Abfrage entfällt. Beim Abhaken kann
+         *     sie sich nicht geändert haben, und die Liste soll nicht warten.
+         *   - `kalender: false`: `get_accessible_calendars` entfällt (derselbe
+         *     Grund — die Kalender des Aufrufers ändern sich nicht).
+         *
+         * Die Rechte (`rechte`) setzt JEDES Laden über `rechteAusAntwort`; das
+         * ist der Punkt, an dem AUFR-1 den Fehler hatte (ein entzogenes Recht
+         * blieb nach dem stillen Nachladen stehen).
          */
-        async function fetchGruppe({ nachladen = false } = {}) {
+        /**
+         * AUFR-1: Optionen als OBJEKT oder BOOLEAN annehmen.
+         *
+         * `@geaendert="nachladen"` (GruppenEinstellungen) und
+         * `@gesperrt="kalenderStand"` reichen das Nutzlast-Feld des Ereignisses
+         * als ERSTES Argument durch — dort kommt ein `true` an, kein
+         * Optionsobjekt. Vor AUFR-1 war das folgenlos (nur `nachladen` wurde
+         * gelesen), seit der Destrukturierung wäre `true` ein Fehler
+         * („Cannot create property 'value' on boolean 'true'“, die ganze Seite
+         * fiel aus). Deshalb: `true` heißt `{ nachladen: true }`, alles andere,
+         * was kein Objekt ist, heißt „keine Optionen“.
+         */
+        function optionen(roh) {
+            if (roh === true) return { nachladen: true }
+            return roh && typeof roh === 'object' ? roh : {}
+        }
+
+        async function fetchGruppe(roh) {
+            const { nachladen = false, termine: mitTerminen = true, kalender = true, stumm = false } = optionen(roh)
             const id = gruppeId.value
             if (!id) { loading.value = false; return }
             // UI-R1b: `loading` heißt „der Inhalt fehlt noch“ — es wird NUR
@@ -976,35 +1023,37 @@ export default {
                 // Grundlage für den Reiter „Einstellungen“ und die Knöpfe
                 // (UI-R9d: Aufgabe/Ankündigung). Keine lokale Rechte-Regel:
                 // fehlt die Antwort, bleibt alles zu.
-                const r = data?.rechte || {}
-                rechte.value = {
-                    verwalten: Boolean(r.verwalten),
-                    rollen: Boolean(r.rollen),
-                    aufgabe_anlegen: Boolean(r.aufgabe_anlegen),
-                    ankuendigung_anlegen: Boolean(r.ankuendigung_anlegen),
-                    // UI-R9e: Flag für die Wiki-Karte/-Knopf
-                    wiki_anlegen: Boolean(r.wiki_anlegen),
-                }
+                rechte.value = rechteAusAntwort(data?.rechte)
                 // Nächste Termine laden (UXD-R10: eigener Endpunkt; der alte
                 // kalender.get_events-Aufruf scheiterte bei jedem Laden).
-                try {
-                    const kal = await apiCall('diakronos.diakonos.api.gruppen.get_gruppe_termine', {
-                        gruppe_id: id, tage: 60,
-                    })
-                    termine.value = (kal?.termine || []).slice(0, 4)
-                } catch (e) {
-                    termine.value = [] // Termine sind Beiwerk, kein Seitenfehler
+                // AUFR-1: Name `mitTerminen` — `termine` ist oben schon die
+                // Ref der Seite; eine Destrukturierung auf denselben Namen
+                // hätte sie in dieser Funktion verdeckt (und jeden Schreib
+                // darauf zu „Cannot create property 'value' on boolean“ gemacht).
+                if (mitTerminen) {
+                    try {
+                        const kal = await apiCall('diakronos.diakonos.api.gruppen.get_gruppe_termine', {
+                            gruppe_id: id, tage: 60,
+                        })
+                        termine.value = (kal?.termine || []).slice(0, 4)
+                    } catch (e) {
+                        termine.value = [] // Termine sind Beiwerk, kein Seitenfehler
+                    }
                 }
                 geladen.value = true
                 // UI-R5: Kalender dieser Seite für „+ Termin“ (Beiwerk wie die
                 // Termine selbst — scheitert es, gibt es keinen Knopf).
-                await ladeMeineKalender()
+                if (kalender) await ladeMeineKalender()
             } catch (err) {
                 // UI-R1b: Ein STILLES Nachladen darf den stehenden Inhalt
                 // nicht wegnehmen — der Fehler geht als Meldung raus, die
                 // Seite bleibt, wie sie war. Nur das ERSTE Laden füllt den
                 // Fehlerhinweis der Seite.
-                if (sichtbarLaden || !geladen.value) {
+                // AUFR-1: `stumm` meldet GAR NICHTS — der Weg nach dem
+                // Abhaken (die Aktion war erfolgreich, die Liste steht).
+                if (stumm) {
+                    /* still: die Anzeige von eben bleibt stehen */
+                } else if (sichtbarLaden || !geladen.value) {
                     error.value = aktionsfehler('laden', err)
                 } else {
                     showToast(aktionsfehler('laden', err), 'error')
@@ -1127,8 +1176,9 @@ export default {
                     // und Fokus sprangen). Die Liste sortiert sich selbst
                     // (`aufgabenOffen`/`aufgabenErledigt` sind computed) —
                     // deshalb genügt das Umschalten der Zeile, danach wird
-                    // still nachgeladen (ohne Ladeanzeige) und der Fokus auf
-                    // die nächste Zeile bzw. den Einklapp-Knopf gesetzt.
+                    // still nachgeladen (ohne Ladeanzeige, ohne Termine, ohne
+                    // Meldung bei Fehlschlag) und der Fokus auf die nächste
+                    // Zeile bzw. den Einklapp-Knopf gesetzt.
                     a.erledigt = !!res.erledigt
                     await nachladenStill()
                     await nextTick()
@@ -1153,20 +1203,17 @@ export default {
         }
 
         /**
-         * Nachladen OHNE Ladeanzeige: `loading` bleibt false, das Skelett bleibt
-         * aus. Die Termine werden nicht mitgeholt (sie ändern sich beim Abhaken
-         * nicht). Scheitert es, bleibt die gezeigte Liste stehen.
+         * Nachladen OHNE Ladeanzeige — nach dem Abhaken einer Aufgabe.
+         *
+         * AUFR-1: Das ist derselbe Weg wie `nachladen` (`fetchGruppe` mit
+         * `nachladen: true`), nur ohne Beiwerk und ohne Meldung. Vorher stand
+         * hier ein ZWEITER `get_gruppe_detail`-Aufruf, der nur `aufgaben` und
+         * `mitglieder` übernahm — ein entzogenes Recht (`rechte.aufgabe_anlegen`)
+         * blieb dadurch stehen. Termine und Kalender werden nicht mitgeholt:
+         * sie ändern sich beim Abhaken nicht.
          */
-        async function nachladenStill() {
-            const id = gruppeId.value
-            if (!id) return
-            try {
-                const data = await apiCall('diakronos.diakonos.api.gruppen.get_gruppe_detail', { gruppe_id: id })
-                aufgaben.value = data?.aufgaben || []
-                mitglieder.value = data?.mitglieder || mitglieder.value
-            } catch (e) {
-                /* still: die Liste von eben bleibt stehen */
-            }
+        function nachladenStill() {
+            return fetchGruppe({ nachladen: true, stumm: true, termine: false, kalender: false })
         }
 
         /**
