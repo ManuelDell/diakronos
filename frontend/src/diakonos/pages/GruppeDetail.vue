@@ -974,24 +974,42 @@ export default {
         /**
          * AUFR-1: Optionen als OBJEKT oder BOOLEAN annehmen.
          *
-         * `@geaendert="nachladen"` (GruppenEinstellungen) und
-         * `@gesperrt="kalenderStand"` reichen das Nutzlast-Feld des Ereignisses
-         * als ERSTES Argument durch — dort kommt ein `true` an, kein
-         * Optionsobjekt. Vor AUFR-1 war das folgenlos (nur `nachladen` wurde
-         * gelesen), seit der Destrukturierung wäre `true` ein Fehler
-         * („Cannot create property 'value' on boolean 'true'“, die ganze Seite
-         * fiel aus). Deshalb: `true` heißt `{ nachladen: true }`, alles andere,
-         * was kein Objekt ist, heißt „keine Optionen“.
+         * AUFR-2: `@geaendert="nachladen"` in `GruppenEinstellungen` ruft die
+         * HÜLLE `nachladen()` OHNE Argument — die Hülle reicht `{ nachladen:
+         * true }` an `fetchGruppe` weiter, hier kommt also gar kein `true` an.
+         * Der `true`-Zweig ist deshalb nur ABSICHERUNG: ein Ereignis, das
+         * seinen Nutzlast-Wert als erstes Argument durchreicht (so wäre es,
+         * wenn im Muster `@geaendert="fetchGruppe"` stünde), übergäbe hier ein
+         * `true` — und seit AUFR-1 wird destrukturiert, das ergäbe
+         * „Cannot create property 'value' on boolean 'true'“ und die ganze
+         * Seite fiele aus. Deshalb: `true` heißt `{ nachladen: true }`, alles
+         * andere, was kein Objekt ist, heißt „keine Optionen“.
+         *
+         * `@gesperrt="kalenderStand"` geht NICHT hierher — das ist die eigene
+         * Methode der Seite (`kalenderStand(gesperrt, antwortDa)`).
          */
         function optionen(roh) {
             if (roh === true) return { nachladen: true }
             return roh && typeof roh === 'object' ? roh : {}
         }
 
+        /** AUFR-2: Laufzähler dieser Seite — siehe `fetchGruppe`. */
+        let ladeNr = 0
+
         async function fetchGruppe(roh) {
             const { nachladen = false, termine: mitTerminen = true, kalender = true, stumm = false } = optionen(roh)
             const id = gruppeId.value
             if (!id) { loading.value = false; return }
+            // AUFR-2: Laufzähler. Hakt jemand ab (stilles Nachladen läuft) und
+            // wechselt sofort die (Unter-)Gruppe, sind zwei Läufe unterwegs;
+            // ohne Zähler gewinnt die zuletzt EINTREFFENDE Antwort — die Seite
+            // zeigte dann die ALTE Gruppe samt deren `rechte` (falsche
+            // Knöpfe). Nur der JÜNGSTE Lauf darf schreiben. Dieselbe Sperre
+            // gilt für den Fall, dass ein Wechsel den Lauf überholt hat
+            // (`id !== gruppeId.value`) — auch dann gehört die Antwort zu
+            // einer Seite, die es nicht mehr gibt.
+            const nr = ++ladeNr
+            const veraltet = () => nr !== ladeNr || id !== gruppeId.value
             // UI-R1b: `loading` heißt „der Inhalt fehlt noch“ — es wird NUR
             // beim ersten Aufbau gesetzt. Ein stilles Nachladen lässt den
             // Inhalt samt geöffneter Bearbeitung stehen (kein Skelett, kein
@@ -1005,6 +1023,11 @@ export default {
                 // frühere Doppelversuch erzeugte bei jedem Untergruppen-Aufruf
                 // einen 404 in der Konsole.
                 const data = await apiCall('diakronos.diakonos.api.gruppen.get_gruppe_detail', { gruppe_id: id })
+                // AUFR-2: nach JEDEM `await` prüfen — ein überholter Lauf
+                // schreibt NICHTS (weder Daten noch `rechte`, `loading`,
+                // `error` oder eine Meldung). `loading`/`erstLadend` setzt der
+                // neuere Lauf, sie bleiben also nicht hängen.
+                if (veraltet()) return
                 if (data?.untergruppe) {
                     untergruppe.value = data.untergruppe
                     gruppe.value = null
@@ -1035,16 +1058,26 @@ export default {
                         const kal = await apiCall('diakronos.diakonos.api.gruppen.get_gruppe_termine', {
                             gruppe_id: id, tage: 60,
                         })
+                        // AUFR-2: auch dieser Lauf kann überholt worden sein.
+                        if (veraltet()) return
                         termine.value = (kal?.termine || []).slice(0, 4)
                     } catch (e) {
+                        if (veraltet()) return
                         termine.value = [] // Termine sind Beiwerk, kein Seitenfehler
                     }
                 }
                 geladen.value = true
                 // UI-R5: Kalender dieser Seite für „+ Termin“ (Beiwerk wie die
                 // Termine selbst — scheitert es, gibt es keinen Knopf).
-                if (kalender) await ladeMeineKalender()
+                // AUFR-2: `ladeMeineKalender` erfährt die Sperre mit und
+                // schreibt nur, solange dieser Lauf der jüngste ist — sonst
+                // überschriebe die alte Antwort die Liste der neuen Seite.
+                if (kalender) await ladeMeineKalender(veraltet)
             } catch (err) {
+                // AUFR-2: Ein überholter Lauf meldet NICHTS — weder Banner
+                // noch Toast. Sonst stünde nach einem Wechsel der Fehler der
+                // verlassenen Gruppe über der neuen Seite.
+                if (veraltet()) return
                 // UI-R1b: Ein STILLES Nachladen darf den stehenden Inhalt
                 // nicht wegnehmen — der Fehler geht als Meldung raus, die
                 // Seite bleibt, wie sie war. Nur das ERSTE Laden füllt den
@@ -1059,7 +1092,11 @@ export default {
                     showToast(aktionsfehler('laden', err), 'error')
                 }
             } finally {
-                loading.value = false
+                // AUFR-2: `loading` gehört dem JÜNGSTEN Lauf. Ein überholter
+                // Lauf darf es NICHT auf `false` setzen — sonst verschwände
+                // das Skelett der neuen Seite, während ihre Antwort noch
+                // unterwegs ist.
+                if (!veraltet()) loading.value = false
             }
         }
 
@@ -1417,12 +1454,21 @@ export default {
          * der Kalender seine Termine nimmt. Ein Fehler hier ist kein
          * Seitenfehler: dann gibt es schlicht keinen „+ Termin“-Knopf (der
          * Server bliebe ohnehin bei seiner Entscheidung).
+         *
+         * AUFR-2: Die Antwort gehört zu EINEM Ladevorgang. Kommt sie nach
+         * einem Gruppenwechsel an, schreibt sie nichts — sonst stünde die
+         * Kalenderlage der verlassenen Seite in der neuen. `istVeraltet`
+         * kommt von `fetchGruppe` mit; ohne diese Angabe (Aufruf von außen)
+         * ist die Antwort immer gültig.
          */
-        async function ladeMeineKalender() {
+        async function ladeMeineKalender(istVeraltet) {
+            const veraltet = typeof istVeraltet === 'function' ? istVeraltet : () => false
             try {
                 const liste = await apiCall('diakronos.kronos.api.permissions.get_accessible_calendars')
+                if (veraltet()) return
                 meineKalender.value = Array.isArray(liste) ? liste : []
             } catch (e) {
+                if (veraltet()) return
                 meineKalender.value = []
             }
         }

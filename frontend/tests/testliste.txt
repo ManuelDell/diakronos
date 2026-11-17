@@ -712,3 +712,14 @@ tests/uir8c-*.test.mjs
 # Tests ist raus. Mount-Tests am echten Bauteil (jsdom + vue/compiler-sfc),
 # kein Quelltext-Muster.
 tests/aufr1-*.test.mjs
+# AUFR-2: veraltete Ladeantworten verwerfen — `fetchGruppe` führt einen
+# Laufzähler (`ladeNr` + Kennungsvergleich) und schreibt nach JEDEM `await`
+# nur, wenn der Lauf noch der jüngste zur aktuellen (Unter-)Gruppe ist: weder
+# Daten noch `rechte`, `loading`, `error` oder Meldung. Abgedeckt: überholte
+# Antwort (Gruppe A, `aufgabe_anlegen:false`) trifft NACH der neueren ein
+# (Gruppe B, `true`) → Seite zeigt B, Knopf bleibt; überholte FEHLERANTWORT →
+# kein Fehlerbanner, kein Toast; `ladeMeineKalender` der verlassenen Seite
+# schreibt nichts (kein „+ Termin“ aus fremder Kalenderlage); einzelner
+# Ladevorgang unverändert. Mount-Tests am echten Bauteil (jsdom +
+# vue/compiler-sfc), kein Quelltext-Muster.
+tests/aufr2-*.test.mjs
