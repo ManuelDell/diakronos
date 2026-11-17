@@ -1364,6 +1364,90 @@ def update_dienstbereich(name, ministry=None, beschreibung=None, farbe=None):
     return {"success": True}
 
 
+def _kalender_der_seite(
+    gruppe_id: str,
+    hauptgruppe: str = "",
+    kalender_info: list | None = None,
+    ist_untergruppe: bool | None = None,
+) -> set[str]:
+    """BUG-T1: Kalender, die zu DIESER Gruppenseite gehören.
+
+    Dieselbe Zuordnung, die „+ Termin“ benutzt
+    (`frontend/src/diakonos/components/gruppen/gruppenTermin.mjs::
+    kalenderDerGruppe`), hier an der Quelle gelesen — `RechteObjekt` ist die
+    Zuordnung Kalender -> (Unter-)Gruppe des Rechtesystems:
+
+      * Gruppe-Seite:      `gruppe == id` und `untergruppe` leer
+                           (der Kalender der Gruppe selbst),
+      * Untergruppe-Seite: `untergruppe == id` (Kalender der Untergruppe)
+                           oder `gruppe == hauptgruppe` und `untergruppe` leer
+                           (Kalender der Hauptgruppe).
+
+    Ein Kalender ohne `gruppe` ist ein Gemeinde-Kalender — er gehört zu keiner
+    Gruppenseite. Die RECHTE prüft dieser Helfer NICHT: was der Aufrufer
+    sehen darf, entscheidet `get_accessible_calendars` (Rechte-Kern); hier
+    wird nur die Zuordnung gelesen.
+
+    `kalender_info` (Ergebnis von `get_accessible_calendars`) trägt die
+    Zuordnung bereits in `gruppe`/`untergruppe` (`permissions.py:362`) — ist es
+    übergeben, wird daraus gelesen statt `RechteObjekt` erneut zu befragen
+    (BUG-T1-Review F4: eine Abfrage gespart).
+
+    „`untergruppe` ist leer“ wird in Python verglichen — ein SQL-`IS NULL`
+    wäre an die Spalte gebunden und ließe z. B. einen gespeicherten
+    Leerstring durchfallen (BUG-T1-Review).
+    """
+
+    def _text(wert) -> str:
+        return str(wert or "").strip()
+
+    # BUG-T1-Review F3: die Art der Seite hängt an der KENNUNG, nicht am
+    # ermittelten `hauptgruppe`. Konnte die Hauptgruppe nicht gelesen werden
+    # (`""`), ist die Seite trotzdem eine Untergruppe — sonst verlöre sie
+    # sogar ihren eigenen Untergruppen-Kalender.
+    is_ug = bool(hauptgruppe) if ist_untergruppe is None else bool(ist_untergruppe)
+
+    namen: set[str] = set()
+
+    def _pruefe(objekt, gruppe, untergruppe) -> None:
+        if not objekt:
+            return
+        g = _text(gruppe)
+        u = _text(untergruppe)
+        if is_ug and u == gruppe_id:
+            namen.add(str(objekt))
+            return
+        ziel = hauptgruppe if is_ug else gruppe_id
+        # Leeres Ziel (Hauptgruppe unbekannt) traefe sonst jeden Gemeinde-
+        # Kalender (`gruppe` leer) — fail closed (Review BUG-T1, Runde 2).
+        if ziel and not u and g == ziel:
+            namen.add(str(objekt))
+
+    if not gruppe_id:
+        return namen
+
+    if kalender_info is not None:
+        for eintrag in kalender_info:
+            if isinstance(eintrag, dict) and eintrag.get("name"):
+                _pruefe(eintrag.get("name"), eintrag.get("gruppe"), eintrag.get("untergruppe"))
+        return namen
+
+    from sqlalchemy import select
+
+    from diakronos_app.db import lesesitzung
+    from diakronos_app.models.rechte import RechteObjekt
+
+    with lesesitzung() as sess:
+        zeilen = sess.execute(
+            select(RechteObjekt.objekt, RechteObjekt.gruppe, RechteObjekt.untergruppe)
+            .where(RechteObjekt.typ == "kalender")
+        ).all()
+
+    for objekt, gruppe, untergruppe in zeilen:
+        _pruefe(objekt, gruppe, untergruppe)
+    return namen
+
+
 @whitelist(allow_guest=False)
 def get_gruppe_termine(gruppe_id, tage=60):
     """UXD-R10: Die nächsten Termine einer Gruppe (oder Untergruppe).
@@ -1371,7 +1455,21 @@ def get_gruppe_termine(gruppe_id, tage=60):
     Der Endpunkt der SPA rief vorher `kalender.get_events(gruppe, limit,
     future_only)` auf — dessen Signatur verlangt `start_date`/`end_date`, die
     Abfrage scheiterte bei jedem Laden mit HTTP 417. Hier der passende Aufruf:
-    Termine von heute bis +`tage` Tage, gefiltert auf `Element.gruppe`.
+    Termine von heute bis +`tage` Tage.
+
+    BUG-T1 (Befund Manuel 17.11.): Die Auswahl der Termine hing allein an
+    `Element.gruppe`. Dieses Feld schreibt KEIN Schreibweg dieser App
+    (`create_event`/`create_series`/`save_event`/`update_event` nehmen es nicht
+    an, die Oberfläche schickt es nicht) — es ist auf allen so angelegten
+    Terminen leer. Die Karte „Nächste Termine“ war damit immer leer, obwohl
+    dieselben Termine im Kalender standen. Maßgeblich ist jetzt dieselbe
+    Zuordnung, die auch „+ Termin“ auf dieser Seite benutzt
+    (`components/gruppen/gruppenTermin.mjs: kalenderDerGruppe`): die Kalender
+    dieser Seite — bei einer Untergruppe ihre eigenen und der Kalender der
+    Hauptgruppe. `Element.gruppe`, wenn gesetzt (Alt-/Importdaten), zählt
+    ZUSÄTZLICH und ausdrücklich nur für genau diese Kennung (BUG-T1-Review F1:
+    eine Abfrage, kein „Kalender-Weitergriff“). Die Liste ist nach `start`
+    sortiert — die Oberfläche zeigt nur die ersten vier (F2).
 
     Rechte: derselbe Lesezugriff wie `get_gruppe_detail` — wer die Gruppe nicht
     sehen darf, bekommt auch ihre Termine nicht. Die Kalender-Sichtbarkeit
@@ -1382,12 +1480,15 @@ def get_gruppe_termine(gruppe_id, tage=60):
     """
     from datetime import timedelta
 
-    # Gruppe oder Untergruppe? Beide tragen in `Element.gruppe` ihren Namen.
+    # Gruppe oder Untergruppe? (Rechte-Gate und Kalenderzuordnung richten sich
+    # nach der Art der Kennung, NICHT nach `Element.gruppe`.)
     is_ug = get_value("Untergruppe", gruppe_id, "name") is not None
+    hauptgruppe = ""
     if is_ug:
         _require_gruppen_lesezugriff(
             "Untergruppe", gruppe_id, "Untergruppe", "Untergruppenmitgliedschaft"
         )
+        hauptgruppe = str(get_value("Untergruppe", gruppe_id, "gruppe") or "")
     else:
         _require_gruppen_lesezugriff("Gruppe", gruppe_id, "Gruppe", "Gruppenmitgliedschaft")
 
@@ -1409,26 +1510,60 @@ def get_gruppe_termine(gruppe_id, tage=60):
     kalender = [c["name"] for c in kalender_info if isinstance(c, dict) and "name" in c]
     if not kalender:
         return {"success": True, "termine": []}
+    alle_zugaenglich = list(kalender)
 
-    mod_kalender = [
-        c["name"] for c in kalender_info
-        if isinstance(c, dict) and c.get("is_moderator")
-    ]
+    # BUG-T1: Kalender DIESER Seite — dieselbe Zuordnung wie „+ Termin“
+    # (`kalenderDerGruppe`): Seite = Gruppe -> `gruppe == id, untergruppe
+    # leer`; Seite = Untergruppe -> zusätzlich `untergruppe == id` und der
+    # Kalender der Hauptgruppe. Die Zuordnung kommt aus dem Rechtesystem
+    # (`RechteObjekt`, hier aus `kalender_info` gelesen); entschieden über
+    # Sichtbarkeit/Status wird unverändert in `get_accessible_calendars` oben.
+    seiten_kalender = _kalender_der_seite(
+        gruppe_id,
+        hauptgruppe if is_ug else "",
+        kalender_info=kalender_info,
+        ist_untergruppe=is_ug,
+    )
+    eigene = [n for n in kalender if n in seiten_kalender]
 
-    def _hole(cal_names, *, alle_status: bool):
+    def _nach_moderation(namen: list[str]) -> tuple[list[str], list[str]]:
+        """(moderierte, übrige) — Rolle aus `kalender_info` (Rechte-Kern)."""
+        moderiert = [
+            n for n in namen
+            if any(isinstance(c, dict) and c.get("name") == n and c.get("is_moderator")
+                   for c in kalender_info)
+        ]
+        return moderiert, [n for n in namen if n not in set(moderiert)]
+
+    # BUG-T1: nur die Moderatoren-Rolle DIESER Kalender ist hier von Belang —
+    # sonst holte `_hole(mod_kalender, …)` Termine aus Kalendern, die gar
+    # nicht zu dieser Seite gehören (Moderator des Untergruppen-Kalenders
+    # bekam dessen Termine auch auf der Hauptgruppenseite).
+    kalender = eigene
+    mod_kalender, regulaer = _nach_moderation(kalender)
+
+    def _hole(cal_names, *, alle_status: bool, gruppe_filter: bool = False):
         if not cal_names:
             return []
         # P0-3/B2: Zeitfenster wie in calendar_get — ein Termin gehoert dazu,
         # wenn er das Fenster beruehrt (Ende >= Fensteranfang); die Obermenge
         # holt `element_start <= Fensterende`.
+        # BUG-T1: KEIN `gruppe`-Filter im Regelfall — er warf jeden regulär
+        # angelegten Termin weg (das Feld schreibt kein Schreibweg, s. Kopf).
+        # Die Auswahl leistet die Kalenderliste oben.
         filters: dict[str, Any] = {
-            "gruppe": gruppe_id,
             "element_start": ["<=", fenster_ende],
             "element_calendar": ["in", cal_names],
             # UX2b2 (F3): geloeschte Termine (Papierkorb) gehoeren nicht in die
             # Terminliste einer Gruppe.
             "geloescht_am": ["is", "not set"],
         }
+        if gruppe_filter:
+            # BUG-T1-Review F1: die Ersatzregel für Alt-/Importdaten. EINE
+            # Abfrage über ALLE zugänglichen Kalender, aber ausdrücklich auf
+            # `Element.gruppe == gruppe_id` eingeschränkt — ein fremder Termin
+            # im selben Kalender bleibt draußen.
+            filters["gruppe"] = gruppe_id
         or_filters = [
             ["element_end", ">=", fenster_start],
             ["element_start", ">=", fenster_start],
@@ -1460,8 +1595,19 @@ def get_gruppe_termine(gruppe_id, tage=60):
     # im eigenen/moderierten Kalender auch die eigenen Vorschlaege.
     rows: list[dict] = []
     rows.extend(_hole(mod_kalender, alle_status=True))
-    regulaer = [n for n in kalender if n not in set(mod_kalender)]
     rows.extend(_hole(regulaer, alle_status=False))
+    # BUG-T1-Review F1: die Ersatzregel (`Element.gruppe`) ist ZUSÄTZLICH
+    # gültig — auch wenn die Seite einen Kalender hat (Docstring: „bleibt als
+    # Alternative“). Ausdrücklich auf `Element.gruppe == gruppe_id`
+    # eingeschränkt (ein fremder Termin im selben Kalender bleibt draußen) und
+    # über ALLE zugänglichen Kalender, weil die Seite gar keinen haben kann.
+    # Status nach Moderation getrennt wie oben — ein fremder Vorschlag in einem
+    # nur sichtbaren Kalender darf auch über das Feld nicht erscheinen
+    # (test_p1_7_gruppen_organigramm: „fremder Vorschlag darf nicht sichtbar sein“).
+    if gruppe_id:
+        mod_alle, regulaer_alle = _nach_moderation(alle_zugaenglich)
+        rows.extend(_hole(mod_alle, alle_status=True, gruppe_filter=True))
+        rows.extend(_hole(regulaer_alle, alle_status=False, gruppe_filter=True))
 
     gesehen: set[str] = set()
     termine = []
@@ -1479,6 +1625,11 @@ def get_gruppe_termine(gruppe_id, tage=60):
                 "status": r.get("status"),
             }
         )
+    # BUG-T1-Review F2: die Zeilen kamen bisher blockweise (moderierte Kalender
+    # zuerst, dann die übrigen) heraus — die Oberfläche (`GruppeDetail.vue`)
+    # nimmt die ersten vier, ein Termin von morgen konnte so von vier Terminen
+    # in Wochen verdrängt werden. Deshalb EINE Gesamtsortierung nach Start.
+    termine.sort(key=lambda t: str(t.get("start") or ""))
     return {"success": True, "termine": termine}
 
 
