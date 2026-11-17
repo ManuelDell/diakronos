@@ -254,8 +254,13 @@ const dynamicRoutes = [
     // steht HINTER dem Stammdaten-Muster, sonst würde `…/chorplan/stammdaten/neu`
     // als Editor-Kennung gelesen.
     { pattern: /^#\/planrahmen\/einrichten\/(.+)$/, page: 'PlanrahmenPlantypEditor', param: 'id' },
-    // '-1' ist das Muster „ohne festen Plantyp“ (siehe einrichten-flow.mjs).
-    { pattern: /^#\/dienste\/vorlagen\/([^/]+)\/stammdaten\/(.+)$/, page: 'PlanrahmenStammdaten', param: 'plantyp' },
+    // BUG-S1: Der Plantyp steht HINTER `stammdaten/` (so bauen es
+    // `stammdatenRoute` und die Weiterleitung unten: `vorlagen/-/stammdaten/‹plantyp›`).
+    // Vorher hing `param: 'plantyp'` an der ERSTEN Gruppe — dort steht die Marke
+    // „-“, und die Seite fragte `stammdaten_holen('-')` an: Fehler, der bei
+    // fehlender Ladefläche als ewiges Skelett stehen blieb. `marke` erlaubt
+    // beiden Formen weiter ein Ziel; `hashKontext()` liest den echten Plantyp.
+    { pattern: /^#\/dienste\/vorlagen\/[^/]+\/stammdaten\/(.+)$/, page: 'PlanrahmenStammdaten', param: 'marke' },
     { pattern: /^#\/dienste\/vorlagen\/(.+)$/, page: 'PlanrahmenPlantypEditor', param: 'id' },
     { pattern: /^#\/planrahmen\/stammdaten\/(.+)$/, page: 'PlanrahmenStammdaten', param: 'plantyp' },
     { pattern: /^#\/planrahmen\/vorbereiten\/(.+)$/, page: 'PlanrahmenStammdaten', param: 'plan' },
@@ -350,9 +355,12 @@ const MUSTER_WEITERLEITUNGEN = [
     { pattern: /^#\/planrahmen\/plan\/(.+)$/, ziel: id => `#/dienste/dienstplaene/plan/${id}` },
     // Plan vorbereiten (Stammdaten im Plan-Kontext) → Reiter „Dienstpläne“.
     { pattern: /^#\/planrahmen\/vorbereiten\/(.+)$/, ziel: plan => `#/dienste/dienstplaene/vorbereiten/${plan}` },
-    // Stammdaten einer Vorlage → Reiter „Vorlagen“. Der Plan-Kontext der alten
-    // Adresse ist die Vorlage selbst (Platzhalter „-“ wie in einrichten-flow).
-    { pattern: /^#\/planrahmen\/stammdaten\/(.+)$/, ziel: plantyp => `#/dienste/vorlagen/${plantyp}/stammdaten/-` },
+    // Stammdaten einer Vorlage → Reiter „Vorlagen“. BUG-S1: Der Plantyp steht
+    // HINTER dem Platzhalter (das ist die eine gültige Reihenfolge, siehe
+    // `stammdatenRoute`); die Marke „-“ sagt „kein bestimmter Typ in der
+    // Adresse“. Hier stand vorher das Umgekehrte — der Plantyp als Marke und
+    // „-“ als Typ, weshalb `stammdaten_holen('-')` lief.
+    { pattern: /^#\/planrahmen\/stammdaten\/(.+)$/, ziel: plantyp => `#/dienste/vorlagen/-/stammdaten/${plantyp}` },
     // Vorlagen-Editor → Reiter „Vorlagen“.
     { pattern: /^#\/planrahmen\/einrichten\/(.+)$/, ziel: id => `#/dienste/vorlagen/${id}` },
 ]

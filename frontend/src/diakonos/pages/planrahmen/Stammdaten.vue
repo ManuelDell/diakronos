@@ -32,26 +32,53 @@
     <!-- UX2d3a: Laden zeigt den Umriss (Skelett, erst nach 300 ms), keinen Satz. -->
     <DkSkelett v-if="skelettSichtbar" form="zeilen" :anzahl="6" text="Stammdaten werden geladen …" />
 
-    <div v-else-if="seitenFehler.length" class="pr-stamm-zustand pr-stamm-zustand--fehler">
+    <div v-else-if="seitenFehler.length" class="pr-stamm-zustand pr-stamm-zustand--fehler" data-test="pr-stamm-fehler">
       <PrMeldungen :meldungen="seitenFehler" />
-      <DkButton
-        variant="secondary"
-        size="md"
-        @click="neuLaden"
-      >Erneut versuchen</DkButton>
+      <!-- BUG-S1: Ein Ladefehler bekommt IMMER einen Weg zurück — sonst stand
+           man vor einer Meldung ohne Ausweg (und vorher vor einem Skelett). -->
+      <div class="dk-screen-actions">
+        <DkButton
+          variant="secondary"
+          size="md"
+          @click="neuLaden"
+        >Erneut versuchen</DkButton>
+        <DkButton
+          variant="secondary"
+          size="md"
+          as="a"
+          href="#/dienste/dienstplaene"
+        >Zu den Dienstplänen</DkButton>
+        <DkButton
+          variant="secondary"
+          size="md"
+          as="a"
+          href="#/dienste/vorlagen"
+        >Zu den Vorlagen</DkButton>
+      </div>
     </div>
 
-    <div v-else-if="!daten" class="dk-empty">
+    <!-- Review BUG-S1: während des Ladens (vor dem Skelett, < 300 ms) kein
+         „Keine Planvorlage ausgewählt“ aufblitzen lassen. -->
+    <div v-else-if="!daten && laden" class="pr-stamm-wartet" aria-busy="true" />
+    <div v-else-if="!daten" class="dk-empty" data-test="pr-stamm-ohne-vorlage">
       <p class="dk-empty-title">Keine Planvorlage ausgewählt</p>
       <p class="dk-empty-desc">
         Die Stammdaten hängen an einer Planvorlage. Öffne sie aus der Planübersicht oder aus der Vorbereitung eines Plans.
       </p>
-      <DkButton
-        variant="secondary"
-        size="md"
-        as="a"
-        href="#/dienste/dienstplaene"
-      >Zu den Dienstplänen</DkButton>
+      <div class="dk-screen-actions">
+        <DkButton
+          variant="secondary"
+          size="md"
+          as="a"
+          href="#/dienste/dienstplaene"
+        >Zu den Dienstplänen</DkButton>
+        <DkButton
+          variant="secondary"
+          size="md"
+          as="a"
+          href="#/dienste/vorlagen"
+        >Zu den Vorlagen</DkButton>
+      </div>
     </div>
 
     <template v-else>
@@ -396,8 +423,9 @@
  * Stammdaten-Pflege des Plan-Rahmens (B5): Personen-Matrix (Person × Merkmal)
  * und Sammlungstabellen mit Reihenfolge, Aktiv-Flag und Merkmalen.
  *
- * Kontext kommt aus der Route (UX3a): '#/dienste/vorlagen/<plantyp>'
- * (Plantyp) oder '#/dienste/dienstplaene/vorbereiten/<plan>' (Plan-Kontext — der Plantyp wird
+ * Kontext kommt aus der Route (UX3a): '#/dienste/vorlagen/<marke>/stammdaten/<plantyp>'
+ * (Plantyp; die Marke ist der Platzhalter „-“) oder
+ * '#/dienste/dienstplaene/vorbereiten/<plan>' (Plan-Kontext — der Plantyp wird
  * vor dem Laden über plan_holen ermittelt). Zusätzlich können plantyp/plan
  * als Props übergeben werden (Einbettung durch den Parent).
  *
@@ -441,6 +469,35 @@ const { stammdatenHolen, planHolen, bedarf, merkmalePflegen, sammlungPflegen } =
 
 // ── Kontext aus Route/Props ────────────────────────────────────────────────
 
+/** Gültige Form für „vorlagen/‹marke›/stammdaten/‹plantyp›“. */
+const VORLAGEN_STAMMDATEN = /^#\/dienste\/vorlagen\/([^/?#]*)\/stammdaten\/([^/?#]+)/
+/** Gültige Form für den Plan-Kontext „dienstplaene/vorbereiten/‹plan›“. */
+const PLAN_VORBEREITEN = /^#\/dienste\/dienstplaene\/vorbereiten\/([^/?#]+)/
+
+/** Platzhalter der Marke: „kein bestimmter Typ in der Adresse“. */
+const MARKEN_PLATZHALTER = '-'
+
+/**
+ * Die ZWEI möglichen Reihenfolgen der Vorlagen-Adresse.
+ *
+ * BUG-S1: `vorlagen/‹plantyp›/stammdaten/-` und `vorlagen/-/stammdaten/‹plantyp›`
+ * waren im Baum gemischt — der Router las den Plantyp aus dem falschen Teil und
+ * fragte `stammdaten_holen('-')` an (Fehler, der als Skelett stehen blieb).
+ * Seit dem Fix ist `vorlagen/-/stammdaten/‹plantyp›` die eine gültige Form.
+ * Alte Links der anderen Reihenfolge bleiben trotzdem gültig: der Platzhalter
+ * „-“ ist eindeutig, die Seite liest den Plantyp deshalb aus DEM Teil, der
+ * nicht der Platzhalter ist.
+ */
+function plantypAusVorlagenHash(hash) {
+    const m = String(hash || '').match(VORLAGEN_STAMMDATEN)
+    if (!m) return ''
+    const marke = decodeURIComponent(m[1] || '')
+    const typ = decodeURIComponent(m[2] || '')
+    if (marke && marke !== MARKEN_PLATZHALTER) return marke
+    if (typ && typ !== MARKEN_PLATZHALTER) return typ
+    return ''
+}
+
 /** Fallback: Hash-Form lesen, falls die Route ohne Parameter-Namen integriert ist. */
 function hashKontext() {
     const hash = (typeof window !== 'undefined' && window.location.hash) ? window.location.hash : ''
@@ -448,13 +505,15 @@ function hashKontext() {
     // (die Marke ist ein Platzhalter, der Plantyp steht dahinter) und
     // '#/dienste/dienstplaene/vorbereiten/‹plan›'. Die alten Formen bleiben
     // gültig (Router leitet weiter, diese Datei ist auch einzeln einbettbar).
-    let m = hash.match(/^#\/dienste\/vorlagen\/[^/?#]+\/stammdaten\/([^/?#]+)/)
-    if (m) return { plantyp: decodeURIComponent(m[1]), plan: '' }
-    m = hash.match(/^#\/dienste\/dienstplaene\/vorbereiten\/([^/?#]+)/)
+    let m
+    if (VORLAGEN_STAMMDATEN.test(String(hash))) {
+        return { plantyp: plantypAusVorlagenHash(hash), plan: '' }
+    }
+    m = String(hash).match(PLAN_VORBEREITEN)
     if (m) return { plantyp: '', plan: decodeURIComponent(m[1]) }
-    m = hash.match(/^#\/planrahmen\/stammdaten\/([^/?#]+)/)
+    m = String(hash).match(/^#\/planrahmen\/stammdaten\/([^/?#]+)/)
     if (m) return { plantyp: decodeURIComponent(m[1]), plan: '' }
-    m = hash.match(/^#\/planrahmen\/vorbereiten\/([^/?#]+)/)
+    m = String(hash).match(/^#\/planrahmen\/vorbereiten\/([^/?#]+)/)
     if (m) return { plantyp: '', plan: decodeURIComponent(m[1]) }
     return { plantyp: '', plan: '' }
 }
@@ -464,13 +523,25 @@ function hashKontext() {
 const routePlantyp = computed(() => String(getRouteParam('plantyp') || ''))
 const routePlan = computed(() => String(getRouteParam('plan') || ''))
 /**
+ * Der HASH ist die Vorlage der Adresse — beide Reihenfolgen sind dort eindeutig.
+ * Ist die Seite OHNE Route eingebettet, reicht `resolveRoute` eine EINZELNE
+ * Adresse als `params` weiter; fehlt auch die, gilt die laufende Adresse.
+ */
+function paramsAusHash(einzeln) {
+    return (typeof window !== 'undefined' && window.location.hash) ? window.location.hash : einzeln
+}
+
+/**
  * Wirksamer Plantyp. Der Platzhalter „-“ aus der Adresse
  * (`#/dienste/vorlagen/-/stammdaten/…`, siehe einrichten-flow.mjs) zählt NICHT
  * als Plantyp — er sagt nur „kein bestimmter Typ in der Adresse“.
+ * BUG-S1: Statt einer eigenen Kette von Quellen (Router-Parameter, Props, Hash)
+ * ist der HASH die eine Vorlage — beide Reihenfolgen sind dort eindeutig.
  */
 const ktxPlantyp = computed(() => {
-    const roh = routePlantyp.value || props.plantyp || hashKontext().plantyp || ''
-    return roh === '-' ? '' : roh
+    const hash = paramsAusHash(getRouteParam('marke'))
+    const roh = plantypAusVorlagenHash(hash) || routePlantyp.value || props.plantyp || ''
+    return roh === MARKEN_PLATZHALTER ? '' : roh
 })
 const ktxPlan = computed(() => routePlan.value || props.plan || hashKontext().plan || '')
 
@@ -564,12 +635,21 @@ async function ladenStarten() {
     // Veraltete Antworten schützen: nur die jüngste Anfrage darf den Zustand setzen.
     const nummer = ++ladeNummer
     const aktuell = () => nummer === ladeNummer
-    if (!ktxPlantyp.value && !ktxPlan.value) return
+    // BUG-S1: Der Zustand wird IMMER aufgelöst. Vorher blieb bei fehlendem
+    // Plantyp/Plan `laden === true` stehen — die Seite zeigte für immer das
+    // Lade-Skelett statt eines Satzes und Weges zurück.
     laden.value = true
     seitenFehler.value = []
     schreibFehler.value = []
+    daten.value = null
+    geladenerTyp.value = ''
+    planIdGeladen.value = ''
     planTitel.value = ''
     planZeitraum.value = null
+    if (!ktxPlantyp.value && !ktxPlan.value) {
+        laden.value = false
+        return
+    }
     try {
         let typ = ktxPlantyp.value
         const pid = ktxPlan.value

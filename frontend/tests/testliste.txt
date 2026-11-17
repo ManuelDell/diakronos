@@ -723,3 +723,12 @@ tests/aufr1-*.test.mjs
 # Ladevorgang unverändert. Mount-Tests am echten Bauteil (jsdom +
 # vue/compiler-sfc), kein Quelltext-Muster.
 tests/aufr2-*.test.mjs
+# BUG-S1: Dienste → Stammdaten luden nicht (Skelett blieb stehen, Befund
+# Manuel 12.11.). ZWEI Reihenfolgen derselben Adresse — der Router las die
+# Marke „-“ als Plantyp (`stammdaten_holen('-')`), die Weiterleitung baute
+# umgekehrt. Gültig ist `vorlagen/-/stammdaten/‹plantyp›` (so baut es
+# `stammdatenRoute`); beide Formen führen zur Stammdaten-Seite. Dazu: ein
+# Ladefehler bzw. eine Adresse ohne Plantyp endet NIE im Lade-Skelett
+# (`laden` bleibt nicht `true`), sondern in Meldung/Leerzustand mit Weg
+# zurück. Router in einer vm, Seite als echter Skriptteil mit Vue-Ersatz.
+tests/bugs1-*.test.mjs

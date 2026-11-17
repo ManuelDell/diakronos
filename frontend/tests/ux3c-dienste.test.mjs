@@ -148,10 +148,13 @@ const liste = (a) => Array.from(a)
   }
 
   // Detailadressen MIT Kennung: jede endet auf einem Reiter-Adressraum.
+  // BUG-S1: Der Plantyp steht HINTER `stammdaten/` (so baut es auch
+  // `stammdatenRoute`); vorher stand hier die umgekehrte Reihenfolge, die den
+  // falschen Teil als Plantyp las.
   const mitKennung = {
     '#/planrahmen/plan/p-42': '#/dienste/dienstplaene/plan/p-42',
     '#/planrahmen/vorbereiten/p-42': '#/dienste/dienstplaene/vorbereiten/p-42',
-    '#/planrahmen/stammdaten/chorplan': '#/dienste/vorlagen/chorplan/stammdaten/-',
+    '#/planrahmen/stammdaten/chorplan': '#/dienste/vorlagen/-/stammdaten/chorplan',
     '#/planrahmen/einrichten/chorplan': '#/dienste/vorlagen/chorplan',
   }
   for (const [alt, neu] of Object.entries(mitKennung)) {
