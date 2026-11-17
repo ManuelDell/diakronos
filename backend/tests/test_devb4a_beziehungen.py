@@ -233,11 +233,10 @@ def test_add_unbekannte_art_und_unbekannte_person(welt) -> None:
 
 
 def test_nur_verwaltung_darf_alle_drei_endpunkte(welt) -> None:
-    """Review 10.11.: normales Mitglied -> 403 auf allen drei Endpunkten.
+    """Normales Mitglied: fremdes Profil -> 403 auf allen drei Endpunkten.
 
-    Auch fuer das EIGENE Profil: weder Lesen (die Liste zaehlt alle
-    waehlbaren Personen auf und ginge an der Sichtbarkeit vorbei) noch
-    Schreiben (Eintragen schreibt eine Zeile bei der anderen Person).
+    Eigenes Profil (Manuel 17.11.2026): nur Personen desselben Haushalts
+    (gleiche Anschrift) — ohne Anschrift also niemand.
     """
     from diakronos_app.api.beziehungen import (
         add_beziehung,
@@ -252,13 +251,18 @@ def test_nur_verwaltung_darf_alle_drei_endpunkte(welt) -> None:
 
     set_user(MITGLIED)
     eigenes = "M-lena@x.org"
-    for mitglied_id in (ANNA, eigenes):
-        with pytest.raises(PermissionError):
-            get_beziehungen_auswahl(mitglied_id)
-        with pytest.raises(PermissionError):
-            add_beziehung(mitglied_id, CLARA, "Ehepartner")
-        with pytest.raises(PermissionError):
-            remove_beziehung(mitglied_id, zeile)
+    # Fremdes Profil: alle drei Endpunkte verweigert.
+    with pytest.raises(PermissionError):
+        get_beziehungen_auswahl(ANNA)
+    with pytest.raises(PermissionError):
+        add_beziehung(ANNA, CLARA, "Ehepartner")
+    with pytest.raises(PermissionError):
+        remove_beziehung(ANNA, zeile)
+    # Eigenes Profil (Manuel 17.11.): Auswahl nur Haushalt (hier: keine
+    # Anschrift -> leer), Eintragen ausserhalb des Haushalts verweigert.
+    assert get_beziehungen_auswahl(eigenes)["data"] == []
+    with pytest.raises(PermissionError):
+        add_beziehung(eigenes, CLARA, "Ehepartner")
     # Nichts geschrieben, nichts entfernt.
     assert len(_paar(sess, ANNA, BRUNO)) == 1
     assert _paar(sess, eigenes, CLARA) == []
@@ -415,7 +419,7 @@ def test_auswahl_ohne_selbst_und_ohne_email_treffer(welt) -> None:
 
 
 def test_auswahl_ohne_verwaltung_verweigert(welt) -> None:
-    """Review 10.11.: auch das Lesen verlangt Verwaltungsrecht."""
+    """Lesen am FREMDEN Profil verlangt Verwaltungsrecht."""
     from diakronos_app.api.beziehungen import get_beziehungen_auswahl
 
     set_user("niemand@x.org")
@@ -455,3 +459,95 @@ def test_detail_enthaelt_die_beziehungen(welt) -> None:
     gegen = get_mitglied_detail(BRUNO)["data"].get("beziehungen") or []
     assert [z["beziehungstyp"] for z in gegen] == ["Elternteil"]
     assert sess is not None
+
+
+# ── Selbstpflege im Haushalt (Manuel 17.11.2026) ────────────────────────────
+
+
+def _anschrift(sess, mitglied: str, strasse="Hauptstraße", nummer="5",
+               plz="74072", ort="Heilbronn") -> None:
+    sess.query(Mitglied).filter_by(name=mitglied).update(
+        {"straße": strasse, "nummer": nummer, "postleitzahl": plz, "wohnort": ort})
+    sess.commit()
+
+
+def test_haushalt_selbst_eintragen_und_entfernen(welt) -> None:
+    """Gleiche Anschrift (normalisiert): eintragen, Auswahl, entfernen am eigenen Profil."""
+    from diakronos_app.api.beziehungen import (
+        add_beziehung,
+        get_beziehungen_auswahl,
+        remove_beziehung,
+    )
+
+    sess = welt
+    eigenes = "M-lena@x.org"
+    _anschrift(sess, eigenes)
+    _anschrift(sess, ANNA, strasse="hauptstr.", nummer=" 5 ", ort="HEILBRONN")
+    _anschrift(sess, BRUNO, nummer="7")  # Nachbarhaus
+
+    set_user(MITGLIED)
+    auswahl = [z["mitglied"] for z in get_beziehungen_auswahl(eigenes)["data"]]
+    assert auswahl == [ANNA], "nur der eigene Haushalt steht zur Auswahl"
+
+    antwort = add_beziehung(eigenes, ANNA, "Ehepartner")
+    assert len(_paar(sess, eigenes, ANNA)) == 1
+    assert len(_paar(sess, ANNA, eigenes)) == 1
+    with pytest.raises(PermissionError):
+        add_beziehung(eigenes, BRUNO, "Geschwister")
+    assert _paar(sess, eigenes, BRUNO) == []
+
+    # Entfernen am eigenen Profil — auch nach einem Umzug.
+    _anschrift(sess, ANNA, strasse="Neue Gasse")
+    remove_beziehung(eigenes, antwort["beziehung"]["name"])
+    assert _paar(sess, eigenes, ANNA) == [] and _paar(sess, ANNA, eigenes) == []
+
+
+def test_haushalt_braucht_vollstaendige_anschrift(welt) -> None:
+    from diakronos_app import rechte
+    from diakronos_app.api.beziehungen import add_beziehung
+
+    sess = welt
+    eigenes = "M-lena@x.org"
+    _anschrift(sess, eigenes, nummer="")
+    _anschrift(sess, ANNA, nummer="")
+    assert rechte.gleicher_haushalt(eigenes, ANNA) is False
+    set_user(MITGLIED)
+    with pytest.raises(PermissionError):
+        add_beziehung(eigenes, ANNA, "Ehepartner")
+    assert _paar(sess, eigenes, ANNA) == []
+
+
+def test_haushalt_gilt_nicht_fuer_fremde_profile(welt) -> None:
+    """Wohnt das Mitglied mit Anna UND Bruno zusammen, darf es trotzdem nicht
+    an Annas Profil eine Beziehung zu Bruno eintragen."""
+    from diakronos_app import rechte
+    from diakronos_app.api.beziehungen import add_beziehung
+
+    sess = welt
+    for m in ("M-lena@x.org", ANNA, BRUNO):
+        _anschrift(sess, m)
+    set_user(MITGLIED)
+    with pytest.raises(PermissionError):
+        add_beziehung(ANNA, BRUNO, "Ehepartner")
+    assert _paar(sess, ANNA, BRUNO) == []
+    assert rechte.darf_beziehung(MITGLIED, "anlegen", ANNA, BRUNO).grund == "fremdes_profil"
+    assert rechte.darf_beziehung(None, "lesen", ANNA).grund == "nicht_angemeldet"
+    assert rechte.darf_beziehung(ADMIN, "anlegen", ANNA, BRUNO).grund == "verwaltung"
+
+
+def test_detail_flag_beziehungen_pflegen(welt) -> None:
+    """Knopf-Flag = Serverrecht: eigenes Profil ja, fremdes nein, Verwaltung ja."""
+    from diakronos_app.api.mitglieder import get_mitglied_detail
+
+    set_user(MITGLIED)
+    eigen = get_mitglied_detail("M-lena@x.org")["permissions"]
+    assert eigen["beziehungen_pflegen"] is True and eigen["beziehungen_alle"] is False
+    set_user(ADMIN)
+    fremd = get_mitglied_detail(ANNA)["permissions"]
+    assert fremd["beziehungen_pflegen"] is True and fremd["beziehungen_alle"] is True
+    set_user(MITGLIED)
+    try:
+        anna = get_mitglied_detail(ANNA)["permissions"]
+    except Exception:  # noqa: BLE001 — Sichtbarkeit darf das Profil ganz sperren
+        return
+    assert anna["beziehungen_pflegen"] is False

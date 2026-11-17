@@ -138,14 +138,16 @@ test('DEV-B4a: die schreibenden Endpunkte sind POST (CSRF) und pruefen die Verwa
     const stelle = server.match(new RegExp(`@whitelist\\(methods=\\["POST"\\], allow_guest=False\\)\\ndef ${fn}\\(`))
     assert.ok(stelle, `${fn} ist @whitelist(methods=["POST"])`)
     const koerper = server.slice(server.indexOf(`def ${fn}(`)).split('\n\n\n')[0]
-    // Review 10.11.: nicht mehr das Zeilenrecht, sondern die Rolle.
-    assert.match(koerper, /_pruefe_verwaltung\(\)/, `${fn} prueft das Verwaltungsrecht`)
+    // Seit 17.11.2026: das EINE Rechtesystem (rechte.darf_beziehung —
+    // Verwaltung oder eigener Haushalt), nicht das Zeilenrecht.
+    assert.match(koerper, /_pruefe_recht\(/, `${fn} fragt das Rechtesystem`)
   }
   // Auch der Lese-Endpunkt der Auswahlliste verlangt die Verwaltung: er zaehlt
   // ALLE waehlbaren Personen auf und ginge an der Sichtbarkeit vorbei.
   const auswahl = server.slice(server.indexOf('def get_beziehungen_auswahl('))
     .split('\n\n\n')[0]
-  assert.match(auswahl, /_pruefe_verwaltung\(\)/)
+  assert.match(auswahl, /_pruefe_recht\("lesen"/)
+  assert.match(auswahl, /gleicher_haushalt\(/, 'ohne Verwaltung nur der eigene Haushalt')
   assert.ok(!/_pruefe_edit\(/.test(server), 'die alte Zeilenrecht-Pruefung ist weg')
 })
 

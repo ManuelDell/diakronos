@@ -55,7 +55,6 @@ from typing import Any
 FRAPPE_MODULE = "diakronos.diakonos.api.beziehungen"
 
 from diakronos_app.frappe_compat import get_all, get_value, whitelist
-from diakronos_app.frappe_compat import permissions
 from diakronos_app.frappe_compat.api_helpers import (
     _create,
     _delete_doc,
@@ -119,15 +118,24 @@ def _name_von(mitglied_id: str) -> str:
     return " ".join(t for t in teile if t) or str(mitglied_id)
 
 
-def _pruefe_verwaltung() -> None:
-    """Nur die Verwaltung — dieselbe Schranke wie `admin_einwilligung_setzen`.
+def _pruefe_recht(aktion: str, mitglied_id: str, ziel: str | None = None) -> str:
+    """Rechtefrage an das EINE Rechtesystem (`rechte.darf_beziehung`).
 
-    `permissions.require_admin()` prueft die Rollen `Mitgliederadministrator`
-    und `System Manager` (Review 10.11.). Sie GILT AUCH fuer das Lesen
-    (`get_beziehungen_auswahl`): die Liste zaehlt alle waehlbaren Personen auf
-    und ginge sonst an der `ancestor_path`-Sichtbarkeit vorbei.
+    Verwaltung (Mitgliederverwaltung/Admin) darf alles; ein Mitglied nur am
+    eigenen Profil und Eintragen nur zu Personen im selben Haushalt
+    (gleiche Anschrift, Manuel 17.11.2026). Gibt den Grund zurueck
+    (``verwaltung`` / ``eigenes_profil`` / ``haushalt``).
     """
-    permissions.require_admin()
+    from diakronos_app import rechte
+
+    entscheidung = rechte.darf_beziehung(session.user, aktion, mitglied_id, ziel)
+    if not entscheidung:
+        if entscheidung.grund == "anderer_haushalt":
+            throw("Selbst eintragen lassen sich nur Personen aus deinem Haushalt "
+                  "(gleiche Anschrift). Andere Beziehungen trägt die "
+                  "Mitgliederverwaltung ein.", PermissionError)
+        throw("Zugriff verweigert.", PermissionError)
+    return entscheidung.grund
 
 
 def _pruefe_mitschrift(mitglied_id: str, quelle: str, art: str) -> None:
@@ -234,10 +242,11 @@ def get_beziehungen_auswahl(mitglied_id, suche=""):
     quelle = str(mitglied_id or "").strip()
     if not quelle:
         throw("mitglied_id fehlt.", ValidationError)
-    _pruefe_verwaltung()
+    grund = _pruefe_recht("lesen", quelle)
     if get_value("Mitglied", quelle, "name") is None:
         throw(f"Mitglied {quelle!r} nicht gefunden.", DoesNotExistError)
 
+    from diakronos_app import rechte
     from diakronos_app.api.gruppen_auswahl import waehlbare_mitglieder
 
     vorhanden = {str(z.get("beziehung_zu")) for z in _zeilen(quelle)}
@@ -245,6 +254,10 @@ def get_beziehungen_auswahl(mitglied_id, suche=""):
     for person in waehlbare_mitglieder(suche=str(suche or ""), limit=0):
         kennung = str(person.get("mitglied") or "")
         if not kennung or kennung == quelle:
+            continue
+        # Ohne Verwaltungsrecht nur der eigene Haushalt (sonst ginge die
+        # Liste an der Personen-Sichtbarkeit vorbei).
+        if grund != "verwaltung" and not rechte.gleicher_haushalt(quelle, kennung):
             continue
         ergebnis.append({
             "mitglied": kennung,
@@ -269,7 +282,7 @@ def add_beziehung(mitglied_id, person_id, beziehungsart):
     „besteht bereits von der anderen Seite als …".
     """
     quelle, ziel, art = _lese_argumente(mitglied_id, person_id, beziehungsart)
-    _pruefe_verwaltung()
+    _pruefe_recht("anlegen", quelle, ziel)
     if get_value("Mitglied", ziel, "name") is None:
         throw("Die gewählte Person wurde nicht gefunden.", DoesNotExistError)
     if quelle == ziel:
@@ -377,7 +390,7 @@ def remove_beziehung(mitglied_id, beziehung_name):
     zeile_name = str(beziehung_name or "").strip()
     if not quelle or not zeile_name:
         throw("mitglied_id und beziehung_name sind erforderlich.", ValidationError)
-    _pruefe_verwaltung()
+    _pruefe_recht("schreiben", quelle)
 
     zeile = next((z for z in _zeilen(quelle) if str(z.get("name")) == zeile_name), None)
     if zeile is None:

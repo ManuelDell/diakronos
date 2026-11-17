@@ -869,6 +869,80 @@ def sichtbare_module(benutzer: str | None) -> set[str]:
     return ergebnis
 
 
+# ── Personen: Beziehungen (Manuel 17.11.2026) ──────────────────────────────
+#
+# Beziehungen pflegt die Mitgliederverwaltung. Ein Mitglied darf SELBST nur
+# an seinem eigenen Profil Beziehungen eintragen, und nur zu Personen im
+# selben Haushalt. Haushalt = gleiche Anschrift (Strasse, Hausnummer, PLZ,
+# Ort — normalisiert, alle vier muessen gefuellt sein). Entfernen darf das
+# Mitglied jede Beziehung des eigenen Profils (auch nach einem Umzug).
+
+
+def _adressteil(wert) -> str:
+    """Anschriftsteil vergleichbar machen (Gross/klein, ß, Str./Strasse, Leerraum)."""
+    import re
+
+    t = str(wert or "").casefold().replace("ß", "ss")
+    t = re.sub(r"strasse\b|str\.", "str", t)
+    return re.sub(r"[\s.\-]+", "", t)
+
+
+def _haushalt(sess, mitglied: str) -> tuple[str, str, str, str] | None:
+    """Normalisierte Anschrift einer Person; ``None``, wenn ein Teil fehlt."""
+    from diakronos_app.models.diakonos import Mitglied
+
+    zeile = sess.execute(
+        select(Mitglied.straße, Mitglied.nummer, Mitglied.postleitzahl, Mitglied.wohnort)
+        .where(Mitglied.name == mitglied)
+    ).one_or_none()
+    if zeile is None:
+        return None
+    teile = tuple(_adressteil(w) for w in zeile)
+    return teile if all(teile) else None  # type: ignore[return-value]
+
+
+def gleicher_haushalt(a: str | None, b: str | None) -> bool:
+    """Wohnen ``a`` und ``b`` unter derselben (vollstaendigen) Anschrift?"""
+    if not a or not b or a == b:
+        return False
+    with lesesitzung() as sess:
+        ha = _haushalt(sess, a)
+        return ha is not None and ha == _haushalt(sess, b)
+
+
+def eigenes_mitglied(benutzer: str | None) -> str | None:
+    """Mitglied-Kennung des Logins (dieselbe Aufloesung wie die Gruppenrechte)."""
+    if not _ist_angemeldetes_mitglied(benutzer):
+        return None
+    assert benutzer is not None
+    with lesesitzung() as sess:
+        return _mitglied_von(sess, benutzer)
+
+
+def darf_beziehung(benutzer: str | None, aktion: str, mitglied: str | None,
+                   ziel: str | None = None) -> Entscheidung:
+    """Darf ``benutzer`` Beziehungen am Profil ``mitglied`` lesen/eintragen/entfernen?
+
+    ``aktion``: ``lesen`` (Auswahlliste), ``anlegen`` (``ziel`` = andere
+    Person) oder ``schreiben`` (entfernen). Verwaltung (Fach
+    ``mitgliederverwaltung``, Admin) darf alles; sonst nur das eigene Profil,
+    Eintragen nur zu Personen im selben Haushalt.
+    """
+    if aktion not in (LESEN, ANLEGEN, SCHREIBEN):
+        return NEIN("aktion_unbekannt")
+    if not _ist_angemeldetes_mitglied(benutzer):
+        return NEIN("nicht_angemeldet")
+    if hat_systemrolle(benutzer, "mitgliederverwaltung"):
+        return JA("verwaltung")
+    if not mitglied or eigenes_mitglied(benutzer) != mitglied:
+        return NEIN("fremdes_profil")
+    if aktion == ANLEGEN:
+        if ziel and gleicher_haushalt(mitglied, ziel):
+            return JA("haushalt")
+        return NEIN("anderer_haushalt")
+    return JA("eigenes_profil")
+
+
 __all__ = [
     "AKTIONEN",
     "ANLEGEN",
@@ -904,5 +978,8 @@ __all__ = [
     "pruefe",
     "pruefstufen",
     "sichtbare_module",
+    "darf_beziehung",
+    "eigenes_mitglied",
+    "gleicher_haushalt",
     "untergruppenrolle",
 ]

@@ -840,6 +840,16 @@ def get_mitglied_detail(mitglied_id):
     if result.get("beziehungen"):
         result["beziehungen"] = _beziehungen_kuerzen(result["beziehungen"], sicht)
 
+    # Knopf-Flags fuer „Beziehungen" (Manuel 17.11.2026): dieselbe Frage wie
+    # `api.beziehungen` -> `rechte.darf_beziehung` (Verwaltung oder eigenes
+    # Profil; Eintragen prueft der Server zusaetzlich auf den Haushalt).
+    from diakronos_app import rechte as _rechte
+
+    perms = dict(perms)
+    perms["beziehungen_pflegen"] = bool(
+        _rechte.darf_beziehung(session.user, _rechte.LESEN, mitglied_id))
+    perms["beziehungen_alle"] = bool(
+        _rechte.hat_systemrolle(session.user, "mitgliederverwaltung"))
     return {
         "success": True,
         "data": result,
