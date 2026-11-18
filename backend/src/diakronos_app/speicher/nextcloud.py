@@ -73,6 +73,61 @@ logger = logging.getLogger("diakronos_app.speicher.nextcloud")
 
 __all__ = ["Nextcloud", "NextcloudZugang"]
 
+
+class _DateiStrom(httpx.SyncByteStream):
+    """Ein Datenstrom, der beim SENDEN aus der Datei gelesen wird.
+
+    Fuer den PUT eines grossen Dumps: ``httpx`` holt die Bloecke erst, wenn
+    der Transport sie schreibt. Damit liegt nie mehr als ein Block im
+    Speicher — unabhaengig von der Groesse der Datei.
+
+    ``spulen`` setzt die Datei an den Anfang zurueck; es wird nur dann
+    benutzt, wenn die Wiederholung wirklich etwas bringt (siehe
+    ``_schreibe_strom``). Ist der Strom schon verbraucht und laesst sich
+    nicht zuruecksetzen, ist eine Wiederholung nicht moeglich (``None``).
+    """
+
+    def __init__(self, datei: IO[bytes], laenge: int) -> None:
+        self._datei = datei
+        self.laenge = laenge
+        self._gelesen = 0
+        self._fertig = False
+
+    def __iter__(self) -> Iterator[bytes]:
+        # Kein ``while True`` um ``read()``: der Strom wird genau EINMAL
+        # durchlaufen, die Laenge ist bekannt (``Content-Length``).
+        while self._gelesen < self.laenge:
+            block = self._datei.read(min(BLOCKGROESSE, self.laenge - self._gelesen))
+            if not block:
+                # Die Datei ist kuerzer als angekuendigt (waehrend des
+                # Uploads beschnitten?) — abbrechen statt weniger Bytes zu
+                # senden und dem Server eine falsche Laenge zu melden.
+                self._fertig = True
+                raise AblageFehler(
+                    "Die Quelldatei ist waehrend der Uebertragung kuerzer "
+                    "geworden — der Upload ist unvollstaendig."
+                )
+            self._gelesen += len(block)
+            yield block
+        self._fertig = True
+
+    def spulen(self) -> bool:
+        """Datei an den Anfang; ``False``, wenn das nicht geht."""
+        try:
+            self._datei.seek(0)
+        except (OSError, ValueError, AttributeError):
+            return False
+        self._gelesen = 0
+        self._fertig = False
+        return True
+
+    #: ``httpx`` fragt die Laenge NICHT ab (``content=`` mit ``SyncByteStream``
+    #: ergibt keinen ``Content-Length``). ``schreiben`` setzt die Kopfzeile
+    #: deshalb selbst — der Wert MUSS zu dem passen, was hier herauskommt.
+    def __len__(self) -> int:
+        return self.laenge
+
+
 #: Statuscodes, die eine Wiederholung NICHT besser machen.
 _ENDGUELTIG = frozenset({400, 401, 403, 405, 409, 413, 415, 507})
 
@@ -247,13 +302,14 @@ class Nextcloud(Basis):
         methode: str,
         url: str,
         *,
-        inhalt: bytes | IO[bytes] | None = None,
+        inhalt: bytes | IO[bytes] | httpx.SyncByteStream | None = None,
         kopf: dict[str, str] | None = None,
         transfer: bool = False,
         erlaube_404: bool = False,
         erlaube_status: tuple[int, ...] = (),
         aktion: str = "Zugriff",
         strom: bool = False,
+        wiederholbar: Callable[[], bool] | None = None,
     ) -> httpx.Response:
         """Eine WebDAV-Anfrage; wiederholt 429/5xx/Netzfehler.
 
@@ -350,6 +406,15 @@ class Nextcloud(Basis):
                         f"Die Nextcloud hat {aktion} abgelehnt (HTTP {status})."
                     )
             if versuch < zugang.versuche:
+                if wiederholbar is not None and not wiederholbar():
+                    # Die Quelle ist schon verbraucht und laesst sich nicht
+                    # zuruecksetzen (z. B. ein Strom ohne ``seek``): ein
+                    # zweiter Versuch schickte nur den Rest der Datei.
+                    raise SpeicherNichtErreichbar(
+                        f"Die Nextcloud ist nicht erreichbar ({aktion}); die "
+                        "Quelle laesst sich fuer eine Wiederholung nicht "
+                        "zuruecksetzen."
+                    )
                 self._warte(versuch, None)
         raise SpeicherNichtErreichbar(
             f"Die Nextcloud ist nicht erreichbar ({aktion} nach "
@@ -427,29 +492,84 @@ class Nextcloud(Basis):
 
     # ── Schreiben ──────────────────────────────────────────────────────────
     def schreiben(self, schluessel: str, daten: bytes | IO[bytes]) -> int:
+        """Datei anlegen/ersetzen. Rueckgabe: geschriebene Bytes.
+
+        ``bytes`` gehen als fertiger Koerper hinaus (kleine Dateien: Bilder,
+        JSON). Ein **Datenstrom** wird dagegen als Strom gesendet
+        (``_DateiStrom``): ``httpx`` holt die Bloecke beim Schreiben, es liegt
+        nie mehr als ein Block im Speicher. Das ist die Voraussetzung dafuer,
+        dass ein Dump von mehreren GB in die Nextcloud geht — frueher wurde
+        der Strom in einen ``bytearray`` gesammelt und oberhalb von
+        ``MAX_ZWISCHENPUFFER`` (200 MB) abgelehnt.
+        """
         sauber = normalisiere(schluessel)
         ordner = "/".join(sauber.split("/")[:-1])
         if isinstance(daten, (bytes, bytearray, memoryview)):
             roh = bytes(daten)
             self._schreibe_bytes(sauber, ordner, roh)
             return len(roh)
-        # Datenstrom: WebDAV-PUT braucht eine Laenge. Fuer Dateien bis
-        # ``MAX_ZWISCHENPUFFER`` wird einmal eingelesen (so macht es der
-        # Umzug je Datei), darueber wird abgebrochen statt den Speicher zu
-        # fuellen.
-        puffer = bytearray()
-        while True:
-            block = daten.read(BLOCKGROESSE)
-            if not block:
-                break
-            puffer.extend(block)
-            if len(puffer) > MAX_ZWISCHENPUFFER:
-                raise AblageFehler(
-                    "Die Datei ist fuer die Nextcloud-Ablage zu gross "
-                    f"(mehr als {MAX_ZWISCHENPUFFER // (1024 * 1024)} MB); "
-                    "sie wird blockweise uebertragen."
+        return self._schreibe_strom(sauber, ordner, daten)
+
+    def _schreibe_strom(self, sauber: str, ordner: str, daten: IO[bytes]) -> int:
+        """PUT aus einem Datenstrom — mit bekannter Laenge, ohne Zwischenpuffer.
+
+        Die Laenge kommt aus der DATEI (``seek`` ans Ende), nicht aus einem
+        Einlesen: ``Content-Length`` muss stehen, sonst schickt ``httpx``
+        ``Transfer-Encoding: chunked``, und manche WebDAV-Server (und
+        Reverse-Proxys davor) nehmen das nicht an.
+
+        **Wiederholung nur mit zurueckspulbarer Quelle:** Ein 5xx/429/Netz-
+        fehler kann den Strom schon halb verbraucht haben. Eine echte Datei
+        laesst sich mit ``seek(0)`` zuruecksetzen; geht das nicht (Pipe,
+        Socket, ein Strom ohne ``seek``), wird NICHT wiederholt — sonst
+        landete eine halbe Datei unter dem richtigen Namen.
+        """
+        laenge = _strom_laenge(daten)
+        if laenge is None:
+            raise AblageFehler(
+                "Die Datei hat keine feststellbare Groesse — ohne Laenge "
+                "kann sie nicht in die Nextcloud uebertragen werden."
+            )
+        strom = _DateiStrom(daten, laenge)
+        kopf = {
+            "Content-Type": "application/octet-stream",
+            "Content-Length": str(laenge),
+        }
+        for runde in (1, 2):
+            self._ordner_anlegen(ordner)
+            try:
+                # KEIN ``strom=True`` (SPEICHER-2b, Punkt 2): das gehoert zu
+                # einem GET, dessen Antwort der Aufrufer selbst liest. Bei
+                # einem PUT ist die Antwort leer und wird nirgends
+                # geschlossen — jede Antwort belegte damit eine Verbindung im
+                # Pool, bis nach genug Uploads kein Platz mehr war
+                # (``httpx`` meldete dann „no free connections“). Ohne die
+                # Option liest ``httpx`` die Antwort ein und gibt die
+                # Verbindung nach dem Lesen selbst zurueck.
+                self._anfrage(
+                    "PUT",
+                    self.zugang.datei_url(sauber),
+                    inhalt=strom,
+                    kopf=kopf,
+                    transfer=True,
+                    aktion="Datei schreiben",
+                    # Der Strom ist NACH dem Senden immer verbraucht: nur mit
+                    # ``seek(0)`` geht eine Wiederholung. Ohne das schickte
+                    # der zweite Versuch 0 Bytes.
+                    wiederholbar=strom.spulen,
                 )
-        return self.schreiben(sauber, bytes(puffer))
+                return laenge
+            except AblageFehler as fehler:
+                if not _ordner_fehlt(fehler) or runde == 2 or strom._fertig:
+                    raise
+                # Der Ordner war inzwischen weg: Cache verwerfen, einmal neu.
+                for teil in self._alle_ebenen(ordner):
+                    self._angelegte_ordner.discard(teil)
+                logger.warning(
+                    "Nextcloud: Ordner %r war nicht mehr da — wird neu angelegt.",
+                    ordner,
+                )
+        raise AblageFehler("Die Datei konnte nicht geschrieben werden.")  # pragma: no cover
 
     def _schreibe_bytes(self, sauber: str, ordner: str, roh: bytes) -> None:
         """PUT mit einer zweiten Runde, wenn der Ordner inzwischen fehlt.
@@ -781,6 +901,52 @@ class Nextcloud(Basis):
             raise
         return antwort.status_code < 400
 
+    def ordner_loeschen(self, schluessel: str) -> bool:
+        """Einen Ordner SAMT Inhalt entfernen (WebDAV-DELETE, rekursiv).
+
+        SPEICHER-2b, Punkt 5: ``auflisten`` liefert nur Dateien, „leere
+        Ordner suchen“ konnte deshalb nie greifen. Der DELETE auf die
+        ORDNER-Adresse nimmt nach RFC 4918 den ganzen Baum mit — so bleibt
+        nach einem halben Loeschvorgang kein Rest stehen.
+
+        ``False`` = der Ordner war nicht da (nichts zu tun) — dieselbe
+        Sprache wie :meth:`loeschen`. Der Statuscode entscheidet, nicht ein
+        Vorab-PROPFIND: der kostete bei jeder Aufbewahrung einen Aufruf je
+        Sicherung.
+        """
+        sauber = normalisiere(schluessel)
+        try:
+            antwort = self._anfrage(
+                "DELETE",
+                self.zugang.ordner_url(sauber),
+                erlaube_404=True,
+                aktion="Ordner loeschen",
+            )
+        except SpeicherNichtErreichbar:
+            # Wie oben: der DELETE kann angekommen sein, nur die Antwort ging
+            # verloren. Ein PROPFIND (Depth 0) entscheidet.
+            if not self._ordner_da(sauber):
+                return True
+            raise
+        # 405 = manche Server erlauben kein DELETE auf eine Sammlung; dann
+        # bleibt der Ordner stehen und der Aufrufer erfaehrt es.
+        return antwort.status_code < 400
+
+    def _ordner_da(self, sauber: str) -> bool:
+        """Existiert der Ordner noch? (Nach einem abgebrochenen DELETE.)"""
+        try:
+            antwort = self._anfrage(
+                "PROPFIND",
+                self.zugang.ordner_url(sauber),
+                kopf={"Depth": "0", "Content-Type": "application/xml"},
+                inhalt=_PROPFIND_KOERPER,
+                erlaube_404=True,
+                aktion="Ordner pruefen",
+            )
+        except AblageFehler:
+            return True
+        return antwort.status_code < 400
+
     def _noch_da(self, sauber: str) -> bool:
         """Ist die Datei noch da? (Nach einem abgebrochenen DELETE.)
 
@@ -842,7 +1008,39 @@ class Nextcloud(Basis):
 #: Groesste Datei, die fuer einen Strom zwischengepuffert wird. Darueber
 #: bricht ``schreiben_strom`` ab — ein 50-GB-Archiv gehoert nicht in den
 #: Speicher. (Der Umzug liest ohnehin blockweise und schreibt je Datei.)
+#:
+#: **Seit SPEICHER-2 nicht mehr die Grenze des Uploads:** ``schreiben`` mit
+#: einer Datei/Strom sendet stroemend (``_DateiStrom``) und liest die Datei
+#: nie ganz ein. Der Wert bleibt als benannte Konstante stehen (Diagnose und
+#: die Zusage „nichts wird zwischengepuffert“).
 MAX_ZWISCHENPUFFER = 200 * 1024 * 1024
+
+
+def _strom_laenge(daten: IO[bytes]) -> int | None:
+    """Laenge eines Datenstroms OHNE ihn einzulesen — ``None``, wenn unbekannt.
+
+    Reihenfolge: erst ``seek``/``tell`` (jede echte Datei), dann die
+    ``os.fstat``-Groesse (auch bei einem Strom, der schon an einer Position
+    steht), zuletzt ``len()`` fuer Aufrufer, die die Laenge selbst mitbringen.
+    """
+    try:
+        position = daten.tell()
+        ende = daten.seek(0, 2)
+        daten.seek(position)
+        return max(0, int(ende) - int(position))
+    except (OSError, ValueError, AttributeError):
+        pass
+    try:
+        import os as _os
+
+        groesse = _os.fstat(daten.fileno()).st_size
+        return max(0, int(groesse) - int(daten.tell()))
+    except (OSError, ValueError, AttributeError):
+        pass
+    try:
+        return int(len(daten))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
 
 
 def _ebenen(ordner: str) -> list[str]:

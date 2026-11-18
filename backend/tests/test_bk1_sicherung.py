@@ -843,15 +843,21 @@ def test_client_version_passt_zum_betrieb():
 
 
 def test_es_gibt_keinen_download_und_keinen_wiederherstellungs_endpunkt():
-	"""B3: Wiederherstellen/Herunterladen NUR ueber die Kommandozeile."""
+	"""B3: Wiederherstellen/Herunterladen NUR ueber die Kommandozeile.
+
+	SPEICHER-2: geprueft wird die Menge der **Endpunkte** (``@whitelist``) —
+	das ist die Schranke, um die es geht. Die Hilfsfunktionen des Moduls
+	duerfen zunehmen (``_laeufe_aus_der_nextcloud``, ``_loeschen_in_der_
+	nextcloud``), ein neuer Endpunkt nicht: kein Herunterladen, kein
+	Wiederherstellen.
+	"""
 	quelle = Path(__file__).resolve().parents[1] / "src/diakronos_app/api/sicherung.py"
 	text = quelle.read_text(encoding="utf-8")
-	funktionen = set(re.findall(r"^def (\w+)", text, re.M))
-	assert funktionen == {
-		"_angemeldeter_system_manager", "_sicherungsname", "_laeufe",
+	endpunkte = set(re.findall(r"^@whitelist.*?\ndef (\w+)\(", text, re.M | re.S))
+	assert endpunkte == {
 		"sicherung_get", "sicherung_einstellungen_speichern",
-		"sicherung_jetzt", "sicherung_loeschen", "_jetzt",
-	}
+		"sicherung_jetzt", "sicherung_loeschen",
+	}, "kein neuer Endpunkt — schon gar kein Download oder Wiederherstellen"
 	# `pg_restore` darf nur im Modulkopf als Aussage stehen ("tut es NICHT").
 	assert "pg_restore" not in re.sub(r'""".*?"""', "", text, flags=re.S), \
 		"kein Wiederherstellen ueber HTTP"

@@ -89,6 +89,49 @@ class Sicherungssperre:
 			raise SperreBesteht()
 		self._token = kennung
 
+	#: Vergleich-und-Setzen: nur die EIGENE Sperre wird verlaengert. Laeuft die
+	#: TTL waehrend eines langsamen Laufs ab und ein anderer hat die Sperre
+	#: inzwischen, darf dieser sie nicht mitverlaengern (sonst hielte er die
+	#: Sperre, ohne zu sichern).
+	_VERLAENGERN = (
+		"if redis.call('get', KEYS[1]) == ARGV[1] then "
+		"return redis.call('pexpire', KEYS[1], ARGV[2]) else return 0 end"
+	)
+
+	def verlaengern(self, ttl_sekunden: int | None = None) -> bool:
+		"""Die Sperre um ``ttl_sekunden`` verlaengern. ``True`` = sie ist unser.
+
+		SPEICHER-2b, Punkt 3: die TTL ist eine SCHAETZUNG (Dateigroesse durch
+		10 Mbit/s). Ein Lauf mit einer schwankenden Leitung, einer
+		Gegenprobe-Download-Runde oder einem grossen Dateiarchiv kann sie
+		ueberschreiten; ohne Verlaengerung faellt die Sperre mitten im Lauf ab
+		und ein zweiter Lauf schriebe parallel einen Dump.
+
+		Deshalb meldet sich der Lauf waehrend Upload und Gegenprobe
+		regelmaessig (:mod:`diakronos_app.sicherung.lauf`). Kein Fehler, kein
+		``SperreBesteht``: ist die Sperre weg (Redis weg, TTL abgelaufen und
+		genommen), gibt es nichts zu tun — der Aufrufer merkt es am
+		``False`` und schreibt es ins Log. Ein Lauf wird nicht abgebrochen,
+		weil das Nachfassen scheitert; die Sicherung ist dann eben nicht mehr
+		vor einem zweiten Lauf geschuetzt, und das ist besser als ein
+		abgebrochener Dump.
+		"""
+		if not self._token:
+			return False
+		dauer = max(60, int(ttl_sekunden if ttl_sekunden is not None else self.ttl))
+		try:
+			client = _client()
+			ergebnis = client.eval(self._VERLAENGERN, 1, self._schluessel,
+			                       self._token, dauer * 1000)
+		except Exception as fehler:  # noqa: BLE001 — Redis weg
+			logger.warning("Sicherungssperre nicht verlaengert: %s", fehler)
+			return False
+		# Der echte Client liefert ``int``; ein Stub eventuell ``bytes``.
+		try:
+			return bool(int(ergebnis))
+		except (TypeError, ValueError):
+			return False
+
 	def freigeben(self) -> None:
 		# Nur die EIGENE Sperre loeschen: laeuft die TTL ab, waehrend der Lauf
 		# noch arbeitet, hat inzwischen vielleicht ein anderer die Sperre.
@@ -146,7 +189,13 @@ def raeume_abgebrochene_auf(session: Session, *, jetzt: datetime | None = None,
 	from diakronos_app.sicherung.einstellungen import jetzt_ortszeit
 
 	zeit = jetzt or jetzt_ortszeit()
-	basis = Path(settings.backup_dir)
+	# SPEICHER-2: derselbe Ablageort wie ``dump.ziel_basis`` — im Lokal-Modus
+	# ``<BACKUP_DIR>/sicherungen``. Sonst suchte diese Aufraeumfunktion die
+	# ``FERTIG``-Markierung eine Ebene zu hoch und meldete einen voellig
+	# vollstaendigen Lauf als abgebrochen.
+	from diakronos_app.sicherung import cloud
+
+	basis = cloud.lokale_basis()
 	offen = list(session.scalars(
 		select(Sicherungslauf).where(Sicherungslauf.status == STATUS_LAEUFT)
 	))

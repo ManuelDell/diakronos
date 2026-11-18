@@ -79,7 +79,7 @@ export function useSicherung() {
     const uhrzeit = ref('03:00')
     const aufbewahrungTage = ref(30)
     const sicherungen = ref([])
-    const ablage = ref({ benutzbar: true, hinweis: '', vorhanden: 0 })
+    const ablage = ref({ benutzbar: true, hinweis: '', vorhanden: 0, ort: 'lokal' })
     const letztesErgebnis = ref(null)
 
     /**
@@ -103,7 +103,7 @@ export function useSicherung() {
             uhrzeit.value = e.uhrzeit || '03:00'
             aufbewahrungTage.value = Number(e.aufbewahrung_tage ?? 30)
             sicherungen.value = Array.isArray(d.sicherungen) ? d.sicherungen : []
-            ablage.value = d.ablage || { benutzbar: true, hinweis: '', vorhanden: 0 }
+            ablage.value = d.ablage || { benutzbar: true, hinweis: '', vorhanden: 0, ort: 'lokal' }
             geladen.value = true
             return true
         } catch (e) {

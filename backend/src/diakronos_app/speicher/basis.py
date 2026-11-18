@@ -305,6 +305,21 @@ class Basis(ABC):
     def loeschen(self, schluessel: str) -> bool:
         """Datei entfernen. ``True`` = war da. Fehlende Datei: ``False``."""
 
+    def ordner_loeschen(self, schluessel: str) -> bool:
+        """Ordner (samt Inhalt) entfernen. ``True`` = er ist danach weg.
+
+        Ein WEBDAV-DELETE auf die Ordner-Adresse loescht nach RFC 4918, 9.6.1
+        rekursiv — auch einen Ordner, der noch Dateien enthaelt. ``auflisten``
+        nennt nur DATEIEN, deshalb war „leere Ordner suchen“ hier wirkungslos
+        (SPEICHER-2b, Punkt 5): nach einem halben Loeschvorgang blieb der
+        Ordner mit dem Rest stehen und ueberlebte die Aufbewahrung fuer immer.
+
+        Ist der Ordner nicht da, liefert die Vorgabe ``False`` („war nichts
+        zu tun“) — dieselbe Sprache wie ``loeschen``. Ableitungen, die keine
+        Ordner kennen (etwa ``Lokal``), bleiben bei dieser Vorgabe.
+        """
+        return False
+
     # ── Sonderfaelle ───────────────────────────────────────────────────────
     def pfad(self, schluessel: str) -> Any:
         """Lokaler Dateipfad — nur ``Lokal`` kann das. Sonst ``None``."""

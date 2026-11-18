@@ -1210,8 +1210,91 @@ zusätzlich.
   das lokale Volume (`FILES_DIR`); bei `nextcloud` ist das leer. Die Dateien
   sichert dann die Nextcloud selbst (Versionierung, Aufbewahrung, Backup des
   Anbieters) — bitte dort einrichten. Der Datenbank-Dump läuft unverändert.
+- **Die Sicherung selbst liegt dann in der Nextcloud** (SPEICHER-2, siehe
+  unten).
 - **DSGVO bleibt wirksam:** Löschen in Diakronos (Papierkorb-Ablauf,
   Löschung auf Antrag) löscht die Datei auch in der Nextcloud.
+
+### 8.7b Datensicherungen bei Nextcloud-Betrieb (SPEICHER-2)
+
+Ist `SPEICHER_BACKEND=nextcloud` gesetzt, liegt jede fertige Datensicherung
+zusätzlich **in der Nextcloud** — unter `<NEXTCLOUD_ORDNER>/sicherungen/<JJJJ-MM-TT_HHMMSS>/`
+(dieselben vier Dateien wie lokal: `db.dump`, `files.tar.gz`, `SHA256SUMS`,
+`FERTIG`). Damit hängt die Sicherung nicht mehr an derselben Platte wie der
+Server.
+
+Ablauf eines Laufs:
+
+1. Die Sicherung wird **weiterhin zuerst lokal** geschrieben (`pg_dump`
+   braucht ein Dateisystem) — Ort: `<BACKUP_DIR>/<JJJJ-MM-TT_HHMMSS>/`.
+2. Danach lädt Diakronos jede Datei **streamend** über die
+   Ablage-Schnittstelle in die Nextcloud: gelesen und gesendet wird blockweise
+   (256 KiB), mit vorausberechneter Länge (`Content-Length`). Es wird nichts
+   zwischengepuffert — auch ein Dump von mehreren GB geht durch
+   (`MAX_ZWISCHENPUFFER` ist nur noch eine Anzeigegrenze, keine Upload-Grenze).
+   Eine Wiederholung nach einem 5xx beginnt wieder am Dateianfang
+   (`seek(0)`); ist die Quelle nicht zurückspulbar, wird **nicht** wiederholt.
+3. **Erfolg erst nach der Gegenprobe**: Größe im Ziel wird gelesen und
+   mit der Quelle verglichen, danach die SHA-256 im Ziel gegen `SHA256SUMS`.
+   `FERTIG` wird **zuletzt** hochgeladen — ein abgebrochener Upload
+   hinterlässt in der Nextcloud eine erkennbar unvollständige Sicherung.
+4. Schlägt der Upload fehl, **bricht er beim ersten Fehler ab** (auch `FERTIG`
+   wird dann nicht mehr hochgeladen). Der Lauf steht in der Oberfläche als
+   **„Fehlgeschlagen“** mit dem Grund, die System Manager bekommen eine
+   Meldung, und **die lokale Kopie bleibt** (sie ist dann die einzige).
+5. Nach einem vollständigen Upload bleibt **lokal nur die jüngste Kopie**
+   (für den schnellen Zugriff). Ältere lokale Kopien werden nur gelöscht, wenn
+   sie in der Nextcloud **vollständig** (also mit `FERTIG`) vorliegen — von
+   einem früheren gescheiterten Lauf bleibt die lokale Kopie stehen, denn sie
+   ist die einzige.
+6. Die **Aufbewahrung** (`BACKUP_AUFBEWAHRUNG_TAGE`) gilt dann für die
+   **Nextcloud**: ältere Sicherungen werden dort gelöscht, die neueste
+   **vollständige** nie — dieselbe Regel wie bisher. Ein Ordner aus einem
+   abgebrochenen Upload gilt nicht als „neueste“; er wird nach Ablauf der
+   Frist entfernt, leere Ordner werden mit entfernt.
+7. Die Sperre gegen zwei gleichzeitige Läufe ist so lange gesetzt, wie Dump,
+   Archiv **und** Übertragung dauern können (Timeout + geschätzte
+   Übertragungszeit + 5 Minuten Aufschlag).
+
+In der Oberfläche (Einstellungen → Datensicherung) nennt ein Hinweis den Ort
+(„Die Sicherungen liegen in der Nextcloud“) und die Liste zeigt die
+Sicherungen, die **dort** liegen (Name, Größe, Zeitpunkt, Status) — **und
+zusätzlich die fehlgeschlagenen Läufe** aus dem Protokoll, damit der Grund
+sichtbar bleibt. Ist die Nextcloud nicht erreichbar, sagt der Hinweis genau
+das („nicht erreichbar“) und nicht „keine Sicherungen“. „Löschen“ wirkt in
+der Nextcloud; die neueste **vollständige** Sicherung ist auch dort
+geschützt. Ein Pfad oder eine WebDAV-Adresse erscheint nie im Browser.
+
+**Wiederherstellung bei Nextcloud-Betrieb.** Die Sicherung muss zuerst lokal
+bereitstehen — dafür gibt es ein Werkzeug (es spielt **nichts** ein):
+
+```
+# 1. Welche Sicherungen liegen in der Nextcloud?
+docker compose exec app python -m diakronos_app.sicherung.wiederherstellen --liste
+
+# 2. Eine Sicherung lokal bereitstellen (ohne Namen: die jüngste)
+docker compose exec app python -m diakronos_app.sicherung.wiederherstellen 2026-11-18_030000
+```
+
+Das Werkzeug holt jede Datei blockweise nach `<BACKUP_DIR>/<name>/` und prüft
+Größe und SHA-256 gegen `SHA256SUMS`; bei Abweichung bricht es ab (Exit 1) und
+nennt die beschädigte Datei. Danach läuft die Wiederherstellung wie in
+Abschnitt „Wiederherstellung“ beschrieben von Hand weiter (`pg_restore`,
+Dateiarchiv entpacken, Dienste neu starten). Es wird also **nichts
+automatisch** eingespielt: ein Einspielen in eine laufende Datenbank bleibt
+eine Entscheidung des Betreibers.
+
+**Was dabei gilt**
+
+- Die lokale Kopie ist eine Zwischenablage, keine zweite Sicherung: nach dem
+  Upload bleibt nur die jüngste. Für die Aufbewahrung ist die Nextcloud
+  maßgeblich.
+- Die Sperre gegen zwei gleichzeitige Läufe bleibt lokal (Redis) — sie
+  braucht die Nextcloud nicht.
+- Ohne Nextcloud (`SPEICHER_BACKEND=lokal`) ändert sich **nichts** am
+  bisherigen Verhalten; die Sicherungen liegen dann wie bisher direkt in
+  `<BACKUP_DIR>/<JJJJ-MM-TT_HHMMSS>/` — kein zusätzlicher Unterordner.
+
 
 **Umzug eines bestehenden Bestands**
 
@@ -2314,6 +2397,12 @@ Wegwerf-Datenbank durchgespielt worden.
    cd data/sicherungen/<JJJJ-MM-TT_HHMMSS>
    sha256sum -c SHA256SUMS        # erwartet: beides OK
    ```
+
+   Bei Nextcloud-Betrieb liegen die Sicherungen **in der Nextcloud**; holen
+   Sie die gewünschte zuerst mit
+   `docker compose exec app python -m diakronos_app.sicherung.wiederherstellen <name>`
+   nach `data/sicherungen/<name>/` (siehe 8.7b) — der Befehl prüft Größe und
+   Prüfsumme selbst.
 
 2. **Dienste anhalten**, damit während der Wiederherstellung niemand
    schreibt:

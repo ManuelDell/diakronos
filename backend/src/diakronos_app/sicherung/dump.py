@@ -69,8 +69,16 @@ class SicherungFehler(RuntimeError):
 # ── Zielverzeichnis ────────────────────────────────────────────────────────
 
 def ziel_basis() -> Path:
-	"""Das Sicherungsverzeichnis aus den Einstellungen."""
-	return Path(settings.backup_dir)
+	"""Das Sicherungsverzeichnis aus den Einstellungen (``BACKUP_DIR``).
+
+	Im Lokal-Modus ist das der Ablageort der Sicherungen (unveraendert seit
+	BACKUP-1); im Nextcloud-Betrieb ist es die lokale Zwischenablage, aus der
+	``sicherung/cloud.py`` hochlaedt und die danach nur die juengste Kopie
+	behaelt. Beides ist derselbe Pfad.
+	"""
+	from diakronos_app.sicherung import cloud
+
+	return cloud.lokale_basis()
 
 
 def gemeinsamer_elternpfad(a: Path, b: Path) -> Path:
@@ -112,7 +120,8 @@ def pruefe_ziel(basis: Path | None = None) -> Path:
 			"Der Ablageort der Sicherungen liegt im Programmverzeichnis. "
 			"Bitte BACKUP_DIR auf ein Verzeichnis im Daten-Ordner setzen."
 		)
-	if gemeinsamer_elternpfad(ziel, files) == Path("/"):
+	vereinigt = Path(settings.backup_dir).resolve()
+	if gemeinsamer_elternpfad(vereinigt, files) == Path("/"):
 		raise SicherungFehler(
 			"Der Ablageort der Sicherungen liegt nicht im Daten-Ordner. Ein "
 			"Verzeichnis ausserhalb des Daten-Bind-Mounts ist nach einem "

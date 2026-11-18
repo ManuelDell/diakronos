@@ -28,6 +28,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import TypeVar
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -41,7 +42,7 @@ from diakronos_app.models.sicherung import (
 	Sicherungslauf,
 )
 from diakronos_app.settings import settings
-from diakronos_app.sicherung import aufbewahrung, dump
+from diakronos_app.sicherung import aufbewahrung, cloud, dump
 from diakronos_app.sicherung.einstellungen import holen_oder_anlegen, jetzt_ortszeit
 from diakronos_app.sicherung.sperre import (
 	Sicherungssperre,
@@ -51,6 +52,9 @@ from diakronos_app.sicherung.sperre import (
 )
 
 logger = logging.getLogger("diakronos_app.sicherung.lauf")
+
+#: Traegt den Ergebnistyp von ``_mit_herzschlag`` (Upload-Ergebnis).
+_T = TypeVar("_T")
 
 #: Wie ein Lauf gestartet wurde.
 AUSLOESER_AUTOMATISCH = "automatisch"
@@ -200,6 +204,97 @@ def _setze_status(session: Session, name: str, *, status: str, meldung: str,
 	session.commit()
 
 
+def _sperr_dauer(settings, *, verzeichnis: Path | None = None) -> int:
+	"""Wie lange die Sperre gilt: Dump/Archiv PLUS Uebertragung.
+
+	Review-Befund 6: ``backup_timeout + 300`` deckte nur den lokalen Teil ab.
+	Ein Lauf, der nach dem Dump noch 2 GB in die Nextcloud schiebt (Upload,
+	Groessen-/Pruefsummen-Gegenprobe, Aufbewahrung dort), lief laenger als die
+	Sperre — sie fiel waehrend des Laufs ab, und ein zweiter Lauf haette
+	parallel einen Dump geschrieben.
+
+	Rechnung: der lokale Teil darf ``backup_timeout`` dauern. Die Uebertragung
+	braucht bei realistischen Leitungen (10 Mbit/s aufwaerts) fuer die
+	Groesse der letzten Sicherung ``groesse_und_bereich`` Zeit. Beides plus
+	ein Aufschlag von 5 Minuten fuer Gegenprobe und Aufbewahrung; mindestens
+	das alte Verhalten (Timeout + 300).
+	"""
+	lokal = int(getattr(settings, "backup_timeout_sekunden", None) or 1800)
+	#: Untergrenze der Uebertragungszeit: 10 Mbit/s aufwaerts.
+	ANNAHME_BYTES_PRO_SEKUNDE = 1_250_000
+	#: Reine Rechenzeit fuer Upload-Aufrufe, Gegenprobe, Aufraeumen.
+	ZUSCHLAG_SEKUNDEN = 300
+	uebertragung = 0.0
+	try:
+		basis = Path(verzeichnis) if verzeichnis is not None else dump.ziel_basis()
+		letzte = aufbewahrung.sicherungen_im_verzeichnis(basis)
+		if letzte:
+			# Die Groesse ist der beste Schaetzwert fuer den naechsten Upload.
+			groesse = dump.verzeichnisgroesse(letzte[-1][1])
+			uebertragung = groesse / ANNAHME_BYTES_PRO_SEKUNDE
+	except Exception as fehler:  # noqa: BLE001 — Schaetzung darf nie den Lauf stoppen
+		logger.warning("Groesse der letzten Sicherung nicht ermittelbar: %s", fehler)
+	return max(lokal + ZUSCHLAG_SEKUNDEN, lokal + int(uebertragung) + ZUSCHLAG_SEKUNDEN)
+
+
+#: Wie oft die Sperre waehrend Upload und Gegenprobe verlaengert wird. Die TTL
+#: aus ``_sperr_dauer`` ist eine Schaetzung; dieser Herzschlag macht sie
+#: unempfindlich gegen eine langsamere Leitung oder eine groessere Sicherung
+#: als die letzte (SPEICHER-2b, Punkt 3).
+HERZSCHLAG_SEKUNDEN = 60.0
+
+
+def _mit_herzschlag(sperre, arbeit: Callable[[], _T],
+                    *, takt: float | None = None) -> _T:
+	"""``arbeit()`` ausfuehren und dabei die Sperre regelmaessig verlaengern.
+
+	Der Upload und die Gegenprobe (Groesse, Pruefsumme) koennen beliebig lange
+	dauern — die Sperre deckt beide nur mit einer Schaetzung ab. Statt die
+	Verlaengerung in jede Blockgrenze zu haengen (die liegt in ``speicher/``,
+	wo es keine Sperre gibt), laeuft hier ein eigener Faeden, der die Sperre
+	jede ``takt`` Sekunde nachfasst und danach still aufhoert.
+
+	Der Faeden ist ein ``daemon``: er haelt den Prozess nie am Leben, und er
+	wird im ``finally`` gestoppt — auch wenn ``arbeit`` wirft. Scheitert das
+	Verlaengern (Redis weg), wird das geloggt und es geht weiter: die Sicherung
+	ist dann nicht mehr vor einem zweiten Lauf geschuetzt, aber ein
+	abgebrochener Dump waere schlimmer.
+	"""
+	import threading
+
+	dauer = max(0.01, float(takt if takt is not None else HERZSCHLAG_SEKUNDEN))
+	fertig = threading.Event()
+
+	def _klopfen() -> None:
+		# Warten zuerst: die Sperre ist gerade gesetzt, ein sofortiges
+		# Verlaengern waere nur ein zweiter Aufruf ohne Nutzen.
+		while not fertig.wait(dauer):
+			if sperre is None or not hasattr(sperre, "verlaengern"):
+				return
+			try:
+				if not sperre.verlaengern():
+					logger.warning(
+						"Die Sperre der Datensicherung ist waehrend des Laufs "
+						"abgelaufen oder wurde fremd gesetzt."
+					)
+					return
+			except Exception as fehler:  # noqa: BLE001 — Sperre ist Beiwerk
+				logger.warning("Sicherungssperre nicht verlaengert: %s", fehler)
+				return
+
+	faeden = None
+	if sperre is not None and hasattr(sperre, "verlaengern"):
+		faeden = threading.Thread(target=_klopfen, name="sicherung-herzschlag",
+		                          daemon=True)
+		faeden.start()
+	try:
+		return arbeit()
+	finally:
+		fertig.set()
+		if faeden is not None:
+			faeden.join(timeout=1.0)
+
+
 def _freie_kennung(session: Session, zeit: datetime) -> str:
 	"""Kennung, die es weder als Zeile noch als Verzeichnis gibt (N4).
 
@@ -256,7 +351,7 @@ def fuehre_aus(
 		einstellungen = holen_oder_anlegen(session, jetzt=zeit)
 		tage = int(einstellungen.aufbewahrung_tage)
 
-		ttl = int(settings.backup_timeout_sekunden or 1800) + 300
+		ttl = _sperr_dauer(settings, verzeichnis=None)
 		try:
 			sperre = Sicherungssperre(ttl_sekunden=ttl)
 			sperre.setzen()
@@ -336,12 +431,82 @@ def fuehre_aus(
 				)
 
 			groesse = dump.verzeichnisgroesse(verzeichnis)
+			# SPEICHER-2b, Punkt 3: Upload UND Gegenprobe (Groesse,
+			# Pruefsumme je Datei) koennen die geschaetzte TTL ueberschreiten.
+			# Hier wird die Sperre deshalb regelmaessig nachgefasst; der
+			# Aufraeumteil darunter laeuft ebenfalls unter der Sperre, ist aber
+			# kurz (nur WebDAV-DELETEs).
+			hochgeladen = _mit_herzschlag(sperre, lambda: cloud.hochladen(verzeichnis))
+			if hochgeladen.fehlgeschlagen:
+				# SPEICHER-2: die Sicherung liegt nur lokal. Das ist ein
+				# TEILERFOLG, kein Erfolg — die Oberflaeche muss es zeigen
+				# (BACKUP-1-Status) und die System Manager erfahren es. Die
+				# lokale Kopie bleibt ausdruecklich stehen (Review-Befund 7:
+				# hier wird NICHTS lokal geloescht, auch keine aeltere Kopie —
+				# sie koennte die letzte in der Nextcloud fehlende sein, und
+				# ``nur_neueste_lokal_behalten`` prueft das selbst).
+				teil_meldung = hochgeladen.meldung + (
+					" " + "; ".join(hochgeladen.fehler[:3])
+					if hochgeladen.fehler else ""
+				)
+				logger.warning("Sicherung %s nur lokal: %s", name, teil_meldung)
+				_setze_status(session, name, status=STATUS_FEHLGESCHLAGEN,
+				              meldung=teil_meldung, groesse=groesse,
+				              beendet=jetzt_ortszeit())
+				zugestellt = benachrichtige_system_manager(
+					"Datensicherung nicht in der Nextcloud",
+					"Die Datensicherung vom "
+					f"{zeit.strftime('%d.%m.%Y %H:%M')} wurde erstellt, konnte "
+					f"aber nicht vollstaendig in die Nextcloud uebertragen "
+					f"werden:\n\n{teil_meldung}\n\nDie Kopie liegt weiterhin "
+					"lokal. Bitte in „Einstellungen → Datensicherung“ nachsehen "
+					"und die Uebertragung mit einem neuen Lauf wiederholen.",
+				)
+				if zugestellt:
+					zeile = session.get(Sicherungslauf, name)
+					if zeile is not None:
+						zeile.benachrichtigt = ", ".join(zugestellt)
+						session.commit()
+				return Sicherungsergebnis(
+					name=name, status=STATUS_FEHLGESCHLAGEN,
+					meldung=teil_meldung, groesse_bytes=groesse,
+					zeitpunkt=zeit,
+				)
+
+			meldung = "Sicherung vollstaendig."
+			if hochgeladen.aktiv:
+				meldung = "Sicherung vollstaendig (in der Nextcloud abgelegt)."
 			_setze_status(session, name, status=STATUS_OK,
-			              meldung="Sicherung vollstaendig.", groesse=groesse,
+			              meldung=meldung, groesse=groesse,
 			              beendet=jetzt_ortszeit())
 
 			entfernt: list[str] = []
-			if aufraeumen:
+			if hochgeladen.aktiv:
+				# Aufbewahrung gilt jetzt fuer die NEXTCLOUD-Seite; lokal bleibt
+				# nur die juengste Kopie (schnelle Wiederherstellung).
+				try:
+					# SPEICHER-2: die lokalen Reste (``.tmp-*`` abgestuerzter Laeufe)
+					# raeumt AUCH der Nextcloud-Betrieb auf — sonst blieben Teil-Dumps
+					# mit Personendaten im lokalen Verzeichnis liegen, weil die
+					# Sicherung selbst ja in der Nextcloud liegt.
+					aufbewahrung.verwaiste_temp_entfernen(
+						verzeichnis.parent, jetzt=zeit,
+						timeout_sekunden=int(settings.backup_timeout_sekunden or 1800),
+					)
+					entfernt = cloud.aufraeumen(
+						jetzt=zeit, aufbewahrung_tage=tage,
+					)
+				except Exception as fehler:  # noqa: BLE001 — Aufraeumen ist Beiwerk
+					logger.warning("Aufbewahrung in der Nextcloud fehlgeschlagen: %s",
+					               fehler)
+				cloud.nur_neueste_lokal_behalten(verzeichnis.parent, behalten=name)
+				for alt in entfernt:
+					zeile = session.get(Sicherungslauf, alt)
+					if zeile is not None:
+						session.delete(zeile)
+				if entfernt:
+					session.commit()
+			elif aufraeumen:
 				erfolgreich = set(session.scalars(
 					select(Sicherungslauf.name).where(Sicherungslauf.status == STATUS_OK)
 				))
@@ -381,7 +546,7 @@ def fuehre_aus(
 			logger.info("Sicherung %s fertig (%s Bytes, %s alte entfernt).",
 			            name, groesse, len(entfernt))
 			return Sicherungsergebnis(
-				name=name, status=STATUS_OK, meldung="Sicherung vollstaendig.",
+				name=name, status=STATUS_OK, meldung=meldung,
 				groesse_bytes=groesse, entfernt=entfernt, zeitpunkt=zeit,
 			)
 		finally:
@@ -398,7 +563,7 @@ def status_fuer_oberflaeche(session: Session, verzeichnis: Path | None = None) -
 	den Pfad. Ein Pfad im Browser waere der erste Schritt zu einem
 	Herunterladen, und genau das schliesst die Karte aus.
 	"""
-	basis = Path(verzeichnis or settings.backup_dir)
+	basis = Path(verzeichnis or dump.ziel_basis())
 	try:
 		dump.pruefe_ziel(basis)
 		benutzbar = True
@@ -407,4 +572,43 @@ def status_fuer_oberflaeche(session: Session, verzeichnis: Path | None = None) -
 		benutzbar = False
 		hinweis = str(fehler)
 	anzahl = len(aufbewahrung.sicherungen_im_verzeichnis(basis)) if basis.is_dir() else 0
-	return {"benutzbar": benutzbar, "hinweis": hinweis, "vorhanden": anzahl}
+	# SPEICHER-2: liegt die Sicherung in der Nextcloud, nennt die Oberflaeche
+	# den Ort (nur die ART, nie eine Adresse) und die dort vorhandene Anzahl.
+	# Gezaehlt wird dort, wo die Liste herkommt — sonst widerspraechen sich
+	# Liste und „vorhanden“.
+	ort = "lokal"
+	hinweis_cloud = ""
+	if cloud.ist_aktiv():
+		ort = "nextcloud"
+		try:
+			anzahl = len(cloud.sicherungen_auflisten())
+		except Exception as fehler:  # noqa: BLE001 — Anzeige, kein Betriebszustand
+			# Review-Befund 4: „nicht erreichbar“ ist NICHT „keine
+			# Sicherungen“. Der Unterschied entscheidet, ob der Betrieb
+			# ruhig schlaeft.
+			logger.warning("Sicherungen in der Nextcloud nicht lesbar: %s", fehler)
+			anzahl = 0
+			if benutzbar:
+				benutzbar = False
+			# SPEICHER-2b, Punkt 6: ``benutzbar=False`` mit LEEREM ``hinweis``
+			# ergab in der Oberflaeche einen leeren roten Kasten. Steht dort
+			# schon ein Satz (Ziel unbrauchbar), bleibt er — es ist die
+			# dringendere Meldung.
+			if not hinweis:
+				hinweis = (
+					"Die Nextcloud ist gerade nicht erreichbar — Sicherungen "
+					"werden lokal behalten. Die Liste zeigt die protokollierten "
+					"Läufe, nicht was in der Nextcloud liegt."
+				)
+			hinweis_cloud = (
+				"Die Sicherungen in der Nextcloud konnten nicht gelesen werden "
+				"— die Nextcloud ist nicht erreichbar. Es ist NICHT gesagt, "
+				"dass es keine Sicherung gibt."
+			)
+	return {
+		"benutzbar": benutzbar,
+		"hinweis": hinweis,
+		"vorhanden": anzahl,
+		"ort": ort,
+		"hinweis_ort": hinweis_cloud,
+	}

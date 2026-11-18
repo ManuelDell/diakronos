@@ -12,8 +12,22 @@ Aufbau:
   abgebrochener Vorgaenger
 * :mod:`lauf` — EIN kompletter Lauf inkl. Benachrichtigung an die System
   Manager
+* :mod:`cloud` — SPEICHER-2: die fertige Sicherung ueber die Ablage-
+  Schnittstelle in die Nextcloud legen, Aufbewahrung auf der Nextcloud-Seite,
+  lokal nur die juengste Kopie behalten
+* :mod:`wiederherstellen` — SPEICHER-2: eine Sicherung aus der Nextcloud
+  zuerst lokal bereitstellen (``python -m
+  diakronos_app.sicherung.wiederherstellen``)
 """
 
 from __future__ import annotations
 
-__all__ = ["aufbewahrung", "dump", "einstellungen", "lauf", "sperre"]
+__all__ = [
+	"aufbewahrung",
+	"cloud",
+	"dump",
+	"einstellungen",
+	"lauf",
+	"sperre",
+	"wiederherstellen",
+]

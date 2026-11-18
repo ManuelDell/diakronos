@@ -68,13 +68,32 @@
           <DkButton variant="primary" :loading="sichert" @click="jetztSichern">Jetzt sichern</DkButton>
         </div>
 
+        <!-- SPEICHER-2: der Ort der Sicherungen (nur die Art, nie eine Adresse). -->
+        <DkHint v-if="ablage.ort === 'nextcloud'" variant="info">
+          Die Sicherungen liegen in der Nextcloud. Auf diesem Server bleibt nur die
+          neueste Kopie für den schnellen Zugriff; ältere werden nach Ablauf der
+          Aufbewahrung in der Nextcloud gelöscht.
+        </DkHint>
+        <DkHint v-if="ablage.hinweis_ort" variant="warn" role="status">
+          {{ ablage.hinweis_ort }}
+        </DkHint>
+
         <DkHint v-if="!ablage.benutzbar" variant="err" role="alert">{{ ablage.hinweis }}</DkHint>
 
         <DkTable :spalten="spalten" :leer="!sicherungen.length"
           leer-titel="Noch keine Sicherung"
           leer-text="Sobald die Sicherung einmal gelaufen ist, erscheint sie hier.">
           <tr v-for="s in sicherungen" :key="s.name">
-            <td>{{ zeitpunktText(s.zeitpunkt || s.name) }}</td>
+            <td>
+              {{ zeitpunktText(s.zeitpunkt || s.name) }}
+              <!-- SPEICHER-2: ein Lauf, dessen Upload nicht durchkam, ist
+                   protokolliert, liegt aber NICHT (vollstaendig) in der
+                   Nextcloud. Das muss hier stehen, sonst wirkt die Zeile wie
+                   eine vorhandene Sicherung. -->
+              <span v-if="s.vollstaendig === false" class="sk-meldung">
+                nicht in der Nextcloud
+              </span>
+            </td>
             <td>{{ s.ausloeser === 'manuell' ? 'von Hand' : 'automatisch' }}</td>
             <td>{{ groesseText(s.groesse_bytes) }}</td>
             <td>
@@ -82,8 +101,11 @@
               <span v-if="s.meldung && s.status !== 'ok'" class="sk-meldung">{{ s.meldung }}</span>
             </td>
             <td class="sk-aktion">
-              <DkButton variant="ghost" size="md" :disabled="sichert"
-                @click="frageLoeschen(s)">Löschen</DkButton>
+              <!-- Nur loeschen, was in der Ablage liegt: bei einem
+                   fehlgeschlagenen Lauf gibt es dort nichts zu loeschen
+                   (die lokale Kopie ist die einzige und bleibt). -->
+              <DkButton v-if="s.vollstaendig !== false" variant="ghost" size="md"
+                :disabled="sichert" @click="frageLoeschen(s)">Löschen</DkButton>
             </td>
           </tr>
         </DkTable>
