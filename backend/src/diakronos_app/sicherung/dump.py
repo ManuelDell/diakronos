@@ -344,6 +344,16 @@ def schreibe_dateiarchiv(ziel: Path, quelle: Path | None = None) -> None:
 	Ein leeres oder fehlendes Quellverzeichnis ergibt ein Archiv ohne
 	Eintraege. Das ist Absicht: eine Gemeinde ohne Uploads soll nicht daran
 	scheitern, dass es nichts zu sichern gibt.
+
+	SPEICHER-1 — BEWUSST LOKAL (Ausnahme von der Ablage-Schnittstelle): Das
+	Archiv sichert das LOKALE Volume. Bei ``SPEICHER_BACKEND=nextcloud`` ist
+	das Volume leer bzw. veraltet, und die Sicherung enthaelt dann keine
+	Dateien — dafuer sichert Nextcloud seine Daten selber (Versionierung,
+	Backup des Anbieters). Ein Hereinkopieren der Nextcloud-Dateien in jedes
+	Sicherungsarchiv waere ein zweiter, unkontrollierter Datenbestand: DSGVO-
+	Loeschungen in Diakronos wuerden dort nicht greifen, und die Sicherung
+	wuerde mit jedem Lauf groesser. Der Betreiber wird in der
+	BETRIEBSANLEITUNG darauf hingewiesen.
 	"""
 	quelle = Path(quelle or settings.files_dir)
 	teil = ziel.with_name(ziel.name + ".part")

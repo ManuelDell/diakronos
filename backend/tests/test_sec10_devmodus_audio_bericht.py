@@ -32,8 +32,8 @@ def an(monkeypatch):
 
 @pytest.fixture()
 def ordner(tmp_path, monkeypatch):
-    monkeypatch.setattr("diakronos_app.devmodus.dienste.settings.files_dir", str(tmp_path))
-    monkeypatch.setattr("diakronos_app.devmodus.bericht.settings.files_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "files_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "files_dir", str(tmp_path))
     return tmp_path
 
 

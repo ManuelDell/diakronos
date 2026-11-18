@@ -62,7 +62,7 @@ class GemeindeEinstellungen(Base):
     ort: Mapped[str | None] = mapped_column(String(120), nullable=True)
     telefon: Mapped[str | None] = mapped_column(String(40), nullable=True)
     website: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    # ON-2: Dateiname des Gemeinde-Logos in ``settings.files_dir`` (kein Pfad,
+    # ON-2: Dateiname des Gemeinde-Logos in der Datei-Ablage (kein Pfad,
     # kein Client-Name). Leer = kein Logo -> die Oberflaeche zeigt das
     # Monogramm aus Kurzname/Gemeindename.
     logo_datei: Mapped[str | None] = mapped_column(String(255), nullable=True)

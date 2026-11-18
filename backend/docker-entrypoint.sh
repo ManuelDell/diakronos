@@ -92,6 +92,23 @@ python -m diakronos_app.anmeldung.startup
 # Startverbot waere haerter als der Befund. Exitcode bleibt immer 0.
 python -m diakronos_app.frontend_build || true
 
+# SPEICHER-1: Ist die Ablage auf `nextcloud` gestellt, sind drei Angaben
+# Pflicht — Adresse, Benutzer, App-Passwort. Fehlt eine, faellt es sonst erst
+# beim ersten Hochladen auf („nicht eingerichtet“), also mitten im Betrieb.
+# Deshalb: Start verweigern, und zwar mit den FEHLENDEN NAMEN — nie mit einem
+# Wert. Bei `lokal`/leer aendert sich nichts am bisherigen Verhalten.
+if [ "$(printf '%s' "${SPEICHER_BACKEND:-lokal}" | tr '[:upper:]' '[:lower:]')" = "nextcloud" ]; then
+    fehlt=""
+    [ -n "${NEXTCLOUD_URL:-}" ] || fehlt="$fehlt NEXTCLOUD_URL"
+    [ -n "${NEXTCLOUD_BENUTZER:-}" ] || fehlt="$fehlt NEXTCLOUD_BENUTZER"
+    [ -n "${NEXTCLOUD_APP_PASSWORT:-}" ] || fehlt="$fehlt NEXTCLOUD_APP_PASSWORT"
+    if [ -n "$fehlt" ]; then
+        echo "[entrypoint] SPEICHER_BACKEND=nextcloud, aber es fehlt:$fehlt" >&2
+        echo "[entrypoint] Ablage unvollstaendig — Start verweigert." >&2
+        exit 1
+    fi
+fi
+
 if [ "${SKIP_MIGRATIONS:-0}" != "1" ]; then
     echo "[entrypoint] alembic upgrade head ..."
     alembic -c /app/alembic.ini upgrade head

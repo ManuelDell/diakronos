@@ -17,7 +17,6 @@ import binascii
 import re
 import secrets
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 from sqlalchemy import delete, select
@@ -25,7 +24,6 @@ from sqlalchemy.orm import Session
 
 from diakronos_app.files import binary_content_type
 from diakronos_app.models.devmodus import DevBefund, DevEreignis, DevSitzung
-from diakronos_app.settings import settings
 from diakronos_app.devmodus import einstellungen
 from diakronos_app.devmodus.einstellungen import (
     ARTEN,
@@ -42,6 +40,7 @@ from diakronos_app.devmodus.einstellungen import (
     STATUS_GUELTIG,
     WICHTIGKEITEN,
 )
+from diakronos_app.settings import settings  # noqa: F401 — Naht fuer Tests/Werkzeuge
 from diakronos_app.devmodus.redaktion import redigiere, redigiere_felder
 
 #: Wie lange eine Dev-Sitzung ohne Herzschlag als abgelaufen gilt. Danach
@@ -66,8 +65,11 @@ def _neu(prefix: str) -> str:
     return f"{prefix}-{secrets.token_hex(6)}"
 
 
-def _speicher_wurzel() -> Path:
-    return Path(settings.files_dir).resolve()
+def _speicher():
+    """Die Datei-Ablage (SPEICHER-1: lokal oder Nextcloud)."""
+    from diakronos_app.speicher import hole_speicher
+
+    return hole_speicher()
 
 
 # ── Dev-Sitzung (Herzschlag) ───────────────────────────────────────────────
@@ -194,9 +196,7 @@ def bild_speichern(rohdaten: bytes, typ: str | None = None) -> dict[str, Any]:
         raise DevFehler("Dateiinhalt passt nicht zum angegebenen Typ.", "/bilder")
     tag = jetzt().strftime("%Y-%m-%d")
     name = secrets.token_hex(8) + "." + BILD_TYPEN[erkannt]
-    ziel = _speicher_wurzel() / "devmodus" / tag
-    ziel.mkdir(parents=True, exist_ok=True)
-    (ziel / name).write_bytes(rohdaten)
+    _speicher().schreiben(f"devmodus/{tag}/{name}", rohdaten)
     return {"pfad": f"devmodus/{tag}/{name}", "typ": erkannt, "bytes": len(rohdaten)}
 
 
@@ -239,9 +239,7 @@ def audio_speichern(rohdaten: bytes, typ: str | None = None) -> dict[str, Any]:
         raise DevFehler("Dateiinhalt passt nicht zum angegebenen Typ.", "/audio")
     tag = jetzt().strftime("%Y-%m-%d")
     name = secrets.token_hex(8) + "." + AUDIO_TYPEN[erkannt]
-    ziel = _speicher_wurzel() / "devmodus" / tag
-    ziel.mkdir(parents=True, exist_ok=True)
-    (ziel / name).write_bytes(rohdaten)
+    _speicher().schreiben(f"devmodus/{tag}/{name}", rohdaten)
     return {"pfad": f"devmodus/{tag}/{name}", "typ": erkannt, "bytes": len(rohdaten)}
 
 
@@ -274,25 +272,42 @@ def _bilder_pruefen(eintraege: list | None) -> list[str]:
         # Nur Pfade, die WIR vergeben haben (kein Pfad aus dem Browser).
         if not _BILD_PFAD.fullmatch(str(pfad)):
             raise DevFehler("Unbekannter Bildpfad.", "/bilder")
-        if not (_speicher_wurzel() / pfad).is_file():
+        if not _speicher().existiert(str(pfad)):
             raise DevFehler("Bild wurde nicht gefunden.", "/bilder")
         pfade.append(str(pfad))
     return pfade
 
 
-def bild_pfad(pfad: str | None) -> Path | None:
-    """Wandelt einen von UNS vergebenen Bildpfad in einen Dateipfad um.
+def bild_pfad_erlaubt(pfad: str | None) -> bool:
+    """Entspricht ``pfad`` dem Muster, das WIR vergeben?
+
+    Reine Musterpruefung (``devmodus/<datum>/<16 hex>.<endung>``) — kein
+    Ablagezugriff. Die Bild-Route fragt das VOR dem Speicher: ein Pfad aus
+    dem Browser ist 404 und nicht etwa „ungueltiger Schluessel“ (417).
+    """
+    return bool(pfad) and bool(_BILD_PFAD.fullmatch(str(pfad)))
+
+
+def bild_pfad(pfad: str | None) -> Any:
+    """Wandelt einen von UNS vergebenen Bildpfad in eine Lesequelle um.
 
     Nur ``devmodus/<datum>/<name>`` mit dem Muster aus ``_BILD_PFAD`` ist
-    erlaubt (kein Pfad aus dem Browser, kein Ausbruch aus FILES_DIR). Ist die
+    erlaubt (kein Pfad aus dem Browser, kein Ausbruch aus der Ablage). Ist die
     Datei nicht vorhanden, kommt ``None`` zurueck.
+
+    SPEICHER-1: Rueckgabe ist ein geoeffnetes Leseobjekt (``Quelle``) aus der
+    Ablage — nicht mehr ein ``Path``. Bei der Nextcloud-Ablage gibt es keinen
+    Dateipfad; die Route liest die Bytes ueber die Quelle. Der Aufrufer MUSS
+    die Quelle schliessen (``with``).
     """
     if not pfad or not _BILD_PFAD.fullmatch(str(pfad)):
         return None
-    ziel = (_speicher_wurzel() / str(pfad)).resolve()
-    if ziel.parent.parent != _speicher_wurzel() / "devmodus" or not ziel.is_file():
+    from diakronos_app.speicher import AblageFehler
+
+    try:
+        return _speicher().oeffnen(str(pfad))
+    except AblageFehler:
         return None
-    return ziel
 
 
 def _audio_pruefen(eintrag: dict | None) -> dict | None:
@@ -303,7 +318,7 @@ def _audio_pruefen(eintrag: dict | None) -> dict | None:
         return None
     if not _AUDIO_PFAD.fullmatch(str(pfad)):
         raise DevFehler("Unbekannter Audiopfad.", "/audio")
-    if not (_speicher_wurzel() / pfad).is_file():
+    if not _speicher().existiert(str(pfad)):
         raise DevFehler("Aufnahme wurde nicht gefunden.", "/audio")
     return {"pfad": str(pfad), "typ": (eintrag or {}).get("typ")}
 
@@ -431,12 +446,11 @@ def befund_loeschen(sitzung: Session, name: str) -> dict[str, Any]:
         raise DevFehler("Befund nicht gefunden.", "/name")
     entfernt = 0
     for pfad in (befund.bilder or []) + ([befund.audio["pfad"]] if befund.audio else []):
-        ziel = _speicher_wurzel() / pfad
+        # SPEICHER-1: ueber die Ablage — bei Nextcloud gibt es keinen Pfad.
         try:
-            if ziel.is_file():
-                ziel.unlink()
+            if _speicher().loeschen(str(pfad)):
                 entfernt += 1
-        except OSError:
+        except Exception:  # noqa: BLE001 — Aufraeumen darf nicht scheitern
             pass
     sitzung.delete(befund)
     sitzung.flush()

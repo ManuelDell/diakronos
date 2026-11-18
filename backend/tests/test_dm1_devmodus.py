@@ -19,6 +19,7 @@ import json
 import pytest
 
 from diakronos_app.devmodus import einstellungen
+from diakronos_app.settings import settings
 
 PFAD = "/api/method/diakronos.devmodus.api."
 
@@ -228,7 +229,7 @@ def test_ungueltige_art_wird_abgewiesen(client, an):
 # ── Upload-Typen ───────────────────────────────────────────────────────────
 
 def test_bild_hochladen_nimmt_png(client, an, tmp_path, monkeypatch):
-    monkeypatch.setattr("diakronos_app.devmodus.dienste.settings.files_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "files_dir", str(tmp_path))
     antwort = client.post(PFAD + "bild_hochladen", json={"daten": _png(), "typ": "image/png"})
     assert antwort.status_code == 200, antwort.text
     daten = antwort.json()["message"]
@@ -236,14 +237,14 @@ def test_bild_hochladen_nimmt_png(client, an, tmp_path, monkeypatch):
 
 
 def test_bild_hochladen_lehnt_text_ab(client, an, tmp_path, monkeypatch):
-    monkeypatch.setattr("diakronos_app.devmodus.dienste.settings.files_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "files_dir", str(tmp_path))
     roh = base64.b64encode(b"kein bild").decode()
     antwort = client.post(PFAD + "bild_hochladen", json={"daten": roh, "typ": "image/png"})
     assert antwort.status_code == 417, antwort.text
 
 
 def test_befund_mit_bild(client, an, tmp_path, monkeypatch):
-    monkeypatch.setattr("diakronos_app.devmodus.dienste.settings.files_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "files_dir", str(tmp_path))
     client.post(PFAD + "sitzung_starten", json={})
     bild = client.post(PFAD + "bild_hochladen", json={"daten": _jpg()}).json()["message"]
     antwort = client.post(PFAD + "befund_speichern", json={
@@ -253,7 +254,7 @@ def test_befund_mit_bild(client, an, tmp_path, monkeypatch):
 
 
 def test_befund_lehnt_fremden_bildpfad_ab(client, an, tmp_path, monkeypatch):
-    monkeypatch.setattr("diakronos_app.devmodus.dienste.settings.files_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "files_dir", str(tmp_path))
     client.post(PFAD + "sitzung_starten", json={})
     antwort = client.post(PFAD + "befund_speichern", json={
         "text": "x", "bilder": [{"pfad": "devmodus/2026-01-01/../../etc/passwd"}]})
@@ -261,7 +262,7 @@ def test_befund_lehnt_fremden_bildpfad_ab(client, an, tmp_path, monkeypatch):
 
 
 def test_audio_hochladen_webm(client, an, tmp_path, monkeypatch):
-    monkeypatch.setattr("diakronos_app.devmodus.dienste.settings.files_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "files_dir", str(tmp_path))
     # EBML-Kopf (webm/matroska) — binär, hier nur als Base64.
     roh = base64.b64encode(b"\x1a\x45\xdf\xa3" + b"\x00" * 32).decode()
     antwort = client.post(PFAD + "audio_hochladen", json={"daten": roh, "typ": "audio/webm"})
@@ -292,8 +293,8 @@ def test_fehlerumfeld_nimmt_fehler_der_sitzung(client, an, patched_db):
 # ── Bericht ────────────────────────────────────────────────────────────────
 
 def test_bericht_erzeugt_markdown_und_json(client, an, tmp_path, monkeypatch):
-    monkeypatch.setattr("diakronos_app.devmodus.dienste.settings.files_dir", str(tmp_path))
-    monkeypatch.setattr("diakronos_app.devmodus.bericht.settings.files_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "files_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "files_dir", str(tmp_path))
     client.post(PFAD + "sitzung_starten", json={})
     client.post(PFAD + "befund_speichern", json={
         "text": "Fehler beim Speichern", "url": "http://test/#/planrahmen",
@@ -313,8 +314,8 @@ def test_bericht_erzeugt_markdown_und_json(client, an, tmp_path, monkeypatch):
 def test_bericht_cli_json(client, an, tmp_path, monkeypatch, capsys):
     from diakronos_app.devmodus import bericht
 
-    monkeypatch.setattr("diakronos_app.devmodus.dienste.settings.files_dir", str(tmp_path))
-    monkeypatch.setattr("diakronos_app.devmodus.bericht.settings.files_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "files_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "files_dir", str(tmp_path))
     befund = bericht.erzeugen
     # Direkter Dienstaufruf statt CLI-Argumente: die CLI liest db.SessionLocal.
     from diakronos_app import db

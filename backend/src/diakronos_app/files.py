@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 from fastapi import APIRouter
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from diakronos_app.frappe_compat.exceptions import FrappeCompatError, PermissionError, ValidationError
 from diakronos_app.frappe_compat.permissions import check_permission, is_admin
@@ -68,14 +68,52 @@ def validated_content_type(raw: bytes, declared: str) -> str:
 
 
 def stored_path(filename: str) -> Path | None:
+    """Lokaler Dateipfad einer auslieferbaren Datei — nur wenn es ihn gibt.
+
+    SPEICHER-1: Der Pfad kommt aus der Ablage (``speicher``), nicht mehr aus
+    ``settings.files_dir``. Bei der Nextcloud-Ablage gibt es keinen lokalen
+    Pfad — dort liefert die Funktion ``None``, und die Aufrufer, die zwingend
+    eine Datei brauchen, holen sie ueber ``speicher_daten`` bzw.
+    ``temporaerdatei``.
+
+    Die Sicherheitspruefung (kein Pfad, kein ``..``, kein Symlink, kein
+    Ausbruch) ist unveraendert: der Name muss weiterhin ein reiner
+    Dateiname sein, und die Ablage prueft ihre Wurzel selbst.
+    """
     # A URL is a single filename, never a path (also reject encoded leftovers).
     if not filename or filename in {'.', '..'} or not re.fullmatch(r'[A-Za-z0-9._-]+', filename):
         return None
-    root = Path(settings.files_dir).resolve()
-    candidate = root / filename
-    if candidate.is_symlink() or candidate.resolve().parent != root:
+    from diakronos_app.speicher import hole_speicher
+
+    try:
+        return hole_speicher().pfad(filename)
+    except Exception:  # noqa: BLE001 — nicht erreichbar = nicht auslieferbar
         return None
-    return candidate if candidate.is_file() else None
+
+
+def stored_daten(filename: str, *,
+                 maximum: int | None = None) -> bytes | None:
+    """Inhalt einer Datei aus der Ablage (``None``: gibt es nicht).
+
+    SPEICHER-1: Der Weg fuer alle Aufrufer, die die BYTES brauchen und keinen
+    Dateipfad (Nextcloud hat keinen). ``maximum`` begrenzt das Lesen: es
+    werden hoechstens ``maximum + 1`` Bytes gelesen, damit der Aufrufer eine
+    Ueberschreitung selbst erkennen kann, ohne die ganze Datei zu holen.
+    """
+    if not filename or filename in {'.', '..'} or not re.fullmatch(r'[A-Za-z0-9._-]+', filename):
+        return None
+    from diakronos_app.speicher import NichtGefunden, hole_speicher
+
+    try:
+        speicher = hole_speicher()
+        with speicher.oeffnen(filename) as quelle:
+            if maximum is None:
+                return quelle.ganz()
+            return quelle.lesen_vorn(maximum + 1)
+    except NichtGefunden:
+        return None
+    except Exception:  # noqa: BLE001 — nicht erreichbar = nicht auslieferbar
+        return None
 
 
 def attachment_allowed(doctype: str | None, name: str | None, permission: str = 'read',
@@ -179,6 +217,28 @@ def _ist_musikverantwortlich() -> bool:
         return False
 
 
+def _range_kopf() -> str | None:
+    """Der ``Range``-Kopf des laufenden Requests — bereinigt (Review-Punkt 6).
+
+    ``FileResponse`` (lokaler Pfad) wertet den ``Range``-Kopf SELBST aus und
+    antwortet auf alles, was es nicht versteht, mit ``400``. Richtig ist laut
+    RFC 9110 (14.2) aber, einen nicht unterstuetzten Bereich zu IGNORIEREN und
+    die ganze Datei zu schicken: ``bytes=0-0,5-9`` (Mehrfachbereich),
+    ``items=0-5`` (fremde Einheit) und ``bytes=abc`` werden hier zu ``None``.
+
+    Den ``FileResponse``-Weg bedient ``range_kopf_bereinigen`` in
+    ``request_context``: es nimmt denselben Kopf aus dem ASGI-``scope``, weil
+    ``FileResponse`` nur dort nachsieht.
+    """
+    from diakronos_app.request_context import get_header
+    from diakronos_app.speicher.basis import bereich_syntax
+
+    roh = (get_header('range') or '').strip()
+    if not roh or not bereich_syntax(roh):
+        return None
+    return roh
+
+
 @router.get('/files/{filename:path}')
 @router.get('/private/files/{filename:path}')
 def serve_file(filename: str):
@@ -186,7 +246,11 @@ def serve_file(filename: str):
         return _error_response('Zugriff verweigert.', 'PermissionError', 403)
     path = stored_path(filename)
     if path is None:
-        return _error_response('Datei nicht gefunden.', 'DoesNotExistError', 404)
+        # SPEICHER-1: Bei der Nextcloud-Ablage gibt es keinen lokalen Pfad.
+        # Ob die Datei existiert, entscheidet die Ablage — der Rest des Wegs
+        # (Rechtepruefung, Typbestimmung) ist derselbe.
+        if not _datei_vorhanden(filename):
+            return _error_response('Datei nicht gefunden.', 'DoesNotExistError', 404)
     from diakronos_app.db import SessionLocal
     from diakronos_app.models.core import FileModel
 
@@ -203,18 +267,36 @@ def serve_file(filename: str):
         ):
             return _error_response('Zugriff verweigert.', 'PermissionError', 403)
     text_content = b''
-    with path.open('rb') as fh:
-        prefix = fh.read(4096)
+    if path is not None:
+        with path.open('rb') as fh:
+            prefix = fh.read(4096)
+            mime = binary_content_type(prefix)
+            if mime is None:
+                # Text muss vollstaendig geprueft werden: ein Sniff-Praefix kann
+                # UTF-8-Zeichen zerteilen und unsichere Inhalte hinter der
+                # Sniff-Grenze uebersehen. Begrenzt wie beim Upload, inklusive
+                # eines Bytes, um eine uebergrosse Datei zu erkennen. Text/XML
+                # bleiben beim allgemeinen Limit (Audio/Notensatz-Binaerdateien
+                # werden oben schon per Magic erkannt).
+                fh.seek(0)
+                text_content = fh.read(settings.max_upload_bytes + 1)
+                if len(text_content) > settings.max_upload_bytes:
+                    return _error_response('Dateityp nicht erlaubt.', 'PermissionError', 403)
+    else:
+        # SPEICHER-1 / Review-Punkt 4: Nextcloud-Ablage — kein lokaler Pfad.
+        # Gelesen wird nur der KOPF zum Bestimmen des Typs (4096 Bytes, wie
+        # beim Dateipfad); die Datei selbst wird anschliessend gestreamt.
+        # Vorher wurde sie hier auf ``max_upload_bytes_audio`` begrenzt
+        # gelesen und STILL abgeschnitten mit 200 ausgeliefert.
+        prefix = _datei_daten_begrenzt(filename, 4096)
+        if prefix is None:
+            return _error_response('Datei nicht gefunden.', 'DoesNotExistError', 404)
         mime = binary_content_type(prefix)
         if mime is None:
-            # Text muss vollstaendig geprueft werden: ein Sniff-Praefix kann
-            # UTF-8-Zeichen zerteilen und unsichere Inhalte hinter der
-            # Sniff-Grenze uebersehen. Begrenzt wie beim Upload, inklusive
-            # eines Bytes, um eine uebergrosse Datei zu erkennen. Text/XML
-            # bleiben beim allgemeinen Limit (Audio/Notensatz-Binaerdateien
-            # werden oben schon per Magic erkannt).
-            fh.seek(0)
-            text_content = fh.read(settings.max_upload_bytes + 1)
+            # Text muss vollstaendig geprueft werden (wie beim Dateipfad) —
+            # das ist bewusst begrenzt: eine Textdatei ueber dem Limit ist
+            # ohnehin nicht erlaubt.
+            text_content = _datei_daten_begrenzt(filename, settings.max_upload_bytes + 1) or b''
             if len(text_content) > settings.max_upload_bytes:
                 return _error_response('Dateityp nicht erlaubt.', 'PermissionError', 403)
     if mime is None:
@@ -229,6 +311,165 @@ def serve_file(filename: str):
         except ValidationError:
             return _error_response('Dateityp nicht erlaubt.', 'PermissionError', 403)
     inline = mime.startswith('image/') or mime.startswith('audio/')
-    return FileResponse(path, media_type=mime, filename=filename,
-                        content_disposition_type='inline' if inline else 'attachment',
-                        headers={'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store'})
+    kopfzeilen = {'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store'}
+    bereich = _range_kopf()
+    if path is None:
+        # SPEICHER-1 / Review-Punkt 4: Nextcloud-Ablage — die Datei wird
+        # GESTREAMT, nie in den Speicher gelesen und nie abgeschnitten.
+        # ``Range`` (Audio-Spulen, Safari) geht an die Ablage durch und kommt
+        # als 206 mit ``Content-Range`` zurueck.
+        return _aus_der_ablage(filename, mime, inline, kopfzeilen, bereich)
+    antwort = FileResponse(path, media_type=mime, filename=filename,
+                           content_disposition_type='inline' if inline else 'attachment',
+                           headers=kopfzeilen)
+    # Einen Range, den wir nicht bedienen, hat die Middleware schon aus dem
+    # Request genommen (``request_context.range_kopf_bereinigen``) — hier
+    # bleibt nur der gueltige Fall, den ``FileResponse`` selbst beantwortet.
+    #
+    # Review-Punkt 7: schrumpft die Datei zwischen Pruefung und Auslieferung
+    # auf 0 Bytes (oder hinter das Bereichsende), ergaebe das einen ``206``
+    # mit leerem Koerper. Dann antworten wir selbst: ``416`` mit der ECHTEN
+    # Groesse.
+    if bereich:
+        jetzt = _dateigroesse(path)
+        _, von, bis = _bereich_von_kopf(bereich, jetzt)
+        if jetzt <= 0 or bis < von:
+            return Response(status_code=416, headers={
+                **kopfzeilen, 'Accept-Ranges': 'bytes',
+                'Content-Range': f'bytes */{max(jetzt, 0)}'})
+    return antwort
+
+
+def _dateigroesse(path) -> int:
+    """Groesse einer lokalen Datei (``-1``, wenn sie nicht mehr da ist)."""
+    try:
+        return int(path.stat().st_size)
+    except OSError:  # pragma: no cover — zwischen Pruefung und Stat geloescht
+        return -1
+
+
+def _bereich_von_kopf(bereich: str, gesamt: int) -> tuple[int, int, int]:
+    """``(gesamt, von, bis)`` aus einem ``Range``-Kopf — ohne Ablage-Zugriff."""
+    from diakronos_app.speicher.basis import _parse_bereich
+
+    if gesamt <= 0:
+        return gesamt, 0, -1
+    _, von, bis = _parse_bereich(bereich, gesamt)
+    return gesamt, von, bis
+
+
+def _aus_der_ablage(filename: str, mime: str, inline: bool, kopfzeilen: dict,
+                    bereich: str | None = None):
+    """Datei aus einer pfadlosen Ablage ausliefern (Nextcloud): gestreamt.
+
+    Kopfzeilen unveraendert wie beim lokalen Weg (``nosniff``, ``no-store``,
+    ``Content-Disposition``) — zusaetzlich ``Accept-Ranges`` und, auf einen
+    ``Range``-Kopf, ``206`` mit ``Content-Range``. Ein unerfuellbarer Bereich
+    ergibt ``416`` mit ``Content-Range: bytes */<groesse>``.
+
+    ``bereich`` ist der bereits bereinigte ``Range``-Kopf des Requests
+    (``_range_kopf``); ``None`` heisst „ganze Datei“.
+
+    Drei Sonderfaelle:
+
+    * **Leere Datei ohne Range** ist ``200`` mit ``Content-Length: 0``
+      (Review Runde 4, Punkt 1) — nicht ``416``; der ``(0, 0, -1)``-Wert der
+      Ablage heisst „nichts auszuliefern“, und ohne Range ist das eine leere,
+      aber vorhandene Datei.
+    * **Unbekannte Gesamtgroesse** (``-1``, chunked-Antwort): es wird OHNE
+      ``Content-Length`` durchgereicht (``200``, chunked) — keinen ``416``
+      erfinden und keine Laenge behaupten (Punkt 3).
+    * Eine Ablage-Antwort, die NICHT ausgeliefert wird (``ende < anfang``),
+      wird geschlossen, bevor ``416`` kommt — der Generator laeuft dann nie,
+      sein ``finally`` also auch nicht (Punkt 2).
+    """
+    from fastapi.responses import StreamingResponse
+
+    from diakronos_app.speicher import AblageFehler, NichtGefunden, hole_speicher
+    from diakronos_app.speicher.basis import bereich_syntax
+
+    speicher = hole_speicher()
+    try:
+        gesamt, von, bis = speicher.groesse_und_bereich(filename, bereich)
+    except (NichtGefunden, AblageFehler):
+        return _error_response('Datei nicht gefunden.', 'DoesNotExistError', 404)
+
+    gemeinsam = {
+        **kopfzeilen,
+        'Content-Disposition': f'{"inline" if inline else "attachment"}; filename="{filename}"',
+        'Accept-Ranges': 'bytes',
+    }
+    if gesamt == 0 and not bereich:
+        # Leere Datei, kein Range: 200 mit 0 Bytes (kein 416).
+        return Response(status_code=200, headers={**gemeinsam, 'Content-Length': '0'})
+    if bis < von:
+        # 416 nur fuer einen syntaktisch GUELTIGEN, unerfuellbaren Bereich
+        # (RFC 9110: ``bytes=100-`` bei 100 Bytes) und fuer eine leere Datei.
+        # Ein Range, den wir nicht unterstuetzen (``bytes=0-0,5-9``,
+        # ``items=0-5``), ist oben schon zur ganzen Datei geworden.
+        return Response(status_code=416, headers={
+            **gemeinsam, 'Content-Range': f'bytes */{max(gesamt, 0)}'})
+
+    try:
+        bloecke, anfang, ende = speicher.strom(
+            filename, von=von, bis=bis, bereich=bool(bereich), gesamt=gesamt)
+    except (NichtGefunden, AblageFehler):
+        return _error_response('Datei nicht gefunden.', 'DoesNotExistError', 404)
+
+    if ende < anfang:
+        # Die Datei ist zwischen der Groessenabfrage und dem Lesen auf 0
+        # Bytes geschrumpft: KEIN ``206 bytes 0--1/N``. Die Antwort der
+        # Ablage ist schon geschlossen (macht ``strom`` selbst); bleibt der
+        # ehrliche ``416`` mit der echten Groesse.
+        return Response(status_code=416, headers={
+            **gemeinsam, 'Content-Range': 'bytes */0'})
+
+    # ``ende`` kommt inklusiv — die Laenge ist die Differenz plus eins.
+    laenge = max(0, ende - anfang + 1)
+    # 206 nur, wenn der Client einen Range geschickt hat und die Ablage ihn
+    # AUCH bedient hat. Ein nicht unterstuetzter Range (``items=0-5``,
+    # ``bytes=0-0,5-9``) wurde zur ganzen Datei -> 200 ohne ``Content-Range``.
+    bedient = bool(bereich) and bereich_syntax(bereich)
+    status = 206 if bedient else 200
+    if bedient:
+        gemeinsam['Content-Range'] = f'bytes {anfang}-{ende}/{gesamt}'
+    if gesamt < 0 and not bedient:
+        # Gesamtgroesse unbekannt (chunked aus der Ablage): OHNE
+        # ``Content-Length`` durchreichen — der Client bekommt die Datei
+        # vollstaendig, statt an einer erfundenen Laenge zu scheitern.
+        return StreamingResponse(bloecke, status_code=status, media_type=mime,
+                                 headers=gemeinsam)
+    gemeinsam['Content-Length'] = str(laenge)
+    return StreamingResponse(bloecke, status_code=status, media_type=mime,
+                             headers=gemeinsam)
+
+
+def _datei_vorhanden(filename: str) -> bool:
+    """Liegt die Datei in der Ablage? (Auch ohne lokalen Pfad.)"""
+    if not filename or filename in {'.', '..'} or not re.fullmatch(r'[A-Za-z0-9._-]+', filename):
+        return False
+    from diakronos_app.speicher import hole_speicher
+
+    try:
+        return hole_speicher().existiert(filename)
+    except Exception:  # noqa: BLE001 — nicht erreichbar = nicht auslieferbar
+        return False
+
+
+def _datei_daten_begrenzt(filename: str, grenze: int) -> bytes | None:
+    """Datei aus der Ablage lesen, hoechstens ``grenze`` Bytes (``None`` = fehlt).
+
+    Review-Punkt 2: hier holte die Nextcloud-Ablage frueher die GANZE Datei
+    (``oeffnen`` -> ``BytesQuelle(antwort.content)``), nur um die ersten
+    4096 Bytes zu sehen. ``speicher.lesen_vorn`` holt bei ``Nextcloud``
+    stattdessen einen gestreamten ``Range``-Ausschnitt (und bricht bei einem
+    Server ohne Range ab); ``Lokal`` liest ohnehin von der Platte.
+    """
+    if not filename or filename in {'.', '..'} or not re.fullmatch(r'[A-Za-z0-9._-]+', filename):
+        return None
+    from diakronos_app.speicher import AblageFehler, hole_speicher
+
+    try:
+        return hole_speicher().lesen_vorn(filename, grenze)
+    except AblageFehler:
+        return None

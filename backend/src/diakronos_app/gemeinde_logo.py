@@ -4,8 +4,11 @@ Drei Aufgaben, bewusst in EINEM Modul, damit Upload-Regel und Ausliefer-Regel
 nicht auseinanderlaufen koennen:
 
 1. ``pruefe_und_lege_ab`` — nimmt die hochgeladenen Bytes, prueft Typ, Groesse
-   und Abmessungen und legt sie unter ``settings.files_dir`` ab.
-2. ``logo_pfad`` — findet die hinterlegte Datei.
+   und Abmessungen und legt sie in der Datei-Ablage ab
+   (``diakronos_app.speicher``: lokal unter ``settings.files_dir``, oder in der
+   Nextcloud — SPEICHER-1).
+2. ``logo_pfad`` — findet die hinterlegte Datei (lokaler Pfad, wenn es einen
+   gibt); ``logo_daten`` liefert die Bytes fuer die Nextcloud-Ablage.
 3. ``registriere`` — die OEFFENTLICHE Route ``GET {Praefix}/gemeinde/logo``.
 
 Sicherheit (Kartenvorgabe D1, Nachtrag Orchestrator 2026-11-01)
@@ -39,19 +42,17 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 import re
 import uuid
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from diakronos_app.frappe_compat.exceptions import ValidationError
 from diakronos_app.files import binary_content_type
 from diakronos_app.frappe_compat.router import _error_response
-from diakronos_app.settings import settings
 
 logger = logging.getLogger("diakronos_app.gemeinde_logo")
 
@@ -63,6 +64,7 @@ __all__ = [
     "registriere",
     "pruefe_und_lege_ab",
     "logo_pfad",
+    "logo_daten",
     "logo_url",
     "entferne_datei",
     "abmessungen",
@@ -94,10 +96,6 @@ _ENDUNG_TYP = {endung: typ for typ, endung in LOGO_TYPEN.items()}
 _TYP_TEXT = "Erlaubt sind PNG, JPEG, WebP oder SVG."
 
 router = APIRouter(tags=["gemeinde"])
-
-
-def _wurzel() -> Path:
-    return Path(settings.files_dir).resolve()
 
 
 # ── Abmessungen aus den Kopfdaten (ohne Dekodieren) ─────────────────────────
@@ -534,54 +532,88 @@ def pruefe_und_lege_ab(datei: Any, deklarierter_typ: str | None = None) -> tuple
         _pruefe_bildstruktur(roh, erkannt)
         _pruefe_kante(roh, erkannt)
 
-    ziel = _wurzel()
-    ziel.mkdir(parents=True, exist_ok=True)
     name = f"gemeinde-logo-{uuid.uuid4().hex}{LOGO_TYPEN[erkannt]}"
-    pfad = (ziel / name).resolve()
-    # Guertel und Hosentraeger: der Zielpfad MUSS unterhalb von files_dir liegen.
-    if pfad.parent != ziel:
-        raise ValidationError("Ungueltiger Dateiname.")
+    # SPEICHER-1: Ablage ueber die EINE Schnittstelle (lokal oder Nextcloud).
+    # Die Ablage prueft den Schluessel selbst auf Ausbrueche; der Name ist
+    # ohnehin ein reines Muster (`gemeinde-logo-<hex>.<endung>`).
+    from diakronos_app.speicher import AblageFehler, hole_speicher
 
-    # Erst in eine temporaere Datei, dann atomar umbenennen: ein Abbruch
-    # hinterlaesst nie ein halbes Logo. Der Temp-Name passt NICHT auf
-    # ``_ABLAGE_NAME`` und wird deshalb nie ausgeliefert.
-    tmp = pfad.with_suffix(pfad.suffix + ".tmp")
-    with open(tmp, "wb") as fh:
-        fh.write(roh)
-        fh.flush()
-        os.fsync(fh.fileno())
-    os.replace(tmp, pfad)
+    speicher = hole_speicher()
+    try:
+        speicher.schreiben(name, roh)
+    except AblageFehler as fehler:
+        raise ValidationError(str(fehler)) from fehler
 
     logger.info("Gemeinde-Logo abgelegt (%s, %d Bytes).", erkannt, len(roh))
     return name, erkannt
 
 
-def logo_pfad(name: str | None) -> tuple[Path, str] | None:
+def logo_pfad(name: str | None) -> tuple[Path | None, str] | None:
     """Pfad und MIME-Typ des hinterlegten Logos — ``None``, wenn keins da ist.
 
     Der gespeicherte Wert wird gegen ein festes Muster geprueft (kein Pfad, kein
-    ``..``, keine fremde Datei). Eine Datei, die von Hand aus ``files_dir``
+    ``..``, keine fremde Datei). Eine Datei, die von Hand aus der Ablage
     entfernt wurde, gilt ebenfalls als „kein Logo“ — dann zeigt die Oberflaeche
     das Monogramm, statt eine 500 zu erzeugen.
+
+    SPEICHER-1: ``Pfad`` ist nur bei der lokalen Ablage gesetzt; bei der
+    Nextcloud-Ablage kommt ``None`` zurueck (kein lokaler Pfad) — die Route
+    liefert dann die Bytes ueber :func:`logo_daten` aus. Der ``bool``-Gebrauch
+    (``logo_pfad(...) is not None``) bleibt damit unveraendert richtig.
     """
+    wert = _pruefe_name(name)
+    if not wert:
+        return None
+    from diakronos_app.speicher import NichtGefunden, hole_speicher
+
+    try:
+        speicher = hole_speicher()
+        if not speicher.existiert(wert):
+            return None
+        return speicher.pfad(wert), _ENDUNG_TYP[Path(wert).suffix.lower()]
+    except NichtGefunden:
+        return None
+    except Exception:  # noqa: BLE001 — Anzeige darf nicht scheitern
+        return None
+
+
+def logo_daten(name: str | None) -> tuple[bytes, str] | None:
+    """Die Bytes des Logos samt MIME-Typ (``None`` = kein Logo hinterlegt).
+
+    Der Weg ohne Dateipfad — fuer die Nextcloud-Ablage.
+    """
+    wert = _pruefe_name(name)
+    if not wert:
+        return None
+    from diakronos_app.speicher import NichtGefunden, hole_speicher
+
+    try:
+        with hole_speicher().oeffnen(wert) as quelle:
+            return quelle.ganz(), _ENDUNG_TYP[Path(wert).suffix.lower()]
+    except NichtGefunden:
+        return None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _pruefe_name(name: str | None) -> str:
+    """Gespeicherter Wert -> Ablagename, wenn er dem Muster entspricht."""
     wert = str(name or "").strip()
     if not wert or not _ABLAGE_NAME.match(wert):
-        return None
-    root = _wurzel()
-    pfad = (root / wert).resolve()
-    if pfad.parent != root or not pfad.is_file():
-        return None
-    return pfad, _ENDUNG_TYP[pfad.suffix.lower()]
+        return ""
+    return wert
 
 
 def entferne_datei(name: str | None) -> None:
     """Loescht eine abgelegte Logodatei; fehlende Dateien sind kein Fehler."""
-    treffer = logo_pfad(name)
-    if treffer is None:
+    wert = _pruefe_name(name)
+    if not wert:
         return
+    from diakronos_app.speicher import AblageFehler, hole_speicher
+
     try:
-        treffer[0].unlink()
-    except OSError as exc:  # noqa: BLE001 — Aufraeumen darf nicht scheitern
+        hole_speicher().loeschen(wert)
+    except AblageFehler as exc:  # noqa: BLE001 — Aufraeumen darf nicht scheitern
         logger.warning("Logo-Datei nicht entfernbar: %s", type(exc).__name__)
 
 
@@ -621,12 +653,20 @@ def _version() -> str:
     return hashlib.sha256(wert.encode("utf-8")).hexdigest()[:8]
 
 
-def _logo_bytes() -> tuple[Path, str] | None:
+def _logo_bytes() -> tuple[Path | None, str] | None:
     """Liest den Logo-Verweis aus der Datenbank und loest ihn auf.
 
     Nie eine Exception nach aussen: eine fehlende/defekte Einstellung darf die
     Anmeldeseite nicht wegkaufen — dann gibt es eben kein Logo (404).
     """
+    name = _logo_name()
+    if not name:
+        return None
+    return logo_pfad(name)
+
+
+def _logo_name() -> str | None:
+    """Der gespeicherte Logo-Dateiname (``None`` bei fehlender Einstellung)."""
     try:
         from diakronos_app.db import SessionLocal
         from diakronos_app.models.gemeinde import (
@@ -636,11 +676,10 @@ def _logo_bytes() -> tuple[Path, str] | None:
 
         with SessionLocal() as sess:
             zeile = sess.get(GemeindeEinstellungen, GEMEINDE_EINSTELLUNGEN_NAME)
-            name = getattr(zeile, "logo_datei", None) if zeile is not None else None
+            return getattr(zeile, "logo_datei", None) if zeile is not None else None
     except Exception as exc:  # noqa: BLE001 — oeffentliche Route bleibt bedienbar
         logger.warning("Logo-Verweis nicht lesbar: %s", type(exc).__name__)
         return None
-    return logo_pfad(name)
 
 
 #: Kopfzeilen, unter denen ein Logo ausgeliefert wird. Fuer ALLE Typen gleich:
@@ -669,6 +708,17 @@ def gemeinde_logo():
     if treffer is None:
         return _error_response("Kein Logo hinterlegt.", "DoesNotExistError", 404)
     pfad, typ = treffer
+    if pfad is None:
+        # SPEICHER-1: Nextcloud-Ablage — kein lokaler Pfad. Die Bytes kommen
+        # aus der Ablage, die Kopfzeilen bleiben dieselben (auch fuer SVG).
+        from diakronos_app.speicher import AblageFehler, hole_speicher
+
+        try:
+            with hole_speicher().oeffnen(str(_logo_name() or "")) as quelle:
+                daten = quelle.ganz()
+        except AblageFehler:  # fehlt/nicht erreichbar — kein Logo ist kein 500
+            return _error_response("Kein Logo hinterlegt.", "DoesNotExistError", 404)
+        return Response(content=daten, media_type=typ, headers=dict(_LOGO_KOPFZEILEN))
     return FileResponse(
         pfad,
         media_type=typ,

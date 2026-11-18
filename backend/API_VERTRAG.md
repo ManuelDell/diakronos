@@ -235,10 +235,22 @@ Die SPA liest **nur** `json.message?.file_url` und schickt diese URL danach an
              "is_private": false, "file_size": 12345, "content_hash": "<sha256>"}}
 ```
 
-**Speicherort:** `settings.files_dir` (Default `/data/files`), als Bind-Mount
-`./data/files` in `docker-compose.yml` fuer `app` **und** `worker` — gleicher
-Baum, damit der Worker Anhaenge sieht. Der vom Client gelieferte `folder`-Wert
-wird **nie** als Pfad uebernommen.
+**Speicherort:** die Datei-Ablage (`diakronos_app.speicher`). Standard ist
+`settings.files_dir` (Default `/data/files`) als Bind-Mount `./data/files` in
+`docker-compose.yml` fuer `app` **und** `worker` — gleicher Baum, damit der
+Worker Anhaenge sieht. Mit `SPEICHER_BACKEND=nextcloud` liegt dieselbe Datei
+stattdessen in einem Ordner der Gemeinde-Nextcloud (WebDAV); die
+ausgegebenen URLs bleiben unveraendert `/files/<name>`, weil die Auslieferung
+**immer** ueber Diakronos laeuft (Rechtepruefung, Typbestimmung) — eine
+Nextcloud-Adresse sieht kein Client. Der vom Client gelieferte
+`folder`-Wert wird **nie** als Pfad uebernommen.
+
+**Schluessel statt Pfade (SPEICHER-1):** Innerhalb der Ablage ist jede Datei
+ein *Schluessel* — ein relativer Pfad mit `/` als Trenner. Absolute Pfade,
+`..`-Segmente, Backslashes und Steuerzeichen weist die Ablage ab
+(`speicher.schluessel.UngueltigerSchluessel`), in **beiden** Umsetzungen und
+vor jedem Zugriff. Begruendung und Vertrag: Kopf von
+`src/diakronos_app/speicher/basis.py`.
 
 **Sicherheit (nicht verhandelbar, mit Tests belegt):**
 

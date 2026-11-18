@@ -193,22 +193,55 @@ def bild(s: Any, wer: str, pfad: str) -> Any:
     die Freigabe eine ``File``-Zeile, die es fuer Befund-Bilder nie gibt.
     Dieser Endpunkt prueft stattdessen die Dev-Modus-Rechte und liefert die
     Datei nur aus, wenn der Pfad dem von UNS vergebenen Muster entspricht.
+
+    SPEICHER-1: Bei der LOKALEN Ablage geht der Weg wie frueher ueber
+    ``FileResponse`` — damit bekommt der Browser ETag, Last-Modified und
+    Range (ein Bild laesst sich zoomen und neu laden, ohne es erneut zu
+    lesen). Nur die Nextcloud-Ablage hat keinen Dateipfad; dort kommen die
+    Bytes gestreamt aus der Ablage.
     """
-    datei = dienste.bild_pfad(pfad)
-    if datei is None:
+    from diakronos_app.files import binary_content_type
+    from diakronos_app.speicher import AblageFehler, hole_speicher
+
+    kopfzeilen = {"X-Content-Type-Options": "nosniff",
+                  "Cache-Control": "private, no-store"}
+    # Erst das Muster (kein Pfad aus dem Browser), DANN die Ablage: ein Pfad,
+    # den wir nicht selbst vergeben haben, ist 404 — die Ablage wird dafuer
+    # gar nicht erst befragt (UngueltigerSchluessel waere 417 = falsche Form).
+    if not dienste.bild_pfad_erlaubt(pfad):
         from diakronos_app.frappe_compat.router import _fehler_koerper
 
         return JSONResponse(status_code=404, content=_fehler_koerper(
             "Bild nicht gefunden.", "DoesNotExistError", 404))
-    from fastapi.responses import FileResponse
 
-    from diakronos_app.files import binary_content_type
+    speicher = hole_speicher()
+    datei = None
+    try:
+        datei = speicher.pfad(str(pfad))
+    except AblageFehler:
+        datei = None
 
-    with datei.open("rb") as fh:
-        mime = binary_content_type(fh.read(12))
-    return FileResponse(datei, media_type=mime or "application/octet-stream",
-                        headers={"X-Content-Type-Options": "nosniff",
-                                 "Cache-Control": "private, no-store"})
+    if datei is not None:
+        from fastapi.responses import FileResponse
+
+        with open(datei, "rb") as fh:  # noqa: PTH123
+            mime = binary_content_type(fh.read(12))
+        return FileResponse(datei, media_type=mime or "application/octet-stream",
+                            headers=kopfzeilen)
+
+    quelle = dienste.bild_pfad(pfad)
+    if quelle is None:
+        from diakronos_app.frappe_compat.router import _fehler_koerper
+
+        return JSONResponse(status_code=404, content=_fehler_koerper(
+            "Bild nicht gefunden.", "DoesNotExistError", 404))
+    with quelle:
+        mime = binary_content_type(quelle.lesen_vorn(12))
+        daten = quelle.ganz()
+    from fastapi.responses import Response
+
+    return Response(content=daten, media_type=mime or "application/octet-stream",
+                    headers=kopfzeilen)
 
 
 @_endpunkt(True)

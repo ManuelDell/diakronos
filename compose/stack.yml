@@ -16,6 +16,19 @@ x-app-env: &app-env
   SECRET_KEY: ${SECRET_KEY:?SECRET_KEY muss in .env gesetzt sein (openssl rand -hex 32)}
   # P2c: Ablage der hochgeladenen Dateien (upload_file). Bind-Mount unten.
   FILES_DIR: ${FILES_DIR:-/data/files}
+  # SPEICHER-1: Datei-Ablage waehlbar — `lokal` (Default, wie bisher unter
+  # FILES_DIR) oder `nextcloud` (WebDAV in einem Ordner der Gemeinde-
+  # Nextcloud). Ohne diese Variablen aendert sich NICHTS. Das App-Passwort
+  # kommt NUR aus der .env; es steht nie in einem Protokoll und nie in einer
+  # Antwort. Siehe BETRIEBSANLEITUNG, "Datei-Ablage waehlbar".
+  SPEICHER_BACKEND: ${SPEICHER_BACKEND:-lokal}
+  NEXTCLOUD_URL: ${NEXTCLOUD_URL:-}
+  NEXTCLOUD_BENUTZER: ${NEXTCLOUD_BENUTZER:-}
+  NEXTCLOUD_APP_PASSWORT: ${NEXTCLOUD_APP_PASSWORT:-}
+  NEXTCLOUD_ORDNER: ${NEXTCLOUD_ORDNER:-/Diakronos}
+  NEXTCLOUD_TIMEOUT_SEKUNDEN: ${NEXTCLOUD_TIMEOUT_SEKUNDEN:-10}
+  NEXTCLOUD_TRANSFER_TIMEOUT_SEKUNDEN: ${NEXTCLOUD_TRANSFER_TIMEOUT_SEKUNDEN:-300}
+  NEXTCLOUD_VERSUCHE: ${NEXTCLOUD_VERSUCHE:-3}
   # A1b1: Sitzungs-Schicht (siehe backend/src/diakronos_app/settings.py).
   MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
   # ST2: eigenes Limit fuer Audio-Material (Notenbeispiele/Aufnahmen).

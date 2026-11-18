@@ -177,3 +177,81 @@ def test_eigene_ablage_unter_dem_datenbaum_ist_erlaubt(tmp_path):
 	ergebnis = _starte(BACKUP_DIR=str(tmp_path / "sicherungen"),
 	                   FILES_DIR=str(tmp_path / "files"))
 	assert (tmp_path / "sicherungen").is_dir(), ergebnis.stdout + ergebnis.stderr
+
+
+# ── SPEICHER-1: Ablage `nextcloud` braucht drei Angaben ────────────────────
+#
+# Bei SPEICHER_BACKEND=nextcloud sind Adresse, Benutzer und App-Passwort
+# Pflicht. Fehlt eine, faellt es sonst erst beim ersten Hochladen auf — mitten
+# im Betrieb. Der Entrypoint verweigert dann den Start und nennt die FEHLENDEN
+# NAMEN; ein Wert steht nie in der Meldung.
+
+def _speicherblock(pfad: Path) -> str:
+	"""Nur den SPEICHER-1-Block des Entrypoints ausfuehren (kein root, kein gosu)."""
+	skript = pfad.read_text(encoding="utf-8")
+	zeilen = skript.splitlines(keepends=True)
+	start = next(i for i, z in enumerate(zeilen)
+	             if z.startswith('if [ "$(printf') and "SPEICHER_BACKEND" in z)
+	# Der Block endet mit der ersten Zeile `fi` auf Spalte 0.
+	ende = next(i for i in range(start, len(zeilen)) if zeilen[i].startswith("fi"))
+	block = "".join(zeilen[start:ende + 1])
+	return "set -e\n" + block + "echo ABLAGE_OK\n"
+
+
+def _starte_speicher(**umgebung):
+	basis = {"PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"), "HOME": "/tmp"}
+	basis.update(umgebung)
+	return _laufen(["sh", "-c", _speicherblock(_skript())], basis,
+	               "Entrypoint-Pruefung (SPEICHER-1)")
+
+
+def test_ohne_backend_einstellung_laeuft_die_ablage_weiter():
+	"""Default `lokal`: ohne SPEICHER_BACKEND aendert sich NICHTS."""
+	ergebnis = _starte_speicher()
+	assert ergebnis.returncode == 0, ergebnis.stderr
+	assert "ABLAGE_OK" in ergebnis.stdout
+
+
+def test_backend_lokal_braucht_keine_nextcloud_angaben():
+	ergebnis = _starte_speicher(SPEICHER_BACKEND="lokal")
+	assert ergebnis.returncode == 0, ergebnis.stderr
+
+
+def test_nextcloud_ohne_angaben_wird_abgewiesen():
+	ergebnis = _starte_speicher(SPEICHER_BACKEND="nextcloud")
+	assert ergebnis.returncode == 1, ergebnis.stdout + ergebnis.stderr
+	assert "NEXTCLOUD_URL" in ergebnis.stderr
+	assert "NEXTCLOUD_BENUTZER" in ergebnis.stderr
+	assert "NEXTCLOUD_APP_PASSWORT" in ergebnis.stderr
+
+
+def test_nextcloud_mit_nur_einem_teil_wird_abgewiesen():
+	ergebnis = _starte_speicher(SPEICHER_BACKEND="nextcloud",
+	                            NEXTCLOUD_URL="https://cloud.example.org",
+	                            NEXTCLOUD_BENUTZER="diakronos")
+	assert ergebnis.returncode == 1
+	assert "NEXTCLOUD_APP_PASSWORT" in ergebnis.stderr
+
+
+def test_nextcloud_vollstaendig_laeuft_durch():
+	ergebnis = _starte_speicher(SPEICHER_BACKEND="nextcloud",
+	                            NEXTCLOUD_URL="https://cloud.example.org",
+	                            NEXTCLOUD_BENUTZER="diakronos",
+	                            NEXTCLOUD_APP_PASSWORT="ein-app-passwort")
+	assert ergebnis.returncode == 0, ergebnis.stderr
+	assert "ABLAGE_OK" in ergebnis.stdout
+
+
+def test_nextcloud_grossschreibung_ist_erlaubt():
+	ergebnis = _starte_speicher(SPEICHER_BACKEND="NextCloud")
+	assert ergebnis.returncode == 1
+	assert "NEXTCLOUD_URL" in ergebnis.stderr
+
+
+def test_passwort_wert_steht_nie_in_der_meldung():
+	ergebnis = _starte_speicher(SPEICHER_BACKEND="nextcloud",
+	                            NEXTCLOUD_URL="https://cloud.example.org",
+	                            NEXTCLOUD_APP_PASSWORT="streng-geheim-4711")
+	assert ergebnis.returncode == 1
+	assert "streng-geheim-4711" not in ergebnis.stderr
+	assert "streng-geheim-4711" not in ergebnis.stdout

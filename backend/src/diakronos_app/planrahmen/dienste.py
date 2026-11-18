@@ -1047,7 +1047,7 @@ class Dienste:
         eine Child-Zeile ``Lied Material`` an der **Standardfassung** des
         Liedes (wird bei Bedarf angelegt) plus ein ``SichererAnhang``-Datensatz
         (Rueckverweis fuer die Loeschung). Die Datei selbst liegt bereits unter
-        ``files_dir`` und wird ueber ``/files/<name>`` ausgeliefert.
+        der Datei-Ablage und wird ueber ``/files/<name>`` ausgeliefert.
 
         UXM-R7: OHNE Plantyp-Kontext (Aufruf aus dem Lied-Detail) prueft die
         Methode die Psalmos-Regel — dieselbe, die `save_lied` verwendet. Damit

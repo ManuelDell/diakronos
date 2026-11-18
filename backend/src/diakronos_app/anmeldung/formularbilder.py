@@ -3,8 +3,9 @@
 Zwei Aufgaben, EINE Quelle:
 
 1. **Abrufweg der Formularbilder.** Banner und Hintergrund sind Dateien in
-   ``settings.files_dir`` (angelegt ueber den vorhandenen Upload-Mechanismus
-   ``frappe_core.upload_file``). Gespeichert wird in
+   der Datei-Ablage (``diakronos_app.speicher``, lokal unter
+   ``settings.files_dir`` oder in der Nextcloud; angelegt ueber den
+   vorhandenen Upload-Mechanismus ``frappe_core.upload_file``). Gespeichert wird in
    ``anmeldeformular.bannerbild``/``hintergrundbild`` nur der DATEINAME.
    Ausgeliefert werden die Bilder ausschliesslich ueber
 
@@ -39,7 +40,6 @@ import re
 from pathlib import Path
 
 from diakronos_app.files import binary_content_type
-from diakronos_app.settings import settings
 
 __all__ = [
     "BILD_ROLLEN",
@@ -49,6 +49,7 @@ __all__ = [
     "dateiname_aus_wert",
     "pruefe_bilddatei",
     "oeffne_formularbild",
+    "formularbild_daten",
     "bild_noch_in_gebrauch",
     "raeume_bild_auf",
 ]
@@ -137,23 +138,27 @@ def bild_pfad(slug, rolle: str, wert) -> str:
 
 
 def _zielpfad(name: str) -> Path | None:
-    """Ein Dateiname -> Pfad unter ``files_dir`` (nie ausserhalb, nie Symlink)."""
+    """Ein Dateiname -> lokaler Pfad in der Ablage (nie ausserhalb, nie Symlink).
+
+    SPEICHER-1: Der Pfad kommt aus der Ablage. Bei der Nextcloud-Ablage gibt
+    es keinen lokalen Pfad — dort ist ``None`` die richtige Antwort, und
+    :func:`oeffne_formularbild` liest die Bytes stattdessen ueber die Ablage.
+    """
     if not name:
         return None
-    root = Path(settings.files_dir).resolve()
-    kandidat = root / name
-    if kandidat.is_symlink():
+    from diakronos_app.speicher import hole_speicher
+
+    try:
+        return hole_speicher().pfad(name)
+    except Exception:  # noqa: BLE001 — nicht erreichbar = nicht auslieferbar
         return None
-    if kandidat.resolve().parent != root:
-        return None
-    return kandidat
 
 
 def _file_datensatz(name: str):
     """Der ``File``-Datensatz zu einem Dateinamen — oder ``None``.
 
     ``upload_file`` legt ihn immer mit an; eine Datei OHNE Datensatz ist keine
-    von der App hochgeladene Datei (z. B. von Hand in ``files_dir`` gelegt)
+    von der App hochgeladene Datei (z. B. von Hand in die Ablage gelegt)
     oder ihr Eintrag wurde bereits entfernt.
     """
     from diakronos_app.db import SessionLocal
@@ -214,7 +219,7 @@ def pruefe_bilddatei(name: str, formular: str) -> str | None:
 
       1. der Name entspricht dem Dateinamen-Muster (kein Pfad, kein ``..``),
       2. es gibt einen ``File``-Datensatz zu genau diesem Namen — sonst waere
-         es eine beliebige Datei aus ``files_dir`` (z. B. ein privates Foto
+         es eine beliebige Datei aus der Ablage (z. B. ein privates Foto
          eines Mitglieds), die hier oeffentlich wuerde,
       3. die Datei ist an GENAU DIESES Anmeldeformular angehaengt
          (``attached_to_doctype == "Anmeldeformular"`` und
@@ -222,7 +227,7 @@ def pruefe_bilddatei(name: str, formular: str) -> str | None:
          entscheidet NICHT: eine fremde Verwalter-Datei (Profilfoto an einem
          Mitglied, Bild eines anderen Formulars) bleibt draussen,
       4. die Mitglieds-Privatablage (``/private/files/…``) ist ausgenommen,
-      5. die Datei existiert unter ``files_dir`` und ihre MAGIC-BYTES sind ein
+      5. die Datei existiert in der Ablage und ihre MAGIC-BYTES sind ein
          Rasterbild (PNG/JPEG/GIF/WebP).
 
     ``formular`` ist die Kennung des Formulars, an dem das Bild haengen soll.
@@ -246,22 +251,60 @@ def pruefe_bilddatei(name: str, formular: str) -> str | None:
     return sauber
 
 
-def oeffne_formularbild(name: str) -> tuple[Path, str] | None:
+def oeffne_formularbild(name: str) -> tuple[Path | None, str] | None:
     """Datei eines Formularbildes oeffnen: ``(Pfad, Content-Type)`` oder ``None``.
 
     Der Content-Type kommt aus den MAGIC-BYTES: gespeichert wird nur, was
     wirklich ein Rasterbild ist (PNG/JPEG/GIF/WebP). Alles andere (auch SVG)
     ergibt ``None`` — ein Formularbild wird nie als Markup ausgeliefert.
+
+    SPEICHER-1: ``Pfad`` ist nur bei der lokalen Ablage gesetzt. Bei der
+    Nextcloud-Ablage gibt es keinen Dateipfad — dann ist das erste Element
+    ``None``, und der Aufrufer holt die Bytes ueber
+    :func:`formularbild_daten` (die Route liefert sie direkt aus).
     """
-    pfad = _zielpfad(name)
-    if pfad is None or not pfad.is_file():
+    from diakronos_app.speicher import NichtGefunden, hole_speicher
+
+    sauber = dateiname_aus_wert(name)
+    if not sauber:
         return None
-    with pfad.open("rb") as fh:
-        kopf = fh.read(256)
+    try:
+        speicher = hole_speicher()
+        with speicher.oeffnen(sauber) as quelle:
+            kopf = quelle.lesen_vorn(256)
+    except NichtGefunden:
+        return None
+    except Exception:  # noqa: BLE001 — nicht erreichbar = nicht auslieferbar
+        return None
     typ = binary_content_type(kopf)
     if not typ or not typ.startswith("image/"):
         return None
-    return pfad, typ
+    return speicher.pfad(sauber), typ
+
+
+def formularbild_daten(name: str) -> bytes | None:
+    """Die Bytes eines Formularbildes aus der Ablage (``None`` = kein Bild).
+
+    Inhaltlich dieselbe Pruefung wie :func:`oeffne_formularbild` (Magic-Bytes
+    muessen ein Rasterbild sein), aber fuer den Weg OHNE Dateipfad: die
+    Auslieferung bei der Nextcloud-Ablage.
+    """
+    from diakronos_app.speicher import NichtGefunden, hole_speicher
+
+    sauber = dateiname_aus_wert(name)
+    if not sauber:
+        return None
+    try:
+        with hole_speicher().oeffnen(sauber) as quelle:
+            daten = quelle.ganz()
+    except NichtGefunden:
+        return None
+    except Exception:  # noqa: BLE001
+        return None
+    typ = binary_content_type(daten[:256])
+    if not typ or not typ.startswith("image/"):
+        return None
+    return daten
 
 
 def bild_noch_in_gebrauch(name: str, *, ausser_formular: str = "") -> bool:
@@ -310,15 +353,15 @@ def raeume_bild_auf(name, *, ausser_formular: str = "") -> bool:
         return False
 
     entfernt = False
-    pfad = _zielpfad(sauber)
-    if pfad is not None and pfad.is_file():
-        try:
-            pfad.unlink()
+    from diakronos_app.speicher import AblageFehler, hole_speicher
+
+    try:
+        if hole_speicher().loeschen(sauber):
             entfernt = True
-        except OSError:
-            # Aufraeumen darf den fachlichen Vorgang nicht scheitern lassen;
-            # der Datensatz wird trotzdem entfernt (naechster Lauf raeumt nach).
-            pass
+    except AblageFehler:
+        # Aufraeumen darf den fachlichen Vorgang nicht scheitern lassen;
+        # der Datensatz wird trotzdem entfernt (naechster Lauf raeumt nach).
+        pass
 
     from diakronos_app.db import SessionLocal
     from diakronos_app.models.core import FileModel

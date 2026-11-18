@@ -51,7 +51,9 @@ test('Bericht-Endpunkt liefert keinen absoluten Pfad mehr', () => {
   const rueck = block.slice(block.indexOf('return {'), block.indexOf('}', block.indexOf('return {')))
   assert.doesNotMatch(rueck, /"pfad":\s*str\(/,
     'kein `pfad` mit absolutem Pfad in erzeugen()')
-  assert.match(rueck, /"bericht":\s*str\(md_pfad\.relative_to/)
+  // SPEICHER-1: Bericht liegt in der Ablage; zurueck kommt der relative Ablage-Schluessel.
+  assert.match(rueck, /"bericht":\s*md_schluessel/)
+  assert.match(block, /md_schluessel = f"devmodus\//, 'Schluessel ist relativ')
 })
 
 test('Audio-Upload prüft Inhalt und Größe (Magic-Bytes statt Typfeld)', () => {

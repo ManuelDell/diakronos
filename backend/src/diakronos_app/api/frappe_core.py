@@ -318,7 +318,9 @@ def upload_file(
       2. Groesse gegen `settings.max_upload_bytes` pruefen (Default 10 MB).
       3. Content-Type gegen eine Whitelist pruefen.
       4. Dateinamen saeubern (kein Path-Traversal).
-      5. Datei unter `settings.files_dir` ablegen (UUID-Praefix, kein Client-Pfad).
+      5. Datei ueber die Ablage-Schnittstelle ablegen (`diakronos_app.speicher`,
+         lokal unter `settings.files_dir` oder in der Nextcloud; UUID-Praefix,
+         kein Client-Pfad).
       6. `File`-Dokument mit Metadaten + content_hash anlegen.
 
     **Es wird niemals ein vom Client gelieferter Pfad uebernommen.**
@@ -384,16 +386,18 @@ def upload_file(
         is_priv = privacy in ('1', 'true', 'yes', 'ja')
 
     # Ablage: UUID-Praefix -> kollisionsfrei und nie der Client-Name als Pfad.
-    target_dir = os.path.realpath(settings.files_dir)
-    os.makedirs(target_dir, exist_ok=True)
+    # SPEICHER-1: Der Schreibvorgang geht ueber die EINE Ablage-Schnittstelle
+    # (`diakronos_app.speicher`) — lokal wie bisher, oder Nextcloud. Der
+    # Schluessel ist ein reiner Dateiname; die Ablage prueft ihn selbst auf
+    # Pfad-Ausbrueche (also auch hier kein `..`, kein absoluter Pfad).
     stored_name = f"{uuid.uuid4().hex}-{safe_name}"
-    target_path = os.path.realpath(os.path.join(target_dir, stored_name))
-    # Guertel-und-Hosentraeger: der Zielpfad MUSS unterhalb von files_dir liegen.
-    if not target_path.startswith(target_dir + os.sep):
-        raise ValidationError("Ungültiger Dateiname.")
+    from diakronos_app.speicher import AblageFehler, hole_speicher
 
-    with open(target_path, "wb") as fh:
-        fh.write(raw)
+    speicher = hole_speicher()
+    try:
+        speicher.schreiben(stored_name, raw)
+    except AblageFehler as fehler:
+        raise ValidationError(str(fehler)) from fehler
 
     file_url = f"/files/{stored_name}"
     content_hash = hashlib.sha256(raw).hexdigest()
@@ -439,21 +443,29 @@ def upload_file(
         }
     except FrappeCompatError:
         sess.rollback()
-        try:
-            os.remove(target_path)
-        except OSError:
-            pass
+        _ablage_aufraeumen(speicher, stored_name)
         raise
     except Exception as exc:  # noqa: BLE001
         sess.rollback()
         # Datei nicht als Waise liegen lassen, wenn der DB-Eintrag scheitert.
-        try:
-            os.remove(target_path)
-        except OSError:
-            pass
+        _ablage_aufraeumen(speicher, stored_name)
         raise ValidationError(str(exc)) from exc
     finally:
         sess.close()
+
+
+def _ablage_aufraeumen(speicher: Any, schluessel: str) -> None:
+    """Geschriebene Datei wieder entfernen, wenn der DB-Eintrag scheitert.
+
+    SPEICHER-1: ueber die Ablage statt ``os.remove`` — bei Nextcloud waere ein
+    ``os.remove`` auf den Schluessel ein Fehlschlag, der die Datei als Waise
+    hinterlaesst. Fehler beim Aufraeumen werden geschluckt: der urspruengliche
+    Fehler ist der, der zaehlt.
+    """
+    try:
+        speicher.loeschen(schluessel)
+    except Exception:  # noqa: BLE001 — Aufraeumen darf den Fehler nicht ersetzen
+        pass
 
 
 _register_as(upload_file, "upload_file", methods=["POST"])

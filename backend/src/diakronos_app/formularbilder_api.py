@@ -30,7 +30,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from diakronos_app.frappe_compat.exceptions import FrappeCompatError
 from diakronos_app.frappe_compat.router import _error_response
@@ -90,17 +90,32 @@ def registrierung_formularbild(token: str, rolle: str):
     if treffer is None:
         return _error_response("Kein Formularbild vorhanden.", "DoesNotExistError", 404)
     pfad, mime = treffer
+    kopfzeilen = {
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "public, max-age=300",
+        # Kein Markup, keine Skripte — selbst wenn ein Browser den Typ
+        # ignoriert, bleibt ein Rasterbild ein Rasterbild.
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+    }
+    if pfad is None:
+        # SPEICHER-1: Nextcloud-Ablage — kein lokaler Pfad. Die Bytes kommen
+        # aus der Ablage; die Pruefung (Rasterbild an den Magic-Bytes) ist
+        # dieselbe wie oben, die Rechtepruefung bleibt in Diakronos.
+        from diakronos_app.anmeldung.formularbilder import formularbild_daten
+
+        daten = formularbild_daten(name)
+        if daten is None:
+            return _error_response("Kein Formularbild vorhanden.", "DoesNotExistError", 404)
+        return Response(
+            content=daten,
+            media_type=mime,
+            headers={**kopfzeilen, "Content-Disposition": f'inline; filename="{name}"'},
+        )
 
     return FileResponse(
         pfad,
         media_type=mime,
         filename=name,
         content_disposition_type="inline",
-        headers={
-            "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "public, max-age=300",
-            # Kein Markup, keine Skripte — selbst wenn ein Browser den Typ
-            # ignoriert, bleibt ein Rasterbild ein Rasterbild.
-            "Content-Security-Policy": "default-src 'none'; sandbox",
-        },
+        headers=kopfzeilen,
     )

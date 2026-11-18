@@ -15,6 +15,7 @@ API-Aenderung. Deshalb legt diese Middleware die Request-Daten in
 from __future__ import annotations
 
 from contextvars import ContextVar
+from typing import Any, MutableMapping
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -109,11 +110,50 @@ def get_user_agent(limit: int = 200) -> str:
 	return get_header("User-Agent")[:limit]
 
 
+def range_kopf_bereinigen(scope: MutableMapping[str, Any]) -> None:
+	"""Entfernt einen NICHT bedienbaren ``Range``-Kopf aus dem ASGI-``scope``.
+
+	**Warum hier und nicht in der Route**: ``starlette.responses.FileResponse``
+	liest den ``Range``-Kopf aus ``scope["headers"]`` und antwortet auf einen
+	Kopf, den es nicht versteht, mit ``400`` (``MalformedRangeHeader``). Laut
+	RFC 9110 (14.2) muss ein Server einen NICHT unterstuetzten Bereich
+	ignorieren und die ganze Datei schicken (``200``); ``416`` ist nur fuer
+	einen syntaktisch gueltigen, unerfuellbaren Einzelbereich.
+
+	Betroffen ist nur ``bytes``-Einzelbereich, den ``bereich_syntax`` ablehnt
+	(``bytes=0-0,5-9``, ``items=0-5``, ``bytes=abc``). Der Kopf wird dann
+	komplett aus der Liste genommen — dieselbe Bereinigung gilt damit fuer
+	JEDEN ``FileResponse`` der App, nicht nur fuer ``/files``.
+	"""
+	from diakronos_app.speicher.basis import bereich_syntax
+
+	kopfzeilen = scope.get("headers")
+	if not kopfzeilen:
+		return
+	werte = [
+		(name, wert) for name, wert in kopfzeilen
+		if name.lower() == b"range"
+	]
+	if not werte:
+		return
+	_, wert = werte[0]
+	try:
+		text = wert.decode("latin-1").strip()
+	except Exception:  # noqa: BLE001 — kaputter Kopf = kein Range
+		text = ""
+	if bereich_syntax(text):
+		return
+	scope["headers"] = [
+		(name, wert) for name, wert in kopfzeilen if name.lower() != b"range"
+	]
+
+
 class RequestContextMiddleware(BaseHTTPMiddleware):
 	"""Setzt den Request-Kontext fuer jeden Aufruf."""
 
 	async def dispatch(self, request: Request, call_next):
 		set_request(request)
+		range_kopf_bereinigen(request.scope)
 		# PERF-K1: EIN Rechte-Merker je Aufruf (`rechte.kern.merkungsrahmen`).
 		# Er haelt Antworten des Rechte-Kerns fuer DIESELBEN Eingaben fest —
 		# vorher fragte der Kalender-Endpunkt ihn je Termin erneut (110 803

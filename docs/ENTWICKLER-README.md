@@ -96,7 +96,11 @@ sicheren Vorgaben), dokumentiert in `.env.example` und BETRIEBSANLEITUNG.
 ## 3. Code-Regeln
 
 - **Keine Schreibzugriffe ins Image-Dateisystem.** Alles Schreibbare liegt
-  unter den eingebundenen Verzeichnissen (`FILES_DIR`, Sicherungen).
+  unter den eingebundenen Verzeichnissen (`FILES_DIR`, Sicherungen) — oder,
+  wenn `SPEICHER_BACKEND=nextcloud` gesetzt ist, in der Nextcloud: Dateien
+  laufen dann über `diakronos_app.speicher` (`hole_speicher()`), NIE über
+  einen eigenen Pfad. Neue Stellen benutzen die Schnittstelle, nicht
+  `settings.files_dir` (Vertrag: Kopf von `speicher/basis.py`).
 - **Alle Ressourcenpfade** (Schema, Doku, Kochbuch) werden über
   `importlib.resources` aus dem Python-Paket gelesen, nie über Repo-Pfade.
 - **Eine Aussage, eine Quelle.** Verhalten wird im Code festgelegt,

@@ -1111,6 +1111,131 @@ darf nur, wer dort schreiben darf (oder Administrator ist).
   als Download geliefert.
 - Die Dateien liegen im Verzeichnis `FILES_DIR` (Vorgabe `/data/files`). Der
   Container legt es beim Start an und übergibt es dem Anwendungsbenutzer.
+  **Alternativ** können alle Dateien in einem Ordner der Gemeinde-Nextcloud
+  liegen — siehe den folgenden Abschnitt.
+
+### 8.7b Datei-Ablage wählbar: eigener Speicher oder Nextcloud (SPEICHER-1)
+
+Diakronos legt Dateien (Fotos, Anmeldeformular-Bilder, Gemeinde-Logo,
+Anhänge, Dev-Modus-Bilder) ab. **Wo**, entscheidet seit SPEICHER-1 eine
+Einstellung in der `.env`:
+
+| `SPEICHER_BACKEND` | Ablage |
+| --- | --- |
+| `lokal` (Vorgabe) | `FILES_DIR`, also das eigene Volume — **exakt wie bisher** |
+| `nextcloud` | ein Ordner in der Gemeinde-Nextcloud (WebDAV) |
+
+**Ohne diese Einstellung ändert sich nichts.** Eine bestehende Installation
+schreibt und liest weiter unter `FILES_DIR`; die Einstellung ist rein
+zusätzlich.
+
+**Nextcloud einrichten**
+
+1. In der Nextcloud ein **Dienstkonto** anlegen (z. B. `diakronos`) und
+   dafür ein **App-Passwort** erstellen (Einstellungen → Sicherheit →
+   App-Passwörter). **Kein** Kontopasswort verwenden: das App-Passwort lässt
+   sich jederzeit einzeln widerrufen und gilt nicht für die Anmeldung im
+   Browser.
+2. In der `.env` setzen:
+
+   ```
+   SPEICHER_BACKEND=nextcloud
+   NEXTCLOUD_URL=https://cloud.example.org
+   NEXTCLOUD_BENUTZER=diakronos
+   NEXTCLOUD_APP_PASSWORT=<das-erzeugte-app-passwort>
+   NEXTCLOUD_ORDNER=/Diakronos
+   ```
+
+   `NEXTCLOUD_URL` ist **nur** Schema + Host (ohne `/remote.php/dav/...`) —
+   den WebDAV-Pfad baut die App selbst. `NEXTCLOUD_ORDNER` ist der Ordner im
+   Benutzerbereich; er wird beim ersten Schreiben angelegt (auch
+   Unterordner). Leer = Wurzel des Benutzers.
+3. `.env` neu einlesen (`docker compose up -d`). Ein Tippfehler im Backend-Namen
+   (`nextclod`) **bricht den Start ab** — er fällt nicht still auf `lokal`
+   zurück, denn sonst würden Dateien weiter im Container landen, während alle
+   sie in der Nextcloud vermuten.
+
+**Was dabei gilt**
+
+- **Das App-Passwort steht nur in der `.env`.** Es wird nie protokolliert und
+  nie in einer Antwort an den Browser ausgegeben. Fehlt es, meldet die Ablage
+  das mit dem **Namen** der fehlenden Einstellung — nicht mit ihrem Wert.
+- **Ausliefern bleibt bei Diakronos.** Wer eine Datei sehen darf, entscheidet
+  weiterhin die Rechteprüfung der App; Nextcloud-Adressen bekommt kein Nutzer
+  zu sehen. Ob eine Datei ausgeliefert wird, ändert sich durch die Wahl der
+  Ablage nicht.
+- **Ausgeliefert wird gestreamt, nie abgeschnitten — und zwar wirklich.**
+  Große Dateien (Audio) gehen blockweise vom WebDAV zum Browser: die
+  WebDAV-Antwort wird mit `stream=True` geholt, der erste Block kommt an,
+  bevor der Rest übertragen ist, und die Verbindung wird geschlossen, wenn
+  der Browser abbricht (Spulen, Tab zu). Ein `Range`-Kopf (Spulen im
+  Audio-Player, Safari) wird an die Nextcloud durchgereicht und kommt als
+  `206` mit `Content-Range` zurück; ohne `Range` schickt Diakronos **keinen**
+  `Range` an WebDAV. Auch im Nextcloud-Betrieb gibt es `Accept-Ranges: bytes`.
+- **`Range` nach RFC 9110.** Ein nicht unterstützter Bereich
+  (`bytes=0-0,5-9`, `items=0-5`, `bytes=abc`) wird **ignoriert** — der Client
+  bekommt `200` mit der ganzen Datei. `416` gibt es nur für einen
+  syntaktisch gültigen, unerfüllbaren Einzelbereich (`bytes=100-` bei 100
+  Bytes) und für eine leere Datei (`Content-Range: bytes */0`). Eine leere
+  Datei ohne `Range` ist ein `200` mit 0 Bytes.
+- **Der Typ wird aus einem Ausschnitt bestimmt, nicht aus der ganzen Datei.**
+  Der 4-KiB-Kopf für die Magic-Bytes kommt per gestreamtem
+  `Range: bytes=0-4095`; ein Server ohne Range-Unterstützung wird nach dem
+  Ausschnitt verlassen und die Verbindung geschlossen.
+- **Lesen ohne Kompression.** Jeder Lese-`GET` an WebDAV trägt
+  `Accept-Encoding: identity`. Sonst fragt der HTTP-Client nach `gzip` und
+  eine `Content-Length` gälte für den *komprimierten* Körper, während die
+  ausgelieferten Bytes die entpackten sind — die Länge wäre falsch. Audio und
+  Video lassen sich ohnehin nicht komprimieren.
+- **Antworten ohne `Content-Length` (Proxy, HTTP/2, chunked).** Fehlt die
+  Länge im GET, nimmt Diakronos sie aus `Content-Range`, sonst aus der schon
+  bekannten Größe, sonst aus `HEAD`/`PROPFIND`. Ist sie auch dann unbekannt,
+  wird die Datei **ohne** `Content-Length` durchgereicht (`200`, chunked) —
+  es wird keine Länge erfunden und kein `416` gemeldet. Liefert auch `HEAD`
+  keine Länge, kommt die Größe aus `PROPFIND` (`getcontentlength`, Depth 0).
+- **Keine offenen Verbindungen.** Wird eine Datei zwischen Größenabfrage und
+  Lesen auf 0 Bytes geschrumpft, antwortet Diakronos `416` — und schließt die
+  WebDAV-Antwort **vorher**. Eine nicht ausgelieferte Antwort bleibt also nie
+  offen, auch wenn der Auslieferungs-Generator nie anläuft.
+- **Der Basisordner wird angelegt.** Existiert `NEXTCLOUD_ORDNER` noch nicht,
+  legt Diakronos ihn beim ersten Schreiben an — samt fehlender Ebenen (bei
+  `/Diakronos/Dateien` beide). Die Statusanzeige nennt das als „fehlt noch“,
+  nicht als Störung.
+- **Zeitlimits und Wiederholung:** Abfragen 10 s (`NEXTCLOUD_TIMEOUT_SEKUNDEN`),
+  Dateiübertragungen 300 s (`NEXTCLOUD_TRANSFER_TIMEOUT_SEKUNDEN`), bei
+  5xx/Netzfehlern 3 Versuche (`NEXTCLOUD_VERSUCHE`). „Speicher voll“ (507)
+  und falsche Zugangsdaten (401/403) werden **nicht** wiederholt — sie würden
+  davon nicht besser, und ein erneuter 50-MB-Upload ist teuer.
+- **Sicherungen enthalten dann KEINE Dateien mehr.** `BACKUP_DIR` archiviert
+  das lokale Volume (`FILES_DIR`); bei `nextcloud` ist das leer. Die Dateien
+  sichert dann die Nextcloud selbst (Versionierung, Aufbewahrung, Backup des
+  Anbieters) — bitte dort einrichten. Der Datenbank-Dump läuft unverändert.
+- **DSGVO bleibt wirksam:** Löschen in Diakronos (Papierkorb-Ablauf,
+  Löschung auf Antrag) löscht die Datei auch in der Nextcloud.
+
+**Umzug eines bestehenden Bestands**
+
+```
+# 1. Probelauf: liest alles, prüft die Verbindung, schreibt NICHTS
+docker compose exec app python -m diakronos_app.speicher.umzug --nach nextcloud --probelauf
+
+# 2. Umzug: kopiert jede Datei, prüft Größe UND Prüfsumme im Ziel
+docker compose exec app python -m diakronos_app.speicher.umzug --nach nextcloud
+```
+
+Danach in `SPEICHER_BACKEND=nextcloud` umstellen und neu starten.
+
+- Das Werkzeug **löscht nichts**: die Dateien bleiben unter `FILES_DIR`
+  liegen. Erst wenn der Betrieb in der Nextcloud geprüft ist, kann das lokale
+  Volume aufgeräumt werden (oder als Rückfallebene stehen bleiben).
+- Es ist **wiederholbar**: was im Ziel schon identisch liegt, wird nicht
+  erneut übertragen. Ein Abbruch nach der Hälfte kostet beim nächsten Lauf nur
+  den Rest.
+- Der Rückweg ist derselbe Befehl mit getauschten Seiten:
+  `--nach lokal --von nextcloud`.
+- Der Exit-Code ist 0 (alles übertragen), 1 (mindestens eine Datei
+  fehlgeschlagen — die Liste steht in der Ausgabe) oder 2 (Aufruf- oder
+  Einstellungsfehler).
 
 ### 8.8 Gruppen: Aufgaben und Ankündigungen
 

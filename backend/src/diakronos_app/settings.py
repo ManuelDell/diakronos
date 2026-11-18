@@ -89,6 +89,75 @@ class Settings(BaseSettings):
     # P2c: Ablage der hochgeladenen Dateien (Dateisystem, NICHT die DB).
     # Im Container zeigt das auf das Volume /data/files.
     files_dir: str = "/data/files"
+
+    # ── SPEICHER-1: Datei-Ablage waehlbar (Manuel, 17.11.) ──────────────────
+    # `lokal`      — wie bisher: Dateisystem unter `files_dir` (DEFAULT).
+    # `nextcloud`  — ALLE Dateien liegen in einem Ordner der Gemeinde-
+    #                Nextcloud (WebDAV, Zugang ueber App-Passwort).
+    # Ohne diese Einstellung aendert sich nichts: `lokal` benutzt EXAKT die
+    # Pfade von vorher. Die Schnittstelle steht in `diakronos_app.speicher`.
+    #
+    # Der Default ist `lokal` und nicht `nextcloud`: eine bestehende
+    # Installation darf durch ein Update nicht anfangen, ihre Dateien woanders
+    # abzulegen.
+    #
+    # `NEXTCLOUD_APP_PASSWORT` kommt ausschliesslich aus der Umgebung/.env —
+    # es gibt bewusst KEINEN Default, keine Datei-Variante mit Rueckfall ins
+    # Leere und keinen Weg, den Wert ueber die Oberflaeche zu setzen. Der Wert
+    # wird nie geloggt (siehe `speicher/nextcloud.py`) und nie in einer
+    # Antwort ausgegeben; `gesundheit()` nennt nur, ob er FEHLT, nicht den Wert.
+    speicher_backend: str = Field(
+        "lokal",
+        validation_alias=AliasChoices("SPEICHER_BACKEND", "speicher_backend"),
+    )
+    # WebDAV-Basis OHNE `/remote.php/dav/...` — nur Schema, Host und
+    # ggf. Praefix, z. B. `https://cloud.example.org`. Der Pfad wird in
+    # `speicher.nextcloud.NextcloudZugang.basis()` angebaut.
+    nextcloud_url: str = Field(
+        "", validation_alias=AliasChoices("NEXTCLOUD_URL", "nextcloud_url")
+    )
+    # Benutzer des Dienstkontos (NICHT das Kontopasswort dieses Benutzers).
+    nextcloud_benutzer: str = Field(
+        "", validation_alias=AliasChoices("NEXTCLOUD_BENUTZER", "nextcloud_benutzer")
+    )
+    nextcloud_app_passwort: str = Field(
+        "",
+        validation_alias=AliasChoices(
+            "NEXTCLOUD_APP_PASSWORT", "nextcloud_app_passwort"
+        ),
+        # Das Secret darf NIRGENDS auftauchen, wo ein Objekt ausgegeben wird:
+        # kein `repr` in einem Protokoll, kein Fehlerbericht, keine
+        # Traceback-Zeile. `settings` wird an vielen Stellen geloggt und in
+        # Ausnahmen mitgeschleppt; ohne dieses Flag stuende das App-Passwort
+        # im Klartext darin (im Test belegt).
+        repr=False,
+    )
+    # Ordner im Benutzerbereich der Nextcloud. Default `/Diakronos`; leer =
+    # Wurzel des Benutzers. Wird beim Start geprueft (kein `..` usw.).
+    nextcloud_ordner: str = Field(
+        "/Diakronos",
+        validation_alias=AliasChoices("NEXTCLOUD_ORDNER", "nextcloud_ordner"),
+    )
+    # Zeitbudget einer ABFRAGE (HEAD/PROPFIND/MKCOL) in Sekunden.
+    nextcloud_timeout_sekunden: float = Field(
+        10.0,
+        validation_alias=AliasChoices(
+            "NEXTCLOUD_TIMEOUT_SEKUNDEN", "nextcloud_timeout_sekunden"
+        ),
+    )
+    # Zeitbudget einer DATEIUEBERTRAGUNG in Sekunden (bis 50 MB Audio).
+    nextcloud_transfer_timeout_sekunden: float = Field(
+        300.0,
+        validation_alias=AliasChoices(
+            "NEXTCLOUD_TRANSFER_TIMEOUT_SEKUNDEN",
+            "nextcloud_transfer_timeout_sekunden",
+        ),
+    )
+    # Versuche bei 429/5xx/Netzfehler (1 = keine Wiederholung).
+    nextcloud_versuche: int = Field(
+        3,
+        validation_alias=AliasChoices("NEXTCLOUD_VERSUCHE", "nextcloud_versuche"),
+    )
     # ── BACKUP-1: eigene Datensicherung ─────────────────────────────────────
     # Ablage der Sicherungen. MUSS unterhalb eines Bind-Mounts liegen (Default
     # `/data/sicherungen`, also im selben Datenbaum wie `files_dir`) — sonst
@@ -779,6 +848,104 @@ class Settings(BaseSettings):
             "website_oeffentlich_fenster_sekunden",
         ),
     )
+
+    @field_validator("speicher_backend")
+    @classmethod
+    def valid_speicher_backend(cls, value: str) -> str:
+        """SPEICHER-1: nur `lokal` oder `nextcloud`.
+
+        Ein Tippfehler (`nextclod`) muss den Start BRECHEN, nicht still auf
+        `lokal` zurueckfallen: sonst schreibt die Gemeinde weiter in den
+        Container und haelt ihre Dateien fuer „in der Nextcloud“.
+
+        ``lokal`` bleibt der Default — ohne Einstellung aendert sich nichts.
+        """
+        wert = str(value or "").strip().lower()
+        if wert not in {"lokal", "nextcloud"}:
+            raise ValueError(
+                "SPEICHER_BACKEND muss 'lokal' oder 'nextcloud' sein"
+            )
+        return wert
+
+    @field_validator("nextcloud_ordner")
+    @classmethod
+    def valid_nextcloud_ordner(cls, value: str) -> str:
+        """Ordner im Benutzerbereich: kein `..`, kein Backslash, kein Steuerzeichen.
+
+        Die Pruefung sitzt HIER und nicht erst beim Aufbau der WebDAV-Adresse,
+        weil ein kaputter Wert sonst erst bei der ersten Datei auffiele — und
+        dann mitten im Betrieb. Leer = Wurzel des Benutzers (erlaubt).
+        """
+        wert = str(value or "").strip().strip("/")
+        if not wert:
+            return ""
+        teile = [teil for teil in wert.split("/") if teil]
+        for teil in teile:
+            if teil in (".", "..") or "\\" in teil or any(ord(z) < 32 for z in teil):
+                raise ValueError(
+                    "NEXTCLOUD_ORDNER enthaelt ein unzulaessiges Segment "
+                    f"({teil!r})"
+                )
+        return "/" + "/".join(teile)
+
+    @field_validator("nextcloud_timeout_sekunden", "nextcloud_transfer_timeout_sekunden")
+    @classmethod
+    def valid_nextcloud_timeout(cls, value: float) -> float:
+        """1..3600 Sekunden.
+
+        Untergrenze 1: ein Zeitlimit von 0 waere in httpx „kein Limit“ — eine
+        haengende Nextcloud blockierte dann jeden Arbeiter dauerhaft.
+        Obergrenze 3600: eine Stunde fuer EINE Datei ist bereits die Grenze
+        des Vertretbaren; wer mehr braucht, hat ein anderes Problem.
+        """
+        try:
+            wert = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("NEXTCLOUD_*_TIMEOUT_SEKUNDEN muss eine Zahl sein") from None
+        if not 1.0 <= wert <= 3600.0:
+            raise ValueError(
+                "NEXTCLOUD_*_TIMEOUT_SEKUNDEN muss zwischen 1 und 3600 liegen "
+                "(0 waere in httpx kein Limit)"
+            )
+        return wert
+
+    @field_validator("nextcloud_versuche")
+    @classmethod
+    def valid_nextcloud_versuche(cls, value: int) -> int:
+        """1..10 Versuche (1 = keine Wiederholung)."""
+        try:
+            wert = int(value)
+        except (TypeError, ValueError):
+            raise ValueError("NEXTCLOUD_VERSUCHE muss eine ganze Zahl sein") from None
+        if not 1 <= wert <= 10:
+            raise ValueError("NEXTCLOUD_VERSUCHE muss zwischen 1 und 10 liegen")
+        return wert
+
+    @property
+    def nextcloud_konfiguriert(self) -> bool:
+        """True, sobald Adresse, Benutzer UND App-Passwort gesetzt sind.
+
+        Ein halb gesetzter Zugang ist gefaehrlicher als keiner (die Ablage
+        meldet sich dann erst beim ersten Schreibversuch) — deshalb gilt er
+        als nicht eingerichtet. Der Wert des Passworts wird dabei NICHT
+        ausgegeben, nur seine Anwesenheit geprueft.
+        """
+        return bool(
+            str(self.nextcloud_url or "").strip()
+            and str(self.nextcloud_benutzer or "").strip()
+            and str(self.nextcloud_app_passwort or "").strip()
+        )
+
+    @property
+    def nextcloud_app_passwort_effektiv(self) -> str:
+        """Das App-Passwort fuer den WebDAV-Zugang (nie protokollieren!).
+
+        Eigene Property, damit ein Aufrufer das Secret NICHT ueber
+        ``model_dump()``/``repr`` weiterreichen kann und damit eine spaetere
+        Docker-Secret-Variante (``NEXTCLOUD_APP_PASSWORT_FILE``) nur hier
+        anzusetzen braucht.
+        """
+        return str(self.nextcloud_app_passwort or "")
 
     @property
     def oidc_client_secret_effektiv(self) -> str:

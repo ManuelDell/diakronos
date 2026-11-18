@@ -137,7 +137,8 @@ class DynamicLinkModel(Base):
 class FileModel(Base):
     """Frappe `File` (P2c) — Ablage-Metadaten fuer `/api/method/upload_file`.
 
-    Die Datei selbst liegt im Dateisystem (Volume, siehe `settings.files_dir`);
+    Die Datei selbst liegt in der Datei-Ablage (`diakronos_app.speicher`:
+    lokal unter `settings.files_dir`, oder in der Nextcloud);
     hier steht nur der Verweis. `file_url` ist der Pfad, den die SPA liest.
     """
 

@@ -2149,37 +2149,35 @@ def _zaehle(s, zaehler: dict, schluessel: str, anweisung) -> None:
 
 
 def dateien_entfernen(pfade) -> int:
-    """Löscht Dateien aus `FILES_DIR` (nach dem Commit der Anonymisierung).
+    """Löscht Dateien aus der Datei-Ablage (nach dem Commit der Anonymisierung).
 
-    Nur innerhalb von `settings.files_dir` — ein Pfad aus der Datenbank darf
-    niemals außerhalb des Dateispeichers wirken. Fehler werden gesammelt und
-    gemeldet, nicht geworfen: die Anonymisierung ist zu diesem Zeitpunkt
-    bereits committet, und ein fehlendes Bild ist kein Grund, den Vorgang als
-    gescheitert darzustellen.
+    SPEICHER-1: Der Löschvorgang geht über die EINE Ablage-Schnittstelle —
+    lokal wie bisher, bei der Nextcloud-Ablage als WebDAV-DELETE. Der
+    Dateiname wird vorher nach denselben Regeln geprüft wie beim Ausliefern
+    (`files.stored_path`: kein Pfad, kein `..`, keine Steuerzeichen); die
+    Ablage prüft ihre Wurzel selbst, ein Pfad aus der Datenbank kann also
+    niemals ausserhalb wirken.
+
+    Fehler werden gesammelt und gemeldet, nicht geworfen: die Anonymisierung
+    ist zu diesem Zeitpunkt bereits committet, und ein fehlendes Bild ist kein
+    Grund, den Vorgang als gescheitert darzustellen.
     """
     import os
+    import re
 
-    from diakronos_app.files import stored_path
-    from diakronos_app.settings import get_settings
+    from diakronos_app.speicher import hole_speicher
 
-    basis = os.path.realpath(str(get_settings().files_dir or "/data/files"))
+    _NAME = re.compile(r"[A-Za-z0-9._-]+")
     entfernt = 0
     for pfad in pfade or ():
-        # `stored_path` prüft Name, Symlink und Wurzel — dieselbe Schranke wie
-        # beim Ausliefern einer Datei.
+        name = os.path.basename(str(pfad))
+        # Dieselbe Schranke wie beim Ausliefern einer Datei.
+        if not name or name in {".", ".."} or not _NAME.fullmatch(name):
+            continue
         try:
-            ziel = stored_path(os.path.basename(str(pfad)))
+            if hole_speicher().loeschen(name):
+                entfernt += 1
         except Exception:  # noqa: BLE001 — unbekannter Verweis ist kein Fehlerfall
-            continue
-        if ziel is None:
-            continue
-        echt = os.path.realpath(str(ziel))
-        if not echt.startswith(basis + os.sep):
-            continue
-        try:
-            os.unlink(echt)
-            entfernt += 1
-        except OSError:
             continue
     return entfernt
 

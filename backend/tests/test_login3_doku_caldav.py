@@ -73,24 +73,58 @@ def _zeilen(relativ: str) -> list[str]:
 
 
 # ── Die falsche Behauptung ist weg ────────────────────────────────────────
+#
+# SPEICHER-1 (17.11.): „App-Passwort“ ist als WORT wieder erlaubt — aber nur
+# fuer die Nextcloud-Ablage (`SPEICHER_BACKEND=nextcloud`, Dienstkonto mit
+# App-Passwort, siehe `speicher/nextcloud.py`). Der Befund R-LOGIN-2 war eine
+# Aussage ueber CALDAV: dort gibt es keine App-Passwoerter, dort gilt das
+# Kontopasswort. Ein pauschales Wortverbot wuerde die (richtige) neue Doku
+# blockieren, ohne den alten Fehler zu verhindern.
+#
+# Deshalb: In einem ABSATZ, der CalDAV betrifft, darf „App-Passwort“ nicht
+# stehen. Ein Absatz ist hier der Textblock zwischen Leerzeilen — dieselbe
+# Granularitaet, in der die Doku denkt.
 
 
-def test_settings_erwaehnt_keine_app_passwoerter():
-    quelle = _lies("backend/src/diakronos_app/settings.py")
-    assert "App-Passwoerter" not in quelle
-    assert "App-Passwort" not in quelle
+def _absaetze(relativ: str) -> list[str]:
+    text = _lies(relativ)
+    return [block for block in text.split("\n\n") if block.strip()]
 
 
-def test_env_beispiel_erwaehnt_keine_app_passwoerter():
-    quelle = _lies(".env.example")
-    assert "App-Passwoerter" not in quelle
-    assert "App-Passwort" not in quelle
+def _caldav_absaetze(relativ: str) -> list[str]:
+    """Absaetze, die von CalDAV/Kalender-Zugang handeln.
+
+    Review-Punkt 12: Die Ausloeser sind absichtlich breit. Ein Absatz, der
+    „Kalender-Abos per Thunderbird nutzen App-Passwoerter“ behauptet, traegt
+    den alten Befund R-LOGIN-2 genauso wie das Wort „CalDAV“ — ohne
+    ``thunderbird``/``davx``/``kalender`` kaeme er am Waechter vorbei.
+    """
+    ausloeser = ("caldav", "kalender-client", "kalender", "davx", "thunderbird",
+                 "ical", "carddav")
+    return [block for block in _absaetze(relativ)
+            if any(wort in block.lower() for wort in ausloeser)]
 
 
-def test_betriebsanleitung_erwaehnt_keine_app_passwoerter():
-    quelle = _lies("docs/BETRIEBSANLEITUNG.md")
-    assert "App-Passwörter" not in quelle
-    assert "App-Passwoerter" not in quelle
+@pytest.mark.parametrize(
+    "relativ",
+    ["backend/src/diakronos_app/settings.py", ".env.example", "docs/BETRIEBSANLEITUNG.md"],
+)
+def test_caldav_absaetze_erwaehnen_keine_app_passwoerter(relativ):
+    """CalDAV prueft das Kontopasswort — dort darf nichts anderes stehen."""
+    treffer = [block for block in _caldav_absaetze(relativ)
+               if "app-passwort" in block.lower()
+               or "app-passwoerter" in block.lower()
+               or "app-passwörter" in block.lower()]
+    assert not treffer, (
+        f"{relativ}: ein Absatz ueber CalDAV behauptet App-Passwoerter: "
+        f"{treffer[0][:200]!r}"
+    )
+
+
+def test_caldav_code_prueft_das_kontopasswort():
+    """Die Aussage der Doku haengt am Code, nicht an einer Zusicherung."""
+    quelle = _lies("backend/src/diakronos_app/caldav/auth.py")
+    assert "password_hash" in quelle
 
 
 # ── Und die richtige Aussage steht da ─────────────────────────────────────

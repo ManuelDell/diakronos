@@ -17,6 +17,7 @@ import base64
 import pytest
 
 from diakronos_app.devmodus import einstellungen
+from diakronos_app.settings import settings
 
 PFAD = "/api/method/diakronos.devmodus.api."
 
@@ -37,7 +38,7 @@ def _png() -> str:
 @pytest.fixture()
 def bildpfad(client, an, tmp_path, monkeypatch):
     """Legt ein echtes Befund-Bild ab und liefert ``devmodus/<datum>/<name>``."""
-    monkeypatch.setattr("diakronos_app.devmodus.dienste.settings.files_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "files_dir", str(tmp_path))
     antwort = client.post(PFAD + "bild_hochladen", json={"daten": _png(), "typ": "image/png"})
     assert antwort.status_code == 200, antwort.text
     return antwort.json()["message"]["pfad"]
@@ -69,7 +70,7 @@ def test_bild_endpunkt_ohne_anmeldung_verboten(client, an, bildpfad):
 
 def test_bild_endpunkt_lehnt_fremde_pfade_ab(client, an, tmp_path, monkeypatch):
     """Nur Pfade aus UNSEREM Muster werden ausgeliefert (kein Pfadausbruch)."""
-    monkeypatch.setattr("diakronos_app.devmodus.dienste.settings.files_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "files_dir", str(tmp_path))
     for boese in ("devmodus/2026-01-01/../../etc/passwd",
                   "devmodus/2026-01-01/aaaaaaaaaaaaaaaa.txt",
                   "devmodus/2026-01-01/aaaaaaaaaaaaaaaa.png",

@@ -39,6 +39,7 @@ Abfragen ueber ``get_all`` (Filter-Liste) UND direkt ueber SQLAlchemy
 from __future__ import annotations
 
 import logging
+import re
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Any
@@ -48,6 +49,11 @@ from diakronos_app.models.kronos import Element
 from diakronos_app.models.psalmos import Lied
 
 logger = logging.getLogger("diakronos_app.papierkorb")
+
+#: Erlaubte Zeichen eines Dateinamens in der Ablage — dieselbe Schranke wie
+#: in ``files.stored_path``. Alles andere ist ein Altbestandswert und bleibt
+#: folgenlos (die Datei wird nicht angefasst).
+_NAME_VOLL = re.compile(r"[A-Za-z0-9._-]+")
 
 #: Fachentscheidung Manuel (Karte UX2b): hoechstens 7 Tage im Papierkorb.
 AUFBEWAHRUNG_TAGE = 7
@@ -153,24 +159,30 @@ def bild_datei_entfernen(wert: Any) -> None:
     """Bild-Datei einer geloeschten Zeile entfernen (nach der Loeschlogik).
 
     Der Datenbankwert ist eine Datei-URL (``/files/x.png``) oder ein
-    Dateiname; entfernt wird ueber ``files.stored_path`` — dieselbe Pruefung
-    wie beim Ausliefern (kein Pfad, kein ``..``, kein Symlink, kein Ausbruch
-    aus dem Ordner). Ein Altbestandswert ohne Datei bleibt folgenlos.
+    Dateiname; entfernt wird ueber die Datei-Ablage (SPEICHER-1) mit
+    derselben Namenspruefung wie beim Ausliefern (kein Pfad, kein ``..``, kein
+    Symlink, kein Ausbruch aus dem Ordner). Ein Altbestandswert ohne Datei
+    bleibt folgenlos.
     Fehler werden protokolliert, nicht geworfen: die Zeile muss weg, auch
     wenn die Datei schon fehlt.
     """
-    from diakronos_app import files
+    from diakronos_app.speicher import AblageFehler, hole_speicher
 
-    roh = str(wert or "").strip()
-    if not roh:
+    # Dieselbe Schranke wie beim Ausliefern: ein reiner Dateiname aus
+    # ``[A-Za-z0-9._-]+``. Ein Altbestandswert mit Leerzeichen, ``..`` oder
+    # einem Pfadanteil bleibt folgenlos — die Datei wird NICHT angefasst
+    # (Review-Punkt 5: der Filter war beim Umbau verlorengegangen).
+    if not _NAME_VOLL.fullmatch(str(wert or "").strip().rsplit("/", 1)[-1]):
         return
-    dateiname = roh.rsplit("/", 1)[-1]
+    dateiname = str(wert or "").strip().rsplit("/", 1)[-1]
+    if not dateiname or dateiname in {".", ".."}:
+        return
     try:
-        pfad = files.stored_path(dateiname)
-        if pfad is not None:
-            pfad.unlink()
-    except Exception as fehler:  # noqa: BLE001 — kein Grund, das Aufraeumen zu stoppen
+        hole_speicher().loeschen(dateiname)
+    except AblageFehler as fehler:  # noqa: BLE001 — kein Grund, das Aufraeumen zu stoppen
         logger.warning("Papierkorb: Bild %r nicht entfernt (%s)", dateiname, fehler)
+    except Exception as fehler:  # noqa: BLE001
+        logger.warning("Papierkorb: Bild %r nicht entfernt (%s)", dateiname, type(fehler).__name__)
 
 
 def _endgueltig_beitrag(name: str) -> None:

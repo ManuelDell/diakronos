@@ -5,8 +5,11 @@ er enthaelt je Befund den Text, die URL, den Element-Selektor samt
 Komponentenkette, das Fehlerumfeld und die Bildpfade — so formuliert, dass eine
 KI den Fehler ohne Rueckfrage findet.
 
-Ablage: ``FILES_DIR/devmodus/<datum>/bericht.md`` (+ ``bericht.json``; Bilder
-liegen bereits unter ``devmodus/<datum>/``).
+Ablage: ``<Ablage>/devmodus/<datum>/bericht.md`` (+ ``bericht.json``; Bilder
+liegen bereits unter ``devmodus/<datum>/``). ``<Ablage>`` ist seit SPEICHER-1
+waehlbar (`diakronos_app.speicher`: lokal unter ``FILES_DIR`` oder in der
+Nextcloud) — die zurueckgegebenen Schluessel bleiben RELATIV, sie sind also
+in beiden Faellen gleich.
 
 Aufruf in der Oberflaeche (Admin-Download) und per CLI::
 
@@ -18,38 +21,40 @@ from __future__ import annotations
 import argparse
 import json
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from diakronos_app.settings import settings
 from diakronos_app.devmodus import dienste
 from diakronos_app.devmodus.einstellungen import FEHLER_ARTEN
+from diakronos_app.settings import settings  # noqa: F401 — Naht fuer Tests/Werkzeuge
 from diakronos_app.devmodus.redaktion import redigiere
 
 
-def _wurzel() -> Path:
-    return Path(settings.files_dir).resolve() / "devmodus"
+def _ablage():
+    """Die Datei-Ablage (SPEICHER-1: lokal oder Nextcloud)."""
+    from diakronos_app.speicher import hole_speicher
+
+    return hole_speicher()
 
 
 def erzeugen(sitzung: Session, *, seit: datetime | None = None,
              nur_offen: bool = False) -> dict[str, Any]:
-    """Schreibt den Bericht und liefert Pfade + Kurzfassung zurueck."""
+    """Schreibt den Bericht und liefert Schluessel + Kurzfassung zurueck."""
     daten = sammeln(sitzung, seit=seit, nur_offen=nur_offen)
     tag = datetime.now().strftime("%Y-%m-%d")
-    ziel = _wurzel() / tag
-    ziel.mkdir(parents=True, exist_ok=True)
-    md_pfad = ziel / "bericht.md"
-    json_pfad = ziel / "bericht.json"
-    md_pfad.write_text(markdown(daten), encoding="utf-8")
-    json_pfad.write_text(json.dumps(daten, ensure_ascii=False, indent=2), encoding="utf-8")
-    # SEC-10 (Pentest F4-2): nur Schluessel RELATIV zu FILES_DIR ausliefern —
+    md_schluessel = f"devmodus/{tag}/bericht.md"
+    json_schluessel = f"devmodus/{tag}/bericht.json"
+    ablage = _ablage()
+    ablage.schreiben(md_schluessel, markdown(daten).encode("utf-8"))
+    ablage.schreiben(json_schluessel,
+                     json.dumps(daten, ensure_ascii=False, indent=2).encode("utf-8"))
+    # SEC-10 (Pentest F4-2): nur Schluessel RELATIV zur Ablage ausliefern —
     # ein absoluter Container-Pfad (/data/files/...) verraet Interna.
     return {
-        "bericht": str(md_pfad.relative_to(Path(settings.files_dir).resolve())),
-        "json": str(json_pfad.relative_to(Path(settings.files_dir).resolve())),
+        "bericht": md_schluessel,
+        "json": json_schluessel,
         "befunde": len(daten["befunde"]),
         "offen": len(daten["offene_befunde"]),
         "zeitpunkt": daten["zeitpunkt"],
