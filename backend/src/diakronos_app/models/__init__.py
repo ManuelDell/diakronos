@@ -33,6 +33,13 @@ from diakronos_app.models.rechte import (
     RechteModul,
     RechteObjekt,
 )
+# CHAT-2 (S1): Gruppen-/Untergruppenchat (Handmodell, Konzept CHAT-KONZEPT.md 3.3).
+from diakronos_app.models.chat import (
+    ChatGespraech,
+    ChatNachricht,
+    ChatReaktion,
+    ChatTeilnehmer,
+)
 from diakronos_app.models.smtp import SmtpEinstellungen
 from diakronos_app.models.auth_oidc import Anmeldeeinstellungen
 from diakronos_app.models.auth_oidc import GruppenRolleZuordnung
@@ -268,4 +275,8 @@ __all__ = [
     "RechteGruppenrolle",
     "RechteModul",
     "RechteObjekt",
+    "ChatGespraech",
+    "ChatNachricht",
+    "ChatReaktion",
+    "ChatTeilnehmer",
 ]

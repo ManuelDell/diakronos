@@ -1176,6 +1176,254 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.aendern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "aendern",
+   "pfade": [
+    "aendern",
+    "api.aendern",
+    "chat.aendern",
+    "diakronos.diakonos.api.chat.aendern",
+    "diakronos.diakronos.api.chat.aendern",
+    "diakronos_app.api.chat.aendern"
+   ],
+   "rumpf_grund": "Aufruf s.flush()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.gespraech_anlegen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "gespraech_anlegen",
+   "pfade": [
+    "api.gespraech_anlegen",
+    "chat.gespraech_anlegen",
+    "diakronos.diakonos.api.chat.gespraech_anlegen",
+    "diakronos.diakronos.api.chat.gespraech_anlegen",
+    "diakronos_app.api.chat.gespraech_anlegen",
+    "gespraech_anlegen"
+   ],
+   "rumpf_grund": "ueber _gespraech_holen(): Aufruf s.flush()",
+   "rumpf_ueber": "_gespraech_holen"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.lesestand_setzen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "lesestand_setzen",
+   "pfade": [
+    "api.lesestand_setzen",
+    "chat.lesestand_setzen",
+    "diakronos.diakonos.api.chat.lesestand_setzen",
+    "diakronos.diakronos.api.chat.lesestand_setzen",
+    "diakronos_app.api.chat.lesestand_setzen",
+    "lesestand_setzen"
+   ],
+   "rumpf_grund": "Aufruf s.flush()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.loeschen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "loeschen",
+   "pfade": [
+    "api.loeschen",
+    "chat.loeschen",
+    "diakronos.diakonos.api.chat.loeschen",
+    "diakronos.diakronos.api.chat.loeschen",
+    "diakronos_app.api.chat.loeschen",
+    "loeschen"
+   ],
+   "rumpf_grund": "Aufruf s.flush()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.chat.meine_gespraeche",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "meine_gespraeche",
+   "pfade": [
+    "api.meine_gespraeche",
+    "chat.meine_gespraeche",
+    "diakronos.diakonos.api.chat.meine_gespraeche",
+    "diakronos.diakronos.api.chat.meine_gespraeche",
+    "diakronos_app.api.chat.meine_gespraeche",
+    "meine_gespraeche"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.reaktion_setzen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "reaktion_setzen",
+   "pfade": [
+    "api.reaktion_setzen",
+    "chat.reaktion_setzen",
+    "diakronos.diakonos.api.chat.reaktion_setzen",
+    "diakronos.diakronos.api.chat.reaktion_setzen",
+    "diakronos_app.api.chat.reaktion_setzen",
+    "reaktion_setzen"
+   ],
+   "rumpf_grund": "Aufruf s.flush(); Aufruf s.add()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.senden",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "senden",
+   "pfade": [
+    "api.senden",
+    "chat.senden",
+    "diakronos.diakonos.api.chat.senden",
+    "diakronos.diakronos.api.chat.senden",
+    "diakronos_app.api.chat.senden",
+    "senden"
+   ],
+   "rumpf_grund": "Aufruf s.flush(); Aufruf s.add()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.stumm_setzen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "stumm_setzen",
+   "pfade": [
+    "api.stumm_setzen",
+    "chat.stumm_setzen",
+    "diakronos.diakonos.api.chat.stumm_setzen",
+    "diakronos.diakronos.api.chat.stumm_setzen",
+    "diakronos_app.api.chat.stumm_setzen",
+    "stumm_setzen"
+   ],
+   "rumpf_grund": "Aufruf s.flush()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.chat.verlauf",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "verlauf",
+   "pfade": [
+    "api.verlauf",
+    "chat.verlauf",
+    "diakronos.diakonos.api.chat.verlauf",
+    "diakronos.diakronos.api.chat.verlauf",
+    "diakronos_app.api.chat.verlauf",
+    "verlauf"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
    "ausnahme_quelle": null,
    "deklariert": null,
    "einstufung": "lesend",
@@ -10591,12 +10839,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 394,
+ "funktionen": 403,
  "nur_test": [],
- "registrierte_pfade": 2203,
+ "registrierte_pfade": 2257,
  "rumpf_zaehlung": {
-  "lesend": 187,
-  "schreibend": 207
+  "lesend": 189,
+  "schreibend": 214
  },
  "widersprueche": [
   {
@@ -11160,7 +11408,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 177,
-  "schreibend": 217
+  "lesend": 179,
+  "schreibend": 224
  }
 }

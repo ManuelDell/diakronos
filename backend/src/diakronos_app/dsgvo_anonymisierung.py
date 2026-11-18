@@ -434,6 +434,47 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         # Person. Der Eintrag ist die Entscheidung, die das Inventar verlangt.
         "uhrzeit": ("struktur", "eingestellte Uhrzeit der Sicherung"),
     },
+    # CHAT-2 (S1, Konzept CHAT-KONZEPT.md 4.3): der Gruppenchat. Der Verlauf
+    # bleibt lesbar, wenn eine Person gelöscht wird — die anderen haben ein
+    # Recht auf ihren Gesprächsstoff. Personenbezogen sind die BEZÜGE
+    # (`autor`, `benutzer`, `geloescht_von`, `angelegt_von`): sie zeigen auf
+    # `user.name` und werden von `_verweise_umhaengen` auf die neutrale
+    # Kennung umgehängt (FK), bzw. beim Konto genullt. Die Freitexte
+    # (`text`, `entfernt_grund`, `titel`) laufen wie jeder andere Freitext über
+    # `_fremdtexte_ersetzen` — nur VOLLE Namen werden ersetzt, nicht
+    # Einzelvornamen und keine halben Sätze.
+    "chat_gespraech": {
+        "angelegt_von": ("user_null", "Konto, das das Gespräch angelegt hat"),
+        "titel": ("protokoll", "Titel des Gesprächs kann eine Person nennen"),
+    },
+    "chat_teilnehmer": {
+        # Die Zeile IST die Teilnahme der Person (PK gespraech+benutzer): sie
+        # fällt mit dem Konto, statt mit neutraler Kennung stehen zu bleiben —
+        # eine Teilnahme ohne Konto wäre ein Lesestand, den niemand lesen kann.
+        "benutzer": ("zeile_loeschen", "Teilnahme + Lesestand der Person (Zeile wird gelöscht)"),
+        "gespraech": ("struktur", "Gesprächskennung (Fachobjekt)"),
+        "letzter_lesestand_nachricht": ("struktur", "Kennung der zuletzt gelesenen Nachricht"),
+    },
+    "chat_nachricht": {
+        "autor": ("mitglied", "Autor der Nachricht: Verlauf bleibt, Bezug wird neutral"),
+        # Review CHAT-2, Punkt 4: der BESITZ ist das Konto. Es verschwindet mit
+        # dem Konto (die Rechtefrage „ist das meine Nachricht“ endet damit);
+        # der Verlauf bleibt ueber `autor` erkennbar-neutral stehen.
+        "autor_benutzer": ("user_null", "Konto des Verfassers (Besitz der Nachricht)"),
+        # Verweise auf FACHOBJEKTE (Gespräch, zitierte Nachricht) — keine
+        # Person. Sie stehen hier, weil der Inventar-Wächter je Textspalte eine
+        # Entscheidung verlangt; geändert wird an ihnen nichts.
+        "gespraech": ("struktur", "Kennung des Gesprächs (Fachobjekt)"),
+        "antwort_auf": ("struktur", "Kennung der zitierten Nachricht (Fachobjekt)"),
+        "text": ("protokoll", "Nachrichtentext kann die Person nennen"),
+        "entfernt_grund": ("protokoll", "Grund einer Moderations-Entfernung (Freitext)"),
+        "geloescht_von": ("user_null", "Konto, das die Nachricht gelöscht hat"),
+    },
+    "chat_reaktion": {
+        "benutzer": ("zeile_loeschen", "Reaktion der Person (Zeile wird gelöscht)"),
+        "reaktion": ("struktur", "eines der sechs festen Zeichen"),
+        "nachricht": ("struktur", "Kennung der Nachricht (Fachobjekt)"),
+    },
     "gestaltung_abweichung": {
         # UX1j: Maße der Oberfläche (Abstände, Rahmen, Radien) — keine
         # Personendaten. `token` ist der Name der CSS-Variablen (aus der
@@ -667,6 +708,11 @@ ZEILEN_LOESCHEN: tuple[tuple[str, str], ...] = (
     # selbst — sie fallen mit dem Konto (Spalte `benutzer`).
     ("rechte_gruppenrolle", "Gruppenrollen des Kontos (HV/MV/GL)"),
     ("rechte_freigabe", "Einzelfreigaben des Kontos"),
+    # CHAT-2: Teilnahme (mit Lesestand) und Reaktionen der Person sind
+    # Verhaltensdaten am Konto. Sie fallen ganz; der VERLAUF bleibt lesbar
+    # (`chat_nachricht.autor` wird umgehängt, s. `SPALTEN`).
+    ("chat_teilnehmer", "Teilnahme und Lesestand der Person"),
+    ("chat_reaktion", "Reaktionen der Person"),
 )
 
 #: Tabellen mit Konto-Bezug, deren Zeilen gelöscht werden — dort wird VORHER
@@ -679,6 +725,10 @@ KONTO_ZEILEN = frozenset({
     "gruppe_verantwortlicher", "untergruppe_verantwortlicher",
     "dienstbereich_verantwortlicher", "kronos_kanban_zustand", "dm_sitzung",
     "dm_befund", "dm_ereignis", "sicherer_anhang",
+    # CHAT-2 (Konzept 4.3): Teilnahme und Reaktion sind ZEILEN der Person —
+    # sie verschwinden mit dem Konto. Der Verlauf bleibt lesbar; das leisten
+    # die FK-Spalten `chat_nachricht.autor`/`geloescht_von` (Umhängen/Nullen).
+    "chat_teilnehmer", "chat_reaktion",
 })
 
 
@@ -819,6 +869,14 @@ def _vorhandene_tabellen(s) -> set[str] | None:
     """
     from sqlalchemy import text as _text
 
+    # PASSIV (CHAT-2): der Katalog darf die Transaktion des Aufrufers NICHT
+    # beenden. Auf PostgreSQL scheitert `information_schema` nie — der
+    # `except`-Zweig lief dort bisher nie; auf SQLite (Tests) scheitert die
+    # erste Abfrage, und ohne `passive` beendet pysqlite die laufende
+    # Transaktion. Der Rueckfall auf `sqlite_master` erfuehrt dann eine LEERE
+    # Datenbank, `_hat_tabelle` antwortet „nein“ fuer JEDE Tabelle — und die
+    # Loeschung uebersprang alle Zeilen-Faelle still (belegt in
+    # `test_chat2_dsgvo.py`). `passive=True` schickt kein implizites COMMIT.
     try:
         return {str(n) for n in s.execute(_text(
             "SELECT table_name FROM information_schema.tables "

@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **2203**
-* eindeutige Funktionen: **394**
-* lesend: **177**, schreibend: **217**
-* Rumpfbefund: schreibend 207, lesend 187, unbekannt 0
+* registrierte Pfade: **2257**
+* eindeutige Funktionen: **403**
+* lesend: **179**, schreibend: **224**
+* Rumpfbefund: schreibend 214, lesend 189, unbekannt 0
 
 ## Einstufung
 
@@ -90,6 +90,13 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.beziehungen.remove_beziehung` | ['POST'] | nein |
 | `diakronos_app.api.bugreport.melden` | ['POST'] | nein |
 | `diakronos_app.api.bugreport.set_status` | ['POST'] | nein |
+| `diakronos_app.api.chat.aendern` | ['POST'] | nein |
+| `diakronos_app.api.chat.gespraech_anlegen` | ['POST'] | nein |
+| `diakronos_app.api.chat.lesestand_setzen` | ['POST'] | nein |
+| `diakronos_app.api.chat.loeschen` | ['POST'] | nein |
+| `diakronos_app.api.chat.reaktion_setzen` | ['POST'] | nein |
+| `diakronos_app.api.chat.senden` | ['POST'] | nein |
+| `diakronos_app.api.chat.stumm_setzen` | ['POST'] | nein |
 | `diakronos_app.api.dashboard.reset_user_config` | ['POST'] | nein |
 | `diakronos_app.api.dashboard.set_user_config` | ['POST'] | nein |
 | `diakronos_app.api.datenschutz.anonymisieren` | ['POST'] | nein |
@@ -307,6 +314,8 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.beziehungen.get_beziehungen_auswahl` | — | nein |
 | `diakronos_app.api.bugreport.detail` | — | nein |
 | `diakronos_app.api.bugreport.liste` | — | nein |
+| `diakronos_app.api.chat.meine_gespraeche` | — | nein |
+| `diakronos_app.api.chat.verlauf` | — | nein |
 | `diakronos_app.api.dashboard.get_available_widgets` | — | nein |
 | `diakronos_app.api.dashboard.get_events_for_month` | — | nein |
 | `diakronos_app.api.dashboard.get_meine_buchungen_widget` | — | nein |
