@@ -1182,6 +1182,19 @@ def darf_person_finden(benutzer: str | None, ziel: str | None) -> Entscheidung:
     return JA("gemeinde") if auffindbar else NEIN("nicht_auffindbar")
 
 
+def person_hat_konto(ziel: str | None) -> bool:
+    """Hat die Person ``ziel`` ein AKTIVES Konto? (fuer „hat kein Konto“).
+
+    Dieselbe Quelle wie ``darf_direktnachricht`` (``_auffindbar``): ein
+    deaktiviertes Konto zaehlt als kein Konto — sonst zeigte die Oberflaeche
+    einen Schreib-Knopf, den der Server ablehnt. Fail closed.
+    """
+    if not ziel:
+        return False
+    with lesesitzung() as sess:
+        return _auffindbar(sess, str(ziel))[1]
+
+
 def darf_direktnachricht(benutzer: str | None, ziel: str | None) -> Entscheidung:
     """Darf ``benutzer`` der Person ``ziel`` eine Direktnachricht schreiben?
 
@@ -1242,6 +1255,7 @@ __all__ = [
     "darf_beziehung",
     "CHAT_TYPEN",
     "darf_person_finden",
+    "person_hat_konto",
     "darf_direktnachricht",
     "ist_meldestelle",
     "eigenes_mitglied",

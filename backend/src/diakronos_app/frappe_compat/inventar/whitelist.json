@@ -1314,6 +1314,32 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.chat.personen_suchen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "personen_suchen",
+   "pfade": [
+    "api.personen_suchen",
+    "chat.personen_suchen",
+    "diakronos.diakonos.api.chat.personen_suchen",
+    "diakronos.diakronos.api.chat.personen_suchen",
+    "diakronos_app.api.chat.personen_suchen",
+    "personen_suchen"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
    "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
@@ -10839,11 +10865,11 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 403,
+ "funktionen": 404,
  "nur_test": [],
- "registrierte_pfade": 2257,
+ "registrierte_pfade": 2263,
  "rumpf_zaehlung": {
-  "lesend": 189,
+  "lesend": 190,
   "schreibend": 214
  },
  "widersprueche": [
@@ -11408,7 +11434,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 179,
+  "lesend": 180,
   "schreibend": 224
  }
 }

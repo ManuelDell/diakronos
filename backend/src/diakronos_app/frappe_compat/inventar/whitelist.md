@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **2257**
-* eindeutige Funktionen: **403**
-* lesend: **179**, schreibend: **224**
-* Rumpfbefund: schreibend 214, lesend 189, unbekannt 0
+* registrierte Pfade: **2263**
+* eindeutige Funktionen: **404**
+* lesend: **180**, schreibend: **224**
+* Rumpfbefund: schreibend 214, lesend 190, unbekannt 0
 
 ## Einstufung
 
@@ -315,6 +315,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.bugreport.detail` | — | nein |
 | `diakronos_app.api.bugreport.liste` | — | nein |
 | `diakronos_app.api.chat.meine_gespraeche` | — | nein |
+| `diakronos_app.api.chat.personen_suchen` | — | nein |
 | `diakronos_app.api.chat.verlauf` | — | nein |
 | `diakronos_app.api.dashboard.get_available_widgets` | — | nein |
 | `diakronos_app.api.dashboard.get_events_for_month` | — | nein |

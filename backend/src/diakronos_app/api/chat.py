@@ -42,19 +42,54 @@ Gelesen und geschrieben wird in der Sitzung des Aufrufs
 dadurch denselben Stand (er benutzt ``db.lesesitzung``); der Merker des Kerns
 leert sich bei jedem Flush (``db.py``), ein Rechtewechsel wirkt also sofort.
 
+CHAT-R2b: PERSONENSUCHE (``personen_suchen``)
+--------------------------------------------
+„Personen“ verschwindet als Menüpunkt; alle Personen findet man unter
+„Nachrichten“ (Konzept 10.1 Punkt 2–4). Die Suche ist die EINE Fundstelle und
+ist rein lesend: `q` ist der Name (Vor-/Nachname, Teilstring, ab 2 Zeichen),
+das Ergebnis ist auf 20 Treffer begrenzt (max 50), sortiert nach Nachname,
+Vorname.
+
+ZWEI STUFEN, zwei getrennte Aufgaben:
+1. **Vorfilter (SQL)** — aktive Mitglieder, deren Name den Begriff enthält.
+   Das ist eine Vorfilterung, KEINE Entscheidung: `m.nachname`/`m.vorname`
+   und der Name als Phrase („Anna Beispiel“). Der Vorfilter ist bewusst
+   grosszügig (er darf zu viel liefern, nie zu wenig), die Grenze auf
+   ``SUCHE_MAX`` Zeilen gilt erst nach der Rechteprüfung.
+2. **Entscheidung** — JEDER Treffer läuft durch ``rechte.darf_person_finden``
+   (und ``darf_direktnachricht`` für ``darf_schreiben``). Im API-Code steht
+   KEINE eigene Status- oder Rollenlogik; wer auffindbar ist, entscheidet
+   allein der Rechte-Kern.
+
+FAIL CLOSED, ohne Unterscheidung: Gast, Fehler, nicht angemeldetes Konto →
+leere Liste. „Gibt es nicht“ und „darfst du nicht“ sind in der Antwort NICHT
+unterscheidbar (dieselbe Regel wie beim Registrierungslink, Konzept 2.4).
+
+FELDER: ``mitglied``, ``anzeigename``, ``bild``, ``hat_konto``,
+``darf_schreiben`` und die Kontaktfelder, die
+``frappe_compat.mitglied_sichtbarkeit.maskiere_datensatz`` freigibt. Ein
+NICHT freigegebenes Feld fehlt GANZ (Schlüssel nicht vorhanden, nicht
+``null``) — die Suche liefert absichtlich WENIGER Felder als das Profil, und
+zwar über DENSELBEN Maskierer wie Adressbuch/Liste (kein zweiter
+Auslieferungsweg).
+
 WAS HIER BEWUSST FEHLT (spätere Karten): Umfragen (CHAT-5), Meldungen
 (CHAT-6), Direktnachrichten (CHAT-7), Löschfristen (CHAT-8), Push (CHAT-10),
-Anhänge/Suche (CHAT-9). Kein WebSocket: Zustellung ist der „seit X“-Abruf
-(3.1, Empfehlung A).
+Anhänge/Chatverlaufssuche (CHAT-9). Kein WebSocket: Zustellung ist der
+„seit X“-Abruf (3.1, Empfehlung A).
 """
 
 from __future__ import annotations
 
+import logging
+import unicodedata
 from datetime import datetime, timedelta
 from typing import Any, NoReturn
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
+
+logger = logging.getLogger("diakronos_app.api.chat")
 
 #: Original-Frappe-Pfad ist leer: dieses Modul ist NEU (kein Altcode-Port).
 FRAPPE_MODULE = "diakronos.diakronos.api.chat"
@@ -536,6 +571,281 @@ def meine_gespraeche():
             ergebnis.append(_gespraech_kopf(s, g, benutzer))
     ergebnis.sort(key=lambda e: (str(e["letzte_am"] or ""), str(e["titel"])), reverse=True)
     return {"gespraeche": ergebnis}
+
+
+# ── Endpunkte: Personensuche (CHAT-R2b) ─────────────────────────────────────
+
+
+@whitelist(allow_guest=False)
+def personen_suchen(q=None, limit=None):
+    """Personen für „Nachrichten“ suchen — rein lesend (GET), fail closed.
+
+    ``q`` ist der NAME (Vor- oder Nachname, Teilstring, ab 2 Zeichen; leer →
+    leere Liste). ``limit`` ist die Trefferzahl: Vorgabe ``SUCHE``, höchstens
+    ``SUCHE_MAX`` — ein grösserer Wunsch wird gekappt, kein Fehler (ein
+    ``limit=1000`` soll die Datenbank nicht in einem Rutsch leeren können).
+
+    Antwort: ``{treffer: [...], limit: <tatsächliche Grenze>}``. Je Treffer
+    ``mitglied``, ``anzeigename``, ``bild``, ``hat_konto``, ``darf_schreiben``
+    und die per ``mitglied_sichtbarkeit`` freigegebenen Kontaktfelder. Nicht
+    freigegebene Felder sind GAR NICHT im Treffer (nicht ``None``).
+
+    Rechte: nur ``rechte.darf_person_finden`` (auffindbar) und
+    ``rechte.darf_direktnachricht`` (schreibbar). KEINE eigene Status- oder
+    Rollenlogik hier — der Vorfilter unten ist Suche, nicht Entscheidung.
+    Gast, nicht angemeldetes Konto oder ein Fehler beim Auswerten → leere
+    Liste, ohne Unterschied zwischen „gibt es nicht“ und „darfst du nicht“.
+    """
+    from diakronos_app.frappe_compat.mitglied_sichtbarkeit import maskiere_datensatz
+    from diakronos_app.rechte import darf_direktnachricht, darf_person_finden
+
+    grenze = _suche_grenze(limit)
+    leer: dict[str, Any] = {"treffer": [], "limit": grenze}
+    try:
+        benutzer = _benutzer()
+        begriff = _suche_begriff(q)
+        if not begriff or not rechte.ist_gemeindemitglied(benutzer):
+            return leer
+        treffer: list[dict[str, Any]] = []
+        kandidaten: list = []
+        with dbmod.SessionLocal() as s:
+            for seite in range(_VORFILTER_SEITEN):
+                teil = _suche_kandidaten(s, begriff, seite * _VORFILTER_MAX)
+                kandidaten.extend(teil)
+                # Genug Rohtreffer fuer die Grenze ODER keine weiteren Zeilen.
+                if len(teil) < _VORFILTER_MAX or len(kandidaten) >= grenze * 8:
+                    break
+        for zeile in kandidaten:
+            # `Row` -> dict ueber `_mapping` (ein `dict(Row)` scheitert: ein Row
+            # ist eine Folge, kein Schlüssel/Wert-Paar).
+            m = dict(zeile._mapping) if hasattr(zeile, "_mapping") else dict(zeile)
+            kennung = str(m.get("name") or "")
+            # Die EINE Entscheidung: der Rechte-Kern, nicht dieser Code.
+            if not kennung or not darf_person_finden(benutzer, kennung):
+                continue
+            # Derselbe Maskierer wie Liste/Adressbuch. `Weglassen` (nicht
+            # `None`) macht `_nur_freigegebene_felder` daraus.
+            maskiert = maskiere_datensatz(m, mitglied_id=kennung) or {}
+            treffer.append(_suche_treffer(
+                kennung=kennung,
+                roh=m,
+                maskiert=maskiert,
+                darf_schreiben=bool(darf_direktnachricht(benutzer, kennung)),
+            ))
+            if len(treffer) >= grenze:
+                break
+        return {"treffer": treffer, "limit": grenze}
+    except Exception as fehler:  # noqa: BLE001 — fail closed: JEDER Fehler ⇒ keine Treffer
+        # Fail closed, aber nicht stumm: protokolliert wird die FEHLERKLASSE
+        # (kein Suchbegriff, kein Treffer, keine Kennung). Ein kaputter
+        # Endpunkt soll in den Logs auffallen, ohne Namen preiszugeben.
+        logger.warning("personen_suchen: Suche fehlgeschlagen (%s) — leere Liste",
+                       type(fehler).__name__)
+        return leer
+
+
+#: Vorgabe und Obergrenze der Trefferzahl (Konzept 10.1, Karte Punkt 3).
+SUCHE = 20
+SUCHE_MAX = 50
+#: Kürzeste Sucheingabe — ein einzelnes Zeichen fände fast die ganze Gemeinde.
+SUCHE_MIN_ZEICHEN = 2
+#: So viele Vorfilter-Zeilen holt die Datenbank je Suche. Der Vorfilter ist
+#: absichtlich grosszügig (er muss Treffer finden, deren Auffindbarkeit erst
+#: der Rechte-Kern bejaht), aber nicht unbegrenzt: 8 × die Höchstzahl deckt
+#: auch eine Gemeinde ab, in der die ersten Treffer wegfallen. Die endgültige
+#: Grenze ist ``SUCHE_MAX`` NACH der Rechteprüfung.
+_VORFILTER_MAX = SUCHE_MAX * 8
+
+#: Felder, die ein Treffer ausliefern darf — ausschliesslich Kontaktfelder,
+#: für die ``mitglied_sichtbarkeit`` einen Schalter kennt. Alles andere
+#: (``notiz``, Einwilligungen, ``angelegt_von`` …) kommt hier gar nicht erst
+#: in Frage; Verwaltungsfelder wirft zusätzlich der Maskierer weg.
+_SUCHE_FELDER = ("email", "telefonnummer", "postleitzahl", "wohnort",
+                 "straße", "nummer", "geburtstag")
+
+
+def _suche_grenze(limit) -> int:
+    """Tatsächliche Trefferzahl: Vorgabe ``SUCHE``, gekappt auf ``SUCHE_MAX``.
+
+    Unlesbare/negative Angaben fallen auf die Vorgabe zurück (kein Fehler) —
+    eine Suche soll an einem kaputten ``limit`` nicht scheitern.
+    """
+    if limit is None or limit == "":
+        return SUCHE
+    try:
+        wert = int(str(limit).strip())
+    except (TypeError, ValueError):
+        return SUCHE
+    return max(1, min(SUCHE_MAX, wert))
+
+
+def _suche_begriff(q) -> str:
+    """Suchbegriff normalisieren (Kleinschreibung, Umlaute aufgelöst, getrimmt).
+
+    Dieselbe Faltung wie die Mitgliederliste (``api.mitglieder``): „weiss“
+    findet „Weiß“, „MUELLER“ findet „Müller“. Zu kurze Eingaben → ``""``.
+    """
+    text = unicodedata.normalize("NFC", str(q or "")).strip().lower()
+    for von, nach in (("ß", "ss"), ("ä", "ae"), ("ö", "oe"), ("ü", "ue")):
+        text = text.replace(von, nach)
+    text = " ".join(text.split())
+    return text if len(text) >= SUCHE_MIN_ZEICHEN else ""
+
+
+def _suche_faltung(spalte: str) -> str:
+    """SQL-Ausdruck, der eine Spalte klein- UND umlautgefaltet liefert.
+
+    Gleiche Bauart wie ``api.mitglieder._suche_ausdruck`` (dort ist sie privat,
+    ein Import über Modulgrenzen wäre eine stille Kopplung): erst BEIDE
+    Schreibweisen der Umlaute/ß ersetzen, dann ``LOWER`` — PostgreSQLs ``LIKE``
+    ist case-sensitiv, SQLites ``LOWER`` lässt Nicht-ASCII unverändert.
+    ``spalte`` ist ein fester Bezeichner aus dieser Datei, keine Nutzereingabe.
+    """
+    ausdruck = spalte
+    for von, nach in (("Ä", "Ae"), ("Ö", "Oe"), ("Ü", "Ue"), ("ß", "ss"),
+                      ("ä", "ae"), ("ö", "oe"), ("ü", "ue")):
+        ausdruck = f"REPLACE({ausdruck}, '{von}', '{nach}')"
+    return f"LOWER({ausdruck})"
+
+
+def _like_muster(begriff: str) -> str:
+    """``%begriff%`` mit maskierten Platzhaltern (``\\``, ``%``, ``_``).
+
+    Ohne Maskierung faende ``__`` oder ``%%`` die ganze Gemeinde und hebelte
+    die Mindestlaenge aus. Escape-Zeichen ist ``\\`` (``ESCAPE '\\'`` in
+    jeder LIKE-Klausel — SQLite kennt keinen Standard, PostgreSQL schon).
+    """
+    for zeichen in ("\\", "%", "_"):
+        begriff = begriff.replace(zeichen, "\\" + zeichen)
+    return f"%{begriff}%"
+
+
+def _suche_kandidaten(s, begriff: str, versatz: int = 0) -> list:
+    """Vorfilter: Mitglieder, deren Name den Begriff enthält — EINE Seite.
+
+    Sucht in ``vorname``, ``nachname`` UND in der Phrase „Vorname Nachname“
+    (damit „anna bei“ auch „Anna Beispiel“ trifft). Der Vorfilter entscheidet
+    NICHTS: er schliesst nur ``geloescht-*`` aus; ob eine Person auffindbar
+    ist (Status, Austritt, Ausschluss), sagt allein
+    ``rechte.darf_person_finden`` je Treffer. Sortiert nach Nachname,
+    Vorname (Karte Punkt 3). Der Aufrufer blaettert mit ``versatz`` weiter,
+    bis genug Treffer bestaetigt sind — sonst schnitte eine Seite voller
+    Ausgetretener berechtigte Treffer ab (Review 18.11.).
+    """
+    muster = _like_muster(begriff)
+    vorname = _suche_faltung("m.vorname")
+    nachname = _suche_faltung("m.nachname")
+    phrase_vor = _suche_faltung(
+        "COALESCE(m.vorname, '') || ' ' || COALESCE(m.nachname, '')")
+    # Die umgekehrte Reihenfolge wird ebenfalls gesucht: „Brandner Bert“ ist
+    # genauso ein Name wie „Bert Brandner“.
+    phrase_nach = _suche_faltung(
+        "COALESCE(m.nachname, '') || ' ' || COALESCE(m.vorname, '')")
+    spalten = ", ".join(
+        ["m.name", "m.vorname", "m.nachname", "m.foto", "m.user",
+         "m.adressbuch_sichtbarkeit", "m.status"]
+        + [f'm."{feld}"' if feld == "straße" else f"m.{feld}" for feld in _SUCHE_FELDER]
+    )
+    like = " LIKE :muster ESCAPE '\\'"
+    sql = (
+        "SELECT " + spalten + " FROM mitglied m WHERE ("
+        + f"{vorname}{like} OR {nachname}{like}"
+        + f" OR {phrase_vor}{like} OR {phrase_nach}{like}"
+        + ") AND m.name NOT LIKE 'geloescht-%'"
+        " ORDER BY m.nachname, m.vorname, m.name LIMIT :grenze OFFSET :versatz"
+    )
+    try:
+        return s.execute(text(sql), {"muster": muster, "grenze": _VORFILTER_MAX,
+                                     "versatz": int(versatz)}).all()
+    except Exception as fehler:  # noqa: BLE001 — fail closed, aber nicht stumm
+        logger.warning("personen_suchen: Vorfilter fehlgeschlagen (%s) — leere Liste",
+                       type(fehler).__name__)
+        return []
+
+
+#: Hoechstzahl Vorfilter-Seiten je Suche (Schutz gegen Endlosblaettern).
+_VORFILTER_SEITEN = 10
+
+
+def _nur_freigegebene_felder(maskiert: dict[str, Any],
+                             sicht: dict[str, bool]) -> dict[str, Any]:
+    """Kontaktfelder, die die Person freigegeben hat — sonst Schlüssel WEG.
+
+    Grundlage ist das Ergebnis von ``maskiere_datensatz`` (der eine
+    Auslieferungsweg). Dieses setzt nicht freigegebene Felder auf ``None``;
+    die Suche liefert sie stattdessen GAR NICHT (Konzept 10.4: „die Suche
+    liefert weniger Felder als das Profil“). Zusätzlich muss der zugehörige
+    Schalter stehen — ein Wert, der trotz fehlender Freigabe im Datensatz
+    steht, wird damit nicht durchgereicht (fail closed).
+    """
+    from diakronos_app.frappe_compat.mitglied_sichtbarkeit import FELD_AN_SCHALTER
+
+    felder: dict[str, Any] = {}
+    for feld in _SUCHE_FELDER:
+        schalter = FELD_AN_SCHALTER.get(feld)
+        if not schalter or not sicht.get(schalter):
+            continue
+        wert = maskiert.get(feld)
+        if wert in (None, ""):
+            continue
+        if isinstance(wert, str):
+            wert = wert.strip()
+            if not wert:
+                continue
+        felder[feld] = wert.isoformat() if hasattr(wert, "isoformat") else wert
+    return felder
+
+
+def _suche_treffer(*, kennung: str, roh: dict[str, Any],
+                   maskiert: dict[str, Any], darf_schreiben: bool) -> dict[str, Any]:
+    """Ein Treffer in der Form, die „Nachrichten“ zeichnet.
+
+    ``anzeigename`` läuft durch ``personen_anzeige.kuerze`` (EINE Regel für
+    gekürzte Namen) — bei einer gelöschten Person steht dort „Gelöschte
+    Person“, nie die Kennung. ``hat_konto`` (aktives Konto) und
+    ``darf_schreiben`` kommen beide aus dem Rechte-Kern — eine Person mit
+    deaktiviertem Konto ist auffindbar, gilt aber als „hat kein Konto“.
+
+    Kontaktfelder kommen aus ``maskiert`` (dem Ergebnis von
+    ``maskiere_datensatz``) und nur, wenn die Person sie freigegeben hat. Was
+    nicht freigegeben ist, steht NICHT im Treffer — auch nicht als ``None``.
+    """
+    from diakronos_app.frappe_compat.mitglied_sichtbarkeit import sichtbarkeit_lesen
+    from diakronos_app.frappe_compat.personen_anzeige import kuerze
+    from diakronos_app.frappe_compat.personen_anzeige import ist_geloescht
+
+    geloescht = ist_geloescht(dict(roh, name=kennung))
+    kurz = kuerze(dict(roh, name=kennung))
+    anzeige = str(kurz.get("vorname") or "").strip() or kennung
+    if not geloescht:
+        # `kuerze` kürzt ausgetretene Personen; sie sind in der Suche ohnehin
+        # weg (Rechte-Kern). Der Normalfall trägt den vollen Namen.
+        anzeige = " ".join(p for p in (str(roh.get("vorname") or "").strip(),
+                                       str(roh.get("nachname") or "").strip()) if p) or kennung
+    treffer: dict[str, Any] = {
+        "mitglied": kennung,
+        "anzeigename": anzeige,
+        "bild": _suche_bild(roh.get("foto"), geloescht),
+        # Konto-Frage beantwortet der Rechte-Kern (aktives Konto, Review 18.11.).
+        "hat_konto": rechte.person_hat_konto(kennung),
+        "darf_schreiben": bool(darf_schreiben),
+    }
+    treffer.update(_nur_freigegebene_felder(
+        maskiert, sichtbarkeit_lesen(roh.get("adressbuch_sichtbarkeit"))))
+    return treffer
+
+
+def _suche_bild(foto, ist_geloescht: bool) -> str:
+    """Bildadresse eines Treffers — präfigiert wie überall (``foto_mit_praefix``).
+
+    Kein Bild einer gelöschten Person (die Datei ist entfernt, ein Rest im
+    Feld wäre ein toter Verweis) — dieselbe Regel wie in der Mitgliederliste.
+    """
+    if ist_geloescht or not foto:
+        return ""
+    from diakronos_app.api.profile import foto_mit_praefix
+
+    return foto_mit_praefix(foto)
 
 
 # ── Endpunkte: Verlauf ──────────────────────────────────────────────────────
