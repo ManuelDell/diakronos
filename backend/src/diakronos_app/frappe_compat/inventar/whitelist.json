@@ -1314,6 +1314,88 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.meldung_entscheiden",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "meldung_entscheiden",
+   "pfade": [
+    "api.meldung_entscheiden",
+    "chat.meldung_entscheiden",
+    "diakronos.diakonos.api.chat.meldung_entscheiden",
+    "diakronos.diakronos.api.chat.meldung_entscheiden",
+    "diakronos_app.api.chat.meldung_entscheiden",
+    "meldung_entscheiden"
+   ],
+   "rumpf_grund": "Aufruf s.flush()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.meldung_senden",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "meldung_senden",
+   "pfade": [
+    "api.meldung_senden",
+    "chat.meldung_senden",
+    "diakronos.diakonos.api.chat.meldung_senden",
+    "diakronos.diakronos.api.chat.meldung_senden",
+    "diakronos_app.api.chat.meldung_senden",
+    "meldung_senden"
+   ],
+   "rumpf_grund": "Aufruf s.flush(); Aufruf s.add()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.chat.meldungen_liste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "meldungen_liste",
+   "pfade": [
+    "api.meldungen_liste",
+    "chat.meldungen_liste",
+    "diakronos.diakonos.api.chat.meldungen_liste",
+    "diakronos.diakronos.api.chat.meldungen_liste",
+    "diakronos_app.api.chat.meldungen_liste",
+    "meldungen_liste"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
    "ausnahme_quelle": null,
    "deklariert": null,
    "einstufung": "lesend",
@@ -10865,12 +10947,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 404,
+ "funktionen": 407,
  "nur_test": [],
- "registrierte_pfade": 2263,
+ "registrierte_pfade": 2281,
  "rumpf_zaehlung": {
-  "lesend": 190,
-  "schreibend": 214
+  "lesend": 191,
+  "schreibend": 216
  },
  "widersprueche": [
   {
@@ -11434,7 +11516,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 180,
-  "schreibend": 224
+  "lesend": 181,
+  "schreibend": 226
  }
 }

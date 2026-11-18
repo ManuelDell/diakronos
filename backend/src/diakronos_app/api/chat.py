@@ -42,6 +42,37 @@ Gelesen und geschrieben wird in der Sitzung des Aufrufs
 dadurch denselben Stand (er benutzt ``db.lesesitzung``); der Merker des Kerns
 leert sich bei jedem Flush (``db.py``), ein Rechtewechsel wirkt also sofort.
 
+CHAT-6 — MELDEN UND MODERATION (Konzept 2.5, 3.3, 4.5, 9/F7)
+-----------------------------------------------------------
+* ``meldung_senden``   jede Person, die die Nachricht LESEN darf; die eigene
+                       (und eine bereits gelöschte) Nachricht ist nicht meldbar
+                       (400). Grund aus dem festen Set (``MELDEGRUENDE``),
+                       Freitext ≤ 500 Zeichen. Eine OFFENE Meldung je
+                       (Nachricht, Melder) — geprüft UND in der Datenbank
+                       (partieller Unique-Index).
+* ``meldungen_liste``  nur wer moderieren darf: ERST die Gespräche bestimmen,
+                       die diese Person moderieren darf (je Gespräch
+                       ``rechte.darf(…, MODERIEREN, "chat_gespraech", …)`` über
+                       ``_erlaube``), DANN filtern, DANN ``limit``. Je Meldung
+                       steht die gemeldete Nachricht und die fünf davor
+                       (Konzept 2.5: „der gemeldete Ausschnitt wird sichtbar“).
+                       ``offen`` zählt per SQL über genau diese Gespräche —
+                       unabhängig von ``stand`` und ``limit``.
+* ``meldung_entscheiden`` ``entfernen`` = Soft-Delete der Nachricht mit
+                       ``entfernt_grund`` und ``geloescht_von`` (alle weiteren
+                       offenen Meldungen derselben Nachricht werden erledigt),
+                       ``verwerfen`` = Meldung ohne Folge. Beim Entfernen
+                       Pflicht-Grund (2.5). Zwei gleichzeitige Entscheidungen:
+                       bedingtes UPDATE, der Verlierer bekommt 409. Die
+                       verfassende Person bekommt die Glocke über den
+                       BESTEHENDEN Weg (``benachrichtigungen``) — ohne den
+                       Namen der meldenden Person.
+
+Die MELDER-IDENTITÄT geht nie nach außen, außer an die Moderation selbst:
+weder ``meldung_senden`` noch der Verlauf noch die Glocke nennen sie. Die
+Moderationsliste nennt sie, weil ohne sie „wer meldet hier im Dutzend“ nicht
+beurteilbar wäre (Konzept 2.5, „wiederholte Meldungen“).
+
 CHAT-R2b: PERSONENSUCHE (``personen_suchen``)
 --------------------------------------------
 „Personen“ verschwindet als Menüpunkt; alle Personen findet man unter
@@ -86,7 +117,7 @@ import unicodedata
 from datetime import datetime, timedelta
 from typing import Any, NoReturn
 
-from sqlalchemy import delete, func, or_, select, text
+from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 
 logger = logging.getLogger("diakronos_app.api.chat")
@@ -105,6 +136,7 @@ from diakronos_app.db import als_aktuelle_sitzung
 from diakronos_app.frappe_compat import whitelist
 from diakronos_app.frappe_compat.exceptions import (
     DoesNotExistError,
+    KonfliktError,
     PermissionError,
     ValidationError,
     throw,
@@ -114,9 +146,17 @@ from diakronos_app.models.chat import (
     ART_GRUPPE,
     ART_UNTERGRUPPE,
     BEARBEITEN_MINUTEN,
+    MELDEGRUENDE,
+    MELDUNG_ENTSCHEIDUNGEN,
+    MELDUNG_ERLEDIGT,
+    MELDUNG_FREITEXT_MAX,
+    MELDUNG_OFFEN,
+    MELDUNG_STAENDE,
+    MELDUNG_VERWORFEN,
     NACHRICHT_MAX,
     REAKTIONEN,
     ChatGespraech,
+    ChatMeldung,
     ChatNachricht,
     ChatReaktion,
     ChatTeilnehmer,
@@ -133,6 +173,12 @@ SEITE = 50
 SEITE_MAX = 200
 #: Höchstlänge eines Titels (Spalte ``chat_gespraech.titel``).
 TITEL_MAX = 140
+#: Wie viele Nachrichten VOR der gemeldeten die Moderation sieht (Konzept 2.5:
+#: „genau die eine Nachricht plus die fünf davor“).
+MELDUNG_KONTEXT = 5
+#: Obergrenze einer Meldungsliste (ein Aufruf soll die Datenbank nicht in einem
+#: Rutsch leeren können; die offene Liste einer Gemeinde bleibt weit darunter).
+MELDUNGEN_MAX = 200
 
 
 # ── Grundlagen ──────────────────────────────────────────────────────────────
@@ -434,6 +480,12 @@ def _zeile(s, n: ChatNachricht, *,
     („Nachricht gelöscht“), der Inhalt geht nicht nach außen. ``bearbeitet``
     ist das Kennzeichen aus S1. ``gelesen_von`` ist ``None`` an fremden
     Nachrichten (Review Punkt 3).
+
+    CHAT-6: ``geloescht_grund`` steht NUR an einer durch die Moderation
+    entfernten Nachricht (``chat_nachricht.entfernt_grund``) — die Oberfläche
+    zeigt „Von der Moderation entfernt“ mit dem Grund. Eine selbst gelöschte
+    Nachricht hat keinen Grund und damit hier ``None``. Der MELDER steht
+    bewusst in keiner Antwortzeile.
     """
     geloescht = n.geloescht_am is not None
     return {
@@ -451,6 +503,7 @@ def _zeile(s, n: ChatNachricht, *,
         "eigene": bool(n.autor_benutzer) and str(n.autor_benutzer) == str(ich or ""),
         "text": None if geloescht else n.text,
         "geloescht": geloescht,
+        "geloescht_grund": n.entfernt_grund if geloescht else None,
         "bearbeitet": n.bearbeitet_am is not None,
         "bearbeitet_am": _isoopt(n.bearbeitet_am),
         "erstellt_am": _isoopt(n.erstellt_am),
@@ -1128,7 +1181,559 @@ def stumm_setzen(gespraech, an=True):
         return {"gespraech": g.name, "stumm": wert}
 
 
+# ── Endpunkte: Melden und Moderation (CHAT-6) ───────────────────────────────
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def meldung_senden(nachricht, grund, freitext=None):
+    """Eine Nachricht melden (Konzept 2.5, Karte CHAT-6).
+
+    Recht: LESEN im Gespräch der Nachricht — wer mitlesen darf, darf melden.
+    Eine UNBEKANNTE Nachricht ist **404** (``_nachricht``): die Kennung allein
+    verrät nichts, es gibt sie schlicht nicht. Eine BESTEHENDE Nachricht in
+    einem Gespräch ohne Lese-Recht ist dagegen **403 ohne Inhalt** — wer nicht
+    mitliest, erfährt auch nicht, dass es die Nachricht gibt. Gäste haben kein
+    Modul (der Kern gibt ihnen keines) und fallen ebenfalls auf 403 heraus.
+
+    Die EIGENE Nachricht ist nicht meldbar (``ValidationError`` → 400): eine
+    Meldung gegen sich selbst hat keinen Moderationsfall. Eine bereits
+    GELÖSCHTE Nachricht ist ebenfalls nicht meldbar (400): es gibt keinen
+    sichtbaren Inhalt mehr, über den zu entscheiden wäre.
+
+    ``grund`` muss einer der fünf Schlüssel aus ``MELDEGRUENDE`` sein (der
+    Anzeigetext kommt aus der Oberfläche, nicht vom Server). ``freitext`` ist
+    optional und auf 500 ZEICHEN begrenzt.
+
+    Eine OFFENE Meldung je (Nachricht, Melder): die zweite wird abgewiesen
+    (400) — und in der Datenbank durch den partiellen Unique-Index zusätzlich
+    verhindert (zwei gleichzeitige Aufrufe). Nach einer Entscheidung
+    (erledigt/verworfen) darf dieselbe Person erneut melden.
+
+    Antwort: ``{name, nachricht, gespraech, grund, stand, erstellt_am,
+    meldung_offen}`` — OHNE den Melder (er geht nur an die Moderation) und
+    ohne den Freitext (die Antwort ist keine Lesequelle für die Meldung).
+    """
+    benutzer = _benutzer()
+    kennung = str(nachricht or "").strip()
+    if not kennung:
+        throw("nachricht fehlt.")
+    schluessel = str(grund or "").strip()
+    if schluessel not in MELDEGRUENDE:
+        throw("Bitte einen der angebotenen Meldegründe wählen.")
+    text = _pruefe_freitext(freitext)
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        n = _nachricht(s, kennung, None)
+        g = _gespraech_lesen(s, n.gespraech)
+        _erlaube(benutzer, rechte.LESEN, gruppe=g.gruppe, untergruppe=g.untergruppe,
+                 gespraech=g.name)
+        if _ist_meine(n, benutzer):
+            throw("Die eigene Nachricht lässt sich nicht melden.")
+        if n.geloescht_am is not None:
+            throw("Eine gelöschte Nachricht lässt sich nicht melden.")
+        offen = s.execute(
+            select(ChatMeldung.name).where(
+                ChatMeldung.nachricht == n.name,
+                ChatMeldung.melder == benutzer,
+                ChatMeldung.stand == MELDUNG_OFFEN,
+            )
+        ).scalar_one_or_none()
+        if offen is not None:
+            throw("Diese Nachricht wurde von dir bereits gemeldet.")
+        zeile = ChatMeldung(
+            name=_kennung("chat-meldung"),
+            nachricht=n.name,
+            melder=benutzer or None,
+            grund=schluessel,
+            freitext=text,
+            stand=MELDUNG_OFFEN,
+            erstellt_am=_jetzt(),
+        )
+        try:
+            with s.begin_nested():
+                s.add(zeile)
+                s.flush()
+        except IntegrityError:
+            # Zwei gleichzeitige Aufrufe: der partielle Index lässt nur eine
+            # offene Meldung durch (dasselbe Muster wie `_gespraech_holen`).
+            throw("Diese Nachricht wurde von dir bereits gemeldet.")
+        return {
+            "name": zeile.name,
+            "nachricht": n.name,
+            "gespraech": g.name,
+            "grund": schluessel,
+            "stand": MELDUNG_OFFEN,
+            "erstellt_am": _isoopt(zeile.erstellt_am),
+            # Der Zähler, den die Oberfläche braucht: „liegt die Meldung bei
+            # der Moderation“. Kein Melder, kein Freitext.
+            "meldung_offen": True,
+        }
+
+
+@whitelist(allow_guest=False)
+def meldungen_liste(stand=None, gespraech=None):
+    """Die Meldungen, die DIESE Person moderieren darf — offen zuerst.
+
+    Recht: KEIN pauschaler Rechte-Satz, sondern je Gespräch
+    ``rechte.darf(benutzer, MODERIEREN, "chat_gespraech", gespraech=…)``: HV/MV
+    der Gruppe, in der Untergruppe auch GL, Administrator. Die Auswahl der
+    Gespräche läuft über ``_erlaube(...)`` — dieselbe Funktion, die auch
+    ``meldung_entscheiden`` fragt; eine eigene Rollenlogik gibt es hier nicht.
+
+    Reihenfolge der Schritte (Review Punkt 1): ERST die moderierbaren
+    Gespräche bestimmen, DANN mit ``ChatNachricht.gespraech.in_(…)`` filtern,
+    ERST DANN ``limit``. Sonst schnitte die Grenze Meldungen weg, die diese
+    Person moderieren darf, bevor der Rechtefilter sie sieht.
+
+    Gefragt wird NICHT für jedes Gespräch der Instanz, sondern nur für die
+    KANDIDATEN aus den Meldungen (Review Runde 2, A3): ``SELECT DISTINCT
+    n.gespraech`` über die Meldungen (nur nicht gelöschte Gespräche). Erst
+    wenn keiner dieser Kandidaten moderierbar ist, wird — mit frühem Abbruch
+    beim ersten „ja“ — über die übrigen Gespräche gegangen; so bleibt die
+    Unterscheidung „[] statt 403“ erhalten, ohne je Meldung alle Gespräche zu
+    prüfen. Gefragt wird ausschließlich ``_erlaube``, es gibt keine eigene
+    Rollenlogik.
+
+    403 nur, wenn es KEIN EINZIGES moderierbares Gespräch gibt — ein Moderator
+    ohne (offene) Meldungen bekommt ``{"meldungen": [], "offen": 0}``.
+
+    ``stand`` filtert auf ``offen``/``erledigt``/``verworfen`` (leer = offen —
+    das ist die Arbeitsliste der Moderation). ``gespraech`` grenzt auf EIN
+    Gespräch ein (dieselbe Rechtefrage; ohne Recht darauf → 403, nicht „leere
+    Liste“).
+
+    Je Meldung steht der GEMELDETE AUSSCHNITT (Konzept 2.5): die Nachricht im
+    Zustand VOR der Entscheidung (Text, Autor, Zeit) und die fünf Nachrichten
+    davor — nur so ist ein Zusammenhang beurteilbar. Der MELDER steht hier,
+    weil die Moderation ihn braucht („wer meldet im Dutzend“, 2.5); er steht in
+    KEINER Antwort an die gemeldete Person.
+
+    Antwort: ``{meldungen: [...], offen: <Zähler der offenen>}``. Der Zähler
+    zählt per SQL über die moderierbaren Gespräche — UNABHÄNGIG von ``stand``
+    und vom ``limit`` (er sagt der Glocke, wie viel Arbeit wartet).
+    """
+    benutzer = _benutzer()
+    gewuenscht = str(stand or "").strip()
+    if gewuenscht and gewuenscht not in MELDUNG_STAENDE:
+        throw("Unbekannter Stand.")
+    nur_gespraech = str(gespraech or "").strip() or None
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        # 1) KANDIDATEN (Review Runde 2, A3): die Gespräche, in denen überhaupt
+        #    eine Meldung liegt — ``DISTINCT``, nur nicht gelöschte Gespräche,
+        #    bei ``gespraech`` genau das eine. NICHT alle Gespräche der Instanz.
+        kandidaten_abfrage = (
+            select(ChatNachricht.gespraech)
+            .join(ChatMeldung, ChatMeldung.nachricht == ChatNachricht.name)
+            .join(ChatGespraech, ChatGespraech.name == ChatNachricht.gespraech)
+            .where(ChatGespraech.geloescht_am.is_(None))
+            .distinct()
+        )
+        if nur_gespraech:
+            kandidaten_abfrage = kandidaten_abfrage.where(
+                ChatNachricht.gespraech == nur_gespraech)
+        kandidaten = sorted(s.execute(kandidaten_abfrage).scalars().all())
+
+        # 2) Je Kandidat EINE Rechtefrage über den Rechte-Kern (`_erlaube`),
+        #    nichts Eigenes. Gefragt wird nur nach den Gesprächen, in denen
+        #    Meldungen liegen.
+        eigene: dict[str, ChatGespraech] = {}
+        for kennung in kandidaten:
+            try:
+                g = _gespraech_lesen(s, kennung)
+            except DoesNotExistError:
+                continue          # Gespräch zwischenzeitlich weg — kein Kandidat
+            if _darf_moderieren(benutzer, g):
+                eigene[g.name] = g
+        if not eigene:
+            # 3) Keiner der Kandidaten ist moderierbar. Jetzt erst entscheidet
+            #    sich „[] vs 403“: gibt es überhaupt ein moderierbares
+            #    Gespräch? Mit frühem Abbruch beim ersten „ja“ — der Normalfall
+            #    (Leitung hat ein Gespräch) kostet keinen zweiten Durchlauf.
+            rest = s.execute(
+                select(ChatGespraech)
+                .where(ChatGespraech.geloescht_am.is_(None))
+                .order_by(ChatGespraech.name)
+            ).scalars()
+            for g in rest:
+                if nur_gespraech and g.name != nur_gespraech:
+                    continue
+                if _darf_moderieren(benutzer, g):
+                    break
+            else:
+                # Harte Grenze: gar kein moderierbares Gespräch → 403 ohne Inhalt.
+                _h()
+            # Ein moderierbares Gespräch gibt es, in ihm liegt nur keine
+            # (passende) Meldung → leere Liste, KEIN 403.
+            return {"meldungen": [], "offen": 0}
+        # 4) Meldungen NUR aus diesen Gesprächen — erst danach das Limit.
+        bedingung = [
+            ChatMeldung.stand == (gewuenscht or MELDUNG_OFFEN),
+            ChatNachricht.gespraech.in_(sorted(eigene)),
+        ]
+        # (`nur_gespraech` steckt schon in `eigene`: der Kandidatenlauf oben
+        #  hat auf genau dieses Gespräch eingegrenzt — keine zweite Bedingung.)
+        zeilen = s.execute(
+            select(ChatMeldung, ChatNachricht)
+            .join(ChatNachricht, ChatNachricht.name == ChatMeldung.nachricht)
+            .where(*bedingung)
+            .order_by(ChatMeldung.erstellt_am.desc(), ChatMeldung.name.desc())
+            .limit(MELDUNGEN_MAX)
+        ).all()
+        namens_cache = _melde_namen(s, [(m, n) for m, n in zeilen])
+        ergebnis = [_meldung_zeile(s, m, n, eigene[str(n.gespraech)], benutzer,
+                                   namens_cache) for m, n in zeilen]
+        # 3) Der Zähler "offen": per SQL über die moderierbaren Gespräche,
+        #    ohne den `stand`-Filter und ohne das Limit.
+        offen_gesamt = int(s.execute(
+            select(func.count()).select_from(ChatMeldung)
+            .join(ChatNachricht, ChatNachricht.name == ChatMeldung.nachricht)
+            .where(ChatMeldung.stand == MELDUNG_OFFEN,
+                   ChatNachricht.gespraech.in_(sorted(eigene)))
+        ).scalar_one())
+    return {"meldungen": ergebnis, "offen": offen_gesamt}
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def meldung_entscheiden(meldung, entscheidung, grund=None):
+    """Über eine Meldung entscheiden: ``entfernen`` oder ``verwerfen``.
+
+    ``entfernen``  Soft-Delete der gemeldeten Nachricht mit ``entfernt_grund``
+                   (= ``grund``, PFLICHT — Konzept 2.5: „Grund ist Pflicht“)
+                   und ``geloescht_von`` = entscheidende Person. Der Verlauf
+                   zeigt danach „von der Moderation entfernt“, der Text geht
+                   nicht mehr nach außen (bleibt in der Datenbank, CHAT-8).
+                   ALLE weiteren offenen Meldungen derselben Nachricht gelten
+                   damit als erledigt — der Fall ist entschieden, sonst bliebe
+                   eine Arbeitsliste stehen, die nichts mehr zu tun hat.
+    ``verwerfen``  Die Meldung trägt nicht; die Nachricht bleibt stehen. Ein
+                   ``grund`` ist dabei optional und wird nur an der Meldung
+                   vermerkt.
+
+    Recht: ``rechte.darf(…, MODERIEREN, "chat_gespraech", gespraech=…)`` im
+    Gespräch der gemeldeten Nachricht — dieselbe Frage wie in der Liste
+    (``_erlaube``), nichts Eigenes.
+
+    Nicht entscheidbar:
+      * eine bereits entschiedene Meldung — **409** (``KonfliktError``): die
+        Entscheidung ist endgültig, der Zustand passt nicht mehr,
+      * eine Meldung gegen die EIGENE Nachricht (**400**, niemand moderiert
+        sich selbst; die Leitung, die selbst schreibt, bleibt auf die zweite
+        Leitung bzw. einen HV verwiesen),
+      * eine Meldung, deren Nachricht schon gelöscht ist (**400**, nichts zu
+        entfernen).
+
+    Zwei GLEICHZEITIGE Entscheidungen: je Nachricht wird zuerst die
+    Nachrichtenzeile gesperrt (``SELECT … FOR UPDATE``), danach greift das
+    bedingte UPDATE der Meldung (``WHERE stand = 'offen'``) — trifft es die
+    Zeile nicht mehr, hat ein anderer Aufruf sie gewonnen → **409**
+    (``KonfliktError``). Beide Aufrufe haben dann nicht beide den Verlauf
+    umgeschrieben. Zwei Entscheidungen zu DERSELBEN Nachricht laufen dadurch
+    nacheinander statt gleichzeitig (belegt in ``test_chat6_pg``).
+
+    Benachrichtigung: die VERFASSENDE Person bekommt die Glocke über den
+    bestehenden Weg (``benachrichtigungen.schreibe_meldung``) — NUR wenn die
+    Nachricht durch DIESEN Aufruf entfernt wurde (vorher nicht gelöscht war)
+    und ohne den Namen der meldenden Person (2.5: „die Verfasserin bekommt eine
+    Glocke“; die Herkunft bleibt bei der Moderation).
+    """
+    benutzer = _benutzer()
+    wahl = str(entscheidung or "").strip()
+    if wahl not in MELDUNG_ENTSCHEIDUNGEN:
+        throw("Bitte „entfernen“ oder „verwerfen“ wählen.")
+    begruendung = str(grund or "").strip() or None
+    if wahl == "entfernen" and not begruendung:
+        throw("Zum Entfernen einer Nachricht gehört ein Grund.")
+    if begruendung and len(begruendung) > MELDUNG_FREITEXT_MAX:
+        throw(f"Der Grund darf höchstens {MELDUNG_FREITEXT_MAX} Zeichen lang sein.")
+    kennung = str(meldung or "").strip()
+    if not kennung:
+        throw("meldung fehlt.")
+    autor_konto: str | None = None
+    nachricht_name = ""
+    gespraech_name = ""
+    mit_entfernt = False
+    jetzt = _jetzt()
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        m = s.get(ChatMeldung, kennung)
+        if m is None:
+            raise DoesNotExistError("Meldung nicht gefunden.")
+        nachricht_kennung = m.nachricht
+        # SPERR-Reihenfolge (Review Runde 2, A1): ZUERST die Nachrichtenzeile,
+        # dann die Meldung. Zwei Entscheidungen zu VERSCHIEDENEN Meldungen
+        # derselben Nachricht schreiben beide dieselbe Nachrichtenzeile; ohne
+        # feste Reihenfolge nehmen die Transaktionen ihre Sperren in
+        # wechselnder Ordnung. Mit der Nachrichtensperre zuerst sind alle
+        # Entscheidungen je Nachricht serialisiert: der zweite Aufrufer wartet,
+        # sieht danach den neuen Stand und bekommt 400 (Nachricht schon
+        # entfernt) bzw. 409 (Meldung schon entschieden).
+        # (Einen Deadlock hierfür konnte ich auf PG 17 nicht künstlich
+        # erzeugen — belegt ist die Serialisierung, siehe test_chat6_pg.)
+        n = s.get(ChatNachricht, nachricht_kennung, with_for_update=True)
+        if n is None:
+            raise DoesNotExistError("Nachricht nicht gefunden.")
+        g = _gespraech_lesen(s, n.gespraech)
+        _erlaube(benutzer, rechte.MODERIEREN, gruppe=g.gruppe,
+                 untergruppe=g.untergruppe, gespraech=g.name)
+        if m.stand != MELDUNG_OFFEN:
+            throw("Diese Meldung ist bereits entschieden.", KonfliktError)
+        if _ist_meine(n, benutzer):
+            throw("Über eine Meldung gegen die eigene Nachricht entscheidet "
+                  "eine andere Person der Leitung.")
+        if n.geloescht_am is not None:
+            throw("Die gemeldete Nachricht ist bereits gelöscht.")
+        nachricht_name, gespraech_name = n.name, g.name
+        # Bedingtes UPDATE: nur die noch OFFENE Meldung wird entschieden. Der
+        # Vergleich steht in der WHERE-Klausel, damit zwei gleichzeitige
+        # Aufrufe nicht beide durchkommen (rowcount entscheidet). Die neuen
+        # Werte gehen NICHT über das ORM-Objekt, sondern über dieselbe
+        # Anweisung — so gibt es keine zweite Wahrheit über den Stand, und ein
+        # „rowcount 1“ ist der einzige Beweis, dass DIESER Aufruf gewonnen hat.
+        neue_werte: dict[str, Any] = {
+            "stand": MELDUNG_ERLEDIGT if wahl == "entfernen" else MELDUNG_VERWORFEN,
+            "bearbeitet_von": benutzer or None,
+            "bearbeitet_am": jetzt,
+            "entscheidung_grund": begruendung,
+        }
+        getroffen = s.execute(
+            update(ChatMeldung)
+            .where(ChatMeldung.name == kennung, ChatMeldung.stand == MELDUNG_OFFEN)
+            .values(**neue_werte)
+        ).rowcount
+        if getroffen != 1:
+            # Ein paralleler Aufruf war schneller: NICHTS geändert, 409.
+            throw("Diese Meldung wurde gerade von jemand anderem entschieden.",
+                  KonfliktError)
+        if wahl == "entfernen":
+            mit_entfernt = n.geloescht_am is None
+            if mit_entfernt:
+                n.geloescht_am = jetzt
+                n.geloescht_von = benutzer
+            n.entfernt_grund = begruendung
+            autor_konto = str(n.autor_benutzer or "") or None
+            # Die übrigen offenen Meldungen derselben Nachricht sind mit der
+            # Entfernung erledigt (Stapel-Entscheidung, Review Punkt 5).
+            s.execute(
+                update(ChatMeldung)
+                .where(ChatMeldung.nachricht == n.name,
+                       ChatMeldung.stand == MELDUNG_OFFEN,
+                       ChatMeldung.name != kennung)
+                .values(stand=MELDUNG_ERLEDIGT, bearbeitet_von=benutzer or None,
+                        bearbeitet_am=jetzt,
+                        entscheidung_grund="Nachricht auf andere Meldung entfernt")
+            )
+        # Die Meldung im Speicher auf den geschriebenen Stand bringen (das
+        # UPDATE ging an der Identity-Map vorbei) — die Antwort zeigt ihn.
+        for feld, wert in neue_werte.items():
+            setattr(m, feld, wert)
+        s.flush()
+        antwort = _meldung_zeile(s, m, n, g, benutzer, _melde_namen(s, [(m, n)]))
+    if mit_entfernt and autor_konto and autor_konto != benutzer:
+        _glocke_entfernt(autor_konto, gespraech_name, nachricht_name, begruendung)
+    return antwort
+
+
 # ── Innen: lesen, prüfen, zählen ────────────────────────────────────────────
+
+
+def _pruefe_freitext(freitext) -> str | None:
+    """Freitext einer Meldung: optional, ≤ 500 ZEICHEN, leer = ``None``."""
+    if freitext is None:
+        return None
+    text = str(freitext)
+    if not text.strip():
+        return None
+    if len(text) > MELDUNG_FREITEXT_MAX:
+        throw(f"Der Freitext darf höchstens {MELDUNG_FREITEXT_MAX} Zeichen lang sein "
+              f"(eingegeben: {len(text)}).")
+    return text
+
+
+def _vorgeschichte_zeilen(s, nachrichten) -> list[ChatNachricht]:
+    """Die Vorgeschichte-Zeilen für MEHRERE Nachrichten — eine Abfrage je Nachricht.
+
+    Eine Meldungsseite zeigt je Meldung den Ausschnitt davor (2.5). Die Namen
+    dieser Zeilen werden für die ganze Seite gebraucht (Review Runde 2, N1) —
+    deshalb dieselbe Auswahl wie in ``_vorgeschichte``, aber GEBÜNDELT: je
+    Zielnachricht eine Abfrage mit ``LIMIT MELDUNG_KONTEXT``, nicht je Zeile
+    eine eigene Namensabfrage. Ein ``gespraech`` wird NICHT komplett geladen.
+    """
+    ziele = [n for n in nachrichten if n is not None]
+    ergebnis: list[ChatNachricht] = []
+    for n in ziele:
+        vorher = s.execute(
+            select(ChatNachricht).where(
+                ChatNachricht.gespraech == n.gespraech,
+                ChatNachricht.name != n.name,
+                or_(ChatNachricht.erstellt_am < n.erstellt_am,
+                    (ChatNachricht.erstellt_am == n.erstellt_am)
+                    & (ChatNachricht.name < n.name)),
+            ).order_by(ChatNachricht.erstellt_am.desc(), ChatNachricht.name.desc())
+            .limit(MELDUNG_KONTEXT)
+        ).scalars().all()
+        ergebnis.extend(reversed(vorher))
+    return ergebnis
+
+
+def _vorgeschichte(s, n: ChatNachricht, anzahl: int = MELDUNG_KONTEXT,
+                   namen: dict[str, dict[str, str]] | None = None) -> list[dict[str, Any]]:
+    """Die ``anzahl`` Nachrichten VOR ``n`` im selben Gespräch (alt → neu).
+
+    Konzept 2.5: „Mit der Meldung wird der gemeldete Ausschnitt sichtbar —
+    genau die eine Nachricht plus die fünf davor“. Gelöschte Nachrichten
+    bleiben als Platz stehen (``text=None``), damit die Lücke erkennbar ist.
+
+    ``namen`` (optional) sind die für die GANZE Seite gesammelt geladenen
+    Anzeigenamen (``_melde_namen`` — Review Runde 2, N1). Fehlen sie, lädt
+    diese Funktion sie selbst: EINMAL für alle Zeilen, nicht je Zeile.
+    """
+    zeilen = _vorgeschichte_zeilen(s, [n])
+    if anzahl != MELDUNG_KONTEXT:
+        zeilen = zeilen[-anzahl:]
+    if namen is None:
+        namen = {
+            "autor": _personen(s, {z.autor for z in zeilen if z.autor}),
+            "autor_konto": _konto_namen(s, {z.autor_benutzer for z in zeilen if z.autor_benutzer}),
+        }
+    return [{
+        "name": z.name,
+        "autor": ((namen["autor"].get(str(z.autor or "")) or z.autor)
+                  or namen["autor_konto"].get(str(z.autor_benutzer or ""))),
+        "text": None if z.geloescht_am is not None else z.text,
+        "geloescht": z.geloescht_am is not None,
+        "erstellt_am": _isoopt(z.erstellt_am),
+    } for z in zeilen]
+
+
+def _darf_moderieren(benutzer: str, g: ChatGespraech) -> bool:
+    """Darf ``benutzer`` in DIESEM Gespräch moderieren? — über ``_erlaube``.
+
+    EINE Rechtefrage für Liste und Entscheiden (Review Punkt 7): keine eigene
+    Rollenlogik, kein zweiter Aufrufpfad. ``_erlaube`` wirft bei Ablehnung; hier
+    wird der Wurf zur Antwort ``False``, weil die Liste über VIELE Gespräche
+    fragt und das erste „nein“ nicht das Ende ist.
+    """
+    try:
+        _erlaube(benutzer, rechte.MODERIEREN, gruppe=g.gruppe,
+                 untergruppe=g.untergruppe, gespraech=g.name)
+    except PermissionError:
+        return False
+    return True
+
+
+def _melde_namen(s, zeilen) -> dict[str, dict[str, str]]:
+    """Alle Anzeigenamen EINER Meldungsseite in vier Abfragen (Review Punkt 8).
+
+    Ohne das lud ``_meldung_zeile`` je Zeile Melder, Bearbeiter und Autor
+    einzeln nach (N+1). Gesammelt wird über ALLE Zeilen, gelesen wird nur
+    ``mitglied``/``user`` — dieselbe Quelle wie ``_personen``/``_konto_namen``.
+
+    Mitgezählt werden die Autoren der VORGESCHICHTE (Review Runde 2, N1): das
+    sind je Zeile bis zu ``MELDUNG_KONTEXT`` Nachrichten, deren Namen früher
+    je Zeile eigens nachgeladen wurden. EINE Abfrage über alle Seiten deckt
+    Hauptzeile und Vorgeschichte zusammen ab.
+    """
+    melder, bearbeiter, autoren, autor_konten = set(), set(), set(), set()
+    for m, n in zeilen:
+        if m.melder:
+            melder.add(str(m.melder))
+        if m.bearbeitet_von:
+            bearbeiter.add(str(m.bearbeitet_von))
+        if n.autor:
+            autoren.add(str(n.autor))
+        if n.autor_benutzer:
+            autor_konten.add(str(n.autor_benutzer))
+    if zeilen:
+        for zeile in _vorgeschichte_zeilen(s, [n for _m, n in zeilen]):
+            if zeile.autor:
+                autoren.add(str(zeile.autor))
+            if zeile.autor_benutzer:
+                autor_konten.add(str(zeile.autor_benutzer))
+    return {
+        "melder": _konto_namen(s, melder),
+        "bearbeiter": _konto_namen(s, bearbeiter),
+        "autor": _personen(s, autoren),
+        "autor_konto": _konto_namen(s, autor_konten),
+    }
+
+
+def _meldung_zeile(s, m: ChatMeldung, n: ChatNachricht, g: ChatGespraech,
+                   ich: str, namen: dict[str, dict[str, str]]) -> dict[str, Any]:
+    """Eine Meldung als Antwortzeile FÜR DIE MODERATION.
+
+    Enthält als einzige Form den ``melder`` (Anzeige + Konto) und den
+    gemeldeten Ausschnitt. Die Nachricht steht im Zustand VOR der Entscheidung
+    — nach einem Entfernen bleibt so beurteilbar, was entfernt wurde
+    (``text_entfernt`` sagt, dass der Verlauf ihn nicht mehr ausliefert).
+
+    ``text`` steht hier, solange die Nachricht nicht gelöscht ist ODER durch
+    die MODERATION entfernt wurde (``entfernt_grund`` gesetzt — Entscheidung
+    des Operators in Review Runde 2): nach einem ``entfernen`` soll die
+    Moderation sehen, WAS sie entfernt hat. Nur bei einer SELBSTLÖSCHUNG der
+    verfassenden Person bleibt der Text aus — dann gibt es nichts zu
+    beurteilen, und ihr Text geht auch an die Moderation nicht mehr hinaus. Die
+    Namen kommen gesammelt aus ``_melde_namen`` (kein N+1).
+    """
+    gemeldet_von = str(m.melder or "")
+    bearbeiter = str(m.bearbeitet_von or "")
+    autor = str(n.autor or "")
+    autor_konto = str(n.autor_benutzer or "")
+    geloescht = n.geloescht_am is not None
+    # Selbstlöschung: gelöscht, aber NICHT von der Moderation entfernt.
+    selbst_geloescht = geloescht and not n.entfernt_grund
+    return {
+        "name": m.name,
+        "stand": m.stand,
+        "grund": m.grund,
+        "freitext": m.freitext,
+        "erstellt_am": _isoopt(m.erstellt_am),
+        # NUR für die Moderation: ohne die Herkunft ist „wer meldet im
+        # Dutzend“ (2.5) nicht beurteilbar. Ein fehlendes Konto (anonymisiert)
+        # heißt ``None`` — die Meldung bleibt als Vorgang stehen.
+        "melder": namen["melder"].get(gemeldet_von, gemeldet_von) or None,
+        "melder_konto": gemeldet_von or None,
+        "bearbeitet_von": namen["bearbeiter"].get(bearbeiter, bearbeiter) or None,
+        "bearbeitet_am": _isoopt(m.bearbeitet_am),
+        "entscheidung_grund": m.entscheidung_grund,
+        "gespraech": g.name,
+        "gespraech_titel": str(g.titel or "").strip() or (g.untergruppe or g.gruppe),
+        "gruppe": g.gruppe,
+        "untergruppe": g.untergruppe,
+        "nachricht": {
+            "name": n.name,
+            # Der Text steht hier, solange er für die Moderation beurteilbar
+            # ist: eine lebende Nachricht ODER eine von der Moderation
+            # entfernte (dann ist er der Beleg, WAS entfernt wurde). Nur eine
+            # Selbstlöschung der verfassenden Person blendet ihn aus —
+            # ``text_entfernt`` sagt, dass der VERLAUF ihn nicht mehr liefert.
+            "text": None if selbst_geloescht else n.text,
+            "text_entfernt": geloescht,
+            "geloescht_am": _isoopt(n.geloescht_am),
+            "entfernt_grund": n.entfernt_grund,
+            "autor": (namen["autor"].get(autor) or autor
+                      or namen["autor_konto"].get(autor_konto)),
+            "erstellt_am": _isoopt(n.erstellt_am),
+        },
+        # Der Zusammenhang (2.5): genau die fünf davor, alt → neu. Die Namen
+        # sind für die GANZE Seite schon geladen (Review Runde 2, N1).
+        "vorgeschichte": _vorgeschichte(s, n, namen=namen),
+    }
+
+
+def _glocke_entfernt(konto: str, gespraech: str, nachricht: str, grund: str | None) -> None:
+    """Glocke an die VERFASSENDE Person: „von der Moderation entfernt“.
+
+    Der BESTEHENDE Weg (``benachrichtigungen.schreibe_meldung``), nichts Neues
+    gebaut. Ohne Gesprächstitel-Rat: der Titel ist die Kennung des Gesprächs
+    nicht wert — die Oberfläche verlinkt über ``document_type``/``document_name``.
+    Der Text enthält NIE den Namen der meldenden Person (Konzept 2.5/4.5).
+    """
+    from diakronos_app.benachrichtigungen import schreibe_meldung
+
+    inhalt = "Eine deiner Nachrichten wurde von der Moderation entfernt."
+    if grund:
+        inhalt += f"\nGrund: {grund}"
+    schreibe_meldung(for_user=konto, subject="Nachricht von der Moderation entfernt",
+                     inhalt=inhalt, document_type="chat_nachricht",
+                     document_name=nachricht)
 
 
 def _einheit(s, gruppe, untergruppe) -> tuple[str, str | None]:
@@ -1400,6 +2005,8 @@ def _teilnehmer_aktuelle(s, g: ChatGespraech) -> int:
 
 __all__ = [
     "FRAPPE_MODULE",
+    "MELDUNGEN_MAX",
+    "MELDUNG_KONTEXT",
     "SEITE",
     "SEITE_MAX",
     "TITEL_MAX",
@@ -1407,6 +2014,9 @@ __all__ = [
     "gespraech_anlegen",
     "lesestand_setzen",
     "loeschen",
+    "meldung_entscheiden",
+    "meldung_senden",
+    "meldungen_liste",
     "meine_gespraeche",
     "reaktion_setzen",
     "senden",

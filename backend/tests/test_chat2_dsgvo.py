@@ -46,9 +46,16 @@ def _skripte() -> ScriptDirectory:
 
 
 def test_genau_ein_head_und_chat2_haengt_dahinter():
+    """EIN Kopf, und ``chat2_chat_s1`` sitzt in der Kette dahinter.
+
+    CHAT-6 hat ``chat6_meldung`` als neuen Kopf angehaengt (der Test dieser
+    Karte prueft die Kante ``chat6_meldung -> chat2_chat_s1``); hier bleibt
+    die Zusage dieser Karte: genau EIN Kopf und die Kante
+    ``chat2_chat_s1 -> tg1_element_gruppe_kalender``.
+    """
     skripte = _skripte()
     heads = skripte.get_heads()
-    assert heads == ["chat2_chat_s1"], f"Kopf(e): {heads}"
+    assert len(heads) == 1, f"Kopf(e): {heads}"
     revision = skripte.get_revision("chat2_chat_s1")
     assert revision is not None
     assert revision.down_revision == "tg1_element_gruppe_kalender", revision.down_revision
@@ -220,6 +227,10 @@ def test_inventar_deckt_die_chat_tabellen():
         "chat_nachricht": {"autor", "autor_benutzer", "text", "entfernt_grund",
                            "geloescht_von"},
         "chat_reaktion": {"benutzer"},
+        # CHAT-6: die Meldung selbst ist personenbezogen (wer meldet), der
+        # Freitext ebenso; der Grund ist ein festes Set und keine Person.
+        "chat_meldung": {"melder", "bearbeitet_von", "freitext",
+                         "entscheidung_grund"},
     }.items():
         assert spalten <= set(D.SPALTEN.get(tabelle, {})), (tabelle, D.SPALTEN.get(tabelle))
 

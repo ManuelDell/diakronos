@@ -31,9 +31,21 @@ NUR die vier Tabellen der Stufe S1 an:
     Festes Set (``REAKTIONEN``), EINE je Person und Nachricht —
     Primärschlüssel ``(nachricht, benutzer)``.
 
-Bewusst NICHT hier (spätere Karten): Umfragen (S2, CHAT-5), Meldungen
-(CHAT-6), Push-Abonnements (CHAT-10), Anhänge (CHAT-9) und der Löschjob mit
-den Aufbewahrungsfristen (CHAT-8).
+CHAT-6 ergänzt die fünfte Tabelle:
+
+``chat_meldung``
+    Eine Meldung zu EINER Nachricht: ``grund`` aus einem FESTEN Set
+    (``MELDEGRUENDE``, Konzept 2.5), ``freitext`` bis 500 Zeichen, ``stand``
+    offen/erledigt/verworfen, wer sie wann bearbeitet hat. EINE offene Meldung
+    je (Nachricht, Melder) — als partieller Unique-Index, weil nach einer
+    Entscheidung (erledigt/verworfen) eine neue Meldung derselben Person
+    wieder möglich sein muss. ``melder`` ist ein Konto-Verweis
+    (``user_null``): bei einer Löschung (Art. 17) verschwindet die Herkunft
+    der Meldung, die Moderationsentscheidung bleibt nachvollziehbar.
+
+Bewusst NICHT hier (spätere Karten): Umfragen (S2, CHAT-5), Push-Abonnements
+(CHAT-10), Anhänge (CHAT-9) und der Löschjob mit den Aufbewahrungsfristen
+(CHAT-8).
 
 DSGVO (Konzept 4.3): ``chat_nachricht.autor_benutzer`` ist eine Konto-Spalte
 (``user_null`` — sie verschwindet mit dem Konto), ``chat_nachricht.autor`` ist
@@ -82,6 +94,35 @@ BEARBEITEN_MINUTEN = 15
 #: Liste, keine freie Eingabe: die Oberfläche zeigt genau diese sechs, und der
 #: Endpunkt weist alles andere ab (``ValidationError``).
 REAKTIONEN: tuple[str, ...] = ("👍", "❤", "🙏", "✅", "😀", "😢")
+
+#: Die fünf Meldegründe (Konzept 2.5: „Beleidigung, Spam, persönliche Daten,
+#: falsche Person, Sonstiges“). Gespeichert wird der stabile Schlüssel, nicht
+#: die Anzeige — die Oberfläche übersetzt. Ein geschlossenes Set wie
+#: ``REAKTIONEN``: der Endpunkt weist alles andere ab.
+MELDEGRUENDE: tuple[str, ...] = (
+    "beleidigung",
+    "spam",
+    "persoenliche_daten",
+    "falsche_person",
+    "sonstiges",
+)
+
+#: Höchstlänge des Freitexts einer Meldung (Konzept 2.5: „Freitext bis 500
+#: Zeichen“). Gezählt werden ZEICHEN, nicht Bytes.
+MELDUNG_FREITEXT_MAX = 500
+
+#: Stand einer Meldung. ``offen`` ist der einzige Stand, in dem die Moderation
+#: noch etwas tun muss; ``erledigt`` (Nachricht entfernt) und ``verworfen``
+#: (Meldung trägt nicht) sind abschließend.
+MELDUNG_OFFEN = "offen"
+MELDUNG_ERLEDIGT = "erledigt"
+MELDUNG_VERWORFEN = "verworfen"
+MELDUNG_STAENDE: tuple[str, ...] = (MELDUNG_OFFEN, MELDUNG_ERLEDIGT, MELDUNG_VERWORFEN)
+
+#: Die zwei Entscheidungen des Endpunkts ``meldung_entscheiden``
+#: (Karte CHAT-6): Nachricht entfernen oder Meldung verwerfen.
+MELDUNG_ENTSCHEIDUNGEN: tuple[str, ...] = ("entfernen", "verwerfen")
+
 
 
 class ChatGespraech(Base):
@@ -232,15 +273,79 @@ class ChatReaktion(Base):
     erstellt_am: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
 
 
+class ChatMeldung(Base):
+    """Eine Meldung zu EINER Nachricht (Konzept 2.5, Karte CHAT-6).
+
+    ``melder`` ist ein KONTO-Verweis (``user.name``) — dieselbe Kennung, gegen
+    die der Rechte-Kern rechnet, und die Spalte, die die Anonymisierung nullt.
+    Die gemeldete Person erfährt nicht, WER gemeldet hat: weder die Antwort
+    der Meldung noch der Verlauf nennt den Melder.
+    """
+
+    __tablename__ = "chat_meldung"
+    __table_args__ = (
+        # EINE OFFENE Meldung je (Nachricht, Melder) — partiell, weil nach
+        # einer Entscheidung (erledigt/verworfen) dieselbe Person dieselbe
+        # Nachricht erneut melden dürfen muss. Ein voller Unique-Constraint
+        # würde das für immer verbieten (CHAT-2-Muster, Review Punkt 2).
+        Index("uq_chat_meldung_offen", "nachricht", "melder", unique=True,
+              sqlite_where=text("stand = 'offen'"),
+              postgresql_where=text("stand = 'offen'")),
+        # Die Moderationsliste fragt nach dem Stand („alle offenen“).
+        Index("ix_chat_meldung_stand", "stand", "erstellt_am"),
+    )
+
+    name: Mapped[str] = mapped_column(String(140), primary_key=True)
+    nachricht: Mapped[str] = mapped_column(
+        String(140), ForeignKey("chat_nachricht.name"), nullable=False
+    )
+    #: Konto der meldenden Person (``user.name``). DSGVO: ``user_null`` — die
+    #: Herkunft der Meldung verschwindet mit dem Konto; der Vorgang bleibt.
+    melder: Mapped[str | None] = mapped_column(
+        String(140), ForeignKey("user.name"), nullable=True
+    )
+    #: Einer der fünf Schlüssel aus ``MELDEGRUENDE`` (im Endpunkt geprüft; ein
+    #: CHECK wäre je Dialekt eine eigene Baustelle — der Endpunkt ist der
+    #: einzige Schreibweg, wie bei ``chat_reaktion.reaktion``).
+    grund: Mapped[str] = mapped_column(String(40), nullable=False)
+    #: Freitext bis 500 Zeichen (optional) — der Grund „Sonstiges“ braucht ihn.
+    freitext: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: ``offen`` / ``erledigt`` / ``verworfen`` (``MELDUNG_STAENDE``).
+    stand: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=MELDUNG_OFFEN,
+        server_default=text("'offen'"),
+    )
+    #: Wer die Meldung entschieden hat (Konto) und wann.
+    bearbeitet_von: Mapped[str | None] = mapped_column(
+        String(140), ForeignKey("user.name"), nullable=True
+    )
+    bearbeitet_am: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=False), nullable=True
+    )
+    #: Grund der Entscheidung (Pflicht beim Entfernen, Konzept 2.5; optional
+    #: beim Verwerfen). Er steht ZUSÄTZLICH an der Nachricht
+    #: (``chat_nachricht.entfernt_grund``), weil der Verlauf ihn zeigt.
+    entscheidung_grund: Mapped[str | None] = mapped_column(Text, nullable=True)
+    erstellt_am: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+
+
 __all__: list[Any] = [
     "ARTEN",
     "ART_GRUPPE",
     "ART_UNTERGRUPPE",
     "BEARBEITEN_MINUTEN",
     "ChatGespraech",
+    "ChatMeldung",
     "ChatNachricht",
     "ChatReaktion",
     "ChatTeilnehmer",
+    "MELDEGRUENDE",
+    "MELDUNG_ENTSCHEIDUNGEN",
+    "MELDUNG_ERLEDIGT",
+    "MELDUNG_FREITEXT_MAX",
+    "MELDUNG_OFFEN",
+    "MELDUNG_STAENDE",
+    "MELDUNG_VERWORFEN",
     "NACHRICHT_MAX",
     "REAKTIONEN",
 ]

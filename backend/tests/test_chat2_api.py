@@ -432,8 +432,11 @@ def test_lesestand_nur_als_summe(gespraech):
     eigene = [p for p in seite["nachrichten"] if p["name"] == n["name"]][0]
     assert eigene["gelesen_von"] == 2
     # Die Antwort enthaelt NUR die Summe — kein Feld mit Namen.
+    # CHAT-6: `geloescht_grund` ist dazugekommen (Grund einer Moderations-
+    # Entfernung, NUR an einer geloeschten Nachricht) — kein Personenfeld.
     assert set(eigene) == {"name", "gespraech", "autor", "autor_mitglied", "eigene", "text",
-                          "geloescht", "bearbeitet", "bearbeitet_am", "erstellt_am",
+                          "geloescht", "geloescht_grund", "bearbeitet", "bearbeitet_am",
+                          "erstellt_am",
                           "antwort_auf", "antwort_auf_text", "reaktionen", "gelesen_von"}
     # `gelesen_von` ist eine ZAHL — in der Antwort steht keine Personenliste.
     assert isinstance(eigene["gelesen_von"], int)

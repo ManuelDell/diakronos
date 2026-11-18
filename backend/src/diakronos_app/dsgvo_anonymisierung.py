@@ -475,6 +475,25 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         "reaktion": ("struktur", "eines der sechs festen Zeichen"),
         "nachricht": ("struktur", "Kennung der Nachricht (Fachobjekt)"),
     },
+    # CHAT-6 (Konzept 2.5/4.5): die Meldung. Sie ist der VORGANG der
+    # Moderation, nicht ihr Inhalt — die gemeldete Nachricht steht in
+    # `chat_nachricht` und bleibt dort. Von der Person ist `melder` das Konto
+    # (die Herkunft der Meldung): es verschwindet mit dem Konto (`user_null`),
+    # der Vorgang und seine Entscheidung bleiben nachvollziehbar. Die Freitexte
+    # (`freitext`, `entscheidung_grund`) laufen wie jeder andere Freitext über
+    # `_fremdtexte_ersetzen` — nur VOLLE Namen, keine halben Sätze.
+    "chat_meldung": {
+        "melder": ("user_null", "Konto der meldenden Person (Herkunft der Meldung)"),
+        "bearbeitet_von": ("user_null", "Konto, das die Meldung entschieden hat"),
+        # Fachobjekt-Verweise (Nachricht, fester Grundschlüssel, Stand): keine
+        # Person. Sie stehen hier, weil der Inventar-Wächter je Textspalte eine
+        # Entscheidung verlangt; geändert wird an ihnen nichts.
+        "nachricht": ("struktur", "Kennung der gemeldeten Nachricht (Fachobjekt)"),
+        "grund": ("struktur", "einer der fünf festen Meldegründe"),
+        "stand": ("struktur", "offen/erledigt/verworfen"),
+        "freitext": ("protokoll", "Freitext der Meldung kann die Person nennen"),
+        "entscheidung_grund": ("protokoll", "Begründung der Moderationsentscheidung (Freitext)"),
+    },
     "gestaltung_abweichung": {
         # UX1j: Maße der Oberfläche (Abstände, Rahmen, Radien) — keine
         # Personendaten. `token` ist der Name der CSS-Variablen (aus der
