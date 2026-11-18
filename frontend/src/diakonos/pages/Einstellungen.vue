@@ -138,6 +138,13 @@ const MAILVERSAND = defineAsyncComponent(() => import('./einstellungen/Mailversa
 const WEBSITE = defineAsyncComponent(() => import('./einstellungen/Website.vue'))
 // UX1k: Abstände, Rahmen und Rundungen (nur System Manager — Server prüft).
 const GESTALTUNG = defineAsyncComponent(() => import('./einstellungen/Gestaltung.vue'))
+// CHAT-R2a (Chat-Konzept 10.1 Punkt 5, 10.2): „Personenverwaltung“ — der
+// UMGEZOGENE Personenbereich. Eingebunden wird die BESTEHENDE Personen-Seite
+// (`./Personen.vue`) mit ihrer bestehenden Reiterzeile Liste · Anfragen ·
+// Datenschutz · Import; sie ist nicht neu gebaut und nicht kopiert. Sie läuft
+// hier eingebettet (ohne eigenen Seitenkopf), genau wie die übrigen
+// Abschnitte in dieser Spalte.
+const PERSONENVERWALTUNG = defineAsyncComponent(() => import('./Personen.vue'))
 
 /**
  * Die Bereiche mit ihrer GRUPPE (UX3h, Entwurf A6).
@@ -201,6 +208,17 @@ const abschnitte = [
   // geloeschte Daten und ihre Frist.
   { id: 'papierkorb', label: 'Papierkorb', href: '#/einstellungen/papierkorb',
     seite: 'EinstellungenPapierkorb', inhalt: PAPIERKORB, gruppe: 'datenschutz', verwaltung: 'admin' },
+  // CHAT-R2a (Chat-Konzept 10.1 Punkt 5, 10.2): „Personenverwaltung“ steht in
+  // der Gruppe „Datenschutz“ — dieselbe Zuständigkeit wie Datenschutz-Texte,
+  // Datensicherung und Papierkorb (dort wird über Personendaten entschieden).
+  // Der Abschnitt hängt an `verwaltung: 'personen'`: Mitgliederverwaltung UND
+  // Administration (R-11a) — genau die Rechte, die der Personenbereich heute
+  // hat. Eingebunden ist die bestehende Personen-Seite mit ihrer bestehenden
+  // Reiterzeile; der Rechte-Guard der Route steht in `router.js`
+  // (`PERSONEN_VERWALTUNG_PAGES`).
+  { id: 'personenverwaltung', label: 'Personenverwaltung', href: '#/einstellungen/personenverwaltung',
+    seite: 'EinstellungenPersonenverwaltung', inhalt: PERSONENVERWALTUNG,
+    gruppe: 'datenschutz', verwaltung: 'personen' },
   // UX1k: Gestaltung steht unter „Erweitert“ — sie ändert die Maße für ALLE
   // Nutzer und ist deshalb seltenes Handwerkszeug, keine Alltagseinstellung
   // (Prinzip K2/N3). Nur System Manager sehen sie; der Server verweigert

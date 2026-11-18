@@ -71,6 +71,12 @@ export const STICHWORTE = {
   datensicherung: ['Datensicherung', 'Sicherung', 'Backup', 'Automatisch sichern',
     'Uhrzeit', 'Aufbewahrung', 'Wiederherstellen'],
   papierkorb: ['Papierkorb', 'gelöscht', 'zurückholen', 'Wiederherstellen'],
+  // CHAT-R2a: der umgezogene Personenbereich (Chat-Konzept 10.1 Punkt 5). Die
+  // Stichworte sind die seiner bestehenden Seite (`pages/Personen.vue`): die
+  // vier Reiter und die Werkzeuge der Liste — nichts davon ist erfunden.
+  personenverwaltung: ['Personen', 'Personenverwaltung', 'Mitglieder', 'Adressbuch',
+    'Liste', 'Anfragen', 'Datenschutz', 'Import', 'anlegen', 'Export',
+    'Konto'],
   gestaltung: ['Gestaltung', 'Abstände', 'Rahmen', 'Rundungen', 'Musteransicht',
     'Zurücksetzen'],
   'dev-modus': ['Entwicklermodus', 'Dev-Modus', 'Demo-Daten', 'Befunde', 'Werkzeuge'],

@@ -53,6 +53,12 @@ const pages = {
     // Administratoren, Adressbuch-Sicht für alle anderen) und führt die vier
     // Reiter Liste · Anfragen · Datenschutz · Import selbst.
     Personen:        () => import('./pages/Personen.vue'),
+    // CHAT-R2a (Chat-Konzept 10.2): „Nachrichten“ — der Bereich, der „Personen“
+    // im Menü ersetzt. Vorerst eine PLATZHALTER-Seite im Design-System; die
+    // Inhalte (Liste, Verlauf, Suche) baut CHAT-3. Alle drei Adressen
+    // (`#/nachrichten`, `#/nachrichten/<gespraech>`, `#/nachrichten/suche?q=…`)
+    // zeigen denselben Seitennamen — Guard: Modul `chat`.
+    Nachrichten:     () => import('./pages/Nachrichten.vue'),
     Mitglieder:      () => import('./pages/mitglieder/Bereich.vue'),
     MitgliederUebersicht:  () => import('./pages/mitglieder/Bereich.vue'),
     MitgliederListe:       () => import('./pages/mitglieder/Bereich.vue'),
@@ -94,6 +100,12 @@ const pages = {
     EinstellungenGestaltung: () => import('./pages/Einstellungen.vue'),
     // WEB-3: eigene Seite „Website“ mit dem Einstieg in Primo.
     Website: () => import('./pages/Website.vue'),
+    // CHAT-R2a (Chat-Konzept 10.2): „Personenverwaltung“ ist der umgezogene
+    // Personenbereich als ABSCHNITT der Einstellungen — er lädt denselben
+    // Rahmen (`pages/Einstellungen.vue`), der den Bereich einbindet. Der
+    // Rechte-Guard läuft über `PERSONEN_VERWALTUNG_PAGES` (dieselbe Liste wie
+    // für die Personen-Reiter, um den neuen Namen erweitert — nicht verdoppelt).
+    EinstellungenPersonenverwaltung: () => import('./pages/Einstellungen.vue'),
     Profile:         () => import('./pages/Profile.vue'),
     Ressourcen:      () => import('./pages/Ressourcen.vue'),
     Beitraege:       () => import('./pages/Beitraege.vue'),
@@ -160,6 +172,28 @@ const routeMap = {
     // Seite „Adressbuch“ hätte sonst eine zweite Liste ohne Blättern,
     // Statusfilter und „persönliche Daten“ — zwei halbe Wege.
     '#/personen/adressbuch': 'Personen',
+    // ── CHAT-R2a (Chat-Konzept 10.2) ───────────────────────────────────────
+    // „Nachrichten“: der Bereich, der „Personen“ im Menü ersetzt. Vorerst der
+    // Platzhalter (Inhalte: CHAT-3). Der Abfrageteil (`?q=…`) ist NICHT Teil
+    // der Route (er wird in `resolveRoute` abgetrennt und bleibt lesbar).
+    '#/nachrichten':  'Nachrichten',
+    // Der umgezogene Personenbereich: ein Abschnitt der Einstellungen mit
+    // eigener Adresse. Die alten Personen-Adressen bleiben unverändert
+    // erreichbar (oben) — KEINE Weiterleitung der Reiter-Adressen.
+    '#/einstellungen/personenverwaltung': 'EinstellungenPersonenverwaltung',
+    // CHAT-R2a-2 (Punkt a): Eingebettet bleiben die Reiter INNERHALB der
+    // Einstellungen — `#/einstellungen/personenverwaltung/<reiter>` springt
+    // nicht mehr über `#/personen/…` aus dem Rahmen. Dieselben vier Reiter wie
+    // in `MITGLIEDER_REITER`; der Seitennamen bleibt der des Abschnitts
+    // (Seitenleiste, Rechte-Guard, Fenstertitel gelten unverändert).
+    '#/einstellungen/personenverwaltung/liste': 'EinstellungenPersonenverwaltung',
+    '#/einstellungen/personenverwaltung/anfragen': 'EinstellungenPersonenverwaltung',
+    // Unterbereiche von „Anfragen“ (Pfadteile wie unter `#/personen/anfragen`).
+    '#/einstellungen/personenverwaltung/anfragen/anfragen': 'EinstellungenPersonenverwaltung',
+    '#/einstellungen/personenverwaltung/anfragen/links': 'EinstellungenPersonenverwaltung',
+    '#/einstellungen/personenverwaltung/anfragen/formulare': 'EinstellungenPersonenverwaltung',
+    '#/einstellungen/personenverwaltung/datenschutz': 'EinstellungenPersonenverwaltung',
+    '#/einstellungen/personenverwaltung/import': 'EinstellungenPersonenverwaltung',
     '#/gruppen':      'GruppenBereich',
     // N13: das Organigramm ist die zweite Ansicht der Gruppenseite
     // (Umschalter Liste/Organigramm), keine eigene Seite mehr.
@@ -229,6 +263,13 @@ const dynamicRoutes = [
     // Das Muster steht VOR allen anderen Einstellungs-Mustern; ohne es landete
     // der Treffer auf „Seite nicht gefunden“.
     { pattern: /^#\/einstellungen\/([a-z0-9-]+)\/[a-z0-9-]+$/, page: 'Einstellungen', param: 'bereich' },
+    // CHAT-R2a (Chat-Konzept 10.2): `#/nachrichten/<gespraech>` (ein Gespräch)
+    // und `#/nachrichten/suche` (die Trefferliste). BEIDE Muster stehen VOR
+    // dem allgemeinen Gesprächs-Muster — sonst läse `#/nachrichten/suche` ein
+    // Gespräch namens „suche“. Alle drei Adressen tragen denselben Seitennamen.
+    // Die Inhalte baut CHAT-3; der Platzhalter liest die Adresse nur.
+    { pattern: /^#\/nachrichten\/suche$/, page: 'Nachrichten' },
+    { pattern: /^#\/nachrichten\/(.+)$/, page: 'Nachrichten', param: 'gespraech' },
     { pattern: /^#\/mitglied\/(.+)$/, page: 'MitgliedDetail', param: 'id' },
     // MT-7: EIN Beitrag ist eine eigene Unterseite (vorher nur ein Fenster).
     { pattern: /^#\/beitraege\/(.+)$/, page: 'BeitragDetail', param: 'id' },
@@ -304,6 +345,13 @@ const WEITERLEITUNGEN = {
     '#/adressbuch':           '#/personen/liste',
     '#/personen/adressbuch':  '#/personen/liste',
     '#/datenschutz':  '#/personen/datenschutz',
+    // CHAT-R2a (Chat-Konzept 10.2, Tabelle): kurze Merk-Adressen für den
+    // UMGEZOGENEN Personenbereich. Der kanonische Einstieg ist
+    // `#/einstellungen/personenverwaltung`; die alten Personen-Adressen oben
+    // bleiben gültige Ziele (KEINE Weiterleitung — sonst verlöre der Reiter
+    // „Datenschutz“ seine Adresse).
+    '#/personenverwaltung':    '#/einstellungen/personenverwaltung',
+    '#/einstellungen/personen':'#/einstellungen/personenverwaltung',
     // „Zu prüfen“ ist der vierte Reiter des Kalenders (vorher „Moderation“).
     '#/moderation':   '#/kalender/pruefen',
     // Dienste (vorher „Dienstplan“ + „Pläne“ + „Meine Dienste“)
@@ -751,6 +799,11 @@ const PERSONEN_VERWALTUNG_PAGES = new Set([
     // `pages/Einstellungen.vue` nach derselben Regel. „Registrierung“ steht
     // bei der Administration (Server: Kern-Admin).
     'Einstellungen', 'EinstellungenAnmeldung', 'Registrierung',
+    // CHAT-R2a (Chat-Konzept 10.2): der umgezogene Personenbereich ist ein
+    // Abschnitt der Einstellungen mit eigener Adresse. Er steht in DIESER
+    // Liste — dieselbe Prüfung wie die Personen-Reiter, nicht eine zweite
+    // Regel daneben.
+    'EinstellungenPersonenverwaltung',
 ])
 
 /**
@@ -818,6 +871,27 @@ onBeforeEach(({ name }) => {
     if (name !== 'Website') return
     const boot = window.__DIakonosBOOT || {}
     if (darfWebsite({ rollen: boot.roles })) return
+    navigate('#/')
+    return false
+})
+
+// ── CHAT-R2a: Modul `chat` ──────────────────────────────────────────────────
+// Die Regel selbst liegt in `modulRechte.mjs` — OHNE DOM und OHNE Vue, weil die
+// Handy-Leiste (`components/fusstabs.mjs`) sie ebenfalls braucht. Sie wird hier
+// importiert (eine Bindung, kein Nachbau) und weiter exportiert: der Guard
+// unten und die bestehenden Router-Tests (`chat-r2a-navigation`) fragen sie an
+// dieser Stelle.
+import { modulChatErlaubt } from './modulRechte.mjs'
+
+export { modulChatErlaubt }
+
+// „Nachrichten“ liegt hinter dem Modul `chat` (Chat-Konzept 10.2). Der Server
+// verweigert jeden Chat-Endpunkt ohne Leserecht (`rechte.modul_aktiv`) — hier
+// wird nur die Seite nicht geladen. Kein zweiter Weg: dieselbe eine Prüfung
+// gilt für die Liste, das einzelne Gespräch und die Suche (ein Seitenname).
+onBeforeEach(({ name }) => {
+    if (name !== 'Nachrichten') return
+    if (modulChatErlaubt(window.__DIakonosBOOT || {})) return
     navigate('#/')
     return false
 })

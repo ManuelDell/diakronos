@@ -118,6 +118,12 @@ _EINSTELLUNGEN = (
     ("Datensicherung", "Datensicherung", "#/einstellungen/datensicherung"),
     ("Mailversand", "Mailversand", "#/einstellungen/mailversand"),
     ("Website", "Website-Baukasten", "#/einstellungen/website"),
+    # CHAT-R2a-2 (Punkt e): Die Personenverwaltung ist ein Abschnitt der
+    # Einstellungen geworden. Ohne diesen Eintrag fände „pers“ sie in der
+    # Befehlspalette nicht mehr — die Personensuche trifft nur Personen, nicht
+    # den Verwaltungsbereich (Karte CHAT-R2a-2).
+    ("Personen Personenverwaltung Mitglieder Adressbuch", "Personenverwaltung",
+     "#/einstellungen/personenverwaltung"),
 )
 
 

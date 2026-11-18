@@ -83,7 +83,12 @@
 
     <!-- Fußbereich (Entwurf A1): Einstellungen · Profil · Abmelden.
          UX3a: Entwicklermodus und Dev-Befunde liegen im Profilmenü (siehe
-         unten) — sie sind Werkzeuge, keine Navigation. -->
+         unten) — sie sind Werkzeuge, keine Navigation.
+         CHAT-R2a-2 (Punkt d): Die Kennzahl offener Registrierungsanfragen
+         steht seit dem Umzug der Personenverwaltung am Eintrag „Einstellungen“
+         (`badge: 'anfragen'` in menue.js) — dieselbe Zahl, dieselbe Abfrage
+         (useVerwaltung.js), nur ein anderer Eintrag. Vorher trug sie der
+         entfallene Menüpunkt „Personen“. -->
     <div class="dk-sb-foot">
 
       <NavItem
@@ -94,7 +99,7 @@
         :label="e.label"
         :active="istAktiv(e)"
         :collapsed="collapsed"
-        :badge="null"
+        :badge="badgeFuer(e)"
       />
 
       <!-- UX3a: Profilmenü (Entwurf A1 „Profil / Abmelden“). Der Eintrag

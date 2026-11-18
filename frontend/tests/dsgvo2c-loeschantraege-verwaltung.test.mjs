@@ -68,9 +68,16 @@ test('DSGVO-2c · eigene Adresse, Reiter und Admin-Guard', () => {
   // ist kein eigener Reiter des Bereichs mehr (Entwurf A3: vier Reiter), die
   // Adresse und der Schutz bleiben — sie führt über den Datenschutz-Reiter.
   assert.doesNotMatch(menue, /\{ id: 'loeschantraege', label: 'Löschanträge',/)
-  assert.match(menue, /'PersonenLoeschantraege',\s*\n?\s*/)
-  // Seitennamen führen zur Markierung „Personen“ in der Seitenleiste.
-  assert.match(menue, /'MitgliederDatenschutz',\s*\n?\s*'PersonenLoeschantraege',\s*\n?\s*'MitgliederLoeschantraege'/)
+  // CHAT-R2a (Chat-Konzept 10.1 Punkt 1, 10.2) — ANGEPASST, nicht gelöscht:
+  // Der Menüpunkt heißt „Nachrichten“ statt „Personen“, und die
+  // Personen-Seitennamen markieren ihn NICHT mehr (der Bereich ist umgezogen,
+  // die Adressen sind geblieben). Die Löschanträge hängen weiterhin am
+  // Personenbereich — belegt durch die Route, den Wächter und die Seiten
+  // darunter; ein Menüeintrag „Löschanträge“ gibt es nach wie vor nicht.
+  assert.doesNotMatch(menue, /id: 'personen',/)
+  assert.match(menue, /id: 'nachrichten', label: 'Nachrichten', href: '#\/nachrichten'/)
+  assert.match(router, /'#\/personen\/loeschantraege'/,
+    'die alte Adresse der Löschanträge bleibt in der Router-Tabelle')
   // UX3j (A3): „Löschanträge“ ist kein Reiter der Personen-Reiterzeile mehr
   // (A3: Liste · Anfragen · Datenschutz · Import). Die Adresse bleibt gültig
   // und behält ihren Admin-Guard — der Rahmen lädt für ALLE Personenstämme

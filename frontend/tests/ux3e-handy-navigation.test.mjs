@@ -67,28 +67,45 @@ const labels = (gruppen, fuss = []) => alleEintraege(gruppen, fuss).map(e => e.l
 const hrefs = (gruppen, fuss = []) => alleEintraege(gruppen, fuss).map(e => e.href)
 
 // ── 1. Die untere Leiste (Entwurf A8) ──────────────────────────────────────
-test('UX3e · die Leiste zeigt genau Übersicht · Kalender · Dienste · Beiträge · Wiki', () => {
+test('UX3e · die Leiste zeigt die Ziele nach Chat-Konzept 10.1/10.2', () => {
+  // ANGEPASST (CHAT-R2a, Entscheidung Manuel 17.11., Chat-Konzept 10.2):
+  // Die Leiste lautet jetzt **Start · Nachrichten · Gruppen · Kalender**;
+  // „Personen“ war ein Platz und ist durch „Nachrichten“ ersetzt, „Dienste“,
+  // „Beiträge“ und „Wiki“ stehen weiter in der Schublade (die volle
+  // Seitenleiste). Der fünfte Platz „Mehr“ ist der Menü-Knopf oben links —
+  // dieselbe Zahl von fünf Plätzen wie zuvor (N5). Nicht gelöscht, sondern
+  // auf die neue, verbindliche Reihenfolge gestellt.
+  // CHAT-3a (Chat-Konzept 10.1/10.2, Manuel 17.11. mit den Entwürfen
+  // freigegeben): ANGEPASST, nicht gelöscht. Der fünfte Platz „Mehr“ ist
+  // ausdrücklich gewollt und öffnet die BESTEHENDE Menü-Schublade; die Regel
+  // „kein Mehr in der Leiste“ vom 03.11. ist damit abgelöst.
   assert.deepEqual(FUSSTAB_TABS.map(t => t.label),
-    ['Übersicht', 'Kalender', 'Dienste', 'Beiträge', 'Wiki'],
-    'Reihenfolge und Umfang nach Entscheidung Manuel (A8)')
+    ['Start', 'Nachrichten', 'Gruppen', 'Kalender', 'Mehr'],
+    'Reihenfolge und Umfang nach Chat-Konzept 10.2 (Manuel 17.11.)')
   assert.deepEqual(FUSSTAB_TABS.map(t => t.href),
-    ['#/', '#/kalender', '#/dienste', '#/beitraege', '#/wiki'])
-  // Prinzip N5: 3–5 Ziele in der Tab-Leiste — „Mehr“ ist KEINS davon.
-  assert.ok(FUSSTAB_TABS.length <= 5, 'höchstens fünf Ziele (N5)')
-  assert.ok(!FUSSTAB_TABS.some(t => /mehr/i.test(t.label)), 'kein „Mehr“ in der Leiste')
+    ['#/', '#/nachrichten', '#/gruppen', '#/kalender', ''])
+  // Prinzip N5: 3–5 Ziele in der Tab-Leiste. „Mehr“ ist ein KNOPF, kein
+  // fünftes Ziel — deshalb zählen die Links einzeln.
+  assert.ok(FUSSTAB_TABS.length <= 5, 'höchstens fünf Plätze (N5)')
+  assert.equal(FUSSTAB_TABS.filter(t => !t.schublade).length, 4, 'vier echte Ziele')
+  assert.equal(FUSSTAB_TABS.find(t => /mehr/i.test(t.label)).schublade, true,
+    '„Mehr“ öffnet die Schublade (kein eigener Seitenbaum)')
 })
 
-test('UX3e · Leiste ohne „Mehr“-Knopf und ohne Blatt', () => {
+test('UX3e · der Platz „Mehr“ öffnet die Schublade — und KEIN eigenes Blatt', () => {
   const { tpl, skript } = teile(LEISTE)
   assert.match(tpl, /class="dk-bottom-nav"/)
-  // Der frühere Knopf hieß „Mehr“ und öffnete ein Blatt (dk-bn-sheet).
-  assert.ok(!/>\s*Mehr\s*</.test(ohneKommentare(tpl)), 'kein „Mehr“-Knopf mehr im Markup')
-  assert.ok(!/dk-bn-sheet|showMore|toggleMore/.test(ohneKommentare(tpl)),
-    'kein Blatt mehr — die Navigation liegt in der Schublade')
+  // CHAT-3a: Der Platz „Mehr“ ist wieder da (Chat-Konzept 10.1/10.2) — aber als
+  // KNOPF, der die bestehende Menü-Schublade öffnet. Das alte eigene Blatt
+  // (`dk-bn-sheet`, `showMore`) bleibt verboten: es gäbe sonst zwei Menüs.
+  const t = ohneKommentare(tpl)
+  assert.match(t, /tabArt\(tab\) === 'schublade'/, 'der Platz ist als Schubladen-Knopf erkannt')
+  assert.match(t, /@click="\$emit\('open-menu'\)"/, 'er öffnet das EINE Menü')
+  assert.ok(!/dk-bn-sheet/.test(t), 'kein eigenes Blatt im Markup')
   assert.ok(!/showMore|toggleMore|sheetFenster/.test(ohneKommentare(skript)),
-    'kein Blatt-Zustand mehr im Skript')
+    'kein Blatt-Zustand im Skript — der Offen-Zustand gehört App.vue')
   // Die Tabs kommen aus der EINEN Quelle (fusstabs.mjs).
-  assert.match(skript, /import \{ fusstabs \} from '\.\/fusstabs\.mjs'/)
+  assert.match(skript, /import \{ fusstabs, tabZaehler \} from '\.\/fusstabs\.mjs'/)
 })
 
 test('UX3e · jeder Leisten-Tab ist mindestens 44 px hoch (K4, Mobil)', () => {
@@ -120,8 +137,9 @@ test('UX3e · Schublade ist wie die Seitenleiste gruppiert', () => {
   assert.deepEqual(gruppen.map(g => g.gruppe).filter(Boolean), ['Gemeinde', 'Planen', 'Inhalte'],
     'dieselben Gruppen wie MENUE (Entwurf A9)')
   const alle = labels(gruppen)
-  // Häufiges oben (N3): Übersicht, dann Personen/Gruppen.
-  assert.deepEqual(alle.slice(0, 3), ['Übersicht', 'Personen', 'Gruppen'])
+  // Häufiges oben (N3): Übersicht, dann Nachrichten/Gruppen.
+  // CHAT-R2a: „Personen“ → „Nachrichten“ (Chat-Konzept 10.1 Punkt 1).
+  assert.deepEqual(alle.slice(0, 3), ['Übersicht', 'Nachrichten', 'Gruppen'])
   assert.ok(alle.includes('Lieder') && alle.includes('Website') && alle.includes('Ressourcen'),
     'was vorher nur im „Mehr“-Blatt stand, ist jetzt hier erreichbar')
   // Fuß: wie in der Seitenleiste UNTEN, getrennt von den Gruppen (Entwurf A9).
@@ -144,8 +162,12 @@ test('UX3e · Schublade zeigt die VOLLE Seitenleiste (Entwurf A9), auch die Leis
     const drin = hrefs(gruppen, sichtbarerFuss({ istAdmin: rolle.istAdmin }))
     assert.equal(new Set(drin).size, drin.length, `${name}: kein Ziel zweimal in der Schublade`)
   }
-  const mitglied = labels(schubladeMenue({ ...MITGLIED, rollen: [] }))
-  for (const ziel of ['Übersicht', 'Personen', 'Gruppen', 'Kalender', 'Dienste', 'Ressourcen', 'Beiträge', 'Wiki', 'Lieder']) {
+  // CHAT-R2a: „Personen“ heißt im Menü „Nachrichten“ (Chat-Konzept 10.1
+  // Punkt 1). Die Schublade bleibt die volle Seitenleiste — deshalb steht dort
+  // nach wie vor alles, auch die Ziele, die zusätzlich in der Handy-Leiste
+  // liegen (Kalender, Gruppen, Nachrichten).
+  const mitglied = labels(schubladeMenue({ ...MITGLIED, rollen: [], module: null }))
+  for (const ziel of ['Übersicht', 'Nachrichten', 'Gruppen', 'Kalender', 'Dienste', 'Ressourcen', 'Beiträge', 'Wiki', 'Lieder']) {
     assert.ok(mitglied.includes(ziel), `Mitglied findet „${ziel}“ in der Schublade (A9)`)
   }
 })
@@ -176,7 +198,9 @@ test('UX3e · Erreichbarkeit: jede Seitenleisten-Seite ist am Handy erreichbar',
       ...sichtbarerFuss(rolle).map(e => e.href),
     ].sort()
     const handy = [
-      ...fusstabs({ istGast: rolle.istGast }).map(t => t.href),
+      // CHAT-3a: „Mehr“ ist ein Knopf ohne Adresse (`href: ''`) — er zählt
+      // nicht als Ziel, sondern öffnet die Schublade mit denselben Einträgen.
+      ...fusstabs({ istGast: rolle.istGast }).filter(t => !t.schublade).map(t => t.href),
       ...hrefs(
         schubladeMenue({ ...rolle, rollen: [] }),
         sichtbarerFuss({ istAdmin: rolle.istAdmin }),
@@ -188,17 +212,19 @@ test('UX3e · Erreichbarkeit: jede Seitenleisten-Seite ist am Handy erreichbar',
 })
 
 test('UX3e · „wo bin ich“: aktiver Eintrag in Leiste und Schublade', () => {
-  const personen = MENUE.flatMap(g => g.eintraege).find(e => e.id === 'personen')
+  // CHAT-R2a: der Menüeintrag der Gruppe „Gemeinde“ heißt jetzt `nachrichten`
+  // (Chat-Konzept 10.1 Punkt 1) — die Regel „wo bin ich“ bleibt dieselbe.
+  const nachrichten = MENUE.flatMap(g => g.eintraege).find(e => e.id === 'nachrichten')
   const gruppen = MENUE.flatMap(g => g.eintraege).find(e => e.id === 'gruppen')
   const kalender = FUSSTAB_TABS.find(t => t.href === '#/kalender')
-  assert.equal(istEintragAktiv(personen, { seite: 'Personen' }), true)
-  assert.equal(istEintragAktiv(personen, { seite: 'Kalender' }), false)
+  assert.equal(istEintragAktiv(nachrichten, { seite: 'Nachrichten' }), true)
+  assert.equal(istEintragAktiv(nachrichten, { seite: 'Kalender' }), false)
   // Detailseite einer Gruppe markiert weiter „Gruppen“ (wie die Seitenleiste).
   assert.equal(istEintragAktiv(gruppen, { seite: 'GruppeDetail', hash: '#/gruppe/x' }), true)
-  assert.equal(istEintragAktiv(gruppen, { seite: 'Personen', hash: '#/personen' }), false)
+  assert.equal(istEintragAktiv(gruppen, { seite: 'Nachrichten', hash: '#/nachrichten' }), false)
   // Leiste: der Bereich bleibt markiert, auch auf seinen Unterseiten.
   assert.equal(istTabAktiv(kalender, { seite: 'KalenderImport' }), true)
-  assert.equal(istTabAktiv(kalender, { seite: 'Personen' }), false)
+  assert.equal(istTabAktiv(kalender, { seite: 'Nachrichten' }), false)
   // Kalender-Verwaltung und Moderation gehören zum Kalender — wie in menue.js.
   assert.equal(seiteZu('#/kalender/verwalten'), 'KalenderVerwaltung')
   assert.equal(istTabAktiv(kalender, { seite: seiteZu('#/kalender/verwalten') }), true,

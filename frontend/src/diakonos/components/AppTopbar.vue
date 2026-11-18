@@ -343,11 +343,26 @@ const CRUMB_MAP = {
   // UX3j (A3, Punkt 4): Die Reiter von „Personen“ tragen oben „Personen“ —
   // vorher stand dort der rohe Komponentenname („MitgliederAnfragen“).
   // Die Seitennamen selbst bleiben (Anker für Rechte-Guard und Fenstertitel).
-  MitgliederAnfragen:    ['Personen'],
-  MitgliederDatenschutz: ['Personen'],
-  MitgliederImport:      ['Personen'],
-  MitgliederLoeschantraege: ['Personen', 'Löschanträge'],
-  MitgliederUebersicht:  ['Personen', 'Übersicht'],
+  // CHAT-R2a (Chat-Konzept 10.1 Punkt 5): Die Personen-Reiter sind jetzt Teil
+  // der EINSTELLUNGEN — der Bereich ist umgezogen, die Adressen sind geblieben.
+  // Die Brotkrumen nennen deshalb den Ort, an dem man sie heute findet;
+  // „Personenprofil“ (`MitgliedDetail`) heißt weiter „Personen“, denn das
+  // Profil einer Person bleibt das Profil einer Person (10.2, Tabelle).
+  // CHAT-R2a-2 (Punkt f): ALLE Personen-Reiter tragen EINHEITLICH
+  // „Einstellungen › Personenverwaltung“ — auch „Übersicht“, „Löschanträge“,
+  // die eingebettete Liste (`Personen`, `MitgliederListe`) und der Abschnitt
+  // selbst. Fachliche Untertitel („Löschanträge“) gibt es NICHT mehr: sie
+  // zeigten für dieselbe Ebene zwei verschiedene Wege an (Review-Befund).
+  MitgliederAnfragen:    ['Einstellungen', 'Personenverwaltung'],
+  MitgliederDatenschutz: ['Einstellungen', 'Personenverwaltung'],
+  MitgliederImport:      ['Einstellungen', 'Personenverwaltung'],
+  MitgliederLoeschantraege: ['Einstellungen', 'Personenverwaltung'],
+  MitgliederUebersicht:  ['Einstellungen', 'Personenverwaltung'],
+  MitgliederListe:       ['Einstellungen', 'Personenverwaltung'],
+  EinstellungenPersonenverwaltung: ['Einstellungen', 'Personenverwaltung'],
+  // Die alte Bereichsadresse `#/personen/*` bleibt erreichbar; auch dort
+  // nennt die Brotkrume den Ort des Bereichs (kein roher Seitenname).
+  Personen:              ['Einstellungen', 'Personenverwaltung'],
   Wiki:          ['Wiki'],
   NichtGefunden: ['Seite nicht gefunden'],
 }

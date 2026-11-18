@@ -157,6 +157,11 @@ test('UI-R10b: die Verwaltungsrollen stehen EINMAL (verwaltungsrollen.mjs) und b
 function routerMitBoot(boot, { ohneRegel = false } = {}) {
   let source = lies('router.js')
   source = source.replace(/^import .*$/gm, '')
+  // CHAT-R2a-2: `router.js` bindet `modulChatErlaubt` aus `modulRechte.mjs` (EINE
+  // Fassung der Regel, DOM-frei) und gibt sie weiter. Die VM streicht Importe und
+  // Exporte — hier tritt dieselbe Funktion als Attrappe ein.
+  .replace(/^export \{ modulChatErlaubt \}$/gm,
+    "const modulChatErlaubt = (boot = {}) => { if (boot.is_admin === true) return true; if (!Array.isArray(boot.module_sichtbar)) return false; return boot.module_sichtbar.includes('chat') }")
   source = source.replace(/^export \{([^}]*)\}$/gm, '')
   source = source.replace(/^export /gm, '')
   source = `

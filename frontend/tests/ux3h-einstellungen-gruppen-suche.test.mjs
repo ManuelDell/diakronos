@@ -86,7 +86,10 @@ test('UX3h: die Seite nennt fünf Gruppen in der Reihenfolge des Entwurfs', () =
 })
 
 test('UX3h: jeder Bereich der Seite hat genau eine der fünf Gruppen', () => {
-  assert.equal(BEREICHE.length, 11,
+  // ANGEPASST (CHAT-R2a, Chat-Konzept 10.1 Punkt 5): „Personenverwaltung“ ist
+  // als zwölfter Abschnitt hinzugekommen (Gruppe „Datenschutz“) — nicht
+  // gelöscht, sondern um den neuen Bereich fortgeschrieben.
+  assert.equal(BEREICHE.length, 12,
     'Bereiche der Seite nicht erkannt (' + BEREICHE.length + ') — Muster geändert?')
   const ids = new Set(GRUPPEN.map((g) => g.id))
   const falsch = BEREICHE.filter((b) => !ids.has(b.gruppe))
@@ -109,7 +112,10 @@ test('UX3h: Gruppen tragen 1–9 Einträge (Prinzip N3), keine ist leer', () => 
   assert.deepEqual(zuordnung.gemeinde, ['gemeinde', 'website'])
   assert.deepEqual(zuordnung.zugang, ['anmeldung', 'registrierung', 'rollen'])
   assert.deepEqual(zuordnung.kommunikation, ['mailversand'])
-  assert.deepEqual(zuordnung.datenschutz, ['datenschutz', 'datensicherung', 'papierkorb'])
+  // CHAT-R2a: die umgezogene Personenverwaltung steht bei „Datenschutz“ —
+  // dieselbe Zuständigkeit wie Datenschutz-Texte, Datensicherung, Papierkorb.
+  assert.deepEqual(zuordnung.datenschutz,
+    ['datenschutz', 'datensicherung', 'papierkorb', 'personenverwaltung'])
   assert.deepEqual(zuordnung.erweitert, ['gestaltung', 'dev-modus'])
 })
 
@@ -138,6 +144,10 @@ test('UX3h: jedes Stichwort kommt im Abschnitt wirklich vor (keine erfundenen)',
     mailversand: 'Mailversand.vue', datenschutz: 'DatenschutzTexte.vue',
     datensicherung: 'Datensicherung.vue', papierkorb: 'Papierkorb.vue',
     gestaltung: 'Gestaltung.vue', 'dev-modus': 'DevModus.vue',
+    // CHAT-R2a: der Abschnitt bindet die BESTEHENDE Personen-Seite ein
+    // (`pages/Personen.vue`, per `defineAsyncComponent`) — die Stichworte
+    // werden gegen genau diese Datei geprüft.
+    personenverwaltung: '../Personen.vue',
   }
   // Beschriftungen, die die Suche selbst setzt (Gruppentitel, eigene Wörter)
   // gelten ebenfalls als „kommt vor“ — sonst wäre der Wächter zahnlos.

@@ -289,6 +289,29 @@ export function passtZu(begriff, ...texte) {
 }
 
 /**
+ * Seiten OHNE eigenen Menüeintrag, die die Palette trotzdem finden soll.
+ *
+ * CHAT-R2a-2 (Punkt e): „Personenverwaltung“ ist seit dem Umzug ein ABSCHNITT
+ * der Einstellungen (`#/einstellungen/personenverwaltung`) — es gibt keinen
+ * Menüpunkt „Personen“ mehr. Der lokale Eintrag sorgt dafür, dass „pers“
+ * schon vor der Server-Antwort trifft und ein Mitgliederverwalter OHNE Admin
+ * den Bereich findet; `verwaltung: 'personen'` ist dasselbe Gating wie an
+ * jedem Personen-Eintrag (kein zweiter Rechte-Begriff). Der Server liefert
+ * denselben Abschnitt zusätzlich als `einstellung`-Treffer — die Palette
+ * entdoppelt nach Ziel, der lokale Name gilt.
+ */
+export const ZUSATZ_SEITEN = [
+  {
+    id: 'personenverwaltung',
+    titel: 'Personenverwaltung',
+    ort: 'Einstellungen',
+    href: '#/einstellungen/personenverwaltung',
+    symbol: 'gruppe',
+    verwaltung: 'personen',
+  },
+]
+
+/**
  * Seiten-Einträge der Palette aus der Menüdefinition.
  *
  * Nur Einträge mit `suche: true` erscheinen (die Menüdefinition führt das Feld
@@ -301,7 +324,7 @@ export function passtZu(begriff, ...texte) {
  *                   rollen?: string[]}}} lage
  * @returns {Array<{id, abschnitt, titel, ort, ziel, symbol, gruppe}>}
  */
-export function seitenEintraege({ menue = [], fuss = [], sichtbareEintraege, rechte = {} } = {}) {
+export function seitenEintraege({ menue = [], fuss = [], sichtbareEintraege, rechte = {}, zusatz = ZUSATZ_SEITEN } = {}) {
   const sichtbar = typeof sichtbareEintraege === 'function' ? sichtbareEintraege : (g) => (g.eintraege || [])
   const ergebnis = []
   for (const gruppe of menue || []) {
@@ -337,6 +360,23 @@ export function seitenEintraege({ menue = [], fuss = [], sichtbareEintraege, rec
       gruppe: '',
     })
   }
+  // CHAT-R2a-2 (Punkt e): Unterseiten ohne eigenen Menüeintrag. Die
+  // Personenverwaltung ist ein ABSCHNITT der Einstellungen — sie hat keinen
+  // eigenen Menüpunkt mehr, wird aber gesucht („pers“). Gating wie überall:
+  // `verwaltung: 'personen'` (dieselbe Regel, kein zweiter Rechte-Begriff).
+  for (const eintrag of zusatz || []) {
+    if (eintrag.verwaltung && !verwaltungZutreffend(eintrag.verwaltung, rechte)) continue
+    if (rechte.istGast === true) continue
+    ergebnis.push({
+      id: 'seite:' + eintrag.id,
+      abschnitt: 'seiten',
+      titel: eintrag.titel,
+      ort: eintrag.ort || 'Einstellungen',
+      ziel: eintrag.href,
+      symbol: eintrag.symbol || SYMBOL_JE_ABSCHNITT.seiten,
+      gruppe: '',
+    })
+  }
   return ergebnis
 }
 
@@ -349,9 +389,11 @@ export function seitenEintraege({ menue = [], fuss = [], sichtbareEintraege, rec
  * landet, die nichts anlegen kann, wäre ein toter Knopf (Prinzip I4).
  *
  * Ziele: `#/kalender?neu=1` öffnet den Kalender im Anlege-Dialog (Kalender.vue
- * liest den Schalter EINMAL beim Öffnen), `#/personen?anlegen=1` die
- * Personenliste im Anlege-Dialog. Beide Adressen bleiben lesbar, wenn die
- * Aktion wegfällt — dann öffnet sich nur die Seite.
+ * liest den Schalter EINMAL beim Öffnen), `#/einstellungen/personenverwaltung?anlegen=1`
+ * die Personenverwaltung in den Einstellungen (CHAT-R2a-2, Punkt e — der
+ * Bereich ist dorthin umgezogen; `pages/Personen.vue` liest denselben
+ * Schalter, auch eingebettet). Beide Adressen bleiben lesbar, wenn die Aktion
+ * wegfällt — dann öffnet sich nur die Seite.
  */
 export function aktionsEintraege({ darfTermin = false, darfPerson = false } = {}) {
   const liste = []
@@ -372,7 +414,10 @@ export function aktionsEintraege({ darfTermin = false, darfPerson = false } = {}
       abschnitt: 'aktion',
       titel: 'Person anlegen',
       ort: 'Aktion',
-      ziel: '#/personen?anlegen=1',
+      // CHAT-R2a-2 (Punkt e): die Personenverwaltung ist ein Abschnitt der
+      // Einstellungen — das Anlegen führt dorthin, nicht mehr auf die alte
+      // Bereichsadresse `#/personen`.
+      ziel: '#/einstellungen/personenverwaltung?anlegen=1',
       symbol: 'gruppe',
       gruppe: '',
     })

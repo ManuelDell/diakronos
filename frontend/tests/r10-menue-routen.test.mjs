@@ -195,6 +195,11 @@ function routerMitBoot(boot) {
   let source = lies('router.js')
   source = source.replace(/^import .*$/gm, '')
   // Die vm führt klassisches Skript aus — `export` gibt es dort nicht.
+  // CHAT-R2a-2: `router.js` bindet `modulChatErlaubt` aus `modulRechte.mjs` (EINE
+  // Fassung der Regel, DOM-frei) und gibt sie weiter. Die VM streicht Importe und
+  // Exporte — hier tritt dieselbe Funktion als Attrappe ein.
+  .replace(/^export \{ modulChatErlaubt \}$/gm,
+    "const modulChatErlaubt = (boot = {}) => { if (boot.is_admin === true) return true; if (!Array.isArray(boot.module_sichtbar)) return false; return boot.module_sichtbar.includes('chat') }")
   source = source.replace(/^export \{([^}]*)\}$/gm, '')
   source = source.replace(/^export /gm, '')
   // Attrappen für die Importe (die Testdatei setzt sie vorher global).
@@ -376,8 +381,15 @@ test('UI-R10: Einstellungen — Mitgliederverwaltung sieht nur die Anmeldung', (
   const sichtbar = (rechte) => Object.entries(abschnitte)
     .filter(([, stufe]) => M.verwaltungZutreffend(stufe, rechte))
     .map(([id]) => id)
-  assert.equal(kette(sichtbar(MITGLIEDERVERWALTUNG)), 'anmeldung',
-    'Verwaltung: nur Anmeldung — ohne Gemeinde, Registrierung, Rollen, Mailversand, Datenschutz-Texte, Datensicherung, Papierkorb')
+  // CHAT-R2a (Chat-Konzept 10.1 Punkt 5, 10.2): Die Personenverwaltung ist als
+  // Abschnitt der Einstellungen hinzugekommen — sie hängt (wie die Anmeldung)
+  // an `verwaltung: 'personen'`, weil die Mitgliederverwaltung den
+  // Personenbereich pflegt. Die Zusage „keine Administration für die
+  // Mitgliederverwaltung“ bleibt unverändert; angepasst, nicht gelöscht.
+  assert.equal(kette(sichtbar(MITGLIEDERVERWALTUNG)), 'anmeldung,personenverwaltung',
+    'Verwaltung: Anmeldung und Personenverwaltung — ohne Gemeinde, Registrierung, Rollen, Mailversand, Datenschutz-Texte, Datensicherung, Papierkorb')
+  assert.equal(sichtbar(MITGLIEDERVERWALTUNG).includes('personenverwaltung'), true,
+    'die umgezogene Personenverwaltung ist Personenbereich (R-11a)')
   for (const verboten of ['gemeinde', 'website', 'rollen', 'registrierung', 'mailversand',
     'datenschutz', 'datensicherung', 'papierkorb', 'gestaltung', 'dev-modus']) {
     assert.equal(abschnitte[verboten], 'admin', `${verboten} bleibt Administration`)

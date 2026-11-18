@@ -277,5 +277,9 @@ test('Untere Leiste: kräftige Beschriftung, aktiver Reiter über --accent (Punk
     'der aktive Reiter nimmt nicht --accent — im Dunkelmodus war --primary WEISS und damit unsichtbar')
   assert.doesNotMatch(aktiv, /--primary/)
   // Der Zustand hängt nicht allein an der Farbe (WCAG 1.4.1).
-  assert.match(stil, /\.dk-bn-tab\.active span::after/, 'dem aktiven Reiter fehlt die zweite Kennzeichnung')
+  // CHAT-3a: Der Unterstrich hängt seit dem Ungelesen-Zähler am LETZTEN <span>
+  // (die Beschriftung) — `> span:last-child`; der Zähler ist selbst ein <span>
+  // und bekäme sonst einen Strich. Die Zusage bleibt dieselbe.
+  assert.match(stil, /\.dk-bn-tab\.active > span:last-child::after/,
+    'dem aktiven Reiter fehlt die zweite Kennzeichnung')
 })

@@ -61,9 +61,13 @@ const links = computed(() => {
       { href: '#/profile', symbol: 'profil', title: 'Mein Profil', desc: 'Deine Angaben und Einstellungen.' },
     ]
   }
+  // CHAT-R2a (Chat-Konzept 10.1 Punkt 1/5): „Personen“ ist kein Menüpunkt mehr.
+  // Die Kachel führt deshalb in den Personenbereich, wie er heute heißt:
+  // Einstellungen → Personenverwaltung (dieselbe Seite, dieselben Rechte — nur
+  // der Weg dorthin ist umgezogen). Suchbegriff und Symbol bleiben „Personen“.
   if (isAdmin.value || istMitgliederverwaltung.value === true) {
     return [
-      { href: '#/personen', symbol: 'mitglieder', title: 'Personen', desc: 'Alle Personen suchen und verwalten.' },
+      { href: '#/einstellungen/personenverwaltung', symbol: 'mitglieder', title: 'Personen', desc: 'Alle Personen suchen und verwalten.' },
       { href: '#/gruppen', symbol: 'gruppen', title: 'Gruppen & Dienste', desc: 'Mitarbeitende zu Bereichen zuordnen.' },
       { href: '#/kalender', symbol: 'kalender', title: 'Kalender', desc: 'Termine und Veranstaltungen verwalten.' },
     ]

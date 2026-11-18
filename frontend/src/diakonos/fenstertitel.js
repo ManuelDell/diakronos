@@ -32,6 +32,18 @@ export const SEITENTITEL_NICHT_IM_MENUE = {
     LiedgruppeDetail: 'Liedgruppe',
     Adressbuch: 'Adressbuch',
     MitgliedDetail: 'Mitglied',
+    // CHAT-R2a-2 (Punkt c): Der Personenbereich ist ein Abschnitt der
+    // Einstellungen (Chat-Konzept 10.1 Punkt 5, 10.2). Alle Personen-Reiter
+    // tragen deshalb denselben Fenstertitel „Personenverwaltung“ — sie stehen
+    // NICHT in einer Menügruppe, sondern im Fußbereich des Menüs. Ohne diese
+    // Einträge stünde in jedem Tab der rohe Komponentenname („MitgliederAnfragen“).
+    Personen: 'Personenverwaltung',
+    MitgliederListe: 'Personenverwaltung',
+    MitgliederAnfragen: 'Personenverwaltung',
+    MitgliederDatenschutz: 'Personenverwaltung',
+    MitgliederImport: 'Personenverwaltung',
+    MitgliederUebersicht: 'Personenverwaltung',
+    MitgliederLoeschantraege: 'Personenverwaltung',
     GruppeDetail: 'Gruppe',
     KalenderImport: 'Kalender importieren',
     KalenderVerwaltung: 'Kalender verwalten',

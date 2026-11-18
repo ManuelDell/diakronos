@@ -32,6 +32,11 @@ function routerAusfuehren(boot) {
       "({ EINRICHTUNG_ROUTE: '#/einrichtung', EINRICHTUNG_ZIEL_NACH_ABSCHLUSS: '#/einstellungen', " +
       "einrichtungGesehen: () => false, einrichtungsWeiterleitung: () => null, " +
       "einrichtungSeiteErlaubt: (b) => !b || b.is_admin === true })")
+    // CHAT-R2a-2: `router.js` bindet `modulChatErlaubt` aus `modulRechte.mjs` (EINE
+    // Fassung der Regel, DOM-frei) und gibt sie weiter. Die VM streicht Importe und
+    // Exporte — hier tritt dieselbe Funktion als Attrappe ein.
+    .replace(/^export \{ modulChatErlaubt \}$/gm,
+      "const modulChatErlaubt = (boot = {}) => { if (boot.is_admin === true) return true; if (!Array.isArray(boot.module_sichtbar)) return false; return boot.module_sichtbar.includes('chat') }")
     .replace(/^export \{.*\}$/gm, '').replace(/^export /gm, '')
   source += '\nglobalThis.router = {onBeforeEach, getRouteParams, currentHash, currentPageName};'
   let hashchange
@@ -158,9 +163,15 @@ function routerAusfuehren(boot) {
 // ── EINE Menüdefinition (S12) ───────────────────────────────────────────────
 {
   const menue = lies('menue.js')
-  for (const pflicht of ["'#/personen'", "'#/dienste'", "'#/einstellungen'", "'#/gruppen'", "'#/kalender'", "MITGLIEDER_REITER"]) {
+  // CHAT-R2a (Chat-Konzept 10.1 Punkt 1/5, Manuel 17.11.) — ANGEPASST, nicht
+  // gelöscht: „Personen“ ist kein Menüpunkt mehr, die Gruppe „Gemeinde“ führt
+  // „Nachrichten“; der Personenbereich (samt `MITGLIEDER_REITER`) zieht als
+  // Abschnitt in die Einstellungen um und bleibt über dieselbe Definition
+  // (`menue.js`, Reiterzeile unverändert) erreichbar.
+  for (const pflicht of ["'#/nachrichten'", "'#/dienste'", "'#/einstellungen'", "'#/gruppen'", "'#/kalender'", "MITGLIEDER_REITER"]) {
     assert.ok(menue.includes(pflicht), `Menüdefinition enthält ${pflicht}`)
   }
+  assert.ok(!menue.includes("label: 'Personen'"), 'kein Menüpunkt „Personen“ mehr')
   // Alte Einzelpunkte dürfen nicht mehr als eigene Menüeinträge erscheinen.
   for (const alt of ["'#/registrierung'", "'#/statistik'", "'#/dsgvo'", "'#/anmeldung'", "'#/organigramm'"]) {
     assert.ok(!menue.includes(alt), `kein alter Menüpunkt ${alt}`)

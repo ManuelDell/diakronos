@@ -121,7 +121,13 @@
          Handy gar nicht erreichbar. Dieselbe Bedingung (`devStartZeigen`)
          schaltet die Geruest-Klasse `dk-app--dev` an der Wurzel. -->
     <DevStart v-if="devStartZeigen && (!istHandyLage || isVollbildMode)" />
-    <AppBottomNav v-if="!isVollbildMode" :seite="currentPageName" />
+    <AppBottomNav
+      v-if="!isVollbildMode"
+      :seite="currentPageName"
+      :menue-offen="menueOffen"
+      :ungelesen="nachrichtenUngelesen"
+      @open-menu="menueOeffnen"
+    />
     <!-- UX3e (Entwurf A9): Menü-Schublade — nur wenn es einen Menü-Knopf gibt,
          der sie öffnet: in der LEISTEN-Lage (`istHandyLage`). MT-1 (Manuel
          11.11., „nur EIN Seitenmenü“): am Laptop/Desktop gibt es sie NICHT
@@ -138,6 +144,7 @@
       :theme="theme"
       :seite="currentPageName"
       :hash="currentHash"
+      :anfragen-zahl="anfragenZahl"
       @schliessen="menueOffen = false"
       @toggle-theme="toggleTheme"
     />
@@ -173,6 +180,13 @@ import { currentComponent, currentHash, currentPageName, navigate, pageLadefehle
 import { useImpersonation } from './composables/useImpersonation.js'
 import { devmodusAn, devmodusAutostart, devmodusPruefen } from './composables/useDevmodus.js'
 import { useSession } from './composables/useSession.js'
+// CHAT-R2a-2 (Punkt d): der gemeinsame Stand offener Anfragen für den
+// Fuß-Eintrag „Einstellungen“ (Seitenleiste UND Handy-Schublade).
+import { anfragenZaehler, anfragenZaehlerBeobachten } from './composables/useVerwaltung.js'
+// CHAT-3a: der Ungelesen-Zähler am Platz „Nachrichten“ (Handy-Leiste) — EINE
+// Abfrage (`chat.meine_gespraeche`), derselbe Takt (±10 s, nur bei sichtbarem
+// Tab, Timer beim Verlassen aufgeräumt).
+import { useChatZaehler } from './composables/useChatZaehler.js'
 // A10: Abzeichen der Seite an der App-Kopfzeile (am Handy neben dem Titel).
 import { rollenMarke } from './composables/useBereichskopf.js'
 // UX3e/DEV-B6: EINE Quelle der Handy-Lage (grob + schmal bzw. grobes
@@ -236,6 +250,72 @@ const menueOffen = ref(false)
 function menueOeffnen() { menueOffen.value = true }
 
 /**
+ * CHAT-R2a-2 (Punkt d): die Kennzahl „offene Registrierungsanfragen“ an
+ * „Einstellungen“. Seitenleiste UND Handy-Schublade zeigen sie am selben
+ * Fuß-Eintrag; beide lesen DENSELBEN Stand (`anfragenZaehler`, UX-A2a) und
+ * brauchen deshalb nur EINEN Beobachter (`anfragenZaehlerBeobachten`, UX-A2a2).
+ * Dieser hier gehört der App-Wurzel: die Schublade wird am Handy erst mit dem
+ * Menü-Knopf aufgebaut — ohne diesen Takt bliebe ihr Zähler leer, bis jemand
+ * die (am Handy verborgene) Seitenleiste geöffnet hat.
+ * Ohne Mitgliederadministrator-Recht fragt `anfragenZaehlerBeobachten` gar
+ * nicht erst an (die Zahl bleibt `null`, es wird nichts angezeigt).
+ */
+const anfragenZahl = anfragenZaehler
+let anfragenAbmelden = null
+
+/**
+ * CHAT-3a: Ungelesen-Zähler am Platz „Nachrichten“ der Handy-Leiste.
+ *
+ * Review R1 (MUSS 4): Es gibt je Takt GENAU EINE Abfrage von
+ * `meine_gespraeche`. Solange die Seite „Nachrichten“ offen ist, fragt SIE und
+ * schickt die fertige Summe im Ereignis `dk-chat-ungelesen`
+ * (`detail.ungelesen`) — dieser Zähler übernimmt sie, ohne selbst zu holen.
+ * Ausserhalb der Seite fragt der App-Zähler selbst: NUR in der Handy-Lage (wo
+ * die Leiste sichtbar ist) und nur alle `TAKT_LANG_MS` (60 s), nie im
+ * Hintergrund-Tab. Ohne Chat-Modul fragt er gar nicht (`modulChatErlaubt`) —
+ * sonst stünde auf jeder Seite ein 403 im Netz-Protokoll.
+ *
+ * CHAT-3a-3/A (Review Runde 2, App startete nicht): Die Reihenfolge ist
+ * BINDEND. `useChatZaehler` liest `handyLage()` sofort beim Aufbau (erster
+ * Abruf und `planen()`) — `istHandyLage` muss deshalb SCHON deklariert sein.
+ * Vorher stand `useHandyLage()` erst weiter unten, und `App.setup` warf für
+ * JEDEN Nutzer mit Chat-Modul (bzw. Admin) eine TDZ-`ReferenceError`; die
+ * ganze App blieb weiss. `istHandyLage` steht aus demselben Grund nicht mehr
+ * in der Sammel-Destrukturierung unter der Layout-Erklärung.
+ */
+const { istHandyLage } = useHandyLage()
+const nachrichtenUngelesen = computed(() => chatZaehler.ungelesen.value)
+const chatZaehler = useChatZaehler({
+  seiteOffen: () => currentPageName.value === 'Nachrichten',
+  handyLage: () => istHandyLage.value,
+})
+/**
+ * Neue Nachricht aus der Seite „Nachrichten“ (nach dem Lesen oder einem Poll):
+ * das Ereignis TRÄGT die Summe (`detail.ungelesen`) — der App-Zähler setzt sie,
+ * statt `meine_gespraeche` ein zweites Mal zu holen.
+ */
+function zaehlerNachziehen(ereignis) {
+  chatZaehler.uebernehmen(ereignis?.detail?.ungelesen)
+}
+/**
+ * MUSS 4: Die Seite meldet, ob SIE den Zähler führt (`dk-chat-seite`). Solange
+ * sie es tut, pausiert der App-Takt — auch im kurzen Fenster zwischen Aufbau
+ * der Seite und dem Wechsel des Seitennamens. Gibt sie ihn zurück, fragt der
+ * App-Takt EINMAL nach (Handy-Lage vorausgesetzt).
+ */
+function seitenMeldung(ereignis) {
+  chatZaehler.seiteMeldet(ereignis?.detail?.offen)
+}
+onMounted(() => {
+  window.addEventListener('dk-chat-ungelesen', zaehlerNachziehen)
+  window.addEventListener('dk-chat-seite', seitenMeldung)
+})
+onUnmounted(() => {
+  window.removeEventListener('dk-chat-ungelesen', zaehlerNachziehen)
+  window.removeEventListener('dk-chat-seite', seitenMeldung)
+})
+
+/**
  * Ist die App in der LEISTEN-Lage (untere Handy-Navigation, Kopfzeilen-Knopf,
  * Schublade im DOM)?
  *
@@ -254,9 +334,20 @@ function menueOeffnen() { menueOffen.value = true }
  *
  * Beim Verlassen der Lage wird die Schublade geschlossen: sonst bliebe sie
  * „offen“ gemerkt, während es sie nicht mehr gibt.
+ *
+ * CHAT-3a-3/A: `useHandyLage()` steht seit dem TDZ-Fehler der Review-Runde 2
+ * WEITER OBEN (vor `useChatZaehler`, der `istHandyLage` sofort liest) — hier
+ * steht nur noch, was aus der Lage folgt.
  */
-const { istHandyLage } = useHandyLage()
 watch(istHandyLage, (an) => { if (!an) menueOffen.value = false })
+/**
+ * CHAT-3a-3/A: Wechsel Desktop → Handy. `useChatZaehler` plant beim Aufbau
+ * nichts ein, solange die Leiste nicht sichtbar ist (`handyLage()`); ohne
+ * diesen Beobachter bliebe der Zähler nach dem Wechsel stumm, bis irgendetwas
+ * anderes ihn weckt. `planen()` startet nur, wenn wirklich etwas zu tun ist
+ * (keine Leiste / Seite offen → no-op), und tut bei laufendem Termin nichts.
+ */
+watch(istHandyLage, () => { chatZaehler.planen() })
 /**
  * Schmale Fenster: Seitenleiste einklappen. Am Laptop (702 px, Befund) fraß
  * die offene Leiste 256 von 702 px — die Inhaltsfläche war schmaler als am
@@ -355,6 +446,10 @@ onMounted(() => {
   // DM1: Dev-Modus-Zustand vom Server holen (bei Bedarf automatisch starten).
   devmodusBeimStart()
   window.addEventListener('dk-devmodus-start', devmodusPruefen)
+  // CHAT-R2a-2 (Punkt d): die Kennzahl offener Anfragen auch dann führen, wenn
+  // am Handy NUR die Schublade sie zeigt (die Seitenleiste ist dort
+  // ausgeblendet und baut ihren eigenen Beobachter nicht auf).
+  anfragenAbmelden = anfragenZaehlerBeobachten()
   // UX3e/DEV-B6: Schmale Fenster klappen die Seitenleiste ein. Die
   // LEISTEN-Lage beobachtet `useHandyLage()` selbst (matchMedia + resize).
   if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
@@ -371,6 +466,10 @@ onMounted(() => {
 onUnmounted(() => {
   clearInterval(timer)
   window.removeEventListener('dk-devmodus-start', devmodusPruefen)
+  // CHAT-R2a-2: eigener Beobachter der Kennzahl abmelden (das Intervall endet
+  // mit dem letzten Beobachter — die Seitenleiste darf es weiterführen).
+  if (anfragenAbmelden) anfragenAbmelden()
+  anfragenAbmelden = null
   if (!flachAbfrage) return
   if (typeof flachAbfrage.removeEventListener === 'function') {
     flachAbfrage.removeEventListener('change', breiteNachziehen)

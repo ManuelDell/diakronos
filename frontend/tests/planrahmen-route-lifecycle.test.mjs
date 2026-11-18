@@ -63,6 +63,11 @@ function harness(pageName = 'Plan', hash = '#/dienste/dienstplaene/plan/plan-a',
       "einrichtungGesehen: () => false, einrichtungsWeiterleitung: () => null, " +
       "einrichtungSeiteErlaubt: (b) => !b || b.is_admin === true })")
     .replace(/import\([^)]*\)/g, 'lazyImport()')
+    // CHAT-R2a-2: `router.js` bindet `modulChatErlaubt` aus `modulRechte.mjs` (EINE
+    // Fassung der Regel, DOM-frei) und gibt sie weiter. Die VM streicht Importe und
+    // Exporte — hier tritt dieselbe Funktion als Attrappe ein.
+    .replace(/^export \{ modulChatErlaubt \}$/gm,
+      "const modulChatErlaubt = (boot = {}) => { if (boot.is_admin === true) return true; if (!Array.isArray(boot.module_sichtbar)) return false; return boot.module_sichtbar.includes('chat') }")
     .replace(/^export \{.*\}$/gm, '').replace(/^export /gm, '')
   vm.runInContext(router, context)
   const page = readFileSync(new URL(`../src/diakonos/pages/planrahmen/${pageName}.vue`, import.meta.url), 'utf8')

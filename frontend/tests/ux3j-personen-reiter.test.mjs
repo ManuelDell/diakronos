@@ -124,6 +124,11 @@ function skript(quelle) {
       "({ EINRICHTUNG_ROUTE: '#/einrichtung', EINRICHTUNG_ZIEL_NACH_ABSCHLUSS: '#/einstellungen', " +
       "einrichtungGesehen: () => false, einrichtungsWeiterleitung: () => null, " +
       "einrichtungSeiteErlaubt: (b) => !b || b.is_admin === true })")
+    // CHAT-R2a-2: `router.js` bindet `modulChatErlaubt` aus `modulRechte.mjs` (EINE
+    // Fassung der Regel, DOM-frei) und gibt sie weiter. Die VM streicht Importe und
+    // Exporte — hier tritt dieselbe Funktion als Attrappe ein.
+    .replace(/^export \{ modulChatErlaubt \}$/gm,
+      "const modulChatErlaubt = (boot = {}) => { if (boot.is_admin === true) return true; if (!Array.isArray(boot.module_sichtbar)) return false; return boot.module_sichtbar.includes('chat') }")
     .replace(/^export \{.*\}$/gm, '').replace(/^export /gm, '')
   source += '\nglobalThis.router = {currentHash, currentPageName};'
   let hashchange
@@ -261,7 +266,13 @@ function skript(quelle) {
   const personen = lies('pages/Personen.vue')
   const t = vorlage(personen)
   assert.equal((t.match(/<DkPageHeader\b/g) || []).length, 1, 'genau EIN Seitenkopf')
-  assert.match(t, /<DkPageHeader title="Personen"/, 'der Kopf heißt in jedem Reiter „Personen“')
+  // CHAT-R2a (Chat-Konzept 10.1 Punkt 5): Derselbe Rahmen läuft jetzt auch
+  // EINGEBETTET als Abschnitt der Einstellungen (`#/einstellungen/
+  // personenverwaltung`); dort trägt der Einstellungen-Rahmen den Kopf, und
+  // der Personen-Kopf weicht (`v-if="!embedded"`). Angepasst, nicht gelöscht:
+  // die Zusage bleibt „genau EIN Seitenkopf, er heißt Personen“.
+  assert.match(t, /<DkPageHeader v-if="!embedded" title="Personen"/,
+    'der Kopf heißt in jedem Reiter „Personen“ (entfällt nur im eingebetteten Betrieb)')
   for (const verboten of ['MitgliederAnfragen', 'Mitglieder', 'Anfragen</h1>']) {
     assert.ok(!t.includes(verboten), `kein „${verboten}“ im Seitenkopf`)
   }
@@ -272,12 +283,17 @@ function skript(quelle) {
     assert.ok(!/<h1\b/.test(vorlage(quelle)) || /v-if="!embedded"/.test(vorlage(quelle)),
       `${name}: kein zweiter Seitentitel im eingebetteten Betrieb`)
   }
-  // Die Kopfleiste (Brotkrumen) nennt in allen vier Reitern „Personen“ —
-  // nicht den rohen Komponentennamen („MitgliederAnfragen“).
+  // Die Kopfleiste (Brotkrumen) nennt in allen vier Reitern den ORT des
+  // Bereichs — nicht den rohen Komponentennamen („MitgliederAnfragen“).
+  // CHAT-R2a (Chat-Konzept 10.1 Punkt 5): Der Personenbereich ist ein
+  // Abschnitt der EINSTELLUNGEN geworden; die Brotkrume nennt deshalb
+  // „Einstellungen · Personenverwaltung“. Angepasst, nicht gelöscht.
   const topbar = lies('components/AppTopbar.vue')
   for (const seite of ['MitgliederAnfragen', 'MitgliederDatenschutz', 'MitgliederImport']) {
-    assert.match(topbar, new RegExp(`${seite}:\\s*\\['Personen'\\]`),
-      `${seite}: Brotkrume „Personen“`)
+    assert.match(topbar, new RegExp(`${seite}:\\s*\\['Einstellungen', 'Personenverwaltung'\\]`),
+      `${seite}: Brotkrume „Einstellungen · Personenverwaltung“`)
+    assert.ok(!new RegExp(`${seite}:\\s*\\['${seite}'\\]`).test(topbar),
+      `${seite}: kein roher Komponentenname in den Brotkrumen`)
   }
   // Der Fenstertitel der Reiter bleibt „Personen“ (Router/`fenstertitel.js`).
   const router = lies('router.js')

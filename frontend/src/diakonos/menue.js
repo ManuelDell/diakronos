@@ -28,9 +28,11 @@
 
 /**
  * Gruppen folgen dem **Entwurf A1** (UX3a, Manuel 2026-11-03/04): Übersicht
- * steht allein oben, darunter die drei Gruppen „Gemeinde“ (Personen, Gruppen),
+ * steht allein oben, darunter die drei Gruppen „Gemeinde“ (Nachrichten, Gruppen),
  * „Planen“ (Kalender, Dienste, Ressourcen) und „Inhalte“ (Beiträge, Wiki,
- * Lieder, Website). „Einstellungen“ liegt NICHT in der Liste, sondern unten im
+ * Lieder, Website). CHAT-R2a (Manuel 17.11.): die Gruppe „Gemeinde“ beginnt mit
+ * „Nachrichten“ statt „Personen“ (Chat-Konzept 10.1 Punkt 1, 10.2).
+ * „Einstellungen“ liegt NICHT in der Liste, sondern unten im
  * Fußbereich der Seitenleiste (siehe FUSS_EINTRAEGE); „Profil“ und „Abmelden“
  * stehen dort ohnehin. Kopfleiste (AppTopbar) und Brotkrumen lesen dieselbe
  * Definition.
@@ -56,14 +58,23 @@ export const MENUE = [
         gruppe: 'Gemeinde',
         eintraege: [
             {
-                id: 'personen', label: 'Personen', href: '#/personen', icon: 'users',
-                // UX3b: „Übersicht“ ist kein Reiter von Personen mehr —
-                // der Einstieg zeigt die Liste (je Rolle Mitglieder- oder
-                // Adressbuch-Sicht). „MitgliederUebersicht“ bleibt als
-                // weitergeleitete Altadresse in der Liste (Lesezeichen).
-                seiten: ['Personen', 'MitgliederListe', 'PersonenListe', 'PersonenAnfragen', 'PersonenDatenschutz', 'MitgliederDatenschutz', 'PersonenLoeschantraege',
-                    'MitgliederLoeschantraege', 'PersonenImport', 'MitgliedDetail', 'Adressbuch'],
-                rolle: 'alle', badge: 'anfragen', suche: true,
+                // CHAT-R2a (Konzept CHAT-KONZEPT Abschnitt 10.1 Punkt 1 und 5,
+                // Entscheidung Manuel 17.11.): „Personen“ ist KEIN Menüpunkt
+                // mehr. An SEINER Stelle steht „Nachrichten“ — alle Personen
+                // findet man dort (Suche in „Nachrichten“, CHAT-3), die
+                // Verwaltung zieht nach „Einstellungen → Personenverwaltung“
+                // (siehe FUSS_EINTRAEGE und pages/Einstellungen.vue). Die
+                // Reihenfolge der Gruppe bleibt damit „Nachrichten · Gruppen“;
+                // sie folgt AUS DIESER LISTE, nicht aus dem Zeichner.
+                //
+                // Die alten Personen-Seitennamen und -Adressen bleiben
+                // erreichbar (Router, KEINE Weiterleitung) — sie markieren
+                // aber KEINEN Menüpunkt mehr: der Bereich ist umgezogen,
+                // nicht verschwunden. `modul: 'chat'` blendet den Eintrag
+                // ohne Chat-Leserecht aus (R-3, Boot `module_sichtbar`).
+                id: 'nachrichten', label: 'Nachrichten', href: '#/nachrichten', icon: 'nachricht',
+                seiten: ['Nachrichten'],
+                rolle: 'alle', modul: 'chat', suche: true,
             },
             {
                 id: 'gruppen', label: 'Gruppen', href: '#/gruppen', icon: 'layout-grid',
@@ -112,7 +123,26 @@ export const FUSS_EINTRAEGE = [
     // als Kennung am Eintrag; ob sie zutrifft, entscheiden `sichtbareEintraege`
     // und `sichtbarerFuss` aus den Flags der Sitzung (Boot: `is_admin`,
     // `ist_mitgliederverwaltung`). Nur Komfort — der Server prüft jede Seite.
-    { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus', 'EinstellungenPapierkorb', 'EinstellungenWebsite', 'EinstellungenGestaltung', 'Einrichtung'], verwaltung: 'personen', suche: true },
+    //
+    // CHAT-R2a-2 (Punkt d): Der Anfragen-Zähler hängt HIER. Vorher saß er am
+    // Menüpunkt „Personen“; der ist mit CHAT-R2a entfallen, und ohne diesen
+    // Umzug wären offene Registrierungsanfragen in der Navigation unsichtbar
+    // geworden. Die Seitenleiste liest `badge: 'anfragen'` (AppSidebar,
+    // `badgeFuer`), die Handy-Leiste/Schublade zeigt dieselbe Zahl am selben
+    // Eintrag — eine Quelle, eine Abfrage (`useVerwaltung.js`).
+    { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus', 'EinstellungenPapierkorb', 'EinstellungenWebsite', 'EinstellungenGestaltung',
+        // CHAT-R2a: der umgezogene Personenbereich ist ein Abschnitt der
+        // Einstellungen (Gruppe „Datenschutz“, eigene Adresse
+        // `#/einstellungen/personenverwaltung`) — die Seitenleiste markiert
+        // dort weiter „Einstellungen“, kein zweiter Eintrag.
+        'EinstellungenPersonenverwaltung',
+        // CHAT-R2a-2 (Punkt f): Auch die ALTEN Personen-Seiten markieren den
+        // Einstellungen-Eintrag. Sie bleiben erreichbar (eigene Adressen,
+        // Router ohne Weiterleitung), gehören aber zum umgezogenen Bereich —
+        // ohne sie stünde die Seitenleiste dort ohne Markierung da.
+        'Personen', 'MitgliederListe', 'MitgliederUebersicht', 'MitgliederAnfragen',
+        'MitgliederDatenschutz', 'MitgliederImport', 'MitgliederLoeschantraege',
+        'Einrichtung'], verwaltung: 'personen', badge: 'anfragen', suche: true },
 ]
 
 /**
@@ -172,12 +202,39 @@ export const ANFRAGEN_UNTERBEREICHE = [
 /** Der Unterbereich, auf den der Hauptpunkt „Anfragen“ führt (die Liste). */
 export const ANFRAGEN_HAUPTBEREICH = 'anfragen'
 
+/**
+ * CHAT-R2a-2 (Punkt a): Die Personenverwaltung ist ein Abschnitt der
+ * Einstellungen. Eingebettet (`#/einstellungen/personenverwaltung/<reiter>`)
+ * dürfen die Reiter NICHT über `#/personen/…` aus dem Rahmen springen — sie
+ * bleiben unter der Adresse des Abschnitts.
+ *
+ * Deshalb bekommt jede Adresse hier EINE Basis: die eingebettete
+ * (`#/einstellungen/personenverwaltung`) oder die alte Bereichsadresse
+ * (`#/personen`). Beide Formen bleiben gültig; die eingebettete ist die, die
+ * der Rahmen benutzt.
+ */
+export const PERSONENVERWALTUNG_BASIS = '#/einstellungen/personenverwaltung'
+
+/** Basis der Personen-Adressen: eingebettet oder der alte Bereich. */
+export function personenBasis(eingebettet = false) {
+    return eingebettet ? PERSONENVERWALTUNG_BASIS : '#/personen'
+}
+
+/**
+ * Adresse eines Personen-Reiters in der gewählten Basis.
+ * Eingebettet: `#/einstellungen/personenverwaltung/<reiter>` — die Liste ist
+ * der Abschnitt selbst (kein `/liste`-Anhängsel, sonst führte der Reiter
+ * „Liste“ auf eine Adresse, die es nicht gibt).
+ */
+export function personenReiterHref(id, eingebettet = false) {
+    return eingebettet ? `${PERSONENVERWALTUNG_BASIS}/${id}` : `#/personen/${id}`
+}
+
 /** Adresse eines Anfragen-Unterbereichs (Pfadteil, UX3j). */
-export function anfragenUnterbereichHref(bereich) {
+export function anfragenUnterbereichHref(bereich, eingebettet = false) {
     const id = bereich || ANFRAGEN_HAUPTBEREICH
-    return id === ANFRAGEN_HAUPTBEREICH
-        ? '#/personen/anfragen'
-        : `#/personen/anfragen/${id}`
+    if (id === ANFRAGEN_HAUPTBEREICH) return personenReiterHref('anfragen', eingebettet)
+    return `${personenReiterHref('anfragen', eingebettet)}/${id}`
 }
 
 /**
@@ -185,12 +242,18 @@ export function anfragenUnterbereichHref(bereich) {
  * Unbekannte Werte fallen auf den Hauptbereich zurück — keine leere Seite
  * über einer getippten Adresse. (Die alte Form `?bereich=…` wird im Router
  * vorher umgeschrieben; hier steht nur die neue Adresse.)
+ *
+ * CHAT-R2a-2 (Punkt a): auch die eingebettete Adresse
+ * (`#/einstellungen/personenverwaltung/anfragen[/<unter>]`) wird gelesen.
  */
 export function anfragenUnterbereichAusHash(hash) {
     const roh = typeof hash === 'string' ? hash : ''
     const pfad = roh.split('?')[0].replace(/\/+$/, '')
-    const treffer = /^#\/personen\/anfragen\/([^/]+)$/.exec(pfad)
-    const wert = treffer ? treffer[1] : ANFRAGEN_HAUPTBEREICH
+    // Beide Basen (`#/personen` und `#/einstellungen/personenverwaltung`).
+    const praefix = [`#/personen/anfragen`, `${PERSONENVERWALTUNG_BASIS}/anfragen`]
+        .map(b => `${b}/`)
+        .find(b => pfad.startsWith(b))
+    const wert = praefix ? pfad.slice(praefix.length) : ANFRAGEN_HAUPTBEREICH
     return sichtbareAnfragenUnterbereiche({ istAdmin: true }).some(u => u.id === wert)
         ? wert
         : ANFRAGEN_HAUPTBEREICH
@@ -219,14 +282,18 @@ export function unterbereichsWert(seite, bereich) {
  * gleich aussehend — die Einträge hier beschreiben sie.
  *
  * @param {{istAdmin?: boolean, istMitgliederverwaltung?: boolean,
- *          anfragenZahl?: number|null}} optionen
+ *          anfragenZahl?: number|null, eingebettet?: boolean}} optionen
+ *          `eingebettet` (CHAT-R2a-2, Punkt a): innerhalb der Einstellungen
+ *          tragen die Reiter die Adresse des Abschnitts
+ *          (`#/einstellungen/personenverwaltung/<reiter>`), sonst die alte
+ *          Bereichsadresse (`#/personen/<reiter>`).
  * @returns {Array<{id, label, href, value, seite, verwaltung, zahl}>}
  */
-export function personenReiter({ istAdmin = false, istMitgliederverwaltung = false, anfragenZahl = null } = {}) {
+export function personenReiter({ istAdmin = false, istMitgliederverwaltung = false, anfragenZahl = null, eingebettet = false } = {}) {
     return sichtbareMitgliederReiter({ istAdmin, istMitgliederverwaltung }).map(r => ({
         id: r.id,
         label: r.label,
-        href: r.href,
+        href: personenReiterHref(r.id, eingebettet),
         value: r.id,
         seite: r.seite,
         verwaltung: r.verwaltung,
@@ -239,14 +306,15 @@ export function personenReiter({ istAdmin = false, istMitgliederverwaltung = fal
 /**
  * Die zweite, kleinere Reiterzeile der Unterbereiche von „Anfragen“.
  * Null, wenn der Bereich „Anfragen“ nicht sichtbar ist (ohne Recht).
+ * `eingebettet` wie bei `personenReiter` (Adresse des Einstellungen-Abschnitts).
  */
-export function personenAnfragenReiter({ istAdmin = false, istMitgliederverwaltung = false } = {}) {
+export function personenAnfragenReiter({ istAdmin = false, istMitgliederverwaltung = false, eingebettet = false } = {}) {
     const rechte = { istAdmin, istMitgliederverwaltung }
     if (!sichtbareMitgliederReiter(rechte).some(r => r.id === 'anfragen')) return []
     return sichtbareAnfragenUnterbereiche(rechte).map(u => ({
         id: u.id,
         label: u.label,
-        href: anfragenUnterbereichHref(u.id),
+        href: anfragenUnterbereichHref(u.id, eingebettet),
         value: u.id,
         seite: u.seite,
         verwaltung: u.verwaltung,
@@ -265,23 +333,48 @@ export function sichtbareAnfragenUnterbereiche({ istAdmin = false, istMitglieder
  * → `id` aus `MITGLIEDER_REITER` oder null, wenn die Adresse nicht dazugehört.
  * UX3j: Die Reiter stehen in der Adresse; die Zuordnung liegt hier, damit
  * Oberfläche und Tests dieselbe Regel lesen.
+ *
+ * CHAT-R2a-2 (Punkt a): Die Personenverwaltung ist ein Abschnitt der
+ * Einstellungen. Deshalb gilt AUCH die eingebettete Form
+ * `#/einstellungen/personenverwaltung/<reiter>` (die Liste ist der Abschnitt
+ * selbst: ohne Anhängsel). Die alten `#/personen/*`-Adressen bleiben
+ * unverändert gültig — beide Formen werden hier gelesen.
  */
 export function personenReiterAusHash(hash, { istAdmin = false, istMitgliederverwaltung = false } = {}) {
     const roh = typeof hash === 'string' ? hash : ''
     const pfad = roh.split('?')[0].replace(/\/+$/, '')
     const rechte = { istAdmin, istMitgliederverwaltung }
-    const treffer = sichtbareMitgliederReiter(rechte).find(r => r.href === pfad)
-        // Unteradresse des Reiters (`#/personen/anfragen/links`) gehört zum Reiter.
-        || sichtbareMitgliederReiter(rechte)
+    const sichtbar = sichtbareMitgliederReiter(rechte)
+    // Die eingebettete Adresse des Abschnitts selbst ist der Reiter „Liste“.
+    if (pfad === PERSONENVERWALTUNG_BASIS) {
+        return sichtbar.some(r => r.id === LISTE_REITER_ID) ? LISTE_REITER_ID : null
+    }
+    // Beide Adressformen gelten: der alte Bereich UND der Einstellungen-Abschnitt.
+    const adressen = sichtbar.flatMap(r => [
+        { id: r.id, href: personenReiterHref(r.id, false) },
+        { id: r.id, href: personenReiterHref(r.id, true) },
+    ])
+    const treffer = adressen.find(r => r.href === pfad)
+        // Unteradresse des Reiters (`#/personen/anfragen/links`,
+        // `#/einstellungen/personenverwaltung/anfragen/links`) gehört zum Reiter.
+        || adressen
             .filter(r => pfad.startsWith(`${r.href}/`))
             .sort((a, b) => b.href.length - a.href.length)[0]
     return treffer ? treffer.id : null
 }
 
+/** Kennung des Einstiegs-Reiters (die Liste ist für alle da). */
+const LISTE_REITER_ID = 'liste'
+
 /** Symbolvorrat: Pfade im 24×24-Raster. */
 export const ICON_PFADE = {
     home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10',
     users: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
+    // CHAT-R2a: „Nachrichten“ (der Chat-Bereich, vormals „Personen“) — Sprech-
+    // blase mit zwei Strichen, aus derselben Strichfamilie (24er-Raster,
+    // Strichstärke 2, runde Enden; dieselbe Form wie `nachricht` in
+    // components/ui/symbole.mjs).
+    nachricht: 'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M22 7l-10 6L2 7',
     'layout-grid': 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z',
     'book-open': 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
     calendar: 'M3 4h18v16H3z M16 2v4 M8 2v4 M3 10h18',
@@ -300,6 +393,12 @@ export const ICON_PFADE = {
     moderation: 'M4 5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1z M14 5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1z M4 15a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1z M14 17h6 M17 14v6',
     // WEB-3: Globus für „Website“.
     globe: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M2 12h20 M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
+    // CHAT-3a (Review R1): „Mehr“ der Handy-Leiste — drei Punkte, waagerecht,
+    // als ECHTE Striche (Review: die erste Fassung `M6 12h.01` zeichnet bei
+    // `stroke-linecap: butt` je nach Browser nichts). Länge 0,5 px, damit die
+    // runden Enden einen Punkt von rund 2 px ergeben — 24er-Raster,
+    // Strichstärke 2, dieselbe Strichfamilie wie die übrigen Symbole.
+    mehr: 'M6 12h.5 M12 12h.5 M18 12h.5',
     settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z',
 }
 

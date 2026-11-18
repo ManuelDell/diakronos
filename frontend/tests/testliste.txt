@@ -750,3 +750,41 @@ tests/des1-*.test.mjs
 # (`laden` bleibt nicht `true`), sondern in Meldung/Leerzustand mit Weg
 # zurück. Router in einer vm, Seite als echter Skriptteil mit Vue-Ersatz.
 tests/bugs1-*.test.mjs
+# CHAT-R2a: Navigation „Personen“ → „Nachrichten“ (Chat-Konzept 10.1 Punkt 1
+# und 5, 10.2 — Entscheidung Manuel 17.11.). Menüeintrag getauscht (EINE
+# Quelle menue.js), Handy-Leiste Start · Nachrichten · Gruppen · Kalender,
+# Router-Seite `Nachrichten` (Platzhalter, Modul `chat`), alle alten
+# Personen-Adressen unverändert erreichbar, neue Merk-Adressen
+# (#/personenverwaltung, #/einstellungen/personen) leiten auf
+# #/einstellungen/personenverwaltung; die Personenverwaltung ist Abschnitt der
+# Einstellungen (Gruppe Datenschutz, verwaltung: 'personen') und bindet die
+# bestehende Personen-Seite ein.
+tests/chat-r2a-*.test.mjs
+# CHAT-R2a-2: Nachbesserung der Navigation (Review-Befunde a–f). Eingebettete
+# Personen-Reiter bleiben in den Einstellungen (#/einstellungen/
+# personenverwaltung/<reiter>), die alten #/personen/*-Adressen bleiben
+# gültig; Leisten-Tab „Nachrichten“ hängt am Modul `chat` (kein Tab ohne
+# Leserecht); Fenstertitel/Brotkrumen „Personenverwaltung“; Anfragen-Zähler am
+# Einstellungen-Eintrag; „Person anlegen“ und die Suche „pers“ führen auf die
+# Personenverwaltung.
+tests/chat-r2a-2-*.test.mjs
+# CHAT-3a: Bereich „Nachrichten" — Gesprächsliste, Verlauf, Eingabe (Chat-Konzept
+# 1/S1, 6.2 Variante B, 9 F1–F11, 10.1/10.2). Geprüft werden die DOM-freien
+# Regeln (composables/nachrichtenLogik.mjs: Gruppierung/Sortierung, Zeitformat,
+# Nachladen nach oben, Polling-Aufräumen, Zähler, Lesestand-Summe, gelöschte
+# Nachrichten, Fehlerzustände; nachrichtenReaktionen.mjs: festes Set, eine
+# Reaktion je Person) und die Bausteine (pages/Nachrichten.vue, chat/ChatBlase.vue,
+# chat/ChatListe.vue). Dazu die Handy-Leiste mit fünf Plätzen — „Mehr" öffnet die
+# bestehende Schublade, Zähler am Tab „Nachrichten" (die Regel „kein Mehr in der
+# Leiste" vom 03.11. ist durch 10.2 abgelöst). Review R1: Richtung entscheidet
+# über alt/neu (richtung==='vor' ist älter, sonst wird ersetzt und angehängt),
+# Lesestand nach stillem Poll, kein Timer-Leck (taktGeber nach anhalten
+# gestoppt), Backoff bis 60 s, EINE Abfrage meine_gespraeche je Takt (Summe im
+# Ereignis, App-Zähler pausiert bzw. nur am Handy alle 60 s), geloescht_grund.
+tests/chat3a-*.test.mjs
+# CHAT-3a-3 (Review Runde 2): App.startet (TDZ: useHandyLage VOR useChatZaehler,
+# Wechsel zur Leiste startet den Zaehler), Poll OHNE `seit` (Bearbeitung, Loeschung
+# samt Grund, Reaktion, Lesestand kommen an), Hauptgruppen-Adresse trifft NICHT die
+# Untergruppe, Liste hebt das offene Gespraech hervor (is-aktiv/aria-current),
+# mitteilungSenden(null) setzt den Zaehler nicht auf 0, Bearbeiten-Takt endet.
+tests/chat3a3-nachrichten-nacharbeit.test.mjs

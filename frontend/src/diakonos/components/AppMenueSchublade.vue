@@ -85,6 +85,10 @@
                   <path :d="ICON_PFADE[e.icon] || ''"/>
                 </svg>
                 <span class="dk-schublade-text">{{ e.label }}</span>
+                <!-- CHAT-R2a-2 (Punkt d): derselbe Zähler wie in der
+                     Seitenleiste — jetzt am Eintrag „Einstellungen“, weil die
+                     Personenverwaltung dorthin umgezogen ist. -->
+                <span v-if="badgeFuer(e)" class="dk-schublade-zaehler">{{ badgeFuer(e) }}</span>
               </a>
             </div>
           </nav>
@@ -202,7 +206,8 @@ const fussEintraege = computed(() => sichtbarerFuss({
 
 const istAktiv = (e) => istEintragAktiv(e, { seite: props.seite, hash: props.hash })
 
-/** Kennzahl wie in der Seitenleiste (nur „Personen“); nie eine erfundene Null. */
+/** Kennzahl wie in der Seitenleiste (seit CHAT-R2a-2 am Eintrag
+ *  „Einstellungen“); nie eine erfundene Null. */
 function badgeFuer(e) {
   if (e.badge === 'anfragen' && props.anfragenZahl > 0) return props.anfragenZahl
   return null

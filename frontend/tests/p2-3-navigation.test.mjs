@@ -32,7 +32,13 @@ function mehrBlatt(rolle) {
 
 /** Alle über das Handy erreichbaren Ziele (feste Tabs + Blatt). */
 function handyZiele(rolle) {
-  return [...fusstabs({ istGast: rolle.istGast }).map(t => t.href), ...mehrBlatt(rolle)]
+  // CHAT-3a: Der Platz „Mehr“ (`schublade: true`) hat KEINE Adresse — er öffnet
+  // die Menü-Schublade mit genau den Einträgen, die `mehrBlatt` hier zählt.
+  // Er zählt deshalb nicht als eigenes Ziel.
+  return [
+    ...fusstabs({ istGast: rolle.istGast }).filter(t => !t.schublade).map(t => t.href),
+    ...mehrBlatt(rolle),
+  ]
 }
 
 const ADMIN = { istAdmin: true, istTester: true, istGast: false }
@@ -47,10 +53,16 @@ test('DES-R9 · Admin: jeder Seitenleisten-Eintrag ist auch am Handy erreichbar'
 })
 
 test('DES-R9 · Lieder, Datenschutz und Einstellungen sind am Handy erreichbar', () => {
-  const handy = [...mehrBlatt(ADMIN), ...FUSS_EINTRAEGE.map(e => e.href), '#/profile']
   // UX3a: Liedgruppen sind ein REITER unter „Lieder“ (kein eigener Eintrag);
   // Datenschutz ist ein Reiter unter „Personen“.
-  for (const href of ['#/lieder', '#/personen', '#/einstellungen']) {
+  // CHAT-R2a (Chat-Konzept 10.1/10.2, Manuel 17.11.) — ANGEPASST, nicht
+  // gelöscht: Der Menüpunkt „Personen“ heißt jetzt „Nachrichten“ (an derselben
+  // Stelle, mit eigener Leisten-Tab); die Personenverwaltung erreicht man am
+  // Handy über „Einstellungen“ (Fuß der Schublade), nicht über einen sechsten
+  // Platz in der Leiste. Gemessen wird das ECHTE Erreichbarkeits-Maß
+  // `handyZiele` (feste Tabs + „Mehr“-Blatt) — dieselbe Quelle wie oben.
+  const handy = [...handyZiele(ADMIN), '#/profile']
+  for (const href of ['#/lieder', '#/nachrichten', '#/einstellungen']) {
     assert.ok(handy.includes(href), `„${href}“ fehlt in der Handy-Navigation`)
   }
   assert.ok(!handy.includes('#/lieder/gruppen'), 'kein eigener Menüpunkt Liedgruppen')
@@ -71,7 +83,11 @@ test('OP-ADMIN-21 · Adressbuch und „Zu prüfen“ sind über den Bereich erre
   // unter Kalender) — erreichbar über den jeweiligen Bereich, nicht als
   // eigener Menüpunkt.
   const seiten = sidebar(ADMIN)
-  assert.ok(seiten.includes('#/personen'))
+  // CHAT-R2a (Chat-Konzept 10.1 Punkt 1/5): „Personen“ ist kein Menüpunkt
+  // mehr — der Bereich heißt „Nachrichten“, die Verwaltung liegt unter
+  // „Einstellungen → Personenverwaltung“. Angepasst, nicht gelöscht: die
+  // Zusage bleibt „der Weg über den Bereich ist vorhanden“.
+  assert.ok(seiten.includes('#/nachrichten'))
   assert.ok(seiten.includes('#/kalender'))
   assert.ok(!seiten.includes('#/adressbuch'), 'kein eigener Menüpunkt mehr')
   assert.ok(!seiten.includes('#/moderation'), 'kein eigener Menüpunkt mehr')

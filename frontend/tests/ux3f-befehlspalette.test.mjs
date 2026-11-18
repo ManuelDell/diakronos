@@ -49,7 +49,12 @@ const indexCss = lies('src/diakonos/index.css')
 const kalenderQuelle = lies('src/diakonos/pages/Kalender.vue')
 const personenQuelle = lies('src/diakonos/pages/Personen.vue')
 
-const rechteAdmin = { istAdmin: true, istTester: false, istGast: false, rollen: ['System Manager'] }
+// CHAT-R2a: „Nachrichten“ trägt `modul: 'chat'` (Chat-Konzept 10.2). Ohne
+// Modul-Liste blendet `sichtbareEintraege` den Eintrag fail closed aus — die
+// Palette wird deshalb mit der Liste gemessen, die der Server dem Administrator
+// liefert (`rechte.modul_sichtbar` = alle Module).
+const MODULE_ALLE = ['aufgaben', 'beitraege', 'chat', 'dienstplaene', 'kalender', 'lieder', 'wiki']
+const rechteAdmin = { istAdmin: true, istTester: false, istGast: false, rollen: ['System Manager'], module: MODULE_ALLE }
 const rechteMitglied = { istAdmin: false, istTester: false, istGast: false, rollen: ['All'] }
 
 /**
@@ -131,14 +136,18 @@ test('↑ ↓ bewegen die Auswahl im Ring, ohne Auswahl beginnt ↓ oben und ↑
 test('Seiten kommen aus der Menüdefinition und ehren die Rollen', () => {
   const alle = seitenEintraege({ menue: MENUE, fuss: FUSS_EINTRAEGE, sichtbareEintraege, rechte: rechteAdmin })
   const titel = alle.map(e => e.titel)
-  for (const pflicht of ['Übersicht', 'Personen', 'Gruppen', 'Kalender', 'Dienste', 'Ressourcen',
+  // CHAT-R2a (Chat-Konzept 10.1 Punkt 1) — ANGEPASST, nicht gelöscht:
+  // „Personen“ heißt als Menüpunkt jetzt „Nachrichten“; die Palette liest
+  // dieselbe Definition und führt deshalb auf `#/nachrichten`.
+  for (const pflicht of ['Übersicht', 'Nachrichten', 'Gruppen', 'Kalender', 'Dienste', 'Ressourcen',
     'Beiträge', 'Wiki', 'Lieder', 'Website', 'Einstellungen']) {
     assert.ok(titel.includes(pflicht), `Seite „${pflicht}“ fehlt in der Palette`)
   }
   // Ort = Menügruppe (N7: Treffer zeigen ihren Ort).
-  const personen = alle.find(e => e.titel === 'Personen')
-  assert.equal(personen.ort, 'Gemeinde')
-  assert.equal(personen.ziel, '#/personen')
+  const nachrichten = alle.find(e => e.titel === 'Nachrichten')
+  assert.equal(nachrichten.ort, 'Gemeinde')
+  assert.equal(nachrichten.ziel, '#/nachrichten')
+  assert.ok(!titel.includes('Personen'), '„Personen“ ist kein Menüpunkt mehr')
   assert.equal(alle.find(e => e.titel === 'Einstellungen').ort, 'Verwaltung')
 
   // Ohne Verwaltungsrecht: „Einstellungen“ und „Website“ fehlen (dieselbe
@@ -161,7 +170,9 @@ test('Aktionen erscheinen nur bei Recht', () => {
   assert.deepEqual(aktionsEintraege({ darfTermin: false, darfPerson: false }), [])
   const nurPerson = aktionsEintraege({ darfPerson: true })
   assert.deepEqual(nurPerson.map(a => a.titel), ['Person anlegen'])
-  assert.equal(nurPerson[0].ziel, '#/personen?anlegen=1')
+  // CHAT-R2a-2 (Punkt e): der Personenbereich ist ein Abschnitt der
+  // Einstellungen — das Anlegen führt dorthin, nicht mehr auf `#/personen`.
+  assert.equal(nurPerson[0].ziel, '#/einstellungen/personenverwaltung?anlegen=1')
   const beide = aktionsEintraege({ darfTermin: true, darfPerson: true })
   assert.deepEqual(beide.map(a => a.titel), ['Termin anlegen', 'Person anlegen'])
   assert.equal(beide[0].ziel, '#/kalender?neu=1')
@@ -314,8 +325,23 @@ test('leere Eingabe: Zuletzt verwendet, Seiten, Aktionen — keine Server-Treffe
 })
 
 test('mit Eingabe: Seiten werden lokal gefiltert, Verlauf verschwindet', () => {
-  const ohneServer = paletteZeilen({ begriff: 'pers', seiten: seitenProbe, aktionen: [] })
-  assert.deepEqual(ohneServer.zeilen.map(z => z.titel), ['Personen'])
+  // CHAT-R2a: Der Menüpunkt „Personen“ heißt jetzt „Nachrichten“ (Chat-Konzept
+  // 10.1 Punkt 1) — die lokale Filterung bleibt dieselbe (Wortanfang zählt).
+  // Der Personenbereich ist als Abschnitt der EINSTELLUNGEN erreichbar; ein
+  // eigener Menüpunkt „Personen“/„Personenverwaltung“ entsteht dabei NICHT
+  // (Chat-Konzept 10.2: „Kein Menüpunkt für die Verwaltung“).
+  const ohneServer = paletteZeilen({ begriff: 'nachr', seiten: seitenProbe, aktionen: [] })
+  assert.deepEqual(ohneServer.zeilen.map(z => z.titel), ['Nachrichten'])
+  // CHAT-R2a-2 (Review R1, Punkt 3): „pers“ findet die PERSONENVERWALTUNG —
+  // als Seiten-Zeile in die Einstellungen, ohne eigenen Menüpunkt. Ein
+  // Mitgliederverwalter ohne Admin braucht dafür keinen Server-Treffer.
+  const pers = paletteZeilen({ begriff: 'pers', seiten: seitenProbe, aktionen: [] })
+  assert.deepEqual(pers.zeilen.map(z => z.titel), ['Personenverwaltung'])
+  assert.equal(pers.zeilen[0].ziel, '#/einstellungen/personenverwaltung')
+  assert.equal(pers.zeilen[0].ort, 'Einstellungen')
+  // Kein Menüpunkt „Personen“ (den gibt es nicht mehr) — nur die Verwaltung
+  // im Einstellungen-Abschnitt.
+  assert.ok(!pers.zeilen.some(z => z.id === 'seite:personen'))
 
   const mitServer = paletteZeilen({
     begriff: 'mie',

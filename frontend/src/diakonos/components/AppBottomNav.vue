@@ -1,26 +1,57 @@
 <template>
-  <!-- UX3e (Entwurf A8): Die untere Leiste zeigt nur noch die fünf häufigen
-       Ziele — Übersicht · Kalender · Dienste · Beiträge · Wiki. Der frühere
-       „Mehr“-Knopf und sein Blatt sind entfallen (Entscheidung Manuel
-       2026-11-03): alles Weitere steht in der Menü-Schublade, die das
-       Menü-Symbol oben links öffnet (AppMenueSchublade.vue).
+  <!-- UX3e (Entwurf A8): Die untere Leiste zeigt nur die häufigen Ziele.
+       CHAT-3a (Chat-Konzept 10.1/10.2, Manuel 17.11.): fünf Plätze
+       **Start · Nachrichten · Gruppen · Kalender · Mehr**. Der fünfte Platz
+       „Mehr“ öffnet die bestehende Menü-Schublade (AppMenueSchublade.vue) —
+       kein eigener Seitenbaum, kein Blatt. Die Regel „kein Mehr in der
+       Leiste“ vom 03.11. ist damit abgelöst (Konzept 10.2).
 
        Gäste sehen nur, was der Server ihnen erlaubt (OP-HANDY-15/UX3a2):
-       Übersicht und Kalender — dieselbe Regel wie zuvor (fusstabs.mjs). -->
+       Start und Kalender — dieselbe Regel wie zuvor (fusstabs.mjs). -->
   <nav class="dk-bottom-nav" aria-label="Hauptnavigation">
-    <a
-      v-for="tab in hauptTabs"
-      :key="tab.href"
-      class="dk-bn-tab"
-      :href="tab.href"
-      :class="{ active: istAktiv(tab) }"
-      :aria-current="istAktiv(tab) ? 'page' : undefined"
-    >
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path :d="ICON_PFADE[tab.icon]" />
-      </svg>
-      <span>{{ tab.label }}</span>
-    </a>
+    <template v-for="tab in hauptTabs" :key="tab.href || tab.label">
+      <!-- „Mehr“: ein KNOPF, der die Schublade öffnet. WAS ein Platz ist,
+           entscheidet `tabArt()` in `handyMenue.mjs` — hier steht kein zweites
+           `if` über die Kennung des Platzes. -->
+      <button
+        v-if="tabArt(tab) === 'schublade'"
+        type="button"
+        class="dk-bn-tab"
+        :class="{ active: istAktiv(tab) }"
+        :aria-expanded="menueOffen ? 'true' : 'false'"
+        aria-haspopup="dialog"
+        :aria-label="MEHR_TEXT"
+        @click="$emit('open-menu')"
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path :d="ICON_PFADE[tab.icon]" />
+        </svg>
+        <span>{{ tab.label }}</span>
+      </button>
+      <a
+        v-else
+        class="dk-bn-tab"
+        :href="tab.href"
+        :class="{ active: istAktiv(tab) }"
+        :aria-current="istAktiv(tab) ? 'page' : undefined"
+        :aria-label="zaehlerFuer(tab) ? `${tab.label} — ${zaehlerFuer(tab)} ungelesene Nachrichten` : undefined"
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path :d="ICON_PFADE[tab.icon]" />
+        </svg>
+        <!-- CHAT-3a: Ungelesen-Zähler am Platz „Nachrichten“ — die EINE Zahl
+             aus `meine_gespraeche` (dieselbe in Leiste, Schublade, Seitenleiste).
+             Review R1: KEIN `role="status"` — ein Status hätte jede Änderung
+             angesagt, auch mitten im Tippen. Die Zahl ist reine Anzeige
+             (`aria-hidden`); den Satz trägt der Platz selbst als `aria-label`. -->
+        <span
+          v-if="zaehlerFuer(tab)"
+          class="dk-bn-zaehler"
+          aria-hidden="true"
+        >{{ zaehlerFuer(tab) }}</span>
+        <span>{{ tab.label }}</span>
+      </a>
+    </template>
   </nav>
 </template>
 
@@ -33,22 +64,57 @@
  * `seite` kommt von App.vue: die Markierung hängt an der aktuellen
  * Route. Vorher las die Komponente den Seitenzustand selbst — dadurch war die
  * Regel im Test nicht nachvollziehbar.
+ *
+ * CHAT-3a (Chat-Konzept 10.1/10.2): fünf Plätze, davon einer „Mehr“.
+ * `menueOffen` und `@open-menu` verbinden ihn mit der BESTEHENDEN Schublade
+ * (App.vue hält den einen Zustand) — die Leiste baut kein zweites Menü.
+ * `ungelesen` ist die eine Zahl der Nachrichten; der Zähler steht damit am
+ * Tab „Nachrichten“.
+ *
+ * CHAT-R2a-2 (Punkt b): Die Modulliste der Sitzung
+ * (`window.__DIakonosBOOT.module_sichtbar`, vom Server gerechnet) und
+ * `isAdmin` werden durchgereicht — `fusstabs()` blendet „Nachrichten“ ohne
+ * Chat-Leserecht aus, mit GENAU der Regel des Router-Guards
+ * (`modulChatErlaubt`: Administrator immer, sonst nur mit `chat` in der
+ * Liste, ohne Liste gar nicht). Ohne diese beiden Werte hätte die Leiste
+ * einen Tab gezeigt, den der Wächter anschließend auf den Start zurückwarf.
  */
 import { computed } from 'vue'
 import { useSession } from '../composables/useSession.js'
 import { ICON_PFADE } from '../menue.js'
-import { fusstabs } from './fusstabs.mjs'
-import { istTabAktiv } from './handyMenue.mjs'
+import { fusstabs, tabZaehler } from './fusstabs.mjs'
+import { istTabAktiv, tabArt, MEHR_TEXT } from './handyMenue.mjs'
 
 const props = defineProps({
   seite: { type: String, default: '' },
+  /** Zustand der Menü-Schublade — markiert den Platz „Mehr“ (CHAT-3a). */
+  menueOffen: { type: Boolean, default: false },
+  /** Ungelesene Nachrichten (`ungelesenSumme` der Gespräche), `null` = unbekannt. */
+  ungelesen: { type: Number, default: null },
 })
+defineEmits(['open-menu'])
 const { mitglied, isAdmin } = useSession()
 
 const isGast = computed(() => !isAdmin.value && mitglied.value?.status === 'Gast')
-const hauptTabs = computed(() => fusstabs({ istGast: isGast.value }))
+/** Modulliste der Sitzung — `null`, wenn der Server sie nicht liefert. */
+const module = computed(() => {
+  const liste = typeof window === 'undefined' ? null : window.__DIakonosBOOT?.module_sichtbar
+  return Array.isArray(liste) ? liste : null
+})
+const hauptTabs = computed(() => fusstabs({
+  istGast: isGast.value,
+  istAdmin: isAdmin.value === true,
+  module: module.value,
+}))
 
-const istAktiv = (tab) => istTabAktiv(tab, { seite: props.seite })
+/**
+ * Markiert ist GENAU EIN Platz (Review R1). Die Regel steht in `istTabAktiv`
+ * (eine Stelle): bei offener Schublade ist ausschließlich „Mehr“ markiert, der
+ * Platz der aktuellen Seite liegt dahinter und ist es NICHT.
+ */
+const istAktiv = (tab) => istTabAktiv(tab, { seite: props.seite, schubladeOffen: props.menueOffen })
+/** Der Zähler eines Platzes ('' = keiner) — dieselbe Quelle wie die Leiste. */
+const zaehlerFuer = (tab) => tabZaehler(tab, { nachrichten: props.ungelesen })
 </script>
 
 <style scoped>
@@ -105,6 +171,9 @@ const istAktiv = (tab) => istTabAktiv(tab, { seite: props.seite })
   min-height: var(--control-h);
   transition: color 0.15s;
   -webkit-tap-highlight-color: transparent;
+  /* CHAT-3a: Der Platz „Mehr“ ist ein <button> — ohne diese Zeile erbte er die
+     Browser-Schrift und stünde sichtbar anders da als die Links daneben. */
+  font-family: inherit;
 }
 /* Der aktive Reiter nahm --primary — im Dunkelmodus ist das WEISS und damit von
    den inaktiven nicht zu unterscheiden (dieselbe Falle wie DEV-4 bei DkTabs).
@@ -115,8 +184,10 @@ const istAktiv = (tab) => istTabAktiv(tab, { seite: props.seite })
   color: var(--accent);
   font-weight: var(--fw-fett);
 }
-.dk-bn-tab.active span { position: relative; }
-.dk-bn-tab.active span::after {
+/* CHAT-3a: der Unterstrich sitzt an der BESCHRIFTUNG (letztes <span>), nicht an
+   jedem — der Zähler ist auch ein <span> und bekäme sonst einen Strich. */
+.dk-bn-tab.active > span:last-child { position: relative; }
+.dk-bn-tab.active > span:last-child::after {
   content: '';
   position: absolute;
   left: 0; right: 0; bottom: -3px;
@@ -128,4 +199,22 @@ const istAktiv = (tab) => istTabAktiv(tab, { seite: props.seite })
   outline-offset: -2px;
 }
 .dk-bn-tab svg { flex-shrink: 0; }
+
+/* CHAT-3a: Ungelesen-Zähler am Platz „Nachrichten“. Dieselbe Form und Farbe
+   wie der Zähler der Seitenleiste (--marke-flaeche/--marke-ink) — er steht IN
+   der Spalte über der Beschriftung, nicht schwebend darüber, damit er nichts
+   verdeckt. */
+.dk-bn-zaehler {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--sp-1);
+  border-radius: var(--badge-r);
+  background: var(--marke-flaeche);
+  color: var(--marke-ink);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-fett);
+  line-height: 1;
+}
 </style>

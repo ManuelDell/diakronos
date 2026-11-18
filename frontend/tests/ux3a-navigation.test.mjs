@@ -58,7 +58,10 @@ function labels(gruppe) {
     'Gruppenreihenfolge nach Entwurf A1')
 
   assert.deepEqual(labels(''), ['Übersicht'], 'Übersicht steht allein oben')
-  assert.deepEqual(labels('Gemeinde'), ['Personen', 'Gruppen'])
+  // CHAT-R2a (Manuel 17.11., Chat-Konzept 10.1 Punkt 1): „Personen“ ist als
+  // Menüpunkt entfallen und durch „Nachrichten“ an DERSELBEN Stelle ersetzt.
+  // Angepasst (nicht gelöscht): die Struktur-Zusage bleibt, nur der Name wechselt.
+  assert.deepEqual(labels('Gemeinde'), ['Nachrichten', 'Gruppen'])
   assert.deepEqual(labels('Planen'), ['Kalender', 'Dienste', 'Ressourcen'])
   assert.deepEqual(labels('Inhalte'), ['Beiträge', 'Wiki', 'Lieder', 'Website'])
 
@@ -68,7 +71,10 @@ function labels(gruppe) {
     'Einstellungen ist kein Gruppenpunkt')
 
   // Alte Adressen der zusammengelegten Bereiche/Reiter.
-  assert.equal(M.MENUE.find(g => g.eintraege.some(e => e.id === 'personen')).eintraege[0].href, '#/personen')
+  // CHAT-R2a: der Eintrag der Gruppe „Gemeinde“ heißt jetzt `nachrichten`.
+  // Die ALTEN Personen-Adressen bleiben trotzdem erreichbar — das prüft
+  // `tests/chat-r2a-navigation.test.mjs` am echten Router.
+  assert.equal(M.MENUE.find(g => g.eintraege.some(e => e.id === 'nachrichten')).eintraege[0].href, '#/nachrichten')
   const planen = M.MENUE.find(g => g.gruppe === 'Planen').eintraege
   assert.equal(planen.find(e => e.id === 'dienste').href, '#/dienste')
   // „Ressourcen“ BLEIBT (Konzept-Entscheidung).
@@ -111,7 +117,8 @@ function labels(gruppe) {
   // Administrator sieht alles inklusive der rollengeschützten „Website“.
   const adminLabels = [gemeinde, planen, inhalte]
     .flatMap(g => liste(M.sichtbareEintraege(g, { istAdmin: true, rollen: ['System Manager'] })).map(e => e.label))
-  for (const pflicht of ['Personen', 'Kalender', 'Dienste', 'Ressourcen', 'Lieder', 'Website']) {
+  // CHAT-R2a: „Personen“ → „Nachrichten“ (Menüpunkt an derselben Stelle).
+  for (const pflicht of ['Nachrichten', 'Kalender', 'Dienste', 'Ressourcen', 'Lieder', 'Website']) {
     assert.ok(adminLabels.includes(pflicht), `Admin sieht "${pflicht}"`)
   }
 
@@ -158,8 +165,19 @@ function labels(gruppe) {
 
 // ── Seitentitel = Menüname (Brotkrumen) ─────────────────────────────────────
 {
-  assert.equal(M.krumenZuSeite('Personen').join(''), 'Personen')
-  assert.equal(M.krumenZuSeite('MitgliederListe').join(''), 'Personen', 'Reiter trägt den Menünamen')
+  // CHAT-R2a-2 (Punkt f): Auch die alten Personen-Seiten (`#/personen/*`)
+  // markieren den Einstellungen-Eintrag — der Bereich ist dorthin umgezogen,
+  // bleibt aber unter seiner alten Adresse erreichbar. Angepasst, nicht
+  // gelöscht: die Krumen nennen den ORT, nicht die alte Bereichsbezeichnung.
+  assert.equal(M.krumenZuSeite('Personen').join(''), 'Einstellungen')
+  // CHAT-R2a (Chat-Konzept 10.1 Punkt 5, 10.2): Die Personen-Reiter sind Teil
+  // der EINSTELLUNGEN geworden — sie markieren keinen eigenen Menüpunkt mehr
+  // (die Reiter-Adressen selbst bleiben unverändert erreichbar). Angepasst,
+  // nicht gelöscht: die Zusage lautet jetzt „der Reiter trägt seinen Bereich“.
+  assert.equal(M.krumenZuSeite('MitgliederListe').join(''), 'Einstellungen',
+    'die alte Personen-Seite markiert den umgezogenen Bereich (Einstellungen)')
+  assert.equal(M.krumenZuSeite('EinstellungenPersonenverwaltung').join(''), 'Einstellungen',
+    'die umgezogene Personenverwaltung markiert „Einstellungen“')
   assert.equal(M.krumenZuSeite('DiensteDienstplaene').join(''), 'Dienste')
   assert.equal(M.krumenZuSeite('Moderation').join(''), 'Kalender', 'Zu prüfen liegt im Kalender')
   assert.equal(M.krumenZuSeite('EinstellungenAnmeldung').join(''), 'Einstellungen')
@@ -183,6 +201,11 @@ function routerAusfuehren(boot) {
       "({ EINRICHTUNG_ROUTE: '#/einrichtung', EINRICHTUNG_ZIEL_NACH_ABSCHLUSS: '#/einstellungen', " +
       "einrichtungGesehen: () => false, einrichtungsWeiterleitung: () => null, " +
       "einrichtungSeiteErlaubt: (b) => !b || b.is_admin === true })")
+    // CHAT-R2a-2: `router.js` bindet `modulChatErlaubt` aus `modulRechte.mjs` (EINE
+    // Fassung der Regel, DOM-frei) und gibt sie weiter. Die VM streicht Importe und
+    // Exporte — hier tritt dieselbe Funktion als Attrappe ein.
+    .replace(/^export \{ modulChatErlaubt \}$/gm,
+      "const modulChatErlaubt = (boot = {}) => { if (boot.is_admin === true) return true; if (!Array.isArray(boot.module_sichtbar)) return false; return boot.module_sichtbar.includes('chat') }")
     .replace(/^export \{.*\}$/gm, '').replace(/^export /gm, '')
   source += '\nglobalThis.router = {onBeforeEach, getRouteParams, currentHash, currentPageName};'
   let hashchange

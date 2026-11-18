@@ -86,11 +86,40 @@ export function istEintragAktiv(eintrag, { seite = '', hash = '' } = {}) {
  * `seite` ist der Seitenname der aktuellen Route; die Unterseiten eines
  * Bereichs (z. B. `KalenderVerwaltung`, `Moderation`) stehen in `tab.seiten`,
  * damit der Bereich dort markiert bleibt.
+ *
+ * CHAT-3a: „Mehr“ (`schublade: true`) hat KEINE Seiten — der Platz ist dann
+ * markiert, wenn die Menü-Schublade offen ist (`schubladeOffen`).
+ *
+ * GENAU EIN Platz ist aktiv: Solange die Schublade offen ist, ist „Mehr“ der
+ * aktive Platz und die Seiten-Plätze sind es NICHT — sonst stünden bei offener
+ * Schublade zwei Plätze gleichzeitig auf „aktiv“ (der Seiten-Platz der
+ * aktuellen Route und „Mehr“). Die Schublade liegt als Ganzes über der Seite;
+ * der markierte Platz sagt, wo man gerade ist: in der Schublade.
  */
-export function istTabAktiv(tab, { seite = '' } = {}) {
-    if (!tab || !Array.isArray(tab.seiten)) return false
+export function istTabAktiv(tab, { seite = '', schubladeOffen = false } = {}) {
+    if (!tab) return false
+    if (tab.schublade) return schubladeOffen === true
+    if (schubladeOffen === true) return false
+    if (!Array.isArray(tab.seiten)) return false
     return tab.seiten.includes(seite)
 }
+
+/**
+ * CHAT-3a — was ein Leisten-Platz IST (Chat-Konzept 10.1/10.2: fünf Plätze
+ * „Start · Nachrichten · Gruppen · Kalender · Mehr“).
+ *
+ * `link`    ein Ziel des Menüs (Adresse in `href`),
+ * `schublade` der Platz „Mehr“: er öffnet die Menü-Schublade (UX3e), er
+ *           verlinkt nichts. EINE Stelle entscheidet das — der Zeichner
+ *           (`AppBottomNav.vue`) fragt hier und baut kein zweites `if`.
+ */
+export function tabArt(tab) {
+    if (!tab) return 'leer'
+    return tab.schublade ? 'schublade' : 'link'
+}
+
+/** Vorlesetext des „Mehr“-Platzes (N8: beschriften, nicht nur ein Zahnrad). */
+export const MEHR_TEXT = 'Mehr — Menü öffnen'
 
 /**
  * Vorlesetext des Menü-Knopfes oben links (Prinzip N8 „beschriften statt nur

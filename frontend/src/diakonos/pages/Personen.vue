@@ -9,7 +9,7 @@
          UX3b2: Der Reiter steht in der ADRESSE (#/personen/<reiter>), nicht
          nur im Speicher — ein Lesezeichen öffnet denselben Reiter, und
          „zurück“ führt auf den vorigen. -->
-    <DkPageHeader title="Personen" :sub="unterzeile" />
+    <DkPageHeader v-if="!embedded" title="Personen" :sub="unterzeile" />
 
     <!-- UX3j (Entwurf A3, Review-Nacharbeit Punkt 4): EINE Kopfzeile — links
          die Reiterzeile, rechts ihre Werkzeuge („Filter“, Hauptaktion). Die
@@ -255,9 +255,27 @@ import WartendeKontenKarte from '../components/WartendeKontenKarte.vue'
 // denselben); er lebt beim Mitglieder-Bereich.
 import MitgliedHinzufuegenDialog from '../components/mitglieder/MitgliedHinzufuegenDialog.vue'
 
+/**
+ * CHAT-R2a (Chat-Konzept 10.1 Punkt 5): derselbe Bereich, EINE Umsetzung —
+ * als Abschnitt der Einstellungen läuft die Seite `embedded` und lässt den
+ * eigenen Seitenkopf weg (der Rahmen „Einstellungen“ trägt ihn). Die
+ * Reiterzeile der Personenverwaltung bleibt dabei stehen (Vorgabe der Karte).
+ */
+const props = defineProps({
+  embedded: { type: Boolean, default: false },
+})
+
 const Registrierung = defineAsyncComponent(() => import('./Registrierung.vue'))
 const Datenschutz = defineAsyncComponent(() => import('./mitglieder/Datenschutz.vue'))
 const Import = defineAsyncComponent(() => import('./mitglieder/Import.vue'))
+
+/**
+ * CHAT-R2a-2 (Punkt a): läuft die Seite eingebettet (als Abschnitt der
+ * Einstellungen), schreiben ihre Reiter die Adresse des Abschnitts
+ * (`#/einstellungen/personenverwaltung/<reiter>`) — kein Sprung mehr aus dem
+ * Rahmen heraus. Als eigene Seite bleiben die alten `#/personen/*`-Adressen.
+ */
+const eingebettetWert = computed(() => props.embedded === true)
 
 // UI-R10: Der Personenbereich gehört der MITGLIEDERverwaltung (R-11a) — die
 // Rolle „Mitgliederadministrator“ ist seit R-11a kein Administrator mehr
@@ -281,10 +299,12 @@ const reiterOptionen = computed(() => personenReiter({
   istAdmin: istAdmin.value === true,
   istMitgliederverwaltung: darfVerwalten.value,
   anfragenZahl: anfragenZahl.value,
+  eingebettet: eingebettetWert.value,
 }))
 const unterReiterOptionen = computed(() => personenAnfragenReiter({
   istAdmin: istAdmin.value === true,
   istMitgliederverwaltung: darfVerwalten.value,
+  eingebettet: eingebettetWert.value,
 }))
 /** Zeigt dieser Reiter die zweite Ebene? (fertiger Wahrheitswert — in der
  *  Vorlage werden Refs in Ausdrücken nicht ausgepackt.) */
@@ -601,7 +621,10 @@ onMounted(() => {
 })
 
 /**
- * UX3f: Die Befehlspalette bietet „Person anlegen“ als `#/personen?anlegen=1`.
+ * UX3f: Die Befehlspalette bietet „Person anlegen“ als `…?anlegen=1`.
+ * CHAT-R2a-2 (Punkt e): das Ziel ist jetzt die Personenverwaltung in den
+ * Einstellungen (`#/einstellungen/personenverwaltung?anlegen=1`) — die alte
+ * Bereichsadresse bleibt als Lesezeichen gültig.
  * Der Schalter wird EINMAL gelesen und aus der Adresse entfernt, sonst öffnete
  * jedes Neuladen das Formular erneut. Ohne Recht bleibt es beim Seitenwechsel
  * (der Knopf erscheint dann gar nicht erst).
