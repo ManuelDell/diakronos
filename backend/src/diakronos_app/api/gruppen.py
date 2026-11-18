@@ -1458,18 +1458,26 @@ def get_gruppe_termine(gruppe_id, tage=60):
     Termine von heute bis +`tage` Tage.
 
     BUG-T1 (Befund Manuel 17.11.): Die Auswahl der Termine hing allein an
-    `Element.gruppe`. Dieses Feld schreibt KEIN Schreibweg dieser App
-    (`create_event`/`create_series`/`save_event`/`update_event` nehmen es nicht
-    an, die Oberfläche schickt es nicht) — es ist auf allen so angelegten
-    Terminen leer. Die Karte „Nächste Termine“ war damit immer leer, obwohl
-    dieselben Termine im Kalender standen. Maßgeblich ist jetzt dieselbe
-    Zuordnung, die auch „+ Termin“ auf dieser Seite benutzt
-    (`components/gruppen/gruppenTermin.mjs: kalenderDerGruppe`): die Kalender
-    dieser Seite — bei einer Untergruppe ihre eigenen und der Kalender der
-    Hauptgruppe. `Element.gruppe`, wenn gesetzt (Alt-/Importdaten), zählt
-    ZUSÄTZLICH und ausdrücklich nur für genau diese Kennung (BUG-T1-Review F1:
-    eine Abfrage, kein „Kalender-Weitergriff“). Die Liste ist nach `start`
-    sortiert — die Oberfläche zeigt nur die ersten vier (F2).
+    `Element.gruppe`. Dieses Feld schrieb damals KEIN Schreibweg dieser App —
+    es war auf allen so angelegten Terminen leer. Die Karte „Nächste Termine“
+    war damit immer leer, obwohl dieselben Termine im Kalender standen.
+    Maßgeblich ist jetzt dieselbe Zuordnung, die auch „+ Termin“ auf dieser
+    Seite benutzt (`components/gruppen/gruppenTermin.mjs: kalenderDerGruppe`):
+    die Kalender dieser Seite — bei einer Untergruppe ihre eigenen und der
+    Kalender der Hauptgruppe.
+
+    TERMIN-GRUPPE (Manuel 17.11.): `Element.gruppe` wird inzwischen beim
+    Schreiben aus dem Kalender gesetzt (`termin_gruppe`) und trägt bei einem
+    Untergruppen-Kalender die HAUPTgruppe (der FK lässt nur Hauptgruppen zu).
+    Es taugt damit NICHT mehr als Seiten-Zuordnung: sonst stünde der Termin
+    des Untergruppen-Kalenders auch auf der Seite der Hauptgruppe und die
+    Seite bekäme Termine eines Kalenders, den der Aufrufer nicht sieht
+    (BUG-T1-Folge, Review 17.11. Fälle A/B). Die Ersatzregel gilt deshalb nur
+    für Termine in Kalendern OHNE Gruppenzuordnung (Altbestand ohne Kalender,
+    Gemeinde-/Importkalender) und dort ausdrücklich nur für genau diese
+    Kennung (BUG-T1-Review F1: eine Abfrage, kein „Kalender-Weitergriff“).
+    Sonst entscheidet allein die Kalenderzuordnung dieser Seite. Die Liste ist
+    nach `start` sortiert — die Oberfläche zeigt nur die ersten vier (F2).
 
     Rechte: derselbe Lesezugriff wie `get_gruppe_detail` — wer die Gruppe nicht
     sehen darf, bekommt auch ihre Termine nicht. Die Kalender-Sichtbarkeit
@@ -1526,6 +1534,32 @@ def get_gruppe_termine(gruppe_id, tage=60):
     )
     eigene = [n for n in kalender if n in seiten_kalender]
 
+    # TERMIN-GRUPPE (Manuel 17.11.): seit `Element.gruppe` beim Schreiben aus
+    # dem Kalender folgt, taugt das Feld NICHT mehr als Seiten-Zuordnung: ein
+    # Untergruppen-Kalender trägt die HAUPTgruppe (der FK lässt nur die zu),
+    # zöge seinen Termin also auf die Hauptgruppen-Seite (BUG-T1-Folge), und
+    # eine Seite, die den fremden Kalender nicht sieht, bekäme dessen Termine
+    # trotzdem gezeigt (Review 17.11., Fälle A und B: Hauptgruppe ohne
+    # eigenen/sichtbaren Kalender, Untergruppe mit Kalender).
+    #
+    # Die Ersatzregel gilt deshalb NUR für Termine, deren KALENDER KEINE
+    # Gruppenzuordnung hat: ohne `element_calendar` (Altbestand) oder mit
+    # einem Kalender, dessen `RechteObjekt`-Zeile weder `gruppe` noch
+    # `untergruppe` nennt (Gemeinde-/Importkalender). Ein Termin in einem
+    # Kalender, der IRGENDEINER Gruppe oder Untergruppe zugeordnet ist, wird
+    # ausschließlich über die Kalenderliste oben zugeordnet — dort entscheidet
+    # `get_accessible_calendars`, ob der Aufrufer ihn sehen darf.
+    gruppenlose_kalender = {
+        n for n in alle_zugaenglich
+        if not any(
+            isinstance(c, dict) and c.get("name") == n
+            and (str(c.get("gruppe") or "").strip()
+                 or str(c.get("untergruppe") or "").strip())
+            for c in kalender_info
+        )
+    }
+    ersatzregel = bool(gruppenlose_kalender)
+
     def _nach_moderation(namen: list[str]) -> tuple[list[str], list[str]]:
         """(moderierte, übrige) — Rolle aus `kalender_info` (Rechte-Kern)."""
         moderiert = [
@@ -1551,34 +1585,53 @@ def get_gruppe_termine(gruppe_id, tage=60):
         # BUG-T1: KEIN `gruppe`-Filter im Regelfall — er warf jeden regulär
         # angelegten Termin weg (das Feld schreibt kein Schreibweg, s. Kopf).
         # Die Auswahl leistet die Kalenderliste oben.
-        filters: dict[str, Any] = {
+        #
+        # `or_filters` ist EIN ODER-Block neben den UND-Filtern — er darf
+        # deshalb NUR die Zeitfenster-Bedingungen tragen. Die beiden
+        # Kalender-Zweige der Ersatzregel (ohne Kalender / gruppenlose
+        # Kalender) sind je eine EIGENE Abfrage: eins von beiden in `or_filters`
+        # zu legen würde es mit dem Zeitfenster ODER-verknuepfen und damit den
+        # Kalender-Filter aushebeln (Review 18.11.).
+        fenster = [
+            ["element_end", ">=", fenster_start],
+            ["element_start", ">=", fenster_start],
+        ]
+        felder = [
+            "name", "element_name", "element_start", "element_end",
+            "status", "description", "element_calendar", "owner",
+        ]
+        basis: dict[str, Any] = {
             "element_start": ["<=", fenster_ende],
-            "element_calendar": ["in", cal_names],
             # UX2b2 (F3): geloeschte Termine (Papierkorb) gehoeren nicht in die
             # Terminliste einer Gruppe.
             "geloescht_am": ["is", "not set"],
         }
-        if gruppe_filter:
-            # BUG-T1-Review F1: die Ersatzregel für Alt-/Importdaten. EINE
-            # Abfrage über ALLE zugänglichen Kalender, aber ausdrücklich auf
-            # `Element.gruppe == gruppe_id` eingeschränkt — ein fremder Termin
-            # im selben Kalender bleibt draußen.
-            filters["gruppe"] = gruppe_id
-        or_filters = [
-            ["element_end", ">=", fenster_start],
-            ["element_start", ">=", fenster_start],
-        ]
-        rows = get_all(
-            "Element",
-            filters=filters,
-            or_filters=or_filters,
-            fields=[
-                "name", "element_name", "element_start", "element_end",
-                "status", "description", "element_calendar", "owner",
-            ],
-            order_by="element_start asc",
-            limit_page_length=50,
-        ) or []
+
+        def _frage(zusatz: dict[str, Any]) -> list[dict]:
+            return list(get_all(
+                "Element",
+                filters={**basis, **zusatz},
+                or_filters=list(fenster),
+                fields=felder,
+                order_by="element_start asc",
+                limit_page_length=50,
+            ) or [])
+
+        if not gruppe_filter:
+            rows = _frage({"element_calendar": ["in", cal_names]})
+        else:
+            # BUG-T1-Review F1 / TERMIN-GRUPPE: die Ersatzregel für Termine
+            # OHNE Kalender-Gruppenzuordnung. Ausdrücklich auf
+            # `Element.gruppe == gruppe_id` eingeschränkt (ein fremder Termin
+            # bleibt draußen). NUR die gruppenlosen Kalender — ein Termin in
+            # einem Gruppenkalender darf hier nicht auftauchen (Review 17.11.,
+            # Fälle A/B). Altbestand OHNE Kalender ist ein eigener Zweig, weil
+            # `in` kein NULL trifft.
+            rows = _frage({"gruppe": gruppe_id, "element_calendar": ["is", "not set"]})
+            rows += _frage({
+                "gruppe": gruppe_id,
+                "element_calendar": ["in", list(cal_names)],
+            })
         # P0-3/B2: Statusfilter hier in Python statt in SQL, damit ein eigener
         # Vorschlag nicht schon von der Abfrage verworfen wird. Moderierte
         # Kalender liefern alle Status AUSSER `Abgelehnt` (W-A); sonst nur
@@ -1596,16 +1649,19 @@ def get_gruppe_termine(gruppe_id, tage=60):
     rows: list[dict] = []
     rows.extend(_hole(mod_kalender, alle_status=True))
     rows.extend(_hole(regulaer, alle_status=False))
-    # BUG-T1-Review F1: die Ersatzregel (`Element.gruppe`) ist ZUSÄTZLICH
-    # gültig — auch wenn die Seite einen Kalender hat (Docstring: „bleibt als
-    # Alternative“). Ausdrücklich auf `Element.gruppe == gruppe_id`
-    # eingeschränkt (ein fremder Termin im selben Kalender bleibt draußen) und
-    # über ALLE zugänglichen Kalender, weil die Seite gar keinen haben kann.
+    # BUG-T1-Review F1 / TERMIN-GRUPPE: die Ersatzregel (`Element.gruppe`) ist
+    # ZUSÄTZLICH gültig — aber NUR für Termine, deren Kalender keine
+    # Gruppenzuordnung hat (Altbestand ohne Kalender, Gemeinde-/Importkalender;
+    # s. `gruppenlose_kalender` oben). Ausdrücklich auf
+    # `Element.gruppe == gruppe_id` eingeschränkt (ein fremder Termin bleibt
+    # draußen).
     # Status nach Moderation getrennt wie oben — ein fremder Vorschlag in einem
     # nur sichtbaren Kalender darf auch über das Feld nicht erscheinen
     # (test_p1_7_gruppen_organigramm: „fremder Vorschlag darf nicht sichtbar sein“).
-    if gruppe_id:
-        mod_alle, regulaer_alle = _nach_moderation(alle_zugaenglich)
+    if gruppe_id and ersatzregel:
+        mod_alle, regulaer_alle = _nach_moderation(
+            [n for n in alle_zugaenglich if n in gruppenlose_kalender]
+        )
         rows.extend(_hole(mod_alle, alle_status=True, gruppe_filter=True))
         rows.extend(_hole(regulaer_alle, alle_status=False, gruppe_filter=True))
 

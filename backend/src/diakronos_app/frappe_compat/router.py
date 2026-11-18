@@ -1467,6 +1467,14 @@ def _apply_resource_write(doctype: str, name: str | None, body: dict):
 	sess = SessionLocal()
 	try:
 		if name is None:
+			if doctype == "Element":
+				# TERMIN-GRUPPE (Manuel 17.11.): `/api/resource/{Element}` schreibt
+				# mit EIGENER Sitzung und laeuft NICHT ueber `_create` — die
+				# abgeleitete Gruppe fehlte hier sonst (nur Kalender MIT Gruppe
+				# setzen sie, s. `diakronos_app.termin_gruppe`).
+				from diakronos_app.termin_gruppe import ergaenze_gruppe
+
+				payload = ergaenze_gruppe(sess, payload)
 			if not payload.get("name"):
 				payload["name"] = _new_name()
 			obj = model(**payload)
@@ -1481,6 +1489,21 @@ def _apply_resource_write(doctype: str, name: str | None, body: dict):
 			obj = sess.get(model, name)
 			if obj is None:
 				return _error_response(f"{doctype} {name!r} existiert nicht", "DoesNotExistError", 404)
+			if doctype == "Element":
+				# Kalenderwechsel: `gruppe` folgt dem NEUEN Kalender, wenn der
+				# eine Gruppe hat; sonst bleibt der Wert der Zeile stehen.
+				from diakronos_app.termin_gruppe import ergaenze_gruppe
+
+				alt = str(getattr(obj, "element_calendar", "") or "").strip()
+				if "element_calendar" in payload:
+					payload = ergaenze_gruppe(
+						sess,
+						{**payload,
+						 "element_calendar": str(payload.get("element_calendar") or "").strip()},
+						vorher=alt,
+					)
+				elif "gruppe" in payload:
+					payload = ergaenze_gruppe(sess, payload, vorher=alt)
 			for k, v in payload.items():
 				setattr(obj, k, v)
 		sess.commit()

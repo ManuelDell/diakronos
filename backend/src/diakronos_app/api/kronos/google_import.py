@@ -696,7 +696,15 @@ def _create_element_from_dict(fields: dict, db=None):
         with database.SessionLocal.begin() as transaction:
             return _create_element_from_dict(fields, transaction)
     from diakronos_app.frappe_compat.api_helpers import _coerce
+    from diakronos_app.termin_gruppe import ergaenze_gruppe
+
     fields = _coerce("Element", fields)
+    # TERMIN-GRUPPE (Manuel 17.11.): dieser Weg legt die Zeile direkt per ORM
+    # an und laeuft NICHT durch `_create` — die abgeleitete Gruppe fehlte hier
+    # sonst (Google-/iCal-Import). Nur Kalender MIT Gruppe setzen sie;
+    # importierte Kalender (`_ensure_kalender` legt `RechteObjekt` ohne
+    # `gruppe` an) lassen einen mitgegebenen Wert stehen.
+    fields = ergaenze_gruppe(db, fields)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     db.add(Element(name=uuid.uuid4().hex, owner=session.user, modified_by=session.user,
                    creation=now, modified=now, **fields))

@@ -627,6 +627,17 @@ def _create(doctype: str, values: dict[str, Any]) -> str:
 
     sess, eigene = sitzung_fuer_lesen()
     try:
+        if doctype == "Element":
+            # TERMIN-GRUPPE (Manuel 17.11.): `Element.gruppe` ist eine
+            # ABGELEITETE Angabe — sie folgt dem Kalender aus dem Rechtesystem
+            # (`termin_gruppe`). Hier, weil JEDER Weg ueber `_create` laeuft
+            # (`create_event`, `create_series`, Kanban, frappe.client.insert).
+            # Nur Kalender MIT Gruppe setzen sie (dann gewinnt sie auch gegen
+            # ein mitgegebenes `gruppe` — der Kalender ist die Wahrheit);
+            # ohne Zuordnung bleibt ein mitgegebener Wert stehen.
+            from diakronos_app.termin_gruppe import ergaenze_gruppe
+
+            data = ergaenze_gruppe(sess, data)
         obj = model(**data)
         sess.add(obj)
         _abschluss(sess, eigene)
@@ -1598,6 +1609,32 @@ def _update_doc(
         obj = sess.get(model, name)
         if obj is None:
             raise DoesNotExistError(f"{doctype} {name!r} existiert nicht")
+        if doctype == "Element":
+            # TERMIN-GRUPPE (Manuel 17.11.): zieht der Aufrufer den Termin in
+            # einen anderen Kalender, folgt `gruppe` dem neuen Kalender —
+            # aber nur, wenn der NEUE Kalender eine Gruppe hat (Kalender ohne
+            # Zuordnung ist keine Aussage; der Wert bleibt dann stehen).
+            # Nur bei einem WECHSEL — ein `set_value` ohne Kalender
+            # ({"status": …}, Kanban-Freigabe) loest keine Abfrage aus.
+            from diakronos_app.termin_gruppe import ergaenze_gruppe
+
+            alt = str(obj.element_calendar or "").strip()
+            if "element_calendar" in data:
+                neu = str(data.get("element_calendar") or "").strip()
+            else:
+                neu = alt
+            if neu != alt:
+                data = ergaenze_gruppe(
+                    sess,
+                    {**data, "element_calendar": neu},
+                    vorher=alt,
+                    kalender_geaendert=True,
+                )
+            elif "gruppe" in data:
+                # Kein Kalenderwechsel: ein ausdruecklich gesetztes `gruppe`
+                # gilt nur, wenn es zur Kalendergruppe passt — sonst bleibt
+                # der Wert der Zeile (Kalender ist die Wahrheit).
+                data = ergaenze_gruppe(sess, data, vorher=alt)
         for feld, wert in data.items():
             setattr(obj, feld, wert)
         _abschluss(sess, eigene)

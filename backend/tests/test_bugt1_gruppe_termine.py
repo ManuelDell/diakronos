@@ -30,6 +30,13 @@ den der Befund beschreibt. Geprüft wird über HTTP:
   6. `Element.gruppe` zählt weiterhin: ein Termin mit gesetztem Feld in einem
      Kalender OHNE Seitenzuordnung erscheint (Alternative bleibt gültig).
 
+     TERMIN-GRUPPE (17.11.): `Element.gruppe` wird inzwischen beim Schreiben aus
+     dem Kalender gesetzt und trägt bei Untergruppen-Kalendern die HAUPTgruppe.
+     Deshalb gilt diese Alternative nur noch für Seiten OHNE eigenen Kalender —
+     sonst stünde der Termin des Untergruppen-Kalenders auch auf der
+     Hauptgruppen-Seite (Test `test_gruppe_zeigt_keinen_termine_der_untergruppe`).
+     Fall 7 („F1“) prüft das bereits so; hier bleibt alles unverändert.
+
 Alle Testdaten liegen über dem MCK-Endpunkt an, damit der Test nicht von
 internem Schreibverhalten abhängt, das sich ändern darf.
 """
@@ -124,10 +131,17 @@ def welt(patched_db, fake_redis):
                  docstatus=0, idx=0),
         Kalender(name="KAL-XX", calendar_name="Fremdgruppe", selbstverwaltet=0,
                  docstatus=0, idx=0),
+        # TERMIN-GRUPPE (Review 18.11.): Kalender OHNE Gruppenzuordnung — die
+        # Heimat echter Alt-/Importdaten. Nur hier greift die Ersatzregel
+        # `Element.gruppe` noch (bei gruppengebundenen Kalendern entscheidet
+        # die Kalenderzuordnung).
+        Kalender(name="KAL-ALT", calendar_name="Altbestand", selbstverwaltet=0,
+                 docstatus=0, idx=0),
         # Zuordnung wie „+ Termin“ sie liest (`RechteObjekt`).
         RechteObjekt(typ="kalender", objekt="KAL-JK", gruppe="GRU-JK"),
         RechteObjekt(typ="kalender", objekt="KAL-GT", gruppe="GRU-JK", untergruppe="UG-GT"),
         RechteObjekt(typ="kalender", objekt="KAL-XX", gruppe="GRU-XX"),
+        RechteObjekt(typ="kalender", objekt="KAL-ALT"),
         RechteModul(gruppe="GRU-XX", modul="kalender"),
     ])
     sess.commit()
@@ -280,10 +294,12 @@ def test_serie_erscheint_mit_ihren_vorkommen(client, als_hv, welt):
 
 
 def test_termin_mit_gruppenfeld_zaehlt_ohne_seitenkalender(client, welt):
-    """`Element.gruppe` bleibt gültig, wenn die Seite keinen Kalender hat.
+    """`Element.gruppe` bleibt gültig, wenn der KALENDER keine Gruppe hat.
 
     Alt-/Importdaten tragen das Feld. Eine Gruppe OHNE zugeordneten Kalender
-    (hier eine frisch angelegte) findet ihren Termin dann über das Feld.
+    (hier eine frisch angelegte) findet ihren Termin dann über das Feld — der
+    Termin liegt dafür in einem Kalender OHNE Gruppenzuordnung (`KAL-ALT`),
+    genau die Lage, für die die Ersatzregel gedacht ist (Review 18.11.).
     """
     from diakronos_app.frappe_compat.session import set_user
     from diakronos_app.models.diakonos import Gruppe
@@ -296,9 +312,9 @@ def test_termin_mit_gruppenfeld_zaehlt_ohne_seitenkalender(client, welt):
                     docstatus=0, idx=0))
     sess.commit()
 
-    kennung = _termin(client, "KAL-XX", "Importierter Gruppentermin", 9)
-    # `KAL-XX` gehört zur FREMDEN Gruppe; erst das Feld macht ihn zum Termin
-    # der Gruppe ohne Kalender (so wie ein Alt-/Importdatensatz aussieht).
+    kennung = _termin(client, "KAL-ALT", "Importierter Gruppentermin", 9)
+    # `KAL-ALT` hat KEINE Gruppenzuordnung; erst das Feld macht den Termin zum
+    # Termin der Gruppe ohne Kalender (so wie ein Alt-/Importdatensatz aussieht).
     zeile = sess.get(Element, kennung)
     assert zeile is not None
     zeile.gruppe = "GRU-OHNE"
@@ -316,9 +332,10 @@ def test_termin_mit_gruppenfeld_zaehlt_ohne_seitenkalender(client, welt):
 def test_gruppenfeld_zieht_keinen_fremdtermin_mit(client, welt):
     """Review F1: `Element.gruppe` ist eine Alternative — kein Kalender-Griff.
 
-    Seite OHNE eigenen Kalender, in deren sichtbarem Kalender ein Termin mit
-    `gruppe=<Seite>` und ein FREMDER Termin ohne Feld liegen. Nur der markierte
-    darf erscheinen; der fremde Termin desselben Kalenders nicht.
+    Kalender OHNE Gruppenzuordnung, in dem ein Termin mit `gruppe=<Seite>` und
+    ein FREMDER Termin ohne Feld liegen. Nur der markierte darf erscheinen; der
+    fremde Termin desselben Kalenders nicht. (Termine in einem Kalender MIT
+    Gruppenzuordnung entscheidet ohnehin die Kalenderzuordnung — Review 18.11.)
     """
     from diakronos_app.frappe_compat.session import set_user
     from diakronos_app.models.diakonos import Gruppe
@@ -331,8 +348,8 @@ def test_gruppenfeld_zieht_keinen_fremdtermin_mit(client, welt):
                     docstatus=0, idx=0))
     sess.commit()
 
-    markiert = _termin(client, "KAL-XX", "Importierter Gruppentermin", 9)
-    fremd = _termin(client, "KAL-XX", "Fremder Termin im selben Kalender", 10)
+    markiert = _termin(client, "KAL-ALT", "Importierter Gruppentermin", 9)
+    fremd = _termin(client, "KAL-ALT", "Fremder Termin im selben Kalender", 10)
     zeile = sess.get(Element, markiert)
     assert zeile is not None
     zeile.gruppe = "GRU-OHNE"
