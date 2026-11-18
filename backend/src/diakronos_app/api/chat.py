@@ -1256,7 +1256,9 @@ def meldung_senden(nachricht, grund, freitext=None):
             # Zwei gleichzeitige Aufrufe: der partielle Index lässt nur eine
             # offene Meldung durch (dasselbe Muster wie `_gespraech_holen`).
             throw("Diese Nachricht wurde von dir bereits gemeldet.")
-        return {
+        empfaenger = [k for k in rechte.chat_moderatoren(g.gruppe, g.untergruppe)
+                      if k != benutzer and k != str(n.autor_benutzer or "")]
+        antwort = {
             "name": zeile.name,
             "nachricht": n.name,
             "gespraech": g.name,
@@ -1267,6 +1269,10 @@ def meldung_senden(nachricht, grund, freitext=None):
             # der Moderation“. Kein Melder, kein Freitext.
             "meldung_offen": True,
         }
+    # Nach dem Commit: Glocke an die Moderation der Einheit (Empfänger aus dem
+    # Rechte-Kern, `chat_moderatoren`). Ohne Melder, ohne Nachrichtentext.
+    _glocke_neue_meldung(empfaenger, antwort["name"])
+    return antwort
 
 
 @whitelist(allow_guest=False)
@@ -1716,6 +1722,21 @@ def _meldung_zeile(s, m: ChatMeldung, n: ChatNachricht, g: ChatGespraech,
         # sind für die GANZE Seite schon geladen (Review Runde 2, N1).
         "vorgeschichte": _vorgeschichte(s, n, namen=namen),
     }
+
+
+def _glocke_neue_meldung(konten: list[str], meldung: str) -> None:
+    """Glocke an die Moderation: „neue Meldung im Chat“ (Konzept 2.5).
+
+    Bestehender Weg (``benachrichtigungen.schreibe_meldung``). Der Text nennt
+    weder die meldende Person noch den Inhalt — beides steht nur in der
+    Moderationsliste, die wieder über den Rechte-Kern läuft.
+    """
+    from diakronos_app.benachrichtigungen import schreibe_meldung
+
+    for konto in konten:
+        schreibe_meldung(for_user=konto, subject="Neue Meldung im Chat",
+                         inhalt="Eine Nachricht im Chat wurde gemeldet und wartet auf eine Entscheidung.",
+                         document_type="chat_meldung", document_name=meldung)
 
 
 def _glocke_entfernt(konto: str, gespraech: str, nachricht: str, grund: str | None) -> None:

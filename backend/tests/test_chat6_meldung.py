@@ -899,3 +899,62 @@ def test_migration_legt_tabelle_und_indizes_an_und_nimmt_sie_zurueck(fresh_engin
             modul.upgrade()
             modul.downgrade()
         assert not inspect(verbindung).has_table("chat_meldung")
+
+
+# ── Glocke an die Moderation (Rechte-Kern `chat_moderatoren`) ──────────────
+
+
+def _meldungsglocken(meldung: str) -> dict[str, NotificationLog]:
+    with dbmod.SessionLocal() as s:
+        zeilen = s.query(NotificationLog).filter(
+            NotificationLog.document_type == "chat_meldung",
+            NotificationLog.document_name == meldung).all()
+        return {z.for_user: z for z in zeilen}
+
+
+def test_kern_chat_moderatoren_folgt_darf(welt):
+    from diakronos_app import rechte
+
+    assert rechte.chat_moderatoren("Chor") == sorted([HV, MV])
+    assert rechte.chat_moderatoren(None, "UG-Noten") == sorted([GL, HV, MV])
+    assert rechte.chat_moderatoren("Chor", "UG-Noten") == sorted([GL, HV, MV])
+    assert rechte.chat_moderatoren(None, None) == []
+    assert rechte.chat_moderatoren("Jugend") == []
+
+
+def test_kern_chat_moderatoren_leer_ohne_chat_modul(welt):
+    from diakronos_app import rechte
+
+    welt.query(RechteModul).filter(RechteModul.gruppe == "Chor",
+                                   RechteModul.modul == "chat").delete()
+    welt.commit()
+    rechte.merker_leeren()
+    assert rechte.chat_moderatoren("Chor") == []
+
+
+def test_neue_meldung_glockt_die_moderation_ohne_melder_und_text(gespraech):
+    n = _senden("Geheimer Inhalt", gespraech, SAENGER)
+    m = _melden(n["name"], NOTEN, "beleidigung", freitext="Freitext des Melders")
+    glocken = _meldungsglocken(m["name"])
+    assert set(glocken) == {HV, MV}          # GL moderiert den Gruppenchat nicht
+    for g in glocken.values():
+        inhalt = f"{g.subject} {g.email_content}"
+        assert "Geheimer Inhalt" not in inhalt
+        assert "Freitext" not in inhalt
+        assert "No" not in inhalt.split() and NOTEN not in inhalt
+
+
+def test_meldende_moderation_und_verfasser_bekommen_keine_meldungsglocke(gespraech):
+    n = _senden("Von MV gemeldet", gespraech, HV)
+    m = _melden(n["name"], MV, "spam")
+    # MV meldet (keine Glocke an sich selbst), HV hat verfasst (keine Glocke).
+    assert _meldungsglocken(m["name"]) == {}
+
+
+def test_meldung_in_untergruppe_glockt_gl_und_leitung(untergespraech):
+    n = _senden("Noten-Nachricht", untergespraech, NOTEN)
+    m = _melden(n["name"], GL, "spam")
+    assert set(_meldungsglocken(m["name"])) == {HV, MV}   # GL meldet selbst
+    n2 = _senden("Noch eine", untergespraech, GL)
+    m2 = _melden(n2["name"], NOTEN, "spam")
+    assert set(_meldungsglocken(m2["name"])) == {HV, MV}  # GL ist Verfasser

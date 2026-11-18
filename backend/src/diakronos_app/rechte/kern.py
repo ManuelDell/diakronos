@@ -1138,6 +1138,34 @@ def _darf_chat(benutzer: str, aktion: str, *, gruppe: str | None,
     return NEIN("aktion_nicht_fuer_chat")
 
 
+def chat_moderatoren(gruppe: str | None, untergruppe: str | None = None) -> list[str]:
+    """Konten, die im Chat dieser Einheit MODERIEREN duerfen (CHAT-6, Glocke).
+
+    Kandidaten sind die Leitungs-Eintraege der Einheit (HV/MV der Hauptgruppe,
+    bei einer Untergruppe zusaetzlich deren GL); entschieden wird fuer JEDEN
+    Kandidaten ueber `darf` — dieselbe Frage wie bei Liste und Entscheidung,
+    keine zweite Regel. Administratoren stehen NICHT darin: sie sehen die
+    Meldungen ueber die Liste, bekommen aber nicht jede Gruppenmeldung als
+    Glocke. Sortiert, ohne Doppelte.
+    """
+    with lesesitzung() as sess:
+        zgruppe = gruppe or _hauptgruppe(sess, untergruppe)
+        if not zgruppe:
+            return []
+        oben = (RechteGruppenrolle.untergruppe.is_(None)) & (RechteGruppenrolle.rolle.in_(_LEITUNG))
+        bedingung = oben
+        if untergruppe:
+            bedingung = oben | ((RechteGruppenrolle.untergruppe == untergruppe)
+                                & (RechteGruppenrolle.rolle == ROLLE_GL))
+        kandidaten = sess.execute(
+            select(RechteGruppenrolle.benutzer).where(RechteGruppenrolle.gruppe == zgruppe, bedingung)
+        ).scalars().all()
+    return sorted({
+        str(k) for k in kandidaten
+        if k and darf(str(k), MODERIEREN, "chat_gespraech", gruppe=zgruppe, untergruppe=untergruppe)
+    })
+
+
 #: Status, mit denen eine Person nicht mehr auffindbar ist (wie die
 #: Personenauswahl `api.gruppen_auswahl.AUSGESCHIEDEN`).
 _NICHT_AUFFINDBAR = frozenset({"ausgetreten", "verstorben", "verstorben/ausgetreten", "geloescht"})
@@ -1254,6 +1282,7 @@ __all__ = [
     "sichtbare_module",
     "darf_beziehung",
     "CHAT_TYPEN",
+    "chat_moderatoren",
     "darf_person_finden",
     "person_hat_konto",
     "darf_direktnachricht",
