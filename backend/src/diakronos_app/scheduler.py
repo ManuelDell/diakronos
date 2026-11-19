@@ -126,6 +126,25 @@ def job_gastlinks_aufraeumen() -> None:
 	logger.info("Job gastlinks_aufraeumen fertig (%s entfernt).", count)
 
 
+def job_umfragen_schliessen() -> None:
+	"""Taeglicher Job (CHAT-5): Umfragen zur Frist schliessen.
+
+	Kein eigener Zeitgeber und keine eigene Tabelle: der Job ruft
+	``api.chat.schliesse_faellige``, das ``geschlossen_am`` auf die FRIST
+	schreibt (nicht auf "jetzt") und ``geschlossen_von`` leer laesst
+	("automatisch heisst automatisch"). Idempotent: der Zustand
+	``geschlossen_am IS NULL`` faellt nach dem ersten Lauf weg.
+	"""
+	from diakronos_app.api.chat import schliesse_faellige
+
+	try:
+		count = schliesse_faellige()
+	except Exception:  # noqa: BLE001 — ein Fehler darf den Scheduler nicht toeten
+		logger.exception("Job umfragen_schliessen fehlgeschlagen")
+		return
+	logger.info("Job umfragen_schliessen fertig (%s geschlossen).", count)
+
+
 # (Job-Funktion, Job-Id) — die Registrierung ist damit an EINER Stelle und
 # fuer Tests pruefbar, ohne den BlockingScheduler zu starten.
 DAILY_JOBS: list[tuple] = [
@@ -134,6 +153,7 @@ DAILY_JOBS: list[tuple] = [
 	(job_delete_alte_zuordnung_ablehnungen, "delete_alte_zuordnung_ablehnungen"),
 	(job_papierkorb_aufraeumen, "papierkorb_aufraeumen"),
 	(job_gastlinks_aufraeumen, "gastlinks_aufraeumen"),
+	(job_umfragen_schliessen, "umfragen_schliessen"),
 ]
 
 

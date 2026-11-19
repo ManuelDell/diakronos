@@ -31,6 +31,37 @@ NUR die vier Tabellen der Stufe S1 an:
     Festes Set (``REAKTIONEN``), EINE je Person und Nachricht —
     Primärschlüssel ``(nachricht, benutzer)``.
 
+CHAT-5 (S2) — UMFRAGEN — drei weitere Tabellen (Konzept Abschnitt 1/S2 und
+Abschnitt 9, F5: jedes Mitglied darf starten, Standard ANONYM, je Umfrage
+wählbar):
+
+``chat_umfrage``
+    EINE Umfrage je ``chat_nachricht``: die Umfrage erscheint als Nachricht im
+    Verlauf, und der Verweis steht RÜCKWÄRTS von der Nachricht
+    (``chat_nachricht.umfrage``) — so bleiben Reihenfolge, Lesestand,
+    Soft-Delete und Zitate unverändert die Regeln der Nachricht. Frage,
+    2–15 Optionen, ``mehrfach``, ``anonym`` (Standard ``true``), Frist
+    (``frist_am``) ODER offen bis zur Schließung, ``geschlossen_am``.
+
+``chat_umfrage_option``
+    Die Auswahl der Umfrage, PK ``(umfrage, nummer)`` — ``nummer`` ist
+    zugleich die Reihenfolge der Anzeige. Keine freie Kennung: die Optionen
+    werden immer im Block geschrieben und nie einzeln verwiesen.
+
+``chat_stimme``
+    Eine Stimme, PK ``(umfrage, option, benutzer)``. Diese Zeile gibt es NUR
+    bei einer OFFENEN Umfrage. Bei einer ANONYMEN Umfrage steht statt ihrer
+    eine ``chat_umfrage_abgabe`` — eine Zeile ohne jeden Bezug zur gewählten
+    Option (Konzept S2: „technisch: keine Zeile mit Personenbezug wird
+    geschrieben“).
+
+``chat_umfrage_abgabe``
+    „hat abgestimmt“-Marke, PK ``(umfrage, benutzer)`` und sonst NICHTS.
+    Sie ist die Sperre gegen die zweite Abgabe (anonyme Stimmen sind nach
+    Abgabe endgültig — Entscheidung Operator) und der Zähler „N haben
+    abgestimmt“. Aus ihr lässt sich keine Option ableiten, auch nicht durch
+    den Administrator: die Information steht in keiner Spalte.
+
 CHAT-6 ergänzt die fünfte Tabelle:
 
 ``chat_meldung``
@@ -43,9 +74,8 @@ CHAT-6 ergänzt die fünfte Tabelle:
     (``user_null``): bei einer Löschung (Art. 17) verschwindet die Herkunft
     der Meldung, die Moderationsentscheidung bleibt nachvollziehbar.
 
-Bewusst NICHT hier (spätere Karten): Umfragen (S2, CHAT-5), Push-Abonnements
-(CHAT-10), Anhänge (CHAT-9) und der Löschjob mit den Aufbewahrungsfristen
-(CHAT-8).
+Bewusst NICHT hier (spätere Karten): Push-Abonnements (CHAT-10), Anhänge
+(CHAT-9) und der Löschjob mit den Aufbewahrungsfristen (CHAT-8).
 
 DSGVO (Konzept 4.3): ``chat_nachricht.autor_benutzer`` ist eine Konto-Spalte
 (``user_null`` — sie verschwindet mit dem Konto), ``chat_nachricht.autor`` ist
@@ -54,6 +84,14 @@ UMHÄNGT, damit der Verlauf lesbar bleibt. ``chat_reaktion.benutzer`` und
 ``chat_teilnehmer.benutzer`` sind Konto-Spalten (Zeile fällt).
 ``chat_gespraech.angelegt_von`` ist ein Konto-Verweis (``user_null``). Die
 Freitexte stehen im Inventar unter ``protokoll``.
+
+Umfragen (CHAT-5): ``chat_umfrage.frage`` ist Freitext (``protokoll``),
+``chat_stimme.benutzer`` und ``chat_umfrage_abgabe.benutzer`` sind
+Konto-Spalten. Bei einer OFFENEN Umfrage bleibt der ZÄHLER stehen, wenn die
+Person geht — die Stimme fällt (namentliche Stimmen sind Verhaltensdaten, die
+mit der Person verschwinden). Bei einer anonymen Umfrage ist die
+``chat_umfrage_abgabe``-Zeile ersatzlos weg; der Zähler je Option steht in
+``chat_umfrage_option.stimmen`` und trägt keinen Personenbezug.
 """
 
 from __future__ import annotations
@@ -65,11 +103,17 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
+    Integer,
     String,
     Text,
-    text,
 )
+#: ``text`` als SQL-Ausdruck — NICHT als `from sqlalchemy import text` führen:
+#: in ``ChatUmfrageOption`` heißt eine SPALTE ``text`` und verdeckt den Namen im
+#: Klassenrumpf, dann scheitert ``server_default=sql_text("0")`` mit
+#: „'MappedColumn' object is not callable“ (im CHAT-5-Lauf passiert).
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from diakronos_app.models.base import Base
@@ -95,6 +139,19 @@ BEARBEITEN_MINUTEN = 15
 #: Endpunkt weist alles andere ab (``ValidationError``).
 REAKTIONEN: tuple[str, ...] = ("👍", "❤", "🙏", "✅", "😀", "😢")
 
+#: Umfrage (CHAT-5, Konzept S2): Grenzen aus der Tabelle in Abschnitt 1 —
+#: „Frage, 2–15 Optionen“. Die Frage ist so lang wie eine Nachricht erlaubt
+#: sein soll, aber deutlich kürzer: sie ist eine Überschrift, kein Aufsatz.
+FRAGE_MAX = 300
+#: Höchstlänge einer Option („Probe am Samstag um 18 Uhr“).
+OPTION_MAX = 140
+#: Grenzen der Optionszahl. Unter 2 wäre es keine Abstimmung, über 15 kann
+#: niemand am Handy sinnvoll entscheiden.
+OPTIONEN_MIN = 2
+OPTIONEN_MAX = 15
+#: Unterhalb dieser Zahl Abgegebener steht der Hinweis an der Umfrage
+#: („Ergebnis bei wenigen Teilnehmenden erratbar“, Karte CHAT-5).
+HINWEIS_AB = 5
 #: Die fünf Meldegründe (Konzept 2.5: „Beleidigung, Spam, persönliche Daten,
 #: falsche Person, Sonstiges“). Gespeichert wird der stabile Schlüssel, nicht
 #: die Anzeige — die Oberfläche übersetzt. Ein geschlossenes Set wie
@@ -124,7 +181,6 @@ MELDUNG_STAENDE: tuple[str, ...] = (MELDUNG_OFFEN, MELDUNG_ERLEDIGT, MELDUNG_VER
 MELDUNG_ENTSCHEIDUNGEN: tuple[str, ...] = ("entfernen", "verwerfen")
 
 
-
 class ChatGespraech(Base):
     """Ein Gespräch je Gruppe/Untergruppe (lazy angelegt)."""
 
@@ -137,12 +193,12 @@ class ChatGespraech(Base):
         # viele Gruppen-Gespräche derselben Gruppe). Die Teilbedingung macht
         # die Regel für beide Fälle wahr (Review CHAT-2, Punkt 2).
         Index("uq_chat_gespraech_einheit", "art", "gruppe", unique=True,
-              sqlite_where=text("untergruppe IS NULL"),
-              postgresql_where=text("untergruppe IS NULL")),
+              sqlite_where=sql_text("untergruppe IS NULL"),
+              postgresql_where=sql_text("untergruppe IS NULL")),
         Index("uq_chat_gespraech_einheit_ug", "art", "gruppe", "untergruppe",
               unique=True,
-              sqlite_where=text("untergruppe IS NOT NULL"),
-              postgresql_where=text("untergruppe IS NOT NULL")),
+              sqlite_where=sql_text("untergruppe IS NOT NULL"),
+              postgresql_where=sql_text("untergruppe IS NOT NULL")),
         Index("ix_chat_gespraech_gruppe", "gruppe"),
         Index("ix_chat_gespraech_untergruppe", "untergruppe"),
     )
@@ -182,10 +238,10 @@ class ChatTeilnehmer(Base):
         String(140), ForeignKey("user.name"), primary_key=True
     )
     #: F3: jede Person schaltet für SICH stumm. Keine Glocke, der Zähler bleibt.
-    #: Boolean mit ``server_default=text("false")`` (PostgreSQL) — dasselbe
+    #: Boolean mit ``server_default=sql_text("false")`` (PostgreSQL) — dasselbe
     #: Muster wie ``rechte_modul``/``rechte_objekt`` (``rechte.py``).
     stumm: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default=text("false")
+        Boolean, nullable=False, default=False, server_default=sql_text("false")
     )
     hinzugefuegt_am: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
     #: Zeitstempel der ZULETZT gelesenen Nachricht (``chat_nachricht.erstellt_am``
@@ -209,6 +265,11 @@ class ChatNachricht(Base):
         Index("ix_chat_nachricht_gespraech_erstellt", "gespraech", "erstellt_am"),
         # Antworten einer Nachricht (Anzeige „N Antworten“).
         Index("ix_chat_nachricht_antwort_auf", "antwort_auf"),
+        # CHAT-5: die Umfrage einer Nachricht (0 oder 1). Der UNIQUE-Index
+        # macht daraus „höchstens EINE“; das Umfrage-Modell verweist
+        # RÜCKWÄRTS auf die Nachricht — so bleiben Reihenfolge, Lesestand und
+        # Soft-Delete die Regeln der Nachricht und brauchen keinen zweiten Weg.
+        Index("uq_chat_nachricht_umfrage", "umfrage", unique=True),
     )
 
     name: Mapped[str] = mapped_column(String(140), primary_key=True)
@@ -253,6 +314,14 @@ class ChatNachricht(Base):
     #: Grund einer Moderations-Entfernung (Pflicht bei fremder Nachricht,
     #: CHAT-6). Eigene Löschung braucht keinen.
     entfernt_grund: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: CHAT-5: die Umfrage, die an DIESER Nachricht hängt (0 oder 1, im
+    #: UNIQUE-Index `uq_chat_nachricht_umfrage`). Der Verweis läuft von der
+    #: Nachricht zur Umfrage und nicht umgekehrt, damit der Verlauf EINE
+    #: Sortierung behält: eine Umfrage ist eine Nachricht wie jede andere —
+    #: Lesestand, Zitat, Soft-Delete und Reaktionen greifen ohne Sonderfall.
+    umfrage: Mapped[str | None] = mapped_column(
+        String(140), ForeignKey("chat_umfrage.name"), nullable=True
+    )
 
 
 class ChatReaktion(Base):
@@ -273,6 +342,159 @@ class ChatReaktion(Base):
     erstellt_am: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
 
 
+class ChatUmfrage(Base):
+    """Eine Umfrage zu EINER Nachricht im Gespräch (S2, F5).
+
+    Die Umfrage hat keine eigene Position im Verlauf: sie hängt an einer
+    Nachricht (``chat_nachricht.umfrage``), und diese Nachricht trägt den Text
+    (die Frage). Damit gilt für Reihenfolge, Lesestand, Zitat und Löschen
+    KEINE zweite Regel.
+
+    ``anonym`` ist der STANDARD (F5). Die beiden Zählwege sind getrennt:
+    anonym → ``chat_umfrage_abgabe`` (nur „hat abgestimmt“, ohne Option) und
+    der Zähler ``chat_umfrage_option.stimmen``; offen → ``chat_stimme`` je
+    Person und Option (namentlich, bis zur Frist änderbar).
+    """
+
+    __tablename__ = "chat_umfrage"
+    __table_args__ = (
+        # „Welche Umfrage hängt an dieser Nachricht?“ — der Verweis läuft
+        # rückwärts, gesucht wird er trotzdem; der UNIQUE-Index liegt auf der
+        # Nachricht (``uq_chat_nachricht_umfrage``).
+        Index("ix_chat_umfrage_gespraech", "gespraech"),
+        # Der Scheduler sucht „fällige, noch offene“ Umfragen (CHAT-5).
+        Index("ix_chat_umfrage_frist", "frist_am"),
+    )
+
+    name: Mapped[str] = mapped_column(String(140), primary_key=True)
+    #: Das Gespräch — redundant zur Nachricht, damit Frist und Schließung ohne
+    #: Join über den Verlauf laufen und ein Verweis nie in ein fremdes
+    #: Gespräch zeigen kann (beides wird beim Anlegen geprüft).
+    gespraech: Mapped[str] = mapped_column(
+        String(140), ForeignKey("chat_gespraech.name"), nullable=False
+    )
+    #: Die Frage (Freitext, ``FRAGE_MAX`` Zeichen).
+    frage: Mapped[str] = mapped_column(Text, nullable=False)
+    #: Mehrfachauswahl erlaubt? Bei ``false`` gilt genau EINE Option je Person.
+    mehrfach: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sql_text("false")
+    )
+    #: ANONYM (Standard ``true``, F5). Bei ``true`` wird NIE eine Zeile mit
+    #: Personenbezug zur Option geschrieben.
+    anonym: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=sql_text("true")
+    )
+    #: Frist als Wandzeit der Gemeinde (ohne Zeitzone, wie alle Fachzeiten).
+    #: ``NULL`` = offen bis zur Schließung durch Ersteller/Moderation.
+    frist_am: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    #: Gesetzt bei Schließung (Frist erreicht ODER vorzeitig). Ab hier keine
+    #: Stimme mehr; das Ergebnis bleibt stehen.
+    geschlossen_am: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=False), nullable=True
+    )
+    #: WER geschlossen hat. ``NULL`` = automatisch zur Frist (Scheduler) —
+    #: eine Schließung durch einen Menschen ist damit unterscheidbar.
+    geschlossen_von: Mapped[str | None] = mapped_column(
+        String(140), ForeignKey("user.name"), nullable=True
+    )
+    erstellt_am: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+
+
+class ChatUmfrageOption(Base):
+    """Eine Antwortmöglichkeit — PK ``(umfrage, nummer)``.
+
+    ``nummer`` ist Reihenfolge UND Kennung: die Optionen werden immer im Block
+    geschrieben, es gibt keinen Weg, eine einzelne Option zu referenzieren.
+
+    ``stimmen`` ist der ZÄHLER. Bei einer anonymen Umfrage ist er der EINZIGE
+    Träger des Ergebnisses (es gibt keine Stimmenzeile je Person); bei einer
+    offenen Umfrage ist er die Summe der ``chat_stimme``-Zeilen und wird im
+    selben Vorgang fortgeschrieben — damit die Anzeige ohne Zählabfrage
+    auskommt und die Zusage „Zähler bleibt“ nach einer Löschung hält.
+    """
+
+    __tablename__ = "chat_umfrage_option"
+
+    umfrage: Mapped[str] = mapped_column(
+        String(140), ForeignKey("chat_umfrage.name"), primary_key=True
+    )
+    #: 1 … ``OPTIONEN_MAX`` — zugleich die Anzeigereihenfolge.
+    nummer: Mapped[int] = mapped_column(Integer, primary_key=True)
+    text: Mapped[str] = mapped_column(String(OPTION_MAX), nullable=False)
+    stimmen: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=sql_text("0")
+    )
+
+
+class ChatStimme(Base):
+    """Eine Stimme — NUR bei einer OFFENEN Umfrage (PK ``(umfrage, option, benutzer)``).
+
+    Die Zeile ist der Personenbezug: sie sagt, WER WAS gewählt hat. Deshalb
+    entsteht sie ausschliesslich bei ``chat_umfrage.anonym = false``; bei einer
+    anonymen Umfrage gibt es sie nicht (auch nicht mit ``NULL``-Option — eine
+    Zeile, deren Option fehlt, wäre wieder eine Marke, und für die gibt es
+    ``chat_umfrage_abgabe``).
+
+    ``benutzer`` ist ein Konto-Verweis und fällt bei einer Löschung (Art. 17);
+    der Zähler in ``chat_umfrage_option.stimmen`` bleibt.
+    """
+
+    __tablename__ = "chat_stimme"
+    __table_args__ = (
+        # Zweiter Index auf den Benutzer: „meine Stimmen in dieser Umfrage“
+        # und die Abfrage der Anonymisierung nach Konto.
+        Index("ix_chat_stimme_benutzer", "benutzer"),
+        # Die Option MUSS zu DIESER Umfrage gehören — als zusammengesetzter
+        # Fremdschlüssel, nicht als Zusage im Endpunkt: ``chat_umfrage_option``
+        # hat den PK ``(umfrage, nummer)``, eine Stimme mit fremder Nummer
+        # würde sonst den Zähler einer nicht existierenden Option treffen.
+        # Die Migration legt ihn genauso an (`alembic check` ist still).
+        ForeignKeyConstraint(
+            ["umfrage", "option"],
+            ["chat_umfrage_option.umfrage", "chat_umfrage_option.nummer"],
+            name="fk_chat_stimme_option_chat_umfrage_option",
+        ),
+    )
+
+    umfrage: Mapped[str] = mapped_column(
+        String(140), ForeignKey("chat_umfrage.name"), primary_key=True
+    )
+    #: Die gewählte Option (``chat_umfrage_option.nummer``).
+    option: Mapped[int] = mapped_column(Integer, primary_key=True)
+    benutzer: Mapped[str] = mapped_column(
+        String(140), ForeignKey("user.name"), primary_key=True
+    )
+    erstellt_am: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+
+
+class ChatUmfrageAbgabe(Base):
+    """„Hat abgestimmt“-Marke OHNE Option (PK ``(umfrage, benutzer)``).
+
+    Nur bei ANONYMEN Umfragen. Die Tabelle hat BEWUSST keine Spalte für die
+    gewählte Option (Karte CHAT-5: „KEINE Zeile mit Personenbezug zur
+    gewählten Option“) — damit ist auch für den Administrator nicht
+    rekonstruierbar, wer wie gestimmt hat.
+
+    Sie trägt zwei Zusagen: (1) die zweite Abgabe ist gesperrt (anonyme
+    Stimmen sind endgültig), (2) „N haben abgestimmt“. Der Primärschlüssel IST
+    die Sperre — eine zweite Abgabe scheitert in der Datenbank, nicht erst im
+    Code.
+    """
+
+    __tablename__ = "chat_umfrage_abgabe"
+    __table_args__ = (
+        Index("ix_chat_umfrage_abgabe_benutzer", "benutzer"),
+    )
+
+    umfrage: Mapped[str] = mapped_column(
+        String(140), ForeignKey("chat_umfrage.name"), primary_key=True
+    )
+    benutzer: Mapped[str] = mapped_column(
+        String(140), ForeignKey("user.name"), primary_key=True
+    )
+    erstellt_am: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+
+
 class ChatMeldung(Base):
     """Eine Meldung zu EINER Nachricht (Konzept 2.5, Karte CHAT-6).
 
@@ -289,8 +511,8 @@ class ChatMeldung(Base):
         # Nachricht erneut melden dürfen muss. Ein voller Unique-Constraint
         # würde das für immer verbieten (CHAT-2-Muster, Review Punkt 2).
         Index("uq_chat_meldung_offen", "nachricht", "melder", unique=True,
-              sqlite_where=text("stand = 'offen'"),
-              postgresql_where=text("stand = 'offen'")),
+              sqlite_where=sql_text("stand = 'offen'"),
+              postgresql_where=sql_text("stand = 'offen'")),
         # Die Moderationsliste fragt nach dem Stand („alle offenen“).
         Index("ix_chat_meldung_stand", "stand", "erstellt_am"),
     )
@@ -313,7 +535,7 @@ class ChatMeldung(Base):
     #: ``offen`` / ``erledigt`` / ``verworfen`` (``MELDUNG_STAENDE``).
     stand: Mapped[str] = mapped_column(
         String(20), nullable=False, default=MELDUNG_OFFEN,
-        server_default=text("'offen'"),
+        server_default=sql_text("'offen'"),
     )
     #: Wer die Meldung entschieden hat (Konto) und wann.
     bearbeitet_von: Mapped[str | None] = mapped_column(
@@ -338,7 +560,13 @@ __all__: list[Any] = [
     "ChatMeldung",
     "ChatNachricht",
     "ChatReaktion",
+    "ChatStimme",
     "ChatTeilnehmer",
+    "ChatUmfrage",
+    "ChatUmfrageAbgabe",
+    "ChatUmfrageOption",
+    "FRAGE_MAX",
+    "HINWEIS_AB",
     "MELDEGRUENDE",
     "MELDUNG_ENTSCHEIDUNGEN",
     "MELDUNG_ERLEDIGT",
@@ -347,5 +575,8 @@ __all__: list[Any] = [
     "MELDUNG_STAENDE",
     "MELDUNG_VERWORFEN",
     "NACHRICHT_MAX",
+    "OPTIONEN_MAX",
+    "OPTIONEN_MIN",
+    "OPTION_MAX",
     "REAKTIONEN",
 ]

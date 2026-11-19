@@ -1506,6 +1506,116 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.umfrage_abstimmen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "umfrage_abstimmen",
+   "pfade": [
+    "api.umfrage_abstimmen",
+    "chat.umfrage_abstimmen",
+    "diakronos.diakonos.api.chat.umfrage_abstimmen",
+    "diakronos.diakronos.api.chat.umfrage_abstimmen",
+    "diakronos_app.api.chat.umfrage_abstimmen",
+    "umfrage_abstimmen"
+   ],
+   "rumpf_grund": "Aufruf s.flush(); Aufruf _offene_stimmen_setzen(); Aufruf s.flush()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.umfrage_anlegen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "umfrage_anlegen",
+   "pfade": [
+    "api.umfrage_anlegen",
+    "chat.umfrage_anlegen",
+    "diakronos.diakonos.api.chat.umfrage_anlegen",
+    "diakronos.diakronos.api.chat.umfrage_anlegen",
+    "diakronos_app.api.chat.umfrage_anlegen",
+    "umfrage_anlegen"
+   ],
+   "rumpf_grund": "Aufruf s.flush(); Aufruf s.add(); Aufruf s.add()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.chat.umfrage_ergebnis",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "umfrage_ergebnis",
+   "pfade": [
+    "api.umfrage_ergebnis",
+    "chat.umfrage_ergebnis",
+    "diakronos.diakonos.api.chat.umfrage_ergebnis",
+    "diakronos.diakronos.api.chat.umfrage_ergebnis",
+    "diakronos_app.api.chat.umfrage_ergebnis",
+    "umfrage_ergebnis"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.umfrage_schliessen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "umfrage_schliessen",
+   "pfade": [
+    "api.umfrage_schliessen",
+    "chat.umfrage_schliessen",
+    "diakronos.diakonos.api.chat.umfrage_schliessen",
+    "diakronos.diakronos.api.chat.umfrage_schliessen",
+    "diakronos_app.api.chat.umfrage_schliessen",
+    "umfrage_schliessen"
+   ],
+   "rumpf_grund": "Aufruf s.flush()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
    "ausnahme_quelle": null,
    "deklariert": null,
    "einstufung": "lesend",
@@ -10947,12 +11057,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 407,
+ "funktionen": 411,
  "nur_test": [],
- "registrierte_pfade": 2281,
+ "registrierte_pfade": 2305,
  "rumpf_zaehlung": {
-  "lesend": 191,
-  "schreibend": 216
+  "lesend": 192,
+  "schreibend": 219
  },
  "widersprueche": [
   {
@@ -11516,7 +11626,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 181,
-  "schreibend": 226
+  "lesend": 182,
+  "schreibend": 229
  }
 }

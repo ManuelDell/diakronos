@@ -422,6 +422,8 @@ def test_scheduler_registriert_beide_daily_jobs():
 		"papierkorb_aufraeumen",
 		# R-11f: abgelaufene Gast-Links nach 30 Tagen entfernen.
 		"gastlinks_aufraeumen",
+		# CHAT-5 (S2): Umfragen zur Frist schliessen (Ergebnis bleibt stehen).
+		"umfragen_schliessen",
 	}
 
 

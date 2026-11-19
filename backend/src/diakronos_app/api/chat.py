@@ -104,10 +104,37 @@ NICHT freigegebenes Feld fehlt GANZ (Schlüssel nicht vorhanden, nicht
 zwar über DENSELBEN Maskierer wie Adressbuch/Liste (kein zweiter
 Auslieferungsweg).
 
-WAS HIER BEWUSST FEHLT (spätere Karten): Umfragen (CHAT-5), Meldungen
-(CHAT-6), Direktnachrichten (CHAT-7), Löschfristen (CHAT-8), Push (CHAT-10),
+WAS HIER BEWUSST FEHLT (spätere Karten): Meldungen (CHAT-6),
+Direktnachrichten (CHAT-7), Löschfristen (CHAT-8), Push (CHAT-10),
 Anhänge/Chatverlaufssuche (CHAT-9). Kein WebSocket: Zustellung ist der
 „seit X“-Abruf (3.1, Empfehlung A).
+
+CHAT-5 (S2): UMFRAGEN (``umfrage_anlegen``, ``umfrage_abstimmen``,
+``umfrage_schliessen``, ``umfrage_ergebnis``)
+------------------------------------------------------
+Die Umfrage hängt an einer Nachricht (``chat_nachricht.umfrage``) und ist
+damit im Verlauf, im Lesestand und beim Löschen eine Nachricht wie jede
+andere — kein zweiter Verlauf, keine zweite Sortierung.
+
+**Anonym (F5, Standard)**: es existiert KEINE Zeile mit Personenbezug zur
+gewählten Option. Geschrieben werden der Zähler
+(``chat_umfrage_option.stimmen``) und eine Marke „hat abgestimmt“
+(``chat_umfrage_abgabe``) — ohne Optionsspalte. Deshalb ist die Abgabe
+ENDGÜLTIG (Entscheidung Operator): eine Änderung wäre nur über eine neue,
+personenbezogene Zeile möglich. Unter 5 Abgegebenen steht der Hinweis in der
+Antwort (``hinweis``), weil das Ergebnis dann erratbar ist.
+
+**Offen**: eine Stimme je Person und Option (``chat_stimme``), bis zur Frist
+änderbar; das Ergebnis zeigt die Namen.
+
+**Nach Frist oder Schließung**: keine Stimme mehr (``ValidationError`` → 400),
+das Ergebnis bleibt. Die Schließung zur Frist macht der BESTEHENDE Scheduler
+(``scheduler.job_umfragen_schliessen``), vorzeitig der Ersteller oder wer im
+Gespräch MODERIEREN darf — beides über den Rechte-Kern, nichts Eigenes.
+
+**Verlauf**: ``verlauf`` liefert die Umfragedaten AN der Nachricht mit
+(``umfrage``-Schlüssel). Die Zähler und der eigene Stand kommen in EINER
+Abfrage je Seite mit (``_umfragen_laden``), nicht je Nachricht.
 """
 
 from __future__ import annotations
@@ -117,7 +144,7 @@ import unicodedata
 from datetime import datetime, timedelta
 from typing import Any, NoReturn
 
-from sqlalchemy import delete, func, or_, select, text, update
+from sqlalchemy import case, delete, func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 
 logger = logging.getLogger("diakronos_app.api.chat")
@@ -146,6 +173,8 @@ from diakronos_app.models.chat import (
     ART_GRUPPE,
     ART_UNTERGRUPPE,
     BEARBEITEN_MINUTEN,
+    FRAGE_MAX,
+    HINWEIS_AB,
     MELDEGRUENDE,
     MELDUNG_ENTSCHEIDUNGEN,
     MELDUNG_ERLEDIGT,
@@ -154,12 +183,19 @@ from diakronos_app.models.chat import (
     MELDUNG_STAENDE,
     MELDUNG_VERWORFEN,
     NACHRICHT_MAX,
+    OPTIONEN_MAX,
+    OPTIONEN_MIN,
+    OPTION_MAX,
     REAKTIONEN,
     ChatGespraech,
     ChatMeldung,
     ChatNachricht,
     ChatReaktion,
+    ChatStimme,
     ChatTeilnehmer,
+    ChatUmfrage,
+    ChatUmfrageAbgabe,
+    ChatUmfrageOption,
 )
 from diakronos_app.models.core import User
 from diakronos_app.models.diakonos import Mitglied
@@ -473,6 +509,7 @@ def _zeile(s, n: ChatNachricht, *,
            antwort_auf: str | None = None,
            namen: dict[str, str] | None = None,
            konto_namen: dict[str, str] | None = None,
+           umfragen: dict[str, dict[str, Any]] | None = None,
            ich: str = "") -> dict[str, Any]:
     """Eine Nachricht als flache Antwortzeile.
 
@@ -481,6 +518,10 @@ def _zeile(s, n: ChatNachricht, *,
     ist das Kennzeichen aus S1. ``gelesen_von`` ist ``None`` an fremden
     Nachrichten (Review Punkt 3).
 
+    CHAT-5: ``umfrage`` steht NUR an einer Umfrage-Nachricht (sonst fehlt der
+    Schlüssel ganz — dieselbe Form wie bei den Suchtreffern). Bei einer
+    gelöschten Nachricht ist er ``None``: das Ergebnis einer gelöschten
+    Umfrage hat im Verlauf nichts mehr zu suchen.
     CHAT-6: ``geloescht_grund`` steht NUR an einer durch die Moderation
     entfernten Nachricht (``chat_nachricht.entfernt_grund``) — die Oberfläche
     zeigt „Von der Moderation entfernt“ mit dem Grund. Eine selbst gelöschte
@@ -488,7 +529,7 @@ def _zeile(s, n: ChatNachricht, *,
     bewusst in keiner Antwortzeile.
     """
     geloescht = n.geloescht_am is not None
-    return {
+    zeile = {
         "name": n.name,
         "gespraech": n.gespraech,
         # Anzeige (Mitglied-Kennung -> Name), sonst der Name des Kontos — ein
@@ -512,6 +553,9 @@ def _zeile(s, n: ChatNachricht, *,
         "reaktionen": (reaktionen or {}).get(n.name, []),
         "gelesen_von": (lesestand or {}).get(n.name),
     }
+    if n.umfrage:
+        zeile["umfrage"] = None if geloescht else (umfragen or {}).get(str(n.umfrage))
+    return zeile
 
 
 def _isoopt(wert: datetime | None) -> str | None:
@@ -550,8 +594,10 @@ def _seite_antwort(s, gespraech: str, zeilen: list[ChatNachricht], *,
     stand = _gelesen_von(s, zeilen, gespraech, benutzer)
     namen = _personen(s, {n.autor for n in zeilen if n.autor})
     konten = _konto_namen(s, {n.autor_benutzer for n in zeilen if n.autor_benutzer})
+    # CHAT-5: EIN Abruf für alle Umfragen dieser Seite (kein N+1).
+    umfragen = _umfragen_laden(s, [n.umfrage for n in zeilen if n.umfrage], benutzer)
     posten = [_zeile(s, n, lesestand=stand, reaktionen=reakt, antwort_auf=zitate.get(n.name),
-                     namen=namen, konto_namen=konten, ich=benutzer)
+                     namen=namen, konto_namen=konten, umfragen=umfragen, ich=benutzer)
               for n in zeilen]
     return {
         "gespraech": gespraech,
@@ -1024,6 +1070,12 @@ def aendern(nachricht, text):
 
     Nach ``BEARBEITEN_MINUTEN`` → ``ValidationError``. ``bearbeitet_am`` wird
     gesetzt (Kennzeichen „bearbeitet“).
+
+    Die Hülle einer UMFRAGE (CHAT-5) ist nicht bearbeitbar (400): die Frage
+    ist das Fachdatum, auf das die Stimmen antworten — ein nachträgliches
+    Umschreiben machte jede abgegebene Stimme zu einer Antwort auf eine andere
+    Frage. Sichtbarer Text und Umfrage-Frage bleiben damit derselbe Text
+    (``verlauf``/``_zeile`` zeigen die Nachricht, das Ergebnis die Umfrage).
     """
     benutzer = _benutzer()
     inhalt = _pruefe_text(text)
@@ -1041,6 +1093,9 @@ def aendern(nachricht, text):
                  besitzer=n.autor_benutzer, gespraech=g.name)
         if n.geloescht_am is not None:
             throw("Eine gelöschte Nachricht kann nicht bearbeitet werden.")
+        if n.umfrage:
+            throw("Die Frage einer Umfrage lässt sich nicht ändern — "
+                  "gestartete Abstimmungen antworten auf diesen Text.")
         jetzt = _jetzt()
         if n.erstellt_am is None or jetzt - n.erstellt_am > timedelta(minutes=BEARBEITEN_MINUTEN):
             throw("Nachrichten lassen sich nur in den ersten 15 Minuten bearbeiten.")
@@ -1179,6 +1234,664 @@ def stumm_setzen(gespraech, an=True):
         teilnahme.stumm = wert
         s.flush()
         return {"gespraech": g.name, "stumm": wert}
+
+
+# ── Endpunkte: Umfragen (CHAT-5) ────────────────────────────────────────────
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def umfrage_anlegen(gespraech, frage, optionen=None, mehrfach=False, anonym=True,
+                    frist=None):
+    """Umfrage im Gespräch starten — sie erscheint als Nachricht im Verlauf.
+
+    Recht: ANLEGEN in der Einheit — DIESELBE Aktion wie „Nachricht senden“
+    (F5: jedes Mitglied darf Umfragen starten). Der Rechte-Kern entscheidet,
+    hier steht keine Rollenlogik.
+
+    ``frage``       Freitext, ≤ ``FRAGE_MAX`` Zeichen.
+    ``optionen``    2–``OPTIONEN_MAX`` Texte (Liste ODER durch ``||`` getrennt,
+                    damit Formular-Aufrufe nicht an der Liste scheitern).
+    ``mehrfach``    Mehrfachauswahl erlaubt?
+    ``anonym``      Standard ``True`` (F5). Bei ``True`` wird NIE eine Zeile
+                    mit Personenbezug zur gewählten Option geschrieben.
+    ``frist``       Zeitpunkt (``JJJJ-MM-TT`` oder ``JJJJ-MM-TT HH:MM``) in der
+                    Zeitzone der Gemeinde. Leer = offen bis zur Schließung.
+
+    Die Umfrage hängt an einer NEUEN Nachricht (``text`` = Frage): damit
+    gelten Reihenfolge, Lesestand, Zitat, Reaktionen und Soft-Delete ohne
+    Sonderfall. Der Verweis steht an der Nachricht, eine Umfrage kann also
+    nicht ohne sie existieren und nicht in ein fremdes Gespräch zeigen.
+    """
+    benutzer = _benutzer()
+    gespraech = str(gespraech or "").strip()
+    if not gespraech:
+        throw("gespraech fehlt.")
+    inhalt = _pruefe_frage(frage)
+    auswahl = _pruefe_optionen(optionen)
+    frist_am = _frist_lesen(frist)
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        g = _gespraech_lesen(s, gespraech)
+        _erlaube(benutzer, rechte.ANLEGEN, gruppe=g.gruppe, untergruppe=g.untergruppe,
+                 gespraech=g.name)
+        jetzt = _jetzt()
+        umfrage = ChatUmfrage(
+            name=_kennung("chat-umfrage"),
+            gespraech=g.name,
+            frage=inhalt,
+            mehrfach=_wahr(mehrfach) if mehrfach not in (None, "") else False,
+            # Standard ANONYM (F5). ``anonym`` fehlt/leer = True.
+            anonym=True if anonym in (None, "") else _wahr(anonym),
+            frist_am=frist_am,
+            geschlossen_am=None,
+            geschlossen_von=None,
+            erstellt_am=jetzt,
+        )
+        s.add(umfrage)
+        # PostgreSQL prüft Fremdschlüssel SOFORT (SQLite im Test tat es nicht):
+        # ohne diesen `flush` schrieb die Nachricht ihre `umfrage`-Kennung,
+        # bevor die Umfrage-Zeile in der Datenbank stand. Im Betrieb wäre
+        # JEDE Umfrage mit 500 gescheitert.
+        s.flush()
+        for nummer, text_ in enumerate(auswahl, start=1):
+            s.add(ChatUmfrageOption(umfrage=umfrage.name, nummer=nummer,
+                                    text=text_, stimmen=0))
+        zeile = ChatNachricht(
+            name=_kennung("chat-n"),
+            gespraech=g.name,
+            autor_benutzer=benutzer or None,
+            autor=_meine_kennung() or None,
+            text=inhalt,
+            erstellt_am=jetzt,
+            umfrage=umfrage.name,
+        )
+        s.add(zeile)
+        _teilnahme(s, g.name, benutzer)
+        s.flush()
+        daten = _umfrage_daten(s, umfrage, benutzer)
+        # Die Kennung INNERHALB der Sitzung merken: nach dem `begin()`-Block
+        # wird die Instanz detached, und ein Attributzugriff darauf löst
+        # ``DetachedInstanceError`` aus (im Zwischenstand passiert).
+        nachricht_name = zeile.name
+    return {"name": nachricht_name, "umfrage": daten}
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def umfrage_abstimmen(umfrage, optionen=None):
+    """Stimme abgeben (oder bei OFFENER Umfrage ändern).
+
+    Recht: ANLEGEN in der Einheit — dieselbe Aktion wie „Nachricht senden“
+    (wer abstimmen darf, darf auch senden; beides entscheidet der Rechte-Kern).
+
+    ``optionen`` ist die Liste der gewählten Nummern. Ohne Mehrfachauswahl
+    genau EINE Nummer; mit Mehrfachauswahl 1 … n. Geprüft wird, dass jede
+    Nummer zur Umfrage gehört.
+
+    ANONYM: die Abgabe ist nach der ersten Stimme ENDGÜLTIG (Entscheidung
+    Operator) → ``ValidationError`` (400). Der Doppelklick-Fall ist auch ohne
+    diese Prüfung gesperrt: der Primärschlüssel von ``chat_umfrage_abgabe``
+    lässt nur eine Zeile zu, und die Zähler werden mit einem BEDINGTEN
+    ``UPDATE`` (``stimmen = stimmen + 1``) je Option fortgeschrieben — kein
+    Lesen-Ändern-Schreiben, also kein verlorener Zuwachs bei Gleichzeitigkeit.
+
+    OFFEN: Stimme je Person und Option, ersetzt bei jedem Aufruf (bis zur
+    Frist änderbar); die Namen stehen im Ergebnis.
+
+    Nach Frist oder Schließung: ``ValidationError`` (400), das Ergebnis bleibt.
+    """
+    benutzer = _benutzer()
+    if not benutzer or benutzer == "Guest":
+        _h()
+    umfrage = str(umfrage or "").strip()
+    if not umfrage:
+        throw("umfrage fehlt.")
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        u, g = _umfrage_lesen(s, umfrage)
+        _erlaube(benutzer, rechte.ANLEGEN, gruppe=g.gruppe, untergruppe=g.untergruppe,
+                 gespraech=g.name)
+        _pruefe_offen(u)
+        nummern = _pruefe_stimme(s, optionen, u)
+        if u.anonym:
+            # Erst die SPERRE, dann die Zähler: die Marke ist der Primärschlüssel.
+            # Ein zweiter Aufruf (auch gleichzeitig) scheitert hier — und zwar
+            # in der Datenbank, nicht an einer Prüfung, die zwei Aufrufe
+            # gleichzeitig beide bestehen würden.
+            #
+            # BEKANNTE GRENZE (Review CHAT-5b, SOLL d): Marke und Zähler liegen
+            # in DERSELBEN Transaktion. Nach außen verbindet nichts Person und
+            # Option — ein Datenbank-ADMIN kann aber über ``xmin`` (PostgreSQL)
+            # sehen, welche Marke mit welchem Zählerstand entstand. Bewusst
+            # dokumentiert statt umgebaut; Details im DSGVO-Inventar an
+            # ``chat_umfrage_abgabe``.
+            try:
+                with s.begin_nested():
+                    s.add(ChatUmfrageAbgabe(umfrage=u.name, benutzer=benutzer,
+                                            erstellt_am=_jetzt()))
+                    s.flush()
+            except IntegrityError:
+                throw("Für diese Umfrage haben Sie bereits abgestimmt. "
+                      "Anonyme Stimmen lassen sich nicht ändern.")
+            for nummer in nummern:
+                _zaehle(s, u.name, nummer, +1)
+        else:
+            _offene_stimmen_setzen(s, u, benutzer, nummern)
+        s.flush()
+        return _umfrage_daten(s, u, benutzer)
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def umfrage_schliessen(umfrage):
+    """Umfrage vorzeitig schließen — ERSTELLER oder wer MODERIEREN darf.
+
+    Recht: ZWEI Wege, beide über den Rechte-Kern:
+      * der Ersteller (die Nachricht gehört ihm → SCHREIBEN mit eigenem
+        Besitzer),
+      * sonst MODERIEREN im Gespräch (HV/MV, in der Untergruppe auch GL).
+
+    Idempotent: eine bereits geschlossene Umfrage bleibt geschlossen (der
+    Zeitpunkt des ersten Schließens steht). Automatisch zur Frist schließt der
+    Scheduler (``job_umfragen_schliessen``) — dieselbe Zeile, ohne
+    ``geschlossen_von``.
+    """
+    benutzer = _benutzer()
+    umfrage = str(umfrage or "").strip()
+    if not umfrage:
+        throw("umfrage fehlt.")
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        u, g = _umfrage_lesen(s, umfrage)
+        eigene = _umfrage_ist_meine(s, u, benutzer)
+        if eigene:
+            _erlaube(benutzer, rechte.SCHREIBEN, gruppe=g.gruppe,
+                     untergruppe=g.untergruppe,
+                     besitzer=_umfrage_autor(s, u.name), gespraech=g.name)
+        else:
+            _erlaube(benutzer, rechte.MODERIEREN, gruppe=g.gruppe,
+                     untergruppe=g.untergruppe, gespraech=g.name)
+        if u.geschlossen_am is None:
+            u.geschlossen_am = _jetzt()
+            u.geschlossen_von = benutzer or None
+            s.flush()
+        return _umfrage_daten(s, u, benutzer)
+
+
+@whitelist(allow_guest=False)
+def umfrage_ergebnis(umfrage):
+    """Ergebnis einer Umfrage lesen — wer das Gespräch lesen darf.
+
+    Rein lesend (GET). Antwort wie im Verlauf: ``_umfrage_daten``.
+    """
+    benutzer = _benutzer()
+    umfrage = str(umfrage or "").strip()
+    if not umfrage:
+        throw("umfrage fehlt.")
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        u, g = _umfrage_lesen(s, umfrage)
+        _erlaube(benutzer, rechte.LESEN, gruppe=g.gruppe, untergruppe=g.untergruppe,
+                 gespraech=g.name)
+        return _umfrage_daten(s, u, benutzer)
+
+
+# ── Innen: Umfragen ─────────────────────────────────────────────────────────
+
+
+def _pruefe_frage(frage) -> str:
+    """Die Frage: nicht leer am Rand, ≤ ``FRAGE_MAX`` ZEICHEN (wie Text)."""
+    if frage is None or not str(frage).strip():
+        throw("Bitte eine Frage eingeben.")
+    inhalt = str(frage).strip()
+    if len(inhalt) > FRAGE_MAX:
+        throw(f"Die Frage darf höchstens {FRAGE_MAX} Zeichen lang sein "
+              f"(eingegeben: {len(inhalt)}).")
+    return inhalt
+
+
+def _pruefe_optionen(optionen) -> list[str]:
+    """2 … ``OPTIONEN_MAX`` Optionen, jede nicht leer und ≤ ``OPTION_MAX``.
+
+    Nimmt eine LISTE (JSON/HTTP) oder EINEN String mit ``||`` als Trenner
+    (Formular). Andere Trenner werden NICHT geraten: eine Option darf Kommas
+    enthalten („Samstag, 18 Uhr“).
+    """
+    if optionen is None or optionen == "":
+        roh: list = []
+    elif isinstance(optionen, str):
+        roh = optionen.split("||")
+    else:
+        roh = list(optionen)
+    texte: list[str] = []
+    for eintrag in roh:
+        text = str(eintrag or "").strip()
+        if not text:
+            continue
+        if len(text) > OPTION_MAX:
+            throw(f"Eine Option darf höchstens {OPTION_MAX} Zeichen lang sein.")
+        texte.append(text)
+    if len(texte) < OPTIONEN_MIN:
+        throw(f"Eine Umfrage braucht mindestens {OPTIONEN_MIN} Optionen.")
+    if len(texte) > OPTIONEN_MAX:
+        throw(f"Eine Umfrage darf höchstens {OPTIONEN_MAX} Optionen haben "
+              f"(eingegeben: {len(texte)}).")
+    return texte
+
+
+def _frist_lesen(frist) -> datetime | None:
+    """Frist als Wandzeit der Gemeinde; leer → ``None`` (offen bis Schließung).
+
+    Akzeptiert ``datetime``, ``JJJJ-MM-TT`` und ``JJJJ-MM-TT HH:MM``. Ein
+    Zeitpunkt MIT Zeitzone wird auf die Wandzeit der Gemeinde umgerechnet
+    (dieselbe Uhr, in der die Umfrage steht). Vergangene Fristen werden
+    ABGEWIESEN: eine Umfrage, die man nicht mehr beantworten kann, ist keine.
+    """
+    if frist is None or str(frist).strip() == "":
+        return None
+    wert = frist
+    if isinstance(wert, str):
+        text_ = wert.strip().replace("T", " ")
+        for form in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+            try:
+                wert = datetime.strptime(text_, form)
+                break
+            except ValueError:
+                continue
+        else:
+            throw("Die Frist bitte als JJJJ-MM-TT oder JJJJ-MM-TT HH:MM angeben.")
+    if isinstance(wert, datetime):
+        if wert.tzinfo is not None:
+            from diakronos_app.zeit import zeitzone
+
+            wert = wert.astimezone(zeitzone()).replace(tzinfo=None)
+        if wert <= _jetzt():
+            throw("Die Frist liegt in der Vergangenheit.")
+        return wert
+    throw("Die Frist bitte als JJJJ-MM-TT oder JJJJ-MM-TT HH:MM angeben.")
+
+
+def _pruefe_stimme(s, optionen, u: ChatUmfrage) -> list[int]:
+    """Die gewählten Optionsnummern — geprüft gegen DIESE Umfrage.
+
+    Ohne Mehrfachauswahl genau eine Nummer (sonst ``ValidationError``): eine
+    stille Kürzung auf die erste wäre eine Entscheidung, die der Person nicht
+    gehört.
+    """
+    if optionen is None or optionen == "":
+        roh: list = []
+    elif isinstance(optionen, str):
+        roh = [t for t in optionen.replace(";", ",").split(",")]
+    elif isinstance(optionen, (int, float)):
+        # Eine EINZELNE Nummer (``optionen=1``) ist der häufigste Aufruf —
+        # ohne diesen Zweig würde ``list(1)`` mit ``TypeError`` abstürzen
+        # statt zu prüfen (im Zwischenstand passiert).
+        roh = [optionen]
+    else:
+        roh = list(optionen)
+    nummern: list[int] = []
+    for eintrag in roh:
+        text = str(eintrag if eintrag is not None else "").strip()
+        if not text:
+            continue
+        try:
+            nummer = int(text)
+        except (TypeError, ValueError):
+            throw("Bitte die Nummer der Option angeben.")
+        if nummer not in nummern:
+            nummern.append(nummer)
+    if not nummern:
+        throw("Bitte mindestens eine Option wählen.")
+    if len(nummern) > 1 and not u.mehrfach:
+        throw("Diese Umfrage erlaubt nur eine Antwort.")
+    # Jede Nummer muss zu DIESER Umfrage gehören: der Endpunkt ist der einzige
+    # Schreibweg, und eine Stimme auf eine nicht existierende Option würde in
+    # `chat_stimme` hängen (FK) oder den Zähler einer fremden Option treffen.
+    vorhanden = {int(n) for (n,) in s.execute(
+        select(ChatUmfrageOption.nummer).where(ChatUmfrageOption.umfrage == u.name)
+    ).all()}
+    fremd = [n for n in nummern if n not in vorhanden]
+    if fremd:
+        throw("Diese Option gehört nicht zur Umfrage.")
+    return nummern
+
+
+def _pruefe_offen(u: ChatUmfrage) -> None:
+    """Ist die Umfrage noch offen? Sonst ``ValidationError`` (400)."""
+    jetzt = _jetzt()
+    if u.geschlossen_am is not None:
+        throw("Diese Umfrage ist geschlossen — es kann nicht mehr abgestimmt werden.")
+    if u.frist_am is not None and u.frist_am <= jetzt:
+        throw("Die Frist dieser Umfrage ist abgelaufen — es kann nicht mehr "
+              "abgestimmt werden.")
+
+
+def _zaehle(s, umfrage: str, nummer: int, delta: int) -> None:
+    """Zähler einer Option fort schreiben — BEDINGT in der Datenbank.
+
+    ``stimmen = stimmen + delta`` rechnet die Datenbank, nicht Python: zwei
+    gleichzeitige Abgaben verlieren so keinen Zuwachs (kein
+    Lesen-Ändern-Schreiben). Die Untergrenze 0 ist Absicht — ein negativer
+    Zähler wäre kein Ergebnis, sondern ein Fehler, der stehen bliebe.
+
+    Die Untergrenze steht als ``CASE`` da, NICHT als ``func.max(0, …)``: das
+    zweiargumentige ``max`` gibt es nur in SQLite, PostgreSQL kennt es nicht
+    („function max(integer, integer) does not exist“) und jede Stimmabgabe
+    wäre dort mit 500 gescheitert. ``CASE`` ist auf beiden Dialekten dasselbe
+    SQL; ``GREATEST`` wäre ebenfalls dialektübergreifend, aber NULL-behaftet
+    (GREATEST(NULL, x) = NULL auf PostgreSQL), und ein fehlender Zähler ist
+    hier kein Sonderfall, den man aussitzen sollte.
+    """
+    s.execute(
+        update(ChatUmfrageOption)
+        .where(ChatUmfrageOption.umfrage == umfrage,
+               ChatUmfrageOption.nummer == nummer)
+        .values(stimmen=case(
+            (func.coalesce(ChatUmfrageOption.stimmen, 0) + delta < 0, 0),
+            else_=func.coalesce(ChatUmfrageOption.stimmen, 0) + delta,
+        ))
+    )
+
+
+def _offene_stimmen_setzen(s, u: ChatUmfrage, benutzer: str, nummern: list[int]) -> None:
+    """Stimmen einer OFFENEN Umfrage ersetzen und die Zähler nachziehen.
+
+    Die Zähler werden um die DIFFERENZ je Option verschoben, nicht neu
+    gezählt: die Zählerspalte bleibt damit auch dann die Wahrheit, wenn eine
+    Person später gelöscht wird und ihre Stimmenzeile fällt.
+
+    Gegen das Rennen beim ÄNDERN (zwei gleichzeitige Aufrufe derselben Person):
+
+      * die eigenen Zeilen werden mit ``FOR UPDATE`` gesperrt, und
+      * heruntergezählt wird NUR, wenn das ``DELETE`` genau eine Zeile
+        getroffen hat (``rowcount == 1``). Hat ein gleichzeitiger Aufruf die
+        Zeile schon entfernt, hat er auch schon heruntergezählt — ein zweites
+        Herunterzählen wäre ein Zähler, der nicht zu den Zeilen passt
+        (Einzelauswahl ergäbe zwei Stimmen, obwohl eine Person nur eine hat).
+
+    Das Rennen beim HINZUFÜGEN bleibt der Primärschlüssel von
+    ``chat_stimme``: eine zweite Zeile (Umfrage, Option, Person) scheitert in
+    der Datenbank, und der Aufruf fällt als Ganzes zurück (kein Zähler ohne
+    Zeile).
+
+    ``FOR UPDATE`` wird nur gesetzt, wo der Dialekt es kennt; SQLite sperrt
+    ohnehin die ganze Schreibtransaktion und lehnt die Klausel ab.
+    """
+    sperren = s.get_bind().dialect.name not in ("sqlite",)
+    if sperren:
+        # Erst die Umfrage-Zeile sperren: serialisiert gleichzeitige Aufrufe
+        # auch bei der ERSTEN Stimme (FOR UPDATE auf leere Mengen sperrt nichts).
+        s.execute(select(ChatUmfrage.name).where(ChatUmfrage.name == u.name).with_for_update())
+    abfrage = select(ChatStimme.option).where(ChatStimme.umfrage == u.name,
+                                              ChatStimme.benutzer == benutzer)
+    if sperren:
+        abfrage = abfrage.with_for_update()
+    alt = {int(a) for a in s.execute(abfrage).scalars().all()}
+    neu = set(nummern)
+    for nummer in sorted(neu - alt):
+        _zaehle(s, u.name, nummer, +1)
+        s.add(ChatStimme(umfrage=u.name, option=nummer, benutzer=benutzer,
+                         erstellt_am=_jetzt()))
+    for nummer in sorted(alt - neu):
+        weg = s.execute(delete(ChatStimme).where(ChatStimme.umfrage == u.name,
+                                                 ChatStimme.option == nummer,
+                                                 ChatStimme.benutzer == benutzer))
+        if weg.rowcount == 1:
+            _zaehle(s, u.name, nummer, -1)
+
+
+def _umfragen_laden(s, kennungen, benutzer: str) -> dict[str, dict[str, Any]]:
+    """Die Umfragedaten zu einer SEITE Nachrichten — in fester Zahl Abfragen.
+
+    Vier Abfragen für die ganze Seite (Umfragen, Optionen, eigene Stimmen,
+    eigene Abgaben) — keine je Nachricht. Das ist die Zusage aus der Karte
+    „ohne N+1“.
+
+    Die NAMEN (offene Umfrage) kommen über ``_personen``/``_konto_namen`` aus
+    den Konten der Stimmenzeilen — wer abstimmen durfte, steht damit
+    namentlich im Ergebnis. Bei einer anonymen Umfrage gibt es KEINE
+    Stimmenzeilen, also auch keine Namen.
+    """
+    ids = [str(k) for k in kennungen if k]
+    if not ids:
+        return {}
+    umfragen = {str(u.name): u for u in s.execute(
+        select(ChatUmfrage).where(ChatUmfrage.name.in_(ids))
+    ).scalars().all()}
+    if not umfragen:
+        return {}
+    optionen: dict[str, list[ChatUmfrageOption]] = {}
+    for o in s.execute(
+        select(ChatUmfrageOption)
+        .where(ChatUmfrageOption.umfrage.in_(list(umfragen)))
+        .order_by(ChatUmfrageOption.umfrage, ChatUmfrageOption.nummer)
+    ).scalars().all():
+        optionen.setdefault(str(o.umfrage), []).append(o)
+
+    eigene_stimmen: dict[str, list[int]] = {}
+    for kennung, nummer in s.execute(
+        select(ChatStimme.umfrage, ChatStimme.option)
+        .where(ChatStimme.umfrage.in_(list(umfragen)),
+               ChatStimme.benutzer == benutzer)
+    ).all():
+        eigene_stimmen.setdefault(str(kennung), []).append(int(nummer))
+    eigene_abgabe = {str(k) for k in s.execute(
+        select(ChatUmfrageAbgabe.umfrage)
+        .where(ChatUmfrageAbgabe.umfrage.in_(list(umfragen)),
+               ChatUmfrageAbgabe.benutzer == benutzer)
+    ).scalars().all()}
+
+    # Namen je Stimme — nur für OFFENE Umfragen (anonym hat keine Zeilen).
+    offene = [k for k, u in umfragen.items() if not u.anonym]
+    namen_je_option: dict[tuple[str, int], list[str]] = {}
+    #: Abgegebene PERSONEN je Umfrage. Anonym: die Marken, offen: die Konten.
+    abgegeben: dict[str, int] = {
+        kennung: 0 for kennung in umfragen
+    }
+    for kennung in umfragen:
+        if kennung in eigene_abgabe:
+            abgegeben[kennung] = max(abgegeben[kennung], 1)
+    # Anonyme Umfragen: JEDE Marke ist eine abgegebene Person (eine je Person).
+    anonyme = [k for k, u in umfragen.items() if u.anonym]
+    if anonyme:
+        for kennung, anzahl in s.execute(
+            select(ChatUmfrageAbgabe.umfrage, func.count())
+            .where(ChatUmfrageAbgabe.umfrage.in_(anonyme))
+            .group_by(ChatUmfrageAbgabe.umfrage)
+        ).all():
+            abgegeben[str(kennung)] = int(anzahl or 0)
+    if offene:
+        stimmen = s.execute(
+            select(ChatStimme.umfrage, ChatStimme.option, ChatStimme.benutzer)
+            .where(ChatStimme.umfrage.in_(offene))
+        ).all()
+        konten = {str(k) for _, _, k in stimmen if k}
+        mitglied_je_konto = _mitglieder_je_konto(s, konten)
+        anzeige = _personen(s, set(mitglied_je_konto.values()))
+        konto_anzeige = _konto_namen(s, konten)
+        # Wer hat in DIESER Umfrage abgestimmt (= welches Konto)?
+        # Als DICT-von-MENGEN ohne `.add()`: der Inventar-Wächter liest den
+        # Funktionsrumpf und hielte `…add(…)` für einen Schreibvorgang — der
+        # Verlauf ist rein lesend (SEC-11c), und das soll er auch nach dem
+        # Rumpfbefund bleiben.
+        stimmende: dict[str, set[str]] = {}
+        for umfrage_id, nummer, konto in stimmen:
+            konto = str(konto or "")
+            kennung = str(umfrage_id)
+            stimmende[kennung] = stimmende.get(kennung, set()) | {konto}
+            name = (anzeige.get(mitglied_je_konto.get(konto, ""))
+                    or konto_anzeige.get(konto) or konto)
+            namen_je_option.setdefault((kennung, int(nummer)), []).append(name)
+        for kennung, wer in stimmende.items():
+            abgegeben[str(kennung)] = len(wer)
+
+    return {
+        kennung: _umfrage_form(u, optionen.get(kennung, []), benutzer,
+                               eigene_stimmen.get(kennung, []),
+                               kennung in eigene_abgabe,
+                               namen_je_option, abgegeben.get(kennung, 0))
+        for kennung, u in umfragen.items()
+    }
+
+
+def _mitglieder_je_konto(s, konten) -> dict[str, str]:
+    """``{konto: mitglied.name}`` für die Anzeige einer Stimme (eine Abfrage)."""
+    namen = {str(k) for k in konten if k}
+    if not namen:
+        return {}
+    zeilen = s.execute(
+        select(Mitglied.user, Mitglied.name).where(Mitglied.user.in_(namen))
+    ).all()
+    return {str(konto): str(kennung) for konto, kennung in zeilen if konto and kennung}
+
+
+def _umfrage_form(u: ChatUmfrage, optionen: list[ChatUmfrageOption], benutzer: str,
+                  eigene: list[int], hat_abgestimmt: bool,
+                  namen_je_option: dict[tuple[str, int], list[str]],
+                  abgegeben: int = 0) -> dict[str, Any]:
+    """Eine Umfrage als Antwortblock (Verlauf, Ergebnis, Abstimmen).
+
+    ``hinweis`` steht NUR, wenn weniger als ``HINWEIS_AB`` Personen abgestimmt
+    haben — der Text sagt, dass das Ergebnis dann erratbar ist (Karte CHAT-5,
+    Konzept S2). Er hängt an der ZAHL der Abgegebenen, nicht an ``anonym``:
+    auch eine offene Umfrage mit zwei Stimmen sagt wenig.
+
+    ``eigene_stimme`` ist bei einer anonymen Umfrage ``None`` — es gibt keine
+    (und es darf keine geben); ``abgestimmt`` sagt dort ``true``/``false``.
+
+    ``abgegeben`` ist die Zahl der PERSONEN, nicht der Stimmen: bei einer
+    anonymen Umfrage sind die Zähler eindeutig (eine Marke je Person), bei
+    einer offenen zählt die Menge der Konten — wer zwei Optionen gewählt hat,
+    ist EINE abgebende Person. Anonym kommt sie aus ``chat_umfrage_abgabe``,
+    offen aus der Menge der Konten in ``namen_je_option``; beides zählt
+    ``_umfragen_laden`` für die ganze Seite, ``_zaehle_abgegeben`` für eine
+    einzelne Umfrage.
+    """
+    gesamt = _summe(optionen)
+    return {
+        "name": u.name,
+        "gespraech": u.gespraech,
+        "frage": u.frage,
+        "mehrfach": bool(u.mehrfach),
+        "anonym": bool(u.anonym),
+        "frist_am": _isoopt(u.frist_am),
+        "geschlossen_am": _isoopt(u.geschlossen_am),
+        "geschlossen_von": u.geschlossen_von,
+        "offen": _ist_offen(u),
+        "stimmen_gesamt": gesamt,
+        "abgegeben": abgegeben,
+        "hinweis": _hinweis(abgegeben),
+        "abgestimmt": bool(hat_abgestimmt) or bool(eigene),
+        "eigene_stimme": None if u.anonym else sorted(int(n) for n in eigene),
+        "optionen": [
+            {
+                "nummer": int(o.nummer),
+                "text": o.text,
+                "stimmen": int(o.stimmen or 0),
+                # Namen NUR bei offener Umfrage (anonym: leere Liste, weil es
+                # keine Zeile gibt, aus der sie käme).
+                "namen": [] if u.anonym else namen_je_option.get((u.name, int(o.nummer)), []),
+            }
+            for o in optionen
+        ],
+    }
+
+
+def _summe(optionen: list[ChatUmfrageOption]) -> int:
+    """Summe der Zähler einer Umfrage (Stimmen, nicht Personen)."""
+    return sum(int(o.stimmen or 0) for o in optionen)
+
+
+def _hinweis(abgegeben: int) -> str | None:
+    """Hinweistext unter ``HINWEIS_AB`` Abgegebenen (Karte CHAT-5), sonst ``None``."""
+    if abgegeben >= HINWEIS_AB:
+        return None
+    return ("Ergebnis bei wenigen Teilnehmenden erratbar — bei anonymen "
+            "Umfragen lässt sich die Stimme mit Zusatzwissen zuordnen.")
+
+
+def _ist_offen(u: ChatUmfrage) -> bool:
+    """Nimmt die Umfrage JETZT noch Stimmen an?"""
+    if u.geschlossen_am is not None:
+        return False
+    if u.frist_am is not None and u.frist_am <= _jetzt():
+        return False
+    return True
+
+
+def _umfrage_daten(s, u: ChatUmfrage, benutzer: str) -> dict[str, Any]:
+    """Die Umfragedaten EINER Umfrage (Anlegen, Abstimmen, Ergebnis)."""
+    daten = _umfragen_laden(s, [u.name], benutzer).get(str(u.name))
+    if daten is not None:
+        return daten
+    # Keine Optionen (darf nicht vorkommen) — trotzdem eine ganze Antwortform.
+    return _umfrage_form(u, [], benutzer, [], False, {})
+
+
+def _umfrage_lesen(s, umfrage: str) -> tuple[ChatUmfrage, ChatGespraech]:
+    """Umfrage + ihr Gespräch per Kennung; unbekannt → 404 (nichts raten).
+
+    Eine Umfrage lebt NUR als Nachricht im Verlauf: ist die Hülle-Nachricht
+    gelöscht (selbst gelöscht oder von der Moderation entfernt), ist die
+    Umfrage für ALLE Wege weg — Abstimmen, Ergebnis, Schließen. Sonst nähme
+    eine entfernte Umfrage weiter Stimmen an und lieferte bei einer offenen
+    Umfrage sogar Namen. Wie bei einer unbekannten Kennung: 404, nicht 403 —
+    die Kennung allein soll nichts über ihren Inhalt verraten.
+    """
+    if not umfrage:
+        throw("umfrage fehlt.")
+    zeile = s.get(ChatUmfrage, umfrage)
+    if zeile is None:
+        raise DoesNotExistError("Umfrage nicht gefunden.")
+    huelle = _umfrage_nachricht(s, zeile.name)
+    if huelle is None or huelle.geloescht_am is not None:
+        raise DoesNotExistError("Umfrage nicht gefunden.")
+    gespraech = _gespraech_lesen(s, zeile.gespraech)
+    return zeile, gespraech
+
+
+def _umfrage_nachricht(s, umfrage: str) -> ChatNachricht | None:
+    """Die Nachricht, an der die Umfrage hängt (für Besitz und Anzeige)."""
+    return s.execute(
+        select(ChatNachricht).where(ChatNachricht.umfrage == umfrage)
+    ).scalars().first()
+
+
+def _umfrage_autor(s, umfrage: str) -> str | None:
+    """Das KONTO, das die Umfrage gestartet hat (Besitz = die Hülle-Nachricht).
+
+    Nimmt die KENNUNG der Umfrage (nicht die Instanz): aufgerufen aus
+    ``_umfrage_ist_meine`` und aus ``umfrage_schliessen``, wo nur ``u`` bzw.
+    der Name zur Hand ist.
+    """
+    n = _umfrage_nachricht(s, umfrage)
+    return n.autor_benutzer if n is not None else None
+
+
+def _umfrage_ist_meine(s, u: ChatUmfrage, benutzer: str) -> bool:
+    """Hat DIESE Person die Umfrage gestartet? — verglichen wird das KONTO."""
+    autor = _umfrage_autor(s, u.name)
+    return bool(autor) and str(autor) == str(benutzer or "")
+
+
+def schliesse_faellige(jetzt: datetime | None = None) -> int:
+    """Umfragen schließen, deren Frist erreicht ist — der Scheduler-Job ruft DAS.
+
+    Kein eigener Job, kein eigener Zeitgeber: der bestehende Scheduler
+    (``scheduler.job_umfragen_schliessen``) ruft diese Funktion einmal am Tag
+    und schreibt ``geschlossen_am`` auf die Frist (nicht auf „jetzt“ — die
+    Frist IST der Schließzeitpunkt; das macht die Anzeige unabhängig davon,
+    wann der Job tatsächlich lief). ``geschlossen_von`` bleibt ``NULL``:
+    automatisch heißt automatisch.
+
+    Die Schließung ist idempotent (``WHERE geschlossen_am IS NULL``); eine
+    bereits vorzeitig geschlossene Umfrage behält ihren Zeitpunkt.
+    Rückgabe: Zahl der geschlossenen Umfragen.
+    """
+    zeit = jetzt or _jetzt()
+    with dbmod.SessionLocal.begin() as s:
+        ergebnis = s.execute(
+            update(ChatUmfrage)
+            .where(ChatUmfrage.geschlossen_am.is_(None),
+                   ChatUmfrage.frist_am.is_not(None),
+                   ChatUmfrage.frist_am <= zeit)
+            .values(geschlossen_am=ChatUmfrage.frist_am)
+        )
+        return int(ergebnis.rowcount or 0)
 
 
 # ── Endpunkte: Melden und Moderation (CHAT-6) ───────────────────────────────

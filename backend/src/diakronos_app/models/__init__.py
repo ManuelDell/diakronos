@@ -34,11 +34,17 @@ from diakronos_app.models.rechte import (
     RechteObjekt,
 )
 # CHAT-2 (S1): Gruppen-/Untergruppenchat (Handmodell, Konzept CHAT-KONZEPT.md 3.3).
+# CHAT-5 (S2): Umfragen dazu (chat_umfrage, chat_umfrage_option, chat_stimme,
+# chat_umfrage_abgabe) — Konzept Abschnitt 1/S2 und 9 (F5).
 from diakronos_app.models.chat import (
     ChatGespraech,
     ChatNachricht,
     ChatReaktion,
+    ChatStimme,
     ChatTeilnehmer,
+    ChatUmfrage,
+    ChatUmfrageAbgabe,
+    ChatUmfrageOption,
 )
 from diakronos_app.models.smtp import SmtpEinstellungen
 from diakronos_app.models.auth_oidc import Anmeldeeinstellungen

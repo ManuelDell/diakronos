@@ -469,6 +469,10 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         "text": ("protokoll", "Nachrichtentext kann die Person nennen"),
         "entfernt_grund": ("protokoll", "Grund einer Moderations-Entfernung (Freitext)"),
         "geloescht_von": ("user_null", "Konto, das die Nachricht gelöscht hat"),
+        # CHAT-5: Verweis auf die Umfrage dieser Nachricht — ein FACHOBJEKT,
+        # keine Person. Steht hier, weil der Inventar-Wächter je Textspalte eine
+        # Entscheidung verlangt; geändert wird an ihr nichts.
+        "umfrage": ("struktur", "Kennung der Umfrage an dieser Nachricht (Fachobjekt)"),
     },
     "chat_reaktion": {
         "benutzer": ("zeile_loeschen", "Reaktion der Person (Zeile wird gelöscht)"),
@@ -493,6 +497,52 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         "stand": ("struktur", "offen/erledigt/verworfen"),
         "freitext": ("protokoll", "Freitext der Meldung kann die Person nennen"),
         "entscheidung_grund": ("protokoll", "Begründung der Moderationsentscheidung (Freitext)"),
+    },
+    # CHAT-5 (S2, Konzept 1/S2, 4.3): Umfragen. Die ANONYMITÄTSZUSAGE ist hier
+    # datenbankseitig gebaut, nicht nur zugesagt: bei einer anonymen Umfrage
+    # gibt es KEINE Zeile, die Person und Option verbindet. Deshalb ist
+    # `chat_umfrage_abgabe` (nur „hat abgestimmt“) die einzige Spur der Person,
+    # und die fällt mit dem Konto. Der ZÄHLER je Option
+    # (`chat_umfrage_option.stimmen`) trägt keinen Personenbezug und bleibt
+    # stehen — er ist das Ergebnis, auf das die anderen ein Anrecht haben.
+    "chat_umfrage": {
+        # Die Frage ist Freitext und kann eine Person nennen („Sollen wir
+        # Annas Vorschlag nehmen?“).
+        "frage": ("protokoll", "Frage der Umfrage kann eine Person nennen"),
+        # Konto, das vorzeitig geschlossen hat. NULL = automatisch zur Frist.
+        "geschlossen_von": ("user_null", "Konto, das die Umfrage vorzeitig geschlossen hat"),
+        "gespraech": ("struktur", "Kennung des Gesprächs (Fachobjekt)"),
+    },
+    "chat_umfrage_option": {
+        # Stimmzettel-Text, kein Personenbezug („Samstag, 18 Uhr“); steht hier,
+        # weil der Inventar-Wächter je Textspalte eine Entscheidung verlangt.
+        "text": ("struktur", "Text einer Antwortmöglichkeit (kein Personenbezug)"),
+        "umfrage": ("struktur", "Kennung der Umfrage (Fachobjekt)"),
+    },
+    # NAMENTLICHE Stimmen (nur bei `anonym = false`). Sie sind Verhaltensdaten
+    # der Person und fallen mit dem Konto — der Zähler in
+    # `chat_umfrage_option.stimmen` bleibt (Konzept 4.3: „der Zähler bleibt“).
+    "chat_stimme": {
+        "benutzer": ("zeile_loeschen", "namentliche Stimme der Person (Zeile wird gelöscht)"),
+        "umfrage": ("struktur", "Kennung der Umfrage (Fachobjekt)"),
+    },
+    # Die „hat abgestimmt“-Marke OHNE Option (nur bei anonymen Umfragen). Sie
+    # trägt keinen Bezug zur gewählten Option; mit dem Konto fällt die Zeile.
+    #
+    # BEKANNTE GRENZE (CHAT-5b, Review SOLL d): Anonymität gilt für den
+    # INHALT der Datenbank, nicht gegen den Datenbank-ADMINISTRATOR. Zähler-
+    # UPDATE und Marken-INSERT laufen in DERSELBEN Transaktion; auf PostgreSQL
+    # trägt jede Zeile ihre Transaktionskennung (``xmin``), ein DB-Admin kann
+    # also sehen, welche Marke zusammen mit welchem Zählerstand entstand. Das
+    # reicht, um bei einer Option mit genau einem Wähler die Person zu
+    # erraten. Ein Umbau (Zähler verzögert/gebündelt fortschreiben) würde das
+    # mindern, aber nicht beseitigen (die Alternative wäre eine Sperre, die
+    # die Zählung unbrauchbar macht) — deshalb ist es hier dokumentiert, nicht
+    # gebaut. Nach außen gilt die Zusage der Karte unverändert: KEINE Spalte,
+    # KEINE Zeile, KEIN Endpunkt verbindet Person und Option.
+    "chat_umfrage_abgabe": {
+        "benutzer": ("zeile_loeschen", "Abgabe-Marke der Person (Zeile wird gelöscht)"),
+        "umfrage": ("struktur", "Kennung der Umfrage (Fachobjekt)"),
     },
     "gestaltung_abweichung": {
         # UX1j: Maße der Oberfläche (Abstände, Rahmen, Radien) — keine
@@ -732,6 +782,13 @@ ZEILEN_LOESCHEN: tuple[tuple[str, str], ...] = (
     # (`chat_nachricht.autor` wird umgehängt, s. `SPALTEN`).
     ("chat_teilnehmer", "Teilnahme und Lesestand der Person"),
     ("chat_reaktion", "Reaktionen der Person"),
+    # CHAT-5 (S2): namentliche Stimmen und die Abgabe-Marke der Person sind
+    # Verhaltensdaten. Sie fallen mit dem Konto; der ZÄHLER je Option
+    # (`chat_umfrage_option.stimmen`) bleibt und trägt keinen Personenbezug.
+    # Bei einer ANONYMEN Umfrage gibt es die Stimmenzeile gar nicht — dort ist
+    # die Marke die einzige Spur, und sie verschwindet mit der Person.
+    ("chat_stimme", "namentliche Stimmen der Person in offenen Umfragen"),
+    ("chat_umfrage_abgabe", "Abgabe-Marke der Person (anonyme Umfragen)"),
 )
 
 #: Tabellen mit Konto-Bezug, deren Zeilen gelöscht werden — dort wird VORHER
@@ -748,6 +805,8 @@ KONTO_ZEILEN = frozenset({
     # sie verschwinden mit dem Konto. Der Verlauf bleibt lesbar; das leisten
     # die FK-Spalten `chat_nachricht.autor`/`geloescht_von` (Umhängen/Nullen).
     "chat_teilnehmer", "chat_reaktion",
+    # CHAT-5: die Stimmenzeilen und Marken sind ZEILEN der Person.
+    "chat_stimme", "chat_umfrage_abgabe",
 })
 
 
@@ -1567,6 +1626,15 @@ def _zeilen_loeschen(s, b: Bestand, kennung: str) -> dict:
         # gehängt (sonst würde sie als eigene Alternative alles löschen).
         if tabelle_name in ("has_role", "user_role") and tabelle.c.get("parenttype") is not None:
             bedingung = and_(or_(*bedingungen), tabelle.c["parenttype"] == "User")
+        elif tabelle_name == "chat_stimme":
+            # CHAT-5b (Review, Test zeigte es): `chat_stimme` hat AUCH eine
+            # Spalte `option` — ein bloßes `c.in_(…)-ODER` über alle Spalten
+            # verband die Zeilen aller Umfragen, in denen die Person die
+            # Option 1 oder 2 gewählt hatte (die Spalte hat nur kleine
+            # Zahlen). Gelöscht werden darf NUR die Zeile DIESER Person:
+            # `benutzer` UND-verknüpft. Dieselbe Vorsicht gilt jedem
+            # künftigen Inventar-Eintrag mit einer zweiten Zahlenspalte.
+            bedingung = and_(*bedingungen)
         else:
             bedingung = or_(*bedingungen)
         _zaehle(s, zaehler, tabelle_name, delete(tabelle).where(bedingung))
