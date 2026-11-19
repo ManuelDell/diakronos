@@ -107,7 +107,7 @@ def pg_db():
     kopf = _sql("SELECT version_num FROM alembic_version") if _sql(
         "SELECT 1 FROM information_schema.tables "
         "WHERE table_schema = 'public' AND table_name = 'alembic_version'") else []
-    if [z[0] for z in kopf] != ["chat4a_glocke"]:
+    if [z[0] for z in kopf] != ["chat8_fristen"]:
         _sql("DROP SCHEMA IF EXISTS public CASCADE")
         _sql("CREATE SCHEMA public")
         hoch = _alembic("upgrade", "head")

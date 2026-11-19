@@ -832,6 +832,74 @@ KONTO_ZEILEN = frozenset({
 })
 
 
+# ── Aufbewahrungsfristen (CHAT-8, Konzept 4.2 / Entscheidung F8) ────────────
+#
+# Das Inventar sagt bisher, WAS mit einer Person geschieht (nullen, umhängen,
+# löschen) — nicht, wie lange etwas ÜBERHAUPT gespeichert wird. Genau das
+# fordert das Verzeichnis der Verarbeitungstätigkeiten (Art. 30 DSGVO) und
+# Konzept 4.2: eine Frist, die automatisch durchgesetzt wird.
+#
+# Die Tabelle ist die EINE lesbare Quelle dafür; durchgesetzt wird sie von
+# `chat_aufbewahrung.aufraeumen()` (Scheduler: Job `chat_aufbewahrung`).
+# Spalten:
+#   "tabelle"        betroffene Tabelle
+#   "was"            was gelöscht/geleert wird
+#   "monate"         Frist in Monaten; `None` = per Gemeinde einstellbar
+#   "einstellung"    Schlüssel der Einstellung, wenn einstellbar
+#   "standard"       Standardwert in Monaten, wenn einstellbar
+#   "ab"             ab welchem Zeitpunkt gemessen wird
+#   "grundlage"      Fundstelle im Konzept
+AUFBEWAHRUNG_FRISTEN: tuple[dict[str, object], ...] = (
+    {
+        "tabelle": "chat_gespraech/chat_nachricht",
+        "was": "ganzes Gespräch samt Nachrichten, Reaktionen, Leseständen, "
+               "Teilnahmen und Glocken-Merkern",
+        "monate": None,
+        "einstellung": "chat_frist_gruppe_monate",
+        "standard": 24,
+        "ab": "letzte Nachricht, ohne Nachrichten ab Anlage",
+        "grundlage": "Konzept 4.2 (Gruppennachrichten) / F8",
+    },
+    {
+        "tabelle": "chat_gespraech/chat_nachricht",
+        "was": "ganzes Gespräch (Direktgespräche und Runden)",
+        "monate": None,
+        "einstellung": "chat_frist_direkt_monate",
+        "standard": 12,
+        "ab": "letzte Nachricht, ohne Nachrichten ab Anlage",
+        "grundlage": "Konzept 4.2 (Direktnachrichten) / F8",
+    },
+    {
+        "tabelle": "chat_nachricht",
+        "was": "Text einer gelöschten/entfernten Nachricht (endgültig leer)",
+        "monate": 6,
+        "einstellung": None,
+        "standard": 6,
+        "ab": "geloescht_am",
+        "grundlage": "Konzept 4.2 (gelöschte Nachrichten) / 2.5",
+    },
+    {
+        "tabelle": "chat_stimme",
+        "was": "Stimmenzeilen geschlossener Umfragen (Zähler in "
+               "chat_umfrage_option.stimmen bleibt stehen)",
+        "monate": 6,
+        "einstellung": None,
+        "standard": 6,
+        "ab": "geschlossen_am",
+        "grundlage": "Konzept 4.2 (Umfragen, Stimmen)",
+    },
+    {
+        "tabelle": "chat_meldung",
+        "was": "Meldung nach abgeschlossener Entscheidung",
+        "monate": 12,
+        "einstellung": None,
+        "standard": 12,
+        "ab": "bearbeitet_am",
+        "grundlage": "Konzept 4.2 (Meldungen)",
+    },
+)
+
+
 # ── Verweise aus den Metadaten ──────────────────────────────────────────────
 
 

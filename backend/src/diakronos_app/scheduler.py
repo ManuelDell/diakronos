@@ -171,6 +171,27 @@ def job_umfragen_schliessen() -> None:
 	logger.info("Job umfragen_schliessen fertig (%s geschlossen).", count)
 
 
+def job_chat_aufbewahrung() -> None:
+	"""Taeglicher Job (CHAT-8): Aufbewahrungsfristen des Chats durchsetzen.
+
+	Ruft ``chat_aufbewahrung.aufraeumen`` — die Fristen stehen pro Gemeinde in
+	der Einstellungszeile (F8), die Uhr ist die Wandzeit der Gemeinde. Der Lauf
+	ist idempotent und raeumt in EINER Transaktion: erst Meldungen (FK auf
+	Nachrichten), dann Glocken-Merker, Umfragen, Nachrichten, Reaktionen,
+	Teilnahmen, zuletzt das Gespraech. Ein Fehler darf den Scheduler nicht
+	toeten — der naechste Tag versucht es erneut (nichts ist halb geloescht:
+	die Transaktion faellt ganz zurueck).
+	"""
+	from diakronos_app.chat_aufbewahrung import aufraeumen
+
+	try:
+		ergebnis = aufraeumen()
+	except Exception:  # noqa: BLE001 — ein Fehler darf den Scheduler nicht toeten
+		logger.exception("Job chat_aufbewahrung fehlgeschlagen")
+		return
+	logger.info("Job chat_aufbewahrung fertig (%s).", ergebnis)
+
+
 # (Job-Funktion, Job-Id) — die Registrierung ist damit an EINER Stelle und
 # fuer Tests pruefbar, ohne den BlockingScheduler zu starten.
 DAILY_JOBS: list[tuple] = [
@@ -179,7 +200,13 @@ DAILY_JOBS: list[tuple] = [
 	(job_delete_alte_zuordnung_ablehnungen, "delete_alte_zuordnung_ablehnungen"),
 	(job_papierkorb_aufraeumen, "papierkorb_aufraeumen"),
 	(job_gastlinks_aufraeumen, "gastlinks_aufraeumen"),
+	# CHAT-5: Umfragen zur Frist schliessen.
 	(job_umfragen_schliessen, "umfragen_schliessen"),
+	# CHAT-8: Aufbewahrungsfristen (Gespraeche, Nachrichtentexte, Stimmen,
+	# Meldungen). Laeuft NACH dem Schliessen — eine gestern faellig gewordene
+	# Umfrage hat damit schon ihren Schliesszeitpunkt, wenn die Stimmenfrist
+	# gemessen wird.
+	(job_chat_aufbewahrung, "chat_aufbewahrung"),
 ]
 
 #: MINUTEN-Jobs (Intervall in Minuten, Job-Funktion, Job-Id) — dieselbe eine

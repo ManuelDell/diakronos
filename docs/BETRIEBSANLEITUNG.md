@@ -1359,6 +1359,50 @@ Beitrag, Termin (einzeln oder als Serie), Gruppe, Wiki-Seite und Lied.
   bleiben); eine Gruppe nimmt ihre Mitgliedschaften mit, ein Lied seine
   Strophen, Fassungen und Materialien.
 
+### 8.8c Chat: Aufbewahrungsfristen (CHAT-8)
+
+Der Chat speichert nichts unbegrenzt. Ein täglicher Scheduler-Job
+(`chat_aufbewahrung`, 00:00 UTC) setzt die Fristen aus dem Konzept
+(`docs/konzepte/CHAT-KONZEPT.md` 4.2, Entscheidung F8) durch:
+
+| Daten | Frist | Einstellbar |
+|---|---|---|
+| Gruppengespräche (ganz, mit Nachrichten/Reaktionen/Leseständen) | 24 Monate | **ja**, 1…120 |
+| Direktgespräche | 12 Monate | **ja**, 1…120 |
+| Text gelöschter/entfernter Nachrichten | 6 Monate, dann endgültig leer | nein |
+| Stimmenzeilen offener Umfragen | 6 Monate nach Schließung (Zähler bleibt) | nein |
+| Meldungen | 12 Monate nach Abschluss | nein |
+
+- **Gemessen ab** der **letzten Nachricht** des Gesprächs (nicht ab Anlage!);
+  ein Gespräch ohne Nachrichten zählt ab seiner Anlage.
+- **Offene Meldung setzt die Frist aus:** solange zu einer Nachricht des
+  Gesprächs eine Meldung offen ist, wird das Gespräch nicht gelöscht — die
+  Meldestelle braucht den Ausschnitt. Nach der Entscheidung greift die Frist
+  beim nächsten Lauf (der Job meldet die Zahl der ausgesetzten Gespräche als
+  `gespraeche_offen`).
+- **Einstellen:** nur Administration, über
+  `chat.fristen_speichern(chat_frist_gruppe_monate=…, chat_frist_direkt_monate=…)`
+  (POST). Moderationsrechte (HV/MV/GL) genügen nicht. Lesen darf jedes
+  angemeldete Konto — die Frist gilt für alle und steht im Datenschutzhinweis.
+- **Kein toter Link:** Chat-Glocken (`document_type` `chat_gespraech` /
+  `chat_nachricht` / `chat_meldung`), die auf ein gelöschtes Ziel zeigen,
+  werden **gelöscht**, nicht entkoppelt — eine Glocke ohne Ziel führt in keinen
+  Verlauf. Benachrichtigungen anderer Bereiche bleiben unberührt.
+- **Nach der Löschung** entsteht das Gespräch einer bestehenden Gruppe beim
+  nächsten Öffnen neu (lazy) — es ist keine Reparatur nötig.
+- **Der Lauf ist idempotent** und läuft in EINER Transaktion: bricht er ab, ist
+  nichts halb gelöscht und der nächste Tag versucht es erneut. Alle Löschungen
+  laufen über Unterabfragen — ein Gespräch mit sehr vielen Nachrichten reißt
+  keine Parameter-Grenze (psycopg: 65 535 je Anweisung).
+- **Schema:** die beiden Fristen sind Spalten der Gemeinde-Einstellungen
+  (Migration `chat8_fristen`, zwei nullbare Integer-Spalten; NULL = Standard).
+  `alembic upgrade head` im Entrypoint legt sie an; ein Betrieb ohne diese
+  Migration würde an jedem Zugriff auf die Gemeinde-Einstellungen scheitern.
+- **Verzeichnis:** die Fristen stehen zusätzlich maschinenlesbar im
+  DSGVO-Inventar (`dsgvo_anonymisierung.AUFBEWAHRUNG_FRISTEN`), gelesen von
+  [N6-DATENSCHUTZ.md](N6-DATENSCHUTZ.md); der Test `test_dsgvo1_inventar`
+  verhindert, dass Verzeichnis und Code auseinanderlaufen.
+
 ### 8.9 Bevor Sie das ins Internet stellen
 
 Diese Anwendung ist für den Betrieb im eigenen Netz gebaut und getestet. Wenn

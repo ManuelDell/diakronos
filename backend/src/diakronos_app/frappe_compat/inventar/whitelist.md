@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **2305**
-* eindeutige Funktionen: **411**
-* lesend: **182**, schreibend: **229**
-* Rumpfbefund: schreibend 219, lesend 192, unbekannt 0
+* registrierte Pfade: **2317**
+* eindeutige Funktionen: **413**
+* lesend: **183**, schreibend: **230**
+* Rumpfbefund: schreibend 220, lesend 193, unbekannt 0
 
 ## Einstufung
 
@@ -91,6 +91,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.bugreport.melden` | ['POST'] | nein |
 | `diakronos_app.api.bugreport.set_status` | ['POST'] | nein |
 | `diakronos_app.api.chat.aendern` | ['POST'] | nein |
+| `diakronos_app.api.chat.fristen_speichern` | ['POST'] | nein |
 | `diakronos_app.api.chat.gespraech_anlegen` | ['POST'] | nein |
 | `diakronos_app.api.chat.lesestand_setzen` | ['POST'] | nein |
 | `diakronos_app.api.chat.loeschen` | ['POST'] | nein |
@@ -319,6 +320,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.beziehungen.get_beziehungen_auswahl` | — | nein |
 | `diakronos_app.api.bugreport.detail` | — | nein |
 | `diakronos_app.api.bugreport.liste` | — | nein |
+| `diakronos_app.api.chat.fristen_lesen` | — | nein |
 | `diakronos_app.api.chat.meine_gespraeche` | — | nein |
 | `diakronos_app.api.chat.meldungen_liste` | — | nein |
 | `diakronos_app.api.chat.personen_suchen` | — | nein |

@@ -825,11 +825,16 @@ def _skripte() -> ScriptDirectory:
 
 def test_genau_ein_kopf_und_kette_chat2_chat6_chat5_chat4a():
     """GENAU EIN Kopf. Seit CHAT-5 ist die Kette
-    ``chat2_chat_s1 -> chat6_meldung -> chat5_umfrage -> chat4a_glocke`` — der Kopf wandert
-    nach vorn, die Aussage „Melde-Tabelle hinter chat2“ bleibt wahr."""
+    ``chat2_chat_s1 -> chat6_meldung -> chat5_umfrage`` — der Kopf wandert
+    nach vorn, die Aussage „Melde-Tabelle hinter chat2“ bleibt wahr.
+
+    Der KOPFNAME wird bewusst NICHT festgeschrieben (Hinweis Operator bei
+    CHAT-8): jede weitere Fachmigration haengt sich hinten an, und ein Test,
+    der einen festen Kopf prueft, wird dabei ohne Fachfehler rot. Geprueft
+    wird, was die Aussage traegt: genau EIN Kopf, EIN Zweig bis zur Wurzel."""
     skripte = _skripte()
     heads = skripte.get_heads()
-    assert heads == ["chat4a_glocke"], f"Kopf(e): {heads}"
+    assert len(heads) == 1, f"Kopf(e): {heads}"
     revision = skripte.get_revision("chat6_meldung")
     assert revision is not None
     assert revision.down_revision == "chat2_chat_s1", revision.down_revision

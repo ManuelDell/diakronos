@@ -3129,6 +3129,71 @@ def _teilnehmer_aktuelle(s, g: ChatGespraech) -> int:
                if _darf_lesen(s, konto, g.name))
 
 
+# ── Endpunkte: Aufbewahrungsfristen (CHAT-8, Entscheidung F8) ───────────────
+
+
+@whitelist(allow_guest=False)
+def fristen_lesen():
+    """Die Aufbewahrungsfristen des Chats in Monaten (Konzept 4.2, F8).
+
+    Lesbar fuer jedes angemeldete Konto: die Werte gelten fuer ALLE und stehen
+    so im Datenschutzhinweis („Verlauf bleibt 12 Monate“). Nur das SCHREIBEN
+    ist Administrationsrecht — eine Frist, die niemand kennt, waere keine
+    Zusage.
+
+    Antwort: ``{chat_frist_gruppe_monate, chat_frist_direkt_monate,
+    standard: {...}, minimum, maximum}``; die Standardwerte kommen mit, damit
+    die Oberflaeche „Standard 24“ anzeigen kann, ohne sie zu kennen.
+    """
+    from diakronos_app import chat_aufbewahrung as aufbewahrung
+
+    with dbmod.SessionLocal.begin() as s:
+        werte = aufbewahrung.holen_einstellungen(s)
+    return {
+        **werte,
+        "standard": dict(aufbewahrung.FRIST_STANDARD),
+        "minimum": aufbewahrung.FRIST_MIN_MONATE,
+        "maximum": aufbewahrung.FRIST_MAX_MONATE,
+        # Die FESTEN Fristen aus 4.2 — nicht einstellbar, nur zur Anzeige.
+        "nachricht_monate": aufbewahrung.FRIST_NACHRICHT_MONATE,
+        "umfrage_stimmen_monate": aufbewahrung.FRIST_UMFRAGE_MONATE,
+        "meldung_monate": aufbewahrung.MELDUNG_FRIST_MONATE,
+    }
+
+
+@whitelist(methods=["POST"], allow_guest=False)  # schreibt die Gemeinde-Single (SEC-11)
+def fristen_speichern(chat_frist_gruppe_monate=None,
+                      chat_frist_direkt_monate=None):
+    """Aufbewahrungsfristen setzen — NUR mit Administrationsrecht (F8).
+
+    Die Rechtefrage beantwortet der zentrale Rechte-Kern
+    (``rechte.ist_admin``) — KEINE eigene Rollenlogik: HV/MV/GL duerfen den
+    Chat moderieren, die Aufbewahrung der Gemeinde aber nicht verkuerzen
+    (das waere eine Loeschung von Verlaeufen, die ihre Mitglieder behalten
+    wollen). Geprueft wird VOR dem Schreiben und VOR jeder Wertpruefung —
+    ein Nicht-Admin erfaehrt nicht, welche Werte zulaessig sind.
+
+    Beide Werte sind Pflicht (die Karte: „Grenzen sinnvoll“), 1…120 Monate.
+    Antwort: die gespeicherten Werte (wie ``fristen_lesen``).
+    """
+    from diakronos_app import chat_aufbewahrung as aufbewahrung
+
+    benutzer = _benutzer()
+    if not rechte.ist_admin(benutzer):
+        _h()
+    try:
+        with dbmod.SessionLocal.begin() as s:
+            aufbewahrung.setze_einstellungen(
+                s, gruppe_monate=chat_frist_gruppe_monate,
+                direkt_monate=chat_frist_direkt_monate,
+                benutzer=benutzer, jetzt=_jetzt(),
+            )
+            werte = aufbewahrung.holen_einstellungen(s)
+    except aufbewahrung.FristFehler as fehler:
+        raise ValidationError(str(fehler)) from None
+    return {**werte, "gespeichert": True}
+
+
 __all__ = [
     "CHAT_GLOCKE_DOCTYPE",
     "FRAPPE_MODULE",
@@ -3139,6 +3204,8 @@ __all__ = [
     "SEITE_MAX",
     "TITEL_MAX",
     "aendern",
+    "fristen_lesen",
+    "fristen_speichern",
     "chat_glocken_buendeln",
     "gespraech_anlegen",
     "glocken_merker",

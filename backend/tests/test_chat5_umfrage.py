@@ -926,6 +926,12 @@ def _skripte() -> ScriptDirectory:
 
     """GENAU EIN Kopf; chat5_umfrage haengt hinter chat6_meldung."""
 def test_genau_ein_kopf_und_chat5_haengt_hinter_chat6():
+    """GENAU EIN Kopf: chat2_chat_s1 -> chat6_meldung -> chat5_umfrage.
+
+    Der KOPFNAME wird NICHT festgeschrieben (Hinweis Operator): spaetere
+    Fachmigrationen haengen sich hinten an, ein Test auf einen festen Kopf
+    wird dabei ohne Fachfehler rot.
+    """
     skripte = _skripte()
     assert len(skripte.get_heads()) == 1, skripte.get_heads()
     assert len(skripte.get_bases()) == 1, skripte.get_bases()

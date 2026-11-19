@@ -1204,6 +1204,60 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.chat.fristen_lesen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "fristen_lesen",
+   "pfade": [
+    "api.fristen_lesen",
+    "chat.fristen_lesen",
+    "diakronos.diakonos.api.chat.fristen_lesen",
+    "diakronos.diakronos.api.chat.fristen_lesen",
+    "diakronos_app.api.chat.fristen_lesen",
+    "fristen_lesen"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.fristen_speichern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "fristen_speichern",
+   "pfade": [
+    "api.fristen_speichern",
+    "chat.fristen_speichern",
+    "diakronos.diakonos.api.chat.fristen_speichern",
+    "diakronos.diakronos.api.chat.fristen_speichern",
+    "diakronos_app.api.chat.fristen_speichern",
+    "fristen_speichern"
+   ],
+   "rumpf_grund": "ueber aufbewahrung.setze_einstellungen(): Aufruf session.flush()",
+   "rumpf_ueber": "diakronos_app.chat_aufbewahrung.setze_einstellungen"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
    "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
@@ -11057,12 +11111,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 411,
+ "funktionen": 413,
  "nur_test": [],
- "registrierte_pfade": 2305,
+ "registrierte_pfade": 2317,
  "rumpf_zaehlung": {
-  "lesend": 192,
-  "schreibend": 219
+  "lesend": 193,
+  "schreibend": 220
  },
  "widersprueche": [
   {
@@ -11626,7 +11680,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 182,
-  "schreibend": 229
+  "lesend": 183,
+  "schreibend": 230
  }
 }

@@ -113,7 +113,13 @@ def _spalte_existiert(tabelle: str, spalte: str) -> bool:
 
 @pg
 def test_kette_bis_kopf_legt_die_umfrage_tabellen_an(frisch):
-    """``upgrade head`` von Null: die ganze Kette läuft, der Kopf ist chat5."""
+    """``upgrade head`` von Null: die ganze Kette läuft bis GENAU EINEN Kopf.
+
+    Der Kopfname wird NICHT festgeschrieben (Hinweis Operator): jede weitere
+    Fachmigration (z. B. CHAT-4a/CHAT-8) hängt sich hinten an, ein Test auf
+    ``chat5_umfrage`` würde dabei ohne Fachfehler rot. Geprüft wird, dass die
+    Kette durchläuft und EINE Version in ``alembic_version`` steht.
+    """
     ergebnis = _alembic("upgrade", "head")
     assert ergebnis.returncode == 0, (ergebnis.stdout, ergebnis.stderr)
 
@@ -122,9 +128,9 @@ def test_kette_bis_kopf_legt_die_umfrage_tabellen_an(frisch):
         assert _tabelle_existiert(tabelle), tabelle
     assert _spalte_existiert("chat_nachricht", "umfrage")
 
-    # Der EINE Kopf steht in der Versions-Tabelle.
+    # GENAU EIN Kopf steht in der Versions-Tabelle.
     zeilen = _sql("SELECT version_num FROM alembic_version")
-    assert [z[0] for z in zeilen] == ["chat4a_glocke"], zeilen
+    assert len(zeilen) == 1, zeilen
 
 
 @pg
@@ -215,8 +221,8 @@ def test_downgrade_und_wieder_hoch(frisch):
     # Zweiter Durchlauf: der Rückweg ist idempotent-fähig und legt nichts
     # doppelt an (derselbe Schritt, den der Entrypoint beim Neustart fährt).
     assert _alembic("upgrade", "head").returncode == 0
-    assert [z[0] for z in _sql("SELECT version_num FROM alembic_version")] == [
-        "chat5_umfrage"]
+    # GENAU EIN Kopf — der Name wird nicht festgeschrieben (Hinweis Operator).
+    assert len(_sql("SELECT version_num FROM alembic_version")) == 1
     # Hinweis: ein ``downgrade base`` der GANZEN Kette ist hier NICHT geprüft —
     # er scheitert in ``chat1``/ID-1 an ``DROP TABLE mitglied`` mit abhängigen
     # Objekten (Bestand des Repos, nicht CHAT-5). Die Karte verlangt

@@ -79,6 +79,17 @@ class GemeindeEinstellungen(Base):
         Integer, nullable=False, default=STANDARD_MAX_ANMELDUNGEN,
         server_default=str(STANDARD_MAX_ANMELDUNGEN),
     )
+    # CHAT-8 (F8): Aufbewahrungsfristen des Chats in MONATEN. Standard 24 fuer
+    # Gruppen-/Untergruppengespraeche, 12 fuer Direktnachrichten (kuerzer:
+    # private Kommunikation, hoeheres Schutzbeduerfnis). Die Grenzen (1..120)
+    # prueft ``chat_aufbewahrung._pruefe_monate`` — dieselbe Funktion fuer
+    # Endpunkt UND Scheduler, damit kein unmoeglicher Wert in den Lauf kommt.
+    # NULL = noch nie eingestellt -> es gilt der Standard (``FRIST_STANDARD``).
+    # Angelegt von ``alembic/versions/chat8_fristen.py`` (zwei NULLBARE
+    # Integer-Spalten an dieser bestehenden Single; ohne Migration scheitert
+    # JEDER Zugriff auf die Gemeinde-Einstellungen mit UndefinedColumn).
+    chat_frist_gruppe_monate: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    chat_frist_direkt_monate: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     modified: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     modified_by: Mapped[str | None] = mapped_column(String(140), nullable=True)

@@ -289,3 +289,35 @@ def test_nachweistabellen_bleiben_im_inventar():
     assert modul.SPALTEN["dsgvo_einwilligung"]["mitglied"][0] == "keep"
     assert "loeschantrag" not in {name for name, _ in modul.ZEILEN_LOESCHEN}
     assert "dsgvo_einwilligung" not in {name for name, _ in modul.ZEILEN_LOESCHEN}
+
+
+def test_aufbewahrungsfristen_stehen_im_inventar_und_gelten_im_code():
+    """CHAT-8: jede Frist im Verzeichnis IST die Frist im Löschlauf.
+
+    Das Verzeichnis (Art. 30 DSGVO) verspricht Zahlen. Stünde dort eine andere
+    Zahl als in `chat_aufbewahrung`, wäre die Zusage falsch — und niemand
+    merkte es, weil beide Stellen für sich plausibel sind. Verglichen wird
+    deshalb gegen die KONSTANTEN des Laufs (nicht gegen eine zweite Liste).
+    """
+    from diakronos_app import chat_aufbewahrung as A
+
+    fristen = modul.AUFBEWAHRUNG_FRISTEN
+    assert fristen, "das Inventar nennt keine Aufbewahrungsfristen"
+
+    fest = {eintrag["tabelle"]: eintrag for eintrag in fristen
+            if eintrag["einstellung"] is None}
+    assert fest["chat_nachricht"]["monate"] == A.FRIST_NACHRICHT_MONATE
+    assert fest["chat_stimme"]["monate"] == A.FRIST_UMFRAGE_MONATE
+    assert fest["chat_meldung"]["monate"] == A.MELDUNG_FRIST_MONATE
+
+    einstellbar = {eintrag["einstellung"]: eintrag for eintrag in fristen
+                   if eintrag["einstellung"] is not None}
+    assert set(einstellbar) == {"chat_frist_gruppe_monate",
+                                "chat_frist_direkt_monate"}
+    assert einstellbar["chat_frist_gruppe_monate"]["standard"] == A.FRIST_STANDARD["gruppe"]
+    assert einstellbar["chat_frist_direkt_monate"]["standard"] == A.FRIST_STANDARD["direkt"]
+    # Jede Frist nennt, ab wann gemessen wird und wo sie im Konzept steht.
+    for eintrag in fristen:
+        assert eintrag["ab"], eintrag
+        assert eintrag["grundlage"], eintrag
+        assert isinstance(eintrag["standard"], int) and eintrag["standard"] >= 1
