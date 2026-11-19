@@ -11,9 +11,11 @@
     >
       <template #actions>
         <!-- CHAT-3c-2: hängt an der EINEN Kennung (`offeneKennung`), damit
-             „Stumm“ auch während der Suche das sichtbare Gespräch meint. -->
+             „Stumm“ auch während der Suche das sichtbare Gespräch meint.
+             UI-2 (Review R1, SOLL 3): beim Platzhalter NICHT — ob stumm
+             geschaltet ist, weiß niemand. -->
         <DkButton
-          v-if="offeneKennung && offenesGespraech"
+          v-if="offeneKennung && offenesGespraech && !istPlatzhalter"
           variant="secondary"
           size="sm"
           @click="stummUmschalten"
@@ -27,17 +29,7 @@
     </DkCard>
 
     <template v-else>
-      <!-- Fehler der Liste (403 → „kein Zugriff“, sonst Katalogtext). -->
-      <DkCard v-if="listenFehler" flach>
-        <DkEmpty
-          icon="⚠"
-          :title="listenFehler.titel"
-          :text="listenFehler.text"
-          :erneut-versuchen="laden"
-        />
-      </DkCard>
-
-      <div v-else class="dk-chat-bereich">
+      <div class="dk-chat-bereich">
         <!-- ── Liste ──────────────────────────────────────────────────── -->
         <!-- CHAT-3c-2 (SOLL 4): Am Handy ist die jeweils andere Spalte
              ausgeblendet. Läuft die Suche, ist die TREFFERFLÄCHE die sichtbare
@@ -48,32 +40,47 @@
           class="dk-chat-liste-spalte"
           :class="{ 'nur-handy-aus': Boolean(kennung) }"
         >
-          <DkSkelett v-if="skelettSichtbar" form="zeilen" :anzahl="5" text="Gespräche werden geladen …" />
-          <template v-else>
-            <!-- CHAT-3c: EIN Suchfeld, zwei Trefferarten. Ist die Suche offen
-                 (`#/nachrichten/suche?q=…`), ersetzt ihre Trefferfläche die
-                 Liste; „Zurück“/Leeren schließt sie. Ein Treffer ist ein
-                 normaler Link — der Browser springt, der Router folgt
-                 (CHAT-3c-2, MUSS A). -->
-            <ChatSuche
-              ref="sucheEl"
-              :gespraeche="gespraeche"
-              :start-begriff="suchBegriff"
-              @sucht="begriffGeaendert"
+          <!-- Fehler der Liste (403 → „kein Zugriff“, sonst Katalogtext).
+               CHAT-7a-UI-2: Er steht in SEINER Spalte, nicht über dem ganzen
+               Bereich — sonst verschwände mit der Liste auch der offene
+               Verlauf samt Eingabe, und man könnte nicht mehr schreiben, weil
+               eine Abfrage danebengescheitert ist. -->
+          <DkCard v-if="listenFehler" flach>
+            <DkEmpty
+              icon="⚠"
+              :title="listenFehler.titel"
+              :text="listenFehler.text"
+              :erneut-versuchen="laden"
             />
-            <template v-if="!sucheOffen">
-              <DkEmpty
-                v-if="!gruppen.length"
-                icon="✉"
-                :title="LISTE_LEER.titel"
-                :text="LISTE_LEER.text"
+          </DkCard>
+          <template v-else>
+            <DkSkelett v-if="skelettSichtbar" form="zeilen" :anzahl="5" text="Gespräche werden geladen …" />
+            <template v-else>
+              <!-- CHAT-3c: EIN Suchfeld, zwei Trefferarten. Ist die Suche offen
+                   (`#/nachrichten/suche?q=…`), ersetzt ihre Trefferfläche die
+                   Liste; „Zurück“/Leeren schließt sie. Ein Treffer ist ein
+                   normaler Link — der Browser springt, der Router folgt
+                   (CHAT-3c-2, MUSS A). -->
+              <ChatSuche
+                ref="sucheEl"
+                :gespraeche="gespraeche"
+                :start-begriff="suchBegriff"
+                @sucht="begriffGeaendert"
               />
-              <ChatListe
-                v-else
-                :gruppen="gruppen"
-                :aktiv="kennung"
-                :ungelesen="ungelesen"
-              />
+              <template v-if="!sucheOffen">
+                <DkEmpty
+                  v-if="!gruppen.length"
+                  icon="✉"
+                  :title="LISTE_LEER.titel"
+                  :text="LISTE_LEER.text"
+                />
+                <ChatListe
+                  v-else
+                  :gruppen="gruppen"
+                  :aktiv="kennung"
+                  :ungelesen="ungelesen"
+                />
+              </template>
             </template>
           </template>
         </div>
@@ -84,9 +91,15 @@
           <div v-if="!offeneKennung" class="dk-chat-nichts">
             <DkEmpty
               icon="💬"
-              title="Wähle ein Gespräch"
-              text="Links stehen deine Gespräche — Gruppen und Untergruppen, in denen der Chat eingeschaltet ist."
-            />
+              :title="sucheOffen ? 'Personen suchen' : 'Wähle ein Gespräch'"
+              :text="sucheOffen
+                ? 'Links findest du Personen. Ein vorhandenes Gespräch öffnet sich direkt, sonst führt der Treffer ins Profil.'
+                : 'Links stehen deine Gespräche — Gruppen und Untergruppen mit Chat sowie deine Direktgespräche.'"
+            >
+              <template #aktion>
+                <DkButton v-if="!sucheOffen" variant="secondary" as="a" :href="SUCHE">{{ NEUE_NACHRICHT }}</DkButton>
+              </template>
+            </DkEmpty>
           </div>
 
           <div v-else class="dk-chat-verlauf">
@@ -100,9 +113,14 @@
               </a>
               <div class="dk-chat-verlauf-titel">
                 <h2>{{ titel }}</h2>
-                <p class="dk-chat-verlauf-unter">
-                  <span v-if="teilnehmerZahl">{{ teilnehmerZahl }} im Gespräch</span>
-                  <span v-if="offenesGespraech && offenesGespraech.stumm" class="dk-chat-stumm-hinweis"> · stumm geschaltet</span>
+                <!-- Karte UI-2 Punkt 5: im 1:1 bleibt die Zeile leer — kein
+                     „N im Gespräch“, kein Gruppen-Satz. Die Regel steht in
+                     `verlaufUnterzeile` (`nachrichtenDirekt`). -->
+                <p v-if="unterKopf" class="dk-chat-verlauf-unter">
+                  <span v-if="kontoText">{{ kontoText }}</span>
+                  <span v-if="offenesGespraech && offenesGespraech.stumm" class="dk-chat-stumm-hinweis">
+                    <template v-if="kontoText"> · </template>stumm geschaltet
+                  </span>
                 </p>
               </div>
             </div>
@@ -147,6 +165,7 @@
                   <li v-if="n.tag" class="dk-chat-tag"><span>{{ n.tag }}</span></li>
                   <ChatBlase
                     :nachricht="n"
+                    :direkt="istOffenesDirekt"
                     @reaktion="reaktionSetzen"
                     @antworten="antworten"
                     @bearbeiten="bearbeitenOeffnen"
@@ -156,8 +175,15 @@
               </ul>
             </div>
 
-            <!-- Eingabe: Enter sendet, Shift+Enter macht einen Absatz. -->
-            <form class="dk-chat-eingabe" @submit.prevent="senden">
+            <!-- Eingabe: Enter sendet, Shift+Enter macht einen Absatz.
+                 CHAT-7a (Karte Punkt 3): Ist Senden nicht erlaubt (Server 403
+                 / Gegenüber ausgetreten), weicht die Eingabe einem ruhigen
+                 Hinweis — der Verlauf darüber bleibt lesbar. -->
+            <div v-if="!darfSenden" class="dk-chat-eingabe dk-chat-gesperrt" role="status">
+              <p class="dk-chat-gesperrt-titel">{{ NICHT_ERREICHBAR.titel }}</p>
+              <p class="dk-chat-gesperrt-text">{{ NICHT_ERREICHBAR.text }}</p>
+            </div>
+            <form v-else class="dk-chat-eingabe" @submit.prevent="senden">
               <p v-if="antwortAuf" class="dk-chat-antwortzeile">
                 <span class="dk-chat-antwort-text">Antwort auf: {{ antwortAuf.antwortText || antwortAuf.text || 'eine Nachricht' }}</span>
                 <DkButton variant="ghost" size="sm" class="dk-chat-textknopf" @click="antwortAuf = null">Antwort verwerfen</DkButton>
@@ -224,7 +250,7 @@
  * — ohne DOM prüfbar (`tests/chat3a-nachrichten.test.mjs`). Diese Seite holt,
  * zeichnet und verdrahtet.
  *
- * SERVER (unverändert, `backend/src/diakronos_app/api/chat.py`):
+ * SERVER (`backend/src/diakronos_app/api/chat.py`):
  *   GET  chat.meine_gespraeche                 → {gespraeche: [...]}
  *   GET  chat.verlauf(gespraech, vor)          → {nachrichten, vor, seit}
  *   POST chat.gespraech_anlegen(gruppe?, untergruppe?)
@@ -234,9 +260,15 @@
  *   POST chat.reaktion_setzen(nachricht, reaktion)
  *   POST chat.lesestand_setzen(gespraech, nachricht?)
  *   POST chat.stumm_setzen(gespraech, an)
+ *   GET  chat.personen_suchen(q, limit)        → {treffer, limit}  (CHAT-7a)
  *
- * NICHT in dieser Karte: Personensuche/Profil (CHAT-3c), Chat-Reiter in der
- * Gruppe (CHAT-3b), Melden (CHAT-6), Umfragen, Anhänge, Direktnachrichten.
+ * CHAT-7a: Direktgespräche (1:1) laufen in DERSELBEN Liste und demselben
+ * Verlauf; „Neue Nachricht“ führt in die Personensuche
+ * (`#/nachrichten/suche`). Angelegt wird ein 1:1 ausschließlich am Profil über
+ * `chat.direkt_oeffnen` — diese Seite legt nichts an.
+ *
+ * NICHT in dieser Karte: der Chat-Reiter in der Gruppe (CHAT-3b), Melden
+ * (CHAT-6), Umfragen, Anhänge, der Umzug der Personenverwaltung.
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { apiCall, apiGet } from '../composables/useApi.js'
@@ -254,6 +286,10 @@ import {
 } from '../composables/nachrichtenLogik.mjs'
 import { offenAusHash, qAusHash, suchHash, sucheOffenBei } from '../composables/nachrichtenSuche.mjs'
 import { naechsteReaktion } from '../composables/nachrichtenReaktionen.mjs'
+import {
+  NICHT_ERREICHBAR, NEUE_NACHRICHT, SUCHE, direktTitel, istDirekt, sendbar, sendeFehlerZustand,
+  verlaufUnterzeile,
+} from '../composables/nachrichtenDirekt.mjs'
 import DkCard from '../components/ui/DkCard.vue'
 import DkButton from '../components/ui/DkButton.vue'
 import DkDialog from '../components/ui/DkDialog.vue'
@@ -363,21 +399,85 @@ const ungelesen = computed(() => ungelesenSumme(gespraeche.value))
  *  schreiben und nichts mehr starten (Review R1, MUSS 3). */
 let aktivSeite = true
 
+/**
+ * Der Eintrag des offenen Gesprächs, wenn die Liste ihn nicht kennt.
+ *
+ * CHAT-7a-UI-2 (Review R1, SOLL 3): `platzhalter: true` markiert ihn als
+ * PLATZHALTER — die Kennung ist bekannt, alles andere (Titel, Teilnehmer,
+ * Stumm) nicht. Daraus folgt: kein Stumm-Knopf (ob stumm geschaltet ist, weiß
+ * niemand) und keine Unterzeile im Verlaufskopf. Sonst flackerte beim ersten
+ * Laden einer Gruppe kurz Gruppen-Text im 1:1 auf.
+ */
+function platzhalterZeile(kennung) {
+  return { name: kennung, art: '', gruppe: null, untergruppe: null, titel: '', teilnehmer: 0, platzhalter: true }
+}
+
 /** Die Zeile des offenen Gesprächs (Titel, Teilnehmer, Stumm) aus der Liste —
  *  für die EINE Kennung der rechten Spalte (`offeneKennung`), also auch für das
  *  Gespräch hinter der Suche (`&offen=`). */
 const offenesGespraech = computed(() => {
   const k = offeneKennung.value
   if (!k) return null
-  return gespraeche.value.find((e) => String(e?.name || '') === k
-    || zeilenSchluessel(e) === k) || null
+  const gefunden = gespraeche.value.find((e) => String(e?.name || '') === k
+    || zeilenSchluessel(e) === k)
+  if (gefunden) return gefunden
+  // CHAT-7a-UI-2: Die Liste kann (noch) fehlen — abgefragt oder gescheitert.
+  // Dann bleibt der Verlauf offen und SCHREIBBAR: ob man schreiben darf,
+  // entscheidet der Server (403 beim Senden), nicht das Fehlen einer Zeile in
+  // einer Liste, die gar nicht geladen werden konnte. Der Eintrag trägt nur die
+  // Kennung; Titel und Teilnehmerzahl bleiben leer („Unbekannte Person“ ist
+  // falsch — die Kennung ist bekannt, nur der Name nicht).
+  return k ? platzhalterZeile(k) : null
 })
-const titel = computed(() => String(offenesGespraech.value?.titel || 'Gespräch'))
+/** Ist der offene Eintrag nur ein Platzhalter (Liste kennt ihn nicht)? */
+const istPlatzhalter = computed(() => offenesGespraech.value?.platzhalter === true)
+/**
+ * Der Titel des offenen Gesprächs. Eine bekannte Kennung ohne Listeneintrag
+ * (die Liste lud nicht) heißt „Gespräch“ — „Unbekannte Person“ gehört zu einem
+ * NAMENTLICHEN 1:1 aus dem Altbestand, nicht zu einer fehlenden Zeile.
+ */
+const titel = computed(() => {
+  const eintrag = offenesGespraech.value
+  if (istDirekt(eintrag)) return direktTitel(eintrag)
+  return String(eintrag?.titel || '').trim() || 'Gespräch'
+})
 const teilnehmerZahl = computed(() => Number(offenesGespraech.value?.teilnehmer) || 0)
+/** Steht das offene Gespräch in einem eigenen 1:1? (Lesestand, Unterzeile, 403) */
+const istOffenesDirekt = computed(() => istDirekt(offenesGespraech.value))
+/**
+ * Karte UI-2 Punkt 5: die Zeile unter dem Titel. In Gruppen „N im Gespräch“,
+ * im 1:1 LEER (`verlaufUnterzeile`) — kein Gruppen-Satz, keine Zählung, und
+ * „gelesen“ steht dort nicht mehr (Punkt 1).
+ */
+const kontoText = computed(() => ((offeneKennung.value && !istPlatzhalter.value)
+  ? verlaufUnterzeile({ istDirekt: istOffenesDirekt.value, teilnehmer: teilnehmerZahl.value })
+  : ''))
+/** Steht die Kopfzeile überhaupt da? (leer = kein `p`, keine leere Zeile).
+ *  Beim Platzhalter weiß niemand, ob stumm geschaltet ist (Review R1, SOLL 3). */
+const unterKopf = computed(() => Boolean(kontoText.value)
+  || (!istPlatzhalter.value && Boolean(offenesGespraech.value?.stumm)))
+/**
+ * CHAT-7a (Karte Punkt 3, UI-2 Punkt 2): darf in dieses Gespräch geschrieben
+ * werden?
+ *
+ * Die Antwort kommt vom SERVER — `sendenVonServerGesperrt` wird gesetzt, wenn
+ * `chat.senden` mit 403 antwortet (im 1:1 heißt das: das Gegenüber ist nicht
+ * mehr erreichbar). Es gibt hier KEINE eigene Rechtelogik und keine Ableitung
+ * aus Anzeigefeldern: `mitglied` ist laut Backend nur Anzeige, und ein
+ * Gruppen-Chat, der (noch) nicht in der Liste steht, bleibt schreibbar.
+ */
+const sendenVonServerGesperrt = ref(false)
+const darfSenden = computed(() => sendbar(offenesGespraech.value, { gesperrt: sendenVonServerGesperrt.value }))
 
+/**
+ * Die Unterzeile des Seitenkopfs. Im 1:1 steht sie LEER (`''`): der Bereich
+ * „Nachrichten“ sagt schon alles, und jeder Satz über „wer liest mit“ wäre
+ * eine Zusage, die die Meldestelle nicht deckt (Review R1, SOLL 2).
+ */
 const unterzeile = computed(() => {
   if (sucheOffen.value) return 'Personen und Gespräche an einem Ort.'
   if (!kennung.value) return 'Alle Gespräche an einem Ort.'
+  if (istOffenesDirekt.value) return ''
   return teilnehmerZahl.value ? `${teilnehmerZahl.value} im Gespräch` : 'Gruppe und Untergruppe, in denen der Chat an ist.'
 })
 
@@ -636,6 +736,9 @@ function zuruecksetzen() {
   eingabeFehler.value = ''
   antwortAuf.value = null
   aelterMoeglich.value = false
+  // CHAT-7a: die Sperre gilt je GESPRÄCH, nicht für die Seite — ein anderes
+  // 1:1 darf wieder schreibbar sein.
+  sendenVonServerGesperrt.value = false
   geoeffnet.value = ''
 }
 
@@ -923,8 +1026,17 @@ async function senden() {
     await laden()
     if (eingabeEl.value && typeof eingabeEl.value.focus === 'function') eingabeEl.value.focus()
   } catch (fehler) {
-    const zustand = fehlerZustand(fehler)
-    eingabeFehler.value = zustand ? `${zustand.titel}. ${zustand.text}` : fehlertext(fehler)
+    // CHAT-7a: 403 im 1:1 = „nicht mehr erreichbar“ — dann weicht die
+    // Eingabe dem ruhigen Hinweis (Karte Punkt 3), der Verlauf bleibt. Im
+    // Gruppen-Chat bleibt es beim gewohnten Fehlertext (Karte UI-2 Punkt 2).
+    const lage = sendeFehlerZustand(fehler, { direkt: istOffenesDirekt.value })
+    if (lage.gesperrt) {
+      sendenVonServerGesperrt.value = true
+      eingabeFehler.value = ''
+    } else {
+      const zustand = fehlerZustand(fehler)
+      eingabeFehler.value = zustand ? `${zustand.titel}. ${zustand.text}` : lage.text
+    }
   } finally {
     sendet.value = false
   }
@@ -1324,6 +1436,12 @@ watch(suchBegriff, (neu) => {
   border-top: var(--rahmen-breite) solid var(--divider);
   background: var(--surface);
 }
+/* CHAT-7a (Karte Punkt 3): Senden gesperrt — ruhiger Hinweis statt Eingabe,
+   der Verlauf darüber bleibt lesbar. Keine Alarmfarbe: es ist eine Auskunft,
+   kein Fehler des Nutzers. */
+.dk-chat-gesperrt { display: flex; flex-direction: column; gap: var(--sp-1); }
+.dk-chat-gesperrt-titel { margin: 0; font-size: var(--fs-14); font-weight: var(--fw-mittel); color: var(--text); }
+.dk-chat-gesperrt-text { margin: 0; font-size: var(--fs-12); color: var(--muted); }
 .dk-chat-eingabe-zeile {
   display: flex;
   align-items: flex-end;

@@ -202,6 +202,40 @@
             </div>
         </DkCard>
 
+        <!-- CHAT-7a (Karte Punkt 1, Konzept 10.1 Punkt 4): „Nachricht
+             schreiben“ am Personenprofil. Ob der Knopf erscheint und ob er
+             geht, entscheidet AUSSCHLIESSLICH der Server: `chat.personen_suchen`
+             trägt je Treffer `darf_schreiben`, `hat_konto` und `gespraech`.
+             Hier steht KEINE Rechtelogik — nur `profilZustand` aus
+             `composables/nachrichtenDirekt.mjs`.
+             Die Karte steht nur, wenn der Chat für die Sitzung eingeschaltet
+             ist; sonst gäbe es einen Knopf in ein abgeschaltetes Modul. -->
+        <DkCard
+            v-if="!loading && !error && !isEditing && chatModulAn && profilKnopf.sichtbar && activeTab === 'details'"
+            title="Nachricht"
+        >
+            <div class="md-chat">
+                <!-- `secondary`: die Personenseite hat ihren EINEN gefüllten
+                     Knopf schon (Bearbeiten / Austritt). „Nachricht schreiben“
+                     ist ein Weg, keine Hauptaktion (UX1h).
+                     Karte UI-2 Punkt 3: nach einem 403 BLEIBT der Knopf
+                     stehen (ausgegraut) und der Hinweis darunter erklärt es —
+                     sonst verschwände mit dem Knopf auch die Erklärung, und
+                     die Person hätte einen stummen Weg ohne Antwort. -->
+                <DkButton
+                    variant="secondary"
+                    :loading="chatOeffnet"
+                    :disabled="profilKnopf.deaktiviert"
+                    :aria-disabled="profilKnopf.deaktiviert ? 'true' : undefined"
+                    @click="zumGespraech"
+                >{{ profilKnopf.text }}</DkButton>
+                <!-- Review R1 (SOLL 4): role="status" — der Hinweis ersetzt den
+                     Knopfweg und wird auch ohne Fokuswechsel angesagt. -->
+                <p v-if="profilKnopf.hinweis" class="md-chat-hinweis" role="status">{{ profilKnopf.hinweis }}</p>
+                <p v-else-if="chatFehler" class="md-chat-fehler" role="alert">{{ chatFehler }}</p>
+            </div>
+        </DkCard>
+
         <!-- BEZH-UI (Befund Manuel, 17.11.2026 / Review waveton): Beziehungen
              hatten einen eigenen Reiter — der ist weg. Der vorhandene Baustein
              (Liste, Eintragen, Entfernen, Zurücknehmen; DEV-B4a/UX2c) steht
@@ -357,7 +391,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useSession } from '../composables/useSession.js'
 import { getRouteParam } from '../router.js'
-import { apiCall, AuditConfirmationRequired } from '../composables/useApi.js'
+import { apiCall, apiGet, AuditConfirmationRequired } from '../composables/useApi.js'
 import { useAuditConfirm } from '../composables/useAuditConfirm.js'
 import { showToast } from '../composables/useToast.js'
 // UX2d3b (Review UX2d3a/A): Katalogtext statt rohem `e.message` („HTTP 500“).
@@ -386,6 +420,10 @@ import ZugangKarte from '../components/ZugangKarte.vue'
 import MitgliedBeziehungen from '../components/mitglieder/MitgliedBeziehungen.vue'
 // UX2c: Entfernen ist sofort wirksam — die Meldung bietet die Rücknahme an.
 import { useRueckgaengigAktion } from '../composables/useRueckgaengigAktion.js'
+// CHAT-7a: „Nachricht schreiben“ — Anzeigeregeln aus EINER Quelle
+// (`profilZustand`, `chatAdresse`), ohne DOM prüfbar.
+import { PROFIL_NICHT_MOEGLICH, chatAdresse, profilZustand } from '../composables/nachrichtenDirekt.mjs'
+import { modulChatErlaubt } from '../modulRechte.mjs'
 
 // UI-R10: Die Personenseite ist Personenbereich — seit R-11a darf die
 // Mitgliederverwaltung bearbeiten (`ist_mitgliederverwaltung`), nicht mehr nur
@@ -395,6 +433,91 @@ const { openConfirm, isSubmitting } = useAuditConfirm()
 
 // P1-8: die Mitglieds-ID aus der Adresse — auch fuer die Zugang-Karte.
 const mitgliedId = computed(() => getRouteParam('id', 'MitgliedDetail') || '')
+
+// ── CHAT-7a: „Nachricht schreiben“ ─────────────────────────────────────────
+/**
+ * Der Server hat den Treffer der Personensuche zu dieser Person geliefert
+ * (`chat.personen_suchen`). Daraus kommt ALLES, was der Knopf braucht:
+ * `darf_schreiben`, `hat_konto`, `gespraech`. `null` = noch keine Antwort
+ * (dann erscheint kein Knopf — fail closed).
+ */
+const chatTreffer = ref(null)
+const chatOeffnet = ref(false)
+const chatFehler = ref('')
+/** Ist das Modul `chat` für diese Sitzung eingeschaltet? (Boot, nicht geraten.) */
+const chatModulAn = computed(() => modulChatErlaubt(window.__DIakonosBOOT || {}))
+/**
+ * Der Server hat das Öffnen mit 403 abgelehnt (Karte UI-2 Punkt 3).
+ *
+ * `darf_schreiben` aus der Suche wird dabei NICHT nachgezogen: `profilZustand`
+ * bekommt die Verweigerung als eigene Lage und zeichnet daraus den bleibenden,
+ * ausgegrauten Knopf samt Hinweis. Ein `darf_schreiben = false` hätte die
+ * Karte mit dem `v-if` verschwinden lassen — samt der Erklärung.
+ */
+const chatVerweigert = ref(false)
+/** Anzeigezustand des Knopfes — reine Wiedergabe der Serverantwort. */
+const profilKnopf = computed(() => profilZustand(chatTreffer.value, { verweigert: chatVerweigert.value }))
+
+/**
+ * Den Treffer zur Person holen. `personen_suchen` sucht nach NAME — gesucht
+ * wird mit dem vollen Namen der Person, dann wird der Treffer mit DIESER
+ * Kennung herausgefiltert. Kein zweiter Endpunkt, keine eigene Rechteprüfung:
+ * was der Server nicht in die Liste legt (Ausgetretene, Gäste, Personen ohne
+ * Sichtbarkeit), bekommt auch keinen Knopf.
+ */
+async function chatTrefferLaden() {
+    chatFehler.value = ''
+    chatVerweigert.value = false
+    const id = mitgliedId.value
+    const name = [mitglied.value?.vorname, mitglied.value?.nachname]
+        .map((teil) => String(teil || '').trim()).filter(Boolean).join(' ')
+    if (!id || name.length < 2) return
+    try {
+        const antwort = await apiGet('chat.personen_suchen', { q: name, limit: 50 })
+        const treffer = Array.isArray(antwort?.treffer) ? antwort.treffer : []
+        chatTreffer.value = treffer.find((t) => String(t?.mitglied || '') === id) || null
+    } catch {
+        // Die Suche antwortet fail closed — ein Fehler heißt hier „kein Knopf“.
+        chatTreffer.value = null
+    }
+}
+
+/**
+ * „Nachricht schreiben“ / „Zum Gespräch“: `chat.direkt_oeffnen` liefert das
+ * 1:1-Gespräch (legt es an oder setzt das vorhandene fort — nie ein zweites).
+ * Danach steht die Adresse auf dem Gespräch; geöffnet wird es in „Nachrichten“.
+ */
+async function zumGespraech() {
+    if (chatOeffnet.value || profilKnopf.value.deaktiviert || !profilKnopf.value.sichtbar) return
+    chatFehler.value = ''
+    chatOeffnet.value = true
+    try {
+        // Vorhandenes Gespräch: kein Serverweg nötig (die Kennung kennt der
+        // Server schon) — trotzdem `direkt_oeffnen`, damit die Teilnahme und
+        // der Rechte-Stand im Server aktuell sind (idempotent, ein Aufruf).
+        const gespraech = await apiCall('chat.direkt_oeffnen', { mitglied: mitgliedId.value })
+        const kennung = String(gespraech?.name || profilKnopf.value.gespraech || '').trim()
+        if (!kennung) {
+            chatFehler.value = 'Das Gespräch konnte nicht geöffnet werden. Bitte versuche es noch einmal.'
+            return
+        }
+        window.location.hash = chatAdresse(kennung)
+    } catch (fehler) {
+        // 403: der Server erlaubt es nicht (kein Konto, ausgetreten, kein
+        // Recht). Karte UI-2 Punkt 3: der Weg bleibt STEHEN und wird
+        // ausgegraut, der Hinweis erklärt ihn. `darf_schreiben` wird NICHT
+        // nachgezogen — sonst fiele die Karte samt Erklärung weg. Der Knopf
+        // ist gesperrt, weitere Klicks schicken nichts mehr.
+        if (Number(fehler?.status) === 403) {
+            chatVerweigert.value = true
+            chatFehler.value = PROFIL_NICHT_MOEGLICH
+        } else {
+            chatFehler.value = aktionsfehler(fehler)
+        }
+    } finally {
+        chatOeffnet.value = false
+    }
+}
 // Ob Authentik aktiv ist, kommt aus dem Boot-Kontext (der Server entscheidet).
 const oidcAktiv = computed(() => !!window.__DIakonosBOOT?.oidc_aktiv)
 
@@ -772,6 +895,11 @@ async function loadMitglied() {
         _fillEditForm(payload)
         // BEZH-UI: die Knopf-Flags kommen aus der Serverantwort.
         setzeBeziehungsRechte(response?.permissions)
+        // CHAT-7a: den Chat-Treffer zur Person nachladen (Knopf „Nachricht
+        // schreiben“) — erst mit dem Namen der Person, den nur die Detailantwort
+        // kennt. Kein Blocker für die Seite: der Knopf erscheint, wenn er kommt.
+        chatTreffer.value = null
+        if (chatModulAn.value) chatTrefferLaden()
 
         if (payload.dsgvo) {
             Object.assign(dsgvo, payload.dsgvo)
@@ -990,6 +1118,11 @@ onMounted(loadMitglied)
 
 <style scoped>
 .md-tabs { margin-bottom: var(--sp-5); }
+/* CHAT-7a: die Karte „Nachricht“ am Personenprofil — Knopf + eine ruhige
+   Zeile. Keine eigene Farbe: es ist eine gewöhnliche Karte. */
+.md-chat { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
+.md-chat-hinweis { margin: 0; font-size: var(--fs-12); color: var(--muted); }
+.md-chat-fehler { margin: 0; font-size: var(--fs-12); color: var(--danger-ink, var(--text)); }
 .md-zustand { padding: var(--sp-6); text-align: center; color: var(--muted); }
 .md-muted { color: var(--muted); margin: 0; }
 

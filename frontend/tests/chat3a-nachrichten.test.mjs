@@ -177,7 +177,18 @@ test('CHAT-3a · Liste: Gruppen vor Untergruppen, neueste Nachricht oben', () =>
   // Leere Abschnitte fallen weg (kein „Untergruppen“-Kopf über nichts).
   assert.deepEqual(gruppierteListe([gespraech()], JETZT).map((g) => g.label), ['Gruppen'])
   assert.deepEqual(gruppierteListe([], JETZT), [])
-  assert.deepEqual(ABSCHNITTE.map((a) => a.label), ['Gruppen', 'Untergruppen'])
+  // CHAT-7a: Direktgespräche haben einen EIGENEN Abschnitt (hinter den
+  // Gruppen) — er erscheint nur, wenn es welche gibt. Er heißt
+  // „Direktnachrichten“ wie der Betreff der Glocke (CHAT-7a-UI-2, Punkt 7).
+  assert.deepEqual(ABSCHNITTE.map((a) => a.label), ['Gruppen', 'Untergruppen', 'Direktnachrichten'])
+  const mitDirekt = gruppierteListe([
+    gespraech({ name: 'g-chor', titel: 'Chor', letzte_am: zeit('2026-11-18', 10, 8) }),
+    gespraech({ name: 'd-erika', art: 'direkt', gruppe: null, titel: 'Erika Muster',
+      mitglied: 'M-1', teilnehmer: 2, letzte_am: zeit('2026-11-18', 11, 0) }),
+  ], JETZT)
+  assert.deepEqual(mitDirekt.map((g) => g.label), ['Gruppen', 'Direktnachrichten'],
+    'der Abschnitt steht hinter den Gruppen und nur bei Treffern')
+  assert.equal(mitDirekt[1].eintraege[0].titel, 'Erika Muster')
 })
 
 test('CHAT-3a · Liste: Zähler-Summe und leere/ungültige Werte', () => {
@@ -1032,7 +1043,9 @@ test('CHAT-3a · Liste: Abschnitte, Vorschau, Zeit, Zähler, Stumm-Symbol', () =
   assert.match(t, /v-for="abschnitt in gruppen"/, 'die Abschnitte kommen fertig aus dem Modul')
   assert.match(t, /\{\{ abschnitt\.label \}\}/)
   assert.match(t, /v-for="zeile in abschnitt\.eintraege"/)
-  assert.match(t, /\{\{ zeile\.titel \}\}/)
+  // CHAT-7a-UI-2: der Name kommt aus `nameFuer` (im 1:1 „Unbekannte Person“
+  // ohne Namen), Punkt 6.
+  assert.match(t, /\{\{ nameFuer\(zeile\) \}\}/)
   assert.match(t, /\{\{ zeile\.zeit \}\}/)
   assert.match(t, /v-if="zeile\.ungelesen > 0"/)
   assert.match(t, /zeile\.ungelesen > 99 \? '99\+' : zeile\.ungelesen/)

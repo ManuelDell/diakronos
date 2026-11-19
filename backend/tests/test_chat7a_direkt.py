@@ -585,7 +585,7 @@ def test_anonymisierung_ueber_das_echte_anonymiere(welt):
             ChatNachricht.gespraech == g).count() == 2
         # Das Kontenpaar ist geleert (CHAT-7a-Schritt 6a) — der Titel kommt
         # deshalb aus der fehlenden Teilnahme, nicht aus dem Schlüssel.
-        bleibt_paar = zeile.paar_schluessel is not None
+        assert zeile.paar_schluessel is None
 
     eintrag = {e["name"]: e for e in _meine(ANNA)["gespraeche"]}[g]
     # „teilnehmer“ zählt AKTUELLE Angehörige über den Kern: 1.
@@ -598,8 +598,13 @@ def test_anonymisierung_ueber_das_echte_anonymiere(welt):
     assert eintrag["bild"] in ("", None)
 
 
-def test_anonymisierung_ohne_paar_schluessel_bleibt_leer(welt):
-    """Ist auch ``paar_schluessel`` schon weg, bleibt der Titel LEER (nie E-Mail)."""
+def test_anonymisierung_ohne_paar_schluessel_zeigt_geloeschte_person(welt):
+    """Titel bleibt „Gelöschte Person“ — nie E-Mail, nie Kennung, nie Konto.
+
+    Der Name sagt, was der Test PRÜFT: der Titel ist NICHT leer (Review
+    CHAT-N1, Punkt 8 — der alte Name „..._bleibt_leer“ beschrieb das
+    Gegenteil). ``bleibt_paar`` war tot: das Kontenpaar ist geleert.
+    """
     from diakronos_app import dsgvo_anonymisierung as D
 
     g = _oeffnen("M-Bert", ANNA)["name"]

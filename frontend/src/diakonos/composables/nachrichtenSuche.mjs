@@ -26,7 +26,7 @@
  * kein Timer (`entpreller` bekommt Timer und Uhr hinein), keine Farben.
  */
 
-import { gruppierteListe } from './nachrichtenLogik.mjs'
+import { gruppierteListe, gespraechHash } from './nachrichtenLogik.mjs'
 
 // ── Grenzen (eine Stelle) ───────────────────────────────────────────────────
 
@@ -267,6 +267,12 @@ export function istAktuell(gefragt, eingabe) {
  * (`hat_konto: false`) haben kein Ziel — sie bleiben sichtbar, aber ohne Link
  * (Karte Punkt 2, Konzept 10.1 Punkt 3). Was der Zeichner daraus macht, ist
  * Darstellung (ausgegraut, kein `<a>`).
+ *
+ * CHAT-7a (Konzept 10.1 Punkt 4): Gibt es zu der Person schon ein
+ * Direktgespräch (`gespraech` aus `chat.personen_suchen`), führt der Treffer
+ * DIREKT in dieses Gespräch — sonst auf das Profil, wo „Nachricht schreiben“
+ * steht. Ein Treffer führt nie in ein Gespräch, das es nicht gibt: ohne
+ * `gespraech` bleibt es beim Profil.
  */
 export function personTreffer(t) {
   if (!t || typeof t !== 'object') return null
@@ -274,21 +280,60 @@ export function personTreffer(t) {
   if (!mitglied) return null
   const name = String(t.anzeigename || '').trim() || mitglied
   const hatKonto = t.hat_konto === true
+  const gespraech = String(t.gespraech || '').trim()
   return {
     mitglied,
     name,
     bild: String(t.bild || '').trim(),
     hatKonto,
     darfSchreiben: t.darf_schreiben === true,
+    gespraech,
     hinweis: hatKonto ? '' : OHNE_KONTO_TEXT,
-    href: hatKonto ? profilHash(mitglied) : '',
+    href: hatKonto ? (gespraech ? gespraechHash(gespraech) : profilHash(mitglied)) : '',
   }
 }
 
-/** Die Liste der Personentreffer aus der Server-Antwort (`{treffer, limit}`). */
+/**
+ * Die Liste der Personentreffer aus der Server-Antwort (`{treffer, limit}`).
+ * Ohne Filter — für Aufrufer, die keine Gesprächstreffer daneben zeigen.
+ */
 export function personenAusAntwort(antwort) {
   const roh = Array.isArray(antwort?.treffer) ? antwort.treffer : []
   return roh.map(personTreffer).filter(Boolean)
+}
+
+/**
+ * Personentreffer OHNE die Personen, deren 1:1 schon als Gesprächstreffer
+ * dasteht (Karte CHAT-7a-UI-2, Punkt 8; Review R1, MUSS 1).
+ *
+ * Beide Treffer führen in DENSELBEN Chat — zweimal dieselbe Person unter
+ * „Gespräche“ und „Personen“ ist keine zweite Auskunft, sondern eine
+ * Doppelung.
+ *
+ * Verglichen wird über die KENNUNG, nicht über den Namen: der Personentreffer
+ * trägt sein 1:1 in `gespraech` (Server: `chat.personen_suchen`), die
+ * Gesprächszeile ihre Kennung in `name` (`chat.meine_gespraeche` /
+ * `_gespraech_kopf`) — beides ist derselbe Schlüssel (`C-1`).
+ *
+ * Ein Namensvergleich war falsch (Operator-Review R1): „Anna Schmidt-Berger“
+ * verschwand, sobald es ein 1:1 „Anna Schmidt“ gab, und eine gleichnamige
+ * Person ohne Gespräch fiel mit weg.
+ *
+ * @param {Array<object>} personen Zeilen aus `personenAusAntwort`
+ * @param {Array<object>} gespraechstreffer Abschnitte aus `gespraechsTreffer`
+ */
+export function personenOhneGespraech(personen, gespraechstreffer) {
+  const personenListe = Array.isArray(personen) ? personen : []
+  // Gesprächstreffer sind ZEILEN der Liste (`listenZeile` aus
+  // `gespraechsTreffer`) — `art` und `name` stehen dort genauso wie in den
+  // Rohdaten des Servers.
+  const kennungen = new Set((Array.isArray(gespraechstreffer) ? gespraechstreffer : [])
+    .flatMap((abschnitt) => (Array.isArray(abschnitt?.eintraege) ? abschnitt.eintraege : []))
+    .filter((z) => String(z?.art || '') === 'direkt')
+    .map((z) => String(z?.name || '').trim())
+    .filter(Boolean))
+  if (!kennungen.size) return personenListe
+  return personenListe.filter((person) => !kennungen.has(String(person?.gespraech || '').trim()))
 }
 
 /**
@@ -342,6 +387,11 @@ export function personenSichtbar(zustand) {
  * Die Abschnitte, wie der Zeichner sie zeigt — GENAU EINE „Personen“-
  * Überschrift, und im Listenmodus keine (Review R1, MUSS 1).
  *
+ * Der Parameter heißt `personenZustand` (nicht `zustand`): in `ChatSuche.vue`
+ * gibt es eine gleichnamige Ref, und ein Parameter, der eine äußere Variable
+ * beschattet, ist die Quelle genau dieser Sorte Fehler (ein Aufruf mit
+ * `zustand: undefined` fiel auf den ÄUSSEREN Wert zurück).
+ *
  * Bisher stand die Statusfläche ohne Bedingung da (leere Überschrift) und bei
  * Treffern zusätzlich die Trefferliste (Überschrift doppelt). Hier ist beides
  * eine Entscheidung:
@@ -356,26 +406,39 @@ export function personenSichtbar(zustand) {
  *     nebeneinander („Niemand gefunden …“ und „Nichts gefunden“; CHAT-3c-2,
  *     SOLL c).
  *
+ * CHAT-7a-UI-2 (Punkt 8): Eine Person, deren 1:1 schon unter „Gespräche“
+ * steht, wird hier ausgeblendet (`personenOhneGespraech`). Das zählt auch für
+ * die Entscheidungen darunter — sonst stünde „Personen“ mit einer leeren Liste
+ * da oder der Leerzustand bliebe aus, obwohl sichtbar nichts übrig ist.
+ *
  * @param {{ gespraeche?: Array<object>, zustand?: string, personen?: Array<object> }} lage
  */
-export function suchAbschnitte({ gespraeche = [], zustand = 'ruhe', personen = [] } = {}) {
+export function suchAbschnitte({ gespraeche = [], zustand: personenZustand = 'ruhe', personen = [] } = {}) {
   const gespraechsListe = Array.isArray(gespraeche) ? gespraeche : []
-  const personenListe = Array.isArray(personen) ? personen : []
+  const personenRoh = Array.isArray(personen) ? personen : []
+  const stand = personenZustand
+  // Doppelte Treffer fallen weg — UNABHÄNGIG davon, ob gerade geladen wird
+  // (die Gesprächstreffer stehen schon fest, die Personentreffer kommen nach).
+  const personenListe = personenOhneGespraech(personenRoh, gespraechsListe)
+
   const leer = gespraechsListe.length === 0
-    && zustand === 'leer'
+    && stand === 'leer'
     && personenListe.length === 0
   // Der eine Leerzustand steht für sich — keine zweite Überschrift darüber,
-  // kein zweiter Satz darunter.
-  const personenDa = personenSichtbar(zustand) && !leer
+  // kein zweiter Satz darunter. CHAT-7a-UI-2 (Punkt 8): Die Doppelprüfung kann
+  // ALLE Personentreffer wegnehmen; dann steht keine leere „Personen“-Fläche da
+  // (und bei leerem Rest auch keine leere Trefferfläche ohne Erklärung).
+  const personenDa = (personenSichtbar(stand) && !leer)
+    && !(stand === 'treffer' && personenListe.length === 0)
   return {
     /** Abschnitte der Gesprächstreffer (aus `gespraechsTreffer`). */
     gespraeche: gespraechsListe,
     /** Steht der Abschnitt „Personen“ da (genau einmal, nur bei Bedarf)? */
     personen: personenDa,
     /** Die Zeilen des Abschnitts Personen (leer bei laedt/fehler/leer). */
-    personenZeilen: zustand === 'treffer' ? personenListe : [],
+    personenZeilen: stand === 'treffer' ? personenListe : [],
     /** Steht die Statusfläche (Skelett/Fehler/Leer-Text) statt der Zeilen? */
-    personenStatus: personenDa && (zustand === 'laedt' || zustand === 'fehler'),
+    personenStatus: personenDa && (stand === 'laedt' || stand === 'fehler'),
     /** Steht der EINE Leerzustand da? */
     leer,
   }

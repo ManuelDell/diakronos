@@ -251,7 +251,7 @@ import unicodedata
 from datetime import datetime, timedelta
 from typing import Any, NoReturn
 
-from sqlalchemy import case, delete, func, or_, select, text, update
+from sqlalchemy import Integer, case, cast, delete, func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 
 logger = logging.getLogger("diakronos_app.api.chat")
@@ -636,6 +636,27 @@ def _direkt_gegenueber(s, g: ChatGespraech, benutzer: str) -> str | None:
     return andere[0] if len(andere) == 1 else None
 
 
+def _konto_ausgeschlossen(konto: str | None) -> bool:
+    """Ist dieses Konto ausgeschlossen? — dieselbe Schranke wie im Rechte-Kern.
+
+    Nur für die ANZEIGE (Bild des Gegenübers in einem 1:1, Review CHAT-7a,
+    Punkt 4): ``mitglied_ausgeschlossen`` ist die *Wurzel* der Rechteprüfung
+    (``get_roles`` liefert dafür ``()``) und wird hier direkt gefragt, statt das
+    Konto durch ``_erlaube`` zu schicken — es geht nicht um ein Recht dieser
+    Person, sondern um eine Auskunft ÜBER sie. Fehler ⇒ ``False`` (dieselbe
+    fail-open-Grenze wie die Funktion selbst, sie ist eine Zusatzschranke; die
+    Hauptregel ``enabled`` bleibt fail closed).
+    """
+    if not konto:
+        return False
+    try:
+        from diakronos_app.frappe_compat.permissions import mitglied_ausgeschlossen
+
+        return bool(mitglied_ausgeschlossen(str(konto)))
+    except Exception:  # noqa: BLE001 — Anzeige, siehe Docstring
+        return False
+
+
 def _person_je_konto(s, konto: str | None) -> str | None:
     """Mitglied-Kennung eines Kontos — REIN LESEND über ``mitglied.user``.
 
@@ -674,6 +695,15 @@ def _direkt_titel(s, g: ChatGespraech, benutzer: str) -> tuple[str, str | None, 
     Person": der neutrale Text, NICHT die Kennung, NICHT die Adresse, NICHT
     der Rest des Namens. Ein leeres Feld wäre für die Oberfläche nicht von
     „noch kein Gegenüber“ zu unterscheiden.
+
+    Ist das Gegenüber AUSGESCHLOSSEN (``mitglied_ausgeschlossen``), wird KEIN
+    Bild ausgeliefert (Review CHAT-7a, Punkt 4, Entscheidung Operator): in der
+    Personensuche erscheint diese Person auch nicht, ein Bild in der
+    Gesprächsliste wäre der einzige Weg zu ihr. Die Marke steht in der
+    Mitgliedszeile, die hier ohnehin gelesen wird (Review CHAT-N1, SOLL: kein
+    Volllauf je Gespräch). Der Titel bleibt der gekürzte Name — die Kennung
+    fürs Profil ebenfalls (sie ist keine Auskunft über die Person; ohne sie
+    könnte die Oberfläche das Gegenüber nicht zuordnen).
     """
     from diakronos_app.frappe_compat.personen_anzeige import (
         GELOESCHT_ANZEIGE,
@@ -686,11 +716,14 @@ def _direkt_titel(s, g: ChatGespraech, benutzer: str) -> tuple[str, str | None, 
     # Ein 1:1 hat immer ZWEI Teilnahmezeilen. Steht nur noch eine (oder keine),
     # ist die andere Person gegangen — anonymisiert oder gelöscht.
     ohne_teilnahme = len(konten) < 2
+    # Die Namenszeile nennt schon ``ausgeschlossen``. Bleibt sie aus (Altbestand
+    # ohne Mitglied), fragt die Schranke des Kerns — nur dann, nicht je 1:1.
+    ausgeschlossen = _konto_ausgeschlossen(gegner)
     mitglied = _person_je_konto(s, gegner)
     if mitglied:
         zeile = s.execute(
             select(Mitglied.name, Mitglied.vorname, Mitglied.nachname,
-                   Mitglied.foto, Mitglied.status)
+                   Mitglied.foto, Mitglied.status, Mitglied.ausgeschlossen)
             .where(Mitglied.name == mitglied)
         ).first()
         if zeile is not None:
@@ -698,10 +731,18 @@ def _direkt_titel(s, g: ChatGespraech, benutzer: str) -> tuple[str, str | None, 
                    "foto": zeile[3], "status": zeile[4]}
             # EINE Namensregel für ALLE (``kuerze_name``): „Vorname N.“ auch
             # für ein AKTIVES Mitglied — der Chat ist kein Verwaltungsweg.
-            # Gelöscht → „Gelöschte Person“, Bild dann keines.
-            kurz = kuerze_name(zeile[1], zeile[2], mitglied)
-            name = str(kurz or "").strip() or mitglied
-            return name, mitglied, _suche_bild(roh.get("foto"), ist_geloescht(roh))
+            # Gelöscht → „Gelöschte Person“ (das sagt ``kuerze_name`` über die
+            # Kennung), Bild dann keines (``ist_geloescht``). Der Titel fällt
+            # NIE auf Kennung, Konto oder Adresse zurück (Review CHAT-7a,
+            # Punkt 4); „Ehemaliges Mitglied“ ist der Text ohne jeden Namen.
+            name = str(kuerze_name(zeile[1], zeile[2], mitglied) or "").strip()
+            # Der Ausschluss steht in DIESER Zeile (Review CHAT-N1, SOLL):
+            # ``_konto_ausgeschlossen`` wäre ein Volllauf über Mitglieder und
+            # Konten je 1:1-Gespräch (N+1). Dieselbe Marke, dieselbe Schranke.
+            ausgeschlossen = ausgeschlossen or bool(zeile[5])
+            bild = "" if ausgeschlossen else _suche_bild(
+                roh.get("foto"), ist_geloescht(roh))
+            return name, mitglied, bild
     if gegner is None and ohne_teilnahme:
         # Kein Gegenüber-Konto mehr (Anonymisierung hat die Teilnahmezeile
         # mitgenommen): der neutrale Text, NICHT die Kennung und NICHT die
@@ -1009,8 +1050,11 @@ def direkt_oeffnen(mitglied=None):
     („gibt es nicht“ und „darfst du nicht“ bleiben ununterscheidbar).
 
     ``mitglied`` ist die MITGLIED-Kennung (``mitglied.name``); das Konto der
-    Gegenperson kommt aus dem Kern (``mitglied.user``, sonst eindeutige
-    E-Mail). Lässt sich kein Konto auflösen → 403 (kein Rateweg).
+    Gegenperson kommt allein aus ``mitglied.user`` via ``_konto_je_mitglied``.
+    Einen Rückfall über die E-Mail gibt es NICHT mehr:
+    er war ein zweiter Weg zum selben Gespräch und konnte bei abweichender
+    Adresse ein anderes Konto treffen. Lässt sich kein Konto auflösen → 403
+    (kein Rateweg).
 
     Antwort: derselbe Kopf wie in ``meine_gespraeche`` (``art: "direkt"``,
     ``titel`` = Anzeigename des Gegenübers, ``mitglied``, ``bild``,
@@ -1536,6 +1580,12 @@ def loeschen(nachricht):
     Moderationsrecht (MODERIEREN; HV/MV, in der Untergruppe auch GL). Der
     Rechte-Kern entscheidet, welcher der beiden Wege greift.
 
+    im 1:1 gilt EINE Regel ohne Sonderzweig je ``art`` (Review CHAT-7a,
+    Punkt 3): ``_erlaube(SCHREIBEN, besitzer=autor)`` — der Kern antwortet für
+    eine fremde Nachricht ``fremde_nachricht`` (403), auch für einen
+    TEILNEHMENDEN Administrator. Moderation im 1:1 gibt es nur über
+    ``meldung_entscheiden``; die Meldestelle ist dort nicht Teilnehmerin.
+
     Der Text bleibt in der Datenbank (Widerspruchsfälle, CHAT-6/8), wird aber
     nicht mehr ausgeliefert: ``text=None``, ``geloescht=True``. Zweites Löschen
     ist kein Fehler (idempotent) — der Zeitpunkt des ersten bleibt stehen.
@@ -1544,8 +1594,7 @@ def loeschen(nachricht):
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         n = _nachricht(s, str(nachricht or "").strip(), None)
         g = _gespraech_lesen(s, n.gespraech)
-        eigene = _ist_meine(n, benutzer)
-        if eigene:
+        if _ist_meine(n, benutzer):
             # Eigene Nachricht loeschen = SCHREIBEN. Eine FREMDDE im 1:1 ist
             # damit NEIN (der Kern: ``fremde_nachricht``), auch fuer einen
             # teilnehmenden Admin — MODERIEREN gibt es im Direktgespraech nur
@@ -1553,14 +1602,15 @@ def loeschen(nachricht):
             _erlaube(benutzer, rechte.SCHREIBEN, g=g,
                      besitzer=n.autor_benutzer, sitzung=s)
         elif g.art == ART_DIREKT:
-            # CHAT-7a: im 1:1 gibt es KEINEN Moderationsweg ausserhalb des
-            # Meldewegs (Entscheidung Operator, Kern-Docstring). Die
-            # Meldestelle ist zwar MODERIEREN-Fähig, aber nicht Teilnehmerin
-            # (der Kern: ``kein_teilnehmer``) — und ein TEILNEHMENDER Admin
-            # darf die Nachricht des Gegenübers nicht einfach entfernen; das
-            # geht nur über ``meldung_entscheiden``. Deshalb hier Ablehnung,
-            # ohne den Kern zu befragen.
-            _h()
+            # Dieselbe Frage, keine Sonderregel: der Kern sagt „fremde
+            # Nachricht“ (teilnehmender Admin ebenso wie ein Dritter).
+            # ``besitzer`` ist IMMER eine Zeichenkette: der Kern liest
+            # ``besitzer is None`` als „eigene“ — nach der Anonymisierung ist
+            # ``autor_benutzer`` aber NULL, und ohne diese Umwandlung duerfte
+            # die verbliebene Person die Nachricht der geloeschten loeschen
+            # (Review CHAT-N1, MUSS 2). ``""`` ist nie ein Konto.
+            _erlaube(benutzer, rechte.SCHREIBEN, g=g,
+                     besitzer=str(n.autor_benutzer or ""), sitzung=s)
         else:
             _erlaube(benutzer, rechte.MODERIEREN, g=g, sitzung=s)
         if n.geloescht_am is None:
@@ -1855,6 +1905,12 @@ def umfrage_schliessen(umfrage):
         Besitzer),
       * sonst MODERIEREN im Gespräch (HV/MV, in der Untergruppe auch GL).
 
+    Im 1:1 gibt es KEINEN Sonderzweig je ``art`` (Review CHAT-7a, Punkt 3):
+    dort gilt ``_erlaube(SCHREIBEN, besitzer=autor)``, und der Kern antwortet
+    für eine fremde Umfrage ``fremde_nachricht`` (403) — auch für einen
+    teilnehmenden Administrator. Moderation im 1:1 gibt es nur über
+    ``meldung_entscheiden``.
+
     Idempotent: eine bereits geschlossene Umfrage bleibt geschlossen (der
     Zeitpunkt des ersten Schließens steht). Automatisch zur Frist schließt der
     Scheduler (``job_umfragen_schliessen``) — dieselbe Zeile, ohne
@@ -1873,9 +1929,14 @@ def umfrage_schliessen(umfrage):
             _erlaube(benutzer, rechte.SCHREIBEN, g=g,
                      besitzer=_umfrage_autor(s, u.name), sitzung=s)
         elif g.art == ART_DIREKT:
-            # 1:1: Schliessen gibt es nur fuer die anlegende Person (oben).
-            # Kein Moderationsweg ausserhalb des Meldewegs (CHAT-7a).
-            _h()
+            # Dieselbe Frage, keine Sonderregel: der Kern sagt „fremde
+            # Nachricht“ (teilnehmender Admin ebenso wie ein Dritter).
+            # GLEICHE Umwandlung wie beim Loeschen (Review CHAT-N1, MUSS 2):
+            # nach einer Anonymisierung hat die Huelle kein Konto mehr
+            # (``None``) — der Kern laese das als „eigene“ und die
+            # verbliebene Person duerfte die fremde Umfrage schliessen.
+            _erlaube(benutzer, rechte.SCHREIBEN, g=g,
+                     besitzer=str(_umfrage_autor(s, u.name) or ""), sitzung=s)
         else:
             _erlaube(benutzer, rechte.MODERIEREN, g=g, sitzung=s)
         if u.geschlossen_am is None:
@@ -2439,7 +2500,7 @@ def meldung_senden(nachricht, grund, freitext=None):
             # Zwei gleichzeitige Aufrufe: der partielle Index lässt nur eine
             # offene Meldung durch (dasselbe Muster wie `_gespraech_holen`).
             throw("Diese Nachricht wurde von dir bereits gemeldet.")
-        empfaenger = [k for k in _moderation_konten(g)
+        empfaenger = [k for k in _moderation_konten(g, sitzung=s)
                       if k != benutzer and k != str(n.autor_benutzer or "")]
         antwort = {
             "name": zeile.name,
@@ -2576,7 +2637,7 @@ def meldungen_liste(stand=None, gespraech=None):
                     .limit(1)
                 ).scalar_one_or_none() is not None
                 if (nur_gespraech is not None
-                        and _art_lesen(nur_gespraech) != ART_DIREKT):
+                        and _wechselart_lesen(nur_gespraech, sitzung=s) != ART_DIREKT):
                     # Auf EIN Gruppen-Gespräch eingegrenzt, und dort darf
                     # diese Person nicht moderieren → ehrliche 403.
                     _h()
@@ -2948,7 +3009,7 @@ def _meldung_zeile(s, m: ChatMeldung, n: ChatNachricht, g: ChatGespraech,
     }
 
 
-def _moderation_konten(g: ChatGespraech) -> list[str]:
+def _moderation_konten(g: ChatGespraech, *, sitzung=None) -> list[str]:
     """Wer bekommt die MELDUNGS-Glocke dieses Gesprächs (Konzept 2.5)?
 
     * Gruppen-Chat: ``rechte.chat_moderatoren(gruppe, untergruppe)`` —
@@ -2959,11 +3020,17 @@ def _moderation_konten(g: ChatGespraech) -> list[str]:
       Gemeindeleitung sieht in einem 1:1 nichts (Konzept S3: „niemand sonst
       kann mitlesen“). Die Frage je Kandidat stellt ``_weiche_ja(... MODERIEREN)``
       (= der Kern) — hier steht keine eigene Rollenlogik.
+
+    ``sitzung`` ist die Sitzung des AUFRUFERS und wird durchgereicht (Review
+    CHAT-7a, Punkt 2): MODERIEREN wertet die Teilnehmenden im Kern NICHT aus
+    (``darf_direktgespraech`` antwortet für MODERIEREN allein über
+    ``ist_meldestelle``), also wird das Gespräch als Zeile übergeben statt als
+    transientes ``ChatGespraech(...)`` — und es entsteht keine eigene Sitzung
+    je Kandidat.
     """
     if g.art == ART_DIREKT:
         return sorted(k for k in _meldestellen_konten() if _weiche_ja(
-            k, rechte.MODERIEREN,
-            g=ChatGespraech(name=g.name, art=ART_DIREKT, gruppe=None, untergruppe=None)))
+            k, rechte.MODERIEREN, g=g, sitzung=sitzung))
     return list(rechte.chat_moderatoren(g.gruppe, g.untergruppe))
 
 
@@ -2976,20 +3043,39 @@ def _meldestellen_konten() -> list[str]:
     entscheidet danach ``_weiche_ja(... MODERIEREN)`` — die Liste ist Vorfilter,
     KEINE Entscheidung (dieselbe Trennung wie bei der Personensuche).
 
+    ROLLENNAMEN sind KEINE Konten (Review CHAT-7a, Punkt 1): ``"System
+    Manager"`` und ``ROOT_ROLLE`` stehen als ``role`` in ``HasRole``, nicht als
+    ``parent`` — als Konto-Kandidat wären sie eine Zeile, die der Kern
+    anschließend gar nicht kennt (er fragt ``User``). Kandidaten sind deshalb
+    nur ``parent``-Werte der Rollenzeilen, der eingetragene root und das Konto
+    ``Administrator``.
+
+    ``Administrator`` steht auch OHNE eigene ``User``-Zeile in der Liste
+    (dieselbe Entscheidung des Operators, Review CHAT-7a Punkt 1): der Kern
+    gilt für dieses eine Konto wahr — er nennt es ausdrücklich, ohne
+    Rollenzeile (``ist_admin``) und ohne User-Zeile
+    (``_ist_angemeldetes_mitglied``). Die Aktiv-Prüfung der Rollen-Kandidaten
+    gilt deshalb nur für Konten, die OHNE ihn gefunden wurden — und ein
+    AUSGESCHLOSSENES Konto fällt auch dann heraus (``mitglied_ausgeschlossen``;
+    der Kern gäbe ihm keine Rolle). Für alle anderen bleibt die Regel „nur
+    Konten, die es gibt und die aktiv sind“.
+
     ``parenttype`` wird bewusst NICHT auf ``User`` verengt: Altdaten-Zeilen
     ohne parenttype gelten im Kern als Benutzer-Rollen (``ist_user_zeile``),
     eine zu enge Abfrage würde die Kandidatenliste leeren. Bleibt sie LEER,
     bleibt es bei „niemand“ — fail closed, wie der Kern.
     """
-    from diakronos_app.frappe_compat.permissions import ROOT_ROLLE
+    from diakronos_app.frappe_compat.permissions import (
+        ROOT_ROLLE,
+        mitglied_ausgeschlossen,
+    )
     from diakronos_app.models.core import HasRole, User
 
-    konten = {str(k) for k in
-              (# ``ist_admin`` ist für diesen Namen wahr, ohne Rollenzeile.
-               (MELDESTELLE_KONTO,)
-               + tuple(rechte.ADMIN_ROLLEN)
-               + (ROOT_ROLLE,)) if k}
-    with dbmod.SessionLocal() as s:
+    konten: set[str] = set()
+    # Die Sitzung des Aufrufers, wenn es eine gibt (``dbmod.lesesitzung``):
+    # diese Funktion kann in einer Schreibtransaktion laufen, und eine zweite
+    # Sitzung auf derselben Verbindung risse sie mit (Review CHAT-N1, SOLL).
+    with dbmod.lesesitzung() as s:
         konten |= {str(k) for k in s.execute(
             select(HasRole.parent).where(
                 HasRole.role.in_((*rechte.ADMIN_ROLLEN, ROOT_ROLLE)))
@@ -3007,9 +3093,14 @@ def _meldestellen_konten() -> list[str]:
             select(User.name).where(User.name.in_(sorted(konten)),
                                     User.enabled.is_(True))
         ).scalars().all() if k}
-    # ``Administrator`` ist der Systembenutzer und steht in ``user``; fehlt er
-    # (frische/testspezifische Anlage), bleibt der Kern die Wahrheit.
-    return sorted(aktiv)
+    # ``Administrator`` ist der Systembenutzer und braucht keine eigene Zeile —
+    # der Kern bestätigt ihn auch ohne (``ist_admin`` fragt genau diesen Namen).
+    # Ob er Meldestelle IST, sagt danach ohnehin ``_weiche_ja(... MODERIEREN)``.
+    if MELDESTELLE_KONTO:
+        aktiv.add(MELDESTELLE_KONTO)
+    # Ein ausgeschlossenes Konto bekommt im Kern keine Rolle — es fällt hier
+    # schon heraus (dieselbe Schranke, ``mitglied_ausgeschlossen``).
+    return sorted(k for k in aktiv if not mitglied_ausgeschlossen(k))
 
 
 def _glocke_neue_meldung(konten: list[str], meldung: str) -> None:
@@ -3104,7 +3195,8 @@ def _glocke_anker(teilnahme: ChatTeilnehmer | None) -> datetime | None:
 def _glocke_setzen(s, *, konto: str, gespraech: ChatGespraech,
                    teilnahme: ChatTeilnehmer | None, anzahl: int,
                    jetzt: datetime,
-                   nur_fortschreiben: bool = False) -> bool:
+                   nur_fortschreiben: bool = False,
+                   nur_zahl: bool = False) -> bool:
     """Die EINE Glocke je (Gespräch, Konto) schreiben — ersetzen statt doppeln.
 
     Liegt im ``Notification Log`` schon eine UNGELESENE Chat-Glocke desselben
@@ -3112,6 +3204,11 @@ def _glocke_setzen(s, *, konto: str, gespraech: ChatGespraech,
     neue Zeile — AUSSER mit ``nur_fortschreiben``: dann wird keine angelegt
     (Review R1/4, Fall „die Person hat die Glocke weggeklickt“) und die
     Rückgabe ist ``False``.
+
+    ``nur_zahl`` (Review CHAT-7a, Punkt 6): nur die ZAHL fortschreiben, NICHT
+    ``modified``. Beim teilweisen Lesen soll die Glocke in der Liste an ihrem
+    Platz bleiben — sie nach oben zu schieben ist allein Sache neuer
+    Nachrichten. Die Uhr ``jetzt`` wird deshalb nur im Merker vermerkt.
 
     Der Merker wird NUR fortgeschrieben, wenn die Glocke wirklich stand (der
     Rückgabewert von ``glocke_setzen`` ist leer, wenn das Schreiben scheiterte)
@@ -3135,6 +3232,7 @@ def _glocke_setzen(s, *, konto: str, gespraech: ChatGespraech,
         # dieselbe Sitzung, in der Merker und Fach-Transaktion stehen.
         session=s,
         nur_fortschreiben=nur_fortschreiben,
+        nur_zahl=nur_zahl,
     )
     if not name:
         return False  # Benachrichtigung ist Beiwerk — aber dann auch kein Merker
@@ -3215,6 +3313,12 @@ def _buendel_glocke_nachziehen(s, gespraech: str, benutzer: str,
     Kein Anlegen, kein Wiederbeleben, kein Umgehen von ``stumm`` und Ruhezeit
     (Review R1/4). Fehler sind Beiwerk wie überall bei Glocken — der Lesestand
     ist längst geschrieben, das hier ist nur die Anzeige.
+
+    ``modified`` wird NICHT hochgesetzt (Review CHAT-7a, Punkt 6): Lesen ist
+    kein Anlass nach oben. Die Glocke soll in der Liste bleiben, wo sie steht —
+    nur eine NEUE Nachricht schiebt sie nach oben (das macht
+    ``chat_glocken_buendeln`` mit ``glocke_setzen``). Fortgeschrieben wird
+    allein die ZAHL im Betreff/Inhalt, und zwar über ``nur_zahl=True``.
     """
     if not ungelesen or ungelesen <= 0:
         return
@@ -3233,7 +3337,7 @@ def _buendel_glocke_nachziehen(s, gespraech: str, benutzer: str,
         with s.begin_nested():
             _glocke_setzen(s, konto=benutzer, gespraech=g, teilnahme=teilnahme,
                            anzahl=int(ungelesen), jetzt=jetzt,
-                           nur_fortschreiben=True)
+                           nur_fortschreiben=True, nur_zahl=True)
     except Exception:  # noqa: BLE001 — Anzeige, nicht der Lesestand
         logger.exception("chat: Bündel-Glocke %s/%s nicht fortgeschrieben",
                          gespraech, benutzer)
@@ -3607,11 +3711,36 @@ def _offene_umfragen_mit_frist(s, zeit: datetime, vorlauf_stunden: int) -> list[
         naht (auch eine bereits VERSTRICHENE Frist fällt hier hinein: solange
         der Schließ-Job sie noch nicht geschlossen hat, ist eine Erinnerung
         besser als keine),
+      * **kurze Frist**: ``frist_am - erstellt_am > vorlauf`` — eine Umfrage,
+        die schon mit einer Frist INNERHALB des Vorlaufs angelegt wurde, wird
+        hier ausgeschlossen (Review CHAT-7a, Punkt 5). Sie wäre sonst in jedem
+        Minutentakt Kandidat, bis die Frist vorbei ist: erinnert werden kann
+        sie ohnehin nur einmal, und der Lauf holt sie dann jede Minute neu.
+        Die Grenze ist STRIKT (Review CHAT-N1, MUSS 1): genau ``vorlauf``
+        Abstand zählt als kurz und ist KEIN Kandidat — dieselbe Grenze wie in
+        der Python-Nachprüfung, mit derselben Größe.
       * die Hülle-Nachricht ist nicht gelöscht (``chat_nachricht.geloescht_am``)
         — eine entfernte Umfrage wird nie erinnert,
       * das Gespräch lebt.
     """
     grenze = zeit + timedelta(hours=int(vorlauf_stunden))
+    # Kurze Frist ausschliessen — je Dialekt, aber mit DERSELBEN Groesse wie die
+    # Python-Nachpruefung (``vorlauf_stunden``, strikt). ``julianday`` waere ein
+    # SQL-Funktionsname, den PostgreSQL nicht kennt (Review CHAT-N1, MUSS 1):
+    # der Job waere dort an ``UndefinedFunction`` gescheitert und haette NIE
+    # erinnert. Zwei Wege, EINE Grenze:
+    #   * SQLite: Sekunden seit der Epoche als Ganzzahl, Differenz > h*3600;
+    #   * PostgreSQL: Zeitstempel + ``interval`` (der Vergleich bleibt ein
+    #     Zeitstempel-Vergleich).
+    stunden = int(vorlauf_stunden)
+    if s.get_bind().dialect.name == "sqlite":
+        nicht_kurz = (
+            cast(func.strftime("%s", ChatUmfrage.frist_am), Integer)
+            - cast(func.strftime("%s", ChatUmfrage.erstellt_am), Integer)
+        ) > stunden * 3600
+    else:
+        nicht_kurz = (ChatUmfrage.frist_am
+                      > ChatUmfrage.erstellt_am + timedelta(hours=stunden))
     return [str(k) for k in s.execute(
         select(ChatUmfrage.name)
         .join(ChatNachricht, ChatNachricht.umfrage == ChatUmfrage.name)
@@ -3621,6 +3750,8 @@ def _offene_umfragen_mit_frist(s, zeit: datetime, vorlauf_stunden: int) -> list[
             ChatUmfrage.geschlossen_am.is_(None),
             ChatUmfrage.frist_am.is_not(None),
             ChatUmfrage.frist_am <= grenze,
+            # Kurze Frist: ``frist_am - erstellt_am > vorlauf``, strikt.
+            nicht_kurz,
             ChatNachricht.geloescht_am.is_(None),
             ChatGespraech.geloescht_am.is_(None),
         )
@@ -3653,7 +3784,9 @@ def _umfrage_offen_je_konto(s, umfrage: ChatUmfrage) -> dict[str, bool]:
 
 
 def _glocke_umfrage_erinnerung(s, *, umfrage: ChatUmfrage, gespraech: ChatGespraech,
-                               titel: str) -> tuple[int, int, bool]:
+                               titel: str,
+                               vorlauf_stunden: int | None = None
+                               ) -> tuple[int, int, bool]:
     """Erinnerung 24 h vor der Frist an alle, die NOCH NICHT abgestimmt haben.
 
     Der Job ``chat_umfrage_erinnerungen`` ruft DAS (nach dem Schließen fälliger
@@ -3686,12 +3819,16 @@ def _glocke_umfrage_erinnerung(s, *, umfrage: ChatUmfrage, gespraech: ChatGespra
         return 0, 0, False
     if gespraech.geloescht_am is not None:
         return 0, 0, False
-    # Kurze Fristen (Review R1, SOLL): wurde die Umfrage weniger als 24 h vor
-    # ihrer Frist angelegt, ist die Start-Glocke die ganze Erinnerung. Ohne
-    # ``erstellt_am`` wird konservativ NICHT erinnert.
+    # Kurze Fristen (Review R1, SOLL): wurde die Umfrage mit einer Frist
+    # INNERHALB des Vorlaufs angelegt, ist die Start-Glocke die ganze
+    # Erinnerung. Dieselbe Größe und dieselbe Grenze wie in der SQL-Auswahl
+    # (``_offene_umfragen_mit_frist``, Review CHAT-N1 MUSS 1): strikt ``<=``
+    # ist kurz — genau ``vorlauf`` Abstand zählt NICHT als Erinnerung.
+    # Ohne ``erstellt_am`` wird konservativ NICHT erinnert.
+    stunden = (ERINNERUNG_VORLAUF_STUNDEN if vorlauf_stunden is None
+               else int(vorlauf_stunden))
     if umfrage.frist_am is not None and umfrage.erstellt_am is not None:
-        if umfrage.frist_am - umfrage.erstellt_am <= timedelta(
-                hours=ERINNERUNG_VORLAUF_STUNDEN):
+        if umfrage.frist_am - umfrage.erstellt_am <= timedelta(hours=stunden):
             return 0, 0, False
     abgestimmt = _umfrage_offen_je_konto(s, umfrage)
     geschrieben = 0
@@ -3723,7 +3860,10 @@ def chat_umfrage_erinnerungen(jetzt: datetime | None = None,
 
     Konzept S2: „eine Erinnerung 24 h vor Frist an die, die noch nicht
     abgestimmt haben“. Läuft im Glocken-Minutentakt hinter
-    ``chat_glocken_buendeln`` (eigene Kennung, eigene Sitzungssperre).
+    ``chat_glocken_buendeln`` (DIESELBE Sitzungssperre ``GLOCKE_SPERRE``: beide
+    Jobs schreiben Glocken in dieselben Zeilen. Der zweite Lauf bekommt die
+    Sperre deshalb nicht und überspringt diesen Takt — ``_lauf_sperren`` liefert
+    dann ``False``, es wird nichts gedoppelt; der Minutentakt holt ihn nach).
 
     Das minütliche ``schliesse_faellige`` in Schritt 1 ist eine bewusste
     Entscheidung des Operators (Review R1, SOLL): die Umfrage schließt damit
@@ -3780,7 +3920,8 @@ def chat_umfrage_erinnerungen(jetzt: datetime | None = None,
                         if g is None or g.geloescht_am is not None:
                             continue
                         anzahl, empfaenger, zutreffend = _glocke_umfrage_erinnerung(
-                            s, umfrage=u, gespraech=g, titel=_glocken_titel(g))
+                            s, umfrage=u, gespraech=g, titel=_glocken_titel(g),
+                            vorlauf_stunden=stunden)
                         # Merker nur bei Erfolg: „nicht zutreffend“ (kurze Frist)
                         # bleibt ohne Merker, „keine Empfänger“ ist fertig, und
                         # eine geschriebene Glocke heißt „erinnert“. Gab es
@@ -3904,6 +4045,12 @@ def _erlaube(benutzer: str, aktion: str, *, g: ChatGespraech | None = None,
     je Rechtefrage zwei frische Sitzungen (und womöglich noch nicht
     committete Zeilen darin) wären eine stille Fehlerquelle.
 
+    AUSNAHME MODERIEREN im 1:1 (Review CHAT-7a, Punkt 2): der Kern wertet die
+    Teilnehmenden für MODERIEREN gar nicht aus (``darf_direktgespraech``
+    antwortet allein über ``ist_meldestelle``). Sie werden deshalb hier auch
+    nicht gelesen — weder die ART noch die Konten. Dieselbe Sitzung des
+    Aufrufers, kein zweiter Weg zur Wahrheit.
+
     Die Teilnahme prüft der KERN (``benutzer not in konten → kein_teilnehmer``)
     — hier steht bewusst KEINE Vorprüfung davor.
     """
@@ -3914,17 +4061,18 @@ def _erlaube(benutzer: str, aktion: str, *, g: ChatGespraech | None = None,
         gespraech = gespraech or g.name
         gruppe = gruppe if gruppe is not None else g.gruppe
         untergruppe = untergruppe if untergruppe is not None else g.untergruppe
-    elif gespraech and sitzung is not None:
-        art = _art_lesen(gespraech, sitzung=sitzung)
-    elif gespraech:
-        art = _art_lesen(gespraech)
+    if not (direkt and aktion == rechte.MODERIEREN):
+        if g is None and gespraech and sitzung is not None:
+            art = _wechselart_lesen(gespraech, sitzung=sitzung)
+        elif g is None and gespraech:
+            art = _wechselart_lesen(gespraech)
 
     if art == ART_DIREKT:
-        if teilnehmer is None:
+        if teilnehmer is None and aktion != rechte.MODERIEREN:
             if sitzung is not None and gespraech:
                 teilnehmer = _teilnahme_konten(sitzung, gespraech)
-            else:
-                teilnehmer = _teilnahme_konten_aus_db(gespraech)
+            elif gespraech:
+                teilnehmer = _teilnahme_konten_aus_db(gespraech, sitzung=sitzung)
         entscheidung = rechte.darf_direktgespraech(
             benutzer, aktion, teilnehmer=teilnehmer, besitzer=besitzer)
         if not entscheidung:
@@ -3947,40 +4095,46 @@ def _weiche_ja(benutzer: str, aktion: str, **kwargs) -> bool:
     return True
 
 
-def _art_lesen(gespraech: str, *, sitzung=None) -> str:
-    """Die ``art`` eines Gesprächs — in ``sitzung`` oder einer eigenen, kurzen.
+def _wechselart_lesen(gespraech: str, *, sitzung=None) -> str:
+    """Die ``art`` eines Gesprächs — in der Sitzung des Aufrufers.
 
-    Der Rechte-Kern liest seine Auskünfte in ``db.lesesitzung``; die Weiche
-    braucht nur die ART (eine Spalte) und fragt sie deshalb hier ab, statt den
-    Aufrufer eine Gesprächszeile laden zu lassen. ``sitzung`` ist die Sitzung
-    des Aufrufers, wenn er eine hat (dann sieht sie auch noch nicht committete
-    Zeilen). Unbekannte Kennung → ``""`` (der Aufrufer hat sie meist schon
+    ``sitzung`` MUSS die Sitzung des Aufrufers sein (Review CHAT-7a, Punkt 2):
+    eine eigene Sitzung je Kandidat war der Fehler. Wird eine Sitzung
+    übergeben, wird SIE benutzt (Review CHAT-N1, SOLL) — sonst sähe diese
+    Abfrage in einer zweiten Transaktion nicht die geflushten, noch nicht
+    festgeschriebenen Zeilen des Aufrufers. Ohne Sitzung wird die laufende des
+    Aufrufs genommen (``db.lesesitzung``); sie zu schließen ist dann Sache des
+    Aufrufs. Unbekannte Kennung → ``""`` (der Aufrufer hat sie meist schon
     geprüft; dann entscheidet die Gruppenfrage wie bisher).
     """
     if not gespraech:
         return ""
+
+    def _art(s) -> str:
+        return str(s.execute(
+            select(ChatGespraech.art).where(ChatGespraech.name == gespraech)
+        ).scalar_one_or_none() or "")
+
     if sitzung is not None:
-        art = sitzung.execute(
-            select(ChatGespraech.art).where(ChatGespraech.name == gespraech)
-        ).scalar_one_or_none()
-        return str(art or "")
-    with dbmod.SessionLocal() as s:
-        art = s.execute(
-            select(ChatGespraech.art).where(ChatGespraech.name == gespraech)
-        ).scalar_one_or_none()
-    return str(art or "")
+        return _art(sitzung)
+    with dbmod.lesesitzung() as s:
+        return _art(s)
 
 
-def _teilnahme_konten_aus_db(gespraech: str) -> list[str]:
-    """Die Konten des Gesprächs — KURZ und in einer EIGENEN Sitzung.
+def _teilnahme_konten_aus_db(gespraech: str, *, sitzung=None) -> list[str]:
+    """Die Konten des Gesprächs — KURZ und in der Sitzung des AUFRUFERS.
 
-    ``_teilnahme_konten`` arbeitet auf der Sitzung des Aufrufers; hier wird
-    die Frage vor dem Rechteaufruf gestellt (der Kern öffnet seine eigene
-    Sitzung), deshalb eine eigene. Reihenfolge egal: der Kern sortiert selbst.
+    ``_teilnahme_konten`` liest in EINER Sitzung; hier wird die Frage vor dem
+    Rechteaufruf gestellt (der Kern öffnet seine eigene Sitzung), deshalb wird
+    eine übergebene Sitzung benutzt oder — wenn es keine gibt — die laufende
+    des Aufrufs (Review CHAT-7a, Punkt 2: keine eigene Sitzung je Kandidat).
+    Reihenfolge egal: der Kern sortiert selbst.
     """
     if not gespraech:
         return []
-    with dbmod.SessionLocal() as s:
+    if sitzung is not None:
+        return _teilnahme_konten(sitzung, gespraech)
+    with dbmod.lesesitzung() as s:
         return _teilnahme_konten(s, gespraech)
 
 

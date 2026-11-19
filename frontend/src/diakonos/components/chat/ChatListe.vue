@@ -2,12 +2,22 @@
   <!-- CHAT-3a — die Liste „meine Gespräche“ (Chat-Konzept 6.2 Variante B).
        Sie steht am Desktop links neben dem Verlauf und am Handy allein; die
        Seite entscheidet, welche der beiden gilt. Reine Darstellung: was in
-       welchem Abschnitt steht, hat `gruppierteListe()` schon entschieden. -->
+       welchem Abschnitt steht, hat `gruppierteListe()` schon entschieden.
+       CHAT-7a: Direktgespräche (1:1) stehen in DERSELBEN Liste — mit dem
+       Namen des Gegenübers, „gelesen“ statt Teilnehmerzahl und dem Einstieg
+       „Neue Nachricht“ in die Personensuche (Karte Punkt 3 und 4). -->
   <div class="dk-chat-liste">
     <div class="dk-chat-liste-kopf">
       <h2 class="dk-chat-liste-titel">Alle Gespräche</h2>
       <span v-if="ungelesen > 0" class="dk-chat-liste-neu">{{ ungelesen }} neu</span>
     </div>
+
+    <!-- Karte Punkt 4: der klare Einstieg — steht IMMER oben, auch bei leerer
+         Liste (dann ist er der einzige Weg). Eine Trefferfläche ≥ 44 px. -->
+    <a class="dk-chat-neu" :href="SUCHE" :aria-label="`${NEUE_NACHRICHT} — Personen suchen`">
+      <span class="dk-chat-neu-zeichen" aria-hidden="true">+</span>
+      <span>{{ NEUE_NACHRICHT }}</span>
+    </a>
 
     <!-- Laden: ruhiger Platzhalter statt „nichts da“ (Prinzip I5, UX2d3a:
          Form statt Prosa). -->
@@ -24,10 +34,15 @@
               :href="hrefFuer(zeile)"
               :aria-current="istAktiv(zeile) ? 'page' : undefined"
             >
-              <span class="dk-chat-av" aria-hidden="true">{{ initialenFuer(zeile) }}</span>
+              <!-- Karte UI-2 Punkt 4: das Bild des Gegenübers wie in der
+                   3c-Suche (`dk-chat-av--bild`), sonst die Initialen. -->
+              <span v-if="bildFuer(zeile)" class="dk-chat-av dk-chat-av--bild">
+                <img :src="bildFuer(zeile)" alt="" />
+              </span>
+              <span v-else class="dk-chat-av" aria-hidden="true">{{ initialenFuer(zeile) }}</span>
               <span class="dk-chat-zeile-text">
                 <span class="dk-chat-zeile-name">
-                  {{ zeile.titel }}
+                  {{ nameFuer(zeile) }}
                   <!-- Stumm-Symbol (F3: jede Person für sich) -->
                   <span v-if="zeile.stumm" class="dk-chat-stumm" title="stumm geschaltet">
                     <span aria-hidden="true">🔇</span>
@@ -38,6 +53,8 @@
               </span>
               <span class="dk-chat-zeile-rechts">
                 <span class="dk-chat-zeile-zeit">{{ zeile.zeit }}</span>
+                <!-- KEIN „gelesen“ mehr: der Zähler sagt, ob etwas offen ist
+                     (Karte UI-2 Punkt 1). Im 1:1 steht rechts nur die Zeit. -->
                 <span v-if="zeile.ungelesen > 0" class="dk-chat-zeile-zahl">
                   <span class="dk-chat-nur-vorlesen">{{ zeile.ungelesen }} ungelesen</span>
                   <span aria-hidden="true">{{ zeile.ungelesen > 99 ? '99+' : zeile.ungelesen }}</span>
@@ -63,9 +80,20 @@
  * (`name: null`). Der Link führt dann auf den Bereich selbst — die Seite legt
  * das Gespräch beim Tippen an (`gespraech_anlegen`) und öffnet es. So bleibt
  * die Zeile ein echter Link (Mittelklick, Tastatur, Zurück-Taste).
+ *
+ * CHAT-7a: Direktgespräche (1:1) tragen `art: 'direkt'`, den Namen des
+ * Gegenübers als Titel, dessen Bild (`bild`, sonst Initialen) und IMMER eine
+ * Kennung — sie kommen aus `meine_gespraeche` fertig angelegt.
+ *
+ * CHAT-7a-UI-2 (Review): KEIN Kennzeichen „1:1“ mehr an der Zeile (Punkt 7)
+ * — der Abschnitt „Direktnachrichten“ sagt es schon, und ein zweiter Weg,
+ * dieselbe Sache zu benennen, ist einer zu viel. Auch das Wort „gelesen“
+ * steht hier nicht mehr (Punkt 1): der Lesestand gehört an die Nachricht,
+ * nicht in die Liste.
  */
 import { initialen as initialenAus } from '../../composables/anzeigename.mjs'
 import { gespraechHash, zeilenAdresse, zeilenSchluessel } from '../../composables/nachrichtenLogik.mjs'
+import { NEUE_NACHRICHT, SUCHE, direktTitel } from '../../composables/nachrichtenDirekt.mjs'
 import DkSkelett from '../ui/DkSkelett.vue'
 
 const props = defineProps({
@@ -77,7 +105,18 @@ const props = defineProps({
   laedt: { type: Boolean, default: false },
 })
 
-const initialenFuer = (zeile) => initialenAus(null, zeile?.titel || '')
+/** Der Titel einer Zeile — im 1:1 ohne Namen „Unbekannte Person“ (Punkt 6). */
+const nameFuer = (zeile) => (String(zeile?.art || '') === 'direkt'
+  ? direktTitel(zeile)
+  : String(zeile?.titel || ''))
+/**
+ * Das Bild des Gegenübers (`bild` aus `meine_gespraeche`) — nur beim 1:1.
+ * Eine Gruppe hat kein Bild; dort bleiben die Initialen des Namens.
+ */
+const bildFuer = (zeile) => (String(zeile?.art || '') === 'direkt'
+  ? String(zeile?.bild || '').trim()
+  : '')
+const initialenFuer = (zeile) => initialenAus(null, nameFuer(zeile) || '')
 /**
  * Das Ziel einer Zeile: das geöffnete Gespräch hat seine Kennung, ein noch nie
  * geöffnetes hat keine (`name: null`). Es führt dann über seinen TITEL in den
@@ -163,6 +202,24 @@ function vorschau(zeile) {
   font-weight: var(--fw-fett);
   white-space: nowrap;
 }
+.dk-chat-neu {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0 var(--sp-3) var(--sp-2);
+  padding: 0 var(--sp-3);
+  /* K4: Trefferfläche am Finger — mindestens 44 px. */
+  min-height: var(--control-h);
+  border: var(--rahmen-breite) dashed var(--divider);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-mittel);
+  text-decoration: none;
+}
+.dk-chat-neu:hover { background: var(--surface-hover); }
+.dk-chat-neu:focus-visible { outline: var(--rahmen-breite) solid var(--focus-ring); outline-offset: var(--rahmen-breite); }
+.dk-chat-neu-zeichen { font-size: var(--fs-16); line-height: 1; }
 .dk-chat-abschnitt-titel {
   margin: 0;
   padding: var(--sp-3) var(--sp-4) var(--sp-1);
@@ -205,7 +262,11 @@ function vorschau(zeile) {
   color: var(--muted);
   font-size: var(--fs-12);
   font-weight: var(--fw-fett);
+  overflow: hidden;
 }
+/* Punkt 4: das Bild des Gegenübers — dieselbe Gestalt wie die Initialen
+   (rund, gleiche Größe), nur gefüllt. Keine neue Farbe, kein Rahmen. */
+.dk-chat-av--bild img { width: 100%; height: 100%; object-fit: cover; }
 .dk-chat-zeile-text {
   display: flex;
   flex-direction: column;

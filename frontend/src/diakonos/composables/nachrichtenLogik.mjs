@@ -192,20 +192,55 @@ export function mitTagesmarken(nachrichten, jetzt = new Date()) {
 
 // ── Gesprächsliste ──────────────────────────────────────────────────────────
 
+/**
+ * Beginnt `name` mit `begriff`? (von VORNE, wortgetreu — die Faltung macht
+ * der Aufrufer.)
+ *
+ * Steht hier, weil dieses Modul das UNTERSTE ist: `nachrichtenDirekt` und
+ * `nachrichtenSuche` importieren von hier, nicht umgekehrt. Läge die Hilfe in
+ * `nachrichtenDirekt`, entstünde ein Ring (Suche → Direkt → Suche) — und ein
+ * Ring in ES-Modulen liefert je nach Ladereihenfolge `undefined` statt der
+ * Funktion (genau das passierte beim ersten Lauf).
+ */
+export function beginntMit(name, begriff) {
+  const a = String(name || '')
+  const b = String(begriff || '')
+  if (!b) return false
+  return a.slice(0, b.length) === b
+}
+
+/**
+ * Ein Gespräch ohne Namen heißt „Unbekannte Person“ (CHAT-7a-UI-2, Punkt 6).
+ *
+ * EINE Konstante für alle Stellen: `listenZeile` setzt sie in den Titel eines
+ * namenlosen 1:1, `nachrichtenDirekt.direktTitel` reicht denselben Wert durch
+ * (es re-exportiert sie, statt einen zweiten Wortlaut zu führen). Sie steht
+ * hier, weil dieses Modul das unterste ist — es darf nicht aus
+ * `nachrichtenDirekt.mjs` importieren (das importiert von hier).
+ */
+export const UNBEKANNTE_PERSON = 'Unbekannte Person'
+
 /** Abschnitt einer Zeile: Gruppen zuerst? Nein — Direkt/Runden existieren in
  *  S1 noch nicht (nur Gruppen und Untergruppen). Zwei Abschnitte, in dieser
  *  Reihenfolge (Entwurf B-desktop: Gruppen, darunter die Untergruppen). */
 export const ABSCHNITTE = [
   { id: 'gruppe', label: 'Gruppen' },
   { id: 'untergruppe', label: 'Untergruppen' },
+  // CHAT-7a: Direktgespräche (1:1) stehen als eigener Abschnitt UNTEN unter
+  // den Gruppen — dieselbe Liste („ein Ort für Nachrichten“), aber sichtbar
+  // eine andere Art Gespräch. Der Titel heißt „Direktnachrichten“ wie der
+  // Betreff der Glocke für dieselbe Sache (Karte CHAT-7a-UI-2, Punkt 7):
+  // zwei Wörter für eine Sache wären eine zweite Vokabel.
+  { id: 'direkt', label: 'Direktnachrichten' },
 ]
 
 /**
  * Abschnitt einer Zeile aus der Server-Antwort (`art`: `gruppe` |
- * `untergruppe`, sonst aus `untergruppe` abgeleitet).
+ * `untergruppe` | `direkt`, sonst aus `untergruppe` abgeleitet).
  */
 export function abschnittVon(eintrag) {
   if (!eintrag) return 'gruppe'
+  if (eintrag.art === 'direkt') return 'direkt'
   if (eintrag.art === 'untergruppe') return 'untergruppe'
   if (eintrag.art === 'gruppe') return 'gruppe'
   return eintrag.untergruppe ? 'untergruppe' : 'gruppe'
@@ -225,10 +260,15 @@ export function listenZeile(eintrag, jetzt = new Date()) {
   if (!eintrag || typeof eintrag !== 'object') return null
   const ungelesen = Math.max(0, Number(eintrag.ungelesen) || 0)
   const teilnehmer = Math.max(0, Number(eintrag.teilnehmer) || 0)
+  // CHAT-7a-UI-2 (Punkt 6): ein 1:1 ohne Namen heißt „Unbekannte Person“ —
+  // den Wortlaut führt `nachrichtenDirekt.direktTitel`, hier wird er nur
+  // eingesetzt (das Modul holt dafür nichts aus `direkt` zurück).
+  const rohTitel = String(eintrag.titel || eintrag.untergruppe || eintrag.gruppe || '').trim()
+  const direkt = String(eintrag.art || '') === 'direkt'
   return {
     ...eintrag,
     abschnitt: abschnittVon(eintrag),
-    titel: String(eintrag.titel || eintrag.untergruppe || eintrag.gruppe || '').trim(),
+    titel: rohTitel || (direkt ? UNBEKANNTE_PERSON : ''),
     untergruppe: eintrag.untergruppe || null,
     // Ein Eintrag ohne Gesprächszeile ist NICHT antippbar-gesperrt, aber er
     // hat keinen Verlauf: `geoeffnet` sagt, ob `name` schon existiert.

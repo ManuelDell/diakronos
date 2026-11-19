@@ -68,10 +68,12 @@
         >{{ z.reaktion }}</button>
       </div>
 
-      <!-- Fußzeile einer Nachricht: „gelesen von N“ (F2: nur Summe) an EIGENEN;
-           Antworten (auch auf eigene — der Gedanke kann nachgetragen werden),
-           Bearbeiten (15 Minuten, zur ANZEIGEZEIT geprüft) und Löschen an
-           eigenen. -->
+      <!-- Fußzeile einer Nachricht: der Lesestand an EIGENEN Nachrichten —
+           im 1:1 „gelesen“ (Stand des Gegenübers), in der Gruppe „gelesen von
+           N“ (F2: nur Summe). Er steht NUR hier, an der Nachricht, nie in der
+           Liste oder im Kopf (CHAT-7a-UI-2, Punkt 1). Dazu Antworten (auch auf
+           eigene — der Gedanke kann nachgetragen werden), Bearbeiten (15
+           Minuten, zur ANZEIGEZEIT geprüft) und Löschen an eigenen. -->
       <div v-if="!nachricht.geloescht" class="dk-chat-fuss">
         <span v-if="lesestand" class="dk-chat-gelesen">
           <span aria-hidden="true">✓✓</span> {{ lesestand }}
@@ -123,6 +125,15 @@ import DkButton from '../ui/DkButton.vue'
 
 const props = defineProps({
   nachricht: { type: Object, required: true },
+  /**
+   * Steht die Blase in einem 1:1-Gespräch? (CHAT-7a-UI-2, Punkt 1)
+   *
+   * Der Lesestand ist im 1:1 der Stand des GEGENÜBERS an der EIGENEN
+   * Nachricht — dort heißt er „gelesen“, nicht „gelesen von 1“. Die Regel
+   * steht in `lesestandText(n, { direkt })`; die Blase reicht die Lage nur
+   * durch und rät sie NICHT aus der Nachricht.
+   */
+  direkt: { type: Boolean, default: false },
 })
 const emit = defineEmits(['reaktion', 'antworten', 'bearbeiten', 'loeschen'])
 
@@ -130,7 +141,7 @@ const auswahlOffen = ref(false)
 const reaktionen = computed(() => reaktionsZeile(props.nachricht.reaktionen))
 const alleZeichen = computed(() => reaktionsAuswahl(props.nachricht.reaktionen))
 const initialen = computed(() => initialenAus(null, props.nachricht.autor || ''))
-const lesestand = computed(() => lesestandText(props.nachricht))
+const lesestand = computed(() => lesestandText(props.nachricht, { direkt: props.direkt === true }))
 
 /**
  * Bearbeitbar zur ANZEIGEZEIT prüfen (Review R1).

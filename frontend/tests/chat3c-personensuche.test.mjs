@@ -838,7 +838,7 @@ test('CHAT-3c/B (MUSS 3): das Feld ist die Quelle — ein neuer `startBegriff` s
   s.abbaum()
 })
 
-test('CHAT-3c/B: ein Treffer meldet den Wechsel (Suche bleibt), der Hintergrund nicht', async () => {
+test('CHAT-3c/B: ein Treffer ist ein Link (Router folgt), kein totes „treffer“-Ereignis', async () => {
   const s = await sucheMontieren({ antwort: async () => ({ treffer: [
     { mitglied: 'M-1', anzeigename: 'Anna Beispiel', bild: '', hat_konto: true, darf_schreiben: true },
   ], limit: 20 }) })
@@ -849,25 +849,23 @@ test('CHAT-3c/B: ein Treffer meldet den Wechsel (Suche bleibt), der Hintergrund 
     .dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
   assert.deepEqual(s.gemeldet.filter((m) => m.art === 'treffer'), [])
 
-  // Klick auf den Gesprächstreffer: die Seite erfährt das Ziel.
-  // Achtung: „Chor“ steht auch im Kommentar der Vorlage — gesucht wird die
-  // ZEILE der Trefferfläche, nicht irgendein Textknoten.
+  // CHAT-7a-UI Review R1 Punkt 3: die Komponente fängt den Klick NICHT ab und
+  // meldet kein Ziel — der Treffer ist ein normaler `<a href>`, der Browser
+  // springt, der Router folgt. Genau das wird hier festgehalten.
   const treffer = [...s.host.querySelectorAll('.dk-chat-suchergebnis a.dk-chat-treffer')]
     .find((a) => /Chor/.test(a.textContent))
+  assert.ok(treffer, 'der Gesprächstreffer ist ein Link')
+  assert.equal(treffer.getAttribute('href'), '#/nachrichten/CHAT-2', 'sein Ziel steht im href')
   treffer.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
-  const wechsel = s.gemeldet.filter((m) => m.art === 'treffer')
-  assert.equal(wechsel.length, 1)
-  assert.equal(wechsel[0].wert, '#/nachrichten/CHAT-2')
+  assert.deepEqual(s.gemeldet.filter((m) => m.art === 'treffer'), [],
+    'kein zweiter Meldungsweg — der Link trägt das Ziel selbst')
 
-  // Ein Personen-Treffer MIT Konto meldet das Profil.
+  // Ein Personen-Treffer MIT Konto führt ins Profil — ebenfalls als Link.
   await tippen(s.host, 'anna')
   await s.uhr.feuern()
   const person = s.host.querySelector('a.dk-chat-person')
   assert.ok(person, 'der Personentreffer ist ein Link')
-  person.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
-  const danach = s.gemeldet.filter((m) => m.art === 'treffer')
-  assert.equal(danach.length, 2)
-  assert.equal(danach[1].wert, '#/mitglied/M-1')
+  assert.equal(person.getAttribute('href'), '#/mitglied/M-1')
   s.abbaum()
 })
 

@@ -788,6 +788,20 @@ tests/chat3a-*.test.mjs
 # Untergruppe, Liste hebt das offene Gespraech hervor (is-aktiv/aria-current),
 # mitteilungSenden(null) setzt den Zaehler nicht auf 0, Bearbeiten-Takt endet.
 tests/chat3a3-nachrichten-nacharbeit.test.mjs
+# CHAT-7a-UI: „Nachricht schreiben" am Personenprofil und Direktgespraeche in der
+# Oberflaeche (Chat-Konzept 10.1 Punkt 4, Karte CHAT-R2c). Geprueft werden die
+# Anzeigeregeln (composables/nachrichtenDirekt.mjs: Knopf sichtbar/ausgegraut/
+# fehlt je Serverantwort `darf_schreiben`/`hat_konto`/`gespraech` — keine eigene
+# Rechtelogik; Treffer mit vorhandenem Gespraech oeffnet den Chat, sonst Profil;
+# „gelesen" im 1:1; Senden gesperrt -> ruhiger Hinweis statt Eingabe), die
+# Vorlagen (pages/Nachrichten.vue: Eingabe weicht dem Hinweis, „Neue Nachricht"
+# in die EINE Suche aus CHAT-3c, keine zweite Suche; chat/ChatListe.vue:
+# Einstieg + 1:1-Kennzeichen; pages/MitgliedDetail.vue: Knopf mit
+# `chat.direkt_oeffnen`; chat/ChatSuche.vue: Treffer sind Links, kein totes
+# `treffer`-Ereignis) und das gemountete Personenprofil (Klick ruft
+# direkt_oeffnen per POST und stellt die Adresse auf das Gespraech; ohne Konto
+# kein Aufruf; ohne Zusage kein Knopf).
+tests/chat7-direkt-ui.test.mjs
 # CHAT-3c: Personensuche in „Nachrichten" (Chat-Konzept 10.1 Punkte 2–4, 10.3).
 # EIN Suchfeld „Personen und Gespräche suchen": Gespräche clientseitig nach
 # Titel gefiltert, Personen über chat.personen_suchen ab 2 Zeichen, entprellt

@@ -118,6 +118,7 @@ def pg_db():
     _cfg.set_main_option("script_location",
                          str(_Pfad(__file__).resolve().parents[1] / "alembic"))
     kopf_soll = _Skripte.from_config(_cfg).get_heads()
+    assert len(kopf_soll) == 1, kopf_soll
     if [z[0] for z in kopf] != kopf_soll:
         _sql("DROP SCHEMA IF EXISTS public CASCADE")
         _sql("CREATE SCHEMA public")

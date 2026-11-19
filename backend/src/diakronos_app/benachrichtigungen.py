@@ -138,7 +138,8 @@ def _neu_anlegen(session: Session, werte: dict) -> str:
 def glocke_setzen(*, for_user: str, subject: str, inhalt: str,
                   document_type: str, document_name: str,
                   typ: str = "Alert", session: Session | None = None,
-                  nur_fortschreiben: bool = False) -> str:
+                  nur_fortschreiben: bool = False,
+                  nur_zahl: bool = False) -> str:
     """Bündel-Glocke schreiben: vorhandene UNGELESENE aktualisieren, sonst neu.
 
     Liefert die Kennung der ``Notification Log``-Zeile (oder ``""``, wenn das
@@ -173,6 +174,13 @@ def glocke_setzen(*, for_user: str, subject: str, inhalt: str,
     eine Zahl nachführt (``lesestand_setzen``), darf keine Glocke
     wiederbeleben, die die Person weggeklickt hat — dann bleibt es bei ``""``
     wie bei jedem Schreibfehler.
+
+    ``nur_zahl`` (CHAT-7a, Punkt 6): die Zeile wird fortgeschrieben, aber
+    ``modified`` bleibt STEHEN. Beim teilweisen Lesen ändert sich nur die
+    Zahl; die Glocke soll in der Liste nicht nach oben springen — das ist
+    allein Sache einer neuen Nachricht (Aufruf ohne ``nur_zahl``).
+    ``modified_by`` wird dabei mitgeführt (es ist keine Sortiergröße), der
+    Anlass der Zeile bleibt der alte.
     """
     from diakronos_app import db as dbmod
 
@@ -206,10 +214,12 @@ def glocke_setzen(*, for_user: str, subject: str, inhalt: str,
             zeile.subject = subject
             zeile.email_content = inhalt
             zeile.read = False
-            # UTC wie ``creation`` (Review R1/3): beide Zeitstempel derselben
-            # Zeile müssen dieselbe Uhr tragen, sonst mischt die Sortierung
-            # ``coalesce(modified, creation)`` zwei Zeitbasen.
-            zeile.modified = _now()
+            if not nur_zahl:
+                # UTC wie ``creation`` (Review R1/3): beide Zeitstempel
+                # derselben Zeile müssen dieselbe Uhr tragen, sonst mischt die
+                # Sortierung ``coalesce(modified, creation)`` zwei Zeitbasen.
+                # ``nur_zahl`` lässt den Anlass stehen (CHAT-7a, Punkt 6).
+                zeile.modified = _now()
             if konto:
                 zeile.modified_by = konto
         return str(zeile.name)

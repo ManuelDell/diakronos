@@ -216,10 +216,16 @@ def get_my_notifications(start=0, limit=20):
     (neue Zahl, neuer Betreff) statt neu angelegt; mit ``creation desc`` blieb
     sie an ihrem alten Platz, obwohl sie die neueste Nachricht war. Alle
     anderen Glockenarten schreiben nur ``creation`` — für sie ist der
-    Ausdruck identisch (``modified`` wird beim Umbenennen/Lesen höchstens
-    mitgezogen, nie zurückdatiert). ``modified`` kommt daher MIT in die
-    Feldliste: die Oberfläche sortiert nicht selbst nach, sie zeigt den Wert,
-    nach dem die Liste steht.
+    Ausdruck identisch (``modified`` wird beim Umbenennen hinein- und beim
+    Lesen als gelesen markiert, nie zurückdatiert). ``modified`` kommt daher
+    MIT in die Feldliste: die Oberfläche SORTIERT nicht nach, sie zeigt den
+    Wert, nach dem die Liste steht. Angezeigt wird in der Glockenliste aber
+    weiterhin ``creation`` (Stand der Oberfläche; die Anzeige von ``modified``
+    kommt in einer eigenen Karte) — ``modified`` ist hier allein die
+    Sortier- und Auskunftsspalte des Endpunkts.
+
+    Eine Teil-Lesung schreibt ``modified`` NICHT fort (CHAT-7a, Punkt 6):
+    nur eine neue Nachricht schiebt eine Glocke nach oben.
 
     ``creation desc`` bleibt als zweites Kriterium: zwei Zeilen mit
     demselben Zeitstempel (Sekundengenauigkeit) brauchen eine feste Ordnung.

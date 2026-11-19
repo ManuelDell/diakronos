@@ -34,18 +34,21 @@
       </DkButton>
     </div>
 
-    <!-- Die Fläche der Suche: Gespräche und Personen untereinander. Ein Tipp
-         auf eine Trefferzeile meldet ihr Ziel an die Seite (`beiTrefferKlick`). -->
-    <div class="dk-chat-suchergebnis" @click="beiTrefferKlick">
+    <!-- Die Fläche der Suche: Gespräche und Personen untereinander. Ein Treffer
+         ist ein normaler Link — der Browser springt, der Router folgt. -->
+    <div class="dk-chat-suchergebnis">
       <section v-if="abschnitte.gespraeche.length" class="dk-chat-abschnitt">
         <h3 class="dk-chat-abschnitt-titel">{{ ABSCHNITT_GESPRAECHE }}</h3>
         <ul class="dk-chat-zeilen">
           <template v-for="abschnitt in abschnitte.gespraeche" :key="abschnitt.id">
             <li v-for="zeile in abschnitt.eintraege" :key="zeilenSchluessel(zeile)">
               <a class="dk-chat-zeile dk-chat-treffer" :href="gespraechsZiel(zeile)">
-                <span class="dk-chat-av" aria-hidden="true">{{ initialenFuer(zeile.titel) }}</span>
+                <span v-if="bildFuer(zeile)" class="dk-chat-av dk-chat-av--bild">
+                  <img :src="bildFuer(zeile)" alt="" />
+                </span>
+                <span v-else class="dk-chat-av" aria-hidden="true">{{ initialenFuer(nameFuer(zeile)) }}</span>
                 <span class="dk-chat-zeile-text">
-                  <span class="dk-chat-zeile-name">{{ zeile.titel }}</span>
+                  <span class="dk-chat-zeile-name">{{ nameFuer(zeile) }}</span>
                   <span class="dk-chat-zeile-vorschau">{{ abschnitt.label }}</span>
                 </span>
                 <span class="dk-chat-zeile-rechts">
@@ -160,6 +163,7 @@ import {
   SUCHE_MIN_ZEICHEN, darfPersonenFragen, entpreller, gespraechsTreffer, personenAusAntwort,
   personenZustand, suchAbschnitte, suchbegriff,
 } from '../../composables/nachrichtenSuche.mjs'
+import { UNBEKANNTE_PERSON, direktTitel } from '../../composables/nachrichtenDirekt.mjs'
 import DkButton from '../ui/DkButton.vue'
 import DkEmpty from '../ui/DkEmpty.vue'
 import DkSkelett from '../ui/DkSkelett.vue'
@@ -175,8 +179,9 @@ const props = defineProps({
   holen: { type: Function, default: null },
 })
 
-/** `sucht` = Begriff für die Adresse; `treffer` = gewählter Verlauf/Profil. */
-const emit = defineEmits(['sucht', 'treffer'])
+/** `sucht` = Begriff für die Adresse (der Treffer selbst ist ein Link und
+ *  läuft über den Router — kein zweiter Meldungsweg; CHAT-7a Review R1). */
+const emit = defineEmits(['sucht'])
 
 const begriff = ref(String(props.startBegriff || '').trim())
 const feldEl = ref(null)
@@ -199,12 +204,26 @@ const gespraeche = computed(() => gespraechsTreffer(props.gespraeche, rohBegriff
 const zustand = computed(() => personenZustand({
   begriff: begriff.value, laedt: laedt.value, fehler: fehler.value, treffer: personen.value,
 }))
+/**
+ * Karte UI-2 Punkt 8: `suchAbschnitte` blendet Personen aus, deren 1:1 schon
+ * unter „Gespräche“ steht — beide Treffer führen in denselben Chat.
+ */
 const abschnitte = computed(() => suchAbschnitte({
   gespraeche: gespraeche.value, zustand: zustand.value, personen: personen.value,
 }))
 /** Ein Zeichen: Suche offen (keine Liste darunter), aber niemand wird gefragt. */
 const zuKurz = computed(() => rohBegriff.value !== '' && !darfPersonenFragen(rohBegriff.value))
-const initialenFuer = (name) => initialen(null, name)
+const initialenFuer = (name) => initialen(null, String(name || '') || UNBEKANNTE_PERSON)
+/**
+ * Karte UI-2 Punkt 4/6: das Bild aus `meine_gespraeche` (`bild`), sonst die
+ * Initialen; ein 1:1 ohne Namen heißt „Unbekannte Person“.
+ */
+const nameFuer = (zeile) => (String(zeile?.art || '') === 'direkt'
+  ? direktTitel(zeile)
+  : String(zeile?.titel || ''))
+const bildFuer = (zeile) => (String(zeile?.art || '') === 'direkt'
+  ? String(zeile?.bild || '').trim()
+  : '')
 
 /**
  * Personen fragen — mit dem Begriff, für den der Entpreller fällig wurde.
@@ -283,27 +302,6 @@ function erneutVersuchen() {
  */
 function gespraechsZiel(zeile) {
   return gespraechHash(zeilenAdresse(zeile))
-}
-
-/**
- * Ein Treffer wurde angetippt (Person mit Konto oder Gespräch — beide sind ein
- * Link). Die KOMPONENTE fängt den Klick NICHT ab (CHAT-3c-2, MUSS A): das
- * `<a href>` springt wie jeder andere Link, der Browser feuert `hashchange`,
- * der Router wechselt die Seite, und Strg-/Mittelklick öffnet einen neuen Tab.
- *
- * Der Such-Eintrag bleibt dabei im Verlauf stehen (Review R1, SOLL e): eine
- * Navigation hängt ihr Ziel HINTEN an, sie ersetzt den Eintrag nicht.
- *
- * Ein Klick neben die Zeile (Hintergrund der Trefferfläche) tut nichts. Der
- * Treffer OHNE Konto ist ein <span> ohne Link — er landet hier nie.
- */
-function beiTrefferKlick(ereignis) {
-  const ziel = ereignis?.target
-  const treffer = typeof ziel?.closest === 'function'
-    ? ziel.closest('a.dk-chat-treffer')
-    : null
-  if (!treffer) return
-  emit('treffer', treffer.getAttribute('href') || '')
 }
 
 /**
