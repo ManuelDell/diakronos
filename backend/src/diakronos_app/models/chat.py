@@ -74,6 +74,21 @@ CHAT-6 ergänzt die fünfte Tabelle:
     (``user_null``): bei einer Löschung (Art. 17) verschwindet die Herkunft
     der Meldung, die Moderationsentscheidung bleibt nachvollziehbar.
 
+CHAT-4a ergänzt die sechste Tabelle:
+
+``chat_glocke``
+    Der Merker der GEBÜNDELTEN Glocke (Konzept 1/S1 „eine In-App-Meldung
+    (Glocke) gebündelt: ‚Chor: 3 neue Nachrichten' nach 5 Minuten Ruhe"):
+    je (Gespräch, Konto) EINE Zeile mit dem Anker ``stand``/``stand_am``/
+    ``stand_nachricht`` (der Lesestand beim Glocken), ``merker_am`` (die
+    neueste schon geglockte Nachricht), ``geglockt_am`` und ``gelesen_am``.
+    Ohne ihn würde jeder Joblauf (alle 1–2 Minuten) dieselbe Nachricht erneut
+    glocken. Die ZAHL der Glocke kommt aus dem Lesestand
+    (``_ungelesen_zaehlen``), nicht aus dem Merker. Die Zeile ist
+    AUSDRÜCKLICH KEIN Lesestand — der steht in
+    ``chat_teilnehmer.letzter_lesestand``; „gelesen“ (markiert die Glocke als
+    gelesen) und „geglockt“ (verhindert eine zweite Glocke) sind zwei Fragen.
+
 Bewusst NICHT hier (spätere Karten): Push-Abonnements (CHAT-10), Anhänge
 (CHAT-9) und der Löschjob mit den Aufbewahrungsfristen (CHAT-8).
 
@@ -179,6 +194,11 @@ MELDUNG_STAENDE: tuple[str, ...] = (MELDUNG_OFFEN, MELDUNG_ERLEDIGT, MELDUNG_VER
 #: Die zwei Entscheidungen des Endpunkts ``meldung_entscheiden``
 #: (Karte CHAT-6): Nachricht entfernen oder Meldung verwerfen.
 MELDUNG_ENTSCHEIDUNGEN: tuple[str, ...] = ("entfernen", "verwerfen")
+
+#: CHAT-4a: Ruhezeit vor der gebündelten Glocke (Konzept 1/S1: „nach 5 Minuten
+#: Ruhe, nicht je Nachricht“). Erst wenn im Gespräch 5 Minuten lang nichts
+#: Neues geschrieben wurde, geht EINE Glocke je Person heraus.
+GLOCKE_RUHE_MINUTEN = 5
 
 
 class ChatGespraech(Base):
@@ -551,17 +571,108 @@ class ChatMeldung(Base):
     erstellt_am: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
 
 
+class ChatGlocke(Base):
+    """Gebündelte Chat-Glocke: was je (Gespräch, Konto) schon geglockt wurde.
+
+    Konzept 1/S1 („eine In-App-Meldung (Glocke) gebündelt: ‚Chor: 3 neue
+    Nachrichten' nach 5 Minuten Ruhe, nicht je Nachricht“) und 3.1.
+
+    Der Job ``api.chat.chat_glocken_buendeln`` liest je Lauf die Paare
+    (Gespräch, Person), die ihre Ruhezeit hinter sich haben, und schreibt je
+    Person EINE Zeile in ``Notification Log``. Damit ein zweiter Lauf
+    (1–2 Minuten später) dieselbe Nachricht NICHT erneut glockt, steht hier der
+    Stand; er ist ein ANKER, kein Zähler:
+
+    * ``stand``     — der Lesestand DIESER Person zum Zeitpunkt der letzten
+                      Glocke (Kopie von ``chat_teilnehmer.letzter_lesestand``)
+                      bzw. der Beitritt, wenn noch nie gelesen wurde. Was
+                      davor liegt, war beim Glocken schon gelesen — es zählt
+                      nie in die nächste Zahl.
+    * ``stand_am``  — derselbe Anker als Zeitstempel (``stand`` kann nach
+                      einer Löschung der Nachricht NULL werden, s. CHAT-8).
+    * ``stand_nachricht`` — Kennung zum Zeitstempel (zwei Nachrichten können
+                      denselben Zeitstempel tragen).
+    * ``merker_am`` — die neueste Nachricht, die beim letzten Glocken schon da
+                      war. Der Job nimmt nur Paare auf, bei denen es DANACH
+                      noch etwas gibt — ohne diesen Wert würde ein zweiter Lauf
+                      dieselbe Nachricht erneut als „neu“ sehen (die Glocke
+                      wäre dann nie fertig).
+
+    Die ZAHL in der Glocke kommt NICHT von hier, sondern aus
+    ``_ungelesen_zaehlen`` (Lesestand): „N = ungelesene seit letztem
+    Lesestand“. Der Stand entscheidet nur, OB seit der letzten Glocke etwas
+    Neues kam — und ab wo das nächste Bündel zählt.
+
+    Kein Lesestand: „geglockt“ und „gelesen“ sind zwei Fragen. Der Lesestand
+    bleibt ``chat_teilnehmer.letzter_lesestand``; ``lesestand_setzen`` markiert
+    zusätzlich die Glocke dieses Gesprächs als gelesen (``gelesen_am``).
+
+    DSGVO (Konzept 4.3): ``benutzer`` ist eine KONTO-Spalte
+    (``user_null``/``zeile_loeschen``) — der Merker verschwindet mit dem
+    Konto. Er enthält KEINEN Text und KEINEN Absender, nur Kennungen.
+    """
+
+    __tablename__ = "chat_glocke"
+    __table_args__ = (
+        # Der Job fragt je Gespräch nach dem Stand („was ist neu seit …“).
+        Index("ix_chat_glocke_gespraech", "gespraech"),
+        # Review R1 (MUSS 2): der Job steigt über den MERKER in die Paare ein
+        # („gibt es überhaupt einen Anker?“), nicht über die Nachrichten.
+        Index("ix_chat_glocke_benutzer", "benutzer"),
+    )
+
+    gespraech: Mapped[str] = mapped_column(
+        String(140), ForeignKey("chat_gespraech.name"), primary_key=True
+    )
+    #: Konto (``user.name``) — dieselbe Kennung wie im Rechtesystem.
+    benutzer: Mapped[str] = mapped_column(
+        String(140), ForeignKey("user.name"), primary_key=True
+    )
+    #: Kennung der Nachricht, bis zu der geglockt wurde (``chat_nachricht.name``).
+    #: ``ON DELETE SET NULL`` (Review R1/f): löscht CHAT-8 Nachrichten, wird
+    #: der Verweis genullt — ``stand_am`` bleibt als Anker erhalten.
+    stand: Mapped[str | None] = mapped_column(
+        String(140),
+        ForeignKey("chat_nachricht.name", ondelete="SET NULL"),
+        nullable=True,
+    )
+    #: Derselbe Anker als Zeitstempel (siehe Klassen-Doku). NULL = Anker
+    #: unbekannt (dann zählt ab dem Beitritt bzw. allem).
+    stand_am: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=False), nullable=True
+    )
+    #: Kennung zum Anker-Zeitstempel (``chat_nachricht.name``, KEIN FK: die
+    #: Nachricht darf verschwinden, ohne dass der Merker verschwindet).
+    stand_nachricht: Mapped[str | None] = mapped_column(String(140), nullable=True)
+    #: Die neueste Nachricht, die beim letzten Glocken schon da war.
+    merker_am: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=False), nullable=True
+    )
+    #: Wann zuletzt geglockt wurde (Wandzeit der Gemeinde, ohne Zeitzone).
+    geglockt_am: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=False), nullable=True
+    )
+    #: Wann die Glocke dieses Gesprächs als GELESEN markiert wurde
+    #: (``lesestand_setzen``). Gesetzt = die Glocke im
+    #: ``Notification Log`` wurde auf ``read`` gestellt.
+    gelesen_am: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=False), nullable=True
+    )
+
+
 __all__: list[Any] = [
     "ARTEN",
     "ART_GRUPPE",
     "ART_UNTERGRUPPE",
     "BEARBEITEN_MINUTEN",
     "ChatGespraech",
+    "ChatGlocke",
     "ChatMeldung",
     "ChatNachricht",
     "ChatReaktion",
     "ChatStimme",
     "ChatTeilnehmer",
+    "GLOCKE_RUHE_MINUTEN",
     "ChatUmfrage",
     "ChatUmfrageAbgabe",
     "ChatUmfrageOption",

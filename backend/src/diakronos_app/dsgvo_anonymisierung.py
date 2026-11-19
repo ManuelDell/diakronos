@@ -498,6 +498,22 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         "freitext": ("protokoll", "Freitext der Meldung kann die Person nennen"),
         "entscheidung_grund": ("protokoll", "Begründung der Moderationsentscheidung (Freitext)"),
     },
+    # CHAT-4a (Konzept 1/S1, 4.5): der Merker der GEBÜNDELTEN Glocke. Er ist
+    # ein Verhaltensdatum am Konto („bis hierhin wurde dir geglockt“), aber
+    # ohne Inhalt: keine Nachricht, kein Absender, keine Uhrzeit des Lesens —
+    # nur die Kennung der Nachricht, bis zu der die Glocke ging.
+    "chat_glocke": {
+        "benutzer": ("zeile_loeschen", "Glocken-Merker der Person (Zeile wird gelöscht)"),
+        "gespraech": ("struktur", "Gesprächskennung (Fachobjekt)"),
+        "stand": ("struktur", "Kennung der Nachricht, bis zu der geglockt wurde"),
+        # Review R1: der Anker der Zählung (Nachrichtenkennung zum
+        # Zeitstempel ``stand_am``). Reine Kennung, kein Inhalt, kein Absender
+        # — sie fällt mit der Zeile (``benutzer`` = ``zeile_loeschen``). Die
+        # Zeitstempel selbst (``stand_am``/``merker_am``/``geglockt_am``/
+        # ``gelesen_am``) stehen NICHT hier: das Inventar führt Textspalten,
+        # und Zeitpunkte ohne Inhalt sind dort keine eigene Entscheidung.
+        "stand_nachricht": ("struktur", "Nachrichtenkennung zum Anker des Merkers"),
+    },
     # CHAT-5 (S2, Konzept 1/S2, 4.3): Umfragen. Die ANONYMITÄTSZUSAGE ist hier
     # datenbankseitig gebaut, nicht nur zugesagt: bei einer anonymen Umfrage
     # gibt es KEINE Zeile, die Person und Option verbindet. Deshalb ist
@@ -782,6 +798,10 @@ ZEILEN_LOESCHEN: tuple[tuple[str, str], ...] = (
     # (`chat_nachricht.autor` wird umgehängt, s. `SPALTEN`).
     ("chat_teilnehmer", "Teilnahme und Lesestand der Person"),
     ("chat_reaktion", "Reaktionen der Person"),
+    # CHAT-4a: der Glocken-Merker ist ein Verhaltensdatum am Konto (bis wohin
+    # wurde geglockt). Er fällt ganz — es gibt nichts, was ohne Konto lesbar
+    # bliebe.
+    ("chat_glocke", "Glocken-Merker der Person"),
     # CHAT-5 (S2): namentliche Stimmen und die Abgabe-Marke der Person sind
     # Verhaltensdaten. Sie fallen mit dem Konto; der ZÄHLER je Option
     # (`chat_umfrage_option.stimmen`) bleibt und trägt keinen Personenbezug.
@@ -805,6 +825,8 @@ KONTO_ZEILEN = frozenset({
     # sie verschwinden mit dem Konto. Der Verlauf bleibt lesbar; das leisten
     # die FK-Spalten `chat_nachricht.autor`/`geloescht_von` (Umhängen/Nullen).
     "chat_teilnehmer", "chat_reaktion",
+    # CHAT-4a: der Glocken-Merker fällt mit dem Konto (s. `ZEILEN_LOESCHEN`).
+    "chat_glocke",
     # CHAT-5: die Stimmenzeilen und Marken sind ZEILEN der Person.
     "chat_stimme", "chat_umfrage_abgabe",
 })

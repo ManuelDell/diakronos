@@ -109,6 +109,39 @@ Direktnachrichten (CHAT-7), Löschfristen (CHAT-8), Push (CHAT-10),
 Anhänge/Chatverlaufssuche (CHAT-9). Kein WebSocket: Zustellung ist der
 „seit X“-Abruf (3.1, Empfehlung A).
 
+CHAT-4a — GEBÜNDELTE GLOCKE (Konzept 1/S1, 3.1, 4.5)
+---------------------------------------------------
+Eine In-App-Meldung (Glocke) **gebündelt**: „Chor: 3 neue Nachrichten“ nach
+5 Minuten Ruhe, nicht je Nachricht.
+
+* ``chat_glocken_buendeln`` ist der Scheduler-Job (Minuten-Takt, s.
+  ``scheduler.MINUTEN_JOBS``). Er glockt nur Gespräche, deren NEUESTE
+  Nachricht mindestens ``GLOCKE_RUHE_MINUTEN`` (5) alt ist.
+* Die ZAHL ist „ungelesen seit dem letzten Lesestand“ —
+  ``_ungelesen_zaehlen`` (Beitritt, eigene und gelöschte Nachrichten
+  ausgenommen), NICHT „neu seit der letzten Glocke“. Der Merker
+  ``chat_glocke`` entscheidet nur, OB seit der letzten Glocke etwas Neues kam
+  (``merker_am``) und ab wo das nächste Bündel zählt (``stand``/``stand_am`` =
+  Lesestand beim Glocken).
+* Je (Gespräch, Person) EINE Glocke: eine noch ungelesene Glocke desselben
+  Gesprächs wird über ``benachrichtigungen.glocke_setzen`` AKTUALISIERT statt
+  verdoppelt.
+* Keine Glocke für die verfassende Person, für stumm geschaltete (der Zähler
+  bleibt, F3), für wer seitdem gelesen hat, für wen ``rechte.darf`` das Lesen
+  verweigert (Modul ``chat`` aus ⇒ kein Lesen ⇒ keine Glocke) und für
+  gelöschte Gespräche.
+* Der Text enthält NUR Gesprächstitel und Anzahl — kein Nachrichtentext, kein
+  Absendername (Datenschutz, wie ``_glocke_neue_meldung``).
+* ``lesestand_setzen`` markiert die Glocke(n) dieses Gesprächs als gelesen —
+  aber nur, wenn danach nichts ungelesen bleibt (sonst bleibt sie stehen und
+  wird beim nächsten Lauf fortgeschrieben).
+* Aufwand: der Job wählt in SQL nur die PAARE (Gespräch, Person) aus, bei
+  denen seit dem Merker etwas Neues offen ist; er lädt keine Nachrichten und
+  keine Verläufe. Ein zweiter Lauf ohne neue Nachricht endet nach einer
+  festen Zahl von Abfragen, unabhängig von der Zahl der Gespräche.
+* Zwei gleichzeitige Läufe: eine Sitzungssperre je Lauf (PostgreSQL
+  ``pg_try_advisory_xact_lock``) — der zweite Lauf tut nichts, statt dieselbe
+  Glocke doppelt zu schreiben.
 CHAT-5 (S2): UMFRAGEN (``umfrage_anlegen``, ``umfrage_abstimmen``,
 ``umfrage_schliessen``, ``umfrage_ergebnis``)
 ------------------------------------------------------
@@ -173,6 +206,7 @@ from diakronos_app.models.chat import (
     ART_GRUPPE,
     ART_UNTERGRUPPE,
     BEARBEITEN_MINUTEN,
+    GLOCKE_RUHE_MINUTEN,
     FRAGE_MAX,
     HINWEIS_AB,
     MELDEGRUENDE,
@@ -188,6 +222,7 @@ from diakronos_app.models.chat import (
     OPTION_MAX,
     REAKTIONEN,
     ChatGespraech,
+    ChatGlocke,
     ChatMeldung,
     ChatNachricht,
     ChatReaktion,
@@ -215,6 +250,14 @@ MELDUNG_KONTEXT = 5
 #: Obergrenze einer Meldungsliste (ein Aufruf soll die Datenbank nicht in einem
 #: Rutsch leeren können; die offene Liste einer Gemeinde bleibt weit darunter).
 MELDUNGEN_MAX = 200
+#: CHAT-4a: Kennung im ``Notification Log.document_type`` der gebündelten
+#: Chat-Glocke. ``document_name`` ist die Kennung des GESPRÄCHS — darüber
+#: findet ``lesestand_setzen`` die Glocke wieder (und die Oberfläche verlinkt).
+CHAT_GLOCKE_DOCTYPE = "chat_gespraech"
+#: CHAT-4a: Kennung der Sitzungssperre, die ZWEI Jobläufe auseinanderhält
+#: (``pg_try_advisory_xact_lock``; Review R1/e). Feste Zahl, keine Zufallswerte:
+#: alle Prozesse derselben Datenbank müssen dieselbe Kennung nehmen.
+GLOCKE_SPERRE = 4714_0001
 
 
 # ── Grundlagen ──────────────────────────────────────────────────────────────
@@ -1210,8 +1253,17 @@ def lesestand_setzen(gespraech, nachricht=None):
             teilnahme.letzter_lesestand = ziel.erstellt_am
             teilnahme.letzter_lesestand_nachricht = ziel.name
         s.flush()
+        # CHAT-4a: Wer das Gespräch liest, hat die gebündelte Glocke gesehen —
+        # sie wird als gelesen markiert (die Glocke selbst bleibt als Nachweis
+        # stehen, wie jede andere Benachrichtigung). Nur wenn danach WIRKLICH
+        # nichts ungelesen bleibt: ein Lesestand auf einer ÄLTEREN Nachricht
+        # lässt die Glocke stehen (Reviews R1/d) — sie zeigt weiter die
+        # ungelesenen Nachrichten an und wird beim nächsten Lauf
+        # fortgeschrieben.
+        ungelesen = _ungelesen_zaehlen(s, g.name, benutzer, teilnahme)
+        _glocke_als_gelesen(s, g.name, benutzer, alles_gelesen=(ungelesen == 0))
         return {"gespraech": g.name, "bis": ziel.name if ziel else None,
-                "ungelesen": _ungelesen(s, g.name, benutzer)}
+                "ungelesen": ungelesen}
 
 
 @whitelist(methods=["POST"], allow_guest=False)
@@ -1219,7 +1271,12 @@ def stumm_setzen(gespraech, an=True):
     """Gespräch für SICH stumm schalten (F3: jede Person für sich).
 
     Recht: LESEN. ``an`` als Wahrheitswert (``true``/``false``, „1“/„0“).
-    Wirkung auf die Glocke kommt mit CHAT-4 — hier steht nur der Schalter.
+
+    Wirkung auf die Glocke (CHAT-4a): ``an`` heißt „keine Glocke mehr“ —
+    ``chat_glocken_buendeln`` überspringt stumm geschaltete Personen ganz.
+    Der UNGELESEN-ZÄHLER bleibt davon unberührt (Konzept 1/S1: „keine Glocke
+    mehr, Zähler bleibt“); hier wird deshalb NUR ``stumm`` geschrieben und
+    weder der Lesestand noch eine bestehende Glocke angefasst.
     """
     benutzer = _benutzer()
     gespraech = str(gespraech or "").strip()
@@ -2452,6 +2509,341 @@ def _glocke_neue_meldung(konten: list[str], meldung: str) -> None:
                          document_type="chat_meldung", document_name=meldung)
 
 
+# ── CHAT-4a: gebündelte Glocke ──────────────────────────────────────────────
+
+
+def _glocken_text(titel: str, anzahl: int) -> str:
+    """Betreff der gebündelten Glocke: „Chor: 3 neue Nachrichten“.
+
+    NUR Gesprächstitel und Anzahl (Karte: „KEIN Nachrichtentext, KEIN
+    Absendername“). Singular bei 1 („1 neue Nachricht“).
+    """
+    wort = "neue Nachricht" if anzahl == 1 else "neue Nachrichten"
+    return f"{titel}: {anzahl} {wort}"
+
+
+def _glocken_hinweis(anzahl: int) -> str:
+    """Inhalt (``email_content``) der Glocke — ohne Text und ohne Absender.
+
+    Die Glocke sagt nur, DASS es Neues gibt und wie viel; wer und was, steht
+    ausschließlich im Gespräch, das wieder über den Rechte-Kern läuft.
+    """
+    wort = "neue Nachricht" if anzahl == 1 else "neue Nachrichten"
+    return (f"Im Gespräch {'ist' if anzahl == 1 else 'sind'} {anzahl} {wort} "
+            "eingegangen. Öffne den Chat, um sie zu lesen.")
+
+
+def _glocken_titel(g: ChatGespraech) -> str:
+    """Titel der Glocke: der Gesprächstitel, sonst die Einheit."""
+    return str(g.titel or "").strip() or (g.untergruppe or g.gruppe)
+
+
+def glocken_merker(s, gespraech: str, benutzer: str) -> ChatGlocke:
+    """Die Merker-Zeile der Person für dieses Gespräch; legt sie beim ersten Mal an.
+
+    Die Ankerfelder bleiben zunächst leer — die Zeile entsteht erst, wenn
+    wirklich geglockt wird; sie ist trotzdem sofort da, damit ein zweiter Lauf
+    denselben Stand liest.
+    """
+    zeile = s.get(ChatGlocke, (gespraech, benutzer))
+    if zeile is not None:
+        return zeile
+    zeile = ChatGlocke(gespraech=gespraech, benutzer=benutzer)
+    s.add(zeile)
+    s.flush()
+    return zeile
+
+
+def _glocke_anker(teilnahme: ChatTeilnehmer | None) -> datetime | None:
+    """Ab wann das NÄCHSTE Bündel zählt: der heutige Lesestand dieser Person.
+
+    Ohne Lesestand ist es der Beitritt (``hinzugefuegt_am``) — was vorher
+    geschrieben wurde, war für diese Person nie „neu“ (``_ungelesen_zaehlen``
+    zählt genauso). Ohne beides: ``None`` = ab allem.
+    """
+    if teilnahme is None:
+        return None
+    return teilnahme.letzter_lesestand or teilnahme.hinzugefuegt_am
+
+
+def _glocke_setzen(s, *, konto: str, gespraech: ChatGespraech,
+                   teilnahme: ChatTeilnehmer | None, anzahl: int,
+                   jetzt: datetime) -> bool:
+    """Die EINE Glocke je (Gespräch, Konto) schreiben — ersetzen statt doppeln.
+
+    Liegt im ``Notification Log`` schon eine UNGELESENE Chat-Glocke desselben
+    Gesprächs, wird sie AKTUALISIERT (Betreff, Inhalt). Sonst entsteht eine
+    neue Zeile.
+
+    Der Merker wird NUR fortgeschrieben, wenn die Glocke wirklich stand (der
+    Rückgabewert von ``glocke_setzen`` ist leer, wenn das Schreiben scheiterte)
+    — sonst ginge die Nachricht still verloren, weil der nächste Lauf sie als
+    „schon geglockt“ ansähe. ``merker_am`` = die neueste Nachricht, die jetzt
+    schon da ist; damit ist dieselbe Nachricht beim nächsten Lauf nicht wieder
+    „neu“, auch wenn sie (noch) nicht gelesen wurde.
+    """
+    from diakronos_app.benachrichtigungen import glocke_setzen
+
+    titel = _glocken_titel(gespraech)
+    # ``document_name`` ist das GESPRÄCH: darüber findet ``lesestand_setzen``
+    # die Glocke wieder, und darüber verlinkt die Oberfläche.
+    name = glocke_setzen(
+        for_user=konto,
+        subject=_glocken_text(titel, anzahl),
+        inhalt=_glocken_hinweis(anzahl),
+        document_type=CHAT_GLOCKE_DOCTYPE,
+        document_name=gespraech.name,
+    )
+    if not name:
+        return False  # Benachrichtigung ist Beiwerk — aber dann auch kein Merker
+    neueste_am = s.execute(
+        select(func.max(ChatNachricht.erstellt_am))
+        .where(ChatNachricht.gespraech == gespraech.name)
+    ).scalar_one_or_none()
+    zeile = glocken_merker(s, gespraech.name, konto)
+    zeile.stand_am = _glocke_anker(teilnahme)
+    zeile.stand_nachricht = teilnahme.letzter_lesestand_nachricht if teilnahme else None
+    zeile.stand = zeile.stand_nachricht if (teilnahme and teilnahme.letzter_lesestand) else None
+    zeile.merker_am = neueste_am
+    zeile.geglockt_am = jetzt
+    zeile.gelesen_am = None
+    s.flush()
+    return True
+
+
+def _glocke_als_gelesen(s, gespraech: str, benutzer: str,
+                        alles_gelesen: bool = True) -> int:
+    """Die Glocken dieses Gesprächs für diese Person als gelesen markieren.
+
+    Zwei Dinge: die ``Notification Log``-Zeile(n) auf ``read`` stellen (das ist
+    die Glocke in der Oberfläche) und den Merker ``gelesen_am`` setzen. Fehler
+    sind Beiwerk — ``lesestand_setzen`` darf daran nicht scheitern.
+
+    ``alles_gelesen=False`` (Reviews R1/d: der Lesestand wurde nur bis zu einer
+    ÄLTEREN Nachricht gesetzt, danach ist noch etwas ungelesen): dann bleibt
+    die Glocke UNGELESEN stehen, denn es gibt weiter etwas zu sehen — der
+    nächste Joblauf schreibt sie mit der richtigen Zahl fort. Der Merker
+    bekommt nur den Anker des neuen Lesestands, damit die Zählung ab dort
+    stimmt.
+    """
+    from diakronos_app.benachrichtigungen import glocke_gelesen
+
+    merker = s.get(ChatGlocke, (gespraech, benutzer))
+    if not alles_gelesen:
+        if merker is not None:
+            teilnahme = s.get(ChatTeilnehmer, (gespraech, benutzer))
+            merker.stand_am = _glocke_anker(teilnahme)
+            merker.stand_nachricht = teilnahme.letzter_lesestand_nachricht if teilnahme else None
+            merker.stand = merker.stand_nachricht
+            s.flush()
+        return 0
+    anzahl = glocke_gelesen(for_user=benutzer, document_type=CHAT_GLOCKE_DOCTYPE,
+                            document_name=gespraech)
+    if merker is not None:
+        merker.gelesen_am = _jetzt()
+        s.flush()
+    return anzahl
+
+
+def _offen_bedingung(konto: str | None = None):
+    """SQL-Bedingung „diese Nachricht ist für die Person ungelesen und zählt“.
+
+    EINE Definition für Kandidaten-Abfrage und Nachprüfung (``_glocke_faellig``),
+    damit die beiden nicht auseinanderlaufen: fremde Nachricht
+    (``_nicht_von``), nicht gelöscht, nicht vor dem Beitritt, hinter dem
+    Lesestand (Zeitstempel + Kennung — zwei Nachrichten können denselben
+    Zeitstempel tragen, Sekundengenauigkeit auf PostgreSQL).
+
+    ``konto=None``: die Person ist die des JOINS (``ChatTeilnehmer.benutzer``).
+    """
+    person = ChatTeilnehmer.benutzer if konto is None else konto
+    return [
+        ChatNachricht.geloescht_am.is_(None),
+        _nicht_von(person),
+        ChatTeilnehmer.stumm.is_(False),
+        or_(
+            ChatTeilnehmer.letzter_lesestand.is_(None),
+            or_(ChatNachricht.erstellt_am > ChatTeilnehmer.letzter_lesestand,
+                (ChatNachricht.erstellt_am == ChatTeilnehmer.letzter_lesestand)
+                & (ChatNachricht.name
+                   > func.coalesce(ChatTeilnehmer.letzter_lesestand_nachricht, ""))),
+        ),
+        or_(ChatTeilnehmer.hinzugefuegt_am.is_(None),
+            ChatNachricht.erstellt_am >= ChatTeilnehmer.hinzugefuegt_am),
+    ]
+
+
+def _glocken_kandidaten(s, zeit: datetime, ruhe: int) -> list[tuple[str, str]]:
+    """Paare (Gespräch, Konto), für die JETZT eine Glocke fällig sein kann.
+
+    Die Arbeit passiert in SQL, nicht je Gespräch in Python (Review R1, MUSS 2:
+    der Job lief sonst jede Minute durch JEDES Gespräch und lud den Verlauf):
+
+    1. ``neu`` — je (Gespräch, Person) die NEUESTE fremde, nicht gelöschte
+       Nachricht NACH dem Anker des Merkers (Lesestand beim letzten Glocken
+       bzw. Beitritt) und nach dessen ``merker_am``. Eine Person ohne
+       Merker-Zeile hat keinen Merker-Beitrag — der LEFT JOIN unten setzt
+       diesen Teil der Bedingung dann auf „wahr“ (die Person hat noch nie
+       eine Glocke bekommen, also ist alles seit ihrem Lesestand neu).
+    2. **Ruhe**: die neueste Nachricht des GESPRÄCHS ist älter als ``ruhe``
+       Minuten — nur dann wird gebündelt.
+    3. **stumm** wird hier schon verworfen (der Zähler bleibt davon unberührt).
+    4. **schon gelesen**: liegt der Lesestand auf oder hinter der neuesten
+       Nachricht, gibt es nichts zu glocken — das erledigt SQL, nicht Python,
+       und es ist der Grund, warum der zweite Lauf ohne neue Nachricht nichts
+       mehr zu tun hat.
+
+    Gelöschte Gespräche und Nachrichten zählen nicht. Ob die Person das
+    Gespräch noch lesen DARF, entscheidet danach ``_darf_lesen``
+    (``rechte.darf``) — hier steht KEINE Rechtelogik.
+    """
+    grenze = zeit - timedelta(minutes=ruhe)
+    neueste = (
+        select(ChatNachricht.gespraech.label("gespraech"),
+               func.max(ChatNachricht.erstellt_am).label("letzte"))
+        .where(ChatNachricht.geloescht_am.is_(None))
+        .group_by(ChatNachricht.gespraech)
+        .subquery()
+    )
+    # Die neueste FREMDE, lebende Nachricht je (Gespräch, Person).
+    je_person = (
+        select(ChatNachricht.gespraech.label("gespraech"),
+               ChatTeilnehmer.benutzer.label("benutzer"),
+               func.max(ChatNachricht.erstellt_am).label("neu_am"))
+        .join(ChatTeilnehmer, ChatTeilnehmer.gespraech == ChatNachricht.gespraech)
+        .where(*_offen_bedingung())
+        .group_by(ChatNachricht.gespraech, ChatTeilnehmer.benutzer)
+        .subquery()
+    )
+    abfrage = (
+        select(je_person.c.gespraech, je_person.c.benutzer)
+        .join(neueste, neueste.c.gespraech == je_person.c.gespraech)
+        .outerjoin(
+            ChatGlocke,
+            (ChatGlocke.gespraech == je_person.c.gespraech)
+            & (ChatGlocke.benutzer == je_person.c.benutzer),
+        )
+        .join(ChatGespraech, ChatGespraech.name == je_person.c.gespraech)
+        .where(
+            neueste.c.letzte <= grenze,
+            ChatGespraech.geloescht_am.is_(None),
+            or_(ChatGlocke.merker_am.is_(None),
+                je_person.c.neu_am > ChatGlocke.merker_am),
+        )
+        .order_by(je_person.c.gespraech, je_person.c.benutzer)
+    )
+    return [(str(g), str(k)) for g, k in s.execute(abfrage).all() if g and k]
+
+
+def _glocke_faellig(s, gespraech: ChatGespraech, konto: str) -> bool:
+    """Ist für dies eine Paar noch etwas offen? — die EINE Frage, in SQL.
+
+    Zweite Verteidigung gegen Doppel-Glocken und der Grund, warum ein zweiter
+    Lauf ohne neue Nachricht nichts tut: ``merker_am`` steht auf der neuesten
+    Nachricht, und der Lesestand der Person liegt hinter der neuesten fremden
+    Nachricht.
+    """
+    anker = (
+        select(ChatGlocke.merker_am)
+        .where(ChatGlocke.gespraech == gespraech.name,
+               ChatGlocke.benutzer == konto)
+        .scalar_subquery()
+    )
+    return bool(s.execute(
+        select(ChatNachricht.name)
+        .join(ChatTeilnehmer, ChatTeilnehmer.gespraech == ChatNachricht.gespraech)
+        .where(
+            ChatNachricht.gespraech == gespraech.name,
+            ChatTeilnehmer.benutzer == konto,
+            *_offen_bedingung(konto),
+            or_(anker.is_(None), ChatNachricht.erstellt_am > anker),
+        ).limit(1)
+    ).first())
+
+
+def _lauf_sperren(s) -> bool:
+    """Sitzungssperre für DIESEN Joblauf — ``False`` = ein anderer läuft schon.
+
+    Zwei Scheduler-Prozesse (App + Scheduler, oder ein Neustart während eines
+    Laufs) dürfen nicht dieselbe Glocke schreiben. Auf PostgreSQL nimmt der
+    Lauf eine Sitzungssperre mit fester Kennung (``pg_try_advisory_xact_lock``,
+    endet mit der Transaktion); SQLite (Tests, Einzelplatz) kennt sie nicht und
+    braucht sie nicht — dort gibt es nur einen Schreiber.
+    """
+    if s.get_bind().dialect.name != "postgresql":
+        return True
+    return bool(s.execute(
+        text("SELECT pg_try_advisory_xact_lock(:k)"), {"k": GLOCKE_SPERRE}
+    ).scalar())
+
+
+def chat_glocken_buendeln(jetzt: datetime | None = None, ruhe: int | None = None) -> int:
+    """Scheduler-Job: EINE gebündelte Glocke je Gespräch und Person.
+
+    Läuft alle 1–2 Minuten (``scheduler.build_scheduler``) und glockt NUR
+    Gespräche, deren neueste Nachricht mindestens ``ruhe`` Minuten alt ist
+    (Default ``GLOCKE_RUHE_MINUTEN`` = 5). Je (Gespräch, Person) genau EINE
+    Glocke: der Merker ``chat_glocke`` verhindert den zweiten Glockenschlag
+    für dieselbe Nachricht, eine noch ungelesene Glocke desselben Gesprächs
+    wird AKTUALISIERT statt verdoppelt.
+
+    Die ZAHL ist der Ungelesen-Zähler der Person (``_ungelesen_zaehlen``: seit
+    ihrem Lesestand, ohne eigene und gelöschte, ab dem Beitritt) — „N neue
+    Nachrichten“ heißt also genau das, was die Seitenleiste auch zählt.
+
+    Keine Glocke für:
+      * die verfassende Person (eigene Nachrichten),
+      * stumm geschaltete Personen (der Zähler bleibt — hier wird nichts am
+        Lesestand geändert),
+      * wer das Gespräch seitdem gelesen hat,
+      * wer das Gespräch nicht mehr lesen darf (``rechte.darf``; bei
+        ausgeschaltetem Modul gibt der Kern kein Lesen),
+      * gelöschte Gespräche.
+
+    ``jetzt`` ist injizierbar (Tests, kein ``sleep``); ``ruhe`` ebenso.
+
+    Rückgabe: Zahl der geschriebenen/aktualisierten Glocken.
+    """
+    from diakronos_app import db as _db
+
+    zeit = jetzt or _jetzt()
+    minuten = GLOCKE_RUHE_MINUTEN if ruhe is None else int(ruhe)
+    geschrieben = 0
+    # ``begin()`` je Joblauf: der Job läuft im Scheduler-Prozess, nicht im
+    # Request — die Sitzung wird hier geöffnet und wieder geschlossen.
+    with _db.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        from diakronos_app.rechte import merkungsrahmen
+
+        if not _lauf_sperren(s):
+            logger.info("chat_glocken_buendeln: anderer Lauf aktiv, übersprungen")
+            return 0
+        with merkungsrahmen():
+            for gespraech_name, konto in _glocken_kandidaten(s, zeit, minuten):
+                # Ein Fehler bei EINEM Paar darf den Rest des Laufs nicht
+                # kippen: eigener Savepoint, Fehler protokollieren, weiter.
+                try:
+                    with s.begin_nested():
+                        g = s.get(ChatGespraech, gespraech_name)
+                        if g is None or g.geloescht_am is not None:
+                            continue
+                        if not _darf_lesen(s, konto, gespraech_name):
+                            continue  # Rechte-Kern: keine Glocke an ehemalige Mitglieder
+                        if not _glocke_faellig(s, g, konto):
+                            continue  # nichts Neues seit der letzten Glocke
+                        teilnahme = s.get(ChatTeilnehmer, (gespraech_name, konto))
+                        anzahl = _ungelesen_zaehlen(s, gespraech_name, konto, teilnahme)
+                        if anzahl <= 0:
+                            continue  # alles gelesen (oder nur eigene Nachrichten)
+                        if _glocke_setzen(s, konto=konto, gespraech=g,
+                                          teilnahme=teilnahme, anzahl=anzahl,
+                                          jetzt=zeit):
+                            geschrieben += 1
+                except Exception:  # noqa: BLE001 — ein Paar, nicht der Lauf
+                    logger.exception("chat_glocken_buendeln: %s/%s fehlgeschlagen",
+                                     gespraech_name, konto)
+    return geschrieben
+
+
 def _glocke_entfernt(konto: str, gespraech: str, nachricht: str, grund: str | None) -> None:
     """Glocke an die VERFASSENDE Person: „von der Moderation entfernt“.
 
@@ -2738,14 +3130,18 @@ def _teilnehmer_aktuelle(s, g: ChatGespraech) -> int:
 
 
 __all__ = [
+    "CHAT_GLOCKE_DOCTYPE",
     "FRAPPE_MODULE",
+    "GLOCKE_SPERRE",
     "MELDUNGEN_MAX",
     "MELDUNG_KONTEXT",
     "SEITE",
     "SEITE_MAX",
     "TITEL_MAX",
     "aendern",
+    "chat_glocken_buendeln",
     "gespraech_anlegen",
+    "glocken_merker",
     "lesestand_setzen",
     "loeschen",
     "meldung_entscheiden",

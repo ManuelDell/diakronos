@@ -126,6 +126,32 @@ def job_gastlinks_aufraeumen() -> None:
 	logger.info("Job gastlinks_aufraeumen fertig (%s entfernt).", count)
 
 
+# ── CHAT-4a: gebuendelte Glocke ─────────────────────────────────────────────
+
+#: Abstand des Glocken-Jobs in Minuten. Bewusst 1 Minute statt 2: die Ruhezeit
+#: betraegt 5 Minuten, und ein 2‑Minuten-Takt verspaetete die Glocke im
+#: unguenstigsten Fall auf knapp 7 Minuten (Konzept 1/S1 sagt „nach 5 Minuten
+#: Ruhe“). Der Job liest je Lauf nur die Gespraechsliste und die
+#: faelligen Kandidaten — ein Index-Zugriff.
+GLOCKE_INTERVALL_MINUTEN = 1
+
+
+def job_chat_glocken_buendeln() -> None:
+	"""Minuten-Job: EINE gebuendelte Glocke je Gespraech und Person (CHAT-4a).
+
+	Die Fachlogik steht in ``api.chat.chat_glocken_buendeln``; hier steht nur
+	der Schutz, dass ein Fehler den Scheduler nicht toetet (Muster der
+	uebrigen Jobs).
+	"""
+	from diakronos_app.api import chat as chat_api
+
+	try:
+		count = chat_api.chat_glocken_buendeln()
+	except Exception:  # noqa: BLE001 — ein Fehler darf den Scheduler nicht toeten
+		logger.exception("Job chat_glocken_buendeln fehlgeschlagen")
+		return
+	if count:
+		logger.info("Job chat_glocken_buendeln fertig (%s Glocken).", count)
 def job_umfragen_schliessen() -> None:
 	"""Taeglicher Job (CHAT-5): Umfragen zur Frist schliessen.
 
@@ -154,6 +180,14 @@ DAILY_JOBS: list[tuple] = [
 	(job_papierkorb_aufraeumen, "papierkorb_aufraeumen"),
 	(job_gastlinks_aufraeumen, "gastlinks_aufraeumen"),
 	(job_umfragen_schliessen, "umfragen_schliessen"),
+]
+
+#: MINUTEN-Jobs (Intervall in Minuten, Job-Funktion, Job-Id) — dieselbe eine
+#: Stelle wie ``DAILY_JOBS``, gleiche Pruefbarkeit. CHAT-4a ergaenzt die
+#: gebuendelte Glocke; die Datensicherung bleibt aus Kompatibilitaetsgruenden
+#: in ``build_scheduler`` (eigener Merker, eigene Faelligkeitspruefung).
+MINUTEN_JOBS: list[tuple] = [
+	(GLOCKE_INTERVALL_MINUTEN, job_chat_glocken_buendeln, "chat_glocken_buendeln"),
 ]
 
 
@@ -314,6 +348,21 @@ def build_scheduler() -> BlockingScheduler:
 		max_instances=1,
 		coalesce=True,
 	)
+	# CHAT-4a: die gebuendelte Glocke und weitere Minuten-Jobs aus
+	# ``MINUTEN_JOBS`` — Registrierung an EINER Stelle, in Tests pruefbar.
+	# Faelligkeit („5 Minuten Ruhe“) steht im Fachcode und wird je Lauf
+	# geprueft. `coalesce=True` verhindert nachgeholte Laeufe; doppelt glocken
+	# kann der Job ohnehin nicht (`chat_glocke.stand`).
+	for minuten, fn, job_id in MINUTEN_JOBS:
+		scheduler.add_job(
+			fn,
+			"interval",
+			minutes=minuten,
+			id=job_id,
+			max_instances=1,
+			coalesce=True,
+			misfire_grace_time=120,
+		)
 	return scheduler
 
 

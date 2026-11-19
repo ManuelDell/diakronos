@@ -823,13 +823,13 @@ def _skripte() -> ScriptDirectory:
     return ScriptDirectory.from_config(cfg)
 
 
-def test_genau_ein_kopf_und_kette_chat2_chat6_chat5():
+def test_genau_ein_kopf_und_kette_chat2_chat6_chat5_chat4a():
     """GENAU EIN Kopf. Seit CHAT-5 ist die Kette
-    ``chat2_chat_s1 -> chat6_meldung -> chat5_umfrage`` — der Kopf wandert
+    ``chat2_chat_s1 -> chat6_meldung -> chat5_umfrage -> chat4a_glocke`` — der Kopf wandert
     nach vorn, die Aussage „Melde-Tabelle hinter chat2“ bleibt wahr."""
     skripte = _skripte()
     heads = skripte.get_heads()
-    assert heads == ["chat5_umfrage"], f"Kopf(e): {heads}"
+    assert heads == ["chat4a_glocke"], f"Kopf(e): {heads}"
     revision = skripte.get_revision("chat6_meldung")
     assert revision is not None
     assert revision.down_revision == "chat2_chat_s1", revision.down_revision

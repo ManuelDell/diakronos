@@ -124,7 +124,7 @@ def test_kette_bis_kopf_legt_die_umfrage_tabellen_an(frisch):
 
     # Der EINE Kopf steht in der Versions-Tabelle.
     zeilen = _sql("SELECT version_num FROM alembic_version")
-    assert [z[0] for z in zeilen] == ["chat5_umfrage"], zeilen
+    assert [z[0] for z in zeilen] == ["chat4a_glocke"], zeilen
 
 
 @pg
