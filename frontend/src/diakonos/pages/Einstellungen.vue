@@ -130,6 +130,10 @@ const DATENSICHERUNG = defineAsyncComponent(() => import('./einstellungen/Datens
 // UX2b: Papierkorb — geloeschte Eintraege der letzten 7 Tage zurueckholen.
 // Der Server laesst nur Administration hinein.
 const PAPIERKORB = defineAsyncComponent(() => import('./einstellungen/Papierkorb.vue'))
+// CHAT-8-UI: Aufbewahrungsfristen des Chats (Konzept 4.2, F8). Lesen darf
+// jedes Konto — geaendert wird unter Administration; der Server entscheidet
+// (`chat.fristen_speichern`, sonst 403).
+const FRISTEN = defineAsyncComponent(() => import('./einstellungen/Fristen.vue'))
 // MAIL-1: Mailversand (SMTP-Postfach). Der Server laesst nur System Manager
 // hinein; sichtbar ist der Bereich fuer Administratoren (Komfort).
 const MAILVERSAND = defineAsyncComponent(() => import('./einstellungen/Mailversand.vue'))
@@ -208,6 +212,14 @@ const abschnitte = [
   // geloeschte Daten und ihre Frist.
   { id: 'papierkorb', label: 'Papierkorb', href: '#/einstellungen/papierkorb',
     seite: 'EinstellungenPapierkorb', inhalt: PAPIERKORB, gruppe: 'datenschutz', verwaltung: 'admin' },
+  // CHAT-8-UI (Chat-Konzept 4.2, F8): „Nachrichten aufbewahren“ steht neben
+  // Papierkorb und Datensicherung — beides sind Fristen für vorhandene Daten.
+  // Gelesen wird die Frist von jedem angemeldeten Konto (`chat.fristen_lesen`);
+  // GEÄNDERT wird sie nur von der Administration (`chat.fristen_speichern`,
+  // 403 sonst) — deshalb `verwaltung: 'admin'`, dieselbe Stufe wie die
+  // Nachbarn und keine eigene Rollenprüfung im Abschnitt.
+  { id: 'fristen', label: 'Nachrichten aufbewahren', href: '#/einstellungen/fristen',
+    seite: 'EinstellungenFristen', inhalt: FRISTEN, gruppe: 'datenschutz', verwaltung: 'admin' },
   // CHAT-R2a (Chat-Konzept 10.1 Punkt 5, 10.2): „Personenverwaltung“ steht in
   // der Gruppe „Datenschutz“ — dieselbe Zuständigkeit wie Datenschutz-Texte,
   // Datensicherung und Papierkorb (dort wird über Personendaten entschieden).

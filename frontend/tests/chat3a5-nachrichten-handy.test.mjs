@@ -261,8 +261,10 @@ const STIL = (rel) => {
 // ══ A · Handy: EIN „⋯“-Menü, „＋“ bleibt eigener Knopf ═════════════════════
 
 test('CHAT-3a-5/A: am Handy zeigt die Blase „＋“ und „⋯“ — KEINE einzelnen Aktionsknöpfe', async () => {
+  // CHAT-N3: Die Lage kommt als PROP von der Seite (nicht mehr aus
+  // `matchMedia` in der Blase) — hier wird sie ausdrücklich gesetzt.
   handyAbfrage(true)
-  const s = await blaseMontieren(zeile('N-1', 'Guten Morgen'), { bearbeitbar: false })
+  const s = await blaseMontieren(zeile('N-1', 'Guten Morgen'), { bearbeitbar: false, handyLage: true })
   await warte(6)
   const aktionen = s.host.querySelector('.dk-chat-aktionen')
   assert.ok(aktionen, 'die Aktionszeile steht im Beitrag')
@@ -291,7 +293,7 @@ test('CHAT-3a-5/A: am Handy zeigt die Blase „＋“ und „⋯“ — KEINE ei
 test('CHAT-3a-5/A: das Handy-Menü bietet genau die ERLAUBTEN Aktionen und führt sie aus', async () => {
   handyAbfrage(true)
   // Fremde Nachricht: nur Antworten.
-  let s = await blaseMontieren(zeile('N-1', 'Guten Morgen', { eigene: false }), { bearbeitbar: false })
+  let s = await blaseMontieren(zeile('N-1', 'Guten Morgen', { eigene: false }), { bearbeitbar: false, handyLage: true })
   await warte(6)
   s.host.querySelector('.dk-ui-aktionen-ausloeser').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
   await warte(6)
@@ -309,7 +311,7 @@ test('CHAT-3a-5/A: das Handy-Menü bietet genau die ERLAUBTEN Aktionen und führ
   // gefährlich und abgesetzt am Ende — Entwurf B1).
   s = await blaseMontieren(
     zeile('N-2', 'Hallo Anna', { eigene: true, bearbeitbar: true, am: new Date().toISOString() }),
-    { bearbeitbar: true },
+    { bearbeitbar: true, handyLage: true },
   )
   await warte(6)
   s.host.querySelector('.dk-ui-aktionen-ausloeser').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))

@@ -130,7 +130,7 @@ export const FUSS_EINTRAEGE = [
     // geworden. Die Seitenleiste liest `badge: 'anfragen'` (AppSidebar,
     // `badgeFuer`), die Handy-Leiste/Schublade zeigt dieselbe Zahl am selben
     // Eintrag — eine Quelle, eine Abfrage (`useVerwaltung.js`).
-    { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus', 'EinstellungenPapierkorb', 'EinstellungenWebsite', 'EinstellungenGestaltung',
+    { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus', 'EinstellungenPapierkorb', 'EinstellungenFristen', 'EinstellungenWebsite', 'EinstellungenGestaltung',
         // CHAT-R2a: der umgezogene Personenbereich ist ein Abschnitt der
         // Einstellungen (Gruppe „Datenschutz“, eigene Adresse
         // `#/einstellungen/personenverwaltung`) — die Seitenleiste markiert

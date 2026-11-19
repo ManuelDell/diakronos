@@ -854,3 +854,27 @@ tests/chat3a5-nachrichten-handy.test.mjs
 # components/chat/umfrage.mjs (DOM-frei), beide Komponenten und die Seite
 # gemountet geprüft.
 tests/chat5-umfrage-ui.test.mjs
+# CHAT-8-UI: Einstellungen › „Nachrichten aufbewahren“ (Aufbewahrungsfristen
+# des Chats, Konzept 4.2 / F8). Geprüft werden die Regeln
+# (pages/einstellungen/fristen.mjs, DOM-frei: Serverantwort lesen — gespeichert,
+# Standard, minimum…maximum, feste Fristen; Eingabe prüfen; der Satz beim
+# Verkürzen; keine erfundene Zahl ohne Feld) und die Seite gemountet mit
+# echter apiCall-Attrappe: Laden zeigt Werte/Standard/feste Fristen, die
+# Grenzen stehen am Feld, Speichern schickt BEIDE Felder an
+# chat.fristen_speichern, ein ungültiger Wert geht nicht hinaus, die Warnung
+# erscheint NUR beim Verkürzen (mit Rückfrage davor), ein 403 bleibt ruhig.
+# Sichtbarkeit: Abschnitt `verwaltung: 'admin'`, Adresse im Router, Admin-
+# Wächter, Stichworte/Felder der Einstellungen-Suche — KEINE eigene
+# Rollenprüfung im Abschnitt.
+tests/chat8-fristen-ui.test.mjs
+# CHAT-N3: die Handy-Lage EINMAL statt je Blase (Befund: 200 Nachrichten →
+# 200 matchMedia-/resize-Beobachter). pages/Nachrichten.vue fragt
+# `useHandyLage()` genau einmal und gibt `istHandyLage` als Prop `handyLage`
+# (Boolean, default false) an jede chat/ChatBlase.vue; die Blase importiert
+# das Composable nicht mehr und beobachtet kein Fenster (gemountet geprüft:
+# mit der Prop erscheint das „⋯“-Menü, ohne sie die Aktionszeile — wie
+# vorher, nur aus der Seite gespeist; Umschalten der Prop zur Laufzeit
+# rendert die Blase um). Kein Quelltext-Muster als Beweis, wo sich
+# Verhalten mounten lässt; Quelltext-Prüfungen lesen den Code OHNE
+# Kommentare (die Kommentare nennen den Umbau).
+tests/chatn3-handylage-prop.test.mjs

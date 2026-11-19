@@ -89,7 +89,9 @@ test('UX3h: jeder Bereich der Seite hat genau eine der fünf Gruppen', () => {
   // ANGEPASST (CHAT-R2a, Chat-Konzept 10.1 Punkt 5): „Personenverwaltung“ ist
   // als zwölfter Abschnitt hinzugekommen (Gruppe „Datenschutz“) — nicht
   // gelöscht, sondern um den neuen Bereich fortgeschrieben.
-  assert.equal(BEREICHE.length, 12,
+  // ANGEPASST (CHAT-8-UI, Chat-Konzept 4.2/F8): „Nachrichten aufbewahren“ ist
+  // als dreizehnter Abschnitt hinzugekommen (ebenfalls „Datenschutz“).
+  assert.equal(BEREICHE.length, 13,
     'Bereiche der Seite nicht erkannt (' + BEREICHE.length + ') — Muster geändert?')
   const ids = new Set(GRUPPEN.map((g) => g.id))
   const falsch = BEREICHE.filter((b) => !ids.has(b.gruppe))
@@ -114,8 +116,10 @@ test('UX3h: Gruppen tragen 1–9 Einträge (Prinzip N3), keine ist leer', () => 
   assert.deepEqual(zuordnung.kommunikation, ['mailversand'])
   // CHAT-R2a: die umgezogene Personenverwaltung steht bei „Datenschutz“ —
   // dieselbe Zuständigkeit wie Datenschutz-Texte, Datensicherung, Papierkorb.
+  // CHAT-8-UI: „Nachrichten aufbewahren“ steht bei den Fristen für vorhandene
+  // Daten (Datenschutz-Texte, Datensicherung, Papierkorb).
   assert.deepEqual(zuordnung.datenschutz,
-    ['datenschutz', 'datensicherung', 'papierkorb', 'personenverwaltung'])
+    ['datenschutz', 'datensicherung', 'papierkorb', 'fristen', 'personenverwaltung'])
   assert.deepEqual(zuordnung.erweitert, ['gestaltung', 'dev-modus'])
 })
 
@@ -148,6 +152,9 @@ test('UX3h: jedes Stichwort kommt im Abschnitt wirklich vor (keine erfundenen)',
     // (`pages/Personen.vue`, per `defineAsyncComponent`) — die Stichworte
     // werden gegen genau diese Datei geprüft.
     personenverwaltung: '../Personen.vue',
+    // CHAT-8-UI: der Abschnitt „Nachrichten aufbewahren“ (seine Feldnamen und
+    // Sprungmarken stehen in `Fristen.vue`).
+    fristen: 'Fristen.vue',
   }
   // Beschriftungen, die die Suche selbst setzt (Gruppentitel, eigene Wörter)
   // gelten ebenfalls als „kommt vor“ — sonst wäre der Wächter zahnlos.
@@ -172,6 +179,9 @@ test('UX3h: jedes Suchfeld (FELDER) steht wirklich im Abschnitt — Name und Spr
     registrierung: 'Registrierung.vue', mailversand: 'Mailversand.vue',
     datenschutz: 'DatenschutzTexte.vue', datensicherung: 'Datensicherung.vue',
     gestaltung: 'Gestaltung.vue',
+    // CHAT-8-UI: „Gruppengespräche“/„Direktnachrichten und Runden“ stehen dort
+    // als Feldbeschriftung, die Sprungmarken als `anker="gruppe"`/`"direkt"`.
+    fristen: 'Fristen.vue',
   }
   // Die Gestaltung hat KEINE Feldbeschriftungen mit festen Namen (die Maße
   // kommen aus dem Server) — ihre Suchziele sind die Gruppenüberschriften,

@@ -50,6 +50,7 @@ export const GRUPPEN = [
  *   datenschutz   DatenschutzTexte.vue — Einwilligung, Erklärung, Aufbewahrung
  *   datensicherung Datensicherung.vue — Sicherungen, Uhrzeit, Aufbewahrung
  *   papierkorb    Papierkorb.vue   — gelöschte Einträge zurückholen
+ *   fristen       Fristen.vue      — Aufbewahrung der Chat-Nachrichten (Fristen)
  *   gestaltung    Gestaltung.vue   — Abstände, Rahmen, Rundungen
  *   dev-modus     DevModus.vue     — Demo-Daten, Befunde, Werkzeuge
  */
@@ -71,6 +72,11 @@ export const STICHWORTE = {
   datensicherung: ['Datensicherung', 'Sicherung', 'Backup', 'Automatisch sichern',
     'Uhrzeit', 'Aufbewahrung', 'Wiederherstellen'],
   papierkorb: ['Papierkorb', 'gelöscht', 'zurückholen', 'Wiederherstellen'],
+  // CHAT-8-UI: der Abschnitt „Nachrichten aufbewahren“. Die Stichworte sind
+  // seine Überschriften und Feldnamen (`pages/einstellungen/Fristen.vue`):
+  // zwei Fristen, der Standard, der Rücksetz-Knopf, die festen Fristen.
+  fristen: ['Nachrichten aufbewahren', 'Aufbewahrung', 'Fristen', 'Frist', 'Monate',
+    'Gruppengespräche', 'Direktnachrichten', 'Runden', 'Standard', 'Chat', 'Nachrichten'],
   // CHAT-R2a: der umgezogene Personenbereich (Chat-Konzept 10.1 Punkt 5). Die
   // Stichworte sind die seiner bestehenden Seite (`pages/Personen.vue`): die
   // vier Reiter und die Werkzeuge der Liste — nichts davon ist erfunden.
@@ -134,6 +140,14 @@ export const FELDER = {
       stichworte: ['Erklärung', 'DSGVO'] },
     { id: 'aufbewahrung', label: 'Hinweis zur Aufbewahrung', stichworte: ['Aufbewahrung'] },
     { id: 'veroeffentlichung', label: 'Veröffentlichung', stichworte: ['veröffentlichen'] },
+  ],
+  // Die Beschriftungen sind die der Seite (`Fristen.vue`, Feldtitel). Die
+  // Sprungmarken setzt der Abschnitt selbst: `anker="gruppe"`/`"direkt"`.
+  fristen: [
+    { id: 'gruppe', label: 'Gruppengespräche',
+      stichworte: ['Fristen', 'Aufbewahrung', 'Chat', 'Gruppe', 'Monate'] },
+    { id: 'direkt', label: 'Direktnachrichten',
+      stichworte: ['Fristen', 'Aufbewahrung', 'Chat', 'Direktnachricht', 'Runden', 'Monate'] },
   ],
   datensicherung: [
     { id: 'automatisch', label: 'Täglich automatisch sichern', stichworte: ['Automatik'] },

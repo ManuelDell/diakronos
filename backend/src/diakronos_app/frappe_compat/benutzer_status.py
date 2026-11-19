@@ -177,7 +177,31 @@ def _aus_db(name: str) -> bool:
 
 
 def _kontozustand() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Zuordnung aus derselben Aufruf-Transaktion lesen (auch Import-Batches)."""
+    """Zuordnung aus derselben Aufruf-Transaktion lesen (auch Import-Batches).
+
+    Je Aufruf EINMAL gelesen (Rechte-Merker ``rechte.kern._gemerkt``): die
+    Frage stellt jede Rechtefrage (``get_roles`` -> ``mitglied_ausgeschlossen``),
+    vorher las z. B. ``chat.meine_gespraeche`` ~44 Mal ganz Mitglied+User.
+    Veraltet kann die Antwort nicht werden: der Merker wird nach JEDEM Flush
+    und jedem DML geleert (``db._rechte_merker_*``), und solange die Sitzung
+    des Aufrufs noch UNGEFLUSHTE Aenderungen traegt, wird gar nicht gemerkt
+    (sonst ueberspraenge der Treffer den Autoflush der Abfrage — „Ausschluss
+    setzen und sofort pruefen“ saehe den alten Stand).
+    """
+    from diakronos_app import db as _db
+    from diakronos_app.rechte.kern import _gemerkt
+
+    offen = _db.aktuelle_sitzung.get()
+    if offen is not None and (offen.new or offen.dirty or offen.deleted):
+        return _kontozustand_lesen()
+    mitglieder, konten = _gemerkt(("kontozustand",), _kontozustand_lesen)
+    # Kopien herausgeben: ein Aufrufer, der Zeilen veraendert, darf den
+    # Merker nicht veraendern.
+    return [dict(m) for m in mitglieder], [dict(k) for k in konten]
+
+
+def _kontozustand_lesen() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Ungemerkter Volllauf ueber ``Mitglied``/``User`` (siehe ``_kontozustand``)."""
     from sqlalchemy import select
 
     from diakronos_app.db import lesesitzung
@@ -271,13 +295,10 @@ def _mitglied_ausgeschlossen(user: str) -> bool:
 
     K2 (R-P1-8e, bekannte Grenze): Diese Frage wird in heissen Pfaden gestellt
     (`get_roles` ruft sie je Aufruf), und der Zustand ist ein Volllauf ueber
-    `Mitglied`/`User`. Ein Merker waere hier FALSCH: derselbe Aufrufkontext
-    darf innerhalb einer Anfrage/Transaktion denselben Datensatz aendern
-    (Ausschluss setzen und sofort pruefen) — ein Cache je Anfrage gaebe dann
-    einen veralteten Wert zurueck und braeche die Zusage „im Zweifel
-    verweigern“. Deshalb bleibt die Frage ungecacht; die Optimierung waere
-    eine eigene, sorgfaeltig abzusichernde Aenderung an der Cacheschicht
-    (`ist_aktiv`-Muster mit Invalidierung bei jedem Schreibweg).
+    `Mitglied`/`User`. Gemerkt wird nur der ZUSTAND (``_kontozustand``) und
+    nur so, dass „Ausschluss setzen und sofort pruefen“ den neuen Stand sieht:
+    Leeren nach jedem Flush/DML, kein Merken bei ungeflushten Aenderungen
+    (Operator, 19.11.2026; Tests in test_rechte_kontozustand_merker.py).
     """
     mitglieder, konten = _kontozustand()
     return user in _ausgeschlossene_konten(mitglieder, konten)

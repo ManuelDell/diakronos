@@ -174,10 +174,14 @@
               <ul v-else class="dk-chat-verlaufsliste">
                 <template v-for="(n, i) in nachrichtenMitTag" :key="n.ident">
                   <li v-if="n.tag" class="dk-chat-tag"><span>{{ n.tag }}</span></li>
+                  <!-- CHAT-N3: Die Handy-Lage fragt die SEITE einmal
+                       (`useHandyLage()`), die Blase bekommt sie als Prop —
+                       nicht 200 Beobachter für 200 Nachrichten. -->
                   <ChatBlase
                     :nachricht="n"
                     :direkt="istOffenesDirekt"
                     :folge-start="folgeStart(i)"
+                    :handy-lage="istHandyLage"
                     @reaktion="reaktionSetzen"
                     @antworten="antworten"
                     @bearbeiten="bearbeitenOeffnen"

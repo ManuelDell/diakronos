@@ -93,6 +93,8 @@ const pages = {
     EinstellungenDatenschutz: () => import('./pages/Einstellungen.vue'),
     EinstellungenDatensicherung: () => import('./pages/Einstellungen.vue'),
     EinstellungenPapierkorb: () => import('./pages/Einstellungen.vue'),
+    // CHAT-8-UI: Einstellungs-Abschnitt „Nachrichten aufbewahren“ (Fristen).
+    EinstellungenFristen: () => import('./pages/Einstellungen.vue'),
     EinstellungenMailversand: () => import('./pages/Einstellungen.vue'),
     // WEB-3: Einstellungs-Abschnitt „Website (Primo)“.
     EinstellungenWebsite: () => import('./pages/Einstellungen.vue'),
@@ -231,6 +233,9 @@ const routeMap = {
     // MAIL-1: eigenes Postfach fuer den Mailversand (nur System Manager — Server prueft).
     // UX2b: Papierkorb (nur Administration — der Server prueft die Rolle).
     '#/einstellungen/papierkorb': 'EinstellungenPapierkorb',
+    // CHAT-8-UI: Aufbewahrungsfristen des Chats (Schreiben nur Administration —
+    // der Server prueft `chat.fristen_speichern` und antwortet sonst mit 403).
+    '#/einstellungen/fristen': 'EinstellungenFristen',
     '#/einstellungen/mailversand': 'EinstellungenMailversand',
     // WEB-3: Zustand der Primo-Anbindung + Kurzanleitung.
     '#/einstellungen/website': 'EinstellungenWebsite',
@@ -783,6 +788,11 @@ const ADMIN_ONLY_PAGES = new Set([
     'EinstellungenDatenschutz',
     // UX2b: Papierkorb — der Server nimmt nur den Administrator an.
     'EinstellungenPapierkorb',
+    // CHAT-8-UI: Aufbewahrungsfristen des Chats — GELESEN von allen
+    // (`chat.fristen_lesen`), GEÄNDERT nur von der Administration
+    // (`chat.fristen_speichern` prüft `rechte.ist_admin`, sonst 403). Wie bei
+    // den übrigen Schreib-Abschnitten hängt der Bereich deshalb an `admin`.
+    'EinstellungenFristen',
     // ON-3: der Einrichtungs-Assistent ist Verwaltungsarbeit — der Server
     // weist Nicht-Admins ohnehin mit 403 ab.
     'Einrichtung',

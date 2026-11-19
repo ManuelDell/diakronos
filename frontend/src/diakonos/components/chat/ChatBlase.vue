@@ -190,7 +190,6 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import DkButton from '../ui/DkButton.vue'
 import DkAktionen from '../ui/DkAktionen.vue'
 import { initialen as initialenAus } from '../../composables/anzeigename.mjs'
-import { useHandyLage } from '../../composables/handyLage.mjs'
 import { innerhalbFrist, lesestandText } from '../../composables/nachrichtenLogik.mjs'
 import { reaktionsAuswahl, reaktionsZeile } from '../../composables/nachrichtenReaktionen.mjs'
 
@@ -207,6 +206,16 @@ const props = defineProps({
    * durch und rät sie NICHT aus der Nachricht.
    */
   direkt: { type: Boolean, default: false },
+  /**
+   * Handy-Lage — kommt von der SEITE als Prop (CHAT-N3).
+   *
+   * Vorher rief JEDE Blase `useHandyLage()` selbst auf: bei 200 Nachrichten
+   * hingen 200 `matchMedia`-Beobachter und 200 `resize`-Horcher am Fenster.
+   * `Nachrichten.vue` fragt die Lage EINMAL und reicht sie hier herein; die
+   * Blase entscheidet nur noch, WAS sie zeigt (Menü oder Symbolknöpfe), und
+   * beobachtet selbst nichts. Ohne Angabe gilt Desktop (`false`).
+   */
+  handyLage: { type: Boolean, default: false },
 })
 const emit = defineEmits(['reaktion', 'antworten', 'bearbeiten', 'loeschen'])
 
@@ -220,15 +229,16 @@ const lesestand = computed(() => lesestandText(props.nachricht, { direkt: props.
 const zeigeAvatar = computed(() => props.nachricht.eigene !== true && props.folgeStart !== false)
 
 /**
- * CHAT-3a-5 (A): Handy-Lage — EINE Quelle (`useHandyLage()`), dieselbe
- * Zeichenkette, die `App.vue` zur Klasse `.dk-app--handy` macht.
+ * CHAT-3a-5 (A), CHAT-N3: Handy-Lage — EINE Quelle, aber nicht mehr hier.
  *
  * Vorher entschied nur CSS über die Aktionszeile; für ein „⋯“-Menü genügt das
  * nicht: dann stünden am Handy ZWEI Sätze Aktionen im DOM (Knöpfe und Menü).
  * Die Komponente wählt deshalb selbst — am Handy Menü + „＋“, am Desktop die
- * drei Symbolknöpfe wie bisher.
+ * drei Symbolknöpfe wie bisher. Die LAGE kommt seit CHAT-N3 als Prop von der
+ * Seite (`Nachrichten.vue` fragt `useHandyLage()` genau einmal); die Blase
+ * hängt keine eigenen Beobachter ans Fenster.
  */
-const { istHandyLage: handyLage } = useHandyLage()
+const handyLage = computed(() => props.handyLage === true)
 
 /**
  * Bearbeitbar zur ANZEIGEZEIT prüfen (Review R1).
