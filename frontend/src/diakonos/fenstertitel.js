@@ -32,6 +32,11 @@ export const SEITENTITEL_NICHT_IM_MENUE = {
     LiedgruppeDetail: 'Liedgruppe',
     Adressbuch: 'Adressbuch',
     MitgliedDetail: 'Mitglied',
+    // CHAT-3c (Review R1, SOLL e): Der Such-Zustand ist ein ZUSTAND der Seite
+    // „Nachrichten“, kein eigener Routenname. Die Beschriftung „Suche“ kommt
+    // deshalb aus dem Routenmuster (`titel: 'Suche'` in `router.js`) — hier
+    // steht nur der Rückfall, wenn der Titel ohne Muster gesetzt wird.
+    NachrichtenSuche: 'Suche',
     // CHAT-R2a-2 (Punkt c): Der Personenbereich ist ein Abschnitt der
     // Einstellungen (Chat-Konzept 10.1 Punkt 5, 10.2). Alle Personen-Reiter
     // tragen deshalb denselben Fenstertitel „Personenverwaltung“ — sie stehen
@@ -122,13 +127,19 @@ function schreibeTitel(titel) {
  * Kennt das Menü die Seite noch nicht, wird zuerst der bekannte Titel gesetzt
  * und nach dem Nachladen der Menüzettel nachgezogen (nur wenn der Titel
  * inzwischen nicht schon von einer anderen Seite gesetzt wurde).
+ *
+ * CHAT-3c (Review R1, SOLL e): `titel` überschreibt die Beschriftung aus dem
+ * Menü — für Zustände einer Seite, die im Menü nicht stehen (die Suche in
+ * „Nachrichten“). Der Router reicht ihn für `#/nachrichten/suche` durch.
  */
-export function setzeFenstertitel(pageName, win) {
+export function setzeFenstertitel(pageName, win, { titel: eigenerTitel = '' } = {}) {
     const w = win || (typeof window !== 'undefined' ? window : null)
+    const seite = String(eigenerTitel || '')
     let titel
     try {
-        titel = baueTitel(pageName, null, w)
+        titel = seite ? `${seite} – ${gemeindeName(w)}` : baueTitel(pageName, null, w)
         schreibeTitel(titel)
+        if (seite) return
     } catch (err) {
         console.warn('Fenstertitel konnte nicht gesetzt werden:', err)
         return

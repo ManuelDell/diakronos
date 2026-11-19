@@ -788,3 +788,19 @@ tests/chat3a-*.test.mjs
 # Untergruppe, Liste hebt das offene Gespraech hervor (is-aktiv/aria-current),
 # mitteilungSenden(null) setzt den Zaehler nicht auf 0, Bearbeiten-Takt endet.
 tests/chat3a3-nachrichten-nacharbeit.test.mjs
+# CHAT-3c: Personensuche in „Nachrichten" (Chat-Konzept 10.1 Punkte 2–4, 10.3).
+# EIN Suchfeld „Personen und Gespräche suchen": Gespräche clientseitig nach
+# Titel gefiltert, Personen über chat.personen_suchen ab 2 Zeichen, entprellt
+# (300 ms), veraltete Antworten verworfen, Fehler mit „Erneut versuchen".
+# Personen OHNE Konto stehen da, sind aber NICHT antippbar (kein Link,
+# aria-disabled, „hat kein Konto"); mit Konto führt der Tipp aufs Profil
+# (#/mitglied/<id>); Gesprächstreffer öffnen den Verlauf. Adresse
+# #/nachrichten/suche?q=…&offen=<kennung> (Zurück schließt die Suche, Leeren
+# führt ins offene Gespräch zurück), Suchfeld EINMAL im DOM. CHAT-3c-2: Treffer
+# sind normale Links (der Test wartet auf `hashchange`), das offene Gespräch
+# bleibt während der Suche stehen (Titel, Zeilen, Takt, Senden hängen an der
+# EINEN Kennung), Aufbau mit Suchadresse behält Suche UND Gespräch, `offen`
+# gilt nur für ein eigenes Gespräch. Logik in composables/nachrichtenSuche.mjs
+# (DOM-frei), Komponente chat/ChatSuche.vue und Seite pages/Nachrichten.vue
+# gemountet geprüft.
+tests/chat3c-personensuche.test.mjs

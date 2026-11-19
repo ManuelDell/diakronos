@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **2317**
-* eindeutige Funktionen: **413**
-* lesend: **183**, schreibend: **230**
-* Rumpfbefund: schreibend 220, lesend 193, unbekannt 0
+* registrierte Pfade: **2323**
+* eindeutige Funktionen: **414**
+* lesend: **183**, schreibend: **231**
+* Rumpfbefund: schreibend 221, lesend 193, unbekannt 0
 
 ## Einstufung
 
@@ -29,6 +29,7 @@ mit Modulbezug, SEC-11c/R1). Der Name ist Hinweis, nicht Urteil.
 
 | Funktion | Methoden | Rumpf | Name | Deklariert | Grund |
 |---|---|---|---|---|---|
+| `diakronos_app.api.chat.direkt_oeffnen` | ['POST'] | schreibend | lesend | schreibend | Aufruf s.flush() |
 | `diakronos_app.api.kronos.google_import.get_oauth_url` | ['POST'] | schreibend | lesend | schreibend | Aufruf _state_store.set() |
 
 Entschieden ohne Ausnahme (Quellen einig, die Grenze traegt die Deklaration — keine offene Frage):
@@ -91,6 +92,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.bugreport.melden` | ['POST'] | nein |
 | `diakronos_app.api.bugreport.set_status` | ['POST'] | nein |
 | `diakronos_app.api.chat.aendern` | ['POST'] | nein |
+| `diakronos_app.api.chat.direkt_oeffnen` | ['POST'] | nein |
 | `diakronos_app.api.chat.fristen_speichern` | ['POST'] | nein |
 | `diakronos_app.api.chat.gespraech_anlegen` | ['POST'] | nein |
 | `diakronos_app.api.chat.lesestand_setzen` | ['POST'] | nein |

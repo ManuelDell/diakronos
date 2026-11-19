@@ -5,13 +5,15 @@
        (eine Ebene, kein Seitenbaum; Zurück führt zur Liste). -->
   <div class="dk-screen dk-screen-wide dk-screen-enter dk-chat">
     <DkPageHeader
-      :title="kennung ? titel : 'Nachrichten'"
+      :title="seiteTitel"
       :sub="unterzeile"
       :krumen="krumen"
     >
       <template #actions>
+        <!-- CHAT-3c-2: hängt an der EINEN Kennung (`offeneKennung`), damit
+             „Stumm“ auch während der Suche das sichtbare Gespräch meint. -->
         <DkButton
-          v-if="kennung && offenesGespraech"
+          v-if="offeneKennung && offenesGespraech"
           variant="secondary"
           size="sm"
           @click="stummUmschalten"
@@ -37,26 +39,49 @@
 
       <div v-else class="dk-chat-bereich">
         <!-- ── Liste ──────────────────────────────────────────────────── -->
-        <div class="dk-chat-liste-spalte" :class="{ 'nur-handy-aus': Boolean(kennung) }">
+        <!-- CHAT-3c-2 (SOLL 4): Am Handy ist die jeweils andere Spalte
+             ausgeblendet. Läuft die Suche, ist die TREFFERFLÄCHE die sichtbare
+             Spalte — also NICHT diese Spalte ausblenden, sondern den Verlauf
+             (`nur-handy-aus` an der Verlaufsspalte). Am Desktop (zweispaltig)
+             stehen ohnehin beide da. -->
+        <div
+          class="dk-chat-liste-spalte"
+          :class="{ 'nur-handy-aus': Boolean(kennung) }"
+        >
           <DkSkelett v-if="skelettSichtbar" form="zeilen" :anzahl="5" text="Gespräche werden geladen …" />
-          <DkEmpty
-            v-else-if="!gruppen.length"
-            icon="✉"
-            :title="LISTE_LEER.titel"
-            :text="LISTE_LEER.text"
-          />
-          <ChatListe
-            v-else
-            :gruppen="gruppen"
-            :aktiv="kennung"
-            :ungelesen="ungelesen"
-          />
+          <template v-else>
+            <!-- CHAT-3c: EIN Suchfeld, zwei Trefferarten. Ist die Suche offen
+                 (`#/nachrichten/suche?q=…`), ersetzt ihre Trefferfläche die
+                 Liste; „Zurück“/Leeren schließt sie. Ein Treffer ist ein
+                 normaler Link — der Browser springt, der Router folgt
+                 (CHAT-3c-2, MUSS A). -->
+            <ChatSuche
+              ref="sucheEl"
+              :gespraeche="gespraeche"
+              :start-begriff="suchBegriff"
+              @sucht="begriffGeaendert"
+            />
+            <template v-if="!sucheOffen">
+              <DkEmpty
+                v-if="!gruppen.length"
+                icon="✉"
+                :title="LISTE_LEER.titel"
+                :text="LISTE_LEER.text"
+              />
+              <ChatListe
+                v-else
+                :gruppen="gruppen"
+                :aktiv="kennung"
+                :ungelesen="ungelesen"
+              />
+            </template>
+          </template>
         </div>
 
         <!-- ── Verlauf ────────────────────────────────────────────────── -->
-        <div class="dk-chat-verlauf-spalte" :class="{ 'nur-handy-aus': !kennung }">
+        <div class="dk-chat-verlauf-spalte" :class="{ 'nur-handy-aus': !offeneKennung || sucheOffen }">
           <!-- Leerzustand der rechten Seite (Desktop, kein Gespräch offen). -->
-          <div v-if="!kennung" class="dk-chat-nichts">
+          <div v-if="!offeneKennung" class="dk-chat-nichts">
             <DkEmpty
               icon="💬"
               title="Wähle ein Gespräch"
@@ -65,9 +90,12 @@
           </div>
 
           <div v-else class="dk-chat-verlauf">
-            <!-- Kopf des offenen Gesprächs: zurück (nur Handy), Titel, Zähler. -->
+            <!-- Kopf des offenen Gesprächs: zurück (nur Handy), Titel, Zähler.
+                 Am Handy führt „zurück“ in die Liste zurück; überdeckt die
+                 Suche das Gespräch (einspaltig), ist sie der Weg zu ihr
+                 (CHAT-3c-2, SOLL 4). Ein normaler Link. -->
             <div class="dk-chat-verlauf-kopf">
-              <a class="dk-chat-zurueck" href="#/nachrichten" aria-label="Zurück zur Liste">
+              <a class="dk-chat-zurueck" :href="zurueckZiel" aria-label="Zurück zur Liste">
                 <span aria-hidden="true">‹</span>
               </a>
               <div class="dk-chat-verlauf-titel">
@@ -224,6 +252,7 @@ import {
   lesestandFaellig, mitTagesmarken, pruefeText, seiteEinordnen, taktGeber, tasteImFeld,
   ungelesenSumme, verlaufsZeile, zeilenSchluessel,
 } from '../composables/nachrichtenLogik.mjs'
+import { offenAusHash, qAusHash, suchHash, sucheOffenBei } from '../composables/nachrichtenSuche.mjs'
 import { naechsteReaktion } from '../composables/nachrichtenReaktionen.mjs'
 import DkCard from '../components/ui/DkCard.vue'
 import DkButton from '../components/ui/DkButton.vue'
@@ -233,6 +262,7 @@ import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
 import ChatListe from '../components/chat/ChatListe.vue'
 import ChatBlase from '../components/chat/ChatBlase.vue'
+import ChatSuche from '../components/chat/ChatSuche.vue'
 
 // ── Sitzung und Adresse ────────────────────────────────────────────────────
 
@@ -244,10 +274,65 @@ const modulAn = computed(() => modulChatErlaubt(boot.value))
  *  ist nur der Rückfall, wenn eine Antwort das Feld nicht trägt. */
 const ich = computed(() => String(mitglied.value?.name || ''))
 
-/** Kennung aus der Adresse (`#/nachrichten/<gespraech>`) — folgt dem Router. */
+/** Kennung aus der Adresse (`#/nachrichten/<gespraech>`) — folgt dem Router.
+ *  Während einer Suche ist sie LEER (die Adresse ist dann die Suche); das
+ *  Gespräch rechts kommt dann aus `&offen=` (`offeneKennung`). */
 const kennung = ref(gespraechAusHash(typeof window === 'undefined' ? '' : window.location.hash))
+/** CHAT-3c: Ist die Suche offen (`#/nachrichten/suche?q=…`)? Eine Suchadresse
+ *  OHNE Begriff verhält sich wie die Liste (Review R1, SOLL d). */
+const sucheOffen = ref(sucheOffenBei(typeof window === 'undefined' ? '' : window.location.hash))
+/** Der Begriff der Suche aus der Adresse (leer = Adresse ohne `q`). */
+const suchBegriff = ref(qAusHash(typeof window === 'undefined' ? '' : window.location.hash))
+/** CHAT-3c-2: Das Gespräch, das am Desktop RECHTS offen bleibt, während gesucht
+ *  wird — `&offen=<kennung>` der Suchadresse. Am Handy ist es unsichtbar (eine
+ *  Spalte); „Zurück“ stellt es wieder her.
+ *
+ *  Übernommen wird es NUR, wenn die Kennung in der eigenen Gesprächsliste steht
+ *  (Review R1, SOLL 5): ein Link darf nie ein `gespraech_anlegen` auslösen —
+ *  und ein Ortesschlüssel (Gruppenname) ist keine Kennung. */
+// Noch NICHT gegen die Liste geprüft: die entsteht weiter unten (`gespraeche`)
+// — die Prüfung holt `laden()` direkt nach dem ersten Abruf nach (SOLL 5).
+const offenAusAdresse = ref(offenAusHash(
+  typeof window === 'undefined' ? '' : window.location.hash,
+))
+
+/** Steht diese Kennung in der eigenen Gesprächsliste? (leer, solange sie lädt) */
+function istEigenesGespraech(wert) {
+  const k = String(wert || '').trim()
+  if (!k) return ''
+  return gespraeche.value.some((e) => String(e?.name || '') === k) ? k : ''
+}
+
+/**
+ * `&offen=` aus der Adresse — nur, wenn die Kennung in der eigenen
+ * Gesprächsliste steht (Review R1, SOLL 5): ein Link darf nie ein
+ * `gespraech_anlegen` auslösen, und ein Ortesschlüssel (Gruppenname) ist keine
+ * Kennung. Vor dem Laden der Liste ist die Antwort immer leer; `laden()`
+ * wiederholt die Prüfung, sobald die Liste da ist.
+ */
+function offenMitKennung(wert) {
+  return istEigenesGespraech(wert)
+}
+
+/**
+ * Die EINE Kennung der rechten Spalte (CHAT-3c-2): das offene Gespräch aus der
+ * Adresse ODER das Gespräch hinter der Suche (`&offen=`). Verlauf, Titel,
+ * Stumm, Takt, Senden und Lesestand hängen alle hieran — nicht an `kennung`,
+ * das während einer Suche leer ist. Sonst würde schon das erste getippte
+ * Zeichen das offene Gespräch leeren (Review R1, MUSS 1).
+ */
+const offeneKennung = computed(() => String(kennung.value || offenAusAdresse.value || ''))
+
 function hashGeaendert() {
-  kennung.value = gespraechAusHash(window.location.hash)
+  const hash = typeof window === 'undefined' ? '' : window.location.hash
+  // MUSS 3b: Das Feld (nicht die Adresse) bestimmt, was gesucht wird. Diese
+  // Stelle liest die Adresse nur NACH (Zurück/Vorwärts, neuer Aufbau) — ein
+  // laufendes Tippen schreibt nichts hierher. `sucheOffenBei` verlangt einen
+  // Begriff: `#/nachrichten/suche` ohne `q` ist der Listenmodus (SOLL d).
+  kennung.value = gespraechAusHash(hash)
+  sucheOffen.value = sucheOffenBei(hash)
+  suchBegriff.value = qAusHash(hash)
+  offenAusAdresse.value = offenMitKennung(offenAusHash(hash))
 }
 
 // ── Liste ──────────────────────────────────────────────────────────────────
@@ -278,9 +363,11 @@ const ungelesen = computed(() => ungelesenSumme(gespraeche.value))
  *  schreiben und nichts mehr starten (Review R1, MUSS 3). */
 let aktivSeite = true
 
-/** Die Zeile des offenen Gesprächs (Titel, Teilnehmer, Stumm) aus der Liste. */
+/** Die Zeile des offenen Gesprächs (Titel, Teilnehmer, Stumm) aus der Liste —
+ *  für die EINE Kennung der rechten Spalte (`offeneKennung`), also auch für das
+ *  Gespräch hinter der Suche (`&offen=`). */
 const offenesGespraech = computed(() => {
-  const k = String(kennung.value || '')
+  const k = offeneKennung.value
   if (!k) return null
   return gespraeche.value.find((e) => String(e?.name || '') === k
     || zeilenSchluessel(e) === k) || null
@@ -289,13 +376,168 @@ const titel = computed(() => String(offenesGespraech.value?.titel || 'Gespräch'
 const teilnehmerZahl = computed(() => Number(offenesGespraech.value?.teilnehmer) || 0)
 
 const unterzeile = computed(() => {
+  if (sucheOffen.value) return 'Personen und Gespräche an einem Ort.'
   if (!kennung.value) return 'Alle Gespräche an einem Ort.'
   return teilnehmerZahl.value ? `${teilnehmerZahl.value} im Gespräch` : 'Gruppe und Untergruppe, in denen der Chat an ist.'
 })
 
-const krumen = computed(() => (kennung.value
-  ? [{ text: 'Nachrichten', href: BEREICH }, { text: titel.value }]
-  : []))
+/** Der Titel des Seitenkopfs — offene Suche, offenes Gespräch oder der Bereich. */
+const seiteTitel = computed(() => {
+  if (sucheOffen.value) return 'Suche'
+  return kennung.value ? titel.value : 'Nachrichten'
+})
+
+const krumen = computed(() => {
+  if (sucheOffen.value) return [{ text: 'Nachrichten', href: BEREICH }, { text: 'Suche' }]
+  return kennung.value ? [{ text: 'Nachrichten', href: BEREICH }, { text: titel.value }] : []
+})
+
+// ── Suche (CHAT-3c) ────────────────────────────────────────────────────────
+
+/**
+ * Ziel des „zurück“-Pfeils im Verlaufskopf. Am HANDY ist das der Weg zur
+ * SUCHE, wenn sie offen ist (sie ist dort die eine sichtbare Spalte, der
+ * Verlauf ist ausgeblendet) — sonst die Liste. Am Desktop trägt der Pfeil
+ * ohnehin nicht (er steht nur am Handy im Kopf).
+ */
+const zurueckZiel = computed(() => (sucheOffen.value
+  ? suchHash(suchBegriff.value, offenAusAdresse.value)
+  : BEREICH))
+
+/**
+ * Die Suche trägt ihren Begriff in der Adresse (`#/nachrichten/suche?q=…`).
+ *
+ * Review R1, MUSS 2 — der Verlauf hat GENAU EINEN Eintrag für die Suche:
+ *   * Das ÖFFNEN der Suche legt ihn mit `pushState` an. Danach führt „Zurück“
+ *     auf den Zustand von vorher (Liste oder offenes Gespräch) — vorher stand
+ *     hier `location.replace`, das genau diesen Eintrag überschrieb und
+ *     „Zurück“ aus der Suche herausführte (am Desktop sogar aus dem Verlauf).
+ *   * Weitere Tastendrücke ziehen den Begriff mit `replaceState` nach — kein
+ *     Eintrag je Anschlag.
+ *   * Kein `hashchange` bei beidem: die Seite und die Komponente haben den
+ *     Begriff schon (die Komponente meldet ihn).
+ *
+ * `state.liste` = „der Eintrag darunter ist die Liste“ (die Suche wurde DIREKT
+ * aus der Liste geöffnet). Dann trägt die Adresse kein `&offen=`: „Feld
+ * leeren“ führt auf die Liste. Kam die Suche aus einem offenen Gespräch, trägt
+ * sie `&offen=<kennung>` und weiß damit, wohin „Feld leeren“ zurückführt
+ * (CHAT-3c-2) — auch nach einem neuen Aufbau.
+ *
+ * `ersetzen` = „derselbe Eintrag“ (`replaceState`, kein `hashchange`),
+ * sonst ein neuer (`pushState`). Ohne History-API springt die Adresse wie ein
+ * Link.
+ */
+function adresseSetzen(hash, { ersetzt = true, liste = false } = {}) {
+  if (typeof window === 'undefined') return
+  const ziel = String(hash || BEREICH) || BEREICH
+  // DIESELBE Adresse: nichts zu schreiben (kein zweiter Eintrag, kein
+  // überflüssiges `hashGeaendert`).
+  if (String(window.location.hash || '') === ziel) {
+    if (ersetzt) return
+  }
+  const verlauf = window.history
+  if (verlauf && typeof verlauf.replaceState === 'function') {
+    // Fremden Zustand des Eintrags unberührt lassen — nur `liste` gehört uns.
+    const zustand = { ...(verlauf.state || {}) }
+    if (liste) zustand.liste = true
+    else delete zustand.liste
+    const neuerZustand = Object.keys(zustand).length ? zustand : null
+    if (ersetzt) verlauf.replaceState(neuerZustand, '', ziel)
+    else verlauf.pushState(neuerZustand, '', ziel)
+    // Der Browser feuert bei pushState/replaceState kein `hashchange`; die
+    // Adresse ist trotzdem die Wahrheit — die Seite liest sie sofort nach.
+    hashGeaendert()
+    return
+  }
+  // Ohne History-API (kein Browser): der Sprung, wie ihn ein Link täte.
+  window.location.hash = ziel
+}
+
+/** Steht im aktuellen Verlaufseintrag „der Eintrag darunter ist die Liste“? */
+function eintragIstListe() {
+  if (typeof window === 'undefined') return true
+  const zustand = window.history?.state
+  if (zustand && typeof zustand === 'object' && 'liste' in zustand) return zustand.liste === true
+  // Kein Zustand (fremder Eintrag, frisch geladen): dann lieber EIN Schritt zu
+  // viel im Verlauf („Zurück“ führt auf die Liste) als einer zu wenig — ein
+  // ersetzter Eintrag, der überschrieben wurde, ist nicht mehr erreichbar.
+  // Steht in der Adresse aber ein GESPRÄCH, kann der Eintrag nicht die Liste
+  // sein (er wurde von dort aus geöffnet).
+  return !gespraechAusHash(typeof window === 'undefined' ? '' : window.location.hash)
+}
+
+/** Ist die Suchadresse bereits fertig? (Dann schreibt `begriffGeaendert` nichts.) */
+function bereitsGesetzt(ziel) {
+  return typeof window !== 'undefined' && String(window.location.hash || '') === ziel
+}
+
+/**
+ * Ein Tastendruck in der Suche (oder das Leeren).
+ *
+ * CHAT-3c-2 (Review R1, MUSS 1): Während der Suche hängt die rechte Spalte an
+ * `offeneKennung` — das offene Gespräch bleibt also stehen, egal ob die
+ * Adresse es als `&offen=` trägt oder nicht. Die Adresse trägt es mit, damit
+ * ein Neuladen (F5) dasselbe Bild zeigt; sie zu schreiben ist keine Bedingung
+ * für das Offenbleiben.
+ *
+ * Leeren führt auf das Gespräch zurück, das rechts offen war (Desktop: es ist
+ * sichtbar; Handy: „Zurück“ zeigt es), sonst auf die Liste. Ersetzend — ein
+ * leeres Feld ist kein zweiter Schritt im Verlauf.
+ */
+function begriffGeaendert(begriff) {
+  const begriffText = String(begriff ?? '').trim()
+  if (!begriffText) {
+    if (!sucheOffen.value && !suchBegriff.value && !offenAusAdresse.value) return
+    // Wohin zurück? Das offene Gespräch (Desktop: es stand rechts) oder die
+    // Liste. `kennung` ist der Eintrag, aus dem die Suche kam.
+    const zurueck = String(kennung.value || offeneKennung.value || '')
+    sucheOffen.value = false
+    suchBegriff.value = ''
+    offenAusAdresse.value = ''
+    // Erst schreiben, dann lesen: `hashGeaendert` liest die Adresse nach.
+    adresseSetzen(zurueck ? gespraechHash(zurueck) : BEREICH, { ersetzt: true })
+    return
+  }
+  const offen = offeneKennung.value
+  const ziel = suchHash(begriffText, offen)
+  const schonOffen = sucheOffen.value
+  sucheOffen.value = true
+  suchBegriff.value = begriffText
+  // Dieselbe Suchadresse: nichts zu tun (der Begriff steht schon da).
+  if (bereitsGesetzt(ziel)) return
+  if (!eintragIstListe()) {
+    // Aus einem GESPRÄCH heraus: die Suche bekommt ihren EIGENEN Eintrag und
+    // führt das Gespräch in `&offen=` mit — „Zurück“ führt ins Gespräch.
+    adresseSetzen(ziel, { ersetzt: false })
+    return
+  }
+  // Aus der Liste: EIN Eintrag für den Zustand „Suche“ — der erste Anschlag
+  // hängt ihn an (`push`, `state.liste`), weitere ziehen den Begriff nach
+  // (`replace`) — kein Eintrag je Anschlag.
+  adresseSetzen(ziel, { ersetzt: schonOffen, liste: true })
+}
+
+/**
+ * Zurück/Vorwärts: die Adresse ist die Wahrheit. `hashGeaendert` zieht Suche
+ * und Gespräch nach; der `popstate`-Weg ist auf Desktop und Handy derselbe.
+ */
+function verlaufGeaendert() {
+  hashGeaendert()
+}
+
+/**
+ * Stand von Suche und offenem Gespräch — nur für den Node-Test nachlesbar
+ * (`defineExpose`). Kein Betriebsweg.
+ */
+function sucheStand() {
+  return {
+    offen: sucheOffen.value,
+    begriff: suchBegriff.value,
+    kennung: kennung.value,
+    offenGespraech: offenAusAdresse.value,
+    kennungGesamt: offeneKennung.value,
+  }
+}
 
 /**
  * Die Gesprächsliste holen — die EINE Abfrage von `meine_gespraeche` je Takt
@@ -316,6 +558,11 @@ async function laden({ still = false } = {}) {
     if (!aktivSeite) return false
     gespraeche.value = Array.isArray(antwort?.gespraeche) ? antwort.gespraeche : []
     listeHinweis.value = ''
+    // CHAT-3c-2 (Review R1, SOLL 5): `&offen=` gilt nur für ein eigenes
+    // Gespräch — vor dem Laden der Liste konnte das nicht geprüft werden.
+    offenAusAdresse.value = offenMitKennung(
+      offenAusAdresse.value || offenAusHash(typeof window === 'undefined' ? '' : window.location.hash),
+    )
     // Den Zähler der Handy-Leiste nachziehen — mit DIESER Zahl, kein zweiter
     // Aufruf: die App-Wurzel übernimmt `detail.ungelesen`.
     mitteilungSenden()
@@ -365,6 +612,8 @@ function mitteilungSeite(offen) {
 // ── Verlauf ────────────────────────────────────────────────────────────────
 
 const nachrichten = ref([])
+/** Das Gespräch, dessen Verlauf hier steht (`''` = keiner) — siehe `oeffnen`. */
+const geoeffnet = ref('')
 const verlaufLaedt = ref(false)
 const verlaufFehler = ref('')
 /** Kleiner Hinweis nach einem misslungenen Poll (der Verlauf bleibt stehen). */
@@ -387,12 +636,16 @@ function zuruecksetzen() {
   eingabeFehler.value = ''
   antwortAuf.value = null
   aelterMoeglich.value = false
+  geoeffnet.value = ''
 }
 
 /** Gespräch öffnen: Verlauf holen, Lesestand setzen, Fokus in den Verlauf. */
 async function oeffnen() {
-  const offen = kennung.value
+  const offen = offeneKennung.value
   if (!offen) return
+  // Schon geladen (z. B. das erste Zeichen einer Suche lässt das Gespräch
+  // offen): KEIN zweites Laden, kein zweiter Lesestand (Review R1, MUSS 1).
+  if (offen === geoeffnet.value) return
   zuruecksetzen()
   // Ein Gespräch, das noch nie geöffnet wurde, hat serverseitig KEINE Kennung
   // (`geoeffnet: false`). Hier wird es angelegt (`gespraech_anlegen`, lazy im
@@ -445,7 +698,7 @@ function ungeoeffneteZeile(adresse) {
  */
 async function sicherstellen() {
   const ziel = kennung.value
-  if (!ziel) return false
+  if (!ziel) return true // Suche: das Gespräch rechts ist schon da (`&offen=`)
   if (gespraeche.value.some((e) => String(e?.name || '') === ziel)) return true
   const neu = ungeoeffneteZeile(ziel)
   if (!neu) return true // unbekannte Kennung: der Verlauf meldet „gibt es nicht“
@@ -467,6 +720,14 @@ async function sicherstellen() {
     const aktuell = typeof window === 'undefined' ? '' : String(window.location.hash || '').split('?')[0]
     if (typeof window !== 'undefined' && aktuell !== zielHash) {
       window.location.replace(zielHash)
+      return false // der hashchange-Handler lädt den Verlauf
+    }
+    if (typeof window !== 'undefined' && String(window.location.hash || '') !== zielHash) {
+      // Derselbe Pfad, aber mit Abfrageteil (`#/suche?…&offen=<ort>`): die
+      // Adresse auf die Kennung stellen, BEVOR die Kennung übernommen wird —
+      // sonst liest ein `hashGeaendert` die alten Werte zurück.
+      window.history.replaceState({}, '', zielHash)
+      hashGeaendert()
       return false // der hashchange-Handler lädt den Verlauf
     }
     kennung.value = kennungNeu
@@ -493,13 +754,13 @@ async function sicherstellen() {
  * @returns {boolean} ob geladen wurde (für `lesestandSetzen`)
  */
 async function verlaufLaden({ still = false } = {}) {
-  const offen = kennung.value
+  const offen = offeneKennung.value
   if (!offen) return false
   if (!still) verlaufLaedt.value = true
   let erfolg = false
   try {
     const antwort = await apiGet('chat.verlauf', { gespraech: offen })
-    if (!aktivSeite || offen !== kennung.value) return false // inzwischen anderes Gespräch
+    if (!aktivSeite || offen !== offeneKennung.value) return false // inzwischen anderes Gespräch
     const vorher = nachrichten.value
     const lage = seiteEinordnen(antwort, { alt: vorher, ich: ich.value })
     nachrichten.value = lage.nachrichten
@@ -523,7 +784,7 @@ async function verlaufLaden({ still = false } = {}) {
       if (lage.neuHinzugefuegt > 0) await nachUntenScrollen()
     }
   } catch (fehler) {
-    if (!aktivSeite || offen !== kennung.value) return false
+    if (!aktivSeite || offen !== offeneKennung.value) return false
     if (still) {
       // Ein misslungener Poll behält den letzten guten Verlauf und zeigt nur
       // einen kleinen Hinweis (Review R1).
@@ -535,19 +796,25 @@ async function verlaufLaden({ still = false } = {}) {
   } finally {
     if (!still) verlaufLaedt.value = false
   }
-  return erfolg
+  if (!erfolg) {
+    // Merken nur, wenn der Verlauf wirklich hier steht — ein misslungener
+    // Abruf darf ein späteres Öffnen nicht überspringen.
+    return false
+  }
+  geoeffnet.value = offen
+  return true
 }
 
 /** Nachladen nach OBEN: die Seite VOR der ältesten bekannten Nachricht. */
 async function aeltereLaden() {
-  const offen = kennung.value
+  const offen = offeneKennung.value
   if (!offen || aelterLaedt.value || !nachrichten.value.length) return
   aelterLaedt.value = true
   const anker = nachrichten.value[0].ident
   scrollVorher = verlaufEl.value ? verlaufEl.value.scrollHeight : 0
   try {
     const antwort = await apiGet('chat.verlauf', { gespraech: offen, vor: anker })
-    if (offen !== kennung.value) return
+    if (offen !== offeneKennung.value) return
     const seite = Array.isArray(antwort?.nachrichten) ? antwort.nachrichten : []
     const lage = seiteEinordnen(antwort, { alt: nachrichten.value, ich: ich.value })
     nachrichten.value = lage.nachrichten
@@ -589,7 +856,7 @@ const nachrichtenMitTag = computed(() => mitTagesmarken(nachrichten.value))
  * zweiter Abruf), damit „ungelesen“ sofort stimmt.
  */
 async function lesestandSetzen() {
-  const offen = kennung.value
+  const offen = offeneKennung.value
   if (!offen) return
   try {
     const antwort = await apiCall('chat.lesestand_setzen', { gespraech: offen })
@@ -606,7 +873,7 @@ async function lesestandSetzen() {
 }
 
 async function stummUmschalten() {
-  const offen = kennung.value
+  const offen = offeneKennung.value
   const eintrag = offenesGespraech.value
   if (!offen || !eintrag) return
   const an = eintrag.stumm !== true
@@ -634,7 +901,7 @@ function beimTasten(ereignis) {
 }
 
 async function senden() {
-  const offen = kennung.value
+  const offen = offeneKennung.value
   if (!offen || sendet.value) return
   const pruefung = pruefeText(text.value)
   if (!pruefung.ok) {
@@ -761,7 +1028,10 @@ let fehlschlaege = 0
 async function taktAbruf() {
   if (!aktivSeite || !modulAn.value) return undefined
   let erfolg = await laden({ still: true })
-  if (aktivSeite && erfolg && kennung.value) {
+  // CHAT-3c-2 (Review R1, MUSS 1): der Takt fragt den Verlauf, solange rechts
+  // ein Gespräch offen ist — `offeneKennung`, nicht `kennung` (das ist während
+  // einer Suche leer).
+  if (aktivSeite && erfolg && offeneKennung.value) {
     // CHAT-3a-3/B: OHNE `seit` — die volle neueste Seite (`richtung:
     // 'neueste'`). `seit` trug nur Nachrichten mit späterem Zeitstempel und
     // liess Bearbeitungen, Löschungen, Reaktionen und Lesestände sichtbarer
@@ -786,8 +1056,12 @@ const takt = taktGeber({
 })
 
 /**
- * Stand des Takts — für den Node-Test nachlesbar, ohne etwas zu raten.
- * Kein Betriebsweg.
+ * Stand des Takts und der Suche — für den Node-Test nachlesbar, ohne etwas zu
+ * raten. Kein Betriebsweg.
+ *
+ * CHAT-3c (Review R1): `defineExpose` auf Modulebene wirkt in `<script setup>`
+ * NICHT (es gehört in den Setup-Körper) — die Werte waren von außen nie
+ * erreichbar. Über die laufende Instanz herausgegeben ist es EINE Stelle.
  */
 function taktStand() {
   return {
@@ -798,13 +1072,28 @@ function taktStand() {
     ...takt.stand(),
   }
 }
-defineExpose({ taktStand })
+
+// CHAT-3c-2: `defineExpose` gehört in den Setup-Körper (hier ist er) — die
+// Werte sind damit von außen lesbar, ohne die laufende Instanz zu verbiegen.
+// `taktAbrufen` ruft einen Takt VON HAND ab (nur für den Node-Test: dort
+// steht der Timer nie, „läuft der Takt weiter?“ wäre sonst nicht prüfbar) —
+// mit derselben Sperre wie `takt.jetzt`: kein zweiter Lauf neben einem
+// laufenden, kein Lauf vor Ablauf der Wartezeit.
+defineExpose({
+  taktStand,
+  sucheStand,
+  taktAbrufen: (augenblick) => takt.jetzt(augenblick),
+})
 
 // ── Start und Wechsel ──────────────────────────────────────────────────────
 
 onMounted(async () => {
   aktivSeite = true
   window.addEventListener('hashchange', hashGeaendert)
+  // Review R1, MUSS 2: „Zurück“ und „Vorwärts“ laufen über `popstate` (der
+  // Browser feuert es auch für den Zurück-Weg über einen `pushState`-Eintrag;
+  // `hashchange` kommt bei `pushState`/`replaceState` gar nicht).
+  window.addEventListener('popstate', verlaufGeaendert)
   if (!modulAn.value) return
   // MUSS 4: Die Seite übernimmt den Zähler SOFORT — noch bevor sie ihre Liste
   // geholt hat. Sonst liefe in der Zwischenzeit der Takt der App-Wurzel (er
@@ -817,6 +1106,14 @@ onMounted(async () => {
   // nicht mehr (`onUnmounted` lief bereits), startet er nicht mehr (MUSS 3).
   await laden()
   if (!aktivSeite) return
+  // CHAT-3c-2 (SOLL 2): Die Adresse bleibt, WIE SIE IST. Kam die Seite über
+  // eine Suchadresse (`#/nachrichten/suche?q=bert&offen=CHAT-1` — neu geladen,
+  // geteilter Link, Zurück vom Profil), stehen Suche UND Gespräch schon:
+  // `suchBegriff`/`offenAusAdresse` kommen aus der Adresse, die Treffer sucht
+  // die Komponente beim Aufbau, `oeffnen()` holt den Verlauf von
+  // `offeneKennung`. Nichts wird ersetzt, nichts geschlossen (Review R1:
+  // vorher wurde hier die Adresse auf das Gespräch gestellt und die Suche
+  // fiel weg).
   await oeffnen()
   if (!aktivSeite) return
   takt.starten()
@@ -825,6 +1122,7 @@ onMounted(async () => {
 onUnmounted(() => {
   aktivSeite = false
   window.removeEventListener('hashchange', hashGeaendert)
+  window.removeEventListener('popstate', verlaufGeaendert)
   takt.anhalten()
   // MUSS 4: Zähler wieder an die App-Wurzel zurückgeben (sie übernimmt den
   // letzten bekannten Stand und fragt im eigenen, langen Takt weiter).
@@ -832,16 +1130,47 @@ onUnmounted(() => {
 })
 
 // Gesprächswechsel INNERHALB der Seite (Adresswechsel ohne neuen Aufbau).
-// Ein Wechsel holt das neue Gespräch sofort; der Takt läuft weiter (sein
-// nächster Termin ist ohnehin geplant — kein zweiter Timer).
-watch(kennung, async (neu, alt) => {
-  if (neu === alt || !modulAn.value || !aktivSeite) return
-  fehlschlaege = 0
-  if (!neu) {
-    zuruecksetzen()
+// Die rechte Spalte folgt `offeneKennung`: beginnt eine Suche, bleibt die
+// Kennung dieselbe (das Gespräch aus `kennung` wurde zu `&offen=`) — der
+// Verlauf steht, es wird NICHTS nachgeladen (Review R1, MUSS 1/SOLL 6).
+// Endet sie, tritt das Gespräch aus der Adresse an dieselbe Stelle: ebenfalls
+// dieselbe Kennung, kein zweites Laden, kein zweiter Lesestand (SOLL 3).
+// Nur ein echter Wechsel — anderes Gespräch oder zurück zur Liste — öffnet
+// neu, und auch das nur, wenn der Verlauf hier nicht schon steht (`oeffnen`).
+watch(() => offeneKennung.value, async (neu, alt) => {
+  if (!modulAn.value || !aktivSeite) return
+  if (neu === alt) return
+  if (neu) {
+    fehlschlaege = 0
+    await oeffnen()
     return
   }
-  await oeffnen()
+  fehlschlaege = 0
+  zuruecksetzen()
+})
+
+// CHAT-3c (Review R1, SOLL e): Kommt die Suche über die ADRESSE zurück (Zurück
+// vom Profil — dieselbe Seite bleibt gemountet, die Komponente auch), hat
+// `suchBegriff` den Begriff erneut, während die Komponente ihn in der
+// Zwischenzeit nicht kannte. Sie muss ihn erfahren — ihre Treffer hängen an
+// DIESEM Wert (ihr eigenes Feld blieb unberührt, darum fragt sie nicht neu).
+//
+// CHAT-3c-2: Der Vergleich „schon gemeldet“ läuft gegen das, was die
+// KOMPONENTE zuletzt von hier bekam (`gemeldeterBegriff`) — vorher stand hier
+// ein `zuletztGetippt`, das nie geschrieben wurde (toter Code), der Watcher
+// war also wirkungslos.
+const sucheEl = ref(null)
+/** Der Begriff, den die Komponente zuletzt von hier bekommen hat. */
+let gemeldeterBegriff = ''
+watch(suchBegriff, (neu) => {
+  if (!sucheOffen.value || !neu) return
+  if (neu === gemeldeterBegriff) return
+  // Nur ein Zurück/Vorwärts (oder ein neuer Aufbau) stellt den Begriff wieder
+  // her — kein laufendes Tippen: `begriffGeaendert` hat ihn schon gemeldet.
+  const baustein = sucheEl.value
+  if (!baustein || typeof baustein.begriffSetzen !== 'function') return
+  gemeldeterBegriff = neu
+  baustein.begriffSetzen(neu)
 })
 
 </script>
@@ -1052,7 +1381,12 @@ watch(kennung, async (neu, alt) => {
 
 /* Handy: eine Spalte; die jeweils andere Ansicht ist ausgeblendet. Dieselbe
    Bedingung wie überall (`--layout-mobil`: grober Zeiger und schmal bzw. flaches
-   Querformat) — „Chat ist am Handy nicht anders“, nur eine Ebene tiefer. */
+   Querformat) — „Chat ist am Handy nicht anders“, nur eine Ebene tiefer.
+
+   CHAT-3c-2 (SOLL 4): Während der Suche zeigt die eine Spalte die SUCHFELD-
+   und Trefferfläche — der Verlauf rechts ist dann ausgeblendet (`sucheOffen`
+   an der Verlaufsspalte). „Zurück“ im Verlaufskopf führt erneut zur Suche
+   (`zurueckZiel`), die Seitenleiste führt in die Liste. */
 @media (max-width: 720px) {
   .dk-chat-bereich {
     grid-template-columns: 1fr;

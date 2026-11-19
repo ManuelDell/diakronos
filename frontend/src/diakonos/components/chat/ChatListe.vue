@@ -168,7 +168,7 @@ function vorschau(zeile) {
   padding: var(--sp-3) var(--sp-4) var(--sp-1);
   font-size: var(--fs-12);
   font-weight: var(--fw-fett);
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-klein);
   text-transform: uppercase;
   color: var(--subtle);
 }

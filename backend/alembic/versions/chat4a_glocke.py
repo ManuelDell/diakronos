@@ -100,6 +100,18 @@ def upgrade() -> None:
     else:
         # Zweite Fassung: eine Datenbank mit der ersten Fassung dieser
         # Migration bekommt die neuen Spalten hier nachgezogen.
+        #
+        # BEKANNTE LUECKE (CHAT-4b, Restpunkt c aus dem CHAT-4a-Review): dieser
+        # Zweig baut einen in der ersten Fassung angelegten Fremdschluessel
+        # ``fk_chat_glocke_stand_chat_nachricht`` NICHT auf ``ON DELETE SET
+        # NULL`` um. Bewusst NICHT geaendert: ``chat4a_glocke`` kam in EINEM
+        # Stueck nach main (``down_revision = chat5_umfrage``, der Kopf davor),
+        # es gibt keine Datenbank, die die erste Fassung je gesehen hat — und
+        # ein Umbau des FK (drop + neu) waere auf SQLite gar nicht moeglich
+        # (``backend does not support ALTER``). Sollte wider Erwarten doch eine
+        # Installation mit der alten Spaltenmenge auftauchen, gehoert der Umbau
+        # in eine EIGENE Migration: ``ALTER TABLE … DROP CONSTRAINT`` +
+        # ``ADD CONSTRAINT … ON DELETE SET NULL`` auf PostgreSQL.
         vorhanden = _spalten("chat_glocke")
         if "stand_am" not in vorhanden:
             op.add_column("chat_glocke", sa.Column("stand_am", sa.DateTime(), nullable=True))

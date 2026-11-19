@@ -242,6 +242,8 @@ class Bestand:
 #                   auf die neutrale Kennung umschreiben (ID-1f). Steht auch bei
 #                   `id1_mitglied_kennung`, dort aber nur als Entscheidung — die
 #                   Zeile fällt (s. `ZEILEN_LOESCHEN`), umgeschrieben wird nichts.
+#   "konto_paar"    sortiertes KONTO-Paar (`a<Trenner>b`), kein FK: der Eintrag fällt
+#                   mit dem Konto, das in ihm steht (`_direkt_paare_loesen`)
 #   "protokoll"     Spalte der Person, deren Text die Person nennen kann
 #   "fremd"         Spalte ANDERER Zeilen, in der die Person nur als Text steht
 #
@@ -446,6 +448,15 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
     "chat_gespraech": {
         "angelegt_von": ("user_null", "Konto, das das Gespräch angelegt hat"),
         "titel": ("protokoll", "Titel des Gesprächs kann eine Person nennen"),
+        # CHAT-7a: das sortierte KONTO-Paar eines 1:1-Gesprächs
+        # (`a<Trenner>b`, s. `_direkt_paare_loesen`). Es ist ein technischer Schlüssel, aber er nennt zwei
+        # Konten — und Konten sind Adressen. Er wird eigens geleert, sobald
+        # EINES der beiden Konten verschwindet (`_direkt_paare_loesen`, Schritt
+        # 6e): die Spalte ist kein FK auf `user`, deshalb greift
+        # `_konto_verweise_aufloesen` hier nicht. Der Verlauf bleibt lesbar
+        # (Teilnahme/Nachrichten), ein NEUES Gespräch desselben Paares kann
+        # nicht entstehen (die Person ist nicht mehr erreichbar).
+        "paar_schluessel": ("konto_paar", "Kontenpaar eines 1:1-Gesprächs (wird geleert)"),
     },
     "chat_teilnehmer": {
         # Die Zeile IST die Teilnahme der Person (PK gespraech+benutzer): sie
@@ -528,6 +539,12 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         # Konto, das vorzeitig geschlossen hat. NULL = automatisch zur Frist.
         "geschlossen_von": ("user_null", "Konto, das die Umfrage vorzeitig geschlossen hat"),
         "gespraech": ("struktur", "Kennung des Gesprächs (Fachobjekt)"),
+        # CHAT-4b: ``erinnert_am`` ist ein ZEITSTEMPUNKT der Umfrage, kein
+        # Personenbezug und keine Textspalte (das Inventar führt Textspalten;
+        # Zeitpunkte ohne Inhalt sind dort keine eigene Entscheidung — dieselbe
+        # Regel wie bei ``chat_glocke.stand_am``). Wer erinnert wurde, steht
+        # ausschließlich in der ``Notification Log``-Zeile der Person, und die
+        # hängt an ``for_user`` (DSGVO: Konto-Zeilen fallen mit dem Konto).
     },
     "chat_umfrage_option": {
         # Stimmzettel-Text, kein Personenbezug („Samstag, 18 Uhr“); steht hier,
@@ -1241,6 +1258,10 @@ def anonymisiere(s, mitglied: str, konten, *, dateien: list[str] | None = None) 
 
     # 6) Konto-Verweise aufloesen, dann die Konto-Zeilen loeschen.
     zaehler.update(_konto_verweise_aufloesen(s, b))
+    # 6a) CHAT-7a: das KONTENPAAR eines 1:1-Gesprächs ist kein FK auf `user` —
+    #     der Schritt oben sieht es deshalb nicht. Es wird hier geleert, BEVOR
+    #     die `user`-Zeile fällt (die Liste der Konten steht noch in `b.konten`).
+    zaehler.update(_direkt_paare_loesen(s, b))
 
     # 6b) Spalten OHNE Fremdschlüssel: Bucher (Kennung + Name), Autoren und die
     #     Konto-Mails im JSON des Planrahmens (N-2, R-DSGVO-1b).
@@ -2417,6 +2438,43 @@ def dateien_entfernen(pfade) -> int:
     return entfernt
 
 
+def _direkt_paare_loesen(s, b) -> dict[str, int]:
+    """CHAT-7a: das Kontenpaar eines 1:1-Gesprächs leeren, wenn ein Konto geht.
+
+    ``chat_gespraech.paar_schluessel`` trägt ``kleineres<Trenner>groesseres`` der
+    beiden KONTEN (Konten sind Adressen) — als TEXT, nicht als Fremdschlüssel.
+    Deshalb sieht ``_konto_verweise_aufloesen`` die Spalte nicht. Geleert wird
+    jede Zeile, in der eines der gehenden Konten steht: danach bleibt der
+    VERLAUF lesbar (Teilnahme/Nachrichten), aber das Gespräch trägt keinen
+    Personenbezug über das Konto mehr hinaus. Ein NEUES Gespräch desselben
+    Paares kann nicht entstehen: ``darf_direktnachricht`` verlangt ein aktives
+    Konto, und das gibt es nicht mehr.
+    """
+    if not b.konten:
+        return {}
+    tabelle = _tabelle("chat_gespraech")
+    spalte = tabelle.c.get("paar_schluessel") if tabelle is not None else None
+    if spalte is None:
+        return {}
+    konten = sorted({str(k) for k in b.konten if k})
+    # Derselbe Trenner wie `api.chat.PAAR_TRENNER` (dort definiert, hier bewusst
+    # als Zeichenkette — diese Schicht zeigt nicht auf `api/`).
+    trenner = "\x1f"
+    # KEIN ``LIKE``: Adressen enthalten ``_`` und ``%``, und beide sind im
+    # LIKE-Muster PLATZHALTER. ``max_mueller@…`` traefe sonst auch
+    # ``max.mueller@…`` — ein FREMDES Paar verlöre seinen Schlüssel und ein
+    # zweites Gespräch desselben Paares wäre wieder möglich. ``startswith``/
+    # ``endswith`` mit ``autoescape=True`` maskiert genau diese beiden Zeichen.
+    bedingung = or_(
+        *[spalte.startswith(f"{k}{trenner}", autoescape=True) for k in konten],
+        *[spalte.endswith(f"{trenner}{k}", autoescape=True) for k in konten],
+    )
+    zaehler: dict[str, int] = {}
+    _zaehle(s, zaehler, "chat_gespraech.paar_schluessel",
+            update(tabelle).where(bedingung).values({spalte.key: None}))
+    return zaehler
+
+
 # ── Inventar-Arten → Code ───────────────────────────────────────────────────
 #
 # Jede Art aus `SPALTEN` ist hier einer Funktion zugeordnet, die sie ausführt.
@@ -2434,6 +2492,9 @@ INVENTAR_ARTEN.update({
     "mitglied_platzhalter": _platzhalter_spalten,
     # Konto-Verweise: `_konto_verweise_aufloesen` (FK und Inventar ohne FK).
     "user_null": _konto_verweise_aufloesen,
+    # CHAT-7a: sortiertes Konto-Paar eines Direktgesprächs, kein FK —
+    # `_direkt_paare_loesen` (Schritt 6a).
+    "konto_paar": _direkt_paare_loesen,
     "user_platzhalter": _konto_verweise_aufloesen,
     # Datei der Person: `_dateipfade_sammeln` + `dateien_entfernen`.
     "eigene_datei": _eigene_dateien,

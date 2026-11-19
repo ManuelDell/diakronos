@@ -268,7 +268,10 @@ const dynamicRoutes = [
     // dem allgemeinen Gesprächs-Muster — sonst läse `#/nachrichten/suche` ein
     // Gespräch namens „suche“. Alle drei Adressen tragen denselben Seitennamen.
     // Die Inhalte baut CHAT-3; der Platzhalter liest die Adresse nur.
-    { pattern: /^#\/nachrichten\/suche$/, page: 'Nachrichten' },
+    // CHAT-3c (Review R1, SOLL e): `titel` nennt die Beschriftung des Tabs —
+    // die Suche ist ein ZUSTAND der Seite „Nachrichten“, kein eigener
+    // Routenname. So trägt der Tab nach „Zurück“ vom Profil wieder „Suche“.
+    { pattern: /^#\/nachrichten\/suche$/, page: 'Nachrichten', titel: 'Suche' },
     { pattern: /^#\/nachrichten\/(.+)$/, page: 'Nachrichten', param: 'gespraech' },
     { pattern: /^#\/mitglied\/(.+)$/, page: 'MitgliedDetail', param: 'id' },
     // MT-7: EIN Beitrag ist eine eigene Unterseite (vorher nur ein Fenster).
@@ -577,12 +580,15 @@ async function resolveRoute() {
     // landete auf „Seite nicht gefunden“.
     let pageName = routeMap[pfad]
     let params = {}
+    // CHAT-3c: eine Beschriftung, die das Muster selbst mitbringt (Suche).
+    let routeTitel = ''
     if (!pageName) {
         for (const r of dynamicRoutes) {
             const m = pfad.match(r.pattern)
             if (m) {
                 pageName = r.page
                 params[r.param] = decodeURIComponent(m[1])
+                routeTitel = String(r.titel || '')
                 break
             }
         }
@@ -635,7 +641,12 @@ async function resolveRoute() {
     // OP-UI-22: Fenstertitel sofort mit dem Wechsel setzen (nicht erst, wenn
     // das Nachladen fertig ist — sonst trägt der Tab während des Ladens noch
     // den Titel der Vorgängerseite).
-    setzeFenstertitel(pageName)
+    //
+    // CHAT-3c (Review R1, SOLL e): Die Suche ist ein ZUSTAND von „Nachrichten“
+    // und hat keinen eigenen Routennamen (MUSS „Test D“: das Muster bleibt
+    // `Nachrichten`). Damit der Tab beim Zurück-Weg vom Profil „Suche“ trägt —
+    // wie beim Öffnen der Suche —, nennt das Muster seine Beschriftung selbst.
+    setzeFenstertitel(pageName, undefined, { titel: String(routeTitel || '') })
     const loader = pages[pageName] || pages.Home
     // OP-HANDY-24: Bei langsamem Netz stand die alte Seite still da, ohne dass
     // erkennbar war, dass schon gewechselt wird. `seitenLadend` blendet den

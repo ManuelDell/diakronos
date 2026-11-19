@@ -303,9 +303,12 @@ def test_nicht_freigegebenes_feld_fehlt_ganz(welt):
                  "adressbuch_sichtbarkeit", "datenschutz_einwilligung",
                  "status", "user", "vorname", "nachname"):
         assert feld not in t, f"{feld} darf im Treffer nicht stehen: {t}"
-    # Die Pflichtfelder sind trotzdem da.
+    # Die Pflichtfelder sind trotzdem da — seit CHAT-7a zusätzlich ``gespraech``
+    # (Kennung des bestehenden 1:1-Gesprächs, hier ``None``); es ist KEIN
+    # Kontaktfeld und verrät nichts über die Person.
     assert set(t) == {"mitglied", "anzeigename", "bild", "hat_konto",
-                      "darf_schreiben"}
+                      "darf_schreiben", "gespraech"}
+    assert t["gespraech"] is None
 
 
 def test_freigegebenes_feld_kommt_mit_wert(welt):

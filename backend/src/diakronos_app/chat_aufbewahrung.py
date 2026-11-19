@@ -186,7 +186,12 @@ FRIST_UMFRAGE_MONATE = 6     # Stimmenzeilen (offen) nach Schliessung
 MELDUNG_FRIST_MONATE = 12    # Meldungen nach Abschluss
 
 #: Die Chat-Ziele, auf die eine Glocke zeigen kann (``Notification Log``).
-GLOCKE_DOKUMENTTYPEN = ("chat_gespraech", "chat_nachricht", "chat_meldung")
+#: CHAT-4b: ``chat_umfrage`` gehört dazu — die Umfrage-Glocken
+#: („Neue Umfrage im …“, „… endet morgen“) hängen an der UMFRAGE. Ohne diesen
+#: Eintrag blieben sie stehen, nachdem das Gespräch gelöscht wurde, und
+#: führten in keinen Verlauf mehr (Review R1/5).
+GLOCKE_DOKUMENTTYPEN = ("chat_gespraech", "chat_nachricht", "chat_meldung",
+                        "chat_umfrage")
 
 
 class FristFehler(ValueError):
@@ -432,6 +437,10 @@ def _glocken_verwaist_loeschen(session) -> int:
         ("chat_gespraech", ChatGespraech),
         ("chat_nachricht", ChatNachricht),
         ("chat_meldung", ChatMeldung),
+        # CHAT-4b: die Umfrage-Glocken (Start + Erinnerung). Eine Umfrage
+        # verschwindet mit ihrem Gespräch (``_gespraech_leeren``) — die Glocke
+        # zu ihr muss dann mitgehen, sonst zeigt sie in nichts (Review R1/5).
+        ("chat_umfrage", ChatUmfrage),
     )
     for doc_type, modell in je_typ:
         # ``NOT EXISTS (SELECT 1 FROM <ziel> WHERE <ziel>.name = document_name)``

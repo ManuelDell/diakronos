@@ -104,10 +104,55 @@ NICHT freigegebenes Feld fehlt GANZ (Schlüssel nicht vorhanden, nicht
 zwar über DENSELBEN Maskierer wie Adressbuch/Liste (kein zweiter
 Auslieferungsweg).
 
-WAS HIER BEWUSST FEHLT (spätere Karten): Meldungen (CHAT-6),
-Direktnachrichten (CHAT-7), Löschfristen (CHAT-8), Push (CHAT-10),
-Anhänge/Chatverlaufssuche (CHAT-9). Kein WebSocket: Zustellung ist der
-„seit X“-Abruf (3.1, Empfehlung A).
+CHAT-7a — DIREKTNACHRICHTEN 1:1 (``direkt_oeffnen``)
+--------------------------------------------------
+Ein Direktgespräch ist KEINE neue Tabellenfamilie: eine Zeile in
+``chat_gespraech`` mit ``art = "direkt"``, ``gruppe = NULL`` und zwei Zeilen in
+``chat_teilnehmer``. Verlauf, Senden, Bearbeiten, Löschen, Reaktion, Lesestand,
+Stumm, Umfragen und Meldungen funktionieren deshalb OHNE Sonderfall — sie
+laufen über dieselben Endpunkte.
+
+RECHTE: EINE WEICHE, KEINE ZWEITE REGEL
+``_erlaube(benutzer, aktion, g=<Zeile>, besitzer=…, sitzung=<Sitzung>)``
+entscheidet je ``art``:
+
+* Gruppe/Untergruppe → ``rechte.darf`` (unverändert seit CHAT-2),
+* ``direkt`` → ``rechte.darf_direktgespraech(benutzer, aktion,
+  teilnehmer=<Konten>, besitzer=…)`` — der Raum sind die Teilnehmenden.
+
+ALLE Endpunkte gehen durch diese Weiche, auch der Meldeweg
+(``meldungen_liste``, ``meldung_entscheiden``, ``_darf_moderieren``,
+``_darf_lesen``, ``_gespraech_kennungen_mit``) — es gibt in diesem Modul
+KEINEN direkten ``rechte.ist_meldestelle``/``darf_direktgespraech``-Aufruf
+mehr. Die Teilnahme prüft der KERN; die Weiche liest nur die Konten (in der
+Sitzung des Aufrufers, wenn er eine hat).
+
+Anlegen eines Gesprächs fragt ``rechte.darf_direktnachricht`` (der Kern);
+Status-, Rollen- und Kontofragen stehen NIRGENDS in diesem Modul.
+
+Moderation im 1:1 gibt es AUSSCHLIESSLICH über ``meldung_entscheiden``; eine
+fremde Nachricht löschen oder eine fremde Umfrage schließen ist dort
+``SCHREIBEN`` mit ``besitzer`` → 403, auch für einen teilnehmenden Admin.
+
+EIN Gespräch je Personenpaar (Konzept 10.1 Punkt 4) sichern die Datenbank
+(``paar_schluessel`` + ``uq_chat_gespraech_paar``) und ``_direkt_holen``
+(``IntegrityError`` im Savepoint abgefangen, wie beim Lazy-Anlegen): zwei
+gleichzeitige Aufrufe — auch in vertauschter Reihenfolge — ergeben EINE Zeile.
+
+Lesen: NUR die Teilnehmenden. Der Administrator ist KEIN stiller Mitleser
+(F7): er bekommt ausschließlich die GEMELDETE Nachricht samt Kontext, über den
+bestehenden Meldeweg (``meldung_senden`` → Glocke an die Meldestelle,
+``meldungen_liste``/``meldung_entscheiden`` über die Weiche mit
+``MODERIEREN``).
+
+Die Glocke eines 1:1 trägt den NEUTRALEN Betreff „Direktnachricht: …“: der
+Gesprächstitel eines 1:1 ist der Name des Gegenübers, und ein Absendername
+gehört nicht in die Glocke (CHAT-4a).
+
+WAS HIER BEWUSST FEHLT (spätere Karten): Runden (3–8 Personen) und Blockieren
+(``nicht mehr anschreiben lassen``) — beides CHAT-7b; Löschfristen (CHAT-8),
+Push (CHAT-10), Anhänge/Chatverlaufssuche (CHAT-9). Kein WebSocket: Zustellung
+ist der „seit X“-Abruf (3.1, Empfehlung A).
 
 CHAT-4a — GEBÜNDELTE GLOCKE (Konzept 1/S1, 3.1, 4.5)
 ---------------------------------------------------
@@ -133,8 +178,9 @@ Eine In-App-Meldung (Glocke) **gebündelt**: „Chor: 3 neue Nachrichten“ nach
 * Der Text enthält NUR Gesprächstitel und Anzahl — kein Nachrichtentext, kein
   Absendername (Datenschutz, wie ``_glocke_neue_meldung``).
 * ``lesestand_setzen`` markiert die Glocke(n) dieses Gesprächs als gelesen —
-  aber nur, wenn danach nichts ungelesen bleibt (sonst bleibt sie stehen und
-  wird beim nächsten Lauf fortgeschrieben).
+  aber nur, wenn danach nichts ungelesen bleibt. Bleibt ein Rest offen, wird
+  die Glocke SOFORT mit der neuen Zahl fortgeschrieben (CHAT-4b, Restpunkt b:
+  ``merker_am`` hätte weitere Läufe blockiert, die Zahl wäre stehen geblieben).
 * Aufwand: der Job wählt in SQL nur die PAARE (Gespräch, Person) aus, bei
   denen seit dem Merker etwas Neues offen ist; er lädt keine Nachrichten und
   keine Verläufe. Ein zweiter Lauf ohne neue Nachricht endet nach einer
@@ -168,6 +214,34 @@ Gespräch MODERIEREN darf — beides über den Rechte-Kern, nichts Eigenes.
 **Verlauf**: ``verlauf`` liefert die Umfragedaten AN der Nachricht mit
 (``umfrage``-Schlüssel). Die Zähler und der eigene Stand kommen in EINER
 Abfrage je Seite mit (``_umfragen_laden``), nicht je Nachricht.
+
+CHAT-4b — UMFRAGE-GLOCKEN (Konzept S2: „eine Glocke beim Start (‚Neue Umfrage
+im Chor'), eine Erinnerung 24 h vor Frist an die, die noch nicht abgestimmt
+haben“)
+-------------------------------------------------------------------------------
+* **Start** (``_glocke_neue_umfrage``, aus ``umfrage_anlegen`` nach dem
+  Commit): „Neue Umfrage im <Titel>“ an alle, die das Gespräch lesen dürfen —
+  außer der/dem Anlegenden und den stumm geschalteten. Ohne Frage, ohne
+  Optionen, ohne Namen. Empfänger über ``chat_teilnehmer`` (EINE SQL-Abfrage,
+  ``stumm`` kommt mit), dann ``rechte.darf`` je Kandidat: wer das Gespräch nie
+  geöffnet hat, bekommt nichts (dieselbe Regel wie CHAT-4a). Der/die
+  Anlegende reicht die UMFRAGE durch (Review R1/2) — nicht „die neueste des
+  Gesprächs“.
+* **Erinnerung** (``chat_umfrage_erinnerungen``, Minuten-Job hinter
+  ``chat_glocken_buendeln``, KEIN HTTP-Endpunkt — Review R1/1): schließt
+  zuerst fällige Umfragen, dann „Umfrage im <Titel> endet morgen“ an alle
+  Berechtigten, die NOCH NICHT abgestimmt haben (offen: keine
+  ``chat_stimme``-Zeile; anonym: keine ``chat_umfrage_abgabe``-Marke). Merker
+  ``chat_umfrage.erinnert_am`` ⇒ genau einmal; er wird nur gesetzt, wenn
+  wirklich geschrieben wurde oder es niemanden zu erinnern gab. Geschlossene,
+  gelöschte und fristlose Umfragen nie; wurde die Umfrage weniger als 24 h vor
+  ihrer Frist angelegt, genügt die Start-Glocke. Die Erinnerung verrät nur der
+  Person selbst „du hast noch nicht abgestimmt“ — keine Liste an Dritte.
+* Beide Glocken laufen je (Umfrage, Konto) auf EINER ``Notification Log``-Zeile
+  (``document_type = chat_umfrage``, ``document_name`` = Umfrage) und werden
+  fortgeschrieben statt verdoppelt. Ihre Zeitstempel sind UTC wie bei
+  ``_create`` (Review R1/3), und CHAT-8 räumt sie mit dem Gespräch ab
+  (``chat_aufbewahrung.GLOCKE_DOKUMENTTYPEN``, Review R1/5).
 """
 
 from __future__ import annotations
@@ -203,6 +277,7 @@ from diakronos_app.frappe_compat.exceptions import (
 )
 from diakronos_app.frappe_compat.session import session
 from diakronos_app.models.chat import (
+    ART_DIREKT,
     ART_GRUPPE,
     ART_UNTERGRUPPE,
     BEARBEITEN_MINUTEN,
@@ -258,6 +333,12 @@ CHAT_GLOCKE_DOCTYPE = "chat_gespraech"
 #: (``pg_try_advisory_xact_lock``; Review R1/e). Feste Zahl, keine Zufallswerte:
 #: alle Prozesse derselben Datenbank müssen dieselbe Kennung nehmen.
 GLOCKE_SPERRE = 4714_0001
+#: CHAT-4b: Kennung im ``Notification Log.document_type`` der UMFRAGE-Glocken
+#: (Start „Neue Umfrage im …“ und Erinnerung „… endet morgen“). ``document_name``
+#: ist die Kennung der UMFRAGE — getrennt von ``CHAT_GLOCKE_DOCTYPE``
+#: (``chat_gespraech``), damit die gebündelte Chat-Glocke und die
+#: Umfrage-Glocken desselben Gesprächs nicht auf derselben Zeile landen.
+CHAT_UMFRAGE_GLOCKE_DOCTYPE = "chat_umfrage"
 
 
 # ── Grundlagen ──────────────────────────────────────────────────────────────
@@ -387,6 +468,9 @@ def _gespraech_holen(s, gruppe: str, untergruppe: str | None = None) -> ChatGesp
     liest die vorhandene Zeile. Ohne das Abfangen bliebe die Sitzung nach dem
     Fehler unbrauchbar (PostgreSQL bricht die Transaktion ab) und jeder weitere
     Aufruf liefe in einen 500er.
+
+    Für Direktgespräche (CHAT-7a) gilt dasselbe Muster über
+    ``paar_schluessel`` — s. ``_direkt_holen``.
     """
     art = ART_UNTERGRUPPE if untergruppe else ART_GRUPPE
     vorhanden = _gespraech_suchen(s, art, gruppe, untergruppe)
@@ -414,7 +498,7 @@ def _gespraech_holen(s, gruppe: str, untergruppe: str | None = None) -> ChatGesp
     return neu
 
 
-def _gespraech_suchen(s, art: str, gruppe: str, untergruppe: str | None) -> ChatGespraech | None:
+def _gespraech_suchen(s, art: str, gruppe: str | None, untergruppe: str | None) -> ChatGespraech | None:
     """Die EINE Zeile der Einheit — ``scalar_one_or_none`` statt ``one``.
 
     Bleibt trotzdem eine zweite Zeile stehen (Altbestand aus der Zeit vor den
@@ -447,6 +531,183 @@ def _teilnahme(s, gespraech: str, benutzer: str) -> ChatTeilnehmer:
     s.add(zeile)
     s.flush()
     return zeile
+
+
+# ── Direktgespräch 1:1 (CHAT-7a) ────────────────────────────────────────────
+
+
+#: Trenner des Kontenpaars. NICHT ``"\0"``: PostgreSQL-Textfelder dürfen kein
+#: NUL-Byte enthalten (``psycopg.DataError: text fields cannot contain NUL``) —
+#: der PG-Lauf von ``chat7a_direkt`` hat das sofort gezeigt. ``"\x1f"``
+#: (Unit Separator) ist in keinem Konto-Namen (Adressen) enthalten und in
+#: ``varchar`` unbedenklich.
+PAAR_TRENNER = "\x1f"
+
+#: Das Konto der Meldestelle (F7). Kandidat der Glocken-Abfrage; ob es die
+#: Meldestelle IST, entscheidet ``_weiche_ja(... MODERIEREN)``.
+MELDESTELLE_KONTO = "Administrator"
+
+#: Neutraler Betreff der Glocke für ein 1:1 (CHAT-7a): KEIN Name — im
+#: Direktgespräch wäre der Gesprächstitel der Absender (Regel CHAT-4a).
+DIREKT_GLOCKE_TITEL = "Direktnachricht"
+
+
+def _paar_schluessel(konto_a: str, konto_b: str) -> str:
+    """Das sortierte Kontenpaar — der Schlüssel „EIN Gespräch je Personenpaar“.
+
+    Sortiert, damit die REIHENFOLGE des Anlegens gleichgültig ist („A schreibt
+    B“ und „B schreibt A“ treffen dieselbe Zeile, Konzept 10.1 Punkt 4).
+    Getrennt mit ``PAAR_TRENNER``: kein Konto-Name enthält dieses Zeichen, also
+    können ``("ab", "c")`` und ``("a", "bc")`` nicht denselben Schlüssel
+    ergeben.
+    """
+    a, b = sorted((str(konto_a or ""), str(konto_b or "")))
+    return f"{a}{PAAR_TRENNER}{b}"
+
+
+def _gespraech_mit_paar(s, konto_a: str, konto_b: str) -> ChatGespraech | None:
+    """Das 1:1-Gespräch zweier Konten — oder ``None``.
+
+    Gesucht wird über ``paar_schluessel``; bleibt (Altbestand/Handeingriff)
+    mehr als eine Zeile stehen, gilt ``art = 'direkt'`` und die älteste — der
+    Verlauf ist dann nicht verloren und der Betrieb sieht die Doppelung.
+    """
+    return s.execute(
+        select(ChatGespraech)
+        .where(ChatGespraech.art == ART_DIREKT,
+               ChatGespraech.paar_schluessel == _paar_schluessel(konto_a, konto_b))
+        .order_by(ChatGespraech.name)
+    ).scalars().first()
+
+
+def _direkt_holen(s, konto_a: str, konto_b: str) -> ChatGespraech:
+    """Das 1:1-Gespräch zweier Konten; legt es beim ersten Zugriff an.
+
+    Dasselbe Muster wie ``_gespraech_holen``: der Unique-Index
+    ``uq_chat_gespraech_paar`` lässt nur EINE Zeile je Personenpaar zu, zwei
+    gleichzeitige Aufrufe fangen den ``IntegrityError`` im SAVEPOINT ab und
+    lesen die Zeile des Gewinners. Ohne das Abfangen bliebe die Sitzung auf
+    PostgreSQL nach dem Fehler unbrauchbar (500er für alle Folgeschritte).
+    """
+    vorhanden = _gespraech_mit_paar(s, konto_a, konto_b)
+    if vorhanden is not None:
+        return vorhanden
+    neu = ChatGespraech(
+        name=_kennung("chat-gespraech"),
+        art=ART_DIREKT,
+        # KEINE Gruppe: der Raum sind die Teilnehmenden (Konzept 3.3).
+        gruppe=None,
+        untergruppe=None,
+        paar_schluessel=_paar_schluessel(konto_a, konto_b),
+        angelegt_von=_benutzer() or None,
+        angelegt_am=_jetzt(),
+    )
+    try:
+        with s.begin_nested():
+            s.add(neu)
+            s.flush()
+            # BEIDE Teilnahmezeilen in DEMSELBEN Savepoint: ein Gespräch ohne
+            # vollständige Teilnahme wäre ein Raum, den der Rechte-Kern nicht
+            # kennt (und den niemand mehr öffnen könnte).
+            for konto in sorted({str(konto_a), str(konto_b)}):
+                s.add(ChatTeilnehmer(gespraech=neu.name, benutzer=konto,
+                                     stumm=False, hinzugefuegt_am=_jetzt()))
+            s.flush()
+    except IntegrityError:
+        vorhanden = _gespraech_mit_paar(s, konto_a, konto_b)
+        if vorhanden is None:
+            raise
+        return vorhanden
+    return neu
+
+
+def _direkt_konten(s, gespraech: str) -> list[str]:
+    """Alle Konten des 1:1-Gesprächs (``chat_teilnehmer``) — sortiert."""
+    return sorted(_teilnahme_konten(s, gespraech))
+
+
+def _direkt_gegenueber(s, g: ChatGespraech, benutzer: str) -> str | None:
+    """Das KONTO der anderen Person in einem 1:1-Gespräch (oder ``None``).
+
+    Grundlage sind die Teilnahmezeilen, nicht ``paar_schluessel``: fällt eine
+    Zeile (Konto gelöscht), bleibt die andere stehen und ist dann allein.
+    """
+    andere = [k for k in _direkt_konten(s, g.name) if k != benutzer]
+    return andere[0] if len(andere) == 1 else None
+
+
+def _person_je_konto(s, konto: str | None) -> str | None:
+    """Mitglied-Kennung eines Kontos — REIN LESEND über ``mitglied.user``.
+
+    Nur zum ANZEIGEN (Titel/Bild), nie für eine Rechtefrage. Deshalb steht hier
+    KEINE Aktiv-/Statusprüfung und NICHT ``rechte.eigenes_mitglied`` (das ist
+    die Rechte-Sicht und liefert für eine ausgeschlossene oder ausgetretene
+    Person ``None``). Genau daran ging die Maskierung vorher verloren: ohne
+    Mitglied fiel der Titel auf Konto bzw. E-Mail zurück — und das ist der
+    volle Name, den niemand sehen soll.
+
+    Mehrdeutig (zwei Mitglieder am selben Login) → ``None`` (dann bleibt der
+    Titel leer statt falsch).
+    """
+    kennung = str(konto or "").strip()
+    if not kennung:
+        return None
+    treffer = [str(n) for n in s.execute(
+        select(Mitglied.name).where(Mitglied.user == kennung)
+    ).scalars().all() if n]
+    return treffer[0] if len(treffer) == 1 else None
+
+
+def _direkt_titel(s, g: ChatGespraech, benutzer: str) -> tuple[str, str | None, str]:
+    """Titel, Mitglied-Kennung und Bild des Gegenübers in einem 1:1-Gespräch.
+
+    Der Titel ist IMMER der gekürzte Anzeigename aus der bestehenden Quelle
+    (``personen_anzeige.kuerze_name`` — dieselbe Regel wie Suche/Adressbuch,
+    also „Bert B.“ auch für ein aktives Mitglied und „Gelöschte Person“ nach
+    Art. 17). Auf Konto oder E-Mail wird NIE zurückgefallen: eine Adresse ist
+    der volle Name. Fehlt der Mitgliedsdatensatz (Altbestand), bleibt der
+    Titel LEER — die Oberfläche zeigt dann „Unbekannt“.
+
+    Nach einer Anonymisierung ist die Teilnahmezeile des gelöschten Kontos weg
+    (``chat_teilnehmer.benutzer`` ist eine Konto-Spalte) — es stehen dann
+    weniger als zwei Teilnahmen im Gespräch. Dann steht dort „Gelöschte
+    Person": der neutrale Text, NICHT die Kennung, NICHT die Adresse, NICHT
+    der Rest des Namens. Ein leeres Feld wäre für die Oberfläche nicht von
+    „noch kein Gegenüber“ zu unterscheiden.
+    """
+    from diakronos_app.frappe_compat.personen_anzeige import (
+        GELOESCHT_ANZEIGE,
+        ist_geloescht,
+        kuerze_name,
+    )
+
+    konten = _direkt_konten(s, g.name)
+    gegner = _direkt_gegenueber(s, g, benutzer)
+    # Ein 1:1 hat immer ZWEI Teilnahmezeilen. Steht nur noch eine (oder keine),
+    # ist die andere Person gegangen — anonymisiert oder gelöscht.
+    ohne_teilnahme = len(konten) < 2
+    mitglied = _person_je_konto(s, gegner)
+    if mitglied:
+        zeile = s.execute(
+            select(Mitglied.name, Mitglied.vorname, Mitglied.nachname,
+                   Mitglied.foto, Mitglied.status)
+            .where(Mitglied.name == mitglied)
+        ).first()
+        if zeile is not None:
+            roh = {"name": mitglied, "vorname": zeile[1], "nachname": zeile[2],
+                   "foto": zeile[3], "status": zeile[4]}
+            # EINE Namensregel für ALLE (``kuerze_name``): „Vorname N.“ auch
+            # für ein AKTIVES Mitglied — der Chat ist kein Verwaltungsweg.
+            # Gelöscht → „Gelöschte Person“, Bild dann keines.
+            kurz = kuerze_name(zeile[1], zeile[2], mitglied)
+            name = str(kurz or "").strip() or mitglied
+            return name, mitglied, _suche_bild(roh.get("foto"), ist_geloescht(roh))
+    if gegner is None and ohne_teilnahme:
+        # Kein Gegenüber-Konto mehr (Anonymisierung hat die Teilnahmezeile
+        # mitgenommen): der neutrale Text, NICHT die Kennung und NICHT die
+        # Adresse. Bewusst ohne Bild.
+        return GELOESCHT_ANZEIGE, None, ""
+    return "", None, ""
 
 
 # ── Nachricht als Antwortform ───────────────────────────────────────────────
@@ -533,17 +794,17 @@ def _gelesen_von(s, nachrichten, gespraech: str | None, benutzer: str) -> dict[s
 
 
 def _darf_lesen(s, benutzer: str, gespraech: str) -> bool:
-    """Darf ``benutzer`` dieses Gespraech JETZT lesen? — ueber den Rechte-Kern.
+    """Darf ``benutzer`` dieses Gespraech JETZT lesen? — ueber die EINE Weiche.
 
-    Die Frage entscheidet ``rechte.darf`` (Mitgliedschaft + Modul), nicht eine
-    eigene Rollenlogik. Sie wird nur fuer die Zaehlung gebraucht: eine
-    Teilnahmezeile allein sagt nichts ueber den heutigen Stand.
+    ``_weiche_ja`` fragt je ``art`` den Kern (Gruppe ``rechte.darf``,
+    Direktgespraech ``rechte.darf_direktgespraech``) — keine eigene
+    Rollenlogik und kein zweiter Rechtepfad. Gebraucht wird das fuer die
+    Zaehlung: eine Teilnahmezeile allein sagt nichts ueber den heutigen Stand.
     """
     g = s.get(ChatGespraech, gespraech)
     if g is None or g.geloescht_am is not None:
         return False
-    return bool(rechte.darf(benutzer, rechte.LESEN, "chat_gespraech", g.name,
-                            gruppe=g.gruppe, untergruppe=g.untergruppe))
+    return _weiche_ja(benutzer, rechte.LESEN, g=g, sitzung=s)
 
 
 def _zeile(s, n: ChatNachricht, *,
@@ -701,8 +962,18 @@ def meine_gespraeche():
     ``teilnehmer`` zählt nur AKTUELLE Angehörige der Einheit (nicht jede
     stehengebliebene Teilnahmezeile eines ehemaligen Mitglieds).
 
+    CHAT-7a — DIREKTGESPRÄCHE: sie stehen in DERSELBEN Liste („ein Ort für
+    Nachrichten“, Konzept 10.1), tragen aber ``art: "direkt"``, den
+    Anzeigenamen des GEGENÜBERS als ``titel``, dessen Bild und kein
+    ``gruppe``/``untergruppe``. Grundlage sind hier die TEILNAHMEZEILEN der
+    Person (``chat_teilnehmer``, die eine Wahrheit über „wer ist im
+    Gespräch“), je Kandidat entscheidet danach die Weiche
+    (``_erlaube`` → ``rechte.darf_direktgespraech``). Fremde Direktgespräche
+    tauchen nicht auf, weil sie keine Teilnahmezeile der Person haben.
+
     Antwort: ``{gespraeche: [{name, art, gruppe, untergruppe, titel,
-    teilnehmer, stumm, geoeffnet, ungelesen, letzte_nachricht, letzte_am}]}``.
+    teilnehmer, stumm, geoeffnet, ungelesen, letzte_nachricht, letzte_am,
+    mitglied, bild}]}``.
     """
     benutzer = _benutzer()
     ergebnis: list[dict[str, Any]] = []
@@ -711,8 +982,63 @@ def meine_gespraeche():
             _h()
         for g in _lesbare_gespraeche(s, benutzer):
             ergebnis.append(_gespraech_kopf(s, g, benutzer))
+        for g in _direkt_gespraeche(s, benutzer):
+            ergebnis.append(_gespraech_kopf(s, g, benutzer))
     ergebnis.sort(key=lambda e: (str(e["letzte_am"] or ""), str(e["titel"])), reverse=True)
     return {"gespraeche": ergebnis}
+
+
+# ── Endpunkt: Direktgespräch öffnen (CHAT-7a) ───────────────────────────────
+
+
+@whitelist(methods=["POST"], allow_guest=False)  # legt Gespraech + 2 Teilnahmen an (SEC-11)
+def direkt_oeffnen(mitglied=None):
+    """Das 1:1-Gespräch mit ``mitglied`` holen — oder anlegen (Konzept S3).
+
+    EINE Zeile je Personenpaar, gleich in welcher Reihenfolge gefragt wird
+    (10.1 Punkt 4: „Nachricht schreiben legt das 1:1-Gespräch an ODER setzt das
+    vorhandene fort — nie ein zweites Gespräch je Personenpaar“). Die
+    Eindeutigkeit steht in der Datenbank (``chat_gespraech.paar_schluessel`` +
+    ``uq_chat_gespraech_paar``); zwei gleichzeitige Aufrufe erzeugen deshalb
+    genau EIN Gespräch (``_direkt_holen`` fängt den ``IntegrityError``).
+
+    Rechte — AUSSCHLIESSLICH über den Kern, nichts Eigenes hier:
+    ``rechte.darf_direktnachricht(benutzer, ziel_mitglied)``. Damit fallen
+    Gäste (kein Gemeinde-Mitglied), Ausgetretene/Ausgeschlossene, Personen ohne
+    aktives Konto und die eigene Person heraus — jeweils 403 ohne Inhalt
+    („gibt es nicht“ und „darfst du nicht“ bleiben ununterscheidbar).
+
+    ``mitglied`` ist die MITGLIED-Kennung (``mitglied.name``); das Konto der
+    Gegenperson kommt aus dem Kern (``mitglied.user``, sonst eindeutige
+    E-Mail). Lässt sich kein Konto auflösen → 403 (kein Rateweg).
+
+    Antwort: derselbe Kopf wie in ``meine_gespraeche`` (``art: "direkt"``,
+    ``titel`` = Anzeigename des Gegenübers, ``mitglied``, ``bild``,
+    ``ungelesen``, ``stumm``).
+    """
+    ziel = str(mitglied or "").strip()
+    if not ziel:
+        throw("mitglied fehlt.")
+    benutzer = _benutzer()
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        # DIE Entscheidung: der Kern. Keine Status-/Rollenabfrage in diesem Modul.
+        if not rechte.darf_direktnachricht(benutzer, ziel):
+            _h()
+        gegenkonto = _konto_je_mitglied(s, ziel)
+        if not gegenkonto:
+            # Ohne Konto gibt es kein Gegenüber — dieselbe 403 wie „darfst du
+            # nicht“ (der Kern hat das Konto gerade zugesagt; hier ist es die
+            # Wache gegen einen zweiten Weg an ihm vorbei).
+            _h()
+        zeile = _direkt_holen(s, benutzer, gegenkonto)
+        g = s.get(ChatGespraech, zeile.name)
+        if g is None:
+            raise DoesNotExistError("Gespräch nicht gefunden.")
+        # Die Teilnahme der aufrufenden Person (die andere legt `_direkt_holen`
+        # mit an); ein vorhandenes Gespräch hat sie schon.
+        _teilnahme(s, g.name, benutzer)
+        s.flush()
+        return _gespraech_kopf(s, g, benutzer)
 
 
 # ── Endpunkte: Personensuche (CHAT-R2b) ─────────────────────────────────────
@@ -757,6 +1083,12 @@ def personen_suchen(q=None, limit=None):
                 # Genug Rohtreffer fuer die Grenze ODER keine weiteren Zeilen.
                 if len(teil) < _VORFILTER_MAX or len(kandidaten) >= grenze * 8:
                     break
+            # CHAT-7a: bestehende 1:1-Gespräche der Treffer in EINER Abfrage
+            # (`gespraech` im Treffer). Rein lesend; angelegt wird nichts.
+            vorhandene = _gespraech_kennungen_mit(
+                s, benutzer,
+                [dict(z._mapping if hasattr(z, "_mapping") else z).get("user")
+                 for z in kandidaten])
         for zeile in kandidaten:
             # `Row` -> dict ueber `_mapping` (ein `dict(Row)` scheitert: ein Row
             # ist eine Folge, kein Schlüssel/Wert-Paar).
@@ -773,6 +1105,9 @@ def personen_suchen(q=None, limit=None):
                 roh=m,
                 maskiert=maskiert,
                 darf_schreiben=bool(darf_direktnachricht(benutzer, kennung)),
+                # CHAT-7a: gibt es DIESES 1:1-Gespräch schon? Dann kann die
+                # Oberfläche direkt öffnen statt „neu anlegen“.
+                gespraech=vorhandene.get(str(m.get("user") or "")),
             ))
             if len(treffer) >= grenze:
                 break
@@ -804,6 +1139,44 @@ _VORFILTER_MAX = SUCHE_MAX * 8
 #: in Frage; Verwaltungsfelder wirft zusätzlich der Maskierer weg.
 _SUCHE_FELDER = ("email", "telefonnummer", "postleitzahl", "wohnort",
                  "straße", "nummer", "geburtstag")
+
+
+def _gespraech_kennungen_mit(s, benutzer: str, gegenkonten) -> dict[str, str]:
+    """BESTEHENDE 1:1-Gespräche ``benutzer`` ↔ Gegenperson — EINE Abfrage.
+
+    Für die Personensuche (CHAT-7a): der Treffer trägt ``gespraech``, damit die
+    Oberfläche direkt öffnen kann; fehlt der Schlüssel, gibt es noch keines.
+    Rein LESEND — angelegt wird erst in ``direkt_oeffnen``.
+
+    Gesucht wird über ``paar_schluessel`` (sortiertes Kontenpaar), also für
+    ALLE Gegenkonten einer Suchseite in EINER Abfrage — nicht mit einer
+    eigenen Sitzung je Treffer. Welche Gespräche diese Person lesen darf,
+    entscheidet danach die Weiche (``_weiche_ja`` → Kern); gezeigt wird nur,
+    was sie ohnehin sehen könnte.
+    """
+    paare = {_paar_schluessel(benutzer, k): str(k)
+             for k in (str(x or "").strip() for x in gegenkonten or ())
+             if k and str(k) != str(benutzer)}
+    if not paare or not benutzer:
+        return {}
+    zeilen = s.execute(
+        select(ChatGespraech.name, ChatGespraech.paar_schluessel)
+        .where(ChatGespraech.art == ART_DIREKT,
+               ChatGespraech.geloescht_am.is_(None),
+               ChatGespraech.paar_schluessel.in_(sorted(paare)))
+        .order_by(ChatGespraech.name)
+    ).all()
+    ergebnis: dict[str, str] = {}
+    for kennung, paar in zeilen:
+        gegen = paare.get(str(paar))
+        if not gegen or gegen in ergebnis:   # Doppelung: die aelteste gilt
+            continue
+        if _weiche_ja(benutzer, rechte.LESEN,
+                      g=ChatGespraech(name=str(kennung), art=ART_DIREKT,
+                                      gruppe=None, untergruppe=None),
+                      sitzung=s):
+            ergebnis[gegen] = str(kennung)
+    return ergebnis
 
 
 def _suche_grenze(limit) -> int:
@@ -939,7 +1312,8 @@ def _nur_freigegebene_felder(maskiert: dict[str, Any],
 
 
 def _suche_treffer(*, kennung: str, roh: dict[str, Any],
-                   maskiert: dict[str, Any], darf_schreiben: bool) -> dict[str, Any]:
+                   maskiert: dict[str, Any], darf_schreiben: bool,
+                   gespraech: str | None = None) -> dict[str, Any]:
     """Ein Treffer in der Form, die „Nachrichten“ zeichnet.
 
     ``anzeigename`` läuft durch ``personen_anzeige.kuerze`` (EINE Regel für
@@ -951,6 +1325,10 @@ def _suche_treffer(*, kennung: str, roh: dict[str, Any],
     Kontaktfelder kommen aus ``maskiert`` (dem Ergebnis von
     ``maskiere_datensatz``) und nur, wenn die Person sie freigegeben hat. Was
     nicht freigegeben ist, steht NICHT im Treffer — auch nicht als ``None``.
+
+    ``gespraech`` (CHAT-7a) ist die Kennung des BESTEHENDEN 1:1-Gesprächs mit
+    dieser Person — oder ``None``. Die Oberfläche öffnet damit direkt; ein
+    Gespräch legt erst ``direkt_oeffnen`` an (die Suche bleibt rein lesend).
     """
     from diakronos_app.frappe_compat.mitglied_sichtbarkeit import sichtbarkeit_lesen
     from diakronos_app.frappe_compat.personen_anzeige import kuerze
@@ -971,6 +1349,9 @@ def _suche_treffer(*, kennung: str, roh: dict[str, Any],
         # Konto-Frage beantwortet der Rechte-Kern (aktives Konto, Review 18.11.).
         "hat_konto": rechte.person_hat_konto(kennung),
         "darf_schreiben": bool(darf_schreiben),
+        # CHAT-7a: Kennung des BESTEHENDEN 1:1-Gesprächs (``None`` = noch
+        # keines); die Suche selbst legt keines an.
+        "gespraech": gespraech,
     }
     treffer.update(_nur_freigegebene_felder(
         maskiert, sichtbarkeit_lesen(roh.get("adressbuch_sichtbarkeit"))))
@@ -1016,8 +1397,7 @@ def verlauf(gespraech, vor=None, seit=None, limit=None):
             throw("limit muss eine Zahl sein.")
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         g = _gespraech_lesen(s, gespraech)
-        _erlaube(benutzer, rechte.LESEN, gruppe=g.gruppe, untergruppe=g.untergruppe,
-                 gespraech=g.name)
+        _erlaube(benutzer, rechte.LESEN, g=g, sitzung=s)
         # Rein lesend (SEC-11): die Teilnahme entsteht beim Oeffnen
         # (`gespraech_anlegen`), Senden oder Lesestand-Setzen.
         if vor:
@@ -1077,8 +1457,7 @@ def senden(gespraech, text, antwort_auf=None):
     inhalt = _pruefe_text(text)
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         g = _gespraech_lesen(s, gespraech)
-        _erlaube(benutzer, rechte.ANLEGEN, gruppe=g.gruppe, untergruppe=g.untergruppe,
-                 gespraech=g.name)
+        _erlaube(benutzer, rechte.ANLEGEN, g=g, sitzung=s)
         ziel = None
         if antwort_auf not in (None, ""):
             ziel = _nachricht(s, str(antwort_auf), g.name)
@@ -1132,8 +1511,8 @@ def aendern(nachricht, text):
         # „ist es meine“).
         if not _ist_meine(n, benutzer):
             _h()
-        _erlaube(benutzer, rechte.SCHREIBEN, gruppe=g.gruppe, untergruppe=g.untergruppe,
-                 besitzer=n.autor_benutzer, gespraech=g.name)
+        _erlaube(benutzer, rechte.SCHREIBEN, g=g,
+                 besitzer=n.autor_benutzer, sitzung=s)
         if n.geloescht_am is not None:
             throw("Eine gelöschte Nachricht kann nicht bearbeitet werden.")
         if n.umfrage:
@@ -1167,12 +1546,23 @@ def loeschen(nachricht):
         g = _gespraech_lesen(s, n.gespraech)
         eigene = _ist_meine(n, benutzer)
         if eigene:
-            _erlaube(benutzer, rechte.SCHREIBEN, gruppe=g.gruppe,
-                     untergruppe=g.untergruppe, besitzer=n.autor_benutzer,
-                     gespraech=g.name)
+            # Eigene Nachricht loeschen = SCHREIBEN. Eine FREMDDE im 1:1 ist
+            # damit NEIN (der Kern: ``fremde_nachricht``), auch fuer einen
+            # teilnehmenden Admin — MODERIEREN gibt es im Direktgespraech nur
+            # auf dem Meldeweg (``meldung_entscheiden``).
+            _erlaube(benutzer, rechte.SCHREIBEN, g=g,
+                     besitzer=n.autor_benutzer, sitzung=s)
+        elif g.art == ART_DIREKT:
+            # CHAT-7a: im 1:1 gibt es KEINEN Moderationsweg ausserhalb des
+            # Meldewegs (Entscheidung Operator, Kern-Docstring). Die
+            # Meldestelle ist zwar MODERIEREN-Fähig, aber nicht Teilnehmerin
+            # (der Kern: ``kein_teilnehmer``) — und ein TEILNEHMENDER Admin
+            # darf die Nachricht des Gegenübers nicht einfach entfernen; das
+            # geht nur über ``meldung_entscheiden``. Deshalb hier Ablehnung,
+            # ohne den Kern zu befragen.
+            _h()
         else:
-            _erlaube(benutzer, rechte.MODERIEREN, gruppe=g.gruppe,
-                     untergruppe=g.untergruppe, gespraech=g.name)
+            _erlaube(benutzer, rechte.MODERIEREN, g=g, sitzung=s)
         if n.geloescht_am is None:
             n.geloescht_am = _jetzt()
             n.geloescht_von = benutzer
@@ -1203,8 +1593,7 @@ def reaktion_setzen(nachricht, reaktion=None):
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         n = _nachricht(s, str(nachricht or "").strip(), None)
         g = _gespraech_lesen(s, n.gespraech)
-        _erlaube(benutzer, rechte.LESEN, gruppe=g.gruppe, untergruppe=g.untergruppe,
-                 gespraech=g.name)
+        _erlaube(benutzer, rechte.LESEN, g=g, sitzung=s)
         vorhanden = s.get(ChatReaktion, (n.name, benutzer))
         if not zeichen:
             if vorhanden is not None:
@@ -1238,8 +1627,7 @@ def lesestand_setzen(gespraech, nachricht=None):
         throw("gespraech fehlt.")
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         g = _gespraech_lesen(s, gespraech)
-        _erlaube(benutzer, rechte.LESEN, gruppe=g.gruppe, untergruppe=g.untergruppe,
-                 gespraech=g.name)
+        _erlaube(benutzer, rechte.LESEN, g=g, sitzung=s)
         teilnahme = _teilnahme(s, g.name, benutzer)
         if nachricht not in (None, ""):
             ziel = _nachricht(s, str(nachricht), g.name)
@@ -1257,11 +1645,12 @@ def lesestand_setzen(gespraech, nachricht=None):
         # sie wird als gelesen markiert (die Glocke selbst bleibt als Nachweis
         # stehen, wie jede andere Benachrichtigung). Nur wenn danach WIRKLICH
         # nichts ungelesen bleibt: ein Lesestand auf einer ÄLTEREN Nachricht
-        # lässt die Glocke stehen (Reviews R1/d) — sie zeigt weiter die
-        # ungelesenen Nachrichten an und wird beim nächsten Lauf
-        # fortgeschrieben.
+        # lässt die Glocke stehen (Reviews R1/d) — CHAT-4b schreibt sie dann
+        # sofort mit der neuen Zahl fort (Restpunkt b: ``merker_am`` hätte den
+        # nächsten Joblauf sonst blockiert, die Glocke zeigte ewig „3 neue“).
         ungelesen = _ungelesen_zaehlen(s, g.name, benutzer, teilnahme)
-        _glocke_als_gelesen(s, g.name, benutzer, alles_gelesen=(ungelesen == 0))
+        _glocke_als_gelesen(s, g.name, benutzer, alles_gelesen=(ungelesen == 0),
+                            ungelesen=ungelesen)
         return {"gespraech": g.name, "bis": ziel.name if ziel else None,
                 "ungelesen": ungelesen}
 
@@ -1285,8 +1674,7 @@ def stumm_setzen(gespraech, an=True):
     wert = _wahr(an)
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         g = _gespraech_lesen(s, gespraech)
-        _erlaube(benutzer, rechte.LESEN, gruppe=g.gruppe, untergruppe=g.untergruppe,
-                 gespraech=g.name)
+        _erlaube(benutzer, rechte.LESEN, g=g, sitzung=s)
         teilnahme = _teilnahme(s, g.name, benutzer)
         teilnahme.stumm = wert
         s.flush()
@@ -1318,6 +1706,10 @@ def umfrage_anlegen(gespraech, frage, optionen=None, mehrfach=False, anonym=True
     gelten Reihenfolge, Lesestand, Zitat, Reaktionen und Soft-Delete ohne
     Sonderfall. Der Verweis steht an der Nachricht, eine Umfrage kann also
     nicht ohne sie existieren und nicht in ein fremdes Gespräch zeigen.
+
+    CHAT-4b — Start-Glocke: nach dem Commit bekommt JEDE Person, die das
+    Gespräch lesen darf, eine Glocke „Neue Umfrage im <Titel>“ — außer der/dem
+    Anlegenden und den stumm geschalteten. Siehe ``_glocke_neue_umfrage``.
     """
     benutzer = _benutzer()
     gespraech = str(gespraech or "").strip()
@@ -1326,10 +1718,11 @@ def umfrage_anlegen(gespraech, frage, optionen=None, mehrfach=False, anonym=True
     inhalt = _pruefe_frage(frage)
     auswahl = _pruefe_optionen(optionen)
     frist_am = _frist_lesen(frist)
+    gespraech_titel = ""
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         g = _gespraech_lesen(s, gespraech)
-        _erlaube(benutzer, rechte.ANLEGEN, gruppe=g.gruppe, untergruppe=g.untergruppe,
-                 gespraech=g.name)
+        _erlaube(benutzer, rechte.ANLEGEN, g=g, sitzung=s)
+        gespraech_titel = _glocken_titel(g)
         jetzt = _jetzt()
         umfrage = ChatUmfrage(
             name=_kennung("chat-umfrage"),
@@ -1369,6 +1762,25 @@ def umfrage_anlegen(gespraech, frage, optionen=None, mehrfach=False, anonym=True
         # wird die Instanz detached, und ein Attributzugriff darauf löst
         # ``DetachedInstanceError`` aus (im Zwischenstand passiert).
         nachricht_name = zeile.name
+        gespraech_name = g.name
+        umfrage_name = umfrage.name
+    # Nach dem Commit — wie ``meldung_senden``: der Empfängerkreis wird in
+    # einer EIGENEN Sitzung bestimmt (er sieht dann genau die Umfrage, die
+    # gerade festgeschrieben wurde). Die UMFRAGE wird über ihre Kennung neu
+    # geladen (Review R1/2): so hängt die Start-Glocke sicher an DIESER
+    # Umfrage und nicht an „der neuesten des Gesprächs“.
+    # Die Umfrage IST gespeichert: ein Fehler beim Benachrichtigen darf den
+    # Aufruf nie mit 500 enden lassen (sonst legt der Client sie erneut an).
+    try:
+        with dbmod.SessionLocal.begin() as s2, als_aktuelle_sitzung(s2):
+            umfrage_frisch = s2.get(ChatUmfrage, umfrage_name)
+            gespraech_frisch = s2.get(ChatGespraech, gespraech_name)
+            if umfrage_frisch is not None and gespraech_frisch is not None:
+                _glocke_neue_umfrage(s2, umfrage_frisch, gespraech_frisch,
+                                     gespraech_titel, benutzer)
+    except Exception:
+        logger.exception("umfrage_anlegen: Start-Glocke zu %s nicht geschrieben",
+                         umfrage_name)
     return {"name": nachricht_name, "umfrage": daten}
 
 
@@ -1403,8 +1815,7 @@ def umfrage_abstimmen(umfrage, optionen=None):
         throw("umfrage fehlt.")
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         u, g = _umfrage_lesen(s, umfrage)
-        _erlaube(benutzer, rechte.ANLEGEN, gruppe=g.gruppe, untergruppe=g.untergruppe,
-                 gespraech=g.name)
+        _erlaube(benutzer, rechte.ANLEGEN, g=g, sitzung=s)
         _pruefe_offen(u)
         nummern = _pruefe_stimme(s, optionen, u)
         if u.anonym:
@@ -1457,12 +1868,16 @@ def umfrage_schliessen(umfrage):
         u, g = _umfrage_lesen(s, umfrage)
         eigene = _umfrage_ist_meine(s, u, benutzer)
         if eigene:
-            _erlaube(benutzer, rechte.SCHREIBEN, gruppe=g.gruppe,
-                     untergruppe=g.untergruppe,
-                     besitzer=_umfrage_autor(s, u.name), gespraech=g.name)
+            # Eigene Umfrage schliessen = SCHREIBEN; eine fremde im 1:1 ist
+            # NEIN (auch fuer einen teilnehmenden Admin).
+            _erlaube(benutzer, rechte.SCHREIBEN, g=g,
+                     besitzer=_umfrage_autor(s, u.name), sitzung=s)
+        elif g.art == ART_DIREKT:
+            # 1:1: Schliessen gibt es nur fuer die anlegende Person (oben).
+            # Kein Moderationsweg ausserhalb des Meldewegs (CHAT-7a).
+            _h()
         else:
-            _erlaube(benutzer, rechte.MODERIEREN, gruppe=g.gruppe,
-                     untergruppe=g.untergruppe, gespraech=g.name)
+            _erlaube(benutzer, rechte.MODERIEREN, g=g, sitzung=s)
         if u.geschlossen_am is None:
             u.geschlossen_am = _jetzt()
             u.geschlossen_von = benutzer or None
@@ -1482,8 +1897,7 @@ def umfrage_ergebnis(umfrage):
         throw("umfrage fehlt.")
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         u, g = _umfrage_lesen(s, umfrage)
-        _erlaube(benutzer, rechte.LESEN, gruppe=g.gruppe, untergruppe=g.untergruppe,
-                 gespraech=g.name)
+        _erlaube(benutzer, rechte.LESEN, g=g, sitzung=s)
         return _umfrage_daten(s, u, benutzer)
 
 
@@ -1994,8 +2408,7 @@ def meldung_senden(nachricht, grund, freitext=None):
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         n = _nachricht(s, kennung, None)
         g = _gespraech_lesen(s, n.gespraech)
-        _erlaube(benutzer, rechte.LESEN, gruppe=g.gruppe, untergruppe=g.untergruppe,
-                 gespraech=g.name)
+        _erlaube(benutzer, rechte.LESEN, g=g, sitzung=s)
         if _ist_meine(n, benutzer):
             throw("Die eigene Nachricht lässt sich nicht melden.")
         if n.geloescht_am is not None:
@@ -2026,7 +2439,7 @@ def meldung_senden(nachricht, grund, freitext=None):
             # Zwei gleichzeitige Aufrufe: der partielle Index lässt nur eine
             # offene Meldung durch (dasselbe Muster wie `_gespraech_holen`).
             throw("Diese Nachricht wurde von dir bereits gemeldet.")
-        empfaenger = [k for k in rechte.chat_moderatoren(g.gruppe, g.untergruppe)
+        empfaenger = [k for k in _moderation_konten(g)
                       if k != benutzer and k != str(n.autor_benutzer or "")]
         antwort = {
             "name": zeile.name,
@@ -2107,6 +2520,14 @@ def meldungen_liste(stand=None, gespraech=None):
             kandidaten_abfrage = kandidaten_abfrage.where(
                 ChatNachricht.gespraech == nur_gespraech)
         kandidaten = sorted(s.execute(kandidaten_abfrage).scalars().all())
+        # CHAT-7a: Meldungen aus DIREKTGESPRÄCHEN gehören der Meldestelle
+        # (F7: Administrator). ``chat_moderatoren`` fragt Gruppenrollen und
+        # liefert für ein 1:1 nichts — ohne diesen Zweig bekäme der
+        # Administrator die Meldung als Glocke, aber nie in die Liste.
+        # Gefragt wird die WEICHE, nicht ``rechte.ist_meldestelle``: MODERIEREN
+        # ist im 1:1 die Meldestelle, in der Gruppe die Leitung — der Kern
+        # beantwortet das je ``art``, hier steht keine zweite Rechtefrage.
+        meldestelle = _weiche_ja(benutzer, rechte.MODERIEREN, direkt=True)
 
         # 2) Je Kandidat EINE Rechtefrage über den Rechte-Kern (`_erlaube`),
         #    nichts Eigenes. Gefragt wird nur nach den Gesprächen, in denen
@@ -2117,24 +2538,52 @@ def meldungen_liste(stand=None, gespraech=None):
                 g = _gespraech_lesen(s, kennung)
             except DoesNotExistError:
                 continue          # Gespräch zwischenzeitlich weg — kein Kandidat
-            if _darf_moderieren(benutzer, g):
+            # Kein Sonderzweig je ``art``: die Weiche fragt den Kern, und der
+            # kennt beide Arten (1:1 → Meldestelle, Gruppe → Leitung).
+            if _darf_moderieren(benutzer, g, sitzung=s):
                 eigene[g.name] = g
         if not eigene:
             # 3) Keiner der Kandidaten ist moderierbar. Jetzt erst entscheidet
             #    sich „[] vs 403“: gibt es überhaupt ein moderierbares
             #    Gespräch? Mit frühem Abbruch beim ersten „ja“ — der Normalfall
             #    (Leitung hat ein Gespräch) kostet keinen zweiten Durchlauf.
+            # Direktgespraeche nicht durchlaufen (O(Paare)): fuer sie steht
+            # unten der Meldestellen-Zweig.
             rest = s.execute(
                 select(ChatGespraech)
-                .where(ChatGespraech.geloescht_am.is_(None))
+                .where(ChatGespraech.geloescht_am.is_(None),
+                       or_(ChatGespraech.art.is_(None), ChatGespraech.art != ART_DIREKT))
                 .order_by(ChatGespraech.name)
             ).scalars()
+            vorhanden_ja = False
             for g in rest:
                 if nur_gespraech and g.name != nur_gespraech:
                     continue
-                if _darf_moderieren(benutzer, g):
+                if _darf_moderieren(benutzer, g, sitzung=s):
+                    vorhanden_ja = True
                     break
-            else:
+            # CHAT-7a: die Meldestelle darf DIREKTGESPRÄCHE moderieren, ohne
+            # dass eines davon schon existiert. Ohne diesen Zweig bekäme der
+            # Administrator ohne Gruppenrolle 403 („gar kein moderierbares
+            # Gespräch“) — obwohl die Glocke ihm die Meldung angekündigt hat.
+            if not vorhanden_ja and meldestelle:
+                direkt_da = s.execute(
+                    select(ChatGespraech.name)
+                    .join(ChatNachricht, ChatNachricht.gespraech == ChatGespraech.name)
+                    .join(ChatMeldung, ChatMeldung.nachricht == ChatNachricht.name)
+                    .where(ChatGespraech.art == ART_DIREKT,
+                           ChatGespraech.geloescht_am.is_(None))
+                    .limit(1)
+                ).scalar_one_or_none() is not None
+                if (nur_gespraech is not None
+                        and _art_lesen(nur_gespraech) != ART_DIREKT):
+                    # Auf EIN Gruppen-Gespräch eingegrenzt, und dort darf
+                    # diese Person nicht moderieren → ehrliche 403.
+                    _h()
+                if direkt_da or not nur_gespraech:
+                    return {"meldungen": [], "offen": 0}
+                _h()
+            if not vorhanden_ja:
                 # Harte Grenze: gar kein moderierbares Gespräch → 403 ohne Inhalt.
                 _h()
             # Ein moderierbares Gespräch gibt es, in ihm liegt nur keine
@@ -2247,8 +2696,11 @@ def meldung_entscheiden(meldung, entscheidung, grund=None):
         if n is None:
             raise DoesNotExistError("Nachricht nicht gefunden.")
         g = _gespraech_lesen(s, n.gespraech)
-        _erlaube(benutzer, rechte.MODERIEREN, gruppe=g.gruppe,
-                 untergruppe=g.untergruppe, gespraech=g.name)
+        # Die EINE Weiche — auch hier. Im Direktgespräch ist MODERIEREN laut
+        # Kern die MELDESTELLE (F7, ``ist_meldestelle``), in der Gruppe die
+        # Leitung; ein eigener ``ist_meldestelle``-Aufruf wäre ein zweiter
+        # Rechtepfad. Das ist die EINZIGE Stelle, an der im 1:1 moderiert wird.
+        _erlaube(benutzer, rechte.MODERIEREN, g=g, sitzung=s)
         if m.stand != MELDUNG_OFFEN:
             throw("Diese Meldung ist bereits entschieden.", KonfliktError)
         if _ist_meine(n, benutzer):
@@ -2379,20 +2831,20 @@ def _vorgeschichte(s, n: ChatNachricht, anzahl: int = MELDUNG_KONTEXT,
     } for z in zeilen]
 
 
-def _darf_moderieren(benutzer: str, g: ChatGespraech) -> bool:
+def _darf_moderieren(benutzer: str, g: ChatGespraech, *, sitzung=None) -> bool:
     """Darf ``benutzer`` in DIESEM Gespräch moderieren? — über ``_erlaube``.
 
     EINE Rechtefrage für Liste und Entscheiden (Review Punkt 7): keine eigene
-    Rollenlogik, kein zweiter Aufrufpfad. ``_erlaube`` wirft bei Ablehnung; hier
-    wird der Wurf zur Antwort ``False``, weil die Liste über VIELE Gespräche
-    fragt und das erste „nein“ nicht das Ende ist.
+    Rollenlogik, kein zweiter Aufrufpfad. ``_weiche_ja`` macht aus dem Wurf ein
+    ``False``, weil die Liste über VIELE Gespräche fragt und das erste „nein“
+    nicht das Ende ist.
+
+    CHAT-7a: Die Weiche entscheidet je ``art`` — im Direktgespräch ist
+    MODERIEREN die MELDESTELLE (F7: Administrator), nicht die Gruppenleitung.
+    Moderation im 1:1 gibt es aber NUR auf dem Meldeweg (``meldung_entscheiden``),
+    nicht auf ``nachricht_loeschen``/``umfrage_schliessen``.
     """
-    try:
-        _erlaube(benutzer, rechte.MODERIEREN, gruppe=g.gruppe,
-                 untergruppe=g.untergruppe, gespraech=g.name)
-    except PermissionError:
-        return False
-    return True
+    return _weiche_ja(benutzer, rechte.MODERIEREN, g=g, sitzung=sitzung)
 
 
 def _melde_namen(s, zeilen) -> dict[str, dict[str, str]]:
@@ -2470,7 +2922,9 @@ def _meldung_zeile(s, m: ChatMeldung, n: ChatNachricht, g: ChatGespraech,
         "bearbeitet_am": _isoopt(m.bearbeitet_am),
         "entscheidung_grund": m.entscheidung_grund,
         "gespraech": g.name,
-        "gespraech_titel": str(g.titel or "").strip() or (g.untergruppe or g.gruppe),
+        # Im 1:1 NEUTRAL („Direktnachricht“) — der Gesprächstitel waere hier
+        # der Name des Gegenuebers, und der gehoert nicht in die Meldungszeile.
+        "gespraech_titel": _glocken_titel(g),
         "gruppe": g.gruppe,
         "untergruppe": g.untergruppe,
         "nachricht": {
@@ -2492,6 +2946,70 @@ def _meldung_zeile(s, m: ChatMeldung, n: ChatNachricht, g: ChatGespraech,
         # sind für die GANZE Seite schon geladen (Review Runde 2, N1).
         "vorgeschichte": _vorgeschichte(s, n, namen=namen),
     }
+
+
+def _moderation_konten(g: ChatGespraech) -> list[str]:
+    """Wer bekommt die MELDUNGS-Glocke dieses Gesprächs (Konzept 2.5)?
+
+    * Gruppen-Chat: ``rechte.chat_moderatoren(gruppe, untergruppe)`` —
+      unverändert seit CHAT-6 (HV/MV, in der Untergruppe auch GL; der
+      Administrator steht bewusst NICHT darin).
+    * Direktgespräch (CHAT-7a): die MELDESTELLE (F7). Genau diese Person
+      bekommt die Glocke und sieht die Meldung in der Liste — und NUR sie; die
+      Gemeindeleitung sieht in einem 1:1 nichts (Konzept S3: „niemand sonst
+      kann mitlesen“). Die Frage je Kandidat stellt ``_weiche_ja(... MODERIEREN)``
+      (= der Kern) — hier steht keine eigene Rollenlogik.
+    """
+    if g.art == ART_DIREKT:
+        return sorted(k for k in _meldestellen_konten() if _weiche_ja(
+            k, rechte.MODERIEREN,
+            g=ChatGespraech(name=g.name, art=ART_DIREKT, gruppe=None, untergruppe=None)))
+    return list(rechte.chat_moderatoren(g.gruppe, g.untergruppe))
+
+
+def _meldestellen_konten() -> list[str]:
+    """KANDIDATEN für die Meldestelle (F7) — per SQL, danach der Kern-Recheck.
+
+    Nicht jedes aktive Konto durch den Rechte-Kern schicken: ``ist_admin`` gilt
+    für ``Administrator``, den eingetragenen root und Konten mit der Rolle
+    ``System Manager``. Genau diese holt EINE Abfrage; ob sie es wirklich sind,
+    entscheidet danach ``_weiche_ja(... MODERIEREN)`` — die Liste ist Vorfilter,
+    KEINE Entscheidung (dieselbe Trennung wie bei der Personensuche).
+
+    ``parenttype`` wird bewusst NICHT auf ``User`` verengt: Altdaten-Zeilen
+    ohne parenttype gelten im Kern als Benutzer-Rollen (``ist_user_zeile``),
+    eine zu enge Abfrage würde die Kandidatenliste leeren. Bleibt sie LEER,
+    bleibt es bei „niemand“ — fail closed, wie der Kern.
+    """
+    from diakronos_app.frappe_compat.permissions import ROOT_ROLLE
+    from diakronos_app.models.core import HasRole, User
+
+    konten = {str(k) for k in
+              (# ``ist_admin`` ist für diesen Namen wahr, ohne Rollenzeile.
+               (MELDESTELLE_KONTO,)
+               + tuple(rechte.ADMIN_ROLLEN)
+               + (ROOT_ROLLE,)) if k}
+    with dbmod.SessionLocal() as s:
+        konten |= {str(k) for k in s.execute(
+            select(HasRole.parent).where(
+                HasRole.role.in_((*rechte.ADMIN_ROLLEN, ROOT_ROLLE)))
+        ).scalars().all() if k}
+        try:
+            from diakronos_app import root_benutzer
+
+            eingetragen = root_benutzer.root_name()
+        except Exception:  # noqa: BLE001 — kein root bei Lesefehler (fail closed)
+            eingetragen = None
+        if eingetragen:
+            konten.add(str(eingetragen))
+        # Nur KONTEN, die es gibt und die aktiv sind (der Kern prüft dasselbe).
+        aktiv = {str(k) for k in s.execute(
+            select(User.name).where(User.name.in_(sorted(konten)),
+                                    User.enabled.is_(True))
+        ).scalars().all() if k}
+    # ``Administrator`` ist der Systembenutzer und steht in ``user``; fehlt er
+    # (frische/testspezifische Anlage), bleibt der Kern die Wahrheit.
+    return sorted(aktiv)
 
 
 def _glocke_neue_meldung(konten: list[str], meldung: str) -> None:
@@ -2517,6 +3035,9 @@ def _glocken_text(titel: str, anzahl: int) -> str:
 
     NUR Gesprächstitel und Anzahl (Karte: „KEIN Nachrichtentext, KEIN
     Absendername“). Singular bei 1 („1 neue Nachricht“).
+
+    ``titel`` ist der NEUTRALE Betreff aus ``_glocken_titel`` — im
+    Direktgespräch also „Direktnachricht“, nie der Name des Gegenübers.
     """
     wort = "neue Nachricht" if anzahl == 1 else "neue Nachrichten"
     return f"{titel}: {anzahl} {wort}"
@@ -2534,8 +3055,22 @@ def _glocken_hinweis(anzahl: int) -> str:
 
 
 def _glocken_titel(g: ChatGespraech) -> str:
-    """Titel der Glocke: der Gesprächstitel, sonst die Einheit."""
-    return str(g.titel or "").strip() or (g.untergruppe or g.gruppe)
+    """Titel der Glocke: im 1:1 NEUTRAL, sonst Gesprächstitel, sonst Einheit.
+
+    Ein Direktgespräch hat weder ``titel`` noch ``untergruppe``/``gruppe``
+    (beide NULL) — ohne eigenen Zweig hieße die Glocke „None: 1 neue
+    Nachricht“. Und der Gesprächstitel eines 1:1 IST der Name des Gegenübers:
+    der darf in der Glocke nicht stehen (CHAT-4a: „kein Absendername“).
+    Deshalb ein fester Betreff ohne jede Personenangabe. Fehlen bei einem
+    Gruppengespräch Titel und Einheit, gilt derselbe neutrale Rückfall —
+    nie „None“ oder ein leerer Text in der Glocke (CHAT-4b R1).
+    """
+    if g.art == ART_DIREKT:
+        return DIREKT_GLOCKE_TITEL
+    titel = str(g.titel or "").strip()
+    if titel:
+        return titel
+    return str(g.untergruppe or g.gruppe or "").strip() or DIREKT_GLOCKE_TITEL
 
 
 def glocken_merker(s, gespraech: str, benutzer: str) -> ChatGlocke:
@@ -2568,12 +3103,15 @@ def _glocke_anker(teilnahme: ChatTeilnehmer | None) -> datetime | None:
 
 def _glocke_setzen(s, *, konto: str, gespraech: ChatGespraech,
                    teilnahme: ChatTeilnehmer | None, anzahl: int,
-                   jetzt: datetime) -> bool:
+                   jetzt: datetime,
+                   nur_fortschreiben: bool = False) -> bool:
     """Die EINE Glocke je (Gespräch, Konto) schreiben — ersetzen statt doppeln.
 
     Liegt im ``Notification Log`` schon eine UNGELESENE Chat-Glocke desselben
     Gesprächs, wird sie AKTUALISIERT (Betreff, Inhalt). Sonst entsteht eine
-    neue Zeile.
+    neue Zeile — AUSSER mit ``nur_fortschreiben``: dann wird keine angelegt
+    (Review R1/4, Fall „die Person hat die Glocke weggeklickt“) und die
+    Rückgabe ist ``False``.
 
     Der Merker wird NUR fortgeschrieben, wenn die Glocke wirklich stand (der
     Rückgabewert von ``glocke_setzen`` ist leer, wenn das Schreiben scheiterte)
@@ -2593,6 +3131,10 @@ def _glocke_setzen(s, *, konto: str, gespraech: ChatGespraech,
         inhalt=_glocken_hinweis(anzahl),
         document_type=CHAT_GLOCKE_DOCTYPE,
         document_name=gespraech.name,
+        # CHAT-4b: die Glocke entsteht in der Sitzung des Joblaufs/Endpunkts —
+        # dieselbe Sitzung, in der Merker und Fach-Transaktion stehen.
+        session=s,
+        nur_fortschreiben=nur_fortschreiben,
     )
     if not name:
         return False  # Benachrichtigung ist Beiwerk — aber dann auch kein Merker
@@ -2612,19 +3154,35 @@ def _glocke_setzen(s, *, konto: str, gespraech: ChatGespraech,
 
 
 def _glocke_als_gelesen(s, gespraech: str, benutzer: str,
-                        alles_gelesen: bool = True) -> int:
+                        alles_gelesen: bool = True,
+                        ungelesen: int | None = None) -> int:
     """Die Glocken dieses Gesprächs für diese Person als gelesen markieren.
 
     Zwei Dinge: die ``Notification Log``-Zeile(n) auf ``read`` stellen (das ist
     die Glocke in der Oberfläche) und den Merker ``gelesen_am`` setzen. Fehler
     sind Beiwerk — ``lesestand_setzen`` darf daran nicht scheitern.
 
-    ``alles_gelesen=False`` (Reviews R1/d: der Lesestand wurde nur bis zu einer
-    ÄLTEREN Nachricht gesetzt, danach ist noch etwas ungelesen): dann bleibt
-    die Glocke UNGELESEN stehen, denn es gibt weiter etwas zu sehen — der
-    nächste Joblauf schreibt sie mit der richtigen Zahl fort. Der Merker
-    bekommt nur den Anker des neuen Lesestands, damit die Zählung ab dort
-    stimmt.
+    ``alles_gelesen=False`` (der Lesestand wurde nur bis zu einer ÄLTEREN
+    Nachricht gesetzt, danach ist noch etwas ungelesen): dann bleibt die
+    Glocke UNGELESEN stehen, denn es gibt weiter etwas zu sehen.
+
+    CHAT-4b, Restpunkt b aus dem CHAT-4a-Review: sie stehen zu lassen genügte
+    NICHT — ``merker_am`` blockiert weitere Läufe (``_glocke_faellig``), die
+    Glocke zeigte also weiter die alte Zahl („3 neue“, obwohl 2 ungelesen).
+    Deshalb wird sie hier SOFORT mit der neuen Zahl fortgeschrieben
+    (``_glocke_setzen``, ``nur_fortschreiben=True``). Die Bedingungen sind
+    Bewusst dieselben wie beim Job (Review R1/4):
+
+      * es muss eine BESTEHENDE UNGELESENE Glocke fortgeschrieben werden —
+        keine vorhanden (die Person hat sie weggeklickt) ⇒ NICHTS, es entsteht
+        keine neue Glocke,
+      * stumm geschaltet ⇒ NICHTS (F3: keine Glocke; der Zähler bleibt),
+      * innerhalb der Ruhezeit ⇒ NICHTS (der Job glockt dann auch nicht; die
+        Zahl folgt beim nächsten Lauf),
+      * gelöschtes Gespräch oder noch nie geglockt ⇒ NICHTS.
+
+    ``ungelesen`` muss der Aufrufer hereinreichen (er kennt die Zahl);
+    ``None`` ⇒ es wird nichts fortgeschrieben.
     """
     from diakronos_app.benachrichtigungen import glocke_gelesen
 
@@ -2636,6 +3194,10 @@ def _glocke_als_gelesen(s, gespraech: str, benutzer: str,
             merker.stand_nachricht = teilnahme.letzter_lesestand_nachricht if teilnahme else None
             merker.stand = merker.stand_nachricht
             s.flush()
+        # Die Zahl der Bündel-Glocke folgt dem Lesestand: bleibt etwas offen,
+        # wird die BESTEHENDE Zeile JETZT fortgeschrieben (statt erst beim
+        # nächsten Lauf, der wegen ``merker_am`` nie käme).
+        _buendel_glocke_nachziehen(s, gespraech, benutzer, merker, ungelesen)
         return 0
     anzahl = glocke_gelesen(for_user=benutzer, document_type=CHAT_GLOCKE_DOCTYPE,
                             document_name=gespraech)
@@ -2643,6 +3205,38 @@ def _glocke_als_gelesen(s, gespraech: str, benutzer: str,
         merker.gelesen_am = _jetzt()
         s.flush()
     return anzahl
+
+
+def _buendel_glocke_nachziehen(s, gespraech: str, benutzer: str,
+                               merker: ChatGlocke | None,
+                               ungelesen: int | None) -> None:
+    """Die BESTEHENDE Bündel-Glocke auf die neue Zahl fortschreiben.
+
+    Kein Anlegen, kein Wiederbeleben, kein Umgehen von ``stumm`` und Ruhezeit
+    (Review R1/4). Fehler sind Beiwerk wie überall bei Glocken — der Lesestand
+    ist längst geschrieben, das hier ist nur die Anzeige.
+    """
+    if not ungelesen or ungelesen <= 0:
+        return
+    if merker is None or merker.geglockt_am is None:
+        return  # es wurde nie geglockt — nichts fortzuschreiben
+    g = s.get(ChatGespraech, gespraech)
+    if g is None or g.geloescht_am is not None:
+        return
+    teilnahme = s.get(ChatTeilnehmer, (gespraech, benutzer))
+    if teilnahme is not None and teilnahme.stumm:
+        return  # F3: keine Glocke mehr (der Zähler bleibt)
+    jetzt = _jetzt()
+    if not _glocke_ruhe_vorbei(s, gespraech, jetzt):
+        return  # in der Ruhezeit glockt auch der Job nicht
+    try:
+        with s.begin_nested():
+            _glocke_setzen(s, konto=benutzer, gespraech=g, teilnahme=teilnahme,
+                           anzahl=int(ungelesen), jetzt=jetzt,
+                           nur_fortschreiben=True)
+    except Exception:  # noqa: BLE001 — Anzeige, nicht der Lesestand
+        logger.exception("chat: Bündel-Glocke %s/%s nicht fortgeschrieben",
+                         gespraech, benutzer)
 
 
 def _offen_bedingung(konto: str | None = None):
@@ -2733,6 +3327,27 @@ def _glocken_kandidaten(s, zeit: datetime, ruhe: int) -> list[tuple[str, str]]:
         .order_by(je_person.c.gespraech, je_person.c.benutzer)
     )
     return [(str(g), str(k)) for g, k in s.execute(abfrage).all() if g and k]
+
+
+def _glocke_ruhe_vorbei(s, gespraech: str, jetzt: datetime,
+                        ruhe: int | None = None) -> bool:
+    """Ist die Ruhezeit des Gesprächs abgelaufen? — dieselbe Regel wie im Job.
+
+    Der Job glockt erst, wenn die neueste Nachricht mindestens ``ruhe``
+    Minuten alt ist (``GLOCKE_RUHE_MINUTEN``, ``_glocken_kandidaten``). Das
+    Nachziehen der Zahl beim Lesen (``_buendel_glocke_nachziehen``) darf diese
+    Ruhe nicht umgehen (Review R1/4) — hier steht dieselbe Grenze als EINE
+    Abfrage. Ein Gespräch ohne lebende Nachricht gilt als ruhig.
+    """
+    minuten = GLOCKE_RUHE_MINUTEN if ruhe is None else int(ruhe)
+    neueste = s.execute(
+        select(func.max(ChatNachricht.erstellt_am))
+        .where(ChatNachricht.gespraech == gespraech,
+               ChatNachricht.geloescht_am.is_(None))
+    ).scalar_one_or_none()
+    if neueste is None:
+        return True
+    return neueste <= jetzt - timedelta(minutes=minuten)
 
 
 def _glocke_faellig(s, gespraech: ChatGespraech, konto: str) -> bool:
@@ -2844,6 +3459,343 @@ def chat_glocken_buendeln(jetzt: datetime | None = None, ruhe: int | None = None
     return geschrieben
 
 
+# ── CHAT-4b: Glocke beim Start und Erinnerung vor der Frist ─────────────────
+
+#: CHAT-4b: Vorlauf der Erinnerung (Konzept S2: „eine Erinnerung 24 h vor
+#: Frist“). Gefragt wird „noch offen UND Frist in höchstens 24 h“ — der Job
+#: läuft minütlich, die Erinnerung geht dadurch zwischen 24 h und 23 h 59 min
+#: vor der Frist heraus, genau einmal (``chat_umfrage.erinnert_am``).
+ERINNERUNG_VORLAUF_STUNDEN = 24
+
+
+def _glocken_empfaenger(s, gespraech: str) -> list[str]:
+    """Konten, die dieses Gespräch lesen dürfen — EINE Abfrage, dann der Kern.
+
+    Empfängerkreis der Umfrage-Glocken (CHAT-4b): die Teilnehmenden des
+    Gesprächs (``chat_teilnehmer``), geprüft über ``_darf_lesen``
+    (``rechte.darf``, nichts Eigenes). Wer NIE im Gespräch war, hat keine
+    ``chat_teilnehmer``-Zeile und bekommt deshalb NICHTS — dieselbe Regel wie
+    bei der gebündelten Glocke (CHAT-4a). Eine Umfrage ist für die Person eine
+    Nachricht im Verlauf; ohne Verlauf gibt es nichts zu erinnern.
+
+    ``rechte.darf`` läuft je Kandidat (der Kern kennt keinen Massenaufruf);
+    die Kandidatenliste ist EINE SQL-Abfrage, keine N+1-Kette über Gespräche.
+    Wer den Stumm-Schalter mitbraucht, nimmt ``_glocken_empfaenger_stumm``.
+    """
+    return [konto for konto in _teilnahme_konten(s, gespraech)
+            if _darf_lesen(s, konto, gespraech)]
+
+
+def _glocken_empfaenger_stumm(s, gespraech: str) -> list[tuple[str, bool]]:
+    """Wie ``_glocken_empfaenger``, aber je Kandidat mit ``(konto, stumm)``.
+
+    ``stumm`` kommt aus DERSELBEN SQL-Abfrage (Review R1, SOLL): kein
+    ``s.get(ChatTeilnehmer)`` je Kandidat. Der Rechte-Kern entscheidet wie
+    immer über ``rechte.darf``.
+    """
+    return [(konto, stumm) for konto, stumm in _teilnahme_und_stumm(s, gespraech)
+            if _darf_lesen(s, konto, gespraech)]
+
+
+def _umfrage_glocke_setzen(s, *, umfrage: ChatUmfrage, gespraech: ChatGespraech,
+                           konto: str, subject: str, inhalt: str) -> bool:
+    """EINE Umfrage-Glocke je (Umfrage, Konto) — fortschreiben statt doppeln.
+
+    ``document_type`` ist ``chat_umfrage`` (die Glocke gehört zur UMFRAGE, nicht
+    zum Gespräch: die gebündelte Chat-Glocke und die Erinnerung dürfen sich
+    nicht gegenseitig überschreiben), ``document_name`` die Kennung der
+    Umfrage. Liegt schon eine ungelesene Glocke dieser Umfrage, wird sie
+    fortgeschrieben (``benachrichtigungen.glocke_setzen``) — dadurch steht je
+    Person und Umfrage genau EINE Zeile.
+
+    Fehler sind Beiwerk (Rückgabe ``False``), die Fach-Transaktion läuft weiter.
+    """
+    from diakronos_app.benachrichtigungen import glocke_setzen
+
+    if not konto:
+        return False
+    try:
+        with s.begin_nested():
+            name = glocke_setzen(
+                for_user=konto,
+                subject=subject,
+                inhalt=inhalt,
+                document_type=CHAT_UMFRAGE_GLOCKE_DOCTYPE,
+                document_name=umfrage.name,
+                # DIE Sitzung des Aufrufs: die Glocke muss mit der
+                # Fach-Transaktion sichtbar werden und mit ihr committen.
+                session=s,
+            )
+        return bool(name)
+    except Exception:  # noqa: BLE001 — Benachrichtigung ist Beiwerk
+        logger.exception("chat: Umfrage-Glocke %s/%s fehlgeschlagen",
+                         umfrage.name, konto)
+        return False
+
+
+def _umfrage_betreff_start(gespraech: ChatGespraech, titel: str) -> str:
+    """Betreff der Start-Glocke. Im 1:1 ein eigener Satz ohne Namen.
+
+    „Neue Umfrage im Direktnachricht“ wäre falsch; und der Titel eines 1:1
+    wäre der Name des Gegenübers — der steht nie in einer Glocke.
+    """
+    if gespraech.art == ART_DIREKT:
+        return "Neue Umfrage in einer Direktnachricht"
+    return f"Neue Umfrage im {titel}"
+
+
+def _umfrage_betreff_ende(gespraech: ChatGespraech, titel: str) -> str:
+    """Betreff der Erinnerung „… endet morgen“; im 1:1 ohne Namen (s. o.)."""
+    if gespraech.art == ART_DIREKT:
+        return "Umfrage in einer Direktnachricht endet morgen"
+    return f"Umfrage im {titel} endet morgen"
+
+
+def _glocke_neue_umfrage(s, umfrage: ChatUmfrage, gespraech: ChatGespraech,
+                         titel: str, angelegt_von: str) -> int:
+    """Start-Glocke (CHAT-4b): „Neue Umfrage im <Titel>“ an alle Lesenden.
+
+    Konzept S2: „eine Glocke beim Start (‚Neue Umfrage im Chor')“. Empfänger
+    sind die Konten aus ``_glocken_empfaenger`` — also wer das Gespräch lesen
+    darf UND schon eine Teilnahmezeile hat —, AUSSER:
+
+      * der/dem Anlegenden (es weiß es selbst),
+      * stumm geschalteten Personen (F3: keine Glocke mehr — dieselbe Regel wie
+        bei der gebündelten Glocke; der Ungelesen-Zähler bleibt),
+      * wer nicht mehr lesen darf (``rechte.darf`` im Kern).
+
+    Die UMFRAGE kommt als Instanz herein (Review R1/2): der Aufrufer kennt sie,
+    die frühere Variante suchte „die neueste Umfrage des Gesprächs“ und traf
+    bei zwei offenen Umfragen die falsche.
+
+    Der Text enthält NUR den Gesprächstitel: keine Frage, keine Optionen, kein
+    Name der anlegenden Person (Konzept 4.5 — dieselbe Zusage wie bei der
+    gebündelten Glocke und bei ``_glocke_neue_meldung``).
+
+    Läuft NACH dem Commit des Anlegens, in einer eigenen Sitzung — eine kaputte
+    Benachrichtigung darf die angelegte Umfrage nicht zurücknehmen.
+
+    Rückgabe: Zahl der geschriebenen Glocken.
+    """
+    if umfrage is None or gespraech is None:
+        return 0
+    if gespraech.geloescht_am is not None:
+        return 0
+    geschrieben = 0
+    for konto, stumm in _glocken_empfaenger_stumm(s, gespraech.name):
+        if konto == angelegt_von or stumm:
+            continue
+        if _umfrage_glocke_setzen(
+            s, umfrage=umfrage, gespraech=gespraech, konto=konto,
+            subject=_umfrage_betreff_start(gespraech, titel),
+            inhalt=("Im Gespräch wurde eine Umfrage gestartet. "
+                    "Öffne den Chat, um abzustimmen."),
+        ):
+            geschrieben += 1
+    return geschrieben
+
+
+def _offene_umfragen_mit_frist(s, zeit: datetime, vorlauf_stunden: int) -> list[str]:
+    """Umfragen, deren Frist in höchstens ``vorlauf_stunden`` abläuft — in SQL.
+
+    Kriterien (alle in der Datenbank, damit der Minutentakt nicht die halbe
+    Chat-Tabelle lädt):
+
+      * ``erinnert_am IS NULL`` — noch nicht erinnert (Idempotenz),
+      * ``geschlossen_am IS NULL`` — nicht geschlossen,
+      * ``frist_am IS NOT NULL`` und ``frist_am <= zeit + vorlauf`` — die Frist
+        naht (auch eine bereits VERSTRICHENE Frist fällt hier hinein: solange
+        der Schließ-Job sie noch nicht geschlossen hat, ist eine Erinnerung
+        besser als keine),
+      * die Hülle-Nachricht ist nicht gelöscht (``chat_nachricht.geloescht_am``)
+        — eine entfernte Umfrage wird nie erinnert,
+      * das Gespräch lebt.
+    """
+    grenze = zeit + timedelta(hours=int(vorlauf_stunden))
+    return [str(k) for k in s.execute(
+        select(ChatUmfrage.name)
+        .join(ChatNachricht, ChatNachricht.umfrage == ChatUmfrage.name)
+        .join(ChatGespraech, ChatGespraech.name == ChatUmfrage.gespraech)
+        .where(
+            ChatUmfrage.erinnert_am.is_(None),
+            ChatUmfrage.geschlossen_am.is_(None),
+            ChatUmfrage.frist_am.is_not(None),
+            ChatUmfrage.frist_am <= grenze,
+            ChatNachricht.geloescht_am.is_(None),
+            ChatGespraech.geloescht_am.is_(None),
+        )
+        .order_by(ChatUmfrage.frist_am, ChatUmfrage.name)
+    ).scalars().all() if k]
+
+
+def _umfrage_offen_je_konto(s, umfrage: ChatUmfrage) -> dict[str, bool]:
+    """``{konto: hat_schon_abgestimmt}`` für EIN Gespräch — EINE Abfrage.
+
+    Die beiden Zählwege der Umfrage (CHAT-5) getrennt ausgewertet:
+    OFFEN gibt es ``chat_stimme``-Zeilen je Person, ANONYM ``chat_umfrage_abgabe``
+    ohne jeden Optionsbezug. Beides ist eine Mengen-Abfrage über das GESPRÄCH,
+    nicht je Person.
+
+    Die Antwort bleibt im Server: die Erinnerung verrät nach außen nur „du hast
+    noch nicht abgestimmt“ an die Person selbst — niemals eine Liste an Dritte.
+    """
+    if umfrage.anonym:
+        konten = set(s.execute(
+            select(ChatUmfrageAbgabe.benutzer)
+            .where(ChatUmfrageAbgabe.umfrage == umfrage.name)
+        ).scalars().all())
+    else:
+        konten = set(s.execute(
+            select(ChatStimme.benutzer)
+            .where(ChatStimme.umfrage == umfrage.name)
+        ).scalars().all())
+    return {str(k): True for k in konten if k}
+
+
+def _glocke_umfrage_erinnerung(s, *, umfrage: ChatUmfrage, gespraech: ChatGespraech,
+                               titel: str) -> tuple[int, int, bool]:
+    """Erinnerung 24 h vor der Frist an alle, die NOCH NICHT abgestimmt haben.
+
+    Der Job ``chat_umfrage_erinnerungen`` ruft DAS (nach dem Schließen fälliger
+    Umfragen). Empfängerkreis wie bei der Start-Glocke
+    (``_glocken_empfaenger_stumm``: Teilnahmezeile + ``rechte.darf`` LESEN +
+    Stumm-Schalter aus derselben Abfrage), AUSSER allen, die schon abgestimmt
+    haben (offen: ``chat_stimme``, anonym: ``chat_umfrage_abgabe``).
+
+    Die UMFRAGE kommt als Instanz herein (Review R1/2): der Job kennt die
+    Kandidaten-Kennung. Die frühere Variante suchte „die neueste Umfrage des
+    Gesprächs“ — bei zwei offenen Umfragen hätte die Erinnerung zu A die
+    Abgestimmten von B gefiltert und an B gehängt.
+
+    Die Erinnerung an die Person selbst ist die EINZIGE Information, die
+    entsteht: „du hast noch nicht abgestimmt“. Eine Liste, WER nicht abgestimmt
+    hat, gibt es in keiner Antwort und in keiner Glocke an Dritte (Anonymität,
+    Konzept S2). Die Glocke ist je (Umfrage, Konto) eine und wird
+    fortgeschrieben — die Start-Glocke derselben Person steht auf derselben
+    Zeile.
+
+    Rückgabe: ``(geschriebene Glocken, Zahl der Empfänger, zutreffend)``.
+    ``zutreffend=False`` heißt „für diese Umfrage gibt es keine Erinnerung“
+    (kurze Frist, Review R1 SOLL) — der Merker wird dann NICHT gesetzt, sonst
+    stünde „erinnert“ an einer Umfrage, die nie hätte erinnert werden dürfen.
+    Sonst setzt der Aufrufer ``erinnert_am`` nur, wenn geschrieben wurde ODER
+    es keine Empfänger gab (Review R1, SOLL): bei einem Schreibfehler holt der
+    nächste Lauf es nach, statt die Erinnerung still zu verlieren.
+    """
+    if umfrage is None or gespraech is None:
+        return 0, 0, False
+    if gespraech.geloescht_am is not None:
+        return 0, 0, False
+    # Kurze Fristen (Review R1, SOLL): wurde die Umfrage weniger als 24 h vor
+    # ihrer Frist angelegt, ist die Start-Glocke die ganze Erinnerung. Ohne
+    # ``erstellt_am`` wird konservativ NICHT erinnert.
+    if umfrage.frist_am is not None and umfrage.erstellt_am is not None:
+        if umfrage.frist_am - umfrage.erstellt_am <= timedelta(
+                hours=ERINNERUNG_VORLAUF_STUNDEN):
+            return 0, 0, False
+    abgestimmt = _umfrage_offen_je_konto(s, umfrage)
+    geschrieben = 0
+    empfaenger = 0
+    for konto, stumm in _glocken_empfaenger_stumm(s, gespraech.name):
+        if stumm or abgestimmt.get(konto):
+            continue
+        empfaenger += 1
+        if _umfrage_glocke_setzen(
+            s, umfrage=umfrage, gespraech=gespraech, konto=konto,
+            subject=_umfrage_betreff_ende(gespraech, titel),
+            inhalt=("Die Frist der Umfrage läuft ab. "
+                    "Öffne den Chat, um noch abzustimmen."),
+        ):
+            geschrieben += 1
+    return geschrieben, empfaenger, True
+
+
+def chat_umfrage_erinnerungen(jetzt: datetime | None = None,
+                              vorlauf: int | None = None) -> int:
+    """Scheduler-Job (CHAT-4b): EINE Erinnerung 24 h vor der Frist.
+
+    KEIN HTTP-Endpunkt (Review R1/1): bewusst ohne ``@whitelist`` — wie
+    ``chat_glocken_buendeln``. Der Rumpf nimmt ``jetzt``/``vorlauf`` an und
+    SCHLIESST fällige Umfragen mit; über HTTP wäre das für jeden Angemeldeten
+    ein Hebel (``jetzt=2099-01-01`` schlösse alle befristeten Umfragen,
+    ``vorlauf=99999`` verschöbe alle Erinnerungen). Aufrufer ist allein
+    ``scheduler.job_chat_umfrage_erinnerungen``.
+
+    Konzept S2: „eine Erinnerung 24 h vor Frist an die, die noch nicht
+    abgestimmt haben“. Läuft im Glocken-Minutentakt hinter
+    ``chat_glocken_buendeln`` (eigene Kennung, eigene Sitzungssperre).
+
+    Das minütliche ``schliesse_faellige`` in Schritt 1 ist eine bewusste
+    Entscheidung des Operators (Review R1, SOLL): die Umfrage schließt damit
+    pünktlich zur Frist statt bis zu einen Tag später, und es bleibt EINE
+    Anweisung über einen Index (``ix_chat_umfrage_frist``) — kein Lesen, keine
+    Namensliste.
+
+    Ablauf je Lauf:
+
+      1. **Erst schließen, dann erinnern** (``schliesse_faellige``): eine
+         Umfrage, deren Frist vorbei ist, wird nicht mehr erinnert. Der
+         Schließ-Job läuft zwar täglich, aber ein Tageslauf kann ausfallen —
+         der Merker ``erinnert_am`` macht die Erinnerung trotzdem einmalig.
+      2. **Kandidaten in SQL** (``_offene_umfragen_mit_frist``): offen, mit
+         Frist in höchstens ``vorlauf`` Stunden, noch nicht erinnert, Hülle und
+         Gespräch nicht gelöscht.
+      3. Je Umfrage die Glocken an die Nicht-Abgestimmten
+         (``_glocke_umfrage_erinnerung``) und DANACH ``erinnert_am`` setzen —
+         im selben Vorgang. Der Merker wird nur gesetzt, wenn das Schreiben
+         durchlief ODER es gar keine Empfänger gab; scheitert eine Glocke,
+         bleibt er leer und der nächste Minutentakt versucht es erneut
+         (Review R1, SOLL).
+
+    Idempotent: der zweite Lauf findet keine Umfrage mit ``erinnert_am IS
+    NULL`` mehr — vorausgesetzt, der erste hat den Merker gesetzt.
+
+    ``jetzt`` und ``vorlauf`` sind injizierbar (Tests, kein ``sleep``).
+
+    Rückgabe: Zahl der geschriebenen/aktualisierten Glocken.
+    """
+    from diakronos_app import db as _db
+
+    zeit = jetzt or _jetzt()
+    stunden = ERINNERUNG_VORLAUF_STUNDEN if vorlauf is None else int(vorlauf)
+    # Ein verspäteter Tageslauf soll die Grundlage nicht verfälschen: erst
+    # schließen (eigene Transaktion mit eigener Sitzung), dann erinnern.
+    schliesse_faellige(zeit)
+    geschrieben = 0
+    with _db.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        from diakronos_app.rechte import merkungsrahmen
+
+        if not _lauf_sperren(s):
+            logger.info("chat_umfrage_erinnerungen: anderer Lauf aktiv, übersprungen")
+            return 0
+        with merkungsrahmen():
+            for kennung in _offene_umfragen_mit_frist(s, zeit, stunden):
+                try:
+                    with s.begin_nested():
+                        u = s.get(ChatUmfrage, kennung)
+                        if u is None or u.erinnert_am is not None \
+                                or u.geschlossen_am is not None:
+                            continue
+                        g = s.get(ChatGespraech, u.gespraech)
+                        if g is None or g.geloescht_am is not None:
+                            continue
+                        anzahl, empfaenger, zutreffend = _glocke_umfrage_erinnerung(
+                            s, umfrage=u, gespraech=g, titel=_glocken_titel(g))
+                        # Merker nur bei Erfolg: „nicht zutreffend“ (kurze Frist)
+                        # bleibt ohne Merker, „keine Empfänger“ ist fertig, und
+                        # eine geschriebene Glocke heißt „erinnert“. Gab es
+                        # Empfänger, aber keine Glocke, ist das Schreiben
+                        # gescheitert — der nächste Minutentakt holt es nach.
+                        if zutreffend and (anzahl or not empfaenger):
+                            u.erinnert_am = zeit
+                        s.flush()
+                        geschrieben += anzahl
+                except Exception:  # noqa: BLE001 — eine Umfrage, nicht der Lauf
+                    logger.exception("chat_umfrage_erinnerungen: %s fehlgeschlagen",
+                                     kennung)
+    return geschrieben
+
+
 def _glocke_entfernt(konto: str, gespraech: str, nachricht: str, grund: str | None) -> None:
     """Glocke an die VERFASSENDE Person: „von der Moderation entfernt“.
 
@@ -2894,9 +3846,9 @@ def _einheit(s, gruppe, untergruppe) -> tuple[str, str | None]:
     return haupt, u
 
 
-def _erlaube(benutzer: str, aktion: str, *, gruppe: str | None,
-             untergruppe: str | None = None, besitzer: str | None = None,
-             gespraech: str | None = None) -> None:
+def _erklaere(benutzer: str, aktion: str, *, gruppe: str | None,
+              untergruppe: str | None = None, besitzer: str | None = None,
+              gespraech: str | None = None) -> None:
     """DIE Rechtefrage — ``rechte.darf``, nichts Eigenes (Kartenauflage).
 
     ``besitzer`` wird in der Form des Kerns uebergeben: eine KONTO-Kennung
@@ -2912,6 +3864,124 @@ def _erlaube(benutzer: str, aktion: str, *, gruppe: str | None,
     )
     if not entscheidung:
         _h()
+
+
+def _erlaube(benutzer: str, aktion: str, *, g: ChatGespraech | None = None,
+             gruppe: str | None = None, untergruppe: str | None = None,
+             besitzer: str | None = None, gespraech: str | None = None,
+             teilnehmer=None, sitzung=None,
+             direkt: bool = False) -> None:
+    """DIE eine Rechteweiche je Gesprächsart (CHAT-7a).
+
+    Jeder Endpunkt fragt HIER — nicht selbst — und bekommt je ``art`` die
+    passende Frage des Kerns; eine eigene Rechtelogik gibt es in diesem Modul
+    nicht (Kartenauflage). Auch der Meldeweg (Liste, Entscheiden,
+    ``_darf_moderieren``) und die Zählhilfen gehen durch diese eine Funktion.
+
+    * ``art = 'direkt'`` → ``rechte.darf_direktgespraech(benutzer, aktion,
+      teilnehmer=<Konten des Gesprächs>, besitzer=…)``. Der Raum sind die
+      Teilnehmenden, nicht eine Gruppe.
+    * sonst → ``_erklaere`` → ``rechte.darf(..., gruppe/untergruppe)``
+      (unverändert seit CHAT-2).
+
+    ``g`` ist die Zeile, wenn der Aufrufer sie schon hat; ``gespraech`` die
+    Kennung, ``gruppe``/``untergruppe`` die Einheit. Der ART-Vergleich gilt nur
+    für ECHTE Gespräche (``g.name`` gesetzt): das Platzhalter-Objekt aus
+    ``_lesbare_gespraeche`` für eine noch nicht angelegte Einheit hat
+    ``name = None`` — dort gibt es kein Direktgespräch zu erkennen, und
+    ``rechte.darf`` entscheidet wie seit CHAT-2.
+
+    ``direkt=True`` fragt die 1:1-Regel OHNE Gespräch — für die eine Frage
+    „ist diese Person Meldestelle?“ (``meldungen_liste``), die vor jedem
+    Kandidaten beantwortet sein muss. Ohne ``g`` und ohne Teilnehmende ist die
+    Antwort für LESEN/ANLEGEN/SCHREIBEN ``nein`` (fail closed); für MODERIEREN
+    entscheidet sie der Kern.
+
+    ``teilnehmer`` sind die KONTEN des Gesprächs. Fehlt die Angabe, werden sie
+    in ``sitzung`` (der Sitzung des Aufrufers) gelesen — so kann kein Aufrufer
+    eine zu kleine Liste mitgeben und sich damit Zugang verschaffen. Eine
+    EIGENE Sitzung öffnet die Weiche nur, wenn der Aufrufer gar keine hat:
+    je Rechtefrage zwei frische Sitzungen (und womöglich noch nicht
+    committete Zeilen darin) wären eine stille Fehlerquelle.
+
+    Die Teilnahme prüft der KERN (``benutzer not in konten → kein_teilnehmer``)
+    — hier steht bewusst KEINE Vorprüfung davor.
+    """
+    art = ART_DIREKT if direkt else ""
+    if g is not None:
+        if g.name:
+            art = str(g.art or "")
+        gespraech = gespraech or g.name
+        gruppe = gruppe if gruppe is not None else g.gruppe
+        untergruppe = untergruppe if untergruppe is not None else g.untergruppe
+    elif gespraech and sitzung is not None:
+        art = _art_lesen(gespraech, sitzung=sitzung)
+    elif gespraech:
+        art = _art_lesen(gespraech)
+
+    if art == ART_DIREKT:
+        if teilnehmer is None:
+            if sitzung is not None and gespraech:
+                teilnehmer = _teilnahme_konten(sitzung, gespraech)
+            else:
+                teilnehmer = _teilnahme_konten_aus_db(gespraech)
+        entscheidung = rechte.darf_direktgespraech(
+            benutzer, aktion, teilnehmer=teilnehmer, besitzer=besitzer)
+        if not entscheidung:
+            _h()
+        return
+    _erklaere(benutzer, aktion, gruppe=gruppe, untergruppe=untergruppe,
+              besitzer=besitzer, gespraech=gespraech)
+
+
+def _weiche_ja(benutzer: str, aktion: str, **kwargs) -> bool:
+    """``_erlaube`` als WAHRHEITSWERT — für Fragen über VIELE Gespräche.
+
+    Dieselbe Weiche, nur ohne Wurf: die Liste fragt über alle Kandidaten, und
+    das erste „nein“ ist dort nicht das Ende. Kein zweiter Rechtepfad.
+    """
+    try:
+        _erlaube(benutzer, aktion, **kwargs)
+    except PermissionError:
+        return False
+    return True
+
+
+def _art_lesen(gespraech: str, *, sitzung=None) -> str:
+    """Die ``art`` eines Gesprächs — in ``sitzung`` oder einer eigenen, kurzen.
+
+    Der Rechte-Kern liest seine Auskünfte in ``db.lesesitzung``; die Weiche
+    braucht nur die ART (eine Spalte) und fragt sie deshalb hier ab, statt den
+    Aufrufer eine Gesprächszeile laden zu lassen. ``sitzung`` ist die Sitzung
+    des Aufrufers, wenn er eine hat (dann sieht sie auch noch nicht committete
+    Zeilen). Unbekannte Kennung → ``""`` (der Aufrufer hat sie meist schon
+    geprüft; dann entscheidet die Gruppenfrage wie bisher).
+    """
+    if not gespraech:
+        return ""
+    if sitzung is not None:
+        art = sitzung.execute(
+            select(ChatGespraech.art).where(ChatGespraech.name == gespraech)
+        ).scalar_one_or_none()
+        return str(art or "")
+    with dbmod.SessionLocal() as s:
+        art = s.execute(
+            select(ChatGespraech.art).where(ChatGespraech.name == gespraech)
+        ).scalar_one_or_none()
+    return str(art or "")
+
+
+def _teilnahme_konten_aus_db(gespraech: str) -> list[str]:
+    """Die Konten des Gesprächs — KURZ und in einer EIGENEN Sitzung.
+
+    ``_teilnahme_konten`` arbeitet auf der Sitzung des Aufrufers; hier wird
+    die Frage vor dem Rechteaufruf gestellt (der Kern öffnet seine eigene
+    Sitzung), deshalb eine eigene. Reihenfolge egal: der Kern sortiert selbst.
+    """
+    if not gespraech:
+        return []
+    with dbmod.SessionLocal() as s:
+        return _teilnahme_konten(s, gespraech)
 
 
 def _ist_meine(n: ChatNachricht, benutzer: str) -> bool:
@@ -3012,6 +4082,55 @@ def _teilnahme_konten(s, gespraech: str) -> list[str]:
     ).scalars().all() if k]
 
 
+def _konto_je_mitglied(s, mitglied: str) -> str | None:
+    """Das KONTO einer Mitglied-Kennung — EINE Auflösung: ``mitglied.user``.
+
+    Dieselbe stabile Verknüpfung, die auch ``darf_direktnachricht`` über
+    ``_mitglied_von`` benutzt (Priorität der Kopplung). Der frühere
+    E-Mail-Rückfall ist RAUS: er war ein zweiter Weg zum selben Gespräch und
+    konnte bei abweichender Adresse ein anderes Konto treffen. Ohne
+    ``mitglied.user`` gibt es kein Konto → ``None`` (fail closed).
+    """
+    if not mitglied:
+        return None
+    konto = s.execute(select(Mitglied.user).where(Mitglied.name == mitglied)).scalar_one_or_none()
+    return str(konto) if konto else None
+
+
+def _direkt_gespraeche(s, benutzer: str) -> list[ChatGespraech]:
+    """Die 1:1-Gespräche, an denen ``benutzer`` beteiligt ist — und lesen darf.
+
+    Grundlage sind SEINE Teilnahmezeilen (``chat_teilnehmer``) auf Gesprächen
+    mit ``art = 'direkt'``: fremde Direktgespräche können damit gar nicht erst
+    in die Liste geraten. Je Kandidat entscheidet die Weiche
+    (``_darf_lesen`` → ``rechte.darf_direktgespraech``) — keine eigene
+    Rollenlogik.
+    """
+    if not benutzer:
+        return []
+    kandidaten = s.execute(
+        select(ChatGespraech)
+        .join(ChatTeilnehmer, ChatTeilnehmer.gespraech == ChatGespraech.name)
+        .where(ChatGespraech.art == ART_DIREKT,
+               ChatGespraech.geloescht_am.is_(None),
+               ChatTeilnehmer.benutzer == benutzer)
+        .order_by(ChatGespraech.name)
+    ).scalars().all()
+    return [g for g in kandidaten if _darf_lesen(s, benutzer, g.name)]
+
+
+def _teilnahme_und_stumm(s, gespraech: str) -> list[tuple[str, bool]]:
+    """``(konto, stumm)``-Paare der Teilnahmezeilen — EINE Abfrage (CHAT-4b R1).
+
+    Der Stumm-Schalter steht in derselben Zeile wie das Konto; ihn hier
+    mitzuholen erspart ein ``s.get(ChatTeilnehmer)`` je Kandidat.
+    """
+    return [(str(konto), bool(stumm)) for konto, stumm in s.execute(
+        select(ChatTeilnehmer.benutzer, ChatTeilnehmer.stumm)
+        .where(ChatTeilnehmer.gespraech == gespraech)
+    ).all() if konto]
+
+
 def _lesbare_gespraeche(s, benutzer: str) -> list[ChatGespraech]:
     """Die Gespraeche, die ``benutzer`` LESEN darf — aus SEINEN Mitgliedschaften.
 
@@ -3085,7 +4204,13 @@ def _lesbare_gespraeche(s, benutzer: str) -> list[ChatGespraech]:
 
 
 def _gespraech_kopf(s, g: ChatGespraech, benutzer: str) -> dict[str, Any]:
-    """Ein Eintrag der Gespraechsliste — auch fuer ein noch nie geoeffnetes."""
+    """Ein Eintrag der Gespraechsliste — auch fuer ein noch nie geoeffnetes.
+
+    Ein DIREKTGESPRAECH (CHAT-7a) traegt statt des Gruppennamens den
+    Anzeigenamen des GEGENUEBERS (``_direkt_titel`` — bestehende Namensquelle
+    inkl. Maskierung) und dessen Bild; ``gruppe``/``untergruppe`` bleiben
+    leer, ``mitglied`` nennt die Mitglied-Kennung fuers Profil.
+    """
     teilnahme = s.get(ChatTeilnehmer, (g.name, benutzer)) if g.name else None
     if g.name:
         ungelesen = _ungelesen_zaehlen(s, g.name, benutzer, teilnahme)
@@ -3096,13 +4221,20 @@ def _gespraech_kopf(s, g: ChatGespraech, benutzer: str) -> dict[str, Any]:
                            .limit(1)).scalar_one_or_none()
     else:
         ungelesen, letzte = 0, None
-    titel = str(g.titel or "").strip() or (g.untergruppe or g.gruppe)
+    if g.art == ART_DIREKT and g.name:
+        titel, gegenueber, bild = _direkt_titel(s, g, benutzer)
+    else:
+        titel = str(g.titel or "").strip() or (g.untergruppe or g.gruppe)
+        gegenueber, bild = None, ""
     return {
         "name": g.name,
         "art": g.art,
         "gruppe": g.gruppe,
         "untergruppe": g.untergruppe,
         "titel": titel,
+        # 1:1: das Gegenueber fuer Bild/Profil-Link; bei Gruppen leer.
+        "mitglied": gegenueber,
+        "bild": bild,
         "teilnehmer": _teilnehmer_aktuelle(s, g),
         "stumm": bool(teilnahme.stumm) if teilnahme is not None else False,
         # `geoeffnet: false` heisst: es gibt noch keine Gespraechszeile. Die
@@ -3122,6 +4254,11 @@ def _teilnehmer_aktuelle(s, g: ChatGespraech) -> int:
     Rechte-Kern (``darf`` LESEN je Konto) — und nur unter den Konten, die eine
     Teilnahmezeile haben. Neu hinzugekommene Mitglieder ohne Teilnahmezeile
     zaehlen NICHT mit: die Zahl beschreibt das Gespraech, nicht die Einheit.
+
+    Beim 1:1-Gespraech (CHAT-7a) ist es dieselbe Regel ueber die EINE Weiche
+    (``darf_direktgespraech`` LESEN je Konto): 1 solange beide dabei sind,
+    nach einem Austritt nur noch die verbliebene Person — nach einer
+    Anonymisierung 0 (die Teilnahmezeile ging mit dem Konto).
     """
     if not g.name:
         return 0
@@ -3196,6 +4333,8 @@ def fristen_speichern(chat_frist_gruppe_monate=None,
 
 __all__ = [
     "CHAT_GLOCKE_DOCTYPE",
+    "CHAT_UMFRAGE_GLOCKE_DOCTYPE",
+    "ERINNERUNG_VORLAUF_STUNDEN",
     "FRAPPE_MODULE",
     "GLOCKE_SPERRE",
     "MELDUNGEN_MAX",
@@ -3207,6 +4346,8 @@ __all__ = [
     "fristen_lesen",
     "fristen_speichern",
     "chat_glocken_buendeln",
+    "chat_umfrage_erinnerungen",
+    "direkt_oeffnen",
     "gespraech_anlegen",
     "glocken_merker",
     "lesestand_setzen",

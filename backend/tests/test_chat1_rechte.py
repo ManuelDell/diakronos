@@ -156,3 +156,74 @@ def test_meldestelle_nur_admin(welt):
     assert R.ist_meldestelle(ADMIN)
     for wer in (HV, MV, GL, SAENGER, "Guest", None):
         assert not R.ist_meldestelle(wer)
+
+
+# ── CHAT-7: Direktgespraech/Runde (Kernfrage darf_direktgespraech) ─────────
+
+def _direkt(*a, **kw) -> bool:
+    return bool(R.darf_direktgespraech(*a, **kw))
+
+
+def test_direktgespraech_nur_teilnehmende_lesen(welt):
+    runde = [FREMD, HV]
+    for wer in runde:
+        assert _direkt(wer, "lesen", teilnehmer=runde)
+    for wer in (SAENGER, MV, ADMIN, "Guest", None, "unbekannt@x.org"):
+        assert not _direkt(wer, "lesen", teilnehmer=runde), wer
+    assert R.darf_direktgespraech(ADMIN, "lesen", teilnehmer=runde).grund == "kein_teilnehmer"
+
+
+def test_direktgespraech_schreiben_braucht_erreichbares_gegenueber(welt):
+    assert _direkt(FREMD, "anlegen", teilnehmer=[FREMD, HV])
+    # Gegenueber ohne gueltiges Konto: Verlauf bleibt lesbar, aber stumm.
+    assert _direkt(FREMD, "lesen", teilnehmer=[FREMD, "gesperrt@x.org"])
+    entsch = R.darf_direktgespraech(FREMD, "anlegen", teilnehmer=[FREMD, "gesperrt@x.org"])
+    assert not entsch and entsch.grund == "niemand_erreichbar"
+    # allein im Gespraech: niemand erreichbar
+    assert not _direkt(FREMD, "anlegen", teilnehmer=[FREMD])
+    # Runde: ein erreichbares Gegenueber genuegt
+    assert _direkt(FREMD, "anlegen", teilnehmer=[FREMD, "gesperrt@x.org", MV])
+
+
+def test_direktgespraech_ausgetretenes_gegenueber_stumm(welt):
+    welt.query(Mitglied).filter_by(name="M-Hv").update({"status": "Ausgetreten"})
+    welt.commit()
+    assert not _direkt(FREMD, "anlegen", teilnehmer=[FREMD, HV])
+    assert _direkt(FREMD, "lesen", teilnehmer=[FREMD, HV])
+
+
+def test_direktgespraech_eigene_nachricht_und_meldestelle(welt):
+    runde = [FREMD, HV]
+    assert _direkt(FREMD, "schreiben", teilnehmer=runde, besitzer=FREMD)
+    assert not _direkt(FREMD, "schreiben", teilnehmer=runde, besitzer=HV)
+    # Moderation nur durch die Meldestelle (F7), nicht durch Gruppenleitung.
+    assert _direkt(ADMIN, "moderieren", teilnehmer=runde)
+    for wer in (HV, MV, FREMD, SAENGER):
+        assert not _direkt(wer, "moderieren", teilnehmer=runde), wer
+    assert not _direkt(FREMD, "verwalten", teilnehmer=runde)
+
+
+def test_direktgespraech_ausgeschlossener_teilnehmer_verliert_zugang(welt):
+    welt.query(Mitglied).filter_by(name="M-Fr").update({"ausgeschlossen": 1})
+    welt.commit()
+    assert not _direkt(FREMD, "lesen", teilnehmer=[FREMD, HV])
+    assert not _direkt(FREMD, "anlegen", teilnehmer=[FREMD, HV])
+
+
+def test_direktgespraech_ausgetretene_person_selbst_nur_lesen(welt):
+    """Wer selbst ausgetreten ist (Konto noch aktiv), liest den Verlauf noch,
+    beginnt aber nichts Neues und sendet nicht mehr."""
+    welt.query(Mitglied).filter_by(name="M-Fr").update({"status": "Ausgetreten"})
+    welt.commit()
+    assert R.darf_direktnachricht(FREMD, "M-Hv").grund == "selbst_nicht_aktiv"
+    assert _direkt(FREMD, "lesen", teilnehmer=[FREMD, HV])
+    assert not _direkt(FREMD, "anlegen", teilnehmer=[FREMD, HV])
+    # Das Gegenueber kann ihr ebenfalls nicht mehr schreiben.
+    assert not _direkt(HV, "anlegen", teilnehmer=[FREMD, HV])
+
+
+def test_konto_ohne_mitglied_beginnt_kein_direktgespraech(welt):
+    """Das Konto ``Administrator`` hat kein Mitglied: es koennte schreiben,
+    aber das Gegenueber nie antworten — darum gar nicht."""
+    assert R.darf_direktnachricht("Administrator", "M-Hv").grund == "selbst_nicht_aktiv"
+    assert not _direkt("Administrator", "anlegen", teilnehmer=["Administrator", HV])

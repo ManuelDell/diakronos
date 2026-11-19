@@ -1204,6 +1204,35 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.direkt_oeffnen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "lesend",
+   "nach_rumpf": "schreibend",
+   "name": "direkt_oeffnen",
+   "offen": true,
+   "pfade": [
+    "api.direkt_oeffnen",
+    "chat.direkt_oeffnen",
+    "diakronos.diakonos.api.chat.direkt_oeffnen",
+    "diakronos.diakronos.api.chat.direkt_oeffnen",
+    "diakronos_app.api.chat.direkt_oeffnen",
+    "direkt_oeffnen"
+   ],
+   "rumpf_grund": "Aufruf s.flush()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
    "ausnahme_quelle": null,
    "deklariert": null,
    "einstufung": "lesend",
@@ -11111,12 +11140,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 413,
+ "funktionen": 414,
  "nur_test": [],
- "registrierte_pfade": 2317,
+ "registrierte_pfade": 2323,
  "rumpf_zaehlung": {
   "lesend": 193,
-  "schreibend": 220
+  "schreibend": 221
  },
  "widersprueche": [
   {
@@ -11142,6 +11171,35 @@
     "einstellungen_api.anmeldung_get_einstellungen"
    ],
    "rumpf_grund": "Aufruf _hole_oder_erzeuge()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.direkt_oeffnen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "lesend",
+   "nach_rumpf": "schreibend",
+   "name": "direkt_oeffnen",
+   "offen": true,
+   "pfade": [
+    "api.direkt_oeffnen",
+    "chat.direkt_oeffnen",
+    "diakronos.diakonos.api.chat.direkt_oeffnen",
+    "diakronos.diakronos.api.chat.direkt_oeffnen",
+    "diakronos_app.api.chat.direkt_oeffnen",
+    "direkt_oeffnen"
+   ],
+   "rumpf_grund": "Aufruf s.flush()",
    "rumpf_ueber": null
   },
   {
@@ -11681,6 +11739,6 @@
  ],
  "zaehlung": {
   "lesend": 183,
-  "schreibend": 230
+  "schreibend": 231
  }
 }

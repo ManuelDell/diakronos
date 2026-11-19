@@ -152,6 +152,27 @@ def job_chat_glocken_buendeln() -> None:
 		return
 	if count:
 		logger.info("Job chat_glocken_buendeln fertig (%s Glocken).", count)
+
+
+def job_chat_umfrage_erinnerungen() -> None:
+	"""Minuten-Job (CHAT-4b): Erinnerung 24 h vor der Frist einer Umfrage.
+
+	Die Fachlogik steht in ``api.chat.chat_umfrage_erinnerungen``; hier steht
+	nur der Schutz, dass ein Fehler den Scheduler nicht toetet (Muster der
+	uebrigen Jobs). Der Job schliesst zuerst faellige Umfragen und setzt
+	danach ``chat_umfrage.erinnert_am`` — ein zweiter Lauf findet nichts mehr.
+	"""
+	from diakronos_app.api import chat as chat_api
+
+	try:
+		count = chat_api.chat_umfrage_erinnerungen()
+	except Exception:  # noqa: BLE001 — ein Fehler darf den Scheduler nicht toeten
+		logger.exception("Job chat_umfrage_erinnerungen fehlgeschlagen")
+		return
+	if count:
+		logger.info("Job chat_umfrage_erinnerungen fertig (%s Glocken).", count)
+
+
 def job_umfragen_schliessen() -> None:
 	"""Taeglicher Job (CHAT-5): Umfragen zur Frist schliessen.
 
@@ -215,6 +236,10 @@ DAILY_JOBS: list[tuple] = [
 #: in ``build_scheduler`` (eigener Merker, eigene Faelligkeitspruefung).
 MINUTEN_JOBS: list[tuple] = [
 	(GLOCKE_INTERVALL_MINUTEN, job_chat_glocken_buendeln, "chat_glocken_buendeln"),
+	# CHAT-4b: dieselbe Taktung — die Erinnerung haengt an der Frist, nicht am
+	# Tageslauf; ein eigener Minuten-Lauf haelt den Abstand zur Frist bei 24 h.
+	(GLOCKE_INTERVALL_MINUTEN, job_chat_umfrage_erinnerungen,
+	 "chat_umfrage_erinnerungen"),
 ]
 
 

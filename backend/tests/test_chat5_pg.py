@@ -128,9 +128,20 @@ def test_kette_bis_kopf_legt_die_umfrage_tabellen_an(frisch):
         assert _tabelle_existiert(tabelle), tabelle
     assert _spalte_existiert("chat_nachricht", "umfrage")
 
-    # GENAU EIN Kopf steht in der Versions-Tabelle.
+    # Der EINE Kopf steht in der Versions-Tabelle — verglichen mit dem Kopf der
+    # MIGRATIONSKETTE, nicht mit einem festen Namen (die Kette wächst weiter,
+    # zuletzt um ``chat4b_umfrage_erinnerung``).
+    from alembic.config import Config as _Config
+    from alembic.script import ScriptDirectory as _Skripte
+
+    from pathlib import Path as _Pfad
+
+    cfg = _Config(str(_Pfad(__file__).resolve().parents[1] / "alembic.ini"))
+    cfg.set_main_option("script_location",
+                        str(_Pfad(__file__).resolve().parents[1] / "alembic"))
+    kopf = _Skripte.from_config(cfg).get_heads()
     zeilen = _sql("SELECT version_num FROM alembic_version")
-    assert len(zeilen) == 1, zeilen
+    assert [z[0] for z in zeilen] == kopf, (zeilen, kopf)
 
 
 @pg

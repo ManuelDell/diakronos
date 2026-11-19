@@ -42,6 +42,9 @@ wählbar):
     Soft-Delete und Zitate unverändert die Regeln der Nachricht. Frage,
     2–15 Optionen, ``mehrfach``, ``anonym`` (Standard ``true``), Frist
     (``frist_am``) ODER offen bis zur Schließung, ``geschlossen_am``.
+    CHAT-4b ergänzt ``erinnert_am``: der Merker der EINEN Erinnerung 24 h vor
+    der Frist (``chat_umfrage_erinnerungen``) — ein Zeitpunkt je Umfrage,
+    keine Zeile je Person.
 
 ``chat_umfrage_option``
     Die Auswahl der Umfrage, PK ``(umfrage, nummer)`` — ``nummer`` ist
@@ -92,6 +95,21 @@ CHAT-4a ergänzt die sechste Tabelle:
 Bewusst NICHT hier (spätere Karten): Push-Abonnements (CHAT-10), Anhänge
 (CHAT-9) und der Löschjob mit den Aufbewahrungsfristen (CHAT-8).
 
+CHAT-7a (S3/1:1) — DIREKTNACHRICHTEN
+------------------------------------
+Kein eigenes Tabellenpaar: ein Direktgespräch ist eine Zeile in
+``chat_gespraech`` mit ``art = 'direkt'``, ``gruppe = NULL`` und zwei Zeilen in
+``chat_teilnehmer``. Damit gelten Verlauf, Lesestand, Reaktionen, Umfragen,
+Meldungen und Soft-Delete OHNE Sonderfall — und der Rechte-Kern fragt je Konto
+(``darf_direktgespraech(..., teilnehmer=…)``) statt je Gruppe.
+
+Genau EIN Gespräch je Personenpaar (Konzept 10.1 Punkt 4) sichern ZWEI Dinge:
+``chat_gespraech.paar_schluessel`` (sortiertes Kontenpaar, getrennt mit einem
+Steuerzeichen ``\x1f`` — PostgreSQL-Textfelder verbieten das NUL-Byte)
+und der partielle Unique-Index ``uq_chat_gespraech_paar``. Die Reihenfolge des
+Anlegens ist damit gleichgültig; zwei gleichzeitige Aufrufe erzeugen eine Zeile
+und einen ``IntegrityError``, den der Endpunkt wie beim Lazy-Anlegen auffängt.
+
 DSGVO (Konzept 4.3): ``chat_nachricht.autor_benutzer`` ist eine Konto-Spalte
 (``user_null`` — sie verschwindet mit dem Konto), ``chat_nachricht.autor`` ist
 die MITGLIED-Kennung, die die Anonymisierung auf die neutrale Kennung
@@ -133,11 +151,15 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from diakronos_app.models.base import Base
 
-#: Gesprächsarten. S1 kennt nur die beiden Gruppen-Räume; ``direkt``/``runde``
-#: gehören zu S3 (CHAT-7) und werden hier nicht angelegt.
+#: Gesprächsarten. S1 kennt die beiden Gruppen-Räume; ``direkt`` gehört zu S3
+#: (CHAT-7a, 1:1), ``runde`` zu CHAT-7b und wird hier nicht angelegt.
 ART_GRUPPE = "gruppe"
 ART_UNTERGRUPPE = "untergruppe"
-ARTEN = (ART_GRUPPE, ART_UNTERGRUPPE)
+#: 1:1-Gespräch (CHAT-7a): ``gruppe`` ist NULL, der Raum sind die
+#: Teilnehmenden. Genau EINES je Personenpaar — die Datenbank sichert das über
+#: ``chat_gespraech.paar_schluessel`` (sortiertes Kontenpaar, Unique-Index).
+ART_DIREKT = "direkt"
+ARTEN = (ART_GRUPPE, ART_UNTERGRUPPE, ART_DIREKT)
 
 #: Höchstlänge einer Nachricht (Konzept Abschnitt 1/S1: „Text bis 4 000
 #: Zeichen“). Gezählt werden ZEICHEN (``len(text)``), nicht Bytes — ein Emoji
@@ -202,7 +224,7 @@ GLOCKE_RUHE_MINUTEN = 5
 
 
 class ChatGespraech(Base):
-    """Ein Gespräch je Gruppe/Untergruppe (lazy angelegt)."""
+    """Ein Gespräch je Gruppe/Untergruppe (lazy angelegt) oder je Personenpaar."""
 
     __tablename__ = "chat_gespraech"
     __table_args__ = (
@@ -212,23 +234,41 @@ class ChatGespraech(Base):
         # beliebig viele Zeilen mit ``untergruppe IS NULL`` zu (also beliebig
         # viele Gruppen-Gespräche derselben Gruppe). Die Teilbedingung macht
         # die Regel für beide Fälle wahr (Review CHAT-2, Punkt 2).
+        # ``paar_schluessel IS NULL`` hält die Direktgespräche draußen: deren
+        # ``gruppe`` ist NULL, und die Rechte des Kerns fragen je Konto
+        # (``chat_teilnehmer``), nicht je Gruppe.
         Index("uq_chat_gespraech_einheit", "art", "gruppe", unique=True,
-              sqlite_where=sql_text("untergruppe IS NULL"),
-              postgresql_where=sql_text("untergruppe IS NULL")),
+              sqlite_where=sql_text("untergruppe IS NULL AND paar_schluessel IS NULL"),
+              postgresql_where=sql_text("untergruppe IS NULL AND paar_schluessel IS NULL")),
         Index("uq_chat_gespraech_einheit_ug", "art", "gruppe", "untergruppe",
               unique=True,
               sqlite_where=sql_text("untergruppe IS NOT NULL"),
               postgresql_where=sql_text("untergruppe IS NOT NULL")),
+        # CHAT-7a: EIN 1:1-Gespräch je Personenpaar. Der Schlüssel ist das
+        # SORTIERTE Kontenpaar (``a\x1fb`` mit ``a < b``), damit die
+        # Reihenfolge des Anlegens keine zweite Zeile erzeugen kann; der
+        # partielle Unique-Index lässt ihn nur bei ``art = 'direkt'`` greifen
+        # (Gruppen-Gespräche tragen NULL und kollidieren nicht).
+        Index("uq_chat_gespraech_paar", "paar_schluessel", unique=True,
+              sqlite_where=sql_text("art = 'direkt'"),
+              postgresql_where=sql_text("art = 'direkt'")),
         Index("ix_chat_gespraech_gruppe", "gruppe"),
         Index("ix_chat_gespraech_untergruppe", "untergruppe"),
     )
 
     name: Mapped[str] = mapped_column(String(140), primary_key=True)
-    #: ``gruppe`` / ``untergruppe`` (S1); ``direkt``/``runde`` = S3.
+    #: ``gruppe`` / ``untergruppe`` / ``direkt`` (S1 + S3/CHAT-7a).
     art: Mapped[str] = mapped_column(String(20), nullable=False)
     #: Hauptgruppe — bei einer Untergruppe ist das ihre Gruppe.
-    gruppe: Mapped[str] = mapped_column(String(140), nullable=False)
+    #: Bei einem Direktgespräch ``NULL``: der Raum sind die Teilnehmenden.
+    gruppe: Mapped[str | None] = mapped_column(String(140), nullable=True)
     untergruppe: Mapped[str | None] = mapped_column(String(140), nullable=True)
+    #: Nur bei ``art = 'direkt'``: das sortierte Kontenpaar der beiden
+    #: Teilnehmenden (``kleineres`` + ``\x1f`` + ``groesseres``, s.
+    #: ``api.chat.PAAR_TRENNER``). Trägt den Unique-Index
+    #: ``uq_chat_gespraech_paar`` — die Eindeutigkeit steht damit in der
+    #: Datenbank, nicht nur im Lazy-Anlegen (zwei gleichzeitige Aufrufe).
+    paar_schluessel: Mapped[str | None] = mapped_column(String(300), nullable=True)
     #: Anzeigetitel. Leer heißt: die Oberfläche nimmt den Gruppennamen.
     titel: Mapped[str | None] = mapped_column(String(140), nullable=True)
     #: Konto, das das Gespräch angelegt hat (das erste schreibende Mitglied).
@@ -416,6 +456,15 @@ class ChatUmfrage(Base):
     #: eine Schließung durch einen Menschen ist damit unterscheidbar.
     geschlossen_von: Mapped[str | None] = mapped_column(
         String(140), ForeignKey("user.name"), nullable=True
+    )
+    #: CHAT-4b: Wann die EINE Erinnerung „endet morgen“ verschickt wurde.
+    #: Der Merker ist die ganze Umfrage (nicht die Person — die Empfängerliste
+    #: ist der Rechte-Kern, eine Zeile je Konto wäre doppelt geführt). ``NULL``
+    #: = noch nicht erinnert; der Job ``chat_umfrage_erinnerungen`` setzt ihn
+    #: im selben Vorgang wie die Glocken und läuft dadurch genau einmal.
+    #: Kein Personenbezug: ein Zeitpunkt, keine Kennung.
+    erinnert_am: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=False), nullable=True
     )
     erstellt_am: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
 
@@ -662,6 +711,7 @@ class ChatGlocke(Base):
 
 __all__: list[Any] = [
     "ARTEN",
+    "ART_DIREKT",
     "ART_GRUPPE",
     "ART_UNTERGRUPPE",
     "BEARBEITEN_MINUTEN",

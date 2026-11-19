@@ -816,6 +816,10 @@ export function taktGeber({
     starten,
     anhalten,
     takt: takt_,
+    /** Einen Takt von Hand auslösen (Test: prüfen, dass er „weiterläuft“) —
+     *  mit DERSELBEN Sperre wie ein geplanter Lauf (kein zweiter parallel,
+     *  keiner vor Ablauf der Wartezeit). */
+    jetzt: (augenblick) => takt_(augenblick),
     istGestartet: () => laufend !== null,
     istGestoppt: () => gestoppt,
     // Nur für den Test: der Stand von innen, ohne ihn zu erraten.

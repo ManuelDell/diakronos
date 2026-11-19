@@ -24,10 +24,13 @@ Aufruf (Karte CHAT-4a):
       -w /repo/backend -e PYTHONPATH=/repo/backend/src:/repo/backend/tests:/repo/tools \\
       -e PYTHONDONTWRITEBYTECODE=1 \\
       -e CHAT4A_PG_URL=postgresql+psycopg://chat4a:chat4a@chat4a-pg:5432/chat4a \\
-      <vorbau> -m pytest -q -p no:cacheprovider tests/test_chat4a_pg.py
+      <vorbau> -m pytest -q -p no:cacheprovider --timeout=900 tests/test_chat4a_pg.py
 
-Ohne ``CHAT4A_PG_URL`` werden die Tests ÜBERSPRUNGEN — dieser Test fasst NIE
-eine Betriebsdatenbank an (dieselbe Regel wie ``test_chat6_pg``).
+``--timeout=900`` ist PFLICHT (CHAT-4b, Restpunkt d): der Lauf braucht rund
+400 s — ``upgrade head`` der GANZEN Kette auf einem frischen PostgreSQL,
+zweimal. Mit dem pytest-Default (bzw. einem kurzen Zeitlimit) bricht er
+grundlos ab. Ohne ``CHAT4A_PG_URL`` werden die Tests ÜBERSPRUNGEN — dieser Test
+fasst NIE eine Betriebsdatenbank an (dieselbe Regel wie ``test_chat6_pg``).
 """
 
 from __future__ import annotations

@@ -537,6 +537,13 @@
      `line-height: 1.55` als Literal im Stil). Absichtlich OHNE Einheit: ein
      Faktor, keine Pixelzahl — er passt zu jeder Schriftstufe. */
   --lh-text: 1.55;
+  /* CHAT-3c (Review R1, SOLL f): Sperrung kleiner Abschnitts-Überschriften
+     (Großbuchstaben brauchen Luft). Vorher stand `0.07em` als Rohwert in
+     mehreren Komponenten (ChatListe.vue, ChatSuche.vue) — hier EINE Stelle. */
+  --ls-klein: 0.07em;
+  /* Ausgrauung nicht antippbarer Inhalte (z. B. Personentreffer ohne Konto).
+     Vorher als Rohwert `0.45` im Stil (CHAT-3c, Review R1 SOLL f). */
+  --ausgegraut: 0.45;
   /* Fließtext-Container: höchstens ~65 Zeichen je Zeile (Prinzip Ä3).
      Gemessen in `ch` der aktuellen Schrift — deshalb kein px-Wert. */
   --lesebreite: 65ch;

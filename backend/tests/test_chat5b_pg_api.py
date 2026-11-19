@@ -107,7 +107,18 @@ def pg_db():
     kopf = _sql("SELECT version_num FROM alembic_version") if _sql(
         "SELECT 1 FROM information_schema.tables "
         "WHERE table_schema = 'public' AND table_name = 'alembic_version'") else []
-    if [z[0] for z in kopf] != ["chat8_fristen"]:
+    # Verglichen wird gegen den Kopf der KETTE, nicht gegen einen festen Namen
+    # (CHAT-4b hat ``chat4b_umfrage_erinnerung`` dahinter gehängt).
+    from alembic.config import Config as _Config
+    from alembic.script import ScriptDirectory as _Skripte
+
+    from pathlib import Path as _Pfad
+
+    _cfg = _Config(str(_Pfad(__file__).resolve().parents[1] / "alembic.ini"))
+    _cfg.set_main_option("script_location",
+                         str(_Pfad(__file__).resolve().parents[1] / "alembic"))
+    kopf_soll = _Skripte.from_config(_cfg).get_heads()
+    if [z[0] for z in kopf] != kopf_soll:
         _sql("DROP SCHEMA IF EXISTS public CASCADE")
         _sql("CREATE SCHEMA public")
         hoch = _alembic("upgrade", "head")

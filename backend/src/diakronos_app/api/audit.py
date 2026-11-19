@@ -208,28 +208,71 @@ def mark_notifications_read(names=None):
 
 @whitelist(allow_guest=False)
 def get_my_notifications(start=0, limit=20):
-    """Notification-Log-Eintraege des aktuellen Users."""
+    """Notification-Log-Eintraege des aktuellen Users.
+
+    Reihenfolge: ``coalesce(modified, creation) desc`` — der letzte ANLASS der
+    Zeile, nicht ihre Anlage. Grund (CHAT-4b, Restpunkt a aus dem
+    CHAT-4a-Review): die gebündelte Chat-Glocke wird FORTGESCHRIEBEN
+    (neue Zahl, neuer Betreff) statt neu angelegt; mit ``creation desc`` blieb
+    sie an ihrem alten Platz, obwohl sie die neueste Nachricht war. Alle
+    anderen Glockenarten schreiben nur ``creation`` — für sie ist der
+    Ausdruck identisch (``modified`` wird beim Umbenennen/Lesen höchstens
+    mitgezogen, nie zurückdatiert). ``modified`` kommt daher MIT in die
+    Feldliste: die Oberfläche sortiert nicht selbst nach, sie zeigt den Wert,
+    nach dem die Liste steht.
+
+    ``creation desc`` bleibt als zweites Kriterium: zwei Zeilen mit
+    demselben Zeitstempel (Sekundengenauigkeit) brauchen eine feste Ordnung.
+    Die Sortierung läuft NICHT über ``get_all(order_by=…)``: dessen Ausdruck
+    ist eine Spalte, kein ``coalesce`` — die Abfrage steht deshalb hier.
+    """
     user = session.user
-    notifications = get_all(
-        "Notification Log",
-        filters={"for_user": user},
-        fields=[
-            "name", "subject", "email_content", "document_type",
-            "document_name", "creation", "read",
-            # R-9 (Manuel 11.11.): Die Oberflaeche muss eine Meldung vom Typ
-            # „Datenanfrage“ als WEG ins Profil zeichnen koennen (Freigabe-
-            # Schalter) — ohne `type` ist sie von einer gewoehnlichen
-            # Benachrichtigung nicht zu unterscheiden. Die Spalte gibt es im
-            # Modell laengst (`NotificationLog.type`), sie fehlte nur in
-            # dieser Feldliste. Keine neue Auskunft: es ist die eigene
-            # Meldung des angemeldeten Users (Filter `for_user` oben).
-            "type",
-        ],
-        order_by="creation desc",
-        limit_start=int(start),
-        limit_page_length=int(limit),
-    )
-    return {"success": True, "data": notifications}
+    felder = [
+        "name", "subject", "email_content", "document_type",
+        "document_name", "creation", "read",
+        # R-9 (Manuel 11.11.): Die Oberflaeche muss eine Meldung vom Typ
+        # „Datenanfrage“ als WEG ins Profil zeichnen koennen (Freigabe-
+        # Schalter) — ohne `type` ist sie von einer gewoehnlichen
+        # Benachrichtigung nicht zu unterscheiden. Die Spalte gibt es im
+        # Modell laengst (`NotificationLog.type`), sie fehlte nur in
+        # dieser Feldliste. Keine neue Auskunft: es ist die eigene
+        # Meldung des angemeldeten Users (Filter `for_user` oben).
+        "type",
+        # CHAT-4b: der Zeitpunkt des letzten Anlasses — die Liste steht
+        # danach (siehe Docstring).
+        "modified",
+    ]
+    from sqlalchemy import func, select as _select
+
+    from diakronos_app.db import sitzung_fuer_lesen
+    from diakronos_app.frappe_compat.query import _serialize
+    from diakronos_app.models.core import NotificationLog
+
+    sess, eigener = sitzung_fuer_lesen()
+    try:
+        spalten = [getattr(NotificationLog, f) for f in felder]
+        abfrage = (
+            _select(*spalten)
+            .where(NotificationLog.for_user == user)
+            .order_by(
+                func.coalesce(NotificationLog.modified,
+                              NotificationLog.creation).desc(),
+                NotificationLog.creation.desc(),
+                NotificationLog.name.desc(),
+            )
+        )
+        if start:
+            abfrage = abfrage.offset(int(start))
+        abfrage = abfrage.limit(int(limit))
+        roh = sess.execute(abfrage).all()
+        zeilen = [
+            {f: _serialize(wert) for f, wert in zip(felder, reihe)}
+            for reihe in roh
+        ]
+    finally:
+        if eigener:
+            sess.close()
+    return {"success": True, "data": zeilen}
 
 
 __all__ = [

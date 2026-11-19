@@ -33,6 +33,7 @@ from pathlib import Path
 import pytest
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+from sqlalchemy import select
 
 from diakronos_app import db as dbmod
 
@@ -149,6 +150,18 @@ def _neueste(gespraech: str) -> datetime:
     with dbmod.SessionLocal() as s:
         return s.query(ChatNachricht).filter_by(gespraech=gespraech).order_by(
             ChatNachricht.erstellt_am.desc()).first().erstellt_am
+
+
+def _jetzt_utc() -> datetime:
+    """Jetzt in UTC ohne tzinfo — die Uhr, in der Glocken-Zeitstempel stehen.
+
+    ``Notification Log`` wird über ``api_helpers._meta_fields``/``_create``
+    mit UTC gefüllt (Review R1/3); Fachzeiten des Chats sind Wandzeit. Ein
+    Test, der beide vergleicht, braucht die jeweils richtige Uhr.
+    """
+    from datetime import timezone
+
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 # ── Bündelung und Ruhe ──────────────────────────────────────────────────────
@@ -585,22 +598,73 @@ def test_stand_wird_nur_bei_erfolgreicher_glocke_gesetzt(welt, gespraech, monkey
 
 
 def test_aktualisierte_glocke_rueckt_nach_oben(welt, gespraech):
-    """Review R1 (SOLL c): die fortgeschriebene Glocke bekommt ein neues ``modified``."""
+    """CHAT-4b (Restpunkt a): die fortgeschriebene Glocke steht OBEN in der Liste.
+
+    Geprüft wird die ECHTE Liste — ``api.audit.get_my_notifications``, die
+    Quelle der Glocke in der Oberfläche —, nicht die Zeile in der Datenbank:
+    die alte Fassung verglich nur ``modified`` und hätte ein Sortierfeld
+    ``creation desc`` nicht bemerkt.
+    """
+    from diakronos_app.api import audit as A
+
     _teilnahme(gespraech, SAENGER2)
     _senden("Erste", gespraech, SAENGER)
     _job(_neueste(gespraech) + timedelta(minutes=10))
-    vorher = _glocken(SAENGER2, gespraech)[0].modified
 
+    # Eine ZWEITE Glocke derselben Person (z. B. eine Meldung), die NACH der
+    # Chat-Glocke angelegt wird — sie steht zunächst oben und muss von der
+    # fortgeschriebenen Chat-Glocke überholt werden. Angelegt über den ECHTEN
+    # Weg (``benachrichtigungen.schreibe_meldung``), damit auch ihr Zeitstempel
+    # der produktive ist (UTC, ``api_helpers._now`` — Review R1/3: eine
+    # Fremdzeile auf Wandzeit würde die Sortierung mit zwei Zeitbasen prüfen).
+    from diakronos_app.benachrichtigungen import schreibe_meldung
+
+    vorher = _glocken(SAENGER2, gespraech)[0].modified
+    assert schreibe_meldung(for_user=SAENGER2, subject="Anderes Ereignis",
+                            inhalt="Etwas anderes war zuerst da.",
+                            document_type="chat_meldung",
+                            document_name="chat-meldung-x")
+    with dbmod.SessionLocal() as s:
+        fremd = s.scalars(
+            select(NotificationLog)
+            .where(NotificationLog.for_user == SAENGER2,
+                   NotificationLog.document_type == "chat_meldung")
+        ).first()
+        assert fremd is not None
+        fremd_name = fremd.name
+    # Vor dem Fortschreiben steht die Fremdzeile oben (sie ist der jüngste
+    # Anlass) — der Vergleich zeigt, dass die Reihenfolge wirklich wechselt.
+    _set_user(SAENGER2)
+    assert A.get_my_notifications(limit=20)["data"][0]["name"] == fremd_name
+    _session_mod.reset_user()
+
+    # Die Chat-Zeile wird fortgeschrieben (``modified`` = UTC-jetzt); damit sie
+    # sicher der JÜNGSTE Anlass ist, wird die Fremdzeile vorher eine Stunde
+    # zurückgesetzt (kein Sekundenrennen im Test).
     _senden("Zweite", gespraech, SAENGER)
-    _job(_neueste(gespraech) + timedelta(minutes=10))
+    with dbmod.SessionLocal() as s:
+        fremd = s.get(NotificationLog, fremd_name)
+        frueher = _jetzt_utc() - timedelta(hours=1)
+        fremd.creation, fremd.modified = frueher, frueher
+        s.commit()
+    _job(_jetzt_utc() + timedelta(minutes=10))
     glocke = _glocken(SAENGER2, gespraech)
     assert len(glocke) == 1
     assert glocke[0].modified is not None
     if vorher is not None:
         assert glocke[0].modified >= vorher
-    # Sortierfeld der Glockenliste: ``creation`` bleibt die Anlage (Nachweis),
-    # ``modified`` ist der letzte Anlass.
-    assert glocke[0].creation is not None
+    # Beide Zeitbasen sind UTC: der Vergleich ist aussagekräftig.
+    assert glocke[0].modified > _jetzt_utc() - timedelta(minutes=5)
+
+    _set_user(SAENGER2)
+    liste = A.get_my_notifications(limit=20)["data"]
+    _session_mod.reset_user()
+    assert [z["name"] for z in liste][0] == glocke[0].name, (
+        "die fortgeschriebene Glocke steht nicht oben")
+    assert liste[0]["subject"].startswith("Chor:")
+    # ``modified`` ist Teil der Liste — die Oberfläche muss nicht selbst raten,
+    # wonach sortiert wurde.
+    assert "modified" in liste[0]
 
 
 # ── Scheduler ───────────────────────────────────────────────────────────────
@@ -654,6 +718,13 @@ def _skripte() -> ScriptDirectory:
 
 
 def test_genau_ein_kopf_und_chat4a_haengt_hinter_chat6():
+    """GENAU EIN Kopf — der Name des Kopfes wird NICHT festgeschrieben.
+
+    CHAT-4b hat einen Schritt hinter ``chat4a_glocke`` gehängt
+    (``chat4b_umfrage_erinnerung``); die Kette wächst weiter. Der Test prüft
+    deshalb die STRUKTUR: ein Kopf, und ``chat4a_glocke`` hängt an
+    ``chat5_umfrage``.
+    """
     skripte = _skripte()
     heads = skripte.get_heads()
     assert len(heads) == 1, f"Kopf(e): {heads}"

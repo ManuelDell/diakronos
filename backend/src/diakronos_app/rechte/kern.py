@@ -1227,12 +1227,19 @@ def darf_direktnachricht(benutzer: str | None, ziel: str | None) -> Entscheidung
     """Darf ``benutzer`` der Person ``ziel`` eine Direktnachricht schreiben?
 
     Nur an auffindbare Personen MIT aktivem Konto, nicht an sich selbst.
+    Auch die schreibende Person selbst muss ein auffindbares Mitglied sein:
+    wer ausgetreten ist (Konto noch aktiv) oder als Konto kein Mitglied hat
+    (z. B. ``Administrator``), beginnt keine Direktgespraeche — sonst
+    entstuenden Gespraeche, auf die das Gegenueber nie antworten kann.
     """
     gefunden = darf_person_finden(benutzer, ziel)
     if not gefunden:
         return gefunden
     with lesesitzung() as sess:
-        if benutzer != "Administrator" and _mitglied_von(sess, str(benutzer)) == ziel:
+        eigen = _mitglied_von(sess, str(benutzer))
+        if not eigen or not _auffindbar(sess, eigen)[0]:
+            return NEIN("selbst_nicht_aktiv")
+        if eigen == ziel:
             return NEIN("selbst")
         _auffindbar_ja, konto = _auffindbar(sess, str(ziel))
     return JA("gemeinde") if konto else NEIN("kein_konto")
@@ -1241,6 +1248,53 @@ def darf_direktnachricht(benutzer: str | None, ziel: str | None) -> Entscheidung
 def ist_meldestelle(benutzer: str | None) -> bool:
     """Meldestelle fuer Direktnachrichten/Runden: nur der Administrator (F7)."""
     return ist_admin(benutzer)
+
+
+def darf_direktgespraech(benutzer: str | None, aktion: str, *, teilnehmer,
+                         besitzer: str | None = None) -> Entscheidung:
+    """Direktgespraech oder Runde (CHAT-7): wer darf was?
+
+    Ein Direktgespraech hat keine Gruppe; der Raum sind die Teilnehmenden
+    (``teilnehmer`` = Konten). Regeln:
+
+    * LESEN: nur Teilnehmende mit gueltigem Konto (Admin ist KEIN stiller
+      Mitleser — auch nicht als Meldestelle, die bekommt nur die gemeldete
+      Nachricht samt Kontext ueber die Meldung).
+    * ANLEGEN (Nachricht/Gespraech starten): Teilnehmende, und mindestens
+      EINE andere teilnehmende Person ist fuer sie per
+      ``darf_direktnachricht`` erreichbar. Ist niemand mehr erreichbar
+      (ausgetreten, Konto gesperrt), bleibt der Verlauf lesbar, aber
+      stumm. Dasselbe gilt, wenn die Person selbst ausgetreten ist.
+    * SCHREIBEN: nur die eigene Nachricht (``besitzer``).
+    * MODERIEREN: nur die Meldestelle (F7: Administrator). Module rufen das
+      im Direktgespraech NUR auf dem Meldeweg (Meldung entscheiden) auf —
+      eine fremde Nachricht loeschen ist sonst SCHREIBEN mit ``besitzer``
+      und damit NEIN, auch fuer einen teilnehmenden Admin.
+    * alles andere: NEIN. Fail closed.
+    """
+    if not _ist_angemeldetes_mitglied(benutzer):
+        return NEIN("nicht_angemeldet")
+    assert benutzer is not None
+    if aktion == MODERIEREN:
+        return JA("meldestelle") if ist_meldestelle(benutzer) else NEIN("nicht_meldestelle")
+    konten = {str(k) for k in (teilnehmer or ()) if k}
+    if benutzer not in konten:
+        return NEIN("kein_teilnehmer")
+    if not ist_gemeindemitglied(benutzer):
+        return NEIN("kein_mitglied")
+    if aktion == LESEN:
+        return JA("teilnehmer")
+    if aktion in (ANLEGEN, VORSCHLAGEN):
+        with lesesitzung() as sess:
+            ziele = [_mitglied_von(sess, k) for k in sorted(konten - {benutzer})]
+        if any(z and darf_direktnachricht(benutzer, z) for z in ziele):
+            return JA("teilnehmer")
+        return NEIN("niemand_erreichbar")
+    if aktion == SCHREIBEN:
+        if besitzer is None or besitzer == benutzer:
+            return JA("eigenes")
+        return NEIN("fremde_nachricht")
+    return NEIN("aktion_nicht_fuer_direkt")
 
 
 __all__ = [
@@ -1263,6 +1317,7 @@ __all__ = [
     "VERWALTEN",
     "VORSCHLAGEN",
     "darf",
+    "ADMIN_ROLLEN",
     "darf_stufe",
     "erforderliche_stufen",
     "freigabe_stufen",
@@ -1285,6 +1340,7 @@ __all__ = [
     "chat_moderatoren",
     "darf_person_finden",
     "person_hat_konto",
+    "darf_direktgespraech",
     "darf_direktnachricht",
     "ist_meldestelle",
     "eigenes_mitglied",

@@ -742,8 +742,13 @@ test('CHAT-3a · die Seite zeichnet Liste und Verlauf (kein Platzhalter mehr)', 
   assert.match(skript, /import ChatBlase from '\.\.\/components\/chat\/ChatBlase\.vue'/)
   assert.match(t, /<ChatListe/)
   assert.match(t, /<ChatBlase/)
-  // Die Adresse entscheidet, was gezeigt wird (Liste / Gespräch).
-  assert.match(skript, /gespraechAusHash\(window\.location\.hash\)/)
+  // Die Adresse entscheidet, was gezeigt wird (Liste / Gespräch) — sie wird
+  // EINMAL gelesen (`hash`) und daraus die Kennung abgeleitet (CHAT-3c-2: die
+  // Seite liest aus derselben Adresse auch Begriff und `&offen=`).
+  assert.match(skript, /const hash = typeof window === 'undefined' \? '' : window\.location\.hash/,
+    'die Adresse wird gelesen')
+  assert.match(skript, /kennung\.value = gespraechAusHash\(hash\)/,
+    'daraus die Gesprächskennung')
   // Die Seite benutzt die vorhandenen API-Helfer (keine eigene fetch-Kette).
   assert.match(skript, /apiGet\('chat\.meine_gespraeche'\)/)
   assert.match(skript, /apiGet\('chat\.verlauf'/)
@@ -753,8 +758,12 @@ test('CHAT-3a · die Seite zeichnet Liste und Verlauf (kein Platzhalter mehr)', 
   assert.match(skript, /apiCall\('chat\.aendern'/)
   assert.match(skript, /apiCall\('chat\.loeschen'/)
   assert.match(skript, /apiCall\('chat\.stumm_setzen'/)
-  // Der Rückweg in die Liste steht im Markup (Zurück-Taste am Handy).
-  assert.match(t, /href="#\/nachrichten"/)
+  // Der Rückweg in die Liste steht im Markup (Zurück-Taste am Handy). Seit
+  // CHAT-3c-2 ist das Ziel berechnet: Liste — oder die Suche, wenn sie das
+  // Gespräch überdeckt (`zurueckZiel`).
+  assert.match(t, /class="dk-chat-zurueck"[^>]*:href="zurueckZiel"/,
+    'der Zurück-Pfeil führt auf das berechnete Ziel')
+  assert.match(skript, /const zurueckZiel = computed/, 'und das Ziel ist berechnet')
 })
 
 test('CHAT-3a · Barrierefreiheit: role="log" + aria-live="polite", Fokus nach Wechsel', () => {
