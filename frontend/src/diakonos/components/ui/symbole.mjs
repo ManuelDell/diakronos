@@ -19,6 +19,9 @@ export const SYMBOLE = {
   teilen: { p: ['M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7', 'M16 6l-4-4-4 4', 'M12 2v13'] },
   // Nachricht (Briefumschlag)
   nachricht: { p: ['M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z', 'm22 7-10 6L2 7'] },
+  // Antworten (Pfeil zurück) — CHAT-3a-5: Eintrag „Antworten“ im Handy-Menü
+  // der Nachricht; dieselbe Strichfamilie wie alle anderen Menüsymbole.
+  antworten: { p: ['M9 14 4 9l5-5', 'M4 9h10a6 6 0 0 1 0 12h-3'] },
   // Gruppe / Personen
   gruppe: { p: ['M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2', 'M22 21v-2a4 4 0 0 0-3-3.87', 'M16 3.13a4 4 0 0 1 0 7.75'], c: [[9, 7, 4]] },
   // Kalender

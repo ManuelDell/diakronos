@@ -3,25 +3,21 @@
        Desktop: Liste links, Verlauf rechts. Handy: zwei Ansichten — die Liste
        unter `#/nachrichten`, der Verlauf unter `#/nachrichten/<gespraech>`
        (eine Ebene, kein Seitenbaum; Zurück führt zur Liste). -->
-  <div class="dk-screen dk-screen-wide dk-screen-enter dk-chat">
+  <div
+    class="dk-screen dk-screen-wide dk-screen-enter dk-chat dk-chat--fuellt"
+    :class="{ 'is-handy': istHandyLage, 'is-gespraech': Boolean(offeneKennung) }"
+  >
+    <!-- CHAT-3a-4 (SOLL 3): Am HANDY mit offenem Gespräch gibt es NUR den
+         Verlaufskopf (Zurück, Titel, Untertitel, Stumm als Symbolknopf) —
+         Brotkrumen und Seitenkopf stehen dort nicht, sonst stünde der Titel
+         dreifach. Am Desktop bleibt der Seitenkopf: er trägt den Bereich
+         („Nachrichten“), der Verlaufskopf das Gespräch — keine Doppelung. -->
     <DkPageHeader
+      v-if="!seitenkopfVersteckt"
       :title="seiteTitel"
       :sub="unterzeile"
       :krumen="krumen"
-    >
-      <template #actions>
-        <!-- CHAT-3c-2: hängt an der EINEN Kennung (`offeneKennung`), damit
-             „Stumm“ auch während der Suche das sichtbare Gespräch meint.
-             UI-2 (Review R1, SOLL 3): beim Platzhalter NICHT — ob stumm
-             geschaltet ist, weiß niemand. -->
-        <DkButton
-          v-if="offeneKennung && offenesGespraech && !istPlatzhalter"
-          variant="secondary"
-          size="sm"
-          @click="stummUmschalten"
-        >{{ offenesGespraech.stumm ? 'Nicht mehr stumm' : 'Stumm schalten' }}</DkButton>
-      </template>
-    </DkPageHeader>
+    />
 
     <!-- Modul aus (oder kein Leserecht): EIN Hinweis, keine leere Liste. -->
     <DkCard v-if="!modulAn" flach>
@@ -106,7 +102,12 @@
             <!-- Kopf des offenen Gesprächs: zurück (nur Handy), Titel, Zähler.
                  Am Handy führt „zurück“ in die Liste zurück; überdeckt die
                  Suche das Gespräch (einspaltig), ist sie der Weg zu ihr
-                 (CHAT-3c-2, SOLL 4). Ein normaler Link. -->
+                 (CHAT-3c-2, SOLL 4). Ein normaler Link.
+
+                 CHAT-3a-4 (SOLL 3): Der Stumm-Schalter sitzt HIER als
+                 Symbolknopf mit aria-label — am Handy steht er damit im EINEN
+                 sichtbaren Kopf (der Seitenkopf ist dort ausgeblendet), am
+                 Desktop trug ihn vorher der Seitenkopf. -->
             <div class="dk-chat-verlauf-kopf">
               <a class="dk-chat-zurueck" :href="zurueckZiel" aria-label="Zurück zur Liste">
                 <span aria-hidden="true">‹</span>
@@ -123,6 +124,16 @@
                   </span>
                 </p>
               </div>
+              <DkButton
+                v-if="offenesGespraech && !istPlatzhalter"
+                variant="ghost"
+                size="sm"
+                class="dk-chat-stumm-knopf"
+                :aria-pressed="offenesGespraech.stumm ? 'true' : 'false'"
+                aria-label="Stumm"
+                :title="offenesGespraech.stumm ? 'Stummschaltung aufheben' : 'Stumm schalten'"
+                @click="stummUmschalten"
+              ><template #icon><span aria-hidden="true">{{ offenesGespraech.stumm ? '🔕' : '🔔' }}</span></template></DkButton>
             </div>
 
             <p v-if="verlaufFehler" class="dk-chat-fehler" role="alert">{{ verlaufFehler }}</p>
@@ -161,21 +172,37 @@
               <!-- Die Zeilen stehen in einer LISTE innerhalb der Log-Region:
                    `role="log"` trägt keine <li>, die brauchen ein <ul>. -->
               <ul v-else class="dk-chat-verlaufsliste">
-                <template v-for="n in nachrichtenMitTag" :key="n.ident">
+                <template v-for="(n, i) in nachrichtenMitTag" :key="n.ident">
                   <li v-if="n.tag" class="dk-chat-tag"><span>{{ n.tag }}</span></li>
                   <ChatBlase
                     :nachricht="n"
                     :direkt="istOffenesDirekt"
+                    :folge-start="folgeStart(i)"
                     @reaktion="reaktionSetzen"
                     @antworten="antworten"
                     @bearbeiten="bearbeitenOeffnen"
                     @loeschen="loeschen"
-                  />
+                  >
+                    <!-- CHAT-5-UI: Umfrage-Nachricht → Karte statt Blase. -->
+                    <template v-if="n.umfrage" #karte>
+                      <ChatUmfrage
+                        :umfrage="n.umfrage"
+                        :laeuft="umfrageLaeuft === n.umfrage.name"
+                        :schliesst="umfrageSchliessenLaeuft === n.umfrage.name"
+                        :fehler="umfrageFehler[n.umfrage.name] || ''"
+                        @abstimmen="umfrageAbstimmen"
+                        @schliessen="umfrageSchliessen"
+                      />
+                    </template>
+                  </ChatBlase>
                 </template>
               </ul>
             </div>
 
             <!-- Eingabe: Enter sendet, Shift+Enter macht einen Absatz.
+                 CHAT-3a-4 (MUSS 1): Sie ist der feste Fuß des Verlaufs —
+                 eigener Scrollkasten darüber, diese Zeile bleibt stehen. Am
+                 Handy sitzt sie direkt über der unteren Leiste (safe-area).
                  CHAT-7a (Karte Punkt 3): Ist Senden nicht erlaubt (Server 403
                  / Gegenüber ausgetreten), weicht die Eingabe einem ruhigen
                  Hinweis — der Verlauf darüber bleibt lesbar. -->
@@ -183,13 +210,22 @@
               <p class="dk-chat-gesperrt-titel">{{ NICHT_ERREICHBAR.titel }}</p>
               <p class="dk-chat-gesperrt-text">{{ NICHT_ERREICHBAR.text }}</p>
             </div>
-            <form v-else class="dk-chat-eingabe" @submit.prevent="senden">
+            <form v-else id="chat-eingabe-form" class="dk-chat-eingabe" @submit.prevent="senden">
               <p v-if="antwortAuf" class="dk-chat-antwortzeile">
                 <span class="dk-chat-antwort-text">Antwort auf: {{ antwortAuf.antwortText || antwortAuf.text || 'eine Nachricht' }}</span>
                 <DkButton variant="ghost" size="sm" class="dk-chat-textknopf" @click="antwortAuf = null">Antwort verwerfen</DkButton>
               </p>
               <div class="dk-chat-eingabe-zeile">
                 <label class="dk-chat-nur-vorlesen" for="chat-eingabe">Nachricht schreiben</label>
+                <!-- CHAT-5-UI: Umfrage starten — neben dem Senden, als
+                     DkButton. Steht nur, wenn das Senden selbst möglich ist
+                     (`darfSenden`, dieselbe Quelle wie das Eingabefeld). -->
+                <DkButton
+                  v-if="darfSenden"
+                  variant="secondary"
+                  size="sm"
+                  @click="umfrageDialog = true"
+                >{{ UMFRAGE_TEXTE.neu }}</DkButton>
                 <textarea
                   id="chat-eingabe"
                   ref="eingabeEl"
@@ -200,7 +236,12 @@
                   :maxlength="NACHRICHT_MAX"
                   @keydown="beimTasten"
                 ></textarea>
-                <DkButton type="submit" variant="primary" :loading="sendet" :disabled="!text.trim()">
+                <DkButton
+                  type="submit"
+                  variant="primary"
+                  :loading="sendet"
+                  :disabled="!text.trim()"
+                >
                   {{ SENDEN_TEXT }}
                 </DkButton>
               </div>
@@ -210,6 +251,15 @@
         </div>
       </div>
     </template>
+
+    <!-- CHAT-5-UI: „Umfrage starten“ — Frage, Antworten, anonym/offen, Frist. -->
+    <ChatUmfrageDialog
+      v-model="umfrageDialog"
+      :laeuft="umfrageAnlegenLaeuft"
+      :fehler="umfrageAnlegenFehler"
+      :darf-senden="darfSenden"
+      @anlegen="umfrageAnlegen"
+    />
 
     <!-- Bearbeiten-Fenster: eigener Text, 15 Minuten (Server prüft erneut). -->
     <DkDialog
@@ -274,13 +324,17 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { apiCall, apiGet } from '../composables/useApi.js'
 import { useSession } from '../composables/useSession.js'
 import { useLadeSkelett } from '../composables/useLadeSkelett.js'
+// CHAT-3a-4 (SOLL 3): Am Handy mit offenem Gespräch gibt es nur EINEN Kopf
+// (den Verlaufskopf) — dieselbe Handy-Lage wie das Gerüst (`--layout-mobil`,
+// Klasse `.dk-app--handy`), keine zweite Breakpoint-Kopie.
+import { useHandyLage } from '../composables/handyLage.mjs'
 import { bestaetigen } from '../composables/useBestaetigen.js'
 import { modulChatErlaubt } from '../modulRechte.mjs'
 import { fehlertext } from '../../shared/fehlertexte.js'
 import {
   BEREICH, LISTE_LEER, MODUL_AUS, NACHRICHT_MAX, SENDEN_TEXT, TAKT_MS, VERLAUF_LEER,
   aelterStand, backoffMs, eingabePlatzhalter,
-  fehlerZustand, fremdeNeue, gespraechAusHash, gespraechHash, gruppierteListe,
+  fehlerZustand, folgeStarten, fremdeNeue, gespraechAusHash, gespraechHash, gruppierteListe,
   lesestandFaellig, mitTagesmarken, pruefeText, seiteEinordnen, taktGeber, tasteImFeld,
   ungelesenSumme, verlaufsZeile, zeilenSchluessel,
 } from '../composables/nachrichtenLogik.mjs'
@@ -299,10 +353,16 @@ import DkSkelett from '../components/ui/DkSkelett.vue'
 import ChatListe from '../components/chat/ChatListe.vue'
 import ChatBlase from '../components/chat/ChatBlase.vue'
 import ChatSuche from '../components/chat/ChatSuche.vue'
+import ChatUmfrage from '../components/chat/ChatUmfrage.vue'
+import ChatUmfrageDialog from '../components/chat/ChatUmfrageDialog.vue'
+import { TEXTE as UMFRAGE_TEXTE, istUmfrageZeile } from '../components/chat/umfrage.mjs'
 
 // ── Sitzung und Adresse ────────────────────────────────────────────────────
 
 const { mitglied } = useSession()
+// CHAT-3a-4: Handy-Lage (dieselbe Quelle wie das Gerüst) für den EINEN Kopf
+// am Handy — und für „nicht nach unten springen, während oben gelesen wird“.
+const { istHandyLage } = useHandyLage()
 const boot = computed(() => (typeof window === 'undefined' ? {} : (window.__DIakonosBOOT || {})))
 /** Das Modul `chat` — dieselbe Regel wie Router-Guard und Handy-Leiste. */
 const modulAn = computed(() => modulChatErlaubt(boot.value))
@@ -481,16 +541,27 @@ const unterzeile = computed(() => {
   return teilnehmerZahl.value ? `${teilnehmerZahl.value} im Gespräch` : 'Gruppe und Untergruppe, in denen der Chat an ist.'
 })
 
-/** Der Titel des Seitenkopfs — offene Suche, offenes Gespräch oder der Bereich. */
-const seiteTitel = computed(() => {
-  if (sucheOffen.value) return 'Suche'
-  return kennung.value ? titel.value : 'Nachrichten'
-})
+/** Der Titel des Seitenkopfs — offene Suche oder der BEREICH.
+ *
+ *  CHAT-3a-4 (SOLL 3): Das offene Gespräch steht NICHT mehr hier — sein Titel
+ *  steht im Verlaufskopf direkt darunter (vorher: Brotkrume + Seitenkopf +
+ *  Rahmenkopf, dreimal „Chor“). Der Seitenkopf trägt den Bereich. */
+const seiteTitel = computed(() => (sucheOffen.value ? 'Suche' : 'Nachrichten'))
 
 const krumen = computed(() => {
   if (sucheOffen.value) return [{ text: 'Nachrichten', href: BEREICH }, { text: 'Suche' }]
-  return kennung.value ? [{ text: 'Nachrichten', href: BEREICH }, { text: titel.value }] : []
+  // CHAT-3a-4 (SOLL 3): Am Desktop zeigt der Seitenkopf den BEREICH, nicht
+  // noch einmal das Gespräch — der Verlaufskopf daneben trägt den Titel.
+  return []
 })
+
+/**
+ * CHAT-3a-4 (SOLL 3): Steht der Seitenkopf? Am HANDY mit offenem Gespräch
+ * NICHT — dort ist der Verlaufskopf der eine Kopf (Zurück, Titel, Untertitel,
+ * Stumm); sonst stünde der Titel dreifach (Brotkrumen, Seitenkopf, Rahmenkopf).
+ * Die Liste am Handy behält ihren Seitenkopf.
+ */
+const seitenkopfVersteckt = computed(() => istHandyLage.value === true && Boolean(offeneKennung.value))
 
 // ── Suche (CHAT-3c) ────────────────────────────────────────────────────────
 
@@ -884,7 +955,7 @@ async function verlaufLaden({ still = false } = {}) {
       })) {
         await lesestandSetzen()
       }
-      if (lage.neuHinzugefuegt > 0) await nachUntenScrollen()
+      if (lage.neuHinzugefuegt > 0) await nachUntenScrollen({ erzwingen: false })
     }
   } catch (fehler) {
     if (!aktivSeite || offen !== offeneKennung.value) return false
@@ -943,13 +1014,64 @@ function beimScrollen() {
   if (el.scrollTop <= 24) aeltereLaden()
 }
 
-async function nachUntenScrollen() {
+/** Ist der Verlauf ganz unten? (Toleranz für Restluft und Rundung.) */
+function istUnten() {
+  const el = verlaufEl.value
+  if (!el) return true
+  return el.scrollHeight - el.scrollTop - el.clientHeight <= 24
+}
+
+/**
+ * CHAT-3a-4 (MUSS 1): Ans Ende springen — beim Öffnen und bei einer neuen
+ * eigenen Nachricht, aber NICHT, wenn der Nutzer oben liest.
+ *
+ * `erzwingen` = Pflichtlauf (Öffnen, eigene Nachricht); ohne ihn gilt: nur
+ * springen, wenn der Verlauf ohnehin unten stand. Nachrücken (`nachfuehren`)
+ * holt die Eingabe am Handy ins Bild, wenn die SEITE zu tief steht (offene
+ * Tastatur) — der Verlauf selbst scrollt in seinem eigenen Kasten.
+ */
+async function nachUntenScrollen({ erzwingen = true } = {}) {
+  if (!erzwingen && !istUnten()) {
+    // Der Nutzer liest weiter oben: KEIN Sprung (Karte MUSS 1) — und auch
+    // KEIN Nachführen (CHAT-3a-5, D): `form.scrollIntoView` zog die SEITE
+    // nach unten, obwohl der Verlauf absichtlich stehen blieb.
+    return
+  }
   await nextTick()
   if (verlaufEl.value) verlaufEl.value.scrollTop = verlaufEl.value.scrollHeight
+  nachfuehren()
+}
+
+/**
+ * Die Eingabe ins Bild holen, wenn die SEITE zu tief steht (Handy, Tastatur).
+ *
+ * CHAT-3a-5 (D): Gerufen wird das nur noch, wenn wirklich ans Ende gesprungen
+ * wurde. Wer oben liest, bekommt keinen Sprung — weder im Verlauf noch in der
+ * Seite.
+ */
+async function nachfuehren() {
+  if (typeof document === 'undefined' || istHandyLage.value !== true) return
+  await nextTick()
+  const form = typeof document.getElementById === 'function'
+    ? document.getElementById('chat-eingabe-form')
+    : null
+  if (form && typeof form.scrollIntoView === 'function') {
+    try { form.scrollIntoView({ block: 'end' }) } catch { /* egal */ }
+  }
 }
 
 /** Verlauf mit Tages-Marken für die Anzeige (Heute/Gestern/Wochentag/Datum). */
 const nachrichtenMitTag = computed(() => mitTagesmarken(nachrichten.value))
+
+/**
+ * CHAT-3a-4 (MUSS 2): Avatar-Spalte je Zeile — die Regel steht in
+ * `composables/nachrichtenLogik.mjs` (`folgeStarten`, ohne DOM prüfbar).
+ * Der Avatar gehört an den Folgenanfang (gleicher Autor, gleicher Tag).
+ */
+const folgenStart = computed(() => folgeStarten(nachrichtenMitTag.value))
+function folgeStart(i) {
+  return folgenStart.value[i] !== false
+}
 
 // ── Lesestand, Stumm ───────────────────────────────────────────────────────
 
@@ -1111,6 +1233,107 @@ async function loeschen(nachricht) {
   } catch (fehler) {
     const zustand = fehlerZustand(fehler)
     verlaufFehler.value = zustand ? `${zustand.titel}. ${zustand.text}` : fehlertext(fehler)
+  }
+}
+
+// ── Umfragen (CHAT-5-UI) ───────────────────────────────────────────────────
+
+/**
+ * Der Knopf „Umfrage starten“ hängt an `darfSenden` (oben) — derselbe Wert wie
+ * das Eingabefeld, denn `umfrage_anlegen` verlangt dieselbe Aktion.
+ */
+const umfrageDialog = ref(false)
+const umfrageAnlegenLaeuft = ref(false)
+const umfrageAnlegenFehler = ref('')
+/** Welche Umfrage gerade abgegeben wird (`name`) — sperrt nur deren Knopf. */
+const umfrageLaeuft = ref('')
+/** Meldungen je Umfrage (`name` → Text): 403, 400 („schon abgestimmt“) … */
+const umfrageFehler = ref({})
+
+/** Eine Umfrage-Meldung ruhig am DIESER Karte anzeigen (keine Wand aus Text). */
+function umfrageFehlerSetzen(name, fehler) {
+  const zustand = fehlerZustand(fehler)
+  const text = zustand ? `${zustand.titel}. ${zustand.text}` : fehlertext(fehler)
+  umfrageFehler.value = { ...umfrageFehler.value, [String(name)]: text }
+}
+
+/** Die Zähler einer Umfrage in den Verlauf übernehmen (ohne zweiten Abruf). */
+function umfrageUebernehmen(umfrage) {
+  if (!umfrage?.name) return
+  nachrichten.value = nachrichten.value.map((n) => (n.umfrage?.name === umfrage.name
+    ? { ...n, umfrage }
+    : n))
+}
+
+/**
+ * „Umfrage starten“ — die Antwort bringt die neue Nachricht samt Umfrage nur
+ * als `{name, umfrage}` (ohne `text`), das reicht `verlaufsZeile` nicht: die
+ * Zeile stünde bis zum nächsten Abruf als „gelöscht“ da. Deshalb den Verlauf
+ * still neu laden — der Server liefert die fertige Hülle.
+ */
+async function umfrageAnlegen(daten) {
+  const offen = offeneKennung.value
+  if (!offen || umfrageAnlegenLaeuft.value) return
+  umfrageAnlegenLaeuft.value = true
+  umfrageAnlegenFehler.value = ''
+  try {
+    await apiCall('chat.umfrage_anlegen', {
+      gespraech: offen,
+      frage: daten.frage,
+      optionen: daten.optionen,
+      mehrfach: daten.mehrfach === true,
+      anonym: daten.anonym !== false,
+      frist: daten.frist || undefined,
+    })
+    umfrageDialog.value = false
+    await verlaufLaden({ still: true })
+    await nachUntenScrollen()
+    await laden()
+  } catch (fehler) {
+    const zustand = fehlerZustand(fehler)
+    umfrageAnlegenFehler.value = zustand ? `${zustand.titel}. ${zustand.text}` : fehlertext(fehler)
+  } finally {
+    umfrageAnlegenLaeuft.value = false
+  }
+}
+
+/** Abstimmen oder ändern — der Server antwortet mit dem neuen Stand. */
+async function umfrageAbstimmen({ umfrage, optionen }) {
+  if (!umfrage?.name || umfrageLaeuft.value) return
+  umfrageLaeuft.value = umfrage.name
+  umfrageFehlerSetzen(umfrage.name, null)
+  try {
+    const stand = await apiCall('chat.umfrage_abstimmen', {
+      umfrage: umfrage.name,
+      optionen,
+    })
+    umfrageUebernehmen(stand)
+  } catch (fehler) {
+    umfrageFehlerSetzen(umfrage.name, fehler)
+  } finally {
+    umfrageLaeuft.value = ''
+  }
+}
+
+/**
+ * Schließen — der Server prüft das Recht; ein „Nein“ (403) bleibt ruhig.
+ *
+ * Die Sperre hält bis zur Antwort (`umfrageSchliessenLaeuft`): ein zweiter
+ * Klick schickt keinen zweiten POST.
+ */
+const umfrageSchliessenLaeuft = ref('')
+async function umfrageSchliessen({ umfrage }) {
+  if (!umfrage?.name) return
+  if (umfrageSchliessenLaeuft.value === umfrage.name) return
+  umfrageSchliessenLaeuft.value = umfrage.name
+  try {
+    const stand = await apiCall('chat.umfrage_schliessen', { umfrage: umfrage.name })
+    umfrageUebernehmen(stand)
+    umfrageFehlerSetzen(umfrage.name, null)
+  } catch (fehler) {
+    umfrageFehlerSetzen(umfrage.name, fehler)
+  } finally {
+    umfrageSchliessenLaeuft.value = ''
   }
 }
 
@@ -1290,12 +1513,28 @@ watch(suchBegriff, (neu) => {
 <style scoped>
 /* Der Bereich nimmt die verfügbare Höhe: Liste links (bis 340 px), Verlauf
    rechts. Am Handy EINE Spalte — die Seite zeigt dann entweder Liste oder
-   Verlauf (Entwurf B-handy: eine Ebene, kein Seitenbaum). */
+   Verlauf (Entwurf B-handy: eine Ebene, kein Seitenbaum).
+
+   CHAT-3a-4 (MUSS 1): Die Höhe kommt NICHT mehr aus einem geschätzten Abzug
+   („Viewport minus Kopf minus Abstände“) — der geschätzte Wert war zu groß,
+   das Eingabefeld fiel unter den Rand. Die Seite ist eine Flex-Spalte über
+   die VOLLE Höhe ihres Kastens (`.dk-content`); der Bereich füllt den Rest
+   (`flex: 1`, `min-height: 0`), der Verlauf scrollt INNEN. Krumen und
+   Seitenkopf wirken damit nur noch über ihre echte Höhe. */
+.dk-chat {
+  display: flex;
+  flex-direction: column;
+  /* `.dk-screen` trägt oben/unten 36/80 px Polster — hier bleiben die Seiten
+     (40 px) stehen, die Höhe trägt der Flex-Fluss. */
+  padding-bottom: var(--sp-5);
+  min-height: 0;
+}
+.dk-chat :deep(.dk-ui-pageheader) { flex: none; }
 .dk-chat-bereich {
+  flex: 1 1 auto;
   display: grid;
   grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
   min-height: 0;
-  height: calc(100vh - var(--sp-8) - var(--sp-6) - var(--sp-5));
   border-radius: var(--radius-lg);
   box-shadow: var(--schatten-karte);
   background: var(--surface);
@@ -1348,7 +1587,7 @@ watch(suchBegriff, (neu) => {
   font-size: var(--fs-20);
 }
 .dk-chat-zurueck:focus-visible { outline: var(--rahmen-breite) solid var(--focus-ring); outline-offset: var(--rahmen-breite); }
-.dk-chat-verlauf-titel { min-width: 0; }
+.dk-chat-verlauf-titel { min-width: 0; flex: 1 1 auto; }
 .dk-chat-verlauf-titel h2 {
   margin: 0;
   font-size: var(--fs-16);
@@ -1364,6 +1603,27 @@ watch(suchBegriff, (neu) => {
   color: var(--muted);
 }
 .dk-chat-stumm-hinweis { color: var(--subtle); }
+/* CHAT-3a-4 (SOLL 3): Stumm als Symbolknopf im Verlaufskopf — Trefferfläche
+   aus `--control-h` (40 px mit Maus, 44 px am Finger), Beschriftung nur für
+   die Vorlesehilfe (`aria-label`/`title`). */
+.dk-chat-stumm-knopf {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h);
+  height: var(--control-h);
+  margin-left: auto;
+  border: var(--rahmen-breite) solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-16);
+  line-height: 1;
+  cursor: pointer;
+}
+.dk-chat-stumm-knopf:hover { background: var(--surface-hover); color: var(--text); }
+.dk-chat-stumm-knopf:focus-visible { outline: var(--rahmen-breite) solid var(--focus-ring); outline-offset: var(--rahmen-breite); }
 
 .dk-chat-nachrichten {
   flex: 1;
@@ -1508,10 +1768,44 @@ watch(suchBegriff, (neu) => {
 @media (max-width: 720px) {
   .dk-chat-bereich {
     grid-template-columns: 1fr;
-    height: calc(100vh - var(--sp-8) - var(--sp-6) - var(--sp-4));
+    /* CHAT-3a-4 (MUSS 1): KEIN eigener Höhen-Abzug mehr — der Bereich füllt
+       den Rest des Kastens (Basisregel), das Eingabefeld bleibt unten. Ein
+       zweiter Schätzwert hier stand dem echten Kopf im Weg. */
   }
   .dk-chat-liste-spalte { border-right: none; }
   .dk-chat-bereich .nur-handy-aus { display: none; }
   .dk-chat-zurueck { display: inline-flex; }
+}
+
+/* CHAT-3a-4 (SOLL 3/MUSS 1) · Handy-Lage (Klasse aus `useHandyLage()`, dieselbe
+   Quelle wie das Gerüst `.dk-app--handy`, KEINE zweite Breakpoint-Regel):
+   Der Chat nimmt den Kasten randlos ein, und die Eingabe sitzt direkt über
+   der unteren Leiste. Den Streifen unter der Leiste (Safe-Area) trägt der
+   INHALTSKASTEN schon selbst (`.dk-app--handy .dk-content` in index.css) —
+   hier kommt KEIN zweiter Abstand dazu, sonst stand die Eingabe doppelt
+   hoch. Die Seite selbst scrollt nicht mehr; nur der Verlauf innen.
+
+   CHAT-3a-5 (B): Der Seitenrand (--sp-4) bleibt NUR an der LISTE stehen —
+   randlos ist allein das offene Gespräch (`.is-gespraech`). Vorher nahm
+   `padding: 0` der Liste ihren Rand mit. */
+.dk-app--handy .dk-chat {
+  padding: 0 var(--sp-4);
+  max-width: none;
+  /* `.dk-app--handy .dk-screen` in index.css setzt den Fußabstand für die
+     Leiste (`!important`) — hier trägt ihn der Inhaltskasten. */
+  padding-bottom: 0 !important;
+  overflow: hidden;
+}
+/* Das OFFENE Gespräch nimmt die volle Breite (randlos); die Liste behält
+   ihren Seitenrand. */
+.dk-app--handy .dk-chat.is-gespraech {
+  padding: 0;
+}
+.dk-app--handy .dk-chat .dk-chat-bereich {
+  border-radius: 0;
+  box-shadow: none;
+}
+.dk-app--handy .dk-chat .dk-chat-eingabe {
+  padding-bottom: var(--sp-3);
 }
 </style>

@@ -679,7 +679,9 @@ def _person_je_konto(s, konto: str | None) -> str | None:
     return treffer[0] if len(treffer) == 1 else None
 
 
-def _direkt_titel(s, g: ChatGespraech, benutzer: str) -> tuple[str, str | None, str]:
+def _direkt_titel(s, g: ChatGespraech, benutzer: str,
+                  *, ausgeschlossene: set[str] | None = None,
+                  ) -> tuple[str, str | None, str]:
     """Titel, Mitglied-Kennung und Bild des Gegenübers in einem 1:1-Gespräch.
 
     Der Titel ist IMMER der gekürzte Anzeigename aus der bestehenden Quelle
@@ -696,14 +698,19 @@ def _direkt_titel(s, g: ChatGespraech, benutzer: str) -> tuple[str, str | None, 
     der Rest des Namens. Ein leeres Feld wäre für die Oberfläche nicht von
     „noch kein Gegenüber“ zu unterscheiden.
 
-    Ist das Gegenüber AUSGESCHLOSSEN (``mitglied_ausgeschlossen``), wird KEIN
-    Bild ausgeliefert (Review CHAT-7a, Punkt 4, Entscheidung Operator): in der
-    Personensuche erscheint diese Person auch nicht, ein Bild in der
-    Gesprächsliste wäre der einzige Weg zu ihr. Die Marke steht in der
-    Mitgliedszeile, die hier ohnehin gelesen wird (Review CHAT-N1, SOLL: kein
-    Volllauf je Gespräch). Der Titel bleibt der gekürzte Name — die Kennung
-    fürs Profil ebenfalls (sie ist keine Auskunft über die Person; ohne sie
-    könnte die Oberfläche das Gegenüber nicht zuordnen).
+    Ist das Gegenüber AUSGESCHLOSSEN, wird KEIN Bild ausgeliefert (Review
+    CHAT-7a, Punkt 4, Entscheidung Operator): in der Personensuche erscheint
+    diese Person auch nicht, ein Bild in der Gesprächsliste wäre der einzige
+    Weg zu ihr. Der Titel bleibt der gekürzte Name — die Kennung fürs Profil
+    ebenfalls (sie ist keine Auskunft über die Person; ohne sie könnte die
+    Oberfläche das Gegenüber nicht zuordnen).
+
+    ``ausgeschlossene`` (CHAT-N2): die Menge der gesperrten Konten, EINMAL je
+    Anfrage von ``meine_gespraeche`` gelesen (``_ausgeschlossene_konten``;
+    deckt auch Konten ab, die erst über die E-Mail zum Mitglied gehören —
+    ``wirksame_konten``). Ohne sie bleibt der heutige Weg als Rückfall: die
+    Marke in der Mitgliedszeile, sonst die Schranke des Kerns (je Gespräch ein
+    Volllauf) — nur für Aufrufwege außerhalb der Liste.
     """
     from diakronos_app.frappe_compat.personen_anzeige import (
         GELOESCHT_ANZEIGE,
@@ -716,9 +723,12 @@ def _direkt_titel(s, g: ChatGespraech, benutzer: str) -> tuple[str, str | None, 
     # Ein 1:1 hat immer ZWEI Teilnahmezeilen. Steht nur noch eine (oder keine),
     # ist die andere Person gegangen — anonymisiert oder gelöscht.
     ohne_teilnahme = len(konten) < 2
-    # Die Namenszeile nennt schon ``ausgeschlossen``. Bleibt sie aus (Altbestand
-    # ohne Mitglied), fragt die Schranke des Kerns — nur dann, nicht je 1:1.
-    ausgeschlossen = _konto_ausgeschlossen(gegner)
+    if ausgeschlossene is None:
+        # Rückfall ohne übergebene Menge: dieselbe Auskunft, aber je Gespräch
+        # ein Volllauf über Mitglied/User.
+        ausgeschlossen = _konto_ausgeschlossen(gegner)
+    else:
+        ausgeschlossen = bool(gegner) and gegner in ausgeschlossene
     mitglied = _person_je_konto(s, gegner)
     if mitglied:
         zeile = s.execute(
@@ -736,9 +746,9 @@ def _direkt_titel(s, g: ChatGespraech, benutzer: str) -> tuple[str, str | None, 
             # NIE auf Kennung, Konto oder Adresse zurück (Review CHAT-7a,
             # Punkt 4); „Ehemaliges Mitglied“ ist der Text ohne jeden Namen.
             name = str(kuerze_name(zeile[1], zeile[2], mitglied) or "").strip()
-            # Der Ausschluss steht in DIESER Zeile (Review CHAT-N1, SOLL):
-            # ``_konto_ausgeschlossen`` wäre ein Volllauf über Mitglieder und
-            # Konten je 1:1-Gespräch (N+1). Dieselbe Marke, dieselbe Schranke.
+            # Der Ausschluss steht in DIESER Zeile UND in der übergebenen
+            # Menge: die Marke kennt nur das verknüpfte Mitglied, die Menge
+            # auch ein Konto, das über die E-Mail dazugehört (``wirksame_konten``).
             ausgeschlossen = ausgeschlossen or bool(zeile[5])
             bild = "" if ausgeschlossen else _suche_bild(
                 roh.get("foto"), ist_geloescht(roh))
@@ -939,8 +949,10 @@ def _seite_antwort(s, gespraech: str, zeilen: list[ChatNachricht], *,
     stand = _gelesen_von(s, zeilen, gespraech, benutzer)
     namen = _personen(s, {n.autor for n in zeilen if n.autor})
     konten = _konto_namen(s, {n.autor_benutzer for n in zeilen if n.autor_benutzer})
-    # CHAT-5: EIN Abruf für alle Umfragen dieser Seite (kein N+1).
-    umfragen = _umfragen_laden(s, [n.umfrage for n in zeilen if n.umfrage], benutzer)
+    # CHAT-5: EIN Abruf für alle Umfragen dieser Seite (kein N+1) —
+    # `darf_schliessen` deshalb auch für die ganze Seite, nicht je Zeile.
+    umfragen = _umfragen_laden(s, [n.umfrage for n in zeilen if n.umfrage], benutzer,
+                               _gespraech_lesen(s, gespraech))
     posten = [_zeile(s, n, lesestand=stand, reaktionen=reakt, antwort_auf=zitate.get(n.name),
                      namen=namen, konto_namen=konten, umfragen=umfragen, ich=benutzer)
               for n in zeilen]
@@ -1015,16 +1027,33 @@ def meine_gespraeche():
     Antwort: ``{gespraeche: [{name, art, gruppe, untergruppe, titel,
     teilnehmer, stumm, geoeffnet, ungelesen, letzte_nachricht, letzte_am,
     mitglied, bild}]}``.
+
+    CHAT-N2 — Ausschluss EINMAL je Anfrage: der Zustand (ganz ``Mitglied`` +
+    ganz ``User``) wird hier EINMAL gelesen und als Menge an die Köpfe
+    gereicht. Vorher lief ``mitglied_ausgeschlossen`` je 1:1-Gespräch als
+    Volllauf (N+1). Die Menge kommt aus ``_ausgeschlossene_konten`` und ist
+    damit dieselbe Schranke wie im Kern — auch für ein Konto, das erst über
+    die E-Mail zu einem ausgeschlossenen Mitglied gehört (``wirksame_konten``).
     """
     benutzer = _benutzer()
+    # EINMAL je Anfrage (CHAT-N2): derselbe Zustand, dieselbe Schranke wie im
+    # Kern (``_mitglied_ausgeschlossen`` ruft genau diese beiden Funktionen).
+    from diakronos_app.frappe_compat.benutzer_status import (
+        _ausgeschlossene_konten,
+        _kontozustand,
+    )
+
     ergebnis: list[dict[str, Any]] = []
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         if not rechte.ist_gemeindemitglied(benutzer):
             _h()
+        aus = _ausgeschlossene_konten(*_kontozustand())
         for g in _lesbare_gespraeche(s, benutzer):
-            ergebnis.append(_gespraech_kopf(s, g, benutzer))
+            ergebnis.append(_gespraech_kopf(
+                s, g, benutzer, ausgeschlossene=aus))
         for g in _direkt_gespraeche(s, benutzer):
-            ergebnis.append(_gespraech_kopf(s, g, benutzer))
+            ergebnis.append(_gespraech_kopf(
+                s, g, benutzer, ausgeschlossene=aus))
     ergebnis.sort(key=lambda e: (str(e["letzte_am"] or ""), str(e["titel"])), reverse=True)
     return {"gespraeche": ergebnis}
 
@@ -1807,7 +1836,7 @@ def umfrage_anlegen(gespraech, frage, optionen=None, mehrfach=False, anonym=True
         s.add(zeile)
         _teilnahme(s, g.name, benutzer)
         s.flush()
-        daten = _umfrage_daten(s, umfrage, benutzer)
+        daten = _umfrage_daten(s, umfrage, benutzer, g)
         # Die Kennung INNERHALB der Sitzung merken: nach dem `begin()`-Block
         # wird die Instanz detached, und ein Attributzugriff darauf löst
         # ``DetachedInstanceError`` aus (im Zwischenstand passiert).
@@ -1893,7 +1922,7 @@ def umfrage_abstimmen(umfrage, optionen=None):
         else:
             _offene_stimmen_setzen(s, u, benutzer, nummern)
         s.flush()
-        return _umfrage_daten(s, u, benutzer)
+        return _umfrage_daten(s, u, benutzer, g)
 
 
 @whitelist(methods=["POST"], allow_guest=False)
@@ -1922,28 +1951,15 @@ def umfrage_schliessen(umfrage):
         throw("umfrage fehlt.")
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         u, g = _umfrage_lesen(s, umfrage)
-        eigene = _umfrage_ist_meine(s, u, benutzer)
-        if eigene:
-            # Eigene Umfrage schliessen = SCHREIBEN; eine fremde im 1:1 ist
-            # NEIN (auch fuer einen teilnehmenden Admin).
-            _erlaube(benutzer, rechte.SCHREIBEN, g=g,
-                     besitzer=_umfrage_autor(s, u.name), sitzung=s)
-        elif g.art == ART_DIREKT:
-            # Dieselbe Frage, keine Sonderregel: der Kern sagt „fremde
-            # Nachricht“ (teilnehmender Admin ebenso wie ein Dritter).
-            # GLEICHE Umwandlung wie beim Loeschen (Review CHAT-N1, MUSS 2):
-            # nach einer Anonymisierung hat die Huelle kein Konto mehr
-            # (``None``) — der Kern laese das als „eigene“ und die
-            # verbliebene Person duerfte die fremde Umfrage schliessen.
-            _erlaube(benutzer, rechte.SCHREIBEN, g=g,
-                     besitzer=str(_umfrage_autor(s, u.name) or ""), sitzung=s)
-        else:
-            _erlaube(benutzer, rechte.MODERIEREN, g=g, sitzung=s)
+        autor = _umfrage_autor(s, u.name)
+        # Dieselben Zweige wie `darf_schliessen` in der Antwort (CHAT-5-UI) —
+        # EINE Stelle: `_schliessen_erlaube`, hier mit Wurf statt Wahrheitswert.
+        _schliessen_erlaube(s, g, autor, benutzer)
         if u.geschlossen_am is None:
             u.geschlossen_am = _jetzt()
             u.geschlossen_von = benutzer or None
             s.flush()
-        return _umfrage_daten(s, u, benutzer)
+        return _umfrage_daten(s, u, benutzer, g)
 
 
 @whitelist(allow_guest=False)
@@ -2166,12 +2182,18 @@ def _offene_stimmen_setzen(s, u: ChatUmfrage, benutzer: str, nummern: list[int])
             _zaehle(s, u.name, nummer, -1)
 
 
-def _umfragen_laden(s, kennungen, benutzer: str) -> dict[str, dict[str, Any]]:
+def _umfragen_laden(s, kennungen, benutzer: str,
+                    gespraech: ChatGespraech | None = None) -> dict[str, dict[str, Any]]:
     """Die Umfragedaten zu einer SEITE Nachrichten — in fester Zahl Abfragen.
 
     Vier Abfragen für die ganze Seite (Umfragen, Optionen, eigene Stimmen,
     eigene Abgaben) — keine je Nachricht. Das ist die Zusage aus der Karte
     „ohne N+1“.
+
+    ``darf_schliessen`` (CHAT-5-UI) kommt für die GANZE Seite aus
+    ``_darf_schliessen_je_umfrage``: EINE Moderationsfrage, keine je Zeile. Ist
+    ``gespraech`` nicht übergeben, bleibt es ``False`` (der Aufrufer bestimmt
+    den Kontext; die Endpunkte Anlegen/Abstimmen liefern es eigens).
 
     Die NAMEN (offene Umfrage) kommen über ``_personen``/``_konto_namen`` aus
     den Konten der Stimmenzeilen — wer abstimmen durfte, steht damit
@@ -2231,11 +2253,13 @@ def _umfragen_laden(s, kennungen, benutzer: str) -> dict[str, dict[str, Any]]:
             select(ChatStimme.umfrage, ChatStimme.option, ChatStimme.benutzer)
             .where(ChatStimme.umfrage.in_(offene))
         ).all()
+        # Namen und Mitglied-Kennungen für die GANZE Seite holen (je EINE
+        # Abfrage), nicht je Umfrage: sonst hinge die Zahl der Abfragen an
+        # der Zahl der Umfragen auf der Seite (Review CHAT-5-UI R2, SOLL 1).
         konten = {str(k) for _, _, k in stimmen if k}
         mitglied_je_konto = _mitglieder_je_konto(s, konten)
         anzeige = _personen(s, set(mitglied_je_konto.values()))
         konto_anzeige = _konto_namen(s, konten)
-        # Wer hat in DIESER Umfrage abgestimmt (= welches Konto)?
         # Als DICT-von-MENGEN ohne `.add()`: der Inventar-Wächter liest den
         # Funktionsrumpf und hielte `…add(…)` für einen Schreibvorgang — der
         # Verlauf ist rein lesend (SEC-11c), und das soll er auch nach dem
@@ -2251,11 +2275,14 @@ def _umfragen_laden(s, kennungen, benutzer: str) -> dict[str, dict[str, Any]]:
         for kennung, wer in stimmende.items():
             abgegeben[str(kennung)] = len(wer)
 
+    darf_schliessen = _darf_schliessen_je_umfrage(s, gespraech, list(umfragen), benutzer)
+
     return {
         kennung: _umfrage_form(u, optionen.get(kennung, []), benutzer,
                                eigene_stimmen.get(kennung, []),
                                kennung in eigene_abgabe,
-                               namen_je_option, abgegeben.get(kennung, 0))
+                               namen_je_option, abgegeben.get(kennung, 0),
+                               darf_schliessen=darf_schliessen.get(kennung, False))
         for kennung, u in umfragen.items()
     }
 
@@ -2274,7 +2301,7 @@ def _mitglieder_je_konto(s, konten) -> dict[str, str]:
 def _umfrage_form(u: ChatUmfrage, optionen: list[ChatUmfrageOption], benutzer: str,
                   eigene: list[int], hat_abgestimmt: bool,
                   namen_je_option: dict[tuple[str, int], list[str]],
-                  abgegeben: int = 0) -> dict[str, Any]:
+                  abgegeben: int = 0, *, darf_schliessen: bool = False) -> dict[str, Any]:
     """Eine Umfrage als Antwortblock (Verlauf, Ergebnis, Abstimmen).
 
     ``hinweis`` steht NUR, wenn weniger als ``HINWEIS_AB`` Personen abgestimmt
@@ -2309,6 +2336,10 @@ def _umfrage_form(u: ChatUmfrage, optionen: list[ChatUmfrageOption], benutzer: s
         "hinweis": _hinweis(abgegeben),
         "abgestimmt": bool(hat_abgestimmt) or bool(eigene),
         "eigene_stimme": None if u.anonym else sorted(int(n) for n in eigene),
+        # CHAT-5-UI: darf DIESE Sitzung diese Umfrage schließen? Aus dem
+        # Rechte-Kern (dieselben Zweige wie `umfrage_schliessen`); die
+        # Oberfläche blendet den Knopf nur daran aus.
+        "darf_schliessen": bool(darf_schliessen),
         "optionen": [
             {
                 "nummer": int(o.nummer),
@@ -2345,13 +2376,136 @@ def _ist_offen(u: ChatUmfrage) -> bool:
     return True
 
 
-def _umfrage_daten(s, u: ChatUmfrage, benutzer: str) -> dict[str, Any]:
-    """Die Umfragedaten EINER Umfrage (Anlegen, Abstimmen, Ergebnis)."""
+def _schliessen_erlaube(s, g: ChatGespraech, autor: str | None, benutzer: str) -> None:
+    """DIE Zweige von ``umfrage_schliessen`` — auch Quelle für ``darf_schliessen``.
+
+    EINE Stelle: der Endpunkt wirft hier, ``_darf_umfrage_schliessen`` fragt
+    dieselbe Funktion als Wahrheitswert. Drei Fälle, alle über den Rechte-Kern
+    (keine eigene Rollenlogik):
+
+      * eigene Umfrage (die Hülle-Nachricht gehört ``benutzer``) → SCHREIBEN
+        mit ``besitzer=autor``,
+      * fremde Umfrage im DIREKTGESPRÄCH → dieselbe Frage, GLEICHE Umwandlung
+        ``str(autor or "")`` wie beim Löschen (Review CHAT-N1, MUSS 2): nach
+        einer Anonymisierung hat die Hülle kein Konto mehr (``None``) — der
+        Kern läse das als „eigene“ und die verbliebene Person dürfte die
+        fremde Umfrage schließen,
+      * sonst → MODERIEREN im Gespräch.
+
+    Kein Sonderzweig je ``art`` außer dem 1:1 (Review CHAT-7a, Punkt 3): dort
+    gibt es keine Moderation über das Gespräch, nur über
+    ``meldung_entscheiden``.
+    """
+    if autor and str(autor) == str(benutzer or ""):
+        _erlaube(benutzer, rechte.SCHREIBEN, g=g, besitzer=autor, sitzung=s)
+    elif g.art == ART_DIREKT:
+        _erlaube(benutzer, rechte.SCHREIBEN, g=g, besitzer=str(autor or ""), sitzung=s)
+    else:
+        _erlaube(benutzer, rechte.MODERIEREN, g=g, sitzung=s)
+
+
+def _darf_umfrage_schliessen(s, g: ChatGespraech, autor: str | None,
+                             benutzer: str) -> bool:
+    """Darf ``benutzer`` DIESE Umfrage schließen? — ``_schliessen_erlaube`` als
+    Wahrheitswert (``_weiche_ja``).
+
+    Die eigene Umfrage ist über ``benutzer``/``autor`` erkennbar; die Frage
+    geht trotzdem durch die Zweige, damit Anzeige und Endpunkt nicht
+    auseinanderlaufen können.
+    """
+    try:
+        _schliessen_erlaube(s, g, autor, benutzer)
+    except PermissionError:
+        return False
+    return True
+
+
+def _darf_schliessen_je_umfrage(s, g: ChatGespraech | None, umfragen, benutzer: str
+                                ) -> dict[str, bool]:
+    """``{umfrage: darf_schliessen}`` für eine SEITE — ohne N+1.
+
+    DREI Fälle, je Seite EINE Rechtefrage (statt einer je Zeile):
+
+      * eigene Umfragen → ``_schliessen_erlaube`` mit dem eigenen Konto (der
+        Ersteller-Zweig: SCHREIBEN auf der eigenen Nachricht — für JEDE Person
+        an ihrer eigenen Umfrage dasselbe Ergebnis, darum einmal),
+      * fremde Umfragen im 1:1 → derselbe Zweig mit ``besitzer=str(autor or "")``;
+        das Ergebnis hängt an der Person, nicht an der Umfrage → einmal,
+      * fremde Umfragen sonst → EINE Moderationsfrage für die ganze Seite.
+
+    Die Zweige sind DIESELBEN wie in ``umfrage_schliessen``
+    (``_schliessen_erlaube``) — Anzeige und Endpunkt können nicht
+    auseinanderlaufen.
+
+    ``g=None`` (kein Gespräch zur Hand) → alles ``False``: ohne Gespräch keine
+    Moderationsfrage, und der Ersteller-Zweig braucht es nicht.
+    """
+    kennungen = [str(k) for k in umfragen if k]
+    if not kennungen:
+        return {}
+    if g is None:
+        return {kennung: False for kennung in kennungen}
+    autoren: dict[str, str | None] = {}
+    for name, autor in s.execute(
+        select(ChatNachricht.umfrage, ChatNachricht.autor_benutzer)
+        .where(ChatNachricht.umfrage.in_(kennungen))
+    ).all():
+        autoren[str(name)] = autor
+
+    eigene = [k for k in kennungen if _ist_eigene_umfrage(autoren.get(k), benutzer)]
+    fremde = [k for k in kennungen if k not in eigene]
+    direkt = str(g.art or "") == ART_DIREKT
+
+    # Je Fall EINE Frage — nicht je Umfrage.
+    eigene_darf = (bool(eigene)
+                   and _darf_umfrage_schliessen(s, g, benutzer, benutzer))
+    fremd_direkt_darf = False
+    # Im 1:1: dieselbe Frage, Besitzer ist das (ggf. anonymisierte) Konto des
+    # Erstellers — ``str(autor or "")`` wie beim Löschen (CHAT-N1, MUSS 2).
+    if fremde and direkt:
+        erster_autor = next((autoren.get(k) for k in fremde), None)
+        fremd_direkt_darf = _darf_umfrage_schliessen(
+            s, g, str(erster_autor or ""), benutzer)
+    # Gruppe: EINE Moderationsfrage für alle fremden Umfragen der Seite.
+    moderation = (bool(fremde) and not direkt
+                  and _weiche_ja(benutzer, rechte.MODERIEREN, g=g, sitzung=s))
+
+    ergebnis: dict[str, bool] = {}
+    for kennung in kennungen:
+        if kennung in eigene:
+            ergebnis[kennung] = eigene_darf
+        elif direkt:
+            ergebnis[kennung] = fremd_direkt_darf
+        else:
+            ergebnis[kennung] = moderation
+    return ergebnis
+
+
+def _ist_eigene_umfrage(autor: str | None, benutzer: str) -> bool:
+    """Gehört die Umfrage dieser Person? — verglichen wird das KONTO."""
+    return bool(autor) and str(autor) == str(benutzer or "")
+
+
+def _umfrage_daten(s, u: ChatUmfrage, benutzer: str,
+                   g: ChatGespraech | None = None) -> dict[str, Any]:
+    """Die Umfragedaten EINER Umfrage (Anlegen, Abstimmen, Ergebnis, Schließen).
+
+    ``daten["darf_schliessen"]`` (CHAT-5-UI) sagt, ob DIESE Sitzung schließen
+    darf — EINE Frage an dieselbe Hilfsfunktion, die ``umfrage_schliessen``
+    benutzt. Ohne ``g`` wird das Gespräch gelesen (die Antwort soll den Knopf
+    zeigen können).
+    """
+    if g is None:
+        g = _gespraech_lesen(s, u.gespraech)
+    autor = _umfrage_autor(s, u.name)
+    darf_schliessen = _darf_umfrage_schliessen(s, g, autor, benutzer)
     daten = _umfragen_laden(s, [u.name], benutzer).get(str(u.name))
     if daten is not None:
+        daten["darf_schliessen"] = bool(darf_schliessen)
         return daten
     # Keine Optionen (darf nicht vorkommen) — trotzdem eine ganze Antwortform.
-    return _umfrage_form(u, [], benutzer, [], False, {})
+    return _umfrage_form(u, [], benutzer, [], False, {}, 0,
+                         darf_schliessen=darf_schliessen)
 
 
 def _umfrage_lesen(s, umfrage: str) -> tuple[ChatUmfrage, ChatGespraech]:
@@ -2387,17 +2541,11 @@ def _umfrage_autor(s, umfrage: str) -> str | None:
     """Das KONTO, das die Umfrage gestartet hat (Besitz = die Hülle-Nachricht).
 
     Nimmt die KENNUNG der Umfrage (nicht die Instanz): aufgerufen aus
-    ``_umfrage_ist_meine`` und aus ``umfrage_schliessen``, wo nur ``u`` bzw.
-    der Name zur Hand ist.
+    ``umfrage_schliessen`` und ``_umfrage_daten``, wo nur ``u`` bzw. der Name
+    zur Hand ist.
     """
     n = _umfrage_nachricht(s, umfrage)
     return n.autor_benutzer if n is not None else None
-
-
-def _umfrage_ist_meine(s, u: ChatUmfrage, benutzer: str) -> bool:
-    """Hat DIESE Person die Umfrage gestartet? — verglichen wird das KONTO."""
-    autor = _umfrage_autor(s, u.name)
-    return bool(autor) and str(autor) == str(benutzer or "")
 
 
 def schliesse_faellige(jetzt: datetime | None = None) -> int:
@@ -3060,15 +3208,23 @@ def _meldestellen_konten() -> list[str]:
     der Kern gäbe ihm keine Rolle). Für alle anderen bleibt die Regel „nur
     Konten, die es gibt und die aktiv sind“.
 
+    CHAT-N2 — EINMAL je Anfrage: der Ausschluss-Zustand wird hier genau EINMAL
+    gelesen (``_ausgeschlossene_konten(*_kontozustand())``) und die
+    Kandidatenliste damit gefiltert. Vorher lief je Kandidat ein Volllauf über
+    Mitglied/User. Dieselbe Schranke wie im Kern, also auch für ein Konto, das
+    erst über die E-Mail zu einem ausgeschlossenen Mitglied gehört
+    (``wirksame_konten``).
+
     ``parenttype`` wird bewusst NICHT auf ``User`` verengt: Altdaten-Zeilen
     ohne parenttype gelten im Kern als Benutzer-Rollen (``ist_user_zeile``),
     eine zu enge Abfrage würde die Kandidatenliste leeren. Bleibt sie LEER,
     bleibt es bei „niemand“ — fail closed, wie der Kern.
     """
-    from diakronos_app.frappe_compat.permissions import (
-        ROOT_ROLLE,
-        mitglied_ausgeschlossen,
+    from diakronos_app.frappe_compat.benutzer_status import (
+        _ausgeschlossene_konten,
+        _kontozustand,
     )
+    from diakronos_app.frappe_compat.permissions import ROOT_ROLLE
     from diakronos_app.models.core import HasRole, User
 
     konten: set[str] = set()
@@ -3099,8 +3255,10 @@ def _meldestellen_konten() -> list[str]:
     if MELDESTELLE_KONTO:
         aktiv.add(MELDESTELLE_KONTO)
     # Ein ausgeschlossenes Konto bekommt im Kern keine Rolle — es fällt hier
-    # schon heraus (dieselbe Schranke, ``mitglied_ausgeschlossen``).
-    return sorted(k for k in aktiv if not mitglied_ausgeschlossen(k))
+    # schon heraus. Der Zustand wird dafür EINMAL gelesen (CHAT-N2), nicht je
+    # Kandidat: dieselbe Schranke (``mitglied_ausgeschlossen``) für alle.
+    aus = _ausgeschlossene_konten(*_kontozustand())
+    return sorted(k for k in aktiv if k not in aus)
 
 
 def _glocke_neue_meldung(konten: list[str], meldung: str) -> None:
@@ -4357,13 +4515,17 @@ def _lesbare_gespraeche(s, benutzer: str) -> list[ChatGespraech]:
     return ergebnis
 
 
-def _gespraech_kopf(s, g: ChatGespraech, benutzer: str) -> dict[str, Any]:
+def _gespraech_kopf(s, g: ChatGespraech, benutzer: str,
+                    *, ausgeschlossene: set[str] | None = None) -> dict[str, Any]:
     """Ein Eintrag der Gespraechsliste — auch fuer ein noch nie geoeffnetes.
 
     Ein DIREKTGESPRAECH (CHAT-7a) traegt statt des Gruppennamens den
     Anzeigenamen des GEGENUEBERS (``_direkt_titel`` — bestehende Namensquelle
     inkl. Maskierung) und dessen Bild; ``gruppe``/``untergruppe`` bleiben
     leer, ``mitglied`` nennt die Mitglied-Kennung fuers Profil.
+
+    ``ausgeschlossene`` reicht ``meine_gespraeche`` durch (CHAT-N2): EIN
+    Ausschluss-Zustand je Anfrage statt eines Volllaufs je Direktgespraech.
     """
     teilnahme = s.get(ChatTeilnehmer, (g.name, benutzer)) if g.name else None
     if g.name:
@@ -4376,10 +4538,16 @@ def _gespraech_kopf(s, g: ChatGespraech, benutzer: str) -> dict[str, Any]:
     else:
         ungelesen, letzte = 0, None
     if g.art == ART_DIREKT and g.name:
-        titel, gegenueber, bild = _direkt_titel(s, g, benutzer)
+        titel, gegenueber, bild = _direkt_titel(
+            s, g, benutzer, ausgeschlossene=ausgeschlossene)
     else:
         titel = str(g.titel or "").strip() or (g.untergruppe or g.gruppe)
         gegenueber, bild = None, ""
+    # CHAT-5-UI: „darf ich hier senden?“ in DERSELBEN Antwort wie die Liste —
+    # die Oberfläche blendet „Umfrage starten“ daran aus (dieselbe Aktion wie
+    # „Nachricht senden“, `umfrage_anlegen` prüft `rechte.ANLEGEN`). Reine
+    # Anzeige über den Rechte-Kern; kein zweiter Rechtepfad.
+    darf_senden = _weiche_ja(benutzer, rechte.ANLEGEN, g=g, sitzung=s)
     return {
         "name": g.name,
         "art": g.art,
@@ -4397,6 +4565,9 @@ def _gespraech_kopf(s, g: ChatGespraech, benutzer: str) -> dict[str, Any]:
         "ungelesen": ungelesen,
         "letzte_nachricht": _zitat(s, letzte) if letzte else None,
         "letzte_am": _isoopt(letzte.erstellt_am) if letzte else None,
+        # CHAT-5-UI: darf die Sitzung hier schreiben (Nachricht senden /
+        # Umfrage starten)? Reine Anzeige — der Endpunkt prüft erneut.
+        "darf_senden": darf_senden,
     }
 
 

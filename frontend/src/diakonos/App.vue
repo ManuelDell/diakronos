@@ -58,7 +58,7 @@
           id="dk-inhalt"
           class="dk-content"
           tabindex="-1"
-          :class="{ 'dk-content--kronos': isKronosMode, 'dk-content--moderation': isModerationMode, 'dk-content--vollbild': isVollbildMode }"
+          :class="{ 'dk-content--kronos': isKronosMode, 'dk-content--moderation': isModerationMode, 'dk-content--vollbild': isVollbildMode, 'dk-content--fuellt': istFuellModus }"
         >
           <!-- UXD-R7: `:key` erzwingt einen Neubau der Seitenkomponente beim
                Wechsel zwischen zwei Detailrouten derselben Seite
@@ -425,6 +425,20 @@ const isModerationMode = computed(() => ['#/moderation', '#/kalender/pruefen'].i
  * entfällt.
  */
 const isVollbildMode = computed(() => currentHash.value === '#/einrichtung')
+/**
+ * CHAT-3a-4 (MUSS 1): Seiten, die den Inhaltskasten auf die Kastenhöhe spannen.
+ *
+ * „Nachrichten“ (und seine Unterpfade wie `#/nachrichten/suche`) braucht einen
+ * INNEN scrollenden Verlauf mit fest stehender Eingabe. Die Seite allein kann
+ * das nicht leisten: `.dk-content` ist selbst der Scroll-Kasten des Gerüsts.
+ * Deshalb bekommt der Kasten hier die Marke `dk-content--fuellt`; die Regeln
+ * in `index.css` machen ihn zur Flex-Spalte. Bewusst eine Regel in App.vue
+ * (wie `isVollbildMode`) statt `:has()` in CSS — so hängt die Anordnung an
+ * der Adresse, die die Seite auch meint.
+ */
+const CHAT_PFAD = '#/nachrichten'
+const istFuellModus = computed(() => currentHash.value === CHAT_PFAD
+  || currentHash.value.startsWith(`${CHAT_PFAD}/`))
 const impersonation = useImpersonation()
 const now = ref(Date.now())
 

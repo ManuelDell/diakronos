@@ -1021,7 +1021,9 @@ test('CHAT-3a · Blase: eigene rechts, fremde links, Zitat, Summe statt Namen', 
   // Gelöschte Nachricht als Hinweiszeile — und NICHT der Text.
   assert.match(t, /v-if="nachricht\.geloescht" class="dk-chat-geloescht"/)
   assert.match(t, /\{\{ nachricht\.hinweis \}\}/)
-  assert.match(t, /v-else class="dk-chat-blase"/, 'der Text steht nur im else-Zweig')
+  // CHAT-5-UI: Der Text steht im ELSE-Zweig — und nur, wenn KEINE Karte im
+  // Slot steht (eine Umfrage erscheint als Karte statt der Blase).
+  assert.match(t, /v-else-if="!\$slots\.karte"[\s\S]{0,80}class="dk-chat-blase"/, 'der Text steht nur im else-Zweig (ohne Karte)')
   // Lesestand kommt aus `lesestandText` (Summe, nie Namen).
   assert.match(t, /\{\{ lesestand \}\}/)
   // Reaktionen: gesetzte Zeichen + „+“; das Menü bietet das feste Set.
@@ -1030,8 +1032,14 @@ test('CHAT-3a · Blase: eigene rechts, fremde links, Zitat, Summe statt Namen', 
   assert.match(t, /'is-meine': r\.meines/)
   // Eigene Nachricht: Bearbeiten nur innerhalb der Frist — zur ANZEIGEZEIT
   // geprüft (`bearbeitbar` der Blase), Löschen immer.
-  assert.match(t, /v-if="bearbeitbar"/)
-  assert.match(t, /v-if="nachricht\.eigene"/)
+  //
+  // CHAT-3a-5 (A): Am Handy stehen diese beiden NICHT mehr als eigene Knöpfe,
+  // sondern im „⋯“-Menü. Die Desktop-Knöpfe sind deshalb um die Handy-Lage
+  // ergänzt (`!handyLage && …`); die Handy-Fassung kommt aus `menueEintraege`
+  // (dort mit denselben Bedingungen) — beides wird hier geprüft.
+  assert.match(t, /v-if="!handyLage && bearbeitbar"/)
+  assert.match(t, /v-if="!handyLage && nachricht\.eigene"/)
+  assert.match(t, /:eintraege="menueEintraege"/, 'am Handy steht EIN „⋯“-Menü')
   // Antworten darf JEDER — auch auf die eigene Nachricht (Review R1).
   assert.ok(!/v-if="!nachricht\.eigene"[\s\S]{0,120}@click="\$emit\('antworten'/.test(t),
     'kein Ausschluss eigener Nachrichten beim Antworten')

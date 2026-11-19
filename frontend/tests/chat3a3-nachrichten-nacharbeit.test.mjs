@@ -732,10 +732,12 @@ test('CHAT-3a-3/Klein: der Bearbeiten-Takt endet, sobald die 15 Minuten vorbei s
   const originalErstellt = nachricht.erstellt_am
   try {
     const { host, abbaum } = await mounten(chatBlase, { nachricht })
-    // Der Stift ist der Knopf mit dem Text „Bearbeiten“ („Antworten“/„Löschen“
-    // stehen immer da).
+    // Der Stift ist der Knopf mit dem Beschriftungsnamen „Bearbeiten“
+    // (CHAT-3a-4: die Aktionen sind Symbolknöpfe — der Name steht im
+    // `aria-label`, damit die Vorlesehilfe ihn findet). „Antworten“/„Löschen“
+    // stehen ebenfalls als aria-label daneben.
     const stift = () => [...host.querySelectorAll('button')]
-      .filter((b) => /^\s*Bearbeiten\s*$/.test(b.textContent || ''))
+      .filter((b) => /^\s*Bearbeiten\s*$/.test(b.getAttribute('aria-label') || ''))
     assert.equal(stift().length, 1, 'der Stift steht (Frist noch offen)')
     assert.equal(intervalle.length, 1, 'die Blase legt EINEN 30-s-Takt an')
     assert.equal(intervalle[0].ms, 30_000, 'und zwar im 30-s-Takt')

@@ -404,7 +404,7 @@ export function verlaufsZeile(n, { ich = '', jetzt = new Date() } = {}) {
     // `null` (der Server schickt sie so, die Oberfläche prüft es nochmal).
     gelesen_von: eigene && Number.isInteger(n.gelesen_von) ? n.gelesen_von : null,
     hinweis: hinweisText({ eigene, geloescht, grund }),
-    bearbeitbar: eigene && !geloescht && innerhalbFrist(n.erstellt_am, jetzt),
+    bearbeitbar: eigene && !geloescht && !n.umfrage && innerhalbFrist(n.erstellt_am, jetzt),
   }
 }
 
@@ -489,7 +489,35 @@ export function zeileGleich(a, b) {
   if (String(a.geloescht_grund ?? '') !== String(b.geloescht_grund ?? '')) return false
   if (String(a.antwort_auf ?? '') !== String(b.antwort_auf ?? '')) return false
   if (Number(a.gelesen_von ?? -1) !== Number(b.gelesen_von ?? -1)) return false
+  // CHAT-5-UI: Bei einer Umfrage-Nachricht ändert der Poll das ERGEBNIS
+  // (Zähler, eigene Stimme, geschlossen) — ohne diesen Vergleich bliebe die
+  // Karte nach dem Abstimmen auf dem alten Stand stehen.
+  if (String(umfrageStand(a.umfrage)) !== String(umfrageStand(b.umfrage))) return false
   return reaktionenGleich(a.reaktionen, b.reaktionen)
+}
+
+/** Der Stand einer Umfrage als vergleichbarer Text (`''` = keine). */
+function umfrageStand(umfrage) {
+  if (!umfrage || typeof umfrage !== 'object') return ''
+  const optionen = (Array.isArray(umfrage.optionen) ? umfrage.optionen : [])
+    .map((o) => `${Number(o?.nummer) || 0}:${Number(o?.stimmen) || 0}:${(Array.isArray(o?.namen) ? o.namen : []).join(',')}`)
+    .join('|')
+  const eigene = Array.isArray(umfrage.eigene_stimme) ? umfrage.eigene_stimme.join(',') : ''
+  return [
+    String(umfrage.name || ''),
+    String(umfrage.offen ?? ''),
+    String(umfrage.geschlossen_am || ''),
+    String(umfrage.abgegeben ?? ''),
+    String(umfrage.stimmen_gesamt ?? ''),
+    String(umfrage.abgestimmt ?? ''),
+    // CHAT-5-UI: auch das Schließrecht — es hängt an der Person und am
+    // Besitz der Umfrage, nicht am Verlauf; wechselt es, muss der Knopf
+    // nachziehen.
+    String(umfrage.darf_schliessen ?? ''),
+    eigene,
+    String(umfrage.hinweis || ''),
+    optionen,
+  ].join('~')
 }
 
 /** Reaktionen als vergleichbare Liste (Emoji → Namen, sortiert). */
@@ -923,4 +951,30 @@ export const LISTE_LEER = {
 export const VERLAUF_LEER = {
   titel: 'Noch keine Nachrichten',
   text: 'Schreib die erste Nachricht — alle im Gespräch sehen sie.',
+}
+
+/**
+ * CHAT-3a-4 (MUSS 2): Avatar-Spalte je Zeile — steht hier ein Kreis?
+ *
+ * Der Avatar gehört an den ANFANG einer Folge: gleicher Autor, gleicher Tag.
+ * Die Tages-Marke (`tag`, aus `mitTagesmarken`) bricht die Folge, ebenso ein
+ * Autorenwechsel oder der Wechsel fremd/eigen. Eigene Nachrichten tragen nie
+ * einen Kreis (die Spalte bleibt für die Flucht der Blasen stehen).
+ *
+ * @param {Array<object>} zeilen Zeilen aus `mitTagesmarken` (`ident`, `autor`,
+ *        `eigene`, `tag`)
+ * @returns {boolean[]} je Zeile: Avatar zeigen?
+ */
+export function folgeStarten(zeilen) {
+  const liste = Array.isArray(zeilen) ? zeilen : []
+  let vorher = null
+  return liste.map((zeile) => {
+    const neu = !vorher
+      || Boolean(zeile?.tag) // Tageswechsel beginnt eine neue Folge
+      || zeile?.eigene === true
+      || vorher.eigene !== zeile?.eigene
+      || String(vorher.autor || '') !== String(zeile?.autor || '')
+    vorher = zeile
+    return neu && zeile?.eigene !== true
+  })
 }

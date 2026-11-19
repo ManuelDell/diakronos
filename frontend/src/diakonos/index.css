@@ -212,6 +212,16 @@ h1, h2, h3, h4 {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
+/* CHAT-3a-4 (SOLL 5): Am Handy zählt die SICHTBARE Höhe.
+   `100vh` rechnet auf iOS die ausfahrende Adressleiste mit, der untere Teil
+   des Gerüsts (und damit die Eingabe) lag darunter; `100dvh` folgt dem
+   sichtbaren Ausschnitt. Zuerst die alte Höhe als Rückfall für Browser ohne
+   `dvh`. */
+.dk-app--handy.dk-app {
+  height: 100vh;
+  height: 100dvh;
+}
+
 .dk-app.is-collapsed {
   grid-template-columns: var(--dk-sidebar-col) 1fr;
 }
@@ -248,6 +258,31 @@ h1, h2, h3, h4 {
   padding-bottom: 0 !important;
 }
 .dk-content--vollbild > * { flex: 1 1 auto; min-height: 0; min-width: 0; }
+
+/* =====================================================================
+   CHAT-3a-4 (MUSS 1) · Seiten, die ihren Inhalt auf die Kastenhöhe spannen
+   ---------------------------------------------------------------------
+   Der Chat braucht eine INNEN scrollende Liste mit fest stehender Eingabe.
+   `.dk-content` ist der Kasten des Gerüsts (die Höhe kommt von `.dk-main-wrap`
+   abzüglich Kopfzeile). Hier wird er für genau solche Seiten zur Flex-Spalte:
+   die Seite füllt ihn (`flex: 1`, `min-height: 0`), die Seite selbst trägt
+   ihre Teile (Kopf = `flex: none`, Liste = `flex: 1`, Eingabe = `flex: none`).
+   Die Kennzeichnung ist die Klasse `dk-chat--fuellt` an der Seite und
+   `dk-content--fuellt` am Kasten; `App.vue` setzt sie für `#/nachrichten`
+   (inklusive Unterpfade wie `#/nachrichten/suche`), andere Seiten bleiben
+   unberührt. Bewusst KEIN `:has()`: die Anordnung hängt an der Adresse, nicht
+   an der zufälligen Kindstruktur — und sie hängt nicht an
+   `.dk-content--kronos`, das nur der Kalender trägt. */
+.dk-content--fuellt {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.dk-content--fuellt > .dk-chat--fuellt {
+  flex: 1 1 auto;
+  min-height: 0;
+}
 
 /* =====================================================================
    Sidebar

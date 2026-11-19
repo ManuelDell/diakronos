@@ -250,9 +250,16 @@ export function verlaufUnterzeile({ istDirekt: direkt = false, teilnehmer = 0 } 
  *
  * Geblieben ist EINE Bedingung: es gibt ein offenes Gespräch. Ohne Gespräch
  * keine Eingabe — das ist keine Rechtefrage, sondern Geometrie.
+ *
+ * CHAT-5-UI: Dazu kommt das Serverfeld `darf_senden` aus `meine_gespraeche`
+ * (dieselbe Aktion wie „Umfrage starten“). Es ist keine abgeleitete Rechtelogik,
+ * sondern die Antwort des Servers auf genau diese Frage; fehlt das Feld (alter
+ * Server), bleibt es beim bisherigen „ja“ — der Server entscheidet ohnehin
+ * erneut.
  */
 export function sendbar(eintrag, { gesperrt = false } = {}) {
   if (gesperrt === true) return false
+  if (eintrag?.darf_senden === false) return false
   return Boolean(eintrag)
 }
 

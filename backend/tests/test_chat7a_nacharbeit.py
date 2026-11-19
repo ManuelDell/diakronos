@@ -14,12 +14,15 @@ hat:
   4. Bild eines ausgeschlossenen Gegenübers; kein Kennungs-Rückfall im Titel.
   5. Erinnerung: kurze Frist fällt in der SQL-Auswahl heraus.
   6. Teilweises Lesen: Glocke zählt fort, ``modified`` bleibt stehen.
+  7. CHAT-N2: Ausschluss-Zustand EINMAL je Anfrage (``meine_gespraeche``,
+     ``_meldestellen_konten``) — gleiches Verhalten, kein Volllauf je 1:1.
 """
 
 from __future__ import annotations
 
 import datetime as dt
 import importlib
+import traceback
 
 import pytest
 
@@ -504,3 +507,158 @@ def test_meldungen_liste_zaehlt_mit_einer_sitzung_je_kandidat_null(welt, monkeyp
     assert len(liste["meldungen"]) == 3
     # EINE Sitzung für die ganze Liste (der Endpunkt selbst), keine je Meldung.
     assert aufrufe["n"] == 1, aufrufe
+
+
+# ── 8) CHAT-N2: Ausschluss-Zustand EINMAL je Anfrage ────────────────────────
+
+def _drittes_konto(s, konto: str, mitglied: str, *, ausgeschlossen: bool) -> None:
+    """Ein weiteres Paar Mitglied/Konto — für weitere 1:1-Gespräche."""
+    s.add(User(name=konto, email=konto, enabled=1, full_name="Clara"))
+    s.add(Mitglied(name=mitglied, vorname="Clara", nachname="Clausen",
+                   email=konto, user=konto, status="Aktiv",
+                   foto="/files/clara.jpg", ausgeschlossen=ausgeschlossen))
+    s.commit()
+
+
+def test_meine_gespraeche_liest_den_ausschluss_einmal_je_anfrage(welt, monkeypatch):
+    """CHAT-N2: 3 Direktgespräche → EIN ``_kontozustand``-Lauf, keiner je 1:1.
+
+    Vorher fragte ``_konto_ausgeschlossen`` je 1:1 die Schranke — und die las
+    je Aufruf ganz ``Mitglied``/``User``. Jetzt liest ``meine_gespraeche`` den
+    Zustand EINMAL (``_ausgeschlossene_konten``), die Köpfe filtern dagegen.
+
+    Gezählt wird der Zustands-Volllauf (``_kontozustand``) in der Liste; die
+    Schranke des Kerns (``mitglied_ausgeschlossen``) fragt ``get_roles`` je
+    Rechtfrage weiterhin — sie ist nicht Teil dieser Karte.
+    """
+    from diakronos_app.api import chat as C
+    from diakronos_app.frappe_compat import benutzer_status
+
+    # ANNA hat drei 1:1-Gespräche (BERT + zwei weitere Konten).
+    for konto, mitglied in (("clara@x.org", "M-Clara"), ("dora@x.org", "M-Dora")):
+        _drittes_konto(welt, konto, mitglied, ausgeschlossen=False)
+    for mitglied in ("M-Bert", "M-Clara", "M-Dora"):
+        _set_user(ANNA)
+        C.direkt_oeffnen(mitglied)
+    # Eines der Gegenüber ist ausgeschlossen: die Menge muss es treffen.
+    welt.query(Mitglied).filter_by(name="M-Dora").update({"ausgeschlossen": True})
+    welt.commit()
+
+    # Der Zähler steht NACH dem Aufbau: ``benutzer_status`` ruft ``_kontozustand``
+    # als Modulnamen auf — der Patch greift also auch in der Schranke des Kerns.
+    echt = benutzer_status._kontozustand
+    aufrufe = {"n": 0, "kopf": 0}
+
+    def _zaehlend():
+        aufrufe["n"] += 1
+        if any(f.name in ("_konto_ausgeschlossen", "_direkt_titel")
+               for f in traceback.extract_stack(limit=8)):
+            aufrufe["kopf"] += 1
+        return echt()
+
+    monkeypatch.setattr(benutzer_status, "_kontozustand", _zaehlend)
+
+    _set_user(ANNA)
+    gespraeche = C.meine_gespraeche()["gespraeche"]
+    direkt = {e["name"]: e for e in gespraeche if e["art"] == ART_DIREKT}
+    assert len(direkt) == 3, list(direkt)
+    # KEIN Volllauf aus einem 1:1-Kopf: ohne ``ausgeschlossene`` käme hier
+    # einer je Gespräch (3) — die Köpfe filtern jetzt gegen die eine Menge.
+    assert aufrufe["kopf"] == 0, aufrufe
+    # Und der Ausschluss-Zustand der Liste wird GENAU EINMAL gelesen; der Rest
+    # sind die Fragen des Rechte-Kerns (``get_roles``/``_ist_angemeldetes_mitglied``
+    # je Rechtfrage) — nicht Gegenstand dieser Karte, deshalb der Rahmen.
+    # CHAT-5-UI fragt je Eintrag zusaetzlich ``darf_senden`` (eine Kernfrage
+    # mehr je Gespraech), daher 60 statt 40. Die Kernschranke selbst soll
+    # spaeter je Anfrage zwischengespeichert werden (Operator, Rechte-Kern).
+    assert 1 <= aufrufe["n"] <= 60, aufrufe
+    # Verhalten unverändert: Bild fehlt genau beim ausgeschlossenen Gegenüber.
+    bilder = {e["name"]: e["bild"] for e in direkt.values()}
+    assert sorted("" if not b else "bild" for b in bilder.values()) == \
+        ["", "bild", "bild"], bilder
+
+
+def test_direkt_titel_fragt_ohne_menge_die_schranke_als_rueckfall(welt, monkeypatch):
+    """CHAT-N2: ohne übergebene Menge bleibt der heutige Weg (Rückfall).
+
+    ``_direkt_titel`` wird auch außerhalb der Liste benutzt. Ohne
+    ``ausgeschlossene`` muss es weiterhin über die Schranke des Kerns fragen —
+    und ein ausgeschlossenes Gegenüber liefert dann ebenfalls kein Bild.
+    """
+    from diakronos_app.api import chat as C
+
+    g = _oeffnen(ANNA)
+    world = dbmod.SessionLocal()
+    try:
+        welt.query(Mitglied).filter_by(name="M-Bert").update({"ausgeschlossen": True})
+        welt.commit()
+        _set_user(ANNA)
+        zeile = world.get(ChatGespraech, g)
+        # Fall ohnegleichen: die Schranke wird gefragt (echte Auskunft), die
+        # Marke in der Zeile wäre allein ebenfalls wahr — beides zusammen.
+        assert C._direkt_titel(world, zeile, ANNA)[2] in ("", None)
+        # Mit übergebener Menge: dasselbe Ergebnis, aber ohne Schranken-Frage.
+        assert C._direkt_titel(world, zeile, ANNA, ausgeschlossene={BERT})[2] in ("", None)
+        assert C._direkt_titel(world, zeile, ANNA, ausgeschlossene=set())[2] in ("", None)
+    finally:
+        world.close()
+
+
+def test_ausschluss_ueber_die_mail_sperrt_das_bild_weiterhin(welt, monkeypatch):
+    """CHAT-N2: die Menge deckt auch ein Konto, das NUR über die E-Mail dazugehört.
+
+    ``_konto_ausgeschlossen`` (``mitglied_ausgeschlossen``) sperrt über
+    ``wirksame_konten`` = ``user``-Link UND Konto mit derselben Adresse. Ein
+    Lösen allein über ``Mitglied.ausgeschlossen`` bzw. ``Mitglied.user`` wäre
+    hier eine Lücke — die Marke kennt nur das verknüpfte Konto.
+    """
+    from diakronos_app.api import chat as C
+
+    g = _oeffnen(ANNA)
+    _set_user(ANNA)
+    assert {e["name"]: e for e in C.meine_gespraeche()["gespraeche"]}[g]["bild"], \
+        "Vorbedingung: das Bild kommt ohne Ausschluss"
+
+    # Die Verbindung ``mitglied.user`` fällt weg — das Konto BERT gehört jetzt
+    # allein über die (gleiche) E-Mail zur Person. Ausgeschlossen wird sie.
+    welt.query(Mitglied).filter_by(name="M-Bert").update(
+        {"user": None, "ausgeschlossen": True})
+    welt.commit()
+
+    _set_user(ANNA)
+    eintrag = {e["name"]: e for e in C.meine_gespraeche()["gespraeche"]}[g]
+    assert eintrag["bild"] in ("", None), eintrag["bild"]
+    # Der Titel fällt NICHT auf das Konto/die Adresse zurück (CHAT-7a Punkt 4):
+    # ohne Mitglieds-Verknüpfung bleibt er leer, nie der volle Name.
+    titel = str(eintrag["titel"] or "")
+    assert titel in ("", "Gelöschte Person") or titel.startswith("Bert "), titel
+    assert "@" not in titel and "Brandner" not in titel, titel
+
+
+def test_meldestellen_konten_lesen_den_ausschluss_einmal(welt, monkeypatch):
+    """CHAT-N2: ``_meldestellen_konten`` filtert gegen EINE gelesene Menge."""
+    from diakronos_app.api import chat as C
+    from diakronos_app.frappe_compat import benutzer_status
+
+    # Drei Rollen-Konten: ohne den Einmal-Lauf wären es drei Vollläufe.
+    for i, konto in enumerate(("rolle1@x.org", "rolle2@x.org", "rolle3@x.org")):
+        welt.add(User(name=konto, email=konto, enabled=1, full_name=f"R{i}"))
+        welt.add(HasRole(name=f"hr-{i}", parent=konto, parenttype="User",
+                         role="System Manager"))
+    welt.commit()
+
+    echt = benutzer_status._kontozustand
+    aufrufe = {"n": 0}
+
+    def _zaehlend():
+        aufrufe["n"] += 1
+        return echt()
+
+    monkeypatch.setattr(benutzer_status, "_kontozustand", _zaehlend)
+    konten = C._meldestellen_konten()
+    # EIN Zustand für die ganze Kandidatenliste (vorher: einer je Kandidat).
+    assert aufrufe["n"] == 1, aufrufe
+    # Verhalten unverändert: Administrator bleibt, unbeteiligte Konten nicht.
+    assert "Administrator" in konten and ADMIN in konten, konten
+    assert ANNA not in konten and BERT not in konten, konten
+

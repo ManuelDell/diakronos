@@ -818,3 +818,39 @@ tests/chat7-direkt-ui.test.mjs
 # (DOM-frei), Komponente chat/ChatSuche.vue und Seite pages/Nachrichten.vue
 # gemountet geprüft.
 tests/chat3c-personensuche.test.mjs
+# CHAT-3a-4: Layout-Maengel aus den Abnahme-Screenshots (gemountet geprueft).
+# MUSS 1 Verlauf = eigener Scroll-Container, Eingabe AUSSERHALB davon und
+# unten im Rahmen, Seite traegt `dk-chat--fuellt` (index.css macht den Kasten
+# zur Flex-Spalte, sonst scrollte die ganze Seite). MUSS 2 Avatar in eigener
+# Spalte links oben (dieselbe Zeile wie Blase, kein Avatar in Fuss-/Aktions-
+# zeile), Folge-Zeilen desselben Autors ohne zweiten Kreis (folgeStarten in
+# composables/nachrichtenLogik.mjs). SOLL 3 am Handy nur der Verlaufskopf
+# (Zurueck, Titel, Untertitel, Stumm als Symbolknopf mit aria-label), am
+# Desktop Seitenkopf „Nachrichten“ ohne Titel-Doppelung. SOLL 4 Aktionen
+# kompakt in EINER Zeile (Symbolknoepfe mit aria-label, per Tastatur
+# erreichbar), „+“ nur ohne vorhandene Reaktion.
+tests/chat3a4-nachrichten-layout.test.mjs
+# CHAT-3a-5: Handy-Aktionen und Feinschliff (gemountet geprueft).
+# A am Handy EIN „⋯“-Menue (DkAktionen) mit Antworten/Bearbeiten/Loeschen,
+# „+“ bleibt eigener Knopf, erlaubte Eintraege je Nachricht, Ausfuehrung
+# meldet die Ereignisse der Blase, Desktop unveraendert (drei Symbolknoepfe),
+# keine Ueberbreite der Aktionszeile. B am Handy randlos NUR das offene
+# Gespraech (is-gespraech), die Liste behaelt den Seitenrand. C kein leerer
+# #actions-Slot im Seitenkopf. D wer oben liest wird nicht nach unten
+# gerissen (kein scrollIntoView der Seite). E Tastaturfokus zeigt die
+# Aktionszeile (focus-within), dvh-Regel nur an .dk-app--handy.
+tests/chat3a5-nachrichten-handy.test.mjs
+# CHAT-5-UI: Umfragen in der Oberfläche (Konzept S2). Die Umfrage steht als
+# KARTE im Verlauf (chat/ChatUmfrage.vue statt der Blase): Frage, Antworten
+# (Radio bzw. Checkbox bei Mehrfach), „Abstimmen“/„Stimme ändern“, eigene Wahl
+# markiert, Ergebnis als Balken + Zahl, Frist („endet am …“ / „läuft bis zur
+# Schließung“), Zustand „geschlossen“ mit festem Ergebnis. ANONYM: nur Summen,
+# NIE Namen, Hinweis „bei wenigen Teilnehmenden erratbar“; anonyme Stimme ist
+# endgültig (kein Ändern). „Umfrage starten“ im Eingabebereich (DkButton, nur
+# bei `darf_senden` aus der Gesprächsliste) → Dialog mit Frage, 2–15 Antworten,
+# Mehrfachauswahl, anonym (Voreinstellung) / offen, Frist als Datum + Uhrzeit in
+# Europe/Berlin (kein UTC-Versatz). „Umfrage schließen“ steht, solange die
+# Umfrage offen ist; ein 403 des Servers bleibt ruhig an der Karte. Regeln in
+# components/chat/umfrage.mjs (DOM-frei), beide Komponenten und die Seite
+# gemountet geprüft.
+tests/chat5-umfrage-ui.test.mjs

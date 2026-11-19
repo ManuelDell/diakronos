@@ -152,6 +152,13 @@ test('CHAT-7a · Senden: nur der Server sperrt — nicht die Anzeigefelder', () 
   // steht — die Liste kann schlicht nicht geladen sein.
   assert.equal(sendbar({ art: 'gruppe', teilnehmer: 5 }), true, 'Gruppen bleiben schreibbar')
   assert.equal(sendbar({ name: '', art: 'gruppe' }), true)
+  // CHAT-5-UI: Das Serverfeld `darf_senden` sperrt (dieselbe Aktion wie
+  // „Umfrage starten“); fehlt es, bleibt es beim bisherigen „ja“.
+  assert.equal(sendbar({ ...direkt, darf_senden: false }), false,
+    'der Server verneint das Senden im 1:1')
+  assert.equal(sendbar({ name: 'G-9', art: 'gruppe', darf_senden: false }), false)
+  assert.equal(sendbar({ ...direkt, darf_senden: true }), true)
+  assert.equal(sendbar({ ...direkt, darf_senden: undefined }), true, 'ohne Feld „ja“')
   assert.equal(sendbar(null), false, 'ohne Gespräch keine Eingabe')
 
   // 403 beim Senden heißt im 1:1 „nicht mehr erreichbar“ — NICHT „kein Zugriff“.
@@ -198,7 +205,7 @@ test('CHAT-7a · Vorlage Nachrichten.vue: Eingabe weicht dem Hinweis, Einstieg i
   // Die gesperrte Eingabe: der Hinweis steht DA, wo die Eingabe sonst steht.
   assert.match(tpl, /v-if="!darfSenden"[\s\S]{0,200}NICHT_ERREICHBAR\.titel/,
     'bei gesperrtem Senden ersetzt der Hinweis die Eingabe')
-  assert.match(tpl, /<form v-else class="dk-chat-eingabe"[\s\S]{0,80}@submit\.prevent="senden"/,
+  assert.match(tpl, /<form v-else[\s\S]{0,120}class="dk-chat-eingabe"[\s\S]{0,80}@submit\.prevent="senden"/,
     'sonst steht die gewohnte Eingabe (v-else — nie beides)')
   assert.match(tpl, /dk-chat-gesperrt-text[\s\S]{0,80}NICHT_ERREICHBAR\.text/)
 
@@ -704,6 +711,13 @@ test('UI-2/MUSS 2: sendbar folgt NUR der Server-Antwort (403)', () => {
   // Die EINE Sperre ist die 403-Antwort des Servers.
   assert.equal(sendbar({ name: 'C', art: 'direkt' }, { gesperrt: true }), false)
   assert.equal(sendbar({ name: 'C', art: 'gruppe' }, { gesperrt: true }), false)
+  // CHAT-5-UI: Dazu das Serverfeld `darf_senden` (dieselbe Aktion wie
+  // „Umfrage starten“). Es ist eine Serverantwort, keine Ableitung.
+  assert.equal(sendbar({ name: 'C', art: 'gruppe', darf_senden: false }), false,
+    'der Server verneint das Senden')
+  assert.equal(sendbar({ name: 'C', art: 'gruppe', darf_senden: true }), true)
+  // Fehlt das Feld (alter Server), bleibt es beim bisherigen „ja“.
+  assert.equal(sendbar({ name: 'C', art: 'gruppe' }), true, 'ohne Feld darf gesendet werden')
   // 403 im 1:1 → „Diese Person ist nicht mehr erreichbar.“
   const eins = sendeFehlerZustand({ status: 403 }, { direkt: true })
   assert.equal(eins.gesperrt, true)

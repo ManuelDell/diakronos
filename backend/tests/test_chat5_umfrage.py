@@ -39,6 +39,7 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import event
 
 from diakronos_app import db as dbmod
+from diakronos_app.rechte import merkungsrahmen
 
 #: Die Test-Naht liegt im MODUL ``frappe_compat.session`` (wie ``test_chat2_api``).
 _session_mod = importlib.import_module("diakronos_app.frappe_compat.session")
@@ -520,7 +521,10 @@ def test_ersteller_und_moderation_duerfen_schliessen(gespraech):
 
     # a) Der ERSTELLER (eigenes Mitgliedsrecht, nicht Rolle).
     u = _umfrage(gespraech, konto=SAENGER)["umfrage"]
+    # CHAT-5-UI: dasselbe Recht steht als `darf_schliessen` in DERSELBEN
+    # Antwort — die Oberfläche blendet den Knopf daran aus.
     _set_user(SAENGER)
+    assert C.umfrage_ergebnis(u["name"])["darf_schliessen"] is True
     geschlossen = C.umfrage_schliessen(u["name"])
     assert geschlossen["offen"] is False
     assert geschlossen["geschlossen_von"] == SAENGER
@@ -529,12 +533,53 @@ def test_ersteller_und_moderation_duerfen_schliessen(gespraech):
     # b) Die MODERATION (HV) bei fremder Umfrage.
     u2 = _umfrage(gespraech, konto=SAENGER)["umfrage"]
     _set_user(HV)
+    assert C.umfrage_ergebnis(u2["name"])["darf_schliessen"] is True
     assert C.umfrage_schliessen(u2["name"])["offen"] is False
 
     # Idempotent: der zweite Aufruf ändert den Zeitpunkt NICHT.
     _set_user(SAENGER)
     zweite = C.umfrage_schliessen(u["name"])
     assert zweite["geschlossen_von"] == SAENGER
+    _reset()
+
+
+def test_darf_schliessen_im_verlauf_nach_denselben_zweigen(gespraech):
+    """``darf_schliessen`` je Umfrage — Mitglied, Leitung, Ersteller, 1:1.
+
+    Geprüft wird die ANTWORT des Verlaufs (dieselbe Quelle wie der Knopf) und
+    dass sie mit `umfrage_schliessen` übereinstimmt: was ``false`` sagt, wird
+    abgelehnt; was ``true`` sagt, geht durch.
+    """
+    from diakronos_app.api import chat as C
+    from diakronos_app.frappe_compat.exceptions import PermissionError
+
+    u = _umfrage(gespraech, konto=SAENGER, anonym=False)["umfrage"]
+
+    def zeile(konto, gespraech_name=gespraech):
+        _set_user(konto)
+        treffer = [p for p in C.verlauf(gespraech_name)["nachrichten"] if p.get("umfrage")]
+        assert len(treffer) == 1
+        return treffer[0]["umfrage"]
+
+    # Das einfache Mitglied (nicht Leitung, nicht Ersteller): nein.
+    assert zeile(NOTEN)["darf_schliessen"] is False
+    _set_user(NOTEN)
+    with pytest.raises(PermissionError):
+        C.umfrage_schliessen(u["name"])
+    # Die Leitung (HV, MV) und der Ersteller: ja.
+    assert zeile(HV)["darf_schliessen"] is True
+    assert zeile(MV)["darf_schliessen"] is True
+    assert zeile(SAENGER)["darf_schliessen"] is True
+
+    # Eine Untergruppe ist eine eigene Einheit: das Chor-Mitglied sieht sie
+    # nicht, die GL dort darf schließen.
+    _set_user(NOTEN)
+    ug = C.gespraech_anlegen("Chor", "UG-Noten")["name"]
+    _umfrage(ug, konto=NOTEN, anonym=False)
+    assert zeile(GL, ug)["darf_schliessen"] is True
+    _set_user(SAENGER)
+    with pytest.raises(PermissionError):
+        C.verlauf(ug)
     _reset()
 
 
@@ -651,30 +696,102 @@ def test_verlauf_anonyme_umfrage_zeigt_nur_abgestimmt(gespraech):
 
 
 def test_verlauf_umfrage_seite_ohne_n_plus_eins(gespraech, welt):
-    """Feste Zahl Abfragen für die ganze Seite, unabhängig von der Zahl der
-    Umfragen: der naive Weg (eine Abfrage je Nachricht) wäre 3× so viel."""
+    """Feste Zahl Abfragen für die ganze Seite — SKALIERUNGSTEST statt Deckel.
+
+    Rechtefragen fallen JE FALL an (eigene / fremd-1:1 / Gruppe-Moderation),
+    nicht je Umfrage: eine Seite mit EINER eigenen und EINER fremden Umfrage
+    und eine mit FÜNF (weiterhin nur diese beiden Fälle) brauchen gleich
+    viele Abfragen.
+    """
     from diakronos_app.api import chat as C
 
-    for i in range(3):
-        u = _umfrage(gespraech, anonym=False, frage=f"Frage {i}")["umfrage"]
+    def _zaehlen() -> int:
+        zaehler = {"n": 0}
+
+        def mithoeren(*_a, **_k):
+            zaehler["n"] += 1
+
+        eng = welt.get_bind()
+        event.listen(eng, "before_cursor_execute", mithoeren)
+        try:
+            _set_user(SAENGER)
+            # In BEIDEN Messungen derselbe Merkungsrahmen wie im Betrieb
+            # (`request_context`) — sonst zählt der Test die Rechtefragen
+            # doppelt, die im Aufruf geteilt werden.
+            with merkungsrahmen():
+                C.verlauf(gespraech)
+        finally:
+            event.remove(eng, "before_cursor_execute", mithoeren)
+            _reset()
+        return zaehler["n"]
+
+    # Seite 1: EINE eigene und EINE fremde Umfrage (beide Fälle vertreten).
+    eigene = _umfrage(gespraech, konto=SAENGER, anonym=False,
+                      frage="Frage 0")["umfrage"]
+    _umfrage(gespraech, konto=MV, anonym=False, frage="Frage 0b")
+    _abstimmen(eigene["name"], SAENGER, 1)
+    mit_zwei = _zaehlen()
+
+    # Seite 2: dieselben Fälle, VIER weitere Umfragen (eigene + fremde).
+    for i in range(1, 5):
+        u = _umfrage(gespraech, konto=SAENGER if i % 2 else MV,
+                     anonym=False, frage=f"Frage {i}")["umfrage"]
         _abstimmen(u["name"], SAENGER, 1)
-
-    zaehler = {"n": 0}
-
-    def mithoeren(*_a, **_k):
-        zaehler["n"] += 1
-
-    eng = welt.get_bind()
-    event.listen(eng, "before_cursor_execute", mithoeren)
-    try:
-        _set_user(SAENGER)
-        C.verlauf(gespraech)
-    finally:
-        event.remove(eng, "before_cursor_execute", mithoeren)
+    mit_sechs = _zaehlen()
     _reset()
-    # Drei Umfragen, drei Stimmen: die Zahl der Abfragen hängt NICHT an der
-    # Zahl der Umfragen (sie bleibt beim Verlauf der Nachrichtenseite).
-    assert zaehler["n"] < 60, zaehler["n"]
+
+    assert mit_sechs == mit_zwei, (mit_zwei, mit_sechs)
+
+
+def test_verlauf_umfrage_seite_skaliert_im_direktgespraech(welt):
+    """Dasselbe im 1:1: eigene und fremde Umfragen — gleiche Zahl Abfragen."""
+    from diakronos_app.api import chat as C
+    from diakronos_app.models.core import User as Konto
+    from diakronos_app.models.diakonos import Mitglied
+
+    ANNA, BERT = "anna@x.org", "bert@x.org"
+    _set_user(ANNA)
+    with dbmod.SessionLocal.begin() as s:
+        s.add(Mitglied(name="M-Anna", vorname="Anna", nachname="Beispiel",
+                       email=ANNA, user=ANNA, status="Aktiv"))
+        if s.get(Konto, ANNA) is None:
+            s.add(Konto(name=ANNA, email=ANNA, enabled=1, full_name="Anna"))
+        if s.get(Konto, BERT) is None:
+            s.add(Konto(name=BERT, email=BERT, enabled=1, full_name="Bert"))
+        s.add(Mitglied(name="M-Bert", vorname="Bert", nachname="Brandner",
+                       email=BERT, user=BERT, status="Aktiv"))
+    gespraech = C.direkt_oeffnen("M-Bert")["name"]
+
+    def _zaehlen() -> int:
+        zaehler = {"n": 0}
+
+        def mithoeren(*_a, **_k):
+            zaehler["n"] += 1
+
+        eng = welt.get_bind()
+        event.listen(eng, "before_cursor_execute", mithoeren)
+        try:
+            _set_user(ANNA)
+            with merkungsrahmen():
+                C.verlauf(gespraech)
+        finally:
+            event.remove(eng, "before_cursor_execute", mithoeren)
+            _reset()
+        return zaehler["n"]
+
+    u = _umfrage(gespraech, konto=ANNA, anonym=False, frage="Frage 0")["umfrage"]
+    _umfrage(gespraech, konto=BERT, anonym=False, frage="Frage 0b")
+    _abstimmen(u["name"], ANNA, 1)
+    mit_zwei = _zaehlen()
+
+    for i in range(1, 5):
+        u = _umfrage(gespraech, konto=ANNA if i % 2 else BERT,
+                     anonym=False, frage=f"Frage {i}")["umfrage"]
+        _abstimmen(u["name"], ANNA, 1)
+    mit_sechs = _zaehlen()
+    _reset()
+
+    assert mit_sechs == mit_zwei, (mit_zwei, mit_sechs)
 
 
 # ── Gelöschte Umfrage: für alle Wege weg (Review CHAT-5b, MUSS 2) ──────────
@@ -1153,4 +1270,137 @@ def test_anonymisierung_laesst_stimmen_anderer_stehen(gespraech):
         # Und die Hülle-Nachricht bleibt sichtbar (die Umfrage ist Fachdatum).
         n = s.query(ChatNachricht).filter(ChatNachricht.umfrage == u["name"]).one()
         assert n.geloescht_am is None
+    _reset()
+
+
+# ── CHAT-5-UI: „darf ich hier senden?“ steht in der Gesprächsliste ───────────
+
+
+def test_gespraechsliste_nennt_darf_senden_aus_dem_rechte_kern(gespraech):
+    """Die Oberfläche blendet „Umfrage starten“ an ``darf_senden`` aus.
+
+    Dieselbe Aktion wie „Nachricht senden“ (``rechte.ANLEGEN``), dieselbe
+    Antwort wie die Liste — KEINE eigene Rechtelogik im Frontend. Geprüft
+    werden drei Fälle: wer schreiben darf (Mitglied), wer nur lesen darf
+    (Gemeindemitglied ohne Gruppe sieht das Gespräch nicht) und ein Gast.
+    """
+    from diakronos_app.api import chat as C
+
+    _set_user(SAENGER)
+    liste = C.meine_gespraeche()["gespraeche"]
+    chor = [e for e in liste if e["name"] == gespraech]
+    assert len(chor) == 1
+    # Das Mitglied des Chors darf senden und damit auch Umfragen starten.
+    assert chor[0]["darf_senden"] is True
+    # Und die Wahrheit steht nicht nur da: derselbe Aufruf gelingt.
+    assert C.umfrage_anlegen(gespraech, "Frage?", optionen=["A", "B"])["umfrage"]["name"]
+
+    # Ein Gemeindemitglied OHNE diese Gruppe sieht das Gespräch gar nicht.
+    _set_user(FREMD)
+    assert all(e["name"] != gespraech for e in C.meine_gespraeche()["gespraeche"])
+
+    # Die Untergruppe: das Mitglied dort darf schreiben, das Chor-Mitglied
+    # nicht (eigene Einheit) — das Feld sagt es je Gespräch, nicht pauschal.
+    _set_user(NOTEN)
+    noten = C.gespraech_anlegen("Chor", "UG-Noten")["name"]
+    noten_zeile = [e for e in C.meine_gespraeche()["gespraeche"] if e["name"] == noten]
+    assert noten_zeile and noten_zeile[0]["darf_senden"] is True
+    _reset()
+
+
+def test_darf_senden_ist_false_wenn_das_gegenueber_weg_ist(welt):
+    """Ein ECHTER Fall für ``darf_senden: false``: das 1:1-Gegenüber ist weg.
+
+    Direktgespräche verlangen beim Schreiben BEIDE Teilnehmenden; nach einem
+    Austritt des Gegenübers (Teilnahmezeile + Konto der Person weg) sagt die
+    Liste deshalb ``false`` — dieselbe Rechtefrage wie „Nachricht senden“/
+    „Umfrage starten“.
+    """
+    from diakronos_app.api import chat as C
+    from diakronos_app.frappe_compat.exceptions import PermissionError
+    from diakronos_app import dsgvo_anonymisierung as D
+    from diakronos_app.models.diakonos import Mitglied
+    from diakronos_app.models.core import User as Konto
+
+    ANNA, BERT = "anna@x.org", "bert@x.org"
+    _set_user(ANNA)
+    # Ein aktives Gegenüber mit Konto (die Welt dieser Datei hat keins).
+    with dbmod.SessionLocal.begin() as s:
+        s.add(Mitglied(name="M-Anna", vorname="Anna", nachname="Beispiel",
+                       email=ANNA, user=ANNA, status="Aktiv"))
+        if s.get(User, ANNA) is None:
+            s.add(User(name=ANNA, email=ANNA, enabled=1, full_name="Anna"))
+        if s.get(Konto, BERT) is None:
+            s.add(Konto(name=BERT, email=BERT, enabled=1, full_name="Bert"))
+        s.add(Mitglied(name="M-Bert", vorname="Bert", nachname="Brandner",
+                       email=BERT, user=BERT, status="Aktiv"))
+    gespraech = C.direkt_oeffnen("M-Bert")["name"]
+    zeile = [e for e in C.meine_gespraeche()["gespraeche"] if e["name"] == gespraech][0]
+    assert zeile["darf_senden"] is True
+    # Bert tritt aus: Teilnahmezeile UND Konto verschwinden.
+    with dbmod.SessionLocal.begin() as s:
+        D.anonymisiere(s, "M-Bert", [BERT])
+        s.flush()
+    _set_user(ANNA)
+    zeile = [e for e in C.meine_gespraeche()["gespraeche"] if e["name"] == gespraech][0]
+    assert zeile["darf_senden"] is False
+    # Und die Antwort ist nicht nur Anzeige: derselbe Aufruf wird abgelehnt.
+    with pytest.raises(PermissionError):
+        C.umfrage_anlegen(gespraech, "Frage?", optionen=["A", "B"])
+    _reset()
+
+
+def test_im_direktgespraech_darf_nur_der_ersteller_schliessen(welt):
+    """1:1: ``darf_schliessen`` ist für das Gegenüber False — auch nach Anonymisierung.
+
+    Review CHAT-5-UI R2 (MUSS C): im Direktgespräch gibt es keine Moderation
+    über das Gespräch; die fremde Umfrage darf NIEMAND außer dem Ersteller
+    schließen. Anzeige (``darf_schliessen``) und Endpunkt
+    (``umfrage_schliessen``) sagen dasselbe — vor und nach der
+    Anonymisierung des Erstellers.
+    """
+    from diakronos_app.api import chat as C
+    from diakronos_app.frappe_compat.exceptions import PermissionError as RechteFehler
+    from diakronos_app import dsgvo_anonymisierung as D
+    from diakronos_app.models.core import User as Konto
+    from diakronos_app.models.diakonos import Mitglied
+
+    ANNA, BERT = "anna@x.org", "bert@x.org"
+    _set_user(ANNA)
+    with dbmod.SessionLocal.begin() as s:
+        s.add(Mitglied(name="M-Anna", vorname="Anna", nachname="Beispiel",
+                       email=ANNA, user=ANNA, status="Aktiv"))
+        if s.get(Konto, ANNA) is None:
+            s.add(Konto(name=ANNA, email=ANNA, enabled=1, full_name="Anna"))
+        if s.get(Konto, BERT) is None:
+            s.add(Konto(name=BERT, email=BERT, enabled=1, full_name="Bert"))
+        s.add(Mitglied(name="M-Bert", vorname="Bert", nachname="Brandner",
+                       email=BERT, user=BERT, status="Aktiv"))
+    gespraech = C.direkt_oeffnen("M-Bert")["name"]
+
+    # A (ANNA) startet die Umfrage — sie darf sie auch schließen.
+    u = C.umfrage_anlegen(gespraech, "Wann?", optionen=["A", "B"],
+                          anonym=False)["umfrage"]
+    assert u["darf_schliessen"] is True
+    _reset()
+
+    # B (BERT) sieht im Verlauf: NEIN, und der Endpunkt lehnt ab.
+    _set_user(BERT)
+    daten = [z for z in C.verlauf(gespraech)["nachrichten"] if "umfrage" in z][0]["umfrage"]
+    assert daten["name"] == u["name"]
+    assert daten["darf_schliessen"] is False
+    with pytest.raises(RechteFehler):
+        C.umfrage_schliessen(u["name"])
+    _reset()
+
+    # Nach der Anonymisierung von A: für B weiterhin NEIN (die Hülle hat kein
+    # Konto mehr — ``str(autor or "")`` verhindert den „eigene“-Fehlschluss).
+    with dbmod.SessionLocal.begin() as s:
+        D.anonymisiere(s, "M-Anna", [ANNA])
+        s.flush()
+    _set_user(BERT)
+    daten = [z for z in C.verlauf(gespraech)["nachrichten"] if "umfrage" in z][0]["umfrage"]
+    assert daten["darf_schliessen"] is False
+    with pytest.raises(RechteFehler):
+        C.umfrage_schliessen(u["name"])
     _reset()
