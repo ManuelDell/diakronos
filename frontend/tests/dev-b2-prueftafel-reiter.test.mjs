@@ -324,5 +324,9 @@ test('DEV-B2: die Prüf-Tafel behält ihre Funktion', () => {
     'ModerationAenderungen', 'ModerationBoard', 'can_moderate']) {
     assert.ok(quelle.includes(teil), `${teil} fehlt auf der Tafel`)
   }
-  assert.match(quelle, /aktiverReiter="pruefen"/, 'der vierte Reiter ist dort aktiv')
+  // CHAT-6-UI (Review R1): der aktive Reiter ist eine Bindung — auf der
+  // Termine-Tafel „pruefen“, im Chat-Zweig „chat“. Beides muss der Kopf
+  // kennen; die Tafel bleibt „Zu prüfen“.
+  assert.match(quelle, /:aktiverReiter="zeigeChat \? 'chat' : 'pruefen'"/,
+    'der vierte Reiter ist dort aktiv')
 })

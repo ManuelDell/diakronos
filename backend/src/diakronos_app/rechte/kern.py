@@ -57,6 +57,7 @@ from diakronos_app.models.rechte import (
     ROLLE_MV,
     RechteFreigabe,
     RechteGruppenrolle,
+    RechteKontaktsperre,
     RechteModul,
     RechteObjekt,
 )
@@ -1166,6 +1167,36 @@ def chat_moderatoren(gruppe: str | None, untergruppe: str | None = None) -> list
     })
 
 
+def darf_chat_irgendwo_moderieren(benutzer: str | None) -> bool:
+    """Darf ``benutzer`` IRGENDWO Chat-Meldungen bearbeiten? (Kopf/Reiter „Chat“)
+
+    Nur fuer die Anzeige des Einstiegs — jede Liste und jede Entscheidung fragt
+    weiter je Gespraech ``darf(..., MODERIEREN, "chat_gespraech", ...)``. Keine
+    zweite Regel: die Meldestelle (1:1/Runden) ist ``ist_meldestelle``; fuer
+    Gruppengespraeche werden nur die EIGENEN Leitungs-Eintrage (HV/MV, GL der
+    Untergruppe) als Kandidaten gelesen und jeder ueber ``darf`` entschieden
+    (Modul an, Gruppe lebt, Mitglied aktiv) — fruehes Ende beim ersten „ja“.
+    """
+    if not benutzer or benutzer == GAST:
+        return False
+    if ist_meldestelle(benutzer):
+        return True
+    with lesesitzung() as sess:
+        zeilen = sess.execute(
+            select(RechteGruppenrolle.gruppe, RechteGruppenrolle.untergruppe, RechteGruppenrolle.rolle)
+            .where(RechteGruppenrolle.benutzer == benutzer)
+        ).all()
+    for gruppe, untergruppe, rolle in zeilen:
+        if untergruppe:
+            if rolle != ROLLE_GL:
+                continue
+        elif rolle not in _LEITUNG:
+            continue
+        if darf(benutzer, MODERIEREN, "chat_gespraech", gruppe=gruppe, untergruppe=untergruppe or None):
+            return True
+    return False
+
+
 #: Status, mit denen eine Person nicht mehr auffindbar ist (wie die
 #: Personenauswahl `api.gruppen_auswahl.AUSGESCHIEDEN`).
 _NICHT_AUFFINDBAR = frozenset({"ausgetreten", "verstorben", "verstorben/ausgetreten", "geloescht"})
@@ -1241,8 +1272,126 @@ def darf_direktnachricht(benutzer: str | None, ziel: str | None) -> Entscheidung
             return NEIN("selbst_nicht_aktiv")
         if eigen == ziel:
             return NEIN("selbst")
+        if _kontakt_gesperrt(sess, str(benutzer), _konto_von(sess, str(ziel))):
+            # Gleiche Auskunft wie „nicht erreichbar“ nach aussen; der Grund
+            # bleibt intern (die andere Seite erfaehrt nichts von der Sperre).
+            return NEIN("gesperrt")
         _auffindbar_ja, konto = _auffindbar(sess, str(ziel))
     return JA("gemeinde") if konto else NEIN("kein_konto")
+
+
+def _konto_von(sess, mitglied: str | None) -> str | None:
+    """Login-Konto eines Mitglieds (``Mitglied.user``) — nur zum Nachschlagen."""
+    from diakronos_app.models.diakonos import Mitglied
+
+    if not mitglied:
+        return None
+    return sess.execute(
+        select(Mitglied.user).where(Mitglied.name == mitglied)).scalar_one_or_none()
+
+
+def _kontakt_gesperrt(sess, a: str | None, b: str | None) -> bool:
+    """Hat ``a`` ``b`` gesperrt ODER ``b`` ``a``? (CHAT-7b, beide Richtungen)."""
+    if not a or not b or a == b:
+        return False
+    zeile = sess.execute(
+        select(RechteKontaktsperre.id).where(
+            ((RechteKontaktsperre.benutzer == a) & (RechteKontaktsperre.gesperrt == b))
+            | ((RechteKontaktsperre.benutzer == b) & (RechteKontaktsperre.gesperrt == a))
+        ).limit(1)
+    ).first()
+    return zeile is not None
+
+
+def _sperre_unter(konten, *, nur_mit: str | None = None) -> bool:
+    """Gibt es unter ``konten`` ein Paar mit Kontaktsperre (eine Richtung reicht)?
+
+    ``nur_mit``: nur Paare, an denen dieses Konto beteiligt ist (Vorschlag).
+    Eine Abfrage, keine Schleife ueber Paare.
+    """
+    menge = {str(k) for k in konten if k}
+    if len(menge) < 2:
+        return False
+    with lesesitzung() as sess:
+        q = select(RechteKontaktsperre.benutzer, RechteKontaktsperre.gesperrt).where(
+            RechteKontaktsperre.benutzer.in_(menge), RechteKontaktsperre.gesperrt.in_(menge))
+        for a, b in sess.execute(q):
+            if a != b and (nur_mit is None or nur_mit in (a, b)):
+                return True
+    return False
+
+
+def darf_kontakt_sperren(benutzer: str | None, ziel: str | None) -> Entscheidung:
+    """Darf ``benutzer`` die Person ``ziel`` (Mitglied) sperren bzw. entsperren?
+
+    Jedes angemeldete Gemeindemitglied darf JEDE Person sperren, die es finden
+    darf, oder mit der es schon ein Direktgespraech hat — nur nicht sich selbst.
+    Gesperrt wird das Konto der Person; ohne Konto gibt es nichts zu sperren.
+    """
+    if not ziel or not ist_gemeindemitglied(benutzer):
+        return NEIN("nicht_angemeldet")
+    with lesesitzung() as sess:
+        eigen = _mitglied_von(sess, str(benutzer))
+        if eigen and eigen == ziel:
+            return NEIN("selbst")
+        konto = _konto_von(sess, str(ziel))
+    if not konto:
+        return NEIN("kein_konto")
+    if konto == benutzer:
+        return NEIN("selbst")
+    return JA("eigene_sperre")
+
+
+def darf_runde_anlegen(benutzer: str | None, ziele) -> Entscheidung:
+    """Runde (CHAT-7b, Konzept S3): 3–8 Beteiligte INKLUSIVE ``benutzer``.
+
+    ``ziele`` = Mitglieds-Kennungen der ANDEREN (2–7, ohne Doppel, ohne sich
+    selbst). Anlegen darf, wer ALLE Beteiligten per ``darf_direktnachricht``
+    erreichen darf (also auch: niemand hat ihn gesperrt, er niemanden).
+    """
+    liste = [str(z) for z in (ziele or ()) if z]
+    if len(set(liste)) != len(liste):
+        return NEIN("doppelt")
+    if not 2 <= len(liste) <= 7:
+        return NEIN("groesse")
+    for ziel in liste:
+        e = darf_direktnachricht(benutzer, ziel)
+        if not e:
+            return NEIN("nicht_erreichbar" if e.grund not in ("nicht_angemeldet", "selbst_nicht_aktiv", "selbst")
+                        else e.grund)
+    # Niemand wird mit einer Person in eine Runde gezogen, die er gesperrt
+    # hat (oder die ihn gesperrt hat) — auch nicht durch Dritte (Entscheidung
+    # Operator 19.11., Review CHAT-7b). Nach aussen „nicht erreichbar“.
+    with lesesitzung() as sess:
+        konten = [_konto_von(sess, z) for z in liste]
+    if _sperre_unter(konten):
+        return NEIN("nicht_erreichbar")
+    return JA("alle_erreichbar")
+
+
+def darf_runde_erweitern(benutzer: str | None, *, teilnehmer, ziel: str | None) -> Entscheidung:
+    """Darf ``benutzer`` VORSCHLAGEN, ``ziel`` (Mitglied) in die Runde zu holen?
+
+    Nur Teilnehmende, nur bis 8 Beteiligte, nur wen sie selbst erreichen
+    dürfen, und wer die Runde nicht schon teilt. Hinzugefuegt wird erst mit
+    Zustimmung der Runde (Konzept S3) — das regelt das Modul, nicht der Kern.
+    """
+    lesen = darf_direktgespraech(benutzer, LESEN, teilnehmer=teilnehmer)
+    if not lesen:
+        return lesen
+    konten = {str(k) for k in (teilnehmer or ()) if k}
+    if len(konten) >= 8:
+        return NEIN("groesse")
+    with lesesitzung() as sess:
+        konto = _konto_von(sess, str(ziel)) if ziel else None
+    if konto and konto in konten:
+        return NEIN("schon_dabei")
+    e = darf_direktnachricht(benutzer, ziel)
+    if not e:
+        return NEIN("nicht_erreichbar")
+    if konto and _sperre_unter(sorted(konten) + [konto], nur_mit=konto):
+        return NEIN("nicht_erreichbar")
+    return JA("vorschlag")
 
 
 def ist_meldestelle(benutzer: str | None) -> bool:
@@ -1251,7 +1400,8 @@ def ist_meldestelle(benutzer: str | None) -> bool:
 
 
 def darf_direktgespraech(benutzer: str | None, aktion: str, *, teilnehmer,
-                         besitzer: str | None = None) -> Entscheidung:
+                         besitzer: str | None = None,
+                         meldeweg: bool = False) -> Entscheidung:
     """Direktgespraech oder Runde (CHAT-7): wer darf was?
 
     Ein Direktgespraech hat keine Gruppe; der Raum sind die Teilnehmenden
@@ -1266,16 +1416,21 @@ def darf_direktgespraech(benutzer: str | None, aktion: str, *, teilnehmer,
       (ausgetreten, Konto gesperrt), bleibt der Verlauf lesbar, aber
       stumm. Dasselbe gilt, wenn die Person selbst ausgetreten ist.
     * SCHREIBEN: nur die eigene Nachricht (``besitzer``).
-    * MODERIEREN: nur die Meldestelle (F7: Administrator). Module rufen das
-      im Direktgespraech NUR auf dem Meldeweg (Meldung entscheiden) auf —
-      eine fremde Nachricht loeschen ist sonst SCHREIBEN mit ``besitzer``
-      und damit NEIN, auch fuer einen teilnehmenden Admin.
+    * MODERIEREN: nur die Meldestelle (F7: Administrator) und NUR auf dem
+      Meldeweg (``meldeweg=True``: Meldungen ansehen/entscheiden, Glocke an
+      die Meldestelle). Ohne ``meldeweg`` ist MODERIEREN hier immer NEIN —
+      fail closed, damit kein Modulpfad (Loeschen, Umfrage schliessen …)
+      dem Admin in einem 1:1 oder einer Runde still Moderation gibt
+      (Review CHAT-7b, MUSS 1). Eine fremde Nachricht loeschen ist SCHREIBEN
+      mit ``besitzer`` und damit NEIN, auch fuer einen teilnehmenden Admin.
     * alles andere: NEIN. Fail closed.
     """
     if not _ist_angemeldetes_mitglied(benutzer):
         return NEIN("nicht_angemeldet")
     assert benutzer is not None
     if aktion == MODERIEREN:
+        if not meldeweg:
+            return NEIN("nur_meldeweg")
         return JA("meldestelle") if ist_meldestelle(benutzer) else NEIN("nicht_meldestelle")
     konten = {str(k) for k in (teilnehmer or ()) if k}
     if benutzer not in konten:
@@ -1298,6 +1453,9 @@ def darf_direktgespraech(benutzer: str | None, aktion: str, *, teilnehmer,
 
 
 __all__ = [
+    "darf_kontakt_sperren",
+    "darf_runde_anlegen",
+    "darf_runde_erweitern",
     "AKTIONEN",
     "ANLEGEN",
     "ERLEDIGEN",
@@ -1342,6 +1500,7 @@ __all__ = [
     "person_hat_konto",
     "darf_direktgespraech",
     "darf_direktnachricht",
+    "darf_chat_irgendwo_moderieren",
     "ist_meldestelle",
     "eigenes_mitglied",
     "gleicher_haushalt",

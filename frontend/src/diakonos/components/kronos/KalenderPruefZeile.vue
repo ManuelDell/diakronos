@@ -8,8 +8,8 @@
   <a
     v-if="sichtbar"
     class="dk-pruefzeile"
-    :href="zeile.ziel"
-    :aria-label="`${zeile.text} — Prüfliste öffnen`"
+    :href="ziel"
+    :aria-label="ariaLabel"
     @click.prevent="$emit('oeffnen')"
   >
     <!-- Zahl im goldenen Kreis (Entwurf A10: 24 px, weiße Zahl). Ohne
@@ -18,8 +18,8 @@
       <template v-if="zahl !== null">{{ zahl }}</template>
     </span>
     <span class="dk-pruefzeile-texte">
-      <span class="dk-pruefzeile-titel">Zu prüfen</span>
-      <span class="dk-pruefzeile-unter">Von Gruppen eingetragen</span>
+      <span class="dk-pruefzeile-titel">{{ titel }}</span>
+      <span class="dk-pruefzeile-unter">{{ unter }}</span>
     </span>
     <span class="dk-pruefzeile-pfeil" aria-hidden="true"><DkSymbol name="weiter" :groesse="16" /></span>
   </a>
@@ -42,6 +42,28 @@ const props = defineProps({
   darfPruefen: { type: Boolean, default: false },
   /** Zahl offener Prüfungen; `null` = unbekannt (dann ohne Zahl). */
   zahl: { type: Number, default: null },
+  /**
+   * CHAT-6-UI-2: Beschriftung. Die Zeile trug lange nur den Text „Zu prüfen ·
+   * Von Gruppen eingetragen“ (A10). Ihre SICHTBARKEIT entscheidet weiterhin
+   * `mobilModeration.moderationsZeile` — der zweite Eintrag der Handy-Lage
+   * (Meldungen aus dem Chat) braucht eigenen Text, sonst stünden zwei gleiche
+   * Zeilen untereinander.
+   */
+  titel: { type: String, default: 'Zu prüfen' },
+  unter: { type: String, default: 'Von Gruppen eingetragen' },
+  /**
+   * CHAT-6-UI-3: Das ZIEL der Zeile. Ohne Angabe gilt das der Zeile
+   * (`moderationsZeile` → `#/kalender/pruefen`) — die zweite Handy-Zeile
+   * („Meldungen aus dem Chat“) führt dorthin, wo die Meldungen liegen
+   * (`MELDUNGEN_ADRESSE`) und sagt ihr Ziel deshalb selbst. Hier steht KEIN
+   * eigenes Ersatzziel (Review R1, SOLL 2): die eine Quelle ist `mobilModeration`.
+   */
+  ziel: { type: String, default: '' },
+  /**
+   * CHAT-6-UI-3: Der Vorlese-Text. Ohne Angabe derselbe Satz wie bisher —
+   * `mobilModeration` bleibt die eine Quelle für den Zeilentext.
+   */
+  ariaText: { type: String, default: '' },
 })
 
 defineEmits(['oeffnen'])
@@ -51,6 +73,11 @@ const zeile = computed(() => moderationsZeile({
   zahl: props.zahl,
 }) || { sichtbar: false, text: '', ziel: '' })
 const sichtbar = computed(() => zeile.value.sichtbar === true)
+/** Gesetztes Ziel gewinnt; sonst das der Zeile (`moderationsZeile`). */
+const ziel = computed(() => props.ziel || zeile.value.ziel)
+/** Gesetzter Vorlesetext gewinnt; sonst derselbe Satz wie bisher. */
+const ariaLabel = computed(() => props.ariaText
+  || `${zeile.value.text} — Prüfliste öffnen`)
 </script>
 
 <style scoped>

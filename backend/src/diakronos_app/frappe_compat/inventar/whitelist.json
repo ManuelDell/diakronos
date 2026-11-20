@@ -1,6 +1,7 @@
 {
  "ausnahmen": {
   "diakronos_app.anmeldung.einstellungen_api.anmeldung_get_einstellungen": "Leseansicht; legt fehlende Konfigurationszeile an (Helfer erkannt)",
+  "diakronos_app.api.chat.meine_sperren": "liest nur die EIGENEN Kontaktsperren (keine Zeile wird geschrieben); Deklaration setzt methods=['GET'] ausdruecklich",
   "diakronos_app.api.fail_validation": "meldet nur (417), schreibt nichts",
   "diakronos_app.api.frappe_core.logout": "loescht nur die eigene Sitzung (Abmelden), keine Fachdaten",
   "diakronos_app.api.gemeinde.datenschutz_get_texte": "Leseansicht; legt fehlende Textzeile an (Helfer erkannt)",
@@ -22,6 +23,7 @@
  },
  "ausnahmen_angewandt": [
   "diakronos_app.anmeldung.einstellungen_api.anmeldung_get_einstellungen",
+  "diakronos_app.api.chat.meine_sperren",
   "diakronos_app.api.frappe_core.logout",
   "diakronos_app.api.gemeinde.datenschutz_get_texte",
   "diakronos_app.api.gemeinde.gemeinde_get_einstellungen",
@@ -1318,6 +1320,62 @@
    "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.kontakt_entsperren",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "kontakt_entsperren",
+   "pfade": [
+    "api.kontakt_entsperren",
+    "chat.kontakt_entsperren",
+    "diakronos.diakonos.api.chat.kontakt_entsperren",
+    "diakronos.diakronos.api.chat.kontakt_entsperren",
+    "diakronos_app.api.chat.kontakt_entsperren",
+    "kontakt_entsperren"
+   ],
+   "rumpf_grund": "execute(…, delete())",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.kontakt_sperren",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "kontakt_sperren",
+   "pfade": [
+    "api.kontakt_sperren",
+    "chat.kontakt_sperren",
+    "diakronos.diakonos.api.chat.kontakt_sperren",
+    "diakronos.diakronos.api.chat.kontakt_sperren",
+    "diakronos_app.api.chat.kontakt_sperren",
+    "kontakt_sperren"
+   ],
+   "rumpf_grund": "Aufruf s.flush(); Aufruf s.add()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
    "funktion": "diakronos_app.api.chat.lesestand_setzen",
    "methoden": [
     "POST"
@@ -1394,6 +1452,35 @@
   },
   {
    "allow_guest": false,
+   "ausnahme": "liest nur die EIGENEN Kontaktsperren (keine Zeile wird geschrieben); Deklaration setzt methods=['GET'] ausdruecklich",
+   "ausnahme_art": "nur_vorschau",
+   "ausnahme_greift": true,
+   "ausnahme_quelle": "name",
+   "deklariert": "lesend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.meine_sperren",
+   "methoden": [
+    "GET"
+   ],
+   "methoden_pflicht": "Ausnahme greift (name)",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "lesend",
+   "name": "meine_sperren",
+   "offen": false,
+   "pfade": [
+    "api.meine_sperren",
+    "chat.meine_sperren",
+    "diakronos.diakonos.api.chat.meine_sperren",
+    "diakronos.diakronos.api.chat.meine_sperren",
+    "diakronos_app.api.chat.meine_sperren",
+    "meine_sperren"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
@@ -1417,7 +1504,7 @@
     "diakronos_app.api.chat.meldung_entscheiden",
     "meldung_entscheiden"
    ],
-   "rumpf_grund": "Aufruf s.flush()",
+   "rumpf_grund": "Aufruf s.flush(); execute(…, update()); execute(…, update())",
    "rumpf_ueber": null
   },
   {
@@ -1525,7 +1612,147 @@
     "diakronos_app.api.chat.reaktion_setzen",
     "reaktion_setzen"
    ],
+   "rumpf_grund": "Aufruf s.flush(); Aufruf s.add(); execute(…, delete())",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.runde_ablehnen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "runde_ablehnen",
+   "pfade": [
+    "api.runde_ablehnen",
+    "chat.runde_ablehnen",
+    "diakronos.diakonos.api.chat.runde_ablehnen",
+    "diakronos.diakronos.api.chat.runde_ablehnen",
+    "diakronos_app.api.chat.runde_ablehnen",
+    "runde_ablehnen"
+   ],
+   "rumpf_grund": "Aufruf s.refresh(); execute(…, update()); Aufruf s.refresh()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.runde_anlegen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "runde_anlegen",
+   "pfade": [
+    "api.runde_anlegen",
+    "chat.runde_anlegen",
+    "diakronos.diakonos.api.chat.runde_anlegen",
+    "diakronos.diakronos.api.chat.runde_anlegen",
+    "diakronos_app.api.chat.runde_anlegen",
+    "runde_anlegen"
+   ],
+   "rumpf_grund": "Aufruf s.flush(); Aufruf s.add(); Aufruf s.flush()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.runde_verlassen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "runde_verlassen",
+   "pfade": [
+    "api.runde_verlassen",
+    "chat.runde_verlassen",
+    "diakronos.diakonos.api.chat.runde_verlassen",
+    "diakronos.diakronos.api.chat.runde_verlassen",
+    "diakronos_app.api.chat.runde_verlassen",
+    "runde_verlassen"
+   ],
+   "rumpf_grund": "Aufruf s.flush(); execute(…, Aufruf with_for_update()); Aufruf with_for_update()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.runde_vorschlagen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "runde_vorschlagen",
+   "pfade": [
+    "api.runde_vorschlagen",
+    "chat.runde_vorschlagen",
+    "diakronos.diakonos.api.chat.runde_vorschlagen",
+    "diakronos.diakronos.api.chat.runde_vorschlagen",
+    "diakronos_app.api.chat.runde_vorschlagen",
+    "runde_vorschlagen"
+   ],
    "rumpf_grund": "Aufruf s.flush(); Aufruf s.add()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.runde_zustimmen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "runde_zustimmen",
+   "pfade": [
+    "api.runde_zustimmen",
+    "chat.runde_zustimmen",
+    "diakronos.diakonos.api.chat.runde_zustimmen",
+    "diakronos.diakronos.api.chat.runde_zustimmen",
+    "diakronos_app.api.chat.runde_zustimmen",
+    "runde_zustimmen"
+   ],
+   "rumpf_grund": "Aufruf s.flush(); Aufruf s.refresh(); execute(…, update())",
    "rumpf_ueber": null
   },
   {
@@ -8333,7 +8560,7 @@
     "rechte.setze_module",
     "setze_module"
    ],
-   "rumpf_grund": "ueber verwaltung.setze_module(): Aufruf sess.add()",
+   "rumpf_grund": "ueber verwaltung.setze_module(): execute(…, delete())",
    "rumpf_ueber": "diakronos_app.rechte.verwaltung.setze_module"
   },
   {
@@ -9535,7 +9762,7 @@
     "diakronos_app.api.website.ansprechpartner_bereiche_setzen",
     "website.ansprechpartner_bereiche_setzen"
    ],
-   "rumpf_grund": "Aufruf sess.commit(); Aufruf sess.add()",
+   "rumpf_grund": "Aufruf sess.commit(); Aufruf sess.add(); execute(…, delete())",
    "rumpf_ueber": null
   },
   {
@@ -11140,12 +11367,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 414,
+ "funktionen": 422,
  "nur_test": [],
- "registrierte_pfade": 2323,
+ "registrierte_pfade": 2371,
  "rumpf_zaehlung": {
-  "lesend": 193,
-  "schreibend": 221
+  "lesend": 194,
+  "schreibend": 228
  },
  "widersprueche": [
   {
@@ -11200,6 +11427,35 @@
     "direkt_oeffnen"
    ],
    "rumpf_grund": "Aufruf s.flush()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": "liest nur die EIGENEN Kontaktsperren (keine Zeile wird geschrieben); Deklaration setzt methods=['GET'] ausdruecklich",
+   "ausnahme_art": "nur_vorschau",
+   "ausnahme_greift": true,
+   "ausnahme_quelle": "name",
+   "deklariert": "lesend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.meine_sperren",
+   "methoden": [
+    "GET"
+   ],
+   "methoden_pflicht": "Ausnahme greift (name)",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "lesend",
+   "name": "meine_sperren",
+   "offen": false,
+   "pfade": [
+    "api.meine_sperren",
+    "chat.meine_sperren",
+    "diakronos.diakonos.api.chat.meine_sperren",
+    "diakronos.diakronos.api.chat.meine_sperren",
+    "diakronos_app.api.chat.meine_sperren",
+    "meine_sperren"
+   ],
+   "rumpf_grund": "",
    "rumpf_ueber": null
   },
   {
@@ -11739,6 +11995,6 @@
  ],
  "zaehlung": {
   "lesend": 183,
-  "schreibend": 231
+  "schreibend": 239
  }
 }

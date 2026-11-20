@@ -130,6 +130,7 @@ from diakronos_app.models.chat import (
     ChatUmfrage,
     ChatUmfrageAbgabe,
     ChatUmfrageOption,
+    ChatRundeVorschlag,
     MELDUNG_OFFEN,
 )
 
@@ -366,6 +367,18 @@ def _gespraech_entfernen(session, name: str) -> tuple[int, int]:
     meldungen = session.execute(
         delete(ChatMeldung).where(ChatMeldung.nachricht.in_(nachrichten))
     ).rowcount or 0
+
+    # 1b. Vorschlaege der Runde (CHAT-7b): `chat_runde_vorschlag.gespraech` ist
+    #     ein FK auf das Gespraech — ohne diesen Schritt scheitert die
+    #     Loeschung der Zeile an der FK. Sie gehoeren zum Vorgang der Runde und
+    #     fallen mit ihr. ZUERST die Spalte ``chat_nachricht.vorschlag``
+    #     loesen (Review R1, SOLL 8): die Systemzeile zeigt auf den Vorschlag,
+    #     also haelt DIESE Richtung die Vorschlagszeile fest.
+    session.execute(update(ChatNachricht)
+                    .where(ChatNachricht.gespraech == name)
+                    .values(vorschlag=None))
+    session.execute(delete(ChatRundeVorschlag)
+                    .where(ChatRundeVorschlag.gespraech == name))
 
     # 2. Glocken-Merker des Gespraechs (CHAT-4a). Der Merker haelt das
     #    Gespraech als Primaerschluessel — ohne diese Zeile scheitert die

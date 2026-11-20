@@ -693,6 +693,41 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
     "rechte_gruppenrolle": {
         "erteilt_von": ("user_null", "wer die Rolle vergeben hat: Rolle bleibt, Konto weg"),
     },
+    # CHAT-7b (Konzept S3/4.3): die Kontaktsperre. Beide Spalten sind Konten
+    # (Adressen); die ZEILE faellt bei einer Loeschung ganz — eine Sperre ohne
+    # die eine Seite waere keine Sperre, sondern eine Zeile, die niemand mehr
+    # richtig liest. Geloescht wird sie NICHT ueber einen generischen
+    # Spalten-Weg, sondern ausschliesslich ueber `_kontaktsperren_entfernen`
+    # (Schritt 6a2), das BEIDE Richtungen exakt auf die gehenden Konten prueft:
+    # `rechte_kontaktsperre` hat keinen FK auf `user`, und ein generischer Weg
+    # ueber die Spaltennamen traefe nur die Richtung `benutzer`. Die Tabelle
+    # steht deshalb NICHT in `KONTO_ZEILEN` (s. dort).
+    "rechte_kontaktsperre": {
+        "benutzer": ("zeile_loeschen", "Sperre der Person (Zeile wird geloescht)"),
+        "gesperrt": ("zeile_loeschen", "gesperrte Person — die Sperre faellt mit ihr"),
+    },
+    # CHAT-7b: der Vorschlag „X moechte Y hinzufuegen“. Die vorschlagende
+    # Person ist ein Konto (`user_null` — die ZEILE bleibt, der Vorgang bleibt
+    # nachvollziehbar, das Konto verschwindet), die vorgeschlagene Person eine
+    # MITGLIED-Kennung ohne FK (`mitglied`): sie wird ueber die gewoehnliche
+    # Umhaengung des Inventars (``mitglied``) auf die neutrale Kennung gezogen.
+    # `zustimmende` ist eine KONTEN-Liste und steht deshalb in `WERT_SPALTEN`
+    # als Art `liste` (Eintrag der Person wird exakt entfernt, die uebrigen
+    # bleiben byte-gleich — dieselbe Behandlung wie `sicherungslauf.benachrichtigt`).
+    # Review R1 (MUSS 4): `chat_runde_vorschlag` steht NICHT in KONTO_ZEILEN —
+    # sonst liefe das Nullen von `vorgeschlagen_von`/`entschieden_von` an
+    # fremden Zeilen gar nicht (die Zeile waere vorher schon weg).
+    "chat_runde_vorschlag": {
+        "vorgeschlagen_von": ("user_null", "Konto, das die Person vorgeschlagen hat"),
+        "entschieden_von": ("user_null", "Konto der letzten Zustimmung/Ablehnung"),
+        "mitglied": ("mitglied", "vorgeschlagene Person (Verweis wird umgehaengt)"),
+        "stand": ("struktur", "offen/angenommen/abgelehnt"),
+        # Kennung der RUNDE — ein technischer Verweis, kein Personenbezug.
+        "gespraech": ("struktur", "Kennung der Runde (kein Personenbezug)"),
+        # Konten-Liste der Zustimmenden: der Eintrag der Person wird entfernt
+        # (ausgeführt über WERT_SPALTEN Art `liste`, s. dort).
+        "zustimmende": ("struktur", "Konten der Zustimmenden — Liste wird bereinigt (WERT_SPALTEN)"),
+    },
     "rechte_freigabe": {
         "erteilt_von": ("user_null", "wer freigegeben hat: Freigabe bleibt, Konto weg"),
     },
@@ -761,6 +796,10 @@ WERT_SPALTEN: dict[str, dict[str, str]] = {
     # Eintrag der Person wird EXAKT entfernt, die übrigen bleiben byte-gleich
     # (`_konto_listen_bereinigen`).
     "sicherungslauf": {"benachrichtigt": "liste"},
+    # CHAT-7b (Review R1, MUSS 4): die Zustimmenden eines Runden-Vorschlags —
+    # ``", ".join(sorted(...))`` von KONTEN. Eintrag der Person exakt entfernen,
+    # die uebrigen bleiben byte-gleich (dieselbe Regel wie `benachrichtigt`).
+    "chat_runde_vorschlag": {"zustimmende": "liste", "mitglied": "mitglied"},
 }
 
 #: Tabellen, deren ZEILEN ganz verschwinden: reine Beziehungs-/Zugangsdaten, an
@@ -826,6 +865,19 @@ ZEILEN_LOESCHEN: tuple[tuple[str, str], ...] = (
     # die Marke die einzige Spur, und sie verschwindet mit der Person.
     ("chat_stimme", "namentliche Stimmen der Person in offenen Umfragen"),
     ("chat_umfrage_abgabe", "Abgabe-Marke der Person (anonyme Umfragen)"),
+    # CHAT-7b: die Kontaktsperre steht NICHT hier — sie wird nicht nach dem
+    # Konto geschluesselt (zwei Konto-Spalten, beide Richtungen) und hat keinen
+    # FK auf `user`. Beide Richtungen raeumt ausschliesslich
+    # `_kontaktsperren_entfernen` (Schritt 6a2) — deshalb steht die Tabelle
+    # bewusst NICHT in `KONTO_ZEILEN` (dort liefe der generische Weg und
+    # traefe nur die Spalte `benutzer`).
+    # CHAT-7b: `chat_runde_vorschlag` steht hier NICHT (Review R1, MUSS 4).
+    # Der Vorschlag ist ein VORGANG der Runde, kein Beziehungsdatum der Person:
+    # `vorgeschlagen_von`/`entschieden_von` werden genullt (user_null), der
+    # Eintrag der Person in `zustimmende` exakt entfernt (WERT_SPALTEN `liste`),
+    # der Verweis auf die vorgeschlagene Person umgehaengt (Art `mitglied`).
+    # Die Zeile zu loeschen wuerde den anderen die Systemzeile ihres Verlaufs
+    # nehmen (Chat-7b, SOLL 8: die Nachricht zeigt „X moechte Y hinzufuegen“).
 )
 
 #: Tabellen mit Konto-Bezug, deren Zeilen gelöscht werden — dort wird VORHER
@@ -846,6 +898,12 @@ KONTO_ZEILEN = frozenset({
     "chat_glocke",
     # CHAT-5: die Stimmenzeilen und Marken sind ZEILEN der Person.
     "chat_stimme", "chat_umfrage_abgabe",
+    # CHAT-7b (Review R1, MUSS 4): `chat_runde_vorschlag` steht hier NICHT —
+    # die Zeile bleibt (s. SPALTEN/ZEILEN_LOESCHEN: Konten werden genullt, die
+    # Zustimmenden-Liste bereinigt, die Vorgeschlagene umgehaengt). Die
+    # Kontaktsperre steht hier ebenfalls NICHT: sie ist nicht nach dem Konto
+    # geschluesselt (zwei Konto-Spalten, beide Richtungen), das loest
+    # `_kontaktsperren_entfernen` (Schritt 6a2).
 })
 
 
@@ -1263,6 +1321,12 @@ def anonymisiere(s, mitglied: str, konten, *, dateien: list[str] | None = None) 
     #     die `user`-Zeile fällt (die Liste der Konten steht noch in `b.konten`).
     zaehler.update(_direkt_paare_loesen(s, b))
 
+    # 6a2) CHAT-7b: die Kontaktsperre hat ZWEI Konto-Spalten ohne FK auf
+    #      `user`. Beide Richtungen muessen weg — auch die ZeILE, in der die
+    #      Person nur GESPERRT hat (sonst bliebe eine Sperre gegen ein Konto
+    #      stehen, das es nicht mehr gibt).
+    zaehler.update(_kontaktsperren_entfernen(s, b))
+
     # 6b) Spalten OHNE Fremdschlüssel: Bucher (Kennung + Name), Autoren und die
     #     Konto-Mails im JSON des Planrahmens (N-2, R-DSGVO-1b).
     zaehler.update(_platzhalter_spalten(s, b))
@@ -1419,6 +1483,16 @@ def _verweise_umhaengen(s, alt: str, kennung: str, *, bestand_) -> dict:
                 continue
             schluessel = f"{tabelle_name}.{spaltenname}"
             if art == "wert":
+                _zaehle(s, zaehler, schluessel, update(tabelle)
+                        .where(spalte == alt).values({spalte.key: kennung}))
+            elif art == "mitglied":
+                # CHAT-7b (Review R1, MUSS 4): Mitglied-Kennung OHNE FK
+                # (``chat_runde_vorschlag.mitglied``) — genau der ganze Wert
+                # wird auf die neutrale Kennung umgehängt. Dieselbe Regel wie
+                # ``wert``; die eigene Art ist da, weil das Inventar damit
+                # ausdrückt, WAS dort steht (eine Person, keine freie Zeichen-
+                # kette) — und weil der Wächtertest jede Art einer Funktion
+                # zuordnet.
                 _zaehle(s, zaehler, schluessel, update(tabelle)
                         .where(spalte == alt).values({spalte.key: kennung}))
             else:
@@ -1932,8 +2006,13 @@ def _konto_listen_bereinigen(s, b: Bestand) -> dict:
                 if len(reste) == len(eintraege):
                     continue
                 bedingung = and_(*[c == w for c, w in zip(pk, schluessel)])
+                # Leere Liste = LEERER TEXT, nicht NULL: Spalten wie
+                # ``chat_runde_vorschlag.zustimmende`` sind NOT NULL mit
+                # Vorgabe ``''`` (CHAT-7b, Review R1 MUSS 4). Für
+                # ``sicherungslauf.benachrichtigt`` ist ``''`` genauso richtig
+                # wie NULL (dort wurde bisher NULL geschrieben).
                 s.execute(update(tabelle).where(bedingung)
-                          .values({spalte.key: ", ".join(reste) or None}))
+                          .values({spalte.key: ", ".join(reste)}))
                 schluessel_name = f"{tabelle_name}.{spaltenname}"
                 zaehler[schluessel_name] = zaehler.get(schluessel_name, 0) + 1
     return zaehler
@@ -2472,6 +2551,35 @@ def _direkt_paare_loesen(s, b) -> dict[str, int]:
     zaehler: dict[str, int] = {}
     _zaehle(s, zaehler, "chat_gespraech.paar_schluessel",
             update(tabelle).where(bedingung).values({spalte.key: None}))
+    return zaehler
+
+
+def _kontaktsperren_entfernen(s, b) -> dict[str, int]:
+    """CHAT-7b: Kontaktsperren beider Richtungen entfernen.
+
+    ``rechte_kontaktsperre`` hat ZWEI Konto-Spalten (``benutzer`` = wer sperrt,
+    ``gesperrt`` = wen) und KEINEN Fremdschlüssel auf ``user`` — der
+    generische Weg über ``_zeilen_loeschen`` findet nur die eine Richtung.
+    Eine Sperre gegen ein Konto, das es nicht mehr gibt, waere ausserdem
+    wirkungslos und bliebe als Zeile stehen; deshalb werden hier ALLE Zeilen
+    geloescht, in denen eines der gehenden Konten steht.
+
+    Derselbe ``startswith``/``endswith``-Stand wie ``_direkt_paare_loesen`` ist
+    hier nicht noetig: es wird EXAKT auf Konten verglichen (kein LIKE).
+    """
+    if not b.konten:
+        return {}
+    tabelle = _tabelle("rechte_kontaktsperre")
+    if tabelle is None:
+        return {}
+    spalte_wer = tabelle.c.get("benutzer")
+    spalte_wen = tabelle.c.get("gesperrt")
+    if spalte_wer is None or spalte_wen is None:
+        return {}
+    konten = sorted({str(k) for k in b.konten if k})
+    zaehler: dict[str, int] = {}
+    _zaehle(s, zaehler, "rechte_kontaktsperre", delete(tabelle).where(
+        or_(spalte_wer.in_(konten), spalte_wen.in_(konten))))
     return zaehler
 
 

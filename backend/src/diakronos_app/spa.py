@@ -414,6 +414,9 @@ def boot_fuer_request() -> dict[str, Any]:
         # Wert ist derselbe wie `can_moderate` des Endpunkts; die Oberfläche
         # blendet damit aus, was der Server ohnehin verweigert.
         "can_moderate": _darf_pruefen(user),
+        # Einstieg Reiter „Chat“ (Pruefseite): dieselbe Kernfrage wie
+        # `get_session_info.chat_moderieren` — kein Extra-Abruf im Kalender.
+        "chat_moderieren": _chat_moderieren(user),
         # MAIL-1b (N3): Die Startseite haelt die DSGVO-Kachel fuer System
         # Manager sichtbar — wer den Mailversand einstellen darf, muss die
         # Warnung „Mailversand ist noch nicht eingerichtet“ sehen. Die Liste
@@ -612,6 +615,12 @@ def oeffentliche_texte() -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001 — Texte sind optional
         logger.warning("Oeffentliche Texte nicht lesbar: %s", type(exc).__name__)
         return {}
+
+
+def _chat_moderieren(user: str) -> bool:
+    from diakronos_app.api.kronos.permissions import _chat_moderieren as frage
+
+    return frage(user)
 
 
 def _darf_pruefen(user: str) -> bool:

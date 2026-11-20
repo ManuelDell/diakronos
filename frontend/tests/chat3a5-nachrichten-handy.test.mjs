@@ -298,8 +298,11 @@ test('CHAT-3a-5/A: das Handy-Menü bietet genau die ERLAUBTEN Aktionen und führ
   s.host.querySelector('.dk-ui-aktionen-ausloeser').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
   await warte(6)
   let eintraege = [...document.querySelectorAll('.dk-ui-aktionen-eintrag')]
-  assert.deepEqual(eintraege.map((e) => e.textContent.trim()), ['Antworten'],
-    'fremde Nachricht: im Menü steht nur Antworten')
+  // CHAT-6-UI: an einer FREMDEN Nachricht steht zusätzlich „Melden“ — die
+  // Aktionsliste dieses Tests gehört CHAT-3a-5, die Melde-Fälle prüft
+  // `chat6-meldung-ui.test.mjs`. Hier bleibt belegt: nichts darüber hinaus.
+  assert.deepEqual(eintraege.map((e) => e.textContent.trim()), ['Antworten', 'Melden'],
+    'fremde Nachricht: Antworten und Melden (CHAT-6-UI)')
   eintraege[0].dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
   await warte(6)
   assert.equal(s.merker.antworten.length, 1, 'ein Tipp auf den Eintrag meldet `antworten`')

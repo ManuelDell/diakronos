@@ -42,6 +42,18 @@
         @oeffnen="zurPruefTafel"
       />
 
+      <!-- CHAT-6-UI-2 (MUSS 2, Handy): Die Reiterleiste des Kalenders gibt es
+           in der Handy-Lage nicht — ohne diesen Weg führte der Reiter „Chat“
+           dort weiterhin NUR über die Glocke. Die Zeile zeigt die Meldungen
+           als eigenen Eintrag, sobald der Server sie liefert (`chatRecht`).
+
+           CHAT-6-UI-3: Das ZIEL steht hier fest (`MELDUNGEN_ADRESSE` — die
+           Meldungen liegen im Chat-Zweig der Tafel, nicht in der Terminliste),
+           und der Vorlese-TEXT nennt dieselbe Zeile wie die Anzeige: „Zu
+           prüfen (n) · Von Gruppen eingetragen“ hätte zweimal untereinander
+           gestanden, obwohl die Zeilen zu zwei verschiedenen Listen führen. -->
+      <KalenderPruefZeile v-if="istSchmal" v-bind="chatZeileFelder" @oeffnen="zurChatPruefung" />
+
       <!-- Listen-Ansicht (A10): Mini-Monat + Tagesliste. -->
       <KalenderListeMobil
         v-if="mobilAnsichtId === 'liste'"
@@ -132,6 +144,8 @@
       :istKalenderAdmin="istKalenderAdmin"
       :darf-verwalten="darfKalenderVerwalten"
       :lesemodus="lesemodus"
+      :chatRecht="chatRecht === true"
+      :chatZahl="chatZahl"
       @prev="calendarRef?.prev()"
       @next="calendarRef?.next()"
       @today="calendarRef?.today()"
@@ -349,6 +363,7 @@ import { showToast } from '../composables/useToast.js'
 // Meldung und Zurückholen kommen aus dem gemeinsamen Baustein (wie in
 // Beitraege.vue/Lieder.vue), nicht aus einer zweiten Löschlogik.
 import { apiCall } from '../composables/useApi.js'
+import { MELDUNGEN_ADRESSE } from '../components/chat/meldung.mjs'
 import { papierkorbMeldung, wiederherstellen } from '../composables/papierkorb.mjs'
 import { useRueckgaengigAktion } from '../composables/useRueckgaengigAktion.js'
 import { aktionsfehler } from '../../shared/fehlertexte.js'
@@ -393,6 +408,9 @@ import {
   ueberholt,
   useKalenderVerwaltung,
 } from '../composables/useKalenderVerwaltung.js'
+// CHAT-6-UI-2 (MUSS 2): EIN Merker für „darf Chat-Meldungen prüfen?“ —
+// dieselbe Antwort für Kalender-Kopf und Prüfseite.
+import { useChatPruefRecht } from '../composables/chatPruefRecht.mjs'
 // Review 07.11. Punkt 10: EINE Layout-Grenze (720 px) — auch im Skript.
 // DEV-B6 (Review-Nacharbeit 10.11.): Das Handy-Gerüst der Seite hängt an der
 // EINEN Handy-Lage der App (`composables/handyLage.mjs`). `istHandyBreite`
@@ -626,6 +644,74 @@ async function benutzerKontextLaden() {
     benutzerKontext.value = null
   }
 }
+// CHAT-6-UI-2 (Review R2, MUSS 2): Der Reiter „Chat“ war am Kalender-Kopf
+// NICHT erreichbar — die Seite gab `chatRecht`/`chatZahl` nicht an die
+// Kopfzeile. Der Einstieg gab es damit nur über die Glocke. Hier wird der
+// EINE Merker gelesen (`composables/chatPruefRecht.mjs`); gefragt wird beim
+// Aufbau der Seite genau EINMAL, und die Prüfseite teilt sich dieselbe
+// Antwort. Kein Abruf beim Rendern.
+const { recht: chatRecht, zahl: chatZahl, pruefen: chatPruefen, merken: chatMerken, zahlLaden: chatZahlLaden } = useChatPruefRecht()
+
+/**
+ * CHAT-6-UI-3 (Review R1, SOLL 1): Der Einstieg liest das Boot-Objekt —
+ * dieselbe Quelle und dasselbe Muster wie `darfPruefen` (`can_moderate`,
+ * oben). KEIN eigener `get_session_info`-Abruf beim Kalender-Aufbau: der
+ * Server schickt `chat_moderieren` im Boot mit. Fehlt der Schlüssel (alte
+ * Seite, Test), bleibt der Merker ungefragt und `pruefen()` entscheidet
+ * selbst (Rückfall in `chatPruefRecht.mjs`). `null` = unbekannt.
+ */
+const chatModerierenBoot = computed(() => {
+  const wert = window.__DIakonosBOOT?.chat_moderieren
+  return typeof wert === 'boolean' ? wert : null
+})
+
+/**
+ * Wurde die Boot-Antwort schon in den Merker geschrieben? EINMAL je Besuch —
+ * `nachAenderung()` ruft `offeneZahlLaden()` erneut, das darf keine zweite
+ * Kennzahl-Anfrage auslösen.
+ */
+let merkerAntwort = false
+
+/**
+ * CHAT-6-UI-3: Vorlese-Text der Handy-Zeile „Meldungen aus dem Chat“.
+ * Ohne bekannte Zahl (oder bei 0) steht keine Zahl im Satz — nie eine
+ * erfundene 0. Der Text nennt das ZIEL dieser Zeile, nicht die Terminliste.
+ */
+const chatAriaText = computed(() => {
+  const n = chatZahl.value
+  const kopf = (Number.isFinite(Number(n)) && Number(n) > 0) ? ` (${Number(n)})` : ''
+  return `Meldungen aus dem Chat${kopf} — öffnen`
+})
+
+/**
+ * CHAT-6-UI-3: Die Chat-Zeile zeigt nur, was BEKANNT ist. Der Merker
+ * (`chatRecht`) trägt im Normalfall schon die Antwort aus dem Boot-Objekt
+ * (`chatModerierenBoot`, oben); ist er noch `null`, gilt das Boot-Assessment
+ * der Seite. Sagt keine der beiden Quellen etwas (`null`), gilt „kein
+ * Recht“ — dieselbe Regel wie bei `darfPruefen`: nichts behaupten, was der
+ * Server nicht gesagt hat.
+ */
+const chatDarfPruefen = computed(() => {
+  if (typeof chatRecht.value === 'boolean') return chatRecht.value
+  if (chatModerierenBoot.value !== null) return chatModerierenBoot.value
+  return false
+})
+
+/**
+ * CHAT-6-UI-3: Das ZIEL der Chat-Zeile — sie steht nur in der Handy-Lage
+ * (die Reiterleiste gibt es dort nicht) und führt in den Chat-Zweig der
+ * Prüf-Tafel. Die Mentis-Felder kommen aus demselben Baustein wie bei der
+ * Termin-Zeile; `ziel`/`titel`/`unter` setzt die Seite.
+ */
+const chatZeileFelder = computed(() => ({
+  darfPruefen: chatDarfPruefen.value,
+  zahl: chatZahl.value,
+  titel: 'Meldungen aus dem Chat',
+  unter: 'Gemeldete Nachrichten prüfen',
+  ziel: MELDUNGEN_ADRESSE,
+  ariaText: chatAriaText.value,
+}))
+
 // Zahl offener Prüfungen für Reiter und Spalte. `null` heißt unbekannt —
 // dann steht keine Zahl (nie eine erfundene 0). Ein Fehler bleibt still:
 // eine Kennzahl darf den Kalender nicht stören.
@@ -633,6 +719,24 @@ const offeneZahl = ref(null)
 const panelZahl = computed(() => (offeneZahl.value === null ? null : offeneZahl.value))
 
 async function offeneZahlLaden() {
+  // CHAT-6-UI-2 (SOLL 3): Die Chat-Meldungen hängen NICHT am Kalender-Recht.
+  // Wer nur Meldungen prüfen darf, braucht trotzdem den Reiter — deshalb wird
+  // der Chat-Merker unabhängig von `darfPruefen` gefüllt (er ist EINMAL
+  // gefragt, nicht bei jedem Rendern; siehe `chatPruefRecht.mjs`).
+  //
+  // CHAT-6-UI-3 (Review R1, SOLL 1): Trägt das Boot-Objekt `chat_moderieren`
+  // (Normalfall), geht KEIN `get_session_info` hinaus. Der Merker bekommt die
+  // Rechte-Antwort aus dem Boot und holt nur noch die Zahl — und auch die nur
+  // EINMAL: der Merker merkt sich seine Antwort (`geprueft`), ein zweiter
+  // Aufruf derselben Sitzung fragt nicht wieder. Erst wenn das Feld fehlt
+  // (alte Seite, Test), fragt der Merker selbst — sein Rückfall.
+  if (chatModerierenBoot.value === null) {
+    chatPruefen({ frisch: false })
+  } else if (!merkerAntwort) {
+    merkerAntwort = true
+    chatMerken({ recht: chatModerierenBoot.value, zahl: null })
+    if (chatModerierenBoot.value) await chatZahlLaden()
+  }
   if (!darfPruefen.value) return
   try {
     const anzahl = await getModerationCount()
@@ -1421,6 +1525,15 @@ function alsStandardSetzen() {
 /** Tafel „Zu prüfen“ (UX3d) — dieselbe Seite wie am Desktop. */
 function zurPruefTafel() {
   navigate('#/kalender/pruefen')
+}
+
+/**
+ * CHAT-6-UI-2 (MUSS 2, Handy): Die Meldungen stehen im Reiter „Chat“ der
+ * Prüfseite — dieselbe Adresse wie der Reiter am Desktop und wie die Glocke
+ * (`MELDUNGEN_ADRESSE`), kein zweiter Ort.
+ */
+function zurChatPruefung() {
+  navigate(MELDUNGEN_ADRESSE)
 }
 
 /**

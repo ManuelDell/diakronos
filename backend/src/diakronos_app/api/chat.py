@@ -149,9 +149,38 @@ Die Glocke eines 1:1 trägt den NEUTRALEN Betreff „Direktnachricht: …“: de
 Gesprächstitel eines 1:1 ist der Name des Gegenübers, und ein Absendername
 gehört nicht in die Glocke (CHAT-4a).
 
-WAS HIER BEWUSST FEHLT (spätere Karten): Runden (3–8 Personen) und Blockieren
-(``nicht mehr anschreiben lassen``) — beides CHAT-7b; Löschfristen (CHAT-8),
-Push (CHAT-10), Anhänge/Chatverlaufssuche (CHAT-9). Kein WebSocket: Zustellung
+CHAT-7b — RUNDEN (3–8) UND BLOCKIEREN (Konzept S3, Zeilen ~100–122)
+-------------------------------------------------------------------
+**Runde** = ``art = 'runde'``, ``gruppe = NULL``, ``titel`` = Name der Runde,
+3–8 Zeilen in ``chat_teilnehmer``. Verlauf, Senden, Bearbeiten, Löschen,
+Reaktion, Lesestand, Stumm, Umfragen und Meldungen laufen über DIESELBEN
+Endpunkte — die Weiche (``_erlaube``) fragt je ``art`` und reicht für
+``direkt`` UND ``runde`` die Teilnehmenden an den Kern
+(``darf_direktgespraech``). Anlegen fragt ``darf_runde_anlegen``, Erweitern
+``darf_runde_erweitern`` — nichts Eigenes.
+
+**Vorschlag → Zustimmung** (``runde_vorschlagen``/``runde_zustimmen``/
+``runde_ablehnen``): hinzugefügt wird erst, wenn ALLE bisherigen
+Teilnehmenden außer der vorschlagenden Person zugestimmt haben; JEDE
+Ablehnung beendet den Vorschlag. Der Verlauf zeigt EINE Systemnachricht
+„X möchte Y hinzufügen“ ohne weitere Daten; gezählt werden Zahlen, keine
+Namen (``chat_runde_vorschlag.zustimmungen``).
+
+**Verlassen** (``runde_verlassen``): ``chat_teilnehmer.verlassen_am`` wird
+gesetzt, die Zeile bleibt. Wer gegangen ist, liest nicht mehr, sendet nicht
+mehr und schlägt niemanden mehr vor — und die anderen sehen ihn weiter als
+benannte Person, NICHT als „Gelöschte Person“ (das ist die Löschung, Art. 17).
+
+**Blockieren** (``kontakt_sperren``/``kontakt_entsperren``/
+``meine_sperren``): die Sperre wirkt schon im Kern
+(``darf_direktnachricht`` → NEIN „gesperrt“, beide Richtungen) — dieser
+Endpunkt schreibt nur die Zeile. Nach außen ist „gesperrt“ NICHT von „nicht
+erreichbar“ zu unterscheiden: gleicher Text, gleicher Status (403 ohne
+Inhalt), in jedem Endpunkt dieses Moduls. ``personen_suchen`` liefert nur
+``darf_schreiben: false``, sonst nichts Auffälliges.
+
+WAS HIER BEWUSST FEHLT (spätere Karten): Löschfristen (CHAT-8), Push
+(CHAT-10), Anhänge/Chatverlaufssuche (CHAT-9). Kein WebSocket: Zustellung
 ist der „seit X“-Abruf (3.1, Empfehlung A).
 
 CHAT-4a — GEBÜNDELTE GLOCKE (Konzept 1/S1, 3.1, 4.5)
@@ -279,6 +308,7 @@ from diakronos_app.frappe_compat.session import session
 from diakronos_app.models.chat import (
     ART_DIREKT,
     ART_GRUPPE,
+    ART_RUNDE,
     ART_UNTERGRUPPE,
     BEARBEITEN_MINUTEN,
     GLOCKE_RUHE_MINUTEN,
@@ -296,11 +326,17 @@ from diakronos_app.models.chat import (
     OPTIONEN_MIN,
     OPTION_MAX,
     REAKTIONEN,
+    RUNDE_TITEL_MAX,
+    VORSCHLAG_ABGELEHNT,
+    VORSCHLAG_ANGENOMMEN,
+    VORSCHLAG_BEENDET,
+    VORSCHLAG_OFFEN,
     ChatGespraech,
     ChatGlocke,
     ChatMeldung,
     ChatNachricht,
     ChatReaktion,
+    ChatRundeVorschlag,
     ChatStimme,
     ChatTeilnehmer,
     ChatUmfrage,
@@ -309,6 +345,7 @@ from diakronos_app.models.chat import (
 )
 from diakronos_app.models.core import User
 from diakronos_app.models.diakonos import Mitglied
+from diakronos_app.models.rechte import RechteKontaktsperre
 
 #: Seitengröße des Verlaufs. 50 Nachrichten sind ~ eine Bildschirmseite am
 #: Handy und am Desktop (Konzept 3.4: ~300 Nachrichten am Tag in einer
@@ -405,6 +442,24 @@ def _nicht_von(benutzer: str):
     """
     return or_(ChatNachricht.autor_benutzer.is_(None),
                ChatNachricht.autor_benutzer != benutzer)
+
+
+def _nicht_eigener_vorschlag(benutzer: str):
+    """SQL-Bedingung „diese Nachricht ist nicht MEIN eigener Vorschlag“.
+
+    CHAT-7b-2 (SOLL 5): eine Vorschlags-Systemzeile (``chat_nachricht.vorschlag``
+    gesetzt) zählt beim VORSCHLAGENDEN nicht als ungelesen und löst keine
+    Glocke aus — er hat den Vorschlag selbst gemacht. Für die übrigen bleibt
+    sie stehen: sie sollen zustimmen oder ablehnen.
+
+    Erwartet einen ``outerjoin`` auf ``ChatRundeVorschlag`` (die Spalte
+    ``vorgeschlagen_von``) — Zeilen ohne Vorschlag haben dort NULL und bleiben
+    damit im Ergebnis (nur der eigene Vorschlag fällt heraus). EINE Definition
+    für ``_ungelesen_zaehlen`` und ``_offen_bedingung``.
+    """
+    return or_(ChatNachricht.vorschlag.is_(None),
+               ChatRundeVorschlag.vorgeschlagen_von.is_(None),
+               ChatRundeVorschlag.vorgeschlagen_von != benutzer)
 
 
 def _personen(s, kennungen) -> dict[str, str]:
@@ -524,6 +579,9 @@ def _teilnahme(s, gespraech: str, benutzer: str) -> ChatTeilnehmer:
     """
     zeile = s.get(ChatTeilnehmer, (gespraech, benutzer))
     if zeile is not None:
+        # Wer eine Runde verlassen hat, wird durch das Lesen NICHT wieder
+        # Teilnehmer (CHAT-7b): Wieder eintreten geht nur ueber einen neuen
+        # Vorschlag mit Zustimmung der Runde. Die Zeile bleibt unveraendert.
         return zeile
     zeile = ChatTeilnehmer(
         gespraech=gespraech, benutzer=benutzer, stumm=False, hinzugefuegt_am=_jetzt()
@@ -865,7 +923,8 @@ def _zeile(s, n: ChatNachricht, *,
            namen: dict[str, str] | None = None,
            konto_namen: dict[str, str] | None = None,
            umfragen: dict[str, dict[str, Any]] | None = None,
-           ich: str = "") -> dict[str, Any]:
+           ich: str = "",
+           system: dict[str, Any] | None = None) -> dict[str, Any]:
     """Eine Nachricht als flache Antwortzeile.
 
     ``text`` ist bei einer gelöschten Nachricht ``None`` — der Platz bleibt
@@ -882,6 +941,12 @@ def _zeile(s, n: ChatNachricht, *,
     zeigt „Von der Moderation entfernt“ mit dem Grund. Eine selbst gelöschte
     Nachricht hat keinen Grund und damit hier ``None``. Der MELDER steht
     bewusst in keiner Antwortzeile.
+
+    CHAT-7b (Review R1, SOLL 8): eine SYSTEMZEILE (``n.vorschlag``) wird mit
+    ``system={text, stand}`` übergeben — der sichtbare Satz „X möchte Y
+    hinzufügen“ entsteht beim Lesen aus der Vorschlagszeile und steht NICHT in
+    der Nachricht. Solche Zeilen haben keinen Besitz (``eigene`` bleibt false,
+    ``autor`` None) und keinen Text im Datensatz.
     """
     geloescht = n.geloescht_am is not None
     zeile = {
@@ -897,7 +962,8 @@ def _zeile(s, n: ChatNachricht, *,
                   or (konto_namen or {}).get(str(n.autor_benutzer or ""))),
         "autor_mitglied": n.autor,
         "eigene": bool(n.autor_benutzer) and str(n.autor_benutzer) == str(ich or ""),
-        "text": None if geloescht else n.text,
+        "text": (None if geloescht
+                 else ((system or {}).get("text") if n.vorschlag else n.text)),
         "geloescht": geloescht,
         "geloescht_grund": n.entfernt_grund if geloescht else None,
         "bearbeitet": n.bearbeitet_am is not None,
@@ -908,6 +974,12 @@ def _zeile(s, n: ChatNachricht, *,
         "reaktionen": (reaktionen or {}).get(n.name, []),
         "gelesen_von": (lesestand or {}).get(n.name),
     }
+    if n.vorschlag:
+        # Eigene Art statt eines „normalen“ Beitrags: nicht bearbeitbar,
+        # nicht löschbar, nicht meldbar — die Oberfläche zeichnet sie als
+        # Systemhinweis („X möchte Y hinzufügen“).
+        zeile["system"] = {"art": "runde_vorschlag",
+                           "stand": (system or {}).get("stand")}
     if n.umfrage:
         zeile["umfrage"] = None if geloescht else (umfragen or {}).get(str(n.umfrage))
     return zeile
@@ -917,14 +989,19 @@ def _isoopt(wert: datetime | None) -> str | None:
     return wert.isoformat() if wert else None
 
 
-def _zitat(s, n: ChatNachricht) -> str | None:
+def _zitat(s, n: ChatNachricht, *, vor_eintritt: bool = False) -> str | None:
     """Eine Zeile des zitierten Textes („die Antwort zitiert eine Zeile“).
 
     Gelöscht → ``None`` (kein Inhalt nach außen). Sonst die erste nicht-leere
     Zeile, auf 140 Zeichen gekürzt — die Oberfläche zeigt sie klein über der
     Antwort.
+
+    ``vor_eintritt`` (CHAT-7b-2, SOLL 2): die zitierte Nachricht liegt für den
+    Lesenden VOR seinem Eintritt in die Runde — dann ist der Text ebenfalls
+    ``None``. Die Hülle (``antwort_auf``/``antwort_auf_text = None``) bleibt
+    stehen, der Inhalt nicht.
     """
-    if n.geloescht_am is not None:
+    if n.geloescht_am is not None or vor_eintritt:
         return None
     for zeile in str(n.text or "").splitlines():
         if zeile.strip():
@@ -932,19 +1009,102 @@ def _zitat(s, n: ChatNachricht) -> str | None:
     return None
 
 
-def _zitate(s, nachrichten: list[ChatNachricht]) -> dict[str, str | None]:
+def _zitate(s, nachrichten: list[ChatNachricht], *,
+            gespraech: ChatGespraech | None = None,
+            gespraech_name: str | None = None,
+            benutzer: str | None = None) -> dict[str, str | None]:
+    """Zitattexte einer VERLAUFSSEITE — EINE Abfrage, Sichtbarkeit je Ziel.
+
+    CHAT-7b-2 (SOLL 2): in einer RUNDE kann die zitierte Nachricht ÄLTER sein
+    als die Sichtbarkeitsgrenze des Lesenden. Dann liefert ``_zitat`` ``None``
+    — die Antwort zeigt die Zitat-Hülle „nicht sichtbar“ statt des Textes.
+    Ohne Gespräch/``benutzer`` gibt es keine Grenze.
+
+    ``gespraech_name`` ist der Weg für Aufrufer, die nur die KENNUNG haben
+    (``_seite_antwort``): ohne ihn liefe ``_sichtbar_ab`` über eine
+    Zeichenkette und fände keine Grenze — das Zitat von vor dem Eintritt
+    würde also stehen bleiben.
+    """
     ids = {n.antwort_auf for n in nachrichten if n.antwort_auf}
     if not ids:
         return {}
     ziele = s.execute(select(ChatNachricht).where(ChatNachricht.name.in_(ids))).scalars().all()
-    return {str(n.name): _zitat(s, n) for n in ziele}
+    if benutzer:
+        if gespraech is None and gespraech_name:
+            gespraech = _gespraech_lesen(s, gespraech_name)
+        grenze = _sichtbar_ab(s, gespraech, benutzer) if gespraech is not None else None
+    else:
+        grenze = None
+    return {str(n.name): _zitat(s, n, vor_eintritt=bool(
+        grenze is not None and n.erstellt_am is not None
+        and n.erstellt_am < grenze)) for n in ziele}
+
+
+def _vorschlags_texte(s, kennungen) -> dict[str, dict[str, Any]]:
+    """``{vorschlag: {text, stand}}`` für eine VERLAUFSSEITE — EINE Abfrage.
+
+    Review R1 (SOLL 8): der Satz „X möchte Y hinzufügen“ steht nicht in der
+    Nachricht, sondern wird hier aus der Vorschlagszeile gebildet. Namen kommen
+    aus EINER Abfrage (``_personen``), nicht je Zeile.
+    """
+    namen_kennungen = {str(k) for k in kennungen if k}
+    if not namen_kennungen:
+        return {}
+    vorschlaege = s.execute(
+        select(ChatRundeVorschlag).where(ChatRundeVorschlag.name.in_(namen_kennungen))
+    ).scalars().all()
+    if not vorschlaege:
+        return {}
+    konten = {str(v.vorgeschlagen_von) for v in vorschlaege if v.vorgeschlagen_von}
+    eigene = set()
+    for konto in konten:
+        mitglied = _person_je_konto(s, konto)
+        if mitglied:
+            eigene.add(mitglied)
+    personen = _personen(s, eigene | {str(v.mitglied) for v in vorschlaege if v.mitglied})
+    konto_namen = _konto_namen(s, konten)
+    ergebnis: dict[str, dict[str, Any]] = {}
+    for v in vorschlaege:
+        konto = str(v.vorgeschlagen_von or "")
+        wer = None
+        mitglied_des_kontos = _person_je_konto(s, konto) if konto else None
+        if mitglied_des_kontos:
+            wer = personen.get(mitglied_des_kontos)
+        if not wer and konto:
+            wer = konto_namen.get(konto)
+        wer = str(wer or "").split(" ")[0] or "Jemand"
+        wen = personen.get(v.mitglied) or "die Person"
+        ergebnis[str(v.name)] = {"text": _vorschlag_satz(wer, wen, v.stand),
+                                 "stand": v.stand}
+    return ergebnis
+
+
+def _vorschlag_satz(wer: str, wen: str, stand: str | None) -> str:
+    """Der sichtbare Satz einer Vorschlags-Systemzeile — EINE Stelle.
+
+    Die Form hängt am STAND (CHAT-7b-2, SOLL 4): ein mit dem Austritt
+    hinfällig gewordener Vorschlag ist „beendet“ — das ist etwas anderes als
+    „abgelehnt“ (dort hat jemand gegen etwas gestimmt). Der Satz nennt KEINE
+    Namen Dritter und keinen Grund, nur wer wen wollte und dass der Vorschlag
+    sich erledigt hat.
+    """
+    if stand == VORSCHLAG_BEENDET:
+        return (f"{wer} wollte {wen} hinzufügen. Der Vorschlag ist beendet, "
+                "weil sich die Runde geändert hat.")
+    return f"{wer} möchte {wen} hinzufügen."
 
 
 def _seite_antwort(s, gespraech: str, zeilen: list[ChatNachricht], *,
-                   richtung: str, benutzer: str) -> dict[str, Any]:
+                   richtung: str, benutzer: str,
+                   g: ChatGespraech | None = None) -> dict[str, Any]:
     """Die Antwortform des Verlaufs — für beide Leserichtungen EINE Form."""
     kennungen = [n.name for n in zeilen]
-    zitate = _zitate(s, zeilen)
+    if g is None:
+        g = _gespraech_lesen(s, gespraech)
+    # CHAT-7b-2 (SOLL 2): die Zitate werden gegen die Sichtbarkeitsgrenze des
+    # LESENDEN geprüft — ein Zitat von vor seinem Eintritt bleibt leer.
+    zitate = _zitate(s, zeilen, gespraech=g, gespraech_name=gespraech,
+                     benutzer=benutzer)
     reakt = _reaktionen(s, kennungen, benutzer)
     stand = _gelesen_von(s, zeilen, gespraech, benutzer)
     namen = _personen(s, {n.autor for n in zeilen if n.autor})
@@ -953,8 +1113,17 @@ def _seite_antwort(s, gespraech: str, zeilen: list[ChatNachricht], *,
     # `darf_schliessen` deshalb auch für die ganze Seite, nicht je Zeile.
     umfragen = _umfragen_laden(s, [n.umfrage for n in zeilen if n.umfrage], benutzer,
                                _gespraech_lesen(s, gespraech))
-    posten = [_zeile(s, n, lesestand=stand, reaktionen=reakt, antwort_auf=zitate.get(n.name),
-                     namen=namen, konto_namen=konten, umfragen=umfragen, ich=benutzer)
+    # CHAT-7b (SOLL 8): die Vorschlags-Systemzeilen dieser Seite in EINER
+    # Abfrage — ihr Satz entsteht beim Lesen, nicht aus dem Nachrichtentext.
+    systeme = _vorschlags_texte(s, [n.vorschlag for n in zeilen if n.vorschlag])
+    # CHAT-7b-2: der Zitattext gehört zur ZITIERTEN Nachricht
+    # (``n.antwort_auf``), nicht zur zitierenden — ``_zitate`` ist nach der
+    # Kennung des ZIELS geschlüsselt. Mit ``n.name`` blieb der Text immer leer
+    # (die Sichtbarkeitsprüfung hätte dann nichts zu schützen gehabt).
+    posten = [_zeile(s, n, lesestand=stand, reaktionen=reakt,
+                     antwort_auf=zitate.get(n.antwort_auf),
+                     namen=namen, konto_namen=konten, umfragen=umfragen, ich=benutzer,
+                     system=systeme.get(str(n.vorschlag)))
               for n in zeilen]
     return {
         "gespraech": gespraech,
@@ -1052,6 +1221,9 @@ def meine_gespraeche():
             ergebnis.append(_gespraech_kopf(
                 s, g, benutzer, ausgeschlossene=aus))
         for g in _direkt_gespraeche(s, benutzer):
+            ergebnis.append(_gespraech_kopf(
+                s, g, benutzer, ausgeschlossene=aus))
+        for g in _runde_gespraeche(s, benutzer):
             ergebnis.append(_gespraech_kopf(
                 s, g, benutzer, ausgeschlossene=aus))
     ergebnis.sort(key=lambda e: (str(e["letzte_am"] or ""), str(e["titel"])), reverse=True)
@@ -1173,11 +1345,22 @@ def personen_suchen(q=None, limit=None):
             # Derselbe Maskierer wie Liste/Adressbuch. `Weglassen` (nicht
             # `None`) macht `_nur_freigegebene_felder` daraus.
             maskiert = maskiere_datensatz(m, mitglied_id=kennung) or {}
+            # CHAT-7b (Review R1, SOLL 6): eine Sperre darf die Suche NICHT
+            # verraten. Ein gesperrtes Paar ist für die Suche dasselbe wie
+            # „hat kein Konto“: `hat_konto` UND `darf_schreiben` beide false.
+            # Erkannt wird die Sperre am GRUND des Kerns — ``gesperrt`` — und
+            # NUR daran: „selbst“, „kein_konto“, „nicht_auffindbar“ haben mit
+            # einer Sperre nichts zu tun (die eigene Person bleibt z. B.
+            # auffindbar MIT Konto, nur nicht beschreibbar).
+            schreibbar = darf_direktnachricht(benutzer, kennung)
+            gesperrt = (not schreibbar
+                        and getattr(schreibbar, "grund", "") == "gesperrt")
             treffer.append(_suche_treffer(
                 kennung=kennung,
                 roh=m,
                 maskiert=maskiert,
-                darf_schreiben=bool(darf_direktnachricht(benutzer, kennung)),
+                darf_schreiben=bool(schreibbar),
+                hat_konto=False if gesperrt else None,
                 # CHAT-7a: gibt es DIESES 1:1-Gespräch schon? Dann kann die
                 # Oberfläche direkt öffnen statt „neu anlegen“.
                 gespraech=vorhandene.get(str(m.get("user") or "")),
@@ -1386,7 +1569,8 @@ def _nur_freigegebene_felder(maskiert: dict[str, Any],
 
 def _suche_treffer(*, kennung: str, roh: dict[str, Any],
                    maskiert: dict[str, Any], darf_schreiben: bool,
-                   gespraech: str | None = None) -> dict[str, Any]:
+                   gespraech: str | None = None,
+                   hat_konto: bool | None = None) -> dict[str, Any]:
     """Ein Treffer in der Form, die „Nachrichten“ zeichnet.
 
     ``anzeigename`` läuft durch ``personen_anzeige.kuerze`` (EINE Regel für
@@ -1402,6 +1586,10 @@ def _suche_treffer(*, kennung: str, roh: dict[str, Any],
     ``gespraech`` (CHAT-7a) ist die Kennung des BESTEHENDEN 1:1-Gesprächs mit
     dieser Person — oder ``None``. Die Oberfläche öffnet damit direkt; ein
     Gespräch legt erst ``direkt_oeffnen`` an (die Suche bleibt rein lesend).
+
+    ``hat_konto`` (CHAT-7b, SOLL 6): ``None`` = die Antwort des Kerns. Für ein
+    GESPERRTES Paar reicht der Aufrufer ``False`` durch — dieselbe Auskunft wie
+    „hat kein Konto“, damit die Suche die Sperre nicht verrät.
     """
     from diakronos_app.frappe_compat.mitglied_sichtbarkeit import sichtbarkeit_lesen
     from diakronos_app.frappe_compat.personen_anzeige import kuerze
@@ -1420,7 +1608,8 @@ def _suche_treffer(*, kennung: str, roh: dict[str, Any],
         "anzeigename": anzeige,
         "bild": _suche_bild(roh.get("foto"), geloescht),
         # Konto-Frage beantwortet der Rechte-Kern (aktives Konto, Review 18.11.).
-        "hat_konto": rechte.person_hat_konto(kennung),
+        # Bei einem gesperrten Paar gibt der Aufrufer ``False`` mit (SOLL 6).
+        "hat_konto": rechte.person_hat_konto(kennung) if hat_konto is None else bool(hat_konto),
         "darf_schreiben": bool(darf_schreiben),
         # CHAT-7a: Kennung des BESTEHENDEN 1:1-Gesprächs (``None`` = noch
         # keines); die Suche selbst legt keines an.
@@ -1471,34 +1660,50 @@ def verlauf(gespraech, vor=None, seit=None, limit=None):
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         g = _gespraech_lesen(s, gespraech)
         _erlaube(benutzer, rechte.LESEN, g=g, sitzung=s)
+        # Review R1 (SOLL 7): in einer RUNDE sieht man den Verlauf erst ab dem
+        # eigenen Eintritt (``chat_teilnehmer.sichtbar_ab``); wer wieder
+        # eintritt, ab dem neuen Eintritt. Beim 1:1/in der Gruppe ist das Feld
+        # leer (NULL) und es gibt keine Einschränkung.
+        sichtbar_ab = _sichtbar_ab(s, g, benutzer)
         # Rein lesend (SEC-11): die Teilnahme entsteht beim Oeffnen
         # (`gespraech_anlegen`), Senden oder Lesestand-Setzen.
         if vor:
             anker = _nachricht(s, str(vor), g.name)
+            bedingung = [
+                ChatNachricht.gespraech == g.name,
+                or_(ChatNachricht.erstellt_am < anker.erstellt_am,
+                    (ChatNachricht.erstellt_am == anker.erstellt_am)
+                    & (ChatNachricht.name < anker.name)),
+            ]
+            if sichtbar_ab is not None:
+                bedingung.append(ChatNachricht.erstellt_am >= sichtbar_ab)
             zeilen = s.execute(
-                select(ChatNachricht).where(
-                    ChatNachricht.gespraech == g.name,
-                    or_(ChatNachricht.erstellt_am < anker.erstellt_am,
-                        (ChatNachricht.erstellt_am == anker.erstellt_am)
-                        & (ChatNachricht.name < anker.name)),
-                ).order_by(ChatNachricht.erstellt_am.desc(),
-                           ChatNachricht.name.desc()).limit(grenze)
+                select(ChatNachricht).where(*bedingung)
+                .order_by(ChatNachricht.erstellt_am.desc(),
+                          ChatNachricht.name.desc()).limit(grenze)
             ).scalars().all()
             zeilen.reverse()  # alt -> neu anzeigen
             return _seite_antwort(s, g.name, zeilen, richtung="vor", benutzer=benutzer)
         if seit:
             anker = _nachricht(s, str(seit), g.name)
+            bedingung = [
+                ChatNachricht.gespraech == g.name,
+                or_(ChatNachricht.erstellt_am > anker.erstellt_am,
+                    (ChatNachricht.erstellt_am == anker.erstellt_am)
+                    & (ChatNachricht.name > anker.name)),
+            ]
+            if sichtbar_ab is not None:
+                bedingung.append(ChatNachricht.erstellt_am >= sichtbar_ab)
             zeilen = s.execute(
-                select(ChatNachricht).where(
-                    ChatNachricht.gespraech == g.name,
-                    or_(ChatNachricht.erstellt_am > anker.erstellt_am,
-                        (ChatNachricht.erstellt_am == anker.erstellt_am)
-                        & (ChatNachricht.name > anker.name)),
-                ).order_by(ChatNachricht.erstellt_am, ChatNachricht.name).limit(grenze)
+                select(ChatNachricht).where(*bedingung)
+                .order_by(ChatNachricht.erstellt_am, ChatNachricht.name).limit(grenze)
             ).scalars().all()
             return _seite_antwort(s, g.name, zeilen, richtung="seit", benutzer=benutzer)
+        bedingung = [ChatNachricht.gespraech == g.name]
+        if sichtbar_ab is not None:
+            bedingung.append(ChatNachricht.erstellt_am >= sichtbar_ab)
         zeilen = s.execute(
-            select(ChatNachricht).where(ChatNachricht.gespraech == g.name)
+            select(ChatNachricht).where(*bedingung)
             .order_by(ChatNachricht.erstellt_am.desc(), ChatNachricht.name.desc())
             .limit(grenze)
         ).scalars().all()
@@ -1521,7 +1726,10 @@ def senden(gespraech, text, antwort_auf=None):
     werden ZEICHEN, nicht Bytes.
 
     ``antwort_auf`` muss eine Nachricht DESSELBEN Gesprächs sein (sonst könnte
-    man fremde Gespräche zitieren).
+    man fremde Gespräche zitieren) und für die sendende Person SICHTBAR: eine
+    Nachricht von vor dem eigenen Eintritt (``_vor_eintritt``) ist auch hier
+    404 — sonst gäbe die Sende-Antwort den Zitattext eines Inhalts heraus, den
+    der Verlauf nicht zeigt.
     """
     benutzer = _benutzer()
     gespraech = str(gespraech or "").strip()
@@ -1534,6 +1742,10 @@ def senden(gespraech, text, antwort_auf=None):
         ziel = None
         if antwort_auf not in (None, ""):
             ziel = _nachricht(s, str(antwort_auf), g.name)
+            # CHAT-7b-2 R1 (MUSS 1): dieselbe Grenze wie Zitat/Reaktion/
+            # Lesestand — „nicht sichtbar“ ist „gibt es nicht“.
+            if _vor_eintritt(s, g, benutzer, ziel.erstellt_am):
+                raise DoesNotExistError("Nachricht nicht gefunden.")
         zeile = ChatNachricht(
             name=_kennung("chat-n"),
             gespraech=g.name,
@@ -1576,6 +1788,10 @@ def aendern(nachricht, text):
     inhalt = _pruefe_text(text)
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         n = _nachricht(s, str(nachricht or "").strip(), None)
+        if n.vorschlag:
+            # Systemhinweis (SOLL 8): kein Beitrag einer Person — nicht
+            # bearbeitbar. Geändert würde ohnehin nur die Vorschlagszeile.
+            throw("Ein Systemhinweis lässt sich nicht bearbeiten.")
         g = _gespraech_lesen(s, n.gespraech)
         # Die Besitzfrage entscheidet der Rechte-KERN — durchgereicht wird das
         # KONTO der Nachricht. Bearbeiten ist keine Moderationshandlung: eine
@@ -1623,6 +1839,10 @@ def loeschen(nachricht):
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         n = _nachricht(s, str(nachricht or "").strip(), None)
         g = _gespraech_lesen(s, n.gespraech)
+        if n.vorschlag:
+            # Systemhinweis (SOLL 8): es gibt keine Person, die ihn geschrieben
+            # hätte — und keinen Text, der verschwinden könnte.
+            throw("Ein Systemhinweis lässt sich nicht löschen.")
         if _ist_meine(n, benutzer):
             # Eigene Nachricht loeschen = SCHREIBEN. Eine FREMDDE im 1:1 ist
             # damit NEIN (der Kern: ``fremde_nachricht``), auch fuer einen
@@ -1630,7 +1850,7 @@ def loeschen(nachricht):
             # auf dem Meldeweg (``meldung_entscheiden``).
             _erlaube(benutzer, rechte.SCHREIBEN, g=g,
                      besitzer=n.autor_benutzer, sitzung=s)
-        elif g.art == ART_DIREKT:
+        elif g.art in (ART_DIREKT, ART_RUNDE):
             # Dieselbe Frage, keine Sonderregel: der Kern sagt „fremde
             # Nachricht“ (teilnehmender Admin ebenso wie ein Dritter).
             # ``besitzer`` ist IMMER eine Zeichenkette: der Kern liest
@@ -1638,6 +1858,9 @@ def loeschen(nachricht):
             # ``autor_benutzer`` aber NULL, und ohne diese Umwandlung duerfte
             # die verbliebene Person die Nachricht der geloeschten loeschen
             # (Review CHAT-N1, MUSS 2). ``""`` ist nie ein Konto.
+            # CHAT-7b (Review R1): in einer RUNDE gilt dieselbe Regel — eine
+            # fremde Nachricht ist dort SCHREIBEN mit fremdem Besitzer (NEIN),
+            # Moderation gibt es nur auf dem Meldeweg.
             _erlaube(benutzer, rechte.SCHREIBEN, g=g,
                      besitzer=str(n.autor_benutzer or ""), sitzung=s)
         else:
@@ -1673,6 +1896,11 @@ def reaktion_setzen(nachricht, reaktion=None):
         n = _nachricht(s, str(nachricht or "").strip(), None)
         g = _gespraech_lesen(s, n.gespraech)
         _erlaube(benutzer, rechte.LESEN, g=g, sitzung=s)
+        # CHAT-7b-2 (SOLL 2): eine Nachricht von VOR dem eigenen Eintritt in
+        # die Runde ist für diese Person nicht da — 404, wie eine unbekannte
+        # Kennung (die Reaktion darf den Inhalt nicht bestätigen).
+        if _vor_eintritt(s, g, benutzer, n.erstellt_am):
+            raise DoesNotExistError("Nachricht nicht gefunden.")
         vorhanden = s.get(ChatReaktion, (n.name, benutzer))
         if not zeichen:
             if vorhanden is not None:
@@ -1710,9 +1938,22 @@ def lesestand_setzen(gespraech, nachricht=None):
         teilnahme = _teilnahme(s, g.name, benutzer)
         if nachricht not in (None, ""):
             ziel = _nachricht(s, str(nachricht), g.name)
+            # CHAT-7b-2 (SOLL 2): der Anker muss für DIESE Person sichtbar
+            # sein. Ein Lesestand auf einer Nachricht von vor dem eigenen
+            # Eintritt wäre eine Aussage über einen Inhalt, den es für sie
+            # nicht gibt → 404 über dieselbe Grenze (``_vor_eintritt``).
+            if _vor_eintritt(s, g, benutzer, ziel.erstellt_am):
+                raise DoesNotExistError("Nachricht nicht gefunden.")
         else:
+            # Ohne Anker: bis zur neuesten Nachricht, die für diese Person
+            # sichtbar ist (dieselbe Grenze wie im Verlauf) — vor dem Eintritt
+            # gibt es keinen Lesestand zu setzen, dann bleibt `ziel` None.
+            bedingung = [ChatNachricht.gespraech == g.name]
+            sichtbar_ab = _sichtbar_ab(s, g, benutzer)
+            if sichtbar_ab is not None:
+                bedingung.append(ChatNachricht.erstellt_am >= sichtbar_ab)
             ziel = s.execute(
-                select(ChatNachricht).where(ChatNachricht.gespraech == g.name)
+                select(ChatNachricht).where(*bedingung)
                 .order_by(ChatNachricht.erstellt_am.desc(), ChatNachricht.name.desc())
                 .limit(1)
             ).scalar_one_or_none()
@@ -1893,7 +2134,7 @@ def umfrage_abstimmen(umfrage, optionen=None):
     if not umfrage:
         throw("umfrage fehlt.")
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
-        u, g = _umfrage_lesen(s, umfrage)
+        u, g = _umfrage_lesen(s, umfrage, benutzer)
         _erlaube(benutzer, rechte.ANLEGEN, g=g, sitzung=s)
         _pruefe_offen(u)
         nummern = _pruefe_stimme(s, optionen, u)
@@ -1950,7 +2191,7 @@ def umfrage_schliessen(umfrage):
     if not umfrage:
         throw("umfrage fehlt.")
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
-        u, g = _umfrage_lesen(s, umfrage)
+        u, g = _umfrage_lesen(s, umfrage, benutzer)
         autor = _umfrage_autor(s, u.name)
         # Dieselben Zweige wie `darf_schliessen` in der Antwort (CHAT-5-UI) —
         # EINE Stelle: `_schliessen_erlaube`, hier mit Wurf statt Wahrheitswert.
@@ -1973,7 +2214,7 @@ def umfrage_ergebnis(umfrage):
     if not umfrage:
         throw("umfrage fehlt.")
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
-        u, g = _umfrage_lesen(s, umfrage)
+        u, g = _umfrage_lesen(s, umfrage, benutzer)
         _erlaube(benutzer, rechte.LESEN, g=g, sitzung=s)
         return _umfrage_daten(s, u, benutzer)
 
@@ -2394,11 +2635,13 @@ def _schliessen_erlaube(s, g: ChatGespraech, autor: str | None, benutzer: str) -
 
     Kein Sonderzweig je ``art`` außer dem 1:1 (Review CHAT-7a, Punkt 3): dort
     gibt es keine Moderation über das Gespräch, nur über
-    ``meldung_entscheiden``.
+    ``meldung_entscheiden``. CHAT-7b (Review R1): dasselbe gilt in einer RUNDE
+    (``g.art in (ART_DIREKT, ART_RUNDE)``) — ``besitzer`` als Zeichenkette,
+    damit eine anonymisierte Hülle nicht als „eigene“ durchgeht.
     """
     if autor and str(autor) == str(benutzer or ""):
         _erlaube(benutzer, rechte.SCHREIBEN, g=g, besitzer=autor, sitzung=s)
-    elif g.art == ART_DIREKT:
+    elif g.art in (ART_DIREKT, ART_RUNDE):
         _erlaube(benutzer, rechte.SCHREIBEN, g=g, besitzer=str(autor or ""), sitzung=s)
     else:
         _erlaube(benutzer, rechte.MODERIEREN, g=g, sitzung=s)
@@ -2454,7 +2697,10 @@ def _darf_schliessen_je_umfrage(s, g: ChatGespraech | None, umfragen, benutzer: 
 
     eigene = [k for k in kennungen if _ist_eigene_umfrage(autoren.get(k), benutzer)]
     fremde = [k for k in kennungen if k not in eigene]
-    direkt = str(g.art or "") == ART_DIREKT
+    # 1:1 UND Runde (CHAT-7b): dort gibt es keine Moderation über das Gespräch,
+    # nur den Meldeweg — für fremde Umfragen gilt deshalb dieselbe
+    # Besitzer-Frage wie bei Nachrichten (Besitzer als Zeichenkette).
+    direkt = str(g.art or "") in (ART_DIREKT, ART_RUNDE)
 
     # Je Fall EINE Frage — nicht je Umfrage.
     eigene_darf = (bool(eigene)
@@ -2508,7 +2754,8 @@ def _umfrage_daten(s, u: ChatUmfrage, benutzer: str,
                          darf_schliessen=darf_schliessen)
 
 
-def _umfrage_lesen(s, umfrage: str) -> tuple[ChatUmfrage, ChatGespraech]:
+def _umfrage_lesen(s, umfrage: str,
+                   benutzer: str | None) -> tuple[ChatUmfrage, ChatGespraech]:
     """Umfrage + ihr Gespräch per Kennung; unbekannt → 404 (nichts raten).
 
     Eine Umfrage lebt NUR als Nachricht im Verlauf: ist die Hülle-Nachricht
@@ -2517,6 +2764,14 @@ def _umfrage_lesen(s, umfrage: str) -> tuple[ChatUmfrage, ChatGespraech]:
     eine entfernte Umfrage weiter Stimmen an und lieferte bei einer offenen
     Umfrage sogar Namen. Wie bei einer unbekannten Kennung: 404, nicht 403 —
     die Kennung allein soll nichts über ihren Inhalt verraten.
+
+    CHAT-7b-2 (MUSS 1b): dasselbe gilt, wenn die Hülle für die fragende
+    Person VOR ihrem Eintritt in die Runde liegt (``_vor_eintritt``). Die
+    Umfrage ist ein Inhalt im Verlauf; was im Verlauf nicht sichtbar ist, ist
+    über diesen Weg auch nicht abstimmbar, lesbar oder schließbar. ``benutzer``
+    ist deshalb Pflicht (kein Vorgabewert): „niemand“ (``None``) prüft fail
+    closed gegen jede gesetzte Grenze, ein stiller Vorgabewert ``None`` wäre
+    aber fail OPEN für jeden vergessenen Aufrufer.
     """
     if not umfrage:
         throw("umfrage fehlt.")
@@ -2527,6 +2782,8 @@ def _umfrage_lesen(s, umfrage: str) -> tuple[ChatUmfrage, ChatGespraech]:
     if huelle is None or huelle.geloescht_am is not None:
         raise DoesNotExistError("Umfrage nicht gefunden.")
     gespraech = _gespraech_lesen(s, zeile.gespraech)
+    if _vor_eintritt(s, gespraech, benutzer, huelle.erstellt_am):
+        raise DoesNotExistError("Umfrage nicht gefunden.")
     return zeile, gespraech
 
 
@@ -2618,10 +2875,21 @@ def meldung_senden(nachricht, grund, freitext=None):
         n = _nachricht(s, kennung, None)
         g = _gespraech_lesen(s, n.gespraech)
         _erlaube(benutzer, rechte.LESEN, g=g, sitzung=s)
+        # CHAT-7b-2 (SOLL 2): eine Nachricht von VOR dem eigenen Eintritt ist
+        # für diese Person nicht sichtbar → 404 (dieselbe Antwort wie für eine
+        # unbekannte Kennung; die Meldung darf den Inhalt nicht bestätigen).
+        if _vor_eintritt(s, g, benutzer, n.erstellt_am):
+            raise DoesNotExistError("Nachricht nicht gefunden.")
         if _ist_meine(n, benutzer):
             throw("Die eigene Nachricht lässt sich nicht melden.")
         if n.geloescht_am is not None:
             throw("Eine gelöschte Nachricht lässt sich nicht melden.")
+        if n.vorschlag:
+            # CHAT-7b (Review R1, SOLL 8): ein Systemhinweis („X möchte Y
+            # hinzufügen“) ist kein Beitrag einer Person — es gibt niemanden,
+            # über den zu entscheiden wäre. Wer den Vorgang nicht will, lehnt
+            # den Vorschlag ab (``runde_ablehnen``).
+            throw("Ein Systemhinweis lässt sich nicht melden.")
         offen = s.execute(
             select(ChatMeldung.name).where(
                 ChatMeldung.nachricht == n.name,
@@ -2736,7 +3004,12 @@ def meldungen_liste(stand=None, gespraech=None):
         # Gefragt wird die WEICHE, nicht ``rechte.ist_meldestelle``: MODERIEREN
         # ist im 1:1 die Meldestelle, in der Gruppe die Leitung — der Kern
         # beantwortet das je ``art``, hier steht keine zweite Rechtefrage.
-        meldestelle = _weiche_ja(benutzer, rechte.MODERIEREN, direkt=True)
+        # ``meldeweg=True``: DAS hier ist einer der Meldewege (MUSS 1).
+        # CHAT-7b: Runden zählen ebenfalls als Meldeweg (Entscheidung des
+        # Operators), aber NICHT in der Leitungs-Schleife unten — dort würde
+        # ``chat_moderatoren`` auf `gruppe = NULL` gefragt (MUSS 10).
+        meldestelle = _weiche_ja(benutzer, rechte.MODERIEREN, direkt=True,
+                                 meldeweg=True)
 
         # 2) Je Kandidat EINE Rechtefrage über den Rechte-Kern (`_erlaube`),
         #    nichts Eigenes. Gefragt wird nur nach den Gesprächen, in denen
@@ -2749,7 +3022,7 @@ def meldungen_liste(stand=None, gespraech=None):
                 continue          # Gespräch zwischenzeitlich weg — kein Kandidat
             # Kein Sonderzweig je ``art``: die Weiche fragt den Kern, und der
             # kennt beide Arten (1:1 → Meldestelle, Gruppe → Leitung).
-            if _darf_moderieren(benutzer, g, sitzung=s):
+            if _darf_moderieren(benutzer, g, sitzung=s, meldeweg=True):
                 eigene[g.name] = g
         if not eigene:
             # 3) Keiner der Kandidaten ist moderierbar. Jetzt erst entscheidet
@@ -2757,35 +3030,40 @@ def meldungen_liste(stand=None, gespraech=None):
             #    Gespräch? Mit frühem Abbruch beim ersten „ja“ — der Normalfall
             #    (Leitung hat ein Gespräch) kostet keinen zweiten Durchlauf.
             # Direktgespraeche nicht durchlaufen (O(Paare)): fuer sie steht
-            # unten der Meldestellen-Zweig.
+            # unten der Meldestellen-Zweig. RUNDEN ebenso (CHAT-7b, MUSS 10):
+            # sie haben keine Gruppe, ``chat_moderatoren`` liefe ins Leere —
+            # ihre Meldungen gehören der Meldestelle (Zweig unten).
             rest = s.execute(
                 select(ChatGespraech)
                 .where(ChatGespraech.geloescht_am.is_(None),
-                       or_(ChatGespraech.art.is_(None), ChatGespraech.art != ART_DIREKT))
+                       or_(ChatGespraech.art.is_(None),
+                           ChatGespraech.art.notin_((ART_DIREKT, ART_RUNDE))))
                 .order_by(ChatGespraech.name)
             ).scalars()
             vorhanden_ja = False
             for g in rest:
                 if nur_gespraech and g.name != nur_gespraech:
                     continue
-                if _darf_moderieren(benutzer, g, sitzung=s):
+                if _darf_moderieren(benutzer, g, sitzung=s, meldeweg=True):
                     vorhanden_ja = True
                     break
             # CHAT-7a: die Meldestelle darf DIREKTGESPRÄCHE moderieren, ohne
             # dass eines davon schon existiert. Ohne diesen Zweig bekäme der
             # Administrator ohne Gruppenrolle 403 („gar kein moderierbares
             # Gespräch“) — obwohl die Glocke ihm die Meldung angekündigt hat.
+            # CHAT-7b: für RUNDEN gilt dasselbe (MUSS 2/10).
             if not vorhanden_ja and meldestelle:
                 direkt_da = s.execute(
                     select(ChatGespraech.name)
                     .join(ChatNachricht, ChatNachricht.gespraech == ChatGespraech.name)
                     .join(ChatMeldung, ChatMeldung.nachricht == ChatNachricht.name)
-                    .where(ChatGespraech.art == ART_DIREKT,
+                    .where(ChatGespraech.art.in_((ART_DIREKT, ART_RUNDE)),
                            ChatGespraech.geloescht_am.is_(None))
                     .limit(1)
                 ).scalar_one_or_none() is not None
                 if (nur_gespraech is not None
-                        and _wechselart_lesen(nur_gespraech, sitzung=s) != ART_DIREKT):
+                        and _wechselart_lesen(nur_gespraech, sitzung=s)
+                        not in (ART_DIREKT, ART_RUNDE)):
                     # Auf EIN Gruppen-Gespräch eingegrenzt, und dort darf
                     # diese Person nicht moderieren → ehrliche 403.
                     _h()
@@ -2909,7 +3187,10 @@ def meldung_entscheiden(meldung, entscheidung, grund=None):
         # Kern die MELDESTELLE (F7, ``ist_meldestelle``), in der Gruppe die
         # Leitung; ein eigener ``ist_meldestelle``-Aufruf wäre ein zweiter
         # Rechtepfad. Das ist die EINZIGE Stelle, an der im 1:1 moderiert wird.
-        _erlaube(benutzer, rechte.MODERIEREN, g=g, sitzung=s)
+        # ``meldeweg=True`` (Review CHAT-7b R1, MUSS 1): ohne das Flag antwortet
+        # der Kern im 1:1/in der Runde ``nur_meldeweg`` — und die Meldestelle
+        # könnte keine Meldung mehr entscheiden.
+        _erlaube(benutzer, rechte.MODERIEREN, g=g, sitzung=s, meldeweg=True)
         if m.stand != MELDUNG_OFFEN:
             throw("Diese Meldung ist bereits entschieden.", KonfliktError)
         if _ist_meine(n, benutzer):
@@ -3040,7 +3321,8 @@ def _vorgeschichte(s, n: ChatNachricht, anzahl: int = MELDUNG_KONTEXT,
     } for z in zeilen]
 
 
-def _darf_moderieren(benutzer: str, g: ChatGespraech, *, sitzung=None) -> bool:
+def _darf_moderieren(benutzer: str, g: ChatGespraech, *, sitzung=None,
+                     meldeweg: bool = False) -> bool:
     """Darf ``benutzer`` in DIESEM Gespräch moderieren? — über ``_erlaube``.
 
     EINE Rechtefrage für Liste und Entscheiden (Review Punkt 7): keine eigene
@@ -3050,10 +3332,18 @@ def _darf_moderieren(benutzer: str, g: ChatGespraech, *, sitzung=None) -> bool:
 
     CHAT-7a: Die Weiche entscheidet je ``art`` — im Direktgespräch ist
     MODERIEREN die MELDESTELLE (F7: Administrator), nicht die Gruppenleitung.
-    Moderation im 1:1 gibt es aber NUR auf dem Meldeweg (``meldung_entscheiden``),
-    nicht auf ``nachricht_loeschen``/``umfrage_schliessen``.
+    CHAT-7b (Review R1, MUSS 1/2): Das gilt im 1:1 UND in der Runde NUR auf dem
+    Meldeweg.
+
+    CHAT-7b-2 (SOLL 7): Vorgabe ist deshalb ``meldeweg=False`` — die sichere
+    Seite. Wer den MELDEWEG fragt (``meldungen_liste``,
+    ``meldung_entscheiden``, ``_moderation_konten``), setzt ``meldeweg=True``
+    ausdrücklich; ein neuer Aufrufer ohne Flag bekommt im 1:1/in der Runde
+    ``nur_meldeweg`` (NEIN) statt still Moderation. Löschen und
+    Umfrage-Schließen fragen ``_erlaube`` ohnehin direkt.
     """
-    return _weiche_ja(benutzer, rechte.MODERIEREN, g=g, sitzung=sitzung)
+    return _weiche_ja(benutzer, rechte.MODERIEREN, g=g, sitzung=sitzung,
+                      meldeweg=meldeweg)
 
 
 def _melde_namen(s, zeilen) -> dict[str, dict[str, str]]:
@@ -3168,17 +3458,20 @@ def _moderation_konten(g: ChatGespraech, *, sitzung=None) -> list[str]:
       Gemeindeleitung sieht in einem 1:1 nichts (Konzept S3: „niemand sonst
       kann mitlesen“). Die Frage je Kandidat stellt ``_weiche_ja(... MODERIEREN)``
       (= der Kern) — hier steht keine eigene Rollenlogik.
+    * Runde (CHAT-7b, Review R1 MUSS 2): dieselbe Regel wie im 1:1 — nur die
+      Meldestelle. Ohne diesen Zweig liefe eine Runde in
+      ``rechte.chat_moderatoren('' , None)`` und die Meldung erreichte NIEMANDEN.
 
     ``sitzung`` ist die Sitzung des AUFRUFERS und wird durchgereicht (Review
     CHAT-7a, Punkt 2): MODERIEREN wertet die Teilnehmenden im Kern NICHT aus
     (``darf_direktgespraech`` antwortet für MODERIEREN allein über
     ``ist_meldestelle``), also wird das Gespräch als Zeile übergeben statt als
     transientes ``ChatGespraech(...)`` — und es entsteht keine eigene Sitzung
-    je Kandidat.
+    je Kandidat. ``meldeweg=True`` ist gesetzt: DAS hier IST der Meldeweg.
     """
-    if g.art == ART_DIREKT:
+    if g.art in (ART_DIREKT, ART_RUNDE):
         return sorted(k for k in _meldestellen_konten() if _weiche_ja(
-            k, rechte.MODERIEREN, g=g, sitzung=sitzung))
+            k, rechte.MODERIEREN, g=g, sitzung=sitzung, meldeweg=True))
     return list(rechte.chat_moderatoren(g.gruppe, g.untergruppe))
 
 
@@ -3317,6 +3610,11 @@ def _glocken_titel(g: ChatGespraech) -> str:
     if g.art == ART_DIREKT:
         return DIREKT_GLOCKE_TITEL
     titel = str(g.titel or "").strip()
+    if g.art == ART_RUNDE:
+        # CHAT-7b: „Runde <Titel>“ — ohne Absendernamen (derselbe Grund wie im
+        # 1:1). Fehlt der Name einer Altzeile, bleibt es beim neutralen
+        # Rückfall; ein leerer Rundenname entsteht über den Endpunkt nie.
+        return f"Runde {titel}" if titel else "Runde"
     if titel:
         return titel
     return str(g.untergruppe or g.gruppe or "").strip() or DIREKT_GLOCKE_TITEL
@@ -3511,11 +3809,18 @@ def _offen_bedingung(konto: str | None = None):
     Zeitstempel tragen, Sekundengenauigkeit auf PostgreSQL).
 
     ``konto=None``: die Person ist die des JOINS (``ChatTeilnehmer.benutzer``).
+
+    CHAT-7b-2 (SOLL 5): der EIGENE Vorschlag zählt auch hier nicht als offen —
+    dieselbe Bedingung wie ``_ungelesen_zaehlen`` (``_nicht_eigener_vorschlag``).
+    BEIDE Aufrufer verbinden ``ChatRundeVorschlag`` per ``outerjoin`` auf
+    ``chat_nachricht.vorschlag``; ohne diesen Join wäre die Bedingung ein
+    Querverweis auf eine Tabelle, die nicht in der Abfrage steht.
     """
     person = ChatTeilnehmer.benutzer if konto is None else konto
     return [
         ChatNachricht.geloescht_am.is_(None),
         _nicht_von(person),
+        _nicht_eigener_vorschlag(person),
         ChatTeilnehmer.stumm.is_(False),
         or_(
             ChatTeilnehmer.letzter_lesestand.is_(None),
@@ -3567,6 +3872,10 @@ def _glocken_kandidaten(s, zeit: datetime, ruhe: int) -> list[tuple[str, str]]:
                ChatTeilnehmer.benutzer.label("benutzer"),
                func.max(ChatNachricht.erstellt_am).label("neu_am"))
         .join(ChatTeilnehmer, ChatTeilnehmer.gespraech == ChatNachricht.gespraech)
+        # SOLL 5: der Join trägt die Bedingung „nicht MEIN eigener Vorschlag“
+        # (``_offen_bedingung`` → ``_nicht_eigener_vorschlag``).
+        .outerjoin(ChatRundeVorschlag,
+                   ChatRundeVorschlag.name == ChatNachricht.vorschlag)
         .where(*_offen_bedingung())
         .group_by(ChatNachricht.gespraech, ChatTeilnehmer.benutzer)
         .subquery()
@@ -3629,6 +3938,10 @@ def _glocke_faellig(s, gespraech: ChatGespraech, konto: str) -> bool:
     return bool(s.execute(
         select(ChatNachricht.name)
         .join(ChatTeilnehmer, ChatTeilnehmer.gespraech == ChatNachricht.gespraech)
+        # SOLL 5: derselbe Join wie in `_glocken_kandidaten` — er trägt die
+        # Bedingung „nicht mein eigener Vorschlag“.
+        .outerjoin(ChatRundeVorschlag,
+                   ChatRundeVorschlag.name == ChatNachricht.vorschlag)
         .where(
             ChatNachricht.gespraech == gespraech.name,
             ChatTeilnehmer.benutzer == konto,
@@ -3800,16 +4113,37 @@ def _umfrage_betreff_start(gespraech: ChatGespraech, titel: str) -> str:
 
     „Neue Umfrage im Direktnachricht“ wäre falsch; und der Titel eines 1:1
     wäre der Name des Gegenübers — der steht nie in einer Glocke.
+
+    Runde (CHAT-7b, Review R1 SOLL 9): „Neue Umfrage in der Runde <Titel>“ —
+    grammatisch korrekt (der Rundenname ist ein Eigenname) und ohne
+    Absendernamen. ``titel`` kommt hier als ``_glocken_titel`` an, das für eine
+    Runde bereits „Runde <Name>“ lautet — deshalb wird für Runden der NAME
+    bevorzugt (sonst stünde „Runde Runde …“; Fehlt der Name, bleibt der
+    neutrale Rückfall).
     """
     if gespraech.art == ART_DIREKT:
         return "Neue Umfrage in einer Direktnachricht"
+    if gespraech.art == ART_RUNDE:
+        name = str(getattr(gespraech, "titel", "") or "").strip() or _runde_name(titel)
+        return (f"Neue Umfrage in der Runde {name}" if name
+                else "Neue Umfrage in einer Runde")
     return f"Neue Umfrage im {titel}"
+
+
+def _runde_name(titel: str) -> str:
+    """Der blosse Rundenname aus einem ``_glocken_titel``-Text (``Runde X``)."""
+    text = str(titel or "").strip()
+    return text[len("Runde "):].strip() if text.startswith("Runde ") else text
 
 
 def _umfrage_betreff_ende(gespraech: ChatGespraech, titel: str) -> str:
     """Betreff der Erinnerung „… endet morgen“; im 1:1 ohne Namen (s. o.)."""
     if gespraech.art == ART_DIREKT:
         return "Umfrage in einer Direktnachricht endet morgen"
+    if gespraech.art == ART_RUNDE:
+        name = str(getattr(gespraech, "titel", "") or "").strip() or _runde_name(titel)
+        return (f"Umfrage in der Runde {name} endet morgen" if name
+                else "Umfrage in einer Runde endet morgen")
     return f"Umfrage im {titel} endet morgen"
 
 
@@ -3846,6 +4180,12 @@ def _glocke_neue_umfrage(s, umfrage: ChatUmfrage, gespraech: ChatGespraech,
     geschrieben = 0
     for konto, stumm in _glocken_empfaenger_stumm(s, gespraech.name):
         if konto == angelegt_von or stumm:
+            continue
+        # CHAT-7b-2 (MUSS 1b): wer NACH der Umfrage in die Runde eingetreten
+        # ist, sieht sie im Verlauf nicht — er bekommt auch keine Glocke
+        # („Neue Umfrage“ wäre eine Nachricht zu einem Inhalt, den es für ihn
+        # nicht gibt). Dieselbe Grenze wie im Verlauf, KEINE eigene Regel.
+        if _vor_eintritt(s, gespraech, konto, umfrage.erstellt_am):
             continue
         if _umfrage_glocke_setzen(
             s, umfrage=umfrage, gespraech=gespraech, konto=konto,
@@ -3993,6 +4333,11 @@ def _glocke_umfrage_erinnerung(s, *, umfrage: ChatUmfrage, gespraech: ChatGespra
     empfaenger = 0
     for konto, stumm in _glocken_empfaenger_stumm(s, gespraech.name):
         if stumm or abgestimmt.get(konto):
+            continue
+        # CHAT-7b-2 (MUSS 1b): wer erst NACH der Umfrage eingetreten ist, sieht
+        # sie nicht im Verlauf — er wird auch nicht erinnert („stimme noch ab“
+        # wäre eine Aufforderung zu einem Inhalt, den es für ihn nicht gibt).
+        if _vor_eintritt(s, gespraech, konto, umfrage.erstellt_am):
             continue
         empfaenger += 1
         if _umfrage_glocke_setzen(
@@ -4169,7 +4514,7 @@ def _erlaube(benutzer: str, aktion: str, *, g: ChatGespraech | None = None,
              gruppe: str | None = None, untergruppe: str | None = None,
              besitzer: str | None = None, gespraech: str | None = None,
              teilnehmer=None, sitzung=None,
-             direkt: bool = False) -> None:
+             direkt: bool = False, meldeweg: bool = False) -> None:
     """DIE eine Rechteweiche je Gesprächsart (CHAT-7a).
 
     Jeder Endpunkt fragt HIER — nicht selbst — und bekommt je ``art`` die
@@ -4211,8 +4556,16 @@ def _erlaube(benutzer: str, aktion: str, *, g: ChatGespraech | None = None,
 
     Die Teilnahme prüft der KERN (``benutzer not in konten → kein_teilnehmer``)
     — hier steht bewusst KEINE Vorprüfung davor.
+
+    ``meldeweg`` (Review CHAT-7b R1, MUSS 1): MODERIEREN gibt es im 1:1 und in
+    der Runde NUR noch auf dem Meldeweg — ``meldungen_liste``,
+    ``meldung_entscheiden`` und die Glocke an die Meldestelle setzen es.
+    Jeder andere Aufrufer (Löschen, Umfrage schließen, Verlauf …) lässt es weg
+    und bekommt vom Kern ``nur_meldeweg`` (NEIN) — auch als teilnehmender
+    Administrator. Ein zweiter Rechtepfad entsteht dadurch nicht: das Flag
+    reicht nur die INFORMATION weiter, WO die Frage gestellt wird.
     """
-    art = ART_DIREKT if direkt else ""
+    art = ART_DIREKT if direkt else ""  # Runden kommen aus `_wechselart_lesen`
     if g is not None:
         if g.name:
             art = str(g.art or "")
@@ -4225,14 +4578,17 @@ def _erlaube(benutzer: str, aktion: str, *, g: ChatGespraech | None = None,
         elif g is None and gespraech:
             art = _wechselart_lesen(gespraech)
 
-    if art == ART_DIREKT:
+    # 1:1 UND Runde: der Raum sind die Teilnehmenden (CHAT-7a/7b). Dieselbe
+    # Frage des Kerns — kein zweiter Pfad für Runden.
+    if art in (ART_DIREKT, ART_RUNDE):
         if teilnehmer is None and aktion != rechte.MODERIEREN:
             if sitzung is not None and gespraech:
-                teilnehmer = _teilnahme_konten(sitzung, gespraech)
+                teilnehmer = _teilnehmer_konten(sitzung, gespraech)
             elif gespraech:
-                teilnehmer = _teilnahme_konten_aus_db(gespraech, sitzung=sitzung)
+                teilnehmer = _teilnehmer_konten_aus_db(gespraech, sitzung=sitzung)
         entscheidung = rechte.darf_direktgespraech(
-            benutzer, aktion, teilnehmer=teilnehmer, besitzer=besitzer)
+            benutzer, aktion, teilnehmer=teilnehmer, besitzer=besitzer,
+            meldeweg=meldeweg)
         if not entscheidung:
             _h()
         return
@@ -4245,6 +4601,7 @@ def _weiche_ja(benutzer: str, aktion: str, **kwargs) -> bool:
 
     Dieselbe Weiche, nur ohne Wurf: die Liste fragt über alle Kandidaten, und
     das erste „nein“ ist dort nicht das Ende. Kein zweiter Rechtepfad.
+    ``kwargs`` reicht alles durch (``meldeweg`` für die Meldewege).
     """
     try:
         _erlaube(benutzer, aktion, **kwargs)
@@ -4277,6 +4634,34 @@ def _wechselart_lesen(gespraech: str, *, sitzung=None) -> str:
         return _art(sitzung)
     with dbmod.lesesitzung() as s:
         return _art(s)
+
+
+def _teilnehmer_konten(s, gespraech: str) -> list[str]:
+    """KONTEN, die JETZT als Teilnehmende zaehlen — je Gespraechsart.
+
+    1:1 und Runde: wer in einer RUNDE ``verlassen_am`` traegt, ist raus
+    (CHAT-7b) — die Zeile bleibt fuer die Anzeige stehen, die Rechtefrage
+    bekommt sie aber nicht mehr. Beim 1:1 gibt es keinen Austritt; die Spalte
+    ist dort immer leer, die Filterung also wirkungslos aber harmlos.
+    """
+    return sorted(
+        str(konto) for konto in s.execute(
+            select(ChatTeilnehmer.benutzer).where(
+                ChatTeilnehmer.gespraech == gespraech,
+                ChatTeilnehmer.verlassen_am.is_(None),
+            )
+        ).scalars().all() if konto
+    )
+
+
+def _teilnehmer_konten_aus_db(gespraech: str, *, sitzung=None) -> list[str]:
+    """Wie ``_teilnehmer_konten``, nur ohne Sitzung des Aufrufers."""
+    if not gespraech:
+        return []
+    if sitzung is not None:
+        return _teilnehmer_konten(sitzung, gespraech)
+    with dbmod.lesesitzung() as s:
+        return _teilnehmer_konten(s, gespraech)
 
 
 def _teilnahme_konten_aus_db(gespraech: str, *, sitzung=None) -> list[str]:
@@ -4357,6 +4742,43 @@ def _wahr(wert) -> bool:
     throw("Bitte true oder false angeben.")
 
 
+def _sichtbar_ab(s, g: ChatGespraech, benutzer: str | None) -> datetime | None:
+    """Ab wann ``benutzer`` den Verlauf dieses Gesprächs sehen darf (SOLL 7).
+
+    Nur für RUNDEN: ``chat_teilnehmer.sichtbar_ab`` ist der Eintritt (bzw. der
+    WIEDEREINTRITT) — wer neu dazukommt, liest nicht rückwirkend mit. ``None``
+    = keine Einschränkung (Gruppe, 1:1, Bestandszeile ohne Datum).
+    """
+    if not g.name or g.art != ART_RUNDE:
+        return None
+    return s.execute(
+        select(ChatTeilnehmer.sichtbar_ab).where(
+            ChatTeilnehmer.gespraech == g.name,
+            ChatTeilnehmer.benutzer == benutzer,
+        )
+    ).scalar_one_or_none()
+
+
+def _vor_eintritt(s, g: ChatGespraech, benutzer: str | None,
+                  erstellt_am: datetime | None) -> bool:
+    """Liegt ``erstellt_am`` VOR dem Eintritt von ``benutzer`` in diese Runde?
+
+    CHAT-7b-2 (MUSS 1): die Sichtbarkeitsgrenze (``_sichtbar_ab``) gilt nicht
+    nur für den Verlauf, sondern für JEDEN Weg zu einem Inhalt von davor —
+    Zitat, Reaktion, Meldung, Lesestand-Anker, Umfrage. Wer neu (oder wieder)
+    eintritt, liest nicht rückwirkend mit; „nicht sichtbar“ ist dabei
+    dasselbe wie „gibt es nicht“ (404, nichts über den Inhalt verraten).
+
+    ``False`` heißt: keine Einschränkung (Gruppe, 1:1, Bestandszeile ohne
+    Datum, fehlendes ``erstellt_am``) — dieselbe Regel wie ``_sichtbar_ab``.
+    EINE Wahrheit für alle Aufrufer, kein zweiter Vergleich je Endpunkt.
+    """
+    if erstellt_am is None:
+        return False
+    grenze = _sichtbar_ab(s, g, benutzer)
+    return grenze is not None and erstellt_am < grenze
+
+
 def _ungelesen(s, gespraech: str, benutzer: str) -> int:
     """Ungelesen-Zähler eines Gesprächs (gleiche Regel wie ``meine_gespraeche``)."""
     teilnahme = s.get(ChatTeilnehmer, (gespraech, benutzer))
@@ -4373,7 +4795,10 @@ def _ungelesen_zaehlen(s, gespraech: str, benutzer: str,
     """
     bedingung = [ChatNachricht.gespraech == gespraech,
                  ChatNachricht.geloescht_am.is_(None),
-                 _nicht_von(benutzer)]
+                 _nicht_von(benutzer),
+                 # SOLL 5 (CHAT-7b-2): der EIGENE Vorschlag ist für den
+                 # Vorschlagenden keine ungelesene Nachricht (er kennt ihn).
+                 _nicht_eigener_vorschlag(benutzer)]
     if teilnahme is not None and teilnahme.letzter_lesestand is not None:
         stand = teilnahme.letzter_lesestand
         bedingung.append(or_(
@@ -4384,6 +4809,8 @@ def _ungelesen_zaehlen(s, gespraech: str, benutzer: str,
     elif teilnahme is not None and teilnahme.hinzugefuegt_am is not None:
         bedingung.append(ChatNachricht.erstellt_am >= teilnahme.hinzugefuegt_am)
     return int(s.execute(select(func.count()).select_from(ChatNachricht)
+                         .outerjoin(ChatRundeVorschlag,
+                                    ChatRundeVorschlag.name == ChatNachricht.vorschlag)
                          .where(*bedingung)).scalar_one())
 
 
@@ -4426,6 +4853,28 @@ def _direkt_gespraeche(s, benutzer: str) -> list[ChatGespraech]:
         .where(ChatGespraech.art == ART_DIREKT,
                ChatGespraech.geloescht_am.is_(None),
                ChatTeilnehmer.benutzer == benutzer)
+        .order_by(ChatGespraech.name)
+    ).scalars().all()
+    return [g for g in kandidaten if _darf_lesen(s, benutzer, g.name)]
+
+
+def _runde_gespraeche(s, benutzer: str) -> list[ChatGespraech]:
+    """Die RUNDEN, an denen ``benutzer`` als AKTIVE Person beteiligt ist.
+
+    Wie ``_direkt_gespraeche``: Grundlage sind SEINE Teilnahmezeilen, hier
+    aber nur die ohne ``verlassen_am`` (wer gegangen ist, sieht die Runde nicht
+    mehr in seiner Liste). Je Kandidat entscheidet die Weiche
+    (``_darf_lesen`` → ``rechte.darf_direktgespraech``) — keine Rollenlogik hier.
+    """
+    if not benutzer:
+        return []
+    kandidaten = s.execute(
+        select(ChatGespraech)
+        .join(ChatTeilnehmer, ChatTeilnehmer.gespraech == ChatGespraech.name)
+        .where(ChatGespraech.art == ART_RUNDE,
+               ChatGespraech.geloescht_am.is_(None),
+               ChatTeilnehmer.benutzer == benutzer,
+               ChatTeilnehmer.verlassen_am.is_(None))
         .order_by(ChatGespraech.name)
     ).scalars().all()
     return [g for g in kandidaten if _darf_lesen(s, benutzer, g.name)]
@@ -4530,8 +4979,28 @@ def _gespraech_kopf(s, g: ChatGespraech, benutzer: str,
     teilnahme = s.get(ChatTeilnehmer, (g.name, benutzer)) if g.name else None
     if g.name:
         ungelesen = _ungelesen_zaehlen(s, g.name, benutzer, teilnahme)
+        # CHAT-7b-2 (MUSS 1a): in einer RUNDE gilt für die Vorschau dieselbe
+        # Grenze wie im Verlauf — wer neu (oder wieder) eintritt, sieht die
+        # Nachrichten von VOR seinem Eintritt nicht. Ohne diesen Filter stand
+        # der Text der letzten Nachricht hier ungefiltert in der Liste.
+        bedingung = [ChatNachricht.gespraech == g.name]
+        sichtbar_ab = _sichtbar_ab(s, g, benutzer)
+        if sichtbar_ab is not None:
+            bedingung.append(ChatNachricht.erstellt_am >= sichtbar_ab)
+        # SOLL 5 (CHAT-7b-2): die eigene Vorschlags-Systemzeile („X möchte Y
+        # hinzufügen“) ist für den VORSCHLAGENDEN kein „letzter Beitrag“ — für
+        # die übrigen bleibt sie stehen (sie sollen zustimmen). Dieselbe
+        # Bedingung wie im Ungelesen-Zähler (``_nicht_eigener_vorschlag``).
+        # Eine Vorschlags-Systemzeile trägt ihren Satz NICHT in der Datenbank
+        # (er entsteht beim Lesen) — als Vorschau wäre sie leer (``_zitat`` →
+        # None) und verdrängte den letzten echten Beitrag. Deshalb: keine
+        # Vorschlagszeilen in der Vorschau (sie stehen im Verlauf).
         letzte = s.execute(select(ChatNachricht)
-                           .where(ChatNachricht.gespraech == g.name)
+                           .outerjoin(ChatRundeVorschlag,
+                                      ChatRundeVorschlag.name == ChatNachricht.vorschlag)
+                           .where(*bedingung,
+                                  ChatNachricht.vorschlag.is_(None),
+                                  _nicht_eigener_vorschlag(benutzer))
                            .order_by(ChatNachricht.erstellt_am.desc(),
                                      ChatNachricht.name.desc())
                            .limit(1)).scalar_one_or_none()
@@ -4541,7 +5010,10 @@ def _gespraech_kopf(s, g: ChatGespraech, benutzer: str,
         titel, gegenueber, bild = _direkt_titel(
             s, g, benutzer, ausgeschlossene=ausgeschlossene)
     else:
-        titel = str(g.titel or "").strip() or (g.untergruppe or g.gruppe)
+        # Runden (CHAT-7b) tragen ihren Namen in `titel`; `gruppe`/`untergruppe`
+        # sind NULL. Ein leerer Titel bleibt leer (die Oberfläche zeigt
+        # „Runde“) — nie „None“.
+        titel = str(g.titel or "").strip() or (g.untergruppe or g.gruppe or "")
         gegenueber, bild = None, ""
     # CHAT-5-UI: „darf ich hier senden?“ in DERSELBEN Antwort wie die Liste —
     # die Oberfläche blendet „Umfrage starten“ daran aus (dieselbe Aktion wie
@@ -4584,9 +5056,16 @@ def _teilnehmer_aktuelle(s, g: ChatGespraech) -> int:
     (``darf_direktgespraech`` LESEN je Konto): 1 solange beide dabei sind,
     nach einem Austritt nur noch die verbliebene Person — nach einer
     Anonymisierung 0 (die Teilnahmezeile ging mit dem Konto).
+
+    CHAT-7b (Review R1, SOLL 11): in einer RUNDE sind die aktiven
+    Teilnehmenden schon bekannt (``_runde_teilnahme`` filtert
+    ``verlassen_am``) — die zusätzliche Rechtefrage je Konto wäre ein N+1
+    ohne neue Wahrheit. Sie fällt weg: die Zahl ist die der aktiven Zeilen.
     """
     if not g.name:
         return 0
+    if g.art == ART_RUNDE:
+        return len(_runde_teilnahme(s, g.name))
     return sum(1 for konto in _teilnahme_konten(s, g.name)
                if _darf_lesen(s, konto, g.name))
 
@@ -4656,6 +5135,785 @@ def fristen_speichern(chat_frist_gruppe_monate=None,
     return {**werte, "gespeichert": True}
 
 
+
+# ── Runden (CHAT-7b) ────────────────────────────────────────────────────────
+
+
+def _runde_teilnahme(s, gespraech: str) -> list[str]:
+    """Konten, die in dieser Runde (noch) teilnehmen — ohne Ausgetretene.
+
+    ``chat_teilnehmer.verlassen_am`` ist die Wahrheit über „ist noch dabei“:
+    die Zeile bleibt für die Anzeige stehen, zählt aber nicht. Der Rechte-Kern
+    bekommt deshalb NUR die aktiven Konten (``darf_direktgespraech`` prüft
+    ``benutzer in teilnehmer``); wer die Runde verlassen hat, ist damit kein
+    Teilnehmer mehr — ohne dass jemand die Zeile löscht (das wäre die
+    Darstellung „Gelöschte Person“).
+    """
+    return sorted(
+        str(konto) for konto in s.execute(
+            select(ChatTeilnehmer.benutzer).where(
+                ChatTeilnehmer.gespraech == gespraech,
+                ChatTeilnehmer.verlassen_am.is_(None),
+            )
+        ).scalars().all() if konto
+    )
+
+
+def _runde_mitglieder(s, gespraech: str) -> list[str]:
+    """Die MITGLIED-Kennungen der aktiven Teilnehmenden (für die Anzeige)."""
+    konten = _runde_teilnahme(s, gespraech)
+    if not konten:
+        return []
+    return sorted(str(m) for m in s.execute(
+        select(Mitglied.name).where(Mitglied.user.in_(konten))
+    ).scalars().all() if m)
+
+
+def _konto_je_mitglieder(s, mitglieder) -> dict[str, str]:
+    """``{mitglied: konto}`` — EINE Abfrage, nur fest verknüpfte Konten.
+
+    Derselbe Weg wie ``_konto_je_mitglied`` (``mitglied.user``, KEIN
+    E-Mail-Rückfall): eine zweite Auflösung wäre ein zweiter Weg zum Gespräch.
+    """
+    kennungen = sorted({str(m) for m in (mitglieder or ()) if m})
+    if not kennungen:
+        return {}
+    return {str(mitglied): str(konto) for mitglied, konto in s.execute(
+        select(Mitglied.name, Mitglied.user).where(Mitglied.name.in_(kennungen))
+    ).all() if mitglied and konto}
+
+
+def _eigene_kennung(s, benutzer: str) -> str | None:
+    """Mitglied-Kennung des KONTOS (``mitglied.user``) — oder ``None``.
+
+    Fest verknüpft (kein E-Mail-Rückfall, wie ``_konto_je_mitglied`` in der
+    Gegenrichtung): der Kern rechnet mit derselben Auflösung.
+    """
+    kennung = str(benutzer or "").strip()
+    if not kennung:
+        return None
+    treffer = [str(n) for n in s.execute(
+        select(Mitglied.name).where(Mitglied.user == kennung)
+    ).scalars().all() if n]
+    return treffer[0] if len(treffer) == 1 else None
+
+
+def _runde_pruefen(s, benutzer: str, gespraech) -> ChatGespraech:
+    """Die Runde zur Kennung — mit Leserecht über die EINE Weiche (403/404)."""
+    kennung = str(gespraech or "").strip()
+    if not kennung:
+        throw("gespraech fehlt.")
+    g = _gespraech_lesen(s, kennung)
+    if g.art != ART_RUNDE:
+        # Nur Runden: „Vorschlag“ und „verlassen“ haben für Gruppen- und
+        # 1:1-Gespräche keine Bedeutung (dort endet die Teilnahme nie).
+        throw("Das ist keine Runde.")
+    _erlaube(benutzer, rechte.LESEN, g=g, sitzung=s)
+    return g
+
+
+def _runde_kopf(s, g: ChatGespraech, benutzer: str) -> dict[str, Any]:
+    """Kopf einer Runde: Titel, Zahl der Beteiligten, Ungelesen.
+
+    ``teilnehmer`` zählt AKTIVE Beteiligte (ohne Ausgetretene). ``mitglieder``
+    kommt mit, weil die Oberfläche für Namen und Vorschläge die Kennungen
+    braucht — es sind ausschliesslich die der Runde, nichts über Dritte.
+    """
+    teilnahme = s.get(ChatTeilnehmer, (g.name, benutzer))
+    return {
+        "name": g.name,
+        "art": g.art,
+        "titel": str(g.titel or "").strip(),
+        "teilnehmer": len(_runde_teilnahme(s, g.name)),
+        "mitglieder": _runde_mitglieder(s, g.name),
+        "stumm": bool(teilnahme.stumm) if teilnahme is not None else False,
+        "ungelesen": _ungelesen(s, g.name, benutzer),
+        "erstellt_am": _isoopt(g.angelegt_am),
+    }
+
+
+def _runde_titel_pruefen(titel) -> str:
+    """Name der Runde: nicht leer am Rand, ≤ ``RUNDE_TITEL_MAX`` Zeichen."""
+    inhalt = str(titel or "").strip()
+    if not inhalt:
+        throw("Bitte einen Namen für die Runde eingeben.")
+    if len(inhalt) > RUNDE_TITEL_MAX:
+        throw(f"Der Name der Runde darf höchstens {RUNDE_TITEL_MAX} Zeichen "
+              f"lang sein (eingegeben: {len(inhalt)}).")
+    return inhalt
+
+
+def _vorschlag_holen(s, vorschlag, benutzer: str) -> tuple[ChatRundeVorschlag, ChatGespraech]:
+    """Ein Vorschlag + seine Runde — nur für AKTIVE Teilnehmende der Runde.
+
+    Unbekannte Kennung → 404, Vorschlag einer FREMDEN Runde → 403 ohne Inhalt:
+    wer nicht in der Runde ist, erfährt auch nicht, dass es ihn gibt.
+    """
+    kennung = str(vorschlag or "").strip()
+    if not kennung:
+        throw("vorschlag fehlt.")
+    zeile = s.get(ChatRundeVorschlag, kennung)
+    if zeile is None:
+        raise DoesNotExistError("Vorschlag nicht gefunden.")
+    g = _gespraech_lesen(s, zeile.gespraech)
+    if g.art != ART_RUNDE:
+        throw("Das ist keine Runde.")
+    _erlaube(benutzer, rechte.LESEN, g=g, sitzung=s)
+    return zeile, g
+
+
+def _vorschlag_beschreiben(s, v: ChatRundeVorschlag) -> dict[str, Any]:
+    """Antwortzeile eines Vorschlags — mit Zahlen, ohne Namen der Zustimmenden."""
+    zustimmungen, benoetigt, _angenommen = _vorschlag_fortschritt(s, v)
+    return {
+        "name": v.name,
+        "gespraech": v.gespraech,
+        "mitglied": v.mitglied,
+        "anzeigename": _personen(s, {v.mitglied}).get(v.mitglied),
+        "stand": v.stand,
+        "zustimmungen": zustimmungen,
+        "benoetigt": benoetigt,
+        "angelegt_am": _isoopt(v.angelegt_am),
+        "entschieden_am": _isoopt(v.entschieden_am),
+    }
+
+
+def _vorschlag_fortschritt(s, v: ChatRundeVorschlag) -> tuple[int, int, bool]:
+    """``(zustimmungen der Aktiven, benoetigt, angenommen)`` — aus AKTIVEN.
+
+    Review R1 (MUSS 5a): Zustimmungen zählen nur, solange die zustimmende
+    Person noch AKTIV dabei ist. Wer die Runde verlassen hat, zählt weder als
+    Zustimmende noch als Nötig-Zustimmende — sonst bliebe ein Vorschlag offen,
+    den niemand mehr annehmen kann (oder würde ohne die Betroffene „allein“
+    durchgehen).
+    """
+    aktiv = set(_runde_teilnahme(s, v.gespraech))
+    wer = str(v.vorgeschlagen_von or "")
+    zustimmend = {k for k in v.zustimmungen if k in aktiv and k != wer}
+    noetig = len(aktiv - {wer}) if wer else len(aktiv)
+    return len(zustimmend), noetig, bool(noetig and len(zustimmend) >= noetig)
+
+
+def _vorschlag_agebaut(s, v: ChatRundeVorschlag) -> None:
+    """Einen offenen Vorschlag als ABGELEHNT beenden (bedingtes UPDATE).
+
+    Nimmt den Zustimmenden die Sichtbarkeit nicht weg — der Verlauf zeigt die
+    Systemzeile weiter, der Stand ist „abgelehnt“.
+    """
+    s.execute(
+        update(ChatRundeVorschlag)
+        .where(ChatRundeVorschlag.name == v.name,
+               ChatRundeVorschlag.stand == VORSCHLAG_OFFEN)
+        .values(stand=VORSCHLAG_ABGELEHNT, entschieden_am=_jetzt())
+    )
+    s.flush()
+
+
+def _vorschlag_nameschild(s, v: ChatRundeVorschlag) -> tuple[str, str]:
+    """``(wer schlägt vor, wen)`` — Vorname bzw. gekürzter Anzeigename.
+
+    Wird NUR beim Anlegen der Systemzeile ausgewertet (Review R1, SOLL 8): der
+    Text steht danach nicht als Personen-Kopie im Verlauf, sondern wird aus
+    DIESER Zeile gebildet (``_vorschlag_verlaufszeile``).
+    """
+    konto = str(v.vorgeschlagen_von or "")
+    eigener = _person_je_konto(s, konto) if konto else None
+    wer = _personen(s, {eigener}).get(eigener) if eigener else None
+    if not wer and konto:
+        wer = _konto_namen(s, {konto}).get(konto)
+    wer = str(wer or "").split(" ")[0] or "Jemand"
+    wen = _personen(s, {v.mitglied}).get(v.mitglied) or "die Person"
+    return wer, wen
+
+
+def _vorschlagsnachricht(s, g: ChatGespraech, v: ChatRundeVorschlag) -> ChatNachricht:
+    """Die Systemzeile „X möchte Y hinzufügen“ im Verlauf — als VERWEIS.
+
+    Review R1 (SOLL 8): KEINE normale Nachricht der vorschlagenden Person.
+    Die Zeile trägt ``autor=None``, ``autor_benutzer=None`` und KEINEN Text —
+    nur ``vorschlag=<Kennung>``. Damit ist sie
+
+      * nicht bearbeitbar/löschbar/meldbar (die Endpunkte verlangen eine
+        eigene Nachricht bzw. eine Meldung; ein Systembeitrag hat weder Besitz
+        noch meldbaren Text),
+      * ohne Namen-Kopie im Verlauf: die Anzeige („X möchte Y hinzufügen“)
+        entsteht beim LESEN aus der Vorschlagszeile,
+      * bei einer Anonymisierung/Diskretion: die Zeile fällt mit dem Vorschlag
+        (``_gespraech_entfernen``/DSGVO) — es bleibt kein Fremdtext stehen.
+    """
+    zeile = ChatNachricht(
+        name=_kennung("chat-n"),
+        gespraech=g.name,
+        autor_benutzer=None,
+        autor=None,
+        text="",
+        vorschlag=v.name,
+        erstellt_am=_jetzt(),
+    )
+    s.add(zeile)
+    s.flush()
+    return zeile
+
+
+def _vorschlag_verlaufszeile(s, v: ChatRundeVorschlag) -> dict[str, Any]:
+    """Der sichtbare Satz einer Vorschlags-Systemzeile — beim LESEN gebildet.
+
+    Der Text nennt Vornamen und Zielperson, sonst NICHTS (keine Kennungen,
+    keinen Grund, keine Zwischenstände) — dieselbe Zusage wie vorher, nur ohne
+    gespeicherte Namen-Kopie. Der Stand („abgelehnt“, „angenommen“) kommt aus
+    der Vorschlagszeile; ist sie weg, bleibt der Satz stehen.
+    """
+    wer, wen = _vorschlag_nameschild(s, v)
+    return {"text": _vorschlag_satz(wer, wen, v.stand), "stand": v.stand}
+
+
+def _vorschlag_mitglied_konto(s, v: ChatRundeVorschlag) -> str | None:
+    """Konto der vorgeschlagenen Person (``mitglied.user``) — oder ``None``."""
+    return _konto_je_mitglieder(s, [v.mitglied]).get(v.mitglied)
+
+
+def _runde_aufnehmen(s, g: ChatGespraech, v: ChatRundeVorschlag) -> bool:
+    """Die vorgeschlagene Person wird Teilnehmende (nach Zustimmung ALLER).
+
+    Eine vorhandene Zeile (früher ausgetreten) wird wiederbelebt:
+    ``verlassen_am = None`` — die Person steht danach wieder als Beteiligte da,
+    ohne eine zweite Zeile (Primärschlüssel ``(gespraech, benutzer)``).
+    ``sichtbar_ab`` wird auf JETZT gesetzt: wer neu (oder wieder) dazukommt,
+    liest nicht rückwirkend mit (Review R1, SOLL 7).
+
+    Rückgabe ``False``, wenn es kein Konto mehr gibt — dann ist der Vorschlag
+    NICHT aufgenommen und der Aufrufer beendet ihn als abgelehnt (MUSS 5c).
+    """
+    konto = _vorschlag_mitglied_konto(s, v)
+    if not konto:
+        return False
+    jetzt = _jetzt()
+    zeile = s.get(ChatTeilnehmer, (g.name, konto))
+    if zeile is None:
+        s.add(ChatTeilnehmer(gespraech=g.name, benutzer=konto, stumm=False,
+                             hinzugefuegt_am=jetzt, sichtbar_ab=jetzt))
+    else:
+        zeile.verlassen_am = None
+        zeile.hinzugefuegt_am = jetzt
+        zeile.sichtbar_ab = jetzt
+        zeile.letzter_lesestand = None
+        zeile.letzter_lesestand_nachricht = None
+    s.flush()
+    return True
+
+
+def _vorschlaege_beenden(s, gespraech: str, *, ausser: str | None = None,
+                         nur_von: str | None = None) -> int:
+    """Alle OFFENEN Vorschläge einer Runde als BEENDET schließen.
+
+    Ohne weitere Angabe: ALLE (Austritt einer Person — jeder offene Vorschlag
+    der Runde wird neu verhandelt, weil sich der Kreis geändert hat).
+    ``nur_von``: nur die Vorschläge dieses Kontos.
+
+    CHAT-7b-2 (SOLL 4): der Stand ist ``VORSCHLAG_BEENDET``, NICHT
+    ``abgelehnt`` — der Kreis hat sich geändert, niemand hat dagegen gestimmt.
+    Der Verlauf zeigt die Zeile weiter (die Sichtbarkeit der Zustimmenden
+    bleibt), nur mit dem Stand „beendet“.
+    """
+    bedingung = [ChatRundeVorschlag.gespraech == gespraech,
+                 ChatRundeVorschlag.stand == VORSCHLAG_OFFEN]
+    if ausser:
+        bedingung.append(ChatRundeVorschlag.name != ausser)
+    if nur_von is not None:
+        bedingung.append(ChatRundeVorschlag.vorgeschlagen_von == nur_von)
+    return int(s.execute(
+        update(ChatRundeVorschlag).where(*bedingung)
+        .values(stand=VORSCHLAG_BEENDET, entschieden_am=_jetzt())
+    ).rowcount or 0)
+
+
+# ── Endpunkte: Runde anlegen (CHAT-7b) ──────────────────────────────────────
+
+
+@whitelist(methods=["POST"], allow_guest=False)  # legt Gespraech + Teilnahmen an (SEC-11)
+def runde_anlegen(titel=None, mitglieder=None):
+    """Eine benannte Runde mit 3–8 Beteiligten anlegen (Konzept S3).
+
+    ``mitglieder`` sind die MITGLIED-Kennungen der ANDEREN (2–7); die
+    anlegende Person zählt als erste Beteiligte mit. Rechte — ausschliesslich
+    über den Kern: ``rechte.darf_runde_anlegen(benutzer, ziele=[…])``. Damit
+    braucht es für ALLE anderen ein ``darf_direktnachricht`` (auffindbar,
+    aktives Konto, NICHT gesperrt): „anlegen darf, wer alle erreichen darf“.
+
+    Eine Sperre verhindert die Runde in BEIDE Richtungen, ohne dass die andere
+    Seite davon erfährt: die Ablehnung ist 403 OHNE Inhalt — derselbe Text,
+    derselbe Status wie bei „nicht erreichbar“.
+
+    Runden sind NICHT paarweise eindeutig (mehrere Runden derselben Personen
+    sind erlaubt); es gibt deshalb keinen Schlüssel und keinen
+    ``IntegrityError``-Weg wie beim 1:1.
+
+    Antwort: der Kopf der Runde (``name, art, titel, teilnehmer, mitglieder,
+    stumm, ungelesen, erstellt_am``).
+    """
+    name = _runde_titel_pruefen(titel)
+    if mitglieder in (None, ""):
+        ziele: list[str] = []
+    elif isinstance(mitglieder, str):
+        ziele = [mitglieder.strip()] if mitglieder.strip() else []
+    else:
+        ziele = [str(m).strip() for m in mitglieder if str(m or "").strip()]
+    benutzer = _benutzer()
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        if not rechte.darf_runde_anlegen(benutzer, ziele=ziele):
+            _h()
+        eigene = _eigene_kennung(s, benutzer)
+        if not eigene:
+            # Ohne Mitgliedsdatensatz gibt es keine „anlegende Person“ in der
+            # Runde; der Kern verlangt für die eigenen Rechte ohnehin ein
+            # eigenes Mitglied (``darf_direktnachricht`` → ``selbst_nicht_aktiv``).
+            _h()
+        konten = _konto_je_mitglieder(s, ziele)
+        # Review R1 (Kleinkram): verglichen werden MITGLIED-Kennungen mit
+        # MITGLIED-Kennungen — nicht die Konto-Werte gegen die eigene Kennung.
+        # Fehlt für eine genannte Person das Konto, ODER steht die eigene
+        # Person unter den Zielen: dieselbe 403 ohne Inhalt (kein Rateweg).
+        if len(konten) != len(set(ziele)) or eigene in set(ziele):
+            _h()
+        jetzt = _jetzt()
+        g = ChatGespraech(
+            name=_kennung("chat-rund"),
+            art=ART_RUNDE,
+            gruppe=None,
+            untergruppe=None,
+            paar_schluessel=None,
+            titel=name,
+            angelegt_von=benutzer or None,
+            angelegt_am=jetzt,
+        )
+        s.add(g)
+        s.flush()
+        # Teilnahme am KONTO (nicht an der Mitglied-Kennung): `eigene` ist die
+        # Mitglied-Kennung der anlegenden Person, `benutzer` ihr Konto.
+        for konto in sorted({benutzer, *konten.values()}):
+            s.add(ChatTeilnehmer(gespraech=g.name, benutzer=konto, stumm=False,
+                                 hinzugefuegt_am=jetzt, sichtbar_ab=jetzt))
+        s.flush()
+        return _runde_kopf(s, g, benutzer)
+
+
+# ── Endpunkte: Vorschlag, Zustimmung, Ablehnung (CHAT-7b) ───────────────────
+
+
+@whitelist(methods=["POST"], allow_guest=False)  # schreibt Vorschlag + Systemzeile (SEC-11)
+def runde_vorschlagen(gespraech=None, mitglied=None):
+    """Vorschlagen, eine Person in die Runde zu holen („X möchte Y hinzufügen“).
+
+    Recht — ausschliesslich der Kern: ``rechte.darf_runde_erweitern(benutzer,
+    teilnehmer=<aktive Konten>, ziel=<mitglied>)``. Damit schlagen nur
+    Teilnehmende vor, nur unter 8 Beteiligte, nur eine Person, die sie selbst
+    erreichen dürfen und die nicht schon dabei ist. Der Kern bringt niemanden
+    mit einer Person zusammen, die ihn (oder die er) gesperrt hat — auch nicht
+    durch Dritte; nach aussen „nicht erreichbar“ (403 ohne Inhalt).
+
+    Der Vorschlag wird NICHT sofort wirksam (Konzept S3: „nur mit Zustimmung
+    der Runde“). Im Verlauf erscheint EINE Systemzeile (``chat_nachricht.
+    vorschlag``) ohne weitere Daten und ohne Namen-Kopie — der Satz entsteht
+    beim Lesen aus der Vorschlagszeile (Review R1, SOLL 8).
+
+    Ein zweiter OFFENER Vorschlag derselben Person in derselben Runde ist
+    abgewiesen (400) und in der Datenbank durch einen partiellen Unique-Index
+    verhindert.
+
+    Antwort: ``{vorschlag: {…}, nachricht: {…}}``.
+    """
+    ziel = str(mitglied or "").strip()
+    if not ziel:
+        throw("mitglied fehlt.")
+    benutzer = _benutzer()
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        g = _runde_pruefen(s, benutzer, gespraech)
+        teilnehmer = _runde_teilnahme(s, g.name)
+        if not rechte.darf_runde_erweitern(benutzer, teilnehmer=teilnehmer, ziel=ziel):
+            # Gleiche Auskunft wie „nicht erreichbar“ — der Grund „gesperrt“
+            # bleibt im Kern und geht hier nie nach außen.
+            _h()
+        offen = s.execute(
+            select(ChatRundeVorschlag.name).where(
+                ChatRundeVorschlag.gespraech == g.name,
+                ChatRundeVorschlag.mitglied == ziel,
+                ChatRundeVorschlag.stand == VORSCHLAG_OFFEN,
+            )
+        ).scalar_one_or_none()
+        if offen is not None:
+            throw("Für diese Person liegt schon ein offener Vorschlag vor.")
+        zeile = ChatRundeVorschlag(
+            name=_kennung("chat-vorschlag"),
+            gespraech=g.name,
+            vorgeschlagen_von=benutzer or None,
+            mitglied=ziel,
+            stand=VORSCHLAG_OFFEN,
+            zustimmende="",
+            angelegt_am=_jetzt(),
+        )
+        try:
+            with s.begin_nested():
+                s.add(zeile)
+                s.flush()
+        except IntegrityError:
+            throw("Für diese Person liegt schon ein offener Vorschlag vor.")
+        nachricht = _vorschlagsnachricht(s, g, zeile)
+        return {
+            "vorschlag": _vorschlag_beschreiben(s, zeile),
+            "nachricht": _zeile(s, nachricht,
+                                namen={}, konto_namen={}, ich=benutzer,
+                                system=_vorschlag_verlaufszeile(s, zeile)),
+        }
+
+
+@whitelist(methods=["POST"], allow_guest=False)  # tritt Teilnahme hinzu (SEC-11)
+def runde_zustimmen(vorschlag=None):
+    """Einem Vorschlag zustimmen (Konzept S3: „alle bisherigen ausser X“).
+
+    Gezählt werden NUR Zustimmungen AKTIVER Teilnehmender (Review R1, MUSS 5a):
+    wer die Runde verlassen hat, stimmt nicht mehr mit und zählt auch nicht
+    mehr als Nötig-Zustimmende. Nötig sind so viele, wie es aktive
+    Teilnehmende ohne die vorschlagende Person gibt. Erreicht die Zahl diese
+    Grenze, wird die Person Teilnehmende und der Vorschlag steht auf
+    ``angenommen``.
+
+    GEGEN RENNEN (MUSS 5c): zuerst wird die GESPRÄCHSZEILE gesperrt
+    (``with_for_update``), dann die Vorschlagszeile gelesen (``refresh``),
+    erst DANACH gezählt und mit einem bedingten ``UPDATE`` (``WHERE stand =
+    'offen'``) geschrieben. Zwei gleichzeitige Zustimmungen können die Grenze
+    damit nicht überschreiten und nicht doppelt zählen; die Erhöhung des
+    Teilnehmerstands passiert ebenfalls hinter der Sperre.
+
+    Bei Annahme wird die Erweiterung ERNEUT über den Kern gefragt (MUSS 5c):
+    ``rechte.darf_runde_erweitern(vorgeschlagen_von, teilnehmer=<aktive>,
+    ziel=<mitglied>)``. Hat sich in der Zwischenzeit etwas geändert (Ziel ohne
+    Konto, inzwischen gesperrt, Vorschlagender gegangen), endet der Vorschlag
+    als „abgelehnt“ — nie still „angenommen“ ohne Aufnahme. Die Größe ≤ 8 prüft
+    derselbe Kern erneut (MUSS 5b). EINE Ablehnung beendet ihn ohnehin.
+
+    Der Vorschlagende stimmt nicht mit (er hat ihn ja gemacht). Jede Person
+    zählt GENAU EINMAL; eine wiederholte Zustimmung ist idempotent.
+
+    Antwort: ``{vorschlag: {…}, teilnehmer: <neue Zahl>, angenommen: <bool>}``.
+    """
+    benutzer = _benutzer()
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        # (1) Die Runde ist der Serialisierungspunkt: jede Zustimmung zu
+        #     IRGENDEINEM Vorschlag dieser Runde läuft hier nacheinander.
+        zeile, g = _vorschlag_holen(s, vorschlag, benutzer)
+        s.execute(select(ChatGespraech.name)
+                  .where(ChatGespraech.name == g.name).with_for_update())
+        # (2) Zeile unter der Sperre neu lesen — ein paralleler Lauf kann den
+        #     Stand bis hierher geändert haben.
+        s.refresh(zeile)
+        if zeile.stand != VORSCHLAG_OFFEN:
+            throw("Der Vorschlag ist bereits entschieden.")
+        if str(zeile.vorgeschlagen_von or "") == benutzer:
+            throw("Über den eigenen Vorschlag stimmt die Runde ab.")
+        if benutzer in zeile.zustimmungen:
+            # Dieselbe Person zaehlt EINMAL: mehrfaches Zustimmen erhoeht die
+            # Zahl nicht (sonst koennte eine Person die Grenze „alle bisherigen
+            # Teilnehmenden“ allein erreichen).
+            return {
+                "vorschlag": _vorschlag_beschreiben(s, zeile),
+                "teilnehmer": len(_runde_teilnahme(s, g.name)),
+                "angenommen": False,
+            }
+        jetzt = _jetzt()
+        bisher = [k for k in zeile.zustimmungen if k]
+        gesetzt = s.execute(
+            update(ChatRundeVorschlag)
+            .where(ChatRundeVorschlag.name == zeile.name,
+                   ChatRundeVorschlag.stand == VORSCHLAG_OFFEN)
+            .values(zustimmende=", ".join(sorted({*bisher, benutzer})),
+                    entschieden_von=benutzer or None,
+                    entschieden_am=jetzt)
+        ).rowcount or 0
+        if not gesetzt:
+            throw("Der Vorschlag ist bereits entschieden.")
+        s.refresh(zeile)
+        zustimmungen, noetig, angenommen = _vorschlag_fortschritt(s, zeile)
+        if angenommen:
+            # (3) ERNEUT über den Kern fragen (MUSS 5b/5c): Größe ≤ 8, Ziel
+            #     erreichbar, Vorschlagender noch Teilnehmender.
+            teilnehmer_jetzt = _runde_teilnahme(s, g.name)
+            erlaubt = rechte.darf_runde_erweitern(
+                zeile.vorgeschlagen_von, teilnehmer=teilnehmer_jetzt,
+                ziel=zeile.mitglied)
+            aufgenommen = bool(erlaubt) and _runde_aufnehmen(s, g, zeile)
+            if not aufgenommen:
+                # Nie still „angenommen“ ohne Aufnahme: der Vorschlag endet.
+                _vorschlag_agebaut(s, zeile)
+                s.refresh(zeile)
+                return {
+                    "vorschlag": _vorschlag_beschreiben(s, zeile),
+                    "teilnehmer": len(_runde_teilnahme(s, g.name)),
+                    "angenommen": False,
+                }
+            beendet = s.execute(
+                update(ChatRundeVorschlag)
+                .where(ChatRundeVorschlag.name == zeile.name,
+                       ChatRundeVorschlag.stand == VORSCHLAG_OFFEN)
+                .values(stand=VORSCHLAG_ANGENOMMEN)
+            ).rowcount or 0
+            if not beendet:
+                throw("Der Vorschlag ist bereits entschieden.")
+            s.refresh(zeile)
+        s.flush()
+        return {
+            "vorschlag": _vorschlag_beschreiben(s, zeile),
+            "teilnehmer": len(_runde_teilnahme(s, g.name)),
+            "angenommen": angenommen,
+        }
+
+
+@whitelist(methods=["POST"], allow_guest=False)  # beendet den Vorschlag (SEC-11)
+def runde_ablehnen(vorschlag=None):
+    """Einen Vorschlag ablehnen — JEDE Gegenstimme beendet ihn (Konzept S3).
+
+    Nur Teilnehmende (Weiche), nicht der Vorschlagende selbst: über den
+    eigenen Vorschlag stimmt die Runde ab, nicht der Vorschlagende.
+
+    Antwort: ``{vorschlag: {…}, angenommen: false}``.
+    """
+    benutzer = _benutzer()
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        zeile, g = _vorschlag_holen(s, vorschlag, benutzer)
+        s.execute(select(ChatGespraech.name)
+                  .where(ChatGespraech.name == g.name).with_for_update())
+        s.refresh(zeile)
+        if zeile.stand != VORSCHLAG_OFFEN:
+            throw("Der Vorschlag ist bereits entschieden.")
+        if str(zeile.vorgeschlagen_von or "") == benutzer:
+            throw("Über den eigenen Vorschlag stimmt die Runde ab.")
+        gesetzt = s.execute(
+            update(ChatRundeVorschlag)
+            .where(ChatRundeVorschlag.name == zeile.name,
+                   ChatRundeVorschlag.stand == VORSCHLAG_OFFEN)
+            .values(stand=VORSCHLAG_ABGELEHNT, entschieden_von=benutzer or None,
+                    entschieden_am=_jetzt())
+        ).rowcount or 0
+        if not gesetzt:
+            throw("Der Vorschlag ist bereits entschieden.")
+        s.refresh(zeile)
+        return {"vorschlag": _vorschlag_beschreiben(s, zeile), "angenommen": False}
+
+
+@whitelist(methods=["POST"], allow_guest=False)  # beendet die Teilnahme (SEC-11)
+def runde_verlassen(gespraech=None):
+    """Eine Runde verlassen — die Teilnahme endet, die Person bleibt benannt.
+
+    ``chat_teilnehmer.verlassen_am`` wird gesetzt; die Zeile BLEIBT. Das ist
+    der Unterschied zur Löschung (Art. 17): dort fällt die Zeile und die
+    anderen sehen „Gelöschte Person“. Hier sieht jeder weiter den Namen —
+    „ist gegangen“ ist keine Löschung.
+
+    Danach: LESEN nein (der Kern bekommt das Konto nicht mehr in
+    ``teilnehmer``), Senden nein, Vorschlag nein. Wieder eintreten geht nur
+    über einen neuen Vorschlag mit Zustimmung der Runde.
+
+    Review R1 (MUSS 5e/5f): ALLE offenen Vorschläge der Runde enden mit dem
+    Austritt — die eigenen (die Person könnte sie nicht mehr vertreten) wie
+    die, die ANDERE für sie gemacht haben (sie kann nicht mehr aufgenommen
+    werden, ohne dass jemand zustimmt, der sie gar nicht mehr in der Runde
+    will): der Kreis hat sich geändert, es wird neu verhandelt. Sie enden
+    ``beendet`` (CHAT-7b-2, SOLL 4) — das ist NICHT dasselbe wie „abgelehnt“:
+    niemand hat gegen etwas gestimmt, der Vorschlag ist mit dem Austritt
+    hinfällig geworden.
+
+    GEGEN RENNEN (CHAT-7b-2, SOLL 3): wie ``runde_zustimmen``/``runde_ablehnen``
+    wird ZUERST die GESPRÄCHSZEILE gesperrt (``with_for_update``) — sonst
+    könnten eine Zustimmung (die die Grenze prüft und die Person aufnimmt) und
+    dieser Austritt aneinander vorbeilaufen.
+
+    Antwort: ``{gespraech, teilnehmer, verlassen: true}``.
+    """
+    benutzer = _benutzer()
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        g = _runde_pruefen(s, benutzer, gespraech)
+        # (1) Die Runde ist der Serialisierungspunkt — dieselbe Sperre wie in
+        #     `runde_zustimmen`/`runde_ablehnen` (SOLL 3).
+        s.execute(select(ChatGespraech.name)
+                  .where(ChatGespraech.name == g.name).with_for_update())
+        zeile = s.get(ChatTeilnehmer, (g.name, benutzer))
+        if zeile is None or zeile.verlassen_am is not None:
+            throw("Du bist nicht (mehr) Teil dieser Runde.")
+        zeile.verlassen_am = _jetzt()
+        s.flush()
+        # ALLE offenen Vorschläge der Runde enden (eigene und fremde) — der
+        # Kreis hat sich geändert. Stand `beendet`, kein „abgelehnt“.
+        _vorschlaege_beenden(s, g.name)
+        return {"gespraech": g.name,
+                "teilnehmer": len(_runde_teilnahme(s, g.name)),
+                "verlassen": True}
+
+
+# ── Endpunkte: Kontaktsperre (CHAT-7b) ──────────────────────────────────────
+
+
+@whitelist(methods=["POST"], allow_guest=False)  # schreibt die Sperre (SEC-11)
+def kontakt_sperren(mitglied=None):
+    """„Nicht mehr anschreiben lassen“ — sofort, ohne Begründung (Konzept S3).
+
+    Recht — ausschliesslich der Kern: ``rechte.darf_kontakt_sperren(benutzer,
+    ziel_mitglied)``. Gesperrt wird immer das KONTO der Person; ohne Konto gibt
+    es nichts zu sperren (403 ohne Inhalt).
+
+    Die Sperre wirkt im Kern in BEIDE Richtungen: weder die sperrende noch die
+    gesperrte Person kann ein NEUES 1:1 beginnen (``darf_direktnachricht`` →
+    NEIN „gesperrt“), und im BESTEHENDEN 1:1 kann niemand mehr senden
+    (``darf_direktgespraech`` → ANLEGEN prüft ``darf_direktnachricht``).
+
+    Nach aussen ist „gesperrt“ NICHT zu erkennen: die Antwort der gesperrten
+    Seite ist exakt die von „nicht erreichbar“ — derselbe Text, derselbe
+    Status, in jedem Endpunkt dieses Moduls. Der Grund bleibt im Kern.
+
+    Idempotent (Unique ``(benutzer, gesperrt)``): zweimal sperren ändert nichts.
+
+    Antwort: ``{mitglied, gesperrt: true}`` — nur die eigene Seite sieht sie.
+    """
+    ziel = str(mitglied or "").strip()
+    if not ziel:
+        throw("mitglied fehlt.")
+    benutzer = _benutzer()
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        if not rechte.darf_kontakt_sperren(benutzer, ziel):
+            _h()
+        konto = _konto_je_mitglieder(s, [ziel]).get(ziel)
+        if not konto:
+            _h()
+        vorhanden = s.execute(
+            select(RechteKontaktsperre.id).where(
+                RechteKontaktsperre.benutzer == benutzer,
+                RechteKontaktsperre.gesperrt == konto,
+            )
+        ).scalar_one_or_none()
+        if vorhanden is None:
+            try:
+                with s.begin_nested():
+                    s.add(RechteKontaktsperre(benutzer=benutzer, gesperrt=konto,
+                                              angelegt_am=_jetzt()))
+                    s.flush()
+            except IntegrityError:
+                # Zwei gleichzeitige Aufrufe: die Sperre steht schon.
+                pass
+        return {"mitglied": ziel, "gesperrt": True}
+
+
+@whitelist(methods=["POST"], allow_guest=False)  # loescht die Sperre (SEC-11)
+def kontakt_entsperren(mitglied=None):
+    """Eine Kontaktsperre aufheben — nur die EIGENE Richtung.
+
+    Recht — ausschliesslich der Kern: ``rechte.darf_kontakt_sperren``
+    (dieselbe Frage, eine Sperre zu setzen und zu löschen). Gelöscht wird NUR
+    die Zeile ``(benutzer, gesperrt)``: hat die andere Seite ebenfalls
+    gesperrt, bleibt deren Sperre stehen und wirkt weiter — das ist ihre
+    Entscheidung, nicht die eigene.
+
+    Idempotent: ohne Sperre gibt es nichts zu löschen, die Antwort ist dieselbe.
+
+    Antwort: ``{mitglied, gesperrt: false}``.
+    """
+    ziel = str(mitglied or "").strip()
+    if not ziel:
+        throw("mitglied fehlt.")
+    benutzer = _benutzer()
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        if not rechte.darf_kontakt_sperren(benutzer, ziel):
+            _h()
+        konto = _konto_je_mitglieder(s, [ziel]).get(ziel)
+        if not konto:
+            _h()
+        s.execute(delete(RechteKontaktsperre).where(
+            RechteKontaktsperre.benutzer == benutzer,
+            RechteKontaktsperre.gesperrt == konto,
+        ))
+        return {"mitglied": ziel, "gesperrt": False}
+
+
+@whitelist(methods=["GET"], allow_guest=False)  # SEC-11: rein lesend, NUR GET
+def meine_sperren():
+    """Die EIGENEN Kontaktsperren — nur die eigene Seite, rein lesend (GET).
+
+    ``methods=["GET"]`` ist ausdrücklich gesetzt, obwohl GET der Lesevorgabe
+    entspricht: der SEC-11-Wächter liest den Namen „…_sperren“ als SCHREIBEND
+    und verlangt für schreibende Namen ``POST``. Die ausdrückliche Menge sagt
+    ihm, dass dieser Endpunkt NUR liest (er ändert nichts) — und sperrt PUT/
+    DELETE/PATCH zusätzlich aus.
+
+    Antwort: ``{sperren: [{mitglied, anzeigename, bild, angelegt_am}]}``.
+
+    KEIN Konto-Feld (Review R1, MUSS 3): ``benutzer`` IST die E-Mail-Adresse
+    (Login) — die gehört nicht in eine Antwort, die das Beschreiben der Person
+    nur zeigen soll. Auch der Anzeigename kommt aus ``mitglied`` (gekürzt über
+    ``personen_anzeige``), nicht aus dem Konto.
+
+    Wer WEN gesperrt hat, erfährt niemand sonst: die Liste ist auf
+    ``benutzer = <eigene Kennung>`` eingegrenzt, und keine andere Antwort
+    dieses Moduls nennt eine Sperre.
+
+    Kein N+1 (Review R1, SOLL 11): Konten, Mitglied-Kennungen und Namen kommen
+    aus je EINER Abfrage — nicht aus einem ``_person_je_konto`` je Sperre.
+    """
+    benutzer = _benutzer()
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        zeilen = s.execute(
+            select(RechteKontaktsperre.gesperrt, RechteKontaktsperre.angelegt_am)
+            .where(RechteKontaktsperre.benutzer == benutzer)
+            .order_by(RechteKontaktsperre.angelegt_am)
+        ).all()
+        konten = [str(konto) for konto, _am in zeilen if konto]
+        # EINE Abfrage: Konto -> Mitglied-Kennung (dieselbe feste Kopplung
+        # ``mitglied.user`` wie ``_konto_je_mitglied`` in der Gegenrichtung).
+        mitglied_je_konto: dict[str, str] = {}
+        if konten:
+            for mitglied, konto in s.execute(
+                select(Mitglied.name, Mitglied.user).where(Mitglied.user.in_(konten))
+            ).all():
+                if mitglied and konto and str(konto) not in mitglied_je_konto:
+                    mitglied_je_konto[str(konto)] = str(mitglied)
+        kennungen = set(mitglied_je_konto.values())
+        namen = _personen(s, kennungen)
+        bilder = _bilder(s, kennungen)
+        sperren = []
+        for konto, am in zeilen:
+            mitglied = mitglied_je_konto.get(str(konto))
+            if not mitglied:
+                # Konto ohne Mitgliedsdatensatz (z. B. Administrator): es gibt
+                # nichts zu benennen — Kennung und Name fehlen, das Konto selbst
+                # bleibt draußen (MUSS 3).
+                continue
+            sperren.append({
+                "mitglied": mitglied,
+                "anzeigename": namen.get(mitglied),
+                "bild": bilder.get(mitglied) or "",
+                "angelegt_am": _isoopt(am),
+            })
+    return {"sperren": sperren}
+
+
+def _bilder(s, kennungen) -> dict[str, str]:
+    """Bildadresse je MITGLIED-Kennung — EINE Abfrage, wie überall präfigiert.
+
+    Ohne Bild (kein Foto, gelöschte Person) bleibt der Eintrag leer; die
+    Oberfläche zeigt dann ihren Platzhalter. Dieselbe Regel wie
+    ``_suche_bild`` (kein toter Verweis auf eine entfernte Datei).
+    """
+    namen = {str(k) for k in kennungen if k}
+    if not namen:
+        return {}
+    from diakronos_app.api.profile import foto_mit_praefix
+
+    ergebnis: dict[str, str] = {}
+    for kennung, foto, status in s.execute(
+        select(Mitglied.name, Mitglied.foto, Mitglied.status).where(Mitglied.name.in_(namen))
+    ).all():
+        if not foto or str(status or "").strip().casefold() == "geloescht":
+            continue
+        ergebnis[str(kennung)] = foto_mit_praefix(str(foto))
+    return ergebnis
+
+
 __all__ = [
     "CHAT_GLOCKE_DOCTYPE",
     "CHAT_UMFRAGE_GLOCKE_DOCTYPE",
@@ -4675,13 +5933,21 @@ __all__ = [
     "direkt_oeffnen",
     "gespraech_anlegen",
     "glocken_merker",
+    "kontakt_entsperren",
+    "kontakt_sperren",
     "lesestand_setzen",
     "loeschen",
+    "meine_sperren",
     "meldung_entscheiden",
     "meldung_senden",
     "meldungen_liste",
     "meine_gespraeche",
     "reaktion_setzen",
+    "runde_ablehnen",
+    "runde_anlegen",
+    "runde_verlassen",
+    "runde_vorschlagen",
+    "runde_zustimmen",
     "senden",
     "stumm_setzen",
     "verlauf",

@@ -209,8 +209,24 @@ const props = defineProps({
    * (genau ein Primärknopf, S1).
    */
   pruefTafel: { type: Boolean, default: false },
-  /** Aktiver Reiter: `kalender`, `pruefen` oder eine Kalender-Ansicht. */
+  /** Aktiver Reiter: `kalender`, `pruefen`, `chat` oder eine Kalender-Ansicht. */
   aktiverReiter: { type: String, default: 'kalender' },
+  /**
+   * CHAT-6-UI: Liefert der Server die Chat-Meldungen (`chat.meldungen_liste`
+   * ohne 403)? Nur dann steht am Kopf der Reiter „Chat“ neben „Zu prüfen“ —
+   * das Recht entscheidet der Server, nicht die Oberfläche.
+   */
+  chatRecht: { type: Boolean, default: false },
+  /**
+   * Zahl der OFFENEN Meldungen aus dem Chat (Kennzahl, keine erfundene 0).
+   *
+   * CHAT-6-UI-3: `null` heißt UNBEKANNT — dann steht keine Zahl am Reiter
+   * (`menue.kalenderReiter` prüft `Number.isFinite`). Vorher erzwang die
+   * Seite eine 0 (`chatZahl ?? 0`) und behauptete „nichts offen“, obwohl die
+   * Antwort noch ausstand; deshalb steht `null` ausdrücklich als erlaubter
+   * Wert in der Prop-Liste.
+   */
+  chatZahl: { type: [Number, null], default: null },
   /**
    * DEV-B6 (Review-Nacharbeit 10.11.): Listen-Umschalter der Kalenderliste
    * zeigen? Die App-Kopfzeile trägt in der Handy-Lage bereits den Menü-Knopf
@@ -255,6 +271,8 @@ const reiter = computed(() => {
   const liste = kalenderReiter({
     can_moderate: props.canModerate === true,
     offeneZahl: props.offeneZahl,
+    chatRecht: props.chatRecht === true,
+    chatZahl: props.chatZahl,
   })
   if (!props.pruefTafel) return liste
   return liste.map(r => (r.ansicht === true
@@ -278,6 +296,8 @@ function tafelZiel(r) {
 // Ansicht, aus der sie geöffnet wurden — das ist `lastNormalView`.
 const gewaehlterReiter = computed(() => {
   if (props.aktiverReiter === 'pruefen') return 'pruefen'
+  // CHAT-6-UI: der Reiter „Chat“ ist der zweite Eintrag derselben Seite.
+  if (props.aktiverReiter === 'chat') return 'chat'
   const sicht = lastNormalView.value
   if (sicht === 'timeGridWeek') return 'woche'
   if (sicht === 'timeGridDay') return 'tag'

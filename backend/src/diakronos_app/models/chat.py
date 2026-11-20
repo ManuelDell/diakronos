@@ -125,6 +125,38 @@ Person geht — die Stimme fällt (namentliche Stimmen sind Verhaltensdaten, die
 mit der Person verschwinden). Bei einer anonymen Umfrage ist die
 ``chat_umfrage_abgabe``-Zeile ersatzlos weg; der Zähler je Option steht in
 ``chat_umfrage_option.stimmen`` und trägt keinen Personenbezug.
+
+CHAT-7b (S3: Runden 3–8 und Blockieren)
+---------------------------------------
+**Runden** sind KEINE neue Gesprächsfamilie: ``art = 'runde'``, ``gruppe =
+NULL``, ``paar_schluessel = NULL``, ``titel`` = Name der Runde, 3–8 Zeilen in
+``chat_teilnehmer``. Verlauf, Lesestand, Reaktionen, Umfragen, Meldungen und
+Soft-Delete gelten damit OHNE Sonderfall, und der Rechte-Kern fragt je Konto
+(``darf_direktgespraech``, Teilnehmende aus ``chat_teilnehmer``) — genau wie
+im 1:1. Anders als das 1:1 ist eine Runde NICHT paarweise eindeutig: dieselben
+Personen dürfen mehrere Runden haben (``uq_chat_gespraech_paar`` greift nur bei
+``art = 'direkt'``).
+
+**Verlassen** (``chat_teilnehmer.verlassen_am``): die Zeile bleibt stehen, die
+Person ist aber keine Teilnehmerin mehr. Das ist ABSICHTLICH etwas anderes als
+eine Löschung (Art. 17), bei der die Zeile fällt und die anderen „Gelöschte
+Person“ sehen: wer eine Runde verlässt, bleibt für die anderen eine benannte
+Person — er ist nur nicht mehr dabei.
+
+**Vorschläge** (``chat_runde_vorschlag``): „X möchte Y hinzufügen“ ist ein
+Vorgang der Runde, keine Nachricht an Y. Hinzugefügt wird erst, wenn ALLE
+bisherigen Teilnehmenden außer X zugestimmt haben; eine Ablehnung beendet den
+Vorschlag. Der Verlauf zeigt dazu EINE Systemnachricht ohne weitere Daten.
+Der zwischenzeitliche Zustand (wer hat schon zugestimmt) steht in der Zeile
+selbst (``stand``) — es gibt keine Abstimmungstabelle je Person: die
+Zustimmungen werden gezählt, nicht gespeichert (Konzept S3: „schlicht
+halten“); eine Zustimmung ist wiederholbar und idempotent.
+
+**Blockieren** (``rechte_kontaktsperre``, Modell in ``rechte.py``): wirkt
+ausschließlich im Rechte-Kern (``darf_direktnachricht`` → NEIN „gesperrt“, in
+beide Richtungen) — die Sperre ist eine Zeile des Rechtesystems, keine
+Chat-Tabelle, damit kein zweiter Weg an ihr vorbeiführt. Nach außen ist der
+Grund „gesperrt“ nicht von „nicht erreichbar“ zu unterscheiden.
 """
 
 from __future__ import annotations
@@ -159,7 +191,39 @@ ART_UNTERGRUPPE = "untergruppe"
 #: Teilnehmenden. Genau EINES je Personenpaar — die Datenbank sichert das über
 #: ``chat_gespraech.paar_schluessel`` (sortiertes Kontenpaar, Unique-Index).
 ART_DIREKT = "direkt"
-ARTEN = (ART_GRUPPE, ART_UNTERGRUPPE, ART_DIREKT)
+#: Benannte Runde mit 3–8 Beteiligten (CHAT-7b, Konzept S3). Wie das 1:1 ohne
+#: Gruppe (``gruppe`` NULL) — der Raum sind die Teilnehmenden; ``titel`` ist der
+#: Name der Runde und der EINZIGE Ort, an dem er steht. Kein
+#: ``paar_schluessel``: eine Runde ist kein Personenpaar, und mehrere Runden
+#: derselben Personen sind ausdrücklich erlaubt (der Unique-Index
+#: ``uq_chat_gespraech_paar`` greift nur bei ``art = 'direkt'``).
+ART_RUNDE = "runde"
+ARTEN = (ART_GRUPPE, ART_UNTERGRUPPE, ART_DIREKT, ART_RUNDE)
+
+#: Grenzen einer Runde (Konzept S3: „3–8 benannte Beteiligte“) — INKLUSIVE der
+#: anlegenden Person. ``RUNDE_MAX`` ist zugleich die Grenze für das Hinzufügen
+#: (``rechte.darf_runde_erweitern``). Die Zahlen stehen hier, weil Modell,
+#: Endpunkt und Rechte-Kern dieselbe Grenze nennen müssen.
+RUNDE_MIN = 3
+RUNDE_MAX = 8
+
+#: Höchstlänge des Rundennamens (dieselbe Spalte wie ``chat_gespraech.titel``).
+RUNDE_TITEL_MAX = 140
+
+#: Zustände eines Vorschlags „X möchte Y hinzufügen“ (Tabelle
+#: ``chat_runde_vorschlag``). ``offen`` ist der einzige Zustand, in dem
+#: zugestimmt werden kann; ``angenommen`` (Person ist Teilnehmende) und
+#: ``abgelehnt`` (eine Gegenstimme beendet den Vorschlag) sind abschließend.
+#: ``beendet`` (CHAT-7b-2, SOLL 4) heißt: der Vorschlag ist HINFÄLLIG geworden,
+#: ohne dass jemand dagegen gestimmt hat — der Kreis der Runde hat sich
+#: geändert (Austritt), der Vorgang wird neu verhandelt.
+VORSCHLAG_OFFEN = "offen"
+VORSCHLAG_ANGENOMMEN = "angenommen"
+VORSCHLAG_ABGELEHNT = "abgelehnt"
+VORSCHLAG_BEENDET = "beendet"
+VORSCHLAG_STAENDE: tuple[str, ...] = (
+    VORSCHLAG_OFFEN, VORSCHLAG_ANGENOMMEN, VORSCHLAG_ABGELEHNT, VORSCHLAG_BEENDET,
+)
 
 #: Höchstlänge einer Nachricht (Konzept Abschnitt 1/S1: „Text bis 4 000
 #: Zeichen“). Gezählt werden ZEICHEN (``len(text)``), nicht Bytes — ein Emoji
@@ -270,6 +334,8 @@ class ChatGespraech(Base):
     #: Datenbank, nicht nur im Lazy-Anlegen (zwei gleichzeitige Aufrufe).
     paar_schluessel: Mapped[str | None] = mapped_column(String(300), nullable=True)
     #: Anzeigetitel. Leer heißt: die Oberfläche nimmt den Gruppennamen.
+    #: Bei einer RUNDE (CHAT-7b) ist das der Name der Runde — der einzige Ort,
+    #: an dem er steht (Konzept S3: „benannte Beteiligte“).
     titel: Mapped[str | None] = mapped_column(String(140), nullable=True)
     #: Konto, das das Gespräch angelegt hat (das erste schreibende Mitglied).
     angelegt_von: Mapped[str | None] = mapped_column(
@@ -313,6 +379,25 @@ class ChatTeilnehmer(Base):
     #: Kennung der zuletzt gelesenen Nachricht — nötig, weil zwei Nachrichten
     #: denselben Zeitstempel tragen können (Sekundengenauigkeit auf PostgreSQL).
     letzter_lesestand_nachricht: Mapped[str | None] = mapped_column(String(140), nullable=True)
+    #: CHAT-7b: Wann die Person die RUNDE verlassen hat (``runde_verlassen``).
+    #: Die Zeile wird NICHT gelöscht — es gibt zwei völlig verschiedene Dinge:
+    #: „ist gegangen“ (diese Spalte gesetzt, die Person bleibt für die anderen
+    #: eine benannte Person) und „Konto gelöscht“ (die Zeile fällt, die anderen
+    #: sehen „Gelöschte Person“). Ein gelöschtes Konto und ein Austritt sähen
+    #: sonst gleich aus. Gesetzt = keine Teilnahme mehr (der Kern bekommt das
+    #: Konto nicht mehr in ``teilnehmer``), Lesestand und ``stumm`` bleiben als
+    #: Geschichte stehen.
+    verlassen_am: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=False), nullable=True
+    )
+    #: CHAT-7b (Review R1, SOLL 7): ab wann diese Person den VERLAUF sieht.
+    #: Beim ersten Beitritt die Zeit des Beitritts, nach einem Austritt die des
+    #: WIEDEREINTRITTS — wer neu dazukommt, liest nicht rückwirkend mit, was
+    #: vorher geschrieben wurde. Beim 1:1 bleibt das Feld leer (dort sieht man
+    #: von Anfang an alles).
+    sichtbar_ab: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=False), nullable=True
+    )
 
 
 class ChatNachricht(Base):
@@ -381,6 +466,15 @@ class ChatNachricht(Base):
     #: Lesestand, Zitat, Soft-Delete und Reaktionen greifen ohne Sonderfall.
     umfrage: Mapped[str | None] = mapped_column(
         String(140), ForeignKey("chat_umfrage.name"), nullable=True
+    )
+    #: CHAT-7b (Review R1, SOLL 8): eine SYSTEMZEILE des Verlaufs. Steht hier die
+    #: Kennung eines ``chat_runde_vorschlag``, ist die Nachricht der sichtbare
+    #: Satz „X möchte Y hinzufügen“ — gebildet beim LESEN aus der Vorschlagszeile.
+    #: Deshalb: kein ``autor_benutzer`` (nicht bearbeitbar/löschbar/meldbar),
+    #: ``text`` leer und keine Namen-Kopie, die eine Anonymisierung stehen ließe.
+    #: NULL = normale Nachricht.
+    vorschlag: Mapped[str | None] = mapped_column(
+        String(140), ForeignKey("chat_runde_vorschlag.name"), nullable=True
     )
 
 
@@ -709,10 +803,110 @@ class ChatGlocke(Base):
     )
 
 
+class ChatRundeVorschlag(Base):
+    """Vorschlag „X möchte Y in die Runde holen“ (CHAT-7b, Konzept S3).
+
+    Hinzugefügt wird NUR mit Zustimmung der Runde: ALLE bisherigen
+    Teilnehmenden außer der vorschlagenden Person müssen zustimmen, EINE
+    Ablehnung beendet den Vorschlag (der Endpunkt ``runde_zustimmen`` /
+    ``runde_ablehnen`` rechnet das, nicht diese Tabelle).
+
+    Die Zeile ist bewusst schlicht:
+
+    * ``gespraech`` + ``mitglied`` (die VORGESCHLAGENE Person, eine
+      Mitglied-Kennung) + ``vorgeschlagen_von`` (Konto) + ``angelegt_am``.
+    * ``stand`` — ``offen`` / ``angenommen`` / ``abgelehnt`` / ``beendet``
+      (``VORSCHLAG_STAENDE``; ``beendet`` = mit dem Austritt hinfällig
+      geworden, ohne Gegenstimme — CHAT-7b-2, SOLL 4). ``offen`` ist der
+      einzige Zustand, in dem
+      abgestimmt werden kann; der Zustandswechsel ist ein bedingtes
+      ``UPDATE`` (``WHERE stand = 'offen'``), damit zwei gleichzeitige
+      Gegenstimmen nicht beide „gewinnen“.
+    * ``entschieden_am``/``entschieden_von`` (Konto) — wer den Vorschlag
+      beendet hat (bei Annahme: die letzte zustimmende Person). Nur für den
+      Nachweis; der VERLAUF nennt niemanden (die Systemnachricht sagt nur
+      „X möchte Y hinzufügen“, ohne weitere Daten).
+
+    Der partielle Unique-Index ``uq_chat_runde_vorschlag_offen`` lässt je
+    (Runde, Person) höchstens EINEN offenen Vorschlag zu — nach einer
+    Entscheidung darf dieselbe Person erneut vorgeschlagen werden.
+
+    DSGVO (Review R1, MUSS 4): ``vorgeschlagen_von``/``entschieden_von`` sind
+    Konto-Spalten (``user_null`` — die Zeile bleibt, das Konto verschwindet),
+    ``zustimmende`` ist eine Konten-Liste (``WERT_SPALTEN`` Art ``liste``) und
+    ``mitglied`` eine Mitglied-Kennung ohne FK, die das Inventar auf die
+    neutrale Kennung umhängt. Die Zeile fällt NICHT mit dem Konto: die
+    Systemzeile im Verlauf (``chat_nachricht.vorschlag``) zeigen die anderen
+    weiter.
+    """
+
+    __tablename__ = "chat_runde_vorschlag"
+    __table_args__ = (
+        # EIN OFFENER Vorschlag je (Runde, vorgeschlagene Person) — partiell,
+        # weil nach einer Entscheidung ein neuer Vorschlag möglich sein muss
+        # (dasselbe Muster wie ``uq_chat_meldung_offen``).
+        Index("uq_chat_runde_vorschlag_offen", "gespraech", "mitglied",
+              unique=True,
+              sqlite_where=sql_text("stand = 'offen'"),
+              postgresql_where=sql_text("stand = 'offen'")),
+        # Die Abfrage des Endpunkts: „offene Vorschläge dieser Runde“.
+        Index("ix_chat_runde_vorschlag_gespraech", "gespraech", "stand"),
+    )
+
+    name: Mapped[str] = mapped_column(String(140), primary_key=True)
+    gespraech: Mapped[str] = mapped_column(
+        String(140), ForeignKey("chat_gespraech.name"), nullable=False
+    )
+    #: Konto, das den Vorschlag gemacht hat (``user.name``). DSGVO:
+    #: ``user_null`` — der Vorschlag fällt bei einer Löschung aber ganz (er
+    #: hätte ohne Vorschlagende keine Bedeutung mehr).
+    vorgeschlagen_von: Mapped[str | None] = mapped_column(
+        String(140), ForeignKey("user.name"), nullable=True
+    )
+    #: Die VORGESCHLAGENE Person (``mitglied.name``). Kein FK — dieselbe Form
+    #: wie ``chat_nachricht.autor``; die Anonymisierung entfernt die Zeile.
+    mitglied: Mapped[str] = mapped_column(String(140), nullable=False)
+    #: ``offen`` / ``angenommen`` / ``abgelehnt``.
+    stand: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=VORSCHLAG_OFFEN,
+        server_default=sql_text("'offen'"),
+    )
+    #: Die Konten, die zugestimmt haben — sortiert, mit ``", "`` getrennt
+    #: (dieselbe Form wie ``sicherungslauf.benachrichtigt``; die Anonymisierung
+    #: entfernt den Eintrag der Person mit ``_konto_listen_bereinigen``).
+    #: EINE Spalte, KEINE Zeile je Stimme: der Vorgang bleibt ein Datensatz,
+    #: und ohne diese Liste könnte dieselbe Person mehrfach zustimmen und die
+    #: Grenze „alle bisherigen Teilnehmenden“ allein erreichen — genau das
+    #: verhindert sie. Der VERLAUF und jede Antwort nennen daraus niemanden.
+    #: DSGVO: ``user_null`` — die Liste fällt mit dem Konto (``_konto_listen_-
+    #: bereinigen`` entfernt den Eintrag exakt).
+    zustimmende: Mapped[str] = mapped_column(
+        Text, nullable=False, default="", server_default=sql_text("''")
+    )
+    entschieden_von: Mapped[str | None] = mapped_column(
+        String(140), ForeignKey("user.name"), nullable=True
+    )
+    entschieden_am: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=False), nullable=True
+    )
+    angelegt_am: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+
+    @property
+    def zustimmungen(self) -> list[str]:
+        """Die KONTEN der Zustimmenden (aus ``zustimmende``) — nie eine Zahl.
+
+        Eine ZAHL allein wäre falsch zählbar (dieselbe Person mehrfach); die
+        Liste ist die Wahrheit, die Anzahl ihre Länge.
+        """
+        return [k.strip() for k in str(self.zustimmende or "").split(",")
+                if k.strip()]
+
+
 __all__: list[Any] = [
     "ARTEN",
     "ART_DIREKT",
     "ART_GRUPPE",
+    "ART_RUNDE",
     "ART_UNTERGRUPPE",
     "BEARBEITEN_MINUTEN",
     "ChatGespraech",
@@ -720,6 +914,7 @@ __all__: list[Any] = [
     "ChatMeldung",
     "ChatNachricht",
     "ChatReaktion",
+    "ChatRundeVorschlag",
     "ChatStimme",
     "ChatTeilnehmer",
     "GLOCKE_RUHE_MINUTEN",
@@ -740,4 +935,12 @@ __all__: list[Any] = [
     "OPTIONEN_MIN",
     "OPTION_MAX",
     "REAKTIONEN",
+    "RUNDE_MAX",
+    "RUNDE_MIN",
+    "RUNDE_TITEL_MAX",
+    "VORSCHLAG_ABGELEHNT",
+    "VORSCHLAG_ANGENOMMEN",
+    "VORSCHLAG_BEENDET",
+    "VORSCHLAG_OFFEN",
+    "VORSCHLAG_STAENDE",
 ]

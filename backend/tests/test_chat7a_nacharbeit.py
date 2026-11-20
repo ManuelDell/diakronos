@@ -196,8 +196,14 @@ def test_moderieren_im_direktgespraech_liest_die_teilnehmer_nicht(welt, monkeypa
 
     with dbmod.SessionLocal.begin() as s, dbmod.als_aktuelle_sitzung(s):
         zeile = s.get(ChatGespraech, g)
-        assert C._weiche_ja(ADMIN, R.MODERIEREN, g=zeile, sitzung=s) is True
-        assert C._weiche_ja(ANNA, R.MODERIEREN, g=zeile, sitzung=s) is False
+        # CHAT-7b (Review R1, MUSS 1): MODERIEREN im 1:1/in der Runde gibt es
+        # NUR auf dem Meldeweg (``meldeweg=True``). Ohne das Flag antwortet der
+        # Kern „nur_meldeweg“ — auch für den Administrator.
+        assert C._weiche_ja(ADMIN, R.MODERIEREN, g=zeile, sitzung=s) is False
+        assert C._weiche_ja(ADMIN, R.MODERIEREN, g=zeile, sitzung=s,
+                            meldeweg=True) is True
+        assert C._weiche_ja(ANNA, R.MODERIEREN, g=zeile, sitzung=s,
+                            meldeweg=True) is False
     assert gelesen["n"] == 0, gelesen
 
 

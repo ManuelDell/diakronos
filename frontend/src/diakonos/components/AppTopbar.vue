@@ -149,6 +149,25 @@
                   <span class="dk-notify-weg">Zur Sichtbarkeit im Profil ›</span>
                 </span>
               </DkButton>
+              <!-- CHAT-6-UI: „Neue Meldung im Chat“ ist kein Lesetext, sondern
+                   ein Weg — der Klick führt in den Reiter „Chat“ unter „Zu
+                   prüfen“, wo die Moderation entscheidet. Welche Einträge das
+                   sind, entscheidet `composables/glockenziele.mjs`. -->
+              <DkButton
+                v-else-if="istChatMeldung(n)"
+                variant="ghost"
+                size="md"
+                class="dk-notify-eintrag-knopf"
+                :aria-label="`Neue Meldung im Chat — zu „Zu prüfen“`"
+                @click="zurMeldung(n)"
+              >
+                <span class="dk-notify-knopftext">
+                  <span class="dk-notify-betreff">{{ n.subject || 'Neue Meldung im Chat' }}</span>
+                  <span class="dk-notify-text">{{ kurz(n.email_content) }}</span>
+                  <span class="dk-notify-zeit">{{ zeitText(n.creation) }}<template v-if="vorText(n.creation)"> · {{ vorText(n.creation) }}</template></span>
+                  <span class="dk-notify-weg">Zu prüfen · Chat ›</span>
+                </span>
+              </DkButton>
               <template v-else>
                 <div class="dk-notify-betreff">{{ n.subject || 'Benachrichtigung' }}</div>
                 <div class="dk-notify-text">{{ kurz(n.email_content) }}</div>
@@ -196,6 +215,9 @@ import DkSymbol from './ui/DkSymbol.vue'
 import DkBadge from './ui/DkBadge.vue'
 import { darfAlsGelesenMarkieren } from '../composables/glocke.mjs'
 import { istDatenanfrage, fragendePerson, profilAdresse } from '../composables/datenAnfrage.mjs'
+// CHAT-6-UI: „Neue Meldung im Chat“ führt in den Reiter „Chat“ unter
+// „Zu prüfen“ — die Zuordnung steht in EINER Datei (`glockenziele.mjs`).
+import { istChatMeldung, meldungZiel } from '../composables/glockenziele.mjs'
 import { krumenZuSeite } from '../menue.js'
 import { MENUE_KNOPF_TEXT } from './handyMenue.mjs'
 
@@ -278,6 +300,18 @@ function zurSichtbarkeit(meldung) {
   listeOffen.value = false
   if (unreadCount.value > 0) markAsRead([meldung].filter(Boolean))
   navigate(adresse)
+}
+
+/**
+ * CHAT-6-UI: Der Klick auf „Neue Meldung im Chat“ führt in den Reiter „Chat“
+ * unter „Zu prüfen“. Das Panel schließt dabei (die Meldung ist gelesen, die
+ * Person ist unterwegs) und markiert die Zeile als gelesen — wie beim
+ * Datenanfrage-Weg.
+ */
+function zurMeldung(meldung) {
+  listeOffen.value = false
+  if (unreadCount.value > 0) markAsRead([meldung].filter(Boolean))
+  navigate(meldungZiel())
 }
 
 onMounted(() => {

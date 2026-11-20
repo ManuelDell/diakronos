@@ -186,6 +186,7 @@
                     @antworten="antworten"
                     @bearbeiten="bearbeitenOeffnen"
                     @loeschen="loeschen"
+                    @melden="meldenOeffnen"
                   >
                     <!-- CHAT-5-UI: Umfrage-Nachricht → Karte statt Blase. -->
                     <template v-if="n.umfrage" #karte>
@@ -263,6 +264,18 @@
       :fehler="umfrageAnlegenFehler"
       :darf-senden="darfSenden"
       @anlegen="umfrageAnlegen"
+    />
+
+    <!-- CHAT-6-UI: „Melden“ — Grundauswahl, Freitext (≤ 500), der Hinweis
+         „Wer Meldungen prüft, sieht diese Nachricht und die fünf davor.“ IMMER
+         sichtbar vor dem Absenden. Der Dialog sendet nicht selbst; die Seite
+         ruft `chat.meldung_senden` und gibt die Antwort zurück. -->
+    <ChatMeldungDialog
+      v-model="meldeDialog"
+      :laeuft="meldeLaeuft"
+      :fehler="meldeFehler"
+      :eingegangen="meldeEingegangen"
+      @melden="meldungSenden"
     />
 
     <!-- Bearbeiten-Fenster: eigener Text, 15 Minuten (Server prüft erneut). -->
@@ -359,7 +372,13 @@ import ChatBlase from '../components/chat/ChatBlase.vue'
 import ChatSuche from '../components/chat/ChatSuche.vue'
 import ChatUmfrage from '../components/chat/ChatUmfrage.vue'
 import ChatUmfrageDialog from '../components/chat/ChatUmfrageDialog.vue'
+import ChatMeldungDialog from '../components/chat/ChatMeldungDialog.vue'
 import { TEXTE as UMFRAGE_TEXTE, istUmfrageZeile } from '../components/chat/umfrage.mjs'
+// CHAT-6-UI: Melden — Prüfung und Auslegung der Antwort in `meldung.mjs`.
+import {
+  KEIN_ZUGRIFF as MELDUNG_KEIN_ZUGRIFF, meldbar as darfMelden, meldeFehlerText,
+  sendeAntwort as meldeAntwort,
+} from '../components/chat/meldung.mjs'
 
 // ── Sitzung und Adresse ────────────────────────────────────────────────────
 
@@ -1341,6 +1360,69 @@ async function umfrageSchliessen({ umfrage }) {
   }
 }
 
+// ── Melden (CHAT-6-UI) ─────────────────────────────────────────────────────
+
+/**
+ * „Melden“ an einer FREMDEN, nicht gelöschten Nachricht (Konzept 2.5).
+ *
+ * Die Blase bietet den Knopf/den Menüeintrag nur dort an (`meldbar`); hier
+ * wird die gemeldete Nachricht für den Dialog gemerkt. Rechte prüft der
+ * Server — ein „nein“ (403) kommt als ruhiger Text zurück.
+ */
+const meldeDialog = ref(false)
+const meldeZiel = ref(null)
+const meldeLaeuft = ref(false)
+const meldeFehler = ref('')
+/** Die Meldung ist eingegangen → der Dialog zeigt die Bestätigung. */
+const meldeEingegangen = ref(false)
+
+function meldenOeffnen(nachricht) {
+  if (!darfMelden(nachricht)) return
+  meldeZiel.value = nachricht
+  meldeFehler.value = ''
+  meldeEingegangen.value = false
+  meldeDialog.value = true
+}
+
+/**
+ * Absenden — `chat.meldung_senden(nachricht, grund, freitext)`.
+ *
+ * Antwort mit `meldung_offen`/`name` = eingegangen (ruhige Bestätigung im
+ * Dialog). Ein Fehler des Servers steht an derselben Stelle, im Klartext des
+ * Servers, wenn er brauchbar ist — die Antwort auf eine doppelte Meldung
+ * („Diese Nachricht wurde von dir bereits gemeldet.“) ist genau das.
+ */
+async function meldungSenden({ grund, freitext }) {
+  const ziel = meldeZiel.value
+  if (!ziel || meldeLaeuft.value) return
+  meldeLaeuft.value = true
+  meldeFehler.value = ''
+  try {
+    const antwort = await apiCall('chat.meldung_senden', {
+      nachricht: ziel.ident || ziel.name || ziel.id,
+      grund,
+      freitext: freitext || undefined,
+    })
+    const lage = meldeAntwort(antwort)
+    if (!lage.ok) {
+      meldeFehler.value = lage.text
+      return
+    }
+    meldeEingegangen.value = true
+  } catch (fehler) {
+    // Der Satz des Servers bleibt stehen, wenn er eine Auskunft ist („Diese
+    // Nachricht wurde von dir bereits gemeldet.“); sonst der Katalogtext.
+    const zustand = fehlerZustand(fehler)
+    let ersatz = ''
+    if (zustand?.art === 'eingabe') ersatz = zustand.text
+    else if (zustand?.art === 'kein-zugriff') ersatz = MELDUNG_KEIN_ZUGRIFF
+    else ersatz = fehlertext(fehler)
+    meldeFehler.value = meldeFehlerText(fehler, { ersatz })
+  } finally {
+    meldeLaeuft.value = false
+  }
+}
+
 // ── Takt (Polling) ─────────────────────────────────────────────────────────
 
 /** Ist der Tab sichtbar? (Nur dann darf gelesen und gefragt werden.) */
@@ -1422,6 +1504,13 @@ defineExpose({
   taktStand,
   sucheStand,
   taktAbrufen: (augenblick) => takt.jetzt(augenblick),
+  // CHAT-6-UI: der Meldeweg der Seite (gemountet prüfbar: Auswahl → POST).
+  meldenOeffnen,
+  meldungSenden,
+  meldeDialog,
+  meldeLaeuft,
+  meldeFehler,
+  meldeEingegangen,
 })
 
 // ── Start und Wechsel ──────────────────────────────────────────────────────

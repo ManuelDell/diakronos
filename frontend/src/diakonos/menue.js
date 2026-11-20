@@ -604,6 +604,17 @@ export const KALENDER_PRUEF_REITER = {
 }
 
 /**
+ * CHAT-6-UI: Der zweite Eintrag der „Zu prüfen“-Seite — der Reiter „Chat“ mit
+ * den Meldungen aus dem Chat. Er steht am Kalender-Kopf, weil das der Ort ist,
+ * an dem „Zu prüfen“ heute hängt (Konzept 2.5: „kein neuer Ort in der
+ * Oberfläche“). Sichtbar NUR, wenn der Server die Meldungen ausliefert; die
+ * Kennzahl sind die offenen Meldungen (`meldungen_liste` → `offen`).
+ */
+export const KALENDER_CHAT_REITER = {
+    id: 'chat', label: 'Chat', seite: 'Pruefen', href: '#/kalender/pruefen?reiter=chat',
+}
+
+/**
  * Reiter, die der Kalender dem aktuellen Nutzer ANZEIGT (UX3d).
  *
  * Entwurf A4 zeigt am Kopf des Kalenders EINE Leiste
@@ -618,13 +629,19 @@ export const KALENDER_PRUEF_REITER = {
  * fehlt sie oder ist sie keine Zahl, bleibt die Beschriftung ohne Zahl — nie
  * eine erfundene 0.
  *
- * @param {{can_moderate?: boolean, offeneZahl?: number|null}} optionen
+ * CHAT-6-UI: `chatZahl` (offene Meldungen) und `chatRecht` fügen den Reiter
+ * „Chat“ hinzu — nur wenn der Server die Meldungen liefert (`chatRecht`),
+ * nie geraten.
+ *
+ * @param {{can_moderate?: boolean, offeneZahl?: number|null,
+ *          chatRecht?: boolean, chatZahl?: number|null}} optionen
  * @returns {Array<{id: string, label: string, href: string|null, seite: string,
  *                  zahl: number|null, aktiv: string}>}
  *          `aktiv` ist der Ansichtsname, den `KronosTopbar` als aktiv markiert
  *          (`dayGridMonth`/`timeGridWeek`/`listMonth`/`pruefen`).
  */
-export function kalenderReiter({ can_moderate = false, offeneZahl = null } = {}) {
+export function kalenderReiter({ can_moderate = false, offeneZahl = null,
+    chatRecht = false, chatZahl = null } = {}) {
     const zahl = (offeneZahl === null || offeneZahl === undefined || offeneZahl === '')
         ? null
         : (Number.isFinite(Number(offeneZahl)) ? Number(offeneZahl) : null)
@@ -646,6 +663,26 @@ export function kalenderReiter({ can_moderate = false, offeneZahl = null } = {})
             seite: KALENDER_PRUEF_REITER.seite,
             zahl: (zahl !== null && zahl > 0) ? zahl : null,
             aktiv: KALENDER_PRUEF_REITER.id,
+        })
+    }
+    // CHAT-6-UI: zweiter Eintrag der Seite „Zu prüfen“. Er trägt seinen
+    // eigenen Zustand (Meldungen aus dem Chat) — deshalb `aktiv: 'chat'`,
+    // damit der Kopf den richtigen Eintrag markiert.
+    //
+    // Das Recht ist EIGENSTÄNDIG (Review CHAT-6 R1): „Meldungen prüfen“
+    // (HV/MV/GL der Gruppe, Meldestelle im 1:1) hängt NICHT an
+    // `can_moderate` (Kalender). Wer nur Meldungen prüfen darf, sieht diesen
+    // Reiter — und die Seite führt ihn in den Chat-Zweig.
+    if (chatRecht === true) {
+        const chatN = Number(chatZahl)
+        reiter.push({
+            id: KALENDER_CHAT_REITER.id,
+            label: KALENDER_CHAT_REITER.label,
+            href: KALENDER_CHAT_REITER.href,
+            ansicht: false,
+            seite: KALENDER_CHAT_REITER.seite,
+            zahl: (Number.isFinite(chatN) && chatN > 0) ? chatN : null,
+            aktiv: KALENDER_CHAT_REITER.id,
         })
     }
     return reiter

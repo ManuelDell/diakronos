@@ -12,7 +12,7 @@
   <li
     class="dk-chat-beitrag"
     :class="{ 'is-ich': nachricht.eigene, 'is-geloescht': nachricht.geloescht }"
-    :data-name="nachricht.id"
+    :data-name="nachricht.ident || nachricht.name || nachricht.id"
   >
     <!-- CHAT-3a-4 (MUSS 2): Der Avatar steht in der EIGENEN Spalte links
          oben — ein reines CSS-Element, ohne eigenen Zustand: die Spalte
@@ -58,6 +58,20 @@
             title="Reaktion setzen"
             @click="auswahlOffen = !auswahlOffen"
           ><template #icon><span aria-hidden="true">＋</span></template></DkButton>
+          <!-- CHAT-6-UI: „Melden“ an FREMDEN, nicht gelöschten Nachrichten —
+               am Desktop als Symbolknopf mit aria-label in derselben
+               Aktionszeile, am Handy im „⋯“-Menü (`menueEintraege`). Die
+               eigene Nachricht lässt sich nicht melden (der Server sagt
+               dasselbe). -->
+          <DkButton
+            v-if="!handyLage && darfMelden"
+            variant="ghost"
+            size="sm"
+            class="dk-chat-aktion"
+            :aria-label="MELDE_TEXTE.melden"
+            :title="MELDE_TEXTE.melden"
+            @click="$emit('melden', nachricht)"
+          ><template #icon><DkSymbol name="melden" :groesse="14" /></template></DkButton>
           <!-- Desktop: die drei Aktionen als eigene Symbolknöpfe (unverändert). -->
           <DkButton
             v-if="!handyLage"
@@ -189,9 +203,14 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import DkButton from '../ui/DkButton.vue'
 import DkAktionen from '../ui/DkAktionen.vue'
+import DkSymbol from '../ui/DkSymbol.vue'
 import { initialen as initialenAus } from '../../composables/anzeigename.mjs'
 import { innerhalbFrist, lesestandText } from '../../composables/nachrichtenLogik.mjs'
 import { reaktionsAuswahl, reaktionsZeile } from '../../composables/nachrichtenReaktionen.mjs'
+// CHAT-6-UI: „Melden“ nur an fremden, nicht gelöschten Nachrichten — dieselbe
+// Regel prüft der Server beim Senden erneut (`meldbar` sagt nur, ob der Knopf
+// bzw. Menüeintrag angeboten wird).
+import { TEXTE as MELDE_TEXTE, meldbar } from './meldung.mjs'
 
 const props = defineProps({
   nachricht: { type: Object, required: true },
@@ -217,7 +236,7 @@ const props = defineProps({
    */
   handyLage: { type: Boolean, default: false },
 })
-const emit = defineEmits(['reaktion', 'antworten', 'bearbeiten', 'loeschen'])
+const emit = defineEmits(['reaktion', 'antworten', 'bearbeiten', 'loeschen', 'melden'])
 
 const auswahlOffen = ref(false)
 const reaktionen = computed(() => reaktionsZeile(props.nachricht.reaktionen))
@@ -225,6 +244,8 @@ const hatReaktion = computed(() => reaktionen.value.some((r) => r.anzahl > 0))
 const alleZeichen = computed(() => reaktionsAuswahl(props.nachricht.reaktionen))
 const initialen = computed(() => initialenAus(null, props.nachricht.autor || ''))
 const lesestand = computed(() => lesestandText(props.nachricht, { direkt: props.direkt === true }))
+/** CHAT-6-UI: Darf DIESE Nachricht gemeldet werden (fremd, nicht gelöscht)? */
+const darfMelden = computed(() => meldbar(props.nachricht))
 /** Der Avatar gehört an den Anfang einer Folge — und nie an eigene Zeilen. */
 const zeigeAvatar = computed(() => props.nachricht.eigene !== true && props.folgeStart !== false)
 
@@ -280,7 +301,8 @@ const bearbeitbar = computed(() => props.nachricht.eigene === true
  * CHAT-3a-5 (A): Die Einträge des Handy-Menüs — genau die Aktionen, die am
  * Desktop als Symbolknöpfe stehen, in derselben Reihenfolge und mit derselben
  * Erlaubnis: Antworten (immer), Bearbeiten (nur eigene, innerhalb der Frist),
- * Löschen (nur eigene, gefährlich → abgesetzt am Ende, Entwurf B1).
+ * Melden (nur fremde, nicht gelöschte — CHAT-6-UI), Löschen (nur eigene,
+ * gefährlich → abgesetzt am Ende, Entwurf B1).
  * Die Ausführung meldet dieselben Ereignisse wie die Knöpfe; die Seite bleibt
  * die einzige Stelle, die etwas sendet.
  */
@@ -290,6 +312,9 @@ const menueEintraege = computed(() => {
   ]
   if (bearbeitbar.value) {
     liste.push({ key: 'bearbeiten', label: 'Bearbeiten', icon: 'stift', aktion: () => emit('bearbeiten', props.nachricht) })
+  }
+  if (darfMelden.value) {
+    liste.push({ key: 'melden', label: MELDE_TEXTE.melden, icon: 'melden', aktion: () => emit('melden', props.nachricht) })
   }
   if (props.nachricht.eigene === true) {
     liste.push({ key: 'loeschen', label: 'Löschen', icon: 'loeschen', gefahr: true, aktion: () => emit('loeschen', props.nachricht) })

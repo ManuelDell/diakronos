@@ -854,6 +854,29 @@ tests/chat3a5-nachrichten-handy.test.mjs
 # components/chat/umfrage.mjs (DOM-frei), beide Komponenten und die Seite
 # gemountet geprüft.
 tests/chat5-umfrage-ui.test.mjs
+# CHAT-6-UI: „Melden“ an fremden Nachrichten (Desktop-Aktionszeile, Handy-„⋯“),
+# der Hinweis „Wer Meldungen prüft, sieht diese Nachricht und die fünf davor.“
+# VOR dem Absenden, Freitext bis 500 Zeichen, POST mit grund/freitext — und der
+# Reiter „Chat“ in „Zu prüfen“ (fehlt bei 403, EIGENES Recht neben dem
+# Kalender-Recht, Liste mit Ausschnitt aus DERSELBEN Antwort, erledigte Stände
+# als eigener Abruf, Entscheidung als POST, 1:1 neutral betitelt). Glocke
+# „Neue Meldung im Chat“ führt in den Reiter. Regeln in
+# components/chat/meldung.mjs (DOM-frei), Dialog, Blase, Liste und die Seiten
+# gemountet geprüft.
+tests/chat6-meldung-ui.test.mjs
+# CHAT-6-UI-2 (Review R2): Prüfseite „Chat“ — `pruefTafel` auf der ganzen
+# Seite (Ansichten als LINKS), Reiter „Chat“ am Kalender-Kopf über den
+# geteilten Merker (composables/chatPruefRecht.mjs), Handy-Rückweg nur mit
+# Kalender-Recht, Fehlerseite statt Sperrseite bei Netz-/Serverfehler,
+# erledigt/verworfen genau einmal. Gemountet geprüft.
+tests/chat6ui2-kopf-einstieg.test.mjs
+# CHAT-6-UI-3: Prüfseite „Chat“ — Handy-Zeile und Merker. Der Einstieg liest
+# `get_session_info().chat_moderieren` (kein Listen-Abruf für Normalnutzer,
+# genau EINE Liste mit Recht, Fehler wird nicht als „geprüft“ gemerkt); die
+# zweite Handy-Zeile „Meldungen aus dem Chat“ trägt Ziel `MELDUNGEN_ADRESSE`
+# und einen eigenen Vorlesetext; eine unbekannte Zahl wird `null` durchgereicht
+# statt 0 (`KronosTopbar.chatZahl` ist `[Number, null]`). Gemountet geprüft.
+tests/chat6ui3-handy-zeile-merker.test.mjs
 # CHAT-8-UI: Einstellungen › „Nachrichten aufbewahren“ (Aufbewahrungsfristen
 # des Chats, Konzept 4.2 / F8). Geprüft werden die Regeln
 # (pages/einstellungen/fristen.mjs, DOM-frei: Serverantwort lesen — gespeichert,

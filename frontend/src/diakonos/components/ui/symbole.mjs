@@ -22,6 +22,9 @@ export const SYMBOLE = {
   // Antworten (Pfeil zurück) — CHAT-3a-5: Eintrag „Antworten“ im Handy-Menü
   // der Nachricht; dieselbe Strichfamilie wie alle anderen Menüsymbole.
   antworten: { p: ['M9 14 4 9l5-5', 'M4 9h10a6 6 0 0 1 0 12h-3'] },
+  // Melden (Fähnchen) — CHAT-6-UI: Eintrag „Melden“ im Handy-Menü der
+  // Nachricht und Symbol in der Desktop-Aktionszeile (lucide „flag“).
+  melden: { p: ['M4 22V4', 'M4 4h11l-1.5 3.5L15 11H4'] },
   // Gruppe / Personen
   gruppe: { p: ['M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2', 'M22 21v-2a4 4 0 0 0-3-3.87', 'M16 3.13a4 4 0 0 1 0 7.75'], c: [[9, 7, 4]] },
   // Kalender

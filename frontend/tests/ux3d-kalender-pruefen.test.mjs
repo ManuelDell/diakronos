@@ -331,7 +331,10 @@ test('UX3d: Kalender-Seite liest das Recht aus dem Boot-Objekt (fail closed)', (
 test('UX3d: die Tafel nutzt denselben Kopf und lässt die Funktion unverändert', () => {
   const quelle = lies('pages/Moderation.vue')
   assert.match(quelle, /<KronosTopbar/, 'die Prüf-Tafel nutzt die Kalender-Kopfzeile')
-  assert.match(quelle, /aktiverReiter="pruefen"/, 'der vierte Reiter ist dort aktiv')
+  // CHAT-6-UI (Review R1): aktiver Reiter als Bindung — „pruefen“ auf der
+  // Tafel, „chat“ im Chat-Zweig derselben Seite.
+  assert.match(quelle, /:aktiverReiter="zeigeChat \? 'chat' : 'pruefen'"/,
+    'der vierte Reiter ist dort aktiv')
   assert.match(quelle, /pruefTafel/, 'kein zweiter Reiter-Streifen im Vollbild')
   // Die Funktion bleibt: Alle freigeben, Erklärung, Änderungen, Brett.
   for (const teil of ['Alle freigeben', 'data-test="moderation-erklaerung"',

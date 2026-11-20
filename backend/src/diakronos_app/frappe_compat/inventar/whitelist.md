@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **2323**
-* eindeutige Funktionen: **414**
-* lesend: **183**, schreibend: **231**
-* Rumpfbefund: schreibend 221, lesend 193, unbekannt 0
+* registrierte Pfade: **2371**
+* eindeutige Funktionen: **422**
+* lesend: **183**, schreibend: **239**
+* Rumpfbefund: schreibend 228, lesend 194, unbekannt 0
 
 ## Einstufung
 
@@ -42,6 +42,7 @@ Entschieden ohne Ausnahme (Quellen einig, die Grenze traegt die Deklaration — 
 | Funktion | Methoden | Rumpf | Name | Ausnahme | Art | Greift |
 |---|---|---|---|---|---|---|
 | `diakronos_app.anmeldung.einstellungen_api.anmeldung_get_einstellungen` | — | schreibend | lesend | Leseansicht; legt fehlende Konfigurationszeile an (Helfer erkannt) | konfig — Leseansicht, die beim ERSTEN Aufruf ihre Konfigurationszeile anlegt (idempotent, ohne Absicht des Nutzers) — der POST waere hier falsch | ja (rumpf) |
+| `diakronos_app.api.chat.meine_sperren` | ['GET'] | lesend | schreibend | liest nur die EIGENEN Kontaktsperren (keine Zeile wird geschrieben); Deklaration setzt methods=['GET'] ausdruecklich | nur_vorschau — Namensbefund/Weiterleitung ohne Wirkung: die Funktion schreibt nicht oder die Schreibung haengt an einem Schalter, der per Default aus ist | ja (name) |
 | `diakronos_app.api.frappe_core.logout` | ['POST'] | lesend | schreibend | loescht nur die eigene Sitzung (Abmelden), keine Fachdaten | rueckkanal — der Rumpf loescht nur die eigene Sitzung/den eigenen Token (Abmelden), er aendert keine Fachdaten | ja (name, deklaration) |
 | `diakronos_app.api.gemeinde.datenschutz_get_texte` | — | schreibend | lesend | Leseansicht; legt fehlende Textzeile an (Helfer erkannt) | konfig — Leseansicht, die beim ERSTEN Aufruf ihre Konfigurationszeile anlegt (idempotent, ohne Absicht des Nutzers) — der POST waere hier falsch | ja (rumpf) |
 | `diakronos_app.api.gemeinde.gemeinde_get_einstellungen` | — | schreibend | lesend | Leseansicht; legt fehlende Konfigurationszeile an (Helfer erkannt) | konfig — Leseansicht, die beim ERSTEN Aufruf ihre Konfigurationszeile anlegt (idempotent, ohne Absicht des Nutzers) — der POST waere hier falsch | ja (rumpf) |
@@ -95,11 +96,19 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.chat.direkt_oeffnen` | ['POST'] | nein |
 | `diakronos_app.api.chat.fristen_speichern` | ['POST'] | nein |
 | `diakronos_app.api.chat.gespraech_anlegen` | ['POST'] | nein |
+| `diakronos_app.api.chat.kontakt_entsperren` | ['POST'] | nein |
+| `diakronos_app.api.chat.kontakt_sperren` | ['POST'] | nein |
 | `diakronos_app.api.chat.lesestand_setzen` | ['POST'] | nein |
 | `diakronos_app.api.chat.loeschen` | ['POST'] | nein |
+| `diakronos_app.api.chat.meine_sperren` | ['GET'] | nein |
 | `diakronos_app.api.chat.meldung_entscheiden` | ['POST'] | nein |
 | `diakronos_app.api.chat.meldung_senden` | ['POST'] | nein |
 | `diakronos_app.api.chat.reaktion_setzen` | ['POST'] | nein |
+| `diakronos_app.api.chat.runde_ablehnen` | ['POST'] | nein |
+| `diakronos_app.api.chat.runde_anlegen` | ['POST'] | nein |
+| `diakronos_app.api.chat.runde_verlassen` | ['POST'] | nein |
+| `diakronos_app.api.chat.runde_vorschlagen` | ['POST'] | nein |
+| `diakronos_app.api.chat.runde_zustimmen` | ['POST'] | nein |
 | `diakronos_app.api.chat.senden` | ['POST'] | nein |
 | `diakronos_app.api.chat.stumm_setzen` | ['POST'] | nein |
 | `diakronos_app.api.chat.umfrage_abstimmen` | ['POST'] | nein |

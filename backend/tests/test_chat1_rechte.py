@@ -197,9 +197,12 @@ def test_direktgespraech_eigene_nachricht_und_meldestelle(welt):
     assert _direkt(FREMD, "schreiben", teilnehmer=runde, besitzer=FREMD)
     assert not _direkt(FREMD, "schreiben", teilnehmer=runde, besitzer=HV)
     # Moderation nur durch die Meldestelle (F7), nicht durch Gruppenleitung.
-    assert _direkt(ADMIN, "moderieren", teilnehmer=runde)
+    assert _direkt(ADMIN, "moderieren", teilnehmer=runde, meldeweg=True)
     for wer in (HV, MV, FREMD, SAENGER):
-        assert not _direkt(wer, "moderieren", teilnehmer=runde), wer
+        assert not _direkt(wer, "moderieren", teilnehmer=runde, meldeweg=True), wer
+    # Ohne Meldeweg ist MODERIEREN immer NEIN — auch fuer den Admin.
+    assert R.darf_direktgespraech(ADMIN, "moderieren", teilnehmer=runde).grund == "nur_meldeweg"
+    assert not _direkt(ADMIN, "moderieren", teilnehmer=[ADMIN, FREMD])
     assert not _direkt(FREMD, "verwalten", teilnehmer=runde)
 
 
@@ -227,3 +230,77 @@ def test_konto_ohne_mitglied_beginnt_kein_direktgespraech(welt):
     aber das Gegenueber nie antworten — darum gar nicht."""
     assert R.darf_direktnachricht("Administrator", "M-Hv").grund == "selbst_nicht_aktiv"
     assert not _direkt("Administrator", "anlegen", teilnehmer=["Administrator", HV])
+
+
+# ── CHAT-7b: Blockieren und Runden ──────────────────────────────────────────
+
+def _sperre(welt, wer, wen):
+    from diakronos_app.models.rechte import RechteKontaktsperre
+    welt.add(RechteKontaktsperre(benutzer=wer, gesperrt=wen))
+    welt.commit()
+
+
+def test_sperre_wirkt_in_beide_richtungen_fuer_direktnachrichten(welt):
+    assert R.darf_direktnachricht(FREMD, "M-Hv")
+    _sperre(welt, HV, FREMD)              # HV laesst sich von FREMD nicht mehr anschreiben
+    assert R.darf_direktnachricht(FREMD, "M-Hv").grund == "gesperrt"
+    assert R.darf_direktnachricht(HV, "M-Fr").grund == "gesperrt"
+    # bestehendes 1:1: lesbar, aber stumm — fuer beide Seiten
+    assert _direkt(FREMD, "lesen", teilnehmer=[FREMD, HV])
+    assert not _direkt(FREMD, "anlegen", teilnehmer=[FREMD, HV])
+    assert not _direkt(HV, "anlegen", teilnehmer=[FREMD, HV])
+    # Dritte sind nicht betroffen
+    assert R.darf_direktnachricht(MV, "M-Hv")
+    assert R.darf_direktnachricht(MV, "M-Fr")
+    # Finden bleibt (keine Auskunft ueber die Sperre durch Unsichtbarkeit)
+    assert R.darf_person_finden(FREMD, "M-Hv")
+
+
+def test_kontakt_sperren_wer_darf(welt):
+    assert R.darf_kontakt_sperren(FREMD, "M-Hv")
+    assert R.darf_kontakt_sperren(FREMD, "M-Fr").grund == "selbst"
+    assert R.darf_kontakt_sperren(FREMD, "M-ohnekonto").grund == "kein_konto"
+    assert not R.darf_kontakt_sperren("Guest", "M-Hv")
+    assert not R.darf_kontakt_sperren(None, "M-Hv")
+    assert not R.darf_kontakt_sperren(FREMD, None)
+
+
+def test_runde_anlegen_groesse_und_erreichbarkeit(welt):
+    assert R.darf_runde_anlegen(FREMD, ["M-Hv", "M-Mv"])
+    assert R.darf_runde_anlegen(FREMD, ["M-Hv"]).grund == "groesse"          # nur 2 Beteiligte
+    acht = ["M-Hv", "M-Mv", "M-Gl", "M-Sa", "M-No", "M-Jh", "M-Admin"]       # 8 mit FREMD
+    assert R.darf_runde_anlegen(FREMD, acht)
+    welt.add(User(name="neun@x.org", email="neun@x.org", enabled=1))
+    welt.add(Mitglied(name="M-Neun", vorname="N", nachname="X", user="neun@x.org"))
+    welt.commit()
+    assert R.darf_runde_anlegen(FREMD, acht + ["M-Neun"]).grund == "groesse"
+    assert R.darf_runde_anlegen(FREMD, ["M-Hv", "M-Hv"]).grund == "doppelt"
+    assert R.darf_runde_anlegen(FREMD, ["M-Hv", "M-ohnekonto"]).grund == "nicht_erreichbar"
+    assert R.darf_runde_anlegen(FREMD, ["M-Hv", "M-ausgetreten"]).grund == "nicht_erreichbar"
+    assert R.darf_runde_anlegen(FREMD, ["M-Hv", "M-Fr"]).grund == "selbst"
+    assert not R.darf_runde_anlegen("Guest", ["M-Hv", "M-Mv"])
+    _sperre(welt, MV, FREMD)
+    assert R.darf_runde_anlegen(FREMD, ["M-Hv", "M-Mv"]).grund == "nicht_erreichbar"
+
+
+def test_runde_erweitern_nur_teilnehmende_und_bis_acht(welt):
+    runde = [FREMD, HV, MV]
+    assert R.darf_runde_erweitern(FREMD, teilnehmer=runde, ziel="M-Sa")
+    assert R.darf_runde_erweitern(SAENGER, teilnehmer=runde, ziel="M-No").grund == "kein_teilnehmer"
+    assert R.darf_runde_erweitern(ADMIN, teilnehmer=runde, ziel="M-Sa").grund == "kein_teilnehmer"
+    assert R.darf_runde_erweitern(FREMD, teilnehmer=runde, ziel="M-Hv").grund == "schon_dabei"
+    assert R.darf_runde_erweitern(FREMD, teilnehmer=runde, ziel="M-ohnekonto").grund == "nicht_erreichbar"
+    voll = [FREMD, HV, MV, GL, SAENGER, NOTEN, JUGEND_HV, ADMIN]
+    assert R.darf_runde_erweitern(FREMD, teilnehmer=voll, ziel="M-gesperrt").grund == "groesse"
+    _sperre(welt, SAENGER, FREMD)
+    assert R.darf_runde_erweitern(FREMD, teilnehmer=runde, ziel="M-Sa").grund == "nicht_erreichbar"
+
+
+def test_runde_bringt_niemanden_mit_einer_gesperrten_person_zusammen(welt):
+    # HV hat MV gesperrt: FREMD darf die beiden nicht in eine Runde ziehen.
+    _sperre(welt, HV, MV)
+    assert R.darf_runde_anlegen(FREMD, ["M-Hv", "M-Mv"]).grund == "nicht_erreichbar"
+    assert R.darf_runde_anlegen(FREMD, ["M-Hv", "M-Sa"])
+    # MV darf nicht in eine Runde vorgeschlagen werden, in der HV sitzt.
+    assert R.darf_runde_erweitern(FREMD, teilnehmer=[FREMD, HV, SAENGER], ziel="M-Mv").grund == "nicht_erreichbar"
+    assert R.darf_runde_erweitern(FREMD, teilnehmer=[FREMD, SAENGER, NOTEN], ziel="M-Mv")

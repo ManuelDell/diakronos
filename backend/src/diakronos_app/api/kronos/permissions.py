@@ -295,7 +295,20 @@ def get_session_info():
         "roles": list(get_roles(user)),
         "can_access_desk": _can_access_desk(user),
         "can_moderate": can_moderate,
+        # Einstieg „Chat“ auf der Pruefseite: darf diese Person IRGENDWO
+        # Chat-Meldungen bearbeiten? Rechte-Kern, keine eigene Rollenlogik;
+        # Liste und Entscheidung fragen weiter je Gespraech.
+        "chat_moderieren": _chat_moderieren(user),
     }
+
+
+def _chat_moderieren(user: str) -> bool:
+    from diakronos_app import rechte
+
+    try:
+        return bool(rechte.darf_chat_irgendwo_moderieren(user))
+    except Exception:  # noqa: BLE001 — fail closed: kein Einstieg
+        return False
 
 
 @whitelist(allow_guest=False)

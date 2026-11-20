@@ -198,6 +198,30 @@ class RechteGastlink(Base):
     widerrufen_am: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
 
 
+class RechteKontaktsperre(Base):
+    """CHAT-7b: „Nicht mehr anschreiben lassen“ (Konzept S3, Blockieren).
+
+    ``benutzer`` sperrt ``gesperrt`` (beides Login-Namen). Wirkt sofort und in
+    BEIDE Richtungen fuer Direktnachrichten (keine neuen 1:1-Gespraeche, kein
+    Senden in einem bestehenden 1:1), ohne Begruendung und ohne dass die andere
+    Seite davon erfaehrt: der Kern meldet ihr dasselbe wie bei einer nicht
+    erreichbaren Person. Runden bleiben unberuehrt; in eine NEUE Runde kann
+    niemand eine Person ziehen, die ihn gesperrt hat (``darf_runde_anlegen``).
+    Entschieden wird ausschliesslich in ``rechte.kern``.
+    """
+
+    __tablename__ = "rechte_kontaktsperre"
+    __table_args__ = (
+        Index("uq_rechte_kontaktsperre", "benutzer", "gesperrt", unique=True),
+        Index("ix_rechte_kontaktsperre_gesperrt", "gesperrt"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    benutzer: Mapped[str] = mapped_column(String(140), nullable=False)
+    gesperrt: Mapped[str] = mapped_column(String(140), nullable=False)
+    angelegt_am: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+
+
 __all__ = [
     "GEMEINDE_AKTIV",
     "GEMEINDE_AUS",
@@ -208,6 +232,7 @@ __all__ = [
     "RechteFreigabe",
     "RechteGastlink",
     "RechteGruppenrolle",
+    "RechteKontaktsperre",
     "RechteModul",
     "RechteObjekt",
 ]
