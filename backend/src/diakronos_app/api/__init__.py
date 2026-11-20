@@ -31,6 +31,7 @@ from diakronos_app.api import auswahl  # noqa: F401 — P4g: Suchdropdowns (4 Pf
 from diakronos_app.api import beitraege  # noqa: F401 — P4f: Beitraege (6 Pfade)
 from diakronos_app.api import beziehungen  # noqa: F401 — DEV-B4a: Beziehungen pflegen (3 Pfade)
 from diakronos_app.api import chat  # noqa: F401 — CHAT-2: Gruppenchat S1 (9 Pfade)
+from diakronos_app.api import push  # noqa: F401 — CHAT-10a: Web-Push (3 Pfade, VAPID)
 from diakronos_app.api import rechte  # noqa: F401 — R-2: das EINE Rechtesystem (Rollen, Module, meine Rechte)
 from diakronos_app.api import bugreport  # noqa: F401 — P4j: Dev-Bugmelder (4 Pfade)
 from diakronos_app.api import dashboard  # noqa: F401 — P4h: Dashboard (11 Pfade)

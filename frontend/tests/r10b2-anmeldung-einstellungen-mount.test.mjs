@@ -439,10 +439,11 @@ test('UI-R10b/B: Einstellungen ohne sichtbaren Abschnitt → DkEmpty statt Verwa
   // Ein Mitglied (kein Admin, keine Mitgliederverwaltung): fast alle Abschnitte
   // hängen an `verwaltung: 'admin' | 'personen'`. Seit CHAT-7b-UI-b steht
   // „Gesperrte Personen“ OHNE Stufe da — es sind die EIGENEN Daten der Person
-  // (`chat.meine_sperren` grenzt auf die eigene Kennung ein). Der Rahmen hat
-  // damit etwas zu zeigen, und der Leerzustand „Für dich gibt es hier keine
-  // Einstellungen.“ ist richtigerweise nicht mehr da: die Sitzung sieht ihren
-  // EIGENEN Abschnitt, keinen fremden.
+  // (`chat.meine_sperren` grenzt auf die eigene Kennung ein). Seit CHAT-10b
+  // gilt dasselbe für „Benachrichtigungen aufs Gerät“ (das eigene Gerät).
+  // Der Rahmen hat damit etwas zu zeigen, und der Leerzustand „Für dich gibt
+  // es hier keine Einstellungen.“ ist richtigerweise nicht mehr da: die
+  // Sitzung sieht ihre EIGENEN Abschnitte, keinen fremden.
   globalThis.window.__DIakonosBOOT = {
     roles: [], is_admin: false, ist_mitgliederverwaltung: false, devmode: false,
   }
@@ -456,10 +457,11 @@ test('UI-R10b/B: Einstellungen ohne sichtbaren Abschnitt → DkEmpty statt Verwa
     'kein Leerzustand mehr — die Sitzung hat einen eigenen Abschnitt '
     + '(„Gesperrte Personen“, ohne Verwaltungsstufe). Warnungen: '
     + warnungen.slice(0, 3).join(' | '))
-  // Die Liste zeigt GENAU den eigenen Abschnitt — keinen Verwaltungs-Abschnitt.
+  // Die Liste zeigt GENAU die eigenen Abschnitte — keinen Verwaltungs-Abschnitt.
+  // Die Reihenfolge folgt den Gruppen (Kommunikation vor Datenschutz).
   const eintraege = [...host.querySelectorAll('.ei-eintrag')].map((e) => e.textContent.trim())
-  assert.deepEqual(eintraege, ['Gesperrte Personen'],
-    'nur der eigene Abschnitt steht in der Liste: ' + eintraege.join(', '))
+  assert.deepEqual(eintraege, ['Benachrichtigungen aufs Gerät', 'Gesperrte Personen'],
+    'nur die eigenen Abschnitte stehen in der Liste: ' + eintraege.join(', '))
   // KEIN Abschnitt wurde eingebettet (früher „Gemeinde“).
   assert.equal(host.querySelectorAll('.ei-inhalt .an-abschnitt').length, 0,
     'kein fremder Abschnitt eingebettet')
@@ -467,8 +469,8 @@ test('UI-R10b/B: Einstellungen ohne sichtbaren Abschnitt → DkEmpty statt Verwa
     'kein Abschnittsformular eingebettet')
   // Die Liste führt GENAU den eigenen Abschnitt — und der ist aktiv (nie
   // keiner, solange Abschnitte sichtbar sind).
-  assert.equal(host.querySelectorAll('.ei-eintrag').length, 1,
-    'genau EIN sichtbarer Abschnitt in der Liste')
+  assert.equal(host.querySelectorAll('.ei-eintrag').length, 2,
+    'genau ZWEI sichtbare Abschnitte in der Liste (die eigenen)')
   assert.equal(host.querySelectorAll('.ei-eintrag.is-active').length, 1, 'genau ein aktiver Abschnitt')
 })
 

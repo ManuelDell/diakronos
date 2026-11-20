@@ -70,6 +70,14 @@ dependencies = [
     # 1.x nutzt httpx (bereits Abhaengigkeit) fuer die HTTP-Aufrufe.
     # Untergrenze 1.3: stabile `jose`-API mit claims_options/validate(leeway).
     "authlib>=1.3.0,<2.0.0",
+    # CHAT-10a: Web-Push (VAPID, RFC 8291/8292). pywebpush verschluesselt die
+    # Nutzlast fuer das Geraet und signiert das JWT. Untergrenze 2.0: die 1.x-
+    # Linie ist seit 2023 nicht mehr gepflegt; 2.x braucht `cryptography` in
+    # der Fassung, die hier ohnehin schon steht (>=50). Obergrenze <3 haelt
+    # den naechsten grossen Sprung draussen. Der Import passiert ERST im
+    # Versand (`api.push._senden_an`), die App laeuft auch ohne das Paket —
+    # nur der Push scheitert dann sichtbar.
+    "pywebpush>=2.0.0,<3.0.0",
 ]
 
 [project.optional-dependencies]

@@ -673,6 +673,135 @@ DIREKT_GLOCKE_TITEL = "Direktnachricht"
 CHAT_ERWAEHNUNG_GLOCKE_DOCTYPE = "chat_erwaehnung"
 
 
+def _push_nach_glocke(s, konto: str, *, titel: str, inhalt: str,
+                      gespraech: str) -> bool:
+    """CHAT-10a: den Web-Push zu einer GERADE geschriebenen Chat-Glocke einreihen.
+
+    **Die EINE Stelle**, an der Chat-Code einen Push anstößt. Sie wird von den
+    drei Glocken wegen gerufen, die Chat-Nachrichten ankündigen — der
+    gebündelten Gesprächs-Glocke (``_glocke_setzen``), der
+    Umfrage-Glocke (``_umfrage_glocke_setzen``) und der Erwähnungs-Glocke
+    (``_erwaehnung_glocke_setzen``) — und NUR, wenn ``glocke_setzen`` wirklich
+    geschrieben hat. Damit gilt für den Push genau die Glocken-Regel und keine
+    eigene: stumm → keine Glocke → kein Push; Erwähnung klingelt auch bei
+    stumm → Push wie die Glocke.
+
+    Nutzlast ist ``{titel, text, ziel}`` — ``titel``/``text`` sind WÖRTLICH
+    die Glocke, ``ziel`` ist die Adresse im SPA. Kein Nachrichtentext, kein
+    Absendername (Konzept F10).
+
+    **Erst NACH dem Commit** (Review R1/7): der Auftrag wird NICHT sofort
+    eingereiht, sondern am Ende der Transaktion von ``s`` — über das
+    SQLAlchemy-Ereignis ``after_commit``. Bei einem Rollback läuft er nie, dann
+    gibt es auch keine Glocke. ``verzögert`` merkt sich die Nutzlast (eine
+    kleine Kopie, kein ORM-Objekt), damit der Listener sie nach dem
+    Sitzungsende noch einreihen kann (``session.expunge_all()`` passiert vor
+    ``after_commit``).
+
+    Der Aufruf ist Beiwerk: ein Fehler wird protokolliert, nicht geworfen —
+    die Glocke steht bereits.
+    """
+    from diakronos_app.api import push as push_api
+
+    if not konto or not push_api.aktiv():
+        return False  # Push ist aus: kein Auftrag, kein Fehler
+    nutzlast = {"titel": titel, "text": inhalt, "ziel": f"#/nachrichten/{gespraech}"}
+    try:
+        if not _push_verzoegert(s, str(konto), nutzlast):
+            # Keine Sitzung (oder kein Ereignis möglich): sofort einreihen.
+            # Das ist der Fall, wenn ein Aufrufer ohne ``session=s`` glockt.
+            return bool(push_api.versand_auftrag(str(konto), nutzlast))
+        return True
+    except Exception:  # noqa: BLE001 — Push ist Beiwerk, die Glocke steht
+        logger.exception("chat: Push-Auftrag %s fehlgeschlagen", konto)
+        return False
+
+
+#: Schlüssel in ``session.info``: Aufträge je offener Transaktion
+#: (``{SessionTransaction: [(konto, nutzlast), …]}``).
+_AUFTRAG_INFO_SCHLUESSEL = "chat_push_auftraege"
+#: Schlüssel in ``session.info``: die Listener hängen schon an dieser Sitzung.
+_LISTENER_INFO_SCHLUESSEL = "chat_push_listener"
+#: Schlüssel in ``session.info``: Transaktionen, deren Commit gemeldet wurde.
+_COMMIT_INFO_SCHLUESSEL = "chat_push_committet"
+
+
+def _push_transaktion_committet(session) -> None:
+    """``after_commit``: die GERADE committende Transaktion vormerken.
+
+    SQLAlchemy meldet ``after_commit`` auch für einen Savepoint — dann ist er
+    noch die innerste Transaktion. Sonst ist es die äußerste. Was mit den
+    Aufträgen geschieht, entscheidet erst ``after_transaction_end``.
+    """
+    tx = session.get_nested_transaction() or session.get_transaction()
+    if tx is not None:
+        session.info.setdefault(_COMMIT_INFO_SCHLUESSEL, set()).add(tx)
+
+
+def _push_transaktion_ende(session, tx) -> None:
+    """``after_transaction_end``: Aufträge von ``tx`` abgeben, einreihen oder verwerfen.
+
+    - Savepoint gut ausgegangen → seine Aufträge gehen an die umgebende
+      Transaktion (sie werden erst mit deren Commit wirksam).
+    - Äußerste Transaktion committet → alle ihre Aufträge einreihen.
+    - Sonst (Rollback, ``close()`` ohne Commit) → NUR die Aufträge von ``tx``
+      verwerfen; die einer umgebenden Transaktion bleiben stehen.
+    """
+    committet = session.info.get(_COMMIT_INFO_SCHLUESSEL, set())
+    gut = tx in committet
+    committet.discard(tx)
+    auftraege = session.info.get(_AUFTRAG_INFO_SCHLUESSEL, {})
+    offen = auftraege.pop(tx, [])
+    eltern = tx.parent
+    if gut and offen and eltern is not None:
+        auftraege.setdefault(eltern, []).extend(offen)
+        offen = []
+    if eltern is None:
+        # Äußerste Transaktion zu Ende: ``session.info`` überlebt ``close()``,
+        # also hier aufräumen — nichts darf in die nächste Transaktion wandern.
+        session.info.pop(_AUFTRAG_INFO_SCHLUESSEL, None)
+        session.info.pop(_COMMIT_INFO_SCHLUESSEL, None)
+    if not (gut and offen):
+        return
+    from diakronos_app.api import push as push_api
+
+    for konto_i, nutzlast_i in offen:
+        try:
+            push_api.versand_auftrag(konto_i, nutzlast_i)
+        except Exception:  # noqa: BLE001 — ein Auftrag, nicht der Rest
+            logger.exception("chat: Push-Auftrag %s fehlgeschlagen", konto_i)
+
+
+def _push_verzoegert(s, konto: str, nutzlast: dict[str, str]) -> bool:
+    """Merkt ``(konto, nutzlast)`` an der innersten offenen Transaktion von ``s``.
+
+    Gibt ``False`` zurück, wenn ``s`` keine Sitzung ist oder keine Transaktion
+    offen hat — der Aufrufer reiht dann sofort ein.
+
+    Der Merker lebt in ``s.info`` (nicht in einem Modul-Dict über
+    ``id(session)``: Adressen werden wiederverwendet). Je Transaktion eine
+    eigene Liste, damit ein zurückgenommener Savepoint nur SEINE Aufträge
+    mitnimmt und ein gut ausgegangener sie nach außen abgibt. Eingereiht wird
+    erst, wenn die äußerste Transaktion committet ist.
+    """
+    from sqlalchemy import event as sa_event
+
+    if s is None or not hasattr(s, "dispatch") or not hasattr(s, "info"):
+        return False
+    tx = s.get_nested_transaction() or s.get_transaction()
+    if tx is None:
+        return False
+    s.info.setdefault(_AUFTRAG_INFO_SCHLUESSEL, {}).setdefault(tx, []).append(
+        (konto, dict(nutzlast)))
+    if not s.info.get(_LISTENER_INFO_SCHLUESSEL):
+        # Je Sitzung EINMAL; die Listener bleiben hängen (Abmelden im eigenen
+        # Rückruf bricht SQLAlchemys Iteration) und sind ohne Merker leer.
+        sa_event.listen(s, "after_commit", _push_transaktion_committet)
+        sa_event.listen(s, "after_transaction_end", _push_transaktion_ende)
+        s.info[_LISTENER_INFO_SCHLUESSEL] = True
+    return True
+
+
 def _paar_schluessel(konto_a: str, konto_b: str) -> str:
     """Das sortierte Kontenpaar — der Schlüssel „EIN Gespräch je Personenpaar“.
 
@@ -2070,15 +2199,23 @@ def _erwaehnung_glocke_setzen(s, *, konto: str, nachricht: str,
     from diakronos_app.benachrichtigungen import glocke_setzen
 
     titel = _glocken_titel(g)
-    return glocke_setzen(
+    betreff = f"{titel}: Du wurdest erwähnt"
+    hinweis = ("Du wurdest in einem Gespräch erwähnt. Öffne den Chat, "
+               "um die Nachricht zu lesen.")
+    name = glocke_setzen(
         for_user=konto,
-        subject=f"{titel}: Du wurdest erwähnt",
-        inhalt=("Du wurdest in einem Gespräch erwähnt. Öffne den Chat, "
-                "um die Nachricht zu lesen."),
+        subject=betreff,
+        inhalt=hinweis,
         document_type=CHAT_ERWAEHNUNG_GLOCKE_DOCTYPE,
         document_name=nachricht,
         session=s,
     )
+    if name:
+        # CHAT-10a: Push zur geschriebenen Erwähnungs-Glocke — auch bei stumm
+        # geschaltetem Gespräch (dieselbe Regel wie die Glocke, Konzept S4).
+        _push_nach_glocke(s, konto, titel=betreff, inhalt=hinweis,
+                          gespraech=g.name)
+    return name
 
 
 def _erwaehnungen_speichern(s, n: ChatNachricht, g: ChatGespraech,
@@ -4589,12 +4726,14 @@ def _glocke_setzen(s, *, konto: str, gespraech: ChatGespraech,
     from diakronos_app.benachrichtigungen import glocke_setzen
 
     titel = _glocken_titel(gespraech)
+    betreff = _glocken_text(titel, anzahl)
+    hinweis = _glocken_hinweis(anzahl)
     # ``document_name`` ist das GESPRÄCH: darüber findet ``lesestand_setzen``
     # die Glocke wieder, und darüber verlinkt die Oberfläche.
     name = glocke_setzen(
         for_user=konto,
-        subject=_glocken_text(titel, anzahl),
-        inhalt=_glocken_hinweis(anzahl),
+        subject=betreff,
+        inhalt=hinweis,
         document_type=CHAT_GLOCKE_DOCTYPE,
         document_name=gespraech.name,
         # CHAT-4b: die Glocke entsteht in der Sitzung des Joblaufs/Endpunkts —
@@ -4605,6 +4744,14 @@ def _glocke_setzen(s, *, konto: str, gespraech: ChatGespraech,
     )
     if not name:
         return False  # Benachrichtigung ist Beiwerk — aber dann auch kein Merker
+    # CHAT-10a: Push NUR, wenn die Glocke wirklich (neu) geschrieben wurde.
+    # ``nur_zahl`` (teilweises Lesen führt die Zahl nach) ist KEIN Anlass: die
+    # Person hat gerade gelesen, sie soll nicht geweckt werden; und
+    # ``nur_fortschreiben`` legt nie eine neue Zeile an (dann ist ``name``
+    # leer und der Aufruf kommt hier gar nicht an).
+    if not nur_zahl:
+        _push_nach_glocke(s, konto, titel=betreff, inhalt=hinweis,
+                          gespraech=gespraech.name)
     neueste_am = s.execute(
         select(func.max(ChatNachricht.erstellt_am))
         .where(ChatNachricht.gespraech == gespraech.name)
@@ -5014,6 +5161,11 @@ def _umfrage_glocke_setzen(s, *, umfrage: ChatUmfrage, gespraech: ChatGespraech,
                 # Fach-Transaktion sichtbar werden und mit ihr committen.
                 session=s,
             )
+        if name:
+            # CHAT-10a: Push zur geschriebenen Umfrage-Glocke — dieselben
+            # Empfänger wie die Glocke (stumm ist hier schon ausgesiebt).
+            _push_nach_glocke(s, konto, titel=subject, inhalt=inhalt,
+                              gespraech=gespraech.name)
         return bool(name)
     except Exception:  # noqa: BLE001 — Benachrichtigung ist Beiwerk
         logger.exception("chat: Umfrage-Glocke %s/%s fehlgeschlagen",

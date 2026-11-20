@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **2383**
-* eindeutige Funktionen: **424**
-* lesend: **185**, schreibend: **239**
-* Rumpfbefund: schreibend 228, lesend 196, unbekannt 0
+* registrierte Pfade: **2401**
+* eindeutige Funktionen: **427**
+* lesend: **186**, schreibend: **241**
+* Rumpfbefund: schreibend 230, lesend 197, unbekannt 0
 
 ## Einstufung
 
@@ -238,6 +238,8 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.psalmos.musik.save_lied` | ['POST'] | nein |
 | `diakronos_app.api.psalmos.musik.save_liedgruppe` | ['POST'] | nein |
 | `diakronos_app.api.psalmos.musik.wiederherstellen_lied` | ['POST'] | nein |
+| `diakronos_app.api.push.abmelden` | ['POST'] | nein |
+| `diakronos_app.api.push.anmelden` | ['POST'] | nein |
 | `diakronos_app.api.rechte.beantrage_sichtbarkeit` | ['POST'] | nein |
 | `diakronos_app.api.rechte.entferne_gl` | ['POST'] | nein |
 | `diakronos_app.api.rechte.entferne_mv` | ['POST'] | nein |
@@ -438,6 +440,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.psalmos.musik.get_lieder` | — | nein |
 | `diakronos_app.api.psalmos.musik.get_liedgruppe_detail` | — | nein |
 | `diakronos_app.api.psalmos.musik.get_liedgruppen` | — | nein |
+| `diakronos_app.api.push.schluessel` | ['GET'] | nein |
 | `diakronos_app.api.rechte.get_anlegeorte` | — | nein |
 | `diakronos_app.api.rechte.get_gastlinks` | — | nein |
 | `diakronos_app.api.rechte.get_gruppenrollen` | — | nein |

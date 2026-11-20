@@ -744,8 +744,23 @@ def test_migration_haengt_hinter_chat7b_und_die_kette_hat_einen_kopf():
     assert "Revises: chat7b_runden" in Path(rev.path).read_text(encoding="utf-8")
     assert len(skripte.get_bases()) == 1
     heads = skripte.get_heads()
+    # GENAU EIN Kopf — der NAME wächst weiter (CHAT-10a hängt hinter dieser
+    # Revision, ``chat10a_push``). Der Test hält die STRUKTUR fest: eine Kette,
+    # ein Kopf, und ``chat9a_erwaehnung`` hängt an ``chat7b_runden`` (oben).
     assert len(heads) == 1, heads
-    assert heads == ["chat9a_erwaehnung"], heads
+    # Keine Revision darf als Nachfolger fehlen: der Kopf muss von
+    # ``chat9a_erwaehnung`` aus erreichbar sein (Kette abwärts ablaufen).
+    # ``walk_revisions(base, head)`` läuft von der Wurzel zum Kopf — jede
+    # Revision dazwischen steht in der Menge.
+    erreichbar = {rev.revision for rev in skripte.walk_revisions()}
+    assert "chat9a_erwaehnung" in erreichbar, heads
+    # Und der Kopf liegt NACH dieser Revision (sonst wäre sie abgehängt).
+    # Review CHAT-10a R1/9: NICHT ``down_revision is not None`` prüfen — das
+    # gilt auch für eine Revision, die neben der Kette steht. Geprüft wird,
+    # dass ``chat9a_erwaehnung`` in der Kette LIEGT, die beim Kopf beginnt:
+    # ``iterate_revisions(head, 'base')`` läuft abwärts und muss sie treffen.
+    kette = {r.revision for r in skripte.iterate_revisions(heads[0], "base")}
+    assert "chat9a_erwaehnung" in kette, heads
 
 
 @pytest.fixture()

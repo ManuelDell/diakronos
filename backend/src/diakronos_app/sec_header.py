@@ -58,6 +58,9 @@ APP_CSP = (
     "font-src 'self' data:; "
     "connect-src 'self'; "
     "media-src 'self' blob:; "
+    # CHAT-10b: der Service Worker (`/sw.js`) faellt unter `worker-src`; 'self'
+    # deckt ihn ab (gleiche Herkunft) — die CSP braucht dafuer KEINE weitere
+    # Erlaubnis. `blob:` bleibt fuer die vorhandenen Blob-Worker der Vorschau.
     "worker-src 'self' blob:; "
     "manifest-src 'self'; "
     "object-src 'none'; "

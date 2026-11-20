@@ -72,6 +72,49 @@ class Settings(BaseSettings):
     # Healthcheck-Zeitbudget in Sekunden fuer die einzelnen Verbindungstests.
     healthcheck_timeout: float = 5.0
 
+    # ── CHAT-10a: Web-Push (VAPID, Konzept 3.2 / F10) ──────────────────────
+    # Die drei Werte kommen AUSSCHLIESSLICH aus der Umgebung/.env — es gibt
+    # bewusst keinen Default (kein Schluessel im Repo), keine Erzeugung zur
+    # Laufzeit und keinen Weg, sie ueber die Oberflaeche zu setzen.
+    #
+    # Fehlt EINER der drei, ist Push AUS: `api.push.schluessel` antwortet
+    # `{"aktiv": false}`, `anmelden`/`abmelden` lehnen ab und es geht KEIN
+    # Versand raus (auch nicht an bestehende Abonnements). Kein Startfehler —
+    # eine Installation ohne Push ist ein gueltiger Zustand.
+    #
+    # `DIAKRONOS_VAPID_PUBLIC`  Base64url des unkomprimierten P-256-Punkts;
+    #                           der Browser abonniert damit (applicationServerKey).
+    # `DIAKRONOS_VAPID_PRIVATE` Base64url des privaten Schluessels (32 Byte);
+    #                           signiert das JWT des Versands. NIE ausgeben.
+    # `DIAKRONOS_VAPID_KONTAKT` Kontakt-Adresse fuer das JWT (`sub`), als
+    #                           `mailto:…` oder `https://…` — der Push-Dienst
+    #                           braucht eine erreichbare Stelle bei Missbrauch.
+    #
+    # `repr=False` fuer das Geheimnis: `settings` wird an vielen Stellen
+    # protokolliert und in Ausnahmen mitgeschleppt (dieselbe Begruendung wie
+    # bei `nextcloud_app_passwort`).
+    vapid_public: str = Field(
+        "",
+        validation_alias=AliasChoices("DIAKRONOS_VAPID_PUBLIC", "vapid_public"),
+    )
+    vapid_private: str = Field(
+        "",
+        validation_alias=AliasChoices("DIAKRONOS_VAPID_PRIVATE", "vapid_private"),
+        repr=False,
+    )
+    vapid_kontakt: str = Field(
+        "",
+        validation_alias=AliasChoices("DIAKRONOS_VAPID_KONTAKT", "vapid_kontakt"),
+    )
+    # Zeitbudget EINES Versands in Sekunden. Der Push-Dienst ist ein fremder
+    # Dienst im Netz: ohne Limit haenge ein Gerät im Fehlerfall den rq-Job.
+    push_timeout_sekunden: float = Field(
+        10.0,
+        validation_alias=AliasChoices(
+            "PUSH_TIMEOUT_SEKUNDEN", "push_timeout_sekunden"
+        ),
+    )
+
     # ── WEB-5a: Pfad-Praefix des gesamten Betriebs ────────────────────────
     # Liegt Diakronos neben einer statischen Website unter EINER Domain
     # (`/` = Website, `/diakronos/…` = App), steht hier der Praefix.
@@ -1132,3 +1175,18 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
+
+def neu_laden() -> Settings:
+    """Liest die Einstellungen neu aus der Umgebung (Werkzeuge, kein Betriebsweg).
+
+    `settings` oben wird EINMAL beim Import gebaut; das ist im Betrieb richtig
+    (die Umgebung steht beim Start fest). Für das Schlüssel-Werkzeug und für
+    Tests, die die Umgebung umstellen, gibt es diesen Weg ausdrücklich: er
+    leert den Zwischenspeicher, damit `get_settings()` die Werte neu liest.
+    Wer ihn im Betrieb aufruft, bekommt ein zweites Settings-Objekt — deshalb
+    gibt es dafür keinen Endpunkt und keinen Scheduler-Aufruf.
+    """
+    get_settings.cache_clear()
+    return get_settings()
+

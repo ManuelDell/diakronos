@@ -73,6 +73,22 @@ RESERVED_PREFIXES = ("/healthz", "/api", "/docs", "/redoc", "/openapi.json")
 # Praefix, unter dem die SPA ausgeliefert wird.
 SPA_PREFIX = "/diakonos"
 
+# CHAT-10b: Der Service Worker der Benachrichtigungen.
+#
+# Er liegt im Build als `dist/sw.js` (Quelle `frontend/public/sw.js`, von vite
+# unveraendert kopiert) und wird an der WURZEL `/sw.js` ausgeliefert — NICHT
+# unter `/diakonos/`. Grund ist der Geltungsbereich: ein Worker unter
+# `/diakonos/sw.js` duerfte nur `/diakonos/…` bedienen; die App liegt aber je
+# nach Betrieb unter einem Praefix (`/gemeinde/diakonos`), und der Geltungs-
+# bereich muss fuer die ganze Seite reichen. `Service-Worker-Allowed: /` sagt
+# dem Browser zusaetzlich ausdruecklich „darf ueber sein Verzeichnis hinaus“.
+#
+# Der Name ist FEST (kein Build-Hash): der Browser prueft den Worker bei jedem
+# Seitenaufruf gegen genau diese Adresse. Deshalb `Cache-Control: no-cache` —
+# sonst liefe ein alter Worker bis zu einem Jahr weiter.
+SW_DATEI = "sw.js"
+SW_PFAD = "/sw.js"
+
 # ON-0a: die beiden Stylesheets mit FESTEM Namen (Frontend-Build, siehe
 # `frontend/vite.config.mjs`). Sie werden von den serverseitig gerenderten
 # Seiten eingebunden (`anmeldung/seitenrahmen.py`) — deshalb kein Hash im
@@ -1416,6 +1432,21 @@ def _loese_build_datei(full_path: str) -> Path | None:
     return None
 
 
+def _sw_pfad() -> Path | None:
+    """Die Datei des Service Workers im Build — oder ``None`` (dann 404).
+
+    Anders als die SPA-Artefakte laeuft sie NICHT ueber Manifest/Unterordner:
+    die Quelle liegt in `frontend/public/`, vite kopiert sie unveraendert nach
+    `dist/sw.js`. Ein fehlender Build (``SPA_DIST is None``) ist kein Fehler
+    hier — der Aufrufer antwortet dann 404, und die Oberflaeche meldet, dass
+    Benachrichtigungen auf diesem Server nicht eingerichtet sind.
+    """
+    if SPA_DIST is None:
+        return None
+    kandidat = SPA_DIST / SW_DATEI
+    return kandidat if kandidat.is_file() else None
+
+
 def mount_spa(app: FastAPI) -> None:
     """Registriert die SPA-Auslieferung unter /diakonos.
 
@@ -1426,6 +1457,32 @@ def mount_spa(app: FastAPI) -> None:
         logger.warning(
             "SPA-Build nicht gefunden (%s) — /diakonos liefert 503.",
             " | ".join(str(p) for p in _CANDIDATES),
+        )
+
+    # ── CHAT-10b: der Service Worker an der WURZEL ─────────────────────────
+    # Bewusst eine EIGENE Route und nicht der Catch-all: der Catch-all haengt
+    # unter `/diakonos`, der Worker braucht aber `/sw.js` (Geltungsbereich).
+    # Unter einem Betriebs-Praefix entsteht `/gemeinde/sw.js` — dieselbe
+    # Adresse, die die Oberflaeche ueber `mitBasis('/sw.js')` bildet; der
+    # Scope bleibt ueber `Service-Worker-Allowed: /` die ganze Seite.
+    #
+    # Kein Anmeldegate: ein Service Worker ist statischer Code ohne Daten; die
+    # Benachrichtigung selbst kommt nur mit gueltigem Abonnement (Server).
+    @app.get(SW_PFAD, include_in_schema=False)
+    def service_worker() -> Response:
+        datei = _sw_pfad()
+        if datei is None:
+            raise HTTPException(status_code=404, detail="Not Found")
+        return FileResponse(
+            str(datei),
+            media_type="application/javascript",
+            headers={
+                # Der Name ist fest — ein Zwischenspeicher wuerde einen alten
+                # Worker festhalten. ETag bleibt (304 bei unveraendertem Inhalt).
+                "Cache-Control": "no-cache",
+                # Darf ueber sein eigenes Verzeichnis hinaus bedienen.
+                "Service-Worker-Allowed": "/",
+            },
         )
 
     # WICHTIG: KEIN staticfiles-Mount unter /diakonos/assets/.

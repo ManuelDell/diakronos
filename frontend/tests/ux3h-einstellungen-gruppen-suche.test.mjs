@@ -95,7 +95,11 @@ test('UX3h: jeder Bereich der Seite hat genau eine der fünf Gruppen', () => {
   // vierzehnter Abschnitt hinzugekommen — ebenfalls „Datenschutz“ (es sind die
   // eigenen Daten der Person), aber OHNE Verwaltungsstufe: jede angemeldete
   // Person sieht ihre eigenen Sperren.
-  assert.equal(BEREICHE.length, 14,
+  // ANGEPASST (CHAT-10b, Chat-Konzept 3.2): „Benachrichtigungen aufs Gerät“
+  // ist als fünfzehnter Abschnitt hinzugekommen — Gruppe „Kommunikation“ (es
+  // geht um Meldungen), OHNE Verwaltungsstufe: jede angemeldete Person stellt
+  // es für ihr eigenes Gerät ein.
+  assert.equal(BEREICHE.length, 15,
     'Bereiche der Seite nicht erkannt (' + BEREICHE.length + ') — Muster geändert?')
   const ids = new Set(GRUPPEN.map((g) => g.id))
   const falsch = BEREICHE.filter((b) => !ids.has(b.gruppe))
@@ -117,7 +121,8 @@ test('UX3h: Gruppen tragen 1–9 Einträge (Prinzip N3), keine ist leer', () => 
   const zuordnung = Object.fromEntries(gruppen.map((g) => [g.id, g.eintraege.map((e) => e.id)]))
   assert.deepEqual(zuordnung.gemeinde, ['gemeinde', 'website'])
   assert.deepEqual(zuordnung.zugang, ['anmeldung', 'registrierung', 'rollen'])
-  assert.deepEqual(zuordnung.kommunikation, ['mailversand'])
+  // CHAT-10b: „Benachrichtigungen aufs Gerät“ steht bei den Mitteilungen.
+  assert.deepEqual(zuordnung.kommunikation, ['mailversand', 'benachrichtigungen'])
   // CHAT-R2a: die umgezogene Personenverwaltung steht bei „Datenschutz“ —
   // dieselbe Zuständigkeit wie Datenschutz-Texte, Datensicherung, Papierkorb.
   // CHAT-8-UI: „Nachrichten aufbewahren“ steht bei den Fristen für vorhandene
@@ -164,6 +169,8 @@ test('UX3h: jedes Stichwort kommt im Abschnitt wirklich vor (keine erfundenen)',
     // CHAT-7b-UI-b: der Abschnitt „Gesperrte Personen“ (`Sperren.vue`) — seine
     // Wörter stehen als Überschrift, Einleitung, Leerzustand und Knopf dort.
     sperren: 'Sperren.vue',
+    // CHAT-10b: der Abschnitt „Benachrichtigungen aufs Gerät“.
+    benachrichtigungen: 'Benachrichtigungen.vue',
   }
   // Beschriftungen, die die Suche selbst setzt (Gruppentitel, eigene Wörter)
   // gelten ebenfalls als „kommt vor“ — sonst wäre der Wächter zahnlos.

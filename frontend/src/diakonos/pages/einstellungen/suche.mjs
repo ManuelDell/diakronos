@@ -89,6 +89,14 @@ export const STICHWORTE = {
   // Abschnitt zeigt, in dem es nicht vorkommt, führt in die Irre.
   sperren: ['Gesperrte Personen', 'Sperre', 'gesperrt', 'Nicht mehr anschreiben lassen',
     'Aufheben'],
+  // CHAT-10b: der Abschnitt „Benachrichtigungen aufs Gerät“. Seine Stichworte
+  // sind Überschrift, Schaltername und die Wörter der Sätze
+  // (`pages/einstellungen/benachrichtigungen.mjs`): „benachrichtigen“,
+  // „Handy“, „Browser“, „Berechtigung“. „Push“ steht bewusst NICHT hier — das
+  // Wort kommt im sichtbaren Text des Abschnitts nicht vor (Prinzip: kein
+  // Fachjargon), und ein Stichwort ohne Fundstelle führt in die Irre.
+  benachrichtigungen: ['Benachrichtigungen', 'benachrichtigen', 'Gerät', 'Handy',
+    'Browser', 'Home-Bildschirm', 'Berechtigung', 'gesperrt'],
   // CHAT-R2a: der umgezogene Personenbereich (Chat-Konzept 10.1 Punkt 5). Die
   // Stichworte sind die seiner bestehenden Seite (`pages/Personen.vue`): die
   // vier Reiter und die Werkzeuge der Liste — nichts davon ist erfunden.

@@ -41,15 +41,18 @@ function csrfToken() {
 
 /**
  * POST auf eine Abmelde-Route. Liefert `{status, redirect, ok}`:
- *  - `status`  HTTP-Status (0 bei Netzfehler)
+ *  - `status`  HTTP-Status (0 bei Netzfehler oder Abbruch)
  *  - `redirect` vom Server genannter Zielpfad (aus dem JSON-Koerper)
  *  - `ok`      true nur bei 2xx/3xx-Antwort mit bestaetigtem Ziel
+ *
+ * `signal` (CHAT-10b): ein `AbortController`, damit ein haengender Aufruf das
+ * Abmelden nicht aufhaelt (siehe `mitFrist`).
  *
  * Bewusst KEIN `redirect: 'manual'`: der Server antwortet JSON-Aufrufern mit
  * 200 + `redirect`-Feld, es gibt also nichts zu folgen. Antwortet eine
  * Installation doch mit 3xx und ist der Header lesbar, wird er genommen.
  */
-async function post(pfad) {
+async function post(pfad, koerper = {}, signal = null) {
     try {
         const res = await fetch(pfad, {
             method: 'POST',
@@ -59,7 +62,8 @@ async function post(pfad) {
                 'Content-Type': 'application/json',
                 'X-Frappe-CSRF-Token': csrfToken(),
             },
-            body: JSON.stringify({}),
+            body: JSON.stringify(koerper || {}),
+            ...(signal ? { signal } : {}),
         })
         let redirect = ''
         if (res.status >= 200 && res.status < 300) {
@@ -172,6 +176,79 @@ function zielOderLogin(pfad) {
 }
 
 /**
+ * CHAT-10b — das Gerät von den Benachrichtigungen abmelden, BEVOR die Sitzung
+ * endet.
+ *
+ * Warum VOR dem Abmelden: `push.abmelden` ist ein authentifizierter Aufruf
+ * (`_benutzer()` liest die Sitzung). Nach dem Logout wäre er ein 403, das
+ * Gerät bliebe auf die alte Person abonniert und zeigte nach dem Anmelden der
+ * nächsten Person weiter deren Meldungen. Deshalb läuft er hier zuerst.
+ *
+ * KONTOWECHSEL (Review R1, Punkt 4): Nach der Servermeldung wird das
+ * Abonnement AUCH im Browser verworfen (`unsubscribe`). Es gehören zwei Dinge
+ * zusammen — der Eintrag beim Server und das Abonnement im Browser; bleibt
+ * eines stehen, zeigt ein geteiltes Gerät nach dem Abmelden weiter die
+ * Meldungen der alten Person (der Browser zeigt sie an, sobald eine Nutzlast
+ * kommt). Beide Schritte werden einzeln verworfen, wenn sie scheitern.
+ *
+ * FRIST (Review R1, Punkt 3): Der ganze Vorgang ist auf `FRIST_MS` gedeckelt.
+ * Ein hängender Netzaufruf darf das Abmelden NIE aufhalten — nach Ablauf wird
+ * abgebrochen (`AbortController`) und mit dem Logout fortgefahren.
+ *
+ * Still: Jeder Fehler wird verworfen. Ohne Abonnement wird gar nicht erst
+ * gefragt (kein Netzaufruf, kein Rauschen im Log).
+ */
+export const FRIST_MS = 1500
+
+/** Der Abbrecher des laufenden Vorgangs (für den Abbruch nach Frist). */
+let laufendeSteuerung = null
+
+/** Ein Versprechen mit Frist: nach `ms` wird es verworfen (nie abgelehnt). */
+function mitFrist(arbeit, ms = FRIST_MS) {
+    let wecker = null
+    const frist = new Promise((loese) => {
+        wecker = setTimeout(() => {
+            try { laufendeSteuerung?.abort?.() } catch { /* egal */ }
+            loese('frist')
+        }, ms)
+    })
+    const lauf = Promise.resolve()
+        .then(arbeit)
+        .then((wert) => (wert === undefined ? 'fertig' : wert), () => 'fehler')
+    return Promise.race([lauf, frist]).finally(() => clearTimeout(wecker))
+}
+
+export async function benachrichtigungenAbmelden() {
+    return mitFrist(async () => {
+        try {
+            const sw = window.navigator?.serviceWorker
+            if (!sw || typeof sw.getRegistration !== 'function') return
+            const reg = await sw.getRegistration()
+            const manager = reg?.pushManager
+            if (!manager || typeof manager.getSubscription !== 'function') return
+            const abo = await manager.getSubscription()
+            if (!abo) return
+            const endpoint = String((abo.toJSON ? abo.toJSON() : abo)?.endpoint || '')
+            if (!endpoint) return
+            laufendeSteuerung = typeof AbortController === 'function' ? new AbortController() : null
+            // Server-Abmeldung und Verwerfen im Browser PARALLEL (Review): hängt
+            // der Server bis zur Frist, ist das Abo im Browser trotzdem weg —
+            // sonst zeigte das geteilte Gerät der nächsten Person weiter
+            // Meldungen der alten. Fehler beider Seiten sind egal.
+            await Promise.allSettled([
+                post(apiUrl('diakronos_app.api.push.abmelden'), { endpoint }, laufendeSteuerung?.signal || null),
+                Promise.resolve().then(() => abo.unsubscribe?.()),
+            ])
+        } catch {
+            // Kein Abonnement, keine Schnittstelle, kein Netz: das Abmelden
+            // geht trotzdem weiter.
+        } finally {
+            laufendeSteuerung = null
+        }
+    })
+}
+
+/**
  * Abmelden: lokale Sitzung beenden (KEIN OIDC-RP-Logout, die Sitzung beim
  * Anbieter bleibt), Cache leeren und weiterleiten.
  * Kehrt normalerweise nicht zurueck — die Seite wird verlassen.
@@ -179,6 +256,9 @@ function zielOderLogin(pfad) {
  * hat — der Aufrufer zeigt dann eine Meldung, statt still zu wechseln.
  */
 export async function abmelden() {
+    // CHAT-10b: erst das Gerät aus den Benachrichtigungen nehmen — der Aufruf
+    // braucht noch die Sitzung (siehe `benachrichtigungenAbmelden`).
+    await benachrichtigungenAbmelden()
     // Bevorzugt die SEC1-Route: sie kennt die Zielregel (oeffentliche Website
     // oder `/login?sso=0`). Sie meldet lokal ab; zum Anbieter geht es nie.
     let res = await post(mitBasis('/logout'))

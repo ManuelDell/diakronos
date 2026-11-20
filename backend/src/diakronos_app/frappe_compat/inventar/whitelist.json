@@ -8056,6 +8056,90 @@
    "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.push.abmelden",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.push",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "abmelden",
+   "pfade": [
+    "abmelden",
+    "api.abmelden",
+    "diakronos.diakonos.api.push.abmelden",
+    "diakronos.diakronos.api.push.abmelden",
+    "diakronos_app.api.push.abmelden",
+    "push.abmelden"
+   ],
+   "rumpf_grund": "execute(…, delete()); SQL-Text „delete auf die eigene ze…\"",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.push.anmelden",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.push",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "anmelden",
+   "pfade": [
+    "anmelden",
+    "api.anmelden",
+    "diakronos.diakonos.api.push.anmelden",
+    "diakronos.diakronos.api.push.anmelden",
+    "diakronos_app.api.push.anmelden",
+    "push.anmelden"
+   ],
+   "rumpf_grund": "Aufruf s.flush(); Aufruf s.flush(); Aufruf s.add()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": "lesend",
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.push.schluessel",
+   "methoden": [
+    "GET"
+   ],
+   "methoden_pflicht": "GET/POST",
+   "modul": "diakronos_app.api.push",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "schluessel",
+   "pfade": [
+    "api.schluessel",
+    "diakronos.diakonos.api.push.schluessel",
+    "diakronos.diakronos.api.push.schluessel",
+    "diakronos_app.api.push.schluessel",
+    "push.schluessel",
+    "schluessel"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
    "funktion": "diakronos_app.api.rechte.beantrage_sichtbarkeit",
    "methoden": [
     "POST"
@@ -11423,12 +11507,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 424,
+ "funktionen": 427,
  "nur_test": [],
- "registrierte_pfade": 2383,
+ "registrierte_pfade": 2401,
  "rumpf_zaehlung": {
-  "lesend": 196,
-  "schreibend": 228
+  "lesend": 197,
+  "schreibend": 230
  },
  "widersprueche": [
   {
@@ -12050,7 +12134,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 185,
-  "schreibend": 239
+  "lesend": 186,
+  "schreibend": 241
  }
 }

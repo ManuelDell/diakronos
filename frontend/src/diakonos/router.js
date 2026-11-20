@@ -97,6 +97,8 @@ const pages = {
     EinstellungenFristen: () => import('./pages/Einstellungen.vue'),
     // CHAT-7b-UI-b: Einstellungs-Abschnitt „Gesperrte Personen“ (eigene Sperren).
     EinstellungenSperren: () => import('./pages/Einstellungen.vue'),
+    // CHAT-10b: Einstellungs-Abschnitt „Benachrichtigungen aufs Gerät“ (Web-Push).
+    EinstellungenBenachrichtigungen: () => import('./pages/Einstellungen.vue'),
     EinstellungenMailversand: () => import('./pages/Einstellungen.vue'),
     // WEB-3: Einstellungs-Abschnitt „Website (Primo)“.
     EinstellungenWebsite: () => import('./pages/Einstellungen.vue'),
@@ -242,6 +244,9 @@ const routeMap = {
     // ihre eigenen (`chat.meine_sperren` grenzt auf die eigene Kennung ein).
     // KEINE Verwaltungsstufe, kein Admin-Wächter (siehe `verwaltungsStufeSeite`).
     '#/einstellungen/sperren': 'EinstellungenSperren',
+    // CHAT-10b: Benachrichtigungen aufs Gerät — jede angemeldete Person für
+    // ihr eigenes Gerät. KEINE Verwaltungsstufe (siehe `verwaltungsStufeSeite`).
+    '#/einstellungen/benachrichtigungen': 'EinstellungenBenachrichtigungen',
     '#/einstellungen/mailversand': 'EinstellungenMailversand',
     // WEB-3: Zustand der Primo-Anbindung + Kurzanleitung.
     '#/einstellungen/website': 'EinstellungenWebsite',

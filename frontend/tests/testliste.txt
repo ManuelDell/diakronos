@@ -958,3 +958,19 @@ tests/sec11d-*.test.mjs
 # Zustimmen/Ablehnen nur offen und nie am eigenen) und der Eintritts-Hinweis
 # NUR mit dem Serverfeld. Gemountet (jsdom) — Regeln, Bausteine und Seite.
 tests/chat7bui-a-runden.test.mjs
+
+# CHAT-10b: Benachrichtigungen aufs Gerät (Web-Push). Geprüft werden die Regeln
+# (`pages/einstellungen/benachrichtigungen.mjs`, DOM-frei: Sätze ohne
+# Fachjargon, der Zustand Server/Browser/Berechtigung/Abo, Base64url →
+# Uint8Array inkl. ungültiger Fälle, die Fähigkeitsfrage) und der Abschnitt
+# gemountet (Attrappen für navigator.serviceWorker, PushManager, Notification):
+# aktiv:false → ruhiger Satz ohne Schalter; Browser kann es nicht → Satz;
+# verweigert → Satz statt Frage; an → requestPermission NUR nach Klick,
+# subscribe mit dem Schlüssel, POST push.anmelden; aus → unsubscribe + POST
+# push.abmelden. `public/sw.js` läuft als Modul in einer vm mit self-Attrappe:
+# push zeigt nur titel/text, unbrauchbare Nutzlast → neutrale Meldung,
+# notificationclick nimmt nur #/nachrichten-Ziele (javascript:…/https://evil
+# → #/nachrichten) und nie eine fremde Herkunft; kein fetch-Zweig. Zuletzt die
+# Einbindung (Einstellungen ohne Verwaltungsstufe, Router, Suchstichworte) und
+# push.abmelden VOR dem Logout.
+tests/chat10b-push.test.mjs

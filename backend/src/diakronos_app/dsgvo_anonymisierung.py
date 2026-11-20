@@ -535,6 +535,20 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         # und Zeitpunkte ohne Inhalt sind dort keine eigene Entscheidung.
         "stand_nachricht": ("struktur", "Nachrichtenkennung zum Anker des Merkers"),
     },
+    # CHAT-10a (Konzept 3.2, F10): das Web-Push-Abonnement EINES GERÄTS. Der
+    # ``endpoint`` ist die Adresse, unter der der Push-Dienst das Gerät
+    # erreicht — für sich genommen ein Geräte-Merkmal, mit ``benutzer``
+    # zusammen eine Zuordnung Person <-> Gerät. Die Zeile fällt deshalb ganz
+    # mit dem Konto (``ZEILEN_LOESCHEN``). Das Gerät bekommt danach keinen
+    # Push mehr (Zeile weg) und muss sich neu anmelden. `p256dh`/`auth` sind
+    # die beiden Verschlüsselungs-Geheimnisse des Abonnements; sie werden hier
+    # NICHT als „protokoll“ geführt, weil sie mit der Zeile verschwinden.
+    "push_abonnement": {
+        "endpoint": ("zeile_loeschen", "Push-Endpunkt des Geräts (Zeile wird gelöscht)"),
+        "benutzer": ("zeile_loeschen", "Abonnement der Person (Zeile wird gelöscht)"),
+        "p256dh": ("zeile_loeschen", "Verschlüsselungs-Schlüssel des Geräts (Zeile wird gelöscht)"),
+        "auth": ("zeile_loeschen", "Geheimnis des Geräts (Zeile wird gelöscht)"),
+    },
     # CHAT-5 (S2, Konzept 1/S2, 4.3): Umfragen. Die ANONYMITÄTSZUSAGE ist hier
     # datenbankseitig gebaut, nicht nur zugesagt: bei einer anonymen Umfrage
     # gibt es KEINE Zeile, die Person und Option verbindet. Deshalb ist
@@ -880,6 +894,11 @@ ZEILEN_LOESCHEN: tuple[tuple[str, str], ...] = (
     # die Marke die einzige Spur, und sie verschwindet mit der Person.
     ("chat_stimme", "namentliche Stimmen der Person in offenen Umfragen"),
     ("chat_umfrage_abgabe", "Abgabe-Marke der Person (anonyme Umfragen)"),
+    # CHAT-10a: das Push-Abonnement ist die Zuordnung Person <-> GERÄT. Sie
+    # fällt mit dem Konto; danach bekommt das Gerät keinen Push mehr und die
+    # Person muss sich neu anmelden. Nachrichten und Glocken sind davon
+    # unberührt — ein Push trug ohnehin keinen Inhalt (F10).
+    ("push_abonnement", "Web-Push-Abonnements der Geräte (Person <-> Gerät)"),
     # CHAT-7b: die Kontaktsperre steht NICHT hier — sie wird nicht nach dem
     # Konto geschluesselt (zwei Konto-Spalten, beide Richtungen) und hat keinen
     # FK auf `user`. Beide Richtungen raeumt ausschliesslich
@@ -917,6 +936,9 @@ KONTO_ZEILEN = frozenset({
     "chat_glocke",
     # CHAT-5: die Stimmenzeilen und Marken sind ZEILEN der Person.
     "chat_stimme", "chat_umfrage_abgabe",
+    # CHAT-10a: das Push-Abonnement wird nach dem KONTO geschlüsselt
+    # (`benutzer`) — die Zeile fällt ganz (s. `ZEILEN_LOESCHEN`).
+    "push_abonnement",
     # CHAT-7b (Review R1, MUSS 4): `chat_runde_vorschlag` steht hier NICHT —
     # die Zeile bleibt (s. SPALTEN/ZEILEN_LOESCHEN: Konten werden genullt, die
     # Zustimmenden-Liste bereinigt, die Vorgeschlagene umgehaengt). Die

@@ -155,10 +155,13 @@ from diakronos_app.models.devmodus import (
     DevEreignis,
     DevSitzung,
 )
+# CHAT-10a (Konzept 3.2, F10): Web-Push-Abonnements je Gerät (Handmodell).
+from diakronos_app.models.push import PushAbonnement
 
 __all__ = [
     "ROOT_ROLLE",
     "RootUser",
+    "PushAbonnement",
     "DATENSCHUTZ_TEXT_NAME",
     "DATENSCHUTZ_VEROEFFENTLICHT_NAME",
     "GEMEINDE_EINSTELLUNGEN_NAME",

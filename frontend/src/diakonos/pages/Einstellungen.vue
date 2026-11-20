@@ -144,6 +144,13 @@ const WEBSITE = defineAsyncComponent(() => import('./einstellungen/Website.vue')
 // Chat-Konzept S3). Sichtbar für JEDE angemeldete Person — es sind ihre
 // eigenen Daten (der Server grenzt `meine_sperren` auf die eigene Kennung ein).
 const SPERREN = defineAsyncComponent(() => import('./einstellungen/Sperren.vue'))
+// CHAT-10b: Benachrichtigungen aufs Gerät (Web-Push). Sichtbar für JEDE
+// angemeldete Person — es geht um IHR Gerät. Der Server entscheidet
+// (`push.*` prüft `_benutzer`), und ob Push eingerichtet ist, sagt
+// `push.schluessel`.
+const BENACHRICHTIGUNGEN = defineAsyncComponent(
+  () => import('./einstellungen/Benachrichtigungen.vue'),
+)
 // UX1k: Abstände, Rahmen und Rundungen (nur System Manager — Server prüft).
 const GESTALTUNG = defineAsyncComponent(() => import('./einstellungen/Gestaltung.vue'))
 // CHAT-R2a (Chat-Konzept 10.1 Punkt 5, 10.2): „Personenverwaltung“ — der
@@ -233,6 +240,14 @@ const abschnitte = [
   // entscheidet die Person über den Umgang mit ihren Daten.
   { id: 'sperren', label: 'Gesperrte Personen', href: '#/einstellungen/sperren',
     seite: 'EinstellungenSperren', inhalt: SPERREN, gruppe: 'datenschutz' },
+  // CHAT-10b (Chat-Konzept 3.2): „Benachrichtigungen aufs Gerät“ — ebenfalls
+  // OHNE `verwaltung`-Stufe. Es geht um das Gerät der angemeldeten Person;
+  // ob der Server Meldungen verschicken kann, sagt der Abschnitt selbst
+  // (`push.schluessel`), und jeder Aufruf prüft das eigene Konto.
+  { id: 'benachrichtigungen', label: 'Benachrichtigungen aufs Gerät',
+    href: '#/einstellungen/benachrichtigungen',
+    seite: 'EinstellungenBenachrichtigungen', inhalt: BENACHRICHTIGUNGEN,
+    gruppe: 'kommunikation' },
   // CHAT-R2a (Chat-Konzept 10.1 Punkt 5, 10.2): „Personenverwaltung“ steht in
   // der Gruppe „Datenschutz“ — dieselbe Zuständigkeit wie Datenschutz-Texte,
   // Datensicherung und Papierkorb (dort wird über Personendaten entschieden).
