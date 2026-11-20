@@ -1317,6 +1317,34 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": "lesend",
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.chat.gespraech_mitglieder",
+   "methoden": [
+    "GET"
+   ],
+   "methoden_pflicht": "GET/POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "gespraech_mitglieder",
+   "pfade": [
+    "api.gespraech_mitglieder",
+    "chat.gespraech_mitglieder",
+    "diakronos.diakonos.api.chat.gespraech_mitglieder",
+    "diakronos.diakronos.api.chat.gespraech_mitglieder",
+    "diakronos_app.api.chat.gespraech_mitglieder",
+    "gespraech_mitglieder"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
    "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
@@ -1557,6 +1585,34 @@
     "diakronos.diakronos.api.chat.meldungen_liste",
     "diakronos_app.api.chat.meldungen_liste",
     "meldungen_liste"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": "lesend",
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.chat.nachricht_kontext",
+   "methoden": [
+    "GET"
+   ],
+   "methoden_pflicht": "GET/POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "nachricht_kontext",
+   "pfade": [
+    "api.nachricht_kontext",
+    "chat.nachricht_kontext",
+    "diakronos.diakonos.api.chat.nachricht_kontext",
+    "diakronos.diakronos.api.chat.nachricht_kontext",
+    "diakronos_app.api.chat.nachricht_kontext",
+    "nachricht_kontext"
    ],
    "rumpf_grund": "",
    "rumpf_ueber": null
@@ -11367,11 +11423,11 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 422,
+ "funktionen": 424,
  "nur_test": [],
- "registrierte_pfade": 2371,
+ "registrierte_pfade": 2383,
  "rumpf_zaehlung": {
-  "lesend": 194,
+  "lesend": 196,
   "schreibend": 228
  },
  "widersprueche": [
@@ -11994,7 +12050,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 183,
+  "lesend": 185,
   "schreibend": 239
  }
 }

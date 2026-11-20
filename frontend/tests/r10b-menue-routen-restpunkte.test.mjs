@@ -239,7 +239,7 @@ test('UI-R10b: Boot mit `is_admin: 1` (Zahl) öffnet KEINE Admin-Seite', () => {
 test('UI-R10b: verwaltungErlaubt delegiert an menue.js::verwaltungZutreffend — Rückfall fail closed', () => {
   // Der Import steht im Quelltext, und im Betrieb wird er benutzt.
   const quelle = lies('router.js')
-  assert.match(quelle, /import \{ verwaltungZutreffend \} from '\.\/menue\.js'/,
+  assert.match(quelle, /import \{ verwaltungZutreffend[^}]*\} from '\.\/menue\.js'/,
     'die eine Regel wird aus dem Menü-Modul übernommen')
   assert.match(quelle, /const verwaltungRegel = typeof verwaltungZutreffend === 'function'\s*\n?\s*\? verwaltungZutreffend\s*\n?\s*: \(\) => false/,
     'im Betrieb gilt die importierte Regel; ohne sie gilt NICHTS (fail closed, Review Punkt 2)')

@@ -169,9 +169,29 @@
                 </span>
               </DkButton>
               <template v-else>
-                <div class="dk-notify-betreff">{{ n.subject || 'Benachrichtigung' }}</div>
-                <div class="dk-notify-text">{{ kurz(n.email_content) }}</div>
-                <div class="dk-notify-zeit">{{ zeitText(n.creation) }}<template v-if="vorText(n.creation)"> · {{ vorText(n.creation) }}</template></div>
+                <!-- CHAT-9b: „…: Du wurdest erwähnt“ ist ebenfalls ein Weg —
+                     in den Bereich „Nachrichten“. Die Zuordnung steht in
+                     derselben Datei wie die Meldung (`glockenziele.mjs`). -->
+                <DkButton
+                  v-if="istChatErwaehnung(n)"
+                  variant="ghost"
+                  size="md"
+                  class="dk-notify-eintrag-knopf"
+                  :aria-label="`Erwähnt — zu „Nachrichten“`"
+                  @click="zurErwaehnung(n)"
+                >
+                  <span class="dk-notify-knopftext">
+                    <span class="dk-notify-betreff">{{ n.subject || 'Du wurdest erwähnt' }}</span>
+                    <span class="dk-notify-text">{{ kurz(n.email_content) }}</span>
+                    <span class="dk-notify-zeit">{{ zeitText(n.creation) }}<template v-if="vorText(n.creation)"> · {{ vorText(n.creation) }}</template></span>
+                    <span class="dk-notify-weg">Nachrichten ›</span>
+                  </span>
+                </DkButton>
+                <template v-else>
+                  <div class="dk-notify-betreff">{{ n.subject || 'Benachrichtigung' }}</div>
+                  <div class="dk-notify-text">{{ kurz(n.email_content) }}</div>
+                  <div class="dk-notify-zeit">{{ zeitText(n.creation) }}<template v-if="vorText(n.creation)"> · {{ vorText(n.creation) }}</template></div>
+                </template>
               </template>
             </li>
           </ul>
@@ -218,7 +238,16 @@ import { istDatenanfrage, fragendePerson, profilAdresse } from '../composables/d
 // CHAT-6-UI: „Neue Meldung im Chat“ führt in den Reiter „Chat“ unter
 // „Zu prüfen“ — die Zuordnung steht in EINER Datei (`glockenziele.mjs`).
 import { istChatMeldung, meldungZiel } from '../composables/glockenziele.mjs'
-import { krumenZuSeite } from '../menue.js'
+import { krumenZuSeite, verwaltungZutreffend, PERSONENVERWALTUNG_BASIS } from '../menue.js'
+// CHAT-R2d: der Zurück-Weg ohne Verwaltungsrecht führt in die Personensuche
+// (dort kommen die Profile im Chat her) — dieselbe Hilfe, die auch das
+// Personenprofil benutzt.
+import { sucheAdresse } from '../composables/nachrichtenDirekt.mjs'
+import { useSession } from '../composables/useSession.js'
+// CHAT-9b: „Du wurdest erwähnt“ führt in das GESPRÄCH der Nachricht
+// (`chat.nachricht_kontext`) — dieselbe EINE Zuordnungsdatei.
+import { erwaehnungZiel, istChatErwaehnung } from '../composables/glockenziele.mjs'
+import { apiGet } from '../composables/useApi.js'
 import { MENUE_KNOPF_TEXT } from './handyMenue.mjs'
 
 const props = defineProps({
@@ -242,6 +271,12 @@ const { unreadCount, notifications, laden, fehler, ladeListe, markAsRead } = use
 // UX2d3a: Platzhalter erst, wenn das Laden merklich dauert (300 ms).
 const { skelettSichtbar: listenSichtbar } = useLadeSkelett(laden)
 const page = currentPageName
+
+// CHAT-R2d: die zwei Verwaltungsstufen der Sitzung für den Zurück-Weg aus dem
+// Personenprofil — dieselbe Quelle wie Menü, Reiterzeile und Routen-Wächter.
+// `useSession()` liefert die Refs als Eigenschaften; sie werden erst im
+// `navigateBack()` gelesen (dort stehen die beiden Stufen).
+const sitzung = useSession()
 
 // Listen-Panel: Klick auf die Glocke laedt die Liste und markiert erst
 // anschliessend als gelesen (OP-HANDY-6).
@@ -312,6 +347,20 @@ function zurMeldung(meldung) {
   listeOffen.value = false
   if (unreadCount.value > 0) markAsRead([meldung].filter(Boolean))
   navigate(meldungZiel())
+}
+
+/**
+ * CHAT-9b: Der Klick auf „Du wurdest erwähnt“ führt in das Gespräch der
+ * Nachricht. Die Glocke trägt die Kennung der NACHRICHT; welches Gespräch das
+ * ist, sagt der Server (`chat.nachricht_kontext`, siehe `glockenziele.mjs`).
+ * Antwortet er neutral oder scheitert der Aufruf, bleibt es beim Bereich
+ * „Nachrichten“ — keine geratene Kennung.
+ */
+async function zurErwaehnung(meldung) {
+  listeOffen.value = false
+  if (unreadCount.value > 0) markAsRead([meldung].filter(Boolean))
+  const ziel = await erwaehnungZiel(meldung, apiGet)
+  navigate(ziel)
 }
 
 onMounted(() => {
@@ -408,7 +457,22 @@ const breadcrumbs = computed(() => CRUMB_MAP[page.value] || krumenZuSeite(page.v
 const showBack = computed(() => ['MitgliedDetail', 'GruppeDetail'].includes(page.value))
 
 function navigateBack() {
-  if (page.value === 'MitgliedDetail') navigate('#/personen')
-  else if (page.value === 'GruppeDetail') navigate('#/gruppen')
+  // CHAT-R2d (Operator-Review R1): Der Zurück-Weg richtet sich nach dem RECHT
+  // der Sitzung, nicht nach der Seite. Die Personenverwaltung lebt in den
+  // Einstellungen (`#/einstellungen/personenverwaltung`) — dorthin gehört die
+  // Verwaltung. Ein MITGLIED, das ein Profil aus dem Chat geöffnet hat, landete
+  // dort auf dem Dashboard (der Wächter schließt den Abschnitt): es kommt
+  // dorthin zurück, wo es herkam — in die Personensuche der Nachrichten.
+  //
+  // Das Recht kommt aus der VORHANDENEN Hilfe (`verwaltungZutreffend` über
+  // `useSession`), nicht aus einer zweiten Rechnung. Während einer
+  // Identitätsübernahme liefert `useSession` das Konto (fail closed).
+  if (page.value === 'MitgliedDetail') {
+    const recht = verwaltungZutreffend('personen', {
+      istAdmin: sitzung.isAdmin.value === true,
+      istMitgliederverwaltung: sitzung.istMitgliederverwaltung.value === true,
+    })
+    navigate(recht ? PERSONENVERWALTUNG_BASIS : sucheAdresse())
+  } else if (page.value === 'GruppeDetail') navigate('#/gruppen')
 }
 </script>

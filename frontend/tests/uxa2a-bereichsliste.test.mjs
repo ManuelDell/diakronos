@@ -5,7 +5,7 @@ import vm from 'node:vm'
 // UI-R10b (Review, Punkt 2): der Router führt keine eigene Fassung der
 // Verwaltungsregel mehr — sein Rückfall ist `false` (fail closed). Dieser
 // Harness setzt deshalb die ECHTE Regel aus `menue.js` ein.
-import { echteVerwaltungsregel } from './helpers/verwaltungsregel.mjs'
+import { echteVerwaltungsregel, echtePersonenAdressen } from './helpers/verwaltungsregel.mjs'
 
 /**
  * UX-A2a — Personen-Navigation (seit UX3j: EINE Reiterzeile statt Seitenliste).
@@ -41,6 +41,8 @@ const lies = p => readFileSync(new URL(p, root), 'utf8')
 // UI-R10b (Review, Punkt 2): die echte Regel für die Router-vm (fail closed
 // im Router ohne `menue.js` — die Harnesse wollen aber Seiten ÖFFNEN).
 globalThis.__regel = echteVerwaltungsregel()
+// CHAT-R2d-2: die echten Personen-Adressen aus `menue.js` fuer die Router-vm.
+globalThis.__adressen = echtePersonenAdressen()
 const menuePfad = fileURLToPath(new URL('menue.js', root))
 
 async function menue() {
@@ -245,29 +247,49 @@ function routerAusfuehren(boot) {
   window.history = { replaceState(_s, _t, hash) { window.location.hash = hash } }
   const context = { window, console, setzeFenstertitel() {},
     verwaltungZutreffend: globalThis.__regel,
+    // CHAT-R2d-2: die echten Personen-Adressen aus `menue.js` (der Router baut
+    // seine Ziele direkt darueber — kein eigener Rueckfall mehr).
+    PERSONENVERWALTUNG_BASIS: globalThis.__adressen.PERSONENVERWALTUNG_BASIS,
+    anfragenUnterbereichHref: globalThis.__adressen.anfragenUnterbereichHref,
+    personenReiterHref: globalThis.__adressen.personenReiterHref,
     ref: value => ({ value }),
     shallowRef: value => ({ value }),
     computed: fn => ({ get value() { return fn() } }) }
   vm.createContext(context)
   vm.runInContext(source, context)
-  return { window, router: context.router, gehe(hash) { window.location.hash = hash; hashchange() } }
+  // Mehrstufig wie der Betrieb (CHAT-R2d).
+  const kette = (hash) => {
+    let aktuell = hash
+    for (let i = 0; i < 8; i += 1) {
+      window.location.hash = aktuell
+      hashchange()
+      if (window.location.hash === aktuell) break
+      aktuell = window.location.hash
+    }
+  }
+  return { window, router: context.router, gehe(hash) { kette(hash) } }
 }
 {
   const h = routerAusfuehren({ is_admin: true, hash: '#/' })
   // Die alten Adressen des Bereichs bleiben gültig (Deep-Links, Lesezeichen).
   const weiter = [
-    ['#/registrierung', '#/personen/anfragen'],
-    ['#/anmeldungen', '#/personen/anfragen'],
-    ['#/registrierung?token=abc', '#/personen/anfragen?token=abc'],
-    ['#/statistik', '#/personen/uebersicht'],
+    // CHAT-R2d (Operator-Review R1): Diese Sitzung ist die VERWALTUNG — die
+    // Ketten enden im heutigen Ort des Bereichs (Abschnitt der Einstellungen).
+    ['#/registrierung', '#/einstellungen/personenverwaltung/anfragen'],
+    ['#/anmeldungen', '#/einstellungen/personenverwaltung/anfragen'],
+    ['#/registrierung?token=abc', '#/einstellungen/personenverwaltung/anfragen?token=abc'],
+    ['#/statistik', '#/einstellungen/personenverwaltung'],
     // UX3b2: der Bereichsname führt auf die Liste (der Einstieg), nicht mehr
     // auf die Übersicht.
     ['#/mitglieder', '#/personen/liste'],
     // UX3j: Die frühere Unterbereichs-Form mit Abfrageteil leitet auf die
     // PFAD-Adresse (`#/personen/anfragen/<unter>`), Lesezeichen bleiben gültig.
-    ['#/personen/anfragen?bereich=links', '#/personen/anfragen/links'],
-    ['#/personen/anfragen?bereich=formulare', '#/personen/anfragen/formulare'],
-    ['#/personen/anfragen?bereich=anfragen', '#/personen/anfragen'],
+    // CHAT-R2d (Operator-Review R1): Diese Sitzung ist die VERWALTUNG — die
+    // Kette endet im heutigen Ort des Unterbereichs (Abschnitt der
+    // Einstellungen). Das Lesezeichen bleibt damit gültig.
+    ['#/personen/anfragen?bereich=links', '#/einstellungen/personenverwaltung/anfragen/links'],
+    ['#/personen/anfragen?bereich=formulare', '#/einstellungen/personenverwaltung/anfragen/formulare'],
+    ['#/personen/anfragen?bereich=anfragen', '#/einstellungen/personenverwaltung/anfragen'],
   ]
   for (const [alt, neu] of weiter) {
     h.gehe(alt)
@@ -276,16 +298,19 @@ function routerAusfuehren(boot) {
   // Alle neuen Adressen lösen auf — auch die Unterbereichs-Adressen, mit
   // Abfrageteil und Schluss-Schrägstrich.
   const seiten = [
-    ['#/personen/uebersicht', 'MitgliederUebersicht'],
+    // CHAT-R2d: Für die VERWALTUNG öffnet jede Personen-Reiter-Adresse den
+    // heutigen Ort — den Abschnitt der Einstellungen (die Liste ausgenommen:
+    // sie ist der eingebettete Abschnitt selbst und bleibt erreichbar).
+    ['#/personen/uebersicht', 'EinstellungenPersonenverwaltung'],
     ['#/personen/liste', 'Personen'],  // UX3b: zusammengelegte Personen-Seite
-    ['#/personen/anfragen', 'MitgliederAnfragen'],
-    ['#/personen/anfragen/anfragen', 'MitgliederAnfragen'],
-    ['#/personen/anfragen/links', 'MitgliederAnfragen'],
-    ['#/personen/anfragen/formulare', 'MitgliederAnfragen'],
-    ['#/personen/anfragen/', 'MitgliederAnfragen'],
-    ['#/personen/datenschutz', 'MitgliederDatenschutz'],
-    ['#/personen/loeschantraege', 'MitgliederLoeschantraege'],
-    ['#/personen/import', 'MitgliederImport'],
+    ['#/personen/anfragen', 'EinstellungenPersonenverwaltung'],
+    ['#/personen/anfragen/anfragen', 'EinstellungenPersonenverwaltung'],
+    ['#/personen/anfragen/links', 'EinstellungenPersonenverwaltung'],
+    ['#/personen/anfragen/formulare', 'EinstellungenPersonenverwaltung'],
+    ['#/personen/anfragen/', 'EinstellungenPersonenverwaltung'],
+    ['#/personen/datenschutz', 'EinstellungenPersonenverwaltung'],
+    ['#/personen/loeschantraege', 'EinstellungenPersonenverwaltung'],
+    ['#/personen/import', 'EinstellungenPersonenverwaltung'],
   ]
   for (const [hash, seite] of seiten) {
     h.gehe(hash)

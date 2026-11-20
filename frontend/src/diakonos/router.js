@@ -14,7 +14,7 @@ import { fehlertext } from '../shared/fehlertexte.js'
 // UI-R10b (Review, Punkt 2): die EINE Verwaltungsregel lebt in `menue.js`. Der
 // Import hat KEINE Kurzname-Zeile daneben (der Router-Test streicht alle
 // `import`-Zeilen und setzt Attrappen ein).
-import { verwaltungZutreffend } from './menue.js'
+import { verwaltungZutreffend, PERSONENVERWALTUNG_BASIS, anfragenUnterbereichHref, personenReiterHref } from './menue.js'
 
 // Rückfall: läuft der Router ohne `menue.js` (die VM-Tests streichen die
 // Importe), ist die Regel NICHT bekannt — dann gilt `false` (fail closed).
@@ -331,6 +331,14 @@ const dynamicRoutes = [
 // brechen — JEDE alte Adresse leitet DAUERHAFT weiter. Ziele, die selbst ein
 // Bereich-Einstieg sind, werden in `rolleWeiterleitung` rollenabhängig
 // aufgelöst (`#/mitglieder` und `#/dienste`).
+
+// Weiterleitungen für Adressen OHNE Kennung. Ein Schluss-Schrägstrich wird
+// ignoriert (`ohneSchlussslash`) — die Schreibweise mit „/“ steht deshalb nur
+// dort, wo sie sich NICHT mit einer anderen Adresse deckt.
+//
+// Die Adressen des umgezogenen Personenbereichs (`#/personen/anfragen` und
+// Verwandte) stehen NICHT in dieser Tabelle: sie sind rollenabhängig und
+// werden in `rollenWeiterleitung` aufgelöst.
 const WEITERLEITUNGEN = {
     '#/plaene':       '#/dienste/dienstplaene',
     '#/registrierung':'#/personen/anfragen',
@@ -361,11 +369,32 @@ const WEITERLEITUNGEN = {
     '#/datenschutz':  '#/personen/datenschutz',
     // CHAT-R2a (Chat-Konzept 10.2, Tabelle): kurze Merk-Adressen für den
     // UMGEZOGENEN Personenbereich. Der kanonische Einstieg ist
-    // `#/einstellungen/personenverwaltung`; die alten Personen-Adressen oben
-    // bleiben gültige Ziele (KEINE Weiterleitung — sonst verlöre der Reiter
-    // „Datenschutz“ seine Adresse).
+    // `#/einstellungen/personenverwaltung`.
     '#/personenverwaltung':    '#/einstellungen/personenverwaltung',
     '#/einstellungen/personen':'#/einstellungen/personenverwaltung',
+    // ── CHAT-R2d: die ALTEN Reiter-Adressen führen die Verwaltung an ihren
+    // heutigen ORT (`#/einstellungen/personenverwaltung/<reiter>[/<unter>]`).
+    //
+    // Befund (Operator-Review R1): `#/personen/anfragen`, `…/datenschutz`,
+    // `…/import` usw. waren gültige ZIELE — aber die Reiter-Adressen zeigten
+    // auf die Seiten `MitgliederAnfragen`, `MitgliederDatenschutz`,
+    // `MitgliederImport` (alle in `PERSONEN_VERWALTUNG_PAGES`), und der
+    // Bereichseinstieg `#/personen` auf `Personen`. Für die Verwaltung war das
+    // der falsche Ort: der Personenbereich ist mit CHAT-R2a in die
+    // Einstellungen umgezogen (`#/einstellungen/personenverwaltung`), die
+    // alten Seiten trugen nur noch die Adresse von damals — eine Verwaltung
+    // mit altem Lesezeichen landete dort, statt im heutigen Abschnitt.
+    // Deshalb leitet der Router die Verwaltung jetzt an den heutigen Ort; die
+    // alten Seiten bleiben unverändert erreichbar (kein Ersatz, siehe die
+    // Routen in `routeMap`).
+    //
+    // Die Personen-Reiter stehen NICHT hier: diese Tabelle gilt für JEDE Rolle,
+    // die Reiter-Adressen aber nur für die Verwaltung (ohne Recht muss das
+    // Mitglied aufs Dashboard, nicht in den Abschnitt). Sie werden in
+    // `rollenWeiterleitung` aufgelöst — dieselbe Zuordnung, nur mit Rechteblick.
+    // Die Muster unten greifen folglich nur OHNE Verwaltungsrecht und führen
+    // zurück in den ALTEN Personenbereich (`#/personen/anfragen[/<unter>]`),
+    // nie in den Verwaltungsabschnitt.
     // „Zu prüfen“ ist der vierte Reiter des Kalenders (vorher „Moderation“).
     '#/moderation':   '#/kalender/pruefen',
     // Dienste (vorher „Dienstplan“ + „Pläne“ + „Meine Dienste“)
@@ -401,12 +430,16 @@ const MUSTER_WEITERLEITUNGEN = [
     {
         pattern: /^#\/personen\/anfragen\?bereich=(?:anfragen)?$/,
         mitAbfrage: true,
+        // OHNE Verwaltungsrecht: die Verwaltung hat die Adresse oben schon in
+        // `rollenWeiterleitung` (`?bereich=` → `bereichAusAbfrage`) bekommen.
+        // Ein Mitglied darf NIE in den Verwaltungsabschnitt geleitet werden —
+        // hier steht deshalb der alte Personenbereich.
         ziel: () => '#/personen/anfragen',
     },
     {
         pattern: /^#\/personen\/anfragen\?bereich=(links|formulare)$/,
         mitAbfrage: true,
-        ziel: bereich => `#/personen/anfragen/${bereich}`,
+        ziel: (bereich) => `#/personen/anfragen/${bereich}`,
     },
     // `/liedergruppen/…` (Tippfehler aus UX3a) UND `/liedgruppen/…` (die
     // gemeinte Adresse) → Reiter „Lieder → Liedgruppen“. Beide Muster stehen
@@ -455,7 +488,42 @@ function _mitAbfrage(ziel, abfrage) {
 }
 
 // Rollenabhängige Weiterleitungen (nur wenn das Ziel für die Rolle passt).
-function rollenWeiterleitung(pfad) {
+/**
+ * CHAT-R2d: der heutige Ort einer alten Personen-Adresse — `null`, wenn die
+ * Adresse nicht dazugehört. EINE Quelle der Adressen ist `menue.js`
+ * (`anfragenUnterbereichHref` / `personenReiterHref`); die Liste hier nennt
+ * nur, WELCHE alten Pfade wohin gehören.
+ *
+ * Reihenfolge: der längste Treffer gewinnt (`…/anfragen/links` vor
+ * `…/anfragen`), damit ein Unterbereich nicht beim Reiter landet.
+ */
+const PERSONEN_HEUTE = [
+    ['#/personen/anfragen/links', () => anfragenUnterbereichHref('links', true)],
+    ['#/personen/anfragen/formulare', () => anfragenUnterbereichHref('formulare', true)],
+    ['#/personen/anfragen/anfragen', () => anfragenUnterbereichHref('anfragen', true)],
+    ['#/personen/anfragen', () => anfragenUnterbereichHref('anfragen', true)],
+    ['#/personen/datenschutz', () => personenReiterHref('datenschutz', true)],
+    ['#/personen/import', () => personenReiterHref('import', true)],
+    // „Übersicht“ und „Löschanträge“ sind seit UX3j KEINE Reiter mehr — sie
+    // führen auf den Abschnitt selbst (der Bereich steht dort).
+    ['#/personen/uebersicht', () => PERSONENVERWALTUNG_BASIS],
+    ['#/personen/loeschantraege', () => PERSONENVERWALTUNG_BASIS],
+]
+
+function personenHeute(pfad) {
+    for (const [alt, ziel] of PERSONEN_HEUTE) {
+        if (pfad === alt) return ziel()
+    }
+    return null
+}
+
+/** CHAT-R2d: `?bereich=links` einer alten Anfragen-Adresse → `'links'` (sonst null). */
+function bereichAusAbfrage(vollerHash) {
+    const m = /^#\/personen\/anfragen\?bereich=(anfragen|links|formulare)$/.exec(String(vollerHash))
+    return m ? m[1] : null
+}
+
+function rollenWeiterleitung(pfad, vollerHash = pfad) {
     const boot = window.__DIakonosBOOT || {}
     // UI-R10: Der Datenschutz-Reiter ist Personenbereich — die
     // Mitgliederverwaltung darf ihn (R-11a), nicht nur der Administrator. Ein
@@ -471,7 +539,30 @@ function rollenWeiterleitung(pfad) {
         // Entwurf A3); alle anderen ebenso — dort zeigt die Seite dann die
         // Adressbuch-Sicht. Kein Rollenrecht nötig: die Seite fragt den
         // Server, und der entscheidet über die Felder.
+        //
+        // CHAT-R2d: Die VERWALTUNG holt der Bereichseinstieg im HEUTIGEN
+        // Personenbereich ab (`#/einstellungen/personenverwaltung`) — die
+        // Einstiegsadresse des Bereichs ist mitgewandert, nicht nur die
+        // Reiter. Ein Mitglied ohne Recht behält die Liste (Adressbuch-Sicht).
+        if (verwaltung) return PERSONENVERWALTUNG_BASIS
         return '#/personen/liste'
+    }
+    if (verwaltung && pfad === '#/personen/anfragen') {
+        // CHAT-R2d: die alte Abfrage-Form der Anfragen-Unterbereiche
+        // (`?bereich=links`, UX-A2a) führt die Verwaltung ebenso an ihren
+        // heutigen Ort. Vor dem Reiter-Zweig: sonst gewönne `…/anfragen` und
+        // der Unterbereich ginge verloren. Ohne Recht greift weiter das Muster
+        // unten (der Wächter schließt die Seite ohnehin).
+        const bereich = bereichAusAbfrage(vollerHash)
+        if (bereich) return anfragenUnterbereichHref(bereich, true)
+    }
+    if (verwaltung) {
+        // CHAT-R2d: alte Reiter-/Unterbereichs-Adressen → heutiger ORT des
+        // umgezogenen Bereichs (eingebettete Adresse je Reiter, Unterbereich
+        // als Pfadteil). Gilt NUR mit Verwaltungsrecht: ohne Recht bleibt die
+        // Adresse ihr Ziel (die Seite bzw. das Dashboard über den Wächter).
+        const ziel = personenHeute(pfad)
+        if (ziel) return ziel
     }
     if (pfad === '#/dienste') {
         // Einstieg in den Bereich: „Meine Dienste“ ist die persönliche Sicht
@@ -498,14 +589,18 @@ function rollenWeiterleitung(pfad) {
  * `ziel` bekommt den ersten Klammer-Treffer.
  */
 function weiterleitungsZiel(pfad, vollerHash = pfad) {
-    const fest = WEITERLEITUNGEN[pfad] || rollenWeiterleitung(pfad)
+    // CHAT-R2d: die ROLLENREGEL zuerst — nur sie sieht den Abfrageteil
+    // (`?bereich=links`) und die Rolle; die feste Tabelle würde die alte
+    // Adresse sonst ohne Rollenblick auf den bestehenden Bereich schicken.
+    const fest = rollenWeiterleitung(pfad, vollerHash) || WEITERLEITUNGEN[pfad]
     if (fest) return fest
     const [pfadTeil, abfrage] = zerlegeHash(String(vollerHash))
     const suchTeil = ohneSchlussslash(pfadTeil) + abfrage
     const pfadOhneAbfrage = ohneSchlussslash(pfadTeil)
     for (const regel of MUSTER_WEITERLEITUNGEN) {
         const m = String(regel.mitAbfrage ? suchTeil : pfadOhneAbfrage).match(regel.pattern)
-        if (m) return regel.ziel(m[1])
+        if (!m) continue
+        return regel.ziel(m[1])
     }
     return null
 }
@@ -573,7 +668,17 @@ async function resolveRoute() {
         // gehört (`?status=`, `?q=`) — die alten Anfragen-Unterbereiche trugen
         // ihren Bereich unter `?bereich=` und leiten auf einen PFAD um; diese
         // Abfrage darf am Ziel nicht hängen bleiben.
-        const zielMitAbfrage = (abfrage && !/^#\/personen\/anfragen\?bereich=/.test(vollerHash))
+        //
+        // CHAT-R2d: Die Bedingung prüft die ALTE Adresse (`vollerHash`), nicht
+        // das Ziel — sie verhindert, dass `?bereich=` ans Ziel gehängt wird.
+        // Geprüft wird der ORIGINAL-Adressteil, damit die Weiterleitung auf den
+        // umgezogenen Bereich (`…/anfragen/links`) den Abfrageteil ebenso
+        // sicher wegwirft. Zusätzlich: trägt das ZIEL den Bereich schon als
+        // Pfad (`…/anfragen/links`), darf die Abfrage nie daneben stehen.
+        const bereichImZiel = /^#\/(?:personen|einstellungen\/personenverwaltung)\/anfragen\/(?:anfragen|links|formulare)$/
+            .test(ziel)
+        const zielMitAbfrage = (abfrage && !bereichImZiel
+            && !/^#\/personen\/anfragen\?bereich=/.test(vollerHash))
             ? _mitAbfrage(ziel, abfrage)
             : ziel
         if (zielMitAbfrage !== vollerHash) {

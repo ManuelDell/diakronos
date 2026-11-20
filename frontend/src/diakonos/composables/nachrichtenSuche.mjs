@@ -189,16 +189,23 @@ export function sucheSichtbar(wert) {
  * bekommt den Begriff, für den er fällig war — der Aufrufer vergleicht ihn mit
  * der aktuellen Eingabe und darf eine späte Antwort verwerfen (`istAktuell`).
  *
+ * `darfFragen` entscheidet, ob für einen Begriff überhaupt gefragt wird.
+ * Vorgabe ist die Regel der Personensuche (ab `SUCHE_MIN_ZEICHEN` Zeichen);
+ * die Erwähnungs-Auswahl (CHAT-9b-2) gibt `() => true` hinein — dort zählt
+ * jeder Namensanfang, auch „@“ allein.
+ *
  * @param {{ warte?: number, jetzt?: () => number,
  *           timer?: (fn: () => void, ms: number) => any,
  *           timerAus?: (id: any) => void,
- *           beiFaelligkeit: (begriff: string) => any }} optionen
+ *           beiFaelligkeit: (begriff: string) => any,
+ *           darfFragen?: (begriff: string) => boolean }} optionen
  */
 export function entpreller({
   warte = ENTPRELLUNG_MS,
   timer = (fn, ms) => setTimeout(fn, ms),
   timerAus = (id) => clearTimeout(id),
   beiFaelligkeit = () => {},
+  darfFragen = darfPersonenFragen,
 } = {}) {
   let laufend = null
   let letzterBegriff = ''
@@ -222,7 +229,7 @@ export function entpreller({
       if (beendet) return false
       letzterBegriff = String(begriff ?? '')
       stoppen()
-      if (!darfPersonenFragen(letzterBegriff)) return false
+      if (!darfFragen(letzterBegriff)) return false
       anlaeufe += 1
       laufend = timer(() => {
         laufend = null

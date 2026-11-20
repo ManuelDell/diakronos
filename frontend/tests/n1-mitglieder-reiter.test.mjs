@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 // UI-R10b (Review, Punkt 2): der Router führt keine eigene Fassung der
 // Verwaltungsregel mehr — sein Rückfall ist `false` (fail closed). Dieser
 // Harness setzt deshalb die ECHTE Regel aus `menue.js` ein.
-import { echteVerwaltungsregel } from './helpers/verwaltungsregel.mjs'
+import { echteVerwaltungsregel, echtePersonenAdressen } from './helpers/verwaltungsregel.mjs'
 
 /**
  * N1 — Mitglieder mit Reitern und Übersicht.
@@ -26,6 +26,8 @@ const lies = p => readFileSync(new URL(p, root), 'utf8')
 // UI-R10b (Review, Punkt 2): die echte Regel für die Router-vm (fail closed
 // im Router ohne `menue.js` — die Harnesse wollen aber Seiten ÖFFNEN).
 globalThis.__regel = echteVerwaltungsregel()
+// CHAT-R2d-2: die echten Personen-Adressen aus `menue.js` fuer die Router-vm.
+globalThis.__adressen = echtePersonenAdressen()
 
 function routerAusfuehren(boot) {
   let source = lies('router.js')
@@ -55,21 +57,40 @@ function routerAusfuehren(boot) {
   window.history = { replaceState(_s, _t, hash) { window.location.hash = hash } }
   const context = { window, console, setzeFenstertitel() {},
     verwaltungZutreffend: globalThis.__regel,
+    // CHAT-R2d-2: die echten Personen-Adressen aus `menue.js` (der Router baut
+    // seine Ziele direkt darueber — kein eigener Rueckfall mehr).
+    PERSONENVERWALTUNG_BASIS: globalThis.__adressen.PERSONENVERWALTUNG_BASIS,
+    anfragenUnterbereichHref: globalThis.__adressen.anfragenUnterbereichHref,
+    personenReiterHref: globalThis.__adressen.personenReiterHref,
     ref: value => ({ value }),
     shallowRef: value => ({ value }),
     computed: fn => ({ get value() { return fn() } }) }
   vm.createContext(context)
   vm.runInContext(source, context)
-  return { window, router: context.router, gehe(hash) { window.location.hash = hash; hashchange() } }
+  return { window, router: context.router, gehe(hash) {
+    // Wie im Betrieb mehrstufig nachlaufen (CHAT-R2d: alte Adresse →
+    // Personenbereich → heutiger Ort). Vorher endete die Attrappe nach EINER
+    // Stufe und sah die Zwischenadresse als Ziel an.
+    let aktuell = hash
+    for (let i = 0; i < 8; i += 1) {
+      window.location.hash = aktuell
+      hashchange()
+      if (window.location.hash === aktuell) break
+      aktuell = window.location.hash
+    }
+  } }
 }
 
 // ── Statistik-Seite entfernt, Adresse leitet in die Übersicht ───────────────
 {
   const h = routerAusfuehren({ is_admin: true, hash: '#/' })
   h.gehe('#/statistik')
-  assert.equal(h.window.location.hash, '#/personen/uebersicht', '#/statistik → Übersicht')
-  h.gehe('#/personen/uebersicht')
-  assert.equal(h.router.currentPageName.value, 'MitgliederUebersicht', 'Übersicht löst auf')
+  // CHAT-R2d (Operator-Review R1): Die Sitzung ist die VERWALTUNG. Die Kette
+  // `#/statistik` → `#/personen/uebersicht` → `#/einstellungen/personenverwaltung`
+  // endet im heutigen Ort der Übersicht. Die Weiterleitung selbst bleibt
+  // unverändert (`#/statistik` zeigt weiter auf den Personenbereich).
+  assert.equal(h.window.location.hash, '#/einstellungen/personenverwaltung',
+    '#/statistik → Personenbereich (Verwaltung)')
 
   const router = lies('router.js')
   // N13b: seit dem Merge von main (N0/N1/N1b) liegen die Weiterleitungen in
@@ -89,9 +110,12 @@ function routerAusfuehren(boot) {
 {
   const h = routerAusfuehren({ is_admin: true, hash: '#/' })
   const faelle = [
-    ['#/registrierung?token=abc', '#/personen/anfragen?token=abc'],
-    ['#/registrierung/', '#/personen/anfragen'],
-    ['#/statistik/', '#/personen/uebersicht'],
+    // CHAT-R2d: Der Abfrageteil bleibt beim Weiterreichen erhalten (`token=abc`
+    // ist der Anmeldelink) und wird mitgenommen, bis die Kette steht. Für die
+    // VERWALTUNG endet sie im heutigen Ort des Bereichs.
+    ['#/registrierung?token=abc', '#/einstellungen/personenverwaltung/anfragen?token=abc'],
+    ['#/registrierung/', '#/einstellungen/personenverwaltung/anfragen'],
+    ['#/statistik/', '#/einstellungen/personenverwaltung'],
     ['#/plaene/', '#/dienste/dienstplaene'],
   ]
   for (const [alt, neu] of faelle) {
@@ -174,8 +198,11 @@ function routerAusfuehren(boot) {
     // UX3b: der Reiter „Liste“ ist die zusammengelegte Personen-Seite.
     ['#/personen/liste?status=Mitglied', 'Personen'],
     ['#/personen/liste/', 'Personen'],
-    ['#/personen/uebersicht/', 'MitgliederUebersicht'],
-    ['#/personen/anfragen?x=1', 'MitgliederAnfragen'],
+    // CHAT-R2d: Diese Sitzung ist die VERWALTUNG — der Reiter führt sie in
+    // den heutigen Ort des Abschnitts (Abfrageteil/Schluss-Schrägstrich
+    // ändern daran nichts).
+    ['#/personen/uebersicht/', 'EinstellungenPersonenverwaltung'],
+    ['#/personen/anfragen?x=1', 'EinstellungenPersonenverwaltung'],
     ['#/kalender/', 'Kalender'],
     ['#/lieder/neu', 'LiedNeu'],
     ['#/mitglied/MT-0001', 'MitgliedDetail'],

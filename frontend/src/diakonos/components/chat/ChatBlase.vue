@@ -119,11 +119,21 @@
            haben. Gelöscht → die Lücke (darunter). -->
       <slot v-if="!nachricht.geloescht" name="karte" />
       <div v-if="nachricht.geloescht" class="dk-chat-geloescht">{{ nachricht.hinweis }}</div>
+      <!-- CHAT-9b: „@Name“-Stellen, die zu einem Eintrag in `erwaehnt`
+           passen, werden hervorgehoben. Der Text bleibt TEXT: jedes Stück
+           steht als `{{ }}` im DOM (kein `v-html`) — ein Anzeigename mit
+           „<b>“ bleibt sichtbarer Text und wird nicht ausgeführt. Erwähnt die
+           Nachricht die LESENDE Person, trägt die Blase zusätzlich
+           `is-erwaehnt` (dezente Markierung, Token-Farben). -->
       <div
         v-else-if="!$slots.karte"
         class="dk-chat-blase"
-        :class="nachricht.eigene ? 'is-ich' : 'is-andere'"
-      >{{ nachricht.text }}</div>
+        :class="[nachricht.eigene ? 'is-ich' : 'is-andere', { 'is-erwaehnt': binIchErwaehnt }]"
+      ><template v-for="(stueck, i) in textStuecke" :key="i"><span
+          v-if="stueck.erwaehnung"
+          class="dk-chat-erwaehnung"
+          :class="{ 'is-meine': stueck.meine }"
+        >{{ stueck.text }}</span><template v-else>{{ stueck.text }}</template></template></div>
 
       <!-- Reaktionen: gesetzte Zeichen; „＋“ steht nur da, wenn noch KEINE
            Reaktion gesetzt ist (CHAT-3a-4, SOLL 4). Dann sitzt es — wie die
@@ -211,6 +221,9 @@ import { reaktionsAuswahl, reaktionsZeile } from '../../composables/nachrichtenR
 // Regel prüft der Server beim Senden erneut (`meldbar` sagt nur, ob der Knopf
 // bzw. Menüeintrag angeboten wird).
 import { TEXTE as MELDE_TEXTE, meldbar } from './meldung.mjs'
+// CHAT-9b: „@Name“ hervorheben (Text bleibt Text) und die dezente Markierung
+// „hier bin ich erwähnt“ — beides entscheidet die Regel in `erwaehnung.mjs`.
+import { binErwaehnt, hervorheben } from './erwaehnung.mjs'
 
 const props = defineProps({
   nachricht: { type: Object, required: true },
@@ -235,6 +248,12 @@ const props = defineProps({
    * beobachtet selbst nichts. Ohne Angabe gilt Desktop (`false`).
    */
   handyLage: { type: Boolean, default: false },
+  /**
+   * CHAT-9b: die MITGLIED-Kennung der lesenden Person — nur für die dezente
+   * Markierung „diese Nachricht erwähnt mich“. Ohne Angabe gibt es keine
+   * Markierung; geraten wird nichts.
+   */
+  ich: { type: String, default: '' },
 })
 const emit = defineEmits(['reaktion', 'antworten', 'bearbeiten', 'loeschen', 'melden'])
 
@@ -246,6 +265,13 @@ const initialen = computed(() => initialenAus(null, props.nachricht.autor || '')
 const lesestand = computed(() => lesestandText(props.nachricht, { direkt: props.direkt === true }))
 /** CHAT-6-UI: Darf DIESE Nachricht gemeldet werden (fremd, nicht gelöscht)? */
 const darfMelden = computed(() => meldbar(props.nachricht))
+/**
+ * CHAT-9b: der Text in Stücken — „@Name“-Stellen hervorgehoben, sonst reiner
+ * Text. Grundlage ist NUR die Serverliste `erwaehnt` der Nachricht.
+ */
+const textStuecke = computed(() => hervorheben(props.nachricht.text, props.nachricht.erwaehnt, { ich: props.ich }))
+/** Ist die LESENDE Person in dieser Nachricht erwähnt? (dezente Markierung) */
+const binIchErwaehnt = computed(() => binErwaehnt(props.nachricht, { ich: props.ich }))
 /** Der Avatar gehört an den Anfang einer Folge — und nie an eigene Zeilen. */
 const zeigeAvatar = computed(() => props.nachricht.eigene !== true && props.folgeStart !== false)
 
@@ -463,6 +489,45 @@ function waehlen(zeichen) {
 .dk-chat-blase.is-ich {
   background: var(--marke-flaeche);
   color: var(--marke-ink);
+}
+
+/* CHAT-9b: „@Name“-Stellen, die zu `erwaehnt` passen — nur Darstellung, der
+   Text bleibt Text. Die Fläche ist die vorhandene Akzent-Weichfarbe (hell
+   Gold-Beige, dunkel durchscheinendes Gold aus `--accent-soft`), die Schrift
+   bleibt die Schrift der Blase. Kein Unterstrich: es ist kein Verweis. */
+.dk-chat-erwaehnung {
+  padding: 0 var(--sp-1);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  font-weight: var(--fw-fett);
+}
+/* In der EIGENEN Blase (Markenfläche, weiße Schrift) trägt die Hervorhebung
+   über die halbtransparente Weichfarbe — der Rahmen hält sie auch im hellen
+   Token sichtbar, ohne eine neue Farbe zu erfinden.
+   R1/8: EIN Ring, nicht zwei (vorher box-shadow + outline übereinander). */
+.dk-chat-blase.is-ich .dk-chat-erwaehnung {
+  background: transparent;
+  box-shadow: inset 0 0 0 var(--rahmen-breite) var(--marke-ink);
+}
+/* Die Erwähnung der LESENDEN Person: dieselbe Hervorhebung, eine Stufe
+   kräftiger (Akzentlinie) — die Blase selbst ist zusätzlich markiert. */
+.dk-chat-erwaehnung.is-meine {
+  border: var(--rahmen-breite) solid var(--accent);
+}
+.dk-chat-blase.is-ich .dk-chat-erwaehnung.is-meine {
+  box-shadow: inset 0 0 0 var(--rahmen-breite) var(--accent);
+}
+
+/* Erwähnt mich diese Nachricht? Dezente Markierung: ein Streifen der
+   Akzentfarbe an der Blase (Richtung egal, keine neue Fläche) und ein etwas
+   festerer Rahmen an der fremden Blase. Beide Themes über Tokens.
+   R1/8: Die Breite ist ein Vielfaches von `--rahmen-breite` (kein loses 3px). */
+.dk-chat-blase.is-erwaehnt {
+  box-shadow: inset calc(var(--rahmen-breite) * 3) 0 0 0 var(--accent);
+  border-color: var(--accent);
+}
+.dk-chat-blase.is-erwaehnt.is-ich {
+  border: var(--rahmen-breite) solid var(--accent);
 }
 
 /* Gelöschte Nachricht: Hinweiszeile statt Kasten — die Lücke bleibt sichtbar. */

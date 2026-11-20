@@ -282,6 +282,7 @@
                     :direkt="istOffenesDirekt"
                     :folge-start="folgeStart(i)"
                     :handy-lage="istHandyLage"
+                    :ich="ich"
                     @reaktion="reaktionSetzen"
                     @antworten="antworten"
                     @bearbeiten="bearbeitenOeffnen"
@@ -340,6 +341,21 @@
                   size="sm"
                   @click="umfrageDialog = true"
                 >{{ UMFRAGE_TEXTE.neu }}</DkButton>
+                <!-- CHAT-9b: „@“ öffnet die Auswahl der Beteiligten. Die
+                     Listen-Eigenschaften hängen am EINGABEFELD (dort steht
+                     der Fokus, dort wird getippt); die Liste selbst steht
+                     darüber und zeigt nur die gefilterten Treffer.
+                     R1/4: `aria-expanded`/`aria-controls`/`aria-activedescendant`
+                     hängen an `auswahlSichtbar` — ohne Treffer steht keine
+                     Liste im DOM, dann darf der Vorleser auch keine sehen.
+                     R1/5: kein `aria-label` mehr am Feld (es gibt das
+                     `<label for>`), dafür eine höfliche Ansage der Trefferzahl.
+                     CHAT-9b-2 (Entscheidung Operator): KEIN `role="combobox"`
+                     am `<textarea>` — AXE verlangt dafür ein Eingabefeld der
+                     Combobox-Bauart, ein mehrzeiliges Feld ist es nicht. Die
+                     Beziehung Feld→Liste steht als `aria-haspopup="listbox"` +
+                     `aria-controls` + `aria-activedescendant`; `type="text"`
+                     trägt jeder Vorleser auch ohne Rolle. -->
                 <textarea
                   id="chat-eingabe"
                   ref="eingabeEl"
@@ -348,7 +364,15 @@
                   rows="1"
                   :placeholder="eingabeHinweis"
                   :maxlength="NACHRICHT_MAX"
+                  aria-haspopup="listbox"
+                  :aria-expanded="auswahlSichtbar ? 'true' : 'false'"
+                  :aria-controls="auswahlSichtbar ? ERWAEHNUNG_LISTE : null"
+                  :aria-activedescendant="auswahlSichtbar ? optionKennung(ERWAEHNUNG_LISTE, erwaehnungAktiv) : null"
+                  aria-autocomplete="list"
                   @keydown="beimTasten"
+                  @input="erwaehnungGetippt"
+                  @click="erwaehnungPruefen"
+                  @keyup="erwaehnungPruefenNachTaste"
                 ></textarea>
                 <DkButton
                   type="submit"
@@ -358,6 +382,21 @@
                 >
                   {{ SENDEN_TEXT }}
                 </DkButton>
+                <!-- R1/3: `offen` ist das OFFENE „@“ (nicht `auswahlSichtbar`):
+                     bei 0 Treffern steht kein `listbox` da, aber der
+                     „weiter tippen“-Hinweis schon — er ist ein `<p>`
+                     außerhalb der Liste. -->
+                <ChatErwaehnung
+                  :beteiligte="erwaehnungTreffer"
+                  :offen="erwaehnungOffen"
+                  :aktiv="erwaehnungAktiv"
+                  :listen-kennung="ERWAEHNUNG_LISTE"
+                  :mehr="erwaehnungMehr"
+                  @waehlen="erwaehnungWaehlen"
+                />
+                <!-- R1/5: Die Trefferzahl wird angesagt, ohne den Fokus zu
+                     stehlen (höflich, nur bei sichtbarer Liste). -->
+                <p class="dk-chat-nur-vorlesen" aria-live="polite">{{ auswahlAnsage }}</p>
               </div>
               <p v-if="eingabeFehler" class="dk-chat-fehler" role="alert">{{ eingabeFehler }}</p>
             </form>
@@ -499,7 +538,7 @@ import {
   lesestandFaellig, mitTagesmarken, pruefeText, seiteEinordnen, taktGeber, tasteImFeld,
   ungelesenSumme, verlaufsZeile, zeilenSchluessel,
 } from '../composables/nachrichtenLogik.mjs'
-import { offenAusHash, qAusHash, suchHash, sucheOffenBei } from '../composables/nachrichtenSuche.mjs'
+import { offenAusHash, qAusHash, suchHash, sucheOffenBei, entpreller } from '../composables/nachrichtenSuche.mjs'
 import { naechsteReaktion } from '../composables/nachrichtenReaktionen.mjs'
 import {
   NICHT_ERREICHBAR, NEUE_NACHRICHT, SPERR_AKTION, SUCHE, direktTitel, istDirekt, istGesperrt,
@@ -518,9 +557,20 @@ import ChatBlase from '../components/chat/ChatBlase.vue'
 import ChatSuche from '../components/chat/ChatSuche.vue'
 import ChatUmfrage from '../components/chat/ChatUmfrage.vue'
 import ChatUmfrageDialog from '../components/chat/ChatUmfrageDialog.vue'
+import ChatMeldungDialog from '../components/chat/ChatMeldungDialog.vue'
 import ChatRundeDialog from '../components/chat/ChatRundeDialog.vue'
 import ChatVorschlagZeile from '../components/chat/ChatVorschlagZeile.vue'
 import RundePersonenAuswahl from '../components/chat/RundePersonenAuswahl.vue'
+import ChatErwaehnung from '../components/chat/ChatErwaehnung.vue'
+// CHAT-9b: Erwähnungen — die Regeln (Auswahl, Bereinigung vor dem Senden,
+// Hervorhebung in der Blase) stehen DOM-frei in `components/chat/erwaehnung.mjs`.
+import {
+  antwortSchluessel, auswahlAnzahl, auswahlBereinigen, auswahlTaste, einsetzen, erwaehnungAntwort,
+  erwaehnungFrage, erwaehnungSchluessel, erwaehnungSchluesselTeile,
+  ERWAEHNUNG_ANZAHL, ERWAEHNUNG_ENTPRELLUNG_MS,
+  istEingabemethode, naechsteStelle, nurAuswahlTaste, offeneErwaehnung, optionKennung,
+  vorschlaege,
+} from '../components/chat/erwaehnung.mjs'
 import { TEXTE as UMFRAGE_TEXTE, istUmfrageZeile } from '../components/chat/umfrage.mjs'
 import {
   NEUE_RUNDE, VORSCHLAG_KNOPF, VERLASSEN_KNOPF,
@@ -528,7 +578,6 @@ import {
   rundenMitglieder as rundenMitgliederAus, rundenTitel, rundeAnlegenRumpf,
   stimmeRumpf, verlassenFrage, verlassenRumpf, vorschlagOhne, vorschlagRumpf,
 } from '../composables/nachrichtenRunden.mjs'
-import ChatMeldungDialog from '../components/chat/ChatMeldungDialog.vue'
 // CHAT-6-UI: Melden — Prüfung und Auslegung der Antwort in `meldung.mjs`.
 import {
   KEIN_ZUGRIFF as MELDUNG_KEIN_ZUGRIFF, meldbar as darfMelden, meldeFehlerText,
@@ -1108,6 +1157,18 @@ function zuruecksetzen() {
   vorschlagLaeuft.value = ''
   // Die Teilnehmerliste stand im aufgeklappten Kopf des alten Gesprächs.
   teilnehmerOffen.value = false
+  // CHAT-9b: der Merker der Erwähnungen gilt je GESPRÄCH — „@Anna“ im Chor
+  // meint nicht die Anna der Runde.
+  erwaehnungMerker.value = []
+  erwaehnungSchliessen()
+  // CHAT-9b-2: Die gemerkten Antworten gehören zu (Gespräch, q) — beim
+  // Gesprächswechsel fallen die Suchläufe des alten Gesprächs weg.
+  erwaehnungUnterdrueckt.value = -1
+  erwaehnungAntworten.value = {}
+  erwaehnungTextJeSchluessel.value = {}
+  erwaehnungGefragt.value = null
+  erwaehnungZuletztBeantwortet.value = null
+  erwaehnungLaeuft.clear()
   // CHAT-7a: die Sperre gilt je GESPRÄCH, nicht für die Seite — ein anderes
   // 1:1 darf wieder schreibbar sein.
   sendenVonServerGesperrt.value = false
@@ -1421,7 +1482,292 @@ async function stummUmschalten() {
 
 // ── Eingabe, Antworten ─────────────────────────────────────────────────────
 
+/**
+ * CHAT-9b: Die Beteiligten, die „@“ anbietet — und die Kennungen hinter den
+ * eingesetzten Namen.
+ *
+ * QUELLE (Operator-Entscheidung R1, EINE Abfrage für ALLE Gesprächsarten):
+ * `chat.gespraech_mitglieder(gespraech, q, limit)` (GET, Backend-Karte
+ * CHAT-9c-2) → `{art, mitglieder: [{mitglied, anzeigename}], mehr}`. Der
+ * Server liefert den VOLLEN Namen (dieselbe Quelle wie `erwaehnt[].anzeigename`
+ * in jeder Nachrichtenzeile) und lässt die lesende Person weg — genau deshalb
+ * gibt es die früheren Quellen `titel` (1:1) und `mitglieder` aus
+ * `meine_gespraeche` (Runde) hier NICHT mehr: zwei Quellen hießen zwei
+ * Schreibweisen, und der eingesetzte Name müsste den Namen treffen, den der
+ * Server später speichert.
+ *
+ * CHAT-9b-2: NICHT mehr die Vollliste je Gespräch, sondern die Frage je
+ * Namensanfang — entprellt (200 ms, der BESTEHENDE `entpreller`), Antworten
+ * je `(gespraech, q)` gemerkt, veraltete Antworten verworfen (nur der
+ * Schlüssel des AKTUELLEN `q` zählt). Bis die Antwort da ist, filtert
+ * `vorschlaege` die zuletzt bekannte Liste lokal weiter — das flackert nicht.
+ * Scheitert die Abfrage (403/404/Netz), bleibt die Auswahl still weg; der
+ * Fehler wird NICHT gemerkt: beim nächsten Tippen darf sie es erneut wagen.
+ */
+const ERWAEHNUNG_LISTE = 'dk-erwaehnung-liste'
+const erwaehnungOffen = ref(false)
+const erwaehnungStelle = ref(null)
+const erwaehnungAktiv = ref(0)
+const erwaehnungMerker = ref([])
+/** R1/1: Stelle (Textposition des „@“), an der Escape die Liste geschlossen hat. */
+const erwaehnungUnterdrueckt = ref(-1)
+/**
+ * Gemerkte Antworten: `{ [schluessel]: {mitglieder, mehr} }` mit
+ * `schluessel = erwaehnungSchluessel(gespraech, q)`. Die Liste zur LEEREN
+ * Frage („@“ allein, erste 20) liegt ebenfalls hier.
+ */
+const erwaehnungAntworten = ref({})
+/** Der Schlüssel, auf den die Auswahl gerade wartet/zeigt (`null` = keine Frage). */
+const erwaehnungGefragt = ref(null)
+/**
+ * R1/2: Der Schlüssel der zuletzt BEANTWORTETEN Frage desselben Gesprächs.
+ * Solange die Antwort zum aktuellen `q` läuft, filtert `erwaehnungTreffer`
+ * DIESE Liste lokal — sonst ginge die Auswahl bei jedem Tastendruck zu.
+ */
+const erwaehnungZuletztBeantwortet = ref(null)
+/**
+ * Der GETIPPTE Text je Schlüssel (`{[schluessel]: 'An'}`) — gefragt wird der
+ * Text so, wie er hinter dem „@“ steht; der Schlüssel ist nur falten-gleich.
+ */
+const erwaehnungTextJeSchluessel = ref({})
+/** Läuft gerade eine Abfrage? (nur Anzeige — kein zweiter Aufruf derselben Frage) */
+const erwaehnungLaeuft = new Set()
+
+/** Die Vorschläge (ohne den „mehr“-Hinweis) — aus der gemerkten Antwort. */
+function antwortFuer(schluessel) {
+  const stand = erwaehnungAntworten.value[schluessel]
+  return Array.isArray(stand?.mitglieder) ? stand.mitglieder : []
+}
+
+/**
+ * Der Schlüssel, dessen Antwort die Auswahl zeigt (R1/2): der aktuelle, sonst
+ * der zuletzt beantwortete desselben Gesprächs — siehe `antwortSchluessel`.
+ */
+const erwaehnungZeige = computed(() => antwortSchluessel(
+  erwaehnungGefragt.value,
+  erwaehnungZuletztBeantwortet.value,
+  erwaehnungAntworten.value,
+))
+
+/**
+ * Sagt der Server zu dieser Frage „es gibt mehr“?
+ *
+ * R1/3: Auch bei 0 Treffern — der Hinweis („weiter tippen“) steht dann allein
+ * unter dem Feld, damit niemand denkt, der Name sei unauffindbar. Er hängt an
+ * der GEZEIGTEN Antwort (solange die neue läuft, an der letzten bekannten).
+ */
+const erwaehnungMehr = computed(() => {
+  const schluessel = erwaehnungZeige.value
+  if (!erwaehnungOffen.value || !schluessel) return false
+  return erwaehnungAntworten.value[schluessel]?.mehr === true
+})
+
+/** Die sichtbaren Vorschläge — Grundlage von `auswahlSichtbar` und `auswahlAnsage`. */
+const erwaehnungTreffer = computed(() => {
+  if (!erwaehnungOffen.value) return []
+  const begriff = erwaehnungStelle.value?.begriff || ''
+  return vorschlaege(antwortFuer(erwaehnungZeige.value), begriff, { ich: ich.value })
+})
+
+/**
+ * R1/4: Ist die Auswahl WIRKLICH sichtbar? Offen UND mindestens ein Treffer.
+ * Nur daran hängen `aria-expanded`, `aria-controls` und `aria-activedescendant`
+ * — bei „@xyz“ ohne Treffer steht keine Liste im DOM, dann darf der
+ * Vorleser auch keine sehen. (Der „mehr“-Hinweis zählt NICHT: er ist keine
+ * Wahl und steht außerhalb der Listbox, R1/3.)
+ */
+const auswahlSichtbar = computed(() => erwaehnungOffen.value
+  && erwaehnungTreffer.value.length > 0)
+
+/** R1/5: Ansage für den Vorleser — „N Namen zur Auswahl“ (leer: nichts). */
+const auswahlAnsage = computed(() => {
+  const n = auswahlSichtbar.value ? erwaehnungTreffer.value.length : 0
+  if (!n) return ''
+  return n === 1 ? '1 Name zur Auswahl' : `${n} Namen zur Auswahl`
+})
+
+/**
+ * Der Entpreller (derselbe wie in der Personensuche, `nachrichtenSuche.mjs`):
+ * zwei schnelle Eingaben ergeben EINE Abfrage.
+ *
+ * R1/4: `darfFragen` hebt die Mindestlänge der Personensuche auf — hier zählt
+ * JEDER Anfang: „@“ allein (erste 20) und ein Zeichen („@b“ → „Bert
+ * Brandner“), so wie der Server es macht (CHAT-9c-2). Die Personensuche fragt
+ * erst ab zwei Zeichen; das ist ihre Regel, nicht die der Erwähnung.
+ */
+const erwaehnungEntprellt = entpreller({
+  warte: ERWAEHNUNG_ENTPRELLUNG_MS,
+  darfFragen: () => true,
+  beiFaelligkeit: (schluessel) => erwaehnungFragen(schluessel),
+})
+
+/**
+ * Fragen — aber nur, wenn die Antwort nicht schon gemerkt ist. Läuft dieselbe
+ * Frage bereits, wird nicht doppelt gefragt.
+ */
+async function erwaehnungFragen(schluessel) {
+  const kennung = String(schluessel || '')
+  if (!kennung || !aktivSeite) return
+  // Gehört die Frage noch zur offenen Auswahl? (Gesprächswechsel, Escape,
+  // eingesetzter Name: dann ist `erwaehnungGefragt` ein anderer Schlüssel.)
+  if (schluessel !== erwaehnungGefragt.value) return
+  if (erwaehnungAntworten.value[kennung] || erwaehnungLaeuft.has(kennung)) return
+  const { gespraech, q } = erwaehnungSchluesselTeile(kennung)
+  if (!gespraech) return
+  erwaehnungLaeuft.add(kennung)
+  try {
+    // Gefragt wird der Text hinter dem „@“ — der Schlüssel ist nur die
+    // Vergleichsform (falt-gleich) für „dieselbe Frage“.
+    const antwort = await apiGet('chat.gespraech_mitglieder', {
+      gespraech, q: erwaehnungFrage(erwaehnungTextJeSchluessel.value[kennung] ?? q), limit: ERWAEHNUNG_ANZAHL,
+    })
+    // Veraltete Antwort: die Auswahl steht längst auf einem anderen `q` — sie
+    // wird verworfen (nicht einmal gemerkt: sie beantwortet keine offene Frage).
+    if (!aktivSeite || schluessel !== erwaehnungGefragt.value) return
+    erwaehnungAntworten.value = {
+      ...erwaehnungAntworten.value,
+      [kennung]: erwaehnungAntwort(antwort, { ich: ich.value }),
+    }
+    // R1/2: ab jetzt ist DIESE Antwort der Stand, an dem sich die nächste
+    // Eingabe festhält, bis ihre eigene Antwort da ist.
+    erwaehnungZuletztBeantwortet.value = kennung
+  } catch {
+    // Fehler (403/404/Netz): Auswahl still zu — kein Lärm, kein geratener Name.
+    if (!aktivSeite || schluessel !== erwaehnungGefragt.value) return
+    erwaehnungSchliessen()
+  } finally {
+    erwaehnungLaeuft.delete(kennung)
+  }
+}
+
+/** Cursorstelle im Feld (Ende, wenn der Browser sie nicht hergibt). */
+function cursorStelle() {
+  const el = eingabeEl.value
+  const pos = Number(el?.selectionStart)
+  return Number.isInteger(pos) && pos >= 0 ? pos : String(text.value || '').length
+}
+
+/**
+ * Nach jedem Tippen/Klicken: steht hinter einem „@“ ein offener Name?
+ *
+ * R1/1: Hat ESCAPE die Liste geschlossen, bleibt sie zu, bis NEU getippt wird
+ * (`neueEingabe: true` vom `@input`): danach gilt die Unterdrückung nicht mehr.
+ * Ohne beides hätte das `keyup` nach dem Escape (der Text steht ja unverändert
+ * da) die Liste sofort wieder geöffnet.
+ * CHAT-9b-2: Jede Änderung des Namensanfangs stellt die Frage `(gespraech, q)`
+ * — entprellt. Die Auswahl steht sofort offen und zeigt, was schon gemerkt ist
+ * (bei der ersten Frage: nichts, sie öffnet sich mit der Antwort); eine
+ * Antwort auf ein anderes `q` zählt nicht.
+ */
+function erwaehnungPruefen({ neueEingabe = false } = {}) {
+  const gespraech = offeneKennung.value
+  if (!gespraech) return
+  if (neueEingabe) erwaehnungUnterdrueckt.value = -1
+  const stelle = offeneErwaehnung(text.value, cursorStelle())
+  if (!stelle) {
+    erwaehnungSchliessen()
+    return
+  }
+  // Dieselbe Stelle, die Escape geschlossen hat: nicht wieder aufmachen.
+  if (stelle.start === erwaehnungUnterdrueckt.value) {
+    erwaehnungSchliessen()
+    return
+  }
+  const schluessel = erwaehnungSchluessel(gespraech, stelle.begriff)
+  const wechsel = schluessel !== erwaehnungGefragt.value
+  erwaehnungStelle.value = stelle
+  erwaehnungGefragt.value = schluessel
+  // Der Text hinter dem „@“ (so wird gefragt; der Schlüssel vergleicht nur).
+  erwaehnungTextJeSchluessel.value = {
+    ...erwaehnungTextJeSchluessel.value,
+    [schluessel]: erwaehnungFrage(stelle.begriff),
+  }
+  // Neue Frage: wieder oben anfangen (wie eine frische Liste).
+  if (wechsel || !erwaehnungOffen.value) erwaehnungAktiv.value = 0
+  erwaehnungOffen.value = true
+  erwaehnungEntprellt.tippen(schluessel)
+  const anzahl = auswahlAnzahl(erwaehnungTreffer.value)
+  if (erwaehnungAktiv.value >= anzahl) erwaehnungAktiv.value = 0
+}
+
+/** `@input`: der Text hat sich geändert — eine alte Unterdrückung gilt nicht mehr. */
+function erwaehnungGetippt() {
+  erwaehnungPruefen({ neueEingabe: true })
+}
+
+/** Einen Vorschlag einsetzen: „@Anzeigename “ + Kennung merken. */
+function erwaehnungWaehlen(eintrag) {
+  const stelle = erwaehnungStelle.value
+  if (!stelle) return
+  const lage = einsetzen(text.value, stelle, eintrag, erwaehnungMerker.value)
+  text.value = lage.text
+  erwaehnungMerker.value = lage.merker
+  erwaehnungOffen.value = false
+  erwaehnungStelle.value = null
+  erwaehnungAktiv.value = 0
+  erwaehnungUnterdrueckt.value = -1
+  // Cursor hinter das eingesetzte Leerzeichen — dort wird weitergetippt.
+  nextTick(() => {
+    const el = eingabeEl.value
+    if (!el || typeof el.setSelectionRange !== 'function') return
+    try {
+      el.focus()
+      el.setSelectionRange(lage.pos, lage.pos)
+    } catch { /* egal */ }
+  })
+}
+
+/**
+ * Escape/Verlassen der Auswahl ohne Auswahl.
+ *
+ * R1/1: `unterdruecken` merkt die Stelle des „@“ — die Seite setzt es beim
+ * Escape (dort steht der Cursor noch), beim Gesprächswechsel nicht.
+ */
+function erwaehnungSchliessen({ unterdruecken = false } = {}) {
+  if (unterdruecken && erwaehnungStelle.value) {
+    erwaehnungUnterdrueckt.value = erwaehnungStelle.value.start
+  }
+  // Offene Frage fallen lassen: eine späte Antwort gehört zu keiner Auswahl mehr.
+  erwaehnungEntprellt.abbrechen()
+  erwaehnungGefragt.value = null
+  erwaehnungOffen.value = false
+  erwaehnungStelle.value = null
+  erwaehnungAktiv.value = 0
+}
+
 function beimTasten(ereignis) {
+  // R1/3: Eine laufende Eingabemethode (IME) gehört dem Feld: Enter bestätigt
+  // dort die Zeichenauswahl, Escape bricht sie ab. Hier wird nichts getan.
+  if (istEingabemethode(ereignis)) return
+  // CHAT-9b: Offene Auswahl frisst die Tasten, die ihr gehören (↑/↓/Enter/Tab/
+  // Escape) — sonst sendete Enter die Nachricht, statt den Namen einzusetzen.
+  const absichtAuswahl = auswahlTaste({
+    key: ereignis.key,
+    schift: ereignis.shiftKey,
+    offen: auswahlSichtbar.value,
+    anzahl: erwaehnungTreffer.value.length,
+    aktiv: erwaehnungAktiv.value,
+  })
+  if (absichtAuswahl === 'weiter' || absichtAuswahl === 'zurueck') {
+    ereignis.preventDefault()
+    erwaehnungAktiv.value = naechsteStelle(
+      erwaehnungAktiv.value,
+      absichtAuswahl === 'weiter' ? 1 : -1,
+      erwaehnungTreffer.value.length,
+    )
+    return
+  }
+  if (absichtAuswahl === 'waehlen') {
+    ereignis.preventDefault()
+    const eintrag = erwaehnungTreffer.value[erwaehnungAktiv.value]
+    if (eintrag) erwaehnungWaehlen(eintrag)
+    return
+  }
+  if (absichtAuswahl === 'schliessen') {
+    ereignis.preventDefault()
+    erwaehnungSchliessen({ unterdruecken: true })
+    return
+  }
   const absicht = tasteImFeld({
     key: ereignis.key,
     shiftKey: ereignis.shiftKey,
@@ -1430,6 +1776,17 @@ function beimTasten(ereignis) {
   if (absicht !== 'senden') return
   ereignis.preventDefault()
   senden()
+}
+
+/**
+ * R1/1: Das `keyup` nach einer Taste, die NUR die Auswahl bediente, darf die
+ * Liste nicht wieder öffnen. Escape und ↑/↓/Enter/Tab ändern den Text nicht —
+ * `offeneErwaehnung` fände also wieder ein „@“ und die Liste spränge auf.
+ */
+function erwaehnungPruefenNachTaste(ereignis) {
+  if (istEingabemethode(ereignis)) return
+  if (nurAuswahlTaste(ereignis?.key)) return
+  erwaehnungPruefen()
 }
 
 async function senden() {
@@ -1443,12 +1800,21 @@ async function senden() {
   sendet.value = true
   eingabeFehler.value = ''
   try {
+    // CHAT-9b: geschickt wird nur, wessen „@Anzeigename“ JETZT noch im Text
+    // steht — wer den Namen gelöscht oder verändert hat, ist nicht mehr
+    // gemeint. Ohne Erwähnung geht KEIN Feld hinaus (der Server liest dort
+    // „keine“).
+    const kennungen = auswahlBereinigen(pruefung.text, erwaehnungMerker.value, { ich: ich.value })
     const args = { gespraech: offen, text: pruefung.text }
     if (antwortAuf.value?.ident) args.antwort_auf = antwortAuf.value.ident
+    if (kennungen.length) args.erwaehnt = kennungen
     const neu = await apiCall('chat.senden', args)
     const zeile = verlaufsZeile(neu, { ich: ich.value })
     if (zeile) nachrichten.value = [...nachrichten.value.filter((n) => n.ident !== zeile.ident), zeile]
     text.value = ''
+    erwaehnungMerker.value = []
+    erwaehnungSchliessen()
+    erwaehnungUnterdrueckt.value = -1
     antwortAuf.value = null
     await nachUntenScrollen()
     // Liste (letzte Nachricht, Zähler) zieht nach — eine Abfrage, kein Raten.
@@ -2018,6 +2384,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   aktivSeite = false
+  // CHAT-9b-2: ein offener Entprell-Termin der Auswahl gehört niemandem mehr.
+  erwaehnungEntprellt.beenden()
   window.removeEventListener('hashchange', hashGeaendert)
   window.removeEventListener('popstate', verlaufGeaendert)
   takt.anhalten()
@@ -2314,6 +2682,9 @@ watch(suchBegriff, (neu) => {
   display: flex;
   align-items: flex-end;
   gap: var(--sp-2);
+  /* CHAT-9b: Bezug für die Vorschlagsliste der Erwähnungen — sie hängt ÜBER
+     der Zeile und schiebt den Verlauf nicht. */
+  position: relative;
 }
 .dk-chat-feld {
   flex: 1;

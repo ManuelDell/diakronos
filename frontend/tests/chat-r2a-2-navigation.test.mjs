@@ -142,10 +142,25 @@ test('CHAT-R2a-2a · Router: die eingebetteten Reiter-Adressen lösen auf den Ab
     assert.match(quelle, new RegExp(`'${pfad.replace(/[/]/g, '\\/')}':\\s*'${seite}'`),
       `${pfad} bleibt ${seite}`)
   }
-  // Keine Weiterleitung der neuen Reiter-Adressen (sonst schluckte sie ein Sprung).
-  const weiter = quelle.slice(quelle.indexOf('const WEITERLEITUNGEN'))
-  assert.ok(!weiter.includes(`${PERSONENVERWALTUNG_BASIS}/`),
+  // Keine Weiterleitung VON einer Abschnittsadresse: keine der eingebetteten
+  // Adressen (`#/einstellungen/personenverwaltung/…`) darf als SCHLÜSSEL in der
+  // Tabelle stehen — sonst führte ein Sprung aus dem Abschnitt heraus. Geprüft
+  // mit dem ECHTEN Wert: die Tabelle endet bei `const MUSTER_WEITERLEITUNGEN`;
+  // Kommentare fliegen vorher raus (sie nennen die Adresse nur im Text).
+  const tabellenAnfang = quelle.indexOf('const WEITERLEITUNGEN')
+  const tabellenEnde = quelle.indexOf('const MUSTER_WEITERLEITUNGEN')
+  assert.ok(tabellenAnfang >= 0 && tabellenEnde > tabellenAnfang, 'die Tabelle ist auffindbar')
+  const weiter = quelle.slice(tabellenAnfang, tabellenEnde)
+    .split('\n')
+    .filter((z) => !/^\s*(\/\/|\/\*|\*)/.test(z))
+    .join('\n')
+  assert.doesNotMatch(weiter,
+    new RegExp(`'${PERSONENVERWALTUNG_BASIS.replace(/\//g, '\\/')}\\/[^']*'\\s*:`),
     'die Reiter-Adressen sind Ziele, keine Weiterleitungen')
+  // Gegenprobe: der RegExp schlägt an, sobald ein solcher Eintrag dastünde.
+  assert.match(`\n    '${PERSONENVERWALTUNG_BASIS}/liste':  '#/einstellungen',\n`,
+    new RegExp(`'${PERSONENVERWALTUNG_BASIS.replace(/\//g, '\\/')}\\/[^']*'\\s*:`),
+    'die Prüfung findet einen Eintrag der Abschnittsadresse wirklich')
 })
 
 test('CHAT-R2a-2a · Personen.vue schreibt die Reiter-Adresse an den Rahmen (eingebettet)', () => {

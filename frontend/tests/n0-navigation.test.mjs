@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 // UI-R10b (Review, Punkt 2): der Router führt keine eigene Fassung der
 // Verwaltungsregel mehr — sein Rückfall ist `false` (fail closed). Dieser
 // Harness setzt deshalb die ECHTE Regel aus `menue.js` ein.
-import { echteVerwaltungsregel } from './helpers/verwaltungsregel.mjs'
+import { echteVerwaltungsregel, echtePersonenAdressen } from './helpers/verwaltungsregel.mjs'
 
 /**
  * N0 — Router und Menü für die Neuordnung.
@@ -21,7 +21,10 @@ const lies = p => readFileSync(new URL(p, root), 'utf8')
 
 // UI-R10b (Review, Punkt 2): die echte Regel für die Router-vm (fail closed
 // im Router ohne `menue.js` — die Harnesse wollen aber Seiten ÖFFNEN).
+// CHAT-R2d-2: dazu die echten Personen-Adressen (der Router bildet seine Ziele
+// seit dieser Karte direkt über `menue.js`, ohne eigenen Rückfall).
 globalThis.__regel = echteVerwaltungsregel()
+globalThis.__adressen = echtePersonenAdressen()
 
 function routerAusfuehren(boot) {
   let source = lies('router.js')
@@ -51,12 +54,29 @@ function routerAusfuehren(boot) {
   window.history = { replaceState(_s, _t, hash) { window.location.hash = hash } }
   const context = { window, console, setzeFenstertitel() {},
     verwaltungZutreffend: globalThis.__regel,
+    // CHAT-R2d-2: die echten Adressen aus `menue.js` (der Router baut seine
+    // Ziele direkt darüber).
+    PERSONENVERWALTUNG_BASIS: globalThis.__adressen.PERSONENVERWALTUNG_BASIS,
+    anfragenUnterbereichHref: globalThis.__adressen.anfragenUnterbereichHref,
+    personenReiterHref: globalThis.__adressen.personenReiterHref,
     ref: value => ({ value }),
     shallowRef: value => ({ value }),
     computed: fn => ({ get value() { return fn() } }) }
   vm.createContext(context)
   vm.runInContext(source, context)
-  return { window, router: context.router, gehe(hash) { window.location.hash = hash; hashchange() } }
+  return { window, router: context.router, gehe(hash) {
+    // Der Router loest nach jeder Weiterleitung erneut auf. Diese Attrappe
+    // rief `hashchange` nur EINMAL — mehrstufige Ketten (alte Adresse →
+    // Personenbereich → Wächter) endeten auf der Zwischenadresse. Hier wird
+    // wie im Betrieb nachgelaufen, bis die Adresse stehen bleibt.
+    let aktuell = hash
+    for (let i = 0; i < 8; i += 1) {
+      window.location.hash = aktuell
+      hashchange()
+      if (window.location.hash === aktuell) break
+      aktuell = window.location.hash
+    }
+  } }
 }
 
 // ── Neue Adressen (Entscheidung 4) ──────────────────────────────────────────
@@ -65,11 +85,16 @@ function routerAusfuehren(boot) {
   // Adressen leiten dauerhaft weiter (eigener Abschnitt unten).
   const h = routerAusfuehren({ is_admin: true, hash: '#/personen/uebersicht' })
   const erwartet = {
-    '#/personen/uebersicht': 'MitgliederUebersicht',
+    // CHAT-R2d (Operator-Review R1): Diese Sitzung ist die VERWALTUNG. Für sie
+    // führen die alten Personen-Adressen an ihren HEUTIGEN Ort — den
+    // Einstellungen-Abschnitt. Der Eintrag der festen Routentabelle
+    // (`MitgliederUebersicht`) bleibt daneben bestehen; er greift, wenn die
+    // Seite ohne die Weiterleitung geöffnet wird.
+    '#/personen/uebersicht': 'EinstellungenPersonenverwaltung',
     // UX3b: der Reiter „Liste“ ist die zusammengelegte Personen-Seite.
     '#/personen/liste': 'Personen',
-    '#/personen/anfragen': 'MitgliederAnfragen',
-    '#/personen/datenschutz': 'MitgliederDatenschutz',
+    '#/personen/anfragen': 'EinstellungenPersonenverwaltung',
+    '#/personen/datenschutz': 'EinstellungenPersonenverwaltung',
     // UX3b2: die alte Adressbuch-Seite ist entfallen. Die Adresse leitet im
     // Router auf die Liste; hier (feste Routentabelle ohne Weiterleitungen)
     // steht deshalb KEIN Eintrag mehr. Die Weiterleitung selbst prüft der
@@ -89,6 +114,12 @@ function routerAusfuehren(boot) {
   }
   for (const [hash, seite] of Object.entries(erwartet)) {
     h.gehe(hash)
+    // CHAT-R2d: Die Verwaltungsadressen leiten zuerst weiter (die Adresse ist
+    // danach die des Abschnitts). Der Seitenname wird an der ERREICHTEN Adresse
+    // geprüft — genau das sieht der Nutzer.
+    const erreicht = h.window.location.hash
+    h.window.location.hash = erreicht
+    h.gehe(erreicht)
     assert.equal(h.router.currentPageName.value, seite, `${hash} → ${seite}`)
   }
 }
@@ -97,21 +128,25 @@ function routerAusfuehren(boot) {
 {
   const h = routerAusfuehren({ is_admin: true, hash: '#/' })
   const erwartet = {
-    '#/registrierung': '#/personen/anfragen',
-    '#/anmeldungen': '#/personen/anfragen',
-    '#/statistik': '#/personen/uebersicht',
+    '#/registrierung': '#/einstellungen/personenverwaltung/anfragen',
+    '#/anmeldungen': '#/einstellungen/personenverwaltung/anfragen',
+    '#/statistik': '#/einstellungen/personenverwaltung',
     '#/anmeldung': '#/einstellungen/anmeldung',
     '#/organigramm': '#/gruppen/organigramm',
     '#/plaene': '#/dienste/dienstplaene',
     // UX3a: umbenannte und zusammengelegte Bereiche — Lesezeichen bleiben gültig.
     '#/mitglieder/liste': '#/personen/liste',
-    '#/mitglieder/uebersicht': '#/personen/uebersicht',
-    '#/mitglieder/anfragen': '#/personen/anfragen',
-    '#/mitglieder/datenschutz': '#/personen/datenschutz',
-    '#/mitglieder/loeschantraege': '#/personen/loeschantraege',
-    '#/mitglieder/import': '#/personen/import',
+    // CHAT-R2d (Operator-Review R1): Diese Sitzung ist die VERWALTUNG
+    // (`is_admin: true`). Für sie führt die Kette bis in den HEUTIGEN Ort des
+    // Bereichs (Abschnitt der Einstellungen) — der Wächter schickte sie
+    // vorher aufs Dashboard, das Lesezeichen lief ins Leere.
+    '#/mitglieder/uebersicht': '#/einstellungen/personenverwaltung',
+    '#/mitglieder/anfragen': '#/einstellungen/personenverwaltung/anfragen',
+    '#/mitglieder/datenschutz': '#/einstellungen/personenverwaltung/datenschutz',
+    '#/mitglieder/loeschantraege': '#/einstellungen/personenverwaltung',
+    '#/mitglieder/import': '#/einstellungen/personenverwaltung/import',
     '#/adressbuch': '#/personen/liste',
-    '#/datenschutz': '#/personen/datenschutz',
+    '#/datenschutz': '#/einstellungen/personenverwaltung/datenschutz',
     '#/moderation': '#/kalender/pruefen',
     '#/dienstplan': '#/dienste/meine-dienste',
     '#/meine-dienste': '#/dienste/meine-dienste',
@@ -132,14 +167,20 @@ function routerAusfuehren(boot) {
   const admin = routerAusfuehren({ is_admin: true, hash: '#/' })
   // UX3b: der Einstieg führt BEIDE Rollen auf die Liste (dort zeigt die
   // Seite je Rolle die passende Quelle); die Übersicht bleibt Lesezeichen.
+  // CHAT-R2d (Operator-Review R1): Die VERWALTUNG holt der Bereichseinstieg
+  // im HEUTIGEN Ort ab — dem Abschnitt der Einstellungen. Ein Mitglied ohne
+  // Recht landet weiter auf der Liste (Adressbuch-Sicht; eigener Abschnitt).
   admin.gehe('#/personen')
-  assert.equal(admin.window.location.hash, '#/personen/liste', 'Einstieg → Liste')
+  assert.equal(admin.window.location.hash, '#/einstellungen/personenverwaltung',
+    'Einstieg → Personenverwaltung (Verwaltung)')
   admin.gehe('#/mitglieder')
   // UX3b2: auch die alte Bereichsadresse führt auf die Liste — vorher landeten
   // Administratoren auf der Übersicht, obwohl die Liste der Einstieg ist.
   assert.equal(admin.window.location.hash, '#/personen/liste', 'alte Adresse → Liste')
   admin.gehe('#/dsgvo')
-  assert.equal(admin.window.location.hash, '#/personen/datenschutz', 'Admin-DSGVO → Datenschutz-Reiter')
+  // CHAT-R2d: die Kette endet im heutigen Ort des Datenschutz-Reiters.
+  assert.equal(admin.window.location.hash, '#/einstellungen/personenverwaltung/datenschutz',
+    'Admin-DSGVO → Datenschutz-Reiter (Personenverwaltung)')
 
   const mitglied = routerAusfuehren({ is_admin: false, mitglied: { status: 'Mitglied' }, hash: '#/' })
   mitglied.gehe('#/personen')

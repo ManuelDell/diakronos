@@ -79,7 +79,10 @@ export const NICHT_ERREICHBAR = {
 /** Beschriftung des Einstiegs in die Personensuche. */
 export const NEUE_NACHRICHT = 'Neue Nachricht'
 
-/** Adresse der Personensuche (Router: `#/nachrichten/suche`, Chat-Konzept 10.2). */
+/** Adresse der Personensuche (Router: `#/nachrichten/suche`, Chat-Konzept 10.2).
+ *  Ohne Begriff ist das der Ort „Personen suchen“ (CHAT-R2d) — vorher führte
+ *  dieser Weg auf `#/personen`, das seit CHAT-R2a nur noch eine Umleitung
+ *  (`#/personen` → `#/personen/liste`) war. */
 export const SUCHE = `${BEREICH}/suche`
 
 /** Adresse eines bestehenden Gesprächs (`#/nachrichten/<gespraech>`). */
@@ -92,7 +95,10 @@ export function chatAdresse(gespraech) {
 /** Adresse des Personenprofils (`#/mitglied/<id>`, Konzept 10.2 — unverändert). */
 export function profilAdresse(mitglied) {
   const kennung = String(mitglied || '').trim()
-  if (!kennung) return '#/personen'
+  // CHAT-R2d: ohne Kennung führt das Profil auf die Personensuche in
+  // „Nachrichten“ — `#/personen` war seit CHAT-R2a nur noch eine Umleitung
+  // (`#/personen` → `#/personen/liste`), also ein Umweg über die alte Adresse.
+  if (!kennung) return '#/nachrichten/suche'
   return `#/mitglied/${encodeURIComponent(kennung)}`
 }
 

@@ -198,7 +198,8 @@ export const MITGLIEDER_REITER = [
  * Unterbereich — der Hauptpunkt mit der Zahl führt auf die Anfragenliste.
  *
  * Jeder Unterbereich hat eine EIGENE ADRESSE als PFADTEIL
- * (`#/personen/anfragen/links`, Vorgabe der Karte UX3j: `#/personen/<reiter>[/<unter>]`).
+ * (`#/personen/anfragen/links`, Vorgabe der Karte UX3j: `#/personen/<reiter>[/<unter>]`;
+ * eingebettet `#/einstellungen/personenverwaltung/anfragen/links`, CHAT-R2a-2).
  * Lesezeichen funktionieren damit unverändert; die alten `?bereich=`-Adressen
  * leiten im Router dauerhaft um (router.js, WEITERLEITUNGEN).
  *

@@ -5,7 +5,7 @@ import vm from 'node:vm'
 // UI-R10b (Review, Punkt 2): der Router führt keine eigene Fassung der
 // Verwaltungsregel mehr — sein Rückfall ist `false` (fail closed). Dieser
 // Harness setzt deshalb die ECHTE Regel aus `menue.js` ein.
-import { echteVerwaltungsregel } from './helpers/verwaltungsregel.mjs'
+import { echteVerwaltungsregel, echtePersonenAdressen } from './helpers/verwaltungsregel.mjs'
 
 /**
  * UX3j — Personen: Reiter und Auswahlfelder in ALLEN Reitern einheitlich (A3).
@@ -43,6 +43,8 @@ const lies = p => readFileSync(new URL(p, root), 'utf8')
 // UI-R10b (Review, Punkt 2): die echte Regel für die Router-vm (fail closed
 // im Router ohne `menue.js` — die Harnesse wollen aber Seiten ÖFFNEN).
 globalThis.__regel = echteVerwaltungsregel()
+// CHAT-R2d-2: die echten Personen-Adressen aus `menue.js` fuer die Router-vm.
+globalThis.__adressen = echtePersonenAdressen()
 const menuePfad = fileURLToPath(new URL('menue.js', root))
 
 async function menue() {
@@ -140,25 +142,54 @@ function skript(quelle) {
   window.history = { replaceState(_s, _t, hash) { window.location.hash = hash } }
   const context = { window, console, setzeFenstertitel() {},
     verwaltungZutreffend: globalThis.__regel,
+    // CHAT-R2d-2: die echten Personen-Adressen aus `menue.js` (der Router baut
+    // seine Ziele direkt darueber — kein eigener Rueckfall mehr).
+    PERSONENVERWALTUNG_BASIS: globalThis.__adressen.PERSONENVERWALTUNG_BASIS,
+    anfragenUnterbereichHref: globalThis.__adressen.anfragenUnterbereichHref,
+    personenReiterHref: globalThis.__adressen.personenReiterHref,
     ref: value => ({ value }), shallowRef: value => ({ value }),
     computed: fn => ({ get value() { return fn() } }) }
   vm.createContext(context)
   vm.runInContext(source, context)
-  const gehe = (hash) => { window.location.hash = hash; hashchange() }
+  // Der Router loest nach jeder Weiterleitung erneut auf (CHAT-R2d: alte
+  // Adresse → Personenbereich → heutiger Ort). Die Attrappe lief vorher nur
+  // EINE Stufe und hielt die Zwischenadresse fuer das Ziel.
+  const kette = (hash) => {
+    let aktuell = hash
+    for (let i = 0; i < 8; i += 1) {
+      window.location.hash = aktuell
+      hashchange()
+      if (window.location.hash === aktuell) break
+      aktuell = window.location.hash
+    }
+  }
+  const gehe = (hash) => kette(hash)
+  // CHAT-R2d (Operator-Review R1): Die Sitzung dieser Prüfung ist die
+  // VERWALTUNG (`__DIakonosBOOT.is_admin === true`). Für sie führt die alte
+  // Abfrage-Form seit dieser Karte an den HEUTIGEN Ort des Bereichs — in den
+  // Einstellungen-Abschnitt, mit dem Unterbereich als Pfadteil. Das alte
+  // Lesezeichen bleibt damit gültig (es landet auf derselben Sache), nur eben
+  // dort, wo die Verwaltung heute arbeitet statt auf dem Dashboard.
   for (const [alt, neu] of [
-    ['#/personen/anfragen?bereich=links', '#/personen/anfragen/links'],
-    ['#/personen/anfragen?bereich=formulare', '#/personen/anfragen/formulare'],
-    ['#/personen/anfragen?bereich=anfragen', '#/personen/anfragen'],
+    ['#/personen/anfragen?bereich=links', '#/einstellungen/personenverwaltung/anfragen/links'],
+    ['#/personen/anfragen?bereich=formulare', '#/einstellungen/personenverwaltung/anfragen/formulare'],
+    ['#/personen/anfragen?bereich=anfragen', '#/einstellungen/personenverwaltung/anfragen'],
   ]) {
     gehe(alt)
     assert.equal(window.location.hash, neu, `${alt} → ${neu} (altes Lesezeichen bleibt gültig)`)
   }
-  // Die neuen Pfad-Adressen lösen auf denselben Seitennamen auf (Rechte-Guard
-  // unverändert: `MitgliederAnfragen` steht in ADMIN_ONLY_PAGES).
-  for (const hash of ['#/personen/anfragen/links', '#/personen/anfragen/formulare']) {
-    gehe(hash)
-    assert.equal(context.router.currentPageName.value, 'MitgliederAnfragen',
-      `${hash} → Seitenname MitgliederAnfragen (Guard greift weiter)`)
+  // Die neuen Pfad-Adressen führen die VERWALTUNG (diese Sitzung, `is_admin`)
+  // in den heutigen Ort des Unterbereichs — im Personenbereich der Einstellungen
+  // (CHAT-R2d, Operator-Review R1). Der Seitenname ist der des Abschnitts; die
+  // Rechte-Prüfung bleibt dieselbe (`PERSONEN_VERWALTUNG_PAGES`).
+  for (const [alt, neu] of [
+    ['#/personen/anfragen/links', '#/einstellungen/personenverwaltung/anfragen/links'],
+    ['#/personen/anfragen/formulare', '#/einstellungen/personenverwaltung/anfragen/formulare'],
+  ]) {
+    gehe(alt)
+    assert.equal(window.location.hash, neu, `${alt} → ${neu}`)
+    assert.equal(context.router.currentPageName.value, 'EinstellungenPersonenverwaltung',
+      `${alt} → Personenbereich (Guard greift weiter)`)
   }
 }
 

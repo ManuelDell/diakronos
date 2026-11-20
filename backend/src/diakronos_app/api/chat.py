@@ -400,6 +400,21 @@ MELDUNG_KONTEXT = 5
 #: Obergrenze einer Meldungsliste (ein Aufruf soll die Datenbank nicht in einem
 #: Rutsch leeren können; die offene Liste einer Gemeinde bleibt weit darunter).
 MELDUNGEN_MAX = 200
+#: CHAT-9c-2: Trefferzahl der Erwähnungs-Suche (``gespraech_mitglieder``).
+#: Größere Wünsche werden gekappt: die Einzelprüfung über die Rechte-Regel läuft
+#: je Kandidat, und mehr als ein Bildschirm voll Namen braucht die Oberfläche nie.
+MITGLIEDER_LIMIT = 20
+#: Kleinste sinnvolle Trefferzahl (Review R1/6): mit ``limit=1`` ließe sich über
+#: ``mehr`` und immer längere ``q`` Zeichen für Zeichen durch die Gemeinde
+#: fragen — eine Suche, die niemand tippt, und ein Seitenkanal über die
+#: Trefferzahl. Die Oberfläche zeigt ohnehin eine Liste.
+MITGLIEDER_LIMIT_MIN = 5
+#: Höchstlänge des Suchbegriffs ``q`` (getippter Namensanfang nach dem „@“).
+MITGLIEDER_Q_MAX = 40
+#: Höchstzahl geprüfter Kandidaten je Aufruf, als Vielfaches von ``limit``:
+#: findet die Suche in den ersten ``3*limit`` niemanden mehr (ausgetreten,
+#: nicht lesend …), sagt sie „mehr“ statt die ganze Gruppe durchzuprüfen.
+MITGLIEDER_PRUEF_FAKTOR = 3
 #: CHAT-4a: Kennung im ``Notification Log.document_type`` der gebündelten
 #: Chat-Glocke. ``document_name`` ist die Kennung des GESPRÄCHS — darüber
 #: findet ``lesestand_setzen`` die Glocke wieder (und die Oberfläche verlinkt).
@@ -1547,17 +1562,23 @@ def _suche_grenze(limit) -> int:
     return max(1, min(SUCHE_MAX, wert))
 
 
-def _suche_begriff(q) -> str:
+def _suche_begriff(q, *, min_zeichen: int = SUCHE_MIN_ZEICHEN) -> str:
     """Suchbegriff normalisieren (Kleinschreibung, Umlaute aufgelöst, getrimmt).
 
     Dieselbe Faltung wie die Mitgliederliste (``api.mitglieder``): „weiss“
     findet „Weiß“, „MUELLER“ findet „Müller“. Zu kurze Eingaben → ``""``.
+
+    ``min_zeichen`` ist die einzige Stelle, an der sich die Aufrufer
+    unterscheiden dürfen (CHAT-9c-2, Review R1/1): die Personensuche braucht
+    zwei Zeichen (ein einzelnes fände fast die ganze Gemeinde), die
+    Erwähnungssuche nach dem „@“ nicht — dort ist das erste getippte Zeichen
+    der Normalfall. Die FALTUNG bleibt für beide dieselbe.
     """
     text = unicodedata.normalize("NFC", str(q or "")).strip().lower()
     for von, nach in (("ß", "ss"), ("ä", "ae"), ("ö", "oe"), ("ü", "ue")):
         text = text.replace(von, nach)
     text = " ".join(text.split())
-    return text if len(text) >= SUCHE_MIN_ZEICHEN else ""
+    return text if len(text) >= min_zeichen else ""
 
 
 def _suche_faltung(spalte: str) -> str:
@@ -1969,6 +1990,11 @@ def _erwaehnung_erreichbar(s, g: ChatGespraech, mitglied: str,
     * Bei Gruppe/Untergruppe gilt die Einheit des Gesprächs: dieselbe Frage,
       die ``verlauf`` stellt (``rechte.darf(... LESEN ...)``), nur für die
       erwähnte Person.
+
+    CHAT-9c: die REGEL steht jetzt in ``_erwaehnung_grenze`` — die neue
+    Mitgliederliste (``gespraech_mitglieder``) braucht dieselbe Grenze für
+    VIELE Personen und darf keine zweite Regel bauen. Diese Funktion liest die
+    Teilnahmezeile für EINE Person und reicht sie durch.
     """
     if not mitglied:
         return False
@@ -1978,6 +2004,30 @@ def _erwaehnung_erreichbar(s, g: ChatGespraech, mitglied: str,
                ChatTeilnehmer.benutzer == konto if konto is not None
                else ChatTeilnehmer.benutzer.is_(None))
     ).first()
+    return _erwaehnung_grenze(s, g, mitglied=mitglied, konto=konto,
+                              zeile=zeile, erstellt_am=erstellt_am)
+
+
+def _erwaehnung_grenze(s, g: ChatGespraech, *, mitglied: str,
+                       konto: str | None,
+                       zeile: tuple[datetime | None, datetime | None] | None,
+                       erstellt_am: datetime | None = None) -> bool:
+    """DIE Grenze „wen kann man in diesem Gespräch erwähnen“ — eine Regel.
+
+    Herausgezogen aus ``_erwaehnung_erreichbar`` (CHAT-9c), damit Prüfung beim
+    Senden und Mitgliederliste NICHT auseinanderlaufen. Unterschied ist allein
+    die HERTKUNFT der Teilnahmezeile: ``_erwaehnung_erreichbar`` liest sie für
+    EINE Person, die Liste holt sie für alle Kandidaten in EINER Abfrage
+    (``zeile = (verlassen_am, sichtbar_ab)``, ``None`` = keine Zeile) — kein
+    N+1 über die Gruppenmitglieder.
+
+    Gleichbleibend: ``verlassen_am`` gesetzt heißt raus; ``sichtbar_ab`` (nur
+    Runden) schneidet Nachrichten vor dem Eintritt ab; bei 1:1/Runde entscheidet
+    ``_darf_lesen`` (Teilnahme + Kern, fail closed ohne Konto); bei
+    Gruppe/Untergruppe die Einheit (``rechte.darf(... LESEN ...)``).
+    """
+    if not mitglied:
+        return False
     if g.art in (ART_DIREKT, ART_RUNDE):
         # 1:1/Runde: der Raum sind die TEILNEHMENDEN — eine Teilnahmezeile ist
         # Pflicht, ``verlassen_am`` heißt raus, ``sichtbar_ab`` begrenzt.
@@ -2209,6 +2259,337 @@ def _nachricht_erwaehnungen_raeumen(s, nachricht: str) -> int:
                        document_type=CHAT_ERWAEHNUNG_GLOCKE_DOCTYPE,
                        document_name=nachricht)
     return len(personen)
+
+
+# ── CHAT-9c: zwei Lese-Endpunkte für die Erwähnungs-Oberfläche ──────────────
+
+
+@whitelist(methods=["GET"], allow_guest=False)  # rein lesend (SEC-11)
+def nachricht_kontext(nachricht):
+    """Wohin gehört diese Nachricht? ``{gespraech, art, titel}``.
+
+    Die Oberfläche braucht das für eine Erwähnungs-Glocke: sie kennt nur die
+    Kennung der Nachricht (``document_name``) und muss das Gespräch öffnen.
+    ``titel`` ist derselbe Titel wie in ``meine_gespraeche`` für die LESENDE
+    Person (``_gespraech_kopf`` — bei 1:1 der Anzeigename des Gegenübers, bei
+    Runden der Rundenname, sonst Gruppe/Untergruppe).
+
+    Nur wenn die lesende Person GENAU DIESE Nachricht sehen darf: Gespräch
+    lesen (``_erlaube`` LESEN) und — in einer Runde — ``sichtbar_ab``/
+    aktive Teilnahme (``_vor_eintritt``, dieselbe Grenze wie Verlauf, Zitat
+    und Lesestand). Eine gelöschte/entfernte Nachricht (``geloescht_am``) gilt
+    wie „gibt es nicht“ — an einer Lücke gibt es nichts zu öffnen.
+
+    Alle Fehlfälle antworten GLEICH (``DoesNotExistError`` ohne Unterschied):
+    unbekannte Nachricht, fremdes Gespräch, fehlendes Leserecht, Nachricht vor
+    dem eigenen Eintritt, gelöschte Nachricht. Keine Auskunft darüber, ob es
+    die Nachricht gibt — damit ist auch ein Erwähnungs-Anker kein Rateweg.
+    """
+    benutzer = _benutzer()
+    nachricht = str(nachricht or "").strip()
+    if not nachricht:
+        raise DoesNotExistError("Nachricht nicht gefunden.")
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        n = s.get(ChatNachricht, nachricht)
+        if n is None or n.geloescht_am is not None:
+            raise DoesNotExistError("Nachricht nicht gefunden.")
+        g = s.get(ChatGespraech, n.gespraech)
+        if g is None or g.geloescht_am is not None:
+            raise DoesNotExistError("Nachricht nicht gefunden.")
+        # Leserecht: dieselbe Weiche wie überall. Der Wurf wird zu DERSELBEN
+        # neutralen Antwort — kein 403, das „hier gibt es etwas“ verriete.
+        if not _weiche_ja(benutzer, rechte.LESEN, g=g, sitzung=s):
+            raise DoesNotExistError("Nachricht nicht gefunden.")
+        if _vor_eintritt(s, g, benutzer, n.erstellt_am):
+            raise DoesNotExistError("Nachricht nicht gefunden.")
+        # Derselbe Kopf wie in `meine_gespraeche` (Titel, Ausschluss-Zustand
+        # EINMAL je Anfrage — CHAT-N2), damit der Titel nicht abweicht.
+        from diakronos_app.frappe_compat.benutzer_status import (
+            _ausgeschlossene_konten,
+            _kontozustand,
+        )
+
+        kopf = _gespraech_kopf(
+            s, g, benutzer,
+            ausgeschlossene=_ausgeschlossene_konten(*_kontozustand()))
+        return {"gespraech": str(g.name), "art": str(g.art or ""),
+                "titel": kopf["titel"]}
+
+
+@whitelist(methods=["GET"], allow_guest=False)  # rein lesend (SEC-11)
+def gespraech_mitglieder(gespraech, q="", limit=MITGLIEDER_LIMIT):
+    """Wen kann ich in diesem Gespräch erwähnen — Suche nach Namensanfang.
+
+    ``{art, mitglieder, mehr}``; ``mitglieder`` = ``[{mitglied, anzeigename}]``
+    nach Anzeigename sortiert (``_personen`` — dieselbe Namensquelle wie
+    ``erwaehnt[].anzeigename`` und ``autor``; KEINE Kontaktdaten).
+
+    CHAT-9c-2 — SUCH-VERTRAG (ersetzt die Vollliste): ``q`` ist der getippte
+    Namensanfang nach dem „@“ (0–40 Zeichen, getrimmt, sonst wird es
+    abgeschnitten; auch EIN Zeichen filtert schon). Die Kandidaten der Einheit
+    (Gruppe/Untergruppe = Mitgliedschaften, 1:1/Runde = aktive Teilnahmezeilen)
+    werden IN SQL nach Name vorgefiltert — Vorname, Nachname oder „Vorname
+    Nachname“ BEGINNT mit ``q``, groß/klein- und umlautgefaltet wie
+    ``personen_suchen``. ``q=""`` heißt: alle Kandidaten. Danach wird der Reihe
+    nach über DIESELBE Erwähnungs-Regel geprüft (``_erwaehnung_grenze`` +
+    ``darf_person_finden``, ohne mich, Kontaktsperren NICHT gefiltert), bis
+    ``limit`` Treffer zusammen sind ODER ``3*limit`` Kandidaten geprüft wurden.
+
+    ``mehr`` heißt „es GIBT weitere Kandidaten“ — nicht „es gibt weitere
+    erwähnbare“ (Review R1/2): der 3*limit-Abbruch kann vor Personen stehen,
+    die die Grenze ablehnen würde. Ich selbst zähle nicht als weiterer
+    Kandidat.
+
+    ``limit`` 5–20 (größer wird gekappt, kleiner auf 5 gehoben, unlesbar =
+    Vorgabe; kein Fehler).
+
+    Warum die Grenze bleibt und trotzdem reicht: eine Mengenregel über alle
+    Gruppenmitglieder wäre eine ZWEITE Rechteregel (Entscheidung Operator) —
+    die Suche schneidet die Kandidatenliste so weit vor, dass die
+    Einzelprüfung nur für wenige Personen läuft (vorher: 300 Mitglieder =
+    ~7500 SQL-Anweisungen, ~10 s).
+
+    Für ALLE Gesprächsarten: bei Gruppe/Untergruppe alle, die die Einheit
+    lesen dürfen; bei Runde/1:1 nur die AKTIVEN Teilnehmenden. Die lesende
+    Person selbst fehlt immer (sich selbst erwähnt niemand) — verglichen wird
+    die MITGLIED-Kennung UND das KONTO (das Konto deckt den Fall ab, dass
+    ``_eigene_kennung`` nichts auflöst, z. B. Administrator). Ebenso fehlt,
+    wer für sie nicht auffindbar ist (``rechte.darf_person_finden``, wie
+    ``_erwaehnungen_laden``).
+
+    Eine KONTAKTSPERRE filtert hier NICHTS: eine Sperre darf nicht erkennbar
+    sein — die Glocke unterdrückt CHAT-9a bereits (``_erwaehnungen_gesperrt``).
+
+    Recht: LESEN im Gespräch (``_erlaube``); sonst die neutrale Ablehnung wie
+    bei den übrigen Chat-Endpunkten (403 ohne Inhalt).
+
+    Leistung: ``ist_gemeindemitglied`` EINMAL vor der Schleife (bei „nein“
+    leere Liste), eine Abfrage für die Kandidaten (Mitgliedschaft der Einheit
+    MIT ihrem Konto, kein Hin und Zurück über Kennungen), Namens-Vorfilter in
+    derselben Abfrage; die Prüfungen laufen innerhalb eines
+    ``merkungsrahmen`` (PERF-K1).
+    """
+    from diakronos_app.models.diakonos import (
+        Gruppenmitgliedschaft,
+        Untergruppe,
+        Untergruppenmitgliedschaft,
+    )
+    from diakronos_app.rechte import darf_person_finden, merkungsrahmen
+
+    benutzer = _benutzer()
+    gespraech = str(gespraech or "").strip()
+    if not gespraech:
+        throw("gespraech fehlt.")
+    grenze = _mitglieder_grenze(limit)
+    begriff = _mitglieder_begriff(q)
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        g = _gespraech_lesen(s, gespraech)
+        _erlaube(benutzer, rechte.LESEN, g=g, sitzung=s)
+        art = str(g.art or "")
+        antwort: dict[str, Any] = {"art": art, "mitglieder": [], "mehr": False}
+        # EINMAL vor der Schleife: ohne Gemeindemitgliedschaft findet niemand
+        # jemanden (darf_person_finden sagt je Person dasselbe).
+        if not rechte.ist_gemeindemitglied(benutzer):
+            return antwort
+        with merkungsrahmen():
+            eigene = _eigene_kennung(s, benutzer)
+            ich = str(benutzer)
+            if art in (ART_DIREKT, ART_RUNDE):
+                # Der Raum sind die TEILNEHMENDEN: Teilnahmezeile je Konto —
+                # EINE Abfrage, und der Namens-Vorfilter hängt daneben.
+                # Wer gegangen ist, hat keine Teilnahme mehr und fällt damit
+                # schon hier heraus (dieselbe Notwendigkeit wie in der Grenze,
+                # Review R1/3) — keine Zeile durch die Prüfstrecke schleppen.
+                zeile_je_konto: dict[str, tuple] = {
+                    str(konto): (verlassen, sichtbar)
+                    for konto, verlassen, sichtbar in s.execute(
+                        select(ChatTeilnehmer.benutzer, ChatTeilnehmer.verlassen_am,
+                               ChatTeilnehmer.sichtbar_ab)
+                        .where(ChatTeilnehmer.gespraech == g.name,
+                               ChatTeilnehmer.verlassen_am.is_(None))
+                    ).all() if konto
+                }
+                kandidaten = _mitglieder_kandidaten(s, begriff, konten=list(zeile_je_konto))
+            else:
+                # Über die Mitgliedschaft der EINHEIT (nicht über die erst beim
+                # Öffnen entstehenden Teilnahmezeilen): sonst fehlte die halbe
+                # Gruppe, die den Chat noch nie geöffnet hat. Die Kandidaten
+                # kommen MIT ihrem Konto — keine Kennung-Hin-und-Zurück-Runde.
+                if g.untergruppe:
+                    einheit = select(
+                        Untergruppenmitgliedschaft.mitglied.label("mitglied"),
+                        Mitglied.user.label("user"),
+                        Mitglied.vorname.label("vorname"),
+                        Mitglied.nachname.label("nachname"),
+                    ).join(Mitglied, Mitglied.name == Untergruppenmitgliedschaft.mitglied
+                           ).where(Untergruppenmitgliedschaft.parent == g.untergruppe)
+                else:
+                    einheit = select(
+                        Gruppenmitgliedschaft.mitglied.label("mitglied"),
+                        Mitglied.user.label("user"),
+                        Mitglied.vorname.label("vorname"),
+                        Mitglied.nachname.label("nachname"),
+                    ).join(Mitglied, Mitglied.name == Gruppenmitgliedschaft.mitglied
+                           ).where(Gruppenmitgliedschaft.parent == g.gruppe)
+                zeile_je_konto = {}
+                kandidaten = _mitglieder_kandidaten(s, begriff, basis=einheit)
+            geprueft = 0
+            for zeile in kandidaten:
+                mitglied = str(zeile.mitglied or "")
+                konto = str(zeile.user) if zeile.user else None
+                # Der Selbst-Ausschluss steht VOR der Abbruchprüfung (Review
+                # R1/2): ich bin ein Kandidat wie jeder andere, aber nie ein
+                # geprüfter — sonst zählte ich als „weiterer Kandidat“ und
+                # ``mehr`` wäre true, obwohl niemand dahinter liegt.
+                if not mitglied or mitglied == eigene or konto == ich:
+                    continue  # sich selbst erwähnt niemand
+                if len(antwort["mitglieder"]) >= grenze \
+                        or geprueft >= grenze * MITGLIEDER_PRUEF_FAKTOR:
+                    antwort["mehr"] = True
+                    break
+                geprueft += 1
+                if not _erwaehnung_grenze(s, g, mitglied=mitglied, konto=konto,
+                                          zeile=zeile_je_konto.get(konto or "")):
+                    continue
+                if not darf_person_finden(benutzer, mitglied):
+                    continue  # nicht auffindbar (ausgetreten/gelöscht/…)
+                antwort["mitglieder"].append({
+                    "mitglied": mitglied,
+                    "anzeigename": _anzeigename_aus_zeile(zeile, mitglied)})
+        return antwort
+
+
+def _mitglieder_grenze(limit) -> int:
+    """Tatsächliche Trefferzahl der Erwähnungs-Suche: 5–``MITGLIEDER_LIMIT``.
+
+    Unlesbare/negative Angaben fallen auf die Vorgabe zurück (kein Fehler) —
+    die Suche soll an einem kaputten ``limit`` nicht scheitern. Nach UNTEN
+    gilt ``MITGLIEDER_LIMIT_MIN`` (Review R1/6): mit ``limit=1`` ließe sich
+    über ``mehr`` sonst Zeichen für Zeichen durch die Gemeinde fragen — eine
+    Suche, die niemand tippt, und ein Seitenkanal über die Trefferzahl.
+    """
+    if limit is None or limit == "":
+        return MITGLIEDER_LIMIT
+    try:
+        wert = int(str(limit).strip())
+    except (TypeError, ValueError):
+        return MITGLIEDER_LIMIT
+    return max(MITGLIEDER_LIMIT_MIN, min(MITGLIEDER_LIMIT, wert))
+
+
+def _mitglieder_begriff(q) -> str:
+    """Suchbegriff der Erwähnungs-Suche: 0–``MITGLIEDER_Q_MAX`` Zeichen.
+
+    Getrimmt und auf die Höchstlänge gekappt (``q`` kommt aus der Adresse).
+    Die Faltung macht ``_suche_faltung`` im SQL-Ausdruck. ABWEICHEND von
+    ``personen_suchen`` gilt hier KEINE Mindestlänge (Review R1/1): nach dem
+    „@“ tippt man Buchstabe für Buchstabe, das erste Zeichen ist der
+    Normalfall — es darf nicht heißen „alle Kandidaten“.
+    """
+    text = str(q or "").strip()
+    return text[:MITGLIEDER_Q_MAX]
+
+
+def _mitglieder_begriff_gefaltet(begriff: str) -> str:
+    """``begriff`` in der Faltung der Spalten, ohne Mindestlänge (R1/1)."""
+    return _suche_begriff(begriff, min_zeichen=1)
+
+
+def _mitglieder_kandidaten(s, begriff: str, *, basis=None, konten=None) -> list:
+    """Kandidaten der Erwähnungs-Suche — Vorfilter nach Name, sortiert.
+
+    Zwei Bauarten, EINE Frage: ``basis`` ist die Mitgliedschafts-Abfrage der
+    Einheit (Gruppe/Untergruppe, Spalten ``mitglied/user/vorname/nachname``),
+    ``konten`` die Konten der Teilnahmezeilen (1:1/Runde, Namensdaten kommen
+    aus ``mitglied``). Der Vorfilter entscheidet NICHTS: er schneidet nur
+    Namen nach dem Anfang ab (``q=""`` = alle). Beides sind BEKANNTE Mengen aus
+    dieser Datei, keine Nutzereingabe.
+
+    Der Vorfilter lässt nur Zeilen durch, die ``_erwaehnung_grenze``
+    überhaupt bejahen KANN (Review R1/3) — dieselbe Notwendigkeit, keine neue
+    Regel: ohne Konto gibt es keinen Raum (beide Zweige der Grenze brauchen
+    ``konto``), bei 1:1/Runde ebenso keine Teilnahme ohne Zeile für das Konto.
+    Das ist wichtig für den 3*limit-Abbruch: ohne diese Bedingung füllten
+    Personen ohne Konto die Prüfstrecke und verdrängten die Erwähnbaren.
+    """
+    if basis is None:
+        if not konten:
+            return []
+        basis = select(
+            Mitglied.name.label("mitglied"),
+            Mitglied.user.label("user"),
+            Mitglied.vorname.label("vorname"),
+            Mitglied.nachname.label("nachname"),
+        ).where(Mitglied.user.in_(list(konten)))
+    basis = basis.where(Mitglied.user.is_not(None))
+    if begriff:
+        # EIN Muster, EINE Bedingung: Vorname, Nachname oder „Vor Nach“ beginnt
+        # mit dem Begriff — dieselbe Faltung wie ``personen_suchen``.
+        basis = basis.where(_mitglieder_namensfilter(begriff))
+    # Nach Anzeigename (Groß-/Kleinschreibung egal), dann Kennung: stabil, damit
+    # „3*limit Kandidaten“ reproduzierbar dieselben sind. ``COALESCE`` je
+    # Namensteil (Review R1/4): ``vorname + " " + nachname`` ergäbe in
+    # PostgreSQL bei fehlendem Teil NULL, in SQLite stillschweigend etwas
+    # anderes — die Reihenfolge muss in beiden Datenbanken dieselbe sein.
+    return s.execute(
+        basis.order_by(_mitglieder_sortierung(), Mitglied.name)
+    ).all()
+
+
+def _mitglieder_sortierung():
+    """Sortier-Ausdruck „Anzeigename“, DB-unabhängig (Review R1/4).
+
+    Dieselbe Vergleichsform wie ``_anzeigename_select`` (``trim(a + ' ' + b)``),
+    aber ``COALESCE`` je Namensteil: fehlt ein Teil, ergäbe ``a + ' ' + b`` in
+    PostgreSQL NULL (die Zeile rutschte ans Ende) — in SQLite stillschweigend
+    etwas anderes. ``COALESCE`` macht daraus in beiden Datenbanken dieselbe
+    Zeichenkette.
+
+    Als ``text()`` ausgeschrieben (feste Bezeichner aus dieser Datei, keine
+    Nutzereingabe): ``text("''")`` als Argument von ``func.coalesce`` wird von
+    SQLAlchemy als BINDEPARAMETER ausgegeben und in ORDER BY zu ``0`` — die
+    Reihenfolge fiel damit auf die Kennung zurück (im Test belegt).
+    """
+    return text(
+        "trim(coalesce(lower(trim(mitglied.vorname)), '') || ' ' || "
+        "coalesce(lower(trim(mitglied.nachname)), ''))")
+
+
+def _mitglieder_namensfilter(begriff: str):
+    """SQL-Bedingung: der NAME beginnt mit ``begriff`` (gefaltet, maskiert).
+
+    Gesucht wird in ``vorname``, ``nachname`` und der Phrase „Vorname Nachname“
+    — alle drei als ANFANG (``begriff%``). Die Faltung ist ``_suche_faltung``
+    (klein + Umlaute aufgelöst), damit „ber“ auch „Bert“ und „mueller“ auch
+    „Müller“ trifft; der BEGRIFF wird dafür mit ``_mitglieder_begriff_gefaltet``
+    gefaltet — eine zweite Faltungsregel gibt es nicht. Platzhalter im Begriff
+    werden maskiert (ein getipptes ``%``/``_`` darf nichts aufreißen).
+    """
+    maskiert = _mitglieder_begriff_gefaltet(begriff)
+    for zeichen in ("\\", "%", "_"):
+        maskiert = maskiert.replace(zeichen, "\\" + zeichen)
+    muster = f"{maskiert}%"
+    like = " LIKE :muster ESCAPE '\\'"
+    vorname = _suche_faltung("mitglied.vorname")
+    nachname = _suche_faltung("mitglied.nachname")
+    phrase = _suche_faltung(
+        "COALESCE(mitglied.vorname, '') || ' ' || COALESCE(mitglied.nachname, '')")
+    return text(
+        f"({vorname}{like} OR {nachname}{like} OR {phrase}{like})"
+    ).bindparams(muster=muster)
+
+
+def _anzeigename_aus_zeile(zeile, mitglied: str) -> str:
+    """Anzeigename aus einer Kandidatenzeile (``vorname``/``nachname``).
+
+    Dieselbe Anzeige wie ``_anzeigename_select`` / ``_personen`` („Vorname
+    Nachname“, getrimmt); ohne Namen bleibt die Kennung — eine zweite
+    Namensregel gibt es nicht.
+    """
+    vor = str(getattr(zeile, "vorname", None) or "").strip()
+    nach = str(getattr(zeile, "nachname", None) or "").strip()
+    return f"{vor} {nach}".strip() or str(mitglied)
+
 
 
 # ── Endpunkte: Senden / Bearbeiten / Löschen ────────────────────────────────

@@ -104,7 +104,9 @@ test('CHAT-7a · Treffer: vorhandenes Gespräch öffnet den Chat, sonst ins Prof
   assert.equal(chatAdresse(''), '#/nachrichten')
   assert.equal(chatAdresse('a b'), '#/nachrichten/a%20b', 'die Kennung wird kodiert')
   assert.equal(profilAdresse('M-1'), '#/mitglied/M-1')
-  assert.equal(profilAdresse(''), '#/personen', 'ohne Kennung gibt es kein halbes Profil')
+  // CHAT-R2d: ohne Kennung gibt es kein halbes Profil — der Weg führt in die
+  // Personensuche (vorher `#/personen`, seit CHAT-R2a nur noch eine Umleitung).
+  assert.equal(profilAdresse(''), '#/nachrichten/suche', 'ohne Kennung gibt es kein halbes Profil')
 })
 
 test('CHAT-7a · Liste: Direktgespräch steht mit Titel; kein „gelesen“ in der Liste', () => {

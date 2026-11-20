@@ -901,6 +901,32 @@ tests/chat8-fristen-ui.test.mjs
 # Verhalten mounten lässt; Quelltext-Prüfungen lesen den Code OHNE
 # Kommentare (die Kommentare nennen den Umbau).
 tests/chatn3-handylage-prop.test.mjs
+# CHAT-R2d: Aufräumen nach „Personen → Nachrichten“ (Konzept 10, Zeile CHAT-R2d).
+# Nachweis, keine Umbauten: (1) JEDE Personen-Adresse aus der Git-Historie vor
+# CHAT-R2a (d4827eac^: router.js, menue.js) kommt heute an — gemessen an der
+# ECHTEN Router-Logik in einer vm (weiterleitungsZiel + routeMap/dynamicRoutes
+# + Wächter aus beforeEachGuards), je für eine Sitzung Mitglied und Verwaltung;
+# „Seite nicht gefunden“ ist in keinem Fall erlaubt, gesperrte
+# Verwaltungsreiter enden auf dem Dashboard. (2) ANFRAGEN_*-Hilfen bestehen und
+# werden benutzt; das Anfragen-Abzeichen erscheint NUR für die Verwaltung —
+# Seitenleiste und Handy-Schublade werden dafür in jsdom WIRKLICH gemountet
+# (Zahl vom Kennzahlen-Endpunkt, Mitglied ohne Abzeichen), die Befehlspalette
+# läuft als Modul (Personenverwaltung/„Person anlegen“ nur mit Recht). (3) Alle
+# `#/…`-Adressen in backend/src (Vorlagen, Benachrichtigungen, Suche,
+# Einrichtungs-Checkliste) und in den Frontend-Texten löst der Router auf
+# (Pflicht-Adressen verhindern eine Leerprüfung); Weiterleitungsketten enden in
+# einer Seite. Gegenprobe: eine erfundene Adresse MUSS als tot erkannt werden.
+tests/chat-r2d-aufraeumen.test.mjs
+
+# CHAT-9b: Erwähnungen „@Name“ im Chat (Konzept S4) — Auswahl der Beteiligten
+# am „@“ (ARIA-Combobox am Eingabefeld, ↑/↓/Enter/Escape, Tippen am Handy),
+# Senden schickt NUR noch im Text stehende Mitglieds-Kennungen (ohne Erwähnung
+# geht kein `erwaehnt` hinaus), Hervorhebung in der Blase als TEXT (kein
+# `v-html`, ein Name mit „<b>“ bleibt Text), dezente Markierung der eigenen
+# Erwähnung, und das Glockenziel `chat_erwaehnung` → Bereich „Nachrichten“.
+# Quelle der Beteiligten: Runde (`mitglieder`) und 1:1 (die andere Person);
+# in Gruppen bleibt die Auswahl ohne Serverauskunft weg.
+tests/chat9b-erwaehnung.test.mjs
 # CHAT-7b-UI-b: Blockieren und Sperrliste (Konzept S3). Die Aktion „Nicht mehr
 # anschreiben lassen“ im 1:1-Gesprächskopf (⋯-Menü des Hauses, DkAktionen) und
 # am Personenprofil; die Rückfrage nennt beide Seiten, bleibt still und zeigt
