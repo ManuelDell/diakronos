@@ -75,6 +75,7 @@
                   :gruppen="gruppen"
                   :aktiv="kennung"
                   :ungelesen="ungelesen"
+                  @neue-runde="rundeDialogOeffnen"
                 />
               </template>
             </template>
@@ -94,6 +95,11 @@
             >
               <template #aktion>
                 <DkButton v-if="!sucheOffen" variant="secondary" as="a" :href="SUCHE">{{ NEUE_NACHRICHT }}</DkButton>
+                <DkButton
+                  v-if="!sucheOffen"
+                  variant="secondary"
+                  @click="rundeDialogOeffnen"
+                >{{ NEUE_RUNDE }}</DkButton>
               </template>
             </DkEmpty>
           </div>
@@ -107,23 +113,89 @@
                  CHAT-3a-4 (SOLL 3): Der Stumm-Schalter sitzt HIER als
                  Symbolknopf mit aria-label — am Handy steht er damit im EINEN
                  sichtbaren Kopf (der Seitenkopf ist dort ausgeblendet), am
-                 Desktop trug ihn vorher der Seitenkopf. -->
+                 Desktop trug ihn vorher der Seitenkopf.
+
+                 CHAT-7b-UI (Karte Punkt 3): In einer RUNDE trägt der Kopf
+                 zusätzlich „Person vorschlagen“ und „Runde verlassen“ und
+                 eine aufklappbare Liste der Teilnehmenden. -->
             <div class="dk-chat-verlauf-kopf">
               <a class="dk-chat-zurueck" :href="zurueckZiel" aria-label="Zurück zur Liste">
                 <span aria-hidden="true">‹</span>
               </a>
               <div class="dk-chat-verlauf-titel">
                 <h2>{{ titel }}</h2>
-                <!-- Karte UI-2 Punkt 5: im 1:1 bleibt die Zeile leer — kein
-                     „N im Gespräch“, kein Gruppen-Satz. Die Regel steht in
-                     `verlaufUnterzeile` (`nachrichtenDirekt`). -->
                 <p v-if="unterKopf" class="dk-chat-verlauf-unter">
                   <span v-if="kontoText">{{ kontoText }}</span>
                   <span v-if="offenesGespraech && offenesGespraech.stumm" class="dk-chat-stumm-hinweis">
                     <template v-if="kontoText"> · </template>stumm geschaltet
                   </span>
                 </p>
+                <!-- CHAT-7b-UI: die Beteiligten einer Runde — aufklappbar, damit
+                     der Kopf schmal bleibt und die Zahl schon dasteht. -->
+                <template v-if="istOffeneRunde && rundenMitglieder.length">
+                  <DkButton
+                    variant="ghost"
+                    size="sm"
+                    class="dk-chat-textknopf dk-runde-teilnehmer-knopf"
+                    :aria-expanded="teilnehmerOffen ? 'true' : 'false'"
+                    :aria-controls="RUNDE_TEILNEHMER_ID"
+                    @click="teilnehmerOffen = !teilnehmerOffen"
+                  >Teilnehmende</DkButton>
+                  <ul v-show="teilnehmerOffen" :id="RUNDE_TEILNEHMER_ID" class="dk-runde-teilnehmer">
+                    <!-- Namen aus der Serverantwort — nie eine rohe Kennung. -->
+                    <li v-for="person in rundenMitglieder" :key="person.mitglied">
+                      <span class="dk-runde-teilnehmer-name">{{ person.name }}</span>
+                    </li>
+                  </ul>
+                </template>
               </div>
+              <!-- CHAT-7b-UI-b (Karte Punkt 1): „Nicht mehr anschreiben lassen“
+                   im 1:1-Gesprächskopf. Am Desktop stehen die Aktionen hinter
+                   dem vorhandenen „⋯“-Muster (`DkAktionen`, UX2e); am Handy ist
+                   es derselbe Knopf — er sitzt in DIESEM einen sichtbaren Kopf.
+                   Nur im 1:1 und nur, wenn der Server den Anzeigenamen geliefert
+                   hat (ohne Namen wäre die Rückfrage ein Satz über „diese
+                   Person“ zu einer Person, die eine Zeile darüber steht). -->
+              <DkAktionen
+                v-if="sperrAktionSichtbar"
+                :eintraege="sperrEintraege"
+                :label="`Aktionen für ${titel}`"
+                :menue-label="`Aktionen für ${titel}`"
+                kennung="chat-gespraech"
+              />
+              <!-- CHAT-7b-UI (Karte Punkt 3): die beiden Runden-Aktionen.
+                   „Person vorschlagen“ nur, solange die Runde unter 8 steht
+                   (`darfVorschlagen` — eine Zahl aus der Serverantwort, keine
+                   eigene Rechtelogik).
+                   Am HANDY stehen sie im „⋯“-Muster (`DkAktionen`, Review R1
+                   Punkt 9) — sonst liefe der Kopf bei 360 px über; am Desktop
+                   bleiben es zwei Knöpfe. -->
+              <template v-if="istOffeneRunde && !istPlatzhalter">
+                <template v-if="!istHandyLage">
+                  <DkButton
+                    v-if="vorschlagenMoeglich"
+                    variant="secondary"
+                    size="sm"
+                    class="dk-chat-kopf-knopf"
+                    :disabled="verlassenLaeuft"
+                    @click="vorschlagDialogOeffnen"
+                  >{{ VORSCHLAG_KNOPF }}</DkButton>
+                  <DkButton
+                    variant="ghost"
+                    size="sm"
+                    class="dk-chat-kopf-knopf"
+                    :loading="verlassenLaeuft"
+                    @click="rundeVerlassen"
+                  >{{ VERLASSEN_KNOPF }}</DkButton>
+                </template>
+                <DkAktionen
+                  v-else
+                  :eintraege="rundenEintraege"
+                  :label="`Aktionen für ${titel}`"
+                  :menue-label="`Aktionen für ${titel}`"
+                  kennung="chat-runde"
+                />
+              </template>
               <DkButton
                 v-if="offenesGespraech && !istPlatzhalter"
                 variant="ghost"
@@ -135,6 +207,14 @@
                 @click="stummUmschalten"
               ><template #icon><span aria-hidden="true">{{ offenesGespraech.stumm ? '🔕' : '🔔' }}</span></template></DkButton>
             </div>
+
+            <!-- CHAT-7b-UI-b (Karte Punkt 1): der ruhige Hinweis nach dem
+                 Sperren (`role="status"`, keine Alarmfarbe — eine Auskunft). -->
+            <p v-if="sperrErfolgText" class="dk-chat-hinweis" role="status">{{ sperrErfolgText }}</p>
+            <!-- Review R1 Punkt 8: Fehler beim Verlassen stehen AM KOPF als
+                 ruhiger Hinweis (role="status") — der gelesene Verlauf bleibt
+                 stehen, `verlaufFehler` würde ihn ersetzen. -->
+            <p v-if="verlassenFehler" class="dk-chat-hinweis" role="status">{{ verlassenFehler }}</p>
 
             <p v-if="verlaufFehler" class="dk-chat-fehler" role="alert">{{ verlaufFehler }}</p>
             <p v-else-if="verlaufHinweis || listeHinweis" class="dk-chat-hinweis">
@@ -153,6 +233,12 @@
               tabindex="-1"
               @scroll.passive="beimScrollen"
             >
+              <!-- CHAT-7b-UI (Karte Punkt 5): wer neu dazugekommen ist, sieht
+                   den Verlauf erst ab dem Eintritt — der Server sagt es
+                   (`ab_eintritt`); ohne das Feld steht hier nichts. -->
+              <p v-if="eintrittHinweis" class="dk-chat-hinweis dk-chat-eintritt" role="status">
+                {{ eintrittHinweis }}
+              </p>
               <DkSkelett v-if="aelterLaedt" form="zeilen" :anzahl="2" />
               <DkButton
                 v-else-if="aelterMoeglich"
@@ -176,8 +262,22 @@
                   <li v-if="n.tag" class="dk-chat-tag"><span>{{ n.tag }}</span></li>
                   <!-- CHAT-N3: Die Handy-Lage fragt die SEITE einmal
                        (`useHandyLage()`), die Blase bekommt sie als Prop —
-                       nicht 200 Beobachter für 200 Nachrichten. -->
+                       nicht 200 Beobachter für 200 Nachrichten.
+
+                       CHAT-7b-UI (Karte Punkt 4): Eine Vorschlags-Systemzeile
+                       ist KEIN Beitrag — sie hat weder Bearbeiten/Löschen/
+                       Melden noch Antworten. Sie wird als eigene Zeile
+                       gezeichnet (`ChatVorschlagZeile`), noch VOR der Blase. -->
+                  <ChatVorschlagZeile
+                    v-if="istVorschlagZeile(n)"
+                    :zeile="n"
+                    :laeuft="vorschlagLaeuft === n.system?.vorschlag"
+                    :fehler="vorschlagFehler[n.system?.vorschlag] || ''"
+                    @zustimmen="vorschlagZustimmen"
+                    @ablehnen="vorschlagAblehnen"
+                  />
                   <ChatBlase
+                    v-else
                     :nachricht="n"
                     :direkt="istOffenesDirekt"
                     :folge-start="folgeStart(i)"
@@ -214,6 +314,15 @@
             <div v-if="!darfSenden" class="dk-chat-eingabe dk-chat-gesperrt" role="status">
               <p class="dk-chat-gesperrt-titel">{{ NICHT_ERREICHBAR.titel }}</p>
               <p class="dk-chat-gesperrt-text">{{ NICHT_ERREICHBAR.text }}</p>
+              <!-- CHAT-7b-UI-b (Karte Punkt 2): NUR die sperrende Seite erfährt
+                   hier, dass SIE gesperrt hat — der Hinweis darüber ist
+                   absichtlich derselbe wie bei jeder anderen Ursache
+                   („nicht erreichbar“), damit die Sperre sich nicht verrät.
+                   Aufgehoben wird in den Einstellungen (ein Weg, eine Stelle). -->
+              <p v-if="eigeneSperre" class="dk-chat-gesperrt-text">
+                {{ eigeneSperre.text }}
+                <a :href="eigeneSperre.href">{{ eigeneSperre.linkText }}</a>
+              </p>
             </div>
             <form v-else id="chat-eingabe-form" class="dk-chat-eingabe" @submit.prevent="senden">
               <p v-if="antwortAuf" class="dk-chat-antwortzeile">
@@ -265,6 +374,41 @@
       :darf-senden="darfSenden"
       @anlegen="umfrageAnlegen"
     />
+
+    <!-- CHAT-7b-UI: „Neue Runde“ — Name und 2–7 Personen aus der einen
+         Personensuche (Karte Punkt 1). -->
+    <ChatRundeDialog
+      v-model="rundeDialogOffen"
+      :laeuft="rundeAnlegenLaeuft"
+      :fehler="rundeAnlegenFehler"
+      @anlegen="rundeAnlegen"
+    />
+
+    <!-- CHAT-7b-UI: „Person vorschlagen“ — dieselbe Suche, EINE Person, mit
+         Zustimmung der Runde (Karte Punkt 3). -->
+    <DkDialog
+      :model-value="vorschlagDialogOffen"
+      :title="VORSCHLAG_KNOPF"
+      @close="vorschlagDialogOffen = false"
+    >
+      <div class="dk-runde-vorschlag">
+        <p class="dk-runde-hinweis">
+          Vorgeschlagen wird <strong>eine</strong> Person. Aufgenommen wird sie, wenn alle
+          anderen Beteiligten zustimmen.
+        </p>
+        <RundePersonenAuswahl
+          :mehrfach="false"
+          :laeuft="vorschlagAnlegenLaeuft"
+          :ohne="vorschlagOhneListe"
+          feld-id="runde-personensuche"
+          feld-label="Person"
+          @waehlen="vorschlagSenden"
+        />
+        <p v-if="vorschlagAnlegenFehler" class="dk-runde-fehler" role="alert">
+          {{ vorschlagAnlegenFehler }}
+        </p>
+      </div>
+    </DkDialog>
 
     <!-- CHAT-6-UI: „Melden“ — Grundauswahl, Freitext (≤ 500), der Hinweis
          „Wer Meldungen prüft, sieht diese Nachricht und die fünf davor.“ IMMER
@@ -358,10 +502,12 @@ import {
 import { offenAusHash, qAusHash, suchHash, sucheOffenBei } from '../composables/nachrichtenSuche.mjs'
 import { naechsteReaktion } from '../composables/nachrichtenReaktionen.mjs'
 import {
-  NICHT_ERREICHBAR, NEUE_NACHRICHT, SUCHE, direktTitel, istDirekt, sendbar, sendeFehlerZustand,
-  verlaufUnterzeile,
+  NICHT_ERREICHBAR, NEUE_NACHRICHT, SPERR_AKTION, SUCHE, direktTitel, istDirekt, istGesperrt,
+  sendbar, sendeFehlerZustand, sperrBestaetigung, sperrErfolg, sperrHinweis, sperrListe,
+  sperrName, verlaufUnterzeile,
 } from '../composables/nachrichtenDirekt.mjs'
 import DkCard from '../components/ui/DkCard.vue'
+import DkAktionen from '../components/ui/DkAktionen.vue'
 import DkButton from '../components/ui/DkButton.vue'
 import DkDialog from '../components/ui/DkDialog.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
@@ -372,8 +518,17 @@ import ChatBlase from '../components/chat/ChatBlase.vue'
 import ChatSuche from '../components/chat/ChatSuche.vue'
 import ChatUmfrage from '../components/chat/ChatUmfrage.vue'
 import ChatUmfrageDialog from '../components/chat/ChatUmfrageDialog.vue'
-import ChatMeldungDialog from '../components/chat/ChatMeldungDialog.vue'
+import ChatRundeDialog from '../components/chat/ChatRundeDialog.vue'
+import ChatVorschlagZeile from '../components/chat/ChatVorschlagZeile.vue'
+import RundePersonenAuswahl from '../components/chat/RundePersonenAuswahl.vue'
 import { TEXTE as UMFRAGE_TEXTE, istUmfrageZeile } from '../components/chat/umfrage.mjs'
+import {
+  NEUE_RUNDE, VORSCHLAG_KNOPF, VERLASSEN_KNOPF,
+  darfVorschlagen, eintrittsHinweis, istRunde, istVorschlagZeile, rundenKopf,
+  rundenMitglieder as rundenMitgliederAus, rundenTitel, rundeAnlegenRumpf,
+  stimmeRumpf, verlassenFrage, verlassenRumpf, vorschlagOhne, vorschlagRumpf,
+} from '../composables/nachrichtenRunden.mjs'
+import ChatMeldungDialog from '../components/chat/ChatMeldungDialog.vue'
 // CHAT-6-UI: Melden — Prüfung und Auslegung der Antwort in `meldung.mjs`.
 import {
   KEIN_ZUGRIFF as MELDUNG_KEIN_ZUGRIFF, meldbar as darfMelden, meldeFehlerText,
@@ -514,14 +669,18 @@ const offenesGespraech = computed(() => {
 })
 /** Ist der offene Eintrag nur ein Platzhalter (Liste kennt ihn nicht)? */
 const istPlatzhalter = computed(() => offenesGespraech.value?.platzhalter === true)
+/** CHAT-7b-UI: Steht hier eine RUNDE offen? (Kartenpunkte 2–5) */
+const istOffeneRunde = computed(() => istRunde(offenesGespraech.value))
 /**
- * Der Titel des offenen Gesprächs. Eine bekannte Kennung ohne Listeneintrag
- * (die Liste lud nicht) heißt „Gespräch“ — „Unbekannte Person“ gehört zu einem
- * NAMENTLICHEN 1:1 aus dem Altbestand, nicht zu einer fehlenden Zeile.
+ * CHAT-7b-UI (Karte Punkt 2): Der Titel des offenen Gesprächs. Eine bekannte
+ * Kennung ohne Listeneintrag (die Liste lud nicht) heißt „Gespräch“ — „Unbekannte
+ * Person“ gehört zu einem NAMENTLICHEN 1:1 aus dem Altbestand, nicht zu einer
+ * fehlenden Zeile. Eine Runde trägt ihren Namen (leer → „Runde“).
  */
 const titel = computed(() => {
   const eintrag = offenesGespraech.value
   if (istDirekt(eintrag)) return direktTitel(eintrag)
+  if (istRunde(eintrag)) return rundenTitel(eintrag)
   return String(eintrag?.titel || '').trim() || 'Gespräch'
 })
 const teilnehmerZahl = computed(() => Number(offenesGespraech.value?.teilnehmer) || 0)
@@ -533,7 +692,9 @@ const istOffenesDirekt = computed(() => istDirekt(offenesGespraech.value))
  * „gelesen“ steht dort nicht mehr (Punkt 1).
  */
 const kontoText = computed(() => ((offeneKennung.value && !istPlatzhalter.value)
-  ? verlaufUnterzeile({ istDirekt: istOffenesDirekt.value, teilnehmer: teilnehmerZahl.value })
+  ? (istOffeneRunde.value
+    ? rundenKopf(offenesGespraech.value)
+    : verlaufUnterzeile({ istDirekt: istOffenesDirekt.value, teilnehmer: teilnehmerZahl.value }))
   : ''))
 /** Steht die Kopfzeile überhaupt da? (leer = kein `p`, keine leere Zeile).
  *  Beim Platzhalter weiß niemand, ob stumm geschaltet ist (Review R1, SOLL 3). */
@@ -551,6 +712,107 @@ const unterKopf = computed(() => Boolean(kontoText.value)
  */
 const sendenVonServerGesperrt = ref(false)
 const darfSenden = computed(() => sendbar(offenesGespraech.value, { gesperrt: sendenVonServerGesperrt.value }))
+
+// ── CHAT-7b-UI-b: Kontaktsperre (Konzept S3) ────────────────────────────────
+/**
+ * Die EIGENE Sperrliste (`chat.meine_sperren`, GET) — der EINZIGE Ort, an dem
+ * eine Sperre sichtbar ist: den Chat-Endpunkten ist „gesperrt“ nach aussen
+ * nicht anzusehen (Server: derselbe Text wie „nicht erreichbar“). Sie wird
+ * beim Öffnen der Seite geholt (ein Aufruf, nicht je Gespräch).
+ *
+ * Fehlt sie (Fehler, alter Server), bleibt sie LEER: dann gibt es keinen
+ * Aufheben-Link — aber auch keine Behauptung, man habe jemanden gesperrt.
+ */
+const sperrStand = ref([])
+/** Die Person des offenen 1:1 — die Kennung, die der Server als `mitglied`
+ *  führt (`chat.kontakt_sperren` erwartet genau diesen Wert).
+ *
+ *  Review R1, Punkt 4: KEIN Rückfall auf `titel`. Der Titel ist ein
+ *  Anzeigename, keine Kennung — bei gelöschtem Gegenüber fehlt `mitglied`,
+ *  und eine Sperre auf einen Namen ginge ins Leere (oder träfe den Falschen).
+ *  Ohne `mitglied` gibt es darum keine Sperr-Aktion. */
+const direktMitglied = computed(() => String(offenesGespraech.value?.mitglied || '').trim())
+/**
+ * Aktion „Nicht mehr anschreiben lassen“ im 1:1-Kopf: nur im 1:1, nur mit
+ * einem Namen (die Rückfrage nennt ihn), nur mit Kennung (der Server braucht
+ * `mitglied`) — und NICHT, wenn die Person schon auf der eigenen Liste steht
+ * (dann steht der Weg zum Aufheben im Hinweis unten, ein zweites „sperren“
+ * wäre eine Lüge über den Zustand).
+ */
+const sperrAktionSichtbar = computed(() => istOffenesDirekt.value
+  && !istPlatzhalter.value
+  && Boolean(direktMitglied.value)
+  && !istGesperrt(direktMitglied.value, sperrStand.value))
+/**
+ * Die Einträge des „⋯“-Menüs. `aktion` ist die FUNKTION `sperren` selbst
+ * (`function` wird hochgezogen, sie steht also schon hier); eine Hülle
+ * (`() => sperren()`) legt ein durchgereichtes Ereignis-Objekt als erstes
+ * Argument auf `mitglied` — dann ginge der Aufruf mit dem falschen Ziel hinaus.
+ */
+const sperrEintraege = computed(() => [{
+  key: 'sperren',
+  label: SPERR_AKTION,
+  icon: 'abbrechen',
+  aktion: sperren,
+}])
+/** Der ruhige Hinweis nach dem Sperren (`role="status"`), leer = keiner. */
+const sperrErfolgText = ref('')
+/** Läuft der Sperr-Aufruf? (Doppelklick schickt nichts zweimal.) */
+const sperrtLaeuft = ref(false)
+
+/**
+ * Der Satz unter „nicht mehr erreichbar“ — NUR für die sperrende Seite
+ * (Karte Punkt 2). Er hängt an der EIGENEN Liste, nie an einer Eigenschaft des
+ * Gesprächs: die gesperrte Seite sieht hier nichts Zusätzliches.
+ */
+const eigeneSperre = computed(() => (istOffenesDirekt.value
+  && istGesperrt(direktMitglied.value, sperrStand.value) ? sperrHinweis() : null))
+
+async function sperrListeLaden() {
+  try {
+    const antwort = await apiGet('chat.meine_sperren', {})
+    sperrStand.value = sperrListe(antwort)
+  } catch {
+    // Fail closed: ohne Liste kein Aufheben-Link, keine Aussage über Sperren.
+    sperrStand.value = []
+  }
+}
+
+/**
+ * „Nicht mehr anschreiben lassen“: erst die Rückfrage des Hauses
+ * (`bestaetigen`), dann `chat.kontakt_sperren`. Danach steht die Person auf
+ * der eigenen Liste — also auch der Aufheben-Weg im Hinweis unten.
+ *
+ * Die Sperre ist SOFORT wirksam (der Server entscheidet), aber das offene
+ * Gespräch erfährt es erst beim nächsten Senden (403 → „nicht erreichbar“).
+ * Beides ist gewollt: die Sperre ist keine zweite Rechtelogik im Frontend.
+ */
+async function sperren() {
+  const mitglied = direktMitglied.value
+  if (!mitglied || sperrtLaeuft.value) return
+  const lage = { anzeigename: String(offenesGespraech.value?.titel || '').trim() }
+  if (!(await bestaetigen(sperrBestaetigung(lage.anzeigename, mitglied)))) return
+  sperrtLaeuft.value = true
+  sperrErfolgText.value = ''
+  try {
+    await apiCall('chat.kontakt_sperren', { mitglied })
+    sperrStand.value = [...sperrStand.value, { mitglied, name: sperrName(lage.anzeigename, mitglied) }]
+    sperrErfolgText.value = sperrErfolg(lage.anzeigename, mitglied)
+    // Die Liste (letzte Nachricht, Zähler) zieht nach — der Server führt die
+    // Sperre, nicht diese Seite.
+    await laden()
+  } catch (fehler) {
+    if (Number(fehler?.status) === 403) {
+      // Der Server erlaubt diese Sperre nicht (z. B. kein Konto der Person).
+      // Kein Alarm: die Aktion ist dann einfach nicht möglich.
+      verlaufHinweis.value = 'Diese Person lässt sich nicht sperren.'
+    } else {
+      verlaufFehler.value = fehlertext(fehler)
+    }
+  } finally {
+    sperrtLaeuft.value = false
+  }
+}
 
 /**
  * Die Unterzeile des Seitenkopfs. Im 1:1 steht sie LEER (`''`): der Bereich
@@ -812,6 +1074,13 @@ const verlaufLaedt = ref(false)
 const verlaufFehler = ref('')
 /** Kleiner Hinweis nach einem misslungenen Poll (der Verlauf bleibt stehen). */
 const verlaufHinweis = ref('')
+/**
+ * CHAT-7b-UI (Karte Punkt 5): Steht oben im Verlauf der Eintritts-Hinweis?
+ * Er kommt AUSSCHLIESSLICH aus der Antwort von `chat.verlauf` (`ab_eintritt`,
+ * Regel in `nachrichtenRunden.mjs` → `eintrittsHinweis`) — fehlt das Feld,
+ * steht hier nichts.
+ */
+const eintrittHinweisRoh = ref('')
 const aelterLaedt = ref(false)
 const aelterMoeglich = ref(false)
 const verlaufEl = ref(null)
@@ -830,6 +1099,15 @@ function zuruecksetzen() {
   eingabeFehler.value = ''
   antwortAuf.value = null
   aelterMoeglich.value = false
+  eintrittHinweisRoh.value = ''
+  // CHAT-7b-UI: Meldungen gehörten zum ALTEN Gespräch — „Runde verlassen“
+  // scheiterte, die Vorschlagszeile antwortete nicht. Im nächsten Gespräch
+  // dürfen sie nicht mehr stehen.
+  verlassenFehler.value = ''
+  vorschlagFehler.value = {}
+  vorschlagLaeuft.value = ''
+  // Die Teilnehmerliste stand im aufgeklappten Kopf des alten Gesprächs.
+  teilnehmerOffen.value = false
   // CHAT-7a: die Sperre gilt je GESPRÄCH, nicht für die Seite — ein anderes
   // 1:1 darf wieder schreibbar sein.
   sendenVonServerGesperrt.value = false
@@ -851,6 +1129,9 @@ async function oeffnen() {
   if (!(await sicherstellen())) return
   const daten = await verlaufLaden()
   if (daten) await lesestandSetzen()
+  // CHAT-7b-UI: beim Öffnen einer RUNDE die Teilnehmerliste einklappen — die
+  // Namen kommen mit der Antwort (`mitglieder`), es wird nichts nachgeschlagen.
+  if (istOffeneRunde.value) teilnehmerOffen.value = false
   // Karte Punkt 5: Fokus nach Gesprächswechsel in den Verlauf — die neue
   // Region wird vorgelesen, der Fokus bleibt nicht im alten Gespräch.
   await nextTick()
@@ -958,6 +1239,9 @@ async function verlaufLaden({ still = false } = {}) {
   try {
     const antwort = await apiGet('chat.verlauf', { gespraech: offen })
     if (!aktivSeite || offen !== offeneKennung.value) return false // inzwischen anderes Gespräch
+    // CHAT-7b-UI (Karte Punkt 5): der Server sagt, ob hier jemand erst später
+    // dazugekommen ist — ohne das Feld bleibt der Hinweis leer.
+    eintrittHinweisRoh.value = eintrittsHinweis(antwort)
     const vorher = nachrichten.value
     const lage = seiteEinordnen(antwort, { alt: vorher, ich: ich.value })
     nachrichten.value = lage.nachrichten
@@ -1360,6 +1644,188 @@ async function umfrageSchliessen({ umfrage }) {
   }
 }
 
+// ── Runden (CHAT-7b-UI) ────────────────────────────────────────────────────
+
+/**
+ * Der Eintritts-Hinweis für die Vorlage — der ROHE Stand (`eintrittHinweisRoh`)
+ * ist das, was der Server zuletzt zur Sichtbarkeit gesagt hat.
+ */
+const eintrittHinweis = computed(() => eintrittHinweisRoh.value)
+
+/**
+ * Anlegen, Vorschlagen, Zustimmen/Ablehnen, Verlassen — die Seite sendet, die
+ * Regeln stehen in `composables/nachrichtenRunden.mjs`. Kein zweiter Weg:
+ * „Neue Runde“ ist der Dialog, „Person vorschlagen“ derselbe Personenbaustein,
+ * und die Vorschlagszeile im Verlauf meldet nur ihren Klick.
+ */
+const rundeDialogOffen = ref(false)
+const rundeAnlegenLaeuft = ref(false)
+const rundeAnlegenFehler = ref('')
+
+/** Die aufklappbare Teilnehmerliste im Rundenkopf (Karte Punkt 3). */
+const RUNDE_TEILNEHMER_ID = 'chat-runde-teilnehmende'
+const teilnehmerOffen = ref(false)
+/**
+ * Die Beteiligten einer Runde — aus `mitglieder: [{mitglied, anzeigename}]`
+ * der Antwort von `chat.meine_gespraeche` (Vertrag Review R1 Punkt 4). Es wird
+ * NICHTS nachgeschlagen (`rundenNamenHolen` ist gestrichen) und nie eine rohe
+ * Kennung angezeigt.
+ */
+const rundenMitglieder = computed(() => rundenMitgliederAus(offenesGespraech.value))
+/** „Person vorschlagen“ nur unter 8 Beteiligten (Zahl aus der Liste). */
+const vorschlagenMoeglich = computed(() => darfVorschlagen(offenesGespraech.value))
+
+/**
+ * Die Runden-Aktionen für das „⋯“-Menü am HANDY (Review R1 Punkt 9) — dieselben
+ * zwei Aktionen wie die Knöpfe am Desktop, im vorhandenen `DkAktionen`-Muster.
+ * „Person vorschlagen“ fehlt, wenn die Runde voll ist (dieselbe Zahl).
+ */
+const rundenEintraege = computed(() => {
+  const liste = []
+  if (vorschlagenMoeglich.value) {
+    liste.push({ key: 'vorschlagen', label: VORSCHLAG_KNOPF, icon: 'person-plus',
+      disabled: verlassenLaeuft.value, aktion: vorschlagDialogOeffnen })
+  }
+  liste.push({ key: 'verlassen', label: VERLASSEN_KNOPF, icon: 'entfernen', gefahr: true,
+    getrennt: true, disabled: verlassenLaeuft.value, aktion: rundeVerlassen })
+  return liste
+})
+
+/** „Neue Runde“ öffnen — ein alter Fehlertext bleibt nicht stehen (Punkt 6). */
+function rundeDialogOeffnen() {
+  rundeAnlegenFehler.value = ''
+  rundeDialogOffen.value = true
+}
+
+/**
+ * `:ohne` für „Person vorschlagen“: ich selbst und alle aktiven Beteiligten
+ * (Review R1 Punkt 5) — die Suche bietet niemanden an, der schon dabei ist.
+ */
+const vorschlagOhneListe = computed(() => vorschlagOhne(offenesGespraech.value, ich.value))
+
+/** Ist der Vorschlag-Dialog offen? Beim Öffnen wird der alte Fehler geleert. */
+function vorschlagDialogOeffnen() {
+  vorschlagAnlegenFehler.value = ''
+  vorschlagDialogOffen.value = true
+}
+
+/** „Neue Runde“ — `chat.runde_anlegen(titel, mitglieder)`, Mitglieder = die ANDEREN. */
+async function rundeAnlegen({ titel: name, auswahl }) {
+  if (rundeAnlegenLaeuft.value) return
+  rundeAnlegenLaeuft.value = true
+  rundeAnlegenFehler.value = ''
+  try {
+    const rumpf = rundeAnlegenRumpf({ titel: name, auswahl, ich: ich.value })
+    const kopf = await apiCall('chat.runde_anlegen', rumpf)
+    rundeDialogOffen.value = false
+    await laden()
+    // Direkt in die neue Runde: die Kennung kommt aus der Serverantwort.
+    const kennungNeu = String(kopf?.name || '')
+    if (kennungNeu) adresseSetzen(gespraechHash(kennungNeu), { ersetzt: false })
+  } catch (fehler) {
+    // Ruhig und ohne Unterschied „gesperrt“ / „nicht erreichbar“ — der Server
+    // sagt es nicht, die Oberfläche erfindet nichts (Karte Punkt 1).
+    rundeAnlegenFehler.value = fehlertext(fehler)
+  } finally {
+    rundeAnlegenLaeuft.value = false
+  }
+}
+
+/** „Person vorschlagen“ — `chat.runde_vorschlagen(gespraech, mitglied)`. */
+const vorschlagDialogOffen = ref(false)
+const vorschlagAnlegenLaeuft = ref(false)
+const vorschlagAnlegenFehler = ref('')
+
+async function vorschlagSenden(person) {
+  const offen = offeneKennung.value
+  if (!offen || vorschlagAnlegenLaeuft.value || !person?.mitglied) return
+  vorschlagAnlegenLaeuft.value = true
+  vorschlagAnlegenFehler.value = ''
+  try {
+    await apiCall('chat.runde_vorschlagen', vorschlagRumpf(offen, person.mitglied))
+    vorschlagDialogOffen.value = false
+    await verlaufLaden({ still: true })
+    await laden()
+    await nachUntenScrollen()
+  } catch (fehler) {
+    vorschlagAnlegenFehler.value = fehlertext(fehler)
+  } finally {
+    vorschlagAnlegenLaeuft.value = false
+  }
+}
+
+/** Welcher Vorschlag gerade beantwortet wird (`nachricht`) — sperrt nur dessen Knöpfe. */
+const vorschlagLaeuft = ref('')
+/** Meldungen je Vorschlagszeile (`nachricht` → Satz). */
+const vorschlagFehler = ref({})
+
+function vorschlagFehlerSetzen(kennung, fehler) {
+  if (!fehler) {
+    const rest = { ...vorschlagFehler.value }
+    delete rest[String(kennung)]
+    vorschlagFehler.value = rest
+    return
+  }
+  const zustand = fehlerZustand(fehler)
+  vorschlagFehler.value = {
+    ...vorschlagFehler.value,
+    [String(kennung)]: zustand ? `${zustand.titel}. ${zustand.text}` : fehlertext(fehler),
+  }
+}
+
+/**
+ * Zustimmen/Ablehnen an einer Vorschlagszeile: `chat.runde_zustimmen(vorschlag)`
+ * bzw. `chat.runde_ablehnen(vorschlag)`. Die Kennung kommt aus
+ * `system.vorschlag` — der Kennung des VORSCHLAGS, nicht der Zeile (Review R1
+ * Punkt 1). Der Stand steht danach im Verlauf — der stille Abruf holt ihn.
+ */
+async function vorschlagAntworten(art, { vorschlag }) {
+  const kennung = String(vorschlag || '').trim()
+  if (!kennung || vorschlagLaeuft.value) return
+  vorschlagLaeuft.value = kennung
+  vorschlagFehlerSetzen(kennung, null)
+  try {
+    await apiCall(art === 'zustimmen' ? 'chat.runde_zustimmen' : 'chat.runde_ablehnen',
+      stimmeRumpf(kennung))
+    await verlaufLaden({ still: true })
+    await laden()
+  } catch (fehler) {
+    vorschlagFehlerSetzen(kennung, fehler)
+  } finally {
+    vorschlagLaeuft.value = ''
+  }
+}
+
+const vorschlagZustimmen = (ereignis) => vorschlagAntworten('zustimmen', ereignis)
+const vorschlagAblehnen = (ereignis) => vorschlagAntworten('ablehnen', ereignis)
+
+/** „Runde verlassen“ — Rückfrage (`gefahr: true`) und `chat.runde_verlassen`. */
+const verlassenLaeuft = ref(false)
+/** Fehler beim Verlassen: ruhiger Hinweis AM KOPF, nicht im Verlauf (Punkt 8). */
+const verlassenFehler = ref('')
+async function rundeVerlassen() {
+  const offen = offeneKennung.value
+  if (!offen || verlassenLaeuft.value) return
+  const ja = await bestaetigen(verlassenFrage())
+  if (!ja) return
+  verlassenLaeuft.value = true
+  verlassenFehler.value = ''
+  try {
+    await apiCall('chat.runde_verlassen', verlassenRumpf(offen))
+    await laden()
+    // Die Runde ist weg (kein Leserecht mehr): zurück zur Liste.
+    adresseSetzen(BEREICH, { ersetzt: false })
+    zuruecksetzen()
+  } catch (fehler) {
+    // NICHT in `verlaufFehler`: der ersetzt den ganzen Verlauf. Der Hinweis
+    // steht am Rundenkopf, der gelesene Verlauf bleibt stehen.
+    const zustand = fehlerZustand(fehler)
+    verlassenFehler.value = zustand ? `${zustand.titel}. ${zustand.text}` : fehlertext(fehler)
+  } finally {
+    verlassenLaeuft.value = false
+  }
+}
+
 // ── Melden (CHAT-6-UI) ─────────────────────────────────────────────────────
 
 /**
@@ -1532,7 +1998,10 @@ onMounted(async () => {
   mitteilungSeite(true)
   // Erst laden und öffnen; DANN den Takt starten — steht die Seite bis dahin
   // nicht mehr (`onUnmounted` lief bereits), startet er nicht mehr (MUSS 3).
-  await laden()
+  // CHAT-7b-UI-b: die EIGENE Sperrliste — EIN Aufruf beim Öffnen (nicht je
+  // Gespräch). Sie entscheidet, ob der Aufheben-Weg im Hinweis steht und ob
+  // die Aktion „Nicht mehr anschreiben lassen“ noch angeboten wird.
+  await Promise.all([laden(), sperrListeLaden()])
   if (!aktivSeite) return
   // CHAT-3c-2 (SOLL 2): Die Adresse bleibt, WIE SIE IST. Kam die Seite über
   // eine Suchadresse (`#/nachrichten/suche?q=bert&offen=CHAT-1` — neu geladen,
@@ -1568,6 +2037,11 @@ onUnmounted(() => {
 watch(() => offeneKennung.value, async (neu, alt) => {
   if (!modulAn.value || !aktivSeite) return
   if (neu === alt) return
+  // Review R1, Punkt 6: der ruhige Hinweis „… gesperrt“ gehört zum Gespräch,
+  // in dem er entstand — beim Wechsel (anderes Gespräch oder zurück zur
+  // Liste) verstummt er, statt beim nächsten 1:1 als Satz über die FALSCHE
+  // Person zu stehen.
+  sperrErfolgText.value = ''
   if (neu) {
     fehlschlaege = 0
     await oeffnen()
@@ -1744,6 +2218,47 @@ watch(suchBegriff, (neu) => {
   margin: 0;
   padding: var(--sp-1) var(--sp-4);
   color: var(--subtle);
+  font-size: var(--fs-12);
+}
+/* CHAT-7b-UI (Karte Punkt 5): der Eintritts-Hinweis steht RUHIG über dem
+   Verlauf — kleine Fläche, kein Alarm, damit er sich von den Nachrichten
+   abhebt, ohne sie zu verdrängen. */
+.dk-chat-eintritt {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+/* CHAT-7b-UI (Karte Punkt 3): die Aktionen im Rundenkopf und die
+   aufklappbare Teilnehmerliste. Nur Tokens. */
+.dk-chat-kopf-knopf { flex: none; }
+.dk-runde-teilnehmer-knopf { align-self: flex-start; }
+.dk-runde-teilnehmer {
+  list-style: none;
+  margin: var(--sp-1) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  max-height: calc(var(--sp-8) * 2);
+  overflow-y: auto;
+}
+.dk-runde-teilnehmer-link {
+  font-size: var(--fs-12);
+  color: var(--text);
+  text-decoration: none;
+}
+.dk-runde-teilnehmer-link:hover { text-decoration: underline; }
+.dk-runde-teilnehmer-link:focus-visible { outline: var(--rahmen-breite) solid var(--focus-ring); outline-offset: var(--rahmen-breite); }
+/* CHAT-7b-UI: der Dialog „Person vorschlagen“ — Rumpf und Fehlertext. */
+.dk-runde-vorschlag { display: flex; flex-direction: column; gap: var(--sp-2); }
+.dk-runde-hinweis { margin: 0; font-size: var(--fs-12); color: var(--muted); }
+.dk-runde-fehler {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius);
+  background: var(--err-soft);
+  color: var(--err);
   font-size: var(--fs-12);
 }
 .dk-chat-mehr {

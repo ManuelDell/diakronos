@@ -343,8 +343,25 @@ function istAktiv(eintrag) {
   return eintrag.seiten.includes(page.value)
 }
 
+/**
+ * Sieht diese Sitzung das Anfragen-Abzeichen?
+ *
+ * CHAT-7b-UI-b (Review R1, Punkt 2): „Einstellungen“ steht seit dieser Karte
+ * auch Mitgliedern offen — das Abzeichen „offene Anfragen“ bleibt Sache der
+ * Verwaltung. Dieselbe Regel wie `darfAnfragenZaehlerSehen` (useVerwaltung.js),
+ * hier als lokale Bedingung, weil die Attrappen dieses Bausteins in den
+ * Router-Tests nur einen Teil der Exporte nachbauen. Der Server gibt die Zahl
+ * ohnehin nur mit diesem Recht heraus (`zaehler` bleibt sonst `null`).
+ */
+function istMitgliederverwaltungSehen() {
+  return istVerwaltungRef?.value === true
+}
+
 function badgeFuer(eintrag) {
-  if (eintrag.badge === 'anfragen' && zaehler.value > 0) return zaehler.value
+  if (eintrag.badge === 'anfragen' && zaehler.value > 0
+    && istMitgliederverwaltungSehen()) {
+    return zaehler.value
+  }
   return null
 }
 

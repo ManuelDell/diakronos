@@ -25,30 +25,17 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
 
-const WURZEL = new URL('../', import.meta.url)
-const SRC = new URL('src/', WURZEL)
-const INVENTAR = new URL(
-  '../backend/src/diakronos_app/frappe_compat/inventar/whitelist.json', WURZEL)
+// SEC-11d: Inventar, Quellenliste und Zeilenleser stehen EINMAL in
+// `tests/sec11-zugriff.mjs` — dieselbe Quelle wie der Gegenwächter
+// `sec11d-post-nur-get`. Vorher stand hier eine zweite Kopie.
+import {
+  WURZEL, SRC, quellzeilen as alleQuellzeilen, inventar as inventarDaten,
+  INVENTAR_PFAD,
+} from './sec11-zugriff.mjs'
 
-const SRC_PFAD = fileURLToPath(SRC)
-const INVENTAR_PFAD = fileURLToPath(INVENTAR)
-
-function alleQuellen(verzeichnis = '') {
-  const pfad = new URL(verzeichnis, SRC)
-  let ausgabe = []
-  for (const eintrag of readdirSync(pfad)) {
-    const kind = statSync(new URL(eintrag, pfad))
-    if (kind.isDirectory()) {
-      ausgabe = ausgabe.concat(alleQuellen(verzeichnis + eintrag + '/'))
-    } else if (/\.(js|mjs|vue)$/.test(eintrag) && !/\.test\.mjs$/.test(eintrag)) {
-      ausgabe.push(verzeichnis + eintrag)
-    }
-  }
-  return ausgabe
-}
+const quellzeilen = alleQuellzeilen
 
 /**
  * Schreibende Endpunkte als Name-Menge.
@@ -58,9 +45,7 @@ function alleQuellen(verzeichnis = '') {
  * einen Kurzpfad — in beiden Fällen steht der Name am Ende.
  */
 function schreibendeNamen() {
-  assert.ok(existsSync(INVENTAR_PFAD),
-    'inventar/whitelist.json fehlt — tools/whitelist_inventar.py laufen lassen')
-  const daten = JSON.parse(readFileSync(INVENTAR_PFAD, 'utf8'))
+  const daten = inventarDaten()
   const namen = new Set()
   for (const eintrag of daten.eintraege) {
     if (eintrag.einstufung === 'schreibend') namen.add(eintrag.name)
@@ -72,16 +57,6 @@ function schreibendeNamen() {
 function endName(ausdruck) {
   const teile = ausdruck.split(/[.?]/).map((t) => t.trim()).filter(Boolean)
   return teile.length ? teile[teile.length - 1].replace(/[^\w]/g, '') : ''
-}
-
-/** Alle Quelltexte mit Zeilennummern. */
-function quellzeilen() {
-  const ausgabe = []
-  for (const rel of alleQuellen()) {
-    const text = readFileSync(new URL(rel, SRC), 'utf8')
-    text.split('\n').forEach((zeile, i) => ausgabe.push({ datei: rel, nr: i + 1, zeile }))
-  }
-  return ausgabe
 }
 
 test('C3: kein apiGet auf einen schreibenden Endpunkt', () => {
@@ -100,9 +75,25 @@ test('C3: kein apiGet auf einen schreibenden Endpunkt', () => {
       verstoesse.push(`${datei}:${nr} apiGet(…${ohneName[1]}…)`)
     }
   }
-  assert.deepEqual(verstoesse, [],
+  // SEC-11/C3 — die EINE benannte Ausnahme (CHAT-7b-UI-b): `chat.meine_sperren`
+  // ist für diesen Wächter „schreibend“, weil der NAME auf „sperren“ endet —
+  // der Server deklariert aber ausdrücklich `methods=["GET"]` (siehe
+  // `inventar/whitelist.json`: `ausnahme_art: "nur_vorschau"`,
+  // `methoden: ["GET"]`). Der Aufruf MUSS also GET sein; die reine
+  // Name-Heuristik liegt hier nachweislich falsch. Die Ausnahme ist eng: nur
+  // dieser Endpunkt, nur mit einem GET-Aufrufer, und der Wächter bleibt
+  // ansonsten scharf.
+  const GET_ERLAUBT = new Set(['meine_sperren'])
+  const offen = verstoesse.filter((v) => ![...GET_ERLAUBT].some((n) => v.includes(`…${n}…`)))
+  assert.deepEqual(offen, [],
     'SEC-11/C3: diese Aufrufer schicken GET an einen POST-only-Endpunkt:\n  ' +
-    verstoesse.join('\n  '))
+    offen.join('\n  '))
+  // Und die Ausnahme gilt wirklich nur für GET-Aufrufer dieses Namens.
+  const gesehen = verstoesse.filter((v) => [...GET_ERLAUBT].some((n) => v.includes(`…${n}…`)))
+  for (const v of gesehen) {
+    assert.match(v, /apiGet\(…meine_sperren…\)/,
+      `SEC-11/C3: unerwarteter Verstoß für einen Ausnahme-Namen: ${v}`)
+  }
 })
 
 test('C3: kein fetch ohne POST-Methode auf einen schreibenden Endpunkt', () => {

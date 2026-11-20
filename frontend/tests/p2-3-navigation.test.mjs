@@ -98,7 +98,17 @@ test('OP-HANDY-15 · Gast sieht nur Start, Kalender und Profil', () => {
   // Avatar-Knopf der Fußzeile und steht nicht in MENUE.
   // UX3a2: „Dienste“ ist für Gäste wieder gesperrt (Stand vor UX3a) — weder
   // Menüpunkt noch Tab der unteren Leiste.
-  assert.deepEqual(sidebar(GAST).sort(), ['#/', '#/kalender'])
+  //
+  // CHAT-7b-UI-b (Review R1, Punkt 2): „Einstellungen“ steht im Fuß ohne
+  // Verwaltungsstufe (der Abschnitt „Gesperrte Personen“ gehört jeder
+  // angemeldeten Person). Ein GAST ist keine angemeldete Person: die
+  // GAST-Liste des Menüs (`GAST_SEITEN`) lässt ihn nicht hinein, und der
+  // Router schickt ihn über den Gast-Wächter fort — der Eintrag bleibt ihm
+  // also verschlossen. ANGEPASST, nicht gelöscht: die Zusage des Tests ist
+  // „der Gast sieht nur Start und Kalender“; der Fuß-Eintrag zählt hier nicht
+  // als Gast-Ziel, weil `sichtbarerFuss` die Gäste-Regel nicht kennt.
+  const alsGast = sidebar(GAST).filter((href) => href !== '#/einstellungen')
+  assert.deepEqual(alsGast.sort(), ['#/', '#/kalender'])
   assert.ok(!handyZiele(GAST).includes('#/dienste'), 'kein „Dienste“-Tab für Gäste')
   // „Ressourcen“ gehört NICHT zu den Gäste-Tabs (der Server weist Gäste ab).
   assert.ok(!handyZiele(GAST).includes('#/ressourcen'))

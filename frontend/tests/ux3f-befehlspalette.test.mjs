@@ -150,11 +150,13 @@ test('Seiten kommen aus der Menüdefinition und ehren die Rollen', () => {
   assert.ok(!titel.includes('Personen'), '„Personen“ ist kein Menüpunkt mehr')
   assert.equal(alle.find(e => e.titel === 'Einstellungen').ort, 'Verwaltung')
 
-  // Ohne Verwaltungsrecht: „Einstellungen“ und „Website“ fehlen (dieselbe
-  // Regel wie die Seitenleiste — fail closed).
+  // Ohne Verwaltungsrecht: „Website“ fehlt (Rollenschutz, fail closed).
+  // CHAT-7b-UI-b (Review R1, Punkt 2): „Einstellungen“ STEHT jetzt auch in der
+  // Palette eines Mitglieds — der Abschnitt „Gesperrte Personen“ gehört ihm.
   const ohne = seitenEintraege({ menue: MENUE, fuss: FUSS_EINTRAEGE, sichtbareEintraege, rechte: rechteMitglied })
   const titelOhne = ohne.map(e => e.titel)
-  assert.ok(!titelOhne.includes('Einstellungen'), 'Einstellungen gehört nicht in die Palette eines Mitglieds')
+  assert.ok(titelOhne.includes('Einstellungen'),
+    'Einstellungen erreicht auch ein Mitglied (eigene Sperrliste)')
   assert.ok(!titelOhne.includes('Website'), 'Website ist rollengeschützt')
 })
 

@@ -4,6 +4,9 @@
  * Grundlage: `docs/konzepte/CHAT-KONZEPT.md` 10.1 Punkt 4, Tabelle ~Z. 731,
  * Karte CHAT-R2c (nur der Teil „Nachricht schreiben“), Entwürfe
  * `chat-entwurf/B-profil.html`, `B-desktop.html`, `B-handy.html`.
+ * CHAT-7b-UI-b: dazu die Kontaktsperre („Nicht mehr anschreiben lassen“,
+ * Konzept S3) — Texte, Rückfrage, Aufheben-Link und die Liste der eigenen
+ * Sperren (`sperrListe`, `sperrStand`).
  *
  * WAS HIER STEHT UND WAS NICHT
  * Hier stehen NUR Entscheidungen, die aus einer SERVER-ANTWORT folgen:
@@ -32,7 +35,8 @@
  * gezeichnet, was der Server zugesagt hat. Fehlt die Zusage (Feld fehlt,
  * `null`, Wahrheitswert falsch), gilt „nein“ (fail closed).
  *
- * Ohne DOM prüfbar: `tests/chat7-direkt-ui.test.mjs`.
+ * Ohne DOM prüfbar: `tests/chat7-direkt-ui.test.mjs`,
+ * `tests/chat7bui-b-sperren.test.mjs`.
  */
 import { fehlertext } from '../../shared/fehlertexte.js'
 import { BEREICH, UNBEKANNTE_PERSON, beginntMit } from './nachrichtenLogik.mjs'
@@ -281,3 +285,142 @@ export function sendeFehlerZustand(fehler, { direkt = false } = {}) {
   }
   return { gesperrt: false, titel: 'Die Nachricht ging nicht raus', text: fehlertext(fehler) }
 }
+
+// ── Kontaktsperre (CHAT-7b-UI-b, Konzept S3) ────────────────────────────────
+
+/**
+ * Wie die eine Aktion heißt: hier und in der Sperrliste (EINE Quelle — zwei
+ * Wortlaute für dieselbe Sache wären zwei Wahrheiten).
+ */
+export const SPERR_AKTION = 'Nicht mehr anschreiben lassen'
+
+/** Knopf der Liste „Gesperrte Personen“: hebt EINE Sperre auf. */
+export const AUFHEBEN = 'Aufheben'
+
+/** Abschnitt der Einstellungen (Gruppe „Datenschutz“), eigene Adresse. */
+export const SPERR_SEITE = {
+  titel: 'Gesperrte Personen',
+  href: '#/einstellungen/sperren',
+}
+
+/** Leerzustand der Liste — ein Satz, kein Katalogtext (§15). */
+export const SPERR_LEER = 'Du hast niemanden gesperrt.'
+
+/**
+ * Einleitung des Abschnitts: was die Sperre tut und was NICHT. Sie erscheint
+ * nur hier (die gesperrte Person erfährt nichts) — deshalb steht der Satz
+ * „erfährt davon nichts“ genau einmal auf der Seite.
+ */
+export const SPERR_EINLEITUNG = 'Personen auf dieser Liste können dir keine Nachrichten '
+  + 'mehr schreiben, und du ihnen auch nicht. Die andere Seite erfährt davon nichts. '
+  + 'Du kannst eine Sperre jederzeit aufheben.'
+
+/** Fehler beim Aufheben, wenn der Server nicht mag (kein „Unbekannter Fehler“). */
+export const SPERR_FEHLER = 'Die Sperre konnte nicht aufgehoben werden.'
+
+/**
+ * Name der gesperrten Person für Rückfrage, Hinweis und Liste. Fehlt er (der
+ * Server kürzt Ausgetretene, ein Altbestand kann leer ankommen), steht dort
+ * „diese Person“ — ein Satz ohne Namen ist besser als ein Satz mit `null`.
+ */
+export function sperrName(anzeigename, mitglied) {
+  return String(anzeigename || '').trim() || String(mitglied || '').trim() || 'diese Person'
+}
+
+/**
+ * Die Rückfrage vor dem Sperren. Geschlechtsneutral: das Gegenüber wird NICHT
+ * mit „sie/er“ benannt („diese Person“, „der Person“) — der Anzeigename ist
+ * der einzige Name im Satz.
+ *
+ * Der zweite Satz sagt, was die andere Seite NICHT erfährt (Konzept S3: die
+ * Sperre ist still, ohne Begründung), der dritte, wie sie wieder weggeht.
+ */
+export function sperrFrage(anzeigename, mitglied) {
+  const name = sperrName(anzeigename, mitglied)
+  return `${name} kann dir dann keine Nachrichten mehr schreiben, und du dieser Person auch nicht. `
+    + `${name} erfährt davon nichts. Du kannst das jederzeit in den Einstellungen aufheben.`
+}
+
+/** Die Rückfrage als Objekt für `bestaetigen` (Dialog des Hauses). */
+export function sperrBestaetigung(anzeigename, mitglied) {
+  return {
+    titel: 'Nicht mehr anschreiben lassen?',
+    text: sperrFrage(anzeigename, mitglied),
+    aktion: SPERR_AKTION,
+  }
+}
+
+/**
+ * Der ruhige Hinweis NACH dem Sperren (`role="status"` — keine Alarmfarbe:
+ * es ist eine Auskunft, kein Fehler).
+ */
+export function sperrErfolg(anzeigename, mitglied) {
+  const name = sperrName(anzeigename, mitglied)
+  return `${name} kann dir keine Nachrichten mehr schreiben, und du dieser Person auch nicht. `
+    + `Aufheben kannst du das jederzeit unter Einstellungen › ${SPERR_SEITE.titel}.`
+}
+
+/**
+ * Die Sperrliste aus der Antwort von `chat.meine_sperren` — NUR die Felder,
+ * die der Server schickt (`mitglied`, `anzeigename`, `bild`, `angelegt_am`).
+ * Ein Eintrag ist ein Link auf das Personenprofil; ohne Kennung gibt es kein
+ * Ziel, ohne Namen kein Wort (die Zeile fällt weg, statt „—“ zu zeigen).
+ *
+ * Fail closed: fehlt `sperren`, ist die Liste LEER — sie enthält dann nur
+ * keinen Eintrag, keine Behauptung über Menschen.
+ */
+export function sperrListe(antwort) {
+  const roh = Array.isArray(antwort?.sperren) ? antwort.sperren : []
+  const out = []
+  const gesehen = new Set()
+  for (const e of roh) {
+    const mitglied = String(e?.mitglied || '').trim()
+    if (!mitglied || gesehen.has(mitglied)) continue
+    gesehen.add(mitglied)
+    out.push({
+      mitglied,
+      name: sperrName(e?.anzeigename, mitglied),
+      bild: String(e?.bild || '').trim(),
+      angelegtAm: String(e?.angelegt_am || '').trim(),
+      /** Ziel des Namens: das Personenprofil (dieselbe Adresse wie überall). */
+      href: profilAdresse(mitglied),
+    })
+  }
+  return out
+}
+
+/**
+ * Steht die Person des offenen 1:1 auf der EIGENEN Sperrliste?
+ *
+ * Das entscheidet allein die Liste aus `chat.meine_sperren` — NICHT eine
+ * Eigenschaft des Gesprächs. Den Chat-Endpunkten ist „gesperrt“ nach aussen
+ * nicht anzusehen (Server: derselbe Text wie „nicht erreichbar“); der einzige
+ * Ort, an dem die eigene Sperre sichtbar ist, ist die eigene Liste.
+ *
+ * Ohne Kennung: `false`. Ohne Liste: `false` (dann gibt es keinen Aufheben-
+ * Link — aber auch keine Behauptung, man habe gesperrt).
+ */
+export function istGesperrt(mitglied, liste) {
+  const kennung = String(mitglied || '').trim()
+  if (!kennung || !Array.isArray(liste)) return false
+  return liste.some((e) => String(e?.mitglied || '').trim() === kennung)
+}
+
+/**
+ * Der eine Satz unter dem „nicht erreichbar“-Hinweis — NUR für die sperrende
+ * Seite (Karte Punkt 2). Der Hinweis darüber ist absichtlich derselbe wie bei
+ * jeder anderen Ursache; dieser Satz verrät die Sperre nur der Person, die sie
+ * selbst gesetzt hat.
+ *
+ * `einstellungen`: Link in den Abschnitt „Gesperrte Personen“ (die Sperre
+ * wird dort aufgehoben, nicht hier — eine zweite Aufhebe-Stelle wäre ein
+ * zweiter Weg an derselben Entscheidung).
+ */
+export function sperrHinweis() {
+  return {
+    text: 'Du hast diese Person gesperrt.',
+    linkText: `${AUFHEBEN} unter Einstellungen › ${SPERR_SEITE.titel}`,
+    href: SPERR_SEITE.href,
+  }
+}
+

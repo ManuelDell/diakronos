@@ -327,7 +327,11 @@ test('CHAT-R2a-2d · Schublade bekommt die Zahl von App.vue', () => {
   // weil `badgeFuer` im `<script setup>` liegt.
   const schublade = ohneKommentare(lies('components/AppMenueSchublade.vue'))
   assert.match(schublade, /anfragenZahl: \{ type: \[Number, null\], default: null \}/)
-  assert.match(schublade, /if \(e\.badge === 'anfragen' && props\.anfragenZahl > 0\) return props\.anfragenZahl/)
+  // CHAT-7b-UI-b (Review R1, Punkt 2): Die Bedingung hat EINE zweite Klausel
+  // bekommen — das Abzeichen sieht nur die Mitgliederverwaltung. Geprüft wird
+  // die Bedingung selbst (Zahl da, richtiges Abzeichen, richtige Sitzung).
+  assert.match(schublade, /if \(e\.badge === 'anfragen' && props\.anfragenZahl > 0\s*&& istMitgliederverwaltungSehen\(\)\) \{\s*return props\.anfragenZahl/,
+    'die Schublade zeigt die Zahl — nur mit Verwaltungsrecht')
 })
 
 test('CHAT-R2a-2d · Seitenleiste UND Schublade zeichnen die Kennzahl am Fuß-Eintrag', () => {
@@ -336,7 +340,10 @@ test('CHAT-R2a-2d · Seitenleiste UND Schublade zeichnen die Kennzahl am Fuß-Ei
   // Personen-Eintrags wäre damit nirgends mehr aufgetaucht.
   const fussBlock = seite.slice(seite.indexOf('dk-sb-foot'), seite.indexOf('dk-sb-profil'))
   assert.match(fussBlock, /:badge="badgeFuer\(e\)"/, 'die Seitenleiste fragt die Kennzahl ab')
-  assert.match(seite, /if \(eintrag\.badge === 'anfragen' && zaehler\.value > 0\) return zaehler\.value/)
+  // CHAT-7b-UI-b (Review R1, Punkt 2): dieselbe zweite Klausel wie in der
+  // Schublade („Einstellungen“ ist jetzt für alle sichtbar, das Abzeichen nicht).
+  assert.match(seite, /if \(eintrag\.badge === 'anfragen' && zaehler\.value > 0\s*&& istMitgliederverwaltungSehen\(\)\) \{\s*return zaehler\.value/,
+    'die Seitenleiste zeigt die Zahl — nur mit Verwaltungsrecht')
 
   const schublade = ohneKommentare(lies('components/AppMenueSchublade.vue'))
   const fussListe = schublade.slice(schublade.indexOf('dk-schublade-fussliste'), schublade.indexOf('</nav>'))

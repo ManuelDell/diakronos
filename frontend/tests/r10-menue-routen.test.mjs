@@ -120,7 +120,12 @@ test('UI-R10: Seitenleiste — Mitgliederverwaltung sieht den Personenbereich, n
     || M.verwaltungZutreffend(e.verwaltung, rechte)).map((e) => e.id)
   assert.equal(kette(fuss(MITGLIEDERVERWALTUNG)), 'einstellungen')
   assert.equal(kette(fuss(ADMIN)), 'einstellungen')
-  assert.equal(kette(fuss(MITGLIED)), '', 'ein Mitglied sieht keine Einstellungen')
+  // CHAT-7b-UI-b (Review R1, Punkt 2): der Fuß-Eintrag hängt NICHT mehr an der
+  // Verwaltungsstufe — „Einstellungen“ trägt den Abschnitt „Gesperrte
+  // Personen“, der jeder angemeldeten Person gehört. Die Verwaltungs-ARBEIT
+  // dahinter bleibt geschützt (Routen-Wächter je Unterseite, s. unten).
+  assert.equal(kette(fuss(MITGLIED)), 'einstellungen',
+    'auch ein Mitglied sieht „Einstellungen“ (eigene Sperrliste)')
 })
 
 test('UI-R10: Personen-Reiter — Anfragen, Datenschutz und Import für die Mitgliederverwaltung', () => {
@@ -180,7 +185,10 @@ test('UI-R10: Handy-Schublade zeigt dieselbe Sicht wie die Seitenleiste', () => 
     'die Hauptpunkte sind für die Verwaltung unverändert')
   assert.equal(kette(H.sichtbarerFuss(MITGLIEDERVERWALTUNG).map((e) => e.id)), 'einstellungen',
     'die Mitgliederverwaltung kommt am Handy zu den Einstellungen')
-  assert.equal(kette(H.sichtbarerFuss(MITGLIED)), '')
+  // CHAT-7b-UI-b (Review R1, Punkt 2): dieselbe Sicht wie oben — der Eintrag
+  // ist für jedes angemeldete Mitglied da, die Schranken sitzen je Unterseite.
+  assert.equal(kette(H.sichtbarerFuss(MITGLIED).map((e) => e.id)), 'einstellungen',
+    'auch das Mitglied kommt am Handy zu den Einstellungen')
   assert.equal(kette(H.sichtbarerFuss(ADMIN).map((e) => e.id)), 'einstellungen')
 })
 
@@ -285,8 +293,13 @@ const SEITEN = {
   personen: [
     'MitgliederUebersicht', 'MitgliederAnfragen', 'MitgliederDatenschutz',
     'MitgliederImport', 'MitgliederLoeschantraege', 'Registrierung',
-    'Einstellungen', 'EinstellungenAnmeldung',
+    // CHAT-7b-UI-b (Review R1, Punkt 2): `Einstellungen` selbst ist RAUS —
+    // der Rahmen gehört jeder angemeldeten Person (eigene Kontaktsperren).
+    // Er steht jetzt in `SEITEN.offen`.
+    'EinstellungenAnmeldung',
   ],
+  // Weder Personen- noch Adminbereich: für jede angemeldete Person offen.
+  offen: ['Einstellungen', 'EinstellungenSperren'],
   // Administration — der Server nimmt nur den Kern-Admin an (403 sonst).
   admin: [
     'EinstellungenGemeinde', 'EinstellungenRollen', 'EinstellungenDatensicherung',
@@ -334,6 +347,12 @@ test('UI-R10: Wächter — Mitglied öffnet keine der Verwaltungsseiten', () => 
   const ctx = routerMitBoot({ is_admin: false, ist_mitgliederverwaltung: false, mitglied: { status: 'Mitglied' } })
   for (const seite of [...SEITEN.personen, ...SEITEN.admin]) {
     assert.equal(ctx.router.oeffnet(seite), false, `Mitglied wird von ${seite} aufs Dashboard geführt`)
+  }
+  // CHAT-7b-UI-b (Review R1, Punkt 2): Rahmen und Sperrliste sind offen — die
+  // Blockierliste gehört jeder angemeldeten Person. Die Gegenprobe steht
+  // darüber: jede Verwaltungs-UNTERSEITE bleibt zu.
+  for (const seite of SEITEN.offen) {
+    assert.equal(ctx.router.oeffnet(seite), true, `Mitglied erreicht ${seite}`)
   }
 })
 

@@ -51,6 +51,7 @@ export const GRUPPEN = [
  *   datensicherung Datensicherung.vue — Sicherungen, Uhrzeit, Aufbewahrung
  *   papierkorb    Papierkorb.vue   — gelöschte Einträge zurückholen
  *   fristen       Fristen.vue      — Aufbewahrung der Chat-Nachrichten (Fristen)
+ *   sperren       Sperren.vue      — eigene Kontaktsperren (CHAT-7b-UI-b)
  *   gestaltung    Gestaltung.vue   — Abstände, Rahmen, Rundungen
  *   dev-modus     DevModus.vue     — Demo-Daten, Befunde, Werkzeuge
  */
@@ -77,6 +78,17 @@ export const STICHWORTE = {
   // zwei Fristen, der Standard, der Rücksetz-Knopf, die festen Fristen.
   fristen: ['Nachrichten aufbewahren', 'Aufbewahrung', 'Fristen', 'Frist', 'Monate',
     'Gruppengespräche', 'Direktnachrichten', 'Runden', 'Standard', 'Chat', 'Nachrichten'],
+  // CHAT-7b-UI-b: der Abschnitt „Gesperrte Personen“ (`Sperren.vue`) — seine
+  // Wörter stehen als Überschrift, Einleitung, Leerzustand und Knopf dort.
+  // „Nicht mehr anschreiben lassen“ und „Blockieren“ stehen in den
+  // Gemeinsam-Texten (`composables/nachrichtenDirekt.mjs`: `SPERR_AKTION`,
+  // `SPERR_EINLEITUNG`), die der Abschnitt bindet — deshalb dieselbe eigene
+  // Quelle, die der Test unten ebenfalls als „kommt vor“ zählt.
+  // Review R1, Punkt 9: „Kontaktsperre“ ist gestrichen — das Wort steht im
+  // sichtbaren Text des Abschnitts nirgends. Ein Stichwort, das auf einen
+  // Abschnitt zeigt, in dem es nicht vorkommt, führt in die Irre.
+  sperren: ['Gesperrte Personen', 'Sperre', 'gesperrt', 'Nicht mehr anschreiben lassen',
+    'Aufheben'],
   // CHAT-R2a: der umgezogene Personenbereich (Chat-Konzept 10.1 Punkt 5). Die
   // Stichworte sind die seiner bestehenden Seite (`pages/Personen.vue`): die
   // vier Reiter und die Werkzeuge der Liste — nichts davon ist erfunden.

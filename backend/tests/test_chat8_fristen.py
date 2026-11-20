@@ -54,6 +54,7 @@ from diakronos_app import db as dbmod
 _session_mod = importlib.import_module("diakronos_app.frappe_compat.session")
 
 from diakronos_app.models.chat import (  # noqa: E402
+    ChatErwaehnung,
     ChatGespraech,
     ChatMeldung,
     ChatNachricht,
@@ -510,6 +511,34 @@ def test_gespraech_mit_allem_wird_vollstaendig_geloescht(welt):
     assert ergebnis["glocken"] == 2
     for name in ("NL-G", "NL-N"):
         assert _glocke(name) is None, f"{name} lebt noch (toter Link)"
+
+
+def test_erwaehnungen_und_ihre_glocken_sterben_mit_dem_gespraech(welt):
+    """CHAT-9a (Review R1/1): die Frist loescht Erwaehnungen UND ihre Glocken.
+
+    Die Erwaehnungs-Glocke haengt an der NACHRICHT
+    (``document_type='chat_erwaehnung'``, ``document_name`` = Nachricht), nicht
+    am Gespraech — ohne den Eintrag in ``GLOCKE_DOKUMENTTYPEN`` bliebe sie als
+    toter Link stehen. Die Zeilen selbst fallen in ``_gespraech_entfernen``
+    (Kinder zuerst: SQLite hat ohne FK-Pragma keine wirksame Kaskade).
+    """
+    alt = dt.datetime(2020, 1, 1)
+    _gespraech("RaumErw", art="untergruppe", angelegt_am=alt)
+    _nachricht("N-erw", "RaumErw", erstellt_am=alt)
+    _teilnehmer("RaumErw")
+    with dbmod.SessionLocal.begin() as s:
+        s.add(ChatErwaehnung(nachricht="N-erw", mitglied="M-Fr", angelegt_am=alt))
+    assert "chat_erwaehnung" in A.GLOCKE_DOKUMENTTYPEN
+    _glocke_nachricht("N-erw", doc_typ="chat_erwaehnung", konto=FREMD, name="NL-ERW")
+
+    ergebnis = A.aufraeumen(jetzt=JETZT)
+
+    assert ergebnis["gespraeche"] == 1
+    assert _existiert(ChatGespraech, "RaumErw") is False
+    assert _existiert(ChatNachricht, "N-erw") is False
+    assert _anzahl(ChatErwaehnung, nachricht="N-erw") == 0
+    assert _glocke("NL-ERW") is None, "Erwaehnungs-Glocke lebt noch (toter Link)"
+    assert ergebnis["glocken"] == 1
 
 
 def test_andere_gespraeche_bleiben_unberuehrt(welt):

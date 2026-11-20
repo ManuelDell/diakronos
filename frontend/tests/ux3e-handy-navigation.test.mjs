@@ -145,7 +145,11 @@ test('UX3e · Schublade ist wie die Seitenleiste gruppiert', () => {
   // Fuß: wie in der Seitenleiste UNTEN, getrennt von den Gruppen (Entwurf A9).
   assert.deepEqual(sichtbarerFuss({ istAdmin: true }).map(e => e.label), ['Einstellungen'])
   assert.ok(!alle.includes('Einstellungen'), 'Einstellungen steht nicht in einer Gruppe')
-  assert.deepEqual(sichtbarerFuss({ istAdmin: false }), [], 'für Mitglieder kein Fuß')
+  // CHAT-7b-UI-b (Review R1, Punkt 2): Der Fuß zeigt auch Mitgliedern
+  // „Einstellungen“ (Abschnitt „Gesperrte Personen“, eigene Daten). Ein GAST
+  // ist keine angemeldete Person — die GAST-Regel des Menüs hält ihn draußen.
+  assert.deepEqual(sichtbarerFuss({ istAdmin: false, istMitgliederverwaltung: false }).map(e => e.label),
+    ['Einstellungen'], 'auch ein Mitglied sieht den Fuß (eigene Sperrliste)')
 })
 
 test('UX3e · Schublade zeigt die VOLLE Seitenleiste (Entwurf A9), auch die Leisten-Ziele', () => {
@@ -174,21 +178,27 @@ test('UX3e · Schublade zeigt die VOLLE Seitenleiste (Entwurf A9), auch die Leis
 
 test('UX3e · Schublade hält sich an die Rollen (Gast sieht nur, was der Server erlaubt)', () => {
   const gastGruppen = schubladeMenue({ ...GAST, rollen: [] })
-  const gast = labels(gastGruppen, sichtbarerFuss({ istAdmin: false }))
+  // CHAT-7b-UI-b (Review R1, Punkt 2): `sichtbarerFuss` kennt die GÄSTE-Regel
+  // nicht — sie sitzt im Menü (`GAST_SEITEN`) und im Router (Gast-Wächter).
+  // Ein Gast ist KEINE angemeldete Person und kommt deshalb nicht an die
+  // Einstellungen; der Test fügt den Fuß für ihn bewusst nicht hinzu (das war
+  // die alte, an die Verwaltungsstufe gebundene Annahme).
+  const gast = labels(gastGruppen, [])
   for (const verboten of ['Personen', 'Gruppen', 'Dienste', 'Ressourcen', 'Website', 'Einstellungen']) {
     assert.ok(!gast.includes(verboten), `Gast sieht „${verboten}“ nicht`)
   }
   // Gast sieht GENAU, was die Seitenleiste ihm zeigt — nicht mehr, nicht weniger.
   assert.deepEqual(gast, MENUE.flatMap(g => sichtbareEintraege(g, { ...GAST, rollen: [] })).map(e => e.label),
     'Gast: dieselbe Liste wie die Seitenleiste')
-  // „Einstellungen“ ist Administration — für Mitglieder nicht sichtbar.
+  // CHAT-7b-UI-b (Review R1, Punkt 2): „Einstellungen“ ist für JEDE
+  // angemeldete Person da (Abschnitt „Gesperrte Personen“) — ein Mitglied
+  // sieht den Eintrag, ein GAST nicht (Zeile darüber). Die Verwaltungsarbeit
+  // dahinter bleibt über die Unterseiten geschützt.
   const mitglied = labels(schubladeMenue({ ...MITGLIED, rollen: [], leistenZiele: [] }),
-    sichtbarerFuss({ istAdmin: false }))
-  assert.ok(!mitglied.includes('Einstellungen'), 'Mitglieder sehen keine Einstellungen')
-  // UI-R10: „Einstellungen“ hängt an der Verwaltungsstufe (Administrator ODER
-  // Mitgliederverwaltung) — nicht mehr an `rolle: 'admin'`.
-  assert.deepEqual(FUSS_EINTRAEGE.filter(e => e.verwaltung === 'personen').map(e => e.label),
-    ['Einstellungen'])
+    sichtbarerFuss({ istAdmin: false, istMitgliederverwaltung: false }))
+  assert.ok(mitglied.includes('Einstellungen'), 'Mitglieder sehen „Einstellungen“ (eigene Sperrliste)')
+  // Keine Verwaltungsstufe mehr am Fuß-Eintrag (eine Quelle: `menue.js`).
+  assert.deepEqual(FUSS_EINTRAEGE.filter(e => e.verwaltung === 'personen').map(e => e.label), [])
 })
 
 test('UX3e · Erreichbarkeit: jede Seitenleisten-Seite ist am Handy erreichbar', () => {

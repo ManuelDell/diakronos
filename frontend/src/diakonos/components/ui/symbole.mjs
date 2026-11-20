@@ -97,6 +97,13 @@ export const SYMBOLE = {
   mehr: {
     p: ['M5 12h.01', 'M12 12h.01', 'M19 12h.01'],
   },
+  // CHAT-7b-UI: eine RUNDE (drei Personen im Kreis, lucide „users-round“) —
+  // sie steht in der Gesprächsliste vor dem Namen einer Runde, damit Runde,
+  // Gruppe (zwei Personen) und 1:1 auf einen Blick zu unterscheiden sind.
+  runde: {
+    p: ['M18 21a8 8 0 0 0-16 0', 'M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3'],
+    c: [[10, 8, 5]],
+  },
 }
 
 /**

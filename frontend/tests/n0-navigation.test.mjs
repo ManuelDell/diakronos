@@ -151,10 +151,15 @@ function routerAusfuehren(boot) {
 // ── Admin-Guard für Verwaltungsseiten ───────────────────────────────────────
 {
   const ohneRecht = routerAusfuehren({ is_admin: false, mitglied: { status: 'Mitglied' }, hash: '#/' })
-  for (const hash of ['#/personen/uebersicht', '#/personen/anfragen', '#/personen/datenschutz', '#/einstellungen', '#/einstellungen/anmeldung']) {
+  // CHAT-7b-UI-b (Review R1, Punkt 2): `#/einstellungen` (der RAHMEN) ist
+  // wieder erreichbar — er trägt den Abschnitt „Gesperrte Personen“, der jeder
+  // angemeldeten Person gehört. Die UNTERSEITEN der Verwaltung bleiben zu.
+  for (const hash of ['#/personen/uebersicht', '#/personen/anfragen', '#/personen/datenschutz', '#/einstellungen/anmeldung']) {
     ohneRecht.gehe(hash)
     assert.equal(ohneRecht.window.location.hash, '#/', `${hash} ohne Recht → Dashboard`)
   }
+  ohneRecht.gehe('#/einstellungen')
+  assert.equal(ohneRecht.window.location.hash, '#/einstellungen', 'der Rahmen ist offen (eigene Sperren)')
   const mitRecht = routerAusfuehren({ is_admin: true, hash: '#/' })
   mitRecht.gehe('#/einstellungen/anmeldung')
   assert.equal(mitRecht.router.currentPageName.value, 'EinstellungenAnmeldung', 'Admin darf Einstellungen')

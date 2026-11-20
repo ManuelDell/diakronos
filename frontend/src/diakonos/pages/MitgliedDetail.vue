@@ -233,6 +233,25 @@
                      Knopfweg und wird auch ohne Fokuswechsel angesagt. -->
                 <p v-if="profilKnopf.hinweis" class="md-chat-hinweis" role="status">{{ profilKnopf.hinweis }}</p>
                 <p v-else-if="chatFehler" class="md-chat-fehler" role="alert">{{ chatFehler }}</p>
+                <!-- CHAT-7b-UI-b (Karte Punkt 1): „Nicht mehr anschreiben
+                     lassen“ — hier, wo auch „Nachricht schreiben“ steht.
+                     Zweite Aktion der Karte, deshalb `ghost` (der gefüllte
+                     Knopf dieser Seite bleibt Bearbeiten/Austritt, UX1h). -->
+                <DkButton
+                    v-if="sperrAktionSichtbar"
+                    variant="ghost"
+                    size="sm"
+                    :loading="sperrtLaeuft"
+                    :disabled="sperrtLaeuft"
+                    @click="sperren"
+                >{{ SPERR_AKTION }}</DkButton>
+                <p v-if="sperrErfolgText" class="md-chat-hinweis" role="status">{{ sperrErfolgText }}</p>
+                <p v-if="sperrFehler" class="md-chat-fehler" role="alert">{{ sperrFehler }}</p>
+                <!-- Die Person steht schon auf der EIGENEN Sperrliste: dann gibt
+                     es kein zweites „sperren“, sondern den Weg zum Aufheben. -->
+                <p v-if="eigeneSperre" class="md-chat-hinweis">
+                    <a :href="eigeneSperre.href">{{ eigeneSperre.linkText }}</a>
+                </p>
             </div>
         </DkCard>
 
@@ -422,7 +441,8 @@ import MitgliedBeziehungen from '../components/mitglieder/MitgliedBeziehungen.vu
 import { useRueckgaengigAktion } from '../composables/useRueckgaengigAktion.js'
 // CHAT-7a: „Nachricht schreiben“ — Anzeigeregeln aus EINER Quelle
 // (`profilZustand`, `chatAdresse`), ohne DOM prüfbar.
-import { PROFIL_NICHT_MOEGLICH, chatAdresse, profilZustand } from '../composables/nachrichtenDirekt.mjs'
+import { PROFIL_NICHT_MOEGLICH, SPERR_AKTION, chatAdresse, istGesperrt, profilZustand,
+    sperrBestaetigung, sperrErfolg, sperrHinweis, sperrListe, sperrName } from '../composables/nachrichtenDirekt.mjs'
 import { modulChatErlaubt } from '../modulRechte.mjs'
 
 // UI-R10: Die Personenseite ist Personenbereich — seit R-11a darf die
@@ -520,6 +540,95 @@ async function zumGespraech() {
 }
 // Ob Authentik aktiv ist, kommt aus dem Boot-Kontext (der Server entscheidet).
 const oidcAktiv = computed(() => !!window.__DIakonosBOOT?.oidc_aktiv)
+
+// ── CHAT-7b-UI-b: Kontaktsperre (Konzept S3) ───────────────────────────────
+/**
+ * Die EIGENE Sperrliste (`chat.meine_sperren`) — die EINZIGE Quelle dafür, ob
+ * die Person schon gesperrt ist. Eine Sperre ist den Chat-Endpunkten nach
+ * aussen nicht anzusehen (Server: derselbe Text wie „nicht erreichbar“); das
+ * Profil darf sie deshalb NICHT aus `darf_schreiben` oder einem 403 ableiten.
+ */
+const sperrStand = ref([])
+const sperrtLaeuft = ref(false)
+const sperrErfolgText = ref('')
+const sperrFehler = ref('')
+
+/**
+ * Die Liste EINMAL holen — zwei Wege führen hierher (nach dem Laden der Person
+ * und nach der Personensuche), der zweite darf den ersten nicht verdoppeln.
+ */
+let sperrListeLaeuft = false
+async function sperrListeLaden() {
+    if (sperrListeLaeuft) return
+    sperrListeLaeuft = true
+    try {
+        const antwort = await apiGet('chat.meine_sperren', {})
+        sperrStand.value = sperrListe(antwort)
+    } catch {
+        // Fail closed: ohne Liste keine Aussage über Sperren.
+        sperrStand.value = []
+    } finally {
+        sperrListeLaeuft = false
+    }
+}
+
+/**
+ * Aktion „Nicht mehr anschreiben lassen“ am Profil: dort, wo auch „Nachricht
+ * schreiben“ steht (Karte Punkt 1). Voraussetzung ist, dass der Server ein
+ * KONTO der Person zugesagt hat (`hat_konto` aus der Personensuche) — ohne
+ * Konto gibt es nichts zu sperren (`darf_kontakt_sperren` → „kein_konto“, 403).
+ * NICHT an `profilKnopf.sichtbar` gebunden: der Profil-Rückfall der Kennung
+ * (`weitereKennungen`) trägt keine Serverzusage, dort stünde der Knopf sonst
+ * ohne Grund da.
+ * Dazu: nicht, wenn die Person schon auf der eigenen Liste steht (dann steht
+ * der Aufheben-Weg im Hinweis). Die EIGENE Person braucht keine Prüfung: der
+ * Server lehnt eine Selbstsperre ab (`darf_kontakt_sperren` → „selbst“, 403).
+ */
+const sperrAktionSichtbar = computed(() => chatModulAn.value
+    && !isEditing.value
+    && activeTab.value === 'details'
+    && chatTreffer.value?.hat_konto === true
+    && Boolean(mitgliedId.value)
+    && !istGesperrt(mitgliedId.value, sperrStand.value))
+
+/** Der Zustandssatz für die sperrende Seite (sonst `null`). */
+const eigeneSperre = computed(() => (istGesperrt(mitgliedId.value, sperrStand.value)
+    ? sperrHinweis() : null))
+
+/**
+ * Sperren: erst die Rückfrage des Hauses, dann `chat.kontakt_sperren`. Der
+ * Anzeigename der Rückfrage ist der der Person (der Server nennt ihn in der
+ * Sperrliste gekürzt — hier steht der Name der Seite, weil es dieselbe Person
+ * ist, die oben im Kopf steht).
+ */
+async function sperren() {
+    const ziel = mitgliedId.value
+    if (!ziel || sperrtLaeuft.value) return
+    const anzeigename = [mitglied.value?.vorname, mitglied.value?.nachname]
+        .map((teil) => String(teil || '').trim()).filter(Boolean).join(' ')
+        || String(chatTreffer.value?.anzeigename || '').trim()
+    if (!(await bestaetigen(sperrBestaetigung(anzeigename, ziel)))) return
+    sperrtLaeuft.value = true
+    sperrErfolgText.value = ''
+    sperrFehler.value = ''
+    try {
+        await apiCall('chat.kontakt_sperren', { mitglied: ziel })
+        sperrStand.value = [...sperrStand.value, { mitglied: ziel, name: sperrName(anzeigename, ziel) }]
+        sperrErfolgText.value = sperrErfolg(anzeigename, ziel)
+        // Review R1, Punkt 7: Die Sperre wirkt beidseitig, also kann auch DIESE
+        // Seite nicht mehr schreiben. Ob der Knopf „Nachricht schreiben“ noch
+        // gilt, sagt der Server (`hat_konto`) — deshalb den Chat-Treffer neu
+        // holen, statt hier eine eigene Regel zu erfinden. Fehler dabei bleiben
+        // still: die Sperre selbst ist gesetzt und der Hinweis steht schon.
+        if (chatModulAn.value) chatTrefferLaden().catch(() => {})
+    } catch (fehler) {
+        sperrFehler.value = Number(fehler?.status) === 403
+            ? 'Diese Person lässt sich nicht sperren.'
+            : aktionsfehler(fehler)
+    } finally {
+        sperrtLaeuft.value = false
+    }
+}
 
 const mitglied = ref(null)
 const loading = ref(true)
@@ -900,6 +1009,11 @@ async function loadMitglied() {
         // kennt. Kein Blocker für die Seite: der Knopf erscheint, wenn er kommt.
         chatTreffer.value = null
         if (chatModulAn.value) chatTrefferLaden()
+        // CHAT-7b-UI-b: die EIGENE Sperrliste — sie sagt, ob diese Person schon
+        // gesperrt ist (der einzige Ort, an dem eine Sperre sichtbar ist).
+        sperrErfolgText.value = ''
+        sperrFehler.value = ''
+        if (chatModulAn.value) sperrListeLaden()
 
         if (payload.dsgvo) {
             Object.assign(dsgvo, payload.dsgvo)

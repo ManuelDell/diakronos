@@ -91,7 +91,11 @@ test('UX3h: jeder Bereich der Seite hat genau eine der fünf Gruppen', () => {
   // gelöscht, sondern um den neuen Bereich fortgeschrieben.
   // ANGEPASST (CHAT-8-UI, Chat-Konzept 4.2/F8): „Nachrichten aufbewahren“ ist
   // als dreizehnter Abschnitt hinzugekommen (ebenfalls „Datenschutz“).
-  assert.equal(BEREICHE.length, 13,
+  // ANGEPASST (CHAT-7b-UI-b, Chat-Konzept S3): „Gesperrte Personen“ ist als
+  // vierzehnter Abschnitt hinzugekommen — ebenfalls „Datenschutz“ (es sind die
+  // eigenen Daten der Person), aber OHNE Verwaltungsstufe: jede angemeldete
+  // Person sieht ihre eigenen Sperren.
+  assert.equal(BEREICHE.length, 14,
     'Bereiche der Seite nicht erkannt (' + BEREICHE.length + ') — Muster geändert?')
   const ids = new Set(GRUPPEN.map((g) => g.id))
   const falsch = BEREICHE.filter((b) => !ids.has(b.gruppe))
@@ -118,8 +122,10 @@ test('UX3h: Gruppen tragen 1–9 Einträge (Prinzip N3), keine ist leer', () => 
   // dieselbe Zuständigkeit wie Datenschutz-Texte, Datensicherung, Papierkorb.
   // CHAT-8-UI: „Nachrichten aufbewahren“ steht bei den Fristen für vorhandene
   // Daten (Datenschutz-Texte, Datensicherung, Papierkorb).
+  // CHAT-7b-UI-b: „Gesperrte Personen“ steht bei den Entscheidungen der Person
+  // über ihre eigenen Daten.
   assert.deepEqual(zuordnung.datenschutz,
-    ['datenschutz', 'datensicherung', 'papierkorb', 'fristen', 'personenverwaltung'])
+    ['datenschutz', 'datensicherung', 'papierkorb', 'fristen', 'sperren', 'personenverwaltung'])
   assert.deepEqual(zuordnung.erweitert, ['gestaltung', 'dev-modus'])
 })
 
@@ -155,15 +161,28 @@ test('UX3h: jedes Stichwort kommt im Abschnitt wirklich vor (keine erfundenen)',
     // CHAT-8-UI: der Abschnitt „Nachrichten aufbewahren“ (seine Feldnamen und
     // Sprungmarken stehen in `Fristen.vue`).
     fristen: 'Fristen.vue',
+    // CHAT-7b-UI-b: der Abschnitt „Gesperrte Personen“ (`Sperren.vue`) — seine
+    // Wörter stehen als Überschrift, Einleitung, Leerzustand und Knopf dort.
+    sperren: 'Sperren.vue',
   }
   // Beschriftungen, die die Suche selbst setzt (Gruppentitel, eigene Wörter)
   // gelten ebenfalls als „kommt vor“ — sonst wäre der Wächter zahnlos.
+  // CHAT-7b-UI-b: `nachrichtenDirekt.mjs` ist die Gemeinsam-Quelle der
+  // Sperr-Texte (`SPERR_AKTION`, `SPERR_EINLEITUNG`, `AUFHEBEN`, `SPERR_LEER`).
+  //
+  // Review R1, Punkt 8: KEINE globale Zusatzquelle. Eine Datei für ALLE
+  // Bereiche freizugeben, macht den Wächter stumpf — jedes Wort aus
+  // `nachrichtenDirekt.mjs` gälte dann in jedem Abschnitt als „kommt vor“.
+  // Erlaubt ist sie deshalb nur als Zusatzquelle für den EINEN Bereich
+  // `sperren`, dessen Texte dort liegen.
   const eigen = JSON.stringify(FELDER) + lies('pages/einstellungen/suche.mjs')
   const erlaubt = new Set(['Primo'])
   const fehlend = []
   for (const [bereich, liste] of Object.entries(STICHWORTE)) {
     const quelle = lies('pages/einstellungen/' + datei[bereich])
-    const heu = normalisiere(quelle + ' ' + eigen)
+    // Nur der Sperr-Abschnitt zieht die geteilten Sperr-Texte mit dazu.
+    const zusatz = bereich === 'sperren' ? ' ' + lies('composables/nachrichtenDirekt.mjs') : ''
+    const heu = normalisiere(quelle + ' ' + eigen + zusatz)
     for (const wort of liste) {
       if (erlaubt.has(wort)) continue
       if (!heu.includes(normalisiere(wort))) fehlend.push(`${bereich}: „${wort}“`)

@@ -95,6 +95,8 @@ const pages = {
     EinstellungenPapierkorb: () => import('./pages/Einstellungen.vue'),
     // CHAT-8-UI: Einstellungs-Abschnitt „Nachrichten aufbewahren“ (Fristen).
     EinstellungenFristen: () => import('./pages/Einstellungen.vue'),
+    // CHAT-7b-UI-b: Einstellungs-Abschnitt „Gesperrte Personen“ (eigene Sperren).
+    EinstellungenSperren: () => import('./pages/Einstellungen.vue'),
     EinstellungenMailversand: () => import('./pages/Einstellungen.vue'),
     // WEB-3: Einstellungs-Abschnitt „Website (Primo)“.
     EinstellungenWebsite: () => import('./pages/Einstellungen.vue'),
@@ -236,6 +238,10 @@ const routeMap = {
     // CHAT-8-UI: Aufbewahrungsfristen des Chats (Schreiben nur Administration —
     // der Server prueft `chat.fristen_speichern` und antwortet sonst mit 403).
     '#/einstellungen/fristen': 'EinstellungenFristen',
+    // CHAT-7b-UI-b: die EIGENEN Kontaktsperren — jede angemeldete Person sieht
+    // ihre eigenen (`chat.meine_sperren` grenzt auf die eigene Kennung ein).
+    // KEINE Verwaltungsstufe, kein Admin-Wächter (siehe `verwaltungsStufeSeite`).
+    '#/einstellungen/sperren': 'EinstellungenSperren',
     '#/einstellungen/mailversand': 'EinstellungenMailversand',
     // WEB-3: Zustand der Primo-Anbindung + Kurzanleitung.
     '#/einstellungen/website': 'EinstellungenWebsite',
@@ -814,12 +820,16 @@ const PERSONEN_VERWALTUNG_PAGES = new Set([
     'MitgliederUebersicht', 'MitgliederAnfragen', 'MitgliederDatenschutz', 'MitgliederImport',
     // DSGVO-2c: eigene Seite der Verwaltung.
     'MitgliederLoeschantraege',
-    // UI-R10: Der Einstellungs-Rahmen selbst und der Abschnitt „Anmeldung“
-    // sind Personenbereich (R-11a: „Anmeldungen, Anmeldeeinstellungen“).
-    // Die Administrations-Abschnitte INNERHALB der Seite filtert
-    // `pages/Einstellungen.vue` nach derselben Regel. „Registrierung“ steht
-    // bei der Administration (Server: Kern-Admin).
-    'Einstellungen', 'EinstellungenAnmeldung', 'Registrierung',
+    // UI-R10: Der Abschnitt „Anmeldung“ ist Personenbereich (R-11a:
+    // „Anmeldungen, Anmeldeeinstellungen“). Die Administrations-Abschnitte
+    // INNERHALB der Seite filtert `pages/Einstellungen.vue` nach derselben
+    // Regel. „Registrierung“ steht bei der Administration (Server: Kern-Admin).
+    //
+    // CHAT-7b-UI-b (Review R1, Punkt 2): der Einstellungs-RAHMEN (`Einstellungen`)
+    // steht NICHT mehr hier. Er enthält den Abschnitt „Gesperrte Personen“ —
+    // eigene Kontaktsperren, die JEDE angemeldete Person sehen und aufheben
+    // darf. Die Schranken je Unterseite bleiben unverändert wirksam.
+    'EinstellungenAnmeldung', 'Registrierung',
     // CHAT-R2a (Chat-Konzept 10.2): der umgezogene Personenbereich ist ein
     // Abschnitt der Einstellungen mit eigener Adresse. Er steht in DIESER
     // Liste — dieselbe Prüfung wie die Personen-Reiter, nicht eine zweite

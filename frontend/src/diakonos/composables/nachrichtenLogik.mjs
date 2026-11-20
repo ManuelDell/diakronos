@@ -220,10 +220,21 @@ export function beginntMit(name, begriff) {
  */
 export const UNBEKANNTE_PERSON = 'Unbekannte Person'
 
+/**
+ * Titel einer Runde ohne Namen (CHAT-7b). Steht aus demselben Grund hier wie
+ * `UNBEKANNTE_PERSON`: `listenZeile` setzt ihn ein, `nachrichtenRunden.mjs`
+ * re-exportiert denselben Wortlaut (kein zweiter).
+ */
+export const RUNDE_TITEL = 'Runde'
+
 /** Abschnitt einer Zeile: Gruppen zuerst? Nein — Direkt/Runden existieren in
  *  S1 noch nicht (nur Gruppen und Untergruppen). Zwei Abschnitte, in dieser
  *  Reihenfolge (Entwurf B-desktop: Gruppen, darunter die Untergruppen). */
 export const ABSCHNITTE = [
+  // CHAT-7b (S3): Runden (3–8 benannte Beteiligte) stehen als eigener
+  // Abschnitt OBEN — der Entwurf B-desktop führt „RUNDEN“ vor „GRUPPEN“, und
+  // eine Runde ist ein Gespräch zwischen Menschen (wie das 1:1), kein Ort.
+  { id: 'runde', label: 'Runden' },
   { id: 'gruppe', label: 'Gruppen' },
   { id: 'untergruppe', label: 'Untergruppen' },
   // CHAT-7a: Direktgespräche (1:1) stehen als eigener Abschnitt UNTEN unter
@@ -240,6 +251,7 @@ export const ABSCHNITTE = [
  */
 export function abschnittVon(eintrag) {
   if (!eintrag) return 'gruppe'
+  if (eintrag.art === 'runde') return 'runde'
   if (eintrag.art === 'direkt') return 'direkt'
   if (eintrag.art === 'untergruppe') return 'untergruppe'
   if (eintrag.art === 'gruppe') return 'gruppe'
@@ -265,10 +277,13 @@ export function listenZeile(eintrag, jetzt = new Date()) {
   // eingesetzt (das Modul holt dafür nichts aus `direkt` zurück).
   const rohTitel = String(eintrag.titel || eintrag.untergruppe || eintrag.gruppe || '').trim()
   const direkt = String(eintrag.art || '') === 'direkt'
+  // CHAT-7b: eine Runde ohne Namen heißt „Runde“ (der Server lässt keinen
+  // leeren zu; ein Altbestand soll trotzdem keine leere Zeile ergeben).
+  const runde = String(eintrag.art || '') === 'runde'
   return {
     ...eintrag,
     abschnitt: abschnittVon(eintrag),
-    titel: rohTitel || (direkt ? UNBEKANNTE_PERSON : ''),
+    titel: rohTitel || (direkt ? UNBEKANNTE_PERSON : (runde ? RUNDE_TITEL : '')),
     untergruppe: eintrag.untergruppe || null,
     // Ein Eintrag ohne Gesprächszeile ist NICHT antippbar-gesperrt, aber er
     // hat keinen Verlauf: `geoeffnet` sagt, ob `name` schon existiert.
@@ -493,7 +508,24 @@ export function zeileGleich(a, b) {
   // (Zähler, eigene Stimme, geschlossen) — ohne diesen Vergleich bliebe die
   // Karte nach dem Abstimmen auf dem alten Stand stehen.
   if (String(umfrageStand(a.umfrage)) !== String(umfrageStand(b.umfrage))) return false
+  // CHAT-7b-UI: Bei einer Vorschlags-Systemzeile ist der SATZ bei offen,
+  // angenommen und abgelehnt wörtlich derselbe — nur `system.stand` (und die
+  // Sicht der lesenden Person, `system.eigene`) sagt, dass sich etwas geändert
+  // hat. Ohne diesen Vergleich bliebe die Zeile auf „offen“ stehen und die
+  // Knöpfe stünden nach dem Zustimmen/Ablehnen weiter da.
+  if (String(systemStand(a.system)) !== String(systemStand(b.system))) return false
   return reaktionenGleich(a.reaktionen, b.reaktionen)
+}
+
+/** Der Stand einer Systemzeile als vergleichbarer Text (`''` = keine). */
+function systemStand(system) {
+  if (!system || typeof system !== 'object') return ''
+  return [
+    String(system.art || ''),
+    String(system.stand || ''),
+    String(system.vorschlag || ''),
+    String(system.eigene === true),
+  ].join('~')
 }
 
 /** Der Stand einer Umfrage als vergleichbarer Text (`''` = keine). */

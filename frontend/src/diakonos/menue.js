@@ -130,7 +130,11 @@ export const FUSS_EINTRAEGE = [
     // geworden. Die Seitenleiste liest `badge: 'anfragen'` (AppSidebar,
     // `badgeFuer`), die Handy-Leiste/Schublade zeigt dieselbe Zahl am selben
     // Eintrag — eine Quelle, eine Abfrage (`useVerwaltung.js`).
-    { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus', 'EinstellungenPapierkorb', 'EinstellungenFristen', 'EinstellungenWebsite', 'EinstellungenGestaltung',
+    { id: 'einstellungen', label: 'Einstellungen', href: '#/einstellungen', icon: 'settings', seiten: ['Einstellungen', 'EinstellungenGemeinde', 'EinstellungenAnmeldung', 'EinstellungenRollen', 'EinstellungenRegistrierung', 'EinstellungenDatenschutz', 'EinstellungenDatensicherung', 'EinstellungenMailversand', 'EinstellungenDevModus', 'EinstellungenPapierkorb', 'EinstellungenFristen',
+        // CHAT-7b-UI-b: „Gesperrte Personen“ (eigene Kontaktsperren) ist ein
+        // Abschnitt dieses Eintrags — kein zweiter Menüpunkt.
+        'EinstellungenSperren',
+        'EinstellungenWebsite', 'EinstellungenGestaltung',
         // CHAT-R2a: der umgezogene Personenbereich ist ein Abschnitt der
         // Einstellungen (Gruppe „Datenschutz“, eigene Adresse
         // `#/einstellungen/personenverwaltung`) — die Seitenleiste markiert
@@ -142,7 +146,17 @@ export const FUSS_EINTRAEGE = [
         // ohne sie stünde die Seitenleiste dort ohne Markierung da.
         'Personen', 'MitgliederListe', 'MitgliederUebersicht', 'MitgliederAnfragen',
         'MitgliederDatenschutz', 'MitgliederImport', 'MitgliederLoeschantraege',
-        'Einrichtung'], verwaltung: 'personen', badge: 'anfragen', suche: true },
+        'Einrichtung'],
+        // CHAT-7b-UI-b (Review R1, Punkt 2): KEINE `verwaltung`-Stufe mehr.
+        // „Einstellungen“ enthält seit dieser Karte den Abschnitt „Gesperrte
+        // Personen“ — eigene Daten, gedacht für JEDE angemeldete Person. Die
+        // Verwaltungs-Unterseiten schützt weiter der Router
+        // (`ADMIN_ONLY_PAGES`/`PERSONEN_VERWALTUNG_PAGES` je Unterseite), und
+        // `pages/Einstellungen.vue` filtert seine Abschnitte selbst.
+        // Das Abzeichen `anfragen` hängt am Eintrag, wird aber NUR gezeichnet,
+        // wenn die Sitzung es sehen darf (`badgeFuer` → `darfAnfragenZaehlerSehen`,
+        // sonst ist die Zahl ohnehin `null`).
+        badge: 'anfragen', suche: true },
 ]
 
 /**

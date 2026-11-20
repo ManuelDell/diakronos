@@ -16,7 +16,14 @@ function router(boot) {
 }
 test('UXM-001: Verwaltungsseiten verweigern Direktaufruf für Mitglieder', () => {
     const r = router({mitglied:{status:'Mitglied'}})
-    for (const hash of ['#/personen/uebersicht', '#/personen/anfragen', '#/einstellungen', '#/einstellungen/anmeldung', '#/dev-befunde']) assert.equal(r.gehe(hash), '#/')
+    // CHAT-7b-UI-b (Review R1, Punkt 2): `#/einstellungen` (der RAHMEN) ist
+    // hier NICHT mehr gesperrt — er trägt den Abschnitt „Gesperrte Personen“,
+    // der jeder angemeldeten Person gehört. Gesperrt bleiben die
+    // Verwaltungs-UNTERSEITEN (zweite Zeile) — dort greift der Wächter je Seite.
+    for (const hash of ['#/personen/uebersicht', '#/personen/anfragen', '#/dev-befunde']) assert.equal(r.gehe(hash), '#/')
+    for (const hash of ['#/einstellungen/anmeldung', '#/einstellungen/registrierung',
+        '#/einstellungen/rollen', '#/einstellungen/personenverwaltung']) assert.equal(r.gehe(hash), '#/')
+    assert.equal(r.gehe('#/einstellungen'), '#/einstellungen', 'der Rahmen ist für Mitglieder offen')
 })
 test('Dev-Befunde bleiben für berechtigte Tester bei aktivem Dev-Modus erreichbar', () => {
     const r = router({mitglied:{status:'Mitglied'}, devmode:true, ist_tester:true})

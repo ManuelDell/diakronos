@@ -180,7 +180,11 @@ test('CHAT-3a · Liste: Gruppen vor Untergruppen, neueste Nachricht oben', () =>
   // CHAT-7a: Direktgespräche haben einen EIGENEN Abschnitt (hinter den
   // Gruppen) — er erscheint nur, wenn es welche gibt. Er heißt
   // „Direktnachrichten“ wie der Betreff der Glocke (CHAT-7a-UI-2, Punkt 7).
-  assert.deepEqual(ABSCHNITTE.map((a) => a.label), ['Gruppen', 'Untergruppen', 'Direktnachrichten'])
+  // CHAT-7b (S3): Runden stehen als ERSTER Abschnitt — benannte Gespräche
+  // zwischen Menschen, vor den Orten (Entwurf B-desktop). Sie erscheinen nur,
+  // wenn es welche gibt.
+  assert.deepEqual(ABSCHNITTE.map((a) => a.label),
+    ['Runden', 'Gruppen', 'Untergruppen', 'Direktnachrichten'])
   const mitDirekt = gruppierteListe([
     gespraech({ name: 'g-chor', titel: 'Chor', letzte_am: zeit('2026-11-18', 10, 8) }),
     gespraech({ name: 'd-erika', art: 'direkt', gruppe: null, titel: 'Erika Muster',

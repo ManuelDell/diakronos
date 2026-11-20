@@ -208,8 +208,25 @@ const istAktiv = (e) => istEintragAktiv(e, { seite: props.seite, hash: props.has
 
 /** Kennzahl wie in der Seitenleiste (seit CHAT-R2a-2 am Eintrag
  *  „Einstellungen“); nie eine erfundene Null. */
+/**
+ * Sieht diese Sitzung das Anfragen-Abzeichen?
+ *
+ * CHAT-7b-UI-b (Review R1, Punkt 2): dieselbe Regel wie in der Seitenleiste —
+ * das Abzeichen sieht nur die Mitgliederverwaltung, auch wenn der Eintrag
+ * „Einstellungen“ seit dieser Karte für alle sichtbar ist. Lokal statt Import,
+ * weil die Attrappen dieses Bausteins in den Router-Tests nur einen Teil der
+ * Exporte nachbauen. Der Server gibt die Zahl ohnehin nur mit diesem Recht
+ * heraus (`zaehler` bleibt sonst `null`).
+ */
+function istMitgliederverwaltungSehen() {
+  return istVerwaltungRef?.value === true
+}
+
 function badgeFuer(e) {
-  if (e.badge === 'anfragen' && props.anfragenZahl > 0) return props.anfragenZahl
+  if (e.badge === 'anfragen' && props.anfragenZahl > 0
+    && istMitgliederverwaltungSehen()) {
+    return props.anfragenZahl
+  }
   return null
 }
 

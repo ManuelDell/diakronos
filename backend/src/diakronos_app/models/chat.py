@@ -253,6 +253,10 @@ OPTIONEN_MAX = 15
 #: Unterhalb dieser Zahl Abgegebener steht der Hinweis an der Umfrage
 #: („Ergebnis bei wenigen Teilnehmenden erratbar“, Karte CHAT-5).
 HINWEIS_AB = 5
+#: CHAT-9a (Konzept S4, Zeile „Erwähnung“): höchstens so viele Erwähnungen je
+#: Nachricht. Was darüber kommt, wird STILL verworfen (der Endpunkt meldet
+#: keinen Fehler — er verrät damit auch nicht, wie viele es waren).
+ERWAEHNUNGEN_MAX = 20
 #: Die fünf Meldegründe (Konzept 2.5: „Beleidigung, Spam, persönliche Daten,
 #: falsche Person, Sonstiges“). Gespeichert wird der stabile Schlüssel, nicht
 #: die Anzeige — die Oberfläche übersetzt. Ein geschlossenes Set wie
@@ -902,6 +906,49 @@ class ChatRundeVorschlag(Base):
                 if k.strip()]
 
 
+class ChatErwaehnung(Base):
+    """Eine ERWÄHNUNG („@Name“, CHAT-9a, Konzept S4) an einer Nachricht.
+
+    Der Client schickt die Erwähnten AUSDRÜCKLICH mit — der Server parst KEIN
+    „@…“ aus dem Text. Je gültiger Erwähnung steht hier EINE Zeile; die
+    Gültigkeit prüft ``api.chat._erwaehnungen_pruefen`` (Beteiligte des
+    Gesprächs, nicht die sendende Person selbst; gezählt werden nur die
+    ersten 20 Kennungen, gekappt VOR der Prüfung). Eine Kontaktsperre
+    verwirft NICHT — sie unterdrückt nur die Glocke (sonst verriete die
+    Antwort an die sendende Person die Sperre).
+
+    ``mitglied`` ist eine MITGLIED-Kennung ohne FK — dieselbe Form wie
+    ``chat_runde_vorschlag.mitglied`` (die Anonymisierung löscht die Zeile mit
+    der Person, sie hängt sie nicht um). ``nachricht`` hängt dagegen am Leben
+    der Nachricht (``ON DELETE CASCADE``): eine endgültig gelöschte Nachricht
+    (CHAT-8) nimmt ihre Erwähnungen mit. Das SOFT-Delete räumt sie vorher über
+    ``api.chat.loeschen``/``_nachricht_erwaehnungen_raeumen`` ab.
+
+    DSGVO (Konzept 4.3): die Zeile fällt mit der Person
+    (``ZEILEN_LOESCHEN``/``chat_erwaehnung``) — eine Erwähnung ist ein
+    Verhaltensdatum AM KONTO („wer wurde von wem wie oft genannt“), der
+    Nachrichtentext bleibt davon unberührt.
+    """
+
+    __tablename__ = "chat_erwaehnung"
+    __table_args__ = (
+        # „Wer ist an dieser Seite erwähnt?“ — EIN Abruf je Verlaufsseite.
+        Index("ix_chat_erwaehnung_nachricht", "nachricht"),
+        # „Welche Glocken gehören dieser Person?“ (Lesen/Aufräumen).
+        Index("ix_chat_erwaehnung_mitglied", "mitglied"),
+    )
+
+    nachricht: Mapped[str] = mapped_column(
+        String(140),
+        ForeignKey("chat_nachricht.name", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    #: Die erwähnte Person (``mitglied.name``) — EINE je Nachricht und Person
+    #: (zusammengesetzter Primärschlüssel; Duplikate verwirft der Endpunkt).
+    mitglied: Mapped[str] = mapped_column(String(140), primary_key=True)
+    angelegt_am: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+
+
 __all__: list[Any] = [
     "ARTEN",
     "ART_DIREKT",
@@ -909,6 +956,8 @@ __all__: list[Any] = [
     "ART_RUNDE",
     "ART_UNTERGRUPPE",
     "BEARBEITEN_MINUTEN",
+    "ChatErwaehnung",
+    "ERWAEHNUNGEN_MAX",
     "ChatGespraech",
     "ChatGlocke",
     "ChatMeldung",

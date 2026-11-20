@@ -120,6 +120,7 @@ from diakronos_app import db as dbmod
 from diakronos_app.models.chat import (
     ART_GRUPPE,
     ART_UNTERGRUPPE,
+    ChatErwaehnung,
     ChatGespraech,
     ChatGlocke,
     ChatMeldung,
@@ -191,8 +192,11 @@ MELDUNG_FRIST_MONATE = 12    # Meldungen nach Abschluss
 #: („Neue Umfrage im …“, „… endet morgen“) hängen an der UMFRAGE. Ohne diesen
 #: Eintrag blieben sie stehen, nachdem das Gespräch gelöscht wurde, und
 #: führten in keinen Verlauf mehr (Review R1/5).
+#: CHAT-9a: ``chat_erwaehnung`` ebenfalls — die Erwähnungs-Glocke hängt an der
+#: NACHRICHT (``document_name`` = Nachricht-Kennung), nicht am Gespräch. Fällt
+#: die Nachricht, führt sie in nichts mehr (Review CHAT-9a R1/1).
 GLOCKE_DOKUMENTTYPEN = ("chat_gespraech", "chat_nachricht", "chat_meldung",
-                        "chat_umfrage")
+                        "chat_umfrage", "chat_erwaehnung")
 
 
 class FristFehler(ValueError):
@@ -404,6 +408,11 @@ def _gespraech_entfernen(session, name: str) -> tuple[int, int]:
                     .values(antwort_auf=None))
     session.execute(delete(ChatReaktion)
                     .where(ChatReaktion.nachricht.in_(nachrichten)))
+    # CHAT-9a: die Erwaehnungen haengen an der NACHRICHT. SQLite hat (ohne
+    # ``PRAGMA foreign_keys``) keine wirksame FK-Kaskade — Hausregel: Kinder
+    # zuerst, ausdruecklich.
+    session.execute(delete(ChatErwaehnung)
+                    .where(ChatErwaehnung.nachricht.in_(nachrichten)))
     anzahl_nachrichten = session.execute(
         delete(ChatNachricht).where(ChatNachricht.gespraech == name)
     ).rowcount or 0
@@ -454,6 +463,13 @@ def _glocken_verwaist_loeschen(session) -> int:
         # verschwindet mit ihrem Gespräch (``_gespraech_leeren``) — die Glocke
         # zu ihr muss dann mitgehen, sonst zeigt sie in nichts (Review R1/5).
         ("chat_umfrage", ChatUmfrage),
+        # CHAT-9a: die Erwähnungs-Glocke hängt an der NACHRICHT
+        # (``document_name`` = Nachricht-Kennung, ``document_type`` =
+        # ``chat_erwaehnung``) — die NOT-EXISTS-Bedingung prüft also gegen
+        # ``chat_nachricht``. Die chat_erwaehnung-Zeilen selbst sind hier
+        # nicht das Ziel: sie fallen in ``_gespraech_entfernen`` (Kinder
+        # zuerst) und mit der Person (DSGVO).
+        ("chat_erwaehnung", ChatNachricht),
     )
     for doc_type, modell in je_typ:
         # ``NOT EXISTS (SELECT 1 FROM <ziel> WHERE <ziel>.name = document_name)``

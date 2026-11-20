@@ -490,6 +490,16 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         "reaktion": ("struktur", "eines der sechs festen Zeichen"),
         "nachricht": ("struktur", "Kennung der Nachricht (Fachobjekt)"),
     },
+    # CHAT-9a (Konzept S4, Zeile „Erwähnung“): eine Erwähnung ist ein
+    # Beziehungsdatum zwischen zwei Personen — „A hat B in einer Nachricht
+    # genannt“ — und damit personenbezogen, obwohl sie keinen eigenen Text
+    # trägt. Sie fällt mit der Person (`ZEILEN_LOESCHEN` → beide Spalten sind
+    # Personen-Verweise, die ZEILE wird gelöscht). `nachricht` traegt
+    # ON DELETE CASCADE: eine endgültig gelöschte Nachricht nimmt ihre
+    # Erwähnungen mit.
+    "chat_erwaehnung": {
+        "nachricht": ("struktur", "Kennung der Nachricht (Fachobjekt)"),
+    },
     # CHAT-6 (Konzept 2.5/4.5): die Meldung. Sie ist der VORGANG der
     # Moderation, nicht ihr Inhalt — die gemeldete Nachricht steht in
     # `chat_nachricht` und bleibt dort. Von der Person ist `melder` das Konto
@@ -854,6 +864,11 @@ ZEILEN_LOESCHEN: tuple[tuple[str, str], ...] = (
     # (`chat_nachricht.autor` wird umgehängt, s. `SPALTEN`).
     ("chat_teilnehmer", "Teilnahme und Lesestand der Person"),
     ("chat_reaktion", "Reaktionen der Person"),
+    # CHAT-9a: „A hat B genannt“ ist ein Beziehungsdatum — die Zeile fällt
+    # mit der Person. Der Nachrichtentext bleibt (er gehört den anderen),
+    # und die Glockenzeile im ``Notification Log`` ebenfalls (sie nennt
+    # keinen Inhalt).
+    ("chat_erwaehnung", "Erwähnungen der Person (@Name)"),
     # CHAT-4a: der Glocken-Merker ist ein Verhaltensdatum am Konto (bis wohin
     # wurde geglockt). Er fällt ganz — es gibt nichts, was ohne Konto lesbar
     # bliebe.
@@ -894,6 +909,10 @@ KONTO_ZEILEN = frozenset({
     # sie verschwinden mit dem Konto. Der Verlauf bleibt lesbar; das leisten
     # die FK-Spalten `chat_nachricht.autor`/`geloescht_von` (Umhängen/Nullen).
     "chat_teilnehmer", "chat_reaktion",
+    # CHAT-9a: eine Erwähnung ist ein Beziehungsdatum AM KONTO („wer wurde
+    # genannt“) — die Zeile fällt mit der Person. Der Nachrichtentext und die
+    # Glockenzeile bleiben davon unberührt.
+    "chat_erwaehnung",
     # CHAT-4a: der Glocken-Merker fällt mit dem Konto (s. `ZEILEN_LOESCHEN`).
     "chat_glocke",
     # CHAT-5: die Stimmenzeilen und Marken sind ZEILEN der Person.

@@ -1780,7 +1780,7 @@
     "diakronos_app.api.chat.senden",
     "senden"
    ],
-   "rumpf_grund": "Aufruf s.flush(); Aufruf s.add()",
+   "rumpf_grund": "Aufruf _erwaehnungen_speichern(); Aufruf s.flush(); Aufruf s.add()",
    "rumpf_ueber": null
   },
   {

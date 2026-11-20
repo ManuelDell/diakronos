@@ -179,9 +179,43 @@ erreichbar“ zu unterscheiden: gleicher Text, gleicher Status (403 ohne
 Inhalt), in jedem Endpunkt dieses Moduls. ``personen_suchen`` liefert nur
 ``darf_schreiben: false``, sonst nichts Auffälliges.
 
-WAS HIER BEWUSST FEHLT (spätere Karten): Löschfristen (CHAT-8), Push
-(CHAT-10), Anhänge/Chatverlaufssuche (CHAT-9). Kein WebSocket: Zustellung
-ist der „seit X“-Abruf (3.1, Empfehlung A).
+WAS HIER BEWUSST FEHLT (spätere Karten): Push (CHAT-10), Anhänge und
+Chatverlaufssuche (CHAT-9b/c). Kein WebSocket: Zustellung ist der „seit X“-Abruf
+(3.1, Empfehlung A).
+
+CHAT-9a — ERWÄHNUNGEN (@Name, Konzept S4)
+-----------------------------------------
+Der Client schickt die Erwähnten AUSDRÜCKLICH mit:
+``senden(gespraech, text, antwort_auf=None, erwaehnt=[…])``. Der Server parst
+KEIN „@…“ aus dem Text. ``erwaehnt`` sind MITGLIED-Kennungen (wie sie die
+Gesprächs-/Personen-APIs liefern). Die Obergrenze (20) wird VOR der Prüfung
+gezogen (Client-Reihenfolge). Je Kennung prüft ``_erwaehnungen_pruefen``:
+Beteiligte/r des Gesprächs, die/der die Nachricht lesen darf (dieselbe Weiche
+wie beim Lesen — ``_darf_lesen``/``rechte.darf``, bei Runden zusätzlich
+``verlassen_am``/``sichtbar_ab``) und nicht die sendende Person selbst.
+UNGÜLTIGE Kennungen werden STILL verworfen — kein Fehler, keine Auskunft
+darüber, ob es die Person gibt.
+
+Eine Kontaktsperre (CHAT-7b) ist KEIN Verwerf-Grund, sondern eine
+Glocken-Frage: die Erwähnung wird gespeichert (die Antwort an die sendende
+Person ist mit und ohne Sperre gleich — sonst wäre die Sperre erkennbar), die
+Glocke unterbleibt (``_erwaehnungen_gesperrt``).
+
+Gespeichert wird je Paar EINE Zeile in ``chat_erwaehnung`` (neu, Migration
+``chat9a_erwaehnung``). Je gespeicherter Erwähnung entsteht eine EIGENE Glocke
+(``document_type = 'chat_erwaehnung'``, ``document_name`` = Nachricht) — NICHT
+gebündelt mit dem Gesprächs-Zähler und auch bei stumm geschaltetem Gespräch
+(bewusste Entscheidung, wie gängige Messenger). Der Text folgt den
+Datenschutz-Regeln der Chat-Glocken: kein Nachrichteninhalt, kein
+Absendername. Beim Lesen bis über die Nachricht hinaus markiert
+``lesestand_setzen`` sie in EINEM ``UPDATE`` als gelesen. Löschen/Entfernen
+räumt die Zeilen ab und stellt die Glocke auf gelesen (kein Weg auf eine
+Lücke); die Frist (CHAT-8) löscht die Zeilen mit dem Gespräch und räumt die
+verwaisten Glocken ab. Bearbeiten lässt Erwähnungen und Glocken unverändert.
+Die Nachrichten-Antworten tragen ``erwaehnt: [{mitglied, anzeigename}]`` —
+gefiltert über ``rechte.darf_person_finden`` (Kapitel 2.4): wer für die
+lesende Person nicht auffindbar ist, fehlt in der Liste (der Text enthält das
+„@Name“ ohnehin).
 
 CHAT-4a — GEBÜNDELTE GLOCKE (Konzept 1/S1, 3.1, 4.5)
 ---------------------------------------------------
@@ -275,12 +309,14 @@ haben“)
 
 from __future__ import annotations
 
+import json
 import logging
 import unicodedata
 from datetime import datetime, timedelta
 from typing import Any, NoReturn
 
-from sqlalchemy import Integer, case, cast, delete, func, or_, select, text, update
+from sqlalchemy import (Integer, and_, case, cast, delete, func, or_, select,
+                        text, update)
 from sqlalchemy.exc import IntegrityError
 
 logger = logging.getLogger("diakronos_app.api.chat")
@@ -311,6 +347,7 @@ from diakronos_app.models.chat import (
     ART_RUNDE,
     ART_UNTERGRUPPE,
     BEARBEITEN_MINUTEN,
+    ERWAEHNUNGEN_MAX,
     GLOCKE_RUHE_MINUTEN,
     FRAGE_MAX,
     HINWEIS_AB,
@@ -333,6 +370,7 @@ from diakronos_app.models.chat import (
     VORSCHLAG_OFFEN,
     ChatGespraech,
     ChatGlocke,
+    ChatErwaehnung,
     ChatMeldung,
     ChatNachricht,
     ChatReaktion,
@@ -608,6 +646,16 @@ MELDESTELLE_KONTO = "Administrator"
 #: Neutraler Betreff der Glocke für ein 1:1 (CHAT-7a): KEIN Name — im
 #: Direktgespräch wäre der Gesprächstitel der Absender (Regel CHAT-4a).
 DIREKT_GLOCKE_TITEL = "Direktnachricht"
+
+#: CHAT-9a: Kennung im ``Notification Log.document_type`` der
+#: ERWÄHNUNGS-Glocke. EIGENE Art neben ``CHAT_GLOCKE_DOCTYPE``
+#: (``chat_gespraech``) und ``CHAT_UMFRAGE_GLOCKE_DOCTYPE`` (``chat_umfrage``),
+#: damit die Erwähnung NICHT mit dem gebündelten Gesprächs-Zähler auf derselben
+#: Zeile landet (Konzept S4: „eine eigene Glocke, nicht gebündelt“).
+#: ``document_name`` ist die Kennung der NACHRICHT: darüber markiert
+#: ``lesestand_setzen`` sie beim Lesen als gelesen, und die Oberfläche verlinkt
+#: genau die Stelle.
+CHAT_ERWAEHNUNG_GLOCKE_DOCTYPE = "chat_erwaehnung"
 
 
 def _paar_schluessel(konto_a: str, konto_b: str) -> str:
@@ -923,6 +971,7 @@ def _zeile(s, n: ChatNachricht, *,
            namen: dict[str, str] | None = None,
            konto_namen: dict[str, str] | None = None,
            umfragen: dict[str, dict[str, Any]] | None = None,
+           erwaehnungen: dict[str, list[dict[str, str]]] | None = None,
            ich: str = "",
            system: dict[str, Any] | None = None) -> dict[str, Any]:
     """Eine Nachricht als flache Antwortzeile.
@@ -943,10 +992,17 @@ def _zeile(s, n: ChatNachricht, *,
     bewusst in keiner Antwortzeile.
 
     CHAT-7b (Review R1, SOLL 8): eine SYSTEMZEILE (``n.vorschlag``) wird mit
-    ``system={text, stand}`` übergeben — der sichtbare Satz „X möchte Y
-    hinzufügen“ entsteht beim Lesen aus der Vorschlagszeile und steht NICHT in
-    der Nachricht. Solche Zeilen haben keinen Besitz (``eigene`` bleibt false,
-    ``autor`` None) und keinen Text im Datensatz.
+    ``system={text, stand, vorschlag, eigene}`` übergeben — der sichtbare Satz
+    „X möchte Y hinzufügen“ entsteht beim Lesen aus der Vorschlagszeile und
+    steht NICHT in der Nachricht. Solche Zeilen haben keinen Besitz (``autor``
+    None) und keinen Text im Datensatz.
+
+    CHAT-7b-3: ``system.vorschlag`` ist die Kennung, die ``runde_zustimmen``/
+    ``runde_ablehnen`` erwarten, ``system.eigene`` sagt der LESENDEN Person, ob
+    SIE den Vorschlag gemacht hat (``vorgeschlagen_von`` == sie selbst) — das
+    Feld hängt also am Lesenden und kommt deshalb aus ``system``, nicht aus dem
+    Datensatz. Das ``eigene`` der Zeile selbst bleibt davon unberührt (eine
+    Systemzeile hat keinen Autor).
     """
     geloescht = n.geloescht_am is not None
     zeile = {
@@ -973,13 +1029,21 @@ def _zeile(s, n: ChatNachricht, *,
         "antwort_auf_text": antwort_auf,
         "reaktionen": (reaktionen or {}).get(n.name, []),
         "gelesen_von": (lesestand or {}).get(n.name),
+        # CHAT-9a: die erwähnten Beteiligten — an einer GELÖSCHTEN Nachricht
+        # niemand (an einer Lücke gibt es nichts zu erwähnen), sonst die
+        # Liste aus ``_erwaehnungen_laden`` (Mitglied-Kennung + Anzeigename).
+        "erwaehnt": [] if geloescht else list((erwaehnungen or {}).get(n.name, [])),
     }
     if n.vorschlag:
         # Eigene Art statt eines „normalen“ Beitrags: nicht bearbeitbar,
         # nicht löschbar, nicht meldbar — die Oberfläche zeichnet sie als
         # Systemhinweis („X möchte Y hinzufügen“).
+        # CHAT-7b-3: `vorschlag` ist die Kennung für runde_zustimmen/
+        # runde_ablehnen; `eigene` ist die Sicht der LESENDEN Person.
         zeile["system"] = {"art": "runde_vorschlag",
-                           "stand": (system or {}).get("stand")}
+                           "stand": (system or {}).get("stand"),
+                           "vorschlag": str(n.vorschlag),
+                           "eigene": bool((system or {}).get("eigene"))}
     if n.umfrage:
         zeile["umfrage"] = None if geloescht else (umfragen or {}).get(str(n.umfrage))
     return zeile
@@ -1040,12 +1104,16 @@ def _zitate(s, nachrichten: list[ChatNachricht], *,
         and n.erstellt_am < grenze)) for n in ziele}
 
 
-def _vorschlags_texte(s, kennungen) -> dict[str, dict[str, Any]]:
-    """``{vorschlag: {text, stand}}`` für eine VERLAUFSSEITE — EINE Abfrage.
+def _vorschlags_texte(s, kennungen, benutzer: str = "") -> dict[str, dict[str, Any]]:
+    """``{vorschlag: {text, stand, eigene}}`` für eine VERLAUFSSEITE — EINE Abfrage.
 
     Review R1 (SOLL 8): der Satz „X möchte Y hinzufügen“ steht nicht in der
     Nachricht, sondern wird hier aus der Vorschlagszeile gebildet. Namen kommen
     aus EINER Abfrage (``_personen``), nicht je Zeile.
+
+    CHAT-7b-3: ``eigene`` ist die Sicht der LESENDEN Person (``benutzer``) —
+    True genau dann, wenn SIE den Vorschlag gemacht hat. Ohne ``benutzer``
+    (kein Lesender bekannt) bleibt es False.
     """
     namen_kennungen = {str(k) for k in kennungen if k}
     if not namen_kennungen:
@@ -1075,7 +1143,9 @@ def _vorschlags_texte(s, kennungen) -> dict[str, dict[str, Any]]:
         wer = str(wer or "").split(" ")[0] or "Jemand"
         wen = personen.get(v.mitglied) or "die Person"
         ergebnis[str(v.name)] = {"text": _vorschlag_satz(wer, wen, v.stand),
-                                 "stand": v.stand}
+                                 "stand": v.stand,
+                                 # CHAT-7b-3: hängt am LESENDEN, nicht an der Zeile.
+                                 "eigene": bool(benutzer) and konto == str(benutzer)}
     return ergebnis
 
 
@@ -1115,25 +1185,52 @@ def _seite_antwort(s, gespraech: str, zeilen: list[ChatNachricht], *,
                                _gespraech_lesen(s, gespraech))
     # CHAT-7b (SOLL 8): die Vorschlags-Systemzeilen dieser Seite in EINER
     # Abfrage — ihr Satz entsteht beim Lesen, nicht aus dem Nachrichtentext.
-    systeme = _vorschlags_texte(s, [n.vorschlag for n in zeilen if n.vorschlag])
+    # CHAT-7b-3: `eigene` dieser Zeilen hängt an der LESENDEN Person.
+    systeme = _vorschlags_texte(s, [n.vorschlag for n in zeilen if n.vorschlag],
+                                 benutzer=benutzer)
+    # CHAT-9a: die Erwähnungen dieser Seite in EINER Abfrage (kein N+1).
+    erwaehnungen = _erwaehnungen_laden(s, kennungen, benutzer)
     # CHAT-7b-2: der Zitattext gehört zur ZITIERTEN Nachricht
     # (``n.antwort_auf``), nicht zur zitierenden — ``_zitate`` ist nach der
     # Kennung des ZIELS geschlüsselt. Mit ``n.name`` blieb der Text immer leer
     # (die Sichtbarkeitsprüfung hätte dann nichts zu schützen gehabt).
     posten = [_zeile(s, n, lesestand=stand, reaktionen=reakt,
                      antwort_auf=zitate.get(n.antwort_auf),
-                     namen=namen, konto_namen=konten, umfragen=umfragen, ich=benutzer,
+                     namen=namen, konto_namen=konten, umfragen=umfragen,
+                     erwaehnungen=erwaehnungen, ich=benutzer,
                      system=systeme.get(str(n.vorschlag)))
               for n in zeilen]
     return {
         "gespraech": gespraech,
         "richtung": richtung,
         "nachrichten": posten,
+        # CHAT-7b-3: schaut die lesende Person auf eine Runde, in die sie erst
+        # NACH dem Anlegen eingetreten ist? Die Oberfläche blendet dann
+        # „frühere Nachrichten nicht sichtbar“ ein. Bewusst ein bool — weder
+        # eine Zahl noch eine Auskunft über ältere Nachrichten. Dieselbe
+        # Grenze wie der Verlaufsfilter (``_sichtbar_ab``).
+        "ab_eintritt": _ab_eintritt(s, g, benutzer),
         # Für den nächsten Abruf: die älteste und die neueste Kennung dieser
         # Seite (die Oberfläche fragt damit weiter bzw. pollt).
         "vor": posten[0]["name"] if posten else None,
         "seit": posten[-1]["name"] if posten else None,
     }
+
+
+def _ab_eintritt(s, g: ChatGespraech | None, benutzer: str | None) -> bool:
+    """Ist die lesende Person erst NACH dem Anlegen dieser Runde eingetreten?
+
+    CHAT-7b-3: nur für Runden, und nur wenn ``chat_teilnehmer.sichtbar_ab``
+    NACH ``chat_gespraech.angelegt_am`` liegt. Gründungsmitglieder (Eintritt =
+    Anlegen) und Nicht-Runden → ``False``. Fehlt eine der beiden Zeiten, gibt es
+    nichts zu vergleichen → ``False`` (keine Aussage erfinden).
+    """
+    if g is None or g.art != ART_RUNDE or g.angelegt_am is None:
+        return False
+    eintritt = _sichtbar_ab(s, g, benutzer)
+    if eintritt is None:
+        return False
+    return eintritt > g.angelegt_am
 
 
 # ── Endpunkte: Gespräche ────────────────────────────────────────────────────
@@ -1711,11 +1808,414 @@ def verlauf(gespraech, vor=None, seit=None, limit=None):
         return _seite_antwort(s, g.name, zeilen, richtung="neueste", benutzer=benutzer)
 
 
+# ── CHAT-9a: Erwähnungen (@Name) ────────────────────────────────────────────
+
+
+def _erwaehnten_liste(erwaehnt) -> list[str]:
+    """Die KENNUNGEN aus ``erwaehnt`` — ausdrückliche Liste, kein Text-Parsen.
+
+    Der Client schickt sie mit (Kartenentscheidung 1); hier wird NICHTS aus
+    dem Nachrichtentext gelesen. Akzeptiert wird eine Liste (auch als
+    JSON-Zeichenkette, wie sie aus einem Formular kommt) und eine einzelne
+    Zeichenkette (dann ist es EINE Kennung). Alles andere ist leer: ein
+    ungültiger Behälter wird STILL wie „keine Erwähnung“ behandelt — kein
+    Fehler, keine Auskunft (Kartenentscheidung 2).
+
+    Normalisiert wird nur die Form: getrimmt, leere Einträge raus, Duplikate
+    zusammengefasst (Reihenfolge bleibt die des Clients — daraus ergibt sich
+    die Auswahl, WELCHE 20 bei der Kappung stehen bleiben).
+    """
+    roh = erwaehnt
+    if isinstance(roh, (bytes, bytearray)):
+        try:
+            roh = roh.decode("utf-8")
+        except UnicodeDecodeError:
+            return []
+    if isinstance(roh, str):
+        text_roh = roh.strip()
+        if not text_roh:
+            return []
+        if text_roh[:1] in ("[", "{"):
+            try:
+                roh = json.loads(text_roh)
+            except (ValueError, TypeError):
+                return []
+        else:
+            roh = [text_roh]
+    if isinstance(roh, (set, tuple)):
+        roh = list(roh)
+    if not isinstance(roh, list):
+        return []
+    gesehen: list[str] = []
+    for eintrag in roh:
+        if isinstance(eintrag, dict):
+            # Toleranz für die Form ``{"mitglied": …}`` — der Wert ist die
+            # Kennung, mehr liest dieser Weg nicht.
+            eintrag = eintrag.get("mitglied")
+        if not isinstance(eintrag, str):
+            continue
+        kennung = eintrag.strip()
+        if kennung and kennung not in gesehen:
+            gesehen.append(kennung)
+    return gesehen
+
+
+def _erwaehnungen_pruefen(s, g: ChatGespraech, benutzer: str,
+                          kennungen, erstellt_am: datetime | None = None) -> list[str]:
+    """Welche der genannten Kennungen GESPEICHERT werden — je Prüfung still verworfen.
+
+    Kartenentscheidung 2, EINE Regel je Kennung (kein Fehler nach außen, keine
+    Auskunft darüber, ob es die Person gibt):
+
+    1. **Beteiligte/r des Gesprächs, die/er die Nachricht lesen darf** — über
+       die vorhandenen Hilfen: bei 1:1/Runde entscheidet ``_darf_lesen`` als
+       DIESE Person (dieselbe Weiche wie beim Lesen: Teilnahme + Kern), bei
+       Gruppe/Untergruppe gilt die Einheit des Gesprächs (wer sie lesen darf,
+       liest auch die Nachricht) plus ``chat_teilnehmer`` als Beleg, dass die
+       Person im Gespräch ist. Wer die Runde VERLASSEN hat
+       (``verlassen_am``) oder dessen ``sichtbar_ab`` nach der Nachricht
+       liegt, ist raus.
+    2. **Nicht die sendende Person selbst.**
+
+    **Die Kontaktsperre ist hier bewusst KEIN Verwerf-Grund** (Entscheidung
+    Operator R1/3): eine Sperre darf nie erkennbar sein. Wer gesperrt ist, den
+    trifft sonst die stille Verwerfung — und der Absender merkte am fehlenden
+    Eintrag in ``erwaehnt``, dass die Sperre besteht. Die Erwähnung wird also
+    gespeichert wie jede andere; nur die GLOCKE unterbleibt
+    (``_erwaehnungen_speichern`` → ``_erwaehnungen_gesperrt``).
+
+    Rückgabe in der Reihenfolge des Clients. ``benutzer`` ist leer nur bei
+    einem Aufruf ohne Anmeldung — dann gibt es keine Erwähnungen.
+    """
+    if not benutzer or not g.name:
+        return []
+    # R1/4: die Obergrenze wird VOR jeder Prüfung gezogen — sonst kostete eine
+    # Liste mit 5 000 Kennungen 5 000 Kern-Abfragen, nur um danach 20 zu
+    # behalten. Ausgewählt wird in der Reihenfolge des Clients.
+    kandidaten = _erwaehnten_liste(kennungen)[:ERWAEHNUNGEN_MAX]
+    if not kandidaten:
+        return []
+    # Die eigene Kennung: „erwähne dich nicht selbst“ ist keine Auskunft.
+    eigene = _eigene_kennung(s, benutzer)
+    konten = _konto_je_mitglieder(s, kandidaten)
+    erlaubt: list[str] = []
+    for mitglied in kandidaten:
+        if mitglied == eigene:
+            continue  # sich selbst erwähnt niemand
+        if not _erwaehnung_erreichbar(s, g, mitglied, konten.get(mitglied),
+                                      erstellt_am=erstellt_am):
+            continue
+        erlaubt.append(mitglied)
+    return erlaubt
+
+
+def _erwaehnungen_gesperrt(s, g: ChatGespraech, benutzer: str,
+                           mitglieder) -> set[str]:
+    """Die der GESPEICHERTEN Erwähnungen, die eine Kontaktsperre treffen.
+
+    Dieselbe Prüfung wie in CHAT-7b (``RechteKontaktsperre``, BEIDE
+    Richtungen in EINER Abfrage) — hier nur nicht als Verwerf-, sondern als
+    Glocken-Frage (Entscheidung Operator R1/3): gespeichert wird die
+    Erwähnung, geklingelt nicht. So ist die Antwort an die sendende Person mit
+    und ohne Sperre gleich; nur die erwähnte Person merkt nichts.
+
+    Die Sperre hängt an KONTEN (``user.name``). Meine Seite ist mein Konto
+    plus das Konto meiner Mitgliedszeile, die andere Seite sind die Konten der
+    Erwähnten — EINE Abfrage für alle Paare.
+    """
+    from diakronos_app.models.rechte import RechteKontaktsperre
+
+    eigene = _eigene_kennung(s, benutzer)
+    meine_seite = {str(benutzer)}
+    if eigene:
+        meine_seite |= {str(k) for k in _konto_je_mitglieder(s, [eigene]).values() if k}
+    konten = _konto_je_mitglieder(s, mitglieder)
+    fremde_seite = {str(k) for k in konten.values() if k}
+    if not fremde_seite:
+        return set()
+    gesperrt: set[str] = set()
+    for a, b in s.execute(
+        select(RechteKontaktsperre.benutzer, RechteKontaktsperre.gesperrt)
+        .where(RechteKontaktsperre.benutzer.in_(meine_seite | fremde_seite),
+               RechteKontaktsperre.gesperrt.in_(meine_seite | fremde_seite))
+    ).all():
+        a, b = str(a), str(b)
+        if a in meine_seite and b in fremde_seite:
+            gesperrt.add(b)
+        elif b in meine_seite and a in fremde_seite:
+            gesperrt.add(a)
+    if not gesperrt:
+        return set()
+    return {m for m in mitglieder if str(konten.get(m) or "") in gesperrt}
+
+
+
+def _erwaehnung_erreichbar(s, g: ChatGespraech, mitglied: str,
+                           konto: str | None,
+                           erstellt_am: datetime | None = None) -> bool:
+    """Ist ``mitglied`` Beteiligte/r dieses Gesprächs — und darf es lesen?
+
+    Dieselben Hilfen wie beim Lesen, nichts nachgebaut:
+
+    * Teilnahmezeile in ``chat_teilnehmer`` ist für JEDE Art der Beleg „ist
+      im Gespräch“; ``verlassen_am`` gesetzt heißt raus (CHAT-7b).
+    * ``sichtbar_ab`` (nur bei Runden gesetzt): wer erst NACH der Nachricht
+      eingetreten ist, sieht sie nicht — eine Erwähnung wäre eine Auskunft
+      über einen Inhalt, den es für ihn nicht gibt (``_vor_eintritt``, ohne
+      die eigene Person als Maßstab: hier wird die GRENZE der anderen
+      gelesen, nicht meine).
+    * Bei 1:1/Runde entscheidet ``_darf_lesen`` (Teilnahme + Kern) — fail
+      closed ohne Konto.
+    * Bei Gruppe/Untergruppe gilt die Einheit des Gesprächs: dieselbe Frage,
+      die ``verlauf`` stellt (``rechte.darf(... LESEN ...)``), nur für die
+      erwähnte Person.
+    """
+    if not mitglied:
+        return False
+    zeile = s.execute(
+        select(ChatTeilnehmer.verlassen_am, ChatTeilnehmer.sichtbar_ab)
+        .where(ChatTeilnehmer.gespraech == g.name,
+               ChatTeilnehmer.benutzer == konto if konto is not None
+               else ChatTeilnehmer.benutzer.is_(None))
+    ).first()
+    if g.art in (ART_DIREKT, ART_RUNDE):
+        # 1:1/Runde: der Raum sind die TEILNEHMENDEN — eine Teilnahmezeile ist
+        # Pflicht, ``verlassen_am`` heißt raus, ``sichtbar_ab`` begrenzt.
+        if zeile is None:
+            return False
+        if zeile[0] is not None:
+            return False  # verlassen: keine Teilnahme mehr
+        sichtbar_ab = zeile[1]
+        if (sichtbar_ab is not None and erstellt_am is not None
+                and erstellt_am < sichtbar_ab):
+            return False  # Nachricht liegt VOR dem Eintritt dieser Person
+        return bool(konto) and _darf_lesen(s, str(konto), g.name)
+    # Gruppe/Untergruppe: der Raum ist die EINHEIT — wer sie lesen darf, liest
+    # auch die Nachricht. Eine Teilnahmezeile entsteht dort erst beim Öffnen
+    # und ist darum KEINE Voraussetzung (sie würde die halbe Gruppe
+    # ausschließen, nur weil sie den Chat noch nie geöffnet hat).
+    if not konto:
+        return False
+    return _weiche_ja(str(konto), rechte.LESEN, gruppe=g.gruppe,
+                      untergruppe=g.untergruppe, gespraech=g.name, sitzung=s)
+
+
+def _erwaehnung_glocke_setzen(s, *, konto: str, nachricht: str,
+                              g: ChatGespraech) -> str:
+    """EINE eigene Glocke je Erwähnung — Text im Stil der Chat-Glocken.
+
+    Über ``benachrichtigungen.glocke_setzen`` (dieselbe Stelle wie die
+    gebündelte Glocke), aber mit EIGENEM ``document_type``
+    (``CHAT_ERWAEHNUNG_GLOCKE_DOCTYPE``) und ``document_name`` = Kennung der
+    NACHRICHT: sie landet damit nie auf der Zeile des Gesprächs-Zählers und
+    wird beim Lesen der Nachricht wiedergefunden.
+
+    Inhalt nach den Datenschutz-Regeln von CHAT-4a: **kein Nachrichtentext,
+    kein Absendername** (``_glocken_titel`` ist aus demselben Grund neutral).
+
+    Kein ``stumm``-Filter: die Karte entscheidet ausdrücklich, dass die
+    Erwähnung auch bei stumm geschaltetem Gespräch klingelt (wie gängige
+    Messenger) — wer jemanden ausdrücklich anspricht, will ihn erreichen.
+    """
+    from diakronos_app.benachrichtigungen import glocke_setzen
+
+    titel = _glocken_titel(g)
+    return glocke_setzen(
+        for_user=konto,
+        subject=f"{titel}: Du wurdest erwähnt",
+        inhalt=("Du wurdest in einem Gespräch erwähnt. Öffne den Chat, "
+                "um die Nachricht zu lesen."),
+        document_type=CHAT_ERWAEHNUNG_GLOCKE_DOCTYPE,
+        document_name=nachricht,
+        session=s,
+    )
+
+
+def _erwaehnungen_speichern(s, n: ChatNachricht, g: ChatGespraech,
+                            benutzer: str, kennungen) -> list[str]:
+    """Prüfen, speichern, glocken — die EINE Stelle für eine neue Nachricht.
+
+    Rückgabe sind die GESPEICHERTEN Mitglied-Kennungen (in der Reihenfolge des
+    Clients); der Aufrufer reicht sie in ``_zeile`` weiter. Glocken sind
+    Beiwerk: scheitert eine, bleibt die Erwähnung trotzdem stehen
+    (``glocke_setzen`` meldet den Fehler und liefert ``""``).
+
+    Eine GESPEICHERTE Erwähnung bekommt NICHT immer eine Glocke: besteht eine
+    Kontaktsperre zwischen der sendenden und der erwähnten Person (egal welche
+    Richtung), unterbleibt die Glocke — die Sperre darf nie erkennbar sein
+    (Entscheidung Operator R1/3, ``_erwaehnungen_gesperrt``).
+    """
+    erlaubt = _erwaehnungen_pruefen(s, g, benutzer, kennungen,
+                                    erstellt_am=n.erstellt_am)
+    if not erlaubt:
+        return []
+    jetzt = _jetzt()
+    konten = _konto_je_mitglieder(s, erlaubt)
+    for mitglied in erlaubt:
+        s.add(ChatErwaehnung(nachricht=n.name, mitglied=mitglied,
+                             angelegt_am=jetzt))
+    s.flush()
+    gesperrt = _erwaehnungen_gesperrt(s, g, benutzer, erlaubt)
+    for mitglied in erlaubt:
+        if mitglied in gesperrt:
+            continue  # gespeichert, aber keine Glocke (Sperre bleibt unsichtbar)
+        konto = konten.get(mitglied)
+        if not konto:
+            continue
+        try:
+            with s.begin_nested():
+                _erwaehnung_glocke_setzen(s, konto=str(konto),
+                                          nachricht=n.name, g=g)
+        except Exception as ex:  # noqa: BLE001 — Benachrichtigung ist Beiwerk
+            logger.warning("Erwähnungs-Glocke %s: %s", n.name, ex)
+    return erlaubt
+
+
+def _erwaehnungen_laden(s, kennungen, benutzer: str) -> dict[str, list[dict[str, str]]]:
+    """``{nachricht: [{mitglied, anzeigename}]}`` für eine VERLAUFSSEITE.
+
+    EINE Abfrage für alle Nachrichten der Seite (kein N+1). Der Anzeigename
+    kommt aus ``_personen`` — der bestehenden Namensquelle inklusive
+    Maskierung („Gelöschte Person“), kein zweiter Namensweg.
+
+    **Sichtbarkeit (R1/2):** geliefert wird nur, wer für die LESENDE Person
+    auffindbar ist — ``rechte.darf_person_finden`` (die Kern-Frage „Darf A B
+    sehen?“ aus Kapitel 2.4), je eindeutiger Kennung der Seite EINMAL
+    entschieden und für alle ihre Nachrichten wiederverwendet. Wer
+    ausgetreten/ausgeschlossen/gelöscht ist, fehlt damit in der
+    strukturierten Liste. Betroffen ist NUR diese Liste: der Nachrichtentext
+    enthält das „@Name“ ohnehin.
+
+    Gelöschte Nachrichten tragen KEINE Erwähnung (``_zeile`` liefert dort
+    ``[]``): an einer Lücke gibt es niemanden zu erwähnen.
+    """
+    from diakronos_app.rechte import darf_person_finden
+
+    ids = [str(k) for k in kennungen if k]
+    if not ids:
+        return {}
+    zeilen = s.execute(
+        select(ChatErwaehnung.nachricht, ChatErwaehnung.mitglied)
+        .where(ChatErwaehnung.nachricht.in_(ids))
+        .order_by(ChatErwaehnung.nachricht, ChatErwaehnung.angelegt_am,
+                  ChatErwaehnung.mitglied)
+    ).all()
+    if not zeilen:
+        return {}
+    # EINE Entscheidung je eindeutiger Kennung der Seite (nicht je Zeile).
+    sichtbar: dict[str, bool] = {}
+    for _n, mitglied in zeilen:
+        if mitglied and str(mitglied) not in sichtbar:
+            sichtbar[str(mitglied)] = bool(darf_person_finden(benutzer, str(mitglied)))
+    namen = _personen(s, {str(m) for _n, m in zeilen if m})
+    ergebnis: dict[str, list[dict[str, str]]] = {}
+    for nachricht, mitglied in zeilen:
+        if not mitglied or not sichtbar.get(str(mitglied)):
+            continue
+        ergebnis.setdefault(str(nachricht), []).append(
+            {"mitglied": str(mitglied), "anzeigename": namen.get(str(mitglied), str(mitglied))})
+    return ergebnis
+
+
+def _erwaehnung_glocken_als_gelesen(s, gespraech: str, benutzer: str,
+                                    nachricht: str | None) -> int:
+    """Erwähnungs-Glocken bis ``nachricht`` als gelesen markieren.
+
+    Analog zum Lesestand: gelesen ist, was BIS ZU DIESER Nachricht
+    (einschließlich) erwähnt hat — nicht mehr. Verglichen wird über die
+    POSITION im Verlauf (Zeitstempel + Kennung), nicht über die Reihenfolge
+    der Erwähnungen: eine Nachricht ohne Erwähnung darf die Grenze nicht
+    verschieben. ``nachricht=None`` fasst nichts an (der Aufrufer kennt die
+    sichtbare Grenze).
+
+    R1/5: EIN ``UPDATE`` über ``document_name IN (Unterabfrage der
+    Erwähnungen ≤ Grenze)`` — kein N+1 über die einzelnen Glocken. Fehler
+    bleiben Beiwerk.
+
+    Die Zeile im ``Notification Log`` bleibt als Nachweis stehen (wie jede
+    andere Benachrichtigung), nur ``read`` wird gesetzt.
+    """
+    from diakronos_app.models.core import NotificationLog
+
+    if not benutzer or not nachricht:
+        return 0
+    # ``chat_erwaehnung.mitglied`` ist eine MITGLIED-Kennung — das Konto der
+    # Person wird über ``_eigene_kennung`` aufgelöst (kein zweiter Weg).
+    mitglied = _eigene_kennung(s, benutzer)
+    if not mitglied:
+        return 0
+    anker = s.execute(
+        select(ChatNachricht.erstellt_am, ChatNachricht.name)
+        .where(ChatNachricht.name == nachricht, ChatNachricht.gespraech == gespraech)
+    ).first()
+    if anker is None:
+        return 0  # nicht im Gespräch: keine Grenze, keine Aussage
+    grenze_am, grenze_name = anker
+    # Die Grenze (Zeitstempel + Kennung) und die Ziel-Kennungen in EINER
+    # Anweisung: UNTERABFRAGE statt Namensliste nach Python.
+    bis_hier = or_(ChatNachricht.erstellt_am < grenze_am,
+                   and_(ChatNachricht.erstellt_am == grenze_am,
+                        ChatNachricht.name <= grenze_name))
+    grenzen = (
+        select(ChatErwaehnung.nachricht)
+        .join(ChatNachricht, ChatNachricht.name == ChatErwaehnung.nachricht)
+        .where(ChatErwaehnung.mitglied == mitglied,
+               ChatNachricht.gespraech == gespraech,
+               bis_hier)
+        .scalar_subquery()
+    )
+    try:
+        # Savepoint: scheitert das UPDATE auf PostgreSQL, bliebe sonst die
+        # ganze Transaktion abgebrochen und der Lesestand ginge mit verloren.
+        with s.begin_nested():
+            return int(s.execute(
+                update(NotificationLog)
+                .where(NotificationLog.for_user == benutzer,
+                       NotificationLog.document_type == CHAT_ERWAEHNUNG_GLOCKE_DOCTYPE,
+                       NotificationLog.document_name.in_(grenzen),
+                       NotificationLog.read.is_(False))
+                .values(read=True)
+                .execution_options(synchronize_session=False)
+            ).rowcount or 0)
+    except Exception as ex:  # noqa: BLE001 — Benachrichtigung ist Beiwerk
+        logger.warning("Erwähnungs-Glocken als gelesen %s: %s", gespraech, ex)
+        return 0
+
+
+def _nachricht_erwaehnungen_raeumen(s, nachricht: str) -> int:
+    """Erwähnungen einer Nachricht entfernen (gelöschte/entfernte Nachricht).
+
+    Dasselbe Muster wie bei den Umfrage-Glocken: die Zeilen fallen weg, und
+    eine offene Erwähnungs-Glocke wird GELESEN gestellt statt zu bleiben —
+    sonst führte sie zu einer Lücke im Verlauf.
+    """
+    from diakronos_app.benachrichtigungen import glocke_gelesen
+
+    personen = [str(m) for m in s.execute(
+        select(ChatErwaehnung.mitglied).where(ChatErwaehnung.nachricht == nachricht)
+    ).scalars().all() if m]
+    if not personen:
+        return 0
+    s.execute(delete(ChatErwaehnung).where(ChatErwaehnung.nachricht == nachricht))
+    # Die Glocke hängt am KONTO (`for_user`) — ``chat_erwaehnung.mitglied``
+    # ist die Mitglied-Kennung. Dieselbe Auflösung wie beim Senden
+    # (``_konto_je_mitglieder``), kein zweiter Weg.
+    konten = _konto_je_mitglieder(s, personen)
+    for mitglied in personen:
+        konto = konten.get(mitglied)
+        if not konto:
+            continue
+        glocke_gelesen(for_user=str(konto),
+                       document_type=CHAT_ERWAEHNUNG_GLOCKE_DOCTYPE,
+                       document_name=nachricht)
+    return len(personen)
+
+
 # ── Endpunkte: Senden / Bearbeiten / Löschen ────────────────────────────────
 
 
 @whitelist(methods=["POST"], allow_guest=False)
-def senden(gespraech, text, antwort_auf=None):
+def senden(gespraech, text, antwort_auf=None, erwaehnt=None):
     """Nachricht senden (nur Text, ≤ 4 000 Zeichen, Absätze bleiben).
 
     Recht: ANLEGEN in der Einheit — jedes Mitglied darf senden (Konzept 2.2),
@@ -1730,6 +2230,19 @@ def senden(gespraech, text, antwort_auf=None):
     Nachricht von vor dem eigenen Eintritt (``_vor_eintritt``) ist auch hier
     404 — sonst gäbe die Sende-Antwort den Zitattext eines Inhalts heraus, den
     der Verlauf nicht zeigt.
+
+    ``erwaehnt`` (CHAT-9a, Konzept S4): die ausdrückliche Liste der zu
+    erwähnenden Beteiligten — MITGLIED-Kennungen, wie sie die Gesprächs-/
+    Personen-APIs liefern (Liste oder JSON-Zeichenkette; ``{"mitglied": …}``
+    wird ebenso gelesen). Der Server parst KEIN „@…“ aus dem Text. Je Kennung
+    gilt (``_erwaehnungen_pruefen``): Beteiligte/r des Gesprächs, die/der die
+    Nachricht lesen darf, nicht die sendende Person selbst. UNGÜLTIGE
+    Kennungen werden STILL verworfen — kein Fehler, keine Auskunft darüber, ob
+    es die Person gibt; Duplikate werden zusammengefasst, höchstens 20 zählen.
+    Je gespeicherter Erwähnung entsteht eine EIGENE Glocke (nicht gebündelt,
+    keine Mail, auch bei stumm geschaltetem Gespräch) — AUSSER es besteht eine
+    Kontaktsperre: dann wird die Erwähnung gespeichert, aber nicht geklingelt
+    (eine Sperre darf nie erkennbar sein).
     """
     benutzer = _benutzer()
     gespraech = str(gespraech or "").strip()
@@ -1760,9 +2273,14 @@ def senden(gespraech, text, antwort_auf=None):
         s.add(zeile)
         _teilnahme(s, g.name, benutzer)
         s.flush()
+        # CHAT-9a: prüfen, speichern, glocken — EINE Stelle. Die Antwort
+        # zeigt dieselbe Liste wie der Verlauf (nur die gültigen).
+        _erwaehnungen_speichern(s, zeile, g, benutzer, erwaehnt)
         return _zeile(s, zeile, antwort_auf=_zitat(s, ziel) if ziel else None,
                       namen=_personen(s, {zeile.autor}),
-                      konto_namen=_konto_namen(s, {zeile.autor_benutzer}), ich=benutzer)
+                      konto_namen=_konto_namen(s, {zeile.autor_benutzer}),
+                      erwaehnungen=_erwaehnungen_laden(s, [zeile.name], benutzer),
+                      ich=benutzer)
 
 
 @whitelist(methods=["POST"], allow_guest=False)
@@ -1868,6 +2386,12 @@ def loeschen(nachricht):
         if n.geloescht_am is None:
             n.geloescht_am = _jetzt()
             n.geloescht_von = benutzer
+            # CHAT-9a: mit der Nachricht verschwinden ihre Erwähnungen, und
+            # eine offene Erwähnungs-Glocke wird als gelesen gestellt — sie
+            # führte sonst auf eine Lücke im Verlauf. Dasselbe Muster wie bei
+            # einer entfernten Nachricht (die Glockenzeile bleibt als
+            # Nachweis stehen, nur ``read`` wird gesetzt).
+            _nachricht_erwaehnungen_raeumen(s, n.name)
         s.flush()
         return _zeile(s, n, namen=_personen(s, {n.autor}),
                       konto_namen=_konto_namen(s, {n.autor_benutzer}), ich=benutzer)
@@ -1971,6 +2495,10 @@ def lesestand_setzen(gespraech, nachricht=None):
         ungelesen = _ungelesen_zaehlen(s, g.name, benutzer, teilnahme)
         _glocke_als_gelesen(s, g.name, benutzer, alles_gelesen=(ungelesen == 0),
                             ungelesen=ungelesen)
+        # CHAT-9a: die ERWÄHNUNGS-Glocken bis hierhin als gelesen — analog zum
+        # Lesestand, über die Position im Verlauf (Zeitstempel + Kennung).
+        # Nichts anderes als „diese Nachricht und alles davor“.
+        _erwaehnung_glocken_als_gelesen(s, g.name, benutzer, ziel.name if ziel else None)
         return {"gespraech": g.name, "bis": ziel.name if ziel else None,
                 "ungelesen": ungelesen}
 
@@ -3225,6 +3753,10 @@ def meldung_entscheiden(meldung, entscheidung, grund=None):
             if mit_entfernt:
                 n.geloescht_am = jetzt
                 n.geloescht_von = benutzer
+                # CHAT-9a: eine von der Moderation ENTFERNTE Nachricht trägt
+                # keine Erwähnung mehr — und die offene Erwähnungs-Glocke wird
+                # als gelesen gestellt (dasselbe Muster wie beim Löschen).
+                _nachricht_erwaehnungen_raeumen(s, n.name)
             n.entfernt_grund = begruendung
             autor_konto = str(n.autor_benutzer or "") or None
             # Die übrigen offenen Meldungen derselben Nachricht sind mit der
@@ -5020,7 +5552,7 @@ def _gespraech_kopf(s, g: ChatGespraech, benutzer: str,
     # „Nachricht senden“, `umfrage_anlegen` prüft `rechte.ANLEGEN`). Reine
     # Anzeige über den Rechte-Kern; kein zweiter Rechtepfad.
     darf_senden = _weiche_ja(benutzer, rechte.ANLEGEN, g=g, sitzung=s)
-    return {
+    kopf = {
         "name": g.name,
         "art": g.art,
         "gruppe": g.gruppe,
@@ -5041,6 +5573,13 @@ def _gespraech_kopf(s, g: ChatGespraech, benutzer: str,
         # Umfrage starten)? Reine Anzeige — der Endpunkt prüft erneut.
         "darf_senden": darf_senden,
     }
+    if g.art == ART_RUNDE and g.name:
+        # CHAT-7b-3: die Oberfläche braucht die NAMEN der Beteiligten, um
+        # Vorschläge und Mitgliederliste zu zeichnen. Nur Runden tragen das
+        # Feld; bei 1:1/Gruppen FEHLT es (nicht `None`) — dieselbe Form wie
+        # die Antwort von `runde_anlegen` (`_runde_kopf` → `_runde_mitglieder`).
+        kopf["mitglieder"] = _runde_mitglieder(s, g.name)
+    return kopf
 
 
 def _teilnehmer_aktuelle(s, g: ChatGespraech) -> int:
@@ -5159,14 +5698,35 @@ def _runde_teilnahme(s, gespraech: str) -> list[str]:
     )
 
 
-def _runde_mitglieder(s, gespraech: str) -> list[str]:
-    """Die MITGLIED-Kennungen der aktiven Teilnehmenden (für die Anzeige)."""
-    konten = _runde_teilnahme(s, gespraech)
-    if not konten:
+def _runde_mitglieder(s, gespraech: str) -> list[dict[str, str]]:
+    """Die AKTIVEN Teilnehmenden der Runde als ``[{mitglied, anzeigename}]``.
+
+    CHAT-7b-3 (Vertrag 3): EINE Form und EINE Reihenfolge für alle Aufrufer —
+    ``runde_anlegen``/``_runde_kopf`` und ``meine_gespraeche`` liefern dieselbe
+    Liste (kein zweites Feld, keine zweite Schreibweise). Sortiert wird über
+    den EINTRITT (``hinzugefuegt_am``) und dann über den Anzeigenamen, nicht
+    über die Kontokennung: die Liste ist für Menschen gedacht.
+
+    Der Name kommt aus ``_personen`` — derselben Quelle wie „Darf A B sehen?“
+    und die Antwort von ``runde_anlegen``. Ausgetretene (``verlassen_am``
+    gesetzt) fallen heraus; eine Sperre (CHAT-7b) entscheidet hier NICHTS —
+    wer aktiv in der Runde ist, steht mit Namen drin. Mehr als ``mitglied``
+    und ``anzeigename`` gibt es je Eintrag nicht.
+    """
+    zeilen = s.execute(
+        select(Mitglied.name, Mitglied.user, ChatTeilnehmer.hinzugefuegt_am)
+        .join(ChatTeilnehmer, ChatTeilnehmer.benutzer == Mitglied.user)
+        .where(ChatTeilnehmer.gespraech == gespraech,
+               ChatTeilnehmer.verlassen_am.is_(None))
+    ).all()
+    kennungen = [str(name) for name, _konto, _am in zeilen if name]
+    if not kennungen:
         return []
-    return sorted(str(m) for m in s.execute(
-        select(Mitglied.name).where(Mitglied.user.in_(konten))
-    ).scalars().all() if m)
+    namen = _personen(s, kennungen)
+    eintritt = {str(name): (am or datetime.min) for name, _konto, am in zeilen if name}
+    reihenfolge = sorted(kennungen,
+                         key=lambda k: (eintritt.get(k, datetime.min), namen.get(k, k)))
+    return [{"mitglied": k, "anzeigename": namen.get(k, k)} for k in reihenfolge]
 
 
 def _konto_je_mitglieder(s, mitglieder) -> dict[str, str]:
@@ -5216,8 +5776,10 @@ def _runde_kopf(s, g: ChatGespraech, benutzer: str) -> dict[str, Any]:
     """Kopf einer Runde: Titel, Zahl der Beteiligten, Ungelesen.
 
     ``teilnehmer`` zählt AKTIVE Beteiligte (ohne Ausgetretene). ``mitglieder``
-    kommt mit, weil die Oberfläche für Namen und Vorschläge die Kennungen
-    braucht — es sind ausschliesslich die der Runde, nichts über Dritte.
+    kommt mit, weil die Oberfläche für Namensliste und Vorschläge BEIDES
+    braucht — Kennung und Anzeigename, als ``[{mitglied, anzeigename}]``
+    (CHAT-7b-3, dieselbe Form wie in ``meine_gespraeche``). Es sind
+    ausschliesslich die der Runde, nichts über Dritte.
     """
     teilnahme = s.get(ChatTeilnehmer, (g.name, benutzer))
     return {
@@ -5355,16 +5917,22 @@ def _vorschlagsnachricht(s, g: ChatGespraech, v: ChatRundeVorschlag) -> ChatNach
     return zeile
 
 
-def _vorschlag_verlaufszeile(s, v: ChatRundeVorschlag) -> dict[str, Any]:
+def _vorschlag_verlaufszeile(s, v: ChatRundeVorschlag,
+                             benutzer: str = "") -> dict[str, Any]:
     """Der sichtbare Satz einer Vorschlags-Systemzeile — beim LESEN gebildet.
 
     Der Text nennt Vornamen und Zielperson, sonst NICHTS (keine Kennungen,
     keinen Grund, keine Zwischenstände) — dieselbe Zusage wie vorher, nur ohne
     gespeicherte Namen-Kopie. Der Stand („abgelehnt“, „angenommen“) kommt aus
     der Vorschlagszeile; ist sie weg, bleibt der Satz stehen.
+
+    CHAT-7b-3: ``eigene`` ist die Sicht der LESENDEN Person (``benutzer``) —
+    dieselbe Bedeutung wie in ``_vorschlags_texte``, damit die Antwort von
+    ``runde_vorschlagen`` und der Verlauf dasselbe sagen.
     """
     wer, wen = _vorschlag_nameschild(s, v)
-    return {"text": _vorschlag_satz(wer, wen, v.stand), "stand": v.stand}
+    return {"text": _vorschlag_satz(wer, wen, v.stand), "stand": v.stand,
+            "eigene": bool(benutzer) and str(v.vorgeschlagen_von or "") == str(benutzer)}
 
 
 def _vorschlag_mitglied_konto(s, v: ChatRundeVorschlag) -> str | None:
@@ -5449,7 +6017,8 @@ def runde_anlegen(titel=None, mitglieder=None):
     ``IntegrityError``-Weg wie beim 1:1.
 
     Antwort: der Kopf der Runde (``name, art, titel, teilnehmer, mitglieder,
-    stumm, ungelesen, erstellt_am``).
+    stumm, ungelesen, erstellt_am``) — ``mitglieder`` als
+    ``[{mitglied, anzeigename}]`` der AKTIVEN Beteiligten (CHAT-7b-3).
     """
     name = _runde_titel_pruefen(titel)
     if mitglieder in (None, ""):
@@ -5562,7 +6131,8 @@ def runde_vorschlagen(gespraech=None, mitglied=None):
             "vorschlag": _vorschlag_beschreiben(s, zeile),
             "nachricht": _zeile(s, nachricht,
                                 namen={}, konto_namen={}, ich=benutzer,
-                                system=_vorschlag_verlaufszeile(s, zeile)),
+                                system=_vorschlag_verlaufszeile(s, zeile,
+                                                                benutzer=benutzer)),
         }
 
 
@@ -5915,6 +6485,7 @@ def _bilder(s, kennungen) -> dict[str, str]:
 
 
 __all__ = [
+    "CHAT_ERWAEHNUNG_GLOCKE_DOCTYPE",
     "CHAT_GLOCKE_DOCTYPE",
     "CHAT_UMFRAGE_GLOCKE_DOCTYPE",
     "ERINNERUNG_VORLAUF_STUNDEN",

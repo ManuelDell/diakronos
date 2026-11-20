@@ -434,10 +434,15 @@ test('UI-R10b/A4: Administrator — nichts davon ist gesperrt (Gegenprobe)', asy
 
 // ── B · Einstellungen.vue: Leerzustand (Test 8 aus Runde 1, jetzt am DOM) ──
 
-test('UI-R10b/B: Einstellungen ohne sichtbaren Abschnitt → DkEmpty, KEIN eingebetteter Abschnitt', async () => {
+test('UI-R10b/B: Einstellungen ohne sichtbaren Abschnitt → DkEmpty statt Verwaltungs-Inhalt', async () => {
   document.body.innerHTML = ''
-  // Ein Mitglied (kein Admin, keine Mitgliederverwaltung): alle Abschnitte
-  // hängen an `verwaltung: 'admin' | 'personen'` → sichtbar bleibt nichts.
+  // Ein Mitglied (kein Admin, keine Mitgliederverwaltung): fast alle Abschnitte
+  // hängen an `verwaltung: 'admin' | 'personen'`. Seit CHAT-7b-UI-b steht
+  // „Gesperrte Personen“ OHNE Stufe da — es sind die EIGENEN Daten der Person
+  // (`chat.meine_sperren` grenzt auf die eigene Kennung ein). Der Rahmen hat
+  // damit etwas zu zeigen, und der Leerzustand „Für dich gibt es hier keine
+  // Einstellungen.“ ist richtigerweise nicht mehr da: die Sitzung sieht ihren
+  // EIGENEN Abschnitt, keinen fremden.
   globalThis.window.__DIakonosBOOT = {
     roles: [], is_admin: false, ist_mitgliederverwaltung: false, devmode: false,
   }
@@ -447,16 +452,24 @@ test('UI-R10b/B: Einstellungen ohne sichtbaren Abschnitt → DkEmpty, KEIN einge
   await warte(12)
 
   const leer = host.querySelector('[data-test="ei-keine-einstellungen"]')
-  assert.ok(leer, 'der Leerzustand fehlt. Warnungen: ' + warnungen.slice(0, 3).join(' | '))
-  assert.match(leer.textContent, /Für dich gibt es hier keine Einstellungen\./,
-    'der Satz aus der Karte steht im Leerzustand')
+  assert.equal(leer, null,
+    'kein Leerzustand mehr — die Sitzung hat einen eigenen Abschnitt '
+    + '(„Gesperrte Personen“, ohne Verwaltungsstufe). Warnungen: '
+    + warnungen.slice(0, 3).join(' | '))
+  // Die Liste zeigt GENAU den eigenen Abschnitt — keinen Verwaltungs-Abschnitt.
+  const eintraege = [...host.querySelectorAll('.ei-eintrag')].map((e) => e.textContent.trim())
+  assert.deepEqual(eintraege, ['Gesperrte Personen'],
+    'nur der eigene Abschnitt steht in der Liste: ' + eintraege.join(', '))
   // KEIN Abschnitt wurde eingebettet (früher „Gemeinde“).
   assert.equal(host.querySelectorAll('.ei-inhalt .an-abschnitt').length, 0,
     'kein fremder Abschnitt eingebettet')
   assert.equal(host.querySelectorAll('.ei-inhalt .an-felder').length, 0,
     'kein Abschnittsformular eingebettet')
-  // Die Liste ist leer — kein Eintrag ist als „aktiv“ markiert.
-  assert.equal(host.querySelectorAll('.ei-eintrag').length, 0, 'keine sichtbaren Abschnitte in der Liste')
+  // Die Liste führt GENAU den eigenen Abschnitt — und der ist aktiv (nie
+  // keiner, solange Abschnitte sichtbar sind).
+  assert.equal(host.querySelectorAll('.ei-eintrag').length, 1,
+    'genau EIN sichtbarer Abschnitt in der Liste')
+  assert.equal(host.querySelectorAll('.ei-eintrag.is-active').length, 1, 'genau ein aktiver Abschnitt')
 })
 
 test('UI-R10b/B: Administrator sieht die Abschnitte — kein Leerzustand (Gegenprobe)', async () => {

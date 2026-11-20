@@ -13,11 +13,25 @@
     </div>
 
     <!-- Karte Punkt 4: der klare Einstieg — steht IMMER oben, auch bei leerer
-         Liste (dann ist er der einzige Weg). Eine Trefferfläche ≥ 44 px. -->
+         Liste (dann ist er der einzige Weg). Eine Trefferfläche ≥ 44 px.
+         CHAT-7b-UI: daneben „Neue Runde“ (Karte Punkt 1) — der zweite Einstieg
+         im SELBEN Muster (dieselbe Zeile, dasselbe Zeichen, nur ein anderer
+         Anfang), er öffnet den Dialog der Seite (`neueRunde`). -->
     <a class="dk-chat-neu" :href="SUCHE" :aria-label="`${NEUE_NACHRICHT} — Personen suchen`">
       <span class="dk-chat-neu-zeichen" aria-hidden="true">+</span>
       <span>{{ NEUE_NACHRICHT }}</span>
     </a>
+    <!-- CHAT-7b-UI: der zweite Einstieg im SELBEN Muster — ein DkButton
+         (Knopf-System, UX1g2), der den Dialog der Seite öffnet. -->
+    <DkButton
+      variant="ghost"
+      class="dk-chat-neu dk-chat-neu--knopf"
+      :aria-label="`${NEUE_RUNDE} — mehrere Personen auswählen`"
+      @click="$emit('neueRunde')"
+    >
+      <template #icon><DkSymbol name="runde" /></template>
+      {{ NEUE_RUNDE }}
+    </DkButton>
 
     <!-- Laden: ruhiger Platzhalter statt „nichts da“ (Prinzip I5, UX2d3a:
          Form statt Prosa). -->
@@ -38,6 +52,12 @@
                    3c-Suche (`dk-chat-av--bild`), sonst die Initialen. -->
               <span v-if="bildFuer(zeile)" class="dk-chat-av dk-chat-av--bild">
                 <img :src="bildFuer(zeile)" alt="" />
+              </span>
+              <!-- CHAT-7b-UI (Karte Punkt 2): eine RUNDE trägt ihr eigenes
+                   Symbol (`runde` aus `ui/symbole.mjs`) statt Initialen —
+                   sonst sähe eine Runde wie eine einzelne Person aus. -->
+              <span v-else-if="istRundenZeile(zeile)" class="dk-chat-av dk-chat-av--runde">
+                <DkSymbol name="runde" :groesse="18" />
               </span>
               <span v-else class="dk-chat-av" aria-hidden="true">{{ initialenFuer(zeile) }}</span>
               <span class="dk-chat-zeile-text">
@@ -94,7 +114,12 @@
 import { initialen as initialenAus } from '../../composables/anzeigename.mjs'
 import { gespraechHash, zeilenAdresse, zeilenSchluessel } from '../../composables/nachrichtenLogik.mjs'
 import { NEUE_NACHRICHT, SUCHE, direktTitel } from '../../composables/nachrichtenDirekt.mjs'
+import {
+  NEUE_RUNDE, istRunde, rundenTitel, rundenZeilenText,
+} from '../../composables/nachrichtenRunden.mjs'
+import DkButton from '../ui/DkButton.vue'
 import DkSkelett from '../ui/DkSkelett.vue'
+import DkSymbol from '../ui/DkSymbol.vue'
 
 const props = defineProps({
   gruppen: { type: Array, default: () => [] },
@@ -105,10 +130,23 @@ const props = defineProps({
   laedt: { type: Boolean, default: false },
 })
 
-/** Der Titel einer Zeile — im 1:1 ohne Namen „Unbekannte Person“ (Punkt 6). */
-const nameFuer = (zeile) => (String(zeile?.art || '') === 'direkt'
-  ? direktTitel(zeile)
-  : String(zeile?.titel || ''))
+/**
+ * CHAT-7b-UI: „Neue Runde“ öffnet den Dialog der SEITE — das Ereignis geht
+ * nach oben, gesendet wird dort (ein Weg, wie beim Umfrage-Dialog).
+ */
+defineEmits(['neueRunde'])
+
+/**
+ * Der Titel einer Zeile — im 1:1 ohne Namen „Unbekannte Person“ (Punkt 6),
+ * bei einer Runde ihr Name (leer → „Runde“, nie eine leere Zeile).
+ */
+const nameFuer = (zeile) => {
+  if (String(zeile?.art || '') === 'direkt') return direktTitel(zeile)
+  if (istRunde(zeile)) return rundenTitel(zeile)
+  return String(zeile?.titel || '')
+}
+/** Trägt die Zeile das Rundensymbol? (Karte Punkt 2) */
+const istRundenZeile = (zeile) => istRunde(zeile)
 /**
  * Das Bild des Gegenübers (`bild` aus `meine_gespraeche`) — nur beim 1:1.
  * Eine Gruppe hat kein Bild; dort bleiben die Initialen des Namens.
@@ -163,7 +201,15 @@ function schluesselFuer(wert) {
  * (`_zitat`), hier wird nur noch einmal auf eine Zeile gekürzt.
  */
 function vorschau(zeile) {
+  // CHAT-7b-UI (Karte Punkt 2): eine Runde zeigt zuerst, wie viele dabei sind
+  // („4 Beteiligte“) und dann den letzten Beitrag — dieselbe Zeile, eine
+  // Auskunft mehr. Ohne letzten Beitrag bleibt es beim ruhigen Hinweis.
   const letzte = String(zeile?.letzte || '').replace(/\s+/g, ' ').trim()
+  if (istRunde(zeile)) {
+    const zahl = rundenZeilenText(zeile)
+    if (letzte) return zahl ? `${zahl} · ${letzte}` : letzte
+    return zahl || 'Noch keine Nachrichten'
+  }
   return letzte || 'Noch keine Nachrichten'
 }
 </script>
@@ -219,7 +265,18 @@ function vorschau(zeile) {
 }
 .dk-chat-neu:hover { background: var(--surface-hover); }
 .dk-chat-neu:focus-visible { outline: var(--rahmen-breite) solid var(--focus-ring); outline-offset: var(--rahmen-breite); }
-.dk-chat-neu-zeichen { font-size: var(--fs-16); line-height: 1; }
+.dk-chat-neu-zeichen { font-size: var(--fs-16); line-height: 1; display: inline-flex; align-items: center; }
+/* CHAT-7b-UI: „Neue Runde“ ist derselbe Einstieg als <button> — Optik und
+   Trefferfläche wie der Link darüber, nur Textfarbe/Zeiger vom Knopf-Modell. */
+.dk-chat-neu--knopf {
+  width: auto;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: start;
+}
+/* Das Rundensymbol sitzt in der Avatar-Fläche, ohne Bild — Strichzeichnung. */
+.dk-chat-av--runde { color: var(--muted); }
 .dk-chat-abschnitt-titel {
   margin: 0;
   padding: var(--sp-3) var(--sp-4) var(--sp-1);

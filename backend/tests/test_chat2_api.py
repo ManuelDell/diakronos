@@ -434,10 +434,15 @@ def test_lesestand_nur_als_summe(gespraech):
     # Die Antwort enthaelt NUR die Summe — kein Feld mit Namen.
     # CHAT-6: `geloescht_grund` ist dazugekommen (Grund einer Moderations-
     # Entfernung, NUR an einer geloeschten Nachricht) — kein Personenfeld.
+    # CHAT-9a: `erwaehnt` ist dazugekommen — die ausdruecklich genannten
+    # Beteiligten (`[{mitglied, anzeigename}]`, Konzept S4), NICHT die
+    # Leserschaft. Der Punkt dieses Tests bleibt: `gelesen_von` ist eine Zahl
+    # und traegt keine Namen.
     assert set(eigene) == {"name", "gespraech", "autor", "autor_mitglied", "eigene", "text",
                           "geloescht", "geloescht_grund", "bearbeitet", "bearbeitet_am",
                           "erstellt_am",
-                          "antwort_auf", "antwort_auf_text", "reaktionen", "gelesen_von"}
+                          "antwort_auf", "antwort_auf_text", "reaktionen", "gelesen_von",
+                          "erwaehnt"}
     # `gelesen_von` ist eine ZAHL — in der Antwort steht keine Personenliste.
     assert isinstance(eigene["gelesen_von"], int)
 

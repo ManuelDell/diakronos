@@ -140,6 +140,10 @@ const MAILVERSAND = defineAsyncComponent(() => import('./einstellungen/Mailversa
 // WEB-3: Zustand der optionalen Anbindung des Website-Baukastens + Kurzanleitung.
 // Nur Anzeige — eingeschaltet wird sie über settings/.env (der Betrieb).
 const WEBSITE = defineAsyncComponent(() => import('./einstellungen/Website.vue'))
+// CHAT-7b-UI-b: die EIGENEN Kontaktsperren („Nicht mehr anschreiben lassen“,
+// Chat-Konzept S3). Sichtbar für JEDE angemeldete Person — es sind ihre
+// eigenen Daten (der Server grenzt `meine_sperren` auf die eigene Kennung ein).
+const SPERREN = defineAsyncComponent(() => import('./einstellungen/Sperren.vue'))
 // UX1k: Abstände, Rahmen und Rundungen (nur System Manager — Server prüft).
 const GESTALTUNG = defineAsyncComponent(() => import('./einstellungen/Gestaltung.vue'))
 // CHAT-R2a (Chat-Konzept 10.1 Punkt 5, 10.2): „Personenverwaltung“ — der
@@ -220,6 +224,15 @@ const abschnitte = [
   // Nachbarn und keine eigene Rollenprüfung im Abschnitt.
   { id: 'fristen', label: 'Nachrichten aufbewahren', href: '#/einstellungen/fristen',
     seite: 'EinstellungenFristen', inhalt: FRISTEN, gruppe: 'datenschutz', verwaltung: 'admin' },
+  // CHAT-7b-UI-b (Chat-Konzept S3): „Gesperrte Personen“ — die EIGENEN
+  // Kontaktsperren. OHNE `verwaltung`-Stufe: der Abschnitt gehört jedem
+  // angemeldeten Konto, es sind dessen eigene Daten (`chat.meine_sperren`
+  // grenzt auf die eigene Kennung ein, `chat.kontakt_entsperren` prüft die
+  // eigene Sperre). Eine Stufe „personen“/„admin“ schlösse genau die Menschen
+  // aus, um deren Sperren es geht. Er steht in der Gruppe „Datenschutz“: dort
+  // entscheidet die Person über den Umgang mit ihren Daten.
+  { id: 'sperren', label: 'Gesperrte Personen', href: '#/einstellungen/sperren',
+    seite: 'EinstellungenSperren', inhalt: SPERREN, gruppe: 'datenschutz' },
   // CHAT-R2a (Chat-Konzept 10.1 Punkt 5, 10.2): „Personenverwaltung“ steht in
   // der Gruppe „Datenschutz“ — dieselbe Zuständigkeit wie Datenschutz-Texte,
   // Datensicherung und Papierkorb (dort wird über Personendaten entschieden).

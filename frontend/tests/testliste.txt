@@ -901,3 +901,34 @@ tests/chat8-fristen-ui.test.mjs
 # Verhalten mounten lässt; Quelltext-Prüfungen lesen den Code OHNE
 # Kommentare (die Kommentare nennen den Umbau).
 tests/chatn3-handylage-prop.test.mjs
+# CHAT-7b-UI-b: Blockieren und Sperrliste (Konzept S3). Die Aktion „Nicht mehr
+# anschreiben lassen“ im 1:1-Gesprächskopf (⋯-Menü des Hauses, DkAktionen) und
+# am Personenprofil; die Rückfrage nennt beide Seiten, bleibt still und zeigt
+# den Weg zurück; der ruhige Hinweis danach als role="status". Bestehendes 1:1
+# mit Sperre: Eingabe aus, DERSELBE Text wie „nicht erreichbar“ — und der
+# Aufheben-Satz NUR, wenn die EIGENE Liste (`chat.meine_sperren`) die Person
+# enthält. Einstellungen › „Gesperrte Personen“ (Gruppe Datenschutz, ohne
+# Verwaltungsstufe, für jede angemeldete Person): Liste mit Bild + Name +
+# „Aufheben“ (DkButton), Leerzustand, Aufheben ruft `kontakt_entsperren` und
+# nimmt NUR die eine Zeile weg. Regeln DOM-frei in `nachrichtenDirekt.mjs`.
+tests/chat7bui-b-sperren.test.mjs
+
+# SEC-11d: die GEGENRICHTUNG zu sec11 (C3) — kein POST an einen Endpunkt,
+# der laut Inventar POST NICHT annimmt (nur GET). Befund CHAT-7b-UI-b: nach
+# `apiCall(...chat.meine_sperren)` (POST) antwortete der Server 405, die Seite
+# lud nie; kein Test fiel darauf. Geprueft werden `apiCall(<pfad>)` (immer
+# POST), `fetch(...)` mit `method: POST` und Methoden-Adresse, Konstanten
+# (`PRAEFIX + name`, `${PRAEFIX}.name`) aufgeloest sowie die Selbsttests der
+# Erkennung. Quelle des Inventars ist `tests/sec11-zugriff.mjs` (dieselbe wie
+# sec11-get-schreibend). Heute 0 Funde, 27 POST-Aufrufe mit Methodennamen erst
+# zur Laufzeit werden als Hinweis ausgegeben (nicht still verschluckt).
+tests/sec11d-*.test.mjs
+
+# CHAT-7b-UI-a — Runden in „Nachrichten“: „Neue Runde“ (Name + 2–7 Personen aus
+# der einen Personensuche, nur mit darf_schreiben wählbar), Runden in der
+# Gesprächsliste (Titel, Beteiligte, eigenes Symbol), Rundenkopf
+# (Teilnehmende aufklappbar, „Person vorschlagen“ bis 8, „Runde verlassen“
+# mit Rückfrage), die Vorschlags-Systemzeile (Satz des Servers,
+# Zustimmen/Ablehnen nur offen und nie am eigenen) und der Eintritts-Hinweis
+# NUR mit dem Serverfeld. Gemountet (jsdom) — Regeln, Bausteine und Seite.
+tests/chat7bui-a-runden.test.mjs

@@ -207,7 +207,10 @@ def test_anlegen_legt_eine_runde_mit_drei_beteiligten_an(welt):
     assert kopf["art"] == ART_RUNDE
     assert kopf["titel"] == "Kigo-Vorbereitung"
     assert kopf["teilnehmer"] == 3
-    assert sorted(kopf["mitglieder"]) == sorted([MI[ANNA], MI[BERT], MI[CLARA]])
+    # CHAT-7b-3: `mitglieder` sind Objekte [{mitglied, anzeigename}] der AKTIVEN
+    # Beteiligten (dieselbe Form wie in `meine_gespraeche`).
+    assert [m["mitglied"] for m in kopf["mitglieder"]] == [MI[ANNA], MI[BERT], MI[CLARA]]
+    assert {m["mitglied"]: m["anzeigename"] for m in kopf["mitglieder"]}[MI[BERT]] == "Bert Brandner"
     assert kopf["ungelesen"] == 0
 
     # Alle drei sehen die Runde in ihrer Liste — mit Titel und Teilnehmerzahl.
@@ -307,8 +310,13 @@ def test_vorschlag_erscheint_als_systemnachricht_ohne_weitere_daten(welt):
     # ein SYSTEMHINWEIS (SOLL 8): eigener Art, kein Besitz, kein Text im
     # Datensatz (der Satz entsteht beim Lesen aus der Vorschlagszeile).
     assert antwort["nachricht"]["text"] == "Anna möchte Dieter Dorn hinzufügen."
+    # CHAT-7b-3: `system` trägt zusätzlich die Kennung (für runde_zustimmen/
+    # runde_ablehnen) und `eigene` aus Sicht der LESENDEN Person — hier Anna,
+    # die den Vorschlag gemacht hat.
     assert antwort["nachricht"]["system"] == {"art": "runde_vorschlag",
-                                              "stand": VORSCHLAG_OFFEN}
+                                              "stand": VORSCHLAG_OFFEN,
+                                              "vorschlag": v["name"],
+                                              "eigene": True}
     assert antwort["nachricht"]["eigene"] is False
     assert antwort["nachricht"]["autor"] is None
     s_db = welt
