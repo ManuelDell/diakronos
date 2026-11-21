@@ -652,11 +652,25 @@ export function seiteEinordnen(antwort, { alt = [], ich = '', jetzt = new Date()
  * Was danach für „ältere Nachrichten laden“ gilt: nur ein VOLLER älterer Abruf
  * hält es an; alles andere (`null`) lässt den bisherigen Stand stehen.
  *
- * @param {boolean} bisher
+ * Review R1/3: Ein frisch geöffnetes Gespräch hat noch KEINEN Stand. Die
+ * neueste Seite sagt darüber nichts aus (`aelterMoeglich: null`) — vorher
+ * blieb damit `false` stehen, und das Nachladen durch Scrollen begann erst
+ * nach einem Sprung. Ein voller Verlauf aus `SEITE` Zeilen heißt: „oben geht es
+ * weiter“; eine kürzere Seite ist der Anfang. Der Anfangswert kommt also vom
+ * ersten geladenen Verlauf.
+ *
+ * @param {boolean|null} bisher bisheriger Stand (`null` = noch keiner)
  * @param {boolean|null} aussage Ergebnis von `seiteEinordnen(...).aelterMoeglich`
+ * @param {number|null} [anzahl] Zeilen des geladenen Verlaufs (nur für `bisher === null`)
  */
-export function aelterStand(bisher, aussage) {
-  if (aussage === null || aussage === undefined) return bisher === true
+export function aelterStand(bisher, aussage, anzahl = null) {
+  if (aussage === null || aussage === undefined) {
+    if (bisher === true || bisher === false) return bisher
+    // Noch kein Stand (frisch geöffnetes Gespräch): die neueste Seite
+    // entscheidet ihn — voll = oben geht es weiter (Review R1/3).
+    if (anzahl === null || anzahl === undefined) return false
+    return Number(anzahl) >= SEITE
+  }
   return aussage === true
 }
 

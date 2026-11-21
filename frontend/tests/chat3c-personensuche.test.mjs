@@ -608,6 +608,11 @@ async function sucheMontieren({
   const gemountet = await mounten(mod, {
     gespraeche, startBegriff: begriff,
     timer: uhr.timer, timerAus: uhr.timerAus,
+    // CHAT-11b: Der Abschnitt „In Nachrichten“ bekommt einen EIGENEN Timer. Er
+    // wird hier stillgelegt (kein Termin in DER Uhr dieser Fälle) — die Namen
+    // und das Ereignis der Personensuche bleiben sonst unverändert prüfbar;
+    // den dritten Abschnitt prüft `tests/chat11b-suche.test.mjs`.
+    trefferHolen: async () => ({ treffer: [], mehr: false, vor: null, limit: 20 }),
   }, { horcher: (art, wert) => gemeldet.push({ art, wert }) })
   return { ...gemountet, aufrufe, uhr, gemeldet }
 }
@@ -617,7 +622,16 @@ async function sucheMontieren({
 const suchUeberschriften = (host) => [...host.querySelectorAll('.dk-chat-suchergebnis h3.dk-chat-abschnitt-titel')]
   .map((h) => h.textContent.trim())
 
+/**
+ * Nur die Abschnitte der PERSONENSUCHE. CHAT-11b stellt einen dritten Abschnitt
+ * („In Nachrichten“) daneben — den prüft `tests/chat11b-suche.test.mjs`.
+ */
+const personenAbschnitte = (host) => suchUeberschriften(host).filter((t) => t !== 'In Nachrichten')
+
 test('CHAT-3c/B (MUSS 1): im Listenmodus keine Überschrift, bei Treffern genau zwei', async () => {
+  // CHAT-11b: Die Trefferfläche der Nachrichtensuche wird hier abgeschaltet
+  // (Attrappe ohne Treffer), damit dieser Fall weiter GENAU die zwei
+  // Abschnitte der Personensuche prüft — den dritten prüft `chat11b-suche`.
   const s = await sucheMontieren()
   // Ohne Eingabe: keine Abschnitte, keine leere „Personen“-Überschrift.
   assert.deepEqual(suchUeberschriften(s.host), [], 'Listenmodus: keine Abschnittsüberschrift')
@@ -629,7 +643,8 @@ test('CHAT-3c/B (MUSS 1): im Listenmodus keine Überschrift, bei Treffern genau 
   // „leitung“ trifft das Gespräch „Leitung“ UND (laut Attrappe) die Personen.
   await tippen(s.host, 'leitung')
   await s.uhr.feuern()
-  assert.deepEqual(suchUeberschriften(s.host), ['Gespräche', 'Personen'], 'zwei Abschnitte, untereinander')
+  assert.deepEqual(personenAbschnitte(s.host), ['Gespräche', 'Personen'],
+    'zwei Abschnitte der Personensuche, untereinander')
   assert.equal(s.host.querySelectorAll('.dk-chat-suchleer').length, 0, 'kein Leer-Text bei Treffern')
   s.abbaum()
 
@@ -637,7 +652,7 @@ test('CHAT-3c/B (MUSS 1): im Listenmodus keine Überschrift, bei Treffern genau 
   const p = await sucheMontieren()
   await tippen(p.host, 'anna')
   await p.uhr.feuern()
-  assert.deepEqual(suchUeberschriften(p.host), ['Personen'], 'genau eine Überschrift „Personen“')
+  assert.deepEqual(personenAbschnitte(p.host), ['Personen'], 'genau eine Überschrift „Personen“')
   assert.equal(p.host.querySelectorAll('.dk-chat-person').length, 2,
     'die zwei Zeilen der Attrappe — KEINE zweite Fläche daneben')
   p.abbaum()
@@ -738,7 +753,9 @@ test('CHAT-3c/B: Fehlerzustand mit „Erneut versuchen“, leeres Ergebnis mit T
   await warte(8)
   assert.equal(s.aufrufe.filter((a) => /personen_suchen/.test(a.methode)).length, vorher + 1,
     'der zweite Versuch geht sofort raus')
-  assert.deepEqual(suchUeberschriften(s.host), ['Personen'], 'die Fehlerfläche steht unter EINER Überschrift')
+  // Genau EINE „Personen“-Überschrift — daneben steht CHAT-11b „In Nachrichten“.
+  assert.deepEqual(personenAbschnitte(s.host), ['Personen'],
+    'die Fehlerfläche steht unter EINER Überschrift „Personen“')
   s.abbaum()
 
   // Leeres Ergebnis: GENAU EIN Text, kein Fehler, keine zweite Leer-Fläche.
@@ -753,7 +770,7 @@ test('CHAT-3c/B: Fehlerzustand mit „Erneut versuchen“, leeres Ergebnis mit T
     'kein Leer-Text der Personenfläche mehr')
   assert.equal(leer.host.querySelectorAll('.dk-chat-suchnichts').length, 1,
     'GENAU EIN Leerzustand — gezählt werden beide Klassen')
-  assert.deepEqual(suchUeberschriften(leer.host), [], 'und keine Überschrift darüber')
+  assert.deepEqual(personenAbschnitte(leer.host), [], 'und keine Überschrift darüber')
   leer.abbaum()
 })
 
@@ -801,9 +818,12 @@ test('CHAT-3c/B: unter 2 Zeichen kein Aufruf — Suche bleibt offen, Liste nicht
 test('CHAT-3c/B (SOLL b): ein geleertes Feld räumt den offenen Termin weg', async () => {
   const s = await sucheMontieren()
   await tippen(s.host, 'ann')
-  assert.equal(s.uhr.offen(), 1, 'ein Termin ist geplant')
+  // CHAT-11b: Der Abschnitt „In Nachrichten“ hat einen EIGENEN Entpreller und
+  // legt SEINEN Termin in DIESE Uhr (der Test gibt beiden dieselbe Attrappe).
+  // Beide Termine müssen beim Leeren fallen — genau darum geht es hier.
+  assert.equal(s.uhr.offen(), 2, 'je ein Termin (Personen und Nachrichten)')
   await tippen(s.host, '')
-  assert.equal(s.uhr.offen(), 0, 'das Leeren nimmt den Termin zurück')
+  assert.equal(s.uhr.offen(), 0, 'das Leeren nimmt die Termine zurück')
   await s.uhr.feuern()
   assert.deepEqual(s.aufrufe.filter((a) => /personen_suchen/.test(a.methode)), [],
     'nach dem Leeren wird nicht mehr gefragt')

@@ -57,6 +57,12 @@ _AUSGENOMMENE_INDIZES = {
     # Grund wie oben), `check` meldete sonst dauerhaft „remove_index“.
     "uq_kalender_website_slug",
     "uq_gruppe_website_slug",
+    # CHAT-11a: GIN-Ausdrucksindex auf `to_tsvector('german',
+    # coalesce(text,''))`. Er steht nicht in den Metadaten (keine neue Spalte,
+    # kein Trigger — die Suche fragt den Ausdruck direkt), `check` meldete
+    # sonst dauerhaft „remove_index“ und der Abnahme-Lauf bräche ab. Angelegt
+    # und gepflegt wird er von der Migration `chat11a_suche`.
+    "ix_chat_nachricht_tsv",
 }
 
 #: Tabellen, die NUR eine Migration anlegt (kein Modell): die Abbildung

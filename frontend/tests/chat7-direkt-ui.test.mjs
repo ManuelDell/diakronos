@@ -305,7 +305,10 @@ test('CHAT-7a · ChatSuche.vue: Treffer ist ein Link, kein totes „treffer“-E
   const { tpl, skript } = teile(lies('components/chat/ChatSuche.vue'))
   // Review R1 Punkt 3: das ungenutzte `emit('treffer')` ist entfernt.
   assert.doesNotMatch(skript, /emit\('treffer'/, 'kein totes Ereignis mehr')
-  assert.match(skript, /defineEmits\(\['sucht'\]\)/, 'nur `sucht` bleibt')
+  // CHAT-11b: `springen` ist der Weg zu einem Nachrichtentreffer — KEIN
+  // zweites Treffer-Ereignis, sondern der Sprung (die Seite lädt nach).
+  assert.match(skript, /defineEmits\(\['sucht', 'springen'\]\)/,
+    'die Ereignisse sind `sucht` (Adresse) und `springen` (Nachrichtentreffer)')
   assert.doesNotMatch(tpl, /@click="beiTrefferKlick"/, 'kein Klick-Abfangen — der Link springt')
   assert.match(tpl, /<a class="dk-chat-zeile dk-chat-treffer"/, 'die Trefferzeile ist ein <a>')
   // Die 3c-Regel liefert das Ziel (Profil oder Chat) — eine Stelle.

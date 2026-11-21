@@ -290,6 +290,59 @@ MELDUNG_ENTSCHEIDUNGEN: tuple[str, ...] = ("entfernen", "verwerfen")
 #: Neues geschrieben wurde, geht EINE Glocke je Person heraus.
 GLOCKE_RUHE_MINUTEN = 5
 
+# ── CHAT-12a: ANHÄNGE (Konzept S4, F11) ─────────────────────────────────────
+#: Höchstgröße EINES Anhangs in Bytes (Konzept S4: „10 MB je Datei“). Die
+#: Grenze steht hier, weil Endpunkt, Speicher-Schreibvorgang und Meldung
+#: dieselbe Zahl nennen müssen.
+ANHANG_MAX_BYTES = 10 * 1024 * 1024
+#: Höchstzahl Anhänge je Nachricht (Konzept S4: „3 Anhänge je Nachricht“).
+ANHAENGE_MAX = 3
+#: Höchstzahl Anhänge je KONTO und KALENDERTAG (Konzept-Kostenrechnung,
+#: Abschnitt 3.4). Überschritten → 429 wie bei den übrigen Grenzen.
+ANHAENGE_PRO_TAG = 20
+#: Höchstlänge des ANGEZEIGTEN Dateinamens (Karte: „dateiname (bereinigt, max
+#: 120)“). Er ist reine Anzeige — der Speicher-Schlüssel ist eine eigene,
+#: technische Kennung.
+ANHANG_NAME_MAX = 120
+#: Wie lange ein „offener“ Anhang (hochgeladen, aber keiner Nachricht
+#: zugeordnet) liegen bleiben darf (Karte: „älter als 24 h räumt ein Job weg“).
+ANHANG_OFFEN_STUNDEN = 24
+#: Review R1/3: Höchstlänge der Kurzfassung des letzten Entsorgungs-Fehlers.
+ENTSORGUNG_FEHLER_MAX = 200
+#: Review R1/4: Aufbewahrung der Hochlade-Marken in TAGEN. Zwei Tage, nicht
+#: einer: die Tagesgrenze rechnet ab lokaler Mitternacht, ein Lauf am Folgetag
+#: darf die Marken des Vortags noch nicht weggenommen haben.
+HOCHLADUNG_AUFBEWAHRUNG_TAGE = 2
+#: Die ERLAUBTEN Typen (Konzept S4: „Bilder jpg/png/webp/heic, PDF, kleine
+#: Audio-Dateien (mp3/m4a/ogg/opus)“). Geprüft wird der aus den MAGIC BYTES
+#: erkannte Typ (``files.binary_content_type``), nie der Client-Typ.
+#:
+#: ``audio/mp4`` deckt ``.m4a`` (MP4-Container, ``ftyp``) — dieselbe Magie
+#: erkennt auch ``.mp4``-VIDEO. Video ist nicht Teil des Konzepts, und der
+#: Container allein unterscheidet es nicht: deshalb gilt für ``audio/mp4``
+#: zusätzlich, dass der Client den Typ als Audio deklariert haben muss
+#: (``_anhang_typ``) — ein Video-Upload deklariert ``video/mp4``.
+ANHANG_TYPEN: dict[str, str] = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/webp": ".webp",
+    # HEIC/HEIF: die Magie ist ein ISO-BMFF-``ftyp`` mit ``heic``/``heix``/
+    # ``heim``/``heis``/``hevc``/``mif1`` — ``binary_content_type`` kennt sie
+    # NICHT (es meldet für jeden ``ftyp`` ``audio/mp4``), deshalb steht die
+    # Erkennung in ``api.chat._anhang_typ``.
+    "image/heic": ".heic",
+    "application/pdf": ".pdf",
+    "audio/mpeg": ".mp3",
+    "audio/mp4": ".m4a",
+    "audio/ogg": ".ogg",
+    "audio/opus": ".opus",
+}
+#: Die Bildtypen — nur sie werden INLINE ausgeliefert (Konzept S4:
+#: „Vorschau nur für Bilder“); alles andere geht als ``attachment``.
+ANHANG_BILDER: frozenset[str] = frozenset(
+    {"image/png", "image/jpeg", "image/webp", "image/heic"}
+)
+
 
 class ChatGespraech(Base):
     """Ein Gespräch je Gruppe/Untergruppe (lazy angelegt) oder je Personenpaar."""
@@ -949,14 +1002,190 @@ class ChatErwaehnung(Base):
     angelegt_am: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
 
 
+class ChatAnhang(Base):
+    """Ein ANHANG an einer Chat-Nachricht (CHAT-12a, Konzept S4 + F11).
+
+    Die DATEI selbst liegt NUR in der Ablage (``diakronos_app.speicher``) unter
+    ``schluessel`` — hier stehen nur die Angaben, die zum Ausliefern und
+    Anzeigen nötig sind (Anzeigename, geprüfter Typ, Größe). Es gibt keinen
+    zweiten Speicherweg (kein ``files.py``-Eintrag, keine ``File``-Zeile): die
+    Karte verbietet ihn ausdrücklich.
+
+    ``nachricht`` ist ZUERST leer: ``anhang_hochladen`` legt die Zeile „offen“
+    an und gibt ihre Kennung zurück; ``senden`` hängt sie an die neue Nachricht
+    (``anhaenge=[…]``). Ein offener Anhang, der 24 h keiner Nachricht zugeordnet
+    wurde, räumt der Minuten-Job ``chat_anhaenge_aufraeumen`` weg — Zeile UND
+    Datei.
+
+    ``gespraech`` steht zusätzlich zur Nachricht hier, weil der Upload das
+    Gespräch braucht, lange bevor es eine Nachricht gibt: die Rechtefrage beim
+    Hochladen ist „darf ich in DIESES Gespräch senden“ (dieselbe Weiche wie
+    ``senden``), und die Tagesgrenze zählt je Person über alle Gespräche.
+
+    DSGVO (Konzept 4.3): ``angelegt_von`` ist ein Konto-Verweis (``user_null``
+    — er verschwindet mit dem Konto); ``dateiname`` ist Freitext (er kann einen
+    Namen tragen) und läuft über ``protokoll``. Die DATEI selbst fällt mit der
+    Person: ``dsgvo_anonymisierung`` sammelt den Schlüssel und löscht das
+    Speicherobjekt nach dem Commit.
+    """
+
+    __tablename__ = "chat_anhang"
+    __table_args__ = (
+        # „Welche Anhänge hängen an diesen Nachrichten?“ — EIN Abruf je
+        # Verlaufsseite (kein N+1).
+        Index("ix_chat_anhang_nachricht", "nachricht"),
+        # Tagesgrenze je Person und das Aufräumen offener Anhänge.
+        Index("ix_chat_anhang_angelegt_von_am", "angelegt_von", "angelegt_am"),
+        Index("ix_chat_anhang_gespraech", "gespraech"),
+    )
+
+    name: Mapped[str] = mapped_column(String(140), primary_key=True)
+    #: Die Nachricht, an der der Anhang hängt — NULL, solange er „offen“ ist.
+    #: ``ON DELETE CASCADE``: eine endgültig gelöschte Nachricht (CHAT-8) nimmt
+    #: ihre Anhang-Zeilen mit; die DATEI räumt der Löschweg vorher weg.
+    nachricht: Mapped[str | None] = mapped_column(
+        String(140),
+        ForeignKey("chat_nachricht.name", ondelete="CASCADE"),
+        nullable=True,
+    )
+    gespraech: Mapped[str] = mapped_column(
+        String(140), ForeignKey("chat_gespraech.name"), nullable=False
+    )
+    #: Der SCHLÜSSEL in der Ablage (``speicher/schluessel.py``-Form) — die
+    #: EINZIGE Stelle, an der die Datei zu finden ist.
+    schluessel: Mapped[str] = mapped_column(String(255), nullable=False)
+    #: Anzeigename (bereinigt, höchstens ``ANHANG_NAME_MAX`` Zeichen). Reine
+    #: Anzeige — er wird NIE als Speicherpfad benutzt.
+    dateiname: Mapped[str] = mapped_column(String(ANHANG_NAME_MAX), nullable=False)
+    #: Der GEPRÜFTE Typ (aus den Magic Bytes, nie der Client-Typ).
+    mime: Mapped[str] = mapped_column(String(60), nullable=False)
+    groesse: Mapped[int] = mapped_column(Integer, nullable=False)
+    angelegt_am: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    #: Das Konto, das hochgeladen hat (``user_null``: fällt mit dem Konto).
+    #: ``ON DELETE SET NULL`` MUSS zum Migrationsstand passen (Review R1/2:
+    #: Modell ohne ``ondelete`` war Drift). Die DSGVO erfasst die Zeilen
+    #: trotzdem VOR dem Löschen der ``user``-Zeile — auf PostgreSQL wäre
+    #: ``angelegt_von`` sonst schon NULL und die Zeile samt ``dateiname``
+    #: bliebe stehen.
+    angelegt_von: Mapped[str | None] = mapped_column(
+        String(140), ForeignKey("user.name", ondelete="SET NULL"), nullable=True
+    )
+
+
+class ChatAnhangEntsorgung(Base):
+    """ENTSORGUNGSLISTE der Anhang-Dateien (Review R1/3).
+
+    Jede Zeile ist ein AUFTRAG „lösche diesen Speicher-Schlüssel“. Der Auftrag
+    entsteht in DERSELBEN Transaktion, in der die ``chat_anhang``-Zeile fällt —
+    damit ist die Datei nie unerreichbar: entweder es gibt noch die
+    Anhang-Zeile mit dem Schlüssel, oder es gibt den Auftrag.
+
+    Ohne diese Liste waren Dateien nach einem gescheiterten Ablage-Löschen
+    (Netzfehler, Nextcloud kurz weg) verwaist und niemand versuchte es erneut.
+    Abgearbeitet wird sie von ``api.chat.chat_anhang_entsorgung_abarbeiten``
+    (Minuten-Job, wie der Aufräumjob der offenen Anhänge):
+
+    * Erfolg (Datei weg oder „war schon weg“) → Zeile fällt,
+    * Fehler → ``versuche`` + 1, ``letzter_fehler`` (kurz, ohne Geheimnisse),
+      nächster Lauf versucht es erneut.
+
+    **Keine Kopfblockade (CHAT-12a-2, Review):** Der Job nimmt nicht mehr die
+    ältesten Aufträge, sondern die, die JETZT dran sind (``naechster_versuch_am
+    <= jetzt``), der früheste zuerst. Vorher konnten 100 dauerhaft scheiternde
+    Schlüssel (403, kaputter Pfad) die Liste von vorn blockieren — neuere
+    Aufträge wurden nie bearbeitet. ``naechster_versuch_am`` wird beim
+    Fehlschlag hochgesetzt (``api.chat.ENTSORGUNG_BACKOFF_MINUTEN``: 1, 5, 30
+    Minuten, danach 6 Stunden). Ein Auftrag wird NIE still gelöscht — es geht
+    um DSGVO-Dateien; ab ``ENTSORGUNG_WARNUNG_AB`` Versuchen steht einmal ein
+    ``logger.error`` im Protokoll, versucht wird weiter (alle 6 Stunden).
+
+    DSGVO-Inventar: die Tabelle trägt KEINE Personendaten — der Schlüssel ist
+    eine technische Kennung (``chat-a…``), kein Name, kein Konto, kein Bezug
+    auf eine Person. Sie steht deshalb weder in ``ZEILEN_LOESCHEN`` noch in
+    ``SPALTEN`` und wird vom Anonymisierer nicht angefasst (``test_dsgvo1_
+    inventar`` prüft die Begründung).
+    """
+
+    __tablename__ = "chat_anhang_entsorgung"
+    __table_args__ = (
+        # Die Auswahl des Jobs: „was ist jetzt dran?“, frühestes zuerst.
+        Index("ix_chat_anhang_entsorgung_am", "vorgemerkt_am"),
+        Index("ix_chat_anhang_entsorgung_naechster", "naechster_versuch_am"),
+    )
+
+    #: Der Speicher-Schlüssel selbst ist der Primärschlüssel: derselbe Auftrag
+    #: entsteht nie zweimal (INSERT OR IGNORE bzw. bedingtes Einfügen).
+    schluessel: Mapped[str] = mapped_column(String(255), primary_key=True)
+    vorgemerkt_am: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    versuche: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    #: Wann dieser Auftrag das nächste Mal versucht werden darf
+    #: (``api.chat.ENTSORGUNG_BACKOFF_MINUTEN``). Gleich ``vorgemerkt_am`` beim
+    #: Anlegen — ein frischer Auftrag ist sofort dran.
+    naechster_versuch_am: Mapped[datetime] = mapped_column(
+        DateTime(timezone=False), nullable=False
+    )
+    #: Kurzfassung des letzten Fehlers (höchstens ``ENTSORGUNG_FEHLER_MAX``
+    #: Zeichen) — für die Diagnose, nie mit Zugangsdaten.
+    letzter_fehler: Mapped[str | None] = mapped_column(
+        String(ENTSORGUNG_FEHLER_MAX), nullable=True
+    )
+
+
+class ChatAnhangHochladung(Base):
+    """Eine Hochlade-MARKE (Review R1/4) — Grundlage des Tageskontingents.
+
+    Vorher zählte ``_anhang_kontingent`` die vorhandenen ``chat_anhang``-Zeilen
+    des Tages. Wer hochlädt, sendet und die Nachricht wieder löscht, hatte
+    damit ein unbegrenztes Kontingent. Die Marke hier wird beim Löschen einer
+    Nachricht deshalb NICHT mitgelöscht; sie fällt erst mit dem Konto (DSGVO)
+    oder nach ``HOCHLADUNG_AUFBEWAHRUNG_TAGE`` Tagen (Aufräumjob).
+
+    **Gezählt wird je Hochlade-VERSUCH, nicht je erfolgreichem Upload
+    (CHAT-12a-2):** die Marke entsteht in ``_anhang_kontingent``, BEVOR Typ und
+    Größe geprüft sind. Das ist Absicht — sonst wäre die Grenze mit
+    Fehlversuchen umgehbar (20 × 500 MB abgelehnt und das Kontingent bliebe
+    unberührt).
+
+    ``konto`` ist der Kontoname (Adresse) — für die Tageszählung und die
+    DSGVO-Zuordnung. Die Zeile trägt kein Bild und keinen Dateinamen; sie sagt
+    nur „diese Person hat an diesem Tag N-mal hochgeladen (versucht)“.
+    """
+
+    __tablename__ = "chat_anhang_hochladung"
+    __table_args__ = (
+        # „Wie viele Uploads hat dieses Konto seit Mitternacht?“ — ein Zugriff.
+        Index("ix_chat_anhang_hochladung_konto_am", "konto", "angelegt_am"),
+        Index("ix_chat_anhang_hochladung_am", "angelegt_am"),
+    )
+
+    name: Mapped[str] = mapped_column(String(140), primary_key=True)
+    konto: Mapped[str] = mapped_column(
+        String(140), ForeignKey("user.name", ondelete="CASCADE"), nullable=False
+    )
+    angelegt_am: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+
+
+
 __all__: list[Any] = [
+    "ANHAENGE_MAX",
+    "ANHAENGE_PRO_TAG",
+    "ANHANG_BILDER",
+    "ANHANG_MAX_BYTES",
+    "ANHANG_NAME_MAX",
+    "ANHANG_OFFEN_STUNDEN",
+    "ANHANG_TYPEN",
     "ARTEN",
     "ART_DIREKT",
     "ART_GRUPPE",
     "ART_RUNDE",
     "ART_UNTERGRUPPE",
     "BEARBEITEN_MINUTEN",
+    "ChatAnhang",
+    "ChatAnhangEntsorgung",
+    "ChatAnhangHochladung",
     "ChatErwaehnung",
+    "ENTSORGUNG_FEHLER_MAX",
+    "HOCHLADUNG_AUFBEWAHRUNG_TAGE",
     "ERWAEHNUNGEN_MAX",
     "ChatGespraech",
     "ChatGlocke",

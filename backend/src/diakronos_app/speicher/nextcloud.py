@@ -81,15 +81,26 @@ class _DateiStrom(httpx.SyncByteStream):
     der Transport sie schreibt. Damit liegt nie mehr als ein Block im
     Speicher — unabhaengig von der Groesse der Datei.
 
-    ``spulen`` setzt die Datei an den Anfang zurueck; es wird nur dann
-    benutzt, wenn die Wiederholung wirklich etwas bringt (siehe
-    ``_schreibe_strom``). Ist der Strom schon verbraucht und laesst sich
-    nicht zuruecksetzen, ist eine Wiederholung nicht moeglich (``None``).
+    ``spulen`` setzt die Datei auf ihre STARTposition zurueck (nicht auf 0!);
+    es wird nur dann benutzt, wenn die Wiederholung wirklich etwas bringt
+    (siehe ``_schreibe_strom``). Ist der Strom schon verbraucht und laesst
+    sich nicht zuruecksetzen, ist eine Wiederholung nicht moeglich
+    (``False``).
+
+    Die Startposition ist der Stand der Datei, als dieser Strom entstand
+    (SPEICHER-3, Punkt 1). ``laenge`` ist ``ende - start`` — die Bytes, die
+    uebertragen werden, sind also ``[start, start + laenge)``. Ein
+    ``seek(0)`` beim Spulen schickte dagegen ``[0, laenge)``: bei einem
+    bereits angelesenen Strom (Spool nach einem Kopf, Datei hinter einem
+    Vorspann) landete damit stillschweigend der FALSCHE Inhalt unter dem
+    richtigen Namen — der zweite PUT ist der, der zaehlt.
     """
 
-    def __init__(self, datei: IO[bytes], laenge: int) -> None:
+    def __init__(self, datei: IO[bytes], laenge: int, start: int = 0) -> None:
         self._datei = datei
         self.laenge = laenge
+        #: Erste Position, die dieser Strom sendet (``tell()`` bei Entstehung).
+        self.start = max(0, int(start))
         self._gelesen = 0
         self._fertig = False
 
@@ -112,9 +123,16 @@ class _DateiStrom(httpx.SyncByteStream):
         self._fertig = True
 
     def spulen(self) -> bool:
-        """Datei an den Anfang; ``False``, wenn das nicht geht."""
+        """Datei auf ihre STARTposition zurueck; ``False``, wenn das nicht geht.
+
+        ``self.start`` statt ``0`` (SPEICHER-3, Punkt 1): die Laenge des
+        Stroms ist ``ende - start``, gesendet wurden ``[start, ende)``. Ein
+        Sprung auf 0 schickte beim zweiten Versuch ``[0, laenge)`` — bei
+        einem Strom, der nicht am Anfang stand, also fremde Bytes
+        (Kopf/Vorspann der Datei) unter dem richtigen Namen.
+        """
         try:
-            self._datei.seek(0)
+            self._datei.seek(self.start)
         except (OSError, ValueError, AttributeError):
             return False
         self._gelesen = 0
@@ -310,6 +328,8 @@ class Nextcloud(Basis):
         aktion: str = "Zugriff",
         strom: bool = False,
         wiederholbar: Callable[[], bool] | None = None,
+        timeout: float | None = None,
+        versuches: int | None = None,
     ) -> httpx.Response:
         """Eine WebDAV-Anfrage; wiederholt 429/5xx/Netzfehler.
 
@@ -317,6 +337,12 @@ class Nextcloud(Basis):
         ``NichtGefunden`` zu werfen (Loeschen und Existenzpruefung wollen
         gerade „nein“ wissen). ``erlaube_status`` sind weitere Statuscodes, die
         als Antwort durchgereicht werden (MKCOL: 405 = „gibt es schon“).
+
+        ``timeout``/``versuches`` sind die Notbremse fuer Aufrufer, die nicht
+        warten duerfen (``loeschen_mit_zeitlimit``, CHAT-12a/R1): gesetzt,
+        ueberschreiben sie das Zeitlimit aus den Einstellungen bzw. die Zahl
+        der Versuche — ``versuches=1`` heisst genau EIN Netzaufruf, ohne
+        Wartezeiten dazwischen.
 
         ``strom=True`` ist fuer Anfragen mit KOERPER (GET): ``client.send(...,
         stream=True)`` laesst ``httpx`` die Antwort NICHT vorab einlesen — der
@@ -335,15 +361,22 @@ class Nextcloud(Basis):
                 + ")."
             )
         client = self._http()
-        timeout = zugang.transfer_timeout if transfer else zugang.timeout
+        # ``timeout`` als Parameter (Notbremse fuer ``loeschen_mit_zeitlimit``)
+        # sticht das Zeitlimit aus den Einstellungen.
+        if timeout is not None:
+            zeitlimit = max(0.1, float(timeout))
+        else:
+            zeitlimit = zugang.transfer_timeout if transfer else zugang.timeout
+        anzahl_versuche = (zugang.versuche if versuches is None
+                           else max(1, int(versuches)))
         letzte: Exception | None = None
-        for versuch in range(1, zugang.versuche + 1):
+        for versuch in range(1, anzahl_versuche + 1):
             try:
                 if strom:
                     antwort = client.send(
                         client.build_request(
                             methode, url, content=inhalt, headers=kopf or {},
-                            timeout=timeout,
+                            timeout=zeitlimit,
                         ),
                         stream=True,
                     )
@@ -353,19 +386,19 @@ class Nextcloud(Basis):
                         url,
                         content=inhalt,
                         headers=kopf or {},
-                        timeout=timeout,
+                        timeout=zeitlimit,
                     )
             except httpx.TimeoutException as fehler:
                 letzte = fehler
                 logger.warning(
                     "Nextcloud: %s Zeitueberschreitung (Versuch %d/%d).",
-                    aktion, versuch, zugang.versuche,
+                    aktion, versuch, anzahl_versuche,
                 )
             except httpx.HTTPError as fehler:
                 letzte = fehler
                 logger.warning(
                     "Nextcloud: %s Netzfehler %s (Versuch %d/%d).",
-                    aktion, type(fehler).__name__, versuch, zugang.versuche,
+                    aktion, type(fehler).__name__, versuch, anzahl_versuche,
                 )
             else:
                 status = antwort.status_code
@@ -398,14 +431,39 @@ class Nextcloud(Basis):
                     letzte = AblageFehler(f"HTTP {status}")
                     logger.warning(
                         "Nextcloud: %s HTTP %d (Versuch %d/%d).",
-                        aktion, status, versuch, zugang.versuche,
+                        aktion, status, versuch, anzahl_versuche,
                     )
-                    self._warte(versuch, antwort.headers.get("Retry-After"))
+                    # Review R1/2: NICHT warten, wenn kein Versuch mehr folgt.
+                    # Sonst schlief ein Aufruf mit ``versuches=1`` (der Weg mit
+                    # Zeitlimit im Request) erst noch bis zu 5 s (Retry-After)
+                    # bzw. die Backoff-Wartezeit ab — das Zeitlimit gilt nur
+                    # fuer den Netzaufruf, nicht fuer das Warten danach.
+                    #
+                    # CHAT-12a-3, Punkt 5: nur EINMAL warten. Vorher schlief
+                    # dieser Zweig erst nach ``Retry-After`` und danach noch
+                    # einmal die Backoff-Zeit (die Wartephase unten) — zusammen
+                    # bis zu 5 s + Backoff fuer einen einzigen Versuch. Jetzt
+                    # gilt das Maximum aus beiden, genau einmal. Das Zurueck-
+                    # setzen der Quelle (unten, ``wiederholbar``) darf dabei
+                    # NICHT entfallen: ohne das Zuruecksetzen der Quelle
+                    # (``spulen``, springt auf die STARTPOSITION) schickte der
+                    # zweite Versuch 0 Bytes.
+                    if versuch < anzahl_versuche:
+                        self._warte(versuch, antwort.headers.get("Retry-After"))
+                        if wiederholbar is not None and not wiederholbar():
+                            raise SpeicherNichtErreichbar(
+                                f"Die Nextcloud ist nicht erreichbar ({aktion}); "
+                                "die Quelle laesst sich fuer eine Wiederholung "
+                                "nicht zuruecksetzen."
+                            )
+                        # Warten ist erledigt — die gemeinsame Wartephase
+                        # unten ueberspringen.
+                        continue
                 else:  # unbekannter 4xx: wiederholen bringt nichts
                     raise AblageFehler(
                         f"Die Nextcloud hat {aktion} abgelehnt (HTTP {status})."
                     )
-            if versuch < zugang.versuche:
+            if versuch < anzahl_versuche:
                 if wiederholbar is not None and not wiederholbar():
                     # Die Quelle ist schon verbraucht und laesst sich nicht
                     # zuruecksetzen (z. B. ein Strom ohne ``seek``): ein
@@ -418,21 +476,34 @@ class Nextcloud(Basis):
                 self._warte(versuch, None)
         raise SpeicherNichtErreichbar(
             f"Die Nextcloud ist nicht erreichbar ({aktion} nach "
-            f"{zugang.versuche} Versuchen)."
+            f"{anzahl_versuche} Versuchen)."
         )
 
     def _warte(self, versuch: int, retry_after: str | None) -> None:
+        """Einmal warten: das MAXIMUM aus ``Retry-After`` und Backoff.
+
+        CHAT-12a-3, Punkt 5: Vorher gewann ``Retry-After`` und der Backoff
+        entfiel — der Aufrufer wartete fuer diesen Versuch also genau einmal,
+        aber nie die längere der beiden Zeiten. (Der Fehler lag im
+        Aufrufpfad: nach ``Retry-After`` schlief der 429/5xx-Zweig noch einmal
+        den Backoff, insgesamt bis zu 5 s + Backoff.) Hier steht die eine
+        Wahrheit: beide Quellen werden bestimmt, geschlafen wird EINMAL, mit
+        der grösseren Zeit — nie addiert.
+        """
+        sekunden = 0.0
         if retry_after:
             try:
-                sekunden = float(str(retry_after).strip())
+                roh = float(str(retry_after).strip())
             except ValueError:
-                sekunden = 0.0
-            if sekunden > 0:
-                time.sleep(min(sekunden, 5.0))
-                return
+                roh = 0.0
+            if roh > 0:
+                sekunden = min(roh, 5.0)
         werte = self.wartezeiten
         if werte:
-            time.sleep(werte[min(versuch - 1, len(werte) - 1)])
+            backoff = werte[min(max(versuch, 1) - 1, len(werte) - 1)]
+            sekunden = max(sekunden, backoff)
+        if sekunden > 0:
+            time.sleep(sekunden)
 
     # ── Ordner (MKCOL) ─────────────────────────────────────────────────────
     def _ordner_anlegen(self, ordner: str) -> None:
@@ -520,9 +591,16 @@ class Nextcloud(Basis):
 
         **Wiederholung nur mit zurueckspulbarer Quelle:** Ein 5xx/429/Netz-
         fehler kann den Strom schon halb verbraucht haben. Eine echte Datei
-        laesst sich mit ``seek(0)`` zuruecksetzen; geht das nicht (Pipe,
-        Socket, ein Strom ohne ``seek``), wird NICHT wiederholt — sonst
-        landete eine halbe Datei unter dem richtigen Namen.
+        laesst sich zuruecksetzen; geht das nicht (Pipe, Socket, ein Strom
+        ohne ``seek``), wird NICHT wiederholt — sonst landete eine halbe
+        Datei unter dem richtigen Namen.
+
+        **Zurueckgesetzt wird auf die STARTPOSITION, nicht auf 0**
+        (SPEICHER-3, Punkt 1): ``laenge`` ist ``ende - position``. Steht ein
+        uebergebener Strom nicht am Anfang (Spool nach einem gelesenen Kopf,
+        Datei hinter einem Vorspann) und scheitert der erste PUT, schickte
+        ein ``seek(0)`` die Bytes ``[0, laenge)`` statt ``[position, ende)``
+        — stillschweigend der falsche Inhalt unter dem richtigen Namen.
         """
         laenge = _strom_laenge(daten)
         if laenge is None:
@@ -530,7 +608,9 @@ class Nextcloud(Basis):
                 "Die Datei hat keine feststellbare Groesse — ohne Laenge "
                 "kann sie nicht in die Nextcloud uebertragen werden."
             )
-        strom = _DateiStrom(daten, laenge)
+        # Die Startposition VOR dem ersten Lesen festhalten: sie ist der
+        # Bezugspunkt, zu dem ``spulen`` zurueckkehrt.
+        strom = _DateiStrom(daten, laenge, start=_strom_start(daten))
         kopf = {
             "Content-Type": "application/octet-stream",
             "Content-Length": str(laenge),
@@ -554,8 +634,9 @@ class Nextcloud(Basis):
                     transfer=True,
                     aktion="Datei schreiben",
                     # Der Strom ist NACH dem Senden immer verbraucht: nur mit
-                    # ``seek(0)`` geht eine Wiederholung. Ohne das schickte
-                    # der zweite Versuch 0 Bytes.
+                    # ``spulen`` (zurueck auf die Startposition) geht eine
+                    # Wiederholung. Ohne das schickte der zweite Versuch
+                    # 0 Bytes bzw. — mit ``seek(0)`` — die falschen.
                     wiederholbar=strom.spulen,
                 )
                 return laenge
@@ -881,6 +962,29 @@ class Nextcloud(Basis):
 
     # ── Loeschen ───────────────────────────────────────────────────────────
     def loeschen(self, schluessel: str) -> bool:
+        return self._loeschen(schluessel, zeitlimit=None)
+
+    def loeschen_mit_zeitlimit(self, schluessel: str, sekunden: float) -> bool:
+        """Review R1 (CHAT-12a): Loeschen mit OBERGRENZE je Netzaufruf.
+
+        Anders als bei ``Lokal`` gibt es hier einen Netzweg (WebDAV), und der
+        darf den Aufrufer nicht aufhaengen: ein Lese-Timeout von 10 s mal drei
+        Versuche (plus Wartezeiten) waere laenger als das Speichern einer
+        Nachricht selbst. Deshalb:
+
+        * **keine Wiederholung** (``versuches = 1``) — ein zweiter Versuch ist
+          hier nicht noetig, weil der Minuten-Job den Auftrag ohnehin wieder
+          aufnimmt (``chat_anhang_entsorgung``),
+        * **EIN HTTP-Aufruf** mit ``timeout=max(0.1, sekunden)``,
+        * auch der Kontroll-Blick nach einer Zeitueberschreitung
+          (``_noch_da``) laeuft im selben Limit.
+
+        Scheitert das Loeschen, wirft die Methode wie ``loeschen`` — der
+        Aufrufer laesst den Auftrag dann stehen.
+        """
+        return self._loeschen(schluessel, zeitlimit=max(0.1, float(sekunden)))
+
+    def _loeschen(self, schluessel: str, *, zeitlimit: float | None) -> bool:
         sauber = normalisiere(schluessel)
         try:
             antwort = self._anfrage(
@@ -888,6 +992,8 @@ class Nextcloud(Basis):
                 self.zugang.datei_url(sauber),
                 erlaube_404=True,
                 aktion="Datei loeschen",
+                timeout=zeitlimit,
+                versuches=1 if zeitlimit is not None else None,
             )
         except SpeicherNichtErreichbar:
             # Review-Punkt 7: Der DELETE kann den Server erreicht haben und
@@ -896,7 +1002,7 @@ class Nextcloud(Basis):
             # das Loeschen erfolgreich — ein „nicht erreichbar“ waere hier
             # falsch und liesse den Aufrufer eine geloeschte Datei als Fehler
             # verbuchen (DSGVO-Loeschung!).
-            if not self._noch_da(sauber):
+            if not self._noch_da(sauber, zeitlimit=zeitlimit):
                 return True
             raise
         return antwort.status_code < 400
@@ -947,13 +1053,17 @@ class Nextcloud(Basis):
             return True
         return antwort.status_code < 400
 
-    def _noch_da(self, sauber: str) -> bool:
+    def _noch_da(self, sauber: str, *, zeitlimit: float | None = None) -> bool:
         """Ist die Datei noch da? (Nach einem abgebrochenen DELETE.)
 
         Eine kurze, einzelne Abfrage OHNE Wiederholungsschleife: hier geht es
         nur um „weg oder nicht weg“. Ist auch die Pruefung nicht erreichbar,
         gilt die Datei als noch da — dann meldet der Aufrufer den Fehler,
         statt sich auf eine unklare Lage zu verlassen.
+
+        ``zeitlimit`` (``loeschen_mit_zeitlimit``): dieselbe Obergrenze wie
+        der DELETE selbst — der Blick danach darf nicht laenger dauern als das
+        Loeschen.
         """
         try:
             antwort = self._anfrage(
@@ -961,6 +1071,8 @@ class Nextcloud(Basis):
                 self.zugang.datei_url(sauber),
                 erlaube_404=True,
                 aktion="Datei pruefen",
+                timeout=zeitlimit,
+                versuches=1 if zeitlimit is not None else None,
             )
         except AblageFehler:
             return True
@@ -1041,6 +1153,21 @@ def _strom_laenge(daten: IO[bytes]) -> int | None:
         return int(len(daten))  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return None
+
+
+def _strom_start(daten: IO[bytes]) -> int:
+    """Position, ab der der Strom sendet — ``0``, wenn nicht feststellbar.
+
+    SPEICHER-3, Punkt 1: ``_strom_laenge`` misst ``ende - position``. Genau
+    diese ``position`` muss ``_DateiStrom`` als Start merken, sonst springt
+    ``spulen`` beim Wiederholen an die falsche Stelle. Ein Strom ohne
+    ``tell()`` (Pipe) faengt eben bei 0 an — dort bricht die Wiederholung
+    ohnehin am fehlenden ``seek`` ab.
+    """
+    try:
+        return max(0, int(daten.tell()))
+    except (OSError, ValueError, AttributeError):
+        return 0
 
 
 def _ebenen(ordner: str) -> list[str]:

@@ -185,19 +185,28 @@ def _ist_angemeldetes_mitglied(benutzer: str | None) -> bool:
 
     Ein Login, zu dem es kein aktives ``User``-Konto gibt, ist niemand — auch
     wenn der Name in einer Freigabe steht.
+
+    PERF-K1: gemerkt (je Aufruf und Login EINMAL) — die Antwort haengt nur am
+    Login, nicht an der Sitzung; der Merker wird nach jedem Schreibvorgang
+    geleert.
     """
     if not benutzer or benutzer == GAST:
         return False
     if benutzer == "Administrator":
         return True
-    from diakronos_app.frappe_compat.permissions import mitglied_ausgeschlossen
-    from diakronos_app.models.core import User
 
-    with lesesitzung() as sess:
-        aktiv = sess.execute(select(User.enabled).where(User.name == benutzer)).scalar_one_or_none()
-    if not aktiv:
-        return False
-    return not mitglied_ausgeschlossen(benutzer)
+    def _lesen() -> bool:
+        from diakronos_app.frappe_compat.permissions import mitglied_ausgeschlossen
+        from diakronos_app.models.core import User
+
+        with lesesitzung() as sess:
+            aktiv = sess.execute(select(User.enabled).where(
+                User.name == benutzer)).scalar_one_or_none()
+        if not aktiv:
+            return False
+        return not mitglied_ausgeschlossen(benutzer)
+
+    return bool(_gemerkt(("angemeldet", benutzer), _lesen))
 
 
 # ── Gruppen- und Untergruppenebene ──────────────────────────────────────────
@@ -302,22 +311,42 @@ def ist_gemeindemitglied(benutzer: str | None) -> bool:
 
 def _gruppe_lebt(sess, gruppe: str | None) -> bool:
     """Gruppe existiert und liegt NICHT im Papierkorb — sonst verleiht sie
-    keine Rechte (UX2b2/F3: eine geloeschte Gruppe gibt kein Recht mehr)."""
+    keine Rechte (UX2b2/F3: eine geloeschte Gruppe gibt kein Recht mehr).
+
+    PERF-K1: gemerkt (je Aufruf und Gruppe EINMAL) — die Frage haengt nur an
+    der Gruppe, nicht an der Sitzung; der Merker wird nach jedem Schreibvorgang
+    geleert. Ohne Merkungsrahmen wird wie zuvor jedes Mal gelesen.
+    """
     if not gruppe:
         return False
-    from diakronos_app.models.diakonos import Gruppe
 
-    zeile = sess.execute(select(Gruppe.name, Gruppe.geloescht_am).where(Gruppe.name == gruppe)).first()
-    return zeile is not None and zeile[1] is None
+    def _lesen() -> bool:
+        from diakronos_app.models.diakonos import Gruppe
+
+        zeile = sess.execute(select(Gruppe.name, Gruppe.geloescht_am).where(
+            Gruppe.name == gruppe)).first()
+        return zeile is not None and zeile[1] is None
+
+    return bool(_gemerkt(("gruppe_lebt", gruppe), _lesen))
 
 
 def _rolle_eintrag(sess, benutzer: str, gruppe: str, untergruppe: str | None) -> str | None:
-    bedingung = [RechteGruppenrolle.gruppe == gruppe, RechteGruppenrolle.benutzer == benutzer]
-    if untergruppe:
-        bedingung.append(RechteGruppenrolle.untergruppe == untergruppe)
-    else:
-        bedingung.append(RechteGruppenrolle.untergruppe.is_(None))
-    return sess.execute(select(RechteGruppenrolle.rolle).where(*bedingung)).scalar_one_or_none()
+    """Der Rolleneintrag (``HV``/``MV``/``GL``) — PERF-K1: gemerkt.
+
+    Die Frage hängt nur an ``(benutzer, gruppe, untergruppe)``, nicht an der
+    Sitzung; der Merker wird nach jedem Schreibvorgang geleert. Ohne
+    Merkungsrahmen wird wie zuvor jedes Mal gelesen.
+    """
+    def _lesen() -> str | None:
+        bedingung = [RechteGruppenrolle.gruppe == gruppe,
+                     RechteGruppenrolle.benutzer == benutzer]
+        if untergruppe:
+            bedingung.append(RechteGruppenrolle.untergruppe == untergruppe)
+        else:
+            bedingung.append(RechteGruppenrolle.untergruppe.is_(None))
+        return sess.execute(select(RechteGruppenrolle.rolle).where(*bedingung)).scalar_one_or_none()
+
+    return _gemerkt(("rolle_eintrag", benutzer, gruppe, untergruppe or ""), _lesen)
 
 
 def _hauptgruppe(sess, untergruppe: str | None) -> str | None:
@@ -348,13 +377,22 @@ def _ist_untergruppenmitglied(sess, mid: str, untergruppe: str) -> bool:
 
 
 def _ist_gruppenmitglied(sess, benutzer: str, gruppe: str) -> bool:
-    """Mitglied der Gruppe, einer ihrer Untergruppen oder Rolleninhaber in ihr."""
-    if sess.execute(select(RechteGruppenrolle.id).where(
-        RechteGruppenrolle.gruppe == gruppe, RechteGruppenrolle.benutzer == benutzer
-    ).limit(1)).first():
-        return True
-    mid = _mitglied_von(sess, benutzer)
-    return bool(mid) and _person_in_gruppe(sess, mid, gruppe)
+    """Mitglied der Gruppe, einer ihrer Untergruppen oder Rolleninhaber in ihr.
+
+    PERF-K1: gemerkt (je Aufruf und ``(benutzer, gruppe)`` EINMAL) — die
+    Frage hängt nur an den beiden Kennungen, nicht an der Sitzung; der Merker
+    wird nach jedem Schreibvorgang geleert. Ohne Merkungsrahmen wird wie zuvor
+    jedes Mal gelesen.
+    """
+    def _lesen() -> bool:
+        if sess.execute(select(RechteGruppenrolle.id).where(
+            RechteGruppenrolle.gruppe == gruppe, RechteGruppenrolle.benutzer == benutzer
+        ).limit(1)).first():
+            return True
+        mid = _mitglied_von(sess, benutzer)
+        return bool(mid) and _person_in_gruppe(sess, mid, gruppe)
+
+    return bool(_gemerkt(("ist_gruppenmitglied", benutzer, gruppe), _lesen))
 
 
 def _person_in_gruppe(sess, mid: str, gruppe: str) -> bool:
@@ -430,6 +468,149 @@ def _untergruppenrolle_roh(benutzer: str, untergruppe: str) -> str | None:
     return None
 
 
+def rollen_vorladen(benutzer: str | None, *, gruppen: Iterable[str] = (),
+                    untergruppen: Iterable[str] = (), module: Iterable[str] = ()) -> None:
+    """Rollen-, Mitgliedschafts- und Modulantworten für VIELE Einheiten vorab merken.
+
+    PERF-K1 für Listen (Gesprächsliste, Suche): statt je Einheit 3–6
+    Einzelabfragen liest diese Funktion in wenigen Sammelabfragen dieselben
+    Zeilen und legt die Antworten unter DENSELBEN Merker-Schlüsseln ab, die
+    ``gruppenrolle``, ``untergruppenrolle``, ``modul_aktiv``, ``_gruppe_lebt``,
+    ``_rolle_eintrag`` und ``_ist_gruppenmitglied`` benutzen. Entschieden wird
+    danach unverändert über ``darf`` — hier entsteht KEINE zweite Rechteregel,
+    nur ein Vorrat derselben Antworten.
+
+    Gleichheit ist Pflicht: ``test_rechte_vorladen`` vergleicht für jede
+    Einheit die vorgeladene Antwort mit der Einzelfrage. Wo die Einzelfrage
+    nicht eindeutig nachgebildet werden kann (doppelter Rolleneintrag — dort
+    wirft ``scalar_one_or_none``), wird NICHTS gemerkt; die Einzelfrage
+    läuft dann wie bisher.
+
+    Ohne Merkungsrahmen tut die Funktion nichts. Vorhandene Merker-Einträge
+    werden nie überschrieben.
+    """
+    merker = _MERKER.get()
+    if merker is None or not benutzer or benutzer == GAST:
+        return
+    from diakronos_app.models.diakonos import (
+        Gruppe,
+        Gruppenmitgliedschaft,
+        Untergruppe,
+        Untergruppenmitgliedschaft,
+    )
+
+    gruppen_set = {str(g) for g in gruppen if g}
+    ug_set = {str(u) for u in untergruppen if u}
+    module_set = {str(m) for m in module if m in MODULE}
+
+    with lesesitzung() as sess:
+        haupt_von: dict[str, str | None] = {u: None for u in ug_set}
+        if ug_set:
+            for name, haupt in sess.execute(
+                select(Untergruppe.name, Untergruppe.gruppe).where(Untergruppe.name.in_(ug_set))
+            ).all():
+                haupt_von[str(name)] = str(haupt) if haupt else None
+        alle = gruppen_set | {g for g in haupt_von.values() if g}
+        if not alle:
+            for u in ug_set:
+                merker.setdefault(("untergruppenrolle", benutzer, u), None)
+            return
+
+        lebt = {g: False for g in alle}
+        for name, geloescht in sess.execute(
+            select(Gruppe.name, Gruppe.geloescht_am).where(Gruppe.name.in_(alle))
+        ).all():
+            lebt[str(name)] = geloescht is None
+
+        # Rolleneinträge des Benutzers: (gruppe, untergruppe|None) -> [rollen]
+        eintraege: dict[tuple[str, str | None], list[str]] = {}
+        hat_eintrag: set[str] = set()
+        for g, u, rolle in sess.execute(
+            select(RechteGruppenrolle.gruppe, RechteGruppenrolle.untergruppe, RechteGruppenrolle.rolle)
+            .where(RechteGruppenrolle.benutzer == benutzer, RechteGruppenrolle.gruppe.in_(alle))
+        ).all():
+            hat_eintrag.add(str(g))
+            if u is None:
+                eintraege.setdefault((str(g), None), []).append(rolle)
+            elif u:
+                eintraege.setdefault((str(g), str(u)), []).append(rolle)
+            # untergruppe == "" trifft weder ``is_(None)`` noch eine Kennung
+
+        mid = _mitglied_von(sess, benutzer)
+        in_gruppe: set[str] = set()
+        in_untergruppe: set[str] = set()
+        if mid:
+            in_gruppe |= {str(g) for g in sess.execute(
+                select(Gruppenmitgliedschaft.parent).where(
+                    Gruppenmitgliedschaft.mitglied == mid,
+                    Gruppenmitgliedschaft.parent.in_(alle),
+                    _aktiv(Gruppenmitgliedschaft.status))
+            ).scalars().all() if g}
+            for ug, g in sess.execute(
+                select(Untergruppenmitgliedschaft.parent, Untergruppe.gruppe)
+                .join(Untergruppe, Untergruppe.name == Untergruppenmitgliedschaft.parent)
+                .where(Untergruppenmitgliedschaft.mitglied == mid,
+                       Untergruppe.gruppe.in_(alle),
+                       _aktiv(Untergruppenmitgliedschaft.status))
+            ).all():
+                if g:
+                    in_gruppe.add(str(g))
+                if ug:
+                    in_untergruppe.add(str(ug))
+
+        modul_an: set[tuple[str, str]] = set()
+        if module_set:
+            modul_an = {(str(g), str(m)) for g, m in sess.execute(
+                select(RechteModul.gruppe, RechteModul.modul).where(
+                    RechteModul.gruppe.in_(alle), RechteModul.modul.in_(module_set))
+            ).all()}
+
+    def _eintrag(g: str, u: str | None) -> tuple[bool, str | None]:
+        """(eindeutig?, rolle) — wie ``_rolle_eintrag``; doppelt = nicht eindeutig."""
+        werte = eintraege.get((g, u), [])
+        if len(werte) > 1:
+            return False, None
+        return True, (werte[0] if werte else None)
+
+    for g in alle:
+        merker.setdefault(("gruppe_lebt", g), lebt[g])
+        for m in module_set:
+            merker.setdefault(("modul_aktiv", g, m), lebt[g] and (g, m) in modul_an)
+        mitglied = g in hat_eintrag or g in in_gruppe
+        merker.setdefault(("ist_gruppenmitglied", benutzer, g), mitglied)
+        eindeutig, oben = _eintrag(g, None)
+        if not eindeutig:
+            continue
+        merker.setdefault(("rolle_eintrag", benutzer, g, ""), oben)
+        if not lebt[g]:
+            rolle = None
+        elif oben in _LEITUNG:
+            rolle = str(oben)
+        else:
+            rolle = "Mitglied" if mitglied else None
+        merker.setdefault(("gruppenrolle", benutzer, g), rolle)
+
+    for u in ug_set:
+        g = haupt_von.get(u)
+        if not g or not lebt.get(g):
+            merker.setdefault(("untergruppenrolle", benutzer, u), None)
+            continue
+        eindeutig_oben, oben = _eintrag(g, None)
+        eindeutig_unten, unten = _eintrag(g, u)
+        if not (eindeutig_oben and eindeutig_unten):
+            continue
+        merker.setdefault(("rolle_eintrag", benutzer, g, u), unten)
+        if oben in _LEITUNG:
+            rolle = str(oben)
+        elif unten == ROLLE_GL:
+            rolle = ROLLE_GL
+        elif u in in_untergruppe:
+            rolle = "Mitglied"
+        else:
+            rolle = None
+        merker.setdefault(("untergruppenrolle", benutzer, u), rolle)
+
+
 def eigene_gruppen(benutzer: str | None) -> set[str]:
     """Hauptgruppen, in denen der Benutzer eine Rolle (HV/MV/GL) hat oder
     aktives Mitglied ist (auch ueber eine Untergruppe). Papierkorb: nein."""
@@ -503,14 +684,26 @@ def ist_gl_in_gruppe(benutzer: str | None, gruppe: str | None) -> bool:
 
 
 def modul_aktiv(gruppe: str | None, modul: str) -> bool:
+    """Ist ``modul`` in dieser Gruppe an? PERF-K1: gemerkt (je Aufruf EINMAL).
+
+    Die Antwort haengt nur an ``(gruppe, modul)``, nicht an der Sitzung; der
+    Merker wird nach jedem Schreibvorgang geleert. Ohne Merkungsrahmen wird wie
+    zuvor jedes Mal gelesen.
+    """
     if not gruppe or modul not in MODULE:
         return False
-    with lesesitzung() as sess:
-        return _gruppe_lebt(sess, gruppe) and bool(
-            sess.execute(
-                select(RechteModul.id).where(RechteModul.gruppe == gruppe, RechteModul.modul == modul).limit(1)
-            ).first()
-        )
+
+    def _lesen() -> bool:
+        with lesesitzung() as sess:
+            return _gruppe_lebt(sess, gruppe) and bool(
+                sess.execute(
+                    select(RechteModul.id).where(
+                        RechteModul.gruppe == gruppe,
+                        RechteModul.modul == modul).limit(1)
+                ).first()
+            )
+
+    return bool(_gemerkt(("modul_aktiv", gruppe, modul), _lesen))
 
 
 def _darf_gruppe(benutzer: str, aktion: str, gruppe: str) -> Entscheidung:
@@ -1505,4 +1698,5 @@ __all__ = [
     "eigenes_mitglied",
     "gleicher_haushalt",
     "untergruppenrolle",
+    "rollen_vorladen",
 ]

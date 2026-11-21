@@ -19,7 +19,13 @@
         type="search"
         autocomplete="off"
         :placeholder="SUCH_PLATZHALTER"
+        role="combobox"
+        aria-autocomplete="list"
+        :aria-expanded="trefferBedienbar ? 'true' : 'false'"
+        :aria-controls="trefferBedienbar ? TREFFER_LISTE_ID : null"
+        :aria-activedescendant="aktiveTrefferKennung"
         @input="beimTippen($event.target.value)"
+        @keydown="beimTasten"
         @keydown.escape.prevent="leeren"
       />
       <DkButton
@@ -108,9 +114,30 @@
         </template>
       </section>
 
-      <!-- GENAU EIN Leerzustand, und nur wenn wirklich nichts gefunden wurde. -->
+      <!-- CHAT-11b: der DRITTE Abschnitt — in den Nachrichten selbst. Er steht
+           ab `TREFFER_MIN_ZEICHEN` Zeichen da (dieselbe Grenze wie Personen).
+           Die Zeilen und die Markierung kommen aus `ChatTreffer.vue`; der
+           Sprung geht über die SEITE (`@springen`) — sie kennt Verlauf und
+           Adresse. -->
+      <ChatTreffer
+        :zeilen="trefferZeilen"
+        :sichtbar="trefferSichtbar"
+        :laedt="trefferLaedt"
+        :fehler="trefferFehler"
+        :mehr="trefferMehr"
+        :aktiv="trefferAktiv"
+        :listen-id="TREFFER_LISTE_ID"
+        @waehlen="$emit('springen', $event)"
+        @mehr="mehrHolen"
+        @aktiv="trefferAktiv = $event"
+        @schliessen="trefferSchliessen"
+      />
+
+      <!-- GENAU EIN Leerzustand, und nur wenn wirklich nichts gefunden wurde —
+           auch in den Nachrichten nicht (sonst stünde „Nichts gefunden“ über
+           einem Abschnitt, der die Treffer zeigt). -->
       <DkEmpty
-        v-if="abschnitte.leer"
+        v-if="abschnitte.leer && trefferLeer"
         class="dk-chat-suchnichts"
         icon="⌕"
         :title="SUCHE_LEER.titel"
@@ -163,10 +190,20 @@ import {
   SUCHE_MIN_ZEICHEN, darfPersonenFragen, entpreller, gespraechsTreffer, personenAusAntwort,
   personenZustand, suchAbschnitte, suchbegriff,
 } from '../../composables/nachrichtenSuche.mjs'
+// CHAT-11b: die Suche IN den Nachrichten — Grenzen, Fragen, Blättern stehen
+// in `nachrichtenTreffer.mjs` (ohne DOM prüfbar), hier nur die Verdrahtung.
+import {
+  laufNummer, darfFragen as darfTrefferAntwort, darfTrefferFragen, frageParameter,
+  seiteAnhaengen, trefferAusAntwort,
+} from '../../composables/nachrichtenTreffer.mjs'
+// CHAT-11b (Review R1/8): Tasten und Listbox-Kennungen der Trefferliste — das
+// Suchfeld bedient sie wie eine Combobox (dieselben Regeln, keine zweite Kopie).
+import * as T from '../../composables/nachrichtenTreffer.mjs'
 import { UNBEKANNTE_PERSON, direktTitel } from '../../composables/nachrichtenDirekt.mjs'
 import DkButton from '../ui/DkButton.vue'
 import DkEmpty from '../ui/DkEmpty.vue'
 import DkSkelett from '../ui/DkSkelett.vue'
+import ChatTreffer from './ChatTreffer.vue'
 
 const props = defineProps({
   /** Gesuche Liste (`meine_gespraeche`) — Gespräche werden hieraus gefiltert. */
@@ -177,11 +214,16 @@ const props = defineProps({
   timer: { type: Function, default: null },
   timerAus: { type: Function, default: null },
   holen: { type: Function, default: null },
+  /** CHAT-11b: der Aufruf der Nachrichtensuche (GET `chat.nachrichten_suchen`). */
+  trefferHolen: { type: Function, default: null },
 })
 
 /** `sucht` = Begriff für die Adresse (der Treffer selbst ist ein Link und
- *  läuft über den Router — kein zweiter Meldungsweg; CHAT-7a Review R1). */
-const emit = defineEmits(['sucht'])
+ *  läuft über den Router — kein zweiter Meldungsweg; CHAT-7a Review R1).
+ *  `springen` = der Klick auf einen Nachrichtentreffer: die SEITE öffnet das
+ *  Gespräch und springt zur Nachricht (CHAT-11b, derselbe Weg wie die
+ *  Erwähnungs-Glocke). */
+const emit = defineEmits(['sucht', 'springen'])
 
 const begriff = ref(String(props.startBegriff || '').trim())
 const feldEl = ref(null)
@@ -259,6 +301,200 @@ function zuruecksetzen() {
   fehler.value = ''
   laedt.value = false
   bremse.abbrechen()
+  trefferZuruecksetzen()
+}
+
+// ── CHAT-11b: die Suche in den Nachrichten ─────────────────────────────────
+//
+// EIGENER Abschnitt, eigene laufende Nummer, eigener Entpreller — dieselbe
+// Ruhezeit (`ENTPRELLUNG_MS`) wie die Personensuche, aber die Antworten der
+// beiden stören einander nicht: eine späte Personen-Antwort kann keine
+// Nachrichtentreffer wegwerfen und umgekehrt.
+const trefferZeilen = ref([])
+const trefferLaedt = ref(false)
+const trefferFehler = ref('')
+const trefferMehr = ref(false)
+const trefferVor = ref('')
+const trefferAktiv = ref(0)
+/**
+ * Die EINE Kennung der Trefferliste (Review R1/8): `ChatTreffer.vue` und das
+ * Suchfeld (`aria-controls`/`aria-activedescendant`) zeigen auf dieselbe Liste.
+ */
+const TREFFER_LISTE_ID = 'dk-chat-treffer-liste'
+/**
+ * Läuft dieser Abschnitt? `false`, wenn der NUTZER ihn zugemacht hat
+ * (Escape) — ein weiterer Tastendruck öffnet ihn wieder.
+ */
+const trefferOffen = ref(true)
+
+const trefferApi = props.trefferHolen || ((parameter) => apiGet('chat.nachrichten_suchen', parameter))
+const trefferNr = laufNummer()
+/** Laufender Abruf — wird abgebrochen, sobald er nicht mehr zählt. */
+let trefferAbort = null
+
+/** Steht der Abschnitt da? Ab 2 Zeichen — und nicht, wenn er zugemacht ist. */
+const trefferSichtbar = computed(() => trefferOffen.value && darfTrefferFragen(begriff.value))
+/** „Keine Treffer“ in den Nachrichten — die Bedingung, die den EINEN
+ *  Leerzustand der Suche freigibt bzw. zurückhält. */
+const trefferLeer = computed(() => !trefferSichtbar.value
+  || (!trefferLaedt.value && !String(trefferFehler.value || '').trim() && trefferZeilen.value.length === 0))
+/**
+ * Review R1/8: Das Suchfeld bedient die Nachrichten-Trefferliste wie eine
+ * Combobox — ↓/↑ und Enter wirken IM FELD, der Fokus bleibt beim Tippen.
+ * Das gilt nur, solange der Abschnitt mit Zeilen dasteht (sonst gehören die
+ * Tasten dem Feld/dem Browser).
+ */
+const trefferBedienbar = computed(() => trefferSichtbar.value && trefferZeilen.value.length > 0)
+const aktiveTrefferKennung = computed(() => (trefferBedienbar.value
+  ? T.optionKennung(TREFFER_LISTE_ID, Math.min(trefferAktiv.value, trefferZeilen.value.length - 1))
+  : null))
+
+/**
+ * Eine Taste im Suchfeld. Die vorhandene Bedienung (Escape = leeren) bleibt;
+ * ↓/↑/Enter gehören der Trefferliste, sobald sie Zeilen hat.
+ */
+function beimTasten(ereignis) {
+  if (!trefferBedienbar.value) return
+  const absicht = T.trefferTaste({
+    key: ereignis.key,
+    isComposing: ereignis.isComposing === true,
+    anzahl: trefferZeilen.value.length,
+  })
+  if (!absicht || absicht === 'schliessen') return
+  ereignis.preventDefault()
+  if (absicht === 'oeffnen') {
+    const zeile = trefferZeilen.value[Math.min(trefferAktiv.value, trefferZeilen.value.length - 1)]
+    if (zeile) emit('springen', zeile)
+    return
+  }
+  trefferAktiv.value = T.naechsteTrefferStelle(
+    trefferAktiv.value, absicht === 'weiter' ? 1 : -1, trefferZeilen.value.length,
+  )
+}
+
+function trefferZuruecksetzen() {
+  trefferNr.abbrechen()
+  abbrechen()
+  trefferZeilen.value = []
+  trefferMehr.value = false
+  trefferVor.value = ''
+  trefferFehler.value = ''
+  trefferLaedt.value = false
+  trefferAktiv.value = 0
+}
+
+/** Den laufenden Abruf wirklich stoppen (Netz, nicht nur die Antwort). */
+function abbrechen() {
+  if (!trefferAbort) return
+  try { trefferAbort.abort() } catch { /* ein toter Abbruch darf nichts blocken */ }
+  trefferAbort = null
+}
+
+/** Escape im Abschnitt: Treffer weg, das Feld behält den Fokus. */
+function trefferSchliessen() {
+  trefferNr.abbrechen()
+  abbrechen()
+  trefferZeilen.value = []
+  trefferMehr.value = false
+  trefferVor.value = ''
+  trefferLaedt.value = false
+  trefferFehler.value = ''
+  trefferAktiv.value = 0
+  trefferOffen.value = false
+  if (feldEl.value && typeof feldEl.value.focus === 'function') feldEl.value.focus()
+}
+
+/**
+ * Eine Seite Nachrichtentreffer holen. `gefragt` ist der Begriff, für den der
+ * Entpreller fällig wurde; `vor` blättert weiter.
+ *
+ * Review R1/3: Beim Blättern bleibt die Liste STEHEN (kein Skelett über den
+ * vorhandenen Zeilen) — `trefferLaedt` sagt nur dem Knopf „bitte warten“,
+ * nicht der Fläche. Und ein Fehler auf Seite 2 wirft Seite 1 nicht weg: was
+ * schon dasteht, bleibt dastehen.
+ *
+ * Eine überholte Antwort wird VERWORFEN (`darfTrefferAntwort`): steht im Feld
+ * inzwischen etwas anderes, gehört die Antwort zu einer Frage, die niemand
+ * mehr stellt. Ein noch laufender Abruf wird dabei abgebrochen — auch der
+ * echte Netzabruf (`AbortController`), nicht nur seine Antwort.
+ */
+async function trefferHolenFuer(gefragt, { vor = '' } = {}) {
+  if (!aktiv || !darfTrefferFragen(gefragt)) return
+  if (!darfTrefferAntwort(gefragt, begriff.value)) return
+  const nummer = trefferNr.neu()
+  abbrechen()
+  const steuerung = (typeof AbortController === 'function') ? new AbortController() : null
+  trefferAbort = steuerung
+  trefferLaedt.value = true
+  trefferFehler.value = ''
+  try {
+    const parameter = frageParameter(gefragt, { vor })
+    if (steuerung) parameter.signal = steuerung.signal
+    const antwort = await trefferApi(parameter)
+    if (!aktiv || !trefferNr.gilt(nummer)) return
+    if (!darfTrefferAntwort(gefragt, begriff.value)) return
+    const seite = trefferAusAntwort(antwort)
+    trefferZeilen.value = vor ? seiteAnhaengen(trefferZeilen.value, seite.zeilen) : seite.zeilen
+    trefferMehr.value = seite.mehr
+    trefferVor.value = seite.vor
+    trefferAktiv.value = Math.min(trefferAktiv.value, Math.max(0, trefferZeilen.value.length - 1))
+  } catch (f) {
+    if (!aktiv || !trefferNr.gilt(nummer)) return
+    // Ein ABGEBROCHENER Abruf ist keine Fehlermeldung — er gehört zu einer
+    // Eingabe, die niemand mehr sieht.
+    if (f && (f.name === 'AbortError' || f.abgebrochen === true)) return
+    if (!darfTrefferAntwort(gefragt, begriff.value)) return
+    // Seite 2 gescheitert: Seite 1 bleibt stehen (R1/3). Nur beim ERSTEN
+    // Abruf gibt es nichts zu behalten.
+    if (!vor) {
+      trefferZeilen.value = []
+      trefferMehr.value = false
+      trefferVor.value = ''
+    }
+    trefferFehler.value = fehlertext(f, { text: 'Die Nachrichten konnten nicht durchsucht werden. Versuche es noch einmal.' })
+  } finally {
+    if (aktiv && trefferNr.gilt(nummer)) {
+      trefferLaedt.value = false
+      trefferAbort = null
+    }
+  }
+}
+
+/** Neuer Begriff: erst zurück auf „nichts bekannt“, dann (entprellt) fragen. */
+function trefferNeuStellen(wert) {
+  trefferNr.abbrechen()
+  abbrechen()
+  trefferZeilen.value = []
+  trefferMehr.value = false
+  trefferVor.value = ''
+  trefferFehler.value = ''
+  trefferLaedt.value = false
+  trefferAktiv.value = 0
+  if (!darfTrefferFragen(wert)) {
+    trefferOffen.value = true
+    // Kurz oder leer: ein noch geplanter Treffer-Abruf gehört niemandem mehr
+    // (sonst fragte die Suche nach „an“, während schon „a“ im Feld steht).
+    trefferBremse.abbrechen()
+    return
+  }
+  trefferOffen.value = true
+  trefferBremse.tippen(wert)
+}
+
+const trefferBremse = entpreller({
+  warte: ENTPRELLUNG_MS,
+  ...(props.timer ? { timer: props.timer } : {}),
+  ...(props.timerAus ? { timerAus: props.timerAus } : {}),
+  beiFaelligkeit: (gefragt) => trefferHolenFuer(gefragt),
+  darfFragen: darfTrefferFragen,
+})
+
+/** „Weitere Treffer“: die nächste Seite über `vor` — nur, solange `mehr` gilt. */
+function mehrHolen() {
+  const begriffJetzt = rohBegriff.value
+  if (!trefferMehr.value || !trefferVor.value || trefferLaedt.value) return
+  if (!darfTrefferFragen(begriffJetzt)) return
+  trefferHolenFuer(begriffJetzt, { vor: trefferVor.value })
 }
 
 function suchen(gefragt) {
@@ -273,12 +509,13 @@ const bremse = entpreller({
   beiFaelligkeit: (gefragt) => personenHolen(gefragt),
 })
 
-/** Ein Tastendruck: Personenfläche sofort leeren, Termin neu stellen. */
+/** Ein Tastendruck: beide Flächen sofort leeren, beide Termine neu stellen. */
 function beimTippen(wert) {
   begriff.value = String(wert ?? '')
   zuruecksetzen()
   emit('sucht', rohBegriff.value)
   suchen(begriff.value)
+  trefferNeuStellen(begriff.value)
 }
 
 /** Leeren: Feld leer, Suche bleibt offen bis das Feld leer ist (Seite). */
@@ -320,11 +557,14 @@ function begriffSetzen(wert) {
   begriff.value = neu
   zuruecksetzen()
   suchen(neu)
+  trefferNeuStellen(neu)
 }
 
 onUnmounted(() => {
   aktiv = false
   bremse.beenden()
+  trefferBremse.beenden()
+  abbrechen()
 })
 
 /**
@@ -338,12 +578,35 @@ watch(() => props.startBegriff, (neu) => {
   begriff.value = eingang
   zuruecksetzen()
   suchen(eingang)
+  trefferNeuStellen(eingang)
 })
 
 // Beim Aufbau: steht schon ein Begriff in der Adresse, wird er gesucht.
 if (darfPersonenFragen(begriff.value)) personenHolen(begriff.value)
+if (darfTrefferFragen(begriff.value)) trefferHolenFuer(begriff.value)
 
-defineExpose({ zustand, abschnitte, begriffSetzen, anfrageNr: () => anfrageNr })
+defineExpose({
+  zustand,
+  abschnitte,
+  begriffSetzen,
+  anfrageNr: () => anfrageNr,
+  // CHAT-11b: der Stand der Nachrichtensuche — für den Node-Test nachlesbar,
+  // kein Betriebsweg.
+  trefferStand: () => ({
+    zeilen: trefferZeilen.value,
+    mehr: trefferMehr.value,
+    vor: trefferVor.value,
+    laedt: trefferLaedt.value,
+    fehler: trefferFehler.value,
+    sichtbar: trefferSichtbar.value,
+    aktiv: trefferAktiv.value,
+  }),
+  trefferMehr: mehrHolen,
+  trefferAktivSetzen: (i) => { trefferAktiv.value = Number(i) || 0 },
+  trefferSchliessen,
+  trefferHolen: (q) => trefferHolenFuer(q),
+  naechsterTakt: () => trefferNr.stand(),
+})
 </script>
 
 <style scoped>

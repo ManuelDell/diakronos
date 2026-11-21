@@ -179,9 +179,42 @@ erreichbar“ zu unterscheiden: gleicher Text, gleicher Status (403 ohne
 Inhalt), in jedem Endpunkt dieses Moduls. ``personen_suchen`` liefert nur
 ``darf_schreiben: false``, sonst nichts Auffälliges.
 
-WAS HIER BEWUSST FEHLT (spätere Karten): Push (CHAT-10), Anhänge und
-Chatverlaufssuche (CHAT-9b/c). Kein WebSocket: Zustellung ist der „seit X“-Abruf
-(3.1, Empfehlung A).
+WAS HIER BEWUSST FEHLT (spätere Karten): Push (CHAT-10) und die
+Chatverlaufssuche (CHAT-9b/c). Anhänge stehen seit CHAT-12a unten. Kein
+WebSocket: Zustellung ist der „seit X“-Abruf (3.1, Empfehlung A).
+
+CHAT-12a — ANHÄNGE (Konzept S4 + F11, nur über SPEICHER-1)
+-----------------------------------------------------------
+Die DATEI liegt AUSSCHLIESSLICH in der Ablage ``diakronos_app.speicher``
+(``hole_speicher()``, Schlüssel ``chat-a-<uuid>``). Kein zweiter Speicherweg:
+kein ``File``-Dokument, kein ``files.py``-Upload, kein Nextcloud-Link an den
+Browser.
+
+* ``anhang_hochladen`` (POST, multipart ``datei``) prüft die RECHTE wie
+  ``senden`` (``_erlaube(..., ANLEGEN)``), den Typ per MAGIE
+  (``files.binary_content_type`` — wiederverwendet, nicht kopiert) gegen
+  ``ANHANG_TYPEN`` (JPG/PNG/WebP/HEIC, PDF, MP3/M4A/OGG/OPUS), die Größe
+  (≤ 10 MB) und das TAGESKONTINGENT je Person (20, ``RateLimitError``/429).
+  Ergebnis ist ein OFFENER Anhang (``nachricht IS NULL``) mit Kennung.
+* ``senden(..., anhaenge=[…])`` hängt höchstens 3 offene Anhänge an — gleicher
+  Absender, gleiches Gespräch (``_anhaenge_pruefen``); jede Abweichung ist
+  DIESELBE 400 („Anhang nicht gefunden.“), damit fremde und unbekannte
+  Kennungen nicht unterscheidbar sind. Mit Anhang darf der Text LEER sein.
+* ``anhang(name)`` (GET) liefert gestreamt aus der Ablage. Die Rechteprüfung ist
+  GENAU die des Verlaufs: ``_weiche_ja(LESEN)`` + ``_vor_eintritt`` +
+  „Nachricht/Gespräch existiert und ist nicht gelöscht“; offene Anhänge sind für
+  niemanden abrufbar. Jeder Fehlfall ist dieselbe 404.
+  Kopfzeilen: geprüfter ``Content-Type``, ``X-Content-Type-Options: nosniff``,
+  ``Content-Disposition`` inline (Bilder) bzw. attachment (Rest).
+* ``verlauf``/``_zeile`` nennen je Nachricht ``anhaenge: [{name, dateiname,
+  mime, groesse}]`` — eine Abfrage je Seite (``_anhaenge_laden``), nie der
+  Speicher-Schlüssel.
+* LÖSCHEN räumt die DATEI mit: ``loeschen``/``meldung_entscheiden`` entfernen die
+  Zeilen in der Transaktion und die Dateien nach dem Commit;
+  ``chat_aufbewahrung.aufraeumen`` sammelt die Schlüssel vor dem Gesprächsende
+  und löscht nach dem Commit; ``chat_anhaenge_aufraeumen`` (Minuten-Job) räumt
+  offene Anhänge nach 24 h und verwaiste Zeilen ab. DSGVO: die Zeile fällt mit
+  dem Konto, der Schlüssel geht über ``dateien_entfernen`` denselben Weg.
 
 CHAT-9a — ERWÄHNUNGEN (@Name, Konzept S4)
 -----------------------------------------
@@ -315,8 +348,8 @@ import unicodedata
 from datetime import datetime, timedelta
 from typing import Any, NoReturn
 
-from sqlalchemy import (Integer, and_, case, cast, delete, func, or_, select,
-                        text, update)
+from sqlalchemy import (Integer, and_, bindparam, case, cast, delete, func,
+                        literal_column, or_, select, text, true, update)
 from sqlalchemy.exc import IntegrityError
 
 logger = logging.getLogger("diakronos_app.api.chat")
@@ -342,6 +375,15 @@ from diakronos_app.frappe_compat.exceptions import (
 )
 from diakronos_app.frappe_compat.session import session
 from diakronos_app.models.chat import (
+    ANHAENGE_MAX,
+    ANHAENGE_PRO_TAG,
+    ANHANG_MAX_BYTES,
+    ANHANG_BILDER,
+    ANHANG_NAME_MAX,
+    ANHANG_OFFEN_STUNDEN,
+    ANHANG_TYPEN,
+    ENTSORGUNG_FEHLER_MAX,
+    HOCHLADUNG_AUFBEWAHRUNG_TAGE,
     ART_DIREKT,
     ART_GRUPPE,
     ART_RUNDE,
@@ -368,6 +410,9 @@ from diakronos_app.models.chat import (
     VORSCHLAG_ANGENOMMEN,
     VORSCHLAG_BEENDET,
     VORSCHLAG_OFFEN,
+    ChatAnhang,
+    ChatAnhangEntsorgung,
+    ChatAnhangHochladung,
     ChatGespraech,
     ChatGlocke,
     ChatErwaehnung,
@@ -389,6 +434,36 @@ from diakronos_app.models.rechte import RechteKontaktsperre
 #: Handy und am Desktop (Konzept 3.4: ~300 Nachrichten am Tag in einer
 #: Gemeinde — 50 ist ein Sechstel davon).
 SEITE = 50
+#: Review R1/3: Wie viele Entsorgungs-Aufträge EIN Job-Lauf abarbeitet. Klein
+#: genug, dass eine hängende Ablage den Minuten-Takt nicht blockiert.
+ENTSORGUNG_BATCH = 100
+#: CHAT-12a-2: Wartezeit bis zum nächsten Versuch je Fehlschlag, in Minuten.
+#: Nach dem n-ten Fehlschlag (``versuche`` = n) gilt der n-te Wert dieser
+#: Reihe; über die Länge hinaus bleibt es beim letzten (6 Stunden). Grund für den Backoff: 100
+#: dauerhaft scheiternde Schlüssel (403, kaputter Pfad) blockierten vorher die
+#: Liste von vorn — neuere Aufträge kamen NIE dran.
+ENTSORGUNG_BACKOFF_MINUTEN = (1, 5, 30, 6 * 60)
+#: Ab dieser Anzahl Versuche steht EINMAL ein ``logger.error`` im Protokoll.
+#: Der Auftrag wird trotzdem NICHT gelöscht — es geht um DSGVO-Dateien.
+ENTSORGUNG_WARNUNG_AB = 20
+#: CHAT-12a-2: Zeitlimit (Sekunden) für die Speicher-Löschung IM REQUEST. Ein
+#: hängender Netzaufruf darf das Löschen einer Nachricht nicht verzögern; was
+#: in dieser Zeit nicht geschafft ist, bleibt für den Minuten-Job liegen.
+ENTSORGUNG_ZEITLIMIT_SEKUNDEN = 2.0
+#: So viele eigene Schlüssel versucht der Request nach dem Commit — mehr als
+#: eine Nachricht tragen kann (``ANHAENGE_MAX``).
+ENTSORGUNG_JE_ANFRAGE = ANHAENGE_MAX
+#: Review R1/1: Wie lange ein Job-Lauf einen Auftrag BELEGT, bevor er ihn
+#: abarbeitet (``naechster_versuch_am`` = jetzt + so viele Minuten). Die
+#: Belegung wird VOR dem Netzaufruf committet — kein zweiter Lauf nimmt
+#: dieselbe Zeile, und kein Request wartet auf eine Zeilensperre. Scheitert
+#: der Löschversuch, setzt der Backoff den Zeitpunkt wieder richtig.
+ENTSORGUNG_BELEGUNG_MINUTEN = 60
+#: Review R1/1b: Zeitlimit (Millisekunden) für Schreibzugriffe des REQUESTs auf
+#: die Entsorgungsliste. PostgreSQL: ``SET LOCAL lock_timeout`` — ein Request
+#: darf NIE minutenlang auf die Zeile eines Jobs warten (er hat keinen eigenen
+#: ``lock_timeout`` und die Oberfläche hinge).
+ENTSORGUNG_LOCK_TIMEOUT_MS = 500
 #: Obergrenze für einen Aufruf (die Oberfläche fragt nie mehr an; ein Skript
 #: soll die Datenbank nicht in einem Rutsch leeren können).
 SEITE_MAX = 200
@@ -1116,6 +1191,7 @@ def _zeile(s, n: ChatNachricht, *,
            konto_namen: dict[str, str] | None = None,
            umfragen: dict[str, dict[str, Any]] | None = None,
            erwaehnungen: dict[str, list[dict[str, str]]] | None = None,
+           anhaenge: dict[str, list[dict[str, Any]]] | None = None,
            ich: str = "",
            system: dict[str, Any] | None = None) -> dict[str, Any]:
     """Eine Nachricht als flache Antwortzeile.
@@ -1177,6 +1253,12 @@ def _zeile(s, n: ChatNachricht, *,
         # niemand (an einer Lücke gibt es nichts zu erwähnen), sonst die
         # Liste aus ``_erwaehnungen_laden`` (Mitglied-Kennung + Anzeigename).
         "erwaehnt": [] if geloescht else list((erwaehnungen or {}).get(n.name, [])),
+        # CHAT-12a: die Anhänge der Nachricht — an einer GELÖSCHTEN Nachricht
+        # keine (die Dateien sind mit ihr aus der Ablage entfernt; eine
+        # Download-Kennung an einer Lücke wäre ein toter Verweis). Geliefert
+        # werden nur Name, Anzeigename, Typ und Größe — nie der
+        # Speicher-Schlüssel.
+        "anhaenge": [] if geloescht else list((anhaenge or {}).get(n.name, [])),
     }
     if n.vorschlag:
         # Eigene Art statt eines „normalen“ Beitrags: nicht bearbeitbar,
@@ -1334,6 +1416,8 @@ def _seite_antwort(s, gespraech: str, zeilen: list[ChatNachricht], *,
                                  benutzer=benutzer)
     # CHAT-9a: die Erwähnungen dieser Seite in EINER Abfrage (kein N+1).
     erwaehnungen = _erwaehnungen_laden(s, kennungen, benutzer)
+    # CHAT-12a: die Anhänge dieser Seite in EINER Abfrage (kein N+1).
+    anhaenge = _anhaenge_laden(s, kennungen)
     # CHAT-7b-2: der Zitattext gehört zur ZITIERTEN Nachricht
     # (``n.antwort_auf``), nicht zur zitierenden — ``_zitate`` ist nach der
     # Kennung des ZIELS geschlüsselt. Mit ``n.name`` blieb der Text immer leer
@@ -1341,7 +1425,7 @@ def _seite_antwort(s, gespraech: str, zeilen: list[ChatNachricht], *,
     posten = [_zeile(s, n, lesestand=stand, reaktionen=reakt,
                      antwort_auf=zitate.get(n.antwort_auf),
                      namen=namen, konto_namen=konten, umfragen=umfragen,
-                     erwaehnungen=erwaehnungen, ich=benutzer,
+                     erwaehnungen=erwaehnungen, anhaenge=anhaenge, ich=benutzer,
                      system=systeme.get(str(n.vorschlag)))
               for n in zeilen]
     return {
@@ -1458,15 +1542,16 @@ def meine_gespraeche():
         if not rechte.ist_gemeindemitglied(benutzer):
             _h()
         aus = _ausgeschlossene_konten(*_kontozustand())
-        for g in _lesbare_gespraeche(s, benutzer):
+        # CHAT-PERF-1: die Gespraeche ERST sammeln, dann die Kopfdaten fuer
+        # ALLE in je EINER Abfrage lesen (vorher vier je Gespraech).
+        gespraeche = (_lesbare_gespraeche(s, benutzer)
+                      + _direkt_gespraeche(s, benutzer)
+                      + _runde_gespraeche(s, benutzer))
+        daten = _kopfdaten_sammeln(s, gespraeche, benutzer,
+                                   ausgeschlossene=aus)
+        for g in gespraeche:
             ergebnis.append(_gespraech_kopf(
-                s, g, benutzer, ausgeschlossene=aus))
-        for g in _direkt_gespraeche(s, benutzer):
-            ergebnis.append(_gespraech_kopf(
-                s, g, benutzer, ausgeschlossene=aus))
-        for g in _runde_gespraeche(s, benutzer):
-            ergebnis.append(_gespraech_kopf(
-                s, g, benutzer, ausgeschlossene=aus))
+                s, g, benutzer, ausgeschlossene=aus, daten=daten))
     ergebnis.sort(key=lambda e: (str(e["letzte_am"] or ""), str(e["titel"])), reverse=True)
     return {"gespraeche": ergebnis}
 
@@ -2398,6 +2483,1390 @@ def _nachricht_erwaehnungen_raeumen(s, nachricht: str) -> int:
     return len(personen)
 
 
+# ── CHAT-11a: Volltextsuche über den Verlauf ────────────────────────────────
+
+#: Vorgabe, Obergrenze und Mindestlänge des Suchbegriffs (Karte CHAT-11a).
+SUCHE_VERLAUF = 20
+SUCHE_VERLAUF_MAX = 50
+SUCHE_VERLAUF_MIN_ZEICHEN = 2
+SUCHE_VERLAUF_MAX_ZEICHEN = 100
+#: Länge des Ausschnitts um den ersten Treffer (Karte: „max. 160 Zeichen“).
+AUSSCHNITT_MAX = 160
+
+#: Der Ausdruck, den der GIN-Index der Migration ``chat11a_suche`` ablegt:
+#: ``to_tsvector('german', coalesce(text, ''))``. Die Abfrage baut ihn mit
+#: ``_tsvector()`` aus DENSELBEN Bausteinen (``func.to_tsvector``, ``literal_column``
+#: für die Konfiguration, ``func.coalesce``) — zeichengleich, sonst greift der
+#: Index nicht. Nur Platzhalter für ``sqlite``/``postgresql``, keine Nutzereingabe.
+NACHRICHT_TSVECTOR = "to_tsvector('german', coalesce(text, ''))"
+
+
+def _tsvector():
+    """``to_tsvector('german', coalesce(chat_nachricht.text, ''))`` als Ausdruck.
+
+    Review R1/1: ``text(...)`` liefert ``TextClause``, und darauf gibt es kein
+    ``.op("@@")`` (``AttributeError`` → jede Suche auf PostgreSQL ein 500).
+    Gebaut wird der Ausdruck deshalb aus SQLAlchemy-Bausteinen. Die
+    Konfiguration kommt als ``literal_column`` (kein Bindeparameter: ihr Wert
+    ist Teil des AUSDRUCKS und muss dem Index gleichen), der Suchbegriff als
+    ``bindparam``.
+    """
+    return func.to_tsvector(literal_column("'german'"),
+                            func.coalesce(ChatNachricht.text, ""))
+
+
+def _tsquery(begriff: str):
+    """``websearch_to_tsquery('german', <begriff>)`` — Begriffsform wie im Text."""
+    return func.websearch_to_tsquery(literal_column("'german'"),
+                                     bindparam("begriff", begriff))
+
+
+def _verlauf_grenze(limit) -> int:
+    """Trefferzahl je Seite: Vorgabe ``SUCHE_VERLAUF``, gekappt auf das Maximum.
+
+    Unlesbare Angaben fallen auf die Vorgabe zurück (kein Fehler) — dieselbe
+    Regel wie ``_suche_grenze`` bei der Personensuche.
+    """
+    if limit is None or limit == "":
+        return SUCHE_VERLAUF
+    try:
+        wert = int(str(limit).strip())
+    except (TypeError, ValueError):
+        return SUCHE_VERLAUF
+    return max(1, min(SUCHE_VERLAUF_MAX, wert))
+
+
+def _verlauf_begriff(q) -> str:
+    """Suchbegriff der Verlaufssuche: getrimmt, 2–100 Zeichen, sonst ``""``.
+
+    NICHT gefaltet und NICHT kleingeschrieben: ``websearch_to_tsquery``
+    arbeitet mit der deutschen Konfiguration (Stämme, Umlaute), der
+    ``LIKE``-Rückfall faltet in der Abfrage selbst. Ein zu kurzer oder zu
+    langer Begriff ergibt die leere Liste — kein Fehler, keine Auskunft.
+    """
+    text = str(q or "").strip()
+    if not (SUCHE_VERLAUF_MIN_ZEICHEN <= len(text) <= SUCHE_VERLAUF_MAX_ZEICHEN):
+        return ""
+    return text
+
+
+def _verlauf_lesbar(s, benutzer: str) -> list[tuple[str, datetime | None]]:
+    """``(gespraech, sichtbar_ab)`` aller Gespräche, die ``benutzer`` lesen darf.
+
+    Kandidaten sind NUR die Gespräche, an denen die Person beteiligt ist —
+    genau die drei Quellen von ``meine_gespraeche``: ``_lesbare_gespraeche``
+    (Gruppe/Untergruppe), ``_direkt_gespraeche`` und ``_runde_gespraeche``
+    (beide über die Teilnahmezeilen). Hier steht KEINE eigene Rechtelogik —
+    alle drei fragen den Kern.
+
+    Review R1/4: die Einheiten-Ermittlung läuft über ``_lesbare_gespraeche``
+    SELBST, nicht über eine zweite Kopie. Die Kopie ergänzte zu einer
+    Untergruppen-Mitgliedschaft nur ``(haupt, ug)``, nicht ``(haupt, None)`` —
+    wer NUR in einer Untergruppe war, fand deshalb nichts aus dem
+    Hauptgruppen-Chat, obwohl ``verlauf`` ihn zeigt.
+
+    ``sichtbar_ab`` ist die Eintrittsgrenze der RUNDE (``_sichtbar_ab``,
+    dieselbe wie in ``verlauf``): Nachrichten davor werden in der Suche
+    genauso ausgeblendet wie im Verlauf. Für Gruppe/1:1 ist sie ``None``.
+
+    Gemessen wird KEINE Schleife je Gespräch mit eigener Suchabfrage: die
+    drei Quellen sind Mengen-Operationen über die Zeilen der Person, und die
+    Rechtefrage je Einheit beantwortet der Kern (gemerkt je Aufruf, PERF-K1).
+    """
+    ergebnis: list[tuple[str, datetime | None]] = []
+    gesehen: set[str] = set()
+
+    # 1) Gruppe/Untergruppe — die Einheiten-Ermittlung, die auch
+    #    `meine_gespraeche` benutzt (Mitgliedschaften, Rollen, Vererbung).
+    for g in _lesbare_gespraeche(s, benutzer):
+        if g.name and str(g.name) not in gesehen:
+            gesehen.add(str(g.name))
+            ergebnis.append((str(g.name), None))
+
+    # 2) 1:1 und Runden — SEINE Teilnahmezeilen in EINER Abfrage. Je Zeile
+    #    die EINE Weiche (`_darf_lesen` → `rechte.darf_direktgespraech`); die
+    #    Eintrittsgrenze der Runde steht in derselben Zeile.
+    teilnahmen = s.execute(
+        select(ChatTeilnehmer.gespraech, ChatTeilnehmer.sichtbar_ab,
+               ChatTeilnehmer.verlassen_am,
+               ChatGespraech.art, ChatGespraech.geloescht_am)
+        .join(ChatGespraech, ChatGespraech.name == ChatTeilnehmer.gespraech)
+        .where(ChatTeilnehmer.benutzer == benutzer,
+               ChatGespraech.art.in_((ART_DIREKT, ART_RUNDE)))
+    ).all()
+    for gespraech, eintritt, verlassen, art, geloescht in teilnahmen:
+        if geloescht is not None or not gespraech:
+            continue
+        # Wer eine RUNDE verlassen hat, ist kein Teilnehmer mehr (dieselbe
+        # Regel wie ``_runde_gespraeche``) — beim 1:1 gibt es das Feld nicht.
+        if art == ART_RUNDE and verlassen is not None:
+            continue
+        if str(gespraech) in gesehen:
+            continue
+        if _darf_lesen(s, benutzer, gespraech):
+            gesehen.add(str(gespraech))
+            ergebnis.append((str(gespraech), eintritt))
+    return ergebnis
+
+
+def _ausblenden(benutzer: str, grenzen: list[tuple[str, datetime | None]]):
+    """SQL-Bedingung: nur Zeilen aus lesbaren Gesprächen, nichts Ausgeblendetes.
+
+    Ausgeblendet wird GENAU das, was ``verlauf`` ausblendet:
+
+    * Gespräche außerhalb der Kandidatenliste (fremde Gruppe, fremdes 1:1,
+      Runde ohne Teilnahme — die Liste ist die Rechteentscheidung),
+    * Nachrichten VOR dem eigenen Eintritt in eine Runde (``_sichtbar_ab``),
+    * gelöschte/entfernte Nachrichten (``geloescht_am`` — an einer Lücke gibt
+      es nichts zu finden),
+    * Systemzeilen der Runden-Vorschläge: ihr Satz steht NICHT in der
+      Datenbank (``_zeile`` → ``system``), ihr Text ist leer. Ein Suchtreffer
+      darauf wäre ein leerer Ausschnitt ohne Inhalt.
+
+    Eine Kontaktsperre blendet NICHTS aus: sie wirkt im Kern nur auf
+    ANLEGEN/SCHREIBEN eines 1:1 (``darf_direktgespraech``: LESEN bleibt für
+    Teilnehmende erlaubt) — der Verlauf zeigt die Nachrichten weiter, die
+    Suche also auch. Dieselbe Prüfung, kein zweiter Weg.
+
+    Die Runden-Bedingung ist EIN ``OR``-Block in derselben Abfrage: je Runde
+    „ab meinem Eintritt“, für alle übrigen „keine Grenze“.
+    """
+    lesbar = [name for name, _ in grenzen]
+    if not lesbar:
+        return ChatNachricht.gespraech.in_([""]) & (ChatNachricht.name.is_(None))
+    bedingung = [ChatNachricht.gespraech.in_(lesbar),
+                 ChatNachricht.geloescht_am.is_(None),
+                 ChatNachricht.vorschlag.is_(None)]
+    mit_grenze = [(name, ab) for name, ab in grenzen if ab is not None]
+    if mit_grenze:
+        blocks = [and_(ChatNachricht.gespraech == name,
+                       ChatNachricht.erstellt_am >= ab)
+                  for name, ab in mit_grenze]
+        ohne = [name for name, ab in grenzen if ab is None]
+        if ohne:
+            blocks.append(ChatNachricht.gespraech.in_(ohne))
+        bedingung.append(or_(*blocks))
+    return and_(*bedingung)
+
+
+def _ausschnitt(text: str, q: str,
+                *, laenge: int = AUSSCHNITT_MAX) -> dict[str, Any]:
+    """Ausschnitt um die ERSTE Fundstelle: ``{vor, treffer, nach}``.
+
+    Review R1/6: KEINE Offsets mehr. Die Oberfläche setzt die drei Teile
+    einfach zusammen — damit gibt es kein UTF-16-Problem (JavaScript zählt
+    UTF-16-Einheiten, Python Codepoints: ein Emoji vor dem Treffer hätte jede
+    Offset-Markierung verschoben). Zusammen höchstens ``laenge`` Zeichen.
+
+    Gesucht wird auf dem GEFALTETEN Text (``_faltung_text``); die Stelle wird
+    über die Zuordnungstabelle aus ``_faltung_lage`` längentreu auf den
+    ORIGINALtext zurückgerechnet. ``.lower()`` ist NICHT längentreu (``İ`` →
+    zwei Zeichen, ``ẞ`` → ``ß``) und die Umschreibung ``ae``→``ä`` auch nicht —
+    deshalb eine Tabelle statt Arithmetik.
+
+    Markiert wird das TATSÄCHLICH gefundene Wort (Länge der Fundstelle in der
+    gefalteten Zeichenfolge, auf den Originaltext abgebildet), nicht das
+    längste Suchwort. Wird keines der Wörter gefunden — auf PostgreSQL bei
+    einer Stammform der Normalfall („Bäume“ findet „Baum“) —, ist ``treffer``
+    leer und ``vor`` sind die ersten ``laenge`` Zeichen. Kein Fehler, keine
+    erfundene Stelle.
+    """
+    inhalt = str(text or "")
+    if not inhalt:
+        return {"vor": "", "treffer": "", "nach": ""}
+    gefaltet, lage = _faltung_lage(inhalt)
+    erste: int | None = None
+    treffer_laenge = 0
+    for wort in _suchwoerter(q):
+        gefunden = _fundstelle(gefaltet, wort)
+        if gefunden is None:
+            continue
+        stelle, muster = gefunden
+        if erste is None or stelle < erste:
+            erste = stelle
+            treffer_laenge = len(muster)
+    if erste is None:
+        return {"vor": inhalt[:laenge], "treffer": "", "nach": ""}
+    anfang = lage[erste]
+    ende = lage[erste + treffer_laenge - 1] + 1
+    # So viel Kontext, wie in ``laenge`` Zeichen passt — der Treffer BLEIBT
+    # ganz drin, auch wenn er selbst schon ``laenge`` füllt.
+    rest = max(0, laenge - (ende - anfang))
+    davor = min(anfang, min(rest, rest // 2 if rest else 0))
+    kontext_vor = max(0, anfang - davor)
+    platz_danach = max(0, laenge - (ende - kontext_vor))
+    return {
+        "vor": inhalt[kontext_vor:anfang],
+        "treffer": inhalt[anfang:ende],
+        "nach": inhalt[ende:ende + platz_danach],
+    }
+
+
+def _suchwoerter(q: str) -> list[str]:
+    """Die Wörter eines Suchbegriffs, die im Ausschnitt markierbar sind.
+
+    ``websearch_to_tsquery`` kennt Anführungszeichen (Phrase) und ein
+    führendes ``-`` (Ausschluss). Beides wird hier so behandelt wie im
+    ``LIKE``-Rückfall: die Phrase als Ganzes, das Ausschlusswort gar nicht.
+    """
+    woerter = [w.strip('"') for w in str(q or "").split()]
+    return [w for w in woerter if w and not w.startswith("-")]
+
+
+def _faltung_text(text: str) -> str:
+    """Text klein- und umlautgefaltet — Python-Seite zu ``_suche_faltung``.
+
+    Dieselben Ersetzungen wie der SQL-Ausdruck (Umlaute auf ``ae``/``oe``/
+    ``ue``, ``ß`` auf ``ss``, dann klein) — ABER längentreu: jedes Zeichen wird
+    durch genau EIN Zeichen ersetzt. Die Länge muss gleich bleiben, weil die
+    Fundstelle über ``_faltung_lage`` auf den ORIGINALtext zurückgerechnet
+    wird; zwei Zeichen für einen Umlaut würden jede Stelle dahinter
+    verschieben. ``ẞ`` wird zu ``ß`` VOR dem Kleinschreiben (sonst würde
+    ``.lower()`` daraus ein längentreues ``ß`` — dieselbe Stelle, dasselbe
+    Ergebnis, aber ohne Sonderfall).
+
+    Der einzige Unterschied zur SQL-Seite ist deshalb ``ß`` → ``ss`` und die
+    Ausführung in PYTHON: die ``REPLACE``-Kette läuft VOR der
+    Zeichen-für-Zeichen-Kleinschreibung (dieselbe Reihenfolge wie
+    ``_faltung_sql_text``). Ein roher Text (``Bär``) und ein schon auf ``ae``
+    gebrachtes Suchwort (``baer``) werden damit GLEICH gefaltet — dieselbe
+    Zeichenfolge, dieselbe Stelle. ``_faltung_zeichen`` fängt die Fälle ab, in
+    denen die Ersetzungen NICHT greifen (ein Umlaut, der schon im Text steht,
+    wird in der Kette ersetzt; ein Zeichen, dessen ``lower()`` zwei Zeichen
+    ergibt, einzeln).
+    """
+    text = str(text or "")
+    for von, nach in (("Ä", "Ae"), ("Ö", "Oe"), ("Ü", "Ue"), ("ẞ", "Ss"),
+                      ("ß", "ss"), ("ä", "ae"), ("ö", "oe"), ("ü", "ue")):
+        text = text.replace(von, nach)
+    return "".join(_faltung_zeichen(zeichen) for zeichen in text)
+
+
+#: Zeichen, deren ``lower()`` MEHR als eines ergibt (U+0130 → U+0069 U+0307).
+#: Für die Zuordnungstabelle wird ein solches Zeichen einzeln kleingeschrieben
+#: und seine LÄNGE gemerkt.
+_MEHRFACH_KLEIN = {chr(0x130)}
+
+
+def _faltung_zeichen(zeichen: str) -> str:
+    """EIN Zeichen kleinschreiben — immer genau EIN Zeichen (längentreu).
+
+    ``.lower()`` ist nicht längentreu (``İ`` ergibt zwei Zeichen); solche
+    Zeichen bekommen hier eine feste einzeichige Form, damit die
+    Zuordnungstabelle aus ``_faltung_lage`` stimmt.
+    """
+    if zeichen in _MEHRFACH_KLEIN:
+        return "i"
+    klein = zeichen.lower()
+    return klein if len(klein) == 1 else zeichen
+
+
+def _faltung_lage(text: str) -> tuple[str, list[int]]:
+    """Gefalteter Text PLUS Zuordnung: gefaltete Stelle → Stelle im ORIGINAL.
+
+    ``lage[i]`` ist der Index des Originalzeichens, aus dem das gefaltete
+    Zeichen ``i`` entstand. Damit ist die Rückrechnung längentreu, auch wenn
+    die ``REPLACE``-Kette (``ß`` → ``ss``, Umlaute → ``ae``/``oe``/``ue``) aus
+    einem Zeichen der Kette mehrere macht: die Kette läuft HIER, damit die
+    Tabelle die Wahrheit kennt.
+
+    Weil jedes Originalzeichen über die Kette beliebig viele gefaltete
+    Zeichen erzeugen kann, wird die Kette PRO ZEICHEN angewendet
+    (``_faltung_text(zeichen)``) — nur so bleibt die Zuordnung eindeutig und
+    die Länge der gefalteten Zeichenfolge entspricht ``len(lage)``.
+    """
+    teile: list[str] = []
+    lage: list[int] = []
+    for nummer, zeichen in enumerate(str(text or "")):
+        gefaltet = _faltung_text(zeichen)
+        teile.append(gefaltet)
+        lage.extend([nummer] * len(gefaltet))
+    return "".join(teile), lage
+
+
+def _faltung_muster(wort: str) -> str:
+    """Suchwort in der SPRACHE VON ``_faltung_lage`` (Ausschnitt-Markierung).
+
+    ``_faltung_lage`` schreibt je Originalzeichen GENAU EIN Zeichen; Umlaute
+    und ``ß`` werden zu demselben PUA-Zeichen wie im Text. Dieselbe
+    ``REPLACE``-Kette wie die Spalte (``_faltung_sql_text``) macht aus dem
+    Suchwort ``ae``/``oe``/``ue``/``ss``, danach faltet ``_faltung_text``
+    jedes Zeichen einzeln — genau so findet ``"baer"`` die Stelle von
+    ``"Bär"`` (Review R1/5). Die Reihenfolge ist dieselbe wie in
+    ``_faltung_sql_text``/``_suche_faltung``: erst die Großbuchstaben, dann
+    ``ẞ``/``ß``, dann die Kleinbuchstaben, dann ``lower``.
+    """
+    text = str(wort or "")
+    for von, nach in (("Ä", "Ae"), ("Ö", "Oe"), ("Ü", "Ue"), ("ẞ", "Ss"),
+                      ("ß", "ss"), ("ä", "ae"), ("ö", "oe"), ("ü", "ue")):
+        text = text.replace(von, nach)
+    return _faltung_text(text)
+
+
+def _fundstelle(gefaltet: str, wort: str) -> tuple[int, str] | None:
+    """Erste Fundstelle des Wortes in ``gefaltet`` — ``(Stelle, Treffer)``.
+
+    ``gefaltet`` kommt aus ``_faltung_lage`` (ein Zeichen je Originalzeichen).
+    Gesucht wird zuerst mit dem textgefalteten Suchwort (Umlaute als PUA),
+    dann mit der Wand des ``LIKE``-Rückfalls (``ae``/``oe``/``ue``/``ss``).
+    Beide Ausdrücke sind gleich lang wie das Wort, nachdem ``_faltung_text``
+    je Zeichen genau ein Zeichen liefert — die Trefferlänge ist also die
+    Länge des Musters.
+    """
+    for muster in (_faltung_muster(wort), _faltung_text(_faltung_sql_wort(wort))):
+        stelle = gefaltet.find(muster)
+        if stelle >= 0:
+            return stelle, muster
+    return None
+
+
+def _faltung_sql_text(spalte: str) -> str:
+    """SQL-Ausdruck, der eine Spalte GENAU wie ``_faltung_text`` faltet.
+
+    Dieselben Ersetzungen in derselben Reihenfolge (auch ``ß`` → ``ss``), nur
+    als ``REPLACE``-Kette — die Python-Fassung weicht beim ``ß`` bewusst ab
+    (Längentreue für den Ausschnitt), die RICHTUNG ist bei beiden dieselbe.
+    ``spalte`` ist ein fester Bezeichner aus dieser Datei, keine Nutzereingabe.
+    """
+    ausdruck = spalte
+    for von, nach in (("Ä", "Ae"), ("Ö", "Oe"), ("Ü", "Ue"), ("ẞ", "Ss"),
+                      ("ß", "ss"), ("ä", "ae"), ("ö", "oe"), ("ü", "ue")):
+        ausdruck = f"REPLACE({ausdruck}, '{von}', '{nach}')"
+    return f"LOWER({ausdruck})"
+
+
+def _faltung_sql_wort(wort: str) -> str:
+    """Suchwort für den ``LIKE``-Rückfall — in DERSELBEN Richtung wie die Spalte.
+
+    Review R1/5: der SQL-Ausdruck oben macht aus ``ä`` ein ``ae``; das
+    Suchwort muss dieselbe Wand mitgehen, sonst fände ``"bär"`` nichts.
+    Deshalb dieselbe ``REPLACE``-Kette in derselben Reihenfolge
+    (``_suche_faltung``-Bauart), nur auf einem Wert statt auf einer Spalte;
+    das abschließende ``LOWER`` macht Python (``str.lower``).
+    """
+    text = str(wort or "")
+    for von, nach in (("Ä", "Ae"), ("Ö", "Oe"), ("Ü", "Ue"), ("ẞ", "Ss"),
+                      ("ß", "ss"), ("ä", "ae"), ("ö", "oe"), ("ü", "ue")):
+        text = text.replace(von, nach)
+    return text.lower()
+
+
+@whitelist(methods=["GET"], allow_guest=False)  # rein lesend (SEC-11)
+def nachrichten_suchen(q=None, gespraech=None, vor=None, limit=None):
+    """Volltextsuche über die Chat-Nachrichten, die man LESEN darf (Konzept S4).
+
+    ``q`` ist der Suchbegriff (getrimmt, 2–100 Zeichen; sonst leere Liste).
+    PostgreSQL: ``to_tsvector('german', coalesce(text,'')) @@
+    websearch_to_tsquery('german', q)`` — deutsche Konfiguration, ohne Rang.
+    Der GIN-Ausdrucksindex der Migration ``chat11a_suche`` liegt auf genau
+    diesem Ausdruck (gebaut in ``_tsvector``/``_tsquery``). Auf SQLite (Tests)
+    derselbe Vertrag über gefaltetes ``LIKE`` auf jedes Wort — UND-verknüpft
+    wie ``websearch``; Spalte und Suchwort laufen durch DIESELBE Faltung
+    (``_faltung_sql_text``/``_faltung_sql_wort``: ``ä``→``ae``, ``ö``→``oe``,
+    ``ü``→``ue``, ``ß``→``ss``, klein).
+
+    RECHTE — keine eigene Logik. Kandidaten sind ausschließlich die
+    Gespräche aus ``_verlauf_lesbar`` (die drei Quellen von
+    ``meine_gespraeche``, jede über den Rechte-Kern), ausgeblendet wird, was
+    ``verlauf`` ausblendet (``_ausblenden``: Eintrittsgrenze der Runde,
+    gelöschte Nachrichten, Vorschlags-Systemzeilen). Mit ``gespraech`` wird
+    auf GENAU dieses Gespräch eingeschränkt — steht es nicht in der
+    Kandidatenliste, ist die Antwort dieselbe wie „kein Treffer“ (keine
+    Auskunft über seine Existenz, kein 403).
+
+    ``limit``: Vorgabe 20, höchstens 50 (größer wird gekappt, kleiner auf 1
+    gehoben, unlesbar = Vorgabe — kein Fehler).
+
+    REIHENFOLGE UND BLÄTTERUNG — nur nach Zeit, KEIN Rang (Review R1/2+3):
+    sortiert wird ``erstellt_am DESC, name DESC``, die neueste zuerst.
+    ``vor`` ist die **Kennung der letzten Trefferzeile** der vorigen Seite
+    (``antwort["vor"]``); weitergeblättert wird per Keyset —
+    ``(erstellt_am, name) < (anker.erstellt_am, anker.name)``, als korrektes
+    ``OR`` geschrieben. Damit ist die Reihenfolge eindeutig, auch wenn zwei
+    Nachrichten denselben Zeitstempel tragen.
+
+    Der Anker MUSS selbst ein zulässiger Treffer DERSELBEN Suche sein: in den
+    lesbaren Gesprächen, nicht ausgeblendet und passend auf ``q``. Sonst gilt
+    dieselbe leere Antwort wie bei „kein Treffer“. Vorher verriet ``vor`` auf
+    eine fremde Nachricht ihre Existenz und ihre Zeit — und auf PostgreSQL
+    ließe sich über den Rang sogar der Inhalt abfragen.
+
+    Antwort: ``{treffer: […], mehr: bool, vor: <kennung|None>,
+    limit: <tatsächliche Grenze>}``. Je Treffer:
+
+    * ``gespraech`` — ``{name, art, titel}`` wie ``meine_gespraeche``
+      (bei 1:1 der Anzeigename des Gegenübers, bei einer Runde ihr Name),
+    * ``nachricht`` — Kennung, ``zeit`` — ``erstellt_am`` (ISO),
+    * ``absender`` — Anzeigename wie in ``verlauf`` (``_zeile``: Mitglied,
+      sonst Konto, sonst nichts),
+    * ``ausschnitt`` — ``{vor, treffer, nach}``, reiner Text (kein HTML),
+      zusammen höchstens 160 Zeichen; die Oberfläche setzt die drei Teile
+      zusammen und hebt ``treffer`` hervor (Review R1/6: keine Offsets — kein
+      UTF-16-Problem mit Emoji). Wird keines der Suchwörter im Text gefunden
+      (Stammform auf PostgreSQL), ist ``treffer`` leer und ``vor`` sind die
+      ersten 160 Zeichen.
+
+    SPRUNG IN DEN VERLAUF: die Oberfläche hat alles, was sie braucht —
+    ``nachricht_kontext(nachricht)`` (CHAT-9c) liefert ``{gespraech, art,
+    titel}`` zu genau dieser Kennung und prüft dabei dieselben Rechte
+    (Leserecht + Eintrittsgrenze + nicht gelöscht); mit dieser Kennung lädt
+    ``verlauf(gespraech, vor=<kennung>)`` die Seite davor. Ein eigener
+    Kontext-Endpunkt für die Suche ist deshalb NICHT nötig.
+
+    Leistung: EINE Seite Treffer (EINE Abfrage, mit ``gespraech IN (…)`` und
+    der Runden-Grenze als ``OR``-Block), je EINE für Anker, Gesprächsköpfe,
+    Absendernamen, Anzeige-Namen — also KEINE Schleife über Gespräche mit je
+    einer Suchabfrage. Die Kandidaten kommen aus ``_lesbare_gespraeche`` (der
+    EINEN Einheiten-Ermittlung, die auch ``meine_gespraeche`` benutzt).
+    """
+    grenze = _verlauf_grenze(limit)
+    begriff = _verlauf_begriff(q)
+    ziel = str(gespraech or "").strip()
+    anker = str(vor or "").strip()
+    leer: dict[str, Any] = {"treffer": [], "mehr": False, "vor": None,
+                            "limit": grenze}
+    benutzer = _benutzer()
+    if not begriff or not benutzer or not rechte.ist_gemeindemitglied(benutzer):
+        return leer
+
+    from diakronos_app.rechte import merkungsrahmen
+
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        # PERF-K1: der Rechte-Kern merkt sich seine Antworten für die Dauer
+        # dieses Aufrufs — Kandidatenliste und Treffer fragen dieselben
+        # Personen/Module, ohne sie je Gespräch neu zu ermitteln.
+        with merkungsrahmen():
+            return _suchseite(s, benutzer, begriff, grenze, ziel, anker, leer)
+
+
+def _suchseite(s, benutzer: str, begriff: str, grenze: int, ziel: str,
+               anker: str, leer: dict[str, Any]) -> dict[str, Any]:
+    """Eine Trefferseite — der Rumpf von ``nachrichten_suchen``.
+
+    Getrennt, damit der ``merkungsrahmen`` (PERF-K1) um ALLE Rechtefragen
+    liegt und nicht um das Öffnen der Sitzung.
+
+    Reihenfolge, Anker und Ausblenden stehen an EINER Stelle: ``_trefferwenn``
+    liefert die WHERE-Klausel, die sowohl die Seite als auch die Ankerprüfung
+    benutzt — ein Anker, der dort nicht durchkommt, ist kein Treffer der
+    Suche und ergibt die leere Antwort.
+    """
+    from diakronos_app.frappe_compat.benutzer_status import (
+        _ausgeschlossene_konten,
+        _kontozustand,
+    )
+
+    kandidaten = _verlauf_lesbar(s, benutzer)
+    if ziel:
+        # Der Filter ist die Rechteentscheidung: steht das Gespräch nicht
+        # in den lesbaren, ist die Liste leer — gleich, ob es existiert.
+        kandidaten = [(name, ab) for name, ab in kandidaten if name == ziel]
+        if not kandidaten:
+            return leer
+    bedingung = _trefferwenn(s.bind.dialect.name, benutzer, kandidaten, begriff)
+
+    def _weiter(vor_name: str) -> Any:
+        """Keyset hinter EINER Zeile — ``(erstellt_am, name) < (…)`` als OR."""
+        return or_(ChatNachricht.erstellt_am < vor_name.erstellt_am,
+                   and_(ChatNachricht.erstellt_am == vor_name.erstellt_am,
+                        ChatNachricht.name < vor_name.name))
+
+    abfrage_sql = (select(ChatNachricht)
+                   .where(*bedingung)
+                   .order_by(ChatNachricht.erstellt_am.desc(),
+                             ChatNachricht.name.desc())
+                   .limit(grenze + 1))
+    if anker:
+        # Der Anker muss ein ZULÄSSIGER TREFFER dieser Suche sein: dieselbe
+        # Bedingung (lesbar, nicht ausgeblendet, passt auf ``q``). Unbekannt,
+        # fremd, gelöscht oder nicht passend → dieselbe leere Antwort.
+        anker_zeile = s.execute(
+            select(ChatNachricht).where(ChatNachricht.name == anker, *bedingung)
+        ).scalars().first()
+        if anker_zeile is None or anker_zeile.erstellt_am is None:
+            return leer
+        abfrage_sql = abfrage_sql.where(_weiter(anker_zeile))
+    zeilen = list(s.execute(abfrage_sql).scalars().all())
+    mehr = len(zeilen) > grenze
+    zeilen = zeilen[:grenze]
+    if not zeilen:
+        return leer
+    # Gesprächsköpfe der TREFFER (mit Titel) — in EINER Abfrage, und nur
+    # für diese; `_gespraech_kopf` zeichnet keinen Ungelesen-Zähler, hier
+    # wird er nicht gebraucht (die Suche zählt nichts als gelesen).
+    kennungen = sorted({str(n.gespraech) for n in zeilen})
+    koepfe: dict[str, dict[str, Any]] = {}
+    aus = _ausgeschlossene_konten(*_kontozustand())
+    for g in s.execute(select(ChatGespraech)
+                       .where(ChatGespraech.name.in_(kennungen))
+                       ).scalars().all():
+        if g.art == ART_DIREKT:
+            titel, _, _ = _direkt_titel(s, g, benutzer, ausgeschlossene=aus)
+        else:
+            titel = str(g.titel or "").strip() or (g.untergruppe or g.gruppe or "")
+        koepfe[str(g.name)] = {"name": str(g.name), "art": str(g.art or ""),
+                               "titel": titel}
+    namen = _personen(s, {n.autor for n in zeilen if n.autor})
+    konten = _konto_namen(s, {n.autor_benutzer for n in zeilen
+                              if n.autor_benutzer})
+    treffer = []
+    for n in zeilen:
+        absender = (namen.get(str(n.autor or ""))
+                    or konten.get(str(n.autor_benutzer or "")))
+        treffer.append({
+            "gespraech": koepfe.get(str(n.gespraech),
+                                    {"name": str(n.gespraech),
+                                     "art": "", "titel": ""}),
+            "nachricht": str(n.name),
+            "zeit": _isoopt(n.erstellt_am),
+            "absender": absender,
+            "ausschnitt": _ausschnitt(n.text, begriff),
+        })
+    return {"treffer": treffer, "mehr": mehr,
+            "vor": str(zeilen[-1].name), "limit": grenze}
+
+
+def _trefferwenn(dialekt: str, benutzer: str,
+                 kandidaten: list[tuple[str, datetime | None]],
+                 begriff: str) -> list[Any]:
+    """Die WHERE-Klausel EINER Suche — EINE Wahrheit für Seite UND Anker.
+
+    Zusammengesetzt aus den vorhandenen Bausteinen, ohne neue Rechteregel:
+
+    * ``_ausblenden`` — die Kandidatenliste (das ist die Rechteentscheidung),
+      ``sichtbar_ab`` der Runde, ``geloescht_am``, Vorschlags-Systemzeilen,
+    * der Suchbedingung des Dialekts: auf PostgreSQL der GIN-Ausdruck
+      (``_tsvector``) gegen ``_tsquery``, sonst gefaltetes ``LIKE`` je Wort.
+    """
+    bedingung = [_ausblenden(benutzer, kandidaten)]
+    if dialekt == "postgresql":
+        bedingung.append(_tsvector().op("@@")(_tsquery(begriff)))
+    else:
+        # SQLite (Tests): UND-verknüpft über alle Wörter, gefaltet — derselbe
+        # Vertrag wie ``websearch_to_tsquery`` (alle Wörter). GEFALTET WIRD AUF
+        # BEIDEN SEITEN gleich (``_faltung_sql_text``/``_faltung_sql_wort``:
+        # ``ä``→``ae``, ``ß``→``ss``, klein) — sonst fände „bär“ den „Bär“
+        # nicht, weil Spalte und Suchwort in entgegengesetzte Richtungen
+        # falteten (Review R1/5).
+        spalte = literal_column(_faltung_sql_text("chat_nachricht.text"))
+        bedingung.extend(
+            spalte.like(bindparam(f"nachricht_{nummer}",
+                                  _like_muster(_faltung_sql_wort(wort))),
+                        escape="\\")
+            for nummer, wort in enumerate(begriff.split()[:8])
+        )
+    return bedingung
+
+
+# ── CHAT-12a: Anhänge (Konzept S4 + F11, über SPEICHER-1) ───────────────────
+
+
+def _anhang_herkunft(datei) -> tuple[bytes, str]:
+    """Bytes UND deklarierten Typ eines Uploads — in EINEM Lesevorgang.
+
+    Der Lesedeckel ist ``ANHANG_MAX_BYTES + 1``: ein größerer Upload wird
+    abgewiesen, ohne vollständig in den Speicher zu wandern. Gelesen wird am
+    ``UploadFile`` VORBEI auf dem dahinterliegenden synchronen Datenstrom
+    (``.file``) — genau wie ``frappe_core.upload_file`` und
+    ``gemeinde_logo.pruefe_und_lege_ab``; ``UploadFile.read`` wäre in Starlette
+    eine Coroutine, und der Router ruft den Endpunkt synchron in einem
+    Arbeitsfaden auf.
+
+    Der DEKLARIERTE Typ (Content-Type des Multipart-Teils) wird mitgegeben:
+    er entscheidet bei ``audio/mp4``/``image/heic`` mit, weil ein Container
+    allein mehrere Formate deckt (s. ``_anhang_typ``).
+    """
+    if datei is None:
+        throw("Es wurde keine Datei übergeben.")
+    deklariert = str(getattr(datei, "content_type", "") or "")
+    if hasattr(datei, "read"):
+        quelle = getattr(datei, "file", None) or datei
+        try:
+            gelesen = quelle.read(ANHANG_MAX_BYTES + 1)
+        except Exception as fehler:  # noqa: BLE001 — kaputter Upload ist eine Eingabe
+            throw(f"Die Datei konnte nicht gelesen werden: {fehler}")
+        return bytes(gelesen or b""), deklariert
+    if isinstance(datei, (bytes, bytearray)):
+        return bytes(datei), deklariert
+    throw("Es wurde keine Datei übergeben.")
+
+
+def _anhang_typ(roh: bytes, deklariert: str = "") -> str:
+    """Der GEPRÜFTE Typ eines Anhangs — aus den MAGIC BYTES, nie vom Client.
+
+    Wiederverwendet wird ``files.binary_content_type`` (Kartenauflage: nicht
+    kopieren) und der deklarierte Typ nur dort, wo er NÖTIG ist, weil die Magie
+    mehrere Formate deckt:
+
+    * **HEIC/HEIF** (``image/heic``): ISO-BMFF-``ftyp`` mit einem HEIF-Brand.
+      ``binary_content_type`` kennt HEIC nicht.
+    * **``audio/mp4``** (``.m4a``): Dieselbe Magie deckt auch ``.mp4``-VIDEO —
+      Video ist nicht Teil des Konzepts. Ein Audio-Upload deklariert seinen Typ
+      als ``audio/…``; deklariert der Client ``video/mp4``, wird abgelehnt.
+
+    Alles andere entscheidet AUSSCHLIESSLICH die Magie: ein als ``.jpg``
+    umbenanntes Programm meldet ``binary_content_type`` nicht als Bild — und was
+    nicht in ``ANHANG_TYPEN`` steht, ist abgelehnt.
+
+    ``ValidationError`` mit einer Meldung, die dem Menschen weiterhilft (Typ,
+    erlaubte Liste) und keinen internen Pfad nennt.
+    """
+    from diakronos_app.files import binary_content_type
+
+    erkannt = binary_content_type(roh)
+    deklariert = str(deklariert or "").split(";")[0].strip().lower()
+
+    if _ist_heic(roh):
+        return "image/heic"
+    if erkannt == "audio/mp4" and not deklariert.startswith("audio/"):
+        # ISO-BMFF-``ftyp``: ``.m4a`` (Audio) und ``.mp4`` (Video) sind an der
+        # Magie NICHT zu unterscheiden (beide ``ftyp``); der Client-Typ
+        # entscheidet deshalb hier mit — deklariert er ``audio/...``, ist es
+        # ein M4A, sonst (``video/mp4``, leer, fremd) wird abgelehnt.
+        raise ValidationError(
+            "Dateityp nicht erlaubt. Erlaubt sind Bilder (JPG, PNG, WebP, HEIC), "
+            "PDF und Audio (MP3, M4A, OGG, OPUS)."
+        )
+    if erkannt is None or erkannt not in ANHANG_TYPEN:
+        raise ValidationError(
+            "Dateityp nicht erlaubt. Erlaubt sind Bilder (JPG, PNG, WebP, HEIC), "
+            "PDF und Audio (MP3, M4A, OGG, OPUS)."
+        )
+    return erkannt
+
+
+#: Die HEIF-Brands (ISO/IEC 23008-12). ``mif1``/``msf1`` sind HEIF-Container,
+#: die auch AVIF tragen können — AVIF ist hier NICHT erlaubt (das Konzept nennt
+#: heic), deshalb zählt ``mif1`` nur, wenn KEIN AVIF-Brand daneben steht.
+_HEIC_BRANDS = frozenset({b"heic", b"heix", b"heim", b"heis", b"hevc", b"hevx"})
+_HEIF_BRANDS = frozenset({b"mif1", b"msf1"})
+_AVIF_BRANDS = frozenset({b"avif", b"avis"})
+
+
+def _ist_heic(roh: bytes) -> bool:
+    """HEIC/HEIF-Erkennung an der ``ftyp``-Box (Video/AVIF sind es NICHT).
+
+    ``[0:4]`` = Box-Länge, ``[4:8]`` = ``ftyp``, ``[8:12]`` = major brand,
+    danach die compatible brands. ``audio/mp4``-Dateien (``isom``, ``mp42``,
+    ``M4A ``) und MP4-Video (``isom``/``mp41``) fallen hier durch.
+    """
+    if len(roh) < 12 or roh[4:8] != b"ftyp":
+        return False
+    # Brand-Bereich: major brand (Bytes 8–11), minor version (12–15), dann die
+    # compatible brands als 4-Byte-Felder ab 16. Konservativ bis 32 Bytes
+    # gelesen — was weiter hinten steht, ist kein typischer HEIC-Kopf.
+    brands = {roh[8:12]} | {
+        roh[i:i + 4] for i in range(16, min(len(roh), 40), 4)
+    }
+    if brands & _AVIF_BRANDS:
+        return False
+    return bool(brands & _HEIC_BRANDS or brands & _HEIF_BRANDS and roh[8:12] in _HEIF_BRANDS)
+
+
+def _anhang_dateiname(name: str | None, typ: str) -> str:
+    """Anzeigename bereinigen: kein Pfad, keine Steuerzeichen, ≤ 120 Zeichen.
+
+    ``../../etc/passwd`` → ``passwd``. Der Name ist REINE ANZEIGE — er wird
+    nie als Speicherpfad benutzt (der Schlüssel ist technisch, ``_kennung``),
+    aber er landet in ``Content-Disposition`` und darf dort weder Zeilen noch
+    Pfade öffnen. Steuerzeichen (auch ``\\r``/``\\n``) fliegen ganz raus,
+    Backslash und Doppelpunkt ebenso; Leerzeichen INNEN bleiben.
+    """
+    basis = str(name or "").strip().replace("\\", "/")
+    basis = basis.rsplit("/", 1)[-1]
+    basis = "".join(z for z in basis if z.isprintable() and z not in '\\/:*?"<>|').strip()
+    basis = basis.lstrip(".").strip()
+    if not basis:
+        basis = f"anhang{ANHANG_TYPEN.get(typ, '')}"
+    if len(basis) > ANHANG_NAME_MAX:
+        stamm, punkt, endung = basis.rpartition(".")
+        if punkt and endung and len(endung) <= 8:
+            basis = stamm[: ANHANG_NAME_MAX - len(endung) - 1] + "." + endung
+        else:
+            basis = basis[:ANHANG_NAME_MAX]
+    return basis
+
+
+def _anhang_kennungen(anhaenge) -> list[str]:
+    """Die Kennungen aus ``anhaenge`` — Liste, JSON-Zeichenkette oder ``None``.
+
+    Dieselbe Nachsicht wie bei ``erwaehnt`` (Formular, JSON, ``{"name": …}``):
+    die Oberfläche schickt eine Liste von Kennungen, ein Formular schickt sie
+    als JSON-Text. Duplikate werden zusammengefasst, die Reihenfolge bleibt.
+    """
+    if anhaenge is None or anhaenge == "":
+        return []
+    if isinstance(anhaenge, str):
+        wert = anhaenge.strip()
+        if not wert:
+            return []
+        try:
+            anhaenge = json.loads(wert)
+        except ValueError:
+            anhaenge = [wert]
+    if isinstance(anhaenge, dict):
+        anhaenge = list(anhaenge.values())
+    if not isinstance(anhaenge, (list, tuple)):
+        anhaenge = [anhaenge]
+    gesehen: list[str] = []
+    for eintrag in anhaenge:
+        if isinstance(eintrag, dict):
+            eintrag = eintrag.get("name") or eintrag.get("anhang")
+        kennung = str(eintrag or "").strip()
+        if kennung and kennung not in gesehen:
+            gesehen.append(kennung)
+    return gesehen
+
+
+def _anhaenge_laden(s, nachrichten) -> dict[str, list[dict[str, Any]]]:
+    """Die Anhänge einer Verlaufsseite — EINE Abfrage (kein N+1).
+
+    Geliefert wird nur, was die Oberfläche zum Anzeigen und Verlinken braucht:
+    ``name`` (Herunterladen), ``dateiname``, ``mime``, ``groesse``. Der
+    SPEICHER-Schlüssel bleibt im Server: er ist keine Adresse, die jemand
+    erraten oder weitergeben soll (Kartenvorgabe: Ausliefern über
+    ``chat.anhang``).
+    """
+    kennungen = [str(k) for k in nachrichten or () if k]
+    if not kennungen:
+        return {}
+    zeilen = s.execute(
+        select(ChatAnhang)
+        .where(ChatAnhang.nachricht.in_(kennungen))
+        .order_by(ChatAnhang.angelegt_am, ChatAnhang.name)
+    ).scalars().all()
+    ergebnis: dict[str, list[dict[str, Any]]] = {}
+    for a in zeilen:
+        ergebnis.setdefault(str(a.nachricht), []).append({
+            "name": str(a.name),
+            "dateiname": str(a.dateiname),
+            "mime": str(a.mime),
+            "groesse": int(a.groesse or 0),
+        })
+    return ergebnis
+
+
+def _anhang_anhaengen(s, nachricht: str, anhaenge) -> list[ChatAnhang]:
+    """Offene Anhänge an eine NEUE Nachricht hängen (``senden``).
+
+    Die Kennungen sind bereits geprüft (``_anhaenge_pruefen``): offen, vom
+    selben Absender, im selben Gespräch. Die eigentliche Zuweisung ist ein
+    bedingtes ``UPDATE`` (``nachricht IS NULL``) im SAVEPOINT je Zeile — zwei
+    gleichzeitige Sendevorgänge können dieselbe Kennung nicht beide belegen;
+    der Verlierer bekommt dieselbe 400 wie ein fremder Anhang (KEINE Auskunft
+    darüber, wer schneller war).
+    """
+    zugeordnet: list[ChatAnhang] = []
+    for kennung in anhaenge or ():
+        try:
+            with s.begin_nested():
+                getroffen = s.execute(
+                    update(ChatAnhang)
+                    .where(ChatAnhang.name == kennung,
+                           ChatAnhang.nachricht.is_(None))
+                    .values(nachricht=nachricht)
+                ).rowcount or 0
+                if not getroffen:
+                    raise ValidationError("Anhang nicht gefunden.")
+        except IntegrityError:  # pragma: no cover — FK-Rennen, s. loeschen
+            raise ValidationError("Anhang nicht gefunden.") from None
+        zeile = s.get(ChatAnhang, kennung)
+        if zeile is None:  # pragma: no cover — nur bei paralleler Löschung
+            raise ValidationError("Anhang nicht gefunden.")
+        zugeordnet.append(zeile)
+    return zugeordnet
+
+
+def _anhaenge_pruefen(s, g: ChatGespraech, benutzer: str, anhaenge) -> list[str]:
+    """Die Kennungen prüfen, die ``senden`` anhängen soll — sonst 400.
+
+    Geprüft wird ALLES, was der Karte nach gelten muss:
+
+    * höchstens ``ANHAENGE_MAX`` (3) je Nachricht,
+    * jede Kennung existiert,
+    * sie ist noch OFFEN (``nachricht IS NULL``),
+    * sie gehört DEMSELBEN Absender (Konto),
+    * sie hängt am DEMSELBEN Gespräch.
+
+    Jede Abweichung antwortet GLEICH (``ValidationError``, 400) — fremde und
+    unbekannte Kennungen sind damit nicht unterscheidbar, und ein geratener
+    Anhang verrät nichts über sein Gespräch.
+    """
+    kennungen = _anhang_kennungen(anhaenge)
+    if not kennungen:
+        return []
+    if len(kennungen) > ANHAENGE_MAX:
+        throw(f"Eine Nachricht kann höchstens {ANHAENGE_MAX} Anhänge tragen.")
+    zeilen = s.execute(
+        select(ChatAnhang).where(ChatAnhang.name.in_(kennungen))
+    ).scalars().all()
+    gefunden = {str(a.name): a for a in zeilen}
+    for kennung in kennungen:
+        a = gefunden.get(kennung)
+        if (a is None
+                or a.nachricht is not None
+                or str(a.gespraech) != str(g.name)
+                or str(a.angelegt_von or "") != str(benutzer or "")):
+            throw("Anhang nicht gefunden.")
+    return kennungen
+
+
+def anhaenge_entfernen(schluessel) -> tuple[int, list[str]]:
+    """Dateien aus der Ablage löschen — ``(entfernt, fehlgeschlagen)``.
+
+    Review R1/3: Diese Funktion schluckt keine Fehler mehr. Ein Ablage-Fehler
+    landet im ZWEITEN Rückgabewert; der Aufrufer MUSS den Schlüssel dann in der
+    Entsorgungsliste lassen (``chat_anhang_entsorgung``), damit der Minuten-Job
+    es erneut versucht. Der frühere Weg („nach dem Commit, nur loggen“) ließ
+    verwaiste Dateien für immer liegen.
+
+    Wird nur noch für Dateien benutzt, die NICHT über die Entsorgungsliste
+    laufen (Fremd-Verweise aus dem DSGVO-Pfad). Chat-Anhänge gehen über
+    ``chat_anhang_entsorgung_abarbeiten``.
+    """
+    from diakronos_app.speicher import AblageFehler, hole_speicher
+    from diakronos_app.speicher import NichtGefunden as SpeicherNichtGefunden
+
+    entfernt = 0
+    offen: list[str] = []
+    for schluessel_wert in schluessel or ():
+        wert = str(schluessel_wert or "").strip()
+        if not wert:
+            continue
+        try:
+            if hole_speicher().loeschen(wert):
+                entfernt += 1
+        except SpeicherNichtGefunden:
+            # „war schon weg“ — der Zweck ist erreicht.
+            continue
+        except AblageFehler as fehler:
+            logger.warning("Chat-Anhang %r nicht entfernt: %s", wert, fehler)
+            offen.append(wert)
+        except Exception as fehler:  # noqa: BLE001 — Aufräumen darf nie werfen
+            logger.warning("Chat-Anhang %r nicht entfernt: %s", wert, fehler)
+            offen.append(wert)
+    return entfernt, offen
+
+
+def _nachricht_anhaenge_raeumen(s, nachricht: str) -> list[str]:
+    """Anhang-Zeilen einer gelöschten Nachricht entfernen — Schlüssel zurück.
+
+    Soft-Delete (``loeschen``/``meldung_entscheiden``): die Zeilen fallen weg,
+    damit an der Lücke kein Herunterladen-Link mehr hängt.
+
+    Review R1/3: Die Speicher-Schlüssel werden in DERSELBEN Transaktion in die
+    Entsorgungsliste (``chat_anhang_entsorgung``) geschrieben — damit ist die
+    Datei auch dann nicht verwaist, wenn das Löschen aus der Ablage jetzt
+    scheitert. Der Aufrufer versucht es nach dem Commit EINMAL mit SEINEN
+    EIGENEN Schlüsseln (``_entsorgung_sofort``); scheitert es, wiederholt der
+    Minuten-Job den Auftrag. Zurückgegeben werden nur die Schlüssel, die
+    DIESER Aufruf gerade vorgemerkt hat (CHAT-12a-2) — ein schon offener
+    Auftrag ist Sache des Jobs.
+    """
+    schluessel = [str(k) for k in s.execute(
+        select(ChatAnhang.schluessel).where(ChatAnhang.nachricht == nachricht)
+    ).scalars().all() if k]
+    if not schluessel:
+        return []
+    # CHAT-12a-2: Zurück kommen die Schlüssel, die DIESER Weg gerade vorgemerkt
+    # hat — der Request versucht danach nur die, keine fremden Aufträge.
+    neu = _entsorgung_vormerken(s, schluessel)
+    s.execute(delete(ChatAnhang).where(ChatAnhang.nachricht == nachricht))
+    return neu
+
+
+def _entsorgung_vormerken(s, schluessel) -> list[str]:
+    """Speicher-Schlüssel in die Entsorgungsliste schreiben (Review R1/3).
+
+    EINE Stelle für ALLE Löschwege (``api.chat``, ``chat_aufbewahrung``,
+    ``dsgvo_anonymisierung``). Der Schlüssel ist der Primärschlüssel: ein
+    bereits vorgemerkter Auftrag bleibt stehen, ``versuche`` und
+    ``naechster_versuch_am`` werden NICHT zurückgesetzt.
+
+    Zurückgegeben werden die Schlüssel, die dieser Aufruf GERADE vorgemerkt hat
+    — genau die darf der Request nach dem Commit einmal selbst versuchen
+    (``_entsorgung_sofort``), fremde Aufträge nicht (CHAT-12a-2).
+    """
+    neu: list[str] = []
+    jetzt = _jetzt()
+    liste = sorted({str(k) for k in schluessel or () if str(k).strip()})
+    if not liste:
+        return neu
+    # EINE Anweisung für alle Schlüssel: ein SQL-Ereignis im ORM-Rahmen leert
+    # den Rechte-Merker (``db.do_orm_execute``) — je Schlüssel eine wäre im
+    # Request unnötig teuer, und die Reihenfolge muss stabil sein.
+    #
+    # ``INSERT ... ON CONFLICT DO NOTHING`` statt „erst SELECT, dann INSERT“:
+    # zwei Transaktionen (zwei Requests, Job + Request) können denselben
+    # Schlüssel gleichzeitig vormerken. Ohne die Bedingung gewinnt keine —
+    # der Verlierer liefe in einen ``IntegrityError`` und der ganze Commit
+    # (Nachricht löschen!) fiele mit um. ``RETURNING`` nennt genau die Zeilen,
+    # die DIESER Aufruf angelegt hat; was schon stand, ist nicht dabei (und
+    # behält seine ``versuche``/``naechster_versuch_am``).
+    einfuegen = _entsorgung_insert_fuer(s)
+    andrang = einfuegen(ChatAnhangEntsorgung).values([
+        {"schluessel": wert, "vorgemerkt_am": jetzt, "versuche": 0,
+         "naechster_versuch_am": jetzt, "letzter_fehler": None}
+        for wert in liste
+    ]).on_conflict_do_nothing(index_elements=["schluessel"])
+    angelegte = s.execute(
+        andrang.returning(ChatAnhangEntsorgung.schluessel)
+    ).scalars().all()
+    return [str(w) for w in angelegte]
+
+
+def _entsorgung_insert_fuer(s):
+    """``insert``-Funktion des Dialekts (für ``ON CONFLICT``).
+
+    Beide Datenbanken können es (SQLite seit 3.24, PostgreSQL seit 9.5), aber
+    unter verschiedenen Namen — deshalb die Auswahl am Bind.
+    """
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+    if s.get_bind().dialect.name == "postgresql":
+        return pg_insert
+    return sqlite_insert
+
+
+def entsorgung_wartezeit(versuche: int) -> timedelta:
+    """Wartezeit bis zum nächsten Versuch nach ``versuche`` Fehlschlägen.
+
+    Index 0 der Reihe (1 Minute) gilt nach dem ERSTEN Fehlschlag, index 3
+    (6 Stunden) ab dem vierten — und bleibt danach stehen. Eine reine
+    Funktion, damit die Tests die Zeiten ohne Uhr prüfen können.
+    """
+    stelle = min(max(int(versuche or 0), 1), len(ENTSORGUNG_BACKOFF_MINUTEN)) - 1
+    return timedelta(minutes=ENTSORGUNG_BACKOFF_MINUTEN[stelle])
+
+
+def _entsorgung_sofort(schluessel, *, limit_sekunden: float | None = None) -> int:
+    """Die EIGENEN Schlüssel EINMAL versuchen — nie eine Ausnahme nach außen.
+
+    CHAT-12a-2, Punkt 2: nach dem Commit arbeitet der Request höchstens seine
+    eigenen, gerade vorgemerkten Schlüssel ab (``ENTSORGUNG_JE_ANFRAGE``, also
+    höchstens 3). Alles läuft in ``try``/``except`` — auch ``hole_speicher()``;
+    ein Fehler wird protokolliert und sonst geschluckt. Was scheitert, bleibt
+    für den Minuten-Job stehen (der Auftrag ist die Wahrheit, nicht dieser
+    Versuch).
+
+    ``limit_sekunden``: nur die Ablagen, die ein Zeitlimit kennen, bekommen
+    eines (``Basis.loeschen_mit_zeitlimit``; ``Lokal`` bleibt beim normalen
+    Weg — dort gibt es kein Netz zu hängen). Der Aufruf läuft NICHT in einem
+    Hilfs-Thread: ein abgebrochener Thread würde weiterlöschen, während der
+    Request „gescheitert“ verbucht.
+
+    Rückgabe: Anzahl der Schlüssel, die jetzt weg sind (für das Protokoll).
+    """
+    eigene = [str(k) for k in schluessel or () if str(k).strip()]
+    eigene = eigene[:ENTSORGUNG_JE_ANFRAGE]
+    if not eigene:
+        return 0
+    # CHAT-12a-2: Der Auftrag entsteht mit ``_jetzt()`` (Wandzeit der
+    # Gemeinde). Der Minuten-Job wählt mit ``naechster_versuch_am <= jetzt`` —
+    # derselbe Maßstab, sonst fiele ein frischer Auftrag in einer Zeitzone
+    # hinter UTC erst Stunden später auf.
+    jetzt = _jetzt()
+    entfernt = 0
+    try:
+        from diakronos_app.speicher import hole_speicher
+
+        speicher = hole_speicher()
+    except Exception as fehler:  # noqa: BLE001 — ein Request darf hier nie werfen
+        logger.warning("Chat-Anhang: Ablage nicht verfügbar (Request): %s", fehler)
+        return 0
+    for wert in eigene:
+        try:
+            if limit_sekunden is None:
+                geloescht = speicher.loeschen(wert)
+            else:
+                geloescht = speicher.loeschen_mit_zeitlimit(wert, limit_sekunden)
+        except Exception as fehler:  # noqa: BLE001 — s. oben
+            # Der Auftrag steht in der Liste; der Minuten-Job übernimmt ihn —
+            # die Auswahl lautet ``naechster_versuch_am <= jetzt``, ein
+            # fälliger Auftrag wird also in jedem Fall genommen.
+            # ``_entsorgung_erneut_vormerken`` setzt die Zeit höchstens bis
+            # „jetzt“ (nie darüber hinaus) und lässt eine Belegung des Jobs
+            # unangetastet.
+            logger.warning("Chat-Anhang %r im Request nicht entfernt: %s",
+                           wert, fehler)
+            _entsorgung_erneut_vormerken(wert, jetzt)
+            continue
+        if not geloescht:
+            # ``False`` = „die Datei war nicht da“. Das ist für ein Löschen
+            # KEIN Erfolg, sondern eine Auskunft über die Ablage — und die ist
+            # hier nicht vertrauenswürdig (``Lokal`` meldet es auch, wenn der
+            # Pfad nicht stimmt, das Löschen aber scheiterte). Der Auftrag
+            # bleibt deshalb stehen; der Minuten-Job prüft es erneut mit
+            # seiner eigenen Logik. Es geht um DSGVO-Dateien: lieber ein
+            # Versuch zu viel als eine Datei, die niemand mehr sucht.
+            logger.warning("Chat-Anhang %r war in der Ablage nicht vorhanden — "
+                           "Auftrag bleibt für den Minuten-Job stehen.", wert)
+            _entsorgung_erneut_vormerken(wert, jetzt)
+            continue
+        # Gelungen: der Auftrag hat seinen Zweck erfüllt und fällt — DIESER
+        # Request erledigt ihn, statt auf den Minuten-Job zu warten (der ihn
+        # sonst beim nächsten Takt ein zweites Mal versuchen würde).
+        _entsorgung_auftrag_entfernen(wert)
+        entfernt += 1
+    return entfernt
+
+
+def _entsorgung_auftrag_entfernen(wert: str) -> None:
+    """Auftrag nach erfolgreichem Löschen aus der Liste nehmen (try/except).
+
+    Läuft nach dem Commit im Request: ein Fehler hier darf NIE nach außen.
+    Bleibt der Auftrag stehen, ist das kein Schaden — der Minuten-Job versucht
+    das Löschen dann erneut, und „Datei war weg“ gilt dort als Erfolg.
+
+    **Kein Warten auf eine Sperre (Review R1/1b):** Entfernt wird nur, was
+    dieser Request auch bekommen kann. Auf PostgreSQL steht dafür
+    ``SET LOCAL lock_timeout`` (``ENTSORGUNG_LOCK_TIMEOUT_MS``) VOR dem
+    ``DELETE`` — hält ein Job die Zeile, scheitert der Befehl nach einer halben
+    Sekunde statt minutenlang zu warten; der Auftrag bleibt dann einfach
+    stehen. Auf SQLite gibt es keine Zeilensperren (dort ist die zweite
+    Schreibtransaktion schon durch das Schreiben selbst ausgeschlossen).
+    """
+    try:
+        with dbmod.SessionLocal.begin() as s:
+            _entsorgung_lock_timeout(s)
+            s.execute(
+                delete(ChatAnhangEntsorgung)
+                .where(ChatAnhangEntsorgung.schluessel == wert)
+            )
+    except Exception as fehler:  # noqa: BLE001 — s. oben
+        logger.warning("Chat-Anhang %r: Auftrag nicht entfernt: %s", wert, fehler)
+
+
+def _entsorgung_lock_timeout(s) -> None:
+    """``SET LOCAL lock_timeout`` auf PostgreSQL — sonst nichts (Review R1/1b).
+
+    Gilt für die Transaktion dieses Blocks: hält jemand die Zeile länger als
+    ``ENTSORGUNG_LOCK_TIMEOUT_MS``, bricht die Anweisung ab (``OperationalError``)
+    und der Aufrufer fängt sie. Ein Request der Oberfläche darf nicht darauf
+    warten, dass ein Job seine 100 Löschungen durchhat.
+    """
+    if s.get_bind().dialect.name != "postgresql":
+        return
+    from sqlalchemy import text
+
+    s.execute(text(f"SET LOCAL lock_timeout = {int(ENTSORGUNG_LOCK_TIMEOUT_MS)}"))
+
+
+def _entsorgung_erneut_vormerken(wert: str, jetzt: datetime) -> None:
+    """Einen gescheiterten Sofort-Versuch wieder fällig stellen — bedingt.
+
+    Eigenes ``try``/``except``: auch das Verbuchen darf NIE nach außen werfen
+    (es läuft nach dem Commit im Request). Bleibt der Auftrag unverändert, ist
+    das kein Fehler — einen Fehlversuch zählt nur der Job, nicht der Request.
+
+    **Was die Bedingung ``naechster_versuch_am <= jetzt`` WIRKLICH tut
+    (SPEICHER-3, Punkt 3):** für den Minuten-Job nichts. Die Auswahl des Jobs
+    lautet selbst ``naechster_versuch_am <= jetzt`` — ein bereits fälliger
+    Auftrag wird also ohnehin genommen, ob diese Anweisung läuft oder nicht.
+    Sie schreibt lediglich ``jetzt`` über eine Zeit, die schon in der
+    Vergangenheit lag, und lässt alles in der Zukunft unangetastet. Sie ist
+    damit weder ein Vorziehen noch ein „rückt auf jetzt“ (so stand es hier
+    früher, das war überholt): die Fälligkeit wandert höchstens bis genau auf
+    jetzt, nie darüber hinaus — ein laufender Takt wird also nicht überholt.
+    Der eigentliche Zweck bleibt, nichts anzutasten, was der Job gerade
+    belegt.
+
+    Der Kommentar/das Verhalten selbst ist absichtlich unverändert gelassen
+    (Karte SPEICHER-3: nur die Beschreibung war überholt).
+
+    **Hebt keine Belegung auf (CHAT-12a-3, Punkt 4):** Der Job belegt eine
+    Zeile, indem er ``naechster_versuch_am`` auf jetzt +
+    ``ENTSORGUNG_BELEGUNG_MINUTEN`` schiebt (``_entsorgung_waehlen_und_belegen``).
+    Diese Zukunft ist eine SPERRE, kein Backoff: sie sagt „dieser Lauf kümmert
+    sich gerade darum“. Ein gescheiterter Sofort-Versuch im Request darf sie
+    deshalb NICHT auf „jetzt“ zurückziehen — sonst nähme der nächste
+    Minuten-Takt dieselbe Zeile, während der laufende Job sie noch bearbeitet
+    (doppelte Netz-Löschung, doppelt gezählte ``versuche``). Gesetzt wird nur,
+    wenn die Zeile NICHT in der Zukunft liegt (``naechster_versuch_am <= jetzt``).
+
+    ``lock_timeout`` wie oben: hält ein Job die Zeile gerade (PostgreSQL), bleibt
+    sie eben stehen, der Job ist die Wahrheit.
+    """
+    try:
+        with dbmod.SessionLocal.begin() as s:
+            _entsorgung_lock_timeout(s)
+            s.execute(
+                update(ChatAnhangEntsorgung)
+                .where(ChatAnhangEntsorgung.schluessel == wert,
+                       ChatAnhangEntsorgung.naechster_versuch_am <= jetzt)
+                .values(naechster_versuch_am=jetzt)
+            )
+    except Exception as fehler:  # noqa: BLE001 — s. oben
+        logger.warning("Chat-Anhang %r: Auftrag nicht wieder fällig gestellt: %s",
+                       wert, fehler)
+
+
+def chat_anhang_entsorgung_abarbeiten(jetzt: datetime | None = None,
+                                      grenze: int | None = None) -> dict[str, int]:
+    """Scheduler-Job (Review R1/3): offene Entsorgungs-Aufträge abarbeiten.
+
+    **Ohne Kopfblockade (CHAT-12a-2):** Ausgewählt werden nur Aufträge, die
+    jetzt dran sind (``naechster_versuch_am <= jetzt``), der früheste zuerst.
+    Vorher nahm jeder Lauf die 100 ÄLTESTEN (``vorgemerkt_am``) — scheiterten
+    100 Schlüssel dauerhaft (403, kaputter Pfad), kamen neuere Aufträge NIE
+    dran. Je Schlüssel wird die Datei aus der Ablage gelöscht; danach fällt die
+    Zeile — ABER NUR, wenn das Löschen gelungen ist:
+
+    * Datei war weg (``loeschen`` → ``False``) → Zeile fällt („war schon weg“
+      ist Erfolg: der Zweck ist erreicht),
+    * Fehler der Ablage → ``versuche`` + 1, ``letzter_fehler`` als Kurzfassung,
+      ``naechster_versuch_am`` = jetzt + ``entsorgung_wartezeit(versuche)``
+      (1, 5, 30 Minuten, danach 6 Stunden); die Zeile BLEIBT. Ab
+      ``ENTSORGUNG_WARNUNG_AB`` (20) Versuchen EINMAL ``logger.error`` — der
+      Auftrag wird nie still gelöscht, es geht um DSGVO-Dateien.
+
+    **Kein Netzaufruf unter einer Zeilensperre (Review R1/1a):** Vorher hielt
+    der Lauf die Sperre (``FOR UPDATE``) über bis zu 100 Ablage-Aufrufe — ein
+    Request, der dieselbe Zeile entfernen wollte, wartete minutenlang (kein
+    ``lock_timeout``). Jetzt in DREI Schritten, je Schlüssel:
+
+    1. **Auswählen und belegen — ATOMAR (CHAT-12a-3):**
+       ``SELECT … FOR UPDATE SKIP LOCKED`` und
+       ``UPDATE … SET naechster_versuch_am = jetzt + ENTSORGUNG_BELEGUNG_MINUTEN``
+       laufen in DERSELBEN Transaktion (``_entsorgung_waehlen_und_belegen``);
+       erst danach fällt der Commit. Zwischen Auswahl und Belegung gibt es
+       keinen Commit — ein gleichzeitiger Lauf sieht die Zeile also nie im
+       Zwischenraum als „frei“ und nimmt sie nicht doppelt (sonst würde
+       dieselbe Datei zweimal über das Netz gelöscht und ``versuche`` doppelt
+       gezählt: Backoff und 20er-Schwelle wären falsch). Belegt werden NUR die
+       in dieser Auswahl gelesenen Schlüssel (``WHERE schluessel IN (…)``); die
+       Sperre fällt mit dem Commit — VOR dem Netzaufruf.
+    2. **Löschen:** ohne offene Transaktion, ohne Sperre.
+    3. **Verbuchen:** Erfolg → ``DELETE``; Fehler → ``UPDATE`` mit neuem
+       Zähler und Backoff.
+
+    Auf SQLite (Tests, Einzelplatz) gibt es kein ``SKIP LOCKED``; dort schreibt
+    nur eine Verbindung — die Belegung bleibt trotzdem (sie ist die Wahrheit
+    für einen zweiten Lauf) und jeder Schritt ist ein eigener kurzer Commit.
+
+    Rückgabe: ``{"abgearbeitet": n, "fehler": n, "offen": n}``.
+    """
+    from diakronos_app.speicher import NichtGefunden as SpeicherNichtGefunden
+    from diakronos_app.speicher import hole_speicher
+
+    ergebnis = {"abgearbeitet": 0, "fehler": 0, "offen": 0}
+    anzahl = ENTSORGUNG_BATCH if grenze is None else max(1, int(grenze))
+    jetzt = jetzt or _jetzt()
+    belegung = jetzt + timedelta(minutes=ENTSORGUNG_BELEGUNG_MINUTEN)
+
+    # 1) Auswählen + belegen — EINE kurze Transaktion, kein Netz darin.
+    #    Die Belegung gehört in DIESELBE Transaktion wie die Auswahl (CHAT-12a-3):
+    #    läge zwischen beiden ein Commit, wären die Zeilen genau in diesem
+    #    Zwischenraum für einen parallelen Lauf wieder frei — er wählte sie
+    #    erneut, und beide Läufe löschten dieselbe Datei (``versuche`` doppelt).
+    werte = _entsorgung_waehlen_und_belegen(jetzt, anzahl, belegung)
+
+    speicher = None
+    for wert in werte:
+        try:
+            if speicher is None:
+                speicher = hole_speicher()
+            speicher.loeschen(wert)
+        except SpeicherNichtGefunden:
+            pass  # „war schon weg“ = Erfolg
+        except Exception as fehler:  # noqa: BLE001 — nie den Job abbrechen
+            ergebnis["fehler"] += 1
+            _entsorgung_fehler_verbuchen(wert, fehler, jetzt)
+            continue
+        if _entsorgung_auftrag_erledigt(wert):
+            ergebnis["abgearbeitet"] += 1
+    with dbmod.SessionLocal() as s:
+        ergebnis["offen"] = int(s.execute(
+            select(func.count()).select_from(ChatAnhangEntsorgung)
+        ).scalar_one() or 0)
+    return ergebnis
+
+
+def _entsorgung_auswahl_abfrage(jetzt: datetime, anzahl: int):
+    """Die Auswahl-Abfrage des Jobs — EINE Wahrheit für Code und Test.
+
+    CHAT-12a-3 baute sie inline in ``_entsorgung_waehlen_und_belegen``; dann
+    prüfte der Test eine NACHGEBAUTE Abfrage gegen den postgresql-Dialekt und
+    nicht die, die im Betrieb läuft (SPEICHER-3, Punkt 5). Hier ist sie
+    herausgezogen: der Job benutzt sie, und der Test kompiliert genau dieses
+    Objekt.
+
+    Der ``FOR UPDATE``-Zusatz (``SKIP LOCKED``) kommt NICHT hier hinein, weil
+    er dialektabhängig ist — er wird im Job ergänzt und in
+    ``_entsorgung_auswahl_mit_sperre`` (dieselbe Funktion, PG-Zweig)
+    zusammengeführt.
+    """
+    return (
+        select(ChatAnhangEntsorgung)
+        .where(ChatAnhangEntsorgung.naechster_versuch_am <= jetzt)
+        .order_by(ChatAnhangEntsorgung.naechster_versuch_am,
+                  ChatAnhangEntsorgung.schluessel)
+        .limit(anzahl)
+    )
+
+
+def _entsorgung_auswahl_mit_sperre(jetzt: datetime, anzahl: int):
+    """Dieselbe Auswahl MIT ``FOR UPDATE SKIP LOCKED`` (PostgreSQL-Zweig).
+
+    Getrennt, damit der Test am selben Objekt prüfen kann, was der Job auf
+    PostgreSQL wirklich abschickt — statt an einer nachgebauten Abfrage.
+    """
+    return _entsorgung_auswahl_abfrage(jetzt, anzahl).with_for_update(
+        skip_locked=True)
+
+
+def _entsorgung_waehlen_und_belegen(jetzt: datetime, anzahl: int,
+                                    belegung: datetime) -> list[str]:
+    """Auswählen UND belegen in EINER Transaktion (CHAT-12a-3, Punkt 1).
+
+    ``SELECT … FOR UPDATE SKIP LOCKED`` und das anschließende
+    ``UPDATE … SET naechster_versuch_am = belegung`` laufen zusammen in EINER
+    Transaktion; erst danach wird committet. Vorher lagen zwei Commits
+    dazwischen: ein paralleler Lauf (der vorherige dauert länger als der
+    Minutentakt) wählte die Zeilen im Zwischenraum erneut — und weil die
+    Belegung nur ``naechster_versuch_am < belegung`` überschrieb, sogar
+    dieselben. Folge: dieselbe Datei wurde zweimal über das Netz gelöscht und
+    ``versuche`` doppelt gezählt (Backoff und 20er-Schwelle daneben).
+
+    Die Belegung trifft AUSSCHLIESSLICH die gerade gewählten Schlüssel —
+    ``WHERE schluessel IN (gewählte)``, nie eine Zeile darüber hinaus.
+
+    Auf SQLite gibt es kein ``SKIP LOCKED`` und nur eine schreibende
+    Verbindung; dort schützt die Belegung selbst (sie ist vor dem Netzaufruf
+    committet) vor einem zweiten Lauf.
+
+    Rückgabe: die belegten Schlüssel in Auswahl-Reihenfolge. Scheitert die
+    Auswahl oder die Belegung, kommt eine **LEERE Liste** zurück (Punkt 2,
+    SPEICHER-3): ohne Belegung darf dieser Lauf nichts löschen, sonst machte
+    er die Arbeit eines zweiten Laufs doppelt. Der Fehler endet also NICHT
+    als Ausnahme im Scheduler-Job — der Job verbucht stattdessen
+    ``{"fehler": 0}`` und der nächste Takt versucht es erneut (die Zeilen
+    sind ja unbelegt und bleiben fällig). Das deckt auch ``SQLITE_BUSY`` ab,
+    den zwei gleichzeitige Läufe auf SQLite erzeugen.
+    """
+    try:
+        return _entsorgung_waehlen_und_belegen_eng(jetzt, anzahl, belegung)
+    except Exception as fehler:  # noqa: BLE001 — nie den Scheduler-Job abbrechen
+        logger.warning(
+            "Chat-Anhang: Entsorgungsliste nicht belegt (%s) — dieser Lauf "
+            "löscht nichts, der nächste Takt versucht es erneut.",
+            fehler,
+        )
+        return []
+
+
+def _entsorgung_waehlen_und_belegen_eng(jetzt: datetime, anzahl: int,
+                                        belegung: datetime) -> list[str]:
+    """Der eingeengte Kern von ``_entsorgung_waehlen_und_belegen``.
+
+    Getrennt, damit das ``except`` im Aufrufer JEDEN Fehler dieser Funktion
+    fängt (Auswahl, Sperre, Belegung, Commit) — inklusive ``SQLITE_BUSY`` bei
+    zwei gleichzeitigen Läufen auf SQLite und der Aufhebung der Sitzung durch
+    ``als_aktuelle_sitzung``. Wirft; die Umwandlung in eine leere Liste (und
+    das Protokoll) macht der Aufrufer.
+    """
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        if s.get_bind().dialect.name == "postgresql":
+            # ``SKIP LOCKED``: eine Zeile, die ein anderer Lauf gerade hält,
+            # wird übersprungen statt abgewartet.
+            abfrage = _entsorgung_auswahl_mit_sperre(jetzt, anzahl)
+        else:
+            abfrage = _entsorgung_auswahl_abfrage(jetzt, anzahl)
+        auftraege = s.execute(abfrage).scalars().all()
+        werte = [str(a.schluessel or "") for a in auftraege if str(a.schluessel or "")]
+        if not werte:
+            return []
+        s.execute(
+            update(ChatAnhangEntsorgung)
+            .where(ChatAnhangEntsorgung.schluessel.in_(werte),
+                   ChatAnhangEntsorgung.naechster_versuch_am < belegung)
+            .values(naechster_versuch_am=belegung)
+        )
+    return werte
+
+
+def _entsorgung_auftrag_erledigt(wert: str) -> bool:
+    """Auftrag nach gelungenem Löschen entfernen — ``True``, wenn DIESER Lauf ihn beendet.
+
+    Eigenes ``try``/``except``: ein Fehler beim Verbuchen darf den Job nicht
+    abbrechen. Bleibt die Zeile stehen, versucht der nächste Lauf das Löschen
+    erneut — „Datei war weg“ gilt dort als Erfolg, es ist also kein Schaden.
+    """
+    try:
+        with dbmod.SessionLocal.begin() as s:
+            getroffen = s.execute(
+                delete(ChatAnhangEntsorgung)
+                .where(ChatAnhangEntsorgung.schluessel == wert)
+            ).rowcount or 0
+    except Exception as fehler:  # noqa: BLE001 — s. Docstring
+        logger.warning("Chat-Anhang %r: Auftrag nicht entfernt: %s", wert, fehler)
+        return False
+    if not getroffen:
+        # Ein anderer Lauf war schneller — kein Fehler.
+        logger.debug("Chat-Anhang %r: Auftrag war schon weg.", wert)
+        return False
+    return True
+
+
+def _entsorgung_fehler_verbuchen(wert: str, fehler: Exception,
+                                 jetzt: datetime) -> None:
+    """Einen Fehlschlag am Auftrag verbuchen — per ``UPDATE``, nie am Objekt.
+
+    Läuft in einer EIGENEN, kurzen Transaktion: der Netzaufruf davor ist
+    vorbei, die Sperre der Auswahl längst gefallen (Review R1/1a).
+
+    ``versuche`` zählt die DATENBANK hoch (sie kennt den aktuellen Stand der
+    Zeile — kein ORM-Objekt, damit zwei Läufe nicht den Stand des anderen
+    überschreiben). Der neue Stand wird danach gelesen; daraus folgt die
+    Wartezeit bis zum nächsten Versuch (``entsorgung_wartezeit``) — sie steht
+    als fertiger Zeitpunkt in der zweiten ``UPDATE``-Anweisung, damit die
+    Spalte in JEDER Datenbank ein Datum bleibt und kein Intervall-Ausdruck
+    (SQLite könnte ihn nicht als ``datetime`` zurücklesen).
+
+    Trifft ein ``UPDATE`` 0 Zeilen (die Zeile ist inzwischen weg), ist das
+    KEIN Fehler: ein anderer Lauf hat sie erledigt.
+
+    ``logger.error`` steht EINMAL im Protokoll: genau beim Übergang von
+    ``ENTSORGUNG_WARNUNG_AB - 1`` auf ``ENTSORGUNG_WARNUNG_AB`` (Bedingung
+    ``==``, Review R1/3) — sonst käme alle 6 Stunden dieselbe Zeile. Gelöscht
+    wird NICHTS: es geht um DSGVO-Dateien; der Auftrag bleibt und wird weiter
+    alle 6 Stunden versucht.
+    """
+    kurz = str(fehler)[:ENTSORGUNG_FEHLER_MAX]
+    try:
+        with dbmod.SessionLocal.begin() as s:
+            stand = s.execute(
+                update(ChatAnhangEntsorgung)
+                .where(ChatAnhangEntsorgung.schluessel == wert)
+                .values(versuche=ChatAnhangEntsorgung.versuche + 1,
+                        letzter_fehler=kurz)
+                .returning(ChatAnhangEntsorgung.versuche)
+            ).scalar_one_or_none()
+            if stand is None:
+                logger.debug("Chat-Anhang %r: Auftrag war schon weg.", wert)
+                return
+            s.execute(
+                update(ChatAnhangEntsorgung)
+                .where(ChatAnhangEntsorgung.schluessel == wert)
+                .values(naechster_versuch_am=jetzt + entsorgung_wartezeit(stand))
+            )
+    except Exception as verbuchen:  # noqa: BLE001 — nie den Job abbrechen
+        logger.warning("Chat-Anhang %r: Fehlversuch nicht verbucht: %s",
+                       wert, verbuchen)
+        return
+    if int(stand) == ENTSORGUNG_WARNUNG_AB:
+        logger.error(
+            "Chat-Anhang %r seit %s Versuchen nicht entsorgbar (Datei bleibt "
+            "offen, nächster Versuch in %s): %s",
+            wert, stand, entsorgung_wartezeit(stand), kurz,
+        )
+    else:
+        logger.warning("Chat-Anhang %r nicht entsorgt (Versuch %s, nächster "
+                       "Versuch in %s): %s",
+                       wert, stand, entsorgung_wartezeit(stand), kurz)
+
+
 # ── CHAT-9c: zwei Lese-Endpunkte für die Erwähnungs-Oberfläche ──────────────
 
 
@@ -2733,7 +4202,7 @@ def _anzeigename_aus_zeile(zeile, mitglied: str) -> str:
 
 
 @whitelist(methods=["POST"], allow_guest=False)
-def senden(gespraech, text, antwort_auf=None, erwaehnt=None):
+def senden(gespraech, text=None, antwort_auf=None, erwaehnt=None, anhaenge=None):
     """Nachricht senden (nur Text, ≤ 4 000 Zeichen, Absätze bleiben).
 
     Recht: ANLEGEN in der Einheit — jedes Mitglied darf senden (Konzept 2.2),
@@ -2761,15 +4230,23 @@ def senden(gespraech, text, antwort_auf=None, erwaehnt=None):
     keine Mail, auch bei stumm geschaltetem Gespräch) — AUSSER es besteht eine
     Kontaktsperre: dann wird die Erwähnung gespeichert, aber nicht geklingelt
     (eine Sperre darf nie erkennbar sein).
+
+    ``anhaenge`` (CHAT-12a, Konzept S4/F11): bis zu ``ANHAENGE_MAX`` (3)
+    Kennungen OFFENER Anhänge — vom selben Absender, im selben Gespräch
+    (``_anhaenge_pruefen``; jede Abweichung ist dieselbe 400). Mit Anhang darf
+    der TEXT LEER sein („Foto ohne Worte“): dann steht in
+    ``chat_nachricht.text`` die leere Zeichenkette — die Nachricht hat Inhalt,
+    nämlich ihren Anhang. Ohne Anhang bleibt „leer“ ein Fehler.
     """
     benutzer = _benutzer()
     gespraech = str(gespraech or "").strip()
     if not gespraech:
         throw("gespraech fehlt.")
-    inhalt = _pruefe_text(text)
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         g = _gespraech_lesen(s, gespraech)
         _erlaube(benutzer, rechte.ANLEGEN, g=g, sitzung=s)
+        anhang_liste = _anhaenge_pruefen(s, g, benutzer, anhaenge)
+        inhalt = _pruefe_text(text, mit_anhang=bool(anhang_liste))
         ziel = None
         if antwort_auf not in (None, ""):
             ziel = _nachricht(s, str(antwort_auf), g.name)
@@ -2791,6 +4268,8 @@ def senden(gespraech, text, antwort_auf=None, erwaehnt=None):
         s.add(zeile)
         _teilnahme(s, g.name, benutzer)
         s.flush()
+        # CHAT-12a: die geprüften offenen Anhänge an DIESE Nachricht hängen.
+        _anhang_anhaengen(s, zeile.name, anhang_liste)
         # CHAT-9a: prüfen, speichern, glocken — EINE Stelle. Die Antwort
         # zeigt dieselbe Liste wie der Verlauf (nur die gültigen).
         _erwaehnungen_speichern(s, zeile, g, benutzer, erwaehnt)
@@ -2798,6 +4277,7 @@ def senden(gespraech, text, antwort_auf=None, erwaehnt=None):
                       namen=_personen(s, {zeile.autor}),
                       konto_namen=_konto_namen(s, {zeile.autor_benutzer}),
                       erwaehnungen=_erwaehnungen_laden(s, [zeile.name], benutzer),
+                      anhaenge=_anhaenge_laden(s, [zeile.name]),
                       ich=benutzer)
 
 
@@ -2872,6 +4352,7 @@ def loeschen(nachricht):
     ist kein Fehler (idempotent) — der Zeitpunkt des ersten bleibt stehen.
     """
     benutzer = _benutzer()
+    weg: list[str] = []
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         n = _nachricht(s, str(nachricht or "").strip(), None)
         g = _gespraech_lesen(s, n.gespraech)
@@ -2910,12 +4391,290 @@ def loeschen(nachricht):
             # einer entfernten Nachricht (die Glockenzeile bleibt als
             # Nachweis stehen, nur ``read`` wird gesetzt).
             _nachricht_erwaehnungen_raeumen(s, n.name)
+            # CHAT-12a: die Anhang-Zeilen fallen mit (an einer Lücke hängt kein
+            # Herunterladen-Link) — die DATEIEN werden NACH dem Commit aus der
+            # Ablage entfernt (ein Rollback darf nichts gelöscht haben).
+            weg = _nachricht_anhaenge_raeumen(s, n.name)
         s.flush()
-        return _zeile(s, n, namen=_personen(s, {n.autor}),
-                      konto_namen=_konto_namen(s, {n.autor_benutzer}), ich=benutzer)
+        antwort = _zeile(s, n, namen=_personen(s, {n.autor}),
+                         konto_namen=_konto_namen(s, {n.autor_benutzer}), ich=benutzer)
+    if weg:
+        # CHAT-12a-2: der Auftrag steht in der Entsorgungsliste (in derselben
+        # Transaktion). Hier werden NUR die eigenen Schlüssel EINMAL versucht,
+        # mit kurzem Zeitlimit und ohne jede Ausnahme nach außen; was scheitert,
+        # wiederholt der Minuten-Job.
+        _entsorgung_sofort(weg, limit_sekunden=ENTSORGUNG_ZEITLIMIT_SEKUNDEN)
+    return antwort
 
 
-# ── Endpunkte: Reaktion, Lesestand, Stumm ───────────────────────────────────
+# ── Endpunkte: Anhänge (CHAT-12a, Konzept S4 + F11) ─────────────────────────
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def anhang_hochladen(gespraech, datei=None, file=None, dateiname=None):
+    """Einen Anhang HOCHLADEN — noch ohne Nachricht („offen“).
+
+    Recht: DIESELBE Prüfung wie ``senden`` in dieses Gespräch
+    (``_erlaube(…, rechte.ANLEGEN)``) — wer nicht senden darf, darf auch nicht
+    hochladen. Gäste nie.
+
+    Der Upload kommt als Multipart-``datei`` (Frappe-Name; ``file`` wird als
+    zweiter Name akzeptiert, weil ``upload_file`` so heißt). Geprüft wird in
+    dieser Reihenfolge:
+
+    1. Typ per MAGIE (``files.binary_content_type``, wiederverwendet) gegen
+       ``ANHANG_TYPEN``: JPG, PNG, WebP, HEIC, PDF, MP3, M4A, OGG, OPUS. Ein
+       umbenanntes Programm fällt hier durch.
+    2. Größe ≤ ``ANHANG_MAX_BYTES`` (10 MB).
+    3. Tagesgrenze je PERSON: höchstens ``ANHAENGE_PRO_TAG`` (20) Anhänge je
+       Kalendertag — überschritten → ``RateLimitError`` (429), wie die übrigen
+       Bremsen der App.
+
+    Die DATEI geht über die EINE Ablage (``speicher.hole_speicher()``) unter
+    einem technischen Schlüssel (``_kennung("chat-a")``) — nie unter dem
+    Anzeigenamen, nie über ``files.py``. Antwort:
+    ``{name, dateiname, mime, groesse, gespraech}`` — ``name`` ist die Kennung
+    für ``senden(anhaenge=[…])``.
+
+    Schlägt das Schreiben in die Ablage fehl, entsteht KEINE Zeile (die Datei
+    wäre sonst ein Verweis ins Leere); schlägt die Zeile fehl, wird die eben
+    geschriebene Datei wieder entfernt.
+    """
+    vom_aufrufer = file if datei is None else datei
+    benutzer = _benutzer()
+    gespraech = str(gespraech or "").strip()
+    if not gespraech:
+        throw("gespraech fehlt.")
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        g = _gespraech_lesen(s, gespraech)
+        gespraech_name = str(g.name)
+        _erlaube(benutzer, rechte.ANLEGEN, g=g, sitzung=s)
+        _anhang_kontingent(s, benutzer)
+
+    roh, deklariert = _anhang_herkunft(vom_aufrufer)
+    if not roh:
+        throw("Die Datei ist leer.")
+    if len(roh) > ANHANG_MAX_BYTES:
+        throw(f"Die Datei ist zu groß (max. {ANHANG_MAX_BYTES // (1024 * 1024)} MB).")
+    typ = _anhang_typ(roh, deklariert)
+    anzeigename = _anhang_dateiname(
+        dateiname or getattr(vom_aufrufer, "filename", None), typ)
+    schluessel = _kennung("chat-a")
+
+    from diakronos_app.speicher import AblageFehler, hole_speicher
+
+    try:
+        hole_speicher().schreiben(schluessel, roh)
+    except AblageFehler as fehler:
+        logger.warning("Chat-Anhang nicht abgelegt: %s", fehler)
+        throw("Die Datei konnte nicht abgelegt werden. Bitte später erneut versuchen.")
+
+    kennung = _kennung("chat-anhang")
+    try:
+        with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+            s.add(ChatAnhang(
+                name=kennung,
+                nachricht=None,
+                gespraech=gespraech_name,
+                schluessel=schluessel,
+                dateiname=anzeigename,
+                mime=typ,
+                groesse=len(roh),
+                angelegt_am=_jetzt(),
+                angelegt_von=benutzer or None,
+            ))
+            s.flush()
+    except Exception:
+        # Keine Zeile → keine Zuordnung: die Datei wäre eine Waise, die niemand
+        # mehr findet. Review R1/5 (DSGVO): NICHT einfach löschen und hoffen —
+        # erst den AUFTRAG in einer eigenen Transaktion vormerken, dann wie im
+        # Request höchstens EINMAL mit kurzem Zeitlimit versuchen. Scheitert
+        # auch das, bleibt der Auftrag für den Minuten-Job stehen; die Datei ist
+        # damit nie unerreichbar.
+        #
+        # CHAT-12a-3, Punkt 3: Vormerken und Sofortversuch in GETRENNTEN
+        # ``try``-Blöcken. Vorher hing der Löschversuch am Gelingen des
+        # Vormerkens — und beim DB-Fehler (dem wahrscheinlichen Fall hier)
+        # scheitert genau das. Dann blieb die Datei als Waise OHNE Auftrag
+        # liegen: niemand hätte sie je wieder gesucht. Jetzt läuft der
+        # Löschversuch auch dann, wenn das Vormerken scheitert; scheitert
+        # BEIDES, steht ein ``logger.error`` mit dem Schlüssel im Protokoll
+        # (manuelle Nacharbeit).
+        #
+        # SPEICHER-3, Punkt 4: das gescheiterte Vormerken allein ist nur eine
+        # ``warning``. Gelingt das Löschen danach, ist die Datei weg und es
+        # gibt nichts nachzuarbeiten — ein ``error`` schickte jemanden ohne
+        # Grund ins Protokoll. Erst wenn AUCH das Löschen scheitert, ist die
+        # Waise wirklich übrig: dann genau ein ``error``.
+        vorgemerkt = False
+        try:
+            with dbmod.SessionLocal.begin() as s2:
+                _entsorgung_vormerken(s2, [schluessel])
+            vorgemerkt = True
+        except Exception as fehler:  # noqa: BLE001 — das Original zählt
+            logger.warning("Chat-Anhang %r nach Upload-Fehler nicht vorgemerkt "
+                           "(Löschen wird trotzdem versucht): %s",
+                           schluessel, fehler)
+        entfernt = 0
+        try:
+            entfernt = _entsorgung_sofort(
+                [schluessel], limit_sekunden=ENTSORGUNG_ZEITLIMIT_SEKUNDEN)
+        except Exception as fehler:  # noqa: BLE001 — das Original zählt
+            logger.warning("Chat-Anhang %r nach Upload-Fehler nicht gelöscht: %s",
+                           schluessel, fehler)
+        if not vorgemerkt and not entfernt:
+            logger.error("Chat-Anhang %r ist verwaist (kein Auftrag, Löschen "
+                         "gescheitert) — manuelle Nacharbeit nötig.",
+                         schluessel)
+        raise
+    return {"name": kennung, "dateiname": anzeigename, "mime": typ,
+            "groesse": len(roh), "gespraech": gespraech}
+
+
+def _anhang_kontingent(s, benutzer: str) -> None:
+    """Tagesgrenze je Person: höchstens ``ANHAENGE_PRO_TAG`` Uploads je Tag.
+
+    Review R1/4: Gezählt wird NICHT mehr über vorhandene ``chat_anhang``-Zeilen
+    (wer hochlädt, sendet und die Nachricht löscht, hatte damit ein
+    unbegrenztes Kontingent), sondern über die MARKE je erfolgreichem Upload
+    (``chat_anhang_hochladung``). Die Marke wird beim Löschen einer Nachricht
+    nicht mitgelöscht; sie fällt mit dem Konto (DSGVO) oder nach zwei Tagen
+    (``chat_anhaenge_aufraeumen``).
+
+    Zählen + Einfügen laufen in EINER Transaktion unter
+    ``pg_advisory_xact_lock(hashtext('chat_anhang:'||konto))``: zwei
+    gleichzeitige Uploads desselben Kontos sehen sonst beide „es sind noch
+    neunzehn“ und beide schreiben. SQLite (Tests, Einzelplatz) kennt die
+    Funktion nicht und braucht sie nicht — dort schreibt nur eine Verbindung
+    (dasselbe Muster wie ``_sperre_konto`` in ``api/push``).
+
+    ``RateLimitError`` (429) wie bei den übrigen Bremsen.
+    """
+    from diakronos_app.frappe_compat.exceptions import RateLimitError
+
+    konto = str(benutzer or "")
+    if not konto:
+        # Ohne Konto keine Person — die Rechteprüfung hat den Aufruf ohnehin
+        # schon abgelehnt. Nicht raten, nicht zählen.
+        throw("Bitte melden Sie sich an.", RateLimitError)
+
+    bind = s.get_bind()
+    if bind.dialect.name == "postgresql":
+        from sqlalchemy import text
+
+        s.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
+                  {"k": f"chat_anhang:{konto}"})
+
+    grenze = _jetzt().replace(hour=0, minute=0, second=0, microsecond=0)
+    anzahl = int(s.execute(
+        select(func.count()).select_from(ChatAnhangHochladung).where(
+            ChatAnhangHochladung.konto == konto,
+            ChatAnhangHochladung.angelegt_am >= grenze,
+        )
+    ).scalar_one() or 0)
+    if anzahl >= ANHAENGE_PRO_TAG:
+        throw(f"Tagesgrenze erreicht: höchstens {ANHAENGE_PRO_TAG} Anhänge "
+              "je Person und Tag. Bitte morgen erneut versuchen.", RateLimitError)
+    # Die Marke entsteht in DERSELBEN Transaktion wie die Zählung — auch wenn
+    # der Upload danach scheitert (Typ/Größe), ist sie schon bezahlt. Das ist
+    # Absicht: sonst wäre die Grenze mit Fehlversuchen umgehbar.
+    s.add(ChatAnhangHochladung(
+        name=_kennung("chat-h"), konto=konto, angelegt_am=_jetzt(),
+    ))
+    s.flush()
+
+
+@whitelist(allow_guest=False)  # GET und HEAD (Download); SEC-11: rein lesend
+def anhang(name):
+    """Einen Anhang AUSLIEFERN — gestreamt aus der Ablage, mit Rechteprüfung.
+
+    Recht: GENAU DIESELBE Prüfung wie das Lesen der zugehörigen Nachricht im
+    Verlauf (``nachricht_kontext`` ist das Vorbild), KEINE eigene Rechteregel:
+
+    * Nachricht und Gespräch existieren und sind nicht gelöscht,
+    * ``_weiche_ja(LESEN)`` — dieselbe Weiche wie Verlauf/Lesen,
+    * ``_vor_eintritt`` — eine Runde sieht man erst ab dem eigenen Eintritt,
+    * ein OFFENER Anhang (noch an keiner Nachricht) ist für niemanden
+      herunterladbar — er ist noch kein Inhalt des Gesprächs.
+
+    Jeder Fehlfall antwortet GLEICH (``DoesNotExistError``, 404): unbekannte
+    Kennung, fremdes Gespräch, fehlendes Leserecht, Nachricht vor dem Eintritt,
+    gelöschte Nachricht, offener Anhang. Keine Auskunft darüber, ob es den
+    Anhang gibt.
+
+    Kopfzeilen (Karte): ``Content-Type`` = GEPRÜFTER Typ, ``X-Content-Type-
+    Options: nosniff``, ``Content-Disposition`` = ``inline`` für BILDER (die
+    Oberfläche zeigt sie), ``attachment`` für alles andere; ``Content-Length``
+    aus der Zeile. Ausgeliefert wird blockweise (``speicher.strom``), nie die
+    ganze Datei im Speicher.
+    """
+    from fastapi.responses import StreamingResponse
+
+    from diakronos_app.speicher import AblageFehler
+    from diakronos_app.speicher import NichtGefunden as SpeicherNichtGefunden
+    from diakronos_app.speicher import hole_speicher
+
+    benutzer = _benutzer()
+    kennung = str(name or "").strip()
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        a = s.get(ChatAnhang, kennung) if kennung else None
+        if a is None or a.nachricht is None:
+            raise DoesNotExistError("Anhang nicht gefunden.")
+        n = s.get(ChatNachricht, a.nachricht)
+        if n is None or n.geloescht_am is not None:
+            raise DoesNotExistError("Anhang nicht gefunden.")
+        g = s.get(ChatGespraech, n.gespraech)
+        if g is None or g.geloescht_am is not None:
+            raise DoesNotExistError("Anhang nicht gefunden.")
+        if not _weiche_ja(benutzer, rechte.LESEN, g=g, sitzung=s):
+            raise DoesNotExistError("Anhang nicht gefunden.")
+        if _vor_eintritt(s, g, benutzer, n.erstellt_am):
+            raise DoesNotExistError("Anhang nicht gefunden.")
+        typ = str(a.mime or "application/octet-stream")
+        dateiname = str(a.dateiname or "")
+        groesse = int(a.groesse or 0)
+        schluessel = str(a.schluessel or "")
+
+    if not schluessel:
+        raise DoesNotExistError("Anhang nicht gefunden.")
+    speicher = hole_speicher()
+    try:
+        bloecke, anfang, ende = speicher.strom(schluessel, von=0, bis=None)
+    except (SpeicherNichtGefunden, AblageFehler):
+        raise DoesNotExistError("Anhang nicht gefunden.") from None
+
+    art = "inline" if typ in ANHANG_BILDER else "attachment"
+    kopf = {
+        "Content-Disposition": _disposition(art, dateiname),
+        "X-Content-Type-Options": "nosniff",
+        # Kein Zwischenspeicher in fremden Caches: der Inhalt gehört dem
+        # Gespräch, nicht dem Netz dazwischen.
+        "Cache-Control": "private, no-store",
+    }
+    if ende < anfang:
+        # Leere Datei (sollte nicht vorkommen — der Upload weist sie ab):
+        # ehrlich 0 Bytes statt einer erfundenen Länge.
+        return StreamingResponse(iter(()), status_code=200, media_type=typ,
+                                 headers={**kopf, "Content-Length": "0"})
+    return StreamingResponse(bloecke, status_code=200, media_type=typ,
+                             headers={**kopf, "Content-Length": str(groesse)})
+
+
+def _disposition(art: str, dateiname: str) -> str:
+    """``Content-Disposition`` mit ASCII-Rückfall und UTF-8-Name (RFC 6266).
+
+    Ein Dateiname mit Umlauten darf keine kaputte Kopfzeile erzeugen: der
+    ``filename``-Wert trägt nur ASCII (Sonderzeichen → ``_``), der echte Name
+    steht als ``filename*`` nach RFC 5987. Beides ist schon bereinigt (der
+    Speicher trennt Name und Schlüssel), die Kodierung ist die Zugabe für den
+    Browser.
+    """
+    from urllib.parse import quote
+
+    einfach = "".join(z if (z.isascii() and z.isprintable() and z not in '"\\')
+                      else "_" for z in dateiname) or "anhang"
+    erweitert = quote(dateiname or "anhang", safe="")
+    return f"{art}; filename=\"{einfach}\"; filename*=UTF-8''{erweitert}"
 
 
 @whitelist(methods=["POST"], allow_guest=False)
@@ -3544,8 +5303,15 @@ def _umfragen_laden(s, kennungen, benutzer: str,
         # Abfrage), nicht je Umfrage: sonst hinge die Zahl der Abfragen an
         # der Zahl der Umfragen auf der Seite (Review CHAT-5-UI R2, SOLL 1).
         konten = {str(k) for _, _, k in stimmen if k}
-        mitglied_je_konto = _mitglieder_je_konto(s, konten)
-        anzeige = _personen(s, set(mitglied_je_konto.values()))
+        # (Listen je Konto: ein Login kann zwei Mitglieder tragen — angezeigt
+        # wird die ERSTE Kennung, also die kleinste. Der alte Weg hatte fuer
+        # diesen Fall gar keine Anzeige: `_mitglied_je_konto` liess Konten mit
+        # mehrdeutigem Treffer weg, und wo es einen Treffer gab, nahm es ohne
+        # `ORDER BY` die zuletzt gelieferte Zeile — ein unbestimmtes Ergebnis.
+        # Hier ist die Wahl bewusst die kleinste Kennung: stabil und belegt.)
+        mitglieder_je_konto = _mitglieder_je_konto(s, konten)
+        mitglied_je_konto = {konto: ms[0] for konto, ms in mitglieder_je_konto.items()}
+        anzeige = _personen(s, {m for ms in mitglieder_je_konto.values() for m in ms})
         konto_anzeige = _konto_namen(s, konten)
         # Als DICT-von-MENGEN ohne `.add()`: der Inventar-Wächter liest den
         # Funktionsrumpf und hielte `…add(…)` für einen Schreibvorgang — der
@@ -3573,16 +5339,6 @@ def _umfragen_laden(s, kennungen, benutzer: str,
         for kennung, u in umfragen.items()
     }
 
-
-def _mitglieder_je_konto(s, konten) -> dict[str, str]:
-    """``{konto: mitglied.name}`` für die Anzeige einer Stimme (eine Abfrage)."""
-    namen = {str(k) for k in konten if k}
-    if not namen:
-        return {}
-    zeilen = s.execute(
-        select(Mitglied.user, Mitglied.name).where(Mitglied.user.in_(namen))
-    ).all()
-    return {str(konto): str(kennung) for konto, kennung in zeilen if konto and kennung}
 
 
 def _umfrage_form(u: ChatUmfrage, optionen: list[ChatUmfrageOption], benutzer: str,
@@ -4209,6 +5965,7 @@ def meldung_entscheiden(meldung, entscheidung, grund=None):
     nachricht_name = ""
     gespraech_name = ""
     mit_entfernt = False
+    weg: list[str] = []
     jetzt = _jetzt()
     with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
         m = s.get(ChatMeldung, kennung)
@@ -4275,6 +6032,9 @@ def meldung_entscheiden(meldung, entscheidung, grund=None):
                 # keine Erwähnung mehr — und die offene Erwähnungs-Glocke wird
                 # als gelesen gestellt (dasselbe Muster wie beim Löschen).
                 _nachricht_erwaehnungen_raeumen(s, n.name)
+                # CHAT-12a: die Anhang-Zeilen fallen mit; die DATEIEN stehen als
+                # Auftrag in der Entsorgungsliste (Review R1/3).
+                weg += _nachricht_anhaenge_raeumen(s, n.name)
             n.entfernt_grund = begruendung
             autor_konto = str(n.autor_benutzer or "") or None
             # Die übrigen offenen Meldungen derselben Nachricht sind mit der
@@ -4296,6 +6056,11 @@ def meldung_entscheiden(meldung, entscheidung, grund=None):
         antwort = _meldung_zeile(s, m, n, g, benutzer, _melde_namen(s, [(m, n)]))
     if mit_entfernt and autor_konto and autor_konto != benutzer:
         _glocke_entfernt(autor_konto, gespraech_name, nachricht_name, begruendung)
+    if weg:
+        # CHAT-12a-2: der Auftrag steht in der Entsorgungsliste; hier werden
+        # NUR die eigenen Schlüssel einmal versucht (kurzes Zeitlimit, keine
+        # Ausnahme nach außen), sonst macht es der Minuten-Job.
+        _entsorgung_sofort(weg, limit_sekunden=ENTSORGUNG_ZEITLIMIT_SEKUNDEN)
     return antwort
 
 
@@ -5025,6 +6790,84 @@ def _lauf_sperren(s) -> bool:
     return bool(s.execute(
         text("SELECT pg_try_advisory_xact_lock(:k)"), {"k": GLOCKE_SPERRE}
     ).scalar())
+
+
+def chat_anhaenge_aufraeumen(jetzt: datetime | None = None,
+                             stunden: int | None = None) -> dict[str, int]:
+    """Scheduler-Job (CHAT-12a): offene und verwaiste Chat-Anhänge entfernen.
+
+    Zwei Aufgaben, EIN Lauf (``scheduler.job_chat_anhaenge_aufraeumen``,
+    Minuten-Takt):
+
+    a) **Offene Anhänge** (``nachricht IS NULL``), die älter sind als
+       ``ANHANG_OFFEN_STUNDEN`` (24): wer hochlädt und dann nicht sendet, darf
+       die Ablage nicht füllen. Zeile UND Datei verschwinden.
+    b) **Verwaiste Dateien**: Zeilen, deren Nachricht es nicht mehr gibt
+       (``chat_nachricht`` fehlt — etwa nach einem abgebrochenen CHAT-8-Lauf),
+       und Zeilen, deren Gespräch gelöscht wurde. Hier fällt die Zeile mit; die
+       Datei geht denselben Weg.
+
+    Reihenfolge wie im Kartenauftrag: die ZEILEN werden in EINER Transaktion
+    gelöscht und committet, DANACH gehen die DATEIEN aus der Ablage. Ein Fehler
+    in der Ablage lässt den Lauf nicht scheitern (die Dateien bleiben als
+    Waisen liegen; der nächste Lauf nimmt sie über (b) mit — die Zeile ist
+    dann schon weg, also räumt sie der Speicher-Aufräumlauf des Betriebs).
+    ``jetzt`` ist injizierbar (Tests schlafen nicht).
+
+    Rückgabe: ``{"offen": n, "verwaist": n, "dateien": n}``.
+    """
+    grenze_stunden = ANHANG_OFFEN_STUNDEN if stunden is None else int(stunden)
+    cutoff = (jetzt or _jetzt()) - timedelta(hours=grenze_stunden)
+    ergebnis = {"offen": 0, "verwaist": 0, "dateien": 0}
+
+    with dbmod.SessionLocal.begin() as s:
+        # a) offene Anhänge zu alt
+        offen = s.execute(
+            select(ChatAnhang).where(ChatAnhang.nachricht.is_(None),
+                                     ChatAnhang.angelegt_am <= cutoff)
+        ).scalars().all()
+        _entsorgung_vormerken(s, [str(a.schluessel or "") for a in offen])
+        for a in offen:
+            s.delete(a)
+        ergebnis["offen"] = len(offen)
+
+        # b) Zeilen, deren Nachricht oder Gespräch nicht (mehr) existiert
+        nachricht_da = select(ChatNachricht.name).where(
+            ChatNachricht.name == ChatAnhang.nachricht).exists()
+        gespraech_da = select(ChatGespraech.name).where(
+            ChatGespraech.name == ChatAnhang.gespraech).exists()
+        verwaist = s.execute(
+            select(ChatAnhang).where(
+                or_(and_(ChatAnhang.nachricht.is_not(None), ~nachricht_da),
+                    ~gespraech_da)
+            )
+        ).scalars().all()
+        _entsorgung_vormerken(s, [str(a.schluessel or "") for a in verwaist])
+        for a in verwaist:
+            s.delete(a)
+        ergebnis["verwaist"] = len(verwaist)
+
+        # c) Review R1/4: Hochlade-Marken nach zwei Tagen. Die Tagesgrenze
+        #    rechnet ab lokaler Mitternacht; erst danach darf die Marke weg.
+        marken_cutoff = (jetzt or _jetzt()) - timedelta(
+            days=HOCHLADUNG_AUFBEWAHRUNG_TAGE)
+        ergebnis["marken"] = int(s.execute(
+            delete(ChatAnhangHochladung)
+            .where(ChatAnhangHochladung.angelegt_am < marken_cutoff)
+        ).rowcount or 0)
+
+    # Review R1/3: die Dateien gehen über die Entsorgungsliste — ein Fehler
+    # bleibt als Auftrag stehen und wird beim nächsten Lauf wiederholt.
+    # CHAT-12a-2: Das ist ein JOB (kein Request) — er darf die Liste in
+    # Batchgröße abarbeiten und meldet die Wahrheit über die Ablage. Der Job
+    # selbst wählt nur, was jetzt fällig ist (``naechster_versuch_am``).
+    entsorgt = chat_anhang_entsorgung_abarbeiten()
+    ergebnis["dateien"] = int(entsorgt.get("abgearbeitet", 0))
+    if entsorgt.get("fehler"):
+        logger.warning("Chat-Anhänge: %s Datei(en) nicht entfernt — der "
+                       "nächste Lauf versucht es erneut.",
+                       entsorgt.get("fehler"))
+    return ergebnis
 
 
 def chat_glocken_buendeln(jetzt: datetime | None = None, ruhe: int | None = None) -> int:
@@ -5776,16 +7619,25 @@ def _nachricht(s, nachricht: str, gespraech: str | None) -> ChatNachricht:
     return zeile
 
 
-def _pruefe_text(text) -> str:
+def _pruefe_text(text, *, mit_anhang: bool = False) -> str:
     """Text einer Nachricht: nicht leer am Rand, ≤ 4000 ZEICHEN, Absätze bleiben.
 
     Getrimmt wird nur, um „leer“ zu erkennen — gespeichert wird der Text
     unverändert (Einrückungen, Zeilenumbrüche und Leerzeilen sind Inhalt).
+
+    ``mit_anhang`` (CHAT-12a, Konzept S4): eine Nachricht MIT Anhang darf ohne
+    Text auskommen („Foto ohne Worte“) — dann wird die LEERE Zeichenkette
+    gespeichert (``text`` ist NOT NULL). Ohne Anhang bleibt „leer“ ein Fehler.
+    Die Längengrenze gilt in beiden Fällen.
     """
     if text is None:
+        if mit_anhang:
+            return ""
         throw("Bitte einen Text eingeben.")
     inhalt = str(text)
     if not inhalt.strip():
+        if mit_anhang:
+            return ""
         throw("Bitte einen Text eingeben.")
     if len(inhalt) > NACHRICHT_MAX:
         throw(f"Eine Nachricht darf höchstens {NACHRICHT_MAX} Zeichen lang sein "
@@ -5877,6 +7729,46 @@ def _ungelesen_zaehlen(s, gespraech: str, benutzer: str,
                          .outerjoin(ChatRundeVorschlag,
                                     ChatRundeVorschlag.name == ChatNachricht.vorschlag)
                          .where(*bedingung)).scalar_one())
+
+
+def _letzte_nachricht(s, g: ChatGespraech, benutzer: str) -> ChatNachricht | None:
+    """Die letzte Nachricht, die als VORSCHAU der Liste zaehlt (eine Zeile).
+
+    CHAT-7b-2 (MUSS 1a): in einer RUNDE gilt für die Vorschau dieselbe
+    Grenze wie im Verlauf — wer neu (oder wieder) eintritt, sieht die
+    Nachrichten von VOR seinem Eintritt nicht. Ohne diesen Filter stand
+    der Text der letzten Nachricht hier ungefiltert in der Liste.
+
+    SOLL 5 (CHAT-7b-2): die eigene Vorschlags-Systemzeile („X möchte Y
+    hinzufügen“) ist für den VORSCHLAGENDEN kein „letzter Beitrag“ — für
+    die übrigen bleibt sie stehen (sie sollen zustimmen). Dieselbe
+    Bedingung wie im Ungelesen-Zähler (``_nicht_eigener_vorschlag``).
+    Eine Vorschlags-Systemzeile trägt ihren Satz NICHT in der Datenbank
+    (er entsteht beim Lesen) — als Vorschau wäre sie leer (``_zitat`` →
+    None) und verdrängte den letzten echten Beitrag. Deshalb: keine
+    Vorschlagszeilen in der Vorschau (sie stehen im Verlauf).
+
+    CHAT-PERF-1: fuer den Einzelweg (``direkt_oeffnen``,
+    ``runde_anlegen``) UND fuer den Sammellauf der Liste
+    (``_kopfdaten_sammeln``, das dieselbe Bedingung als Fensterfunktion
+    formuliert) — die Antwort ist in beiden Faellen dieselbe. Der
+    Geltungsbereich ist dabei GENAU der dieser Funktion: die Grenze
+    ``sichtbar_ab`` wirkt ueber ``_sichtbar_ab`` nur in einer RUNDE, und der
+    Ungelesen-Zaehler kennt sie gar nicht (R1, ``test_chat_perf1_liste``).
+    """
+    bedingung = [ChatNachricht.gespraech == g.name]
+    sichtbar_ab = _sichtbar_ab(s, g, benutzer)
+    if sichtbar_ab is not None:
+        bedingung.append(ChatNachricht.erstellt_am >= sichtbar_ab)
+    return s.execute(select(ChatNachricht)
+                     .outerjoin(ChatRundeVorschlag,
+                                ChatRundeVorschlag.name == ChatNachricht.vorschlag)
+                     .where(*bedingung,
+                            ChatNachricht.vorschlag.is_(None),
+                            _nicht_eigener_vorschlag(benutzer))
+                     .order_by(ChatNachricht.erstellt_am.desc(),
+                               ChatNachricht.name.desc())
+                     .limit(1)).scalar_one_or_none()
 
 
 def _teilnahme_konten(s, gespraech: str) -> list[str]:
@@ -5996,11 +7888,15 @@ def _lesbare_gespraeche(s, benutzer: str) -> list[ChatGespraech]:
     # ihre Untergruppen (HV/MV lesen sie geerbt). Ob wirklich gelesen werden
     # darf, entscheidet unten weiter allein `rechte.darf`.
     normiert: list[tuple[str, str | None]] = []
+    ug_namen = sorted({u for _, u in einheiten if u})
+    haupt_von: dict[str, str] = {}
+    if ug_namen:
+        haupt_von = {str(u): str(g or "") for u, g in s.execute(
+            select(Untergruppe.name, Untergruppe.gruppe)
+            .where(Untergruppe.name.in_(ug_namen))).all()}
     for gruppe, untergruppe in einheiten:
         if untergruppe:
-            haupt = s.execute(select(Untergruppe.gruppe).where(
-                Untergruppe.name == untergruppe)).scalar_one_or_none()
-            gruppe = str(haupt or "").strip()
+            gruppe = haupt_von.get(untergruppe, "").strip()
             normiert += [(gruppe, untergruppe), (gruppe, None)]
         else:
             normiert.append((gruppe, None))
@@ -6012,6 +7908,29 @@ def _lesbare_gespraeche(s, benutzer: str) -> list[ChatGespraech]:
 
     gesehen: set[tuple[str, str | None]] = set()
     ergebnis: list[ChatGespraech] = []
+    # Die EINE Gesprächsabfrage für alle Einheiten der Person — statt je
+    # Einheit eine (Review CHAT-11a R1: die Suche ruft diese Funktion, und
+    # 30 Einheiten bedeuteten 30 Abfragen für dieselbe Frage).
+    eigene_gruppen = sorted({g for g, _ in normiert if g})
+    nach_einheit: dict[tuple[str, str | None], ChatGespraech] = {}
+    if eigene_gruppen:
+        for zeile in s.execute(
+            select(ChatGespraech).where(
+                ChatGespraech.art.in_((ART_GRUPPE, ART_UNTERGRUPPE)),
+                ChatGespraech.geloescht_am.is_(None),
+                ChatGespraech.gruppe.in_(eigene_gruppen),
+            ).order_by(ChatGespraech.name)
+        ).scalars().all():
+            nach_einheit.setdefault(
+                (str(zeile.gruppe or ""), zeile.untergruppe), zeile)
+    # PERF-K1: Rollen/Mitgliedschaft/Modul aller Einheiten in wenigen
+    # Sammelabfragen vorab merken — entschieden wird unten weiter über
+    # ``rechte.darf`` (rechte.rollen_vorladen legt nur dieselben Antworten ab).
+    rechte.rollen_vorladen(
+        benutzer,
+        gruppen=[g for g, _ in normiert if g],
+        untergruppen=[u for g, u in normiert if g and u],
+        module=["chat"])
     for gruppe, untergruppe in normiert:
         if not gruppe or (gruppe, untergruppe) in gesehen:
             continue
@@ -6019,7 +7938,7 @@ def _lesbare_gespraeche(s, benutzer: str) -> list[ChatGespraech]:
         if not rechte.modul_aktiv(gruppe, "chat"):
             continue  # Modul aus = kein Eintrag (und kein Rechte-Aufruf je Zeile)
         art = ART_UNTERGRUPPE if untergruppe else ART_GRUPPE
-        zeile = _gespraech_suchen(s, art, gruppe, untergruppe)
+        zeile = nach_einheit.get((gruppe, untergruppe))
         if not rechte.darf(benutzer, rechte.LESEN, "chat_gespraech",
                            zeile.name if zeile else None,
                            gruppe=gruppe, untergruppe=untergruppe):
@@ -6029,8 +7948,342 @@ def _lesbare_gespraeche(s, benutzer: str) -> list[ChatGespraech]:
     return ergebnis
 
 
+#: Was ein Kopf je Gespräch braucht — die VIER Fragen, die frueher je Gespraech
+#: einzeln an die Datenbank gingen (CHAT-PERF-1):
+#:   * die Teilnahmezeile der lesenden Person (``stumm``),
+#:   * der Ungelesen-Zaehler,
+#:   * die letzte sichtbare Nachricht (Vorschau),
+#:   * die Zahl der aktiven Teilnehmenden sowie die Namen der Runde.
+#: Alle vier sind Sammelabfragen ueber die ganze Liste (``_kopfdaten_sammeln``).
+class _Kopfdaten:
+    """Der Vorrat eines Sammellaufs fuer die Koepfe — und der Einzelweg daneben.
+
+    Dieselbe Klasse bedient BEIDE Wege: ``meine_gespraeche`` fuellt sie ueber
+    ``_kopfdaten_sammeln`` (je Frage EINE Abfrage fuer alle Gespraeche),
+    ``direkt_oeffnen``/``runde_anlegen`` lassen sie leer und lesen je Frage
+    einzeln — mit DENSELBEN Bausteinen (``_ungelesen_zaehlen``,
+    ``_letzte_nachricht``, ``_teilnehmer_aktuelle`` …). Der Sammellauf
+    wiederholt die Bedingungen dieser Funktionen fuer die ganze Liste; wo eine
+    Funktion eine Grenze NICHT zieht (der Ungelesen-Zaehler kennt
+    ``sichtbar_ab`` nicht), zieht der Vorrat sie genauso wenig. Geprueft wird
+    das gegen den Einzelweg: ``test_chat_perf1_liste::test_sammelweg_gleich_einzelweg``.
+    """
+
+    __slots__ = ("ausgeschlossene", "teilnahmen", "ungelesen", "letzte",
+                 "teilnehmerzahl", "runden_mitglieder")
+
+    def __init__(self, *, ausgeschlossene: set[str] | None = None) -> None:
+        #: CHAT-N2: der EINE Ausschluss-Zustand je Anfrage (oder ``None``).
+        self.ausgeschlossene = ausgeschlossene
+        #: ``{gespraech: ChatTeilnehmer|None}`` — Zeile der LESENDEN Person.
+        self.teilnahmen: dict[str, ChatTeilnehmer | None] = {}
+        #: ``{gespraech: int}``
+        self.ungelesen: dict[str, int] = {}
+        #: ``{gespraech: ChatNachricht|None}``
+        self.letzte: dict[str, ChatNachricht | None] = {}
+        #: ``{gespraech: int}`` — AKTIVE Teilnehmende (wie ``_teilnehmer_aktuelle``).
+        self.teilnehmerzahl: dict[str, int] = {}
+        #: ``{gespraech: [{mitglied, anzeigename}]}`` — nur Runden.
+        self.runden_mitglieder: dict[str, list[dict[str, str]]] = {}
+
+    # ── je Gespraech: Vorrat zuerst, sonst der bestehende Einzelweg ──
+
+    def teilnahme_von(self, s, g: ChatGespraech, benutzer: str) -> ChatTeilnehmer | None:
+        """Die Teilnahmezeile der lesenden Person (``stumm``) — oder ``None``."""
+        if not g.name:
+            return None
+        if g.name not in self.teilnahmen:
+            self.teilnahmen[g.name] = s.get(ChatTeilnehmer, (g.name, benutzer))
+        return self.teilnahmen[g.name]
+
+    def ungelesen_von(self, s, g: ChatGespraech, benutzer: str,
+                      teilnahme: ChatTeilnehmer | None) -> int:
+        """Dieselbe Zahl wie ``_ungelesen_zaehlen`` — aus dem Vorrat."""
+        if g.name not in self.ungelesen:
+            self.ungelesen[g.name] = _ungelesen_zaehlen(s, g.name, benutzer, teilnahme)
+        return self.ungelesen[g.name]
+
+    def letzte_von(self, s, g: ChatGespraech, benutzer: str) -> ChatNachricht | None:
+        """Dieselbe Zeile wie ``_letzte_nachricht`` — aus dem Vorrat."""
+        if g.name not in self.letzte:
+            self.letzte[g.name] = _letzte_nachricht(s, g, benutzer)
+        return self.letzte[g.name]
+
+    def teilnehmerzahl_von(self, s, g: ChatGespraech) -> int:
+        """Dieselbe Zahl wie ``_teilnehmer_aktuelle`` — aus dem Vorrat."""
+        if not g.name:
+            return 0
+        if g.name not in self.teilnehmerzahl:
+            self.teilnehmerzahl[g.name] = _teilnehmer_aktuelle(s, g)
+        return self.teilnehmerzahl[g.name]
+
+    def runde_mitglieder_von(self, s, gespraech: str) -> list[dict[str, str]]:
+        """Dieselbe Liste wie ``_runde_mitglieder`` — aus dem Vorrat."""
+        if gespraech not in self.runden_mitglieder:
+            self.runden_mitglieder[gespraech] = _runde_mitglieder(s, gespraech)
+        return list(self.runden_mitglieder[gespraech])
+
+    def direkt_titel_von(self, s, g: ChatGespraech, benutzer: str
+                         ) -> tuple[str, str | None, str]:
+        """``_direkt_titel`` mit dem EINEN Ausschluss-Zustand dieser Anfrage."""
+        return _direkt_titel(s, g, benutzer, ausgeschlossene=self.ausgeschlossene)
+
+
+def _kopfdaten_sammeln(s, gespraeche, benutzer: str,
+                       *, ausgeschlossene: set[str] | None = None) -> _Kopfdaten:
+    """Alle Kopfdaten der LISTE in je EINER Abfrage (CHAT-PERF-1).
+
+    Vorher kostete jedes Gespraech vier Abfragen (Teilnahmezeile,
+    Ungelesen-Zaehler, letzte Nachricht, Teilnehmerliste); bei 30 Gespraechen
+    waren das rund 120. Hier werden dieselben Daten fuer ALLE Gespraeche
+    zusammen gelesen — die Zahl der Abfragen haengt damit an der Zahl der
+    ABFRAGEN und nicht mehr an der Zahl der Gespraeche:
+
+    1. Teilnahmezeilen der Person, ``IN (…)``
+    2. Ungelesen je Gespraech: ``GROUP BY`` nach DENSELBEN Bedingungen wie
+       ``_ungelesen_zaehlen`` (Lesestand, Vorschlagszeilen, geloeschte
+       Nachrichten — ``sichtbar_ab`` gehoert NICHT dazu, der Zaehler kennt
+       die Grenze nicht)
+    3. letzte sichtbare Nachricht je Gespraech (Fensterfunktion
+       ``row_number()`` — SQLite ab 3.25 und PostgreSQL koennen sie); die
+       Eintrittsgrenze ``sichtbar_ab`` wirkt hier NUR fuer Runden, wie in
+       ``_letzte_nachricht``
+    4. Teilnahmezeilen ALLER Gespraeche, ``IN (…)`` (Zahl je Art + Runden)
+    5. Anzeigenamen der Beteiligten, ``IN (…)``
+
+    Die REGELN stehen nicht hier: ``_ungelesen_zaehlen``,
+    ``_letzte_nachricht``, ``_teilnehmer_aktuelle`` und ``_runde_mitglieder``
+    bleiben der Maßstab — der Sammellauf formuliert ihre Bedingungen nur
+    einmal fuer die ganze Liste (die Eintrittsgrenze in der Fassung von
+    ``_sichtbar_ab``) und laesst alles offen, was er
+    nicht beantwortet: ``_Kopfdaten`` liest es dann ueber genau diese
+    Funktionen einzeln nach. Geprueft wird die Gleichheit in
+    ``test_chat_perf1_liste``: derselbe Wortlaut vor und nach dem Umbau,
+    derselbe Kopf ueber alle drei Aufrufwege (``meine_gespraeche``,
+    ``direkt_oeffnen``, ``runde_anlegen``) und ein randomisierter Vergleich
+    Sammelweg gegen Einzelweg ueber viele Welten.
+    """
+    daten = _Kopfdaten(ausgeschlossene=ausgeschlossene)
+    # Nur ECHTE Gespraeche: ein noch nie geoeffnetes hat keine Kennung und
+    # damit auch keine Zeile (``geoeffnet: false``, ungelesen 0).
+    namen = sorted({str(g.name) for g in gespraeche if g.name})
+    if not benutzer or not namen:
+        return daten
+
+    # 1) Teilnahmezeilen der lesenden Person.
+    for zeile in s.execute(
+        select(ChatTeilnehmer).where(
+            ChatTeilnehmer.gespraech.in_(namen),
+            ChatTeilnehmer.benutzer == benutzer,
+        )
+    ).scalars().all():
+        daten.teilnahmen[str(zeile.gespraech)] = zeile
+    for name in namen:
+        daten.teilnahmen.setdefault(name, None)
+
+    # 2) Ungelesen je Gespraech — dieselben Bedingungen wie
+    #    ``_ungelesen_zaehlen``, nur fuer ALLE Gespraeche auf einmal: Lesestand
+    #    der eigenen Teilnahmezeile (Zeitstempel + Kennung), ``hinzugefuegt_am``
+    #    (kein Lesestand), Vorschlagszeilen und geloeschte Nachrichten. Die
+    #    Eintrittsgrenze ``sichtbar_ab`` steht hier NICHT: ``_ungelesen_zaehlen``
+    #    fragt ``_sichtbar_ab`` nie (R1). Der ``outerjoin`` auf
+    #    ``ChatRundeVorschlag`` ist noetig, weil ``_nicht_eigener_vorschlag``
+    #    dessen Spalte liest; der zweite ``outerjoin`` holt die eigene
+    #    Teilnahmezeile.
+    grund = [ChatNachricht.gespraech.in_(namen),
+             ChatNachricht.geloescht_am.is_(None),
+             _nicht_von(benutzer),
+             _nicht_eigener_vorschlag(benutzer)]
+    zeilen = s.execute(
+        select(ChatNachricht.gespraech, func.count())
+        .select_from(ChatNachricht)
+        .outerjoin(ChatRundeVorschlag,
+                   ChatRundeVorschlag.name == ChatNachricht.vorschlag)
+        .outerjoin(ChatTeilnehmer,
+                   and_(ChatTeilnehmer.gespraech == ChatNachricht.gespraech,
+                        ChatTeilnehmer.benutzer == benutzer))
+        .where(*grund)
+        .where(_lesestand_gilt(ChatNachricht, ChatTeilnehmer))
+        .group_by(ChatNachricht.gespraech)
+    ).all()
+    for gespraech, anzahl in zeilen:
+        daten.ungelesen[str(gespraech)] = int(anzahl)
+    # Wer keine Zeile hat, hat 0 — dieselbe Antwort des Zaehlers.
+    for name in namen:
+        daten.ungelesen.setdefault(name, 0)
+
+    # 3) Die letzte sichtbare Nachricht je Gespraech. Dieselbe Bedingung wie
+    #    ``_letzte_nachricht``: keine Vorschlagszeile, und — NUR in einer RUNDE
+    #    — hinter dem eigenen Eintritt (``sichtbar_ab``; ``_sichtbar_ab`` gibt
+    #    fuer Gruppe/1:1 immer ``None``). Sortiert wie dort (``erstellt_am``
+    #    absteigend, dann Kennung) und je Gespraech die erste. (Geloeschte
+    #    Nachrichten brauchen hier keine Bedingung: ``_zitat`` macht den Text
+    #    ``None``, der Zeitstempel bleibt — genau wie bisher.)
+    # ``CASE`` statt der Spalte im WHERE: ein Spaltenausdruck wird in einem
+    # ``WHERE`` unter SQLAlchemy 2.1 als BIND-PARAMETER gebunden (``:art_1``)
+    # und dann mit einer Zeichenkonstante verglichen — das ``CASE`` macht aus
+    # dem Vergleich wieder einen Ausdruck, den die Datenbank auswertet.
+    rang = func.row_number().over(
+        partition_by=ChatNachricht.gespraech,
+        order_by=(ChatNachricht.erstellt_am.desc(), ChatNachricht.name.desc()),
+    ).label("rang")
+    # Das ``CASE`` liefert 1/0 (Zahl), die Konstante kommt als Text-Bind —
+    # verglichen wird deshalb gegen einen ebenso gebundenen Textwert, nicht
+    # gegen ein Literal des Case-Zweigs.
+    art = case((ChatGespraech.art == ART_RUNDE, 1), else_=0)
+    unterabfrage = (
+        select(ChatNachricht, rang, art.label("art"))
+        .outerjoin(ChatRundeVorschlag,
+                   ChatRundeVorschlag.name == ChatNachricht.vorschlag)
+        .outerjoin(ChatTeilnehmer,
+                   and_(ChatTeilnehmer.gespraech == ChatNachricht.gespraech,
+                        ChatTeilnehmer.benutzer == benutzer))
+        .join(ChatGespraech, ChatGespraech.name == ChatNachricht.gespraech)
+        .where(ChatNachricht.gespraech.in_(namen),
+               ChatNachricht.vorschlag.is_(None),
+               _nicht_eigener_vorschlag(benutzer),
+               # Die Eintrittsgrenze gilt NUR in einer Runde (``_sichtbar_ab``
+               # fragt ``art`` zuerst) — Gruppe/1:1 sehen hier alles. Und in
+               # der Runde: keine Grenze oder Nachricht ab dem Eintritt.
+               or_(art != 1,
+                   ChatTeilnehmer.sichtbar_ab.is_(None),
+                   ChatNachricht.erstellt_am >= ChatTeilnehmer.sichtbar_ab))
+        .subquery()
+    )
+    for zeile in s.execute(
+        select(ChatNachricht)
+        .select_from(unterabfrage)
+        .join(ChatNachricht, ChatNachricht.name == unterabfrage.c.name)
+        .where(unterabfrage.c.rang == 1)
+    ).scalars().all():
+        daten.letzte[str(zeile.gespraech)] = zeile
+    for name in namen:
+        daten.letzte.setdefault(name, None)
+
+    # 4) Teilnahmezeilen ALLER Gespraeche. Fuer die ZAHL gilt je Art dieselbe
+    #    Grenze wie in den Einzelwegen: Runden zaehlen die AKTIVEN Zeilen
+    #    (``_runde_teilnahme``: ``verlassen_am IS NULL``), Gruppe/1:1 zaehlen
+    #    ALLE Zeilen und fragen je Konto den Rechte-Kern (``_teilnahme_konten``
+    #    — ohne ``verlassen_am``-Filter). Darum zwei Listen aus EINER Abfrage:
+    #    alle Zeilen (mit ``verlassen_am``) und daraus die aktiven.
+    alle: dict[str, list[tuple[str, datetime | None]]] = {}
+    aktiv: dict[str, list[tuple[str, datetime | None]]] = {}
+    for zeile in s.execute(
+        select(ChatTeilnehmer.gespraech, ChatTeilnehmer.benutzer,
+               ChatTeilnehmer.hinzugefuegt_am, ChatTeilnehmer.verlassen_am)
+        .where(ChatTeilnehmer.gespraech.in_(namen))
+    ).all():
+        if not zeile[1]:
+            continue
+        paare = alle.setdefault(str(zeile[0]), [])
+        paare.append((str(zeile[1]), zeile[2]))
+        if zeile[3] is None:
+            aktiv.setdefault(str(zeile[0]), []).append((str(zeile[1]), zeile[2]))
+
+    # 5) Die Namen aller Beteiligten (Konten mit Teilnahmezeile) — EINE
+    #    Abfrage fuer alle Runden. Ein Konto kann ZWEI Mitglieder tragen; dann
+    #    stehen hier beide (``_mitglieder_je_konto``).
+    mitglieder_je_konto = _mitglieder_je_konto(s, {
+        konto for paare in alle.values() for konto, _am in paare})
+    namen_je_mitglied = _personen(
+        s, {m for ms in mitglieder_je_konto.values() for m in ms})
+    for zeile in gespraeche:
+        if not zeile.name or zeile.name not in namen:
+            continue
+        if zeile.art == ART_RUNDE:
+            # Wie ``_teilnehmer_aktuelle``/``_runde_mitglieder``: die Zahl ist
+            # die der AKTIVEN Zeilen, die Liste nach Eintritt, dann Name.
+            paare = aktiv.get(zeile.name, [])
+            daten.teilnehmerzahl[zeile.name] = len(paare)
+            daten.runden_mitglieder[zeile.name] = _runde_mitglieder_liste(
+                paare, mitglieder_je_konto, namen_je_mitglied)
+        else:
+            # Wie ``_teilnehmer_aktuelle`` fuer Gruppe/1:1: gezahlt wird ueber
+            # den Rechte-Kern (``darf`` LESEN je Konto) und ueber ALLE
+            # Teilnahmezeilen — unveraendert, nur mit vorgeladenen Rollen
+            # (``rechte.rollen_vorladen``).
+            daten.teilnehmerzahl[zeile.name] = sum(
+                1 for konto, _am in alle.get(zeile.name, [])
+                if _darf_lesen(s, konto, zeile.name))
+    return daten
+
+
+def _lesestand_gilt(nachricht, teilnehmer) -> Any:
+    """SQL-Bedingung „diese Nachricht ist nach MEINEM Lesestand“ (oder ich habe keinen).
+
+    Dieselbe Staffel wie ``_ungelesen_zaehlen``, nur als SQL — fuer den
+    Sammellauf der Liste:
+
+    * ``letzter_lesestand`` gesetzt → alles danach; bei GLEICHEM Zeitstempel
+      entscheidet die Kennung (``letzter_lesestand_nachricht``), weil zwei
+      Nachrichten dieselbe Sekunde tragen koennen.
+    * sonst ``hinzugefuegt_am`` gesetzt → alles seit dem Beitritt.
+    * sonst (keine Teilnahmezeile, keine der beiden Zeiten) → alles.
+    """
+    return or_(
+        teilnehmer.gespraech.is_(None),
+        and_(
+            teilnehmer.letzter_lesestand.is_(None),
+            or_(teilnehmer.hinzugefuegt_am.is_(None),
+                nachricht.erstellt_am >= teilnehmer.hinzugefuegt_am),
+        ),
+        and_(
+            teilnehmer.letzter_lesestand.is_not(None),
+            or_(nachricht.erstellt_am > teilnehmer.letzter_lesestand,
+                and_(nachricht.erstellt_am == teilnehmer.letzter_lesestand,
+                     nachricht.name
+                     > func.coalesce(teilnehmer.letzter_lesestand_nachricht, ""))),
+        ),
+    )
+
+
+def _mitglieder_je_konto(s, konten) -> dict[str, list[str]]:
+    """``{konto: [mitglied, …]}`` fuer VIELE Konten — EINE Abfrage, ALLE Treffer.
+
+    ``mitglied.user`` ist NICHT eindeutig (geteilter Haushalts-Login): zwei
+    Mitglieder koennen dasselbe Konto tragen. ``_runde_mitglieder`` verbindet
+    ueber genau diese Spalte und zeigt deshalb BEIDE — hier bleiben darum auch
+    alle Treffer je Konto stehen (Reihenfolge der Kennung aufsteigend, wie die
+    Sortierung der Liste). Konten ohne Mitgliedsdatensatz fehlen im Ergebnis.
+    """
+    namen = sorted({str(k) for k in konten if k})
+    if not namen:
+        return {}
+    treffer: dict[str, list[str]] = {}
+    for konto, mitglied in s.execute(
+        select(Mitglied.user, Mitglied.name)
+        .where(Mitglied.user.in_(namen))
+        .order_by(Mitglied.name)
+    ).all():
+        if konto and mitglied:
+            treffer.setdefault(str(konto), []).append(str(mitglied))
+    return treffer
+
+
+def _runde_mitglieder_liste(paare, mitglieder_je_konto: dict[str, list[str]],
+                            namen_je_mitglied: dict[str, str]
+                            ) -> list[dict[str, str]]:
+    """``_runde_mitglieder`` aus den schon gelesenen Zeilen — dieselbe Liste.
+
+    Dieselbe Reihenfolge wie dort (Eintritt ``hinzugefuegt_am``, dann
+    Anzeigename), dieselben Einträge — auch bei ZWEI Mitgliedern an einem
+    Login: ``_runde_mitglieder`` verbindet über ``Mitglied.user`` und zeigt
+    beide, hier werden dafür alle Treffer des Kontos eingesetzt. Der
+    Anzeigename kommt aus ``namen_je_mitglied`` (``_personen`` für ALLE Runden
+    zusammen), sonst — wie ``_personen`` es selbst tut — die Kennung.
+    """
+    eintrag = []
+    for konto, am in paare:
+        for mitglied in mitglieder_je_konto.get(str(konto), ()):
+            anzeige = namen_je_mitglied.get(mitglied, mitglied)
+            eintrag.append((am or datetime.min, anzeige, mitglied))
+    eintrag.sort(key=lambda e: (e[0], e[1], e[2]))
+    return [{"mitglied": m, "anzeigename": n} for _am, n, m in eintrag]
+
+
 def _gespraech_kopf(s, g: ChatGespraech, benutzer: str,
-                    *, ausgeschlossene: set[str] | None = None) -> dict[str, Any]:
+                    *, ausgeschlossene: set[str] | None = None,
+                    daten: _Kopfdaten | None = None) -> dict[str, Any]:
     """Ein Eintrag der Gespraechsliste — auch fuer ein noch nie geoeffnetes.
 
     Ein DIREKTGESPRAECH (CHAT-7a) traegt statt des Gruppennamens den
@@ -6040,40 +8293,24 @@ def _gespraech_kopf(s, g: ChatGespraech, benutzer: str,
 
     ``ausgeschlossene`` reicht ``meine_gespraeche`` durch (CHAT-N2): EIN
     Ausschluss-Zustand je Anfrage statt eines Volllaufs je Direktgespraech.
+
+    ``daten`` (CHAT-PERF-1): der VORRAT eines Sammellaufs — Teilnahmezeilen,
+    Ungelesen-Zaehler, letzte Nachricht und Teilnehmerlisten aller Gespraeche
+    der Liste, je in EINER Abfrage (``_kopfdaten_sammeln``). Was dort fehlt,
+    wird hier wie bisher EINZELN gelesen und in ``daten`` nachgetragen, damit
+    derselbe Aufruf es nicht zweimal liest. Ohne ``daten`` (Einzelaufruf:
+    ``direkt_oeffnen``, ``runde_anlegen``) bleibt alles beim Einzelweg — die
+    ANTWORT ist in beiden Faellen dieselbe.
     """
-    teilnahme = s.get(ChatTeilnehmer, (g.name, benutzer)) if g.name else None
+    daten = _Kopfdaten(ausgeschlossene=ausgeschlossene) if daten is None else daten
+    teilnahme = daten.teilnahme_von(s, g, benutzer)
     if g.name:
-        ungelesen = _ungelesen_zaehlen(s, g.name, benutzer, teilnahme)
-        # CHAT-7b-2 (MUSS 1a): in einer RUNDE gilt für die Vorschau dieselbe
-        # Grenze wie im Verlauf — wer neu (oder wieder) eintritt, sieht die
-        # Nachrichten von VOR seinem Eintritt nicht. Ohne diesen Filter stand
-        # der Text der letzten Nachricht hier ungefiltert in der Liste.
-        bedingung = [ChatNachricht.gespraech == g.name]
-        sichtbar_ab = _sichtbar_ab(s, g, benutzer)
-        if sichtbar_ab is not None:
-            bedingung.append(ChatNachricht.erstellt_am >= sichtbar_ab)
-        # SOLL 5 (CHAT-7b-2): die eigene Vorschlags-Systemzeile („X möchte Y
-        # hinzufügen“) ist für den VORSCHLAGENDEN kein „letzter Beitrag“ — für
-        # die übrigen bleibt sie stehen (sie sollen zustimmen). Dieselbe
-        # Bedingung wie im Ungelesen-Zähler (``_nicht_eigener_vorschlag``).
-        # Eine Vorschlags-Systemzeile trägt ihren Satz NICHT in der Datenbank
-        # (er entsteht beim Lesen) — als Vorschau wäre sie leer (``_zitat`` →
-        # None) und verdrängte den letzten echten Beitrag. Deshalb: keine
-        # Vorschlagszeilen in der Vorschau (sie stehen im Verlauf).
-        letzte = s.execute(select(ChatNachricht)
-                           .outerjoin(ChatRundeVorschlag,
-                                      ChatRundeVorschlag.name == ChatNachricht.vorschlag)
-                           .where(*bedingung,
-                                  ChatNachricht.vorschlag.is_(None),
-                                  _nicht_eigener_vorschlag(benutzer))
-                           .order_by(ChatNachricht.erstellt_am.desc(),
-                                     ChatNachricht.name.desc())
-                           .limit(1)).scalar_one_or_none()
+        ungelesen = daten.ungelesen_von(s, g, benutzer, teilnahme)
+        letzte = daten.letzte_von(s, g, benutzer)
     else:
         ungelesen, letzte = 0, None
     if g.art == ART_DIREKT and g.name:
-        titel, gegenueber, bild = _direkt_titel(
-            s, g, benutzer, ausgeschlossene=ausgeschlossene)
+        titel, gegenueber, bild = daten.direkt_titel_von(s, g, benutzer)
     else:
         # Runden (CHAT-7b) tragen ihren Namen in `titel`; `gruppe`/`untergruppe`
         # sind NULL. Ein leerer Titel bleibt leer (die Oberfläche zeigt
@@ -6094,7 +8331,7 @@ def _gespraech_kopf(s, g: ChatGespraech, benutzer: str,
         # 1:1: das Gegenueber fuer Bild/Profil-Link; bei Gruppen leer.
         "mitglied": gegenueber,
         "bild": bild,
-        "teilnehmer": _teilnehmer_aktuelle(s, g),
+        "teilnehmer": daten.teilnehmerzahl_von(s, g),
         "stumm": bool(teilnahme.stumm) if teilnahme is not None else False,
         # `geoeffnet: false` heisst: es gibt noch keine Gespraechszeile. Die
         # Oberflaeche holt sie beim Tipp auf den Eintrag ueber `gespraech(...)`.
@@ -6111,7 +8348,7 @@ def _gespraech_kopf(s, g: ChatGespraech, benutzer: str,
         # Vorschläge und Mitgliederliste zu zeichnen. Nur Runden tragen das
         # Feld; bei 1:1/Gruppen FEHLT es (nicht `None`) — dieselbe Form wie
         # die Antwort von `runde_anlegen` (`_runde_kopf` → `_runde_mitglieder`).
-        kopf["mitglieder"] = _runde_mitglieder(s, g.name)
+        kopf["mitglieder"] = daten.runde_mitglieder_von(s, g.name)
     return kopf
 
 

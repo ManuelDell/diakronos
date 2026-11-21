@@ -1206,6 +1206,60 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.chat.anhang",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "anhang",
+   "pfade": [
+    "anhang",
+    "api.anhang",
+    "chat.anhang",
+    "diakronos.diakonos.api.chat.anhang",
+    "diakronos.diakronos.api.chat.anhang",
+    "diakronos_app.api.chat.anhang"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.anhang_hochladen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "anhang_hochladen",
+   "pfade": [
+    "anhang_hochladen",
+    "api.anhang_hochladen",
+    "chat.anhang_hochladen",
+    "diakronos.diakonos.api.chat.anhang_hochladen",
+    "diakronos.diakronos.api.chat.anhang_hochladen",
+    "diakronos_app.api.chat.anhang_hochladen"
+   ],
+   "rumpf_grund": "Aufruf s.flush(); Aufruf s.add()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
    "ausnahme_quelle": "rumpf, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
@@ -1613,6 +1667,34 @@
     "diakronos.diakronos.api.chat.nachricht_kontext",
     "diakronos_app.api.chat.nachricht_kontext",
     "nachricht_kontext"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": "lesend",
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.chat.nachrichten_suchen",
+   "methoden": [
+    "GET"
+   ],
+   "methoden_pflicht": "GET/POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "nachrichten_suchen",
+   "pfade": [
+    "api.nachrichten_suchen",
+    "chat.nachrichten_suchen",
+    "diakronos.diakonos.api.chat.nachrichten_suchen",
+    "diakronos.diakronos.api.chat.nachrichten_suchen",
+    "diakronos_app.api.chat.nachrichten_suchen",
+    "nachrichten_suchen"
    ],
    "rumpf_grund": "",
    "rumpf_ueber": null
@@ -11507,12 +11589,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 427,
+ "funktionen": 430,
  "nur_test": [],
- "registrierte_pfade": 2401,
+ "registrierte_pfade": 2419,
  "rumpf_zaehlung": {
-  "lesend": 197,
-  "schreibend": 230
+  "lesend": 199,
+  "schreibend": 231
  },
  "widersprueche": [
   {
@@ -12134,7 +12216,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 186,
-  "schreibend": 241
+  "lesend": 188,
+  "schreibend": 242
  }
 }

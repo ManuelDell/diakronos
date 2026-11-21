@@ -50,6 +50,15 @@
             />
           </DkCard>
           <template v-else>
+            <!-- CHAT-11b (Review R1/6): „Diese Nachricht gibt es nicht mehr.“
+                 steht HIER — in der Spalte, die auch die Listenansicht zeigt
+                 (ein gescheiterter Sprung führt oft gerade nicht in einen
+                 offenen Verlauf). Ruhig, role="status", keine Alarmfarbe. -->
+            <p
+              v-if="sprungHinweis && !offeneKennung"
+              class="dk-chat-hinweis dk-chat-sprungweg dk-chat-sprungweg--liste"
+              role="status"
+            >{{ sprungHinweis }}</p>
             <DkSkelett v-if="skelettSichtbar" form="zeilen" :anzahl="5" text="Gespräche werden geladen …" />
             <template v-else>
               <!-- CHAT-3c: EIN Suchfeld, zwei Trefferarten. Ist die Suche offen
@@ -62,6 +71,7 @@
                 :gespraeche="gespraeche"
                 :start-begriff="suchBegriff"
                 @sucht="begriffGeaendert"
+                @springen="springen"
               />
               <template v-if="!sucheOffen">
                 <DkEmpty
@@ -200,6 +210,16 @@
                 v-if="offenesGespraech && !istPlatzhalter"
                 variant="ghost"
                 size="sm"
+                class="dk-chat-suche-knopf"
+                :aria-expanded="gespraechSucheOffen ? 'true' : 'false'"
+                aria-label="Im Gespräch suchen"
+                title="Im Gespräch suchen"
+                @click="gespraechSucheUmschalten"
+              ><template #icon><span aria-hidden="true">⌕</span></template></DkButton>
+              <DkButton
+                v-if="offenesGespraech && !istPlatzhalter"
+                variant="ghost"
+                size="sm"
                 class="dk-chat-stumm-knopf"
                 :aria-pressed="offenesGespraech.stumm ? 'true' : 'false'"
                 aria-label="Stumm"
@@ -208,9 +228,87 @@
               ><template #icon><span aria-hidden="true">{{ offenesGespraech.stumm ? '🔕' : '🔔' }}</span></template></DkButton>
             </div>
 
+            <!-- CHAT-11b: Suche IM Gespräch (Karte Punkt 3). Sie steht unter dem
+                 Kopf: Feld, Trefferliste, Weitere-Treffer. Escape schließt. -->
+            <div v-if="gespraechSucheOffen" class="dk-chat-gespraechsuche">
+              <div class="dk-chat-gespraechsuche-feld">
+                <label class="dk-chat-nur-vorlesen" for="chat-gespraech-suche">{{ GESPRAECH_PLATZHALTER }}</label>
+                <input
+                  id="chat-gespraech-suche"
+                  ref="gespraechSuchFeld"
+                  class="dk-chat-gespraechsuche-input"
+                  type="search"
+                  autocomplete="off"
+                  :value="gespraechSucheBegriff"
+                  :placeholder="GESPRAECH_PLATZHALTER"
+                  aria-haspopup="listbox"
+                  :aria-expanded="gespraechTreffer.length ? 'true' : 'false'"
+                  :aria-controls="gespraechTreffer.length ? GESPRAECH_TREFFER_LISTE : null"
+                  :aria-activedescendant="gespraechTreffer.length ? trefferOption(GESPRAECH_TREFFER_LISTE, gespraechTrefferAktiv) : null"
+                  @input="gespraechSucheTippen($event.target.value)"
+                  @keydown="gespraechTrefferTaste"
+                />
+                <DkButton
+                  variant="ghost"
+                  size="md"
+                  class="dk-chat-suchweg"
+                  aria-label="Suche im Gespräch schließen"
+                  @click="gespraechTrefferSchliessen"
+                >
+                  <span aria-hidden="true">✕</span>
+                </DkButton>
+              </div>
+              <p class="dk-treffer-ansage" aria-live="polite">{{ trefferAnsage({
+                anzahl: gespraechTreffer.length, laedt: gespraechSucheLaedt, fehler: gespraechSucheFehler,
+              }) }}</p>
+              <p v-if="gespraechSucheFehler" class="dk-chat-fehler" role="alert">{{ gespraechSucheFehler }}</p>
+              <DkSkelett v-else-if="gespraechSucheLaedt" form="zeilen" :anzahl="2" />
+              <p
+                v-else-if="gespraechSucheBegriff.trim().length >= 2 && !gespraechTreffer.length"
+                class="dk-chat-hinweis"
+              >{{ KEINE_TREFFER_TEXT }}</p>
+              <ul
+                v-if="gespraechTreffer.length"
+                :id="GESPRAECH_TREFFER_LISTE"
+                class="dk-chat-gespraechsuche-liste"
+                role="listbox"
+                aria-label="Treffer in diesem Gespräch"
+              >
+                <li
+                  v-for="(zeile, i) in gespraechTreffer"
+                  :id="trefferOption(GESPRAECH_TREFFER_LISTE, i)"
+                  :key="zeile.nachricht"
+                  class="dk-chat-gespraechsuche-zeile"
+                  :class="{ 'is-aktiv': i === gespraechTrefferAktiv }"
+                  role="option"
+                  :aria-selected="i === gespraechTrefferAktiv ? 'true' : 'false'"
+                  @click="gespraechTrefferWaehlen(zeile)"
+                >
+                  <span class="dk-chat-gespraechsuche-kopf">
+                    <span class="dk-chat-gespraechsuche-absender">{{ zeile.absender || 'Unbekannt' }}</span>
+                    <span class="dk-chat-gespraechsuche-zeit">{{ zeile.zeit }}</span>
+                  </span>
+                  <!-- Ausschnitt: drei Teile, der Treffer hervorgehoben — nur
+                       Text in Klammern (ein „<script>“ bleibt sichtbarer
+                       Text, wird nie als HTML eingesetzt). -->
+                  <span class="dk-chat-gespraechsuche-ausschnitt"><span>{{ zeile.teile.vor }}</span><mark v-if="zeile.teile.treffer">{{ zeile.teile.treffer }}</mark><span>{{ zeile.teile.nach }}</span></span>
+                </li>
+              </ul>
+              <DkButton
+                v-if="gespraechSucheMehr"
+                variant="ghost"
+                size="sm"
+                class="dk-chat-textknopf"
+                @click="gespraechMehrHolen"
+              >Weitere Treffer</DkButton>
+            </div>
+
             <!-- CHAT-7b-UI-b (Karte Punkt 1): der ruhige Hinweis nach dem
                  Sperren (`role="status"`, keine Alarmfarbe — eine Auskunft). -->
             <p v-if="sperrErfolgText" class="dk-chat-hinweis" role="status">{{ sperrErfolgText }}</p>
+            <!-- CHAT-11b: „Diese Nachricht gibt es nicht mehr.“ — ruhig, nach
+                 einem Sprung auf eine gelöschte Nachricht (role="status"). -->
+            <p v-if="sprungHinweis" class="dk-chat-hinweis dk-chat-sprungweg" role="status">{{ sprungHinweis }}</p>
             <!-- Review R1 Punkt 8: Fehler beim Verlassen stehen AM KOPF als
                  ruhiger Hinweis (role="status") — der gelesene Verlauf bleibt
                  stehen, `verlaufFehler` würde ihn ersetzen. -->
@@ -260,9 +358,9 @@
               <ul v-else class="dk-chat-verlaufsliste">
                 <template v-for="(n, i) in nachrichtenMitTag" :key="n.ident">
                   <li v-if="n.tag" class="dk-chat-tag"><span>{{ n.tag }}</span></li>
-                  <!-- CHAT-N3: Die Handy-Lage fragt die SEITE einmal
-                       (`useHandyLage()`), die Blase bekommt sie als Prop —
-                       nicht 200 Beobachter für 200 Nachrichten.
+                  <!-- CHAT-N3: Die Handy-Lage fragt die SEITE einmal, die
+                       Blase bekommt sie als Prop — nicht 200 Beobachter für
+                       200 Nachrichten.
 
                        CHAT-7b-UI (Karte Punkt 4): Eine Vorschlags-Systemzeile
                        ist KEIN Beitrag — sie hat weder Bearbeiten/Löschen/
@@ -283,6 +381,7 @@
                     :folge-start="folgeStart(i)"
                     :handy-lage="istHandyLage"
                     :ich="ich"
+                    :class="{ 'dk-chat-sprungziel': markierteNachricht === n.ident }"
                     @reaktion="reaktionSetzen"
                     @antworten="antworten"
                     @bearbeiten="bearbeitenOeffnen"
@@ -523,6 +622,10 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { apiCall, apiGet } from '../composables/useApi.js'
 import { useSession } from '../composables/useSession.js'
+// CHAT-11b: Der Sprung zu einer Nachricht öffnet das Gespräch über die
+// ADRESSE (dieselbe, die auch ein Klick auf die Liste setzt) — dafür gibt es
+// eine Stelle im Router.
+import { navigate } from '../router.js'
 import { useLadeSkelett } from '../composables/useLadeSkelett.js'
 // CHAT-3a-4 (SOLL 3): Am Handy mit offenem Gespräch gibt es nur EINEN Kopf
 // (den Verlaufskopf) — dieselbe Handy-Lage wie das Gerüst (`--layout-mobil`,
@@ -538,7 +641,22 @@ import {
   lesestandFaellig, mitTagesmarken, pruefeText, seiteEinordnen, taktGeber, tasteImFeld,
   ungelesenSumme, verlaufsZeile, zeilenSchluessel,
 } from '../composables/nachrichtenLogik.mjs'
-import { offenAusHash, qAusHash, suchHash, sucheOffenBei, entpreller } from '../composables/nachrichtenSuche.mjs'
+// CHAT-11b (R1/4): `SUCH_HASH` = „ist das noch die Suche?“.
+import { offenAusHash, qAusHash, suchHash, sucheOffenBei, entpreller, SUCH_HASH } from '../composables/nachrichtenSuche.mjs'
+// CHAT-11b: Suche IN den Nachrichten — der Sprung zur Nachricht geht über
+// DENSELBEN Weg wie die Erwähnungs-Glocke (`glockenziele.mjs`, CHAT-9b),
+// die Regeln des Sprungs (Seiten nachladen, „nicht mehr da“) stehen in
+// `composables/nachrichtenTreffer.mjs`.
+import { nachrichtenAdresse, erwaehnungZiel } from '../composables/glockenziele.mjs'
+import {
+  GESPRAECH_PLATZHALTER, KEINE_TREFFER_TEXT, SPRUNG_ADRESSE_MS, WEG_TEXT,
+  darfFragen as darfTrefferAntwort, darfTrefferFragen, frageParameter, laufNummer,
+  sprungSchritt, sprungAnker, sprungZiel, trefferAnsage, trefferAusAntwort, trefferTaste,
+  seiteAnhaengen, naechsteTrefferStelle, optionKennung as trefferOption,
+} from '../composables/nachrichtenTreffer.mjs'
+// CHAT-11b: Was an den Server geht, faltet NICHT — der Server stammt selbst
+// (`frageParameter` in `nachrichtenTreffer.mjs`). Die Faltung aus
+// `nachrichtenSuche.mjs` gilt nur dem Vergleich im Browser.
 import { naechsteReaktion } from '../composables/nachrichtenReaktionen.mjs'
 import {
   NICHT_ERREICHBAR, NEUE_NACHRICHT, SPERR_AKTION, SUCHE, direktTitel, istDirekt, istGesperrt,
@@ -1131,7 +1249,12 @@ const verlaufHinweis = ref('')
  */
 const eintrittHinweisRoh = ref('')
 const aelterLaedt = ref(false)
-const aelterMoeglich = ref(false)
+/**
+ * Darf nach oben nachgeladen werden? `null` = noch KEIN Stand (frisch geöffnetes
+ * Gespräch, s. `aelterStand`) — Review R1/3: vorher stand hier `false`, und das
+ * Nachladen begann erst nach einem Sprung.
+ */
+const aelterMoeglich = ref(null)
 const verlaufEl = ref(null)
 const eingabeEl = ref(null)
 const text = ref('')
@@ -1143,11 +1266,18 @@ const eingabeHinweis = computed(() => eingabePlatzhalter(titel.value))
 let scrollVorher = 0
 
 function zuruecksetzen() {
+  // CHAT-11b-2: Der Sprung ÜBERLEBT das Öffnen SEINES Gesprächs (die Seite
+  // lädt beim Wechsel neu, der `hashchange`-Watcher ruft hier auf) — sonst
+  // fiele das Ziel genau dann weg, wenn es gebraucht wird. Ein anderes
+  // Gespräch bricht ihn ab, ohne Hinweis.
+  const sprungZielBleibt = Boolean(sprungNachricht.value)
+    && String(offeneKennung.value || '') === String(sprungGespraech.value || '')
   nachrichten.value = []
   verlaufFehler.value = ''
   eingabeFehler.value = ''
   antwortAuf.value = null
-  aelterMoeglich.value = false
+  // `null` = kein Stand: der neu geladene Verlauf entscheidet (R1/3).
+  aelterMoeglich.value = null
   eintrittHinweisRoh.value = ''
   // CHAT-7b-UI: Meldungen gehörten zum ALTEN Gespräch — „Runde verlassen“
   // scheiterte, die Vorschlagszeile antwortete nicht. Im nächsten Gespräch
@@ -1172,11 +1302,46 @@ function zuruecksetzen() {
   // CHAT-7a: die Sperre gilt je GESPRÄCH, nicht für die Seite — ein anderes
   // 1:1 darf wieder schreibbar sein.
   sendenVonServerGesperrt.value = false
+  // CHAT-11b: Sprung-Zustand und die Suche im Gespräch gehören zum GESPRÄCH
+  // (Kennungen des alten Verlaufs wären hier falsch).
+  if (!sprungZielBleibt) {
+    // Review R1/1: Ein Wechsel in ein DRITTES Gespräch beendet den Sprung —
+    // über die Laufnummer, damit eine noch wartende Schleife ihren falschen
+    // „gibt es nicht mehr“-Satz nicht mehr schreiben kann.
+    // CHAT-11b-3/2: Die Sperre hängt an der Laufnummer — der alte Lauf ist
+    // damit entwertet und ein neuer Sprung darf sofort starten. Seine
+    // Wartenden (`sprungFertig`) werden hier aufgelöst, damit niemand auf den
+    // abgebrochenen Lauf wartet.
+    if (sprungLaeuft) {
+      sprungLaufNr += 1
+      sprungLaeuft = false
+      sprungAbschliessen()
+    }
+    sprungAbbrechen()
+    sprungHinweis.value = ''
+  }
+  markierteNachricht.value = ''
+  if (markierTimer) { clearTimeout(markierTimer); markierTimer = null }
+  gespraechTrefferSchliessen()
   geoeffnet.value = ''
 }
 
 /** Gespräch öffnen: Verlauf holen, Lesestand setzen, Fokus in den Verlauf. */
 async function oeffnen() {
+  // Review R1/1: Der Sprung braucht einen Punkt, an dem der Verlauf GENAU
+  // DIESES Gesprächs wirklich steht — die Adresse allein sagt das nicht
+  // (`hashchange` kommt als eigener Task). Darum liegt der laufende Aufbau
+  // hier als Zusage (`offenLaeuft`), auf die `sprungBereit` wartet.
+  const lauf = oeffnenJetzt()
+  offenLaeuft = lauf
+  try {
+    return await lauf
+  } finally {
+    if (offenLaeuft === lauf) offenLaeuft = null
+  }
+}
+
+async function oeffnenJetzt() {
   const offen = offeneKennung.value
   if (!offen) return
   // Schon geladen (z. B. das erste Zeichen einer Suche lässt das Gespräch
@@ -1308,7 +1473,9 @@ async function verlaufLaden({ still = false } = {}) {
     nachrichten.value = lage.nachrichten
     // „nachladen nach oben“: NUR ein voller, älterer Abruf ändert das; die
     // neueste Seite und der Poll sagen nichts darüber (`aelterStand`).
-    aelterMoeglich.value = aelterStand(aelterMoeglich.value, lage.aelterMoeglich)
+    // Review R1/3: Ohne bisherigen Stand entscheidet der geladene Verlauf
+    // (volle Seite = oben geht es weiter), sonst behält die Seite ihren Stand.
+    aelterMoeglich.value = aelterStand(aelterMoeglich.value, lage.aelterMoeglich, lage.nachrichten.length)
     verlaufFehler.value = ''
     verlaufHinweis.value = ''
     erfolg = true
@@ -1347,32 +1514,93 @@ async function verlaufLaden({ still = false } = {}) {
   return true
 }
 
-/** Nachladen nach OBEN: die Seite VOR der ältesten bekannten Nachricht. */
-async function aeltereLaden() {
+/**
+ * Nachladen nach OBEN: die Seite VOR der ältesten bekannten Nachricht.
+ *
+ * `ohnePosition` (CHAT-11b): beim SPRUNG bleibt die Leseposition nicht
+ * stehen — es wird ohnehin gleich zur gefundenen Nachricht gerollt.
+ *
+ * CHAT-11b-2/2: Läuft schon ein Nachladen, wird DARAUF GEWARTET (das laufende
+ * Promise liegt in `aelterLauf`) — sonst hätte der Sprung den Tick als
+ * Ladeversuch gezählt und nach ~10 Ticks fälschlich „gibt es nicht mehr“
+ * gezeigt. Der Rückgabewert sagt, ob SEIN Aufruf eine Seite geholt hat; ein
+ * Wartender bekommt das Ergebnis des laufenden.
+ *
+ * Review R1/2: der Lauf gehört EINEM Gespräch (`{ gespraech, lauf }`). Ein
+ * Nachladen, das noch im ALTEN Gespräch hängt, wird nie einem Sprung im neuen
+ * zurückgegeben — der bekäme sonst `false` für eine Seite, die er nie geholt
+ * hat. Ein Lauf eines anderen Gesprächs zählt hier als „läuft nicht“: das neue
+ * Gespräch holt seine eigene Seite, der alte Lauf schreibt ohnehin nichts mehr
+ * (er prüft `offen !== offeneKennung`).
+ *
+ * @returns {Promise<boolean>} ob eine ältere Seite geladen wurde
+ */
+async function aeltereLaden({ ohnePosition = false } = {}) {
   const offen = offeneKennung.value
-  if (!offen || aelterLaedt.value || !nachrichten.value.length) return
+  if (!offen || !nachrichten.value.length) return false
+  if (aelterLauf && aelterLauf.gespraech === offen) return aelterLauf.lauf
+  const lauf = aeltereLadenJetzt({ ohnePosition })
+  const eintrag = { gespraech: offen, lauf }
+  aelterLauf = eintrag
+  try {
+    return await lauf
+  } finally {
+    if (aelterLauf === eintrag) aelterLauf = null
+  }
+}
+
+/**
+ * Das laufende Nachladen (oder `null`) — s. `aeltereLaden`. Es hängt an SEINEM
+ * Gespräch: ein Wechsel macht den alten Lauf für die neue Seite bedeutungslos.
+ */
+let aelterLauf = null
+
+/** Läuft gerade ein Nachladen für DIESES Gespräch? (s. `aeltereLaden`) */
+function aelterLaeuftIn(gespraech) {
+  const g = String(gespraech || '')
+  return Boolean(g && aelterLauf && aelterLauf.gespraech === g)
+}
+
+/**
+ * Das laufende Nachladen des Gesprächs — oder `null`. Scheitert es, ist das
+ * hier kein Fehler: der nächste Schritt entscheidet neu (Review R1/2).
+ */
+function aelterWarten(gespraech) {
+  if (!aelterLaeuftIn(gespraech)) return null
+  return Promise.resolve(aelterLauf.lauf).catch(() => false)
+}
+
+async function aeltereLadenJetzt({ ohnePosition = false } = {}) {
+  const offen = offeneKennung.value
   aelterLaedt.value = true
   const anker = nachrichten.value[0].ident
-  scrollVorher = verlaufEl.value ? verlaufEl.value.scrollHeight : 0
+  scrollVorher = ohnePosition ? 0 : (verlaufEl.value ? verlaufEl.value.scrollHeight : 0)
+  let geladen = false
   try {
     const antwort = await apiGet('chat.verlauf', { gespraech: offen, vor: anker })
-    if (offen !== offeneKennung.value) return
-    const seite = Array.isArray(antwort?.nachrichten) ? antwort.nachrichten : []
+    if (offen !== offeneKennung.value) return false
     const lage = seiteEinordnen(antwort, { alt: nachrichten.value, ich: ich.value })
     nachrichten.value = lage.nachrichten
     aelterMoeglich.value = aelterStand(aelterMoeglich.value, lage.aelterMoeglich)
+    geladen = true
     await nextTick()
     // Die gelesene Stelle bleibt stehen: die neuen Zeilen stehen OBEN, deshalb
     // wird um die hinzugekommene Höhe nachgeschoben (sonst springt der Verlauf).
-    if (verlaufEl.value && scrollVorher) {
+    if (!ohnePosition && verlaufEl.value && scrollVorher && offen === offeneKennung.value) {
       verlaufEl.value.scrollTop = verlaufEl.value.scrollHeight - scrollVorher
     }
   } catch (fehler) {
-    const zustand = fehlerZustand(fehler)
-    verlaufFehler.value = zustand ? `${zustand.titel}. ${zustand.text}` : fehlertext(fehler)
+    if (offen === offeneKennung.value) {
+      const zustand = fehlerZustand(fehler)
+      verlaufFehler.value = zustand ? `${zustand.titel}. ${zustand.text}` : fehlertext(fehler)
+    }
   } finally {
-    aelterLaedt.value = false
+    // Review R1/2: Nur der Lauf des OFFENEN Gesprächs schaltet die Anzeige ab —
+    // ein Lauf, der im alten Gespräch hängen blieb, ließe das neue sonst
+    // fälschlich „lädt nicht“ anzeigen.
+    if (offen === offeneKennung.value) aelterLaedt.value = false
   }
+  return geladen
 }
 
 /** Am Anfang des Verlaufs angekommen → ältere Seite holen (Karte Punkt 1). */
@@ -2326,6 +2554,619 @@ function taktStand() {
   }
 }
 
+// ── CHAT-11b: Sprung zur Nachricht und Suche im Gespräch ───────────────────
+
+/**
+ * Der Weg zu einer Nachricht ist der der Erwähnungs-Glocke (CHAT-9b):
+ * `chat.nachricht_kontext(nachricht)` sagt, in welchem Gespräch sie steht —
+ * dieselbe Auskunft, dieselbe Adresse (`#/nachrichten/<kennung>`), KEIN
+ * zweiter Weg. `erwaehnungZiel` verpackt genau das (`glockenziele.mjs`) und
+ * antwortet bei unbekannter/gelöschter/fremder Nachricht mit dem Bereich.
+ */
+async function kontextHolen(nachricht) {
+  const ziel = String(await erwaehnungZiel({ document_name: nachricht }, apiGet) || '')
+  const kennung = ziel.startsWith(`${BEREICH}/`) ? ziel.slice(BEREICH.length + 1) : ''
+  return kennung ? { gespraech: decodeURIComponent(kennung) } : null
+}
+
+/** Die Kennung der Nachricht, zu der gesprungen werden soll — `''` = keine. */
+const sprungNachricht = ref('')
+/**
+ * Das Gespräch, in dem die gesprungene Nachricht steht (Review R1/1) — leer,
+ * solange der Server es noch nicht gesagt hat oder der Sprung keines kennt.
+ * `sprungAusfuehren` löst ihn ein, sobald GENAU DIESES Gespräch offen ist.
+ */
+const sprungGespraech = ref('')
+/** Wie viele Ladeversuche dieser Sprung schon gemacht hat (Karte: ≤ 10). */
+const sprungSeiten = ref(0)
+/**
+ * Die LAUFNUMMER des aktuellen Sprungs. Jeder `springen` zählt sie hoch;
+ * jede Schleife merkt sich ihre Nummer und gibt nach JEDEM `await` auf, wenn
+ * sie nicht mehr die jüngste ist (oder die Seite abgebaut wurde). Damit kann
+ * kein alter Lauf einen neuen Sprung (oder den Hinweis eines inzwischen
+ * abgebrochenen) überschreiben.
+ *
+ * CHAT-11b-3/2: Die Sperre hängt an DIESER Nummer — ein Wechsel in ein
+ * drittes Gespräch entwertet den alten Lauf (`sprungLaufNr += 1`), und ein
+ * neuer Sprung darf sofort starten, statt auf die hängende Antwort des alten
+ * zu warten. Ein bloßes Bool konnte das nicht (es blieb true, bis die alte
+ * Antwort kam).
+ */
+let sprungLaufNr = 0
+/**
+ * Läuft gerade ein Nachladen für einen Sprung? Wird nur noch zusammen mit
+ * `sprungLaufNr` gepflegt: `sprungBeginnen` setzt true, `sprungBeenden` (nur
+ * für den JÜNGSTEN Lauf) und die Abbruchstellen setzen false. Die eigentliche
+ * Sperre ist die Laufnummer (`sprungGilt`).
+ */
+let sprungLaeuft = false
+/** Die Nummer, die ein abgebrochener Sprung hinterlässt — s. `sprungAbbrechen`. */
+function sprungGilt(nr) {
+  return aktivSeite && nr === sprungLaufNr
+}
+
+/**
+ * CHAT-11b-3/2: Einen Sprung beginnen — entwertet einen laufenden (er darf
+ * danach nichts mehr schreiben) und gibt die neue Laufnummer zurück. Damit
+ * startet ein neuer Sprung SOFORT, auch wenn der alte noch in einer Antwort
+ * hängt.
+ */
+function sprungBeginnen() {
+  sprungLaufNr += 1
+  sprungLaeuft = true
+  sprungSeiten.value = 0
+  return sprungLaufNr
+}
+
+/**
+ * Der Lauf `nr` ist vorbei — Sperre fällt und die Wartenden (`sprungFertig`)
+ * werden aufgelöst, wenn dieser Lauf noch der JÜNGSTE ist. Ein entwerteter
+ * Lauf löst hier NICHTS: seine Wartenden hat schon der Abbruch entlassen
+ * (`zuruecksetzen`, `sprungAbbau`), und die eines neueren Laufs gehören ihm
+ * nicht.
+ */
+function sprungBeenden(nr) {
+  if (nr !== sprungLaufNr) return
+  sprungLaeuft = false
+  sprungAbschliessen()
+}
+
+/**
+ * Review R1/1: bricht den laufenden Sprung STILL ab. Das Ziel fällt weg, ohne
+ * Hinweis — es gibt für die lesende Person nichts zu erfahren (sie hat in ein
+ * anderes Gespräch gewechselt). Die Abbruchbedingung bleibt: eine Schleife, die
+ * noch auf eine Antwort wartet, prüft danach `sprungGilt(nr)`.
+ */
+function sprungAbbrechen() {
+  sprungNachricht.value = ''
+  sprungGespraech.value = ''
+  sprungSeiten.value = 0
+}
+
+/**
+ * Review R1/5: Die Seite wird abgebaut — ein laufender Sprung endet mit ihr
+ * (die Laufnummer entwertet jede wartende Schleife, `sprungAbschliessen` löst
+ * die Wartenden auf). Danach schreibt niemand mehr in einen toten Zustand.
+ */
+function sprungAbbau() {
+  if (!sprungLaeuft) return
+  sprungLaufNr += 1
+  sprungLaeuft = false
+  sprungAbbrechen()
+  sprungAbschliessen()
+}
+
+/** Löst auf, wenn der laufende Sprung (Nachladen + Rollen) fertig ist. */
+let sprungWartende = []
+function sprungAbschliessen() {
+  const offen = sprungWartende
+  sprungWartende = []
+  for (const loese of offen) loese()
+}
+const sprungFertig = () => new Promise((loese) => {
+  if (!sprungLaeuft) { loese(); return }
+  sprungWartende.push(loese)
+})
+/** Der ruhige Hinweis „gibt es nicht mehr“ — steht im Verlauf. */
+const sprungHinweis = ref('')
+/** Kurz hervorgehobene Nachricht (Kennung) — fällt nach ein paar Sekunden. */
+const markierteNachricht = ref('')
+let markierTimer = null
+
+/**
+ * Eine Nachricht kurz hervorheben — wie es der Sprung braucht. Der Timer läuft
+ * nur, solange die SEITE lebt (`onUnmounted` räumt ihn ab) und setzt danach
+ * nichts mehr.
+ */
+function nachrichtMarkieren(kennung, { still = false } = {}) {
+  const k = String(kennung || '').trim()
+  if (!k) return
+  if (markierTimer) clearTimeout(markierTimer)
+  markierteNachricht.value = k
+  markierTimer = setTimeout(() => {
+    markierTimer = null
+    if (!aktivSeite) return
+    markierteNachricht.value = ''
+  }, still ? 4000 : 2500)
+}
+
+/** Die Abfrage des Verlaufs, die gerade läuft (oder `null`) — `oeffnen` merkt
+ *  sie, damit der Sprung auf sie WARTEN kann statt zu raten. */
+let offenLaeuft = null
+
+/**
+ * Der Sprung: Nachricht → Gespräch → Nachricht. Der EINE Weg, den auch die
+ * Glocke nimmt.
+ *
+ *   1. Auskunft des Servers (`sprungZiel` → `chat.nachricht_kontext`).
+ *      Unbekannt oder kein Leserecht → Bereich „Nachrichten“, keine geratene
+ *      Kennung.
+ *   2. Das Ziel im Modul merken (`sprungNachricht`, `sprungGespraech`) und das
+ *      Gespräch über die ADRESSE öffnen. Review R1/1: `navigate`/`adresseSetzen`
+ *      liest die Adresse zwar sofort nach, `oeffnen` läuft aber asynchron über
+ *      mehrere Antworten. Darum läuft der Sprung NICHT hier weiter, sondern in
+ *      `sprungAusfuehren` — das wartet, bis genau DIESES Gespräch offen ist.
+ *   3. Steht die Nachricht noch nicht im geladenen Verlauf, ältere Seiten
+ *      nachladen (höchstens `SPRUNG_MAX_SEITEN`), dann kurz hervorheben.
+ *   4. Ist sie nicht mehr da (gelöscht), steht der ruhige Hinweis da — an einer
+ *      Stelle, die auch die LISTENANSICHT zeigt (R1/6).
+ */
+async function springen(nachricht) {
+  const kennung = String(nachricht?.nachricht || nachricht || '').trim()
+  if (!kennung) return
+  const nr = sprungBeginnen()
+  sprungHinweis.value = ''
+  try {
+    const ziel = await sprungZiel(kennung, kontextHolen, nachrichtenAdresse)
+    if (!sprungGilt(nr)) return
+    if (ziel.art === 'nichts') {
+      // Keine Auskunft: der Bereich ist das ehrliche Ziel (wie bei der Glocke).
+      navigate(nachrichtenAdresse())
+      return
+    }
+    sprungNachricht.value = kennung
+    sprungGespraech.value = ziel.art === 'gespraech' ? String(ziel.gespraech || '') : ''
+    if (ziel.art === 'weg') {
+      // Die Nachricht gibt es nicht mehr — Gespräch öffnen (wenn der Server
+      // eines genannt hat, hier: keines) und den ruhigen Satz zeigen.
+      sprungHinweis.value = WEG_TEXT
+      sprungNachricht.value = ''
+      return
+    }
+    // Handy (R1/4): Mit einem Sprung endet die Suche — sonst bliebe die
+    // Trefferfläche die sichtbare Spalte und der Verlauf verborgen.
+    const adresse = handySucheSchliessen(ziel.adresse)
+    const schonOffen = String(offeneKennung.value || '') === String(ziel.gespraech || '')
+      && !sucheOffen.value
+    if (!schonOffen || adresse !== aktuellerHash()) navigate(adresse)
+    await sprungAusfuehren(nr)
+  } finally {
+    sprungBeenden(nr)
+  }
+}
+
+/** Die Adresse, wie sie gerade in der Adresszeile steht. */
+function aktuellerHash() {
+  return typeof window === 'undefined' ? '' : String(window.location.hash || '')
+}
+
+/**
+ * Handy (Review R1/4): Ein Sprung in ein Gespräch schließt die Suche. Am
+ * Handy ist die Suchspalte die sichtbare — bliebe sie offen, stünde der
+ * Verlauf, zu dem gesprungen wurde, hinter ihr. Am Desktop ändert sich
+ * nichts: dort schließt der Sprung die Suche NICHT (zwei Spalten, die Suche
+ * bleibt links stehen).
+ */
+function handySucheSchliessen(adresse) {
+  const ziel = String(adresse || '')
+  if (istHandyLage.value !== true || !sucheOffen.value) return ziel
+  const gespraech = String(new URL(ziel, 'https://x.invalid').hash || ziel).replace(/^#/, '')
+  const rein = gespraech.split('?')[0]
+  if (rein === SUCH_HASH) return ziel
+  // Die Suche wird verlassen: Feld und Trefferfläche zu (die SEITE räumt den
+  // Begriff beim nächsten Lesen der Adresse ohnehin ab).
+  sucheOffen.value = false
+  suchBegriff.value = ''
+  return ziel
+}
+
+/**
+ * Warten, bis das gesprungene Gespräch offen und sein Verlauf da ist.
+ * `true` = es kann weitergehen. Review R1/1: Ohne offenes Gespräch oder mit
+ * einem ANDEREN offenen Gespräch darf nichts geladen werden (vorher landeten
+ * ältere Seiten des ALTEN Gesprächs im Verlauf).
+ */
+async function sprungBereit(nr) {
+  // CHAT-11b-2/3: Die Warteschleife auf die Adresse (der `hashchange` des
+  // Browsers kommt als eigener Task) hat eine EIGENE Obergrenze — ein
+  // Adresswechsel, der nie kommt, lässt den Sprung nicht hängen. Ein Abbruch
+  // (Decke, abgebaute Seite, anderes Gespräch) ist still: kein Hinweis.
+  const grenze = Date.now() + SPRUNG_ADRESSE_MS
+  for (;;) {
+    if (!sprungGilt(nr)) return false
+    const ziel = String(sprungGespraech.value || '')
+    const jetzt = String(offeneKennung.value || '')
+    if (ziel && jetzt !== ziel) {
+      // Ein anderes Gespräch ist offen (noch nicht gewechselt oder inzwischen
+      // ein drittes): warten bzw. aufgeben — aber nie dessen Seiten laden.
+      if (jetzt) {
+        // Steht in der Adresse inzwischen das ZIEL, ist der Wechsel nur noch
+        // nicht durch (hashchange als eigener Task) — dann warten.
+        if (!wartetAufAdresse(ziel)) return false
+        if (ueberDecke(grenze)) return false
+        await new Promise((loese) => setTimeout(loese, 0))
+        continue
+      }
+      await nextTick()
+      if (String(offeneKennung.value || '') === ziel) continue
+      // Die Adresse steht noch nicht im Modul (hashchange kam noch nicht).
+      if (!wartetAufAdresse(ziel)) return false
+      if (ueberDecke(grenze)) return false
+      await new Promise((loese) => setTimeout(loese, 0))
+      continue
+    }
+    // Offen (oder gar kein Gespräch verlangt): den Verlauf abwarten, falls er
+    // gerade geholt wird.
+    if (offenLaeuft) { await offenLaeuft.catch(() => {}); continue }
+    if (geoeffnet.value !== (ziel || geoeffnet.value)) return false
+    return true
+  }
+}
+
+/** Ist die Wartefrist auf die Adresse abgelaufen? (ohne Hinweis, s. `sprungBereit`) */
+function ueberDecke(grenze) {
+  return Date.now() > grenze
+}
+
+/**
+ * Steht das Ziel in der Adresse, während das Modul es noch nicht kennt?
+ * (Der `hashchange` des Browsers kommt als eigener Task — genau der Fall aus
+ * Review R1/1.) Ein `#/nachrichten/<sonstiges>` ist es NICHT: dann ist ein
+ * anderes Gespräch gewollt.
+ */
+function wartetAufAdresse(ziel) {
+  if (!ziel) return false
+  const pfad = aktuellerHash()
+  if (pfad.split('?')[0] === SUCH_HASH) return false
+  return pfad === `#${nachrichtenAdresse(ziel)}` || pfad === nachrichtenAdresse(ziel)
+}
+
+/**
+ * Den Verlauf nachladen, bis die gesprungene Nachricht da ist — oder die
+ * Versuche aufgebraucht sind. Die Entscheidung steht in `sprungSchritt`
+ * (DOM-frei prüfbar); hier wird sie ausgeführt.
+ *
+ * Review R1/1: `nr` ist die Laufnummer des Sprungs (`springen`). Nach JEDEM
+ * `await` wird geprüft, ob er noch gilt — sonst hat inzwischen ein Wechsel
+ * (oder der Abbau) den Sprung beendet, und ein spätes `sprungSchritt({nachricht:
+ * ''})` schriebe den falschen „gibt es nicht mehr“-Satz in ein FREMDES
+ * Gespräch. Abbruch ist immer still.
+ */
+async function sprungAusfuehren(nr) {
+  if (!sprungNachricht.value) return
+  if (!(await sprungBereit(nr))) {
+    // Kein gültiger Sprung mehr: nichts laden, nichts behaupten.
+    if (!sprungGilt(nr)) return
+    // Review R1/4: Am Ziel angekommen, aber sein Verlauf ist nicht da (Öffnen
+    // gescheitert, `geoeffnet` blieb leer) — dann fällt das Ziel weg, statt
+    // beim nächsten Aufbau als halber Sprung stehen zu bleiben.
+    if (String(offeneKennung.value || '') === String(sprungGespraech.value || '')) {
+      sprungAbbrechen()
+    }
+    return
+  }
+  for (;;) {
+    if (!sprungGilt(nr)) return
+    const lauf = sprungSchritt({
+      nachricht: sprungNachricht.value,
+      vorhanden: nachrichten.value,
+      gespraech: sprungGespraech.value,
+      offen: offeneKennung.value,
+      seiten: sprungSeiten.value,
+    })
+    sprungSeiten.value = lauf.seiten
+    if (lauf.schritt === 'da') {
+      const kennung = sprungNachricht.value
+      sprungHinweis.value = ''
+      sprungNachricht.value = ''
+      sprungGespraech.value = ''
+      await zurNachrichtScrollen(kennung)
+      if (!sprungGilt(nr)) return
+      nachrichtMarkieren(kennung)
+      return
+    }
+    if (lauf.schritt === 'weg') {
+      sprungHinweis.value = WEG_TEXT
+      sprungAbbrechen()
+      return
+    }
+    if (lauf.schritt === 'wechsel') {
+      // Ein anderes Gespräch ist offen (geworden): still aufgeben.
+      sprungAbbrechen()
+      return
+    }
+    if (lauf.schritt === 'laden') {
+      // Leerer Verlauf: erst die neueste Seite — auch dieser Versuch zählt
+      // gegen `SPRUNG_MAX_SEITEN` (R1/5).
+      const geladen = await verlaufLaden()
+      if (!sprungGilt(nr)) return
+      const erreicht = geladen || geoeffnet.value === offeneKennung.value
+      // Ein Wechsel während des Ladens ist kein „gibt es nicht mehr“.
+      if (String(offeneKennung.value || '') !== String(sprungGespraech.value || '')) {
+        sprungAbbrechen()
+        return
+      }
+      if (!erreicht || !nachrichten.value.length) {
+        // Antwort ohne Zeilen: mehr kommt nicht.
+        sprungHinweis.value = WEG_TEXT
+        sprungAbbrechen()
+        return
+      }
+      continue
+    }
+    // 'weiter': eine ältere Seite.
+    //
+    // Review R1/1: Erst prüfen, ob überhaupt noch das ZIEL offen ist — der
+    // Wechsel kann den Sprung während des vorigen `await` erwischt haben.
+    if (String(offeneKennung.value || '') !== String(sprungGespraech.value || '')) {
+      sprungAbbrechen()
+      return
+    }
+    // CHAT-11b-2/2 + Review R1/2: Läuft für DIESES Gespräch schon ein
+    // Nachladen (Scroll), wird darauf gewartet, ohne zu zählen; danach wird
+    // NEU entschieden (die Seite kann die Nachricht schon enthalten, ein
+    // Fehlschlag ist kein „weg“).
+    if (aelterLaeuftIn(sprungGespraech.value)) {
+      await aelterWarten(sprungGespraech.value)
+      if (!sprungGilt(nr)) return
+      continue
+    }
+    const vorher = sprungAnker(nachrichten.value)
+    const geladen = await aeltereLaden({ ohnePosition: true })
+    if (!sprungGilt(nr)) return
+    if (!geladen) {
+      // Das Gespräch hat gewechselt (oder der Verlauf ließ sich nicht laden):
+      // hier ist nichts behauptet — still aufgeben bzw. neu entscheiden.
+      if (!sprungNachricht.value) return
+      if (String(offeneKennung.value || '') !== String(sprungGespraech.value || '')) {
+        sprungAbbrechen()
+        return
+      }
+      const gefunden = nachrichten.value.some((n) => n.ident === sprungNachricht.value)
+      if (!gefunden && sprungAnker(nachrichten.value) === vorher) {
+        sprungHinweis.value = WEG_TEXT
+        sprungAbbrechen()
+        return
+      }
+    }
+  }
+}
+
+/** Zur Nachricht rollen und sie holen — im eigenen Scrollkasten des Verlaufs. */
+async function zurNachrichtScrollen(kennung) {
+  await nextTick()
+  const el = verlaufEl.value
+  if (!el || typeof el.querySelector !== 'function') return
+  const zeile = el.querySelector(`[data-name="${CSS_escape(kennung)}"]`)
+  if (!zeile) return
+  if (typeof zeile.scrollIntoView === 'function') {
+    try { zeile.scrollIntoView({ block: 'center' }) } catch { /* egal */ }
+  }
+}
+
+/** Ein Bezeichner für einen CSS-Attributwert (Kennungen tragen „-“ und „_“). */
+function CSS_escape(wert) {
+  return String(wert || '').replace(/["\\]/g, '\\$&')
+}
+
+// ── Suche im offenen Gespräch (Karte Punkt 3) ─────────────────────────────
+
+const gespraechSucheOffen = ref(false)
+const gespraechSucheBegriff = ref('')
+const gespraechTreffer = ref([])
+const gespraechSucheLaedt = ref(false)
+const gespraechSucheFehler = ref('')
+const gespraechSucheMehr = ref(false)
+const gespraechSucheVor = ref('')
+const gespraechTrefferAktiv = ref(0)
+const gespraechSuchFeld = ref(null)
+const GESPRAECH_TREFFER_LISTE = 'dk-gespraech-treffer'
+/**
+ * Review R1/7: Die Gesprächssuche arbeitet mit DENSELBEN Mitteln wie die
+ * globale Suche — laufende Nummer (nur die jüngste Antwort schreibt) und ein
+ * echter Abbruch des überholten Netzaufrufs.
+ */
+const gespraechLauf = laufNummer()
+let gespraechAbort = null
+
+function abbrechen() {
+  if (!gespraechAbort) return
+  try { gespraechAbort.abort() } catch { /* ein toter Abbruch darf nichts blocken */ }
+  gespraechAbort = null
+}
+
+const gespraechSuchBremse = entpreller({
+  beiFaelligkeit: (gefragt) => gespraechTrefferHolen(gefragt),
+})
+
+/** Der Kopf-Suchknopf öffnet das Feld; Escape schließt Liste und Feld. */
+function gespraechSucheUmschalten() {
+  gespraechSucheOffen.value = !gespraechSucheOffen.value
+  if (!gespraechSucheOffen.value) {
+    gespraechSucheZuruecksetzen()
+    return
+  }
+  nextTick(() => {
+    const el = gespraechSuchFeld.value
+    if (el && typeof el.focus === 'function') el.focus()
+  })
+}
+
+/**
+ * Die Fläche der Gesprächssuche leeren.
+ *
+ * `beenden` gibt es hier NICHT: der Entpreller wird einmal gebaut und lebt so
+ * lange wie die Seite — `beenden()` machte ihn für immer stumm (`tippen`
+ * kehrte danach sofort um), und die Suche im Gespräch ginge nach dem ersten
+ * Schließen nie wieder auf. Was hier endet, ist der OFFENE TERMIN.
+ */
+function gespraechSucheZuruecksetzen() {
+  gespraechSuchBremse.abbrechen()
+  gespraechLauf.abbrechen()
+  abbrechen()
+  gespraechSucheBegriff.value = ''
+  gespraechTreffer.value = []
+  gespraechSucheLaedt.value = false
+  gespraechSucheFehler.value = ''
+  gespraechSucheMehr.value = false
+  gespraechSucheVor.value = ''
+  gespraechTrefferAktiv.value = 0
+}
+
+/** Neuer Tastendruck im Gesprächsfeld: entprellt, mit `gespraech=<kennung>`. */
+function gespraechSucheTippen(wert) {
+  gespraechSucheBegriff.value = String(wert ?? '')
+  gespraechLauf.abbrechen()
+  abbrechen()
+  gespraechTreffer.value = []
+  gespraechSucheMehr.value = false
+  gespraechSucheVor.value = ''
+  gespraechSucheFehler.value = ''
+  gespraechTrefferAktiv.value = 0
+  if (!darfTrefferFragen(wert)) {
+    gespraechSuchBremse.abbrechen()
+    return
+  }
+  gespraechSuchBremse.tippen(String(wert ?? ''))
+}
+
+/**
+ * Die Treffer im EINEN Gespräch — `gespraech=<kennung>` geht mit, sonst wäre
+ * das eine Suche über alle Gespräche.
+ *
+ * Review R1/2: Der Begriff geht NUR GETRIMMT hinaus (`frageParameter`) — der
+ * Server stammt selbst, ein gefaltetes „mueller“ fände kein „Müller“.
+ * Review R1/7: Dieselbe Ordnung wie in der globalen Suche — laufende Nummer
+ * (`gespraechLauf`, nur die jüngste Antwort schreibt) und ein echter
+ * `AbortController` (der überholte Netzaufruf wird abgebrochen).
+ */
+async function gespraechTrefferHolen(gefragt, { vor = '' } = {}) {
+  const gespraech = offeneKennung.value
+  if (!gespraech || !aktivSeite) return
+  if (!darfTrefferFragen(gefragt)) return
+  if (!darfTrefferAntwort(gefragt, gespraechSucheBegriff.value)) return
+  const nummer = gespraechLauf.neu()
+  abbrechen()
+  const steuerung = (typeof AbortController === 'function') ? new AbortController() : null
+  gespraechAbort = steuerung
+  gespraechSucheLaedt.value = true
+  gespraechSucheFehler.value = ''
+  try {
+    const parameter = frageParameter(gefragt, { gespraech, vor })
+    if (steuerung) parameter.signal = steuerung.signal
+    const antwort = await apiGet('chat.nachrichten_suchen', parameter)
+    if (!aktivSeite || !gespraechLauf.gilt(nummer)) return
+    if (gespraech !== offeneKennung.value) return
+    if (!darfTrefferAntwort(gefragt, gespraechSucheBegriff.value)) return
+    const seite = trefferAusAntwort(antwort)
+    gespraechTreffer.value = vor ? seiteAnhaengen(gespraechTreffer.value, seite.zeilen) : seite.zeilen
+    gespraechSucheMehr.value = seite.mehr
+    gespraechSucheVor.value = seite.vor
+    gespraechTrefferAktiv.value = Math.min(gespraechTrefferAktiv.value,
+      Math.max(0, gespraechTreffer.value.length - 1))
+  } catch (f) {
+    if (!aktivSeite || !gespraechLauf.gilt(nummer)) return
+    if (f && (f.name === 'AbortError' || f.abgebrochen === true)) return
+    if (gespraech !== offeneKennung.value) return
+    // Seite 2 gescheitert: Seite 1 bleibt stehen (wie in der globalen Suche).
+    if (!vor) {
+      gespraechTreffer.value = []
+      gespraechSucheMehr.value = false
+      gespraechSucheVor.value = ''
+    }
+    gespraechSucheFehler.value = fehlertext(f, { text: 'Im Gespräch konnte nicht gesucht werden. Versuche es noch einmal.' })
+  } finally {
+    if (aktivSeite && gespraechLauf.gilt(nummer)) {
+      gespraechSucheLaedt.value = false
+      gespraechAbort = null
+    }
+  }
+}
+
+function gespraechMehrHolen() {
+  if (!gespraechSucheMehr.value || !gespraechSucheVor.value || gespraechSucheLaedt.value) return
+  gespraechTrefferHolen(gespraechSucheBegriff.value, { vor: gespraechSucheVor.value })
+}
+
+/** Ein Treffer im Gespräch: NICHT neu öffnen — wir sind schon drin. */
+async function gespraechTrefferWaehlen(zeile) {
+  if (!zeile) return
+  const kennung = String(zeile.nachricht || '')
+  await gespraechNachrichtSuchen(kennung)
+}
+
+/**
+ * Dieselbe Nachlade-Regel wie beim Sprung — nur ohne Adresswechsel.
+ *
+ * CHAT-11b-3/1: Hier wird eine EIGENE Laufnummer gezogen und an
+ * `sprungAusfuehren(nr)` übergeben. Ohne sie ist `sprungGilt(undefined)` immer
+ * falsch: `sprungBereit` sagt sofort „nicht bereit“, der Sprung steigt aus, und
+ * der Klick auf einen Suchtreffer tat nichts (und ließ das Ziel verwaist
+ * stehen).
+ *
+ * CHAT-11b-3/2: Die Sperre hängt an der Laufnummer, nicht an einem Bool — ein
+ * zweiter Klick entwertet den ersten und startet SOFORT (`sprungBeginnen`),
+ * statt hinter dessen hängender Antwort zu warten.
+ */
+async function gespraechNachrichtSuchen(kennung) {
+  const ziel = String(kennung || '').trim()
+  if (!ziel) return
+  const nr = sprungBeginnen()
+  sprungHinweis.value = ''
+  sprungNachricht.value = ziel
+  sprungGespraech.value = String(offeneKennung.value || '')
+  try {
+    await sprungAusfuehren(nr)
+  } finally {
+    gespraechTrefferSchliessen()
+    sprungBeenden(nr)
+  }
+}
+
+/** Tastatur in der Trefferliste des Gesprächs (Karte: Pfeile, Enter, Escape). */
+function gespraechTrefferTaste(ereignis) {
+  const absicht = trefferTaste({
+    key: ereignis.key,
+    isComposing: ereignis.isComposing === true,
+    anzahl: gespraechTreffer.value.length,
+  })
+  if (!absicht) return
+  ereignis.preventDefault()
+  if (absicht === 'schliessen') {
+    gespraechTrefferSchliessen()
+    return
+  }
+  if (absicht === 'oeffnen') {
+    const zeile = gespraechTreffer.value[Math.min(gespraechTrefferAktiv.value, gespraechTreffer.value.length - 1)]
+    if (zeile) gespraechTrefferWaehlen(zeile)
+    return
+  }
+  gespraechTrefferAktiv.value = naechsteTrefferStelle(
+    gespraechTrefferAktiv.value,
+    absicht === 'weiter' ? 1 : -1,
+    gespraechTreffer.value.length,
+  )
+}
+
+/** Escape: die Liste zu, das Feld auch (Karte Punkt 3). */
+function gespraechTrefferSchliessen() {
+  gespraechSuchBremse.abbrechen()
+  gespraechLauf.abbrechen()
+  abbrechen()
+  gespraechSucheOffen.value = false
+  gespraechSucheZuruecksetzen()
+}
+
 // CHAT-3c-2: `defineExpose` gehört in den Setup-Körper (hier ist er) — die
 // Werte sind damit von außen lesbar, ohne die laufende Instanz zu verbiegen.
 // `taktAbrufen` ruft einen Takt VON HAND ab (nur für den Node-Test: dort
@@ -2336,6 +3177,39 @@ defineExpose({
   taktStand,
   sucheStand,
   taktAbrufen: (augenblick) => takt.jetzt(augenblick),
+  // CHAT-11b: Sprung und Gesprächssuche — für den Node-Test nachlesbar.
+  // `sprungFertig` löst auf, wenn das Nachladen (und das Rollen) durch ist:
+  // die Nachladungen laufen asynchron über mehrere Antworten, und ein Test
+  // kann darauf nicht raten.
+  sprungFertig,
+  springen,
+  // Review R1/2: das Nachladen nach oben von Hand auslösen (der Scroll-Weg des
+  // Verlaufs ist DOM-abhängig; hier zählt, was die Seite damit tut).
+  aeltereLaden,
+  sprungStand: () => ({
+    nachricht: sprungNachricht.value,
+    gespraech: sprungGespraech.value,
+    seiten: sprungSeiten.value,
+    hinweis: sprungHinweis.value,
+    markiert: markierteNachricht.value,
+  }),
+  gespraechSuche: {
+    umschalten: gespraechSucheUmschalten,
+    tippen: gespraechSucheTippen,
+    holen: (q, opts) => gespraechTrefferHolen(q, opts),
+    mehr: gespraechMehrHolen,
+    waehlen: gespraechTrefferWaehlen,
+    taste: gespraechTrefferTaste,
+    schliessen: gespraechTrefferSchliessen,
+  },
+  gespraechSucheStand: () => ({
+    offen: gespraechSucheOffen.value,
+    begriff: gespraechSucheBegriff.value,
+    treffer: gespraechTreffer.value,
+    mehr: gespraechSucheMehr.value,
+    fehler: gespraechSucheFehler.value,
+    aktiv: gespraechTrefferAktiv.value,
+  }),
   // CHAT-6-UI: der Meldeweg der Seite (gemountet prüfbar: Auswahl → POST).
   meldenOeffnen,
   meldungSenden,
@@ -2386,9 +3260,13 @@ onUnmounted(() => {
   aktivSeite = false
   // CHAT-9b-2: ein offener Entprell-Termin der Auswahl gehört niemandem mehr.
   erwaehnungEntprellt.beenden()
+  takt.anhalten()
+  // CHAT-11b: Sprung-Markierung und Gesprächssuche ebenso.
+  if (markierTimer) { clearTimeout(markierTimer); markierTimer = null }
+  sprungAbbau()
+  gespraechSuchBremse.beenden()
   window.removeEventListener('hashchange', hashGeaendert)
   window.removeEventListener('popstate', verlaufGeaendert)
-  takt.anhalten()
   // MUSS 4: Zähler wieder an die App-Wurzel zurückgeben (sie übernimmt den
   // letzten bekannten Stand und fragt im eigenen, langen Takt weiter).
   mitteilungSeite(false)
@@ -2588,6 +3466,15 @@ watch(suchBegriff, (neu) => {
   color: var(--subtle);
   font-size: var(--fs-12);
 }
+/* CHAT-11b (R1/6): Der Hinweis auf eine verlorene Nachricht steht als ruhige
+   Fläche — er soll gelesen werden, ohne wie ein Fehler auszusehen. */
+.dk-chat-sprungweg--liste {
+  margin: var(--sp-2) var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--muted);
+}
 /* CHAT-7b-UI (Karte Punkt 5): der Eintritts-Hinweis steht RUHIG über dem
    Verlauf — kleine Fläche, kein Alarm, damit er sich von den Nachrichten
    abhebt, ohne sie zu verdrängen. */
@@ -2756,8 +3643,9 @@ watch(suchBegriff, (neu) => {
   .dk-chat-zurueck { display: inline-flex; }
 }
 
-/* CHAT-3a-4 (SOLL 3/MUSS 1) · Handy-Lage (Klasse aus `useHandyLage()`, dieselbe
-   Quelle wie das Gerüst `.dk-app--handy`, KEINE zweite Breakpoint-Regel):
+/* CHAT-3a-4 (SOLL 3/MUSS 1) · Handy-Lage (Klasse aus dem Handy-Composable,
+   dieselbe Quelle wie das Gerüst `.dk-app--handy`, KEINE zweite
+   Breakpoint-Regel):
    Der Chat nimmt den Kasten randlos ein, und die Eingabe sitzt direkt über
    der unteren Leiste. Den Streifen unter der Leiste (Safe-Area) trägt der
    INHALTSKASTEN schon selbst (`.dk-app--handy .dk-content` in index.css) —
@@ -2786,5 +3674,107 @@ watch(suchBegriff, (neu) => {
 }
 .dk-app--handy .dk-chat .dk-chat-eingabe {
   padding-bottom: var(--sp-3);
+}
+
+/* ── CHAT-11b · Suche im Gespräch und Sprung-Markierung ───────────────────── */
+
+/* Die Suche im offenen Gespräch: Feld + Trefferliste UNTER dem Kopf, über dem
+   Verlauf. Sie schiebt den Verlauf nicht weg, sondern bildet einen eigenen
+   Block zwischen Kopf und Verlauf (der Verlauf behält `flex: 1`). */
+.dk-chat-gespraechsuche {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3) 0;
+  border-bottom: var(--rahmen-breite) solid var(--rahmen-farbe-sanft);
+  max-height: 45%;
+  overflow-y: auto;
+}
+.dk-chat-gespraechsuche-feld {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-2);
+  min-height: var(--control-h);
+  border: var(--rahmen-breite) solid var(--rahmen-farbe);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.dk-chat-gespraechsuche-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-14);
+  padding: var(--sp-1) 0;
+}
+.dk-chat-gespraechsuche-input:focus { outline: none; }
+.dk-chat-gespraechsuche-feld:focus-within {
+  outline: var(--rahmen-breite) solid var(--focus-ring);
+  outline-offset: var(--rahmen-breite);
+}
+.dk-chat-gespraechsuche-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--sp-2);
+}
+.dk-chat-gespraechsuche-zeile {
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-1) var(--sp-2);
+  border-left: var(--rahmen-breite) solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  min-height: var(--control-h);
+}
+.dk-chat-gespraechsuche-zeile:hover { background: var(--surface-hover); }
+.dk-chat-gespraechsuche-zeile.is-aktiv {
+  background: var(--surface-2);
+  border-left-color: var(--focus-ring);
+}
+.dk-chat-gespraechsuche-kopf {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+.dk-chat-gespraechsuche-absender {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-mittel);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dk-chat-gespraechsuche-zeit {
+  flex: none;
+  font-size: var(--fs-12);
+  color: var(--subtle);
+  font-variant-numeric: var(--fs-tabular);
+}
+.dk-chat-gespraechsuche-ausschnitt {
+  font-size: var(--fs-12);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+/* Die Markierung: Gold-Fläche mit Text-Farbe — in beiden Themes lesbar (die
+   Standard-Markierung des Browsers ist im Dunkelmodus grell). */
+.dk-chat-gespraechsuche-ausschnitt mark {
+  background: var(--accent-soft);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--sp-1);
+}
+
+/* Die gesprungene Nachricht: kurz ein Ring in der Fokusfarbe — dieselbe
+   Gestalt wie ein Fokusring, damit sie ohne neue Farbe auffällt. */
+.dk-chat-verlaufsliste :deep(.dk-chat-sprungziel) {
+  border-radius: var(--radius);
+  box-shadow: 0 0 0 var(--rahmen-breite) var(--focus-ring);
+  transition: box-shadow 200ms ease-out;
 }
 </style>

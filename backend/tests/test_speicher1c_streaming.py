@@ -624,3 +624,152 @@ def test_echter_ordner_wird_weiterhin_erkannt(fake):
     ablage.schreiben("ordner/x.png", b"1")
     assert ablage.existiert("ordner") is False
     assert ablage.existiert("ordner/x.png") is True
+
+
+# ── 10. Wiederholung spult an die STARTPOSITION (SPEICHER-3, Punkt 1) ──────
+
+
+def _put_mitschreiber(status_folge: list[int]):
+    """Transport, der jeden PUT-Koerper mitschreibt und Statuscodes vorgibt.
+
+    ``status_folge`` wird der Reihe nach verbraucht; danach ``201``.
+    """
+    gesehen: list[bytes] = []
+    folge = list(status_folge)
+
+    def _antwort(request: httpx.Request) -> httpx.Response:
+        if request.method == "PUT":
+            gesehen.append(request.read())
+            if folge:
+                return httpx.Response(folge.pop(0))
+        return httpx.Response(201 if request.method == "PUT" else 200)
+
+    return gesehen, _antwort
+
+
+def test_wiederholung_schickt_die_bytes_ab_der_startposition(monkeypatch):
+    """SPEICHER-3, Punkt 1: Strom ab Position 10, erster PUT 500 → [10, ende).
+
+    ``_strom_laenge`` misst ``ende - position``. Stand der Strom nicht am
+    Anfang und sprang ``spulen`` auf 0, schickte der ZWEITE PUT die Bytes
+    ``[0, laenge)`` — die Laenge stimmte, der Inhalt war ein anderer. Der
+    Upload meldete Erfolg, und unter dem richtigen Dateinamen lag
+    stillschweigend eine falsche Datei.
+
+    Mutationsprobe (belegt im Karten-Kommentar): ``seek(self.start)`` →
+    ``seek(0)`` in ``_DateiStrom.spulen`` macht diesen Test rot (der zweite
+    PUT beginnt dann mit ``KOPF`` statt mit ``AB``).
+    """
+    import io
+    import time
+
+    from diakronos_app.speicher.nextcloud import Nextcloud, NextcloudZugang
+
+    monkeypatch.setattr(time, "sleep", lambda sekunden: None)
+
+    kopf = b"KOPF-1234-"                      # 10 Bytes Vorspann
+    inhalt = bytes(range(0, 200))             # der eigentliche Inhalt
+    # ``laenge`` ist ``ende - 10``. Der letzte Teil der Datei gehoert damit zum
+    # Inhalt — die Datei hat KEINEN Anhang, sonst waere die Laenge groesser
+    # als ``inhalt`` (das prueft ``laenge == 200`` unten mit).
+    datei = io.BytesIO(kopf + inhalt)
+    assert datei.seek(len(kopf)) == 10
+
+    gesehen, antwort = _put_mitschreiber([500])
+    nc = Nextcloud(NextcloudZugang("https://cloud.example/x", "u", "p", "/D",
+                                   versuche=2),
+                   client=httpx.Client(transport=httpx.MockTransport(antwort)))
+    nc.wartezeiten = (0.0,)
+    nc._angelegte_ordner.update(nc._alle_ebenen("a.png"))
+
+    laenge = nc.schreiben("a.png", datei)
+
+    assert len(gesehen) == 2, [len(g) for g in gesehen]
+    # Beide Versuche schicken GENAU den Inhalt ab Position 10 — Laenge und
+    # Inhalt. ``[0, laenge)`` waere ``kopf + inhalt[:190]``.
+    assert gesehen[1] == inhalt, (
+        "der zweite PUT begann nicht an der Startposition: "
+        f"{gesehen[1][:12]!r} statt {inhalt[:12]!r}"
+    )
+    assert gesehen[1] == gesehen[0], "die beiden Versuche schickten verschiedenes"
+    assert laenge == len(inhalt) == 200
+    # Der Vorspann geht in KEINEM Versuch mit hinaus.
+    assert kopf not in gesehen[0] and kopf not in gesehen[1]
+
+
+def test_wiederholung_bei_position_null_bleibt_unveraendert(monkeypatch):
+    """Gegenprobe zu Punkt 1: Strom am Anfang → beide PUTs die ganze Datei.
+
+    Der Fix darf den Normalfall (Position 0) nicht verbiegen: ``start`` ist 0,
+    ``seek(0)`` und ``seek(start)`` sind dasselbe.
+    """
+    import io
+    import time
+
+    from diakronos_app.speicher.nextcloud import Nextcloud, NextcloudZugang
+
+    monkeypatch.setattr(time, "sleep", lambda sekunden: None)
+
+    inhalt = b"r" * 100
+    gesehen, antwort = _put_mitschreiber([500])
+    nc = Nextcloud(NextcloudZugang("https://cloud.example/x", "u", "p", "/D",
+                                   versuche=2),
+                   client=httpx.Client(transport=httpx.MockTransport(antwort)))
+    nc.wartezeiten = (0.0,)
+    nc._angelegte_ordner.update(nc._alle_ebenen("b.png"))
+
+    laenge = nc.schreiben("b.png", io.BytesIO(inhalt))
+
+    assert laenge == len(inhalt)
+    assert len(gesehen) == 2, [len(g) for g in gesehen]
+    assert gesehen[0] == inhalt and gesehen[1] == inhalt
+
+
+def test_nicht_spulbare_quelle_bricht_weiterhin_sauber_ab(monkeypatch):
+    """Punkt 1, dritte Auflage: ohne ``seek`` wird NICHT wiederholt.
+
+    Ein Strom mit ``tell()``, aber ohne brauchbares ``seek`` (Rohr) darf nach
+    einem 500 nicht ein zweites Mal mit REST-Bytes hinausgehen — er bricht mit
+    ``SpeicherNichtErreichbar`` ab, und es bleibt bei EINEM PUT.
+    """
+    import time
+
+    from diakronos_app.speicher import SpeicherNichtErreichbar
+    from diakronos_app.speicher.nextcloud import Nextcloud, NextcloudZugang
+
+    monkeypatch.setattr(time, "sleep", lambda sekunden: None)
+
+    class Rohr:
+        """Wie eine Pipe: ``tell()`` geht, ``seek()`` nicht."""
+
+        def __init__(self, daten: bytes) -> None:
+            self._daten = daten
+            self._pos = 0
+
+        def tell(self) -> int:
+            return self._pos
+
+        def read(self, n: int = -1) -> bytes:
+            rest = self._daten[self._pos:]
+            stueck = rest if n is None or n < 0 else rest[:n]
+            self._pos += len(stueck)
+            return stueck
+
+        def seek(self, *args, **kwargs):
+            raise OSError("nicht spulbar")
+
+        def __len__(self) -> int:
+            return len(self._daten) - self._pos
+
+    gesehen, antwort = _put_mitschreiber([500])
+    nc = Nextcloud(NextcloudZugang("https://cloud.example/x", "u", "p", "/D",
+                                   versuche=2),
+                   client=httpx.Client(transport=httpx.MockTransport(antwort)))
+    nc.wartezeiten = (0.0,)
+    nc._angelegte_ordner.update(nc._alle_ebenen("c.png"))
+
+    with pytest.raises(SpeicherNichtErreichbar):
+        nc.schreiben("c.png", Rohr(b"x" * 64))  # type: ignore[arg-type]
+
+    assert len(gesehen) == 1, [len(g) for g in gesehen]
+    assert gesehen[0] == b"x" * 64

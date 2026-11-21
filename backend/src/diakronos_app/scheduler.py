@@ -173,6 +173,47 @@ def job_chat_umfrage_erinnerungen() -> None:
 		logger.info("Job chat_umfrage_erinnerungen fertig (%s Glocken).", count)
 
 
+def job_chat_anhaenge_aufraeumen() -> None:
+	"""Minuten-Job (CHAT-12a): offene und verwaiste Chat-Anhaenge entfernen.
+
+	Die Fachlogik steht in ``api.chat.chat_anhaenge_aufraeumen``: offene
+	Anhaenge (hochgeladen, aber nach 24 h keiner Nachricht zugeordnet), Zeilen
+	ohne Nachricht/Gespraech und die Hochlade-Marken aelter als zwei Tage. Die
+	DATEIEN gehen ueber die Entsorgungsliste (``chat_anhang_entsorgung``) —
+	ein Fehler bleibt als Auftrag stehen und wird beim naechsten Lauf
+	wiederholt (Review R1/3).
+	"""
+	from diakronos_app.api import chat as chat_api
+
+	try:
+		ergebnis = chat_api.chat_anhaenge_aufraeumen()
+	except Exception:  # noqa: BLE001 — ein Fehler darf den Scheduler nicht toeten
+		logger.exception("Job chat_anhaenge_aufraeumen fehlgeschlagen")
+		return
+	if ergebnis.get("offen") or ergebnis.get("verwaist") or ergebnis.get("marken"):
+		logger.info("Job chat_anhaenge_aufraeumen fertig (%s).", ergebnis)
+
+
+def job_chat_anhang_entsorgung() -> None:
+	"""Minuten-Job (Review R1/3): offene Entsorgungs-Auftraege abarbeiten.
+
+	Jeder Loeschweg (Nachricht loeschen, Moderation, Fristen-Job,
+	Gespraechsaufloesung, DSGVO, Aufraeumen offener Anhaenge) schreibt die
+	Speicher-Schluessel in ``chat_anhang_entsorgung``. Dieser Lauf loescht die
+	Dateien aus der Ablage und danach die Zeile; ein Fehler zaehlt ``versuche``
+	hoch und bleibt fuer den naechsten Lauf stehen.
+	"""
+	from diakronos_app.api import chat as chat_api
+
+	try:
+		ergebnis = chat_api.chat_anhang_entsorgung_abarbeiten()
+	except Exception:  # noqa: BLE001 — ein Fehler darf den Scheduler nicht toeten
+		logger.exception("Job chat_anhang_entsorgung fehlgeschlagen")
+		return
+	if ergebnis.get("abgearbeitet") or ergebnis.get("fehler"):
+		logger.info("Job chat_anhang_entsorgung fertig (%s).", ergebnis)
+
+
 def job_umfragen_schliessen() -> None:
 	"""Taeglicher Job (CHAT-5): Umfragen zur Frist schliessen.
 
@@ -240,6 +281,17 @@ MINUTEN_JOBS: list[tuple] = [
 	# Tageslauf; ein eigener Minuten-Lauf haelt den Abstand zur Frist bei 24 h.
 	(GLOCKE_INTERVALL_MINUTEN, job_chat_umfrage_erinnerungen,
 	 "chat_umfrage_erinnerungen"),
+	# CHAT-12a: offene Anhaenge (24 h ohne Nachricht) und verwaiste Dateien.
+	# Minuten-Takt aus demselben Grund wie oben: die 24-h-Grenze soll nicht um
+	# bis zu einen Tag ueberschritten werden, und der Lauf ist ein Index-Zugriff.
+	(GLOCKE_INTERVALL_MINUTEN, job_chat_anhaenge_aufraeumen,
+	 "chat_anhaenge_aufraeumen"),
+	# Review R1/3: die Entsorgungsliste der Anhang-DATEIEN. Eigener Minuten-Job,
+	# damit ein Ablage-Fehler NICHT bis zum naechsten Aufraeumlauf (oder nie)
+	# liegen bleibt: jeder Loeschweg stellt den Auftrag in derselben
+	# Transaktion, dieser Lauf arbeitet ihn ab.
+	(GLOCKE_INTERVALL_MINUTEN, job_chat_anhang_entsorgung,
+	 "chat_anhang_entsorgung"),
 ]
 
 

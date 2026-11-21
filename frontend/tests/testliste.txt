@@ -974,3 +974,15 @@ tests/chat7bui-a-runden.test.mjs
 # Einbindung (Einstellungen ohne Verwaltungsstufe, Router, Suchstichworte) und
 # push.abmelden VOR dem Logout.
 tests/chat10b-push.test.mjs
+
+# CHAT-11b: Suche IN Nachrichten (Oberfläche). Dritter Abschnitt „In Nachrichten“
+# in der bestehenden Suche (ab 2 Zeichen, entprellt, Antwortform von
+# `chat.nachrichten_suchen` wörtlich), Ausschnitt aus {vor, treffer, nach} mit
+# <mark> über Textinterpolation (KEIN HTML, ein „<script>“ bleibt Text),
+# Blättern über `vor` mit „Weitere Treffer“, überholte Antworten verworfen.
+# Sprung zu einer Nachricht über DENSELBEN Weg wie die Erwähnungs-Glocke
+# (`chat.nachricht_kontext` → `#/nachrichten/<kennung>`), ältere Seiten
+# nachladen (höchstens 10), kurze Hervorhebung, „Diese Nachricht gibt es nicht
+# mehr.“ bei gelöschten. Suche im offenen Gespräch (Kopf-Lupe, `gespraech=<kennung>`,
+# Pfeile/Enter/Escape, aria-live für die Trefferzahl).
+tests/chat11b-suche.test.mjs

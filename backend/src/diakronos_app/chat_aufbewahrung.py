@@ -60,6 +60,13 @@ WAS HIER STEHT
       Altzeile OHNE Zeitpunkt wird NICHT geloescht: ohne Datum gibt es keine
       Frist (Entscheidung R1, beibehalten). Offene Meldungen bleiben.
 
+   e) **Anhaenge (CHAT-12a)**: die Zeilen fallen mit ihrem Gespraech (Schritt
+      a, Kinder zuerst). Die DATEIEN in der Ablage werden NACH dem Commit
+      entfernt — Fehler werden protokolliert und beim naechsten Lauf erneut
+      versucht (der Aufraeumjob ``chat_anhaenge_aufraeumen`` nimmt verwaiste
+      Dateien ueber fehlende Zeilen mit). ``ergebnis["dateien"]`` nennt, wie
+      viele Dateien wirklich weg sind.
+
 3. **Keine toten Links in der Glocke.** Chat-Benachrichtigungen
    (``document_type`` ``chat_gespraech`` / ``chat_nachricht`` /
    ``chat_meldung``) auf ein geloeschtes Ziel werden GELOESCHT (Entscheidung
@@ -120,6 +127,7 @@ from diakronos_app import db as dbmod
 from diakronos_app.models.chat import (
     ART_GRUPPE,
     ART_UNTERGRUPPE,
+    ChatAnhang,
     ChatErwaehnung,
     ChatGespraech,
     ChatGlocke,
@@ -345,10 +353,11 @@ ERGEBNIS_KEYS = (
     "stimmen",           # entfernte Stimmenzeilen geschlossener Umfragen
     "meldungen",         # entfernte abgeschlossene Meldungen
     "glocken",           # geloeschte Chat-Benachrichtigungen
+    "dateien",           # CHAT-12a: Anhang-Dateien aus der Ablage entfernt
 )
 
 
-def _gespraech_entfernen(session, name: str) -> tuple[int, int]:
+def _gespraech_entfernen(session, name: str) -> tuple[int, int, list[str]]:
     """EIN Gespraech vollstaendig loeschen — Kinder zuerst, Wurzel zuletzt.
 
     Die Reihenfolge kommt aus den Fremdschluesseln (Modulkopf): jede Zeile
@@ -359,11 +368,31 @@ def _gespraech_entfernen(session, name: str) -> tuple[int, int]:
     Alle Kinder werden ueber UNTERABFRAGEN bestimmt (``gespraech`` bzw.
     ``in_(select(chat_nachricht.name) …)``) — keine in Python geladene
     Kennungsliste, sonst reisst ein grosses Gespraech die psycopg-Grenze von
-    65 535 Parametern. Rueckgabe: ``(Nachrichten, Meldungen)`` fuer das Log.
+    65 535 Parametern. Rueckgabe: ``(Nachrichten, Meldungen,
+    Speicherschluessel der Anhaenge)`` fuer das Log und fuer das Loeschen der
+    DATEIEN nach dem Commit.
     """
     # Die Nachrichten DIESES Gespraechs als Unterabfrage — sie wird mehrfach
     # gebraucht und bleibt eine Anweisung, kein Python-Set.
     nachrichten = select(ChatNachricht.name).where(ChatNachricht.gespraech == name)
+
+    # 0. CHAT-12a: die SPEICHERSCHLUESSEL der Anhaenge diesseits einsammeln,
+    #    bevor die Zeilen fallen. Review R1/3: sie gehen in die
+    #    ENTSORGUNGSLISTE (``chat_anhang_entsorgung``) — in DIESER Transaktion,
+    #    damit die Datei auch dann nicht verwaist, wenn das Loeschen aus der
+    #    Ablage jetzt scheitert. Abgearbeitet wird die Liste nach dem Commit
+    #    (bzw. vom Minuten-Job).
+    anhang_schluessel = [
+        str(k) for k in session.execute(
+            select(ChatAnhang.schluessel)
+            .where(ChatAnhang.gespraech == name)
+        ).scalars().all() if k
+    ]
+    if anhang_schluessel:
+        from diakronos_app.api.chat import _entsorgung_vormerken
+
+        _entsorgung_vormerken(session, anhang_schluessel)
+    session.execute(delete(ChatAnhang).where(ChatAnhang.gespraech == name))
 
     # 1. Meldungen — sie zeigen auf Nachrichten, also VOR diesen weg.
     #    ``chat_meldung`` haengt sonst an der FK und PostgreSQL verweigert die
@@ -420,7 +449,7 @@ def _gespraech_entfernen(session, name: str) -> tuple[int, int]:
     # 5. Teilnahme (Lesestand) und zuletzt das Gespraech selbst.
     session.execute(delete(ChatTeilnehmer).where(ChatTeilnehmer.gespraech == name))
     session.execute(delete(ChatGespraech).where(ChatGespraech.name == name))
-    return int(anzahl_nachrichten), int(meldungen)
+    return int(anzahl_nachrichten), int(meldungen), anhang_schluessel
 
 
 def _gespraeche_mit_offener_meldung():
@@ -498,6 +527,10 @@ def aufraeumen(jetzt: datetime | None = None) -> dict[str, int]:
     """
     zeit = jetzt or jetzt_wanduhr()
     ergebnis = {schluessel: 0 for schluessel in ERGEBNIS_KEYS}
+    #: CHAT-12a: Speicherschluessel der Anhang-DATEIEN — gesammelt waehrend der
+    #: Transaktion, geloescht DANACH (ein Rollback darf keine Datei geloescht
+    #: haben; die Zeilen sind dann wieder da, die Schluessel also auch).
+    dateien: list[str] = []
 
     with dbmod.SessionLocal.begin() as session:
         # Fristen EINMAL lesen (pro Art), damit ein Wechsel waehrend des Laufs
@@ -534,8 +567,15 @@ def aufraeumen(jetzt: datetime | None = None) -> dict[str, int]:
                 # Zeile erneut).
                 continue
             if bezug <= cutoff:
-                _gespraech_entfernen(session, name)
+                nachrichten, meldungen, schluessel = _gespraech_entfernen(session, name)
                 ergebnis["gespraeche"] += 1
+                dateien.extend(schluessel)
+                # Log-Detail (CHAT-12a): die Zahlen je Gespraech stehen sonst
+                # nirgends; ohne sie waere „Anhaenge geloescht“ nicht belegbar.
+                if schluessel:
+                    logger.info("Gespraech %s entfernt: %s Nachricht(en), "
+                                "%s Meldung(en), %s Anhang-Datei(en).",
+                                name, nachrichten, meldungen, len(schluessel))
 
         # Wie viele Gespraeche wegen einer offenen Meldung stehen blieben —
         # nur zur Anzeige im Job-Log (Index-Zugriff, eine Anweisung).
@@ -588,6 +628,28 @@ def aufraeumen(jetzt: datetime | None = None) -> dict[str, int]:
         # Nach den Loeschungen oben — und als zweiter Netz fuer Glocken aus
         # einem frueheren Lauf oder einer Integration.
         ergebnis["glocken"] = _glocken_verwaist_loeschen(session)
+
+    # ── CHAT-12a: die Anhang-DATEIEN, jetzt ist committet ──────────────────
+    if dateien:
+        # Review R1/3: die Auftraege stehen in der Entsorgungsliste. Hier wird
+        # EINMAL sofort abgearbeitet; was scheitert, bleibt als Auftrag stehen
+        # und der Minuten-Job (``chat_anhang_entsorgung``) wiederholt es.
+        # CHAT-12a-2: Das ist ein JOB (kein HTTP-Request) — er darf die Liste
+        # in Batchgroesse abarbeiten; gewaehlt wird nur, was jetzt faellig ist
+        # (``naechster_versuch_am``). Alles in ``try``/``except``: ein Fehler
+        # der Ablage darf den Aufbewahrungslauf nicht scheitern lassen — der
+        # Auftrag bleibt liegen und der Minuten-Job nimmt ihn wieder auf.
+        try:
+            from diakronos_app.api.chat import chat_anhang_entsorgung_abarbeiten
+
+            entsorgt = chat_anhang_entsorgung_abarbeiten()
+            ergebnis["dateien"] = int(entsorgt.get("abgearbeitet", 0))
+            if entsorgt.get("fehler"):
+                logger.warning(
+                    "Chat-Anhaenge: %s Datei(en) nicht entfernt (naechster "
+                    "Lauf versucht es erneut).", entsorgt.get("fehler"))
+        except Exception:  # noqa: BLE001 — Aufbewahrung darf nie daran scheitern
+            logger.exception("Chat-Anhaenge: Entsorgungsliste nicht abgearbeitet")
 
     logger.info("Chat-Aufbewahrung fertig: %s", ergebnis)
     return ergebnis

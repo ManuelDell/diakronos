@@ -305,6 +305,23 @@ class Basis(ABC):
     def loeschen(self, schluessel: str) -> bool:
         """Datei entfernen. ``True`` = war da. Fehlende Datei: ``False``."""
 
+    def loeschen_mit_zeitlimit(self, schluessel: str, sekunden: float) -> bool:
+        """Wie :meth:`loeschen`, aber mit OBERGRENZE fuer einen Netzaufruf.
+
+        Der Aufrufer will ein Loeschen, auf das er nicht warten muss (CHAT-12a,
+        Review R1: ein Lese-Timeout der Ablage darf das Loeschen einer
+        Chat-Nachricht nicht verzoegern). Die Vorgabe hier ist die ehrliche
+        Antwort: **diese Ablage kennt kein Zeitlimit** — es wird der normale
+        Weg benutzt. ``Lokal`` bleibt bei dieser Vorgabe (Dateisystem, kein
+        Netz), ``Nextcloud`` setzt das Limit fuer den einzelnen HTTP-Aufruf
+        (Netz, Wiederholungen, Kontroll-Blick nach einer Zeitueberschreitung).
+        Zeitlimits, die die Ablage nicht selbst setzen kann, werden NICHT
+        nachgebaut (kein Hilfs-Thread, der nach ``sekunden`` aufgibt): ein
+        abgebrochener Thread wuerde weiterloeschen, waehrend der Aufrufer
+        „gescheitert“ verbucht.
+        """
+        return self.loeschen(schluessel)
+
     def ordner_loeschen(self, schluessel: str) -> bool:
         """Ordner (samt Inhalt) entfernen. ``True`` = er ist danach weg.
 

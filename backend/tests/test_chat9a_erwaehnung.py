@@ -743,6 +743,9 @@ def test_migration_haengt_hinter_chat7b_und_die_kette_hat_einen_kopf():
     assert rev.down_revision == "chat7b_runden", rev.down_revision
     assert "Revises: chat7b_runden" in Path(rev.path).read_text(encoding="utf-8")
     assert len(skripte.get_bases()) == 1
+    # CHAT-12a: `chat12a_anhang` haengt hinter dieser Revision und ist der
+    # (einzige) neue Kopf — die Kette selbst bleibt EINE Linie.
+    assert skripte.get_revision("chat12a_anhang") is not None
     heads = skripte.get_heads()
     # GENAU EIN Kopf — der NAME wächst weiter (CHAT-10a hängt hinter dieser
     # Revision, ``chat10a_push``). Der Test hält die STRUKTUR fest: eine Kette,
@@ -761,6 +764,10 @@ def test_migration_haengt_hinter_chat7b_und_die_kette_hat_einen_kopf():
     # ``iterate_revisions(head, 'base')`` läuft abwärts und muss sie treffen.
     kette = {r.revision for r in skripte.iterate_revisions(heads[0], "base")}
     assert "chat9a_erwaehnung" in kette, heads
+    # CHAT-12a: die Anhänge und ihre Entsorgungsliste hängen hinter
+    # ``chat9a_erwaehnung`` und sind in DERSELBEN Kette erreichbar.
+    assert "chat12a_anhang" in kette, heads
+    assert "chat12a_entsorgung" in kette, heads
 
 
 @pytest.fixture()

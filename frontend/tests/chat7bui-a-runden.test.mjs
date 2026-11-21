@@ -1143,7 +1143,10 @@ test('CHAT-7b-UI-a-2 · `zuruecksetzen` leert die Meldungen des alten Gesprächs
   assert.match(rumpf, /vorschlagLaeuft\.value = ''/, 'ein hängender Laufzähler wird zurückgesetzt')
   assert.match(rumpf, /teilnehmerOffen\.value = false/, 'die Teilnehmerliste klappt wieder zu')
   // Und der Wechsel geht wirklich durch `zuruecksetzen` (kein zweiter Weg).
-  const abOeffnen = quelle.slice(quelle.indexOf('async function oeffnen()'))
+  // CHAT-11b (R1/1): der Aufbau liegt in `oeffnenJetzt` (die Hülle gibt ihn als
+  // Zusage heraus, damit der Sprung auf den echten Verlauf warten kann) — der
+  // Weg ist derselbe.
+  const abOeffnen = quelle.slice(quelle.indexOf('async function oeffnenJetzt()'))
   const oeffnen = abOeffnen.slice(0, abOeffnen.indexOf('function verlaufLaden') > 0
     ? abOeffnen.indexOf('\n}\n') : 1200)
   assert.match(oeffnen, /zuruecksetzen\(\)/, 'das Öffnen räumt über `zuruecksetzen` auf')

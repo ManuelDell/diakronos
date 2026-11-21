@@ -1093,9 +1093,13 @@ test('CHAT-3a · ein nie geöffnetes Gespräch wird beim Öffnen angelegt', () =
   assert.match(s, /return gruppe === a/,
     'Hauptgruppe: nur der Eintrag OHNE Untergruppe trifft')
   // Der Aufruf passiert VOR dem Verlad — sonst liefe er ins Leere.
-  const oeffnen = s.slice(s.indexOf('async function oeffnen()'), s.indexOf('async function oeffnen()') + 900)
-  assert.match(oeffnen, /if \(!\(await sicherstellen\(\)\)\) return/)
-  assert.match(oeffnen, /const daten = await verlaufLaden\(\)/)
+  const oeffnen = s.slice(s.indexOf('async function oeffnen()'), s.indexOf('async function oeffnen()') + 2200)
+  // CHAT-11b (R1/1): der Aufbau liegt in `oeffnenJetzt` (die Hülle gibt ihn als
+  // Zusage heraus, damit der Sprung auf den echten Verlauf warten kann) — der
+  // Ablauf ist unverändert: erst anlegen, dann laden.
+  const rumpf = oeffnen.slice(oeffnen.indexOf('async function oeffnenJetzt()'))
+  assert.match(rumpf, /if \(!\(await sicherstellen\(\)\)\) return/)
+  assert.match(rumpf, /const daten = await verlaufLaden\(\)/)
   // Die Zeile der Liste führt über ihren ORT in den Bereich (kein toter Klick,
   // kein Titel als Adresse).
   const liste = ohneKommentare(teile(LISTE).skript)

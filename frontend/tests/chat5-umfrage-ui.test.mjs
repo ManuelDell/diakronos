@@ -237,30 +237,30 @@ test('CHAT-5-UI/A: Frist ist Wandzeit in Europe/Berlin, nicht UTC', () => {
   // Der Server LIEST „JJJJ-MM-TT HH:MM“ in der Zeitzone der Gemeinde
   // (`_frist_lesen`). `toISOString()` schriebe 18:30 UTC → 20:30 Ortszeit.
   assert.equal(U.ZEITZONE, 'Europe/Berlin')
-  const frist = U.umfrageAnlegenFrist('2026-11-20', '18:30')
-  assert.deepEqual(frist, { ok: true, wert: '2026-11-20 18:30' }, 'kein Z/kein UTC-Versatz')
+  const frist = U.umfrageAnlegenFrist('2099-11-20', '18:30')
+  assert.deepEqual(frist, { ok: true, wert: '2099-11-20 18:30' }, 'kein Z/kein UTC-Versatz')
   // Ohne Uhrzeit: Ende des Tages (keine erfundene Uhrzeit).
-  assert.equal(U.umfrageAnlegenFrist('2026-11-20', '').wert, '2026-11-20 23:59')
+  assert.equal(U.umfrageAnlegenFrist('2099-11-20', '').wert, '2099-11-20 23:59')
   // Leeres Datum = „bis zur Schließung“ (der Server bekommt `null`).
   assert.deepEqual(U.umfrageAnlegenFrist('', ''), { ok: true, wert: null })
   // Vergangenheit, falsche Form, unmöglicher Tag: abgelehnt, mit Satz.
   const vorbei = U.umfrageAnlegenFrist('2020-01-01', '10:00')
   assert.equal(vorbei.ok, false)
   assert.match(vorbei.fehler, /Vergangenheit/)
-  assert.equal(U.umfrageAnlegenFrist('20.11.2026', '18:30').ok, false)
+  assert.equal(U.umfrageAnlegenFrist('20.11.2099', '18:30').ok, false)
   assert.equal(U.umfrageAnlegenFrist('2026-02-31', '10:00').ok, false, '31.02. gibt es nicht')
 
   // Anzeige: dieselbe Wandzeit, deutsches Format.
-  assert.equal(U.umfrageZeitText('2026-11-20T18:30:00'), '20.11.2026, 18:30')
-  assert.equal(U.umfrageZeitText('2026-11-20 18:30:00'), '20.11.2026, 18:30')
-  assert.equal(U.umfrageDatumEingabe('2026-11-20 18:30'), '2026-11-20')
-  assert.equal(U.umfrageUhrEingabe('2026-11-20 18:30'), '18:30')
+  assert.equal(U.umfrageZeitText('2099-11-20T18:30:00'), '20.11.2099, 18:30')
+  assert.equal(U.umfrageZeitText('2099-11-20 18:30:00'), '20.11.2099, 18:30')
+  assert.equal(U.umfrageDatumEingabe('2099-11-20 18:30'), '2099-11-20')
+  assert.equal(U.umfrageUhrEingabe('2099-11-20 18:30'), '18:30')
   // Unlesbares bleibt leer — nie „Invalid Date“ auf dem Bildschirm.
   assert.equal(U.umfrageZeitText('unsinn'), '')
 })
 
 test('CHAT-5-UI/A: Fristzeile und Zustand', () => {
-  assert.equal(U.fristText(umfrageForm({ frist_am: '2026-11-20T18:30:00' })), 'endet am 20.11.2026, 18:30')
+  assert.equal(U.fristText(umfrageForm({ frist_am: '2099-11-20T18:30:00' })), 'endet am 20.11.2099, 18:30')
   assert.equal(U.fristText(umfrageForm()), 'läuft bis zur Schließung')
   assert.equal(U.zustandText(umfrageForm()), 'offen')
   assert.equal(U.zustandText(umfrageForm({
@@ -673,10 +673,10 @@ test('CHAT-5-UI/B: Frist steht in der Ortszeit, Schließen meldet sich', async (
   const s = await karteMontieren(
     // `darf_schliessen: true` — ohne ausdrückliches Recht steht der Knopf
     // nicht (R2 MUSS A); hier geht es nur um die Meldung des Klicks.
-    { umfrage: umfrageForm({ frist_am: '2026-12-01T19:30:00', darf_schliessen: true }) },
+    { umfrage: umfrageForm({ frist_am: '2099-12-01T19:30:00', darf_schliessen: true }) },
     { horcher: (art, wert) => gemeldet.push({ art, wert }) },
   )
-  assert.match(s.host.textContent, /endet am 01\.12\.2026, 19:30/)
+  assert.match(s.host.textContent, /endet am 01\.12\.2099, 19:30/)
   klick([...s.host.querySelectorAll('button')].find((b) => /Umfrage schließen/.test(b.textContent)))
   await warte(4)
   assert.equal(gemeldet.filter((g) => g.art === 'schliessen').at(-1).wert.umfrage.name, 'chat-umfrage-1')
@@ -734,7 +734,7 @@ test('CHAT-5-UI/C: Anlegen schickt Frage, Antworten, anonym und Frist', async ()
   await fuellen(form.querySelector('#umfrage-frage'), 'Wann proben wir?')
   await fuellen(form.querySelector('#umfrage-option-0'), 'Samstag')
   await fuellen(form.querySelector('#umfrage-option-1'), 'Sonntag')
-  await fuellen(form.querySelector('#umfrage-datum'), '2026-12-01')
+  await fuellen(form.querySelector('#umfrage-datum'), '2099-12-01')
   await fuellen(form.querySelector('#umfrage-uhrzeit'), '19:30')
   form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
   await warte(4)
@@ -745,7 +745,7 @@ test('CHAT-5-UI/C: Anlegen schickt Frage, Antworten, anonym und Frist', async ()
     optionen: ['Samstag', 'Sonntag'],
     mehrfach: false,
     anonym: true, // Voreinstellung ANONYM (Konzept F5)
-    frist: '2026-12-01 19:30',
+    frist: '2099-12-01 19:30',
   })
   s.abbaum()
 })

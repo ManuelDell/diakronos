@@ -438,11 +438,13 @@ def test_lesestand_nur_als_summe(gespraech):
     # Beteiligten (`[{mitglied, anzeigename}]`, Konzept S4), NICHT die
     # Leserschaft. Der Punkt dieses Tests bleibt: `gelesen_von` ist eine Zahl
     # und traegt keine Namen.
+    # CHAT-12a: `anhaenge` ist dazugekommen (`[{name, dateiname, mime,
+    # groesse}]`, Konzept S4) — Anhänge der Nachricht, keine Leserschaft.
     assert set(eigene) == {"name", "gespraech", "autor", "autor_mitglied", "eigene", "text",
                           "geloescht", "geloescht_grund", "bearbeitet", "bearbeitet_am",
                           "erstellt_am",
                           "antwort_auf", "antwort_auf_text", "reaktionen", "gelesen_von",
-                          "erwaehnt"}
+                          "erwaehnt", "anhaenge"}
     # `gelesen_von` ist eine ZAHL — in der Antwort steht keine Personenliste.
     assert isinstance(eigene["gelesen_von"], int)
 

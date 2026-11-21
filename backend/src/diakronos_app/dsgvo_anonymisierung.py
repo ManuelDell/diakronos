@@ -94,12 +94,17 @@ Beides ist bestandsfest: existiert `id1_mitglied_kennung` nicht (Downgrade,
 """
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import String, Text, and_, delete, or_, select, update
+from sqlalchemy import String, Text, and_, delete, insert, or_, select, update
+
+#: Protokoll für die Datei-Entsorgung (Review R1/3: Fehler werden gemeldet,
+#: nicht verschluckt).
+logger = logging.getLogger(__name__)
 
 #: Platzhalter-Konto für Verweise, die eine Fachaussage tragen. Kein Login
 #: möglich: die Zeile wird nie angelegt (`enabled` ist überall falsch, kein
@@ -601,6 +606,48 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         "benutzer": ("zeile_loeschen", "Abgabe-Marke der Person (Zeile wird gelöscht)"),
         "umfrage": ("struktur", "Kennung der Umfrage (Fachobjekt)"),
     },
+    # CHAT-12a (Konzept S4/F11): ein Anhang GEHÖRT der Person, die ihn
+    # hochgeladen hat — er ist ihr Inhalt, nicht der Gesprächsstoff der
+    # anderen. Deshalb fällt die Zeile mit dem Konto (``ZEILEN_LOESCHEN``), und
+    # die DATEI geht mit: ``_konto_verweise_aufloesen`` sammelt den
+    # Speicher-Schlüssel in ``b.dateien`` (solange die Zeile noch da ist), und
+    # ``api.datenschutz`` löscht das Objekt NACH dem Commit über
+    # ``dateien_entfernen``.
+    #
+    # ``dateiname`` ist Freitext und kann einen Namen tragen („Ausweis Elvira
+    # Dorn.jpg“) — er steht deshalb hier als ``protokoll``.
+    # ``schluessel`` ist ein technischer Verweis (kein Personenbezug, er zeigt
+    # auf die Datei), ``gespraech``/``nachricht`` sind Fachobjekt-Verweise.
+    "chat_anhang": {
+        "angelegt_von": ("user_null", "Konto, das den Anhang hochgeladen hat"),
+        "dateiname": ("protokoll", "Dateiname kann einen Namen enthalten"),
+        "schluessel": ("struktur", "technischer Schlüssel in der Datei-Ablage"),
+        "gespraech": ("struktur", "Kennung des Gesprächs (Fachobjekt)"),
+        "nachricht": ("struktur", "Kennung der Nachricht (Fachobjekt)"),
+    },
+    # CHAT-12a, Review R1/4: eine Zeile je Hochlade-VERSUCH (die Marke entsteht
+    # vor der Typ-/Größenprüfung — Fehlversuche sollen das Kontingent nicht
+    # umgehen, s. CHAT-12a-2). Sie trägt kein Bild und keinen Dateinamen — nur
+    # „dieses Konto hat an diesem Tag hochgeladen (versucht)“. Das ist ein
+    # Verhaltensdatum am Konto (Tageskontingent), die Zeile fällt mit ihm
+    # (`KONTO_ZEILEN` UND `KONTO_SPALTEN_JE_TABELLE`, damit sie auch ohne
+    # FK-Kaskade verschwindet). `name` ist eine technische Kennung.
+    "chat_anhang_hochladung": {
+        "konto": ("zeile_loeschen", "Konto, das hochgeladen hat (Zeile wird gelöscht)"),
+        "name": ("struktur", "technische Kennung der Marke"),
+    },
+    # CHAT-12a, Review R1/3 — die Entsorgungsliste trägt keine Personendaten:
+    # `schluessel` ist die technische Kennung des Speicherobjekts (``chat-a…``)
+    # ohne Konto-, Namens- oder Gesprächsbezug; `letzter_fehler` ist eine
+    # Ablage-Fehlermeldung (Pfad/HTTP-Status) und nennt keine Person;
+    # `vorgemerkt_am`/`versuche` beschreiben den Löschvorgang. Ein Auftrag
+    # entsteht erst, wenn die zugehörige Anhang-Zeile (und damit der
+    # Personenbezug) bereits gelöscht wird — er kann keiner Person zugeordnet
+    # werden und braucht deshalb keine Löschregel.
+    "chat_anhang_entsorgung": {
+        "schluessel": ("struktur", "technische Kennung des Speicherobjekts"),
+        "letzter_fehler": ("struktur", "Meldung der Ablage (Pfad/HTTP-Status)"),
+    },
     "gestaltung_abweichung": {
         # UX1j: Maße der Oberfläche (Abstände, Rahmen, Radien) — keine
         # Personendaten. `token` ist der Name der CSS-Variablen (aus der
@@ -899,6 +946,14 @@ ZEILEN_LOESCHEN: tuple[tuple[str, str], ...] = (
     # Person muss sich neu anmelden. Nachrichten und Glocken sind davon
     # unberührt — ein Push trug ohnehin keinen Inhalt (F10).
     ("push_abonnement", "Web-Push-Abonnements der Geräte (Person <-> Gerät)"),
+    # CHAT-12a: ein Anhang gehört der Person, die ihn hochgeladen hat. Die
+    # Zeile fällt mit dem Konto; die DATEI geht über die Entsorgungsliste
+    # (`chat_anhang_entsorgung`, R1-MUSS 3) denselben Weg wie jedes andere
+    # eigene Bild. Der Sonderfall steht NUR auf `angelegt_von` (R1-MUSS 1).
+    ("chat_anhang", "Chat-Anhänge der Person (Datei wird entsorgt)"),
+    # CHAT-12a: die Hochlade-Marke ist ein Verhaltensdatum am Konto (Tages-
+    # kontingent, gezählt je Hochlade-VERSUCH). Sie trägt keinen Dateibezug.
+    ("chat_anhang_hochladung", "Hochlade-Marken der Person (Tageskontingent)"),
     # CHAT-7b: die Kontaktsperre steht NICHT hier — sie wird nicht nach dem
     # Konto geschluesselt (zwei Konto-Spalten, beide Richtungen) und hat keinen
     # FK auf `user`. Beide Richtungen raeumt ausschliesslich
@@ -913,6 +968,24 @@ ZEILEN_LOESCHEN: tuple[tuple[str, str], ...] = (
     # Die Zeile zu loeschen wuerde den anderen die Systemzeile ihres Verlaufs
     # nehmen (Chat-7b, SOLL 8: die Nachricht zeigt „X moechte Y hinzufuegen“).
 )
+
+#: Review R1/1 (CHAT-12a): Tabellen, deren EINZIGE Konto-Spalte NICHT
+#: ``user``/``nutzer``/``benutzer`` heißt. ``_zeilen_loeschen`` prüft sie
+#: ausdrücklich — der generische Matcher bleibt schmal (sonst würden
+#: ``rechte_gruppenrolle.erteilt_von`` und ``rechte_freigabe.erteilt_von``
+#: mitgelöscht, also Rollen, die die Person ANDEREN erteilt hat).
+KONTO_SPALTEN_JE_TABELLE: dict[str, tuple[str, ...]] = {
+    # CHAT-12a ``chat_anhang``: ``angelegt_von`` ist die Konto-Spalte. Die
+    # Zeile fällt mit der Person, ihre Datei kommt über die Entsorgungsliste
+    # weg.
+    "chat_anhang": ("angelegt_von",),
+    # CHAT-12a-2 ``chat_anhang_hochladung``: ``konto`` ist die Konto-Spalte.
+    # Ohne diesen Eintrag entfernte nur die FK-Kaskade (``ON DELETE CASCADE``)
+    # die Marken — und ohne ``PRAGMA foreign_keys`` (SQLite, Einzelplatz, Tests)
+    # blieben die Hochlade-Marken der Person stehen. Der Eintrag macht das
+    # Löschen unabhängig von der Kaskade.
+    "chat_anhang_hochladung": ("konto",),
+}
 
 #: Tabellen mit Konto-Bezug, deren Zeilen gelöscht werden — dort wird VORHER
 #: nichts genullt (die Zeile verschwindet ohnehin). Muss zu ZEILEN_LOESCHEN
@@ -939,6 +1012,17 @@ KONTO_ZEILEN = frozenset({
     # CHAT-10a: das Push-Abonnement wird nach dem KONTO geschlüsselt
     # (`benutzer`) — die Zeile fällt ganz (s. `ZEILEN_LOESCHEN`).
     "push_abonnement",
+    # CHAT-12a: der Anhang gehört der Person (Zeile fällt); die Datei kommt
+    # über die Entsorgungsliste weg (`chat_anhang_entsorgung`). Der Sonderfall
+    # steht ausdrücklich NUR auf `angelegt_von` (R1-MUSS 1: `*_von` generisch
+    # zu matchen würde `rechte_gruppenrolle.erteilt_von` und
+    # `rechte_freigabe.erteilt_von` treffen). Die Zeilen der Person werden
+    # VOR dem Löschen der user-Zeile erfasst (R1-MUSS 2: auf PostgreSQL setzt
+    # der FK `angelegt_von` sonst schon NULL).
+    "chat_anhang",
+    # CHAT-12a: die Hochlade-Marken hängen am Konto (`konto`) und fallen mit
+    # ihm. Sie werden NICHT mit Nachrichten gelöscht (Tageskontingent).
+    "chat_anhang_hochladung",
     # CHAT-7b (Review R1, MUSS 4): `chat_runde_vorschlag` steht hier NICHT —
     # die Zeile bleibt (s. SPALTEN/ZEILEN_LOESCHEN: Konten werden genullt, die
     # Zustimmenden-Liste bereinigt, die Vorgeschlagene umgehaengt). Die
@@ -1012,6 +1096,41 @@ AUFBEWAHRUNG_FRISTEN: tuple[dict[str, object], ...] = (
         "standard": 12,
         "ab": "bearbeitet_am",
         "grundlage": "Konzept 4.2 (Meldungen)",
+    },
+    {
+        "tabelle": "chat_anhang",
+        "was": "Anhang samt Datei in der Ablage (mit Löschung der Nachricht "
+               "bzw. des Gesprächs); offene Anhänge ohne Nachricht nach 24 Stunden",
+        "monate": None,
+        "einstellung": None,
+        "standard": 24,
+        "ab": "angelegt_am bei offenen Anhängen (Stunden), sonst mit der Nachricht",
+        "grundlage": "Konzept S4/F11 (Anhänge erst mit SPEICHER-1) / Karte CHAT-12a",
+    },
+    {
+        "tabelle": "chat_anhang_entsorgung",
+        "was": "offener Entsorgungs-Auftrag für eine Anhang-Datei (kein "
+               "Personenbezug; fällt mit dem erfolgreichen Ablage-Löschen)",
+        "monate": None,
+        "einstellung": None,
+        # KEINE Monatsfrist: der Auftrag ist keine Aufbewahrung, sondern eine
+        # Arbeitsliste — er endet mit dem erfolgreichen Löschen (Minuten-Job).
+        # `standard` nennt deshalb den Abarbeitungs-Takt in Stunden (1 = jeder
+        # Lauf), nicht eine Liegefrist.
+        "standard": 1,
+        "ab": "vorgemerkt_am (bis zum erfolgreichen Löschen, Minuten-Job)",
+        "grundlage": "DSGVO Art. 5 Abs. 1 lit. e, Art. 17 — Löschauftrag, "
+                     "s. Review R1/3",
+    },
+    {
+        "tabelle": "chat_anhang_hochladung",
+        "was": "Hochlade-Marke der Person (Tageskontingent, "
+               "Verhaltensdatum am Konto)",
+        "monate": None,
+        "einstellung": None,
+        "standard": 2,
+        "ab": "angelegt_am (Tage)",
+        "grundlage": "Konzept-Kostenrechnung 3.4 / Review R1/4",
     },
 )
 
@@ -1395,6 +1514,12 @@ def anonymisiere(s, mitglied: str, konten, *, dateien: list[str] | None = None) 
     #     bleibt unverändert, der Löschpfad erweitert sich hier.
     b.konten = _konto_werte(s, b)
 
+    # 6d2) CHAT-12a (Review R1/2): Schritt 6d kann die Kontenliste ERWEITERT
+    #      haben (Mitglieds-Adresse ohne user-Zeile). Anhänge, die erst jetzt
+    #      zugeordnet werden können, müssen ebenfalls fallen — vor Schritt 7
+    #      und mit Entsorgungs-Auftrag.
+    _chat_anhaenge_der_person(s, b, zaehler)
+
     # 7) Zeilen löschen, die ganz verschwinden (Zugang, Beziehungen, Snapshots).
     zaehler.update(_zeilen_loeschen(s, b, kennung))
 
@@ -1422,6 +1547,9 @@ def anonymisiere(s, mitglied: str, konten, *, dateien: list[str] | None = None) 
     zaehler.update(_eigene_schluessel_ersetzen(s, b, kennung))
 
     # 11) Dateien der Person: Datei-Spalten und Anhänge (physisch nach Commit).
+    #     CHAT-12a: die Chat-Anhang-Schlüssel stehen schon in `b.dateien` —
+    #     eingesammelt in `_konto_verweise_aufloesen` (Schritt 6), SOLANGE die
+    #     Zeilen noch da waren (Schritt 7 löscht sie).
     zaehler.update(_eigene_dateien(s, b, kennung))
 
     # 12) FLUSH: alle FK-/Constraint-Fehler treten HIER auf — vor dem Mailversand.
@@ -1581,6 +1709,94 @@ def _json_ersetzen(wert, alt: str, kennung: str | None):
     return wert
 
 
+def _chat_anhaenge_der_person(s, b: Bestand, zaehler: dict) -> None:
+    """Die Chat-Anhänge der Person: Zeilen löschen, Schlüssel entsorgen.
+
+    CHAT-12a, Review R1/2 — REIHENFOLGE: Diese Funktion läuft in
+    ``_konto_verweise_aufloesen`` (Schritt 6), also VOR dem Löschen der
+    ``user``-Zeile (Schritt 6e). Das ist der Kern des Punktes: der FK
+    ``chat_anhang.angelegt_von`` trägt ``ON DELETE SET NULL``; würde erst die
+    ``user``-Zeile fallen (PostgreSQL), stünde ``angelegt_von`` schon NULL und
+    Schritt 7 fände die Zeilen nicht mehr — ``dateiname``, ``mime`` und
+    ``groesse`` blieben stehen.
+
+    Die SPEICHER-Schlüssel gehen ZWEIFACH weiter:
+
+    * in die Entsorgungsliste ``chat_anhang_entsorgung`` (derselben
+      Transaktion — R1/3: nach dem Commit wird die Datei gelöscht, ein Fehler
+      wird beim nächsten Job-Lauf wiederholt), und
+    * nach ``b.dateien`` für den bestehenden Weg über
+      ``api.datenschutz`` → ``dateien_entfernen``.
+
+    ``versuche``/``letzter_fehler`` starten bei 0/leer: der Auftrag ist neu.
+    """
+    tabelle = _tabelle("chat_anhang")
+    if tabelle is None or tabelle.c.get("angelegt_von") is None:
+        return
+    werte = sorted({str(k) for k in b.konten if str(k).strip()})
+    if not werte:
+        return
+    schluessel = [str(k) for k in s.scalars(
+        select(tabelle.c["schluessel"]).where(tabelle.c["angelegt_von"].in_(werte))
+    ).all() if k]
+    _entsorgung_vormerken(s, schluessel)
+    b.dateien.update(schluessel)
+    _zaehle(s, zaehler, "chat_anhang", delete(tabelle)
+            .where(tabelle.c["angelegt_von"].in_(werte)))
+
+
+def _entsorgung_vormerken(s, schluessel) -> int:
+    """Speicher-Schlüssel in die Entsorgungsliste schreiben (R1/3).
+
+    Wird von JEDEM Löschweg aufgerufen, der ``chat_anhang``-Zeilen entfernt —
+    in DERSELBEN Transaktion. Der Schlüssel ist der Primärschlüssel: ein
+    bereits vorgemerkter Auftrag bleibt stehen (``versuche`` wird NICHT
+    zurückgesetzt — ein alter Fehlerzähler ist die ehrlichere Auskunft).
+    """
+    tabelle = _tabelle("chat_anhang_entsorgung")
+    if tabelle is None:
+        return 0
+    neu = 0
+    # Review R1/4: DIESELBE Uhr wie ``api.chat._jetzt()`` (Wandzeit der
+    # Gemeinde) — hier direkt dieselbe Quelle (``zeit.jetzt_wanduhr``), damit
+    # das DSGVO-Modul nicht am API-Modul hängt. Mit ``datetime.utcnow()``
+    # stand hier UTC — der Minuten-Job verglich dann Wandzeit gegen UTC, und
+    # ein frischer Auftrag fiel in einer Zeitzone vor UTC erst Stunden später
+    # auf.
+    from diakronos_app.zeit import jetzt_wanduhr
+
+    jetzt = jetzt_wanduhr()
+    # CHAT-12a-2: ``INSERT ... ON CONFLICT DO NOTHING`` statt „erst SELECT,
+    # dann INSERT“ — der Minuten-Job kann denselben Schlüssel gleichzeitig
+    # vormerken, und ein ``IntegrityError`` würde die ganze Anonymisierung
+    # mit umwerfen. Ein bereits stehender Auftrag bleibt unveraendert
+    # (``versuche`` wird NICHT zurueckgesetzt).
+    einfuegen = _einfuegen_oder_nichts(s)
+    for wert in {str(k) for k in schluessel or () if k}:
+        getroffen = s.execute(
+            einfuegen(tabelle).values(
+                schluessel=wert, vorgemerkt_am=jetzt,
+                versuche=0, letzter_fehler=None,
+                # Ein frischer Auftrag ist SOFORT dran (Spalte ist NOT NULL;
+                # die Bedingung des Minuten-Jobs lautet
+                # ``naechster_versuch_am <= jetzt``).
+                naechster_versuch_am=jetzt,
+            ).on_conflict_do_nothing(index_elements=[tabelle.c["schluessel"]])
+        ).rowcount or 0
+        neu += int(getroffen)
+    return neu
+
+
+def _einfuegen_oder_nichts(s):
+    """``INSERT ... ON CONFLICT DO NOTHING`` fuer den Dialekt dieser Sitzung."""
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+    if s.get_bind().dialect.name == "postgresql":
+        return pg_insert
+    return sqlite_insert
+
+
 def _konto_verweise_aufloesen(s, b: Bestand) -> dict:
     """Verweise auf das KONTO auflösen, bevor die `user`-Zeile fällt.
 
@@ -1596,6 +1812,12 @@ def _konto_verweise_aufloesen(s, b: Bestand) -> dict:
     zaehler: dict[str, int] = {}
     if not b.konten:
         return zaehler
+    # CHAT-12a (Review R1/2): die Anhang-Zeilen der Person HIER löschen —
+    # solange `angelegt_von` noch steht. Auf PostgreSQL setzt der FK
+    # `angelegt_von` beim Löschen der `user`-Zeile (Schritt 6e) sonst schon
+    # NULL; `_zeilen_loeschen` (Schritt 7) fände danach keine Zeile mehr und
+    # `dateiname`/`mime`/`groesse` blieben stehen.
+    _chat_anhaenge_der_person(s, b, zaehler)
     fk_spalten = set(verweise()["user"])
     for tabelle_name, spalten in SPALTEN.items():
         if tabelle_name in KONTO_ZEILEN:
@@ -1816,6 +2038,18 @@ def _zeilen_loeschen(s, b: Bestand, kennung: str) -> dict:
             continue
         bedingungen = []
         for c in tabelle.c:
+            # ``user``/``nutzer``/``benutzer`` sind die Konto-Spalten.
+            #
+            # Review R1/1 (CHAT-12a): hier stand vorübergehend AUCH
+            # ``c.name.endswith("_von")``. Das war zu breit: es trifft
+            # ``rechte_gruppenrolle.erteilt_von`` und ``rechte_freigabe.
+            # erteilt_von`` — also Rollen und Freigaben, die die Person
+            # ANDEREN erteilt hat. Wenn Schritt 6 nichts nullt (Konto schon
+            # weg, Schritt 6d erweitert ``b.konten`` erst danach um die
+            # Mitglieds-Mail), löschte Schritt 7 diese fremden Zeilen mit.
+            # Der generische Matcher gilt deshalb wieder nur für die drei
+            # Konto-Spalten; der EINZIGE Sonderfall ``chat_anhang`` steht
+            # ausdrücklich daneben (`KONTO_SPALTEN_JE_TABELLE`).
             if c.name in ("user", "nutzer", "benutzer") and b.konten:
                 bedingungen.append(c.in_(b.konten))
             elif c.name == "mitglied":
@@ -1843,6 +2077,21 @@ def _zeilen_loeschen(s, b: Bestand, kennung: str) -> dict:
                 bedingungen.append(spalte.in_([b.mitglied, kennung]))
         if tabelle_name == "auth_zuordnung_ablehnung" and tabelle.c.get("email") is not None:
             bedingungen.append(tabelle.c["email"].in_(b.adressen | b.namen))
+        if tabelle_name in KONTO_SPALTEN_JE_TABELLE:
+            # Ausdrücklicher Sonderfall (Review R1/1): Tabellen, deren
+            # Konto-Spalte NICHT ``user``/``nutzer``/``benutzer`` heißt und
+            # die der generische Matcher deshalb nicht sieht.
+            #
+            # CHAT-12a ``chat_anhang``: die einzige Konto-Spalte ist
+            # ``angelegt_von``. Ohne diesen Zweig fände die Schleife oben
+            # KEINE Bedingung und die Zeile bliebe samt ``dateiname`` stehen.
+            # Die Zeilen werden VOR dem Löschen der ``user``-Zeile erfasst —
+            # auf PostgreSQL setzt der FK ``angelegt_von`` sonst schon NULL
+            # (Review R1/2).
+            for spaltenname in KONTO_SPALTEN_JE_TABELLE[tabelle_name]:
+                spalte = tabelle.c.get(spaltenname)
+                if spalte is not None and b.konten:
+                    bedingungen.append(spalte.in_(b.konten))
         if not bedingungen:
             continue
         # R-DSGVO-1c: `parent` allein trifft auch Frappe-Konfiguration (Page,
@@ -2534,28 +2783,68 @@ def dateien_entfernen(pfade) -> int:
     Ablage prüft ihre Wurzel selbst, ein Pfad aus der Datenbank kann also
     niemals ausserhalb wirken.
 
-    Fehler werden gesammelt und gemeldet, nicht geworfen: die Anonymisierung
-    ist zu diesem Zeitpunkt bereits committet, und ein fehlendes Bild ist kein
-    Grund, den Vorgang als gescheitert darzustellen.
+    Review R1/3: Fehler werden NICHT mehr geschluckt. Jeder Pfad, dessen Datei
+    nicht entfernt werden konnte (oder der die Schranke nicht passiert), wird
+    in die Entsorgungsliste ``chat_anhang_entsorgung`` geschrieben — der
+    Minuten-Job versucht es erneut. Das betrifft die Chat-Anhänge; echte
+    Fremd-Verweise (``sicherer_anhang``/``bug_report``) landen dort ebenfalls,
+    weil sie derselbe Schlüsselraum sind (``files.stored_path``-Name).
+
+    Rückgabe: Anzahl der ENTFERNTEN Dateien. Der Rückgabewert bleibt bei
+    ``int``, damit der bestehende Aufrufer unverändert bleibt.
     """
     import os
     import re
 
-    from diakronos_app.speicher import hole_speicher
+    from diakronos_app.speicher import AblageFehler, hole_speicher
+    from diakronos_app.speicher import NichtGefunden as SpeicherNichtGefunden
 
     _NAME = re.compile(r"[A-Za-z0-9._-]+")
     entfernt = 0
+    offen: list[str] = []
+    speicher = hole_speicher()
     for pfad in pfade or ():
         name = os.path.basename(str(pfad))
-        # Dieselbe Schranke wie beim Ausliefern einer Datei.
+        # Dieselbe Schranke wie beim Ausliefern einer Datei. Was sie nicht
+        # passiert, ist kein gültiger Ablage-Name — die Datei bleibt liegen.
         if not name or name in {".", ".."} or not _NAME.fullmatch(name):
             continue
         try:
-            if hole_speicher().loeschen(name):
+            if speicher.loeschen(name):
                 entfernt += 1
-        except Exception:  # noqa: BLE001 — unbekannter Verweis ist kein Fehlerfall
-            continue
+        except SpeicherNichtGefunden:
+            continue  # „war schon weg“ = Ziel erreicht
+        except AblageFehler as fehler:
+            logger.warning("Datei %r nicht entfernt: %s", name, fehler)
+            offen.append(name)
+        except Exception as fehler:  # noqa: BLE001 — sammeln, nicht werfen
+            logger.warning("Datei %r nicht entfernt: %s", name, fehler)
+            offen.append(name)
+    if offen:
+        _entsorgung_vormerken_nach_commit(offen)
     return entfernt
+
+
+def _entsorgung_vormerken_nach_commit(schluessel) -> int:
+    """Entsorgungs-Aufträge in einer EIGENEN Transaktion anlegen (R1/3).
+
+    Der Aufrufer (``dateien_entfernen``) läuft NACH dem Commit der
+    Anonymisierung — hier gibt es keine offene Transaktion mehr. Die Aufträge
+    entstehen deshalb in einer eigenen; ein Fehler dabei wird protokolliert
+    und nicht geworfen (der Datensatz ist bereits anonymisiert).
+    """
+    from diakronos_app import db as dbmod
+
+    werte = {str(k) for k in schluessel or () if str(k).strip()}
+    if not werte:
+        return 0
+    try:
+        with dbmod.SessionLocal.begin() as s:
+            return _entsorgung_vormerken(s, werte)
+    except Exception as fehler:  # noqa: BLE001 — s. Docstring
+        logger.warning("Entsorgungs-Aufträge nicht angelegt (%s Datei(en)): %s",
+                       len(werte), fehler)
+        return 0
 
 
 def _direkt_paare_loesen(s, b) -> dict[str, int]:
