@@ -104,6 +104,20 @@ export const SYMBOLE = {
     p: ['M18 21a8 8 0 0 0-16 0', 'M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3'],
     c: [[10, 8, 5]],
   },
+  // CHAT-12b: „Datei anhängen“ (lucide „paperclip“) — der Knopf in der
+  // Eingabezeile. Waagerecht gezeichnet wie im Vorrat (24er-Raster, Strich 2).
+  klammer: {
+    p: ['M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48'],
+  },
+  // CHAT-12b: „Ton/Audio“ (lucide „music“) — Dateizeile einer Audio-Datei in
+  // der Blase und in der offenen Anhangsliste.
+  ton: {
+    p: ['M9 18V5l12-2v13', 'M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z', 'M18 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z'],
+  },
+  // CHAT-12b: „Bild“ (lucide „image“) — Dateizeile/Platzhalter eines Bildes.
+  bild: {
+    p: ['M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z', 'M8 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z', 'm21 15-5-5L5 21'],
+  },
 }
 
 /**

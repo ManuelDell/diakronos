@@ -986,3 +986,17 @@ tests/chat10b-push.test.mjs
 # mehr.“ bei gelöschten. Suche im offenen Gespräch (Kopf-Lupe, `gespraech=<kennung>`,
 # Pfeile/Enter/Escape, aria-live für die Trefferzahl).
 tests/chat11b-suche.test.mjs
+# CHAT-12b — Anhänge im Chat: Oberfläche (Karte t_0aa9fe5b). Büroklammer in der
+# Eingabezeile (accept passend zu ANHANG_TYPEN, Kamera über `image/*`, mehrere
+# Dateien), Vorab-Prüfung im Browser (>10 MB und >3 → Meldung, KEIN Upload),
+# Upload sofort nach der Auswahl über `chat.anhang_hochladen` (Multipart:
+# `gespraech` + `datei`), je Datei ein Chip über dem Feld (Name, Größe, lädt/
+# bereit/ging nicht, Entfernen nimmt ihn nur aus der Liste), Senden gesperrt
+# während eines Uploads, 429 → „Tageslimit für Anhänge erreicht“, „Foto ohne
+# Worte“ (Text leer, Anhang da) erlaubt; `chat.senden` schickt `anhaenge` mit den
+# Kennungen; Gesprächswechsel leert die Liste und entwertet laufende Uploads
+# (Laufnummer — späte Antworten tragen nichts ein). Blase: Bild als Vorschau
+# (lazy, alt = Dateiname, Klick öffnet groß), HEIC/PDF als Dateizeile mit
+# Herunterladen, Audio als `<audio controls preload="none">`, gelöschte
+# Nachricht ohne Anhänge; alle Adressen über `chat.anhang?name=`.
+tests/chat12b-anhaenge.test.mjs

@@ -3361,7 +3361,7 @@
     "diakronos_app.api.gruppen.create_gruppe",
     "gruppen.create_gruppe"
    ],
-   "rumpf_grund": "Aufruf _create()",
+   "rumpf_grund": "Aufruf standard_module_anlegen(); Aufruf _create()",
    "rumpf_ueber": null
   },
   {

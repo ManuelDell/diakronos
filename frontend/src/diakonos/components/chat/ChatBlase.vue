@@ -135,6 +135,17 @@
           :class="{ 'is-meine': stueck.meine }"
         >{{ stueck.text }}</span><template v-else>{{ stueck.text }}</template></template></div>
 
+      <!-- CHAT-12b: die Anhänge der Nachricht — unter dem Text, in derselben
+           Spalte. Eine gelöschte Nachricht zeigt keine (der Server schickt
+           `[]`, die Blase fragt gar nicht erst). Bilder als Vorschau, PDF/HEIC
+           als Dateizeile, Audio als Abspieler; alle Adressen über
+           `chat.anhang?name=…` mit der Basis der Seite. -->
+      <ChatAnhangBlase
+        v-if="!nachricht.geloescht && !$slots.karte"
+        :nachricht="nachricht"
+        :basis="basis"
+      />
+
       <!-- Reaktionen: gesetzte Zeichen; „＋“ steht nur da, wenn noch KEINE
            Reaktion gesetzt ist (CHAT-3a-4, SOLL 4). Dann sitzt es — wie die
            übrigen Aktionen — in der einen Aktionszeile im Kopf; hier steht es
@@ -224,6 +235,9 @@ import { TEXTE as MELDE_TEXTE, meldbar } from './meldung.mjs'
 // CHAT-9b: „@Name“ hervorheben (Text bleibt Text) und die dezente Markierung
 // „hier bin ich erwähnt“ — beides entscheidet die Regel in `erwaehnung.mjs`.
 import { binErwaehnt, hervorheben } from './erwaehnung.mjs'
+// CHAT-12b: die Anhänge einer Nachricht (Bild/PDF/Audio) — eigener Baustein,
+// weil die Blase sonst nur noch Anhang-Auslegung wäre.
+import ChatAnhangBlase from './ChatAnhangBlase.vue'
 
 const props = defineProps({
   nachricht: { type: Object, required: true },
@@ -254,6 +268,12 @@ const props = defineProps({
    * Markierung; geraten wird nichts.
    */
   ich: { type: String, default: '' },
+  /**
+   * CHAT-12b: die Adress-Basis für Anhänge (`apiUrl` aus `shared/basis.js`),
+   * von der Seite hineingereicht. Ohne sie baut `ChatAnhangBlase` den nackten
+   * Pfad — im Betrieb übergibt die Seite sie immer (Betriebs-Präfix).
+   */
+  basis: { type: Function, default: null },
 })
 const emit = defineEmits(['reaktion', 'antworten', 'bearbeiten', 'loeschen', 'melden'])
 

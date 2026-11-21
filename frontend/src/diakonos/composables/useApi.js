@@ -11,6 +11,8 @@ import { sitzungsFehlerMerken } from './sitzungsstand.js'
 import { istSitzungsAbbruch } from '../../shared/sitzung-pruefen.js'
 // WEB-5b: EINE Quelle fuer den Betriebs-Praefix (DIAKRONOS_BASE_PATH).
 import { apiUrl } from '../../shared/basis.js'
+// CHAT-12b: Seiten, die useApi im Test ersetzen, holen die Adresse über dieselbe Quelle.
+export { apiUrl }
 // WEB-8b: CSRF-Ablehnung automatisch heilen (Token neu -> 1 Wiederholung ->
 // Force-Refresh, 60-s-Schleifenschutz). EINE Wahrheit für alle Aufrufer.
 import { istCsrfAblehnung, heileOderMelde, datenVon, SITZUNG_HINWEIS } from '../../shared/csrf-heilung.js'

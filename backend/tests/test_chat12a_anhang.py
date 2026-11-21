@@ -971,7 +971,9 @@ def test_migration_haengt_hinter_chat10a_push_und_es_gibt_einen_kopf():
     assert "Revises: chat12a_entsorgung" in Path(backoff.path).read_text(encoding="utf-8")
     assert len(skripte.get_bases()) == 1
     heads = skripte.get_heads()
-    assert heads == ["chat12a2_backoff"], heads
+    # Seit r_chat_standard (Rechte: Chat-Modul für den Bestand) liegt der Kopf
+    # dahinter — festgehalten wird: EIN Kopf, und der Backoff liegt in seiner Kette.
+    assert len(heads) == 1, heads
     # Alle Revisionen liegen in DERSELBEN Kette (keine abgehängte Linie).
     kette = {r.revision for r in skripte.iterate_revisions(heads[0], "base")}
     assert {"chat9a_erwaehnung", "chat10a_push", "chat12a_anhang",

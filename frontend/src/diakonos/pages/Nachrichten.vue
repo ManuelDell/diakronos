@@ -278,6 +278,7 @@
                   v-for="(zeile, i) in gespraechTreffer"
                   :id="trefferOption(GESPRAECH_TREFFER_LISTE, i)"
                   :key="zeile.nachricht"
+                  :data-name="zeile.nachricht"
                   class="dk-chat-gespraechsuche-zeile"
                   :class="{ 'is-aktiv': i === gespraechTrefferAktiv }"
                   role="option"
@@ -381,6 +382,7 @@
                     :folge-start="folgeStart(i)"
                     :handy-lage="istHandyLage"
                     :ich="ich"
+                    :basis="anhangBasis"
                     :class="{ 'dk-chat-sprungziel': markierteNachricht === n.ident }"
                     @reaktion="reaktionSetzen"
                     @antworten="antworten"
@@ -429,8 +431,37 @@
                 <span class="dk-chat-antwort-text">Antwort auf: {{ antwortAuf.antwortText || antwortAuf.text || 'eine Nachricht' }}</span>
                 <DkButton variant="ghost" size="sm" class="dk-chat-textknopf" @click="antwortAuf = null">Antwort verwerfen</DkButton>
               </p>
+              <!-- CHAT-12b: die Anhänge, die auf das Senden warten — je Datei
+                   ein Chip mit Name, Größe, Stand und Entfernen-Knopf. Sie
+                   stehen ÜBER dem Feld, damit die Eingabezeile ihre Höhe
+                   behält. -->
+              <ChatAnhangChips :liste="anhaenge" @entfernen="anhangEntfernen" />
+              <p v-if="anhangHinweis" class="dk-chat-fehler" role="alert">{{ anhangHinweis }}</p>
               <div class="dk-chat-eingabe-zeile">
                 <label class="dk-chat-nur-vorlesen" for="chat-eingabe">Nachricht schreiben</label>
+                <!-- CHAT-12b: „Datei anhängen“ — die Büroklammer öffnet die
+                     Dateiauswahl des Systems. „accept“ bietet auch die Kamera
+                     an („image/*“); geprüft wird der Typ erst im Server (an
+                     den ersten Bytes), hier ist es nur eine Vorauswahl.
+                     „multiple“, weil bis zu drei Anhänge je Nachricht gehen. -->
+                <DkButton
+                  variant="secondary"
+                  size="sm"
+                  class="dk-chat-anhang-knopf"
+                  :aria-label="ANHANG_TEXTE.anhaengen"
+                  :title="ANHANG_TEXTE.anhaengen"
+                  @click="dateiWaehlen"
+                ><template #icon><DkSymbol name="klammer" :groesse="16" /></template></DkButton>
+                <input
+                  ref="dateiFeld"
+                  type="file"
+                  class="dk-chat-nur-vorlesen"
+                  :accept="ANHANG_ACCEPT"
+                  multiple
+                  tabindex="-1"
+                  aria-hidden="true"
+                  @change="dateienGewaehlt"
+                >
                 <!-- CHAT-5-UI: Umfrage starten — neben dem Senden, als
                      DkButton. Steht nur, wenn das Senden selbst möglich ist
                      (`darfSenden`, dieselbe Quelle wie das Eingabefeld). -->
@@ -477,7 +508,8 @@
                   type="submit"
                   variant="primary"
                   :loading="sendet"
-                  :disabled="!text.trim()"
+                  :disabled="!darfSendenJetzt"
+                  :title="sendenSperrgrund"
                 >
                   {{ SENDEN_TEXT }}
                 </DkButton>
@@ -620,7 +652,7 @@
  * (CHAT-6), Umfragen, Anhänge, der Umzug der Personenverwaltung.
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { apiCall, apiGet } from '../composables/useApi.js'
+import { apiCall, apiGet, apiAntwortPruefen, apiUrl } from '../composables/useApi.js'
 import { useSession } from '../composables/useSession.js'
 // CHAT-11b: Der Sprung zu einer Nachricht öffnet das Gespräch über die
 // ADRESSE (dieselbe, die auch ein Klick auf die Liste setzt) — dafür gibt es
@@ -666,12 +698,22 @@ import {
 import DkCard from '../components/ui/DkCard.vue'
 import DkAktionen from '../components/ui/DkAktionen.vue'
 import DkButton from '../components/ui/DkButton.vue'
+import DkSymbol from '../components/ui/DkSymbol.vue'
 import DkDialog from '../components/ui/DkDialog.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
 import ChatListe from '../components/chat/ChatListe.vue'
 import ChatBlase from '../components/chat/ChatBlase.vue'
+// CHAT-12b: Anhänge — die Regeln in `anhaenge.mjs`, gezeichnet in zwei
+// Bausteinen (Chips über der Eingabe, Anhänge in der Blase).
+import ChatAnhangChips from '../components/chat/ChatAnhangChips.vue'
+import {
+  ANHANG_ACCEPT, ANHAENGE_MAX, TEXTE as ANHANG_TEXTE,
+  anhangKennungen, anhangAntwortGilt, auswahlPruefen, chipAendern, chipBauen, chipEntfernen,
+  darfSenden as darfSendenMitAnhang, laedtNoch, sendeRumpf,
+  uploadAntwort, uploadFehlerText, uploadLauf,
+} from '../components/chat/anhaenge.mjs'
 import ChatSuche from '../components/chat/ChatSuche.vue'
 import ChatUmfrage from '../components/chat/ChatUmfrage.vue'
 import ChatUmfrageDialog from '../components/chat/ChatUmfrageDialog.vue'
@@ -1265,6 +1307,194 @@ const eingabeHinweis = computed(() => eingabePlatzhalter(titel.value))
 /** Höhe des Verlaufs VOR dem Nachladen — hält die Leseposition beim Nachladen. */
 let scrollVorher = 0
 
+// ── CHAT-12b: Anhänge ──────────────────────────────────────────────────────
+//
+// Der Ablauf (Karte Punkt 1/2): Auswahl → VORAB-Prüfung im Browser (Größe,
+// Anzahl — kein Upload, wenn das schon nicht geht) → sofort hochladen, je
+// Datei ein Chip → `chat.senden` nimmt die Kennungen der FERTIGEN mit.
+//
+// Was hier NICHT passiert: einen Anhang löschen. Ein nicht gesendeter Anhang
+// räumt sich im Server selbst weg (`chat_anhaenge_aufraeumen`, 24 h) — ein
+// eigener Löschaufruf wäre ein zweiter Weg mit eigenem Recht.
+//
+// Die LAUFNUMMER (`uploadLauf`) ist die Ordnung je GESPRÄCH: alle Uploads
+// desselben Gesprächs laufen unter derselben Nummer, damit zwei gleichzeitige
+// Dateien einander nicht entwerten. Erst ein Gesprächswechsel (`abbrechen`)
+// erhöht sie; eine späte Antwort findet ihre Nummer dann nicht mehr gültig und
+// trägt nichts ein. Ohne das landete der Anhang des ALTEN Gesprächs in der
+// Liste des neuen, und `chat.senden` lehnte ihn mit „Anhang nicht gefunden.“ ab.
+const anhaenge = ref([])
+const anhangHinweis = ref('')
+const dateiFeld = ref(null)
+const anhangLauf = uploadLauf()
+/**
+ * Die Adress-Basis für Anhänge — DIESELBE wie für jeden API-Aufruf
+ * (`apiUrl`, mit Betriebs-Präfix). Die Blase bekommt sie als Prop, damit
+ * `<img src>`/`<a href>` nicht an einem zweiten Adressbau hängen.
+ */
+const anhangBasis = (methode) => apiUrl(methode)
+
+/** Darf JETZT gesendet werden? (Text ODER Anhang, kein laufender Upload) */
+const darfSendenJetzt = computed(() => darfSendenMitAnhang({
+  gespraech: offeneKennung.value,
+  text: text.value,
+  liste: anhaenge.value,
+  sendet: false,
+}))
+
+/**
+ * Warum der Sende-Knopf gesperrt ist (`title` — ein echtes `disabled`
+ * verschluckt den Tooltip; DkButton setzt `aria-disabled` zusätzlich).
+ */
+const sendenSperrgrund = computed(() => {
+  if (darfSendenJetzt.value) return ''
+  if (laedtNoch(anhaenge.value)) return 'Ein Anhang wird noch hochgeladen.'
+  return ''
+})
+
+/** Die Büroklammer öffnet die Dateiauswahl des Systems. */
+function dateiWaehlen() {
+  const feld = dateiFeld.value
+  if (!feld || typeof feld.click !== 'function') return
+  anhangHinweis.value = ''
+  // Ein erneutes Wählen derselben Datei muss wieder ein `change` auslösen.
+  try { feld.value = '' } catch { /* manche Browser erlauben das nicht */ }
+  feld.click()
+}
+
+/**
+ * Auswahl aus dem Dateidialog: erst prüfen (Größe, Anzahl), dann je Datei
+ * SOFORT hochladen. Die Vorab-Prüfung spart den Upload, den der Server sonst
+ * mit 413/429 ablehnte — den TYP prüft er (Magie), nicht der Browser.
+ *
+ * Gezählt werden nur Einträge, die einen Platz BELEGEN (fertig oder laufend) —
+ * gescheiterte Chips stehen bloß als Auskunft da (`fehlerZahl`) und dürfen eine
+ * neue Auswahl nicht blockieren.
+ */
+function dateienGewaehlt(ereignis) {
+  const dateien = [...((ereignis?.target?.files) || [])]
+  if (!dateien.length) return
+  const gespraech = offeneKennung.value
+  if (!gespraech) {
+    anhangHinweis.value = 'Bitte zuerst ein Gespräch öffnen.'
+    return
+  }
+  const pruefung = auswahlPruefen(dateien, anhaenge.value.length, fehlerZahl.value)
+  if (!pruefung.ok) {
+    anhangHinweis.value = pruefung.text
+    return
+  }
+  anhangHinweis.value = ''
+  for (const datei of pruefung.dateien) hochladen(datei, gespraech)
+}
+
+/** Wie viele Chips einen Platz belegen (alles außer „fehler“). */
+const belegteZahl = computed(() => anhaenge.value.filter((c) => c.stand !== 'fehler').length)
+/** Wie viele Chips nur noch als Auskunft stehen (Upload gescheitert). */
+const fehlerZahl = computed(() => anhaenge.value.filter((c) => c.stand === 'fehler').length)
+
+/**
+ * EINE Datei hochladen — Multipart über `chat.anhang_hochladen`.
+ *
+ * Bewusst rohes `fetch`: `apiCall` erzwingt JSON, ein Datei-Upload ist
+ * Multipart. Die Sitzungs- und CSRF-Prüfung kommt trotzdem von der einen
+ * Stelle (`apiAntwortPruefen`, derselbe Weg wie `uploadDatei` in
+ * `usePlanrahmen.js`) — die Anfrage wird als Funktion übergeben, damit eine
+ * CSRF-Ablehnung mit frischem Token genau EINMAL wiederholt werden kann (ein
+ * verbrauchter Body lässt sich nicht erneut senden).
+ *
+ * Die Antwort findet ihren Chip über die EIGENE Kennung (`chipeigen`) — nicht
+ * über Name/Größe, die zwei Dateien teilen können. Die Laufnummer des
+ * Gesprächs (`nummer`) entscheidet, ob sie überhaupt noch hierher gehört.
+ *
+ * Kein Fortschritt in Prozent: `fetch` meldet keinen, und eine geschätzte Zahl
+ * wäre geraten. Der Chip sagt „wird hochgeladen …“.
+ */
+async function hochladen(datei, gespraech) {
+  // Kurz prüfen, ob noch ein Platz frei ist (zwei Auswahlen kurz hintereinander):
+  // die Karte erlaubt drei belegte Anhänge.
+  if (belegteZahl.value >= ANHAENGE_MAX) {
+    anhangHinweis.value = ANHANG_TEXTE.hoechstzahl
+    return
+  }
+  const nummer = anhangLauf.neu()
+  const chipeigen = `anhang-${anhangZaehler += 1}`
+  const chip = chipBauen(datei, { lauf: nummer, gespraech, id: chipeigen })
+  anhaenge.value = [...anhaenge.value, chip]
+  const anfrage = () => {
+    const form = new FormData()
+    form.append('gespraech', gespraech)
+    form.append('datei', datei, String(datei?.name || 'anhang'))
+    return fetch(apiUrl('chat.anhang_hochladen'), {
+      method: 'POST',
+      headers: { 'X-Frappe-CSRF-Token': window.__DIakonosBOOT?.csrf_token || '' },
+      body: form,
+    })
+  }
+  /**
+   * Gehört die Antwort noch hierher? Nur dann darf sie schreiben: dasselbe
+   * Gespräch und eine gültige Laufnummer (`anhangAntwortGilt`) — und der Chip
+   * muss noch in der Liste stehen, denn eine entfernte Datei hat kein Ziel mehr.
+   */
+  const nochHier = () => anhangAntwortGilt(chip, {
+    nummer,
+    gespraech: offeneKennung.value,
+    gilt: anhangLauf.gilt,
+  }) && anhaenge.value.some((c) => c.schluessel === chipeigen)
+  try {
+    const erste = await anfrage()
+    const daten = await apiAntwortPruefen(erste, { anfrage })
+    const res = daten?.dkAntwort || erste
+    if (!res.ok || daten?.exc) {
+      const fehler = new Error(daten?.message || daten?.exception || `HTTP ${res.status}`)
+      fehler.status = res.status
+      throw fehler
+    }
+    const lage = uploadAntwort(daten?.message)
+    if (!lage.ok) throw new Error(lage.text)
+    if (!nochHier()) return
+    anhaenge.value = chipAendern(anhaenge.value, chipeigen, {
+      stand: 'fertig', name: lage.name,
+      dateiname: lage.dateiname || chip.dateiname,
+      mime: lage.mime || chip.mime,
+      groesse: lage.groesse || chip.groesse,
+      fehler: '',
+    })
+  } catch (fehler) {
+    // Ein entwerteter Lauf schreibt NICHTS — auch keinen Fehler (das Gespräch
+    // ist ein anderes, die Meldung gehörte zu einem Ort, den es nicht mehr gibt).
+    if (!nochHier()) return
+    anhaenge.value = chipAendern(anhaenge.value, chipeigen, {
+      stand: 'fehler',
+      fehler: uploadFehlerText(fehler),
+    })
+  }
+}
+
+/** Fortlaufende Kennung der Chips (nur innerhalb dieser Seite). */
+let anhangZaehler = 0
+
+/**
+ * Einen Chip aus der Liste nehmen. Bei einem FERTIGEN Anhang bleibt die Datei
+ * im Server liegen — der Minuten-Job räumt sie weg (24 h), weil sie an keiner
+ * Nachricht hängt.
+ */
+function anhangEntfernen(chip) {
+  anhaenge.value = chipEntfernen(anhaenge.value, chip?.schluessel)
+  anhangHinweis.value = ''
+}
+
+/**
+ * Die Liste der offenen Anhänge leeren — nach dem Senden und beim
+ * Gesprächswechsel. `verwerfen` entwertet zusätzlich alle laufenden Uploads:
+ * ihre späten Antworten tragen dann nichts mehr ein (Karte Punkt 2).
+ */
+function anhaengeLeeren({ verwerfen = false } = {}) {
+  if (verwerfen) anhangLauf.abbrechen()
+  anhaenge.value = []
+  anhangHinweis.value = ''
+}
+
 function zuruecksetzen() {
   // CHAT-11b-2: Der Sprung ÜBERLEBT das Öffnen SEINES Gesprächs (die Seite
   // lädt beim Wechsel neu, der `hashchange`-Watcher ruft hier auf) — sonst
@@ -1323,6 +1553,11 @@ function zuruecksetzen() {
   markierteNachricht.value = ''
   if (markierTimer) { clearTimeout(markierTimer); markierTimer = null }
   gespraechTrefferSchliessen()
+  // CHAT-12b: offene Anhänge gehören zum GESPRÄCH — beim Wechsel fallen sie
+  // weg, laufende Uploads werden entwertet (ihre späten Antworten tragen
+  // nichts mehr ein, s. `anhaengeLeeren`). Ein „Foto ohne Worte“ im Chor darf
+  // nicht in der Runde landen.
+  anhaengeLeeren({ verwerfen: true })
   geoeffnet.value = ''
 }
 
@@ -2020,26 +2255,44 @@ function erwaehnungPruefenNachTaste(ereignis) {
 async function senden() {
   const offen = offeneKennung.value
   if (!offen || sendet.value) return
-  const pruefung = pruefeText(text.value)
+  // CHAT-12b: solange ein Upload läuft, ginge die Nachricht OHNE den Anhang
+  // hinaus (die Kennung kennt der Server noch nicht) — also nicht senden.
+  if (laedtNoch(anhaenge.value)) {
+    eingabeFehler.value = ''
+    anhangHinweis.value = 'Ein Anhang wird noch hochgeladen — einen Moment.'
+    return
+  }
+  const kennungenAnhang = anhangKennungen(anhaenge.value)
+  const pruefung = pruefeText(text.value, { mitAnhang: kennungenAnhang.length > 0 })
   if (!pruefung.ok) {
     eingabeFehler.value = pruefung.fehler
     return
   }
   sendet.value = true
   eingabeFehler.value = ''
+  anhangHinweis.value = ''
   try {
     // CHAT-9b: geschickt wird nur, wessen „@Anzeigename“ JETZT noch im Text
     // steht — wer den Namen gelöscht oder verändert hat, ist nicht mehr
     // gemeint. Ohne Erwähnung geht KEIN Feld hinaus (der Server liest dort
     // „keine“).
     const kennungen = auswahlBereinigen(pruefung.text, erwaehnungMerker.value, { ich: ich.value })
-    const args = { gespraech: offen, text: pruefung.text }
-    if (antwortAuf.value?.ident) args.antwort_auf = antwortAuf.value.ident
-    if (kennungen.length) args.erwaehnt = kennungen
+    // CHAT-12b: die Kennungen der FERTIGEN Anhänge gehen mit; ohne Anhang
+    // steht das Feld gar nicht in der Anfrage.
+    const args = sendeRumpf({
+      gespraech: offen,
+      text: pruefung.text,
+      anhaenge: kennungenAnhang,
+      antwortAuf: antwortAuf.value?.ident || '',
+      erwaehnt: kennungen,
+    })
     const neu = await apiCall('chat.senden', args)
     const zeile = verlaufsZeile(neu, { ich: ich.value })
     if (zeile) nachrichten.value = [...nachrichten.value.filter((n) => n.ident !== zeile.ident), zeile]
     text.value = ''
+    // Gesendet heißt: die offene Liste ist leer (die Anhänge hängen jetzt an
+    // der Nachricht — ein zweites Senden dürfte sie nicht wieder mitnehmen).
+    anhaengeLeeren()
     erwaehnungMerker.value = []
     erwaehnungSchliessen()
     erwaehnungUnterdrueckt.value = -1
@@ -2615,7 +2868,33 @@ function sprungBeginnen() {
   sprungLaufNr += 1
   sprungLaeuft = true
   sprungSeiten.value = 0
+  // CHAT-11b-4/1: Das ZIEL des verdrängten Laufs fällt hier weg — es gehörte
+  // dem alten Lauf, und ein neuer ist noch nicht einmal gefragt. Endete er
+  // ohne Gespräch (`art === 'nichts'` / `'weg'`), stünde es sonst weiter da,
+  // würde beim nächsten Aufbau eingelöst und trüge den Hinweis „gibt es nicht
+  // mehr“ für eine Nachricht, zu der niemand mehr wollte.
+  //
+  // Anmerkung (Handoff CHAT-11b-4): Im heute erreichbaren Ablauf räumt schon
+  // der Zweig `'nichts'`/`'weg'` in `springen` (über `sprungAbbrechen`) bzw.
+  // `sprungAusfuehren` das Ziel; ein Test, der NUR diese Zeilen entfernt,
+  // bleibt darum grün (Gegenprobe gefahren). Die Räumung bleibt als zweite
+  // Sicherung stehen — sie kostet nichts und deckt den Fall ab, dass ein
+  // späterer Zweig das Aufräumen vergisst.
+  sprungNachricht.value = ''
+  sprungGespraech.value = ''
+  // … und der Hinweis des verdrängten Laufs ebenso: er gehörte zu einer
+  // Nachricht, die diesen Sprung nicht mehr angeht.
+  sprungHinweis.value = ''
   return sprungLaufNr
+}
+
+/**
+ * Die Sperren zeigen beim Start — `{ laeuft: boolean, nr: number }`. Der Node-
+ * Test braucht beides, weil `sprungFertig` bei falscher Sperre sonst einfach
+ * SOFORT auflöst statt zu hängen (und damit grün aussähe).
+ */
+function sprungSperreStand() {
+  return { laeuft: sprungLaeuft, nr: sprungLaufNr }
 }
 
 /**
@@ -3128,7 +3407,16 @@ async function gespraechNachrichtSuchen(kennung) {
   try {
     await sprungAusfuehren(nr)
   } finally {
-    gespraechTrefferSchliessen()
+    // CHAT-11b-4/2: Trifft der `finally` einen VERDRÄNGTEN Lauf, räumt er eine
+    // Suchfläche, die er nicht MEHR besitzt: `gespraechTrefferSchliessen`
+    // räumt Begriff und Treffer weg und schließt die Suche, die inzwischen neu
+    // geöffnet wurde. Ein verdrängter Lauf darf seine (längst geschlossene)
+    // Trefferliste höchstens noch abbrechen — nichts, was danach kommt.
+    if (sprungGilt(nr)) gespraechTrefferSchliessen()
+    else {
+      gespraechSuchBremse.abbrechen()
+      gespraechLauf.abbrechen()
+    }
     sprungBeenden(nr)
   }
 }
@@ -3183,6 +3471,8 @@ defineExpose({
   // kann darauf nicht raten.
   sprungFertig,
   springen,
+  // CHAT-11b-4/3: der Stand der Sperren (`laeuft`, `nr`) — s. `sprungSperreStand`.
+  sprungSperre: sprungSperreStand,
   // Review R1/2: das Nachladen nach oben von Hand auslösen (der Scroll-Weg des
   // Verlaufs ist DOM-abhängig; hier zählt, was die Seite damit tut).
   aeltereLaden,
@@ -3573,6 +3863,9 @@ watch(suchBegriff, (neu) => {
      der Zeile und schiebt den Verlauf nicht. */
   position: relative;
 }
+/* CHAT-12b: Die Büroklammer ist so hoch wie das Eingabefeld (44 px) — am Handy
+   mit dem Finger zu treffen, am Desktop unauffällig. */
+.dk-chat-anhang-knopf { min-height: 44px; min-width: 44px; flex: none; }
 .dk-chat-feld {
   flex: 1;
   min-height: var(--control-h);

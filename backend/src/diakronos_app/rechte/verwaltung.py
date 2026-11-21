@@ -345,6 +345,28 @@ def setze_module(ausfuehrender: str, gruppe: str, module: list[str] | tuple[str,
     return {"success": True, "module": sorted(gewuenscht)}
 
 
+def standard_module_anlegen(ausfuehrender: str, gruppe: str) -> list[str]:
+    """Die Standard-Module (``kern.STANDARD_MODULE``) einer NEUEN Gruppe einschalten.
+
+    Gleiches Recht wie ``setze_module`` (nur der Administrator — er legt auch die
+    Gruppe an). Nimmt nichts weg und ist wiederholbar: schon vorhandene Module
+    bleiben, wie sie sind. Rückgabe: die eben eingeschalteten Module.
+    """
+    _gruppe_existiert(gruppe)
+    if not kern.ist_admin(ausfuehrender):
+        from diakronos_app.frappe_compat.exceptions import PermissionError
+
+        throw("Module einer Gruppe legt der Administrator fest.", PermissionError)
+    with _schreibsitzung() as sess:
+        vorhanden = set(sess.execute(select(RechteModul.modul).where(RechteModul.gruppe == gruppe)).scalars())
+        neu = [m for m in kern.STANDARD_MODULE if m not in vorhanden]
+        for m in neu:
+            sess.add(RechteModul(gruppe=gruppe, modul=m))
+    if neu:
+        _audit(gruppe, f"Standard-Module: {', '.join(neu)}")
+    return neu
+
+
 __all__ = [
     "entferne_objekt",
     "registriere_objekt",
@@ -354,6 +376,7 @@ __all__ = [
     "ernenne_mv",
     "rollen_der_gruppe",
     "setze_module",
+    "standard_module_anlegen",
     "uebertrage_hv",
 ]
 

@@ -715,11 +715,24 @@ export function fremdeNeue(vorher, nachher) {
  * Server (`_pruefe_text`): am Rand nicht leer, höchstens `NACHRICHT_MAX`
  * ZEICHEN, Absätze bleiben erhalten (der Text wird NICHT getrimmt).
  *
+ * `mitAnhang` (CHAT-12b, Konzept S4): Eine Nachricht MIT Anhang darf ohne Text
+ * hinaus („Foto ohne Worte“) — der Server speichert dann die leere
+ * Zeichenkette (`_pruefe_text(…, mit_anhang=True)`). Ohne Anhang bleibt „leer“
+ * ein Fehler. Die Längengrenze gilt in beiden Fällen.
+ *
  * @returns {{ok: boolean, text: string, fehler: string}}
  */
-export function pruefeText(text) {
+export function pruefeText(text, { mitAnhang = false } = {}) {
   const wert = text === null || text === undefined ? '' : String(text)
-  if (!wert.trim()) return { ok: false, text: wert, fehler: 'Bitte einen Text eingeben.' }
+  if (!wert.trim()) {
+    if (mitAnhang) {
+      // Leer heißt hier: nichts geschrieben. Gespeichert wird die LEERE
+      // Zeichenkette, nicht die Eingabe aus Leerzeichen (der Server tut
+      // dasselbe) — ein „ “ wäre sonst Inhalt ohne Inhalt.
+      return { ok: true, text: '', fehler: '' }
+    }
+    return { ok: false, text: wert, fehler: 'Bitte einen Text eingeben.' }
+  }
   if (wert.length > NACHRICHT_MAX) {
     return {
       ok: false,

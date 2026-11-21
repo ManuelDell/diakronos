@@ -67,6 +67,12 @@ from diakronos_app.models.rechte import (
 #: Module, die eine Gruppe haben kann.
 MODULE: tuple[str, ...] = ("kalender", "beitraege", "wiki", "aufgaben", "lieder", "dienstplaene", "chat")
 
+#: Module, die jede NEUE Hauptgruppe von Anfang an hat (Manuel 17.11.: „Chat-Modul
+#: automatisch an für alle bestehenden und neuen Gruppen“). Der Administrator kann
+#: sie danach wie jedes Modul abschalten (``verwaltung.setze_module``). Bestehende
+#: Gruppen bekommen sie EINMAL über die Migration ``r_chat_standard``.
+STANDARD_MODULE: tuple[str, ...] = ("chat",)
+
 #: Objekt-Typ -> Modul.
 TYP_MODUL: dict[str, str] = {
     "kalender": "kalender",
@@ -1657,6 +1663,7 @@ __all__ = [
     "LESEN",
     "MODERIEREN",
     "MODULE",
+    "STANDARD_MODULE",
     "ROLLEN",
     "SCHREIBEN",
     "STUFEN",

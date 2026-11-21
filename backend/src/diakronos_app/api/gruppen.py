@@ -1225,8 +1225,9 @@ def create_dienstbereich(name, beschreibung=None, farbe=None):
 def create_gruppe(name, dienstbereich, gruppentyp=None, beschreibung=None, treffpunkt=None, treffzeit=None):
     """Erstellt eine neue Gruppe — nur der Administrator (R-4, Manuel 11.11.).
 
-    Danach setzt der Administrator den ersten HV und die Module
-    (``api.rechte.uebertrage_hv`` / ``api.rechte.setze_module``).
+    Die Standard-Module (``rechte.kern.STANDARD_MODULE``, heute der Chat) sind
+    sofort an. Danach setzt der Administrator den ersten HV und die übrigen
+    Module (``api.rechte.uebertrage_hv`` / ``api.rechte.setze_module``).
     """
     _require(_is_admin(), "Gruppen legt der Administrator an.")
     new_name = _create("Gruppe", {
@@ -1238,6 +1239,7 @@ def create_gruppe(name, dienstbereich, gruppentyp=None, beschreibung=None, treff
         "treffzeit": treffzeit or "",
         "status": "Aktiv",
     })
+    _rechteverwaltung.standard_module_anlegen(session.user, new_name)
     return {"success": True, "name": new_name}
 
 
