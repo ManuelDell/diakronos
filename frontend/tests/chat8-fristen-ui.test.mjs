@@ -350,6 +350,17 @@ async function seiteMontieren({ server = {} } = {}) {
     if (kurz === 'fristen_speichern') {
       return { ...antwort(parameter), gespeichert: true }
     }
+    // CHAT-12c: der Abschnitt „Nachrichten aufbewahren“ trägt seit dieser
+    // Karte AUCH die Höchstgröße je Anhang (`chat.chat_einstellungen_lesen`).
+    // Sie ist nicht Thema dieses Tests; die Attrappe liefert den Standard, so
+    // wie es der echte Server tut.
+    if (kurz === 'chat_einstellungen_lesen') {
+      return { anhang_max_mb: 10, standard: 10, minimum: 1, maximum: 50 }
+    }
+    if (kurz === 'chat_einstellungen_speichern') {
+      return { anhang_max_mb: parameter?.anhang_max_mb, gespeichert: true,
+        standard: 10, minimum: 1, maximum: 50 }
+    }
     return {}
   }
 
@@ -389,7 +400,11 @@ test('CHAT-8-UI/B: Laden zeigt die gespeicherten Werte, den Standard und die fes
   assert.equal(gruppe.value, '24', 'gespeicherter Wert, nicht der Standard')
   assert.equal(direkt.value, '12')
   // Genau EIN Feld mit dieser Beschriftung (keine zweite Kennung daneben).
-  assert.equal(s.host.querySelectorAll('input[type="number"]').length, 2)
+  // CHAT-12c: DAS DRITTE Zahlenfeld ist die „Höchstgröße je Anhang“ — sie
+  // steht im selben Abschnitt (eigene Karte, eigene Tests in
+  // `chat12c-anhang-groesse.test.mjs`).
+  assert.equal(s.host.querySelectorAll('input[type="number"]').length, 3)
+  assert.ok(feldUeberLabel(s.host, 'Höchstgröße je Anhang'), 'das Größenfeld der Anhänge steht daneben')
   // Der Standard steht als Hinweis unter dem Feld (aus der Antwort).
   assert.match(s.host.textContent, /Standard: 24 Monate/)
   assert.match(s.host.textContent, /Standard: 12 Monate/)
@@ -433,7 +448,9 @@ test('CHAT-8-UI/B: die Grenzen minimum…maximum stehen im Hinweis und am Feld',
   })
   assert.match(s.host.textContent, /Erlaubt sind 3 bis 48 Monate/)
   const ids = [...s.host.querySelectorAll('.dk-ui-field')].map((e) => e.id)
-  assert.deepEqual(ids, ['dk-sprung-gruppe', 'dk-sprung-direkt'], 'Felder tragen die Sprungmarken der Suche')
+  // CHAT-12c: das dritte Feld (Anhangsgröße) trägt `dk-sprung-anhang`.
+  assert.deepEqual(ids, ['dk-sprung-gruppe', 'dk-sprung-direkt', 'dk-sprung-anhang'],
+    'Felder tragen die Sprungmarken der Suche')
   const direkt = feldUeberLabel(s.host, 'Direktnachrichten und Runden')
   assert.equal(direkt.getAttribute('max'), '48')
   assert.equal(feldUeberLabel(s.host, 'Gruppengespräche').getAttribute('min'), '3')
@@ -654,7 +671,9 @@ test('CHAT-8-UI/C: KEINE eigene Rollenprüfung im Abschnitt (der Server entschei
 test('CHAT-8-UI/C: Suche findet den Bereich und seine zwei Felder', async () => {
   const S = await import(new URL('pages/einstellungen/suche.mjs', SRC).href)
   assert.ok(S.STICHWORTE.fristen.includes('Nachrichten aufbewahren'))
-  assert.deepEqual(S.FELDER.fristen.map((f) => f.id), ['gruppe', 'direkt'])
+  // CHAT-12c: das dritte Feld „Höchstgröße je Anhang“ steht im selben
+  // Abschnitt (eigene Karte).
+  assert.deepEqual(S.FELDER.fristen.map((f) => f.id), ['gruppe', 'direkt', 'anhang'])
   const treffer = S.trefferBereiche([
     { id: 'fristen', label: 'Nachrichten aufbewahren', gruppe: 'datenschutz' },
   ], 'aufbewahrung')

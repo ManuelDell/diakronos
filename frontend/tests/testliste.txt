@@ -1000,3 +1000,16 @@ tests/chat11b-suche.test.mjs
 # Herunterladen, Audio als `<audio controls preload="none">`, gelöschte
 # Nachricht ohne Anhänge; alle Adressen über `chat.anhang?name=`.
 tests/chat12b-anhaenge.test.mjs
+# CHAT-12c-UI — Anhangsgröße in den Admin-Einstellungen einstellbar (Frontend,
+# t_e3b368f3). Backend: `chat.chat_einstellungen_lesen` →
+# {anhang_max_mb, standard 10, minimum 1, maximum 50}, `…_speichern` (nur
+# Administration, 422 mit Meldung), `chat.meine_gespraeche` trägt
+# `anhang_max_bytes`. Geprüft: die Grenze kommt aus der Serverantwort (ohne
+# Wert Standard 10 MB), 25 MB eingestellt → 20-MB-Datei geht, 26 MB abgewiesen
+# mit „max. 25 MB“; das Feld „Höchstgröße je Anhang“ steht in „Nachrichten
+# aufbewahren“ (gespeicherter Wert, Standard-Hinweis, min/max, Sprungmarke
+# `dk-sprung-anhang`), Speichern schickt `anhang_max_mb` an den eigenen
+# Endpunkt, Server-Fehler und 403 stehen am Feld, ungültige Werte gehen nicht
+# hinaus; die Einstellungen-Suche findet das Feld; Importe gegen die ECHTEN
+# Exporte geprüft.
+tests/chat12c-anhang-groesse.test.mjs

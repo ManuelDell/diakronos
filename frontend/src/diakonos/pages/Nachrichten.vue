@@ -710,7 +710,8 @@ import ChatBlase from '../components/chat/ChatBlase.vue'
 import ChatAnhangChips from '../components/chat/ChatAnhangChips.vue'
 import {
   ANHANG_ACCEPT, ANHAENGE_MAX, TEXTE as ANHANG_TEXTE,
-  anhangKennungen, anhangAntwortGilt, auswahlPruefen, chipAendern, chipBauen, chipEntfernen,
+  anhangKennungen, anhangAntwortGilt, anhangMaxBytes, auswahlPruefen,
+  chipAendern, chipBauen, chipEntfernen,
   darfSenden as darfSendenMitAnhang, laedtNoch, sendeRumpf,
   uploadAntwort, uploadFehlerText, uploadLauf,
 } from '../components/chat/anhaenge.mjs'
@@ -1222,6 +1223,10 @@ async function laden({ still = false } = {}) {
     const antwort = await apiGet('chat.meine_gespraeche')
     if (!aktivSeite) return false
     gespraeche.value = Array.isArray(antwort?.gespraeche) ? antwort.gespraeche : []
+    // CHAT-12c: die eingestellte Anhangsgröße kommt in DIESER Antwort mit
+    // (`anhang_max_bytes`) — kein zweiter Rundlauf. Fehlt das Feld (alter
+    // Server), bleibt der Standard stehen.
+    anhangGrenze.value = anhangMaxBytes(antwort)
     listeHinweis.value = ''
     // CHAT-3c-2 (Review R1, SOLL 5): `&offen=` gilt nur für ein eigenes
     // Gespräch — vor dem Laden der Liste konnte das nicht geprüft werden.
@@ -1325,6 +1330,13 @@ let scrollVorher = 0
 // Liste des neuen, und `chat.senden` lehnte ihn mit „Anhang nicht gefunden.“ ab.
 const anhaenge = ref([])
 const anhangHinweis = ref('')
+/**
+ * Die eingestellte Höchstgröße je Anhang in BYTES (CHAT-12c) — aus der
+ * Antwort von `chat.meine_gespraeche` (`anhang_max_bytes`), die die Seite
+ * ohnehin lädt; kein zweiter Rundlauf. Startwert ist der Standard, damit die
+ * Vorab-Prüfung auch vor der ersten Antwort eine Zahl nennt.
+ */
+const anhangGrenze = ref(anhangMaxBytes(null))
 const dateiFeld = ref(null)
 const anhangLauf = uploadLauf()
 /**
@@ -1379,7 +1391,10 @@ function dateienGewaehlt(ereignis) {
     anhangHinweis.value = 'Bitte zuerst ein Gespräch öffnen.'
     return
   }
-  const pruefung = auswahlPruefen(dateien, anhaenge.value.length, fehlerZahl.value)
+  // CHAT-12c: geprüft wird gegen die EINGESTELLTE Höchstgröße
+  // (`anhang_max_bytes` aus `chat.meine_gespraeche`), nicht gegen eine Zahl in
+  // der Oberfläche. Der Satz nennt dieselbe Zahl („max. 25 MB“).
+  const pruefung = auswahlPruefen(dateien, anhaenge.value.length, fehlerZahl.value, anhangGrenze.value)
   if (!pruefung.ok) {
     anhangHinweis.value = pruefung.text
     return

@@ -12,8 +12,11 @@
  *   POST chat.anhang_hochladen(gespraech, datei=<Multipart>)
  *        → {name, dateiname, mime, groesse, gespraech}
  *        Typen per MAGIE: jpg/png/webp/heic, pdf, mp3/m4a/ogg/opus.
- *        Grenze `ANHANG_MAX_BYTES` = 10 MB, Tagesgrenze `ANHAENGE_PRO_TAG` = 20
- *        je Person → 429 (`RateLimitError`).
+ *        Höchstgröße JE ANHANG = die EINSTELLUNG der Gemeinde
+ *        (`anhang_max_mb`, CHAT-12c), Standard 10 MB; Tagesgrenze
+ *        `ANHAENGE_PRO_TAG` = 20 je Person → 429 (`RateLimitError`).
+ *        Die Chat-Seite erfährt die Grenze in `chat.meine_gespraeche` als
+ *        `anhang_max_bytes` (Bytes) — in der Antwort, die sie ohnehin lädt.
  *   chat.senden(gespraech, text, antwort_auf, erwaehnt, anhaenge=[name, …])
  *        höchstens `ANHAENGE_MAX` = 3 je Nachricht (`_anhaenge_pruefen`).
  *        Mit Anhang darf der TEXT LEER sein (`_pruefe_text(…, mit_anhang=True)`
@@ -33,8 +36,19 @@ import { apiUrl } from '../../../shared/basis.js'
 
 // ── Grenzen (dieselben Zahlen wie im Server) ────────────────────────────────
 
-/** Höchstgröße EINES Anhangs — `ANHANG_MAX_BYTES` in `models/chat.py`. */
+/**
+ * Höchstgröße EINES Anhangs, wenn der Server NICHTS liefert — der Standard der
+ * Einstellung (`ANHANG_MAX_MB_STANDARD = 10` in `models/chat.py`).
+ *
+ * Seit CHAT-12c ist die Grenze EINSTELLBAR (`anhang_max_mb`, 1…50 MB, Admin).
+ * Maßgeblich ist deshalb `anhangMaxBytes(antwort)` unten; diese Zahl hier ist
+ * nur der Rückfall, wenn die Antwort das Feld `anhang_max_bytes` nicht trägt
+ * (alter Server). Keine zweite Wahrheit: die Rechnung steht EINMAL.
+ */
 export const ANHANG_MAX_BYTES = 10 * 1024 * 1024
+
+/** Die Grenze in MB, wie sie in Sätzen steht (ganze Zahl). */
+export const ANHANG_MAX_MB = ANHANG_MAX_BYTES / (1024 * 1024)
 
 /** Höchstzahl Anhänge je Nachricht — `ANHAENGE_MAX` in `models/chat.py`. */
 export const ANHAENGE_MAX = 3
@@ -70,6 +84,42 @@ export const TEXTE = Object.freeze({
   bildOeffnen: 'Groß ansehen',
   herunterladen: 'Herunterladen',
 })
+
+// ── Die eingestellte Anhangsgröße (CHAT-12c) ────────────────────────────────
+
+/**
+ * Die Grenze aus der Serverantwort von `chat.meine_gespraeche` — `anhang_max_bytes`.
+ *
+ * Der Server schickt die WIRKSAME Grenze in Bytes (Einstellung der Gemeinde ×
+ * 1024 × 1024). Sie ist maßgeblich; `ANHANG_MAX_BYTES` gilt NUR, wenn das Feld
+ * fehlt oder unbrauchbar ist (alter Server) — dann ist 10 MB die ehrlichste
+ * Aussage, die die Oberfläche machen kann.
+ *
+ * @param {object} antwort die Antwort von `chat.meine_gespraeche`
+ * @returns {number} Grenze in Bytes (> 0, immer eine ganze Zahl)
+ */
+export function anhangMaxBytes(antwort) {
+  const roh = antwort && typeof antwort === 'object' ? antwort.anhang_max_bytes : null
+  if (roh === null || roh === undefined || roh === '') return ANHANG_MAX_BYTES
+  const n = Number(roh)
+  if (!Number.isFinite(n) || n <= 0) return ANHANG_MAX_BYTES
+  return Math.floor(n)
+}
+
+/**
+ * Wie viele MB sind das? Aus BYTES die Zahl aus dem Satz „max. 25 MB“.
+ *
+ * Ganze MB (der Server rechnet 1024 × 1024) werden ohne Nachkommastelle
+ * genannt; ein krummer Wert (von Hand gesetzt) bekommt EINE Nachkommastelle
+ * mit Komma — nie eine geratene ganze Zahl, die nicht stimmt.
+ */
+export function mbText(bytes) {
+  const n = Number(bytes)
+  if (!Number.isFinite(n) || n <= 0) return String(ANHANG_MAX_MB)
+  const mb = n / (1024 * 1024)
+  if (Number.isInteger(mb)) return String(mb)
+  return mb.toFixed(1).replace('.', ',')
+}
 
 // ── Größe und Typ (nur für die ANZEIGE) ─────────────────────────────────────
 
@@ -192,17 +242,25 @@ function sizeVon(datei) {
  * drei Fehlschläge hintereinander blockierten sonst jede weitere Auswahl, ohne
  * dass je ein Anhang dastünde. Sie bleiben nur als Auskunft stehen, bis die
  * Person sie entfernt.
+ *
+ * `maxBytes` = die EINGESTELLTE Grenze aus `anhangMaxBytes(antwort)` (CHAT-12c).
+ * Ohne Angabe gilt der Standard — der Rückfall für Aufrufe ohne Serverantwort,
+ * NICHT eine zweite Wahrheit. Der Satz nennt immer die Zahl, gegen die
+ * tatsächlich geprüft wurde („max. 25 MB“, wenn 25 eingestellt sind).
  */
-export function auswahlPruefen(dateien, bereits = 0, kaputt = 0) {
+export function auswahlPruefen(dateien, bereits = 0, kaputt = 0, maxBytes = ANHANG_MAX_BYTES) {
   const liste = Array.isArray(dateien) ? dateien.filter(Boolean) : []
   if (!liste.length) return { ok: false, text: '', dateien: [] }
   const belegt = Math.max(0, Number(bereits) || 0) - Math.max(0, Number(kaputt) || 0)
   if (belegt + liste.length > ANHAENGE_MAX) {
     return { ok: false, text: TEXTE.hoechstzahl, dateien: [] }
   }
-  const zuGross = liste.find((d) => sizeVon(d) > ANHANG_MAX_BYTES)
+  const grenze = Number.isFinite(Number(maxBytes)) && Number(maxBytes) > 0
+    ? Number(maxBytes)
+    : ANHANG_MAX_BYTES
+  const zuGross = liste.find((d) => sizeVon(d) > grenze)
   if (zuGross) {
-    return { ok: false, text: `${dateiText(zuGross)} ist zu groß (max. ${ANHANG_MAX_BYTES / (1024 * 1024)} MB).`, dateien: [] }
+    return { ok: false, text: `${dateiText(zuGross)} ist zu groß (max. ${mbText(grenze)} MB).`, dateien: [] }
   }
   const leer = liste.find((d) => sizeVon(d) === 0)
   if (leer) {

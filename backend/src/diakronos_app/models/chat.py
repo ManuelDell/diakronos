@@ -291,10 +291,24 @@ MELDUNG_ENTSCHEIDUNGEN: tuple[str, ...] = ("entfernen", "verwerfen")
 GLOCKE_RUHE_MINUTEN = 5
 
 # ── CHAT-12a: ANHÄNGE (Konzept S4, F11) ─────────────────────────────────────
-#: Höchstgröße EINES Anhangs in Bytes (Konzept S4: „10 MB je Datei“). Die
-#: Grenze steht hier, weil Endpunkt, Speicher-Schreibvorgang und Meldung
-#: dieselbe Zahl nennen müssen.
+#: Höchstgröße EINES Anhangs in Bytes — der STANDARD (Konzept S4: „10 MB je
+#: Datei“), gültig solange die Gemeinde nichts anderes eingestellt hat. Die
+#: WIRKSAME Grenze liefert ``chat_anhanggrenze.anhang_max_bytes()`` (Karte
+#: CHAT-12c: „Anhängegröße in den Admin-Einstellungen einstellbar“); diese Zahl
+#: hier ist nur ihr Rückfallwert und KEINE zweite Wahrheit.
 ANHANG_MAX_BYTES = 10 * 1024 * 1024
+#: CHAT-12c (F9 „ein Wert“): die einstellbare Grenze in GANZEN MB. Standard 10
+#: (``ANHANG_MAX_MB_STANDARD``), zulässig 1…50. Bewusst ein MB-Wert und kein
+#: Byte-Wert: in den Einstellungen steht eine Zahl, die ein Mensch lesen kann.
+#: Der Wert gilt für Anhänge — und nach dem Konzept DATEIEN (F9) später auch
+#: für Gruppendateien; deshalb steht er allgemein an der Gemeinde und nicht im
+#: Anhang-Sonderfall.
+ANHANG_MAX_MB_STANDARD = 10
+#: Obere Schranke der Einstellung (Karte CHAT-12c). Eine Grenze über 50 MB
+#: liefe an der Proxy-Grenze des Stapels vorbei (``MAX_UPLOAD_BYTES_AUDIO``
+#: = 50 MB, siehe ``nginx/19-tls.envsh``) — eine Einstellung, die der Proxy
+#: ohnehin abschneidet, wäre keine Zusage.
+ANHANG_MAX_MB_GRENZE = 50
 #: Höchstzahl Anhänge je Nachricht (Konzept S4: „3 Anhänge je Nachricht“).
 ANHAENGE_MAX = 3
 #: Höchstzahl Anhänge je KONTO und KALENDERTAG (Konzept-Kostenrechnung,
@@ -1171,6 +1185,8 @@ __all__: list[Any] = [
     "ANHAENGE_PRO_TAG",
     "ANHANG_BILDER",
     "ANHANG_MAX_BYTES",
+    "ANHANG_MAX_MB_GRENZE",
+    "ANHANG_MAX_MB_STANDARD",
     "ANHANG_NAME_MAX",
     "ANHANG_OFFEN_STUNDEN",
     "ANHANG_TYPEN",

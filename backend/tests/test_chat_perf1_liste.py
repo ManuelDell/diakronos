@@ -356,6 +356,11 @@ def test_antwort_ist_festgehalten(gemischt, welt):
     Geprüft wird bewusst der GANZE Text (nicht einzelne Felder): eine
     zusätzliche oder fehlende Zeile, ein ``null`` statt ``""`` oder eine
     andere Sortierung fällt damit auf.
+
+    EINE gewollte Erweiterung: CHAT-12c hängt ``anhang_max_bytes`` an die
+    Antwort (die Oberfläche prüft damit die Dateigröße VOR dem Upload, ohne
+    zweiten Rundlauf). Das Feld steht deshalb auch im festgehaltenen Wortlaut
+    — es ist Zusage, nicht Zufall.
     """
     from diakronos_app import rechte as R
 
@@ -630,7 +635,8 @@ _FESTGEHALTEN = """\
    "letzte_am": null,
    "darf_senden": true
   }
- ]
+ ],
+ "anhang_max_bytes": 10485760
 }"""
 
 
@@ -728,6 +734,11 @@ def test_sql_zaehlung_bei_30_gespraechen(welt, engine, patched_db):
     Nachricht, Teilnehmerliste) sind in Sammelabfragen übergegangen — die
     Grenze liegt knapp über dem Ist-Stand (11) und schlägt an, sobald jemand
     eine davon wieder in eine Schleife verwandelt.
+
+    CHAT-12c hat die Grenze NICHT verschoben: ``anhang_max_bytes`` wird als
+    Skalar-Abfrage EINMAL je Request gelesen (kein Merker — R1: eine
+    Einstellung ist keine Rechtefrage) — die Zahl der Abfragen bleibt bei 25
+    (und bei 60 Gesprächen dieselbe).
     """
     _viele_gruppen(patched_db(), "Welt30", 30)
     anzahl, zeilen = _messen(engine)

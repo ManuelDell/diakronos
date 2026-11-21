@@ -1260,6 +1260,60 @@
    "ausnahme": null,
    "ausnahme_art": null,
    "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.chat.chat_einstellungen_lesen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "chat_einstellungen_lesen",
+   "pfade": [
+    "api.chat_einstellungen_lesen",
+    "chat.chat_einstellungen_lesen",
+    "chat_einstellungen_lesen",
+    "diakronos.diakonos.api.chat.chat_einstellungen_lesen",
+    "diakronos.diakronos.api.chat.chat_einstellungen_lesen",
+    "diakronos_app.api.chat.chat_einstellungen_lesen"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.chat.chat_einstellungen_speichern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.chat",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "chat_einstellungen_speichern",
+   "pfade": [
+    "api.chat_einstellungen_speichern",
+    "chat.chat_einstellungen_speichern",
+    "chat_einstellungen_speichern",
+    "diakronos.diakonos.api.chat.chat_einstellungen_speichern",
+    "diakronos.diakronos.api.chat.chat_einstellungen_speichern",
+    "diakronos_app.api.chat.chat_einstellungen_speichern"
+   ],
+   "rumpf_grund": "ueber anhanggrenze.setze_einstellungen(): Aufruf session.flush()",
+   "rumpf_ueber": "diakronos_app.chat_anhanggrenze.setze_einstellungen"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
    "ausnahme_quelle": "rumpf, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
@@ -11589,12 +11643,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 430,
+ "funktionen": 432,
  "nur_test": [],
- "registrierte_pfade": 2419,
+ "registrierte_pfade": 2431,
  "rumpf_zaehlung": {
-  "lesend": 199,
-  "schreibend": 231
+  "lesend": 200,
+  "schreibend": 232
  },
  "widersprueche": [
   {
@@ -12216,7 +12270,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 188,
-  "schreibend": 242
+  "lesend": 189,
+  "schreibend": 243
  }
 }

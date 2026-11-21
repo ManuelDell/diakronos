@@ -374,6 +374,7 @@ from diakronos_app.frappe_compat.exceptions import (
     throw,
 )
 from diakronos_app.frappe_compat.session import session
+from diakronos_app import chat_anhanggrenze as anhanggrenze
 from diakronos_app.models.chat import (
     ANHAENGE_MAX,
     ANHAENGE_PRO_TAG,
@@ -1520,7 +1521,14 @@ def meine_gespraeche():
 
     Antwort: ``{gespraeche: [{name, art, gruppe, untergruppe, titel,
     teilnehmer, stumm, geoeffnet, ungelesen, letzte_nachricht, letzte_am,
-    mitglied, bild}]}``.
+    mitglied, bild}], anhang_max_bytes}``.
+
+    CHAT-12c: ``anhang_max_bytes`` ist die EINGESTELLTE Anhanggröße in Bytes
+    (``chat_anhanggrenze.anhang_max_bytes`` — Standard 10 MB, einstellbar in
+    den Einstellungen). Sie steht HIER, weil die Chat-Seite diese Antwort
+    ohnehin lädt: die Vorab-Prüfung im Browser braucht die Zahl, ohne einen
+    zweiten Rundlauf. Lesbar für jede Person mit Chat-Zugang (die Grenze gilt
+    für alle) — KEINE Admin-Pflicht.
 
     CHAT-N2 — Ausschluss EINMAL je Anfrage: der Zustand (ganz ``Mitglied`` +
     ganz ``User``) wird hier EINMAL gelesen und als Menge an die Köpfe
@@ -1552,8 +1560,11 @@ def meine_gespraeche():
         for g in gespraeche:
             ergebnis.append(_gespraech_kopf(
                 s, g, benutzer, ausgeschlossene=aus, daten=daten))
+        # CHAT-12c: die eingestellte Anhanggröße — in DIESER Antwort, weil die
+        # Oberfläche sie ohnehin lädt (Vorab-Prüfung, kein zweiter Rundlauf).
+        anhang_grenze = anhanggrenze.anhang_max_bytes(s)
     ergebnis.sort(key=lambda e: (str(e["letzte_am"] or ""), str(e["titel"])), reverse=True)
-    return {"gespraeche": ergebnis}
+    return {"gespraeche": ergebnis, anhanggrenze.FELD_BYTES: anhang_grenze}
 
 
 # ── Endpunkt: Direktgespräch öffnen (CHAT-7a) ───────────────────────────────
@@ -3061,11 +3072,13 @@ def _trefferwenn(dialekt: str, benutzer: str,
 # ── CHAT-12a: Anhänge (Konzept S4 + F11, über SPEICHER-1) ───────────────────
 
 
-def _anhang_herkunft(datei) -> tuple[bytes, str]:
+def _anhang_herkunft(datei, grenze: int | None = None) -> tuple[bytes, str]:
     """Bytes UND deklarierten Typ eines Uploads — in EINEM Lesevorgang.
 
-    Der Lesedeckel ist ``ANHANG_MAX_BYTES + 1``: ein größerer Upload wird
-    abgewiesen, ohne vollständig in den Speicher zu wandern. Gelesen wird am
+    Der Lesedeckel ist ``grenze + 1`` (die WIRKSAME Grenze der Gemeinde,
+    ``chat_anhanggrenze.anhang_max_bytes`` — ohne Angabe der Standard
+    ``ANHANG_MAX_BYTES``): ein größerer Upload wird abgewiesen, ohne
+    vollständig in den Speicher zu wandern. Gelesen wird am
     ``UploadFile`` VORBEI auf dem dahinterliegenden synchronen Datenstrom
     (``.file``) — genau wie ``frappe_core.upload_file`` und
     ``gemeinde_logo.pruefe_und_lege_ab``; ``UploadFile.read`` wäre in Starlette
@@ -3078,11 +3091,12 @@ def _anhang_herkunft(datei) -> tuple[bytes, str]:
     """
     if datei is None:
         throw("Es wurde keine Datei übergeben.")
+    deckel = (ANHANG_MAX_BYTES if grenze is None else int(grenze)) + 1
     deklariert = str(getattr(datei, "content_type", "") or "")
     if hasattr(datei, "read"):
         quelle = getattr(datei, "file", None) or datei
         try:
-            gelesen = quelle.read(ANHANG_MAX_BYTES + 1)
+            gelesen = quelle.read(deckel)
         except Exception as fehler:  # noqa: BLE001 — kaputter Upload ist eine Eingabe
             throw(f"Die Datei konnte nicht gelesen werden: {fehler}")
         return bytes(gelesen or b""), deklariert
@@ -4425,7 +4439,10 @@ def anhang_hochladen(gespraech, datei=None, file=None, dateiname=None):
     1. Typ per MAGIE (``files.binary_content_type``, wiederverwendet) gegen
        ``ANHANG_TYPEN``: JPG, PNG, WebP, HEIC, PDF, MP3, M4A, OGG, OPUS. Ein
        umbenanntes Programm fällt hier durch.
-    2. Größe ≤ ``ANHANG_MAX_BYTES`` (10 MB).
+    2. Größe ≤ die EINGESTELLTE Grenze der Gemeinde
+       (``chat_anhanggrenze.anhang_max_bytes`` — Standard 10 MB, einstellbar
+       1…50 in den Einstellungen, CHAT-12c). Gelesen wird höchstens Grenze+1
+       Byte; die Meldung nennt die geltende MB-Zahl.
     3. Tagesgrenze je PERSON: höchstens ``ANHAENGE_PRO_TAG`` (20) Anhänge je
        Kalendertag — überschritten → ``RateLimitError`` (429), wie die übrigen
        Bremsen der App.
@@ -4450,12 +4467,17 @@ def anhang_hochladen(gespraech, datei=None, file=None, dateiname=None):
         gespraech_name = str(g.name)
         _erlaube(benutzer, rechte.ANLEGEN, g=g, sitzung=s)
         _anhang_kontingent(s, benutzer)
+        # CHAT-12c: die Grenze EINMAL je Upload lesen (eine Quelle der
+        # Wahrheit) und für Deckel, Prüfung und Meldung dieselbe Zahl nehmen.
+        grenze_bytes = anhanggrenze.anhang_max_bytes(s)
 
-    roh, deklariert = _anhang_herkunft(vom_aufrufer)
+    roh, deklariert = _anhang_herkunft(vom_aufrufer, grenze=grenze_bytes)
     if not roh:
         throw("Die Datei ist leer.")
-    if len(roh) > ANHANG_MAX_BYTES:
-        throw(f"Die Datei ist zu groß (max. {ANHANG_MAX_BYTES // (1024 * 1024)} MB).")
+    if len(roh) > grenze_bytes:
+        # Dieselbe Zahl wie im Lese-Deckel und in der Einstellung (CHAT-12c):
+        # MB aus der Einstellung, nicht die Konstante.
+        throw(f"Die Datei ist zu groß (max. {grenze_bytes // (1024 * 1024)} MB).")
     typ = _anhang_typ(roh, deklariert)
     anzeigename = _anhang_dateiname(
         dateiname or getattr(vom_aufrufer, "filename", None), typ)
@@ -8444,6 +8466,66 @@ def fristen_speichern(chat_frist_gruppe_monate=None,
     return {**werte, "gespeichert": True}
 
 
+# ── Endpunkte: Anhanggröße (CHAT-12c, Konzept S4/F9) ────────────────────────
+
+
+@whitelist(allow_guest=False)
+def chat_einstellungen_lesen():
+    """Die Chat-Einstellungen der Gemeinde — heute die ANHANGGRÖSSE.
+
+    Lesbar für jedes angemeldete Konto: die Grenze gilt für ALLE (sie steht
+    auch in der Antwort von ``meine_gespraeche`` als
+    ``anhang_max_bytes``). Geschrieben wird nur mit Administrationsrecht.
+
+    Antwort: ``{anhang_max_mb, standard, minimum, maximum}`` — ``standard``
+    ist der voreingestellte MB-Wert, ``minimum``/``maximum`` sind die Grenzen
+    der Einstellung (1 und 50).
+    """
+    with dbmod.SessionLocal.begin() as s:
+        werte = anhanggrenze.holen_einstellungen(s)
+    return {
+        **werte,
+        "standard": anhanggrenze.ANHANG_MAX_MB_STANDARD,
+        "minimum": 1,
+        "maximum": anhanggrenze.ANHANG_MAX_MB_GRENZE,
+    }
+
+
+@whitelist(methods=["POST"], allow_guest=False)  # schreibt die Gemeinde-Single (SEC-11)
+def chat_einstellungen_speichern(anhang_max_mb=None):
+    """Die Anhanggröße setzen — NUR mit Administrationsrecht (CHAT-12c).
+
+    Vorbild ist ``fristen_speichern``: die Rechtefrage beantwortet der
+    zentrale Rechte-Kern (``rechte.ist_admin``), KEINE eigene Rollenlogik —
+    HV/MV/GL moderieren den Chat, ändern aber keine Grenze der Gemeinde.
+    Geprüft wird VOR dem Schreiben und VOR der Wertprüfung: ein Nicht-Admin
+    erfährt nicht, welche Werte zulässig sind.
+
+    Der Wert sind GANZE MB, 1…50. Ein Wert außerhalb oder etwas, das keine
+    ganze Zahl ist, ergibt eine freundliche ``ValidationError``-Meldung.
+
+    Antwort: die gespeicherten Werte (wie ``chat_einstellungen_lesen``).
+    """
+    benutzer = _benutzer()
+    if not rechte.ist_admin(benutzer):
+        _h()
+    try:
+        with dbmod.SessionLocal.begin() as s:
+            anhanggrenze.setze_einstellungen(
+                s, mb=anhang_max_mb, benutzer=benutzer, jetzt=_jetzt(),
+            )
+            werte = anhanggrenze.holen_einstellungen(s)
+    except anhanggrenze.AnhangGroesseFehler as fehler:
+        raise ValidationError(str(fehler)) from None
+    return {
+        **werte,
+        "gespeichert": True,
+        "standard": anhanggrenze.ANHANG_MAX_MB_STANDARD,
+        "minimum": 1,
+        "maximum": anhanggrenze.ANHANG_MAX_MB_GRENZE,
+    }
+
+
 
 # ── Runden (CHAT-7b) ────────────────────────────────────────────────────────
 
@@ -9267,6 +9349,8 @@ __all__ = [
     "SEITE_MAX",
     "TITEL_MAX",
     "aendern",
+    "chat_einstellungen_lesen",
+    "chat_einstellungen_speichern",
     "fristen_lesen",
     "fristen_speichern",
     "chat_glocken_buendeln",

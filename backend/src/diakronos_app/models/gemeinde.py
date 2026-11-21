@@ -90,6 +90,14 @@ class GemeindeEinstellungen(Base):
     # JEDER Zugriff auf die Gemeinde-Einstellungen mit UndefinedColumn).
     chat_frist_gruppe_monate: Mapped[int | None] = mapped_column(Integer, nullable=True)
     chat_frist_direkt_monate: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # CHAT-12c (F9 „ein Wert“): Hoechstgroesse EINES Chat-Anhangs in GANZEN MB.
+    # Standard 10 (``models.chat.ANHANG_MAX_MB_STANDARD``), gueltig 1…50
+    # (``ANHANG_MAX_MB_GRENZE``); geprueft von
+    # ``chat_anhanggrenze._pruefe_mb`` — dieselbe Schranke fuer Endpunkt UND
+    # Upload. NULL = noch nie eingestellt -> es gilt der Standard.
+    # Angelegt von ``alembic/versions/chat12c_anhang_groesse.py``; der Name ist
+    # bewusst allgemein (spaeter auch Gruppendateien).
+    anhang_max_mb: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     modified: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     modified_by: Mapped[str | None] = mapped_column(String(140), nullable=True)

@@ -76,8 +76,11 @@ export const STICHWORTE = {
   // CHAT-8-UI: der Abschnitt „Nachrichten aufbewahren“. Die Stichworte sind
   // seine Überschriften und Feldnamen (`pages/einstellungen/Fristen.vue`):
   // zwei Fristen, der Standard, der Rücksetz-Knopf, die festen Fristen.
+  // CHAT-12c: dazu die „Höchstgröße je Anhang“ (MB) — sie steht im selben
+  // Abschnitt, weil sie eine Grenze der Chat-Inhalte ist.
   fristen: ['Nachrichten aufbewahren', 'Aufbewahrung', 'Fristen', 'Frist', 'Monate',
-    'Gruppengespräche', 'Direktnachrichten', 'Runden', 'Standard', 'Chat', 'Nachrichten'],
+    'Gruppengespräche', 'Direktnachrichten', 'Runden', 'Standard', 'Chat', 'Nachrichten',
+    'Höchstgröße', 'Anhang', 'Anhänge', 'MB'],
   // CHAT-7b-UI-b: der Abschnitt „Gesperrte Personen“ (`Sperren.vue`) — seine
   // Wörter stehen als Überschrift, Einleitung, Leerzustand und Knopf dort.
   // „Nicht mehr anschreiben lassen“ und „Blockieren“ stehen in den
@@ -163,11 +166,14 @@ export const FELDER = {
   ],
   // Die Beschriftungen sind die der Seite (`Fristen.vue`, Feldtitel). Die
   // Sprungmarken setzt der Abschnitt selbst: `anker="gruppe"`/`"direkt"`.
+  // CHAT-12c: drittes Feld „Höchstgröße je Anhang“ (`anker="anhang"`).
   fristen: [
     { id: 'gruppe', label: 'Gruppengespräche',
       stichworte: ['Fristen', 'Aufbewahrung', 'Chat', 'Gruppe', 'Monate'] },
     { id: 'direkt', label: 'Direktnachrichten',
       stichworte: ['Fristen', 'Aufbewahrung', 'Chat', 'Direktnachricht', 'Runden', 'Monate'] },
+    { id: 'anhang', label: 'Höchstgröße je Anhang',
+      stichworte: ['Anhang', 'Anhänge', 'Größe', 'MB', 'Chat', 'Höchstgröße'] },
   ],
   datensicherung: [
     { id: 'automatisch', label: 'Täglich automatisch sichern', stichworte: ['Automatik'] },

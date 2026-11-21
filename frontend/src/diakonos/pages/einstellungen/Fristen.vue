@@ -58,6 +58,29 @@
               <span class="cfg-einheit" aria-hidden="true">Monate</span>
             </div>
           </DkField>
+          <!-- CHAT-12c: Höchstgröße je Anhang. Dieselbe Bauart wie die Fristen
+               (DkField + Zahlfeld + Standard-Hinweis + Speichern/Fehler) und
+               EIGENER Endpunkt (`chat.chat_einstellungen_*`), weil es eine
+               andere Einstellung mit eigener Prüfung ist. Der Wert gilt für
+               die Vorab-Prüfung in der Chat-Seite
+               (`anhang_max_bytes` in `chat.meine_gespraeche`). -->
+          <DkField v-slot="feld" label="Höchstgröße je Anhang" anker="anhang"
+            :help="groesseHinweis"
+            :error="groesseFehler || ''" :wert="groesseWert"
+            @update:wert="groesseEintippen($event)">
+            <div class="cfg-feldzeile">
+              <input
+                v-bind="feld.feldProps"
+                class="dk-ui-eingabe cfg-eingabe"
+                type="number"
+                inputmode="numeric"
+                :min="groesseStand.minimum"
+                :max="groesseStand.maximum"
+                step="1"
+              />
+              <span class="cfg-einheit" aria-hidden="true">MB</span>
+            </div>
+          </DkField>
 
           <!-- Klartext beim Verkürzen (Karte Punkt 3): NUR wenn ein Wert
                kleiner ist als der gespeicherte. Die Farbe trägt die Aussage
@@ -75,6 +98,13 @@
               :aria-disabled="kannSpeichern ? undefined : 'true'"
               :title="kannSpeichern ? undefined : 'Keine Änderung zum Speichern'"
             >Speichern</DkButton>
+            <DkButton
+              variant="secondary"
+              type="button"
+              :disabled="speichert || !groesseAbweichend"
+              :title="groesseAbweichend ? undefined : 'Das Feld steht schon auf dem Standardwert.'"
+              @click="groesseAufStandard"
+            >Höchstgröße auf Standard</DkButton>
             <DkButton
               variant="secondary"
               type="button"
@@ -110,6 +140,13 @@
  * `chat.fristen_speichern` — nur die Administration darf schreiben; der Server
  * entscheidet, ein 403 bleibt hier ruhig stehen (keine eigene Rollenprüfung).
  *
+ * CHAT-12c: DASSELBE Formular trägt zusätzlich die „Höchstgröße je Anhang“ in
+ * MB (1–50, Standard 10) — eigene Endpunkte `chat.chat_einstellungen_lesen`
+ * (jedes angemeldete Konto) und `chat.chat_einstellungen_speichern` (nur
+ * Administration, wie bei den Fristen). Die Regeln stehen in
+ * `./anhanggroesse.mjs`. Die Chat-Seite nimmt dieselbe Zahl aus
+ * `chat.meine_gespraeche` (`anhang_max_bytes`) für ihre Vorab-Prüfung.
+ *
  * Sichtbarkeit regelt der Rahmen: der Abschnitt hängt in
  * `pages/Einstellungen.vue` an `verwaltung: 'admin'` (dieselbe Regel wie
  * Papierkorb und Datenschutz-Texte) — hier steht KEINE zweite Rechteprüfung.
@@ -131,6 +168,12 @@ import {
   FELDER, eingabePruefen, feldTexte, festeFristen, geaendert, speicherNutzlast,
   standLesen, standardHinweis, standardTexte, verkuerzenFrage, verkuerzt,
 } from './fristen.mjs'
+import {
+  eingabePruefen as groessePruefen, feldText as groesseFeldText,
+  geaendert as groesseGeaendert, speicherNutzlast as groesseNutzlast,
+  speicherFehlerText as groesseFehlerText, standLesen as groesseStandLesen,
+  standardHinweis as groesseStandardHinweis, standardText as groesseStandardText,
+} from './anhanggroesse.mjs'
 
 const laedt = ref(true)
 // Platzhalter erst nach 300 ms (kein Blitzen, keine Aussage vor der Antwort).
@@ -147,13 +190,42 @@ const stand = ref(standLesen(null))
 let standwert = {}
 const werte = ref(feldTexte(stand.value))
 
+// ── CHAT-12c: Höchstgröße je Anhang ─────────────────────────────────────────
+// EIGENE Antwort und EIGENE Endpunkte (`chat.chat_einstellungen_lesen` /
+// `…_speichern`) — dieselbe Bauart wie die Fristen, aber eine andere
+// Einstellung. Der Wert wird GETRENNT gespeichert, damit ein Fehler bei der
+// einen Einstellung nicht die andere blockiert; beide Knöpfe teilen sich das
+// Formular, weil der Abschnitt „Nachrichten aufbewahren“ sie zusammen zeigt.
+const groesseStand = ref(groesseStandLesen(null))
+const groesseWert = ref(groesseFeldText(groesseStand.value))
+const groesseFehler = ref('')
+let groesseStandwert = {}
+
+const groesseHinweis = computed(() => groesseStandardHinweis(groesseStand.value))
+
+const groesseGeaendertJetzt = computed(() =>
+  groesseGeaendert(groesseWert.value, groesseStand.value))
+
+/** Steht das Größenfeld auf dem Standardwert? Dann gibt es nichts zurückzusetzen. */
+const groesseAbweichend = computed(() =>
+  String(groesseWert.value ?? '') !== String(groesseStandardText(groesseStand.value) ?? ''))
+
+/** „Höchstgröße auf Standard“ füllt nur das Feld — gespeichert wird danach. */
+function groesseAufStandard() {
+  groesseWert.value = groesseStandardText(groesseStand.value)
+  groesseFehler.value = groessePruefen(groesseWert.value, groesseStand.value).fehler
+  erfolg.value = ''
+}
+
 const festeSaetze = computed(() => festeFristen(stand.value))
 
 /** Nur wenn ein Wert kleiner wird als der gespeicherte (Karte Punkt 3). */
 const warnung = computed(() => verkuerzenFrage(werte.value, stand.value))
 
 const kannSpeichern = computed(() =>
-  geaendert(werte.value, stand.value) && Object.keys(feldFehler.value).length === 0)
+  (geaendert(werte.value, stand.value) && Object.keys(feldFehler.value).length === 0)
+  // CHAT-12c: auch eine geänderte Anhangsgröße ist etwas zu speichern.
+  || (groesseGeaendertJetzt.value && !groesseFehler.value))
 
 /** Stehen die Felder auf den Standardwerten? Dann gibt es nichts zurückzusetzen. */
 const standardAbweichend = computed(() => {
@@ -176,6 +248,18 @@ async function laden() {
   } finally {
     laedt.value = false
   }
+  // CHAT-12c: die Anhangsgröße hat einen EIGENEN Lese-Endpunkt (jedes
+  // angemeldete Konto darf sie lesen). Ein Fehler dort lässt die Fristen
+  // stehen — das Feld sagt dann, dass es nichts weiß.
+  try {
+    const antwort = await apiCall('diakronos_app.api.chat.chat_einstellungen_lesen', {})
+    groesseStandwert = antwort || {}
+    groesseStand.value = groesseStandLesen(groesseStandwert)
+    groesseWert.value = groesseFeldText(groesseStand.value)
+    groesseFehler.value = ''
+  } catch {
+    groesseFehler.value = 'Die Anhangsgröße konnte nicht geladen werden.'
+  }
 }
 
 /**
@@ -196,12 +280,68 @@ function aufStandard() {
   erfolg.value = ''
 }
 
+/** CHAT-12c: Tippen im Größenfeld — sofort prüfen, nicht erst beim Speichern. */
+function groesseEintippen(wert) {
+  groesseWert.value = wert
+  groesseFehler.value = groessePruefen(wert, groesseStand.value).fehler
+  erfolg.value = ''
+}
+
+/**
+ * CHAT-12c: die Anhangsgröße speichern — eigener Endpunkt, eigener Fehler.
+ *
+ * Nur die ADMINISTRATION darf schreiben (der Server prüft `rechte.ist_admin`);
+ * hier steht KEINE Rollenprüfung — ein 403 wird ruhig erklärt.
+ */
+async function groesseSpeichern() {
+  if (speichert.value) return
+  const ergebnis = groessePruefen(groesseWert.value, groesseStand.value)
+  groesseFehler.value = ergebnis.fehler
+  if (!ergebnis.ok) return
+  if (!groesseGeaendert(ergebnis.wert, groesseStand.value)) return
+
+  speichert.value = true
+  fehler.value = ''
+  erfolg.value = ''
+  try {
+    const antwort = await apiCall(
+      'diakronos_app.api.chat.chat_einstellungen_speichern',
+      groesseNutzlast(ergebnis.wert),
+    )
+    erfolg.value = 'Gespeichert. Die neue Höchstgröße gilt für alle Anhänge im Chat.'
+    groesseStand.value = groesseStandLesen({ ...groesseStandwert, ...antwort })
+    groesseStandwert = { ...groesseStandwert, ...antwort }
+    groesseWert.value = groesseFeldText(groesseStand.value)
+    groesseFehler.value = ''
+  } catch (err) {
+    // Die Server-Meldung (422: „… muss zwischen 1 und 50 MB liegen.“) steht
+    // im Feld; ein 403 erklärt der Satz für die Administration.
+    groesseFehler.value = groesseFehlerText(err, {
+      ersatz: 'Die Anhangsgröße konnte nicht gespeichert werden.',
+    })
+  } finally {
+    speichert.value = false
+  }
+}
+
 async function abschicken() {
   if (speichert.value) return
+  // CHAT-12c: steht im Größenfeld etwas zu Speicherndes, geht es als ERSTES
+  // hinaus (eigener Endpunkt) — ein Tippfehler dort hält die Fristen nicht auf,
+  // und ein Fehler dort lässt die Fristen unberührt.
+  if (groesseGeaendertJetzt.value && !groesseFehler.value) {
+    await groesseSpeichern()
+    if (groesseFehler.value) return
+  }
+
   const ergebnis = eingabePruefen(werte.value, stand.value)
   feldFehler.value = ergebnis.fehler
   if (!ergebnis.ok) return
-  if (!geaendert(ergebnis.werte, stand.value)) return
+  if (!geaendert(ergebnis.werte, stand.value)) {
+    // Nichts an den Fristen zu ändern — die Anhangsgröße ist gespeichert.
+    if (!groesseGeaendertJetzt.value) return
+    return
+  }
 
   // Verkürzen ist endgültig: erst fragen, dann speichern. Die Fragetexte sind
   // derselbe Klartext-Satz, der schon über den Knöpfen steht (Karte Punkt 3) —

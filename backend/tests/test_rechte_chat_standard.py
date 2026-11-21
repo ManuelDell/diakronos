@@ -171,4 +171,6 @@ def test_migration_haengt_hinter_backoff_und_ist_einziger_kopf():
     skripte = ScriptDirectory.from_config(cfg)
     rev = skripte.get_revision("r_chat_standard")
     assert rev.down_revision == "chat12a2_backoff"
-    assert skripte.get_heads() == ["r_chat_standard"]
+    # CHAT-12c hängt DAHINTER (chat12c_anhang_groesse) — der Kopf ist damit
+    # nicht mehr diese Revision, sondern genau EINER: der Anhanggröße.
+    assert skripte.get_heads() == ["chat12c_anhang_groesse"]
