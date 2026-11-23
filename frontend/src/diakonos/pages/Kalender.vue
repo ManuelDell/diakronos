@@ -16,7 +16,14 @@
            Werkzeugzeile „Kalender 3 · ‹ · › · ⋯" ist entfallen. ‹ › bewegen
            den Monat — sie stehen deshalb in der Kopfzeile des Mini-Monats
            (Liste) bzw. neben dem Monatstitel (Monat/Woche, s. u.). -->
+      <!-- LEISTE-2 (Manuel 23.11., Entwurf „06 Kalender A Handy“): Der Kalender
+           läuft ohne App-Kopfzeile; der Menü-Knopf steht deshalb
+           vorn in der Kopfzeile des Kalenders. Der Zustand der Schublade
+           gehört der App-Wurzel — hier nur das Ereignis. -->
+      <div class="kal-kopf-mit-menue">
+      <MenueKnopf @oeffnen="$emit('open-menu')" />
       <KalenderKopfMobil
+        class="kal-kopf-mobil-flex"
         :ansicht="mobilAnsichtId"
         :standard="standardAnsicht"
         :darf-pruefen="darfPruefen"
@@ -35,6 +42,7 @@
         @abgelehnteTermine="abgelehnteListeOeffnen"
         @hilfe="hilfeOeffnen"
       />
+      </div>
 
       <KalenderPruefZeile
         :darf-pruefen="darfPruefen"
@@ -382,6 +390,8 @@ import KronosDayEventsDialog from '../components/kronos/KronosDayEventsDialog.vu
 import KronosSeriesDialog from '../components/kronos/KronosSeriesDialog.vue'
 import DkDialog from '../components/ui/DkDialog.vue'
 import DkButton from '../components/ui/DkButton.vue'
+// LEISTE-2: der eine Menü-Knopf der App (Kalender läuft ohne App-Kopfzeile).
+import MenueKnopf from '../components/MenueKnopf.vue'
 // A4: „November 2026“ und „KW 44–49“ als reine Funktionen (geprüft in
 // tests/ux3i-kalender-a4.test.mjs).
 import {
@@ -439,6 +449,9 @@ import { setzeRollenMarke } from '../composables/useBereichskopf.js'
 import DkSymbol from '../components/ui/DkSymbol.vue'
 // A4/A10: Farbe aus den Kalenderdaten — geprüft, bevor sie in den Stil geht.
 import { sichereFarbe } from '../../shared/sichere-ausgabe.js'
+
+// LEISTE-2: Der Menü-Knopf im Handy-Kopf öffnet die Schublade der App (App.vue).
+defineEmits(['open-menu'])
 
 const store = useKronosStore()
 const { mitRueckgaengig } = useRueckgaengigAktion()
@@ -1830,6 +1843,9 @@ defineExpose({
 </script>
 
 <style scoped>
+/* LEISTE-2: Menü-Knopf und Kalender-Kopf in EINER Zeile (Handy, ohne App-Kopfzeile). */
+.kal-kopf-mit-menue { display: flex; align-items: center; gap: var(--sp-1); }
+.kal-kopf-mobil-flex { flex: 1 1 auto; min-width: 0; }
 .kronos-page-content {
   display: flex;
   flex-direction: column;

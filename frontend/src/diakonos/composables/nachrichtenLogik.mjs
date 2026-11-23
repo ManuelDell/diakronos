@@ -334,6 +334,20 @@ export function ungelesenSumme(gespraeche) {
     .reduce((summe, e) => summe + Math.max(0, Number(e?.ungelesen) || 0), 0)
 }
 
+/**
+ * LEISTE-1: Steht der Kopf „Alle Gespräche“ über der Liste?
+ *
+ * Auf der Vollbild-Seite „Nachrichten“ trägt ihn die Spalte NICHT mehr: die
+ * Seite hat keine Überschrift, und „Alle Gespräche“ war auf dem Handy die
+ * dritte Zeile derselben Aussage (Befund DMB-4971, Handy-Foto 23.11.).
+ * Bleibt der Ungelesen-Zähler („N neu“), braucht er eine Zeile — sonst
+ * stünde die Zahl ohne Bezug über der Liste. Eine leere Zeile entsteht nie.
+ */
+export function listenkopfSichtbar({ kopf = true, ungelesen = 0 } = {}) {
+  if (kopf !== false) return true
+  return Math.max(0, Number(ungelesen) || 0) > 0
+}
+
 /** Die Zeile zu einer Kennung (oder `null`). */
 export function findeGespraech(gespraeche, name) {
   const kennung = String(name || '')

@@ -465,6 +465,47 @@ const MUSTER_WEITERLEITUNGEN = [
     { pattern: /^#\/planrahmen\/einrichten\/(.+)$/, ziel: id => `#/dienste/vorlagen/${id}` },
 ]
 
+// ── LEISTE-1: Welche Adresse läuft ohne App-Rahmen? ────────────────────────
+/**
+ * EINE Stelle, an der eine Adresse „Vollbild“ verlangt — ohne Sonderfälle in
+ * den Seiten selbst (Manuel 23.11., Befund DMB-4971: „Bei der Nachrichtenseite
+ * braucht es keinen Rahmen wie bei Gruppen, Kalender und Co.“).
+ *
+ * Vollbild heißt: keine App-Kopfzeile, kein Innenabstand des Inhaltskastens;
+ * die Seite trägt ihren Kopf selbst. Je Eintrag steht, ob die Seitenleiste
+ * (und am Handy die Tab-Leiste) bleibt. `App.vue` liest nur das Ergebnis.
+ */
+const VOLLBILD_MUSTER = [
+    // Assistent: eigener Kopf und eigene Fußleiste, KEINE Seitenleiste.
+    { muster: /^#\/einrichtung$/, seitenleiste: false },
+    // LEISTE-1: Nachrichten (Liste, Suche, Gespräch).
+    { muster: /^#\/nachrichten(?:\/.+)?$/, seitenleiste: true },
+    // LEISTE-2 (Manuel 23.11., DMB-f503): der Kalender selbst — seine
+    // Werkzeugzeile (Monat/Woche/… + Knöpfe) ist die oberste Zeile. Die
+    // Unterseiten (Import, Verwaltung, Prüfen) behalten die App-Kopfzeile.
+    { muster: /^#\/kalender$/, seitenleiste: true },
+]
+
+function vollbildEintrag(hash) {
+    const pfad = String(hash || '').split('?')[0]
+    return VOLLBILD_MUSTER.find(e => e.muster.test(pfad)) || null
+}
+
+/** Verlangt diese Adresse (mit oder ohne `?…`) den Vollbild-Rahmen? */
+export function vollbildRoute(hash) {
+    return vollbildEintrag(hash) !== null
+}
+
+/**
+ * Bleibt die App-Seitenleiste im Vollbild stehen? Beim Assistenten NICHT (er
+ * hat seine eigene Kopf- und Fußleiste, Entwurf 04/09); bei Nachrichten und
+ * Kalender JA (Entwürfe Variante A, 23.11.) — die Fläche der weggefallenen
+ * App-Kopfzeile gehört der Seite, nicht einem zweiten Navigationsweg.
+ */
+export function darfSeitenleiste(hash) {
+    return vollbildEintrag(hash)?.seitenleiste === true
+}
+
 // ── Fenstertitel (OP-UI-22, WCAG 2.4.2) ─────────────────────────────────────
 // Ausgelagert nach fenstertitel.js (P3-4b/B1): Dieses Modul ist importfrei und
 // damit in den Router-Tests (vm ohne Importe) lauffähig; ein Fehler im Titel
@@ -615,6 +656,13 @@ const acceptedRoute = ref({ hash: window.location.hash || '#/', pageName: 'Home'
 const currentHash = computed(() => acceptedRoute.value.hash)
 const currentPageName = computed(() => acceptedRoute.value.pageName)
 const currentComponent = shallowRef(null)
+/**
+ * LEISTE-1: Läuft die aktuelle Adresse im Vollbild-Rahmen (ohne App-Kopfzeile
+ * und ohne Seitenkopf)? Gesetzt beim Auflösen der Adresse (`resolveRoute`) aus
+ * derselben Liste, die auch `vollbildRoute()` beantwortet; der Startwert gilt
+ * für den ersten Aufbau, bevor `resolveRoute()` gelaufen ist.
+ */
+const vollbildModus = ref(vollbildRoute(window.location.hash || '#/'))
 
 // Route guards (simple)
 const beforeEachGuards = []
@@ -759,6 +807,9 @@ async function resolveRoute() {
 
     acceptedRoute.value = { hash: vollerHash, pageName, params }
     const route = acceptedRoute.value
+    // LEISTE-1: dasselbe Muster, das die Adresse ihrem Zustand nach kennt
+    // (eine Wahrheit je Adresse — kein zweites Zerlegen in App.vue).
+    vollbildModus.value = vollbildRoute(pfad)
     // OP-UI-22: Fenstertitel sofort mit dem Wechsel setzen (nicht erst, wenn
     // das Nachladen fertig ist — sonst trägt der Tab während des Ladens noch
     // den Titel der Vorgängerseite).
@@ -1043,4 +1094,4 @@ window.addEventListener('hashchange', resolveRoute)
 // Initial resolve
 resolveRoute()
 
-export { currentHash, currentPageName, currentComponent }
+export { currentHash, currentPageName, currentComponent, vollbildModus }

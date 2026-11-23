@@ -7,8 +7,12 @@
        Namen des Gegenübers, „gelesen“ statt Teilnehmerzahl und dem Einstieg
        „Neue Nachricht“ in die Personensuche (Karte Punkt 3 und 4). -->
   <div class="dk-chat-liste">
-    <div class="dk-chat-liste-kopf">
-      <h2 class="dk-chat-liste-titel">Alle Gespräche</h2>
+    <!-- LEISTE-1: Auf der Vollbild-Seite steht hier KEINE Überschrift mehr —
+         nur der Ungelesen-Zähler, wenn es einen gibt (er braucht die Zeile,
+         sonst stünde die Zahl ohne Bezug). Wo der Kopf aus ist und nichts
+         ungelesen ist, entsteht auch keine leere Zeile. -->
+    <div v-if="kopfSichtbar" class="dk-chat-liste-kopf">
+      <h2 v-if="kopf" class="dk-chat-liste-titel">Alle Gespräche</h2>
       <span v-if="ungelesen > 0" class="dk-chat-liste-neu">{{ ungelesen }} neu</span>
     </div>
 
@@ -17,13 +21,17 @@
          CHAT-7b-UI: daneben „Neue Runde“ (Karte Punkt 1) — der zweite Einstieg
          im SELBEN Muster (dieselbe Zeile, dasselbe Zeichen, nur ein anderer
          Anfang), er öffnet den Dialog der Seite (`neueRunde`). -->
-    <a class="dk-chat-neu" :href="SUCHE" :aria-label="`${NEUE_NACHRICHT} — Personen suchen`">
+    <a v-if="neueRunde" class="dk-chat-neu" :href="SUCHE" :aria-label="`${NEUE_NACHRICHT} — Personen suchen`">
       <span class="dk-chat-neu-zeichen" aria-hidden="true">+</span>
       <span>{{ NEUE_NACHRICHT }}</span>
     </a>
     <!-- CHAT-7b-UI: der zweite Einstieg im SELBEN Muster — ein DkButton
-         (Knopf-System, UX1g2), der den Dialog der Seite öffnet. -->
+         (Knopf-System, UX1g2), der den Dialog der Seite öffnet.
+         LEISTE-1: Am Handy stehen beide Einstiege hinter dem Plus im Kopf
+         (Entwurf „02“) — dort ist der zweite Link ausgeblendet; einen Weg
+         gibt es trotzdem, nur an einer Stelle. -->
     <DkButton
+      v-if="neueRunde"
       variant="ghost"
       class="dk-chat-neu dk-chat-neu--knopf"
       :aria-label="`${NEUE_RUNDE} — mehrere Personen auswählen`"
@@ -111,8 +119,11 @@
  * steht hier nicht mehr (Punkt 1): der Lesestand gehört an die Nachricht,
  * nicht in die Liste.
  */
+import { computed } from 'vue'
 import { initialen as initialenAus } from '../../composables/anzeigename.mjs'
-import { gespraechHash, zeilenAdresse, zeilenSchluessel } from '../../composables/nachrichtenLogik.mjs'
+import {
+  gespraechHash, listenkopfSichtbar, zeilenAdresse, zeilenSchluessel,
+} from '../../composables/nachrichtenLogik.mjs'
 import { NEUE_NACHRICHT, SUCHE, direktTitel } from '../../composables/nachrichtenDirekt.mjs'
 import {
   NEUE_RUNDE, istRunde, rundenTitel, rundenZeilenText,
@@ -128,7 +139,23 @@ const props = defineProps({
   /** Summe aller ungelesenen Nachrichten. */
   ungelesen: { type: Number, default: 0 },
   laedt: { type: Boolean, default: false },
+  /**
+   * LEISTE-1: Trägt die Spalte den Kopf „Alle Gespräche“? Die Vollbild-Seite
+   * „Nachrichten“ schaltet ihn ab (keine Überschrift, kein doppelter Satz);
+   * bleibt der Ungelesen-Zähler, steht dafür eine Zeile.
+   */
+  kopf: { type: Boolean, default: true },
+  /**
+   * LEISTE-1: Stehen die zwei Einstiege („Neue Nachricht“, „Neue Runde“) hier
+   * in der Liste? Am Desktop JA; am Handy sitzen beide hinter dem Plus im
+   * Kopf der Seite — zweimal derselbe Weg wäre einer zu viel.
+   */
+  neueRunde: { type: Boolean, default: true },
 })
+
+const kopfSichtbar = computed(() => listenkopfSichtbar({
+  kopf: props.kopf, ungelesen: props.ungelesen,
+}))
 
 /**
  * CHAT-7b-UI: „Neue Runde“ öffnet den Dialog der SEITE — das Ereignis geht

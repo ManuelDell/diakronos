@@ -419,7 +419,10 @@ test('CHAT-R2a · Nachrichten-Seite: Design-System, keine erfundenen Inhalte', (
   // besteht aus Bausteinen des Design-Systems, und sie erfindet keine Inhalte
   // (jede Zeile kommt vom Server; ohne Antwort steht ein Leerzustand da).
   const quelle = lies('pages/Nachrichten.vue')
-  assert.match(quelle, /<DkPageHeader/, 'der Seitenkopf ist der gemeinsame Baustein')
+  // LEISTE-1 (Manuel 23.11.): Nachrichten läuft im Vollbild — KEIN Seitenkopf
+  // mehr; die Köpfe sind Bausteine (Suche, Glocke, Menü-Knopf, Verlaufskopf).
+  assert.doesNotMatch(quelle, /<DkPageHeader/, 'der Seitenkopf ist zurück (LEISTE-1: Vollbild ohne Kopf)')
+  assert.match(quelle, /<MenueKnopf\b/, 'der Handy-Kopf nutzt den einen Menü-Knopf')
   assert.match(quelle, /DkCard|DkEmpty|DkSkelett/, 'Flächen/Leerzustände aus dem Design-System')
   assert.ok(!/Nachrichten kommen in Kürze/.test(quelle), 'der Platzhalter ist abgelöst (CHAT-3a)')
   // Keine erfundenen Gespräche/Nachrichten: aller Inhalt kommt aus den

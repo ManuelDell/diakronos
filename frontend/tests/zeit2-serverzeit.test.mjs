@@ -209,7 +209,8 @@ test('Waechter: kein neuer TZ-abhaengiger „roher" Date-Aufruf auf Zeitstempeln
     'diakonos/components/widgets/WikiRecentWidget.vue',
     'diakonos/pages/planrahmen/Plan.vue',
     'diakonos/pages/planrahmen/MeineDienste.vue',
-    'diakonos/components/AppTopbar.vue',
+    // LEISTE-1: die Glocke (und ihre Zeitstempel) steht in Glocke.vue.
+    'diakonos/components/Glocke.vue',
   ]
   const treffer = []
   for (const rel of dateienMitZeitstempel) {
@@ -233,7 +234,7 @@ test('Feld-Zuordnung: technische Zeitstempel laufen ueber serverZeit*', () => {
     'diakonos/components/widgets/WikiRecentWidget.vue': ['serverZeit'],
     'diakonos/pages/planrahmen/Plan.vue': ['serverZeitText'],
     'diakonos/pages/planrahmen/MeineDienste.vue': ['serverZeitText'],
-    'diakonos/components/AppTopbar.vue': ['serverZeitText', 'serverZeit'],
+    'diakonos/components/Glocke.vue': ['serverZeitText', 'serverZeit'],
   }
   for (const [rel, namen] of Object.entries(muss)) {
     const text = readFileSync(join(SRC, rel), 'utf8')

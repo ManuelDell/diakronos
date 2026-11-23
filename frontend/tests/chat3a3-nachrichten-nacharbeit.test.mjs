@@ -265,6 +265,8 @@ function appAttrappen() {
     "export const seitenLadend = ref(false)",
     'export const navigate = () => {}',
     'export const routeNeuLaden = () => {}',
+    'export const vollbildModus = ref(false)',
+    'export const darfSeitenleiste = () => false',
     'export const verwaltungsRollenAbfragen = async () => ({})',
     'export const rollenMarke = ref(null)',
   ].join('\n'))

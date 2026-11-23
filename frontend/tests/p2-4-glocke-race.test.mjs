@@ -3,9 +3,10 @@ import { readFile } from 'node:fs/promises'
 import { test } from 'node:test'
 
 // Echte Panel-Handler aus der SFC, nur Vue/Netzwerk werden ersetzt.
-const quelle = await readFile(new URL('../src/diakonos/components/AppTopbar.vue', import.meta.url), 'utf8')
+// LEISTE-1: Die Glocke ist aus AppTopbar.vue in ihren eigenen Baustein gezogen.
+const quelle = await readFile(new URL('../src/diakonos/components/Glocke.vue', import.meta.url), 'utf8')
 const handler = quelle.slice(quelle.indexOf('const listeOffen ='), quelle.indexOf('function kurz('))
-// REST-1: derselbe Helfer wie in AppTopbar.vue (Dependency des Ausschnitts).
+// REST-1: derselbe Helfer wie in Glocke.vue (Dependency des Ausschnitts).
 const { darfAlsGelesenMarkieren } = await import('../src/diakonos/composables/glocke.mjs')
 const offen = () => {
   const anfragen = []

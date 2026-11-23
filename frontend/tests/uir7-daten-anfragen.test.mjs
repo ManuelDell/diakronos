@@ -41,7 +41,8 @@ const lies = (rel) => readFileSync(path.join(SRC, rel), 'utf8')
 const QUELLE = {
   liste: lies('diakonos/components/personen/PersonenListe.vue'),
   personen: lies('diakonos/pages/Personen.vue'),
-  topbar: lies('diakonos/components/AppTopbar.vue'),
+  // LEISTE-1: Glocke samt Liste steht in Glocke.vue.
+  topbar: lies('diakonos/components/Glocke.vue'),
   profil: lies('diakonos/pages/Profile.vue'),
 }
 

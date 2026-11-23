@@ -741,6 +741,18 @@ tests/perf-k1-*.test.mjs
 # Kartenkörper ist weg. Mount-Tests am echten DkCard (jsdom), kein
 # Quelltext-Muster.
 tests/des1-*.test.mjs
+# BEF-DESIGN-1 (Befund Manuel 23.11.): Seitenkarten in Beiträge/Wiki standen
+# mit gepolstertem Kopf und randlosem Inhalt da (`flach` nahm nur dem Körper
+# den Abstand), jede Zeile brachte eigene Abstände mit (6 px, .dk-widget-item
+# mit -16-px-Versatz) — „jede Karte macht es anders“. Jetzt EINE Quelle:
+# DkCard trägt `--karte-innen` für Kopf UND Inhalt, `zeile` nimmt beidem den
+# Abstand, die Zeilen tragen nur den senkrechten Rest. Dazu die Kopf-Knöpfe
+# („+ Neuer Beitrag“/„+ Neuer Artikel“/„Bearbeiten“: Symbol stand ÜBER dem
+# Text, Beschriftung unten abgeschnitten — .dk-ui-btn-label ist jetzt nowrap,
+# Abstand aus --sp-2, senkrecht nur per .dk-ui-senkrecht) und das Kürzel
+# „Strg K“ (nowrap). Quell-Prüfung + jsdom-Mount von DkCard, dazu ein
+# Wächter gegen seitenlokale Abstände am Kartenkopf/-körper.
+tests/befdesign1-*.test.mjs
 # BUG-S1: Dienste → Stammdaten luden nicht (Skelett blieb stehen, Befund
 # Manuel 12.11.). ZWEI Reihenfolgen derselben Adresse — der Router las die
 # Marke „-“ als Plantyp (`stammdaten_holen('-')`), die Weiterleitung baute
@@ -1049,3 +1061,9 @@ tests/bef-design2-postfach-dialog-rendert.test.mjs
 # Fassung.
 tests/bef-design2-freigabezeile-rendert.test.mjs
 tests/bef-lied-gruppe.test.mjs
+# LEISTE-1 (Manuel 23.11., DMB-4971): Nachrichten im Vollbild — Router-Liste,
+# Rahmen/Glocke in App.vue, keine doppelten Überschriften, ein Suchfeld je Lage.
+tests/leiste1-*.test.mjs
+# LEISTE-2 (Manuel 23.11., DMB-f503): Kalender ohne App-Kopfzeile — derselbe
+# Router-Mechanismus wie LEISTE-1, ☰ im Handy-Kopf.
+tests/leiste2-*.test.mjs

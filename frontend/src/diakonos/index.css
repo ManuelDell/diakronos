@@ -253,10 +253,11 @@ h1, h2, h3, h4 {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  /* Der untere Rand der Mobil-Navigation entfällt: es gibt sie hier nicht
-     (sie läge sonst als leerer Streifen unter der Fußleiste des Assistenten). */
-  padding-bottom: 0 !important;
 }
+/* Der untere Rand der Mobil-Navigation entfällt nur, wo es sie nicht gibt
+   (Assistent). LEISTE-1: Nachrichten läuft im Vollbild MIT Seitenleiste und
+   Tab-Leiste — dort bleibt der Rand, sonst läge die Liste unter den Tabs. */
+.dk-content--vollbild-rahmenlos { padding-bottom: 0 !important; }
 .dk-content--vollbild > * { flex: 1 1 auto; min-height: 0; min-width: 0; }
 
 /* =====================================================================
@@ -536,6 +537,39 @@ h1, h2, h3, h4 {
 }
 .is-collapsed .dk-nav-item { justify-content: center; padding: 9px; }
 .is-collapsed .dk-nav-item.is-active::before { left: 0; top: 0; bottom: 0; width: 2px; border-radius: 0 2px 2px 0; }
+
+/* LEISTE-1: „Benachrichtigungen“ als letzter Eintrag der Navigation —
+   DkButton in der Bauweise von „Abmelden“ (drei Klassen schlagen DkButtons
+   scoped-Regeln, Werte nur aus Tokens). Eingeklappt bleibt nur das Symbol;
+   die Liste öffnet sich NEBEN der Leiste statt über ihren Rand hinaus. */
+.dk-sidebar .dk-sb-nav .dk-sb-glocke {
+  width: 100%;
+  justify-content: flex-start;
+  padding: var(--sp-2) var(--sp-3);
+  border-width: 0;
+  border-radius: var(--radius-sm);
+  min-height: var(--sb-item-h);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-mittel);
+  text-align: left;
+  color: var(--dk-sb-text);
+}
+.dk-sidebar .dk-sb-nav .dk-sb-glocke:not(:disabled):hover {
+  background: var(--dk-sb-hover);
+  color: var(--dk-sb-text);
+}
+.dk-sidebar.is-collapsed .dk-sb-nav .dk-sb-glocke { justify-content: center; padding: var(--sp-2) 0; }
+.dk-sidebar.is-collapsed .dk-notify-eintrag-text { display: none; }
+/* `fixed`: die Navigation scrollt (`overflow-y: auto`) und schnitte eine
+   absolut gesetzte Liste ab. */
+.dk-notify--eintrag .dk-notify-panel {
+  position: fixed;
+  top: auto;
+  bottom: var(--sp-4);
+  right: auto;
+  left: calc(var(--dk-sidebar-w) + var(--sp-2));
+}
+.is-collapsed .dk-notify--eintrag .dk-notify-panel { left: calc(var(--dk-sidebar-col) + var(--sp-2)); }
 
 /* Footer */
 .dk-sb-foot { padding: var(--sp-2); border-top: 1px solid var(--dk-sb-border); display: flex; flex-direction: column; gap: 8px; }
@@ -827,6 +861,11 @@ h1, h2, h3, h4 {
   font-size: var(--fs-12);
   color: var(--dk-text-subtle);
 }
+/* BEF-DESIGN-1 (Befund Manuel 23.11.): „Strg K“ brach in zwei Zeilen um
+   („Strg“ / „K“) und lief unten aus dem Suchfeld. Das Kürzel ist EINE
+   Beschriftung. Eigene Regel neben der Grundregel, damit diese main-gleich
+   bleibt (Wächter DEVBADGE-1b). */
+.dk-topbar-suche .dk-topbar-suche-kuerzel { white-space: nowrap; }
 /* Mobil (390 px) bleibt nur das Symbol: die Kopfzeile hat dort keinen Platz
    für „Suchen … Strg K“, und eine Tastatur gibt es ohnehin selten. */
 @media (max-width: 720px) {

@@ -113,6 +113,8 @@ export const pageLadefehler = ref(null)
 export const seitenLadend = ref(false)
 export function navigate() {}
 export function routeNeuLaden() {}
+export const vollbildModus = { get value() { const p = String(currentHash.value || '').split('?')[0]; return p === '#/einrichtung' || p === '#/nachrichten' || p.startsWith('#/nachrichten/') }, __v_isRef: true }
+export function darfSeitenleiste(h) { const p = String(h || '').split('?')[0]; return p === '#/nachrichten' || p.startsWith('#/nachrichten/') }
 export function getRouteParam() { return '' }
 export function onBeforeEach() { return () => {} }
 `)
@@ -337,7 +339,7 @@ test('DEV-B6: der Menü-Knopf ist am Desktop auch dann aus, wenn DkButton ihn an
   // der Handy-Lage (MT-1, Manuel 11.11. „nur EIN Seitenmenü“) — nicht mehr an
   // `sidebarCollapsed`; dort ist der Ausklapp-Knopf der Leiste der Einstieg.
   const app = readFileSync(resolve(SRC, 'diakonos/App.vue'), 'utf8')
-  assert.match(app, /v-if="!isVollbildMode && istHandyLage"/,
+  assert.match(app, /v-if="!vollbildRahmenLos && istHandyLage"/,
     'Schublade nur in der Handy-Lage')
   assert.ok(!/<AppMenueSchublade[\s\S]{0,200}sidebarCollapsed/.test(app),
     'keine Schublade bei eingeklappter Leiste (MT-1)')

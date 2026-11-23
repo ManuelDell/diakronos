@@ -226,6 +226,17 @@ async function seiteMontieren({ handy = false, nachrichten = null, hash = '#/nac
   umleitung.clear()
   umleitung.set(U('composables/useApi.js'), pathToFileURL(api).href)
   umleitung.set(U('composables/useSession.js'), pathToFileURL(session).href)
+  // LEISTE-1: Die Seite trägt am Handy die Glocke; deren Abfrage im
+  // Minutentakt (setInterval) hielte den Testprozess offen — still ersetzen.
+  const glocke = join(ordner, 'notifications.mjs')
+  writeFileSync(glocke, [
+    `import { ref } from '${VUE_URL}'`,
+    'export function useNotifications() {',
+    '  return { unreadCount: ref(0), notifications: ref([]), laden: ref(false), fehler: ref(""),',
+    '    fetchUnread: async () => {}, ladeListe: async () => {}, markAsRead: async () => {} }',
+    '}',
+  ].join('\n'))
+  umleitung.set(U('composables/useNotifications.js'), pathToFileURL(glocke).href)
 
   const mod = await import(pathToFileURL(baum('pages/Nachrichten.vue', { frisch: true, ordner })).href)
   const { host, app, warnungen, vm, abbaum } = await mounten(mod.default, {})
@@ -405,14 +416,12 @@ test('CHAT-3a-5/B: am Handy ist nur das OFFENE GESPRÄCH randlos, die Liste beh�
 
 // ══ C · Kein leerer #actions-Slot im Seitenkopf ════════════════════════════
 
-test('CHAT-3a-5/C: der Seitenkopf bringt KEINE leere Aktionsleiste mit', async () => {
-  // Am Desktop mit Gespräch steht der Seitenkopf — ohne Aktionen darf die
-  // 40-px-Leiste nicht entstehen.
+test('CHAT-3a-5/C: kein Seitenkopf und damit keine leere Aktionsleiste (LEISTE-1)', async () => {
+  // LEISTE-1: Nachrichten läuft im Vollbild — der Seitenkopf entfällt ganz,
+  // also kann auch keine leere 40-px-Aktionsleiste entstehen.
   const s = await seiteMontieren({ handy: false, hash: '#/nachrichten/CHAT-1' })
-  const kopf = s.host.querySelector('.dk-ui-pageheader')
-  assert.ok(kopf, 'der Seitenkopf steht da')
-  assert.equal(kopf.querySelector('.dk-ui-pageheader-aktionen'), null,
-    'keine leere Aktionsleiste im Seitenkopf')
+  assert.equal(s.host.querySelector('.dk-ui-pageheader'), null, 'kein Seitenkopf')
+  assert.equal(s.host.querySelector('.dk-ui-pageheader-aktionen'), null, 'keine leere Aktionsleiste')
   s.abbaum()
 
   // Und im Quelltext ist der leere Slot wirklich weg (nicht nur leer gerendert).

@@ -79,7 +79,13 @@
           :badge="badgeFuer(e)"
         />
       </template>
+      <!-- LEISTE-1 (Manuel 23.11., Entwurf Variante A): „Benachrichtigungen“
+           als letzter Eintrag der Navigation, mit Zähler. Nur auf
+           Vollbild-Seiten (`glocke`): dort fehlt die App-Kopfzeile mit ihrer
+           Glocke — sonst gäbe es zwei. Derselbe Baustein wie dort. -->
+      <Glocke v-if="glocke" knopf="eintrag" />
     </nav>
+
 
     <!-- Fußbereich (Entwurf A1): Einstellungen · Profil · Abmelden.
          UX3a: Entwicklermodus und Dev-Befunde liegen im Profilmenü (siehe
@@ -203,9 +209,14 @@ import { MENUE, ICON_PFADE, sichtbareEintraege } from '../menue.js'
 import { sichtbarerFuss } from './handyMenue.mjs'
 import { PRODUKTNAME } from './ui/begriffe.mjs'
 import DkButton from './ui/DkButton.vue'
+// LEISTE-1: der Eintrag „Benachrichtigungen“ (dieselbe Glocke wie in der
+// Kopfzeile und im Vollbild-Kopf der Nachrichten).
+import Glocke from './Glocke.vue'
 import { anfragenZaehler, anfragenZaehlerBeobachten } from '../composables/useVerwaltung.js'
 
 const props = defineProps({
+  /** LEISTE-1: Glocke als Eintrag zeigen (Vollbild-Seiten ohne App-Kopfzeile). */
+  glocke: { type: Boolean, default: false },
   collapsed: Boolean,
   theme: String,
 })

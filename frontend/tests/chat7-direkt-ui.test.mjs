@@ -778,11 +778,10 @@ test('UI-2/SOLL 5+6: Unterzeile im 1:1 leer, ohne Titel „Unbekannte Person“'
   // Eine Gruppe ohne Namen bleibt ohne erfundenen Namen.
   assert.equal(listenZeile({ name: 'G-1', art: 'gruppe', gruppe: '', titel: '' }).titel, '')
 
-  // Der Seitenkopf: im 1:1 LEER (Review R1, SOLL 2) — kein Satz über „wer
-  // liest mit“, kein Gruppen-Text.
-  const { skript } = teile(lies('pages/Nachrichten.vue'))
-  assert.match(skript, /if \(istOffenesDirekt\.value\) return ''/,
-    'der Seitenkopf lässt die Unterzeile im 1:1 leer')
+  // Der Seitenkopf: seit LEISTE-1 gibt es ihn GAR NICHT mehr (Vollbild) —
+  // damit auch keinen Satz über „wer liest mit“ und keinen Gruppen-Text.
+  const { skript, tpl } = teile(lies('pages/Nachrichten.vue'))
+  assert.doesNotMatch(tpl, /<DkPageHeader/, 'kein Seitenkopf mehr (LEISTE-1)')
   assert.doesNotMatch(skript, /niemand sonst liest mit/,
     'der Satz über die Meldestelle steht nicht mehr da')
   assert.match(skript, /if \(istDirekt\(eintrag\)\) return direktTitel\(eintrag\)/,

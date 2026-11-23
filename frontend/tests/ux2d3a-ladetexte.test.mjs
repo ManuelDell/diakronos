@@ -72,7 +72,8 @@ const DATEIEN = [
   // UX2d3c: eigenständiges Bündel — Ladeprosa ersetzt der Platzhalter.
   'app:organigramm/App.vue',
   'App.vue',
-  'components/AppTopbar.vue',
+  // LEISTE-1: die Benachrichtigungs-Liste steht in Glocke.vue.
+  'components/Glocke.vue',
   'components/VerantwortlicheKarte.vue',
   'components/WartendeKontenKarte.vue',
   'components/ZugangKarte.vue',

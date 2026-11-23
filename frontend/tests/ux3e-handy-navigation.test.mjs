@@ -326,11 +326,15 @@ test('UX3e · der Menü-Knopf steht links in der Kopfzeile und meldet seinen Zus
   const links = tpl.slice(tpl.indexOf('dk-topbar-left'), tpl.indexOf('dk-topbar-right'))
   // UX1g: Die Kopfzeilen-Knöpfe sind DkButtons (ghost) mit
   // `.dk-topbar-symbol` — die Altklasse `.dk-icon-btn` gibt es nicht mehr.
-  assert.match(links, /class="dk-topbar-symbol dk-menue-knopf"/, 'Knopf liegt im linken Bereich')
-  assert.match(links, /:aria-label="MENUE_KNOPF_TEXT"/, 'beschriftet für Screenreader')
-  assert.match(links, /:aria-expanded="menueOffen \? 'true' : 'false'"/, 'sagt, ob er offen ist')
-  assert.match(links, /aria-haspopup="dialog"/, 'kündigt einen Dialog an')
-  assert.match(links, /@click="\$emit\('open-menu'\)"/, 'öffnet die Schublade')
+  // LEISTE-1/2: der Knopf ist der eine Baustein `MenueKnopf.vue`; die
+  // Kopfzeile reicht den Zustand hinein und nimmt das Ereignis entgegen.
+  assert.match(links, /<MenueKnopf :offen="menueOffen" @oeffnen="\$emit\('open-menu'\)" \/>/,
+    'Knopf liegt im linken Bereich und öffnet die Schublade')
+  const knopf = readFileSync(new URL('../src/diakonos/components/MenueKnopf.vue', import.meta.url), 'utf8')
+  assert.match(knopf, /class="dk-topbar-symbol dk-menue-knopf"/, 'Klassen der Sichtbarkeitsregel')
+  assert.match(knopf, /:aria-label="MENUE_KNOPF_TEXT"/, 'beschriftet für Screenreader')
+  assert.match(knopf, /:aria-expanded="offen === null \? undefined : \(offen \? 'true' : 'false'\)"/, 'sagt, ob er offen ist')
+  assert.match(knopf, /aria-haspopup="dialog"/, 'kündigt einen Dialog an')
   // Der frühere tote Knopf (ohne Funktion, per Inline-Stil versteckt) ist weg.
   assert.ok(!/style="display:none"/.test(ohneKommentare(tpl)),
     'kein totes Inline-verstecktes Menü-Symbol mehr')
@@ -397,7 +401,7 @@ test('UX3e · App.vue verdrahtet Knopf, Leiste und Schublade', () => {
   // der Handy-Lage (MT-1: NICHT mehr bei eingeklappter Seitenleiste; dort ist
   // der Ausklapp-Knopf der Leiste der einzige Einstieg). Sonst stünde ein
   // zweiter Navigationsweg ohne sichtbaren Einstieg im Tab-Ring.
-  assert.match(t, /<AppMenueSchublade[\s\S]{0,200}v-if="!isVollbildMode && istHandyLage"/,
+  assert.match(t, /<AppMenueSchublade[\s\S]{0,200}v-if="!vollbildRahmenLos && istHandyLage"/,
     'Schublade nur in der Handy-Lage (MT-1: ein Seitenmenü)')
   assert.ok(!/<AppMenueSchublade[\s\S]{0,200}sidebarCollapsed/.test(t),
     'die Schublade hängt NICHT mehr an der eingeklappten Leiste (MT-1)')

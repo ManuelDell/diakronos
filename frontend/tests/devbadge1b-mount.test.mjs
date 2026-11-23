@@ -111,6 +111,8 @@ export const pageLadefehler = ref(null)
 export const seitenLadend = ref(false)
 export function navigate() {}
 export function routeNeuLaden() {}
+export const vollbildModus = { get value() { const p = String(currentHash.value || '').split('?')[0]; return p === '#/einrichtung' || p === '#/nachrichten' || p.startsWith('#/nachrichten/') }, __v_isRef: true }
+export function darfSeitenleiste(h) { const p = String(h || '').split('?')[0]; return p === '#/nachrichten' || p.startsWith('#/nachrichten/') }
 export function getRouteParam() { return '' }
 export function onBeforeEach() { return () => {} }
 `)

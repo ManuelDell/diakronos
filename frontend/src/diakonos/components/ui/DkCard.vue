@@ -107,7 +107,8 @@ const props = defineProps({
     // (etwa `ebene="7"`) ergäbe ein Element ohne Gliederungswert.
     validator: (v) => [2, 3, 4].includes(Number(v)),
   },
-  // flach: kein Innenabstand (z. B. für Tabellen, die selbst randlos sind)
+  // flach: kein Innenabstand des KÖRPERS (z. B. für Tabellen, die selbst
+  // randlos sind). Kein Ersatz für „Seitenleisten-Karte“ — siehe `zeile`.
   flach: Boolean,
   /**
    * DES-1b (Review 4): `zeile` heißt „diese Karte IST eine Zeile in einer
@@ -220,6 +221,9 @@ const ankerId = computed(() => sprungId(props.anker))
   flex: 0 0 auto;
 }
 .dk-ui-card-koerper { padding: var(--karte-innen); }
+/* BEF-DESIGN-1: `flach` nimmt NUR dem Körper den Abstand, der Kopf behält
+   seinen. Für Seitenleisten-Karten deshalb NICHT `flach` verwenden — sonst
+   steht der Titel gepolstert und der Inhalt klebt am Kartenrand. */
 .dk-ui-card-koerper.is-flach { padding: 0; }
 /* Mit Kopf sitzt der Körper unter dem Titel — der Abstand kommt aus dem
    Kopf (padding-bottom 0 + gap unten), damit Titel und Inhalt eine Gruppe

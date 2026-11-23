@@ -214,6 +214,17 @@ async function seiteMontieren({ handy = false, nachrichten = null, hash = '#/nac
   umleitung.clear()
   umleitung.set(U('composables/useApi.js'), pathToFileURL(api).href)
   umleitung.set(U('composables/useSession.js'), pathToFileURL(session).href)
+  // LEISTE-1: Die Seite trägt am Handy die Glocke; deren Abfrage im
+  // Minutentakt (setInterval) hielte den Testprozess offen — still ersetzen.
+  const glocke = join(ordner, 'notifications.mjs')
+  writeFileSync(glocke, [
+    `import { ref } from '${VUE_URL}'`,
+    'export function useNotifications() {',
+    '  return { unreadCount: ref(0), notifications: ref([]), laden: ref(false), fehler: ref(""),',
+    '    fetchUnread: async () => {}, ladeListe: async () => {}, markAsRead: async () => {} }',
+    '}',
+  ].join('\n'))
+  umleitung.set(U('composables/useNotifications.js'), pathToFileURL(glocke).href)
 
   const mod = await import(pathToFileURL(baum('pages/Nachrichten.vue', { frisch: true, ordner })).href)
   const { host, app, warnungen, vm, abbaum } = await mounten(mod.default, {})
@@ -388,43 +399,27 @@ test('CHAT-3a-4/SOLL 3: am Handy mit offenem Gespräch steht NUR der Verlaufskop
   abbaum()
 })
 
-test('CHAT-3a-4/SOLL 3: am Desktop nennt der Seitenkopf den Bereich — kein Titel dreifach', async () => {
+test('CHAT-3a-4/SOLL 3 + LEISTE-1: kein Seitenkopf mehr — der Titel steht EINMAL', async () => {
+  // LEISTE-1 (Manuel 23.11., DMB-4971): Nachrichten läuft im Vollbild — es
+  // gibt den Seitenkopf „Nachrichten“ GAR NICHT mehr (vorher: Desktop mit
+  // Seitenkopf + Verlaufskopf, am Handy dreimal dieselbe Aussage).
   const { host, abbaum } = await seiteMontieren({ handy: false })
   const seite = host.querySelector('.dk-chat')
   assert.equal(seite.classList.contains('is-handy'), false, 'Desktop-Lage')
-
-  // Desktop MIT Gespräch: der Seitenkopf steht — er nennt den BEREICH; den
-  // Gesprächstitel trägt der Verlaufskopf daneben. Vorher stand dort „Chor“
-  // mit Brotkrume „Nachrichten / Chor“, und im Rahmenkopf noch einmal „Chor“.
-  const kopf = host.querySelector('.dk-ui-pageheader')
-  assert.ok(kopf, 'der Seitenkopf steht am Desktop mit Gespräch')
-  assert.equal(kopf.querySelector('.dk-ui-pageheader-titel')?.textContent.trim(), 'Nachrichten',
-    'er nennt den BEREICH („Nachrichten“), nicht noch einmal das Gespräch')
-  assert.equal(kopf.querySelector('.dk-ui-brot'), null, 'keine Brotkrumen-Doppelung')
+  assert.equal(host.querySelector('.dk-ui-pageheader'), null, 'Desktop mit Gespräch: kein Seitenkopf')
   assert.match(host.querySelector('.dk-chat-verlauf-titel h2')?.textContent || '', /Chor/,
     'der Titel des Gesprächs steht im Verlaufskopf')
-  // Der Stumm-Schalter steht EINMAL — im Verlaufskopf, nicht zusätzlich im
-  // Seitenkopf.
-  assert.equal(kopf.querySelector('.dk-chat-stumm-knopf'), null,
-    'der Seitenkopf trägt keinen zweiten Stumm-Schalter')
+  assert.equal(host.querySelectorAll('.dk-chat-stumm-knopf').length, 1, 'der Stumm-Schalter steht genau einmal')
   abbaum()
 
-  // Desktop in der LISTE (kein Gespräch offen): Seitenkopf „Nachrichten“.
-  const liste = await seiteMontieren({ handy: false, hash: '#/nachrichten' })
-  const kopfListe = liste.host.querySelector('.dk-ui-pageheader')
-  assert.ok(kopfListe, 'am Desktop in der Liste steht der Seitenkopf')
-  assert.equal(kopfListe.querySelector('.dk-ui-pageheader-titel')?.textContent.trim(),
-    'Nachrichten')
-  liste.abbaum()
-
-  // Und am Handy in der LISTE bleibt der Seitenkopf ebenfalls — dort gibt es
-  // keinen Verlaufskopf, der ihn ersetzen könnte.
-  const handyListe = await seiteMontieren({ handy: true, hash: '#/nachrichten' })
-  const kopfHandy = handyListe.host.querySelector('.dk-ui-pageheader')
-  assert.ok(kopfHandy, 'am Handy in der Liste steht der Seitenkopf')
-  assert.equal(kopfHandy.querySelector('.dk-ui-pageheader-titel')?.textContent.trim(),
-    'Nachrichten')
-  handyListe.abbaum()
+  for (const handy of [false, true]) {
+    const liste = await seiteMontieren({ handy, hash: '#/nachrichten' })
+    assert.equal(liste.host.querySelector('.dk-ui-pageheader'), null,
+      `${handy ? 'Handy' : 'Desktop'} in der Liste: kein Seitenkopf`)
+    assert.doesNotMatch(liste.host.textContent, /Alle Gespräche/,
+      `${handy ? 'Handy' : 'Desktop'} in der Liste: „Alle Gespräche“ steht nicht mehr da`)
+    liste.abbaum()
+  }
 })
 
 // ══ SOLL 4 · Aktionen kompakt in EINER Zeile, per Tastatur erreichbar ══════

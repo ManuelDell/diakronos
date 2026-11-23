@@ -118,7 +118,7 @@ test('MT-1 · der Ausklapp-Knopf der Leiste ist beschriftet und öffnet die Leis
 })
 
 test('MT-1 · die Schublade liegt nur in der Handy-Lage im DOM', () => {
-  assert.match(APP, /<AppMenueSchublade[\s\S]{0,200}v-if="!isVollbildMode && istHandyLage"/,
+  assert.match(APP, /<AppMenueSchublade[\s\S]{0,200}v-if="!vollbildRahmenLos && istHandyLage"/,
     'v-if = genau die Bedingung des Kopfzeilen-Knopfes')
   assert.ok(!/<AppMenueSchublade[\s\S]{0,200}sidebarCollapsed/.test(APP),
     'die Schublade hängt nicht mehr an der eingeklappten Leiste')
@@ -126,8 +126,11 @@ test('MT-1 · die Schublade liegt nur in der Handy-Lage im DOM', () => {
 
 test('MT-1 · Kopfzeilen-Knopf bedient die Schublade weiter (Handy unverändert)', () => {
   const links = TOPBAR.slice(TOPBAR.indexOf('dk-topbar-left'), TOPBAR.indexOf('dk-topbar-right'))
-  assert.match(links, /class="dk-topbar-symbol dk-menue-knopf"/, 'Knopf steht links in der Kopfzeile')
-  assert.match(links, /@click="\$emit\('open-menu'\)"/, 'er öffnet die Schublade')
+  // LEISTE-1/2: der Knopf ist der eine Baustein `MenueKnopf.vue`.
+  assert.match(links, /<MenueKnopf :offen="menueOffen" @oeffnen="\$emit\('open-menu'\)" \/>/,
+    'Knopf steht links in der Kopfzeile und öffnet die Schublade')
+  assert.match(lies('components/MenueKnopf.vue'), /class="dk-topbar-symbol dk-menue-knopf"/,
+    'der Baustein trägt die Klassen der Sichtbarkeitsregel')
   assert.match(APP, /@open-menu="menueOeffnen"/, 'App.vue nimmt das Ereignis an')
 })
 
@@ -148,8 +151,10 @@ test('MT-1 · keine Seite baut eine zweite Seitenleiste oder einen eigenen Menü
     const rel = p.slice(SRC.length + 1)
     // Die Kopfzeile IST der eine Ort des Menü-Knopfs; der App-Rahmen bringt
     // Leiste und Schublade (geprüft in den Tests 4–6).
+    // LEISTE-1/2: Der Knopf selbst ist EIN Baustein (`MenueKnopf.vue`), den
+    // die Kopfzeile und die Vollbild-Seiten ohne Kopfzeile einsetzen.
     return rel !== 'App.vue' && rel !== 'components/AppTopbar.vue' && rel !== 'components/AppSidebar.vue'
-      && rel !== 'components/AppMenueSchublade.vue'
+      && rel !== 'components/AppMenueSchublade.vue' && rel !== 'components/MenueKnopf.vue'
   })
   assert.ok(seiten.length > 20, 'Seiten gefunden (Dashboard, Gruppen, Kalender, Mitglieder, Dienste …)')
   for (const pfad of seiten) {

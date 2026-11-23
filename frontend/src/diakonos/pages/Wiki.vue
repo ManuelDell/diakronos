@@ -96,10 +96,13 @@
         </div>
       </div>
 
-      <!-- Seitenspalte -->
+      <!-- Seitenspalte — BEF-DESIGN-1: Seitenkarten sind `DkCard` MIT Kopf,
+           kein `flach`. `flach` nahm nur dem Kartenkörper den Innenabstand;
+           der Kopf behielt ihn. Jetzt kommt der Abstand für Kopf UND Inhalt
+           aus derselben Quelle (`--karte-innen` in DkCard). -->
       <aside class="dk-aside">
         <!-- Zuletzt bearbeitet -->
-        <DkCard title="Zuletzt bearbeitet" flach>
+        <DkCard title="Zuletzt bearbeitet">
           <!-- Entwicklung 16.10.: Die Zeilen standen unformatiert da (die
                Klasse `dk-widget-item` erwartet ein Symbol UND Text, hier gab
                es nur Text). Jetzt eine eigene Zeilenklasse mit Abstand,
@@ -122,7 +125,7 @@
         </DkCard>
 
         <!-- Beliebte Schlagwörter -->
-        <DkCard title="Beliebte Schlagwörter" flach>
+        <DkCard title="Beliebte Schlagwörter">
           <div class="wk-tag-cloud">
             <span
               v-for="tag in popularTags"
@@ -828,12 +831,16 @@ async function openEditor(article = null, einheit = null) {
 .wk-article-tags { display: flex; gap: var(--sp-1); }
 
 /* Seitenspalte */
+/* BEF-DESIGN-1: Die Zeile trägt keinen eigenen waagerechten Innenabstand —
+   den setzt allein der Kartenkörper (`--karte-innen`), sonst stünde sie neben
+   dem gepolsterten Kartenkopf um `--sp-1` versetzt und „Archiv“/„Kategorien“
+   hätten wieder einen anderen Abstand. Höhe nur noch senkrecht, aus der Skala. */
 .wk-recent-zeile {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-1);
-  border-bottom: 1px solid var(--line);
+  padding: var(--sp-2) 0;
+  border-bottom: var(--rahmen-breite) solid var(--line);
   cursor: pointer;
   border-radius: var(--radius-sm);
 }
@@ -843,12 +850,12 @@ async function openEditor(article = null, einheit = null) {
 .wk-recent-title { font-size: var(--fs-sm); font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wk-recent-info { font-size: var(--fs-xs); color: var(--muted); margin-top: 1px; }
 
-.wk-tag-cloud { display: flex; flex-wrap: wrap; gap: 6px; }
+.wk-tag-cloud { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 .wk-tag-cloud-item {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 4px 10px;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-2);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
   color: var(--muted);

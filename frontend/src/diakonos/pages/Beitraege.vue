@@ -107,13 +107,17 @@
       </div>
 
       <!-- Seitenspalte -->
+      <!-- BEF-DESIGN-1: Seitenkarten sind `DkCard` MIT Kopf — kein `flach`.
+           `flach` nimmt dem Kartenkörper den Innenabstand, der Kopf behielt
+           ihn: Titel gepolstert, Inhalt am Kartenrand. Die Karte ist die
+           eine Quelle für den Abstand (`--karte-innen`). -->
       <aside class="dk-aside">
         <!-- Beliebt -->
-        <DkCard title="Beliebte Beiträge" flach>
+        <DkCard title="Beliebte Beiträge">
           <div
             v-for="p in popularPosts"
             :key="p.id"
-            class="dk-widget-item bt-popular"
+            class="bt-popular"
             @click="oeffnenPost(p)"
           >
             <div class="bt-popular-num">{{ p.rank }}</div>
@@ -125,7 +129,7 @@
         </DkCard>
 
         <!-- Kategorien -->
-        <DkCard title="Kategorien" flach>
+        <DkCard title="Kategorien">
           <div class="bt-cat-list">
             <div
               v-for="c in categories.filter(c => c.id !== 'all')"
@@ -141,7 +145,7 @@
         </DkCard>
 
         <!-- Archiv -->
-        <DkCard title="Archiv" flach>
+        <DkCard title="Archiv">
           <div class="bt-archive-list">
             <div
               v-for="a in archiveMonths"
@@ -923,6 +927,23 @@ function zeilenKontextmenue(ereignis, post) {
   .bt-suche { flex: 0 0 148px; min-width: 148px; max-width: none; align-self: center; margin-bottom: 0; }
 }
 
+/* BEF-DESIGN-1: die Zeile der Seitenkarte trägt KEINEN eigenen waagerechten
+   Innenabstand mehr — den setzt allein der Kartenkörper (`--karte-innen`).
+   Vorher kam sie aus der globalen `.dk-widget-item` (8 px 0 plus -16 px
+   Hover-Versatz); neben dem gepolsterten Kartenkopf klebten Nummer und Text
+   damit am Kartenrand. Abstand nur noch senkrecht, aus der Skala. */
+.bt-popular {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0;
+  border-bottom: var(--rahmen-breite) solid var(--dk-divider);
+  cursor: pointer;
+  transition: background var(--fast) var(--ease);
+}
+.bt-popular:last-child { border-bottom: none; }
+.bt-popular:hover { background: var(--surface-hover); }
+
 .bt-popular-num {
   width: 22px;
   height: 22px;
@@ -952,7 +973,7 @@ function zeilenKontextmenue(ereignis, post) {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: 6px var(--sp-2);
+  padding: var(--sp-1) 0;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background var(--fast) var(--ease);
@@ -970,7 +991,7 @@ function zeilenKontextmenue(ereignis, post) {
   font-weight: 500;
   color: var(--muted);
   background: var(--surface-2);
-  padding: 1px 7px;
+  padding: 0 var(--sp-2);
   border-radius: var(--badge-r);
 }
 
@@ -978,7 +999,7 @@ function zeilenKontextmenue(ereignis, post) {
 .bt-archive-item {
   display: flex;
   justify-content: space-between;
-  padding: 6px var(--sp-2);
+  padding: var(--sp-1) 0;
   border-radius: var(--radius-sm);
   font-size: var(--fs-sm);
   color: var(--text);

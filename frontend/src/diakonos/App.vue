@@ -18,14 +18,14 @@
       <span class="impersonation-timer">{{ remainingTime }}</span>
       <button class="impersonation-stop" @click="stopImpersonation">✕ Beenden</button>
     </div>
-    <div class="dk-app" :class="{ 'is-collapsed': sidebarCollapsed, 'has-impersonation-banner': impersonation.isActive.value, 'dk-app--vollbild': isVollbildMode, 'dk-app--dev': devStartZeigen, [HANDY_KLASSE]: istHandyLage }" :data-theme="theme">
+    <div class="dk-app" :class="{ 'is-collapsed': sidebarCollapsed, 'has-impersonation-banner': impersonation.isActive.value, 'dk-app--vollbild': vollbildRahmenLos, 'dk-app--dev': devStartZeigen, [HANDY_KLASSE]: istHandyLage }" :data-theme="theme">
       <!-- OP-UI-11: Das Hauptmenü bleibt in JEDER Ansicht dasselbe. Vorher
            tauschte der Kalender (und die Moderation) die Hauptnavigation
            gegen eine eigene Leiste; „Zur Hauptnavigation“ warf den Nutzer
            zwei Klicks zurück aufs Dashboard. Jetzt steht überall dieselbe
            Seitenleiste aus menue.js. Die Kalenderliste des Kalenders liegt
            als einklappbares Feld IN der Seite (Kalender.vue). -->
-      <AppSidebar v-if="!isVollbildMode" :collapsed="sidebarCollapsed" :theme="theme" @toggle-collapse="sidebarCollapsed = !sidebarCollapsed" @toggle-theme="toggleTheme" />
+      <AppSidebar v-if="!vollbildRahmenLos" :glocke="isVollbildMode" :collapsed="sidebarCollapsed" :theme="theme" @toggle-collapse="sidebarCollapsed = !sidebarCollapsed" @toggle-theme="toggleTheme" />
       <div class="dk-main-wrap">
         <!-- UX3f (@suche) und UX3e (@open-menu) stehen NEBENeinander: das
              Suchfeld oeffnet die Befehlspalette, der Menue-Knopf (nur
@@ -58,7 +58,7 @@
           id="dk-inhalt"
           class="dk-content"
           tabindex="-1"
-          :class="{ 'dk-content--kronos': isKronosMode, 'dk-content--moderation': isModerationMode, 'dk-content--vollbild': isVollbildMode, 'dk-content--fuellt': istFuellModus }"
+          :class="{ 'dk-content--kronos': isKronosMode, 'dk-content--moderation': isModerationMode, 'dk-content--vollbild': isVollbildMode, 'dk-content--vollbild-rahmenlos': vollbildRahmenLos, 'dk-content--fuellt': istFuellModus }"
         >
           <!-- UXD-R7: `:key` erzwingt einen Neubau der Seitenkomponente beim
                Wechsel zwischen zwei Detailrouten derselben Seite
@@ -68,8 +68,14 @@
                P3-1b (W2/UXD-R20): Seiten, die ihre Adresse IM BETRIEB nur zum
                Teilen nachführen (Wiki-Artikel), schreiben sie mit
                `history.replaceState` und loesen damit keinen Routenwechsel und
-               keinen Neuaufbau aus — der Schluessel bleibt hier der Hash. -->
-          <component :is="currentComponent" :key="currentHash" v-if="currentComponent" />
+               keinen Neuaufbau aus — der Schluessel bleibt hier der Hash.
+
+               LEISTE-1: `@open-menu` geht an JEDE Seite, aber nur die
+               Vollbild-Seiten (Nachrichten) tragen einen Knopf, der es
+               auslöst — ihre eigene Kopfzeile ersetzt die App-Kopfzeile.
+               Seiten ohne `open-menu` im `defineEmits` ignorieren das
+               Ereignis still. -->
+          <component :is="currentComponent" :key="currentHash" v-if="currentComponent" @open-menu="menueOeffnen" />
           <!-- Nachladen fehlgeschlagen: verstaendliche Meldung statt ewiger
                Spinner (Dev-Befund #/planrahmen/meine-dienste, 16.10.). -->
           <div v-else-if="pageLadefehler" class="dk-screen dk-screen-enter" style="padding:40px 24px;">
@@ -122,7 +128,7 @@
          schaltet die Geruest-Klasse `dk-app--dev` an der Wurzel. -->
     <DevStart v-if="devStartZeigen && (!istHandyLage || isVollbildMode)" />
     <AppBottomNav
-      v-if="!isVollbildMode"
+      v-if="!vollbildRahmenLos"
       :seite="currentPageName"
       :menue-offen="menueOffen"
       :ungelesen="nachrichtenUngelesen"
@@ -137,9 +143,12 @@
          Eingeklappt ist der Einstieg jetzt allein `.dk-sb-collapse` in der
          Leiste (index.css blendet den Kopfzeilen-Knopf dort aus). Damit es
          keinen Navigationsweg ohne sichtbaren Einstieg im Tab-Ring gibt,
-         hängt das `v-if` an GENAU der Bedingung des Knopfes. -->
+         hängt das `v-if` an GENAU der Bedingung des Knopfes — seit LEISTE-1
+         auch auf Vollbild-Seiten: dort führt das ☰ der Seite (Nachrichten)
+         die Schublade, und im Assistenten gibt es keinen Menü-Knopf, also
+         öffnet ihn auch niemand. -->
     <AppMenueSchublade
-      v-if="!isVollbildMode && istHandyLage"
+      v-if="!vollbildRahmenLos && istHandyLage"
       :offen="menueOffen"
       :theme="theme"
       :seite="currentPageName"
@@ -176,7 +185,10 @@ import AppBottomNav from './components/AppBottomNav.vue'
 // UX3f: Befehlspalette (Strg+K), UX3e: Menü-Schublade am Handy (Entwurf A9).
 import Befehlspalette from './components/Befehlspalette.vue'
 import AppMenueSchublade from './components/AppMenueSchublade.vue'
-import { currentComponent, currentHash, currentPageName, navigate, pageLadefehler, routeNeuLaden, seitenLadend } from './router.js'
+import { currentComponent, currentHash, currentPageName, navigate, pageLadefehler, routeNeuLaden, seitenLadend, vollbildModus } from './router.js'
+// LEISTE-1: EINE Liste, welche Adresse Vollbild läuft und wo die Seitenleiste
+// trotzdem stehen bleibt (router.js) — App.vue rechnet das nicht nach.
+import { darfSeitenleiste } from './router.js'
 import { useImpersonation } from './composables/useImpersonation.js'
 import { devmodusAn, devmodusAutostart, devmodusPruefen } from './composables/useDevmodus.js'
 import { useSession } from './composables/useSession.js'
@@ -414,7 +426,8 @@ watch(istHandyLage, (an) => {
 const isKronosMode = computed(() => currentHash.value.startsWith('#/kalender'))
 const isModerationMode = computed(() => ['#/moderation', '#/kalender/pruefen'].includes(currentHash.value))
 /**
- * ON-3b (N4): Einrichtungs-Assistent im VOLLBILD (Entwurf 04/09).
+ * ON-3b (N4) / LEISTE-1: Einrichtungs-Assistent und Nachrichten laufen im
+ * VOLLBILD (Entwurf 04/09 bzw. Variante A vom 23.11.).
  *
  * Der Assistent hat seine eigene Kopfzeile (Marke, „Einrichtung“, „Speichern
  * und später fortsetzen“) und seine eigene Fußleiste. Mit der App-Seitenleiste
@@ -423,8 +436,17 @@ const isModerationMode = computed(() => ['#/moderation', '#/kalender/pruefen'].i
  * keine App-Kopfzeile, keine untere Navigation, solange `#/einrichtung` offen
  * ist. Die Rolle bleibt geprüft (Router-Guard + Server), nur das Gerüst
  * entfällt.
+ *
+ * LEISTE-1 (Manuel 23.11., DMB-4971): Welche Adresse Vollbild verlangt, steht
+ * seit dieser Karte an EINER Stelle (`vollbildRoute` in router.js) — hier
+ * steht nur noch das Ergebnis. Nachrichten nimmt die gewonnene Fläche für
+ * Liste und Verlauf; die Seitenleiste bleibt stehen (`darfSeitenleiste`) und
+ * trägt dort die Glocke, weil die App-Kopfzeile fehlt.
  */
-const isVollbildMode = computed(() => currentHash.value === '#/einrichtung')
+const isVollbildMode = vollbildModus
+/** Vollbild ohne App-Seitenleiste (nur der Assistent). */
+const vollbildRahmenLos = computed(() => isVollbildMode.value
+  && !darfSeitenleiste(currentHash.value))
 /**
  * CHAT-3a-4 (MUSS 1): Seiten, die den Inhaltskasten auf die Kastenhöhe spannen.
  *

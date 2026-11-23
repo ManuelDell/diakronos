@@ -343,13 +343,19 @@ test('N3: „Weiter“ setzt den Schritt erledigt — genau das sagt der Hinweis
 
 test('N4: der App-Rahmen blendet Seitenleiste, Kopfzeile und untere Leiste im Assistenten aus', () => {
   const app = lies('frontend/src/diakonos/App.vue')
-  assert.match(app, /const isVollbildMode = computed\(\(\) => currentHash\.value === '#\/einrichtung'\)/,
-    'es gibt keine Vollbild-Erkennung für #/einrichtung')
-  for (const baustein of ['AppSidebar', 'AppTopbar', 'AppBottomNav']) {
-    assert.match(app, new RegExp(`<${baustein}\\s+v-if="!isVollbildMode"`),
-      `${baustein} wird im Vollbild weiterhin gerendert`)
+  const router = lies('frontend/src/diakonos/router.js')
+  // LEISTE-1: Welche Adresse Vollbild läuft, steht EINMAL in router.js; der
+  // Assistent ist Vollbild OHNE Seitenleiste (`darfSeitenleiste` = nein).
+  assert.match(router, /\/\^#\\\/einrichtung\$\//, 'router.js nennt #/einrichtung nicht als Vollbild-Adresse')
+  assert.match(app, /const isVollbildMode = vollbildModus/, 'App.vue liest den Vollbild-Zustand nicht aus dem Router')
+  assert.match(app, /const vollbildRahmenLos = computed\(\(\) => isVollbildMode\.value\s*&& !darfSeitenleiste\(currentHash\.value\)\)/,
+    'es gibt keine Unterscheidung „Vollbild ohne Seitenleiste“')
+  for (const baustein of ['AppSidebar', 'AppBottomNav']) {
+    assert.match(app, new RegExp(`<${baustein}\\s+v-if="!vollbildRahmenLos"`),
+      `${baustein} wird im Assistenten weiterhin gerendert`)
   }
-  assert.match(app, /'dk-app--vollbild': isVollbildMode/, 'die Vollbild-Klasse am .dk-app fehlt')
+  assert.match(app, /<AppTopbar\s+v-if="!isVollbildMode"/, 'AppTopbar wird im Vollbild weiterhin gerendert')
+  assert.match(app, /'dk-app--vollbild': vollbildRahmenLos/, 'die Vollbild-Klasse am .dk-app fehlt')
   assert.match(app, /'dk-content--vollbild': isVollbildMode/, 'die Vollbild-Klasse am Inhalt fehlt')
 })
 

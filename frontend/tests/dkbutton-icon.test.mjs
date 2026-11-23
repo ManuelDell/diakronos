@@ -15,7 +15,12 @@ test('DkButton-Label hält Icon und Text nebeneinander', () => {
   const regeln = labelRegel[1].replace(/\s+/g, ' ')
   assert.match(regeln, /display:\s*inline-flex/, '.dk-ui-btn-label ist inline-flex')
   assert.match(regeln, /align-items:\s*center/, '.dk-ui-btn-label richtet Icon und Text mittig aus')
-  assert.match(regeln, /gap:\s*7px/, '.dk-ui-btn-label hat Abstand zwischen Icon und Text')
+  // BEF-DESIGN-1: der Abstand kommt aus der Skala (--sp-2), nicht mehr aus
+  // einem festen 7-px-Wert (SSOT, Wächter ux1a).
+  assert.match(regeln, /gap:\s*var\(--sp-\d\)/, '.dk-ui-btn-label hat Abstand zwischen Icon und Text (Token)')
+  // BEF-DESIGN-1: kein Umbruch mehr — „+ Neuer Beitrag“ stand sonst mit dem
+  // Symbol darüber und abgeschnittener Beschriftung da.
+  assert.match(regeln, /white-space:\s*nowrap/, '.dk-ui-btn-label bricht NICHT um')
 })
 
 test('DkButton-Icons werden nie gestaucht', () => {

@@ -128,8 +128,15 @@ const klassen = computed(() => [
 .dk-ui-btn--block { width: 100%; }
 /* Icons stehen neben dem Text, nie darüber (globales svg{display:block}).
    Der Standard-Slot ist flex, damit ein Icon im Slot (z.B. <Icon/> Text) genauso
-   wie im #icon-Slot neben dem Text sitzt; mehrzeilige Beschriftungen brechen um. */
-.dk-ui-btn-label { display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex-wrap: wrap; }
+   wie im #icon-Slot neben dem Text sitzt. BEF-DESIGN-1: einzeilig — die
+   Beschriftung bricht NICHT um und drückt das Symbol aus der Zeile. */
+.dk-ui-btn-label { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2); white-space: nowrap; }
+/* BEF-DESIGN-1 (Befund Manuel 23.11.): „+ Neuer Beitrag“, „+ Neuer Artikel“
+   und „Bearbeiten“ zeigten das Symbol ÜBER dem Text, die Beschriftung war
+   unten abgeschnitten. Ursache: `flex-wrap: wrap` an dieser Hülle — wurde der
+   Knopf in einer Kopfzeile schmaler gedrückt, brach der Text unter das Symbol
+   und fiel bei fester Knopfhöhe aus dem Knopf. Mit `nowrap` ist die
+   Mindestbreite des Knopfs seine Beschriftung; er wird nicht mehr gequetscht. */
 .dk-ui-btn :deep(svg) { flex: none; }
 
 /* md */

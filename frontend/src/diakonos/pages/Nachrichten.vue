@@ -11,13 +11,41 @@
          Verlaufskopf (Zurück, Titel, Untertitel, Stumm als Symbolknopf) —
          Brotkrumen und Seitenkopf stehen dort nicht, sonst stünde der Titel
          dreifach. Am Desktop bleibt der Seitenkopf: er trägt den Bereich
-         („Nachrichten“), der Verlaufskopf das Gespräch — keine Doppelung. -->
-    <DkPageHeader
-      v-if="!seitenkopfVersteckt"
-      :title="seiteTitel"
-      :sub="unterzeile"
-      :krumen="krumen"
-    />
+         („Nachrichten“), der Verlaufskopf das Gespräch — keine Doppelung.
+
+         LEISTE-1 (Manuel 23.11., DMB-4971): Den Seitenkopf gibt es GAR NICHT
+         mehr. „Obere Leiste mit Suche kann weg, Überschrift ‚Nachrichten‘ kann
+         weg.“ Die Seite läuft im Vollbild (router.js `vollbildRoute`); Suche,
+         Glocke und Plus stehen in ihrer eigenen Zeile (`.dk-chat-leiste`). -->
+
+    <!-- LEISTE-1: Handy-Kopf der Vollbild-Seite — ☰ (Seitenleiste), Suchfeld,
+         Glocke, Plus. Am Desktop gibt es diese Zeile nicht: dort sitzt die
+         Suche oben in der Gesprächsliste, die Glocke in der Seitenleiste. -->
+    <div
+      v-if="modulAn && istHandyLage && !offeneKennung"
+      class="dk-chat-leiste"
+      :class="{ 'is-suche': sucheOffen }"
+    >
+      <MenueKnopf @oeffnen="$emit('open-menu')" />
+      <!-- Am Handy sitzt die eine Suche hier, am Desktop oben in der Liste —
+           je Lage genau EINE Instanz (dieselbe `ref`), nie beide. Mit offenem
+           Gespräch trägt am Handy der Verlaufskopf (Zurück, Titel) die Zeile. -->
+      <ChatSuche
+        ref="sucheEl"
+        class="dk-chat-leiste-suche"
+        :gespraeche="gespraeche"
+        :start-begriff="suchBegriff"
+        @sucht="begriffGeaendert"
+        @springen="springen"
+      />
+      <Glocke gross />
+      <DkAktionen
+        :eintraege="neueEintraege"
+        label="Neue Nachricht oder neue Runde"
+        menue-label="Neue Nachricht oder neue Runde"
+        kennung="chat-neu"
+      />
+    </div>
 
     <!-- Modul aus (oder kein Leserecht): EIN Hinweis, keine leere Liste. -->
     <DkCard v-if="!modulAn" flach>
@@ -65,8 +93,12 @@
                    (`#/nachrichten/suche?q=…`), ersetzt ihre Trefferfläche die
                    Liste; „Zurück“/Leeren schließt sie. Ein Treffer ist ein
                    normaler Link — der Browser springt, der Router folgt
-                   (CHAT-3c-2, MUSS A). -->
+                   (CHAT-3c-2, MUSS A).
+                   LEISTE-1: Am HANDY steht das Suchfeld oben im eigenen Kopf
+                   (`.dk-chat-leiste`) — diese Spalte zeigt es dort nicht ein
+                   zweites Mal. Am Desktop ist es der Kopf der Liste. -->
               <ChatSuche
+                v-if="!istHandyLage"
                 ref="sucheEl"
                 :gespraeche="gespraeche"
                 :start-begriff="suchBegriff"
@@ -80,11 +112,17 @@
                   :title="LISTE_LEER.titel"
                   :text="LISTE_LEER.text"
                 />
+                <!-- LEISTE-1: Der Kopf „Alle Gespräche“ entfällt (der Befund
+                     zählte ihn als dritte Zeile derselben Aussage); die zwei
+                     Einstiege hängen am Plus im Handy-Kopf und stehen am
+                     Desktop hier in der Liste. -->
                 <ChatListe
                   v-else
                   :gruppen="gruppen"
                   :aktiv="kennung"
                   :ungelesen="ungelesen"
+                  :kopf="false"
+                  :neue-runde="!istHandyLage"
                   @neue-runde="rundeDialogOeffnen"
                 />
               </template>
@@ -701,9 +739,12 @@ import DkButton from '../components/ui/DkButton.vue'
 import DkSymbol from '../components/ui/DkSymbol.vue'
 import DkDialog from '../components/ui/DkDialog.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
-import DkPageHeader from '../components/ui/DkPageHeader.vue'
 import DkSkelett from '../components/ui/DkSkelett.vue'
 import ChatListe from '../components/chat/ChatListe.vue'
+// LEISTE-1: die Glocke der App (derselbe Baustein wie in Kopfzeile und
+// Seitenleiste) und der Name des Menue-Knopfs.
+import Glocke from '../components/Glocke.vue'
+import MenueKnopf from '../components/MenueKnopf.vue'
 import ChatBlase from '../components/chat/ChatBlase.vue'
 // CHAT-12b: Anhänge — die Regeln in `anhaenge.mjs`, gezeichnet in zwei
 // Bausteinen (Chips über der Eingabe, Anhänge in der Blase).
@@ -744,6 +785,15 @@ import {
   KEIN_ZUGRIFF as MELDUNG_KEIN_ZUGRIFF, meldbar as darfMelden, meldeFehlerText,
   sendeAntwort as meldeAntwort,
 } from '../components/chat/meldung.mjs'
+
+// ── LEISTE-1: Vollbild-Seite ───────────────────────────────────────────────
+/**
+ * Die Seite liegt im Vollbild (router.js `vollbildRoute`): es gibt keine
+ * App-Kopfzeile mehr, die den Menü-Knopf trägt. Am HANDY öffnet deshalb das ☰
+ * im eigenen Kopf (`.dk-chat-leiste`) die Schublade — der EINE Zustand dafür
+ * gehört der App-Wurzel, hier nur das Ereignis.
+ */
+defineEmits(['open-menu'])
 
 // ── Sitzung und Adresse ────────────────────────────────────────────────────
 
@@ -1024,39 +1074,22 @@ async function sperren() {
   }
 }
 
-/**
- * Die Unterzeile des Seitenkopfs. Im 1:1 steht sie LEER (`''`): der Bereich
- * „Nachrichten“ sagt schon alles, und jeder Satz über „wer liest mit“ wäre
- * eine Zusage, die die Meldestelle nicht deckt (Review R1, SOLL 2).
- */
-const unterzeile = computed(() => {
-  if (sucheOffen.value) return 'Personen und Gespräche an einem Ort.'
-  if (!kennung.value) return 'Alle Gespräche an einem Ort.'
-  if (istOffenesDirekt.value) return ''
-  return teilnehmerZahl.value ? `${teilnehmerZahl.value} im Gespräch` : 'Gruppe und Untergruppe, in denen der Chat an ist.'
-})
-
-/** Der Titel des Seitenkopfs — offene Suche oder der BEREICH.
- *
- *  CHAT-3a-4 (SOLL 3): Das offene Gespräch steht NICHT mehr hier — sein Titel
- *  steht im Verlaufskopf direkt darunter (vorher: Brotkrume + Seitenkopf +
- *  Rahmenkopf, dreimal „Chor“). Der Seitenkopf trägt den Bereich. */
-const seiteTitel = computed(() => (sucheOffen.value ? 'Suche' : 'Nachrichten'))
-
-const krumen = computed(() => {
-  if (sucheOffen.value) return [{ text: 'Nachrichten', href: BEREICH }, { text: 'Suche' }]
-  // CHAT-3a-4 (SOLL 3): Am Desktop zeigt der Seitenkopf den BEREICH, nicht
-  // noch einmal das Gespräch — der Verlaufskopf daneben trägt den Titel.
-  return []
-})
+// ── LEISTE-1: kein Seitenkopf mehr ─────────────────────────────────────────
 
 /**
- * CHAT-3a-4 (SOLL 3): Steht der Seitenkopf? Am HANDY mit offenem Gespräch
- * NICHT — dort ist der Verlaufskopf der eine Kopf (Zurück, Titel, Untertitel,
- * Stumm); sonst stünde der Titel dreifach (Brotkrumen, Seitenkopf, Rahmenkopf).
- * Die Liste am Handy behält ihren Seitenkopf.
+ * Die Seite läuft im VOLLBILD (router.js, `vollbildRoute`): keine App-Kopfzeile,
+ * kein Seitenkopf, kein Kartenrahmen. Titel, Unterzeile und Brotkrumen des
+ * früheren Seitenkopfs entfallen damit ersatzlos (Manuel 23.11., DMB-4971:
+ * „Obere Leiste mit Suche kann weg, Überschrift ‚Nachrichten‘ kann weg.“).
+ * Was der Kopf leistete, steht jetzt in der Seite selbst: die Suche oben in
+ * der Liste, die Glocke in Leiste und Handy-Kopf, das Gespräch im Verlaufskopf.
  */
-const seitenkopfVersteckt = computed(() => istHandyLage.value === true && Boolean(offeneKennung.value))
+
+/** Die zwei Einstiege als „⋯“-Menü im Handy-Kopf (Entwurf „02“: nur ein +). */
+const neueEintraege = computed(() => [
+  { text: NEUE_NACHRICHT, href: SUCHE },
+  { text: NEUE_RUNDE, aktion: rundeDialogOeffnen },
+])
 
 // ── Suche (CHAT-3c) ────────────────────────────────────────────────────────
 
@@ -3653,8 +3686,9 @@ watch(suchBegriff, (neu) => {
   display: grid;
   grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
   min-height: 0;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--schatten-karte);
+  /* LEISTE-1: KEIN äußerer Kartenrahmen mehr (Entwurf Variante A, DMB-4971:
+     „Vollbild ohne Dopplungen“). Liste und Verlauf nehmen die Fläche bis an
+     die Ränder; die Trennung leistet die Linie zwischen den Spalten. */
   background: var(--surface);
   overflow: hidden;
 }
@@ -3950,6 +3984,27 @@ watch(suchBegriff, (neu) => {
   .dk-chat-bereich .nur-handy-aus { display: none; }
   .dk-chat-zurueck { display: inline-flex; }
 }
+
+/* ── LEISTE-1 · Kopf der Vollbild-Seite (nur Handy) ─────────────────────────
+   ☰ (öffnet die Seitenleiste), Suchfeld, Glocke, Plus — in EINER Zeile
+   (Entwurf „02 Nachrichten A Handy“). Am Desktop steht dort die Suche in der
+   Liste, die Glocke in der Seitenleiste; die Zeile ist dort nicht im Weg. */
+.dk-chat-leiste {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0;
+  flex: none;
+}
+.dk-chat-leiste-suche { flex: 1 1 auto; min-width: 0; }
+/* Das Suchfeld dieser Zeile trägt keinen eigenen Außenabstand mehr — er
+   gehört der Zeile (sonst stünde es doppelt eingerückt). */
+.dk-chat-leiste .dk-chat-suchfeld { margin: 0; }
+/* Läuft die Suche, wird die Zeile zum Kopf: das Trefferfeld scrollt INNEN,
+   die Liste darunter verschwindet (sie ist am Handy ohnehin ausgeblendet) —
+   die Zeile wächst also nicht über den Bildschirm hinaus. */
+.dk-chat-leiste.is-suche { flex: 1 1 auto; align-items: flex-start; }
+.dk-chat-leiste.is-suche .dk-chat-leiste-suche { display: flex; flex-direction: column; height: 100%; }
 
 /* CHAT-3a-4 (SOLL 3/MUSS 1) · Handy-Lage (Klasse aus dem Handy-Composable,
    dieselbe Quelle wie das Gerüst `.dk-app--handy`, KEINE zweite

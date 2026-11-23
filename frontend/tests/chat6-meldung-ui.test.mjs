@@ -1076,7 +1076,8 @@ test('CHAT-6-UI/F: „Neue Meldung im Chat“ führt in den Reiter', () => {
   // Der Reiter der Adresse ist derselbe, den die Seite liest.
   assert.equal(M.reiterAusAdresse(ZIELE.meldungZiel()), 'chat')
   // Die Glocke zeichnet den Eintrag als Weg (Knopf mit Ziel), nicht als Text.
-  const glocke = readFileSync(new URL('../src/diakonos/components/AppTopbar.vue', import.meta.url), 'utf8')
+  // LEISTE-1: die Glocke steht in ihrem eigenen Baustein.
+  const glocke = readFileSync(new URL('../src/diakonos/components/Glocke.vue', import.meta.url), 'utf8')
   assert.match(glocke, /istChatMeldung/)
   assert.match(glocke, /meldungZiel/)
 })

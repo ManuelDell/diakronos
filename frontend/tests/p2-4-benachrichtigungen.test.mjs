@@ -65,7 +65,8 @@ assert.equal(n.notifications.value[0].read, 1)
 
 // ── 2. Topbar: Klick oeffnet die Liste, markiert erst danach ───────────────
 
-const topbar = await readFile(new URL('components/AppTopbar.vue', WURZEL), 'utf8')
+// LEISTE-1: Die Glocke ist aus AppTopbar.vue in ihren Baustein gezogen.
+const topbar = await readFile(new URL('components/Glocke.vue', WURZEL), 'utf8')
 assert.match(topbar, /@click="toggleListe"/, 'Glocke oeffnet die Liste nicht (toggleListe fehlt)')
 assert.match(topbar, /ladeListe\(\)/, 'Topbar laedt die Liste nicht')
 assert.match(topbar, /await ladeListe\(\)[\s\S]*?await nextTick\(\)[\s\S]*?await markAsRead\(eintraege\)/,
