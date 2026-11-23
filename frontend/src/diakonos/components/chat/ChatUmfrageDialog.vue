@@ -67,11 +67,9 @@
             <span>{{ TEXTE.offen }}</span>
           </label>
         </div>
-        <p class="dk-umfrage-hinweis">
-          {{ art === 'anonym'
-            ? 'Niemand sieht, wer wie gestimmt hat — auch du nicht. Eine anonyme Stimme lässt sich nicht ändern.'
-            : 'Das Ergebnis zeigt zu jeder Antwort die Namen. Die eigene Stimme lässt sich bis zum Ende ändern.' }}
-        </p>
+        <!-- Kein erklärender Kasten (BEF-CHAT-HINWEIS): die Bedeutung von
+             „Anonym“ steht an der Auswahl selbst, die Folge (nicht änderbar)
+             zeigt die Karte im Verlauf. -->
       </fieldset>
 
       <fieldset class="dk-umfrage-feld">
@@ -86,10 +84,6 @@
             <input id="umfrage-uhrzeit" v-model="uhrzeit" class="dk-umfrage-eingabe" type="time" />
           </label>
         </div>
-        <p class="dk-umfrage-hinweis">
-          Ohne Frist läuft die Umfrage bis zur Schließung; ohne Uhrzeit endet sie um 23:59.
-          Zeiten gelten in deutscher Zeit.
-        </p>
       </fieldset>
 
       <p v-if="meldung" class="dk-umfrage-fehler" role="alert">{{ meldung }}</p>

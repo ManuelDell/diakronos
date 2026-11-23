@@ -30,6 +30,7 @@ from diakronos_app.models.rechte import (
     RechteFreigabe,
     RechteGastlink,
     RechteGruppenrolle,
+    RechteGruppeneinstellung,
     RechteModul,
     RechteObjekt,
 )
@@ -282,6 +283,7 @@ __all__ = [
     "RechteFreigabe",
     "RechteGastlink",
     "RechteGruppenrolle",
+    "RechteGruppeneinstellung",
     "RechteModul",
     "RechteObjekt",
     "ChatGespraech",

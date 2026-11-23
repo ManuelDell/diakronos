@@ -27,7 +27,8 @@ ausschliesslich aus `../../tokens.css` — feste Farbwerte (`#hex`, `rgb()`,
 | `DkCard`        | Fläche mit Kopf (`title`, `sub`-Unterzeile, `ebene` für h3 in Karten), Aktionen, Fuss |
 | `DkDialog`      | Modaler Dialog mit Fokusfalle, Esc, aria; `beforeClose` prüft Verwerfen |
 | `DkBestaetigung` | Globales Fenster für `bestaetigen({titel,text,aktion,gefahr})`; Abbrechen ist Standard |
-| `DkField`       | Hülle für Eingabe: Label, Hilfe, Fehler          |
+| `DkField`       | Hülle für Eingabe: Label, Hilfe, Fehler — EINE Quelle für Felder mit Hilfetext (Breite gibt der Aufrufer, z. B. `.wf-feldspalte` `width: 100%`) |
+| `DkSchalterZeile` | Schalterzeile: Kästchen sichtbar links, Beschriftung daneben, Hilfetext eingerückt darunter (`--sp-1`), `aria-describedby` am Kästchen |
 | `DkDatumZeit`   | Datum/Uhrzeit: deutsch angezeigt, ISO im Modell, Vorschlag 19:00–20:00 (S8) |
 | `DkFilterChips` | Filterzeile als Chips, abwählbar, „Alle“ als Ruhezustand (S9) |
 | `DkSkelett`     | Ladeplatzhalter — die eine Ladeform (S10)        |
@@ -110,6 +111,18 @@ dürfen dieselbe Datei nicht gleichzeitig anfassen.
   <DkSelect v-model="plantyp" :options="vorlagen" placeholder="— bitte wählen —" />
 </DkField>
 ```
+
+### Schalterzeile
+
+```vue
+<DkSchalterZeile v-model="nurFreigegebene"
+  label="Nur freigegebene Kalender zeigen"
+  help="Blendet Kalender aus, die nicht auf der Website erscheinen." />
+```
+
+Der Schalter ist sichtbar und linksbündig; der Hilfetext steht eingerückt
+darunter (Abstand `--sp-1`), nicht „mal so, mal so“. Abstand ZWISCHEN zwei
+Zeilen setzt der Aufrufer mit `--gap`.
 
 ### Dialog
 

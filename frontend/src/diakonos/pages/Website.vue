@@ -28,8 +28,14 @@
             <DkBadge :variant="zustand().ton">{{ zustand().titel }}</DkBadge>
             <span v-if="details()" class="wf-details">{{ details() }}</span>
           </div>
-          <p class="wf-hilfe">{{ zustand().text }}</p>
-          <p class="wf-hilfe">{{ SITZUNGS_HINWEIS }}</p>
+          <!-- BEF-DESIGN-2: Die zwei Hilfesätze standen als nackte Absätze im
+               selben Abstandsraster wie die Schalterzeilen — sie bilden hier
+               EINE Gruppe (gleicher Abstand wie Hilfe unter einer
+               Schalterzeile). -->
+          <div class="wf-austausch">
+            <p class="wf-hilfe">{{ zustand().text }}</p>
+            <p class="wf-hilfe">{{ SITZUNGS_HINWEIS }}</p>
+          </div>
 
           <DkHint v-if="hinweis" :variant="hinweis.ton" role="alert">{{ hinweis.text }}</DkHint>
 
@@ -61,92 +67,104 @@
         <!-- ── U1 · Kalender ───────────────────────────────────────────── -->
         <div data-wf-abschnitt="kalender">
         <DkCard title="Kalender">
-          <p class="wf-hilfe">
-            Ein freigegebener Kalender zeigt seine Termine auf der Website.
-            Titel, Zeit, Ort und Beschreibung der Termine werden dabei
-            öffentlich — auch interne Notizen in der Beschreibung.
-          </p>
-          <DkCheckbox v-model="nurFreigegebene">
-            Nur freigegebene Kalender zeigen
-          </DkCheckbox>
-
-          <DkEmpty v-if="!kalender.length" title="Keine Kalender"
-            text="Sobald Kalender angelegt sind, erscheinen sie hier." />
-          <div v-else class="wf-liste">
-            <FreigabeZeile
-              v-for="k in sichtbareKalender"
-              :key="k.name"
-              :titel="k.titel"
-              :name="k.name"
-              :freigabe="k.freigabe"
-              :slug="k.slug"
-              :nur-oeffentliche-kategorien="k.nurOeffentlicheKategorien"
-              :zeige-kategorie-schalter="true"
-              :kategori-hinweis="kategorieHinweis(oeffentlicheKategorien)"
-              :laeuft="laeuft(`kalender:${k.name}`)"
-              :fehler="zeilenFehler(`kalender:${k.name}`)"
-              @freigabe="kalenderFreigabe(k, $event)"
-              @nur-oeffentliche-kategorien="kalenderKategorien(k, $event)"
-              @slug="kalenderSlug(k, $event)"
+          <div class="wf-abschnitt">
+            <p class="wf-hilfe">
+              Ein freigegebener Kalender zeigt seine Termine auf der Website.
+              Titel, Zeit, Ort und Beschreibung der Termine werden dabei
+              öffentlich — auch interne Notizen in der Beschreibung.
+            </p>
+            <!-- BEF-DESIGN-2: Der Schalter ist eine eigene Zeile mit sichtbarem
+                 Kästchen links; er klebt nicht mehr am Absatz darüber. -->
+            <DkSchalterZeile
+              v-model="nurFreigegebene"
+              label="Nur freigegebene Kalender zeigen"
+              help="Blendet Kalender aus, die nicht auf der Website erscheinen."
             />
+
+            <DkEmpty v-if="!kalender.length" title="Keine Kalender"
+              text="Sobald Kalender angelegt sind, erscheinen sie hier." />
+            <div v-else class="wf-liste">
+              <FreigabeZeile
+                v-for="k in sichtbareKalender"
+                :key="k.name"
+                :titel="k.titel"
+                :name="k.name"
+                :freigabe="k.freigabe"
+                :slug="k.slug"
+                :nur-oeffentliche-kategorien="k.nurOeffentlicheKategorien"
+                :zeige-kategorie-schalter="true"
+                :kategori-hinweis="kategorieHinweis(oeffentlicheKategorien)"
+                :laeuft="laeuft(`kalender:${k.name}`)"
+                :fehler="zeilenFehler(`kalender:${k.name}`)"
+                @freigabe="kalenderFreigabe(k, $event)"
+                @nur-oeffentliche-kategorien="kalenderKategorien(k, $event)"
+                @slug="kalenderSlug(k, $event)"
+              />
+            </div>
+            <p class="wf-hilfe">
+              „Nur öffentliche Terminarten“ lässt nur Termine durch, deren
+              Terminart unten als öffentlich freigegeben ist.
+            </p>
           </div>
-          <p class="wf-hilfe">
-            „Nur öffentliche Terminarten“ lässt nur Termine durch, deren
-            Terminart unten als öffentlich freigegeben ist.
-          </p>
         </DkCard>
         </div>
 
         <!-- ── U1b · Terminarten (steuert die Einschränkung oben) ──────── -->
         <div data-wf-abschnitt="terminarten">
         <DkCard title="Terminarten">
-          <p class="wf-hilfe">
-            Welche Art von Termin überhaupt öffentlich erscheinen darf. Die
-            Einschränkung „Nur öffentliche Terminarten“ eines Kalenders greift
-            auf diese Schalter zurück.
-          </p>
-          <DkHint :variant="oeffentlicheKategorien ? 'info' : 'warn'">
-            {{ kategorieHinweis(oeffentlicheKategorien) }}
-          </DkHint>
-          <DkEmpty v-if="!kategorien.length" title="Keine Terminarten"
-            text="Sobald Terminarten angelegt sind, erscheinen sie hier." />
-          <ul v-else class="wf-kategorien">
-            <li v-for="k in kategorien" :key="k.name" class="wf-kategorie">
-              <DkCheckbox
+          <div class="wf-abschnitt">
+            <p class="wf-hilfe">
+              Welche Art von Termin überhaupt öffentlich erscheinen darf. Die
+              Einschränkung „Nur öffentliche Terminarten“ eines Kalenders greift
+              auf diese Schalter zurück.
+            </p>
+            <DkHint :variant="oeffentlicheKategorien ? 'info' : 'warn'">
+              {{ kategorieHinweis(oeffentlicheKategorien) }}
+            </DkHint>
+            <DkEmpty v-if="!kategorien.length" title="Keine Terminarten"
+              text="Sobald Terminarten angelegt sind, erscheinen sie hier." />
+            <!-- BEF-DESIGN-2: Jede Terminart ist eine Schalterzeile derselben
+                 Bauart wie oben — kein eigener Listenabstand (vorher standen
+                 die Kästchen enger als die übrigen Schalter der Seite). -->
+            <div v-else class="wf-schalterliste">
+              <DkSchalterZeile
+                v-for="k in kategorien"
+                :key="k.name"
                 :model-value="k.oeffentlich"
+                :label="k.titel"
                 :disabled="laeuft(`kategorie:${k.name}`)"
                 @update:model-value="kategorieUmschalten(k, $event)"
-              >
-                {{ k.titel }}
-              </DkCheckbox>
-            </li>
-          </ul>
+              />
+            </div>
+          </div>
         </DkCard>
         </div>
 
         <!-- ── U2 · Gruppen ────────────────────────────────────────────── -->
         <div data-wf-abschnitt="gruppen">
         <DkCard title="Gruppen">
-          <p class="wf-hilfe">
-            Von einer freigegebenen Gruppe werden Name, Typ, Beschreibung,
-            Treffzeit, Treffpunkt und Bild öffentlich. Personen (Mitglieder,
-            Mitarbeiter, Leitung) erscheinen nicht.
-          </p>
-          <DkEmpty v-if="!gruppen.length" title="Keine Gruppen"
-            text="Sobald Gruppen angelegt sind, erscheinen sie hier." />
-          <div v-else class="wf-liste">
-            <FreigabeZeile
-              v-for="g in gruppen"
-              :key="g.name"
-              :titel="g.titel"
-              :name="g.name"
-              :freigabe="g.freigabe"
-              :slug="g.slug"
-              :laeuft="laeuft(`gruppe:${g.name}`)"
-              :fehler="zeilenFehler(`gruppe:${g.name}`)"
-              @freigabe="gruppeFreigabe(g, $event)"
-              @slug="gruppeSlug(g, $event)"
-            />
+          <div class="wf-abschnitt">
+            <p class="wf-hilfe">
+              Von einer freigegebenen Gruppe werden Name, Typ, Beschreibung,
+              Treffzeit, Treffpunkt und Bild öffentlich. Personen (Mitglieder,
+              Mitarbeiter, Leitung) erscheinen nicht.
+            </p>
+            <DkEmpty v-if="!gruppen.length" title="Keine Gruppen"
+              text="Sobald Gruppen angelegt sind, erscheinen sie hier." />
+            <div v-else class="wf-liste">
+              <FreigabeZeile
+                v-for="g in gruppen"
+                :key="g.name"
+                :titel="g.titel"
+                :name="g.name"
+                :freigabe="g.freigabe"
+                :slug="g.slug"
+                :laeuft="laeuft(`gruppe:${g.name}`)"
+                :fehler="zeilenFehler(`gruppe:${g.name}`)"
+                @freigabe="gruppeFreigabe(g, $event)"
+                @slug="gruppeSlug(g, $event)"
+              />
+            </div>
           </div>
         </DkCard>
         </div>
@@ -154,17 +172,21 @@
         <!-- ── U3 · Beiträge ───────────────────────────────────────────── -->
         <div data-wf-abschnitt="beitraege">
         <DkCard title="Beiträge">
-          <p class="wf-anzahl">
-            <strong>{{ beitraegeZahl }}</strong>
-            {{ beitraegeZahl === 1 ? 'Beitrag steht' : 'Beiträge stehen' }} auf der Website.
-          </p>
-          <p class="wf-hilfe">
-            Öffentlich ist ein Beitrag nur, wenn er zusätzlich veröffentlicht
-            ist. Den Schalter „Auf Website“ findest du in der Beitragsliste
-            unter „Beiträge“ — dort, wo Beiträge geschrieben und veröffentlicht
-            werden.
-          </p>
-          <DkButton variant="secondary" @click="zuBeitraegen">Zu den Beiträgen</DkButton>
+          <div class="wf-abschnitt">
+            <p class="wf-anzahl">
+              <strong>{{ beitraegeZahl }}</strong>
+              {{ beitraegeZahl === 1 ? 'Beitrag steht' : 'Beiträge stehen' }} auf der Website.
+            </p>
+            <p class="wf-hilfe">
+              Öffentlich ist ein Beitrag nur, wenn er zusätzlich veröffentlicht
+              ist. Den Schalter „Auf Website“ findest du in der Beitragsliste
+              unter „Beiträge“ — dort, wo Beiträge geschrieben und veröffentlicht
+              werden.
+            </p>
+            <div class="wf-aktionen">
+              <DkButton variant="secondary" @click="zuBeitraegen">Zu den Beiträgen</DkButton>
+            </div>
+          </div>
         </DkCard>
         </div>
 
@@ -174,33 +196,35 @@
           <template #actions>
             <DkButton size="md" variant="secondary" @click="postfachNeu">Postfach anlegen</DkButton>
           </template>
-          <p class="wf-hilfe">
-            Empfänger der Nachrichten aus dem Kontaktformular der Website.
-            Ohne eigene Zeile gilt die in der Konfiguration hinterlegte
-            Adresse.
-          </p>
-          <DkHint :variant="postfachStand.ton">{{ postfachStand.text }}</DkHint>
+          <div class="wf-abschnitt">
+            <p class="wf-hilfe">
+              Empfänger der Nachrichten aus dem Kontaktformular der Website.
+              Ohne eigene Zeile gilt die in der Konfiguration hinterlegte
+              Adresse.
+            </p>
+            <DkHint :variant="postfachStand.ton">{{ postfachStand.text }}</DkHint>
 
-          <DkTable
-            :spalten="postfachSpalten"
-            :leer="!postfaecher.length"
-            leer-titel="Keine eigenen Postfächer"
-            leer-text="Es gilt die Adresse aus der Konfiguration."
-          >
-            <tr v-for="p in postfaecher" :key="p.slug">
-              <td>{{ p.bezeichnung }}</td>
-              <td><code class="wf-slug">/{{ p.slug }}</code></td>
-              <td class="wf-mail">{{ p.email }}</td>
-              <td>{{ p.aktiv === true ? 'aktiv' : 'aus' }}</td>
-              <td class="is-aktion">
-                <DkButton size="md" variant="ghost" @click="postfachBearbeiten(p)">Bearbeiten</DkButton>
-                <DkButton size="md" variant="danger" :loading="laeuft(`postfach:${p.slug}`)"
-                  @click="postfachEntfernen(p)">
-                  Löschen
-                </DkButton>
-              </td>
-            </tr>
-          </DkTable>
+            <DkTable
+              :spalten="postfachSpalten"
+              :leer="!postfaecher.length"
+              leer-titel="Keine eigenen Postfächer"
+              leer-text="Es gilt die Adresse aus der Konfiguration."
+            >
+              <tr v-for="p in postfaecher" :key="p.slug">
+                <td>{{ p.bezeichnung }}</td>
+                <td><code class="wf-slug">/{{ p.slug }}</code></td>
+                <td class="wf-mail">{{ p.email }}</td>
+                <td>{{ p.aktiv === true ? 'aktiv' : 'aus' }}</td>
+                <td class="is-aktion">
+                  <DkButton size="md" variant="ghost" @click="postfachBearbeiten(p)">Bearbeiten</DkButton>
+                  <DkButton size="md" variant="danger" :loading="laeuft(`postfach:${p.slug}`)"
+                    @click="postfachEntfernen(p)">
+                    Löschen
+                  </DkButton>
+                </td>
+              </tr>
+            </DkTable>
+          </div>
         </DkCard>
         </div>
 
@@ -241,6 +265,7 @@
         <DkField label="Bezeichnung" required :error="postfachFelder.bezeichnung"
           :regel="regelPostfachName" :wert="postfachFormular.bezeichnung"
           pflicht-name="eine Bezeichnung" :maxlength="BEZEICHNUNG_MAX"
+          class="wf-feldspalte"
           v-slot="feld"
           @update:wert="postfachFormular.bezeichnung = $event">
           <input v-bind="feld.feldProps" type="text" placeholder="z. B. Allgemein" />
@@ -249,23 +274,33 @@
           :help="postfachFormular.istNeu
             ? 'Name in der Adresse: Kleinbuchstaben, Ziffern, Bindestrich.'
             : 'Der Kürzel lässt sich nach dem Anlegen nicht ändern.'"
-          :disabled="!postfachFormular.istNeu">
-          <input v-model="postfachFormular.slug" class="dk-ui-eingabe" type="text"
+          :disabled="!postfachFormular.istNeu"
+          v-slot="feld"
+          class="wf-feldspalte">
+          <!-- R1/Befund P2: der Feldsatz trägt die Kennung — ohne sie zeigte das
+               Label (`for`) auf nichts. `value`/`onInput` bleiben am `v-model`;
+               Modell und Feldkennung schließen sich nicht aus. -->
+          <input v-model="postfachFormular.slug" :id="feld.id" :aria-describedby="feld.aria-describedby"
+            class="dk-ui-eingabe" type="text"
             :maxlength="SLUG_MAX" :disabled="!postfachFormular.istNeu"
             autocomplete="off" spellcheck="false" placeholder="z. B. allgemein" />
         </DkField>
         <DkField label="E-Mail-Adresse" required :error="postfachFelder.email"
           :regel="regelPostfachEmail" :wert="postfachFormular.email"
           v-slot="feld"
+          class="wf-feldspalte"
           :maxlength="EMAIL_MAX" @update:wert="postfachFormular.email = $event">
           <input v-bind="feld.feldProps" type="email" placeholder="postfach@example.org" />
         </DkField>
         <DkField label="Reihenfolge" :error="postfachFelder.sortierung"
-          help="Kleinere Zahl steht weiter oben.">
-          <input v-model="postfachFormular.sortierung" class="dk-ui-eingabe" type="number"
+          help="Kleinere Zahl steht weiter oben."
+          v-slot="feld"
+          class="wf-feldspalte">
+          <input v-model="postfachFormular.sortierung" :id="feld.id" :aria-describedby="feld.aria-describedby"
+            class="dk-ui-eingabe" type="number"
             inputmode="numeric" step="10" />
         </DkField>
-        <DkCheckbox v-model="postfachFormular.aktiv">Postfach ist aktiv</DkCheckbox>
+        <DkSchalterZeile v-model="postfachFormular.aktiv" label="Postfach ist aktiv" />
         <DkHint v-if="postfachMeldung" variant="err" role="alert">{{ postfachMeldung }}</DkHint>
       </form>
       <template #footer>
@@ -306,6 +341,14 @@
  * Sichtbarkeit: nur System Manager, Administrator, Website-Moderator
  * (`darfFreigabenVerwalten`); der Server weist zusätzlich mit 403 ab.
  *
+ * BEF-DESIGN-2 (Befund Manuel 23.11.): Schalter stehen als `DkSchalterZeile`
+ * (Kästchen sichtbar und linksbündig, Hilfe mit festem Abstand darunter), der
+ * Inhalt jeder Karte läuft in EINEM Raster (`.wf-abschnitt`, `--gap`) statt als
+ * lose Folge von Absätzen, und Felder mit Hilfetext teilen sich eine Breite
+ * (`DkField` / `.wf-feldspalte`). Keine eigenen Abstandswerte in dieser
+ * Datei: die Wächter-Tests `ux1a-abstand-tokens` und `waechter-tokens` zählen
+ * jeden festen Wert.
+ *
  * Schreibende Aufrufe gehen ausschließlich per `apiCall` (POST mit
  * CSRF-Token) über `useWebsiteFreigaben` — nie über ein GET. Die Vorwarnung
  * und die Slug-Prüfung stehen in `shared/website-freigaben.mjs` (prüfbar).
@@ -341,10 +384,14 @@ import {
 import DkBadge from '../components/ui/DkBadge.vue'
 import DkButton from '../components/ui/DkButton.vue'
 import DkCard from '../components/ui/DkCard.vue'
-import DkCheckbox from '../components/ui/DkCheckbox.vue'
 import DkDialog from '../components/ui/DkDialog.vue'
 import DkEmpty from '../components/ui/DkEmpty.vue'
 import DkField from '../components/ui/DkField.vue'
+// BEF-DESIGN-2: Schalterzeilen kommen aus der gemeinsamen Formular-Sprache
+// (components/ui) — nicht mehr aus eigenen Kästchen und Absätzen dieser Seite.
+// Felder mit Hilfetext bleiben `DkField` (EINE Quelle: Label, Hilfe, Meldung,
+// aria); die Breite gibt ihnen `.wf-feldspalte`.
+import DkSchalterZeile from '../components/ui/DkSchalterZeile.vue'
 // UX2f: Prüfregeln aus EINER Quelle (Feld und Sammelprüfung).
 import { pflicht, email as emailRegel, laenge as laengeRegel } from '../composables/feldPruefung.mjs'
 import DkHint from '../components/ui/DkHint.vue'
@@ -635,6 +682,24 @@ onMounted(() => {
   min-width: 0;
 }
 .wf-kopf { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); min-width: 0; }
+/* BEF-DESIGN-2: der Inhalt EINER Karte ist EINE Spalte mit dem Abstand
+   zwischen Gruppen (`--gap`, Faktor 3 gegenüber `--sp-1`). Vorher standen die
+   Elemente ohne Raster im Kartenkörper — Schalter klebten am Absatz darüber,
+   Hilfetexte sprangen zwischen „direkt darunter“ und „mit Lücke“. Die
+   Schalterzeile bringt ihren eigenen Innenabstand (`--sp-1`) mit; hier wird
+   nur noch ZWISCHEN den Gruppen getrennt — eine Stelle für alle Karten. */
+.wf-abschnitt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--gap);
+  min-width: 0;
+}
+/* Schalter untereinander: gleicher Abstand wie zwischen zwei Gruppen (jeder
+   Schalter ist eine eigene Aussage). */
+.wf-schalterliste { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); min-width: 0; }
+/* Die beiden Sätze der Anbindung gehören zusammen (Abstand wie Hilfe unter
+   einer Schalterzeile). */
+.wf-austausch { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-1); min-width: 0; }
 .wf-anleitung {
   margin: 0;
   padding-left: var(--sp-alt-20);
@@ -647,8 +712,10 @@ onMounted(() => {
 .wf-details { color: var(--muted); font-size: var(--fs-sm); }
 .wf-hilfe { margin: 0; display: block; color: var(--muted); font-size: var(--fs-sm); }
 .wf-liste { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; }
-.wf-kategorien { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-1); margin: 0; padding: 0; list-style: none; min-width: 0; }
-.wf-kategorie { min-width: 0; }
+/* BEF-DESIGN-2: In einem Formular füllen ALLE Felder die Zeile — Feld und
+   Hilfetext enden so an derselben Kante (vorher war das Kürzel-Feld schmaler
+   als sein Hilfetext). */
+.wf-feldspalte { width: 100%; }
 .wf-anzahl { margin: 0; }
 .wf-slug { font-size: var(--fs-sm); overflow-wrap: anywhere; }
 .wf-mail { overflow-wrap: anywhere; }

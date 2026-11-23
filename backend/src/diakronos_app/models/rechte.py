@@ -110,6 +110,25 @@ class RechteModul(Base):
     modul: Mapped[str] = mapped_column(String(40), nullable=False)
 
 
+class RechteGruppeneinstellung(Base):
+    """Eine Einstellung einer Gruppe im Kern (DATEIEN-R, Konzept 2.3 b).
+
+    Allgemeine Schlüssel/Wert-Zeile statt Modul-Spalten: neue Module brauchen
+    keine Migration. Gültige Schlüssel und Vorgaben kennt nur der Kern
+    (``kern.GRUPPENEINSTELLUNGEN``); keine Zeile = Vorgabe.
+    """
+
+    __tablename__ = "rechte_gruppeneinstellung"
+    __table_args__ = (
+        Index("uq_rechte_gruppeneinstellung", "gruppe", "schluessel", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    gruppe: Mapped[str] = mapped_column(String(140), nullable=False)
+    schluessel: Mapped[str] = mapped_column(String(80), nullable=False)
+    wert: Mapped[str] = mapped_column(String(200), nullable=False)
+
+
 class RechteObjekt(Base):
     """Zuordnung eines Modul-Objekts zu seiner Gruppe + Gemeinde-Freigabe."""
 

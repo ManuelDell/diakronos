@@ -374,6 +374,7 @@ from diakronos_app.frappe_compat.exceptions import (
     throw,
 )
 from diakronos_app.frappe_compat.session import session
+from diakronos_app import ablage
 from diakronos_app import chat_anhanggrenze as anhanggrenze
 from diakronos_app.models.chat import (
     ANHAENGE_MAX,
@@ -3075,19 +3076,10 @@ def _trefferwenn(dialekt: str, benutzer: str,
 def _anhang_herkunft(datei, grenze: int | None = None) -> tuple[bytes, str]:
     """Bytes UND deklarierten Typ eines Uploads — in EINEM Lesevorgang.
 
-    Der Lesedeckel ist ``grenze + 1`` (die WIRKSAME Grenze der Gemeinde,
-    ``chat_anhanggrenze.anhang_max_bytes`` — ohne Angabe der Standard
-    ``ANHANG_MAX_BYTES``): ein größerer Upload wird abgewiesen, ohne
-    vollständig in den Speicher zu wandern. Gelesen wird am
-    ``UploadFile`` VORBEI auf dem dahinterliegenden synchronen Datenstrom
-    (``.file``) — genau wie ``frappe_core.upload_file`` und
-    ``gemeinde_logo.pruefe_und_lege_ab``; ``UploadFile.read`` wäre in Starlette
-    eine Coroutine, und der Router ruft den Endpunkt synchron in einem
-    Arbeitsfaden auf.
-
-    Der DEKLARIERTE Typ (Content-Type des Multipart-Teils) wird mitgegeben:
-    er entscheidet bei ``audio/mp4``/``image/heic`` mit, weil ein Container
-    allein mehrere Formate deckt (s. ``_anhang_typ``).
+    DATEIEN-2: der Lesedeckel wohnt jetzt im Baustein ``ablage`` (``nimm_upload``
+    — dieselbe Zahl ``grenze + 1``, dieselbe Meldung). Hier bleibt nur die
+    Chat-Fassung für die Tests dieses Moduls: Bytes und der Deklarierte, ohne
+    Typ-/Namensprüfung.
     """
     if datei is None:
         throw("Es wurde keine Datei übergeben.")
@@ -3108,97 +3100,26 @@ def _anhang_herkunft(datei, grenze: int | None = None) -> tuple[bytes, str]:
 def _anhang_typ(roh: bytes, deklariert: str = "") -> str:
     """Der GEPRÜFTE Typ eines Anhangs — aus den MAGIC BYTES, nie vom Client.
 
-    Wiederverwendet wird ``files.binary_content_type`` (Kartenauflage: nicht
-    kopieren) und der deklarierte Typ nur dort, wo er NÖTIG ist, weil die Magie
-    mehrere Formate deckt:
-
-    * **HEIC/HEIF** (``image/heic``): ISO-BMFF-``ftyp`` mit einem HEIF-Brand.
-      ``binary_content_type`` kennt HEIC nicht.
-    * **``audio/mp4``** (``.m4a``): Dieselbe Magie deckt auch ``.mp4``-VIDEO —
-      Video ist nicht Teil des Konzepts. Ein Audio-Upload deklariert seinen Typ
-      als ``audio/…``; deklariert der Client ``video/mp4``, wird abgelehnt.
-
-    Alles andere entscheidet AUSSCHLIESSLICH die Magie: ein als ``.jpg``
-    umbenanntes Programm meldet ``binary_content_type`` nicht als Bild — und was
-    nicht in ``ANHANG_TYPEN`` steht, ist abgelehnt.
-
-    ``ValidationError`` mit einer Meldung, die dem Menschen weiterhilft (Typ,
-    erlaubte Liste) und keinen internen Pfad nennt.
+    Reine Weiterleitung an ``ablage.erkenne_typ(…, RICHTLINIE_POSITIV)``
+    (DATEIEN-2): die Chat-Positivliste ``ANHANG_TYPEN`` und die Meldung
+    ``ablage.POSITIVLISTE_TEXT`` stehen dort. Der Chat behält seine Positivliste;
+    Bilder, PDF und Audio bleiben die einzigen erlaubten Typen.
     """
-    from diakronos_app.files import binary_content_type
+    from diakronos_app import ablage
 
-    erkannt = binary_content_type(roh)
-    deklariert = str(deklariert or "").split(";")[0].strip().lower()
-
-    if _ist_heic(roh):
-        return "image/heic"
-    if erkannt == "audio/mp4" and not deklariert.startswith("audio/"):
-        # ISO-BMFF-``ftyp``: ``.m4a`` (Audio) und ``.mp4`` (Video) sind an der
-        # Magie NICHT zu unterscheiden (beide ``ftyp``); der Client-Typ
-        # entscheidet deshalb hier mit — deklariert er ``audio/...``, ist es
-        # ein M4A, sonst (``video/mp4``, leer, fremd) wird abgelehnt.
-        raise ValidationError(
-            "Dateityp nicht erlaubt. Erlaubt sind Bilder (JPG, PNG, WebP, HEIC), "
-            "PDF und Audio (MP3, M4A, OGG, OPUS)."
-        )
-    if erkannt is None or erkannt not in ANHANG_TYPEN:
-        raise ValidationError(
-            "Dateityp nicht erlaubt. Erlaubt sind Bilder (JPG, PNG, WebP, HEIC), "
-            "PDF und Audio (MP3, M4A, OGG, OPUS)."
-        )
-    return erkannt
-
-
-#: Die HEIF-Brands (ISO/IEC 23008-12). ``mif1``/``msf1`` sind HEIF-Container,
-#: die auch AVIF tragen können — AVIF ist hier NICHT erlaubt (das Konzept nennt
-#: heic), deshalb zählt ``mif1`` nur, wenn KEIN AVIF-Brand daneben steht.
-_HEIC_BRANDS = frozenset({b"heic", b"heix", b"heim", b"heis", b"hevc", b"hevx"})
-_HEIF_BRANDS = frozenset({b"mif1", b"msf1"})
-_AVIF_BRANDS = frozenset({b"avif", b"avis"})
-
-
-def _ist_heic(roh: bytes) -> bool:
-    """HEIC/HEIF-Erkennung an der ``ftyp``-Box (Video/AVIF sind es NICHT).
-
-    ``[0:4]`` = Box-Länge, ``[4:8]`` = ``ftyp``, ``[8:12]`` = major brand,
-    danach die compatible brands. ``audio/mp4``-Dateien (``isom``, ``mp42``,
-    ``M4A ``) und MP4-Video (``isom``/``mp41``) fallen hier durch.
-    """
-    if len(roh) < 12 or roh[4:8] != b"ftyp":
-        return False
-    # Brand-Bereich: major brand (Bytes 8–11), minor version (12–15), dann die
-    # compatible brands als 4-Byte-Felder ab 16. Konservativ bis 32 Bytes
-    # gelesen — was weiter hinten steht, ist kein typischer HEIC-Kopf.
-    brands = {roh[8:12]} | {
-        roh[i:i + 4] for i in range(16, min(len(roh), 40), 4)
-    }
-    if brands & _AVIF_BRANDS:
-        return False
-    return bool(brands & _HEIC_BRANDS or brands & _HEIF_BRANDS and roh[8:12] in _HEIF_BRANDS)
+    return ablage.erkenne_typ(roh, deklariert, ablage.RICHTLINIE_POSITIV)
 
 
 def _anhang_dateiname(name: str | None, typ: str) -> str:
     """Anzeigename bereinigen: kein Pfad, keine Steuerzeichen, ≤ 120 Zeichen.
 
-    ``../../etc/passwd`` → ``passwd``. Der Name ist REINE ANZEIGE — er wird
-    nie als Speicherpfad benutzt (der Schlüssel ist technisch, ``_kennung``),
-    aber er landet in ``Content-Disposition`` und darf dort weder Zeilen noch
-    Pfade öffnen. Steuerzeichen (auch ``\\r``/``\\n``) fliegen ganz raus,
-    Backslash und Doppelpunkt ebenso; Leerzeichen INNEN bleiben.
+    DATEIEN-2: die Bereinigung wohnt im Baustein ``ablage.dateiname`` (Chat und
+    Gruppendateien benutzen dieselbe). ``../../etc/passwd`` → ``passwd``; der
+    Name ist REINE ANZEIGE und landet nur in ``Content-Disposition``.
     """
-    basis = str(name or "").strip().replace("\\", "/")
-    basis = basis.rsplit("/", 1)[-1]
-    basis = "".join(z for z in basis if z.isprintable() and z not in '\\/:*?"<>|').strip()
-    basis = basis.lstrip(".").strip()
-    if not basis:
-        basis = f"anhang{ANHANG_TYPEN.get(typ, '')}"
-    if len(basis) > ANHANG_NAME_MAX:
-        stamm, punkt, endung = basis.rpartition(".")
-        if punkt and endung and len(endung) <= 8:
-            basis = stamm[: ANHANG_NAME_MAX - len(endung) - 1] + "." + endung
-        else:
-            basis = basis[:ANHANG_NAME_MAX]
-    return basis
+    from diakronos_app import ablage
+
+    return ablage.dateiname(name, typ)
 
 
 def _anhang_kennungen(anhaenge) -> list[str]:
@@ -4471,16 +4392,16 @@ def anhang_hochladen(gespraech, datei=None, file=None, dateiname=None):
         # Wahrheit) und für Deckel, Prüfung und Meldung dieselbe Zahl nehmen.
         grenze_bytes = anhanggrenze.anhang_max_bytes(s)
 
-    roh, deklariert = _anhang_herkunft(vom_aufrufer, grenze=grenze_bytes)
-    if not roh:
-        throw("Die Datei ist leer.")
-    if len(roh) > grenze_bytes:
-        # Dieselbe Zahl wie im Lese-Deckel und in der Einstellung (CHAT-12c):
-        # MB aus der Einstellung, nicht die Konstante.
-        throw(f"Die Datei ist zu groß (max. {grenze_bytes // (1024 * 1024)} MB).")
-    typ = _anhang_typ(roh, deklariert)
-    anzeigename = _anhang_dateiname(
-        dateiname or getattr(vom_aufrufer, "filename", None), typ)
+    # DATEIEN-2: Lesen (Deckel Grenze+1), leer/zu groß, Typ gegen die
+    # Chat-Positivliste, Dateiname und der Virenprüf-Haken stehen im Baustein
+    # ``ablage`` — EINE Fassung für Chat und Gruppendateien. Der Name bleibt der
+    # des Aufrufers (``dateiname=`` vor ``datei.filename``, Review R1/MUSS 2).
+    info = ablage.nimm_upload(
+        vom_aufrufer, grenze=grenze_bytes, richtlinie=ablage.RICHTLINIE_POSITIV,
+        name=dateiname or None)
+    roh = info.inhalt
+    typ = info.typ
+    anzeigename = info.anzeigename
     schluessel = _kennung("chat-a")
 
     from diakronos_app.speicher import AblageFehler, hole_speicher
@@ -4652,51 +4573,40 @@ def anhang(name):
             raise DoesNotExistError("Anhang nicht gefunden.")
         if _vor_eintritt(s, g, benutzer, n.erstellt_am):
             raise DoesNotExistError("Anhang nicht gefunden.")
-        typ = str(a.mime or "application/octet-stream")
+        typ = str(a.mime or ablage.UNBEKANNTER_TYP)
         dateiname = str(a.dateiname or "")
         groesse = int(a.groesse or 0)
         schluessel = str(a.schluessel or "")
 
     if not schluessel:
         raise DoesNotExistError("Anhang nicht gefunden.")
-    speicher = hole_speicher()
     try:
-        bloecke, anfang, ende = speicher.strom(schluessel, von=0, bis=None)
+        bloecke, anfang, ende = ablage.strom(schluessel)
     except (SpeicherNichtGefunden, AblageFehler):
         raise DoesNotExistError("Anhang nicht gefunden.") from None
 
-    art = "inline" if typ in ANHANG_BILDER else "attachment"
-    kopf = {
-        "Content-Disposition": _disposition(art, dateiname),
-        "X-Content-Type-Options": "nosniff",
-        # Kein Zwischenspeicher in fremden Caches: der Inhalt gehört dem
-        # Gespräch, nicht dem Netz dazwischen.
-        "Cache-Control": "private, no-store",
-    }
+    # DATEIEN-2: die Kopfzeilen (inline nur für erkannte Bilder, sonst
+    # attachment; nosniff; kein Zwischenspeicher in fremden Caches) stehen im
+    # Baustein ``ablage`` — dieselben für Chat und Gruppendateien.
+    kopf = ablage.ausliefer_kopf(typ, dateiname)
     if ende < anfang:
         # Leere Datei (sollte nicht vorkommen — der Upload weist sie ab):
         # ehrlich 0 Bytes statt einer erfundenen Länge.
-        return StreamingResponse(iter(()), status_code=200, media_type=typ,
+        return StreamingResponse(iter(()), status_code=200,
+                                 media_type=ablage.sicherer_typ(typ),
                                  headers={**kopf, "Content-Length": "0"})
-    return StreamingResponse(bloecke, status_code=200, media_type=typ,
+    return StreamingResponse(bloecke, status_code=200,
+                             media_type=ablage.sicherer_typ(typ),
                              headers={**kopf, "Content-Length": str(groesse)})
 
 
 def _disposition(art: str, dateiname: str) -> str:
     """``Content-Disposition`` mit ASCII-Rückfall und UTF-8-Name (RFC 6266).
 
-    Ein Dateiname mit Umlauten darf keine kaputte Kopfzeile erzeugen: der
-    ``filename``-Wert trägt nur ASCII (Sonderzeichen → ``_``), der echte Name
-    steht als ``filename*`` nach RFC 5987. Beides ist schon bereinigt (der
-    Speicher trennt Name und Schlüssel), die Kodierung ist die Zugabe für den
-    Browser.
+    DATEIEN-2: die Fassung wohnt im Baustein (``ablage.disposition``); hier
+    bleibt nur der Name für bestehende Aufrufer.
     """
-    from urllib.parse import quote
-
-    einfach = "".join(z if (z.isascii() and z.isprintable() and z not in '"\\')
-                      else "_" for z in dateiname) or "anhang"
-    erweitert = quote(dateiname or "anhang", safe="")
-    return f"{art}; filename=\"{einfach}\"; filename*=UTF-8''{erweitert}"
+    return ablage.disposition(art, dateiname)
 
 
 @whitelist(methods=["POST"], allow_guest=False)
@@ -7426,7 +7336,7 @@ def _erklaere(benutzer: str, aktion: str, *, gruppe: str | None,
     """DIE Rechtefrage — ``rechte.darf``, nichts Eigenes (Kartenauflage).
 
     ``besitzer`` wird in der Form des Kerns uebergeben: eine KONTO-Kennung
-    (``user.name``), verglichen gegen ``benutzer`` (``_darf_chat``:
+    (``user.name``), verglichen gegen ``benutzer`` (``_darf_raum``:
     ``besitzer is None or besitzer == benutzer``). Deshalb traegt
     ``chat_nachricht.autor_benutzer`` den Besitz — die Mitglied-Kennung in
     ``autor`` waere nie gleich dem Konto, und der Kern saehe jede eigene

@@ -19,8 +19,12 @@
  *
  * ANONYM: Namen werden hier NIE gelesen. `eigene_stimme` ist bei einer anonymen
  * Umfrage `null` (der Server liefert keine), `abgestimmt` sagt nur DASS jemand
- * (die eigene Person) abgestimmt hat. Der Hinweis „erratbar“ kommt vom Server
- * (`hinweis`) oder — falls er fehlt — aus derselben Schwelle (`abgegeben < 5`).
+ * (die eigene Person) abgestimmt hat.
+ *
+ * KEINE BEVORMUNDUNG (BEF-CHAT-HINWEIS): erklärende Hinweiskästen unter der
+ * Karte — früher „Ergebnis bei wenigen Teilnehmenden erratbar“ — gibt es NICHT
+ * mehr. Was die Person selbst braucht, steht als Zustand da („Du hast
+ * abgestimmt.“, „Nicht mehr änderbar.“); Fehlermeldungen des Servers bleiben.
  */
 
 import { wandZeit } from '../../../shared/zeit.mjs'
@@ -29,7 +33,7 @@ import { wandZeit } from '../../../shared/zeit.mjs'
 export const OPTIONEN_MIN = 2
 export const OPTIONEN_MAX = 15
 
-/** Ab wie vielen Abgegebenen der Hinweis entfällt (Server: ``HINWEIS_AB``). */
+/** Ab wie vielen Abgegebenen der Server seinen Hinweis fallen ließ (Alt-Vertrag). */
 export const HINWEIS_AB = 5
 
 /** Zeichengrenzen der Frage (Server: ``FRAGE_MAX`` = 1000) und einer Option. */
@@ -52,11 +56,11 @@ export const TEXTE = {
   laeuft: 'läuft bis zur Schließung',
   keine: 'Noch keine Stimme abgegeben.',
   stimmen: 'Stimmen',
-  anonymHinweis: 'anonym — bei wenigen Teilnehmenden ist das Ergebnis trotzdem erratbar',
-  anonymFest: 'Eine anonyme Stimme lässt sich nicht ändern.',
-  erratbar: 'Ergebnis bei wenigen Teilnehmenden erratbar',
+  // Kein erklärender Kasten mehr (BEF-CHAT-HINWEIS): die Endgültigkeit einer
+  // anonymen Stimme steht als ZUSTAND an der Karte, nicht als Belehrung.
   abgestimmt: 'Du hast abgestimmt.',
-  abgestimmtAnonym: 'Du hast abgestimmt — anonym, deine Wahl lässt sich nicht mehr zeigen oder ändern.',
+  abgestimmtAnonym: 'Du hast abgestimmt.',
+  abgestimmtFest: 'Nicht mehr änderbar.',
   geschlossen: 'geschlossen',
 }
 
@@ -199,19 +203,25 @@ export function abgegebenZahl(umfrage) {
 }
 
 /**
- * Ist das Ergebnis „bei wenigen erratbar“? Der Server schickt den Text
- * (`hinweis`); fehlt er, gilt dieselbe Schwelle wie dort.
+ * Ist das Ergebnis „bei wenigen erratbar“?
+ *
+ * Der Vertrag bleibt lesbar (der Server schickt das Feld weiter), die
+ * OBERFLÄCHE zeigt dazu aber nichts mehr an (BEF-CHAT-HINWEIS).
  */
 export function erratbar(umfrage) {
   if (typeof umfrage?.hinweis === 'string' && umfrage.hinweis.trim()) return true
   return abgegebenZahl(umfrage) < HINWEIS_AB
 }
 
-/** Der Hinweistext unter dem Ergebnis (Servertext zuerst, sonst die Schwelle). */
-export function erratbarText(umfrage) {
-  const eigener = String(umfrage?.hinweis || '').trim()
-  if (eigener) return eigener
-  if (abgegebenZahl(umfrage) < HINWEIS_AB) return TEXTE.erratbar
+/**
+ * Der Hinweistext unter dem Ergebnis — seit BEF-CHAT-HINWEIS IMMER leer.
+ *
+ * Manuel (23.11.): „Keine Bemutterung der Teilnehmer!“ Der Kasten wirkte
+ * außerdem wie eine Fehlermeldung nach erfolgreichem Abstimmen. Die Funktion
+ * bleibt als benannte Stelle stehen (Tests und Aufrufer lesen sie), liefert
+ * aber keinen Text — so kann der Kasten nicht zurückkehren.
+ */
+export function erratbarText() {
   return ''
 }
 
@@ -254,7 +264,7 @@ export function eigeneWahl(umfrage) {
  */
 export function eigenerStandText(umfrage) {
   if (!umfrage || umfrage.abgestimmt !== true) return ''
-  if (umfrage.anonym === true) return TEXTE.abgestimmtAnonym
+  if (umfrage.anonym === true) return `${TEXTE.abgestimmtAnonym} ${TEXTE.abgestimmtFest}`
   return TEXTE.abgestimmt
 }
 

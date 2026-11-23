@@ -143,9 +143,17 @@
             <ul v-else class="ld-group-list">
               <li v-for="g in liedgruppen" :key="g.liedgruppe">
                 <a :href="'#/lieder/gruppen/' + encodeURIComponent(g.liedgruppe)" class="ld-group-link">
-                  <span class="ld-group-name">{{ g.liedgruppe }}</span>
-                  <span v-if="g.nummer" class="ld-group-num">{{ g.nummer }}</span>
+                  <!-- BEF-LIED-GRUPPE: Gruppenname statt interner Kennung
+                       (fe722a20-2…) — wie in der Liedgruppen-Liste. -->
+                  <span class="ld-group-name">{{ g.titel || g.gruppenname || g.liedgruppe }}</span>
                   <span v-if="g.fassung" class="ld-group-fassung">{{ g.fassung }}</span>
+                  <!-- Die Zahl heißt „Nr.“ — sie ist die Nummer des Liedes
+                       INNERHALB dieser Gruppe (Child-Feld `nummer`), keine
+                       Anzahl. Ohne Beschriftung stand sie nackt hinter dem
+                       Namen. -->
+                  <span v-if="g.nummer" class="ld-group-num">
+                    <span class="ld-group-num-label">Nr.</span> {{ g.nummer }}
+                  </span>
                 </a>
               </li>
             </ul>
@@ -373,8 +381,10 @@ async function nachSpeichern(name) {
   transition: border-color var(--fast) var(--ease), background var(--fast) var(--ease);
 }
 .ld-group-link:hover { border-color: var(--primary); background: var(--surface-2); }
-.ld-group-name { font-size: var(--fs-sm); font-weight: 500; }
-.ld-group-num { font-size: var(--fs-sm); color: var(--muted); }
+.ld-group-name { font-size: var(--fs-sm); font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+/* BEF-LIED-GRUPPE: „Nr.“ + Wert bleiben zusammen, der Name darf umbrechen. */
+.ld-group-num { font-size: var(--fs-sm); color: var(--muted); white-space: nowrap; }
+.ld-group-num-label { font-weight: var(--fw-mittel); }
 .ld-group-fassung { font-size: var(--fs-sm); color: var(--subtle); }
 
 .ld-fehler {

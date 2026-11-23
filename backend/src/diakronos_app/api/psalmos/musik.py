@@ -454,15 +454,36 @@ def get_lied_detail(lied: str) -> dict[str, Any]:
 	]
 
 	# Liedgruppen, in denen dieses Lied steckt (via Child `Liedgruppe Lied`)
-	liedgruppen = get_all(
+	gruppen_kopf = get_all(
 		"Liedgruppe Lied",
 		filters={"lied": lied},
 		fields=["parent", "fassung", "reihenfolge", "nummer"],
 	) or []
+	# BEF-LIED-GRUPPE: die Liedgruppen-Kennung taugt nicht zur Anzeige
+	# (`fe722a20-2…`). Namen der Gruppen in EINER Abfrage nachziehen — Klartext
+	# wie in der Liedgruppen-Liste (`gruppenname`, Ersatz: Kennung).
+	_eltern = []
+	for _z in gruppen_kopf:
+		_kennung = _z.get("parent") if isinstance(_z, dict) else None
+		if _kennung and _kennung not in _eltern:
+			_eltern.append(_kennung)
+	gruppen_namen: dict[str, Any] = {}
+	if _eltern:
+		for _g in get_all(
+			"Liedgruppe",
+			filters={"name": ["in", _eltern]},
+			fields=["name", "gruppenname", "typ"],
+		) or []:
+			gruppen_namen[_g["name"]] = _g
 	gruppen = []
-	for lg in liedgruppen:
+	for lg in gruppen_kopf:
+		kennung = lg.get("parent")
+		kopf = gruppen_namen.get(kennung) or {}
 		gruppen.append({
-			"liedgruppe": lg["parent"],
+			"liedgruppe": kennung,
+			"titel": kopf.get("gruppenname") or kennung,
+			"gruppenname": kopf.get("gruppenname"),
+			"typ": kopf.get("typ"),
 			"fassung": lg["fassung"],
 			"reihenfolge": lg["reihenfolge"],
 			"nummer": lg["nummer"],

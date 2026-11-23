@@ -27,6 +27,7 @@ from diakronos_app.models.rechte import (
     ROLLE_GL,
     ROLLE_HV,
     ROLLE_MV,
+    RechteGruppeneinstellung,
     RechteGruppenrolle,
     RechteModul,
 )
@@ -367,8 +368,49 @@ def standard_module_anlegen(ausfuehrender: str, gruppe: str) -> list[str]:
     return neu
 
 
+def gruppeneinstellungen(ausfuehrender: str, gruppe: str) -> dict:
+    """Alle Gruppeneinstellungen (mit Vorgaben) — für jedes Mitglied lesbar.
+
+    ``darf_aendern``: HV/MV der Gruppe und der Administrator (VERWALTEN an der Gruppe).
+    """
+    _gruppe_existiert(gruppe)
+    pruefe(ausfuehrender, kern.LESEN, "gruppe", gruppe=gruppe)
+    return {
+        "werte": {k: kern.gruppeneinstellung(gruppe, k) for k in kern.GRUPPENEINSTELLUNGEN},
+        "darf_aendern": bool(kern.darf(ausfuehrender, kern.VERWALTEN, "gruppe", gruppe=gruppe)),
+    }
+
+
+def setze_gruppeneinstellung(ausfuehrender: str, gruppe: str, schluessel: str, wert: bool) -> dict:
+    """Eine Gruppeneinstellung setzen — HV/MV der Gruppe und der Administrator.
+
+    Wert gleich Vorgabe = Zeile entfernen (keine Zeile heißt Vorgabe).
+    """
+    _gruppe_existiert(gruppe)
+    if schluessel not in kern.GRUPPENEINSTELLUNGEN:
+        throw(f"Unbekannte Einstellung: {schluessel}", ValidationError)
+    if not isinstance(wert, bool):
+        throw("Die Einstellung ist ein Ja/Nein-Wert.", ValidationError)
+    pruefe(ausfuehrender, kern.VERWALTEN, "gruppe", gruppe=gruppe)
+    vorher = kern.gruppeneinstellung(gruppe, schluessel)
+    with _schreibsitzung() as sess:
+        sess.execute(delete(RechteGruppeneinstellung).where(
+            RechteGruppeneinstellung.gruppe == gruppe,
+            RechteGruppeneinstellung.schluessel == schluessel,
+        ))
+        if wert != kern.GRUPPENEINSTELLUNGEN[schluessel]:
+            sess.add(RechteGruppeneinstellung(gruppe=gruppe, schluessel=schluessel,
+                                              wert="1" if wert else "0"))
+    kern.merker_leeren()
+    if vorher != wert:
+        _audit(gruppe, f"Einstellung {schluessel}: {'ja' if wert else 'nein'}")
+    return {"success": True, "schluessel": schluessel, "wert": wert}
+
+
 __all__ = [
     "entferne_objekt",
+    "gruppeneinstellungen",
+    "setze_gruppeneinstellung",
     "registriere_objekt",
     "entferne_gl",
     "entferne_mv",

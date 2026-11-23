@@ -1013,3 +1013,39 @@ tests/chat12b-anhaenge.test.mjs
 # hinaus; die Einstellungen-Suche findet das Feld; Importe gegen die ECHTEN
 # Exporte geprüft.
 tests/chat12c-anhang-groesse.test.mjs
+# BEF-DESIGN-2 — Website-Seite: Abstände und Schalterzeilen (t_25e15846).
+# Befund Manuel 23.11. (#/website, DMB-ac3b): „Design inkonsistent
+# Margin/Padding“ — Schalterzeilen ohne sichtbaren Schalter, Hilfe mal direkt
+# darunter/mal mit Lücke, Kürzel-Feld anders breit als sein Hilfetext.
+# Geprüft: Schalter sind `DkSchalterZeile` (Kästchen links, nicht mehr nacktes
+# `DkCheckbox` in der Seite), Hilfetext hängt per `aria-describedby` am
+# Kästchen (und nur, wenn es einen gibt), Feld und Hilfe teilen eine Breite,
+# Karteninhalt läuft in EINEM Raster (`--gap`), KEINE festen padding/margin-
+# Werte und jeder Abstand aus einem Token. Gegenprobe: T1/T3/T4 sind rot gegen
+# die alte Fassung.
+tests/bef-design2-website-abstaende.test.mjs
+# BEF-DESIGN-2 — die Schalterzeile RENDERT einen Schalter (t_25e15846).
+# Quelltext-Wächter lesen nur Dateien; hier wird die ECHTE Vorlage mit
+# `vue/compiler-sfc` übersetzt und in jsdom gemountet: Kästchen vor der
+# Beschriftung, Klick ändert das Modell, Hilfetext per `aria-describedby`
+# verbunden (und ohne Hilfe KEIN Zeiger ins Leere, kein leerer Absatz),
+# Hilfetext eingerückt unter dem Kästchen, Meldung gewinnt gegen den Hilfetext.
+tests/bef-design2-schalterzeile-rendert.test.mjs
+# BEF-DESIGN-2 — der Postfach-Dialog der Seite RENDERT seine Felder
+# (t_25e15846, R1). Erzeugtes DOM der ECHTEN Seite (jsdom, Anbindungen durch
+# stille Stellvertreter): die Vorlage nennt NUR importierte Bausteine (der
+# Befund war ein Tippfehler `<DkFieldZeile>` — Vue rendert so etwas still als
+# Fremdelement, kein Test merkte es), jedes Feld hat Label und Eingabe über
+# `for`/`id` verbunden („Bezeichnung“, „Kürzel“, „E-Mail-Adresse“,
+# „Reihenfolge“) und „Postfach ist aktiv“ ist eine Schalterzeile. Gegenprobe:
+# P1/P2 rot gegen Commit 08031d6a.
+tests/bef-design2-postfach-dialog-rendert.test.mjs
+# BEF-DESIGN-2 — die Freigabezeile steht auf den gemeinsamen Bausteinen
+# (t_25e15846). Erzeugtes DOM der ECHTEN Vorlage (jsdom): sichtbarer Schalter
+# mit Titel als Beschriftung, zugänglicher Name „Auf Website zeigen: <Titel>“
+# und Meldung an den Aufrufer, „Nur öffentliche Terminarten zeigen“ als eigene
+# Schalterzeile mit Hinweis darunter, Kürzel-Feld und Hilfetext in EINER
+# Spalte (keine eigene Obergrenze mehr). Gegenprobe: Z3/Z4 rot gegen die alte
+# Fassung.
+tests/bef-design2-freigabezeile-rendert.test.mjs
+tests/bef-lied-gruppe.test.mjs

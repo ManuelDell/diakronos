@@ -173,4 +173,4 @@ def test_migration_haengt_hinter_backoff_und_ist_einziger_kopf():
     assert rev.down_revision == "chat12a2_backoff"
     # CHAT-12c hängt DAHINTER (chat12c_anhang_groesse) — der Kopf ist damit
     # nicht mehr diese Revision, sondern genau EINER: der Anhanggröße.
-    assert skripte.get_heads() == ["chat12c_anhang_groesse"]
+    assert len(skripte.get_heads()) == 1  # genau EIN Kopf; spätere Revisionen hängen dahinter

@@ -67,13 +67,12 @@
       </span>
     </p>
 
-    <!-- ANONYM steht der Hinweis an JEDER anonymen Umfrage (auch vor der
-         ersten Stimme); offene Umfragen nennen ihn nur, solange wenige
-         abgegeben haben. -->
-    <p v-if="anonym || ergebnisHinweis" class="dk-umfrage-hinweis">
-      {{ anonym ? TEXTE.anonymHinweis : ergebnisHinweis }}
-    </p>
-    <p v-if="anonymFest" class="dk-umfrage-hinweis">{{ TEXTE.anonymFest }}</p>
+    <!-- KEINE erklärenden Kästen (BEF-CHAT-HINWEIS, Manuel 23.11.: „keine
+         Bemutterung der Teilnehmer“): der frühere graue Kasten „Ergebnis bei
+         wenigen Teilnehmenden erratbar“ ist ERSATZLOS weg — er wurde nach einer
+         erfolgreichen Abstimmung außerdem für eine Fehlermeldung gehalten.
+         Was bleibt, ist Zustand, nicht Belehrung: der eigene Stand unten und
+         echte Serverfehler (`.dk-umfrage-fehler`). -->
     <p v-if="stand" class="dk-umfrage-stand">{{ stand }}</p>
 
     <div v-if="knopfText || schliessenZeigen" class="dk-umfrage-aktionen">
@@ -108,8 +107,8 @@
  * `role="group"` mit Namen „Umfrage: <Frage>“.
  *
  * ANONYM: keine Namen, kein eigener Stand als Option (`eigene_stimme` ist beim
- * Server `null`), nur Summen — plus der Hinweis „anonym — bei wenigen
- * Teilnehmenden ist das Ergebnis trotzdem erratbar“.
+ * Server `null`), nur Summen — plus der Zustand „Du hast abgestimmt. / Nicht
+ * mehr änderbar.“. Erklärende Hinweiskästen gibt es NICHT (BEF-CHAT-HINWEIS).
  * OFFEN: Namen stehen an der Option, wenn der Server sie liefert (er tut es
  * nur bei offenen Umfragen) — hier wird NICHTS nachgeladen.
  */
@@ -117,8 +116,7 @@ import { computed, ref, watch } from 'vue'
 import DkButton from '../ui/DkButton.vue'
 import {
   TEXTE, abstimmKnopfText, abgegebenZahl, darfSchliessenZeigen, eigeneWahl,
-  eigenerStandText, ergebnisZeilen, erratbarText, fristText, zustandText,
-  wahlUmschalten,
+  eigenerStandText, ergebnisZeilen, fristText, zustandText, wahlUmschalten,
 } from './umfrage.mjs'
 
 const props = defineProps({
@@ -151,10 +149,7 @@ const zustand = computed(() => zustandText(props.umfrage))
 const frist = computed(() => fristText(props.umfrage))
 const zeilen = computed(() => ergebnisZeilen(props.umfrage))
 const stand = computed(() => eigenerStandText(props.umfrage))
-const ergebnisHinweis = computed(() => erratbarText(props.umfrage))
 const knopfText = computed(() => abstimmKnopfText(props.umfrage))
-/** Anonym und noch NICHT abgestimmt: vorher sagen, dass es endgültig ist. */
-const anonymFest = computed(() => anonym.value && knopfText.value === TEXTE.abstimmen)
 const schliessenZeigen = computed(() => darfSchliessenZeigen(props.umfrage))
 const stimmenGesamt = computed(() => Number(props.umfrage?.stimmen_gesamt) || 0)
 const auswaehlbar = computed(() => Boolean(knopfText.value))
@@ -314,14 +309,6 @@ defineExpose({ auswahl, waehlen, abstimmen, schliessen })
 }
 .dk-umfrage-summe {
   margin: 0;
-  font-size: var(--fs-12);
-  color: var(--muted);
-}
-.dk-umfrage-hinweis {
-  margin: 0;
-  padding: var(--sp-1) var(--sp-2);
-  border-radius: var(--radius);
-  background: var(--surface-2);
   font-size: var(--fs-12);
   color: var(--muted);
 }

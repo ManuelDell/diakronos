@@ -338,10 +338,12 @@ def _endgueltig_gruppe(name: str) -> None:
             # Objekten (nur Admin/Fachverwaltung, fail closed), Aufgaben-
             # Objekte verschwinden mit ihren Aufgaben.
             from diakronos_app.models.rechte import (
-                RechteFreigabe, RechteGastlink, RechteGruppenrolle, RechteModul, RechteObjekt,
+                RechteFreigabe, RechteGastlink, RechteGruppeneinstellung, RechteGruppenrolle,
+                RechteModul, RechteObjekt,
             )
 
-            for modell in (RechteGruppenrolle, RechteModul, RechteFreigabe):
+            for modell in (RechteGruppenrolle, RechteModul, RechteFreigabe,
+                           RechteGruppeneinstellung):
                 sess.execute(delete(modell).where(modell.gruppe == name))
             aufgaben = select(RechteObjekt.objekt).where(
                 RechteObjekt.gruppe == name, RechteObjekt.typ == "aufgabe")

@@ -301,13 +301,14 @@ test('CHAT-5-UI/A: Anonym — nur Summen, keine Namen, Hinweis bei wenigen', () 
   assert.deepEqual(U.eigeneWahl(anonym), [], 'keine eigene Option bei anonym')
   assert.deepEqual(U.ergebnisZeilen(anonym).map((z) => z.namen), [[], []],
     'Namen werden verworfen, auch wenn eine Antwort sie trüge')
-  assert.match(U.eigenerStandText(anonym), /anonym/)
-  assert.match(U.ergebnisZeilen.length ? U.erratbarText(anonym) : '', /erratbar/)
-  // Ab 5 Abgegebenen fällt der Hinweis weg (Server: `HINWEIS_AB`).
+  assert.match(U.eigenerStandText(anonym), /abgestimmt/)
+  // BEF-CHAT-HINWEIS: der erklärende Kasten ist weg — kein Text mehr, auch
+  // nicht aus einem Serverfeld `hinweis`.
+  assert.equal(U.erratbarText(anonym), '', 'kein Erratbarkeits-Hinweis mehr')
   assert.equal(U.erratbarText(umfrageForm({ abgegeben: 5 })), '')
-  assert.equal(U.erratbarText(umfrageForm({ abgegeben: 2 })), U.TEXTE.erratbar)
-  // Der Servertext hat Vorrang (er kennt die Schwelle).
-  assert.equal(U.erratbarText(umfrageForm({ hinweis: 'Eigener Text' })), 'Eigener Text')
+  assert.equal(U.erratbarText(umfrageForm({ abgegeben: 2 })), '')
+  assert.equal(U.erratbarText(umfrageForm({ hinweis: 'Eigener Text' })), '',
+    'auch ein Servertext wird NICHT mehr angezeigt')
 
   // Offen: Namen stehen dort, wo der Server sie schickt.
   const offen = umfrageForm({
@@ -517,7 +518,7 @@ test('CHAT-5-UI/B: eigene offene Stimme ist markiert, Knopf sagt „Stimme ände
   s.abbaum()
 })
 
-test('CHAT-5-UI/B: anonym — keine Namen, kein ändern, Hinweis auf Erratbarkeit', async () => {
+test('CHAT-5-UI/B: anonym — keine Namen, kein ändern, KEIN Erratbarkeits-Kasten', async () => {
   const s = await karteMontieren({
     umfrage: umfrageForm({
       anonym: true, abgestimmt: true, abgegeben: 2,
@@ -530,25 +531,30 @@ test('CHAT-5-UI/B: anonym — keine Namen, kein ändern, Hinweis auf Erratbarkei
   const text = s.host.textContent
   assert.doesNotMatch(text, /Anna Beispiel|Bert B\./, 'NIE Namen bei einer anonymen Umfrage')
   assert.match(text, /Du hast abgestimmt/, 'dass abgestimmt wurde, steht da')
-  assert.match(text, /anonym/, 'und zwar als anonym')
-  assert.match(text, /erratbar/, 'Hinweis „bei wenigen Teilnehmenden erratbar“')
+  assert.match(text, /Nicht mehr änderbar/, 'und dass die Stimme fest ist — als Zustand, nicht als Belehrung')
+  // BEF-CHAT-HINWEIS (DMB-5d5c, Manuel 23.11.): der graue Kasten ist ERSATZLOS
+  // weg — nach dem Abstimmen wirkte er wie eine Fehlermeldung (DMB-525e).
+  assert.doesNotMatch(text, /erratbar/, 'der Hinweis „bei wenigen Teilnehmenden erratbar“ steht NICHT mehr')
+  assert.equal(s.host.querySelector('.dk-umfrage-hinweis'), null, 'kein Hinweiskasten an der Karte')
+  assert.equal(s.host.querySelector('.dk-umfrage-fehler'), null, 'und keine vorgetäuschte Fehlermeldung')
   assert.equal(s.host.querySelectorAll('input').length, 0, 'nach der anonymen Stimme gibt es keine Wahl mehr')
   assert.ok(![...s.host.querySelectorAll('button')].some((b) => /Abstimmen|Stimme ändern/.test(b.textContent)),
     'kein Knopf: eine anonyme Stimme ist endgültig')
   s.abbaum()
 })
 
-test('CHAT-5-UI/B: anonymer Hinweis steht schon VOR der ersten Stimme (und „nicht änderbar“)', async () => {
-  // 5 Abgegebene anderer Personen: der Erratbarkeits-Hinweis des Servers
-  // fehlt dann (`hinweis: null`) — an einer ANONYMEN Umfrage steht der Hinweis
-  // trotzdem, denn er gilt der Anonymität, nicht der Zahl.
+test('CHAT-5-UI/B: anonyme Umfrage VOR der ersten Stimme — keine Kästen, wählen geht', async () => {
+  // 5 Abgegebene anderer Personen: der Server schickte früher schon keinen
+  // Erratbarkeits-Text. An der Karte steht trotzdem KEIN erklärender Kasten
+  // mehr — auch der Anonymitäts-Hinweis ist weg (BEF-CHAT-HINWEIS).
   const s = await karteMontieren({
     umfrage: umfrageForm({ anonym: true, abgestimmt: false, abgegeben: 5, hinweis: null }),
   })
   const text = s.host.textContent
-  assert.match(text, /anonym — bei wenigen Teilnehmenden ist das Ergebnis trotzdem erratbar/,
-    'der Hinweis steht an JEDER anonymen Umfrage')
-  assert.match(text, /lässt sich nicht ändern/, 'vor der Abgabe steht der Satz zur Endgültigkeit')
+  assert.doesNotMatch(text, /erratbar/, 'kein Erratbarkeits-Hinweis')
+  assert.doesNotMatch(text, /anonym — bei wenigen Teilnehmenden/, 'auch der Anonymitäts-Kasten ist weg')
+  assert.doesNotMatch(text, /lässt sich nicht ändern/, 'und der Satz zur Endgültigkeit als Kasten ebenfalls')
+  assert.equal(s.host.querySelector('.dk-umfrage-hinweis'), null, 'kein Hinweiskasten')
   assert.equal(s.host.querySelectorAll('input[type="radio"]').length, 2, 'wählen ist noch möglich')
   const abstimmen = [...s.host.querySelectorAll('button')].find((b) => /^Abstimmen/.test(b.textContent.trim()))
   assert.ok(abstimmen, '„Abstimmen“ steht da')
@@ -727,6 +733,29 @@ async function fuellen(el, wert) {
   el.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
   await rendern(2)
 }
+
+test('CHAT-5-UI/C: keine erklärenden Kästen im Anlegen-Dialog (BEF-CHAT-HINWEIS)', async () => {
+  // Manuel 23.11.: „Keine Bemutterung der Teilnehmer.“ Die beiden grauen
+  // Erklärkästen (Anonymität der Auswertung, Frist ohne Uhrzeit) sind weg —
+  // echte Fehler- und Sperr-Meldungen bleiben.
+  const s = await dialogMontieren({ darfSenden: true })
+  const form = s.ziel()
+  assert.ok(form, 'der Dialog steht offen')
+  assert.equal(form.querySelectorAll('.dk-umfrage-hinweis').length, 0,
+    'kein erklärender Hinweiskasten im Dialog')
+  for (const satz of [/Niemand sieht, wer wie gestimmt hat/, /Ohne Frist läuft die Umfrage/,
+    /Zeiten gelten in deutscher Zeit/, /erratbar/]) {
+    assert.doesNotMatch(form.textContent, satz, 'kein Lehrtext: ' + satz)
+  }
+  s.abbaum()
+
+  // Gegenprobe: die Sperre (darfSenden=false) ist eine Auskunft MIT Handlung
+  // (Einstellungen) und bleibt stehen — sie ist keine Belehrung über die Umfrage.
+  const gesperrt = await dialogMontieren({ darfSenden: false })
+  assert.match(gesperrt.ziel().textContent, /Hier darfst du gerade nichts senden/,
+    'die Sperr-Auskunft bleibt')
+  gesperrt.abbaum()
+})
 
 test('CHAT-5-UI/C: Anlegen schickt Frage, Antworten, anonym und Frist', async () => {
   const s = await dialogMontieren()
@@ -990,6 +1019,15 @@ test('CHAT-5-UI/D: Abstimmen in der Karte geht über den Server, Ergebnis zieht 
   // Der neue Stand steht in der Karte (kein zweiter Verlaufsabruf nötig).
   await rendern(6)
   assert.deepEqual(texte(s.host, '.dk-umfrage .dk-umfrage-zahl'), ['1', '0'])
+  // BEF-CHAT-HINWEIS / DMB-525e: nach dem ERFOLGREICHEN Abstimmen steht kein
+  // grauer Kasten da (er wirkte wie ein Fehler). Was bleibt: der eigene Stand.
+  // Der gelbe Fehlertext dieses Prüfstands (Stub liefert kein echtes
+  // Antwort-Objekt) ist KEIN Betriebsbefund — die echte `apiCall` antwortet
+  // hier mit `message`; geprüft wird im nächsten Test mit echter Antwortform.
+  const karte = s.host.querySelector('.dk-umfrage')
+  assert.match(karte.textContent, /Du hast abgestimmt/)
+  assert.equal(karte.querySelector('.dk-umfrage-hinweis'), null, 'kein grauer Hinweiskasten')
+  assert.doesNotMatch(karte.textContent, /erratbar/, 'der Erratbarkeits-Kasten ist weg')
   s.abbaum()
 })
 

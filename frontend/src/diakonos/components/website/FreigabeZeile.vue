@@ -1,18 +1,26 @@
 <template>
   <div class="wf-zeile">
-    <div class="wf-zeile-haupt">
-      <DkCheckbox
-        :model-value="freigabe"
-        :disabled="laeuft || !name"
-        :aria-label="`Auf Website zeigen: ${titel}`"
-        @update:model-value="umschalten"
-      >
-        <span class="wf-zeile-titel">{{ titel }}</span>
-      </DkCheckbox>
-      <code v-if="freigabe && slug" class="wf-zeile-slug" :title="`Adresse auf der Website: /${slug}`">/{{ slug }}</code>
-      <span v-else-if="freigabe" class="wf-zeile-ohne-slug">noch kein Kürzel</span>
-    </div>
+    <!-- BEF-DESIGN-2: EINE Schalterzeile für jede Freigabe. Der Schalter steht
+         sichtbar und linksbündig in der Zeile (früher stand das Kästchen je
+         nach Umgebung zwischen Absätzen, ohne eigenen Bereich). Der Stand ist
+         das Modell; die Rückfrage vor dem EINSCHALTEN entscheidet der
+         Aufrufer — deshalb springt hier nichts um, bevor er geantwortet hat. -->
+    <DkSchalterZeile
+      :model-value="freigabe"
+      :aria-label="`Auf Website zeigen: ${titel}`"
+      :disabled="laeuft || !name"
+      @update:model-value="umschalten"
+    >
+      <span class="wf-zeile-titel">{{ titel }}</span>
+    </DkSchalterZeile>
 
+    <div v-if="freigabe && slug" class="wf-zeile-adresse">
+      <code class="wf-zeile-slug" :title="`Adresse auf der Website: /${slug}`">/{{ slug }}</code>
+    </div>
+    <p v-else-if="freigabe" class="wf-zeile-ohne-slug">noch kein Kürzel</p>
+
+    <!-- Feld und Hilfetext teilen EINE Breite (BEF-DESIGN-2, Befund: das
+         Kürzel-Feld war anders breit als sein Hilfetext darunter). -->
     <DkField
       :label="`Kürzel für ${titel}`"
       :help="slugHilfe"
@@ -33,16 +41,14 @@
       />
     </DkField>
 
-    <div v-if="zeigeKategorieSchalter" class="wf-zeile-extra">
-      <DkCheckbox
-        :model-value="nurOeffentlicheKategorien"
-        :disabled="laeuft || !name"
-        @update:model-value="kategorieUmschalten"
-      >
-        Nur öffentliche Terminarten zeigen
-      </DkCheckbox>
-      <p class="wf-zeile-hilfe">{{ kategoriHinweis }}</p>
-    </div>
+    <DkSchalterZeile
+      v-if="zeigeKategorieSchalter"
+      :model-value="nurOeffentlicheKategorien"
+      label="Nur öffentliche Terminarten zeigen"
+      :help="kategoriHinweis"
+      :disabled="laeuft || !name"
+      @update:model-value="kategorieUmschalten"
+    />
 
     <div v-if="slugGeaendert" class="wf-zeile-speichern">
       <DkButton size="md" variant="primary" :loading="laeuft" @click="slugSpeichern">
@@ -64,6 +70,12 @@
  * bewegung eine Server-Prüfung auslösen, und ein abgelehnter Slug (vergeben)
  * würde sonst den Schalter mit zurückziehen.
  *
+ * BEF-DESIGN-2: Der Aufbau der Zeile kommt aus den gemeinsamen Bausteinen der
+ * Formular-Sprache (`DkSchalterZeile`, `DkField`) — nicht mehr aus eigenen
+ * Kästchen und Absätzen. Damit stehen Schalter sichtbar und linksbündig,
+ * Hilfetexte haben überall denselben Abstand zum Element darüber, und Feld und
+ * Hilfetext teilen sich eine Breite.
+ *
  * Vor dem EINSCHALTEN kommt die Warnung des Aufrufers (`warnung`) — bei
  * Kalendern nennt sie die komplette Beschreibung (Orchestrator-Zusatz).
  *
@@ -72,8 +84,8 @@
  */
 import { computed, ref, watch } from 'vue'
 import DkButton from '../ui/DkButton.vue'
-import DkCheckbox from '../ui/DkCheckbox.vue'
 import DkField from '../ui/DkField.vue'
+import DkSchalterZeile from '../ui/DkSchalterZeile.vue'
 import { SLUG_MAX, slugPruefen } from '../../../shared/website-freigaben.mjs'
 
 const props = defineProps({
@@ -106,6 +118,14 @@ watch(() => props.slug, (neu, alt) => {
 
 const slugGeaendert = computed(() => String(slugEingabe.value || '').trim() !== String(props.slug || '').trim())
 const slugFehler = computed(() => slugFehlerLokal.value || (slugGeaendert.value ? '' : props.fehler))
+
+/**
+ * Der Schalter trägt KEINEN Hilfetext und KEINE Servermeldung mehr (R1):
+ * der Schalter sagt selbst, was er tut („keine Bemutterung“), und die
+ * Servermeldung dieser Zeile steht schon am Kürzel-Feld (`slugFehler`) —
+ * zweimal `role="alert"` wäre eine doppelte Vorlesung. Der lange Warnsatz vor
+ * dem EINSCHALTEN steht in der Rückfrage (`bestaetigen`).
+ */
 const slugHilfe = computed(() => (
   props.freigabe
     ? 'Der Kürzel ist der Name in der Adresse der Website. Kleinbuchstaben, Ziffern, Bindestrich.'
@@ -135,22 +155,21 @@ defineExpose({ slugEingabe })
 </script>
 
 <style scoped>
+/* EINE Freigabezeile = EINE Gruppe (Faktor 1): Schalter, Adresse, Kürzel-Feld
+   und der Terminarten-Schalter gehören zusammen; getrennt werden die Zeilen
+   durch den Abstand des Aufrufers und die Haarlinie. */
 .wf-zeile {
   display: grid;
-  gap: var(--sp-2);
+  gap: var(--gap);
   padding: var(--sp-3) 0;
-  border-top: 1px solid var(--line);
+  border-top: var(--rahmen-breite) solid var(--line);
   min-width: 0;
 }
 .wf-zeile:first-child { border-top: none; }
-.wf-zeile-haupt {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-2);
-  min-width: 0;
-}
-.wf-zeile-titel { font-weight: 600; color: var(--text); }
+/* Der Titel ist die Beschriftung des Schalters und steht wieder fett
+   (Schriftgewicht aus Token, kein fester Wert). */
+.wf-zeile-titel { font-weight: var(--fw-fett); }
+.wf-zeile-adresse { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); min-width: 0; }
 .wf-zeile-slug,
 .wf-zeile-ohne-slug {
   font-size: var(--fs-sm);
@@ -160,12 +179,11 @@ defineExpose({ slugEingabe })
 }
 .wf-zeile-slug {
   background: var(--surface-2);
-  border: 1px solid var(--line);
+  border: var(--rahmen-breite) solid var(--line);
   border-radius: var(--radius-sm);
   padding: 0 var(--sp-1);
 }
-.wf-zeile-slugfeld { max-width: 420px; }
-.wf-zeile-extra { display: grid; gap: var(--sp-1); }
-.wf-zeile-hilfe { margin: 0; font-size: var(--fs-sm); color: var(--muted); }
+.wf-zeile-ohne-slug { margin: 0; }
+.wf-zeile-slugfeld { width: 100%; }
 .wf-zeile-speichern { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 </style>

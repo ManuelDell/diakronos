@@ -56,6 +56,7 @@ from diakronos_app.models.rechte import (
     ROLLE_HV,
     ROLLE_MV,
     RechteFreigabe,
+    RechteGruppeneinstellung,
     RechteGruppenrolle,
     RechteKontaktsperre,
     RechteModul,
@@ -65,7 +66,8 @@ from diakronos_app.models.rechte import (
 # ── Begriffe ────────────────────────────────────────────────────────────────
 
 #: Module, die eine Gruppe haben kann.
-MODULE: tuple[str, ...] = ("kalender", "beitraege", "wiki", "aufgaben", "lieder", "dienstplaene", "chat")
+MODULE: tuple[str, ...] = ("kalender", "beitraege", "wiki", "aufgaben", "lieder", "dienstplaene", "chat",
+                           "dateien")
 
 #: Module, die jede NEUE Hauptgruppe von Anfang an hat (Manuel 17.11.: „Chat-Modul
 #: automatisch an für alle bestehenden und neuen Gruppen“). Der Administrator kann
@@ -89,10 +91,15 @@ TYP_MODUL: dict[str, str] = {
     "chat_gespraech": "chat",
     "chat_nachricht": "chat",
     "chat_umfrage": "chat",
+    # Gruppendateien (Konzept DATEIEN-KONZEPT.md, Entscheidungen Manuel 23.11.2026).
+    "gruppe_datei": "dateien",
 }
 
 #: Chat-Typen — eigene Regel in `darf` (Mitglieder schreiben ohne Einzelfreigabe).
 CHAT_TYPEN: frozenset[str] = frozenset({"chat_gespraech", "chat_nachricht", "chat_umfrage"})
+
+#: Dateien-Typen — dieselbe Raum-Regel wie der Chat (`_darf_raum`).
+DATEI_TYPEN: frozenset[str] = frozenset({"gruppe_datei"})
 
 #: Typen ohne Gruppenbesitz (gemeinsame Bibliothek eines Moduls).
 BIBLIOTHEK_TYPEN: frozenset[str] = frozenset({"lied"})
@@ -106,7 +113,17 @@ ANLEGEN = "anlegen"          # neues Objekt eines Moduls in einer (Unter-)Gruppe
 VERWALTEN = "verwalten"      # Objekt-/Gruppeneinstellungen, Freigaben vergeben
 ROLLEN = "rollen"            # Gruppe: HV/MV ernennen (nur HV); Untergruppe: GL ernennen (HV/MV)
 ERLEDIGEN = "erledigen"      # Aufgabe abhaken (Zugewiesener)
-AKTIONEN = (LESEN, SCHREIBEN, VORSCHLAGEN, MODERIEREN, ANLEGEN, VERWALTEN, ROLLEN, ERLEDIGEN)
+ANPINNEN = "anpinnen"        # Gruppendatei oben anheften (ordnet fuer alle, aendert sie nicht)
+AKTIONEN = (LESEN, SCHREIBEN, VORSCHLAGEN, MODERIEREN, ANLEGEN, VERWALTEN, ROLLEN, ERLEDIGEN, ANPINNEN)
+
+#: Einstellungen je Gruppe im Kern (Tabelle ``rechte_gruppeneinstellung``):
+#: Schluessel -> Vorgabe. Keine Zeile = Vorgabe. Manuel 21.11.: „Hochladen = alle
+#: Mitglieder, Anpinnen = nur Verantwortliche, je Gruppe durch HV/MV umstellbar“.
+#: Gilt fuer die Gruppe UND ihre Untergruppen (Leitung dort: GL, HV/MV).
+GRUPPENEINSTELLUNGEN: dict[str, bool] = {
+    "dateien_hochladen_alle": True,
+    "dateien_anpinnen_alle": False,
+}
 
 #: Moderationsstufen.
 STUFE_UNTERGRUPPE = "untergruppe"  # GL (und HV/MV) — innerhalb der Untergruppe
@@ -363,6 +380,18 @@ def _hauptgruppe(sess, untergruppe: str | None) -> str | None:
     return sess.execute(select(Untergruppe.gruppe).where(Untergruppe.name == untergruppe)).scalar_one_or_none()
 
 
+def hauptgruppe_von(untergruppe: str | None) -> str | None:
+    """Hauptgruppe einer Untergruppe — gemerkt (``rollen_vorladen`` füllt den Merker)."""
+    if not untergruppe:
+        return None
+
+    def _lesen() -> str | None:
+        with lesesitzung() as sess:
+            return _hauptgruppe(sess, untergruppe)
+
+    return _gemerkt(("hauptgruppe", untergruppe), _lesen)
+
+
 def _aktiv(spalte):
     """Mitgliedschaft zaehlt nur mit Status ``Aktiv`` oder ohne Status (Bestand
     der Untergruppen hat keinen). ``Inaktiv`` u. a. zaehlen NICHT (fail closed)."""
@@ -516,6 +545,8 @@ def rollen_vorladen(benutzer: str | None, *, gruppen: Iterable[str] = (),
                 select(Untergruppe.name, Untergruppe.gruppe).where(Untergruppe.name.in_(ug_set))
             ).all():
                 haupt_von[str(name)] = str(haupt) if haupt else None
+        for u, h in haupt_von.items():
+            merker.setdefault(("hauptgruppe", u), h)
         alle = gruppen_set | {g for g in haupt_von.values() if g}
         if not alle:
             for u in ug_set:
@@ -782,6 +813,28 @@ def _freigaben_roh(sess, typ: str, objekt: str, benutzer: str) -> tuple[bool, bo
     return lesen, schreiben, moderieren, vorschlagen or schreiben
 
 
+def gruppeneinstellung(gruppe: str | None, schluessel: str) -> bool:
+    """Wert einer Gruppeneinstellung (Vorgabe, wenn keine Zeile). Gemerkt.
+
+    Unbekannter Schluessel = Programmfehler (KeyError), kein stilles Nein.
+    """
+    vorgabe = GRUPPENEINSTELLUNGEN[schluessel]
+    if not gruppe:
+        return vorgabe
+
+    def _lesen() -> bool:
+        with lesesitzung() as sess:
+            wert = sess.execute(
+                select(RechteGruppeneinstellung.wert).where(
+                    RechteGruppeneinstellung.gruppe == gruppe,
+                    RechteGruppeneinstellung.schluessel == schluessel,
+                )
+            ).scalar_one_or_none()
+        return vorgabe if wert is None else wert == "1"
+
+    return _gemerkt(("gruppeneinstellung", gruppe, schluessel), _lesen)
+
+
 def _gruppen_mit_modul(modul: str) -> list[str]:
     with lesesitzung() as sess:
         return [str(g) for g in sess.execute(select(RechteModul.gruppe).where(RechteModul.modul == modul)).scalars()]
@@ -843,7 +896,10 @@ def _darf_roh(
     zugewiesen_set = set(zugewiesen)
 
     if typ in CHAT_TYPEN:
-        return _darf_chat(benutzer, aktion, gruppe=gruppe, untergruppe=untergruppe,
+        return _darf_raum(benutzer, aktion, "chat", gruppe=gruppe, untergruppe=untergruppe,
+                          besitzer=besitzer)
+    if typ in DATEI_TYPEN:
+        return _darf_raum(benutzer, aktion, "dateien", gruppe=gruppe, untergruppe=untergruppe,
                           besitzer=besitzer)
 
     # Eigene (persoenliche) Aufgabe: keine Gruppe, gehoert dem Besitzer.
@@ -1311,13 +1367,39 @@ def moderationsstufen(  # noqa: F811 — Merker (PERF-K1)
 # Meldestelle fuer Direktnachrichten ist nur der Administrator (F7).
 
 
-def _darf_chat(benutzer: str, aktion: str, *, gruppe: str | None,
+#: Raum-Module: je Modul der Praefix der Gruende und der Grund fuer „fremdes Objekt“.
+_RAUM: dict[str, tuple[str, str]] = {
+    "chat": ("chat", "fremde_nachricht"),
+    "dateien": ("datei", "fremde_datei"),
+}
+
+
+def _darf_raum(benutzer: str, aktion: str, modul: str, *, gruppe: str | None,
                untergruppe: str | None, besitzer: str | None) -> Entscheidung:
-    with lesesitzung() as sess:
-        zgruppe = gruppe or _hauptgruppe(sess, untergruppe)
+    """Raum-Regel fuer Chat und Gruppendateien (EIN Rechtesystem, Manuel 17./23.11.).
+
+    Jedes Mitglied der Einheit liest und legt an (Nachricht/Umfrage, Datei hochladen);
+    eigenes Objekt aendern/loeschen = SCHREIBEN mit ``besitzer`` = Benutzer. Fremdes
+    Objekt aendern/loeschen (SCHREIBEN), MODERIEREN (Meldungen, Papierkorb
+    wiederherstellen) und VERWALTEN: HV/MV, in der Untergruppe auch GL. Die
+    Untergruppe ist ein eigener Raum (Chat F4, Dateien F3). Modul muss an sein.
+    Dateien: Hochladen (ANLEGEN) und ANPINNEN folgen den Gruppenschaltern
+    ``dateien_hochladen_alle`` / ``dateien_anpinnen_alle`` der Hauptgruppe;
+    die Leitung darf beides immer.
+    """
+    praefix, fremd = _RAUM[modul]
+    haupt = hauptgruppe_von(untergruppe)
+    if untergruppe:
+        # Modul und Schalter IMMER von der echten Hauptgruppe der Untergruppe —
+        # eine mitgegebene fremde ``gruppe`` darf sie nicht ersetzen (Review DATEIEN-R).
+        if not haupt or (gruppe and gruppe != haupt):
+            return NEIN("untergruppe_passt_nicht")
+        zgruppe = haupt
+    else:
+        zgruppe = gruppe
     if not zgruppe:
         return NEIN("keine_gruppe")
-    if not modul_aktiv(zgruppe, "chat"):
+    if not modul_aktiv(zgruppe, modul):
         return NEIN("modul_aus")
     if untergruppe:
         rolle = untergruppenrolle(benutzer, untergruppe)
@@ -1327,15 +1409,26 @@ def _darf_chat(benutzer: str, aktion: str, *, gruppe: str | None,
         leitung = rolle in _LEITUNG
     if not rolle:
         return NEIN("kein_mitglied")
+    if modul == "dateien" and aktion in (ANLEGEN, ANPINNEN):
+        schalter = "dateien_hochladen_alle" if aktion == ANLEGEN else "dateien_anpinnen_alle"
+        if leitung:
+            return JA(f"{praefix}_leitung_{rolle.lower()}")
+        if gruppeneinstellung(zgruppe, schalter):
+            return JA(f"{praefix}_{rolle.lower()}")
+        return NEIN("nur_verantwortliche")
+    if modul == "dateien" and aktion == VORSCHLAGEN:
+        return NEIN("aktion_nicht_fuer_dateien")  # sonst Umweg am Hochlade-Schalter vorbei
     if aktion in (LESEN, VORSCHLAGEN, ANLEGEN):
-        return JA(f"chat_{rolle.lower()}")
+        return JA(f"{praefix}_{rolle.lower()}")
     if aktion == SCHREIBEN:
+        if modul == "dateien" and besitzer is None:
+            return NEIN("besitzer_fehlt")  # fail closed: Datei ohne Besitzer = keine eigene
         if besitzer is None or besitzer == benutzer:
-            return JA("chat_eigenes")
-        return JA(f"chat_leitung_{rolle.lower()}") if leitung else NEIN("fremde_nachricht")
+            return JA(f"{praefix}_eigenes")
+        return JA(f"{praefix}_leitung_{rolle.lower()}") if leitung else NEIN(fremd)
     if aktion in (MODERIEREN, VERWALTEN):
-        return JA(f"chat_leitung_{rolle.lower()}") if leitung else NEIN("nicht_verantwortlich")
-    return NEIN("aktion_nicht_fuer_chat")
+        return JA(f"{praefix}_leitung_{rolle.lower()}") if leitung else NEIN("nicht_verantwortlich")
+    return NEIN(f"aktion_nicht_fuer_{modul}")
 
 
 def chat_moderatoren(gruppe: str | None, untergruppe: str | None = None) -> list[str]:
@@ -1695,6 +1788,10 @@ __all__ = [
     "sichtbare_module",
     "darf_beziehung",
     "CHAT_TYPEN",
+    "DATEI_TYPEN",
+    "ANPINNEN",
+    "GRUPPENEINSTELLUNGEN",
+    "gruppeneinstellung",
     "chat_moderatoren",
     "darf_person_finden",
     "person_hat_konto",

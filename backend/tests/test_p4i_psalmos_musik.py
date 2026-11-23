@@ -449,10 +449,51 @@ def test_lied_detail_kopf_strophen_fassungen(client, als_anna):
 
     # Liedgruppen, in denen das Lied steckt.
     # `nummer` ist im Modell/live-Schema eine String-Spalte -> '1', nicht 1.
+    # BEF-LIED-GRUPPE: dazu der Klartext-Name der Gruppe (statt nur der
+    # Kennung) — Feld wie in der Liedgruppen-Liste (`gruppenname`).
     assert m["liedgruppen"] == [{
-        "liedgruppe": "LGRP-1", "fassung": "FAS-1",
+        "liedgruppe": "LGRP-1", "titel": "Oster-Set", "gruppenname": "Oster-Set",
+        "typ": "Set", "fassung": "FAS-1",
         "reihenfolge": 1, "nummer": "1",
     }]
+
+
+def test_lied_detail_liedgruppe_klartext_statt_kennung(client, als_anna):
+    """BEF-LIED-GRUPPE: „In Liedgruppen“ zeigt den Gruppennamen, nicht `fe722a20-2…`.
+
+    Die Kennung (Frappe-`name` des Liedgruppe-Dokuments) ist eine UUID-artige
+    Zeichenkette; angezeigt werden muss `gruppenname`. Auch in diesem Fall:
+    Titel traegt immer Text (Ersatz: Kennung), damit im Frontend nichts leer
+    bleibt.
+    """
+    r = client.get(f"/api/method/{MUSIK}.get_lied_detail", params={"lied": "LIED-1"})
+    assert r.status_code == 200, r.text
+    gruppen = r.json()["message"]["liedgruppen"]
+    assert len(gruppen) == 1
+    g = gruppen[0]
+    assert g["titel"] == "Oster-Set"
+    assert g["gruppenname"] == "Oster-Set"
+    assert g["titel"] != g["liedgruppe"], "Titel ist nicht die technische Kennung"
+    # Die Kennung bleibt als Ziel fuer die Verlinkung erhalten.
+    assert g["liedgruppe"] == "LGRP-1"
+
+
+def test_lied_detail_liedgruppe_ohne_namen_faellt_auf_kennung_zurueck(client, als_anna, welt):
+    """BEF-LIED-GRUPPE: fehlt der Gruppenname, bleibt die Kennung als Anzeige.
+
+    So verschwindet kein Eintrag und die Verlinkung funktioniert weiter.
+    """
+    from diakronos_app.models.psalmos import Liedgruppe
+
+    doc = welt.get(Liedgruppe, "LGRP-1")
+    doc.gruppenname = None
+    welt.commit()
+
+    r = client.get(f"/api/method/{MUSIK}.get_lied_detail", params={"lied": "LIED-1"})
+    assert r.status_code == 200, r.text
+    g = r.json()["message"]["liedgruppen"][0]
+    assert g["gruppenname"] is None
+    assert g["titel"] == "LGRP-1", "Ersatz-Anzeige ist die Kennung"
 
 
 def test_lied_detail_unbekannt_ist_fehler(client, als_anna):

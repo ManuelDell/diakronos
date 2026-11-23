@@ -285,7 +285,6 @@ const OBERGRENZE = {
   'frontend/src/diakonos/components/ui/DkSpinner.vue': 2,
   'frontend/src/diakonos/components/ui/DkTable.vue': 4,
   'frontend/src/diakonos/components/ui/DkTabs.vue': 3,
-  'frontend/src/diakonos/components/website/FreigabeZeile.vue': 2,
   'frontend/src/diakonos/components/widgets/MyServicesWidget.vue': 7,
   'frontend/src/diakonos/components/widgets/PendingRegistrationsWidget.vue': 13,
   'frontend/src/diakonos/index.css': 285,

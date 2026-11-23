@@ -811,6 +811,10 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
     "rechte_modul": {
         "modul": ("struktur", "Modulname einer Gruppe"),
     },
+    "rechte_gruppeneinstellung": {
+        "schluessel": ("struktur", "Name einer Gruppeneinstellung (z. B. dateien_hochladen_alle)"),
+        "wert": ("struktur", "Ja/Nein-Wert der Einstellung ('1'/'0')"),
+    },
     "rechte_objekt": {
         "objekt": ("struktur", "Kennung eines Elements (Kalender, Wiki …)"),
         "eltern_objekt": ("struktur", "Kennung des Eltern-Elements"),

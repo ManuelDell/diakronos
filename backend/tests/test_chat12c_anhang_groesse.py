@@ -401,7 +401,7 @@ def test_migration_haengt_hinter_r_chat_standard_und_ist_einziger_kopf():
     assert rev.down_revision == "r_chat_standard", rev.down_revision
     assert "Revises: r_chat_standard" in Path(rev.path).read_text(encoding="utf-8")
     # LINEAR: kein Merge-Head, genau EIN Kopf.
-    assert skripte.get_heads() == ["chat12c_anhang_groesse"]
+    assert len(skripte.get_heads()) == 1  # genau EIN Kopf; spätere Revisionen hängen dahinter
     assert len(skripte.get_bases()) == 1
 
 
