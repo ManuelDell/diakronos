@@ -2452,8 +2452,22 @@ const umfrageLaeuft = ref('')
 /** Meldungen je Umfrage (`name` → Text): 403, 400 („schon abgestimmt“) … */
 const umfrageFehler = ref({})
 
-/** Eine Umfrage-Meldung ruhig am DIESER Karte anzeigen (keine Wand aus Text). */
+/**
+ * Eine Umfrage-Meldung ruhig an DIESER Karte anzeigen (keine Wand aus Text).
+ *
+ * `null`/`''` heißt ZURÜCKSETZEN — der Eintrag wird entfernt. Ohne diesen
+ * Zweig setzte `fehlertext(null)` den Katalog-Standardtext („Das hat gerade
+ * nicht geklappt …“) und die Meldung bliebe nach erfolgreicher Abstimmung
+ * stehen (Befund DMB-525e1b2d4a0a).
+ */
 function umfrageFehlerSetzen(name, fehler) {
+  if (!fehler) {
+    if (!(String(name) in umfrageFehler.value)) return
+    const rest = { ...umfrageFehler.value }
+    delete rest[String(name)]
+    umfrageFehler.value = rest
+    return
+  }
   const zustand = fehlerZustand(fehler)
   const text = zustand ? `${zustand.titel}. ${zustand.text}` : fehlertext(fehler)
   umfrageFehler.value = { ...umfrageFehler.value, [String(name)]: text }

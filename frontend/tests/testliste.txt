@@ -1086,3 +1086,10 @@ tests/dateien4-*.test.mjs
 # Nachrichten (gleicher Vollbild-Modus) halten die Leiste mit demselben Token
 # frei. Gegenprobe U6: die alte Fassung fällt zweifach durch.
 tests/bef-kal-unten-handy.test.mjs
+# BEF-UMFRAGE (DMB-525e1b2d4a0a): Nach erfolgreicher Chatumfrage-Abstimmung
+# steht kein „Das hat gerade nicht geklappt …“ mehr an der Karte — `umfrageFehlerSetzen`
+# nimmt null/'' als Zurücksetzen (Eintrag entfernen) statt durch `fehlertext` zu gehen.
+# Geprüft: Erfolg beim Abstimmen und Schließen ohne Meldung, echte 400 mit
+# Meldung (und ein späterer Erfolg räumt sie weg), unveränderter Katalogtext,
+# kein zweiter Aufrufer mit demselben Muster.
+tests/bef-umfrage-fehler-zuruecksetzen.test.mjs
