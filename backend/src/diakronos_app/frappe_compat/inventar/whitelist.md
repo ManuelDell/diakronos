@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **2431**
-* eindeutige Funktionen: **432**
-* lesend: **189**, schreibend: **243**
-* Rumpfbefund: schreibend 232, lesend 200, unbekannt 0
+* registrierte Pfade: **2477**
+* eindeutige Funktionen: **442**
+* lesend: **193**, schreibend: **249**
+* Rumpfbefund: schreibend 238, lesend 204, unbekannt 0
 
 ## Einstufung
 
@@ -118,6 +118,12 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.chat.umfrage_schliessen` | ['POST'] | nein |
 | `diakronos_app.api.dashboard.reset_user_config` | ['POST'] | nein |
 | `diakronos_app.api.dashboard.set_user_config` | ['POST'] | nein |
+| `diakronos_app.api.dateien.anpinnen` | ['POST'] | nein |
+| `diakronos_app.api.dateien.einstellung_setzen` | ['POST'] | nein |
+| `diakronos_app.api.dateien.hochladen` | ['POST'] | nein |
+| `diakronos_app.api.dateien.loeschen` | ['POST'] | nein |
+| `diakronos_app.api.dateien.umbenennen` | ['POST'] | nein |
+| `diakronos_app.api.dateien.wiederherstellen` | ['POST'] | nein |
 | `diakronos_app.api.datenschutz.anonymisieren` | ['POST'] | nein |
 | `diakronos_app.api.datenschutz.loeschantrag_ablehnen` | ['POST'] | nein |
 | `diakronos_app.api.datenschutz.loeschantrag_zurueckziehen` | ['POST'] | nein |
@@ -357,6 +363,10 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.dashboard.get_user_config` | — | nein |
 | `diakronos_app.api.dashboard.get_widget_badge_counts` | — | nein |
 | `diakronos_app.api.dashboard.get_widget_data` | — | nein |
+| `diakronos_app.api.dateien.datei` | — | nein |
+| `diakronos_app.api.dateien.einstellungen` | — | nein |
+| `diakronos_app.api.dateien.liste` | — | nein |
+| `diakronos_app.api.dateien.papierkorb` | — | nein |
 | `diakronos_app.api.datenschutz.auskunft` | — | nein |
 | `diakronos_app.api.datenschutz.get_loeschantraege` | — | nein |
 | `diakronos_app.api.datenschutz.mein_loeschantrag` | — | nein |

@@ -158,6 +158,9 @@ from diakronos_app.models.devmodus import (
 )
 # CHAT-10a (Konzept 3.2, F10): Web-Push-Abonnements je Gerät (Handmodell).
 from diakronos_app.models.push import PushAbonnement
+# DATEIEN-3 (Konzept DATEIEN-KONZEPT.md 3): Gruppendateien + Entsorgungsliste
+# (Handmodell, Migration ``dateien3_gruppe_datei``).
+from diakronos_app.models.dateien import GruppeDatei, GruppeDateiEntsorgung
 
 __all__ = [
     "ROOT_ROLLE",
@@ -286,6 +289,8 @@ __all__ = [
     "RechteGruppeneinstellung",
     "RechteModul",
     "RechteObjekt",
+    "GruppeDatei",
+    "GruppeDateiEntsorgung",
     "ChatGespraech",
     "ChatNachricht",
     "ChatReaktion",

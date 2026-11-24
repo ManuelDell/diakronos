@@ -1550,12 +1550,10 @@
    "nach_rumpf": "schreibend",
    "name": "loeschen",
    "pfade": [
-    "api.loeschen",
     "chat.loeschen",
     "diakronos.diakonos.api.chat.loeschen",
     "diakronos.diakronos.api.chat.loeschen",
-    "diakronos_app.api.chat.loeschen",
-    "loeschen"
+    "diakronos_app.api.chat.loeschen"
    ],
    "rumpf_grund": "Aufruf s.flush()",
    "rumpf_ueber": null
@@ -2466,6 +2464,266 @@
     "set_user_config"
    ],
    "rumpf_grund": "Aufruf _update_doc(); Aufruf _create()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.dateien.anpinnen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.dateien",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "anpinnen",
+   "pfade": [
+    "anpinnen",
+    "api.anpinnen",
+    "dateien.anpinnen",
+    "diakronos.diakonos.api.dateien.anpinnen",
+    "diakronos_app.api.dateien.anpinnen"
+   ],
+   "rumpf_grund": "Aufruf s.flush()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dateien.datei",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dateien",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "datei",
+   "pfade": [
+    "api.datei",
+    "datei",
+    "dateien.datei",
+    "diakronos.diakonos.api.dateien.datei",
+    "diakronos_app.api.dateien.datei"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.dateien.einstellung_setzen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.dateien",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "einstellung_setzen",
+   "pfade": [
+    "api.einstellung_setzen",
+    "dateien.einstellung_setzen",
+    "diakronos.diakonos.api.dateien.einstellung_setzen",
+    "diakronos_app.api.dateien.einstellung_setzen",
+    "einstellung_setzen"
+   ],
+   "rumpf_grund": "ueber verwaltung.setze_gruppeneinstellung(): Aufruf sess.add()",
+   "rumpf_ueber": "diakronos_app.rechte.verwaltung.setze_gruppeneinstellung"
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dateien.einstellungen",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dateien",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "einstellungen",
+   "pfade": [
+    "api.einstellungen",
+    "dateien.einstellungen",
+    "diakronos.diakonos.api.dateien.einstellungen",
+    "diakronos_app.api.dateien.einstellungen",
+    "einstellungen"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.dateien.hochladen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.dateien",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "hochladen",
+   "pfade": [
+    "api.hochladen",
+    "dateien.hochladen",
+    "diakronos.diakonos.api.dateien.hochladen",
+    "diakronos_app.api.dateien.hochladen",
+    "hochladen"
+   ],
+   "rumpf_grund": "Aufruf s.flush(); Aufruf s.add()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dateien.liste",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dateien",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "liste",
+   "pfade": [
+    "dateien.liste",
+    "diakronos.diakonos.api.dateien.liste",
+    "diakronos_app.api.dateien.liste"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.dateien.loeschen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.dateien",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "loeschen",
+   "pfade": [
+    "api.loeschen",
+    "dateien.loeschen",
+    "diakronos.diakonos.api.dateien.loeschen",
+    "diakronos_app.api.dateien.loeschen",
+    "loeschen"
+   ],
+   "rumpf_grund": "Aufruf s.flush()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": null,
+   "deklariert": null,
+   "einstufung": "lesend",
+   "funktion": "diakronos_app.api.dateien.papierkorb",
+   "methoden": null,
+   "methoden_pflicht": null,
+   "modul": "diakronos_app.api.dateien",
+   "nach_name": "lesend",
+   "nach_rumpf": "lesend",
+   "name": "papierkorb",
+   "pfade": [
+    "api.papierkorb",
+    "dateien.papierkorb",
+    "diakronos.diakonos.api.dateien.papierkorb",
+    "diakronos_app.api.dateien.papierkorb",
+    "papierkorb"
+   ],
+   "rumpf_grund": "",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.dateien.umbenennen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.dateien",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "umbenennen",
+   "pfade": [
+    "api.umbenennen",
+    "dateien.umbenennen",
+    "diakronos.diakonos.api.dateien.umbenennen",
+    "diakronos_app.api.dateien.umbenennen",
+    "umbenennen"
+   ],
+   "rumpf_grund": "Aufruf s.flush()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.dateien.wiederherstellen",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.dateien",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "wiederherstellen",
+   "pfade": [
+    "api.wiederherstellen",
+    "dateien.wiederherstellen",
+    "diakronos.diakonos.api.dateien.wiederherstellen",
+    "diakronos_app.api.dateien.wiederherstellen",
+    "wiederherstellen"
+   ],
+   "rumpf_grund": "Aufruf s.flush()",
    "rumpf_ueber": null
   },
   {
@@ -11643,12 +11901,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 432,
+ "funktionen": 442,
  "nur_test": [],
- "registrierte_pfade": 2431,
+ "registrierte_pfade": 2477,
  "rumpf_zaehlung": {
-  "lesend": 200,
-  "schreibend": 232
+  "lesend": 204,
+  "schreibend": 238
  },
  "widersprueche": [
   {
@@ -12270,7 +12528,7 @@
   }
  ],
  "zaehlung": {
-  "lesend": 189,
-  "schreibend": 243
+  "lesend": 193,
+  "schreibend": 249
  }
 }

@@ -36,6 +36,7 @@ from diakronos_app.api import rechte  # noqa: F401 — R-2: das EINE Rechtesyste
 from diakronos_app.api import bugreport  # noqa: F401 — P4j: Dev-Bugmelder (4 Pfade)
 from diakronos_app.api import dashboard  # noqa: F401 — P4h: Dashboard (11 Pfade)
 from diakronos_app.api import datenschutz  # noqa: F401 — N6: Auskunft/Anträge/Anonymisierung
+from diakronos_app.api import dateien  # noqa: F401 — DATEIEN-3: Gruppendateien (Liste/Hochladen/Ausliefern)
 from diakronos_app.api import dienstplan  # noqa: F401 — P4h: Dienstplan-Sicht (3 Pfade)
 from diakronos_app.api import entsperren  # noqa: F401 — A1c6: Konto freigeben (Admin)
 from diakronos_app.api import frappe_core  # noqa: F401 — P2c: Frappe-Core-Methoden

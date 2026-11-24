@@ -648,6 +648,33 @@ SPALTEN: dict[str, dict[str, tuple[str, str]]] = {
         "schluessel": ("struktur", "technische Kennung des Speicherobjekts"),
         "letzter_fehler": ("struktur", "Meldung der Ablage (Pfad/HTTP-Status)"),
     },
+    # DATEIEN-3 — die Entsorgungsliste der Gruppendateien trägt keine
+    # Personendaten (dasselbe Argument wie ``chat_anhang_entsorgung``):
+    # `schluessel` ist die technische Kennung des Speicherobjekts (``datei-…``),
+    # `versuche`/`naechster_versuch_am`/`belegt_bis`/`angelegt_am` beschreiben
+    # den LÖSCHVORGANG. Kein Konto, kein Name, kein Gruppenbezug.
+    "gruppe_datei_entsorgung": {
+        "schluessel": ("struktur", "technische Kennung des Speicherobjekts"),
+    },
+    "gruppe_datei": {
+        # DATEIEN-3: eine Gruppendatei gehört der PERSON nicht — sie gehört der
+        # Gruppe (Konzept 5.3, Art. 17). Die Zeile BLEIBT deshalb stehen, damit
+        # die anderen Mitglieder die Datei weiter sehen; personenbezogen sind
+        # nur die drei Konto-Spalten (`angelegt_von`/`angepinnt_von`/
+        # `geloescht_von` → user_null) und der Anzeigename (`protokoll`, er kann
+        # einen Namen tragen). Die DATEI selbst bleibt: ihr Inhalt ist Daten der
+        # Gruppe, nicht der Person (Konzept 5.3 Punkt 3 — sie ist für die
+        # Anonymisierung nicht erreichbar) — deshalb steht sie NICHT in
+        # `b.dateien` und geht NICHT über die Entsorgungsliste.
+        "angelegt_von": ("user_null", "Konto, das die Datei hochgeladen hat"),
+        "angepinnt_von": ("user_null", "Konto, das die Datei angepinnt hat"),
+        "geloescht_von": ("user_null", "Konto, das die Datei in den Papierkorb gelegt hat"),
+        "dateiname": ("protokoll", "Dateiname kann einen Namen enthalten"),
+        "mime": ("struktur", "geprüfter Dateityp (aus dem Inhalt erkannt)"),
+        "schluessel": ("struktur", "technischer Schlüssel in der Datei-Ablage"),
+        "gruppe": ("struktur", "Kennung der Gruppe (Fachobjekt)"),
+        "untergruppe": ("struktur", "Kennung der Untergruppe (Fachobjekt)"),
+    },
     "gestaltung_abweichung": {
         # UX1j: Maße der Oberfläche (Abstände, Rahmen, Radien) — keine
         # Personendaten. `token` ist der Name der CSS-Variablen (aus der
@@ -1750,17 +1777,37 @@ def _chat_anhaenge_der_person(s, b: Bestand, zaehler: dict) -> None:
 
 
 def _entsorgung_vormerken(s, schluessel) -> int:
-    """Speicher-Schlüssel in die Entsorgungsliste schreiben (R1/3).
+    """Speicher-Schlüssel in eine Entsorgungsliste schreiben (R1/3).
 
-    Wird von JEDEM Löschweg aufgerufen, der ``chat_anhang``-Zeilen entfernt —
-    in DERSELBEN Transaktion. Der Schlüssel ist der Primärschlüssel: ein
-    bereits vorgemerkter Auftrag bleibt stehen (``versuche`` wird NICHT
-    zurückgesetzt — ein alter Fehlerzähler ist die ehrlichere Auskunft).
+    Wird von JEDEM Löschweg aufgerufen, der ``chat_anhang``-Zeilen oder
+    ``gruppe_datei``-Zeilen entfernt — in DERSELBEN Transaktion. Der Schlüssel
+    ist der Primärschlüssel: ein bereits vorgemerkter Auftrag bleibt stehen
+    (``versuche`` wird NICHT zurückgesetzt — ein alter Fehlerzähler ist die
+    ehrlichere Auskunft).
+
+    Die beiden Listen tragen UNTERSCHIEDLICHE Spalten (Chat: ``vorgemerkt_am``/
+    ``letzter_fehler``; Gruppendateien: ``angelegt_am``/``belegt_bis``), deshalb
+    entscheidet die Tabelle. Der gemeinsame Kern steht in
+    ``_entsorgung_vormerken_in``.
     """
-    tabelle = _tabelle("chat_anhang_entsorgung")
+    return _entsorgung_vormerken_in(s, "chat_anhang_entsorgung", schluessel)
+
+
+def _datei_entsorgung_vormerken(s, schluessel) -> int:
+    """Speicher-Schlüssel einer Gruppendatei entsorgen (DATEIEN-3).
+
+    Der EINE Weg in ``gruppe_datei_entsorgung`` — genutzt von der Anonymisierung
+    UND von ``papierkorb._endgueltig_gruppe`` (Review R1/5: keine zweite
+    Umsetzung des INSERT).
+    """
+    return _entsorgung_vormerken_in(s, "gruppe_datei_entsorgung", schluessel)
+
+
+def _entsorgung_vormerken_in(s, tabelle_name: str, schluessel) -> int:
+    """``INSERT … ON CONFLICT DO NOTHING`` in EINE Entsorgungsliste."""
+    tabelle = _tabelle(tabelle_name)
     if tabelle is None:
         return 0
-    neu = 0
     # Review R1/4: DIESELBE Uhr wie ``api.chat._jetzt()`` (Wandzeit der
     # Gemeinde) — hier direkt dieselbe Quelle (``zeit.jetzt_wanduhr``), damit
     # das DSGVO-Modul nicht am API-Modul hängt. Mit ``datetime.utcnow()``
@@ -1770,21 +1817,30 @@ def _entsorgung_vormerken(s, schluessel) -> int:
     from diakronos_app.zeit import jetzt_wanduhr
 
     jetzt = jetzt_wanduhr()
+    # Die Spalten der Liste werden aus der TABELLE abgeleitet, nicht aus der
+    # Chat-Fassung übernommen: ein ``values()`` mit fremden Spaltennamen lässt
+    # SQLAlchemy erst beim Ausführen auflaufen (``CompileError``) — die
+    # Gruppendatei-Liste kennt kein ``vorgemerkt_am``/``letzter_fehler``.
+    werte = {"schluessel": None, "versuche": 0, "naechster_versuch_am": jetzt}
+    if tabelle.c.get("vorgemerkt_am") is not None:
+        werte["vorgemerkt_am"] = jetzt
+    if tabelle.c.get("angelegt_am") is not None:
+        werte["angelegt_am"] = jetzt
+    if tabelle.c.get("letzter_fehler") is not None:
+        werte["letzter_fehler"] = None
+    if tabelle.c.get("belegt_bis") is not None:
+        werte["belegt_bis"] = None
     # CHAT-12a-2: ``INSERT ... ON CONFLICT DO NOTHING`` statt „erst SELECT,
     # dann INSERT“ — der Minuten-Job kann denselben Schlüssel gleichzeitig
     # vormerken, und ein ``IntegrityError`` würde die ganze Anonymisierung
     # mit umwerfen. Ein bereits stehender Auftrag bleibt unveraendert
     # (``versuche`` wird NICHT zurueckgesetzt).
     einfuegen = _einfuegen_oder_nichts(s)
+    neu = 0
     for wert in {str(k) for k in schluessel or () if k}:
         getroffen = s.execute(
             einfuegen(tabelle).values(
-                schluessel=wert, vorgemerkt_am=jetzt,
-                versuche=0, letzter_fehler=None,
-                # Ein frischer Auftrag ist SOFORT dran (Spalte ist NOT NULL;
-                # die Bedingung des Minuten-Jobs lautet
-                # ``naechster_versuch_am <= jetzt``).
-                naechster_versuch_am=jetzt,
+                **{**werte, "schluessel": wert}
             ).on_conflict_do_nothing(index_elements=[tabelle.c["schluessel"]])
         ).rowcount or 0
         neu += int(getroffen)

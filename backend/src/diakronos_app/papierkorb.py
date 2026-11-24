@@ -287,6 +287,43 @@ _GRUPPE_VERWEISE_LOESCHEN: tuple[str, ...] = (
 )
 
 
+def _gruppe_dateien_entfernen(sess, gruppe: str) -> None:
+    """DATEIEN-3: Dateien der Gruppe (und ihrer Untergruppen) endgültig weg.
+
+    Läuft IN der Transaktion von ``_endgueltig_gruppe``. Je Zeile gilt:
+
+    * der Speicher-Schlüssel wird in ``gruppe_datei_entsorgung`` vorgemerkt
+      (``INSERT … ON CONFLICT DO NOTHING`` — ein schon stehender Auftrag bleibt
+      mit seinen ``versuche`` stehen),
+    * danach fällt die ``gruppe_datei``-Zeile.
+
+    Die Datei selbst löscht der Aufräum-Job (DATEIEN-5) — NACH dem Commit, wie
+    bei den Chat-Anhängen: ein Rollback darf keine Datei gelöscht haben.
+
+    Das Vormerken macht ``dsgvo_anonymisierung._datei_entsorgung_vormerken`` —
+    EINE Umsetzung für alle Löschwege (Review R1/5), kein zweiter INSERT hier.
+
+    Bestandsfest: fehlt eine der beiden Tabellen (ältere Datenbank,
+    Downgrade), passiert nichts.
+    """
+    from sqlalchemy import select
+
+    from diakronos_app.dsgvo_anonymisierung import _datei_entsorgung_vormerken
+    from diakronos_app.models.base import Base
+
+    tabellen = Base.metadata.tables
+    datei = tabellen.get("gruppe_datei")
+    entsorgung = tabellen.get("gruppe_datei_entsorgung")
+    if datei is None or entsorgung is None:
+        return
+    schluessel = [str(k) for k in sess.execute(
+        select(datei.c.schluessel).where(datei.c.gruppe == gruppe)
+    ).scalars().all() if k]
+    if schluessel:
+        _datei_entsorgung_vormerken(sess, schluessel)
+    sess.execute(datei.delete().where(datei.c.gruppe == gruppe))
+
+
 def _endgueltig_gruppe(name: str) -> None:
     """Gruppe endgueltig entfernen — ALLE Verweise loesen (UX2b2/F2).
 
@@ -333,6 +370,12 @@ def _endgueltig_gruppe(name: str) -> None:
             for doctype in ("Gruppenmitgliedschaft", "Gruppe Verantwortlicher"):
                 kind = model_for(doctype)
                 sess.execute(delete(kind).where(kind.parent == name))
+            # DATEIEN-3: die Gruppendateien der Gruppe (und ihrer Untergruppen)
+            # gehen mit — Zeilen UND Dateien. Die Speicher-Schlüssel wandern in
+            # die Entsorgungsliste (in DIESER Transaktion: entweder gibt es die
+            # Zeile oder den Auftrag — nie ein Verweis ins Leere); abgearbeitet
+            # wird sie vom Aufräum-Job (DATEIEN-5).
+            _gruppe_dateien_entfernen(sess, name)
             # R-11d: das EINE Rechtesystem — Rollen, Module und Gruppen-
             # Freigaben gehen mit; Objekte der Gruppe werden zu Gemeinde-
             # Objekten (nur Admin/Fachverwaltung, fail closed), Aufgaben-
