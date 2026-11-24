@@ -249,7 +249,7 @@ def nimm_upload(datei, grenze: int | None = None,
     if len(roh) > wirksam:
         raise ValidationError(zu_gross_text(wirksam))
 
-    # F7: der EINE Haken der Virenprüfung (heute tut er nichts, s. dort).
+    # F7: der EINE Haken der Virenprüfung (ClamAV, DATEIEN-6 — s. ``pruefe_inhalt``).
     pruefe_inhalt(roh, roher_name)
 
     richtlinie = _pruefe_richtlinie(richtlinie)
@@ -535,19 +535,23 @@ def dateiname(name: str | None, typ: str) -> str:
 
 
 def pruefe_inhalt(roh: bytes, name: str | None = None) -> None:
-    """Der EINE Haken für die Inhaltsprüfung — heute ein No-Op.
+    """Der EINE Haken für die Inhaltsprüfung — heute ClamAV (DATEIEN-6).
 
     Entscheidung F7 (Manuel 23.11.): Die Virenprüfung kommt als EIGENE Karte
-    (ClamAV). Damit sie später NICHT an drei Stellen eingebaut werden muss,
-    steht hier die Naht: ``nimm_upload`` ruft sie **genau einmal** je Upload
-    auf, nach der Größenprüfung und vor der Typ-Prüfung. Wirft sie, ist der
-    Upload abgewiesen — die Aufrufer ändern sich dafür nicht.
+    (ClamAV). Damit sie NICHT an drei Stellen eingebaut werden muss, steht
+    hier die Naht: ``nimm_upload`` ruft sie **genau einmal** je Upload auf,
+    nach der Größenprüfung und vor der Typ-Prüfung. Wirft sie, ist der Upload
+    abgewiesen — die Aufrufer ändern sich dafür nicht.
 
-    Signatur-Zusage an die Folgekarte: wirft ``ValidationError`` bei einem
-    Fund (Menschen-Meldung, kein interner Pfad, kein Virusname), sonst
-    ``None``. Kein Netz, kein Zeitlimit hier — das bringt die Folgekarte mit.
+    Signatur-Zusage an die Folgekarte (eingehalten in ``diakronos_app.clamav``):
+    wirft ``ValidationError`` bei einem Fund (Menschen-Meldung, kein interner
+    Pfad, kein Virusname), sonst ``None``. Ohne ``CLAMAV_HOST`` ist das ein
+    No-Op (Entwicklung/Tests); mit gesetztem Ziel ist jeder andere Ausgang als
+    „sauber“ ein Fehler (fail-closed). Siehe ``clamav.pruefe``.
     """
-    return None
+    from diakronos_app import clamav
+
+    return clamav.pruefe(roh, name)
 
 
 # ── Ablage (immer über ``speicher.hole_speicher()``) ───────────────────────

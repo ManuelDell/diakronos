@@ -147,6 +147,18 @@ x-app-env: &app-env
   STT_MODEL: ${STT_MODEL:-whisper-1}
   STT_API_KEY: ${STT_API_KEY:-}
   STT_SPRACHE: ${STT_SPRACHE:-de}
+  # ── DATEIEN-6: Virenpruefung der Uploads (ClamAV) ────────────────────────
+  # Leer (Default) = Pruefung AUS — Entwicklung und Bestand bleiben unberuehrt.
+  # Gesetzt (der Stack setzt `clamav`) wird JEDER Upload geprueft; ist der
+  # Dienst dann nicht erreichbar, wird der Upload ABGEWIESEN (fail-closed),
+  # nie still durchgelassen. Siehe BETRIEBSANLEITUNG, "Virenpruefung".
+  # ACHTUNG `-` statt `:-`: nur UNGESETZT ergibt `clamav`. Mit `:-` faellt
+  # auch ein absichtlich LEERER Wert (CLAMAV_HOST= in .env, z. B. devecg/
+  # Wegwerf-Stacks) auf `clamav` zurueck — und die Pruefung waere dann nicht
+  # abschaltbar.
+  CLAMAV_HOST: ${CLAMAV_HOST-clamav}
+  CLAMAV_PORT: ${CLAMAV_PORT:-3310}
+  CLAMAV_ZEITLIMIT_SEKUNDEN: ${CLAMAV_ZEITLIMIT_SEKUNDEN:-15}
   # BLD-R2: Zahl der Uvicorn-Arbeiten des app-Dienstes. Default 2 — eine
   # lange Anfrage (z. B. ein grosser Plan-Vorschlag) blockiert damit nicht
   # mehr die gesamte App. 1 stellt das alte Verhalten her; auf einem kleinen
@@ -216,6 +228,57 @@ services:
       timeout: 5s
       retries: 10
       start_period: 5s
+
+  # DATEIEN-6: Virenpruefung der Uploads (ClamAV, Entscheidung Manuel F7).
+  #
+  # NUR intern: kein `ports:` — clamd ist nur unter `clamav:3310` im
+  # Compose-Netz erreichbar. Kein eigenes Netz, keine Netzwerk-Aliasnamen.
+  #
+  # Feste Version (kein `:latest`): ein Signatur-Update liefert clamd selbst,
+  # ein Image-Wechsel soll eine bewusste Betreiber-Entscheidung sein. Die
+  # Quellen kommen aus `/etc/clamav/freshclam.conf` des Images (gleiche
+  # Signatur-Quellen wie ClamAV selbst).
+  #
+  # Der Start dauert 1–2 Minuten (Signaturen); app/worker warten NICHT darauf
+  # (kein `depends_on`) — ein Upload vor dem ersten Signaturstand wird von der
+  # App fail-closed abgewiesen (Meldung „konnte gerade nicht geprueft werden“).
+  #
+  # clamd-Einstellungen ueber `CLAMD_CONF_<Option>` (das /init des Images
+  # schreibt sie in /etc/clamav/clamd.conf; eine eingebundene Datei braeche
+  # dessen `sed -i` und die Log-Einstellung des Images — am 24.11. im
+  # Wegwerf-Container geprueft). `ConcurrentDatabaseReload no`: der Signatur-
+  # Reload braucht NICHT den doppelten Speicher; clamd ist dabei kurz nicht
+  # erreichbar — fail-closed faengt das ab. Gemessen: ~960 MiB nach dem Start.
+  clamav:
+    image: clamav/clamav:1.4.7
+    restart: unless-stopped
+    # 2 GB: clamd 1.4 haelt die Signaturen im Speicher (~1,2–1,5 GB); der
+    # Deckel ist die Notbremse gegen „nimmt dem Host alles weg“. Mehr NICHT
+    # (LXC ist RAM-knapp, Swap fast voll) — der Reload-Spitzenwert ist durch
+    # `ConcurrentDatabaseReload no` vermieden, nicht durch mehr Deckel.
+    mem_limit: 2g
+    volumes:
+      # Signaturen ueberleben Neustart und `docker compose down` — sonst laedt
+      # freshclam bei JEDEM Start alles neu.
+      - clamav-db:/var/lib/clamav
+    environment:
+      CLAMD_CONF_ConcurrentDatabaseReload: "no"
+      # Muss zu STREAM_MAX_LENGTH in backend/src/diakronos_app/clamav.py passen;
+      # die hoechste Upload-Grenze der App ist 50 MB.
+      CLAMD_CONF_StreamMaxLength: "64M"
+      CLAMD_CONF_MaxFileSize: "50M"
+      CLAMD_CONF_MaxScanSize: "100M"
+    expose:
+      - "3310"
+    healthcheck:
+      # `clamdcheck.sh` gibt 0 zurueck, sobald clamd Anfragen beantwortet (erst
+      # nach dem Signaturladen). Nur zur Anzeige/`docker compose ps` — app
+      # haengt NICHT daran.
+      test: ["CMD", "/usr/local/bin/clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
 
   app:
     build:
@@ -307,3 +370,7 @@ services:
         condition: service_healthy
       app:
         condition: service_healthy
+
+volumes:
+  # DATEIEN-6: Viren-Signaturen von clamd/freshclam (ueberleben Neustart/down).
+  clamav-db:

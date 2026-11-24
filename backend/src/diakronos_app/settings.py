@@ -115,6 +115,40 @@ class Settings(BaseSettings):
         ),
     )
 
+    # ── DATEIEN-6: Virenpruefung der Uploads (ClamAV, Manuel F7) ─────────
+    # `CLAMAV_HOST` LEER (Default) = Pruefung aus: Entwicklung und Tests
+    # brauchen keinen Dienst, und eine bestehende Installation aendert sich
+    # durch das Update nicht. Gesetzt (im Stack: `clamav`) wird JEDER Upload
+    # geprueft; ist der Dienst dann nicht erreichbar, wird der Upload
+    # ABGEWIESEN (fail-closed, siehe `diakronos_app.clamav`).
+    clamav_host: str = Field(
+        "", validation_alias=AliasChoices("CLAMAV_HOST", "clamav_host"),
+    )
+    clamav_port: int = Field(
+        3310, validation_alias=AliasChoices("CLAMAV_PORT", "clamav_port"),
+    )
+    # Zeitbudget fuer Verbindung + Antwort EINER Datei in Sekunden. Knapp
+    # gehalten: der Aufruf blockiert synchron einen Uvicorn-Arbeiter.
+    clamav_zeitlimit_sekunden: float = Field(
+        15.0,
+        validation_alias=AliasChoices(
+            "CLAMAV_ZEITLIMIT_SEKUNDEN", "clamav_zeitlimit_sekunden"
+        ),
+    )
+
+    @field_validator("clamav_zeitlimit_sekunden")
+    @classmethod
+    def valid_clamav_zeitlimit(cls, value: float) -> float:
+        """0.5..300 Sekunden — 0 waere „kein Limit“ und haenge hochgeladene
+        Dateien dauerhaft in einem Arbeitsfaden."""
+        try:
+            wert = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("CLAMAV_ZEITLIMIT_SEKUNDEN muss eine Zahl sein") from None
+        if not 0.5 <= wert <= 300.0:
+            raise ValueError("CLAMAV_ZEITLIMIT_SEKUNDEN muss zwischen 0.5 und 300 liegen")
+        return wert
+
     # ── WEB-5a: Pfad-Praefix des gesamten Betriebs ────────────────────────
     # Liegt Diakronos neben einer statischen Website unter EINER Domain
     # (`/` = Website, `/diakronos/…` = App), steht hier der Praefix.

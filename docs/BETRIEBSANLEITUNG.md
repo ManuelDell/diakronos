@@ -1215,6 +1215,83 @@ zusätzlich.
 - **DSGVO bleibt wirksam:** Löschen in Diakronos (Papierkorb-Ablauf,
   Löschung auf Antrag) löscht die Datei auch in der Nextcloud.
 
+### 8.7c Virenpruefung der Uploads (ClamAV, DATEIEN-6)
+
+Jeder Upload — Gruppen- und Untergruppendateien **und** Chat-Anhaenge — geht
+einmal durch **clamd**, bevor er geprueft (Typ/Name) und gespeichert wird. Der
+Dienst `clamav` (offizielles Image `clamav/clamav`, feste Version) steht im
+Stack und ist **nur intern** erreichbar: kein veroeffentlichter Port, kein
+Zugriff von aussen, keine eigene Adresse fuer Nutzer.
+
+| Variable | Vorgabe im Stack | Bedeutung |
+| --- | --- | --- |
+| `CLAMAV_HOST` | `clamav` | Ziel des Dienstes. **Leer = Pruefung aus** (siehe unten). |
+| `CLAMAV_PORT` | `3310` | Port des Instream-Protokolls. |
+| `CLAMAV_ZEITLIMIT_SEKUNDEN` | `15` | Verbindung + Antwort EINER Datei. |
+
+**Wichtig zur Schreibweise:** `compose/stack.yml` setzt
+`CLAMAV_HOST: ${CLAMAV_HOST-clamav}` (ohne Doppelpunkt). Nur **ungesetzt**
+bedeutet `clamav`; ein **ausdruecklich leerer** Wert (`CLAMAV_HOST=` in der
+`.env`) bleibt leer und schaltet die Pruefung ab. Mit `:-` waere das
+Abschalten unmoeglich (ein leerer Wert fiele auf `clamav` zurueck).
+
+**Ein Tippfehler im Zeitlimit startet die App nicht:** ein Wert ausserhalb
+0,5–300 (z. B. `15s`, `abc`, `0`) wird beim Start abgewiesen — absichtlich,
+damit nicht still ein anderes Limit gilt. Das Protokoll nennt
+`CLAMAV_ZEITLIMIT_SEKUNDEN`.
+
+**Verhalten** (bewusst streng, „fail-closed“):
+
+* **Fund** → die Datei wird nicht gespeichert; der Benutzer liest
+  „Die Datei wurde abgewiesen, weil sie Schadsoftware enthalten koennte.“
+  Welche Signatur angeschlagen hat, steht **nur im Protokoll** (`docker compose
+  logs app`) — nie in der Antwort.
+* **Dienst nicht erreichbar / Zeitueberschreitung / Antwort unbrauchbar** →
+  Upload abgewiesen („Die Datei konnte gerade nicht geprueft werden. Bitte
+  spaeter erneut versuchen.“) plus `ERROR` im Protokoll. Ein Upload geht
+  **nie** ungeprueft durch; wer die Pruefung abschalten will, setzt
+  `CLAMAV_HOST` ausdruecklich leer (dann steht beim ersten Upload einmal
+  „Virenpruefung aus“ im Protokoll).
+* **Datei groesser als `StreamMaxLength`** (64 MiB, `CLAMD_CONF_StreamMaxLength`
+  in `compose/stack.yml`) wird gar nicht erst geschickt und gilt wie
+  „nicht pruefbar“ — abgewiesen. Die Upload-Grenze der App (hoechstens 50 MB)
+  liegt darunter.
+
+**Betrieb**
+
+* **Arbeitsspeicher: ~1 GB je clamd** (gemessen 24.11.: ~960 MiB nach dem
+  Start mit 1.4.7) — clamd haelt die Signaturen geladen (`mem_limit: 2g` als
+  Notbremse). Der Spitzenwert beim Signatur-Reload entsteht nicht, weil der
+  Dienst `CLAMD_CONF_ConcurrentDatabaseReload: "no"` setzt (das /init des
+  Images schreibt `CLAMD_CONF_*` in die clamd.conf) — clamd laedt in den vorhandenen
+  Speicher um statt zwei Signaturstaende parallel zu halten.
+  **Reload heißt: kein Parallelbetrieb.** Waehrend clamd die Signaturen neu
+  laedt (wenige Sekunden, nach jedem `freshclam`-Lauf), ist der Dienst kurz
+  NICHT erreichbar; Uploads in diesem Moment werden fail-closed abgewiesen
+  („Die Datei konnte gerade nicht geprueft werden. Bitte spaeter erneut
+  versuchen.“). Das ist gewollt — lieber kurz abweisen als ungeprueft
+  durchlassen oder den Host in den OOM laufen lassen.
+  Auf einem kleinen Server ggf. `WEB_CONCURRENCY=1` setzen, damit insgesamt
+  genug bleibt.
+* **Start: 1–2 Minuten** (Signaturladen, beim ersten Mal auch Download). Die
+  App startet **unabhaengig** davon; solange clamd noch laedt, werden Uploads
+  mit der „gerade nicht geprueft“-Meldung abgewiesen. Der Healthcheck des
+  Dienstes zeigt den Stand in `docker compose ps`.
+* **Signaturen** liegen im Volume `clamav-db` (`/var/lib/clamav`) und
+  ueberleben Neustart und `docker compose down`. Der `freshclam`-Dienst des
+  Images holt Aktualisierungen selbst.
+* **Ohne ClamAV** (Altinstallation ohne diesen Dienst, sowie devecg- und
+  Wegwerf-Stacks): `CLAMAV_HOST=` (**ausdruecklich leer**, Zeile stehen
+  lassen) in der `.env` setzen **und den Dienst `clamav` nicht starten**
+  (`docker compose up -d app db redis …` bzw. `--scale clamav=0`). Dann
+  verhaelt sich die App exakt wie vor DATEIEN-6, und der Stack braucht die
+  1,2–1,5 GB nicht.
+* **Konfiguration nur ueber `CLAMD_CONF_*`**, keine eigene clamd.conf
+  einbinden: eine read-only eingebundene Datei bricht den Start des Images
+  (`/init` schreibt per `sed -i` hinein; `LogFile /dev/stdout` endet in einer
+  Symlink-Schleife). Geprueft am 24.11. im Wegwerf-Container mit 1.4.7:
+  „healthy“ nach ~50 s, Testsignatur wird erkannt, Antwort endet mit `\0`.
+
 ### 8.7b Datensicherungen bei Nextcloud-Betrieb (SPEICHER-2)
 
 Ist `SPEICHER_BACKEND=nextcloud` gesetzt, liegt jede fertige Datensicherung
