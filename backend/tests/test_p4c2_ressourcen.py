@@ -191,15 +191,28 @@ def test_liste_suche_ueber_name_beschreibung_tags(client, als_anna):
     assert r.json()["message"] == []
 
 
-def test_liste_setzt_booked_bei_laufender_bestaetigter_buchung(client, als_anna):
-    """Eine BESTAETIGTE Buchung, die jetzt laeuft, macht die Ressource 'booked'."""
+def test_liste_setzt_booked_bei_laufender_bestaetigter_buchung(client, als_anna, monkeypatch):
+    """Eine BESTAETIGTE Buchung, die jetzt laeuft, macht die Ressource 'booked'.
+
+    TEST-P4C2: Der Test hing an der Wanduhr des Containers. `datum_von`/
+    `datum_bis` sind zeitzonenlose ORTSZEIT, der Endpunkt verglich aber gegen
+    `_now()` (UTC) — der Test schrieb also UTC-Wandzeit hinein und war nur
+    zufaellig gruen (mit TZ=UTC), mit TZ=Europe/Berlin dagegen zu jeder
+    Tageszeit rot. Beide Seiten stehen jetzt auf `zeit.jetzt_wanduhr()`, hier
+    zusaetzlich auf eine feste Uhrzeit gesetzt: `10:30 Europe/Berlin` liegt
+    gerade hinter dem UTC-Zeitpunkt (08:30), das Fenster +/-30 Minuten deckt
+    beide Sichten ab. Der Grenzfall (Buchung laeuft NUR in Ortszeit) steht in
+    `test_liste_booked_im_gemeinde_fenster_vor_utc_mitternacht`.
+    """
+    from diakronos_app.api import ressourcen as R
+
+    jetzt = datetime(2026, 11, 24, 10, 30)
+    monkeypatch.setattr(R, "jetzt_wanduhr", lambda: jetzt)
+
     from diakronos_app.frappe_compat.session import set_user as _su
 
     _su(ANNA)
     try:
-        from diakronos_app.api import ressourcen as R
-
-        jetzt = datetime.now().replace(microsecond=0)
         R._create("Ressourcen Buchung", {
             "ressource": "RES-BUS", "zweck": "Heute", "status": "Bestätigt",
             "datum_von": jetzt - timedelta(minutes=30),
@@ -210,13 +223,71 @@ def test_liste_setzt_booked_bei_laufender_bestaetigter_buchung(client, als_anna)
         _su("Administrator")
 
     # wartung schlaegt zu; also auf 0 setzen, um den Buchungspfad zu sehen.
-    from diakronos_app.api import ressourcen as R2
-
-    R2._update_doc("Ressource", "RES-BUS", {"wartung": 0})
+    R._update_doc("Ressource", "RES-BUS", {"wartung": 0})
 
     r = client.get(f"/api/method/{MODUL}.get_ressourcen_liste")
     daten = {x["id"]: x for x in r.json()["message"]}
     assert daten["RES-BUS"]["status"] == "booked"
+
+
+def test_liste_booked_im_gemeinde_fenster_vor_utc_mitternacht(client, als_anna, monkeypatch):
+    """Grenzfall: Buchung laeuft in ORTSZEIT, in UTC aber noch nicht.
+
+    `2026-11-24 00:30` Europe/Berlin (= 23:30 UTC am Vortag) bis `01:30`
+    Ortszeit. Gegen `_now()` (UTC 23:30) war das Fenster noch nicht erreicht
+    -> „available“ — obwohl die Buchung laeuft, wenn man vor dem Bildschirm
+    sitzt. Der Endpunkt muss gegen die Wanduhr der Gemeinde vergleichen.
+    """
+    from diakronos_app.api import ressourcen as R
+
+    jetzt = datetime(2026, 11, 24, 0, 30)   # Ortszeit; in UTC ist es noch 23:30 des Vortags
+    monkeypatch.setattr(R, "jetzt_wanduhr", lambda: jetzt)
+
+    from diakronos_app.frappe_compat.session import set_user as _su
+
+    _su(ANNA)
+    try:
+        R._create("Ressourcen Buchung", {
+            "ressource": "RES-BUS", "zweck": "Nachts", "status": "Bestätigt",
+            "datum_von": jetzt - timedelta(minutes=10),
+            "datum_bis": jetzt + timedelta(minutes=60),
+            "gebucht_von": BRUNO, "gebucht_von_name": "Bruno Beispiel",
+        })
+    finally:
+        _su("Administrator")
+
+    R._update_doc("Ressource", "RES-BUS", {"wartung": 0})
+
+    r = client.get(f"/api/method/{MODUL}.get_ressourcen_liste")
+    daten = {x["id"]: x for x in r.json()["message"]}
+    assert daten["RES-BUS"]["status"] == "booked"
+
+
+def test_liste_vergangene_buchung_macht_nicht_booked(client, als_anna, monkeypatch):
+    """Gegenprobe: eine abgelaufene bestaetigte Buchung bleibt wirkungslos."""
+    from diakronos_app.api import ressourcen as R
+
+    jetzt = datetime(2026, 11, 24, 10, 30)
+    monkeypatch.setattr(R, "jetzt_wanduhr", lambda: jetzt)
+
+    from diakronos_app.frappe_compat.session import set_user as _su
+
+    _su(ANNA)
+    try:
+        R._create("Ressourcen Buchung", {
+            "ressource": "RES-BUS", "zweck": "Gestern", "status": "Bestätigt",
+            "datum_von": jetzt - timedelta(days=1, hours=2),
+            "datum_bis": jetzt - timedelta(days=1),
+            "gebucht_von": BRUNO, "gebucht_von_name": "Bruno Beispiel",
+        })
+    finally:
+        _su("Administrator")
+
+    R._update_doc("Ressource", "RES-BUS", {"wartung": 0})
+
+    r = client.get(f"/api/method/{MODUL}.get_ressourcen_liste")
+    daten = {x["id"]: x for x in r.json()["message"]}
+    assert daten["RES-BUS"]["status"] == "available"
 
 
 # ── get_ressource_buchungen ─────────────────────────────────────────────────

@@ -113,20 +113,70 @@ class ErgebnisAenderung:
     meldung: str = ""
 
 
+def _kalender_eintrag(calendar_name):
+    """Der Eintrag EINES Kalenders in der Form von ``get_accessible_calendars``.
+
+    PERF-K2: Vorher lief je Frage die GANZE Liste (`get_accessible_calendars`:
+    alle Kalender, je Kalender 4 Rechtefragen) — bei einer Terminliste also
+    N-mal dieselbe Liste. Gefragt ist aber immer nur EIN Kalender.
+
+    Entschieden wird unveraendert an denselben Stellen: `rechte.darf` (mit
+    derselben Vorbedingung „lesen“ wie dort — ohne Leserecht kommt der
+    Kalender in der Liste gar nicht vor) und `pruefstufen` /
+    `moderationsstufen`. Gespiegelt werden nur die vier Felder, die aus den
+    Stufen folgen (`write`, `is_moderator`, `direkt`, `aendert_direkt`) —
+    woertlich dieselbe Rechnung wie in `permissions.get_accessible_calendars`.
+
+    Vorbedingung ist ausserdem die EXISTENZ des Kalenders: die alte Liste
+    enthielt nur vorhandene Kalender (ein verwaister Rechte-Eintrag ohne
+    Kalender-Zeile ist dort nie aufgetaucht). Antwortet der Kern mit einem
+    Fehler, gilt wie bei der alten Liste ``{}`` (fail closed).
+    """
+    if not calendar_name:
+        return {}
+    from diakronos_app import rechte
+    from diakronos_app.api.kronos.permissions import _get_effective_user
+    from diakronos_app.rechte.vorladen import kalender_existiert
+
+    user = _get_effective_user()
+    if not user or user == "Guest":
+        return {}
+    name = str(calendar_name)
+    # KANN 3 (PERF-K2b): Existenzfrage in dasselbe try — der alte Weg
+    # (`get_accessible_calendars`) fing dort jede Ausnahme und gab `[]` zurueck.
+    try:
+        if not kalender_existiert(name):
+            return {}
+        if not rechte.darf(user, rechte.LESEN, "kalender", name):
+            return {}
+        pruef = rechte.pruefstufen(user, "kalender", name)
+        stufen = rechte.moderationsstufen(user, "kalender", name)
+        schreiben = bool(pruef) or bool(rechte.darf(user, rechte.SCHREIBEN, "kalender", name)) \
+            or bool(rechte.darf(user, rechte.VORSCHLAGEN, "kalender", name))
+    except Exception:  # noqa: BLE001 — alter Weg: die Liste warf und gab [] zurueck
+        from diakronos_app.frappe_compat.api_helpers import log_error
+
+        log_error(name, "_kalender_eintrag")
+        return {}
+    return {
+        "name": name,
+        "write": schreiben,
+        "is_moderator": bool(pruef),
+        "direkt": schreiben and not stufen,
+        "aendert_direkt": schreiben and all(st in pruef for st in stufen),
+        "stufen": stufen,
+        "pruefstufen": pruef,
+    }
+
+
 def ist_moderator(calendar_name) -> bool:
     """Moderiert der aktuelle Nutzer diesen Kalender?
 
     Sicht auf ``get_accessible_calendars`` (`is_moderator` ist dort schon
     ausgewertet). Ein ``None``-Kalender ist nie moderierbar.
+    PERF-K2: dieselbe Auswertung, aber nur fuer DIESEN Kalender (`_kalender_eintrag`).
     """
-    if not calendar_name:
-        return False
-    from diakronos_app.api.kronos.permissions import get_accessible_calendars
-
-    return any(
-        c["name"] == calendar_name and c.get("is_moderator")
-        for c in get_accessible_calendars()
-    )
+    return bool(_kalender_eintrag(calendar_name).get("is_moderator"))
 
 
 def schreibt_direkt(calendar_name, *, aenderung: bool = False) -> bool:
@@ -138,16 +188,10 @@ def schreibt_direkt(calendar_name, *, aenderung: bool = False) -> bool:
     fuer niemanden, auch nicht fuer den Admin (zweite Freigabeschicht,
     Manuel 11.11.: „alle Termine, die ... erstellt werden“). AENDERUNGEN, wenn
     der Aufrufer jede seiner Stufen selbst prueft.
+    PERF-K2: dieselbe Auswertung, aber nur fuer DIESEN Kalender (`_kalender_eintrag`).
     """
-    if not calendar_name:
-        return False
-    from diakronos_app.api.kronos.permissions import get_accessible_calendars
-
     feld = "aendert_direkt" if aenderung else "direkt"
-    return any(
-        c["name"] == calendar_name and c.get(feld)
-        for c in get_accessible_calendars()
-    )
+    return bool(_kalender_eintrag(calendar_name).get(feld))
 
 
 def offene_stufen(wert) -> list[str]:

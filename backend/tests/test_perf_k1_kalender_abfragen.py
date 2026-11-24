@@ -11,10 +11,10 @@ Gemessen im Vorbau-Image (`--network none`, eigene Wegwerf-DB, 10 Kalender /
   * NACHHER: 14 087 ms / **20 723** Abfragen (gleiche Seed-Daten).
 
 Der Test haelt die OBERGRENZE fest, damit ein Rueckfall in das Muster
-„je Termin eine Rechtepruefung“ sofort rot wird. Er ist bewusst eine
-GROBE Schranke (Faktor ~2 ueber dem Ist-Wert nach der Behebung, Faktor ~5
-unter dem Befund): eine enge Zahl waere bei jeder legitimen Aenderung an
-Legende/Formatierung sofort falsch.
+„je Termin eine Rechtepruefung“ sofort rot wird. PERF-K2 hat die Grenze von
+40 000 auf 160 gesenkt (Ist-Werte und Herleitung an `HOECHSTENS_ABFRAGEN`);
+der Gleichheitsbeweis fuer den Umbau steht in
+`test_perf_k2_kalender_gleichheit.py`.
 
 Wichtig fuer die Aussage: Der Merkungsrahmen (`rechte.kern.merkungsrahmen`)
 wird hier NICHT vorgewaermt — die Messung startet mit leerem Merker, wie ein
@@ -39,10 +39,20 @@ import diakronos_app.api  # noqa: E402,F401 — Dekoratoren/Registrierung
 KAL_PFAD = "/api/method/diakronos.kronos.api.calendar_get."
 
 # Obergrenze fuer EINE Monatsansicht (FullCalendar-Fenster einer Monatsansicht:
-# 6 Wochen) mit 10 Kalendern und 312 Terminen. Ist-Wert nach PERF-K1: 20 723.
-# Befund vor der Behebung: 110 803.
-HOECHSTENS_ABFRAGEN = 40000
-
+# 6 Wochen) mit 10 Kalendern und 312 Terminen.
+#
+# PERF-K2 (Karte „Kalender: N+1-Abfragen weiter senken“): Der hier gemessene
+# Kalenderaufruf kostet jetzt — gemessen im Vorbau-Image mit
+# `tests/perf_k2_rollen.py` (gleicher Aufbau, je Rolle) —
+#
+#     Moderator edit 89 / view 80      Mitglied edit 109 / view 100
+#     Admin     edit 37 / view 30      Gast          85 (kein Termin sichtbar)
+#
+# Vor PERF-K2 waren es 440 / 388 in dieser Datei (je Termin eine
+# Kalender-Einzelabfrage plus je Kalender vier Rechtefragen).
+# Obergrenze: schlechteste Rolle 109 + 30 % Luft -> 142, hier 160.
+# Befund vor PERF-K1: 110 803.
+HOECHSTENS_ABFRAGEN = 160
 
 
 @pytest.fixture()
@@ -147,6 +157,13 @@ def _zaehle_direkt(engine, view_mode="edit"):
     wartet auf eine Antwort, die nie kommt). Fuer die ABFRAGEZAHL ist der
     HTTP-Mantel ohne Bedeutung: er fuehrt keine Endpunkt-Abfragen aus.
     Dieselbe Funktion, dieselbe Sitzung, derselbe Zaehler.
+
+    Die Zahl ist eine ZAHL, kein Zeitmass: die absoluten Sekunden aus dem
+    Befund (PERF-K1: 60 069 ms) stammen aus dem echten Betriebs-Stack mit
+    Postgres; im Test ist die DB eine In-Memory-SQLite. Die hier verglichenen
+    Kalenderaufrufe liegen nach PERF-K2 zwischen 33 ms (Admin) und 84 ms
+    (Moderator) — Ziel „< 2 s“ deutlich erfuellt, gemessen mit
+    `tests/perf_k2_rollen.py`.
     """
     from diakronos_app.api.kronos.calendar_get import get_calendar_events
     from diakronos_app.rechte.kern import merkungsrahmen
@@ -173,8 +190,10 @@ def _zaehle_direkt(engine, view_mode="edit"):
 def test_perf_k1_monatsansicht_bleibt_unter_der_abfragegrenze(rechtewelt, engine):
     """PERF-K1: Eine Monatsansicht kostet NICHT je Termin eine Rechtepruefung.
 
-    VORHER (gemessen im Vorbau-Image, dieselbe Datenmenge): 110 803 Abfragen —
-    der Test ist vor der Behebung rot und danach gruen.
+    VORHER (gemessen im Vorbau-Image, dieselbe Datenmenge): Hier standen nach
+    PERF-K1 noch 440 Abfragen (Bearbeitungsmodus) — davon 276 Einzelabfragen
+    des Kalender-Anzeigenamens (eine je Termin). Bei der ersten Messung, vor
+    PERF-K1, waren es 110 803. PERF-K2 bringt diesen Aufruf auf 89.
     """
     # Die Autouse-Fixture schaltet die Test-Naht bereits ein (conftest.py).
     set_user("perf00@example.org")

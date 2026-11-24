@@ -1,5 +1,22 @@
 """Portierung von `diakronos.kronos.api.permissions` (Altcode, Frappe).
 
+PERF-K2 (Karte „Kalender: N+1-Abfragen weiter senken“) — was hier schneller
+wurde und warum es DIESELBE Antwort gibt:
+
+  * `get_accessible_calendars` fragte den Rechte-Kern je Kalender viermal
+    (`darf` lesen/schreiben/vorschlagen + `pruefstufen` +
+    `moderationsstufen`) — bei 10 Kalendern 138 Abfragen fuer EINE Liste.
+    Jetzt laedt `rechte.vorladen.kalender_rechte_vorladen` dieselben
+    Antworten in wenigen Sammelabfragen in den Merker; entschieden wird
+    unveraendert von denselben Funktionen (`darf`, `pruefstufen`, …).
+  * `hat_leserecht` baute die GANZE Liste neu auf, um EINEN Kalender zu
+    beantworten — in Listen (Buchungsanfragen je Termin) der Wiederholer.
+    Jetzt fragt es den Kern direkt: dieselbe Frage, die die Liste je
+    Kalender stellt.
+
+Gleichheit: `tests/test_perf_k2_kalender_gleichheit.py` vergleicht beide
+Wege Feld fuer Feld.
+
 VORLAGE (READ-ONLY): `referenz/diakronos-frappe/diakronos/kronos/api/permissions.py`
 
 Portierte Endpunkte (Original-dotted paths ueber `FRAPPE_MODULE`):
@@ -30,6 +47,8 @@ Frappe-Aufrufe des Originals -> Compat-Schicht:
 """
 
 from __future__ import annotations
+
+import copy
 
 # Original-Frappe-Pfad der SPA (Registry-Schluessel, s. registry.py).
 FRAPPE_MODULE = "diakronos.kronos.api.permissions"
@@ -228,10 +247,37 @@ def hat_leserecht(calendar: str | None) -> bool:
     Eine Quelle fuer alle Konflikt-/Terminantworten: `get_accessible_calendars`.
     Ohne Leserecht duerfen Titel/Zeit/Kalender eines Termins nicht ausgeliefert
     werden.
+
+    PERF-K2: Die Frage wird EINZELN gestellt — vorher baute jeder Aufruf die
+    ganze Kalenderliste neu auf (`get_accessible_calendars`: alle Kalender,
+    je Kalender 4 Rechtefragen). In Listen (Buchungsanfragen je Termin!) war
+    das der Wiederholer. Inhaltlich identisch: `get_accessible_calendars`
+    nimmt genau die Kalender auf, fuer die `rechte.darf(user, LESEN, ...)`
+    gilt — dieselbe Frage, nur einmal statt N-mal.
+
+    Die EXISTENZ des Kalenders bleibt Vorbedingung (wie in
+    `hat_leserecht_fuer`): die alte Liste enthielt nur vorhandene Kalender,
+    und der Kern antwortet dem Admin JA vor jeder Objektpruefung. Ist die
+    Kalenderliste des Aufrufs schon gelesen, kommt die Antwort aus dem
+    Merker — keine neue Einzelabfrage.
     """
     if not calendar:
         return False
-    return any(c["name"] == calendar for c in get_accessible_calendars())
+    user = _get_effective_user()
+    if not user or user == "Guest":
+        return False
+    from diakronos_app import rechte
+    from diakronos_app.rechte.vorladen import kalender_existiert
+
+    # KANN 3 (PERF-K2b): die Existenzfrage in dasselbe try — der alte Weg baut
+    # hier ebenfalls `get_accessible_calendars`, dessen Ausnahme zu `[]` wurde.
+    try:
+        if not kalender_existiert(calendar):
+            return False  # unbekannter Kalender = kein Leserecht (auch fuer den Admin)
+        return bool(rechte.darf(user, rechte.LESEN, "kalender", str(calendar)))
+    except Exception:  # noqa: BLE001 — alter Weg: Liste warf, Antwort war []
+        log_error(str(calendar), "hat_leserecht")
+        return False
 
 
 def hat_leserecht_fuer(user: str, calendar: str | None) -> bool:
@@ -329,6 +375,18 @@ def get_accessible_calendars():
 
     try:
         from diakronos_app import rechte
+        from diakronos_app.rechte import kern as _kern
+
+        # PERF-K2 R1: EINE Liste je Aufruf (Termine + Serienanzahl fragen
+        # dieselbe). Der Merker wird nach jedem Schreibvorgang geleert, die
+        # Antwort ist also nie aelter als der Datenstand dieses Aufrufs.
+        # PERF-K2b (KANN 4): TIEF kopiert herausgeben — die Listenfelder
+        # (`stufen`, `pruefstufen`) sind sonst mit dem Merker GETEILT, und ein
+        # Aufrufer, der seinen Eintrag ergaenzt, veraenderte den Vorrat.
+        _liste_schluessel = ("kalenderliste", str(user))
+        _merker = _kern._MERKER.get()
+        if _merker is not None and _liste_schluessel in _merker:
+            return copy.deepcopy(_merker[_liste_schluessel])
 
         kalender_admin = _is_kalenderadministrator(user)
         calendars = get_all(
@@ -345,6 +403,24 @@ def get_accessible_calendars():
             zuordnung = {o: (g, u) for o, g, u in _sess.execute(
                 _select(RechteObjekt.objekt, RechteObjekt.gruppe, RechteObjekt.untergruppe)
                 .where(RechteObjekt.typ == "kalender")).all()}
+
+        # PERF-K2: Die Antworten des Rechte-Kerns fuer ALLE Kalender vorab
+        # merken (wenige Sammelabfragen) statt ihn je Kalender 4x zu fragen
+        # (`darf` lesen/schreiben/vorschlagen + `pruefstufen` +
+        # `moderationsstufen`). Entschieden wird unveraendert unten durch
+        # dieselben Funktionen — sie lesen nur den Vorrat. Ohne
+        # Merkungsrahmen (Skripte, CLI, Tests) tut das Vorabladen nichts.
+        # Siehe `rechte/vorladen.py` und `test_perf_k2_kalender_gleichheit.py`.
+        from diakronos_app.rechte.vorladen import (
+            kalender_existenz_merken,
+            kalender_rechte_vorladen,
+        )
+
+        # Die Liste ist oben VOLLSTAENDIG gelesen — damit ist fuer jeden
+        # Kalender auch die Existenzfrage beantwortet (`hat_leserecht` prueft
+        # sie, darf aber keine N+1 erzeugen).
+        kalender_existenz_merken(cal["name"] for cal in calendars)  # type: ignore[index]
+        kalender_rechte_vorladen(user, [cal["name"] for cal in calendars])  # type: ignore[index]
 
         result = []
         for cal in calendars:
@@ -380,6 +456,14 @@ def get_accessible_calendars():
                 eintrag["alle_anzahl"] = len(calendars)
             result.append(eintrag)
 
+        # PERF-K2b (R2, MUSS 1): Hier wird NICHTS aus der fertigen Liste
+        # zurueckgelegt. Der Vorrat oben (`kalender_rechte_vorladen`) enthaelt
+        # schon die Antworten des Kerns (`_darf_roh`); die Liste rechnet
+        # dagegen ihre eigene Oder-Kette (`write = pruefstufen or schreiben or
+        # vorschlagen`) — als `darf` abgelegt waere das eine ZWEITE
+        # Rechteregel und liess „ich moderiere“ zu „ich darf schreiben“ werden.
+        if _merker is not None:
+            _merker[_liste_schluessel] = copy.deepcopy(result)
         return result
 
     except Exception as e:  # noqa: BLE001 — Original faengt hier alles und gibt [] zurueck

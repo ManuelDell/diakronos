@@ -270,6 +270,29 @@ def _rechte_aus_alteingaben(name: str, user: str, lese: list[str] | None,
             rv.setze_freigabe(user, "kalender", name, benutzer=person)
 
 
+class _Zeile:
+    """Attribut-Zugriff auf eine Zeile aus `get_all` (`doc.name`, `doc.get(...)`).
+
+    PERF-K2: `_kalender_eintrag` liest ein Kalender-Dokument; statt je Kalender
+    ein `get_doc` zu holen, wird die Zeile aus EINER Sammelabfrage gelesen.
+    Dieselben Felder, dieselbe Form — nur ohne eigene Abfrage und Sitzung.
+    """
+
+    __slots__ = ("_d",)
+
+    def __init__(self, d: dict[str, Any]) -> None:
+        self._d = dict(d)
+
+    def __getattr__(self, name: str) -> Any:
+        try:
+            return self._d[name]
+        except KeyError as exc:
+            raise AttributeError(name) from exc
+
+    def get(self, name: str, vorgabe: Any = None) -> Any:
+        return self._d.get(name, vorgabe)
+
+
 def _kalender_eintrag(doc) -> dict[str, Any]:
     """Ein Kalender in der Form, die die Verwaltungsseite braucht.
 
@@ -347,12 +370,24 @@ def get_kalender_verwaltung():
 
     user = _require_angemeldet()
     namen = get_all("Kalender", fields=["name"], order_by="name asc") or []
+    # PERF-K2: die Zeilen ALLER Kalender in EINER Abfrage. Vorher lief je
+    # Kalender ein `get_doc("Kalender", ...)` — bei 10 Kalendern 10 Abfragen
+    # fuer Daten, die eine Abfrage liefert. Die Felder sind genau die, die
+    # `_kalender_eintrag` liest; fehlt eine Zeile, laeuft der alte Weg.
+    zeilen = {
+        str(z["name"]): dict(z)  # type: ignore[index]
+        for z in (get_all("Kalender", fields=["name", "calendar_name", "calendar_color",
+                                              "selbstverwaltet", "calender_details"]) or [])
+        if isinstance(z, dict) and z.get("name")
+    }
     kalender = []
     for eintrag in namen:
         if not rechte.darf(user, rechte.VERWALTEN, "kalender", eintrag["name"]):
             continue
         try:
-            kalender.append(_kalender_eintrag(get_doc("Kalender", eintrag["name"])))
+            zeile = zeilen.get(str(eintrag["name"]))
+            kalender.append(_kalender_eintrag(
+                _Zeile(zeile) if zeile is not None else get_doc("Kalender", eintrag["name"])))
         except Exception:  # noqa: BLE001 — eine kaputte Zeile darf die Liste nicht kippen
             continue
 

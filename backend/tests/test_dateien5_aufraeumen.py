@@ -37,6 +37,19 @@ JETZT = datetime(2026, 11, 24, 12, 0)
 # ── Helfer ──────────────────────────────────────────────────────────────────
 
 
+
+@pytest.fixture(autouse=True)
+def _feste_uhr(monkeypatch):
+    """Alle Zeitstempel des Codes auf JETZT stellen.
+
+    Die Vormerk-Helfer (api.dateien und dsgvo_anonymisierung) stempeln ``naechster_versuch_am`` mit der
+    echten Uhr (``_jetzt``), ``aufraeumen(JETZT)`` waehlt aber nur Auftraege
+    mit ``naechster_versuch_am <= JETZT``. Ohne diese Festlegung fielen die
+    Tests ab dem 24.11.2026 12:00 (JETZT) durch: Zeitbombe.
+    """
+    import diakronos_app.zeit as zeit
+    monkeypatch.setattr(zeit, "jetzt_wanduhr", lambda: JETZT)
+
 @pytest.fixture()
 def ablage(tmp_path):
     """Die Ablage nur für diesen Test (``tmp_path``, kein Netz)."""

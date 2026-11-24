@@ -269,6 +269,21 @@ def get_calendar_events(start_date, end_date, calendar_filter=None, view_mode=Tr
         if not effective:
             return []
 
+        # PERF-K2: Alle Kalender-Zeilen (Anzeigename + Farbe) in EINER Abfrage
+        # statt `get_value("Kalender", ...)` JE TERMIN. Vorher kostete eine
+        # Monatsansicht mit 276 Terminen 276 solcher Einzelabfragen; hier sind
+        # es eine. Inhaltlich identisch: `get_value` liefert die erste Zeile
+        # zum Namen, die Abbildung nimmt dieselbe Zeile.
+        kalender_zeilen = {
+            str(z.get("name")): z
+            for z in (get_all(
+                "Kalender",
+                filters={"name": ["in", sorted({str(n) for n in effective})]},
+                fields=["name", "calendar_name", "calendar_color"],
+            ) or [])
+            if isinstance(z, dict) and z.get("name")
+        }
+
         events = []
 
         if view_mode:
@@ -345,12 +360,18 @@ def get_calendar_events(start_date, end_date, calendar_filter=None, view_mode=Tr
             # A11-N2: Der ANZEIGENAME des Kalenders gehört mit in die Zeile.
             # Vorher trug `extendedProps.element_calendar` nur den internen
             # Schlüssel („gruppen“), und das Termin-Blatt zeigte genau den an.
-            cal_info = dict(_als_dict(get_value(
-                "Kalender",
-                element_calendar,
-                ["calendar_name", "calendar_color"],
-                as_dict=True,
-            ))) if element_calendar else {}
+            # PERF-K2: Zeile kommt aus dem Vorrat oben (eine Abfrage je
+            # Aufruf); nur ein Kalender OHNE Zeile wird einzeln nachgefragt —
+            # dann ist das Ergebnis dasselbe wie vorher.
+            cal_info = dict(_als_dict(kalender_zeilen.get(str(element_calendar)))
+                            ) if element_calendar else {}
+            if element_calendar and str(element_calendar) not in kalender_zeilen:
+                cal_info = dict(_als_dict(get_value(
+                    "Kalender",
+                    element_calendar,
+                    ["calendar_name", "calendar_color"],
+                    as_dict=True,
+                )))
 
             color = (
                 cal_info.get("calendar_color")
@@ -748,6 +769,13 @@ def _serien_termine(
     """
     # UX2b: Termine im Papierkorb zaehlen nicht als Seriengroesse.
     basis = {"series_id": ["in", serien_ids], "geloescht_am": ["is", "not set"]}
+
+    # PERF-K2b (R2, KANN 5): Hier stand eine „Untergrenze“ der Existenzfrage
+    # (`kalender_existenz_fehler_merken`) — nur „ja“-Antworten aus einer
+    # Namensliste. Mit der Liste aus R1 ist auch der letzte Aufrufer weg; das
+    # Vorabladen (`kalender_rechte_vorladen`) belegt die Existenz mit einer
+    # echten Sammelabfrage (`_existenz_abfragen`), und die Einzelfrage
+    # antwortet sonst selbst.
     if nur_festgelegt:
         return get_all(
             "Element",

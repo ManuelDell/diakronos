@@ -32,7 +32,7 @@ FRAPPE_MODULE = "diakronos.diakonos.api.ressourcen"
 from datetime import date, datetime
 from typing import Any
 
-from diakronos_app.frappe_compat.api_helpers import _create, _delete_doc, _now, _update_doc
+from diakronos_app.frappe_compat.api_helpers import _create, _delete_doc, _update_doc
 from diakronos_app.frappe_compat import db
 from diakronos_app.frappe_compat import permissions
 from diakronos_app.frappe_compat import whitelist
@@ -43,6 +43,7 @@ from diakronos_app.frappe_compat.exceptions import (
 )
 from diakronos_app.frappe_compat.query import get_all, get_doc, get_value
 from diakronos_app.frappe_compat.session import session
+from diakronos_app.zeit import jetzt_wanduhr
 
 # ─── Helfer ──────────────────────────────────────────────────────────────────
 
@@ -364,7 +365,13 @@ def get_ressourcen_liste(typ="", search=""):
         order_by="ressource_name asc",
     )
 
-    now = str(_now())
+    # ZEIT-3/TEST-P4C2: „läuft gerade“ vergleicht gegen die WANDUHR der
+    # Gemeinde, nicht gegen UTC. `datum_von`/`datum_bis` sind zeitzonenlose
+    # Ortszeit (das Formular schickt Berliner Wandzeit); `_now()` liefert
+    # dagegen UTC ohne tzinfo. Ein Vergleich gegen `_now()` verschob das
+    # Fenster im Sommer um zwei Stunden: zwischen 0 und 2 Uhr Ortszeit stand
+    # eine laufende Buchung auf „available“.
+    now = str(jetzt_wanduhr().replace(microsecond=0))
 
     result = []
     for r in ressourcen:
