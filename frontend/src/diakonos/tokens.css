@@ -427,6 +427,14 @@
   --sb-item-h: 36px;
   --row-h:     44px;
   --topbar-h:  56px;
+  /* BEF-KAL-UNTEN (Manuel 24.11., DMB-d43df8406c05): EIN Token für „was unten
+     im Bild liegt". Die untere Leiste ist so hoch, und genau so viel Platz
+     braucht der Inhalt einer Vollbild-Seite (Kalender, Nachrichten), damit
+     die unterste Zeile NICHT unter der Leiste verschwindet. Die Sicherheits-
+     zone des Geräts (Home-Indikator) kommt über `env(safe-area-inset-bottom)`
+     dazu — deshalb steht sie nicht im Wert (der Token bleibt modus- und
+     geräteunabhängig, genau wie --bottom-nav-h). */
+  --leiste-unten-h: var(--bottom-nav-h);
   /* DEV-B6b (Review 10.11., Punkt 6): Höhe der unteren Leiste (Handy-Lage) an
      EINER Stelle. Vorher standen 64px (Leiste selbst) und 56px (Fußabstand,
      Toast, Querformat-Blöcke des Kalenders) nebeneinander — im Querformat lag
@@ -933,6 +941,7 @@
   --dk-sidebar-w:   var(--sidebar-w);
   --dk-sidebar-col: var(--sidebar-col);
   --dk-topbar-h:    var(--topbar-h);
+  --dk-leiste-unten-h: var(--leiste-unten-h);
 
   /* ── DEV-B6 (Manuel 09.11.): DIE Bedingung fürs Handy-Layout ─────────────
      Befund DMB-3a7d335074cc: Die untere Navigationsleiste erschien auf einem

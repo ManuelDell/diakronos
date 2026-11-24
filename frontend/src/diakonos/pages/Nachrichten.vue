@@ -4021,9 +4021,16 @@ watch(suchBegriff, (neu) => {
 .dk-app--handy .dk-chat {
   padding: 0 var(--sp-4);
   max-width: none;
-  /* `.dk-app--handy .dk-screen` in index.css setzt den Fußabstand für die
-     Leiste (`!important`) — hier trägt ihn der Inhaltskasten. */
-  padding-bottom: 0 !important;
+  /* BEF-KAL-UNTEN (Manuel 24.11., DMB-d43df8406c05): Fußabstand EINMAL, hier
+     an der Seite. Bisher trug ihn der Inhaltskasten `.dk-content`
+     (index.css) — der ist bei den Vollbild-Seiten aber die Flex-Säule der
+     Seite, dort klaut ein `padding-bottom` dem Inhalt die Höhe (Kalender:
+     unterste Zeile fiel unter die Leiste). Deshalb gilt der Kasten-Abstand
+     für `dk-content--vollbild` nicht mehr; die Seite trägt ihn: untere Leiste
+     (`--leiste-unten-h`) + Sicherheitszone + Luft. Die Eingabe behält ihre
+     Luft INNEN (`.dk-chat-eingabe`, `--sp-3`) — das ist keine zweite Zählung
+     der Leiste. */
+  padding-bottom: calc(var(--leiste-unten-h) + env(safe-area-inset-bottom) + var(--sp-2));
   overflow: hidden;
 }
 /* Das OFFENE Gespräch nimmt die volle Breite (randlos); die Liste behält
@@ -4036,6 +4043,9 @@ watch(suchBegriff, (neu) => {
   box-shadow: none;
 }
 .dk-app--handy .dk-chat .dk-chat-eingabe {
+  /* BEF-KAL-UNTEN: Luft INNEN in der Eingabe — der Fußabstand der Seite
+     (`--leiste-unten-h`) hält die Leiste frei. Zusammen bleibt es bei
+     Leiste + Sicherheitszone + 12 px, jetzt aber ohne doppelte Zählung. */
   padding-bottom: var(--sp-3);
 }
 

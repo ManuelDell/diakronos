@@ -394,7 +394,13 @@ test('CHAT-3a-5/B: am Handy ist nur das OFFENE GESPRÄCH randlos, die Liste beh�
   const basis = stilRegel(css, '\n.dk-app--handy .dk-chat {')
   assert.match(basis, /padding:\s*0 var\(--sp-4\)/, 'die Seite trägt links/rechts den Seitenrand')
   assert.match(basis, /max-width:\s*none/, 'und keine Breitenbegrenzung')
-  assert.match(basis, /padding-bottom:\s*0 !important/, 'der Fußabstand gehört dem Inhaltskasten')
+  // BEF-KAL-UNTEN (24.11.): Der Fußabstand liegt seit dieser Karte an der
+  // SEITE statt am Inhaltskasten — bei Vollbild-Seiten ist `.dk-content` die
+  // Flex-Säule, dort klaut ein `padding-bottom` dem Inhalt die Höhe (Befund
+  // DMB-d43df8406c05: unterste Terminzeile unter der Leiste). Er ist auch
+  // weiter EINE Zählung: Leiste + Sicherheitszone aus dem Token.
+  assert.match(basis, /padding-bottom:\s*calc\(var\(--leiste-unten-h\) \+ env\(safe-area-inset-bottom\) \+ var\(--sp-2\)\)/,
+    'der Fußabstand der Seite ist Leiste + Sicherheitszone (Token, keine Rohwerte)')
   assert.match(basis, /overflow:\s*hidden/, 'die Seite scrollt nicht als Ganzes')
 
   // Das offene Gespräch hebt den Rand auf.

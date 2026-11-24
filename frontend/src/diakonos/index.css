@@ -2378,6 +2378,15 @@ select.dk-form-select { appearance: auto; }
 }
 /* DEV-B6b (Punkt 6): Fußabstand aus demselben Token wie die Leiste selbst. */
 .dk-app--handy .dk-content { padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + var(--sp-5)) !important; }
+/* BEF-KAL-UNTEN (Manuel 24.11., DMB-d43df8406c05): Die Vollbild-Seiten (Kalender,
+   Nachrichten) sind die Flex-SÄULE ihrer Seite — `.dk-content` ist dort der
+   Kasten, dessen Höhe vom Gerüst kommt. Ein `padding-bottom` am Flex-Kasten
+   klaut dem Inhalt genau diese Höhe (beim Kalender fiel die unterste Zeile
+   der Tagesliste unter die Leiste, obwohl die Liste selbst 80 px Platz hatte).
+   Der Fußabstand für die untere Leiste steht deshalb EINMAL, an der Seite
+   (`--leiste-unten-h` + Sicherheitszone). `dk-content--vollbild` setzt
+   `App.vue` für genau diese Adressen (router.js `vollbildRoute`). */
+.dk-app--handy .dk-content.dk-content--vollbild { padding-bottom: 0 !important; }
 .dk-app--handy .dk-screen { padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + var(--sp-5)) !important; }
 /* FIX-6b/K2: `.dk-topbar-search` und `.kronos-header .sidebar-toggle-btn`
    standen hier, sind aber tot: `.dk-topbar-search` kommt in keinem Template

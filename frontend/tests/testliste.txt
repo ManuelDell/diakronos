@@ -1077,3 +1077,12 @@ tests/leiste2-*.test.mjs
 # Rückfall greift erst nach der Serverantwort), der Ladezustand behauptet
 # keinen Satz mehr im Bild (ux2d3a), Bilder bieten zusätzlich „Öffnen“.
 tests/dateien4-*.test.mjs
+# BEF-KAL-UNTEN (Manuel 24.11., DMB-d43df8406c05): Der untere Bereich des
+# Kalenders am Handy verdeckte Termine. Regeln ohne DOM: EIN Token für den
+# Platz der unteren Leiste (`--leiste-unten-h`, Leiste + Sicherheitszone),
+# kein `--topbar-h`-Abzug mehr (LEISTE-2 hat die Kopfzeile abgeschafft), der
+# Kasten `.dk-content` trägt den Abstand bei Vollbild-Seiten nicht mehr, der
+# Knopf ist am Handy ein runder „+“ mit `aria-label="Termin anlegen"`, und
+# Nachrichten (gleicher Vollbild-Modus) halten die Leiste mit demselben Token
+# frei. Gegenprobe U6: die alte Fassung fällt zweifach durch.
+tests/bef-kal-unten-handy.test.mjs

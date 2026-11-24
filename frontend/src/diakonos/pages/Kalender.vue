@@ -250,17 +250,23 @@
 
     <!-- A10, Punkt 5: der schwebende Knopf „+ Termin anlegen“ (56 px) über der
          unteren Leiste — der EINE Primärknopf der Mobil-Ansicht, nur mit
-         Schreibrecht. Am Desktop steht der Knopf in der Kopfzeile (A4). -->
+         Schreibrecht. Am Desktop steht der Knopf in der Kopfzeile (A4).
+         BEF-KAL-UNTEN (Manuel 24.11., DMB-d43df8406c05): Am HANDY ist er ein
+         runder „+“-Knopf (Wunsch aus DMB-b329fefa1f4d) — die breite Pille lag
+         quer über der Tagesliste und verdeckte Termine. Der Name steht weiter
+         im `aria-label`; die Pille gibt es nur noch am Desktop, falls die
+         Handy-Lage ohne Fingerzeiger greift (schmales Mausfenster). -->
     <button
       v-if="istSchmal && hasWriteRight"
       type="button"
       class="kal-fab"
+      :class="{ 'kal-fab--rund': istHandyLage }"
       data-primaer="1"
       aria-label="Termin anlegen"
       @click="terminAnlegen"
     >
       <DkSymbol name="hinzufuegen" :groesse="20" />
-      <span>Termin anlegen</span>
+      <span v-if="!istHandyLage">Termin anlegen</span>
     </button>
 
     <!-- Alle Modals -->
@@ -2189,20 +2195,25 @@ defineExpose({
    die TERMINE der Tagesliste lagen unter dem schwebenden Knopf bzw. wurde
    gar nicht gescrollt (im Wegwerf-Stack gemessen: Listenfläche 666 px hoch,
    Fenster 708 px).
-   Die Höhe der Mobil-Fläche ist deshalb ausdrücklich das Fenster minus
-   obere Leiste minus untere Leiste (A10: 844 − 56 − 64 = 724 px). */
+   BEF-KAL-UNTEN (Manuel 24.11., DMB-d43df8406c05): Höhe = Fenster minus
+   UNTERE Leiste (kein App-Kopf mehr seit LEISTE-2). Vorher zog die Liste hier
+   zusätzlich `--topbar-h` ab — die Kopfzeile gibt es auf dieser Seite nicht
+   mehr, die 56 px fehlten also am Ende. */
 .kronos-page-content > .dk-mobilkopf,
 .kronos-page-content > .dk-pruefzeile,
 .kronos-page-content > .kal-mobil-raster > .kal-monat-mobil { flex: none; }
+/* Der Abstand unten ist EINMAL gezählt: Leiste (`--leiste-unten-h`) +
+   Sicherheitszone + Luft. Darin steht der runde „+“-Knopf (56 px über der
+   Leiste) — die letzte Terminzeile bleibt über ihm lesbar. `.dk-content`
+   trägt bei Vollbild-Seiten KEINEN Fußabstand mehr (index.css), sonst fehlte
+   die Höhe hier. */
 .kal-a10-liste {
   flex: 1 1 auto;
   min-height: 0;
-  height: calc(100vh - var(--topbar-h) - var(--sp-8) - env(safe-area-inset-bottom));
+  height: calc(100vh - var(--sp-8) - env(safe-area-inset-bottom));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  /* Platz unter der letzten Zeile: FAB (56 px) + Rand (der Knopf liegt über
-     der unteren Leiste, nicht über dem Inhalt). */
-  padding-bottom: calc(var(--sp-8) + var(--sp-4));
+  padding-bottom: calc(var(--leiste-unten-h) + env(safe-area-inset-bottom) + var(--sp-4));
 }
 /* DEV-B6 (Review 10.11., Punkt 4): Die A10-Fläche existiert NUR im Mobil-Bau
    (Handy-Lage) — dort gelten die Querformat-Abstände.
@@ -2218,17 +2229,20 @@ defineExpose({
     flex: none;
     height: auto;
     overflow: visible;
-    padding-bottom: calc(var(--sp-8) + var(--sp-4));
+    padding-bottom: calc(var(--leiste-unten-h) + env(safe-area-inset-bottom) + var(--sp-4));
   }
 }
+/* BEF-KAL-UNTEN: Dasselbe für das RASTER (Monat/Woche). Es zog ebenfalls
+   `--topbar-h` ab (56 px, die es seit LEISTE-2 nicht mehr gibt) und hatte nur
+   `--sp-8` (64 px) Platz unten — die unterste Zelle lag unter der Leiste. */
 .kal-mobil-raster {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--topbar-h) - var(--sp-8) - env(safe-area-inset-bottom));
+  height: calc(100vh - var(--sp-8) - env(safe-area-inset-bottom));
   overflow: auto;
-  padding: 0 var(--sp-2) var(--sp-8);
+  padding: 0 var(--sp-2) calc(var(--leiste-unten-h) + env(safe-area-inset-bottom) + var(--sp-4));
 }
 /* Der Halter des Rasters (Monat/Woche) — volle Höhe, damit
    „Kalender wird geladen …“ mittig sitzt und das Raster darunter Platz hat. */
@@ -2313,6 +2327,24 @@ defineExpose({
 /* A10-N3 (Punkt 3): Fokusring NUR bei Tastaturbedienung — im Ruhezustand
    trägt die Fläche (kein „fremder“ Ring mehr). */
 .kal-fab:focus-visible { outline: var(--ring-breite) solid var(--focus-ring); outline-offset: var(--sp-1); }
+/* BEF-KAL-UNTEN (Manuel 24.11., DMB-d43df8406c05, Wunsch DMB-b329fefa1f4d):
+   Am Handy ist der Knopf RUND und trägt nur das „+“ (56 × 56 px, benannt über
+   `aria-label="Termin anlegen"`). Die breite Pille („＋ Termin anlegen“, rund
+   200 px) lag quer über der Tagesliste und verdeckte Termine; ein Kreis deckt
+   ein Quadrat ab und lässt die Zeilenreihe unter ihm lesbar. Die senkrechte
+   Lage über der unteren Leiste bleibt die der Pille (`bottom` oben).
+   Die Breite ist das Treffer-Maß `--treffer-handy` (44 px) plus eine
+   Skalenstufe = 56 px (die Höhe des Knopfes, `min-height` oben) — Kreis ohne
+   Rohwert. */
+.kal-fab--rund {
+  width: calc(var(--treffer-handy) + var(--sp-3));
+  min-width: calc(var(--treffer-handy) + var(--sp-3));
+  padding: 0;
+  border-radius: var(--badge-r);
+  justify-content: center;
+  gap: 0;
+}
+.kal-fab--rund .dk-symbol { margin: 0; }
 /* DEV-B6: Der FAB steht nur im Mobil-Bau (Handy-Lage).
    DEV-B6b (Review 10.11., Punkt 6): Im Querformat lag er mit `bottom: 16px`
    HINTER der unteren Leiste (64 px) — er ist jetzt genauso hoch gestellt wie
