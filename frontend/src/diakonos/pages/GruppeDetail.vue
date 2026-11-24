@@ -27,7 +27,7 @@
              aus den Serverdaten (`get_gruppe_detail.rechte`), nicht aus einer
              lokalen Regel. Durchgesetzt wird ohnehin serverseitig. -->
         <DkReiter
-            v-if="!erstLadend && !error && zeigeEinstellungenReiter"
+            v-if="!erstLadend && !error && reiterOptionen.length > 1"
             class="grup-reiter"
             :model-value="aktiverReiter"
             :options="reiterOptionen"
@@ -111,11 +111,44 @@
                             />
                         </div>
                     </DkCard>
+                    <!-- DATEIEN-4 (Punkt 3): die beiden Datei-Schalter der
+                         Gruppe — nur für die Leitung bedienbar. Den Stand
+                         entscheidet der Server (`darf_aendern`); die Karte
+                         steht nur, wem der Reiter „Einstellungen“ offensteht. -->
+                    <!-- R1 (3): die Schalter gehören zum Modul — ist es aus,
+                         gibt es hier nichts zu stellen (die Karte fiele sonst
+                         auf „nicht geladen“ zurück). -->
+                    <DkCard v-if="dateienOffen" title="Dateien" :sub="dateienEinstellungenHinweis">
+                        <GruppenDateiEinstellungen
+                            :gruppe="obergruppeId"
+                            @geaendert="nachladen"
+                            @hinweis="dateienEinstellungenHinweis = $event"
+                        />
+                    </DkCard>
                 </div>
             </template>
 
+            <template v-else-if="aktiverReiter === 'dateien'">
+                <!-- DATEIEN-4: eigener Reiter — Liste, Hochladen, Pin,
+                     Umbenennen, Löschen und Papierkorb. Die Karte gehört der
+                     Seite (wie bei Rollen/Kalender), der Baustein bringt nur
+                     ihren Inhalt; die Unterzeile kommt von ihm (`@hinweis`). -->
+                <DkCard title="Dateien dieser Gruppe" :sub="dateienHinweis">
+                    <!-- R1 (1): bis der Server geantwortet hat, steht hier die
+                         FORM des Inhalts — nicht der leere Kartenkörper und
+                         kein Rückfall auf die Übersicht. -->
+                    <DkSkelett v-if="!dateienGeprueft" form="zeilen" :anzahl="3" text="Dateien dieser Gruppe werden geladen" />
+                    <GruppenDateien
+                        v-else
+                        :gruppe="obergruppeId"
+                        :untergruppe="untergruppeId"
+                        @hinweis="dateienHinweis = $event"
+                    />
+                </DkCard>
+            </template>
+
             <template v-else>
-            <!-- ab hier nur, wenn der Reiter NICHT „Einstellungen“ ist -->
+            <!-- ab hier nur, wenn der Reiter NICHT „Einstellungen“/„Dateien“ ist -->
             <!-- Zweispaltig -->
             <div class="grup-grid">
                 <!-- LINKE SPALTE -->
@@ -533,6 +566,8 @@ import { zahlWort } from '../components/ui/begriffe.mjs'
 // UI-R1: der Reiter „Einstellungen“ (Teil 1: Rollen). Die frühere Karte
 // „Verantwortliche“ ist entfallen — die Rollen stehen jetzt dort.
 import GruppenEinstellungen from '../components/gruppen/GruppenEinstellungen.vue'
+// DATEIEN-4: Datei-Schalter der Gruppe (Reiter „Einstellungen“).
+import GruppenDateiEinstellungen from '../components/gruppen/GruppenDateiEinstellungen.vue'
 import { darfEinstellungenSehen as darfEinstellungenSehenVon } from '../components/gruppen/gruppenEinstellungen.mjs'
 // UI-R1: EINE Reiterzeile (Stil A4) — dieselbe wie unter „Personen“.
 import DkReiter from '../components/ui/DkReiter.vue'
@@ -540,6 +575,8 @@ import DkReiter from '../components/ui/DkReiter.vue'
 // Kalender zu dieser Seite gehören (reine Funktionen, getestet in
 // tests/ui-r5-gruppen-termin.test.mjs).
 import KronosEventCreate from '../components/kronos/KronosEventCreate.vue'
+// DATEIEN-4: der Inhalt des Reiters „Dateien“ (Liste, Hochladen, Papierkorb).
+import GruppenDateien from '../components/gruppen/GruppenDateien.vue'
 import {
     kalenderDerGruppe,
     vorbelegterKalender,
@@ -552,6 +589,7 @@ export default {
         DkPageHeader, DkButton, DkBadge, DkCard, DkField, DkSelect,
         DkCheckbox, DkTable, DkEmpty, DkHint, MitgliedAuswahl,
         DkAktionen, GruppenEinstellungen, DkReiter, DkSkelett, KronosEventCreate,
+        GruppenDateien, GruppenDateiEinstellungen,
     },
     setup() {
         const { isAdmin, user } = useSession()
@@ -675,11 +713,66 @@ export default {
         /** UI-R1b: „Es wird gerade geladen, aber es gibt noch keinen Inhalt“. */
         const erstLadend = computed(() => Boolean(loading.value) && !geladen.value)
 
-        /** UI-R1: der Reiter steht in der Adresse (`…/einstellungen`). */
+        /** UI-R1: der Reiter steht in der Adresse (`…/einstellungen`).
+         *  DATEIEN-4: ebenso `…/dateien` für den Datei-Reiter. */
         const aktiverReiter = computed(() => {
             const hash = String(currentHash.value || '')
-            return /\/einstellungen\/?$/.test(hash) ? 'einstellungen' : 'uebersicht'
+            if (/\/einstellungen\/?$/.test(hash)) return 'einstellungen'
+            if (/\/dateien\/?$/.test(hash)) return 'dateien'
+            return 'uebersicht'
         })
+
+        /**
+         * DATEIEN-4 (F1/F3): Steht der Reiter „Dateien“ offen?
+         *
+         * Entschieden wird wie bei den anderen Modul-Reitern: das Modul
+         * `dateien` muss für diese (Unter-)Gruppe AN sein. Der Server ist die
+         * eine Wahrheit (`rechte.darf(LESEN, "gruppe_datei", …)` — bei
+         * ausgeschaltetem Modul antwortet er mit 403); die Seite fragt ihn
+         * deshalb EINMAL, wenn die Detailantwort da ist.
+         *
+         * Fail closed: ohne Antwort (Fehler, noch nicht gefragt) bleibt der
+         * Reiter zu — nie ein Reiter, der beim Klick nur den Rechtehinweis
+         * zeigt.
+         */
+        const dateienOffen = ref(false)
+        /**
+         * DATEIEN-4 (R1, Punkt 1): Wurde der Server schon GEFRAGT?
+         *
+         * `dateienOffen === false` allein heißt zweierlei: „Modul aus“ ODER
+         * „noch nicht gefragt“. App.vue baut diese Seite bei jedem Reiter-
+         * Wechsel neu auf (`:key="currentHash"`) — ein Direktlink auf
+         * `#/gruppe/<id>/dateien` startet also mit `dateienOffen === false`,
+         * und der Rückfall-Watch schickte die Seite sofort auf die Übersicht
+         * zurück (der Reiter war nie erreichbar). Erst wenn die Frage
+         * beantwortet ist (`dateienGeprueft`), darf der Rückfall greifen; bis
+         * dahin zeigt der Reiter sein Skelett.
+         */
+        const dateienGeprueft = ref(false)
+        // DATEIEN-4: Unterzeilen der Datei-Karten (kommen aus den Bausteinen).
+        const dateienHinweis = ref('')
+        const dateienEinstellungenHinweis = ref('')
+
+        /** Fragt der Server, ob die Dateien dieser (Unter-)Gruppe lesbar sind. */
+        async function ladeDateienModul() {
+            // Neue Frage (auch beim Wechsel der (Unter-)Gruppe): der alte Stand
+            // gilt nicht mehr — bis zur Antwort ist der Reiter „ungeprüft“.
+            dateienGeprueft.value = false
+            dateienOffen.value = false
+            const g = obergruppeId.value
+            if (!g) { dateienGeprueft.value = true; return }
+            const params = { gruppe: g }
+            if (untergruppeId.value) params.untergruppe = untergruppeId.value
+            try {
+                await apiCall('diakronos.diakonos.api.dateien.liste', params)
+                dateienOffen.value = true
+            } catch {
+                // Kein Leserecht oder Modul aus: es gibt hier keine Dateien.
+                dateienOffen.value = false
+            } finally {
+                dateienGeprueft.value = true
+            }
+        }
 
         /**
          * UI-R1: Kennung der Gruppe, unter der die Rollen liegen.
@@ -773,6 +866,11 @@ export default {
             if (darfEinstellungenSehenVon(rechteFuerReiter())) {
                 optionen.push({ value: 'einstellungen', label: 'Einstellungen', href: `#/gruppe/${id}/einstellungen` })
             }
+            // DATEIEN-4 (F1): der Datei-Reiter steht zwischen Übersicht und
+            // Einstellungen — er hängt am Serverurteil über das Modul.
+            if (dateienOffen.value) {
+                optionen.splice(1, 0, { value: 'dateien', label: 'Dateien', href: `#/gruppe/${id}/dateien` })
+            }
             return optionen
         })
 
@@ -794,9 +892,22 @@ export default {
          * `hashchange` — der Router zieht nach. Dasselbe Muster wie die
          * Weiterleitungen im Router (router.js, `window.location.replace(…)`).
          */
-        watch([() => erstLadend.value, () => error.value, zeigeEinstellungenReiter, aktiverReiter],
-            ([laedt, fehlerWert, sehen, reiter]) => {
-                if (laedt || fehlerWert || sehen || reiter !== 'einstellungen') return
+        watch([() => erstLadend.value, () => error.value, zeigeEinstellungenReiter, aktiverReiter,
+            dateienGeprueft, dateienOffen],
+            ([laedt, fehlerWert, sehen, reiter, geprueft, offen]) => {
+                if (laedt || fehlerWert) return
+                // DATEIEN-4: derselbe Rückfall für den Datei-Reiter, wenn das
+                // Modul aus ist (oder diese Person die Dateien nicht lesen darf).
+                // R1: NUR nach der Antwort des Servers — vorher heißt „zu“
+                // keine Auskunft, sondern nur „noch nicht gefragt“. Sonst
+                // schickte der Direktlink `#/gruppe/<id>/dateien` sich selbst
+                // sofort auf die Übersicht zurück.
+                if (reiter === 'dateien') {
+                    if (!geprueft || offen) return
+                    window.location.replace(`#/gruppe/${gruppeId.value}`)
+                    return
+                }
+                if (sehen || reiter !== 'einstellungen') return
                 window.location.replace(`#/gruppe/${gruppeId.value}`)
             })
 
@@ -1127,6 +1238,10 @@ export default {
                     }
                 }
                 geladen.value = true
+                // DATEIEN-4: hat diese (Unter-)Gruppe Dateien? Der Server
+                // entscheidet (Modul an + Leserecht) — Einmal-Frage je
+                // Seitenaufbau, still (scheitert sie, bleibt der Reiter zu).
+                if (kalender) ladeDateienModul()
                 // UI-R5: Kalender dieser Seite für „+ Termin“ (Beiwerk wie die
                 // Termine selbst — scheitert es, gibt es keinen Knopf).
                 // AUFR-2: `ladeMeineKalender` erfährt die Sperre mit und
@@ -1765,6 +1880,13 @@ export default {
             reiterOptionen,
             zeigeEinstellungenReiter,
             untergruppenFuerEinstellungen,
+            // DATEIEN-4: der Reiter „Dateien“ (hängt am Serverurteil über das
+            // Modul) und die Unterzeilen seiner beiden Karten.
+            dateienOffen,
+            dateienGeprueft,
+            dateienHinweis,
+            dateienEinstellungenHinweis,
+            ladeDateienModul,
             // UI-R1: die Rollenliste hängt an der HAUPTgruppe (auf einer
             // Untergruppen-Seite die Obergruppe) und an der Untergruppe selbst.
             obergruppeId,

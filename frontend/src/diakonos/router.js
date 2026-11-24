@@ -299,6 +299,9 @@ const dynamicRoutes = [
     // und Einstellungen (#/gruppe/<id>/einstellungen). Das Reiter-Muster steht
     // wörtlich VOR dem Detailmuster, sonst schluckte `#/gruppe/<id>` den Reiter.
     { pattern: /^#\/gruppe\/([^/]+)\/einstellungen$/, page: 'GruppeDetail', param: 'id' },
+    // DATEIEN-4: dritter Reiter „Dateien“ (#/gruppe/<id>/dateien) — aus
+    // demselben Grund wörtlich VOR dem Detailmuster.
+    { pattern: /^#\/gruppe\/([^/]+)\/dateien$/, page: 'GruppeDetail', param: 'id' },
     { pattern: /^#\/gruppe\/(.+)$/, page: 'GruppeDetail', param: 'id' },
     // UX3a: Liedgruppen sind ein Reiter von „Lieder“ (wörtlich VOR dem
     // Detailmuster, sonst schluckte `#/lieder/gruppen/…` den Reiter).

@@ -214,6 +214,34 @@ def job_chat_anhang_entsorgung() -> None:
 		logger.info("Job chat_anhang_entsorgung fertig (%s).", ergebnis)
 
 
+def job_gruppe_datei_aufraeumen() -> None:
+	"""Minuten-Job (DATEIEN-5): Gruppendatei-Papierkorb und Entsorgungsliste.
+
+	Zwei Schritte in EINEM Lauf (``api.dateien.aufraeumen``):
+
+	* Papierkorb leeren — Zeilen aus ``gruppe_datei``, deren ``geloescht_am``
+	  aelter als ``models.dateien.PAPIERKORB_TAGE`` (30 Tage, F5) ist, fallen;
+	  ihre Speicher-Schluessel werden in DERSELBEN Transaktion in
+	  ``gruppe_datei_entsorgung`` vorgemerkt.
+	* Entsorgungsliste abarbeiten — die Datei verschwindet aus der Ablage,
+	  erst danach die Zeile. Ein Fehler zaehlt ``versuche`` hoch, der Auftrag
+	  bleibt stehen (Backoff wie ``job_chat_anhang_entsorgung``).
+
+	F6: nicht geloeschte Dateien haben keine Frist — sie werden nie angefasst.
+	Ein Fehler wird nur protokolliert; der naechste Takt versucht es erneut.
+	"""
+	from diakronos_app.api import dateien as dateien_api
+
+	try:
+		ergebnis = dateien_api.aufraeumen()
+	except Exception:  # noqa: BLE001 — ein Fehler darf den Scheduler nicht toeten
+		logger.exception("Job gruppe_datei_aufraeumen fehlgeschlagen")
+		return
+	entsorgung = ergebnis.get("entsorgung") or {}
+	if ergebnis.get("papierkorb") or entsorgung.get("abgearbeitet") or entsorgung.get("fehler"):
+		logger.info("Job gruppe_datei_aufraeumen fertig (%s).", ergebnis)
+
+
 def job_umfragen_schliessen() -> None:
 	"""Taeglicher Job (CHAT-5): Umfragen zur Frist schliessen.
 
@@ -292,6 +320,16 @@ MINUTEN_JOBS: list[tuple] = [
 	# Transaktion, dieser Lauf arbeitet ihn ab.
 	(GLOCKE_INTERVALL_MINUTEN, job_chat_anhang_entsorgung,
 	 "chat_anhang_entsorgung"),
+	# DATEIEN-5: Papierkorb der Gruppendateien (30 Tage, F5) und die eigene
+	# Entsorgungsliste. Minuten-Takt aus demselben Grund: die 30-Tage-Grenze soll
+	# nicht bis zu einen Tag ueberschritten werden und ein Ablage-Fehler bleibt
+	# nicht liegen. ACHTUNG, kein "Index-Zugriff": beide Abfragen filtern nur auf
+	# ``geloescht_am`` bzw. ``naechster_versuch_am``; ``ix_gruppe_datei_raum``
+	# beginnt mit ``gruppe`` und wird dafuer nicht benutzt (Seq-Scan auf
+	# ``gruppe_datei``). Bei der heutigen Datenmenge ist das unkritisch — wird
+	# die Tabelle gross, gehoert ein Index auf ``geloescht_am`` dazu.
+	(GLOCKE_INTERVALL_MINUTEN, job_gruppe_datei_aufraeumen,
+	 "gruppe_datei_aufraeumen"),
 ]
 
 

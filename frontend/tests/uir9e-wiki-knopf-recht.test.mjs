@@ -80,6 +80,8 @@ const speicher = process.__API_STUB
 // apiCall laeuft in einem eigenen Modulkontext, der Zustand gehoert process.
 export const aufrufe = speicher.aufrufe
 export function setzeAntworten(neu) { speicher.antworten = { ...neu } }
+// DATEIEN-4: GruppeDetail bindet GruppenDateien ein (baut Adressen ueber apiUrl).
+export function apiUrl(pfad) { return "/diakonos/api/method/" + pfad }
 export async function apiCall(methode, args) {
   speicher.aufrufe.push([methode, args])
   const kurz = String(methode).split('.').pop()

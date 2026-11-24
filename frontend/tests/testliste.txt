@@ -1067,3 +1067,13 @@ tests/leiste1-*.test.mjs
 # LEISTE-2 (Manuel 23.11., DMB-f503): Kalender ohne App-Kopfzeile — derselbe
 # Router-Mechanismus wie LEISTE-1, ☰ im Handy-Kopf.
 tests/leiste2-*.test.mjs
+# DATEIEN-4 (Karte t_217e855b): Gruppendateien — Oberfläche. Regeln ohne DOM
+# (Kopf/Rechte je Zeile, Papierkorb 30 Tage, Rückfrage, Schalter), der Baustein
+# `GruppenDateien.vue` (Hochladen nur bei `darf_hochladen`, Menü je Serverrecht,
+# Löschen MIT Rückfrage, Papierkorb nur mit Serverdaten), die Einstellungs-Karte
+# (zwei DkSchalterZeilen über `einstellung_setzen`) und der Reiter „Dateien“ in
+# GruppeDetail.vue samt Router-Adresse `#/gruppe/<id>/dateien`.
+# R1: der Direktlink `#/gruppe/<id>/dateien` springt NICHT mehr zurück (der
+# Rückfall greift erst nach der Serverantwort), der Ladezustand behauptet
+# keinen Satz mehr im Bild (ux2d3a), Bilder bieten zusätzlich „Öffnen“.
+tests/dateien4-*.test.mjs

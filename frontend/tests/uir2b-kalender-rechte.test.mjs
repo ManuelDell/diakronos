@@ -268,11 +268,13 @@ test('UI-R2b/P6: auf der Seite stehen zwei GESCHWISTER-Karten, jeder Titel einma
     .map((m) => m[1])
   assert.deepEqual(treffer, ['Rollen der Gruppe', 'Kalender der Gruppe'],
     'die Titel stehen nicht je einmal auf der Seite: ' + treffer.join(' | '))
-  // Beide Karten liegen im selben Raster — keine ist im Körper der anderen.
+  // Die Karten liegen im selben Raster — keine ist im Körper der anderen.
+  // DATEIEN-4: dazu kommt die Karte „Dateien“ (Schalter), danach folgt der
+  // eigene Reiter „Dateien“ — der Block endet dort.
   const block = GRUPPENSEITE.slice(GRUPPENSEITE.indexOf('aktiverReiter === \'einstellungen\''),
-    GRUPPENSEITE.indexOf('<template v-else>'))
-  assert.equal((block.match(/<DkCard/g) || []).length, 2)
-  assert.equal((block.match(/<\/DkCard>/g) || []).length, 2, 'eine Karte steckt in der anderen')
+    GRUPPENSEITE.indexOf('aktiverReiter === \'dateien\''))
+  assert.equal((block.match(/<DkCard/g) || []).length, 3)
+  assert.equal((block.match(/<\/DkCard>/g) || []).length, 3, 'eine Karte steckt in der anderen')
   // Jeder Bereich bekommt seinen Teil ausdrücklich (sonst stünde beides zweimal).
   assert.match(block, /teil="rollen"/)
   assert.match(block, /teil="kalender"/)

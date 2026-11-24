@@ -98,6 +98,8 @@ function auspacken(wert) {
   }
   return wert
 }
+// DATEIEN-4: GruppeDetail bindet GruppenDateien ein (baut Adressen ueber apiUrl).
+export function apiUrl(pfad) { return "/diakonos/api/method/" + pfad }
 export async function apiCall(methode, args) {
   aufrufe.push([methode, args])
   const kurz = String(methode).split('.').pop()

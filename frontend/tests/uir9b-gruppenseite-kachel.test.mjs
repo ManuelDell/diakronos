@@ -103,6 +103,9 @@ export async function apiAntwortPruefen(res) { return res && typeof res.json ===
 export function pruefeSitzungsAntwort() {}
 export function mitAntwort(wert) { return wert }
 export async function apiGet(methode, args) { return apiCall(methode, args) }
+// DATEIEN-4: die Gruppenseite bindet den Datei-Baustein ein, der seine
+// Adressen ueber die EINE Basis-Quelle baut (apiUrl).
+export function apiUrl(pfad) { return '/diakonos/api/method/' + pfad }
 `)
 writeFileSync(join(STUB, 'toast.mjs'), `
 export const toasts = []

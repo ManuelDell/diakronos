@@ -42,10 +42,10 @@ Gruppe und bleibt pflegbar.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select, update
 
 from diakronos_app import ablage
 from diakronos_app import rechte
@@ -77,14 +77,40 @@ ENTSORGUNG_JE_ANFRAGE = 3
 #: Zeitlimit für den Sofort-Versuch (nur Ablagen mit Netz kennen eines).
 ENTSORGUNG_ZEITLIMIT_SEKUNDEN = 2.0
 
+# ── DATEIEN-5: Aufräum-Job (Papierkorb + Entsorgungsliste) ──────────────────
+#: Höchstzahl der Entsorgungs-Aufträge je Job-Lauf (wie ``api.chat``).
+AUFRAEUMEN_BATCH = 100
+#: Belegung: so lange gilt ein Auftrag als „in Arbeit“ (Doppellauf-Schutz).
+AUFRAEUMEN_BELEGUNG_MINUTEN = 60
+#: Wartezeit nach dem n-ten Fehlschlag (Index ab dem ERSTEN Fehlschlag; der
+#: letzte Wert bleibt stehen) — dieselben Zahlen wie bei den Chat-Anhängen.
+AUFRAEUMEN_BACKOFF_MINUTEN = (1, 5, 30, 6 * 60)
+#: Ab dieser Anzahl Versuche steht EINMAL ein ``logger.error`` im Protokoll
+#: (wie ``api.chat.ENTSORGUNG_WARNUNG_AB``). Der Auftrag bleibt trotzdem stehen
+#: bzw. wird nur verschoben — es geht um DSGVO-Dateien.
+AUFRAEUMEN_WARNUNG_AB = 20
+#: Wartezeit, wenn ein Auftrag wegen noch benutztem Schlüssel übersprungen wird
+#: (Review R1/1): Stufe 4 des Backoffs (6 Stunden) — ein Wiederherstellen wird
+#: nicht im Minutentakt gegen die Ablage gehalten.
+AUFRAEUMEN_BENUTZT_WARTEZEIT = 4
+
 __all__ = [
+    "AUFRAEUMEN_BACKOFF_MINUTEN",
+    "AUFRAEUMEN_BATCH",
+    "AUFRAEUMEN_BELEGUNG_MINUTEN",
+    "AUFRAEUMEN_BENUTZT_WARTEZEIT",
+    "AUFRAEUMEN_WARNUNG_AB",
     "ENTSORGUNG_JE_ANFRAGE",
     "ENTSORGUNG_ZEITLIMIT_SEKUNDEN",
     "NICHT_GEFUNDEN",
     "anpinnen",
+    "aufraeumen",
     "datei",
     "einstellung_setzen",
     "einstellungen",
+    "entsorgung_abarbeiten",
+    "entsorgung_wartezeit",
+    "gruppe_datei_papierkorb_leeren",
     "hochladen",
     "liste",
     "loeschen",
@@ -262,6 +288,358 @@ def _auftraege_entfernen(schluessel: list[str]) -> None:
                 GruppeDateiEntsorgung.schluessel.in_(schluessel)))
     except Exception as fehler:  # noqa: BLE001 — Aufräumen ist nachrangig
         logger.warning("Gruppendatei-Entsorgungsaufträge nicht entfernt: %s", fehler)
+
+
+# ── DATEIEN-5: Aufräum-Job (Papierkorb 30 Tage + Entsorgungsliste) ──────────
+#
+# Muster und Begründungen wörtlich von ``api.chat.chat_anhang_entsorgung_abarbeiten``
+# (Review R1/3, CHAT-12a-2/3, SPEICHER-3): Auswählen+Belegen in EINER
+# Transaktion, kein Ablage-Aufruf unter einer Zeilensperre, Fehler zählen
+# ``versuche`` hoch und bleiben als Auftrag stehen, „war schon weg“ ist Erfolg.
+# Der Job läuft im Minutentakt (``scheduler.MINUTEN_JOBS``).
+
+
+def entsorgung_wartezeit(versuche: int) -> timedelta:
+    """Wartezeit bis zum nächsten Versuch nach ``versuche`` Fehlschlägen.
+
+    Index 0 (1 Minute) gilt nach dem ERSTEN Fehlschlag, der letzte Eintrag
+    (6 Stunden) ab dem vierten und bleibt stehen. Reine Funktion — ohne Uhr
+    prüfbar.
+    """
+    stelle = min(max(int(versuche or 0), 1), len(AUFRAEUMEN_BACKOFF_MINUTEN)) - 1
+    return timedelta(minutes=AUFRAEUMEN_BACKOFF_MINUTEN[stelle])
+
+
+def _noch_benutzt(s, schluessel: list[str]) -> set[str]:
+    """Welche dieser Speicher-Schlüssel hängt noch an einer ``gruppe_datei``-Zeile?
+
+    Sicherheitsnetz (Kartenanforderung 2): gelöscht wird KEINE Datei, deren
+    Schlüssel noch von einer Zeile benutzt wird. Im Normalbetrieb kann das nicht
+    vorkommen (der Auftrag entsteht in derselben Transaktion, in der die Zeile
+    fällt), aber ein Wiederherstellen nach einem Fehlversuch oder ein
+    Bestandsfehler darf keine Datei unter einer lebenden Zeile wegziehen.
+    """
+    if not schluessel:
+        return set()
+    return {str(k) for k in s.execute(
+        select(GruppeDatei.schluessel).where(GruppeDatei.schluessel.in_(schluessel))
+    ).scalars().all() if k}
+
+
+def gruppe_datei_papierkorb_leeren(jetzt: datetime | None = None,
+                                   tage: int | None = None) -> int:
+    """Papierkorb leeren: Zeilen nach ``PAPIERKORB_TAGE`` endgültig entfernen.
+
+    F5 (Manuel): eine gelöschte Datei bleibt 30 Tage wiederherstellbar, danach
+    ist sie weg. Die Frist steht als Konstante im Modell
+    (``models.dateien.PAPIERKORB_TAGE``) — kein Admin-Schalter.
+
+    Je Zeile mit ``geloescht_am <= jetzt - PAPIERKORB_TAGE``:
+
+    * die Zeile fällt, und
+    * der Speicher-Schlüssel wird per
+      ``dsgvo_anonymisierung._datei_entsorgung_vormerken`` vorgemerkt (der EINE
+      Weg in die Liste, ``INSERT … ON CONFLICT DO NOTHING``)
+      — in DERSELBEN Transaktion (Auftrag und Zeile entstehen bzw. verschwinden
+      zusammen: entweder es gibt die Zeile mit ihrem Schlüssel oder den Auftrag,
+      nie ein Verweis ins Leere).
+
+    Review R1/2: ``DELETE … RETURNING schluessel`` statt „erst SELECT, dann
+    DELETE“ — zwischen beiden Anweisungen durfte ein Wiederherstellen die Zeile
+    aus dem Papierkorb holen; der Auftrag hätte dann eine lebende Datei
+    entsorgt (das Sicherheitsnetz ``_noch_benutzt`` fing es erst im nächsten
+    Schritt). Jetzt sind die vorgemerkten Schlüssel GENAU die gelöschten
+    Zeilen. ``RETURNING`` verlangt SQLite ≥ 3.35 / PostgreSQL — beides liegt
+    vor.
+
+    Die Datei selbst löscht ``entsorgung_abarbeiten`` — NACH dem Commit: ein
+    Rollback darf keine Datei gelöscht haben. F6: NICHT gelöschte Dateien
+    (``geloescht_am IS NULL``) werden nie angefasst — die Bedingung steht in der
+    Abfrage, nicht in einer Schleife danach.
+
+    Rückgabe: Zahl der entfernten Zeilen. Idempotent — ein zweiter Lauf findet
+    nichts mehr.
+    """
+    from diakronos_app.dsgvo_anonymisierung import _datei_entsorgung_vormerken
+    from diakronos_app.models.dateien import PAPIERKORB_TAGE
+
+    jetzt = jetzt or _jetzt()
+    grenze = jetzt - timedelta(days=PAPIERKORB_TAGE if tage is None else int(tage))
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        faellig = [str(k) for k in s.execute(
+            delete(GruppeDatei)
+            .where(GruppeDatei.geloescht_am.is_not(None),
+                   GruppeDatei.geloescht_am <= grenze)
+            .returning(GruppeDatei.schluessel)
+        ).scalars().all() if k]
+        if not faellig:
+            return 0
+        _datei_entsorgung_vormerken(s, faellig)
+    return len(faellig)
+
+
+def _entsorgung_auswahl_abfrage(jetzt: datetime, anzahl: int):
+    """Die Auswahl-Abfrage des Jobs — EINE Wahrheit für Code und Test.
+
+    Nur Aufträge, die jetzt dran sind (``naechster_versuch_am <= jetzt``), der
+    früheste zuerst: ein dauerhaft scheiternder Schlüssel blockiert damit keine
+    neueren Aufträge (CHAT-12a-2, „keine Kopfblockade“).
+    """
+    return (
+        select(GruppeDateiEntsorgung)
+        .where(GruppeDateiEntsorgung.naechster_versuch_am <= jetzt)
+        .order_by(GruppeDateiEntsorgung.naechster_versuch_am,
+                  GruppeDateiEntsorgung.schluessel)
+        .limit(anzahl)
+    )
+
+
+def _entsorgung_auswahl_mit_sperre(jetzt: datetime, anzahl: int):
+    """Dieselbe Auswahl MIT ``FOR UPDATE SKIP LOCKED`` (PostgreSQL-Zweig)."""
+    return _entsorgung_auswahl_abfrage(jetzt, anzahl).with_for_update(skip_locked=True)
+
+
+def _verschiebe_benutzte(s, jetzt: datetime, stand: dict[str, int],
+                         noch_benutzt: set[str]) -> None:
+    """Aufträge auf noch benutzte Schlüssel verschieben — in der LAUFENDEN Transaktion.
+
+    Review R1/1: der Zweig übersprang solche Aufträge nur, ``naechster_versuch_am``
+    blieb in der Vergangenheit. Folge: jeder Minutentakt wählte sie neu (Warnung
+    alle 60 s je Schlüssel) und ab ``AUFRAEUMEN_BATCH`` solcher Aufträge war das
+    Kontingent dauerhaft voll — neuere, lösbare Aufträge kamen nie dran
+    (Kopfblockade). Hier deshalb ``versuche`` + 1 und der nächste Termin um die
+    LANGE Backoff-Stufe (``AUFRAEUMEN_BENUTZT_WARTEZEIT`` = 6 h) nach vorn.
+
+    Die Datei wird NICHT angefasst und der Auftrag NICHT gelöscht: lebt die
+    Zeile irgendwann nicht mehr, löscht ein späterer Lauf die Datei; bleibt sie
+    für immer, bleibt der Auftrag für immer sichtbar (DSGVO, nichts verschwindet
+    still).
+
+    ``stand`` ist der Stand, den die Auswahl GELESEN hat — der neue Versuchszähler
+    hängt damit an der Belegung dieses Laufs, nicht an einem zweiten Stand. Ab
+    ``AUFRAEUMEN_WARNUNG_AB`` Versuchen steht EINMAL ein ``logger.error``
+    (Übergang per ``==``, wie bei den Chat-Anhängen).
+    """
+    for wert in sorted(noch_benutzt):
+        versuche = stand.get(wert, 0) + 1
+        s.execute(
+            update(GruppeDateiEntsorgung)
+            .where(GruppeDateiEntsorgung.schluessel == wert)
+            .values(versuche=versuche,
+                    naechster_versuch_am=jetzt + entsorgung_wartezeit(
+                        AUFRAEUMEN_BENUTZT_WARTEZEIT),
+                    belegt_bis=None)
+        )
+        if versuche == AUFRAEUMEN_WARNUNG_AB:
+            logger.error(
+                "Gruppendatei %r seit %s Versuchen nicht entsorgbar: der "
+                "Schlüssel wird noch von einer gruppe_datei-Zeile benutzt "
+                "(nächster Versuch in %s).",
+                wert, versuche,
+                entsorgung_wartezeit(AUFRAEUMEN_BENUTZT_WARTEZEIT),
+            )
+        else:
+            logger.warning(
+                "Gruppendatei %r: Schlüssel wird noch von einer "
+                "gruppe_datei-Zeile benutzt (Versuch %s) — Datei bleibt, "
+                "nächster Versuch in %s.",
+                wert, versuche,
+                entsorgung_wartezeit(AUFRAEUMEN_BENUTZT_WARTEZEIT),
+            )
+
+
+def _entsorgung_waehlen_und_belegen(jetzt: datetime, anzahl: int,
+                                    belegung: datetime) -> list[str]:
+    """Auswählen UND belegen in EINER Transaktion — sonst nichts (CHAT-12a-3).
+
+    Scheitert Auswahl oder Belegung, kommt eine LEERE Liste zurück: ohne
+    Belegung darf dieser Lauf nichts löschen, sonst machte er die Arbeit eines
+    zweiten Laufs doppelt (``versuche`` zählte doppelt, Backoff daneben).
+
+    Wirksam gegen den Doppellauf ist ``naechster_versuch_am`` (die Auswahl
+    liest NUR diese Spalte); ``belegt_bis`` wird zusätzlich gesetzt, weil es
+    der bleibende Beleg „dieser Auftrag ist in Arbeit“ ist (Review R1/5).
+    """
+    try:
+        return _entsorgung_waehlen_und_belegen_eng(jetzt, anzahl, belegung)
+    except Exception as fehler:  # noqa: BLE001 — nie den Scheduler-Job abbrechen
+        logger.warning(
+            "Gruppendatei: Entsorgungsliste nicht belegt (%s) — dieser Lauf "
+            "löscht nichts, der nächste Takt versucht es erneut.", fehler,
+        )
+        return []
+
+
+def _entsorgung_waehlen_und_belegen_eng(jetzt: datetime, anzahl: int,
+                                        belegung: datetime) -> list[str]:
+    """Eingeengter Kern: Auswahl, Sperre, Belegung, Commit — wirft."""
+    with dbmod.SessionLocal.begin() as s, als_aktuelle_sitzung(s):
+        if s.get_bind().dialect.name == "postgresql":
+            abfrage = _entsorgung_auswahl_mit_sperre(jetzt, anzahl)
+        else:
+            abfrage = _entsorgung_auswahl_abfrage(jetzt, anzahl)
+        auftraege = s.execute(abfrage).scalars().all()
+        #: ``schluessel -> versuche`` der Zeilen, die dieser Lauf gewählt hat.
+        stand = {str(a.schluessel or ""): int(a.versuche or 0)
+                 for a in auftraege if str(a.schluessel or "")}
+        werte = list(stand)
+        if not werte:
+            return []
+        noch_benutzt = _noch_benutzt(s, werte)
+        if noch_benutzt:
+            # Review R1/1: der Auftrag wird NICHT nur übersprungen — sonst bliebe
+            # ``naechster_versuch_am`` in der Vergangenheit, der nächste Takt
+            # wählte ihn erneut (alle 60 s dieselbe Warnung) und ab
+            # ``AUFRAEUMEN_BATCH`` solcher Aufträge käme kein neuer Auftrag mehr
+            # dran (Kopfblockade). Deshalb in DERSELBEN Transaktion: Versuch
+            # zählen und den nächsten Termin auf die lange Stufe schieben. Die
+            # DATEI bleibt unangetastet, der Auftrag bleibt stehen (DSGVO).
+            _verschiebe_benutzte(s, jetzt, stand, noch_benutzt)
+            werte = [w for w in werte if w not in noch_benutzt]
+            if not werte:
+                return []
+        s.execute(
+            update(GruppeDateiEntsorgung)
+            .where(GruppeDateiEntsorgung.schluessel.in_(werte),
+                   GruppeDateiEntsorgung.naechster_versuch_am < belegung)
+            .values(naechster_versuch_am=belegung, belegt_bis=belegung)
+        )
+    return werte
+
+
+def _auftrag_erledigt(wert: str) -> bool:
+    """Auftrag nach gelungenem Löschen entfernen — ``True``, wenn dieser Lauf ihn beendet."""
+    try:
+        with dbmod.SessionLocal.begin() as s:
+            getroffen = s.execute(
+                delete(GruppeDateiEntsorgung)
+                .where(GruppeDateiEntsorgung.schluessel == wert)
+            ).rowcount or 0
+    except Exception as fehler:  # noqa: BLE001 — der nächste Lauf wiederholt es
+        logger.warning("Gruppendatei %r: Auftrag nicht entfernt: %s", wert, fehler)
+        return False
+    return bool(getroffen)
+
+
+def _fehler_verbuchen(wert: str, fehler: Exception, jetzt: datetime) -> None:
+    """Einen Fehlschlag am Auftrag verbuchen — ``versuche`` + 1, dann Backoff.
+
+    Läuft in einer eigenen, kurzen Transaktion (der Ablage-Aufruf davor ist
+    vorbei). ``versuche`` zählt die DATENBANK hoch; der neue Stand wird danach
+    gelesen und bestimmt den nächsten Versuch. Trifft das ``UPDATE`` keine
+    Zeile, hat ein anderer Lauf sie erledigt — kein Fehler. Der Auftrag wird
+    NIE gelöscht (es geht um DSGVO-Dateien), ``belegt_bis`` wird freigegeben.
+    """
+    kurz = str(fehler)[:200]
+    try:
+        with dbmod.SessionLocal.begin() as s:
+            stand = s.execute(
+                update(GruppeDateiEntsorgung)
+                .where(GruppeDateiEntsorgung.schluessel == wert)
+                .values(versuche=GruppeDateiEntsorgung.versuche + 1)
+                .returning(GruppeDateiEntsorgung.versuche)
+            ).scalar_one_or_none()
+            if stand is None:
+                logger.debug("Gruppendatei %r: Auftrag war schon weg.", wert)
+                return
+            s.execute(
+                update(GruppeDateiEntsorgung)
+                .where(GruppeDateiEntsorgung.schluessel == wert)
+                .values(naechster_versuch_am=jetzt + entsorgung_wartezeit(stand),
+                        belegt_bis=None)
+            )
+    except Exception as verbuchen:  # noqa: BLE001 — nie den Job abbrechen
+        logger.warning("Gruppendatei %r: Fehlversuch nicht verbucht: %s",
+                       wert, verbuchen)
+        return
+    if int(stand) == AUFRAEUMEN_WARNUNG_AB:
+        logger.error(
+            "Gruppendatei %r seit %s Versuchen nicht entsorgbar (Datei bleibt "
+            "offen, nächster Versuch in %s): %s",
+            wert, stand, entsorgung_wartezeit(stand), kurz,
+        )
+    else:
+        logger.warning("Gruppendatei %r nicht entsorgt (Versuch %s, nächster "
+                       "Versuch in %s): %s",
+                       wert, stand, entsorgung_wartezeit(stand), kurz)
+
+
+def entsorgung_abarbeiten(jetzt: datetime | None = None,
+                          grenze: int | None = None) -> dict[str, int]:
+    """Offene Entsorgungs-Aufträge abarbeiten (Kartenanforderung 2).
+
+    Drei Schritte je Lauf — kein Ablage-Aufruf unter einer Zeilensperre:
+
+    1. Auswählen und belegen (``_entsorgung_waehlen_und_belegen``),
+    2. löschen (``hole_speicher().loeschen`` — die EINE Ablage),
+    3. verbuchen: Erfolg → Auftrag fällt; Fehler → ``versuche`` + 1 mit Backoff,
+       der Auftrag bleibt stehen.
+
+    „War schon weg“ (``loeschen`` → ``False``, ``NichtGefunden``) zählt als
+    erledigt: der Zweck ist erreicht. Ein Schlüssel, der noch von einer
+    ``gruppe_datei``-Zeile benutzt wird, wird nicht gelöscht (Sicherheitsnetz,
+    ``_noch_benutzt``).
+
+    Rückgabe: ``{"abgearbeitet": n, "fehler": n, "offen": n}`` — ``offen`` ist
+    die Zahl der Aufträge am Ende des Laufs.
+    """
+    from diakronos_app.speicher import NichtGefunden as SpeicherNichtGefunden
+    from diakronos_app.speicher import hole_speicher
+
+    ergebnis = {"abgearbeitet": 0, "fehler": 0, "offen": 0}
+    anzahl = AUFRAEUMEN_BATCH if grenze is None else max(1, int(grenze))
+    jetzt = jetzt or _jetzt()
+    belegung = jetzt + timedelta(minutes=AUFRAEUMEN_BELEGUNG_MINUTEN)
+
+    werte = _entsorgung_waehlen_und_belegen(jetzt, anzahl, belegung)
+
+    speicher = None
+    for wert in werte:
+        try:
+            if speicher is None:
+                speicher = hole_speicher()
+            speicher.loeschen(wert)
+        except SpeicherNichtGefunden:
+            pass  # „war schon weg“ = Erfolg
+        except Exception as fehler:  # noqa: BLE001 — nie den Job abbrechen
+            ergebnis["fehler"] += 1
+            _fehler_verbuchen(wert, fehler, jetzt)
+            continue
+        if _auftrag_erledigt(wert):
+            ergebnis["abgearbeitet"] += 1
+
+    with dbmod.SessionLocal() as s:
+        ergebnis["offen"] = int(s.execute(
+            select(func.count()).select_from(GruppeDateiEntsorgung)
+        ).scalar_one() or 0)
+    return ergebnis
+
+
+def aufraeumen(jetzt: datetime | None = None) -> dict[str, Any]:
+    """Scheduler-Job (DATEIEN-5): Papierkorb leeren, dann Aufträge abarbeiten.
+
+    Reihenfolge ist Absicht: erst fallen die abgelaufenen Papierkorb-Zeilen und
+    ihre Schlüssel stehen als Auftrag in der Liste, danach wird die Liste
+    abgearbeitet — die Dateien dieser Zeilen verschwinden also im SELBEN Lauf,
+    nicht erst am nächsten Tag.
+
+    Fehler je Schritt werden gefangen und protokolliert; ein gescheiterter
+    Papierkorb-Schritt verhindert das Abarbeiten nicht (und umgekehrt). Der
+    Job ist idempotent: was weg ist, ist weg.
+
+    Rückgabe: ``{"papierkorb": n, "entsorgung": {...}}``.
+    """
+    jetzt = jetzt or _jetzt()
+    ergebnis: dict[str, Any] = {"papierkorb": 0, "entsorgung": {}}
+    try:
+        ergebnis["papierkorb"] = gruppe_datei_papierkorb_leeren(jetzt)
+    except Exception:  # noqa: BLE001 — ein Fehler darf den Job nicht kippen
+        logger.exception("Gruppendatei: Papierkorb-Leeren fehlgeschlagen")
+    try:
+        ergebnis["entsorgung"] = entsorgung_abarbeiten(jetzt)
+    except Exception:  # noqa: BLE001
+        logger.exception("Gruppendatei: Entsorgungsliste fehlgeschlagen")
+    return ergebnis
 
 
 def _datei_zeile(s, name: str) -> GruppeDatei | None:

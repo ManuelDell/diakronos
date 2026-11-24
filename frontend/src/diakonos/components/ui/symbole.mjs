@@ -118,6 +118,14 @@ export const SYMBOLE = {
   bild: {
     p: ['M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z', 'M8 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z', 'm21 15-5-5L5 21'],
   },
+  // DATEIEN-4: „Anpinnen“ (lucide „pin“) — Datei oben in der Liste anheften.
+  pin: {
+    p: ['M12 17v5', 'M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1Z'],
+  },
+  // DATEIEN-4: „Datei“ (lucide „file-text“) — Zeile einer Datei ohne Bild/Ton.
+  datei: {
+    p: ['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z', 'M14 2v6h6', 'M8 13h8', 'M8 17h5'],
+  },
 }
 
 /**
