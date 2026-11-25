@@ -286,7 +286,8 @@ select {
   margin: 0 auto var(--sp-2);
   font-size: var(--fs-monogramm);
   font-weight: var(--fw-h);
-  color: var(--accent);
+  /* REVIEW UX-K1, Punkt 4: Navy-Fläche — mit --accent nur 2,55:1. */
+  color: var(--accent-auf-marke);
   background: var(--primary);
   border-radius: var(--radius-lg);
 }

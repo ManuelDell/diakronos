@@ -427,14 +427,23 @@ function wischEnde(e) {
   font-weight: var(--fw-fett);
 }
 .dk-schublade-symbol { flex: none; color: var(--dk-text-muted); }
+/* REVIEW UX-K1: Das Symbol des aktiven Eintrags nahm `--accent` — im hellen
+   Theme ist das die abgedunkelte Schriftstufe (#826310). Der Eintrag liegt
+   aber auf einer HELLEN Fläche (`--dk-surface`/`--dk-surface-2`), gemessen
+   5,1:1; die Geschwister (`.dk-schublade-zaehler`) führen dieselbe Akzentstufe
+   ebenfalls auf hell. Ein Navy-Grund entsteht hier erst durch die Überlagerung,
+   die hinter der ganzen Schublade liegt — nicht hinter dem einzelnen Punkt. */
 .dk-schublade-punkt.is-aktiv .dk-schublade-symbol { color: var(--accent); }
 .dk-schublade-text { flex: 1; min-width: 0; }
 .dk-schublade-zaehler {
   flex: none;
   padding: 0 var(--sp-2);
   border-radius: var(--badge-r);
-  background: var(--accent);
-  color: var(--dk-navy-900);
+  /* UX-K1: Akzentfläche mit `--marke-weiss-ink` — hell 5,6:1, dunkel 10,5:1.
+     Vorher `--dk-navy-900` als Schrift: auf der dunklen Akzentfläche (dunkel
+     gold-300) noch lesbar, aber im hellen Theme blieb es ein Fremdton. */
+  background: var(--accent-flaeche);
+  color: var(--marke-weiss-ink);
   font-size: var(--fs-12);
   font-weight: var(--fw-fett);
   line-height: 1.6;

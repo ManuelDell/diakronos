@@ -39,6 +39,7 @@ traegt danach wirklich nur noch die Kurzform (kein Frontend-Trick).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Any, Iterable, Mapping
 
 from .permissions import ADMIN_ROLES, _has_admin_role
@@ -380,6 +381,132 @@ def _kurzform_nachlesen(kennung: str) -> str:
     return kuerze_name(zeile.get("vorname"), zeile.get("nachname"), kennung)
 
 
+# ── Vorrat: eine Sammelabfrage fuer ganze Listen (PERF-K4a) ──────────────────
+
+#: Felder, die ``anzeigename_aus_zeile`` fuer EINE Person braucht: die Kuerzung
+#: entscheidet an ``status``/``austritt_datum`` (``ist_ausgeschieden``), die
+#: geloeschte Person an ``status`` (``ist_geloescht``), den Text liefern
+#: ``vorname``/``nachname``. ``name``/``user``/``email`` sind die Kennungen —
+#: sie stehen hier, damit der Aufrufer den Vorrat an seiner eigenen Zuordnung
+#: nachpruefen kann (siehe ``api/kronos/kanban_api.Anzeigenamen``).
+MITGLIED_VORRAT_FELDER = (
+    "name", "user", "email", "vorname", "nachname", "status", "austritt_datum",
+)
+
+#: Was ``anzeigename`` von der User-Zeile braucht (Rueckfall ohne Mitglied).
+USER_NAME_FELD = "full_name"
+
+
+def _als_mapping(zeile: Any) -> Mapping[str, Any]:
+    """Zeile als Mapping — ``get_all`` liefert dicts, Altdaten auch Tupel."""
+    return zeile if isinstance(zeile, Mapping) else MappingProxyType({})
+
+
+def mitglied_vorrat_pruefen(kennung: str, zeile: Mapping[str, Any]) -> bool:
+    """Traegt ``zeile`` die Kennung ``kennung`` UND die Felder der Anzeigeregel?
+
+    Der Vorrat ist ueber ``Mitglied.user`` und ``Mitglied.email`` gesucht und
+    damit eine OBERMENGE. Bevor ``anzeigename`` mit ihm rechnet, muss die
+    Zeile hier bestehen:
+
+    * ``user`` passt genau, ODER
+    * ``email`` passt auf die normalisierte Kennung (der zweite Zuordnungsweg
+      von ``rechte.kern.person_mitglied``).
+
+    Und sie muss ``status`` und ``austritt_datum`` fuehren: ohne diese Felder
+    gilt eine Person in ``ist_ausgeschieden`` still als „nicht ausgetreten“
+    und der Klarname ginge heraus (AUSTRITT-d/NN1 verlangt dort eine VOLLE
+    Zeile). Der Aufrufer liest dann einzeln nach.
+    """
+    if "status" not in zeile or "austritt_datum" not in zeile:
+        return False
+    # Operator-Review: NUR ``user`` — wie die fruehere Einzelabfrage. Ein
+    # Treffer ueber ``email`` waehlte ggf. eine andere Zeile als bisher.
+    return str(zeile.get("user") or "") == kennung
+
+
+def mitglieder_vorrat(kennungen: Iterable[Any]) -> dict[str, list[dict[str, Any]]]:
+    """Login-Kennung -> Mitglied-Zeilen, die sie tragen (EINE Abfrage).
+
+    Die EINE Abfrage, die ``api/kronos/kanban_api._anzeigename`` bisher je
+    Zeile kostete (PERF-K3: 1264x ``get_all("Mitglied", filters={"user": …})``
+    bei 472 Vorschlaegen). Gefiltert wird ueber BEIDE Kennungen: ``Mitglied.user``
+    (das Feld, das die alte Abfrage benutzte) und ``Mitglied.email`` (die
+    Adresse, ueber die ``person_mitglied`` dasselbe Konto findet — ein Konto
+    ohne ``user``-Verweis ist so ebenfalls zugeordnet). Die Auswahl ist damit
+    eine OBERMENGE; der Aufrufer entscheidet je Kennung an den Feldern
+    (``user`` zuerst, ``email`` normalisiert), welche Zeile gilt.
+
+    Eine Kennung ohne Treffer fehlt im Ergebnis (nicht: leere Liste) — so
+    unterscheidet der Aufrufer „kein Mitglied“ von „nicht gefragt“.
+
+    Es wird NICHTS gekuerzt: die Regel bleibt ``anzeigename_aus_zeile``.
+    """
+    from .query import get_all
+
+    ids = sorted({str(k) for k in kennungen if k})
+    if not ids:
+        return {}
+    zeilen = get_all(
+        "Mitglied",
+        # Operator-Review: NUR ``user``. Dict-Filter sind UND-verknuepft —
+        # ``user`` UND ``email`` verlor jede Zeile mit abweichender Adresse,
+        # und der Rueckfall auf ``User.full_name`` zeigte dann den Klarnamen
+        # Ausgetretener (AUSTRITT-Leck). Die alte Einzelabfrage las ``user``.
+        filters={"user": ["in", ids]},
+        fields=list(MITGLIED_VORRAT_FELDER),
+    ) or []
+    vorrat: dict[str, list[dict[str, Any]]] = {}
+    for roh in zeilen:
+        zeile = _als_mapping(roh)
+        if not zeile.get("name"):
+            continue
+        kennung = str(zeile.get("user") or "")
+        if kennung in ids:
+            vorrat.setdefault(kennung, []).append(dict(zeile))
+    return {k: v for k, v in vorrat.items() if v}
+
+
+def benutzer_vorrat(kennungen: Iterable[Any]) -> dict[str, str | None]:
+    """Login-Kennung -> ``User.full_name`` fuer alle vorkommenden Kennungen.
+
+    EINE Abfrage statt einer ``get_value("User", …, ["full_name"])`` je Zeile
+    (PERF-K3: 26x). Eine Kennung ohne User-Zeile oder ohne Namen steht mit
+    ``None`` im Vorrat — genau das Ergebnis, das die Einzelabfrage lieferte.
+    """
+    from .query import get_all
+
+    ids = sorted({str(k) for k in kennungen if k})
+    if not ids:
+        return {}
+    zeilen = get_all("User", filters={"name": ["in", ids]},
+                     fields=["name", USER_NAME_FELD]) or []
+    vorrat: dict[str, str | None] = {}
+    for roh in zeilen:
+        zeile = _als_mapping(roh)
+        kennung = zeile.get("name")
+        if not kennung:
+            continue
+        # `get_value` liefert den Rohwert; ein leerer Name galt dort als
+        # „kein Name“ (der Aufrufer prueft `if name`). Hier genauso.
+        wert = zeile.get(USER_NAME_FELD)
+        vorrat[str(kennung)] = str(wert) if wert else None
+    return vorrat
+
+
+def anzeigename_aus_zeile(
+    mitglied: Mapping[str, Any], sicht: PersonenSicht,
+) -> str:
+    """Anzeigename aus einer VORAB GELESENEN Mitgliederzeile.
+
+    Wortgleich der Mitglieder-Zweig von ``anzeigename``: dieselbe Funktion,
+    nur ohne die Nachlese (``_marke_ausgetreten``/``_kurzform_nachlesen``),
+    weil ``status`` und ``austritt_datum`` in ``MITGLIED_VORRAT_FELDER``
+    stehen. Damit gilt fuer Aufrufer mit Vorrat dieselbe Kuerzungsregel.
+    """
+    return anzeigename(mitglied, sicht=sicht)
+
+
 def namen_map(
     kennungen: Iterable[Any], sicht: PersonenSicht | None = None,
 ) -> dict[str, str]:
@@ -413,15 +540,21 @@ __all__ = [
     "EMAIL_KLARZEICHEN",
     "GELOESCHT_ANZEIGE",
     "GELOESCHT_PRAEFIX",
+    "MITGLIED_VORRAT_FELDER",
     "PersonenSicht",
     "STATUS_AUSGETRETEN",
     "STATUS_GELOESCHT",
+    "USER_NAME_FELD",
     "anzeigename",
+    "anzeigename_aus_zeile",
+    "benutzer_vorrat",
     "ist_ausgeschieden",
     "ist_geloescht",
     "kuerze",
     "kuerze_name",
     "kuerze_zeilen",
     "maskiere_email",
+    "mitglied_vorrat_pruefen",
+    "mitglieder_vorrat",
     "namen_map",
 ]

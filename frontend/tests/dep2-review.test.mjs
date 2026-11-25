@@ -273,8 +273,12 @@ test('Untere Leiste: kräftige Beschriftung, aktiver Reiter über --accent (Punk
   assert.match(tab, /color:\s*var\(--dk-text\)/, 'die Beschriftung nimmt nicht die Textfarbe des Themes')
   assert.doesNotMatch(tab, /--primary/, 'inaktive Reiter nehmen --primary (im Dunkelmodus WEISS)')
   const aktiv = stil.match(/\.dk-bn-tab\.active\s*\{([\s\S]*?)\}/)[1]
-  assert.match(aktiv, /color:\s*var\(--accent\)/,
-    'der aktive Reiter nimmt nicht --accent — im Dunkelmodus war --primary WEISS und damit unsichtbar')
+  // UX-K1: eigener Token `--accent-leiste` statt `--accent` — die Leiste ist in
+  // BEIDEN Themes weiß/dunkel, der Akzent ist hell die abgedunkelte
+  // Schriftstufe (4,9:1 auf Weiß) und dunkel gold-300. Die Zusage bleibt:
+  // aktiver Reiter in der Akzentfarbe, nicht in --primary.
+  assert.match(aktiv, /color:\s*var\(--accent-leiste\)/,
+    'der aktive Reiter nimmt nicht die Akzentfarbe der Leiste (früher --primary: im Dunkelmodus WEISS und unsichtbar)')
   assert.doesNotMatch(aktiv, /--primary/)
   // Der Zustand hängt nicht allein an der Farbe (WCAG 1.4.1).
   // CHAT-3a: Der Unterstrich hängt seit dem Ungelesen-Zähler am LETZTEN <span>

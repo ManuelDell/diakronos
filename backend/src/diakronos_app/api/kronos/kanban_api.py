@@ -60,6 +60,7 @@ from __future__ import annotations
 FRAPPE_MODULE = "diakronos.kronos.api.kanban_api"
 
 import json
+from typing import Iterable
 
 from diakronos_app.frappe_compat.registry import whitelist
 
@@ -92,9 +93,22 @@ _EVENT_FIELDS = [
     "moderation_offen",
 ]
 
+# Felder der Mitgliederzeile fuer die ANZEIGE-Regel. Wortgleich die Liste, die
+# `_anzeigename` vor PERF-K4a je Zeile las; `personen_anzeige` fuehrt dieselbe
+# Aufzaehlung als `MITGLIED_VORRAT_FELDER` (ein Test haelt beide gleich).
+_MITGLIED_FELDER = ["name", "vorname", "nachname", "ausgeschlossen", "status",
+                    "austritt_datum"]
 
-def _fmt_event(e, cal_info):
+
+def _fmt_event(e, cal_info, namen: "Anzeigenamen | None" = None):
+    """Ein Termin als Board-Eintrag.
+
+    ``namen`` ist der Namensvorrat der ANTWORT (PERF-K4a). Ohne Vorrat wird
+    fuer die eine Zeile ein eigener gebaut — dann gilt genau die alte Zahl
+    an Abfragen, das Ergebnis ist dasselbe.
+    """
     cal = cal_info.get(e.get("element_calendar"), {})
+    vorrat = namen if namen is not None else Anzeigenamen([e.get("owner")])
     return {
         "type":           "event",
         "id":             e.get("name"),
@@ -114,7 +128,7 @@ def _fmt_event(e, cal_info):
         # OP-EVENT-12: Antragsteller auf der Karte zeigen. Die Kennung ist der
         # Frappe-`owner`; der Klarname wird — wenn vorhanden — nachgereicht.
         "owner":          e.get("owner") or "",
-        "antragsteller":  _anzeigename(e.get("owner")),
+        "antragsteller":  vorrat.name(e.get("owner")),
         # P1-5b (W-1): Ablehnung in eigenen Feldern — nur fuer Moderatoren
         # (dieses Board ist Moderatoren vorbehalten) und den Antragsteller.
         "ablehnungs_grund": e.get("ablehnungs_grund") or "",
@@ -138,49 +152,135 @@ def _stufen_info(e, cal: dict) -> dict:
         stufe = offen[0]
     else:
         if "_letzte_stufe" not in cal:
-            from diakronos_app import rechte
-
-            cal["_letzte_stufe"] = rechte.erforderliche_stufen(
-                "kalender", str(e.get("element_calendar") or ""))[0]
+            cal["_letzte_stufe"] = _letzte_stufe_kalender(
+                str(e.get("element_calendar") or ""))
         stufe = cal["_letzte_stufe"]
     return {"stufe": stufe, "darf_pruefen": stufe in (cal.get("pruefstufen") or [])}
 
 
-def _anzeigename(kennung: str | None) -> str:
-    """Anzeigename zu einer Benutzerkennung; Fallback ist die Kennung selbst.
+def _letzte_stufe_kalender(kalender_name: str) -> str:
+    """Letzte Moderationsstufe eines Kalenders.
 
-    AUSTRITT-d (NM3): Der Name laeuft ueber die EINE Regel
-    (``personen_anzeige.anzeigename``): Ist das Mitglied AUSGETRETEN, sehen
-    Nicht-Admins die Kurzform „Elvira D.“ statt des Klarnamens. Das Board steht
-    Moderatoren offen, also auch Nicht-Admins.
+    PERF-K4a: ``rechte.erforderliche_stufen`` las bisher je KALENDER einmal die
+    Rechte-Zeile nach (``_objekt``) — obwohl ``kalender_rechte_vorladen`` genau
+    diese Zeile samt Kontext schon geholt hat. Gelesen wird deshalb aus dem
+    VORHANDENEN Merker (``_objekt_und_kontext``; ohne Vorrat rechnet er selbst
+    und merkt). Die Regel ist woertlich die von ``erforderliche_stufen``:
+
+        keine Gruppe / gemeindeweit oeffentlich -> gemeinde,
+        Untergruppen-Objekt (nicht an die Gruppe) -> untergruppe,
+        sonst -> gruppe.
+
+    Die Reihenfolge der Fragen bleibt: ``_letzte_stufe`` steht je Kalender nur
+    EINMAL in ``cal_info`` und sieht spaetere Merker-Aenderungen nicht mehr —
+    so haengt das Ergebnis nicht davon ab, ob der Vorrat schon da war.
     """
-    if not kennung:
-        return ""
-    if kennung == "Administrator":
-        return "Administrator"
-    try:
+    from diakronos_app.frappe_compat.session import session as _session
+    from diakronos_app.rechte import kern as _kern
+
+    ausgang = _kern._objekt_und_kontext("kalender", kalender_name, _session.user)
+    if ausgang is None:
+        return str(_kern.STUFE_GEMEINDE)
+    eintrag, kontext = ausgang
+    if not eintrag.gruppe or kontext["oeffentlich"]:
+        return str(_kern.STUFE_GEMEINDE)
+    if eintrag.untergruppe and not kontext["an_gruppe"]:
+        return str(_kern.STUFE_UNTERGRUPPE)
+    return str(_kern.STUFE_GRUPPE)
+
+
+def _anzeigename(kennung: str | None) -> str:
+    """Anzeigename EINER Kennung — der Einzelfall von :class:`Anzeigenamen`.
+
+    Bleibt fuer Aufrufer, die genau eine Kennung brauchen. Je LISTE gehoert
+    das Vorab-Laden dorthin (``Anzeigenamen``), nicht hierher — sonst zahlt
+    jede Zeile wieder ihre eigene Abfrage (PERF-K3: 3742 von 3834).
+    """
+    return Anzeigenamen([kennung]).name(kennung)
+
+
+class Anzeigenamen:
+    """Anzeigenamen fuer EINE Antwort: Sicht, Mitglieder und Namen vorab.
+
+    PERF-K4a. Bisher rief ``_anzeigename`` je Zeile ``PersonenSicht.aus()``
+    (zwei Abfragen: Gemeinde-Einstellungen + ``has_role``) und las je Zeile
+    das Mitglied (``get_all``) und den User-Namen (``get_value``) nach —
+    bei 472 Vorschlaegen/160 Konflikten 3742 Abfragen (98 % der Antwort).
+
+    Hier wird das EINMAL vorbereitet:
+
+    * ``PersonenSicht.aus()`` genau einmal (die Sicht des AUFRUFERS — sie ist
+      fuer alle Zeilen dieselbe),
+    * ``mitglieder_vorrat`` und ``benutzer_vorrat``: je eine Sammelabfrage
+      ueber alle vorkommenden Kennungen.
+
+    Die ANZEIGEREGEL bleibt unangetastet: welchen Namen wer sehen darf,
+    entscheidet weiter ``personen_anzeige.anzeigename`` — geladen werden nur
+    deren Eingaben vorab. Deshalb gilt auch hier: „Administrator“ wird ohne
+    Nachlese durchgereicht (die Einzelabfrage hatte dafuer nie eine
+    Mitgliederzeile gefunden), und ein unbekanntes Mitglied (Zeile ohne die
+    Austrittsfelder) wird NICHT aus dem Vorrat bedient, sondern einzeln
+    nachgelesen — der Wortlaut in ``anzeigename`` (AUSTRITT-d/NN1) verlangt
+    dort die vollstaendige Zeile.
+
+    Ist der Vorrat falsch (leer, falsche Zuordnung), aendert sich die Antwort
+    — genau darauf prueft ``tests/test_perf_k4a_kanban_anzeigenamen.py``.
+    """
+
+    def __init__(self, kennungen: Iterable[str | None]) -> None:
         from diakronos_app.frappe_compat.personen_anzeige import (
-            PersonenSicht, anzeigename,
+            PersonenSicht,
+            benutzer_vorrat,
+            mitglieder_vorrat,
         )
 
-        mitglieder = get_all(
-            "Mitglied",
-            filters={"user": kennung},
-            fields=["name", "vorname", "nachname", "ausgeschlossen", "status",
-                    "austritt_datum"],
-            limit_page_length=1,
-        ) or []
-        if mitglieder:
-            return anzeigename(mitglieder[0], sicht=PersonenSicht.aus())
-        row = get_value("User", kennung, ["full_name"], as_dict=True) or {}
-        # `get_value` ist ohne Rueckgabe-Annotation portiert (Frappe-Kompat);
-        # Pyright leitet daraus `list[Any]` ab. Zur Laufzeit ist es ein dict.
-        name = row.get("full_name") if isinstance(row, dict) else None  # type: ignore[union-attr]
-        if name:
-            return name
-    except Exception:  # noqa: BLE001 — reine Anzeigehilfe, nie hart scheitern
-        pass
-    return kennung
+        # Belegte Kennungen ohne Doppel: gesucht wird je Kennung EINMAL.
+        ids = sorted({str(k) for k in kennungen if k and k != "Administrator"})
+        self._sicht = PersonenSicht.aus()
+        self._mitglieder = mitglieder_vorrat(ids)
+        self._benutzer = benutzer_vorrat(ids)
+
+    def name(self, kennung: str | None) -> str:
+        """Anzeigename — Ergebnisgleich zum frueheren ``_anzeigename``."""
+        if not kennung:
+            return ""
+        if kennung == "Administrator":
+            return "Administrator"
+        try:
+            from diakronos_app.frappe_compat import personen_anzeige as P
+
+            roh = self._mitglieder.get(kennung) or []
+            # Die frühere Einzelabfrage (`get_all(..., limit_page_length=1)`,
+            # ohne `order_by`) lieferte die ERSTE Zeile in Datenbankordnung.
+            # Der Vorrat kommt ebenfalls in Datenbankordnung, deshalb gilt
+            # hier dieselbe Reihenfolge — bewusst OHNE Neusortierung (sonst
+            # traefe bei zwei Zeilen eine andere; `PersonenSicht` ist fuer
+            # BEIDE dieselbe, s. `_sicht`).
+            # Operator-Review: GELOESCHTE Zeilen bleiben drin — die alte
+            # Einzelabfrage lieferte sie, und `anzeigename_aus_zeile` macht
+            # daraus „Geloeschte Person“ (DSGVO-2d), nie die rohe Kennung.
+            zeilen = [dict(z) for z in roh]
+            if zeilen:
+                zeile = zeilen[0]
+                if P.mitglied_vorrat_pruefen(kennung, zeile):
+                    return P.anzeigename_aus_zeile(zeile, sicht=self._sicht)
+                # Zeile ohne Austritts-/Statusfelder: die Einzelabfrage holte
+                # sie vollstaendig — hier genauso, statt still den Klarnamen
+                # auszuliefern (Docstring `anzeigename`, AUSTRITT-d/NN1).
+                vollstaendig = get_all(
+                    "Mitglied",
+                    filters={"user": kennung},
+                    fields=list(_MITGLIED_FELDER),
+                    limit_page_length=1,
+                ) or []
+                if vollstaendig:
+                    return P.anzeigename(vollstaendig[0], sicht=self._sicht)
+            name = self._benutzer.get(kennung)
+            if name:
+                return name
+        except Exception:  # noqa: BLE001 — reine Anzeigehilfe, nie hart scheitern
+            pass
+        return kennung
 
 
 def _wahr(wert) -> bool:
@@ -258,9 +358,26 @@ def get_kanban_board_data():
     # R-5/UI-R4: `pruefstufen` aus `get_accessible_calendars` mitnehmen — ohne
     # sie war `darf_pruefen` auf dem Brett immer false.
     stufen_je_kalender = {c["name"]: c.get("pruefstufen") or [] for c in allowed}
+    # PERF-K4a: Name und Farbe ALLER Moderationskalender in EINER Abfrage
+    # (vorher zwei `get_value` je Kalender). `get_value` lieferte eine fehlende
+    # Zeile als `{}` — ein Kalender ohne Zeile behaelt hier deshalb die
+    # Vorgaben aus dem alten Zweig (Titel = Kennung, Standardfarbe).
+    kalender_vorrat: dict[str, dict] = {
+        str(z["name"]): dict(z)  # type: ignore[index]
+        for z in (get_all(
+            "Kalender",
+            filters={"name": ["in", list(mod_cals)]},
+            fields=["name", "calendar_name", "calendar_color"],
+        ) or [])
+        if isinstance(z, dict) and z.get("name")
+    }
     cal_info = {}
     for cn in mod_cals:
-        row = get_value("Kalender", cn, ["calendar_name", "calendar_color"], as_dict=True) or {}
+        row = kalender_vorrat.get(cn)
+        if row is None:
+            cal_info[cn] = {"title": cn, "color": KALENDER_STANDARD_FARBE,
+                            "pruefstufen": stufen_je_kalender.get(cn, [])}
+            continue
         cal_info[cn] = {
             "title": row["calendar_name"] or cn,  # type: ignore[index]
             "color": row["calendar_color"] or KALENDER_STANDARD_FARBE,  # type: ignore[index]
@@ -281,10 +398,20 @@ def get_kanban_board_data():
                  "geloescht_am": ["is", "not set"]},
         fields=_EVENT_FIELDS, order_by="modified desc", limit_page_length=100)
 
-    all_formatted = {e["name"]: _fmt_event(e, cal_info) for e in raw_v + raw_k}
-    vorschlaege = [_fmt_event(e, cal_info) for e in raw_v]
-    konflikte   = [_fmt_event(e, cal_info) for e in raw_k]
-    abgelehnt   = [_fmt_event(e, cal_info) for e in raw_a]
+    # PERF-K4a: EIN Namensvorrat je Antwort ueber ALLE vorkommenden
+    # Antragsteller/Moderatoren (vorher je Zeile Sicht + Mitglied + Username).
+    # `all_formatted` wird daraus abgeleitet, damit die drei Listen dieselben
+    # Zeilenobjekte teilen (wie bisher: die Staging-Schleife las `ev` aus
+    # `all_formatted`).
+    namen = Anzeigenamen(
+        [e.get("owner") for e in raw_v + raw_k + raw_a]  # type: ignore[union-attr]
+        + [e.get("moderiert_von") for e in raw_v + raw_k + raw_a]  # type: ignore[union-attr]
+    )
+    all_formatted = {e["name"]: _fmt_event(e, cal_info, namen)  # type: ignore[index]
+                     for e in raw_v + raw_k}
+    vorschlaege = [all_formatted[e["name"]] for e in raw_v]  # type: ignore[index]
+    konflikte   = [all_formatted[e["name"]] for e in raw_k]  # type: ignore[index]
+    abgelehnt   = [_fmt_event(e, cal_info, namen) for e in raw_a]
 
     # Load user staging state
     staging      = []

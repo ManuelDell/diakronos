@@ -151,6 +151,10 @@ function onDayClick(day) {
 }
 .mini-cal-day:hover { background: var(--surface-hover); }
 .mini-cal-day.other-month { color: var(--subtle); }
+/* REVIEW UX-K1: Der heutige Tag bleibt beim Marken-Navy — `--primary` /
+   `--primary-ink` trägt in beiden Themes (hell 14,3:1, dunkel 20,2:1).
+   Das Gold der ersten Fassung war eine Gestaltungsänderung, keine
+   Kontrast-Korrektur. */
 .mini-cal-day.today { background: var(--primary); color: var(--primary-ink); font-weight: var(--fw-fett); }
 .mini-cal-day.has-event:not(.today) { font-weight: var(--fw-fett); }
 .event-dot {
@@ -163,5 +167,5 @@ function onDayClick(day) {
   border-radius: 50%;
   background: var(--accent);
 }
-.mini-cal-day.today .event-dot { background: var(--primary-ink); }
+.mini-cal-day.today .event-dot { background: var(--marke-weiss-ink); }
 </style>

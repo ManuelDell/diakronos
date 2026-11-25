@@ -132,10 +132,13 @@ function zahl(o) {
 .dk-ui-reiter-punkt:hover { color: var(--text); }
 /* Akzentschrift statt --primary: im Dunkelmodus ist --primary WEISS und
    damit von den inaktiven Einträgen nicht zu unterscheiden (DEV-4-Regel,
-   gleiche Lösung wie DkTabs und KalenderReiter). */
+   gleiche Lösung wie DkTabs und KalenderReiter).
+   UX-K1: Der Unterstrich nimmt `--accent-flaeche` — hell das tiefe Messing
+   mit 5,1:1 zur Fläche (WCAG 1.4.11 verlangt 3:1); `--accent` ist als
+   SCHRIFT abgedunkelt und als Fläche zu nah an der Karte. */
 .dk-ui-reiter-punkt.is-active {
   color: var(--accent);
-  box-shadow: inset 0 calc(-2 * var(--rahmen-breite)) 0 var(--accent);
+  box-shadow: inset 0 calc(-2 * var(--rahmen-breite)) 0 var(--accent-flaeche);
   font-weight: var(--fw-fett);
 }
 .dk-ui-reiter-punkt:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }

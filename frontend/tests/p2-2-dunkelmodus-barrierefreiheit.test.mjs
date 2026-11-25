@@ -72,7 +72,10 @@ assert.match(tokens, /\[data-theme="dark"\],\s*\n:root\[data-theme="dark"\]\s*\{
   'DES-R4: --dk-brand-500 bleibt im Dunkelmodus auf dunklem Navy')
 
 // ── DES-R15: Kontrast ─────────────────────────────────────────────────────
-assert.match(tokens, /--dk-warm-400:\s*#6b7088/, 'DES-R15: --subtle ist nicht abgedunkelt')
+// UX-K1: der Wert wurde von #6b7088 auf #5a6077 nachgezogen (4,6:1 galt nur auf
+// Weiß; auf --surface-2 waren es 4,43:1). Geprüft wird die Zusage, nicht die Zahl:
+// --subtle erreicht AA auf JEDER hellen Fläche.
+assert.match(tokens, /--dk-warm-400:\s*#5a6077/, 'UX-K1: --subtle nicht nachgedunkelt')
 for (const token of ['--badge-ink-warn', '--badge-ink-ok', '--badge-ink-info', '--event-ink']) {
   const treffer = tokens.split(new RegExp('\\' + token + ':')).length - 1
   assert.ok(treffer >= 2, `DES-R15: ${token} fehlt in einem der beiden Themes`)

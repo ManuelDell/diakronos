@@ -1,0 +1,78 @@
+# PERF-K3 — Wegwerf-Stack zum MESSEN. Nicht für den Betrieb.
+#
+# Aufruf (immer mit eigenem Projektnamen und dieser Datei):
+#   docker compose -p perfk3 -f compose/perfk3.yml up -d db redis app
+#   docker compose -p perfk3 -f compose/perfk3.yml down -v
+#
+# Absichtlich NICHT docker-compose.yml mit `include:`: der Betriebs-Stack
+# heisst `diakronos-standalone`, devecg `diakronos-devecg`. Ein eigener
+# Projektname + eigene Pfade/Ports schliessen jede Berührung aus.
+#
+# Nur db, redis und app. Kein clamav (CLAMAV_HOST bleibt LEER -> Pruefung aus),
+# kein worker/scheduler (die Messung braucht nur die App-Endpunkte).
+name: perfk3
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: perfk3
+      POSTGRES_USER: perfk3
+      POSTGRES_PASSWORD: ${PERFK3_DB_PASSWORD:?PERFK3_DB_PASSWORD setzen}
+    # Eigener Port, NICHT 5433 des Betriebs.
+    ports:
+      - "127.0.0.1:5435:5432"
+    volumes:
+      - perfk3-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U perfk3 -d perfk3"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    # Eigener Port, NICHT 6380 des Betriebs.
+    ports:
+      - "127.0.0.1:6382:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    image: wegwerf-perfk3:local
+    environment:
+      DATABASE_URL: postgresql+psycopg://perfk3:${PERFK3_DB_PASSWORD}@db:5432/perfk3
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: development
+      LOG_LEVEL: WARNING
+      SECRET_KEY: ${PERFK3_SECRET_KEY:?PERFK3_SECRET_KEY setzen}
+      # Virenpruefung AUS: leerer Wert (der Compose-Default `clamav` greift
+      # dann nicht, weil `:-` hier bewusst NICHT benutzt wird).
+      CLAMAV_HOST: ""
+      WEB_CONCURRENCY: "1"
+      FILES_DIR: /data/files
+      BACKUP_DIR: /data/sicherungen
+      APP_PORT: "8190"
+    volumes:
+      - perfk3-files:/data/files
+      - perfk3-sicherungen:/data/sicherungen
+    # Eigener Port, NICHT 8100 (Betrieb) / 8110 (devecg).
+    ports:
+      - "127.0.0.1:8190:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  perfk3-pg:
+    name: perfk3-pg
+  perfk3-files:
+    name: perfk3-files
+  perfk3-sicherungen:
+    name: perfk3-sicherungen

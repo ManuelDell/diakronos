@@ -360,6 +360,7 @@ async function nachSpeichern(name) {
 .ld-tab:hover { border-color: var(--primary); color: var(--text); }
 .ld-tab.is-active { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); }
 .ld-tab-star { margin-right: 3px; color: var(--accent); }
+.ld-tab.is-active .ld-tab-star { color: var(--accent-auf-marke); } /* UX-K1c: Stern auf Navy-Reiter */
 
 .ld-fassung-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-3) var(--sp-4); }
 .ld-fassung-field { display: flex; flex-direction: column; gap: 2px; }

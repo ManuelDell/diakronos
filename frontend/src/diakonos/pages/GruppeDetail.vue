@@ -2120,8 +2120,10 @@ export default {
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: var(--dk-navy-400);
-    color: var(--primary-ink);
+    /* UX-K1: Fläche UND Schrift aus EINEM Paar. Vorher `--primary-ink`, und
+       das ist im Dunkelmodus fast schwarz → 2,44:1 auf dem Navy. */
+    background: var(--dk-avatar-gruppe-bg);
+    color: var(--dk-avatar-gruppe-ink);
     display: flex;
     align-items: center;
     justify-content: center;

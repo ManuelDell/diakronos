@@ -535,7 +535,7 @@ function waehlen(zeichen) {
   border: var(--rahmen-breite) solid var(--accent);
 }
 .dk-chat-blase.is-ich .dk-chat-erwaehnung.is-meine {
-  box-shadow: inset 0 0 0 var(--rahmen-breite) var(--accent);
+  box-shadow: inset 0 0 0 var(--rahmen-breite) var(--accent-auf-marke);
 }
 
 /* Erwähnt mich diese Nachricht? Dezente Markierung: ein Streifen der
@@ -547,7 +547,7 @@ function waehlen(zeichen) {
   border-color: var(--accent);
 }
 .dk-chat-blase.is-erwaehnt.is-ich {
-  border: var(--rahmen-breite) solid var(--accent);
+  border: var(--rahmen-breite) solid var(--accent-auf-marke);
 }
 
 /* Gelöschte Nachricht: Hinweiszeile statt Kasten — die Lücke bleibt sichtbar. */

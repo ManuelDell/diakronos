@@ -40,7 +40,9 @@ defineProps({
   overflow: hidden;
   border-radius: var(--radius-sm);
   background: var(--side-bg);
-  color: var(--accent);
+  /* REVIEW UX-K1, Punkt 4: Monogramm auf dem Navy — --accent ist hell zu
+     dunkel (3,08:1), deshalb --accent-auf-marke. */
+  color: var(--accent-auf-marke);
   line-height: 1;
   font-weight: var(--fw-h);
 }

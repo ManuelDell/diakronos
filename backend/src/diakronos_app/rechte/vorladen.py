@@ -155,30 +155,6 @@ def kalender_rechte_vorladen(benutzer: str | None, kalender: Iterable[Any]) -> N
     # Vorbedingung und sollen dafuer nicht je Name nachfragen. Kalender mit
     # Rechte-Objekt bekommen sie unten ohnehin.
     _existenz_abfragen(namen)
-    # ── Objekt-Zeilen: EIN Zugriff auf die Tabelle ──
-    from sqlalchemy import select
-
-    from diakronos_app.db import lesesitzung
-    from diakronos_app.models.rechte import RechteObjekt
-
-    with lesesitzung() as sess:
-        # Nur ZEILENKOPIEN: die Sitzung wird geschlossen, die Einzelfrage
-        # liefert dagegen gebundene Objekte. Beides ist fuer den Kern gleich
-        # (`_objekt`/`_freigaben_roh` lesen nur Attribute), die Kopie haelt
-        # aber keine Sitzung offen. `expire_on_commit` ist aus (SessionLocal).
-        objekte = {
-            str(o.objekt): dict(
-                typ=o.typ, objekt=o.objekt, gruppe=o.gruppe,
-                untergruppe=o.untergruppe,
-                standard_gruppe_lesen=o.standard_gruppe_lesen,
-                gemeinde_status=o.gemeinde_status, gruppe_status=o.gruppe_status,
-                eltern_typ=o.eltern_typ, eltern_objekt=o.eltern_objekt,
-            )
-            for o in sess.execute(
-                select(RechteObjekt).where(
-                    RechteObjekt.typ == typ, RechteObjekt.objekt.in_(namen))
-            ).scalars()
-        }
 
     class _Zeile:
         """Attribut-Zugriff auf eine Zeilenkopie (wie das ORM-Objekt)."""
@@ -194,6 +170,55 @@ def kalender_rechte_vorladen(benutzer: str | None, kalender: Iterable[Any]) -> N
             except KeyError as exc:  # wie beim ORM: kein Attribut = Fehler
                 raise AttributeError(name) from exc
 
+    # ── Objekt-Zeilen: EIN Zugriff auf die Tabelle ──
+    from sqlalchemy import select
+
+    from diakronos_app.db import lesesitzung
+    from diakronos_app.models.rechte import RechteFreigabe, RechteObjekt
+
+    with lesesitzung() as sess:
+        # Nur ZEILENKOPIEN: die Sitzung wird geschlossen, die Einzelfrage
+        # liefert dagegen gebundene Objekte. Beides ist fuer den Kern gleich
+        # (`_objekt`/`_freigaben_roh` lesen nur Attribute), die Kopie haelt
+        # aber keine Sitzung offen und ueberlebt auch ein `expire` nach Commit.
+        objekte = {
+            str(o.objekt): dict(
+                typ=o.typ, objekt=o.objekt, gruppe=o.gruppe,
+                untergruppe=o.untergruppe,
+                standard_gruppe_lesen=o.standard_gruppe_lesen,
+                gemeinde_status=o.gemeinde_status, gruppe_status=o.gruppe_status,
+                eltern_typ=o.eltern_typ, eltern_objekt=o.eltern_objekt,
+            )
+            for o in sess.execute(
+                select(RechteObjekt).where(
+                    RechteObjekt.typ == typ, RechteObjekt.objekt.in_(namen))
+            ).scalars()
+        }
+
+        # PERF-K4a: Freigabe-Zeilen ALLER Kalender in EINER Abfrage. **Nur
+        # ergaenzt, wenn der Merker sie noch nicht hat** — ein vorhandener
+        # Eintrag wird nie ueberschrieben (dieselbe Zusage wie oben fuer
+        # `objekt_kontext`). `_freigaben_roh` und
+        # `_leitung_mit_gruppenfreigabe` lesen daraus dieselben Felder, die sie
+        # bisher vom ORM-Objekt lasen; abgeleitet wird NICHTS (kein
+        # `darf`-Ergebnis aus der Freigabe).
+        offen = [n for n in namen if ("freigabe_zeilen", typ, n) not in merker]
+        if offen:
+            vorhandene = {}
+            for fg in sess.execute(
+                select(RechteFreigabe).where(
+                    RechteFreigabe.typ == typ, RechteFreigabe.objekt.in_(offen))
+            ).scalars():
+                vorhandene.setdefault(str(fg.objekt), []).append(dict(
+                    benutzer=fg.benutzer, gruppe=fg.gruppe,
+                    lesen=fg.lesen, schreiben=fg.schreiben,
+                    moderieren=fg.moderieren,
+                ))
+            for name in offen:
+                merker[("freigabe_zeilen", typ, name)] = [
+                    _Zeile(z) for z in vorhandene.get(name, [])
+                ]
+
     # ── Gruppen/Module der Objekte vorab (2 Abfragen) ──
     gruppen = sorted({str(o["gruppe"]) for o in objekte.values() if o["gruppe"]})
     vorladen = getattr(kern, "rollen_vorladen", None)
@@ -202,8 +227,13 @@ def kalender_rechte_vorladen(benutzer: str | None, kalender: Iterable[Any]) -> N
 
     for name in namen:
         if name not in objekte:
-            continue  # unbekanntes Objekt: `_darf_roh` antwortet selbst
+            # Kein Rechte-Objekt: die Sammelabfrage oben belegt das bereits —
+            # `_objekt` soll dafuer nicht je Name nachfragen. `_darf_roh`
+            # antwortet dann selbst (fail closed: objekt_unbekannt).
+            merker.setdefault(("objekt", typ, name), None)
+            continue
         eintrag = _Zeile(objekte[name])
+        merker.setdefault(("objekt", typ, name), eintrag)
         schluessel = ("objekt_kontext", typ, name, benutzer)
         if schluessel in merker:
             continue

@@ -515,6 +515,13 @@ h1, h2, h3, h4 {
 }
 .dk-nav-item:hover { background: var(--side-hover); color: #fff; }
 .dk-nav-item.is-active { background: var(--side-active); color: var(--side-active-text); font-weight: var(--fw-fett); }
+/* REVIEW UX-K1, Punkt 5: Der Akzent ist im hellen Theme als SCHRIFT
+   abgedunkelt und trägt auf dem Navy der Seitenleiste nur 3,08:1.
+   Auf dunklen Flächen (Leiste, Toast, Logo, Toast-Aktion) gilt deshalb
+   ausschließlich `--accent-auf-marke` (hell 11,9:1 auf `--side-bg`, 13,3:1 auf
+   `--side-bg2`; dunkel dieselben Werte, weil beide Themes dieselben Navys
+   nutzen). Ein
+   Quelltext-Wächter im Test hält das fest. */
 .dk-nav-item.is-active::before {
   content: "";
   position: absolute;
@@ -522,7 +529,7 @@ h1, h2, h3, h4 {
   top: 20%;
   bottom: 20%;
   width: 3px;
-  background: var(--accent);
+  background: var(--accent-auf-marke);
   border-radius: 2px;
 }
 .dk-nav-item span:not(.dk-nav-badge) { flex: 1; }
@@ -531,8 +538,11 @@ h1, h2, h3, h4 {
   font-weight: var(--fw-fett);
   padding: 1px 6px;
   border-radius: 999px;
-  background: var(--accent);
-  color: var(--dk-navy-900);
+  /* REVIEW UX-K1, Punkt 1: navy-900 auf dem Akzent waren 3,59:1 (12 px fett →
+     AA-Fehler). Der Zähler ist jetzt eine Akzentfläche mit der Schrift, die
+     dafür bestimmt ist: hell 5,6:1, dunkel 10,5:1. */
+  background: var(--accent-flaeche);
+  color: var(--marke-weiss-ink);
   flex-shrink: 0;
 }
 .is-collapsed .dk-nav-item { justify-content: center; padding: 9px; }
@@ -597,7 +607,9 @@ h1, h2, h3, h4 {
   transition: all var(--dk-fast);
   cursor: pointer;
 }
-.dk-sb-admin-toggle.is-on  { background: rgba(212,162,76,.12); color: var(--dk-accent); border-color: rgba(212,162,76,.3); }
+/* REVIEW UX-K1, Punkt 3: `--dk-accent` (= --accent) ist im hellen Theme tief
+   und stand auf dem Navy bei 2,54:1. Auf der Leiste gilt --accent-auf-marke. */
+.dk-sb-admin-toggle.is-on  { background: rgba(212,162,76,.12); color: var(--accent-auf-marke); border-color: rgba(212,162,76,.3); }
 .dk-sb-admin-toggle.is-off { background: transparent; color: var(--dk-sb-text-muted); }
 .dk-sb-admin-toggle.is-off:hover { background: var(--dk-sb-hover); color: #fff; }
 .is-collapsed .dk-sb-admin-toggle { justify-content: center; padding: 8px; }
@@ -1916,7 +1928,7 @@ select.dk-form-select { appearance: auto; }
 }
 .diakonos-toast.show { opacity: 1; transform: translateY(0); }
 /* Der Typ ist eine Farbe am Rand — nicht die ganze Fläche. */
-.diakonos-toast--undo    { box-shadow: var(--shadow-lg), inset 3px 0 0 var(--accent); }
+.diakonos-toast--undo    { box-shadow: var(--shadow-lg), inset 3px 0 0 var(--accent-auf-marke); }
 .diakonos-toast--success { box-shadow: var(--shadow-lg), inset 3px 0 0 var(--ok); }
 .diakonos-toast--error   { box-shadow: var(--shadow-lg), inset 3px 0 0 var(--err); }
 .diakonos-toast--info    { box-shadow: var(--shadow-lg), inset 3px 0 0 var(--side-border); }
@@ -1938,7 +1950,9 @@ select.dk-form-select { appearance: auto; }
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--accent);
+  /* REVIEW UX-K1, Punkt 2: Der Toast steht auf `--side-bg`; --accent war
+     dort 3,08:1. Auf der dunklen Fläche gilt --accent-auf-marke. */
+  color: var(--accent-auf-marke);
   font: inherit;
   font-weight: var(--fw-fett);
   cursor: pointer;

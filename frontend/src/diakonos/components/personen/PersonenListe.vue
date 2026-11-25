@@ -528,10 +528,16 @@ function gruppenAnzeige(z) {
 }
 
 // Farbpaare des Avatars: dieselben Tokens wie die Mitgliederliste (keine
-// neuen Farbwerte). Nur der Hintergrund streut, die Schrift bleibt Textfarbe.
+// neuen Farbwerte). Fläche UND Schrift kommen aus EINEM Paar (UX-K1) — vorher
+// streute nur der Hintergrund, die Schrift war `--text` und im Dunkelmodus
+// damit hell auf hellem Kreis (1,35–2,12:1).
 const AVATAR_PAARE = [
-  'var(--dk-avatar-1-bg)', 'var(--dk-avatar-2-bg)', 'var(--dk-avatar-3-bg)',
-  'var(--dk-avatar-4-bg)', 'var(--dk-avatar-5-bg)', 'var(--dk-avatar-6-bg)',
+  ['var(--dk-avatar-1-bg)', 'var(--dk-avatar-1-ink)'],
+  ['var(--dk-avatar-2-bg)', 'var(--dk-avatar-2-ink)'],
+  ['var(--dk-avatar-3-bg)', 'var(--dk-avatar-3-ink)'],
+  ['var(--dk-avatar-4-bg)', 'var(--dk-avatar-4-ink)'],
+  ['var(--dk-avatar-5-bg)', 'var(--dk-avatar-5-ink)'],
+  ['var(--dk-avatar-6-bg)', 'var(--dk-avatar-6-ink)'],
 ]
 /** Symbol „Weiter“ (Chevron) — auf der Textlinie, Strich in Schriftstärke. */
 const DkSymbolChevron = h('svg', {
@@ -542,7 +548,11 @@ const DkSymbolChevron = h('svg', {
 function avatarStil(name) {
   const n = String(name || 'A').trim()
   const summe = (n.charCodeAt(0) || 65) + (n.length > 1 ? n.charCodeAt(n.length - 1) : 0)
-  return { background: AVATAR_PAARE[summe % AVATAR_PAARE.length] }
+  const [bg, ink] = AVATAR_PAARE[summe % AVATAR_PAARE.length]
+  // Die Schriftfarbe reist als eigene CSS-Variable zum Kreis: das
+  // scoped Stylesheet darf keine Inline-Styles lesen, `color` hier würde von
+  // `.dk-avatar.pz-avatar` überschrieben.
+  return { background: bg, '--pz-avatar-ink': ink }
 }
 
 defineExpose({ telHref })
@@ -613,7 +623,12 @@ defineExpose({ telHref })
   border-radius: 50%;
   font-size: var(--fs-sm);
   font-weight: var(--fw-fett);
-  color: var(--text);
+  /* UX-K1: Die Schrift kommt aus dem FARBPAAR (`--pz-avatar-ink`, gesetzt in
+     `avatarStil`) — vorher stand hier `var(--text)`, also die Theme-Schrift.
+     Im Dunkelmodus wurde daraus helle Schrift auf dem hellen Kreis
+     (1,35–2,12:1). Jedes Paar ist eine helle Fläche mit dunkler Schrift und
+     trägt unabhängig vom Theme (Tokens deshalb in BEIDEN Themes dieselben). */
+  color: var(--pz-avatar-ink, var(--text));
 }
 .pz-name {
   font-weight: var(--fw-mittel);

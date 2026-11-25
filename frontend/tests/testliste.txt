@@ -956,11 +956,26 @@ tests/chat7bui-b-sperren.test.mjs
 # `apiCall(...chat.meine_sperren)` (POST) antwortete der Server 405, die Seite
 # lud nie; kein Test fiel darauf. Geprueft werden `apiCall(<pfad>)` (immer
 # POST), `fetch(...)` mit `method: POST` und Methoden-Adresse, Konstanten
-# (`PRAEFIX + name`, `${PRAEFIX}.name`) aufgeloest sowie die Selbsttests der
-# Erkennung. Quelle des Inventars ist `tests/sec11-zugriff.mjs` (dieselbe wie
-# sec11-get-schreibend). Heute 0 Funde, 27 POST-Aufrufe mit Methodennamen erst
-# zur Laufzeit werden als Hinweis ausgegeben (nicht still verschluckt).
+# (`PRAEFIX + name`, `${PRAEFIX}.name`, `<Konstante>.<schlüssel>`/`<Konstante>`,
+# auch per `import { PFADE } from './x.mjs'` gebrachte Objekt-Tabellen)
+# aufgeloest sowie die Selbsttests der Erkennung. Quelle des Inventars ist
+# `tests/sec11-zugriff.mjs` (dieselbe wie sec11-get-schreibend). Heute 0 Funde,
+# 9 POST-Aufrufe mit Methodennamen erst zur Laufzeit werden als Hinweis
+# ausgegeben (nicht still verschluckt). BUG-WEB-VORSCHAU (25.11.): der Waechter
+# uebersah `apiCall(API.oeffentlich, {})` (405, Vorschau immer leer), weil
+# `apiCall(<Konstante>.<schlüssel>)` nicht aufgeloest wurde — jetzt schon.
 tests/sec11d-*.test.mjs
+
+# BUG-WEB-VORSCHAU (DMB 25.11.): die Ansprechpartner-Vorschau auf `#/website`
+# holte den oeffentlichen Stand per `apiCall` (POST) — der Endpunkt
+# `website.oeffentlich.ansprechpartner` erlaubt nur GET, die Antwort war 405
+# („Aufruf per POST abgewiesen (erlaubt: GET)“) und die Vorschau blieb IMMER
+# leer. Geprueft wird die ECHTE HTTP-METHODE (fetch-Attrappe wie der Server:
+# nur GET, sonst 405 — KEIN apiGet-Stub, der Methoden gleichmacht): GET auf
+# den oeffentlichen Endpunkt, die Antwort fuellt die Vorschau (Liste UND
+# `{ansprechpartner: […]}`), Gegenprobe mit POST (405, Vorschau leer) und das
+# Inventar (Endpunkt ist dort GET-only).
+tests/bug-web-vorschau-*.test.mjs
 
 # CHAT-7b-UI-a — Runden in „Nachrichten“: „Neue Runde“ (Name + 2–7 Personen aus
 # der einen Personensuche, nur mit darf_schreiben wählbar), Runden in der
@@ -1093,3 +1108,11 @@ tests/bef-kal-unten-handy.test.mjs
 # Meldung (und ein späterer Erfolg räumt sie weg), unveränderter Katalogtext,
 # kein zweiter Aufrufer mit demselben Muster.
 tests/bef-umfrage-fehler-zuruecksetzen.test.mjs
+# UX-K1: Kontrast über die Tokens. Die Nachmessung vom 25.11. fand 242
+# Stellen < 4,5:1; fast alle hatten EINE Ursache im Token: `--subtle` trug nur
+# auf Weiß (4,43:1 auf --surface-2, 3,55:1 dunkel), `--accent` war als Schrift
+# 2,57:1, Avatar-Paar 2 war dunkel mit Theme-Schrift (1,35:1), Status- und
+# Akzent-Schriften knapp darunter. Der Test rechnet die Zusage in BEIDEN Themes
+# nach (Tokens aus tokens.css, var() aufgelöst, rgba über die Karte gemischt)
+# und spielt die alten Werte als Gegenprobe durch.
+tests/ux-k1-token-kontrast.test.mjs

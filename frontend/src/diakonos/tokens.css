@@ -71,8 +71,14 @@
   --dk-warm-150:#e7e6e0;
   --dk-warm-200:#d4d4cc;
   /* DES-R15: Das Hilfsgrau erreichte auf Weiss nur 3,17:1 und auf dem
-     Tabellenkopf 2,88:1 (WCAG AA verlangt 4,5:1). #6b7088 liegt bei 4,6:1. */
-  --dk-warm-400:#6b7088;
+     Tabellenkopf 2,88:1 (WCAG AA verlangt 4,5:1). #6b7088 liegt bei 4,6:1.
+     UX-K1: 4,6:1 galt NUR auf Weiß — die Nachmessung vom 25.11. fand dieselbe
+     Schrift auf --surface-2 (#f4f4f0, Tabellenkopf, Wochenzahl, leere
+     Tabellenkacheln) bei 4,43:1 und auf --surface-hover (Zeile unter dem
+     Zeiger, Personenkarten) bei 4,31:1. #6b7088 → #5a6077: mindestens
+     5,3:1 auf --surface-2, 5,4:1 auf --surface-hover, 5,6:1 auf Weiß;
+     auf --dk-warm-200 (--line-strong, kein Schriftgrund) 4,18:1. */
+  --dk-warm-400:#5a6077;
   --dk-warm-500:#5b6178;
   --dk-warm-900:#15182a;
 
@@ -86,14 +92,28 @@
   --dk-ink-line-strong:#2e376a;
   --dk-ink-text:#e8eaf4;
   --dk-ink-text-muted:#9ba3c1;
-  --dk-ink-text-subtle:#6a7199;
+  /* UX-K1: Das gedämpfte Grau des Dunkelmodus stand bei 4,04:1 (Fläche) und
+     3,55:1 (--surface-2: Tabellenkopf, leere Kacheln, Wochenzahl) — 31 der 242
+     Verstöße. #6a7199 → #848bad: mindestens 4,63:1 auf Fläche, --surface-2
+     und --surface-hover, 5,3–5,8:1 auf --bg und der Seitenleiste. */
+  --dk-ink-text-subtle:#848bad;
 
   /* Status-Rohwerte */
-  --dk-green-600: #2f7d4f;
+  /* UX-K1: #2f7d4f stand auf `--ok-soft` (#e7f3ec) bei 4,40:1 und auf Weiß
+     bei 4,42:1 — „Aktiv“-Abzeichen und Erfolgs-Badges verfehlten AA knapp.
+     #256c43: 5,3:1 auf `--ok-soft`, 6,2:1 auf Weiß. Der Ton bleibt grün. */
+  --dk-green-600: #256c43;
   --dk-green-50:  #e7f3ec;
+  /* Der Zustands-Ton `--warn` bleibt #a86a12 — er wurde hier nie geändert
+     und trägt auf Weiß 4,43:1; als Schrift auf `--warn-soft` erscheint er
+     nicht (die Abzeichen-Schrift kommt aus `--badge-ink-warn`).
+     REVIEW UX-K1: Die Abzeichen-Schrift #854f0b (DES-R15) war bereits
+     konform — 6,01:1 auf `--warn-soft`, 6,73:1 auf Weiß. Der Versuch, sie
+     über #855a0e „nachzuziehen“, machte sie HELLER und schlechter (5,41:1);
+     zurück auf den Bestandswert. */
   --dk-amber-700: #a86a12;
   --dk-amber-50:  #fbf1df;
-  --dk-amber-800: #854f0b;   /* DES-R15: Abzeichen-Schrift mit >= 4.5:1 */
+  --dk-amber-800: #854f0b;   /* DES-R15: Abzeichen-Schrift 6,01:1 auf --warn-soft */
   --dk-red-700:   #b42318;
   --dk-red-50:    #fdecea;
   --dk-blue-700:  #1d4ed8;
@@ -107,13 +127,26 @@
 
   /* DES-08: Initialenkreise. Jedes Paar ist Flaechenfarbe + passende
      Schriftfarbe und in BEIDEN Themes lesbar (vorher: --primary-ink, weiss
-     auf Gold 2,68:1 / dunkel 1,41:1). */
+     auf Gold 2,68:1 / dunkel 1,41:1).
+     UX-K1: Die Flächen sind im Dunkelmodus DIESELBEN (die Paare stehen nur
+     hier, kein Dunkel-Gegenstück) — deshalb muss jedes Paar in beiden Themes
+     tragen. Paar 2 war als einziges DUNKEL (#3e4d78) mit WEISSER Schrift:
+     hell 8,3:1, im Dunkelmodus trug dort aber `color: var(--text)` der
+     Avatar-Regeln → dunkle Schrift auf dunklem Kreis (1,35 / 2,12:1).
+     Jetzt ist JEDES Paar eine helle Fläche mit dunkler Schrift (7,4–10,7:1,
+     unabhängig vom Theme); die Schriftfarbe setzen die Avatar-Regeln aus dem
+     Paar (`background` + `color` aus EINER Stelle), nicht mehr `--text`. */
   --dk-avatar-1-bg: #c3cbe3; --dk-avatar-1-ink: #12183a;
-  --dk-avatar-2-bg: #3e4d78; --dk-avatar-2-ink: #ffffff;
+  --dk-avatar-2-bg: #9aa7cf; --dk-avatar-2-ink: #101736;
   --dk-avatar-3-bg: #e2c489; --dk-avatar-3-ink: #3d2c05;
-  --dk-avatar-4-bg: #9fd4b4; --dk-avatar-4-ink: #10321f;
+  --dk-avatar-4-bg: #9fd4b4; --dk-avatar-4-ink: #0d2b1a;
   --dk-avatar-5-bg: #b9c2ee; --dk-avatar-5-ink: #14204d;
   --dk-avatar-6-bg: #efc0b4; --dk-avatar-6-ink: #4a1508;
+  /* UX-K1: Der Kreis der Verantwortlichen im Gruppenkopf (`div.grup-avatar`)
+     nahm `--dk-navy-400` mit `--primary-ink` — im Dunkelmodus ist
+     `--primary-ink` fast SCHWARZ, auf dem Navy also 2,44:1. Ein eigenes Paar:
+     im Dunkeln dunkles Navy mit heller Schrift, hell unverändert. */
+  --dk-avatar-gruppe-bg: var(--dk-navy-400); --dk-avatar-gruppe-ink: #ffffff;
 
   /* Kategorien (Kalender/Kronos) — aus index.css übernommen */
   --dk-cat-ankuendigung:  #d97706;
@@ -152,7 +185,15 @@
      dunkel navy-200 (7,6:1 auf der dunklen Fläche). */
   --link:            var(--dk-navy-500);
   --link-hover:      var(--dk-navy-700);
-  --accent:          var(--dk-gold-500);
+  /* UX-K1: Der Akzent trug im hellen Theme SCHRIFT auf weißer/heller Fläche
+     (aktiver Reiter 2,57:1, Handy-Fußleiste 2,68:1, „Aktiv“-Abzeichen
+     2,34:1 – 21 der 242 Verstöße). #c9952f → #826310: 4,9:1 als Schrift auf
+     `--accent-soft` (Abzeichen), 4,95:1 auf `--surface-hover`, 5,6:1 auf Weiß
+     UND als Fläche mit Weiß darauf (5,6:1 in `--marke-weiss-ink`). Der Farbton
+     bleibt Messing, nur eine Stufe tiefer. Als FLÄCHE eines Balkens dient
+     `--accent-flaeche` (5,1:1 zur Fläche, WCAG 1.4.11 verlangt 3:1).
+     Dunkel bleibt --dk-gold-300 — dort sind es 9–10:1. */
+  --accent:          #826310;
   --accent-d:        var(--dk-gold-600);
   --accent-soft:     var(--dk-gold-50);
   /* P3-4 (Restpunkt 7): Der Fokusring war `navy-400` mit 55 % Deckkraft —
@@ -212,6 +253,25 @@
      --primary-hover, siehe unten). */
   --marke-flaeche: var(--dk-navy-500);
   --marke-flaeche-hover: var(--dk-navy-400);
+  /* UX-K1: Schrift auf einer AKZENTFLÄCHE (Tages-Marke im Mini-Monat,
+     Zeitleiste, Zähler). Hell ist der Akzent tiefes Messing (#826310) → WEISSE
+     Schrift (5,6:1); dunkel ist er gold-300 → dunkle Marken-Schrift (10,5:1).
+     Vorher stand in beiden Themes `--dk-brand-800`: im Dunkelmodus ist das ein
+     HELLES Navy (DES-R4) → 1,36:1 auf gold-300 (Befund Ressourcen). */
+  --marke-weiss-ink: #ffffff;
+  /* UX-K1: Fläche eines Akzent-BALKENS (Unterstrich des aktiven Reiters,
+     Marke der Schublade) und Akzent auf der dunklen LEISTE (Handy-Fußleiste
+     auf Weiß). Hell ist das das tiefe Messing: 5,1:1 zur Fläche, 5,6:1 auf
+     Weiß (WCAG 1.4.11 verlangt 3:1 für Flächen); dunkel gold-300 wie
+     `--accent` (9–10:1).
+     REVIEW UX-K1: `--accent-auf-marke` ist der Akzent für DUNKLE Flächen
+     (Seitenleiste --side-bg, Toast, Logo, Monogramm auf --primary). Der helle
+     Akzent ist als Schrift abgedunkelt und trägt dort nur 2,55–3,08:1; hier
+     sind es 11,9:1 (hell) bzw. 13,3:1 (dunkel). Ein Quelltext-Wächter hält
+     den Unterschied fest. */
+  --accent-flaeche: #826310;
+  --accent-auf-marke: #f1d391;
+  --accent-leiste: #826310;
   /* A10-N2 (Review 09.11., Punkt 3): RING um die Markenfläche, wenn sie auf
      DUNKLEM Grund liegt (gewählter Tag im Mini-Monat). `--marke-flaeche`
      (#1c2850) steht auf der dunklen Fläche (--surface = #111631) bei 1,16:1
@@ -613,6 +673,15 @@
   --link-hover:      var(--dk-navy-50);
   --accent:          var(--dk-gold-300);
   --accent-d:        var(--dk-gold-100);
+  /* UX-K1: Akzent-Flächen und Akzent auf der dunklen Leiste bleiben gold-300
+     (9–10:1 auf der dunklen Fläche, 8,9:1 auf der Leiste); `--marke-weiss-ink`
+     gilt unverändert (Weiß auf gold-300 = 9,2:1). */
+  --accent-flaeche:  var(--dk-gold-300);
+  --accent-auf-marke: var(--dk-gold-100);
+  --accent-leiste:   var(--dk-gold-300);
+  /* UX-K1: Auf dem hellen Gold des Dunkelmodus trägt dunkle Schrift
+     (10,5:1) — Weiß käme dort nur auf 1,87:1. */
+  --marke-weiss-ink: var(--dk-ink-0);
   --accent-soft:     rgba(201,149,47,.16);
   /* P3-4 (Restpunkt 7): deckend statt 60 % — 12,6:1 auf der dunklen Fläche
      (vorher genügte der Ring zwar 3:1, war aber je nach Untergrund dünn). */
@@ -671,6 +740,12 @@
   --fab-ink: #ffffff;
   --badge-ink-ok:    #8fdcaa;
   --badge-ink-info:  var(--dk-navy-100);
+  /* UX-K1: Der Gruppenkreis (hell dunkles Navy mit heller Schrift, §1). Er
+     trug `color: var(--primary-ink)` — im Dunkelmodus ist das fast SCHWARZ
+     auf dem Navy (2,44:1). Das Paar ist eine eigene Fläche und trägt in
+     beiden Themes gleich (8,3:1), steht hier aber ausdrücklich, damit der
+     Druck-Block (mt7b) und der Dunkelmodus denselben Wert sehen. */
+  --dk-avatar-gruppe-bg: var(--dk-navy-400); --dk-avatar-gruppe-ink: #ffffff;
   /* DES-R15 Terminkacheln: im Dunkelmodus bleibt die Kachelfarbe kraeftig,
      die Schrift wird aufgehellt statt abgedunkelt. */
   --event-ink:       var(--dk-ink-0);
@@ -1083,9 +1158,13 @@
     --primary-ink:     var(--dk-warm-0);
     --link:            var(--dk-navy-500);
     --link-hover:      var(--dk-navy-700);
-    --accent:          var(--dk-gold-500);
+    --accent:          #826310;          /* UX-K1: Wert der hellen Fassung (§2) */
     --accent-d:        var(--dk-gold-600);
     --accent-soft:     var(--dk-gold-50);
+    --accent-flaeche:  #826310;          /* UX-K1: Wert der hellen Fassung (§2) */
+    --accent-auf-marke: #f1d391;
+    --accent-leiste:   #826310;
+    --marke-weiss-ink: #ffffff;          /* UX-K1: Wert der hellen Fassung (§2) */
     --focus-ring:      var(--dk-navy-400);
     --focus-ring-side: var(--dk-navy-50);
 
@@ -1105,6 +1184,8 @@
     --badge-ink-warn:  var(--dk-amber-800);
     --badge-ink-ok:    var(--dk-green-600);
     --badge-ink-info:  var(--dk-blue-800);
+    --dk-avatar-gruppe-bg: var(--dk-navy-400);   /* UX-K1: Wert der hellen Fassung (§1) */
+    --dk-avatar-gruppe-ink: #ffffff;
     --badge-auf-bild:        rgba(0, 0, 0, 0.55);
     --badge-auf-bild-text:   #ffffff;
 

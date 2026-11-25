@@ -51,6 +51,14 @@ KAL_PFAD = "/api/method/diakronos.kronos.api.calendar_get."
 # Vor PERF-K2 waren es 440 / 388 in dieser Datei (je Termin eine
 # Kalender-Einzelabfrage plus je Kalender vier Rechtefragen).
 # Obergrenze: schlechteste Rolle 109 + 30 % Luft -> 142, hier 160.
+#
+# PERF-K4b (Kategorienamen gesammelt statt je Termin): In DIESER Datei ist
+# nach dem Umbau gemessen 79 (edit) / 79 (view) — die Testwelt hat keine
+# Kategorie, also faellt kein Kategorie-Lookup mehr an. Die Grenze bleibt
+# trotzdem bei 160: die Betraege oben stammen aus einer ANDEREN Welt
+# (`tests/perf_k2_rollen.py`, mit Kategorien, schlechteste Rolle 109), und
+# eine Grenze knapp ueber den 79 dieser Datei waere keine Zusage mehr fuer
+# die schwerere Welt.
 # Befund vor PERF-K1: 110 803.
 HOECHSTENS_ABFRAGEN = 160
 
@@ -193,7 +201,8 @@ def test_perf_k1_monatsansicht_bleibt_unter_der_abfragegrenze(rechtewelt, engine
     VORHER (gemessen im Vorbau-Image, dieselbe Datenmenge): Hier standen nach
     PERF-K1 noch 440 Abfragen (Bearbeitungsmodus) — davon 276 Einzelabfragen
     des Kalender-Anzeigenamens (eine je Termin). Bei der ersten Messung, vor
-    PERF-K1, waren es 110 803. PERF-K2 bringt diesen Aufruf auf 89.
+    PERF-K1, waren es 110 803. PERF-K2 bringt diesen Aufruf auf 89;
+    PERF-K4b (Kategorienamen gesammelt statt je Termin) auf 79.
     """
     # Die Autouse-Fixture schaltet die Test-Naht bereits ein (conftest.py).
     set_user("perf00@example.org")

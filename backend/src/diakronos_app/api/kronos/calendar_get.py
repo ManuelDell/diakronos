@@ -329,6 +329,32 @@ def get_calendar_events(start_date, end_date, calendar_filter=None, view_mode=Tr
                     or []
                 )
 
+        # PERF-K4b: Die Anzeigenamen der Terminkategorien EINMAL je Aufruf
+        # statt `get_value("Eventkategorie", ...)` JE TERMIN. In einem echten
+        # Bestand stehen ~1300 Termine gegen ~6 Kategorien — das waren 1158
+        # eigene Abfragen (Befund PERF-K3) fuer eine Handvoll Namen.
+        # Inhaltlich identisch zu `get_value`: die Zeile kommt ueber den
+        # Primaerschluessel (`name`) derselben Tabelle, und eine FEHLENDE
+        # Kategorie hat keine Zeile — dann bleibt es wie bisher bei der
+        # Kennung (`or element_category`). Das frueher verschluckte
+        # `except` faellt damit weg: `get_all("Eventkategorie")` liest wie
+        # `get_value` (beides ohne Rechtepruefung, siehe Rechte-Aufrufe
+        # oben unveraendert) und kann auf diesem Leseweg nicht scheitern.
+        kategorie_werte = sorted({
+            str(_row_get(e, "element_category"))
+            for e in events
+            if _row_get(e, "element_category")
+        })
+        kategorie_namen: dict[str, Any] = {}
+        if kategorie_werte:
+            for z in (get_all(
+                "Eventkategorie",
+                filters={"name": ["in", kategorie_werte]},
+                fields=["name", "event_category_name"],
+            ) or []):
+                if isinstance(z, dict) and z.get("name") is not None:
+                    kategorie_namen[str(z.get("name"))] = z.get("event_category_name")
+
         formatted = []
         for e in events:
             element_calendar = _row_get(e, "element_calendar")
@@ -382,15 +408,12 @@ def get_calendar_events(start_date, end_date, calendar_filter=None, view_mode=Tr
 
             category_name = ""
             if element_category:
-                try:
-                    category_name = (
-                        get_value(
-                            "Eventkategorie", element_category, "event_category_name"
-                        )
-                        or element_category
-                    )
-                except Exception:  # noqa: BLE001 — keine Rechte -> Fallback auf ID
-                    pass
+                # PERF-K4b: Name aus dem Vorrat oben (eine Abfrage je Aufruf).
+                # Eine geloeschte Kategorie fehlt im Vorrat -> wie bisher
+                # `get_value(...) or element_category`, also die Kennung.
+                category_name = (
+                    kategorie_namen.get(str(element_category)) or element_category
+                )
 
             # Status-basiertes Styling: Vorschlag = gestrichelt, Konflikt = rot
             border_color = str(color)

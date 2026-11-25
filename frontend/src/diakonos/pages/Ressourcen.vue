@@ -1848,8 +1848,11 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   font-weight: var(--fw-fett);
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--dk-accent);
-  color: var(--dk-brand-800);
+  /* UX-K1: `--dk-brand-800` ist im Dunkelmodus ein HELLES Navy (DES-R4) — auf
+     der Akzentfläche (dunkel gold-300) waren das 1,36:1. Eine deckende helle
+     Schrift trägt in beiden Themes (hell 5,6:1, dunkel 10,5:1). */
+  background: var(--accent);
+  color: var(--marke-weiss-ink);
 }
 .rs-moderation-empty {
   font-size: var(--fs-14);

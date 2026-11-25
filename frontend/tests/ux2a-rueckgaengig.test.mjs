@@ -475,10 +475,14 @@ test('C1 Aussehen: Meldung dunkel mit Gold-Aktion, keine Rohfarben (tokens.css)'
   // Entwurf B1: dunkle Fläche, helle Schrift, Gold für die Aktion.
   assert.match(block, /\.diakonos-toast\s*\{[\s\S]*?background:\s*var\(--side-bg\)/)
   assert.match(block, /\.diakonos-toast\s*\{[\s\S]*?color:\s*var\(--side-text\)/)
-  assert.match(block, /\.diakonos-toast-aktion\s*\{[\s\S]*?color:\s*var\(--accent\)/)
+  // UX-K1 (Review): Die Aktion ist weiter GOLD — auf der dunklen Meldung jetzt
+  // über `--accent-auf-marke` (hell gold-100, dunkel gold-100), weil `--accent`
+  // im hellen Theme für Schrift auf HELLEN Flächen abgedunkelt wurde (3,08:1
+  // auf `--side-bg`). Der Ton bleibt derselbe Gold-Zweig.
+  assert.match(block, /\.diakonos-toast-aktion\s*\{[\s\S]*?color:\s*var\(--accent-auf-marke\)/)
   // Gold ist Status/Marke — die Rückgängig-Meldung trägt es an der Kante,
   // nicht als Volltonfläche (Prinzip Ä4 „Farbe nie alleiniger Träger“).
-  assert.match(block, /\.diakonos-toast--undo\s*\{[^}]*var\(--accent\)/)
+  assert.match(block, /\.diakonos-toast--undo\s*\{[^}]*var\(--accent-auf-marke\)/)
 
   // Keine festen Farbwerte im Block (ON-0b: der Bestand darf nur schrumpfen).
   // `.match` mit `g` gibt bei keinem Treffer `null` zurück — hier immer eine Liste.

@@ -18,6 +18,15 @@
  * (`website.oeffentlich.ansprechpartner`, allow_guest, Feld-Positivliste).
  * Was dort steht, ist genau das, was die Website zeigt; alles andere ist
  * „erscheint nicht“.
+ *
+ * BUG-WEB-VORSCHAU (25.11.): dieser Stand wird per **GET** geholt. Der
+ * Endpunkt deklariert `methods=["GET"]` (`website/oeffentlich_api.py`), ein
+ * `apiCall` (immer POST) endete mit 405 „Aufruf per POST abgewiesen (erlaubt:
+ * GET)“ — die Vorschau blieb deshalb IMMER leer. `apiGet` gibt (wie `apiCall`)
+ * das `message`-Feld zurück, hier also die LISTE
+ * (`oeffentlich_daten.ansprechpartner` -> `[ {bereich, funktion, name,
+ * foto_url, postfach} ]`). Die Auswertung darunter verkraftet weiter beide
+ * Formen (Liste oder `{ansprechpartner: […]}`).
  */
 import { computed, ref } from 'vue'
 import { apiCall, apiGet } from './useApi.js'
@@ -74,13 +83,16 @@ export function useAnsprechpartnerBereiche() {
   /**
    * Öffentlichen Stand holen (Vorschau). Fehler bleiben Text — eine leere
    * Vorschau ist eine gültige Antwort (niemand hat zugestimmt).
+   *
+   * GET, nicht POST: der Endpunkt nimmt nur GET an (BUG-WEB-VORSCHAU).
    * @returns {Promise<object[]>}
    */
   async function oeffentlichenStandLaden() {
     oeffentlichFehler.value = ''
     try {
-      const antwort = await apiCall(API.oeffentlich, {})
-      // `apiCall` liefert die Nutzlast (bei Frappe das `message`-Feld).
+      const antwort = await apiGet(API.oeffentlich)
+      // `apiGet` liefert die Nutzlast (bei Frappe das `message`-Feld) — hier
+      // die Liste; die `{ansprechpartner: […]}`-Form bleibt verkraftet.
       const liste = Array.isArray(antwort) ? antwort : (antwort?.ansprechpartner ?? [])
       oeffentlich.value = Array.isArray(liste) ? liste : []
       return oeffentlich.value

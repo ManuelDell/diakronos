@@ -179,9 +179,12 @@ const zaehlerFuer = (tab) => tabZaehler(tab, { nachrichten: props.ungelesen })
    den inaktiven nicht zu unterscheiden (dieselbe Falle wie DEV-4 bei DkTabs).
    --accent ist in beiden Themes die Markenfarbe: hell 4,84:1, dunkel 9,48:1
    auf der Leistenfläche. Zusaetzlich ein Unterstrich, damit der Zustand nicht
-   allein an der Farbe haengt (WCAG 1.4.1). */
+   allein an der Farbe haengt (WCAG 1.4.1).
+   UX-K1: `--accent-leiste` — die Leiste ist in BEIDEN Themes weiß (bzw. im
+   Dunkelmodus fast schwarz), `--accent` ist hell die abgedunkelte
+   Schriftstufe (4,9:1 auf Weiß) und dunkel gold-300 (8,9:1 auf der Leiste). */
 .dk-bn-tab.active {
-  color: var(--accent);
+  color: var(--accent-leiste);
   font-weight: var(--fw-fett);
 }
 /* CHAT-3a: der Unterstrich sitzt an der BESCHRIFTUNG (letztes <span>), nicht an
@@ -192,7 +195,7 @@ const zaehlerFuer = (tab) => tabZaehler(tab, { nachrichten: props.ungelesen })
   position: absolute;
   left: 0; right: 0; bottom: -3px;
   height: 2px; border-radius: 1px;
-  background: var(--accent);
+  background: var(--accent-leiste);
 }
 .dk-bn-tab:focus-visible {
   outline: 2px solid var(--focus-ring);

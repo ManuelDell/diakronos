@@ -139,3 +139,11 @@ testpaths = ["tests"]
 # @pytest.mark.timeout(...) strenger sein.
 timeout = 60
 timeout_method = "thread"
+# PERF-K3: `perf` markiert Messwerkzeuge und Waechter, die NICHT in die
+# normale Suite gehoeren (sie brauchen einen Wegwerf-Stack bzw. berichten
+# statt zuzusichern). Deselect per Default; ausdruecklich laufen lassen mit
+# `pytest -m perf`.
+markers = [
+    "perf: Messwerkzeuge/Perf-Waechter — brauchen den Wegwerf-Stack (perfk3)",
+]
+addopts = "-m 'not perf'"

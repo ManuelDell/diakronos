@@ -322,7 +322,8 @@ onMounted(() => {
   height: 30px;
   border-radius: var(--radius-sm);
   background: var(--side-bg);
-  color: var(--accent);
+  /* REVIEW UX-K1, Punkt 4: Monogramm auf dem Navy (3,08:1 mit --accent). */
+  color: var(--accent-auf-marke);
   display: grid;
   place-items: center;
   font-size: var(--fs-monogramm);

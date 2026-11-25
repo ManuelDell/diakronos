@@ -773,6 +773,20 @@ def _darf_untergruppe(benutzer: str, aktion: str, untergruppe: str) -> Entscheid
 
 
 def _objekt(sess, typ: str, objekt: str) -> RechteObjekt | None:
+    """Die Rechte-Objekt-Zeile — gemerkt je Aufruf (PERF-K3).
+
+    `_darf_roh` fragte je (Objekt x Aktion) erneut; die Kalenderliste las so
+    jede Zeile fuenfmal. Nur LESEND benutzen: der Merker gibt allen Aufrufern
+    dieselbe Zeile, und jeder Schreibvorgang leert ihn (`db.lesesitzung`).
+    `rechte.vorladen` legt Zeilenkopien unter demselben Schluessel ab.
+    Wer im selben Aufruf ein Rechte-Objekt aendert, muss vor der naechsten
+    Rechtefrage flushen — erst der Flush leert den Merker (die Zeilenkopie
+    sieht ungeflushte Aenderungen nicht).
+    """
+    return _gemerkt(("objekt", typ, objekt), lambda: _objekt_roh(sess, typ, objekt))
+
+
+def _objekt_roh(sess, typ: str, objekt: str) -> RechteObjekt | None:
     return sess.execute(
         select(RechteObjekt).where(RechteObjekt.typ == typ, RechteObjekt.objekt == objekt)
     ).scalar_one_or_none()
@@ -784,17 +798,39 @@ def _freigaben(sess, typ: str, objekt: str, benutzer: str) -> tuple[bool, bool, 
                     lambda: _freigaben_roh(sess, typ, objekt, benutzer))
 
 
+def _freigabe_zeilen(typ: str, objekt: str) -> list:
+    """Freigabe-Zeilen eines Objekts — gemerkt je Aufruf (PERF-K4a).
+
+    ``kalender_rechte_vorladen`` legt die Zeilen ALLER Kalender in EINER
+    Abfrage unter ``("freigabe_zeilen", typ, objekt)`` ab (Zeilenkopien mit
+    denselben Attributen); sonst wird einmal je Aufruf gelesen. Wie bei
+    ``_objekt``: wer Freigaben aendert, flusht vor der naechsten Rechtefrage
+    (der Merker wird bei flush/execute/rollback geleert).
+    """
+    def _roh():
+        with lesesitzung() as sess:
+            return list(sess.execute(
+                select(RechteFreigabe).where(
+                    RechteFreigabe.typ == typ, RechteFreigabe.objekt == objekt)
+            ).scalars().all())
+    return _gemerkt(("freigabe_zeilen", typ, objekt), _roh)
+
+
 def _freigaben_roh(sess, typ: str, objekt: str, benutzer: str) -> tuple[bool, bool, bool, bool]:
     """(lesen, schreiben, moderieren, vorschlagen) aus Personen- UND Gruppen-Freigaben.
 
     Gruppen-Freigabe: ``lesen`` gilt fuer jedes Gruppenmitglied (inkl. GL,
     HV/MV), ``schreiben``/``moderieren`` fuer HV und MV der Gruppe;
     GL der Gruppe duerfen bei ``schreiben`` VORSCHLAGEN (Stufe ``gruppe``).
+
+    PERF-K4a: Die Zeilen kommen aus dem Vorrat, wenn ``kalender_rechte_vorladen``
+    sie schon gelesen hat (``("freigabe_zeilen", typ, objekt)``). Die Rechnung
+    darunter ist unveraendert; ohne Vorrat wird wie bisher gelesen.
+    Das ``sess``-Argument bleibt fuer die Aufrufer-Signatur; gelesen wird ueber
+    ``lesesitzung()`` (leiht die Aufrufer-Sitzung, oeffnet sonst selbst).
     """
+    zeilen = _freigabe_zeilen(typ, objekt)
     lesen = schreiben = moderieren = vorschlagen = False
-    zeilen = sess.execute(
-        select(RechteFreigabe).where(RechteFreigabe.typ == typ, RechteFreigabe.objekt == objekt)
-    ).scalars().all()
     for fg in zeilen:
         if fg.benutzer == benutzer:
             lesen |= bool(fg.lesen or fg.schreiben or fg.moderieren)
@@ -1128,10 +1164,10 @@ def _leitung_mit_gruppenfreigabe(sess, typ: str, objekt: str, benutzer: str) -> 
     Deren GL schlagen dort nur vor (Stufe ``gruppe``) — pruefen muss diese
     Stufe die Leitung einer solchen Gruppe.
     """
-    gruppen = sess.execute(select(RechteFreigabe.gruppe).where(
-        RechteFreigabe.typ == typ, RechteFreigabe.objekt == objekt,
-        RechteFreigabe.gruppe.is_not(None), RechteFreigabe.schreiben.is_(True),
-    )).scalars().all()
+    gruppen = [
+        fg.gruppe for fg in _freigabe_zeilen(typ, objekt)
+        if fg.gruppe and fg.schreiben
+    ]
     return any(gruppenrolle(benutzer, g) in _LEITUNG for g in gruppen if g)
 
 

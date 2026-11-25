@@ -419,7 +419,17 @@ def test_f5_gueltige_sortierung_als_text_geht(als_benutzer, welt):
 # ── (F6) SQLite-Rundlauf der Migration ────────────────────────────────────
 
 
+def _kette():
+    """ScriptDirectory der produktiven Kette (kein Test-Vorspann)."""
+    from alembic.script import ScriptDirectory
+
+    cfg = Config(str(BACKEND / "alembic.ini"))
+    cfg.set_main_option("script_location", str(BACKEND / "alembic"))
+    return ScriptDirectory.from_config(cfg)
+
+
 def _cfg(url: str) -> Config:
+    """Alembic-Config fuer den Wegwerf-Lauf."""
     cfg = Config(str(BACKEND / "alembic.ini"))
     cfg.set_main_option("script_location", str(BACKEND / "alembic"))
     cfg.set_main_option("sqlalchemy.url", url)
@@ -477,19 +487,64 @@ def _stempel(cfg, url: str) -> None:
     try:
         with eng.begin() as conn:
             ctx = MigrationContext.configure(conn)
-            ctx.stamp(_SCRIPT(), "web1b_primo_konto")
+            ctx.stamp(_kette(), "web1b_primo_konto")
     finally:
         eng.dispose()
 
 
-def _SCRIPT():
-    cfg = Config(str(BACKEND / "alembic.ini"))
-    cfg.set_main_option("script_location", str(BACKEND / "alembic"))
-    return ScriptDirectory.from_config(cfg)
+def _bewegung(cfg, url: str, ziel: str) -> None:
+    """Ein echter ``command.upgrade``/``command.downgrade`` ueber die ``env.py``.
+
+    ``env.py`` liest die URL ueber ``settings.database_url`` (nicht aus der
+    ``Config``) — deshalb wird die Einstellung fuer die Dauer des Laufs
+    gesetzt und danach zurueckgegeben.
+
+    Warum OHNE Sonderweg fuer die BS-1a-Stufen: fruehere Fassungen riefen
+    ``modul.upgrade``/``modul.downgrade`` direkt auf, weil die ``env.py`` auf
+    SQLite mit ``version_table_schema`` an ``public.sqlite_master`` scheiterte.
+    Der direkte Aufruf umging die Kette und damit genau das, was der Test
+    zusichern soll: dass ``upgrade``/``downgrade`` im Verbund tragen. Heute
+    setzt ``env.py`` kein Schema mehr, und ``_vorwelt`` schafft die Tabellen,
+    gegen die gestempelt wird — der Sonderweg ist nicht mehr noetig.
+    """
+    from alembic import command
+
+    from diakronos_app.settings import settings
+
+    alt = settings.database_url
+    settings.database_url = url
+    try:
+        if ziel == "head":
+            command.upgrade(cfg, _kopf())
+        else:
+            command.downgrade(cfg, ziel)
+    finally:
+        settings.database_url = alt
 
 
 def _vorwelt(eng) -> None:
-    """Die drei Tabellen der BS-1a-Freigaben, wie sie vorher aussehen."""
+    """Die Tabellen, die der gestempelte Stand im Betrieb HAT.
+
+    ``_stempel`` setzt den Alembic-Stand auf ``web1b_primo_konto``. Damit der
+    gestempelte Stand nicht nur auf dem Papier existiert, muessen die Tabellen
+    dastehen, auf die spaetere Migrationen zeigen — sonst laeuft
+    ``upgrade head`` ins Leere:
+
+    * ``user`` / ``mitglied`` — Fremdschluesselziele von ``chat2_chat_s1``
+      (``CREATE TABLE`` bricht sonst schon ab) und Ziele, die
+      ``chat5_umfrage`` beim ``batch_alter_table`` von ``chat_nachricht``
+      mitspiegelt (``NoSuchTableError: user``).
+    * ``gemeinde_einstellungen`` — ``chat8_fristen`` und
+      ``chat12c_anhang_groesse`` ergaenzen dort Spalten per ``ALTER TABLE``.
+
+    Die drei stammen im Betrieb aus ``p1bmodelle`` (abgelegtes Schema aus 73
+    Frappe-DocTypes). Hier stehen sie als MINIMALFORM: genau die Spalten, auf
+    die die Kette zeigt. Bewusst KEIN Vorspann als Alembic-Revision — der
+    Revisionsgraph wird bei jedem ``command.upgrade`` neu aus den Dateien
+    gebaut, eine Bruecke muesste ein echtes Kettenglied mit zweitem Kopf sein.
+
+    Zusaetzlich die drei Tabellen der BS-1a-Freigaben, wie sie vorher aussehen.
+    """
     from sqlalchemy import text
 
     with eng.begin() as conn:
@@ -511,6 +566,27 @@ def _vorwelt(eng) -> None:
                 "name VARCHAR(140) PRIMARY KEY, titel VARCHAR(140))"
             )
         )
+        # Betriebswelt: Konten, Mitglieder, Gemeinde-Single (aus p1bmodelle).
+        conn.execute(
+            text(
+                "CREATE TABLE user ("
+                "name VARCHAR(140) PRIMARY KEY, email VARCHAR(140),"
+                " full_name VARCHAR(140), enabled BOOLEAN NOT NULL DEFAULT 1)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE mitglied ("
+                "name VARCHAR(140) PRIMARY KEY, vorname VARCHAR(140),"
+                " nachname VARCHAR(140))"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE gemeinde_einstellungen ("
+                "name VARCHAR(140) PRIMARY KEY)"
+            )
+        )
 
 
 def _alembic_stand(eng) -> str | None:
@@ -521,103 +597,41 @@ def _alembic_stand(eng) -> str | None:
 
 
 def _kopf() -> str:
-    """Aktueller Kopf der Alembic-Kette (nicht mehr `bs1a_website_freigaben`).
+    """Aktueller Kopf der Alembic-Kette.
 
-    ON-1 hat `on1_einrichtung` hinten angehaengt. Der Test sichert zu, dass
-    `upgrade head` WIRKLICH am Kopf landet — welches Literal das ist, ist
-    Sache der Kette und nicht dieses Tests.
+    Welches Literal das ist, bleibt Sache der Kette — der Test liest ihn,
+    statt einen Namen zu raten (ON-1 hat ``on1_einrichtung`` angehaengt,
+    inzwischen liegt der Kopf weiter hinten).
     """
-    from alembic.config import Config
-    from alembic.script import ScriptDirectory
-    from pathlib import Path
-
-    ini = Path(__file__).resolve().parents[1] / "alembic.ini"
-    cfg = Config(str(ini))
-    cfg.set_main_option("script_location", str(ini.parent / "alembic"))
-    heads = ScriptDirectory.from_config(cfg).get_heads()
+    skripte = _kette()
+    heads = skripte.get_heads()
     assert len(heads) == 1, heads
     return heads[0]
 
 
 def _vorgaenger() -> str:
-    """Revision, die KURZ vor `bs1a_website_freigaben` liegt."""
-    from alembic.config import Config
-    from alembic.script import ScriptDirectory
-    from pathlib import Path
-
-    ini = Path(__file__).resolve().parents[1] / "alembic.ini"
-    cfg = Config(str(ini))
-    cfg.set_main_option("script_location", str(ini.parent / "alembic"))
-    return str(ScriptDirectory.from_config(cfg).get_revision("bs1a_website_freigaben").down_revision)
+    """Revision, die KURZ vor ``bs1a_website_freigaben`` liegt."""
+    return str(
+        _kette().get_revision("bs1a_website_freigaben").down_revision
+    )
 
 
-def _bewegung(cfg, url: str, ziel: str) -> None:
-    """``upgrade head`` ueber die ``env.py``; ``bs1a_website_freigaben`` direkt.
-
-    ``env.py`` liest die URL ueber ``settings.database_url`` (nicht aus der
-    ``Config``) — deshalb wird die Einstellung fuer die Dauer des Laufs
-    gesetzt und danach zurueckgegeben.
-
-    Warum die Ausnahmen: seit ON-2 haengt ``on2_einrichtung`` am BS-1a-Kopf.
-    Die ``env.py`` arbeitet mit ``version_table_schema`` — auf SQLite ergibt
-    das ein ``public.sqlite_master`` und scheitert, sobald ein Lauf eine
-    BS-1a-Stufe ansteuert. Fuer das Rueckwaerts-/Wiederaufwaerts-Gehen wird
-    deshalb die BS-1a-Revision direkt ausgefuehrt (dieselben ``upgrade``- und
-    ``downgrade``-Funktionen, nur ohne den Ketten-Rahmen); ``head`` laeuft
-    unveraendert ueber ``env.py``.
-    """
-    from alembic import command
-    from alembic.migration import MigrationContext
-    from alembic.operations import Operations
-    from sqlalchemy import create_engine, text
-
-    from diakronos_app.settings import settings
-
-    alt = settings.database_url
-    settings.database_url = url
-    try:
-        if ziel == "head":
-            command.upgrade(cfg, "head")
-            return
-        modul = _bs1a_modul()
-        eng = create_engine(url, future=True)
-        try:
-            if ziel == "bs1a_website_freigaben":
-                schritt = modul.upgrade
-            elif ziel == "web1b_primo_konto":
-                schritt = modul.downgrade
-            else:  # pragma: no cover — Aufrufer nutzt nur die beiden
-                raise AssertionError(f"unbekanntes Ziel {ziel!r}")
-            with eng.begin() as conn:
-                ctx = MigrationContext.configure(conn)
-                with Operations.context(ctx):
-                    schritt()
-                ctx.stamp(_SCRIPT(), ziel)
-        finally:
-            eng.dispose()
-    finally:
-        settings.database_url = alt
-
-
-def _bs1a_modul():
-    """Die BS-1a-Revision als Modul (fuer den direkten Aufruf)."""
-    import importlib.util
-
-    pfad = BACKEND / "alembic" / "versions" / "bs1a_website_freigaben.py"
-    spec = importlib.util.spec_from_file_location("bs1a_revision", pfad)
-    assert spec is not None and spec.loader is not None
-    modul = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modul)
-    return modul
 
 
 def test_f6_sqlite_rundlauf_upgrade_downgrade_upgrade(monkeypatch, tmp_path):
-    """upgrade head -> downgrade bs1a_website_freigaben -> upgrade head.
+    """Ganze Kette: upgrade head -> downgrade bis BS-1a-Vorgaenger -> upgrade head.
 
-    Das Rueckwaerts-Ziel wird AUSGESCHRIEBEN, nicht als ``-1``: seit ON-2
-    (``on2_einrichtung``) haengt eine weitere Migration am BS-1a-Kopf, ein
-    ``-1`` waere also die falsche Stufe. Geprueft wird hier BS-1a, nicht der
-    jeweils aktuelle Kopf.
+    Warum der Lauf seit TEST-BEKANNT ueber ``command.upgrade``/``downgrade``
+    und nicht mehr ueber die Revision direkt geht: der Test stempelte eine DB
+    auf ``web1b_primo_konto`` und rief dann ``bs1a_website_freigaben`` als
+    Modul auf. Damit umging er die Kette und konnte gar nicht bemerken, dass
+    die gestempelten Stufen nicht existieren. Jetzt faehrt er den ganzen Weg
+    wie der Entrypoint im Betrieb.
+
+    Das Rueckwaerts-Ziel ist ``_vorgaenger()`` — die Revision DIREKT vor
+    ``bs1a_website_freigaben`` — und nicht der heutige Kopf: geprueft wird,
+    dass BS-1a sauber zurueckgeht, nicht dass die ganze Kette rueckwaerts
+    fahrbar ist (das deckt keine Migration zu).
     """
     from sqlalchemy import create_engine, text
     from sqlalchemy.pool import NullPool
