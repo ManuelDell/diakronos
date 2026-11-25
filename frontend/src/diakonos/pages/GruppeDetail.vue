@@ -2158,6 +2158,21 @@ export default {
 
 .grup-link { color: var(--primary); font-size: var(--fs-sm); text-decoration: none; }
 .grup-link:hover { text-decoration: underline; }
+/* UX-K2b (Review): Die Trefferfläche wächst über ein `::after`-Feld, NICHT
+   über `min-height` + `inline-flex` — eine echte Mindesthöhe machte
+   Tabellenzeilen höher und erzwang eine Zeilenbox (kein Umbruch). Das Feld
+   ist unsichtbar, verschiebt nichts und trifft die Höhe des Textes plus
+   je 6 px links/rechts. Die Breite folgt dem Namen. */
+@media (pointer: coarse) {
+  .grup-link {
+    position: relative;
+  }
+  .grup-link::after {
+    content: "";
+    position: absolute;
+    inset: calc((var(--treffer-grob) - 100%) / -2) calc(-1 * var(--treffer-seite));
+  }
+}
 
 .grup-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .grup-chip {

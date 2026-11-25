@@ -394,9 +394,12 @@ function routerAusfuehren(boot) {
   // Am Handy scrollt die Zeile waagerecht, nichts bricht um (Punkt 5 der Karte).
   assert.ok(/overflow-x: auto/.test(ui), 'waagerechte Leiste scrollt')
   assert.ok(/white-space: nowrap/.test(ui), 'Einträge werden nicht umgebrochen')
-  // Klickfläche aus dem Token (K4: 44 px bei Fingerbedienung).
+  // Klickfläche aus dem Token (K4: 44 px bei Fingerbedienung). UX-K2b: Das
+  // Maß steht EINMAL — im Token `--treffer-grob`; ein Literal `44px` in der
+  // Komponente wäre eine zweite Quelle.
   assert.ok(/min-height: var\(--control-h\)/.test(ui), 'Klickfläche aus --control-h')
-  assert.ok(/@media \(pointer: coarse\)[\s\S]*min-height: 44px/.test(ui), '44 px bei Fingerbedienung')
+  assert.ok(/@media \(pointer: coarse\)[\s\S]*min-height: var\(--treffer-grob\)/.test(ui),
+    '44 px bei Fingerbedienung aus --treffer-grob')
   // Kennzahl nur als echte Zahl — nie ein leerer oder geratener Punkt.
   const uiSkript = ui.slice(ui.indexOf('<script setup>'), ui.indexOf('<style'))
   assert.ok(uiSkript.includes('Number.isFinite(n)'), 'Kennzahl wird geprüft')

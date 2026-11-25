@@ -197,9 +197,19 @@ function zahl(o) {
 }
 .dk-ui-reiter.is-segment .dk-ui-reiter-punkt:focus-visible { outline-offset: 0; }
 
-/* K4: bei Fingerbedienung sind die Einträge 44 px hoch. */
+/* K4: bei Fingerbedienung sind die Einträge 44 px hoch. UX-K2 (Nachmessung
+   25.11.): An den vier Leisten-Reitern der Nachmessung stand
+   `a.dk-ui-reiter-punkt` mit 84×32 — die Mindesthöhe allein genügte nicht,
+   weil `padding-block` fehlte und die Mindesthöhe an einem Inline-Element in
+   der Zeile nicht über die Zeilenhöhe hinauswuchs. Am groben Zeiger bekommt
+   der Punkt deshalb Polster oben/unten UND die Höhe aus dem Token —
+   Trefferfläche, keine größere Schrift.
+   UX-K2b: Das Maß steht EINMAL (Token `--treffer-grob` = 44 px); die frühere
+   Doppeldeklaration `min-height: 44px; min-height: var(--treffer-grob)` war
+   nur für einen Wächter da, der das Literal suchte
+   (`tests/uxa2a-bereichsliste.test.mjs` prüft jetzt das Token). */
 @media (pointer: coarse) {
-  .dk-ui-reiter-punkt { min-height: 44px; }
-  .dk-ui-reiter.is-segment .dk-ui-reiter-punkt { min-height: 44px; }
+  .dk-ui-reiter-punkt { min-height: var(--treffer-grob); padding-block: var(--sp-2); }
+  .dk-ui-reiter.is-segment .dk-ui-reiter-punkt { min-height: var(--treffer-grob); }
 }
 </style>

@@ -42,7 +42,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, Iterable, Mapping
 
-from .permissions import ADMIN_ROLES, _has_admin_role
+from .permissions import ADMIN_ROLES
 from .session import session
 from ..email_belegung import normalisiere
 
@@ -102,7 +102,11 @@ class PersonenSicht:
         keinem Mitglied zugeordnet ist). Ein Verwaltungskonto sieht alles,
         unabhaengig von der eigenen Mitgliedszeile.
         """
-        if _has_admin_role(session.user):
+        # EIN Rechtesystem: dieselbe Antwort wie jede andere Verwaltungsfrage
+        # (Login ``Administrator``, root, System Manager, Mitgliederverwaltung).
+        from diakronos_app.rechte.kern import hat_systemrolle
+
+        if hat_systemrolle(session.user, "mitgliederverwaltung"):
             return cls(vollstaendig=True)
         name = (mitglied_daten or {}).get("name")
         return cls(vollstaendig=False, eigenes_mitglied=str(name) if name else None)

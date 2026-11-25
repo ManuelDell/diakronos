@@ -385,15 +385,12 @@ def test_perf_k4a_anzeigeregeln_sind_wirklich_drin(kanbanwelt):
     # gleich behandelt werden.
     assert AUSGETRETEN_ANZEIGE in namen_hv, namen_hv
     assert "Person 04" not in namen_hv, namen_hv
-    # ACHTUNG (bewusst NICHT geaendert): `PersonenSicht.aus()` fragt die
-    # SITZUNG (`session.user`) — im Test ist das die Test-Naht-Identitaet,
-    # nicht der `Administrator`. Deshalb kuerzt die Regel hier auch fuer den
-    # Administrator-LOGIN. Dasselbe galt fuer `_anzeigename` vor dieser Karte;
-    # die Bedingung „byte-gleich“ haelt das fest. Wer die Sicht auf den
-    # ADMINISTRATOR statt auf die Sitzung umstellen will, aendert die
-    # Anzeigeregel selbst — das ist eine eigene Entscheidung (Operator).
+    # RECHTE-ADMIN: `PersonenSicht.aus()` fragt den Rechtekern
+    # (`hat_systemrolle(…, "mitgliederverwaltung")`) — der Login
+    # `Administrator` ist dort Admin, auch ohne `Has Role`-Zeile. Vorher
+    # kuerzte die Regel fuer ihn (zweite Admin-Definition ueber Rollen).
     assert [e["antragsteller"] for e in admin["vorschlaege"] if e["id"] == "EL-K4-V004"] \
-        == [AUSGETRETEN_ANZEIGE]
+        == ["Person 04"]
     # Geloeschte Person: EIN Text — auf JEDEM Brett, auf dem sie steht, und
     # auch fuer den `Administrator`. Ihr Kalender KAL-K4-WEG haengt an keiner
     # Gruppe; erreichbar ist er nur ueber den Login-Kurzschluss `Administrator`

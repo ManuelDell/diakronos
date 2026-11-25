@@ -319,6 +319,17 @@ onMounted(() => { laden(); ladeKonten() })
 .an-optionen { display: grid; gap: var(--sp-3); margin-top: var(--sp-3); }
 .an-option { display: flex; align-items: flex-start; gap: var(--sp-2); }
 .an-option input { margin-top: var(--sp-1); flex-shrink: 0; }
+/* UX-K2b (Review): Trefferfläche des Kästchens am LABEL, nicht am Kästchen.
+   `label:has(> input)` greift hier nicht (das Kästchen steht als erstes Kind,
+   das Label hat zwei Kinder) — deshalb am Behälter: Mindesthöhe 44 px und
+   Polster oben/unten, damit auch der Text als Fläche zählt. Das Kästchen
+   selbst bleibt 13–16 px. Am Desktop (feiner Zeiger) unverändert. */
+@media (pointer: coarse) {
+  .an-option {
+    min-height: var(--treffer-grob);
+    padding-block: var(--sp-1);
+  }
+}
 .an-hilfe { display: block; color: var(--muted); font-size: var(--fs-sm); overflow-wrap: anywhere; }
 .an-zuordnung { display: grid; grid-template-columns: 1fr 1fr auto; align-items: end; gap: var(--sp-2); margin-block: var(--sp-3); }
 .an-admin { margin-block: var(--sp-4); }

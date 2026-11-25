@@ -407,18 +407,21 @@
 }
 /* UX1c/C3 (Nacharbeit 07.11.): Am groben Zeiger ist die GANZE Zeile das
    Tippziel (Kalender-Liste der Seitenleiste) — 44 px hoch, Beschriftung als
-   Flaeche. Das Kaestchen selbst bleibt 18 px (siehe unten). */
-@media (pointer: coarse) {
-  .calendar-item {
-    min-height: var(--control-h);
-  }
-}
+   Flaeche. Das Kaestchen selbst bleibt 18 px.
+   UX-K2b (Review): Hier stand ein Touch-Block, der Breite/Höhe des KAESTCHENS
+   auf 44 px setzte. Er war doppelt falsch: er stand VOR der Grundregel
+   `.calendar-item input[type=checkbox] { width: 18px; height: 18px }`
+   (gleiche Spezifitaet, spaetere Regel gewinnt — also wirkungslos) und er
+   haette, wenn er gegriffen haette, das Kaestchen mit 2-px-Rahmen
+   aufgeblasen und das Hakenzeichen verschoben. Beides ist entfallen; die
+   Flaeche haengt an Zeile und Beschriftung (Touch-Block nach
+   `.calendar-item label`), das Kaestchen bleibt 18 px. */
 .calendar-item input[type=checkbox] {
   width: 18px;
   height: 18px;
   /* UX1c/C3 (Nacharbeit 07.11.): Das Kaestchen selbst bleibt 18 px; das
      TIPPZIEL ist die ganze Zeile `.calendar-item` (44 px am groben Zeiger,
-     Regel direkt unter `.calendar-item:hover`). */
+     Regel nach der Beschriftung unten). */
   border: 2px solid var(--calendar-color);
   border-radius: 4px;
   appearance: none;
@@ -433,7 +436,7 @@
   border-color: var(--calendar-color);
 }
 .calendar-item input[type=checkbox]:checked::after {
-  content: ✔;
+  content: "✔";
   position: absolute;
   inset: 0;
   color: #fff;
@@ -447,6 +450,21 @@
   color: var(--dk-text);
   cursor: pointer;
   flex: 1;
+}
+/* UX-K2b (Review): Der Touch-Block fuer die Kalenderzeile steht HIER — NACH
+   der Grundregel des Kaestchens (18 px). Stuende er davor, gewaenne bei
+   gleicher Spezifitaet die spaetere Grundregel und die Mindestflaeche waere
+   wirkungslos (genau der Fehler aus UX-K2). Die Flaeche haengt an Zeile und
+   Beschriftung, das Kaestchen bleibt 18 px mit eigenem Bild. */
+@media (pointer: coarse) {
+  .calendar-item,
+  .calendar-item label {
+    min-height: var(--treffer-grob);
+  }
+  .calendar-item label {
+    display: flex;
+    align-items: center;
+  }
 }
 /* OP-ADMIN-10: Statt eines klickbar aussehenden Stifts („✎“, der nur
    „du darfst schreiben“ bedeutete und nichts tat) ein ECHTER Text-Hinweis.

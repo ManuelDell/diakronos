@@ -498,12 +498,15 @@ function onMenueAktion(ereignis) {
    dem Handy-Lage-Block oben am Template. Ein Maus-Laptop ohne untere Leiste
    behält die einzeilige Kopfzeile; sein Umbruch geschieht bei 1100 px. */
 @media (pointer: coarse) {
+  /* UX-K2 (Nachmessung 25.11.): Die Werkzeuge stehen seit jeher bei 44 px —
+     jetzt aus dem benannten Token `--treffer-grob` statt als Literal (eine
+     Quelle für „44 px am Finger“). */
   .nav-btn,
   .todaybutton,
   .termin-anlegen-btn,
-  .sidebar-toggle-btn { height: 44px; }
+  .sidebar-toggle-btn { height: var(--treffer-grob); }
   .nav-btn,
   .todaybutton,
-  .termin-anlegen-btn { width: 44px; }
+  .termin-anlegen-btn { width: var(--treffer-grob); }
 }
 </style>

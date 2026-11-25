@@ -48,3 +48,18 @@ function istGewaehlt(chip) {
   return props.modelValue === chip.id || (istAlle(props.modelValue) && chip.id === props.alleWert)
 }
 </script>
+
+<style scoped>
+/* UX-K2 (Nachmessung 25.11.): Die Ansicht-Umschalter der Werkzeugleiste
+   („Kachelansicht“/„Listenansicht“, je nur ein Symbol) standen mit 40×44 in
+   der Messung — 4 px zu schmal für den Finger. Die Mindestbreite steht hier
+   ausdrücklich, weil dieser Stil `scoped` ist (`.dk-ui-chip[data-v-…]`, zwei
+   Klassen) und die globale Regel in `index.css` mit einer Klasse verliert —
+   dazu kam `--control-h` im 40er-Grundmaß. Nur bei Fingerbedienung; am
+   Desktop bleibt der Chip inhaltsbreit. */
+@media (pointer: coarse) {
+  .dk-ui-chip {
+    min-width: var(--treffer-grob);
+  }
+}
+</style>

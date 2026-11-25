@@ -473,11 +473,18 @@ defineExpose({
   background: var(--err-soft);
 }
 
-/* Grober Zeiger (Handy/iPad): Trefferfläche ≥ 44 px (K4). */
+/* Grober Zeiger (Handy/iPad): Trefferfläche ≥ 44 px (K4).
+   UX-K2 (Nachmessung 25.11.): Der Auslöser „⋯“ der Chat-Leiste war 34×44 —
+   die Breite kam aus `width: var(--control-h)` und blieb bei 34 px. Diese
+   Fläche bekommt ihre Mindestfläche deshalb direkt aus `--treffer-grob`
+   (44 px, nicht einstellbar) — und hier statt nur in `index.css`, weil dieser
+   Stil `scoped` ist (`.dk-ui-aktionen-ausloeser[data-v-…]`, zwei Klassen,
+   schlägt die globale Regel mit einer Klasse). */
 @media (pointer: coarse) {
   .dk-ui-aktionen-ausloeser {
-    width: 44px;
-    height: 44px;
+    width: var(--treffer-grob);
+    height: var(--treffer-grob);
+    min-width: var(--treffer-grob);
   }
   .dk-ui-aktionen-eintrag { min-height: 44px; }
   .dk-ui-aktionen-eintrag.is-getrennt { min-height: 52px; }

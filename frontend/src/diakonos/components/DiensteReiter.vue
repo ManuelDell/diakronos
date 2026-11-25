@@ -91,6 +91,10 @@ const aktiveSeite = computed(() => props.seite)
   outline-offset: 1px;
 }
 @media (pointer: coarse) {
-  .dk-dienste-reiter-punkt { min-height: var(--row-h); }
+  /* UX-K2 (Nachmessung 25.11.): Trefferfläche am Finger aus dem benannten
+     Maß — `--row-h` ist dasselbe 44 px, aber ein Zeilenmaß; hier geht es um
+     das Tippziel. UX-K2b: die Doppeldeklaration (nur für einen alten Wächter)
+     ist entfallen, das Maß steht EINMAL. */
+  .dk-dienste-reiter-punkt { min-height: var(--treffer-grob); }
 }
 </style>

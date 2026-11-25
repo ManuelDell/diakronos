@@ -71,4 +71,20 @@ defineProps({
   min-height: calc(var(--sp-6) + var(--sp-2));
 }
 .dk-ui-pageheader-badges { margin-block: var(--sp-1); }
+
+/* UX-K2b (Review): Trefferfläche über ein `::after`-Feld statt `min-height`
+   + `inline-flex`. Eine Mindesthöhe am Inline-Verweis bog die Krümel-Zeile um
+   bzw. unterdrückte den Umbruch; das Feld ist unsichtbar, verschiebt nichts
+   und trifft Höhe des Textes plus je 6 px links/rechts. Am Desktop bleibt der
+   Verweis kompakt (Regel nur am groben Zeiger). */
+@media (pointer: coarse) {
+  .dk-ui-brot-link {
+    position: relative;
+  }
+  .dk-ui-brot-link::after {
+    content: "";
+    position: absolute;
+    inset: calc((var(--treffer-grob) - 100%) / -2) calc(-1 * var(--treffer-seite));
+  }
+}
 </style>

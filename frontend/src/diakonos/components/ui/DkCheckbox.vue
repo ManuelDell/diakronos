@@ -59,4 +59,18 @@ defineEmits(['update:modelValue'])
   cursor: inherit;
 }
 .dk-ui-checkbox-label { line-height: 1.4; }
+/* UX-K2b (Review): Trefferfläche am LABEL, nicht am Kästchen. Die globale
+   Regel aus index.css ist entfallen (min-* schlägt width/height und blies
+   jedes Kästchen auf 44×44); das Label bekommt Mindesthöhe aus dem Token und
+   eine kleine Auflage links/rechts — das Kästchen bleibt 16 px. Hier statt
+   nur in index.css, weil dieser Stil `scoped` ist (zwei Klassen schlagen die
+   globale Regel; das war die Ursache, nicht `!important`). */
+@media (pointer: coarse) {
+  .dk-ui-checkbox {
+    min-height: var(--treffer-grob);
+    padding-block: var(--sp-1);
+    padding-inline: var(--sp-1);
+    margin-inline: calc(-1 * var(--sp-1));
+  }
+}
 </style>

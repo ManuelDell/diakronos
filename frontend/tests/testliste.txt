@@ -127,6 +127,7 @@ tests/dep2b-*.test.mjs
 tests/reg1a-*.test.mjs
 tests/uxa2a-*.test.mjs
 tests/uxa2a2-*.test.mjs
+tests/uxk2-*.test.mjs
 tests/uxa2b-*.test.mjs
 tests/org-1-*.test.mjs
 tests/reg1b-*.test.mjs

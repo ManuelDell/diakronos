@@ -158,6 +158,77 @@ async function rendern(n = 6) {
   }
 }
 
+/**
+ * FE-HAENGER: JEDE montierte Seite wird hier gemeldet und nach JEDEM Test
+ * abgebaut — auch dann, wenn eine Zusage im Test wirft. Vorher stand
+ * `s.abbaum()` als LETZTE Zeile im Test: eine rote Zusage ließ die Seite
+ * stehen, der Takt der Nachrichtenseite (`taktGeber`, 10 s) plante sich
+ * weiter neu und hielt die Ereignisschleife am Leben. `node --test` wartete
+ * dann ewig statt „Promise resolution is still pending“ ROT zu melden — im
+ * Docker-Build hing der FE-Teststep dadurch 1–6 h (Sammel 21/22, TOOL-404).
+ */
+const offeneSeiten = new Set()
+test.afterEach(() => {
+  for (const ab of [...offeneSeiten]) {
+    try { ab() } catch { /* Aufräumen darf nie werfen */ }
+  }
+  offeneSeiten.clear()
+  // Ein liegengebliebener `nextTick`-Wartender gehört der abgebauten Seite.
+  tickWarteschlange.splice(0, tickWarteschlange.length)
+})
+
+/**
+ * Auf eine BEDINGUNG warten statt Runden zu zählen (FE-HAENGER): eine feste
+ * Zahl Ticks reicht unter Build-Last nicht (CHAT-11b-2 (2) war dort rot),
+ * eine reine Wanduhr-Frist aber auch nicht — also beides: Bedingung prüfen,
+ * dabei Takte und `nextTick` pumpen, und nach `ms` mit einem klaren Fehler
+ * aufgeben (statt die Datei hängen zu lassen).
+ */
+async function warteAuf(bedingung, { ms = 10000, was = 'Bedingung', pruefeAlle = 2 } = {}) {
+  const ende = Date.now() + ms
+  for (;;) {
+    if (await bedingung()) return true
+    if (Date.now() > ende) {
+      assert.fail(`${was}: nach ${ms} ms nicht erfüllt (FE-HAENGER-Frist)`)
+    }
+    for (let i = 0; i < pruefeAlle; i += 1) { await tick() }
+    await rendern(1)
+  }
+}
+
+/**
+ * Takte und `nextTick` pumpen, bis die Zusage aufgeht — ODER die Wanduhr
+ * abläuft (FE-HAENGER). Ersetzt die früheren „40/60/200 Runden pumpen“-
+ * Schleifen: die reichten unter Build-Last nicht (rote Zusagen in
+ * CHAT-11b-2 (2) / D-Sprung) und konnten im Fehlerfall ewig pumpen.
+ * `wahr` = eingetreten, `falsch` = Frist um.
+ */
+async function pumpeBis(zusage, ms = 15000) {
+  const ende = Date.now() + ms
+  let fertig = null
+  Promise.resolve(zusage).then(() => { fertig = true }, () => { fertig = false })
+  for (;;) {
+    await warte(4)
+    await rendern(2)
+    if (fertig !== null) return fertig
+    if (Date.now() > ende) return false
+  }
+}
+
+/**
+ * Rein ZEITLICH pumpen (FE-HAENGER): `ms` Millisekunden lang Takte und
+ * `nextTick` bedienen. Ersetzt „40 Runden warten“ — die Rundenzahl hing an
+ * der Rechenleistung (im Build langsamer → zu früh geprüft), die Wanduhr
+ * nicht. Kein Endlosrisiko: die Zeit ist die Obergrenze.
+ */
+async function pumpe(ms = 300) {
+  const ende = Date.now() + ms
+  while (Date.now() < ende) {
+    await warte(4)
+    await rendern(2)
+  }
+}
+
 /** Mounten mit Horcher für die Ereignisse der Komponente. */
 async function mounten(baustein, props = {}, { horcher = null, propNamen = null, vertreter = null } = {}) {
   let vertreten = null
@@ -166,6 +237,7 @@ async function mounten(baustein, props = {}, { horcher = null, propNamen = null,
   document.body.appendChild(host)
   const warnungen = []
   let seite = null
+  let abgebaut = false
   const kennung = Math.random().toString(36).slice(2)
   globalThis.__HORCHER = globalThis.__HORCHER || {}
   globalThis.__HORCHER[kennung] = horcher
@@ -213,9 +285,16 @@ async function mounten(baustein, props = {}, { horcher = null, propNamen = null,
   app.mount(host)
   await warte(10)
   const abbaum = () => {
+    if (abgebaut) return
+    abgebaut = true
+    offeneSeiten.delete(abbaum)
     try { app.unmount() } catch { /* egal */ }
     try { host.remove() } catch { /* egal */ }
   }
+  // FE-HAENGER: die Seite meldet sich beim Aufräumer an — `abbaum()` muss im
+  // Test nicht mehr die letzte Zeile sein, damit ein roter `assert` den
+  // Takt/Poller nicht weiterlaufen lässt.
+  offeneSeiten.add(abbaum)
   return {
     host, app, abbaum, warnungen,
     instanz: () => seite,
@@ -817,7 +896,7 @@ async function seite11b({
   const m = await mounten(mod, {}, { vertreter: (r) => { vertreten = r } })
   // `nextTick` läuft über die Warteschlange — die muss bedient werden, sonst
   // bleibt der Aufbau (und danach jeder Sprung) stehen.
-  for (let i = 0; i < 15; i += 1) { await warte(8); await rendern(4) }
+  await pumpe(900)
   return { ...m, aufrufe, vertreten: () => vertreten }
 }
 
@@ -883,8 +962,7 @@ test('CHAT-11b/D: der Sprung holt ältere Seiten nach (≤ 10) und hebt die Nach
   assert.ok(zeile, 'der Treffer steht im Abschnitt „In Nachrichten“')
   klick11b(zeile)
   const warten = exposed(s.exposed()).sprungFertig()
-  for (let i = 0; i < 40; i += 1) { await warte(4); await rendern(2) }
-  assert.equal(await mitFrist(warten), true, 'der Sprung endet — ' + sprungLage(s))
+  assert.equal(await pumpeBis(warten), true, 'der Sprung endet — ' + sprungLage(s))
   await rendern(4)
 
   const kontext = s.aufrufe.filter((a) => /nachricht_kontext$/.test(a.methode))
@@ -930,8 +1008,7 @@ test('CHAT-11b/D: höchstens 10 Seiten — danach der ruhige Hinweis', async () 
   await sucheTippen11b(s.host, 'samstag')
   klick11b(s.host.querySelector('.dk-treffer-zeile'))
   const wartenVier = exposed(s.exposed()).sprungFertig()
-  for (let i = 0; i < 60; i += 1) { await warte(4); await rendern(2) }
-  assert.equal(await mitFrist(wartenVier), true, 'der Sprung endet — ' + sprungLage(s))
+  assert.equal(await pumpeBis(wartenVier), true, 'der Sprung endet — ' + sprungLage(s))
   await rendern(4)
 
   const vorAbrufe = s.aufrufe.filter((a) => /verlauf$/.test(a.methode) && a.parameter?.vor)
@@ -954,8 +1031,7 @@ test('CHAT-11b/D: gelöschte Nachricht → Gespräch öffnen und den ruhigen Hin
   await sucheTippen11b(s.host, 'samstag')
   klick11b(s.host.querySelector('.dk-treffer-zeile'))
   const wartenWeg = exposed(s.exposed()).sprungFertig()
-  for (let i = 0; i < 30; i += 1) { await warte(4); await rendern(2) }
-  assert.equal(await mitFrist(wartenWeg), true, 'der Sprung endet — ' + sprungLage(s))
+  assert.equal(await pumpeBis(wartenWeg), true, 'der Sprung endet — ' + sprungLage(s))
   await rendern(4)
   const hinweis = s.host.querySelector('.dk-chat-sprungweg')
   assert.ok(hinweis, 'der Hinweis steht da')
@@ -1136,7 +1212,7 @@ async function seiteZwei({ hash, aelter = false, zaehleVor = null, neueste = nul
   const mod = (await import(pathToFileURL(baum('pages/Nachrichten.vue', { ordner, frisch: true })).href)).default
   let vertreten = null
   const m = await mounten(mod, {}, { vertreter: (r) => { vertreten = r } })
-  for (let i = 0; i < 15; i += 1) { await warte(8); await rendern(4) }
+  await pumpe(900)
   return { ...m, aufrufe, vertreten: () => vertreten }
 }
 
@@ -1155,11 +1231,28 @@ async function mitFrist(zusage, ms = 5000) {
   }
 }
 
-/** Auf einen Sprung warten — begrenzt: der Sprung endet, sobald er entschieden hat. */
-async function sprungAbwarten(s, runden = 20) {
+/**
+ * Auf einen Sprung warten — FE-HAENGER: nicht mehr Runden zählen, sondern auf
+ * die ZUSAGE des Sprungs warten (deckt sich mit `sprungFertig`) und dabei
+ * Takte und `nextTick` pumpen. Unter Build-Last brauchte der Sprung mehr
+ * Runden als im Leerlauf; die feste Rundenzahl (20/60/200) machte
+ * CHAT-11b-2 (2) dort rot. Bleibt der Sprung aus, meldet das ein klarer
+ * Fehler mit Frist — statt die Datei hängen zu lassen.
+ */
+async function sprungAbwarten(s, ms = 20000) {
   const zusage = exposed(s.exposed()).sprungFertig()
-  for (let i = 0; i < runden; i += 1) { await warte(4); await rendern(2) }
-  assert.equal(await mitFrist(zusage), true,
+  let fertig = null
+  zusage.then(() => { fertig = true }, () => { fertig = false })
+  const ende = Date.now() + ms
+  while (fertig === null) {
+    await warte(4)
+    await rendern(2)
+    if (fertig !== null) break
+    if (Date.now() > ende) {
+      assert.fail(`der Sprung endet nicht (${ms} ms, FE-HAENGER-Frist) — ` + sprungLage(s))
+    }
+  }
+  assert.equal(await mitFrist(zusage, 5000), true,
     'der Sprung endet und löst `sprungFertig` auf — ' + sprungLage(s))
   await rendern(4)
 }
@@ -1360,10 +1453,10 @@ function seiteAb(bis) {
 }
 
 /** Der Sprung: Tippen/Klick nicht nötig — die Seite legt `springen` offen. */
-async function springenUndWarten(s, nachricht, runden = 60) {
+async function springenUndWarten(s, nachricht) {
   exposed(s.exposed()).springen({ nachricht })
   await warte(20)
-  await sprungAbwarten(s, runden)
+  await sprungAbwarten(s)
 }
 
 /** Wie der Sprung geendet hat — für die Fehlermeldung. */
@@ -1419,7 +1512,7 @@ test('CHAT-11b-2 (C): Ziel auf einer ÄLTEREN Seite → genau so viele `vor`-Sei
       return seiteAb(Math.min(200, n + SEITE_ANZAHL))
     },
   })
-  await springenUndWarten(s, 'S101', 80)
+  await springenUndWarten(s, 'S101')
 
   const markiert = s.host.querySelector('.dk-chat-sprungziel')
   assert.ok(markiert, 'die Zielnachricht ist hervorgehoben: ' + sprungLage(s))
@@ -1459,7 +1552,7 @@ test('CHAT-11b-2 (2): ein laufendes Nachladen verbraucht die Seitengrenze NICHT'
     },
   })
   // S2 liegt hinter der hängenden Seite: Seite 2 = S100..S51, Seite 3 = S150..
-  await springenUndWarten(s, 'S2', 200)
+  await springenUndWarten(s, 'S2')
 
   assert.equal(haengen, 0, 'die Attrappe hat wirklich gehangen')
   const markiert = s.host.querySelector('.dk-chat-sprungziel')
@@ -1484,11 +1577,8 @@ test('CHAT-11b-2 (3): der Sprung wartet auf die Adresse — mit eigener Decke, s
   Seite0.springen({ nachricht: 'NEU-CHAT-2' })
   const warten = Seite0.sprungFertig()
   // Genug Zeit für die Decke (5 s) — aber begrenzt: der Sprung MUSS enden.
-  for (let i = 0; i < 900; i += 1) {
-    await warte(2)
-    await rendern(1)
-    if (Date.now() - start > 8000) break
-  }
+  // FE-HAENGER: Wanduhr statt Rundenzahl (900 Runden waren unter Last zu wenig).
+  await pumpeBis(warten, 9000)
   const fertig = await Promise.race([warten.then(() => true),
     new Promise((loese) => setTimeout(() => loese(false), 3000))])
   await rendern(2)
@@ -1548,7 +1638,7 @@ test('CHAT-11b-2 (Abbruch): ein WECHSEL in ein DRITTES Gespräch bricht den Spru
   exposed(s.exposed()).springen({ nachricht: 'NEU-CHAT-2' })
   dom.window.location.hash = '#/nachrichten/CHAT-5'
   await warte(10)
-  await sprungAbwarten(s, 40)
+  await sprungAbwarten(s)
   const stand = exposed(s.exposed()).sprungStand()
   assert.equal(stand.nachricht, '', 'der Sprung ist abgebrochen (kein Ziel mehr)')
   assert.equal(s.host.querySelector('.dk-chat-sprungweg'), null, 'und das STILL — ohne Hinweis')
@@ -1593,7 +1683,7 @@ test('CHAT-11b-2 (R1/1): Wechsel in ein DRITTES Gespräch WÄHREND des Nachladen
   exposed(s.exposed()).springen({ nachricht: 'S101' })
   await warte(20)
   // Der Sprung hat CHAT-2 geöffnet und wartet jetzt im ersten `vor` …
-  for (let i = 0; i < 40 && !ankerVor.length; i += 1) { await warte(4); await rendern(2) }
+  await warteAuf(() => ankerVor.length > 0, { ms: 15000, was: 'das Nachladen beginnt' })
   assert.ok(ankerVor.length, 'das erste Nachladen in CHAT-2 läuft')
 
   // … und die lesende Person wechselt in ein DRITTES Gespräch.
@@ -1601,7 +1691,7 @@ test('CHAT-11b-2 (R1/1): Wechsel in ein DRITTES Gespräch WÄHREND des Nachladen
   await warte(20)
   await rendern(4)
   haengt.loese({})
-  await sprungAbwarten(s, 60)
+  await sprungAbwarten(s)
 
   const hinweise = [...s.host.querySelectorAll('.dk-chat-sprungweg')]
   assert.deepEqual(hinweise.map((h) => h.textContent.trim()), [],
@@ -1642,7 +1732,7 @@ test('CHAT-11b-2 (R1/2): ein Nachladen des ALTEN Gesprächs blockiert den Sprung
   // Jetzt der Sprung nach CHAT-2, Ziel auf einer älteren Seite.
   exposed(s.exposed()).springen({ nachricht: 'S101' })
   await warte(20)
-  await sprungAbwarten(s, 80)
+  await sprungAbwarten(s)
 
   const markiert = s.host.querySelector('.dk-chat-sprungziel')
   assert.ok(markiert, 'der Sprung gelingt trotz des fremden Laufs: ' + sprungLage(s))
@@ -1679,7 +1769,7 @@ test('CHAT-11b-2 (R1/3): in einem frisch geöffneten Gespräch lädt SCROLLEN ä
   assert.ok(kasten, 'der Verlauf hat seinen eigenen Scrollkasten')
   kasten.scrollTop = 0
   kasten.dispatchEvent(new dom.window.Event('scroll', { bubbles: false }))
-  for (let i = 0; i < 30; i += 1) { await warte(4); await rendern(2) }
+  await pumpe(500)
 
   const vorAbrufe = s.aufrufe.filter((a) => /verlauf$/.test(a.methode) && a.parameter?.vor)
   assert.deepEqual(vorAbrufe.map((a) => a.parameter.vor), ['S50'],
@@ -1709,7 +1799,7 @@ test('CHAT-11b-2 (R1/5): Abbau mitten im Nachladen → der Sprung endet still, n
   await warte(20)
   exposed(s.exposed()).springen({ nachricht: 'S101' })
   const fertig = exposed(s.exposed()).sprungFertig()
-  for (let i = 0; i < 40 && !ankerVor.length; i += 1) { await warte(4); await rendern(2) }
+  await warteAuf(() => ankerVor.length > 0, { ms: 15000, was: 'das Nachladen beginnt' })
   assert.ok(ankerVor.length, 'das Nachladen läuft')
 
   // Die Seite wird abgebaut, WÄHREND die Antwort noch aussteht.
@@ -1779,8 +1869,7 @@ test('CHAT-11b-3/1: KLICK auf einen Treffer der Gesprächssuche springt zur Nach
   const { zeilen } = await gespraechSucheFuellen(s)
   klick11b(zeilen[0])
   const warten = exposed(s.exposed()).sprungFertig()
-  for (let i = 0; i < 60; i += 1) { await warte(4); await rendern(2) }
-  assert.equal(await mitFrist(warten), true, 'der Sprung endet — ' + sprungLage(s))
+  assert.equal(await pumpeBis(warten), true, 'der Sprung endet — ' + sprungLage(s))
   await rendern(4)
 
   assert.ok(zeilenImVerlauf(s.host).includes('S101'),
@@ -1821,8 +1910,7 @@ test('CHAT-11b-3/1: ENTER auf einem Treffer der Gesprächssuche springt zur Nach
   const { feld } = await gespraechSucheFuellen(s)
   feld.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
   const warten = exposed(s.exposed()).sprungFertig()
-  for (let i = 0; i < 60; i += 1) { await warte(4); await rendern(2) }
-  assert.equal(await mitFrist(warten), true, 'der Sprung endet — ' + sprungLage(s))
+  assert.equal(await pumpeBis(warten), true, 'der Sprung endet — ' + sprungLage(s))
   await rendern(4)
 
   const markiert = s.host.querySelector('.dk-chat-sprungziel')
@@ -1868,7 +1956,7 @@ test('CHAT-11b-3/2: neuer Sprung nach stillem Abbruch startet sofort, die späte
 
   // 1. Sprung: Ziel S2 liegt hinter der hängenden Seite.
   exposed(s.exposed()).springen({ nachricht: 'S2' })
-  for (let i = 0; i < 40 && !ankerVor.length; i += 1) { await warte(4); await rendern(2) }
+  await warteAuf(() => ankerVor.length > 0, { ms: 15000, was: 'das Nachladen beginnt' })
   assert.ok(ankerVor.length, 'der erste Sprung hängt im `vor`-Abruf')
   assert.equal(kontexte.length, 1, 'die Kontext-Abfrage des ersten Sprungs ist durch')
 
@@ -1887,7 +1975,7 @@ test('CHAT-11b-3/2: neuer Sprung nach stillem Abbruch startet sofort, die späte
     exposed(s.exposed()).sprungFertig(),
     new Promise((loese) => setTimeout(loese, 2000)),
   ])
-  for (let i = 0; i < 80; i += 1) { await warte(4); await rendern(2) }
+  await pumpe(1000)
   await rendern(4)
 
   assert.equal(kontexte.length, 2,
@@ -1899,7 +1987,7 @@ test('CHAT-11b-3/2: neuer Sprung nach stillem Abbruch startet sofort, die späte
 
   // 4. Jetzt kommt die späte Antwort des ERSTEN Laufs — sie ändert nichts.
   haengt.loese({})
-  for (let i = 0; i < 30; i += 1) { await warte(4); await rendern(2) }
+  await pumpe(500)
   await rendern(4)
   assert.equal(s.host.querySelector('.dk-chat-sprungziel')?.getAttribute('data-name'), 'S1',
     'die späte Antwort des ersten Laufs ändert die Hervorhebung nicht: ' + sprungLage(s))
@@ -1953,8 +2041,7 @@ test('CHAT-11b-4/1: neuer Sprung ohne Auskunft → kein verwaistes Ziel des verd
   // 2. Zweiter Sprung, während der erste hängt — er endet mit `art === 'nichts'`
   //    (`sprungBeginnen` räumt dabei Ziel und Hinweis des verdrängten Laufs).
   const zweit = s.instanzExposed().springen({ nachricht: 'N-ZWEIT' })
-  for (let i = 0; i < 40; i += 1) { await warte(4); await rendern(2) }
-  assert.equal(await mitFrist(zweit, 5000), true, 'der zweite Sprung ist durch')
+  assert.equal(await pumpeBis(zweit, 20000), true, 'der zweite Sprung ist durch')
   assert.equal(kontexte.length, 2, 'der zweite Sprung hat gefragt (nicht verschluckt)')
   let stand = s.instanzExposed().sprungStand()
   assert.deepEqual({ nachricht: stand.nachricht, gespraech: stand.gespraech },
@@ -1971,7 +2058,7 @@ test('CHAT-11b-4/1: neuer Sprung ohne Auskunft → kein verwaistes Ziel des verd
   assert.equal(kontexte.length, 3, 'der dritte Sprung fragt die Auskunft')
   const hashVorher = dom.window.location.hash
   raus.loese({ gespraech: 'CHAT-5', art: 'runde', titel: 'Runde am Dienstag' })
-  for (let i = 0; i < 40; i += 1) { await warte(4); await rendern(2) }
+  await pumpe(600)
   assert.equal(dom.window.location.hash, hashVorher,
     'die späte Auskunft des verdrängten Laufs öffnet kein fremdes Gespräch — ' + sprungLage(s))
   assert.equal(dom.window.location.hash.includes('CHAT-5'), false,
@@ -2048,12 +2135,11 @@ test('CHAT-11b-4/2: der verdrängte Treffer-Sprung schließt die NEU geöffnete 
   //    Suche nicht abräumen (vorher: bedingungslos `gespraechTrefferSchliessen()`).
   globalThis.__KONTEXT2G = () => ({})
   const verdrang = s.instanzExposed().springen({ nachricht: 'N-NEU' })
-  for (let i = 0; i < 40; i += 1) { await warte(4); await rendern(2) }
-  assert.equal(await mitFrist(verdrang, 5000), true, 'der neue Sprung ist durch')
+  assert.equal(await pumpeBis(verdrang, 20000), true, 'der neue Sprung ist durch')
   assert.equal(s.instanzExposed().gespraechSucheStand().begriff, 'anders',
     'der verdrängende Sprung (ohne Ziel) lässt die Suche stehen')
   raus.loese({})
-  for (let i = 0; i < 40; i += 1) { await warte(4); await rendern(2) }
+  await pumpe(600)
   const standNachher = s.instanzExposed().gespraechSucheStand()
   assert.equal(standNachher.offen, true,
     'der `finally` des Sprungs schließt die NEUE Suche NICHT — ' + JSON.stringify(standNachher))
@@ -2113,7 +2199,7 @@ test('CHAT-11b-4/3: der verdrängte Lauf beendet die Sperre nicht — erst der j
     'die Sperre steht weiter (der jüngste Lauf läuft)')
 
   // 4. Erst der JÜNGSTE Lauf beendet die Sperre — und die Wartenden lösen sich.
-  await sprungAbwarten(s, 80)
+  await sprungAbwarten(s)
   assert.equal(exposed(s.exposed()).sprungSperre().laeuft, false, 'der jüngste Lauf ist durch')
   assert.equal(await mitFrist(exposed(s.exposed()).sprungFertig(), 1000), true,
     'danach löst `sprungFertig` auf (niemand bleibt hängen)')
@@ -2164,7 +2250,7 @@ test('CHAT-11b-4/4: zweiter Treffer-Klick startet sofort (keine Bool-Sperre)', a
 
   // 1. Klick auf den ERSTEN Treffer (S101): der Sprung hängt im `vor`-Abruf.
   klick11b(zeilen[0])
-  for (let i = 0; i < 40 && !gefragt.length; i += 1) { await warte(4); await rendern(2) }
+  await warteAuf(() => gefragt.length > 0, { ms: 15000, was: 'der erste Klick lädt' })
   assert.equal(gefragt.length, 1, 'der erste Klick lädt (und hängt)')
   const sperreErst = s.instanzExposed().sprungSperre()
   assert.equal(sperreErst.laeuft, true, 'der erste Sprung läuft noch')
@@ -2174,10 +2260,8 @@ test('CHAT-11b-4/4: zweiter Treffer-Klick startet sofort (keine Bool-Sperre)', a
   if (!s.host.querySelector('#chat-gespraech-suche')) {
     klick11b([...s.host.querySelectorAll('button')]
       .find((b) => b.getAttribute('aria-label') === 'Im Gespräch suchen'))
-    for (let i = 0; i < 30 && !s.host.querySelector('#chat-gespraech-suche'); i += 1) {
-      await warte(4)
-      await rendern(2)
-    }
+    await warteAuf(() => s.host.querySelector('#chat-gespraech-suche') !== null,
+      { ms: 15000, was: 'die Suche öffnet wieder' })
   }
   assert.ok(s.host.querySelector('#chat-gespraech-suche'), 'die Suche steht wieder offen')
   const feldZwei = s.host.querySelector('#chat-gespraech-suche')
@@ -2185,11 +2269,9 @@ test('CHAT-11b-4/4: zweiter Treffer-Klick startet sofort (keine Bool-Sperre)', a
   feldZwei.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
   await new Promise((loese) => setTimeout(loese, 420))
   let liste = [...s.host.querySelectorAll('#dk-gespraech-treffer li')]
-  for (let i = 0; i < 30 && liste.length < 2; i += 1) {
-    await warte(8)
-    await rendern(4)
-    liste = [...s.host.querySelectorAll('#dk-gespraech-treffer li')]
-  }
+  await warteAuf(() => s.host.querySelectorAll('#dk-gespraech-treffer li').length >= 2,
+    { ms: 15000, was: 'die Trefferliste der zweiten Suche' }).catch(() => {})
+  liste = [...s.host.querySelectorAll('#dk-gespraech-treffer li')]
   assert.ok(liste.length >= 2, 'die Trefferliste steht wieder da: li=' + liste.length)
 
   const zweite = s.host.querySelector('#dk-gespraech-treffer li[data-name="S1"]')

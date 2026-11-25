@@ -351,6 +351,26 @@ ARG NODE_TESTLISTE=tests/testliste.txt
 #       NODE_TESTLISTE=tests/.auswahl.txt -t diakronos-<karte>:test ..
 # LEERE Auswahl bricht ab: `node --test` OHNE Argumente sucht selbst alle
 # Tests im Verzeichnis — dann liefe „nichts ausgewaehlt“ als „alles“.
+#
+# FE-HAENGER (Karte t_ea5c9f7f): Der Teststep hing DREIMAL 1–6 h statt rot zu
+# werden (Sammel 21/22, TOOL-404). Ursache: der Kindprozess
+# `node tests/chat11b-suche.test.mjs` blieb an einem offenen Timer haengen
+# (Takt/Poller der Nachrichtenseite, 10 s, plante sich neu) — nach einem ROTEN
+# `assert` stand `s.abbaum()` nie mehr an der Reihe. `node --test` wartet auf
+# sein Kind und beendet sich nicht; `--test-force-exit` half dort NICHT (der
+# Runner wartet trotzdem aufs Kind, getestet).
+# ZWEI Netze, damit ein Haenger den Build in endlicher Zeit ROT macht:
+#   1. `--test-timeout=300000` — je TEST 5 min (kommt im Kindprozess an,
+#      geprueft: eine absichtlich haengende Testdatei wird abgebrochen).
+#   2. `timeout -s TERM -k 30 900` um den GANZEN Lauf — 15 min Obergrenze fuer
+#      alle Dateien zusammen; normal 180–270 s inkl. Build, Faktor >3 Luft unter Last (BusyBox-timeout in node:22-alpine ist vorhanden;
+#      geprueft mit einer absichtlich haengenden Wegwerf-Testdatei: der Schritt
+#      endet nach genau 600 s mit rc=1 (BusyBox-timeout meldet 143/SIGTERM,
+#      GNU-timeout 124 — beide fuehren hier ueber `rc -ne 0` zum Abbruch),
+#      statt 1–6 h zu warten).
+# Der eigentliche Fix (Abbau in JEDEM Test per `test.afterEach` in
+# `tests/chat11b-suche.test.mjs`) laesst die Datei zusaetzlich rot ENDEN,
+# statt zu haengen; diese zwei Netze fangen kuenftige Faelle.
 RUN muster=$(grep -v '^[[:space:]]*#' "$NODE_TESTLISTE" | grep -v '^[[:space:]]*$' | tr -d '\r'); \
     if [ -z "$muster" ]; then \
         echo "FEHLER: NODE_TESTLISTE=$NODE_TESTLISTE enthaelt kein Muster." >&2; \
@@ -360,8 +380,18 @@ RUN muster=$(grep -v '^[[:space:]]*#' "$NODE_TESTLISTE" | grep -v '^[[:space:]]*
     fi; \
     echo "FE-TEST-1: NODE_TESTLISTE=$NODE_TESTLISTE"; \
     echo "$muster"; \
-    TZ=Europe/Berlin node --test $muster --test \
- && npm run build
+    start=$(date +%s); \
+    TZ=Europe/Berlin timeout -s TERM -k 30 900 \
+        node --test $muster --test --test-timeout=300000; \
+    rc=$?; \
+    if [ "$rc" -ne 0 ]; then \
+        echo "FE-HAENGER: Der FE-Teststep wurde abgebrochen (rc=$rc" \
+             "— 124/137 = GNU-timeout, 143 = BusyBox-timeout/SIGTERM)." >&2; \
+        echo "  Entweder sind Tests rot, oder einer haengt (offener Timer/Poller" \
+             "nach einem roten Test?). Dauer: $(( $(date +%s) - start )) s." >&2; \
+        exit 1; \
+    fi; \
+    npm run build
 
 # ── Stage 2: Anwendung ────────────────────────────────────────────────────
 FROM python:3.12-slim

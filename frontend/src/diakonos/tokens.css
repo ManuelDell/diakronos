@@ -469,6 +469,20 @@
      `--control-h` wäre in einem 390-px-Fenster mit Maus nur 40 px. Deshalb
      ein eigenes, benanntes Maß statt eines Literals in der Komponente. */
   --treffer-handy: 44px;
+  /* UX-K2 (Nachmessung 25.11.): die MINDEST-Trefferfläche am groben Zeiger —
+     44 px, flächendeckend und NICHT einstellbar. Grund für ein eigenes Token:
+     die Bausteine stehen in `scoped`-Stilen; im Bündel heißt die Regel dort
+     `.dk-ui-btn[data-v-…]` (zwei Klassen) und schlägt die globale Regel aus
+     `index.css` (eine Klasse). Davon unabhängig stand `--control-h` an dieser
+     Stelle noch auf 40 px (die 44er-Neusetzung kommt erst weiter unten im
+     `(pointer: coarse)`-Block) — zwei Ursachen, ein Maß: dieses Token. Der
+     Desktop (feiner Zeiger) bleibt mit 40 px kompakt; keine Farbe, kein
+     Abstand — es ist KEIN Einstellungswert der Gestaltung. */
+  --treffer-grob: 44px;
+  /* UX-K2b: Übergriff des Trefferfelds (`::after`) über die Textbreite
+     seitlich — 6 px. Eigenes Token, weil ein Rohwert an `inset` den
+     eingefrorenen Abstands-Bestand (tests/ux1a-abstand-tokens) verletzt. */
+  --treffer-seite: 6px;
   /* FIX-3: Höhe der Filterzeile (Suchfeld ↔ DkButton „md“ ↔ Filterchip).
      Suchfeld und Chip standen vorher auf 9 px Innenabstand bzw. 7 px/12 px
      und liefen damit 4 px auseinander. Jetzt kommt die Höhe beider aus
@@ -1083,7 +1097,7 @@
   --dk-brand-900: var(--dk-navy-50);
 }
 
-/* ── UX1c (C1): 44 px am groben Zeiger ───────────────────────────────────────
+/* UX1c (C1): 44 px am groben Zeiger ───────────────────────────────────────
    Die 44 px stehen HIER und nicht in `index.css`: die Kaskade entscheidet bei
    gleicher Spezifität (`:root`) nach der STELLE im Bündel, und Vite stellt die
    per `@import` eingesammelten Regeln (also diese Datei) HINTER die direkt
@@ -1091,7 +1105,9 @@
    `--control-h: 40px`-Zeile oben — gemessen UX1c/C3: 40 px statt 44 px, obwohl
    `@media (pointer: coarse)` zutraf. Gleiche Quelle wie das Token selbst.
    `--filter-h`/`--control-h-lg` werden mitgezogen, weil sie EINMAL in `:root`
-   ausgewertet werden und beim Zeigerwechsel sonst auf 40 px stehen blieben. */
+   ausgewertet werden und beim Zeigerwechsel sonst auf 40 px stehen blieben.
+   UX-K2b: `--treffer-grob` steht NUR oben in `:root` — die Doppelung hier
+   (zwei Deklarationen desselben Werts) war ohne Wirkung und ist entfallen. */
 @media (pointer: coarse) {
   :root {
     --control-h: 44px;

@@ -153,6 +153,20 @@ const klassen = computed(() => [
    spätere Quelle gewinnt) und die 44 px wieder aufheben. */
 .dk-ui-btn--sm { height: max(32px, var(--filter-h-sm)); padding: 0 10px; font-size: var(--fs-sm); }
 
+/* UX-K2 (Nachmessung 25.11.): Die Trefferfläche hängt am GROBEN ZEIGER — und
+   hier, nicht nur in `index.css`. Zwei Gründe: dieser Stil ist `scoped`, im
+   Bündel steht also `.dk-ui-btn[data-v-…]` (zwei Klassen) und schlägt die
+   globale Regel mit einer Klasse — UND die Höhe kam aus `--control-h`, das an
+   der Stelle der Komponente noch im 40er-Grundmaß stand. Gemessen blieben
+   Knöpfe deshalb bei 40×40. Am Desktop (feiner Zeiger) gilt weiter die
+   Komponentenhöhe — kompakt. */
+@media (pointer: coarse) {
+  .dk-ui-btn {
+    min-height: var(--treffer-grob);
+    min-width: var(--treffer-grob);
+  }
+}
+
 /* primary */
 .dk-ui-btn--primary {
   background: var(--primary);

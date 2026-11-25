@@ -1040,8 +1040,14 @@ h1, h2, h3, h4 {
 /* OP-HANDY-6: Benachrichtigungs-Liste — Klick auf die Glocke zeigt sie an. */
 .dk-notify { position: relative; }
 .dk-notify-panel {
+  /* UX-K2b (Review): `left: 0; right: 0; width: auto` machte das Panel so
+     schmal wie seinen Bezugsrahmen — die Glocke (~44 px) — auf ALLEN
+     Geräten (AppTopbar, Nachrichten). Der Überlauf am 390-px-Handy entsteht
+     allein aus der Breite: `100vw - 2×12 px` lässt rechts und links je einen
+     Rand frei, das Panel hängt weiter an der rechten Kante der Glocke
+     (`right: 0`, altes Verhalten). */
   position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
-  width: min(360px, calc(100vw - 24px));
+  width: min(360px, calc(100vw - 2 * var(--sp-3)));
   background: var(--dk-surface); color: var(--dk-text);
   border: 1px solid var(--dk-border); border-radius: var(--dk-radius, 10px);
   box-shadow: var(--dk-shadow, 0 8px 24px rgb(0 0 0 / 0.18));
@@ -2496,6 +2502,16 @@ input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
   :root {
     --filter-h: var(--control-h);
   }
+  /* UX-K2 (Nachmessung 25.11.): „Zum Inhalt springen“ war 170×39 — 5 px zu
+     flach für den Finger. Am groben Zeiger bekommt er die Mindestfläche aus
+     dem Token; am Desktop bleibt er, wie er ist. Die Regel steht in DIESEM
+     Sammel-Block: ein eigener Zeiger-Block weiter oben verschöbe das LETZTE
+     Vorkommen von `(pointer: coarse)` — und dort lesen
+     `tests/ux1c-klickflaechen.test.mjs` und `tests/p3-4c-restpunkte.test.mjs`
+     den Sammel-Block. */
+  .dk-sprunglink {
+    min-height: var(--treffer-grob);
+  }
   /* OP-HANDY-14 (FIX-6): 16-px-Felder gegen den iOS-Zoom. Der Block steht
      am Dateiende, also NACH den Feld-Grundregeln der Datei
      (`.dk-form-input { font-size: var(--fs-14) }`) — und gewinnt damit.
@@ -2527,9 +2543,60 @@ input, select, textarea, .dk-ui-eingabe, .dk-form-input, .dk-form-select {
   .dk-icon-btn {
     min-width: var(--control-h);
   }
-  /* Das Kästchen selbst bleibt klein (ein 44-px-Kästchen sähe aus wie ein
-     Schalter), die TREFFERFLÄCHE wächst mit dem Label — auch die Fläche
-     rechts neben dem Text. */
+  /* UX-K2 (Nachmessung 25.11.): DIESELBE Regel für die übrigen Flächen mit
+     Symbol als Inhalt. Benannt nach dem Befund der Nachmessung (Breite ×
+     Höhe in px, mobil gemessen):
+       · `.dk-ui-aktionen-ausloeser` („⋯“)          34×44 → 44×44
+       · Umschalter der Kalenderkopfzeile           40×44 → 44×44
+         (KronosTopbar.vue regelt das Breitenmaß selbst, mit derselben Quelle)
+       · Seitenleisten-Kalenderzeile „cal-*“ (13–18 px Kästchen)
+       · Schalterzeilen/Kästchen (Website, Anmeldung, Gemeinde, Datensicherung)
+       · Innenabstand-Links („Alle Dienste ansehen“, „Plan öffnen“, Namen in
+         Tabellen) — HÖHE; die Breite folgt dem Text, eine 44-px-Mindestbreite
+         würde kurze Namen („Wiki“, „Chor“) auseinanderziehen.
+     Das Kästchen selbst bleibt KLEIN (16/18 px, „nicht aufblasen“) — die
+     Trefferfläche trägt das Label bzw. die Zeile. */
+  .dk-ui-chip,
+  .dk-filter-chip,
+  .dk-ui-aktionen-ausloeser,
+  .dk-ui-tab {
+    min-width: var(--control-h);
+  }
+  /* UX-K2b (Review): Die Trefferfläche der Innenabstand-Links wächst über
+     ein `::after`-Feld (`inset: calc((var(--treffer-grob) - 100%) / -2)`),
+     NICHT über `min-height` + `inline-flex`: eine echte Mindesthöhe machte
+     Tabellenzeilen höher und unterdrückte Umbruch/Ellipse. Das Feld ist
+     unsichtbar, verschiebt nichts und erbt die Breite des Links (also den
+     Text).
+     `.rs-card-titel-link` und `.dk-crumb` sind bewusst NICHT dabei:
+       · `.rs-card-titel-link::after` dehnt die ganze Ressourcen-Kachel (P3-4b),
+         eine zweite Fläche würde das zerstören;
+       · `.dk-crumb` trifft in `AppTopbar.vue` auch nicht klickbare `<span>`
+         (aktueller Krümel, Trenner „/“) — Fläche ohne Ziel wäre falsch. */
+  .dk-ui-brot-link,
+  .pr-md-planlink,
+  .msv-link,
+  .wl-wiki-title,
+  .dk-kal-pop-ziel {
+    position: relative;
+  }
+  /* `.grup-link` (GruppeDetail.vue) und `.dk-ui-brot-link` (DkPageHeader.vue)
+     setzen ihre `::after`-Fläche in ihrer eigenen Komponente (scoped) — hier
+     nicht doppelt. */
+  .pr-md-planlink::after,
+  .msv-link::after,
+  .wl-wiki-title::after,
+  .dk-kal-pop-ziel::after {
+    content: "";
+    position: absolute;
+    inset: calc((var(--treffer-grob) - 100%) / -2) calc(-1 * var(--treffer-seite));
+  }
+  /* Das Kästchen ist 13–18 px groß und bleibt es; getroffen wird das LABEL.
+     UX-K2b (Review): Die globale Mindestfläche am `input` ist entfallen —
+     `min-width`/`min-height` schlagen `width`/`height` und bliesen jedes
+     Kästchen auf 44×44 (Kästchen mit 2-px-Rahmen, Häkchen versetzt). Kästchen
+     ohne eigenes Label (z. B. `label.an-option > span`) bekommen ihre Fläche
+     über das Innere des Elternteils (`.an-option`, `DkCheckbox`). */
   label:has(> input[type="checkbox"]),
   label:has(> input[type="radio"]) {
     display: inline-flex;
