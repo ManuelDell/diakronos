@@ -28,6 +28,7 @@ import { join, dirname, resolve, basename } from 'node:path'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import test from 'node:test'
+import { SeitenAbbau } from './helpers/seitenAbbau.mjs'
 import vm from 'node:vm'
 import { JSDOM } from 'jsdom'
 import { parse, compileScript, compileTemplate } from 'vue/compiler-sfc'
@@ -154,6 +155,16 @@ async function bis(bedingung, { ms = 2000, schritt = 5 } = {}) {
 }
 const warte = async (n = 8) => { for (let i = 0; i < n; i += 1) await tick() }
 
+/**
+ * FE-ABBAU: JEDE Montage meldet ihren Abbau hier an, und `afterEach` baut
+ * alles ab, was noch steht — auch nach einem ROTEN `assert`. Vorher stand
+ * `s.abbaum()` als letzte Zeile im Test: eine geworfene Zusage ließ die Seite
+ * stehen, ihr Takt (10 s, plant sich neu) hielt die Ereignisschleife offen und
+ * der FE-Teststep im Build hing (FE-HAENGER, 4ce2d6b2).
+ */
+const seitenAbbau = new SeitenAbbau()
+test.afterEach(() => seitenAbbau.alle())
+
 async function mounten(baustein, props = {}, { horcher = null } = {}) {
   const Vue = await import('vue')
   const host = document.createElement('div')
@@ -197,10 +208,10 @@ async function mounten(baustein, props = {}, { horcher = null } = {}) {
   app.config.errorHandler = (e) => warnungen.push(String(e && e.message))
   const vm = app.mount(host)
   await warte(10)
-  const abbaum = () => {
+  const abbaum = seitenAbbau.anmelden(() => {
     try { app.unmount() } catch { /* egal */ }
     try { host.remove() } catch { /* egal */ }
-  }
+  })
   /**
    * Einen Prop von außen neu setzen — so wie die Seite `startBegriff` aus der
    * Adresse nachreicht (Zurück vom Profil).

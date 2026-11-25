@@ -32,6 +32,7 @@ import { join, dirname, resolve, basename } from 'node:path'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import test from 'node:test'
+import { SeitenAbbau } from './helpers/seitenAbbau.mjs'
 import vm from 'node:vm'
 import { JSDOM } from 'jsdom'
 import { parse, compileScript, compileTemplate } from 'vue/compiler-sfc'
@@ -265,6 +266,16 @@ async function rendern(n = 6) {
   }
 }
 
+/**
+ * FE-ABBAU: JEDE Montage meldet ihren Abbau hier an, und `afterEach` baut
+ * alles ab, was noch steht — auch nach einem ROTEN `assert`. Vorher stand
+ * `s.abbaum()` als letzte Zeile im Test: eine geworfene Zusage ließ die Seite
+ * stehen, ihr Takt (10 s, plant sich neu) hielt die Ereignisschleife offen und
+ * der FE-Teststep im Build hing (FE-HAENGER, 4ce2d6b2).
+ */
+const seitenAbbau = new SeitenAbbau()
+test.afterEach(() => seitenAbbau.alle())
+
 function mounten(baustein) {
   return import('vue').then(async (Vue) => {
     const host = document.createElement('div')
@@ -277,10 +288,10 @@ function mounten(baustein) {
     await warte(10)
     return {
       host, app, warnungen,
-      abbaum: () => {
+      abbaum: seitenAbbau.anmelden(() => {
         try { app.unmount() } catch { /* egal */ }
         try { host.remove() } catch { /* egal */ }
-      },
+      }),
     }
   })
 }

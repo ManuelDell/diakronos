@@ -32,6 +32,7 @@ import { join, dirname, resolve, basename } from 'node:path'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import test from 'node:test'
+import { SeitenAbbau } from './helpers/seitenAbbau.mjs'
 import { JSDOM } from 'jsdom'
 import { parse, compileScript, compileTemplate } from 'vue/compiler-sfc'
 
@@ -431,6 +432,16 @@ const umleitung = new Map()
 const tick = () => new Promise((loese) => setTimeout(loese, 0))
 const warte = async (n = 12) => { for (let i = 0; i < n; i += 1) await tick() }
 
+/**
+ * FE-ABBAU: JEDE Montage meldet ihren Abbau hier an, und `afterEach` baut
+ * alles ab, was noch steht — auch nach einem ROTEN `assert`. Vorher stand
+ * `s.abbaum()` als letzte Zeile im Test: eine geworfene Zusage ließ die Seite
+ * stehen, ihr Takt (10 s, plant sich neu) hielt die Ereignisschleife offen und
+ * der FE-Teststep im Build hing (FE-HAENGER, 4ce2d6b2).
+ */
+const seitenAbbau = new SeitenAbbau()
+test.afterEach(() => seitenAbbau.alle())
+
 /** Ein Bauteil in einem jsdom-Element mounten; `abbaum` räumt auf. */
 async function mounten(komponente, props = {}) {
   const host = dom.window.document.createElement('div')
@@ -439,7 +450,10 @@ async function mounten(komponente, props = {}) {
   const fehler = []
   app.config.errorHandler = (e) => fehler.push(e)
   app.mount(host)
-  const abbaum = () => { try { app.unmount() } catch { /* egal */ } host.remove() }
+  const abbaum = seitenAbbau.anmelden(() => {
+    try { app.unmount() } catch { /* egal */ }
+    host.remove()
+  })
   return { host, abbaum, fehler }
 }
 

@@ -36,6 +36,7 @@ import { join, dirname, resolve, basename } from 'node:path'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import test from 'node:test'
+import { SeitenAbbau } from './helpers/seitenAbbau.mjs'
 import { JSDOM } from 'jsdom'
 import { parse, compileScript, compileTemplate } from 'vue/compiler-sfc'
 
@@ -414,6 +415,16 @@ function baum(seite, { ordner = null, frisch = false } = {}) {
 const tick = () => new Promise((loese) => setTimeout(loese, 0))
 const warte = async (n = 12) => { for (let i = 0; i < n; i += 1) await tick() }
 
+/**
+ * FE-ABBAU: JEDE Montage meldet ihren Abbau hier an, und `afterEach` baut
+ * alles ab, was noch steht — auch nach einem ROTEN `assert`. Vorher stand
+ * `s.abbaum()` als letzte Zeile im Test: eine geworfene Zusage ließ die Seite
+ * stehen, ihr Takt (10 s, plant sich neu) hielt die Ereignisschleife offen und
+ * der FE-Teststep im Build hing (FE-HAENGER, 4ce2d6b2).
+ */
+const seitenAbbau = new SeitenAbbau()
+test.afterEach(() => seitenAbbau.alle())
+
 async function mounten(komponente, props = {}) {
   const host = dom.window.document.createElement('div')
   dom.window.document.body.appendChild(host)
@@ -424,13 +435,13 @@ async function mounten(komponente, props = {}) {
   // `DkDialog` teleportiert nach `body`: beim Abbau muss auch das weg, sonst
   // sammeln sich die Fenster früherer Tests im selben Fenster an (und eine
   // Suche liefe im falschen Dialog).
-  const abbaum = () => {
+  const abbaum = seitenAbbau.anmelden(() => {
     try { app.unmount() } catch { /* egal */ }
     host.remove()
     for (const kind of [...dom.window.document.body.children]) {
       if (kind !== host) kind.remove()
     }
-  }
+  })
   return { host, abbaum, fehler }
 }
 
