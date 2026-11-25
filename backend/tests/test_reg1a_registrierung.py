@@ -161,11 +161,38 @@ def session_weg(patched_db, fake_redis):
 
 
 def _morgen() -> str:
-    return (dt.date.today() + dt.timedelta(days=3)).isoformat()
+    return (_heute_gemeinde() + dt.timedelta(days=3)).isoformat()
 
 
 def _gestern() -> str:
-    return (dt.date.today() - dt.timedelta(days=3)).isoformat()
+    return (_heute_gemeinde() - dt.timedelta(days=3)).isoformat()
+
+
+def _heute_gemeinde():
+    """HEUTE in der Zeitzone der Gemeinde — dieselbe Uhr wie der Fachcode.
+
+    ZWEITE-ZEIT-1: Der Test baute seine Startdaten mit ``date.today()``
+    (UTC-Wanduhr des Containers), ``validate_token``/``zustand`` rechnen aber
+    in ``settings.calendar_timezone``. Im Container (UTC) lagen beide zwischen
+    0 und 2 Uhr Ortszeit einen Tag auseinander: „morgen“ war für den Code
+    heute und der Test erwartete 403, bekam 200.
+    """
+    from diakronos_app.zeit import heute_gemeinde
+
+    return heute_gemeinde()
+
+
+def _fachcode_today():
+    """„HEUTE“ aus SICHT DES FACHCODES, an der Stelle, wo er es liest.
+
+    ``create_link``/``_mit_vorgaben`` rechnen ihr „heute“ ueber
+    ``api.registrierungslink_api._today`` (``frappe_compat.today()``);
+    ``validate_token``/``zustand`` ueber ``diakronos_app.zeit``. Beide lesen
+    dieselbe Naht — fuer den Test ist das die Bezugszeit.
+    """
+    from diakronos_app.api import registrierungslink_api as link_api
+
+    return link_api._today()
 
 
 def _upload(client, name="bild.png", mime="image/png", inhalt=PNG, **data):
@@ -209,7 +236,7 @@ def test_startdatum_am_tag_selbst_gilt_der_link(gast, welt):
     from diakronos_app.models.diakonos import Registrierungslink
 
     sess = welt
-    sess.get(Registrierungslink, LINK).gueltig_ab = dt.date.today()
+    sess.get(Registrierungslink, LINK).gueltig_ab = _heute_gemeinde()
     sess.commit()
 
     r = gast.get(f"/api/method/{MODUL}.validate_token", params={"token": SLUG})
@@ -306,12 +333,17 @@ def test_startdatum_vergangenheit_ist_sofort_gueltig():
 
 
 def test_create_link_schreibt_gueltig_ab(admin_client, welt):
+    # ``create_link`` setzt ein LEERES Ablaufdatum auf die Gemeinde-Vorgabe
+    # (heute + Laufzeit, M-1). „gueltig ab“ muss davor liegen, sonst ist der
+    # Link nie nutzbar — deshalb das Startdatum aus der Sicht des Fachcodes
+    # (``_today``) ableiten.
+    ab = str(_fachcode_today())[:10]
     r = admin_client.post(
         f"/api/method/{MODUL_LINK}.create_link",
-        data={"bezeichnung": "Neu", "typ": "Mitglied-Registrierung", "gueltig_ab": _morgen()},
+        data={"bezeichnung": "Neu", "typ": "Mitglied-Registrierung", "gueltig_ab": ab},
     )
     assert r.status_code == 200, r.text
-    assert r.json()["message"]["link"]["gueltig_ab"] == _morgen()
+    assert r.json()["message"]["link"]["gueltig_ab"] == ab
 
 
 def test_create_link_lehnt_unsinniges_datum_ab(admin_client, welt):

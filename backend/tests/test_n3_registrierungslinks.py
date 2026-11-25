@@ -19,6 +19,19 @@ import pytest
 
 import diakronos_app.api  # noqa: F401 — registriert alle portierten Endpunkte
 from diakronos_app.frappe_compat.session import set_user
+from diakronos_app.zeit import heute_gemeinde
+
+
+def _heute() -> "datetime.date":
+    """HEUTE in der Zeitzone der Gemeinde (ZWEITE-ZEIT-1).
+
+    ``zustand``/``validate_token`` rechnen in ``settings.calendar_timezone``
+    (``diakronos_app.zeit.heute_gemeinde``); ``date.today()`` ist die
+    UTC-Wanduhr des Containers. Ab 22/23 Uhr Ortszeit liegt die einen Tag
+    daneben: „gestern“ war dann „heute“ und ein verlaengerter Link galt als
+    abgelaufen.
+    """
+    return heute_gemeinde()
 
 MODUL = "diakronos.diakonos.api.admin_hub"
 ADMIN = "mitgliederadmin@example.org"
@@ -86,7 +99,7 @@ def test_zustand_aktiv_mit_plaetzen(admin_client, patched_db):
 
 def test_zustand_abgelaufen(admin_client, patched_db):
     """Gueltig bis gestern -> 'abgelaufen' (und trotz aktiver Spalte gelistet)."""
-    gestern = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+    gestern = (_heute() - datetime.timedelta(days=1)).isoformat()
     sess = patched_db()
     sess.add(_link(gueltig_bis=datetime.date.fromisoformat(gestern), max_anmeldungen=10))
     sess.commit()
@@ -129,7 +142,7 @@ def test_offene_anfragen_gezaehlt(admin_client, patched_db):
     sess.add(_link(max_anmeldungen=0))
     for i, status in enumerate(["Anmeldeanfrage", "Anmeldeanfrage", "Bestätigt"]):
         sess.add(Anmeldung(name=f"ANM-{i}", vorname="Anna", nachname=f"Muster{i}",
-                           status=status, anmeldedatum=datetime.date.today(),
+                           status=status, anmeldedatum=_heute(),
                            registrierungslink="RL-1", docstatus=0, idx=0))
     sess.commit()
     sess.close()
@@ -140,8 +153,8 @@ def test_offene_anfragen_gezaehlt(admin_client, patched_db):
 
 def test_verlaengern_hebt_ablauf_auf(admin_client, patched_db):
     """`verlaengern_link` setzt neues Datum und gibt die Zustandsliste zurueck."""
-    gestern = datetime.date.today() - datetime.timedelta(days=1)
-    in_zwei_wochen = datetime.date.today() + datetime.timedelta(days=14)
+    gestern = _heute() - datetime.timedelta(days=1)
+    in_zwei_wochen = _heute() + datetime.timedelta(days=14)
     sess = patched_db()
     sess.add(_link(gueltig_bis=gestern, max_anmeldungen=2, anmeldungen_count=2))
     sess.commit()

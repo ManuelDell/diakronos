@@ -49,6 +49,30 @@ from diakronos_app.frappe_compat.session import set_user
 DASH = "diakronos.diakonos.api.dashboard"
 DIENST = "diakronos.diakonos.api.dienstplan"
 
+
+def _jetzt() -> "datetime.datetime":
+    """„Jetzt“ in der Wandzeit der Gemeinde — dieselbe Uhr wie der Fachcode.
+
+    ZWEITE-ZEIT-1: Der Fachcode vergleicht ``element_start`` (Wandzeit der
+    Gemeinde) mit ``zeit.jetzt_wanduhr()`` und rechnet „heute“ ueber
+    ``zeit.heute_gemeinde()``. Der Test baute seine Termine dagegen mit
+    ``datetime.datetime.now()``/``date.today()`` — der UTC-Wanduhr des
+    Containers. Im Container (UTC) liegt die 1–2 Stunden auseinander; beim
+    Lauf gegen eine vorgestellte Uhr (+30 Tage) lagen die Testtermine dann in
+    der Vergangenheit und JEDE Fensterabfrage war leer.
+
+    Deshalb: Bezugszeiten NUR hier ableiten, nie mit ``now()``/``today()``.
+    """
+    from diakronos_app import zeit
+
+    return zeit.jetzt_wanduhr()
+
+
+def _heute() -> "datetime.date":
+    """HEUTE in der Zeitzone der Gemeinde (siehe :func:`_jetzt`)."""
+    return _jetzt().date()
+
+
 # Die 11 in hooks.py gelisteten Originalpfade des Dashboards.
 SPA_PFADE_DASHBOARD = [
     "get_available_widgets",
@@ -113,7 +137,7 @@ def welt(patched_db):
     )
 
     sess = patched_db()
-    now = datetime.datetime.now()
+    now = _jetzt()
     morgen = now + datetime.timedelta(days=1)
     gestern = now - datetime.timedelta(days=1)
 
@@ -534,7 +558,7 @@ def test_events_for_month_grenzen(als_anna):
     """Nur Tage des gefragten Monats; Entwuerfe raus."""
     from diakronos_app.api import dashboard as d
 
-    heute = datetime.date.today()
+    heute = _heute()
     out = d.get_events_for_month(year=heute.year, month=heute.month)
     assert out["year"] == heute.year
     assert out["month"] == heute.month
@@ -659,7 +683,7 @@ def test_dienstplan_entwuerfe_raus(als_admin):
     from diakronos_app.api import dienstplan as dp
 
     set_user(ADMIN)
-    heute = datetime.date.today()
+    heute = _heute()
     out = dp.get_dienstplan(start_date=str(heute),
                             end_date=str(heute + datetime.timedelta(days=7)))
     elemente = {e["element"] for e in out["eintraege"]}
@@ -675,7 +699,7 @@ def test_dienstplan_kalender_schranke(als_anna):
     """Anna sieht nur KAL-A; Bruno hat gar keinen Kalender -> nichts."""
     from diakronos_app.api import dienstplan as dp
 
-    heute = datetime.date.today()
+    heute = _heute()
     bis = heute + datetime.timedelta(days=7)
 
     anna = dp.get_dienstplan(start_date=str(heute), end_date=str(bis))
@@ -700,7 +724,7 @@ def test_dienstplan_eintrag_je_mitarbeiter(als_admin):
     from diakronos_app.api import dienstplan as dp
 
     set_user(ADMIN)
-    heute = datetime.date.today()
+    heute = _heute()
     out = dp.get_dienstplan(start_date=str(heute),
                             end_date=str(heute + datetime.timedelta(days=7)))
     el1 = [e for e in out["eintraege"] if e["element"] == "EL-1"]
@@ -750,7 +774,7 @@ def test_meine_dienste_heute_vergangener_dienst_faellt_raus(als_anna, welt):
     from diakronos_app.models.kronos import Element
 
     sess = welt
-    jetzt = datetime.datetime.now()
+    jetzt = _jetzt()
     # Ein Dienst HEUTE, eine Stunde in der Vergangenheit, mit Anna als
     # Mitarbeiterin -> sie ist "betroffen", darf ihn aber nicht mehr sehen.
     sess.add(Element(
@@ -853,7 +877,7 @@ def test_dienstplan_zeitraum_mit_datetime_gebunden(als_admin):
 
     q._condition = spion
     try:
-        heute = datetime.date.today()
+        heute = _heute()
         dp.get_dienstplan(start_date=str(heute),
                           end_date=str(heute + datetime.timedelta(days=1)))
     finally:
@@ -1100,8 +1124,8 @@ def test_upcoming_events_nur_festgelegt(als_anna):
 
     _create("Element", {
         "element_name": "Vorschlagstermin", "element_calendar": "KAL-A",
-        "element_start": datetime.datetime.now() + datetime.timedelta(days=2),
-        "element_end": datetime.datetime.now() + datetime.timedelta(days=2, hours=1),
+        "element_start": _jetzt() + datetime.timedelta(days=2),
+        "element_end": _jetzt() + datetime.timedelta(days=2, hours=1),
         "status": "Vorschlag", "docstatus": 0, "idx": 0,
     })
     ids = [e["id"] for e in d.get_upcoming_events(limit=50)]
@@ -1112,7 +1136,7 @@ def test_upcoming_events_nur_festgelegt(als_anna):
 def test_events_for_month_verraet_gesperrten_kalender_nicht(als_anna):
     from diakronos_app.api import dashboard as d
 
-    heute = datetime.date.today()
+    heute = _heute()
     out = d.get_events_for_month(year=heute.year, month=heute.month)
     assert len(out["event_days"]) >= 1
     # Gegenprobe ohne Leserecht (Gast liefert []).

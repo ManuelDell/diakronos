@@ -30,7 +30,6 @@ Netz (Kartenregel 11): ausschliesslich ``--network none``, DB = ``patched_db``
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -43,6 +42,7 @@ from diakronos_app.models.kronos import (
     Kalender,
     Ressource,
 )
+from diakronos_app.website.oeffentlich_daten import _heute as _produkt_heute
 
 MODUL = "diakronos_app.website.oeffentlich_api"
 PFAD = "website.oeffentlich"
@@ -52,10 +52,17 @@ PFAD = "website.oeffentlich"
 #: ``date.today()`` (UTC) „+400 Tage" und verlangte „draussen" — der Termin
 #: stand aber AUF der einschliessenden 400-Tage-Grenze. Der Tageswechsel
 #: UTC/Ortszeit machte das mal rot, mal gruen.
-try:
-    HEUTE = datetime.now(tz=ZoneInfo("Europe/Berlin")).date()
-except Exception:  # noqa: BLE001 — ohne tzdata gilt UTC
-    HEUTE = datetime.utcnow().date()
+#:
+#: ZEIT-BOMBE (behoben): diese Konstanten entstehen beim IMPORT. Das Produkt
+#: liest „heute" dagegen bei jedem Aufruf live (``oeffentlich_daten._heute``).
+#: Lief die Suite ueber Mitternacht oder war die Wanduhr des Rechners
+#: vorgestellt, lagen Testdaten und Produktfenster einen Tag auseinander —
+#: ``MORGEN`` war fuer das Produkt schon „heute", und die Termin-Abfragen
+#: (``l3``/``l4``/``praefix``) fanden nichts. Deshalb haengen die Konstanten
+#: jetzt an DERSELBEN Naht wie das Produkt, und das autouse-Fixture unten friert
+#: diese Naht auf ``HEUTE`` ein: Testdaten und Fenster rechnen deterministisch
+#: mit demselben Tag, unabhaengig von Importzeitpunkt und Wanduhr.
+HEUTE = _produkt_heute()
 MORGEN = HEUTE + timedelta(days=1)
 UEBERMORGEN = HEUTE + timedelta(days=2)
 SPAETER = HEUTE + timedelta(days=30)
@@ -112,6 +119,23 @@ def _setze_setting(name: str, wert) -> None:
     from diakronos_app.settings import settings as echte
 
     object.__setattr__(echte, name, wert)
+
+
+@pytest.fixture(autouse=True)
+def _uhr_auf_heute(monkeypatch):
+    """Friert die Produkt-Uhr auf ``HEUTE`` (dieselbe Naht wie die Testdaten).
+
+    Ohne das liest ``oeffentlich_daten._heute()`` live, waehrend ``HEUTE``/
+    ``MORGEN`` beim Import eingefroren wurden — bei einem Tageswechsel
+    dazwischen (Suite ueber Mitternacht, vorgestellte Wanduhr) verschiebt sich
+    das Produktfenster gegen die Testdaten und die Termin-Abfragen werden rot.
+    Die Tests, die die Naht selbst setzen (``monkeypatch.setattr(mod,
+    "_heute", ...)``), ueberschreiben das hier einfach — beide Wege zeigen auf
+    ``oeffentlich_daten``, das spaetere ``setattr`` gewinnt.
+    """
+    from diakronos_app.website import oeffentlich_daten
+
+    monkeypatch.setattr(oeffentlich_daten, "_heute", lambda: HEUTE)
 
 
 @pytest.fixture(autouse=True)

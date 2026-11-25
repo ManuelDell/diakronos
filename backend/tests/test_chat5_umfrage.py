@@ -149,6 +149,19 @@ def _umfrage(gespraech: str, konto: str = SAENGER, frage: str = "Wann proben wir
     )
 
 
+def _jetzt() -> dt.datetime:
+    """„Jetzt“ in der Wandzeit der Gemeinde — dieselbe Uhr wie der Fachcode.
+
+    ZWEITE-ZEIT-1: Mit ``datetime.now()`` (UTC-Wanduhr des Containers) lagen
+    Fristen und Anlagezeiten des Testcodes bis zu 2 Stunden neben der Uhr, die
+    ``api.chat._jetzt`` liest. In einer Zone hinter UTC war eine Umfrage mit
+    Frist „plus 1 Tag“ fuer den Job schon faellig.
+    """
+    from diakronos_app.api import chat as C
+
+    return C._jetzt()
+
+
 def _abstimmen(umfrage: str, konto: str, optionen) -> dict:
     from diakronos_app.api import chat as C
 
@@ -487,7 +500,7 @@ def test_nach_frist_keine_stimme_mehr_ergebnis_bleibt(gespraech):
     # der Endpunkt weist vergangene Fristen beim Anlegen ab, das ist gewollt).
     with dbmod.SessionLocal() as s:
         zeile = s.get(ChatUmfrage, u["name"])
-        zeile.frist_am = dt.datetime.now() - dt.timedelta(minutes=1)
+        zeile.frist_am = _jetzt() - dt.timedelta(minutes=1)
         s.commit()
 
     _set_user(HV)
@@ -608,7 +621,12 @@ def test_scheduler_schliesst_faellige_umfragen(gespraech):
     spaeter = _umfrage(gespraech, anonym=False)["umfrage"]
     offen = _umfrage(gespraech, anonym=False)["umfrage"]   # ohne Frist
 
-    jetzt = dt.datetime.now()
+    # ZWEITE-ZEIT-1: Bezugszeit aus der Uhr des FACHCODES (``api.chat._jetzt``,
+    # Wandzeit der Gemeinde). Mit ``dt.datetime.now()`` (UTC-Wanduhr) lagen
+    # „faellig“ und „spaeter“ eine Zeitzone daneben: in einer Zone hinter UTC
+    # galt die „spaetere“ Umfrage fuer den Job bereits als faellig — der Test
+    # wurde rot, ohne dass sich am Code etwas geaendert hatte.
+    jetzt = _jetzt()
     with dbmod.SessionLocal() as s:
         s.get(ChatUmfrage, faellig["name"]).frist_am = jetzt - dt.timedelta(hours=1)
         s.get(ChatUmfrage, spaeter["name"]).frist_am = jetzt + dt.timedelta(days=1)
