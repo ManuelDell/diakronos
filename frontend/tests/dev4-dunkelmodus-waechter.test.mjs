@@ -26,7 +26,8 @@
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 const WURZEL = new URL('../src/diakonos/', import.meta.url)
 const read = (p) => readFileSync(new URL(p, WURZEL), 'utf8')
@@ -244,8 +245,15 @@ test('DEV-4 · geänderte Seiten tragen keine festen Farbwerte in Farbdeklaratio
 test('DEV-4 · jede --link-Regel hat eine benutzte Klasse (keine tote Verweis-Regel)', () => {
   const css = read('index.css')
   const profil = read('pages/Profile.vue')
-  // Das Markup der Seite (ohne <style>-Block): nur dort entsteht eine Klasse.
-  const markup = profil.replace(/<style[\s\S]*?<\/style>/g, '')
+  // Das Markup ALLER .vue-Dateien (ohne <style>-Block): nur dort entsteht eine
+  // Klasse. UX-K1e: vorher nur Profile.vue — eine --link-Regel fuer eine
+  // Klasse aus einem anderen Baustein (`.wl-wiki-title`, WikiRecentWidget)
+  // galt dann faelschlich als tot.
+  const vueDateien = readdirSync(fileURLToPath(WURZEL), { recursive: true })
+    .filter((d) => String(d).endsWith('.vue'))
+  const markup = vueDateien
+    .map((d) => read(String(d)).replace(/<style[\s\S]*?<\/style>/g, ''))
+    .join('\n')
 
   const tote = []
   for (const r of regeln(css)) {

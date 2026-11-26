@@ -895,3 +895,23 @@ test('UX-K1d: die Prüf-Zahl im Kalender-Panel nutzt den Text-Ton, nicht den Zus
   assert.ok(kontrast(farbe(HELL, '--warn'), farbe(HELL, '--surface')) < AA_KONTRAST,
     'Gegenprobe: --warn als Schrift war wirklich zu schwach')
 })
+
+test('UX-K1e: der Wiki-Titel im Übersichts-Widget nutzt --link (AA in beiden Themes)', () => {
+  // UX-NACHMESSUNG-3: `a.wl-wiki-title` stand auf `--dk-brand-400` — im
+  // Dunkelmodus #6e7ca6 auf --surface, 4,31:1. `--link` hat je Theme einen
+  // eigenen, dafür gedachten Wert.
+  const css = lies('src/diakonos/index.css')
+  for (const sel of ['.wl-wiki-title', '.wl-wiki-title:hover']) {
+    const esc = sel.replace(/[.:]/g, (z) => '\\' + z)
+    const regel = css.match(new RegExp('^' + esc + '\\s*\\{([^}]*)\\}', 'm'))
+    assert.ok(regel, `Regel ${sel} gefunden`)
+    const token = regel[1].match(/(?:^|;)\s*color:\s*var\((--[\w-]+)\)/)?.[1]
+    assert.equal(token, '--link', sel)
+  }
+  for (const [satz, name] of [[HELL, 'hell'], [DUNKEL, 'dunkel']]) {
+    const wert = kontrast(farbe(satz, '--link'), farbe(satz, '--surface'))
+    assert.ok(wert >= AA_KONTRAST, `${name}: ${wert.toFixed(2)}:1 auf --surface`)
+  }
+  assert.ok(kontrast(farbe(DUNKEL, '--dk-brand-400'), farbe(DUNKEL, '--surface')) < AA_KONTRAST,
+    'Gegenprobe: --dk-brand-400 war im Dunkelmodus wirklich zu schwach')
+})

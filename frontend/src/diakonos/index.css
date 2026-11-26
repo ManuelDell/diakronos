@@ -2302,8 +2302,8 @@ select.dk-form-select { appearance: auto; }
   border-bottom: var(--rahmen-breite) solid var(--rahmen-farbe-leise);
 }
 .wl-wiki:last-child { border-bottom: none; }
-.wl-wiki-title { font-size: var(--fs-14); font-weight: var(--fw-mittel); color: var(--dk-brand-400); text-decoration: none; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.wl-wiki-title:hover { color: var(--dk-brand-300); text-decoration: underline; }
+.wl-wiki-title { font-size: var(--fs-14); font-weight: var(--fw-mittel); color: var(--link); text-decoration: none; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wl-wiki-title:hover { color: var(--link); text-decoration: underline; } /* UX-K1e: --link traegt in beiden Themes AA */
 .wl-wiki-date { font-size: var(--fs-12); color: var(--dk-text-subtle); flex-shrink: 0; }
 
 /* =====================================================================
