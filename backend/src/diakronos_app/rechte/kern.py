@@ -373,11 +373,24 @@ def _rolle_eintrag(sess, benutzer: str, gruppe: str, untergruppe: str | None) ->
 
 
 def _hauptgruppe(sess, untergruppe: str | None) -> str | None:
+    """Hauptgruppe einer Untergruppe — gemerkt unter ``("hauptgruppe", u)``.
+
+    RECHTE-KALVERW: derselbe Schluessel wie ``hauptgruppe_von`` und
+    ``rollen_vorladen``; vorher las ``_darf_roh`` je Untergruppe ungemerkt
+    nach, obwohl der Vorrat die Antwort schon hatte. Die Frage haengt nur an
+    der Untergruppe, nicht an der Sitzung; der Merker wird nach jedem
+    Schreibvorgang geleert. Ohne Merkungsrahmen wird wie zuvor gelesen.
+    """
     if not untergruppe:
         return None
     from diakronos_app.models.diakonos import Untergruppe
 
-    return sess.execute(select(Untergruppe.gruppe).where(Untergruppe.name == untergruppe)).scalar_one_or_none()
+    def _lesen() -> str | None:
+        return sess.execute(
+            select(Untergruppe.gruppe).where(Untergruppe.name == untergruppe)
+        ).scalar_one_or_none()
+
+    return _gemerkt(("hauptgruppe", untergruppe), _lesen)
 
 
 def hauptgruppe_von(untergruppe: str | None) -> str | None:

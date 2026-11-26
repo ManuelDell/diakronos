@@ -392,10 +392,18 @@ def get_kalender_verwaltung():
             continue
 
     gemeinde = _is_kalenderadministrator(user)
-    anlegen = [g["name"] for g in get_all("Gruppe", fields=["name"]) or []
-               if rechte.darf(user, rechte.ANLEGEN, "kalender", gruppe=g["name"])]
-    anlegen_ug = [u["name"] for u in get_all("Untergruppe", fields=["name"]) or []
-                  if rechte.darf(user, rechte.ANLEGEN, "kalender", untergruppe=u["name"])]
+    gruppen = [str(g["name"]) for g in get_all("Gruppe", fields=["name"]) or []]
+    untergruppen = [str(u["name"]) for u in get_all("Untergruppe", fields=["name"]) or []]
+    # RECHTE-KALVERW: Rollen, Mitgliedschaft und Modulschalter ALLER Gruppen
+    # in wenigen Sammelabfragen vorab merken (wie die Gespraechsliste). Vorher
+    # fragte `darf` je Gruppe und Untergruppe einzeln (4–6 Abfragen je
+    # Einheit). Entschieden wird unveraendert ueber `rechte.darf`.
+    rechte.rollen_vorladen(user, gruppen=gruppen, untergruppen=untergruppen,
+                           module=["kalender"])
+    anlegen = [g for g in gruppen
+               if rechte.darf(user, rechte.ANLEGEN, "kalender", gruppe=g)]
+    anlegen_ug = [u for u in untergruppen
+                  if rechte.darf(user, rechte.ANLEGEN, "kalender", untergruppe=u)]
     if not (kalender or gemeinde or anlegen or anlegen_ug):
         throw("Nur Kalenderverantwortliche dürfen Kalender verwalten.", FrappePermissionError)
 

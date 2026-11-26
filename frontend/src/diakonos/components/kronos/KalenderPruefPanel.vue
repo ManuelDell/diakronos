@@ -206,7 +206,7 @@ defineExpose({ rohdaten, laden, uebernehmen })
   color: var(--text);
 }
 /* Gold ist Statusfarbe („zu prüfen“) — hier nur als Zahl, nicht als Fläche. */
-.dk-pruef-panel-zahl { color: var(--warn); font-variant-numeric: tabular-nums; }
+.dk-pruef-panel-zahl { color: var(--badge-ink-warn); font-variant-numeric: tabular-nums; } /* UX-K1d: Text-Ton (6,7:1), --warn ist Zustands-Ton (4,43:1) */
 .dk-pruef-panel-alle,
 .dk-pruef-panel-aktion {
   display: inline-flex;

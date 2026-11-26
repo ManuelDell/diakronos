@@ -879,3 +879,19 @@ test('UX-K1c: Akzent auf Navy in Reiter, Chat-Blase und Undo-Kante führt --acce
     assert.doesNotMatch(r.rumpf, /var\(--(?:dk-)?accent\)/, `${datei} → ${selektor}`)
   }
 })
+
+test('UX-K1d: die Prüf-Zahl im Kalender-Panel nutzt den Text-Ton, nicht den Zustands-Ton', () => {
+  // UX-NACHMESSUNG-2: `.dk-pruef-panel-zahl` stand auf `--warn` (#a86a12,
+  // 4,43:1 auf Weiß) — ein Zustands-Ton, keine Schriftfarbe.
+  const quelle = lies('src/diakonos/components/kronos/KalenderPruefPanel.vue')
+  const regel = quelle.match(/\.dk-pruef-panel-zahl\s*\{([^}]*)\}/)
+  assert.ok(regel, 'Regel .dk-pruef-panel-zahl gefunden')
+  const token = regel[1].match(/color:\s*var\((--[\w-]+)\)/)?.[1]
+  assert.equal(token, '--badge-ink-warn')
+  for (const [satz, name] of [[HELL, 'hell'], [DUNKEL, 'dunkel']]) {
+    const wert = kontrast(farbe(satz, token), farbe(satz, '--surface'))
+    assert.ok(wert >= AA_KONTRAST, `${name}: ${wert.toFixed(2)}:1 auf --surface`)
+  }
+  assert.ok(kontrast(farbe(HELL, '--warn'), farbe(HELL, '--surface')) < AA_KONTRAST,
+    'Gegenprobe: --warn als Schrift war wirklich zu schwach')
+})
