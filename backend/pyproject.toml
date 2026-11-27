@@ -4,7 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "diakronos-app"
-version = "2.0.0"
+# ABN-3: EINE Quelle der Versionsnummer — die Datei
+# backend/src/diakronos_app/VERSION. Sie kommt als Paketdatum mit
+# (package-data unten) und wird von diakronos_app/__init__.py gelesen.
+# Kein zweiter Stand im Code, keine Zahl doppelt gepflegt.
+dynamic = ["version"]
 description = "Diakronos — FastAPI-Backend"
 requires-python = ">=3.12,<3.13"
 dependencies = [
@@ -101,6 +105,11 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# ABN-3: die Versionsnummer kommt aus EINER Datei im Paket, nicht aus einer
+# Zahl in dieser Datei. `dynamic = ["version"]` oben zieht sie hier ein.
+[tool.setuptools.dynamic]
+version = {file = ["src/diakronos_app/VERSION"]}
+
 # Laufzeit-/Test-Dateien des Plan-Rahmens muessen auch bei einer
 # Nicht-Editable-Install (Rad/Install aus dem sdist) mitkommen: das
 # Plantyp-Schema (schema/*.json) und die Doku (doku/**/*.md, doku/kochbuch/*.json).
@@ -108,6 +117,9 @@ where = ["src"]
 # Laufzeit oder in Tests benoetigten Dateien liegen deshalb IM Paket und werden
 # ueber importlib.resources gelesen (NACHTRAG DOCKER).
 [tool.setuptools.package-data]
+# ABN-3: die EINE Datei mit der Versionsnummer. Ohne diese Zeile fehlte sie in
+# einer Nicht-Editable-Install und `/healthz` meldete "0.0.0-unbekannt".
+"diakronos_app" = ["VERSION"]
 "diakronos_app.import_metadaten" = ["*.json", "*.tsv"]
 "diakronos_app.models" = ["_mapping.json"]
 "diakronos_app.planrahmen" = ["schema/*.json", "doku/*.md", "doku/kochbuch/*.json", "doku/instanzen/*.json"]

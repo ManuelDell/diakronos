@@ -108,6 +108,13 @@ export const STICHWORTE = {
     'Konto'],
   gestaltung: ['Gestaltung', 'Abstände', 'Rahmen', 'Rundungen', 'Musteransicht',
     'Zurücksetzen'],
+  // ABN-3: der Abschnitt „Über Diakronos“ (`UeberDiakronos.vue`). Die
+  // Stichworte sind woertlich sein Titel, seine Feldnamen und seine Woerter —
+  // „Version“ und „Stand“ stehen dort als Beschriftung, „Update“ und
+  // „Rückweg“ im Hinweissatz. „Build“ steht bewusst NICHT hier: das Wort
+  // kommt im sichtbaren Text nicht vor („nicht im Build vermerkt“ zaehlt als
+  // Fundstelle nur mit dem Wortlaut, der dort steht).
+  'ueber-diakronos': ['Über Diakronos', 'Version', 'Stand', 'Git', 'Update', 'Rückweg'],
   'dev-modus': ['Entwicklermodus', 'Dev-Modus', 'Demo-Daten', 'Befunde', 'Werkzeuge'],
 }
 

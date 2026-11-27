@@ -740,6 +740,21 @@ h1, h2, h3, h4 {
   padding: var(--sp-2) 0;
 }
 
+/* ABN-3: Fusszeile „Version 2.0.0 · <hash>“ unter „Abmelden“.
+   Dezent (kleine Schrift, gedaempfte Farbe), bricht bei Bedarf um statt die
+   Leiste zu sprengen; Farbe/Breite kommen aus den Seitenleisten-Tokens, also
+   hell wie dunkel dieselbe Regel. Steht NUR im aufgeklappten Zustand im DOM
+   (v-if in AppSidebar.vue) — hier zusaetzlich gesichert, weil die Leiste beim
+   Einklappen ihre Breite behaelt. */
+.dk-sb-version {
+  margin: 0;
+  padding: 0 var(--sp-3) var(--sp-1);
+  font-size: var(--fs-sm);
+  color: var(--dk-sb-text-muted);
+  font-variant-numeric: var(--fs-tabular);
+  overflow-wrap: anywhere;
+}
+
 /* UX3a (Entwurf A1): Profilmenü im Fußbereich der Seitenleiste.
    Der Profilknopf ist ein <button> (vorher ein <a> auf #/profile) — er öffnet
    ein kleines Menü mit Profil, Entwicklermodus, Dev-Befunde und dem

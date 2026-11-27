@@ -104,6 +104,8 @@ const pages = {
     EinstellungenWebsite: () => import('./pages/Einstellungen.vue'),
     // UX1k: Einstellungs-Abschnitt „Gestaltung“ (nur System Manager).
     EinstellungenGestaltung: () => import('./pages/Einstellungen.vue'),
+    // ABN-3: Einstellungs-Abschnitt „Über Diakronos“ (Version, Build-Stand).
+    EinstellungenUeberDiakronos: () => import('./pages/Einstellungen.vue'),
     // WEB-3: eigene Seite „Website“ mit dem Einstieg in Primo.
     Website: () => import('./pages/Website.vue'),
     // CHAT-R2a (Chat-Konzept 10.2): „Personenverwaltung“ ist der umgezogene
@@ -252,6 +254,9 @@ const routeMap = {
     '#/einstellungen/website': 'EinstellungenWebsite',
     // UX1k: Abstände, Rahmen und Rundungen (nur System Manager).
     '#/einstellungen/gestaltung': 'EinstellungenGestaltung',
+    // ABN-3: laufende Version und Build-Stand — reine Anzeige, keine
+    // Verwaltungsstufe (siehe pages/Einstellungen.vue).
+    '#/einstellungen/ueber-diakronos': 'EinstellungenUeberDiakronos',
     '#/website': 'Website',
     '#/profile':       'Profile',
     '#/ressourcen':    'Ressourcen',

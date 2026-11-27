@@ -436,9 +436,32 @@ RUN apt-get update \
 # Das Laufzeit-Image: der Kommentar oben gilt ab hier.
 FROM python:3.12-slim
 
+# ABN-3/ABN-3b/M8: Kennung des gebauten Standes (Kurz-Hash des Quellstands).
+#
+# WO SIE ANKOMMT: als Laufzeit-Variable `DIAKRONOS_GIT_COMMIT` (siehe ENV
+# unten). `diakronos_app.git_kurz_hash()` liest genau diese Variable.
+#
+# WER SIE SETZT: alle Wege, die ein Image fuer den Betrieb bauen —
+# `make update` (tools/betrieb/update.sh: `--build-arg GIT_COMMIT=$(git rev-parse
+# HEAD)`) und `make build` (Makefile: dito). Ein nackter `docker build` ohne
+# `--build-arg` laesst sie leer; dann bleibt das Feld im „Ueber Diakronos"
+# leer — es wird nichts geraten.
+#
+# WOHIN SIE NICHT GEHT: in `LABEL`. Ein Dockerfile-`LABEL` fuehrt keine Shell
+# aus und kann den Wert nicht aus einem ARG zusammensetzen wie gewuenscht; das
+# Stand-Label fuer den Rueckweg (`org.diakronos.alembic_revisionen`) setzt
+# deshalb der Build-Aufruf (update.sh/Makefile), nicht diese Datei.
+#
+# SICHTBARKEIT (ABN-3b/N9): NICHT in /healthz (oeffentlich), sondern nur im
+# Boot-Objekt fuer angemeldete Administratoren.
+ARG GIT_COMMIT=""
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
+    # ABN-3: oben als ARG angenommen, hier als Laufzeit-Variable gesetzt.
+    # `diakronos_app.git_kurz_hash()` liest genau diese Variable.
+    DIAKRONOS_GIT_COMMIT=${GIT_COMMIT} \
     # BLD-R2: Zahl der Uvicorn-Arbeiten. 1 = wie bisher (ein Prozess).
     # Mehrere Arbeiten verhindern, dass EINE lange Anfrage alle anderen
     # Nutzer blockiert (in der Nachtpruefung blockierte ein einziger
@@ -521,6 +544,26 @@ RUN chmod 755 /usr/local/bin/diakronos
 # Only the volume bootstrap runs as root; entrypoint drops to UID 1000 before
 # migrations, bootstrap Python or the application command is executed.
 USER root
+
+# ABN-3: die Alembic-Staende DIESES Images stehen als LABEL im Image
+# (`org.diakronos.alembic_revisionen`). Der Rueckweg liest es mit
+# `docker image inspect` — OHNE einen Container zu starten (der Entrypoint des
+# alten Images faehrt sonst vorher `alembic upgrade head` und bricht bei einem
+# fremden Stand ab; im Probelauf: "Can't locate revision").
+#
+# Warum nicht hier per `LABEL`: ein Dockerfile-`LABEL` fuehrt KEINE Shell aus
+# (`LABEL x="$(cat …)"` setzt den Text woertlich — im Probelauf genau so
+# gesehen). Deshalb setzt es der BUILD: `tools/betrieb/update.sh` haengt beim
+# Bauen `--label org.diakronos.alembic_revisionen=…` an `docker build` an (die
+# Werte kommen aus `backend/bin/alembic-revisionen`, Quelle: die
+# Migrationsdateien im Image). ABN-3b/M8: derselbe Weg steckt jetzt auch im
+# normalen Bauen — `compose/stack.yml` (build.args GIT_COMMIT) und `make build`.
+# Fehlt das Label (nackter `docker build`), prueft der Rueckweg die Sicherung
+# nicht vorab; das Einspielen selbst entscheidet dann (mit klarer Meldung).
+# Das Skript kommt mit, damit man den Stand im Container nachsehen kann:
+#   docker compose exec app alembic-revisionen
+COPY --chown=root:root backend/bin/alembic-revisionen /usr/local/bin/alembic-revisionen
+RUN chmod 755 /usr/local/bin/alembic-revisionen
 
 EXPOSE 8000
 

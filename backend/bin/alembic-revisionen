@@ -1,0 +1,185 @@
+#!/usr/bin/env python3
+"""Die Alembic-Staende (Revisionen) dieses Images ausgeben — eine Zeile, kommagetrennt.
+
+Wozu (ABN-3)
+------------
+Der Rueckweg (`tools/betrieb/rollback.sh`) muss VOR dem Tausch wissen, ob das
+vorige Image den Datenbank-Stand einer Sicherung kennt. Ohne diese Auskunft
+muesste er einen Container des alten Images starten — dessen Entrypoint faehrt
+aber `alembic upgrade head` und bricht bei einem fremden Stand ab ("Can't
+locate revision"), noch bevor der Pruefer laeuft.
+
+`backend/Dockerfile` schreibt das Ergebnis beim Bauen in das Label
+`org.diakronos.alembic_revisionen`. Gelesen wird es mit
+`docker image inspect` — ohne Container, ohne Datenbank.
+
+Quelle sind AUSSCHLIESSLICH die Migrationsdateien im Image
+(`/app/alembic/versions/*.py`): keine zweite Liste, die auseinanderlaufen
+koennte.
+"""
+
+from __future__ import annotations
+
+import glob
+import os
+import re
+import sys
+from pathlib import Path
+
+MUSTER = re.compile(r"^revision(?:\s*:\s*str)?\s*=\s*['\"]([^'\"]+)['\"]", re.M)
+#: `down_revision = "x"` / `= ("a", "b")` / `= None` — der Verweis nach hinten.
+DOWN_MUSTER = re.compile(r"^down_revision\s*(?::[^=]+)?=\s*(.+)$", re.M)
+#: Jede einzelne Kennung in so einem Verweis (Tupel, Liste, Zeichenkette).
+REVISION_IN_TEXT = re.compile(r"['\"]([^'\"]+)['\"]")
+#: `pg_restore` im Laufzeit-Image (postgresql-client-17, nicht im PATH).
+PG_RESTORE = "/usr/lib/postgresql/17/bin/pg_restore"
+
+
+#: Vorgabe-Pfad IM Image; ausserhalb pruefbar ueber `ALEMBIC_VERSIONEN`.
+STANDARD_VERZEICHNIS = "/app/alembic/versions"
+
+
+def revisionen(verzeichnis: str | None = None) -> list[str]:
+    verzeichnis = verzeichnis or os.environ.get("ALEMBIC_VERSIONEN", STANDARD_VERZEICHNIS)
+    gefunden = []
+    for datei in sorted(glob.glob(f"{verzeichnis}/*.py")):
+        try:
+            text = open(datei, encoding="utf-8").read()  # noqa: SIM115 — kurzlebig
+        except OSError:
+            continue
+        treffer = MUSTER.search(text)
+        if treffer:
+            gefunden.append(treffer.group(1))
+    return gefunden
+
+
+def head(verzeichnis: str | None = None) -> list[str]:
+    """Die HEAD-Revisionen: die Staende, auf die NIEMAND mehr verweist.
+
+    Head ist NICHT der letzte Dateiname (alphabetisch sortiert) — das war der
+    Denkfehler, der im ersten Rueckweg-Versuch zum Umschreiben der
+    `alembic_version` fuehrte. Head ist das Ende der `down_revision`-Kette:
+    jeder Stand, der in irgendeiner Datei als `down_revision` genannt wird,
+    hat einen Nachfolger; was uebrig bleibt, ist Head (bei Verzweigungen:
+    mehrere).
+
+    Gleiche Regel wie `alembic heads`, nur ohne Datenbank und ohne Alembic zu
+    importieren (der Aufruf laeuft auch im schlanken Diagnose-Kontext).
+    """
+    verzeichnis = verzeichnis or os.environ.get("ALEMBIC_VERSIONEN", STANDARD_VERZEICHNIS)
+    alle: list[str] = []
+    nachfolger: set[str] = set()
+    for datei in sorted(glob.glob(f"{verzeichnis}/*.py")):
+        try:
+            text = open(datei, encoding="utf-8").read()  # noqa: SIM115 — kurzlebig
+        except OSError:
+            continue
+        treffer = MUSTER.search(text)
+        if not treffer:
+            continue
+        alle.append(treffer.group(1))
+        for verwiesen in DOWN_MUSTER.findall(text):
+            # Tupel/Listen in `depends_on`/`down_revision` (Verzweigungen):
+            # jeder genannte Stand hat einen Nachfolger.
+            for einzeln in REVISION_IN_TEXT.findall(verwiesen):
+                nachfolger.add(einzeln)
+    return [r for r in alle if r not in nachfolger]
+
+
+def dump_stand(dump_datei: str) -> str:
+    """Die Alembic-Kennung, die in einer ``db.dump``-Sicherung steht.
+
+    Liest NUR (``pg_restore --data-only --table alembic_version --file -``);
+    es wird nichts eingespielt und kein Container gestartet. Der Rueckweg
+    braucht diesen Wert, um die Sicherung VOR dem Anhalten mit dem Ziel-Image
+    zu vergleichen (ABN-3b/K1).
+
+    Warum hier im Image und nicht als Heredoc im Shell-Skript: das Programm
+    ueber ``docker compose run … python -`` zu schicken mischt dessen
+    Fortschrittszeilen in stdin/stdout (im Probelauf kam genau das als
+    „Stand" heraus). Ein Programm IM Image mit Argumenten ist eindeutig.
+    """
+    import subprocess
+
+    pfad = Path(dump_datei)
+    if not pfad.is_file():
+        print("", file=sys.stderr)
+        return ""
+    try:
+        roh = subprocess.run(
+            [PG_RESTORE, "--data-only", "--table", "alembic_version",
+             "--file", "-", str(pfad)],
+            capture_output=True, text=True, timeout=300,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        roh = ""
+    # Der Block sieht so aus (pg_restore --data-only):
+    #
+    #   COPY public.alembic_version (version_num) FROM stdin;
+    #   dateien_r_gruppeneinstellung
+    #   \.
+    #
+    # Gesucht ist die Zeile ZWISCHEN Kopf und Ende. Toleriert wird beides:
+    # mit und ohne Schema-Praefix (der Dump kann `public.` weglassen).
+    drin, werte = False, []
+    for zeile in roh.splitlines():
+        blank = zeile.strip()
+        if not drin:
+            if blank.startswith("COPY ") and ".alembic_version " in f" {blank} ":
+                drin = True
+            continue
+        if blank == "\\." or blank.startswith("\\."):
+            break
+        if blank:
+            werte.append(blank)
+    return werte[0] if werte else ""
+
+
+def main() -> int:
+    import argparse
+
+    zerleger = argparse.ArgumentParser(
+        prog="alembic-revisionen",
+        description="Die Alembic-Staende dieses Images ausgeben (kommagetrennt).",
+    )
+    zerleger.add_argument(
+        "--head", action="store_true",
+        help="nur die HEAD-Staende (Ende der down_revision-Kette, wie 'alembic heads')",
+    )
+    zerleger.add_argument(
+        "--dump-stand", metavar="DB.DUMP",
+        help="die Alembic-Kennung IN einer Sicherung lesen (nur lesend)",
+    )
+    zerleger.add_argument(
+        "--verzeichnis", metavar="DIR",
+        help="Migrationsverzeichnis (Vorgabe: /app/alembic/versions, oder $ALEMBIC_VERSIONEN)",
+    )
+    args = zerleger.parse_args()
+
+    if args.dump_stand:
+        # `dump_stand` liefert die Zeile „COPY public.alembic_version (version_num) FROM stdin;"
+        # als Treffer des Kopfes — sie ist die BESTAETIGUNG, dass das Format
+        # stimmt, nicht der Stand. Gesucht ist die naechste (Daten-)Zeile.
+        stand = dump_stand(args.dump_stand)
+        if stand:
+            print(stand)
+        return 0
+    if args.head:
+        werte = head(args.verzeichnis)
+        if not werte:
+            print("keine HEAD-Revision gefunden", file=sys.stderr)
+            return 1
+        print(",".join(werte))
+        return 0
+    werte = revisionen(args.verzeichnis)
+    if not werte:
+        # Kein stiller Erfolg: eine leere Liste wuerde im Rueckweg als
+        # "Image ohne Stand" gelesen und die Pruefung uebersprungen.
+        print("keine Revisionen gefunden", file=sys.stderr)
+        return 1
+    print(",".join(werte))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

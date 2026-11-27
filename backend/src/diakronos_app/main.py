@@ -275,10 +275,19 @@ def erstelle_app(einstellungen=None):
         db_ok = _check_db()
         redis_ok = _check_redis()
         all_ok = db_ok and redis_ok
+        # ABN-3b/N9: /healthz ist OEFFENTLICH (Healthcheck, Betreiber-Skripte,
+        # jeder im Netz). Deshalb steht hier NUR die Version — die beantwortet
+        # „laeuft der erwartete Stand?". Der Git-Kurz-Hash nennt den genauen
+        # Quellstand und gehoert nicht in eine offene Antwort; er steht im
+        # Boot-Objekt, aber nur fuer angemeldete Administratoren
+        # (`version_auskunft_sichtbar`, AMD-3/„Ueber Diakronos").
+        from diakronos_app import version_auskunft_sichtbar
+
         return {
             "status": "ok" if all_ok else "degraded",
             "db": db_ok,
             "redis": redis_ok,
+            **version_auskunft_sichtbar(),
         }
 
     @app.get("/", include_in_schema=False)

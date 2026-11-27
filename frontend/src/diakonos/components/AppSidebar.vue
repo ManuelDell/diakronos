@@ -187,6 +187,22 @@
         </svg>
         <span v-if="!collapsed">Abmelden</span>
       </DkButton>
+
+      <!-- ABN-3: Fusszeile mit der laufenden Version — dezent, eingeklappt
+           unsichtbar (dort ist kein Platz). Quelle ist `fusszeilenText()` aus
+           `pages/einstellungen/version.mjs` (Boot-Objekt, dieselbe Zahl wie
+           /healthz). ABN-3b/N9: NUR die Nummer, kein Git-Hash — der steht in
+           "Einstellungen -> Über Diakronos" und wird ohnehin nur an
+           Administratoren ausgeliefert. Fehlt sie (alter Server), bleibt die
+           Zeile GANZ weg:
+           „Version unbekannt“ in jeder Ansicht wäre ein Störfeuer.
+           Vorlesehilfe: `aria-label` sagt „Laufende Version“, damit niemand
+           eine nackte Zahlenfolge vorgelesen bekommt. -->
+      <p
+        v-if="!collapsed && versionsText"
+        class="dk-sb-version"
+        aria-label="Laufende Version"
+      >{{ versionsText }}</p>
     </div>
   </aside>
 
@@ -208,6 +224,10 @@ import { MENUE, ICON_PFADE, sichtbareEintraege } from '../menue.js'
 // die Handy-Schublade liest (Administrator ODER Mitgliederverwaltung).
 import { sichtbarerFuss } from './handyMenue.mjs'
 import { PRODUKTNAME } from './ui/begriffe.mjs'
+// ABN-3: die Fusszeile der Seitenleiste nennt die laufende Version. Dieselbe
+// Funktion, aus der "Einstellungen -> Über Diakronos" liest (Boot-Objekt,
+// dieselbe Zahl wie /healthz) — kein zweiter Abruf.
+import { fusszeilenText } from '../pages/einstellungen/version.mjs'
 import DkButton from './ui/DkButton.vue'
 // LEISTE-1: der Eintrag „Benachrichtigungen“ (dieselbe Glocke wie in der
 // Kopfzeile und im Vollbild-Kopf der Nachrichten).
@@ -221,6 +241,16 @@ const props = defineProps({
   theme: String,
 })
 const emit = defineEmits(['toggle-collapse', 'toggle-theme', 'close-mobile'])
+
+/**
+ * ABN-3: Text der Fusszeile („Version 2.0.0") — ohne Build-Kennung (ABN-3b/N9).
+ *
+ * `computed`, obwohl sich das Boot-Objekt im Prozess nicht ändert: so bleibt
+ * es EINE Stelle, falls die Werte später nachgeladen werden. Leer heisst:
+ * der Server liefert keine Version (älterer Stand) — dann zeigt die
+ * Seitenleiste die Zeile nicht.
+ */
+const versionsText = computed(() => fusszeilenText())
 
 const { user, mitglied, isAdmin, istMitgliederverwaltung: istVerwaltungRef, istTester: istTesterRef, devmodeAn: devmodeAnRef, anzeigeName, rollen: rollenRef } = useSession()
 const { abmelden } = useAbmelden()

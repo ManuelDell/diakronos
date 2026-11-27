@@ -151,6 +151,9 @@ const SPERREN = defineAsyncComponent(() => import('./einstellungen/Sperren.vue')
 const BENACHRICHTIGUNGEN = defineAsyncComponent(
   () => import('./einstellungen/Benachrichtigungen.vue'),
 )
+// ABN-3: „Über Diakronos“ — die laufende Version. Nur Anzeige, kein eigenes
+// Recht: die zwei Werte liefert ohnehin jede Antwort im Boot-Objekt.
+const UEBER = defineAsyncComponent(() => import('./einstellungen/UeberDiakronos.vue'))
 // UX1k: Abstände, Rahmen und Rundungen (nur System Manager — Server prüft).
 const GESTALTUNG = defineAsyncComponent(() => import('./einstellungen/Gestaltung.vue'))
 // CHAT-R2a (Chat-Konzept 10.1 Punkt 5, 10.2): „Personenverwaltung“ — der
@@ -266,6 +269,13 @@ const abschnitte = [
   { id: 'gestaltung', label: 'Gestaltung', href: '#/einstellungen/gestaltung',
     seite: 'EinstellungenGestaltung', inhalt: GESTALTUNG,
     gruppe: 'erweitert', nurSystemManager: true, verwaltung: 'admin' },
+  // ABN-3: „Über Diakronos“ — der laufende Stand (Version + Git-Kurz-Hash).
+  // OHNE `verwaltung`-Stufe: die Werte stehen bereits im Boot-Objekt jeder
+  // angemeldeten Sitzung, und wer beim Support anruft, muss sie ablesen
+  // können. Es ist reine Anzeige; geändert wird daran nichts.
+  { id: 'ueber-diakronos', label: 'Über Diakronos',
+    href: '#/einstellungen/ueber-diakronos',
+    seite: 'EinstellungenUeberDiakronos', inhalt: UEBER, gruppe: 'erweitert' },
   // Entscheidung 10: Dev-Modus ist der letzte Abschnitt. Er ist nur sichtbar,
   // wenn die Instanz ihn zulaesst (Konzept §7) — der Server entscheidet.
   { id: 'dev-modus', label: 'Entwicklermodus', href: '#/einstellungen/dev-modus',

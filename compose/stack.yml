@@ -290,6 +290,12 @@ services:
     build:
       context: ..
       dockerfile: backend/Dockerfile
+      # ABN-3b/M8: die Build-Kennung auch im NORMALEN Weg (ohne make update).
+      # Der Wert kommt aus der Umgebung; ist er leer (kein GIT_COMMIT beim
+      # `docker compose build` gesetzt), bleibt der ARG leer und das Image
+      # verhaelt sich wie bisher — der Build bricht NICHT (Vorgabe leer).
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-}
     image: ${APP_IMAGE:-diakronos-standalone-app:latest}
     restart: unless-stopped
     environment:
@@ -326,6 +332,9 @@ services:
     build:
       context: ..
       dockerfile: backend/Dockerfile
+      # ABN-3b/M8: dieselbe Build-Kennung wie `app` (leer = wie bisher).
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-}
     restart: unless-stopped
     command: ["rq", "worker", "--url", "${REDIS_URL:-redis://redis:6379/0}", "default"]
     environment:
@@ -350,6 +359,9 @@ services:
     build:
       context: ..
       dockerfile: backend/Dockerfile
+      # ABN-3b/M8: dieselbe Build-Kennung wie `app` (leer = wie bisher).
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-}
     restart: unless-stopped
     command: ["python", "-m", "diakronos_app.scheduler"]
     environment:

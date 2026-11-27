@@ -99,7 +99,10 @@ test('UX3h: jeder Bereich der Seite hat genau eine der fünf Gruppen', () => {
   // ist als fünfzehnter Abschnitt hinzugekommen — Gruppe „Kommunikation“ (es
   // geht um Meldungen), OHNE Verwaltungsstufe: jede angemeldete Person stellt
   // es für ihr eigenes Gerät ein.
-  assert.equal(BEREICHE.length, 15,
+  // ANGEPASST (ABN-3): „Über Diakronos“ (Version + Build-Stand) ist als
+  // sechzehnter Abschnitt hinzugekommen — Gruppe „Erweitert“, ohne
+  // Verwaltungsstufe (die Werte stehen ohnehin im Boot-Objekt jeder Sitzung).
+  assert.equal(BEREICHE.length, 16,
     'Bereiche der Seite nicht erkannt (' + BEREICHE.length + ') — Muster geändert?')
   const ids = new Set(GRUPPEN.map((g) => g.id))
   const falsch = BEREICHE.filter((b) => !ids.has(b.gruppe))
@@ -131,7 +134,9 @@ test('UX3h: Gruppen tragen 1–9 Einträge (Prinzip N3), keine ist leer', () => 
   // über ihre eigenen Daten.
   assert.deepEqual(zuordnung.datenschutz,
     ['datenschutz', 'datensicherung', 'papierkorb', 'fristen', 'sperren', 'personenverwaltung'])
-  assert.deepEqual(zuordnung.erweitert, ['gestaltung', 'dev-modus'])
+  // ABN-3: „Über Diakronos“ steht bei den seltenen Werkzeugen — man sieht
+  // dort nach, wenn ein Update ansteht; der Entwicklermodus bleibt zuletzt.
+  assert.deepEqual(zuordnung.erweitert, ['gestaltung', 'ueber-diakronos', 'dev-modus'])
 })
 
 test('UX3h: jeder Bereich hat Stichworte, keine sind erfunden', () => {
@@ -171,6 +176,9 @@ test('UX3h: jedes Stichwort kommt im Abschnitt wirklich vor (keine erfundenen)',
     sperren: 'Sperren.vue',
     // CHAT-10b: der Abschnitt „Benachrichtigungen aufs Gerät“.
     benachrichtigungen: 'Benachrichtigungen.vue',
+    // ABN-3: „Über Diakronos“ — Titel, Feldnamen („Version“, „Stand (Git)“)
+    // und der Hinweis auf den Rückweg stehen dort im Markup.
+    'ueber-diakronos': 'UeberDiakronos.vue',
   }
   // Beschriftungen, die die Suche selbst setzt (Gruppentitel, eigene Wörter)
   // gelten ebenfalls als „kommt vor“ — sonst wäre der Wächter zahnlos.

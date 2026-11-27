@@ -28,9 +28,15 @@ def test_healthz_returns_200():
 
 def test_healthz_shape():
     body = TestClient(app).get("/healthz").json()
-    assert set(body) == {"status", "db", "redis"}
+    # ABN-3: `version` ist neu. ABN-3b/N9: `git` gehoert NICHT hierher —
+    # /healthz ist oeffentlich, der Hash nennt den genauen Quellstand. Er
+    # steht im Boot-Objekt, aber nur fuer Administratoren. Ein weiteres Feld
+    # hier auftauchen zu lassen, waere eine Aenderung am Vertrag.
+    assert set(body) == {"status", "db", "redis", "version"}
     for key in ("db", "redis"):
         assert isinstance(body[key], bool)
+    assert isinstance(body["version"], str) and body["version"]
+    assert "git" not in body
 
 
 def test_healthz_all_dependencies_up(patched_db, fake_redis, monkeypatch):
@@ -59,6 +65,10 @@ def test_healthz_all_dependencies_up(patched_db, fake_redis, monkeypatch):
     monkeypatch.setattr(main_mod.Redis, "from_url", lambda *a, **kw: _PingStub())
 
     body = TestClient(app).get("/healthz").json()
-    assert body == {"status": "ok", "db": True, "redis": True}, body
+    # ABN-3: `version`/`git` gehoeren jetzt dazu (siehe test_healthz_shape);
+    # geprueft werden weiter die drei Zustandswerte.
+    assert {k: body[k] for k in ("status", "db", "redis")} == {
+        "status": "ok", "db": True, "redis": True,
+    }, body
 
 

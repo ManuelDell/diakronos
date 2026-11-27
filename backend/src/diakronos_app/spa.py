@@ -54,6 +54,8 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Resp
 from diakronos_app.frappe_compat.session import GUEST, session
 from diakronos_app.settings import settings
 from diakronos_app import base_path
+# ABN-3: Version + Git-Kurz-Hash fuer das Boot-Objekt der SPA. Import beim
+# Laden des Moduls, nicht je Aufruf: die Werte aendern sich im Prozess nicht.
 
 logger = logging.getLogger("diakronos_app.spa")
 
@@ -396,6 +398,14 @@ def boot_fuer_request() -> dict[str, Any]:
     from diakronos_app.frappe_compat import permissions
 
     rollen = permissions.get_roles(user)
+    # ABN-3b/N9: Build-Kennung nur fuer angemeldete Administratoren. Dieselbe
+    # Rollenfrage wie `is_admin`/`is_root` weiter unten — keine zweite Quelle.
+    from diakronos_app import version_auskunft_sichtbar
+
+    darf_hash_sehen = (
+        user != GUEST
+        and (permissions.ROOT_ROLLE in rollen or permissions.is_admin(user))
+    )
     return {
         "user": user,
         # WEB-5a: Betriebs-Praefix fuer das Frontend (`''` = keiner). Die SPA
@@ -483,6 +493,13 @@ def boot_fuer_request() -> dict[str, Any]:
         # mehr. Der Server liefert dazu nur den STAND (die Rolle entscheidet
         # `is_admin`), die Leitungsregel steht in `router.js` — eine Wahrheit.
         "einrichtung_offen": _einrichtung_offen(),
+        # ABN-3b/N9: die laufende Version immer, den Git-Kurz-Hash NUR fuer
+        # angemeldete Administratoren (Fusszeile und "Einstellungen -> Ueber
+        # Diakronos"). Das Boot-Objekt geht auch an Gaeste — ein Hash dort
+        # waere wieder eine oeffentliche Stand-Auskunft wie in /healthz.
+        # Dieselbe Quelle wie /healthz (EINE Nummer), der Hash wird nur
+        # unterschiedlich weit gereicht.
+        **version_auskunft_sichtbar(mit_hash=darf_hash_sehen),
     }
 
 

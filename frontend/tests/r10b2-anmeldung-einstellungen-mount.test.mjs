@@ -459,18 +459,25 @@ test('UI-R10b/B: Einstellungen ohne sichtbaren Abschnitt → DkEmpty statt Verwa
     + warnungen.slice(0, 3).join(' | '))
   // Die Liste zeigt GENAU die eigenen Abschnitte — keinen Verwaltungs-Abschnitt.
   // Die Reihenfolge folgt den Gruppen (Kommunikation vor Datenschutz).
+  // ABN-3: „Über Diakronos“ ist hinzugekommen — ebenfalls OHNE Verwaltungsstufe
+  // (Version und Build-Stand stehen im Boot-Objekt jeder Sitzung; wer beim
+  // Support anruft, muss sie ablesen können). Es steht in der Gruppe
+  // „Erweitert“ und damit NACH den Datenschutz-Abschnitten.
   const eintraege = [...host.querySelectorAll('.ei-eintrag')].map((e) => e.textContent.trim())
-  assert.deepEqual(eintraege, ['Benachrichtigungen aufs Gerät', 'Gesperrte Personen'],
+  assert.deepEqual(eintraege,
+    ['Benachrichtigungen aufs Gerät', 'Gesperrte Personen', 'Über Diakronos'],
     'nur die eigenen Abschnitte stehen in der Liste: ' + eintraege.join(', '))
   // KEIN Abschnitt wurde eingebettet (früher „Gemeinde“).
   assert.equal(host.querySelectorAll('.ei-inhalt .an-abschnitt').length, 0,
     'kein fremder Abschnitt eingebettet')
   assert.equal(host.querySelectorAll('.ei-inhalt .an-felder').length, 0,
     'kein Abschnittsformular eingebettet')
-  // Die Liste führt GENAU den eigenen Abschnitt — und der ist aktiv (nie
-  // keiner, solange Abschnitte sichtbar sind).
-  assert.equal(host.querySelectorAll('.ei-eintrag').length, 2,
-    'genau ZWEI sichtbare Abschnitte in der Liste (die eigenen)')
+  // Die Liste führt GENAU die eigenen Abschnitte — und einer ist aktiv (nie
+  // keiner, solange Abschnitte sichtbar sind). Seit ABN-3 sind es DREI:
+  // „Benachrichtigungen aufs Gerät“, „Gesperrte Personen“ und (neu, ebenfalls
+  // ohne Verwaltungsstufe) „Über Diakronos“.
+  assert.equal(host.querySelectorAll('.ei-eintrag').length, 3,
+    'genau DREI sichtbare Abschnitte in der Liste (die eigenen)')
   assert.equal(host.querySelectorAll('.ei-eintrag.is-active').length, 1, 'genau ein aktiver Abschnitt')
 })
 

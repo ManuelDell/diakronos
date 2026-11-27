@@ -31,6 +31,7 @@ Test-Zertifizierungsstelle geprüft; ein echter ACME-Abruf bleibt ausdrücklich 
 15. [Website-Verwaltung über Primo (WEB-1, optional)](#15-website-verwaltung-über-primo-web-1-optional)
 16. [Betrieb unter einem Pfad-Präfix (WEB-5a)](#16-betrieb-unter-einem-pfad-präfix-web-5a) — Website auf `/`, Diakronos unter `/diakronos/…`, darin 16.9 [CSRF-Heilung im Browser](#169-csrf-heilung-was-die-oberfläche-selbst-tut-web-8f-verhaltensänderung)
 17. [Kontaktformular der Website (WEB-10)](#17-kontaktformular-der-website-web-10) — sendet nur eine Mail, nichts wird gespeichert
+20. [Update und Rückweg (ABN-3)](#20-update-und-rückweg-abn-3) — ein Befehl vorwärts, einer zurück
 
 ---
 
@@ -296,6 +297,8 @@ dort `false`, läuft der Stack noch nicht richtig — dann hilft nur Abschnitt 7
 | `make ps` | Status aller Container |
 | `make logs` | Protokoll mitverfolgen |
 | `make restart` | Neustart |
+| `make update` | Auf die neue Version bringen (sichert vorher; Abschnitt 20) |
+| `make rollback` | Zurück auf den Stand vor dem letzten Update (Abschnitt 20) |
 | `make down` | Stack stoppen |
 | `make shell` | Shell im App-Container (für die Notfälle in Abschnitt 4) |
 
@@ -3754,3 +3757,196 @@ Er zeigt:
 Der Bereich lädt seinen Stand selbst; ein Fehler dort lässt die Freigaben
 darüber stehen.
 
+---
+
+## 20. Update und Rückweg (ABN-3)
+
+Zwei Befehle, mehr braucht es nicht: **einer vorwärts, einer zurück.** Beide
+laufen auf dem Server im Projektordner. Sie funktionieren auf jeder
+Installation, weil Projektname und Umgebungsdatei über Variablen kommen.
+
+### 20.1 Welche Version läuft?
+
+Drei Wege, dieselbe Zahl:
+
+* im Browser unter **Einstellungen → Über Diakronos** (Gruppe „Erweitert") —
+  Version und Stand;
+* **unten in der Seitenleiste** steht dezent *„Version 2.0.0 · 6de1f4cebf18"*
+  (eingeklappte Leiste: dort ist kein Platz, also nichts);
+* auf der Kommandozeile:
+
+  ```
+  curl -s http://127.0.0.1:8100/healthz
+  # {"status":"ok","db":true,"redis":true,"version":"2.0.0"}
+  ```
+
+  `/healthz` ist **öffentlich** (Healthcheck, Betreiber-Skripte) — es nennt
+  deshalb nur die Version. Den Stand im Quelltext (Kurz-Hash, z. B.
+  `6de1f4cebf18`) zeigt nur „Einstellungen → Über Diakronos" und nur
+  angemeldeten Administratorinnen und Administratoren; er wird **beim Bauen**
+  hineingeschrieben und bleibt leer, wenn ohne Angabe gebaut wurde (es wird
+  nichts geraten). Die Fußzeile der Seitenleiste nennt nur die Version.
+
+Die Versionsnummer steht an **einer** Stelle:
+`backend/src/diakronos_app/VERSION`. Wer sie erhöht, ändert nur diese Datei;
+`/healthz`, die Fußzeile und das Fenster „Über Diakronos" folgen automatisch.
+
+### 20.2 Update: von Version n auf n+1
+
+```bash
+cd /pfad/zu/diakronos-standalone
+make update
+```
+
+Das Skript macht der Reihe nach, und bricht ab, wenn ein Schritt nicht gelingt:
+
+1. **Prüfen** — Projektname, `.env` vorhanden, Stack läuft, Compose-Datei
+   fehlerfrei. Ein Tippfehler in der `.env` fällt hier auf, nicht mitten im
+   Tausch.
+2. **Sichern** — ein normaler Sicherungslauf (derselbe wie „Jetzt sichern" in
+   der Oberfläche), mit Protokollzeile und Aufbewahrung. **Das ist der
+   Rückweg.** Ohne vollständige Sicherung (Markierung `FERTIG`) geht es nicht
+   weiter.
+3. **Bisheriges Image behalten** — es bekommt ein eigenes Kennzeichen
+   `<image>_vor-<Datum>_<Uhrzeit>`. `:latest`/`:betrieb` werden dabei **nicht**
+   angefasst. Getaggt wird, was **läuft** (aus `docker compose ps` +
+   `docker inspect`), nicht was in der `.env` steht — nach einem Rückweg
+   weichen beide voneinander ab.
+4. **Neues Image bauen** — mit dem Stand des Ordners; vorher zeigt das Skript,
+   welche Migrationen der Start fahren wird (nur Anzeige).
+5. **Umschalten** — die Dienste werden mit dem neuen Image neu angelegt; die
+   Datenbank-Migration (`alembic upgrade head`) läuft beim Start, wie immer.
+6. **Warten, bis gesund** — geprüft wird im Container, samt **Versionsnummer
+   und Stand**. Erst wenn beides zum neuen Image passt, meldet das Skript
+   „GESUND".
+7. **Ergebnis melden** — inklusive der Zeile, wie der Rückweg lautet.
+
+Im Sicherungsordner `data/sicherungen/rueckweg.json` steht der Zettel, den
+`make rollback` liest: voriges Image, Sicherung, Versionen, Zeitpunkt. Er
+entsteht **sofort nach der Sicherung** (Zustand „laeuft") — bricht das Update
+danach ab, steht trotzdem, welche Sicherung der Rückweg ist.
+
+**Wenn das Update nicht gesund wird**, meldet das Skript das mit dem Log-Ende
+und nennt den Rückweg. Es setzt **nichts von selbst zurück** — erst nachsehen
+(`make logs`), dann entscheiden. Ursache wegschauen und automatisch
+zurückspulen verdeckt genau den Fehler, den man sehen müsste.
+
+Vorher ansehen, ohne etwas zu ändern:
+
+```bash
+make betrieb-vorschau
+```
+
+**Prüfung nach dem Umschalten:** `make update` vergleicht, aus welchem Image
+der laufende `app`-Container wirklich stammt, mit dem eben gebauten. Weicht es
+ab (z. B. weil `APP_IMAGE` in der `.env` auf einen anderen Namen zeigt), lautet
+das Ergebnis „UMSCHALTEN WIRKUNGSLOS“ statt „GESUND“ — eine gleiche
+Versionsnummer allein beweist nicht, dass das Update läuft.
+
+### 20.3 Rückweg: zurück auf den Stand vor dem Update
+
+```bash
+make rollback
+```
+
+1. Es liest `rueckweg.json` (voriges Image, Sicherung) und prüft, dass beides
+   noch da ist. Der Zettel muss zu **diesem** Projekt gehören, und ein bereits
+   gelaufener Rückweg (`"zustand": "zurueckgerollt"`) wird nicht ein zweites Mal
+   ausgeführt — sonst ginge die Arbeit seither verloren.
+2. **Vorprüfung:** Kennt das vorige Image die Datenbank, die in der Sicherung
+   steckt? Steht dort ein Stand, den es nicht kennt (z. B. die Sicherung wurde
+   versehentlich vom **neuen** Stand gemacht), bricht der Befehl ab — **bevor**
+   etwas angefasst ist. Der Stand wird direkt aus dem Dump gelesen
+   (`tools/betrieb/sicherungsstand.py`), ohne Container und ohne Datenbank.
+   Die Zeile `alembic_version` wird dabei **nie** umgeschrieben: ein
+   umgeschriebener Stand behauptet, Zwischenmigrationen seien gelaufen — das
+   Schema wäre es nicht, und niemand sähe es.
+3. **Bestätigung:** Es wird gesagt, wann aktualisiert wurde und dass alles
+   seither verloren geht (es liegt danach nur noch in `<db>_vorher_*` und der
+   Vorsicherung). Weitermachen nur auf `ja` — oder mit `DIAKRONOS_JA=1`
+   (Skript/Cron).
+4. Dienste anhalten (`app`, `worker`, `scheduler`). Bricht der Lauf danach ab
+   (Strg-C, Absturz), sagt der Befehl ausdrücklich, dass die Dienste stehen und
+   dass ein erneutes `make rollback` weiterhilft.
+5. **Sicherung einspielen** — der geprüfte Weg aus Abschnitt 14
+   (`sicherung.wiederherstellen`, immer mit `SKIP_MIGRATIONS=1`): neue
+   Datenbank anlegen, einspielen, migrieren, zählen, dann tauschen. Die
+   bisherige Datenbank bleibt als `<db>_vorher_<Zeit>` daneben stehen und wird
+   **nicht** gelöscht.
+6. **Voriges Image starten** — nur für diesen Start; die `.env` bleibt
+   unverändert.
+7. Warten, bis gesund.
+
+**Zwei Läufe gleichzeitig** (ein `update` und ein `rollback`, oder zwei
+Terminals) gibt es nicht: eine Sperrdatei im Sicherungsordner
+(`<projekt>.rollback.lock`) hält den zweiten Lauf an.
+
+**Nicht** der Weg ist ein Datenbank-„Downgrade" per alembic: Migrationen sind
+nicht durchgängig umkehrbar, und ein halb zurückgedrehtes Schema ist schlimmer
+als ein sauberer Stand aus der Sicherung. Der Rückweg ist deshalb immer: alte
+Sicherung einspielen **und** altes Image starten.
+
+### 20.4 Was der Rückweg nicht kann (ehrlich)
+
+* **Änderungen zwischen Update und Rückweg sind weg.** Die Datenbank wird auf
+  den Stand vom Update-Beginn gesetzt — das ist der Zweck. Wer nach dem Update
+  schon gearbeitet hat, verliert diese Arbeit; deshalb liegt die Vorsicherung
+  des Rückwegs selbst als eigene Sicherung im Ordner (Anzeige: „Einstellungen →
+  Datensicherung").
+* **Die alte Datenbank bleibt liegen** und braucht Platz (etwa das Doppelte
+  ihrer Größe). Aufräumen: Abschnitt 14.4, Schritt 8.
+* **Nach dem Rückweg startet `make up --build` wieder den neuen Stand.** Die
+  laufenden Container kommen aus dem alten Image, die `.env` nennt aber
+  weiterhin `APP_IMAGE`. Wer beim alten Stand bleiben will, setzt in der `.env`
+  `APP_IMAGE=<image>_vor-<Datum>_<Uhrzeit>` und prüft, dass keine Migration
+  fehlt. Das Skript sagt das am Ende noch einmal.
+* **Nur auf Versionen mit Wiederherstellungswerkzeug.** Der Rückweg spielt die
+  Sicherung mit dem VORIGEN Image ein. Das geht nur, wenn dieses Image das
+  Werkzeug `--einspielen` kennt (ab Diakronos 2.0.0 mit Sammel 26, November
+  2026). Ein älteres Image erkennt `make rollback` vorab und bricht ab, BEVOR
+  ein Dienst angehalten wird; dann bleibt nur der Handweg (Abschnitt 14.4)
+  oder der neue Stand.
+* **Nur ein Schritt zurück.** Ein zweites `make update` überschreibt
+  `rueckweg.json` mit dem dann vorigen Stand. Wer zwei Schritte zurück will,
+  spielt die passende Sicherung von Hand ein (Abschnitt 14.4).
+
+### 20.5 Wenn es eine andere Installation ist (Probelauf, zweite Gemeinde)
+
+Projektname und Dateien kommen aus der Umgebung — dieselben Befehle laufen
+damit auf einer beliebigen Instanz:
+
+```bash
+DIAKRONOS_PROJEKT=meine-probe \
+DIAKRONOS_UMGEBUNGSDATEI=/pfad/probe.env \
+DIAKRONOS_SICHERUNGEN=/pfad/data/sicherungen \
+make update
+```
+
+`DIAKRONOS_PROJEKT` ist der Compose-Projektname (Vorgabe `diakronos`);
+`DIAKRONOS_UMGEBUNGSDATEI` die passende `.env`, `DIAKRONOS_SICHERUNGEN` der
+Sicherungsordner dieser Instanz (Vorgabe: aus `BACKUP_HOST_DIR`/`DATA_DIR`
+der `.env` abgeleitet).
+
+**Bei einem anderen Projektnamen ist `DIAKRONOS_UMGEBUNGSDATEI` Pflicht** —
+sonst nähme das Werkzeug Daten- und Sicherungsordner aus der `.env` des Repos,
+also die des Betriebs. Fehlt sie, bricht es mit dieser Begründung ab.
+
+**Der Betrieb ist gesperrt:** Lautet der Projektname `diakronos-standalone`
+oder `diakronos-devecg` (die Stacks dieses Servers), bricht das Skript ab. Wer
+den Betrieb wirklich aktualisieren will, setzt zusätzlich
+`DIAKRONOS_ICH_WEISS_WAS_ICH_TUE=1` — das ist die bewusste Bestätigung, kein
+Tippfehler kann sie auslösen.
+
+### 20.6 Gemessen (Wegwerf-Instanzen, 26.11.2026)
+
+| Schritt | Dauer |
+| --- | --- |
+| Sicherung | 3–5 s |
+| Neues Image bauen, Code unverändert | 7–11 s |
+| Neues Image bauen, Code geändert | ~8 min (Tests + Frontend-Bau) |
+| Umschalten bis gesund (Migration + Start) | 24–36 s |
+| Rückweg gesamt | 40–52 s |
+
+Belegt wurde: Migration läuft, Daten bleiben; Rückweg stellt **den Stand vom
+Update-Beginn** her (eine im neuen Stand angelegte Tabelle enthielt danach
+nur die Zeile von vorher). Einzelheiten: `docs/abnahmen/ABN-3-UPDATE-RUECKWEG.md`.
