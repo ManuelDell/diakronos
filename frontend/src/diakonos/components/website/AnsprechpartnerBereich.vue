@@ -83,8 +83,11 @@
         </div>
 
         <div class="wa-aktionen">
+          <!-- UI-CHECK (27.11.): Die Website-Seite hat EINEN Primaerknopf
+               („Website-Baukasten öffnen“, BS-2d2). Das Speichern dieses
+               Bereichs ist eine Bereichsaktion -> secondary. -->
           <DkButton
-            variant="primary"
+            variant="secondary"
             :loading="speichert"
             :disabled="!standGeladen || !geaendertJetzt"
             :aria-disabled="geaendertJetzt ? undefined : 'true'"

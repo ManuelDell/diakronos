@@ -313,7 +313,11 @@ async function rendern({ antworten = {}, oeffentlich = [], schreibFehler = null 
 
 const knopf = (ziel, muster) => [...ziel.querySelectorAll('button')].find((b) => muster.test(text(b)))
 /** Der Speichern-Knopf der Ansicht (der einzige Primärknopf im Bereich). */
-const speichernKnopf = (ziel) => ziel.querySelector('button.dk-ui-btn--primary')
+// UI-CHECK (27.11.): „Speichern“ ist secondary — der eine Primaerknopf der
+// Website-Seite ist „Website-Baukasten öffnen“ (BS-2d2). Gefunden wird der
+// Knopf jetzt ueber seinen Text.
+const speichernKnopf = (ziel) => [...ziel.querySelectorAll('.wa-aktionen button')]
+  .find((b) => b.textContent.trim() === 'Speichern')
 function klicken(window, el) { el.dispatchEvent(new window.MouseEvent('click', { bubbles: true })) }
 /** Die native Auswahl im Feld (DkSelect zeichnet ein `<select>`). */
 function aenderbaresFeld(el) {
@@ -357,9 +361,11 @@ test('BS-3b: Speichern ist gesperrt, solange die Auswahl unverändert ist', asyn
   assert.ok(speichern, 'Speichern-Knopf fehlt')
   assert.equal(speichern.disabled, true)
   assert.equal(speichern.getAttribute('aria-disabled'), 'true')
-  // Genau EIN Primärknopf im Bereich.
+  // KEIN Primärknopf im Bereich — die Website-Seite hat ihren einen
+  // Primärknopf schon („Website-Baukasten öffnen“).
   const primaer = [...ziel.querySelectorAll('button')].filter((b) => /dk-ui-btn--primary/.test(b.className))
-  assert.equal(primaer.length, 1, `Primärknöpfe: ${primaer.map((b) => text(b)).join(', ')}`)
+  assert.equal(primaer.length, 0, `Primärknöpfe: ${primaer.map((b) => text(b)).join(', ')}`)
+  assert.match(speichern.className, /dk-ui-btn--secondary/)
   app.unmount()
 })
 
