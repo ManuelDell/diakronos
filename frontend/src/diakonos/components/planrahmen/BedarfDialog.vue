@@ -201,12 +201,12 @@ defineExpose({ merkmale, sammlungen, rollen, offeneEintraege, schluessel, einstu
 .pr-bd-leer { font-size: var(--fs-14); color: var(--dk-text-muted); padding: 6px 0; }
 .pr-bd-titel {
   font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase;
-  letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 0 0 8px;
+  letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 0 0 var(--sp-2);
 }
 .pr-bd-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .pr-bd-eintrag {
   display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 12px; flex-wrap: wrap; padding: 9px 12px;
+  gap: var(--sp-3); flex-wrap: wrap; padding: 9px var(--sp-3);
   border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface);
 }
 .pr-bd-eintrag--weg { opacity: 0.6; }
@@ -214,7 +214,7 @@ defineExpose({ merkmale, sammlungen, rollen, offeneEintraege, schluessel, einstu
 .pr-bd-kennung { font-size: var(--fs-14); font-weight: var(--fw-fett); color: var(--dk-text); }
 .pr-bd-abdeckung { font-size: var(--fs-12); color: var(--dk-text); }
 .pr-bd-detail { font-size: var(--fs-12); color: var(--dk-text-muted); }
-.pr-bd-neben { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+.pr-bd-neben { display: inline-flex; align-items: center; gap: var(--sp-2); flex-shrink: 0; flex-wrap: wrap; }
 .pr-bd-status { font-size: var(--fs-12); font-style: italic; color: var(--dk-text-muted); }
-.pr-bd-fussnote { font-size: var(--fs-12); color: var(--dk-text-subtle); margin: 8px 0 0; }
+.pr-bd-fussnote { font-size: var(--fs-12); color: var(--dk-text-subtle); margin: var(--sp-2) 0 0; }
 </style>

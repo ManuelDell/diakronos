@@ -74,5 +74,5 @@ const zusammenfassung = computed(() => {
 .pr-diff-pfeil { color: var(--dk-text-subtle); }
 .pr-diff-leerwert { font-style: italic; }
 .pr-diff-leer { font-size: var(--fs-14); color: var(--dk-text-muted); }
-.pr-diff-mehr { margin-top: 8px; font-size: var(--fs-12); color: var(--dk-text-subtle); }
+.pr-diff-mehr { margin-top: var(--sp-2); font-size: var(--fs-12); color: var(--dk-text-subtle); }
 </style>

@@ -779,7 +779,7 @@ defineExpose({ anfragen, ungespeichert, speichern })
 .lb-schalter { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--text); cursor: pointer; margin-top: var(--sp-2); }
 .lb-schalter--klein { margin: 0; font-size: var(--fs-sm); color: var(--muted); }
 .lb-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: var(--sp-2) 0; }
-.lb-chip-weg { background: none; border: none; color: inherit; cursor: pointer; font: inherit; padding: 0 0 0 4px; }
+.lb-chip-weg { background: none; border: none; color: inherit; cursor: pointer; font: inherit; padding: 0 0 0 var(--sp-1); }
 /* Befund 4: Kennzeichnung neuer Katalogbegriffe im Chip. */
 .lb-neu {
   margin-left: 6px; padding: 0 5px; border-radius: 999px;

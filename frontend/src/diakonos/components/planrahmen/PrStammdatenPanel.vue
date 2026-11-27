@@ -92,8 +92,8 @@ const { tastenFaenger } = useDialogFokus(offen, fenster, schliessen)
   overflow: hidden;
 }
 .pr-panel-kopf {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  padding: 10px 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap;
+  padding: 10px var(--sp-4);
   border-bottom: 1px solid var(--dk-border);
   background: var(--dk-surface);
   flex-shrink: 0;
@@ -104,10 +104,10 @@ const { tastenFaenger } = useDialogFokus(offen, fenster, schliessen)
 .pr-panel-sub { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-panel-koerper { flex: 1; overflow: auto; }
 /* Die eingebettete Seite bringt ihre eigenen Ränder mit — im Panel etwas enger. */
-.pr-panel-koerper :deep(.dk-screen) { padding-top: 12px; }
+.pr-panel-koerper :deep(.dk-screen) { padding-top: var(--sp-3); }
 /* Breadcrumbs der eingebetteten Seite verwirren im Panel — ausblenden. */
 .pr-panel-koerper :deep(.dk-crumbs) { display: none; }
-.pr-panel-koerper :deep(.dk-screen-header) { margin-top: 4px; }
+.pr-panel-koerper :deep(.dk-screen-header) { margin-top: var(--sp-1); }
 .pr-panel-enter-active, .pr-panel-leave-active { transition: opacity 0.18s ease; }
 .pr-panel-enter-from, .pr-panel-leave-to { opacity: 0; }
 </style>

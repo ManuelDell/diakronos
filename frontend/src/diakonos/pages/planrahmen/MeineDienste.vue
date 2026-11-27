@@ -415,11 +415,11 @@ async function abwesenheitLoeschenAktion(a) {
 
 <style scoped>
 .dk-form-error { color: var(--err); font-size: var(--fs-sm); margin: 0; }
-.pr-md-zustand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--dk-text-muted); font-size: var(--fs-14); }
+.pr-md-zustand { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; color: var(--dk-text-muted); font-size: var(--fs-14); }
 .pr-md-zustand--fehler { color: var(--dk-danger); }
-.pr-md-gruppe + .pr-md-gruppe { margin-top: 24px; }
+.pr-md-gruppe + .pr-md-gruppe { margin-top: var(--sp-5); }
 .pr-md-plan + .pr-md-plan { margin-top: 28px; }
-.pr-md-plan-kopf { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; }
+.pr-md-plan-kopf { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 var(--sp-3); }
 .pr-md-gruppe-titel {
   display: flex; align-items: baseline; gap: 10px;
   font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em;
@@ -491,8 +491,8 @@ async function abwesenheitLoeschenAktion(a) {
 .pr-md-monate { display: flex; flex-direction: column; gap: 14px; }
 .pr-md-monat { overflow: hidden; }
 .pr-md-monat-kopf {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 12px 16px; border-bottom: 1px solid var(--dk-divider);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--dk-divider);
   background: var(--dk-surface-2);
 }
 .pr-md-monat-titel {
@@ -501,8 +501,8 @@ async function abwesenheitLoeschenAktion(a) {
 }
 .pr-md-monat-liste { list-style: none; margin: 0; padding: 0; }
 .pr-md-monat-zeile {
-  display: flex; align-items: flex-start; gap: 12px;
-  padding: 12px 16px; border-bottom: 1px solid var(--dk-divider);
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--dk-divider);
 }
 .pr-md-monat-zeile:last-child { border-bottom: none; }
 .pr-md-monat-zeile:hover { background: var(--dk-surface-hover); }
@@ -511,18 +511,18 @@ async function abwesenheitLoeschenAktion(a) {
 .pr-md-monat-haupt > p { margin: 0; }
 .pr-md-monat-kopfzeile { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .pr-md-monat-aktion { flex: 0 0 auto; }
-.pr-md-zeile { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.pr-md-zeile { display: flex; flex-direction: column; gap: var(--sp-1); align-items: stretch; }
 .pr-md-zeile--konflikt { border-left: 3px solid var(--dk-warning); padding-left: 10px; }
-.pr-md-zeile-kopf { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.pr-md-zeile-kopf { display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
 .pr-md-datum { font-size: var(--fs-14); font-weight: var(--fw-fett); color: var(--dk-text); }
 .pr-md-uhrzeit { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-md-lied { font-size: var(--fs-14); color: var(--dk-text); }
-.pr-md-zeile-rolle { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.pr-md-zeile-rolle { display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
 .pr-md-feld { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-md-anlass { font-size: var(--fs-12); color: var(--dk-text-subtle); }
 .pr-md-mitwirkende { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-md-konflikt { font-size: var(--fs-12); color: var(--dk-warning); }
-.pr-md-zeile-aktionen { display: flex; gap: 8px; margin-top: 2px; }
+.pr-md-zeile-aktionen { display: flex; gap: var(--sp-2); margin-top: 2px; }
 
 /* Mobil: die Absage-Aktion rueckt unter den Text, das Rollenzeichen bleibt
    links in der Zeile — die Monatskarten bleiben so auch auf 390 px lesbar. */
@@ -534,17 +534,17 @@ async function abwesenheitLoeschenAktion(a) {
    Absage-Aktion rutschte NICHT unter den Text, sondern blieb in der Zeile
    daneben. Desktop unverändert (Regel gilt nur <= 720 px). */
 @media (max-width: 720px) {
-  .pr-md-legende { gap: 10px 14px; padding: 10px 12px; }
-  .pr-md-monat-zeile { flex-wrap: wrap; padding: 12px; }
+  .pr-md-legende { gap: 10px 14px; padding: 10px var(--sp-3); }
+  .pr-md-monat-zeile { flex-wrap: wrap; padding: var(--sp-3); }
   .pr-md-monat-haupt { flex: 1 1 100%; }
   .pr-md-monat-aktion { margin-left: 38px; }
-  .pr-md-monat-kopf { padding: 10px 12px; }
+  .pr-md-monat-kopf { padding: 10px var(--sp-3); }
 }
 .pr-md-abwesenheit { padding: 18px 20px; margin-top: 28px; }
-.pr-md-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0 0 12px; }
+.pr-md-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0 0 var(--sp-3); }
 .pr-md-block { margin-bottom: 10px; }
-.pr-md-modaltext { font-size: var(--fs-14); color: var(--dk-text); margin: 0 0 8px; }
+.pr-md-modaltext { font-size: var(--fs-14); color: var(--dk-text); margin: 0 0 var(--sp-2); }
 .pr-md-gemeldet { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-14); color: var(--dk-text); }
-.pr-md-gemeldet-zeile { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--dk-divider); padding-bottom: 6px; }
+.pr-md-gemeldet-zeile { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; border-bottom: 1px solid var(--dk-divider); padding-bottom: 6px; }
 .pr-md-keine-abw { margin-top: 14px; }
 </style>

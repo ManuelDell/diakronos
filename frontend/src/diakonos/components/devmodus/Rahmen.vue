@@ -261,7 +261,7 @@ onUnmounted(() => {
   border: 1px solid var(--dev-linie);
   background: var(--dev-rot);
   color: var(--dev-leiste-text);
-  padding: 4px 10px;
+  padding: var(--sp-1) 10px;
   border-radius: var(--radius-sm);
 }
 .dk-dev-knopf.is-aus { background: var(--dev-leiste); }

@@ -205,7 +205,7 @@ onMounted(() => {
   background: var(--dk-surface);
   border: 1px solid var(--dk-border);
   border-radius: 12px;
-  padding: 16px;
+  padding: var(--sp-4);
   cursor: pointer;
   transition: box-shadow 0.15s, border-color 0.15s, transform 0.15s;
 }
@@ -215,7 +215,7 @@ onMounted(() => {
   transform: translateY(-2px);
 }
 .lg-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.lg-card-name { font-size: var(--fs-16); font-weight: var(--fw-fett); color: var(--dk-text); margin-bottom: 8px; }
+.lg-card-name { font-size: var(--fs-16); font-weight: var(--fw-fett); color: var(--dk-text); margin-bottom: var(--sp-2); }
 .lg-card-meta { display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-12); color: var(--dk-text-muted); }
 .lg-card-gruppe { color: var(--dk-text-subtle); }
 </style>

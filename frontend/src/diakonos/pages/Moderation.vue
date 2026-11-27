@@ -684,7 +684,7 @@ onUnmounted(() => {
 
 /* OP-ADMIN-18: kurze Erklärung, was die beiden Ablagen bedeuten. */
 .dk-moderation-erklaerung {
-  margin: 0 0 12px;
+  margin: 0 0 var(--sp-3);
   font-size: var(--fs-14);
   line-height: 1.5;
   color: var(--dk-text-muted);

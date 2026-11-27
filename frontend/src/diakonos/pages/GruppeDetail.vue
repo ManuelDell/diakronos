@@ -2066,7 +2066,7 @@ export default {
 .grup-muted { color: var(--muted); font-size: var(--fs-sm); margin: 0; }
 /* OP-HANDY-19: Namensliste der Gruppenmitglieder für Nicht-Verwalter. */
 .grup-namensliste { list-style: none; margin: 0 0 var(--sp-3); padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.grup-namenszeile { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: var(--fs); }
+.grup-namenszeile { display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; font-size: var(--fs); }
 .grup-rolle { color: var(--muted); font-size: var(--fs-sm); }
 /* DES-1: „3 offen“ steht als Unterzeile im Kartenkopf (`DkCard sub`) — die
    Klasse ist nur noch ein Fokusanker für die Tastatur (nach Abhaken springt

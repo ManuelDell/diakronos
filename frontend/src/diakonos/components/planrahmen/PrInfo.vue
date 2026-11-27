@@ -67,7 +67,7 @@ function umschalten() { offen.value = !offen.value }
 .pr-info-text {
   position: absolute; left: 0; top: calc(100% + 4px); z-index: 20;
   width: max-content; max-width: 280px;
-  padding: 8px 10px; border-radius: 8px;
+  padding: var(--sp-2) 10px; border-radius: 8px;
   background: var(--dk-surface); color: var(--dk-text);
   border: 1px solid var(--dk-border);
   box-shadow: var(--shadow-lg);
@@ -78,7 +78,7 @@ function umschalten() { offen.value = !offen.value }
 .pr-info:hover .pr-info-text,
 .pr-info:focus-within .pr-info-text,
 .pr-info-text.is-offen { display: block; }
-.pr-info-quelle { display: block; margin-top: 4px; color: var(--dk-text-subtle); font-size: var(--fs-12); }
+.pr-info-quelle { display: block; margin-top: var(--sp-1); color: var(--dk-text-subtle); font-size: var(--fs-12); }
 /* Inhaltsumbruch, kein Layout: der Info-Text schwebt am schmalen Gerät nicht
    mehr, sondern steht unter dem Feld (280 px passten sonst nicht in die
    Dialogbreite). */

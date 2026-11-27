@@ -914,7 +914,7 @@ watch(hatVorgabe, (jetzt) => {
 }
 .dk-mod-input {
   width: 100%;
-  padding: 8px 10px;
+  padding: var(--sp-2) 10px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -944,7 +944,7 @@ watch(hatVorgabe, (jetzt) => {
 .zusatz-select,
 .zusatz-input {
   flex: 1;
-  padding: 6px 8px;
+  padding: 6px var(--sp-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   font-size: var(--fs-sm);

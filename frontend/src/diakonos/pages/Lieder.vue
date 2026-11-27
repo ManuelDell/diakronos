@@ -673,7 +673,7 @@ function zeilenKontextmenue(ereignis, l) {
   align-items: center;
   justify-content: space-between;
 }
-.ld-empty { text-align: center; padding: 32px 0; }
+.ld-empty { text-align: center; padding: var(--sp-6) 0; }
 /* LI1: „Neues Lied“ steht in der Kopfzeile und bleibt mobil gut erreichbar. */
 .ld-neu { flex: none; }
 
@@ -686,7 +686,7 @@ function zeilenKontextmenue(ereignis, l) {
    auf --filter-h. Kein eigenes Maß mehr an dieser Stelle. */
 .ld-filter-zahl {
   display: inline-grid; place-items: center; min-width: 16px; height: 16px;
-  margin-left: 5px; padding: 0 4px; border-radius: 8px;
+  margin-left: 5px; padding: 0 var(--sp-1); border-radius: 8px;
   background: var(--primary); color: var(--primary-ink); font-size: var(--fs-12);
 }
 .ld-karten { list-style: none; margin: 0; padding: 0; display: none; flex-direction: column; gap: var(--sp-2); }

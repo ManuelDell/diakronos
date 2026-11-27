@@ -529,15 +529,15 @@ onMounted(async () => {
   padding: var(--sp-2) var(--sp-3);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--sp-1);
 }
 .sidebar-ablehnung-item {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--sp-2);
   width: 100%;
-  padding: 6px 8px;
+  padding: 6px var(--sp-2);
   border: none;
   border-left: 3px solid var(--dk-danger);
   border-radius: var(--radius-sm);

@@ -230,7 +230,7 @@ input[type="checkbox"] {
   flex-shrink: 0;
 }
 .drag-confirm-body label.checkbox-label {
-  margin-top: 12px;
+  margin-top: var(--sp-3);
 }
 .loesch-warnung {
   color: var(--err);

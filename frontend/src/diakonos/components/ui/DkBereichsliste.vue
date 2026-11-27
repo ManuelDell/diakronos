@@ -217,7 +217,7 @@ watch(() => props.modelValue, () => { nextTick(aktivenEintragZeigen) })
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-2);
-  padding: 8px 12px;
+  padding: var(--sp-2) var(--sp-3);
   border: 1px solid transparent;
   border-radius: var(--radius);
   color: var(--muted);
@@ -250,7 +250,7 @@ watch(() => props.modelValue, () => { nextTick(aktivenEintragZeigen) })
 }
 /* Unterbereiche: eigene, eingerückte Einträge derselben Liste. */
 .dk-ui-bz-unter {
-  margin: 2px 0 4px;
+  margin: 2px 0 var(--sp-1);
   padding: 0 0 0 var(--sp-4);
   list-style: none;
   display: flex;
@@ -298,7 +298,7 @@ watch(() => props.modelValue, () => { nextTick(aktivenEintragZeigen) })
   }
   .dk-ui-bz {
     height: 100%;
-    padding: 9px 12px;
+    padding: 9px var(--sp-3);
     border: 0;
     border-bottom: 2px solid transparent;
     border-radius: 0;

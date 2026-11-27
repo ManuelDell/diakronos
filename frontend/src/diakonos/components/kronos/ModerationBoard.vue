@@ -584,7 +584,7 @@ defineExpose({
 <style scoped>
 .dk-mboard {
   display: flex;
-  gap: 16px;
+  gap: var(--sp-4);
   flex: 1;
   min-height: 0;
   /* BF1-I: Der Seitenrahmen (.dk-screen) liefert die Aussenabstaende;
@@ -606,8 +606,8 @@ defineExpose({
 .dk-mboard-col-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 14px;
+  gap: var(--sp-2);
+  padding: var(--sp-3) 14px;
   border-bottom: 1px solid var(--dk-border);
   font-size: var(--fs-14);
   font-weight: var(--fw-fett);
@@ -642,7 +642,7 @@ defineExpose({
 .dk-mboard-col-body {
   flex: 1;
   overflow-y: auto;
-  padding: 8px;
+  padding: var(--sp-2);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -650,7 +650,7 @@ defineExpose({
 }
 
 .dk-mboard-empty {
-  padding: 24px 12px;
+  padding: var(--sp-5) var(--sp-3);
   text-align: center;
   color: var(--dk-text-subtle);
   font-size: var(--fs-14);
@@ -661,13 +661,13 @@ defineExpose({
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 32px 16px;
+  gap: var(--sp-2);
+  padding: var(--sp-6) var(--sp-4);
   color: var(--dk-text-subtle);
   font-size: var(--fs-14);
   border: 2px dashed var(--dk-border);
   border-radius: 8px;
-  margin: 8px;
+  margin: var(--sp-2);
 }
 
 /* Drag & Drop */
@@ -685,7 +685,7 @@ defineExpose({
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
-    padding: 0 12px 12px;
+    padding: 0 var(--sp-3) var(--sp-3);
     /* UXK-006: Nicht auf die Fensterhoehe quetschen — die Seite scrollt,
        die Karten behalten ihre natuerliche Hoehe. */
     flex: none;

@@ -126,7 +126,7 @@ onMounted(laden)
 .dt-fassung { display: flex; align-items: center; gap: var(--sp-2);
   color: var(--muted); font-size: var(--fs-sm); }
 .dt-badge { background: var(--surface-2); border: 1px solid var(--line);
-  border-radius: var(--radius-sm); padding: 2px 8px; color: var(--text); font-weight: 600; }
+  border-radius: var(--radius-sm); padding: 2px var(--sp-2); color: var(--text); font-weight: 600; }
 .dt-schalter { display: flex; align-items: flex-start; gap: var(--sp-2); }
 .dt-schalter input { margin-top: var(--sp-1); flex-shrink: 0; }
 </style>

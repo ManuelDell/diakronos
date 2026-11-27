@@ -324,7 +324,7 @@ function datumZeitText(start, allDay) {
 /* Body */
 .dk-mcard-body {
   flex: 1;
-  padding: 10px 12px;
+  padding: 10px var(--sp-3);
   min-width: 0;
 }
 
@@ -333,7 +333,7 @@ function datumZeitText(start, allDay) {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 4px;
+  margin-bottom: var(--sp-1);
 }
 .dk-mcard-title {
   font-size: var(--fs-14);
@@ -425,7 +425,7 @@ function datumZeitText(start, allDay) {
 .dk-mcard-ressource {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
   font-size: var(--fs-xs);
   color: var(--subtle);
   margin-top: 3px;
@@ -435,7 +435,7 @@ function datumZeitText(start, allDay) {
 .dk-mcard-antragsteller {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
   font-size: var(--fs-xs);
   color: var(--subtle);
   margin-top: 3px;
@@ -454,11 +454,11 @@ function datumZeitText(start, allDay) {
 .dk-mcard-notif {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
   font-size: var(--fs-xs);
   color: var(--info);
-  margin-top: 4px;
-  padding-top: 4px;
+  margin-top: var(--sp-1);
+  padding-top: var(--sp-1);
   border-top: 1px solid var(--divider);
 }
 
@@ -519,7 +519,7 @@ function datumZeitText(start, allDay) {
 .dk-mcard-conflict-toggle {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
   font-size: var(--fs-xs);
   color: var(--err);
   cursor: pointer;
@@ -534,7 +534,7 @@ function datumZeitText(start, allDay) {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--sp-1);
 }
 .dk-mcard-conflict-item {
   display: flex;

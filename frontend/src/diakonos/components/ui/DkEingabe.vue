@@ -98,7 +98,7 @@ function eingabeAttrs() {
    wo es geladen ist. */
 .dk-ui-eingabe:where(.dk-ui-eingabe--feld) {
   width: 100%;
-  padding: 8px 12px;
+  padding: var(--sp-2) var(--sp-3);
   border-radius: var(--radius);
   font-family: inherit;
   background: var(--dk-surface);

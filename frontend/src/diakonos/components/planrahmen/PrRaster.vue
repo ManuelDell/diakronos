@@ -172,8 +172,8 @@ function zeilen(t, s) {
 <style scoped>
 .pr-raster { overflow-x: auto; border: 1px solid var(--dk-border); border-radius: 12px; background: var(--dk-surface); }
 .pr-raster-varianten { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-.pr-raster-varianten-hinweis { margin: 8px 10px 0; font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.04em; color: var(--dk-text-muted); }
-.pr-raster-variante-aktiv { display: inline-block; margin-top: 4px; font-size: var(--fs-12); color: var(--dk-text-muted); }
+.pr-raster-varianten-hinweis { margin: var(--sp-2) 10px 0; font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.04em; color: var(--dk-text-muted); }
+.pr-raster-variante-aktiv { display: inline-block; margin-top: var(--sp-1); font-size: var(--fs-12); color: var(--dk-text-muted); }
 @media print { .pr-raster-varianten { display: none; } .pr-raster-varianten-hinweis { display: none; } }
 .pr-raster-tabelle { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--fs-14); }
 .pr-raster-tabelle th, .pr-raster-tabelle td { padding: 10px 14px; text-align: left; vertical-align: top; }
@@ -189,14 +189,14 @@ function zeilen(t, s) {
 .pr-raster-datum { display: block; font-weight: var(--fw-fett); color: var(--dk-text); }
 .pr-raster-uhrzeit { display: block; font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-raster-titel { display: block; font-size: var(--fs-12); color: var(--dk-text-muted); }
-.pr-raster-termin .dk-badge { margin-top: 4px; margin-right: 4px; }
+.pr-raster-termin .dk-badge { margin-top: var(--sp-1); margin-right: var(--sp-1); }
 .pr-raster-zelle { cursor: pointer; min-width: 170px; border-left: 1px solid var(--dk-divider); }
 .pr-raster-zelle:hover { background: color-mix(in oklch, var(--dk-brand-400) 6%, var(--dk-surface)); }
 .pr-raster-zeile { display: flex; gap: 6px; align-items: baseline; }
-.pr-raster-zeile + .pr-raster-zeile { margin-top: 4px; }
+.pr-raster-zeile + .pr-raster-zeile { margin-top: var(--sp-1); }
 .pr-raster-name { flex-shrink: 0; font-size: var(--fs-12); color: var(--dk-text-subtle); min-width: 68px; }
 .pr-raster-wert { color: var(--dk-text); }
-.pr-raster-pin { margin-left: 4px; font-size: var(--fs-12); }
+.pr-raster-pin { margin-left: var(--sp-1); font-size: var(--fs-12); }
 .pr-raster-meldung { font-size: var(--fs-12); cursor: help; }
 .pr-raster-leer { color: var(--dk-text-subtle); }
 .pr-raster-entfaellt { opacity: 0.55; }

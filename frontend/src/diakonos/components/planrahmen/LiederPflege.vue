@@ -371,55 +371,55 @@ async function wertEntfernenAusfuehren() {
 </script>
 
 <style scoped>
-.lp { display: flex; flex-direction: column; gap: 12px; }
+.lp { display: flex; flex-direction: column; gap: var(--sp-3); }
 .lp-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .lp-suche { max-width: 320px; }
 .lp-tagfilter { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .lp-tagfilter-gruppe { display: inline-flex; gap: 6px; align-items: center; }
 .lp-tagfilter-label { font-size: var(--fs-12); color: var(--dk-text-muted); }
-.lp-tagfilter-wahl { font-size: var(--fs-12); padding: 4px 8px; }
+.lp-tagfilter-wahl { font-size: var(--fs-12); padding: var(--sp-1) var(--sp-2); }
 .lp-hinweis { font-size: var(--fs-12); color: var(--dk-text-subtle); margin: 0; }
 .lp-hinweis a { color: var(--dk-brand-500); }
-.lp-fehler { margin: 4px 0; }
+.lp-fehler { margin: var(--sp-1) 0; }
 .lp-leer { color: var(--dk-text-subtle); font-size: var(--fs-14); }
 .lp-lied { border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); overflow: hidden; }
-.lp-lied-kopf { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; }
+.lp-lied-kopf { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px var(--sp-3); }
 .lp-lied-titel { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .lp-lied-name { font-weight: var(--fw-mittel); color: var(--dk-text); }
-.lp-chip { font-size: var(--fs-12); padding: 2px 8px; border-radius: 999px; background: var(--dk-surface-2); color: var(--dk-text-muted); border: 1px solid var(--dk-border); }
+.lp-chip { font-size: var(--fs-12); padding: 2px var(--sp-2); border-radius: 999px; background: var(--dk-surface-2); color: var(--dk-text-muted); border: 1px solid var(--dk-border); }
 .lp-chip--tag { background: color-mix(in oklch, var(--dk-brand-400) 16%, var(--dk-surface)); color: var(--dk-text); }
 .lp-chip--kopie { background: color-mix(in oklch, var(--dk-text-subtle) 14%, var(--dk-surface)); color: var(--dk-text-muted); font-style: italic; }
 .lp-chip--person { background: color-mix(in oklch, var(--dk-success-400, var(--dk-brand-400)) 18%, var(--dk-surface)); color: var(--dk-text); }
 .lp-personen { display: flex; flex-direction: column; gap: 6px; }
-.lp-person-reihe { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+.lp-person-reihe { display: flex; gap: var(--sp-2); align-items: flex-start; flex-wrap: wrap; }
 .lp-person-reihe .mk-person { max-width: 280px; }
-.lp-bearbeiten { border-top: 1px solid var(--dk-divider); padding: 12px; display: flex; flex-direction: column; gap: 12px; background: var(--dk-surface-2); }
-.lp-felder { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.lp-bearbeiten { border-top: 1px solid var(--dk-divider); padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-3); background: var(--dk-surface-2); }
+.lp-felder { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--sp-2); }
 .lp-feld { display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-12); color: var(--dk-text-muted); }
 .lp-feld-hinweis { font-size: var(--fs-12); color: var(--dk-text-subtle); margin: 0; align-self: end; }
 .lp-tags { display: flex; flex-direction: column; gap: 6px; }
-.lp-tag-reihe { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.lp-tag-reihe { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); align-items: center; }
 .lp-tag-label { font-size: var(--fs-12); color: var(--dk-text-muted); min-width: 90px; }
-.lp-tag-wahl { display: inline-flex; gap: 4px; align-items: center; font-size: var(--fs-12); cursor: pointer; }
-.lp-aktionen { display: flex; gap: 8px; }
-.lp-material { border-top: 1px dashed var(--dk-border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.lp-tag-wahl { display: inline-flex; gap: var(--sp-1); align-items: center; font-size: var(--fs-12); cursor: pointer; }
+.lp-aktionen { display: flex; gap: var(--sp-2); }
+.lp-material { border-top: 1px dashed var(--dk-border); padding-top: 10px; display: flex; flex-direction: column; gap: var(--sp-2); }
 .lp-material-titel { font-size: var(--fs-14); margin: 0; color: var(--dk-text); }
-.lp-material-gruppe { display: flex; flex-direction: column; gap: 4px; }
+.lp-material-gruppe { display: flex; flex-direction: column; gap: var(--sp-1); }
 .lp-material-art { font-size: var(--fs-12); font-weight: var(--fw-mittel); color: var(--dk-text-muted); }
 .lp-material-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.lp-material-eintrag { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lp-material-eintrag { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
 .lp-material-name { font-size: var(--fs-12); color: var(--dk-text); }
 .lp-audio { height: 32px; }
 .lp-material-leer { font-size: var(--fs-12); color: var(--dk-text-subtle); }
 .lp-loeschen { color: var(--dk-danger); }
-.lp-upload { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lp-upload { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
 .lp-datei { font-size: var(--fs-12); }
 .lp-stimme, .lp-beschreibung { max-width: 160px; }
 .lp-upload-hinweis { font-size: var(--fs-12); color: var(--dk-text-subtle); margin: 0; }
 .lp-einst { display: flex; flex-direction: column; gap: 10px; }
-.lp-einst-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.lp-einst-eintrag { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: var(--fs-14); }
-.lp-einst-aktionen { display: inline-flex; gap: 4px; }
-.lp-einst-neu { display: flex; gap: 8px; }
+.lp-einst-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.lp-einst-eintrag { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2); font-size: var(--fs-14); }
+.lp-einst-aktionen { display: inline-flex; gap: var(--sp-1); }
+.lp-einst-neu { display: flex; gap: var(--sp-2); }
 .lp-einst-hinweis { font-size: var(--fs-12); color: var(--dk-text-muted); margin: 0; }
 </style>

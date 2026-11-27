@@ -301,7 +301,7 @@ defineExpose({ laden })
 .dk-aenderung-vergleich th,
 .dk-aenderung-vergleich td {
   text-align: left;
-  padding: 4px 8px;
+  padding: var(--sp-1) var(--sp-2);
   border-bottom: 1px solid var(--line);
 }
 .dk-aenderung-vergleich tr.is-abweichend td {
@@ -323,7 +323,7 @@ defineExpose({ laden })
   font-size: var(--fs-sm);
 }
 .dk-konflikt-zeile {
-  margin-top: 4px;
+  margin-top: var(--sp-1);
   color: var(--text);
 }
 .dk-konflikt-frage {

@@ -41,7 +41,7 @@ function label(o) { return (o !== null && typeof o === 'object') ? (o.label ?? o
   overflow-x: auto;
 }
 .dk-ui-tab {
-  padding: 8px 14px;
+  padding: var(--sp-2) 14px;
   border: none;
   border-bottom: 2px solid transparent;
   background: none;

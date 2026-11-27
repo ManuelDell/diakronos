@@ -58,11 +58,11 @@ const schritt1Erledigt = computed(() => schritte.value[0].erledigt)
 function oeffnen() { emit('stammdaten-oeffnen') }
 </script>
 <style scoped>
-.pr-erststart { padding: 16px; margin-bottom: 16px; font-size: var(--fs-14); }
-.pr-erststart h2 { font-size: var(--fs-16); margin: 0 0 8px; }
+.pr-erststart { padding: var(--sp-4); margin-bottom: var(--sp-4); font-size: var(--fs-14); }
+.pr-erststart h2 { font-size: var(--fs-16); margin: 0 0 var(--sp-2); }
 .pr-erststart p { color: var(--dk-text-muted); }
 .pr-erststart-liste { list-style: none; padding-left: 0; margin: 0; }
-.pr-erststart-liste > li { display: flex; align-items: flex-start; gap: 10px; margin: 8px 0; }
+.pr-erststart-liste > li { display: flex; align-items: flex-start; gap: 10px; margin: var(--sp-2) 0; }
 .pr-erststart-marke {
   flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;

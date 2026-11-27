@@ -45,7 +45,7 @@ function label(o) { return (o !== null && typeof o === 'object') ? (o.label ?? o
 }
 .dk-ui-segment-item {
   height: calc(var(--control-h) - 6px);
-  padding: 0 12px;
+  padding: 0 var(--sp-3);
   border: none;
   border-radius: calc(var(--radius) - 2px);
   background: transparent;

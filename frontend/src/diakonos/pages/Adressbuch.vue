@@ -226,19 +226,19 @@ export default {
 /* OP-HANDY-19: Kartenliste statt 5-Spalten-Tabelle auf schmalen Anzeigen. */
 .ab-karten { display: none; }
 .ab-karte {
-  padding: 12px 14px;
+  padding: var(--sp-3) 14px;
   border-bottom: 1px solid var(--dk-divider);
 }
 .ab-karte:last-child { border-bottom: none; }
 .ab-karte-kopf {
   display: flex; align-items: baseline; justify-content: space-between;
-  gap: 8px; flex-wrap: wrap;
-  margin-bottom: 8px;
+  gap: var(--sp-2); flex-wrap: wrap;
+  margin-bottom: var(--sp-2);
 }
 .ab-karte-name { font-weight: var(--fw-fett); color: var(--dk-text); text-decoration: none; }
 .ab-karte-name:hover { text-decoration: underline; }
 .ab-karte-ort { font-size: var(--fs-12); color: var(--dk-text-muted); }
-.ab-karte-aktionen { display: flex; flex-wrap: wrap; gap: 8px; }
+.ab-karte-aktionen { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .ab-aktion {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 7px 11px;

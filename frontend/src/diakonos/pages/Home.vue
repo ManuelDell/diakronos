@@ -214,14 +214,14 @@ async function resetLayout() {
     right: auto !important;
     display: flex !important;
     width: 100%;
-    margin-top: 12px;
+    margin-top: var(--sp-3);
     justify-content: center;
     background: none !important;
     box-shadow: none !important;
     border: 1px solid var(--dk-border) !important;
     border-radius: 8px !important;
     color: var(--dk-text-muted) !important;
-    padding: 10px 16px !important;
+    padding: 10px var(--sp-4) !important;
     font-size: var(--fs-14) !important;
   gap: 6px;
 }

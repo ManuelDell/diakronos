@@ -146,7 +146,7 @@ function formatDateTime(s) {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 8px 4px;
+  padding: var(--sp-2) var(--sp-1);
   border-bottom: 1px solid var(--dk-border);
 }
 .msv-row:last-child { border-bottom: none; }
@@ -161,7 +161,7 @@ function formatDateTime(s) {
   text-overflow: ellipsis;
 }
 .msv-meta { font-size: var(--fs-12); color: var(--dk-text-muted); margin-top: 2px; }
-.msv-side { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.msv-side { display: inline-flex; align-items: center; gap: var(--sp-2); flex-shrink: 0; }
 .msv-rolle { font-size: var(--fs-12); color: var(--dk-text-muted); max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .msv-link { display: inline-block; margin-top: 10px; font-size: var(--fs-12); color: var(--dk-brand-700, var(--dk-info)); text-decoration: none; }
 .msv-link:hover { text-decoration: underline; }

@@ -1316,7 +1316,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   right: 10px;
   font-size: var(--fs-12);
   font-weight: var(--fw-fett);
-  padding: 3px 8px;
+  padding: 3px var(--sp-2);
   border-radius: 999px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -1326,13 +1326,13 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-card-badge.maintenance { background: color-mix(in oklch, var(--dk-warning) 12%, var(--dk-surface)); color: var(--dk-warning); }
 
 .rs-card-body {
-  padding: 14px 16px 16px;
+  padding: 14px var(--sp-4) var(--sp-4);
 }
 .rs-card-titel {
   font-size: var(--fs-14);
   font-weight: var(--fw-fett);
   color: var(--dk-text);
-  margin-bottom: 4px;
+  margin-bottom: var(--sp-1);
 }
 /* P3-4 (Restpunkt 2) / UX1g: Der Titel ist der Weg in die Detailansicht — er
    sieht wie Text aus, nicht wie ein Knopf. */
@@ -1361,10 +1361,10 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-card-meta {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--sp-3);
   font-size: var(--fs-12);
   color: var(--dk-text-muted);
-  margin-bottom: 8px;
+  margin-bottom: var(--sp-2);
 }
 .rs-card-type {
   font-weight: var(--fw-mittel);
@@ -1372,7 +1372,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-card-capacity {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
 }
 .rs-card-desc {
   font-size: var(--fs-12);
@@ -1387,13 +1387,13 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-card-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 12px;
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-3);
 }
 .rs-tag {
   font-size: var(--fs-12);
   font-weight: var(--fw-mittel);
-  padding: 2px 8px;
+  padding: 2px var(--sp-2);
   border-radius: 4px;
   background: var(--dk-surface-2);
   color: var(--dk-text-muted);
@@ -1416,7 +1416,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-list-name {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
+  padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--dk-divider);
   cursor: pointer;
   transition: background var(--dk-fast);
@@ -1429,7 +1429,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--sp-3);
   min-width: 0;
 }
 .rs-list-icon {
@@ -1463,7 +1463,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   display: inline-block;
   font-size: var(--fs-12);
   font-weight: var(--fw-mittel);
-  padding: 2px 8px;
+  padding: 2px var(--sp-2);
   border-radius: 4px;
   background: var(--dk-surface-2);
   color: var(--dk-text-muted);
@@ -1525,7 +1525,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 }
 
 .rs-detail-body {
-  padding: 16px;
+  padding: var(--sp-4);
 }
 .rs-detail-title {
   font-size: var(--fs-16);
@@ -1536,13 +1536,13 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-detail-meta {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--sp-3);
   margin-bottom: 10px;
 }
 .rs-detail-capacity {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
   font-size: var(--fs-12);
   color: var(--dk-text-muted);
 }
@@ -1550,11 +1550,11 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   font-size: var(--fs-14);
   color: var(--dk-text-muted);
   line-height: 1.5;
-  margin: 0 0 16px;
+  margin: 0 0 var(--sp-4);
 }
 
 .rs-detail-section {
-  margin-bottom: 16px;
+  margin-bottom: var(--sp-4);
 }
 .rs-detail-section h4 {
   font-size: var(--fs-12);
@@ -1562,7 +1562,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   color: var(--dk-text-subtle);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin: 0 0 8px;
+  margin: 0 0 var(--sp-2);
 }
 .rs-detail-tags {
   display: flex;
@@ -1574,7 +1574,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 0;
+  padding: var(--sp-2) 0;
   border-bottom: 1px solid var(--dk-divider);
 }
 .rs-booking-item:last-child { border-bottom: none; }
@@ -1624,13 +1624,13 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-empty {
   font-size: var(--fs-12);
   color: var(--dk-text-muted);
-  padding: 8px 0;
+  padding: var(--sp-2) 0;
 }
 
 /* ================================================================
    MY BOOKINGS PANEL
    ================================================================ */
-.rs-my-bookings { padding-bottom: 8px; }
+.rs-my-bookings { padding-bottom: var(--sp-2); }
 .rs-my-booking {
   display: flex;
   align-items: center;
@@ -1702,7 +1702,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 }
 .rs-form-input, .rs-form-select {
   width: 100%;
-  padding: 8px 12px;
+  padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--dk-border);
   border-radius: 8px;
   background: var(--dk-surface);
@@ -1724,13 +1724,13 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   /* DES-R14: minmax(0,1fr) statt 1fr — ohne die 0-Untergrenze konnte ein
      breites Zeitfeld („11:00“) aus dem 400-px-Dialog herausragen. */
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 12px;
+  gap: var(--sp-3);
 }
 .rs-form-row > * { min-width: 0; }
 .rs-form-time {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   min-width: 0;
 }
 .rs-form-time input {
@@ -1742,8 +1742,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-availability {
   background: var(--dk-surface-2);
   border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 16px;
+  padding: var(--sp-3);
+  margin-bottom: var(--sp-4);
 }
 .rs-availability-title {
   display: flex;
@@ -1752,7 +1752,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   font-size: var(--fs-12);
   font-weight: var(--fw-mittel);
   color: var(--dk-text-muted);
-  margin-bottom: 8px;
+  margin-bottom: var(--sp-2);
 }
 .rs-availability-bar {
   display: flex;
@@ -1778,7 +1778,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-availability-labels {
   display: flex;
   justify-content: space-between;
-  margin-top: 4px;
+  margin-top: var(--sp-1);
   font-size: var(--fs-12);
   color: var(--dk-text-subtle);
 }
@@ -1790,11 +1790,11 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   display: inline-block;
   font-size: var(--fs-12);
   font-weight: var(--fw-fett);
-  padding: 2px 8px;
+  padding: 2px var(--sp-2);
   border-radius: 999px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  margin-top: 4px;
+  margin-top: var(--sp-1);
 }
 .rs-status-badge--pending  { background: color-mix(in oklch, var(--dk-warning) 15%, var(--dk-surface)); color: var(--dk-warning); }
 .rs-status-badge--confirmed { background: color-mix(in oklch, var(--dk-success) 12%, var(--dk-surface)); color: var(--dk-success); }
@@ -1806,7 +1806,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   align-items: flex-start;
   gap: 6px;
   margin-top: 6px;
-  padding: 6px 8px;
+  padding: 6px var(--sp-2);
   border-radius: 6px;
   font-size: var(--fs-12);
   color: var(--dk-danger);
@@ -1824,20 +1824,20 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   margin-top: 0;
 }
 .rs-moderation-section {
-  margin-top: 24px;
-  padding-top: 24px;
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-5);
   border-top: 2px solid var(--dk-border);
 }
 .rs-moderation-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: var(--sp-4);
 }
 .rs-moderation-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   font-size: var(--fs-16);
   font-weight: var(--fw-fett);
   color: var(--dk-text);
@@ -1846,7 +1846,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-moderation-count {
   font-size: var(--fs-12);
   font-weight: var(--fw-fett);
-  padding: 2px 8px;
+  padding: 2px var(--sp-2);
   border-radius: 999px;
   /* UX-K1: `--dk-brand-800` ist im Dunkelmodus ein HELLES Navy (DES-R4) — auf
      der Akzentfläche (dunkel gold-300) waren das 1,36:1. Eine deckende helle
@@ -1877,7 +1877,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  padding: 8px 14px;
+  padding: var(--sp-2) 14px;
   font-size: var(--fs-12);
   font-weight: var(--fw-mittel);
   color: var(--dk-warning);
@@ -1888,7 +1888,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-konflikt-zeile + .rs-konflikt-zeile { margin-top: 2px; }
 
 .rs-anfrage-body {
-  padding: 12px 14px;
+  padding: var(--sp-3) 14px;
 }
 .rs-anfrage-ressource {
   font-size: var(--fs-14);
@@ -1917,13 +1917,13 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-anfrage-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--sp-3);
   font-size: var(--fs-12);
   color: var(--dk-text-muted);
 }
 .rs-anfrage-notiz {
-  margin-top: 8px;
-  padding: 6px 8px;
+  margin-top: var(--sp-2);
+  padding: 6px var(--sp-2);
   font-size: var(--fs-12);
   color: var(--dk-text-muted);
   background: var(--dk-surface-2);
@@ -1933,7 +1933,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 
 .rs-anfrage-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--sp-2);
   padding: 10px 14px;
   border-top: 1px solid var(--dk-divider);
   background: var(--dk-surface-2);

@@ -1119,9 +1119,9 @@ async function stammdatenPanelGeschlossen() {
 </script>
 
 <style scoped>
-.pr-pe-zustand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--dk-text-muted); font-size: var(--fs-14); }
+.pr-pe-zustand { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; color: var(--dk-text-muted); font-size: var(--fs-14); }
 .pr-pe-zustand--fehler { color: var(--dk-danger); }
-.pr-pe-tabs { margin-bottom: 12px; }
+.pr-pe-tabs { margin-bottom: var(--sp-3); }
 .pr-pe-meta { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-pe-pruefstatus { font-size: var(--fs-14); color: var(--dk-text-muted); padding: 6px 0; }
 .pr-pe-pruefstatus--ok { color: var(--ok); }
@@ -1156,18 +1156,18 @@ async function stammdatenPanelGeschlossen() {
 .pr-pe-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0; line-height: 1.5; }
 .pr-pe-hinweis--warnung {
   border: 1px solid color-mix(in oklch, var(--dk-warning) 45%, var(--dk-border));
-  border-radius: 10px; padding: 10px 12px;
+  border-radius: 10px; padding: 10px var(--sp-3);
   background: color-mix(in oklch, var(--dk-warning) 8%, var(--dk-surface));
 }
 .pr-pe-hinweis-text { margin: 0 0 6px; font-size: var(--fs-14); color: var(--dk-text); }
-.pr-pe-unbekannte-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.pr-pe-unbekannte-liste li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pr-pe-unbekannte-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.pr-pe-unbekannte-liste li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
 .pr-pe-unbekannte-kennung { font-family: var(--font-mono); font-size: var(--fs-14); color: var(--dk-text); }
 .pr-pe-hilfe--warnung { color: var(--dk-warning); }
 /* UX-C3b: Auswahlfeld mit ⓘ daneben (Begriffserklärung aus dem Glossar). */
-.pr-pe-mit-info { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.pr-pe-mit-info { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; }
 .pr-pe-kollision {
-  display: flex; flex-direction: column; gap: 8px; padding: 12px;
+  display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3);
   border: 1px solid color-mix(in oklch, var(--dk-warning) 45%, var(--dk-border));
   border-radius: 10px;
   background: color-mix(in oklch, var(--dk-warning) 8%, var(--dk-surface));
@@ -1175,21 +1175,21 @@ async function stammdatenPanelGeschlossen() {
 .pr-pe-kollision-text { margin: 0; font-size: var(--fs-14); color: var(--dk-text); }
 .pr-pe-checkbox { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); color: var(--dk-text); }
 .pr-pe-leer { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0; }
-.pr-pe-zeile { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
-.pr-pe-label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); min-width: 0; }
+.pr-pe-zeile { display: flex; align-items: flex-end; gap: var(--sp-3); flex-wrap: wrap; }
+.pr-pe-label { display: flex; flex-direction: column; gap: var(--sp-1); font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); min-width: 0; }
 .pr-pe-kurz { max-width: 220px; font-family: var(--font-mono); }
 .pr-pe-unter-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 6px 0 0; }
-.pr-pe-chips { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.pr-pe-chips { display: flex; flex-wrap: wrap; gap: 6px var(--sp-3); }
 .pr-pe-chip { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; font-family: var(--font-mono); }
-.pr-pe-anlass { border: 1px solid var(--dk-border); border-radius: 12px; background: var(--dk-surface); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.pr-pe-anlass { border: 1px solid var(--dk-border); border-radius: 12px; background: var(--dk-surface); padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
 .pr-pe-versionen { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.pr-pe-version { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); }
+.pr-pe-version { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: var(--sp-2) 10px; border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); }
 .pr-pe-version-haupt { font-size: var(--fs-14); color: var(--dk-text); font-weight: var(--fw-mittel); }
-.pr-pe-version-neben { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pr-pe-version-neben { display: inline-flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; }
 .pr-pe-version-kommentar { font-size: var(--fs-12); color: var(--dk-text-muted); }
-.pr-pe-json { display: flex; flex-direction: column; gap: 8px; }
+.pr-pe-json { display: flex; flex-direction: column; gap: var(--sp-2); }
 .pr-pe-jsonfeld { font-family: var(--font-mono); font-size: var(--fs-12); line-height: 1.45; }
-.pr-pe-speichern { display: flex; flex-direction: column; gap: 12px; }
+.pr-pe-speichern { display: flex; flex-direction: column; gap: var(--sp-3); }
 /* OP-UI-23: unsichtbarer Absende-Knopf, damit Enter im Feld absendet. */
 .pr-pe-sr-submit {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -1197,13 +1197,13 @@ async function stammdatenPanelGeschlossen() {
 }
 .pr-pe-entwurf {
   display: flex; flex-direction: column; gap: 10px;
-  padding: 12px; margin-bottom: 12px;
+  padding: var(--sp-3); margin-bottom: var(--sp-3);
   border: 1px solid color-mix(in oklch, var(--dk-warning) 45%, var(--dk-border));
   border-radius: 10px;
   background: color-mix(in oklch, var(--dk-warning) 8%, var(--dk-surface));
 }
 .pr-pe-entwurf-text { margin: 0; font-size: var(--fs-14); color: var(--dk-text); }
-.pr-pe-entwurf-aktionen { display: flex; gap: 8px; flex-wrap: wrap; }
+.pr-pe-entwurf-aktionen { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
 /* Inhaltsumbruch, kein Layout: das Kurzfeld gibt seine 220-px-Breite auf und
    nimmt die Zeile. */
 @media (max-width: 640px) {

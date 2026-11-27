@@ -402,7 +402,7 @@ function zeilenKontextmenue(ereignis, g, bereich) {
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
-  padding-bottom: 8px;
+  padding-bottom: var(--sp-2);
   scrollbar-width: none;
   -ms-overflow-style: none;
   /* FIX-5 (DEV-1): `min-width: 0` — als Rasterkind in einem Flex-/Block-
@@ -529,7 +529,7 @@ function zeilenKontextmenue(ereignis, g, bereich) {
 }
 
 .gr-kachel-body {
-  padding: 10px 12px;
+  padding: 10px var(--sp-3);
 }
 
 .gr-kachel-name {

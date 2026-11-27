@@ -111,7 +111,7 @@ test('DEV-6 · der Rahmen nutzt Design-Tokens, keine harten Farben', () => {
     assert.doesNotMatch(regel, /oklch\(|hsl\(/, 'kein harter Farbwert (oklch/hsl)')
   }
   // Der Abstand zwischen den Instanzen bleibt erhalten.
-  assert.match(stil, /\.pr-tabelle-instanz \+ \.pr-tabelle-instanz\s*\{[^}]*margin-top:\s*4px/)
+  assert.match(stil, /\.pr-tabelle-instanz \+ \.pr-tabelle-instanz\s*\{[^}]*margin-top:\s*(?:4px|var\(--sp-1\))/)
 })
 
 console.log('DEV-6 Lieder mit Rahmen: 13 Prüfungen bestanden')

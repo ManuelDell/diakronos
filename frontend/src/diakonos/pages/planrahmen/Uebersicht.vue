@@ -610,9 +610,9 @@ async function planAnlegenOhneBedarf() {
 
 <style scoped>
 .dk-form-error { color: var(--err); font-size: var(--fs-sm); margin: 0; }
-.pr-ue-zustand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--dk-text-muted); font-size: var(--fs-14); }
+.pr-ue-zustand { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; color: var(--dk-text-muted); font-size: var(--fs-14); }
 .pr-ue-zustand--fehler { color: var(--dk-danger); }
-.pr-ue-gruppe + .pr-ue-gruppe { margin-top: 24px; }
+.pr-ue-gruppe + .pr-ue-gruppe { margin-top: var(--sp-5); }
 .pr-ue-gruppe-titel {
   font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--dk-text-muted); margin: 0 0 10px;
@@ -626,22 +626,22 @@ async function planAnlegenOhneBedarf() {
   .pr-ue-zeile { flex-wrap: wrap; }
   .pr-ue-neben { flex-wrap: wrap; }
 }
-.pr-ue-neu { display: flex; flex-direction: column; gap: 4px; }
+.pr-ue-neu { display: flex; flex-direction: column; gap: var(--sp-1); }
 /* OP-UI-23: unsichtbarer Absende-Knopf, damit Enter im Feld absendet. */
 .pr-ue-sr-submit {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
-.pr-ue-neu-block { margin-bottom: 8px; }
-.pr-ue-neu-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 4px 0 0; }
-.pr-ue-pool { margin: 8px 0 0; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); color: var(--text); font-weight: var(--fw-fett); }
+.pr-ue-neu-block { margin-bottom: var(--sp-2); }
+.pr-ue-neu-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: var(--sp-1) 0 0; }
+.pr-ue-pool { margin: var(--sp-2) 0 0; padding: var(--sp-2) var(--sp-3); border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); color: var(--text); font-weight: var(--fw-fett); }
 .pr-ue-entwurf {
   display: flex; flex-direction: column; gap: 10px;
-  padding: 12px; margin-bottom: 6px;
+  padding: var(--sp-3); margin-bottom: 6px;
   border: 1px solid color-mix(in oklch, var(--dk-warning) 45%, var(--dk-border));
   border-radius: 10px;
   background: color-mix(in oklch, var(--dk-warning) 8%, var(--dk-surface));
 }
 .pr-ue-entwurf-text { margin: 0; font-size: var(--fs-14); color: var(--dk-text); }
-.pr-ue-entwurf-aktionen { display: flex; gap: 8px; flex-wrap: wrap; }
+.pr-ue-entwurf-aktionen { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
 </style>

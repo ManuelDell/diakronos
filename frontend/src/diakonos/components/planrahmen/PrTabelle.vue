@@ -251,18 +251,18 @@ function liedZeilen(t, s) {
 
 <style scoped>
 /* UXP-R15: Kartenliste auf dem Handy — Termin oben, Felder darunter. */
-.pr-tabelle-karten { display: flex; flex-direction: column; gap: 12px; }
+.pr-tabelle-karten { display: flex; flex-direction: column; gap: var(--sp-3); }
 .pr-tabelle-karte {
   border: 1px solid var(--dk-border); border-radius: 12px; background: var(--dk-surface);
-  padding: 12px 14px;
+  padding: var(--sp-3) 14px;
 }
 .pr-tabelle-karte + .pr-tabelle-karte { margin-top: 0; }
-.pr-tabelle-karte-kopf { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.pr-tabelle-karte-kopf { display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; }
 .pr-tabelle-karte .pr-tabelle-datum { display: inline; }
 .pr-tabelle-karte .pr-tabelle-uhrzeit { display: inline; }
 .pr-tabelle-karte-titel { font-size: var(--fs-14); color: var(--dk-text-muted); margin-top: 2px; }
 .pr-tabelle-karte-anlaesse { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-.pr-tabelle-karte-feld { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+.pr-tabelle-karte-feld { display: flex; flex-direction: column; gap: 2px; margin-top: var(--sp-2); }
 .pr-tabelle-karte-name {
   font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.04em;
   color: var(--dk-text-subtle);
@@ -286,7 +286,7 @@ function liedZeilen(t, s) {
 .pr-tabelle-datum { display: block; font-weight: var(--fw-fett); color: var(--dk-text); }
 .pr-tabelle-uhrzeit { display: block; font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-tabelle-titelfeld { display: block; font-size: var(--fs-12); color: var(--dk-text-muted); }
-.pr-tabelle-termin .dk-badge { margin-top: 4px; margin-right: 4px; }
+.pr-tabelle-termin .dk-badge { margin-top: var(--sp-1); margin-right: var(--sp-1); }
 .pr-tabelle-zelle { cursor: pointer; min-width: 140px; }
 .pr-tabelle-zelle:hover { background: color-mix(in oklch, var(--dk-brand-400) 6%, var(--dk-surface)); }
 .pr-tabelle-zelle--anlass { cursor: default; }
@@ -294,7 +294,7 @@ function liedZeilen(t, s) {
 .pr-tabelle-leer { color: var(--dk-text-subtle); }
 .pr-tabelle-entfaellt { opacity: 0.55; }
 .pr-tabelle-entfaellt .pr-tabelle-datum { text-decoration: line-through; }
-.pr-tabelle-instanz + .pr-tabelle-instanz { margin-top: 4px; }
+.pr-tabelle-instanz + .pr-tabelle-instanz { margin-top: var(--sp-1); }
 /* DEV-6 (DMB-45e5dfcda737): Jedes Lied einer Liedzelle bekommt einen kleinen
    Rahmen. Desktop-Zeile und mobile Karte nutzen dieselben Design-Tokens —
    Hell- und Dunkelmodus folgen damit ohne eigene Farbwerte. */
@@ -303,15 +303,15 @@ function liedZeilen(t, s) {
   border: 1px solid var(--dk-border);
   border-radius: var(--radius);
   background: var(--dk-surface-2);
-  padding: 3px 8px;
+  padding: 3px var(--sp-2);
 }
 /* Mobil sind die Instanzenzeilen bisher reine Blockzeilen: mit Rahmen
    brauchen sie Abstand zueinander (Desktop regelt das über + .pr-tabelle-instanz). */
-.pr-tabelle-karte .pr-tabelle-instanz-text + .pr-tabelle-instanz-text { margin-top: 4px; }
+.pr-tabelle-karte .pr-tabelle-instanz-text + .pr-tabelle-instanz-text { margin-top: var(--sp-1); }
 .pr-tabelle-karte .pr-tabelle-instanz-text--rahmen { display: block; }
 .pr-tabelle-instanz-text { color: var(--dk-text); }
-.pr-tabelle-pin { margin-left: 4px; font-size: var(--fs-12); }
-.pr-tabelle-meldung { margin-left: 4px; font-size: var(--fs-12); cursor: help; }
+.pr-tabelle-pin { margin-left: var(--sp-1); font-size: var(--fs-12); }
+.pr-tabelle-meldung { margin-left: var(--sp-1); font-size: var(--fs-12); cursor: help; }
 .pr-tabelle-gruppe { display: flex; gap: 6px; align-items: baseline; }
 .pr-tabelle-gruppe + .pr-tabelle-gruppe { margin-top: 3px; }
 .pr-tabelle-gruppen-name { flex-shrink: 0; font-size: var(--fs-12); color: var(--dk-text-subtle); min-width: 70px; }

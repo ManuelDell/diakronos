@@ -552,7 +552,7 @@ function toggleTheme() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 20px;
+  padding: var(--sp-2) 20px;
   font-size: var(--fs-14);
   font-weight: var(--fw-mittel);
   box-shadow: var(--shadow-md);
@@ -566,7 +566,7 @@ function toggleTheme() {
   background: color-mix(in oklch, var(--surface) 22%, transparent);
   border: 1px solid color-mix(in oklch, var(--surface) 45%, transparent);
   color: var(--surface);
-  padding: 4px 12px;
+  padding: var(--sp-1) var(--sp-3);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: var(--fs-14);

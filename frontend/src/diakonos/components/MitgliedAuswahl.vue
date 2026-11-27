@@ -178,7 +178,7 @@ defineExpose({ neuLaden: () => laden(''), fokussieren: () => eingabe.value?.focu
 .dk-ma-input {
   width: 100%;
   height: var(--control-h, 40px);
-  padding: 0 12px 0 32px;
+  padding: 0 var(--sp-3) 0 var(--sp-6);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -207,7 +207,7 @@ defineExpose({ neuLaden: () => laden(''), fokussieren: () => eingabe.value?.focu
   left: 0; right: 0;
   max-height: 260px;
   overflow-y: auto;
-  margin: 0; padding: 4px;
+  margin: 0; padding: var(--sp-1);
   list-style: none;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -218,7 +218,7 @@ defineExpose({ neuLaden: () => laden(''), fokussieren: () => eingabe.value?.focu
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--sp-2);
   padding: 7px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -233,12 +233,12 @@ defineExpose({ neuLaden: () => laden(''), fokussieren: () => eingabe.value?.focu
   color: var(--muted);
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 0 8px;
+  padding: 0 var(--sp-2);
 }
-.dk-ma-hinweis { padding: 8px 10px; color: var(--muted); font-size: var(--fs-sm); }
+.dk-ma-hinweis { padding: var(--sp-2) 10px; color: var(--muted); font-size: var(--fs-sm); }
 .dk-ma-hinweis--fehler { color: var(--err); }
 .dk-ma-wiederholen {
-  margin-left: 8px;
+  margin-left: var(--sp-2);
   background: none; border: none; padding: 0;
   color: var(--primary); font: inherit; font-size: var(--fs-sm);
   text-decoration: underline; cursor: pointer;

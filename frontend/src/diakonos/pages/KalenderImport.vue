@@ -337,7 +337,7 @@ fieldset > label { display: flex; align-items: center; gap: var(--sp-2); margin:
 input:not([type=checkbox]):not([type=radio]):not([type=color]), select {
   width: 100%;
   height: var(--control-h);
-  padding: 0 12px;
+  padding: 0 var(--sp-3);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);

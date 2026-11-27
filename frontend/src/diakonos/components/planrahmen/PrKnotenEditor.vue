@@ -259,13 +259,13 @@ function terminNrSetzen(wert) {
 </script>
 
 <style scoped>
-.pr-kn { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); min-width: 0; }
+.pr-kn { display: flex; flex-direction: column; gap: 6px; padding: var(--sp-2) 10px; border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); min-width: 0; }
 .pr-kn--tief { background: var(--dk-surface-2); }
-.pr-kn-kopf { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pr-kn-kopf { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .pr-kn-wahl { max-width: 320px; }
 .pr-kn-text { font-size: var(--fs-12); color: var(--dk-text-muted); font-style: italic; }
-.pr-kn-kinder { display: flex; flex-direction: column; gap: 6px; padding-left: 12px; border-left: 2px solid var(--dk-border); }
-.pr-kn-zeile { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pr-kn-kinder { display: flex; flex-direction: column; gap: 6px; padding-left: var(--sp-3); border-left: 2px solid var(--dk-border); }
+.pr-kn-zeile { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .pr-kn-satz { font-size: var(--fs-14); color: var(--dk-text); }
 .pr-kn-zahl { max-width: 90px; }
 </style>

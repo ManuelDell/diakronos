@@ -105,20 +105,20 @@ function toggleMehrfach(id, wertNeu, an) {
 </script>
 
 <style scoped>
-.pr-parameter { display: flex; flex-direction: column; gap: 12px; }
+.pr-parameter { display: flex; flex-direction: column; gap: var(--sp-3); }
 .pr-parameter-feld { display: flex; flex-direction: column; gap: 5px; }
 .pr-parameter-label { font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); }
 .pr-parameter-hinweis { font-weight: var(--fw-normal); color: var(--dk-text-subtle); }
 .pr-input {
-  width: 100%; padding: 8px 10px; border-radius: 8px;
+  width: 100%; padding: var(--sp-2) 10px; border-radius: 8px;
   border: 1px solid var(--dk-border); background: var(--dk-surface);
   color: var(--dk-text); font-size: var(--fs-14); font-family: inherit;
 }
 .pr-input:focus { outline: 2px solid color-mix(in oklch, var(--dk-brand-400) 50%, transparent); outline-offset: 0; border-color: var(--dk-brand-400); }
-.pr-parameter-zeitraum { display: flex; align-items: center; gap: 8px; }
+.pr-parameter-zeitraum { display: flex; align-items: center; gap: var(--sp-2); }
 .pr-parameter-zeitraum .pr-input { width: auto; flex: 1; }
 .pr-parameter-bis { font-size: var(--fs-12); color: var(--dk-text-subtle); }
-.pr-parameter-wahlliste { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.pr-parameter-wahlliste { display: flex; flex-wrap: wrap; gap: var(--sp-2) 14px; }
 .pr-parameter-wahl { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; }
-.pr-parameter-leer { font-size: var(--fs-14); color: var(--dk-text-muted); padding: 4px 0; }
+.pr-parameter-leer { font-size: var(--fs-14); color: var(--dk-text-muted); padding: var(--sp-1) 0; }
 </style>

@@ -166,16 +166,16 @@ onUnmounted(() => { aktiv = false; request++ })
 </script>
 
 <style scoped>
-.pr-ein-neu { display: grid; gap: 12px; padding: 18px; border: 1px solid var(--dk-border); border-radius: 12px; background: var(--dk-surface); margin-bottom: 22px; max-width: 600px; }
+.pr-ein-neu { display: grid; gap: var(--sp-3); padding: 18px; border: 1px solid var(--dk-border); border-radius: 12px; background: var(--dk-surface); margin-bottom: 22px; max-width: 600px; }
 .pr-ein-neu h2,.pr-ein-typ h2,.pr-ein-kopf p { margin: 0; }
 .pr-ein-neu h2,.pr-ein-typ h2 { font-size: var(--fs-16); }
 .pr-ein-typ { padding: 18px; border: 1px solid var(--dk-border); border-radius: 12px; margin-top: 14px; min-width: 0; }
-.pr-ein-kopf { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.pr-ein-kopf { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--sp-3); }
 .pr-ein-kopf p,.pr-ein-versionen small { color: var(--dk-text-muted); }
-.pr-ein-typ details { margin-top: 16px; }
+.pr-ein-typ details { margin-top: var(--sp-4); }
 .pr-ein-typ summary { cursor: pointer; }
 .pr-ein-versionen { padding-left: 20px; }
-.pr-ein-versionen li { margin-top: 12px; overflow-wrap: anywhere; }
-.pr-ein-versionen span,.pr-ein-versionen small { display: block; margin-top: 4px; }
+.pr-ein-versionen li { margin-top: var(--sp-3); overflow-wrap: anywhere; }
+.pr-ein-versionen span,.pr-ein-versionen small { display: block; margin-top: var(--sp-1); }
 .pr-ein-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0; }
 </style>

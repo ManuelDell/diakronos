@@ -125,12 +125,12 @@ function onDayClick(day) {
 .mini-cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--sp-2); }
 .mini-title { font-weight: var(--fw-fett); font-size: var(--fs-14); color: var(--text); }
 .mini-nav { display: flex; gap: 2px; }
-.mini-nav button { background: none; border: none; cursor: pointer; font-size: var(--fs-20); padding: 0 4px; line-height: 1; color: var(--muted); }
+.mini-nav button { background: none; border: none; cursor: pointer; font-size: var(--fs-20); padding: 0 var(--sp-1); line-height: 1; color: var(--muted); }
 .mini-nav button:hover { color: var(--text); }
 .mini-cal-grid { display: block; width: 100%; }
 .mini-cal-header-row, .mini-cal-week-row { display: grid; grid-template-columns: 18px repeat(7, 1fr); gap: 0 1px; min-width: 0; }
-.mini-cal-header-row { margin-bottom: 4px; }
-.mini-day-header { text-align: center; font-size: var(--fs-xs); font-weight: var(--fw-fett); color: var(--muted); padding-bottom: 4px; min-width: 0; overflow: hidden; }
+.mini-cal-header-row { margin-bottom: var(--sp-1); }
+.mini-day-header { text-align: center; font-size: var(--fs-xs); font-weight: var(--fw-fett); color: var(--muted); padding-bottom: var(--sp-1); min-width: 0; overflow: hidden; }
 .mini-week-header { }
 .mini-week-number { font-size: var(--fs-12); color: var(--subtle); display: flex; align-items: center; justify-content: center; min-width: 0; }
 .mini-cal-week-row { margin-bottom: 2px; align-items: center; }

@@ -310,11 +310,11 @@ function loeschen(f, index) {
 .pr-ablauf-feld + .pr-ablauf-feld { margin-top: 18px; }
 .pr-element-felder { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
 .pr-ablauf-element--edit { flex-wrap: wrap; }
-.pr-ablauf-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.04em; color: var(--dk-text-muted); margin: 0 0 8px; }
+.pr-ablauf-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.04em; color: var(--dk-text-muted); margin: 0 0 var(--sp-2); }
 .pr-ablauf-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
 .pr-ablauf-element {
   display: flex; align-items: baseline; gap: 10px;
-  padding: 8px 12px; border: 1px solid var(--dk-border); border-radius: 10px;
+  padding: var(--sp-2) var(--sp-3); border: 1px solid var(--dk-border); border-radius: 10px;
   background: var(--dk-surface);
 }
 .pr-ablauf-element--edit { cursor: default; }
@@ -323,10 +323,10 @@ function loeschen(f, index) {
 .pr-ablauf-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .pr-ablauf-typ { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.04em; color: var(--dk-text-subtle); }
 .pr-ablauf-wert { color: var(--dk-text); font-size: var(--fs-14); }
-.pr-ablauf-leer { font-size: var(--fs-14); color: var(--dk-text-muted); padding: 8px 0; }
-.pr-ablauf-hinzufuegen { display: flex; gap: 8px; margin-top: 10px; }
+.pr-ablauf-leer { font-size: var(--fs-14); color: var(--dk-text-muted); padding: var(--sp-2) 0; }
+.pr-ablauf-hinzufuegen { display: flex; gap: var(--sp-2); margin-top: 10px; }
 .pr-ablauf-wahl {
-  padding: 6px 8px; border-radius: 8px; border: 1px solid var(--dk-border);
+  padding: 6px var(--sp-2); border-radius: 8px; border: 1px solid var(--dk-border);
   background: var(--dk-surface); color: var(--dk-text); font-size: var(--fs-14); font-family: inherit;
 }
 @media print {
@@ -334,7 +334,7 @@ function loeschen(f, index) {
   .pr-ablauf-element { break-inside: avoid; }
 }
 /* Programmheft */
-.pr-ablauf--programm { max-width: 720px; margin: 0 auto; padding: 24px; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 4px; }
+.pr-ablauf--programm { max-width: 720px; margin: 0 auto; padding: var(--sp-5); background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 4px; }
 .pr-programm-kopf { font-size: var(--fs-20); font-weight: var(--fw-fett); text-align: center; white-space: pre-line; margin-bottom: 18px; }
 .pr-programm-fuss { font-size: var(--fs-14); text-align: center; white-space: pre-line; margin-top: 18px; color: var(--muted); }
 .pr-ablauf--programm .pr-ablauf-titel { display: none; }

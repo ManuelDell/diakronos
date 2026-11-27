@@ -20,7 +20,7 @@ const klassen = computed(() => ['dk-ui-badge', 'dk-ui-badge--' + props.variant])
 .dk-ui-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
   padding: 2px 9px;
   border-radius: var(--badge-r);
   font-size: var(--fs-sm);

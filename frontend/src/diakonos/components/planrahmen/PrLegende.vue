@@ -21,8 +21,8 @@
 .pr-legende > summary { cursor: pointer; display: flex; align-items: center; gap: 6px; width: fit-content; }
 .pr-legende-pfeil { display: inline-block; transition: transform 120ms ease; }
 .pr-legende[open] > summary .pr-legende-pfeil { transform: rotate(90deg); }
-.pr-legende-liste { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.pr-legende-liste li { display: flex; align-items: baseline; gap: 8px; }
+.pr-legende-liste { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pr-legende-liste li { display: flex; align-items: baseline; gap: var(--sp-2); }
 .pr-legende-zeichen { flex-shrink: 0; min-width: 40px; }
 .pr-legende-leer { font-family: var(--font-mono); color: var(--dk-text-subtle); }
 </style>

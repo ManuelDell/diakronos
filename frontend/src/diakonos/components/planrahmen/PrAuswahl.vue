@@ -132,7 +132,7 @@ const standardWarnung = computed(() => `„${gespeichert.value}“ steht nicht i
 </script>
 
 <style scoped>
-.pr-auswahl { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pr-auswahl { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
 .pr-auswahl-kopf { display: inline-flex; align-items: center; gap: 6px; }
 .pr-auswahl-feld { max-width: 340px; }
 .pr-auswahl--unbekannt {
