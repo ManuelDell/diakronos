@@ -827,7 +827,7 @@ async function openEditor(article = null, einheit = null) {
 }
 .wk-article-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--sp-2); }
 .wk-article-meta { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-sm); color: var(--muted); }
-.wk-article-author { display: flex; align-items: center; gap: 6px; }
+.wk-article-author { display: flex; align-items: center; gap: var(--sp-1); }
 .wk-article-tags { display: flex; gap: var(--sp-1); }
 
 /* Seitenspalte */

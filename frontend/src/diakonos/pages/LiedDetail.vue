@@ -315,10 +315,10 @@ async function nachSpeichern(name) {
 }
 .ld-head-haupt { min-width: 0; }
 .ld-head-neben { max-width: 320px; font-size: var(--fs-sm); color: var(--muted); text-align: right; }
-.ld-head-neben p { margin: 0 0 6px; }
+.ld-head-neben p { margin: 0 0 var(--sp-1); }
 .ld-rechtehinweis { color: var(--subtle); font-style: italic; }
 .ld-meta-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-3); }
-.ld-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--sp-1); }
+.ld-tags { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-top: var(--sp-1); }
 
 /* Entwicklung 16.10.: Zwischen den großen Blöcken (Kopf-Karte, Raster,
    Seitenleiste) fehlte der Abstand — die Blöcke stießen direkt aneinander.
@@ -331,7 +331,7 @@ async function nachSpeichern(name) {
 
 .ld-strophe { padding: var(--sp-3) 0; border-top: 1px solid var(--divider); }
 .ld-strophe:first-of-type { border-top: none; }
-.ld-strophe-head { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: 6px; }
+.ld-strophe-head { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-1); }
 .ld-strophe-nr {
   width: 22px; height: 22px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
@@ -342,14 +342,14 @@ async function nachSpeichern(name) {
 .ld-strophe-text { margin: 0; font-size: var(--fs); line-height: 1.6; color: var(--text); white-space: pre-wrap; }
 
 .ld-tabs {
-  display: flex; flex-wrap: wrap; gap: 6px;
+  display: flex; flex-wrap: wrap; gap: var(--sp-1);
   border-bottom: 1px solid var(--line);
   padding-bottom: var(--sp-3);
   margin-bottom: var(--sp-4);
 }
 .ld-tab {
   font-size: var(--fs-sm);
-  padding: 6px var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
   border-radius: var(--radius);
   border: 1px solid var(--line);
   background: var(--surface-2);
@@ -376,7 +376,7 @@ async function nachSpeichern(name) {
 
 .ld-group-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
 .ld-group-link {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap;
   padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); border: 1px solid var(--line);
   text-decoration: none; color: var(--text);
   transition: border-color var(--fast) var(--ease), background var(--fast) var(--ease);

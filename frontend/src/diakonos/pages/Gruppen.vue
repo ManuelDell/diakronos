@@ -375,7 +375,7 @@ function zeilenKontextmenue(ereignis, g, bereich) {
   font-size: var(--fs-sm);
   color: var(--muted);
   background: var(--surface-2);
-  padding: 2px 9px;
+  padding: 2px var(--sp-2);
   border-radius: var(--badge-r);
   border: 1px solid var(--line);
 }
@@ -383,9 +383,9 @@ function zeilenKontextmenue(ereignis, g, bereich) {
 .gr-tags {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   flex-wrap: wrap;
-  margin-bottom: 5px;
+  margin-bottom: var(--sp-1);
 }
 
 /* ── Horizontales 2-Zeilen-Grid mit Scroll ── */
@@ -398,7 +398,7 @@ function zeilenKontextmenue(ereignis, g, bereich) {
      wird deshalb fest vorgegeben: 150–190 px, auf schmalen Anzeigen kleiner. */
   grid-auto-columns: minmax(150px, 190px);
   grid-template-rows: repeat(2, auto);
-  gap: 14px;
+  gap: var(--sp-3);
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
@@ -523,20 +523,20 @@ function zeilenKontextmenue(ereignis, g, bereich) {
   background: var(--badge-auf-bild);
   color: var(--badge-auf-bild-text);
   font-size: var(--fs-12);
-  padding: 2px 7px;
+  padding: 2px var(--sp-2);
   border-radius: 20px;
   backdrop-filter: blur(4px);
 }
 
 .gr-kachel-body {
-  padding: 10px var(--sp-3);
+  padding: var(--sp-3) var(--sp-3);
 }
 
 .gr-kachel-name {
   font-weight: var(--fw-fett);
   font-size: var(--fs-14);
   color: var(--dk-text);
-  margin-bottom: 5px;
+  margin-bottom: var(--sp-1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -544,7 +544,7 @@ function zeilenKontextmenue(ereignis, g, bereich) {
 
 .gr-typ-tag {
   font-size: var(--fs-12);
-  padding: 1px 6px;
+  padding: 1px var(--sp-2);
   border-radius: 4px;
   background: var(--dk-surface-2);
   color: var(--dk-text-muted);

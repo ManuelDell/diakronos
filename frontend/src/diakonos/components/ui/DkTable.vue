@@ -86,7 +86,7 @@ const hatAktion = computed(() => props.spalten.some((s) => s && s.aktion))
   letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--subtle);
-  padding: 10px calc(var(--pad) * 1.2);
+  padding: var(--sp-3) calc(var(--pad) * 1.2);
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);
   white-space: nowrap;

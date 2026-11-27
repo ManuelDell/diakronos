@@ -219,7 +219,7 @@ defineExpose({ neuLaden: () => laden(''), fokussieren: () => eingabe.value?.focu
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--sp-2);
-  padding: 7px 10px;
+  padding: var(--sp-2) var(--sp-3);
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
@@ -235,7 +235,7 @@ defineExpose({ neuLaden: () => laden(''), fokussieren: () => eingabe.value?.focu
   border-radius: 999px;
   padding: 0 var(--sp-2);
 }
-.dk-ma-hinweis { padding: var(--sp-2) 10px; color: var(--muted); font-size: var(--fs-sm); }
+.dk-ma-hinweis { padding: var(--sp-2) var(--sp-3); color: var(--muted); font-size: var(--fs-sm); }
 .dk-ma-hinweis--fehler { color: var(--err); }
 .dk-ma-wiederholen {
   margin-left: var(--sp-2);

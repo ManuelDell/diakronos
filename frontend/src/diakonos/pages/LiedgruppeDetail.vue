@@ -304,12 +304,12 @@ onMounted(() => {
 .ldg-count { font-size: var(--fs-sm); color: var(--muted); }
 
 .ldg-tabs {
-  display: flex; gap: 6px; border-bottom: 1px solid var(--line);
+  display: flex; gap: var(--sp-1); border-bottom: 1px solid var(--line);
   padding-bottom: var(--sp-3);
   margin-bottom: var(--sp-4);
 }
 .ldg-tab {
-  font-size: var(--fs-sm); padding: 6px var(--sp-3); border-radius: var(--radius);
+  font-size: var(--fs-sm); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius);
   border: 1px solid var(--line); background: var(--surface-2);
   color: var(--muted); cursor: pointer;
   transition: background var(--fast) var(--ease), color var(--fast) var(--ease), border-color var(--fast) var(--ease);
@@ -332,7 +332,7 @@ onMounted(() => {
 }
 .ldg-rolle-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-bottom: var(--sp-2); }
 .ldg-rolle-name { font-size: var(--fs); font-weight: 600; color: var(--text); }
-.ldg-rolle-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.ldg-rolle-meta { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 .ldg-rolle-desc { margin: var(--sp-3) 0 0; font-size: var(--fs-sm); color: var(--muted); }
 
 .ldg-fehler {

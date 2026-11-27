@@ -145,7 +145,7 @@ function formatDateTime(s) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-1);
   border-bottom: 1px solid var(--dk-border);
 }
@@ -163,6 +163,6 @@ function formatDateTime(s) {
 .msv-meta { font-size: var(--fs-12); color: var(--dk-text-muted); margin-top: 2px; }
 .msv-side { display: inline-flex; align-items: center; gap: var(--sp-2); flex-shrink: 0; }
 .msv-rolle { font-size: var(--fs-12); color: var(--dk-text-muted); max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.msv-link { display: inline-block; margin-top: 10px; font-size: var(--fs-12); color: var(--dk-brand-700, var(--dk-info)); text-decoration: none; }
+.msv-link { display: inline-block; margin-top: var(--sp-2); font-size: var(--fs-12); color: var(--dk-brand-700, var(--dk-info)); text-decoration: none; }
 .msv-link:hover { text-decoration: underline; }
 </style>

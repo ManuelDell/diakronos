@@ -736,7 +736,7 @@ onBeforeUnmount(() => {
 .prof-skelett-zeile { flex: 1; height: 16px; width: 40%; border-radius: var(--radius-sm); background: var(--surface-2); animation: prof-puls 1.5s infinite; }
 @keyframes prof-puls { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 .prof-fehler { margin-top: var(--sp-5); }
-.prof-layout { display: flex; flex-direction: column; gap: var(--sp-4); padding-bottom: 80px; }
+.prof-layout { display: flex; flex-direction: column; gap: var(--sp-4); padding-bottom: var(--sp-8); }
 .prof-aktionen { display: flex; gap: var(--sp-2); }
 .prof-klein { font-size: var(--fs-sm); color: var(--muted); }
 
@@ -774,7 +774,7 @@ onBeforeUnmount(() => {
 .prof-field-wide { grid-column: 1 / -1; }
 .prof-field { display: flex; flex-direction: column; gap: var(--sp-1); }
 .prof-field label { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
-.prof-field span { font-size: var(--fs); padding: 6px 0; }
+.prof-field span { font-size: var(--fs); padding: var(--sp-2) 0; }
 /* UXD-R9: siehe MitgliedDetail — `.prof-strasse .dk-ui-eingabe{flex:1}`
    überstimmte `.prof-nr{flex:0 0 70px}`, und ohne `min-width:0` schrumpfte
    kein Feld unter seine Inhaltsbreite. Am Handy lief das Formular über den
@@ -845,7 +845,7 @@ onBeforeUnmount(() => {
 .prof-cropper { width: 100%; max-height: 340px; }
 .prof-crop-upload {
   border: 2px dashed var(--line); border-radius: var(--radius);
-  padding: 40px; text-align: center; cursor: pointer; width: 100%;
+  padding: var(--sp-7); text-align: center; cursor: pointer; width: 100%;
   color: var(--muted);
   display: flex; flex-direction: column; align-items: center; gap: var(--sp-3);
 }

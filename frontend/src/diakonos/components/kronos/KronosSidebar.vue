@@ -537,7 +537,7 @@ onMounted(async () => {
   justify-content: space-between;
   gap: var(--sp-2);
   width: 100%;
-  padding: 6px var(--sp-2);
+  padding: var(--sp-2) var(--sp-2);
   border: none;
   border-left: 3px solid var(--dk-danger);
   border-radius: var(--radius-sm);

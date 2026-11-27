@@ -240,7 +240,7 @@ watch(() => props.modelValue, () => { nextTick(aktivenEintragZeigen) })
 .dk-ui-bz-zahl {
   flex-shrink: 0;
   min-width: 20px;
-  padding: 1px 6px;
+  padding: 1px var(--sp-2);
   border-radius: var(--badge-r);
   background: var(--accent-soft);
   color: var(--badge-ink-warn);
@@ -259,7 +259,7 @@ watch(() => props.modelValue, () => { nextTick(aktivenEintragZeigen) })
   border-left: 1px solid var(--line);
   margin-left: var(--sp-3);
 }
-.dk-ui-bz--unter { padding: 6px 10px; font-weight: 500; font-size: var(--fs-sm); }
+.dk-ui-bz--unter { padding: var(--sp-2) var(--sp-3); font-weight: 500; font-size: var(--fs-sm); }
 .dk-ui-bz--unter.is-aktiv { box-shadow: inset 3px 0 0 var(--accent); }
 .dk-ui-bz:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 /* Nur für Vorlesehilfen — der Name der Unterpunkt-Gruppe. */
@@ -298,7 +298,7 @@ watch(() => props.modelValue, () => { nextTick(aktivenEintragZeigen) })
   }
   .dk-ui-bz {
     height: 100%;
-    padding: 9px var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
     border: 0;
     border-bottom: 2px solid transparent;
     border-radius: 0;

@@ -589,7 +589,7 @@ defineExpose({
   min-height: 0;
   /* BF1-I: Der Seitenrahmen (.dk-screen) liefert die Aussenabstaende;
      das Board bringt nur noch den Abstand nach oben/unten mit. */
-  padding: 0 0 20px;
+  padding: 0 0 var(--sp-5);
 }
 
 .dk-mboard-col {
@@ -607,7 +607,7 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: var(--sp-3) 14px;
+  padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--dk-border);
   font-size: var(--fs-14);
   font-weight: var(--fw-fett);
@@ -624,7 +624,7 @@ defineExpose({
 .dk-mboard-count {
   font-size: var(--fs-12);
   font-weight: var(--fw-fett);
-  padding: 1px 7px;
+  padding: 1px var(--sp-2);
   border-radius: 999px;
   background: var(--dk-surface-2);
   color: var(--dk-text-muted);
@@ -645,7 +645,7 @@ defineExpose({
   padding: var(--sp-2);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--sp-1);
   min-height: 80px;
 }
 

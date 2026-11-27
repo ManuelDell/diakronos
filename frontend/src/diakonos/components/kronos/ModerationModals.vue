@@ -694,7 +694,7 @@ defineExpose({
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  padding: var(--sp-2) 10px;
+  padding: var(--sp-2) var(--sp-3);
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -766,7 +766,7 @@ defineExpose({
 .dk-mod-series-footer { display: flex; align-items: center; gap: var(--sp-2); width: 100%; }
 .dk-mod-series-conflict-intro { font-size: var(--fs-14); color: var(--muted); margin-bottom: var(--sp-3); }
 .dk-mod-series-conflict-list { display: flex; flex-direction: column; gap: var(--sp-2); }
-.dk-mod-series-conflict-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-2) 10px; background: var(--surface-2); border-radius: var(--radius-sm); }
+.dk-mod-series-conflict-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); background: var(--surface-2); border-radius: var(--radius-sm); }
 .dk-mod-series-conflict-date { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-14); color: var(--muted); }
 
 /* UX1e: `.dk-mod-btn-inline`, `.dk-mod-btn-warn`, `.dk-mod-btn-ok` und

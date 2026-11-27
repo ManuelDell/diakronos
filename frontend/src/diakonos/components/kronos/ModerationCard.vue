@@ -324,7 +324,7 @@ function datumZeitText(start, allDay) {
 /* Body */
 .dk-mcard-body {
   flex: 1;
-  padding: 10px var(--sp-3);
+  padding: var(--sp-3) var(--sp-3);
   min-width: 0;
 }
 
@@ -332,7 +332,7 @@ function datumZeitText(start, allDay) {
 .dk-mcard-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-1);
   margin-bottom: var(--sp-1);
 }
 .dk-mcard-title {
@@ -410,7 +410,7 @@ function datumZeitText(start, allDay) {
 .dk-mcard-cal {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   font-size: var(--fs-xs);
   color: var(--subtle);
 }
@@ -512,8 +512,8 @@ function datumZeitText(start, allDay) {
 
 /* Serie conflict details */
 .dk-mcard-serie-conflicts {
-  margin-top: 6px;
-  padding-top: 6px;
+  margin-top: var(--sp-1);
+  padding-top: var(--sp-2);
   border-top: 1px solid var(--divider);
 }
 .dk-mcard-conflict-toggle {
@@ -530,7 +530,7 @@ function datumZeitText(start, allDay) {
 }
 .dk-mcard-conflict-list {
   list-style: none;
-  margin: 6px 0 0;
+  margin: var(--sp-1) 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -539,10 +539,10 @@ function datumZeitText(start, allDay) {
 .dk-mcard-conflict-item {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   font-size: var(--fs-xs);
   color: var(--muted);
-  padding: 3px 6px;
+  padding: 3px var(--sp-2);
   background: var(--err-soft);
   border-radius: var(--radius-sm);
 }

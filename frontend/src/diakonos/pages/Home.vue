@@ -221,9 +221,9 @@ async function resetLayout() {
     border: 1px solid var(--dk-border) !important;
     border-radius: 8px !important;
     color: var(--dk-text-muted) !important;
-    padding: 10px var(--sp-4) !important;
+    padding: var(--sp-3) var(--sp-4) !important;
     font-size: var(--fs-14) !important;
-  gap: 6px;
+  gap: var(--sp-1);
 }
 
 </style>

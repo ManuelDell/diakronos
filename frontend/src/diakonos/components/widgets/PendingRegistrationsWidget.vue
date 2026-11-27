@@ -75,7 +75,7 @@ function zurModeration() {
 <style scoped>
 .mod-termin-liste {
   list-style: none;
-  margin: 0 0 10px;
+  margin: 0 0 var(--sp-2);
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -84,8 +84,8 @@ function zurModeration() {
 .mod-termin {
   display: flex;
   align-items: stretch;
-  gap: 10px;
-  padding: var(--sp-2) 10px;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
   background: var(--dk-surface-2, var(--surface-2));
   border: 1px solid var(--dk-border, var(--line));
   border-radius: 10px;
@@ -120,7 +120,7 @@ function zurModeration() {
 .mod-termin-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-1) 10px;
+  gap: var(--sp-1) var(--sp-2);
   font-size: var(--fs-xs, 11px);
   color: var(--dk-text-muted, var(--muted));
 }

@@ -232,7 +232,7 @@ onUnmounted(() => {
   max-width: calc(100vw - 16px);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-1);
   flex-wrap: wrap;
   justify-content: flex-end;
   z-index: 2147483001;
@@ -245,13 +245,13 @@ onUnmounted(() => {
   color: var(--dev-leiste-text);
   font-weight: 700;
   letter-spacing: 0.05em;
-  padding: 3px 7px;
+  padding: 3px var(--sp-2);
   border-radius: var(--radius-sm);
 }
 .dk-dev-taste {
   background: var(--dev-leiste);
   color: var(--dev-leiste-text);
-  padding: 3px 7px;
+  padding: 3px var(--sp-2);
   border-radius: var(--radius-sm);
   white-space: nowrap;
 }
@@ -261,7 +261,7 @@ onUnmounted(() => {
   border: 1px solid var(--dev-linie);
   background: var(--dev-rot);
   color: var(--dev-leiste-text);
-  padding: var(--sp-1) 10px;
+  padding: var(--sp-1) var(--sp-3);
   border-radius: var(--radius-sm);
 }
 .dk-dev-knopf.is-aus { background: var(--dev-leiste); }
@@ -281,7 +281,7 @@ onUnmounted(() => {
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
   line-height: 1.2;
-  padding: 2px 6px;
+  padding: 2px var(--sp-2);
   border-radius: var(--sp-1);
   white-space: nowrap;
   max-width: 60vw;

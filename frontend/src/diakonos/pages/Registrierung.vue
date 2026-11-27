@@ -1865,7 +1865,7 @@ onMounted(() => { fetchData(); ladeLinkVorgaben() })
 .reg-detail-grid div { color: var(--text); }
 .reg-detail-abschnitt { margin: var(--sp-4) 0; }
 .reg-detail-abschnitt h4 { font-size: var(--fs-h4); font-weight: var(--fw-h); margin: 0 0 var(--sp-2); color: var(--text); }
-.reg-antworten { display: grid; grid-template-columns: auto 1fr; gap: 6px var(--sp-4); font-size: var(--fs-sm); }
+.reg-antworten { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-1) var(--sp-4); font-size: var(--fs-sm); }
 .reg-antworten dt { color: var(--muted); }
 .reg-antworten dd { color: var(--text); margin: 0; }
 .reg-kinder { list-style: none; padding: 0; margin: 0; font-size: var(--fs-sm); }

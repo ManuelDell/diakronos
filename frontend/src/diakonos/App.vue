@@ -552,7 +552,7 @@ function toggleTheme() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--sp-2) 20px;
+  padding: var(--sp-2) var(--sp-5);
   font-size: var(--fs-14);
   font-weight: var(--fw-mittel);
   box-shadow: var(--shadow-md);
@@ -574,5 +574,5 @@ function toggleTheme() {
   transition: background var(--fast);
 }
 .impersonation-stop:hover { background: color-mix(in oklch, var(--surface) 38%, transparent); }
-.has-impersonation-banner { margin-top: 40px; }
+.has-impersonation-banner { margin-top: var(--sp-6); }
 </style>

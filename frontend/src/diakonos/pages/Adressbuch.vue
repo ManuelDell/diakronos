@@ -226,7 +226,7 @@ export default {
 /* OP-HANDY-19: Kartenliste statt 5-Spalten-Tabelle auf schmalen Anzeigen. */
 .ab-karten { display: none; }
 .ab-karte {
-  padding: var(--sp-3) 14px;
+  padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--dk-divider);
 }
 .ab-karte:last-child { border-bottom: none; }
@@ -240,8 +240,8 @@ export default {
 .ab-karte-ort { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .ab-karte-aktionen { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .ab-aktion {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 7px 11px;
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--dk-border);
   border-radius: 9px;
   background: var(--dk-surface-2);

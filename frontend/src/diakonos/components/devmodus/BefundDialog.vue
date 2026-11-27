@@ -412,7 +412,7 @@ function schliessen() { emit('schliessen') }
 .dk-dm-kontext { font-family: var(--font-mono); overflow-wrap: anywhere; }
 .dk-dm-feld { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
 .dk-dm-feld textarea, .dk-dm-feld select {
-  font: inherit; padding: 7px; border-radius: var(--radius-sm);
+  font: inherit; padding: var(--sp-2); border-radius: var(--radius-sm);
   border: 1px solid var(--line); background: var(--surface); color: var(--text);
   width: 100%; min-width: 0;
 }
@@ -423,7 +423,7 @@ function schliessen() { emit('schliessen') }
 .dk-dm-datei { display: inline-flex; }
 .dk-dm-datei input { display: none; }
 .dk-dm-datei-knopf {
-  display: inline-flex; align-items: center; height: 28px; padding: 0 10px;
+  display: inline-flex; align-items: center; height: 28px; padding: 0 var(--sp-3);
   border: 1px solid var(--line); border-radius: var(--radius);
   background: var(--surface); color: var(--text); font-size: var(--fs-sm);
   font-weight: 550; cursor: pointer; white-space: nowrap;
@@ -443,12 +443,12 @@ function schliessen() { emit('schliessen') }
 .dk-dm-hinweis { color: var(--muted); font-size: var(--fs-xs); margin: 0; }
 .dk-dm-spinner {
   display: inline-block; width: 12px; height: 12px; vertical-align: -1px;
-  margin-right: 6px; border: 2px solid var(--line); border-top-color: var(--primary);
+  margin-right: var(--sp-1); border: 2px solid var(--line); border-top-color: var(--primary);
   border-radius: 50%; animation: dk-dm-dreh 0.8s linear infinite;
 }
 @keyframes dk-dm-dreh { to { transform: rotate(360deg); } }
 .dk-dm-umfeld summary { cursor: pointer; color: var(--muted); font-size: var(--fs-sm); }
-.dk-dm-umfeld ul { margin: var(--sp-1) 0 0; padding-left: 18px; font-size: var(--fs-sm); }
+.dk-dm-umfeld ul { margin: var(--sp-1) 0 0; padding-left: var(--sp-4); font-size: var(--fs-sm); }
 .dk-dm-warnung { color: var(--err); margin: 0; }
 
 /* Mobil: volle Breite, nichts laeuft ueber den Rand (Befund 3). */

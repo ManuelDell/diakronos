@@ -778,11 +778,11 @@ defineExpose({ anfragen, ungespeichert, speichern })
 .lb-textarea { resize: vertical; font: inherit; padding: var(--sp-2); }
 .lb-schalter { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--text); cursor: pointer; margin-top: var(--sp-2); }
 .lb-schalter--klein { margin: 0; font-size: var(--fs-sm); color: var(--muted); }
-.lb-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: var(--sp-2) 0; }
+.lb-chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin: var(--sp-2) 0; }
 .lb-chip-weg { background: none; border: none; color: inherit; cursor: pointer; font: inherit; padding: 0 0 0 var(--sp-1); }
 /* Befund 4: Kennzeichnung neuer Katalogbegriffe im Chip. */
 .lb-neu {
-  margin-left: 6px; padding: 0 5px; border-radius: 999px;
+  margin-left: var(--sp-1); padding: 0 var(--sp-1); border-radius: 999px;
   background: var(--dk-warning); color: var(--dk-text);
   font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: .03em;
 }

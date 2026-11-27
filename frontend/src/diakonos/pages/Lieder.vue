@@ -636,7 +636,7 @@ function zeilenKontextmenue(ereignis, l) {
   background: var(--dk-surface-2);
   border: 1px solid var(--dk-border);
   color: var(--dk-text-muted);
-  margin-right: 6px;
+  margin-right: var(--sp-1);
 }
 .ld-besetzungen { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .ld-kopie { font-style: italic; color: var(--dk-text-muted); }
@@ -658,12 +658,12 @@ function zeilenKontextmenue(ereignis, l) {
   min-width: 130px;
   max-width: 210px;
   font-size: var(--fs-sm);
-  padding: 5px 10px;
+  padding: var(--sp-1) var(--sp-3);
   text-overflow: ellipsis;
 }
 .ld-filter-reset { margin-left: auto; }
 .ld-error {
-  padding: 20px;
+  padding: var(--sp-5);
   background: color-mix(in oklch, var(--dk-danger) 8%, var(--dk-surface));
   border: 1px solid color-mix(in oklch, var(--dk-danger) 25%, var(--dk-surface));
   border-radius: 12px;
@@ -686,20 +686,20 @@ function zeilenKontextmenue(ereignis, l) {
    auf --filter-h. Kein eigenes Maß mehr an dieser Stelle. */
 .ld-filter-zahl {
   display: inline-grid; place-items: center; min-width: 16px; height: 16px;
-  margin-left: 5px; padding: 0 var(--sp-1); border-radius: 8px;
+  margin-left: var(--sp-1); padding: 0 var(--sp-1); border-radius: 8px;
   background: var(--primary); color: var(--primary-ink); font-size: var(--fs-12);
 }
 .ld-karten { list-style: none; margin: 0; padding: 0; display: none; flex-direction: column; gap: var(--sp-2); }
 .ld-karte {
   background: var(--dk-surface); border: 1px solid var(--dk-border);
   border-radius: 12px; padding: var(--sp-3); cursor: pointer;
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex; flex-direction: column; gap: var(--sp-1);
 }
 .ld-karte-kopf { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); }
 .ld-karte-titel { font-size: var(--fs-14); font-weight: var(--fw-fett); color: var(--dk-text); }
 .ld-karte-kennung { font-size: var(--fs-12); color: var(--dk-text-muted); flex: none; }
 .ld-karte-alt { font-size: var(--fs-12); color: var(--dk-text-subtle); }
-.ld-karte-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.ld-karte-meta { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 /* UX2e: Platz für das „⋯" rechts oben — der Titel bekommt den Knopf nicht ins
    Gehege. */
 .ld-karte-kopf { padding-right: var(--control-h); }

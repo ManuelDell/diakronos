@@ -733,7 +733,7 @@ window.__orgNavigateNode = (id, type, rawName) => {
    renderChart); der Rahmen bleibt als Sicherheit waagerecht rollbar. */
 .org-scroll { overflow-x: auto; }
 .org-chart { width: 100%; height: calc(100vh - 260px); overflow: hidden; }
-.org-zustand { padding: 40px; text-align: center; color: var(--muted); }
+.org-zustand { padding: var(--sp-7); text-align: center; color: var(--muted); }
 .org-leer { padding: var(--sp-4) 0; }
 .org-hinweis { margin: 0; color: var(--muted); font-size: var(--fs-sm); }
 .org-optionen { display: flex; flex-direction: column; gap: var(--sp-3); }

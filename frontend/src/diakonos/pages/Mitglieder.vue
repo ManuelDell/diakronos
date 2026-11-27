@@ -637,7 +637,7 @@ const IconSort     = () => h('svg', { width:13, height:13, viewBox:'0 0 24 24', 
   border-top: 1px solid var(--divider);
 }
 .mt-skelett-zeile.is-first { border-top: none; }
-.mt-skelett-text { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.mt-skelett-text { flex: 1; display: flex; flex-direction: column; gap: var(--sp-1); }
 .mt-puls { background: var(--surface-2); animation: dk-pulse 1.5s infinite; }
 .mt-puls-avatar { width: 28px; height: 28px; border-radius: 50%; }
 .mt-puls-titel { height: 12px; width: 140px; border-radius: var(--radius-sm); }
