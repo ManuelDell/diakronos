@@ -21,10 +21,20 @@
          CHAT-7b-UI: daneben „Neue Runde“ (Karte Punkt 1) — der zweite Einstieg
          im SELBEN Muster (dieselbe Zeile, dasselbe Zeichen, nur ein anderer
          Anfang), er öffnet den Dialog der Seite (`neueRunde`). -->
-    <a v-if="neueRunde" class="dk-chat-neu" :href="SUCHE" :aria-label="`${NEUE_NACHRICHT} — Personen suchen`">
+    <!-- HAUPTKNOPF (Manuel 27.11.): „Neue Nachricht“ ist die EINE Hauptaktion
+         der Nachrichten-Seite — gefüllt (primary), weiter ein Link in die
+         Personensuche. -->
+    <DkButton
+      v-if="neueRunde"
+      as="a"
+      variant="primary"
+      class="dk-chat-neu dk-chat-neu--haupt"
+      :href="SUCHE"
+      :aria-label="`${NEUE_NACHRICHT} — Personen suchen`"
+    >
       <span class="dk-chat-neu-zeichen" aria-hidden="true">+</span>
       <span>{{ NEUE_NACHRICHT }}</span>
-    </a>
+    </DkButton>
     <!-- CHAT-7b-UI: der zweite Einstieg im SELBEN Muster — ein DkButton
          (Knopf-System, UX1g2), der den Dialog der Seite öffnet.
          LEISTE-1: Am Handy stehen beide Einstiege hinter dem Plus im Kopf
@@ -293,6 +303,16 @@ function vorschau(zeile) {
 .dk-chat-neu:hover { background: var(--surface-hover); }
 .dk-chat-neu:focus-visible { outline: var(--rahmen-breite) solid var(--focus-ring); outline-offset: var(--rahmen-breite); }
 .dk-chat-neu-zeichen { font-size: var(--fs-16); line-height: 1; display: inline-flex; align-items: center; }
+/* HAUPTKNOPF (27.11.): „Neue Nachricht“ trägt die gefüllte Optik des
+   Knopf-Systems (primary). Die Listen-Regel oben (gestrichelter Rahmen,
+   Akzent-Schrift, heller Hover) darf sie nicht übermalen. */
+.dk-chat-neu--haupt {
+  border: var(--rahmen-breite) solid var(--primary);
+  background: var(--primary);
+  color: var(--primary-ink);
+  justify-content: center;
+}
+.dk-chat-neu--haupt:hover { background: var(--primary-hover); }
 /* CHAT-7b-UI: „Neue Runde“ ist derselbe Einstieg als <button> — Optik und
    Trefferfläche wie der Link darüber, nur Textfarbe/Zeiger vom Knopf-Modell. */
 .dk-chat-neu--knopf {

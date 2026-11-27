@@ -142,7 +142,9 @@
                 : 'Links stehen deine Gespräche — Gruppen und Untergruppen mit Chat sowie deine Direktgespräche.'"
             >
               <template #aktion>
-                <DkButton v-if="!sucheOffen" variant="secondary" as="a" :href="SUCHE">{{ NEUE_NACHRICHT }}</DkButton>
+                <!-- HAUPTKNOPF (27.11.): gefüllt nur, solange links KEINE Liste mit
+                     eigenem „Neue Nachricht“-Hauptknopf steht — höchstens einer je Ansicht. -->
+                <DkButton v-if="!sucheOffen" :variant="gruppen.length ? 'secondary' : 'primary'" as="a" :href="SUCHE">{{ NEUE_NACHRICHT }}</DkButton>
                 <DkButton
                   v-if="!sucheOffen"
                   variant="secondary"

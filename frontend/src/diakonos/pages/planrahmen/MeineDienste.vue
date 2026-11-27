@@ -418,10 +418,10 @@ async function abwesenheitLoeschenAktion(a) {
 .pr-md-zustand { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; color: var(--dk-text-muted); font-size: var(--fs-14); }
 .pr-md-zustand--fehler { color: var(--dk-danger); }
 .pr-md-gruppe + .pr-md-gruppe { margin-top: var(--sp-5); }
-.pr-md-plan + .pr-md-plan { margin-top: 28px; }
-.pr-md-plan-kopf { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 var(--sp-3); }
+.pr-md-plan + .pr-md-plan { margin-top: var(--sp-5); }
+.pr-md-plan-kopf { display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; margin: 0 0 var(--sp-3); }
 .pr-md-gruppe-titel {
-  display: flex; align-items: baseline; gap: 10px;
+  display: flex; align-items: baseline; gap: var(--sp-2);
   font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--dk-text-muted); margin: 0;
 }
@@ -438,8 +438,8 @@ async function abwesenheitLoeschenAktion(a) {
    Kein einziger Farbwert steht hier fest — die Töne kommen aus den Tokens
    --accent, --info, --ok, --muted; die Deckkraft aus FLAECHE_HELL/FLAECHE_DUNKEL. */
 .pr-md-legende {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  list-style: none; margin: 0 0 20px; padding: 10px 14px;
+  display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+  list-style: none; margin: 0 0 var(--sp-4); padding: var(--sp-3) var(--sp-4);
   border: 1px solid var(--dk-border); border-radius: var(--radius);
   background: var(--dk-surface-2);
 }
@@ -448,7 +448,7 @@ async function abwesenheitLoeschenAktion(a) {
   color: var(--dk-text-muted);
 }
 .pr-md-legende-punkt {
-  display: inline-flex; align-items: center; gap: 7px;
+  display: inline-flex; align-items: center; gap: var(--sp-2);
   font-size: var(--fs-14); color: var(--dk-text);
 }
 .pr-md-rolle-zeichen {
@@ -488,7 +488,7 @@ async function abwesenheitLoeschenAktion(a) {
 :root[data-theme="dark"] .pr-md-legende,
 :root[data-theme="dark"] .pr-md-monat-zeile { --rolle-flaeche: 22%; }
 
-.pr-md-monate { display: flex; flex-direction: column; gap: 14px; }
+.pr-md-monate { display: flex; flex-direction: column; gap: var(--sp-3); }
 .pr-md-monat { overflow: hidden; }
 .pr-md-monat-kopf {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
@@ -506,13 +506,13 @@ async function abwesenheitLoeschenAktion(a) {
 }
 .pr-md-monat-zeile:last-child { border-bottom: none; }
 .pr-md-monat-zeile:hover { background: var(--dk-surface-hover); }
-.pr-md-monat-zeile--konflikt { border-left: 3px solid var(--dk-warning); padding-left: 13px; }
+.pr-md-monat-zeile--konflikt { border-left: 3px solid var(--dk-warning); padding-left: var(--sp-3); }
 .pr-md-monat-haupt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .pr-md-monat-haupt > p { margin: 0; }
-.pr-md-monat-kopfzeile { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.pr-md-monat-kopfzeile { display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; }
 .pr-md-monat-aktion { flex: 0 0 auto; }
 .pr-md-zeile { display: flex; flex-direction: column; gap: var(--sp-1); align-items: stretch; }
-.pr-md-zeile--konflikt { border-left: 3px solid var(--dk-warning); padding-left: 10px; }
+.pr-md-zeile--konflikt { border-left: 3px solid var(--dk-warning); padding-left: var(--sp-3); }
 .pr-md-zeile-kopf { display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
 .pr-md-datum { font-size: var(--fs-14); font-weight: var(--fw-fett); color: var(--dk-text); }
 .pr-md-uhrzeit { font-size: var(--fs-12); color: var(--dk-text-muted); }
@@ -534,17 +534,17 @@ async function abwesenheitLoeschenAktion(a) {
    Absage-Aktion rutschte NICHT unter den Text, sondern blieb in der Zeile
    daneben. Desktop unverändert (Regel gilt nur <= 720 px). */
 @media (max-width: 720px) {
-  .pr-md-legende { gap: 10px 14px; padding: 10px var(--sp-3); }
+  .pr-md-legende { gap: var(--sp-2) var(--sp-3); padding: var(--sp-3) var(--sp-3); }
   .pr-md-monat-zeile { flex-wrap: wrap; padding: var(--sp-3); }
   .pr-md-monat-haupt { flex: 1 1 100%; }
-  .pr-md-monat-aktion { margin-left: 38px; }
-  .pr-md-monat-kopf { padding: 10px var(--sp-3); }
+  .pr-md-monat-aktion { margin-left: var(--sp-6); }
+  .pr-md-monat-kopf { padding: var(--sp-3) var(--sp-3); }
 }
-.pr-md-abwesenheit { padding: 18px 20px; margin-top: 28px; }
+.pr-md-abwesenheit { padding: var(--sp-4) var(--sp-5); margin-top: var(--sp-5); }
 .pr-md-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0 0 var(--sp-3); }
-.pr-md-block { margin-bottom: 10px; }
+.pr-md-block { margin-bottom: var(--sp-2); }
 .pr-md-modaltext { font-size: var(--fs-14); color: var(--dk-text); margin: 0 0 var(--sp-2); }
-.pr-md-gemeldet { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-14); color: var(--dk-text); }
-.pr-md-gemeldet-zeile { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; border-bottom: 1px solid var(--dk-divider); padding-bottom: 6px; }
-.pr-md-keine-abw { margin-top: 14px; }
+.pr-md-gemeldet { list-style: none; margin: var(--sp-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); font-size: var(--fs-14); color: var(--dk-text); }
+.pr-md-gemeldet-zeile { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; border-bottom: 1px solid var(--dk-divider); padding-bottom: var(--sp-2); }
+.pr-md-keine-abw { margin-top: var(--sp-3); }
 </style>

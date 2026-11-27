@@ -1326,7 +1326,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-card-badge.maintenance { background: color-mix(in oklch, var(--dk-warning) 12%, var(--dk-surface)); color: var(--dk-warning); }
 
 .rs-card-body {
-  padding: 14px var(--sp-4) var(--sp-4);
+  padding: var(--sp-4) var(--sp-4) var(--sp-4);
 }
 .rs-card-titel {
   font-size: var(--fs-14);
@@ -1378,7 +1378,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   font-size: var(--fs-12);
   color: var(--dk-text-muted);
   line-height: 1.45;
-  margin-bottom: 10px;
+  margin-bottom: var(--sp-2);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -1399,7 +1399,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   color: var(--dk-text-muted);
 }
 .rs-card-footer {
-  padding-top: 10px;
+  padding-top: var(--sp-3);
   border-top: 1px solid var(--dk-divider);
 }
 .rs-knopf-buchen {
@@ -1475,7 +1475,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-status-dot {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   font-size: var(--fs-12);
   font-weight: var(--fw-mittel);
 }
@@ -1500,7 +1500,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-detail-header {
   display: flex;
   justify-content: flex-end;
-  padding: 10px 14px;
+  padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--dk-divider);
 }
 /* UX1g: Optik, Hover und Klickfläche kommen aus DkButton (ghost, 40/44 px);
@@ -1531,13 +1531,13 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   font-size: var(--fs-16);
   font-weight: var(--fw-fett);
   color: var(--dk-text);
-  margin: 0 0 6px;
+  margin: 0 0 var(--sp-1);
 }
 .rs-detail-meta {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  margin-bottom: 10px;
+  margin-bottom: var(--sp-2);
 }
 .rs-detail-capacity {
   display: inline-flex;
@@ -1567,13 +1567,13 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-detail-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: var(--sp-1);
 }
 
 .rs-booking-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--sp-2);
   padding: var(--sp-2) 0;
   border-bottom: 1px solid var(--dk-divider);
 }
@@ -1634,8 +1634,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-my-booking {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--dk-divider);
   transition: background var(--dk-fast);
 }
@@ -1691,14 +1691,14 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
    BOOKING MODAL FORM
    ================================================================ */
 .rs-form-group {
-  margin-bottom: 14px;
+  margin-bottom: var(--sp-3);
 }
 .rs-form-group label {
   display: block;
   font-size: var(--fs-12);
   font-weight: var(--fw-mittel);
   color: var(--dk-text-muted);
-  margin-bottom: 5px;
+  margin-bottom: var(--sp-1);
 }
 .rs-form-input, .rs-form-select {
   width: 100%;
@@ -1748,7 +1748,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-availability-title {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-1);
   font-size: var(--fs-12);
   font-weight: var(--fw-mittel);
   color: var(--dk-text-muted);
@@ -1804,9 +1804,9 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-reject-reason {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
-  margin-top: 6px;
-  padding: 6px var(--sp-2);
+  gap: var(--sp-1);
+  margin-top: var(--sp-1);
+  padding: var(--sp-2) var(--sp-2);
   border-radius: 6px;
   font-size: var(--fs-12);
   color: var(--dk-danger);
@@ -1857,7 +1857,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-moderation-empty {
   font-size: var(--fs-14);
   color: var(--dk-text-muted);
-  padding: 20px 0;
+  padding: var(--sp-5) 0;
   text-align: center;
 }
 
@@ -1866,7 +1866,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
   border: 1px solid var(--dk-border);
   border-radius: 10px;
   overflow: hidden;
-  margin-bottom: 10px;
+  margin-bottom: var(--sp-2);
   transition: border-color var(--dk-fast);
 }
 .rs-anfrage-card:hover {
@@ -1876,8 +1876,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-anfrage-konflikt {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
-  padding: var(--sp-2) 14px;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-4);
   font-size: var(--fs-12);
   font-weight: var(--fw-mittel);
   color: var(--dk-warning);
@@ -1888,7 +1888,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-konflikt-zeile + .rs-konflikt-zeile { margin-top: 2px; }
 
 .rs-anfrage-body {
-  padding: var(--sp-3) 14px;
+  padding: var(--sp-3) var(--sp-4);
 }
 .rs-anfrage-ressource {
   font-size: var(--fs-14);
@@ -1898,8 +1898,8 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 }
 /* P1-4b/B1: Herkunft der Anfrage (Buchung vs. Zuordnung am Termin). */
 .rs-anfrage-quelle {
-  margin-left: 6px;
-  padding: 1px 6px;
+  margin-left: var(--sp-1);
+  padding: 1px var(--sp-2);
   font-size: var(--fs-12);
   font-weight: var(--fw-mittel);
   text-transform: none;
@@ -1912,7 +1912,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-anfrage-zweck {
   font-size: var(--fs-14);
   color: var(--dk-text);
-  margin-bottom: 6px;
+  margin-bottom: var(--sp-1);
 }
 .rs-anfrage-meta {
   display: flex;
@@ -1923,7 +1923,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 }
 .rs-anfrage-notiz {
   margin-top: var(--sp-2);
-  padding: 6px var(--sp-2);
+  padding: var(--sp-2) var(--sp-2);
   font-size: var(--fs-12);
   color: var(--dk-text-muted);
   background: var(--dk-surface-2);
@@ -1934,7 +1934,7 @@ const IconRefresh      = () => h('svg', { width:14, height:14, viewBox:'0 0 24 2
 .rs-anfrage-actions {
   display: flex;
   gap: var(--sp-2);
-  padding: 10px 14px;
+  padding: var(--sp-3) var(--sp-4);
   border-top: 1px solid var(--dk-divider);
   background: var(--dk-surface-2);
 }

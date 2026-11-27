@@ -20,7 +20,7 @@
 #   * neue Datei mit festen Werten          -> rot (nicht in der Liste = 0 erlaubt)
 # Erzeugt mit (aus frontend/ heraus): node tools/abstand-bestand.mjs --schreiben
 #
-# Stand (UX1a2, F5): 1204 Fundstellen in 117 Dateien.
+# Stand (UX1a2, F5): 1156 Fundstellen in 117 Dateien.
 frontend/src/diakonos/App.vue	7
 frontend/src/diakonos/components/AppBottomNav.vue	3
 frontend/src/diakonos/components/MitgliedAuswahl.vue	10
@@ -118,7 +118,7 @@ frontend/src/diakonos/pages/Mitglieder.vue	5
 frontend/src/diakonos/pages/Moderation.vue	1
 frontend/src/diakonos/pages/Profile.vue	8
 frontend/src/diakonos/pages/Registrierung.vue	8
-frontend/src/diakonos/pages/Ressourcen.vue	74
+frontend/src/diakonos/pages/Ressourcen.vue	48
 frontend/src/diakonos/pages/Wiki.vue	3
 frontend/src/diakonos/pages/devmodus/Befunde.vue	12
 frontend/src/diakonos/pages/einrichtung/Assistent.vue	3
@@ -128,7 +128,7 @@ frontend/src/diakonos/pages/einstellungen/Gemeinde.vue	1
 frontend/src/diakonos/pages/einstellungen/Registrierung.vue	1
 frontend/src/diakonos/pages/mitglieder/Uebersicht.vue	1
 frontend/src/diakonos/pages/planrahmen/Einrichten.vue	9
-frontend/src/diakonos/pages/planrahmen/MeineDienste.vue	31
+frontend/src/diakonos/pages/planrahmen/MeineDienste.vue	9
 frontend/src/diakonos/pages/planrahmen/Plan.vue	9
 frontend/src/diakonos/pages/planrahmen/PlantypEditor.vue	26
 frontend/src/diakonos/pages/planrahmen/Stammdaten.vue	32

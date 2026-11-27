@@ -7,7 +7,9 @@
        Review R1, MUSS 1: Abschnittsüberschriften kommen aus `suchAbschnitte`
        — GENAU EINE „Personen“-Überschrift, und im Listenmodus (Feld leer)
        gar keine. Deshalb steht jede Überschrift in einem `v-if`. -->
-  <div class="dk-chat-suche">
+  <!-- LUECKE (27.11.): Zu (leeres Feld) waechst die Suche NICHT — sonst
+       schiebt sie Liste und Leerzustand nach unten. -->
+  <div class="dk-chat-suche" :class="{ 'dk-chat-suche--zu': !rohBegriff }">
     <div class="dk-chat-suchfeld">
       <label class="dk-chat-nur-vorlesen" for="chat-suche">Personen und Gespräche suchen</label>
       <span class="dk-chat-suchzeichen" aria-hidden="true">⌕</span>
@@ -616,6 +618,7 @@ defineExpose({
   min-height: 0;
   flex: 1;
 }
+.dk-chat-suche--zu { flex: none; }
 .dk-chat-suchfeld {
   display: flex;
   align-items: center;
