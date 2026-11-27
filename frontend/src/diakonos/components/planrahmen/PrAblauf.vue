@@ -307,13 +307,13 @@ function loeschen(f, index) {
 </script>
 
 <style scoped>
-.pr-ablauf-feld + .pr-ablauf-feld { margin-top: 18px; }
-.pr-element-felder { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.pr-ablauf-feld + .pr-ablauf-feld { margin-top: var(--sp-4); }
+.pr-element-felder { display: flex; flex-wrap: wrap; gap: var(--sp-1); width: 100%; }
 .pr-ablauf-element--edit { flex-wrap: wrap; }
 .pr-ablauf-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.04em; color: var(--dk-text-muted); margin: 0 0 var(--sp-2); }
-.pr-ablauf-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.pr-ablauf-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
 .pr-ablauf-element {
-  display: flex; align-items: baseline; gap: 10px;
+  display: flex; align-items: baseline; gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3); border: 1px solid var(--dk-border); border-radius: 10px;
   background: var(--dk-surface);
 }
@@ -324,9 +324,9 @@ function loeschen(f, index) {
 .pr-ablauf-typ { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.04em; color: var(--dk-text-subtle); }
 .pr-ablauf-wert { color: var(--dk-text); font-size: var(--fs-14); }
 .pr-ablauf-leer { font-size: var(--fs-14); color: var(--dk-text-muted); padding: var(--sp-2) 0; }
-.pr-ablauf-hinzufuegen { display: flex; gap: var(--sp-2); margin-top: 10px; }
+.pr-ablauf-hinzufuegen { display: flex; gap: var(--sp-2); margin-top: var(--sp-2); }
 .pr-ablauf-wahl {
-  padding: 6px var(--sp-2); border-radius: 8px; border: 1px solid var(--dk-border);
+  padding: var(--sp-2) var(--sp-2); border-radius: 8px; border: 1px solid var(--dk-border);
   background: var(--dk-surface); color: var(--dk-text); font-size: var(--fs-14); font-family: inherit;
 }
 @media print {
@@ -335,10 +335,10 @@ function loeschen(f, index) {
 }
 /* Programmheft */
 .pr-ablauf--programm { max-width: 720px; margin: 0 auto; padding: var(--sp-5); background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 4px; }
-.pr-programm-kopf { font-size: var(--fs-20); font-weight: var(--fw-fett); text-align: center; white-space: pre-line; margin-bottom: 18px; }
-.pr-programm-fuss { font-size: var(--fs-14); text-align: center; white-space: pre-line; margin-top: 18px; color: var(--muted); }
+.pr-programm-kopf { font-size: var(--fs-20); font-weight: var(--fw-fett); text-align: center; white-space: pre-line; margin-bottom: var(--sp-4); }
+.pr-programm-fuss { font-size: var(--fs-14); text-align: center; white-space: pre-line; margin-top: var(--sp-4); color: var(--muted); }
 .pr-ablauf--programm .pr-ablauf-titel { display: none; }
-.pr-ablauf--programm .pr-ablauf-element { border: none; border-radius: 0; padding: 6px 0; background: transparent; }
+.pr-ablauf--programm .pr-ablauf-element { border: none; border-radius: 0; padding: var(--sp-2) 0; background: transparent; }
 .pr-ablauf--programm .pr-ablauf-typ { display: none; }
 /* UXP-R24 (e) / P3-1d (K3): im Programmheft traegt die Formatvorlage die
    laufende Nummer meist selbst (`{nr}`), z. B. „1 | Lied | Titel“. Die

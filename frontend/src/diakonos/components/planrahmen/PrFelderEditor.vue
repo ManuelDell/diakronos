@@ -493,30 +493,30 @@ function stufenFuer(i) {
 </script>
 
 <style scoped>
-.pr-fb { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.pr-fb-feld { border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); padding: var(--sp-2) 10px; }
+.pr-fb { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.pr-fb-feld { border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); padding: var(--sp-2) var(--sp-3); }
 .pr-fb-feld--tief { background: var(--dk-surface-2); }
-.pr-fb-kopf { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.pr-fb-auf { background: none; border: none; cursor: pointer; font-size: var(--fs-14); color: var(--dk-text-muted); padding: 2px 6px; }
+.pr-fb-kopf { display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; }
+.pr-fb-auf { background: none; border: none; cursor: pointer; font-size: var(--fs-14); color: var(--dk-text-muted); padding: 2px var(--sp-2); }
 .pr-fb-id { max-width: 170px; font-family: var(--font-mono); font-size: var(--fs-14); }
 .pr-fb-name { max-width: 240px; }
 .pr-fb-art { max-width: 250px; }
 .pr-fb-aktionen { display: inline-flex; gap: 2px; margin-left: auto; }
-.pr-fb-koerper { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.pr-fb-koerper { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-2); }
 .pr-fb-zeile { display: flex; align-items: flex-end; gap: var(--sp-3); flex-wrap: wrap; }
 .pr-fb-label { display: flex; flex-direction: column; gap: var(--sp-1); font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); }
 .pr-fb-hilfe { font-weight: var(--fw-normal); font-size: var(--fs-12); color: var(--dk-text-subtle); }
-.pr-fb-anzahl { display: inline-flex; align-items: center; gap: 6px; }
+.pr-fb-anzahl { display: inline-flex; align-items: center; gap: var(--sp-1); }
 .pr-fb-zahl { max-width: 80px; }
 .pr-fb-bis { font-size: var(--fs-12); color: var(--dk-text-subtle); }
 .pr-fb-zeit { max-width: 150px; }
-.pr-fb-schalter { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; }
+.pr-fb-schalter { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; }
 .pr-fb-schalter--gross { padding-bottom: var(--sp-2); }
 .pr-fb-details { font-size: var(--fs-14); }
 .pr-fb-details summary { cursor: pointer; color: var(--dk-text-muted); font-size: var(--fs-12); font-weight: var(--fw-fett); }
-.pr-fb-unter { padding-left: 10px; border-left: 3px solid color-mix(in oklch, var(--dk-brand-400) 35%, var(--dk-border)); display: flex; flex-direction: column; gap: var(--sp-2); }
+.pr-fb-unter { padding-left: var(--sp-3); border-left: 3px solid color-mix(in oklch, var(--dk-brand-400) 35%, var(--dk-border)); display: flex; flex-direction: column; gap: var(--sp-2); }
 .pr-fb-unter-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: var(--sp-1) 0 0; }
-.pr-fb-zweig { border: 1px dashed var(--dk-border); border-radius: 8px; padding: var(--sp-2); display: flex; flex-direction: column; gap: 6px; }
+.pr-fb-zweig { border: 1px dashed var(--dk-border); border-radius: 8px; padding: var(--sp-2); display: flex; flex-direction: column; gap: var(--sp-1); }
 .pr-fb-neu { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; }
 .pr-fb-neu-wahl { max-width: 260px; }
 /* Inhaltsumbruch, kein Layout: die Felder einer Feldzeile stehen untereinander

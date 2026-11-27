@@ -20,7 +20,7 @@
 #   * neue Datei mit festen Werten          -> rot (nicht in der Liste = 0 erlaubt)
 # Erzeugt mit (aus frontend/ heraus): node tools/abstand-bestand.mjs --schreiben
 #
-# Stand (UX1a2, F5): 1156 Fundstellen in 117 Dateien.
+# Stand (UX1a2, F5): 998 Fundstellen in 114 Dateien.
 frontend/src/diakonos/App.vue	7
 frontend/src/diakonos/components/AppBottomNav.vue	3
 frontend/src/diakonos/components/MitgliedAuswahl.vue	10
@@ -53,35 +53,32 @@ frontend/src/diakonos/components/kronos/ModerationModals.vue	6
 frontend/src/diakonos/components/lieder/LiedBearbeiten.vue	6
 frontend/src/diakonos/components/lieder/LiedgruppeBearbeiten.vue	1
 frontend/src/diakonos/components/mitglieder/MitgliedHinzufuegenDialog.vue	2
-frontend/src/diakonos/components/planrahmen/BedarfDialog.vue	7
-frontend/src/diakonos/components/planrahmen/LiederPflege.vue	19
-frontend/src/diakonos/components/planrahmen/MerkmalWert.vue	6
-frontend/src/diakonos/components/planrahmen/PrAblauf.vue	16
-frontend/src/diakonos/components/planrahmen/PrAnsicht.vue	9
-frontend/src/diakonos/components/planrahmen/PrAnsichtenEditor.vue	12
-frontend/src/diakonos/components/planrahmen/PrAuswahl.vue	1
-frontend/src/diakonos/components/planrahmen/PrDeklarationenEditor.vue	10
-frontend/src/diakonos/components/planrahmen/PrDiff.vue	6
-frontend/src/diakonos/components/planrahmen/PrEditor.vue	16
+frontend/src/diakonos/components/planrahmen/BedarfDialog.vue	3
+frontend/src/diakonos/components/planrahmen/LiederPflege.vue	8
+frontend/src/diakonos/components/planrahmen/MerkmalWert.vue	3
+frontend/src/diakonos/components/planrahmen/PrAblauf.vue	7
+frontend/src/diakonos/components/planrahmen/PrAnsicht.vue	7
+frontend/src/diakonos/components/planrahmen/PrAnsichtenEditor.vue	5
+frontend/src/diakonos/components/planrahmen/PrDeklarationenEditor.vue	4
+frontend/src/diakonos/components/planrahmen/PrDiff.vue	2
+frontend/src/diakonos/components/planrahmen/PrEditor.vue	6
 frontend/src/diakonos/components/planrahmen/PrErklaerung.vue	3
-frontend/src/diakonos/components/planrahmen/PrErststart.vue	3
-frontend/src/diakonos/components/planrahmen/PrFelderEditor.vue	16
+frontend/src/diakonos/components/planrahmen/PrErststart.vue	1
+frontend/src/diakonos/components/planrahmen/PrFelderEditor.vue	7
 frontend/src/diakonos/components/planrahmen/PrHandyHinweis.vue	2
-frontend/src/diakonos/components/planrahmen/PrInfo.vue	5
-frontend/src/diakonos/components/planrahmen/PrKalender.vue	4
-frontend/src/diakonos/components/planrahmen/PrKnotenEditor.vue	6
-frontend/src/diakonos/components/planrahmen/PrLegende.vue	3
-frontend/src/diakonos/components/planrahmen/PrMeldungen.vue	10
-frontend/src/diakonos/components/planrahmen/PrParameterForm.vue	6
-frontend/src/diakonos/components/planrahmen/PrRaster.vue	10
-frontend/src/diakonos/components/planrahmen/PrRegelnEditor.vue	11
-frontend/src/diakonos/components/planrahmen/PrReihenEditor.vue	5
+frontend/src/diakonos/components/planrahmen/PrInfo.vue	4
+frontend/src/diakonos/components/planrahmen/PrKalender.vue	3
+frontend/src/diakonos/components/planrahmen/PrKnotenEditor.vue	3
+frontend/src/diakonos/components/planrahmen/PrMeldungen.vue	4
+frontend/src/diakonos/components/planrahmen/PrParameterForm.vue	2
+frontend/src/diakonos/components/planrahmen/PrRaster.vue	5
+frontend/src/diakonos/components/planrahmen/PrRegelnEditor.vue	3
+frontend/src/diakonos/components/planrahmen/PrReihenEditor.vue	2
 frontend/src/diakonos/components/planrahmen/PrSprungleiste.vue	5
-frontend/src/diakonos/components/planrahmen/PrStammdatenPanel.vue	4
-frontend/src/diakonos/components/planrahmen/PrTabelle.vue	18
-frontend/src/diakonos/components/planrahmen/PrTermineEditor.vue	4
+frontend/src/diakonos/components/planrahmen/PrStammdatenPanel.vue	2
+frontend/src/diakonos/components/planrahmen/PrTabelle.vue	12
+frontend/src/diakonos/components/planrahmen/PrTermineEditor.vue	1
 frontend/src/diakonos/components/planrahmen/PrWert.vue	3
-frontend/src/diakonos/components/planrahmen/Probelauf.vue	1
 frontend/src/diakonos/components/registrierung/DkQrCode.vue	1
 frontend/src/diakonos/components/registrierung/RegLinkTeilen.vue	2
 frontend/src/diakonos/components/ui/DkBadge.vue	1
@@ -127,12 +124,12 @@ frontend/src/diakonos/pages/einstellungen/DatenschutzTexte.vue	2
 frontend/src/diakonos/pages/einstellungen/Gemeinde.vue	1
 frontend/src/diakonos/pages/einstellungen/Registrierung.vue	1
 frontend/src/diakonos/pages/mitglieder/Uebersicht.vue	1
-frontend/src/diakonos/pages/planrahmen/Einrichten.vue	9
+frontend/src/diakonos/pages/planrahmen/Einrichten.vue	4
 frontend/src/diakonos/pages/planrahmen/MeineDienste.vue	9
-frontend/src/diakonos/pages/planrahmen/Plan.vue	9
-frontend/src/diakonos/pages/planrahmen/PlantypEditor.vue	26
-frontend/src/diakonos/pages/planrahmen/Stammdaten.vue	32
-frontend/src/diakonos/pages/planrahmen/Uebersicht.vue	11
+frontend/src/diakonos/pages/planrahmen/Plan.vue	2
+frontend/src/diakonos/pages/planrahmen/PlantypEditor.vue	12
+frontend/src/diakonos/pages/planrahmen/Stammdaten.vue	19
+frontend/src/diakonos/pages/planrahmen/Uebersicht.vue	6
 frontend/src/gast/App.vue	17
 frontend/src/organigramm/App.vue	12
 frontend/src/registrierung/App.vue	9

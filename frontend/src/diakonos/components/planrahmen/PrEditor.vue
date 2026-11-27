@@ -616,21 +616,21 @@ function nachrichten(liste) {
 </script>
 
 <style scoped>
-.pr-ed { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.pr-ed { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
 .pr-ed-block + .pr-ed-block { margin-top: var(--sp-2); }
 .pr-ed-kopf { display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-14); color: var(--dk-text-muted); }
 .pr-ed-kopf strong { color: var(--dk-text); }
-.pr-ed-pin { margin-left: 6px; font-size: var(--fs-12); }
-.pr-ed-feld { display: flex; flex-direction: column; gap: 5px; }
+.pr-ed-pin { margin-left: var(--sp-1); font-size: var(--fs-12); }
+.pr-ed-feld { display: flex; flex-direction: column; gap: var(--sp-1); }
 /* ST2: Tag-Filter der Lied-Auswahl */
-.pr-ed-tagfilter-reihe { display: flex; flex-wrap: wrap; gap: var(--sp-2) 14px; align-items: center; }
-.pr-ed-tagfilter-feld { display: inline-flex; gap: 6px; align-items: center; font-size: var(--fs-12); color: var(--dk-text-muted); }
+.pr-ed-tagfilter-reihe { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); align-items: center; }
+.pr-ed-tagfilter-feld { display: inline-flex; gap: var(--sp-1); align-items: center; font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-ed-tagfilter-wahl { font-size: var(--fs-12); padding: var(--sp-1) var(--sp-2); }
 .pr-ed-label { font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); }
-.pr-ed-gruppe { border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pr-ed-gruppe { border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
 .pr-ed-legend { font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); padding: 0 0 var(--sp-1); }
 .pr-ed-wahl {
-  display: flex; align-items: baseline; gap: 9px; padding: var(--sp-2) 10px;
+  display: flex; align-items: baseline; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface);
   cursor: pointer; transition: background var(--dk-fast, 120ms);
 }
@@ -643,7 +643,7 @@ function nachrichten(liste) {
 .pr-ed-wahl-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .pr-ed-wahl-name { font-size: var(--fs-14); color: var(--dk-text); font-weight: var(--fw-mittel); }
 .pr-ed-wahl-neben { font-size: var(--fs-12); color: var(--dk-text-muted); }
-.pr-ed-reiter { display: flex; flex-wrap: wrap; gap: 6px; }
+.pr-ed-reiter { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 .pr-ed-auswahl { width: 100%; }
 .pr-ed-reiter .is-active {
   border-color: color-mix(in oklch, var(--primary) 45%, var(--line));
@@ -651,7 +651,7 @@ function nachrichten(liste) {
   font-weight: var(--fw-fett);
 }
 .pr-ed-warnung {
-  padding: var(--sp-2) 10px; border-radius: 8px; font-size: var(--fs-12);
+  padding: var(--sp-2) var(--sp-3); border-radius: 8px; font-size: var(--fs-12);
   border: 1px solid color-mix(in oklch, var(--dk-warning) 35%, var(--dk-surface));
   background: color-mix(in oklch, var(--dk-warning) 8%, var(--dk-surface));
   color: var(--dk-warning);

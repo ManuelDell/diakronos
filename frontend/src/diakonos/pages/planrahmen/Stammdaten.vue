@@ -1153,23 +1153,23 @@ function artText(merkmal) {
 </script>
 
 <style scoped>
-.pr-stamm-kopf { margin-right: 10px; }
+.pr-stamm-kopf { margin-right: var(--sp-2); }
 .pr-stamm-zustand { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; color: var(--dk-text-muted); font-size: var(--fs-14); }
 .pr-stamm-zustand--fehler { color: var(--dk-danger); }
-.pr-stamm-fehler { margin-bottom: 14px; }
+.pr-stamm-fehler { margin-bottom: var(--sp-3); }
 .pr-stamm-reiter { margin-top: var(--sp-4); }
 .pr-stamm-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: var(--sp-2) 0; line-height: 1.5; }
-.pr-stamm-pool { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin: var(--sp-1) 0 var(--sp-3); padding: 10px 14px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); font-size: var(--fs-14); }
+.pr-stamm-pool { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin: var(--sp-1) 0 var(--sp-3); padding: var(--sp-3) var(--sp-4); border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); font-size: var(--fs-14); }
 .pr-stamm-pool-text { color: var(--text); font-weight: var(--fw-fett); }
 .pr-stamm-pool-link { color: var(--primary); text-decoration: underline; }
 .pr-stamm-tab-zahl { font-size: var(--fs-12); color: var(--dk-text-subtle); font-weight: var(--fw-normal); }
-.pr-stamm-filter { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: var(--sp-3); }
+.pr-stamm-filter { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-3); }
 .pr-stamm-suche { max-width: 320px; }
 .pr-stamm-gruppenwahl { max-width: 240px; }
 .pr-stamm-geschlechtwahl { max-width: 200px; }
 .pr-stamm-masse {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 9px var(--sp-3); margin-bottom: var(--sp-3);
+  display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+  padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-3);
   border: 1px solid color-mix(in oklch, var(--dk-brand-400) 35%, var(--dk-border));
   border-radius: 10px;
   background: color-mix(in oklch, var(--dk-brand-400) 6%, var(--dk-surface));
@@ -1180,7 +1180,7 @@ function artText(merkmal) {
 .pr-stamm-tabelle-wrap { overflow-x: auto; border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); }
 .pr-stamm-tabelle { width: 100%; border-collapse: collapse; font-size: var(--fs-14); }
 .pr-stamm-tabelle th, .pr-stamm-tabelle td {
-  padding: 7px 10px; text-align: left; vertical-align: top;
+  padding: var(--sp-2) var(--sp-3); text-align: left; vertical-align: top;
   border-bottom: 1px solid var(--dk-border);
 }
 .pr-stamm-tabelle thead th {
@@ -1228,17 +1228,17 @@ function artText(merkmal) {
 .pr-stamm-name-neben { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: baseline; margin-top: 2px; }
 .pr-stamm-kuerzel { font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-accent-d); }
 .pr-stamm-gruppen-chip {
-  display: inline-block; padding: 0 7px; border-radius: 999px;
+  display: inline-block; padding: 0 var(--sp-2); border-radius: 999px;
   background: var(--dk-surface-2); border: 1px solid var(--dk-border);
   font-size: var(--fs-12); color: var(--dk-text-muted); white-space: nowrap;
   max-width: 180px; overflow: hidden; text-overflow: ellipsis;
 }
 .pr-stamm-zelle { min-width: 110px; }
-.pr-stamm-leer { color: var(--dk-text-muted); font-size: var(--fs-14); padding: 14px 10px; }
-.pr-stamm-sammlung + .pr-stamm-sammlung { margin-top: 26px; }
+.pr-stamm-leer { color: var(--dk-text-muted); font-size: var(--fs-14); padding: var(--sp-4) var(--sp-3); }
+.pr-stamm-sammlung + .pr-stamm-sammlung { margin-top: var(--sp-5); }
 .pr-stamm-sammlung--hervor .pr-stamm-tabelle-wrap,
 .pr-stamm-sammlung--hervor .pr-stamm-sammlung-kopf { outline: 2px solid color-mix(in oklch, var(--dk-warning) 55%, transparent); outline-offset: 2px; }
-.pr-stamm-sammlung-kopf { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pr-stamm-sammlung-kopf { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .pr-stamm-sammlung-titel { font-size: var(--fs-16); font-weight: var(--fw-fett); color: var(--dk-text); margin: 0; }
 .pr-stamm-anzahl { font-size: var(--fs-12); color: var(--dk-text-muted); }
 .pr-stamm-neu { margin-left: auto; }
@@ -1246,7 +1246,7 @@ function artText(merkmal) {
 .pr-stamm-griff { cursor: grab; color: var(--dk-text-subtle); user-select: none; flex-shrink: 0; }
 .pr-stamm-titel-zelle { min-width: 200px; }
 .pr-stamm-titel-eingabe {
-  width: 100%; padding: var(--sp-1) 6px; border-radius: 8px;
+  width: 100%; padding: var(--sp-1) var(--sp-2); border-radius: 8px;
   border: 1px solid var(--dk-border); background: var(--dk-surface);
   color: var(--dk-text); font-size: var(--fs-14); font-family: inherit;
 }
@@ -1262,7 +1262,7 @@ function artText(merkmal) {
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 .pr-stamm-neu {
-  display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end;
+  display: flex; gap: var(--sp-3); flex-wrap: wrap; align-items: flex-end;
   margin-top: var(--sp-3); padding: var(--sp-3);
   border: 1px dashed var(--dk-border); border-radius: 10px; background: var(--dk-surface-2);
 }

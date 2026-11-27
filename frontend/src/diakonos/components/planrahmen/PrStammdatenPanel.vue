@@ -93,11 +93,11 @@ const { tastenFaenger } = useDialogFokus(offen, fenster, schliessen)
 }
 .pr-panel-kopf {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap;
-  padding: 10px var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--dk-border);
   background: var(--dk-surface);
   flex-shrink: 0;
-  padding-top: calc(10px + env(safe-area-inset-top));
+  padding-top: calc(var(--sp-3) + env(safe-area-inset-top));
 }
 .pr-panel-kopf-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pr-panel-titel { font-size: var(--fs-16); color: var(--dk-text); }

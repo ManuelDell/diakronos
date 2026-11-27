@@ -62,7 +62,7 @@ function oeffnen() { emit('stammdaten-oeffnen') }
 .pr-erststart h2 { font-size: var(--fs-16); margin: 0 0 var(--sp-2); }
 .pr-erststart p { color: var(--dk-text-muted); }
 .pr-erststart-liste { list-style: none; padding-left: 0; margin: 0; }
-.pr-erststart-liste > li { display: flex; align-items: flex-start; gap: 10px; margin: var(--sp-2) 0; }
+.pr-erststart-liste > li { display: flex; align-items: flex-start; gap: var(--sp-2); margin: var(--sp-2) 0; }
 .pr-erststart-marke {
   flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
@@ -77,5 +77,5 @@ function oeffnen() { emit('stammdaten-oeffnen') }
 }
 .pr-erststart-inhalt { min-width: 0; }
 .pr-erststart-status { color: var(--ok); font-weight: var(--fw-mittel); }
-.pr-erststart ul { padding-left: 18px; }
+.pr-erststart ul { padding-left: var(--sp-4); }
 </style>

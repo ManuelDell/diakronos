@@ -133,7 +133,7 @@ const standardWarnung = computed(() => `„${gespeichert.value}“ steht nicht i
 
 <style scoped>
 .pr-auswahl { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
-.pr-auswahl-kopf { display: inline-flex; align-items: center; gap: 6px; }
+.pr-auswahl-kopf { display: inline-flex; align-items: center; gap: var(--sp-1); }
 .pr-auswahl-feld { max-width: 340px; }
 .pr-auswahl--unbekannt {
   border-color: color-mix(in oklch, var(--dk-warning) 55%, var(--dk-border));

@@ -144,13 +144,13 @@ function zurKurzform() {
 </script>
 
 <style scoped>
-.pr-re { display: flex; flex-direction: column; gap: 14px; }
+.pr-re { display: flex; flex-direction: column; gap: var(--sp-3); }
 /* UX-C3a: „Felder pro Termin“ kann ein Sprungziel des Plantyp-Editors sein
    (`felderAnker`). Der Abstand zur Lesekante muss HIER stehen: das scoped-CSS
    der Seite erreicht ein Element im Kind nicht (Scoped-Attribut fehlt), die
    Überschrift klebte sonst unter dem Band der Sprungleiste. */
-.pr-re-titel { scroll-margin-top: 90px; font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 6px 0 0; }
-.pr-re-reihe { border: 1px solid var(--dk-border); border-radius: 12px; background: var(--dk-surface); padding: var(--sp-3); display: flex; flex-direction: column; gap: 10px; }
+.pr-re-titel { scroll-margin-top: 90px; font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: var(--sp-1) 0 0; }
+.pr-re-reihe { border: 1px solid var(--dk-border); border-radius: 12px; background: var(--dk-surface); padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
 .pr-re-kopf { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .pr-re-id { max-width: 180px; font-family: var(--font-mono); }
 .pr-re-unter-titel { scroll-margin-top: 90px; font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: var(--sp-1) 0 0; }

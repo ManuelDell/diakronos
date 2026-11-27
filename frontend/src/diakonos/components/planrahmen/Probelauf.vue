@@ -72,7 +72,7 @@ watch(() => props.definition.id, () => { nummer++; busy.value = false; ergebnis.
 onUnmounted(() => { nummer++ })
 </script>
 <style scoped>
-.pr-probe { display: grid; gap: 14px; min-width: 0; }
+.pr-probe { display: grid; gap: var(--sp-3); min-width: 0; }
 .pr-probe h2,.pr-probe h3,.pr-probe p { margin: 0; }
 .pr-probe p { color: var(--dk-text-muted); }
 .pr-probe-hinweis { color: var(--dk-warning) !important; }

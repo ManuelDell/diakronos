@@ -80,7 +80,7 @@ function zahl(id) {
 /* Zahl neben dem Eintrag — dieselbe Fläche wie .dk-chip-count. */
 .pr-sprung-zahl {
   font-size: var(--fs-xs);
-  padding: 1px 5px;
+  padding: 1px var(--sp-1);
   border-radius: var(--badge-r);
   background: var(--dk-surface-2);
   color: var(--dk-text-muted);

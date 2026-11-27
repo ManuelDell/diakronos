@@ -57,18 +57,18 @@ const zusammenfassung = computed(() => {
 
 <style scoped>
 .pr-diff-zusammenfassung { font-size: var(--fs-14); line-height: 1.5; }
-.pr-diff-gruppe { padding: 10px 0; border-bottom: 1px solid var(--dk-border); }
+.pr-diff-gruppe { padding: var(--sp-3) 0; border-bottom: 1px solid var(--dk-border); }
 .pr-diff-gruppe summary { cursor: pointer; font-weight: var(--fw-fett); font-size: var(--fs-14); }
 .pr-diff-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .pr-diff-zeile {
-  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
-  padding: 7px 0; border-bottom: 1px solid var(--dk-divider);
+  display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap;
+  padding: var(--sp-2) 0; border-bottom: 1px solid var(--dk-divider);
   font-size: var(--fs-14);
 }
 .pr-diff-zeile:last-child { border-bottom: none; }
 .pr-diff-datum { flex-shrink: 0; min-width: 96px; color: var(--dk-text-muted); font-size: var(--fs-12); }
 .pr-diff-feld { flex-shrink: 0; min-width: 110px; font-weight: var(--fw-fett); color: var(--dk-text); }
-.pr-diff-werte { display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.pr-diff-werte { display: inline-flex; align-items: baseline; gap: var(--sp-1); flex-wrap: wrap; min-width: 0; }
 .pr-diff-alt { color: var(--dk-text-muted); text-decoration: line-through; text-decoration-color: color-mix(in oklch, var(--dk-danger) 50%, transparent); }
 .pr-diff-neu { color: var(--dk-success); font-weight: var(--fw-mittel); }
 .pr-diff-pfeil { color: var(--dk-text-subtle); }

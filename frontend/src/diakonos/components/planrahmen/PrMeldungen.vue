@@ -133,7 +133,7 @@ function piktogramm(stufe) {
 .pr-meldungen-termin { font-size: var(--fs-12); margin-top: var(--sp-1); }
 .pr-meldungen-termin > summary { cursor: pointer; color: var(--dk-text-muted); width: fit-content; }
 .pr-meldungen-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-.pr-meldungen-uebersicht { border: 1px solid var(--dk-border); border-radius: 8px; padding: var(--sp-2) 10px; font-size: var(--fs-14); background: var(--dk-surface-2); }
+.pr-meldungen-uebersicht { border: 1px solid var(--dk-border); border-radius: 8px; padding: var(--sp-2) var(--sp-3); font-size: var(--fs-14); background: var(--dk-surface-2); }
 .pr-meldungen-uebersicht summary { cursor: pointer; }
 .pr-meldungen-kopf { display: flex; align-items: center; gap: var(--sp-2); }
 .pr-meldungen-kopf .pr-meldungen-titel { flex: 1; min-width: 0; }
@@ -141,11 +141,11 @@ function piktogramm(stufe) {
 .pr-meldungen-pfeil { display: inline-block; transition: transform 120ms ease; }
 details[open] > summary .pr-meldungen-pfeil { transform: rotate(90deg); }
 .pr-meldungen-gruppe { margin-top: var(--sp-2); }
-.pr-meldungen-gruppe > summary { margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
-.pr-meldungen { display: flex; flex-direction: column; gap: 6px; }
+.pr-meldungen-gruppe > summary { margin-bottom: var(--sp-1); display: flex; align-items: center; gap: var(--sp-1); }
+.pr-meldungen { display: flex; flex-direction: column; gap: var(--sp-1); }
 .pr-meldung {
   display: flex; align-items: flex-start; gap: var(--sp-2);
-  padding: var(--sp-2) 10px; border-radius: 8px;
+  padding: var(--sp-2) var(--sp-3); border-radius: 8px;
   border: 1px solid var(--dk-border); background: var(--dk-surface-2);
   font-size: var(--fs-14); line-height: 1.4;
 }
@@ -166,5 +166,5 @@ details[open] > summary .pr-meldungen-pfeil { transform: rotate(90deg); }
 .pr-meldung--warnung .pr-meldung-meldung { color: var(--dk-warning); font-weight: var(--fw-fett); }
 .pr-meldung-hinweis { color: var(--dk-text-muted); }
 .pr-meldung-pfad { color: var(--dk-text-subtle); font-size: var(--fs-12); font-family: var(--font-mono); }
-.pr-meldungen--kompakt .pr-meldung { padding: 5px var(--sp-2); font-size: var(--fs-12); }
+.pr-meldungen--kompakt .pr-meldung { padding: var(--sp-1) var(--sp-2); font-size: var(--fs-12); }
 </style>

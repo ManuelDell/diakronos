@@ -242,15 +242,15 @@ function kalenderSpalten(ansicht, monat) {
 .pr-an-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0; line-height: 1.5; }
 .pr-an-hinweis code { font-size: var(--fs-12); background: var(--dk-surface-2); padding: 1px var(--sp-1); border-radius: 4px; }
 .pr-an-leer { font-size: var(--fs-12); color: var(--dk-text-muted); margin: 0; }
-.pr-an-karte { border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); padding: 10px var(--sp-3); display: flex; flex-direction: column; gap: 10px; }
-.pr-an-zeile { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.pr-an-karte { border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); padding: var(--sp-3) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
+.pr-an-zeile { display: flex; align-items: flex-end; gap: var(--sp-2); flex-wrap: wrap; }
 .pr-an-label { display: flex; flex-direction: column; gap: var(--sp-1); font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); }
 .pr-an-block { display: flex; flex-direction: column; gap: var(--sp-2); border-top: 1px solid var(--dk-divider); padding-top: var(--sp-2); }
 .pr-an-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 0; }
-.pr-an-chips { display: flex; flex-wrap: wrap; gap: 6px var(--sp-3); }
-.pr-an-chip { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; }
-.pr-an-schalter { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; }
-.pr-an-format { display: grid; grid-template-columns: minmax(120px, 200px) 1fr auto; gap: 6px; align-items: center; }
+.pr-an-chips { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); }
+.pr-an-chip { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; }
+.pr-an-schalter { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; }
+.pr-an-format { display: grid; grid-template-columns: minmax(120px, 200px) 1fr auto; gap: var(--sp-1); align-items: center; }
 .pr-an-formatfehler { grid-column: 1 / -1; }
 .pr-an-schluessel { font-family: var(--font-mono); font-size: var(--fs-14); }
 .pr-an-chip--alt { color: var(--dk-warning); }

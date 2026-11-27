@@ -381,7 +381,7 @@ function istKnoten(wert) {
 .pr-te { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
 .pr-te-zeile { display: flex; gap: var(--sp-3); flex-wrap: wrap; align-items: flex-end; }
 .pr-te-label { display: flex; flex-direction: column; gap: var(--sp-1); font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); min-width: 0; }
-.pr-te-wiederholung, .pr-te-ref, .pr-te-versatz { display: inline-flex; gap: 6px; align-items: center; }
+.pr-te-wiederholung, .pr-te-ref, .pr-te-versatz { display: inline-flex; gap: var(--sp-1); align-items: center; }
 .pr-te-klein { max-width: 130px; }
 .pr-te-klein2 { max-width: 70px; }
 .pr-te-zeit { max-width: 130px; }
@@ -391,8 +391,8 @@ function istKnoten(wert) {
 .pr-te-details summary { cursor: pointer; color: var(--dk-text-muted); font-size: var(--fs-12); font-weight: var(--fw-fett); }
 .pr-te-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 0; }
 .pr-te-hinweis { font-size: var(--fs-12); color: var(--dk-text-muted); margin: 0; }
-.pr-te-feiertage, .pr-te-ausnahmen, .pr-te-manuell { display: flex; flex-direction: column; gap: var(--sp-2); border-top: 1px solid var(--dk-divider); padding-top: 10px; }
-.pr-te-schalter { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; }
+.pr-te-feiertage, .pr-te-ausnahmen, .pr-te-manuell { display: flex; flex-direction: column; gap: var(--sp-2); border-top: 1px solid var(--dk-divider); padding-top: var(--sp-3); }
+.pr-te-schalter { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; }
 .pr-te-schalter--gross { font-size: var(--fs-14); }
 .pr-te-tage { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); }
 .pr-te-eigener { max-width: 260px; }

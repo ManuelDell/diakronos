@@ -67,7 +67,7 @@ function umschalten() { offen.value = !offen.value }
 .pr-info-text {
   position: absolute; left: 0; top: calc(100% + 4px); z-index: 20;
   width: max-content; max-width: 280px;
-  padding: var(--sp-2) 10px; border-radius: 8px;
+  padding: var(--sp-2) var(--sp-3); border-radius: 8px;
   background: var(--dk-surface); color: var(--dk-text);
   border: 1px solid var(--dk-border);
   box-shadow: var(--shadow-lg);

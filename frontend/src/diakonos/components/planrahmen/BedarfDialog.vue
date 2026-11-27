@@ -196,17 +196,17 @@ defineExpose({ merkmale, sammlungen, rollen, offeneEintraege, schluessel, einstu
 </script>
 
 <style scoped>
-.pr-bd { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.pr-bd { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
 .pr-bd-intro { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0; line-height: 1.5; }
-.pr-bd-leer { font-size: var(--fs-14); color: var(--dk-text-muted); padding: 6px 0; }
+.pr-bd-leer { font-size: var(--fs-14); color: var(--dk-text-muted); padding: var(--sp-2) 0; }
 .pr-bd-titel {
   font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase;
   letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 0 0 var(--sp-2);
 }
-.pr-bd-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pr-bd-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
 .pr-bd-eintrag {
   display: flex; align-items: flex-start; justify-content: space-between;
-  gap: var(--sp-3); flex-wrap: wrap; padding: 9px var(--sp-3);
+  gap: var(--sp-3); flex-wrap: wrap; padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface);
 }
 .pr-bd-eintrag--weg { opacity: 0.6; }

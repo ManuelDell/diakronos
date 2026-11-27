@@ -274,19 +274,19 @@ function listeSetzen(obj, schluessel, roh) {
 </script>
 
 <style scoped>
-.pr-dek { display: flex; flex-direction: column; gap: 20px; }
+.pr-dek { display: flex; flex-direction: column; gap: var(--sp-4); }
 .pr-dek-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); text-transform: uppercase; letter-spacing: 0.05em; color: var(--dk-text-muted); margin: 0 0 var(--sp-1); }
-.pr-dek-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0 0 10px; line-height: 1.5; }
+.pr-dek-hinweis { font-size: var(--fs-14); color: var(--dk-text-muted); margin: 0 0 var(--sp-2); line-height: 1.5; }
 .pr-dek-hinweis code { font-size: var(--fs-12); background: var(--dk-surface-2); padding: 1px var(--sp-1); border-radius: 4px; }
-.pr-dek-ziel + .pr-dek-ziel { margin-top: 14px; }
+.pr-dek-ziel + .pr-dek-ziel { margin-top: var(--sp-3); }
 .pr-dek-ziel-titel { font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text); margin: 0 0 var(--sp-2); }
-.pr-dek-karte { border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); padding: var(--sp-2) 10px; display: flex; flex-direction: column; gap: var(--sp-2); }
+.pr-dek-karte { border: 1px solid var(--dk-border); border-radius: 10px; background: var(--dk-surface); padding: var(--sp-2) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
 .pr-dek-karte + .pr-dek-karte { margin-top: var(--sp-2); }
 .pr-dek-leer { font-size: var(--fs-12); color: var(--dk-text-muted); margin: 0 0 var(--sp-2); }
-.pr-dek-zeile { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.pr-dek-zeile { display: flex; align-items: flex-end; gap: var(--sp-2); flex-wrap: wrap; }
 .pr-dek-label { display: flex; flex-direction: column; gap: var(--sp-1); font-size: var(--fs-12); font-weight: var(--fw-fett); color: var(--dk-text-muted); }
 .pr-dek-kurz { max-width: 180px; font-family: var(--font-mono); }
-.pr-dek-schalter { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; padding-bottom: var(--sp-2); }
+.pr-dek-schalter { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-14); color: var(--dk-text); cursor: pointer; padding-bottom: var(--sp-2); }
 .pr-dek-details summary { cursor: pointer; font-size: var(--fs-12); color: var(--dk-text-muted); }
 /* FIX-6: Umbruch nach der einen Breitengrenze der App (720 px,
    composables/eingabeart.mjs `MOBIL_GRENZE_PX`) statt einer eigenen 640 px. */
